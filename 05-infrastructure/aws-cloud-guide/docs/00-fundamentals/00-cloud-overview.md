@@ -1,101 +1,101 @@
-# クラウドコンピューティング概要
+# Cloud Computing Overview
 
-> インターネット経由でコンピューティングリソースをオンデマンドで利用する仕組みを体系的に理解する
+> Systematically understand the mechanism for using computing resources on demand over the Internet
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. クラウドコンピューティングの定義と5つの本質的特性を説明できる
-2. IaaS / PaaS / SaaS / FaaS / CaaS の責任分界モデルを区別し、適切なサービスを選択できる
-3. AWS / GCP / Azure の主要サービスを比較し、プロジェクトに最適なクラウドを判断できる
-4. クラウド導入の段階的アプローチと移行戦略を理解できる
-5. クラウドネイティブアーキテクチャの基本原則を実践できる
+1. Explain the definition of cloud computing and its five essential characteristics
+2. Distinguish the shared responsibility models of IaaS / PaaS / SaaS / FaaS / CaaS and select the appropriate service
+3. Compare major services across AWS / GCP / Azure and determine the optimal cloud for your project
+4. Understand the phased approach and migration strategies for cloud adoption
+5. Apply the fundamental principles of cloud-native architecture in practice
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. クラウドコンピューティングとは
+## 1. What Is Cloud Computing?
 
-### 1.1 NIST による定義
+### 1.1 NIST Definition
 
-米国国立標準技術研究所 (NIST SP 800-145) はクラウドコンピューティングを次のように定義している。
+The National Institute of Standards and Technology (NIST SP 800-145) defines cloud computing as follows:
 
-> 共有プールの構成可能なコンピューティングリソース（ネットワーク、サーバー、ストレージ、アプリケーション、サービス）に対して、最小限の管理労力またはサービスプロバイダとのやり取りで迅速にプロビジョニングおよびリリースできる、便利なオンデマンドのネットワークアクセスを可能にするモデル
+> A model for enabling ubiquitous, convenient, on-demand network access to a shared pool of configurable computing resources (e.g., networks, servers, storage, applications, and services) that can be rapidly provisioned and released with minimal management effort or service provider interaction.
 
-この定義の要点を分解すると以下のようになる。
+The key elements of this definition can be broken down as follows:
 
 ```
-NIST定義の構成要素:
+Components of the NIST Definition:
 
-1. 共有プール (Resource Pooling)
-   → 複数のテナントが物理リソースを共有
-   → 仮想化技術がこれを実現
+1. Resource Pooling
+   -> Multiple tenants share physical resources
+   -> Virtualization technology makes this possible
 
-2. 構成可能 (Configurable)
-   → APIやコンソールからリソースの仕様を柔軟に変更可能
-   → CPU、メモリ、ストレージ等を動的に調整
+2. Configurable
+   -> Resource specifications can be flexibly changed via APIs or consoles
+   -> CPU, memory, storage, etc. can be dynamically adjusted
 
-3. オンデマンド (On-Demand)
-   → 事前のキャパシティプランニングが不要
-   → 必要な時に必要な分だけ確保
+3. On-Demand
+   -> No upfront capacity planning required
+   -> Acquire only what you need, when you need it
 
-4. ネットワークアクセス (Broad Network Access)
-   → インターネットまたはVPN経由で場所を問わずアクセス
-   → 標準プロトコル（HTTP/HTTPS、SSH等）を使用
+4. Broad Network Access
+   -> Access from anywhere via the Internet or VPN
+   -> Uses standard protocols (HTTP/HTTPS, SSH, etc.)
 
-5. 迅速なプロビジョニング (Rapid Provisioning)
-   → 数分でリソースが利用可能
-   → Infrastructure as Code による自動化
+5. Rapid Provisioning
+   -> Resources available in minutes
+   -> Automation through Infrastructure as Code
 ```
 
-### 1.2 5つの本質的特性
+### 1.2 Five Essential Characteristics
 
 ```
 +--------------------------------------------------------------+
-|            クラウドの5つの本質的特性 (NIST SP 800-145)           |
+|       Five Essential Characteristics of Cloud (NIST SP 800-145) |
 +--------------------------------------------------------------+
-| 1. オンデマンド・セルフサービス                                   |
-|    - 人手を介さずリソースを即時確保                                |
-|    - Webコンソール・API・CLIで操作                               |
-|    - 承認プロセスなしで開発者が直接プロビジョニング                  |
+| 1. On-Demand Self-Service                                    |
+|    - Instantly provision resources without human intervention  |
+|    - Operate via web console, API, or CLI                    |
+|    - Developers can provision directly without approval       |
 |                                                              |
-| 2. 幅広いネットワークアクセス                                    |
-|    - 標準プロトコルでどこからでもアクセス                          |
-|    - PC、スマートフォン、タブレット等の多様なデバイス対応            |
-|    - 低レイテンシのグローバルネットワーク                          |
+| 2. Broad Network Access                                      |
+|    - Access from anywhere using standard protocols            |
+|    - Support for diverse devices: PCs, smartphones, tablets   |
+|    - Low-latency global network                              |
 |                                                              |
-| 3. リソースプーリング                                           |
-|    - マルチテナントで物理リソースを共有                            |
-|    - ユーザーは物理的な場所を意識しない                            |
-|    - 仮想化による論理的なリソース分離                              |
+| 3. Resource Pooling                                          |
+|    - Multi-tenant sharing of physical resources              |
+|    - Users are unaware of physical location                  |
+|    - Logical resource isolation through virtualization        |
 |                                                              |
-| 4. 迅速な弾力性 (Rapid Elasticity)                              |
-|    - 需要に応じて自動スケール                                    |
-|    - スケールアウト（水平拡張）とスケールアップ（垂直拡張）          |
-|    - ユーザーからは無限にリソースがあるように見える                  |
+| 4. Rapid Elasticity                                          |
+|    - Automatic scaling based on demand                       |
+|    - Scale out (horizontal) and scale up (vertical)          |
+|    - Appears as unlimited resources to users                 |
 |                                                              |
-| 5. 従量課金 (Measured Service)                                  |
-|    - 使った分だけ支払い                                          |
-|    - リソース使用量の計測・監視・報告が自動化                      |
-|    - 秒単位・リクエスト単位の課金も可能                            |
+| 5. Measured Service                                          |
+|    - Pay only for what you use                               |
+|    - Automatic metering, monitoring, and reporting           |
+|    - Per-second or per-request billing possible              |
 +--------------------------------------------------------------+
 ```
 
-### 1.3 各特性の実務での実現例
+### 1.3 Practical Examples of Each Characteristic
 
 ```python
-# 特性1: オンデマンド・セルフサービス — boto3でEC2インスタンスを即時起動
+# Characteristic 1: On-Demand Self-Service — Instantly launch an EC2 instance with boto3
 import boto3
 
 ec2 = boto3.resource('ec2', region_name='ap-northeast-1')
 
-# 開発者が自分のタイミングでリソースを確保
+# Developers provision resources on their own schedule
 instances = ec2.create_instances(
     ImageId='ami-0abcdef1234567890',
     MinCount=1,
@@ -106,16 +106,16 @@ instances = ec2.create_instances(
         'Tags': [{'Key': 'Name', 'Value': 'dev-server'}]
     }]
 )
-print(f"インスタンス {instances[0].id} を起動しました")
+print(f"Instance {instances[0].id} launched")
 ```
 
 ```python
-# 特性4: 迅速な弾力性 — Auto Scalingグループの設定
+# Characteristic 4: Rapid Elasticity — Auto Scaling group configuration
 import boto3
 
 autoscaling = boto3.client('autoscaling', region_name='ap-northeast-1')
 
-# 需要に応じて1〜10台の範囲で自動スケール
+# Auto scale between 1 and 10 instances based on demand
 autoscaling.create_auto_scaling_group(
     AutoScalingGroupName='web-asg',
     LaunchTemplate={
@@ -134,7 +134,7 @@ autoscaling.create_auto_scaling_group(
     }]
 )
 
-# スケーリングポリシーの設定（CPU使用率70%を基準）
+# Configure scaling policy (based on 70% CPU utilization)
 autoscaling.put_scaling_policy(
     AutoScalingGroupName='web-asg',
     PolicyName='cpu-target-tracking',
@@ -151,12 +151,12 @@ autoscaling.put_scaling_policy(
 ```
 
 ```python
-# 特性5: 従量課金 — コスト監視と予算アラート設定
+# Characteristic 5: Measured Service — Cost monitoring and budget alerts
 import boto3
 
 budgets = boto3.client('budgets', region_name='us-east-1')
 
-# 月額予算を設定し、閾値超過時に通知
+# Set a monthly budget and notify when thresholds are exceeded
 budgets.create_budget(
     AccountId='123456789012',
     Budget={
@@ -187,79 +187,79 @@ budgets.create_budget(
 )
 ```
 
-### 1.4 オンプレミス vs クラウド
+### 1.4 On-Premises vs Cloud
 
 ```
 +------------------------------+      +------------------------------+
-|        オンプレミス             |      |          クラウド             |
+|        On-Premises            |      |          Cloud               |
 +------------------------------+      +------------------------------+
-| ハードウェア購入 必要           |      | ハードウェア購入 不要          |
-| 初期費用 大（CAPEX中心）        |      | 初期費用 小（OPEX中心）        |
-| スケール 数週間~数ヶ月          |      | スケール 数分                 |
-| 運用 自社が全責任              |      | 運用 共有責任モデル            |
-| 減価償却 あり（3~5年）          |      | 減価償却 なし                 |
-| キャパシティ 固定的             |      | キャパシティ 弾力的            |
-| グローバル展開 困難             |      | グローバル展開 容易            |
-| 障害対応 自社                  |      | 障害対応 プロバイダ+自社       |
-| セキュリティ 完全自社管理        |      | セキュリティ 共有責任          |
-| ライセンス 自前                |      | ライセンス 従量課金 or BYOL    |
+| Hardware purchase required    |      | No hardware purchase needed  |
+| High upfront cost (CAPEX)     |      | Low upfront cost (OPEX)      |
+| Scaling: weeks to months      |      | Scaling: minutes             |
+| Operations: full self-managed |      | Operations: shared model     |
+| Depreciation: 3-5 years      |      | No depreciation              |
+| Capacity: fixed              |      | Capacity: elastic            |
+| Global expansion: difficult  |      | Global expansion: easy       |
+| Incident response: self      |      | Incident response: shared    |
+| Security: fully self-managed |      | Security: shared model       |
+| Licensing: self-managed      |      | Licensing: pay-as-you-go/BYOL|
 +------------------------------+      +------------------------------+
 ```
 
-### 1.5 TCO（総所有コスト）比較の実務的アプローチ
+### 1.5 Practical Approach to TCO (Total Cost of Ownership) Comparison
 
-クラウド移行の投資判断では、単純な月額費用の比較ではなくTCOで評価する。
+When making investment decisions for cloud migration, evaluate based on TCO rather than simple monthly cost comparisons.
 
 ```
-TCO計算の構成要素:
+TCO Calculation Components:
 
-【オンプレミスのTCO】
-┌─────────────────────────────────────────────┐
-│ ハードウェア費用                               │
-│   サーバー本体: ¥2,000,000 × 10台             │
-│   ネットワーク機器: ¥5,000,000                │
-│   ストレージ: ¥3,000,000                      │
-│                                             │
-│ ファシリティ費用                               │
-│   データセンター利用料: ¥500,000/月            │
-│   電力・空調: ¥200,000/月                     │
-│                                             │
-│ 人件費                                       │
-│   インフラエンジニア 2名: ¥1,200,000/月        │
-│   24/365オンコール手当: ¥300,000/月            │
-│                                             │
-│ ソフトウェアライセンス                          │
-│   OS、DB、ミドルウェア: ¥2,000,000/年          │
-│                                             │
-│ 3年間TCO: 約 ¥120,000,000                    │
-└─────────────────────────────────────────────┘
+[On-Premises TCO]
++---------------------------------------------+
+| Hardware Costs                               |
+|   Servers: 10 units                          |
+|   Network equipment                          |
+|   Storage                                    |
+|                                             |
+| Facility Costs                               |
+|   Data center rental: monthly               |
+|   Power and cooling: monthly                |
+|                                             |
+| Personnel Costs                              |
+|   Infrastructure engineers (2): monthly      |
+|   24/365 on-call allowance: monthly         |
+|                                             |
+| Software Licenses                            |
+|   OS, DB, middleware: yearly                |
+|                                             |
+| 3-Year TCO: Significant                     |
++---------------------------------------------+
 
-【クラウド（AWS）のTCO】
-┌─────────────────────────────────────────────┐
-│ コンピュート                                  │
-│   EC2 (Reserved 3年): ¥300,000/月            │
-│   Lambda: ¥50,000/月                         │
-│                                             │
-│ ストレージ・DB                                │
-│   S3 + RDS: ¥150,000/月                      │
-│   ElastiCache: ¥80,000/月                    │
-│                                             │
-│ ネットワーク                                  │
-│   データ転送 + VPN: ¥100,000/月               │
-│                                             │
-│ 人件費（削減後）                               │
-│   クラウドエンジニア 1名: ¥700,000/月          │
-│                                             │
-│ 3年間TCO: 約 ¥60,000,000                     │
-└─────────────────────────────────────────────┘
+[Cloud (AWS) TCO]
++---------------------------------------------+
+| Compute                                      |
+|   EC2 (Reserved 3yr): monthly               |
+|   Lambda: monthly                           |
+|                                             |
+| Storage & DB                                 |
+|   S3 + RDS: monthly                         |
+|   ElastiCache: monthly                      |
+|                                             |
+| Network                                      |
+|   Data transfer + VPN: monthly              |
+|                                             |
+| Personnel Costs (reduced)                    |
+|   Cloud engineer (1): monthly               |
+|                                             |
+| 3-Year TCO: Substantially lower             |
++---------------------------------------------+
 ```
 
 ```python
-# TCO計算スクリプト
+# TCO calculation script
 def calculate_tco_comparison(years: int = 3):
-    """オンプレミスとクラウドのTCO比較"""
+    """Compare TCO between on-premises and cloud"""
 
-    # オンプレミスコスト
+    # On-premises costs
     onprem = {
         'hardware': {
             'servers': 2_000_000 * 10,
@@ -274,7 +274,7 @@ def calculate_tco_comparison(years: int = 3):
         },
         'yearly': {
             'licenses': 2_000_000,
-            'maintenance': 1_500_000,  # ハードウェア保守
+            'maintenance': 1_500_000,  # Hardware maintenance
         }
     }
 
@@ -284,7 +284,7 @@ def calculate_tco_comparison(years: int = 3):
         sum(onprem['yearly'].values()) * years
     )
 
-    # クラウドコスト
+    # Cloud costs
     cloud = {
         'monthly': {
             'compute': 300_000,
@@ -308,10 +308,10 @@ def calculate_tco_comparison(years: int = 3):
     savings = onprem_total - cloud_total
     savings_pct = (savings / onprem_total) * 100
 
-    print(f"=== {years}年間TCO比較 ===")
-    print(f"オンプレミス: ¥{onprem_total:,.0f}")
-    print(f"クラウド:     ¥{cloud_total:,.0f}")
-    print(f"削減額:       ¥{savings:,.0f} ({savings_pct:.1f}%)")
+    print(f"=== {years}-Year TCO Comparison ===")
+    print(f"On-Premises: ¥{onprem_total:,.0f}")
+    print(f"Cloud:       ¥{cloud_total:,.0f}")
+    print(f"Savings:     ¥{savings:,.0f} ({savings_pct:.1f}%)")
 
     return {
         'onprem': onprem_total,
@@ -321,105 +321,105 @@ def calculate_tco_comparison(years: int = 3):
     }
 
 result = calculate_tco_comparison(3)
-# === 3年間TCO比較 ===
-# オンプレミス: ¥117,400,000
-# クラウド:     ¥52,680,000
-# 削減額:       ¥64,720,000 (55.1%)
+# === 3-Year TCO Comparison ===
+# On-Premises: ¥117,400,000
+# Cloud:       ¥52,680,000
+# Savings:     ¥64,720,000 (55.1%)
 ```
 
-### 1.6 クラウドコンピューティングの歴史的変遷
+### 1.6 Historical Evolution of Cloud Computing
 
 ```
-クラウドコンピューティングの進化:
+Evolution of Cloud Computing:
 
-2002年 - AWS内部でインフラの標準化開始
-2004年 - Amazon SQS (最初のAWSサービス)
-2006年 - Amazon S3, EC2 リリース → IaaSの始まり
-2008年 - Google App Engine (PaaSの先駆け)
-2009年 - Heroku登場 → PaaS普及
-2010年 - Microsoft Azure 正式リリース
-2011年 - NIST SP 800-145 発行（クラウドの公式定義）
-2012年 - AWS re:Invent 開始、DynamoDB リリース
-2013年 - Docker登場 → コンテナ革命
-2014年 - AWS Lambda → サーバーレスの始まり
-        Kubernetes v1.0 → コンテナオーケストレーション
-2015年 - AWS IoT, Machine Learning サービス開始
-2016年 - Google Cloud Platform 本格展開
-2017年 - クラウドネイティブの概念が普及 (CNCF)
-2018年 - マルチクラウド戦略が主流に
-2019年 - AWS Outposts → ハイブリッドクラウド強化
-2020年 - リモートワーク需要でクラウド加速
-2021年 - AWS Graviton3、クラウド支出が初めて$1T超え
-2022年 - FinOps の普及、コスト最適化が重要トピックに
-2023年 - 生成AI関連サービスの爆発的増加
-2024年 - AI/MLワークロードのクラウド移行加速
-2025年 - エッジ・クラウド融合、サステナブルクラウド
+2002 - AWS begins internal infrastructure standardization
+2004 - Amazon SQS (first AWS service)
+2006 - Amazon S3, EC2 released -> Beginning of IaaS
+2008 - Google App Engine (PaaS pioneer)
+2009 - Heroku launched -> PaaS adoption grows
+2010 - Microsoft Azure officially released
+2011 - NIST SP 800-145 published (official cloud definition)
+2012 - AWS re:Invent begins, DynamoDB released
+2013 - Docker launched -> Container revolution
+2014 - AWS Lambda -> Beginning of serverless
+        Kubernetes v1.0 -> Container orchestration
+2015 - AWS IoT, Machine Learning services launched
+2016 - Google Cloud Platform expands significantly
+2017 - Cloud-native concept gains widespread adoption (CNCF)
+2018 - Multi-cloud strategy becomes mainstream
+2019 - AWS Outposts -> Hybrid cloud enhancement
+2020 - Remote work demand accelerates cloud adoption
+2021 - AWS Graviton3, cloud spending exceeds $1T for the first time
+2022 - FinOps gains traction, cost optimization becomes key topic
+2023 - Explosive growth in generative AI-related services
+2024 - Accelerated cloud migration for AI/ML workloads
+2025 - Edge-cloud convergence, sustainable cloud
 ```
 
 ---
 
-## 2. サービスモデル — IaaS / PaaS / SaaS / FaaS / CaaS
+## 2. Service Models — IaaS / PaaS / SaaS / FaaS / CaaS
 
-### 2.1 責任分界モデル
+### 2.1 Shared Responsibility Model
 
 ```
-管理責任の範囲（上に行くほどユーザー責任）
+Scope of Management Responsibility (higher = more user responsibility)
 
   +--------------+---------+---------+---------+---------+---------+
   |              | IaaS    | CaaS    | PaaS    | FaaS    | SaaS    |
   +--------------+---------+---------+---------+---------+---------+
-  | アプリ       | ユーザー | ユーザー | ユーザー | ユーザー | ベンダー |
-  | データ       | ユーザー | ユーザー | ユーザー | ユーザー | 共有    |
-  | ランタイム   | ユーザー | ユーザー | ベンダー | ベンダー | ベンダー |
-  | コンテナ     | ユーザー | ベンダー | ベンダー | ベンダー | ベンダー |
-  | ミドルウェア | ユーザー | ベンダー | ベンダー | ベンダー | ベンダー |
-  | OS           | ユーザー | ベンダー | ベンダー | ベンダー | ベンダー |
-  | 仮想化       | ベンダー | ベンダー | ベンダー | ベンダー | ベンダー |
-  | サーバー     | ベンダー | ベンダー | ベンダー | ベンダー | ベンダー |
-  | ストレージ   | ベンダー | ベンダー | ベンダー | ベンダー | ベンダー |
-  | ネットワーク | ベンダー | ベンダー | ベンダー | ベンダー | ベンダー |
+  | Application  | User    | User    | User    | User    | Vendor  |
+  | Data         | User    | User    | User    | User    | Shared  |
+  | Runtime      | User    | User    | Vendor  | Vendor  | Vendor  |
+  | Container    | User    | Vendor  | Vendor  | Vendor  | Vendor  |
+  | Middleware   | User    | Vendor  | Vendor  | Vendor  | Vendor  |
+  | OS           | User    | Vendor  | Vendor  | Vendor  | Vendor  |
+  | Virtualization| Vendor | Vendor  | Vendor  | Vendor  | Vendor  |
+  | Server       | Vendor  | Vendor  | Vendor  | Vendor  | Vendor  |
+  | Storage      | Vendor  | Vendor  | Vendor  | Vendor  | Vendor  |
+  | Network      | Vendor  | Vendor  | Vendor  | Vendor  | Vendor  |
   +--------------+---------+---------+---------+---------+---------+
 
   CaaS = Container as a Service (ECS/EKS, GKE, AKS)
   FaaS = Function as a Service (Lambda, Cloud Functions, Azure Functions)
 ```
 
-### 2.2 各モデルの代表サービスと詳細比較
+### 2.2 Representative Services and Detailed Comparison for Each Model
 
-| モデル | 概要 | AWS 例 | GCP 例 | Azure 例 | 主要ユースケース |
-|--------|------|--------|--------|----------|----------------|
-| IaaS | 仮想マシン・ネットワークを提供 | EC2, VPC | Compute Engine | Virtual Machines | フルカスタマイズが必要なワークロード |
-| CaaS | コンテナ実行基盤を提供 | ECS, EKS, Fargate | GKE, Cloud Run | AKS, Container Apps | マイクロサービス、CI/CD |
-| PaaS | アプリ実行基盤を提供 | Elastic Beanstalk, App Runner | App Engine | App Service | Webアプリ、API |
-| FaaS | 関数実行基盤を提供 | Lambda | Cloud Functions | Azure Functions | イベント駆動処理 |
-| SaaS | 完成したアプリケーション | WorkMail, Chime | Google Workspace | Microsoft 365 | エンドユーザー向けツール |
+| Model | Overview | AWS Examples | GCP Examples | Azure Examples | Primary Use Cases |
+|-------|----------|-------------|-------------|---------------|-------------------|
+| IaaS | Provides virtual machines and networking | EC2, VPC | Compute Engine | Virtual Machines | Workloads requiring full customization |
+| CaaS | Provides container execution platform | ECS, EKS, Fargate | GKE, Cloud Run | AKS, Container Apps | Microservices, CI/CD |
+| PaaS | Provides application execution platform | Elastic Beanstalk, App Runner | App Engine | App Service | Web apps, APIs |
+| FaaS | Provides function execution platform | Lambda | Cloud Functions | Azure Functions | Event-driven processing |
+| SaaS | Complete applications | WorkMail, Chime | Google Workspace | Microsoft 365 | End-user tools |
 
-### 2.3 サービスモデル選択のフローチャート
+### 2.3 Service Model Selection Flowchart
 
 ```
-サービスモデル選択の判断フロー:
+Service Model Selection Decision Flow:
 
-Q1: アプリケーションのカスタマイズ度は？
-├── 高い（OS・ミドルウェアも制御したい）
-│   └── → IaaS (EC2)
-│       Q2: コンテナ化されているか？
-│       ├── Yes → CaaS (ECS/EKS/Fargate)
-│       └── No  → IaaS のまま
+Q1: How much customization does the application need?
+├── High (need to control OS and middleware)
+│   └── -> IaaS (EC2)
+│       Q2: Is it containerized?
+│       ├── Yes -> CaaS (ECS/EKS/Fargate)
+│       └── No  -> Stay with IaaS
 │
-├── 中程度（アプリコードに集中したい）
-│   └── → PaaS (Elastic Beanstalk / App Runner)
-│       Q3: 常時起動が必要か？
-│       ├── Yes → PaaS
-│       └── No  → FaaS (Lambda)
+├── Medium (want to focus on application code)
+│   └── -> PaaS (Elastic Beanstalk / App Runner)
+│       Q3: Does it need to run continuously?
+│       ├── Yes -> PaaS
+│       └── No  -> FaaS (Lambda)
 │
-└── 低い（既製品で十分）
-    └── → SaaS
+└── Low (off-the-shelf solution is sufficient)
+    └── -> SaaS
 ```
 
-### 2.4 コード例: IaaS (EC2) の起動と初期設定
+### 2.4 Code Example: Launching and Configuring IaaS (EC2)
 
 ```bash
-# EC2インスタンスを起動する最小コマンド
+# Minimal command to launch an EC2 instance
 aws ec2 run-instances \
   --image-id ami-0abcdef1234567890 \
   --instance-type t3.micro \
@@ -429,7 +429,7 @@ aws ec2 run-instances \
   --count 1 \
   --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=web-server-01}]'
 
-# インスタンスの状態確認
+# Check instance status
 aws ec2 describe-instances \
   --filters "Name=tag:Name,Values=web-server-01" \
   --query 'Reservations[].Instances[].[InstanceId,State.Name,PublicIpAddress]' \
@@ -437,7 +437,7 @@ aws ec2 describe-instances \
 ```
 
 ```python
-# Terraform (IaC) でEC2を定義する例
+# Defining EC2 with Terraform (IaC)
 # main.tf
 """
 resource "aws_instance" "web_server" {
@@ -471,10 +471,10 @@ resource "aws_instance" "web_server" {
 """
 ```
 
-### 2.5 コード例: CaaS (ECS Fargate) デプロイ
+### 2.5 Code Example: CaaS (ECS Fargate) Deployment
 
 ```json
-// ECSタスク定義 (task-definition.json)
+// ECS Task Definition (task-definition.json)
 {
   "family": "web-app",
   "networkMode": "awsvpc",
@@ -517,7 +517,7 @@ resource "aws_instance" "web_server" {
 ```
 
 ```bash
-# ECSサービスをFargateで作成
+# Create an ECS service with Fargate
 aws ecs create-service \
   --cluster production \
   --service-name web-app \
@@ -532,18 +532,18 @@ aws ecs create-service \
   --load-balancers "targetGroupArn=arn:aws:elasticloadbalancing:...,containerName=web,containerPort=8080"
 ```
 
-### 2.6 コード例: PaaS (Elastic Beanstalk) デプロイ
+### 2.6 Code Example: PaaS (Elastic Beanstalk) Deployment
 
 ```bash
-# Elastic Beanstalk CLIで環境を作成
+# Create an environment with the Elastic Beanstalk CLI
 eb init my-app --platform python-3.11 --region ap-northeast-1
 eb create my-env --instance-type t3.small --envvars DATABASE_URL=postgresql://...
 eb deploy
 
-# 環境変数の更新
+# Update environment variables
 eb setenv SECRET_KEY=my-secret-key DEBUG=false
 
-# ログの確認
+# Check logs
 eb logs --all
 ```
 
@@ -576,10 +576,10 @@ option_settings:
     LowerThreshold: 30
 ```
 
-### 2.7 コード例: FaaS (Lambda) 関数
+### 2.7 Code Example: FaaS (Lambda) Function
 
 ```python
-# Lambda関数: S3にアップロードされた画像をリサイズ
+# Lambda function: Resize images uploaded to S3
 import json
 import boto3
 from PIL import Image
@@ -589,31 +589,31 @@ import os
 s3 = boto3.client('s3')
 
 def lambda_handler(event, context):
-    """S3イベントトリガーで画像をリサイズする"""
+    """Resize images triggered by S3 events"""
 
-    # イベントからバケット名とキーを取得
+    # Get bucket name and key from the event
     bucket = event['Records'][0]['s3']['bucket']['name']
     key = event['Records'][0]['s3']['object']['key']
 
-    # 既にリサイズ済みの画像はスキップ
+    # Skip already resized images
     if key.startswith('thumbnails/'):
         return {'statusCode': 200, 'body': 'Already processed'}
 
     try:
-        # 元画像をダウンロード
+        # Download the original image
         response = s3.get_object(Bucket=bucket, Key=key)
         image_content = response['Body'].read()
 
-        # リサイズ処理
+        # Resize
         image = Image.open(io.BytesIO(image_content))
         image.thumbnail((300, 300), Image.LANCZOS)
 
-        # リサイズした画像をバッファに保存
+        # Save resized image to buffer
         buffer = io.BytesIO()
         image.save(buffer, format='JPEG', quality=85)
         buffer.seek(0)
 
-        # サムネイルをS3にアップロード
+        # Upload thumbnail to S3
         thumbnail_key = f"thumbnails/{os.path.basename(key)}"
         s3.put_object(
             Bucket=bucket,
@@ -639,7 +639,7 @@ def lambda_handler(event, context):
 ```
 
 ```yaml
-# AWS SAM テンプレート (template.yaml)
+# AWS SAM Template (template.yaml)
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Image Resize Lambda Function
@@ -681,7 +681,7 @@ Resources:
                     Value: .jpg
 ```
 
-### 2.8 コード例: SaaS 連携 (AWS SES メール送信)
+### 2.8 Code Example: SaaS Integration (AWS SES Email Sending)
 
 ```python
 import boto3
@@ -693,7 +693,7 @@ def send_templated_email(
     template_name: str,
     template_data: dict
 ) -> dict:
-    """SESテンプレートメールを送信する"""
+    """Send a templated email via SES"""
 
     client = boto3.client('ses', region_name='ap-northeast-1')
 
@@ -717,21 +717,21 @@ def send_templated_email(
     except ClientError as e:
         error_code = e.response['Error']['Code']
         if error_code == 'MessageRejected':
-            print(f"メール拒否: {e.response['Error']['Message']}")
+            print(f"Email rejected: {e.response['Error']['Message']}")
         elif error_code == 'MailFromDomainNotVerifiedException':
-            print("送信元ドメインが未検証です")
+            print("Sender domain is not verified")
         else:
-            print(f"予期しないエラー: {error_code}")
+            print(f"Unexpected error: {error_code}")
         raise
 
-# 使用例
+# Usage example
 import json
 send_templated_email(
     sender='noreply@example.com',
     recipient='user@example.com',
     template_name='WelcomeEmail',
     template_data={
-        'name': '田中太郎',
+        'name': 'Taro Tanaka',
         'company': 'Example Corp',
         'login_url': 'https://app.example.com/login'
     }
@@ -740,55 +740,55 @@ send_templated_email(
 
 ---
 
-## 3. デプロイメントモデル
+## 3. Deployment Models
 
-### 3.1 4つのデプロイメントモデル
+### 3.1 Four Deployment Models
 
-| モデル | 説明 | ユースケース | メリット | デメリット |
-|--------|------|-------------|---------|-----------|
-| パブリッククラウド | プロバイダが所有・運用する共有インフラ | スタートアップ、Webサービス | 初期費用なし、即座にスケール | データ所在地の制約 |
-| プライベートクラウド | 単一組織専用のクラウドインフラ | 金融機関、政府機関 | セキュリティ・コンプライアンス | 構築・運用コスト大 |
-| ハイブリッドクラウド | パブリック+オンプレミスの組合せ | 段階的移行、規制対応 | 柔軟性 | 構成の複雑さ |
-| マルチクラウド | 複数プロバイダの組合せ | ベンダーロックイン回避 | 最適なサービス選択 | 運用の複雑さ |
+| Model | Description | Use Cases | Advantages | Disadvantages |
+|-------|------------|-----------|-----------|--------------|
+| Public Cloud | Shared infrastructure owned and operated by a provider | Startups, web services | No upfront cost, instant scaling | Data residency constraints |
+| Private Cloud | Cloud infrastructure dedicated to a single organization | Financial institutions, government agencies | Security and compliance | High build and operation costs |
+| Hybrid Cloud | Combination of public cloud and on-premises | Phased migration, regulatory compliance | Flexibility | Configuration complexity |
+| Multi-Cloud | Combination of multiple providers | Vendor lock-in avoidance | Optimal service selection | Operational complexity |
 
-### 3.2 ハイブリッドクラウドのアーキテクチャパターン
+### 3.2 Hybrid Cloud Architecture Patterns
 
 ```
-ハイブリッドクラウド構成例:
+Hybrid Cloud Configuration Example:
 
-  ┌─────────────────────────────┐
-  │      オンプレミス             │
-  │  ┌─────────┐  ┌──────────┐  │
-  │  │ 基幹DB   │  │ 認証基盤  │  │
-  │  │(Oracle)  │  │(AD)      │  │
-  │  └────┬─────┘  └─────┬────┘  │
-  │       │              │       │
-  └───────┼──────────────┼───────┘
-          │   VPN/         │
-          │  Direct Connect│
-  ┌───────┼──────────────┼───────┐
-  │       ▼              ▼       │
-  │  ┌─────────┐  ┌──────────┐  │
-  │  │ Aurora   │  │ Cognito  │  │
-  │  │ (移行先) │  │ (連携)   │  │
-  │  └─────────┘  └──────────┘  │
-  │                              │
-  │  ┌─────────┐  ┌──────────┐  │
-  │  │ ECS     │  │ S3       │  │
-  │  │ (API)   │  │ (資産)   │  │
-  │  └─────────┘  └──────────┘  │
-  │        AWS クラウド           │
-  └──────────────────────────────┘
+  +-----------------------------+
+  |      On-Premises             |
+  |  +---------+  +----------+  |
+  |  | Core DB |  | Auth     |  |
+  |  |(Oracle) |  |(AD)      |  |
+  |  +----+----+  +-----+----+  |
+  |       |              |       |
+  +-------+--------------+------+
+          |   VPN/         |
+          |  Direct Connect|
+  +-------+--------------+------+
+  |       v              v       |
+  |  +---------+  +----------+  |
+  |  | Aurora  |  | Cognito  |  |
+  |  |(Target) |  |(Linked)  |  |
+  |  +---------+  +----------+  |
+  |                              |
+  |  +---------+  +----------+  |
+  |  | ECS     |  | S3       |  |
+  |  | (API)   |  | (Assets) |  |
+  |  +---------+  +----------+  |
+  |        AWS Cloud             |
+  +------------------------------+
 ```
 
 ```bash
-# AWS Direct Connect + VPNの構成例
-# Direct Connect Gateway の作成
+# AWS Direct Connect + VPN configuration example
+# Create a Direct Connect Gateway
 aws directconnect create-direct-connect-gateway \
   --direct-connect-gateway-name "onprem-gateway" \
   --amazon-side-asn 64512
 
-# VPN接続の作成（バックアップ用）
+# Create a VPN connection (as backup)
 aws ec2 create-vpn-gateway \
   --type ipsec.1 \
   --amazon-side-asn 65000
@@ -805,15 +805,15 @@ aws ec2 create-vpn-connection \
   --options '{"StaticRoutesOnly": false}'
 ```
 
-### 3.3 マルチクラウド戦略の実装
+### 3.3 Multi-Cloud Strategy Implementation
 
 ```python
-# マルチクラウド抽象化レイヤーの例
+# Multi-cloud abstraction layer example
 from abc import ABC, abstractmethod
 from typing import BinaryIO
 
 class CloudStorageProvider(ABC):
-    """クラウドストレージの抽象基底クラス"""
+    """Abstract base class for cloud storage"""
 
     @abstractmethod
     def upload(self, bucket: str, key: str, data: BinaryIO) -> str:
@@ -903,7 +903,7 @@ class AzureBlobProvider(CloudStorageProvider):
         blobs = container.list_blobs(name_starts_with=prefix)
         return [blob.name for blob in blobs]
 
-# ファクトリパターンでプロバイダを選択
+# Factory pattern to select provider
 def get_storage_provider(cloud: str, **kwargs) -> CloudStorageProvider:
     providers = {
         'aws': AWSS3Provider,
@@ -914,64 +914,64 @@ def get_storage_provider(cloud: str, **kwargs) -> CloudStorageProvider:
         raise ValueError(f"Unsupported cloud: {cloud}")
     return providerscloud
 
-# 使用例
+# Usage example
 provider = get_storage_provider('aws', region='ap-northeast-1')
 url = provider.upload('my-bucket', 'data/report.csv', open('report.csv', 'rb'))
 ```
 
 ---
 
-## 4. AWS vs GCP vs Azure — 主要サービス比較
+## 4. AWS vs GCP vs Azure — Major Service Comparison
 
-### 4.1 コンピュート比較
+### 4.1 Compute Comparison
 
-| カテゴリ | AWS | GCP | Azure | 特記事項 |
-|----------|-----|-----|-------|---------|
-| 仮想マシン | EC2 | Compute Engine | Virtual Machines | AWS: 最多インスタンスタイプ |
-| コンテナ(マネージド) | ECS / EKS | GKE | AKS | GKE: Kubernetes発祥 |
-| サーバーレス | Lambda | Cloud Functions | Azure Functions | AWS: 最多トリガーソース |
-| コンテナサーバーレス | Fargate | Cloud Run | Container Apps | Cloud Run: 最も簡単 |
-| バッチ処理 | AWS Batch | Cloud Batch | Azure Batch | 大量並列処理向け |
-| エッジコンピュート | Lambda@Edge | Cloud CDN Functions | Azure Front Door | CDN統合型 |
+| Category | AWS | GCP | Azure | Notes |
+|----------|-----|-----|-------|-------|
+| Virtual Machines | EC2 | Compute Engine | Virtual Machines | AWS: Most instance types |
+| Containers (Managed) | ECS / EKS | GKE | AKS | GKE: Kubernetes origin |
+| Serverless | Lambda | Cloud Functions | Azure Functions | AWS: Most trigger sources |
+| Serverless Containers | Fargate | Cloud Run | Container Apps | Cloud Run: Simplest |
+| Batch Processing | AWS Batch | Cloud Batch | Azure Batch | For massively parallel processing |
+| Edge Computing | Lambda@Edge | Cloud CDN Functions | Azure Front Door | CDN-integrated |
 
-### 4.2 ストレージ/DB比較
+### 4.2 Storage / Database Comparison
 
-| カテゴリ | AWS | GCP | Azure | 特記事項 |
-|----------|-----|-----|-------|---------|
-| オブジェクトストレージ | S3 | Cloud Storage | Blob Storage | S3: 業界標準API |
-| ブロックストレージ | EBS | Persistent Disk | Managed Disks | VM用高性能ストレージ |
-| ファイルストレージ | EFS, FSx | Filestore | Azure Files | NFS/SMB対応 |
-| RDB(マネージド) | RDS / Aurora | Cloud SQL / AlloyDB | Azure SQL | Aurora: 高性能 |
-| NoSQL(ドキュメント) | DynamoDB | Firestore | Cosmos DB | DynamoDB: シングルdigit ms |
-| NoSQL(ワイドカラム) | Keyspaces | Bigtable | Table Storage | 大規模時系列データ向け |
-| キャッシュ | ElastiCache | Memorystore | Azure Cache for Redis | Redis/Memcached互換 |
-| データウェアハウス | Redshift | BigQuery | Synapse Analytics | BigQuery: サーバーレス |
-| 検索 | OpenSearch | -- | Cognitive Search | Elasticsearch互換 |
+| Category | AWS | GCP | Azure | Notes |
+|----------|-----|-----|-------|-------|
+| Object Storage | S3 | Cloud Storage | Blob Storage | S3: Industry-standard API |
+| Block Storage | EBS | Persistent Disk | Managed Disks | High-performance VM storage |
+| File Storage | EFS, FSx | Filestore | Azure Files | NFS/SMB support |
+| RDB (Managed) | RDS / Aurora | Cloud SQL / AlloyDB | Azure SQL | Aurora: High performance |
+| NoSQL (Document) | DynamoDB | Firestore | Cosmos DB | DynamoDB: Single-digit ms |
+| NoSQL (Wide Column) | Keyspaces | Bigtable | Table Storage | For large-scale time-series data |
+| Cache | ElastiCache | Memorystore | Azure Cache for Redis | Redis/Memcached compatible |
+| Data Warehouse | Redshift | BigQuery | Synapse Analytics | BigQuery: Serverless |
+| Search | OpenSearch | -- | Cognitive Search | Elasticsearch compatible |
 
-### 4.3 ネットワーキング比較
+### 4.3 Networking Comparison
 
-| カテゴリ | AWS | GCP | Azure | 特記事項 |
-|----------|-----|-----|-------|---------|
-| VPC | VPC | VPC | VNet | 仮想ネットワーク |
-| CDN | CloudFront | Cloud CDN | Azure CDN | グローバル配信 |
-| DNS | Route 53 | Cloud DNS | Azure DNS | ドメイン管理 |
-| ロードバランサー | ALB/NLB/CLB | Cloud Load Balancing | Azure LB | L4/L7対応 |
-| VPN | Site-to-Site VPN | Cloud VPN | VPN Gateway | 暗号化通信 |
-| 専用線 | Direct Connect | Cloud Interconnect | ExpressRoute | 低レイテンシ |
-| API Gateway | API Gateway | Apigee / API Gateway | API Management | REST/WebSocket対応 |
+| Category | AWS | GCP | Azure | Notes |
+|----------|-----|-----|-------|-------|
+| VPC | VPC | VPC | VNet | Virtual network |
+| CDN | CloudFront | Cloud CDN | Azure CDN | Global distribution |
+| DNS | Route 53 | Cloud DNS | Azure DNS | Domain management |
+| Load Balancer | ALB/NLB/CLB | Cloud Load Balancing | Azure LB | L4/L7 support |
+| VPN | Site-to-Site VPN | Cloud VPN | VPN Gateway | Encrypted communication |
+| Dedicated Line | Direct Connect | Cloud Interconnect | ExpressRoute | Low latency |
+| API Gateway | API Gateway | Apigee / API Gateway | API Management | REST/WebSocket support |
 
-### 4.4 AI/ML サービス比較
+### 4.4 AI/ML Service Comparison
 
-| カテゴリ | AWS | GCP | Azure | 特記事項 |
-|----------|-----|-----|-------|---------|
-| ML プラットフォーム | SageMaker | Vertex AI | Azure ML | フルマネージドML |
-| 画像認識 | Rekognition | Vision AI | Computer Vision | 事前学習済みモデル |
-| 自然言語処理 | Comprehend | Natural Language AI | Text Analytics | テキスト分析 |
-| 音声認識 | Transcribe | Speech-to-Text | Speech Services | 文字起こし |
-| 翻訳 | Translate | Translation AI | Translator | 多言語対応 |
-| 生成AI | Bedrock | Vertex AI (Gemini) | Azure OpenAI | LLM統合基盤 |
+| Category | AWS | GCP | Azure | Notes |
+|----------|-----|-----|-------|-------|
+| ML Platform | SageMaker | Vertex AI | Azure ML | Fully managed ML |
+| Image Recognition | Rekognition | Vision AI | Computer Vision | Pre-trained models |
+| Natural Language Processing | Comprehend | Natural Language AI | Text Analytics | Text analysis |
+| Speech Recognition | Transcribe | Speech-to-Text | Speech Services | Transcription |
+| Translation | Translate | Translation AI | Translator | Multi-language support |
+| Generative AI | Bedrock | Vertex AI (Gemini) | Azure OpenAI | LLM integration platform |
 
-### 4.5 コード例: 各クラウドの CLI でバケット作成
+### 4.5 Code Example: Creating Buckets with Each Cloud's CLI
 
 ```bash
 # AWS
@@ -1000,7 +1000,7 @@ az storage container create \
   --account-name mystorageaccount
 ```
 
-### 4.6 コード例: 各クラウドの SDK — ファイルアップロード (Python)
+### 4.6 Code Example: File Upload with Each Cloud's SDK (Python)
 
 ```python
 # === AWS S3 ===
@@ -1008,7 +1008,7 @@ import boto3
 
 s3 = boto3.client('s3')
 
-# アップロード（メタデータ付き）
+# Upload with metadata
 s3.upload_file(
     'local.txt',
     'my-bucket',
@@ -1023,13 +1023,13 @@ s3.upload_file(
     }
 )
 
-# プリサインドURLの生成（一時的な共有用）
+# Generate a pre-signed URL (for temporary sharing)
 presigned_url = s3.generate_presigned_url(
     'get_object',
     Params={'Bucket': 'my-bucket', 'Key': 'remote.txt'},
-    ExpiresIn=3600  # 1時間有効
+    ExpiresIn=3600  # Valid for 1 hour
 )
-print(f"共有URL: {presigned_url}")
+print(f"Sharing URL: {presigned_url}")
 
 # === GCP Cloud Storage ===
 from google.cloud import storage
@@ -1040,7 +1040,7 @@ blob = bucket.blob('remote.txt')
 blob.metadata = {'uploaded-by': 'automation', 'version': '1.0'}
 blob.upload_from_filename('local.txt', content_type='text/plain')
 
-# 署名付きURLの生成
+# Generate a signed URL
 signed_url = blob.generate_signed_url(
     version='v4',
     expiration=3600,
@@ -1061,7 +1061,7 @@ with open('local.txt', 'rb') as data:
         metadata={'uploaded-by': 'automation', 'version': '1.0'}
     )
 
-# SAS URLの生成
+# Generate a SAS URL
 sas_token = generate_blob_sas(
     account_name='mystorageaccount',
     container_name='my-container',
@@ -1072,102 +1072,101 @@ sas_token = generate_blob_sas(
 )
 ```
 
-### 4.7 リージョンとアベイラビリティゾーン比較
+### 4.7 Region and Availability Zone Comparison
 
 ```
-主要クラウドのアジア太平洋リージョン:
+Major Cloud Asia-Pacific Regions:
 
 AWS:
-├── ap-northeast-1 (東京)      - 4 AZ
-├── ap-northeast-2 (ソウル)     - 4 AZ
-├── ap-northeast-3 (大阪)      - 3 AZ
-├── ap-southeast-1 (シンガポール) - 3 AZ
-├── ap-southeast-2 (シドニー)    - 3 AZ
-├── ap-south-1 (ムンバイ)       - 3 AZ
-└── 他多数...
+├── ap-northeast-1 (Tokyo)        - 4 AZs
+├── ap-northeast-2 (Seoul)        - 4 AZs
+├── ap-northeast-3 (Osaka)        - 3 AZs
+├── ap-southeast-1 (Singapore)    - 3 AZs
+├── ap-southeast-2 (Sydney)       - 3 AZs
+├── ap-south-1 (Mumbai)           - 3 AZs
+└── and more...
 
 GCP:
-├── asia-northeast1 (東京)      - 3 Zone
-├── asia-northeast2 (大阪)      - 3 Zone
-├── asia-northeast3 (ソウル)     - 3 Zone
-├── asia-southeast1 (シンガポール) - 3 Zone
-└── asia-south1 (ムンバイ)       - 3 Zone
+├── asia-northeast1 (Tokyo)       - 3 Zones
+├── asia-northeast2 (Osaka)       - 3 Zones
+├── asia-northeast3 (Seoul)       - 3 Zones
+├── asia-southeast1 (Singapore)   - 3 Zones
+└── asia-south1 (Mumbai)          - 3 Zones
 
 Azure:
-├── Japan East (東京)           - 3 AZ
-├── Japan West (大阪)           - 3 AZ
-├── Southeast Asia (シンガポール) - 3 AZ
-├── East Asia (香港)            - 3 AZ
-└── Korea Central (ソウル)       - 3 AZ
+├── Japan East (Tokyo)            - 3 AZs
+├── Japan West (Osaka)            - 3 AZs
+├── Southeast Asia (Singapore)    - 3 AZs
+├── East Asia (Hong Kong)         - 3 AZs
+└── Korea Central (Seoul)         - 3 AZs
 ```
 
 ---
 
-## 5. クラウドネイティブアーキテクチャ
+## 5. Cloud-Native Architecture
 
-### 5.1 CNCF の定義
+### 5.1 CNCF Definition
 
-Cloud Native Computing Foundation (CNCF) はクラウドネイティブを次のように定義している。
+The Cloud Native Computing Foundation (CNCF) defines cloud native as follows:
 
 ```
-クラウドネイティブ技術は、パブリッククラウド、プライベートクラウド、
-ハイブリッドクラウドなどの近代的でダイナミックな環境において、
-スケーラブルなアプリケーションを構築および実行するための能力を
-組織にもたらす。
+Cloud-native technologies empower organizations to build and run
+scalable applications in modern, dynamic environments such as
+public, private, and hybrid clouds.
 
-このアプローチの代表例:
-- コンテナ
-- サービスメッシュ
-- マイクロサービス
-- イミュータブルインフラストラクチャ
-- 宣言型API
+Representative approaches include:
+- Containers
+- Service meshes
+- Microservices
+- Immutable infrastructure
+- Declarative APIs
 
-これらの手法により、回復力があり、管理しやすく、
-可観測性の高い疎結合システムが実現される。
+These techniques enable loosely coupled systems that are resilient,
+manageable, and observable.
 ```
 
 ### 5.2 12 Factor App
 
-クラウドネイティブアプリケーション設計の基本原則。
+Fundamental design principles for cloud-native applications.
 
 ```
 12 Factor App:
 
-1.  コードベース       - バージョン管理された1つのコードベース、複数デプロイ
-2.  依存関係           - 依存関係を明示的に宣言して分離する
-3.  設定               - 環境変数に設定を格納する
-4.  バッキングサービス  - バッキングサービスをアタッチされたリソースとして扱う
-5.  ビルド・リリース・実行 - ビルドステージとランステージを厳密に分離する
-6.  プロセス           - アプリをステートレスなプロセスとして実行する
-7.  ポートバインディング - ポートバインディングでサービスを公開する
-8.  並行性             - プロセスモデルでスケールアウトする
-9.  廃棄容易性         - 高速起動とグレースフルシャットダウンで堅牢性を高める
-10. 開発/本番一致      - 開発・ステージング・本番をできるだけ一致させる
-11. ログ               - ログをイベントストリームとして扱う
-12. 管理プロセス       - 管理タスクを1回限りのプロセスとして実行する
+1.  Codebase        - One codebase tracked in version control, many deploys
+2.  Dependencies    - Explicitly declare and isolate dependencies
+3.  Config          - Store config in environment variables
+4.  Backing Services - Treat backing services as attached resources
+5.  Build, Release, Run - Strictly separate build and run stages
+6.  Processes       - Execute the app as stateless processes
+7.  Port Binding    - Export services via port binding
+8.  Concurrency     - Scale out via the process model
+9.  Disposability   - Maximize robustness with fast startup and graceful shutdown
+10. Dev/Prod Parity - Keep development, staging, and production as similar as possible
+11. Logs            - Treat logs as event streams
+12. Admin Processes - Run admin/management tasks as one-off processes
 ```
 
 ```python
-# 12 Factor App 準拠のアプリケーション例
+# Application example following the 12 Factor App
 
-# Factor 3: 設定は環境変数から
+# Factor 3: Config from environment variables
 import os
 
 class Config:
-    DATABASE_URL = os.environ['DATABASE_URL']        # 必須
+    DATABASE_URL = os.environ['DATABASE_URL']        # Required
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
     SECRET_KEY = os.environ['SECRET_KEY']
     DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
     PORT = int(os.environ.get('PORT', '8080'))
 
-# Factor 4: バッキングサービスをアタッチされたリソースとして
-# → DB接続先は環境変数で注入、コード変更なしで切替可能
+# Factor 4: Backing services as attached resources
+# -> DB connection target is injected via env vars, switchable without code changes
 
-# Factor 6: ステートレスプロセス
-# → セッション情報はRedisに保持、ローカルファイルに書かない
+# Factor 6: Stateless processes
+# -> Session information is stored in Redis, not written to local files
 
-# Factor 7: ポートバインディング
+# Factor 7: Port binding
 from fastapi import FastAPI
 import uvicorn
 
@@ -1180,19 +1179,19 @@ def health():
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=Config.PORT)
 
-# Factor 9: 廃棄容易性 — グレースフルシャットダウン
+# Factor 9: Disposability — Graceful shutdown
 import signal
 import sys
 
 def graceful_shutdown(signum, frame):
     print("Shutting down gracefully...")
-    # DB接続のクローズ、進行中のリクエスト完了を待つ
+    # Close DB connections, wait for in-flight requests to complete
     sys.exit(0)
 
 signal.signal(signal.SIGTERM, graceful_shutdown)
 signal.signal(signal.SIGINT, graceful_shutdown)
 
-# Factor 11: ログはstdoutに出力
+# Factor 11: Logs to stdout
 import logging
 import json
 
@@ -1209,92 +1208,97 @@ class JSONFormatter(logging.Formatter):
             log_data['exception'] = self.formatException(record.exc_info)
         return json.dumps(log_data, ensure_ascii=False)
 
-handler = logging.StreamHandler(sys.stdout)  # stdoutに出力
+handler = logging.StreamHandler(sys.stdout)  # Output to stdout
 handler.setFormatter(JSONFormatter())
 logger = logging.getLogger(__name__)
 logger.addHandler(handler)
 logger.setLevel(Config.LOG_LEVEL)
 ```
 
-### 5.3 マイクロサービスアーキテクチャパターン
+### 5.3 Microservices Architecture Pattern
 
 ```
-マイクロサービスアーキテクチャ on AWS:
+Microservices Architecture on AWS:
 
-                     ┌─── CloudFront (CDN)
-                     │
-                     ▼
+                     +--- CloudFront (CDN)
+                     |
+                     v
                 API Gateway
-                     │
-        ┌────────────┼────────────┐
-        ▼            ▼            ▼
-   ┌────────┐  ┌────────┐  ┌────────┐
-   │ User   │  │ Order  │  │ Product│
-   │ Service│  │ Service│  │ Service│
-   │ (ECS)  │  │ (ECS)  │  │ (Lambda)│
-   └───┬────┘  └───┬────┘  └───┬────┘
-       │           │           │
-       ▼           ▼           ▼
-   ┌────────┐  ┌────────┐  ┌────────┐
-   │ Aurora │  │DynamoDB│  │ Aurora  │
-   │ MySQL  │  │        │  │ (Reader)│
-   └────────┘  └────────┘  └────────┘
-       │           │           │
-       └─────────┬─┘───────────┘
-                 ▼
+                     |
+        +------------+------------+
+        v            v            v
+   +--------+  +--------+  +--------+
+   | User   |  | Order  |  | Product|
+   | Service|  | Service|  | Service|
+   | (ECS)  |  | (ECS)  |  | (Lambda)|
+   +---+----+  +---+----+  +---+----+
+       |           |           |
+       v           v           v
+   +--------+  +--------+  +--------+
+   | Aurora |  |DynamoDB|  | Aurora  |
+   | MySQL  |  |        |  | (Reader)|
+   +--------+  +--------+  +--------+
+       |           |           |
+       +---------+-+-----------+
+                 v
             EventBridge
-                 │
-        ┌────────┼────────┐
-        ▼        ▼        ▼
-   ┌────────┐ ┌────┐ ┌────────┐
-   │ SNS/SQS│ │ SES│ │CloudWatch│
-   │ (通知) │ │(Mail)│ │(監視)  │
-   └────────┘ └────┘ └────────┘
+                 |
+        +--------+--------+
+        v        v        v
+   +--------+ +----+ +----------+
+   | SNS/SQS| | SES| |CloudWatch|
+   |(Notify)| |(Mail)| |(Monitor)|
+   +--------+ +----+ +----------+
 ```
 
 ---
 
-## 6. クラウド導入のメリットと課題
+## 6. Benefits and Challenges of Cloud Adoption
 
-### 6.1 メリットの詳細
+### 6.1 Detailed Benefits
 
 ```
-  メリット                              具体的な効果
+  Benefits                                Specific Effects
   +----------------------------------+  +----------------------------------+
-  | 1. 初期投資の削減 (CAPEX→OPEX)    |  | サーバー購入不要、月額課金         |
-  | 2. グローバル展開の容易さ          |  | 25+リージョンに数分でデプロイ      |
-  | 3. 高可用性・耐障害性             |  | マルチAZ構成で99.99% SLA          |
-  | 4. 自動スケーリング               |  | ピーク時に自動拡張、閑散時に縮退    |
-  | 5. マネージドサービス活用          |  | DB運用、パッチ適用をプロバイダに委託 |
-  | 6. 開発スピードの向上             |  | 環境構築が数分、CI/CD統合容易      |
-  | 7. イノベーションの加速           |  | AI/ML、IoT等の先端技術を即利用     |
-  | 8. セキュリティの強化             |  | 暗号化、監査、コンプライアンス標準  |
+  | 1. Reduced upfront investment    |  | No server purchases, monthly pay |
+  |    (CAPEX -> OPEX)               |  |                                  |
+  | 2. Easy global expansion         |  | Deploy to 25+ regions in minutes |
+  | 3. High availability & fault     |  | Multi-AZ config for 99.99% SLA  |
+  |    tolerance                     |  |                                  |
+  | 4. Auto scaling                  |  | Auto expand at peak, shrink off  |
+  | 5. Managed service utilization   |  | Delegate DB ops, patching to     |
+  |                                  |  | provider                         |
+  | 6. Faster development speed      |  | Env setup in minutes, CI/CD easy |
+  | 7. Accelerated innovation        |  | Instant access to AI/ML, IoT     |
+  | 8. Enhanced security             |  | Encryption, audit, compliance    |
   +----------------------------------+  +----------------------------------+
 
-  課題                                  対策
+  Challenges                              Mitigations
   +----------------------------------+  +----------------------------------+
-  | 1. ベンダーロックイン             |  | コンテナ化、IaCで抽象化           |
-  | 2. データ主権・コンプライアンス    |  | リージョン選択、暗号化            |
-  | 3. ネットワーク遅延               |  | エッジロケーション、CDN活用       |
-  | 4. コスト管理の複雑さ             |  | FinOps実践、予算アラート          |
-  | 5. セキュリティ責任の理解          |  | 共有責任モデルの教育              |
-  | 6. 既存スキルのギャップ           |  | 認定資格取得、トレーニング        |
-  | 7. 移行の複雑さ                  |  | 段階的移行計画、MAP活用           |
-  | 8. 障害時の対応範囲の限界         |  | マルチリージョン、DR計画          |
+  | 1. Vendor lock-in                |  | Containerization, IaC abstraction|
+  | 2. Data sovereignty / compliance |  | Region selection, encryption     |
+  | 3. Network latency               |  | Edge locations, CDN utilization  |
+  | 4. Cost management complexity    |  | FinOps practices, budget alerts  |
+  | 5. Understanding security        |  | Shared responsibility model      |
+  |    responsibility                |  | education                        |
+  | 6. Existing skills gap           |  | Certification, training          |
+  | 7. Migration complexity          |  | Phased migration plan, MAP       |
+  | 8. Limited incident response     |  | Multi-region, DR planning        |
+  |    scope                         |  |                                  |
   +----------------------------------+  +----------------------------------+
 ```
 
-### 6.2 コスト最適化戦略
+### 6.2 Cost Optimization Strategies
 
 ```python
-# AWSコスト最適化ツール: Cost Explorer APIの活用
+# AWS Cost Optimization Tool: Leveraging the Cost Explorer API
 import boto3
 from datetime import datetime, timedelta
 
 ce = boto3.client('ce', region_name='us-east-1')
 
 def get_monthly_cost_breakdown():
-    """月別・サービス別コスト内訳を取得"""
+    """Get monthly cost breakdown by service"""
     end = datetime.now().strftime('%Y-%m-%d')
     start = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
 
@@ -1321,7 +1325,7 @@ def get_monthly_cost_breakdown():
                 print(f"  {service}: ${cost:.2f}")
 
 def get_savings_recommendations():
-    """Savings Plans / Reserved Instances の推奨を取得"""
+    """Get Savings Plans / Reserved Instances recommendations"""
     response = ce.get_savings_plans_purchase_recommendation(
         SavingsPlansType='COMPUTE_SP',
         TermInYears='ONE_YEAR',
@@ -1331,9 +1335,9 @@ def get_savings_recommendations():
 
     recommendation = response['SavingsPlansRecommendationDetails']
     for rec in recommendation[:5]:
-        print(f"推奨月額: ${float(rec['HourlyCommitmentToPurchase']) * 730:.2f}")
-        print(f"推定節約額: ${float(rec['EstimatedMonthlySavingsAmount']):.2f}")
-        print(f"節約率: {float(rec['EstimatedSavingsPercentage']):.1f}%")
+        print(f"Recommended monthly: ${float(rec['HourlyCommitmentToPurchase']) * 730:.2f}")
+        print(f"Estimated savings: ${float(rec['EstimatedMonthlySavingsAmount']):.2f}")
+        print(f"Savings rate: {float(rec['EstimatedSavingsPercentage']):.1f}%")
         print("---")
 
 get_monthly_cost_breakdown()
@@ -1341,107 +1345,113 @@ get_savings_recommendations()
 ```
 
 ```
-コスト最適化の4つの柱:
+Four Pillars of Cost Optimization:
 
-1. 適正サイジング (Right Sizing)
-   ┌────────────────────────────────────────────┐
-   │ • CloudWatchでCPU/メモリ使用率を監視        │
-   │ • Compute Optimizerで推奨サイズを確認        │
-   │ • 過剰プロビジョニングを発見・修正           │
-   │ • 例: t3.xlarge → t3.medium で 50%削減     │
-   └────────────────────────────────────────────┘
+1. Right Sizing
+   +--------------------------------------------+
+   | - Monitor CPU/memory usage with CloudWatch  |
+   | - Check recommended sizes with Compute      |
+   |   Optimizer                                 |
+   | - Identify and fix over-provisioning        |
+   | - Example: t3.xlarge -> t3.medium for 50%   |
+   |   reduction                                 |
+   +--------------------------------------------+
 
-2. 予約割引 (Reserved / Savings Plans)
-   ┌────────────────────────────────────────────┐
-   │ • 1年/3年の利用コミットで最大72%割引         │
-   │ • Savings Plans: コンピュート全般に適用      │
-   │ • Reserved Instances: 特定インスタンスに適用 │
-   │ • 安定稼働のワークロードに最適               │
-   └────────────────────────────────────────────┘
+2. Reserved Discounts (Reserved / Savings Plans)
+   +--------------------------------------------+
+   | - Up to 72% discount with 1yr/3yr commitment|
+   | - Savings Plans: Apply to all compute       |
+   | - Reserved Instances: Apply to specific     |
+   |   instances                                 |
+   | - Best for stable workloads                 |
+   +--------------------------------------------+
 
-3. スポット活用 (Spot Instances)
-   ┌────────────────────────────────────────────┐
-   │ • オンデマンドの最大90%割引                  │
-   │ • バッチ処理、CI/CD、開発環境に最適          │
-   │ • 中断に対する耐性が必要                     │
-   │ • EC2 Fleet / Spot Fleet で分散            │
-   └────────────────────────────────────────────┘
+3. Spot Utilization (Spot Instances)
+   +--------------------------------------------+
+   | - Up to 90% discount off on-demand          |
+   | - Best for batch processing, CI/CD, dev envs|
+   | - Requires interruption tolerance            |
+   | - Distribute with EC2 Fleet / Spot Fleet    |
+   +--------------------------------------------+
 
-4. アーキテクチャ最適化
-   ┌────────────────────────────────────────────┐
-   │ • サーバーレス化でアイドルコスト排除          │
-   │ • S3ライフサイクルポリシーでストレージ階層化  │
-   │ • CloudFront キャッシュでデータ転送削減      │
-   │ • Gravitonインスタンスで価格性能比20%向上    │
-   └────────────────────────────────────────────┘
+4. Architecture Optimization
+   +--------------------------------------------+
+   | - Eliminate idle costs through serverless    |
+   | - Tiered storage with S3 lifecycle policies |
+   | - Reduce data transfer with CloudFront cache|
+   | - 20% better price-performance with Graviton|
+   +--------------------------------------------+
 ```
 
 ---
 
-## 7. クラウド移行戦略
+## 7. Cloud Migration Strategies
 
-### 7.1 AWS 6R 移行戦略
+### 7.1 AWS 6R Migration Strategy
 
 ```
-6つの移行戦略 (The 6 R's):
+Six Migration Strategies (The 6 R's):
 
-1. Rehost (リホスト) — "Lift and Shift"
-   ┌──────────────────────────────────────────┐
-   │ そのままクラウドに移行                      │
-   │ 最小限の変更で迅速な移行が可能              │
-   │ 例: オンプレEC2 → AWS EC2                  │
-   │ 適用: 移行スピード重視、短期的なコスト削減   │
-   └──────────────────────────────────────────┘
+1. Rehost — "Lift and Shift"
+   +----------------------------------------------+
+   | Migrate to cloud as-is                        |
+   | Rapid migration with minimal changes          |
+   | Example: On-prem server -> AWS EC2            |
+   | Applicable: Speed-focused, short-term savings |
+   +----------------------------------------------+
 
-2. Replatform (リプラットフォーム) — "Lift, Tinker, and Shift"
-   ┌──────────────────────────────────────────┐
-   │ 一部をマネージドサービスに置換              │
-   │ アプリコアは変更しない                      │
-   │ 例: MySQL → Amazon RDS MySQL              │
-   │ 適用: コスト対効果のバランス                │
-   └──────────────────────────────────────────┘
+2. Replatform — "Lift, Tinker, and Shift"
+   +----------------------------------------------+
+   | Replace some components with managed services |
+   | Keep the application core unchanged           |
+   | Example: MySQL -> Amazon RDS MySQL            |
+   | Applicable: Balance of cost-effectiveness     |
+   +----------------------------------------------+
 
-3. Repurchase (リパーチェス) — "Drop and Shop"
-   ┌──────────────────────────────────────────┐
-   │ SaaS製品に置換                             │
-   │ 例: 自社メールサーバー → WorkMail/Gmail     │
-   │ 適用: コモディティ化された機能              │
-   └──────────────────────────────────────────┘
+3. Repurchase — "Drop and Shop"
+   +----------------------------------------------+
+   | Replace with SaaS products                    |
+   | Example: Self-hosted mail server -> WorkMail  |
+   | Applicable: Commoditized functionality        |
+   +----------------------------------------------+
 
-4. Refactor (リファクタ) — "Re-architect"
-   ┌──────────────────────────────────────────┐
-   │ クラウドネイティブに再設計                   │
-   │ マイクロサービス化、サーバーレス化           │
-   │ 例: モノリス → Lambda + API Gateway + DynamoDB│
-   │ 適用: 長期的な最適化、新機能追加が必要       │
-   └──────────────────────────────────────────┘
+4. Refactor — "Re-architect"
+   +----------------------------------------------+
+   | Redesign as cloud-native                      |
+   | Adopt microservices, go serverless            |
+   | Example: Monolith -> Lambda + API Gateway +   |
+   |          DynamoDB                             |
+   | Applicable: Long-term optimization, new       |
+   |             features needed                   |
+   +----------------------------------------------+
 
-5. Retire (リタイア)
-   ┌──────────────────────────────────────────┐
-   │ 不要なアプリケーションを廃止                │
-   │ 移行コスト削減、ポートフォリオ整理          │
-   │ 適用: 使われていないシステムの特定・廃止     │
-   └──────────────────────────────────────────┘
+5. Retire
+   +----------------------------------------------+
+   | Decommission unnecessary applications         |
+   | Reduce migration costs, portfolio cleanup     |
+   | Applicable: Identify and retire unused systems|
+   +----------------------------------------------+
 
-6. Retain (リテイン)
-   ┌──────────────────────────────────────────┐
-   │ 現状維持（今は移行しない）                  │
-   │ 技術的制約や規制要件で移行不可              │
-   │ 適用: 移行の優先度が低いシステム            │
-   └──────────────────────────────────────────┘
+6. Retain
+   +----------------------------------------------+
+   | Keep as-is (do not migrate now)               |
+   | Cannot migrate due to technical or regulatory |
+   | constraints                                   |
+   | Applicable: Low-priority systems              |
+   +----------------------------------------------+
 ```
 
-### 7.2 移行フェーズ
+### 7.2 Migration Phases
 
 ```python
-# AWS Migration Hub を使った移行進捗管理
+# Migration progress management with AWS Migration Hub
 import boto3
 
 mh = boto3.client('migration-hub', region_name='us-west-2')
 
-# 移行タスクの作成
+# Create a migration task
 def create_migration_task(app_name: str, strategy: str):
-    """移行タスクを作成してトラッキングする"""
+    """Create and track a migration task"""
 
     mh.notify_migration_task_state(
         ProgressUpdateStream='MyMigrationStream',
@@ -1457,7 +1467,7 @@ def create_migration_task(app_name: str, strategy: str):
 
     return f'{app_name}-migration'
 
-# 移行進捗の更新
+# Update migration progress
 def update_migration_progress(task_name: str, percent: int, detail: str):
     mh.notify_migration_task_state(
         ProgressUpdateStream='MyMigrationStream',
@@ -1470,69 +1480,69 @@ def update_migration_progress(task_name: str, percent: int, detail: str):
         UpdateDateTime=datetime.now()
     )
 
-# 使用例
+# Usage example
 task = create_migration_task('legacy-crm', 'Replatform')
-update_migration_progress(task, 25, 'データベース移行中')
-update_migration_progress(task, 50, 'アプリケーションデプロイ中')
-update_migration_progress(task, 75, 'テスト実施中')
-update_migration_progress(task, 100, '移行完了・本番稼働確認済み')
+update_migration_progress(task, 25, 'Migrating database')
+update_migration_progress(task, 50, 'Deploying application')
+update_migration_progress(task, 75, 'Running tests')
+update_migration_progress(task, 100, 'Migration complete - production verified')
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: リフト&シフトで終わらせる
+### Anti-Pattern 1: Stopping at Lift and Shift
 
-オンプレミスの構成をそのままクラウドに移すだけでは、クラウドのメリット（自動スケーリング、マネージドサービス）を活かせず、むしろコストが高くなるケースが多い。移行後に「クラウドネイティブ化」のフェーズを計画すべきである。
+Simply moving on-premises configurations to the cloud as-is fails to leverage cloud benefits (auto scaling, managed services) and often results in higher costs. You should plan a "cloud-native optimization" phase after migration.
 
 ```
-# 悪い例: オンプレと同じ構成をそのまま再現
-EC2 (常時起動 x 10台) + 自前 MySQL on EC2 + 自前 Redis on EC2
-月額コスト: 約$5,000 (管理工数別)
+# Bad example: Reproducing the same on-prem configuration
+EC2 (always-on x 10 instances) + self-managed MySQL on EC2 + self-managed Redis on EC2
+Monthly cost: ~$5,000 (excluding management effort)
 ↓
-# 良い例: マネージドサービスを活用（Phase 2 最適化）
+# Good example: Leverage managed services (Phase 2 optimization)
 Fargate (Auto Scaling) + Aurora Serverless v2 + ElastiCache
-月額コスト: 約$2,000 (管理工数大幅削減)
+Monthly cost: ~$2,000 (significantly reduced management effort)
 ```
 
-### アンチパターン 2: 全てをひとつのクラウドアカウントで運用する
+### Anti-Pattern 2: Running Everything in a Single Cloud Account
 
-本番環境・開発環境・ステージング環境を単一アカウントで管理すると、権限分離やコスト把握が困難になる。AWS Organizations で環境ごとにアカウントを分離すべきである。
+Managing production, development, and staging environments in a single account makes permission isolation and cost tracking difficult. You should use AWS Organizations to separate accounts by environment.
 
 ```
-# 悪い例
-1つのAWSアカウントに全環境を配置
-→ 開発者が本番DBを誤って削除するリスク
-→ コストの環境別内訳が不明確
+# Bad example
+All environments in a single AWS account
+-> Risk of developers accidentally deleting production DB
+-> Unclear cost breakdown by environment
 ↓
-# 良い例: マルチアカウント戦略
+# Good example: Multi-account strategy
 AWS Organizations
-├── Management Account (請求・ガバナンス)
+├── Management Account (Billing & governance)
 │   └── AWS SSO, CloudTrail, Config
-├── Security Account (セキュリティ集約)
-│   └── GuardDuty, Security Hub, CloudTrail集約
-├── Shared Services Account (共通基盤)
+├── Security Account (Security aggregation)
+│   └── GuardDuty, Security Hub, CloudTrail aggregation
+├── Shared Services Account (Common infrastructure)
 │   └── ECR, CodePipeline, Transit Gateway
 ├── Production Account
-│   └── 本番ワークロード (最小権限)
+│   └── Production workloads (least privilege)
 ├── Staging Account
-│   └── ステージング環境
+│   └── Staging environment
 └── Development Account
-    └── 開発者用 (比較的緩い権限)
+    └── Developer use (relatively relaxed permissions)
 ```
 
-### アンチパターン 3: セキュリティグループを全開放する
+### Anti-Pattern 3: Opening Security Groups Wide Open
 
 ```
-# 悪い例: 全ポート・全IPを許可
+# Bad example: Allow all ports from all IPs
 aws ec2 authorize-security-group-ingress \
   --group-id sg-xxx \
   --protocol -1 \
   --cidr 0.0.0.0/0
-# → 全世界からの全通信を許可、重大なセキュリティリスク
+# -> Allows all traffic from anywhere, critical security risk
 
-# 良い例: 最小権限の原則
+# Good example: Principle of least privilege
 aws ec2 authorize-security-group-ingress \
   --group-id sg-xxx \
   --ip-permissions '[
@@ -1541,17 +1551,17 @@ aws ec2 authorize-security-group-ingress \
   ]'
 ```
 
-### アンチパターン 4: ログ・モニタリングを後回しにする
+### Anti-Pattern 4: Deferring Logging and Monitoring
 
 ```python
-# 良い例: 初期段階からObservabilityを組み込む
+# Good example: Build observability in from the start
 import boto3
 
-# CloudWatch アラームの設定
+# CloudWatch alarm setup
 cloudwatch = boto3.client('cloudwatch', region_name='ap-northeast-1')
 
 def setup_essential_alarms(instance_id: str):
-    """EC2インスタンスの基本アラームをセットアップ"""
+    """Set up essential alarms for an EC2 instance"""
 
     alarms = [
         {
@@ -1583,38 +1593,38 @@ def setup_essential_alarms(instance_id: str):
             AlarmActions=['arn:aws:sns:ap-northeast-1:123456789012:alerts'],
             TreatMissingData='breaching'
         )
-        print(f"アラーム作成: {alarm_config['AlarmName']}")
+        print(f"Alarm created: {alarm_config['AlarmName']}")
 
 setup_essential_alarms('i-0abcdef1234567890')
 ```
 
-### アンチパターン 5: タグ戦略がない
+### Anti-Pattern 5: No Tagging Strategy
 
 ```python
-# 良い例: 体系的なタグ付け戦略
+# Good example: Systematic tagging strategy
 REQUIRED_TAGS = {
     'Environment': ['production', 'staging', 'development'],
-    'Project': None,  # 自由入力
-    'Owner': None,    # メールアドレス
+    'Project': None,  # Free-form input
+    'Owner': None,    # Email address
     'CostCenter': None,
     'ManagedBy': ['terraform', 'cloudformation', 'manual'],
 }
 
 def validate_tags(tags: dict) -> list:
-    """タグポリシーのバリデーション"""
+    """Validate tag policy"""
     errors = []
     for required_key, allowed_values in REQUIRED_TAGS.items():
         if required_key not in tags:
-            errors.append(f"必須タグ '{required_key}' がありません")
+            errors.append(f"Required tag '{required_key}' is missing")
         elif allowed_values and tags[required_key] not in allowed_values:
             errors.append(
-                f"タグ '{required_key}' の値 '{tags[required_key]}' は "
-                f"許可値 {allowed_values} に含まれていません"
+                f"Tag '{required_key}' value '{tags[required_key]}' is "
+                f"not in allowed values {allowed_values}"
             )
     return errors
 
-# AWS Config Rule でタグポリシーを強制
-# required-tags ルールの設定
+# Enforce tag policy with AWS Config Rule
+# required-tags rule configuration
 config_rule = {
     'ConfigRuleName': 'required-tags',
     'Source': {
@@ -1639,81 +1649,81 @@ config_rule = {
 
 ---
 
-## 9. 共有責任モデルの詳細
+## 9. Shared Responsibility Model in Detail
 
 ```
-AWS共有責任モデル:
+AWS Shared Responsibility Model:
 
-┌──────────────────────────────────────────────────────┐
-│                ユーザーの責任                          │
-│           "Security IN the Cloud"                    │
-│                                                      │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ カスタマーデータ                               │    │
-│  ├──────────────────────────────────────────────┤    │
-│  │ プラットフォーム、アプリケーション、IAM管理     │    │
-│  ├──────────────────────────────────────────────┤    │
-│  │ OS、ネットワーク、ファイアウォール設定          │    │
-│  ├──────────────────────────────────────────────┤    │
-│  │ クライアント側の暗号化 / サーバー側の暗号化     │    │
-│  │ ネットワークトラフィックの保護                  │    │
-│  └──────────────────────────────────────────────┘    │
-│                                                      │
-├──────────────────────────────────────────────────────┤
-│              AWSの責任                                │
-│           "Security OF the Cloud"                    │
-│                                                      │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ ソフトウェア: コンピュート、ストレージ、DB、     │    │
-│  │            ネットワーキング                     │    │
-│  ├──────────────────────────────────────────────┤    │
-│  │ ハードウェア / AWSグローバルインフラストラクチャ │    │
-│  │ リージョン、AZ、エッジロケーション               │    │
-│  └──────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────┘
++------------------------------------------------------+
+|                User's Responsibility                  |
+|           "Security IN the Cloud"                    |
+|                                                      |
+|  +----------------------------------------------+    |
+|  | Customer Data                                 |    |
+|  +----------------------------------------------+    |
+|  | Platform, Applications, IAM Management        |    |
+|  +----------------------------------------------+    |
+|  | OS, Network, Firewall Configuration           |    |
+|  +----------------------------------------------+    |
+|  | Client-Side Encryption / Server-Side Encryption|   |
+|  | Network Traffic Protection                    |    |
+|  +----------------------------------------------+    |
+|                                                      |
++------------------------------------------------------+
+|              AWS's Responsibility                     |
+|           "Security OF the Cloud"                    |
+|                                                      |
+|  +----------------------------------------------+    |
+|  | Software: Compute, Storage, DB,               |    |
+|  |           Networking                          |    |
+|  +----------------------------------------------+    |
+|  | Hardware / AWS Global Infrastructure          |    |
+|  | Regions, AZs, Edge Locations                  |    |
+|  +----------------------------------------------+    |
++------------------------------------------------------+
 ```
 
 ```python
-# 共有責任モデルに基づくセキュリティチェックリスト
+# Security checklist based on the shared responsibility model
 security_checklist = {
-    'ユーザー責任': {
+    'User Responsibility': {
         'IAM': [
-            'ルートアカウントにMFAを有効化',
-            '個別IAMユーザーを作成（ルート共有禁止）',
-            '最小権限の原則を適用',
-            'IAMロールを使用（アクセスキー最小化）',
-            'パスワードポリシーの強化',
-            'アクセスキーの定期ローテーション',
+            'Enable MFA on root account',
+            'Create individual IAM users (no root sharing)',
+            'Apply the principle of least privilege',
+            'Use IAM roles (minimize access keys)',
+            'Strengthen password policies',
+            'Regularly rotate access keys',
         ],
-        'データ保護': [
-            'S3バケットのパブリックアクセスブロック',
-            'EBSボリュームの暗号化',
-            'RDSインスタンスの暗号化',
-            'SSL/TLSの強制',
-            'KMSによるキー管理',
+        'Data Protection': [
+            'Block public access on S3 buckets',
+            'Encrypt EBS volumes',
+            'Encrypt RDS instances',
+            'Enforce SSL/TLS',
+            'Manage keys with KMS',
         ],
-        'ネットワーク': [
-            'セキュリティグループの最小権限設定',
-            'NACLの適切な設定',
-            'VPCフローログの有効化',
-            'プライベートサブネットの活用',
-            'VPCエンドポイントの使用',
+        'Network': [
+            'Configure security groups with least privilege',
+            'Set up NACLs appropriately',
+            'Enable VPC Flow Logs',
+            'Utilize private subnets',
+            'Use VPC endpoints',
         ],
-        '監視': [
-            'CloudTrailの有効化（全リージョン）',
-            'GuardDutyの有効化',
-            'AWS Configの有効化',
-            'CloudWatchアラームの設定',
-            'Security Hubの統合',
+        'Monitoring': [
+            'Enable CloudTrail (all regions)',
+            'Enable GuardDuty',
+            'Enable AWS Config',
+            'Set up CloudWatch alarms',
+            'Integrate Security Hub',
         ]
     },
-    'AWS責任': [
-        '物理的データセンターセキュリティ',
-        'ハードウェアの廃棄手順',
-        'ネットワークインフラの保護',
-        'ハイパーバイザーのセキュリティ',
-        '電力・冷却の確保',
-        'コンプライアンス認証の維持',
+    'AWS Responsibility': [
+        'Physical data center security',
+        'Hardware disposal procedures',
+        'Network infrastructure protection',
+        'Hypervisor security',
+        'Power and cooling assurance',
+        'Compliance certification maintenance',
     ]
 }
 
@@ -1734,100 +1744,100 @@ print_checklist(security_checklist)
 
 ## 10. FAQ
 
-### Q1. クラウドは本当にコスト削減になるのか？
+### Q1. Does the cloud really reduce costs?
 
-必ずしもそうではない。常時稼働のワークロードはオンプレミスの方が安くなる場合がある。クラウドの真のメリットは「弾力性」と「俊敏性」にあり、変動するワークロードや新規プロジェクトの立ち上げでコスト優位性が高い。Reserved Instances や Savings Plans を活用すれば、固定ワークロードでも最大 72% の割引が可能。
+Not necessarily. Always-on workloads may be cheaper on-premises. The true benefits of the cloud lie in "elasticity" and "agility," and cost advantages are highest for variable workloads and new project launches. With Reserved Instances or Savings Plans, discounts of up to 72% are possible even for fixed workloads.
 
-具体的な判断基準:
-- CPU使用率が平均20%以下 → クラウドの方が割高になりやすい
-- ピークとオフピークの差が3倍以上 → クラウドが有利
-- 新規プロジェクトで将来の需要が不確実 → クラウドが有利
-- 3年以上安定稼働する基幹系 → RI/SPで対応、またはオンプレを検討
+Specific decision criteria:
+- Average CPU utilization below 20% -> Cloud tends to be more expensive
+- Peak-to-off-peak ratio of 3x or more -> Cloud is advantageous
+- New project with uncertain future demand -> Cloud is advantageous
+- Core system with stable operation for 3+ years -> Address with RI/SP, or consider on-premises
 
-### Q2. AWS / GCP / Azure のどれを選ぶべきか？
+### Q2. Should I choose AWS, GCP, or Azure?
 
-チームのスキルセット、既存の技術スタック、必要なサービスの成熟度で判断する。一般的に AWS はサービスの幅が最も広く、GCP はデータ分析・ML に強み、Azure は Microsoft エコシステム (Active Directory, Office 365) との親和性が高い。マルチクラウド戦略も有効だが、運用複雑性が増すため慎重に検討する。
+Decide based on team skill set, existing technology stack, and the maturity of required services. Generally, AWS has the broadest range of services, GCP excels in data analytics and ML, and Azure has the best affinity with the Microsoft ecosystem (Active Directory, Office 365). A multi-cloud strategy is also effective, but consider it carefully as it increases operational complexity.
 
 ```
-選択基準マトリクス:
+Selection Criteria Matrix:
 
                     AWS     GCP     Azure
-サービス数          ★★★★★  ★★★    ★★★★
-ML/AI              ★★★★   ★★★★★  ★★★★
-コンテナ/K8s        ★★★★   ★★★★★  ★★★★
-エンタープライズ連携 ★★★★   ★★★    ★★★★★
-コスト透明性         ★★★    ★★★★★  ★★★
-日本語サポート       ★★★★★  ★★★    ★★★★
-スタートアップ向け   ★★★★   ★★★★★  ★★★
+Service Breadth     *****   ***     ****
+ML/AI               ****    *****   ****
+Containers/K8s      ****    *****   ****
+Enterprise Integration ****  ***    *****
+Cost Transparency   ***     *****   ***
+Japanese Support    *****   ***     ****
+Startup-Friendly    ****    *****   ***
 ```
 
-### Q3. クラウドのセキュリティはオンプレミスより弱いのか？
+### Q3. Is cloud security weaker than on-premises?
 
-「共有責任モデル」において、クラウドプロバイダは物理インフラのセキュリティを担い、ユーザーはデータとアクセス管理を担う。主要プロバイダは SOC 2、ISO 27001、PCI DSS などの認証を取得しており、適切に設定すればオンプレミスと同等以上のセキュリティを実現できる。
+Under the "shared responsibility model," the cloud provider handles physical infrastructure security while the user handles data and access management. Major providers have obtained certifications such as SOC 2, ISO 27001, and PCI DSS, and with proper configuration, security equal to or better than on-premises can be achieved.
 
-### Q4. クラウド移行にどのくらいの期間がかかるのか？
+### Q4. How long does cloud migration take?
 
-規模と複雑さによるが、一般的な目安は以下の通り。
-
-```
-移行規模別の期間目安:
-
-小規模（サーバー10台以下）
-├── アセスメント: 2-4週間
-├── 計画: 2-4週間
-├── 移行実施: 4-8週間
-└── 合計: 2-4ヶ月
-
-中規模（サーバー10-100台）
-├── アセスメント: 4-8週間
-├── 計画: 4-8週間
-├── 移行実施: 3-6ヶ月
-├── 最適化: 2-3ヶ月
-└── 合計: 6-12ヶ月
-
-大規模（サーバー100台以上）
-├── アセスメント: 2-3ヶ月
-├── 計画: 2-4ヶ月
-├── 移行実施: 6-18ヶ月
-├── 最適化: 3-6ヶ月
-└── 合計: 1-2年以上
-```
-
-### Q5. クラウドの認定資格は取得すべきか？
-
-実務経験と合わせて取得することで大きな価値がある。
+It depends on scale and complexity, but here are general guidelines:
 
 ```
-AWS認定資格ロードマップ:
+Timeline Guidelines by Migration Scale:
 
-【基礎レベル】
+Small-scale (fewer than 10 servers)
+├── Assessment: 2-4 weeks
+├── Planning: 2-4 weeks
+├── Migration execution: 4-8 weeks
+└── Total: 2-4 months
+
+Medium-scale (10-100 servers)
+├── Assessment: 4-8 weeks
+├── Planning: 4-8 weeks
+├── Migration execution: 3-6 months
+├── Optimization: 2-3 months
+└── Total: 6-12 months
+
+Large-scale (100+ servers)
+├── Assessment: 2-3 months
+├── Planning: 2-4 months
+├── Migration execution: 6-18 months
+├── Optimization: 3-6 months
+└── Total: 1-2+ years
+```
+
+### Q5. Should I get cloud certifications?
+
+They provide significant value when combined with practical experience.
+
+```
+AWS Certification Roadmap:
+
+[Foundational Level]
 └── Cloud Practitioner (CLF-C02)
-    学習期間: 2-4週間
-    対象: 全職種、クラウド初学者
+    Study period: 2-4 weeks
+    Target: All roles, cloud beginners
 
-【アソシエイトレベル】
+[Associate Level]
 ├── Solutions Architect Associate (SAA-C03)
-│   学習期間: 1-2ヶ月
-│   対象: インフラエンジニア、アーキテクト
+│   Study period: 1-2 months
+│   Target: Infrastructure engineers, architects
 │
 ├── Developer Associate (DVA-C02)
-│   学習期間: 1-2ヶ月
-│   対象: アプリケーション開発者
+│   Study period: 1-2 months
+│   Target: Application developers
 │
 └── SysOps Administrator Associate (SOA-C02)
-    学習期間: 1-2ヶ月
-    対象: 運用エンジニア
+    Study period: 1-2 months
+    Target: Operations engineers
 
-【プロフェッショナルレベル】
+[Professional Level]
 ├── Solutions Architect Professional (SAP-C02)
-│   学習期間: 2-3ヶ月
-│   対象: シニアアーキテクト
+│   Study period: 2-3 months
+│   Target: Senior architects
 │
 └── DevOps Engineer Professional (DOP-C02)
-    学習期間: 2-3ヶ月
-    対象: シニアDevOpsエンジニア
+    Study period: 2-3 months
+    Target: Senior DevOps engineers
 
-【スペシャリティ】
+[Specialty]
 ├── Security Specialty
 ├── Database Specialty
 ├── Advanced Networking Specialty
@@ -1840,48 +1850,48 @@ AWS認定資格ロードマップ:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing and running code to verify behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend solidly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 11. まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| クラウドの定義 | オンデマンドでリソースを確保・解放でき、従量課金で利用するモデル |
-| サービスモデル | IaaS(インフラ) → CaaS(コンテナ) → PaaS(プラットフォーム) → FaaS(関数) → SaaS(アプリ) の順に抽象度が上がる |
-| デプロイモデル | パブリック、プライベート、ハイブリッド、マルチクラウドの4種 |
-| AWS の強み | サービス数最多、グローバルリージョン最多、エコシステム成熟 |
-| コスト最適化 | 従量課金 + 予約割引 + スポット活用 + アーキテクチャ最適化の4層戦略 |
-| セキュリティ | 共有責任モデルを理解し、ユーザー側の設定を確実に行う |
-| 移行戦略 | 6R (Rehost/Replatform/Repurchase/Refactor/Retire/Retain) で分類 |
-| クラウドネイティブ | 12 Factor App、マイクロサービス、IaC、コンテナ化が基本 |
+Knowledge of this topic is frequently used in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 11. Summary
 
-- [01-aws-account-setup.md](./01-aws-account-setup.md) -- AWS アカウントの作成と初期設定
-- [02-aws-cli-sdk.md](./02-aws-cli-sdk.md) -- CLI/SDK のセットアップと認証情報管理
+| Item | Key Point |
+|------|-----------|
+| Cloud Definition | A model for provisioning and releasing resources on demand with pay-as-you-go billing |
+| Service Models | Abstraction increases in order: IaaS (infra) -> CaaS (container) -> PaaS (platform) -> FaaS (function) -> SaaS (app) |
+| Deployment Models | Four types: Public, Private, Hybrid, and Multi-Cloud |
+| AWS Strengths | Most services, most global regions, mature ecosystem |
+| Cost Optimization | Four-layer strategy: pay-as-you-go + reserved discounts + spot utilization + architecture optimization |
+| Security | Understand the shared responsibility model and ensure proper user-side configuration |
+| Migration Strategy | Classify using the 6Rs (Rehost/Replatform/Repurchase/Refactor/Retire/Retain) |
+| Cloud Native | 12 Factor App, microservices, IaC, and containerization are fundamentals |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
+
+- [01-aws-account-setup.md](./01-aws-account-setup.md) -- AWS account creation and initial setup
+- [02-aws-cli-sdk.md](./02-aws-cli-sdk.md) -- CLI/SDK setup and credential management
+
+---
+
+## References
 
 1. NIST SP 800-145 "The NIST Definition of Cloud Computing" -- https://csrc.nist.gov/publications/detail/sp/800-145/final
 2. AWS Well-Architected Framework -- https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html
 3. Gartner "Magic Quadrant for Cloud Infrastructure and Platform Services" -- https://www.gartner.com/en/documents/cloud-infrastructure-platform-services
-4. AWS 共有責任モデル -- https://aws.amazon.com/compliance/shared-responsibility-model/
+4. AWS Shared Responsibility Model -- https://aws.amazon.com/compliance/shared-responsibility-model/
 5. CNCF Cloud Native Definition -- https://github.com/cncf/toc/blob/main/DEFINITION.md
 6. The Twelve-Factor App -- https://12factor.net/
 7. AWS Migration Hub -- https://docs.aws.amazon.com/migrationhub/
