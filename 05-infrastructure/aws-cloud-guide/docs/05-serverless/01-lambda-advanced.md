@@ -1,92 +1,93 @@
-# AWS Lambda 応用
+# AWS Lambda Advanced
 
-> コールドスタートの最適化、Provisioned Concurrency、Lambda Destinations、Step Functions 連携を理解し、本番運用品質のサーバーレスアプリケーションを構築する。
-
----
-
-## この章で学ぶこと
-
-1. **コールドスタートの原因と最適化手法** -- コールドスタートが発生するメカニズムを理解し、ランタイム選択やパッケージ軽量化で実戦的に対処する
-2. **Provisioned Concurrency と同時実行制御** -- レイテンシ要件が厳しいワークロードに対して予め実行環境を確保する方法を習得する
-3. **Lambda Destinations と Step Functions** -- 非同期処理の結果ルーティングとオーケストレーションでエラーハンドリングを設計する
-4. **Lambda レイヤーとカスタムランタイム** -- 共通ライブラリの効率的な管理とカスタムランタイムの構築方法を学ぶ
-5. **Lambda のモニタリングとデバッグ** -- X-Ray、CloudWatch Logs Insights、Lambda Insights を活用して本番環境の問題を迅速に特定する
-6. **Lambda のセキュリティベストプラクティス** -- 最小権限の原則、VPC 設計、シークレット管理を実践する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AWS Lambda 基礎](./00-lambda-basics.md) の内容を理解していること
+> Understand cold start optimization, Provisioned Concurrency, Lambda Destinations, and Step Functions integration to build production-quality serverless applications.
 
 ---
 
-## 1. コールドスタートの詳解
+## What You Will Learn
 
-### 1.1 コールドスタートのライフサイクル
+1. **Root causes and optimization techniques for cold starts** -- Understand the mechanism behind cold starts and address them practically through runtime selection and package size reduction
+2. **Provisioned Concurrency and concurrency control** -- Learn how to pre-initialize execution environments for workloads with strict latency requirements
+3. **Lambda Destinations and Step Functions** -- Design error handling through result routing and orchestration for asynchronous processing
+4. **Lambda Layers and custom runtimes** -- Learn how to efficiently manage shared libraries and build custom runtimes
+5. **Lambda monitoring and debugging** -- Use X-Ray, CloudWatch Logs Insights, and Lambda Insights to quickly identify issues in production
+6. **Lambda security best practices** -- Apply the principle of least privilege, VPC design, and secrets management in practice
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [AWS Lambda Basics](./00-lambda-basics.md)
+
+---
+
+## 1. Cold Starts in Depth
+
+### 1.1 Cold Start Lifecycle
 
 ```
-リクエスト到着
+Request arrives
     |
     v
 +-----------------------------+
-| 実行環境はあるか？           |
+| Is an execution env available? |
 +-----------------------------+
     |             |
-  ある(Warm)   ない(Cold)
+  Yes (Warm)   No (Cold)
     |             |
     |             v
     |    +------------------------+
-    |    | 1. MicroVM 確保        |  <-- AWS管理 (数百ms)
-    |    | 2. ランタイム初期化     |  <-- ランタイム依存
-    |    | 3. デプロイパッケージ   |  <-- サイズ依存
-    |    |    ダウンロード・展開   |
-    |    | 4. Init コード実行     |  <-- ユーザーコード
-    |    |    (ハンドラ外)        |
+    |    | 1. Acquire MicroVM    |  <-- AWS managed (hundreds of ms)
+    |    | 2. Initialize runtime |  <-- Runtime-dependent
+    |    | 3. Download/extract   |  <-- Size-dependent
+    |    |    deployment package |
+    |    | 4. Run Init code      |  <-- User code
+    |    |    (outside handler)  |
     |    +------------------------+
     |             |
     v             v
 +-----------------------------+
-| 5. ハンドラ関数実行          |  <-- 通常の実行
+| 5. Execute handler function |  <-- Normal execution
 +-----------------------------+
     |
     v
 +-----------------------------+
-| 6. 実行環境を Warm 状態で    |
-|    一定時間保持 (~5-15分)    |
+| 6. Keep execution env in    |
+|    Warm state for a period  |
+|    (~5-15 minutes)          |
 +-----------------------------+
 ```
 
-### 1.2 ランタイム別コールドスタート時間の目安
+### 1.2 Estimated Cold Start Times by Runtime
 
-| ランタイム | コールドスタート (128MB) | コールドスタート (1024MB) | 備考 |
+| Runtime | Cold Start (128MB) | Cold Start (1024MB) | Notes |
 |-----------|------------------------|--------------------------|------|
-| Python 3.12 | 200-400 ms | 150-300 ms | 軽量、高速起動 |
-| Node.js 20.x | 200-400 ms | 150-250 ms | 軽量、高速起動 |
-| Go (AL2023) | 50-150 ms | 30-100 ms | コンパイル済みバイナリ |
-| Java 21 | 2,000-5,000 ms | 800-2,000 ms | JVM 起動が重い |
-| .NET 8 | 800-2,000 ms | 400-1,000 ms | AOT で大幅改善可能 |
-| Ruby 3.3 | 300-600 ms | 200-400 ms | インタプリタ起動 |
-| Rust (AL2023) | 30-100 ms | 20-80 ms | Go 同様にネイティブバイナリ |
+| Python 3.12 | 200-400 ms | 150-300 ms | Lightweight, fast startup |
+| Node.js 20.x | 200-400 ms | 150-250 ms | Lightweight, fast startup |
+| Go (AL2023) | 50-150 ms | 30-100 ms | Compiled binary |
+| Java 21 | 2,000-5,000 ms | 800-2,000 ms | Heavy JVM startup |
+| .NET 8 | 800-2,000 ms | 400-1,000 ms | Greatly improved with AOT |
+| Ruby 3.3 | 300-600 ms | 200-400 ms | Interpreter startup |
+| Rust (AL2023) | 30-100 ms | 20-80 ms | Native binary like Go |
 
-### 1.3 コールドスタート最適化テクニック
+### 1.3 Cold Start Optimization Techniques
 
 ```python
-# [最適化] ハンドラ外で初期化を行い、Warm 起動時に再利用
+# [Optimization] Initialize outside the handler to reuse on Warm starts
 import boto3
 import os
 
-# --- Init Phase (コールドスタート時のみ実行) ---
+# --- Init Phase (runs only on cold start) ---
 TABLE_NAME = os.environ["TABLE_NAME"]
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(TABLE_NAME)
 # ------------------------------------------------
 
 def lambda_handler(event, context):
-    """ハンドラは Warm 起動時にも毎回実行される"""
+    """Handler runs on every invocation, including Warm starts"""
     user_id = event["pathParameters"]["userId"]
 
     response = table.get_item(Key={"userId": user_id})
@@ -97,7 +98,7 @@ def lambda_handler(event, context):
 ```
 
 ```python
-# [最適化] 遅延インポートで不要なモジュールの初期化を避ける
+# [Optimization] Use lazy imports to avoid initializing unnecessary modules
 import json
 import os
 
@@ -105,7 +106,7 @@ def lambda_handler(event, context):
     action = event.get("action")
 
     if action == "generate_pdf":
-        # PDF 生成が必要な場合のみ重いライブラリをインポート
+        # Import heavy library only when PDF generation is needed
         from reportlab.pdfgen import canvas
         return generate_pdf(event)
     elif action == "send_email":
@@ -117,12 +118,12 @@ def lambda_handler(event, context):
 ```
 
 ```python
-# [最適化] コネクションプールの再利用パターン
+# [Optimization] Connection pool reuse pattern
 import boto3
 import os
 from botocore.config import Config
 
-# Init Phase: SDK クライアントの設定を最適化
+# Init Phase: Optimize SDK client configuration
 config = Config(
     retries={"max_attempts": 3, "mode": "adaptive"},
     max_pool_connections=10,
@@ -130,7 +131,7 @@ config = Config(
     read_timeout=10,
 )
 
-# 各 AWS サービスクライアントを Init Phase で作成
+# Create each AWS service client in the Init Phase
 dynamodb_client = boto3.client("dynamodb", config=config)
 s3_client = boto3.client("s3", config=config)
 sqs_client = boto3.client("sqs", config=config)
@@ -139,14 +140,14 @@ BUCKET_NAME = os.environ["BUCKET_NAME"]
 QUEUE_URL = os.environ["QUEUE_URL"]
 
 def lambda_handler(event, context):
-    """全クライアントは Warm 起動時に再利用される"""
-    # DynamoDB からデータ取得
+    """All clients are reused on Warm starts"""
+    # Fetch data from DynamoDB
     item = dynamodb_client.get_item(
         TableName="my-table",
         Key={"pk": {"S": event["id"]}}
     )
 
-    # S3 にレポートを保存
+    # Save report to S3
     s3_client.put_object(
         Bucket=BUCKET_NAME,
         Key=f"reports/{event['id']}.json",
@@ -154,7 +155,7 @@ def lambda_handler(event, context):
         ContentType="application/json"
     )
 
-    # SQS に通知を送信
+    # Send notification to SQS
     sqs_client.send_message(
         QueueUrl=QUEUE_URL,
         MessageBody=json.dumps({"status": "completed", "id": event["id"]})
@@ -163,58 +164,58 @@ def lambda_handler(event, context):
     return {"statusCode": 200, "body": "Processing complete"}
 ```
 
-### 1.4 デプロイパッケージの軽量化
+### 1.4 Reducing Deployment Package Size
 
 ```
-パッケージサイズ vs コールドスタート:
+Package size vs. cold start impact:
 
-サイズ          コールドスタート影響
-  1 MB  -----  最小限 (+50ms程度)
-  5 MB  -----  軽微 (+100ms程度)
- 10 MB  -----  顕著 (+200ms程度)
- 50 MB  -----  深刻 (+500ms以上)
-250 MB  -----  非常に深刻 (+1秒以上)
+Size          Cold start impact
+  1 MB  -----  Minimal (+~50ms)
+  5 MB  -----  Minor (+~100ms)
+ 10 MB  -----  Noticeable (+~200ms)
+ 50 MB  -----  Severe (+500ms or more)
+250 MB  -----  Very severe (+1 second or more)
 
-対策:
-  - 不要な依存を除外 (dev dependencies)
-  - __pycache__、テストファイルを除外
-  - 軽量な代替ライブラリを利用
-  - Lambda レイヤーで共通部分を分離
-  - コンテナイメージ利用時は multi-stage build
+Countermeasures:
+  - Exclude unnecessary dependencies (dev dependencies)
+  - Exclude __pycache__, test files
+  - Use lightweight alternative libraries
+  - Separate shared parts into Lambda Layers
+  - Use multi-stage builds for container images
 ```
 
 ```bash
-# Python での軽量パッケージ作成例
-# 1. 本番依存のみインストール
+# Example of creating a lightweight Python package
+# 1. Install production dependencies only
 pip install -r requirements.txt -t ./package --no-cache-dir
 
-# 2. 不要ファイルの除去
+# 2. Remove unnecessary files
 cd package
 find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
 find . -type d -name "*.dist-info" -exec rm -rf {} + 2>/dev/null
 find . -type f -name "*.pyc" -delete 2>/dev/null
 find . -type d -name "tests" -exec rm -rf {} + 2>/dev/null
 
-# 3. ZIP パッケージの作成
+# 3. Create ZIP package
 zip -r9 ../function.zip .
 cd ..
 zip -g function.zip lambda_function.py
 
-# 4. サイズ確認
+# 4. Check size
 ls -lh function.zip
 
-# 5. デプロイ
+# 5. Deploy
 aws lambda update-function-code \
   --function-name my-function \
   --zip-file fileb://function.zip
 ```
 
 ```bash
-# Node.js での軽量パッケージ作成例
-# 1. 本番依存のみインストール
+# Example of creating a lightweight Node.js package
+# 1. Install production dependencies only
 npm ci --only=production
 
-# 2. esbuild でバンドル (tree-shaking 付き)
+# 2. Bundle with esbuild (with tree-shaking)
 npx esbuild src/handler.ts \
   --bundle \
   --minify \
@@ -224,38 +225,38 @@ npx esbuild src/handler.ts \
   --outfile=dist/handler.js \
   --external:@aws-sdk/*
 
-# 3. ZIP パッケージの作成
+# 3. Create ZIP package
 cd dist
 zip -r9 ../function.zip .
 
-# AWS SDK v3 は Lambda ランタイムに組み込み済みのため
-# --external:@aws-sdk/* で除外してサイズ削減
+# AWS SDK v3 is bundled with the Lambda runtime, so
+# use --external:@aws-sdk/* to exclude it and reduce size
 ```
 
-### 1.5 メモリとCPUの関係
+### 1.5 Memory and CPU Relationship
 
 ```
-Lambda のメモリとCPUの比例関係:
+Proportional relationship between Lambda memory and CPU:
 
-メモリ    CPU パワー    ネットワーク帯域
- 128 MB   最小 (部分)   低
- 256 MB   低           低
- 512 MB   中           中
-1024 MB   中～高       中
-1769 MB   1 vCPU 相当  高
-3538 MB   2 vCPU 相当  高
- 10 GB    6 vCPU 相当  最大
+Memory    CPU Power        Network Bandwidth
+ 128 MB   Minimum (partial)  Low
+ 256 MB   Low                Low
+ 512 MB   Medium             Medium
+1024 MB   Medium-High        Medium
+1769 MB   ~1 vCPU            High
+3538 MB   ~2 vCPUs           High
+ 10 GB    ~6 vCPUs           Maximum
 
-ポイント:
-  - 1,769 MB で 1 vCPU が完全に割り当てられる
-  - CPU バウンドな処理はメモリ増強で高速化できる
-  - メモリ増強によりコールドスタートも短縮される
-  - コスト = 実行時間 x メモリ のため、
-    メモリ倍増 → 実行時間半減なら同コストで高速に
+Key points:
+  - 1,769 MB allocates exactly 1 full vCPU
+  - CPU-bound tasks can be sped up by increasing memory
+  - Increasing memory also shortens cold start times
+  - Cost = execution time x memory, so
+    doubling memory and halving execution time yields same cost at higher speed
 ```
 
 ```python
-# メモリサイズの最適化を自動テストするスクリプト
+# Script to auto-benchmark memory sizes
 import boto3
 import json
 import time
@@ -264,16 +265,16 @@ import statistics
 lambda_client = boto3.client("lambda")
 
 def benchmark_memory_sizes(function_name, payload, memory_sizes, iterations=10):
-    """異なるメモリサイズでの実行時間を比較する"""
+    """Compare execution times across different memory sizes"""
     results = {}
 
     for memory_size in memory_sizes:
-        # メモリサイズを変更
+        # Update memory size
         lambda_client.update_function_configuration(
             FunctionName=function_name,
             MemorySize=memory_size
         )
-        time.sleep(5)  # 設定反映を待つ
+        time.sleep(5)  # Wait for configuration to take effect
 
         durations = []
         for i in range(iterations):
@@ -281,9 +282,9 @@ def benchmark_memory_sizes(function_name, payload, memory_sizes, iterations=10):
                 FunctionName=function_name,
                 Payload=json.dumps(payload)
             )
-            # レスポンスヘッダから実行時間を取得
+            # Get execution time from response headers
             log_result = response.get("LogResult", "")
-            # Duration を解析
+            # Parse Duration
             duration = float(response["ResponseMetadata"]["HTTPHeaders"]
                            .get("x-amz-log-result", "0"))
             durations.append(duration)
@@ -301,31 +302,31 @@ def benchmark_memory_sizes(function_name, payload, memory_sizes, iterations=10):
 
 ## 2. Provisioned Concurrency
 
-### 2.1 仕組みと設定
+### 2.1 How It Works and Configuration
 
-Provisioned Concurrency は、指定した数の実行環境を事前に初期化しておく機能である。コールドスタートを完全に排除し、一貫したレイテンシを実現する。
+Provisioned Concurrency pre-initializes a specified number of execution environments. It completely eliminates cold starts and delivers consistent latency.
 
 ```
-通常の Lambda:
-リクエスト --> [コールドスタート?] --> ハンドラ実行
-                    ↑
-              環境がなければ発生
+Standard Lambda:
+Request --> [Cold start?] --> Handler execution
+                ↑
+          Occurs if no env is available
 
 Provisioned Concurrency:
-                    +----- 事前初期化済み環境 1
+                    +----- Pre-initialized env 1
                     |
-リクエスト -------> +----- 事前初期化済み環境 2  --> ハンドラ実行
-                    |                               (コールドスタートなし)
-                    +----- 事前初期化済み環境 3
+Request ---------> +----- Pre-initialized env 2  --> Handler execution
+                    |                               (no cold start)
+                    +----- Pre-initialized env 3
                     |
-                    +----- 事前初期化済み環境 N
+                    +----- Pre-initialized env N
 
-※ Provisioned を超える分は通常のオンデマンドで処理
+* Requests beyond the provisioned count are handled on-demand
 ```
 
 ```bash
-# Provisioned Concurrency の設定
-# まずエイリアスまたはバージョンを指定
+# Configure Provisioned Concurrency
+# First specify an alias or version
 aws lambda publish-version \
   --function-name my-api-function
 
@@ -334,25 +335,25 @@ aws lambda put-provisioned-concurrency-config \
   --qualifier 1 \
   --provisioned-concurrent-executions 50
 
-# 状態確認
+# Check status
 aws lambda get-provisioned-concurrency-config \
   --function-name my-api-function \
   --qualifier 1
 
-# 設定一覧の確認
+# List configurations
 aws lambda list-provisioned-concurrency-configs \
   --function-name my-api-function
 
-# Provisioned Concurrency の削除
+# Delete Provisioned Concurrency
 aws lambda delete-provisioned-concurrency-config \
   --function-name my-api-function \
   --qualifier 1
 ```
 
-### 2.2 Application Auto Scaling との連携
+### 2.2 Integration with Application Auto Scaling
 
 ```bash
-# Auto Scaling ターゲットの登録
+# Register Auto Scaling target
 aws application-autoscaling register-scalable-target \
   --service-namespace lambda \
   --resource-id "function:my-api-function:prod" \
@@ -360,7 +361,7 @@ aws application-autoscaling register-scalable-target \
   --min-capacity 10 \
   --max-capacity 200
 
-# ターゲット追跡スケーリングポリシー
+# Target tracking scaling policy
 aws application-autoscaling put-scaling-policy \
   --service-namespace lambda \
   --resource-id "function:my-api-function:prod" \
@@ -376,7 +377,7 @@ aws application-autoscaling put-scaling-policy \
     "ScaleOutCooldown": 60
   }'
 
-# スケジュールベースのスケーリング
+# Schedule-based scaling (morning scale-up)
 aws application-autoscaling put-scheduled-action \
   --service-namespace lambda \
   --resource-id "function:my-api-function:prod" \
@@ -385,7 +386,7 @@ aws application-autoscaling put-scheduled-action \
   --schedule "cron(0 8 * * ? *)" \
   --scalable-target-action "MinCapacity=100,MaxCapacity=500"
 
-# 夜間のスケールダウン
+# Nightly scale-down
 aws application-autoscaling put-scheduled-action \
   --service-namespace lambda \
   --resource-id "function:my-api-function:prod" \
@@ -395,77 +396,77 @@ aws application-autoscaling put-scheduled-action \
   --scalable-target-action "MinCapacity=10,MaxCapacity=50"
 ```
 
-### 2.3 コスト比較
+### 2.3 Cost Comparison
 
-| 項目 | オンデマンド | Provisioned Concurrency |
+| Item | On-demand | Provisioned Concurrency |
 |------|------------|------------------------|
-| コールドスタート | あり | なし |
-| 課金開始 | リクエスト時 | 設定時から常時 |
-| リクエスト料金 | $0.20/100万回 | $0.20/100万回 |
-| 実行時間料金 (x86) | $0.0000166667/GB-秒 | $0.0000097222/GB-秒 (実行時) + $0.0000041667/GB-秒 (待機時) |
-| 向いている用途 | 不定期/バースト | 安定トラフィック/低レイテンシ |
+| Cold starts | Yes | No |
+| Billing starts | At request time | Continuously from configuration |
+| Request charge | $0.20/1M requests | $0.20/1M requests |
+| Duration charge (x86) | $0.0000166667/GB-sec | $0.0000097222/GB-sec (active) + $0.0000041667/GB-sec (idle) |
+| Best for | Irregular/burst traffic | Steady traffic/low latency |
 
 ```
-Provisioned Concurrency のコスト試算例:
+Provisioned Concurrency cost estimate example:
 
-シナリオ: API バックエンド
-  - メモリ: 1 GB
-  - 平均実行時間: 200 ms
-  - リクエスト数: 100万回/月
-  - Provisioned 数: 50
+Scenario: API backend
+  - Memory: 1 GB
+  - Average execution time: 200 ms
+  - Requests: 1M/month
+  - Provisioned count: 50
 
-オンデマンドの場合:
-  リクエスト料金: 100万 x $0.20/100万 = $0.20
-  実行時間料金: 100万 x 0.2秒 x 1GB x $0.0000166667 = $3.33
-  合計: $3.53/月
+On-demand cost:
+  Request charge: 1M x $0.20/1M = $0.20
+  Duration charge: 1M x 0.2s x 1GB x $0.0000166667 = $3.33
+  Total: $3.53/month
 
-Provisioned Concurrency の場合:
-  リクエスト料金: $0.20
-  実行時間料金: 100万 x 0.2秒 x 1GB x $0.0000097222 = $1.94
-  待機時間料金: 50 x 30日 x 24時間 x 3600秒 x 1GB x $0.0000041667 = $540.00
-  合計: $542.14/月
+Provisioned Concurrency cost:
+  Request charge: $0.20
+  Duration charge: 1M x 0.2s x 1GB x $0.0000097222 = $1.94
+  Idle charge: 50 x 30 days x 24h x 3600s x 1GB x $0.0000041667 = $540.00
+  Total: $542.14/month
 
-→ Provisioned は高額だが、コールドスタートなしの一貫したレイテンシを実現
-→ Auto Scaling でトラフィックパターンに合わせて調整することでコスト最適化可能
-→ 24時間常時50ではなく、ピーク時のみ高い値に設定するのが現実的
+→ Provisioned is more expensive but delivers consistent latency with no cold starts
+→ Cost can be optimized by using Auto Scaling to match traffic patterns
+→ Rather than keeping 50 provisioned 24/7, setting a high value only during peak hours is more practical
 ```
 
-### 2.4 Reserved Concurrency との組み合わせ
+### 2.4 Combining with Reserved Concurrency
 
 ```
-同時実行制御の階層:
+Concurrency control hierarchy:
 
-アカウント全体の同時実行数上限: 1,000 (デフォルト)
+Account-wide concurrency limit: 1,000 (default)
     |
-    +-- 関数A: Reserved Concurrency = 200
+    +-- Function A: Reserved Concurrency = 200
     |       |
-    |       +-- Provisioned: 50 (200のうち50を事前初期化)
-    |       +-- オンデマンド: 残り150まで利用可能
+    |       +-- Provisioned: 50 (50 of 200 pre-initialized)
+    |       +-- On-demand: up to remaining 150 available
     |
-    +-- 関数B: Reserved Concurrency = 100
+    +-- Function B: Reserved Concurrency = 100
     |       |
-    |       +-- 全てオンデマンド
+    |       +-- All on-demand
     |
-    +-- 他の関数: 残り700を共有 (Unreserved)
+    +-- Other functions: share remaining 700 (Unreserved)
 
-Reserved Concurrency の設定:
-  - 関数の同時実行数の「上限」を設定
-  - 追加コストなし
-  - 他の関数からのスロットル保護
-  - Provisioned と併用可能
+Reserved Concurrency configuration:
+  - Sets the "maximum" concurrent executions for a function
+  - No additional cost
+  - Protects specific functions from throttling by other functions
+  - Can be used together with Provisioned
 ```
 
 ```bash
-# Reserved Concurrency の設定
+# Configure Reserved Concurrency
 aws lambda put-function-concurrency \
   --function-name my-api-function \
   --reserved-concurrent-executions 200
 
-# Reserved Concurrency の確認
+# Check Reserved Concurrency
 aws lambda get-function-concurrency \
   --function-name my-api-function
 
-# Reserved Concurrency の削除 (アカウントプールに戻す)
+# Delete Reserved Concurrency (returns to account pool)
 aws lambda delete-function-concurrency \
   --function-name my-api-function
 ```
@@ -474,22 +475,22 @@ aws lambda delete-function-concurrency \
 
 ## 3. Lambda Destinations
 
-### 3.1 非同期呼び出しの結果ルーティング
+### 3.1 Result Routing for Asynchronous Invocations
 
 ```
-非同期呼び出し
+Asynchronous invocation
     |
     v
 +------------------+
-| Lambda 関数実行  |
+| Lambda execution |
 +------------------+
     |           |
-  成功        失敗
+  Success     Failure
     |           |
     v           v
 +---------+ +---------+
 | OnSuccess| | OnFailure|
-| 送信先   | | 送信先   |
+| Dest.    | | Dest.    |
 +---------+ +---------+
     |           |
     v           v
@@ -500,7 +501,7 @@ aws lambda delete-function-concurrency \
 ```
 
 ```bash
-# Destinations の設定
+# Configure Destinations
 aws lambda put-function-event-invoke-config \
   --function-name my-async-function \
   --maximum-retry-attempts 1 \
@@ -514,25 +515,25 @@ aws lambda put-function-event-invoke-config \
     }
   }'
 
-# 設定の確認
+# Check configuration
 aws lambda get-function-event-invoke-config \
   --function-name my-async-function
 
-# 設定の削除
+# Delete configuration
 aws lambda delete-function-event-invoke-config \
   --function-name my-async-function
 ```
 
 ### 3.2 Destinations vs DLQ
 
-| 機能 | Lambda Destinations | Dead Letter Queue (DLQ) |
+| Feature | Lambda Destinations | Dead Letter Queue (DLQ) |
 |------|-------------------|------------------------|
-| 対象イベント | 成功・失敗の両方 | 失敗のみ |
-| 送信先 | SQS, SNS, Lambda, EventBridge | SQS, SNS のみ |
-| ペイロード | 完全な実行コンテキスト含む | 元のイベントのみ |
-| 推奨度 | 新規開発では推奨 | レガシー互換 |
+| Target events | Both success and failure | Failure only |
+| Destinations | SQS, SNS, Lambda, EventBridge | SQS, SNS only |
+| Payload | Includes full execution context | Original event only |
+| Recommendation | Recommended for new development | Legacy compatibility |
 
-### 3.3 Destinations のペイロード構造
+### 3.3 Destinations Payload Structure
 
 ```json
 {
@@ -560,11 +561,11 @@ aws lambda delete-function-event-invoke-config \
 }
 ```
 
-### 3.4 EventBridge を活用したイベント駆動パターン
+### 3.4 Event-Driven Pattern Using EventBridge
 
 ```python
-# Lambda Destination を EventBridge に設定し、
-# 複数の後続処理をイベントルールで分岐させるパターン
+# Pattern: Set Lambda Destination to EventBridge and
+# branch subsequent processing using event rules
 
 import json
 import boto3
@@ -572,11 +573,11 @@ import boto3
 eventbridge = boto3.client("events")
 
 def order_processor(event, context):
-    """注文処理Lambda - 成功時にEventBridgeへ送信"""
+    """Order processing Lambda - sends to EventBridge on success"""
     order_id = event["orderId"]
     amount = event["amount"]
 
-    # 注文処理ロジック
+    # Order processing logic
     result = process_order(order_id, amount)
 
     return {
@@ -586,14 +587,14 @@ def order_processor(event, context):
         "status": "COMPLETED"
     }
 
-# EventBridge ルールでの後続処理分岐:
-# ルール1: amount > 10000 → 高額注文通知 Lambda
-# ルール2: 全注文 → 注文履歴 DynamoDB 書き込み Lambda
-# ルール3: status=COMPLETED → 配送手配 Step Functions
+# Branching subsequent processing via EventBridge rules:
+# Rule 1: amount > 10000 → High-value order notification Lambda
+# Rule 2: All orders → Order history DynamoDB write Lambda
+# Rule 3: status=COMPLETED → Shipping arrangement Step Functions
 ```
 
 ```yaml
-# EventBridge ルール (CloudFormation)
+# EventBridge rule (CloudFormation)
 HighValueOrderRule:
   Type: AWS::Events::Rule
   Properties:
@@ -617,12 +618,12 @@ HighValueOrderRule:
 
 ---
 
-## 4. AWS Step Functions 連携
+## 4. AWS Step Functions Integration
 
-### 4.1 ステートマシンの基本構成
+### 4.1 Basic State Machine Structure
 
 ```
-Step Functions ステートマシン:
+Step Functions State Machine:
 
 [Start]
     |
@@ -636,7 +637,7 @@ Step Functions ステートマシン:
 | ProcessOrder      |  (Lambda)
 +-------------------+
     |        |
-  成功      失敗
+  Success  Failure
     |        |
     v        v
 +--------+ +-------------------+
@@ -652,11 +653,11 @@ Step Functions ステートマシン:
   [End]       [End]
 ```
 
-### 4.2 ステートマシン定義 (ASL)
+### 4.2 State Machine Definition (ASL)
 
 ```json
 {
-  "Comment": "注文処理ワークフロー",
+  "Comment": "Order processing workflow",
   "StartAt": "ValidateInput",
   "States": {
     "ValidateInput": {
@@ -709,18 +710,18 @@ Step Functions ステートマシン:
 }
 ```
 
-### 4.3 Standard vs Express ワークフロー
+### 4.3 Standard vs Express Workflows
 
-| 特性 | Standard | Express |
+| Property | Standard | Express |
 |------|----------|---------|
-| 最大実行時間 | 1 年 | 5 分 |
-| 実行開始レート | 2,000/秒 | 100,000/秒 |
-| 状態遷移レート | 4,000/秒 | 無制限 |
-| 実行保証 | 正確に1回 | 最低1回 (Async) / 正確に1回 (Sync) |
-| 課金 | 状態遷移ごと | 実行回数 + 実行時間 |
-| 向いている用途 | 長時間ワークフロー | 大量短時間処理、IoT |
+| Maximum execution time | 1 year | 5 minutes |
+| Execution start rate | 2,000/sec | 100,000/sec |
+| State transition rate | 4,000/sec | Unlimited |
+| Execution guarantee | Exactly once | At least once (Async) / Exactly once (Sync) |
+| Billing | Per state transition | Per execution count + duration |
+| Best for | Long-running workflows | High-volume short-lived tasks, IoT |
 
-### 4.4 Step Functions の Parallel 実行
+### 4.4 Parallel Execution in Step Functions
 
 ```json
 {
@@ -761,11 +762,11 @@ Step Functions ステートマシン:
 }
 ```
 
-### 4.5 Map ステートによる動的並列処理
+### 4.5 Dynamic Parallel Processing with Map State
 
 ```json
 {
-  "Comment": "大量データの並列処理ワークフロー",
+  "Comment": "Parallel processing workflow for large datasets",
   "StartAt": "FetchItems",
   "States": {
     "FetchItems": {
@@ -806,11 +807,11 @@ Step Functions ステートマシン:
 }
 ```
 
-### 4.6 Distributed Map (大規模並列処理)
+### 4.6 Distributed Map (Large-Scale Parallel Processing)
 
 ```json
 {
-  "Comment": "S3 の大量ファイルを分散並列処理",
+  "Comment": "Distributed parallel processing of large numbers of S3 files",
   "StartAt": "DistributedProcess",
   "States": {
     "DistributedProcess": {
@@ -851,11 +852,11 @@ Step Functions ステートマシン:
 }
 ```
 
-### 4.7 Step Functions SDK 統合 (Optimized Integration)
+### 4.7 Step Functions SDK Integration (Optimized Integration)
 
 ```json
 {
-  "Comment": "AWS SDK 統合による直接サービス呼び出し",
+  "Comment": "Direct service calls via AWS SDK integration",
   "StartAt": "PutItemToDynamoDB",
   "States": {
     "PutItemToDynamoDB": {
@@ -915,63 +916,63 @@ Step Functions ステートマシン:
 
 ## 5. Lambda SnapStart (Java)
 
-### 5.1 SnapStart の仕組み
+### 5.1 How SnapStart Works
 
 ```
-従来の Java Lambda:
-  リクエスト --> JVM起動 --> クラスロード --> DI初期化 --> ハンドラ実行
-                |<---- コールドスタート (2-5秒) ---->|
+Traditional Java Lambda:
+  Request --> JVM startup --> Class loading --> DI init --> Handler execution
+                |<---- Cold start (2-5 seconds) ---->|
 
 SnapStart:
-  [事前] バージョン公開時にスナップショット作成
-         JVM起動 --> クラスロード --> DI初期化 --> スナップショット保存
+  [Ahead-of-time] Create snapshot on version publish
+         JVM startup --> Class loading --> DI init --> Save snapshot
 
-  [実行時] リクエスト --> スナップショット復元 (< 200ms) --> ハンドラ実行
+  [At runtime] Request --> Restore from snapshot (< 200ms) --> Handler execution
 ```
 
 ```bash
-# SnapStart の有効化
+# Enable SnapStart
 aws lambda update-function-configuration \
   --function-name my-java-function \
   --snap-start '{"ApplyOn": "PublishedVersions"}'
 
-# バージョン公開（スナップショット作成）
+# Publish version (creates snapshot)
 aws lambda publish-version \
   --function-name my-java-function
 
-# SnapStart の状態確認
+# Check SnapStart status
 aws lambda get-function-configuration \
   --function-name my-java-function \
   --query 'SnapStart'
 ```
 
-### 5.2 SnapStart の注意点
+### 5.2 SnapStart Considerations
 
 ```
-SnapStart 利用時の注意事項:
+Important notes when using SnapStart:
 
-1. 一意性の問題:
-   スナップショットから複数の実行環境が復元されるため、
-   Init Phase で生成した乱数やUUIDが重複する可能性がある。
+1. Uniqueness issue:
+   Multiple execution environments are restored from the same snapshot,
+   so random numbers and UUIDs generated in the Init Phase may be duplicated.
 
-   [対策]
-   - java.util.Random の初期化をハンドラ内で行う
-   - afterRestore フックで状態をリセットする
+   [Mitigation]
+   - Initialize java.util.Random inside the handler
+   - Use the afterRestore hook to reset state
 
-2. ネットワーク接続の問題:
-   Init Phase で確立したDB接続はスナップショット復元後に無効。
+2. Network connection issue:
+   DB connections established in the Init Phase become invalid after snapshot restore.
 
-   [対策]
-   - afterRestore フックでコネクションを再確立
-   - コネクションプーリングライブラリの再初期化
+   [Mitigation]
+   - Re-establish connections in the afterRestore hook
+   - Re-initialize connection pooling libraries
 
-3. 対応ランタイム:
-   - Java 11 以降 (Corretto)
-   - arm64 / x86_64 両対応
+3. Supported runtimes:
+   - Java 11 and later (Corretto)
+   - Both arm64 and x86_64 supported
 ```
 
 ```java
-// SnapStart の afterRestore フック例
+// Example of SnapStart afterRestore hook
 import org.crac.Context;
 import org.crac.Core;
 import org.crac.Resource;
@@ -982,25 +983,25 @@ public class MyHandler implements RequestHandler<APIGatewayProxyRequestEvent, AP
     private Connection dbConnection;
 
     public MyHandler() {
-        // Init Phase: CRaC リソースとして登録
+        // Init Phase: Register as CRaC resource
         Core.getGlobalContext().register(this);
-        // DB接続を確立
+        // Establish DB connection
         this.dbConnection = DriverManager.getConnection(DB_URL);
     }
 
     @Override
     public void afterRestore(Context<? extends Resource> context) {
-        // スナップショット復元後に呼ばれる
-        // DB接続を再確立
+        // Called after snapshot restore
+        // Re-establish DB connection
         this.dbConnection = DriverManager.getConnection(DB_URL);
-        // 乱数生成器を再シード
+        // Re-seed random number generator
         SecureRandom.getInstanceStrong();
     }
 
     @Override
     public APIGatewayProxyResponseEvent handleRequest(
             APIGatewayProxyRequestEvent event, com.amazonaws.services.lambda.runtime.Context context) {
-        // ハンドラロジック
+        // Handler logic
         return new APIGatewayProxyResponseEvent().withStatusCode(200);
     }
 }
@@ -1008,78 +1009,78 @@ public class MyHandler implements RequestHandler<APIGatewayProxyRequestEvent, AP
 
 ---
 
-## 6. Lambda レイヤー
+## 6. Lambda Layers
 
-### 6.1 レイヤーの概念
+### 6.1 Layer Concepts
 
 ```
-Lambda レイヤーの仕組み:
+How Lambda Layers work:
 
 +------------------------------------------+
-| Lambda 関数                               |
+| Lambda function                           |
 | +--------------------------------------+ |
-| | /var/task (関数コード)                 | |
+| | /var/task (function code)            | |
 | | +----------------------------------+ | |
 | | | lambda_function.py               | | |
 | | +----------------------------------+ | |
 | +--------------------------------------+ |
 | +--------------------------------------+ |
-| | /opt (レイヤー 1 + 2 + ... + N)     | |
+| | /opt (Layer 1 + 2 + ... + N)        | |
 | | +----------------------------------+ | |
-| | | /opt/python/共通ライブラリ         | | |
-| | | /opt/bin/カスタムバイナリ          | | |
-| | | /opt/lib/共有ライブラリ           | | |
+| | | /opt/python/shared libraries     | | |
+| | | /opt/bin/custom binaries         | | |
+| | | /opt/lib/shared libraries        | | |
 | | +----------------------------------+ | |
 | +--------------------------------------+ |
 +------------------------------------------+
 
-レイヤーのメリット:
-  - 共通ライブラリの一元管理
-  - デプロイパッケージの軽量化
-  - 最大5レイヤーまで重ね合わせ可能
-  - レイヤー単位でバージョン管理
+Benefits of layers:
+  - Centralized management of shared libraries
+  - Reduced deployment package size
+  - Up to 5 layers can be stacked
+  - Version-controlled per layer
 ```
 
-### 6.2 レイヤーの作成と管理
+### 6.2 Creating and Managing Layers
 
 ```bash
-# Python ライブラリのレイヤー作成
+# Create a layer for Python libraries
 mkdir -p python/lib/python3.12/site-packages
 pip install requests boto3-stubs[s3,dynamodb] \
   -t python/lib/python3.12/site-packages
 
-# ZIP パッケージ作成
+# Create ZIP package
 zip -r9 my-layer.zip python/
 
-# レイヤーの公開
+# Publish the layer
 aws lambda publish-layer-version \
   --layer-name my-common-libs \
-  --description "共通ライブラリ (requests, boto3-stubs)" \
+  --description "Common libraries (requests, boto3-stubs)" \
   --compatible-runtimes python3.11 python3.12 \
   --compatible-architectures x86_64 arm64 \
   --zip-file fileb://my-layer.zip
 
-# レイヤーを関数にアタッチ
+# Attach layer to a function
 aws lambda update-function-configuration \
   --function-name my-function \
   --layers \
     arn:aws:lambda:ap-northeast-1:123456789012:layer:my-common-libs:1 \
     arn:aws:lambda:ap-northeast-1:123456789012:layer:my-utilities:3
 
-# レイヤーバージョンの一覧
+# List layer versions
 aws lambda list-layer-versions \
   --layer-name my-common-libs
 
-# レイヤーの削除
+# Delete a layer version
 aws lambda delete-layer-version \
   --layer-name my-common-libs \
   --version-number 1
 ```
 
-### 6.3 共有ユーティリティレイヤーの実装例
+### 6.3 Example: Shared Utility Layer Implementation
 
 ```python
-# レイヤーに含めるユーティリティモジュール
+# Utility module to include in a layer
 # python/lib/python3.12/site-packages/common/response.py
 
 import json
@@ -1090,7 +1091,7 @@ def api_response(
     body: Any,
     headers: Optional[dict] = None
 ) -> dict:
-    """API Gateway 用の標準レスポンスを生成する"""
+    """Generate a standard response for API Gateway"""
     default_headers = {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
@@ -1111,7 +1112,7 @@ def error_response(
     message: str,
     error_code: Optional[str] = None
 ) -> dict:
-    """エラーレスポンスを生成する"""
+    """Generate an error response"""
     body = {"error": {"message": message}}
     if error_code:
         body["error"]["code"] = error_code
@@ -1119,7 +1120,7 @@ def error_response(
 ```
 
 ```python
-# レイヤーに含めるロギングモジュール
+# Logging module to include in a layer
 # python/lib/python3.12/site-packages/common/logger.py
 
 import json
@@ -1129,14 +1130,14 @@ import sys
 from datetime import datetime, timezone
 
 class StructuredLogger:
-    """構造化ログを出力するロガー"""
+    """Logger that outputs structured logs"""
 
     def __init__(self, service_name: str = None):
         self.service_name = service_name or os.environ.get("SERVICE_NAME", "unknown")
         self.logger = logging.getLogger(self.service_name)
         self.logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
 
-        # JSON フォーマッタの設定
+        # Configure JSON formatter
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(logging.Formatter("%(message)s"))
         self.logger.handlers = [handler]
@@ -1166,18 +1167,18 @@ class StructuredLogger:
 
 ---
 
-## 7. Lambda のモニタリングとデバッグ
+## 7. Lambda Monitoring and Debugging
 
-### 7.1 CloudWatch Logs Insights によるログ分析
+### 7.1 Log Analysis with CloudWatch Logs Insights
 
 ```
-# エラーログの検索
+# Search for error logs
 fields @timestamp, @message, @requestId
 | filter @message like /ERROR/
 | sort @timestamp desc
 | limit 50
 
-# コールドスタートの検出
+# Detect cold starts
 filter @message like /Init Duration/
 | parse @message "Init Duration: * ms" as initDuration
 | stats count() as coldStarts,
@@ -1186,7 +1187,7 @@ filter @message like /Init Duration/
         pct(initDuration, 99) as p99InitMs
   by bin(1h)
 
-# 実行時間の分析
+# Analyze execution duration
 filter @type = "REPORT"
 | parse @message "Duration: * ms" as duration
 | parse @message "Billed Duration: * ms" as billedDuration
@@ -1199,21 +1200,21 @@ filter @type = "REPORT"
         avg(memoryUsed/memorySize * 100) as avgMemoryUtilization
   by bin(5m)
 
-# タイムアウトの検出
+# Detect timeouts
 filter @message like /Task timed out/
 | parse @message "Task timed out after * seconds" as timeout
 | stats count() by bin(1h)
 ```
 
-### 7.2 X-Ray によるトレーシング
+### 7.2 Tracing with X-Ray
 
 ```bash
-# Lambda 関数の X-Ray トレーシングを有効化
+# Enable X-Ray tracing for a Lambda function
 aws lambda update-function-configuration \
   --function-name my-function \
   --tracing-config Mode=Active
 
-# X-Ray トレースの取得
+# Retrieve X-Ray traces
 aws xray get-trace-summaries \
   --start-time $(date -d '1 hour ago' +%s) \
   --end-time $(date +%s) \
@@ -1221,26 +1222,26 @@ aws xray get-trace-summaries \
 ```
 
 ```python
-# X-Ray SDK による詳細トレーシング
+# Detailed tracing with the X-Ray SDK
 from aws_xray_sdk.core import xray_recorder
 from aws_xray_sdk.core import patch_all
 
-# 全 AWS SDK 呼び出しを自動トレース
+# Automatically trace all AWS SDK calls
 patch_all()
 
 @xray_recorder.capture("process_order")
 def process_order(order_data):
-    """カスタムサブセグメントでビジネスロジックをトレース"""
+    """Trace business logic with a custom subsegment"""
 
-    # アノテーションの追加 (フィルタリング用)
+    # Add annotations (for filtering)
     subsegment = xray_recorder.current_subsegment()
     subsegment.put_annotation("order_id", order_data["orderId"])
     subsegment.put_annotation("customer_tier", order_data.get("tier", "standard"))
 
-    # メタデータの追加 (デバッグ用)
+    # Add metadata (for debugging)
     subsegment.put_metadata("order_details", order_data, "order")
 
-    # ビジネスロジック
+    # Business logic
     result = validate_order(order_data)
     return result
 
@@ -1251,31 +1252,31 @@ def lambda_handler(event, context):
 ### 7.3 Lambda Insights
 
 ```bash
-# Lambda Insights の有効化 (拡張モニタリング)
+# Enable Lambda Insights (enhanced monitoring)
 aws lambda update-function-configuration \
   --function-name my-function \
   --layers \
     "arn:aws:lambda:ap-northeast-1:580247275435:layer:LambdaInsightsExtension:38"
 
-# Lambda Insights が収集するメトリクス:
-#   - cpu_total_time: CPU使用時間
-#   - memory_utilization: メモリ使用率
-#   - rx_bytes / tx_bytes: ネットワーク I/O
-#   - init_duration: Init Phase の時間
-#   - tmp_max: /tmp 使用量
+# Metrics collected by Lambda Insights:
+#   - cpu_total_time: CPU time used
+#   - memory_utilization: Memory usage rate
+#   - rx_bytes / tx_bytes: Network I/O
+#   - init_duration: Init Phase duration
+#   - tmp_max: /tmp usage
 ```
 
-### 7.4 カスタムメトリクスの埋め込み (EMF)
+### 7.4 Custom Metrics with EMF (Embedded Metric Format)
 
 ```python
-# Embedded Metric Format (EMF) による
-# Lambda からの高解像度カスタムメトリクス出力
+# Output high-resolution custom metrics from Lambda
+# using Embedded Metric Format (EMF)
 
 import json
 import time
 
 def put_metric(namespace, metric_name, value, unit="None", dimensions=None):
-    """EMF形式でCloudWatchカスタムメトリクスを出力"""
+    """Output CloudWatch custom metrics in EMF format"""
     emf_log = {
         "_aws": {
             "Timestamp": int(time.time() * 1000),
@@ -1294,16 +1295,16 @@ def put_metric(namespace, metric_name, value, unit="None", dimensions=None):
     if dimensions:
         emf_log.update(dimensions)
 
-    # 標準出力に書くだけで CloudWatch メトリクスとして記録される
+    # Simply printing to stdout records it as a CloudWatch metric
     print(json.dumps(emf_log))
 
 def lambda_handler(event, context):
     start = time.time()
 
-    # ビジネスロジック
+    # Business logic
     result = process_request(event)
 
-    # カスタムメトリクスの出力
+    # Output custom metrics
     elapsed = (time.time() - start) * 1000
     put_metric(
         "MyApplication",
@@ -1325,9 +1326,9 @@ def lambda_handler(event, context):
 
 ---
 
-## 8. Lambda のセキュリティ
+## 8. Lambda Security
 
-### 8.1 最小権限の IAM ポリシー
+### 8.1 Least-Privilege IAM Policy
 
 ```json
 {
@@ -1377,22 +1378,22 @@ def lambda_handler(event, context):
 }
 ```
 
-### 8.2 Secrets Manager / Parameter Store 統合
+### 8.2 Secrets Manager / Parameter Store Integration
 
 ```python
-# Secrets Manager からシークレットを取得する
-# Lambda Extensions を使ったキャッシュ方式
+# Retrieve secrets from Secrets Manager
+# using the Lambda Extension cache approach
 
 import json
 import os
 import urllib3
 
-# Lambda Extensions のキャッシュポート
+# Lambda Extensions cache port
 SECRETS_EXTENSION_PORT = 2773
 http = urllib3.PoolManager()
 
 def get_secret(secret_name):
-    """Secrets Manager Lambda Extension 経由でシークレットを取得"""
+    """Retrieve a secret via the Secrets Manager Lambda Extension"""
     url = (
         f"http://localhost:{SECRETS_EXTENSION_PORT}"
         f"/secretsmanager/get?secretId={secret_name}"
@@ -1403,21 +1404,21 @@ def get_secret(secret_name):
     response = http.request("GET", url, headers=headers)
     return json.loads(response.data)["SecretString"]
 
-# Init Phase でシークレットを取得 (キャッシュされる)
+# Retrieve secrets in the Init Phase (they will be cached)
 DB_CREDENTIALS = json.loads(get_secret("prod/db-credentials"))
 API_KEY = get_secret("prod/external-api-key")
 
 def lambda_handler(event, context):
-    # シークレットを使用
+    # Use secrets
     db_host = DB_CREDENTIALS["host"]
     db_password = DB_CREDENTIALS["password"]
     # ...
 ```
 
-### 8.3 VPC Lambda のセキュリティ設計
+### 8.3 VPC Lambda Security Design
 
 ```
-VPC Lambda のネットワーク設計:
+VPC Lambda network design:
 
 +----------------------------------------------------------+
 |  VPC (10.0.0.0/16)                                       |
@@ -1425,55 +1426,55 @@ VPC Lambda のネットワーク設計:
 |  Private Subnet A              Private Subnet B           |
 |  +------------------------+   +------------------------+ |
 |  | Lambda ENI             |   | Lambda ENI             | |
-|  | (自動生成)              |   | (自動生成)              | |
+|  | (auto-created)         |   | (auto-created)         | |
 |  +------------------------+   +------------------------+ |
 |       |                            |                      |
 |       v                            v                      |
 |  +---------------------------------------------------+   |
-|  | セキュリティグループ (Lambda-SG)                     |   |
-|  | Outbound: 必要なポートのみ                          |   |
+|  | Security Group (Lambda-SG)                        |   |
+|  | Outbound: Only required ports                     |   |
 |  +---------------------------------------------------+   |
 |       |                                                   |
-|       +---> RDS (DB-SG: Lambda-SG からの 3306 許可)       |
+|       +---> RDS (DB-SG: allow port 3306 from Lambda-SG)  |
 |       |                                                   |
-|       +---> ElastiCache (Cache-SG: Lambda-SG からの       |
-|       |     6379 許可)                                    |
+|       +---> ElastiCache (Cache-SG: allow port 6379        |
+|       |     from Lambda-SG)                               |
 |       |                                                   |
 |       +---> VPC Endpoint (DynamoDB, S3, SQS)             |
-|       |     (NAT Gateway 不要)                            |
+|       |     (No NAT Gateway needed)                       |
 |       |                                                   |
 |       +---> NAT Gateway --> IGW --> Internet              |
-|             (外部API呼び出しが必要な場合のみ)              |
+|             (Only when external API calls are needed)     |
 +----------------------------------------------------------+
 ```
 
 ```bash
-# VPC Lambda 用のセキュリティグループ作成
+# Create security group for VPC Lambda
 aws ec2 create-security-group \
   --group-name lambda-sg \
   --description "Security group for Lambda functions" \
   --vpc-id vpc-12345678
 
-# RDS へのアクセスを許可 (RDS の SG に追加)
+# Allow access to RDS (add to RDS security group)
 aws ec2 authorize-security-group-ingress \
   --group-id sg-rds-12345678 \
   --protocol tcp \
   --port 3306 \
   --source-group sg-lambda-12345678
 
-# VPC Endpoint の作成 (DynamoDB)
+# Create VPC Endpoint (DynamoDB)
 aws ec2 create-vpc-endpoint \
   --vpc-id vpc-12345678 \
   --service-name com.amazonaws.ap-northeast-1.dynamodb \
   --route-table-ids rtb-12345678
 
-# VPC Endpoint の作成 (S3)
+# Create VPC Endpoint (S3)
 aws ec2 create-vpc-endpoint \
   --vpc-id vpc-12345678 \
   --service-name com.amazonaws.ap-northeast-1.s3 \
   --route-table-ids rtb-12345678
 
-# VPC Endpoint の作成 (SQS - Interface 型)
+# Create VPC Endpoint (SQS - Interface type)
 aws ec2 create-vpc-endpoint \
   --vpc-id vpc-12345678 \
   --service-name com.amazonaws.ap-northeast-1.sqs \
@@ -1484,44 +1485,44 @@ aws ec2 create-vpc-endpoint \
 
 ---
 
-## 9. Lambda のコンテナイメージサポート
+## 9. Lambda Container Image Support
 
-### 9.1 コンテナイメージでのデプロイ
+### 9.1 Deploying with Container Images
 
 ```dockerfile
-# Lambda コンテナイメージの Dockerfile 例 (Python)
+# Example Dockerfile for a Lambda container image (Python)
 FROM public.ecr.aws/lambda/python:3.12
 
-# 依存関係のインストール
+# Install dependencies
 COPY requirements.txt ${LAMBDA_TASK_ROOT}/
 RUN pip install -r ${LAMBDA_TASK_ROOT}/requirements.txt --no-cache-dir
 
-# 関数コードのコピー
+# Copy function code
 COPY app/ ${LAMBDA_TASK_ROOT}/app/
 COPY lambda_function.py ${LAMBDA_TASK_ROOT}/
 
-# ハンドラの指定
+# Specify handler
 CMD ["lambda_function.lambda_handler"]
 ```
 
 ```bash
-# コンテナイメージのビルドとデプロイ
-# 1. ECR リポジトリの作成
+# Build and deploy container image
+# 1. Create ECR repository
 aws ecr create-repository \
   --repository-name my-lambda-function \
   --image-scanning-configuration scanOnPush=true
 
-# 2. イメージのビルド
+# 2. Build the image
 docker build -t my-lambda-function:latest \
   --platform linux/amd64 .
 
-# 3. ECR にプッシュ
+# 3. Push to ECR
 ECR_URI=123456789012.dkr.ecr.ap-northeast-1.amazonaws.com
 aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_URI}
 docker tag my-lambda-function:latest ${ECR_URI}/my-lambda-function:latest
 docker push ${ECR_URI}/my-lambda-function:latest
 
-# 4. Lambda 関数の作成
+# 4. Create Lambda function
 aws lambda create-function \
   --function-name my-container-function \
   --package-type Image \
@@ -1531,20 +1532,20 @@ aws lambda create-function \
   --timeout 30
 ```
 
-### 9.2 マルチステージビルドによる最適化
+### 9.2 Optimization with Multi-Stage Builds
 
 ```dockerfile
-# マルチステージビルドで軽量なLambdaコンテナを作成
+# Create a lightweight Lambda container with multi-stage build
 FROM python:3.12-slim AS builder
 
 WORKDIR /build
 COPY requirements.txt .
 RUN pip install --user -r requirements.txt --no-cache-dir
 
-# 本番ステージ
+# Production stage
 FROM public.ecr.aws/lambda/python:3.12
 
-# ビルドステージからの依存関係コピー
+# Copy dependencies from build stage
 COPY --from=builder /root/.local/lib/python3.12/site-packages ${LAMBDA_TASK_ROOT}/
 COPY app/ ${LAMBDA_TASK_ROOT}/app/
 COPY lambda_function.py ${LAMBDA_TASK_ROOT}/
@@ -1554,12 +1555,12 @@ CMD ["lambda_function.lambda_handler"]
 
 ---
 
-## 10. Lambda 関数 URL
+## 10. Lambda Function URLs
 
-### 10.1 関数 URL の設定
+### 10.1 Configuring Function URLs
 
 ```bash
-# 関数 URL の作成 (IAM 認証なし)
+# Create a function URL (no IAM auth)
 aws lambda create-function-url-config \
   --function-name my-api-function \
   --auth-type NONE \
@@ -1572,7 +1573,7 @@ aws lambda create-function-url-config \
     "MaxAge": 86400
   }'
 
-# リソースベースポリシーの追加 (パブリックアクセス)
+# Add resource-based policy (public access)
 aws lambda add-permission \
   --function-name my-api-function \
   --statement-id AllowPublicAccess \
@@ -1580,111 +1581,111 @@ aws lambda add-permission \
   --principal "*" \
   --function-url-auth-type NONE
 
-# 関数 URL の取得
+# Retrieve the function URL
 aws lambda get-function-url-config \
   --function-name my-api-function
 
-# IAM 認証付き関数 URL
+# Function URL with IAM authentication
 aws lambda create-function-url-config \
   --function-name my-internal-api \
   --auth-type AWS_IAM
 ```
 
-### 10.2 API Gateway vs 関数 URL
+### 10.2 API Gateway vs Function URLs
 
-| 機能 | API Gateway | Lambda 関数 URL |
+| Feature | API Gateway | Lambda Function URL |
 |------|------------|----------------|
-| 料金 | リクエスト + データ転送 | 無料 (Lambda 料金のみ) |
-| カスタムドメイン | あり | CloudFront 経由で可能 |
-| 認証 | Cognito, API Key, Lambda オーソライザー | IAM or なし |
-| レート制限 | あり | なし (Lambda 同時実行数のみ) |
-| WAF 統合 | あり | CloudFront 経由で可能 |
-| キャッシュ | あり | なし |
-| リクエスト変換 | あり | なし |
-| 用途 | 本格的な API | シンプルな API, Webhook |
+| Cost | Request + data transfer | Free (Lambda charges only) |
+| Custom domain | Yes | Possible via CloudFront |
+| Authentication | Cognito, API Key, Lambda authorizer | IAM or none |
+| Rate limiting | Yes | No (Lambda concurrency limits only) |
+| WAF integration | Yes | Possible via CloudFront |
+| Caching | Yes | No |
+| Request transformation | Yes | No |
+| Best for | Full-featured APIs | Simple APIs, webhooks |
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### 11.1 Lambda を VPC 内に不必要に配置する
+### 11.1 Placing Lambda in a VPC Unnecessarily
 
 ```
-[悪い例]
-Lambda --VPC内--> NAT Gateway --> Internet --> DynamoDB
+[Bad]
+Lambda --in VPC--> NAT Gateway --> Internet --> DynamoDB
 
-[良い例]
-Lambda --VPC外--> DynamoDB (VPCエンドポイント不要)
+[Good]
+Lambda --outside VPC--> DynamoDB (no VPC Endpoint needed)
 
-Lambda --VPC内--> RDS (VPC内リソースへのアクセスが必要な場合のみ)
+Lambda --in VPC--> RDS (only when VPC-internal resource access is needed)
          +-----> VPC Endpoint --> DynamoDB
 ```
 
-**問題点**: VPC 配置にすると ENI アタッチ時間が追加され、コールドスタートが増加する(改善済みだが依然として若干のオーバーヘッドあり)。NAT Gateway 経由のインターネットアクセスにはコストもかかる。
+**Problem**: Placing Lambda in a VPC adds ENI attachment time, increasing cold starts (improved but still some overhead). Internet access via NAT Gateway also incurs additional cost.
 
-**改善**: RDS や ElastiCache など VPC 内リソースへのアクセスが本当に必要な場合のみ VPC 配置にし、DynamoDB や S3 へは VPC エンドポイント経由でアクセスする。
+**Solution**: Only place Lambda in a VPC when access to VPC-internal resources like RDS or ElastiCache is truly required. Access DynamoDB and S3 via VPC Endpoints.
 
-### 11.2 Provisioned Concurrency の過剰設定
+### 11.2 Over-provisioning Provisioned Concurrency
 
-**問題点**: トラフィックパターンを分析せず、常に最大値を設定するとコストが無駄になる。
+**Problem**: Setting Provisioned Concurrency to the maximum without analyzing traffic patterns wastes cost.
 
-**改善**: CloudWatch メトリクスで実際の同時実行数を分析し、Application Auto Scaling でトラフィックパターンに合わせて動的に調整する。
+**Solution**: Analyze actual concurrency with CloudWatch metrics and use Application Auto Scaling to dynamically adjust based on traffic patterns.
 
-### 11.3 Lambda 関数のモノリス化
+### 11.3 Monolithic Lambda Functions
 
 ```
-[悪い例]
-1つの Lambda 関数に全APIエンドポイントの処理を詰め込む:
+[Bad]
+Cramming all API endpoint logic into a single Lambda function:
   /users GET, POST, PUT, DELETE
   /orders GET, POST, PUT, DELETE
   /products GET, POST, PUT, DELETE
-  → パッケージが肥大化、デプロイが全APIに影響
+  → Package grows large, deployments affect all APIs
 
-[良い例]
-機能単位で関数を分離:
+[Good]
+Separate functions by feature:
   user-get-function
   user-create-function
   order-process-function
-  → 各関数が軽量、独立してデプロイ・スケール可能
+  → Each function is lightweight, can be deployed and scaled independently
 
-[バランスの取れたアプローチ]
-リソース単位で関数を分離:
-  user-api-function (User の CRUD をまとめる)
-  order-api-function (Order の CRUD をまとめる)
-  → 関数数の爆発を防ぎつつ、適度に分離
+[Balanced approach]
+Separate functions by resource:
+  user-api-function (groups User CRUD together)
+  order-api-function (groups Order CRUD together)
+  → Prevents function count explosion while maintaining appropriate separation
 ```
 
-### 11.4 同期呼び出しの連鎖
+### 11.4 Chaining Synchronous Invocations
 
 ```
-[悪い例]
+[Bad]
 API GW -> Lambda A -> Lambda B -> Lambda C
-  各呼び出しがタイムアウトを待つ
-  → レイテンシが累積、エラーハンドリングが複雑
+  Each call waits for timeout
+  → Latency accumulates, error handling becomes complex
 
-[良い例]
+[Good]
 API GW -> Lambda A -> SQS -> Lambda B -> SQS -> Lambda C
-  非同期処理で分離
-  → 各関数が独立、リトライも個別に制御
+  Decoupled with asynchronous processing
+  → Each function is independent, retries are individually controlled
 
-[Step Functions を使う場合]
+[Using Step Functions]
 API GW -> Step Functions
             -> Lambda A (Validate)
             -> Lambda B (Process)
             -> Lambda C (Notify)
-  → オーケストレーション、エラーハンドリング、リトライが統一的に管理
+  → Orchestration, error handling, and retries are managed uniformly
 ```
 
 ---
 
-## 12. CloudFormation / CDK テンプレート
+## 12. CloudFormation / CDK Templates
 
-### 12.1 CloudFormation テンプレート
+### 12.1 CloudFormation Template
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: 'Lambda 応用構成テンプレート'
+Description: 'Lambda advanced configuration template'
 
 Parameters:
   EnvironmentName:
@@ -1695,7 +1696,7 @@ Parameters:
   ProvisionedConcurrency:
     Type: Number
     Default: 0
-    Description: 'Provisioned Concurrency 数 (0=無効)'
+    Description: 'Number of Provisioned Concurrency instances (0=disabled)'
 
 Conditions:
   EnableProvisionedConcurrency: !Not [!Equals [!Ref ProvisionedConcurrency, 0]]
@@ -1714,7 +1715,7 @@ Globals:
         LOG_LEVEL: !If [IsProduction, INFO, DEBUG]
 
 Resources:
-  # Lambda 関数
+  # Lambda function
   OrderApiFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1750,14 +1751,14 @@ Resources:
         - SQSSendMessagePolicy:
             QueueName: !GetAtt OrderQueue.QueueName
 
-  # Step Functions ステートマシン
+  # Step Functions state machine
   OrderProcessingStateMachine:
     Type: AWS::StepFunctions::StateMachine
     Properties:
       StateMachineName: !Sub '${EnvironmentName}-order-processing'
       DefinitionString: !Sub |
         {
-          "Comment": "注文処理ワークフロー",
+          "Comment": "Order processing workflow",
           "StartAt": "ValidateOrder",
           "States": {
             "ValidateOrder": {
@@ -1791,7 +1792,7 @@ Resources:
         }
       RoleArn: !GetAtt StepFunctionsRole.Arn
 
-  # DynamoDB テーブル
+  # DynamoDB table
   OrdersTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
@@ -1814,7 +1815,7 @@ Resources:
           Projection:
             ProjectionType: ALL
 
-  # CloudWatch アラーム
+  # CloudWatch alarm
   OrderApiErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -1834,11 +1835,11 @@ Resources:
 
 Outputs:
   ApiEndpoint:
-    Description: API Gateway エンドポイント
+    Description: API Gateway endpoint
     Value: !Sub 'https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod'
 
   StateMachineArn:
-    Description: Step Functions ステートマシン ARN
+    Description: Step Functions state machine ARN
     Value: !Ref OrderProcessingStateMachine
 ```
 
@@ -1846,81 +1847,81 @@ Outputs:
 
 ## 13. FAQ
 
-### Q1. Provisioned Concurrency と Reserved Concurrency の違いは？
+### Q1. What is the difference between Provisioned Concurrency and Reserved Concurrency?
 
-Reserved Concurrency は関数の同時実行数の「上限」を設定するもので、追加コストはない。他の関数のスロットルから特定の関数を保護する。一方、Provisioned Concurrency は指定数の実行環境を「事前に初期化」しておくもので、コールドスタートをなくす代わりに追加料金が発生する。
+Reserved Concurrency sets the "maximum" concurrent executions for a function at no additional cost. It protects specific functions from being throttled by other functions. Provisioned Concurrency, on the other hand, "pre-initializes" a specified number of execution environments, eliminating cold starts at the cost of an additional charge.
 
-### Q2. Step Functions のコストはどのくらいですか？
+### Q2. How much does Step Functions cost?
 
-Standard ワークフローは状態遷移ごとに $0.025/1,000 遷移で課金される。1回の実行に 5 遷移あり、月間 100 万実行の場合は $125/月となる。Express ワークフローは実行回数とメモリ・実行時間で課金され、大量・短時間処理には割安になる。
+Standard workflows are billed per state transition at $0.025/1,000 transitions. With 5 transitions per execution and 1 million executions per month, the cost would be $125/month. Express workflows are billed by execution count plus memory and duration, making them more cost-effective for high-volume, short-lived processing.
 
-### Q3. Lambda の最大同時実行数を超えるとどうなりますか？
+### Q3. What happens when Lambda exceeds the maximum concurrent execution limit?
 
-スロットリングが発生する。同期呼び出しでは HTTP 429 エラーが返り、非同期呼び出しではイベントキューに格納され最大 6 時間リトライされる。Service Quotas からクォータ引き上げを申請するか、Reserved Concurrency で重要な関数のキャパシティを確保することで対処する。
+Throttling occurs. Synchronous invocations return an HTTP 429 error, while asynchronous invocations are placed in the event queue and retried for up to 6 hours. You can address this by requesting a quota increase via Service Quotas or by using Reserved Concurrency to guarantee capacity for critical functions.
 
-### Q4. Lambda レイヤーとコンテナイメージのどちらを使うべきですか？
+### Q4. Should I use Lambda Layers or container images?
 
-ZIP パッケージ + レイヤーは軽量な関数に適しており、起動速度が最も速い。コンテナイメージは 10GB までのサイズに対応し、既存の Docker ワークフローを活用できる。ML モデルや大規模な依存関係がある場合はコンテナイメージが適している。一般的な Web API やイベント処理には ZIP パッケージが推奨される。
+ZIP packages with layers are suitable for lightweight functions and offer the fastest startup times. Container images support sizes up to 10 GB and can leverage existing Docker workflows. Container images are better suited for ML models or large dependencies. For typical Web APIs and event processing, ZIP packages are recommended.
 
-### Q5. Lambda Extension とは何ですか？
+### Q5. What are Lambda Extensions?
 
-Lambda Extension は Lambda の実行環境に統合される外部プロセスで、モニタリング、セキュリティ、ガバナンスの機能を追加できる。内部 Extension (同一プロセス) と外部 Extension (別プロセス) の 2 種類がある。代表的なものに Datadog Agent、New Relic Agent、AWS Parameters and Secrets Lambda Extension がある。
+Lambda Extensions are external processes integrated into the Lambda execution environment that can add monitoring, security, and governance capabilities. There are two types: internal extensions (same process) and external extensions (separate process). Notable examples include the Datadog Agent, New Relic Agent, and AWS Parameters and Secrets Lambda Extension.
 
-### Q6. Graviton (ARM) と x86 のどちらを選ぶべきですか？
+### Q6. Should I choose Graviton (ARM) or x86?
 
-Graviton (arm64) は x86_64 と比較して最大 34% のコスト削減 (20% の料金差 + 性能向上) が見込める。Python、Node.js、Java などのランタイムでは arm64 への移行は通常、コード変更なしで可能。ネイティブバイナリを含むレイヤーや依存関係がある場合は arm64 対応の確認が必要。新規関数では arm64 を優先的に検討すべきである。
+Graviton (arm64) can achieve up to 34% cost savings compared to x86_64 (20% price difference plus performance gains). For runtimes like Python, Node.js, and Java, migrating to arm64 is typically possible without code changes. If your layers or dependencies include native binaries, verify arm64 compatibility first. For new functions, arm64 should be the first consideration.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to keep in mind when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it behaves.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development tasks, especially during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| コールドスタート | Init コードの最適化、パッケージ軽量化、メモリ増強で緩和 |
-| Provisioned Concurrency | 事前に実行環境を確保しコールドスタートを排除 |
-| Lambda Destinations | 非同期実行の成功・失敗を柔軟にルーティング |
-| Step Functions | 複数 Lambda のオーケストレーション、エラーハンドリング、リトライ |
-| SnapStart | Java のコールドスタートをスナップショット復元で大幅短縮 |
-| Lambda レイヤー | 共通ライブラリの一元管理、デプロイパッケージの軽量化 |
-| モニタリング | CloudWatch Logs Insights、X-Ray、Lambda Insights で可観測性を確保 |
-| セキュリティ | 最小権限 IAM、Secrets Manager 統合、VPC 設計 |
-| コンテナイメージ | 大規模依存関係や既存 Docker ワークフローの活用に |
-| 関数 URL | シンプルな HTTP エンドポイント (API Gateway なし) |
-| VPC 配置 | 必要な場合のみ。VPC エンドポイントを積極的に活用 |
+| Cold starts | Mitigate with Init code optimization, package size reduction, and memory increases |
+| Provisioned Concurrency | Pre-initialize execution environments to eliminate cold starts |
+| Lambda Destinations | Flexibly route async execution results for both success and failure |
+| Step Functions | Orchestrate multiple Lambdas with unified error handling and retry logic |
+| SnapStart | Dramatically reduce Java cold starts via snapshot restore |
+| Lambda Layers | Centralize shared library management and reduce deployment package size |
+| Monitoring | Ensure observability with CloudWatch Logs Insights, X-Ray, and Lambda Insights |
+| Security | Least-privilege IAM, Secrets Manager integration, and VPC design |
+| Container images | Ideal for large dependencies or existing Docker workflows |
+| Function URLs | Simple HTTP endpoints without API Gateway |
+| VPC placement | Only when necessary; actively use VPC Endpoints |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [サーバーレスパターン](./02-serverless-patterns.md) -- 実践的なアーキテクチャパターン
-- [CloudFormation](../07-devops/00-cloudformation.md) -- Lambda のインフラをコード化
-- [コスト最適化](../09-cost/00-cost-optimization.md) -- Lambda のコスト管理
+- [Serverless Patterns](./02-serverless-patterns.md) -- Practical architecture patterns
+- [CloudFormation](../07-devops/00-cloudformation.md) -- Codify Lambda infrastructure
+- [Cost Optimization](../09-cost/00-cost-optimization.md) -- Managing Lambda costs
 
 ---
 
-## 参考文献
+## References
 
-1. AWS 公式ドキュメント「Lambda のパフォーマンスの最適化」 https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html
-2. AWS 公式ドキュメント「AWS Step Functions デベロッパーガイド」 https://docs.aws.amazon.com/step-functions/latest/dg/
-3. Yan Cui「Production-Ready Serverless」Manning Publications, 2019
-4. AWS re:Invent 2023「SVS404: Optimizing Lambda performance for your serverless applications」
-5. AWS 公式ドキュメント「Lambda レイヤー」 https://docs.aws.amazon.com/lambda/latest/dg/chapter-layers.html
-6. AWS 公式ドキュメント「Lambda SnapStart」 https://docs.aws.amazon.com/lambda/latest/dg/snapstart.html
-7. AWS 公式ドキュメント「Lambda 関数 URL」 https://docs.aws.amazon.com/lambda/latest/dg/lambda-urls.html
+1. AWS Official Documentation "Optimizing Lambda performance" https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html
+2. AWS Official Documentation "AWS Step Functions Developer Guide" https://docs.aws.amazon.com/step-functions/latest/dg/
+3. Yan Cui "Production-Ready Serverless" Manning Publications, 2019
+4. AWS re:Invent 2023 "SVS404: Optimizing Lambda performance for your serverless applications"
+5. AWS Official Documentation "Lambda Layers" https://docs.aws.amazon.com/lambda/latest/dg/chapter-layers.html
+6. AWS Official Documentation "Lambda SnapStart" https://docs.aws.amazon.com/lambda/latest/dg/snapstart.html
+7. AWS Official Documentation "Lambda Function URLs" https://docs.aws.amazon.com/lambda/latest/dg/lambda-urls.html
