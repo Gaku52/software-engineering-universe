@@ -1,76 +1,76 @@
-# EC2 基礎
+# EC2 Basics
 
-> AWS の仮想サーバー EC2 の基本概念 — インスタンスタイプ、AMI、セキュリティグループ、キーペア、EBS を体系的に理解する
+> A systematic understanding of AWS virtual server EC2 fundamentals — instance types, AMIs, security groups, key pairs, and EBS
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. EC2 インスタンスのライフサイクルとインスタンスタイプの選定基準を理解できる
-2. AMI、セキュリティグループ、キーペアを適切に設定し、安全にインスタンスを起動できる
-3. EBS ボリュームの種類と特性を理解し、ワークロードに最適なストレージを選択できる
-4. User Data とメタデータサービスを活用した自動化とセキュリティ強化を実装できる
-5. CloudFormation / CDK を使って EC2 環境を Infrastructure as Code で管理できる
+1. Understand the EC2 instance lifecycle and criteria for selecting instance types
+2. Properly configure AMIs, security groups, and key pairs to securely launch instances
+3. Understand EBS volume types and characteristics to select optimal storage for your workload
+4. Implement automation and security hardening using User Data and the metadata service
+5. Manage EC2 environments as Infrastructure as Code using CloudFormation / CDK
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related fundamental concepts
 
 ---
 
-## 1. EC2 とは
+## 1. What is EC2?
 
-Amazon Elastic Compute Cloud (EC2) は、AWS 上で仮想サーバー (インスタンス) をオンデマンドで起動・管理できるサービスである。物理サーバーの調達・設置・保守を不要にし、分単位の課金で柔軟にコンピューティングリソースを利用できる。
+Amazon Elastic Compute Cloud (EC2) is a service that lets you launch and manage virtual servers (instances) on demand on AWS. It eliminates the need to procure, install, and maintain physical servers, allowing flexible use of computing resources with per-minute billing.
 
-### 1.1 EC2 の主要コンポーネント
+### 1.1 Key Components of EC2
 
 ```
-EC2 インスタンスの構成要素
+EC2 Instance Components
 +--------------------------------------------------+
 |                  EC2 Instance                     |
 |                                                   |
 |  +-------------+  +---------------------------+  |
 |  |    AMI      |  |   Instance Type            |  |
-|  | (OS+ソフト)  |  | (CPU, メモリ, ネットワーク)  |  |
+|  | (OS+Software)|  | (CPU, Memory, Network)     |  |
 |  +-------------+  +---------------------------+  |
 |                                                   |
 |  +-------------+  +---------------------------+  |
 |  |  Key Pair   |  |   Security Group           |  |
-|  | (SSH認証)    |  | (ファイアウォール)           |  |
+|  | (SSH Auth)  |  | (Firewall)                 |  |
 |  +-------------+  +---------------------------+  |
 |                                                   |
 |  +---------------------------------------------+ |
-|  |           EBS Volume (ストレージ)              | |
-|  |  ルートボリューム + 追加ボリューム              | |
+|  |           EBS Volume (Storage)               | |
+|  |  Root Volume + Additional Volumes            | |
 |  +---------------------------------------------+ |
 |                                                   |
 |  +---------------------------------------------+ |
-|  |           VPC / Subnet (ネットワーク)          | |
+|  |           VPC / Subnet (Network)             | |
 |  +---------------------------------------------+ |
 |                                                   |
 |  +---------------------------------------------+ |
-|  |       IAM Instance Profile (権限)             | |
+|  |       IAM Instance Profile (Permissions)     | |
 |  +---------------------------------------------+ |
 +--------------------------------------------------+
 ```
 
-### 1.2 EC2 の料金体系
+### 1.2 EC2 Pricing Model
 
-EC2 の料金は主に以下の要素で構成される。
+EC2 pricing consists primarily of the following elements.
 
-| 料金要素 | 説明 | 課金単位 |
+| Pricing Element | Description | Billing Unit |
 |---------|------|---------|
-| インスタンス料金 | vCPU・メモリに基づく時間課金 | 秒単位（最低60秒） |
-| EBS ボリューム | ストレージ容量と IOPS | GB/月 + IOPS/月 |
-| データ転送 | リージョン外へのアウトバウンド | GB あたり |
-| Elastic IP | 未使用の EIP に対する課金 | 時間あたり |
-| EBS スナップショット | S3 に保存されるバックアップ | GB/月 |
+| Instance Charges | Time-based billing based on vCPU and memory | Per second (minimum 60 seconds) |
+| EBS Volume | Storage capacity and IOPS | GB/month + IOPS/month |
+| Data Transfer | Outbound traffic outside the region | Per GB |
+| Elastic IP | Charges for unused EIPs | Per hour |
+| EBS Snapshots | Backups stored in S3 | GB/month |
 
 ```bash
-# EC2 の料金見積もりに役立つコマンド
-# インスタンスタイプの料金情報を取得（AWS Pricing API）
+# Commands useful for EC2 cost estimation
+# Retrieve instance type pricing information (AWS Pricing API)
 aws pricing get-products \
   --service-code AmazonEC2 \
   --filters \
@@ -84,11 +84,11 @@ aws pricing get-products \
   --output json | jq '.terms.OnDemand | to_entries[0].value.priceDimensions | to_entries[0].value.pricePerUnit.USD'
 ```
 
-### 1.3 インスタンスのライフサイクル
+### 1.3 Instance Lifecycle
 
 ```
               +----------+
-              | pending  |  ← 起動中
+              | pending  |  <- Starting
               +----+-----+
                    |
                    v
@@ -98,27 +98,27 @@ aws pricing get-products \
     |             |
     |             v
     |        +------------+
-    +------> | terminated |  ← 削除（復元不可）
+    +------> | terminated |  <- Deleted (cannot be restored)
              +------------+
 
-  起動: stopped → pending → running
-  停止: running → stopping → stopped
-  終了: running → shutting-down → terminated
-  休止: running → stopping → stopped (メモリ内容を EBS に保存)
+  Start: stopped -> pending -> running
+  Stop: running -> stopping -> stopped
+  Terminate: running -> shutting-down -> terminated
+  Hibernate: running -> stopping -> stopped (memory contents saved to EBS)
 ```
 
-各状態での課金:
+Billing by state:
 
-| 状態 | インスタンス課金 | EBS 課金 | Elastic IP 課金 |
+| State | Instance Billing | EBS Billing | Elastic IP Billing |
 |------|---------------|---------|---------------|
-| running | あり | あり | なし（アタッチ時） |
-| stopped | なし | あり | あり（未アタッチ時） |
-| terminated | なし | なし（削除済み） | あり（未アタッチ時） |
+| running | Yes | Yes | No (when attached) |
+| stopped | No | Yes | Yes (when unattached) |
+| terminated | No | No (already deleted) | Yes (when unattached) |
 
-### 1.4 EC2 のネットワーク構成
+### 1.4 EC2 Network Architecture
 
 ```
-EC2 のネットワーク配置
+EC2 Network Placement
 +--------------------------------------------------+
 |  VPC (10.0.0.0/16)                                |
 |                                                   |
@@ -135,71 +135,72 @@ EC2 のネットワーク配置
 |       |          |              |          |        |
 |  +----v----+ +---v----+   +----v----+ +---v----+  |
 |  | IGW     | | NAT GW |   | NAT GW | |  VPC   |  |
-|  |(Internet)| |        |   |(経由)   | |Endpoint|  |
+|  |(Internet)| |        |   |(via)   | |Endpoint|  |
 |  +---------+ +--------+   +--------+ +--------+  |
 +--------------------------------------------------+
 ```
 
 ---
 
-## 2. インスタンスタイプ
+## 2. Instance Types
 
-### 2.1 命名規則
+### 2.1 Naming Convention
 
 ```
   m  5  a  .  xlarge
   |  |  |     |
-  |  |  |     +-- サイズ (nano, micro, small, medium, large, xlarge, 2xlarge...)
-  |  |  +-------- 追加属性 (a: AMD, g: Graviton, n: ネットワーク強化, d: ローカルストレージ)
-  |  +----------- 世代番号
-  +-------------- ファミリー (汎用, コンピュート最適化, メモリ最適化...)
+  |  |  |     +-- Size (nano, micro, small, medium, large, xlarge, 2xlarge...)
+  |  |  +-------- Additional attributes (a: AMD, g: Graviton, n: enhanced networking, d: local storage)
+  |  +----------- Generation number
+  +-------------- Family (general purpose, compute optimized, memory optimized...)
 
-  追加属性の例:
-  m5a.xlarge   → a: AMD プロセッサ（コスト効率が良い）
-  m7g.xlarge   → g: Graviton (ARM) プロセッサ（高性能・低コスト）
-  m5n.xlarge   → n: ネットワーク強化（最大 100Gbps）
-  m5d.xlarge   → d: ローカル NVMe SSD 付き
-  m5ad.xlarge  → a+d: AMD + ローカル NVMe SSD
-  c7gn.xlarge  → g+n: Graviton + ネットワーク強化
-  r6idn.xlarge → i+d+n: Intel + ローカル NVMe + ネットワーク強化
+  Additional attribute examples:
+  m5a.xlarge   -> a: AMD processor (cost-efficient)
+  m7g.xlarge   -> g: Graviton (ARM) processor (high performance, low cost)
+  m5n.xlarge   -> n: Enhanced networking (up to 100Gbps)
+  m5d.xlarge   -> d: Local NVMe SSD included
+  m5ad.xlarge  -> a+d: AMD + Local NVMe SSD
+  c7gn.xlarge  -> g+n: Graviton + Enhanced networking
+  r6idn.xlarge -> i+d+n: Intel + Local NVMe + Enhanced networking
 ```
 
-### 2.2 インスタンスファミリー比較
+### 2.2 Instance Family Comparison
 
-| ファミリー | プレフィックス | 特徴 | ユースケース |
+| Family | Prefix | Characteristics | Use Cases |
 |-----------|-------------|------|-------------|
-| 汎用 | t3, m5, m6i, m7g | CPU/メモリバランス | Web サーバー、小中規模 DB |
-| コンピュート最適化 | c5, c6i, c7g | 高 CPU 性能 | バッチ処理、機械学習推論 |
-| メモリ最適化 | r5, r6i, x2idn | 大容量メモリ | インメモリ DB、ビッグデータ |
-| ストレージ最適化 | i3, d3, h1 | 高 I/O | データウェアハウス、ログ処理 |
-| 高速コンピューティング | p4, g5, inf2 | GPU / 推論チップ | 機械学習訓練、動画処理 |
-| HPC 最適化 | hpc6a, hpc7g | 高帯域ネットワーク | 科学計算、シミュレーション |
+| General Purpose | t3, m5, m6i, m7g | Balanced CPU/memory | Web servers, small-medium DBs |
+| Compute Optimized | c5, c6i, c7g | High CPU performance | Batch processing, ML inference |
+| Memory Optimized | r5, r6i, x2idn | Large memory capacity | In-memory DBs, big data |
+| Storage Optimized | i3, d3, h1 | High I/O | Data warehouses, log processing |
+| Accelerated Computing | p4, g5, inf2 | GPU / inference chips | ML training, video processing |
+| HPC Optimized | hpc6a, hpc7g | High-bandwidth networking | Scientific computing, simulations |
 
-### 2.3 Graviton プロセッサの選定
+### 2.3 Graviton Processor Selection
 
-AWS Graviton は ARM ベースのカスタムプロセッサで、同等の Intel/AMD インスタンスと比較して最大 40% のコストパフォーマンス改善を実現する。
+AWS Graviton is an ARM-based custom processor that achieves up to 40% cost-performance improvement compared to equivalent Intel/AMD instances.
 
 ```
-Graviton 世代比較
+Graviton Generation Comparison
 +-------------------+-------------------+-------------------+
 | Graviton2         | Graviton3         | Graviton4         |
-| (2020〜)          | (2022〜)          | (2024〜)          |
+| (2020~)           | (2022~)           | (2024~)           |
 +-------------------+-------------------+-------------------+
 | m6g, c6g, r6g     | m7g, c7g, r7g     | m8g, c8g, r8g     |
-| t4g               | c7gn (ネットワーク)| (最新世代)          |
-| 前世代比 40%↑     | Graviton2比 25%↑  | Graviton3比 30%↑  |
+| t4g               | c7gn (networking) | (latest generation)|
+| 40% improvement   | 25% improvement   | 30% improvement   |
+| over previous gen | over Graviton2    | over Graviton3    |
 +-------------------+-------------------+-------------------+
 
-対応ソフトウェア確認ポイント:
-- Docker コンテナ: linux/arm64 イメージが必要
-- Node.js / Python / Java: ほぼそのまま動作
-- C/C++ ネイティブ: ARM 向けコンパイルが必要
-- .NET: .NET 6+ で ARM ネイティブ対応
+Software compatibility checkpoints:
+- Docker containers: linux/arm64 images required
+- Node.js / Python / Java: mostly works as-is
+- C/C++ native: ARM compilation required
+- .NET: ARM native support from .NET 6+
 ```
 
 ```bash
-# Graviton インスタンスの料金比較
-# Intel vs Graviton の料金差を確認
+# Graviton instance pricing comparison
+# Check price difference between Intel and Graviton
 echo "=== t3.medium (Intel x86_64) ==="
 aws pricing get-products \
   --service-code AmazonEC2 \
@@ -219,38 +220,38 @@ aws pricing get-products \
   --region us-east-1 --output json 2>/dev/null | jq -r '.PriceList[0]' | jq -r '.terms.OnDemand | to_entries[0].value.priceDimensions | to_entries[0].value.pricePerUnit.USD'
 ```
 
-### 2.4 T系インスタンスのバーストモデル
+### 2.4 T-Series Instance Burst Model
 
-| 項目 | t3.nano | t3.micro | t3.small | t3.medium | t3.large |
+| Item | t3.nano | t3.micro | t3.small | t3.medium | t3.large |
 |------|---------|----------|----------|-----------|----------|
 | vCPU | 2 | 2 | 2 | 2 | 2 |
-| メモリ | 0.5 GiB | 1 GiB | 2 GiB | 4 GiB | 8 GiB |
-| ベースライン CPU | 5% | 10% | 20% | 20% | 30% |
-| CPU クレジット/時 | 6 | 12 | 24 | 24 | 36 |
-| 最大クレジット残高 | 144 | 288 | 576 | 576 | 864 |
-| 料金 (東京, Linux) | ~$0.0068/h | ~$0.0136/h | ~$0.0272/h | ~$0.0544/h | ~$0.1088/h |
+| Memory | 0.5 GiB | 1 GiB | 2 GiB | 4 GiB | 8 GiB |
+| Baseline CPU | 5% | 10% | 20% | 20% | 30% |
+| CPU Credits/hour | 6 | 12 | 24 | 24 | 36 |
+| Max Credit Balance | 144 | 288 | 576 | 576 | 864 |
+| Price (Tokyo, Linux) | ~$0.0068/h | ~$0.0136/h | ~$0.0272/h | ~$0.0544/h | ~$0.1088/h |
 
 ```
-T3 バーストモデル
-CPU使用率
+T3 Burst Model
+CPU Usage
 100% |     *****
      |    *     *
- 20% |---*-------*----------  ← ベースライン
+ 20% |---*-------*----------  <- Baseline
      |  *         **********
-  0% +--+----+----+----------> 時間
-     クレジット  クレジット
-     消費      蓄積
+  0% +--+----+----+----------> Time
+     Credit   Credit
+     consumed accumulated
 
-T3 Unlimited モード:
-- ベースライン超過分を追加料金で継続使用可能
-- vCPU あたり $0.05/時（Linux）の追加課金
-- バッチ処理など一時的な高負荷に有用
-- 予期せぬ高額課金に注意が必要
+T3 Unlimited Mode:
+- Usage beyond baseline continues with additional charges
+- Additional charge of $0.05/hour per vCPU (Linux)
+- Useful for temporary high loads such as batch processing
+- Be cautious of unexpected high charges
 ```
 
 ```bash
-# T3 バーストモードの確認と設定
-# 現在のクレジットバランスを確認
+# Check and configure T3 burst mode
+# Check current credit balance
 aws cloudwatch get-metric-statistics \
   --namespace AWS/EC2 \
   --metric-name CPUCreditBalance \
@@ -260,14 +261,14 @@ aws cloudwatch get-metric-statistics \
   --period 300 \
   --statistics Average
 
-# Unlimited モードの有効化
+# Enable Unlimited mode
 aws ec2 modify-instance-credit-specification \
   --instance-credit-specifications '[{
     "InstanceId": "i-0123456789abcdef0",
     "CpuCredits": "unlimited"
   }]'
 
-# Unlimited モードの無効化（standard に戻す）
+# Disable Unlimited mode (revert to standard)
 aws ec2 modify-instance-credit-specification \
   --instance-credit-specifications '[{
     "InstanceId": "i-0123456789abcdef0",
@@ -275,84 +276,84 @@ aws ec2 modify-instance-credit-specification \
   }]'
 ```
 
-### 2.5 インスタンスタイプの選定フローチャート
+### 2.5 Instance Type Selection Flowchart
 
 ```
-インスタンスタイプ選定フロー
+Instance Type Selection Flow
 ============================
 
-用途は？
-├─ Web サーバー / API サーバー
-│   ├─ 負荷が断続的 → t3 / t4g
-│   ├─ 負荷が安定的 → m6i / m7g
-│   └─ CPU集約型 → c6i / c7g
-│
-├─ データベース
-│   ├─ 小〜中規模 → r6i / r7g (メモリ最適化)
-│   ├─ インメモリDB → x2idn (大容量メモリ)
-│   └─ 高IOPS → i3 (ローカルNVMe)
-│
-├─ 機械学習
-│   ├─ 訓練 → p4d / p5 (GPU)
-│   ├─ 推論 → inf2 (Inferentia)
-│   └─ データ前処理 → c6i / c7g
-│
-├─ バッチ処理
-│   ├─ CPU集約 → c6i / c7g
-│   ├─ メモリ集約 → r6i / r7g
-│   └─ I/O集約 → i3 / d3
-│
-└─ 開発・テスト
-    ├─ 最低コスト → t3.micro / t4g.micro
-    └─ 無料枠 → t2.micro (12ヶ月無料)
+What is the use case?
++-- Web Server / API Server
+|   +-- Intermittent load -> t3 / t4g
+|   +-- Steady load -> m6i / m7g
+|   +-- CPU-intensive -> c6i / c7g
+|
++-- Database
+|   +-- Small to medium -> r6i / r7g (memory optimized)
+|   +-- In-memory DB -> x2idn (large memory)
+|   +-- High IOPS -> i3 (local NVMe)
+|
++-- Machine Learning
+|   +-- Training -> p4d / p5 (GPU)
+|   +-- Inference -> inf2 (Inferentia)
+|   +-- Data preprocessing -> c6i / c7g
+|
++-- Batch Processing
+|   +-- CPU-intensive -> c6i / c7g
+|   +-- Memory-intensive -> r6i / r7g
+|   +-- I/O-intensive -> i3 / d3
+|
++-- Development / Testing
+    +-- Lowest cost -> t3.micro / t4g.micro
+    +-- Free tier -> t2.micro (free for 12 months)
 ```
 
 ---
 
 ## 3. AMI (Amazon Machine Image)
 
-### 3.1 AMI の種類
+### 3.1 Types of AMIs
 
-| 種類 | 提供元 | 例 | 特徴 |
+| Type | Provider | Examples | Characteristics |
 |------|--------|-----|------|
-| AWS 公式 AMI | Amazon | Amazon Linux 2023, Ubuntu, Windows Server | 定期的にパッチ適用、無料 |
-| マーケットプレイス AMI | サードパーティ | WordPress, NGINX Plus, Databricks | ライセンス料が含まれる場合あり |
-| コミュニティ AMI | 一般ユーザー | カスタムビルド | セキュリティリスクに注意 |
-| カスタム AMI | 自組織 | 社内標準構成 | ゴールデンイメージとして運用 |
+| AWS Official AMI | Amazon | Amazon Linux 2023, Ubuntu, Windows Server | Regularly patched, free |
+| Marketplace AMI | Third-party | WordPress, NGINX Plus, Databricks | May include license fees |
+| Community AMI | General users | Custom builds | Be aware of security risks |
+| Custom AMI | Your organization | Internal standard configurations | Operated as golden images |
 
-### 3.2 AMI のアーキテクチャ
+### 3.2 AMI Architecture
 
 ```
-AMI の構造
+AMI Structure
 +-------------------------------------------+
 |  AMI (ami-0abcdef1234567890)              |
 |                                            |
 |  +--------------------------------------+ |
-|  | ルート EBS スナップショット             | |
+|  | Root EBS Snapshot                     | |
 |  | - OS (Amazon Linux 2023)              | |
-|  | - インストール済みソフトウェア          | |
-|  | - 設定ファイル                         | |
+|  | - Pre-installed software              | |
+|  | - Configuration files                 | |
 |  +--------------------------------------+ |
 |                                            |
 |  +--------------------------------------+ |
-|  | 追加 EBS スナップショット (オプション)   | |
-|  | - データボリューム                     | |
+|  | Additional EBS Snapshots (optional)   | |
+|  | - Data volumes                        | |
 |  +--------------------------------------+ |
 |                                            |
 |  +--------------------------------------+ |
-|  | メタデータ                            | |
-|  | - アーキテクチャ (x86_64 / arm64)     | |
-|  | - 仮想化タイプ (hvm)                  | |
-|  | - ブートモード (uefi / legacy-bios)   | |
-|  | - ブロックデバイスマッピング           | |
+|  | Metadata                              | |
+|  | - Architecture (x86_64 / arm64)       | |
+|  | - Virtualization type (hvm)           | |
+|  | - Boot mode (uefi / legacy-bios)      | |
+|  | - Block device mapping                | |
 |  +--------------------------------------+ |
 +-------------------------------------------+
 ```
 
-### 3.3 コード例: AMI の検索と起動
+### 3.3 Code Example: Searching for and Launching AMIs
 
 ```bash
-# Amazon Linux 2023 の最新 AMI を検索
+# Search for the latest Amazon Linux 2023 AMI
 aws ec2 describe-images \
   --owners amazon \
   --filters \
@@ -361,7 +362,7 @@ aws ec2 describe-images \
   --query 'Images | sort_by(@, &CreationDate) | [-1].[ImageId,Name]' \
   --output text
 
-# Amazon Linux 2023 ARM64 (Graviton) の最新 AMI
+# Latest Amazon Linux 2023 ARM64 (Graviton) AMI
 aws ec2 describe-images \
   --owners amazon \
   --filters \
@@ -370,7 +371,7 @@ aws ec2 describe-images \
   --query 'Images | sort_by(@, &CreationDate) | [-1].[ImageId,Name]' \
   --output text
 
-# Ubuntu 22.04 の最新 AMI を検索
+# Search for the latest Ubuntu 22.04 AMI
 aws ec2 describe-images \
   --owners 099720109477 \
   --filters \
@@ -379,7 +380,7 @@ aws ec2 describe-images \
   --query 'Images | sort_by(@, &CreationDate) | [-1].ImageId' \
   --output text
 
-# Ubuntu 24.04 の最新 AMI を検索
+# Search for the latest Ubuntu 24.04 AMI
 aws ec2 describe-images \
   --owners 099720109477 \
   --filters \
@@ -388,16 +389,16 @@ aws ec2 describe-images \
   --query 'Images | sort_by(@, &CreationDate) | [-1].ImageId' \
   --output text
 
-# SSM パラメータストアから最新 AMI を取得（推奨）
+# Retrieve the latest AMI from SSM Parameter Store (recommended)
 aws ssm get-parameter \
   --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64 \
   --query 'Parameter.Value' --output text
 ```
 
-### 3.4 コード例: カスタム AMI の作成と管理
+### 3.4 Code Example: Creating and Managing Custom AMIs
 
 ```bash
-# 稼働中のインスタンスから AMI を作成
+# Create an AMI from a running instance
 aws ec2 create-image \
   --instance-id i-0123456789abcdef0 \
   --name "my-app-v1.2.0-$(date +%Y%m%d)" \
@@ -420,12 +421,12 @@ aws ec2 create-image \
     }
   ]'
 
-# AMI 一覧（自分のアカウント）
+# List AMIs (your account)
 aws ec2 describe-images --owners self \
   --query 'Images[].[ImageId,Name,CreationDate,State]' \
   --output table
 
-# AMI のリージョン間コピー
+# Cross-region AMI copy
 aws ec2 copy-image \
   --source-region ap-northeast-1 \
   --source-image-id ami-0abcdef1234567890 \
@@ -433,55 +434,55 @@ aws ec2 copy-image \
   --description "Cross-region copy of my-app-v1.2.0" \
   --region us-east-1
 
-# 古い AMI の登録解除とスナップショット削除
+# Deregister old AMI and delete snapshots
 AMI_ID="ami-0abcdef1234567890"
-# スナップショット ID を取得
+# Get snapshot IDs
 SNAP_IDS=$(aws ec2 describe-images --image-ids $AMI_ID \
   --query 'Images[0].BlockDeviceMappings[*].Ebs.SnapshotId' --output text)
-# AMI 登録解除
+# Deregister AMI
 aws ec2 deregister-image --image-id $AMI_ID
-# スナップショット削除
+# Delete snapshots
 for SNAP_ID in $SNAP_IDS; do
   aws ec2 delete-snapshot --snapshot-id $SNAP_ID
 done
 ```
 
-### 3.5 ゴールデン AMI パイプライン
+### 3.5 Golden AMI Pipeline
 
 ```
-ゴールデン AMI の自動ビルドフロー
+Golden AMI Automated Build Flow
 ===================================
 
   +-------------------+
   | EC2 Image Builder |
-  | パイプライン       |
+  | Pipeline          |
   +--------+----------+
            |
     +------v------+
-    | ベース AMI  |  (Amazon Linux 2023)
+    | Base AMI    |  (Amazon Linux 2023)
     +------+------+
            |
     +------v------+
-    | ビルド       |  - パッケージインストール
-    | コンポーネント|  - セキュリティ設定
-    |              |  - アプリケーション配置
+    | Build        |  - Package installation
+    | Components   |  - Security configuration
+    |              |  - Application deployment
     +------+------+
            |
     +------v------+
-    | テスト       |  - CIS ベンチマーク
-    | コンポーネント|  - Inspector スキャン
-    |              |  - 動作確認
+    | Test         |  - CIS benchmarks
+    | Components   |  - Inspector scan
+    |              |  - Functional verification
     +------+------+
            |
     +------v------+
-    | ゴールデン AMI|  → 各リージョンに配布
-    | 配布         |  → Auto Scaling で利用
+    | Golden AMI   |  -> Distribute to each region
+    | Distribution |  -> Use with Auto Scaling
     +-------------+
 ```
 
 ```bash
-# EC2 Image Builder のパイプラインを作成する例
-# まずコンポーネントを定義
+# Example of creating an EC2 Image Builder pipeline
+# First, define a component
 aws imagebuilder create-component \
   --name "install-web-server" \
   --semantic-version "1.0.0" \
@@ -516,39 +517,40 @@ phases:
 
 ---
 
-## 4. セキュリティグループ
+## 4. Security Groups
 
-### 4.1 セキュリティグループの特性
+### 4.1 Security Group Characteristics
 
 ```
-セキュリティグループ = ステートフルファイアウォール
+Security Group = Stateful Firewall
 
-  インバウンドルール               アウトバウンドルール
-  (外→内)                        (内→外)
+  Inbound Rules                  Outbound Rules
+  (Outside -> Inside)            (Inside -> Outside)
   +-------------------+          +-------------------+
-  | 許可ルールのみ     |          | 許可ルールのみ     |
-  | デフォルト: 全拒否  |          | デフォルト: 全許可  |
-  | ステートフル       |          | ステートフル       |
+  | Allow rules only   |          | Allow rules only   |
+  | Default: Deny all  |          | Default: Allow all  |
+  | Stateful           |          | Stateful           |
   +-------------------+          +-------------------+
 
-  ステートフル = インバウンドで許可した通信の戻りは自動許可
+  Stateful = Return traffic for allowed inbound traffic is automatically permitted
 
-  セキュリティグループ vs ネットワーク ACL
+  Security Group vs Network ACL
   +---------------------------+---------------------------+
-  | セキュリティグループ        | ネットワーク ACL            |
+  | Security Group            | Network ACL               |
   +---------------------------+---------------------------+
-  | インスタンスレベル          | サブネットレベル            |
-  | ステートフル               | ステートレス               |
-  | 許可ルールのみ             | 許可 + 拒否ルール           |
-  | 全ルールを評価             | 番号順に評価（最初の一致）   |
-  | ENI に関連付け             | サブネットに関連付け        |
+  | Instance level            | Subnet level              |
+  | Stateful                  | Stateless                 |
+  | Allow rules only          | Allow + Deny rules        |
+  | Evaluates all rules       | Evaluates by number order |
+  |                           | (first match)             |
+  | Associated with ENI       | Associated with subnet    |
   +---------------------------+---------------------------+
 ```
 
-### 4.2 コード例: セキュリティグループの作成
+### 4.2 Code Example: Creating Security Groups
 
 ```bash
-# Web サーバー用セキュリティグループを作成
+# Create a security group for web servers
 SG_ID=$(aws ec2 create-security-group \
   --group-name web-server-sg \
   --description "Security group for web servers" \
@@ -556,7 +558,7 @@ SG_ID=$(aws ec2 create-security-group \
   --tag-specifications 'ResourceType=security-group,Tags=[{Key=Name,Value=web-server-sg}]' \
   --query 'GroupId' --output text)
 
-# SSH (管理用、特定 IP のみ)
+# SSH (management, specific IP only)
 aws ec2 authorize-security-group-ingress \
   --group-id $SG_ID \
   --protocol tcp --port 22 \
@@ -574,7 +576,7 @@ aws ec2 authorize-security-group-ingress \
   --protocol tcp --port 443 \
   --cidr 0.0.0.0/0
 
-# IPv6 対応
+# IPv6 support
 aws ec2 authorize-security-group-ingress \
   --group-id $SG_ID \
   --ip-permissions '[
@@ -584,31 +586,31 @@ aws ec2 authorize-security-group-ingress \
 
 echo "Created Security Group: $SG_ID"
 
-# セキュリティグループのルール一覧
+# List security group rules
 aws ec2 describe-security-group-rules \
   --filter Name=group-id,Values=$SG_ID \
   --query 'SecurityGroupRules[].[IsEgress,IpProtocol,FromPort,ToPort,CidrIpv4,ReferencedGroupInfo.GroupId]' \
   --output table
 ```
 
-### 4.3 セキュリティグループ設計例（多層アーキテクチャ）
+### 4.3 Security Group Design Example (Multi-Tier Architecture)
 
-| 層 | SG 名 | インバウンド | ソース | 説明 |
+| Tier | SG Name | Inbound | Source | Description |
 |----|--------|------------|--------|------|
-| ALB | alb-sg | 80, 443 | 0.0.0.0/0 | インターネットからの HTTP/HTTPS |
-| Web | web-sg | 8080 | alb-sg | ALB からのみアクセス可能 |
-| App | app-sg | 3000 | web-sg | Web 層からのみアクセス可能 |
-| DB | db-sg | 3306 | app-sg | App 層からのみアクセス可能 |
-| Cache | cache-sg | 6379 | app-sg | App 層からのみアクセス可能 |
-| Bastion | bastion-sg | 22 | 社内IP/32 | 管理用踏み台 |
+| ALB | alb-sg | 80, 443 | 0.0.0.0/0 | HTTP/HTTPS from the internet |
+| Web | web-sg | 8080 | alb-sg | Accessible only from ALB |
+| App | app-sg | 3000 | web-sg | Accessible only from Web tier |
+| DB | db-sg | 3306 | app-sg | Accessible only from App tier |
+| Cache | cache-sg | 6379 | app-sg | Accessible only from App tier |
+| Bastion | bastion-sg | 22 | Office IP/32 | Management bastion host |
 
 ```bash
-# 多層セキュリティグループを一括作成するスクリプト
+# Script to batch-create multi-tier security groups
 #!/bin/bash
 VPC_ID="vpc-0123456789abcdef0"
 OFFICE_IP="203.0.113.0/32"
 
-# ALB 用 SG
+# ALB SG
 ALB_SG=$(aws ec2 create-security-group \
   --group-name alb-sg --description "ALB SG" --vpc-id $VPC_ID \
   --query 'GroupId' --output text)
@@ -617,21 +619,21 @@ aws ec2 authorize-security-group-ingress --group-id $ALB_SG \
 aws ec2 authorize-security-group-ingress --group-id $ALB_SG \
   --protocol tcp --port 443 --cidr 0.0.0.0/0
 
-# Web 用 SG（ALB からのみ）
+# Web SG (from ALB only)
 WEB_SG=$(aws ec2 create-security-group \
   --group-name web-sg --description "Web SG" --vpc-id $VPC_ID \
   --query 'GroupId' --output text)
 aws ec2 authorize-security-group-ingress --group-id $WEB_SG \
   --protocol tcp --port 8080 --source-group $ALB_SG
 
-# App 用 SG（Web からのみ）
+# App SG (from Web only)
 APP_SG=$(aws ec2 create-security-group \
   --group-name app-sg --description "App SG" --vpc-id $VPC_ID \
   --query 'GroupId' --output text)
 aws ec2 authorize-security-group-ingress --group-id $APP_SG \
   --protocol tcp --port 3000 --source-group $WEB_SG
 
-# DB 用 SG（App からのみ）
+# DB SG (from App only)
 DB_SG=$(aws ec2 create-security-group \
   --group-name db-sg --description "DB SG" --vpc-id $VPC_ID \
   --query 'GroupId' --output text)
@@ -641,56 +643,56 @@ aws ec2 authorize-security-group-ingress --group-id $DB_SG \
 echo "ALB: $ALB_SG | Web: $WEB_SG | App: $APP_SG | DB: $DB_SG"
 ```
 
-### 4.4 セキュリティグループのベストプラクティス
+### 4.4 Security Group Best Practices
 
-1. **最小権限の原則**: 必要なポートとソースのみ許可する
-2. **SG ID をソースに指定**: CIDR ブロックではなく SG ID を参照することで、動的な IP 変更に対応
-3. **説明 (Description) を必ず記載**: 各ルールの目的を明記する
-4. **定期的な棚卸し**: 不要なルールを削除する
-5. **デフォルト SG を使わない**: 専用の SG を作成して明示的に設定する
+1. **Principle of Least Privilege**: Only allow necessary ports and sources
+2. **Use SG IDs as Sources**: Reference SG IDs instead of CIDR blocks to handle dynamic IP changes
+3. **Always Include Descriptions**: Clearly document the purpose of each rule
+4. **Regular Auditing**: Remove unnecessary rules
+5. **Avoid Using the Default SG**: Create dedicated SGs with explicit configurations
 
 ---
 
-## 5. キーペアと接続方法
+## 5. Key Pairs and Connection Methods
 
-### 5.1 コード例: キーペアの作成と SSH 接続
+### 5.1 Code Example: Creating Key Pairs and SSH Connection
 
 ```bash
-# キーペアを作成（Ed25519 推奨）
+# Create a key pair (Ed25519 recommended)
 aws ec2 create-key-pair \
   --key-name my-key-pair \
   --key-type ed25519 \
   --query 'KeyMaterial' \
   --output text > my-key-pair.pem
 
-# パーミッション設定
+# Set permissions
 chmod 400 my-key-pair.pem
 
-# SSH 接続
-ssh -i my-key-pair.pem ec2-user@<パブリックIP>
+# SSH connection
+ssh -i my-key-pair.pem ec2-user@<Public IP>
 
-# EC2 Instance Connect（キーペア不要で接続）
+# EC2 Instance Connect (connect without a key pair)
 aws ec2-instance-connect send-ssh-public-key \
   --instance-id i-0123456789abcdef0 \
   --instance-os-user ec2-user \
   --ssh-public-key file://~/.ssh/id_ed25519.pub
 ```
 
-### 5.2 Session Manager による接続（推奨）
+### 5.2 Connection via Session Manager (Recommended)
 
-Session Manager を使えば、SSH ポートを開放せずにインスタンスに接続できる。
+Session Manager allows you to connect to instances without opening SSH ports.
 
 ```bash
-# Session Manager で接続（SSH ポート不要）
+# Connect via Session Manager (no SSH port required)
 aws ssm start-session --target i-0123456789abcdef0
 
-# ポートフォワーディング（ローカルの 8080 → リモートの 80）
+# Port forwarding (local 8080 -> remote 80)
 aws ssm start-session \
   --target i-0123456789abcdef0 \
   --document-name AWS-StartPortForwardingSession \
   --parameters '{"portNumber":["80"],"localPortNumber":["8080"]}'
 
-# RDS へのポートフォワーディング（踏み台不要）
+# Port forwarding to RDS (no bastion host needed)
 aws ssm start-session \
   --target i-0123456789abcdef0 \
   --document-name AWS-StartPortForwardingSessionToRemoteHost \
@@ -701,7 +703,7 @@ aws ssm start-session \
   }'
 ```
 
-Session Manager を使うための IAM ポリシー:
+IAM policy required for Session Manager:
 
 ```json
 {
@@ -729,10 +731,10 @@ Session Manager を使うための IAM ポリシー:
 }
 ```
 
-### 5.3 EC2 インスタンスの IAM ロール設定
+### 5.3 IAM Role Configuration for EC2 Instances
 
 ```bash
-# EC2 用の IAM ロールを作成
+# Create an IAM role for EC2
 aws iam create-role \
   --role-name EC2-WebServer-Role \
   --assume-role-policy-document '{
@@ -746,17 +748,17 @@ aws iam create-role \
     ]
   }'
 
-# SSM 用ポリシーをアタッチ（Session Manager に必要）
+# Attach SSM policy (required for Session Manager)
 aws iam attach-role-policy \
   --role-name EC2-WebServer-Role \
   --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 
-# S3 読み取り用ポリシーをアタッチ
+# Attach S3 read-only policy
 aws iam attach-role-policy \
   --role-name EC2-WebServer-Role \
   --policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
 
-# インスタンスプロファイルを作成してロールを紐付け
+# Create an instance profile and associate the role
 aws iam create-instance-profile \
   --instance-profile-name EC2-WebServer-Profile
 
@@ -764,7 +766,7 @@ aws iam add-role-to-instance-profile \
   --instance-profile-name EC2-WebServer-Profile \
   --role-name EC2-WebServer-Role
 
-# 既存のインスタンスにプロファイルをアタッチ
+# Attach the profile to an existing instance
 aws ec2 associate-iam-instance-profile \
   --instance-id i-0123456789abcdef0 \
   --iam-instance-profile Name=EC2-WebServer-Profile
@@ -774,46 +776,46 @@ aws ec2 associate-iam-instance-profile \
 
 ## 6. EBS (Elastic Block Store)
 
-### 6.1 EBS ボリュームタイプ比較
+### 6.1 EBS Volume Type Comparison
 
-| タイプ | 名称 | IOPS | スループット | 最大容量 | 用途 |
+| Type | Name | IOPS | Throughput | Max Size | Use Cases |
 |--------|------|------|-------------|---------|------|
-| gp3 | 汎用 SSD | 3,000-16,000 | 125-1,000 MB/s | 16 TiB | 一般用途（推奨） |
-| gp2 | 汎用 SSD | 100-16,000 (容量連動) | 128-250 MB/s | 16 TiB | レガシー |
-| io2 | プロビジョンド IOPS | 最大 64,000 | 1,000 MB/s | 16 TiB | 高性能 DB |
-| io2 Block Express | 超高性能 SSD | 最大 256,000 | 4,000 MB/s | 64 TiB | SAP HANA 等 |
-| st1 | スループット最適化 HDD | 500 | 500 MB/s | 16 TiB | ビッグデータ |
-| sc1 | コールド HDD | 250 | 250 MB/s | 16 TiB | アーカイブ |
+| gp3 | General Purpose SSD | 3,000-16,000 | 125-1,000 MB/s | 16 TiB | General purpose (recommended) |
+| gp2 | General Purpose SSD | 100-16,000 (capacity-linked) | 128-250 MB/s | 16 TiB | Legacy |
+| io2 | Provisioned IOPS | Up to 64,000 | 1,000 MB/s | 16 TiB | High-performance DBs |
+| io2 Block Express | Ultra-high Performance SSD | Up to 256,000 | 4,000 MB/s | 64 TiB | SAP HANA, etc. |
+| st1 | Throughput Optimized HDD | 500 | 500 MB/s | 16 TiB | Big data |
+| sc1 | Cold HDD | 250 | 250 MB/s | 16 TiB | Archives |
 
-### 6.2 gp2 から gp3 への移行
+### 6.2 Migration from gp2 to gp3
 
-gp3 は gp2 と比較して同じ性能で最大 20% のコスト削減が可能。IOPS とスループットを個別に設定できる利点もある。
+gp3 can achieve up to 20% cost reduction compared to gp2 at the same performance level. It also has the advantage of independently configuring IOPS and throughput.
 
 ```bash
-# gp2 ボリュームを gp3 に変更
+# Change a gp2 volume to gp3
 aws ec2 modify-volume \
   --volume-id vol-0123456789abcdef0 \
   --volume-type gp3 \
   --iops 3000 \
   --throughput 125
 
-# 変更状態の確認
+# Check modification status
 aws ec2 describe-volumes-modifications \
   --volume-ids vol-0123456789abcdef0 \
   --query 'VolumesModifications[0].[ModificationState,TargetVolumeType,TargetIops,TargetThroughput,Progress]' \
   --output table
 
-# 全 gp2 ボリュームを一覧表示（移行候補の特定）
+# List all gp2 volumes (identify migration candidates)
 aws ec2 describe-volumes \
   --filters "Name=volume-type,Values=gp2" \
   --query 'Volumes[].[VolumeId,Size,Iops,State,Attachments[0].InstanceId]' \
   --output table
 ```
 
-### 6.3 コード例: EBS ボリュームの作成とアタッチ
+### 6.3 Code Example: Creating and Attaching EBS Volumes
 
 ```bash
-# gp3 ボリュームを作成（100GB, 5000 IOPS）
+# Create a gp3 volume (100GB, 5000 IOPS)
 VOL_ID=$(aws ec2 create-volume \
   --volume-type gp3 \
   --size 100 \
@@ -825,37 +827,37 @@ VOL_ID=$(aws ec2 create-volume \
   --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value=data-vol}]' \
   --query 'VolumeId' --output text)
 
-# インスタンスにアタッチ
+# Attach to instance
 aws ec2 attach-volume \
   --volume-id $VOL_ID \
   --instance-id i-0123456789abcdef0 \
   --device /dev/sdf
 
-# Linux でのボリュームフォーマットとマウント
-# (User Data またはSSH接続後に実行)
-# デバイスの確認
+# Format and mount the volume on Linux
+# (Execute via User Data or after SSH connection)
+# Check the device
 lsblk
-# ファイルシステム作成
+# Create filesystem
 sudo mkfs -t xfs /dev/nvme1n1
-# マウントポイント作成
+# Create mount point
 sudo mkdir /data
-# マウント
+# Mount
 sudo mount /dev/nvme1n1 /data
-# 永続マウント設定
+# Configure persistent mount
 UUID=$(sudo blkid -o value -s UUID /dev/nvme1n1)
 echo "UUID=$UUID /data xfs defaults,nofail 0 2" | sudo tee -a /etc/fstab
 
-# スナップショットの作成
+# Create a snapshot
 aws ec2 create-snapshot \
   --volume-id $VOL_ID \
   --description "Daily backup $(date +%Y-%m-%d)" \
   --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value=daily-backup},{Key=RetainDays,Value=7}]'
 ```
 
-### 6.4 EBS スナップショットのライフサイクル管理
+### 6.4 EBS Snapshot Lifecycle Management
 
 ```bash
-# Data Lifecycle Manager (DLM) でスナップショットを自動管理
+# Automate snapshot management with Data Lifecycle Manager (DLM)
 aws dlm create-lifecycle-policy \
   --description "Daily EBS snapshots with 7-day retention" \
   --state ENABLED \
@@ -880,26 +882,26 @@ aws dlm create-lifecycle-policy \
   }'
 ```
 
-### 6.5 EBS とインスタンスストアの比較
+### 6.5 EBS vs Instance Store Comparison
 
-| 特性 | EBS | インスタンスストア |
+| Characteristic | EBS | Instance Store |
 |------|-----|------------------|
-| 永続性 | インスタンス停止後も保持 | インスタンス停止で消失 |
-| スナップショット | 可能 | 不可 |
-| サイズ変更 | 可能（オンライン） | 不可 |
-| レイテンシ | ネットワーク経由 | ローカルディスク（低レイテンシ） |
-| IOPS | 最大 256,000 (io2 BE) | 最大数百万 (NVMe) |
-| 用途 | OS、DB、永続データ | キャッシュ、一時ファイル、バッファ |
-| 暗号化 | KMS / デフォルト暗号化 | ハードウェアレベル |
+| Persistence | Retained after instance stop | Lost on instance stop |
+| Snapshots | Supported | Not supported |
+| Resize | Supported (online) | Not supported |
+| Latency | Via network | Local disk (low latency) |
+| IOPS | Up to 256,000 (io2 BE) | Up to millions (NVMe) |
+| Use Cases | OS, DB, persistent data | Cache, temporary files, buffers |
+| Encryption | KMS / default encryption | Hardware level |
 
 ---
 
-## 7. EC2 インスタンスの起動 — 完全な例
+## 7. Launching EC2 Instances — Complete Example
 
-### 7.1 AWS CLI での起動
+### 7.1 Launching with AWS CLI
 
 ```bash
-# 全要素を指定してインスタンスを起動
+# Launch an instance with all elements specified
 aws ec2 run-instances \
   --image-id ami-0abcdef1234567890 \
   --instance-type t3.small \
@@ -929,23 +931,23 @@ aws ec2 run-instances \
   --monitoring Enabled=true
 ```
 
-### 7.2 User Data スクリプト例
+### 7.2 User Data Script Example
 
 ```bash
 #!/bin/bash
-# startup.sh - EC2 起動時に自動実行されるスクリプト
+# startup.sh - Script automatically executed at EC2 startup
 set -euxo pipefail
 
-# ログ出力先
+# Log output destination
 exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
 
-# システム更新
+# System update
 dnf update -y
 
-# 必要なパッケージのインストール
+# Install required packages
 dnf install -y nginx nodejs npm git
 
-# NGINX 設定
+# NGINX configuration
 cat > /etc/nginx/conf.d/app.conf << 'NGINX_EOF'
 server {
     listen 80;
@@ -971,11 +973,11 @@ server {
 }
 NGINX_EOF
 
-# NGINX 起動
+# Start NGINX
 systemctl start nginx
 systemctl enable nginx
 
-# CloudWatch Agent のインストール
+# Install CloudWatch Agent
 dnf install -y amazon-cloudwatch-agent
 cat > /opt/aws/amazon-cloudwatch-agent/etc/config.json << 'CW_EOF'
 {
@@ -1011,7 +1013,7 @@ CW_EOF
 echo "User data script completed successfully"
 ```
 
-### 7.3 CloudFormation テンプレート
+### 7.3 CloudFormation Template
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
@@ -1035,7 +1037,7 @@ Parameters:
     Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
 
 Resources:
-  # セキュリティグループ
+  # Security Group
   WebServerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -1054,7 +1056,7 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName}-web-sg
 
-  # IAM ロール
+  # IAM Role
   WebServerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -1072,14 +1074,14 @@ Resources:
         - Key: Environment
           Value: !Ref EnvironmentName
 
-  # インスタンスプロファイル
+  # Instance Profile
   WebServerInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
         - !Ref WebServerRole
 
-  # EC2 インスタンス
+  # EC2 Instance
   WebServerInstance:
     Type: AWS::EC2::Instance
     Properties:
@@ -1125,7 +1127,7 @@ Outputs:
     Value: !Ref WebServerSecurityGroup
 ```
 
-### 7.4 CDK (TypeScript) での EC2 定義
+### 7.4 EC2 Definition with CDK (TypeScript)
 
 ```typescript
 import * as cdk from 'aws-cdk-lib';
@@ -1137,12 +1139,12 @@ export class Ec2Stack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // VPC（既存の VPC を参照する場合）
+    // VPC (reference an existing VPC)
     const vpc = ec2.Vpc.fromLookup(this, 'Vpc', {
       vpcId: 'vpc-0123456789abcdef0',
     });
 
-    // セキュリティグループ
+    // Security Group
     const webSg = new ec2.SecurityGroup(this, 'WebSG', {
       vpc,
       description: 'Security group for web servers',
@@ -1151,7 +1153,7 @@ export class Ec2Stack extends cdk.Stack {
     webSg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80), 'Allow HTTP');
     webSg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), 'Allow HTTPS');
 
-    // IAM ロール
+    // IAM Role
     const role = new iam.Role(this, 'WebServerRole', {
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
       managedPolicies: [
@@ -1160,7 +1162,7 @@ export class Ec2Stack extends cdk.Stack {
       ],
     });
 
-    // EC2 インスタンス
+    // EC2 Instance
     const instance = new ec2.Instance(this, 'WebServer', {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
@@ -1192,7 +1194,7 @@ export class Ec2Stack extends cdk.Stack {
       'systemctl enable nginx',
     );
 
-    // 出力
+    // Outputs
     new cdk.CfnOutput(this, 'InstanceId', { value: instance.instanceId });
     new cdk.CfnOutput(this, 'PrivateIp', { value: instance.instancePrivateIp });
   }
@@ -1201,63 +1203,63 @@ export class Ec2Stack extends cdk.Stack {
 
 ---
 
-## 8. メタデータサービス (IMDS)
+## 8. Metadata Service (IMDS)
 
-### 8.1 IMDSv2 の使い方
+### 8.1 How to Use IMDSv2
 
 ```bash
-# IMDSv2 でトークンを取得してメタデータにアクセス
+# Retrieve a token and access metadata with IMDSv2
 TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
   -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
 
-# インスタンス ID
+# Instance ID
 curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
   http://169.254.169.254/latest/meta-data/instance-id
 
-# インスタンスタイプ
+# Instance type
 curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
   http://169.254.169.254/latest/meta-data/instance-type
 
-# パブリック IP
+# Public IP
 curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
   http://169.254.169.254/latest/meta-data/public-ipv4
 
-# IAM ロールの一時的な認証情報
+# IAM role temporary credentials
 curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
   http://169.254.169.254/latest/meta-data/iam/security-credentials/
 
-# アベイラビリティゾーン
+# Availability Zone
 curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
   http://169.254.169.254/latest/meta-data/placement/availability-zone
 
-# インスタンスのタグ（設定が必要）
+# Instance tags (configuration required)
 curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
   http://169.254.169.254/latest/meta-data/tags/instance/Name
 ```
 
-### 8.2 IMDSv2 の強制設定
+### 8.2 Enforcing IMDSv2
 
 ```bash
-# 新規インスタンスで IMDSv2 を強制
+# Enforce IMDSv2 on new instances
 aws ec2 run-instances \
   --metadata-options "HttpTokens=required,HttpEndpoint=enabled,HttpPutResponseHopLimit=1" \
   ...
 
-# 既存インスタンスで IMDSv2 を強制
+# Enforce IMDSv2 on existing instances
 aws ec2 modify-instance-metadata-options \
   --instance-id i-0123456789abcdef0 \
   --http-tokens required \
   --http-endpoint enabled \
   --http-put-response-hop-limit 1
 
-# アカウントレベルで IMDSv2 をデフォルトに設定
+# Set IMDSv2 as default at the account level
 aws ec2 modify-instance-metadata-defaults \
   --http-tokens required \
   --http-put-response-hop-limit 1 \
   --http-endpoint enabled \
   --region ap-northeast-1
 
-# IMDSv1 を使用しているインスタンスの検出
+# Detect instances still using IMDSv1
 aws ec2 describe-instances \
   --query 'Reservations[].Instances[?MetadataOptions.HttpTokens==`optional`].[InstanceId,Tags[?Key==`Name`].Value|[0]]' \
   --output table
@@ -1265,12 +1267,12 @@ aws ec2 describe-instances \
 
 ---
 
-## 9. EC2 の監視
+## 9. EC2 Monitoring
 
-### 9.1 CloudWatch メトリクス
+### 9.1 CloudWatch Metrics
 
 ```bash
-# CPU 使用率の取得
+# Get CPU utilization
 aws cloudwatch get-metric-statistics \
   --namespace AWS/EC2 \
   --metric-name CPUUtilization \
@@ -1280,7 +1282,7 @@ aws cloudwatch get-metric-statistics \
   --period 300 \
   --statistics Average Maximum
 
-# CPU アラームの作成
+# Create a CPU alarm
 aws cloudwatch put-metric-alarm \
   --alarm-name "ec2-high-cpu" \
   --alarm-description "CPU usage exceeds 80% for 5 minutes" \
@@ -1294,7 +1296,7 @@ aws cloudwatch put-metric-alarm \
   --evaluation-periods 1 \
   --alarm-actions arn:aws:sns:ap-northeast-1:123456789012:alerts
 
-# ステータスチェックアラーム（自動リカバリ）
+# Status check alarm (auto-recovery)
 aws cloudwatch put-metric-alarm \
   --alarm-name "ec2-auto-recovery" \
   --alarm-description "Auto-recover when status check fails" \
@@ -1309,75 +1311,75 @@ aws cloudwatch put-metric-alarm \
   --alarm-actions arn:aws:automate:ap-northeast-1:ec2:recover
 ```
 
-### 9.2 主要メトリクス一覧
+### 9.2 Key Metrics Overview
 
-| メトリクス | 説明 | 通常値 | アラート閾値 |
+| Metric | Description | Normal Range | Alert Threshold |
 |-----------|------|--------|------------|
-| CPUUtilization | CPU 使用率 (%) | 10-60% | > 80% |
-| NetworkIn/Out | ネットワーク I/O (bytes) | ワークロード依存 | 急激な増加 |
-| DiskReadOps/WriteOps | ディスク I/O 操作数 | ワークロード依存 | キュー長増加 |
-| StatusCheckFailed | システム/インスタンスチェック | 0 | > 0 |
-| CPUCreditBalance | T系のクレジット残高 | > 100 | < 20 |
-| mem_used_percent | メモリ使用率（CW Agent） | 30-70% | > 85% |
-| disk_used_percent | ディスク使用率（CW Agent） | < 60% | > 80% |
+| CPUUtilization | CPU usage (%) | 10-60% | > 80% |
+| NetworkIn/Out | Network I/O (bytes) | Workload-dependent | Sudden increase |
+| DiskReadOps/WriteOps | Disk I/O operations | Workload-dependent | Queue length increase |
+| StatusCheckFailed | System/instance check | 0 | > 0 |
+| CPUCreditBalance | T-series credit balance | > 100 | < 20 |
+| mem_used_percent | Memory usage (CW Agent) | 30-70% | > 85% |
+| disk_used_percent | Disk usage (CW Agent) | < 60% | > 80% |
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: セキュリティグループで 0.0.0.0/0 に SSH を公開する
+### Anti-Pattern 1: Exposing SSH to 0.0.0.0/0 in Security Groups
 
 ```bash
-# 悪い例 — 全世界に SSH ポートを公開
+# Bad example - Expose SSH port to the entire world
 aws ec2 authorize-security-group-ingress \
   --group-id sg-xxx --protocol tcp --port 22 --cidr 0.0.0.0/0
 
-# 良い例 — 管理元 IP のみ許可 + Session Manager を併用
+# Good example - Allow only the management source IP + use Session Manager
 aws ec2 authorize-security-group-ingress \
   --group-id sg-xxx --protocol tcp --port 22 --cidr 203.0.113.10/32
 
-# さらに良い例 — SSH 不要、Session Manager で接続
+# Even better - No SSH needed, connect via Session Manager
 aws ssm start-session --target i-0123456789abcdef0
 ```
 
-### アンチパターン 2: EBS を暗号化せずに使用する
+### Anti-Pattern 2: Using EBS Without Encryption
 
-機密データを含むボリュームは必ず暗号化すべきである。デフォルト暗号化を有効にしておけば、忘れを防止できる。
+Volumes containing sensitive data should always be encrypted. Enabling default encryption prevents accidental omissions.
 
 ```bash
-# アカウントレベルで EBS デフォルト暗号化を有効化
+# Enable EBS default encryption at the account level
 aws ec2 enable-ebs-encryption-by-default --region ap-northeast-1
 
-# 暗号化状態の確認
+# Check encryption status
 aws ec2 get-ebs-encryption-by-default --region ap-northeast-1
 
-# デフォルト KMS キーの変更
+# Change the default KMS key
 aws ec2 modify-ebs-default-kms-key-id \
   --kms-key-id alias/ebs-custom-key \
   --region ap-northeast-1
 ```
 
-### アンチパターン 3: IAM ロールを使わずにアクセスキーを埋め込む
+### Anti-Pattern 3: Embedding Access Keys Instead of Using IAM Roles
 
 ```bash
-# 悪い例 — EC2 内にアクセスキーをハードコード
+# Bad example - Hardcoding access keys inside EC2
 export AWS_ACCESS_KEY_ID=AKIA...
 export AWS_SECRET_ACCESS_KEY=...
-aws s3 ls  # キー漏洩のリスク
+aws s3 ls  # Risk of key leakage
 
-# 良い例 — IAM ロール（インスタンスプロファイル）を使用
-# EC2 に IAM ロールをアタッチし、一時的な認証情報を自動取得
-aws s3 ls  # インスタンスプロファイルの認証情報を自動使用
+# Good example - Use IAM roles (instance profiles)
+# Attach an IAM role to EC2 and automatically obtain temporary credentials
+aws s3 ls  # Automatically uses instance profile credentials
 ```
 
-### アンチパターン 4: User Data にシークレットを直接記述する
+### Anti-Pattern 4: Writing Secrets Directly in User Data
 
 ```bash
-# 悪い例 — User Data にパスワードをハードコード
+# Bad example - Hardcoding passwords in User Data
 #!/bin/bash
 export DB_PASSWORD="MySecretPassword123!"
 
-# 良い例 — Secrets Manager から取得
+# Good example - Retrieve from Secrets Manager
 #!/bin/bash
 DB_PASSWORD=$(aws secretsmanager get-secret-value \
   --secret-id my-db-password \
@@ -1385,20 +1387,20 @@ DB_PASSWORD=$(aws secretsmanager get-secret-value \
 export DB_PASSWORD
 ```
 
-### アンチパターン 5: インスタンスサイズを大きくしすぎる
+### Anti-Pattern 5: Over-Sizing Instances
 
 ```
-# 悪い例 — 「念のため」で巨大インスタンスを選択
-→ m5.4xlarge (16 vCPU, 64 GiB) で CPU 使用率 5%
+# Bad example - Choosing a huge instance "just in case"
+-> m5.4xlarge (16 vCPU, 64 GiB) with 5% CPU usage
 
-# 良い例 — 適切なサイズで開始し、モニタリングに基づいてスケール
-→ t3.medium (2 vCPU, 4 GiB) で開始
-→ CPU 使用率が 60% を超えたら t3.large に変更
-→ AWS Compute Optimizer の推奨を定期的に確認
+# Good example - Start with an appropriate size and scale based on monitoring
+-> Start with t3.medium (2 vCPU, 4 GiB)
+-> Upgrade to t3.large when CPU usage exceeds 60%
+-> Regularly check AWS Compute Optimizer recommendations
 ```
 
 ```bash
-# AWS Compute Optimizer で推奨インスタンスタイプを確認
+# Check recommended instance types with AWS Compute Optimizer
 aws compute-optimizer get-ec2-instance-recommendations \
   --instance-arns arn:aws:ec2:ap-northeast-1:123456789012:instance/i-0123456789abcdef0 \
   --query 'instanceRecommendations[].[instanceArn,currentInstanceType,recommendationOptions[0].instanceType,finding]' \
@@ -1407,22 +1409,22 @@ aws compute-optimizer get-ec2-instance-recommendations \
 
 ---
 
-## 11. EC2 運用のベストプラクティス
+## 11. EC2 Operational Best Practices
 
-### 11.1 タグ付け戦略
+### 11.1 Tagging Strategy
 
-| タグキー | 説明 | 例 |
+| Tag Key | Description | Example |
 |---------|------|-----|
-| Name | リソースの識別名 | web-server-01 |
-| Environment | 環境 | production / staging / development |
-| Team | 所有チーム | backend / frontend / infra |
-| CostCenter | コスト配分先 | CC-12345 |
-| Application | アプリケーション名 | my-web-app |
-| ManagedBy | 管理方法 | terraform / cloudformation / manual |
-| Backup | バックアップ対象 | true / false |
+| Name | Resource identifier | web-server-01 |
+| Environment | Environment | production / staging / development |
+| Team | Owning team | backend / frontend / infra |
+| CostCenter | Cost allocation target | CC-12345 |
+| Application | Application name | my-web-app |
+| ManagedBy | Management method | terraform / cloudformation / manual |
+| Backup | Backup target | true / false |
 
 ```bash
-# タグ付けポリシーの適用
+# Apply tagging policy
 aws ec2 create-tags \
   --resources i-0123456789abcdef0 \
   --tags \
@@ -1435,10 +1437,10 @@ aws ec2 create-tags \
     Key=Backup,Value=true
 ```
 
-### 11.2 パッチ管理
+### 11.2 Patch Management
 
 ```bash
-# SSM Patch Manager でパッチ適用を自動化
+# Automate patch application with SSM Patch Manager
 aws ssm create-patch-baseline \
   --name "AmazonLinux2023-Custom" \
   --operating-system AMAZON_LINUX_2023 \
@@ -1455,7 +1457,7 @@ aws ssm create-patch-baseline \
     }]
   }'
 
-# パッチ適用のメンテナンスウィンドウを作成
+# Create a maintenance window for patch application
 aws ssm create-maintenance-window \
   --name "WeeklyPatching" \
   --schedule "cron(0 2 ? * SUN *)" \
@@ -1468,90 +1470,90 @@ aws ssm create-maintenance-window \
 
 ## 12. FAQ
 
-### Q1. t3.micro と t3.small のどちらを選ぶべきか？
+### Q1. Should I choose t3.micro or t3.small?
 
-t3.micro (1 GiB メモリ) は軽量な Web サーバーやテスト用途に適している。メモリ 2 GiB 以上が必要なアプリケーション（WordPress + MySQL など）は t3.small 以上を選択する。無料枠を使う場合は t2.micro (12ヶ月無料) も検討対象。コスト効率を重視するなら Graviton ベースの t4g ファミリーも有力な選択肢である。
+t3.micro (1 GiB memory) is suitable for lightweight web servers and testing purposes. Applications requiring 2 GiB or more of memory (such as WordPress + MySQL) should use t3.small or larger. If you want to use the free tier, t2.micro (free for 12 months) is also worth considering. For cost efficiency, the Graviton-based t4g family is another strong option.
 
-### Q2. インスタンスを停止するとデータはどうなるか？
+### Q2. What happens to data when an instance is stopped?
 
-EBS ルートボリューム (DeleteOnTermination=true) はインスタンス「終了」で削除されるが、「停止」では保持される。インスタンスストアは停止・終了の両方でデータが失われる。重要なデータは EBS スナップショットや S3 にバックアップする。なお、停止中もEBSの課金は継続される点に注意。
+The EBS root volume (DeleteOnTermination=true) is deleted when an instance is "terminated," but is retained when "stopped." Instance store data is lost on both stop and termination. Back up important data to EBS snapshots or S3. Note that EBS charges continue even while the instance is stopped.
 
-### Q3. IMDSv2 とは何か？なぜ必要か？
+### Q3. What is IMDSv2? Why is it needed?
 
-Instance Metadata Service v2 は、トークンベースの認証をメタデータアクセスに追加するセキュリティ強化。SSRF 攻撃によるメタデータ漏洩を防止する。`HttpTokens=required` で IMDSv2 を強制すべきである。Capital One の2019年データ漏洩事件は、IMDSv1 の脆弱性を悪用したものであり、このインシデントが IMDSv2 開発の契機となった。
+Instance Metadata Service v2 is a security enhancement that adds token-based authentication to metadata access. It prevents metadata leakage through SSRF attacks. You should enforce IMDSv2 with `HttpTokens=required`. The 2019 Capital One data breach exploited IMDSv1 vulnerabilities, and this incident was the catalyst for IMDSv2 development.
 
-### Q4. EC2 インスタンスのバックアップ戦略はどうすべきか？
+### Q4. What should the backup strategy for EC2 instances be?
 
-以下の3層でバックアップを構成するのが推奨である。
+A three-tier backup configuration is recommended:
 
-1. **EBS スナップショット**: Data Lifecycle Manager (DLM) で日次自動取得、7-30日保持
-2. **AMI**: 週次でゴールデン AMI を作成、EC2 Image Builder で自動化
-3. **AWS Backup**: 組織全体のバックアップを一元管理、クロスリージョンコピーにも対応
+1. **EBS Snapshots**: Auto-capture daily with Data Lifecycle Manager (DLM), retain for 7-30 days
+2. **AMI**: Create golden AMIs weekly, automate with EC2 Image Builder
+3. **AWS Backup**: Centrally manage backups across the organization, supports cross-region copy
 
-### Q5. Elastic IP は必要か？
+### Q5. Is an Elastic IP necessary?
 
-Elastic IP は静的なパブリック IP アドレスであり、インスタンスの停止・起動でも IP が変わらない。ただし、未使用の Elastic IP には課金が発生する。多くのケースでは DNS (Route 53) と ALB の組み合わせの方が柔軟で推奨される。直接 IP でアクセスする必要がある場合（VPN接続先の指定など）に限り Elastic IP を使用する。
+An Elastic IP is a static public IP address that remains unchanged across instance stop/start cycles. However, unused Elastic IPs incur charges. In most cases, a combination of DNS (Route 53) and ALB is more flexible and recommended. Use Elastic IPs only when direct IP access is required (such as VPN connection targets).
 
-### Q6. EC2 のリージョン・AZ の選定基準は？
+### Q6. What are the criteria for selecting EC2 regions and AZs?
 
-| 考慮事項 | 説明 |
+| Consideration | Description |
 |---------|------|
-| レイテンシ | ユーザーに近いリージョンを選択 |
-| コスト | リージョンにより料金が異なる（東京 > バージニア） |
-| コンプライアンス | データ主権要件によるリージョン制約 |
-| サービス提供状況 | 一部サービスは特定リージョンのみ |
-| AZ 分散 | 可用性のため最低2つの AZ を使用 |
+| Latency | Choose a region close to your users |
+| Cost | Pricing varies by region (Tokyo > Virginia) |
+| Compliance | Region constraints due to data sovereignty requirements |
+| Service Availability | Some services are available only in specific regions |
+| AZ Distribution | Use at least 2 AZs for availability |
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 13. まとめ
+## 13. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| インスタンスタイプ | ワークロードに応じてファミリーとサイズを選定、Graviton を積極活用 |
-| AMI | Amazon Linux 2023 / Ubuntu が一般的、SSM パラメータストアで最新 AMI を取得 |
-| セキュリティグループ | ステートフル、最小限のポート開放、ソースに SG ID を指定 |
-| キーペア | Ed25519 推奨、Session Manager への移行を検討 |
-| EBS | gp3 がデフォルト推奨、暗号化を必ず有効化、DLM でスナップショット自動化 |
-| User Data | 起動時の自動セットアップに活用、シークレットは Secrets Manager から取得 |
-| IMDSv2 | 必ず有効化し SSRF 対策を実施、アカウントレベルで強制 |
-| 監視 | CloudWatch + CloudWatch Agent でメトリクスとログを収集 |
-| IaC | CloudFormation / CDK でインフラをコード管理 |
-| コスト | Compute Optimizer で適正サイズを確認、不要リソースを削除 |
+| Instance Types | Select family and size based on workload, actively leverage Graviton |
+| AMI | Amazon Linux 2023 / Ubuntu are common, retrieve latest AMIs via SSM Parameter Store |
+| Security Groups | Stateful, minimize open ports, use SG IDs as sources |
+| Key Pairs | Ed25519 recommended, consider migrating to Session Manager |
+| EBS | gp3 recommended as default, always enable encryption, automate snapshots with DLM |
+| User Data | Use for automated setup at launch, retrieve secrets from Secrets Manager |
+| IMDSv2 | Always enable for SSRF protection, enforce at account level |
+| Monitoring | Collect metrics and logs with CloudWatch + CloudWatch Agent |
+| IaC | Manage infrastructure as code with CloudFormation / CDK |
+| Cost | Verify right-sizing with Compute Optimizer, delete unused resources |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [01-ec2-advanced.md](./01-ec2-advanced.md) — Auto Scaling、ALB、スポットインスタンス
-- [../04-networking/00-vpc-basics.md](../04-networking/00-vpc-basics.md) — VPC の基礎
+- [01-ec2-advanced.md](./01-ec2-advanced.md) -- Auto Scaling, ALB, Spot Instances
+- [../04-networking/00-vpc-basics.md](../04-networking/00-vpc-basics.md) -- VPC Basics
 
 ---
 
-## 参考文献
+## References
 
-1. Amazon EC2 ユーザーガイド — https://docs.aws.amazon.com/ec2/latest/userguide/
-2. EC2 インスタンスタイプ — https://aws.amazon.com/ec2/instance-types/
-3. EBS ボリュームタイプ — https://docs.aws.amazon.com/ebs/latest/userguide/ebs-volume-types.html
-4. EC2 セキュリティベストプラクティス — https://docs.aws.amazon.com/ec2/latest/userguide/ec2-security.html
-5. AWS Graviton プロセッサ — https://aws.amazon.com/ec2/graviton/
-6. EC2 Image Builder — https://docs.aws.amazon.com/imagebuilder/latest/userguide/
-7. AWS Systems Manager Session Manager — https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html
-8. AWS Compute Optimizer — https://docs.aws.amazon.com/compute-optimizer/latest/ug/
+1. Amazon EC2 User Guide -- https://docs.aws.amazon.com/ec2/latest/userguide/
+2. EC2 Instance Types -- https://aws.amazon.com/ec2/instance-types/
+3. EBS Volume Types -- https://docs.aws.amazon.com/ebs/latest/userguide/ebs-volume-types.html
+4. EC2 Security Best Practices -- https://docs.aws.amazon.com/ec2/latest/userguide/ec2-security.html
+5. AWS Graviton Processors -- https://aws.amazon.com/ec2/graviton/
+6. EC2 Image Builder -- https://docs.aws.amazon.com/imagebuilder/latest/userguide/
+7. AWS Systems Manager Session Manager -- https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html
+8. AWS Compute Optimizer -- https://docs.aws.amazon.com/compute-optimizer/latest/ug/
