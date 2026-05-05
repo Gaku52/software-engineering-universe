@@ -1,93 +1,98 @@
-# バリデーションパターン
+# Validation Patterns
 
-> バリデーションはフォームの品質を決定づける。Zod統合、リアルタイム検証、非同期バリデーション、クライアント/サーバー二重検証まで、堅牢で使いやすいバリデーション設計の全パターンを習得する。
+> Validation determines the quality of a form. Master all patterns for robust and user-friendly validation design — from Zod integration and real-time validation to asynchronous validation and client/server double validation.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] Zodスキーマの設計原則と高度なパターンを理解する
-- [ ] React Hook Formとの統合パターンを実装できるようになる
-- [ ] バリデーションのタイミング戦略を使い分けられるようになる
-- [ ] リアルタイム・非同期バリデーションの実装を把握する
-- [ ] クライアント/サーバー二重検証の設計を学ぶ
-- [ ] パスワード強度インジケーターを実装できるようになる
-- [ ] エラーメッセージの国際化とアクセシビリティ対応を理解する
-- [ ] バリデーションのテスト戦略を習得する
-
----
-
-## 前提知識
-
-この章を最大限活用するために、以下の知識を事前に習得しておくことを推奨する:
-
-- **フォーム設計**: `./00-form-design.md` で学ぶ、React Hook Formの基本パターンと制御/非制御コンポーネントの概念を理解していること
-- **TypeScriptの型システム**: ジェネリクス、ユニオン型、インターセクション型、型推論といったTypeScriptの中級レベルの型システムを把握していること
-- **Zodスキーマの基礎**: Zodの基本的なスキーマ定義（`z.string()`, `z.number()`, `z.object()` など）と `.parse()` / `.safeParse()` の使い方を理解していること
+- [ ] Understand Zod schema design principles and advanced patterns
+- [ ] Implement integration patterns with React Hook Form
+- [ ] Know when to apply different validation timing strategies
+- [ ] Understand real-time and asynchronous validation implementation
+- [ ] Learn client/server double validation design
+- [ ] Implement a password strength indicator
+- [ ] Understand internationalization and accessibility for error messages
+- [ ] Master validation testing strategies
 
 ---
 
-## 1. バリデーションの基本概念と設計思想
+## Prerequisites
 
-### 1.1 なぜバリデーションが重要なのか
+To get the most out of this chapter, it is recommended that you have the following knowledge in advance:
 
-Webアプリケーションにおけるバリデーションは、単なる入力チェックにとどまらない。データの整合性を保証し、セキュリティを担保し、ユーザーに適切なフィードバックを提供するための根幹的な仕組みである。
+- **Form Design**: Understanding of the basic React Hook Form patterns and the concept of controlled/uncontrolled components, as covered in `./00-form-design.md`
+- **TypeScript Type System**: Familiarity with intermediate TypeScript type system features such as generics, union types, intersection types, and type inference
+- **Zod Schema Basics**: Understanding of basic Zod schema definitions (`z.string()`, `z.number()`, `z.object()`, etc.) and how to use `.parse()` / `.safeParse()`
 
-バリデーションが不十分な場合に起こりうる問題:
+---
 
-1. **セキュリティリスク**: SQLインジェクション、XSS攻撃、不正なデータの注入
-2. **データ不整合**: データベースに不正な値が保存され、後続処理で障害が発生
-3. **UXの低下**: ユーザーが何を修正すべきか分からず、フォーム離脱率が上昇
-4. **ビジネスロジックの破綻**: 想定外のデータが業務処理に流れ込み、計算ミスや不正な状態遷移が発生
+## 1. Basic Concepts and Design Philosophy of Validation
+
+### 1.1 Why Validation Matters
+
+Validation in web applications goes far beyond simple input checking. It is the foundational mechanism for ensuring data integrity, guaranteeing security, and providing appropriate feedback to users.
+
+Problems that can occur when validation is insufficient:
+
+1. **Security risks**: SQL injection, XSS attacks, injection of malicious data
+2. **Data inconsistency**: Invalid values stored in the database cause failures in downstream processes
+3. **Poor UX**: Users don't know what to fix, leading to higher form abandonment rates
+4. **Business logic breakdown**: Unexpected data flows into business processes, causing calculation errors or invalid state transitions
 
 ```
-バリデーションの守備範囲:
+Scope of validation:
 
   ┌──────────────────────────────────────┐
-  │           クライアントサイド           │
+  │           Client Side                │
   │  ┌──────────────────────────────┐    │
-  │  │  HTML5ネイティブバリデーション  │    │
-  │  │  (required, pattern, min等)   │    │
+  │  │  HTML5 Native Validation     │    │
+  │  │  (required, pattern, min,    │    │
+  │  │   etc.)                      │    │
   │  └──────────────────────────────┘    │
   │  ┌──────────────────────────────┐    │
-  │  │  JavaScript バリデーション      │    │
-  │  │  (Zod, Yup, カスタムロジック)  │    │
+  │  │  JavaScript Validation       │    │
+  │  │  (Zod, Yup, custom logic)    │    │
   │  └──────────────────────────────┘    │
-  │  → 即座のフィードバック、UX向上       │
+  │  → Immediate feedback, better UX     │
   └──────────────────────────────────────┘
               ↓ HTTP Request
   ┌──────────────────────────────────────┐
-  │           サーバーサイド               │
+  │           Server Side                │
   │  ┌──────────────────────────────┐    │
-  │  │  アプリケーション層バリデーション│    │
-  │  │  (Zod, class-validator等)     │    │
+  │  │  Application Layer           │    │
+  │  │  Validation                  │    │
+  │  │  (Zod, class-validator, etc.)│    │
   │  └──────────────────────────────┘    │
   │  ┌──────────────────────────────┐    │
-  │  │  ビジネスロジック層            │    │
-  │  │  (重複チェック、権限チェック等) │    │
+  │  │  Business Logic Layer        │    │
+  │  │  (duplicate check, auth      │    │
+  │  │   check, etc.)               │    │
   │  └──────────────────────────────┘    │
   │  ┌──────────────────────────────┐    │
-  │  │  データベース層制約            │    │
-  │  │  (UNIQUE, CHECK, NOT NULL等)  │    │
+  │  │  Database Layer Constraints  │    │
+  │  │  (UNIQUE, CHECK, NOT NULL,   │    │
+  │  │   etc.)                      │    │
   │  └──────────────────────────────┘    │
-  │  → セキュリティ担保、データ整合性      │
+  │  → Security guarantee, data          │
+  │    integrity                         │
   └──────────────────────────────────────┘
 ```
 
-### 1.2 バリデーションライブラリの比較
+### 1.2 Comparing Validation Libraries
 
-現在のTypeScript/JavaScript エコシステムで利用される主要なバリデーションライブラリを比較する。
+A comparison of major validation libraries used in the current TypeScript/JavaScript ecosystem.
 
-| ライブラリ | 型推論 | バンドルサイズ | パフォーマンス | エコシステム | 学習コスト |
+| Library | Type Inference | Bundle Size | Performance | Ecosystem | Learning Cost |
 |-----------|--------|-------------|--------------|------------|-----------|
-| **Zod** | 優秀 | 13KB (gzip) | 良好 | React Hook Form, tRPC, Next.js | 低 |
-| **Yup** | 良好 | 12KB (gzip) | 良好 | Formik, React Hook Form | 低 |
-| **Valibot** | 優秀 | 1KB〜 (tree-shake) | 非常に良好 | React Hook Form | 中 |
-| **Joi** | 限定的 | 大きい | 良好 | Express/Hapi | 中 |
-| **class-validator** | デコレータ | 中程度 | 良好 | NestJS | 中 |
-| **ArkType** | 非常に優秀 | 小さい | 非常に良好 | 限定的 | 高 |
-| **TypeBox** | 優秀 | 小さい | 非常に良好 | Fastify | 中 |
+| **Zod** | Excellent | 13KB (gzip) | Good | React Hook Form, tRPC, Next.js | Low |
+| **Yup** | Good | 12KB (gzip) | Good | Formik, React Hook Form | Low |
+| **Valibot** | Excellent | 1KB+ (tree-shake) | Very Good | React Hook Form | Medium |
+| **Joi** | Limited | Large | Good | Express/Hapi | Medium |
+| **class-validator** | Decorators | Medium | Good | NestJS | Medium |
+| **ArkType** | Very Excellent | Small | Very Good | Limited | High |
+| **TypeBox** | Excellent | Small | Very Good | Fastify | Medium |
 
 ```typescript
-// 各ライブラリでの同等スキーマ定義の比較
+// Comparison of equivalent schema definitions in each library
 
 // === Zod ===
 import { z } from 'zod';
@@ -126,18 +131,18 @@ const arkSchema = type({
 type ArkUser = typeof arkSchema.infer;
 ```
 
-### 1.3 なぜZodを選ぶのか
+### 1.3 Why Choose Zod
 
-本ガイドでは主にZodを使った実装パターンを解説する。Zodを選択する理由は以下の通りである:
+This guide primarily explains implementation patterns using Zod. The reasons for choosing Zod are as follows:
 
-1. **TypeScriptファーストの設計**: スキーマ定義から自動的に型が推論される
-2. **豊富なエコシステム**: React Hook Form, tRPC, Next.js Server Actionsとの公式連携
-3. **直感的なAPI**: メソッドチェーンによる宣言的なスキーマ定義
-4. **ゼロ依存**: 外部ライブラリに依存しない
-5. **コミュニティの活発さ**: 大規模なユーザーベースと豊富なドキュメント
+1. **TypeScript-first design**: Types are automatically inferred from schema definitions
+2. **Rich ecosystem**: Official integration with React Hook Form, tRPC, and Next.js Server Actions
+3. **Intuitive API**: Declarative schema definition via method chaining
+4. **Zero dependencies**: No external library dependencies
+5. **Active community**: Large user base and extensive documentation
 
 ```typescript
-// Zodの最大の利点: スキーマから型を自動生成
+// Zod's greatest advantage: automatically generate types from schemas
 const userSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
@@ -147,7 +152,7 @@ const userSchema = z.object({
   createdAt: z.date(),
 });
 
-// スキーマから型を自動推論 - 手動でinterface定義する必要がない
+// Automatically infer type from schema - no need to manually define an interface
 type User = z.infer<typeof userSchema>;
 // => {
 //   id: string;
@@ -158,167 +163,167 @@ type User = z.infer<typeof userSchema>;
 //   createdAt: Date;
 // }
 
-// 部分型も簡単に生成
+// Partial types are also easy to generate
 type UserUpdate = z.infer<typeof userSchema.partial()>;
 type UserCreate = z.infer<typeof userSchema.omit({ id: true, createdAt: true })>;
 ```
 
 ---
 
-## 2. Zodスキーマ設計
+## 2. Zod Schema Design
 
-### 2.1 基本的なスキーマパターン
+### 2.1 Basic Schema Patterns
 
-#### プリミティブ型のバリデーション
+#### Validating Primitive Types
 
 ```typescript
 import { z } from 'zod';
 
-// 文字列のバリデーション
+// String validation
 const stringSchemas = {
-  // 基本
-  required: z.string().min(1, '必須項目です'),
+  // Basic
+  required: z.string().min(1, 'This field is required'),
 
-  // 長さ制約
+  // Length constraints
   username: z.string()
-    .min(3, '3文字以上で入力してください')
-    .max(20, '20文字以下で入力してください'),
+    .min(3, 'Must be at least 3 characters')
+    .max(20, 'Must be at most 20 characters'),
 
-  // 正規表現パターン
+  // Regex pattern
   alphanumeric: z.string()
-    .regex(/^[a-zA-Z0-9]+$/, '英数字のみ使用可能です'),
+    .regex(/^[a-zA-Z0-9]+$/, 'Only alphanumeric characters are allowed'),
 
-  // 組み込みバリデーション
-  email: z.string().email('有効なメールアドレスを入力してください'),
-  url: z.string().url('有効なURLを入力してください'),
-  uuid: z.string().uuid('有効なUUID形式で入力してください'),
+  // Built-in validations
+  email: z.string().email('Please enter a valid email address'),
+  url: z.string().url('Please enter a valid URL'),
+  uuid: z.string().uuid('Please enter a valid UUID format'),
   cuid: z.string().cuid(),
   datetime: z.string().datetime(),
   ip: z.string().ip(),
 
-  // トリム + 変換
-  trimmed: z.string().trim().min(1, '空白のみは不可です'),
+  // Trim + transform
+  trimmed: z.string().trim().min(1, 'Whitespace-only is not allowed'),
   lowercase: z.string().toLowerCase(),
   uppercase: z.string().toUpperCase(),
 
-  // 日本語対応: 全角文字のバリデーション
+  // Japanese support: full-width character validation
   japaneseName: z.string()
-    .min(1, '名前を入力してください')
-    .max(50, '50文字以下で入力してください')
-    .regex(/^[ぁ-んァ-ヶー一-龠々\s]+$/, '日本語で入力してください'),
+    .min(1, 'Please enter your name')
+    .max(50, 'Must be at most 50 characters')
+    .regex(/^[ぁ-んァ-ヶー一-龠々\s]+$/, 'Please enter in Japanese'),
 
-  // 電話番号（日本）
+  // Phone number (Japan)
   phoneJP: z.string()
-    .regex(/^0\d{1,4}-?\d{1,4}-?\d{3,4}$/, '有効な電話番号を入力してください'),
+    .regex(/^0\d{1,4}-?\d{1,4}-?\d{3,4}$/, 'Please enter a valid phone number'),
 
-  // 郵便番号（日本）
+  // Postal code (Japan)
   postalCodeJP: z.string()
-    .regex(/^\d{3}-?\d{4}$/, '有効な郵便番号を入力してください'),
+    .regex(/^\d{3}-?\d{4}$/, 'Please enter a valid postal code'),
 };
 
-// 数値のバリデーション
+// Number validation
 const numberSchemas = {
-  // 基本
-  positive: z.number().positive('正の数を入力してください'),
-  nonNegative: z.number().nonnegative('0以上の数を入力してください'),
-  integer: z.number().int('整数を入力してください'),
+  // Basic
+  positive: z.number().positive('Please enter a positive number'),
+  nonNegative: z.number().nonnegative('Please enter a number of 0 or greater'),
+  integer: z.number().int('Please enter an integer'),
 
-  // 範囲
+  // Range
   age: z.number()
-    .int('整数を入力してください')
-    .min(0, '0以上で入力してください')
-    .max(150, '150以下で入力してください'),
+    .int('Please enter an integer')
+    .min(0, 'Please enter 0 or greater')
+    .max(150, 'Please enter 150 or less'),
 
-  // 小数桁数
+  // Decimal places
   price: z.number()
-    .nonnegative('0以上で入力してください')
-    .multipleOf(0.01, '小数点以下2桁まで入力可能です'),
+    .nonnegative('Please enter 0 or greater')
+    .multipleOf(0.01, 'Up to 2 decimal places are allowed'),
 
-  // 文字列からの変換（フォーム入力値対応）
+  // Conversion from string (for form input values)
   fromString: z.coerce.number()
-    .int('整数を入力してください')
-    .min(1, '1以上で入力してください'),
+    .int('Please enter an integer')
+    .min(1, 'Please enter 1 or greater'),
 };
 
-// 日付のバリデーション
+// Date validation
 const dateSchemas = {
-  // 基本
+  // Basic
   date: z.coerce.date(),
 
-  // 範囲
+  // Range
   pastDate: z.coerce.date()
-    .max(new Date(), '未来の日付は指定できません'),
+    .max(new Date(), 'Future dates cannot be specified'),
 
   futureDate: z.coerce.date()
-    .min(new Date(), '過去の日付は指定できません'),
+    .min(new Date(), 'Past dates cannot be specified'),
 
-  // カスタム範囲
+  // Custom range
   dateRange: z.coerce.date()
-    .min(new Date('2020-01-01'), '2020年1月1日以降の日付を指定してください')
-    .max(new Date('2030-12-31'), '2030年12月31日以前の日付を指定してください'),
+    .min(new Date('2020-01-01'), 'Please specify a date on or after January 1, 2020')
+    .max(new Date('2030-12-31'), 'Please specify a date on or before December 31, 2030'),
 };
 
-// 真偽値のバリデーション
+// Boolean validation
 const booleanSchemas = {
-  // 利用規約同意（trueのみ許可）
+  // Terms agreement (only true allowed)
   agreeToTerms: z.literal(true, {
-    errorMap: () => ({ message: '利用規約に同意してください' }),
+    errorMap: () => ({ message: 'Please agree to the terms of service' }),
   }),
 
-  // チェックボックス（フォーム値の変換）
+  // Checkbox (conversion of form values)
   checkbox: z.coerce.boolean(),
 };
 
-// 列挙型のバリデーション
+// Enum validation
 const enumSchemas = {
-  // Zodのenum
+  // Zod enum
   role: z.enum(['admin', 'user', 'moderator'], {
-    errorMap: () => ({ message: '有効な権限を選択してください' }),
+    errorMap: () => ({ message: 'Please select a valid role' }),
   }),
 
-  // TypeScriptのenumとの連携
+  // Integration with TypeScript enums
   // enum Status { Active = 'active', Inactive = 'inactive' }
   status: z.nativeEnum({ Active: 'active', Inactive: 'inactive' } as const),
 };
 ```
 
-#### ユーザー登録フォームの完全なスキーマ
+#### Complete Schema for a User Registration Form
 
 ```typescript
 import { z } from 'zod';
 
-// ユーザー登録フォームスキーマ
+// User registration form schema
 const registerSchema = z.object({
-  // ユーザー名
+  // Username
   username: z.string()
-    .min(3, '3文字以上で入力してください')
-    .max(20, '20文字以下で入力してください')
-    .regex(/^[a-zA-Z0-9_]+$/, '英数字とアンダースコアのみ使用可能')
+    .min(3, 'Must be at least 3 characters')
+    .max(20, 'Must be at most 20 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Only alphanumeric characters and underscores are allowed')
     .refine(
       (val) => !['admin', 'root', 'system', 'null', 'undefined'].includes(val.toLowerCase()),
-      '予約語は使用できません'
+      'Reserved words cannot be used'
     ),
 
-  // メールアドレス
+  // Email address
   email: z.string()
-    .email('有効なメールアドレスを入力してください')
-    .max(254, 'メールアドレスが長すぎます'),
+    .email('Please enter a valid email address')
+    .max(254, 'Email address is too long'),
 
-  // パスワード
+  // Password
   password: z.string()
-    .min(8, '8文字以上で入力してください')
-    .max(100, '100文字以下で入力してください')
-    .regex(/[A-Z]/, '大文字を1文字以上含めてください')
-    .regex(/[a-z]/, '小文字を1文字以上含めてください')
-    .regex(/[0-9]/, '数字を1文字以上含めてください')
-    .regex(/[^A-Za-z0-9]/, '記号を1文字以上含めてください'),
+    .min(8, 'Must be at least 8 characters')
+    .max(100, 'Must be at most 100 characters')
+    .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Must contain at least one symbol'),
 
-  // パスワード確認
+  // Password confirmation
   confirmPassword: z.string(),
 
-  // 生年月日
+  // Date of birth
   birthDate: z.coerce.date()
-    .max(new Date(), '未来の日付は指定できません')
+    .max(new Date(), 'Future dates cannot be specified')
     .refine(
       (date) => {
         const age = Math.floor(
@@ -326,89 +331,89 @@ const registerSchema = z.object({
         );
         return age >= 13;
       },
-      '13歳以上である必要があります'
+      'You must be at least 13 years old'
     ),
 
-  // Webサイト（オプショナル）
+  // Website (optional)
   website: z.string()
-    .url('有効なURLを入力してください')
+    .url('Please enter a valid URL')
     .optional()
     .or(z.literal('')),
 
-  // 自己紹介（オプショナル）
+  // Bio (optional)
   bio: z.string()
-    .max(500, '500文字以下で入力してください')
+    .max(500, 'Must be at most 500 characters')
     .optional()
     .or(z.literal('')),
 
-  // 利用規約同意
+  // Terms of service agreement
   agreeToTerms: z.literal(true, {
-    errorMap: () => ({ message: '利用規約に同意してください' }),
+    errorMap: () => ({ message: 'Please agree to the terms of service' }),
   }),
 
-  // プライバシーポリシー同意
+  // Privacy policy agreement
   agreeToPrivacy: z.literal(true, {
-    errorMap: () => ({ message: 'プライバシーポリシーに同意してください' }),
+    errorMap: () => ({ message: 'Please agree to the privacy policy' }),
   }),
 
 }).refine(
   (data) => data.password === data.confirmPassword,
   {
-    message: 'パスワードが一致しません',
+    message: 'Passwords do not match',
     path: ['confirmPassword'],
   }
 ).refine(
   (data) => {
-    // パスワードにユーザー名が含まれていないかチェック
+    // Check that the password does not contain the username
     if (data.username && data.password) {
       return !data.password.toLowerCase().includes(data.username.toLowerCase());
     }
     return true;
   },
   {
-    message: 'パスワードにユーザー名を含めることはできません',
+    message: 'Password cannot contain the username',
     path: ['password'],
   }
 );
 
-// 型の自動推論
+// Automatic type inference
 type RegisterFormData = z.infer<typeof registerSchema>;
 ```
 
-### 2.2 高度なスキーマパターン
+### 2.2 Advanced Schema Patterns
 
-#### 条件付きバリデーション（Discriminated Union）
+#### Conditional Validation (Discriminated Union)
 
 ```typescript
-// 支払い方法に応じて異なるフィールドを要求するパターン
+// Pattern that requires different fields depending on the payment method
 const creditCardSchema = z.object({
   paymentMethod: z.literal('credit_card'),
   cardNumber: z.string()
-    .regex(/^\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}$/, 'カード番号の形式が不正です')
+    .regex(/^\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}$/, 'Invalid card number format')
     .transform((val) => val.replace(/[\s-]/g, '')),
   expiryMonth: z.number().int().min(1).max(12),
   expiryYear: z.number().int().min(new Date().getFullYear()),
-  cvv: z.string().regex(/^\d{3,4}$/, 'CVVは3〜4桁の数字です'),
-  cardholderName: z.string().min(1, 'カード名義人を入力してください'),
+  cvv: z.string().regex(/^\d{3,4}$/, 'CVV must be 3 to 4 digits'),
+  cardholderName: z.string().min(1, 'Please enter the cardholder name'),
 });
 
 const bankTransferSchema = z.object({
   paymentMethod: z.literal('bank_transfer'),
-  bankName: z.string().min(1, '銀行名を入力してください'),
-  branchName: z.string().min(1, '支店名を入力してください'),
-  accountType: z.enum(['普通', '当座']),
+  bankName: z.string().min(1, 'Please enter the bank name'),
+  branchName: z.string().min(1, 'Please enter the branch name'),
+  accountType: z.enum(['ordinary', 'checking']),
   accountNumber: z.string()
-    .regex(/^\d{7}$/, '口座番号は7桁の数字です'),
-  accountHolder: z.string().min(1, '口座名義人を入力してください'),
+    .regex(/^\d{7}$/, 'Account number must be 7 digits'),
+  accountHolder: z.string().min(1, 'Please enter the account holder name'),
 });
 
 const digitalWalletSchema = z.object({
   paymentMethod: z.literal('digital_wallet'),
   walletType: z.enum(['paypay', 'linepay', 'merpay']),
-  walletId: z.string().min(1, 'ウォレットIDを入力してください'),
+  walletId: z.string().min(1, 'Please enter the wallet ID'),
 });
 
-// Discriminated Unionで統合
+// Integrate with Discriminated Union
 const paymentSchema = z.discriminatedUnion('paymentMethod', [
   creditCardSchema,
   bankTransferSchema,
@@ -417,7 +422,7 @@ const paymentSchema = z.discriminatedUnion('paymentMethod', [
 
 type PaymentData = z.infer<typeof paymentSchema>;
 
-// 使用例: フォームでの切り替え
+// Usage example: switching in a form
 function PaymentForm() {
   const [paymentMethod, setPaymentMethod] = useState<
     'credit_card' | 'bank_transfer' | 'digital_wallet'
@@ -438,13 +443,13 @@ function PaymentForm() {
           const method = e.target.value as PaymentData['paymentMethod'];
           setPaymentMethod(method);
           form.setValue('paymentMethod', method);
-          // 支払い方法が変更されたらフォームをリセット
+          // Reset the form when the payment method changes
           form.clearErrors();
         }}
       >
-        <option value="credit_card">クレジットカード</option>
-        <option value="bank_transfer">銀行振込</option>
-        <option value="digital_wallet">電子マネー</option>
+        <option value="credit_card">Credit Card</option>
+        <option value="bank_transfer">Bank Transfer</option>
+        <option value="digital_wallet">Digital Wallet</option>
       </select>
 
       {paymentMethod === 'credit_card' && <CreditCardFields form={form} />}
@@ -455,16 +460,16 @@ function PaymentForm() {
 }
 ```
 
-#### superRefineによる複雑なバリデーション
+#### Complex Validation with superRefine
 
 ```typescript
-// superRefineを使った複雑なクロスフィールドバリデーション
+// Complex cross-field validation using superRefine
 const eventSchema = z.object({
-  title: z.string().min(1, 'タイトルを入力してください'),
+  title: z.string().min(1, 'Please enter a title'),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
-  startTime: z.string().regex(/^\d{2}:\d{2}$/, '時刻の形式が不正です'),
-  endTime: z.string().regex(/^\d{2}:\d{2}$/, '時刻の形式が不正です'),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Invalid time format'),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/, 'Invalid time format'),
   isAllDay: z.boolean(),
   maxParticipants: z.number().int().positive().optional(),
   currentParticipants: z.number().int().nonnegative().default(0),
@@ -472,16 +477,16 @@ const eventSchema = z.object({
   venue: z.string().optional(),
   meetingUrl: z.string().url().optional(),
 }).superRefine((data, ctx) => {
-  // 開始日と終了日の整合性チェック
+  // Check consistency of start and end dates
   if (data.endDate < data.startDate) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: '終了日は開始日以降にしてください',
+      message: 'End date must be on or after the start date',
       path: ['endDate'],
     });
   }
 
-  // 同日の場合、終了時刻が開始時刻より後であることを確認
+  // If on the same day, confirm that end time is after start time
   if (
     data.startDate.toDateString() === data.endDate.toDateString() &&
     !data.isAllDay
@@ -489,26 +494,26 @@ const eventSchema = z.object({
     if (data.endTime <= data.startTime) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: '終了時刻は開始時刻より後にしてください',
+        message: 'End time must be after start time',
         path: ['endTime'],
       });
     }
   }
 
-  // 参加人数の整合性
+  // Consistency of participant count
   if (data.maxParticipants !== undefined && data.currentParticipants > data.maxParticipants) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: '現在の参加者数が定員を超えています',
+      message: 'Current number of participants exceeds capacity',
       path: ['maxParticipants'],
     });
   }
 
-  // オンライン/オフラインに応じた必須フィールド
+  // Required fields based on online/offline
   if (data.isOnline && !data.meetingUrl) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'オンラインイベントの場合はミーティングURLが必要です',
+      message: 'A meeting URL is required for online events',
       path: ['meetingUrl'],
     });
   }
@@ -516,143 +521,143 @@ const eventSchema = z.object({
   if (!data.isOnline && !data.venue) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'オフラインイベントの場合は会場を入力してください',
+      message: 'A venue is required for offline events',
       path: ['venue'],
     });
   }
 });
 ```
 
-#### スキーマの再利用と合成
+#### Schema Reuse and Composition
 
 ```typescript
-// 基本スキーマの定義
+// Define base schemas
 const baseUserSchema = z.object({
-  name: z.string().min(1, '名前を入力してください').max(100),
-  email: z.string().email('有効なメールアドレスを入力してください'),
+  name: z.string().min(1, 'Please enter your name').max(100),
+  email: z.string().email('Please enter a valid email address'),
 });
 
 const addressSchema = z.object({
-  postalCode: z.string().regex(/^\d{3}-?\d{4}$/, '有効な郵便番号を入力してください'),
-  prefecture: z.string().min(1, '都道府県を選択してください'),
-  city: z.string().min(1, '市区町村を入力してください'),
-  street: z.string().min(1, '番地を入力してください'),
+  postalCode: z.string().regex(/^\d{3}-?\d{4}$/, 'Please enter a valid postal code'),
+  prefecture: z.string().min(1, 'Please select a prefecture'),
+  city: z.string().min(1, 'Please enter a city'),
+  street: z.string().min(1, 'Please enter a street address'),
   building: z.string().optional(),
 });
 
 const phoneSchema = z.object({
   phoneNumber: z.string()
-    .regex(/^0\d{1,4}-?\d{1,4}-?\d{3,4}$/, '有効な電話番号を入力してください'),
+    .regex(/^0\d{1,4}-?\d{1,4}-?\d{3,4}$/, 'Please enter a valid phone number'),
   phoneType: z.enum(['mobile', 'home', 'work']),
 });
 
-// extend: フィールドを追加
+// extend: add fields
 const createUserSchema = baseUserSchema.extend({
-  password: z.string().min(8, '8文字以上で入力してください'),
+  password: z.string().min(8, 'Must be at least 8 characters'),
   role: z.enum(['admin', 'user']).default('user'),
 });
 
-// merge: 複数のスキーマを統合
+// merge: combine multiple schemas
 const fullUserSchema = baseUserSchema
   .merge(addressSchema)
   .merge(phoneSchema);
 
-// pick: 特定のフィールドだけ取得
+// pick: get only specific fields
 const loginSchema = baseUserSchema.pick({
   email: true,
 }).extend({
-  password: z.string().min(1, 'パスワードを入力してください'),
+  password: z.string().min(1, 'Please enter your password'),
 });
 
-// omit: 特定のフィールドを除外
+// omit: exclude specific fields
 const publicUserSchema = fullUserSchema.omit({
   phoneNumber: true,
   phoneType: true,
 });
 
-// partial: 全フィールドをオプショナルに（更新APIに最適）
+// partial: make all fields optional (ideal for update APIs)
 const updateUserSchema = baseUserSchema.partial();
 
-// deepPartial: ネストされたオブジェクトも含めて全てオプショナルに
+// deepPartial: make all fields including nested objects optional
 const deepUpdateSchema = fullUserSchema.deepPartial();
 
-// required: オプショナルフィールドを必須に
+// required: make optional fields required
 const strictSchema = updateUserSchema.required();
 
-// passthrough: 未知のプロパティを保持
+// passthrough: retain unknown properties
 const flexibleSchema = baseUserSchema.passthrough();
 
-// strict: 未知のプロパティでエラー
+// strict: error on unknown properties
 const strictUserSchema = baseUserSchema.strict();
 
-// 配列スキーマ
+// Array schema
 const usersSchema = z.array(baseUserSchema)
-  .min(1, '最低1人のユーザーが必要です')
-  .max(100, 'ユーザー数は100人までです');
+  .min(1, 'At least one user is required')
+  .max(100, 'Up to 100 users are allowed');
 
-// レコードスキーマ
+// Record schema
 const settingsSchema = z.record(
   z.string(),
   z.union([z.string(), z.number(), z.boolean()])
 );
 ```
 
-### 2.3 transformとpreprocessによるデータ変換
+### 2.3 Data Transformation with transform and preprocess
 
 ```typescript
-// transform: バリデーション後にデータを変換
+// transform: transform data after validation
 const formSchema = z.object({
-  // 文字列をトリムして正規化
+  // Trim and normalize a string
   name: z.string()
     .transform((val) => val.trim())
-    .pipe(z.string().min(1, '名前を入力してください')),
+    .pipe(z.string().min(1, 'Please enter your name')),
 
-  // カンマ区切りの文字列を配列に変換
+  // Convert a comma-separated string to an array
   tags: z.string()
     .transform((val) => val.split(',').map((s) => s.trim()).filter(Boolean))
-    .pipe(z.array(z.string()).min(1, 'タグを1つ以上入力してください')),
+    .pipe(z.array(z.string()).min(1, 'Please enter at least one tag')),
 
-  // 電話番号のハイフンを除去
+  // Remove hyphens from phone number
   phone: z.string()
     .transform((val) => val.replace(/-/g, ''))
-    .pipe(z.string().regex(/^0\d{9,10}$/, '有効な電話番号を入力してください')),
+    .pipe(z.string().regex(/^0\d{9,10}$/, 'Please enter a valid phone number')),
 
-  // 郵便番号の正規化
+  // Normalize postal code
   postalCode: z.string()
     .transform((val) => {
       const digits = val.replace(/[^\d]/g, '');
       return digits.length === 7 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : val;
     })
-    .pipe(z.string().regex(/^\d{3}-\d{4}$/, '有効な郵便番号を入力してください')),
+    .pipe(z.string().regex(/^\d{3}-\d{4}$/, 'Please enter a valid postal code')),
 
-  // 金額の変換（カンマ除去 → 数値化）
+  // Amount conversion (remove commas → convert to number)
   amount: z.string()
     .transform((val) => Number(val.replace(/,/g, '')))
-    .pipe(z.number().positive('正の金額を入力してください')),
+    .pipe(z.number().positive('Please enter a positive amount')),
 });
 
-// preprocess: バリデーション前にデータを前処理
+// preprocess: pre-process data before validation
 const preprocessedSchema = z.object({
-  // 空文字列をundefinedに変換（オプショナルフィールド対応）
+  // Convert empty string to undefined (for optional fields)
   website: z.preprocess(
     (val) => (val === '' ? undefined : val),
-    z.string().url('有効なURLを入力してください').optional()
+    z.string().url('Please enter a valid URL').optional()
   ),
 
-  // チェックボックスの値を真偽値に変換
+  // Convert checkbox value to boolean
   isActive: z.preprocess(
     (val) => val === 'on' || val === 'true' || val === true,
     z.boolean()
   ),
 
-  // 文字列の数値を数値型に変換
+  // Convert numeric string to number type
   quantity: z.preprocess(
     (val) => (typeof val === 'string' ? Number(val) : val),
     z.number().int().positive()
   ),
 });
 
-// coerceの活用（FormDataからの自動変換）
+// Using coerce (automatic conversion from FormData)
 const formDataSchema = z.object({
   name: z.string().min(1),
   age: z.coerce.number().int().min(0),     // string → number
@@ -662,104 +667,104 @@ const formDataSchema = z.object({
 });
 ```
 
-### 2.4 カスタムエラーメッセージとエラーマップ
+### 2.4 Custom Error Messages and Error Maps
 
 ```typescript
-// フィールドレベルのカスタムエラーメッセージ
+// Field-level custom error messages
 const detailedSchema = z.object({
   username: z.string({
-    required_error: 'ユーザー名は必須です',
-    invalid_type_error: 'ユーザー名は文字列で入力してください',
+    required_error: 'Username is required',
+    invalid_type_error: 'Username must be a string',
   })
-    .min(3, { message: '3文字以上で入力してください' })
-    .max(20, { message: '20文字以下で入力してください' }),
+    .min(3, { message: 'Must be at least 3 characters' })
+    .max(20, { message: 'Must be at most 20 characters' }),
 
   age: z.number({
-    required_error: '年齢は必須です',
-    invalid_type_error: '年齢は数値で入力してください',
+    required_error: 'Age is required',
+    invalid_type_error: 'Age must be a number',
   })
-    .int({ message: '整数で入力してください' })
-    .min(0, { message: '0以上で入力してください' }),
+    .int({ message: 'Please enter an integer' })
+    .min(0, { message: 'Please enter 0 or greater' }),
 });
 
-// グローバルエラーマップ
+// Global error map
 const customErrorMap: z.ZodErrorMap = (issue, ctx) => {
-  // デフォルトのエラーメッセージをカスタマイズ
+  // Customize default error messages
   switch (issue.code) {
     case z.ZodIssueCode.invalid_type:
       if (issue.expected === 'string') {
-        return { message: 'テキストを入力してください' };
+        return { message: 'Please enter text' };
       }
       if (issue.expected === 'number') {
-        return { message: '数値を入力してください' };
+        return { message: 'Please enter a number' };
       }
       break;
     case z.ZodIssueCode.too_small:
       if (issue.type === 'string') {
-        return { message: `${issue.minimum}文字以上で入力してください` };
+        return { message: `Must be at least ${issue.minimum} characters` };
       }
       if (issue.type === 'number') {
-        return { message: `${issue.minimum}以上の値を入力してください` };
+        return { message: `Please enter a value of ${issue.minimum} or greater` };
       }
       break;
     case z.ZodIssueCode.too_big:
       if (issue.type === 'string') {
-        return { message: `${issue.maximum}文字以下で入力してください` };
+        return { message: `Must be at most ${issue.maximum} characters` };
       }
       break;
     case z.ZodIssueCode.invalid_string:
       if (issue.validation === 'email') {
-        return { message: '有効なメールアドレスを入力してください' };
+        return { message: 'Please enter a valid email address' };
       }
       if (issue.validation === 'url') {
-        return { message: '有効なURLを入力してください' };
+        return { message: 'Please enter a valid URL' };
       }
       break;
   }
   return { message: ctx.defaultError };
 };
 
-// グローバルに設定
+// Set globally
 z.setErrorMap(customErrorMap);
 
-// 特定のスキーマにのみ適用
-const schemaWithCustomErrors = z.string().min(1).describe('ユーザー名');
+// Apply only to a specific schema
+const schemaWithCustomErrors = z.string().min(1).describe('Username');
 ```
 
 ---
 
-## 3. React Hook Formとの統合
+## 3. Integration with React Hook Form
 
-### 3.1 基本セットアップ
+### 3.1 Basic Setup
 
 ```typescript
 import { useForm, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
-// スキーマ定義
+// Schema definition
 const contactSchema = z.object({
-  firstName: z.string().min(1, '名を入力してください'),
-  lastName: z.string().min(1, '姓を入力してください'),
-  email: z.string().email('有効なメールアドレスを入力してください'),
+  firstName: z.string().min(1, 'Please enter your first name'),
+  lastName: z.string().min(1, 'Please enter your last name'),
+  email: z.string().email('Please enter a valid email address'),
   phone: z.string()
-    .regex(/^0\d{1,4}-?\d{1,4}-?\d{3,4}$/, '有効な電話番号を入力してください')
+    .regex(/^0\d{1,4}-?\d{1,4}-?\d{3,4}$/, 'Please enter a valid phone number')
     .optional()
     .or(z.literal('')),
   subject: z.enum(['inquiry', 'support', 'feedback', 'other'], {
-    errorMap: () => ({ message: 'お問い合わせ種別を選択してください' }),
+    errorMap: () => ({ message: 'Please select an inquiry type' }),
   }),
   message: z.string()
-    .min(10, '10文字以上で入力してください')
-    .max(2000, '2000文字以下で入力してください'),
+    .min(10, 'Must be at least 10 characters')
+    .max(2000, 'Must be at most 2000 characters'),
   agreeToTerms: z.literal(true, {
-    errorMap: () => ({ message: '利用規約に同意してください' }),
+    errorMap: () => ({ message: 'Please agree to the terms of service' }),
   }),
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
 
-// フォームコンポーネント
+// Form component
 function ContactForm() {
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
@@ -796,7 +801,7 @@ function ContactForm() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        // サーバーエラーをフォームにマッピング
+        // Map server errors to the form
         if (errorData.fieldErrors) {
           Object.entries(errorData.fieldErrors).forEach(([field, messages]) => {
             setError(field as keyof ContactFormData, {
@@ -806,23 +811,23 @@ function ContactForm() {
           });
           return;
         }
-        throw new Error(errorData.message || '送信に失敗しました');
+        throw new Error(errorData.message || 'Submission failed');
       }
 
-      // 成功時の処理
+      // On success
       reset();
-      alert('お問い合わせを送信しました');
+      alert('Your inquiry has been submitted');
     } catch (error) {
       setError('root', {
         type: 'server',
-        message: error instanceof Error ? error.message : '送信に失敗しました',
+        message: error instanceof Error ? error.message : 'Submission failed',
       });
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      {/* ルートエラー表示 */}
+      {/* Root error display */}
       {errors.root && (
         <div role="alert" className="bg-red-50 border border-red-200 p-4 rounded">
           <p className="text-red-700">{errors.root.message}</p>
@@ -831,7 +836,7 @@ function ContactForm() {
 
       <div className="grid grid-cols-2 gap-4">
         <FormField
-          label="姓"
+          label="Last Name"
           error={errors.lastName?.message}
           required
         >
@@ -844,7 +849,7 @@ function ContactForm() {
         </FormField>
 
         <FormField
-          label="名"
+          label="First Name"
           error={errors.firstName?.message}
           required
         >
@@ -856,7 +861,7 @@ function ContactForm() {
         </FormField>
       </div>
 
-      <FormField label="メールアドレス" error={errors.email?.message} required>
+      <FormField label="Email Address" error={errors.email?.message} required>
         <input
           type="email"
           {...register('email')}
@@ -864,7 +869,7 @@ function ContactForm() {
         />
       </FormField>
 
-      <FormField label="電話番号" error={errors.phone?.message}>
+      <FormField label="Phone Number" error={errors.phone?.message}>
         <input
           type="tel"
           {...register('phone')}
@@ -872,24 +877,24 @@ function ContactForm() {
         />
       </FormField>
 
-      <FormField label="お問い合わせ種別" error={errors.subject?.message} required>
+      <FormField label="Inquiry Type" error={errors.subject?.message} required>
         <select {...register('subject')}>
-          <option value="">選択してください</option>
-          <option value="inquiry">お問い合わせ</option>
-          <option value="support">サポート</option>
-          <option value="feedback">フィードバック</option>
-          <option value="other">その他</option>
+          <option value="">Please select</option>
+          <option value="inquiry">Inquiry</option>
+          <option value="support">Support</option>
+          <option value="feedback">Feedback</option>
+          <option value="other">Other</option>
         </select>
       </FormField>
 
-      <FormField label="メッセージ" error={errors.message?.message} required>
+      <FormField label="Message" error={errors.message?.message} required>
         <textarea
           {...register('message')}
           rows={5}
           aria-invalid={!!errors.message}
         />
         <p className="text-sm text-gray-500">
-          {watch('message')?.length || 0}/2000文字
+          {watch('message')?.length || 0}/2000 characters
         </p>
       </FormField>
 
@@ -899,7 +904,7 @@ function ContactForm() {
             type="checkbox"
             {...register('agreeToTerms')}
           />
-          <span>利用規約に同意する</span>
+          <span>I agree to the terms of service</span>
         </label>
       </FormField>
 
@@ -908,13 +913,13 @@ function ContactForm() {
         disabled={isSubmitting}
         className="w-full bg-blue-600 text-white py-2 px-4 rounded disabled:opacity-50"
       >
-        {isSubmitting ? '送信中...' : '送信する'}
+        {isSubmitting ? 'Submitting...' : 'Submit'}
       </button>
     </form>
   );
 }
 
-// 再利用可能なフォームフィールドコンポーネント
+// Reusable form field component
 function FormField({
   label,
   error,
@@ -945,18 +950,18 @@ function FormField({
 }
 ```
 
-### 3.2 FormProviderを使ったネストフォーム
+### 3.2 Nested Forms with FormProvider
 
 ```typescript
-// 大規模フォームをコンポーネントに分割するパターン
+// Pattern for splitting large forms into components
 const orderSchema = z.object({
-  // 個人情報
+  // Personal information
   personal: z.object({
-    name: z.string().min(1, '名前を入力してください'),
-    email: z.string().email('有効なメールアドレスを入力してください'),
+    name: z.string().min(1, 'Please enter your name'),
+    email: z.string().email('Please enter a valid email address'),
     phone: z.string().regex(/^0\d{1,4}-?\d{1,4}-?\d{3,4}$/),
   }),
-  // 配送先住所
+  // Shipping address
   shipping: z.object({
     postalCode: z.string().regex(/^\d{3}-?\d{4}$/),
     prefecture: z.string().min(1),
@@ -964,18 +969,18 @@ const orderSchema = z.object({
     street: z.string().min(1),
     building: z.string().optional(),
   }),
-  // 注文内容
+  // Order items
   items: z.array(z.object({
     productId: z.string(),
     quantity: z.number().int().min(1).max(99),
-  })).min(1, '商品を1つ以上選択してください'),
-  // 備考
+  })).min(1, 'Please select at least one item'),
+  // Notes
   notes: z.string().max(500).optional(),
 });
 
 type OrderFormData = z.infer<typeof orderSchema>;
 
-// 親コンポーネント
+// Parent component
 function OrderForm() {
   const methods = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -1000,7 +1005,7 @@ function OrderForm() {
   );
 }
 
-// 子コンポーネント（useFormContextで親のフォーム状態にアクセス）
+// Child component (access parent form state with useFormContext)
 function PersonalInfoSection() {
   const {
     register,
@@ -1009,10 +1014,10 @@ function PersonalInfoSection() {
 
   return (
     <fieldset>
-      <legend className="text-lg font-bold">お客様情報</legend>
+      <legend className="text-lg font-bold">Customer Information</legend>
       <input
         {...register('personal.name')}
-        placeholder="お名前"
+        placeholder="Full Name"
       />
       {errors.personal?.name && (
         <span className="text-red-500">{errors.personal.name.message}</span>
@@ -1020,7 +1025,7 @@ function PersonalInfoSection() {
       <input
         type="email"
         {...register('personal.email')}
-        placeholder="メールアドレス"
+        placeholder="Email Address"
       />
       {errors.personal?.email && (
         <span className="text-red-500">{errors.personal.email.message}</span>
@@ -1028,7 +1033,7 @@ function PersonalInfoSection() {
       <input
         type="tel"
         {...register('personal.phone')}
-        placeholder="電話番号"
+        placeholder="Phone Number"
       />
       {errors.personal?.phone && (
         <span className="text-red-500">{errors.personal.phone.message}</span>
@@ -1037,7 +1042,7 @@ function PersonalInfoSection() {
   );
 }
 
-// 配送先住所セクション
+// Shipping address section
 function ShippingAddressSection() {
   const {
     register,
@@ -1045,7 +1050,7 @@ function ShippingAddressSection() {
     formState: { errors },
   } = useFormContext<OrderFormData>();
 
-  // 郵便番号から住所を自動入力
+  // Auto-fill address from postal code
   const handlePostalCodeChange = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -1062,52 +1067,52 @@ function ShippingAddressSection() {
           setValue('shipping.city', result.address2 + result.address3);
         }
       } catch {
-        // 住所検索APIのエラーは無視（ユーザーが手動入力可能）
+        // Ignore address lookup API errors (user can enter manually)
       }
     }
   };
 
   return (
     <fieldset>
-      <legend className="text-lg font-bold">配送先</legend>
+      <legend className="text-lg font-bold">Shipping Address</legend>
       <input
         {...register('shipping.postalCode')}
         onChange={(e) => {
           register('shipping.postalCode').onChange(e);
           handlePostalCodeChange(e);
         }}
-        placeholder="郵便番号（例: 100-0001）"
+        placeholder="Postal Code (e.g., 100-0001)"
       />
       {errors.shipping?.postalCode && (
         <span className="text-red-500">{errors.shipping.postalCode.message}</span>
       )}
-      {/* 他のフィールドも同様 */}
+      {/* Other fields are similar */}
     </fieldset>
   );
 }
 ```
 
-### 3.3 useFieldArrayを使った動的フォーム
+### 3.3 Dynamic Forms with useFieldArray
 
 ```typescript
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-// 複数の連絡先を管理するスキーマ
+// Schema for managing multiple contacts
 const contactListSchema = z.object({
   contacts: z.array(
     z.object({
-      name: z.string().min(1, '名前を入力してください'),
-      email: z.string().email('有効なメールアドレスを入力してください'),
+      name: z.string().min(1, 'Please enter a name'),
+      email: z.string().email('Please enter a valid email address'),
       relationship: z.enum(['family', 'friend', 'colleague', 'other']),
       isPrimary: z.boolean().default(false),
     })
   )
-    .min(1, '連絡先を1件以上追加してください')
-    .max(10, '連絡先は10件までです')
+    .min(1, 'Please add at least one contact')
+    .max(10, 'Up to 10 contacts are allowed')
     .refine(
       (contacts) => contacts.filter((c) => c.isPrimary).length <= 1,
-      '主要連絡先は1件のみ設定可能です'
+      'Only one primary contact can be set'
     ),
 });
 
@@ -1131,16 +1136,16 @@ function ContactListForm() {
       {fields.map((field, index) => (
         <div key={field.id} className="border p-4 mb-4 rounded">
           <div className="flex justify-between items-center mb-2">
-            <h3>連絡先 #{index + 1}</h3>
+            <h3>Contact #{index + 1}</h3>
             <div className="flex gap-2">
               {index > 0 && (
                 <button type="button" onClick={() => move(index, index - 1)}>
-                  上に移動
+                  Move Up
                 </button>
               )}
               {index < fields.length - 1 && (
                 <button type="button" onClick={() => move(index, index + 1)}>
-                  下に移動
+                  Move Down
                 </button>
               )}
               {fields.length > 1 && (
@@ -1149,7 +1154,7 @@ function ContactListForm() {
                   onClick={() => remove(index)}
                   className="text-red-500"
                 >
-                  削除
+                  Delete
                 </button>
               )}
             </div>
@@ -1157,7 +1162,7 @@ function ContactListForm() {
 
           <input
             {...form.register(`contacts.${index}.name`)}
-            placeholder="名前"
+            placeholder="Name"
           />
           {form.formState.errors.contacts?.[index]?.name && (
             <span className="text-red-500">
@@ -1168,7 +1173,7 @@ function ContactListForm() {
           <input
             type="email"
             {...form.register(`contacts.${index}.email`)}
-            placeholder="メールアドレス"
+            placeholder="Email Address"
           />
           {form.formState.errors.contacts?.[index]?.email && (
             <span className="text-red-500">
@@ -1177,10 +1182,10 @@ function ContactListForm() {
           )}
 
           <select {...form.register(`contacts.${index}.relationship`)}>
-            <option value="family">家族</option>
-            <option value="friend">友人</option>
-            <option value="colleague">同僚</option>
-            <option value="other">その他</option>
+            <option value="family">Family</option>
+            <option value="friend">Friend</option>
+            <option value="colleague">Colleague</option>
+            <option value="other">Other</option>
           </select>
 
           <label className="flex items-center gap-2 mt-2">
@@ -1188,12 +1193,12 @@ function ContactListForm() {
               type="checkbox"
               {...form.register(`contacts.${index}.isPrimary`)}
             />
-            主要連絡先に設定
+            Set as primary contact
           </label>
         </div>
       ))}
 
-      {/* 配列レベルのエラー */}
+      {/* Array-level errors */}
       {form.formState.errors.contacts?.root && (
         <p className="text-red-500">{form.formState.errors.contacts.root.message}</p>
       )}
@@ -1206,10 +1211,10 @@ function ContactListForm() {
         disabled={fields.length >= 10}
         className="mb-4"
       >
-        連絡先を追加
+        Add Contact
       </button>
 
-      <button type="submit">保存</button>
+      <button type="submit">Save</button>
     </form>
   );
 }
@@ -1217,114 +1222,116 @@ function ContactListForm() {
 
 ---
 
-## 4. バリデーションのタイミング戦略
+## 4. Validation Timing Strategies
 
-### 4.1 バリデーションモードの詳細比較
+### 4.1 Detailed Comparison of Validation Modes
 
 ```
-バリデーション戦略の比較:
+Comparison of validation strategies:
 
-  ① mode: 'onSubmit'（デフォルト）
+  ① mode: 'onSubmit' (default)
      ┌──────────────────────────────────────────────┐
-     │ 入力中   →  何も表示しない                      │
-     │ Blur時   →  何も表示しない                      │
-     │ Submit時 →  全フィールドをバリデーション          │
-     │ 修正中   →  reValidateModeに依存                │
+     │ While typing  → Show nothing                  │
+     │ On Blur       → Show nothing                  │
+     │ On Submit     → Validate all fields           │
+     │ While fixing  → Depends on reValidateMode     │
      └──────────────────────────────────────────────┘
-     → メリット: 入力中にエラーが表示されない
-     → デメリット: Submit後まで問題に気付かない
-     → 適用場面: シンプルなフォーム、短いフォーム
+     → Advantage: No errors shown while typing
+     → Disadvantage: Problems not noticed until Submit
+     → Use case: Simple forms, short forms
 
-  ② mode: 'onSubmit' + reValidateMode: 'onChange'（推奨）
+  ② mode: 'onSubmit' + reValidateMode: 'onChange' (recommended)
      ┌──────────────────────────────────────────────┐
-     │ 初回入力 →  何も表示しない                      │
-     │ Submit時 →  全フィールドをバリデーション          │
-     │ エラー後 →  入力するたびにリアルタイムで再検証    │
+     │ First input   → Show nothing                  │
+     │ On Submit     → Validate all fields           │
+     │ After error   → Re-validate in real time on   │
+     │                 every input                   │
      └──────────────────────────────────────────────┘
-     → メリット: 初回入力は邪魔せず、エラー発生後は素早くフィードバック
-     → デメリット: 初回Submitまでエラーが表示されない
-     → 適用場面: ほとんどのフォーム（最もバランスが良い）
+     → Advantage: Non-intrusive on first input, quick feedback after errors
+     → Disadvantage: Errors not shown until first Submit
+     → Use case: Most forms (best balance)
 
   ③ mode: 'onBlur'
      ┌──────────────────────────────────────────────┐
-     │ 入力中   →  何も表示しない                      │
-     │ Blur時   →  そのフィールドをバリデーション       │
-     │ Submit時 →  全フィールドをバリデーション          │
+     │ While typing  → Show nothing                  │
+     │ On Blur       → Validate that field           │
+     │ On Submit     → Validate all fields           │
      └──────────────────────────────────────────────┘
-     → メリット: フィールドを離れた時に即座にフィードバック
-     → デメリット: 入力中はフィードバックがない
-     → 適用場面: 中〜大規模なフォーム
+     → Advantage: Immediate feedback when leaving a field
+     → Disadvantage: No feedback while typing
+     → Use case: Medium to large forms
 
   ④ mode: 'onChange'
      ┌──────────────────────────────────────────────┐
-     │ 入力中   →  即座にバリデーション                 │
-     │ Blur時   →  即座にバリデーション                 │
-     │ Submit時 →  全フィールドをバリデーション          │
+     │ While typing  → Validate immediately          │
+     │ On Blur       → Validate immediately          │
+     │ On Submit     → Validate all fields           │
      └──────────────────────────────────────────────┘
-     → メリット: 最も即座のフィードバック
-     → デメリット: パフォーマンスへの影響、入力初期にエラーが出すぎる
-     → 適用場面: パスワード強度表示、リアルタイム検索
+     → Advantage: Most immediate feedback
+     → Disadvantage: Performance impact, too many errors during early input
+     → Use case: Password strength display, real-time search
 
   ⑤ mode: 'onTouched'
      ┌──────────────────────────────────────────────┐
-     │ 初回Touch前 → 何も表示しない                    │
-     │ 初回Blur後  → onChange + onBlurで検証           │
-     │ Submit時    → 全フィールドをバリデーション        │
+     │ Before first touch → Show nothing             │
+     │ After first Blur   → Validate with onChange   │
+     │                      + onBlur                 │
+     │ On Submit          → Validate all fields      │
      └──────────────────────────────────────────────┘
-     → メリット: 初回タッチ後はリアルタイムフィードバック
-     → デメリット: onBlurに似ているが微妙に挙動が異なる
-     → 適用場面: onBlurよりやや積極的にフィードバックしたい場合
+     → Advantage: Real-time feedback after first touch
+     → Disadvantage: Similar to onBlur but slightly different behavior
+     → Use case: When slightly more aggressive feedback than onBlur is desired
 
   ⑥ mode: 'all'
      ┌──────────────────────────────────────────────┐
-     │ onChange + onBlur の両方でバリデーション          │
+     │ Validate on both onChange and onBlur          │
      └──────────────────────────────────────────────┘
-     → メリット: 最も積極的なバリデーション
-     → デメリット: パフォーマンスへの影響が最も大きい
-     → 適用場面: 特殊な要件がある場合のみ
+     → Advantage: Most aggressive validation
+     → Disadvantage: Largest performance impact
+     → Use case: Only when there are special requirements
 ```
 
-### 4.2 推奨設定パターン
+### 4.2 Recommended Configuration Patterns
 
 ```typescript
-// パターン1: 標準的なフォーム（最も推奨）
+// Pattern 1: Standard form (most recommended)
 const standardForm = useForm<FormData>({
   resolver: zodResolver(schema),
-  mode: 'onSubmit',           // 初回はSubmit時
-  reValidateMode: 'onChange', // 再検証はリアルタイム
+  mode: 'onSubmit',           // First time: on Submit
+  reValidateMode: 'onChange', // Re-validation: real time
   defaultValues: {
-    // 全フィールドにデフォルト値を設定
+    // Set default values for all fields
   },
 });
 
-// パターン2: 段階的フィードバック（中〜大規模フォーム）
+// Pattern 2: Progressive feedback (medium to large forms)
 const progressiveForm = useForm<FormData>({
   resolver: zodResolver(schema),
-  mode: 'onBlur',             // フォーカスアウト時にチェック
-  reValidateMode: 'onChange', // 修正中はリアルタイムチェック
+  mode: 'onBlur',             // Check on focus out
+  reValidateMode: 'onChange', // Real-time check while fixing
   defaultValues: {},
 });
 
-// パターン3: リアルタイム検索/フィルター
+// Pattern 3: Real-time search/filter
 const realtimeForm = useForm<FilterData>({
   resolver: zodResolver(filterSchema),
-  mode: 'onChange',           // 即座にチェック
+  mode: 'onChange',           // Immediate check
   defaultValues: {},
 });
 
-// パターン4: ウィザード形式の場合（ステップごとに検証）
+// Pattern 4: Wizard form (validate per step)
 const wizardForm = useForm<WizardData>({
   resolver: zodResolver(currentStepSchema),
-  mode: 'onSubmit',           // 「次へ」ボタン押下時に検証
+  mode: 'onSubmit',           // Validate on "Next" button press
   reValidateMode: 'onChange',
   defaultValues: {},
 });
 ```
 
-### 4.3 フィールド単位のバリデーション制御
+### 4.3 Per-Field Validation Control
 
 ```typescript
-// triggerを使った手動バリデーション
+// Manual validation using trigger
 function StepForm() {
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -1333,19 +1340,19 @@ function StepForm() {
 
   const [step, setStep] = useState(1);
 
-  // 特定のフィールドだけバリデーション
+  // Validate only specific fields
   const handleNextStep = async () => {
     let isValid = false;
 
     switch (step) {
       case 1:
-        isValid = await form.trigger(['name', 'email']); // Step1のフィールドのみ
+        isValid = await form.trigger(['name', 'email']); // Only Step 1 fields
         break;
       case 2:
-        isValid = await form.trigger(['address', 'phone']); // Step2のフィールドのみ
+        isValid = await form.trigger(['address', 'phone']); // Only Step 2 fields
         break;
       case 3:
-        isValid = await form.trigger(); // 全フィールド
+        isValid = await form.trigger(); // All fields
         break;
     }
 
@@ -1367,15 +1374,15 @@ function StepForm() {
       <div className="flex justify-between mt-4">
         {step > 1 && (
           <button type="button" onClick={() => setStep(step - 1)}>
-            前へ
+            Back
           </button>
         )}
         <button type="button" onClick={handleNextStep}>
-          {step < 3 ? '次へ' : '送信'}
+          {step < 3 ? 'Next' : 'Submit'}
         </button>
       </div>
 
-      {/* ステップインジケーター */}
+      {/* Step indicator */}
       <div className="flex justify-center gap-2 mt-4">
         {[1, 2, 3].map((s) => (
           <div
@@ -1399,15 +1406,15 @@ function StepForm() {
 
 ---
 
-## 5. 非同期バリデーション
+## 5. Asynchronous Validation
 
-### 5.1 基本的な非同期バリデーション
+### 5.1 Basic Asynchronous Validation
 
 ```typescript
-// メールアドレスの重複チェック（非同期）
+// Duplicate email check (asynchronous)
 const schema = z.object({
-  email: z.string().email('有効なメールアドレスを入力してください'),
-  username: z.string().min(3, '3文字以上で入力してください'),
+  email: z.string().email('Please enter a valid email address'),
+  username: z.string().min(3, 'Must be at least 3 characters'),
 });
 
 function RegisterForm() {
@@ -1421,9 +1428,9 @@ function RegisterForm() {
         {...form.register('email', {
           validate: async (value) => {
             if (!value) return true;
-            // 基本的なフォーマットチェックを先に行う
+            // Perform basic format check first
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(value)) return true; // Zodに任せる
+            if (!emailRegex.test(value)) return true; // Leave it to Zod
 
             try {
               const response = await fetch(
@@ -1432,9 +1439,9 @@ function RegisterForm() {
               const data = await response.json();
               return data.available
                 ? true
-                : 'このメールアドレスは既に使用されています';
+                : 'This email address is already in use';
             } catch {
-              // ネットワークエラー時はバリデーションをスキップ（サーバーで検証）
+              // Skip validation on network error (validate on server)
               return true;
             }
           },
@@ -1458,7 +1465,7 @@ function RegisterForm() {
               const data = await response.json();
               return data.available
                 ? true
-                : 'このユーザー名は既に使用されています';
+                : 'This username is already in use';
             } catch {
               return true;
             }
@@ -1470,12 +1477,12 @@ function RegisterForm() {
 }
 ```
 
-### 5.2 デバウンス付き非同期バリデーション
+### 5.2 Asynchronous Validation with Debounce
 
 ```typescript
 import { useState, useCallback, useRef, useEffect } from 'react';
 
-// カスタムフック: デバウンス付き非同期バリデーション
+// Custom hook: asynchronous validation with debounce
 function useAsyncValidation(
   validateFn: (value: string) => Promise<string | true>,
   delay = 500
@@ -1490,17 +1497,17 @@ function useAsyncValidation(
     (value: string) => {
       lastValueRef.current = value;
 
-      // 前のタイマーをクリア
+      // Clear the previous timer
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
 
-      // 前のリクエストをキャンセル
+      // Cancel the previous request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
 
-      // 空の値はバリデーションスキップ
+      // Skip validation for empty values
       if (!value) {
         setError(null);
         setIsValidating(false);
@@ -1516,16 +1523,16 @@ function useAsyncValidation(
         try {
           const result = await validateFn(value);
 
-          // 最新の値と一致する場合のみ結果を反映
+          // Reflect result only if it matches the latest value
           if (lastValueRef.current === value && !controller.signal.aborted) {
             setError(result === true ? null : result);
           }
         } catch (err) {
           if (err instanceof DOMException && err.name === 'AbortError') {
-            // キャンセルされたリクエストは無視
+            // Ignore cancelled requests
             return;
           }
-          // その他のエラーはバリデーションをスキップ
+          // Skip validation on other errors
           setError(null);
         } finally {
           if (lastValueRef.current === value) {
@@ -1537,7 +1544,7 @@ function useAsyncValidation(
     [validateFn, delay]
   );
 
-  // クリーンアップ
+  // Cleanup
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -1555,7 +1562,7 @@ function useAsyncValidation(
   return { error, isValidating, validate, reset };
 }
 
-// 使用例
+// Usage example
 function UsernameField() {
   const form = useFormContext();
 
@@ -1564,7 +1571,7 @@ function UsernameField() {
       `/api/check-username?username=${encodeURIComponent(value)}`
     );
     const data = await response.json();
-    return data.available ? true : 'このユーザー名は既に使用されています';
+    return data.available ? true : 'This username is already in use';
   }, []);
 
   const { error: asyncError, isValidating, validate } = useAsyncValidation(
@@ -1580,13 +1587,13 @@ function UsernameField() {
       <input
         {...form.register('username')}
         onChange={(e) => {
-          form.register('username').onChange(e); // React Hook FormのonChange
-          validate(e.target.value);               // 非同期バリデーション
+          form.register('username').onChange(e); // React Hook Form's onChange
+          validate(e.target.value);               // Asynchronous validation
         }}
         className={displayError ? 'border-red-500' : 'border-gray-300'}
       />
 
-      {/* ローディングインジケーター */}
+      {/* Loading indicator */}
       {isValidating && (
         <div className="absolute right-3 top-1/2 -translate-y-1/2">
           <svg className="animate-spin h-4 w-4 text-gray-400" viewBox="0 0 24 24">
@@ -1606,7 +1613,7 @@ function UsernameField() {
         </div>
       )}
 
-      {/* 成功インジケーター */}
+      {/* Success indicator */}
       {!isValidating && !displayError && form.getValues('username') && (
         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
           ✓
@@ -1621,43 +1628,43 @@ function UsernameField() {
 }
 ```
 
-### 5.3 Zodでの非同期バリデーション（refine）
+### 5.3 Asynchronous Validation in Zod (refine)
 
 ```typescript
-// Zodスキーマ内での非同期バリデーション
+// Asynchronous validation inside a Zod schema
 const asyncRegisterSchema = z.object({
   username: z.string()
-    .min(3, '3文字以上で入力してください')
-    .max(20, '20文字以下で入力してください')
-    .regex(/^[a-zA-Z0-9_]+$/, '英数字とアンダースコアのみ使用可能'),
-  email: z.string().email('有効なメールアドレスを入力してください'),
-  password: z.string().min(8, '8文字以上で入力してください'),
+    .min(3, 'Must be at least 3 characters')
+    .max(20, 'Must be at most 20 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Only alphanumeric characters and underscores are allowed'),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(8, 'Must be at least 8 characters'),
 }).superRefine(async (data, ctx) => {
-  // 注意: superRefineでの非同期バリデーションは
-  // Submit時にのみ実行される（onChange/onBlurでは実行されない）
+  // Note: asynchronous validation in superRefine
+  // is only executed on Submit (not on onChange/onBlur)
 
-  // ユーザー名の重複チェック
+  // Check for duplicate usernames
   const usernameExists = await checkUsernameExists(data.username);
   if (usernameExists) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'このユーザー名は既に使用されています',
+      message: 'This username is already in use',
       path: ['username'],
     });
   }
 
-  // メールアドレスの重複チェック
+  // Check for duplicate email addresses
   const emailExists = await checkEmailExists(data.email);
   if (emailExists) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'このメールアドレスは既に使用されています',
+      message: 'This email address is already in use',
       path: ['email'],
     });
   }
 });
 
-// 非同期バリデーションのAPIエンドポイント例
+// Example async validation API endpoint
 // app/api/check-username/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -1683,85 +1690,88 @@ export async function GET(request: Request) {
 
 ---
 
-## 6. クライアント/サーバー二重検証
+## 6. Client/Server Double Validation
 
-### 6.1 なぜ二重検証が必要なのか
+### 6.1 Why Double Validation Is Necessary
 
-クライアントサイドバリデーションだけでは、以下の攻撃・問題を防げない:
+Client-side validation alone cannot prevent the following attacks and issues:
 
-1. **JavaScriptの無効化**: ブラウザ設定やアドオンでJSを無効にしたユーザー
-2. **開発者ツールによる改ざん**: フォームの`required`属性やバリデーションロジックを書き換え
-3. **直接のHTTPリクエスト**: cURL、Postmanなどでフォームを経由せずにリクエスト
-4. **Botによる不正送信**: 自動化ツールがフォームバリデーションをバイパス
-5. **ビジネスロジックの整合性**: DB状態に依存するバリデーション（重複チェック等）はサーバーでしか実行できない
+1. **JavaScript disabled**: Users with JS disabled via browser settings or add-ons
+2. **Tampering via developer tools**: Rewriting `required` attributes or validation logic on a form
+3. **Direct HTTP requests**: Requests sent without going through the form, via cURL or Postman
+4. **Bot-based fraudulent submissions**: Automated tools bypass form validation
+5. **Business logic consistency**: Validation that depends on DB state (duplicate checks, etc.) can only be executed on the server
 
 ```
-二重検証のアーキテクチャ:
+Double validation architecture:
 
-  ブラウザ                      サーバー
+  Browser                       Server
   ┌─────────────────┐         ┌─────────────────────────┐
   │                 │         │                         │
-  │  フォーム入力    │         │  同じZodスキーマで検証    │
-  │       ↓         │         │         ↓                │
-  │  Zodスキーマ     │  HTTP   │  ビジネスロジック検証     │
-  │  (クライアント)  │ ──────→ │  (重複チェック、権限等)   │
-  │       ↓         │         │         ↓                │
-  │  即座のFB表示    │  ←────  │  DB保存 or エラー返却    │
-  │                 │  Error   │                         │
-  └─────────────────┘  JSON   └─────────────────────────┘
+  │  Form Input     │         │  Validate with same     │
+  │       ↓         │         │  Zod schema             │
+  │  Zod Schema     │  HTTP   │         ↓               │
+  │  (client)       │ ──────→ │  Business logic         │
+  │       ↓         │         │  validation             │
+  │  Display        │  ←────  │  (duplicate check,      │
+  │  immediate FB   │  Error   │   auth check, etc.)     │
+  │                 │  JSON   │         ↓               │
+  └─────────────────┘         │  Save to DB or return   │
+                              │  error                  │
+                              └─────────────────────────┘
 
-  ポイント:
-  - 同じZodスキーマを共有（shared/schemas/に配置）
-  - クライアントはUX向上のため
-  - サーバーはセキュリティ担保のため
-  - サーバーにしかできない検証（DB依存）もある
+  Key points:
+  - Share the same Zod schema (place in shared/schemas/)
+  - Client side is for UX improvement
+  - Server side is for security guarantee
+  - Some validations can only be done on the server (DB-dependent)
 ```
 
-### 6.2 共有スキーマの設計
+### 6.2 Shared Schema Design
 
 ```typescript
 // ===================================================================
 // shared/schemas/user.ts
-// クライアントとサーバーで共有するスキーマ定義
+// Schema definitions shared between client and server
 // ===================================================================
 import { z } from 'zod';
 
-// 基本的なフィールドスキーマ（再利用可能なパーツ）
+// Basic field schemas (reusable parts)
 export const emailSchema = z.string()
-  .email('有効なメールアドレスを入力してください')
-  .max(254, 'メールアドレスが長すぎます')
+  .email('Please enter a valid email address')
+  .max(254, 'Email address is too long')
   .toLowerCase();
 
 export const passwordSchema = z.string()
-  .min(8, '8文字以上で入力してください')
-  .max(100, '100文字以下で入力してください')
-  .regex(/[A-Z]/, '大文字を1文字以上含めてください')
-  .regex(/[a-z]/, '小文字を1文字以上含めてください')
-  .regex(/[0-9]/, '数字を1文字以上含めてください');
+  .min(8, 'Must be at least 8 characters')
+  .max(100, 'Must be at most 100 characters')
+  .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
+  .regex(/[a-z]/, 'Must contain at least one lowercase letter')
+  .regex(/[0-9]/, 'Must contain at least one number');
 
 export const usernameSchema = z.string()
-  .min(3, '3文字以上で入力してください')
-  .max(20, '20文字以下で入力してください')
-  .regex(/^[a-zA-Z0-9_]+$/, '英数字とアンダースコアのみ使用可能');
+  .min(3, 'Must be at least 3 characters')
+  .max(20, 'Must be at most 20 characters')
+  .regex(/^[a-zA-Z0-9_]+$/, 'Only alphanumeric characters and underscores are allowed');
 
-// ユーザー作成スキーマ
+// User creation schema
 export const createUserSchema = z.object({
   username: usernameSchema,
   email: emailSchema,
   password: passwordSchema,
-  name: z.string().min(1, '名前を入力してください').max(100),
+  name: z.string().min(1, 'Please enter your name').max(100),
   role: z.enum(['user', 'admin']).default('user'),
 }).refine(
   (data) => !data.password.toLowerCase().includes(data.username.toLowerCase()),
   {
-    message: 'パスワードにユーザー名を含めることはできません',
+    message: 'Password cannot contain the username',
     path: ['password'],
   }
 );
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 
-// ユーザー更新スキーマ（部分更新対応）
+// User update schema (supports partial updates)
 export const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   email: emailSchema.optional(),
@@ -1771,16 +1781,16 @@ export const updateUserSchema = z.object({
 
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
-// ログインスキーマ
+// Login schema
 export const loginSchema = z.object({
-  email: z.string().email('有効なメールアドレスを入力してください'),
-  password: z.string().min(1, 'パスワードを入力してください'),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(1, 'Please enter your password'),
   rememberMe: z.boolean().default(false),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
-// パスワードリセットスキーマ
+// Password reset schema
 export const passwordResetSchema = z.object({
   token: z.string().min(1),
   password: passwordSchema,
@@ -1788,7 +1798,7 @@ export const passwordResetSchema = z.object({
 }).refine(
   (data) => data.password === data.confirmPassword,
   {
-    message: 'パスワードが一致しません',
+    message: 'Passwords do not match',
     path: ['confirmPassword'],
   }
 );
@@ -1796,12 +1806,12 @@ export const passwordResetSchema = z.object({
 export type PasswordResetInput = z.infer<typeof passwordResetSchema>;
 ```
 
-### 6.3 クライアント側の実装
+### 6.3 Client-Side Implementation
 
 ```typescript
 // ===================================================================
 // app/(auth)/register/page.tsx
-// クライアント側: React Hook Form + 共有Zodスキーマ
+// Client side: React Hook Form + shared Zod schema
 // ===================================================================
 'use client';
 
@@ -1836,10 +1846,10 @@ export default function RegisterPage() {
       const result = await registerAction(data);
 
       if (result.errors) {
-        // サーバーからのフィールドエラーをフォームにマッピング
+        // Map field errors from server to form
         Object.entries(result.errors).forEach(([field, messages]) => {
           if (field === '_form') {
-            // フォーム全体のエラー
+            // Form-wide error
             setServerError((messages as string[])[0]);
           } else {
             form.setError(field as keyof CreateUserInput, {
@@ -1851,16 +1861,16 @@ export default function RegisterPage() {
         return;
       }
 
-      // 成功時
+      // On success
       router.push('/login?registered=true');
     } catch (error) {
-      setServerError('予期しないエラーが発生しました。もう一度お試しください。');
+      setServerError('An unexpected error occurred. Please try again.');
     }
   };
 
   return (
     <div className="max-w-md mx-auto mt-8">
-      <h1 className="text-2xl font-bold mb-6">アカウント作成</h1>
+      <h1 className="text-2xl font-bold mb-6">Create Account</h1>
 
       {serverError && (
         <div role="alert" className="bg-red-50 border border-red-200 p-4 rounded mb-4">
@@ -1869,21 +1879,21 @@ export default function RegisterPage() {
       )}
 
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
-        {/* フォームフィールド */}
+        {/* Form fields */}
         <div className="space-y-4">
-          <FormField label="ユーザー名" error={form.formState.errors.username?.message} required>
+          <FormField label="Username" error={form.formState.errors.username?.message} required>
             <input {...form.register('username')} autoComplete="username" />
           </FormField>
 
-          <FormField label="名前" error={form.formState.errors.name?.message} required>
+          <FormField label="Name" error={form.formState.errors.name?.message} required>
             <input {...form.register('name')} autoComplete="name" />
           </FormField>
 
-          <FormField label="メールアドレス" error={form.formState.errors.email?.message} required>
+          <FormField label="Email Address" error={form.formState.errors.email?.message} required>
             <input type="email" {...form.register('email')} autoComplete="email" />
           </FormField>
 
-          <FormField label="パスワード" error={form.formState.errors.password?.message} required>
+          <FormField label="Password" error={form.formState.errors.password?.message} required>
             <input type="password" {...form.register('password')} autoComplete="new-password" />
           </FormField>
 
@@ -1892,7 +1902,7 @@ export default function RegisterPage() {
             disabled={form.formState.isSubmitting}
             className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
           >
-            {form.formState.isSubmitting ? '登録中...' : 'アカウント作成'}
+            {form.formState.isSubmitting ? 'Creating...' : 'Create Account'}
           </button>
         </div>
       </form>
@@ -1901,12 +1911,12 @@ export default function RegisterPage() {
 }
 ```
 
-### 6.4 サーバー側の実装（Server Actions）
+### 6.4 Server-Side Implementation (Server Actions)
 
 ```typescript
 // ===================================================================
 // app/(auth)/register/actions.ts
-// サーバー側: Server Action + 同じZodスキーマ
+// Server side: Server Action + same Zod schema
 // ===================================================================
 'use server';
 
@@ -1915,41 +1925,41 @@ import { prisma } from '@/lib/prisma';
 import { hash } from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 
-// サーバー固有のバリデーション（DB依存の検証）
+// Server-specific validation (DB-dependent checks)
 async function validateServerConstraints(data: CreateUserInput) {
   const errors: Record<string, string[]> = {};
 
-  // ユーザー名の重複チェック
+  // Check for duplicate usernames
   const existingUsername = await prisma.user.findUnique({
     where: { username: data.username },
     select: { id: true },
   });
   if (existingUsername) {
-    errors.username = ['このユーザー名は既に使用されています'];
+    errors.username = ['This username is already in use'];
   }
 
-  // メールアドレスの重複チェック
+  // Check for duplicate email addresses
   const existingEmail = await prisma.user.findUnique({
     where: { email: data.email },
     select: { id: true },
   });
   if (existingEmail) {
-    errors.email = ['このメールアドレスは既に使用されています'];
+    errors.email = ['This email address is already in use'];
   }
 
-  // ブロックリストのチェック
+  // Check blocklist
   const isBlocked = await prisma.blockedEmail.findUnique({
     where: { email: data.email },
   });
   if (isBlocked) {
-    errors.email = ['このメールアドレスは使用できません'];
+    errors.email = ['This email address cannot be used'];
   }
 
   return Object.keys(errors).length > 0 ? errors : null;
 }
 
 export async function registerAction(input: unknown) {
-  // Step 1: 共有スキーマでバリデーション
+  // Step 1: Validate with shared schema
   const parsed = createUserSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -1958,13 +1968,13 @@ export async function registerAction(input: unknown) {
     };
   }
 
-  // Step 2: サーバー固有のバリデーション
+  // Step 2: Server-specific validation
   const serverErrors = await validateServerConstraints(parsed.data);
   if (serverErrors) {
     return { errors: serverErrors };
   }
 
-  // Step 3: データベースへの保存
+  // Step 3: Save to database
   try {
     const hashedPassword = await hash(parsed.data.password, 12);
 
@@ -1984,19 +1994,19 @@ export async function registerAction(input: unknown) {
     console.error('User registration failed:', error);
     return {
       errors: {
-        _form: ['ユーザー登録に失敗しました。もう一度お試しください。'],
+        _form: ['User registration failed. Please try again.'],
       },
     };
   }
 }
 ```
 
-### 6.5 APIルートでの二重検証
+### 6.5 Double Validation in API Routes
 
 ```typescript
 // ===================================================================
 // app/api/users/route.ts
-// REST APIでの二重検証パターン
+// Double validation pattern for REST APIs
 // ===================================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { createUserSchema } from '@shared/schemas/user';
@@ -2005,7 +2015,7 @@ import { hash } from 'bcryptjs';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-// バリデーションエラーレスポンスの型定義
+// Type definition for validation error response
 type ValidationErrorResponse = {
   success: false;
   errors: {
@@ -2021,7 +2031,7 @@ type SuccessResponse<T> = {
 
 type ApiResponse<T> = ValidationErrorResponse | SuccessResponse<T>;
 
-// バリデーションヘルパー関数
+// Validation helper function
 function createValidationError(
   fieldErrors: Record<string, string[]>,
   formErrors: string[] = []
@@ -2036,35 +2046,35 @@ function createValidationError(
 }
 
 export async function POST(request: NextRequest) {
-  // 認証チェック
+  // Authentication check
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json(
-      { success: false, message: '認証が必要です' },
+      { success: false, message: 'Authentication required' },
       { status: 401 }
     );
   }
 
-  // 権限チェック
+  // Permission check
   if (session.user.role !== 'admin') {
     return NextResponse.json(
-      { success: false, message: '権限がありません' },
+      { success: false, message: 'Insufficient permissions' },
       { status: 403 }
     );
   }
 
-  // リクエストボディのパース
+  // Parse request body
   let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { success: false, message: 'リクエストボディが不正です' },
+      { success: false, message: 'Invalid request body' },
       { status: 400 }
     );
   }
 
-  // Step 1: Zodスキーマでバリデーション
+  // Step 1: Validate with Zod schema
   const parsed = createUserSchema.safeParse(body);
   if (!parsed.success) {
     const flattened = parsed.error.flatten();
@@ -2074,7 +2084,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Step 2: ビジネスロジックバリデーション
+  // Step 2: Business logic validation
   const existingUser = await prisma.user.findFirst({
     where: {
       OR: [
@@ -2088,15 +2098,15 @@ export async function POST(request: NextRequest) {
   if (existingUser) {
     const fieldErrors: Record<string, string[]> = {};
     if (existingUser.email === parsed.data.email) {
-      fieldErrors.email = ['このメールアドレスは既に使用されています'];
+      fieldErrors.email = ['This email address is already in use'];
     }
     if (existingUser.username === parsed.data.username) {
-      fieldErrors.username = ['このユーザー名は既に使用されています'];
+      fieldErrors.username = ['This username is already in use'];
     }
     return createValidationError(fieldErrors);
   }
 
-  // Step 3: データの保存
+  // Step 3: Save data
   try {
     const hashedPassword = await hash(parsed.data.password, 12);
     const user = await prisma.user.create({
@@ -2121,19 +2131,19 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Failed to create user:', error);
     return NextResponse.json(
-      { success: false, message: 'ユーザーの作成に失敗しました' },
+      { success: false, message: 'Failed to create user' },
       { status: 500 }
     );
   }
 }
 ```
 
-### 6.6 tRPCでの二重検証
+### 6.6 Double Validation with tRPC
 
 ```typescript
 // ===================================================================
 // server/routers/user.ts
-// tRPCでのスキーマ共有パターン
+// Schema sharing pattern with tRPC
 // ===================================================================
 import { router, protectedProcedure, publicProcedure } from '../trpc';
 import { createUserSchema, updateUserSchema, loginSchema } from '@shared/schemas/user';
@@ -2141,14 +2151,14 @@ import { hash, compare } from 'bcryptjs';
 import { TRPCError } from '@trpc/server';
 
 export const userRouter = router({
-  // ユーザー作成
+  // Create user
   create: publicProcedure
-    .input(createUserSchema) // Zodスキーマをそのまま入力バリデーションに使用
+    .input(createUserSchema) // Use the Zod schema directly for input validation
     .mutation(async ({ input, ctx }) => {
-      // tRPCは自動的にinputをZodスキーマでバリデーションする
-      // バリデーションエラーは自動的にTRPCErrorとして返される
+      // tRPC automatically validates input with the Zod schema
+      // Validation errors are automatically returned as TRPCErrors
 
-      // ビジネスロジックバリデーション
+      // Business logic validation
       const existing = await ctx.prisma.user.findFirst({
         where: {
           OR: [{ email: input.email }, { username: input.username }],
@@ -2159,8 +2169,8 @@ export const userRouter = router({
         throw new TRPCError({
           code: 'CONFLICT',
           message: existing.email === input.email
-            ? 'このメールアドレスは既に使用されています'
-            : 'このユーザー名は既に使用されています',
+            ? 'This email address is already in use'
+            : 'This username is already in use',
         });
       }
 
@@ -2171,9 +2181,9 @@ export const userRouter = router({
       });
     }),
 
-  // ユーザー更新
+  // Update user
   update: protectedProcedure
-    .input(updateUserSchema) // 部分更新スキーマ
+    .input(updateUserSchema) // Partial update schema
     .mutation(async ({ input, ctx }) => {
       return ctx.prisma.user.update({
         where: { id: ctx.session.user.id },
@@ -2181,7 +2191,7 @@ export const userRouter = router({
       });
     }),
 
-  // ログイン
+  // Login
   login: publicProcedure
     .input(loginSchema)
     .mutation(async ({ input, ctx }) => {
@@ -2192,11 +2202,11 @@ export const userRouter = router({
       if (!user || !(await compare(input.password, user.password))) {
         throw new TRPCError({
           code: 'UNAUTHORIZED',
-          message: 'メールアドレスまたはパスワードが正しくありません',
+          message: 'Incorrect email address or password',
         });
       }
 
-      // セッション作成ロジック...
+      // Session creation logic...
       return { user: { id: user.id, email: user.email, name: user.name } };
     }),
 });
@@ -2204,25 +2214,25 @@ export const userRouter = router({
 
 ---
 
-## 7. パスワード強度インジケーター
+## 7. Password Strength Indicator
 
-### 7.1 パスワード強度の計算ロジック
+### 7.1 Password Strength Calculation Logic
 
 ```typescript
 // ===================================================================
 // lib/password-strength.ts
-// パスワード強度を多角的に評価する関数群
+// Functions for evaluating password strength from multiple angles
 // ===================================================================
 
-// パスワード強度の評価結果
+// Password strength evaluation result
 export type PasswordStrength = {
-  score: number;          // 0〜4のスコア
-  label: string;          // 強度ラベル
-  color: string;          // Tailwind CSSカラークラス
-  textColor: string;      // テキストカラークラス
-  percentage: number;     // パーセンテージ（0〜100）
-  feedback: string[];     // 改善のためのフィードバック
-  requirements: {         // 各要件の達成状況
+  score: number;          // Score from 0 to 4
+  label: string;          // Strength label
+  color: string;          // Tailwind CSS color class
+  textColor: string;      // Text color class
+  percentage: number;     // Percentage (0 to 100)
+  feedback: string[];     // Feedback for improvement
+  requirements: {         // Achievement status of each requirement
     minLength: boolean;
     hasUppercase: boolean;
     hasLowercase: boolean;
@@ -2232,26 +2242,26 @@ export type PasswordStrength = {
   };
 };
 
-// よく使われるパスワードのリスト（上位100件）
+// List of commonly used passwords (top 100)
 const COMMON_PASSWORDS = new Set([
   'password', '123456', '123456789', 'qwerty', 'abc123',
   'monkey', '1234567', 'letmein', 'trustno1', 'dragon',
   'baseball', 'iloveyou', 'master', 'sunshine', 'ashley',
   'michael', 'shadow', '123123', '654321', 'superman',
   'qazwsx', 'football', 'password1', 'password123',
-  // ... 省略
+  // ... abbreviated
 ]);
 
-// よく使われるパターンの検出
+// Detection of common patterns
 const COMMON_PATTERNS = [
-  /^(.)\1{2,}$/,                    // 同一文字の繰り返し（aaa, 1111）
-  /^(012|123|234|345|456|567|678|789|890)+$/, // 連番
-  /^(abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)+$/i, // アルファベット連続
-  /^(qwerty|asdf|zxcv|wasd)/i,     // キーボード配列
-  /^(19|20)\d{2}/,                   // 年号で始まる
+  /^(.)\1{2,}$/,                    // Repeated characters (aaa, 1111)
+  /^(012|123|234|345|456|567|678|789|890)+$/, // Sequential numbers
+  /^(abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)+$/i, // Sequential alphabet
+  /^(qwerty|asdf|zxcv|wasd)/i,     // Keyboard layout patterns
+  /^(19|20)\d{2}/,                   // Starts with a year
 ];
 
-// エントロピーの計算
+// Entropy calculation
 function calculateEntropy(password: string): number {
   const charsetSize = getCharsetSize(password);
   return password.length * Math.log2(charsetSize);
@@ -2266,7 +2276,7 @@ function getCharsetSize(password: string): number {
   return size || 1;
 }
 
-// メインの評価関数
+// Main evaluation function
 export function getPasswordStrength(password: string): PasswordStrength {
   if (!password) {
     return {
@@ -2287,7 +2297,7 @@ export function getPasswordStrength(password: string): PasswordStrength {
     };
   }
 
-  // 要件チェック
+  // Requirement checks
   const requirements = {
     minLength: password.length >= 8,
     hasUppercase: /[A-Z]/.test(password),
@@ -2298,41 +2308,41 @@ export function getPasswordStrength(password: string): PasswordStrength {
       !COMMON_PATTERNS.some((pattern) => pattern.test(password)),
   };
 
-  // スコア計算
+  // Score calculation
   let score = 0;
 
-  // 基本要件のスコア
+  // Score for basic requirements
   const metRequirements = Object.values(requirements).filter(Boolean).length;
   score += metRequirements * 0.5;
 
-  // 長さボーナス
+  // Length bonus
   if (password.length >= 12) score += 0.5;
   if (password.length >= 16) score += 0.5;
 
-  // エントロピーボーナス
+  // Entropy bonus
   const entropy = calculateEntropy(password);
   if (entropy >= 40) score += 0.5;
   if (entropy >= 60) score += 0.5;
 
-  // よくあるパスワード・パターンはスコアを大幅に下げる
+  // Significantly reduce score for common passwords/patterns
   if (!requirements.noCommonPattern) {
     score = Math.min(score, 1);
   }
 
-  // 0〜4に正規化
+  // Normalize to 0-4
   score = Math.min(Math.round(score), 4);
 
-  // フィードバック生成
+  // Generate feedback
   const feedback: string[] = [];
-  if (!requirements.minLength) feedback.push('8文字以上にしてください');
-  if (!requirements.hasUppercase) feedback.push('大文字を追加してください');
-  if (!requirements.hasLowercase) feedback.push('小文字を追加してください');
-  if (!requirements.hasNumber) feedback.push('数字を追加してください');
-  if (!requirements.hasSpecial) feedback.push('記号（!@#$%等）を追加してください');
-  if (!requirements.noCommonPattern) feedback.push('よく使われるパスワード・パターンは避けてください');
-  if (password.length < 12) feedback.push('12文字以上にするとより安全です');
+  if (!requirements.minLength) feedback.push('Use at least 8 characters');
+  if (!requirements.hasUppercase) feedback.push('Add an uppercase letter');
+  if (!requirements.hasLowercase) feedback.push('Add a lowercase letter');
+  if (!requirements.hasNumber) feedback.push('Add a number');
+  if (!requirements.hasSpecial) feedback.push('Add a symbol (e.g., !@#$%)');
+  if (!requirements.noCommonPattern) feedback.push('Avoid commonly used passwords and patterns');
+  if (password.length < 12) feedback.push('Using 12 or more characters is more secure');
 
-  const labels = ['非常に弱い', '弱い', '普通', '強い', '非常に強い'];
+  const labels = ['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'];
   const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-400', 'bg-green-600'];
   const textColors = ['text-red-600', 'text-orange-600', 'text-yellow-600', 'text-green-500', 'text-green-700'];
 
@@ -2348,12 +2358,12 @@ export function getPasswordStrength(password: string): PasswordStrength {
 }
 ```
 
-### 7.2 パスワード強度インジケーターコンポーネント
+### 7.2 Password Strength Indicator Component
 
 ```typescript
 // ===================================================================
 // components/PasswordStrengthIndicator.tsx
-// パスワード強度を視覚的に表示するコンポーネント
+// Component that visually displays password strength
 // ===================================================================
 'use client';
 
@@ -2377,7 +2387,7 @@ export function PasswordStrengthIndicator({
 
   return (
     <div className="mt-2 space-y-2">
-      {/* 強度バー */}
+      {/* Strength bar */}
       <div className="space-y-1">
         <div className="flex gap-1 h-1.5">
           {[0, 1, 2, 3].map((i) => (
@@ -2391,25 +2401,25 @@ export function PasswordStrengthIndicator({
           ))}
         </div>
         <p className={`text-xs font-medium ${strength.textColor}`}>
-          パスワード強度: {strength.label}
+          Password strength: {strength.label}
         </p>
       </div>
 
-      {/* 要件チェックリスト */}
+      {/* Requirements checklist */}
       {showRequirements && (
-        <ul className="text-xs space-y-1" aria-label="パスワード要件">
-          <RequirementItem met={strength.requirements.minLength} label="8文字以上" />
-          <RequirementItem met={strength.requirements.hasUppercase} label="大文字を含む" />
-          <RequirementItem met={strength.requirements.hasLowercase} label="小文字を含む" />
-          <RequirementItem met={strength.requirements.hasNumber} label="数字を含む" />
-          <RequirementItem met={strength.requirements.hasSpecial} label="記号を含む" />
+        <ul className="text-xs space-y-1" aria-label="Password requirements">
+          <RequirementItem met={strength.requirements.minLength} label="At least 8 characters" />
+          <RequirementItem met={strength.requirements.hasUppercase} label="Contains uppercase" />
+          <RequirementItem met={strength.requirements.hasLowercase} label="Contains lowercase" />
+          <RequirementItem met={strength.requirements.hasNumber} label="Contains a number" />
+          <RequirementItem met={strength.requirements.hasSpecial} label="Contains a symbol" />
         </ul>
       )}
 
-      {/* 改善のフィードバック */}
+      {/* Improvement feedback */}
       {showFeedback && strength.feedback.length > 0 && strength.score < 3 && (
         <div className="text-xs text-gray-500">
-          <p className="font-medium">改善のヒント:</p>
+          <p className="font-medium">Tips for improvement:</p>
           <ul className="list-disc list-inside">
             {strength.feedback.slice(0, 3).map((fb, i) => (
               <li key={i}>{fb}</li>
@@ -2447,12 +2457,12 @@ function RequirementItem({ met, label }: { met: boolean; label: string }) {
 }
 ```
 
-### 7.3 パスワードフィールドの完全な実装
+### 7.3 Complete Password Field Implementation
 
 ```typescript
 // ===================================================================
 // components/PasswordField.tsx
-// パスワード表示/非表示切替 + 強度表示を備えた完全なパスワードフィールド
+// Complete password field with show/hide toggle and strength display
 // ===================================================================
 'use client';
 
@@ -2514,7 +2524,7 @@ export function PasswordField({
           type="button"
           onClick={toggleVisibility}
           className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          aria-label={showPassword ? 'パスワードを隠す' : 'パスワードを表示'}
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
           tabIndex={-1}
         >
           {showPassword ? (
@@ -2550,16 +2560,16 @@ export function PasswordField({
 
 ---
 
-## 8. エラーメッセージとアクセシビリティ
+## 8. Error Messages and Accessibility
 
-### 8.1 アクセシブルなエラー表示パターン
+### 8.1 Accessible Error Display Patterns
 
-フォームのバリデーションエラーをアクセシブルに表示するためには、WAI-ARIA仕様に準拠した実装が必要である。スクリーンリーダーユーザーがエラーの存在と内容を把握できるように設計する。
+To display form validation errors in an accessible manner, implementation conforming to WAI-ARIA specifications is required. Design so that screen reader users can recognize the presence and content of errors.
 
 ```typescript
 // ===================================================================
 // components/AccessibleFormField.tsx
-// WAI-ARIA準拠のアクセシブルなフォームフィールド
+// Accessible form field conforming to WAI-ARIA
 // ===================================================================
 import { forwardRef, useId } from 'react';
 
@@ -2587,7 +2597,7 @@ export function AccessibleFormField({
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
 
-  // aria-describedbyに設定するIDのリスト
+  // List of IDs to set in aria-describedby
   const describedByIds = [
     hint ? hintId : null,
     error ? errorId : null,
@@ -2600,17 +2610,17 @@ export function AccessibleFormField({
         {required && (
           <span className="text-red-500 ml-1" aria-hidden="true">*</span>
         )}
-        {required && <span className="sr-only">（必須）</span>}
+        {required && <span className="sr-only">(required)</span>}
       </label>
 
-      {/* ヒントテキスト */}
+      {/* Hint text */}
       {hint && (
         <p id={hintId} className="text-sm text-gray-500 mb-1">
           {hint}
         </p>
       )}
 
-      {/* フォーム要素（render prop パターン） */}
+      {/* Form element (render prop pattern) */}
       {children({
         id,
         'aria-invalid': !!error,
@@ -2618,7 +2628,7 @@ export function AccessibleFormField({
         'aria-required': required,
       })}
 
-      {/* エラーメッセージ（aria-liveで動的に通知） */}
+      {/* Error message (dynamically announced with aria-live) */}
       {error && (
         <p
           id={errorId}
@@ -2633,16 +2643,16 @@ export function AccessibleFormField({
   );
 }
 
-// 使用例
+// Usage example
 function ExampleForm() {
   const form = useForm();
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)}>
       <AccessibleFormField
-        label="メールアドレス"
+        label="Email Address"
         error={form.formState.errors.email?.message as string}
-        hint="ログインに使用するメールアドレスを入力してください"
+        hint="Enter the email address you will use to log in"
         required
       >
         {(ariaProps) => (
@@ -2661,12 +2671,12 @@ function ExampleForm() {
 }
 ```
 
-### 8.2 エラーサマリー表示
+### 8.2 Error Summary Display
 
 ```typescript
 // ===================================================================
 // components/ErrorSummary.tsx
-// フォーム送信後にエラーのサマリーを表示するコンポーネント
+// Component that displays a summary of errors after form submission
 // ===================================================================
 import { useEffect, useRef } from 'react';
 import { type FieldErrors } from 'react-hook-form';
@@ -2682,7 +2692,7 @@ export function ErrorSummary({ errors, fieldLabels }: Props) {
     ([key]) => key !== 'root'
   );
 
-  // エラーが表示されたら自動的にフォーカスを移動
+  // Automatically move focus when errors are displayed
   useEffect(() => {
     if (errorEntries.length > 0 && summaryRef.current) {
       summaryRef.current.focus();
@@ -2703,7 +2713,7 @@ export function ErrorSummary({ errors, fieldLabels }: Props) {
         id="error-summary-title"
         className="text-red-800 font-semibold text-sm mb-2"
       >
-        {errorEntries.length}件のエラーがあります
+        {errorEntries.length} error(s) found
       </h2>
       <ul className="list-disc list-inside space-y-1">
         {errorEntries.map(([fieldName, error]) => (
@@ -2713,7 +2723,7 @@ export function ErrorSummary({ errors, fieldLabels }: Props) {
               className="underline hover:no-underline"
               onClick={(e) => {
                 e.preventDefault();
-                // エラーのあるフィールドにフォーカスを移動
+                // Move focus to the field with the error
                 const field = document.getElementById(fieldName);
                 field?.focus();
                 field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2729,16 +2739,16 @@ export function ErrorSummary({ errors, fieldLabels }: Props) {
   );
 }
 
-// 使用例
+// Usage example
 function FormWithErrorSummary() {
   const form = useForm();
   const [showSummary, setShowSummary] = useState(false);
 
   const fieldLabels: Record<string, string> = {
-    name: '名前',
-    email: 'メールアドレス',
-    password: 'パスワード',
-    phone: '電話番号',
+    name: 'Name',
+    email: 'Email Address',
+    password: 'Password',
+    phone: 'Phone Number',
   };
 
   const onInvalid = () => {
@@ -2753,18 +2763,18 @@ function FormWithErrorSummary() {
           fieldLabels={fieldLabels}
         />
       )}
-      {/* フォームフィールド */}
+      {/* Form fields */}
     </form>
   );
 }
 ```
 
-### 8.3 国際化（i18n）対応のエラーメッセージ
+### 8.3 Internationalized (i18n) Error Messages
 
 ```typescript
 // ===================================================================
 // lib/validation-messages.ts
-// 多言語対応のバリデーションメッセージ管理
+// Multi-language validation message management
 // ===================================================================
 type Locale = 'ja' | 'en' | 'zh' | 'ko';
 
@@ -2783,7 +2793,7 @@ type MessageKey =
   | 'username_taken'
   | 'agree_to_terms';
 
-// メッセージテンプレート（パラメータ対応）
+// Message templates (with parameter support)
 const messages: Record<Locale, Record<MessageKey, string>> = {
   ja: {
     required: 'この項目は必須です',
@@ -2847,7 +2857,7 @@ const messages: Record<Locale, Record<MessageKey, string>> = {
   },
 };
 
-// メッセージ取得関数
+// Message retrieval function
 export function getMessage(
   key: MessageKey,
   locale: Locale = 'ja',
@@ -2864,7 +2874,7 @@ export function getMessage(
   return message;
 }
 
-// Zodスキーマで使用する場合
+// When used with Zod schemas
 export function createLocalizedSchema(locale: Locale = 'ja') {
   const t = (key: MessageKey, params?: Record<string, string | number>) =>
     getMessage(key, locale, params);
@@ -2888,7 +2898,7 @@ export function createLocalizedSchema(locale: Locale = 'ja') {
   );
 }
 
-// Reactコンテキストでの使用
+// Usage with React context
 import { createContext, useContext, type ReactNode } from 'react';
 
 const LocaleContext = createContext<Locale>('ja');
@@ -2916,25 +2926,25 @@ export function useValidationMessage() {
 }
 ```
 
-### 8.4 アクセシビリティチェックリスト
+### 8.4 Accessibility Checklist
 
-フォームバリデーションにおけるアクセシビリティ対応のチェックリスト:
+Accessibility checklist for form validation:
 
-| 項目 | 対応方法 | 重要度 |
+| Item | How to Handle | Priority |
 |------|---------|--------|
-| エラーメッセージとフィールドの関連付け | `aria-describedby`でエラーメッセージのIDを参照 | 必須 |
-| エラー状態の明示 | `aria-invalid="true"`を設定 | 必須 |
-| 必須フィールドの明示 | `aria-required="true"` + 視覚的なマーカー | 必須 |
-| エラーの動的通知 | `role="alert"` または `aria-live="polite"` | 必須 |
-| 色だけに依存しない | アイコンやテキストでもエラーを伝達 | 必須 |
-| エラーサマリーへのフォーカス | Submit失敗時にエラーサマリーにフォーカス移動 | 推奨 |
-| エラーフィールドへのスクロール | エラーリンクからフィールドにジャンプ | 推奨 |
-| 入力ヒントの提供 | `aria-describedby`でヒントテキストを関連付け | 推奨 |
-| フォーカス管理 | Tab順序が論理的であること | 必須 |
-| キーボード操作 | Enterキーで送信できること | 必須 |
+| Associate error messages with fields | Reference error message ID via `aria-describedby` | Required |
+| Indicate error state | Set `aria-invalid="true"` | Required |
+| Indicate required fields | `aria-required="true"` + visual marker | Required |
+| Dynamically announce errors | `role="alert"` or `aria-live="polite"` | Required |
+| Don't rely on color alone | Convey errors via icons and text too | Required |
+| Focus on error summary | Move focus to error summary on Submit failure | Recommended |
+| Scroll to error fields | Jump to field from error links | Recommended |
+| Provide input hints | Associate hint text via `aria-describedby` | Recommended |
+| Focus management | Tab order must be logical | Required |
+| Keyboard operation | Must be submittable with Enter key | Required |
 
 ```typescript
-// アクセシビリティ対応の完全なフォーム例
+// Complete form example with accessibility support
 function AccessibleRegistrationForm() {
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -2945,7 +2955,7 @@ function AccessibleRegistrationForm() {
   const firstErrorRef = useRef<HTMLInputElement>(null);
 
   const onInvalid = (errors: FieldErrors) => {
-    // 最初のエラーフィールドにフォーカスを移動
+    // Move focus to the first error field
     const firstErrorField = Object.keys(errors)[0];
     if (firstErrorField) {
       const element = document.getElementById(firstErrorField);
@@ -2957,30 +2967,30 @@ function AccessibleRegistrationForm() {
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit, onInvalid)}
-      noValidate  // ブラウザネイティブバリデーションを無効化
-      aria-label="ユーザー登録フォーム"
+      noValidate  // Disable browser native validation
+      aria-label="User Registration Form"
     >
-      {/* Submit失敗時のエラーサマリー */}
+      {/* Error summary on Submit failure */}
       {form.formState.isSubmitted && !form.formState.isValid && (
         <div
           role="alert"
           tabIndex={-1}
           className="bg-red-50 border-l-4 border-red-500 p-4 mb-6"
         >
-          <p className="font-bold text-red-800">入力内容にエラーがあります</p>
+          <p className="font-bold text-red-800">There are errors in your input</p>
           <p className="text-red-700 text-sm">
-            以下のフィールドを確認してください。
+            Please check the following fields.
           </p>
         </div>
       )}
 
-      {/* 各フィールド */}
+      {/* Each field */}
       <div className="space-y-4">
         <div>
           <label htmlFor="email" className="block font-medium">
-            メールアドレス
+            Email Address
             <span className="text-red-500" aria-hidden="true">*</span>
-            <span className="sr-only">（必須）</span>
+            <span className="sr-only">(required)</span>
           </label>
           <input
             id="email"
@@ -2997,7 +3007,7 @@ function AccessibleRegistrationForm() {
             autoComplete="email"
           />
           <p id="email-hint" className="text-sm text-gray-500 mt-1">
-            ログインに使用するメールアドレスを入力してください
+            Enter the email address you will use to log in
           </p>
           {form.formState.errors.email && (
             <p id="email-error" role="alert" className="text-red-500 text-sm mt-1">
@@ -3014,11 +3024,11 @@ function AccessibleRegistrationForm() {
       >
         {form.formState.isSubmitting ? (
           <>
-            <span className="sr-only">送信中</span>
-            <span aria-hidden="true">送信中...</span>
+            <span className="sr-only">Submitting</span>
+            <span aria-hidden="true">Submitting...</span>
           </>
         ) : (
-          '登録する'
+          'Register'
         )}
       </button>
     </form>
@@ -3028,29 +3038,29 @@ function AccessibleRegistrationForm() {
 
 ---
 
-## 9. バリデーションのテスト戦略
+## 9. Validation Testing Strategies
 
-### 9.1 Zodスキーマのユニットテスト
+### 9.1 Unit Testing Zod Schemas
 
-Zodスキーマは純粋な関数として動作するため、ユニットテストが書きやすい。すべてのエッジケースを網羅的にテストすることで、バリデーションロジックの信頼性を確保できる。
+Since Zod schemas behave as pure functions, they are easy to unit test. By comprehensively testing all edge cases, you can ensure the reliability of validation logic.
 
 ```typescript
 // ===================================================================
 // __tests__/schemas/user.test.ts
-// Zodスキーマのユニットテスト
+// Unit tests for Zod schemas
 // ===================================================================
 import { describe, it, expect } from 'vitest';
 import { createUserSchema, loginSchema, passwordResetSchema } from '@shared/schemas/user';
 
 describe('createUserSchema', () => {
-  // 正常系テスト
+  // Happy path tests
   describe('valid inputs', () => {
-    it('全ての必須フィールドが正しい場合にパースが成功する', () => {
+    it('parses successfully when all required fields are correct', () => {
       const validData = {
         username: 'testuser',
         email: 'test@example.com',
         password: 'Password1!',
-        name: 'テストユーザー',
+        name: 'Test User',
         role: 'user',
       };
 
@@ -3062,12 +3072,12 @@ describe('createUserSchema', () => {
       }
     });
 
-    it('roleのデフォルト値が適用される', () => {
+    it('applies the default value for role', () => {
       const data = {
         username: 'testuser',
         email: 'test@example.com',
         password: 'Password1!',
-        name: 'テストユーザー',
+        name: 'Test User',
       };
 
       const result = createUserSchema.safeParse(data);
@@ -3078,16 +3088,16 @@ describe('createUserSchema', () => {
     });
   });
 
-  // 異常系テスト: username
+  // Negative tests: username
   describe('username validation', () => {
     const baseData = {
       email: 'test@example.com',
       password: 'Password1!',
-      name: 'テストユーザー',
+      name: 'Test User',
       role: 'user' as const,
     };
 
-    it('3文字未満のユーザー名を拒否する', () => {
+    it('rejects usernames shorter than 3 characters', () => {
       const result = createUserSchema.safeParse({
         ...baseData,
         username: 'ab',
@@ -3095,12 +3105,12 @@ describe('createUserSchema', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.flatten().fieldErrors.username).toContain(
-          '3文字以上で入力してください'
+          'Must be at least 3 characters'
         );
       }
     });
 
-    it('20文字超のユーザー名を拒否する', () => {
+    it('rejects usernames longer than 20 characters', () => {
       const result = createUserSchema.safeParse({
         ...baseData,
         username: 'a'.repeat(21),
@@ -3108,15 +3118,15 @@ describe('createUserSchema', () => {
       expect(result.success).toBe(false);
     });
 
-    it('特殊文字を含むユーザー名を拒否する', () => {
-      const invalidUsernames = ['user name', 'user@name', 'user.name', 'ユーザー'];
+    it('rejects usernames containing special characters', () => {
+      const invalidUsernames = ['user name', 'user@name', 'user.name', 'username_jp'];
       invalidUsernames.forEach((username) => {
         const result = createUserSchema.safeParse({ ...baseData, username });
         expect(result.success).toBe(false);
       });
     });
 
-    it('アンダースコアを含むユーザー名を許可する', () => {
+    it('allows usernames containing underscores', () => {
       const result = createUserSchema.safeParse({
         ...baseData,
         username: 'test_user_123',
@@ -3125,12 +3135,12 @@ describe('createUserSchema', () => {
     });
   });
 
-  // 異常系テスト: email
+  // Negative tests: email
   describe('email validation', () => {
     const baseData = {
       username: 'testuser',
       password: 'Password1!',
-      name: 'テストユーザー',
+      name: 'Test User',
       role: 'user' as const,
     };
 
@@ -3140,22 +3150,22 @@ describe('createUserSchema', () => {
       ['missing local part', '@example.com'],
       ['spaces', 'test @example.com'],
       ['double dots', 'test@example..com'],
-    ])('%s: "%s" を拒否する', (_, email) => {
+    ])('%s: rejects "%s"', (_, email) => {
       const result = createUserSchema.safeParse({ ...baseData, email });
       expect(result.success).toBe(false);
     });
   });
 
-  // 異常系テスト: password
+  // Negative tests: password
   describe('password validation', () => {
     const baseData = {
       username: 'testuser',
       email: 'test@example.com',
-      name: 'テストユーザー',
+      name: 'Test User',
       role: 'user' as const,
     };
 
-    it('8文字未満のパスワードを拒否する', () => {
+    it('rejects passwords shorter than 8 characters', () => {
       const result = createUserSchema.safeParse({
         ...baseData,
         password: 'Pass1!',
@@ -3163,7 +3173,7 @@ describe('createUserSchema', () => {
       expect(result.success).toBe(false);
     });
 
-    it('大文字を含まないパスワードを拒否する', () => {
+    it('rejects passwords without uppercase letters', () => {
       const result = createUserSchema.safeParse({
         ...baseData,
         password: 'password1!',
@@ -3171,7 +3181,7 @@ describe('createUserSchema', () => {
       expect(result.success).toBe(false);
     });
 
-    it('小文字を含まないパスワードを拒否する', () => {
+    it('rejects passwords without lowercase letters', () => {
       const result = createUserSchema.safeParse({
         ...baseData,
         password: 'PASSWORD1!',
@@ -3179,7 +3189,7 @@ describe('createUserSchema', () => {
       expect(result.success).toBe(false);
     });
 
-    it('数字を含まないパスワードを拒否する', () => {
+    it('rejects passwords without numbers', () => {
       const result = createUserSchema.safeParse({
         ...baseData,
         password: 'Password!@',
@@ -3187,7 +3197,7 @@ describe('createUserSchema', () => {
       expect(result.success).toBe(false);
     });
 
-    it('ユーザー名を含むパスワードを拒否する', () => {
+    it('rejects passwords containing the username', () => {
       const result = createUserSchema.safeParse({
         ...baseData,
         username: 'testuser',
@@ -3201,9 +3211,9 @@ describe('createUserSchema', () => {
     });
   });
 
-  // クロスフィールドバリデーション
+  // Cross-field validation
   describe('cross-field validation', () => {
-    it('パスワードにユーザー名が含まれている場合に拒否する', () => {
+    it('rejects when the password contains the username', () => {
       const result = createUserSchema.safeParse({
         username: 'johndoe',
         email: 'john@example.com',
@@ -3216,33 +3226,33 @@ describe('createUserSchema', () => {
 });
 
 // ===================================================================
-// パスワード強度のテスト
+// Password strength tests
 // ===================================================================
 import { getPasswordStrength } from '@/lib/password-strength';
 
 describe('getPasswordStrength', () => {
-  it('空文字列のスコアは0', () => {
+  it('empty string has a score of 0', () => {
     const result = getPasswordStrength('');
     expect(result.score).toBe(0);
   });
 
-  it('短く単純なパスワードは低スコア', () => {
+  it('short and simple passwords have a low score', () => {
     const result = getPasswordStrength('abc');
     expect(result.score).toBeLessThanOrEqual(1);
   });
 
-  it('よく使われるパスワードは低スコア', () => {
+  it('commonly used passwords have a low score', () => {
     const result = getPasswordStrength('password');
     expect(result.score).toBeLessThanOrEqual(1);
     expect(result.requirements.noCommonPattern).toBe(false);
   });
 
-  it('十分に複雑なパスワードは高スコア', () => {
+  it('sufficiently complex passwords have a high score', () => {
     const result = getPasswordStrength('MyStr0ng!P@ssw0rd2024');
     expect(result.score).toBeGreaterThanOrEqual(3);
   });
 
-  it('全ての要件を満たす場合にrequirementsが全てtrue', () => {
+  it('requirements are all true when all conditions are met', () => {
     const result = getPasswordStrength('MyP@ssw0rd!');
     expect(result.requirements.minLength).toBe(true);
     expect(result.requirements.hasUppercase).toBe(true);
@@ -3253,19 +3263,19 @@ describe('getPasswordStrength', () => {
 });
 ```
 
-### 9.2 フォームコンポーネントの統合テスト
+### 9.2 Integration Testing Form Components
 
 ```typescript
 // ===================================================================
 // __tests__/components/ContactForm.test.tsx
-// React Testing Libraryを使ったフォームテスト
+// Form testing with React Testing Library
 // ===================================================================
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ContactForm } from '@/components/ContactForm';
 
-// API モック
+// API mock
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
@@ -3276,76 +3286,76 @@ describe('ContactForm', () => {
     mockFetch.mockReset();
   });
 
-  // ヘルパー: フォームを入力する
+  // Helper: fill in the form
   async function fillForm(overrides: Partial<Record<string, string>> = {}) {
     const defaults = {
-      lastName: '山田',
-      firstName: '太郎',
-      email: 'taro@example.com',
-      message: 'これはテストメッセージです。10文字以上のメッセージ。',
+      lastName: 'Smith',
+      firstName: 'John',
+      email: 'john@example.com',
+      message: 'This is a test message with more than 10 characters.',
       ...overrides,
     };
 
     if (defaults.lastName) {
-      await user.type(screen.getByLabelText('姓'), defaults.lastName);
+      await user.type(screen.getByLabelText('Last Name'), defaults.lastName);
     }
     if (defaults.firstName) {
-      await user.type(screen.getByLabelText('名'), defaults.firstName);
+      await user.type(screen.getByLabelText('First Name'), defaults.firstName);
     }
     if (defaults.email) {
-      await user.type(screen.getByLabelText('メールアドレス'), defaults.email);
+      await user.type(screen.getByLabelText('Email Address'), defaults.email);
     }
     if (defaults.message) {
-      await user.type(screen.getByLabelText('メッセージ'), defaults.message);
+      await user.type(screen.getByLabelText('Message'), defaults.message);
     }
 
-    // お問い合わせ種別を選択
-    await user.selectOptions(screen.getByLabelText('お問い合わせ種別'), 'inquiry');
+    // Select inquiry type
+    await user.selectOptions(screen.getByLabelText('Inquiry Type'), 'inquiry');
 
-    // 利用規約に同意
-    await user.click(screen.getByLabelText('利用規約に同意する'));
+    // Agree to terms
+    await user.click(screen.getByLabelText('I agree to the terms of service'));
   }
 
-  it('必須フィールドが空の場合にエラーメッセージを表示する', async () => {
+  it('displays error messages when required fields are empty', async () => {
     render(<ContactForm />);
 
-    // 空のままSubmit
-    await user.click(screen.getByRole('button', { name: '送信する' }));
+    // Submit with empty fields
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     await waitFor(() => {
-      expect(screen.getByText('姓を入力してください')).toBeInTheDocument();
-      expect(screen.getByText('名を入力してください')).toBeInTheDocument();
-      expect(screen.getByText('有効なメールアドレスを入力してください')).toBeInTheDocument();
+      expect(screen.getByText('Please enter your last name')).toBeInTheDocument();
+      expect(screen.getByText('Please enter your first name')).toBeInTheDocument();
+      expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
     });
   });
 
-  it('メールアドレスの形式が不正な場合にエラーを表示する', async () => {
+  it('displays an error when the email address format is invalid', async () => {
     render(<ContactForm />);
 
-    await user.type(screen.getByLabelText('メールアドレス'), 'invalid-email');
-    await user.click(screen.getByRole('button', { name: '送信する' }));
+    await user.type(screen.getByLabelText('Email Address'), 'invalid-email');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     await waitFor(() => {
       expect(
-        screen.getByText('有効なメールアドレスを入力してください')
+        screen.getByText('Please enter a valid email address')
       ).toBeInTheDocument();
     });
   });
 
-  it('メッセージが10文字未満の場合にエラーを表示する', async () => {
+  it('displays an error when the message is shorter than 10 characters', async () => {
     render(<ContactForm />);
 
-    await user.type(screen.getByLabelText('メッセージ'), '短い');
-    await user.click(screen.getByRole('button', { name: '送信する' }));
+    await user.type(screen.getByLabelText('Message'), 'Short');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     await waitFor(() => {
       expect(
-        screen.getByText('10文字以上で入力してください')
+        screen.getByText('Must be at least 10 characters')
       ).toBeInTheDocument();
     });
   });
 
-  it('正しい入力でフォームを送信できる', async () => {
+  it('can submit the form with correct input', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true }),
@@ -3353,7 +3363,7 @@ describe('ContactForm', () => {
 
     render(<ContactForm />);
     await fillForm();
-    await user.click(screen.getByRole('button', { name: '送信する' }));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/contact', expect.objectContaining({
@@ -3363,71 +3373,71 @@ describe('ContactForm', () => {
     });
   });
 
-  it('サーバーエラーをフォームに表示する', async () => {
+  it('displays server errors on the form', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       json: async () => ({
         fieldErrors: {
-          email: ['このメールアドレスは既に使用されています'],
+          email: ['This email address is already in use'],
         },
       }),
     });
 
     render(<ContactForm />);
     await fillForm();
-    await user.click(screen.getByRole('button', { name: '送信する' }));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     await waitFor(() => {
       expect(
-        screen.getByText('このメールアドレスは既に使用されています')
+        screen.getByText('This email address is already in use')
       ).toBeInTheDocument();
     });
   });
 
-  it('送信中はボタンが無効化される', async () => {
+  it('disables the button while submitting', async () => {
     mockFetch.mockImplementation(
       () => new Promise((resolve) => setTimeout(resolve, 1000))
     );
 
     render(<ContactForm />);
     await fillForm();
-    await user.click(screen.getByRole('button', { name: '送信する' }));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
 
-    expect(screen.getByRole('button', { name: '送信中...' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Submitting...' })).toBeDisabled();
   });
 
-  it('エラー修正後にリアルタイムでエラーが消える', async () => {
+  it('errors disappear in real time after fixing them', async () => {
     render(<ContactForm />);
 
-    // まずSubmitしてエラーを表示
-    await user.click(screen.getByRole('button', { name: '送信する' }));
+    // First Submit to show errors
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     await waitFor(() => {
-      expect(screen.getByText('姓を入力してください')).toBeInTheDocument();
+      expect(screen.getByText('Please enter your last name')).toBeInTheDocument();
     });
 
-    // エラーのあるフィールドに入力
-    await user.type(screen.getByLabelText('姓'), '山田');
+    // Type in the field with the error
+    await user.type(screen.getByLabelText('Last Name'), 'Smith');
 
-    // エラーが消えることを確認（reValidateMode: 'onChange'）
+    // Confirm error disappears (reValidateMode: 'onChange')
     await waitFor(() => {
-      expect(screen.queryByText('姓を入力してください')).not.toBeInTheDocument();
-    });
-  });
-
-  // アクセシビリティテスト
-  it('エラーフィールドにaria-invalid属性が設定される', async () => {
-    render(<ContactForm />);
-    await user.click(screen.getByRole('button', { name: '送信する' }));
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('姓')).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.queryByText('Please enter your last name')).not.toBeInTheDocument();
     });
   });
 
-  it('エラーメッセージにrole="alert"が設定されている', async () => {
+  // Accessibility tests
+  it('sets aria-invalid attribute on error fields', async () => {
     render(<ContactForm />);
-    await user.click(screen.getByRole('button', { name: '送信する' }));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Last Name')).toHaveAttribute('aria-invalid', 'true');
+    });
+  });
+
+  it('sets role="alert" on error messages', async () => {
+    render(<ContactForm />);
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     await waitFor(() => {
       const alerts = screen.getAllByRole('alert');
@@ -3437,73 +3447,73 @@ describe('ContactForm', () => {
 });
 ```
 
-### 9.3 E2Eテスト（Playwright）
+### 9.3 E2E Testing (Playwright)
 
 ```typescript
 // ===================================================================
 // e2e/registration.spec.ts
-// PlaywrightによるE2Eテスト
+// E2E testing with Playwright
 // ===================================================================
 import { test, expect } from '@playwright/test';
 
-test.describe('ユーザー登録フォーム', () => {
+test.describe('User Registration Form', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/register');
   });
 
-  test('正常な入力で登録が成功する', async ({ page }) => {
-    // フォーム入力
+  test('registration succeeds with valid input', async ({ page }) => {
+    // Fill in the form
     await page.fill('[name="username"]', 'newuser123');
-    await page.fill('[name="name"]', 'テストユーザー');
+    await page.fill('[name="name"]', 'Test User');
     await page.fill('[name="email"]', `test-${Date.now()}@example.com`);
     await page.fill('[name="password"]', 'StrongP@ss1');
 
-    // 送信
+    // Submit
     await page.click('button[type="submit"]');
 
-    // リダイレクトを確認
+    // Confirm redirect
     await expect(page).toHaveURL('/login?registered=true');
   });
 
-  test('バリデーションエラーが表示される', async ({ page }) => {
-    // 空のままSubmit
+  test('validation errors are displayed', async ({ page }) => {
+    // Submit with empty fields
     await page.click('button[type="submit"]');
 
-    // エラーメッセージの表示を確認
-    await expect(page.getByText('3文字以上で入力してください')).toBeVisible();
-    await expect(page.getByText('名前を入力してください')).toBeVisible();
-    await expect(page.getByText('有効なメールアドレスを入力してください')).toBeVisible();
+    // Confirm error messages are shown
+    await expect(page.getByText('Must be at least 3 characters')).toBeVisible();
+    await expect(page.getByText('Please enter your name')).toBeVisible();
+    await expect(page.getByText('Please enter a valid email address')).toBeVisible();
   });
 
-  test('パスワード強度インジケーターが動的に更新される', async ({ page }) => {
+  test('password strength indicator updates dynamically', async ({ page }) => {
     const passwordField = page.locator('[name="password"]');
 
-    // 弱いパスワード
+    // Weak password
     await passwordField.fill('abc');
-    await expect(page.getByText('非常に弱い')).toBeVisible();
+    await expect(page.getByText('Very Weak')).toBeVisible();
 
-    // 中程度のパスワード
+    // Moderate password
     await passwordField.fill('Password1');
-    await expect(page.getByText(/普通|強い/)).toBeVisible();
+    await expect(page.getByText(/Fair|Strong/)).toBeVisible();
 
-    // 強いパスワード
+    // Strong password
     await passwordField.fill('MyStr0ng!P@ss');
-    await expect(page.getByText(/強い|非常に強い/)).toBeVisible();
+    await expect(page.getByText(/Strong|Very Strong/)).toBeVisible();
   });
 
-  test('メールアドレスの重複チェックが機能する', async ({ page }) => {
-    // 既存のメールアドレスを入力
+  test('email duplicate check works', async ({ page }) => {
+    // Enter an existing email address
     await page.fill('[name="email"]', 'existing@example.com');
     await page.locator('[name="email"]').blur();
 
-    // 重複エラーの表示を確認（非同期バリデーション）
+    // Confirm duplicate error is shown (asynchronous validation)
     await expect(
-      page.getByText('このメールアドレスは既に使用されています')
+      page.getByText('This email address is already in use')
     ).toBeVisible({ timeout: 5000 });
   });
 
-  test('キーボードのみで操作できる', async ({ page }) => {
-    // Tabキーで全フィールドにフォーカスが移動できることを確認
+  test('can be operated with keyboard only', async ({ page }) => {
+    // Confirm focus moves to all fields with Tab key
     await page.keyboard.press('Tab'); // username
     await expect(page.locator('[name="username"]')).toBeFocused();
 
@@ -3521,17 +3531,17 @@ test.describe('ユーザー登録フォーム', () => {
 
 ---
 
-## 10. アンチパターンとベストプラクティス
+## 10. Anti-Patterns and Best Practices
 
-### 10.1 よくあるアンチパターン
+### 10.1 Common Anti-Patterns
 
-#### アンチパターン1: クライアントのみのバリデーション
+#### Anti-Pattern 1: Client-Only Validation
 
 ```typescript
-// BAD: クライアントサイドのみでバリデーション
+// BAD: Validation only on the client side
 function BadForm() {
   const onSubmit = async (data: FormData) => {
-    // サーバーに送信（バリデーションなし）
+    // Send to server (no validation)
     await fetch('/api/users', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -3539,7 +3549,7 @@ function BadForm() {
   };
 }
 
-// GOOD: サーバーサイドでも同じスキーマで検証
+// GOOD: Validate with the same schema on the server side too
 // server
 export async function POST(request: Request) {
   const body = await request.json();
@@ -3547,21 +3557,21 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ errors: parsed.error.flatten() }, { status: 422 });
   }
-  // ... データベース操作
+  // ... database operation
 }
 ```
 
-#### アンチパターン2: バリデーションロジックの重複
+#### Anti-Pattern 2: Duplicating Validation Logic
 
 ```typescript
-// BAD: クライアントとサーバーで別々にバリデーションルールを定義
+// BAD: Define separate validation rules on client and server
 // client
 const clientSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 });
 
-// server（別ファイルに同じルールを重複定義）
+// server (same rules duplicated in a different file)
 function validateOnServer(data: unknown) {
   if (typeof data.email !== 'string' || !data.email.includes('@')) {
     throw new Error('Invalid email');
@@ -3571,52 +3581,52 @@ function validateOnServer(data: unknown) {
   }
 }
 
-// GOOD: スキーマを共有ディレクトリに配置して再利用
+// GOOD: Place schemas in a shared directory and reuse them
 // shared/schemas/auth.ts
 export const authSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 });
 
-// client & server で同じスキーマを import
+// Import the same schema in both client and server
 import { authSchema } from '@shared/schemas/auth';
 ```
 
-#### アンチパターン3: エラーメッセージのハードコーディング
+#### Anti-Pattern 3: Hardcoding Error Messages
 
 ```typescript
-// BAD: エラーメッセージを直接ハードコーディング
+// BAD: Hardcode error messages directly
 const schema = z.object({
-  name: z.string().min(1, '名前は必須です'),  // 日本語固定
+  name: z.string().min(1, 'Name is required'),  // Fixed language
 });
 
-// GOOD: メッセージを外部化して国際化対応
+// GOOD: Externalize messages for internationalization support
 const schema = z.object({
   name: z.string().min(1, getMessage('required', locale)),
 });
 ```
 
-#### アンチパターン4: onChangeモードの安易な使用
+#### Anti-Pattern 4: Carelessly Using onChange Mode
 
 ```typescript
-// BAD: 全てのフォームでonChangeモード（パフォーマンス問題）
+// BAD: Using onChange mode for all forms (performance issues)
 const form = useForm({
   resolver: zodResolver(schema),
-  mode: 'onChange', // 毎回のキーストロークでバリデーション実行
+  mode: 'onChange', // Validation runs on every keystroke
 });
 
-// GOOD: onSubmit + onChangeの組み合わせ
+// GOOD: Combine onSubmit + onChange
 const form = useForm({
   resolver: zodResolver(schema),
-  mode: 'onSubmit',           // 初回はSubmit時
-  reValidateMode: 'onChange', // エラー後はリアルタイム
+  mode: 'onSubmit',           // First time: on Submit
+  reValidateMode: 'onChange', // After errors: real time
 });
 ```
 
-#### アンチパターン5: 型安全性の欠如
+#### Anti-Pattern 5: Lack of Type Safety
 
 ```typescript
-// BAD: any型の使用、型推論を活用しない
+// BAD: Using any type, not leveraging type inference
 const onSubmit = async (data: any) => {
   await fetch('/api/users', {
     method: 'POST',
@@ -3624,89 +3634,89 @@ const onSubmit = async (data: any) => {
   });
 };
 
-// GOOD: Zodスキーマから型を推論
+// GOOD: Infer types from Zod schema
 type FormData = z.infer<typeof userSchema>;
 
 const onSubmit = async (data: FormData) => {
-  // dataは自動的に型安全
+  // data is automatically type-safe
   await createUser(data);
 };
 ```
 
-#### アンチパターン6: デバウンスなしの非同期バリデーション
+#### Anti-Pattern 6: Asynchronous Validation Without Debounce
 
 ```typescript
-// BAD: キーストロークごとにAPIリクエスト
+// BAD: API request on every keystroke
 <input
   {...register('username', {
     validate: async (value) => {
-      // 毎回APIを呼ぶ → サーバーに大量リクエスト
+      // Calls API every time → large number of requests to server
       const res = await fetch(`/api/check?username=${value}`);
       const data = await res.json();
-      return data.available || 'このユーザー名は使用されています';
+      return data.available || 'This username is already in use';
     },
   })}
 />
 
-// GOOD: デバウンス + AbortControllerで制御
+// GOOD: Controlled with debounce + AbortController
 const { validate, isValidating } = useAsyncValidation(
   async (value) => {
     const res = await fetch(`/api/check?username=${value}`);
     const data = await res.json();
-    return data.available || 'このユーザー名は使用されています';
+    return data.available || 'This username is already in use';
   },
-  500 // 500msのデバウンス
+  500 // 500ms debounce
 );
 ```
 
-### 10.2 ベストプラクティスまとめ
+### 10.2 Summary of Best Practices
 
-| カテゴリ | ベストプラクティス | 理由 |
+| Category | Best Practice | Reason |
 |---------|-------------------|------|
-| **スキーマ設計** | 共有ディレクトリにスキーマを配置 | クライアント/サーバーでの再利用 |
-| **スキーマ設計** | z.inferで型を自動推論 | 型の二重定義を防止 |
-| **スキーマ設計** | baseSchema + extend/pick/omitで派生 | DRY原則の遵守 |
-| **バリデーション** | mode: 'onSubmit' + reValidateMode: 'onChange' | UXとパフォーマンスのバランス |
-| **バリデーション** | 非同期バリデーションにはデバウンスを適用 | サーバー負荷の軽減 |
-| **バリデーション** | サーバーでも必ずバリデーションを実行 | セキュリティの担保 |
-| **エラー表示** | aria-invalid, aria-describedbyの使用 | アクセシビリティ対応 |
-| **エラー表示** | Submit失敗時にエラーフィールドへフォーカス | UX向上 |
-| **テスト** | スキーマの境界値テストを網羅 | バリデーションロジックの信頼性 |
-| **テスト** | 統合テストでフォームの挙動を検証 | ユーザー体験の品質保証 |
-| **国際化** | エラーメッセージを外部化 | 多言語対応の容易さ |
-| **パフォーマンス** | 大規模フォームはFormProviderで分割 | レンダリング最適化 |
+| **Schema Design** | Place schemas in a shared directory | Reuse between client/server |
+| **Schema Design** | Auto-infer types with z.infer | Prevent duplicate type definitions |
+| **Schema Design** | Derive from baseSchema + extend/pick/omit | Follow the DRY principle |
+| **Validation** | mode: 'onSubmit' + reValidateMode: 'onChange' | Balance UX and performance |
+| **Validation** | Apply debounce to async validation | Reduce server load |
+| **Validation** | Always validate on the server too | Guarantee security |
+| **Error Display** | Use aria-invalid and aria-describedby | Accessibility support |
+| **Error Display** | Focus on error fields on Submit failure | Improve UX |
+| **Testing** | Cover boundary values in schema tests | Reliability of validation logic |
+| **Testing** | Verify form behavior with integration tests | Quality assurance of user experience |
+| **Internationalization** | Externalize error messages | Easy multi-language support |
+| **Performance** | Split large forms with FormProvider | Rendering optimization |
 
 ---
 
-## 11. トラブルシューティング
+## 11. Troubleshooting
 
-### 11.1 よくある問題と解決策
+### 11.1 Common Problems and Solutions
 
-#### 問題1: zodResolverでバリデーションが機能しない
+#### Problem 1: zodResolver validation does not work
 
 ```typescript
-// 症状: フォームを送信してもバリデーションエラーが表示されない
+// Symptom: No validation errors displayed even after form submission
 
-// 原因1: resolverの設定漏れ
+// Cause 1: Missing resolver configuration
 // BAD
 const form = useForm<FormData>({
-  // resolverを設定していない
+  // resolver not configured
 });
 
 // GOOD
 const form = useForm<FormData>({
-  resolver: zodResolver(schema), // 必須
+  resolver: zodResolver(schema), // Required
 });
 
-// 原因2: スキーマとデフォルト値の型不一致
-// BAD: undefinedとstringの不整合
+// Cause 2: Type mismatch between schema and default values
+// BAD: Inconsistency between undefined and string
 const schema = z.object({
   name: z.string().min(1),
 });
 const form = useForm({
   resolver: zodResolver(schema),
   defaultValues: {
-    name: undefined, // stringが期待されているのにundefined
+    name: undefined, // string expected but undefined provided
   },
 });
 
@@ -3714,24 +3724,24 @@ const form = useForm({
 const form = useForm({
   resolver: zodResolver(schema),
   defaultValues: {
-    name: '', // 空文字列で初期化
+    name: '', // Initialize with empty string
   },
 });
 ```
 
-#### 問題2: refineのエラーが表示されない
+#### Problem 2: refine errors are not displayed
 
 ```typescript
-// 症状: refineで追加したバリデーションエラーが画面に表示されない
+// Symptom: Validation errors added with refine are not shown on screen
 
-// 原因: pathの指定漏れ
+// Cause: Missing path specification
 // BAD
 const schema = z.object({
   password: z.string(),
   confirmPassword: z.string(),
 }).refine(
   (data) => data.password === data.confirmPassword,
-  'パスワードが一致しません'  // pathが指定されていない → rootエラー扱い
+  'Passwords do not match'  // path not specified → treated as root error
 );
 
 // GOOD
@@ -3741,72 +3751,72 @@ const schema = z.object({
 }).refine(
   (data) => data.password === data.confirmPassword,
   {
-    message: 'パスワードが一致しません',
-    path: ['confirmPassword'], // エラーを関連付けるフィールドを指定
+    message: 'Passwords do not match',
+    path: ['confirmPassword'], // Specify the field to associate the error with
   }
 );
 
-// rootエラーを表示する場合
+// To display root errors
 {errors.root && (
   <div role="alert">{errors.root.message}</div>
 )}
 ```
 
-#### 問題3: selectやcheckboxのバリデーションが動作しない
+#### Problem 3: Validation for select or checkbox does not work
 
 ```typescript
-// 症状: select要素やcheckboxでバリデーションエラーにならない
+// Symptom: No validation errors for select elements or checkboxes
 
-// 原因1: select - 空のoption valueの扱い
-// BAD: value=""はZodでは空文字列(string)として扱われる
+// Cause 1: select - handling of empty option value
+// BAD: value="" is treated as an empty string (string) in Zod
 const schema = z.object({
-  category: z.string().min(1, 'カテゴリを選択してください'),
+  category: z.string().min(1, 'Please select a category'),
 });
 
-// GOOD: enumを使用する
+// GOOD: Use enum
 const schema = z.object({
   category: z.enum(['tech', 'design', 'business'], {
-    errorMap: () => ({ message: 'カテゴリを選択してください' }),
+    errorMap: () => ({ message: 'Please select a category' }),
   }),
 });
 
-// 原因2: checkbox - boolean vs literal
-// BAD: z.boolean()はfalseも許可してしまう
+// Cause 2: checkbox - boolean vs literal
+// BAD: z.boolean() allows false too
 const schema = z.object({
-  agree: z.boolean(), // falseでも通る
+  agree: z.boolean(), // false passes too
 });
 
-// GOOD: z.literal(true)でtrueのみ許可
+// GOOD: z.literal(true) to allow only true
 const schema = z.object({
   agree: z.literal(true, {
-    errorMap: () => ({ message: '同意が必要です' }),
+    errorMap: () => ({ message: 'Agreement is required' }),
   }),
 });
 
-// defaultValuesの注意点
+// Note on defaultValues
 const form = useForm({
   resolver: zodResolver(schema),
   defaultValues: {
-    agree: false as unknown as true, // 型アサーション必要
+    agree: false as unknown as true, // Type assertion required
   },
 });
 ```
 
-#### 問題4: useFieldArrayでのバリデーション
+#### Problem 4: Validation with useFieldArray
 
 ```typescript
-// 症状: 動的フィールドの配列バリデーションエラーが正しく表示されない
+// Symptom: Array validation errors for dynamic fields are not displayed correctly
 
-// 原因: エラーアクセスのパスが間違っている
+// Cause: Incorrect path for error access
 
-// GOOD: 正しいアクセス方法
-// 配列全体のバリデーションエラー（min, max, refine等）
+// GOOD: Correct access method
+// Array-wide validation errors (min, max, refine, etc.)
 {errors.contacts?.root?.message}
 
-// 個別要素のバリデーションエラー
+// Validation errors for individual elements
 {errors.contacts?.[index]?.name?.message}
 
-// 配列スキーマの定義例
+// Example array schema definition
 const schema = z.object({
   contacts: z.array(
     z.object({
@@ -3814,31 +3824,31 @@ const schema = z.object({
       email: z.string().email(),
     })
   )
-  .min(1, '最低1件必要です')     // → errors.contacts?.root?.message
-  .max(10, '最大10件までです'),   // → errors.contacts?.root?.message
+  .min(1, 'At least one required')     // → errors.contacts?.root?.message
+  .max(10, 'Up to 10 allowed'),         // → errors.contacts?.root?.message
 });
 ```
 
-#### 問題5: フォーム送信後にフォームがリセットされない
+#### Problem 5: Form does not reset after submission
 
 ```typescript
-// 症状: 送信成功後もフォームの値やエラー状態が残る
+// Symptom: Form values and error state remain after successful submission
 
-// GOOD: reset()を正しく使用する
+// GOOD: Use reset() correctly
 const onSubmit = async (data: FormData) => {
   const result = await submitForm(data);
 
   if (result.success) {
-    // フォーム全体をリセット
+    // Reset the entire form
     form.reset();
 
-    // または特定のフィールドだけリセット
+    // Or reset only specific fields
     form.reset({
       name: '',
-      email: data.email, // メールアドレスは保持
+      email: data.email, // Retain email address
     });
 
-    // デフォルト値に戻す場合
+    // Return to default values
     form.reset(undefined, {
       keepDirtyValues: false,
       keepErrors: false,
@@ -3847,17 +3857,17 @@ const onSubmit = async (data: FormData) => {
 };
 ```
 
-#### 問題6: coerceの型変換が意図通りに動作しない
+#### Problem 6: coerce type conversion does not behave as expected
 
 ```typescript
-// 症状: z.coerce.number()が意図しない値を返す
+// Symptom: z.coerce.number() returns unexpected values
 
-// 原因: 空文字列がNaN/0に変換される
+// Cause: Empty string is converted to NaN/0
 const schema = z.object({
   age: z.coerce.number(), // '' → 0, 'abc' → NaN
 });
 
-// GOOD: preprocessで空文字列を処理してからcoerce
+// GOOD: Handle empty string with preprocess then coerce
 const schema = z.object({
   age: z.preprocess(
     (val) => {
@@ -3868,7 +3878,7 @@ const schema = z.object({
   ),
 });
 
-// または、transformでパース後に検証
+// Or validate after parsing with transform
 const schema = z.object({
   age: z.string()
     .transform((val) => {
@@ -3881,43 +3891,43 @@ const schema = z.object({
 });
 ```
 
-### 11.2 パフォーマンス最適化
+### 11.2 Performance Optimization
 
 ```typescript
 // ===================================================================
-// パフォーマンスに関する注意点と最適化手法
+// Notes on performance and optimization techniques
 // ===================================================================
 
-// 1. 大規模フォームのレンダリング最適化
-// BAD: 全フィールドがwatchで再レンダリング
+// 1. Rendering optimization for large forms
+// BAD: All fields re-render with watch
 function BadForm() {
   const form = useForm<FormData>();
-  const allValues = form.watch(); // 全フィールドの変更で再レンダリング
+  const allValues = form.watch(); // Re-renders on every field change
 
   return (
     <form>
-      {/* 100個のフィールド... 全て再レンダリング */}
+      {/* 100 fields... all re-rendered */}
     </form>
   );
 }
 
-// GOOD: 必要なフィールドだけwatch
+// GOOD: Watch only the necessary fields
 function GoodForm() {
   const form = useForm<FormData>();
-  const password = form.watch('password'); // passwordのみ監視
+  const password = form.watch('password'); // Only monitor password
 
   return (
     <form>
       <input {...form.register('password')} />
       <PasswordStrengthIndicator password={password} />
-      {/* 他のフィールドは再レンダリングされない */}
+      {/* Other fields are not re-rendered */}
     </form>
   );
 }
 
-// 2. useWatchを使った子コンポーネントの分離
+// 2. Separate child components with useWatch
 function OptimizedPasswordField() {
-  // このコンポーネントだけがpasswordの変更で再レンダリング
+  // Only this component re-renders on password change
   const password = useWatch({ name: 'password' });
 
   return (
@@ -3928,7 +3938,7 @@ function OptimizedPasswordField() {
   );
 }
 
-// 3. メモ化の活用
+// 3. Using memoization
 const MemoizedField = React.memo(function Field({
   name,
   label,
@@ -3949,87 +3959,87 @@ const MemoizedField = React.memo(function Field({
   );
 });
 
-// 4. Zodスキーマのメモ化（動的スキーマの場合）
+// 4. Memoize Zod schemas (for dynamic schemas)
 const useDynamicSchema = (locale: string) => {
   return useMemo(() => {
     return z.object({
       name: z.string().min(1, getMessage('required', locale)),
       email: z.string().email(getMessage('email', locale)),
     });
-  }, [locale]); // localeが変わった時だけ再作成
+  }, [locale]); // Re-create only when locale changes
 };
 
-// 5. 非同期バリデーションのキャッシュ
+// 5. Caching asynchronous validation
 const validationCache = new Map<string, boolean>();
 
 async function checkUsernameWithCache(username: string): Promise<string | true> {
-  // キャッシュを確認
+  // Check cache
   if (validationCache.has(username)) {
-    return validationCache.get(username) ? true : 'このユーザー名は使用されています';
+    return validationCache.get(username) ? true : 'This username is already in use';
   }
 
   const res = await fetch(`/api/check-username?username=${encodeURIComponent(username)}`);
   const data = await res.json();
 
-  // 結果をキャッシュ（最大100件）
+  // Cache the result (up to 100 entries)
   if (validationCache.size > 100) {
     const firstKey = validationCache.keys().next().value;
     validationCache.delete(firstKey);
   }
   validationCache.set(username, data.available);
 
-  return data.available ? true : 'このユーザー名は使用されています';
+  return data.available ? true : 'This username is already in use';
 }
 ```
 
 ---
 
-## 12. 実践的なフォームパターン集
+## 12. Practical Form Pattern Collection
 
-### 12.1 マルチステップフォーム（ウィザード形式）
+### 12.1 Multi-Step Form (Wizard Style)
 
 ```typescript
 // ===================================================================
 // components/MultiStepForm.tsx
-// ステップごとにバリデーションする大規模フォーム
+// Large form that validates per step
 // ===================================================================
 import { useState } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
-// 各ステップのスキーマを定義
+// Define schemas for each step
 const step1Schema = z.object({
-  name: z.string().min(1, '名前を入力してください'),
-  email: z.string().email('有効なメールアドレスを入力してください'),
-  phone: z.string().regex(/^0\d{1,4}-?\d{1,4}-?\d{3,4}$/, '有効な電話番号を入力してください'),
+  name: z.string().min(1, 'Please enter your name'),
+  email: z.string().email('Please enter a valid email address'),
+  phone: z.string().regex(/^0\d{1,4}-?\d{1,4}-?\d{3,4}$/, 'Please enter a valid phone number'),
 });
 
 const step2Schema = z.object({
-  postalCode: z.string().regex(/^\d{3}-?\d{4}$/, '有効な郵便番号を入力してください'),
-  prefecture: z.string().min(1, '都道府県を選択してください'),
-  city: z.string().min(1, '市区町村を入力してください'),
-  street: z.string().min(1, '番地を入力してください'),
+  postalCode: z.string().regex(/^\d{3}-?\d{4}$/, 'Please enter a valid postal code'),
+  prefecture: z.string().min(1, 'Please select a prefecture'),
+  city: z.string().min(1, 'Please enter a city'),
+  street: z.string().min(1, 'Please enter a street address'),
   building: z.string().optional(),
 });
 
 const step3Schema = z.object({
   paymentMethod: z.enum(['credit_card', 'bank_transfer', 'convenience']),
   agreeToTerms: z.literal(true, {
-    errorMap: () => ({ message: '利用規約に同意してください' }),
+    errorMap: () => ({ message: 'Please agree to the terms of service' }),
   }),
 });
 
-// 全体のスキーマ（最終送信時に使用）
+// Full schema (used for final submission)
 const fullSchema = step1Schema.merge(step2Schema).merge(step3Schema);
 
 type FullFormData = z.infer<typeof fullSchema>;
 
-// ステップ定義
+// Step definitions
 const steps = [
-  { title: 'お客様情報', schema: step1Schema },
-  { title: '配送先住所', schema: step2Schema },
-  { title: 'お支払い・確認', schema: step3Schema },
+  { title: 'Customer Information', schema: step1Schema },
+  { title: 'Shipping Address', schema: step2Schema },
+  { title: 'Payment & Confirmation', schema: step3Schema },
 ] as const;
 
 function MultiStepForm() {
@@ -4054,7 +4064,7 @@ function MultiStepForm() {
     },
   });
 
-  // 現在のステップのフィールドだけバリデーション
+  // Validate only the current step's fields
   const validateCurrentStep = async (): Promise<boolean> => {
     const currentSchema = steps[currentStep].schema;
     const currentFields = Object.keys(currentSchema.shape) as Array<keyof FullFormData>;
@@ -4076,13 +4086,13 @@ function MultiStepForm() {
   };
 
   const handleStepClick = async (stepIndex: number) => {
-    // 現在のステップより前のステップには自由に戻れる
+    // Can freely go back to earlier steps
     if (stepIndex < currentStep) {
       setCurrentStep(stepIndex);
       return;
     }
 
-    // 現在のステップを検証してから先に進む
+    // Validate current step before advancing
     if (stepIndex === currentStep + 1) {
       await handleNext();
     }
@@ -4090,14 +4100,14 @@ function MultiStepForm() {
 
   const onSubmit = async (data: FullFormData) => {
     console.log('Submitting:', data);
-    // API送信処理
+    // API submission logic
   };
 
   return (
     <FormProvider {...methods}>
       <div className="max-w-2xl mx-auto">
-        {/* ステップインジケーター */}
-        <nav aria-label="進捗" className="mb-8">
+        {/* Step indicator */}
+        <nav aria-label="Progress" className="mb-8">
           <ol className="flex justify-between">
             {steps.map((step, index) => (
               <li key={index} className="flex items-center">
@@ -4129,7 +4139,7 @@ function MultiStepForm() {
           </ol>
         </nav>
 
-        {/* ステップコンテンツ */}
+        {/* Step content */}
         <form onSubmit={methods.handleSubmit(onSubmit)}>
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-bold mb-4">
@@ -4141,7 +4151,7 @@ function MultiStepForm() {
             {currentStep === 2 && <Step3Fields />}
           </div>
 
-          {/* ナビゲーションボタン */}
+          {/* Navigation buttons */}
           <div className="flex justify-between mt-6">
             <button
               type="button"
@@ -4149,7 +4159,7 @@ function MultiStepForm() {
               disabled={currentStep === 0}
               className="px-6 py-2 border rounded disabled:opacity-50"
             >
-              戻る
+              Back
             </button>
 
             {currentStep < steps.length - 1 ? (
@@ -4158,7 +4168,7 @@ function MultiStepForm() {
                 onClick={handleNext}
                 className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
-                次へ
+                Next
               </button>
             ) : (
               <button
@@ -4166,7 +4176,7 @@ function MultiStepForm() {
                 disabled={methods.formState.isSubmitting}
                 className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
               >
-                {methods.formState.isSubmitting ? '送信中...' : '注文を確定する'}
+                {methods.formState.isSubmitting ? 'Submitting...' : 'Place Order'}
               </button>
             )}
           </div>
@@ -4177,12 +4187,12 @@ function MultiStepForm() {
 }
 ```
 
-### 12.2 インラインエディットパターン
+### 12.2 Inline Edit Pattern
 
 ```typescript
 // ===================================================================
 // components/InlineEdit.tsx
-// テーブル内でフィールドをクリックして編集するパターン
+// Pattern for clicking a field inside a table to edit it
 // ===================================================================
 import { useState, useRef, useEffect } from 'react';
 import { z } from 'zod';
@@ -4200,7 +4210,7 @@ function InlineEdit<T extends z.ZodType>({
   schema,
   onSave,
   displayComponent,
-  placeholder = 'クリックして編集',
+  placeholder = 'Click to edit',
 }: InlineEditProps<T>) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
@@ -4216,11 +4226,11 @@ function InlineEdit<T extends z.ZodType>({
   }, [isEditing]);
 
   const handleSave = async () => {
-    // Zodでバリデーション
+    // Validate with Zod
     const result = schema.safeParse(editValue);
 
     if (!result.success) {
-      setError(result.error.errors[0]?.message || 'バリデーションエラー');
+      setError(result.error.errors[0]?.message || 'Validation error');
       return;
     }
 
@@ -4231,7 +4241,7 @@ function InlineEdit<T extends z.ZodType>({
       await onSave(result.data);
       setIsEditing(false);
     } catch (err) {
-      setError('保存に失敗しました');
+      setError('Failed to save');
     } finally {
       setIsSaving(false);
     }
@@ -4256,7 +4266,7 @@ function InlineEdit<T extends z.ZodType>({
       <button
         onClick={() => setIsEditing(true)}
         className="group flex items-center gap-1 hover:bg-gray-50 px-2 py-1 rounded cursor-pointer"
-        aria-label={`${value || placeholder}を編集`}
+        aria-label={`Edit ${value || placeholder}`}
       >
         {displayComponent || (
           <span className={value ? 'text-gray-900' : 'text-gray-400'}>
@@ -4303,7 +4313,7 @@ function InlineEdit<T extends z.ZodType>({
         onClick={handleSave}
         disabled={isSaving}
         className="text-green-600 hover:text-green-800"
-        aria-label="保存"
+        aria-label="Save"
       >
         {isSaving ? '...' : '✓'}
       </button>
@@ -4311,7 +4321,7 @@ function InlineEdit<T extends z.ZodType>({
         onClick={handleCancel}
         disabled={isSaving}
         className="text-red-600 hover:text-red-800"
-        aria-label="キャンセル"
+        aria-label="Cancel"
       >
         x
       </button>
@@ -4319,7 +4329,7 @@ function InlineEdit<T extends z.ZodType>({
   );
 }
 
-// 使用例
+// Usage example
 function UserTable() {
   return (
     <table>
@@ -4328,7 +4338,7 @@ function UserTable() {
           <td>
             <InlineEdit
               value={user.name}
-              schema={z.string().min(1, '名前を入力してください').max(100)}
+              schema={z.string().min(1, 'Please enter a name').max(100)}
               onSave={async (newName) => {
                 await updateUser({ name: newName });
               }}
@@ -4337,7 +4347,7 @@ function UserTable() {
           <td>
             <InlineEdit
               value={user.email}
-              schema={z.string().email('有効なメールアドレスを入力してください')}
+              schema={z.string().email('Please enter a valid email address')}
               onSave={async (newEmail) => {
                 await updateUser({ email: newEmail });
               }}
@@ -4350,16 +4360,16 @@ function UserTable() {
 }
 ```
 
-### 12.3 条件付きフィールドの表示・非表示パターン
+### 12.3 Conditional Field Show/Hide Pattern
 
 ```typescript
 // ===================================================================
-// 条件に応じてフィールドが増減するフォーム
+// Form where fields increase or decrease based on conditions
 // ===================================================================
 const shippingSchema = z.discriminatedUnion('shippingType', [
   z.object({
     shippingType: z.literal('standard'),
-    // 標準配送は追加フィールドなし
+    // Standard shipping has no additional fields
   }),
   z.object({
     shippingType: z.literal('express'),
@@ -4368,9 +4378,9 @@ const shippingSchema = z.discriminatedUnion('shippingType', [
   }),
   z.object({
     shippingType: z.literal('pickup'),
-    pickupLocation: z.string().min(1, '受取場所を選択してください'),
-    pickupDate: z.coerce.date().min(new Date(), '過去の日付は指定できません'),
-    pickupTime: z.string().regex(/^\d{2}:\d{2}$/, '受取時刻を入力してください'),
+    pickupLocation: z.string().min(1, 'Please select a pickup location'),
+    pickupDate: z.coerce.date().min(new Date(), 'Past dates cannot be specified'),
+    pickupTime: z.string().regex(/^\d{2}:\d{2}$/, 'Please enter a pickup time'),
   }),
 ]);
 
@@ -4386,10 +4396,10 @@ function ShippingForm() {
 
   const shippingType = form.watch('shippingType');
 
-  // 配送方法が変更されたらフォームをリセット
+  // Reset form when shipping method changes
   useEffect(() => {
     form.clearErrors();
-    // 現在のshippingType以外のフィールドをクリア
+    // Clear fields for shipping types other than the current one
     if (shippingType === 'standard') {
       form.unregister(['expressOption', 'expressNote', 'pickupLocation', 'pickupDate', 'pickupTime']);
     } else if (shippingType === 'express') {
@@ -4402,32 +4412,32 @@ function ShippingForm() {
   return (
     <form onSubmit={form.handleSubmit(onSubmit)}>
       <fieldset>
-        <legend>配送方法</legend>
+        <legend>Shipping Method</legend>
         <label>
           <input type="radio" {...form.register('shippingType')} value="standard" />
-          標準配送（3-5営業日）
+          Standard Shipping (3-5 business days)
         </label>
         <label>
           <input type="radio" {...form.register('shippingType')} value="express" />
-          速達配送
+          Express Shipping
         </label>
         <label>
           <input type="radio" {...form.register('shippingType')} value="pickup" />
-          店舗受取
+          In-Store Pickup
         </label>
       </fieldset>
 
-      {/* 条件付きフィールド */}
+      {/* Conditional fields */}
       {shippingType === 'express' && (
         <div className="mt-4 p-4 bg-yellow-50 rounded">
-          <h3>速達オプション</h3>
+          <h3>Express Options</h3>
           <select {...form.register('expressOption')}>
-            <option value="next_day">翌日配送</option>
-            <option value="same_day">当日配送</option>
+            <option value="next_day">Next-Day Delivery</option>
+            <option value="same_day">Same-Day Delivery</option>
           </select>
           <textarea
             {...form.register('expressNote')}
-            placeholder="備考（任意）"
+            placeholder="Notes (optional)"
             maxLength={200}
           />
         </div>
@@ -4435,12 +4445,12 @@ function ShippingForm() {
 
       {shippingType === 'pickup' && (
         <div className="mt-4 p-4 bg-blue-50 rounded">
-          <h3>店舗受取情報</h3>
+          <h3>In-Store Pickup Information</h3>
           <select {...form.register('pickupLocation')}>
-            <option value="">受取場所を選択</option>
-            <option value="tokyo">東京店</option>
-            <option value="osaka">大阪店</option>
-            <option value="nagoya">名古屋店</option>
+            <option value="">Select Pickup Location</option>
+            <option value="tokyo">Tokyo Store</option>
+            <option value="osaka">Osaka Store</option>
+            <option value="nagoya">Nagoya Store</option>
           </select>
           {form.formState.errors.pickupLocation && (
             <span className="text-red-500">
@@ -4452,7 +4462,7 @@ function ShippingForm() {
         </div>
       )}
 
-      <button type="submit">確定</button>
+      <button type="submit">Confirm</button>
     </form>
   );
 }
@@ -4460,75 +4470,75 @@ function ShippingForm() {
 
 ---
 
-## まとめ
+## Summary
 
-### バリデーションパターンの全体像
+### Overview of Validation Patterns
 
-| パターン | 用途 | 推奨度 |
+| Pattern | Use Case | Recommendation |
 |---------|------|-------|
-| Zod + React Hook Form | 型安全なフォームバリデーション | 最も推奨 |
-| 共有スキーマによる二重検証 | クライアント + サーバーで同じスキーマ | 必須 |
-| Discriminated Union | 条件付きフィールドのバリデーション | 状況に応じて |
-| 非同期バリデーション + デバウンス | メール重複チェック等 | 推奨 |
-| mode: 'onSubmit' + reValidateMode: 'onChange' | 最適なUXバランス | 最も推奨 |
-| useFieldArray | 動的なフィールド配列の管理 | 状況に応じて |
-| FormProvider + useFormContext | 大規模フォームのコンポーネント分割 | 推奨 |
-| パスワード強度インジケーター | パスワードの品質フィードバック | 推奨 |
-| エラーサマリー | Submit後のエラー一覧表示 | 推奨 |
-| マルチステップフォーム | 大量フィールドの段階的入力 | 状況に応じて |
-| インラインエディット | テーブル内の直接編集 | 状況に応じて |
-| 条件付きフィールド表示 | Discriminated Unionによる動的UI | 状況に応じて |
-| 国際化対応エラーメッセージ | 多言語サポート | 状況に応じて |
+| Zod + React Hook Form | Type-safe form validation | Most Recommended |
+| Double validation with shared schemas | Same schema on client + server | Required |
+| Discriminated Union | Validation for conditional fields | Situational |
+| Async validation + debounce | Email duplicate check, etc. | Recommended |
+| mode: 'onSubmit' + reValidateMode: 'onChange' | Optimal UX balance | Most Recommended |
+| useFieldArray | Managing dynamic field arrays | Situational |
+| FormProvider + useFormContext | Splitting large forms into components | Recommended |
+| Password strength indicator | Quality feedback for passwords | Recommended |
+| Error summary | Error list display after Submit | Recommended |
+| Multi-step form | Gradual input of large numbers of fields | Situational |
+| Inline edit | Direct editing inside tables | Situational |
+| Conditional field display | Dynamic UI with Discriminated Union | Situational |
+| Internationalized error messages | Multi-language support | Situational |
 
-### 設計指針
+### Design Principles
 
-1. **スキーマファースト**: 先にZodスキーマを定義し、そこから型とバリデーションルールを導出する
-2. **シングルソースオブトゥルース**: バリデーションルールは一か所で定義し、クライアント・サーバーで共有する
-3. **段階的なフィードバック**: 初回は控えめに、エラー発生後は積極的にフィードバックする
-4. **アクセシビリティファースト**: WAI-ARIA属性を正しく使い、キーボード操作とスクリーンリーダーに対応する
-5. **防御的プログラミング**: クライアントバリデーションはUXのため、サーバーバリデーションはセキュリティのため
-6. **テスト駆動**: スキーマの境界値テスト、フォームの統合テスト、E2Eテストを段階的に整備する
+1. **Schema-first**: Define the Zod schema first, then derive types and validation rules from it
+2. **Single source of truth**: Define validation rules in one place and share between client and server
+3. **Progressive feedback**: Start conservatively on first input, provide aggressive feedback after errors
+4. **Accessibility-first**: Use WAI-ARIA attributes correctly and support keyboard operation and screen readers
+5. **Defensive programming**: Client-side validation is for UX, server-side validation is for security
+6. **Test-driven**: Progressively build schema boundary value tests, form integration tests, and E2E tests
 
 ---
 
-## よくある質問（FAQ）
+## Frequently Asked Questions (FAQ)
 
-### Q1. クライアント側とサーバー側のバリデーション、どう使い分けるべきですか？
+### Q1. How should I distinguish between client-side and server-side validation?
 
-**A:** **両方必須** というのが大原則である。それぞれの役割は以下の通り:
+**A:** The fundamental rule is that **both are required**. Each has the following role:
 
-**クライアント側バリデーション（JavaScript/Zod）:**
+**Client-Side Validation (JavaScript/Zod):**
 
-- **役割**: UX向上のため
-- **目的**: ユーザーに即座にフィードバックを提供し、無駄なサーバーリクエストを防ぐ
-- **信頼性**: **信頼してはならない**（ブラウザの開発者ツールで簡単にバイパス可能）
+- **Role**: For UX improvement
+- **Purpose**: Provide immediate feedback to users and prevent unnecessary server requests
+- **Reliability**: **Must not be trusted** (can easily be bypassed with browser developer tools)
 
-実装例:
+Implementation example:
 
 ```typescript
-// クライアント側（React Hook Form + Zod）
+// Client side (React Hook Form + Zod)
 const schema = z.object({
-  email: z.string().email('有効なメールアドレスを入力してください'),
-  age: z.number().min(18, '18歳以上である必要があります'),
+  email: z.string().email('Please enter a valid email address'),
+  age: z.number().min(18, 'You must be at least 18 years old'),
 });
 
 const form = useForm({ resolver: zodResolver(schema) });
 ```
 
-**サーバー側バリデーション（API/バックエンド）:**
+**Server-Side Validation (API/Backend):**
 
-- **役割**: セキュリティとデータ整合性の保証
-- **目的**: 悪意のあるリクエストや不正なデータからシステムを守る
-- **信頼性**: **唯一信頼できるバリデーション**
+- **Role**: Guarantee security and data integrity
+- **Purpose**: Protect the system from malicious requests and invalid data
+- **Reliability**: **The only trustworthy validation**
 
-実装例:
+Implementation example:
 
 ```typescript
-// サーバー側（Next.js Server Action）
+// Server side (Next.js Server Action)
 'use server';
 
 export async function createUser(formData: FormData) {
-  // サーバー側で必ず再バリデーション
+  // Always re-validate on the server side
   const result = schema.safeParse({
     email: formData.get('email'),
     age: Number(formData.get('age')),
@@ -4538,59 +4548,59 @@ export async function createUser(formData: FormData) {
     return { errors: result.error.flatten() };
   }
 
-  // データベースに保存前に追加のビジネスルール検証
+  // Additional business rule validation before saving to database
   const emailExists = await db.user.findUnique({ where: { email: result.data.email } });
   if (emailExists) {
-    return { errors: { email: 'このメールアドレスは既に使用されています' } };
+    return { errors: { email: 'This email address is already in use' } };
   }
 
-  // 保存処理
+  // Save operation
   await db.user.create({ data: result.data });
 }
 ```
 
-**ベストプラクティス:**
+**Best Practices:**
 
-1. **スキーマを共有**: クライアントとサーバーで同じZodスキーマを使う（モノレポやパッケージ共有）
-2. **段階的なバリデーション**:
-   - クライアント: フォーマット検証（メール形式、必須フィールド等）
-   - サーバー: フォーマット再検証 + ビジネスルール（重複チェック、権限チェック等）
-3. **エラーメッセージの統一**: クライアントとサーバーで同じメッセージを返す
+1. **Share schemas**: Use the same Zod schema on client and server (via monorepo or package sharing)
+2. **Layered validation**:
+   - Client: Format validation (email format, required fields, etc.)
+   - Server: Format re-validation + business rules (duplicate check, auth check, etc.)
+3. **Consistent error messages**: Return the same messages from client and server
 
-### Q2. Zod と yup、どちらを選ぶべきですか？
+### Q2. Should I choose Zod or yup?
 
-**A:** 現在のプロジェクトでは **Zod を強く推奨** する:
+**A:** For current projects, **Zod is strongly recommended**:
 
-| 項目 | Zod | yup |
+| Item | Zod | yup |
 |------|-----|-----|
-| TypeScript対応 | TypeScript-first、型推論が完璧 | JavaScriptベース、型定義は後付け |
-| バンドルサイズ | 8KB（gzip） | 13KB（gzip） |
-| パフォーマンス | 高速 | やや遅い |
-| エラーメッセージ | カスタマイズ容易 | カスタマイズやや複雑 |
-| エコシステム | Next.js、tRPC、Prismaなど最新ツールと統合 | Formikとの統合が強い |
-| メンテナンス | 活発 | 活発だが成長鈍化 |
+| TypeScript support | TypeScript-first, perfect type inference | JavaScript-based, type definitions added later |
+| Bundle size | 8KB (gzip) | 13KB (gzip) |
+| Performance | Fast | Slightly slower |
+| Error messages | Easy to customize | Somewhat complex to customize |
+| Ecosystem | Integrates with latest tools like Next.js, tRPC, Prisma | Strong integration with Formik |
+| Maintenance | Active | Active but growth slowing |
 
-**Zodが優れている点:**
+**Where Zod excels:**
 
 ```typescript
-// 型推論が完璧
+// Perfect type inference
 const userSchema = z.object({
   name: z.string(),
   age: z.number(),
 });
 
 type User = z.infer<typeof userSchema>;
-// → { name: string; age: number } が自動推論される
+// → { name: string; age: number } is automatically inferred
 ```
 
-**yupが優れている点:**
+**Where yup excels:**
 
-- Formikとの統合が歴史的に強い（Formik公式ドキュメントでyupを推奨）
-- 学習リソースが豊富（歴史が長い）
+- Historically strong integration with Formik (Formik official docs recommend yup)
+- Abundant learning resources (longer history)
 
-**移行は簡単か？**
+**Is migration easy?**
 
-Zod と yup は API が似ているため、移行は比較的容易:
+Since Zod and yup have similar APIs, migration is relatively straightforward:
 
 ```typescript
 // yup
@@ -4604,25 +4614,25 @@ const schema = z.object({
 });
 ```
 
-### Q3. 非同期バリデーション（重複チェック等）はどう実装すべきですか？
+### Q3. How should I implement asynchronous validation (such as duplicate checks)?
 
-**A:** 非同期バリデーションは **API呼び出しが必要な検証**（メールアドレス重複チェック、ユーザー名使用可否チェック等）で使用する。
+**A:** Asynchronous validation is used for **checks that require API calls** (email address duplicate check, username availability check, etc.).
 
-**パターン1: Zod の `.refine()` で非同期チェック**
+**Pattern 1: Asynchronous check with Zod `.refine()`**
 
 ```typescript
 const emailSchema = z.string().email().refine(
   async (email) => {
-    // APIで重複チェック
+    // Duplicate check via API
     const response = await fetch(`/api/check-email?email=${email}`);
     const { available } = await response.json();
     return available;
   },
-  { message: 'このメールアドレスは既に使用されています' }
+  { message: 'This email address is already in use' }
 );
 ```
 
-**パターン2: React Hook Form の `validate` オプション**
+**Pattern 2: React Hook Form `validate` option**
 
 ```typescript
 const form = useForm();
@@ -4632,13 +4642,13 @@ const form = useForm();
     validate: async (value) => {
       const response = await fetch(`/api/check-email?email=${value}`);
       const { available } = await response.json();
-      return available || 'このメールアドレスは既に使用されています';
+      return available || 'This email address is already in use';
     }
   })}
 />
 ```
 
-**パターン3: カスタムフックで防御的に実装（推奨）**
+**Pattern 3: Defensive implementation with a custom hook (recommended)**
 
 ```typescript
 function useEmailValidation() {
@@ -4647,7 +4657,7 @@ function useEmailValidation() {
   const timeoutRef = useRef<NodeJS.Timeout>();
 
   const validateEmail = useCallback(async (email: string) => {
-    // デバウンス: 連続入力中はAPIを叩かない
+    // Debounce: don't call API during continuous input
     clearTimeout(timeoutRef.current);
 
     return new Promise<boolean>((resolve) => {
@@ -4658,26 +4668,26 @@ function useEmailValidation() {
           const { available } = await response.json();
 
           if (!available) {
-            setError('このメールアドレスは既に使用されています');
+            setError('This email address is already in use');
             resolve(false);
           } else {
             setError(null);
             resolve(true);
           }
         } catch (err) {
-          setError('確認中にエラーが発生しました');
+          setError('An error occurred while checking');
           resolve(false);
         } finally {
           setIsChecking(false);
         }
-      }, 500); // 500msデバウンス
+      }, 500); // 500ms debounce
     });
   }, []);
 
   return { validateEmail, isChecking, error };
 }
 
-// 使用例
+// Usage example
 function EmailField() {
   const form = useForm();
   const { validateEmail, isChecking, error } = useEmailValidation();
@@ -4689,34 +4699,34 @@ function EmailField() {
           validate: validateEmail,
         })}
       />
-      {isChecking && <span>確認中...</span>}
+      {isChecking && <span>Checking...</span>}
       {error && <span>{error}</span>}
     </div>
   );
 }
 ```
 
-**ベストプラクティス:**
+**Best Practices:**
 
-1. **デバウンスを必ず実装**: 連続入力中は不要なAPIリクエストを避ける（500ms推奨）
-2. **ローディング状態を表示**: `isChecking` フラグでユーザーに処理中であることを伝える
-3. **エラーハンドリング**: ネットワークエラーやタイムアウトに対処
-4. **キャッシュを活用**: 同じ入力値を何度もチェックしない（React QueryやSWRの活用）
-5. **サーバー側で最終検証**: クライアント側の非同期チェックはUXのため、サーバー側で必ず再検証
+1. **Always implement debounce**: Avoid unnecessary API requests during continuous input (500ms recommended)
+2. **Show loading state**: Use an `isChecking` flag to inform users that processing is in progress
+3. **Error handling**: Handle network errors and timeouts
+4. **Use caching**: Don't check the same input value multiple times (consider React Query or SWR)
+5. **Final validation on the server**: Client-side async checks are for UX; always re-validate on the server
 
-**注意点:**
+**Notes:**
 
-- onBlur（フォーカスアウト時）にトリガーするか、onChange（入力中）にトリガーするかを慎重に選ぶ
-- onChangeで実装する場合、デバウンスは必須（でないとAPIが大量に叩かれる）
-- フォーム送信時にサーバー側で再度検証することを忘れずに
-
----
-
-## 次に読むべきガイド
+- Carefully choose whether to trigger on onBlur (focus out) or onChange (while typing)
+- If implementing with onChange, debounce is mandatory (otherwise the API will be called excessively)
+- Don't forget to re-validate on the server side at form submission
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+---
+
+## References
 1. React Hook Form. "Resolvers." react-hook-form.com, 2024.
 2. Zod. "Documentation." zod.dev, 2024.
 3. WAI-ARIA. "Forms Pattern." w3.org/WAI/ARIA/apg/patterns/forms, 2024.
