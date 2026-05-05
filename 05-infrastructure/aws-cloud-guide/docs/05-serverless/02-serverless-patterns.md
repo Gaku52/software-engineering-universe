@@ -1,50 +1,50 @@
-# サーバーレスパターン
+# Serverless Patterns
 
-> API+Lambda+DynamoDB、イベント駆動、ファンアウト、CQRS などの代表的なサーバーレスアーキテクチャパターンを理解し、実践的な設計判断ができるようになる。
-
----
-
-## この章で学ぶこと
-
-1. **API バックエンドパターン** -- API Gateway + Lambda + DynamoDB の組み合わせで RESTful/GraphQL API を構築する手法
-2. **イベント駆動パターン** -- SNS/SQS/EventBridge を活用した疎結合アーキテクチャの設計方法
-3. **高度なパターン** -- ファンアウト、CQRS、Saga パターンなどの複雑なユースケースへの対応
-4. **ストリーム処理パターン** -- Kinesis Data Streams + Lambda によるリアルタイムデータ処理
-5. **スケジュール駆動パターン** -- EventBridge Scheduler + Lambda による定期実行ジョブの設計
-6. **Web アプリケーションパターン** -- CloudFront + S3 + API Gateway + Lambda によるフルスタックサーバーレス
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AWS Lambda 応用](./01-lambda-advanced.md) の内容を理解していること
+> Understand representative serverless architecture patterns such as API+Lambda+DynamoDB, event-driven, fan-out, and CQRS, and be able to make practical design decisions.
 
 ---
 
-## 1. API バックエンドパターン
+## What You Will Learn
 
-### 1.1 基本構成
+1. **API Backend Pattern** -- How to build RESTful/GraphQL APIs using API Gateway + Lambda + DynamoDB
+2. **Event-Driven Pattern** -- How to design loosely coupled architectures using SNS/SQS/EventBridge
+3. **Advanced Patterns** -- Handling complex use cases such as fan-out, CQRS, and Saga patterns
+4. **Stream Processing Pattern** -- Real-time data processing with Kinesis Data Streams + Lambda
+5. **Schedule-Driven Pattern** -- Designing periodic execution jobs with EventBridge Scheduler + Lambda
+6. **Web Application Pattern** -- Full-stack serverless with CloudFront + S3 + API Gateway + Lambda
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [AWS Lambda Advanced](./01-lambda-advanced.md)
+
+---
+
+## 1. API Backend Pattern
+
+### 1.1 Basic Configuration
 
 ```
-クライアント
+Client
     |
     v
 +-------------------+
-| Amazon CloudFront |  (CDN, キャッシュ)
+| Amazon CloudFront |  (CDN, caching)
 +-------------------+
     |
     v
 +-------------------+
-| API Gateway       |  (認証, スロットリング, リクエスト検証)
+| API Gateway       |  (auth, throttling, request validation)
 | (REST / HTTP API) |
 +-------------------+
     |
     v
 +-------------------+
-| Lambda 関数群     |
+| Lambda Functions  |
 | +---------+       |
 | | GET     |       |
 | | POST    |       |
@@ -55,14 +55,14 @@
     |
     v
 +-------------------+
-| DynamoDB          |  (NoSQL データストア)
+| DynamoDB          |  (NoSQL data store)
 +-------------------+
 ```
 
-### 1.2 REST API + Lambda + DynamoDB の実装
+### 1.2 REST API + Lambda + DynamoDB Implementation
 
 ```python
-# handler.py -- CRUD API のエントリポイント
+# handler.py -- Entry point for CRUD API
 import json
 import boto3
 import os
@@ -72,7 +72,7 @@ dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(os.environ["TABLE_NAME"])
 
 class DecimalEncoder(json.JSONEncoder):
-    """DynamoDB の Decimal 型を JSON シリアライズするヘルパー"""
+    """Helper to JSON-serialize DynamoDB Decimal types"""
     def default(self, obj):
         if isinstance(obj, Decimal):
             return float(obj)
@@ -136,43 +136,43 @@ def response(status_code, body):
     }
 ```
 
-### 1.3 API Gateway の種類比較
+### 1.3 API Gateway Type Comparison
 
-| 特性 | REST API | HTTP API | WebSocket API |
+| Feature | REST API | HTTP API | WebSocket API |
 |------|----------|----------|--------------|
-| 料金 (100万リクエスト) | $3.50 | $1.00 | $1.00 + 接続料金 |
-| レイテンシ | 高め | 低い | 低い |
-| キャッシュ | あり | なし | N/A |
-| リクエスト検証 | あり | なし | 部分的 |
-| WAF 統合 | あり | なし | なし |
-| リソースポリシー | あり | なし | なし |
-| カスタムドメイン | あり | あり | あり |
-| JWT オーソライザー | Lambda 経由 | ネイティブ対応 | Lambda 経由 |
-| 使用量プラン | あり | なし | なし |
-| API キー | あり | なし | なし |
-| プライベート API | あり | なし | なし |
-| 用途 | フル機能 API | 軽量 API, プロキシ | リアルタイム通信 |
+| Price (per 1M requests) | $3.50 | $1.00 | $1.00 + connection fee |
+| Latency | Higher | Lower | Lower |
+| Caching | Yes | No | N/A |
+| Request validation | Yes | No | Partial |
+| WAF integration | Yes | No | No |
+| Resource policy | Yes | No | No |
+| Custom domain | Yes | Yes | Yes |
+| JWT authorizer | Via Lambda | Native support | Via Lambda |
+| Usage plans | Yes | No | No |
+| API keys | Yes | No | No |
+| Private API | Yes | No | No |
+| Use case | Full-featured API | Lightweight API, proxy | Real-time communication |
 
-### 1.4 REST API vs HTTP API の選択基準
+### 1.4 REST API vs HTTP API Selection Criteria
 
 ```
-REST API を選ぶケース:
-  - API キーと使用量プランでのレート制限が必要
-  - リクエスト/レスポンスの変換が必要
-  - WAF との統合が必要
-  - API キャッシュでレイテンシ削減が必要
-  - VPC 内からのプライベート API が必要
-  - Canary リリースデプロイメントが必要
+When to choose REST API:
+  - Rate limiting with API keys and usage plans is required
+  - Request/response transformation is needed
+  - WAF integration is required
+  - API caching is needed to reduce latency
+  - Private API from within a VPC is required
+  - Canary release deployment is needed
 
-HTTP API を選ぶケース:
-  - コスト最適化が最優先 (REST API の約30%の料金)
-  - JWT ネイティブ認証を使いたい
-  - シンプルなプロキシ統合のみ
-  - OIDC/OAuth 2.0 認可が必要
-  - 低レイテンシが求められる
+When to choose HTTP API:
+  - Cost optimization is the top priority (approx. 30% of REST API cost)
+  - Native JWT authentication is desired
+  - Only simple proxy integration is needed
+  - OIDC/OAuth 2.0 authorization is required
+  - Low latency is required
 ```
 
-### 1.5 SAM テンプレートでの定義
+### 1.5 Definition with SAM Template
 
 ```yaml
 # template.yaml (AWS SAM)
@@ -193,7 +193,7 @@ Globals:
       - !Ref SharedLayer
 
 Resources:
-  # Lambda レイヤー（共通ライブラリ）
+  # Lambda Layer (shared libraries)
   SharedLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -202,7 +202,7 @@ Resources:
       CompatibleRuntimes:
         - python3.12
 
-  # API 関数
+  # API function
   ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -255,10 +255,10 @@ Resources:
         SSEEnabled: true
 ```
 
-### 1.6 Powertools for AWS Lambda による構造化ログとメトリクス
+### 1.6 Structured Logging and Metrics with Powertools for AWS Lambda
 
 ```python
-# handler_with_powertools.py -- Lambda Powertools を活用した実装
+# handler_with_powertools.py -- Implementation using Lambda Powertools
 from aws_lambda_powertools import Logger, Tracer, Metrics
 from aws_lambda_powertools.event_handler import APIGatewayRestResolver
 from aws_lambda_powertools.logging import correlation_paths
@@ -334,7 +334,7 @@ def lambda_handler(event: dict, context: LambdaContext) -> dict:
 ### 1.7 GraphQL API (AppSync + Lambda)
 
 ```yaml
-# AppSync GraphQL API の SAM テンプレート
+# SAM template for AppSync GraphQL API
 Resources:
   GraphQLApi:
     Type: AWS::AppSync::GraphQLApi
@@ -412,36 +412,36 @@ Resources:
 
 ---
 
-## 2. イベント駆動パターン
+## 2. Event-Driven Pattern
 
-### 2.1 イベント駆動の全体像
+### 2.1 Overview of Event-Driven Architecture
 
 ```
-イベント駆動アーキテクチャ:
+Event-Driven Architecture:
 
-プロデューサー        イベントルーター        コンシューマー
+Producer           Event Router           Consumer
 +-----------+        +---------------+      +------------+
-| 注文API    | -----> |               | ---> | 在庫更新    |
+| Order API  | -----> |               | ---> | Inventory  |
 +-----------+        |               |      +------------+
                      |  EventBridge  |
 +-----------+        |  / SNS       | ---> +------------+
-| 決済完了   | -----> |               |      | メール送信  |
+| Payment   | -----> |               |      | Send Email |
 +-----------+        |               |      +------------+
                      |               |
 +-----------+        |               | ---> +------------+
-| 在庫変動   | -----> |               |      | 分析記録    |
+| Inventory | -----> |               |      | Analytics  |
 +-----------+        +---------------+      +------------+
 
-特徴:
-  - 疎結合: プロデューサーはコンシューマーを知らない
-  - 拡張容易: 新しいコンシューマーを追加するだけ
-  - 非同期: 即座にレスポンスを返せる
+Characteristics:
+  - Loose coupling: producers don't know about consumers
+  - Easy to extend: just add new consumers
+  - Asynchronous: can return responses immediately
 ```
 
-### 2.2 S3 イベント駆動の画像処理
+### 2.2 S3 Event-Driven Image Processing
 
 ```python
-# image_processor.py -- S3 トリガーによる画像リサイズ
+# image_processor.py -- Image resizing triggered by S3
 import boto3
 import os
 from PIL import Image
@@ -456,11 +456,11 @@ def lambda_handler(event, context):
         bucket = record["s3"]["bucket"]["name"]
         key = record["s3"]["object"]["key"]
 
-        # 元画像のダウンロード
+        # Download the original image
         response = s3.get_object(Bucket=bucket, Key=key)
         image = Image.open(io.BytesIO(response["Body"].read()))
 
-        # 各サイズにリサイズしてアップロード
+        # Resize to each size and upload
         for width, height in SIZES:
             resized = image.copy()
             resized.thumbnail((width, height))
@@ -480,7 +480,7 @@ def lambda_handler(event, context):
     return {"processed": len(event["Records"])}
 ```
 
-### 2.3 EventBridge によるイベントルーティング
+### 2.3 Event Routing with EventBridge
 
 ```json
 {
@@ -498,7 +498,7 @@ def lambda_handler(event, context):
 ```
 
 ```bash
-# EventBridge ルールの作成
+# Create an EventBridge rule
 aws events put-rule \
   --name "high-value-orders" \
   --event-pattern '{
@@ -509,7 +509,7 @@ aws events put-rule \
     }
   }'
 
-# ターゲットの設定（Lambda 関数）
+# Set targets (Lambda functions)
 aws events put-targets \
   --rule "high-value-orders" \
   --targets '[
@@ -524,21 +524,21 @@ aws events put-targets \
   ]'
 ```
 
-### 2.4 EventBridge Pipes による変換パイプライン
+### 2.4 Transformation Pipeline with EventBridge Pipes
 
 ```
-EventBridge Pipes の構成:
+EventBridge Pipes configuration:
 
-ソース         フィルタリング      エンリッチメント       ターゲット
+Source         Filtering          Enrichment            Target
 +--------+     +----------+       +------------+        +---------+
-| SQS    | --> | イベント  | --->  | Lambda     | -----> | Step    |
-| DynamoDB|    | パターン  |       | (データ変換) |        | Functions|
-| Kinesis |    | マッチング |       | API GW     |        | Lambda  |
+| SQS    | --> | Event    | --->  | Lambda     | -----> | Step    |
+| DynamoDB|    | Pattern  |       | (transform)|        | Functions|
+| Kinesis |    | Matching |       | API GW     |        | Lambda  |
 +--------+     +----------+       +------------+        +---------+
 ```
 
 ```yaml
-# EventBridge Pipes の SAM テンプレート
+# SAM template for EventBridge Pipes
 Resources:
   OrderProcessingPipe:
     Type: AWS::Pipes::Pipe
@@ -560,10 +560,10 @@ Resources:
           InvocationType: FIRE_AND_FORGET
 ```
 
-### 2.5 DynamoDB Streams によるデータ変更キャプチャ
+### 2.5 Change Data Capture with DynamoDB Streams
 
 ```python
-# dynamodb_stream_handler.py -- DynamoDB Streams CDC パターン
+# dynamodb_stream_handler.py -- DynamoDB Streams CDC pattern
 import json
 import boto3
 import os
@@ -573,7 +573,7 @@ sqs = boto3.client("sqs")
 AUDIT_QUEUE_URL = os.environ["AUDIT_QUEUE_URL"]
 
 def lambda_handler(event, context):
-    """DynamoDB Streams からのイベントを処理し、監査キューに送信"""
+    """Process events from DynamoDB Streams and send to audit queue"""
     for record in event["Records"]:
         event_name = record["eventName"]  # INSERT, MODIFY, REMOVE
         event_id = record["eventID"]
@@ -596,7 +596,7 @@ def lambda_handler(event, context):
             audit_event["oldImage"] = old_image
 
         if event_name == "MODIFY":
-            # 変更フィールドの検出
+            # Detect changed fields
             changes = detect_changes(
                 deserialize(record["dynamodb"]["OldImage"]),
                 deserialize(record["dynamodb"]["NewImage"])
@@ -612,13 +612,13 @@ def lambda_handler(event, context):
     return {"batchItemFailures": []}
 
 def deserialize(image):
-    """DynamoDB の型付き形式を通常の dict に変換"""
+    """Convert DynamoDB typed format to a normal dict"""
     from boto3.dynamodb.types import TypeDeserializer
     deserializer = TypeDeserializer()
     return {k: deserializer.deserialize(v) for k, v in image.items()}
 
 def detect_changes(old_image, new_image):
-    """新旧イメージの差分を検出"""
+    """Detect differences between old and new images"""
     changes = []
     all_keys = set(list(old_image.keys()) + list(new_image.keys()))
     for key in all_keys:
@@ -635,31 +635,31 @@ def detect_changes(old_image, new_image):
 
 ---
 
-## 3. ファンアウトパターン
+## 3. Fan-Out Pattern
 
-### 3.1 SNS + SQS ファンアウト
+### 3.1 SNS + SQS Fan-Out
 
 ```
                           +-------+     +-------+     +---------+
-                     +--> | SQS 1 | --> | Lambda| --> | 在庫更新 |
+                     +--> | SQS 1 | --> | Lambda| --> | Inventory|
                      |    +-------+     +-------+     +---------+
                      |
 +-----------+   +----+    +-------+     +-------+     +---------+
-| 注文イベント| --> | SNS | --> | SQS 2 | --> | Lambda| --> | 請求処理 |
-+-----------+   +----+    +-------+     +-------+     +---------+
-                     |
+| Order     | --> | SNS | --> | SQS 2 | --> | Lambda| --> | Billing  |
+| Event     |   +----+    +-------+     +-------+     +---------+
++-----------+        |
                      |    +-------+     +-------+     +---------+
-                     +--> | SQS 3 | --> | Lambda| --> | 通知送信 |
+                     +--> | SQS 3 | --> | Lambda| --> | Notify   |
                           +-------+     +-------+     +---------+
 
-メリット:
-  - 各SQSキューが独立したバッファとして機能
-  - 1つのコンシューマーが遅延しても他に影響しない
-  - SQSのリトライ/DLQ機能で耐障害性向上
+Benefits:
+  - Each SQS queue acts as an independent buffer
+  - If one consumer is slow, it does not affect others
+  - SQS retry/DLQ features improve fault tolerance
 ```
 
 ```python
-# order_publisher.py -- SNS へのイベント発行
+# order_publisher.py -- Publishing events to SNS
 import boto3
 import json
 import os
@@ -670,7 +670,7 @@ TOPIC_ARN = os.environ["ORDER_TOPIC_ARN"]
 def lambda_handler(event, context):
     order = json.loads(event["body"])
 
-    # SNS トピックにパブリッシュ
+    # Publish to SNS topic
     sns.publish(
         TopicArn=TOPIC_ARN,
         Message=json.dumps(order),
@@ -692,10 +692,10 @@ def lambda_handler(event, context):
     }
 ```
 
-### 3.2 SQS バッチ処理
+### 3.2 SQS Batch Processing
 
 ```python
-# batch_processor.py -- SQS バッチ処理 with 部分失敗報告
+# batch_processor.py -- SQS batch processing with partial failure reporting
 import json
 
 def lambda_handler(event, context):
@@ -704,7 +704,7 @@ def lambda_handler(event, context):
     for record in event["Records"]:
         try:
             body = json.loads(record["body"])
-            # SNS でラップされている場合
+            # When wrapped by SNS
             if "Message" in body:
                 message = json.loads(body["Message"])
             else:
@@ -720,11 +720,11 @@ def lambda_handler(event, context):
     return {"batchItemFailures": batch_item_failures}
 
 def process_order(order):
-    # 注文処理ロジック
+    # Order processing logic
     print(f"Processing order: {order['id']}")
 ```
 
-### 3.3 SNS フィルタリングポリシー
+### 3.3 SNS Filtering Policy
 
 ```json
 {
@@ -735,14 +735,14 @@ def process_order(order):
 ```
 
 ```yaml
-# SAM テンプレートでの SNS + SQS ファンアウト定義
+# SNS + SQS fan-out definition in SAM template
 Resources:
   OrderTopic:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: order-events
 
-  # 在庫更新キュー - 全注文を受信
+  # Inventory update queue - receives all orders
   InventoryQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -756,7 +756,7 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: inventory-updates-dlq
-      MessageRetentionPeriod: 1209600  # 14日
+      MessageRetentionPeriod: 1209600  # 14 days
 
   InventorySubscription:
     Type: AWS::SNS::Subscription
@@ -766,7 +766,7 @@ Resources:
       Endpoint: !GetAtt InventoryQueue.Arn
       RawMessageDelivery: true
 
-  # VIP 通知キュー - 高額注文のみ受信
+  # VIP notification queue - receives only high-value orders
   VipNotificationQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -789,7 +789,7 @@ Resources:
               - ">="
               - 10000
 
-  # SQS ポリシー（SNS からの送信許可）
+  # SQS policy (allow sending from SNS)
   InventoryQueuePolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:
@@ -809,14 +809,14 @@ Resources:
 
 ---
 
-## 4. CQRS パターン
+## 4. CQRS Pattern
 
 ### 4.1 CQRS (Command Query Responsibility Segregation)
 
 ```
-CQRS アーキテクチャ:
+CQRS Architecture:
 
-書込み側 (Command)                    読取り側 (Query)
+Write side (Command)                  Read side (Query)
 +------------+                        +------------+
 | API GW     |                        | API GW     |
 | POST/PUT   |                        | GET        |
@@ -831,26 +831,26 @@ CQRS アーキテクチャ:
      v                                     v
 +------------+    DynamoDB Streams    +------------------+
 | DynamoDB   | ---------------------> | DynamoDB (GSI)   |
-| (書込み最適化)|    +------------+    | / ElastiCache    |
+| (write-opt)|    +------------+    | / ElastiCache    |
 +------------+    | Lambda     |    | / OpenSearch     |
-                  | (同期処理)  |    | (読取り最適化)    |
+                  | (sync)     |    | (read-optimized) |
                   +------------+    +------------------+
                        |
                        v
                   +------------------+
-                  | 読取りモデル更新   |
+                  | Update read model|
                   +------------------+
 
-メリット:
-  - 読み書きを独立してスケーリング
-  - 読取りモデルをユースケースに最適化
-  - 複雑なクエリを効率化
+Benefits:
+  - Scale reads and writes independently
+  - Optimize the read model per use case
+  - Improve efficiency of complex queries
 ```
 
-### 4.2 DynamoDB Streams による同期
+### 4.2 Synchronization via DynamoDB Streams
 
 ```python
-# stream_processor.py -- DynamoDB Streams から読取りモデルを更新
+# stream_processor.py -- Update read model from DynamoDB Streams
 import boto3
 import os
 import json
@@ -871,13 +871,13 @@ def lambda_handler(event, context):
             remove_from_opensearch(item["id"])
 
 def deserialize_dynamodb(image):
-    """DynamoDB の型付き形式を通常の dict に変換"""
+    """Convert DynamoDB typed format to a normal dict"""
     from boto3.dynamodb.types import TypeDeserializer
     deserializer = TypeDeserializer()
     return {k: deserializer.deserialize(v) for k, v in image.items()}
 
 def index_to_opensearch(item):
-    """OpenSearch にドキュメントをインデックス"""
+    """Index document to OpenSearch"""
     import requests
     from requests_aws4auth import AWS4Auth
 
@@ -892,10 +892,10 @@ def index_to_opensearch(item):
     requests.put(url, auth=auth, json=item)
 ```
 
-### 4.3 ElastiCache を使った読取りモデル
+### 4.3 Read Model with ElastiCache
 
 ```python
-# cache_updater.py -- DynamoDB Streams から ElastiCache (Redis) を更新
+# cache_updater.py -- Update ElastiCache (Redis) from DynamoDB Streams
 import boto3
 import json
 import os
@@ -916,21 +916,21 @@ def lambda_handler(event, context):
             new_image = deserialize(record["dynamodb"]["NewImage"])
             item_id = new_image["id"]
 
-            # 個別アイテムのキャッシュ更新
+            # Update cache for individual item
             redis_client.set(
                 f"item:{item_id}",
                 json.dumps(new_image),
-                ex=3600  # 1時間TTL
+                ex=3600  # 1 hour TTL
             )
 
-            # カテゴリ別ソート済みセットの更新
+            # Update category-based sorted set
             if "category" in new_image and "updatedAt" in new_image:
                 redis_client.zadd(
                     f"category:{new_image['category']}",
                     {item_id: float(new_image["updatedAt"])}
                 )
 
-            # 検索用の逆引きインデックス更新
+            # Update reverse index for search
             if "tags" in new_image:
                 for tag in new_image["tags"]:
                     redis_client.sadd(f"tag:{tag}", item_id)
@@ -958,37 +958,41 @@ def deserialize(image):
 
 ---
 
-## 5. Saga パターン
+## 5. Saga Pattern
 
-### 5.1 分散トランザクションの管理
+### 5.1 Managing Distributed Transactions
 
 ```
-Saga パターン (Step Functions):
+Saga Pattern (Step Functions):
 
 [Start]
    |
    v
-+------------------+     失敗
-| 1. 在庫予約       | ----------+
++------------------+     Failure
+| 1. Reserve Stock  | ----------+
 +------------------+           |
-   |  成功                     v
+   |  Success                  v
    v                    +------------------+
-+------------------+    | 1'. 在庫予約取消  |
-| 2. 決済処理       |    +------------------+
++------------------+    | 1'. Cancel       |
+| 2. Process       |    |     Reservation  |
+|    Payment       |    +------------------+
 +------------------+           ^
-   |  成功      | 失敗         |
+   |  Success   | Failure      |
    v            +------------>-+
 +------------------+
-| 3. 配送手配       |
+| 3. Arrange        |
+|    Shipping       |
 +------------------+           +------------------+
-   |  成功      | 失敗  +----> | 2'. 決済返金      |
-   v            +------+      +------------------+
-+------------------+                   |
-| 4. 注文確定       |                   v
+   |  Success   | Failure +--> | 2'. Refund       |
+   v            +------+      |     Payment      |
 +------------------+           +------------------+
-   |                           | 1'. 在庫予約取消  |
-   v                           +------------------+
- [End]                                 |
+| 4. Confirm Order  |                   |
++------------------+                   v
+   |                           +------------------+
+   v                           | 1'. Cancel       |
+ [End]                         |     Reservation  |
+                               +------------------+
+                                       |
                                        v
                                      [Fail]
 ```
@@ -1049,32 +1053,32 @@ Saga パターン (Step Functions):
 ### 5.2 Step Functions Express Workflow
 
 ```
-Step Functions のワークフロータイプ:
+Step Functions workflow types:
 
 Standard Workflow:
-  - 最大実行時間: 1年
-  - 実行保証: 1回のみ (Exactly-once)
-  - 料金: 状態遷移ごとに課金 ($0.025/1000遷移)
-  - 用途: 長時間ワークフロー、人間の承認待ち
+  - Maximum execution time: 1 year
+  - Execution guarantee: Exactly-once
+  - Pricing: Charged per state transition ($0.025/1000 transitions)
+  - Use case: Long-running workflows, waiting for human approval
 
 Express Workflow:
-  - 最大実行時間: 5分
-  - 実行保証: 少なくとも1回 (At-least-once)
-  - 料金: 実行回数 + 実行時間で課金
-  - 用途: 大量の短時間処理、IoTデータ処理
-  - 同期/非同期の2種類
+  - Maximum execution time: 5 minutes
+  - Execution guarantee: At-least-once
+  - Pricing: Charged by number of executions + execution duration
+  - Use case: High-volume short-duration processing, IoT data processing
+  - Two types: synchronous and asynchronous
 
-同期 Express:
-  API Gateway --> Step Functions (同期) --> レスポンス
-  → リクエスト/レスポンスパターンに最適
+Synchronous Express:
+  API Gateway --> Step Functions (sync) --> Response
+  -> Best for request/response patterns
 
-非同期 Express:
-  イベント --> Step Functions (非同期) --> 完了通知
-  → バックグラウンド処理に最適
+Asynchronous Express:
+  Event --> Step Functions (async) --> Completion notification
+  -> Best for background processing
 ```
 
 ```yaml
-# Step Functions Express Workflow の SAM テンプレート
+# SAM template for Step Functions Express Workflow
 Resources:
   OrderProcessingStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -1104,7 +1108,7 @@ Resources:
       RetentionInDays: 30
 ```
 
-### 5.3 Step Functions の並列処理とエラーハンドリング
+### 5.3 Parallel Processing and Error Handling in Step Functions
 
 ```json
 {
@@ -1190,31 +1194,32 @@ Resources:
 
 ---
 
-## 6. ストリーム処理パターン
+## 6. Stream Processing Pattern
 
 ### 6.1 Kinesis Data Streams + Lambda
 
 ```
-リアルタイムストリーム処理:
+Real-time stream processing:
 
-データソース          ストリーム           処理              格納
+Data Source        Stream             Processing         Storage
 +----------+       +----------+       +----------+       +----------+
 | IoT      | ----> |          | ----> | Lambda   | ----> | DynamoDB |
-| デバイス  |       |          |       | (リアルタイム|      | (最新状態) |
-+----------+       | Kinesis  |       |  集約)    |       +----------+
-                   | Data     |       +----------+
-+----------+       | Streams  |                          +----------+
-| Web      | ----> |          | ----> +----------+ ----> | S3       |
-| クリック  |       |          |       | Firehose |       | (履歴)   |
-+----------+       +----------+       +----------+       +----------+
+| Devices  |       |          |       | (real-   |       | (latest) |
++----------+       | Kinesis  |       |  time    |       +----------+
+                   | Data     |       |  agg.)   |
++----------+       | Streams  |       +----------+
+| Web      | ----> |          | ----> +----------+ ----> +----------+
+| Clicks   |       |          |       | Firehose |       | S3       |
++----------+       +----------+       +----------+       | (history)|
+                                                         +----------+
                                                          +----------+
                                                   -----> | OpenSearch|
-                                                         | (検索)   |
+                                                         | (search) |
                                                          +----------+
 ```
 
 ```python
-# kinesis_processor.py -- Kinesis Data Streams のレコード処理
+# kinesis_processor.py -- Processing records from Kinesis Data Streams
 import json
 import base64
 import boto3
@@ -1226,19 +1231,19 @@ dynamodb = boto3.resource("dynamodb")
 metrics_table = dynamodb.Table(os.environ["METRICS_TABLE"])
 
 def lambda_handler(event, context):
-    """Kinesis ストリームからのイベントを集約処理"""
+    """Aggregate events from Kinesis stream"""
     batch_item_failures = []
     aggregated = defaultdict(lambda: {"count": 0, "total_value": 0})
 
     for record in event["Records"]:
         try:
-            # Kinesis レコードのデコード
+            # Decode Kinesis record
             payload = base64.b64decode(record["kinesis"]["data"]).decode("utf-8")
             data = json.loads(payload)
 
-            # 時間ウィンドウでの集約
+            # Aggregation by time window
             timestamp = datetime.fromisoformat(data["timestamp"])
-            window_key = timestamp.strftime("%Y-%m-%dT%H:%M")  # 分単位
+            window_key = timestamp.strftime("%Y-%m-%dT%H:%M")  # Per minute
             metric_key = f"{data['metric_name']}#{window_key}"
 
             aggregated[metric_key]["count"] += 1
@@ -1252,7 +1257,7 @@ def lambda_handler(event, context):
                 "itemIdentifier": record["kinesis"]["sequenceNumber"]
             })
 
-    # 集約結果をDynamoDBに書き込み
+    # Write aggregated results to DynamoDB
     with metrics_table.batch_writer() as batch:
         for key, agg in aggregated.items():
             batch.put_item(Item={
@@ -1262,16 +1267,16 @@ def lambda_handler(event, context):
                 "count": agg["count"],
                 "total_value": int(agg["total_value"]),
                 "avg_value": int(agg["total_value"] / agg["count"]),
-                "ttl": int(datetime.utcnow().timestamp()) + 86400 * 7  # 7日保持
+                "ttl": int(datetime.utcnow().timestamp()) + 86400 * 7  # Keep 7 days
             })
 
     return {"batchItemFailures": batch_item_failures}
 ```
 
-### 6.2 Kinesis のシャード管理とスケーリング
+### 6.2 Kinesis Shard Management and Scaling
 
 ```yaml
-# Kinesis Data Streams + Lambda の SAM テンプレート
+# SAM template for Kinesis Data Streams + Lambda
 Resources:
   ClickStream:
     Type: AWS::Kinesis::Stream
@@ -1279,8 +1284,8 @@ Resources:
       Name: click-stream
       ShardCount: 4
       StreamModeDetails:
-        StreamMode: ON_DEMAND  # 自動スケーリング
-      RetentionPeriodHours: 168  # 7日間保持
+        StreamMode: ON_DEMAND  # Auto-scaling
+      RetentionPeriodHours: 168  # Keep 7 days
       StreamEncryption:
         EncryptionType: KMS
         KeyId: alias/aws/kinesis
@@ -1312,28 +1317,28 @@ Resources:
 
 ---
 
-## 7. スケジュール駆動パターン
+## 7. Schedule-Driven Pattern
 
-### 7.1 定期実行ジョブ
+### 7.1 Periodic Execution Jobs
 
 ```
-スケジュール駆動パターン:
+Schedule-driven pattern:
 
 +-------------------+       +----------+       +----------+
-| EventBridge       | ----> | Lambda   | ----> | 処理結果  |
+| EventBridge       | ----> | Lambda   | ----> | Results  |
 | Scheduler         |       |          |       |          |
 +-------------------+       +----------+       +----------+
 
-ユースケース:
-  - 日次レポート生成
-  - 古いデータの定期削除 (TTL 補助)
-  - ヘルスチェック / 外部API監視
-  - データ同期 / ETL バッチ
-  - 一時ファイルのクリーンアップ
+Use cases:
+  - Daily report generation
+  - Periodic deletion of old data (TTL supplement)
+  - Health checks / external API monitoring
+  - Data sync / ETL batch
+  - Temporary file cleanup
 ```
 
 ```python
-# scheduled_report.py -- 日次レポート生成
+# scheduled_report.py -- Daily report generation
 import boto3
 import json
 import os
@@ -1348,10 +1353,10 @@ REPORT_BUCKET = os.environ["REPORT_BUCKET"]
 ADMIN_EMAIL = os.environ["ADMIN_EMAIL"]
 
 def lambda_handler(event, context):
-    """毎日 AM 9:00 (JST) に前日の注文レポートを生成"""
+    """Generate a report for the previous day's orders every day at 9:00 AM (JST)"""
     yesterday = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
 
-    # 前日の注文データを取得
+    # Retrieve previous day's order data
     response = orders_table.query(
         IndexName="date-index",
         KeyConditionExpression="orderDate = :date",
@@ -1359,10 +1364,10 @@ def lambda_handler(event, context):
     )
     orders = response["Items"]
 
-    # レポート生成
+    # Generate report
     report = generate_report(yesterday, orders)
 
-    # S3 にレポートを保存
+    # Save report to S3
     report_key = f"reports/daily/{yesterday}.json"
     s3.put_object(
         Bucket=REPORT_BUCKET,
@@ -1371,7 +1376,7 @@ def lambda_handler(event, context):
         ContentType="application/json"
     )
 
-    # メール通知
+    # Email notification
     send_report_email(yesterday, report)
 
     return {"date": yesterday, "orderCount": len(orders)}
@@ -1397,12 +1402,12 @@ def send_report_email(date, report):
         Source=ADMIN_EMAIL,
         Destination={"ToAddresses": [ADMIN_EMAIL]},
         Message={
-            "Subject": {"Data": f"日次注文レポート: {date}"},
+            "Subject": {"Data": f"Daily Order Report: {date}"},
             "Body": {
                 "Text": {
-                    "Data": f"注文件数: {report['totalOrders']}\n"
-                            f"売上合計: ¥{report['totalRevenue']:,.0f}\n"
-                            f"平均注文額: ¥{report['averageOrderValue']:,.0f}"
+                    "Data": f"Order count: {report['totalOrders']}\n"
+                            f"Total revenue: ${report['totalRevenue']:,.0f}\n"
+                            f"Average order value: ${report['averageOrderValue']:,.0f}"
                 }
             }
         }
@@ -1410,7 +1415,7 @@ def send_report_email(date, report):
 ```
 
 ```yaml
-# スケジュール駆動の SAM テンプレート
+# SAM template for schedule-driven pattern
 Resources:
   DailyReportFunction:
     Type: AWS::Serverless::Function
@@ -1423,7 +1428,7 @@ Resources:
         DailySchedule:
           Type: ScheduleV2
           Properties:
-            ScheduleExpression: cron(0 0 * * ? *)  # 毎日 AM 9:00 JST (UTC 0:00)
+            ScheduleExpression: cron(0 0 * * ? *)  # Every day at 9:00 AM JST (UTC 0:00)
             ScheduleExpressionTimezone: Asia/Tokyo
             RetryPolicy:
               MaximumRetryAttempts: 2
@@ -1432,23 +1437,23 @@ Resources:
 
 ---
 
-## 8. Web アプリケーションパターン
+## 8. Web Application Pattern
 
-### 8.1 フルスタックサーバーレス構成
+### 8.1 Full-Stack Serverless Configuration
 
 ```
-フルスタックサーバーレスアーキテクチャ:
+Full-stack serverless architecture:
 
-ユーザー
+User
     |
     v
 +-------------------+
-| CloudFront        |  (CDN + カスタムドメイン + SSL)
+| CloudFront        |  (CDN + custom domain + SSL)
 +-------------------+
     |             |
     v             v
 +--------+  +-----------+
-| S3     |  | API GW    |  (/api/* パスパターン)
+| S3     |  | API GW    |  (/api/* path pattern)
 | (SPA)  |  | (HTTP API)|
 +--------+  +-----------+
                   |
@@ -1461,14 +1466,14 @@ Resources:
     v             v             v
 +--------+  +----------+  +---------+
 |DynamoDB|  | Cognito  |  | S3      |
-|(データ) |  | (認証)   |  |(ファイル)|
+|(data)  |  | (auth)   |  |(files)  |
 +--------+  +----------+  +---------+
 ```
 
 ```yaml
-# フルスタックサーバーレスの SAM テンプレート
+# SAM template for full-stack serverless
 Resources:
-  # S3 バケット (フロントエンド)
+  # S3 bucket (frontend)
   WebBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -1489,7 +1494,7 @@ Resources:
         SigningBehavior: always
         SigningProtocol: sigv4
 
-  # CloudFront ディストリビューション
+  # CloudFront distribution
   Distribution:
     Type: AWS::CloudFront::Distribution
     Properties:
@@ -1519,71 +1524,71 @@ Resources:
         CustomErrorResponses:
           - ErrorCode: 404
             ResponseCode: 200
-            ResponsePagePath: /index.html  # SPA ルーティング対応
+            ResponsePagePath: /index.html  # SPA routing support
         Enabled: true
         HttpVersion: http2and3
 ```
 
 ---
 
-## 9. パターン比較表
+## 9. Pattern Comparison Table
 
-| パターン | ユースケース | 複雑さ | レイテンシ | コスト効率 |
+| Pattern | Use Case | Complexity | Latency | Cost Efficiency |
 |---------|------------|--------|----------|-----------|
-| API + Lambda + DynamoDB | CRUD API | 低 | 低 | 高 |
-| イベント駆動 | 非同期処理 | 中 | 中 | 高 |
-| ファンアウト (SNS+SQS) | 1対多通知 | 中 | 中 | 高 |
-| CQRS | 読み書き分離 | 高 | 読取り: 低 | 中 |
-| Saga | 分散トランザクション | 高 | 高 | 中 |
-| ストリーム処理 | リアルタイム集約 | 中 | 低〜中 | 中 |
-| スケジュール駆動 | 定期バッチ | 低 | N/A | 高 |
-| フルスタック | Web アプリ | 中 | 低 | 高 |
+| API + Lambda + DynamoDB | CRUD API | Low | Low | High |
+| Event-driven | Async processing | Medium | Medium | High |
+| Fan-out (SNS+SQS) | One-to-many notification | Medium | Medium | High |
+| CQRS | Read/write separation | High | Read: Low | Medium |
+| Saga | Distributed transactions | High | High | Medium |
+| Stream processing | Real-time aggregation | Medium | Low-Medium | Medium |
+| Schedule-driven | Periodic batch | Low | N/A | High |
+| Full-stack | Web app | Medium | Low | High |
 
-| パターン | スケーラビリティ | 結合度 | 運用難易度 |
+| Pattern | Scalability | Coupling | Operational Complexity |
 |---------|----------------|--------|-----------|
-| API + Lambda + DynamoDB | 高 | 中 | 低 |
-| イベント駆動 | 高 | 低 | 中 |
-| ファンアウト (SNS+SQS) | 高 | 低 | 中 |
-| CQRS | 非常に高 | 低 | 高 |
-| Saga | 高 | 低 | 高 |
-| ストリーム処理 | 非常に高 | 低 | 中 |
-| スケジュール駆動 | 高 | 低 | 低 |
-| フルスタック | 高 | 中 | 中 |
+| API + Lambda + DynamoDB | High | Medium | Low |
+| Event-driven | High | Low | Medium |
+| Fan-out (SNS+SQS) | High | Low | Medium |
+| CQRS | Very High | Low | High |
+| Saga | High | Low | High |
+| Stream processing | Very High | Low | Medium |
+| Schedule-driven | High | Low | Low |
+| Full-stack | High | Medium | Medium |
 
 ---
 
-## 10. コールドスタート対策
+## 10. Cold Start Mitigation
 
-### 10.1 コールドスタートの仕組み
+### 10.1 How Cold Starts Work
 
 ```
-Lambda コールドスタートの発生フロー:
+Lambda cold start flow:
 
-初回リクエスト (コールドスタート):
-  [リクエスト] --> [環境準備: ~200ms] --> [コード読込: ~100ms] --> [初期化: ~500ms] --> [処理]
-                   MicroVM作成          デプロイパッケージ展開    ランタイム初期化
+First request (cold start):
+  [Request] --> [Env setup: ~200ms] --> [Code load: ~100ms] --> [Init: ~500ms] --> [Process]
+                 MicroVM creation        Deploy package expand    Runtime init
 
-後続リクエスト (ウォームスタート):
-  [リクエスト] --> [処理]
-                  既存の実行環境を再利用
+Subsequent requests (warm start):
+  [Request] --> [Process]
+                Reuses existing execution environment
 
-コールドスタートの要因:
-  - 新しいリクエストに空き実行環境がない
-  - 一定時間アイドル後に実行環境が回収された
-  - Lambda のデプロイ/設定変更後
-  - VPC 内 Lambda の ENI 作成 (現在は大幅に改善)
+Cold start factors:
+  - No available execution environment for new request
+  - Execution environment was reclaimed after idle period
+  - After Lambda deployment/configuration change
+  - ENI creation for Lambda in VPC (significantly improved now)
 ```
 
 ### 10.2 Provisioned Concurrency
 
 ```bash
-# Provisioned Concurrency の設定
+# Configure Provisioned Concurrency
 aws lambda put-provisioned-concurrency-config \
   --function-name my-api-function \
   --qualifier prod \
   --provisioned-concurrent-executions 10
 
-# Application Auto Scaling との連携
+# Integration with Application Auto Scaling
 aws application-autoscaling register-scalable-target \
   --service-namespace lambda \
   --resource-id "function:my-api-function:prod" \
@@ -1608,7 +1613,7 @@ aws application-autoscaling put-scaling-policy \
 ### 10.3 SnapStart (Java)
 
 ```yaml
-# SnapStart 対応 Lambda (Java)
+# SnapStart-enabled Lambda (Java)
 Resources:
   JavaFunction:
     Type: AWS::Serverless::Function
@@ -1621,97 +1626,97 @@ Resources:
       AutoPublishAlias: live
 ```
 
-### 10.4 コールドスタート削減のベストプラクティス
+### 10.4 Best Practices for Reducing Cold Starts
 
 ```
-コールドスタート対策チェックリスト:
+Cold start mitigation checklist:
 
-1. デプロイパッケージの最小化
-   - 不要な依存関係を除外
-   - Lambda Layers で共通ライブラリを分離
-   - Tree-shaking で未使用コードを除外 (Node.js)
+1. Minimize deployment package size
+   - Exclude unnecessary dependencies
+   - Separate common libraries with Lambda Layers
+   - Remove unused code via tree-shaking (Node.js)
 
-2. ランタイム選択
-   - 高速: Python, Node.js (~100ms)
-   - 中速: Go, .NET (~200ms)
-   - 低速: Java (~500ms, SnapStart で改善可能)
+2. Runtime selection
+   - Fast: Python, Node.js (~100ms)
+   - Medium: Go, .NET (~200ms)
+   - Slow: Java (~500ms, improvable with SnapStart)
 
-3. SDK クライアントの初期化
-   - ハンドラー外で SDK クライアントを初期化 (グローバルスコープ)
-   - 接続の再利用を有効化
+3. SDK client initialization
+   - Initialize SDK clients outside the handler (global scope)
+   - Enable connection reuse
 
-4. メモリ設定
-   - メモリを増やすと CPU も比例して増加
-   - 初期化時間が短縮される場合がある
-   - AWS Lambda Power Tuning で最適値を検出
+4. Memory configuration
+   - Increasing memory also increases CPU proportionally
+   - Initialization time may be reduced
+   - Use AWS Lambda Power Tuning to find the optimal value
 
-5. VPC 設定
-   - 不要な場合は VPC 設定を避ける
-   - VPC が必要な場合はハイパープレーンENI (大幅改善済み)
+5. VPC configuration
+   - Avoid VPC configuration unless necessary
+   - If VPC is required, use hyperplane ENI (significantly improved)
 ```
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### 11.1 Lambda チェーン (同期的な連鎖呼び出し)
+### 11.1 Lambda Chain (Synchronous Chained Invocations)
 
 ```
-[悪い例] Lambda から Lambda を直接同期呼び出し
+[Bad example] Direct synchronous invocation from Lambda to Lambda
 
 Lambda A --> Lambda B --> Lambda C --> Lambda D
-  3秒        2秒         1秒         2秒
-  合計: 8秒 (全Lambda の実行時間で課金)
+  3s          2s          1s          2s
+  Total: 8s (billed for all Lambda execution time)
 
-[良い例] Step Functions でオーケストレーション
+[Good example] Orchestration with Step Functions
 
-Step Functions --> Lambda A (3秒)
-              --> Lambda B (2秒)
-              --> Lambda C (1秒)
-              --> Lambda D (2秒)
-  各Lambdaは自分の実行時間のみ課金
+Step Functions --> Lambda A (3s)
+              --> Lambda B (2s)
+              --> Lambda C (1s)
+              --> Lambda D (2s)
+  Each Lambda is only billed for its own execution time
 ```
 
-**問題点**: 前段の Lambda が後段の完了を待つ間も課金される。エラーハンドリングが複雑になり、タイムアウトのリスクが連鎖する。
+**Problem**: The upstream Lambda is billed while waiting for the downstream to complete. Error handling becomes complex and timeout risks cascade.
 
-**改善**: Step Functions、SQS、EventBridge を使って非同期に連携する。
+**Improvement**: Use Step Functions, SQS, or EventBridge to connect asynchronously.
 
-### 11.2 DynamoDB のスキャンに依存した API
+### 11.2 API Relying on DynamoDB Scans
 
 ```python
-# [悪い例] 全件スキャンで検索
+# [Bad example] Full-table scan for searching
 def search_items(keyword):
     result = table.scan(
         FilterExpression=Attr("name").contains(keyword)
     )
-    return result["Items"]  # テーブル全体を読み取る
+    return result["Items"]  # Reads the entire table
 
-# [良い例] GSI を活用した効率的なクエリ
+# [Good example] Efficient query using GSI
 def search_items(category, date_from):
     result = table.query(
         IndexName="category-date-index",
         KeyConditionExpression=Key("category").eq(category) & Key("created_at").gte(date_from)
     )
-    return result["Items"]  # 必要な範囲のみ読み取る
+    return result["Items"]  # Reads only the required range
 ```
 
-### 11.3 Lambda 関数内でのハードコーディング
+### 11.3 Hard-Coding Inside Lambda Functions
 
 ```python
-# [悪い例] 接続先やシークレットをハードコーディング
+# [Bad example] Hard-coding connection targets and secrets
 import boto3
 
 def lambda_handler(event, context):
     dynamodb = boto3.resource("dynamodb")
-    table = dynamodb.Table("my-production-table")  # テーブル名がハードコード
-    api_key = "sk-abc123def456"  # シークレットがコード内
+    table = dynamodb.Table("my-production-table")  # Table name hard-coded
+    api_key = "sk-abc123def456"  # Secret in code
 
-# [良い例] 環境変数と Secrets Manager を活用
+# [Good example] Using environment variables and Secrets Manager
 import boto3
 import os
 import json
 
-# ハンドラー外で初期化（コールドスタート時のみ実行）
+# Initialize outside handler (executed only on cold start)
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(os.environ["TABLE_NAME"])
 secrets_client = boto3.client("secretsmanager")
@@ -1729,84 +1734,84 @@ def get_api_key():
 
 def lambda_handler(event, context):
     api_key = get_api_key()
-    # 処理...
+    # Processing...
 ```
 
-### 11.4 Lambda のタイムアウトと SQS の可視性タイムアウトの不整合
+### 11.4 Mismatch Between Lambda Timeout and SQS Visibility Timeout
 
 ```
-[悪い例]
-Lambda タイムアウト: 300秒
-SQS 可視性タイムアウト: 30秒
+[Bad example]
+Lambda timeout: 300 seconds
+SQS visibility timeout: 30 seconds
 
-→ Lambda が 30秒以上かかると、SQS がメッセージを再度配信
-→ 同じメッセージが複数のLambdaで同時処理される
+-> If Lambda takes more than 30 seconds, SQS re-delivers the message
+-> The same message is processed simultaneously by multiple Lambdas
 
-[良い例]
-Lambda タイムアウト: 300秒
-SQS 可視性タイムアウト: 360秒 (Lambda タイムアウト + マージン)
+[Good example]
+Lambda timeout: 300 seconds
+SQS visibility timeout: 360 seconds (Lambda timeout + margin)
 
-→ Lambda が処理中の間、他のコンシューマーはメッセージを受信しない
+-> While Lambda is processing, other consumers will not receive the message
 ```
 
-### 11.5 モノリシック Lambda 関数
+### 11.5 Monolithic Lambda Functions
 
 ```
-[悪い例] 単一の巨大Lambda関数
-Lambda Function (1つ):
-  - ユーザー管理
-  - 注文処理
-  - 在庫管理
-  - レポート生成
-  → デプロイが遅い、メモリが無駄、権限が過剰
+[Bad example] A single giant Lambda function
+Lambda Function (one):
+  - User management
+  - Order processing
+  - Inventory management
+  - Report generation
+  -> Slow deployments, wasted memory, excessive permissions
 
-[良い例] 機能別に分割
-Lambda: user-management    → IAM: DynamoDB Users テーブルのみ
-Lambda: order-processing   → IAM: DynamoDB Orders テーブル + SQS
-Lambda: inventory-manager  → IAM: DynamoDB Inventory テーブル
-Lambda: report-generator   → IAM: S3 + DynamoDB ReadOnly
-  → 最小権限、独立デプロイ、適切なリソース配分
+[Good example] Split by functionality
+Lambda: user-management    -> IAM: DynamoDB Users table only
+Lambda: order-processing   -> IAM: DynamoDB Orders table + SQS
+Lambda: inventory-manager  -> IAM: DynamoDB Inventory table
+Lambda: report-generator   -> IAM: S3 + DynamoDB ReadOnly
+  -> Least privilege, independent deployments, appropriate resource allocation
 ```
 
 ---
 
-## 12. 監視とオブザーバビリティ
+## 12. Monitoring and Observability
 
-### 12.1 サーバーレスの監視戦略
+### 12.1 Serverless Monitoring Strategy
 
 ```
-サーバーレス監視の4つの柱:
+Four pillars of serverless monitoring:
 
-1. メトリクス (CloudWatch Metrics)
+1. Metrics (CloudWatch Metrics)
    - Lambda: Invocations, Duration, Errors, Throttles, ConcurrentExecutions
    - API GW: Count, Latency, 4XXError, 5XXError
    - DynamoDB: ConsumedReadCapacityUnits, ThrottledRequests
    - SQS: ApproximateNumberOfMessagesVisible, ApproximateAgeOfOldestMessage
 
-2. ログ (CloudWatch Logs + Logs Insights)
-   - 構造化ログ (JSON) で出力
-   - 相関ID でリクエストを追跡
-   - Logs Insights でクエリ分析
+2. Logs (CloudWatch Logs + Logs Insights)
+   - Output as structured logs (JSON)
+   - Track requests with correlation IDs
+   - Query analysis with Logs Insights
 
-3. トレース (AWS X-Ray)
-   - サービス間の呼び出しを可視化
-   - ボトルネックの特定
-   - エラーの発生箇所の特定
+3. Traces (AWS X-Ray)
+   - Visualize inter-service calls
+   - Identify bottlenecks
+   - Identify error locations
 
-4. アラーム (CloudWatch Alarms + SNS)
-   - エラー率の閾値超過
-   - レイテンシの異常増加
-   - DLQ にメッセージ滞留
+4. Alarms (CloudWatch Alarms + SNS)
+   - Error rate threshold exceeded
+   - Abnormal latency increase
+   - Messages accumulating in DLQ
 ```
 
 ```yaml
-# 監視アラームの CloudFormation テンプレート
+# CloudFormation template for monitoring alarms
 Resources:
   LambdaErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub '${AWS::StackName}-lambda-errors'
-      AlarmDescription: Lambda エラー率が5%を超過
+      AlarmDescription: Lambda error rate exceeds 5%
       Namespace: AWS/Lambda
       MetricName: Errors
       Dimensions:
@@ -1824,7 +1829,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub '${AWS::StackName}-api-latency'
-      AlarmDescription: API レイテンシ P99 が 3秒を超過
+      AlarmDescription: API latency P99 exceeds 3 seconds
       Namespace: AWS/ApiGateway
       MetricName: Latency
       Dimensions:
@@ -1842,7 +1847,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub '${AWS::StackName}-dlq-messages'
-      AlarmDescription: DLQ にメッセージが滞留
+      AlarmDescription: Messages accumulating in DLQ
       Namespace: AWS/SQS
       MetricName: ApproximateNumberOfMessagesVisible
       Dimensions:
@@ -1869,78 +1874,78 @@ Resources:
 
 ## 13. FAQ
 
-### Q1. サーバーレスアーキテクチャの適用に向かないケースは？
+### Q1. What are cases where serverless architecture is not a good fit?
 
-長時間実行(15分超)、高頻度・定常トラフィック(EC2/ECS の方がコスト有利)、GPU が必要な ML 推論、WebSocket の長時間接続(API Gateway WebSocket の制限内なら可能)、レイテンシに極めて敏感なリアルタイム処理(コールドスタートが許容できない場合)が該当する。
+Long-running tasks (over 15 minutes), high-frequency steady traffic (EC2/ECS is more cost-effective), ML inference requiring GPUs, long-lived WebSocket connections (possible within API Gateway WebSocket limits), and real-time processing extremely sensitive to latency (when cold starts cannot be tolerated) all fall into this category.
 
-### Q2. イベント駆動とリクエスト・レスポンスの使い分けは？
+### Q2. How do I choose between event-driven and request-response?
 
-ユーザーが即座に結果を必要とする操作(認証、データ取得)はリクエスト・レスポンスが適している。結果が遅延しても問題ない操作(メール送信、レポート生成、データ同期)はイベント駆動が適している。多くの場合、1つのシステム内で両方のパターンを組み合わせる。
+Operations where the user needs an immediate result (authentication, data retrieval) suit request-response. Operations where delayed results are acceptable (email sending, report generation, data sync) suit event-driven. In most cases, both patterns are combined within a single system.
 
-### Q3. DynamoDB と RDS のどちらを選ぶべきですか？
+### Q3. Should I choose DynamoDB or RDS?
 
-DynamoDB はキーバリュー/ドキュメント型のアクセスパターンに強く、サーバーレスとの親和性が高い。RDS はリレーショナルデータモデルが必要な場合、複雑な JOIN やトランザクションが頻繁な場合に適している。Lambda + RDS の場合は RDS Proxy によるコネクション管理が必須となる。
+DynamoDB excels at key-value/document access patterns and has high affinity with serverless. RDS is appropriate when a relational data model is required, or when complex JOINs and transactions are frequent. When using Lambda + RDS, connection management via RDS Proxy is essential.
 
-### Q4. Lambda のメモリサイズはどう決めるべきですか？
+### Q4. How should I decide the Lambda memory size?
 
-AWS Lambda Power Tuning ツール（https://github.com/alexcasalboni/aws-lambda-power-tuning）を使って、コストとパフォーマンスの最適バランスを見つけるのが推奨される。一般的に、CPU バウンドの処理はメモリを増やすと処理時間が短縮され、トータルコストが下がる場合がある。I/O バウンドの処理では、メモリを増やしても効果が限定的になる。
+It is recommended to use the AWS Lambda Power Tuning tool (https://github.com/alexcasalboni/aws-lambda-power-tuning) to find the optimal balance between cost and performance. Generally, for CPU-bound processing, increasing memory reduces processing time and may lower total cost. For I/O-bound processing, the benefit of increasing memory is limited.
 
-### Q5. サーバーレスでのテスト戦略はどうあるべきですか？
+### Q5. What should the testing strategy be for serverless?
 
-ユニットテストはビジネスロジックを Lambda ハンドラーから分離してテストする。統合テストは LocalStack や SAM CLI の `sam local invoke` を使ってローカルでテストする。E2E テストはステージング環境にデプロイして実施する。コントラクトテストでイベントスキーマの互換性を検証する。
+For unit tests, separate business logic from the Lambda handler and test independently. For integration tests, test locally using LocalStack or SAM CLI's `sam local invoke`. For E2E tests, deploy to a staging environment. Use contract tests to verify event schema compatibility.
 
-### Q6. Lambda 関数のデプロイパッケージサイズ制限は？
+### Q6. What is the Lambda function deployment package size limit?
 
-直接アップロード: 50MB (zip 圧縮後)、S3 経由: 250MB (解凍後)、コンテナイメージ: 10GB。デプロイパッケージが大きい場合は Lambda Layers で共通ライブラリを分離するか、コンテナイメージとしてデプロイする。
+Direct upload: 50MB (after zip compression), via S3: 250MB (uncompressed), container image: 10GB. If the deployment package is large, separate common libraries with Lambda Layers or deploy as a container image.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. It is recommended to thoroughly understand the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| パターン | 構成要素 | 主な用途 |
+| Pattern | Components | Primary Use |
 |---------|---------|---------|
-| API バックエンド | API GW + Lambda + DynamoDB | RESTful API |
+| API Backend | API GW + Lambda + DynamoDB | RESTful API |
 | GraphQL | AppSync + Lambda + DynamoDB | GraphQL API |
-| イベント駆動 | EventBridge + Lambda | 非同期処理、マイクロサービス連携 |
-| ファンアウト | SNS + SQS + Lambda | 1対多の並列処理 |
-| CQRS | DynamoDB Streams + Lambda | 読み書き分離、検索最適化 |
-| Saga | Step Functions + Lambda | 分散トランザクション |
-| ストリーム処理 | Kinesis + Lambda | リアルタイムデータ集約 |
-| スケジュール駆動 | EventBridge Scheduler + Lambda | 定期バッチ処理 |
-| フルスタック | CloudFront + S3 + API GW + Lambda | Web アプリケーション |
+| Event-driven | EventBridge + Lambda | Async processing, microservice integration |
+| Fan-out | SNS + SQS + Lambda | One-to-many parallel processing |
+| CQRS | DynamoDB Streams + Lambda | Read/write separation, search optimization |
+| Saga | Step Functions + Lambda | Distributed transactions |
+| Stream processing | Kinesis + Lambda | Real-time data aggregation |
+| Schedule-driven | EventBridge Scheduler + Lambda | Periodic batch processing |
+| Full-stack | CloudFront + S3 + API GW + Lambda | Web applications |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [ECS 基礎](../06-containers/00-ecs-basics.md) -- コンテナによる代替アーキテクチャ
-- [CloudFormation](../07-devops/00-cloudformation.md) -- サーバーレスインフラのコード化
-- [IAM 詳解](../08-security/00-iam-deep-dive.md) -- サーバーレスのセキュリティ設計
+- [ECS Basics](../06-containers/00-ecs-basics.md) -- Container-based alternative architecture
+- [CloudFormation](../07-devops/00-cloudformation.md) -- Infrastructure as code for serverless
+- [IAM Deep Dive](../08-security/00-iam-deep-dive.md) -- Security design for serverless
 
 ---
 
-## 参考文献
+## References
 
-1. AWS 公式「Serverless Application Lens - AWS Well-Architected Framework」 https://docs.aws.amazon.com/wellarchitected/latest/serverless-applications-lens/
-2. Alex DeBrie「The DynamoDB Book」DynamoDB Book, 2020
-3. AWS Samples「Serverless Patterns Collection」 https://serverlessland.com/patterns
-4. Gregor Hohpe, Bobby Woolf「Enterprise Integration Patterns」Addison-Wesley, 2003
-5. AWS 公式「Lambda Powertools for Python」 https://docs.powertools.aws.dev/lambda/python/latest/
-6. AWS 公式「Step Functions デベロッパーガイド」 https://docs.aws.amazon.com/step-functions/latest/dg/
+1. AWS Official "Serverless Application Lens - AWS Well-Architected Framework" https://docs.aws.amazon.com/wellarchitected/latest/serverless-applications-lens/
+2. Alex DeBrie "The DynamoDB Book" DynamoDB Book, 2020
+3. AWS Samples "Serverless Patterns Collection" https://serverlessland.com/patterns
+4. Gregor Hohpe, Bobby Woolf "Enterprise Integration Patterns" Addison-Wesley, 2003
+5. AWS Official "Lambda Powertools for Python" https://docs.powertools.aws.dev/lambda/python/latest/
+6. AWS Official "Step Functions Developer Guide" https://docs.aws.amazon.com/step-functions/latest/dg/
