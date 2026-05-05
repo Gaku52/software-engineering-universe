@@ -1,133 +1,133 @@
-# S3 応用
+# S3 Advanced
 
-> バージョニング、レプリケーション、S3 Select、Transfer Acceleration でプロダクションレベルの S3 運用を実現する
+> Achieve production-level S3 operations with versioning, replication, S3 Select, and Transfer Acceleration
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. バージョニングを活用してデータの世代管理と誤削除からの復旧ができる
-2. クロスリージョンレプリケーション (CRR) で災害復旧と低レイテンシアクセスを実現できる
-3. S3 Select、Transfer Acceleration、コスト最適化戦略を実装できる
-4. S3 イベント通知と EventBridge を連携したイベント駆動アーキテクチャを構築できる
-5. S3 Object Lock とコンプライアンス対応、バッチオペレーションによる大規模運用ができる
+1. Leverage versioning for data generation management and recovery from accidental deletions
+2. Implement disaster recovery and low-latency access with Cross-Region Replication (CRR)
+3. Implement S3 Select, Transfer Acceleration, and cost optimization strategies
+4. Build event-driven architectures using S3 event notifications integrated with EventBridge
+5. Handle S3 Object Lock and compliance requirements, and perform large-scale operations with Batch Operations
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [S3 基礎](./00-s3-basics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of [S3 Basics](./00-s3-basics.md) content
 
 ---
 
-## 1. バージョニング
+## 1. Versioning
 
-### 1.1 バージョニングの仕組み
+### 1.1 How Versioning Works
 
 ```
-バージョニング有効時のオブジェクト管理
+Object management with versioning enabled
 
   PUT report.pdf (v1)
   +-------------------+
   | Key: report.pdf   |
-  | Version: aaa111   | ← 現在のバージョン
+  | Version: aaa111   | <- Current version
   +-------------------+
 
-  PUT report.pdf (v2) → 上書きではなく新バージョン作成
+  PUT report.pdf (v2) -> Creates a new version instead of overwriting
   +-------------------+
   | Key: report.pdf   |
-  | Version: bbb222   | ← 現在のバージョン
+  | Version: bbb222   | <- Current version
   +-------------------+
   +-------------------+
   | Key: report.pdf   |
-  | Version: aaa111   | ← 旧バージョン（保持）
+  | Version: aaa111   | <- Previous version (retained)
   +-------------------+
 
-  DELETE report.pdf → 削除マーカーを追加（データは残る）
+  DELETE report.pdf -> Adds a delete marker (data is preserved)
   +-------------------+
   | Key: report.pdf   |
-  | Delete Marker      | ← 現在のバージョン
-  +-------------------+
-  +-------------------+
-  | Key: report.pdf   |
-  | Version: bbb222   | ← 復元可能
+  | Delete Marker      | <- Current version
   +-------------------+
   +-------------------+
   | Key: report.pdf   |
-  | Version: aaa111   | ← 復元可能
+  | Version: bbb222   | <- Recoverable
+  +-------------------+
+  +-------------------+
+  | Key: report.pdf   |
+  | Version: aaa111   | <- Recoverable
   +-------------------+
 ```
 
-### 1.2 バージョニングの状態遷移
+### 1.2 Versioning State Transitions
 
 ```
-バージョニングの3つの状態
+Three states of versioning
 ===========================
 
-  Unversioned（未設定）
+  Unversioned
       |
       | PUT Bucket Versioning: Enabled
       v
-  Enabled（有効）
+  Enabled
       |
       | PUT Bucket Versioning: Suspended
       v
-  Suspended（一時停止）
+  Suspended
       |
       | PUT Bucket Versioning: Enabled
       v
-  Enabled（再有効化）
+  Enabled (re-enabled)
 
-※ 一度有効化すると Unversioned には戻せない
-※ Suspended 中の PUT は VersionId = "null" で保存
-※ Suspended 中も既存のバージョンは保持される
+* Once enabled, it cannot be reverted to Unversioned
+* During Suspended, PUT saves with VersionId = "null"
+* Existing versions are retained during Suspended state
 ```
 
-### 1.3 コード例: バージョニングの設定と操作
+### 1.3 Code Example: Configuring and Operating Versioning
 
 ```bash
-# バージョニングを有効化
+# Enable versioning
 aws s3api put-bucket-versioning \
   --bucket my-app-bucket \
   --versioning-configuration Status=Enabled
 
-# バージョニングの状態を確認
+# Check versioning status
 aws s3api get-bucket-versioning \
   --bucket my-app-bucket
 
-# バージョン一覧の確認
+# List versions
 aws s3api list-object-versions \
   --bucket my-app-bucket \
   --prefix report.pdf \
   --query '{Versions: Versions[].[Key,VersionId,LastModified,IsLatest], DeleteMarkers: DeleteMarkers[].[Key,VersionId]}'
 
-# 特定バージョンの取得
+# Retrieve a specific version
 aws s3api get-object \
   --bucket my-app-bucket \
   --key report.pdf \
   --version-id aaa111 \
   ./report-v1.pdf
 
-# 削除マーカーを削除して復元
+# Restore by deleting the delete marker
 aws s3api delete-object \
   --bucket my-app-bucket \
   --key report.pdf \
   --version-id "DELETE_MARKER_VERSION_ID"
 
-# 特定バージョンを完全削除
+# Permanently delete a specific version
 aws s3api delete-object \
   --bucket my-app-bucket \
   --key report.pdf \
   --version-id aaa111
 
-# バージョニングの一時停止
+# Suspend versioning
 aws s3api put-bucket-versioning \
   --bucket my-app-bucket \
   --versioning-configuration Status=Suspended
 ```
 
-### 1.4 コード例: Python でバージョン管理
+### 1.4 Code Example: Version Management in Python
 
 ```python
 import boto3
@@ -136,7 +136,7 @@ from datetime import datetime, timezone
 s3 = boto3.client('s3')
 
 def list_versions(bucket, key):
-    """オブジェクトの全バージョンを一覧表示"""
+    """List all versions of an object"""
     response = s3.list_object_versions(Bucket=bucket, Prefix=key)
     for version in response.get('Versions', []):
         print(f"Version: {version['VersionId']} | "
@@ -148,7 +148,7 @@ def list_versions(bucket, key):
               f"Date: {marker['LastModified']}")
 
 def restore_version(bucket, key, version_id):
-    """特定バージョンを復元（コピーして最新に）"""
+    """Restore a specific version (copy to make it the latest)"""
     s3.copy_object(
         Bucket=bucket,
         Key=key,
@@ -157,10 +157,10 @@ def restore_version(bucket, key, version_id):
     print(f"Restored {key} to version {version_id}")
 
 def delete_all_versions(bucket, key):
-    """オブジェクトの全バージョンと削除マーカーを完全削除"""
+    """Permanently delete all versions and delete markers of an object"""
     response = s3.list_object_versions(Bucket=bucket, Prefix=key)
 
-    # バージョンを削除
+    # Delete versions
     for version in response.get('Versions', []):
         s3.delete_object(
             Bucket=bucket,
@@ -169,7 +169,7 @@ def delete_all_versions(bucket, key):
         )
         print(f"Deleted version: {version['VersionId']}")
 
-    # 削除マーカーを削除
+    # Delete markers
     for marker in response.get('DeleteMarkers', []):
         s3.delete_object(
             Bucket=bucket,
@@ -179,7 +179,7 @@ def delete_all_versions(bucket, key):
         print(f"Deleted marker: {marker['VersionId']}")
 
 def get_version_at_time(bucket, key, target_time):
-    """指定時刻のバージョンを取得"""
+    """Get the version at a specified point in time"""
     response = s3.list_object_versions(Bucket=bucket, Prefix=key)
     versions = sorted(
         response.get('Versions', []),
@@ -192,10 +192,10 @@ def get_version_at_time(bucket, key, target_time):
     return None
 ```
 
-### 1.5 コード例: ライフサイクルルールとバージョニングの連携
+### 1.5 Code Example: Lifecycle Rules with Versioning Integration
 
 ```bash
-# 旧バージョンを90日後に Glacier に移行、365日後に削除
+# Transition old versions to Glacier after 90 days, delete after 365 days
 aws s3api put-bucket-lifecycle-configuration \
   --bucket my-app-bucket \
   --lifecycle-configuration '{
@@ -239,7 +239,7 @@ aws s3api put-bucket-lifecycle-configuration \
   }'
 ```
 
-### 1.6 コード例: CloudFormation でバージョニング対応バケットを定義
+### 1.6 Code Example: Defining a Versioning-Enabled Bucket with CloudFormation
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
@@ -296,24 +296,24 @@ Resources:
 
 ---
 
-## 2. レプリケーション
+## 2. Replication
 
-### 2.1 レプリケーションの種類
+### 2.1 Types of Replication
 
 ```
 +--------------------------------------------+
 | CRR (Cross-Region Replication)              |
-| ソースとデスティネーションが異なるリージョン    |
-| → 災害復旧、低レイテンシアクセス              |
+| Source and destination in different regions  |
+| -> Disaster recovery, low-latency access    |
 +--------------------------------------------+
 
 +--------------------------------------------+
 | SRR (Same-Region Replication)               |
-| ソースとデスティネーションが同じリージョン      |
-| → ログ集約、テスト環境へのデータコピー         |
+| Source and destination in the same region    |
+| -> Log aggregation, data copy to test env   |
 +--------------------------------------------+
 
-  東京リージョン              大阪リージョン
+  Tokyo Region                Osaka Region
   +----------------+         +------------------+
   | Source Bucket  | ------> | Destination      |
   | (ap-northeast-1)|  CRR   | Bucket           |
@@ -322,42 +322,42 @@ Resources:
                              +------------------+
 ```
 
-### 2.2 レプリケーション詳細アーキテクチャ
+### 2.2 Detailed Replication Architecture
 
 ```
-レプリケーションの動作フロー
+Replication operation flow
 ================================
 
-  1. オブジェクト PUT → ソースバケット
-  2. S3 が非同期でレプリケーションキューに登録
-  3. IAM ロールで認証してデスティネーションに PUT
-  4. レプリケーションメトリクス（CloudWatch）で状態監視
+  1. Object PUT -> Source bucket
+  2. S3 asynchronously adds to replication queue
+  3. Authenticates with IAM role and PUTs to destination
+  4. Monitor status with replication metrics (CloudWatch)
 
-  レプリケーション対象:
-  ✅ 新規オブジェクト (PUT)
-  ✅ メタデータの変更
-  ✅ ACL の変更
-  ✅ タグの変更（Replica modification sync 有効時）
-  ✅ 削除マーカー（設定による）
+  Replication targets:
+  * New objects (PUT)
+  * Metadata changes
+  * ACL changes
+  * Tag changes (when Replica modification sync is enabled)
+  * Delete markers (configurable)
 
-  レプリケーション非対象:
-  ❌ 既存オブジェクト（S3 Batch Replication で対応）
-  ❌ SSE-C で暗号化されたオブジェクト
-  ❌ バケット設定（ライフサイクル、通知等）
-  ❌ レプリカからの再レプリケーション（デフォルト）
+  Not replicated:
+  x Existing objects (use S3 Batch Replication)
+  x Objects encrypted with SSE-C
+  x Bucket settings (lifecycle, notifications, etc.)
+  x Re-replication from replicas (by default)
 
-  双方向レプリケーション:
+  Bidirectional replication:
   Source A <---> Source B
-  ※ レプリカ修正同期を有効にして双方向に設定
-  ※ ループ防止のためレプリカは再レプリケーション対象外
+  * Enable replica modification sync and configure bidirectionally
+  * Replicas are excluded from re-replication to prevent loops
 ```
 
-### 2.3 コード例: CRR の設定
+### 2.3 Code Example: Configuring CRR
 
 ```bash
-# 前提: 両バケットでバージョニングが有効であること
+# Prerequisite: Versioning must be enabled on both buckets
 
-# レプリケーション用 IAM ロールを作成
+# Create IAM role for replication
 cat > replication-trust.json << 'EOF'
 {
   "Version": "2012-10-17",
@@ -373,7 +373,7 @@ aws iam create-role \
   --role-name S3ReplicationRole \
   --assume-role-policy-document file://replication-trust.json
 
-# レプリケーション用 IAM ポリシーを作成
+# Create IAM policy for replication
 cat > replication-policy.json << 'EOF'
 {
   "Version": "2012-10-17",
@@ -437,7 +437,7 @@ aws iam put-role-policy \
   --policy-name S3ReplicationPolicy \
   --policy-document file://replication-policy.json
 
-# レプリケーションルールを設定
+# Configure replication rules
 aws s3api put-bucket-replication \
   --bucket source-bucket \
   --replication-configuration '{
@@ -473,10 +473,10 @@ aws s3api put-bucket-replication \
   ]
 }'
 
-# レプリケーションの状態確認
+# Check replication status
 aws s3api get-bucket-replication --bucket source-bucket
 
-# レプリケーションメトリクスの確認（S3 Replication Time Control）
+# Check replication metrics (S3 Replication Time Control)
 aws cloudwatch get-metric-statistics \
   --namespace AWS/S3 \
   --metric-name ReplicationLatency \
@@ -489,10 +489,10 @@ aws cloudwatch get-metric-statistics \
   --statistics Average
 ```
 
-### 2.4 コード例: S3 Batch Replication（既存オブジェクトのレプリケーション）
+### 2.4 Code Example: S3 Batch Replication (Replicating Existing Objects)
 
 ```bash
-# S3 インベントリレポートの設定（バッチレプリケーションの入力）
+# Configure S3 Inventory report (input for batch replication)
 aws s3api put-bucket-inventory-configuration \
   --bucket source-bucket \
   --id weekly-inventory \
@@ -515,7 +515,7 @@ aws s3api put-bucket-inventory-configuration \
     ]
   }'
 
-# バッチレプリケーションジョブの作成
+# Create batch replication job
 aws s3control create-job \
   --account-id 123456789012 \
   --operation '{"S3ReplicateObject":{}}' \
@@ -541,47 +541,47 @@ aws s3control create-job \
   --confirmation-required
 ```
 
-### 2.5 レプリケーション比較表
+### 2.5 Replication Comparison Table
 
-| 機能 | CRR | SRR |
+| Feature | CRR | SRR |
 |------|-----|-----|
-| リージョン | 異なるリージョン | 同一リージョン |
-| ユースケース | DR、低レイテンシ | ログ集約、環境コピー |
-| バージョニング | 必須 | 必須 |
-| 既存オブジェクト | S3 Batch Replication | S3 Batch Replication |
-| 削除マーカー | 選択可能 | 選択可能 |
-| 料金 | リクエスト + データ転送 | リクエストのみ |
-| RTC (S3 Replication Time Control) | 対応（99.99% を 15分以内） | 対応 |
-| SSE-KMS 暗号化 | 対応（異なる KMS キー指定可） | 対応 |
-| 双方向レプリケーション | 対応 | 対応 |
+| Region | Different regions | Same region |
+| Use cases | DR, low latency | Log aggregation, environment copy |
+| Versioning | Required | Required |
+| Existing objects | S3 Batch Replication | S3 Batch Replication |
+| Delete markers | Configurable | Configurable |
+| Pricing | Requests + data transfer | Requests only |
+| RTC (S3 Replication Time Control) | Supported (99.99% within 15 minutes) | Supported |
+| SSE-KMS encryption | Supported (different KMS keys can be specified) | Supported |
+| Bidirectional replication | Supported | Supported |
 
 ---
 
-## 3. S3 Select と Glacier Select
+## 3. S3 Select and Glacier Select
 
-### 3.1 S3 Select の仕組み
+### 3.1 How S3 Select Works
 
 ```
-従来の方式:
-  S3 ---全データ取得---> アプリ ---フィルタ---> 結果
-  (100MB転送)
+Traditional approach:
+  S3 ---retrieve all data---> App ---filter---> Result
+  (100MB transfer)
 
 S3 Select:
-  S3 ---SQLでフィルタ---> 結果のみ転送---> アプリ
-  (1MB転送)
+  S3 ---filter with SQL---> Transfer only results---> App
+  (1MB transfer)
 
-  → データ転送量を最大 99% 削減
-  → 対応フォーマット: CSV, JSON, Parquet
+  -> Reduce data transfer by up to 99%
+  -> Supported formats: CSV, JSON, Parquet
 
-S3 Select SQL の制約:
-  - SELECT / FROM / WHERE のみ（JOIN 不可）
-  - 集約関数: COUNT, SUM, AVG, MIN, MAX
-  - LIKE 演算子、BETWEEN、IN 対応
-  - LIMIT 句対応
-  - サブクエリ非対応
+S3 Select SQL limitations:
+  - SELECT / FROM / WHERE only (no JOIN)
+  - Aggregate functions: COUNT, SUM, AVG, MIN, MAX
+  - LIKE operator, BETWEEN, IN supported
+  - LIMIT clause supported
+  - Subqueries not supported
 ```
 
-### 3.2 コード例: S3 Select (Python)
+### 3.2 Code Example: S3 Select (Python)
 
 ```python
 import boto3
@@ -589,7 +589,7 @@ import json
 
 s3 = boto3.client('s3')
 
-# CSV ファイルから特定条件のデータを抽出
+# Extract data matching specific conditions from a CSV file
 def query_csv(bucket, key, sql):
     response = s3.select_object_content(
         Bucket=bucket,
@@ -618,14 +618,14 @@ def query_csv(bucket, key, sql):
                   f"Returned: {stats['BytesReturned']} bytes")
     return records
 
-# 使用例: 2024年の東京のデータのみ取得
+# Usage: Get only Tokyo data from 2024
 results = query_csv(
     'analytics-bucket',
     'data/sales-2024.csv.gz',
     "SELECT s.date, s.product, s.amount FROM s3object s WHERE s.region = 'Tokyo' AND CAST(s.amount AS INT) > 10000"
 )
 
-# JSON ファイルからクエリ
+# Query from a JSON file
 response = s3.select_object_content(
     Bucket='data-bucket',
     Key='logs/events.json',
@@ -635,7 +635,7 @@ response = s3.select_object_content(
     OutputSerialization={'JSON': {'RecordDelimiter': '\n'}}
 )
 
-# Parquet ファイルからクエリ（列指向のため、列選択で最大の効果）
+# Query from a Parquet file (column-oriented format yields maximum benefit with column selection)
 response = s3.select_object_content(
     Bucket='analytics-bucket',
     Key='data/events.parquet',
@@ -646,7 +646,7 @@ response = s3.select_object_content(
 )
 ```
 
-### 3.3 コード例: S3 Select の実践的ラッパークラス
+### 3.3 Code Example: Practical S3 Select Wrapper Class
 
 ```python
 import boto3
@@ -654,7 +654,7 @@ import json
 from typing import List, Dict, Any, Optional
 
 class S3SelectQuery:
-    """S3 Select のラッパークラス"""
+    """Wrapper class for S3 Select"""
 
     def __init__(self, region_name='ap-northeast-1'):
         self.s3 = boto3.client('s3', region_name=region_name)
@@ -668,7 +668,7 @@ class S3SelectQuery:
         delimiter: str = ',',
         header: str = 'USE'
     ) -> List[Dict[str, Any]]:
-        """CSV ファイルに対して S3 Select クエリを実行"""
+        """Execute S3 Select query against a CSV file"""
         response = self.s3.select_object_content(
             Bucket=bucket,
             Key=key,
@@ -694,7 +694,7 @@ class S3SelectQuery:
         json_type: str = 'LINES',
         compression: str = 'NONE'
     ) -> List[Dict[str, Any]]:
-        """JSON ファイルに対して S3 Select クエリを実行"""
+        """Execute S3 Select query against a JSON file"""
         response = self.s3.select_object_content(
             Bucket=bucket,
             Key=key,
@@ -714,7 +714,7 @@ class S3SelectQuery:
         key: str,
         sql: str
     ) -> List[Dict[str, Any]]:
-        """Parquet ファイルに対して S3 Select クエリを実行"""
+        """Execute S3 Select query against a Parquet file"""
         response = self.s3.select_object_content(
             Bucket=bucket,
             Key=key,
@@ -726,7 +726,7 @@ class S3SelectQuery:
         return self._parse_response(response)
 
     def _parse_response(self, response) -> List[Dict[str, Any]]:
-        """レスポンスをパースして辞書のリストとして返す"""
+        """Parse response and return as a list of dictionaries"""
         records = []
         stats = {}
         for event in response['Payload']:
@@ -750,10 +750,10 @@ class S3SelectQuery:
                       f"compression={stats['compression_ratio']:.1%}")
         return records
 
-# 使用例
+# Usage examples
 sq = S3SelectQuery()
 
-# 大容量 CSV からの高速フィルタリング
+# Fast filtering from large CSV
 errors = sq.query_csv(
     'log-bucket',
     'access-logs/2026/02/access.csv.gz',
@@ -761,7 +761,7 @@ errors = sq.query_csv(
     compression='GZIP'
 )
 
-# JSON Lines ログからの抽出
+# Extraction from JSON Lines logs
 slow_queries = sq.query_json(
     'app-logs',
     'db-logs/slow-queries.json',
@@ -773,74 +773,74 @@ slow_queries = sq.query_json(
 
 ## 4. Transfer Acceleration
 
-### 4.1 仕組み
+### 4.1 How It Works
 
 ```
-通常のアップロード:
-  クライアント (ブラジル) --インターネット--> S3 (東京)
-  遅延: 高い (多数のホップ)
+Standard upload:
+  Client (Brazil) --Internet--> S3 (Tokyo)
+  Latency: High (many hops)
 
 Transfer Acceleration:
-  クライアント (ブラジル) --> CloudFront Edge (サンパウロ)
+  Client (Brazil) --> CloudFront Edge (Sao Paulo)
                                     |
-                              AWS バックボーン (最適化)
+                              AWS Backbone (optimized)
                                     |
                                     v
-                               S3 (東京)
-  遅延: 低い (AWS 内部ネットワーク)
+                               S3 (Tokyo)
+  Latency: Low (AWS internal network)
 
-効果が高いケース:
-  - 地理的に遠い場所からのアップロード
-  - 大容量ファイルの転送
-  - インターネット経路が不安定な場合
+Effective cases:
+  - Uploads from geographically distant locations
+  - Large file transfers
+  - Unstable internet routing
 
-効果が低いケース:
-  - S3 と同じリージョンからのアクセス
-  - 小容量ファイルの転送
-  - ネットワーク帯域が十分な場合
+Less effective cases:
+  - Access from the same region as S3
+  - Small file transfers
+  - Sufficient network bandwidth
 ```
 
-### 4.2 コード例: Transfer Acceleration の設定
+### 4.2 Code Example: Configuring Transfer Acceleration
 
 ```bash
-# Transfer Acceleration を有効化
+# Enable Transfer Acceleration
 aws s3api put-bucket-accelerate-configuration \
   --bucket my-global-bucket \
   --accelerate-configuration Status=Enabled
 
-# 有効化の確認
+# Verify enablement
 aws s3api get-bucket-accelerate-configuration \
   --bucket my-global-bucket
 
-# Acceleration エンドポイントでアップロード
+# Upload using the Acceleration endpoint
 aws s3 cp large-file.zip \
   s3://my-global-bucket/uploads/ \
   --endpoint-url https://my-global-bucket.s3-accelerate.amazonaws.com
 
-# マルチパートアップロードと組み合わせ（大容量ファイル）
+# Combined with multipart upload (large files)
 aws s3 cp large-dataset.tar.gz \
   s3://my-global-bucket/datasets/ \
   --endpoint-url https://my-global-bucket.s3-accelerate.amazonaws.com \
   --expected-size 10737418240
 
-# 速度比較ツール
+# Speed comparison tool
 # https://s3-accelerate-speedtest.s3-accelerate.amazonaws.com/en/accelerate-speed-comparsion.html
 ```
 
-### 4.3 コード例: Python で Transfer Acceleration を使用
+### 4.3 Code Example: Using Transfer Acceleration in Python
 
 ```python
 import boto3
 from boto3.s3.transfer import TransferConfig
 import time
 
-# Acceleration エンドポイントを使用
+# Use the Acceleration endpoint
 s3 = boto3.client(
     's3',
     config=boto3.session.Config(s3={'use_accelerate_endpoint': True})
 )
 
-# マルチパート設定（大容量ファイル向け）
+# Multipart configuration (for large files)
 config = TransferConfig(
     multipart_threshold=100 * 1024 * 1024,   # 100MB
     max_concurrency=10,
@@ -848,7 +848,7 @@ config = TransferConfig(
     use_threads=True
 )
 
-# プログレスコールバック付きアップロード
+# Upload with progress callback
 class ProgressTracker:
     def __init__(self, filename, filesize):
         self.filename = filename
@@ -878,7 +878,7 @@ s3.upload_file(
 print(f"\nUpload complete in {time.time() - progress.start_time:.1f}s")
 ```
 
-### 4.4 コード例: Transfer Acceleration 速度テスト
+### 4.4 Code Example: Transfer Acceleration Speed Test
 
 ```python
 import boto3
@@ -886,7 +886,7 @@ import time
 import os
 
 def benchmark_transfer(bucket, key, filepath, use_acceleration=False):
-    """通常転送と Acceleration 転送の速度を比較"""
+    """Compare speed between standard transfer and Acceleration transfer"""
     config_kwargs = {}
     if use_acceleration:
         config_kwargs['config'] = boto3.session.Config(
@@ -905,7 +905,7 @@ def benchmark_transfer(bucket, key, filepath, use_acceleration=False):
           f"{elapsed:.2f}s ({speed_mbps:.2f} MB/s)")
     return elapsed
 
-# ベンチマーク実行
+# Run benchmark
 test_file = 'test-100mb.bin'
 print("Transfer speed comparison:")
 standard_time = benchmark_transfer('my-bucket', 'test/std', test_file, False)
@@ -916,45 +916,45 @@ print(f"Improvement: {improvement:.1f}%")
 
 ---
 
-## 5. コスト最適化
+## 5. Cost Optimization
 
-### 5.1 コスト最適化チェックリスト
+### 5.1 Cost Optimization Checklist
 
 ```
-S3 コスト最適化ピラミッド
+S3 Cost Optimization Pyramid
 
            /\
-          /  \  不要データ削除
-         /    \  (ライフサイクル Expiration)
+          /  \  Delete unnecessary data
+         /    \  (Lifecycle Expiration)
         /------\
-       /        \  ストレージクラス最適化
+       /        \  Storage class optimization
       /          \  (Intelligent-Tiering / Glacier)
      /------------\
-    /              \  リクエスト最適化
-   /                \  (S3 Select, プレフィックス設計)
+    /              \  Request optimization
+   /                \  (S3 Select, prefix design)
   /------------------\
-   転送コスト削減
-   (CloudFront, VPC エンドポイント)
+   Transfer cost reduction
+   (CloudFront, VPC Endpoints)
 ```
 
-### 5.2 ストレージクラス詳細比較表
+### 5.2 Detailed Storage Class Comparison Table
 
-| ストレージクラス | 保存料金(GB/月) | 取得料金(GB) | 最低保存期間 | 取得時間 | 可用性 | ユースケース |
+| Storage Class | Storage Cost (GB/month) | Retrieval Cost (GB) | Minimum Storage Duration | Retrieval Time | Availability | Use Case |
 |---|---|---|---|---|---|---|
-| STANDARD | $0.025 | 無料 | なし | 即時 | 99.99% | アクティブデータ |
-| INTELLIGENT_TIERING | $0.025 | 無料 | なし | 即時 | 99.9% | アクセスパターン不明 |
-| STANDARD_IA | $0.0138 | $0.01 | 30日 | 即時 | 99.9% | 低頻度アクセス |
-| ONE_ZONE_IA | $0.011 | $0.01 | 30日 | 即時 | 99.5% | 再生成可能データ |
-| GLACIER_IR | $0.005 | $0.03 | 90日 | 即時 | 99.9% | アーカイブ即時アクセス |
-| GLACIER_FLEXIBLE | $0.0045 | $0.01-0.03 | 90日 | 1分〜12時間 | 99.99% | アーカイブ |
-| DEEP_ARCHIVE | $0.002 | $0.02 | 180日 | 12〜48時間 | 99.99% | 長期保存 |
+| STANDARD | $0.025 | Free | None | Immediate | 99.99% | Active data |
+| INTELLIGENT_TIERING | $0.025 | Free | None | Immediate | 99.9% | Unknown access patterns |
+| STANDARD_IA | $0.0138 | $0.01 | 30 days | Immediate | 99.9% | Infrequent access |
+| ONE_ZONE_IA | $0.011 | $0.01 | 30 days | Immediate | 99.5% | Reproducible data |
+| GLACIER_IR | $0.005 | $0.03 | 90 days | Immediate | 99.9% | Archive with instant access |
+| GLACIER_FLEXIBLE | $0.0045 | $0.01-0.03 | 90 days | 1 min - 12 hours | 99.99% | Archive |
+| DEEP_ARCHIVE | $0.002 | $0.02 | 180 days | 12 - 48 hours | 99.99% | Long-term storage |
 
-※ 料金は東京リージョン基準の概算
+* Prices are approximate estimates based on the Tokyo region
 
-### 5.3 コード例: Intelligent-Tiering の設定
+### 5.3 Code Example: Configuring Intelligent-Tiering
 
 ```bash
-# Intelligent-Tiering アーカイブアクセス層を有効化
+# Enable Intelligent-Tiering archive access tier
 aws s3api put-bucket-intelligent-tiering-configuration \
   --bucket my-data-bucket \
   --id archive-config \
@@ -976,7 +976,7 @@ aws s3api put-bucket-intelligent-tiering-configuration \
     }
   }'
 
-# ライフサイクルで Intelligent-Tiering に自動移行
+# Automatically transition to Intelligent-Tiering with lifecycle rules
 aws s3api put-bucket-lifecycle-configuration \
   --bucket my-data-bucket \
   --lifecycle-configuration '{
@@ -996,10 +996,10 @@ aws s3api put-bucket-lifecycle-configuration \
   }'
 ```
 
-### 5.4 コード例: S3 Storage Lens で分析
+### 5.4 Code Example: Analyzing with S3 Storage Lens
 
 ```bash
-# Storage Lens 設定を作成
+# Create Storage Lens configuration
 aws s3control put-storage-lens-configuration \
   --account-id 123456789012 \
   --config-id my-storage-lens \
@@ -1040,17 +1040,17 @@ aws s3control put-storage-lens-configuration \
   }'
 ```
 
-### 5.5 コード例: VPC エンドポイントでデータ転送コスト削減
+### 5.5 Code Example: Reducing Data Transfer Costs with VPC Endpoints
 
 ```bash
-# S3 用 Gateway エンドポイント（無料）
+# Gateway endpoint for S3 (free)
 aws ec2 create-vpc-endpoint \
   --vpc-id vpc-xxx \
   --service-name com.amazonaws.ap-northeast-1.s3 \
   --route-table-ids rtb-xxx \
   --vpc-endpoint-type Gateway
 
-# エンドポイントポリシーでアクセスを制限
+# Restrict access with endpoint policy
 aws ec2 modify-vpc-endpoint \
   --vpc-endpoint-id vpce-xxx \
   --policy-document '{
@@ -1075,22 +1075,22 @@ aws ec2 modify-vpc-endpoint \
     ]
   }'
 
-# エンドポイント経由のアクセスは NAT Gateway の料金が不要
-# → データ転送コストを大幅に削減
+# Access through the endpoint eliminates NAT Gateway charges
+# -> Significantly reduces data transfer costs
 ```
 
-### 5.6 コード例: コスト分析スクリプト
+### 5.6 Code Example: Cost Analysis Script
 
 ```python
 import boto3
 from datetime import datetime, timedelta
 
 def analyze_s3_costs(bucket_name):
-    """S3 バケットのコスト最適化レポートを生成"""
+    """Generate a cost optimization report for an S3 bucket"""
     s3 = boto3.client('s3')
     cloudwatch = boto3.client('cloudwatch')
 
-    # バケットサイズの取得
+    # Get bucket size
     end_time = datetime.utcnow()
     start_time = end_time - timedelta(days=1)
 
@@ -1107,7 +1107,7 @@ def analyze_s3_costs(bucket_name):
         Statistics=['Average']
     )
 
-    # オブジェクト数の取得
+    # Get object count
     count_response = cloudwatch.get_metric_statistics(
         Namespace='AWS/S3',
         MetricName='NumberOfObjects',
@@ -1121,7 +1121,7 @@ def analyze_s3_costs(bucket_name):
         Statistics=['Average']
     )
 
-    # ストレージクラス別の分析
+    # Analysis by storage class
     paginator = s3.get_paginator('list_objects_v2')
     storage_classes = {}
     total_size = 0
@@ -1134,7 +1134,7 @@ def analyze_s3_costs(bucket_name):
             storage_classes[sc]['size'] += obj['Size']
             total_size += obj['Size']
 
-    # レポート出力
+    # Output report
     print(f"=== S3 Cost Analysis: {bucket_name} ===")
     print(f"Total Size: {total_size / 1024 / 1024 / 1024:.2f} GB")
     print(f"\nStorage Class Distribution:")
@@ -1143,54 +1143,54 @@ def analyze_s3_costs(bucket_name):
         print(f"  {sc}: {info['count']} objects, "
               f"{info['size'] / 1024 / 1024:.1f} MB ({pct:.1f}%)")
 
-    # 最適化の推奨
+    # Recommendations
     print(f"\n=== Recommendations ===")
     std_size = storage_classes.get('STANDARD', {}).get('size', 0)
-    if std_size > 100 * 1024 * 1024 * 1024:  # 100GB以上
+    if std_size > 100 * 1024 * 1024 * 1024:  # Over 100GB
         print("- Consider Intelligent-Tiering for large STANDARD storage")
     if 'STANDARD' in storage_classes and storage_classes['STANDARD']['count'] > 10000:
         print("- Enable S3 Inventory for detailed analysis")
     print("- Check for incomplete multipart uploads")
     print("- Review lifecycle rules for old objects")
 
-# 実行
+# Execute
 analyze_s3_costs('my-app-bucket')
 ```
 
 ---
 
-## 6. イベント通知
+## 6. Event Notifications
 
-### 6.1 イベント通知アーキテクチャ
+### 6.1 Event Notification Architecture
 
 ```
-S3 イベント通知の配信先
-========================
+S3 Event Notification Destinations
+====================================
 
-                    +---> Lambda (画像リサイズ、動画変換)
+                    +---> Lambda (image resize, video conversion)
                     |
-S3 Event -----+--> +---> SQS (メッセージキュー)
+S3 Event -----+--> +---> SQS (message queue)
   (ObjectCreated,  |
-   ObjectRemoved,  +---> SNS (通知 → メール、SMS)
+   ObjectRemoved,  +---> SNS (notifications -> email, SMS)
    Restore,        |
-   Replication)    +---> EventBridge (高度なルーティング)
+   Replication)    +---> EventBridge (advanced routing)
                            |
                            +---> Step Functions
                            +---> Lambda
-                           +---> ECS タスク
-                           +---> 他の AWS サービス
+                           +---> ECS Tasks
+                           +---> Other AWS services
 
-EventBridge の利点:
-  - 複数のルール/ターゲット
-  - コンテンツベースのフィルタリング
-  - アーカイブ & リプレイ
-  - クロスアカウント配信
+EventBridge advantages:
+  - Multiple rules/targets
+  - Content-based filtering
+  - Archive & replay
+  - Cross-account delivery
 ```
 
-### 6.2 コード例: S3 イベント通知の設定
+### 6.2 Code Example: Configuring S3 Event Notifications
 
 ```bash
-# Lambda へのイベント通知
+# Event notification to Lambda
 aws s3api put-bucket-notification-configuration \
   --bucket my-app-bucket \
   --notification-configuration '{
@@ -1233,10 +1233,10 @@ aws s3api put-bucket-notification-configuration \
 }'
 ```
 
-### 6.3 コード例: EventBridge を使ったイベント駆動処理
+### 6.3 Code Example: Event-Driven Processing with EventBridge
 
 ```python
-# Lambda: S3 イベントを処理する関数
+# Lambda: Function to process S3 events
 import boto3
 import json
 import urllib.parse
@@ -1244,9 +1244,9 @@ import urllib.parse
 s3 = boto3.client('s3')
 
 def handler(event, context):
-    """S3 イベント通知を処理する Lambda ハンドラ"""
+    """Lambda handler for processing S3 event notifications"""
 
-    # S3 イベント通知の場合
+    # For S3 event notifications
     if 'Records' in event:
         for record in event['Records']:
             bucket = record['s3']['bucket']['name']
@@ -1264,7 +1264,7 @@ def handler(event, context):
             elif event_name.startswith('ObjectRemoved:'):
                 handle_deletion(bucket, key)
 
-    # EventBridge 経由の場合
+    # Via EventBridge
     elif event.get('source') == 'aws.s3':
         detail = event['detail']
         bucket = detail['bucket']['name']
@@ -1274,26 +1274,26 @@ def handler(event, context):
     return {'statusCode': 200}
 
 def process_new_object(bucket, key, size):
-    """新規オブジェクトの処理"""
+    """Process new objects"""
     if key.endswith(('.jpg', '.jpeg', '.png', '.webp')):
-        # 画像処理パイプラインを起動
+        # Launch image processing pipeline
         generate_thumbnails(bucket, key)
     elif key.endswith('.csv'):
-        # CSV データの ETL 処理
+        # CSV data ETL processing
         trigger_etl_job(bucket, key)
     elif key.endswith('.mp4'):
-        # 動画トランスコーディング
+        # Video transcoding
         start_transcode_job(bucket, key)
 
 def handle_deletion(bucket, key):
-    """オブジェクト削除時の処理"""
+    """Handle object deletion"""
     print(f"Object deleted: s3://{bucket}/{key}")
-    # CDN キャッシュの無効化
-    # 検索インデックスからの削除
-    # 関連リソースのクリーンアップ
+    # CDN cache invalidation
+    # Remove from search index
+    # Clean up related resources
 ```
 
-### 6.4 コード例: CloudFormation でイベント通知を設定
+### 6.4 Code Example: Configuring Event Notifications with CloudFormation
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
@@ -1337,7 +1337,7 @@ Resources:
       Principal: s3.amazonaws.com
       SourceArn: !GetAtt UploadBucket.Arn
 
-  # EventBridge ルール（高度なフィルタリング）
+  # EventBridge rule (advanced filtering)
   LargeFileRule:
     Type: AWS::Events::Rule
     Properties:
@@ -1354,7 +1354,7 @@ Resources:
             size:
               - numeric:
                   - '>='
-                  - 104857600  # 100MB以上
+                  - 104857600  # 100MB or larger
       Targets:
         - Arn: !GetAtt LargeFileProcessorFunction.Arn
           Id: LargeFileTarget
@@ -1362,41 +1362,41 @@ Resources:
 
 ---
 
-## 7. S3 Object Lock とコンプライアンス
+## 7. S3 Object Lock and Compliance
 
-### 7.1 Object Lock の概要
+### 7.1 Object Lock Overview
 
 ```
-S3 Object Lock モード
+S3 Object Lock Modes
 =====================
 
-Governance モード:
-  - 特別な権限 (s3:BypassGovernanceRetention) を持つユーザーは解除可能
-  - テスト環境や柔軟な保持期間が必要な場合に使用
-  - IAM ポリシーで解除権限を管理
+Governance mode:
+  - Users with special permissions (s3:BypassGovernanceRetention) can override
+  - Used for test environments or when flexible retention periods are needed
+  - Override permissions managed through IAM policies
 
-Compliance モード:
-  - Root ユーザーを含め、誰も解除不可
-  - 規制要件（FINRA、SEC 等）を満たす場合に使用
-  - 保持期間中は絶対にデータを削除できない
+Compliance mode:
+  - No one can override, including the Root user
+  - Used to meet regulatory requirements (FINRA, SEC, etc.)
+  - Data absolutely cannot be deleted during the retention period
 
 Legal Hold:
-  - 保持期間とは独立して設定可能
-  - s3:PutObjectLegalHold 権限で ON/OFF を切り替え
-  - 訴訟ホールド等の法的要件に対応
+  - Can be set independently of the retention period
+  - Toggled ON/OFF with s3:PutObjectLegalHold permission
+  - Addresses legal requirements such as litigation holds
 ```
 
-### 7.2 コード例: Object Lock の設定
+### 7.2 Code Example: Configuring Object Lock
 
 ```bash
-# Object Lock 有効なバケットを作成（作成時のみ設定可能）
+# Create a bucket with Object Lock enabled (can only be set at creation time)
 aws s3api create-bucket \
   --bucket compliance-bucket \
   --region ap-northeast-1 \
   --create-bucket-configuration LocationConstraint=ap-northeast-1 \
   --object-lock-enabled-for-bucket
 
-# デフォルトの Object Lock 設定
+# Default Object Lock configuration
 aws s3api put-object-lock-configuration \
   --bucket compliance-bucket \
   --object-lock-configuration '{
@@ -1409,7 +1409,7 @@ aws s3api put-object-lock-configuration \
     }
   }'
 
-# 個別オブジェクトに Object Lock を設定
+# Set Object Lock on an individual object
 aws s3api put-object-retention \
   --bucket compliance-bucket \
   --key financial-reports/2025-annual.pdf \
@@ -1418,13 +1418,13 @@ aws s3api put-object-retention \
     "RetainUntilDate": "2030-12-31T00:00:00Z"
   }'
 
-# Legal Hold の設定
+# Set Legal Hold
 aws s3api put-object-legal-hold \
   --bucket compliance-bucket \
   --key contracts/nda-2025.pdf \
   --legal-hold '{"Status": "ON"}'
 
-# Legal Hold の解除
+# Remove Legal Hold
 aws s3api put-object-legal-hold \
   --bucket compliance-bucket \
   --key contracts/nda-2025.pdf \
@@ -1433,34 +1433,34 @@ aws s3api put-object-legal-hold \
 
 ---
 
-## 8. S3 バッチオペレーション
+## 8. S3 Batch Operations
 
-### 8.1 バッチオペレーションの概要
+### 8.1 Batch Operations Overview
 
 ```
-S3 バッチオペレーションのフロー
+S3 Batch Operations Flow
 ================================
 
-  1. マニフェスト作成
-     ├── S3 インベントリレポート（自動生成）
-     └── CSV ファイル（手動作成）
+  1. Create manifest
+     +-- S3 Inventory report (auto-generated)
+     +-- CSV file (manually created)
 
-  2. ジョブ作成 → オペレーション指定
-     ├── オブジェクトのコピー
-     ├── ストレージクラスの変更
-     ├── タグの追加/削除
-     ├── ACL の更新
-     ├── Object Lock の設定
-     ├── S3 Batch Replication
-     └── Lambda 関数の実行
+  2. Create job -> Specify operation
+     +-- Copy objects
+     +-- Change storage class
+     +-- Add/remove tags
+     +-- Update ACLs
+     +-- Set Object Lock
+     +-- S3 Batch Replication
+     +-- Execute Lambda functions
 
-  3. ジョブ実行 → 完了レポート
+  3. Execute job -> Completion report
 ```
 
-### 8.2 コード例: バッチオペレーション
+### 8.2 Code Example: Batch Operations
 
 ```bash
-# ストレージクラスの一括変更ジョブ
+# Bulk storage class change job
 aws s3control create-job \
   --account-id 123456789012 \
   --operation '{
@@ -1491,7 +1491,7 @@ aws s3control create-job \
   --role-arn arn:aws:iam::123456789012:role/S3BatchRole \
   --confirmation-required
 
-# タグの一括追加ジョブ
+# Bulk tag addition job
 aws s3control create-job \
   --account-id 123456789012 \
   --operation '{
@@ -1522,12 +1522,12 @@ aws s3control create-job \
   --role-arn arn:aws:iam::123456789012:role/S3BatchRole \
   --no-confirmation-required
 
-# ジョブの状態確認
+# Check job status
 aws s3control describe-job \
   --account-id 123456789012 \
   --job-id "job-id-here"
 
-# ジョブの一覧
+# List jobs
 aws s3control list-jobs \
   --account-id 123456789012 \
   --job-statuses Active Complete
@@ -1535,43 +1535,43 @@ aws s3control list-jobs \
 
 ---
 
-## 9. S3 のセキュリティ設定
+## 9. S3 Security Configuration
 
-### 9.1 暗号化の選択
+### 9.1 Choosing Encryption
 
 ```
-S3 暗号化方式の比較
-====================
+S3 Encryption Method Comparison
+================================
 
-SSE-S3 (デフォルト):
-  - Amazon が管理する AES-256 キー
-  - 追加コストなし
-  - 鍵の管理不要
-  → 一般的なワークロードに推奨
+SSE-S3 (default):
+  - AES-256 keys managed by Amazon
+  - No additional cost
+  - No key management required
+  -> Recommended for general workloads
 
 SSE-KMS:
-  - AWS KMS のカスタマーマネージドキー
-  - 鍵のローテーション管理
-  - CloudTrail でキー使用を監査
-  - KMS API 呼び出しコスト
-  → コンプライアンス要件がある場合に推奨
+  - Customer managed keys in AWS KMS
+  - Key rotation management
+  - Audit key usage with CloudTrail
+  - KMS API call costs
+  -> Recommended when compliance requirements exist
 
 SSE-C:
-  - 顧客が提供する暗号化キー
-  - AWS はキーを保存しない
-  - リクエストごとにキーを送信
-  → 独自のキー管理が必要な場合
+  - Customer-provided encryption keys
+  - AWS does not store the key
+  - Key must be sent with each request
+  -> When custom key management is required
 
-クライアントサイド暗号化:
-  - アプリケーション側で暗号化してから S3 に PUT
-  - AWS は暗号化に一切関与しない
-  → 最高レベルのセキュリティ要件
+Client-side encryption:
+  - Encrypt on the application side before PUTting to S3
+  - AWS is not involved in encryption at all
+  -> Highest level security requirements
 ```
 
-### 9.2 コード例: バケットポリシーのセキュリティ強化
+### 9.2 Code Example: Strengthening Bucket Policy Security
 
 ```bash
-# HTTPS 強制 + VPC エンドポイント制限 + 暗号化強制
+# Enforce HTTPS + VPC endpoint restriction + encryption enforcement
 aws s3api put-bucket-policy --bucket secure-bucket --policy '{
   "Version": "2012-10-17",
   "Statement": [
@@ -1632,7 +1632,7 @@ aws s3api put-bucket-policy --bucket secure-bucket --policy '{
   ]
 }'
 
-# S3 Access Point の作成（アクセス制御の簡素化）
+# Create S3 Access Point (simplify access control)
 aws s3control create-access-point \
   --account-id 123456789012 \
   --name app-readonly-ap \
@@ -1642,15 +1642,15 @@ aws s3control create-access-point \
     BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
 ```
 
-### 9.3 コード例: S3 Access Analyzer
+### 9.3 Code Example: S3 Access Analyzer
 
 ```bash
-# IAM Access Analyzer で外部アクセスを検出
+# Detect external access with IAM Access Analyzer
 aws accessanalyzer create-analyzer \
   --analyzer-name s3-analyzer \
   --type ACCOUNT
 
-# 検出結果の確認
+# Review findings
 aws accessanalyzer list-findings \
   --analyzer-arn arn:aws:access-analyzer:ap-northeast-1:123456789012:analyzer/s3-analyzer \
   --filter '{
@@ -1665,33 +1665,33 @@ aws accessanalyzer list-findings \
 
 ---
 
-## 10. プレフィックス設計とパフォーマンス
+## 10. Prefix Design and Performance
 
-### 10.1 S3 のパフォーマンス特性
+### 10.1 S3 Performance Characteristics
 
 ```
-S3 パフォーマンス上限（プレフィックスあたり）
+S3 Performance Limits (per prefix)
 =============================================
 
-  読み取り: 5,500 GET/HEAD リクエスト/秒
-  書き込み: 3,500 PUT/POST/DELETE リクエスト/秒
+  Read: 5,500 GET/HEAD requests/second
+  Write: 3,500 PUT/POST/DELETE requests/second
 
-  プレフィックス例:
-    s3://bucket/images/   → 1つのプレフィックス
-    s3://bucket/videos/   → 別のプレフィックス
+  Prefix examples:
+    s3://bucket/images/   -> One prefix
+    s3://bucket/videos/   -> Another prefix
 
-  並列プレフィックスでスループット向上:
+  Increase throughput with parallel prefixes:
     s3://bucket/images/2026/02/15/aa/
     s3://bucket/images/2026/02/15/ab/
     ...
-    → プレフィックス数 × 5,500 GET/秒
+    -> Number of prefixes x 5,500 GET/sec
 
-  ※ 以前はランダムプレフィックスが推奨されていたが、
-    2018年の改善により、日付ベースのプレフィックスでも
-    自動的にパーティション分割される
+  * Previously, random prefixes were recommended, but
+    since the 2018 improvement, date-based prefixes
+    are also automatically partitioned
 ```
 
-### 10.2 コード例: 高スループット S3 アクセス
+### 10.2 Code Example: High-Throughput S3 Access
 
 ```python
 import boto3
@@ -1701,7 +1701,7 @@ import os
 s3 = boto3.client('s3')
 
 def parallel_upload(bucket, prefix, file_list, max_workers=20):
-    """並列アップロードで高スループットを実現"""
+    """Achieve high throughput with parallel uploads"""
     results = []
 
     def upload_one(filepath):
@@ -1729,7 +1729,7 @@ def parallel_upload(bucket, prefix, file_list, max_workers=20):
     return results
 
 def parallel_download(bucket, prefix, dest_dir, max_workers=20):
-    """並列ダウンロードで高スループットを実現"""
+    """Achieve high throughput with parallel downloads"""
     paginator = s3.get_paginator('list_objects_v2')
     keys = []
     for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
@@ -1765,12 +1765,12 @@ def parallel_download(bucket, prefix, dest_dir, max_workers=20):
 
 ---
 
-## 11. S3 と他のサービスとの連携
+## 11. Integration with Other Services
 
-### 11.1 Athena との連携
+### 11.1 Integration with Athena
 
 ```bash
-# S3 上のデータを Athena でクエリ
+# Query data on S3 with Athena
 aws athena start-query-execution \
   --query-string "
     CREATE EXTERNAL TABLE IF NOT EXISTS access_logs (
@@ -1791,7 +1791,7 @@ aws athena start-query-execution \
   --result-configuration OutputLocation=s3://athena-results/
 ```
 
-### 11.2 AWS CDK による S3 バケット定義
+### 11.2 S3 Bucket Definition with AWS CDK
 
 ```typescript
 import * as cdk from 'aws-cdk-lib';
@@ -1805,7 +1805,7 @@ export class S3AdvancedStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // メインバケット（バージョニング + ライフサイクル）
+    // Main bucket (versioning + lifecycle)
     const mainBucket = new s3.Bucket(this, 'MainBucket', {
       bucketName: `${this.stackName}-main-data`,
       versioned: true,
@@ -1845,7 +1845,7 @@ export class S3AdvancedStack extends cdk.Stack {
       ],
     });
 
-    // DR 用レプリカバケット
+    // DR replica bucket
     const replicaBucket = new s3.Bucket(this, 'ReplicaBucket', {
       bucketName: `${this.stackName}-replica`,
       versioned: true,
@@ -1854,7 +1854,7 @@ export class S3AdvancedStack extends cdk.Stack {
       enforceSSL: true,
     });
 
-    // イベント通知: 画像アップロード時に Lambda を実行
+    // Event notification: Execute Lambda on image upload
     const imageProcessor = new lambda.Function(this, 'ImageProcessor', {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'index.handler',
@@ -1891,11 +1891,11 @@ export class S3AdvancedStack extends cdk.Stack {
 
 ---
 
-## 12. アンチパターン
+## 12. Anti-Patterns
 
-### アンチパターン 1: バージョニング有効化後にライフサイクルを設定しない
+### Anti-Pattern 1: Not Setting Lifecycle Rules After Enabling Versioning
 
-バージョニングを有効にすると全バージョンが保持されるため、ストレージコストが際限なく増加する。NoncurrentVersionExpiration を必ず設定すべきである。
+When versioning is enabled, all versions are retained, causing storage costs to grow without limit. You should always configure NoncurrentVersionExpiration.
 
 ```json
 {
@@ -1915,125 +1915,125 @@ export class S3AdvancedStack extends cdk.Stack {
 }
 ```
 
-### アンチパターン 2: S3 をデータベースのように使う
+### Anti-Pattern 2: Using S3 Like a Database
 
-S3 はオブジェクトストレージであり、ランダムアクセスやトランザクション処理には向かない。頻繁な更新が必要なデータには DynamoDB や RDS を使用すべきである。
+S3 is an object storage service and is not suitable for random access or transaction processing. Use DynamoDB or RDS for data that requires frequent updates.
 
 ```
-# 悪い例
-S3 に JSON ファイルを格納して毎秒更新
-→ 結果整合性の問題、PUT リクエスト料金が高額に
+# Bad example
+Store JSON files in S3 and update every second
+-> Eventual consistency issues, high PUT request costs
 
-# 良い例
-リアルタイムデータ → DynamoDB
-集計結果・レポート → S3
-ログデータ → S3（追記のみ）
+# Good example
+Real-time data -> DynamoDB
+Aggregated results/reports -> S3
+Log data -> S3 (append-only)
 ```
 
-### アンチパターン 3: パブリックバケットの放置
+### Anti-Pattern 3: Leaving Public Buckets Unmanaged
 
-S3 バケットのパブリックアクセスを有効にしたまま放置すると、データ漏洩のリスクがある。Block Public Access を必ず有効にする。
+Leaving public access enabled on S3 buckets creates a risk of data leakage. Always enable Block Public Access.
 
 ```bash
-# 全アカウントレベルでパブリックアクセスをブロック
+# Block public access at the account level
 aws s3control put-public-access-block \
   --account-id 123456789012 \
   --public-access-block-configuration \
     BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
 ```
 
-### アンチパターン 4: 大量の小さなオブジェクトを個別にアップロード
+### Anti-Pattern 4: Uploading Large Numbers of Small Objects Individually
 
-数百万の小さなファイル（1KB 未満）を個別に PUT すると、リクエスト料金が保存料金を大幅に上回る場合がある。
+When millions of small files (under 1KB) are PUT individually, request costs can significantly exceed storage costs.
 
 ```
-# 悪い例
-100万ファイル × 1KB = 1GB (保存: ~$0.025)
-100万 PUT リクエスト = $5.00 (リクエスト料金の方が200倍高い)
+# Bad example
+1 million files x 1KB = 1GB (storage: ~$0.025)
+1 million PUT requests = $5.00 (request costs are 200x higher)
 
-# 良い例
-小ファイルを tarball にまとめてから S3 に PUT
-アプリケーション側で S3 Select や Athena を使って個別アクセス
+# Good example
+Bundle small files into a tarball before PUTting to S3
+Use S3 Select or Athena on the application side for individual access
 ```
 
 ---
 
 ## 13. FAQ
 
-### Q1. S3 バッチオペレーションとは何か？
+### Q1. What are S3 Batch Operations?
 
-大量のオブジェクト（数十億件）に対して一括操作を実行するサービス。ストレージクラスの一括変更、タグの追加、ACL の更新、Lambda 関数の実行などが可能。S3 インベントリレポートを入力として使用する。
+A service that performs bulk operations on large numbers of objects (up to billions). Capabilities include bulk storage class changes, tag additions, ACL updates, and Lambda function execution. S3 Inventory reports are used as input.
 
-### Q2. S3 Object Lock と Glacier Vault Lock の違いは？
+### Q2. What is the difference between S3 Object Lock and Glacier Vault Lock?
 
-S3 Object Lock は WORM (Write Once Read Many) モデルでオブジェクトの削除・上書きを防止する。Governance モード（特権ユーザーは解除可能）と Compliance モード（誰も解除不可）がある。Glacier Vault Lock は Glacier 専用の同様の機能。コンプライアンス要件で使い分ける。
+S3 Object Lock prevents deletion and overwriting of objects using the WORM (Write Once Read Many) model. There are Governance mode (privileged users can override) and Compliance mode (no one can override). Glacier Vault Lock provides similar functionality specifically for Glacier. Choose based on compliance requirements.
 
-### Q3. Requester Pays バケットとは？
+### Q3. What is a Requester Pays bucket?
 
-通常はバケット所有者がデータ転送料金を負担するが、Requester Pays を有効にするとリクエスト元が料金を負担する。大規模な公開データセット（ゲノムデータ等）で利用される。
+Normally the bucket owner pays data transfer costs, but with Requester Pays enabled, the requester bears the costs. This is used for large public datasets (such as genome data).
 
-### Q4. S3 マルチパートアップロードのベストプラクティスは？
+### Q4. What are the best practices for S3 multipart uploads?
 
-100MB 以上のファイルにはマルチパートアップロードを使用する。パートサイズは 5MB〜5GB、最大パート数は 10,000。失敗したパートの再試行が可能で、並列アップロードで高スループットを実現できる。AbortIncompleteMultipartUpload ライフサイクルルールで不完全なアップロードを自動クリーンアップする。
+Use multipart uploads for files over 100MB. Part size ranges from 5MB to 5GB, with a maximum of 10,000 parts. Failed parts can be retried, and parallel uploads achieve high throughput. Use the AbortIncompleteMultipartUpload lifecycle rule to automatically clean up incomplete uploads.
 
-### Q5. S3 の結果整合性モデルはどうなったか？
+### Q5. What happened to S3's consistency model?
 
-2020年12月以降、S3 は全ての操作（PUT、DELETE、LIST を含む）で強い読み取り整合性（strong read-after-write consistency）を提供する。新しいオブジェクトの PUT 直後の GET、DELETE 直後の LIST など、全てのケースで最新のデータが返る。追加コストやパフォーマンス影響なしで提供される。
+Since December 2020, S3 provides strong read-after-write consistency for all operations (including PUT, DELETE, and LIST). In all cases -- GET immediately after a new PUT, LIST immediately after a DELETE -- the latest data is returned. This is provided at no additional cost and with no performance impact.
 
-### Q6. S3 Express One Zone とは何か？
+### Q6. What is S3 Express One Zone?
 
-2023年に発表された高性能ストレージクラス。単一 AZ に配置され、一桁ミリ秒のレイテンシを提供する。ディレクトリバケットという新しいバケットタイプを使用し、通常の S3 API と互換性がある。ML トレーニングデータ、リアルタイム分析、HPC ワークロードに適している。
+A high-performance storage class announced in 2023. It is placed in a single AZ and provides single-digit millisecond latency. It uses a new bucket type called directory buckets and is compatible with standard S3 APIs. It is suitable for ML training data, real-time analytics, and HPC workloads.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 14. まとめ
+## 14. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| バージョニング | 誤削除防止、ただしライフサイクルで旧バージョンを期限管理 |
-| CRR / SRR | 災害復旧・低レイテンシ / ログ集約・環境コピー |
-| S3 Select | SQL でフィルタし転送量を最大 99% 削減 |
-| Transfer Acceleration | CloudFront Edge 経由でグローバルアップロード高速化 |
-| コスト最適化 | Intelligent-Tiering + ライフサイクル + VPC エンドポイント |
-| イベント通知 | Lambda/SQS/SNS/EventBridge と連携 |
-| Object Lock | WORM モデルでコンプライアンス対応 |
-| バッチオペレーション | 数十億オブジェクトの一括処理 |
-| セキュリティ | Block Public Access + SSE-KMS + VPC エンドポイント + バケットポリシー |
-| パフォーマンス | プレフィックス設計 + 並列アクセス + マルチパートアップロード |
+| Versioning | Prevents accidental deletion; manage old versions with lifecycle expiration |
+| CRR / SRR | Disaster recovery & low latency / Log aggregation & environment copy |
+| S3 Select | Filter with SQL to reduce transfer volume by up to 99% |
+| Transfer Acceleration | Speed up global uploads via CloudFront Edge locations |
+| Cost Optimization | Intelligent-Tiering + Lifecycle + VPC Endpoints |
+| Event Notifications | Integrate with Lambda/SQS/SNS/EventBridge |
+| Object Lock | WORM model for compliance requirements |
+| Batch Operations | Bulk processing of billions of objects |
+| Security | Block Public Access + SSE-KMS + VPC Endpoints + Bucket Policies |
+| Performance | Prefix design + parallel access + multipart uploads |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [02-cloudfront.md](./02-cloudfront.md) — CloudFront CDN の設定
-- [../03-database/00-rds-basics.md](../03-database/00-rds-basics.md) — RDS の基礎
+- [02-cloudfront.md](./02-cloudfront.md) -- CloudFront CDN configuration
+- [../03-database/00-rds-basics.md](../03-database/00-rds-basics.md) -- RDS basics
 
 ---
 
-## 参考文献
+## References
 
-1. S3 バージョニング — https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html
-2. S3 レプリケーション — https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html
-3. S3 Select ユーザーガイド — https://docs.aws.amazon.com/AmazonS3/latest/userguide/selecting-content-from-objects.html
-4. S3 Transfer Acceleration — https://docs.aws.amazon.com/AmazonS3/latest/userguide/transfer-acceleration.html
-5. S3 Object Lock — https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html
-6. S3 Batch Operations — https://docs.aws.amazon.com/AmazonS3/latest/userguide/batch-ops.html
-7. S3 セキュリティベストプラクティス — https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html
-8. S3 Storage Lens — https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage_lens.html
+1. S3 Versioning -- https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html
+2. S3 Replication -- https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html
+3. S3 Select User Guide -- https://docs.aws.amazon.com/AmazonS3/latest/userguide/selecting-content-from-objects.html
+4. S3 Transfer Acceleration -- https://docs.aws.amazon.com/AmazonS3/latest/userguide/transfer-acceleration.html
+5. S3 Object Lock -- https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html
+6. S3 Batch Operations -- https://docs.aws.amazon.com/AmazonS3/latest/userguide/batch-ops.html
+7. S3 Security Best Practices -- https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html
+8. S3 Storage Lens -- https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage_lens.html
