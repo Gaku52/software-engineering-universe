@@ -1,43 +1,42 @@
 # Zustand / Jotai
 
-> Zustandはストアベースの軽量状態管理、Jotaiはアトムベースのボトムアップ状態管理。それぞれのメンタルモデル、実装パターン、使い分けの基準を理解し、プロジェクトに最適なツールを選択する。
+> Zustand is a store-based lightweight state management library, and Jotai is an atom-based bottom-up state management library. Understand each library's mental model, implementation patterns, and selection criteria to choose the best tool for your project.
 
-## 前提知識
+## Prerequisites
 
-この章を効果的に学習するために、以下の知識を事前に習得しておくことを推奨する:
+To study this chapter effectively, it is recommended that you acquire the following knowledge in advance:
 
-  - 状態の4カテゴリ（ローカル、グローバル、サーバー、URL）の理解
-  - グローバル状態を使うべき場面の判断基準
-  - 状態の最小化と Single Source of Truth の原則
-- **React Hooksの基礎**
-  - `useState`, `useReducer`, `useContext` の使い方
-  - `useMemo`, `useCallback` による最適化の基本
-  - カスタムフックの作成方法
-- **immutable更新パターン**
-  - オブジェクトのスプレッド構文（`{ ...obj, key: value }`）
-  - 配列の非破壊的更新（map, filter, slice）
-  - Immer ライブラリの概念（mutable な書き方で immutable な更新）
+  - Understanding of the 4 state categories (local, global, server, URL) and when to use global state
+  - Principles of state minimization and Single Source of Truth
+- **React Hooks fundamentals**
+  - How to use `useState`, `useReducer`, and `useContext`
+  - Basics of optimization with `useMemo` and `useCallback`
+  - How to create custom hooks
+- **Immutable update patterns**
+  - Object spread syntax (`{ ...obj, key: value }`)
+  - Non-destructive array updates (map, filter, slice)
+  - The concept of the Immer library (immutable updates with mutable-style syntax)
 
-## この章で学ぶこと
+## Learning Objectives
 
-- [ ] Zustandのストア設計とミドルウェアを理解する
-- [ ] Jotaiのアトム設計と派生アトムを把握する
-- [ ] 両者の使い分け基準を学ぶ
-- [ ] 実務での高度なパターンを習得する
-- [ ] テスト戦略を理解する
-- [ ] パフォーマンス最適化テクニックを身につける
+- [ ] Understand Zustand store design and middleware
+- [ ] Understand Jotai atom design and derived atoms
+- [ ] Learn the criteria for choosing between the two
+- [ ] Master advanced patterns for real-world use
+- [ ] Understand testing strategies
+- [ ] Learn performance optimization techniques
 
 ---
 
-## 1. Zustand の基礎
+## 1. Zustand Basics
 
-### 1.1 基本的なストア定義
+### 1.1 Basic Store Definition
 
 ```typescript
-// Zustand: 超シンプルなストアベース状態管理
+// Zustand: ultra-simple store-based state management
 import { create } from 'zustand';
 
-// --- 基本的なストア ---
+// --- Basic store ---
 interface CounterStore {
   count: number;
   increment: () => void;
@@ -54,16 +53,16 @@ const useCounterStore = create<CounterStore>((set) => ({
   incrementBy: (amount) => set((state) => ({ count: state.count + amount })),
 }));
 
-// 使用（必要なプロパティだけ選択 → 最小限の再レンダリング）
+// Usage (select only the needed properties → minimal re-renders)
 function Counter() {
   const count = useCounterStore((state) => state.count);
   const increment = useCounterStore((state) => state.increment);
   return <button onClick={increment}>{count}</button>;
 }
 
-// 複数の値をまとめて取得する場合
+// When retrieving multiple values at once
 function CounterDisplay() {
-  // shallow 比較でオブジェクトの再レンダリングを最適化
+  // Optimize re-renders for objects using shallow comparison
   const { count, increment, decrement } = useCounterStore(
     useShallow((state) => ({
       count: state.count,
@@ -82,53 +81,53 @@ function CounterDisplay() {
 }
 ```
 
-### 1.2 set, get の詳細理解
+### 1.2 Understanding set and get in Detail
 
 ```typescript
-// create の引数関数には set, get, api の3つが渡される
+// The create callback receives three arguments: set, get, and api
 const useStore = create<MyStore>((set, get, api) => ({
-  // === set の使い方 ===
+  // === Using set ===
 
-  // ① オブジェクトを渡す（部分的なマージ）
+  // ① Pass an object (partial merge)
   setName: (name: string) => set({ name }),
-  // → 他のプロパティは保持される（Object.assign相当）
+  // → Other properties are preserved (equivalent to Object.assign)
 
-  // ② 関数を渡す（前の状態に基づく更新）
+  // ② Pass a function (update based on previous state)
   increment: () => set((state) => ({ count: state.count + 1 })),
 
-  // ③ replace フラグ（状態全体を置き換え）
+  // ③ replace flag (replace the entire state)
   resetAll: () =>
     set(
       { count: 0, name: '', items: [] },
-      true // 第2引数: replace = true（マージではなく置き換え）
+      true // 2nd argument: replace = true (replaces instead of merging)
     ),
 
-  // === get の使い方 ===
-  // ストアの現在の状態を同期的に取得
+  // === Using get ===
+  // Synchronously retrieve the current store state
   doubleCount: () => get().count * 2,
 
-  // 他のアクションを呼び出す
+  // Call other actions
   incrementAndLog: () => {
     get().increment();
     console.log('New count:', get().count);
   },
 
-  // 非同期処理での状態参照
+  // Reference state in async operations
   saveToServer: async () => {
     const { items, name } = get();
     await api.save({ items, name });
     set({ lastSaved: new Date() });
   },
 
-  // === api の使い方 ===
-  // api.getState() = get と同じ
-  // api.setState() = set と同じ
-  // api.subscribe() = 状態変更のリスナー登録
-  // api.getInitialState() = 初期状態を取得
+  // === Using api ===
+  // api.getState() = same as get
+  // api.setState() = same as set
+  // api.subscribe() = register a listener for state changes
+  // api.getInitialState() = get the initial state
 }));
 ```
 
-### 1.3 セレクターのベストプラクティス
+### 1.3 Selector Best Practices
 
 ```typescript
 interface TodoStore {
@@ -158,9 +157,9 @@ const useTodoStore = create<TodoStore>((set) => ({
   setFilter: (filter) => set({ filter }),
 }));
 
-// NG: オブジェクトを毎回作成 → 毎レンダリングで新しい参照
+// BAD: Creates a new object every render → always re-renders
 function TodoListBad() {
-  // 毎回新しいオブジェクトが返されるので、常に再レンダリング
+  // A new object is returned every time, causing constant re-renders
   const { todos, filter } = useTodoStore((state) => ({
     todos: state.todos,
     filter: state.filter,
@@ -168,7 +167,7 @@ function TodoListBad() {
   // ...
 }
 
-// OK: useShallow を使う
+// GOOD: Use useShallow
 import { useShallow } from 'zustand/react/shallow';
 
 function TodoListGood() {
@@ -178,24 +177,24 @@ function TodoListGood() {
       filter: state.filter,
     }))
   );
-  // → 値が実際に変わった時だけ再レンダリング
+  // → Re-renders only when the actual value changes
 }
 
-// OK: 個別にセレクト
+// GOOD: Select individually
 function TodoFilter() {
   const filter = useTodoStore((state) => state.filter);
   const setFilter = useTodoStore((state) => state.setFilter);
-  // → todos が変わっても再レンダリングされない
+  // → Does not re-render when todos changes
   return (
     <select value={filter} onChange={(e) => setFilter(e.target.value as any)}>
-      <option value="all">すべて</option>
-      <option value="active">未完了</option>
-      <option value="completed">完了</option>
+      <option value="all">All</option>
+      <option value="active">Active</option>
+      <option value="completed">Completed</option>
     </select>
   );
 }
 
-// 計算値はストア外でセレクターとして定義
+// Define computed values as selectors outside the store
 const selectFilteredTodos = (state: TodoStore) => {
   const { todos, filter } = state;
   switch (filter) {
@@ -209,8 +208,8 @@ const selectFilteredTodos = (state: TodoStore) => {
 };
 
 function FilteredTodoList() {
-  // 注意: この書き方では毎回新しい配列が返されるため再レンダリングされる
-  // パフォーマンスが問題になる場合は useMemo と組み合わせる
+  // Note: this pattern returns a new array every time, causing re-renders
+  // Combine with useMemo if performance becomes an issue
   const filteredTodos = useTodoStore(selectFilteredTodos);
   return (
     <ul>
@@ -224,12 +223,12 @@ function FilteredTodoList() {
 
 ---
 
-## 2. Zustand の実践パターン
+## 2. Zustand Practical Patterns
 
-### 2.1 認証ストア
+### 2.1 Auth Store
 
 ```typescript
-// --- 実践的なストア（認証）---
+// --- Practical store (authentication) ---
 interface AuthStore {
   user: User | null;
   token: string | null;
@@ -259,11 +258,11 @@ const useAuthStore = create<AuthStore>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
-      // トークンをHTTPクライアントに設定
+      // Set the token on the HTTP client
       apiClient.setAuthToken(response.token);
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : 'ログインに失敗しました',
+        error: error instanceof Error ? error.message : 'Login failed',
         isLoading: false,
       });
       throw error;
@@ -277,7 +276,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
       isAuthenticated: false,
     });
     apiClient.clearAuthToken();
-    // ログアウト後のクリーンアップ
+    // Cleanup after logout
     queryClient.clear();
   },
 
@@ -290,7 +289,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
       set({ token });
       apiClient.setAuthToken(token);
     } catch {
-      // リフレッシュ失敗 → ログアウト
+      // Refresh failed → logout
       get().logout();
     }
   },
@@ -298,7 +297,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
   clearError: () => set({ error: null }),
 }));
 
-// React 外からの使用例（APIインターセプターなど）
+// Usage from outside React (e.g., API interceptors)
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -306,7 +305,7 @@ apiClient.interceptors.response.use(
       const { refreshToken, logout } = useAuthStore.getState();
       try {
         await refreshToken();
-        // リトライ
+        // Retry
         return apiClient.request(error.config);
       } catch {
         logout();
@@ -317,10 +316,10 @@ apiClient.interceptors.response.use(
 );
 ```
 
-### 2.2 カートストア（ミドルウェア活用）
+### 2.2 Cart Store (with Middleware)
 
 ```typescript
-// --- ミドルウェア ---
+// --- Middleware ---
 import { persist, devtools, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 
@@ -338,7 +337,7 @@ interface CartStore {
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
-  // 計算プロパティ（getter的に使う）
+  // Computed properties (used like getters)
   totalItems: () => number;
   totalPrice: () => number;
 }
@@ -404,16 +403,16 @@ const useCartStore = create<CartStore>()(
         }))
       ),
       {
-        name: 'cart-storage', // localStorage のキー
-        // 一部のフィールドのみ永続化
+        name: 'cart-storage', // localStorage key
+        // Persist only some fields
         partialize: (state) => ({ items: state.items }),
-        // カスタムストレージ（sessionStorage等）
+        // Custom storage (sessionStorage, etc.)
         // storage: createJSONStorage(() => sessionStorage),
-        // バージョン管理（マイグレーション）
+        // Version management (migrations)
         version: 1,
         migrate: (persistedState, version) => {
           if (version === 0) {
-            // v0 → v1 のマイグレーション
+            // Migration from v0 → v1
             return {
               ...(persistedState as any),
               items: (persistedState as any).items.map((item: any) => ({
@@ -426,48 +425,48 @@ const useCartStore = create<CartStore>()(
         },
       }
     ),
-    { name: 'CartStore' } // Redux DevTools に表示される名前
+    { name: 'CartStore' } // Name displayed in Redux DevTools
   )
 );
 
-// subscribeWithSelector で特定の状態変更を監視
+// Monitor specific state changes with subscribeWithSelector
 useCartStore.subscribe(
   (state) => state.items.length,
   (itemCount, prevItemCount) => {
     if (itemCount > prevItemCount) {
-      toast.success('カートに追加しました');
+      toast.success('Item added to cart');
     }
   }
 );
 ```
 
-### 2.3 UIストア
+### 2.3 UI Store
 
 ```typescript
-// UIに関する状態をまとめたストア
+// A store that consolidates UI-related state
 interface UIStore {
-  // サイドバー
+  // Sidebar
   sidebarOpen: boolean;
   sidebarWidth: number;
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
 
-  // モーダル
+  // Modal
   activeModal: string | null;
   modalData: Record<string, unknown>;
   openModal: (id: string, data?: Record<string, unknown>) => void;
   closeModal: () => void;
 
-  // トースト通知
+  // Toast notifications
   toasts: Toast[];
   addToast: (toast: Omit<Toast, 'id'>) => void;
   removeToast: (id: string) => void;
 
-  // テーマ
+  // Theme
   theme: 'light' | 'dark' | 'system';
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
 
-  // ブレッドクラム
+  // Breadcrumbs
   breadcrumbs: Breadcrumb[];
   setBreadcrumbs: (breadcrumbs: Breadcrumb[]) => void;
 }
@@ -475,28 +474,28 @@ interface UIStore {
 const useUIStore = create<UIStore>()(
   persist(
     (set, get) => ({
-      // サイドバー
+      // Sidebar
       sidebarOpen: true,
       sidebarWidth: 240,
       toggleSidebar: () =>
         set((state) => ({ sidebarOpen: !state.sidebarOpen })),
       setSidebarWidth: (width) => set({ sidebarWidth: width }),
 
-      // モーダル
+      // Modal
       activeModal: null,
       modalData: {},
       openModal: (id, data = {}) =>
         set({ activeModal: id, modalData: data }),
       closeModal: () => set({ activeModal: null, modalData: {} }),
 
-      // トースト通知
+      // Toast notifications
       toasts: [],
       addToast: (toast) => {
         const id = crypto.randomUUID();
         set((state) => ({
           toasts: [...state.toasts, { ...toast, id }],
         }));
-        // 自動削除
+        // Auto-remove
         if (toast.duration !== Infinity) {
           setTimeout(() => {
             get().removeToast(id);
@@ -508,11 +507,11 @@ const useUIStore = create<UIStore>()(
           toasts: state.toasts.filter((t) => t.id !== id),
         })),
 
-      // テーマ
+      // Theme
       theme: 'system',
       setTheme: (theme) => set({ theme }),
 
-      // ブレッドクラム
+      // Breadcrumbs
       breadcrumbs: [],
       setBreadcrumbs: (breadcrumbs) => set({ breadcrumbs }),
     }),
@@ -527,7 +526,7 @@ const useUIStore = create<UIStore>()(
   )
 );
 
-// モーダルを型安全に使うヘルパー
+// Type-safe modal helper
 type ModalType = 'confirm' | 'editUser' | 'createProject';
 
 interface ModalDataMap {
@@ -550,14 +549,14 @@ function useTypedModal<T extends ModalType>(type: T) {
   };
 }
 
-// 使用例
+// Usage example
 function UserList() {
   const editModal = useTypedModal('editUser');
 
   return (
     <div>
       <button onClick={() => editModal.open({ userId: '123' })}>
-        編集
+        Edit
       </button>
       {editModal.isOpen && (
         <EditUserModal
@@ -570,12 +569,12 @@ function UserList() {
 }
 ```
 
-### 2.4 スライスパターン（大規模アプリ向け）
+### 2.4 Slice Pattern (for Large-Scale Apps)
 
 ```typescript
-// 大規模アプリでは、ストアをスライスに分割する
+// For large apps, split the store into slices
 
-// --- 型定義 ---
+// --- Type definitions ---
 interface UserSlice {
   user: User | null;
   setUser: (user: User | null) => void;
@@ -598,10 +597,10 @@ interface NotificationSlice {
   clearAll: () => void;
 }
 
-// 結合型
+// Combined type
 type AppStore = UserSlice & CartSlice & NotificationSlice;
 
-// --- 各スライスの実装 ---
+// --- Slice implementations ---
 import { StateCreator } from 'zustand';
 
 // UserSlice
@@ -618,11 +617,11 @@ const createUserSlice: StateCreator<AppStore, [], [], UserSlice> = (
     const updated = await api.users.update(currentUser.id, data);
     set({ user: updated });
 
-    // 他のスライスとの連携: 通知を追加
+    // Cross-slice interaction: add a notification
     get().addNotification({
       type: 'success',
-      title: 'プロフィール更新',
-      message: 'プロフィールを更新しました',
+      title: 'Profile Updated',
+      message: 'Your profile has been updated',
     });
   },
 });
@@ -707,7 +706,7 @@ const createNotificationSlice: StateCreator<
   clearAll: () => set({ notifications: [], unreadCount: 0 }),
 });
 
-// --- ストア作成 ---
+// --- Store creation ---
 const useAppStore = create<AppStore>()(
   devtools((...a) => ({
     ...createUserSlice(...a),
@@ -716,7 +715,7 @@ const useAppStore = create<AppStore>()(
   }))
 );
 
-// 各スライスごとにエクスポートするヘルパー
+// Helper exports per slice
 export const useUser = () => useAppStore((state) => state.user);
 export const useCartItems = () => useAppStore((state) => state.items);
 export const useNotifications = () =>
@@ -725,18 +724,18 @@ export const useUnreadCount = () =>
   useAppStore((state) => state.unreadCount);
 ```
 
-### 2.5 React 外からのアクセス
+### 2.5 Accessing Store Outside React
 
 ```typescript
-// Zustand の強力な特徴: React コンポーネント外から状態にアクセスできる
+// A powerful Zustand feature: access state outside React components
 
-// API インターセプターでの使用
+// Usage in API interceptors
 import axios from 'axios';
 
 const apiClient = axios.create({ baseURL: '/api' });
 
 apiClient.interceptors.request.use((config) => {
-  // React の外から直接 token を取得
+  // Directly get the token from outside React
   const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -744,7 +743,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// WebSocket ハンドラでの使用
+// Usage in WebSocket handlers
 const socket = new WebSocket('wss://api.example.com/ws');
 
 socket.addEventListener('message', (event) => {
@@ -752,7 +751,7 @@ socket.addEventListener('message', (event) => {
 
   switch (data.type) {
     case 'NEW_NOTIFICATION':
-      // React の外から直接状態を更新
+      // Directly update state from outside React
       useAppStore.getState().addNotification(data.notification);
       break;
 
@@ -766,24 +765,24 @@ socket.addEventListener('message', (event) => {
   }
 });
 
-// タイマー/スケジューラでの使用
+// Usage in timers/schedulers
 setInterval(() => {
   const { token, refreshToken } = useAuthStore.getState();
   if (token) {
-    // トークンの有効期限チェック
+    // Check token expiry
     const payload = parseJwt(token);
     const expiresIn = payload.exp * 1000 - Date.now();
     if (expiresIn < 5 * 60 * 1000) {
-      // 5分以内に期限切れ
+      // expires within 5 minutes
       refreshToken();
     }
   }
-}, 60 * 1000); // 毎分チェック
+}, 60 * 1000); // Check every minute
 
-// テストでの使用
+// Usage in tests
 describe('CartStore', () => {
   beforeEach(() => {
-    // テスト間で状態をリセット
+    // Reset state between tests
     useCartStore.setState({
       items: [],
     });
@@ -792,7 +791,7 @@ describe('CartStore', () => {
   it('should add item', () => {
     useCartStore.getState().addItem({
       id: '1',
-      name: 'テスト商品',
+      name: 'Test Product',
       price: 1000,
       image: '/test.png',
     });
@@ -802,12 +801,12 @@ describe('CartStore', () => {
   });
 });
 
-// subscribe で状態変更を監視（React外）
+// Monitor state changes with subscribe (outside React)
 const unsubscribe = useAuthStore.subscribe(
   (state) => state.isAuthenticated,
   (isAuthenticated) => {
     if (!isAuthenticated) {
-      // 未認証になったらWebSocket接続を切断
+      // Disconnect WebSocket when unauthenticated
       socket.close();
     }
   }
@@ -816,16 +815,16 @@ const unsubscribe = useAuthStore.subscribe(
 
 ---
 
-## 3. Jotai の基礎
+## 3. Jotai Basics
 
-### 3.1 プリミティブアトム
+### 3.1 Primitive Atoms
 
 ```typescript
-// Jotai: アトムベースのボトムアップ状態管理
+// Jotai: atom-based bottom-up state management
 import { atom, useAtom, useAtomValue, useSetAtom } from 'jotai';
 
-// --- プリミティブアトム ---
-// 最も基本的な状態単位
+// --- Primitive atoms ---
+// The most basic unit of state
 const countAtom = atom(0);
 const nameAtom = atom('');
 const isDarkModeAtom = atom(false);
@@ -836,7 +835,7 @@ const formDataAtom = atom<FormData>({
   email: '',
 });
 
-// 使用: useAtom（読み書き両方）
+// Usage: useAtom (read and write)
 function Counter() {
   const [count, setCount] = useAtom(countAtom);
   return (
@@ -846,25 +845,25 @@ function Counter() {
   );
 }
 
-// useAtomValue（読み取り専用）
+// useAtomValue (read-only)
 function CountDisplay() {
   const count = useAtomValue(countAtom);
-  return <span>現在のカウント: {count}</span>;
+  return <span>Current count: {count}</span>;
 }
 
-// useSetAtom（書き込み専用 → このコンポーネントは値の変更で再レンダリングされない）
+// useSetAtom (write-only → this component does not re-render on value changes)
 function IncrementButton() {
   const setCount = useSetAtom(countAtom);
   return <button onClick={() => setCount((c) => c + 1)}>+1</button>;
 }
 ```
 
-### 3.2 派生アトム（Derived Atoms）
+### 3.2 Derived Atoms
 
 ```typescript
-// --- 派生アトム（Derived Atom）---
+// --- Derived Atoms ---
 
-// ① 読み取り専用の派生アトム
+// ① Read-only derived atom
 const doubleCountAtom = atom((get) => get(countAtom) * 2);
 
 const fullNameAtom = atom((get) => {
@@ -872,7 +871,7 @@ const fullNameAtom = atom((get) => {
   return `${data.lastName} ${data.firstName}`;
 });
 
-// 複数のアトムに依存
+// Depends on multiple atoms
 const cartSummaryAtom = atom((get) => {
   const items = get(cartItemsAtom);
   const discount = get(discountAtom);
@@ -895,26 +894,26 @@ const cartSummaryAtom = atom((get) => {
 
 function CartSummary() {
   const summary = useAtomValue(cartSummaryAtom);
-  // cartItemsAtom か discountAtom が変わった時のみ再計算＆再レンダリング
+  // Re-computes and re-renders only when cartItemsAtom or discountAtom changes
   return (
     <div>
-      <p>小計: {summary.subtotal.toLocaleString()}円</p>
-      <p>割引: -{summary.discountAmount.toLocaleString()}円</p>
-      <p>合計: {summary.total.toLocaleString()}円</p>
+      <p>Subtotal: {summary.subtotal.toLocaleString()}</p>
+      <p>Discount: -{summary.discountAmount.toLocaleString()}</p>
+      <p>Total: {summary.total.toLocaleString()}</p>
     </div>
   );
 }
 
-// ② 読み書き派生アトム（Write-only derived atom）
+// ② Read-write derived atom
 const countWithLimitAtom = atom(
   (get) => get(countAtom),
   (get, set, newValue: number) => {
-    // 0〜100 の範囲に制限
+    // Clamp the value to the range 0–100
     set(countAtom, Math.min(Math.max(newValue, 0), 100));
   }
 );
 
-// 複数のアトムを同時に更新する派生アトム
+// A derived atom that updates multiple atoms simultaneously
 const resetAllAtom = atom(null, (get, set) => {
   set(countAtom, 0);
   set(nameAtom, '');
@@ -924,10 +923,10 @@ const resetAllAtom = atom(null, (get, set) => {
 
 function ResetButton() {
   const resetAll = useSetAtom(resetAllAtom);
-  return <button onClick={resetAll}>すべてリセット</button>;
+  return <button onClick={resetAll}>Reset All</button>;
 }
 
-// ③ 条件付き派生アトム
+// ③ Conditional derived atom
 const currentUserAtom = atom<User | null>(null);
 const isAdminAtom = atom((get) => {
   const user = get(currentUserAtom);
@@ -938,28 +937,28 @@ const adminMenuItemsAtom = atom((get) => {
   const isAdmin = get(isAdminAtom);
   if (!isAdmin) return [];
   return [
-    { label: 'ユーザー管理', path: '/admin/users' },
-    { label: 'システム設定', path: '/admin/settings' },
-    { label: 'ログ', path: '/admin/logs' },
+    { label: 'User Management', path: '/admin/users' },
+    { label: 'System Settings', path: '/admin/settings' },
+    { label: 'Logs', path: '/admin/logs' },
   ];
 });
 ```
 
-### 3.3 非同期アトム
+### 3.3 Async Atoms
 
 ```typescript
-// --- 非同期アトム ---
+// --- Async Atoms ---
 
-// 基本: 非同期な初期値
+// Basic: async initial value
 const userAtom = atom(async () => {
   const response = await fetch('/api/user');
   return response.json() as Promise<User>;
 });
 
-// Suspense と組み合わせて使用
+// Use with Suspense
 function UserProfile() {
   const user = useAtomValue(userAtom);
-  // Suspense がローディング状態をハンドル
+  // Suspense handles the loading state
   return <div>{user.name}</div>;
 }
 
@@ -971,7 +970,7 @@ function App() {
   );
 }
 
-// 読み書き非同期アトム
+// Read-write async atom
 const todosAtom = atom<Todo[]>([]);
 
 const fetchTodosAtom = atom(
@@ -1003,7 +1002,7 @@ function TodoApp() {
 
   return (
     <div>
-      <button onClick={() => addTodo('新しいタスク')}>追加</button>
+      <button onClick={() => addTodo('New Task')}>Add</button>
       <ul>
         {todos.map((todo) => (
           <li key={todo.id}>{todo.text}</li>
@@ -1016,14 +1015,14 @@ function TodoApp() {
 
 ---
 
-## 4. Jotai の実践パターン
+## 4. Jotai Practical Patterns
 
-### 4.1 atomWithStorage（永続化）
+### 4.1 atomWithStorage (Persistence)
 
 ```typescript
 import { atomWithStorage, createJSONStorage } from 'jotai/utils';
 
-// localStorage に永続化
+// Persist to localStorage
 const themeAtom = atomWithStorage<'light' | 'dark' | 'system'>(
   'app-theme',
   'system'
@@ -1031,14 +1030,14 @@ const themeAtom = atomWithStorage<'light' | 'dark' | 'system'>(
 
 const languageAtom = atomWithStorage<'ja' | 'en' | 'zh'>('language', 'ja');
 
-// sessionStorage に永続化
+// Persist to sessionStorage
 const sessionThemeAtom = atomWithStorage(
   'session-theme',
   'light',
   createJSONStorage(() => sessionStorage)
 );
 
-// カスタムストレージ（例: AsyncStorage, MMKV）
+// Custom storage (e.g., AsyncStorage, MMKV)
 const customStorage = createJSONStorage<string>(() => ({
   getItem: async (key) => {
     return await AsyncStorage.getItem(key);
@@ -1051,7 +1050,7 @@ const customStorage = createJSONStorage<string>(() => ({
   },
 }));
 
-// ユーザー設定を永続化
+// Persist user preferences
 interface UserPreferences {
   fontSize: number;
   lineHeight: number;
@@ -1075,7 +1074,7 @@ const userPreferencesAtom = atomWithStorage<UserPreferences>(
   }
 );
 
-// 個別のプロパティを更新する派生アトム
+// Derived atom to update individual properties
 const fontSizeAtom = atom(
   (get) => get(userPreferencesAtom).fontSize,
   (get, set, fontSize: number) => {
@@ -1087,17 +1086,17 @@ const fontSizeAtom = atom(
 );
 ```
 
-### 4.2 atomFamily（動的アトム）
+### 4.2 atomFamily (Dynamic Atoms)
 
 ```typescript
 import { atomFamily, atomWithDefault } from 'jotai/utils';
 
-// 基本的な atomFamily
+// Basic atomFamily
 const todoAtomFamily = atomFamily((id: string) =>
   atom<Todo | null>(null)
 );
 
-// 非同期な atomFamily
+// Async atomFamily
 const userAtomFamily = atomFamily((userId: string) =>
   atom(async () => {
     const response = await fetch(`/api/users/${userId}`);
@@ -1118,7 +1117,7 @@ function UserCard({ userId }: { userId: string }) {
   );
 }
 
-// 読み書き可能な atomFamily
+// Read-write atomFamily
 interface FieldState {
   value: string;
   error: string | null;
@@ -1133,7 +1132,7 @@ const fieldAtomFamily = atomFamily((fieldName: string) =>
   })
 );
 
-// フォームの各フィールドを独立して管理
+// Manage each form field independently
 function FormField({ name, label }: { name: string; label: string }) {
   const [field, setField] = useAtom(fieldAtomFamily(name));
 
@@ -1141,7 +1140,7 @@ function FormField({ name, label }: { name: string; label: string }) {
     setField((prev) => ({
       ...prev,
       value,
-      error: null, // 入力時にエラーをクリア
+      error: null, // Clear error on input
     }));
   };
 
@@ -1164,7 +1163,7 @@ function FormField({ name, label }: { name: string; label: string }) {
   );
 }
 
-// フォーム全体のバリデーション
+// Whole-form validation
 const formFieldNames = ['firstName', 'lastName', 'email', 'phone'];
 
 const formValidAtom = atom((get) => {
@@ -1183,16 +1182,16 @@ const formDataAtom = atom((get) => {
 });
 ```
 
-### 4.3 フィルタリングとソートの実践パターン
+### 4.3 Filtering and Sorting Practical Patterns
 
 ```typescript
-// 状態定義
+// State definitions
 const filterAtom = atom<'all' | 'active' | 'completed'>('all');
 const sortAtom = atom<'newest' | 'oldest' | 'name'>('newest');
 const searchQueryAtom = atom('');
 const todosAtom = atom<Todo[]>([]);
 
-// 派生アトム: フィルタリング → ソート → 検索の順で適用
+// Derived atom: apply filter → sort → search in sequence
 const filteredTodosAtom = atom((get) => {
   const todos = get(todosAtom);
   const filter = get(filterAtom);
@@ -1237,7 +1236,7 @@ const displayTodosAtom = atom((get) => {
   );
 });
 
-// 統計アトム
+// Stats atom
 const todoStatsAtom = atom((get) => {
   const todos = get(todosAtom);
   return {
@@ -1253,7 +1252,7 @@ const todoStatsAtom = atom((get) => {
   };
 });
 
-// 使用
+// Usage
 function TodoFilters() {
   const [filter, setFilter] = useAtom(filterAtom);
   const [sort, setSort] = useAtom(sortAtom);
@@ -1266,19 +1265,19 @@ function TodoFilters() {
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="検索..."
+        placeholder="Search..."
       />
       <select value={filter} onChange={(e) => setFilter(e.target.value as any)}>
-        <option value="all">すべて ({stats.total})</option>
-        <option value="active">未完了 ({stats.active})</option>
-        <option value="completed">完了 ({stats.completed})</option>
+        <option value="all">All ({stats.total})</option>
+        <option value="active">Active ({stats.active})</option>
+        <option value="completed">Completed ({stats.completed})</option>
       </select>
       <select value={sort} onChange={(e) => setSort(e.target.value as any)}>
-        <option value="newest">新しい順</option>
-        <option value="oldest">古い順</option>
-        <option value="name">名前順</option>
+        <option value="newest">Newest</option>
+        <option value="oldest">Oldest</option>
+        <option value="name">Name</option>
       </select>
-      <span>完了率: {stats.completionRate}%</span>
+      <span>Completion rate: {stats.completionRate}%</span>
     </div>
   );
 }
@@ -1300,7 +1299,7 @@ function TodoList() {
 ```typescript
 import { atomWithReducer } from 'jotai/utils';
 
-// useReducer のアトム版
+// The atom equivalent of useReducer
 type CountAction =
   | { type: 'increment' }
   | { type: 'decrement' }
@@ -1327,12 +1326,12 @@ function Counter() {
       <span>{count}</span>
       <button onClick={() => dispatch({ type: 'increment' })}>+</button>
       <button onClick={() => dispatch({ type: 'decrement' })}>-</button>
-      <button onClick={() => dispatch({ type: 'reset' })}>リセット</button>
+      <button onClick={() => dispatch({ type: 'reset' })}>Reset</button>
     </div>
   );
 }
 
-// より複雑な例: ドラッグ&ドロップの状態管理
+// More complex example: drag-and-drop state management
 type DragState = {
   isDragging: boolean;
   draggedItem: string | null;
@@ -1377,12 +1376,12 @@ const dragAtom = atomWithReducer<DragState, DragAction>(
 );
 ```
 
-### 4.5 Jotai と TanStack Query の統合
+### 4.5 Jotai and TanStack Query Integration
 
 ```typescript
 import { atomWithQuery, atomWithMutation } from 'jotai-tanstack-query';
 
-// クエリアトム
+// Query atom
 const usersQueryAtom = atomWithQuery(() => ({
   queryKey: ['users'],
   queryFn: async () => {
@@ -1392,7 +1391,7 @@ const usersQueryAtom = atomWithQuery(() => ({
   staleTime: 5 * 60 * 1000,
 }));
 
-// パラメータ付きクエリアトム
+// Query atom with parameters
 const userIdAtom = atom<string | null>(null);
 
 const userQueryAtom = atomWithQuery((get) => {
@@ -1408,7 +1407,7 @@ const userQueryAtom = atomWithQuery((get) => {
   };
 });
 
-// ミューテーションアトム
+// Mutation atom
 const createUserMutationAtom = atomWithMutation(() => ({
   mutationFn: async (data: CreateUserInput) => {
     const response = await fetch('/api/users', {
@@ -1419,12 +1418,12 @@ const createUserMutationAtom = atomWithMutation(() => ({
     return response.json() as Promise<User>;
   },
   onSuccess: () => {
-    // キャッシュ無効化
+    // Invalidate cache
     queryClient.invalidateQueries({ queryKey: ['users'] });
   },
 }));
 
-// 使用
+// Usage
 function UserList() {
   const [{ data: users, isLoading, error }] = useAtom(usersQueryAtom);
   const [, createUser] = useAtom(createUserMutationAtom);
@@ -1434,8 +1433,8 @@ function UserList() {
 
   return (
     <div>
-      <button onClick={() => createUser({ name: '新しいユーザー', email: 'new@example.com' })}>
-        ユーザー追加
+      <button onClick={() => createUser({ name: 'New User', email: 'new@example.com' })}>
+        Add User
       </button>
       <ul>
         {users?.map((user) => (
@@ -1449,12 +1448,12 @@ function UserList() {
 
 ---
 
-## 5. Zustand vs Jotai: 詳細比較
+## 5. Zustand vs Jotai: Detailed Comparison
 
-### 5.1 メンタルモデルの違い
+### 5.1 Differences in Mental Model
 
 ```
-Zustand: トップダウン（ストアベース）
+Zustand: Top-down (store-based)
   ┌─────────────────────────────────┐
   │           AppStore              │
   │  ┌───────┐ ┌──────┐ ┌───────┐  │
@@ -1464,11 +1463,11 @@ Zustand: トップダウン（ストアベース）
            ↓         ↓         ↓
        Component  Component  Component
 
-  → 「何のストアが必要か？」から設計を始める
-  → ストアの形を最初に定義し、コンポーネントはそれを参照する
-  → Redux のメンタルモデルに近い
+  → Start design from "what stores are needed?"
+  → Define the store shape first; components reference it
+  → Closer to the Redux mental model
 
-Jotai: ボトムアップ（アトムベース）
+Jotai: Bottom-up (atom-based)
        atom    atom    atom    atom
         ↓       ↓       ↓       ↓
      ┌──┴──┐ ┌──┴──┐ ┌──┴──────┴──┐
@@ -1477,64 +1476,64 @@ Jotai: ボトムアップ（アトムベース）
         ↓       ↓           ↓
     Component Component  Component
 
-  → 「このコンポーネントに何の状態が必要か？」から設計を始める
-  → 小さなアトムを組み合わせて必要な状態を構築する
-  → Recoil のメンタルモデルに近い
+  → Start design from "what state does this component need?"
+  → Combine small atoms to build the required state
+  → Closer to the Recoil mental model
 ```
 
-### 5.2 パフォーマンス特性
+### 5.2 Performance Characteristics
 
 ```typescript
-// === 再レンダリングの違い ===
+// === Differences in re-rendering ===
 
-// Zustand: セレクターで明示的に最適化
+// Zustand: explicit optimization with selectors
 function ZustandExample() {
-  // 方法1: 個別セレクター（最も効率的）
+  // Option 1: Individual selectors (most efficient)
   const count = useStore((s) => s.count);
   const name = useStore((s) => s.name);
-  // → count or name が変わった時だけ再レンダリング
+  // → Re-renders only when count or name changes
 
-  // 方法2: useShallow（複数値を一度に取得）
+  // Option 2: useShallow (retrieve multiple values at once)
   const { count, name } = useStore(
     useShallow((s) => ({ count: s.count, name: s.name }))
   );
-  // → count or name が変わった時だけ再レンダリング
-  // → shallow comparison で判定
+  // → Re-renders only when count or name changes
+  // → Determined by shallow comparison
 
-  // 注意: セレクター内で新しいオブジェクトを作ると毎回再レンダリング
-  // NG:
-  const state = useStore((s) => ({ count: s.count })); // 毎回新しいオブジェクト
-  // → useShallow で解決
+  // Note: creating a new object inside a selector causes re-render every time
+  // BAD:
+  const state = useStore((s) => ({ count: s.count })); // new object every time
+  // → Solved with useShallow
 }
 
-// Jotai: アトム単位で自動最適化
+// Jotai: automatic optimization at the atom level
 function JotaiExample() {
   const count = useAtomValue(countAtom);
-  // → countAtom が変わった時だけ再レンダリング
-  // → nameAtom の変更は影響しない
-  // → セレクター不要で自動的に最適化される
+  // → Re-renders only when countAtom changes
+  // → Changes to nameAtom have no effect
+  // → Automatically optimized without selectors
 
-  // 派生アトムも自動的に依存関係を追跡
+  // Derived atoms also automatically track dependencies
   const displayName = useAtomValue(displayNameAtom);
-  // → displayNameAtom が依存するアトムが変わった時のみ再計算
+  // → Recomputes only when atoms that displayNameAtom depends on change
 }
 
-// パフォーマンス比較:
+// Performance comparison:
 // Zustand:
-//   ✓ セレクターで精密な制御が可能
-//   ✗ セレクターの書き方を間違えると不要な再レンダリング
-//   ✓ useShallow で複数値の取得も最適化可能
+//   ✓ Precise control with selectors
+//   ✗ Incorrect selector usage can cause unnecessary re-renders
+//   ✓ useShallow allows optimized retrieval of multiple values
 
 // Jotai:
-//   ✓ アトム単位で自動的に最適化
-//   ✓ 派生アトムの依存関係も自動追跡
-//   ✗ アトムを細かく分割しすぎるとコードが散乱する可能性
+//   ✓ Automatically optimized at the atom level
+//   ✓ Dependency tracking for derived atoms is automatic
+//   ✗ Over-splitting atoms can scatter code
 ```
 
-### 5.3 DevTools とデバッグ
+### 5.3 DevTools and Debugging
 
 ```typescript
-// === Zustand の DevTools ===
+// === Zustand DevTools ===
 import { devtools } from 'zustand/middleware';
 
 const useStore = create<AppStore>()(
@@ -1545,34 +1544,34 @@ const useStore = create<AppStore>()(
         set(
           (state) => ({ count: state.count + 1 }),
           false, // replace = false
-          'increment' // アクション名（DevToolsに表示）
+          'increment' // action name (shown in DevTools)
         ),
     }),
     {
-      name: 'AppStore', // DevToolsに表示されるストア名
+      name: 'AppStore', // store name shown in DevTools
       enabled: process.env.NODE_ENV === 'development',
     }
   )
 );
 
-// Redux DevTools で:
-// - 状態のスナップショットを確認
-// - タイムトラベルデバッグ
-// - アクションの履歴を確認
-// - 状態の差分を確認
+// In Redux DevTools:
+// - Inspect state snapshots
+// - Time-travel debugging
+// - Review action history
+// - Inspect state diffs
 
-// === Jotai の DevTools ===
+// === Jotai DevTools ===
 import { DevTools } from 'jotai-devtools';
 import 'jotai-devtools/styles.css';
 
-// アトムにデバッグラベルを付ける
+// Add debug labels to atoms
 const countAtom = atom(0);
 countAtom.debugLabel = 'countAtom';
 
 const nameAtom = atom('');
 nameAtom.debugLabel = 'nameAtom';
 
-// DevTools コンポーネントを配置
+// Place the DevTools component
 function App() {
   return (
     <Provider>
@@ -1582,96 +1581,96 @@ function App() {
   );
 }
 
-// React DevTools の「Atoms」タブで:
-// - 各アトムの現在値を確認
-// - アトム間の依存関係を可視化
-// - 値の変更をリアルタイムで監視
+// In React DevTools "Atoms" tab:
+// - Inspect current value of each atom
+// - Visualize dependencies between atoms
+// - Monitor value changes in real time
 ```
 
 ---
 
-## 6. 使い分けガイド
+## 6. Selection Guide
 
-### 6.1 プロジェクト特性別の選定
-
-```
-Zustand を選ぶ場合:
-  ✓ 明確な「ストア」の概念が欲しい
-  ✓ React外からも状態にアクセスしたい（APIインターセプター等）
-  ✓ ミドルウェア（persist, devtools, immer）が必要
-  ✓ チームにRedux経験者が多い
-  ✓ 状態の構造が事前に決まっている
-  ✓ WebSocket やタイマーから状態を更新する必要がある
-  ✓ テストで状態を直接操作したい
-
-Jotai を選ぶ場合:
-  ✓ コンポーネント単位の細かい再レンダリング制御
-  ✓ 派生状態（computed）が多い
-  ✓ 状態が動的に増減する（atomFamily）
-  ✓ Suspense / Concurrent React との統合
-  ✓ ボトムアップで状態を組み立てたい
-  ✓ フォームの各フィールドを独立して管理したい
-  ✓ 複雑なフィルタリング/ソートのロジック
-
-共通:
-  → どちらも TypeScript ファースト
-  → どちらも軽量（< 5KB）
-  → どちらも React 18+ に最適化
-  → どちらも pmndrs（Poimandres）が開発
-
-両方使う場合（実務で最も多いパターン）:
-  → Zustand: 認証、カート、UI設定等のグローバルストア
-  → Jotai: フォーム、フィルタ、ソート等の動的な状態
-  → TanStack Query: サーバーデータ
-  → useState: ローカルUI状態
-```
-
-### 6.2 具体的なシナリオ別選定
+### 6.1 Choosing by Project Characteristics
 
 ```
-シナリオ1: Eコマースアプリ
-  認証状態 → Zustand（persist + React外からのアクセス）
-  カート → Zustand（persist + 複数ページで共有）
-  商品データ → TanStack Query
-  商品フィルタ → URL状態（nuqs）
-  テーマ/言語 → Zustand（persist）
-  モーダル状態 → useState（ローカル）
+When to choose Zustand:
+  ✓ You want a clear "store" concept
+  ✓ You need to access state from outside React (API interceptors, etc.)
+  ✓ You need middleware (persist, devtools, immer)
+  ✓ Your team has Redux experience
+  ✓ The state structure is determined upfront
+  ✓ You need to update state from WebSockets or timers
+  ✓ You want to directly manipulate state in tests
 
-シナリオ2: ダッシュボード/管理画面
-  認証状態 → Zustand
-  ダッシュボードのウィジェット配置 → Zustand（persist + ドラッグ&ドロップ）
-  各ウィジェットのデータ → TanStack Query
-  フィルタ/日付範囲 → URL状態
-  サイドバー/テーマ → Zustand（persist）
-  テーブルの列設定 → Jotai（atomFamily で列ごとに管理）
+When to choose Jotai:
+  ✓ Fine-grained re-render control at the component level
+  ✓ Many derived states (computed values)
+  ✓ State that grows and shrinks dynamically (atomFamily)
+  ✓ Integration with Suspense / Concurrent React
+  ✓ You want to build state bottom-up
+  ✓ You want to manage each form field independently
+  ✓ Complex filtering/sorting logic
 
-シナリオ3: リアルタイムコラボツール
-  WebSocket接続 → Zustand（React外からのアクセス）
-  ドキュメント状態 → Zustand or Jotai（要件による）
-  ユーザープレゼンス → Zustand（WebSocketから更新）
-  カーソル位置 → Jotai（ユーザーごとにatomFamily）
-  エディタ設定 → Jotai（atomWithStorage）
-  ファイル一覧 → TanStack Query
+In common:
+  → Both are TypeScript-first
+  → Both are lightweight (< 5KB)
+  → Both are optimized for React 18+
+  → Both are developed by pmndrs (Poimandres)
 
-シナリオ4: フォーム重視のアプリ（申請システム等）
-  認証 → Zustand
-  フォームデータ → React Hook Form + Zod
-  フォームの動的フィールド → Jotai（atomFamily）
-  ウィザード進捗 → useReducer
-  申請データ → TanStack Query
-  下書き保存 → Zustand（persist）
+Using both (the most common real-world pattern):
+  → Zustand: global stores for auth, cart, UI preferences, etc.
+  → Jotai: dynamic state such as forms, filters, and sorting
+  → TanStack Query: server data
+  → useState: local UI state
+```
+
+### 6.2 Scenario-Based Selection
+
+```
+Scenario 1: E-commerce App
+  Auth state → Zustand (persist + access outside React)
+  Cart → Zustand (persist + shared across multiple pages)
+  Product data → TanStack Query
+  Product filters → URL state (nuqs)
+  Theme/language → Zustand (persist)
+  Modal state → useState (local)
+
+Scenario 2: Dashboard / Admin Panel
+  Auth state → Zustand
+  Dashboard widget layout → Zustand (persist + drag-and-drop)
+  Per-widget data → TanStack Query
+  Filters/date range → URL state
+  Sidebar/theme → Zustand (persist)
+  Table column settings → Jotai (atomFamily per column)
+
+Scenario 3: Real-Time Collaboration Tool
+  WebSocket connection → Zustand (access outside React)
+  Document state → Zustand or Jotai (depends on requirements)
+  User presence → Zustand (updated via WebSocket)
+  Cursor position → Jotai (atomFamily per user)
+  Editor settings → Jotai (atomWithStorage)
+  File list → TanStack Query
+
+Scenario 4: Form-Heavy App (e.g., application systems)
+  Auth → Zustand
+  Form data → React Hook Form + Zod
+  Dynamic form fields → Jotai (atomFamily)
+  Wizard progress → useReducer
+  Submission data → TanStack Query
+  Draft saving → Zustand (persist)
 ```
 
 ---
 
-## 7. テスト戦略
+## 7. Testing Strategies
 
-### 7.1 Zustand のテスト
+### 7.1 Testing Zustand
 
 ```typescript
 import { renderHook, act } from '@testing-library/react';
 
-// テスト用にストアをリセットするユーティリティ
+// Utility to reset a store for testing
 function resetStore<T extends object>(useStore: any) {
   const initialState = useStore.getInitialState();
   useStore.setState(initialState, true);
@@ -1695,7 +1694,7 @@ describe('useCartStore', () => {
     act(() => {
       result.current.addItem({
         id: 'p1',
-        name: 'テスト商品',
+        name: 'Test Product',
         price: 1000,
         image: '/test.png',
       });
@@ -1704,7 +1703,7 @@ describe('useCartStore', () => {
     expect(result.current.items).toHaveLength(1);
     expect(result.current.items[0]).toEqual({
       productId: 'p1',
-      name: 'テスト商品',
+      name: 'Test Product',
       price: 1000,
       quantity: 1,
       image: '/test.png',
@@ -1712,12 +1711,12 @@ describe('useCartStore', () => {
   });
 
   it('should increment quantity for existing item', () => {
-    // 直接状態を設定してテストのセットアップを簡潔に
+    // Set state directly for concise test setup
     useCartStore.setState({
       items: [
         {
           productId: 'p1',
-          name: 'テスト商品',
+          name: 'Test Product',
           price: 1000,
           quantity: 1,
           image: '/test.png',
@@ -1730,7 +1729,7 @@ describe('useCartStore', () => {
     act(() => {
       result.current.addItem({
         id: 'p1',
-        name: 'テスト商品',
+        name: 'Test Product',
         price: 1000,
         image: '/test.png',
       });
@@ -1742,8 +1741,8 @@ describe('useCartStore', () => {
   it('should calculate total price correctly', () => {
     useCartStore.setState({
       items: [
-        { productId: 'p1', name: '商品A', price: 1000, quantity: 2, image: '' },
-        { productId: 'p2', name: '商品B', price: 500, quantity: 3, image: '' },
+        { productId: 'p1', name: 'Product A', price: 1000, quantity: 2, image: '' },
+        { productId: 'p2', name: 'Product B', price: 500, quantity: 3, image: '' },
       ],
     });
 
@@ -1753,8 +1752,8 @@ describe('useCartStore', () => {
   it('should remove an item', () => {
     useCartStore.setState({
       items: [
-        { productId: 'p1', name: '商品A', price: 1000, quantity: 1, image: '' },
-        { productId: 'p2', name: '商品B', price: 500, quantity: 1, image: '' },
+        { productId: 'p1', name: 'Product A', price: 1000, quantity: 1, image: '' },
+        { productId: 'p2', name: 'Product B', price: 500, quantity: 1, image: '' },
       ],
     });
 
@@ -1767,7 +1766,7 @@ describe('useCartStore', () => {
   });
 });
 
-// コンポーネント統合テスト
+// Component integration test
 import { render, screen, fireEvent } from '@testing-library/react';
 
 describe('CartComponent', () => {
@@ -1778,42 +1777,42 @@ describe('CartComponent', () => {
   it('should display cart items', () => {
     useCartStore.setState({
       items: [
-        { productId: 'p1', name: '商品A', price: 1000, quantity: 2, image: '' },
+        { productId: 'p1', name: 'Product A', price: 1000, quantity: 2, image: '' },
       ],
     });
 
     render(<CartComponent />);
 
-    expect(screen.getByText('商品A')).toBeInTheDocument();
+    expect(screen.getByText('Product A')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByText('2,000円')).toBeInTheDocument();
+    expect(screen.getByText('2,000')).toBeInTheDocument();
   });
 
   it('should remove item when delete button is clicked', () => {
     useCartStore.setState({
       items: [
-        { productId: 'p1', name: '商品A', price: 1000, quantity: 1, image: '' },
+        { productId: 'p1', name: 'Product A', price: 1000, quantity: 1, image: '' },
       ],
     });
 
     render(<CartComponent />);
 
-    fireEvent.click(screen.getByRole('button', { name: '削除' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
-    expect(screen.queryByText('商品A')).not.toBeInTheDocument();
+    expect(screen.queryByText('Product A')).not.toBeInTheDocument();
     expect(useCartStore.getState().items).toHaveLength(0);
   });
 });
 ```
 
-### 7.2 Jotai のテスト
+### 7.2 Testing Jotai
 
 ```typescript
 import { renderHook, act } from '@testing-library/react';
 import { Provider, createStore } from 'jotai';
 import { useHydrateAtoms } from 'jotai/utils';
 
-// テスト用ラッパー
+// Test wrapper
 function TestProvider({
   initialValues,
   children,
@@ -1902,7 +1901,7 @@ describe('Todo Atoms', () => {
   });
 });
 
-// createStore を使ったテスト（Provider不要）
+// Test using createStore (no Provider needed)
 describe('Todo Atoms (with createStore)', () => {
   it('should toggle todo', () => {
     const store = createStore();
@@ -1911,7 +1910,7 @@ describe('Todo Atoms (with createStore)', () => {
       { id: '1', text: 'Task 1', completed: false },
     ]);
 
-    // toggleTodoAtom が書き込みアトムの場合
+    // When toggleTodoAtom is a write atom
     store.set(toggleTodoAtom, '1');
 
     const todos = store.get(todosAtom);
@@ -1922,9 +1921,9 @@ describe('Todo Atoms (with createStore)', () => {
 
 ---
 
-## 8. 高度なパターン
+## 8. Advanced Patterns
 
-### 8.1 Zustand: Temporal ミドルウェア（Undo/Redo）
+### 8.1 Zustand: Temporal Middleware (Undo/Redo)
 
 ```typescript
 import { temporal } from 'zundo';
@@ -1945,12 +1944,12 @@ const useEditorStore = create<EditorStore>()(
       setFontSize: (size) => set({ fontSize: size }),
     }),
     {
-      limit: 50, // 履歴の最大数
-      // 特定のフィールドのみ履歴に含める
+      limit: 50, // Maximum history entries
+      // Include only specific fields in history
       partialize: (state) => ({
         content: state.content,
       }),
-      // デバウンス（タイピング中は毎キーストロークで履歴を作らない）
+      // Debounce (avoid creating a history entry on every keystroke while typing)
       handleSet: (handleSet) => {
         let timeoutId: NodeJS.Timeout;
         return (state) => {
@@ -1964,7 +1963,7 @@ const useEditorStore = create<EditorStore>()(
   )
 );
 
-// Undo/Redo ボタン
+// Undo/Redo buttons
 function UndoRedoButtons() {
   const { undo, redo, pastStates, futureStates } =
     useEditorStore.temporal.getState();
@@ -1972,22 +1971,22 @@ function UndoRedoButtons() {
   return (
     <div>
       <button onClick={undo} disabled={pastStates.length === 0}>
-        元に戻す ({pastStates.length})
+        Undo ({pastStates.length})
       </button>
       <button onClick={redo} disabled={futureStates.length === 0}>
-        やり直し ({futureStates.length})
+        Redo ({futureStates.length})
       </button>
     </div>
   );
 }
 ```
 
-### 8.2 Jotai: focusAtom（レンズパターン）
+### 8.2 Jotai: focusAtom (Lens Pattern)
 
 ```typescript
 import { focusAtom } from 'jotai-optics';
 
-// 大きなオブジェクトの特定のフィールドにフォーカスするアトム
+// An atom that focuses on a specific field of a large object
 interface AppConfig {
   editor: {
     fontSize: number;
@@ -2026,7 +2025,7 @@ const configAtom = atom<AppConfig>({
   },
 });
 
-// focusAtom で特定のフィールドにフォーカス
+// Focus on specific fields with focusAtom
 const editorConfigAtom = focusAtom(configAtom, (optic) =>
   optic.prop('editor')
 );
@@ -2037,7 +2036,7 @@ const sidebarWidthAtom = focusAtom(configAtom, (optic) =>
   optic.prop('sidebar').prop('width')
 );
 
-// fontSizeAtom を更新すると、configAtom のネストされた値が自動的に更新される
+// Updating fontSizeAtom automatically updates the nested value in configAtom
 function FontSizeControl() {
   const [fontSize, setFontSize] = useAtom(fontSizeAtom);
   return (
@@ -2049,17 +2048,17 @@ function FontSizeControl() {
       onChange={(e) => setFontSize(Number(e.target.value))}
     />
   );
-  // → configAtom.editor.fontSize が更新される
-  // → sidebar や notifications を使うコンポーネントは再レンダリングされない
+  // → configAtom.editor.fontSize is updated
+  // → Components using sidebar or notifications do not re-render
 }
 ```
 
-### 8.3 Zustand と Jotai の組み合わせ
+### 8.3 Combining Zustand and Jotai
 
 ```typescript
-// 実務では両方を使い分けることが多い
+// In real-world apps, it is common to use both
 
-// Zustand: アプリ全体のグローバルストア（React外からもアクセス）
+// Zustand: app-wide global store (accessible outside React)
 const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
@@ -2075,26 +2074,26 @@ const useAuthStore = create<AuthStore>()(
   )
 );
 
-// Jotai: 画面固有の動的な状態（アトムベースで柔軟に）
+// Jotai: screen-specific dynamic state (flexible with atoms)
 const searchQueryAtom = atom('');
 const filtersAtom = atom<Filter[]>([]);
 const sortAtom = atom<SortConfig>({ field: 'createdAt', order: 'desc' });
 const pageAtom = atom(1);
 
-// Zustand の状態を Jotai から参照する場合
+// Referencing Zustand state from Jotai
 const currentUserAtom = atom((get) => {
-  // Zustand ストアから直接取得
+  // Get directly from the Zustand store
   return useAuthStore.getState().user;
 });
 
-// より反応的にする場合: subscribe を使う
+// For a more reactive approach: use subscribe
 const currentUserReactiveAtom = atom<User | null>(null);
 
-// アプリ起動時に同期をセットアップ
+// Set up synchronization at app startup
 useAuthStore.subscribe(
   (state) => state.user,
   (user) => {
-    // Jotai の store を通じてアトムを更新
+    // Update the atom via the Jotai store
     jotaiStore.set(currentUserReactiveAtom, user);
   }
 );
@@ -2102,9 +2101,9 @@ useAuthStore.subscribe(
 
 ---
 
-## 9. マイグレーションガイド
+## 9. Migration Guide
 
-### 9.1 Redux から Zustand へ
+### 9.1 Migrating from Redux to Zustand
 
 ```typescript
 // === Redux Toolkit ===
@@ -2133,18 +2132,18 @@ const todoSlice = createSlice({
   },
 });
 
-// コンポーネント
+// Component
 function TodoList() {
   const todos = useSelector((state: RootState) => state.todos.items);
   const dispatch = useDispatch();
   return (
     <button onClick={() => dispatch(todoSlice.actions.addTodo('New'))}>
-      追加
+      Add
     </button>
   );
 }
 
-// === 同じものを Zustand で ===
+// === The same thing in Zustand ===
 // stores/useTodoStore.ts
 interface TodoStore {
   items: Todo[];
@@ -2175,23 +2174,23 @@ const useTodoStore = create<TodoStore>()(
   }))
 );
 
-// コンポーネント（Provider不要！）
+// Component (no Provider needed!)
 function TodoList() {
   const todos = useTodoStore((state) => state.items);
   const addTodo = useTodoStore((state) => state.addTodo);
-  return <button onClick={() => addTodo('New')}>追加</button>;
+  return <button onClick={() => addTodo('New')}>Add</button>;
 }
 
-// マイグレーションのポイント:
-// 1. Provider/configureStore が不要
+// Migration highlights:
+// 1. No Provider/configureStore needed
 // 2. useSelector → useStore(selector)
 // 3. dispatch(action) → store.action()
-// 4. createSlice → create() 内で直接定義
-// 5. immer ミドルウェアで同じ書き方が可能
-// 6. Redux DevTools もそのまま使える
+// 4. createSlice → define directly inside create()
+// 5. Same syntax available with immer middleware
+// 6. Redux DevTools still work
 ```
 
-### 9.2 Context から Jotai へ
+### 9.2 Migrating from Context to Jotai
 
 ```typescript
 // === React Context ===
@@ -2218,9 +2217,9 @@ function TodoProvider({ children }: { children: React.ReactNode }) {
   return <TodoContext.Provider value={value}>{children}</TodoContext.Provider>;
 }
 
-// 問題: filter だけ使うコンポーネントも todos の変更で再レンダリング
+// Problem: components that only use filter still re-render when todos changes
 
-// === 同じものを Jotai で ===
+// === The same thing in Jotai ===
 const todosAtom = atom<Todo[]>([]);
 const filterAtom = atom<FilterType>('all');
 
@@ -2231,113 +2230,113 @@ const addTodoAtom = atom(null, (get, set, text: string) => {
   ]);
 });
 
-// Provider 不要、各アトムが独立して更新される
+// No Provider needed; each atom updates independently
 function TodoFilters() {
   const [filter, setFilter] = useAtom(filterAtom);
-  // todosAtom の変更ではこのコンポーネントは再レンダリングされない！
+  // This component does NOT re-render when todosAtom changes!
   return (
     <select value={filter} onChange={(e) => setFilter(e.target.value as any)}>
-      <option value="all">すべて</option>
-      <option value="active">未完了</option>
+      <option value="all">All</option>
+      <option value="active">Active</option>
     </select>
   );
 }
 
-// マイグレーションのポイント:
-// 1. Provider が不要（Jotai は React tree に暗黙的にスコープ）
-// 2. useMemo/useCallback の手動最適化が不要
-// 3. 各アトムが独立 → 再レンダリングが自動的に最適化
-// 4. Context の分割（Value/Dispatch分離）が不要
+// Migration highlights:
+// 1. No Provider needed (Jotai scopes implicitly to the React tree)
+// 2. No manual optimization with useMemo/useCallback
+// 3. Each atom is independent → re-renders are automatically optimized
+// 4. No need to split Context (Value/Dispatch separation)
 ```
 
 ---
 
-## 10. ベストプラクティスまとめ
+## 10. Best Practices Summary
 
 ```
-Zustand ベストプラクティス:
-  1. セレクターを使って必要な値だけ取得する
-  2. アクションはストア内で定義する（コンポーネント外でも使えるように）
-  3. persist で永続化する際は partialize で必要なフィールドだけ
-  4. devtools のアクション名を付けてデバッグしやすく
-  5. 大規模アプリではスライスパターンで分割
-  6. テスト時は getInitialState() でリセット
-  7. immer ミドルウェアでネストした更新を簡潔に
+Zustand Best Practices:
+  1. Use selectors to retrieve only what you need
+  2. Define actions inside the store (so they can be used outside components too)
+  3. When persisting with persist, use partialize to persist only necessary fields
+  4. Add action names in devtools for easier debugging
+  5. Use the slice pattern for large-scale apps
+  6. Reset state in tests using getInitialState()
+  7. Use immer middleware to simplify nested updates
 
-Jotai ベストプラクティス:
-  1. アトムは小さく保つ（1つのアトム = 1つの関心事）
-  2. 派生アトムを積極的に使う（状態の導出をアトムレベルで）
-  3. debugLabel を付けてデバッグしやすく
-  4. useAtomValue / useSetAtom を使い分ける（不要な再レンダリング防止）
-  5. atomFamily で動的な状態を管理
-  6. atomWithStorage で永続化
-  7. focusAtom でネストしたオブジェクトの特定フィールドに注目
+Jotai Best Practices:
+  1. Keep atoms small (one atom = one concern)
+  2. Use derived atoms actively (derive state at the atom level)
+  3. Add debugLabel for easier debugging
+  4. Use useAtomValue / useSetAtom appropriately (prevent unnecessary re-renders)
+  5. Manage dynamic state with atomFamily
+  6. Persist state with atomWithStorage
+  7. Use focusAtom to focus on specific fields of nested objects
 
-共通のベストプラクティス:
-  1. サーバーデータは TanStack Query に任せる（ストア/アトムに入れない）
-  2. ローカルで済む状態は useState で（過度なグローバル化を避ける）
-  3. TypeScript の型を正確に定義する
-  4. テストを書く（ストア/アトムのロジックは純粋関数として）
-  5. パフォーマンス計測してから最適化する（premature optimization を避ける）
+Common Best Practices:
+  1. Delegate server data to TanStack Query (do not put it in stores/atoms)
+  2. Use useState for local state (avoid excessive globalization)
+  3. Define TypeScript types accurately
+  4. Write tests (store/atom logic as pure functions)
+  5. Measure performance before optimizing (avoid premature optimization)
 ```
 
 ---
 
 ## FAQ
 
-### Q1: Zustand と Jotai はどう使い分けるべきか？
+### Q1: How should I choose between Zustand and Jotai?
 
-**A:** メンタルモデルと技術的要件で判断する:
+**A:** Decide based on mental model and technical requirements:
 
-**Zustand を選ぶ場面:**
-- 明確な「ストア」の概念が欲しい（Redux 経験者にとって直感的）
-- React 外からも状態にアクセスしたい（API インターセプター、WebSocket ハンドラ等）
-- ミドルウェア（persist, devtools, immer）を活用したい
-- シンプルで学習コストが低いライブラリが欲しい
-- **例:** 認証状態、カート、UI設定（サイドバー、テーマ）
+**When to choose Zustand:**
+- You want a clear "store" concept (intuitive for Redux users)
+- You need to access state from outside React (API interceptors, WebSocket handlers, etc.)
+- You want to leverage middleware (persist, devtools, immer)
+- You want a simple library with a low learning curve
+- **Examples:** auth state, cart, UI settings (sidebar, theme)
 
-**Jotai を選ぶ場面:**
-- コンポーネント単位の細かい再レンダリング制御が必要
-- 派生状態（computed values）が多い
-- 状態が動的に増減する（atomFamily）
-- Suspense / Concurrent React との統合を重視
-- ボトムアップで状態を組み立てたい
-- **例:** 複雑なフィルタリング、フォーム（各フィールドを独立管理）、動的テーブル
+**When to choose Jotai:**
+- You need fine-grained re-render control at the component level
+- You have many derived states (computed values)
+- State grows and shrinks dynamically (atomFamily)
+- You prioritize integration with Suspense / Concurrent React
+- You want to build state bottom-up
+- **Examples:** complex filtering, forms (manage each field independently), dynamic tables
 
-**両方使う（実務で最も多いパターン）:**
+**Using both (the most common real-world pattern):**
 ```typescript
-// Zustand: グローバルな静的状態
-const useAuthStore = create(/* 認証 */);
-const useUIStore = create(/* テーマ、サイドバー */);
+// Zustand: global static state
+const useAuthStore = create(/* auth */);
+const useUIStore = create(/* theme, sidebar */);
 
-// Jotai: 動的・派生状態が多い部分
+// Jotai: sections with many dynamic or derived states
 const searchQueryAtom = atom('');
 const filtersAtom = atom([]);
-const filteredResultsAtom = atom((get) => /* 派生 */);
+const filteredResultsAtom = atom((get) => /* derived */);
 ```
 
-### Q2: ストアの分割戦略は？
+### Q2: What is the strategy for splitting stores?
 
-**A:** 関心事の分離（Separation of Concerns）に基づいて分割する:
+**A:** Split based on Separation of Concerns:
 
-**アンチパターン: 巨大な単一ストア**
+**Anti-pattern: One giant store**
 ```typescript
-// NG: 何でも1つのストアに詰め込む
+// BAD: stuffing everything into a single store
 const useMegaStore = create({
   user, theme, cart, notifications, sidebar, modal, ...
-  // → 50以上のプロパティ、肥大化、テストしづらい
+  // → 50+ properties, bloated, hard to test
 });
 ```
 
-**ベストプラクティス: ドメインごとに分割**
+**Best practice: Split by domain**
 ```typescript
-// OK: 関心事ごとにストアを分ける
-const useAuthStore = create(/* 認証関連 */);
-const useCartStore = create(/* カート関連 */);
-const useUIStore = create(/* UI状態 */);
-const useNotificationStore = create(/* 通知 */);
+// GOOD: separate stores per concern
+const useAuthStore = create(/* auth-related */);
+const useCartStore = create(/* cart-related */);
+const useUIStore = create(/* UI state */);
+const useNotificationStore = create(/* notifications */);
 
-// 大規模な場合: スライスパターン
+// For large scale: slice pattern
 const useAppStore = create((...a) => ({
   ...createAuthSlice(...a),
   ...createCartSlice(...a),
@@ -2345,15 +2344,15 @@ const useAppStore = create((...a) => ({
 }));
 ```
 
-**分割の判断基準:**
-- **ドメイン境界:** 認証、カート、通知など、ビジネスロジックで明確に区別できる
-- **更新頻度:** 頻繁に更新される状態は分離（再レンダリングの最小化）
-- **ライフサイクル:** 永続化の有無、リセットタイミングが異なるものは分離
-- **テスト容易性:** 独立してテストできる単位で分割
+**Criteria for splitting:**
+- **Domain boundaries:** clearly distinguishable by business logic (auth, cart, notifications, etc.)
+- **Update frequency:** isolate frequently updated state (minimize re-renders)
+- **Lifecycle:** separate state with different persistence needs or reset timing
+- **Testability:** split into units that can be tested independently
 
-### Q3: DevTools でストアをデバッグするには？
+### Q3: How do I debug a store with DevTools?
 
-**A:** Zustand と Jotai それぞれの DevTools 活用法:
+**A:** DevTools usage for both Zustand and Jotai:
 
 **Zustand: Redux DevTools**
 ```typescript
@@ -2367,21 +2366,21 @@ const useStore = create<Store>()(
         set(
           (state) => ({ count: state.count + 1 }),
           false,
-          'increment' // ← アクション名（DevTools に表示）
+          'increment' // ← action name (shown in DevTools)
         ),
     }),
     {
-      name: 'MyStore', // ← ストア名
+      name: 'MyStore', // ← store name
       enabled: process.env.NODE_ENV === 'development',
     }
   )
 );
 
-// Redux DevTools で:
-// - 状態のスナップショット確認
-// - タイムトラベルデバッグ（過去の状態に戻る）
-// - アクション履歴の確認
-// - 差分（diff）の確認
+// In Redux DevTools:
+// - Inspect state snapshots
+// - Time-travel debugging (go back to previous state)
+// - Review action history
+// - Inspect diffs
 ```
 
 **Jotai: jotai-devtools**
@@ -2389,11 +2388,11 @@ const useStore = create<Store>()(
 import { DevTools } from 'jotai-devtools';
 import 'jotai-devtools/styles.css';
 
-// アトムにラベルを付ける
+// Add labels to atoms
 const countAtom = atom(0);
 countAtom.debugLabel = 'countAtom';
 
-// DevTools コンポーネントを配置
+// Place the DevTools component
 function App() {
   return (
     <Provider>
@@ -2403,43 +2402,43 @@ function App() {
   );
 }
 
-// DevTools で:
-// - 各アトムの現在値を確認
-// - アトム間の依存関係を可視化
-// - 値の変更をリアルタイム監視
+// In DevTools:
+// - Inspect the current value of each atom
+// - Visualize dependencies between atoms
+// - Monitor value changes in real time
 ```
 
-**デバッグのコツ:**
-- **Zustand:** アクション名を意味のある名前にする（`'increment'` より `'cart/addItem'`）
-- **Jotai:** debugLabel を必ず設定（設定しないと `atom1`, `atom2` のような自動生成名）
-- **本番環境:** devtools を無効化（`enabled: process.env.NODE_ENV === 'development'`）
+**Debugging Tips:**
+- **Zustand:** Use meaningful action names (`'cart/addItem'` rather than just `'increment'`)
+- **Jotai:** Always set debugLabel (without it, atoms get auto-generated names like `atom1`, `atom2`)
+- **Production:** disable devtools (`enabled: process.env.NODE_ENV === 'development'`)
 
 ---
 
-## まとめ
+## Summary
 
-| 特徴 | Zustand | Jotai |
-|------|---------|-------|
-| モデル | ストアベース（トップダウン） | アトムベース（ボトムアップ） |
+| Feature | Zustand | Jotai |
+|---------|---------|-------|
+| Model | Store-based (top-down) | Atom-based (bottom-up) |
 | API | create() | atom() + useAtom() |
-| 再レンダリング | セレクターで最適化 | アトム単位で自動最適化 |
-| ミドルウェア | persist, devtools, immer, temporal | atomWithStorage, atomFamily, focusAtom |
-| React外アクセス | getState(), setState(), subscribe() | createStore() 経由で可能 |
+| Re-renders | Optimized with selectors | Automatically optimized per atom |
+| Middleware | persist, devtools, immer, temporal | atomWithStorage, atomFamily, focusAtom |
+| Access outside React | getState(), setState(), subscribe() | Possible via createStore() |
 | DevTools | Redux DevTools | jotai-devtools |
-| バンドルサイズ | ~1.1kB (gzip) | ~3.8kB (gzip) |
-| 学習コスト | 低（Redux経験者は特に） | 中（アトムの概念を理解する必要） |
-| 適切な規模 | 中〜大規模 | 小〜大規模 |
-| 非同期処理 | ストア内で async/await | 非同期アトム or jotai-tanstack-query |
-| テスト | getState()/setState() で直接操作 | createStore() or Provider でテスト |
-| SSR対応 | hydrate ミドルウェア | Provider + useHydrateAtoms |
+| Bundle size | ~1.1kB (gzip) | ~3.8kB (gzip) |
+| Learning curve | Low (especially for Redux users) | Medium (requires understanding the atom concept) |
+| Suitable scale | Medium to large | Small to large |
+| Async handling | async/await inside the store | Async atoms or jotai-tanstack-query |
+| Testing | Direct manipulation via getState()/setState() | Test with createStore() or Provider |
+| SSR support | hydrate middleware | Provider + useHydrateAtoms |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
 ---
 
-## 参考文献
+## References
 1. Zustand. "Bear necessities for state management." github.com/pmndrs/zustand, 2024.
 2. Jotai. "Primitive and flexible state management." jotai.org, 2024.
 3. Daishi Kato. "When I Use Jotai vs Zustand." blog.axlight.com, 2024.
