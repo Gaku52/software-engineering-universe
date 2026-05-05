@@ -1,28 +1,28 @@
-# Amazon RDS 基礎
+# Amazon RDS Fundamentals
 
-> AWS のフルマネージドリレーショナルデータベースサービスを理解し、MySQL/PostgreSQL の運用・マルチ AZ・リードレプリカを実践的に学ぶ
+> Understand AWS's fully managed relational database service and learn practical skills for MySQL/PostgreSQL operations, Multi-AZ deployment, and read replicas
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **RDS の基本アーキテクチャ** — エンジン選択、インスタンスクラス、ストレージタイプの設計判断
-2. **高可用性の実現** — マルチ AZ 配置、自動フェイルオーバー、バックアップ戦略
-3. **読み取りスケーリング** — リードレプリカの構築・活用パターンとレプリケーション遅延の管理
-4. **セキュリティ設計** — VPC 配置、暗号化、IAM 認証、監査ログの設定
-5. **Infrastructure as Code** — CloudFormation / CDK による RDS の宣言的管理
+1. **RDS Basic Architecture** — Design decisions for engine selection, instance classes, and storage types
+2. **Achieving High Availability** — Multi-AZ deployment, automatic failover, and backup strategies
+3. **Read Scaling** — Building and leveraging read replicas, and managing replication lag
+4. **Security Design** — VPC placement, encryption, IAM authentication, and audit log configuration
+5. **Infrastructure as Code** — Declarative RDS management with CloudFormation / CDK
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related fundamental concepts
 
 ---
 
-## 1. RDS アーキテクチャ概要
+## 1. RDS Architecture Overview
 
-### RDS の位置づけ
+### Positioning of RDS
 
 ```
 +----------------------------------------------------------+
@@ -45,27 +45,27 @@
 +----------------------------------------------------------+
 ```
 
-### RDS のマネージド範囲
+### RDS Managed Scope
 
 ```
 +-------------------------------+-------------------------------+
-|      ユーザーの責任             |      RDS が管理                |
+|      User's Responsibility    |      Managed by RDS           |
 +-------------------------------+-------------------------------+
-| アプリケーションの最適化        | OS パッチ適用                  |
-| クエリチューニング             | データベースエンジンの更新       |
-| スキーマ設計                   | 自動バックアップ               |
-| インデックス管理               | スナップショット管理            |
-| パラメータグループのチューニング | マルチ AZ フェイルオーバー      |
-| セキュリティグループ設定        | ストレージの自動スケーリング    |
-| バックアップ保持期間の決定      | ヘルスモニタリング             |
-| 暗号化設定                    | ハードウェア障害時の自動復旧    |
+| Application optimization      | OS patching                   |
+| Query tuning                  | Database engine updates        |
+| Schema design                 | Automatic backups              |
+| Index management              | Snapshot management            |
+| Parameter group tuning        | Multi-AZ failover              |
+| Security group configuration  | Storage auto-scaling           |
+| Backup retention decisions    | Health monitoring              |
+| Encryption configuration      | Automatic recovery from HW failure |
 +-------------------------------+-------------------------------+
 ```
 
-### コード例 1: RDS インスタンスの作成（AWS CLI）
+### Code Example 1: Creating an RDS Instance (AWS CLI)
 
 ```bash
-# MySQL 8.0 の RDS インスタンスを作成
+# Create a MySQL 8.0 RDS instance
 aws rds create-db-instance \
   --db-instance-identifier my-mysql-db \
   --db-instance-class db.r6g.large \
@@ -93,17 +93,17 @@ aws rds create-db-instance \
   --deletion-protection \
   --tags Key=Environment,Value=production Key=Team,Value=backend
 
-# 作成状態の確認
+# Check creation status
 aws rds wait db-instance-available \
   --db-instance-identifier my-mysql-db
 
-# エンドポイントの取得
+# Get the endpoint
 aws rds describe-db-instances \
   --db-instance-identifier my-mysql-db \
   --query 'DBInstances[0].Endpoint.{Address:Address,Port:Port}'
 ```
 
-### コード例 2: Terraform による RDS 定義
+### Code Example 2: RDS Definition with Terraform
 
 ```hcl
 resource "aws_db_instance" "main" {
@@ -112,39 +112,39 @@ resource "aws_db_instance" "main" {
   engine_version = "8.0.35"
   instance_class = "db.r6g.large"
 
-  # ストレージ
+  # Storage
   allocated_storage     = 100
-  max_allocated_storage = 500   # オートスケーリング上限
+  max_allocated_storage = 500   # Auto-scaling upper limit
   storage_type          = "gp3"
   storage_encrypted     = true
   kms_key_id            = aws_kms_key.rds.arn
 
-  # ネットワーク
+  # Network
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.rds.id]
   publicly_accessible    = false
 
-  # 高可用性
+  # High availability
   multi_az = true
 
-  # 認証
+  # Authentication
   username = "admin"
-  password = var.db_password  # Secrets Manager 推奨
+  password = var.db_password  # Secrets Manager recommended
 
-  # バックアップ
+  # Backup
   backup_retention_period = 7
   backup_window          = "03:00-04:00"
   maintenance_window     = "Mon:04:00-Mon:05:00"
 
-  # パラメータ
+  # Parameters
   parameter_group_name = aws_db_parameter_group.mysql80.name
 
-  # 削除保護
+  # Deletion protection
   deletion_protection = true
   skip_final_snapshot = false
   final_snapshot_identifier = "app-mysql-prod-final"
 
-  # 監視
+  # Monitoring
   performance_insights_enabled          = true
   performance_insights_retention_period = 731
   monitoring_interval                   = 60
@@ -221,126 +221,126 @@ resource "aws_security_group" "rds" {
 
 ---
 
-## 2. エンジン比較
+## 2. Engine Comparison
 
-### RDS 対応エンジン比較表
+### RDS Supported Engine Comparison
 
-| エンジン | バージョン例 | 最大ストレージ | 特徴 | ユースケース |
+| Engine | Version Examples | Max Storage | Features | Use Cases |
 |---|---|---|---|---|
-| **MySQL** | 8.0, 8.4 | 64 TiB | 広い互換性、コミュニティ大 | Web アプリ全般 |
-| **PostgreSQL** | 15, 16 | 64 TiB | 拡張性、JSON対応、GIS | 分析系、地理データ |
-| **MariaDB** | 10.6, 10.11 | 64 TiB | MySQL 互換、追加機能 | MySQL 代替 |
-| **Oracle** | 19c, 21c | 64 TiB | エンタープライズ機能 | 基幹系移行 |
-| **SQL Server** | 2019, 2022 | 16 TiB | Windows 統合 | .NET アプリ |
-| **Aurora MySQL** | 3 (MySQL 8.0互換) | 128 TiB | 高性能、自動スケール | 高負荷 Web |
-| **Aurora PostgreSQL** | 15, 16 互換 | 128 TiB | 高性能、Babelfish | エンタープライズ |
+| **MySQL** | 8.0, 8.4 | 64 TiB | Wide compatibility, large community | General web apps |
+| **PostgreSQL** | 15, 16 | 64 TiB | Extensibility, JSON support, GIS | Analytics, geospatial data |
+| **MariaDB** | 10.6, 10.11 | 64 TiB | MySQL compatible, additional features | MySQL alternative |
+| **Oracle** | 19c, 21c | 64 TiB | Enterprise features | Core system migration |
+| **SQL Server** | 2019, 2022 | 16 TiB | Windows integration | .NET apps |
+| **Aurora MySQL** | 3 (MySQL 8.0 compatible) | 128 TiB | High performance, auto-scaling | High-load web |
+| **Aurora PostgreSQL** | 15, 16 compatible | 128 TiB | High performance, Babelfish | Enterprise |
 
-### MySQL vs PostgreSQL 選定基準
+### MySQL vs PostgreSQL Selection Criteria
 
-| 観点 | MySQL | PostgreSQL |
+| Aspect | MySQL | PostgreSQL |
 |---|---|---|
-| **学習コスト** | 低い | やや高い |
-| **JSON 操作** | 基本的 | 高度（JSONB、インデックス対応） |
-| **全文検索** | あり | 高度（tsvector/tsquery） |
-| **地理空間** | 基本 | PostGIS で高度対応 |
-| **パーティション** | RANGE/LIST/HASH | 宣言的パーティション |
-| **レプリケーション** | binlog | WAL ベース（論理/物理） |
-| **拡張性** | プラグイン | Extension で柔軟 |
-| **同時接続性能** | 高い | 中〜高（接続プール推奨） |
-| **Window 関数** | 8.0 で対応 | 高度に対応 |
-| **CTE (再帰)** | 8.0 で対応 | 早期から対応 |
+| **Learning Curve** | Low | Slightly higher |
+| **JSON Operations** | Basic | Advanced (JSONB, index support) |
+| **Full-text Search** | Available | Advanced (tsvector/tsquery) |
+| **Geospatial** | Basic | Advanced with PostGIS |
+| **Partitioning** | RANGE/LIST/HASH | Declarative partitioning |
+| **Replication** | binlog | WAL-based (logical/physical) |
+| **Extensibility** | Plugins | Flexible via Extensions |
+| **Concurrent Connection Performance** | High | Medium to high (connection pooling recommended) |
+| **Window Functions** | Supported since 8.0 | Advanced support |
+| **CTE (Recursive)** | Supported since 8.0 | Supported since early versions |
 
-### インスタンスクラスの選択
+### Instance Class Selection
 
 ```
-インスタンスクラス選定フロー
+Instance Class Selection Flow
 ==============================
 
-開始
+Start
  |
  v
-本番環境?
+Production environment?
  |           |
- Yes         No (開発/テスト)
+ Yes         No (Dev/Test)
  |           |
  v           v
-メモリ集約型  汎用インスタンス
-db.r6g/r7g   db.t3/t4g
- |           (バースト対応)
+Memory-optimized  General purpose
+db.r6g/r7g        db.t3/t4g
+ |                (Burstable)
  |
  v
-Graviton 対応エンジン?
+Graviton-compatible engine?
  |           |
  Yes         No
  |           |
  v           v
 db.r7g      db.r6i
-(コスパ最良)  (Intel)
+(Best value) (Intel)
 
-インスタンスクラスの命名規則:
+Instance class naming convention:
   db.r6g.2xlarge
   |  | | |
-  |  | | +-- サイズ (large, xlarge, 2xlarge, ...)
-  |  | +---- プロセッサ (g=Graviton, i=Intel, なし=デフォルト)
-  |  +------ 世代 (6, 7)
-  +--------- ファミリー (r=メモリ最適化, m=汎用, t=バースト)
+  |  | | +-- Size (large, xlarge, 2xlarge, ...)
+  |  | +---- Processor (g=Graviton, i=Intel, none=default)
+  |  +------ Generation (6, 7)
+  +--------- Family (r=memory-optimized, m=general purpose, t=burstable)
 ```
 
-| クラス | vCPU | メモリ | 用途 | 月額概算 (東京) |
-|-------|------|--------|------|---------------|
-| db.t3.micro | 2 | 1 GiB | 開発・テスト | ~$25 |
-| db.t3.medium | 2 | 4 GiB | 小規模本番 | ~$100 |
-| db.r6g.large | 2 | 16 GiB | 中規模本番 | ~$250 |
-| db.r6g.xlarge | 4 | 32 GiB | 大規模本番 | ~$500 |
-| db.r6g.2xlarge | 8 | 64 GiB | 高負荷本番 | ~$1,000 |
-| db.r7g.4xlarge | 16 | 128 GiB | 大規模エンタープライズ | ~$2,000 |
+| Class | vCPU | Memory | Use Case | Estimated Monthly Cost (Tokyo) |
+|-------|------|--------|----------|-------------------------------|
+| db.t3.micro | 2 | 1 GiB | Dev/Test | ~$25 |
+| db.t3.medium | 2 | 4 GiB | Small-scale production | ~$100 |
+| db.r6g.large | 2 | 16 GiB | Medium-scale production | ~$250 |
+| db.r6g.xlarge | 4 | 32 GiB | Large-scale production | ~$500 |
+| db.r6g.2xlarge | 8 | 64 GiB | High-load production | ~$1,000 |
+| db.r7g.4xlarge | 16 | 128 GiB | Large-scale enterprise | ~$2,000 |
 
 ---
 
-## 3. ストレージタイプの選択
+## 3. Storage Type Selection
 
 ```
-ストレージ選択フローチャート
+Storage Selection Flowchart
 ============================
 
-開始
+Start
  |
  v
-IOPS が 3,000 以下で十分?
+Is 3,000 IOPS or less sufficient?
  |           |
  Yes         No
  |           |
  v           v
-gp3        IOPS 要件は?
-(汎用)      |         |
+gp3        IOPS requirement?
+(General)   |         |
            ~64,000   ~256,000
             |         |
             v         v
           gp3       io2 Block
-        (IOPS指定)  Express
+        (Custom IOPS) Express
 ```
 
-### ストレージタイプ詳細比較
+### Detailed Storage Type Comparison
 
-| 項目 | gp3 | gp2 (旧) | io1 | io2 | io2 Block Express |
+| Item | gp3 | gp2 (Legacy) | io1 | io2 | io2 Block Express |
 |------|-----|---------|-----|-----|-------------------|
-| ベースライン IOPS | 3,000 | 容量比例 | 指定 | 指定 | 指定 |
-| 最大 IOPS | 16,000 | 16,000 | 64,000 | 64,000 | 256,000 |
-| 最大スループット | 1,000 MiB/s | 250 MiB/s | 1,000 MiB/s | 1,000 MiB/s | 4,000 MiB/s |
-| IOPS/GiB 比 | 独立 | 3:1 | 50:1 | 500:1 | 1,000:1 |
-| 耐久性 | 99.8-99.9% | 99.8-99.9% | 99.8-99.9% | 99.999% | 99.999% |
-| コスト | 最安 | やや高い | 高い | 高い | 非常に高い |
+| Baseline IOPS | 3,000 | Proportional to capacity | Specified | Specified | Specified |
+| Max IOPS | 16,000 | 16,000 | 64,000 | 64,000 | 256,000 |
+| Max Throughput | 1,000 MiB/s | 250 MiB/s | 1,000 MiB/s | 1,000 MiB/s | 4,000 MiB/s |
+| IOPS/GiB Ratio | Independent | 3:1 | 50:1 | 500:1 | 1,000:1 |
+| Durability | 99.8-99.9% | 99.8-99.9% | 99.8-99.9% | 99.999% | 99.999% |
+| Cost | Lowest | Slightly higher | High | High | Very high |
 
-### コード例 3: ストレージ自動スケーリングと監視
+### Code Example 3: Storage Auto-Scaling and Monitoring
 
 ```bash
-# 既存インスタンスにストレージ自動スケーリングを追加
+# Add storage auto-scaling to an existing instance
 aws rds modify-db-instance \
   --db-instance-identifier my-mysql-db \
   --max-allocated-storage 500 \
   --apply-immediately
 
-# gp2 から gp3 への移行（コスト削減）
+# Migrate from gp2 to gp3 (cost reduction)
 aws rds modify-db-instance \
   --db-instance-identifier my-mysql-db \
   --storage-type gp3 \
@@ -348,7 +348,7 @@ aws rds modify-db-instance \
   --storage-throughput 125 \
   --apply-immediately
 
-# ストレージ使用量の監視（CloudWatch）
+# Monitor storage usage (CloudWatch)
 aws cloudwatch get-metric-statistics \
   --namespace AWS/RDS \
   --metric-name FreeStorageSpace \
@@ -359,7 +359,7 @@ aws cloudwatch get-metric-statistics \
   --statistics Average \
   --unit Bytes
 
-# ストレージ使用量のアラーム設定（残り 10GB で通知）
+# Set up storage usage alarm (notify when less than 10GB remaining)
 aws cloudwatch put-metric-alarm \
   --alarm-name "RDS-FreeStorage-Low" \
   --metric-name FreeStorageSpace \
@@ -376,13 +376,13 @@ aws cloudwatch put-metric-alarm \
 
 ---
 
-## 4. マルチ AZ 配置
+## 4. Multi-AZ Deployment
 
-### フェイルオーバーの仕組み
+### How Failover Works
 
 ```
-正常時:
-+----------+    同期レプリケーション    +----------+
+Normal operation:
++----------+    Synchronous Replication    +----------+
 | Primary  | ========================> | Standby  |
 | (AZ-1a)  |                          | (AZ-1c)  |
 +----+-----+                          +----------+
@@ -393,61 +393,61 @@ aws cloudwatch put-metric-alarm \
 | App      |
 +----------+
 
-障害発生時:
+During failure:
 +----------+                           +----------+
-| Primary  |   X  接続断              | Standby  |
+| Primary  |   X  Connection lost     | Standby  |
 | (AZ-1a)  |                          | -> Primary|
 +----------+                          +----+-----+
-  障害                                      ^
-                                           |  DNS 自動切替
-                                           |  (60-120秒)
+  Failure                                   ^
+                                           |  Automatic DNS switchover
+                                           |  (60-120 seconds)
                                       +----+-----+
                                       | App      |
                                       +----------+
 
-マルチ AZ クラスター（新方式）:
-+----------+    同期    +-----------+    同期    +-----------+
+Multi-AZ Cluster (new approach):
++----------+    Sync    +-----------+    Sync    +-----------+
 | Writer   | ========> | Reader 1  | ========> | Reader 2  |
 | (AZ-1a)  |           | (AZ-1c)   |           | (AZ-1d)   |
 +----------+           +-----------+           +-----------+
-  ↑ 書き込み              ↑ 読み取り               ↑ 読み取り
+  ^ Writes               ^ Reads                 ^ Reads
   rw-endpoint             ro-endpoint             ro-endpoint
 
-  フェイルオーバー時間: 約 35 秒（従来のマルチ AZ より高速）
+  Failover time: ~35 seconds (faster than traditional Multi-AZ)
 ```
 
-### マルチ AZ インスタンス vs マルチ AZ クラスター
+### Multi-AZ Instance vs Multi-AZ Cluster
 
-| 項目 | マルチ AZ インスタンス | マルチ AZ クラスター |
+| Item | Multi-AZ Instance | Multi-AZ Cluster |
 |------|---------------------|-------------------|
-| Standby | 1 台（読み取り不可） | 2 台（読み取り可能） |
-| フェイルオーバー | 60-120 秒 | 約 35 秒 |
-| 読み取りエンドポイント | なし | あり |
-| 対応エンジン | 全エンジン | MySQL, PostgreSQL |
-| ストレージ | EBS | ローカル NVMe + EBS |
-| コスト | 約 2 倍 | 約 3 倍 |
-| ユースケース | 標準的な HA | 高性能 HA + 読み取りスケール |
+| Standby | 1 instance (not readable) | 2 instances (readable) |
+| Failover | 60-120 seconds | ~35 seconds |
+| Read endpoint | None | Available |
+| Supported engines | All engines | MySQL, PostgreSQL |
+| Storage | EBS | Local NVMe + EBS |
+| Cost | ~2x | ~3x |
+| Use case | Standard HA | High-performance HA + read scaling |
 
-### コード例 4: マルチ AZ フェイルオーバーテスト
+### Code Example 4: Multi-AZ Failover Testing
 
 ```bash
-# フェイルオーバーの手動実行（テスト用）
+# Manual failover execution (for testing)
 aws rds reboot-db-instance \
   --db-instance-identifier my-mysql-db \
   --force-failover
 
-# フェイルオーバーイベントの確認
+# Check failover events
 aws rds describe-events \
   --source-type db-instance \
   --source-identifier my-mysql-db \
   --duration 60
 
-# マルチ AZ 状態の確認
+# Check Multi-AZ status
 aws rds describe-db-instances \
   --db-instance-identifier my-mysql-db \
   --query 'DBInstances[0].{MultiAZ:MultiAZ,AZ:AvailabilityZone,SecondaryAZ:SecondaryAvailabilityZone}'
 
-# EventBridge でフェイルオーバーを検知
+# Detect failover with EventBridge
 aws events put-rule \
   --name rds-failover-notification \
   --event-pattern '{
@@ -469,36 +469,36 @@ aws events put-targets \
 
 ---
 
-## 5. リードレプリカ
+## 5. Read Replicas
 
-### リードレプリカのアーキテクチャ
+### Read Replica Architecture
 
 ```
-リードレプリカ構成
+Read Replica Configuration
 
-+----------+   非同期レプリケーション   +-----------+
++----------+   Asynchronous Replication   +-----------+
 | Primary  | =======================> | Read      |
 | (Writer) |                          | Replica 1 |
 |          |                          | (AZ-1c)   |
 |          |                          +-----------+
 |          |
-|          |   非同期レプリケーション   +-----------+
+|          |   Asynchronous Replication   +-----------+
 |          | =======================> | Read      |
 |          |                          | Replica 2 |
 |          |                          | (AZ-1d)   |
 +----------+                          +-----------+
 
-  ↑ 書き込み                            ↑ 読み取り
-  (プライマリエンドポイント)              (各レプリカのエンドポイント)
+  ^ Writes                              ^ Reads
+  (Primary endpoint)                    (Each replica's endpoint)
 
-注意: 非同期のため、レプリケーション遅延が発生する
-      ReplicaLag メトリクスで監視が必要
+Note: Since replication is asynchronous, replication lag occurs
+      Monitoring via the ReplicaLag metric is required
 ```
 
-### コード例 5: リードレプリカの作成と活用
+### Code Example 5: Creating and Using Read Replicas
 
 ```bash
-# リードレプリカの作成
+# Create a read replica
 aws rds create-db-instance-read-replica \
   --db-instance-identifier my-mysql-db-read1 \
   --source-db-instance-identifier my-mysql-db \
@@ -511,21 +511,21 @@ aws rds create-db-instance-read-replica \
   --monitoring-interval 60 \
   --monitoring-role-arn arn:aws:iam::123456789012:role/rds-monitoring-role
 
-# 2 台目のリードレプリカ
+# Second read replica
 aws rds create-db-instance-read-replica \
   --db-instance-identifier my-mysql-db-read2 \
   --source-db-instance-identifier my-mysql-db \
   --db-instance-class db.r6g.large \
   --availability-zone ap-northeast-1d
 
-# クロスリージョンリードレプリカ（DR 用）
+# Cross-region read replica (for DR)
 aws rds create-db-instance-read-replica \
   --db-instance-identifier my-mysql-db-us-read \
   --source-db-instance-identifier arn:aws:rds:ap-northeast-1:123456789:db:my-mysql-db \
   --db-instance-class db.r6g.large \
   --region us-east-1
 
-# レプリケーション遅延の監視
+# Monitor replication lag
 aws cloudwatch get-metric-statistics \
   --namespace AWS/RDS \
   --metric-name ReplicaLag \
@@ -535,7 +535,7 @@ aws cloudwatch get-metric-statistics \
   --period 60 \
   --statistics Average
 
-# レプリケーション遅延アラーム
+# Replication lag alarm
 aws cloudwatch put-metric-alarm \
   --alarm-name "RDS-ReplicaLag-High" \
   --metric-name ReplicaLag \
@@ -548,12 +548,12 @@ aws cloudwatch put-metric-alarm \
   --comparison-operator GreaterThanThreshold \
   --alarm-actions "arn:aws:sns:ap-northeast-1:123456789012:alerts"
 
-# リードレプリカをスタンドアロン DB に昇格
+# Promote read replica to standalone DB
 aws rds promote-read-replica \
   --db-instance-identifier my-mysql-db-read1
 ```
 
-### コード例 6: アプリケーションでの読み書き分離（Python）
+### Code Example 6: Read/Write Splitting in Application (Python)
 
 ```python
 import pymysql
@@ -562,7 +562,7 @@ import random
 import time
 
 class DatabaseRouter:
-    """読み書き分離を行うデータベースルーター"""
+    """Database router for read/write splitting"""
 
     def __init__(self):
         self.writer_config = {
@@ -597,7 +597,7 @@ class DatabaseRouter:
         self._reader_index = 0
 
     def _connect_with_retry(self, config, max_retries=3):
-        """リトライ付きの接続"""
+        """Connection with retry"""
         for attempt in range(max_retries):
             try:
                 return pymysql.connect(**config)
@@ -608,7 +608,7 @@ class DatabaseRouter:
 
     @contextmanager
     def writer(self):
-        """書き込み用コネクション"""
+        """Connection for writes"""
         conn = self._connect_with_retry(self.writer_config)
         try:
             yield conn
@@ -621,7 +621,7 @@ class DatabaseRouter:
 
     @contextmanager
     def reader(self):
-        """読み取り用コネクション（ラウンドロビン）"""
+        """Connection for reads (round-robin)"""
         config = self.reader_configs[self._reader_index]
         self._reader_index = (self._reader_index + 1) % len(self.reader_configs)
         conn = self._connect_with_retry(config)
@@ -632,39 +632,39 @@ class DatabaseRouter:
 
     @contextmanager
     def consistent_reader(self):
-        """一貫性が必要な読み取り（プライマリから読む）"""
+        """Read from primary when consistency is required"""
         conn = self._connect_with_retry(self.writer_config)
         try:
             yield conn
         finally:
             conn.close()
 
-# 使用例
+# Usage examples
 db = DatabaseRouter()
 
-# 書き込みはプライマリへ
+# Writes go to the primary
 with db.writer() as conn:
     with conn.cursor() as cur:
         cur.execute("INSERT INTO users (name, email) VALUES (%s, %s)",
                     ("Taro", "taro@example.com"))
 
-# 読み取りはリードレプリカへ
+# Reads go to read replicas
 with db.reader() as conn:
     with conn.cursor() as cur:
         cur.execute("SELECT * FROM users WHERE id = %s", (1,))
         user = cur.fetchone()
 
-# 書き込み直後の読み取り（レプリケーション遅延回避）
+# Read immediately after write (avoiding replication lag)
 with db.consistent_reader() as conn:
     with conn.cursor() as cur:
         cur.execute("SELECT * FROM users WHERE email = %s", ("taro@example.com",))
         user = cur.fetchone()
 ```
 
-### コード例: RDS Proxy を使った接続管理
+### Code Example: Connection Management with RDS Proxy
 
 ```bash
-# RDS Proxy の作成
+# Create an RDS Proxy
 aws rds create-db-proxy \
   --db-proxy-name my-app-proxy \
   --engine-family MYSQL \
@@ -679,17 +679,17 @@ aws rds create-db-proxy \
   --require-tls \
   --idle-client-timeout 1800
 
-# ターゲットグループの登録
+# Register the target group
 aws rds register-db-proxy-targets \
   --db-proxy-name my-app-proxy \
   --db-instance-identifiers my-mysql-db
 
-# Proxy エンドポイントの取得
+# Get the Proxy endpoint
 aws rds describe-db-proxies \
   --db-proxy-name my-app-proxy \
   --query 'DBProxies[0].Endpoint'
 
-# Proxy のリーダーエンドポイントを作成（読み取り用）
+# Create a Proxy reader endpoint (for reads)
 aws rds create-db-proxy-endpoint \
   --db-proxy-name my-app-proxy \
   --db-proxy-endpoint-name my-app-proxy-reader \
@@ -698,51 +698,50 @@ aws rds create-db-proxy-endpoint \
 ```
 
 ```
-RDS Proxy のメリット:
-1. 接続プーリング: Lambda 等の短命な接続を効率的に管理
-2. フェイルオーバー高速化: Proxy がフェイルオーバーを隠蔽（切替時間短縮）
-3. IAM 認証: データベースパスワードの代わりに IAM 認証を使用可能
-4. TLS 強制: クライアント-Proxy 間の暗号化を強制
-5. ピン留め: 同一セッション内のクエリを同一接続に固定
+Benefits of RDS Proxy:
+1. Connection pooling: Efficiently manages short-lived connections from Lambda, etc.
+2. Faster failover: Proxy abstracts failover (reduces switchover time)
+3. IAM authentication: Use IAM authentication instead of database passwords
+4. TLS enforcement: Enforces encryption between client and Proxy
+5. Pinning: Pins queries within the same session to the same connection
 ```
 
 ---
 
-## 6. バックアップとリカバリ
+## 6. Backup and Recovery
 
-### バックアップの仕組み
+### How Backups Work
 
 ```
-RDS バックアップ戦略
+RDS Backup Strategy
 
-自動バックアップ:
-  毎日のスナップショット (バックアップウィンドウ内)
-  + トランザクションログ (5 分間隔)
-  = ポイントインタイムリカバリ (PITR)
-  保持期間: 1-35 日（デフォルト 7 日）
+Automatic backups:
+  Daily snapshot (within backup window)
+  + Transaction logs (every 5 minutes)
+  = Point-in-Time Recovery (PITR)
+  Retention period: 1-35 days (default 7 days)
 
   +--+--+--+--+--+--+--+--+--+--+--+--+
-  |日|月|火|水|木|金|土|日|月|火|水|木|
+  |Su|Mo|Tu|We|Th|Fr|Sa|Su|Mo|Tu|We|Th|
   +--+--+--+--+--+--+--+--+--+--+--+--+
-   ↑  ↑  ↑  ↑  ↑  ↑  ↑             ↑
-   スナップショット                    最新の復元可能な時点
-                                    (Latest Restorable Time)
+   ^  ^  ^  ^  ^  ^  ^             ^
+   Snapshots                       Latest Restorable Time
 
-手動スナップショット:
-  - 自動削除されない（手動で削除するまで保持）
-  - リージョン間コピー可能（DR 用）
-  - アカウント間共有可能
+Manual snapshots:
+  - Not automatically deleted (retained until manually deleted)
+  - Can be copied across regions (for DR)
+  - Can be shared across accounts
 ```
 
-### コード例 7: ポイントインタイムリカバリ
+### Code Example 7: Point-in-Time Recovery
 
 ```bash
-# 復元可能な最新時刻の確認
+# Check the latest restorable time
 aws rds describe-db-instances \
   --db-instance-identifier my-mysql-db \
   --query 'DBInstances[0].LatestRestorableTime'
 
-# 特定時刻の状態にリストア（新インスタンスとして作成）
+# Restore to a specific point in time (created as a new instance)
 aws rds restore-db-instance-to-point-in-time \
   --source-db-instance-identifier my-mysql-db \
   --target-db-instance-identifier my-mysql-db-restored \
@@ -754,49 +753,49 @@ aws rds restore-db-instance-to-point-in-time \
   --storage-type gp3 \
   --copy-tags-to-snapshot
 
-# 最新の復元可能な時点にリストア
+# Restore to the latest restorable time
 aws rds restore-db-instance-to-point-in-time \
   --source-db-instance-identifier my-mysql-db \
   --target-db-instance-identifier my-mysql-db-latest \
   --use-latest-restorable-time \
   --db-instance-class db.r6g.large
 
-# 手動スナップショットの作成
+# Create a manual snapshot
 aws rds create-db-snapshot \
   --db-instance-identifier my-mysql-db \
   --db-snapshot-identifier my-mysql-db-snap-20260211
 
-# スナップショットからの復元
+# Restore from a snapshot
 aws rds restore-db-instance-from-db-snapshot \
   --db-instance-identifier my-mysql-db-from-snap \
   --db-snapshot-identifier my-mysql-db-snap-20260211 \
   --db-instance-class db.r6g.large
 
-# スナップショットの別リージョンへのコピー（DR 用）
+# Copy snapshot to another region (for DR)
 aws rds copy-db-snapshot \
   --source-db-snapshot-identifier arn:aws:rds:ap-northeast-1:123456789012:snapshot:my-mysql-db-snap-20260211 \
   --target-db-snapshot-identifier my-mysql-db-snap-us-copy \
   --region us-east-1 \
   --kms-key-id alias/rds-dr-key
 
-# スナップショットの別アカウントへの共有
+# Share snapshot with another account
 aws rds modify-db-snapshot-attribute \
   --db-snapshot-identifier my-mysql-db-snap-20260211 \
   --attribute-name restore \
   --values-to-add "987654321098"
 ```
 
-### コード例: 自動バックアップのクロスリージョンレプリケーション
+### Code Example: Cross-Region Replication of Automatic Backups
 
 ```bash
-# 自動バックアップの別リージョンへのレプリケーション
+# Replicate automatic backups to another region
 aws rds start-db-instance-automated-backups-replication \
   --source-db-instance-arn arn:aws:rds:ap-northeast-1:123456789012:db:my-mysql-db \
   --backup-retention-period 7 \
   --kms-key-id alias/rds-dr-key \
   --region us-east-1
 
-# レプリケーション状態の確認
+# Check replication status
 aws rds describe-db-instance-automated-backups \
   --db-instance-automated-backups-arn arn:aws:rds:us-east-1:123456789012:auto-backup:xxx \
   --region us-east-1
@@ -804,25 +803,25 @@ aws rds describe-db-instance-automated-backups \
 
 ---
 
-## 7. 監視とパフォーマンスチューニング
+## 7. Monitoring and Performance Tuning
 
-### 主要 CloudWatch メトリクス
+### Key CloudWatch Metrics
 
-| メトリクス | 閾値（目安） | 対応 |
+| Metric | Threshold (Guideline) | Action |
 |-----------|------------|------|
-| CPUUtilization | > 80% | インスタンスクラスのスケールアップ |
-| FreeableMemory | < 256 MB | スケールアップ、クエリ最適化 |
-| FreeStorageSpace | < 10 GB | ストレージ拡張、古いデータの削除 |
-| ReadIOPS / WriteIOPS | ベースライン超過 | gp3 IOPS 増加、io2 への変更 |
-| ReplicaLag | > 30 秒 | レプリカのスケールアップ、並列レプリケーション |
-| DatabaseConnections | > 80% of max | RDS Proxy 導入、接続プール |
-| SwapUsage | > 0 | メモリ不足、スケールアップ |
-| DiskQueueDepth | > 64 | ストレージ IOPS の増加 |
+| CPUUtilization | > 80% | Scale up instance class |
+| FreeableMemory | < 256 MB | Scale up, optimize queries |
+| FreeStorageSpace | < 10 GB | Expand storage, delete old data |
+| ReadIOPS / WriteIOPS | Exceeds baseline | Increase gp3 IOPS, switch to io2 |
+| ReplicaLag | > 30 seconds | Scale up replica, enable parallel replication |
+| DatabaseConnections | > 80% of max | Introduce RDS Proxy, connection pooling |
+| SwapUsage | > 0 | Insufficient memory, scale up |
+| DiskQueueDepth | > 64 | Increase storage IOPS |
 
-### コード例 8: Performance Insights の活用
+### Code Example 8: Leveraging Performance Insights
 
 ```bash
-# Performance Insights を有効化
+# Enable Performance Insights
 aws rds modify-db-instance \
   --db-instance-identifier my-mysql-db \
   --enable-performance-insights \
@@ -830,7 +829,7 @@ aws rds modify-db-instance \
   --performance-insights-kms-key-id alias/rds-pi-key \
   --apply-immediately
 
-# トップ待機イベントの取得
+# Get top wait events
 aws pi get-resource-metrics \
   --service-type RDS \
   --identifier db-XXXXXXXXXXXXXXXXXXXX \
@@ -845,7 +844,7 @@ aws pi get-resource-metrics \
   --end-time 2026-02-11T00:00:00Z \
   --period-in-seconds 3600
 
-# トップ SQL の取得
+# Get top SQL queries
 aws pi get-resource-metrics \
   --service-type RDS \
   --identifier db-XXXXXXXXXXXXXXXXXXXX \
@@ -860,7 +859,7 @@ aws pi get-resource-metrics \
   --end-time 2026-02-11T00:00:00Z \
   --period-in-seconds 3600
 
-# Enhanced Monitoring の有効化（OS レベルのメトリクス）
+# Enable Enhanced Monitoring (OS-level metrics)
 aws rds modify-db-instance \
   --db-instance-identifier my-mysql-db \
   --monitoring-interval 60 \
@@ -868,10 +867,10 @@ aws rds modify-db-instance \
   --apply-immediately
 ```
 
-### コード例: CloudWatch ダッシュボードの作成
+### Code Example: Creating a CloudWatch Dashboard
 
 ```bash
-# RDS 監視ダッシュボードの作成
+# Create an RDS monitoring dashboard
 aws cloudwatch put-dashboard \
   --dashboard-name "RDS-Monitoring" \
   --dashboard-body '{
@@ -937,32 +936,32 @@ aws cloudwatch put-dashboard \
 
 ---
 
-## 8. セキュリティ
+## 8. Security
 
-### 8.1 VPC とネットワーク
+### 8.1 VPC and Network
 
 ```bash
-# DB サブネットグループの作成
+# Create a DB subnet group
 aws rds create-db-subnet-group \
   --db-subnet-group-name my-db-subnet-group \
   --db-subnet-group-description "Private subnets for RDS" \
   --subnet-ids subnet-aaa111 subnet-bbb222 subnet-ccc333
 
-# セキュリティグループの作成
+# Create a security group
 SG_ID=$(aws ec2 create-security-group \
   --group-name rds-mysql-sg \
   --description "Security group for RDS MySQL" \
   --vpc-id vpc-xxx \
   --query 'GroupId' --output text)
 
-# アプリケーション層からのみ MySQL ポートを許可
+# Allow MySQL port only from the application layer
 aws ec2 authorize-security-group-ingress \
   --group-id $SG_ID \
   --protocol tcp \
   --port 3306 \
   --source-group sg-app-layer
 
-# Bastion / SSM からの接続も許可（管理者用）
+# Also allow connections from Bastion / SSM (for administrators)
 aws ec2 authorize-security-group-ingress \
   --group-id $SG_ID \
   --protocol tcp \
@@ -970,20 +969,20 @@ aws ec2 authorize-security-group-ingress \
   --source-group sg-bastion
 ```
 
-### 8.2 IAM データベース認証
+### 8.2 IAM Database Authentication
 
 ```bash
-# IAM 認証の有効化
+# Enable IAM authentication
 aws rds modify-db-instance \
   --db-instance-identifier my-mysql-db \
   --enable-iam-database-authentication \
   --apply-immediately
 
-# MySQL で IAM 認証ユーザーの作成
+# Create an IAM authentication user in MySQL
 # mysql> CREATE USER 'iam_user'@'%' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';
 # mysql> GRANT SELECT ON myapp.* TO 'iam_user'@'%';
 
-# IAM ポリシーの例
+# IAM policy example
 # {
 #   "Version": "2012-10-17",
 #   "Statement": [{
@@ -993,7 +992,7 @@ aws rds modify-db-instance \
 #   }]
 # }
 
-# IAM 認証トークンの取得と接続
+# Get IAM authentication token and connect
 TOKEN=$(aws rds generate-db-auth-token \
   --hostname my-mysql-db.xxxx.ap-northeast-1.rds.amazonaws.com \
   --port 3306 \
@@ -1006,55 +1005,55 @@ mysql -h my-mysql-db.xxxx.ap-northeast-1.rds.amazonaws.com \
   --ssl-ca=global-bundle.pem
 ```
 
-### 8.3 暗号化
+### 8.3 Encryption
 
 ```bash
-# 暗号化済みインスタンスの確認
+# Check if instance is encrypted
 aws rds describe-db-instances \
   --db-instance-identifier my-mysql-db \
   --query 'DBInstances[0].{StorageEncrypted:StorageEncrypted,KmsKeyId:KmsKeyId}'
 
-# 非暗号化インスタンスの暗号化（スナップショット経由）
-# 1. スナップショット取得
+# Encrypt an unencrypted instance (via snapshot)
+# 1. Take a snapshot
 aws rds create-db-snapshot \
   --db-instance-identifier my-mysql-db-unencrypted \
   --db-snapshot-identifier my-mysql-db-unenc-snap
 
-# 2. 暗号化コピーを作成
+# 2. Create an encrypted copy
 aws rds copy-db-snapshot \
   --source-db-snapshot-identifier my-mysql-db-unenc-snap \
   --target-db-snapshot-identifier my-mysql-db-encrypted-snap \
   --kms-key-id alias/rds-key
 
-# 3. 暗号化スナップショットから復元
+# 3. Restore from the encrypted snapshot
 aws rds restore-db-instance-from-db-snapshot \
   --db-instance-identifier my-mysql-db-encrypted \
   --db-snapshot-identifier my-mysql-db-encrypted-snap
 
-# 4. アプリの接続先を切り替え後、旧インスタンスを削除
+# 4. Switch application connection to the new instance, then delete the old one
 
-# SSL/TLS 接続の強制（パラメータグループ）
+# Enforce SSL/TLS connections (parameter group)
 # MySQL: require_secure_transport = 1
 # PostgreSQL: rds.force_ssl = 1
 ```
 
 ---
 
-## 9. インスタンスの停止と起動
+## 9. Instance Stop and Start
 
 ```bash
-# RDS インスタンスの一時停止（最大 7 日間）
+# Temporarily stop an RDS instance (up to 7 days)
 aws rds stop-db-instance \
   --db-instance-identifier my-dev-db
 
-# 7 日後に自動起動されるため、継続的に停止したい場合はスクリプトが必要
+# The instance auto-starts after 7 days; a script is needed for continuous stopping
 
-# RDS インスタンスの起動
+# Start an RDS instance
 aws rds start-db-instance \
   --db-instance-identifier my-dev-db
 
-# Lambda で開発環境の定時停止・起動を自動化
-# EventBridge ルール: 平日 20:00 に停止、翌朝 8:00 に起動
+# Automate scheduled stop/start for dev environments with Lambda
+# EventBridge rule: Stop at 20:00 on weekdays, start at 8:00 next morning
 aws events put-rule \
   --name stop-dev-rds-nightly \
   --schedule-expression "cron(0 11 ? * MON-FRI *)" \
@@ -1068,9 +1067,9 @@ aws events put-rule \
 
 ---
 
-## 10. CloudFormation / CDK による構築
+## 10. Building with CloudFormation / CDK
 
-### 10.1 CloudFormation テンプレート
+### 10.1 CloudFormation Template
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
@@ -1089,7 +1088,7 @@ Parameters:
     Description: Master password (Secrets Manager recommended)
 
 Resources:
-  # KMS キー
+  # KMS Key
   RDSKey:
     Type: AWS::KMS::Key
     Properties:
@@ -1104,14 +1103,14 @@ Resources:
             Action: 'kms:*'
             Resource: '*'
 
-  # DB サブネットグループ
+  # DB Subnet Group
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: Private subnets for RDS
       SubnetIds: !Ref PrivateSubnetIds
 
-  # セキュリティグループ
+  # Security Group
   DBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -1124,7 +1123,7 @@ Resources:
           SourceSecurityGroupId: !Ref AppSecurityGroupId
           Description: MySQL from app layer
 
-  # パラメータグループ
+  # Parameter Group
   DBParameterGroup:
     Type: AWS::RDS::DBParameterGroup
     Properties:
@@ -1137,7 +1136,7 @@ Resources:
         long_query_time: '1'
         require_secure_transport: '1'
 
-  # プライマリインスタンス
+  # Primary Instance
   DBInstance:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Snapshot
@@ -1173,7 +1172,7 @@ Resources:
         - error
         - slowquery
 
-  # リードレプリカ
+  # Read Replica
   ReadReplica:
     Type: AWS::RDS::DBInstance
     DependsOn: DBInstance
@@ -1187,7 +1186,7 @@ Resources:
       MonitoringInterval: 60
       MonitoringRoleArn: !GetAtt MonitoringRole.Arn
 
-  # Enhanced Monitoring 用 IAM ロール
+  # IAM Role for Enhanced Monitoring
   MonitoringRole:
     Type: AWS::IAM::Role
     Properties:
@@ -1201,7 +1200,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
 
-  # CPU 使用率アラーム
+  # CPU Utilization Alarm
   CPUAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -1231,7 +1230,7 @@ Outputs:
     Description: Read replica endpoint
 ```
 
-### 10.2 CDK (TypeScript) による構築
+### 10.2 Building with CDK (TypeScript)
 
 ```typescript
 import * as cdk from 'aws-cdk-lib';
@@ -1256,13 +1255,13 @@ export class RdsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: RdsStackProps) {
     super(scope, id, props);
 
-    // KMS キー
+    // KMS Key
     const encryptionKey = new kms.Key(this, 'RdsKey', {
       description: 'RDS encryption key',
       enableKeyRotation: true,
     });
 
-    // セキュリティグループ
+    // Security Group
     const dbSg = new ec2.SecurityGroup(this, 'DbSg', {
       vpc: props.vpc,
       description: 'RDS MySQL Security Group',
@@ -1274,7 +1273,7 @@ export class RdsStack extends cdk.Stack {
       'MySQL from app layer'
     );
 
-    // パラメータグループ
+    // Parameter Group
     const parameterGroup = new rds.ParameterGroup(this, 'Params', {
       engine: rds.DatabaseInstanceEngine.mysql({
         version: rds.MysqlEngineVersion.VER_8_0_35,
@@ -1288,7 +1287,7 @@ export class RdsStack extends cdk.Stack {
       },
     });
 
-    // プライマリインスタンス
+    // Primary Instance
     this.dbInstance = new rds.DatabaseInstance(this, 'Primary', {
       engine: rds.DatabaseInstanceEngine.mysql({
         version: rds.MysqlEngineVersion.VER_8_0_35,
@@ -1322,7 +1321,7 @@ export class RdsStack extends cdk.Stack {
       }),
     });
 
-    // リードレプリカ
+    // Read Replica
     this.readReplica = new rds.DatabaseInstanceReadReplica(this, 'ReadReplica', {
       sourceDatabaseInstance: this.dbInstance,
       instanceType: ec2.InstanceType.of(
@@ -1338,7 +1337,7 @@ export class RdsStack extends cdk.Stack {
       monitoringInterval: cdk.Duration.seconds(60),
     });
 
-    // CPU 使用率アラーム
+    // CPU Utilization Alarm
     const alertTopic = sns.Topic.fromTopicArn(
       this, 'AlertTopic',
       `arn:aws:sns:${this.region}:${this.account}:alerts`
@@ -1353,7 +1352,7 @@ export class RdsStack extends cdk.Stack {
     });
     cpuAlarm.addAlarmAction(new cw_actions.SnsAction(alertTopic));
 
-    // レプリケーション遅延アラーム
+    // Replication Lag Alarm
     const replicaLagAlarm = new cloudwatch.Alarm(this, 'ReplicaLagAlarm', {
       metric: new cloudwatch.Metric({
         namespace: 'AWS/RDS',
@@ -1370,7 +1369,7 @@ export class RdsStack extends cdk.Stack {
     });
     replicaLagAlarm.addAlarmAction(new cw_actions.SnsAction(alertTopic));
 
-    // 出力
+    // Outputs
     new cdk.CfnOutput(this, 'PrimaryEndpoint', {
       value: this.dbInstance.dbInstanceEndpointAddress,
     });
@@ -1386,113 +1385,113 @@ export class RdsStack extends cdk.Stack {
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### 1. パブリックアクセス有効での運用
+### 1. Running with Public Access Enabled
 
 ```
-[NG] パブリックアクセス有効
+[BAD] Public access enabled
 =============================================
 Internet --> RDS (publicly_accessible=true)
-  - ポートスキャンの対象になる
-  - SG 設定ミスで即座に侵害される
+  - Becomes a target for port scanning
+  - Immediately compromised if SG misconfigured
 
-[OK] プライベートサブネット配置
+[GOOD] Private subnet placement
 =============================================
 Internet --> ALB --> App (Private) --> RDS (Private)
-  - RDS は VPC 内からのみアクセス
-  - 開発者は Bastion / SSM 経由
+  - RDS accessible only from within VPC
+  - Developers access via Bastion / SSM
 ```
 
-**問題**: `publicly_accessible = true` にすると、インターネットから直接 RDS にアクセス可能な状態になる。セキュリティグループで制限していても、設定ミスのリスクが常に存在する。
+**Problem**: Setting `publicly_accessible = true` makes the RDS instance directly accessible from the internet. Even with security group restrictions, the risk of misconfiguration always exists.
 
-**対策**: RDS は必ずプライベートサブネットに配置し、`publicly_accessible = false` を設定する。開発者のアクセスは SSM Session Manager や Bastion Host 経由とする。
+**Solution**: Always place RDS in a private subnet and set `publicly_accessible = false`. Developer access should be through SSM Session Manager or a Bastion Host.
 
-### 2. 単一 AZ でのプロダクション運用
+### 2. Running Production in a Single AZ
 
-**問題**: コスト削減のためマルチ AZ を無効にすると、AZ 障害時にデータベースが完全に停止する。手動での復旧に数時間を要する可能性がある。
+**Problem**: Disabling Multi-AZ to reduce costs means the database completely stops during an AZ failure. Manual recovery can take several hours.
 
-**対策**: プロダクション環境では必ず `multi_az = true` を設定する。マルチ AZ のコスト（約2倍）は、ダウンタイムのビジネスインパクトと比較すれば正当化できる。開発・ステージング環境では単一 AZ で問題ない。
+**Solution**: Always set `multi_az = true` for production environments. The cost of Multi-AZ (~2x) is justified compared to the business impact of downtime. Single AZ is fine for development and staging environments.
 
-### 3. バックアップ保持期間を 0 にする
+### 3. Setting Backup Retention Period to 0
 
-**問題**: バックアップ保持期間を 0 にすると、自動バックアップが無効化され、PITR（ポイントインタイムリカバリ）が使えなくなる。データの誤操作やアプリケーションバグによるデータ破損からの復旧が困難になる。
+**Problem**: Setting the backup retention period to 0 disables automatic backups, making PITR (Point-in-Time Recovery) unavailable. Recovery from data corruption caused by accidental operations or application bugs becomes extremely difficult.
 
-**対策**: 本番環境ではバックアップ保持期間を最低 7 日、重要なシステムでは 14-35 日に設定する。加えて、定期的な手動スナップショットも取得し、別リージョンにコピーする。
+**Solution**: Set the backup retention period to at least 7 days for production, and 14-35 days for critical systems. Additionally, take regular manual snapshots and copy them to another region.
 
-### 4. デフォルトのパラメータグループを使い続ける
+### 4. Continuing to Use the Default Parameter Group
 
-**問題**: デフォルトのパラメータグループはカスタマイズできず、チューニングの余地がない。文字コード設定やスロークエリログが無効のまま運用される。
+**Problem**: The default parameter group cannot be customized, leaving no room for tuning. Character encoding settings and slow query logging remain disabled.
 
-**対策**: 必ずカスタムパラメータグループを作成し、文字コード (utf8mb4)、スロークエリログ、InnoDB バッファプールサイズなどを適切に設定する。
+**Solution**: Always create a custom parameter group and properly configure character encoding (utf8mb4), slow query logging, InnoDB buffer pool size, and other settings.
 
-### 5. Secrets Manager を使わずにパスワードを管理する
+### 5. Managing Passwords Without Secrets Manager
 
 ```
-# 悪い例
-- パスワードを環境変数にハードコード
-- .env ファイルに平文で記載
-- Terraform の state ファイルに残る
+# Bad examples
+- Hardcoding passwords in environment variables
+- Storing in plaintext in .env files
+- Left in Terraform state files
 
-# 良い例
-- Secrets Manager でパスワードを管理
-- IAM 認証を使用
-- RDS Proxy 経由で IAM 認証
+# Good examples
+- Managing passwords with Secrets Manager
+- Using IAM authentication
+- IAM authentication via RDS Proxy
 ```
 
 ---
 
 ## 12. FAQ
 
-### Q1: RDS と Aurora はどちらを選ぶべきですか？
+### Q1: Should I choose RDS or Aurora?
 
-**A**: 判断基準は以下の通りです。
-- **RDS を選ぶ場合**: コストを抑えたい、既存の MySQL/PostgreSQL からの移行でそのままの動作を期待、シンプルな要件
-- **Aurora を選ぶ場合**: 高い読み取りスループットが必要（最大15リードレプリカ）、ストレージの自動スケーリングが必要、より高速なフェイルオーバー（30秒以下）が必要
-- Aurora は RDS の 3〜5 倍の性能を謳いますが、コストも高くなるため、ワークロードに応じて判断してください。
+**A**: Here are the decision criteria:
+- **Choose RDS when**: You want to keep costs down, you're migrating from existing MySQL/PostgreSQL and expect identical behavior, or you have simple requirements.
+- **Choose Aurora when**: You need high read throughput (up to 15 read replicas), you need automatic storage scaling, or you need faster failover (under 30 seconds).
+- Aurora claims 3-5x the performance of RDS, but costs are also higher, so make your decision based on your workload.
 
-### Q2: リードレプリカのレプリケーション遅延が問題になる場合の対処法は？
+### Q2: How do I handle replication lag issues with read replicas?
 
-**A**: 以下の対策を組み合わせます。
-1. **書き込み直後の読み取り** はプライマリから行う（Read-after-Write consistency）
-2. **レプリカラグの監視** を CloudWatch の `ReplicaLag` メトリクスで行い、閾値超過時にアラート
-3. **インスタンスクラスのスケールアップ** でレプリカの処理能力を上げる
-4. **並列レプリケーション** を有効化（MySQL: `replica_parallel_workers`）
-5. **RDS Proxy** のリーダーエンドポイントを使って負荷分散
+**A**: Combine the following strategies:
+1. **Read immediately after write** from the primary (Read-after-Write consistency)
+2. **Monitor replica lag** using the CloudWatch `ReplicaLag` metric and alert when thresholds are exceeded
+3. **Scale up the instance class** to increase the replica's processing capacity
+4. **Enable parallel replication** (MySQL: `replica_parallel_workers`)
+5. **Use RDS Proxy** reader endpoints for load balancing
 
-### Q3: RDS のコストを最適化するには？
+### Q3: How can I optimize RDS costs?
 
-**A**: 主な最適化手法:
-- **リザーブドインスタンス**: 1年/3年の予約で最大60%割引
-- **インスタンスの適正化**: Performance Insights で実使用率を確認し、オーバープロビジョニングを解消
-- **ストレージタイプの見直し**: gp2 から gp3 への移行で同じ IOPS をより低コストで実現
-- **開発環境の停止**: 夜間・休日に不要なインスタンスを停止（最大7日間）
-- **Graviton インスタンス**: db.r6g/r7g に切り替えで約 20% コスト削減
+**A**: Key optimization techniques:
+- **Reserved Instances**: Up to 60% discount with 1-year/3-year reservations
+- **Right-sizing instances**: Check actual utilization with Performance Insights and eliminate over-provisioning
+- **Storage type review**: Migrate from gp2 to gp3 for the same IOPS at lower cost
+- **Stopping dev environments**: Stop unnecessary instances during nights and weekends (up to 7 days)
+- **Graviton instances**: Switch to db.r6g/r7g for ~20% cost reduction
 
-### Q4: RDS のメンテナンスウィンドウ中にダウンタイムは発生しますか？
+### Q4: Does downtime occur during the RDS maintenance window?
 
-**A**: メンテナンスの種類によります。
-- **マイナーバージョンアップグレード**: 数分のダウンタイムが発生。マルチ AZ の場合、Standby を先に更新してからフェイルオーバーするため、ダウンタイムはフェイルオーバー時間（60-120秒）のみ。
-- **パッチ適用**: ほとんどの場合ダウンタイムなし。OS パッチの一部でリブートが必要な場合あり。
-- **メジャーバージョンアップグレード**: 数十分のダウンタイムが発生する場合がある。Blue/Green デプロイメントの活用を推奨。
+**A**: It depends on the type of maintenance:
+- **Minor version upgrades**: A few minutes of downtime. With Multi-AZ, the Standby is updated first, then failover occurs, so downtime is only the failover duration (60-120 seconds).
+- **Patch application**: Usually no downtime. Some OS patches may require a reboot.
+- **Major version upgrades**: May cause tens of minutes of downtime. Blue/Green Deployments are recommended.
 
-### Q5: RDS の Blue/Green デプロイメントとは？
+### Q5: What is RDS Blue/Green Deployment?
 
-**A**: RDS のメジャーバージョンアップグレードやパラメータ変更を安全に行うための機能。現在の環境（Blue）のコピー（Green）を作成し、Green 側で変更を適用してテスト。問題なければ DNS を切り替えて Green を本番にする。切り替えは 1 分以下で完了する。
+**A**: A feature for safely performing RDS major version upgrades and parameter changes. It creates a copy (Green) of the current environment (Blue), applies changes to the Green side for testing. If there are no issues, DNS is switched to make Green the production environment. The switchover completes in under 1 minute.
 
 ```bash
-# Blue/Green デプロイメントの作成
+# Create a Blue/Green Deployment
 aws rds create-blue-green-deployment \
   --blue-green-deployment-name mysql-upgrade \
   --source arn:aws:rds:ap-northeast-1:123456789012:db:my-mysql-db \
   --target-engine-version 8.0.36 \
   --target-db-parameter-group-name new-params
 
-# 状態の確認
+# Check status
 aws rds describe-blue-green-deployments \
   --blue-green-deployment-identifier bgd-xxx
 
-# 切り替え実行
+# Execute switchover
 aws rds switchover-blue-green-deployment \
   --blue-green-deployment-identifier bgd-xxx \
   --switchover-timeout 300
@@ -1503,46 +1502,46 @@ aws rds switchover-blue-green-deployment \
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What common mistakes do beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 13. まとめ
+## 13. Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| RDS とは | フルマネージド RDB サービス。パッチ適用・バックアップ・フェイルオーバーを自動化 |
-| エンジン選択 | Web アプリ → MySQL、分析・拡張性 → PostgreSQL、高性能 → Aurora |
-| インスタンスクラス | Graviton (r6g/r7g) がコスパ最良。t3 は開発・テスト用 |
-| ストレージ | gp3 が標準。IOPS 要件が高い場合は io2 |
-| マルチ AZ | プロダクションでは必須。同期レプリケーションで自動フェイルオーバー |
-| リードレプリカ | 読み取り負荷分散。非同期のためレプリケーション遅延に注意 |
-| RDS Proxy | Lambda や短命接続の効率化、フェイルオーバーの高速化 |
-| バックアップ | 自動バックアップ + ポイントインタイムリカバリで RPO を最小化 |
-| 監視 | Performance Insights で待機イベント分析、CloudWatch でメトリクス監視 |
-| セキュリティ | プライベートサブネット配置、暗号化、IAM 認証の活用 |
-| IaC | CloudFormation / CDK で宣言的に管理 |
+| What is RDS | Fully managed RDB service. Automates patching, backup, and failover |
+| Engine selection | Web apps -> MySQL, analytics/extensibility -> PostgreSQL, high performance -> Aurora |
+| Instance class | Graviton (r6g/r7g) offers the best value. t3 is for dev/test |
+| Storage | gp3 is the standard. Use io2 for high IOPS requirements |
+| Multi-AZ | Essential for production. Synchronous replication with automatic failover |
+| Read replicas | Distribute read load. Note replication lag due to asynchronous replication |
+| RDS Proxy | Optimizes Lambda and short-lived connections, speeds up failover |
+| Backup | Minimize RPO with automatic backups + point-in-time recovery |
+| Monitoring | Analyze wait events with Performance Insights, monitor metrics with CloudWatch |
+| Security | Private subnet placement, encryption, IAM authentication |
+| IaC | Declarative management with CloudFormation / CDK |
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [DynamoDB](./01-dynamodb.md) — NoSQL データベースの設計と運用
-- [ElastiCache](./02-elasticache.md) — キャッシュレイヤーの構築
-- [VPC 基礎](../04-networking/00-vpc-basics.md) — RDS を配置するネットワーク設計
+- [DynamoDB](./01-dynamodb.md) — NoSQL database design and operations
+- [ElastiCache](./02-elasticache.md) — Building a cache layer
+- [VPC Fundamentals](../04-networking/00-vpc-basics.md) — Network design for RDS placement
 
-## 参考文献
+## References
 
-1. **AWS 公式ドキュメント**: [Amazon RDS ユーザーガイド](https://docs.aws.amazon.com/ja_jp/AmazonRDS/latest/UserGuide/) — エンジン別の詳細設定リファレンス
-2. **AWS Well-Architected Framework**: [信頼性の柱 - データベース設計](https://docs.aws.amazon.com/ja_jp/wellarchitected/latest/reliability-pillar/) — 信頼性の柱におけるデータベース設計指針
-3. **Amazon RDS ベストプラクティス**: [Performance Insights を使用した DB 負荷の分析](https://docs.aws.amazon.com/ja_jp/AmazonRDS/latest/UserGuide/USER_PerfInsights.html) — パフォーマンス分析の実践ガイド
-4. **RDS Proxy ドキュメント**: [Amazon RDS Proxy の使用](https://docs.aws.amazon.com/ja_jp/AmazonRDS/latest/UserGuide/rds-proxy.html) — 接続管理の最適化
-5. **RDS Blue/Green デプロイメント**: [Blue/Green Deployments の概要](https://docs.aws.amazon.com/ja_jp/AmazonRDS/latest/UserGuide/blue-green-deployments.html) — 安全なアップグレード手法
+1. **AWS Official Documentation**: [Amazon RDS User Guide](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/) — Detailed configuration reference by engine
+2. **AWS Well-Architected Framework**: [Reliability Pillar - Database Design](https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/) — Database design guidelines in the reliability pillar
+3. **Amazon RDS Best Practices**: [Analyzing DB Load with Performance Insights](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_PerfInsights.html) — Practical guide for performance analysis
+4. **RDS Proxy Documentation**: [Using Amazon RDS Proxy](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-proxy.html) — Optimizing connection management
+5. **RDS Blue/Green Deployments**: [Overview of Blue/Green Deployments](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/blue-green-deployments.html) — Safe upgrade methods
