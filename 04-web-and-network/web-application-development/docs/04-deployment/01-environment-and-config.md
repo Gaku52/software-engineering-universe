@@ -1,139 +1,139 @@
 # Environment Configuration
 
-> Environment configuration is the foundation for safe application operation. Learn best practices for managing configuration safely in production, from environment variable management and Feature Flags to configuration layering and secret management.
+> Environment configuration is the foundation of safe application operation. Learn best practices for securely managing configuration in production, covering environment variable management, Feature Flags, configuration layering, and secret management.
 
 ## Prerequisites
 
-To get the most out of this guide, it is recommended that you have prior knowledge of the following.
+To get the most out of this guide, we recommend having the following knowledge beforehand.
 
-- **Environment variable concepts**: OS-level environment variables and how they are injected into processes
-- **12-Factor App principles**: Particularly understanding the third factor, "Config"
+- **Concept of environment variables**: OS-level environment variables and how to inject them into processes
+- **12-Factor App principles**: In particular, understanding the third factor — "Config"
 
 ## What You Will Learn
 
 - [ ] Understand environment variable design and secure management
-- [ ] Learn configuration isolation patterns per environment
-- [ ] Understand Feature Flag implementation and operation
-- [ ] Learn secret management best practices
-- [ ] Understand configuration management based on 12-Factor App
+- [ ] Learn patterns for separating configuration per environment
+- [ ] Understand how to implement and operate Feature Flags
+- [ ] Learn best practices for secret management
+- [ ] Understand configuration management based on the 12-Factor App
 - [ ] Learn how to pass environment variables in CI/CD pipelines
 - [ ] Implement configuration validation and fail-fast strategies
-- [ ] Develop troubleshooting techniques for multi-environment operations
+- [ ] Learn troubleshooting techniques for multi-environment operations
 
 ---
 
-## 1. Basic Concepts of Environment Configuration
+## 1. Fundamentals of Environment Configuration
 
 ### 1.1 Why Environment Configuration Matters
 
-In application development, environment configuration (Configuration Management) is often overlooked, but it is an extremely important area that directly impacts security, operational stability, and development efficiency.
+In application development, configuration management is often overlooked, yet it is an extremely important area that directly affects security, operational stability, and development efficiency.
 
 ```
-環境設定が引き起こすインシデントの例:
+Examples of incidents caused by environment configuration:
 
-  ケース1: 本番 DB のクレデンシャルが GitHub に流出
-    原因: .env ファイルを誤って Git にコミット
-    影響: データベース全体が外部に露出、ユーザーデータ漏洩
-    対策: .gitignore の徹底、pre-commit hook でのチェック
+  Case 1: Production DB credentials leaked to GitHub
+    Cause: .env file accidentally committed to Git
+    Impact: Entire database exposed externally, user data leaked
+    Countermeasure: Enforce .gitignore, check with pre-commit hook
 
-  ケース2: ステージング環境が本番 API を呼び出す
-    原因: 環境変数の設定ミスで API_URL が本番を指していた
-    影響: テストデータが本番に混入、顧客に影響
-    対策: 環境別設定の厳密な分離、起動時バリデーション
+  Case 2: Staging environment calls production API
+    Cause: Configuration error — API_URL was pointing to production
+    Impact: Test data mixed into production, impact on customers
+    Countermeasure: Strict separation of per-environment config, startup validation
 
-  ケース3: Feature Flag の設定漏れで未完成機能が本番に露出
-    原因: デプロイ時に Feature Flag の環境変数を設定し忘れた
-    影響: 未完成の UI がユーザーに表示、バグ報告殺到
-    対策: デフォルト値の適切な設定、デプロイチェックリスト
+  Case 3: Incomplete feature exposed in production due to missing Feature Flag
+    Cause: Feature Flag environment variable not set at deploy time
+    Impact: Incomplete UI shown to users, flood of bug reports
+    Countermeasure: Set appropriate default values, deployment checklist
 
-  ケース4: 本番環境でデバッグモードが有効のまま
-    原因: NODE_ENV が development のままデプロイされた
-    影響: スタックトレースが外部に露出、セキュリティリスク
-    対策: 起動時の環境チェック、CI/CD での自動検証
+  Case 4: Debug mode left enabled in production
+    Cause: NODE_ENV was still 'development' when deployed
+    Impact: Stack traces exposed externally, security risk
+    Countermeasure: Environment check at startup, automated verification in CI/CD
 ```
 
 ### 1.2 12-Factor App and Configuration Management
 
-In the 12-Factor App principles advocated by Heroku engineers, Config is defined as the third factor. These principles form the foundation of modern cloud-native applications.
+In the 12-Factor App principles proposed by Heroku engineers, Config is defined as the third factor. These principles form the foundation of modern cloud-native applications.
 
 ```
-12-Factor App における設定の原則:
+Config principles in the 12-Factor App:
 
-  ① 設定はコードから厳密に分離する
-     - 環境変数として外部から注入
-     - 設定ファイルをコードリポジトリに含めない
-     - 同じコードベースがすべての環境で動作する
+  ① Strictly separate config from code
+     - Inject externally as environment variables
+     - Do not include config files in the code repository
+     - The same codebase runs in all environments
 
-  ② 環境間の差異は設定のみで表現する
-     - development / staging / production の違いは設定だけ
-     - コードの条件分岐で環境を判定しない
-     - ビルド成果物は全環境で同一
+  ② Express differences between environments through config only
+     - Differences between development / staging / production are config only
+     - Do not branch on environment in code logic
+     - Build artifacts are identical across all environments
 
-  ③ 設定はデプロイごとに変わりうる
-     - コードの変更なしに設定を変更できる
-     - 再デプロイなしでの設定変更が可能
-     - 設定の変更履歴を追跡できる
+  ③ Config may change per deploy
+     - Config can be changed without code changes
+     - Config changes can be applied without redeployment
+     - Config change history can be tracked
 
-12-Factor App の 12 の要素:
-  I.    コードベース（一つのコードベース、複数のデプロイ）
-  II.   依存関係（明示的に宣言し分離する）
-  III.  設定（環境変数に格納する）← ★本章のテーマ
-  IV.   バックエンドサービス（アタッチされたリソースとして扱う）
-  V.    ビルド・リリース・実行（3つのステージを厳密に分離する）
-  VI.   プロセス（ステートレスなプロセスとして実行する）
-  VII.  ポートバインディング（ポートバインディングでサービスを公開する）
-  VIII. 並行性（プロセスモデルでスケールアウトする）
-  IX.   廃棄容易性（高速な起動とグレースフルシャットダウン）
-  X.    開発/本番一致（開発・ステージング・本番を可能な限り一致させる）
-  XI.   ログ（ログをイベントストリームとして扱う）
-  XII.  管理プロセス（管理タスクをワンオフプロセスとして実行する）
+The 12 factors of the 12-Factor App:
+  I.    Codebase (One codebase, many deploys)
+  II.   Dependencies (Explicitly declare and isolate dependencies)
+  III.  Config (Store config in the environment) ← ★ This chapter's topic
+  IV.   Backing services (Treat backing services as attached resources)
+  V.    Build, release, run (Strictly separate build and run stages)
+  VI.   Processes (Execute the app as one or more stateless processes)
+  VII.  Port binding (Export services via port binding)
+  VIII. Concurrency (Scale out via the process model)
+  IX.   Disposability (Maximize robustness with fast startup and graceful shutdown)
+  X.    Dev/prod parity (Keep development, staging, and production as similar as possible)
+  XI.   Logs (Treat logs as event streams)
+  XII.  Admin processes (Run admin/management tasks as one-off processes)
 ```
 
 ### 1.3 Environment Hierarchy and Types
 
 ```
-典型的な環境の階層:
+Typical environment hierarchy:
 
   ┌──────────────────────────────────────────────────┐
-  │  local (開発者のマシン)                           │
-  │  ├── 個人の .env.local で設定を上書き             │
-  │  ├── ホットリロード有効                           │
-  │  └── デバッグツール有効                           │
+  │  local (developer's machine)                      │
+  │  ├── Override settings with personal .env.local   │
+  │  ├── Hot reload enabled                           │
+  │  └── Debug tools enabled                          │
   ├──────────────────────────────────────────────────┤
-  │  development (共有開発環境)                       │
-  │  ├── 開発チーム全体で共有するサーバー              │
-  │  ├── テスト用の外部サービスに接続                  │
-  │  └── 本番に近い構成だがリソースは最小限            │
+  │  development (shared development environment)     │
+  │  ├── Server shared by the entire dev team         │
+  │  ├── Connects to external services for testing    │
+  │  └── Close to production config but minimal resources │
   ├──────────────────────────────────────────────────┤
-  │  staging (ステージング環境)                       │
-  │  ├── 本番とほぼ同一の構成                         │
-  │  ├── 本番データのサブセットで動作                  │
-  │  ├── QA テスト、受け入れテストを実施               │
-  │  └── 本番デプロイ前の最終確認                     │
+  │  staging (staging environment)                    │
+  │  ├── Nearly identical configuration to production │
+  │  ├── Runs on a subset of production data          │
+  │  ├── Runs QA tests and acceptance tests           │
+  │  └── Final check before production deployment     │
   ├──────────────────────────────────────────────────┤
-  │  production (本番環境)                            │
-  │  ├── 実際のユーザーがアクセスする環境              │
-  │  ├── 最高レベルのセキュリティ設定                  │
-  │  ├── 監視・アラート完備                           │
-  │  └── パフォーマンス最適化済み                     │
+  │  production (production environment)              │
+  │  ├── The environment actual users access          │
+  │  ├── Highest level of security settings           │
+  │  ├── Full monitoring and alerting                 │
+  │  └── Performance optimized                        │
   └──────────────────────────────────────────────────┘
 
-  追加の環境（大規模プロジェクトの場合）:
-  ├── preview / PR環境: PR ごとに自動生成される一時的な環境
-  ├── canary: 本番の一部トラフィックのみ受ける環境
-  ├── sandbox: 外部パートナー向けのテスト環境
-  └── disaster-recovery: 災害時に切り替える予備環境
+  Additional environments (for large-scale projects):
+  ├── preview / PR environment: Temporary environment auto-created per PR
+  ├── canary: Environment receiving only a portion of production traffic
+  ├── sandbox: Testing environment for external partners
+  └── disaster-recovery: Standby environment to switch to in case of disaster
 
-.env ファイルの優先順位（Next.js の場合）:
-  .env                  ← デフォルト（全環境共通）
-  .env.local            ← ローカルのオーバーライド（.gitignore）
-  .env.development      ← 開発環境固有
-  .env.development.local← 開発環境のローカルオーバーライド
-  .env.staging          ← ステージング固有
-  .env.production       ← 本番環境固有
-  .env.production.local ← 本番のローカルオーバーライド（.gitignore）
+.env file priority (Next.js):
+  .env                  ← Default (common to all environments)
+  .env.local            ← Local override (.gitignore)
+  .env.development      ← Development environment specific
+  .env.development.local← Local override for development
+  .env.staging          ← Staging specific
+  .env.production       ← Production environment specific
+  .env.production.local ← Local override for production (.gitignore)
 
-  読み込み優先順位（後勝ち）:
+  Load priority (last wins):
   .env < .env.local < .env.[NODE_ENV] < .env.[NODE_ENV].local
 ```
 
@@ -143,21 +143,21 @@ In the 12-Factor App principles advocated by Heroku engineers, Config is defined
 
 ### 2.1 Naming Conventions and Prefixes
 
-Consistency in environment variable naming is important. Defining clear naming conventions makes the purpose of each variable obvious at a glance and helps prevent configuration errors.
+It is important to keep environment variable naming consistent. Defining clear naming conventions makes the purpose of each variable immediately clear and helps prevent configuration mistakes.
 
 ```
-命名規則の基本原則:
+Basic principles of naming conventions:
 
-  ✅ 推奨パターン:
-    SCREAMING_SNAKE_CASE を使用
-    ├── DATABASE_URL          → データベース接続先
-    ├── REDIS_HOST            → Redis ホスト名
-    ├── AWS_ACCESS_KEY_ID     → AWS アクセスキー
-    ├── SMTP_PORT             → メールサーバーポート
-    └── LOG_LEVEL             → ログレベル
+  ✅ Recommended pattern:
+    Use SCREAMING_SNAKE_CASE
+    ├── DATABASE_URL          → Database connection target
+    ├── REDIS_HOST            → Redis host name
+    ├── AWS_ACCESS_KEY_ID     → AWS access key
+    ├── SMTP_PORT             → Mail server port
+    └── LOG_LEVEL             → Log level
 
-  ✅ プレフィックスによる分類:
-    サービス別:
+  ✅ Classification by prefix:
+    By service:
     ├── DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
     ├── REDIS_URL, REDIS_PASSWORD, REDIS_DB
     ├── AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
@@ -165,60 +165,60 @@ Consistency in environment variable naming is important. Defining clear naming c
     ├── SENDGRID_API_KEY, SENDGRID_FROM_EMAIL
     └── SENTRY_DSN, SENTRY_ENVIRONMENT
 
-    機能別:
-    ├── ENABLE_ANALYTICS      → 分析機能の有効/無効
-    ├── ENABLE_RATE_LIMIT     → レート制限の有効/無効
-    ├── IS_MAINTENANCE_MODE   → メンテナンスモード判定
-    ├── HAS_PREMIUM_FEATURES  → プレミアム機能の有無
-    └── MAX_UPLOAD_SIZE       → アップロード上限
+    By feature:
+    ├── ENABLE_ANALYTICS      → Enable/disable analytics
+    ├── ENABLE_RATE_LIMIT     → Enable/disable rate limiting
+    ├── IS_MAINTENANCE_MODE   → Maintenance mode flag
+    ├── HAS_PREMIUM_FEATURES  → Whether premium features are available
+    └── MAX_UPLOAD_SIZE       → Upload size limit
 
-    公開範囲別（Next.js）:
-    ├── NEXT_PUBLIC_API_URL   → クライアントに公開
+    By exposure scope (Next.js):
+    ├── NEXT_PUBLIC_API_URL   → Exposed to client
     ├── NEXT_PUBLIC_GA_ID     → Google Analytics ID
-    ├── DATABASE_URL          → サーバーのみ（機密）
-    └── JWT_SECRET            → サーバーのみ（機密）
+    ├── DATABASE_URL          → Server only (sensitive)
+    └── JWT_SECRET            → Server only (sensitive)
 
-  ❌ アンチパターン:
-    ├── KEY           → 何のキーかわからない
-    ├── SECRET        → 何のシークレットかわからない
-    ├── URL           → 何の URL かわからない
-    ├── password      → snake_case ではない
-    ├── ApiKey        → camelCase は使わない
-    └── my-config     → ハイフンは使えない（シェルで問題）
+  ❌ Anti-patterns:
+    ├── KEY           → Unclear what key it is
+    ├── SECRET        → Unclear what secret it is
+    ├── URL           → Unclear what URL it is
+    ├── password      → Not SCREAMING_SNAKE_CASE
+    ├── ApiKey        → Do not use camelCase
+    └── my-config     → Hyphens are not allowed (causes issues in shell)
 
-フレームワーク別の公開プレフィックス:
+Public prefixes by framework:
   ┌─────────────────┬──────────────────────┬───────────────────┐
-  │ フレームワーク    │ 公開プレフィックス     │ 非公開（サーバー）  │
+  │ Framework       │ Public prefix        │ Private (server)  │
   ├─────────────────┼──────────────────────┼───────────────────┤
-  │ Next.js         │ NEXT_PUBLIC_         │ プレフィックスなし  │
-  │ Vite            │ VITE_                │ プレフィックスなし  │
-  │ Create React App│ REACT_APP_           │ プレフィックスなし  │
-  │ Nuxt.js         │ NUXT_PUBLIC_         │ NUXT_ or なし     │
-  │ SvelteKit       │ PUBLIC_              │ プレフィックスなし  │
-  │ Remix           │ なし（全てサーバー）   │ 全て              │
-  │ Astro           │ PUBLIC_              │ プレフィックスなし  │
+  │ Next.js         │ NEXT_PUBLIC_         │ No prefix         │
+  │ Vite            │ VITE_                │ No prefix         │
+  │ Create React App│ REACT_APP_           │ No prefix         │
+  │ Nuxt.js         │ NUXT_PUBLIC_         │ NUXT_ or none     │
+  │ SvelteKit       │ PUBLIC_              │ No prefix         │
+  │ Remix           │ None (all server)    │ All               │
+  │ Astro           │ PUBLIC_              │ No prefix         │
   └─────────────────┴──────────────────────┴───────────────────┘
 ```
 
 ### 2.2 Type-Safe Environment Variable Management (Zod)
 
-In TypeScript projects, applying schema validation to environment variables with Zod ensures type safety and enables early detection of configuration errors at startup.
+In TypeScript projects, applying schema validation with Zod to environment variables ensures type safety and allows early detection of configuration errors at startup.
 
 ```typescript
 // ============================================
-// config/env.ts - 型安全な環境変数管理
+// config/env.ts - Type-safe environment variable management
 // ============================================
 import { z } from 'zod';
 
-// ---- サーバーサイド環境変数スキーマ ----
+// ---- Server-side environment variable schema ----
 const serverEnvSchema = z.object({
-  // アプリケーション基本設定
+  // Application basic settings
   NODE_ENV: z.enum(['development', 'staging', 'production', 'test'])
     .default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   HOST: z.string().default('0.0.0.0'),
 
-  // データベース
+  // Database
   DATABASE_URL: z.string().url()
     .refine(url => url.startsWith('postgresql://') || url.startsWith('postgres://'), {
       message: 'DATABASE_URL must be a PostgreSQL connection string',
@@ -232,12 +232,12 @@ const serverEnvSchema = z.object({
   REDIS_PASSWORD: z.string().optional(),
   REDIS_DB: z.coerce.number().int().min(0).max(15).default(0),
 
-  // 認証
+  // Authentication
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_EXPIRES_IN: z.string().default('7d'),
   SESSION_SECRET: z.string().min(32).optional(),
 
-  // 外部サービス
+  // External services
   STRIPE_SECRET_KEY: z.string().startsWith('sk_'),
   STRIPE_WEBHOOK_SECRET: z.string().startsWith('whsec_'),
   SENDGRID_API_KEY: z.string().startsWith('SG.'),
@@ -249,18 +249,18 @@ const serverEnvSchema = z.object({
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
   S3_BUCKET_NAME: z.string().optional(),
 
-  // Feature flag
+  // Feature flags
   ENABLE_RATE_LIMIT: z.coerce.boolean().default(true),
   ENABLE_CORS: z.coerce.boolean().default(true),
   ENABLE_SWAGGER: z.coerce.boolean().default(false),
 
-  // ログ
+  // Logging
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
     .default('info'),
   LOG_FORMAT: z.enum(['json', 'pretty']).default('json'),
 });
 
-// ---- クライアントサイド環境変数スキーマ ----
+// ---- Client-side environment variable schema ----
 const clientEnvSchema = z.object({
   NEXT_PUBLIC_API_URL: z.string().url(),
   NEXT_PUBLIC_APP_URL: z.string().url(),
@@ -271,7 +271,7 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_APP_VERSION: z.string().default('0.0.0'),
 });
 
-// ---- バリデーションとエクスポート ----
+// ---- Validation and export ----
 function validateEnv<T extends z.ZodType>(
   schema: T,
   env: Record<string, string | undefined>,
@@ -285,14 +285,14 @@ function validateEnv<T extends z.ZodType>(
       .map(([key, msgs]) => `  ${key}: ${(msgs as string[]).join(', ')}`)
       .join('\n');
 
-    console.error(`\n${label} の環境変数バリデーションエラー:\n${errorMessages}\n`);
+    console.error(`\nEnvironment variable validation error for ${label}:\n${errorMessages}\n`);
 
-    // 開発環境では詳細を表示、本番では最小限の情報で停止
+    // Show details in development; stop with minimal info in production
     if (process.env.NODE_ENV === 'production') {
-      console.error('本番環境の設定エラーにより起動を中止します。');
+      console.error('Startup aborted due to configuration error in production environment.');
     } else {
-      console.error('必要な環境変数を .env.local に設定してください。');
-      console.error('参考: .env.example を確認してください。');
+      console.error('Please set the required environment variables in .env.local.');
+      console.error('Reference: check .env.example.');
     }
 
     process.exit(1);
@@ -301,18 +301,18 @@ function validateEnv<T extends z.ZodType>(
   return result.data;
 }
 
-// サーバーサイドでのみ実行（クライアントバンドルに含めない）
+// Run only server-side (do not include in client bundle)
 export const serverEnv = typeof window === 'undefined'
-  ? validateEnv(serverEnvSchema, process.env, 'サーバー')
+  ? validateEnv(serverEnvSchema, process.env, 'server')
   : ({} as z.infer<typeof serverEnvSchema>);
 
-// クライアントサイドでも利用可能
-export const clientEnv = validateEnv(clientEnvSchema, process.env, 'クライアント');
+// Also available on the client side
+export const clientEnv = validateEnv(clientEnvSchema, process.env, 'client');
 
-// 統合型のエクスポート
+// Integrated export
 export const env = { ...serverEnv, ...clientEnv };
 
-// 型のエクスポート
+// Type exports
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 export type ClientEnv = z.infer<typeof clientEnvSchema>;
 ```
@@ -326,7 +326,7 @@ export type ClientEnv = z.infer<typeof clientEnvSchema>;
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { z } from 'zod';
 
-// テスト用のスキーマ（本番と同じ定義を使用）
+// Test schema (using the same definition as production)
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']),
   DATABASE_URL: z.string().url(),
@@ -334,7 +334,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
 });
 
-describe('環境変数バリデーション', () => {
+describe('Environment variable validation', () => {
   const validEnv = {
     NODE_ENV: 'production',
     DATABASE_URL: 'postgresql://user:pass@localhost:5432/mydb',
@@ -342,16 +342,16 @@ describe('環境変数バリデーション', () => {
     PORT: '8080',
   };
 
-  it('有効な環境変数が正しくパースされること', () => {
+  it('valid environment variables are parsed correctly', () => {
     const result = envSchema.safeParse(validEnv);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.PORT).toBe(8080); // 文字列から数値に変換
+      expect(result.data.PORT).toBe(8080); // Converted from string to number
       expect(result.data.NODE_ENV).toBe('production');
     }
   });
 
-  it('無効な NODE_ENV が拒否されること', () => {
+  it('invalid NODE_ENV is rejected', () => {
     const result = envSchema.safeParse({
       ...validEnv,
       NODE_ENV: 'invalid',
@@ -359,7 +359,7 @@ describe('環境変数バリデーション', () => {
     expect(result.success).toBe(false);
   });
 
-  it('DATABASE_URL が URL 形式でない場合に拒否されること', () => {
+  it('DATABASE_URL in non-URL format is rejected', () => {
     const result = envSchema.safeParse({
       ...validEnv,
       DATABASE_URL: 'not-a-url',
@@ -367,7 +367,7 @@ describe('環境変数バリデーション', () => {
     expect(result.success).toBe(false);
   });
 
-  it('JWT_SECRET が短すぎる場合に拒否されること', () => {
+  it('JWT_SECRET that is too short is rejected', () => {
     const result = envSchema.safeParse({
       ...validEnv,
       JWT_SECRET: 'short',
@@ -375,7 +375,7 @@ describe('環境変数バリデーション', () => {
     expect(result.success).toBe(false);
   });
 
-  it('PORT のデフォルト値が適用されること', () => {
+  it('default value for PORT is applied', () => {
     const { PORT, ...envWithoutPort } = validEnv;
     const result = envSchema.safeParse(envWithoutPort);
     expect(result.success).toBe(true);
@@ -384,7 +384,7 @@ describe('環境変数バリデーション', () => {
     }
   });
 
-  it('PORT が範囲外の場合に拒否されること', () => {
+  it('PORT out of range is rejected', () => {
     const result = envSchema.safeParse({
       ...validEnv,
       PORT: '70000',
@@ -396,23 +396,23 @@ describe('環境変数バリデーション', () => {
 
 ### 2.4 Managing .env.example
 
-Always include a `.env.example` in your project, listing all required environment variables with descriptions.
+Always include a `.env.example` in your project, listing all required environment variables along with their descriptions.
 
 ```bash
 # ============================================
 # .env.example
-# このファイルを .env.local にコピーして値を設定してください
+# Copy this file to .env.local and set the values
 # cp .env.example .env.local
 # ============================================
 
-# ---- アプリケーション基本設定 ----
+# ---- Application basic settings ----
 NODE_ENV=development
 PORT=3000
 HOST=0.0.0.0
 
-# ---- データベース ----
-# PostgreSQL の接続文字列
-# ローカル: postgresql://postgres:password@localhost:5432/myapp_dev
+# ---- Database ----
+# PostgreSQL connection string
+# Local: postgresql://postgres:password@localhost:5432/myapp_dev
 # Docker: postgresql://postgres:password@db:5432/myapp_dev
 DATABASE_URL=postgresql://postgres:password@localhost:5432/myapp_dev
 DATABASE_POOL_MIN=2
@@ -420,29 +420,29 @@ DATABASE_POOL_MAX=10
 DATABASE_SSL=false
 
 # ---- Redis ----
-# ローカル: redis://localhost:6379
+# Local: redis://localhost:6379
 # Docker: redis://redis:6379
 REDIS_URL=redis://localhost:6379
 REDIS_DB=0
 
-# ---- 認証 ----
-# 32文字以上のランダムな文字列を設定
-# 生成コマンド: openssl rand -base64 48
+# ---- Authentication ----
+# Set a random string of 32 characters or more
+# Generate with: openssl rand -base64 48
 JWT_SECRET=your-jwt-secret-at-least-32-characters-long
 JWT_EXPIRES_IN=7d
 
 # ---- Stripe ----
-# https://dashboard.stripe.com/test/apikeys からテストキーを取得
+# Get test keys from https://dashboard.stripe.com/test/apikeys
 STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxx
 STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxx
 NEXT_PUBLIC_STRIPE_PUBLIC_KEY=pk_test_xxxxxxxxxxxx
 
-# ---- メール（SendGrid）----
-# https://app.sendgrid.com/settings/api_keys から取得
+# ---- Email (SendGrid) ----
+# Get from https://app.sendgrid.com/settings/api_keys
 SENDGRID_API_KEY=SG.xxxxxxxxxxxx
 
-# ---- エラー監視（Sentry）----
-# https://sentry.io から DSN を取得
+# ---- Error monitoring (Sentry) ----
+# Get DSN from https://sentry.io
 SENTRY_DSN=https://xxxxx@sentry.io/xxxxx
 NEXT_PUBLIC_SENTRY_DSN=https://xxxxx@sentry.io/xxxxx
 
@@ -452,19 +452,19 @@ AWS_ACCESS_KEY_ID=your-access-key-id
 AWS_SECRET_ACCESS_KEY=your-secret-access-key
 S3_BUCKET_NAME=myapp-dev-uploads
 
-# ---- フロントエンド公開設定 ----
+# ---- Frontend public settings ----
 NEXT_PUBLIC_API_URL=http://localhost:3001
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
 NEXT_PUBLIC_ENABLE_ANALYTICS=false
 NEXT_PUBLIC_APP_VERSION=0.0.0
 
-# ---- 機能フラグ ----
+# ---- Feature flags ----
 ENABLE_RATE_LIMIT=false
 ENABLE_CORS=true
 ENABLE_SWAGGER=true
 
-# ---- ログ ----
+# ---- Logging ----
 LOG_LEVEL=debug
 LOG_FORMAT=pretty
 ```
@@ -474,7 +474,7 @@ LOG_FORMAT=pretty
 ```typescript
 // ============================================
 // scripts/check-env.ts
-// プロジェクト起動前に環境変数の整合性をチェックする
+// Check environment variable consistency before project startup
 // ============================================
 import fs from 'fs';
 import path from 'path';
@@ -497,7 +497,7 @@ function parseEnvFile(filePath: string): Map<string, string> {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    // コメント行と空行をスキップ
+    // Skip comment lines and blank lines
     if (trimmed === '' || trimmed.startsWith('#')) continue;
 
     const equalIndex = trimmed.indexOf('=');
@@ -517,7 +517,7 @@ function checkEnv(): EnvCheckResult {
   const localEnv = parseEnvFile(path.join(projectRoot, '.env.local'));
   const envFile = parseEnvFile(path.join(projectRoot, '.env'));
 
-  // 実効的な環境変数: .env → .env.local → process.env
+  // Effective environment variables: .env → .env.local → process.env
   const effectiveEnv = new Map([...envFile, ...localEnv]);
 
   const result: EnvCheckResult = {
@@ -532,21 +532,21 @@ function checkEnv(): EnvCheckResult {
     if (actualValue === undefined) {
       result.missing.push(key);
     } else if (actualValue === '' || actualValue === exampleValue) {
-      // 値が空またはサンプル値のまま
+      // Value is empty or still the sample value
       if (key.includes('SECRET') || key.includes('KEY') || key.includes('PASSWORD')) {
-        result.warnings.push(`${key}: サンプル値のまま or 空です（機密情報）`);
+        result.warnings.push(`${key}: still using sample value or empty (sensitive information)`);
       } else if (actualValue === '') {
         result.empty.push(key);
       }
     }
   }
 
-  // NEXT_PUBLIC_ でないのにクライアントで使おうとしている変数のチェック
+  // Check for variables without NEXT_PUBLIC_ being used on the client
   for (const [key] of effectiveEnv) {
     if (key.includes('SECRET') || key.includes('PASSWORD') || key.includes('PRIVATE')) {
       if (key.startsWith('NEXT_PUBLIC_')) {
         result.warnings.push(
-          `${key}: 機密情報が NEXT_PUBLIC_ プレフィックスで公開されています！`
+          `${key}: sensitive information is exposed with the NEXT_PUBLIC_ prefix!`
         );
       }
     }
@@ -555,29 +555,29 @@ function checkEnv(): EnvCheckResult {
   return result;
 }
 
-// 実行
+// Execute
 const result = checkEnv();
 
 if (result.missing.length > 0) {
-  console.error('\n未設定の環境変数:');
+  console.error('\nUnset environment variables:');
   result.missing.forEach(key => console.error(`  - ${key}`));
 }
 
 if (result.empty.length > 0) {
-  console.warn('\n空の環境変数:');
+  console.warn('\nEmpty environment variables:');
   result.empty.forEach(key => console.warn(`  - ${key}`));
 }
 
 if (result.warnings.length > 0) {
-  console.warn('\n警告:');
+  console.warn('\nWarnings:');
   result.warnings.forEach(msg => console.warn(`  - ${msg}`));
 }
 
 if (result.missing.length === 0 && result.warnings.length === 0) {
-  console.log('\nすべての環境変数が正しく設定されています。');
+  console.log('\nAll environment variables are correctly configured.');
 }
 
-// 必須の環境変数が不足している場合は終了コード 1 で終了
+// Exit with code 1 if required environment variables are missing
 if (result.missing.length > 0) {
   process.exit(1);
 }
@@ -587,17 +587,17 @@ if (result.missing.length > 0) {
 
 ```typescript
 // ============================================
-// Next.js での環境変数の使い方
+// Using environment variables in Next.js
 // ============================================
 
-// 1. サーバーコンポーネント（App Router）
-// サーバーサイドの環境変数に直接アクセス可能
+// 1. Server Component (App Router)
+// Can directly access server-side environment variables
 async function ServerComponent() {
-  // サーバーサイドのみ: OK
+  // Server-side only: OK
   const dbUrl = process.env.DATABASE_URL;
   const apiKey = process.env.STRIPE_SECRET_KEY;
 
-  // NEXT_PUBLIC_ もサーバーで利用可能
+  // NEXT_PUBLIC_ is also available on the server
   const publicApiUrl = process.env.NEXT_PUBLIC_API_URL;
 
   const data = await fetch(publicApiUrl + '/api/data', {
@@ -607,42 +607,42 @@ async function ServerComponent() {
   return <div>{/* ... */}</div>;
 }
 
-// 2. クライアントコンポーネント
+// 2. Client Component
 'use client';
 function ClientComponent() {
-  // クライアントサイドでは NEXT_PUBLIC_ のみアクセス可能
+  // On the client side, only NEXT_PUBLIC_ variables are accessible
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;     // OK
-  // const secret = process.env.DATABASE_URL;          // undefined（安全）
+  // const secret = process.env.DATABASE_URL;          // undefined (safe)
 
   return <div>API: {apiUrl}</div>;
 }
 
-// 3. API Route（App Router）
+// 3. API Route (App Router)
 // app/api/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
-  // サーバーサイドなので全環境変数にアクセス可能
+  // All environment variables are accessible since this is server-side
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  // Webhook の署名検証
+  // Webhook signature verification
   const signature = request.headers.get('stripe-signature');
   // ...
   return NextResponse.json({ received: true });
 }
 
-// 4. next.config.js での環境変数
+// 4. Environment variables in next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   env: {
-    // ビルド時に埋め込まれる（非推奨: NEXT_PUBLIC_ を使うべき）
+    // Embedded at build time (deprecated: use NEXT_PUBLIC_ instead)
     CUSTOM_VAR: process.env.CUSTOM_VAR,
   },
-  // ランタイム設定（サーバーサイドのみ）
+  // Runtime config (server-side only)
   serverRuntimeConfig: {
     apiSecret: process.env.API_SECRET,
   },
-  // パブリックランタイム設定（クライアントからもアクセス可能）
+  // Public runtime config (also accessible from the client)
   publicRuntimeConfig: {
     apiUrl: process.env.NEXT_PUBLIC_API_URL,
   },
@@ -653,19 +653,19 @@ module.exports = nextConfig;
 
 ```typescript
 // ============================================
-// Vite での環境変数の使い方
+// Using environment variables in Vite
 // ============================================
 
 // vite.config.ts
 import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
-  // mode に応じた .env ファイルを読み込む
+  // Load .env files according to mode
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
     define: {
-      // カスタム変数をグローバルに定義
+      // Define custom variables globally
       __APP_VERSION__: JSON.stringify(env.npm_package_version),
     },
     server: {
@@ -674,9 +674,9 @@ export default defineConfig(({ mode }) => {
   };
 });
 
-// コンポーネントでの使用
+// Usage in components
 function App() {
-  // VITE_ プレフィックスの変数のみアクセス可能
+  // Only variables with VITE_ prefix are accessible
   const apiUrl = import.meta.env.VITE_API_URL;
   const mode = import.meta.env.MODE; // 'development' | 'production'
   const isDev = import.meta.env.DEV; // boolean
@@ -685,7 +685,7 @@ function App() {
   return <div>API: {apiUrl}</div>;
 }
 
-// 型定義（env.d.ts）
+// Type definitions (env.d.ts)
 /// <reference types="vite/client" />
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
@@ -701,16 +701,16 @@ interface ImportMeta {
 
 ---
 
-## 3. Configuration Isolation Patterns
+## 3. Configuration Separation Patterns
 
 ### 3.1 Per-Environment Configuration File Pattern
 
 ```typescript
 // ============================================
-// config/index.ts - 環境別設定の統合管理
+// config/index.ts - Integrated management of per-environment configuration
 // ============================================
 
-// 基本設定の型定義
+// Type definition for application config
 interface AppConfig {
   app: {
     name: string;
@@ -753,7 +753,7 @@ interface AppConfig {
   };
 }
 
-// 全環境共通のデフォルト設定
+// Default configuration common to all environments
 const defaultConfig: AppConfig = {
   app: {
     name: 'MyApp',
@@ -785,7 +785,7 @@ const defaultConfig: AppConfig = {
   },
   security: {
     corsOrigins: ['http://localhost:3000'],
-    rateLimitWindow: 15 * 60 * 1000, // 15分
+    rateLimitWindow: 15 * 60 * 1000, // 15 minutes
     rateLimitMax: 100,
     csrfEnabled: true,
   },
@@ -796,25 +796,25 @@ const defaultConfig: AppConfig = {
   },
 };
 
-// 環境別のオーバーライド設定
+// Per-environment override configuration
 const envOverrides: Record<string, Partial<AppConfig>> = {
   development: {
     api: {
       ...defaultConfig.api,
-      timeout: 60000, // 開発時は長めのタイムアウト
+      timeout: 60000, // Longer timeout for development
     },
     database: {
       ...defaultConfig.database,
-      logging: true, // SQL ログ出力
+      logging: true, // Output SQL logs
     },
     cache: {
       ...defaultConfig.cache,
-      ttl: 0, // 開発時はキャッシュ無効
+      ttl: 0, // Disable cache in development
     },
     features: {
       ...defaultConfig.features,
       debugMode: true,
-      rateLimit: false, // 開発時はレート制限なし
+      rateLimit: false, // No rate limiting in development
     },
     logging: {
       level: 'debug',
@@ -891,7 +891,7 @@ const envOverrides: Record<string, Partial<AppConfig>> = {
   },
 };
 
-// 設定のマージとエクスポート
+// Merge configuration and export
 function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
   const result = { ...target };
   for (const key in source) {
@@ -912,7 +912,7 @@ const override = envOverrides[currentEnv] || {};
 
 export const config: AppConfig = deepMerge(defaultConfig, override);
 
-// 設定の凍結（実行時の書き換え防止）
+// Freeze the configuration (prevent runtime modification)
 Object.freeze(config);
 Object.keys(config).forEach(key => {
   if (typeof (config as any)[key] === 'object') {
@@ -921,11 +921,11 @@ Object.keys(config).forEach(key => {
 });
 ```
 
-### 3.2 Configuration Dependency Injection (DI) Pattern
+### 3.2 Configuration DI (Dependency Injection) Pattern
 
 ```typescript
 // ============================================
-// 設定をDIコンテナで管理するパターン
+// Pattern for managing configuration in a DI container
 // ============================================
 
 // config/types.ts
@@ -974,7 +974,7 @@ class ConfigContainer {
   get<T>(key: string): T {
     const config = this.configs.get(key);
     if (!config) {
-      throw new Error(`設定 "${key}" が登録されていません`);
+      throw new Error(`Config "${key}" is not registered`);
     }
     return config as T;
   }
@@ -984,10 +984,10 @@ class ConfigContainer {
   }
 }
 
-// シングルトンインスタンス
+// Singleton instance
 export const configContainer = new ConfigContainer();
 
-// 初期化
+// Initialization
 export function initializeConfig(): void {
   configContainer.register<DatabaseConfig>('database', {
     host: process.env.DB_HOST || 'localhost',
@@ -1016,7 +1016,7 @@ export function initializeConfig(): void {
   });
 }
 
-// 使用例
+// Usage example
 // import { configContainer, initializeConfig } from './config/container';
 // initializeConfig();
 // const dbConfig = configContainer.get<DatabaseConfig>('database');
@@ -1026,96 +1026,96 @@ export function initializeConfig(): void {
 
 ## 4. Feature Flags
 
-### 4.1 Feature Flags Overview and Types
+### 4.1 Overview and Types of Feature Flags
 
-Feature Flags are a mechanism for toggling features on/off without code changes. They separate deployment from release, enabling gradual rollouts and A/B testing.
+Feature Flags are a mechanism for enabling or disabling features without code changes. They separate deployment from release and enable gradual rollouts and A/B testing.
 
 ```
-Feature Flags の種類:
+Types of Feature Flags:
 
   ┌───────────────────┬──────────────────────────────────────────────┐
-  │ 種類               │ 説明                                        │
+  │ Type              │ Description                                  │
   ├───────────────────┼──────────────────────────────────────────────┤
-  │ Release Flag      │ 未完成の機能を隠すためのフラグ                │
-  │                   │ 開発完了後に削除する（短命）                   │
-  │                   │ 例: 新しいダッシュボード UI                    │
+  │ Release Flag      │ Flag to hide unfinished features             │
+  │                   │ Delete after development is complete (short-lived) │
+  │                   │ Example: new dashboard UI                    │
   ├───────────────────┼──────────────────────────────────────────────┤
-  │ Experiment Flag   │ A/Bテストやパーセンテージロールアウト用         │
-  │                   │ 実験完了後に削除する（中期）                   │
-  │                   │ 例: 新しいチェックアウトフロー                 │
+  │ Experiment Flag   │ For A/B testing or percentage rollouts       │
+  │                   │ Delete after experiment is complete (medium-term) │
+  │                   │ Example: new checkout flow                   │
   ├───────────────────┼──────────────────────────────────────────────┤
-  │ Ops Flag          │ 運用上のトグル（メンテナンスモードなど）        │
-  │                   │ 長期的に維持する                              │
-  │                   │ 例: 書き込み操作の一時停止                    │
+  │ Ops Flag          │ Operational toggle (e.g. maintenance mode)   │
+  │                   │ Maintain long-term                           │
+  │                   │ Example: temporarily pause write operations  │
   ├───────────────────┼──────────────────────────────────────────────┤
-  │ Permission Flag   │ ユーザーの権限やプランに基づく機能制御          │
-  │                   │ 永続的に維持する                              │
-  │                   │ 例: プレミアムプラン限定機能                   │
+  │ Permission Flag   │ Feature control based on user role or plan   │
+  │                   │ Maintain permanently                         │
+  │                   │ Example: premium plan exclusive features     │
   └───────────────────┴──────────────────────────────────────────────┘
 
-Feature Flags のライフサイクル:
-  作成 → テスト → 段階的有効化 → 全体有効化 → フラグ削除
+Feature Flag lifecycle:
+  Create → Test → Gradual enablement → Full enablement → Delete flag
 
-  注意: 不要になったフラグは必ず削除する（技術的負債の温床）
+  Note: Always delete flags when they are no longer needed (they become technical debt)
 ```
 
-### 4.2 Environment-Variable-Based Feature Flag Implementation
+### 4.2 Environment Variable-Based Feature Flags Implementation
 
 ```typescript
 // ============================================
 // lib/feature-flags.ts
-// 環境変数ベースのシンプルな Feature Flags
+// Simple environment variable-based Feature Flags
 // ============================================
 
-// Feature Flag の定義
+// Feature Flag definitions
 const FEATURE_FLAGS = {
   // Release Flags
   newDashboard: {
     envVar: 'NEXT_PUBLIC_FF_NEW_DASHBOARD',
-    description: '新しいダッシュボード UI',
+    description: 'New dashboard UI',
     defaultValue: false,
   },
   newCheckout: {
     envVar: 'NEXT_PUBLIC_FF_NEW_CHECKOUT',
-    description: '新しいチェックアウトフロー',
+    description: 'New checkout flow',
     defaultValue: false,
   },
 
   // Ops Flags
   maintenanceMode: {
     envVar: 'NEXT_PUBLIC_FF_MAINTENANCE',
-    description: 'メンテナンスモード',
+    description: 'Maintenance mode',
     defaultValue: false,
   },
   readOnlyMode: {
     envVar: 'NEXT_PUBLIC_FF_READ_ONLY',
-    description: '読み取り専用モード',
+    description: 'Read-only mode',
     defaultValue: false,
   },
 
   // Experiment Flags
   darkMode: {
     envVar: 'NEXT_PUBLIC_FF_DARK_MODE',
-    description: 'ダークモード',
+    description: 'Dark mode',
     defaultValue: false,
   },
 
   // Permission Flags
   betaFeatures: {
     envVar: 'NEXT_PUBLIC_FF_BETA',
-    description: 'ベータ機能の表示',
+    description: 'Show beta features',
     defaultValue: false,
   },
   premiumFeatures: {
     envVar: 'NEXT_PUBLIC_FF_PREMIUM',
-    description: 'プレミアム機能',
+    description: 'Premium features',
     defaultValue: false,
   },
 } as const;
 
 type FeatureFlagName = keyof typeof FEATURE_FLAGS;
 
-// Feature Flag の状態を取得
+// Get the state of a Feature Flag
 export function isFeatureEnabled(name: FeatureFlagName): boolean {
   const flag = FEATURE_FLAGS[name];
   const envValue = process.env[flag.envVar];
@@ -1127,7 +1127,7 @@ export function isFeatureEnabled(name: FeatureFlagName): boolean {
   return envValue === 'true' || envValue === '1';
 }
 
-// 全 Feature Flags の状態を取得
+// Get the state of all Feature Flags
 export function getAllFeatureFlags(): Record<FeatureFlagName, boolean> {
   const flags = {} as Record<FeatureFlagName, boolean>;
 
@@ -1138,7 +1138,7 @@ export function getAllFeatureFlags(): Record<FeatureFlagName, boolean> {
   return flags;
 }
 
-// Feature Flag の説明を取得（管理画面用）
+// Get Feature Flag descriptions (for admin panel)
 export function getFeatureFlagDescriptions(): Array<{
   name: string;
   description: string;
@@ -1160,14 +1160,14 @@ export function getFeatureFlagDescriptions(): Array<{
 ```tsx
 // ============================================
 // components/FeatureFlag.tsx
-// React コンポーネントとして Feature Flag を使う
+// Using Feature Flag as a React component
 // ============================================
 import React, { createContext, useContext, ReactNode } from 'react';
 import { getAllFeatureFlags, isFeatureEnabled } from '@/lib/feature-flags';
 
 type FeatureFlagName = Parameters<typeof isFeatureEnabled>[0];
 
-// ---- Context API による Feature Flags の提供 ----
+// ---- Providing Feature Flags via Context API ----
 interface FeatureFlagContextType {
   flags: Record<string, boolean>;
   isEnabled: (name: FeatureFlagName) => boolean;
@@ -1203,7 +1203,7 @@ export function useFeatureFlags() {
   return useContext(FeatureFlagContext);
 }
 
-// ---- 宣言的コンポーネント ----
+// ---- Declarative component ----
 interface FeatureFlagProps {
   name: FeatureFlagName;
   children: ReactNode;
@@ -1215,7 +1215,7 @@ export function FeatureFlag({ name, children, fallback = null }: FeatureFlagProp
   return isEnabled ? <>{children}</> : <>{fallback}</>;
 }
 
-// ---- 使用例 ----
+// ---- Usage example ----
 // function App() {
 //   return (
 //     <FeatureFlagProvider>
@@ -1235,7 +1235,7 @@ export function FeatureFlag({ name, children, fallback = null }: FeatureFlagProp
 //   );
 // }
 
-// ---- Hook の使用例 ----
+// ---- Hook usage example ----
 // function NavigationMenu() {
 //   const showBeta = useFeatureFlag('betaFeatures');
 //   const showPremium = useFeatureFlag('premiumFeatures');
@@ -1256,10 +1256,10 @@ export function FeatureFlag({ name, children, fallback = null }: FeatureFlagProp
 ```typescript
 // ============================================
 // lib/feature-flags-service.ts
-// 外部サービスを利用した高度な Feature Flags
+// Advanced Feature Flags using an external service
 // ============================================
 
-// Feature Flag サービスの抽象インターフェース
+// Abstract interface for Feature Flag service
 interface FeatureFlagService {
   isEnabled(flagName: string, context?: EvaluationContext): Promise<boolean>;
   getVariant(flagName: string, context?: EvaluationContext): Promise<string | null>;
@@ -1271,25 +1271,25 @@ interface EvaluationContext {
   email?: string;
   country?: string;
   plan?: 'free' | 'pro' | 'enterprise';
-  percentile?: number; // 0-100 のハッシュ値
+  percentile?: number; // Hash value 0-100
   attributes?: Record<string, string | number | boolean>;
 }
 
-// Percentageベースのロールアウト実装
+// Percentage-based rollout implementation
 class PercentageRollout {
-  // User IDからハッシュ値を計算（0-100）
+  // Calculate hash value (0-100) from user ID
   static calculatePercentile(userId: string, flagName: string): number {
     const input = `${userId}:${flagName}`;
     let hash = 0;
     for (let i = 0; i < input.length; i++) {
       const char = input.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 32bit integer に変換
+      hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash) % 100;
   }
 
-  // Percentageでの有効判定
+  // Determine enablement by percentage
   static isEnabledForUser(
     userId: string,
     flagName: string,
@@ -1300,7 +1300,7 @@ class PercentageRollout {
   }
 }
 
-// ローカル実装（外部サービスなし）
+// Local implementation (without external service)
 class LocalFeatureFlagService implements FeatureFlagService {
   private flags: Map<string, FlagConfig> = new Map();
 
@@ -1317,23 +1317,23 @@ class LocalFeatureFlagService implements FeatureFlagService {
     const flag = this.flags.get(flagName);
     if (!flag) return false;
 
-    // グローバルに無効の場合
+    // If globally disabled
     if (!flag.enabled) return false;
 
-    // コンテキストなしの場合はグローバル設定を返す
+    // Return global setting if no context
     if (!context) return flag.enabled;
 
-    // ユーザーセグメントのチェック
+    // Check user segment
     if (flag.allowedUsers?.includes(context.userId || '')) return true;
     if (flag.allowedEmails?.includes(context.email || '')) return true;
     if (flag.blockedUsers?.includes(context.userId || '')) return false;
 
-    // プラン制限のチェック
+    // Check plan restriction
     if (flag.requiredPlans && context.plan) {
       if (!flag.requiredPlans.includes(context.plan)) return false;
     }
 
-    // Percentageロールアウト
+    // Percentage rollout
     if (flag.rolloutPercentage !== undefined && context.userId) {
       return PercentageRollout.isEnabledForUser(
         context.userId,
@@ -1388,21 +1388,21 @@ interface FlagConfig {
   variants?: Array<{ name: string; weight: number }>;
 }
 
-// サービスのインスタンス作成
+// Create service instance
 export const featureFlagService = new LocalFeatureFlagService({
   'new-checkout': {
     enabled: true,
-    description: '新しいチェックアウトフロー',
-    rolloutPercentage: 25, // 25% のユーザーに有効
+    description: 'New checkout flow',
+    rolloutPercentage: 25, // Enabled for 25% of users
   },
   'premium-analytics': {
     enabled: true,
-    description: 'プレミアム分析ダッシュボード',
+    description: 'Premium analytics dashboard',
     requiredPlans: ['pro', 'enterprise'],
   },
   'ab-test-pricing': {
     enabled: true,
-    description: '料金ページの A/B テスト',
+    description: 'A/B test for pricing page',
     variants: [
       { name: 'control', weight: 50 },
       { name: 'variant-a', weight: 25 },
@@ -1411,13 +1411,13 @@ export const featureFlagService = new LocalFeatureFlagService({
   },
   'beta-ai-features': {
     enabled: true,
-    description: 'AI 機能のベータテスト',
+    description: 'Beta test for AI features',
     allowedEmails: ['beta-tester@example.com'],
     rolloutPercentage: 5,
   },
 });
 
-// 使用例
+// Usage example
 // const isNewCheckout = await featureFlagService.isEnabled('new-checkout', {
 //   userId: currentUser.id,
 //   plan: currentUser.plan,
@@ -1427,28 +1427,28 @@ export const featureFlagService = new LocalFeatureFlagService({
 ### 4.5 Feature Flag Service Comparison
 
 ```
-主要な Feature Flags サービスの比較:
+Comparison of major Feature Flags services:
 
   ┌───────────────┬─────────┬──────────────┬──────────────┬───────────┐
-  │ サービス       │ 料金     │ セグメント    │ A/Bテスト    │ OSS       │
+  │ Service       │ Pricing │ Segmentation │ A/B Testing  │ OSS       │
   ├───────────────┼─────────┼──────────────┼──────────────┼───────────┤
-  │ LaunchDarkly  │ 有料     │ 高度         │ 対応         │ ×         │
-  │ Unleash       │ 無料+有料│ 中程度       │ 対応         │ ○         │
-  │ Flagsmith     │ 無料+有料│ 中程度       │ 対応         │ ○         │
-  │ PostHog       │ 無料+有料│ 高度         │ 対応         │ ○         │
-  │ ConfigCat     │ 無料+有料│ 中程度       │ 限定的       │ ×         │
-  │ Split.io      │ 有料     │ 高度         │ 対応         │ ×         │
-  │ 環境変数ベース │ 無料     │ なし         │ なし         │ -         │
-  │ Vercel Edge   │ 無料+有料│ 地理・デバイス│ 対応         │ ×         │
-  │ Config        │          │              │              │           │
+  │ LaunchDarkly  │ Paid    │ Advanced     │ Supported    │ No        │
+  │ Unleash       │ Free+   │ Moderate     │ Supported    │ Yes       │
+  │ Flagsmith     │ Free+   │ Moderate     │ Supported    │ Yes       │
+  │ PostHog       │ Free+   │ Advanced     │ Supported    │ Yes       │
+  │ ConfigCat     │ Free+   │ Moderate     │ Limited      │ No        │
+  │ Split.io      │ Paid    │ Advanced     │ Supported    │ No        │
+  │ Env var-based │ Free    │ None         │ None         │ -         │
+  │ Vercel Edge   │ Free+   │ Geo/Device   │ Supported    │ No        │
+  │ Config        │         │              │              │           │
   └───────────────┴─────────┴──────────────┴──────────────┴───────────┘
 
-選択の指針:
-  - 小規模プロジェクト → 環境変数ベース or Unleash（セルフホスト）
-  - 中規模プロジェクト → Flagsmith or PostHog
-  - 大規模プロジェクト → LaunchDarkly or Split.io
-  - A/Bテスト重視     → PostHog or LaunchDarkly
-  - OSS 重視          → Unleash or Flagsmith
+Selection guidance:
+  - Small projects  → Environment variable-based or Unleash (self-hosted)
+  - Medium projects → Flagsmith or PostHog
+  - Large projects  → LaunchDarkly or Split.io
+  - A/B test focus  → PostHog or LaunchDarkly
+  - OSS preference  → Unleash or Flagsmith
 ```
 
 ---
@@ -1458,69 +1458,69 @@ export const featureFlagService = new LocalFeatureFlagService({
 ### 5.1 Secret Classification and Management Policy
 
 ```
-シークレットの分類:
+Secret classification:
 
   ┌─────────────────────┬───────────────────────┬──────────────────┐
-  │ 分類                 │ 例                     │ 管理方法          │
+  │ Category            │ Example               │ Management       │
   ├─────────────────────┼───────────────────────┼──────────────────┤
-  │ API キー             │ Stripe Secret Key     │ 環境変数 or Vault │
-  │ データベース認証情報   │ DB パスワード、接続URI │ Secrets Manager  │
-  │ 暗号化キー           │ JWT Secret, AES Key   │ KMS or Vault     │
-  │ OAuth クレデンシャル  │ Client Secret         │ Secrets Manager  │
-  │ SSH キー             │ デプロイキー            │ CI/CD シークレット│
-  │ TLS 証明書           │ SSL 証明書・秘密鍵     │ Certificate Mgr  │
-  │ Webhook シークレット  │ Stripe Webhook Secret │ 環境変数          │
+  │ API keys            │ Stripe Secret Key     │ Env var or Vault │
+  │ Database credentials│ DB password, conn URI │ Secrets Manager  │
+  │ Encryption keys     │ JWT Secret, AES Key   │ KMS or Vault     │
+  │ OAuth credentials   │ Client Secret         │ Secrets Manager  │
+  │ SSH keys            │ Deploy key            │ CI/CD secrets    │
+  │ TLS certificates    │ SSL cert, private key │ Certificate Mgr  │
+  │ Webhook secrets     │ Stripe Webhook Secret │ Env var          │
   └─────────────────────┴───────────────────────┴──────────────────┘
 
-シークレット管理の原則:
-  ① 最小権限の原則: 必要な最小限のアクセス権のみ付与
-  ② ローテーション: 定期的にシークレットを更新する
-  ③ 暗号化: 保存時も転送時も暗号化する
-  ④ 監査: シークレットへのアクセスを記録・監視する
-  ⑤ 分離: 環境ごとに異なるシークレットを使用する
+Secret management principles:
+  ① Least privilege: Grant only the minimum necessary access rights
+  ② Rotation: Update secrets regularly
+  ③ Encryption: Encrypt both at rest and in transit
+  ④ Auditing: Record and monitor access to secrets
+  ⑤ Isolation: Use different secrets for each environment
 ```
 
 ### 5.2 Secret Management on Each Platform
 
 ```
-シークレットの管理方法:
+Secret management methods:
 
-  ① 環境変数（基本）:
+  ① Environment variables (basic):
      → Vercel: Project Settings > Environment Variables
-        - Preview / Production / Development で分離可能
-        - Sensitive フラグでログ出力を防止
+        - Can be separated by Preview / Production / Development
+        - Sensitive flag prevents output to logs
      → AWS: Systems Manager Parameter Store
-        - SecureString 型で暗号化保存
-        - IAM ポリシーでアクセス制御
-     → .env.local（ローカル開発のみ）
-        - 絶対に Git にコミットしない
+        - Encrypted storage with SecureString type
+        - Access control with IAM policies
+     → .env.local (local development only)
+        - Never commit to Git
 
-  ② シークレットマネージャー:
+  ② Secret managers:
      → AWS Secrets Manager
-        - 自動ローテーション対応
-        - バージョン管理
-        - クロスリージョンレプリケーション
+        - Supports automatic rotation
+        - Version management
+        - Cross-region replication
      → Google Cloud Secret Manager
-        - IAM による細かいアクセス制御
-        - 自動レプリケーション
+        - Fine-grained access control via IAM
+        - Automatic replication
      → HashiCorp Vault
-        - 動的シークレット生成
-        - リース（有効期限）管理
-        - 詳細な監査ログ
+        - Dynamic secret generation
+        - Lease (expiry) management
+        - Detailed audit logs
      → Azure Key Vault
-        - HSM（ハードウェアセキュリティモジュール）対応
-        - 証明書管理も統合
+        - HSM (Hardware Security Module) support
+        - Certificate management integrated
 
-  ③ .env ファイルの暗号化:
+  ③ Encrypting .env files:
      → dotenv-vault
-        - .env ファイルを暗号化してコミット可能
-        - チーム間で安全に共有
-     → sops（Mozilla）
-        - AWS KMS / GCP KMS / Azure Key Vault と統合
-        - 部分暗号化（キーは平文、値のみ暗号化）
+        - Encrypt .env files for safe committing
+        - Securely share among team members
+     → sops (Mozilla)
+        - Integrates with AWS KMS / GCP KMS / Azure Key Vault
+        - Partial encryption (keys in plaintext, only values encrypted)
      → git-crypt
-        - Git リポジトリ内のファイルを透過的に暗号化
-        - GPG キーベースのアクセス制御
+        - Transparently encrypts files in Git repositories
+        - GPG key-based access control
 ```
 
 ### 5.3 AWS Secrets Manager Implementation Example
@@ -1528,7 +1528,7 @@ export const featureFlagService = new LocalFeatureFlagService({
 ```typescript
 // ============================================
 // lib/secrets.ts
-// AWS Secrets Manager を使ったシークレット取得
+// Retrieving secrets using AWS Secrets Manager
 // ============================================
 import {
   SecretsManagerClient,
@@ -1539,12 +1539,12 @@ const client = new SecretsManagerClient({
   region: process.env.AWS_REGION || 'ap-northeast-1',
 });
 
-// シークレットのキャッシュ（メモリ内）
+// In-memory secret cache
 const secretCache = new Map<string, { value: string; expiresAt: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5分
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 export async function getSecret(secretName: string): Promise<string> {
-  // キャッシュを確認
+  // Check cache
   const cached = secretCache.get(secretName);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.value;
@@ -1562,7 +1562,7 @@ export async function getSecret(secretName: string): Promise<string> {
       throw new Error(`Secret "${secretName}" has no value`);
     }
 
-    // キャッシュに保存
+    // Save to cache
     secretCache.set(secretName, {
       value: secretValue,
       expiresAt: Date.now() + CACHE_TTL,
@@ -1575,13 +1575,13 @@ export async function getSecret(secretName: string): Promise<string> {
   }
 }
 
-// JSON 形式のシークレットをパース
+// Parse JSON-format secrets
 export async function getSecretJson<T>(secretName: string): Promise<T> {
   const secretString = await getSecret(secretName);
   return JSON.parse(secretString) as T;
 }
 
-// 使用例: データベース接続情報をシークレットから取得
+// Usage example: Get database credentials from secrets
 interface DbCredentials {
   host: string;
   port: number;
@@ -1591,7 +1591,7 @@ interface DbCredentials {
 }
 
 export async function getDatabaseCredentials(): Promise<DbCredentials> {
-  // 開発環境では環境変数から、本番ではシークレットマネージャーから取得
+  // In development, get from env vars; in production, get from Secrets Manager
   if (process.env.NODE_ENV === 'development') {
     return {
       host: process.env.DB_HOST || 'localhost',
@@ -1609,17 +1609,17 @@ export async function getDatabaseCredentials(): Promise<DbCredentials> {
 ### 5.4 Preventing Secret Leakage
 
 ```
-やってはいけないこと:
-  ✗ シークレットをコードにハードコード
-  ✗ .env.local を Git にコミット
-  ✗ NEXT_PUBLIC_ にシークレットを入れる
-  ✗ ログにシークレットを出力
-  ✗ エラーメッセージにシークレットを含める
-  ✗ シークレットをURL のクエリパラメータに含める
-  ✗ フロントエンドの JavaScript にシークレットを埋め込む
-  ✗ コメントやドキュメントに実際のシークレットを記載
+What NOT to do:
+  ✗ Hardcode secrets in code
+  ✗ Commit .env.local to Git
+  ✗ Put secrets in NEXT_PUBLIC_
+  ✗ Output secrets to logs
+  ✗ Include secrets in error messages
+  ✗ Include secrets in URL query parameters
+  ✗ Embed secrets in frontend JavaScript
+  ✗ Write actual secrets in comments or documentation
 
-.gitignore の設定:
+.gitignore configuration:
   .env.local
   .env.*.local
   .env.development.local
@@ -1633,11 +1633,11 @@ export async function getDatabaseCredentials(): Promise<DbCredentials> {
 
 ```typescript
 // ============================================
-// pre-commit hook でシークレット漏洩を検出
+// Detect secret leakage with pre-commit hook
 // .husky/pre-commit
 // ============================================
 
-// package.json に追加するスクリプト
+// Scripts to add to package.json
 // {
 //   "scripts": {
 //     "check-secrets": "ts-node scripts/check-secrets.ts"
@@ -1650,7 +1650,7 @@ export async function getDatabaseCredentials(): Promise<DbCredentials> {
 // scripts/check-secrets.ts
 import { execSync } from 'child_process';
 
-// 危険なパターンの定義
+// Define dangerous patterns
 const SECRET_PATTERNS = [
   // AWS
   { pattern: /AKIA[0-9A-Z]{16}/g, description: 'AWS Access Key ID' },
@@ -1668,7 +1668,7 @@ const SECRET_PATTERNS = [
   // Google
   { pattern: /AIza[0-9A-Za-z\-_]{35}/g, description: 'Google API Key' },
 
-  // 汎用
+  // Generic
   { pattern: /-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/g, description: 'Private Key' },
   { pattern: /password\s*=\s*['"][^'"]{8,}['"]/gi, description: 'Hardcoded Password' },
 ];
@@ -1677,7 +1677,7 @@ function checkForSecrets(filePaths: string[]): void {
   const violations: Array<{ file: string; line: number; description: string }> = [];
 
   for (const filePath of filePaths) {
-    // バイナリファイルはスキップ
+    // Skip binary files
     if (/\.(png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/.test(filePath)) {
       continue;
     }
@@ -1690,7 +1690,7 @@ function checkForSecrets(filePaths: string[]): void {
         const line = lines[lineNum];
 
         for (const { pattern, description } of SECRET_PATTERNS) {
-          // パターンをリセット（global フラグのため）
+          // Reset pattern (due to global flag)
           pattern.lastIndex = 0;
           if (pattern.test(line)) {
             violations.push({
@@ -1702,23 +1702,23 @@ function checkForSecrets(filePaths: string[]): void {
         }
       }
     } catch (error) {
-      // ファイル読み込みエラーは無視
+      // Ignore file read errors
     }
   }
 
   if (violations.length > 0) {
-    console.error('\nシークレット漏洩の可能性を検出しました:');
+    console.error('\nPotential secret leakage detected:');
     for (const v of violations) {
       console.error(`  ${v.file}:${v.line} - ${v.description}`);
     }
-    console.error('\nシークレットを削除してから再度コミットしてください。');
+    console.error('\nRemove the secrets and commit again.');
     process.exit(1);
   }
 
-  console.log('シークレットチェック: 問題は検出されませんでした。');
+  console.log('Secret check: No issues detected.');
 }
 
-// ステージングされたファイルを取得
+// Get staged files
 const stagedFiles = execSync('git diff --cached --name-only --diff-filter=ACM')
   .toString()
   .trim()
@@ -1737,7 +1737,7 @@ checkForSecrets(stagedFiles);
 ```yaml
 # ============================================
 # .github/workflows/deploy.yml
-# GitHub Actions での環境変数管理
+# Environment variable management in GitHub Actions
 # ============================================
 name: Deploy
 
@@ -1745,7 +1745,7 @@ on:
   push:
     branches: [main, staging]
 
-# 環境変数の設定方法:
+# How to configure environment variables:
 # 1. Repository secrets: Settings > Secrets and variables > Actions
 # 2. Environment secrets: Settings > Environments > [env] > Secrets
 # 3. Organization secrets: Organization Settings > Secrets
@@ -1754,12 +1754,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    # 環境を指定（GitHub Environments）
+    # Specify environment (GitHub Environments)
     environment:
       name: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
       url: ${{ steps.deploy.outputs.url }}
 
-    # ジョブレベルの環境変数
+    # Job-level environment variables
     env:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: 1
@@ -1779,13 +1779,13 @@ jobs:
       - name: Run environment check
         run: npm run check-env
         env:
-          # Repository secrets から注入
+          # Injected from Repository secrets
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
-          # Environment secrets から注入（環境ごとに異なる値）
+          # Injected from Environment secrets (different values per environment)
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
 
@@ -1812,7 +1812,7 @@ jobs:
         env:
           TEST_URL: ${{ steps.deploy.outputs.url }}
 
-  # 環境変数の設定確認ジョブ
+  # Job to verify environment variable configuration
   verify-config:
     runs-on: ubuntu-latest
     needs: deploy
@@ -1833,7 +1833,7 @@ jobs:
 
 ```typescript
 // ============================================
-// vercel.json - Vercel プロジェクト設定
+// vercel.json - Vercel project configuration
 // ============================================
 // {
 //   "env": {
@@ -1846,29 +1846,29 @@ jobs:
 //   }
 // }
 
-// Vercel CLI での環境変数設定
+// Setting environment variables with Vercel CLI
 // vercel env add DATABASE_URL production
 // vercel env add DATABASE_URL preview
 // vercel env add DATABASE_URL development
 
-// 環境変数の一覧取得
+// List environment variables
 // vercel env ls
 
-// 環境変数の削除
+// Delete an environment variable
 // vercel env rm DATABASE_URL production
 
 // ============================================
-// Vercel の環境変数のスコープ
+// Vercel environment variable scopes
 // ============================================
-// Production:   本番デプロイ時のみ使用
-// Preview:      プレビューデプロイ（PR ブランチ）で使用
-// Development:  vercel dev 実行時に使用
+// Production:   Used only in production deploys
+// Preview:      Used in preview deploys (PR branches)
+// Development:  Used when running vercel dev
 //
-// Sensitive:    ログやビルド出力に表示されない
-// Plain:        通常の環境変数
+// Sensitive:    Not shown in logs or build output
+// Plain:        Regular environment variable
 
 // ============================================
-// vercel.json で Preview 環境のブランチ固有設定
+// Branch-specific settings for Preview in vercel.json
 // ============================================
 // {
 //   "git": {
@@ -1885,21 +1885,21 @@ jobs:
 
 ```dockerfile
 # ============================================
-# Dockerfile - マルチステージビルドでの環境変数
+# Dockerfile - Environment variables in multi-stage builds
 # ============================================
 
-# ---- ビルドステージ ----
+# ---- Build stage ----
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# ビルド時の環境変数（ARG）
+# Build-time environment variables (ARG)
 # docker build --build-arg NEXT_PUBLIC_API_URL=https://api.example.com .
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_GA_ID
 
-# ARG を ENV に変換（ビルドプロセスで使用）
+# Convert ARG to ENV (for use in the build process)
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_GA_ID=$NEXT_PUBLIC_GA_ID
@@ -1910,16 +1910,16 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# ---- 実行ステージ ----
+# ---- Run stage ----
 FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# 実行時の環境変数はここでは設定しない
-# docker run -e DATABASE_URL=... で注入する
+# Do not set runtime environment variables here
+# Inject with: docker run -e DATABASE_URL=...
 ENV NODE_ENV=production
 
-# セキュリティ: 非 root ユーザーで実行
+# Security: run as non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
@@ -1936,7 +1936,7 @@ CMD ["node", "server.js"]
 
 ```yaml
 # ============================================
-# docker-compose.yml - 開発環境の構成
+# docker-compose.yml - Development environment setup
 # ============================================
 version: '3.8'
 
@@ -1954,9 +1954,9 @@ services:
       - DATABASE_URL=postgresql://postgres:password@db:5432/myapp_dev
       - REDIS_URL=redis://redis:6379
     env_file:
-      - .env                    # 共通設定
-      - .env.development        # 開発環境設定
-      - .env.local              # ローカルオーバーライド（.gitignore）
+      - .env                    # Common settings
+      - .env.development        # Development environment settings
+      - .env.local              # Local override (.gitignore)
     depends_on:
       db:
         condition: service_healthy
@@ -2004,7 +2004,7 @@ In Kubernetes, configuration data is managed with two resources: ConfigMap and S
 
 ```yaml
 # ============================================
-# k8s/configmap.yaml - 非機密設定
+# k8s/configmap.yaml - Non-sensitive configuration
 # ============================================
 apiVersion: v1
 kind: ConfigMap
@@ -2015,7 +2015,7 @@ metadata:
     app: myapp
     environment: production
 data:
-  # 個別のキーバリュー
+  # Individual key-value pairs
   NODE_ENV: "production"
   LOG_LEVEL: "warn"
   LOG_FORMAT: "json"
@@ -2023,7 +2023,7 @@ data:
   ENABLE_ANALYTICS: "true"
   ENABLE_RATE_LIMIT: "true"
 
-  # Config fileとしてマウントすることも可能
+  # Can also be mounted as a config file
   app-config.json: |
     {
       "api": {
@@ -2048,7 +2048,7 @@ data:
 
 ```yaml
 # ============================================
-# k8s/secret.yaml - 機密設定
+# k8s/secret.yaml - Sensitive configuration
 # ============================================
 apiVersion: v1
 kind: Secret
@@ -2059,7 +2059,7 @@ metadata:
     app: myapp
     environment: production
 type: Opaque
-# 値は Base64 エンコードが必要
+# Values must be Base64 encoded
 # echo -n 'value' | base64
 data:
   DATABASE_URL: cG9zdGdyZXNxbDovL3VzZXI6cGFzc0Bob3N0OjU0MzIvbXlkYg==
@@ -2067,7 +2067,7 @@ data:
   STRIPE_SECRET_KEY: c2tfdGVzdF94eHh4eHh4eHh4eHg=
   REDIS_PASSWORD: cmVkaXMtcGFzc3dvcmQ=
 
-# stringData を使えば Base64 エンコード不要（推奨）
+# Using stringData avoids the need for Base64 encoding (recommended)
 # stringData:
 #   DATABASE_URL: "postgresql://user:pass@host:5432/mydb"
 #   JWT_SECRET: "super-secret-key-that-is-at-least-32-chars"
@@ -2075,7 +2075,7 @@ data:
 
 ```yaml
 # ============================================
-# k8s/deployment.yaml - Pod での環境変数注入
+# k8s/deployment.yaml - Injecting environment variables into Pods
 # ============================================
 apiVersion: apps/v1
 kind: Deployment
@@ -2098,7 +2098,7 @@ spec:
           ports:
             - containerPort: 3000
 
-          # 方法1: ConfigMap から個別の環境変数を注入
+          # Method 1: Inject individual environment variables from ConfigMap
           env:
             - name: NODE_ENV
               valueFrom:
@@ -2116,14 +2116,14 @@ spec:
                   name: myapp-secrets
                   key: JWT_SECRET
 
-          # 方法2: ConfigMap / Secret の全キーを一括注入
+          # Method 2: Inject all keys from ConfigMap / Secret at once
           envFrom:
             - configMapRef:
                 name: myapp-config
             - secretRef:
                 name: myapp-secrets
 
-          # 方法3: 設定ファイルとしてマウント
+          # Method 3: Mount as a config file
           volumeMounts:
             - name: config-volume
               mountPath: /app/config
@@ -2142,10 +2142,10 @@ spec:
 
 ```yaml
 # ============================================
-# External Secrets Operator で AWS Secrets Manager と連携
+# Integrating External Secrets Operator with AWS Secrets Manager
 # ============================================
 
-# SecretStore: AWS Secrets Manager への接続設定
+# SecretStore: Connection configuration to AWS Secrets Manager
 apiVersion: external-secrets.io/v1beta1
 kind: SecretStore
 metadata:
@@ -2162,19 +2162,19 @@ spec:
             name: myapp-sa
 
 ---
-# ExternalSecret: AWS Secrets Manager から Kubernetes Secret を自動生成
+# ExternalSecret: Auto-generate Kubernetes Secret from AWS Secrets Manager
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: myapp-external-secrets
   namespace: production
 spec:
-  refreshInterval: 1h        # 1時間ごとに同期
+  refreshInterval: 1h        # Sync every 1 hour
   secretStoreRef:
     name: aws-secret-store
     kind: SecretStore
   target:
-    name: myapp-secrets       # 生成される Secret の名前
+    name: myapp-secrets       # Name of the generated Secret
     creationPolicy: Owner
   data:
     - secretKey: DATABASE_URL
@@ -2194,43 +2194,43 @@ spec:
 ### 7.3 Sealed Secrets (Git-managed Encrypted Secrets)
 
 ```
-Sealed Secrets の仕組み:
+How Sealed Secrets works:
 
-  開発者のマシン                    Kubernetes クラスタ
+  Developer's machine                  Kubernetes cluster
   ┌─────────────────┐              ┌─────────────────────┐
   │ kubeseal CLI    │              │ Sealed Secrets      │
   │                 │              │ Controller          │
-  │ Secret          │   暗号化     │                     │
-  │ (平文)     ─────┼──────────>   │ SealedSecret        │
-  │                 │              │ (暗号化済み)    ─────┤
-  │                 │              │                     │ 復号化
+  │ Secret          │   Encrypt    │                     │
+  │ (plaintext) ────┼──────────>   │ SealedSecret        │
+  │                 │              │ (encrypted)    ─────┤
+  │                 │              │                     │ Decrypt
   │                 │              │ Secret              │
-  │                 │              │ (平文 - Pod に注入) │
+  │                 │              │ (plaintext - injected into Pod) │
   └─────────────────┘              └─────────────────────┘
 
-  メリット:
-  - 暗号化された SealedSecret を Git にコミットできる
-  - GitOps ワークフローと相性が良い
-  - クラスタの公開鍵でのみ復号可能
+  Benefits:
+  - Encrypted SealedSecrets can be committed to Git
+  - Works well with GitOps workflows
+  - Decryptable only with the cluster's public key
 ```
 
 ```bash
-# Sealed Secrets の使い方
+# How to use Sealed Secrets
 
-# 1. 通常の Secret を作成（ファイルとして）
+# 1. Create a regular Secret (as a file)
 kubectl create secret generic myapp-secrets \
   --from-literal=DATABASE_URL='postgresql://user:pass@host:5432/mydb' \
   --from-literal=JWT_SECRET='super-secret-key-that-is-at-least-32-chars' \
   --dry-run=client -o yaml > secret.yaml
 
-# 2. kubeseal で暗号化
+# 2. Encrypt with kubeseal
 kubeseal --format yaml < secret.yaml > sealed-secret.yaml
 
-# 3. 暗号化された SealedSecret を Git にコミット（安全）
+# 3. Commit the encrypted SealedSecret to Git (safe)
 git add sealed-secret.yaml
 git commit -m "Add sealed secrets for production"
 
-# 4. クラスタにデプロイ（Controller が自動で復号して Secret を作成）
+# 4. Deploy to cluster (Controller automatically decrypts and creates Secret)
 kubectl apply -f sealed-secret.yaml
 ```
 
@@ -2241,23 +2241,23 @@ kubectl apply -f sealed-secret.yaml
 ### 8.1 Common Anti-Patterns
 
 ```
-アンチパターン一覧と対策:
+List of anti-patterns and countermeasures:
 
   ┌──────────────────────────────────┬──────────────────────────────────┐
-  │ アンチパターン                    │ 対策                             │
+  │ Anti-pattern                     │ Countermeasure                   │
   ├──────────────────────────────────┼──────────────────────────────────┤
-  │ シークレットのハードコード         │ 環境変数 or Secrets Manager      │
-  │ if (env === 'prod') 分岐         │ 環境別設定ファイルで分離           │
-  │ 環境変数の型変換忘れ              │ Zod でスキーマバリデーション       │
-  │ デフォルト値に本番値を使用         │ 安全なデフォルト値を設定           │
-  │ .env をコミット                  │ .gitignore + pre-commit hook     │
-  │ NEXT_PUBLIC_ に機密情報          │ プレフィックスの意味を理解する      │
-  │ 設定のグローバル変数管理           │ DI パターンまたはモジュール化      │
-  │ 環境変数の過剰な使用              │ 設定ファイルとの適切な使い分け      │
-  │ テスト環境で本番シークレットを使用  │ テスト用のモック/ダミー値を使用    │
-  │ 設定の変更ログを残さない           │ 設定変更の監査ログを実装           │
-  │ Feature Flag の放置              │ 定期的なクリーンアップを実施       │
-  │ 全環境で同一のシークレットを使用    │ 環境ごとにシークレットをローテート  │
+  │ Hardcoding secrets               │ Use env vars or Secrets Manager  │
+  │ if (env === 'prod') branching    │ Separate via per-env config files│
+  │ Forgetting to convert env var types │ Schema validation with Zod   │
+  │ Using production values as defaults │ Set safe default values      │
+  │ Committing .env                  │ .gitignore + pre-commit hook     │
+  │ Putting sensitive info in NEXT_PUBLIC_ │ Understand prefix meaning │
+  │ Global variable config management│ DI pattern or modularization     │
+  │ Overusing environment variables  │ Appropriate use with config files│
+  │ Using production secrets in test │ Use mock/dummy values for tests  │
+  │ Not recording config change logs │ Implement config change audit log│
+  │ Leaving unused Feature Flags     │ Perform regular cleanup          │
+  │ Using same secret across all envs│ Rotate secrets per environment   │
   └──────────────────────────────────┴──────────────────────────────────┘
 ```
 
@@ -2265,10 +2265,10 @@ kubectl apply -f sealed-secret.yaml
 
 ```typescript
 // ============================================
-// アンチパターン: コード内での環境分岐
+// Anti-pattern: Environment branching in code
 // ============================================
 
-// BAD: コードの中で環境を判定して分岐する
+// BAD: Branching on environment inside the code
 function getApiUrlBad(): string {
   if (process.env.NODE_ENV === 'production') {
     return 'https://api.example.com';
@@ -2279,16 +2279,16 @@ function getApiUrlBad(): string {
   }
 }
 
-// BAD: 環境ごとに異なるサービスを直接切り替え
+// BAD: Directly switching services per environment
 function createEmailServiceBad() {
   if (process.env.NODE_ENV === 'production') {
     return new SendGridEmailService(process.env.SENDGRID_API_KEY!);
   } else {
-    return new ConsoleEmailService(); // コンソールに出力するだけ
+    return new ConsoleEmailService(); // Just outputs to console
   }
 }
 
-// GOOD: 環境変数から設定を読み取る
+// GOOD: Read configuration from environment variables
 function getApiUrlGood(): string {
   const url = process.env.NEXT_PUBLIC_API_URL;
   if (!url) {
@@ -2297,7 +2297,7 @@ function getApiUrlGood(): string {
   return url;
 }
 
-// GOOD: DIパターンで環境に依存しない設計
+// GOOD: Environment-independent design using DI pattern
 interface EmailService {
   send(to: string, subject: string, body: string): Promise<void>;
 }
@@ -2320,37 +2320,37 @@ function createEmailServiceGood(config: EmailConfig): EmailService {
 
 ```typescript
 // ============================================
-// Default valuesの設計原則
+// Design principles for default values
 // ============================================
 
-// BAD: 危険なデフォルト値
+// BAD: Dangerous default values
 const configBad = {
-  debugMode: true,              // 本番で有効になる危険
-  corsOrigin: '*',              // 全オリジン許可の危険
-  rateLimit: false,             // Rate limitingなしの危険
-  logLevel: 'debug',            // 本番で詳細ログが出る
-  sessionSecret: 'default',     // 既知のシークレット
-  ssl: false,                   // SSL なしの危険
+  debugMode: true,              // Risk of being enabled in production
+  corsOrigin: '*',              // Risk of allowing all origins
+  rateLimit: false,             // Risk of no rate limiting
+  logLevel: 'debug',            // Verbose logs in production
+  sessionSecret: 'default',     // Known secret
+  ssl: false,                   // Risk of no SSL
 };
 
-// GOOD: 安全なデフォルト値（Secure by Default）
+// GOOD: Safe default values (Secure by Default)
 const configGood = {
-  debugMode: false,             // デフォルトで無効
-  corsOrigin: undefined,        // 明示的な設定が必要
-  rateLimit: true,              // デフォルトで有効
-  logLevel: 'warn',             // 本番向けのレベル
-  sessionSecret: undefined,     // 必須（起動時エラー）
-  ssl: true,                    // デフォルトで有効
+  debugMode: false,             // Disabled by default
+  corsOrigin: undefined,        // Explicit configuration required
+  rateLimit: true,              // Enabled by default
+  logLevel: 'warn',             // Production-appropriate level
+  sessionSecret: undefined,     // Required (startup error if missing)
+  ssl: true,                    // Enabled by default
 };
 
-// GOOD: 環境に応じたデフォルト値
+// GOOD: Default values appropriate for each environment
 function getDefaultConfig(env: string) {
   const isProduction = env === 'production';
 
   return {
     debugMode: !isProduction,
     logLevel: isProduction ? 'warn' : 'debug',
-    ssl: isProduction, // 本番では必ず SSL
+    ssl: isProduction, // Always use SSL in production
     cache: {
       ttl: isProduction ? 600 : 0,
       strategy: isProduction ? 'redis' : 'memory',
@@ -2366,92 +2366,91 @@ function getDefaultConfig(env: string) {
 ### 9.1 Common Problems and Solutions
 
 ```
-問題1: 環境変数が undefined になる
+Problem 1: Environment variable is undefined
 
-  症状: process.env.MY_VAR が undefined
-  原因と対策:
+  Symptom: process.env.MY_VAR is undefined
+  Cause and countermeasures:
 
-  チェックリスト:
-  □ .env ファイルに変数が定義されているか
-  □ .env ファイルの書式が正しいか（= の前後にスペースがないか）
-  □ .env ファイルの文字コードが UTF-8 か
-  □ 変数名にタイポがないか（大文字小文字の区別あり）
-  □ クライアントサイドでアクセスする場合 NEXT_PUBLIC_ プレフィックスがあるか
-  □ dotenv パッケージが正しく読み込まれているか
-  □ Docker 環境の場合 env_file が正しく指定されているか
+  Checklist:
+  □ Is the variable defined in the .env file?
+  □ Is the .env file format correct (no spaces around =)?
+  □ Is the .env file encoded in UTF-8?
+  □ Are there any typos in the variable name (case-sensitive)?
+  □ Does it have the NEXT_PUBLIC_ prefix for client-side access?
+  □ Is the dotenv package loaded correctly?
+  □ For Docker environments, is env_file specified correctly?
 
-  デバッグコマンド:
+  Debug commands:
   $ node -e "console.log(process.env.MY_VAR)"
   $ printenv | grep MY_VAR
   $ docker exec container_name printenv | grep MY_VAR
 
 
-問題2: ビルド時と実行時で環境変数が異なる
+Problem 2: Environment variables differ between build time and runtime
 
-  症状: ビルドしたアプリケーションが意図しない API を呼ぶ
-  原因: NEXT_PUBLIC_ はビルド時にインライン化されるため、
-        実行時に環境変数を変更しても反映されない
+  Symptom: Built application calls an unintended API
+  Cause: NEXT_PUBLIC_ variables are inlined at build time,
+        so changing them at runtime has no effect
 
-  対策:
-  (1) ビルド時に正しい環境変数を設定する
+  Countermeasures:
+  (1) Set the correct environment variables at build time
      NEXT_PUBLIC_API_URL=https://api.example.com npm run build
-  (2) Runtime Configuration を使う（Next.js）
+  (2) Use Runtime Configuration (Next.js)
      → serverRuntimeConfig / publicRuntimeConfig
-  (3) __NEXT_DATA__ を使ったランタイム環境変数注入
-     → getServerSideProps で環境変数を props として渡す
+  (3) Runtime environment variable injection using __NEXT_DATA__
+     → Pass environment variables as props via getServerSideProps
 
 
-問題3: Docker コンテナ内で .env が読まれない
+Problem 3: .env is not read inside Docker container
 
-  症状: ローカルでは動くが Docker コンテナ内で環境変数が空
-  原因: .env ファイルが .dockerignore に含まれている
+  Symptom: Works locally but environment variables are empty in Docker container
+  Cause: .env file is included in .dockerignore
 
-  対策:
-  (1) docker-compose の env_file を使う
-  (2) docker run -e で個別に渡す
-  (3) docker run --env-file .env で一括渡し
-  (4) .env を .dockerignore に入れたまま、
-     外部から注入する（推奨）
-
-
-問題4: CI/CD で環境変数が設定されていない
-
-  症状: CI パイプラインでビルドが失敗する
-  原因: Repository secrets / Environment secrets が未設定
-
-  対策:
-  (1) GitHub Actions: Settings > Secrets に変数を追加
-  (2) secrets コンテキストが正しく参照されているか確認
-     ${{ secrets.MY_SECRET }}（$ を忘れがち）
-  (3) Environment protection rules が設定されていないか確認
-  (4) Organization secrets の場合はリポジトリへのアクセスを許可
+  Countermeasures:
+  (1) Use env_file in docker-compose
+  (2) Pass individually with docker run -e
+  (3) Pass all at once with docker run --env-file .env
+  (4) Keep .env in .dockerignore and inject from outside (recommended)
 
 
-問題5: 環境変数の値に特殊文字が含まれる
+Problem 4: Environment variables not set in CI/CD
 
-  症状: パスワードに ! や $ が含まれると正しく読み取れない
-  原因: シェルの文字列展開が干渉する
+  Symptom: CI pipeline build fails
+  Cause: Repository secrets / Environment secrets not configured
 
-  対策:
-  (1) .env ファイルではシングルクォートで囲む
+  Countermeasures:
+  (1) GitHub Actions: Add variables in Settings > Secrets
+  (2) Check that secrets context is referenced correctly
+     ${{ secrets.MY_SECRET }} (easy to forget the $)
+  (3) Check if Environment protection rules are configured
+  (4) For Organization secrets, allow access to the repository
+
+
+Problem 5: Environment variable value contains special characters
+
+  Symptom: Password with ! or $ is not read correctly
+  Cause: Shell string expansion interferes
+
+  Countermeasures:
+  (1) Surround with single quotes in .env file
      DATABASE_PASSWORD='p@ss!w0rd$123'
-  (2) Docker では環境変数をシングルクォートで渡す
+  (2) Pass with single quotes in Docker
      docker run -e "DATABASE_PASSWORD='p@ss!w0rd\$123'"
-  (3) Base64 エンコードして格納し、アプリ側でデコードする
+  (3) Store as Base64-encoded value and decode on the app side
 
 
-問題6: Feature Flag が反映されない
+Problem 6: Feature Flag changes are not reflected
 
-  症状: 環境変数を変更したのに Feature Flag の状態が変わらない
-  原因:
-  (1) NEXT_PUBLIC_ の場合はビルドの再実行が必要
-  (2) サーバーサイドの場合はサーバーの再起動が必要
-  (3) CDN やブラウザのキャッシュが残っている
+  Symptom: Changed environment variable but Feature Flag state did not change
+  Cause:
+  (1) For NEXT_PUBLIC_ variables, a rebuild is required
+  (2) For server-side variables, a server restart is required
+  (3) CDN or browser cache is still present
 
-  対策:
-  (1) サービスベースの Feature Flags を使う（再デプロイ不要）
-  (2) サーバーサイドのみの Feature Flags はランタイムで評価
-  (3) キャッシュのパージを実行
+  Countermeasures:
+  (1) Use service-based Feature Flags (no redeployment needed)
+  (2) Evaluate server-side-only Feature Flags at runtime
+  (3) Purge the cache
 ```
 
 ### 9.2 Environment Variable Debug Tools
@@ -2459,28 +2458,28 @@ function getDefaultConfig(env: string) {
 ```typescript
 // ============================================
 // lib/debug-env.ts
-// 環境変数のデバッグヘルパー（開発環境のみ使用）
+// Environment variable debug helper (for development use only)
 // ============================================
 
 export function debugEnv(): void {
   if (process.env.NODE_ENV === 'production') {
-    console.warn('debugEnv() は本番環境では使用しないでください');
+    console.warn('debugEnv() should not be used in production');
     return;
   }
 
-  console.log('\n========== 環境変数デバッグ情報 ==========');
+  console.log('\n========== Environment Variable Debug Info ==========');
   console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-  console.log(`実行環境: ${typeof window === 'undefined' ? 'サーバー' : 'クライアント'}`);
+  console.log(`Runtime: ${typeof window === 'undefined' ? 'server' : 'client'}`);
 
-  // 設定されている NEXT_PUBLIC_ 変数の一覧
+  // List of set NEXT_PUBLIC_ variables
   const publicVars = Object.entries(process.env)
     .filter(([key]) => key.startsWith('NEXT_PUBLIC_'))
     .map(([key, value]) => `  ${key}: ${value}`);
 
-  console.log(`\nNEXT_PUBLIC_ 変数 (${publicVars.length}個):`);
+  console.log(`\nNEXT_PUBLIC_ variables (${publicVars.length}):`);
   publicVars.forEach(v => console.log(v));
 
-  // サーバーサイドの場合は機密変数の存在チェック（値は表示しない）
+  // On server side, check for sensitive variables (do not show values)
   if (typeof window === 'undefined') {
     const serverVars = [
       'DATABASE_URL',
@@ -2492,20 +2491,20 @@ export function debugEnv(): void {
       'SENTRY_DSN',
     ];
 
-    console.log('\nサーバー変数の設定状況:');
+    console.log('\nServer variable status:');
     serverVars.forEach(key => {
       const value = process.env[key];
       const status = value
-        ? `設定済み (${value.length}文字)`
-        : '未設定';
+        ? `set (${value.length} chars)`
+        : 'not set';
       console.log(`  ${key}: ${status}`);
     });
   }
 
-  console.log('==========================================\n');
+  console.log('====================================================\n');
 }
 
-// 使用方法（開発環境のみ）:
+// Usage (development only):
 // import { debugEnv } from '@/lib/debug-env';
 // if (process.env.NODE_ENV === 'development') debugEnv();
 ```
@@ -2513,12 +2512,12 @@ export function debugEnv(): void {
 ```typescript
 // ============================================
 // app/api/debug/env/route.ts
-// 環境変数のデバッグ API（開発環境のみ）
+// Environment variable debug API (development only)
 // ============================================
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  // 本番環境では絶対にアクセスさせない
+  // Never allow access in production
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json(
       { error: 'Not available in production' },
@@ -2526,7 +2525,7 @@ export async function GET() {
     );
   }
 
-  // デバッグ用の情報を返す（値は隠す）
+  // Return debug info (hiding values)
   const envInfo = {
     nodeEnv: process.env.NODE_ENV,
     platform: process.platform,
@@ -2534,12 +2533,12 @@ export async function GET() {
     variables: Object.keys(process.env)
       .sort()
       .reduce((acc, key) => {
-        // 値は長さのみ表示（セキュリティ）
+        // Show only length for values (security)
         const value = process.env[key] || '';
         acc[key] = {
           set: value.length > 0,
           length: value.length,
-          // NEXT_PUBLIC_ は値も表示（クライアントに公開済みのため）
+          // Show values for NEXT_PUBLIC_ (already exposed to clients)
           value: key.startsWith('NEXT_PUBLIC_') ? value : '[hidden]',
         };
         return acc;
@@ -2555,7 +2554,7 @@ export async function GET() {
 ```typescript
 // ============================================
 // app/api/health/route.ts
-// ヘルスチェック API（設定の検証含む）
+// Health check API (including configuration verification)
 // ============================================
 import { NextResponse } from 'next/server';
 
@@ -2579,9 +2578,9 @@ async function checkDatabase(): Promise<{
 }> {
   const start = Date.now();
   try {
-    // Prisma の場合
+    // For Prisma:
     // await prisma.$queryRaw`SELECT 1`;
-    // Drizzle の場合
+    // For Drizzle:
     // await db.execute(sql`SELECT 1`);
     return {
       status: 'pass',
@@ -2608,7 +2607,7 @@ async function checkRedis(): Promise<{
 
   const start = Date.now();
   try {
-    // Redis クライアントの PING
+    // Redis client PING
     // await redis.ping();
     return {
       status: 'pass',
@@ -2681,83 +2680,83 @@ export async function GET() {
 ### 10.1 Project Initial Setup
 
 ```
-プロジェクト立ち上げ時のチェックリスト:
+Checklist for project setup:
 
-  □ .env.example を作成し、全環境変数を記載する
-  □ .gitignore に .env.local, .env.*.local を追加する
-  □ Zod による環境変数バリデーションを実装する
-  □ pre-commit hook でシークレット漏洩チェックを設定する
-  □ README.md に環境変数のセットアップ手順を記載する
-  □ 環境変数の命名規則をチーム内で合意する
-  □ Feature Flags の管理方針を決める
-  □ シークレットの管理方法（Secrets Manager / Vault）を決める
-  □ CI/CD パイプラインでの環境変数の設定方法を確認する
-  □ ヘルスチェックエンドポイントを実装する
+  □ Create .env.example listing all environment variables
+  □ Add .env.local, .env.*.local to .gitignore
+  □ Implement environment variable validation with Zod
+  □ Set up secret leakage check with pre-commit hook
+  □ Document the environment variable setup procedure in README.md
+  □ Agree on environment variable naming conventions within the team
+  □ Decide on the Feature Flags management policy
+  □ Decide on the secret management method (Secrets Manager / Vault)
+  □ Confirm the environment variable setup method in the CI/CD pipeline
+  □ Implement a health check endpoint
 ```
 
 ### 10.2 Code Review Checklist
 
 ```
-環境設定に関するコードレビュー観点:
+Code review points for environment configuration:
 
-  □ 新しい環境変数が追加された場合:
-    ├── .env.example が更新されているか
-    ├── Zod スキーマが更新されているか
-    ├── 適切なデフォルト値が設定されているか
-    ├── NEXT_PUBLIC_ の要否が正しいか
-    └── CI/CD のシークレット設定手順が明記されているか
+  □ When new environment variables are added:
+    ├── Is .env.example updated?
+    ├── Is the Zod schema updated?
+    ├── Are appropriate default values set?
+    ├── Is the need for NEXT_PUBLIC_ correct?
+    └── Is the procedure for setting CI/CD secrets documented?
 
-  □ セキュリティ:
-    ├── 機密情報がクライアントに露出していないか
-    ├── ハードコードされたシークレットがないか
-    ├── ログ出力にシークレットが含まれていないか
-    └── エラーメッセージにシークレットが含まれていないか
+  □ Security:
+    ├── Is sensitive information not exposed to the client?
+    ├── Are there no hardcoded secrets?
+    ├── Are secrets not included in log output?
+    └── Are secrets not included in error messages?
 
-  □ 設定の分離:
-    ├── 環境固有の値がコードにハードコードされていないか
-    ├── if (env === 'production') のような分岐がないか
-    └── 設定の変更にコード変更が不要か
+  □ Configuration separation:
+    ├── Are environment-specific values not hardcoded in code?
+    ├── Are there no branches like if (env === 'production')?
+    └── Can configuration changes be made without code changes?
 
   □ Feature Flags:
-    ├── 不要になったフラグの削除 PR が計画されているか
-    ├── デフォルト値が安全か（OFF がデフォルト）
-    └── フラグの説明がコードやドキュメントにあるか
+    ├── Is a PR planned to remove flags that are no longer needed?
+    ├── Is the default value safe (OFF by default)?
+    └── Is there a description of the flag in code or documentation?
 ```
 
 ### 10.3 Security Policy for Environment Configuration
 
 ```
-セキュリティポリシーテンプレート:
+Security policy template:
 
-  1. シークレットの分類と管理
-     - Level 1（最高機密）: データベースパスワード、暗号化キー
-       → AWS Secrets Manager / HashiCorp Vault で管理
-       → 90日ごとにローテーション
-     - Level 2（機密）: API キー、Webhook シークレット
-       → 環境変数として CI/CD シークレットに格納
-       → 180日ごとにローテーション
-     - Level 3（内部利用）: 内部サービスの URL、ポート番号
-       → ConfigMap / 環境変数で管理
-       → ローテーション不要
+  1. Secret classification and management
+     - Level 1 (Top secret): Database passwords, encryption keys
+       → Managed with AWS Secrets Manager / HashiCorp Vault
+       → Rotate every 90 days
+     - Level 2 (Confidential): API keys, Webhook secrets
+       → Stored as environment variables in CI/CD secrets
+       → Rotate every 180 days
+     - Level 3 (Internal use): Internal service URLs, port numbers
+       → Managed with ConfigMap / environment variables
+       → No rotation required
 
-  2. アクセス制御
-     - 本番環境のシークレットへのアクセスは、
-       SRE チームと Tech Lead のみに限定
-     - シークレットの変更は必ず2人以上の承認が必要
-     - アクセスログを定期的に監査する
+  2. Access control
+     - Access to production secrets is limited to
+       the SRE team and Tech Lead only
+     - Secret changes require approval from at least 2 people
+     - Regularly audit access logs
 
-  3. インシデント対応
-     - シークレット漏洩が疑われる場合:
-       (1) 直ちに該当シークレットをローテーション
-       (2) 影響範囲の調査（アクセスログの確認）
-       (3) インシデントレポートの作成
-       (4) 再発防止策の策定と実施
+  3. Incident response
+     - If a secret leak is suspected:
+       (1) Immediately rotate the affected secret
+       (2) Investigate the scope of impact (check access logs)
+       (3) Create an incident report
+       (4) Formulate and implement preventive measures
 
-  4. 定期レビュー
-     - 四半期ごとに環境変数の棚卸しを実施
-     - 不要な環境変数の削除
-     - シークレットのローテーション状況の確認
-     - Feature Flags のクリーンアップ
+  4. Regular reviews
+     - Conduct a quarterly inventory of environment variables
+     - Delete unnecessary environment variables
+     - Check the status of secret rotation
+     - Clean up Feature Flags
 ```
 
 ### 10.4 Secret Rotation Implementation
@@ -2765,7 +2764,7 @@ export async function GET() {
 ```typescript
 // ============================================
 // lib/secret-rotation.ts
-// シークレットのローテーション支援ツール
+// Secret rotation support tool
 // ============================================
 
 interface RotationPolicy {
@@ -2819,20 +2818,20 @@ export function checkRotationStatus(): RotationCheckResult[] {
       (now.getTime() - policy.lastRotated.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    const warningThreshold = policy.maxAgeDays * 0.8; // 80% で警告
+    const warningThreshold = policy.maxAgeDays * 0.8; // Warning at 80%
 
     let status: 'ok' | 'warning' | 'expired';
     let message: string;
 
     if (daysSince > policy.maxAgeDays) {
       status = 'expired';
-      message = `${daysSince - policy.maxAgeDays}日超過しています。直ちにローテーションしてください。`;
+      message = `Overdue by ${daysSince - policy.maxAgeDays} days. Rotate immediately.`;
     } else if (daysSince > warningThreshold) {
       status = 'warning';
-      message = `残り${policy.maxAgeDays - daysSince}日でローテーション期限です。`;
+      message = `${policy.maxAgeDays - daysSince} days until rotation deadline.`;
     } else {
       status = 'ok';
-      message = `次のローテーションまで${policy.maxAgeDays - daysSince}日です。`;
+      message = `${policy.maxAgeDays - daysSince} days until next rotation.`;
     }
 
     return {
@@ -2846,11 +2845,11 @@ export function checkRotationStatus(): RotationCheckResult[] {
   });
 }
 
-// ローテーション状況のレポート出力
+// Output rotation status report
 export function printRotationReport(): void {
   const results = checkRotationStatus();
 
-  console.log('\n===== シークレットローテーション状況 =====\n');
+  console.log('\n===== Secret Rotation Status =====\n');
 
   for (const result of results) {
     const icon =
@@ -2858,16 +2857,16 @@ export function printRotationReport(): void {
       result.status === 'warning' ? '[WARN]' : '[EXPIRED]';
 
     console.log(`${icon} ${result.secretName}`);
-    console.log(`  最終ローテーション: ${result.daysSinceRotation}日前`);
-    console.log(`  有効期限: ${result.maxAgeDays}日`);
-    console.log(`  状態: ${result.message}`);
-    console.log(`  担当: ${result.owners.join(', ')}`);
+    console.log(`  Last rotated: ${result.daysSinceRotation} days ago`);
+    console.log(`  Max age: ${result.maxAgeDays} days`);
+    console.log(`  Status: ${result.message}`);
+    console.log(`  Owners: ${result.owners.join(', ')}`);
     console.log('');
   }
 
   const expired = results.filter(r => r.status === 'expired');
   if (expired.length > 0) {
-    console.log(`\n[ALERT] ${expired.length}件のシークレットが期限切れです！`);
+    console.log(`\n[ALERT] ${expired.length} secret(s) have expired!`);
   }
 }
 ```
@@ -2889,32 +2888,32 @@ export function printRotationReport(): void {
 | Debugging | Health check API, environment variable check script | - |
 
 ```
-設定管理の成熟度モデル:
+Configuration management maturity model:
 
-  Level 1（基本）:
-    ├── .env ファイルで管理
-    ├── .gitignore で機密ファイルを除外
-    └── .env.example の作成
+  Level 1 (Basic):
+    ├── Manage with .env files
+    ├── Exclude sensitive files with .gitignore
+    └── Create .env.example
 
-  Level 2（標準）:
-    ├── 環境変数のバリデーション（Zod）
-    ├── 環境別設定ファイル
-    ├── pre-commit hook でのシークレットチェック
-    └── CI/CD でのシークレット管理
+  Level 2 (Standard):
+    ├── Environment variable validation (Zod)
+    ├── Per-environment config files
+    ├── Secret check with pre-commit hook
+    └── Secret management in CI/CD
 
-  Level 3（高度）:
-    ├── Secrets Manager / Vault の導入
-    ├── Feature Flags サービスの導入
-    ├── 自動ローテーション
-    ├── 監査ログの実装
+  Level 3 (Advanced):
+    ├── Introduce Secrets Manager / Vault
+    ├── Introduce Feature Flags service
+    ├── Automatic rotation
+    ├── Implement audit logs
     └── Sealed Secrets / External Secrets Operator
 
-  Level 4（エンタープライズ）:
-    ├── ゼロトラストの設定管理
-    ├── HSM（ハードウェアセキュリティモジュール）
-    ├── コンプライアンス対応（SOC2, ISO27001）
-    ├── 自動化されたポリシーチェック
-    └── 設定の変更管理プロセス（ITIL ベース）
+  Level 4 (Enterprise):
+    ├── Zero-trust configuration management
+    ├── HSM (Hardware Security Module)
+    ├── Compliance (SOC2, ISO27001)
+    ├── Automated policy checks
+    └── Configuration change management process (ITIL-based)
 ```
 
 ---
@@ -2932,21 +2931,21 @@ export function printRotationReport(): void {
 **Recommended tools:**
 
 ```bash
-# ローカル開発
-.env.local         # gitignore対象、ローカル固有の値
-.env.example       # Git管理、変数名とダミー値のみ
+# Local development
+.env.local         # gitignore target, local-specific values
+.env.example       # Git-managed, variable names and dummy values only
 
-# 本番環境
-AWS Secrets Manager    # AWS環境
+# Production environment
+AWS Secrets Manager    # AWS environments
 Vercel Environment Variables  # Vercel
 GitHub Secrets        # GitHub Actions
-HashiCorp Vault       # オンプレミス/マルチクラウド
+HashiCorp Vault       # On-premises / multi-cloud
 ```
 
 **Implementation example:**
 
 ```typescript
-// env.ts - 起動時バリデーション
+// env.ts - Startup-time validation
 import { z } from 'zod';
 
 const envSchema = z.object({
@@ -2955,7 +2954,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']),
 });
 
-// 起動時にバリデーション、失敗したら即座にエラー
+// Validate at startup, fail immediately on error
 export const env = envSchema.parse(process.env);
 ```
 
@@ -2964,12 +2963,12 @@ export const env = envSchema.parse(process.env);
 **Recommended file structure pattern:**
 
 ```
-プロジェクトルート/
-├── .env.example          # ✓ Git管理する（変数名のみ）
-├── .env                  # ✗ gitignore（共通のデフォルト値）
-├── .env.local            # ✗ gitignore（ローカル固有の値）
-├── .env.development      # ✗ gitignore（開発環境用）
-├── .env.production       # ✗ gitignore（本番環境用、通常は使わない）
+Project root/
+├── .env.example          # ✓ Git-managed (variable names only)
+├── .env                  # ✗ gitignore (common default values)
+├── .env.local            # ✗ gitignore (local-specific values)
+├── .env.development      # ✗ gitignore (for development environment)
+├── .env.production       # ✗ gitignore (for production; typically not used)
 └── .gitignore
 ```
 
@@ -2984,26 +2983,26 @@ export const env = envSchema.parse(process.env);
 .env.production
 .env.test
 
-# ただし .env.example は除外しない（!で例外指定）
+# However, exclude .env.example from gitignore (use ! for exception)
 !.env.example
 ```
 
 **How to write .env.example:**
 
 ```bash
-# .env.example - チームで共有するテンプレート
-# データベース
+# .env.example - Template shared with the team
+# Database
 DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 
-# 外部API
+# External API
 STRIPE_SECRET_KEY=sk_test_xxxxx
 STRIPE_PUBLIC_KEY=pk_test_xxxxx
 
-# サービス設定
+# Service configuration
 NEXT_PUBLIC_API_URL=http://localhost:3000/api
 NODE_ENV=development
 
-# 認証
+# Authentication
 NEXTAUTH_SECRET=<generate-with-openssl-rand-base64-32>
 NEXTAUTH_URL=http://localhost:3000
 ```
@@ -3011,11 +3010,11 @@ NEXTAUTH_URL=http://localhost:3000
 **Security check:**
 
 ```bash
-# pre-commit hookで機密情報の混入を防ぐ
+# Prevent sensitive information from being mixed in with pre-commit hook
 npm install --save-dev husky @commitlint/cli
 npx husky add .husky/pre-commit "npx gitleaks protect --staged"
 
-# gitleaksで過去のコミット履歴もスキャン
+# Scan past commit history with gitleaks
 docker run -v $(pwd):/path zricethezav/gitleaks:latest detect --source="/path" -v
 ```
 
@@ -3024,7 +3023,7 @@ docker run -v $(pwd):/path zricethezav/gitleaks:latest detect --source="/path" -
 **Build-time Variables:**
 
 ```javascript
-// Next.js の例
+// Next.js example
 // next.config.js
 module.exports = {
   env: {
@@ -3033,10 +3032,10 @@ module.exports = {
   },
 };
 
-// コンポーネントで使用
+// Usage in component
 export default function Footer() {
   return <p>Built at: {process.env.BUILD_TIME}</p>;
-  // ビルド時に値が埋め込まれ、クライアント側でも利用可能
+  // Value is embedded at build time and available on the client side
 }
 ```
 
@@ -3049,9 +3048,9 @@ export default function Footer() {
 **Runtime Variables:**
 
 ```javascript
-// サーバーサイドでのみ利用（Server Components / API Routes）
+// Available server-side only (Server Components / API Routes)
 export async function GET() {
-  const dbUrl = process.env.DATABASE_URL; // 実行時に読み込まれる
+  const dbUrl = process.env.DATABASE_URL; // Loaded at runtime
   const client = new PrismaClient({ datasources: { db: { url: dbUrl } } });
   // ...
 }
@@ -3076,10 +3075,10 @@ export async function GET() {
 **Behavior in Vercel environment:**
 
 ```bash
-# ビルド時変数: Vercel UI で「Exposed to Client」をチェック
+# Build-time variable: Check "Exposed to Client" in Vercel UI
 NEXT_PUBLIC_API_URL=https://api.example.com
 
-# 実行時変数: デフォルト（チェックなし）
+# Runtime variable: Default (unchecked)
 DATABASE_URL=postgresql://...
 ```
 
