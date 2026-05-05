@@ -1,98 +1,98 @@
 # Observer API
 
-> IntersectionObserver、ResizeObserver、MutationObserver、PerformanceObserverは、要素の可視性・サイズ変更・DOM変更・パフォーマンスイベントを効率的に監視するブラウザネイティブAPI群。従来のscrollイベントやsetIntervalによるポーリングに比べて大幅にパフォーマンスが優れており、遅延読み込み、無限スクロール、レスポンシブコンポーネント、Web Vitals計測など幅広い実務シーンで不可欠な技術である。
+> IntersectionObserver, ResizeObserver, MutationObserver, and PerformanceObserver are a set of browser-native APIs for efficiently monitoring element visibility, size changes, DOM mutations, and performance events. Compared to traditional scroll events or setInterval-based polling, these APIs offer significantly better performance and are indispensable in a wide range of practical scenarios including lazy loading, infinite scroll, responsive components, and Web Vitals measurement.
 
-## 前提知識
+## Prerequisites
 
-この章を理解するために、以下の知識を事前に習得しておくことを推奨する。
+It is recommended to have the following knowledge before studying this chapter.
 
-- **DOM API** ([./00-dom-api.md](./00-dom-api.md)): Observer APIはDOM要素を監視対象とするため、DOM操作の基礎（querySelector、イベントリスナー、要素の参照管理など）を理解していることが前提となる。
-- **レンダリングパイプライン** ([../01-rendering/00-rendering-pipeline.md](../01-rendering/00-rendering-pipeline.md)): IntersectionObserverやResizeObserverがなぜパフォーマンスに優れているかを理解するには、ブラウザのレンダリングプロセス（Layout、Paint、Compositeの各フェーズ）とリフロー（Forced Reflow）の概念を把握しておく必要がある。
-- **スクロールイベントの基本**: 従来のscrollイベントとgetBoundingClientRect()を使った可視性判定の仕組みを知っていると、Observer APIの優位性とユースケースがより明確になる。特にイベントのthrottle/debounceパターンと、そのパフォーマンス上の課題を理解しておくとよい。
+- **DOM API** ([./00-dom-api.md](./00-dom-api.md)): Since the Observer API observes DOM elements, a foundational understanding of DOM manipulation (querySelector, event listeners, element reference management, etc.) is assumed.
+- **Rendering Pipeline** ([../01-rendering/00-rendering-pipeline.md](../01-rendering/00-rendering-pipeline.md)): To understand why IntersectionObserver and ResizeObserver are performant, you need to be familiar with the browser's rendering process (the Layout, Paint, and Composite phases) and the concept of forced reflow.
+- **Scroll Event Basics**: Knowing how traditional scroll events and getBoundingClientRect() work for visibility detection makes the advantages and use cases of the Observer API clearer. In particular, understanding the throttle/debounce pattern for events and its performance drawbacks is helpful.
 
-これらの基礎知識があることで、Observer APIの設計思想と実務での効果的な活用法をより深く理解できる。
+Having this foundational knowledge allows for a deeper understanding of the Observer API's design philosophy and how to use it effectively in practice.
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] IntersectionObserverの仕組みと活用パターンを理解する
-- [ ] ResizeObserverの使い方とコンテナクエリとの比較を把握する
-- [ ] MutationObserverでDOM変更を効率的に監視する方法を学ぶ
-- [ ] PerformanceObserverによるWeb Vitals計測を実装できるようになる
-- [ ] 各Observerのパフォーマンス面での利点とベストプラクティスを理解する
-- [ ] Reactやフレームワークでのカスタムフック化パターンを身につける
+- [ ] Understand how IntersectionObserver works and the patterns for using it
+- [ ] Learn how to use ResizeObserver and how it compares to container queries
+- [ ] Learn how to efficiently monitor DOM changes with MutationObserver
+- [ ] Be able to implement Web Vitals measurement with PerformanceObserver
+- [ ] Understand the performance benefits and best practices of each Observer
+- [ ] Learn how to create custom hook patterns for React and other frameworks
 
 ---
 
 ## 1. IntersectionObserver
 
-### 1.1 基本概念とAPI
+### 1.1 Core Concepts and API
 
-IntersectionObserverは、ターゲット要素がルート要素（デフォルトではビューポート）と交差する状態を非同期的に監視するAPIである。スクロールイベントとgetBoundingClientRect()を使った従来の手法と異なり、ブラウザの内部最適化により、メインスレッドへの負荷を最小限に抑えることができる。
+IntersectionObserver is an API that asynchronously monitors the intersection state of a target element with a root element (the viewport by default). Unlike the traditional approach of using scroll events with getBoundingClientRect(), it leverages browser-internal optimizations to minimize load on the main thread.
 
 ```javascript
-// IntersectionObserverの基本構造
+// Basic structure of IntersectionObserver
 const observer = new IntersectionObserver(
   (entries, observer) => {
-    // entries: IntersectionObserverEntry[] の配列
-    // observer: IntersectionObserver インスタンス自身
+    // entries: array of IntersectionObserverEntry[]
+    // observer: the IntersectionObserver instance itself
     entries.forEach(entry => {
-      // entry のプロパティ
-      console.log('target:', entry.target);           // 監視対象のDOM要素
-      console.log('isIntersecting:', entry.isIntersecting); // 交差しているか
-      console.log('intersectionRatio:', entry.intersectionRatio); // 交差率 (0.0-1.0)
-      console.log('intersectionRect:', entry.intersectionRect); // 交差領域
-      console.log('boundingClientRect:', entry.boundingClientRect); // ターゲットの矩形
-      console.log('rootBounds:', entry.rootBounds);   // ルート要素の矩形
-      console.log('time:', entry.time);               // 交差が記録された時刻
+      // Properties of entry
+      console.log('target:', entry.target);           // The observed DOM element
+      console.log('isIntersecting:', entry.isIntersecting); // Whether it is intersecting
+      console.log('intersectionRatio:', entry.intersectionRatio); // Intersection ratio (0.0-1.0)
+      console.log('intersectionRect:', entry.intersectionRect); // The intersection rectangle
+      console.log('boundingClientRect:', entry.boundingClientRect); // The target's bounding rect
+      console.log('rootBounds:', entry.rootBounds);   // The root element's bounding rect
+      console.log('time:', entry.time);               // Timestamp when the intersection was recorded
     });
   },
   {
-    root: null,             // 監視のルート要素（null=ビューポート）
-    rootMargin: '0px',      // ルート要素のマージン（CSS形式: "10px 20px 30px 40px"）
-    threshold: [0, 0.5, 1], // コールバック発火の交差率しきい値
+    root: null,             // Root element for observation (null = viewport)
+    rootMargin: '0px',      // Margin around the root element (CSS format: "10px 20px 30px 40px")
+    threshold: [0, 0.5, 1], // Intersection ratio thresholds that trigger the callback
   }
 );
 
-// 要素の監視開始
+// Start observing an element
 const targetElement = document.getElementById('target');
 observer.observe(targetElement);
 
-// 特定の要素の監視停止
+// Stop observing a specific element
 observer.unobserve(targetElement);
 
-// 全ての監視を停止
+// Stop all observation
 observer.disconnect();
 
-// 現在監視中のエントリを取得（非同期的に保留中のものも含む）
+// Get currently pending entries (including asynchronously buffered ones)
 const pendingEntries = observer.takeRecords();
 ```
 
-### 1.2 thresholdの詳細
+### 1.2 threshold in Detail
 
 ```javascript
-// threshold: 単一値
+// threshold: single value
 const observer1 = new IntersectionObserver(callback, {
-  threshold: 0,    // 1pxでも交差したらコールバック
+  threshold: 0,    // Callback fires when even 1px is intersecting
 });
 
 const observer2 = new IntersectionObserver(callback, {
-  threshold: 1.0,  // 要素が完全に見えたらコールバック
+  threshold: 1.0,  // Callback fires when the element is fully visible
 });
 
-// threshold: 配列（複数のしきい値）
+// threshold: array (multiple thresholds)
 const observer3 = new IntersectionObserver(callback, {
   threshold: [0, 0.25, 0.5, 0.75, 1.0],
-  // 0%, 25%, 50%, 75%, 100% の交差率でそれぞれコールバック
+  // Callback fires at 0%, 25%, 50%, 75%, and 100% intersection ratios
 });
 
-// 細かい段階の監視（スクロール連動アニメーション用）
+// Fine-grained thresholds (for scroll-linked animations)
 const thresholds = Array.from({ length: 100 }, (_, i) => i / 100);
 // [0, 0.01, 0.02, ..., 0.99]
 const smoothObserver = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
-    // intersectionRatioをCSSカスタムプロパティに反映
+    // Reflect intersectionRatio to a CSS custom property
     entry.target.style.setProperty(
       '--visibility',
       String(entry.intersectionRatio)
@@ -100,7 +100,7 @@ const smoothObserver = new IntersectionObserver((entries) => {
   });
 }, { threshold: thresholds });
 
-// CSSで利用
+// Usage in CSS
 // .fade-in {
 //   opacity: var(--visibility, 0);
 //   transform: translateY(calc((1 - var(--visibility)) * 20px));
@@ -108,75 +108,75 @@ const smoothObserver = new IntersectionObserver((entries) => {
 // }
 ```
 
-### 1.3 rootMarginの活用
+### 1.3 Using rootMargin
 
 ```javascript
-// rootMargin で監視領域を拡張・縮小する
-// ビューポートの200px手前で検知（プリロードに最適）
+// Expand or shrink the observation area with rootMargin
+// Detect 200px before the viewport (ideal for preloading)
 const preloadObserver = new IntersectionObserver(callback, {
-  rootMargin: '200px 0px', // 上下200px、左右0px
+  rootMargin: '200px 0px', // 200px top/bottom, 0px left/right
 });
 
-// ビューポートの50%内側に入ったら検知
+// Detect when element enters the inner 50% of the viewport
 const innerObserver = new IntersectionObserver(callback, {
-  rootMargin: '-50% 0px', // 上下を50%縮小
+  rootMargin: '-50% 0px', // Shrink top/bottom by 50%
 });
 
-// 非対称なマージン（上方向に多く取る）
+// Asymmetric margin (larger margin on the top)
 const asymmetricObserver = new IntersectionObserver(callback, {
-  rootMargin: '300px 0px 0px 0px', // 上300px、右0px、下0px、左0px
+  rootMargin: '300px 0px 0px 0px', // top 300px, right 0px, bottom 0px, left 0px
 });
 
-// ★ rootMargin の値はCSSのmargin shorthand と同じ形式
-// "10px"          → 全方向 10px
-// "10px 20px"     → 上下10px、左右20px
-// "10px 20px 30px"    → 上10px、左右20px、下30px
-// "10px 20px 30px 40px" → 上10px、右20px、下30px、左40px
+// ★ rootMargin values use the same format as CSS margin shorthand
+// "10px"          → all sides 10px
+// "10px 20px"     → top/bottom 10px, left/right 20px
+// "10px 20px 30px"    → top 10px, left/right 20px, bottom 30px
+// "10px 20px 30px 40px" → top 10px, right 20px, bottom 30px, left 40px
 
-// パーセンテージも使用可能（ルート要素に対する割合）
+// Percentages are also supported (relative to the root element)
 const percentObserver = new IntersectionObserver(callback, {
-  rootMargin: '-25%', // ルート要素を25%縮小して監視
+  rootMargin: '-25%', // Shrink the root element by 25% for observation
 });
 ```
 
-### 1.4 カスタムルート要素
+### 1.4 Custom Root Element
 
 ```javascript
-// スクロールコンテナをルートに指定
+// Specify a scroll container as the root
 const scrollContainer = document.getElementById('scroll-container');
 
 const containerObserver = new IntersectionObserver(
   (entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        console.log('要素がスクロールコンテナ内に表示された');
+        console.log('Element is visible within the scroll container');
       }
     });
   },
   {
-    root: scrollContainer, // ビューポートの代わりにこのコンテナを基準にする
+    root: scrollContainer, // Use this container as the reference instead of the viewport
     rootMargin: '50px',
     threshold: 0,
   }
 );
 
-// スクロールコンテナ内の全アイテムを監視
+// Observe all items within the scroll container
 scrollContainer.querySelectorAll('.list-item').forEach(item => {
   containerObserver.observe(item);
 });
 
-// ★ 注意: rootはターゲット要素の祖先である必要がある
-// ★ root: null はビューポート（暗黙のルート）を意味する
+// ★ Note: root must be an ancestor of the target element
+// ★ root: null means the viewport (implicit root)
 ```
 
 ---
 
-## 2. IntersectionObserver の実務パターン
+## 2. Practical Patterns for IntersectionObserver
 
-### 2.1 画像の遅延読み込み（Lazy Loading）
+### 2.1 Lazy Loading Images
 
 ```javascript
-// バニラJSでの画像遅延読み込み
+// Lazy loading images with vanilla JS
 class LazyImageLoader {
   constructor(options = {}) {
     this.observer = new IntersectionObserver(
@@ -199,7 +199,7 @@ class LazyImageLoader {
       } else if (element.tagName === 'VIDEO') {
         this.loadVideo(element);
       } else {
-        // 背景画像の遅延読み込み
+        // Lazy loading background images
         this.loadBackground(element);
       }
 
@@ -208,15 +208,15 @@ class LazyImageLoader {
   }
 
   loadImage(img) {
-    // srcsetの処理
+    // Handle srcset
     if (img.dataset.srcset) {
       img.srcset = img.dataset.srcset;
     }
-    // sizesの処理
+    // Handle sizes
     if (img.dataset.sizes) {
       img.sizes = img.dataset.sizes;
     }
-    // src の処理
+    // Handle src
     if (img.dataset.src) {
       img.src = img.dataset.src;
     }
@@ -228,7 +228,7 @@ class LazyImageLoader {
   }
 
   loadVideo(video) {
-    // source要素のdata-srcを処理
+    // Process data-src on source elements
     video.querySelectorAll('source').forEach(source => {
       if (source.dataset.src) {
         source.src = source.dataset.src;
@@ -258,11 +258,11 @@ class LazyImageLoader {
   }
 }
 
-// 使用例
+// Usage
 const lazyLoader = new LazyImageLoader({ rootMargin: '300px 0px' });
 lazyLoader.observeAll('[data-src], [data-bg]');
 
-// HTML側
+// HTML side
 // <img data-src="large-image.jpg"
 //      data-srcset="small.jpg 480w, medium.jpg 800w, large.jpg 1200w"
 //      data-sizes="(max-width: 600px) 480px, (max-width: 1024px) 800px, 1200px"
@@ -270,15 +270,15 @@ lazyLoader.observeAll('[data-src], [data-bg]');
 //      alt="Description"
 //      class="lazy" />
 
-// ★ 現在は loading="lazy" 属性が推奨（ブラウザネイティブ）
+// ★ The loading="lazy" attribute is now recommended (browser-native)
 // <img src="image.jpg" loading="lazy" alt="Description" />
-// ただし、細かい制御が必要な場合はIntersectionObserverを使用する
+// However, use IntersectionObserver when fine-grained control is needed
 ```
 
-### 2.2 無限スクロール
+### 2.2 Infinite Scroll
 
 ```javascript
-// 高機能な無限スクロール実装
+// Feature-rich infinite scroll implementation
 class InfiniteScroll {
   constructor(options) {
     this.container = options.container;
@@ -287,7 +287,7 @@ class InfiniteScroll {
     this.loading = false;
     this.hasMore = true;
 
-    // 番兵要素の作成
+    // Create a sentinel element
     this.sentinel = document.createElement('div');
     this.sentinel.className = 'infinite-scroll-sentinel';
     this.sentinel.setAttribute('aria-hidden', 'true');
@@ -339,7 +339,7 @@ class InfiniteScroll {
       fragment.appendChild(element);
     });
 
-    // 番兵要素の前に挿入
+    // Insert before the sentinel element
     this.container.insertBefore(fragment, this.sentinel);
   }
 
@@ -381,7 +381,7 @@ class InfiniteScroll {
   }
 }
 
-// 使用例
+// Usage
 let page = 0;
 const infiniteScroll = new InfiniteScroll({
   container: document.getElementById('items-container'),
@@ -397,10 +397,10 @@ const infiniteScroll = new InfiniteScroll({
 });
 ```
 
-### 2.3 スクロール連動アニメーション
+### 2.3 Scroll-Linked Animation
 
 ```javascript
-// フェードインアニメーション
+// Fade-in animation
 class ScrollAnimator {
   constructor(options = {}) {
     this.animations = new Map();
@@ -458,7 +458,7 @@ class ScrollAnimator {
 
   register(element, animationType = 'fade-in') {
     this.animations.set(element, animationType);
-    // 初期状態を設定
+    // Set initial state
     element.style.opacity = '0';
     element.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
     this.observer.observe(element);
@@ -476,7 +476,7 @@ class ScrollAnimator {
   }
 }
 
-// 使用例
+// Usage
 const animator = new ScrollAnimator();
 animator.registerAll('.section-title', 'fade-in');
 animator.registerAll('.card-left', 'slide-left');
@@ -493,14 +493,14 @@ animator.registerAll('.feature-icon', 'scale-up');
 // }
 ```
 
-### 2.4 ビューアビリティ計測と分析
+### 2.4 Viewability Measurement and Analytics
 
 ```javascript
-// 広告やコンテンツのビューアビリティ計測
+// Viewability tracking for ads and content
 class ViewabilityTracker {
   constructor(options = {}) {
     this.minVisibleRatio = options.minVisibleRatio || 0.5;
-    this.minVisibleTime = options.minVisibleTime || 1000; // 1秒
+    this.minVisibleTime = options.minVisibleTime || 1000; // 1 second
     this.timers = new Map();
     this.tracked = new Set();
     this.onViewable = options.onViewable || (() => {});
@@ -521,7 +521,7 @@ class ViewabilityTracker {
       if (this.tracked.has(id)) return;
 
       if (entry.intersectionRatio >= this.minVisibleRatio) {
-        // 表示開始: タイマーを設定
+        // Became visible: set a timer
         if (!this.timers.has(id)) {
           const timer = setTimeout(() => {
             this.tracked.add(id);
@@ -538,7 +538,7 @@ class ViewabilityTracker {
           this.timers.set(id, timer);
         }
       } else {
-        // 非表示: タイマーをクリア
+        // Became hidden: clear the timer
         const timer = this.timers.get(id);
         if (timer) {
           clearTimeout(timer);
@@ -562,13 +562,13 @@ class ViewabilityTracker {
   }
 }
 
-// 使用例
+// Usage
 const tracker = new ViewabilityTracker({
   minVisibleRatio: 0.5,
-  minVisibleTime: 2000, // 2秒以上50%以上表示でビューアブル
+  minVisibleTime: 2000, // Viewable when 50%+ visible for 2+ seconds
   onViewable({ id, element }) {
     console.log(`Element ${id} is viewable`);
-    // アナリティクスに送信
+    // Send to analytics
     fetch('/api/analytics/viewability', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -585,10 +585,10 @@ const tracker = new ViewabilityTracker({
 document.querySelectorAll('[data-track]').forEach(el => tracker.track(el));
 ```
 
-### 2.5 セクションナビゲーション（アクティブセクション検出）
+### 2.5 Section Navigation (Active Section Detection)
 
 ```javascript
-// スクロール位置に応じたナビゲーションのアクティブ状態更新
+// Update navigation active state based on scroll position
 class SectionNavigator {
   constructor(options = {}) {
     this.sections = new Map();
@@ -598,7 +598,7 @@ class SectionNavigator {
     this.observer = new IntersectionObserver(
       this.handleIntersection.bind(this),
       {
-        rootMargin: '-20% 0px -70% 0px', // ビューポート上部20-30%で検知
+        rootMargin: '-20% 0px -70% 0px', // Detect in the top 20-30% of the viewport
         threshold: 0,
       }
     );
@@ -619,7 +619,7 @@ class SectionNavigator {
   }
 
   updateNavigation(activeSectionId) {
-    // ナビゲーションリンクのアクティブ状態を更新
+    // Update the active state of navigation links
     document.querySelectorAll('.nav-link').forEach(link => {
       const isActive = link.getAttribute('href') === `#${activeSectionId}`;
       link.classList.toggle('active', isActive);
@@ -646,10 +646,10 @@ class SectionNavigator {
   }
 }
 
-// 使用例
+// Usage
 const sectionNav = new SectionNavigator({
   onSectionChange(sectionId) {
-    // URLハッシュの更新（pushStateで履歴に追加しない）
+    // Update the URL hash (without adding to history with pushState)
     history.replaceState(null, '', `#${sectionId}`);
   },
 });
@@ -660,33 +660,33 @@ sectionNav.registerAll('section[id]');
 
 ## 3. ResizeObserver
 
-### 3.1 基本概念とAPI
+### 3.1 Core Concepts and API
 
-ResizeObserverは要素のサイズ変更を効率的に監視するAPIである。ウィンドウのリサイズだけでなく、CSSアニメーション、DOM操作、フレックスボックス/グリッドのレイアウト変更など、あらゆる原因によるサイズ変更を検出できる。
+ResizeObserver is an API for efficiently monitoring size changes of elements. It can detect size changes caused by any source — not just window resizing, but also CSS animations, DOM manipulation, flexbox/grid layout changes, and more.
 
 ```javascript
-// ResizeObserverの基本構造
+// Basic structure of ResizeObserver
 const observer = new ResizeObserver((entries) => {
   for (const entry of entries) {
-    // contentRect: コンテンツ領域のサイズ（paddingを除く）
+    // contentRect: size of the content area (excluding padding)
     const { width, height, top, left } = entry.contentRect;
     console.log(`Content size: ${width}x${height}`);
     console.log(`Content position: (${left}, ${top})`);
 
-    // contentBoxSize: コンテンツボックスのサイズ（新しいAPI）
+    // contentBoxSize: size of the content box (newer API)
     if (entry.contentBoxSize) {
-      // 配列で返される（将来のフラグメンテーション対応）
+      // Returned as an array (for future fragmentation support)
       const contentBox = entry.contentBoxSize[0];
       console.log(`Content box: ${contentBox.inlineSize}x${contentBox.blockSize}`);
     }
 
-    // borderBoxSize: ボーダーボックスのサイズ（padding + border含む）
+    // borderBoxSize: size of the border box (includes padding + border)
     if (entry.borderBoxSize) {
       const borderBox = entry.borderBoxSize[0];
       console.log(`Border box: ${borderBox.inlineSize}x${borderBox.blockSize}`);
     }
 
-    // devicePixelContentBoxSize: デバイスピクセル単位
+    // devicePixelContentBoxSize: size in device pixels
     if (entry.devicePixelContentBoxSize) {
       const devicePixelBox = entry.devicePixelContentBoxSize[0];
       console.log(`Device pixel: ${devicePixelBox.inlineSize}x${devicePixelBox.blockSize}`);
@@ -696,38 +696,38 @@ const observer = new ResizeObserver((entries) => {
   }
 });
 
-// 要素の監視
+// Observe an element
 observer.observe(element);
 
-// 特定のboxモデルで監視
-observer.observe(element, { box: 'border-box' });   // ボーダーボックス
-observer.observe(element, { box: 'content-box' });   // コンテンツボックス（デフォルト）
-observer.observe(element, { box: 'device-pixel-content-box' }); // デバイスピクセル
+// Observe with a specific box model
+observer.observe(element, { box: 'border-box' });   // border box
+observer.observe(element, { box: 'content-box' });   // content box (default)
+observer.observe(element, { box: 'device-pixel-content-box' }); // device pixels
 
-// 監視停止
+// Stop observing
 observer.unobserve(element);
 observer.disconnect();
 ```
 
-### 3.2 inlineSize / blockSize について
+### 3.2 About inlineSize / blockSize
 
 ```javascript
-// ★ inlineSizeとblockSizeは論理的なサイズ
-// 横書き（writing-mode: horizontal-tb）の場合:
-//   inlineSize = width（横方向）
-//   blockSize = height（縦方向）
+// ★ inlineSize and blockSize are logical sizes
+// For horizontal writing (writing-mode: horizontal-tb):
+//   inlineSize = width (horizontal direction)
+//   blockSize = height (vertical direction)
 //
-// 縦書き（writing-mode: vertical-rl）の場合:
-//   inlineSize = height（縦方向）
-//   blockSize = width（横方向）
+// For vertical writing (writing-mode: vertical-rl):
+//   inlineSize = height (vertical direction)
+//   blockSize = width (horizontal direction)
 
-// 多言語対応のレイアウト処理
+// Layout processing for multilingual support
 const observer = new ResizeObserver((entries) => {
   for (const entry of entries) {
     const { inlineSize, blockSize } = entry.contentBoxSize[0];
 
-    // 論理的なサイズに基づいてレイアウトを調整
-    // writing-modeに関係なく正しく動作する
+    // Adjust layout based on logical size
+    // Works correctly regardless of writing-mode
     if (inlineSize < 400) {
       entry.target.classList.add('compact-layout');
     } else {
@@ -737,10 +737,10 @@ const observer = new ResizeObserver((entries) => {
 });
 ```
 
-### 3.3 コンテナクエリの代替
+### 3.3 Container Query Alternative
 
 ```javascript
-// ResizeObserverによるコンテナクエリの実装
+// Implementing container queries with ResizeObserver
 class ContainerQuery {
   constructor() {
     this.queries = new Map();
@@ -776,7 +776,7 @@ class ContainerQuery {
   }
 }
 
-// 使用例
+// Usage
 const cq = new ContainerQuery();
 cq.register(document.querySelector('.card-container'), [
   { className: 'cq-small', condition: { maxWidth: 400 } },
@@ -784,17 +784,17 @@ cq.register(document.querySelector('.card-container'), [
   { className: 'cq-large', condition: { minWidth: 801 } },
 ]);
 
-// ★ 現在はCSSネイティブのコンテナクエリが推奨
+// ★ Native CSS container queries are now recommended
 // @container (min-width: 400px) {
 //   .card { grid-template-columns: 1fr 1fr; }
 // }
-// ただし、JavaScript連携が必要な場合はResizeObserverを使用する
+// However, use ResizeObserver when JavaScript integration is needed
 ```
 
-### 3.4 チャートの自動リサイズ
+### 3.4 Auto-Resizing Charts
 
 ```javascript
-// D3.js / Chart.js / ECharts などのチャートライブラリ連携
+// Integration with chart libraries such as D3.js / Chart.js / ECharts
 class ResponsiveChart {
   constructor(container, chartLib) {
     this.container = container;
@@ -803,7 +803,7 @@ class ResponsiveChart {
     this.resizeTimeout = null;
 
     this.observer = new ResizeObserver((entries) => {
-      // デバウンス処理（頻繁なリサイズを抑制）
+      // Debounce to suppress frequent resizes
       if (this.resizeTimeout) {
         cancelAnimationFrame(this.resizeTimeout);
       }
@@ -824,13 +824,13 @@ class ResponsiveChart {
 
   resize(width, height) {
     if (this.chart) {
-      // Chart.js の場合
+      // For Chart.js
       this.chart.resize(width, height);
 
-      // ECharts の場合
+      // For ECharts
       // this.chart.resize({ width, height });
 
-      // D3.js の場合
+      // For D3.js
       // d3.select(this.container).select('svg')
       //   .attr('width', width)
       //   .attr('height', height);
@@ -845,7 +845,7 @@ class ResponsiveChart {
   }
 }
 
-// Canvas要素のデバイスピクセル比対応
+// Pixel-perfect Canvas resizing with device pixel ratio support
 class ResponsiveCanvas {
   constructor(container) {
     this.container = container;
@@ -855,7 +855,7 @@ class ResponsiveCanvas {
 
     this.observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        // devicePixelContentBoxSizeでピクセルパーフェクトなリサイズ
+        // Use devicePixelContentBoxSize for pixel-perfect resizing
         if (entry.devicePixelContentBoxSize) {
           const { inlineSize, blockSize } = entry.devicePixelContentBoxSize[0];
           this.canvas.width = inlineSize;
@@ -877,7 +877,7 @@ class ResponsiveCanvas {
   render() {
     const { width, height } = this.canvas;
     this.ctx.clearRect(0, 0, width, height);
-    // 描画処理...
+    // Drawing logic...
   }
 
   destroy() {
@@ -887,10 +887,10 @@ class ResponsiveCanvas {
 }
 ```
 
-### 3.5 テキストの自動縮小（FitText）
+### 3.5 Auto-Shrink Text (FitText)
 
 ```javascript
-// テキストを要素幅に合わせて自動縮小
+// Automatically shrink text to fit the element width
 class AutoFitText {
   constructor(options = {}) {
     this.minFontSize = options.minFontSize || 10;
@@ -912,7 +912,7 @@ class AutoFitText {
     let fontSize = config.maxFontSize || this.maxFontSize;
     const minSize = config.minFontSize || this.minFontSize;
 
-    // バイナリサーチで最適なフォントサイズを見つける
+    // Find the optimal font size with binary search
     let low = minSize;
     let high = fontSize;
 
@@ -950,17 +950,17 @@ class AutoFitText {
   }
 }
 
-// 使用例
+// Usage
 const autoFit = new AutoFitText({ minFontSize: 12, maxFontSize: 48 });
 autoFit.observe(document.querySelector('.headline'), {
   maxFontSize: 64,
 });
 ```
 
-### 3.6 仮想スクロールとの連携
+### 3.6 Integration with Virtual Scroll
 
 ```javascript
-// ResizeObserverを使った動的高さの仮想スクロール
+// Virtual scroll with dynamic item heights using ResizeObserver
 class VirtualList {
   constructor(container, options) {
     this.container = container;
@@ -970,7 +970,7 @@ class VirtualList {
     this.defaultHeight = options.estimatedItemHeight || 50;
     this.overscan = options.overscan || 5;
 
-    // スクロールコンテナの設定
+    // Set up the scroll container
     this.viewport = document.createElement('div');
     this.viewport.style.cssText = 'overflow-y: auto; height: 100%;';
     this.spacer = document.createElement('div');
@@ -979,7 +979,7 @@ class VirtualList {
     this.viewport.appendChild(this.content);
     container.appendChild(this.viewport);
 
-    // アイテムの高さを計測
+    // Measure item heights
     this.heightObserver = new ResizeObserver((entries) => {
       let heightChanged = false;
 
@@ -999,7 +999,7 @@ class VirtualList {
       }
     });
 
-    // ビューポートのリサイズ監視
+    // Monitor viewport resize
     this.viewportObserver = new ResizeObserver(() => {
       this.render();
     });
@@ -1037,7 +1037,7 @@ class VirtualList {
     const scrollTop = this.viewport.scrollTop;
     const viewportHeight = this.viewport.clientHeight;
 
-    // 表示範囲のアイテムを計算
+    // Calculate which items are in the visible range
     let startIndex = 0;
     let accumulatedHeight = 0;
 
@@ -1059,7 +1059,7 @@ class VirtualList {
 
     endIndex = Math.min(this.items.length - 1, endIndex + this.overscan);
 
-    // DOMの更新
+    // Update the DOM
     this.content.innerHTML = '';
     const fragment = document.createDocumentFragment();
 
@@ -1090,30 +1090,30 @@ class VirtualList {
 
 ## 4. MutationObserver
 
-### 4.1 基本概念とAPI
+### 4.1 Core Concepts and API
 
-MutationObserverはDOMツリーの変更を監視するAPIである。属性の変更、子ノードの追加・削除、テキストコンテンツの変更などを検出できる。
+MutationObserver is an API for monitoring changes to the DOM tree. It can detect attribute changes, additions and removals of child nodes, and text content changes.
 
 ```javascript
-// MutationObserverの基本構造
+// Basic structure of MutationObserver
 const observer = new MutationObserver((mutations, observer) => {
   for (const mutation of mutations) {
     switch (mutation.type) {
       case 'childList':
-        // 子ノードの追加・削除
+        // Child node additions and removals
         console.log('Added nodes:', mutation.addedNodes);
         console.log('Removed nodes:', mutation.removedNodes);
         break;
 
       case 'attributes':
-        // 属性の変更
+        // Attribute changes
         console.log('Attribute changed:', mutation.attributeName);
         console.log('Old value:', mutation.oldValue);
         console.log('New value:', mutation.target.getAttribute(mutation.attributeName));
         break;
 
       case 'characterData':
-        // テキストノードの変更
+        // Text node changes
         console.log('Text changed:', mutation.target.textContent);
         console.log('Old value:', mutation.oldValue);
         break;
@@ -1121,27 +1121,27 @@ const observer = new MutationObserver((mutations, observer) => {
   }
 });
 
-// 監視オプション
+// Observation options
 observer.observe(targetNode, {
-  childList: true,         // 子ノードの追加・削除を監視
-  attributes: true,        // 属性の変更を監視
-  characterData: true,     // テキストノードの変更を監視
-  subtree: true,           // 子孫ノードも含めて監視
-  attributeOldValue: true, // 変更前の属性値を記録
-  characterDataOldValue: true, // 変更前のテキストを記録
-  attributeFilter: ['class', 'style', 'data-state'], // 監視する属性を限定
+  childList: true,         // Monitor child node additions and removals
+  attributes: true,        // Monitor attribute changes
+  characterData: true,     // Monitor text node changes
+  subtree: true,           // Also monitor descendant nodes
+  attributeOldValue: true, // Record the previous attribute value before changes
+  characterDataOldValue: true, // Record the previous text content before changes
+  attributeFilter: ['class', 'style', 'data-state'], // Limit which attributes to watch
 });
 
-// 保留中の変更を取得して監視を停止
+// Get pending changes and stop observing
 const pendingMutations = observer.takeRecords();
 observer.disconnect();
 ```
 
-### 4.2 DOM変更の監視パターン
+### 4.2 DOM Change Monitoring Patterns
 
 ```javascript
-// パターン1: サードパーティスクリプトのDOM監視
-// 外部スクリプトが意図しないDOM変更を行わないか監視
+// Pattern 1: Monitoring DOM changes from third-party scripts
+// Monitor for unintended DOM changes made by external scripts
 class DOMGuard {
   constructor(protectedElement) {
     this.element = protectedElement;
@@ -1149,17 +1149,17 @@ class DOMGuard {
 
     this.observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
-        // 不正なスクリプトタグの挿入を検出
+        // Detect injection of suspicious script tags
         for (const node of mutation.addedNodes) {
           if (node.nodeType === Node.ELEMENT_NODE) {
             if (node.tagName === 'SCRIPT' || node.tagName === 'IFRAME') {
               console.warn('Suspicious element injected:', node);
-              node.remove(); // 不正な要素を削除
+              node.remove(); // Remove the unauthorized element
             }
           }
         }
 
-        // 重要な属性の変更を検出
+        // Detect changes to important attributes
         if (mutation.type === 'attributes') {
           if (mutation.attributeName === 'style' || mutation.attributeName === 'class') {
             console.warn(
@@ -1184,8 +1184,8 @@ class DOMGuard {
   }
 }
 
-// パターン2: 動的コンテンツの自動初期化
-// SPAやサードパーティウィジェットで動的に追加される要素を自動検出
+// Pattern 2: Auto-initialization of dynamic content
+// Auto-detect elements dynamically added by SPAs or third-party widgets
 class AutoInitializer {
   constructor(config) {
     this.config = config; // { selector: string, init: (element) => void }[]
@@ -1195,7 +1195,7 @@ class AutoInitializer {
         for (const node of mutation.addedNodes) {
           if (node.nodeType === Node.ELEMENT_NODE) {
             this.initElement(node);
-            // 追加されたノードの子要素もチェック
+            // Also check child elements of the added node
             node.querySelectorAll?.('*').forEach(child => {
               this.initElement(child);
             });
@@ -1209,7 +1209,7 @@ class AutoInitializer {
       subtree: true,
     });
 
-    // 既存の要素も初期化
+    // Also initialize existing elements
     this.config.forEach(({ selector, init }) => {
       document.querySelectorAll(selector).forEach(init);
     });
@@ -1229,7 +1229,7 @@ class AutoInitializer {
   }
 }
 
-// 使用例
+// Usage
 const autoInit = new AutoInitializer([
   {
     selector: '[data-tooltip]',
@@ -1245,14 +1245,14 @@ const autoInit = new AutoInitializer([
   },
 ]);
 
-// パターン3: フォームの変更検出
+// Pattern 3: Form change detection
 class FormChangeDetector {
   constructor(form) {
     this.form = form;
     this.isDirty = false;
     this.initialValues = this.captureValues();
 
-    // 属性の変更を監視（value属性はプロパティなので直接監視できない）
+    // Monitor attribute changes (value attribute is a property and cannot be observed directly)
     this.observer = new MutationObserver((mutations) => {
       this.checkDirty();
     });
@@ -1263,7 +1263,7 @@ class FormChangeDetector {
       attributeFilter: ['value', 'checked', 'selected'],
     });
 
-    // inputイベントも監視（valueプロパティの変更はMutationObserverでは検出できない）
+    // Also listen to input events (value property changes cannot be detected by MutationObserver)
     form.addEventListener('input', () => this.checkDirty());
     form.addEventListener('change', () => this.checkDirty());
   }
@@ -1296,47 +1296,48 @@ class FormChangeDetector {
 }
 ```
 
-### 4.3 MutationObserverの注意点
+### 4.3 Caveats for MutationObserver
 
 ```javascript
-// ★ 注意1: コールバックは同期的なDOM変更がすべて完了してから呼ばれる
-// （マイクロタスクとして実行される）
+// ★ Note 1: The callback is called after all synchronous DOM changes have completed
+// (executed as a microtask)
 element.setAttribute('class', 'foo');
 element.setAttribute('class', 'bar');
 element.setAttribute('class', 'baz');
-// → コールバックは1回だけ呼ばれ、3つのmutationが含まれる
+// → The callback is called only once, containing all 3 mutations
 
-// ★ 注意2: 無限ループに注意
-// コールバック内でDOMを変更すると再度コールバックが呼ばれる
+// ★ Note 2: Watch out for infinite loops
+// Modifying the DOM inside the callback will trigger the callback again
 const observer = new MutationObserver((mutations) => {
-  // 危険: 無限ループになる可能性がある
+  // Dangerous: can cause an infinite loop
   // mutations[0].target.textContent = 'updated';
 
-  // 安全: 一時的に監視を停止
+  // Safe: temporarily disconnect before making changes
   observer.disconnect();
   mutations[0].target.textContent = 'updated';
   observer.observe(targetNode, options);
 });
 
-// ★ 注意3: パフォーマンスへの影響
-// subtree: true で広範囲を監視すると負荷が高い
-// 必要最小限の範囲とフィルターで監視する
+// ★ Note 3: Performance impact
+// Monitoring a large area with subtree: true can be costly
+// Use the minimum necessary scope and attribute filters
 
-// ★ 注意4: CSSプロパティの変更はMutationObserverでは検出できない
-// style属性の変更は検出できるが、CSSクラスの結果としてのスタイル変更は検出不可
-// → ResizeObserverやgetComputedStyleを使用する
+// ★ Note 4: CSS property changes cannot be detected by MutationObserver
+// Changes to the style attribute can be detected, but style changes
+// caused by CSS class application cannot
+// → Use ResizeObserver or getComputedStyle instead
 ```
 
 ---
 
 ## 5. PerformanceObserver
 
-### 5.1 基本概念とAPI
+### 5.1 Core Concepts and API
 
-PerformanceObserverはブラウザのパフォーマンスエントリを非同期的に監視するAPIである。Performance Timelineの一部であり、さまざまなパフォーマンスメトリクスをリアルタイムで収集できる。
+PerformanceObserver is an API that asynchronously monitors browser performance entries. It is part of the Performance Timeline and allows real-time collection of various performance metrics.
 
 ```javascript
-// PerformanceObserverの基本構造
+// Basic structure of PerformanceObserver
 const observer = new PerformanceObserver((list, observer) => {
   const entries = list.getEntries();
   for (const entry of entries) {
@@ -1344,23 +1345,23 @@ const observer = new PerformanceObserver((list, observer) => {
   }
 });
 
-// 監視するエントリタイプを指定
+// Specify entry types to observe
 observer.observe({
-  type: 'resource',     // 単一タイプ
-  buffered: true,       // 過去のエントリも含める
+  type: 'resource',     // Single type
+  buffered: true,       // Include past entries
 });
 
-// 複数タイプを同時に監視
+// Observe multiple types simultaneously
 observer.observe({
   entryTypes: ['navigation', 'resource', 'paint'],
-  // ★ entryTypes と type は同時に使えない
-  // ★ entryTypes では buffered オプションは使えない
+  // ★ entryTypes and type cannot be used together
+  // ★ The buffered option is not available with entryTypes
 });
 
-// 監視停止
+// Stop observing
 observer.disconnect();
 
-// サポートされているエントリタイプの確認
+// Check supported entry types
 const supportedTypes = PerformanceObserver.supportedEntryTypes;
 console.log(supportedTypes);
 // ['element', 'event', 'first-input', 'largest-contentful-paint',
@@ -1368,10 +1369,10 @@ console.log(supportedTypes);
 //  'paint', 'resource', 'visibility-state']
 ```
 
-### 5.2 Core Web Vitals の計測
+### 5.2 Measuring Core Web Vitals
 
 ```javascript
-// LCP（Largest Contentful Paint）: 最大のコンテンツが描画される時間
+// LCP (Largest Contentful Paint): time for the largest content to be painted
 function observeLCP(callback) {
   let lcpValue = 0;
 
@@ -1383,19 +1384,19 @@ function observeLCP(callback) {
 
   observer.observe({ type: 'largest-contentful-paint', buffered: true });
 
-  // ユーザーインタラクション時にLCPを確定
-  // （LCPはユーザーインタラクションまで更新され続ける）
+  // Finalize LCP on user interaction
+  // (LCP continues to be updated until user interaction)
   const reportLCP = () => {
     observer.disconnect();
     callback(lcpValue);
   };
 
-  // 各種イベントで確定
+  // Finalize on various events
   ['keydown', 'click', 'scroll'].forEach(type => {
     addEventListener(type, reportLCP, { once: true });
   });
 
-  // ページ遷移時にも報告
+  // Also report on page navigation
   addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       reportLCP();
@@ -1403,13 +1404,13 @@ function observeLCP(callback) {
   }, { once: true });
 }
 
-// FID（First Input Delay）: 最初のインタラクションの遅延
+// FID (First Input Delay): delay of the first interaction
 function observeFID(callback) {
   const observer = new PerformanceObserver((list) => {
     const entries = list.getEntries();
     const firstInput = entries[0];
 
-    // processingStart - startTime が入力遅延
+    // processingStart - startTime is the input delay
     const delay = firstInput.processingStart - firstInput.startTime;
     callback(delay);
     observer.disconnect();
@@ -1418,14 +1419,14 @@ function observeFID(callback) {
   observer.observe({ type: 'first-input', buffered: true });
 }
 
-// INP（Interaction to Next Paint）: インタラクションからの応答性
+// INP (Interaction to Next Paint): responsiveness from interaction
 function observeINP(callback) {
   const interactions = new Map();
   let longestDuration = 0;
 
   const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
-      // 同じインタラクションのイベントをグループ化
+      // Group events belonging to the same interaction
       const interactionId = entry.interactionId;
       if (!interactionId) continue;
 
@@ -1441,10 +1442,10 @@ function observeINP(callback) {
 
   observer.observe({ type: 'event', buffered: true, durationThreshold: 16 });
 
-  // ページ非表示時に報告
+  // Report when the page is hidden
   addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
-      // 98パーセンタイルを計算
+      // Calculate the 98th percentile
       const sortedDurations = [...interactions.values()].sort((a, b) => a - b);
       const p98Index = Math.floor(sortedDurations.length * 0.98) - 1;
       const inp = sortedDurations[Math.max(p98Index, 0)] || 0;
@@ -1454,7 +1455,7 @@ function observeINP(callback) {
   }, { once: true });
 }
 
-// CLS（Cumulative Layout Shift）: 累積レイアウトシフト
+// CLS (Cumulative Layout Shift): cumulative layout shift score
 function observeCLS(callback) {
   let clsValue = 0;
   let sessionValue = 0;
@@ -1463,15 +1464,15 @@ function observeCLS(callback) {
 
   const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
-      // ユーザー入力に起因するシフトは除外
+      // Exclude shifts caused by user input
       if (entry.hadRecentInput) continue;
 
       const firstSessionEntry = sessionEntries[0];
       const lastSessionEntry = sessionEntries[sessionEntries.length - 1];
 
-      // セッションウィンドウの条件:
-      // 1. 前のエントリから1秒以内
-      // 2. セッション全体が5秒以内
+      // Session window conditions:
+      // 1. Within 1 second of the previous entry
+      // 2. Entire session is within 5 seconds
       if (
         sessionEntries.length > 0 &&
         entry.startTime - lastSessionEntry.startTime < 1000 &&
@@ -1480,7 +1481,7 @@ function observeCLS(callback) {
         sessionValue += entry.value;
         sessionEntries.push(entry);
       } else {
-        // 新しいセッションを開始
+        // Start a new session
         sessionValue = entry.value;
         sessionEntries = [entry];
       }
@@ -1505,7 +1506,7 @@ function observeCLS(callback) {
   }, { once: true });
 }
 
-// 統合的なWeb Vitals計測
+// Integrated Web Vitals collection
 class WebVitalsCollector {
   constructor(reportCallback) {
     this.report = reportCallback;
@@ -1557,11 +1558,11 @@ class WebVitalsCollector {
   }
 }
 
-// 使用例
+// Usage
 const vitals = new WebVitalsCollector((metric) => {
   console.log(`${metric.name}: ${metric.value} (${metric.rating})`);
 
-  // アナリティクスに送信
+  // Send to analytics
   fetch('/api/analytics/web-vitals', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1577,10 +1578,10 @@ const vitals = new WebVitalsCollector((metric) => {
 });
 ```
 
-### 5.3 Long Tasks の監視
+### 5.3 Monitoring Long Tasks
 
 ```javascript
-// 50ms以上のタスクを検出
+// Detect tasks longer than 50ms
 class LongTaskMonitor {
   constructor(options = {}) {
     this.threshold = options.threshold || 50;
@@ -1593,7 +1594,7 @@ class LongTaskMonitor {
           duration: entry.duration,
           startTime: entry.startTime,
           name: entry.name,
-          // attributionで原因を特定
+          // Use attribution to identify the cause
           attribution: entry.attribution?.map(attr => ({
             containerType: attr.containerType,
             containerName: attr.containerName,
@@ -1635,7 +1636,7 @@ class LongTaskMonitor {
   }
 }
 
-// 使用例
+// Usage
 const longTaskMonitor = new LongTaskMonitor({
   onLongTask(task) {
     if (task.duration > 100) {
@@ -1644,7 +1645,7 @@ const longTaskMonitor = new LongTaskMonitor({
   },
 });
 
-// ページ離脱時にレポートを送信
+// Send a report when the page is unloaded
 window.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
     const report = longTaskMonitor.getReport();
@@ -1653,10 +1654,10 @@ window.addEventListener('visibilitychange', () => {
 });
 ```
 
-### 5.4 リソース計測
+### 5.4 Resource Monitoring
 
 ```javascript
-// リソースの読み込みパフォーマンスを監視
+// Monitor resource loading performance
 class ResourceMonitor {
   constructor() {
     this.observer = new PerformanceObserver((list) => {
@@ -1668,7 +1669,7 @@ class ResourceMonitor {
           encodedBodySize: entry.encodedBodySize,
           decodedBodySize: entry.decodedBodySize,
 
-          // タイミングの内訳
+          // Timing breakdown
           dns: entry.domainLookupEnd - entry.domainLookupStart,
           tcp: entry.connectEnd - entry.connectStart,
           tls: entry.secureConnectionStart > 0
@@ -1677,16 +1678,16 @@ class ResourceMonitor {
           download: entry.responseEnd - entry.responseStart,
           total: entry.duration,
 
-          // キャッシュ判定
+          // Cache detection
           cached: entry.transferSize === 0 && entry.decodedBodySize > 0,
         };
 
-        // 遅いリソースの警告
+        // Warning for slow resources
         if (timing.total > 3000) {
           console.warn(`Slow resource: ${timing.name} (${timing.total.toFixed(0)}ms)`);
         }
 
-        // 大きなリソースの警告
+        // Warning for large resources
         if (timing.decodedBodySize > 1024 * 1024) {
           console.warn(`Large resource: ${timing.name} (${(timing.decodedBodySize / 1024 / 1024).toFixed(1)}MB)`);
         }
@@ -1704,7 +1705,7 @@ class ResourceMonitor {
 
 ---
 
-## 6. React でのObserverフック
+## 6. Observer Hooks in React
 
 ### 6.1 useIntersectionObserver
 
@@ -1734,7 +1735,7 @@ function useIntersectionObserver(
 
   const frozen = entry?.isIntersecting && freezeOnceVisible;
 
-  // ref callback パターン（DOM要素をステートとして管理）
+  // ref callback pattern (manage the DOM element as state)
   const ref = useCallback((node: Element | null) => {
     setNode(node);
   }, []);
@@ -1762,7 +1763,7 @@ function useIntersectionObserver(
   };
 }
 
-// 使用例: 画像の遅延読み込み
+// Usage: lazy loading images
 function LazyImage({ src, alt, ...props }) {
   const { ref, isIntersecting } = useIntersectionObserver({
     rootMargin: '200px',
@@ -1780,7 +1781,7 @@ function LazyImage({ src, alt, ...props }) {
   );
 }
 
-// 使用例: スクロール連動フェードイン
+// Usage: scroll-linked fade-in
 function FadeInSection({ children }) {
   const { ref, isIntersecting } = useIntersectionObserver({
     threshold: 0.1,
@@ -1797,7 +1798,7 @@ function FadeInSection({ children }) {
   );
 }
 
-// 使用例: 無限スクロール
+// Usage: infinite scroll
 function InfiniteList({ fetchItems }) {
   const [items, setItems] = useState([]);
   const [hasMore, setHasMore] = useState(true);
@@ -1886,7 +1887,7 @@ function useResizeObserver<T extends HTMLElement>(): {
   return { ref, size };
 }
 
-// 使用例: レスポンシブコンポーネント
+// Usage: responsive component
 function ResponsiveCard({ title, content }) {
   const { ref, size } = useResizeObserver<HTMLDivElement>();
 
@@ -1907,7 +1908,7 @@ function ResponsiveCard({ title, content }) {
   );
 }
 
-// 使用例: チャートのリサイズ
+// Usage: chart resizing
 function ResponsiveChartWrapper({ data }) {
   const { ref, size } = useResizeObserver<HTMLDivElement>();
 
@@ -1961,7 +1962,7 @@ function useMutationObserver<T extends HTMLElement>(
   return ref;
 }
 
-// 使用例: DOM変更のデバッグ
+// Usage: debugging DOM changes
 function DebugContainer({ children }) {
   const ref = useMutationObserver({
     callback: (mutations) => {
@@ -1982,67 +1983,67 @@ function DebugContainer({ children }) {
 
 ## 7. scroll vs IntersectionObserver
 
-### 7.1 パフォーマンス比較
+### 7.1 Performance Comparison
 
 ```
-従来のスクロール監視:
+Traditional scroll monitoring:
   window.addEventListener('scroll', () => {
     elements.forEach(el => {
-      const rect = el.getBoundingClientRect(); // ★ 強制レイアウト（Forced Reflow）
+      const rect = el.getBoundingClientRect(); // ★ Forces layout (Forced Reflow)
       if (rect.top < window.innerHeight) {
-        // 処理
+        // processing
       }
     });
   });
 
-  問題点:
-  → scroll イベントは高頻度で発火（1秒に60回以上）
-  → getBoundingClientRect() がレイアウトを強制（Layout Thrashing）
-  → throttle/debounce が必要だがタイミングが難しい
-  → 非アクティブタブでも発火し続ける
-  → 要素が多いほど処理が重くなる（O(n)）
+  Problems:
+  → The scroll event fires at high frequency (60+ times per second)
+  → getBoundingClientRect() forces layout recalculation (Layout Thrashing)
+  → throttle/debounce is required but difficult to time correctly
+  → Continues to fire even on inactive tabs
+  → Performance degrades as element count grows (O(n))
 
 IntersectionObserver:
   const observer = new IntersectionObserver(callback, options);
   elements.forEach(el => observer.observe(el));
 
-  利点:
-  ✓ ブラウザネイティブの最適化（メインスレッドをブロックしない）
-  ✓ Layout Thrashing が発生しない
-  ✓ throttle/debounce 不要（ブラウザが最適なタイミングで通知）
-  ✓ 非アクティブタブで自動的に停止
-  ✓ 要素数に依存しないパフォーマンス
-  ✓ rootMarginで先読みが簡単
+  Advantages:
+  ✓ Browser-native optimization (does not block the main thread)
+  ✓ No Layout Thrashing
+  ✓ No throttle/debounce needed (browser notifies at optimal timing)
+  ✓ Automatically pauses on inactive tabs
+  ✓ Performance does not degrade with element count
+  ✓ Easy prefetching with rootMargin
 
-  制限:
-  △ ピクセル単位のスクロール位置は取得できない
-  △ スクロール方向の判定には別の仕組みが必要
-  △ 連続的なアニメーション（パララックス）には不向き
+  Limitations:
+  △ Cannot retrieve pixel-level scroll position
+  △ Scroll direction detection requires a separate mechanism
+  △ Not suitable for continuous animations (parallax)
 ```
 
-### 7.2 使い分けガイドライン
+### 7.2 Usage Guidelines
 
 ```javascript
-// IntersectionObserver が適している場合:
-// - 要素の表示/非表示の検出
-// - 遅延読み込み（画像、コンポーネント）
-// - 無限スクロール
-// - ビューアビリティ計測
-// - スクロールスナップのセクション検出
+// When IntersectionObserver is appropriate:
+// - Detecting element visibility / invisibility
+// - Lazy loading (images, components)
+// - Infinite scroll
+// - Viewability measurement
+// - Section detection for scroll-snap
 
-// scroll イベント が適している場合:
-// - パララックスエフェクト（連続的なスクロール位置が必要）
-// - ヘッダーの縮小/展開（スクロール量に基づく）
-// - スクロールプログレスバー
-// - スクロール方向の検出
+// When scroll events are appropriate:
+// - Parallax effects (require continuous scroll position)
+// - Header shrink/expand (based on scroll amount)
+// - Scroll progress bars
+// - Scroll direction detection
 
-// scroll イベントを使う場合のベストプラクティス
+// Best practices when using scroll events
 let ticking = false;
 
 function onScroll() {
   if (!ticking) {
     requestAnimationFrame(() => {
-      // ここでスクロール位置に基づく処理を行う
+      // Perform scroll-position-based processing here
       updateParallax(window.scrollY);
       ticking = false;
     });
@@ -2051,48 +2052,48 @@ function onScroll() {
 }
 
 window.addEventListener('scroll', onScroll, { passive: true });
-// passive: true でスクロールのブロックを防止
+// passive: true prevents blocking of scrolling
 ```
 
 ---
 
-## 8. ベストプラクティスとパフォーマンス最適化
+## 8. Best Practices and Performance Optimization
 
-### 8.1 Observer の統合
+### 8.1 Sharing Observer Instances
 
 ```javascript
-// ★ 同じ設定の Observer は共有する
-// 悪い例: 要素ごとにObserverを作成
+// ★ Share a single Observer for the same configuration
+// Bad example: creating a new Observer per element
 document.querySelectorAll('.lazy-image').forEach(img => {
-  const observer = new IntersectionObserver(/* ... */); // 100個のObserver!
+  const observer = new IntersectionObserver(/* ... */); // 100 observers!
   observer.observe(img);
 });
 
-// 良い例: 1つのObserverで複数要素を監視
-const observer = new IntersectionObserver(/* ... */); // 1つだけ
+// Good example: monitor multiple elements with one Observer
+const observer = new IntersectionObserver(/* ... */); // just one
 document.querySelectorAll('.lazy-image').forEach(img => {
-  observer.observe(img); // 同じObserverに追加
+  observer.observe(img); // add to the same Observer
 });
 
-// ★ 不要になったらunobserve/disconnectする
-// メモリリーク防止のため、不要な監視は必ず停止する
-observer.unobserve(element); // 個別停止
-observer.disconnect();       // 全停止
+// ★ Call unobserve/disconnect when no longer needed
+// Always stop unnecessary observation to prevent memory leaks
+observer.unobserve(element); // stop individual element
+observer.disconnect();       // stop all
 ```
 
-### 8.2 コールバック内の処理を軽量に
+### 8.2 Keep Callback Logic Lightweight
 
 ```javascript
-// ★ Observerのコールバック内で重い処理を避ける
-// 悪い例
+// ★ Avoid heavy processing inside Observer callbacks
+// Bad example
 const observer = new ResizeObserver((entries) => {
   for (const entry of entries) {
-    // 重い再描画処理を直接実行
+    // Execute heavy redraw logic directly
     renderComplexChart(entry.contentRect.width, entry.contentRect.height);
   }
 });
 
-// 良い例: requestAnimationFrameでバッチ化
+// Good example: batch with requestAnimationFrame
 let rafId = null;
 
 const observer = new ResizeObserver((entries) => {
@@ -2106,7 +2107,7 @@ const observer = new ResizeObserver((entries) => {
   });
 });
 
-// 良い例: デバウンスの併用
+// Good example: combine with debounce
 function debounce(fn, delay) {
   let timer;
   return (...args) => {
@@ -2125,29 +2126,29 @@ const observer = new ResizeObserver((entries) => {
 });
 ```
 
-### 8.3 ブラウザサポートとPolyfill
+### 8.3 Browser Support and Polyfills
 
 ```javascript
-// Observer APIのブラウザサポート状況
+// Browser support for Observer APIs
 // IntersectionObserver: Chrome 51+, Firefox 55+, Safari 12.1+, Edge 15+
 // ResizeObserver: Chrome 64+, Firefox 69+, Safari 13.1+, Edge 79+
 // MutationObserver: Chrome 26+, Firefox 14+, Safari 7+, Edge 12+
 // PerformanceObserver: Chrome 52+, Firefox 57+, Safari 11+, Edge 79+
 
-// フィーチャーデテクション
+// Feature detection
 if ('IntersectionObserver' in window) {
-  // IntersectionObserverを使用
+  // Use IntersectionObserver
 } else {
-  // フォールバック: scroll イベント + getBoundingClientRect
+  // Fallback: scroll event + getBoundingClientRect
 }
 
 if ('ResizeObserver' in window) {
-  // ResizeObserverを使用
+  // Use ResizeObserver
 } else {
-  // フォールバック: window.onresize
+  // Fallback: window.onresize
 }
 
-// Polyfill の読み込み（必要な場合のみ）
+// Loading polyfills (only when needed)
 // npm install intersection-observer
 // npm install resize-observer-polyfill
 ```
@@ -2156,19 +2157,19 @@ if ('ResizeObserver' in window) {
 
 ## FAQ
 
-### Q1: IntersectionObserverを使って無限スクロールを実装する際の注意点は？
+### Q1: What should I watch out for when implementing infinite scroll with IntersectionObserver?
 
-IntersectionObserverによる無限スクロール実装では、以下の点に注意する必要がある。
+When implementing infinite scroll with IntersectionObserver, keep the following points in mind.
 
-1. **番兵要素（Sentinel）の配置**: スクロールコンテナの最後に空のdiv要素を配置し、これを監視する。この要素が表示されたら次のデータを読み込む。
-2. **ローディングフラグの管理**: 読み込み中に再度コールバックが発火しないよう、`loading`フラグで制御する。非同期処理が完了するまで新たなリクエストを抑制することが重要。
-3. **rootMarginによる先読み**: `rootMargin: '200px 0px'`のように設定することで、ユーザーがスクロールする前にデータを先読みでき、スムーズなUXを実現できる。
-4. **終端の検出**: サーバーから返されるデータが空、またはhasMoreフラグがfalseになったら、observerをdisconnect()して監視を停止する。
-5. **エラーハンドリング**: ネットワークエラー時にリトライ可能なUIを提供する。番兵要素をクリック可能にしてユーザーが手動で再試行できるようにするとよい。
+1. **Sentinel element placement**: Place an empty div element at the end of the scroll container and observe it. When this element becomes visible, load the next batch of data.
+2. **Loading flag management**: Use a `loading` flag to prevent the callback from triggering again while data is already loading. It is important to suppress new requests until the async operation completes.
+3. **Prefetching with rootMargin**: Setting `rootMargin: '200px 0px'` allows data to be prefetched before the user scrolls to the bottom, providing a smooth UX.
+4. **End-of-data detection**: When the server returns empty data or the hasMore flag is false, call `observer.disconnect()` to stop observation.
+5. **Error handling**: Provide a UI that allows retry on network errors. Making the sentinel element clickable so users can manually retry is a good approach.
 
 ```javascript
 const { ref, isIntersecting } = useIntersectionObserver({
-  rootMargin: '300px', // 300px手前から読み込み開始
+  rootMargin: '300px', // Start loading 300px before the bottom
 });
 
 useEffect(() => {
@@ -2186,45 +2187,45 @@ useEffect(() => {
 }, [isIntersecting, hasMore, loading]);
 ```
 
-### Q2: ResizeObserverとwindow.resizeイベントの違いと使い分けは？
+### Q2: What is the difference between ResizeObserver and the window.resize event, and when should I use each?
 
-ResizeObserverとwindow.resizeイベントは目的が異なる。
+ResizeObserver and the window.resize event serve different purposes.
 
-**window.resizeイベント**:
-- ブラウザウィンドウのサイズ変更のみを検出
-- 高頻度で発火するため、throttle/debounceが必須
-- グローバルなレイアウト調整（ヘッダーの固定解除、モバイルメニューの切り替えなど）に適している
+**window.resize event**:
+- Detects only browser window size changes
+- Fires at high frequency, so throttle/debounce is essential
+- Suitable for global layout adjustments (unfixing the header, toggling mobile menus, etc.)
 
 **ResizeObserver**:
-- 特定のDOM要素のサイズ変更を検出（CSSアニメーション、フレックスボックス、グリッドレイアウトによる変更も含む）
-- ブラウザが最適なタイミングで通知（throttle不要）
-- 個別コンポーネントの内部調整（チャートのリサイズ、テキストの自動縮小、仮想スクロールの再計算など）に適している
+- Detects size changes of specific DOM elements (including changes caused by CSS animations, flexbox, and grid layouts)
+- The browser notifies at optimal timing (no throttling needed)
+- Suitable for internal adjustments within individual components (chart resizing, auto-shrinking text, virtual scroll recalculation, etc.)
 
-使い分けの指針:
-- **ビューポート全体のサイズに依存する処理** → window.resize + matchMedia()
-- **特定要素のコンテンツサイズに依存する処理** → ResizeObserver
-- **コンテナクエリのような振る舞い** → ResizeObserver（またはネイティブの@container）
+Usage guidelines:
+- **Processing that depends on the overall viewport size** → window.resize + matchMedia()
+- **Processing that depends on a specific element's content size** → ResizeObserver
+- **Behavior similar to container queries** → ResizeObserver (or native `@container`)
 
-ResizeObserverは要素ごとに独立して動作するため、コンポーネント指向の設計に適している。一方、window.resizeはアプリケーション全体のブレークポイント管理に使うとよい。
+ResizeObserver operates independently per element, making it well-suited for component-oriented design. On the other hand, window.resize is best used for application-wide breakpoint management.
 
-### Q3: Observer APIを使うことでパフォーマンスがどれだけ改善されるのか？
+### Q3: How much does using the Observer API actually improve performance?
 
-Observer APIの最大の利点は、**レイアウトスラッシング（Layout Thrashing）の回避**である。
+The greatest benefit of the Observer API is **avoiding Layout Thrashing**.
 
-**従来のscrollイベント + getBoundingClientRect()**:
+**Traditional scroll event + getBoundingClientRect()**:
 ```javascript
 window.addEventListener('scroll', () => {
   elements.forEach(el => {
-    const rect = el.getBoundingClientRect(); // 強制リフロー発生
+    const rect = el.getBoundingClientRect(); // Forces reflow
     if (rect.top < window.innerHeight) {
       el.classList.add('visible');
     }
   });
 });
 ```
-- scrollイベントは1秒間に60回以上発火する可能性がある
-- getBoundingClientRect()は現在のレイアウトを強制的に計算させる（Forced Reflow）
-- 要素が100個あれば、1秒間に6000回のレイアウト計算が発生する可能性がある
+- The scroll event can fire 60+ times per second
+- getBoundingClientRect() forces the current layout to be computed (Forced Reflow)
+- With 100 elements, up to 6,000 layout calculations may occur per second
 
 **IntersectionObserver**:
 ```javascript
@@ -2237,47 +2238,47 @@ const observer = new IntersectionObserver((entries) => {
 });
 elements.forEach(el => observer.observe(el));
 ```
-- ブラウザが内部で最適化されたタイミングで通知
-- レイアウト計算をメインスレッドでブロックしない
-- 非アクティブタブでは自動的に停止
+- The browser notifies at internally optimized timing
+- Layout computation does not block the main thread
+- Automatically pauses on inactive tabs
 
-実測例（Chrome DevTools Performance測定）:
-- scrollイベント版: 1回のスクロールで30-50msのScripting時間（jank発生）
-- IntersectionObserver版: 1回のスクロールで1-3msのScripting時間（スムーズ）
+Measured results (Chrome DevTools Performance profiling):
+- scroll event version: 30-50ms of Scripting time per scroll (jank occurs)
+- IntersectionObserver version: 1-3ms of Scripting time per scroll (smooth)
 
-特に要素数が多い場合やモバイルデバイスでは、体感できるほどの差が出る。Core Web VitalsのINP（Interaction to Next Paint）指標の改善にも直結する。
-
----
-
-## まとめ
-
-| Observer | 監視対象 | 主な用途 | パフォーマンス |
-|----------|---------|---------|--------------|
-| IntersectionObserver | ビューポートとの交差 | 遅延読み込み、無限スクロール、ビューアビリティ | メインスレッド非ブロック |
-| ResizeObserver | 要素サイズの変更 | レスポンシブ、チャートリサイズ、仮想スクロール | レイアウト強制なし |
-| MutationObserver | DOM変更 | サードパーティ監視、自動初期化、変更検出 | マイクロタスクで実行 |
-| PerformanceObserver | パフォーマンスイベント | Web Vitals計測、リソース監視、Long Task検出 | 非同期バッファリング |
-
-### 選択指針
-
-1. **要素の可視性を知りたい** → IntersectionObserver
-2. **要素のサイズ変更に反応したい** → ResizeObserver
-3. **DOMの変更を検出したい** → MutationObserver
-4. **パフォーマンスメトリクスを収集したい** → PerformanceObserver
-5. **連続的なスクロール位置が必要** → scroll イベント + requestAnimationFrame
-6. **ウィンドウサイズの変更のみ** → matchMedia() またはCSSコンテナクエリ
+The difference is especially noticeable with large numbers of elements or on mobile devices. It also directly contributes to improving the INP (Interaction to Next Paint) metric of Core Web Vitals.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [Webストレージ（localStorage, sessionStorage, IndexedDB）](../04-storage-and-caching/00-web-storage.md)
-- [Performance API 詳解](../04-storage-and-caching/02-performance-api.md)
-- [Fetch と Streams API](./01-fetch-and-streams.md)
+| Observer | What It Monitors | Primary Use Cases | Performance |
+|----------|-----------------|-------------------|-------------|
+| IntersectionObserver | Intersection with the viewport | Lazy loading, infinite scroll, viewability | Does not block the main thread |
+| ResizeObserver | Element size changes | Responsive layouts, chart resizing, virtual scroll | No forced layout |
+| MutationObserver | DOM changes | Third-party monitoring, auto-initialization, change detection | Executed as microtask |
+| PerformanceObserver | Performance events | Web Vitals measurement, resource monitoring, Long Task detection | Asynchronous buffering |
+
+### Selection Guidelines
+
+1. **Need to know if an element is visible** → IntersectionObserver
+2. **Need to react to element size changes** → ResizeObserver
+3. **Need to detect DOM changes** → MutationObserver
+4. **Need to collect performance metrics** → PerformanceObserver
+5. **Need continuous scroll position** → scroll event + requestAnimationFrame
+6. **Only need window size changes** → matchMedia() or CSS container queries
 
 ---
 
-## 参考文献
+## Further Reading
+
+- [Web Storage (localStorage, sessionStorage, IndexedDB)](../04-storage-and-caching/00-web-storage.md)
+- [Performance API Deep Dive](../04-storage-and-caching/02-performance-api.md)
+- [Fetch and Streams API](./01-fetch-and-streams.md)
+
+---
+
+## References
 
 1. MDN Web Docs. "Intersection Observer API." Mozilla, 2024. https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API
 2. MDN Web Docs. "Resize Observer API." Mozilla, 2024. https://developer.mozilla.org/en-US/docs/Web/API/Resize_Observer_API
