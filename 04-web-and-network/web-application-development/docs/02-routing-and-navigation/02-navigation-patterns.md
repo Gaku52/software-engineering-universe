@@ -1,168 +1,168 @@
-# ナビゲーション設計
+# Navigation Design
 
-> ナビゲーションはユーザーがアプリ内を移動する道標。ヘッダー、サイドバー、ブレッドクラム、タブ、コマンドパレットまで、直感的で効率的なナビゲーションUIの設計パターンを習得する。
+> Navigation is the signpost that guides users through an app. Master design patterns for intuitive and efficient navigation UIs — from headers, sidebars, and breadcrumbs to tabs and command palettes.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] ナビゲーション構造の設計原則を理解する
-- [ ] 主要なナビゲーションパターンの実装を把握する
-- [ ] レスポンシブナビゲーションの設計を学ぶ
-- [ ] アクセシビリティに配慮したナビゲーション実装を習得する
-- [ ] コマンドパレットによるキーボード駆動ナビゲーションを構築する
-- [ ] ナビゲーション状態管理のベストプラクティスを理解する
-- [ ] パフォーマンスを考慮したナビゲーション最適化を実践する
+- [ ] Understand the design principles of navigation structures
+- [ ] Grasp the implementation of major navigation patterns
+- [ ] Learn responsive navigation design
+- [ ] Master accessibility-aware navigation implementation
+- [ ] Build keyboard-driven navigation with a command palette
+- [ ] Understand best practices for navigation state management
+- [ ] Practice performance-conscious navigation optimization
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- ファイルベースルーティングの基本 — [ファイルベースルーティング](./01-file-based-routing.md)
-- ブラウザのナビゲーション処理（History API、pushState/replaceState）
-- React の基本（コンポーネント設計、状態管理、フックの使い方）
+- Basics of file-based routing — [File-based Routing](./01-file-based-routing.md)
+- Browser navigation processing (History API, pushState/replaceState)
+- React basics (component design, state management, how to use hooks)
 
 ---
 
-## 1. ナビゲーション構造の設計原則
+## 1. Navigation Structure Design Principles
 
-### 1.1 ナビゲーションの役割と重要性
+### 1.1 The Role and Importance of Navigation
 
-ナビゲーションはWebアプリケーションにおいて最も重要なUI要素の一つである。ユーザーが目的のコンテンツや機能に到達するための道筋を提供し、アプリケーション全体の構造を視覚的に表現する。優れたナビゲーション設計は、ユーザーの生産性を大幅に向上させ、アプリケーションの学習コストを低減させる。
+Navigation is one of the most important UI elements in a web application. It provides a path for users to reach their desired content or features, and visually represents the overall structure of the application. Excellent navigation design significantly improves user productivity and reduces the learning cost of the application.
 
-ナビゲーション設計において考慮すべき基本原則は以下の通りである。
-
-```
-ナビゲーション設計の基本原則:
-
-  1. 発見可能性（Discoverability）:
-     → ユーザーが利用可能な機能やコンテンツを容易に見つけられること
-     → 主要なナビゲーション項目は常に視認可能であること
-     → 隠れたナビゲーション（ハンバーガーメニュー等）は補助的に使用
-
-  2. 一貫性（Consistency）:
-     → アプリ全体でナビゲーションの位置・スタイル・動作を統一
-     → ユーザーの学習コストを最小化
-     → プラットフォームの慣習に従った配置
-
-  3. 文脈の保持（Context Preservation）:
-     → ユーザーが「今どこにいるか」を常に明示
-     → アクティブ状態のハイライト、ブレッドクラムの表示
-     → 戻る操作の容易さ
-
-  4. 効率性（Efficiency）:
-     → 頻繁に使用する機能へのショートカット
-     → キーボードナビゲーションの対応
-     → コマンドパレットによる高速アクセス
-
-  5. スケーラビリティ（Scalability）:
-     → 機能追加時にナビゲーション構造が破綻しないこと
-     → 階層の深さを3段階以内に抑える
-     → 項目数の増加に対応できるグループ化の仕組み
-```
-
-### 1.2 階層型ナビゲーション構造
-
-Webアプリケーションのナビゲーションは、一般的に3つの階層に分けて設計される。各階層がそれぞれの役割を持ち、ユーザーを適切な粒度で案内する。
+The basic principles to consider in navigation design are as follows.
 
 ```
-階層型ナビゲーション:
+Basic principles of navigation design:
 
-  第1階層: グローバルナビゲーション
-  → ヘッダー/サイドバーに常時表示
-  → アプリケーション全体のメインセクション
+  1. Discoverability:
+     → Users can easily find available features and content
+     → Main navigation items are always visible
+     → Hidden navigation (hamburger menus, etc.) used as a supplement
+
+  2. Consistency:
+     → Unify navigation position, style, and behavior across the entire app
+     → Minimize user learning cost
+     → Placement that follows platform conventions
+
+  3. Context Preservation:
+     → Always clearly indicate "where the user is now"
+     → Highlight active state, display breadcrumbs
+     → Ease of going back
+
+  4. Efficiency:
+     → Shortcuts to frequently used features
+     → Keyboard navigation support
+     → Fast access via command palette
+
+  5. Scalability:
+     → Navigation structure does not break when features are added
+     → Keep hierarchy depth to 3 levels or fewer
+     → Grouping mechanism that can accommodate increasing number of items
+```
+
+### 1.2 Hierarchical Navigation Structure
+
+Web application navigation is generally designed in three hierarchical levels. Each level has its own role and guides users at the appropriate level of granularity.
+
+```
+Hierarchical navigation:
+
+  Level 1: Global Navigation
+  → Always visible in header/sidebar
+  → Main sections of the entire application
   → Dashboard, Users, Orders, Settings, Reports
-  → 通常5〜8項目に制限する（ミラーの法則：7±2）
+  → Normally limited to 5-8 items (Miller's Law: 7±2)
 
-  第2階層: セクションナビゲーション
-  → タブ、サブメニュー、セカンダリサイドバー
-  → メインセクション内のサブカテゴリ
+  Level 2: Section Navigation
+  → Tabs, submenus, secondary sidebar
+  → Subcategories within the main section
   → Users: List, Create, Import, Export, Analytics
-  → 親セクションとの関連性を視覚的に表現
+  → Visually represents the relationship with the parent section
 
-  第3階層: コンテキストナビゲーション
-  → ブレッドクラム、ページ内リンク、関連コンテンツ
-  → 特定のページ内での移動手段
+  Level 3: Context Navigation
+  → Breadcrumbs, in-page links, related content
+  → Navigation within a specific page
   → Dashboard > Users > Taro Yamada > Edit Profile
-  → ユーザーの現在位置と移動履歴の可視化
+  → Visualizes the user's current position and navigation history
 ```
 
-### 1.3 ナビゲーションパターンの選択基準
+### 1.3 Navigation Pattern Selection Criteria
 
 ```
-ナビゲーションパターンの選択マトリクス:
+Navigation pattern selection matrix:
 
-  パターン           適用場面                     メリット                  デメリット
+  Pattern            Use Case                     Pros                      Cons
   ─────────────────────────────────────────────────────────────────────────────────
-  ① トップナビ       Webサイト                   馴染みがある              項目数に制限
-                     ランディングページ           水平スペース活用          サブメニュー難
-                     コーポレートサイト            SEO親和性高い            モバイル対応要
+  ① Top Nav          Websites                     Familiar                  Limited items
+                     Landing pages                Uses horizontal space      Hard submenus
+                     Corporate sites              High SEO affinity          Needs mobile adaptation
 
-  ② サイドバー       管理画面                     多数の項目対応            画面幅消費
-                     ダッシュボード               階層表現が容易            モバイル非表示
-                     SaaSアプリケーション          折りたたみ対応            実装が複雑
+  ② Sidebar          Admin panels                 Handles many items         Consumes screen width
+                     Dashboards                   Easy hierarchy display     Hidden on mobile
+                     SaaS applications            Collapsible                Complex to implement
 
-  ③ ボトムナビ       モバイルアプリ               親指操作に最適            項目数制限(5個)
-                     PWA                          直感的                    デスクトップ不適
-                     モバイルファースト            プラットフォーム慣習      階層表現困難
+  ③ Bottom Nav       Mobile apps                  Ideal for thumb use        Item limit (5 items)
+                     PWA                          Intuitive                  Not for desktop
+                     Mobile-first                 Platform convention        Hard to show hierarchy
 
-  ④ コマンドパレット パワーユーザー向け           高速アクセス              発見性が低い
-                     開発ツール                   検索可能                  学習コスト高い
-                     複雑なアプリ                  拡張性高い               補助的使用に限定
+  ④ Command Palette  Power users                  Fast access               Low discoverability
+                     Developer tools              Searchable                 High learning cost
+                     Complex apps                 High extensibility        Supplementary use only
 
-  ⑤ ブレッドクラム   ECサイト                     階層の可視化              スペース消費
-                     コンテンツサイト              戻り操作容易              複雑な階層で冗長
-                     ファイル管理系                SEO効果                  単独では不十分
+  ⑤ Breadcrumbs      E-commerce                   Hierarchy visualization    Space consumption
+                     Content sites                Easy back navigation       Verbose in deep hierarchies
+                     File management              SEO benefit               Insufficient alone
 
-  ⑥ タブナビ         設定画面                     直感的な切替              項目数制限
-                     詳細ページ                   関連コンテンツ整理        レスポンシブ難
-                     フォーム分割                  状態が明確               ネスト非推奨
+  ⑥ Tab Nav          Settings pages               Intuitive switching        Item limit
+                     Detail pages                 Organizes related content  Hard to make responsive
+                     Form splitting               Clear state               Not recommended for nesting
 
-  ⑦ メガメニュー     ECサイト                     大量カテゴリ表示          モバイル不適
-                     ニュースサイト                視覚的に整理可能          実装複雑
-                     ポータルサイト                プレビュー表示            パフォーマンス
+  ⑦ Mega Menu        E-commerce                   Shows many categories      Not for mobile
+                     News sites                   Can be visually organized  Complex implementation
+                     Portal sites                 Preview display            Performance concerns
 ```
 
-### 1.4 情報アーキテクチャとナビゲーション
+### 1.4 Information Architecture and Navigation
 
-ナビゲーション設計の前提として、情報アーキテクチャ（IA）の設計が不可欠である。IAはコンテンツの構造化・ラベリング・組織化を扱い、ナビゲーションの基盤となる。
+Information architecture (IA) design is an essential prerequisite for navigation design. IA deals with the structuring, labeling, and organization of content, and forms the foundation of navigation.
 
 ```typescript
-// 情報アーキテクチャに基づくナビゲーション構造の定義
+// Navigation structure definition based on information architecture
 interface NavigationItem {
-  /** 表示ラベル */
+  /** Display label */
   label: string;
-  /** 遷移先パス */
+  /** Destination path */
   href: string;
-  /** アイコンコンポーネント */
+  /** Icon component */
   icon?: React.ComponentType<{ className?: string }>;
-  /** 子ナビゲーション項目 */
+  /** Child navigation items */
   children?: NavigationItem[];
-  /** バッジ表示（通知数等） */
+  /** Badge display (notification count, etc.) */
   badge?: number | string;
-  /** アクセス権限 */
+  /** Access permission */
   permission?: string;
-  /** セクション分類 */
+  /** Section classification */
   section?: 'main' | 'secondary' | 'footer';
-  /** ショートカットキー */
+  /** Shortcut key */
   shortcut?: string;
-  /** 外部リンクかどうか */
+  /** Whether it is an external link */
   external?: boolean;
-  /** 表示条件 */
+  /** Display condition */
   visible?: boolean | (() => boolean);
 }
 
-// ナビゲーション構造の型定義
+// Type definition for navigation configuration
 interface NavigationConfig {
-  /** メインナビゲーション項目 */
+  /** Main navigation items */
   main: NavigationItem[];
-  /** セカンダリナビゲーション項目 */
+  /** Secondary navigation items */
   secondary?: NavigationItem[];
-  /** フッターナビゲーション項目 */
+  /** Footer navigation items */
   footer?: NavigationItem[];
-  /** ユーザーメニュー項目 */
+  /** User menu items */
   userMenu?: NavigationItem[];
 }
 
-// 実際のナビゲーション設定例
+// Example navigation configuration
 const navigationConfig: NavigationConfig = {
   main: [
     {
@@ -237,28 +237,28 @@ const navigationConfig: NavigationConfig = {
 };
 ```
 
-### 1.5 ナビゲーション状態管理の設計
+### 1.5 Navigation State Management Design
 
-ナビゲーションの状態はアプリケーション全体で共有される必要がある。サイドバーの開閉状態、アクティブな項目、展開されたサブメニューなどの状態を効率的に管理する方法を理解する。
+Navigation state needs to be shared across the entire application. Understand how to efficiently manage the sidebar open/close state, active items, expanded submenus, and other states.
 
 ```typescript
-// ナビゲーション状態の型定義
+// Type definition for navigation state
 interface NavigationState {
-  /** サイドバーの開閉状態 */
+  /** Sidebar open/close state */
   sidebarOpen: boolean;
-  /** サイドバーの折りたたみ状態（アイコンのみ表示） */
+  /** Sidebar collapsed state (icons only) */
   sidebarCollapsed: boolean;
-  /** 展開されているサブメニューのパス */
+  /** Paths of expanded submenus */
   expandedItems: Set<string>;
-  /** モバイルメニューの開閉状態 */
+  /** Mobile menu open/close state */
   mobileMenuOpen: boolean;
-  /** コマンドパレットの開閉状態 */
+  /** Command palette open/close state */
   commandPaletteOpen: boolean;
-  /** 直近の訪問履歴 */
+  /** Recent page visit history */
   recentPages: string[];
 }
 
-// React Context を使ったナビゲーション状態管理
+// Navigation state management using React Context
 import { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
 
 type NavigationAction =
@@ -349,7 +349,7 @@ export function useNavigation() {
   return context;
 }
 
-// カスタムフック: ナビゲーションアクションを提供
+// Custom hook: provides navigation actions
 export function useNavigationActions() {
   const { dispatch } = useNavigation();
 
@@ -385,14 +385,14 @@ export function useNavigationActions() {
 
 ---
 
-## 2. サイドバーナビゲーション
+## 2. Sidebar Navigation
 
-### 2.1 基本的なサイドバー実装
+### 2.1 Basic Sidebar Implementation
 
-サイドバーナビゲーションは管理画面やSaaSアプリケーションで最も広く採用されているパターンである。垂直方向に項目を配置することで、多数のナビゲーション項目を効率的に表示できる。
+Sidebar navigation is the most widely adopted pattern in admin panels and SaaS applications. By arranging items vertically, it can efficiently display a large number of navigation items.
 
 ```typescript
-// 本格的なサイドバーの実装
+// Full-featured sidebar implementation
 'use client';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -412,7 +412,7 @@ import {
   XIcon,
 } from 'lucide-react';
 
-// ナビゲーション項目の型定義
+// Navigation item type definition
 interface NavItem {
   name: string;
   href: string;
@@ -469,7 +469,7 @@ function Sidebar() {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState(false);
 
-  // パス変更時に該当するメニューを自動展開
+  // Automatically expand the relevant menu when the path changes
   useEffect(() => {
     const parentItem = navigation.find(
       (item) =>
@@ -504,7 +504,7 @@ function Sidebar() {
         collapsed ? 'w-16' : 'w-64'
       )}
     >
-      {/* ロゴ & 折りたたみボタン */}
+      {/* Logo & collapse button */}
       <div className="flex items-center justify-between p-4 border-b border-gray-800">
         {!collapsed && (
           <span className="text-xl font-bold tracking-tight">MyApp</span>
@@ -518,7 +518,7 @@ function Sidebar() {
         </button>
       </div>
 
-      {/* ナビゲーション本体 */}
+      {/* Navigation body */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
         {navigation.map((item) => {
           const active = isParentActive(item);
@@ -527,7 +527,7 @@ function Sidebar() {
 
           return (
             <div key={item.name}>
-              {/* メインナビゲーション項目 */}
+              {/* Main navigation item */}
               <div className="flex items-center">
                 <Link
                   href={hasChildren ? '#' : item.href}
@@ -567,7 +567,7 @@ function Sidebar() {
                 </Link>
               </div>
 
-              {/* サブナビゲーション */}
+              {/* Sub-navigation */}
               {hasChildren && expanded && !collapsed && (
                 <div className="mt-1 ml-4 pl-4 border-l border-gray-700 space-y-1">
                   {item.children!.map((child) => (
@@ -596,7 +596,7 @@ function Sidebar() {
         })}
       </nav>
 
-      {/* フッター: ユーザー情報 */}
+      {/* Footer: user info */}
       {!collapsed && (
         <div className="p-4 border-t border-gray-800">
           <div className="flex items-center gap-3">
@@ -615,12 +615,12 @@ function Sidebar() {
 }
 ```
 
-### 2.2 折りたたみ可能なサイドバー（アニメーション対応）
+### 2.2 Collapsible Sidebar (with Animation)
 
-サイドバーの折りたたみは、画面領域を有効活用するために重要な機能である。CSS transition と Framer Motion を使ったスムーズなアニメーション実装を示す。
+Sidebar collapsing is an important feature for making effective use of screen real estate. This shows a smooth animation implementation using CSS transitions and Framer Motion.
 
 ```typescript
-// Framer Motion を使ったアニメーション付きサイドバー
+// Animated sidebar using Framer Motion
 'use client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigation, useNavigationActions } from '@/contexts/NavigationContext';
@@ -648,7 +648,7 @@ function AnimatedSidebar() {
       transition={{ duration: 0.3, ease: 'easeInOut' }}
       className="flex flex-col bg-gray-900 text-white h-screen overflow-hidden"
     >
-      {/* ロゴエリア */}
+      {/* Logo area */}
       <div className="flex items-center h-16 px-4 border-b border-gray-800">
         <motion.span
           variants={labelVariants}
@@ -658,7 +658,7 @@ function AnimatedSidebar() {
         </motion.span>
       </div>
 
-      {/* ナビゲーション */}
+      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-2">
         {navigation.map((item) => (
           <NavItemComponent
@@ -671,7 +671,7 @@ function AnimatedSidebar() {
         ))}
       </nav>
 
-      {/* 折りたたみトグル */}
+      {/* Collapse toggle */}
       <div className="p-2 border-t border-gray-800">
         <button
           onClick={toggleSidebarCollapse}
@@ -689,7 +689,7 @@ function AnimatedSidebar() {
   );
 }
 
-// ナビゲーション項目コンポーネント（アニメーション対応）
+// Navigation item component (with animation)
 function NavItemComponent({
   item,
   collapsed,
@@ -736,7 +736,7 @@ function NavItemComponent({
         </AnimatePresence>
       </Link>
 
-      {/* サブメニュー（アニメーション付き展開） */}
+      {/* Submenu (animated expand) */}
       <AnimatePresence>
         {item.children && expanded && !collapsed && (
           <motion.div
@@ -770,12 +770,12 @@ function NavItemComponent({
 }
 ```
 
-### 2.3 ツールチップ付き折りたたみサイドバー
+### 2.3 Collapsed Sidebar with Tooltips
 
-サイドバーが折りたたまれた状態では、各項目にツールチップを表示してラベルを補完する。
+When the sidebar is in the collapsed state, display a tooltip on each item to supplement the label.
 
 ```typescript
-// Radix UI のツールチップを使ったナビゲーション項目
+// Navigation item using Radix UI Tooltip
 import * as Tooltip from '@radix-ui/react-tooltip';
 
 function CollapsedNavItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
@@ -816,55 +816,55 @@ function CollapsedNavItem({ item, isActive }: { item: NavItem; isActive: boolean
 }
 ```
 
-### 2.4 サイドバーのベストプラクティスとアンチパターン
+### 2.4 Sidebar Best Practices and Anti-Patterns
 
 ```
-ベストプラクティス:
+Best practices:
 
-  ✅ アクティブ項目を視覚的に明確にハイライトする
-     → 背景色変更 + 左ボーダー or 左マーカー
-     → aria-current="page" を設定
+  ✅ Visually highlight the active item clearly
+     → Background color change + left border or left marker
+     → Set aria-current="page"
 
-  ✅ 現在のパスに基づいてサブメニューを自動展開する
-     → useEffect で pathname 変更を監視
-     → 初期表示時に該当するサブメニューを展開
+  ✅ Automatically expand submenus based on the current path
+     → Watch pathname changes with useEffect
+     → Expand the relevant submenu on initial display
 
-  ✅ キーボードナビゲーション対応
-     → Tab / Shift+Tab でフォーカス移動
-     → Enter / Space でリンク遷移 / サブメニュー展開
-     → 矢印キーでサブメニュー内移動
+  ✅ Keyboard navigation support
+     → Tab / Shift+Tab for focus movement
+     → Enter / Space for link navigation / submenu expansion
+     → Arrow keys to move within submenus
 
-  ✅ 折りたたみ状態の永続化
-     → localStorage にサイドバー状態を保存
-     → ページリロード後も状態を復元
+  ✅ Persist collapsed state
+     → Save sidebar state to localStorage
+     → Restore state after page reload
 
-  ✅ 適切なスクロール処理
-     → ナビゲーション項目が多い場合のスクロール対応
-     → overflow-y-auto + スクロールバーのカスタマイズ
+  ✅ Appropriate scroll handling
+     → Scroll support when there are many navigation items
+     → overflow-y-auto + scroll bar customization
 
-アンチパターン:
+Anti-patterns:
 
-  ❌ サイドバーに10個以上のトップレベル項目を配置
-     → グルーピングやセクション分けで整理する
+  ❌ Placing 10+ top-level items in the sidebar
+     → Organize with grouping or sections
 
-  ❌ 3段階以上のネストされたサブメニュー
-     → 深い階層は別ページやモーダルで処理する
+  ❌ Submenus nested more than 3 levels deep
+     → Handle deep hierarchies on separate pages or in modals
 
-  ❌ アイコンなしのテキストのみナビゲーション
-     → アイコンは視覚的な手がかりとして重要
+  ❌ Text-only navigation without icons
+     → Icons are important as visual cues
 
-  ❌ ページ遷移時にサイドバー全体が再レンダリング
-     → React.memo や useMemo で最適化
-     → ルートレイアウトにサイドバーを配置
+  ❌ The entire sidebar re-renders on page navigation
+     → Optimize with React.memo or useMemo
+     → Place sidebar in the root layout
 
-  ❌ モバイルでサイドバーを常時表示
-     → ハンバーガーメニュー + ドロワーに切り替え
+  ❌ Always showing the sidebar on mobile
+     → Switch to hamburger menu + drawer
 ```
 
-### 2.5 サイドバーの永続化とローカルストレージ
+### 2.5 Sidebar Persistence and Local Storage
 
 ```typescript
-// サイドバー状態の永続化カスタムフック
+// Custom hook for persisting sidebar state
 import { useState, useEffect, useCallback } from 'react';
 
 interface SidebarPersistState {
@@ -886,17 +886,17 @@ function useSidebarPersistence() {
         return JSON.parse(stored);
       }
     } catch {
-      // localStorage が利用できない場合のフォールバック
+      // Fallback when localStorage is not available
     }
     return { collapsed: false, expandedItems: [], pinnedItems: [] };
   });
 
-  // 状態変更時に自動保存
+  // Auto-save on state change
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
-      // localStorage 書き込みエラーを無視
+      // Ignore localStorage write errors
     }
   }, [state]);
 
@@ -928,14 +928,14 @@ function useSidebarPersistence() {
 
 ---
 
-## 3. トップナビゲーション
+## 3. Top Navigation
 
-### 3.1 基本的なトップナビゲーション
+### 3.1 Basic Top Navigation
 
-トップナビゲーションはWebサイトやランディングページで最も一般的なパターンである。ヘッダー領域に水平に配置され、サイトのブランドとメインナビゲーションを提供する。
+Top navigation is the most common pattern for websites and landing pages. It is arranged horizontally in the header area and provides the site's brand and main navigation.
 
 ```typescript
-// レスポンシブ対応トップナビゲーション
+// Responsive top navigation
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -955,10 +955,10 @@ const topNavItems: TopNavItem[] = [
     label: 'Products',
     href: '/products',
     children: [
-      { label: 'All Products', href: '/products', description: '全商品を閲覧' },
-      { label: 'Categories', href: '/products/categories', description: 'カテゴリ別に探す' },
-      { label: 'New Arrivals', href: '/products/new', description: '新着商品' },
-      { label: 'Best Sellers', href: '/products/popular', description: '人気商品' },
+      { label: 'All Products', href: '/products', description: 'Browse all products' },
+      { label: 'Categories', href: '/products/categories', description: 'Browse by category' },
+      { label: 'New Arrivals', href: '/products/new', description: 'New products' },
+      { label: 'Best Sellers', href: '/products/popular', description: 'Popular products' },
     ],
   },
   { label: 'Pricing', href: '/pricing' },
@@ -966,10 +966,10 @@ const topNavItems: TopNavItem[] = [
     label: 'Resources',
     href: '/resources',
     children: [
-      { label: 'Blog', href: '/blog', description: '技術記事・お知らせ' },
-      { label: 'Documentation', href: '/docs', description: '開発者向けドキュメント' },
-      { label: 'Community', href: '/community', description: 'コミュニティフォーラム' },
-      { label: 'Support', href: '/support', description: 'サポートセンター' },
+      { label: 'Blog', href: '/blog', description: 'Technical articles & announcements' },
+      { label: 'Documentation', href: '/docs', description: 'Developer documentation' },
+      { label: 'Community', href: '/community', description: 'Community forum' },
+      { label: 'Support', href: '/support', description: 'Support center' },
     ],
   },
   { label: 'About', href: '/about' },
@@ -982,7 +982,7 @@ function TopNavigation() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ドロップダウン外クリックで閉じる
+  // Close on click outside dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -993,13 +993,13 @@ function TopNavigation() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // ページ遷移時にモバイルメニューを閉じる
+  // Close mobile menu on page navigation
   useEffect(() => {
     setMobileMenuOpen(false);
     setActiveDropdown(null);
   }, [pathname]);
 
-  // ドロップダウンのマウスイベントハンドラ（遅延付き）
+  // Dropdown mouse event handlers (with delay)
   const handleMouseEnter = (label: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setActiveDropdown(label);
@@ -1015,13 +1015,13 @@ function TopNavigation() {
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* ロゴ */}
+          {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-600 rounded-lg" />
             <span className="text-xl font-bold text-gray-900">MyApp</span>
           </Link>
 
-          {/* デスクトップナビゲーション */}
+          {/* Desktop navigation */}
           <nav ref={dropdownRef} className="hidden md:flex items-center gap-1">
             {topNavItems.map((item) => (
               <div
@@ -1045,7 +1045,7 @@ function TopNavigation() {
                   {item.children && <ChevronDownIcon className="w-4 h-4" />}
                 </Link>
 
-                {/* ドロップダウンメニュー */}
+                {/* Dropdown menu */}
                 {item.children && activeDropdown === item.label && (
                   <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                     {item.children.map((child) => (
@@ -1070,7 +1070,7 @@ function TopNavigation() {
             ))}
           </nav>
 
-          {/* CTA ボタン */}
+          {/* CTA buttons */}
           <div className="hidden md:flex items-center gap-3">
             <Link
               href="/login"
@@ -1086,7 +1086,7 @@ function TopNavigation() {
             </Link>
           </div>
 
-          {/* モバイルメニューボタン */}
+          {/* Mobile menu button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden p-2 rounded-md hover:bg-gray-100"
@@ -1101,7 +1101,7 @@ function TopNavigation() {
         </div>
       </div>
 
-      {/* モバイルメニュー */}
+      {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-gray-200 bg-white">
           <nav className="px-4 py-3 space-y-1">
@@ -1155,10 +1155,10 @@ function TopNavigation() {
 }
 ```
 
-### 3.2 スティッキーヘッダーとスクロール対応
+### 3.2 Sticky Header and Scroll Behavior
 
 ```typescript
-// スクロール時にスタイルが変化するスティッキーヘッダー
+// Sticky header that changes style on scroll
 'use client';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -1172,14 +1172,14 @@ function StickyHeader() {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
 
-      // スクロール量でスタイル変更
+      // Change style based on scroll amount
       setScrolled(currentScrollY > 10);
 
-      // スクロール方向で表示/非表示
+      // Show/hide based on scroll direction
       if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        setHidden(true); // 下スクロールで非表示
+        setHidden(true); // Hide on scroll down
       } else {
-        setHidden(false); // 上スクロールで表示
+        setHidden(false); // Show on scroll up
       }
 
       setLastScrollY(currentScrollY);
@@ -1200,7 +1200,7 @@ function StickyHeader() {
       )}
     >
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        {/* ナビゲーション内容 */}
+        {/* Navigation content */}
       </div>
     </header>
   );
@@ -1209,21 +1209,21 @@ function StickyHeader() {
 
 ---
 
-## 4. ブレッドクラム
+## 4. Breadcrumbs
 
-### 4.1 基本的なブレッドクラム実装
+### 4.1 Basic Breadcrumb Implementation
 
-ブレッドクラムは、ユーザーが現在のページの位置を階層構造の中で把握するためのナビゲーション補助要素である。特にECサイトやコンテンツ管理システムで重要な役割を果たす。
+Breadcrumbs are a navigation aid that helps users understand their current page's position within a hierarchical structure. They play an important role especially in e-commerce sites and content management systems.
 
 ```typescript
-// 動的ブレッドクラム（Next.js App Router対応）
+// Dynamic breadcrumbs (compatible with Next.js App Router)
 'use client';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRightIcon, HomeIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// ブレッドクラムのラベルマッピング
+// Breadcrumb label mapping
 const breadcrumbLabels: Record<string, string> = {
   dashboard: 'Dashboard',
   users: 'Users',
@@ -1245,7 +1245,7 @@ const breadcrumbLabels: Record<string, string> = {
   integrations: 'Integrations',
 };
 
-// 動的セグメント（ID等）を検知する関数
+// Function to detect dynamic segments (IDs, etc.)
 function isDynamicSegment(segment: string): boolean {
   // UUID パターン
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment)) {
@@ -1274,7 +1274,7 @@ function useBreadcrumbs(): BreadcrumbItem[] {
 
     let label: string;
     if (isDynamicSegment(segment)) {
-      label = '...'; // 動的セグメントはプレースホルダー
+      label = '...'; // Dynamic segments use a placeholder
     } else {
       label = breadcrumbLabels[segment] ?? segment.charAt(0).toUpperCase() + segment.slice(1);
     }
@@ -1291,7 +1291,7 @@ function Breadcrumbs() {
   return (
     <nav aria-label="Breadcrumb" className="flex items-center text-sm">
       <ol className="flex items-center gap-1.5">
-        {/* ホームリンク */}
+        {/* Home link */}
         <li>
           <Link
             href="/"
@@ -1328,12 +1328,12 @@ function Breadcrumbs() {
 }
 ```
 
-### 4.2 動的エンティティ名を解決するブレッドクラム
+### 4.2 Breadcrumbs that Resolve Dynamic Entity Names
 
-実際のアプリケーションでは、URLに含まれるIDを実際のエンティティ名に解決する必要がある。
+In real-world applications, IDs in the URL need to be resolved to actual entity names.
 
 ```typescript
-// エンティティ名を動的に解決するブレッドクラム
+// Breadcrumbs that dynamically resolve entity names
 'use client';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -1346,15 +1346,15 @@ interface ResolvedBreadcrumb {
   loading?: boolean;
 }
 
-// エンティティ名を解決するためのフェッチャー
+// Fetcher for resolving entity names
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 function useResolvedBreadcrumbs(): ResolvedBreadcrumb[] {
   const pathname = usePathname();
   const segments = pathname.split('/').filter(Boolean);
 
-  // 動的セグメントの解決
-  // 例: /users/123 → 123 をユーザー名に解決
+  // Resolve dynamic segments
+  // e.g.: /users/123 → resolve 123 to a username
   const resolvers: Record<string, (id: string) => string> = {
     users: '/api/users/',
     orders: '/api/orders/',
@@ -1405,11 +1405,11 @@ function useResolvedBreadcrumbs(): ResolvedBreadcrumb[] {
   });
 }
 
-// JSON-LD 構造化データ対応ブレッドクラム
+// Breadcrumbs with JSON-LD structured data
 function BreadcrumbsWithStructuredData() {
   const crumbs = useResolvedBreadcrumbs();
 
-  // JSON-LD 構造化データ
+  // JSON-LD structured data
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -1469,48 +1469,48 @@ function BreadcrumbsWithStructuredData() {
 }
 ```
 
-### 4.3 ブレッドクラムのベストプラクティス
+### 4.3 Breadcrumb Best Practices
 
 ```
-ブレッドクラム設計のベストプラクティス:
+Breadcrumb design best practices:
 
-  ✅ 階層構造を正確に反映する
-     → URLパスと一致させる
-     → 動的セグメントは実際のエンティティ名に解決する
+  ✅ Accurately reflect the hierarchical structure
+     → Match the URL path
+     → Resolve dynamic segments to actual entity names
 
-  ✅ SEO対策として構造化データを出力する
-     → JSON-LD 形式の BreadcrumbList
-     → Google 検索結果にブレッドクラムが表示される
+  ✅ Output structured data for SEO
+     → BreadcrumbList in JSON-LD format
+     → Breadcrumbs appear in Google search results
 
-  ✅ アクセシビリティ対応
-     → nav 要素に aria-label="Breadcrumb"
-     → 現在のページに aria-current="page"
-     → ol/li でマークアップ（セマンティック）
+  ✅ Accessibility support
+     → Add aria-label="Breadcrumb" to the nav element
+     → Add aria-current="page" to the current page
+     → Mark up with ol/li (semantic)
 
-  ✅ モバイルでは省略表示を検討する
-     → 中間の階層を「...」で省略
-     → 最後の2〜3項目のみ表示
-     → スクロール可能なブレッドクラム
+  ✅ Consider abbreviated display on mobile
+     → Abbreviate intermediate levels with "..."
+     → Show only the last 2-3 items
+     → Scrollable breadcrumbs
 
-  ❌ ブレッドクラムをメインナビゲーションの代替にしない
-     → あくまで補助的なナビゲーション要素
-     → サイドバーやトップナビと併用する
+  ❌ Do not use breadcrumbs as a substitute for main navigation
+     → They are purely a supplementary navigation element
+     → Use in combination with sidebar or top nav
 
-  ❌ クリック可能な最後の項目
-     → 現在のページはテキストのみ（リンクにしない）
-     → 視覚的にも非クリックであることを示す
+  ❌ The last item should not be clickable
+     → The current page should be text only (not a link)
+     → Visually indicate that it is not clickable
 ```
 
 ---
 
-## 5. タブナビゲーション
+## 5. Tab Navigation
 
-### 5.1 基本的なタブ実装
+### 5.1 Basic Tab Implementation
 
-タブナビゲーションは、関連するコンテンツを同一ページ内で切り替える場合に使用される。設定画面やユーザー詳細ページなどで広く採用されている。
+Tab navigation is used when switching between related content on the same page. It is widely used in settings pages and user detail pages.
 
 ```typescript
-// URLベースのタブナビゲーション（Next.js対応）
+// URL-based tab navigation (Next.js compatible)
 'use client';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -1531,7 +1531,7 @@ interface TabNavigationProps {
   children: ReactNode;
 }
 
-// パスベースのタブ（各タブが独立したURLを持つ）
+// Path-based tabs (each tab has its own URL)
 function PathBasedTabs({ tabs, basePath, children }: TabNavigationProps) {
   const pathname = usePathname();
 
@@ -1542,7 +1542,7 @@ function PathBasedTabs({ tabs, basePath, children }: TabNavigationProps) {
 
   return (
     <div>
-      {/* タブヘッダー */}
+      {/* Tab header */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex gap-x-6" aria-label="Tabs">
           {tabs.map((tab) => {
@@ -1589,13 +1589,13 @@ function PathBasedTabs({ tabs, basePath, children }: TabNavigationProps) {
         </nav>
       </div>
 
-      {/* タブコンテンツ */}
+      {/* Tab content */}
       <div className="mt-4">{children}</div>
     </div>
   );
 }
 
-// クエリパラメータベースのタブ
+// Query parameter-based tabs
 function QueryBasedTabs({ tabs, children }: { tabs: Tab[]; children: ReactNode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1641,7 +1641,7 @@ function QueryBasedTabs({ tabs, children }: { tabs: Tab[]; children: ReactNode }
   );
 }
 
-// 使用例: ユーザー設定ページ
+// Usage example: user settings page
 const settingsTabs: Tab[] = [
   { id: 'general', label: 'General', icon: CogIcon },
   { id: 'security', label: 'Security', icon: ShieldIcon },
@@ -1654,16 +1654,16 @@ const settingsTabs: Tab[] = [
 function SettingsPage() {
   return (
     <PathBasedTabs tabs={settingsTabs} basePath="/settings">
-      {/* 各タブのコンテンツはルーティングで切り替え */}
+      {/* Each tab's content is switched by routing */}
     </PathBasedTabs>
   );
 }
 ```
 
-### 5.2 レスポンシブタブ（モバイル対応）
+### 5.2 Responsive Tabs (Mobile Support)
 
 ```typescript
-// モバイルではドロップダウンに変換するレスポンシブタブ
+// Responsive tabs that convert to a dropdown on mobile
 function ResponsiveTabs({ tabs, activeTab, onChange }: {
   tabs: Tab[];
   activeTab: string;
@@ -1673,7 +1673,7 @@ function ResponsiveTabs({ tabs, activeTab, onChange }: {
 
   return (
     <>
-      {/* モバイル: ドロップダウン */}
+      {/* Mobile: dropdown */}
       <div className="sm:hidden">
         <label htmlFor="tab-select" className="sr-only">
           Select a tab
@@ -1693,7 +1693,7 @@ function ResponsiveTabs({ tabs, activeTab, onChange }: {
         </select>
       </div>
 
-      {/* デスクトップ: タブ */}
+      {/* Desktop: tabs */}
       <div className="hidden sm:block">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex gap-x-6" aria-label="Tabs">
@@ -1723,47 +1723,47 @@ function ResponsiveTabs({ tabs, activeTab, onChange }: {
 
 ---
 
-## 6. コマンドパレット
+## 6. Command Palette
 
-### 6.1 コマンドパレットの概要と設計思想
+### 6.1 Command Palette Overview and Design Philosophy
 
-コマンドパレットは、VS Code、Figma、Slack、Linear、Notion などのモダンアプリケーションで広く採用されているナビゲーションパターンである。`Cmd+K`（macOS）または `Ctrl+K`（Windows/Linux）のキーボードショートカットで呼び出し、テキスト入力による検索・ナビゲーション・アクション実行を可能にする。
+The command palette is a navigation pattern widely adopted in modern applications like VS Code, Figma, Slack, Linear, and Notion. Invoked with the `Cmd+K` (macOS) or `Ctrl+K` (Windows/Linux) keyboard shortcut, it enables search, navigation, and action execution via text input.
 
-パワーユーザーの生産性を大幅に向上させるが、初心者には発見しにくいため、他のナビゲーションパターンの補助として使用する。
+It significantly improves power user productivity, but is hard for beginners to discover, so use it as a supplement to other navigation patterns.
 
 ```
-コマンドパレットの設計原則:
+Command palette design principles:
 
-  1. 高速な起動と応答
-     → キーストロークから表示まで100ms以内
-     → 検索結果のフィルタリングはデバウンス付きで即座に反映
-     → 仮想スクロールで大量の結果も高速に表示
+  1. Fast launch and response
+     → Display within 100ms from keystroke
+     → Search result filtering is debounced and reflected instantly
+     → Virtual scrolling to display large numbers of results quickly
 
-  2. インクリメンタル検索
-     → 1文字入力するごとに結果を絞り込む
-     → ファジーマッチング対応（typo許容）
-     → ラベル・説明・キーワードを横断検索
+  2. Incremental search
+     → Narrows results with each character typed
+     → Fuzzy matching support (tolerates typos)
+     → Cross-searches labels, descriptions, and keywords
 
-  3. カテゴリ分類
-     → Pages / Actions / Settings / Users 等のグループ分け
-     → 最近使った項目を優先表示
-     → コンテキストに応じた提案
+  3. Category grouping
+     → Group by Pages / Actions / Settings / Users, etc.
+     → Prioritize recently used items
+     → Context-aware suggestions
 
-  4. キーボードファースト
-     → 矢印キーで項目移動、Enter で実行
-     → Escape で閉じる
-     → マウス操作も併用可能
+  4. Keyboard-first
+     → Arrow keys to move between items, Enter to execute
+     → Escape to close
+     → Mouse interaction also supported
 
-  5. 拡張性
-     → 新しいコマンドの追加が容易
-     → プラグイン的な拡張対応
-     → APIからの動的コマンド読み込み
+  5. Extensibility
+     → Easy to add new commands
+     → Plugin-style extensions supported
+     → Dynamic command loading from API
 ```
 
-### 6.2 cmdk ライブラリを使った本格実装
+### 6.2 Full Implementation Using the cmdk Library
 
 ```typescript
-// 本格的なコマンドパレット実装（cmdk + Next.js）
+// Full-featured command palette implementation (cmdk + Next.js)
 'use client';
 import { Command } from 'cmdk';
 import { useRouter } from 'next/navigation';
@@ -1785,7 +1785,7 @@ import {
   HashIcon,
 } from 'lucide-react';
 
-// コマンド項目の型定義
+// Command item type definition
 interface CommandItem {
   id: string;
   label: string;
@@ -1798,7 +1798,7 @@ interface CommandItem {
   priority?: number;
 }
 
-// 検索結果の型定義
+// Search result type definition
 interface SearchResult {
   id: string;
   title: string;
@@ -1816,14 +1816,14 @@ function CommandPalette() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Cmd+K / Ctrl+K でトグル
+  // Toggle with Cmd+K / Ctrl+K
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((prev) => !prev);
       }
-      // Escape で閉じる
+      // Close with Escape
       if (e.key === 'Escape') {
         setOpen(false);
       }
@@ -1832,17 +1832,17 @@ function CommandPalette() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // 開いた時に入力フィールドにフォーカス
+  // Focus input field when opened
   useEffect(() => {
     if (open) {
       setSearch('');
       setSearchResults([]);
-      // 少し遅延してフォーカス
+      // Focus with a short delay
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
 
-  // 最近のページを localStorage から読み込み
+  // Load recent pages from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('recent-pages');
     if (stored) {
@@ -1850,10 +1850,10 @@ function CommandPalette() {
     }
   }, []);
 
-  // ナビゲーション実行
+  // Execute navigation
   const navigate = useCallback(
     (path: string) => {
-      // 最近のページに追加
+      // Add to recent pages
       const updated = [path, ...recentPages.filter((p) => p !== path)].slice(0, 5);
       setRecentPages(updated);
       localStorage.setItem('recent-pages', JSON.stringify(updated));
@@ -1864,7 +1864,7 @@ function CommandPalette() {
     [router, recentPages]
   );
 
-  // 検索API呼び出し（デバウンス付き）
+  // Search API call (with debounce)
   useEffect(() => {
     if (search.length < 2) {
       setSearchResults([]);
@@ -1887,14 +1887,14 @@ function CommandPalette() {
     return () => clearTimeout(timeoutId);
   }, [search]);
 
-  // 静的コマンドの定義
+  // Static command definitions
   const commands: CommandItem[] = useMemo(
     () => [
-      // ナビゲーション
+      // Navigation
       {
         id: 'nav-dashboard',
         label: 'Dashboard',
-        description: 'メインダッシュボードに移動',
+        description: 'Go to main dashboard',
         icon: HomeIcon,
         shortcut: ['G', 'D'],
         category: 'navigation',
@@ -1905,11 +1905,11 @@ function CommandPalette() {
       {
         id: 'nav-users',
         label: 'Users',
-        description: 'ユーザー管理ページに移動',
+        description: 'Go to user management page',
         icon: UsersIcon,
         shortcut: ['G', 'U'],
         category: 'navigation',
-        keywords: ['members', 'people', 'ユーザー', 'メンバー'],
+        keywords: ['members', 'people', 'user', 'member'],
         onSelect: () => navigate('/users'),
         priority: 9,
       },

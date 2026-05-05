@@ -1,29 +1,29 @@
-# デプロイ先プラットフォーム完全ガイド
+# Complete Guide to Deployment Platforms
 
-> デプロイ先の選択はアプリの性能・コスト・運用に直結する。Vercel、Cloudflare、AWS、Docker、GCP、Azure、Railway、Fly.io など主要プラットフォームの特徴と選定基準を理解し、プロジェクトに最適なデプロイ戦略を選択する。
+> The choice of deployment platform directly impacts your app's performance, cost, and operations. Understand the characteristics and selection criteria of major platforms such as Vercel, Cloudflare, AWS, Docker, GCP, Azure, Railway, and Fly.io, and choose the deployment strategy best suited to your project.
 
-## 前提知識
+## Prerequisites
 
-このガイドを最大限に活用するために、以下の知識を事前に習得しておくことを推奨します。
+To get the most out of this guide, it is recommended that you have prior knowledge of the following.
 
-- **パフォーマンス最適化の概念**: バンドルサイズ、CDN、キャッシュ戦略の基礎
-- **CI/CDの基礎**: 継続的インテグレーション/デプロイメントの概念とワークフロー
+- **Performance optimization concepts**: Fundamentals of bundle size, CDN, and caching strategies
+- **CI/CD fundamentals**: Concepts and workflows for continuous integration/deployment
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] 主要なデプロイプラットフォームの比較と選定基準を理解する
-- [ ] 各プラットフォームの料金体系・制限事項・スケーリング特性を把握する
-- [ ] Docker 化とセルフホスティングのパターンを学ぶ
-- [ ] CI/CD パイプラインとの統合方法を理解する
-- [ ] マルチリージョン・エッジデプロイの設計パターンを学ぶ
-- [ ] コスト最適化とパフォーマンスチューニングの実践手法を習得する
-- [ ] 障害対応・ロールバック・ブルーグリーンデプロイなどの運用パターンを理解する
+- [ ] Understand comparisons and selection criteria for major deployment platforms
+- [ ] Learn the pricing models, limitations, and scaling characteristics of each platform
+- [ ] Learn Dockerization and self-hosting patterns
+- [ ] Understand how to integrate with CI/CD pipelines
+- [ ] Learn design patterns for multi-region and edge deployments
+- [ ] Acquire practical techniques for cost optimization and performance tuning
+- [ ] Understand operational patterns such as incident response, rollback, and blue-green deployments
 
 ---
 
-## 1. プラットフォーム総合比較
+## 1. Comprehensive Platform Comparison
 
-### 1.1 主要プラットフォーム一覧と特性マトリクス
+### 1.1 Major Platform List and Feature Matrix
 
 ```
                 Vercel     Cloudflare   AWS         GCP         Azure       Docker/VPS   Railway     Fly.io
@@ -42,7 +42,7 @@ SSL/TLS        自動        自動         ACM/手動    自動/手動   自動
 ログ/監視      基本        基本         CloudWatch  Cloud Logging App Insights 自前構築   基本        基本
 ```
 
-### 1.2 コスト比較（月間トラフィック別）
+### 1.2 Cost Comparison (by Monthly Traffic)
 
 ```
 月間100万PV想定のコスト比較:
@@ -59,7 +59,7 @@ Fly.io               $10〜$50     変動        無制限             VM課金
 VPS (Hetzner等)      $5〜$20      固定        無制限             自己管理
 ```
 
-### 1.3 選定フローチャート
+### 1.3 Selection Flowchart
 
 ```
 プロジェクト要件の確認
@@ -99,9 +99,9 @@ VPS (Hetzner等)      $5〜$20      固定        無制限             自己�
 
 ## 2. Vercel
 
-### 2.1 概要とアーキテクチャ
+### 2.1 Overview and Architecture
 
-Vercel は Next.js の開発元が提供するフロントエンド特化のクラウドプラットフォームである。Git push によるゼロコンフィグデプロイ、PR ごとのプレビュー環境自動作成、エッジネットワークによるグローバル配信を特徴とする。
+Vercel is a frontend-focused cloud platform provided by the creators of Next.js. It offers zero-config deployment via Git push, automatic preview environments per PR, and global delivery via an edge network。
 
 ```
 Vercel アーキテクチャ:
@@ -131,7 +131,7 @@ Vercel アーキテクチャ:
   └─────────────────┘
 ```
 
-### 2.2 セットアップとデプロイフロー
+### 2.2 Setup and Deploy Flow
 
 ```bash
 # Vercel CLI のインストール
@@ -149,18 +149,18 @@ vercel
 # 本番デプロイ
 vercel --prod
 
-# 環境変数の設定
+# Environment variablesの設定
 vercel env add NEXT_PUBLIC_API_URL
 vercel env add DATABASE_URL --sensitive
 
-# 環境変数の一覧表示
+# Environment variablesの一覧表示
 vercel env ls
 
-# 環境変数の削除
+# Environment variablesの削除
 vercel env rm NEXT_PUBLIC_API_URL
 ```
 
-### 2.3 vercel.json による高度な設定
+### 2.3 Advanced Configuration with vercel.json
 
 ```json
 {
@@ -324,7 +324,7 @@ export const config = {
 };
 ```
 
-### 2.5 Vercel のプラン別機能と制限
+### 2.5 Vercel Plan Features and Limits
 
 ```
 Hobby プラン（無料）:
@@ -367,7 +367,7 @@ Enterprise プラン（カスタム料金）:
   └─ カスタム SLA
 ```
 
-### 2.6 Vercel のベストプラクティス
+### 2.6 Vercel Best Practices
 
 ```typescript
 // next.config.ts - Vercel 向け最適化設定
@@ -418,7 +418,7 @@ const nextConfig: NextConfig = {
     },
   },
 
-  // ログ設定（Vercel でのデバッグ用）
+  // Log設定（Vercel でのデバッグ用）
   logging: {
     fetches: {
       fullUrl: true,
@@ -429,7 +429,7 @@ const nextConfig: NextConfig = {
 export default nextConfig;
 ```
 
-### 2.7 Vercel のアンチパターン
+### 2.7 Vercel Anti-Patterns
 
 ```
 アンチパターン 1: 大量の Serverless Functions
@@ -461,9 +461,9 @@ export default nextConfig;
 
 ## 3. Cloudflare Pages / Workers
 
-### 3.1 概要とアーキテクチャ
+### 3.1 Overview and Architecture
 
-Cloudflare は世界 300 以上のエッジロケーションを持つ CDN/エッジコンピューティングプラットフォームである。V8 Isolates ベースの Workers によりコールドスタートなしのサーバーレス実行が可能で、Pages による静的サイトホスティングと組み合わせることでフルスタックのWebアプリケーションをエッジで配信できる。
+Cloudflare is a CDN/edge computing platform with over 300 edge locations worldwide. Workers based on V8 Isolates enable near-zero cold-start serverless execution. Combined with Pages for static site hosting, it enables full-stack web application delivery at the edge。
 
 ```
 Cloudflare アーキテクチャ:
@@ -502,13 +502,13 @@ Cloudflare アーキテクチャ:
           └──────────────┘
 ```
 
-### 3.2 Cloudflare Pages のセットアップ
+### 3.2 Cloudflare Pages Setup
 
 ```bash
 # Wrangler CLI のインストール
 npm install -g wrangler
 
-# 認証
+# Authentication
 wrangler login
 
 # 新規プロジェクトの作成（フレームワーク選択）
@@ -523,11 +523,11 @@ wrangler pages project create my-project
 # ローカル開発サーバー
 wrangler pages dev ./dist --port 3000
 
-# 環境変数の設定
+# Environment variablesの設定
 wrangler pages secret put API_KEY
 ```
 
-### 3.3 Workers の実装パターン
+### 3.3 Workers Implementation Patterns
 
 ```typescript
 // src/worker.ts - 基本的な Worker
@@ -690,7 +690,7 @@ async function processMessage(
 }
 ```
 
-### 3.4 wrangler.toml 設定
+### 3.4 wrangler.toml Configuration
 
 ```toml
 # wrangler.toml
@@ -729,7 +729,7 @@ queue = "my-queue"
 max_batch_size = 10
 max_batch_timeout = 30
 
-# ルーティング
+# Routing
 pattern = "api.example.com/*"
 zone_name = "example.com"
 
@@ -744,16 +744,16 @@ tag = "v1"
 new_classes = ["UserDurableObject"]
 ```
 
-### 3.5 Cloudflare D1 によるデータベース管理
+### 3.5 Database Management with Cloudflare D1
 
 ```bash
 # D1 データベースの作成
 wrangler d1 create my-database
 
-# マイグレーションの作成
+# Migrationの作成
 wrangler d1 migrations create my-database init
 
-# マイグレーション SQL の例
+# Migration SQL の例
 # migrations/0001_init.sql
 ```
 
@@ -798,20 +798,20 @@ CREATE INDEX idx_posts_published ON posts(published);
 ```
 
 ```bash
-# マイグレーションの実行（ローカル）
+# Migrationの実行（ローカル）
 wrangler d1 migrations apply my-database --local
 
-# マイグレーションの実行（本番）
+# Migrationの実行（本番）
 wrangler d1 migrations apply my-database --remote
 
-# データベースへのクエリ実行
+# Databaseへのクエリ実行
 wrangler d1 execute my-database --command "SELECT * FROM users LIMIT 10"
 
 # SQL ファイルの実行
 wrangler d1 execute my-database --file ./seed.sql --remote
 ```
 
-### 3.6 Cloudflare のプラン別機能と制限
+### 3.6 Cloudflare Plan Features and Limits
 
 ```
 Free プラン:
@@ -860,7 +860,7 @@ Paid プラン ($5/月):
   └─ ストレージ: 無制限
 ```
 
-### 3.7 Cloudflare のベストプラクティスとアンチパターン
+### 3.7 Cloudflare Best Practices and Anti-Patterns
 
 ```
 ベストプラクティス:
@@ -881,11 +881,11 @@ Paid プラン ($5/月):
 
 ---
 
-## 4. Docker + セルフホスト
+## 4. Docker + Self-Hosting
 
-### 4.1 概要と利用シーン
+### 4.1 Overview and Use Cases
 
-Docker コンテナによるセルフホスティングは、プラットフォームロックインを回避し、インフラストラクチャの完全な制御を可能にする。VPS（Virtual Private Server）やオンプレミスサーバーに Docker をインストールし、アプリケーションをコンテナとして実行する。クラウドプロバイダへの依存を最小化できる反面、運用負荷が増大する点に注意が必要である。
+Self-hosting with Docker containers avoids platform lock-in and enables full control of infrastructure. For VPS (Virtual Private Server) and on-premises servers, install Docker and run your application as a container. While this minimizes dependency on cloud providers, it also increases operational overhead。
 
 ```
 Docker セルフホストの構成パターン:
@@ -922,7 +922,7 @@ Docker セルフホストの構成パターン:
   └─ HPA（Horizontal Pod Autoscaler）
 ```
 
-### 4.2 Next.js 本番用 Dockerfile（マルチステージビルド）
+### 4.2 Next.js Production Dockerfile (Multi-Stage Build)
 
 ```dockerfile
 # ============================================
@@ -933,10 +933,10 @@ Docker セルフホストの構成パターン:
 FROM node:20-alpine AS deps
 WORKDIR /app
 
-# セキュリティ: 不要なパッケージを入れない
+# Security: 不要なパッケージを入れない
 RUN apk add --no-cache libc6-compat
 
-# パッケージマネージャのファイルをコピー
+# Packageマネージャのファイルをコピー
 COPY package.json pnpm-lock.yaml ./
 
 # pnpm を有効化して依存関係をインストール
@@ -947,20 +947,20 @@ RUN corepack enable pnpm && \
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# 環境変数（ビルド時に必要なもの）
+# Environment variables（ビルド時に必要なもの）
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
-# 依存関係をコピー
+# Dependenciesをコピー
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # テレメトリの無効化
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# ビルド実行
+# Build実行
 RUN corepack enable pnpm && pnpm build
 
 # ── Stage 3: 本番イメージ ──
@@ -971,7 +971,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# セキュリティ: 非 root ユーザーで実行
+# Security: 非 root ユーザーで実行
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
@@ -986,11 +986,11 @@ RUN chown -R nextjs:nodejs /app
 # 非 root ユーザーに切り替え
 USER nextjs
 
-# ヘルスチェック
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# ポートの公開
+# Portの公開
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
@@ -1004,13 +1004,13 @@ CMD ["node", "server.js"]
 /** @type {import('next').NextConfig} */
 module.exports = {
   output: 'standalone',
-  // イメージサイズ削減のため不要な機能を無効化
+  // Imageサイズ削減のため不要な機能を無効化
   poweredByHeader: false,
   compress: true,
 };
 ```
 
-### 4.3 Express / Fastify API 用 Dockerfile
+### 4.3 Dockerfile for Express / Fastify API
 
 ```dockerfile
 # ============================================
@@ -1040,7 +1040,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
 
-# セキュリティ: 不要なファイルを削除
+# Security: 不要なファイルを削除
 RUN rm -rf /app/node_modules/.cache
 
 USER appuser
@@ -1053,7 +1053,7 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
 CMD ["node", "dist/server.js"]
 ```
 
-### 4.4 Docker Compose による本番構成
+### 4.4 Production Configuration with Docker Compose
 
 ```yaml
 # docker-compose.prod.yml
@@ -1180,7 +1180,7 @@ networks:
     driver: bridge
 ```
 
-### 4.5 Nginx リバースプロキシ設定
+### 4.5 Nginx Reverse Proxy Configuration
 
 ```nginx
 # nginx/conf.d/default.conf
@@ -1221,7 +1221,7 @@ server {
     ssl_session_timeout 1d;
     ssl_session_tickets off;
 
-    # セキュリティヘッダー
+    # Securityヘッダー
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
     add_header X-Frame-Options DENY always;
     add_header X-Content-Type-Options nosniff always;
@@ -1236,7 +1236,7 @@ server {
     gzip_types text/plain text/css text/xml application/json application/javascript
                application/xml+rss text/javascript image/svg+xml;
 
-    # 静的ファイルのキャッシュ
+    # Static filesのキャッシュ
     location /_next/static/ {
         proxy_pass http://app_server;
         proxy_cache_valid 200 365d;
@@ -1281,7 +1281,7 @@ server {
 }
 ```
 
-### 4.6 Docker イメージの最適化テクニック
+### 4.6 Docker Image Optimization Techniques
 
 ```
 Docker イメージサイズ最適化:
@@ -1337,7 +1337,7 @@ docker-compose*.yml
 Dockerfile*
 ```
 
-### 4.7 セルフホストのベストプラクティスとアンチパターン
+### 4.7 Self-Hosting Best Practices and Anti-Patterns
 
 ```
 ベストプラクティス:
@@ -1362,9 +1362,9 @@ Dockerfile*
 
 ---
 
-## 5. AWS デプロイパターン
+## 5. AWS Deployment Patterns
 
-### 5.1 AWS サービス選定マトリクス
+### 5.1 AWS Service Selection Matrix
 
 ```
 AWS デプロイの4つのパターン:
@@ -1385,7 +1385,7 @@ Docker必須        ×            ○              ×               ×
 最大実行時間      制限あり      無制限         15分             N/A
 ```
 
-### 5.2 AWS Amplify によるデプロイ
+### 5.2 Deployment with AWS Amplify
 
 ```bash
 # Amplify CLI のインストール
@@ -1397,7 +1397,7 @@ amplify init
 # ホスティングの追加
 amplify add hosting
 
-# デプロイ
+# Deploy
 amplify publish
 ```
 
@@ -1422,12 +1422,12 @@ frontend:
       - node_modules/**/*
       - .next/cache/**/*
 
-  # 環境変数（Amplify コンソールで設定推奨）
+  # Environment variables（Amplify コンソールで設定推奨）
   environmentVariables:
     NEXT_PUBLIC_API_URL: https://api.example.com
 ```
 
-### 5.3 AWS ECS Fargate によるコンテナデプロイ
+### 5.3 Container Deployment with AWS ECS Fargate
 
 ```json
 // task-definition.json（ECS タスク定義）
@@ -1506,7 +1506,7 @@ aws ecs create-service \
   --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx,subnet-yyy],securityGroups=[sg-zzz],assignPublicIp=ENABLED}" \
   --load-balancers "targetGroupArn=arn:aws:elasticloadbalancing:ap-northeast-1:ACCOUNT_ID:targetgroup/my-tg/xxx,containerName=nextjs-app,containerPort=3000"
 
-# サービスの更新（新しいイメージでデプロイ）
+# Serviceの更新（新しいイメージでデプロイ）
 aws ecs update-service \
   --cluster my-cluster \
   --service my-nextjs-service \
@@ -1581,7 +1581,7 @@ async function createUser(data: Record<string, unknown>) {
 }
 ```
 
-### 5.5 S3 + CloudFront による静的サイト配信
+### 5.5 Static Site Delivery with S3 + CloudFront
 
 ```bash
 # S3 バケットの作成（静的ウェブサイトホスティング用）
@@ -1603,7 +1603,7 @@ aws s3api put-bucket-policy --bucket my-static-site --policy '{
   ]
 }'
 
-# ビルド成果物のアップロード
+# Build成果物のアップロード
 aws s3 sync ./dist s3://my-static-site \
   --delete \
   --cache-control "public, max-age=31536000, immutable" \
@@ -1620,7 +1620,7 @@ aws cloudfront create-invalidation \
   --paths "/*"
 ```
 
-### 5.6 AWS デプロイの CI/CD（GitHub Actions）
+### 5.6 AWS Deployment CI/CD (GitHub Actions)
 
 ```yaml
 # .github/workflows/deploy-aws.yml
@@ -1717,9 +1717,9 @@ jobs:
 
 ## 6. GCP Cloud Run
 
-### 6.1 概要とアーキテクチャ
+### 6.1 Overview and Architecture
 
-Google Cloud Run は、コンテナイメージをサーバーレスで実行するフルマネージドサービスである。Docker コンテナをデプロイするだけで、自動スケーリング（0 インスタンスまでスケールダウン可能）、HTTPS 終端、カスタムドメイン、ロードバランシングが自動で提供される。リクエストが来たときだけコンテナが起動するため、コスト効率に優れている。
+Google Cloud Run is a fully managed service that runs container images serverlessly. Simply deploy a Docker container for automatic scaling (scaling down to 0 instances), automatic HTTPS termination, custom domains, and load balancing. Containers start only when requests arrive, making it highly cost-efficient。
 
 ```
 Cloud Run アーキテクチャ:
@@ -1748,7 +1748,7 @@ Cloud Run アーキテクチャ:
   SQL    Storage   / Datastore
 ```
 
-### 6.2 Cloud Run デプロイ手順
+### 6.2 Cloud Run Deployment Steps
 
 ```bash
 # Google Cloud SDK のインストール後
@@ -1792,7 +1792,7 @@ gcloud run services update-traffic my-app \
   --to-revisions my-app-00002-rev=10,my-app-00001-rev=90
 ```
 
-### 6.3 Cloud Run の料金体系
+### 6.3 Cloud Run Pricing
 
 ```
 Cloud Run 料金（2024年時点）:
@@ -1829,13 +1829,13 @@ CPU:
 
 ### 7.1 Railway
 
-Railway はシンプルなインフラストラクチャプラットフォームで、GitHub リポジトリから直接デプロイできる。PostgreSQL、Redis、MongoDB などのデータベースをワンクリックで追加でき、開発者体験（DX）に優れている。
+Railway is a simple infrastructure platform that deploys directly from GitHub repositories. You can add databases such as PostgreSQL, Redis, and MongoDB with one click, providing an excellent developer experience (DX).
 
 ```bash
 # Railway CLI のインストール
 npm install -g @railway/cli
 
-# ログイン
+# Logイン
 railway login
 
 # プロジェクトの初期化
@@ -1844,10 +1844,10 @@ railway init
 # ローカル開発（Railway の環境変数を使用）
 railway run npm run dev
 
-# デプロイ
+# Deploy
 railway up
 
-# 環境変数の設定
+# Environment variablesの設定
 railway variables set DATABASE_URL="postgresql://..."
 railway variables set SESSION_SECRET="..."
 
@@ -1857,10 +1857,10 @@ railway add --plugin postgresql
 # Redis の追加
 railway add --plugin redis
 
-# ログの確認
+# Logの確認
 railway logs
 
-# ドメインの設定
+# Domainの設定
 railway domain
 ```
 
@@ -1894,27 +1894,27 @@ Pro プラン（$20/月/シート）:
 
 ### 7.2 Fly.io
 
-Fly.io はアプリケーションをユーザーに近いリージョンで実行するプラットフォームである。Docker コンテナを世界中のエッジロケーションにデプロイでき、マルチリージョンデプロイが容易に実現できる。
+Fly.io is a platform that runs applications in regions close to users. You can deploy Docker containers to edge locations around the world, making multi-region deployments easy to achieve.
 
 ```bash
 # Fly CLI のインストール
 curl -L https://fly.io/install.sh | sh
 
-# ログイン
+# Logイン
 fly auth login
 
 # アプリケーションの作成
 fly launch
 
-# デプロイ
+# Deploy
 fly deploy
 
 # スケーリング
-fly scale count 3          # インスタンス数
+fly scale count 3          # Instance数
 fly scale vm shared-cpu-2x  # マシンタイプ
-fly scale memory 512        # メモリ
+fly scale memory 512        # Memory
 
-# リージョンの追加
+# Regionの追加
 fly regions add nrt  # 東京
 fly regions add sjc  # サンノゼ
 fly regions add lhr  # ロンドン
@@ -1926,13 +1926,13 @@ fly postgres create
 fly secrets set DATABASE_URL="postgresql://..."
 fly secrets set SESSION_SECRET="..."
 
-# ログの確認
+# Logの確認
 fly logs
 
 # SSH 接続
 fly ssh console
 
-# ステータス確認
+# Status確認
 fly status
 ```
 
@@ -1965,7 +1965,7 @@ primary_region = "nrt"
   cpus = 1
   memory_mb = 512
 
-# ヘルスチェック
+# Health check
   interval = 10000
   grace_period = "5s"
   method = "get"
@@ -1974,7 +1974,7 @@ primary_region = "nrt"
   timeout = 2000
   tls_skip_verify = false
 
-# ボリューム（永続ストレージ）
+# Volume（永続ストレージ）
 [mounts]
   source = "data"
   destination = "/data"
@@ -2024,9 +2024,9 @@ Render の特徴:
 
 ---
 
-## 8. デプロイ戦略とリリース管理
+## 8. Deployment Strategies and Release Management
 
-### 8.1 デプロイ戦略の比較
+### 8.1 Comparison of Deployment Strategies
 
 ```
                   ダウンタイム  リスク    ロールバック  コスト    複雑度
@@ -2038,7 +2038,7 @@ A/Bテスト         なし        低        即座          高        高
 再作成(Recreate)  あり        高        遅い          低        最低
 ```
 
-### 8.2 ブルーグリーンデプロイの実装
+### 8.2 Blue-Green Deployment Implementation
 
 ```
 ブルーグリーンデプロイの流れ:
@@ -2136,7 +2136,7 @@ jobs:
             --desired-count 0
 ```
 
-### 8.3 カナリアリリースの実装
+### 8.3 Canary Release Implementation
 
 ```typescript
 // Vercel でのカナリアリリース（Edge Middleware）
@@ -2179,11 +2179,11 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-### 8.4 ロールバック手順
+### 8.4 Rollback Procedures
 
 ```bash
 # ---- Vercel のロールバック ----
-# デプロイメント一覧を確認
+# Deployメント一覧を確認
 vercel ls
 
 # 特定のデプロイメントを本番に昇格
@@ -2211,7 +2211,7 @@ fly releases
 fly deploy --image registry.fly.io/my-app:sha-xxxxxxx
 
 # ---- Railway のロールバック ----
-# ダッシュボードから Deployments → 前のデプロイを選択 → Rollback
+# Dashboardから Deployments → 前のデプロイを選択 → Rollback
 
 # ---- Cloud Run のロールバック ----
 # リビジョン一覧
@@ -2224,9 +2224,9 @@ gcloud run services update-traffic my-app \
 
 ---
 
-## 9. トラブルシューティング
+## 9. Troubleshooting
 
-### 9.1 デプロイ失敗の一般的な原因と対策
+### 9.1 Common Causes and Remedies for Deployment Failures
 
 ```
 問題 1: ビルドエラー
@@ -2291,7 +2291,7 @@ gcloud run services update-traffic my-app \
     - 環境ごとに許可オリジンを設定
 ```
 
-### 9.2 プラットフォーム固有のトラブルシューティング
+### 9.2 Platform-Specific Troubleshooting
 
 ```
 Vercel 固有:
@@ -2323,7 +2323,7 @@ Docker セルフホスト固有:
   └─ "SSL certificate expired": certbot renew の実行確認
 ```
 
-### 9.3 ヘルスチェックエンドポイントの実装例
+### 9.3 Health Check Endpoint Implementation Example
 
 ```typescript
 // app/api/health/route.ts - 包括的なヘルスチェック
@@ -2446,9 +2446,9 @@ async function checkExternalApi(): Promise<CheckResult> {
 
 ---
 
-## 10. 監視とオブザーバビリティ
+## 10. Monitoring and Observability
 
-### 10.1 プラットフォーム別の監視ツール
+### 10.1 Monitoring Tools by Platform
 
 ```
                  組み込み監視    外部連携推奨             メトリクス
@@ -2462,7 +2462,7 @@ Fly.io           Grafana       Prometheus, Datadog      VM メトリクス
 Docker/VPS       なし          Prometheus + Grafana      全て自前
 ```
 
-### 10.2 監視すべき主要メトリクス
+### 10.2 Key Metrics to Monitor
 
 ```
 アプリケーション層:
@@ -2493,7 +2493,7 @@ Docker/VPS       なし          Prometheus + Grafana      全て自前
   └─ API 利用量
 ```
 
-### 10.3 アラート設計
+### 10.3 Alert Design
 
 ```
 アラートの優先度設計:
@@ -2529,9 +2529,9 @@ P4（週次レビュー）:
 
 ---
 
-## 11. コスト最適化
+## 11. Cost Optimization
 
-### 11.1 プラットフォーム別のコスト削減テクニック
+### 11.1 Cost Reduction Techniques by Platform
 
 ```
 Vercel:
@@ -2564,7 +2564,7 @@ Docker / VPS:
   └─ CDN（Cloudflare無料プラン）をフロントに配置
 ```
 
-### 11.2 コスト見積もりテンプレート
+### 11.2 Cost Estimation Template
 
 ```
 月間コスト見積もりシート:
@@ -2594,23 +2594,23 @@ Docker / VPS:
 
 ---
 
-## まとめ
+## Summary
 
-### プラットフォーム選定クイックリファレンス
+### Platform Selection Quick Reference
 
-| プラットフォーム | 最適な用途 | コスト | 学習コスト | スケーリング |
+| Platform | Best Use Case | Cost | Learning Curve | Scaling |
 |--------------|---------|--------|---------|----------|
-| Vercel | Next.js、フロントエンド中心 | 中 | 最低 | 自動 |
-| Cloudflare | エッジ、低コスト、グローバル配信 | 安 | 低 | 自動 |
-| AWS Amplify | AWS 環境での Git ベースデプロイ | 中 | 低 | 自動 |
-| AWS ECS | コンテナベースのフルカスタム構成 | 高 | 高 | 自動/手動 |
-| GCP Cloud Run | コンテナのサーバーレス実行 | 安〜中 | 中 | 自動 |
-| Railway | 迅速なバックエンドデプロイ | 安 | 最低 | 自動 |
-| Fly.io | マルチリージョン、エッジ寄り | 中 | 低 | 自動 |
-| Render | Heroku 代替、シンプルなデプロイ | 安〜中 | 低 | 自動 |
-| Docker + VPS | 完全制御、低コスト | 最安 | 中 | 手動 |
+| Vercel | Next.js, frontend-centric | Medium | Lowest | Automatic |
+| Cloudflare | Edge, low cost, global delivery | Low | Low | Automatic |
+| AWS Amplify | Git-based deploy in AWS environment | Medium | Low | Automatic |
+| AWS ECS | Full custom container-based setup | High | High | Auto/Manual |
+| GCP Cloud Run | Serverless container execution | Low–Medium | Medium | Automatic |
+| Railway | Rapid backend deployment | Low | Lowest | Automatic |
+| Fly.io | Multi-region, edge-oriented | Medium | Low | Automatic |
+| Render | Heroku alternative, simple deploy | Low–Medium | Low | Automatic |
+| Docker + VPS | Full control, low cost | Lowest | Medium | Manual |
 
-### プロジェクト規模別の推奨構成
+### Recommended Configurations by Project Scale
 
 ```
 個人プロジェクト / プロトタイプ:
@@ -2641,17 +2641,17 @@ Docker / VPS:
 
 ---
 
-## よくある質問（FAQ）
+## Frequently Asked Questions (FAQ)
 
-### Q1: Vercel、Netlify、Cloudflare Pagesのどれを選ぶべきですか？
+### Q1: Which should I choose between Vercel, Netlify, and Cloudflare Pages?
 
-**判断基準:**
+**Decision criteria:**
 
-- **Vercel**: Next.jsプロジェクトで最適。Server ComponentsやEdge Runtimeを完全サポート。予算が月$20以上確保できる場合におすすめ。
-- **Netlify**: 多様なSSG（Gatsby、Hugo、Eleventyなど）に強い。NetlifyのプラグインエコシステムやForms機能を使いたい場合に最適。
-- **Cloudflare Pages**: 無料枠が最も寛容でグローバルエッジネットワークが強力。コストを抑えつつ高速配信したい場合やWorkers連携が前提なら最有力候補。
+- **Vercel**: Best for Next.js projects. Full support for Server Components and Edge Runtime. Recommended when a budget of $20/month or more is available.
+- **Netlify**: Strong with diverse SSGs (Gatsby, Hugo, Eleventy, etc.). Best when you want to use Netlify's plugin ecosystem or Forms features.
+- **Cloudflare Pages**: Most generous free tier and powerful global edge network. Top candidate when you want fast delivery at low cost or when Workers integration is a given.
 
-**選定フローチャート:**
+**Selection flowchart:**
 ```
 Next.js App Router + Server Components?
   → Yes: Vercel（最適化済み）
@@ -2666,43 +2666,43 @@ Next.js App Router + Server Components?
   → No: Cloudflare Pages（コスト最優先）
 ```
 
-### Q2: Edge Runtimeの利点と制約は何ですか？
+### Q2: What are the advantages and limitations of Edge Runtime?
 
-**利点:**
+**Advantages:**
 
-- **レイテンシ削減**: ユーザーに最も近いエッジロケーションで実行され、応答時間が劇的に短縮（TTFBが50ms以下も可能）
-- **グローバルスケール**: 世界中のエッジで自動スケール、リージョンごとの設定不要
-- **コールドスタート削減**: V8 Isolateベースで起動が高速（Lambda比で10〜100倍速い）
+- **Reduced latency**: Runs at the edge location closest to the user, dramatically reducing response time (TTFB can be under 50ms)
+- **Global scale**: Automatically scales at edges worldwide, no per-region configuration needed
+- **Reduced cold starts**: V8 Isolate-based, fast startup (10–100× faster than Lambda)
 
-**制約:**
+**Limitations:**
 
-- **Node.js互換性の制限**: すべてのNode.js APIが使えない（`fs`、`child_process`など）。Web標準APIのみ。
-- **実行時間制限**: Cloudflare Workersは50ms CPU時間、Vercel Edge Functionsは25秒など短い制限
-- **パッケージサイズ**: 1MB〜4MBのバンドルサイズ制限（プラットフォームにより異なる）
-- **ステートレス必須**: ファイルシステムやメモリ永続化は不可、すべてのステートは外部KVやDBに保存
+- **Node.js compatibility limitations**: Not all Node.js APIs are available (`fs`, `child_process`, etc.). Web standard APIs only.
+- **Execution time limits**: Short limits such as 50ms CPU time for Cloudflare Workers and 25 seconds for Vercel Edge Functions
+- **Package size**: Bundle size limits of 1MB–4MB (varies by platform)
+- **Stateless required**: No filesystem or in-memory persistence; all state must be stored in external KV or DB
 
-**推奨ユースケース:**
-- APIルーティング（認証、リダイレクト、A/Bテスト）
-- HTMLの動的書き換え（ヘッダー、メタタグ、パーソナライゼーション）
-- 軽量な計算処理（バリデーション、トークン検証）
+**Recommended use cases:**
+- API routing (authentication, redirects, A/B testing)
+- Dynamic HTML rewriting (headers, meta tags, personalization)
+- Lightweight computation (validation, token verification)
 
-### Q3: セルフホスティング（VPS/Docker）とPaaS（Vercel/Railway）はどう使い分けるべきですか？
+### Q3: How should I decide between self-hosting (VPS/Docker) and PaaS (Vercel/Railway)?
 
-**PaaS（Vercel/Railway）を選ぶべきケース:**
+**When to choose PaaS (Vercel/Railway):**
 
-- スタートアップ・小規模チームで開発速度を最優先したい
-- インフラ管理の専任者がいない
-- トラフィックが変動しやすく自動スケールが必要
-- Git連携でゼロコンフィグデプロイしたい
+- Startups or small teams where development speed is the top priority
+- No dedicated infrastructure manager
+- Highly variable traffic requiring automatic scaling
+- Want zero-config deployment with Git integration
 
-**セルフホスティングを選ぶべきケース:**
+**When to choose self-hosting:**
 
-- 月間コストを$50以下に抑えたい（Hetzner VPSなら$5〜）
-- 完全なカスタマイズ性が必要（特殊なミドルウェア、カーネル設定など）
-- データ主権・コンプライアンス要件で特定リージョンへのデプロイが必須
-- 長時間バッチ処理や大容量ストレージが必要
+- Want to keep monthly cost under $50 (Hetzner VPS from $5)
+- Need full customizability (special middleware, kernel configuration, etc.)
+- Data sovereignty or compliance requirements mandate deployment in a specific region
+- Long-running batch processing or large-capacity storage is required
 
-**ハイブリッド構成の例:**
+**Hybrid configuration example:**
 ```
 フロントエンド: Vercel（Next.js）
 API・バックエンド: Railway（Node.js + PostgreSQL）
@@ -2710,16 +2710,16 @@ API・バックエンド: Railway（Node.js + PostgreSQL）
 静的アセット: Cloudflare R2（オブジェクトストレージ）
 ```
 
-この構成で各プラットフォームの強みを最大限に活かせます。
+This configuration lets you maximize the strengths of each platform.
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
 
 ---
 
-## 参考文献
+## References
 
 1. Vercel. "Documentation." vercel.com/docs, 2024.
 2. Cloudflare. "Workers Documentation." developers.cloudflare.com/workers, 2024.
