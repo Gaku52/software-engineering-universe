@@ -1,94 +1,94 @@
-# 認証ガード
+# Authentication Guards
 
-> 認証ガードはアプリケーションの入口を守る門番。ルート保護、ロールベースアクセス制御、リダイレクト、セッション管理まで、安全で使いやすい認証フローの設計と実装を習得する。
+> Authentication guards are the gatekeepers protecting the entry points of your application. Master the design and implementation of secure, user-friendly authentication flows — covering route protection, role-based access control, redirects, and session management.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] ルート保護のパターンと実装を理解する
-- [ ] ロールベースアクセス制御（RBAC）の設計を把握する
-- [ ] Next.js Middleware での認証チェックを学ぶ
-- [ ] React Router / Vue Router / Angular Router でのガード実装を理解する
-- [ ] 属性ベースアクセス制御（ABAC）の概念を学ぶ
-- [ ] セッション管理とトークンリフレッシュの戦略を理解する
-- [ ] 多要素認証（MFA）フロー統合を学ぶ
-- [ ] OAuth / OpenID Connect 連携の認証ガードを実装する
-- [ ] 認証ガードのテスト手法を習得する
-- [ ] セキュリティのベストプラクティスとアンチパターンを把握する
+- [ ] Understand route protection patterns and their implementation
+- [ ] Grasp the design of role-based access control (RBAC)
+- [ ] Learn authentication checks with Next.js Middleware
+- [ ] Understand guard implementation in React Router / Vue Router / Angular Router
+- [ ] Learn the concepts of attribute-based access control (ABAC)
+- [ ] Understand session management and token refresh strategies
+- [ ] Learn multi-factor authentication (MFA) flow integration
+- [ ] Implement authentication guards for OAuth / OpenID Connect integration
+- [ ] Master testing techniques for authentication guards
+- [ ] Understand security best practices and anti-patterns
 
 ---
 
-## 1. ルート保護のパターン
+## 1. Route Protection Patterns
 
-### 1.1 認証ガードの全体アーキテクチャ
+### 1.1 Overall Architecture of Authentication Guards
 
-認証ガードは、ユーザーがアプリケーション内のリソースにアクセスする際に、適切な認証・認可状態を確認する仕組みである。モダンな Web アプリケーションでは、複数のレイヤーで段階的にアクセス制御を行うことが推奨される。
+Authentication guards verify that users have the appropriate authentication and authorization state when accessing resources within an application. In modern web applications, it is recommended to apply access control progressively across multiple layers.
 
 ```
-認証ガードの3つのレイヤー:
+Three Layers of Authentication Guards:
 
-  ① Middleware（最前線）:
-     → リクエスト到達前にチェック
-     → 最も早い段階でリダイレクト
+  ① Middleware (Front Line):
+     → Checks before requests reach the application
+     → Redirects at the earliest possible stage
      → Next.js middleware.ts
-     → サーバーサイドで実行される
-     → ネットワークレベルでの保護
+     → Runs server-side
+     → Network-level protection
 
-  ② Layout（レイアウト層）:
-     → Server Component でセッション確認
-     → 認証が必要なエリア全体を保護
-     → 共通UIの制御（サイドバー、ナビゲーション）
-     → ページ群単位での保護
+  ② Layout (Layout Layer):
+     → Session verification in Server Components
+     → Protects entire areas requiring authentication
+     → Controls shared UI (sidebar, navigation)
+     → Protection at the page group level
 
-  ③ Page / Component（ページ層）:
-     → 個別ページでの権限チェック
-     → きめ細かいアクセス制御
-     → ボタンやメニューの表示/非表示
-     → フィーチャーフラグとの連携
+  ③ Page / Component (Page Layer):
+     → Permission checks on individual pages
+     → Fine-grained access control
+     → Show/hide buttons and menus
+     → Integration with feature flags
 
-推奨設計:
-  → Middleware: 大まかなルート保護（/app/* は認証必要）
-  → Layout: 認証エリアのレイアウト + ロール確認
-  → Component: ボタン表示/非表示等の細かい制御
+Recommended Design:
+  → Middleware: Coarse-grained route protection (/app/* requires authentication)
+  → Layout: Layout for authenticated areas + role verification
+  → Component: Fine-grained control such as show/hide buttons
 ```
 
-### 1.2 保護パターンの分類
+### 1.2 Classification of Protection Patterns
 
-認証ガードのパターンは、いくつかの軸で分類できる。
+Authentication guard patterns can be classified along several axes.
 
 ```
-【認証パターンの分類】
+[Classification of Authentication Patterns]
 
-1. リダイレクト型（最も一般的）
-   ├── 未認証 → ログインページへリダイレクト
-   ├── 認証済み → callbackUrl へリダイレクト
-   └── 権限不足 → 403ページ or ダッシュボードへ
+1. Redirect Type (Most Common)
+   ├── Unauthenticated → Redirect to login page
+   ├── Authenticated → Redirect to callbackUrl
+   └── Insufficient permissions → 403 page or dashboard
 
-2. ブロック型（API向け）
-   ├── 未認証 → 401 Unauthorized
-   ├── 権限不足 → 403 Forbidden
-   └── トークン期限切れ → 401 + WWW-Authenticate ヘッダー
+2. Block Type (For APIs)
+   ├── Unauthenticated → 401 Unauthorized
+   ├── Insufficient permissions → 403 Forbidden
+   └── Token expired → 401 + WWW-Authenticate header
 
-3. 条件付き表示型（UI向け）
-   ├── 認証状態に応じてUIを切り替え
-   ├── ロールに応じて機能を表示/非表示
-   └── グレースフルデグラデーション
+3. Conditional Display Type (For UI)
+   ├── Switch UI based on authentication state
+   ├── Show/hide features based on role
+   └── Graceful degradation
 
-4. プログレッシブ型（段階的認証）
-   ├── 基本閲覧 → 認証不要
-   ├── インタラクション → 認証必要
-   └── 高セキュリティ操作 → 再認証 + MFA
+4. Progressive Type (Stepped Authentication)
+   ├── Basic browsing → No authentication required
+   ├── Interaction → Authentication required
+   └── High-security operations → Re-authentication + MFA
 ```
 
-### 1.3 クライアントサイドガード vs サーバーサイドガード
+### 1.3 Client-Side Guards vs. Server-Side Guards
 
 ```typescript
 // ============================================
-// クライアントサイドガード（React の例）
+// Client-Side Guard (React example)
 // ============================================
 
-// ⚠️ クライアントサイドのみの保護は不十分
-// UIの表示/非表示の制御には使えるが、
-// セキュリティの最終防御線にしてはならない
+// ⚠️ Client-side-only protection is insufficient.
+// It can be used to control UI visibility,
+// but must NOT be the final line of security defense.
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -105,18 +105,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return null; // リダイレクト中
+    return null; // Redirecting
   }
 
   return <>{children}</>;
 }
 
 // ============================================
-// サーバーサイドガード（Next.js の例）
+// Server-Side Guard (Next.js example)
 // ============================================
 
-// ✅ サーバーサイドでの保護が推奨
-// APIルートやサーバーコンポーネントで認証チェック
+// ✅ Server-side protection is recommended.
+// Perform authentication checks in API routes and Server Components.
 
 // app/(protected)/layout.tsx
 import { redirect } from 'next/navigation';
@@ -137,40 +137,40 @@ export default async function ProtectedLayout({
 }
 ```
 
-### 1.4 多層防御（Defense in Depth）の原則
+### 1.4 The Principle of Defense in Depth
 
-認証ガードにおいて最も重要な原則は「多層防御」である。1つのレイヤーが突破されても、他のレイヤーが保護を提供する設計が必要だ。
+The most important principle in authentication guards is "defense in depth." The design must ensure that even if one layer is breached, other layers continue to provide protection.
 
 ```typescript
 // ============================================
-// 多層防御の実装例
+// Defense in Depth Implementation Example
 // ============================================
 
-// Layer 1: Middleware（ネットワークレベル）
+// Layer 1: Middleware (Network Level)
 // middleware.ts
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('session-token')?.value;
   if (!token && isProtectedRoute(request.nextUrl.pathname)) {
     return redirectToLogin(request);
   }
-  // トークンの基本的な検証（署名チェック等）
+  // Basic token validation (signature check, etc.)
   if (token && !isValidTokenFormat(token)) {
     return redirectToLogin(request);
   }
   return NextResponse.next();
 }
 
-// Layer 2: Server Component（アプリケーションレベル）
+// Layer 2: Server Component (Application Level)
 // app/(app)/layout.tsx
 export default async function AppLayout({ children }) {
-  const session = await getSession(); // DB問い合わせ含む完全な検証
+  const session = await getSession(); // Full validation including DB queries
   if (!session || session.isExpired) {
     redirect('/login');
   }
   return <SessionProvider session={session}>{children}</SessionProvider>;
 }
 
-// Layer 3: API Route（データアクセスレベル）
+// Layer 3: API Route (Data Access Level)
 // app/api/users/route.ts
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -184,8 +184,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(users);
 }
 
-// Layer 4: データベースレベル（RLS: Row-Level Security）
-// Supabase の例
+// Layer 4: Database Level (RLS: Row-Level Security)
+// Supabase example
 // CREATE POLICY "Users can only read their own data"
 // ON users FOR SELECT
 // USING (auth.uid() = user_id);
@@ -193,44 +193,44 @@ export async function GET(request: NextRequest) {
 
 ---
 
-## 2. Next.js Middleware による認証ガード
+## 2. Authentication Guards with Next.js Middleware
 
-### 2.1 基本的な Middleware 実装
+### 2.1 Basic Middleware Implementation
 
 ```typescript
-// middleware.ts（プロジェクトルート）
+// middleware.ts (project root)
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// 認証不要なパス
+// Paths that do not require authentication
 const publicPaths = ['/', '/login', '/register', '/about', '/pricing'];
 
-// API の公開エンドポイント
+// Public API endpoints
 const publicApiPaths = ['/api/public', '/api/health', '/api/auth'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 公開パスはスキップ
+  // Skip public paths
   if (publicPaths.some(path => pathname === path)) {
     return NextResponse.next();
   }
 
-  // 公開APIパスはスキップ
+  // Skip public API paths
   if (publicApiPaths.some(path => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
-  // 静的ファイルはスキップ
+  // Skip static files
   if (pathname.startsWith('/_next') || pathname.includes('.')) {
     return NextResponse.next();
   }
 
-  // セッショントークンの確認
+  // Check session token
   const token = request.cookies.get('session-token')?.value;
 
   if (!token) {
-    // APIリクエストの場合は401を返す
+    // Return 401 for API requests
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -238,7 +238,7 @@ export function middleware(request: NextRequest) {
       );
     }
 
-    // ページリクエストの場合はログインへリダイレクト
+    // Redirect to login for page requests
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
@@ -252,15 +252,15 @@ export const config = {
 };
 ```
 
-### 2.2 高度な Middleware パターン
+### 2.2 Advanced Middleware Patterns
 
 ```typescript
-// middleware.ts — 高度な認証ガード
+// middleware.ts — Advanced authentication guard
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-// ルート設定の型定義
+// Type definition for route configuration
 interface RouteConfig {
   pattern: RegExp;
   requireAuth: boolean;
@@ -268,25 +268,25 @@ interface RouteConfig {
   rateLimit?: { max: number; windowMs: number };
 }
 
-// ルート設定
+// Route configuration
 const routeConfigs: RouteConfig[] = [
-  // 公開ルート
+  // Public routes
   { pattern: /^\/$/, requireAuth: false },
   { pattern: /^\/(login|register|forgot-password)$/, requireAuth: false },
   { pattern: /^\/api\/public\//, requireAuth: false },
   { pattern: /^\/api\/auth\//, requireAuth: false },
   { pattern: /^\/api\/webhooks\//, requireAuth: false },
 
-  // 認証が必要なルート
+  // Routes requiring authentication
   { pattern: /^\/dashboard/, requireAuth: true },
   { pattern: /^\/settings/, requireAuth: true },
   { pattern: /^\/api\//, requireAuth: true },
 
-  // 管理者専用ルート
+  // Admin-only routes
   { pattern: /^\/admin/, requireAuth: true, requiredRoles: ['admin'] },
   { pattern: /^\/api\/admin\//, requireAuth: true, requiredRoles: ['admin'] },
 
-  // エディター以上のルート
+  // Routes for editor and above
   {
     pattern: /^\/content\/(create|edit)/,
     requireAuth: true,
@@ -294,7 +294,7 @@ const routeConfigs: RouteConfig[] = [
   },
 ];
 
-// JWT の検証
+// JWT verification
 async function verifyToken(token: string) {
   try {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
@@ -305,7 +305,7 @@ async function verifyToken(token: string) {
   }
 }
 
-// ルート設定の検索
+// Find route configuration
 function findRouteConfig(pathname: string): RouteConfig | undefined {
   return routeConfigs.find(config => config.pattern.test(pathname));
 }
@@ -313,7 +313,7 @@ function findRouteConfig(pathname: string): RouteConfig | undefined {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 静的アセットはスキップ
+  // Skip static assets
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
@@ -322,10 +322,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // ルート設定を取得
+  // Get route configuration
   const routeConfig = findRouteConfig(pathname);
 
-  // 設定が見つからない場合はデフォルトで認証を要求
+  // If no configuration found, require authentication by default
   if (!routeConfig) {
     const token = request.cookies.get('session-token')?.value;
     if (!token) {
@@ -334,9 +334,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 公開ルート
+  // Public routes
   if (!routeConfig.requireAuth) {
-    // ログイン済みユーザーがログインページにアクセスした場合
+    // If an authenticated user accesses the login page
     const token = request.cookies.get('session-token')?.value;
     if (token && (pathname === '/login' || pathname === '/register')) {
       const payload = await verifyToken(token);
@@ -347,46 +347,46 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 認証チェック
+  // Authentication check
   const token = request.cookies.get('session-token')?.value;
   if (!token) {
     return redirectToLogin(request, pathname);
   }
 
-  // トークン検証
+  // Token verification
   const payload = await verifyToken(token);
   if (!payload) {
-    // 無効なトークン → Cookie を削除してログインへ
+    // Invalid token → delete cookie and redirect to login
     const response = redirectToLogin(request, pathname);
     response.cookies.delete('session-token');
     return response;
   }
 
-  // トークンの有効期限チェック（残り5分以内なら更新）
+  // Token expiry check (refresh if less than 5 minutes remain)
   const now = Math.floor(Date.now() / 1000);
   if (payload.exp && payload.exp - now < 300) {
-    // トークンリフレッシュのヘッダーを追加
+    // Add token refresh header
     const response = NextResponse.next();
     response.headers.set('X-Token-Refresh', 'true');
     return response;
   }
 
-  // ロールベースのアクセスチェック
+  // Role-based access check
   if (routeConfig.requiredRoles && routeConfig.requiredRoles.length > 0) {
     if (!routeConfig.requiredRoles.includes(payload.role)) {
-      // APIの場合は403
+      // Return 403 for API requests
       if (pathname.startsWith('/api/')) {
         return NextResponse.json(
           { error: 'Insufficient permissions' },
           { status: 403 }
         );
       }
-      // ページの場合は403ページへ
+      // Redirect to 403 page for page requests
       return NextResponse.redirect(new URL('/403', request.url));
     }
   }
 
-  // リクエストヘッダーにユーザー情報を追加
+  // Add user information to request headers
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('X-User-Id', payload.sub);
   requestHeaders.set('X-User-Role', payload.role);
@@ -398,7 +398,7 @@ export async function middleware(request: NextRequest) {
   });
 }
 
-// ログインページへのリダイレクトヘルパー
+// Helper to redirect to the login page
 function redirectToLogin(request: NextRequest, callbackUrl: string) {
   if (request.nextUrl.pathname.startsWith('/api/')) {
     return NextResponse.json(
@@ -417,9 +417,9 @@ export const config = {
 };
 ```
 
-### 2.3 Middleware のチェーン化
+### 2.3 Chaining Middleware
 
-複数の Middleware を連結して実行するパターンは、関心の分離に有効である。
+Chaining multiple middleware functions in sequence is an effective way to separate concerns.
 
 ```typescript
 // lib/middleware/chain.ts
@@ -431,7 +431,7 @@ type MiddlewareFunction = (
   response: NextResponse
 ) => Promise<NextResponse | null>;
 
-// Middleware チェーンの構築
+// Build a middleware chain
 export function createMiddlewareChain(...middlewares: MiddlewareFunction[]) {
   return async function chainedMiddleware(request: NextRequest) {
     let response = NextResponse.next();
@@ -439,7 +439,7 @@ export function createMiddlewareChain(...middlewares: MiddlewareFunction[]) {
     for (const middleware of middlewares) {
       const result = await middleware(request, response);
       if (result) {
-        // リダイレクトや早期レスポンスの場合はチェーンを中断
+        // Break the chain for redirects or early responses
         if (result.status === 301 || result.status === 302 || result.status === 401 || result.status === 403) {
           return result;
         }
@@ -464,7 +464,7 @@ export async function authMiddleware(
     return NextResponse.redirect(loginUrl);
   }
 
-  return null; // チェーンを継続
+  return null; // Continue chain
 }
 
 // lib/middleware/rateLimit.ts
@@ -480,7 +480,7 @@ export async function rateLimitMiddleware(
 
   const ip = request.headers.get('x-forwarded-for') || 'unknown';
   const now = Date.now();
-  const windowMs = 60 * 1000; // 1分
+  const windowMs = 60 * 1000; // 1 minute
   const maxRequests = 100;
 
   const current = rateLimitMap.get(ip);
@@ -507,14 +507,14 @@ export async function loggingMiddleware(
   const start = Date.now();
   console.log(`[${new Date().toISOString()}] ${request.method} ${request.nextUrl.pathname}`);
 
-  // レスポンスヘッダーにリクエストIDを追加
+  // Add request ID to response headers
   const requestId = crypto.randomUUID();
   response.headers.set('X-Request-Id', requestId);
 
   return null;
 }
 
-// middleware.ts — チェーンの使用
+// middleware.ts — Using the chain
 import { createMiddlewareChain } from './lib/middleware/chain';
 import { authMiddleware } from './lib/middleware/auth';
 import { rateLimitMiddleware } from './lib/middleware/rateLimit';
@@ -527,17 +527,17 @@ export default createMiddlewareChain(
 );
 ```
 
-### 2.4 NextAuth.js（Auth.js）との統合
+### 2.4 Integration with NextAuth.js (Auth.js)
 
 ```typescript
-// middleware.ts — NextAuth.js v5 との統合
+// middleware.ts — Integration with NextAuth.js v5
 import { auth } from './auth';
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const isLoggedIn = !!req.auth;
 
-  // 管理者ルートの保護
+  // Protect admin routes
   if (pathname.startsWith('/admin')) {
     if (!isLoggedIn) {
       return Response.redirect(new URL('/login', req.url));
@@ -547,7 +547,7 @@ export default auth((req) => {
     }
   }
 
-  // 認証エリアの保護
+  // Protect authenticated areas
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/settings')) {
     if (!isLoggedIn) {
       const loginUrl = new URL('/login', req.url);
@@ -556,7 +556,7 @@ export default auth((req) => {
     }
   }
 
-  // ログイン済みユーザーの認証ページアクセスを防止
+  // Prevent authenticated users from accessing auth pages
   if (isLoggedIn && (pathname === '/login' || pathname === '/register')) {
     return Response.redirect(new URL('/dashboard', req.url));
   }
@@ -566,7 +566,7 @@ export const config = {
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };
 
-// auth.ts — NextAuth.js v5 の設定
+// auth.ts — NextAuth.js v5 configuration
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import GitHub from 'next-auth/providers/github';
@@ -653,19 +653,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30日
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 });
 ```
 
 ---
 
-## 3. Layout での認証ガード
+## 3. Authentication Guards in Layouts
 
-### 3.1 Server Component による認証チェック
+### 3.1 Authentication Checks with Server Components
 
 ```typescript
-// app/(app)/layout.tsx — 認証必要エリアのレイアウト
+// app/(app)/layout.tsx — Layout for authenticated areas
 import { redirect } from 'next/navigation';
 import { getSession } from '@/shared/lib/auth';
 import { SessionProvider } from '@/shared/providers/SessionProvider';
@@ -683,7 +683,7 @@ export default async function AuthenticatedLayout({
     redirect('/login');
   }
 
-  // セッションの有効期限チェック
+  // Check session expiry
   if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
     redirect('/login?reason=session_expired');
   }
@@ -703,7 +703,7 @@ export default async function AuthenticatedLayout({
   );
 }
 
-// app/(app)/admin/layout.tsx — 管理者専用エリア
+// app/(app)/admin/layout.tsx — Admin-only area
 import { redirect } from 'next/navigation';
 import { getSession } from '@/shared/lib/auth';
 
@@ -719,13 +719,13 @@ export default async function AdminLayout({
   }
 
   if (session.user.role !== 'admin') {
-    redirect('/dashboard'); // 権限不足はダッシュボードへ
+    redirect('/dashboard'); // Redirect to dashboard on insufficient permissions
   }
 
   return (
     <div className="admin-layout">
       <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-sm text-yellow-800">
-        管理者モード — 操作には十分注意してください
+        Admin Mode — Please proceed with caution
       </div>
       {children}
     </div>
@@ -733,14 +733,14 @@ export default async function AdminLayout({
 }
 ```
 
-### 3.2 ネストされたレイアウトによる段階的保護
+### 3.2 Progressive Protection with Nested Layouts
 
 ```typescript
 // ============================================
-// ネストレイアウトによる段階的認証の例
+// Example of stepped authentication with nested layouts
 // ============================================
 
-// app/(marketing)/layout.tsx — 公開エリア（認証不要）
+// app/(marketing)/layout.tsx — Public area (no authentication required)
 export default function MarketingLayout({
   children,
 }: {
@@ -755,7 +755,7 @@ export default function MarketingLayout({
   );
 }
 
-// app/(app)/layout.tsx — 認証エリア（ログイン必須）
+// app/(app)/layout.tsx — Authenticated area (login required)
 export default async function AppLayout({
   children,
 }: {
@@ -773,7 +773,7 @@ export default async function AppLayout({
   );
 }
 
-// app/(app)/settings/layout.tsx — 設定エリア（メール認証済み必須）
+// app/(app)/settings/layout.tsx — Settings area (verified email required)
 export default async function SettingsLayout({
   children,
 }: {
@@ -793,7 +793,7 @@ export default async function SettingsLayout({
   );
 }
 
-// app/(app)/settings/billing/layout.tsx — 課金設定（追加認証必須）
+// app/(app)/settings/billing/layout.tsx — Billing settings (additional auth required)
 export default async function BillingLayout({
   children,
 }: {
@@ -801,7 +801,7 @@ export default async function BillingLayout({
 }) {
   const session = await getSession();
 
-  // 課金関連は最終認証から10分以内であることを要求
+  // Billing operations require authentication within the last 10 minutes
   const lastAuthAt = session?.user.lastAuthenticatedAt;
   const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
 
@@ -813,7 +813,7 @@ export default async function BillingLayout({
 }
 ```
 
-### 3.3 SessionProvider の実装
+### 3.3 Implementing SessionProvider
 
 ```typescript
 // shared/providers/SessionProvider.tsx
@@ -829,7 +829,7 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 
-// セッション型定義
+// Session type definition
 interface Session {
   user: {
     id: string;
@@ -864,7 +864,7 @@ export function SessionProvider({
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  // セッションの自動更新（15分ごと）
+  // Auto-refresh session every 15 minutes
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -884,7 +884,7 @@ export function SessionProvider({
     return () => clearInterval(interval);
   }, [router]);
 
-  // ウィンドウフォーカス時にセッションを確認
+  // Check session on window focus
   useEffect(() => {
     const handleFocus = async () => {
       try {
@@ -905,7 +905,7 @@ export function SessionProvider({
     return () => window.removeEventListener('focus', handleFocus);
   }, [router]);
 
-  // セッション更新
+  // Update session
   const update = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -922,7 +922,7 @@ export function SessionProvider({
     }
   }, [router]);
 
-  // サインアウト
+  // Sign out
   const signOut = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -941,7 +941,7 @@ export function SessionProvider({
   );
 }
 
-// カスタムフック
+// Custom hook
 export function useSession() {
   const context = useContext(SessionContext);
   if (!context) {
@@ -950,7 +950,7 @@ export function useSession() {
   return context;
 }
 
-// 認証必須のカスタムフック
+// Custom hook requiring authentication
 export function useRequireAuth() {
   const { session, isLoading } = useSession();
   const router = useRouter();
@@ -967,26 +967,26 @@ export function useRequireAuth() {
 
 ---
 
-## 4. ロールベースアクセス制御（RBAC）
+## 4. Role-Based Access Control (RBAC)
 
-### 4.1 権限モデルの設計
+### 4.1 Designing the Permission Model
 
 ```typescript
 // ============================================
-// 包括的な RBAC 設計
+// Comprehensive RBAC Design
 // ============================================
 
-// 基本型定義
+// Basic type definitions
 type Role = 'viewer' | 'user' | 'editor' | 'moderator' | 'admin' | 'superadmin';
 
 type Resource = 'users' | 'posts' | 'comments' | 'orders' | 'products' | 'settings' | 'analytics' | 'billing';
 
 type Action = 'create' | 'read' | 'update' | 'delete' | 'publish' | 'moderate' | 'export';
 
-// Permission を文字列リテラル型で定義
+// Define Permission as a string literal type
 type Permission = `${Resource}:${Action}`;
 
-// ロールの階層定義
+// Role hierarchy definition
 const roleHierarchy: Record<Role, Role[]> = {
   viewer: [],
   user: ['viewer'],
@@ -996,7 +996,7 @@ const roleHierarchy: Record<Role, Role[]> = {
   superadmin: ['admin', 'editor', 'moderator', 'user', 'viewer'],
 };
 
-// ロールごとの直接権限（継承分は含まない）
+// Direct permissions per role (excluding inherited permissions)
 const directPermissions: Record<Role, Permission[]> = {
   viewer: [
     'posts:read',
@@ -1041,7 +1041,7 @@ const directPermissions: Record<Role, Permission[]> = {
   ],
 };
 
-// 全権限の取得（継承を含む）
+// Get all permissions (including inherited)
 function getAllPermissions(role: Role): Permission[] {
   const direct = directPermissions[role] || [];
   const inherited = roleHierarchy[role]
@@ -1050,35 +1050,35 @@ function getAllPermissions(role: Role): Permission[] {
   return [...new Set([...direct, ...inherited])];
 }
 
-// 権限チェック
+// Permission check
 function hasPermission(role: Role, permission: Permission): boolean {
   return getAllPermissions(role).includes(permission);
 }
 
-// 複数権限のチェック（AND条件）
+// Check multiple permissions (AND condition)
 function hasAllPermissions(role: Role, permissions: Permission[]): boolean {
   const userPermissions = getAllPermissions(role);
   return permissions.every(p => userPermissions.includes(p));
 }
 
-// 複数権限のチェック（OR条件）
+// Check multiple permissions (OR condition)
 function hasAnyPermission(role: Role, permissions: Permission[]): boolean {
   const userPermissions = getAllPermissions(role);
   return permissions.some(p => userPermissions.includes(p));
 }
 
-// 使用例
+// Usage examples
 console.log(hasPermission('editor', 'posts:publish'));  // true
 console.log(hasPermission('editor', 'users:delete'));   // false
-console.log(hasPermission('admin', 'posts:publish'));   // true（editor から継承）
+console.log(hasPermission('admin', 'posts:publish'));   // true (inherited from editor)
 console.log(hasAllPermissions('admin', ['users:create', 'users:delete'])); // true
 ```
 
-### 4.2 React コンポーネントでの RBAC 実装
+### 4.2 RBAC Implementation in React Components
 
 ```typescript
 // ============================================
-// 権限チェックコンポーネント
+// Permission Check Components
 // ============================================
 
 // components/auth/RequirePermission.tsx
@@ -1088,10 +1088,10 @@ import { useSession } from '@/shared/providers/SessionProvider';
 
 interface RequirePermissionProps {
   permission: Permission | Permission[];
-  mode?: 'all' | 'any'; // all: AND条件, any: OR条件
+  mode?: 'all' | 'any'; // all: AND condition, any: OR condition
   children: React.ReactNode;
   fallback?: React.ReactNode;
-  showDisabled?: boolean; // true の場合、非活性で表示
+  showDisabled?: boolean; // If true, render as disabled instead of hiding
 }
 
 export function RequirePermission({
@@ -1141,10 +1141,10 @@ export function RequireRole({
   const roles = Array.isArray(role) ? role : [role];
   const userRole = session.user.role as Role;
 
-  // ロール階層を考慮したチェック
+  // Check with role hierarchy in mind
   const hasRole = roles.some(r => {
     if (r === userRole) return true;
-    // ユーザーのロールが、要求されたロールを継承しているか
+    // Check if the user's role inherits the required role
     return roleHierarchy[userRole]?.includes(r) ?? false;
   });
 
@@ -1154,7 +1154,7 @@ export function RequireRole({
 }
 
 // ============================================
-// 使用例
+// Usage examples
 // ============================================
 
 function UserManagementPage() {
@@ -1162,24 +1162,24 @@ function UserManagementPage() {
 
   return (
     <div>
-      <h1>ユーザー管理</h1>
+      <h1>User Management</h1>
 
-      {/* 管理者のみ新規ユーザー作成ボタンを表示 */}
+      {/* Show the create user button only for admins */}
       <RequirePermission permission="users:create">
         <Button onClick={handleCreateUser}>
-          新規ユーザー作成
+          Create New User
         </Button>
       </RequirePermission>
 
-      {/* ユーザー一覧（閲覧権限が必要） */}
+      {/* User list (requires read permission) */}
       <RequirePermission
         permission="users:read"
-        fallback={<Alert>ユーザー一覧を閲覧する権限がありません</Alert>}
+        fallback={<Alert>You do not have permission to view the user list</Alert>}
       >
         <UserTable>
           {users.map(user => (
             <UserRow key={user.id} user={user}>
-              {/* 編集ボタン：権限なしの場合は非活性で表示 */}
+              {/* Edit button: render as disabled if no permission */}
               <RequirePermission
                 permission="users:update"
                 showDisabled
@@ -1187,23 +1187,24 @@ function UserManagementPage() {
                 <EditButton userId={user.id} />
               </RequirePermission>
 
-              {/* 削除ボタン：権限なしの場合はツールチップ付きで表示 */}
+              {/* Delete button: render with tooltip if no permission */}
               <RequirePermission
                 permission="users:delete"
                 fallback={
-                  <Tooltip content="削除権限がありません">
+                  <Tooltip content="You do not have delete permission">
                     <DeleteButton disabled userId={user.id} />
                   </Tooltip>
                 }
               >
                 <DeleteButton userId={user.id} />
               </RequirePermission>
+
             </UserRow>
           ))}
         </UserTable>
       </RequirePermission>
 
-      {/* 複数権限の組み合わせ */}
+      {/* Combining multiple permissions */}
       <RequirePermission
         permission={['analytics:read', 'analytics:export']}
         mode="all"
@@ -1215,11 +1216,11 @@ function UserManagementPage() {
 }
 ```
 
-### 4.3 サーバーサイドでの RBAC 実装
+### 4.3 Server-Side RBAC Implementation
 
 ```typescript
 // ============================================
-// API ルートでの権限チェック
+// Permission Checks in API Routes
 // ============================================
 
 // lib/auth/withPermission.ts
@@ -1231,7 +1232,7 @@ type ApiHandler = (
   context: { params: Record<string, string>; session: Session }
 ) => Promise<NextResponse>;
 
-// 権限チェックの Higher-Order Function
+// Higher-Order Function for permission checks
 export function withPermission(
   permission: Permission | Permission[],
   handler: ApiHandler,
@@ -1272,7 +1273,7 @@ export function withPermission(
   };
 }
 
-// 使用例: API ルート
+// Usage: API route
 // app/api/users/route.ts
 import { withPermission } from '@/lib/auth/withPermission';
 
@@ -1293,7 +1294,7 @@ export const GET = withPermission('users:read', async (request, { session }) => 
 export const POST = withPermission('users:create', async (request, { session }) => {
   const body = await request.json();
 
-  // 監査ログ
+  // Audit log
   await auditLog({
     action: 'users:create',
     actorId: session.user.id,
@@ -1330,41 +1331,41 @@ export const DELETE = withPermission(
 
 ---
 
-## 5. 属性ベースアクセス制御（ABAC）
+## 5. Attribute-Based Access Control (ABAC)
 
-### 5.1 ABAC の概念と RBAC との違い
+### 5.1 ABAC Concepts and Differences from RBAC
 
-RBAC はロール（役割）に基づいてアクセスを制御するのに対し、ABAC は属性（Attribute）に基づいてより柔軟なアクセス制御を実現する。ユーザーの属性、リソースの属性、環境条件を組み合わせてポリシーを定義できる。
+While RBAC controls access based on roles, ABAC achieves more flexible access control based on attributes. Policies can be defined by combining user attributes, resource attributes, and environmental conditions.
 
 ```
-【RBAC vs ABAC 比較】
+[RBAC vs. ABAC Comparison]
 
 RBAC:
-  判定基準 = ユーザーのロール
-  例: 「admin ロールはユーザーを削除できる」
-  長所: シンプル、理解しやすい
-  短所: 複雑な条件に対応しづらい
+  Basis = User role
+  Example: "Admin role can delete users"
+  Pros: Simple, easy to understand
+  Cons: Hard to handle complex conditions
 
 ABAC:
-  判定基準 = ユーザー属性 + リソース属性 + 環境条件
-  例: 「部門マネージャーは自部門のユーザーのみ編集できる、
-       ただし営業時間内に限る」
-  長所: 非常に柔軟、きめ細かい制御
-  短所: 複雑になりがち、デバッグが難しい
+  Basis = User attributes + Resource attributes + Environmental conditions
+  Example: "Department managers can only edit users in their own department,
+            but only during business hours"
+  Pros: Very flexible, fine-grained control
+  Cons: Can become complex, hard to debug
 
-ハイブリッド（推奨）:
-  RBAC で大まかな制御 + ABAC で細かい条件を追加
-  例: 「editor ロール」 AND 「リソースの所有者」 AND 「公開前」
+Hybrid (Recommended):
+  Coarse-grained control with RBAC + fine-grained conditions added with ABAC
+  Example: "editor role" AND "resource owner" AND "before publication"
 ```
 
-### 5.2 ABAC の実装
+### 5.2 Implementing ABAC
 
 ```typescript
 // ============================================
-// ABAC（属性ベースアクセス制御）の実装
+// ABAC (Attribute-Based Access Control) Implementation
 // ============================================
 
-// 属性の型定義
+// Attribute type definitions
 interface UserAttributes {
   id: string;
   role: Role;
@@ -1390,7 +1391,7 @@ interface EnvironmentAttributes {
   deviceType: 'desktop' | 'mobile' | 'tablet';
 }
 
-// ポリシーの型定義
+// Policy type definition
 interface Policy {
   name: string;
   description: string;
@@ -1403,7 +1404,7 @@ interface Policy {
   ) => boolean;
 }
 
-// ポリシーエンジン
+// Policy engine
 class PolicyEngine {
   private policies: Policy[] = [];
 
@@ -1432,7 +1433,7 @@ class PolicyEngine {
       }
     }
 
-    // Deny は常に Allow より優先（Deny-Override）
+    // Deny always takes priority over Allow (Deny-Override)
     return {
       allowed: hasExplicitAllow && !hasExplicitDeny,
       matchedPolicies,
@@ -1440,23 +1441,23 @@ class PolicyEngine {
   }
 }
 
-// ポリシーの定義例
+// Example policy definitions
 const policyEngine = new PolicyEngine();
 
-// ポリシー1: 所有者は自分のリソースを編集できる
+// Policy 1: Owners can edit their own resources
 policyEngine.addPolicy({
   name: 'owner-can-edit',
-  description: '所有者は自分のリソースを編集できる',
+  description: 'Owners can edit their own resources',
   effect: 'allow',
   condition: (user, resource, env, action) => {
     return action === 'update' && resource.ownerId === user.id;
   },
 });
 
-// ポリシー2: 同じ部門のマネージャーは閲覧できる
+// Policy 2: Managers in the same department can view resources
 policyEngine.addPolicy({
   name: 'department-manager-read',
-  description: '同じ部門のマネージャーは閲覧できる',
+  description: 'Managers in the same department can view resources',
   effect: 'allow',
   condition: (user, resource, env, action) => {
     return (
@@ -1467,10 +1468,10 @@ policyEngine.addPolicy({
   },
 });
 
-// ポリシー3: 機密データは営業時間内かつVPN接続時のみアクセス可能
+// Policy 3: Confidential data is only accessible during business hours and with VPN
 policyEngine.addPolicy({
   name: 'confidential-business-hours-vpn',
-  description: '機密データは営業時間内かつVPN接続時のみ',
+  description: 'Confidential data is only accessible during business hours and with VPN',
   effect: 'deny',
   condition: (user, resource, env, action) => {
     return (
@@ -1480,20 +1481,20 @@ policyEngine.addPolicy({
   },
 });
 
-// ポリシー4: アーカイブされたリソースは削除不可
+// Policy 4: Archived resources cannot be deleted
 policyEngine.addPolicy({
   name: 'no-delete-archived',
-  description: 'アーカイブ済みリソースは削除不可',
+  description: 'Archived resources cannot be deleted',
   effect: 'deny',
   condition: (user, resource, env, action) => {
     return action === 'delete' && resource.status === 'archived';
   },
 });
 
-// ポリシー5: クリアランスレベルに基づくアクセス制御
+// Policy 5: Access control based on clearance level
 policyEngine.addPolicy({
   name: 'clearance-level-access',
-  description: 'クリアランスレベルに基づくアクセス',
+  description: 'Access based on clearance level',
   effect: 'allow',
   condition: (user, resource, env, action) => {
     const sensitivityLevels = {
@@ -1506,7 +1507,7 @@ policyEngine.addPolicy({
   },
 });
 
-// 使用例
+// Usage example
 const result = policyEngine.evaluate(
   {
     id: 'user-1',
@@ -1537,11 +1538,11 @@ console.log(result);
 // { allowed: true, matchedPolicies: ['owner-can-edit', 'clearance-level-access'] }
 ```
 
-### 5.3 RBAC と ABAC のハイブリッド実装
+### 5.3 Hybrid RBAC and ABAC Implementation
 
 ```typescript
 // ============================================
-// ハイブリッドアクセス制御
+// Hybrid Access Control
 // ============================================
 
 interface AccessDecision {
@@ -1551,12 +1552,12 @@ interface AccessDecision {
 }
 
 class HybridAccessControl {
-  // Step 1: RBAC でベースライン権限をチェック
+  // Step 1: Check baseline permissions with RBAC
   private checkRBAC(role: Role, permission: Permission): boolean {
     return hasPermission(role, permission);
   }
 
-  // Step 2: ABAC で追加条件をチェック
+  // Step 2: Check additional conditions with ABAC
   private checkABAC(
     user: UserAttributes,
     resource: ResourceAttributes,
@@ -1566,7 +1567,7 @@ class HybridAccessControl {
     return policyEngine.evaluate(user, resource, environment, action);
   }
 
-  // 統合された権限チェック
+  // Integrated permission check
   authorize(
     user: UserAttributes,
     resource: ResourceAttributes,
@@ -1574,7 +1575,7 @@ class HybridAccessControl {
     permission: Permission,
     action: string
   ): AccessDecision {
-    // Step 1: RBAC チェック
+    // Step 1: RBAC check
     if (!this.checkRBAC(user.role, permission)) {
       return {
         allowed: false,
@@ -1582,7 +1583,7 @@ class HybridAccessControl {
       };
     }
 
-    // Step 2: ABAC チェック
+    // Step 2: ABAC check
     const abacResult = this.checkABAC(user, resource, environment, action);
     if (!abacResult.allowed) {
       return {
@@ -1591,7 +1592,7 @@ class HybridAccessControl {
       };
     }
 
-    // Step 3: アクティブユーザーチェック
+    // Step 3: Active user check
     if (!user.isActive) {
       return {
         allowed: false,
@@ -1606,7 +1607,7 @@ class HybridAccessControl {
   }
 }
 
-// API ルートでの使用
+// Usage in API routes
 const accessControl = new HybridAccessControl();
 
 export async function PUT(request: NextRequest) {
@@ -1639,7 +1640,7 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  // 更新処理...
+  // Update processing...
   const updated = await updateResource(body);
   return NextResponse.json({ data: updated });
 }
@@ -1647,13 +1648,13 @@ export async function PUT(request: NextRequest) {
 
 ---
 
-## 6. 認証フロー
+## 6. Authentication Flows
 
-### 6.1 ログイン / ログアウトフロー
+### 6.1 Login / Logout Flow
 
 ```typescript
 // ============================================
-// ログインフロー — Server Actions
+// Login Flow — Server Actions
 // ============================================
 
 // app/login/page.tsx
@@ -1668,10 +1669,10 @@ export default function LoginPage({
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold">ログイン</h2>
+          <h2 className="text-3xl font-bold">Sign In</h2>
           {searchParams.reason === 'session_expired' && (
             <p className="mt-2 text-sm text-amber-600">
-              セッションが期限切れです。再度ログインしてください。
+              Your session has expired. Please sign in again.
             </p>
           )}
           {searchParams.error && (
@@ -1703,7 +1704,7 @@ function SubmitButton() {
                  rounded-md shadow-sm text-sm font-medium text-white bg-blue-600
                  hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {pending ? 'ログイン中...' : 'ログイン'}
+      {pending ? 'Signing in...' : 'Sign In'}
     </button>
   );
 }
@@ -1719,7 +1720,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
       <div className="space-y-4">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            メールアドレス
+            Email Address
           </label>
           <input
             id="email"
@@ -1734,7 +1735,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
 
         <div>
           <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-            パスワード
+            Password
           </label>
           <div className="relative">
             <input
@@ -1751,7 +1752,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
               onClick={() => setShowPassword(!showPassword)}
               className="absolute inset-y-0 right-0 pr-3 flex items-center"
             >
-              {showPassword ? '非表示' : '表示'}
+              {showPassword ? 'Hide' : 'Show'}
             </button>
           </div>
         </div>
@@ -1767,10 +1768,10 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
 
       <div className="flex items-center justify-between text-sm">
         <a href="/forgot-password" className="text-blue-600 hover:text-blue-500">
-          パスワードを忘れた場合
+          Forgot your password?
         </a>
         <a href="/register" className="text-blue-600 hover:text-blue-500">
-          新規登録
+          Create an account
         </a>
       </div>
     </form>
@@ -1788,8 +1789,8 @@ import { SignJWT } from 'jose';
 import { prisma } from '@/lib/prisma';
 
 const loginSchema = z.object({
-  email: z.string().email('有効なメールアドレスを入力してください'),
-  password: z.string().min(8, 'パスワードは8文字以上必要です'),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
   callbackUrl: z.string().optional(),
 });
 
@@ -1797,7 +1798,7 @@ export async function login(
   prevState: { error: string | null },
   formData: FormData
 ) {
-  // バリデーション
+  // Validation
   const parsed = loginSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
@@ -1810,21 +1811,21 @@ export async function login(
 
   const { email, password, callbackUrl } = parsed.data;
 
-  // ユーザー検索
+  // User lookup
   const user = await prisma.user.findUnique({
     where: { email },
   });
 
   if (!user || !user.hashedPassword) {
-    // タイミング攻撃対策: 存在しないユーザーでも同程度の処理時間にする
+    // Timing attack mitigation: apply the same processing time even for non-existent users
     await bcrypt.hash('dummy-password', 12);
-    return { error: 'メールアドレスまたはパスワードが正しくありません' };
+    return { error: 'Invalid email address or password' };
   }
 
-  // パスワード検証
+  // Password verification
   const isValid = await bcrypt.compare(password, user.hashedPassword);
   if (!isValid) {
-    // ログイン失敗回数を記録
+    // Record failed login attempts
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -1833,24 +1834,24 @@ export async function login(
       },
     });
 
-    // アカウントロック判定
+    // Account lock determination
     if (user.failedLoginAttempts >= 4) {
       await prisma.user.update({
         where: { id: user.id },
         data: { lockedUntil: new Date(Date.now() + 15 * 60 * 1000) },
       });
-      return { error: 'アカウントがロックされました。15分後に再試行してください。' };
+      return { error: 'Your account has been locked. Please try again in 15 minutes.' };
     }
 
-    return { error: 'メールアドレスまたはパスワードが正しくありません' };
+    return { error: 'Invalid email address or password' };
   }
 
-  // アカウントロックチェック
+  // Account lock check
   if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
-    return { error: 'アカウントがロックされています。しばらく待ってから再試行してください。' };
+    return { error: 'Your account is locked. Please wait a moment and try again.' };
   }
 
-  // ログイン成功: 失敗回数リセット
+  // Login successful: reset failed attempts
   await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -1861,7 +1862,7 @@ export async function login(
     },
   });
 
-  // JWT トークン生成
+  // Generate JWT token
   const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
   const token = await new SignJWT({
     sub: user.id,
@@ -1873,22 +1874,22 @@ export async function login(
     .setExpirationTime('7d')
     .sign(secret);
 
-  // セッション Cookie 設定
+  // Set session cookie
   const cookieStore = await cookies();
   cookieStore.set('session-token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60, // 7日
+    maxAge: 7 * 24 * 60 * 60, // 7 days
     path: '/',
   });
 
-  // 監査ログ
+  // Audit log
   await prisma.auditLog.create({
     data: {
       userId: user.id,
       action: 'login',
-      ipAddress: '', // Request から取得
+      ipAddress: '', // Retrieve from Request
       userAgent: '',
     },
   });
@@ -1896,13 +1897,13 @@ export async function login(
   redirect(callbackUrl || '/dashboard');
 }
 
-// ログアウト
+// Logout
 export async function logout() {
   const cookieStore = await cookies();
   const token = cookieStore.get('session-token')?.value;
 
   if (token) {
-    // トークンをブラックリストに追加（オプション）
+    // Add token to blacklist (optional)
     await prisma.revokedToken.create({
       data: {
         token,
@@ -1916,11 +1917,11 @@ export async function logout() {
 }
 ```
 
-### 6.2 セッション管理
+### 6.2 Session Management
 
 ```typescript
 // ============================================
-// セッション管理ユーティリティ
+// Session Management Utilities
 // ============================================
 
 // lib/auth/session.ts
@@ -1946,7 +1947,7 @@ export interface Session {
   issuedAt: string;
 }
 
-// セッション取得
+// Get session
 export async function getSession(): Promise<Session | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get('session-token')?.value;
@@ -1954,16 +1955,16 @@ export async function getSession(): Promise<Session | null> {
   if (!token) return null;
 
   try {
-    // JWT 検証
+    // JWT verification
     const { payload } = await jwtVerify(token, JWT_SECRET);
 
-    // ブラックリストチェック（オプション）
+    // Blacklist check (optional)
     const isRevoked = await prisma.revokedToken.findFirst({
       where: { token },
     });
     if (isRevoked) return null;
 
-    // ユーザー情報を DB から取得（最新の状態を反映）
+    // Retrieve user information from DB (to reflect the latest state)
     const user = await prisma.user.findUnique({
       where: { id: payload.sub as string },
       select: {
@@ -1996,12 +1997,12 @@ export async function getSession(): Promise<Session | null> {
   }
 }
 
-// セッション更新（スライディングウィンドウ）
+// Refresh session (sliding window)
 export async function refreshSession(): Promise<Session | null> {
   const session = await getSession();
   if (!session) return null;
 
-  // 新しいトークンを発行
+  // Issue a new token
   const token = await new SignJWT({
     sub: session.user.id,
     role: session.user.role,
@@ -2024,13 +2025,13 @@ export async function refreshSession(): Promise<Session | null> {
   return getSession();
 }
 
-// セッション削除
+// Delete session
 export async function deleteSession(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete('session-token');
 }
 
-// API Route: セッション確認
+// API Route: Session verification
 // app/api/auth/session/route.ts
 export async function GET() {
   const session = await getSession();
@@ -2053,14 +2054,14 @@ export async function POST() {
 }
 ```
 
-### 6.3 トークンリフレッシュ戦略
+### 6.3 Token Refresh Strategies
 
 ```typescript
 // ============================================
-// トークンリフレッシュの実装パターン
+// Token Refresh Implementation Patterns
 // ============================================
 
-// パターン1: Axios インターセプターによる自動リフレッシュ
+// Pattern 1: Automatic refresh via Axios interceptors
 import axios from 'axios';
 
 const api = axios.create({
@@ -2068,7 +2069,7 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// リフレッシュ中の複数リクエストを管理
+// Manage multiple requests during a refresh
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (value: unknown) => void;
@@ -2088,7 +2089,7 @@ const processQueue = (error: unknown = null) => {
 
 api.interceptors.response.use(
   (response) => {
-    // X-Token-Refresh ヘッダーがある場合、バックグラウンドでリフレッシュ
+    // Refresh in background if X-Token-Refresh header is present
     if (response.headers['x-token-refresh'] === 'true') {
       refreshToken().catch(console.error);
     }
@@ -2099,7 +2100,7 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
-        // リフレッシュ中の場合はキューに追加
+        // Add to queue while refresh is in progress
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then(() => api(originalRequest));
@@ -2114,7 +2115,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        // ログインページへリダイレクト
+        // Redirect to login page
         window.location.href = '/login?reason=session_expired';
         return Promise.reject(refreshError);
       } finally {
@@ -2133,7 +2134,7 @@ async function refreshToken(): Promise<void> {
   }
 }
 
-// パターン2: fetch のラッパー
+// Pattern 2: Fetch wrapper
 export async function fetchWithAuth(
   url: string,
   options: RequestInit = {}
@@ -2144,20 +2145,20 @@ export async function fetchWithAuth(
   });
 
   if (response.status === 401) {
-    // トークンリフレッシュを試行
+    // Attempt token refresh
     const refreshResponse = await fetch('/api/auth/session', {
       method: 'POST',
       credentials: 'include',
     });
 
     if (refreshResponse.ok) {
-      // リフレッシュ成功: 元のリクエストを再実行
+      // Refresh succeeded: retry the original request
       response = await fetch(url, {
         ...options,
         credentials: 'include',
       });
     } else {
-      // リフレッシュ失敗: ログインへリダイレクト
+      // Refresh failed: redirect to login
       window.location.href = '/login?reason=session_expired';
     }
   }
@@ -2168,13 +2169,13 @@ export async function fetchWithAuth(
 
 ---
 
-## 7. 他フレームワークでの認証ガード
+## 7. Authentication Guards in Other Frameworks
 
-### 7.1 React Router v6 での認証ガード
+### 7.1 Authentication Guards with React Router v6
 
 ```typescript
 // ============================================
-// React Router v6 認証ガード
+// React Router v6 Authentication Guards
 // ============================================
 
 // auth/AuthContext.tsx
@@ -2194,7 +2195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 初回ロード時にセッション確認
+  // Check session on initial load
   useEffect(() => {
     checkSession().finally(() => setIsLoading(false));
   }, []);
@@ -2289,7 +2290,7 @@ export function ProtectedRoute({
     );
   }
 
-  // ロールチェック
+  // Role check
   if (requiredRole) {
     const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
     if (!roles.includes(user!.role as Role)) {
@@ -2297,7 +2298,7 @@ export function ProtectedRoute({
     }
   }
 
-  // 権限チェック
+  // Permission check
   if (requiredPermission) {
     const permissions = Array.isArray(requiredPermission)
       ? requiredPermission
@@ -2313,7 +2314,7 @@ export function ProtectedRoute({
   return <>{children}</>;
 }
 
-// ルート定義
+// Route definitions
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 const router = createBrowserRouter([
@@ -2321,12 +2322,12 @@ const router = createBrowserRouter([
     path: '/',
     element: <RootLayout />,
     children: [
-      // 公開ルート
+      // Public routes
       { index: true, element: <HomePage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
 
-      // 認証が必要なルート
+      // Routes requiring authentication
       {
         path: 'dashboard',
         element: (
@@ -2356,7 +2357,7 @@ const router = createBrowserRouter([
         ],
       },
 
-      // 管理者ルート
+      // Admin routes
       {
         path: 'admin/*',
         element: (
@@ -2370,7 +2371,7 @@ const router = createBrowserRouter([
         ],
       },
 
-      // エラーページ
+      // Error pages
       { path: '403', element: <ForbiddenPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
@@ -2386,18 +2387,18 @@ function App() {
 }
 ```
 
-### 7.2 Vue Router でのナビゲーションガード
+### 7.2 Navigation Guards with Vue Router
 
 ```typescript
 // ============================================
-// Vue Router ナビゲーションガード
+// Vue Router Navigation Guards
 // ============================================
 
 // router/index.ts
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
-// ルートメタ型の拡張
+// Extend route meta types
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean;
@@ -2408,7 +2409,7 @@ declare module 'vue-router' {
 }
 
 const routes: RouteRecordRaw[] = [
-  // 公開ルート
+  // Public routes
   {
     path: '/',
     component: () => import('@/layouts/PublicLayout.vue'),
@@ -2418,12 +2419,12 @@ const routes: RouteRecordRaw[] = [
         path: 'login',
         name: 'login',
         component: () => import('@/pages/Login.vue'),
-        meta: { title: 'ログイン' },
+        meta: { title: 'Login' },
       },
     ],
   },
 
-  // 認証が必要なルート
+  // Routes requiring authentication
   {
     path: '/app',
     component: () => import('@/layouts/AppLayout.vue'),
@@ -2433,18 +2434,18 @@ const routes: RouteRecordRaw[] = [
         path: 'dashboard',
         name: 'dashboard',
         component: () => import('@/pages/Dashboard.vue'),
-        meta: { title: 'ダッシュボード' },
+        meta: { title: 'Dashboard' },
       },
       {
         path: 'settings',
         name: 'settings',
         component: () => import('@/pages/Settings.vue'),
-        meta: { title: '設定' },
+        meta: { title: 'Settings' },
       },
     ],
   },
 
-  // 管理者ルート
+  // Admin routes
   {
     path: '/admin',
     component: () => import('@/layouts/AdminLayout.vue'),
@@ -2454,12 +2455,12 @@ const routes: RouteRecordRaw[] = [
         path: 'users',
         name: 'admin-users',
         component: () => import('@/pages/admin/Users.vue'),
-        meta: { title: 'ユーザー管理', requiredPermissions: ['users:read'] },
+        meta: { title: 'User Management', requiredPermissions: ['users:read'] },
       },
     ],
   },
 
-  // 403 ページ
+  // 403 page
   {
     path: '/403',
     name: 'forbidden',
@@ -2472,27 +2473,27 @@ const router = createRouter({
   routes,
 });
 
-// グローバルナビゲーションガード
+// Global navigation guard
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
 
-  // ページタイトルの更新
+  // Update page title
   document.title = to.meta.title
     ? `${to.meta.title} | MyApp`
     : 'MyApp';
 
-  // 認証が不要なルート
+  // Routes that do not require authentication
   if (!to.meta.requiresAuth) {
-    // ログイン済みユーザーがログインページにアクセス
+    // Authenticated user accessing the login page
     if (to.name === 'login' && authStore.isAuthenticated) {
       return next({ name: 'dashboard' });
     }
     return next();
   }
 
-  // 未認証の場合
+  // If not authenticated
   if (!authStore.isAuthenticated) {
-    // セッション確認を試行
+    // Attempt session check
     await authStore.checkSession();
 
     if (!authStore.isAuthenticated) {
@@ -2503,7 +2504,7 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // ロールチェック
+  // Role check
   if (to.meta.requiredRoles?.length) {
     const hasRole = to.meta.requiredRoles.includes(authStore.user!.role);
     if (!hasRole) {
@@ -2511,7 +2512,7 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // 権限チェック
+  // Permission check
   if (to.meta.requiredPermissions?.length) {
     const hasAllPermissions = to.meta.requiredPermissions.every(p =>
       authStore.hasPermission(p)
@@ -2524,9 +2525,9 @@ router.beforeEach(async (to, from, next) => {
   next();
 });
 
-// ナビゲーション後のフック
+// Post-navigation hook
 router.afterEach((to, from) => {
-  // アナリティクスの送信
+  // Send analytics
   if (typeof window !== 'undefined' && window.gtag) {
     window.gtag('event', 'page_view', {
       page_path: to.fullPath,
@@ -2537,20 +2538,20 @@ router.afterEach((to, from) => {
 export default router;
 ```
 
-### 7.3 Angular Router のガード
+### 7.3 Angular Router Guards
 
 ```typescript
 // ============================================
-// Angular Router ガード
+// Angular Router Guards
 // ============================================
 
-// auth.guard.ts — Functional Guard（Angular 15+）
+// auth.guard.ts — Functional Guard (Angular 15+)
 import { inject } from '@angular/core';
 import { Router, CanActivateFn, CanMatchFn } from '@angular/router';
 import { AuthService } from './auth.service';
 import { map, tap } from 'rxjs/operators';
 
-// canActivate ガード
+// canActivate guard
 export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
@@ -2566,7 +2567,7 @@ export const authGuard: CanActivateFn = (route, state) => {
   );
 };
 
-// ロールベースのガード
+// Role-based guard
 export const roleGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
@@ -2587,7 +2588,7 @@ export const roleGuard: CanActivateFn = (route, state) => {
   );
 };
 
-// 権限ベースのガード
+// Permission-based guard
 export const permissionGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
@@ -2608,7 +2609,7 @@ export const permissionGuard: CanActivateFn = (route, state) => {
   );
 };
 
-// ルート定義
+// Route definitions
 // app.routes.ts
 import { Routes } from '@angular/router';
 import { authGuard, roleGuard, permissionGuard } from './auth/auth.guard';
@@ -2639,98 +2640,98 @@ export const routes: Routes = [
 
 ---
 
-## 8. 認証ガードの比較表
+## 8. Authentication Guard Comparison Tables
 
-### 8.1 フレームワーク別比較
+### 8.1 Comparison by Framework
 
-| 機能 | Next.js | React Router | Vue Router | Angular |
-|------|---------|-------------|------------|---------|
-| ガードの実装場所 | middleware.ts + Layout | ProtectedRoute コンポーネント | beforeEach フック | canActivate ガード |
-| サーバーサイド対応 | Middleware + Server Component | SSR 時は別途対応 | SSR 時は別途対応 | SSR 時は別途対応 |
-| ロールベース | カスタム実装 | カスタム実装 | ルートメタ + ガード | ルートデータ + ガード |
-| リダイレクト | redirect() / NextResponse.redirect | Navigate コンポーネント | next({ name: 'login' }) | router.navigate() |
-| 遅延ロード保護 | Dynamic import + 認証チェック | React.lazy + ProtectedRoute | 動的インポート + ガード | loadChildren + canMatch |
-| TypeScript 対応 | ネイティブ | ネイティブ | RouteMeta 拡張 | ネイティブ |
+| Feature | Next.js | React Router | Vue Router | Angular |
+|---------|---------|-------------|------------|---------|
+| Guard location | middleware.ts + Layout | ProtectedRoute component | beforeEach hook | canActivate guard |
+| Server-side support | Middleware + Server Component | Requires separate handling for SSR | Requires separate handling for SSR | Requires separate handling for SSR |
+| Role-based | Custom implementation | Custom implementation | Route meta + guard | Route data + guard |
+| Redirect | redirect() / NextResponse.redirect | Navigate component | next({ name: 'login' }) | router.navigate() |
+| Lazy load protection | Dynamic import + auth check | React.lazy + ProtectedRoute | Dynamic import + guard | loadChildren + canMatch |
+| TypeScript support | Native | Native | RouteMeta extension | Native |
 
-### 8.2 認証方式の比較
+### 8.2 Comparison of Authentication Methods
 
-| 方式 | セキュリティ | UX | 実装の複雑さ | 適用場面 |
-|------|------------|-----|------------|---------|
-| Session Cookie | 高 | 良好 | 低 | 一般的な Web アプリ |
-| JWT (Cookie) | 高 | 良好 | 中 | API との統合 |
-| JWT (localStorage) | 低（XSS 脆弱） | 良好 | 低 | 非推奨 |
-| OAuth 2.0 | 高 | 良好 | 高 | ソーシャルログイン |
-| Session + JWT ハイブリッド | 最高 | 良好 | 高 | エンタープライズ |
-| パスキー / WebAuthn | 最高 | 優秀 | 高 | 次世代認証 |
+| Method | Security | UX | Implementation Complexity | Use Case |
+|--------|----------|----|--------------------------|----------|
+| Session Cookie | High | Good | Low | General web apps |
+| JWT (Cookie) | High | Good | Medium | API integration |
+| JWT (localStorage) | Low (XSS vulnerable) | Good | Low | Not recommended |
+| OAuth 2.0 | High | Good | High | Social login |
+| Session + JWT Hybrid | Highest | Good | High | Enterprise |
+| Passkey / WebAuthn | Highest | Excellent | High | Next-gen authentication |
 
-### 8.3 トークン保存場所の比較
+### 8.3 Comparison of Token Storage Locations
 
-| 保存場所 | XSS 耐性 | CSRF 耐性 | サーバーサイドアクセス | 備考 |
-|---------|----------|-----------|-------------------|------|
-| HttpOnly Cookie | 高（JS からアクセス不可） | 要対策（SameSite） | 可 | 推奨 |
-| localStorage | 低（XSS で盗取可能） | 高（自動送信なし） | 不可 | 非推奨 |
-| sessionStorage | 低（XSS で盗取可能） | 高（自動送信なし） | 不可 | タブ限定 |
-| メモリ（変数） | 中（リロードで消失） | 高 | 不可 | SPA 向け |
-| IndexedDB | 低（XSS で盗取可能） | 高 | 不可 | 大容量データ用 |
+| Storage | XSS Resistance | CSRF Resistance | Server-side Access | Notes |
+|---------|---------------|-----------------|-------------------|-------|
+| HttpOnly Cookie | High (inaccessible from JS) | Requires mitigation (SameSite) | Yes | Recommended |
+| localStorage | Low (can be stolen via XSS) | High (not auto-sent) | No | Not recommended |
+| sessionStorage | Low (can be stolen via XSS) | High (not auto-sent) | No | Tab-scoped only |
+| Memory (variable) | Medium (lost on reload) | High | No | For SPAs |
+| IndexedDB | Low (can be stolen via XSS) | High | No | For large data |
 
 ---
 
-## 9. 多要素認証（MFA）フローの統合
+## 9. Multi-Factor Authentication (MFA) Flow Integration
 
-### 9.1 MFA の概要と認証ガードへの組み込み
+### 9.1 MFA Overview and Integration with Authentication Guards
 
-多要素認証（Multi-Factor Authentication）は、「知識」「所持」「生体」の複数の認証要素を組み合わせることで、セキュリティを大幅に強化する仕組みである。認証ガードに MFA を統合するには、通常のログインフローに加えて、追加の認証ステップを設ける必要がある。
+Multi-Factor Authentication (MFA) significantly enhances security by combining multiple authentication factors: "knowledge," "possession," and "biometrics." To integrate MFA with authentication guards, an additional authentication step must be added to the standard login flow.
 
 ```
-【MFA の認証要素】
+[MFA Authentication Factors]
 
-1. 知識要素（Something you know）
-   ├── パスワード
-   ├── PIN コード
-   └── セキュリティの質問
+1. Knowledge Factor (Something you know)
+   ├── Password
+   ├── PIN code
+   └── Security questions
 
-2. 所持要素（Something you have）
-   ├── TOTP（Google Authenticator 等）
-   ├── SMS / メール OTP
-   ├── ハードウェアキー（YubiKey 等）
-   └── プッシュ通知
+2. Possession Factor (Something you have)
+   ├── TOTP (Google Authenticator, etc.)
+   ├── SMS / Email OTP
+   ├── Hardware key (YubiKey, etc.)
+   └── Push notification
 
-3. 生体要素（Something you are）
-   ├── 指紋認証
-   ├── 顔認証
-   └── 虹彩認証
+3. Biometric Factor (Something you are)
+   ├── Fingerprint authentication
+   ├── Face recognition
+   └── Iris recognition
 
-【MFA ログインフロー】
+[MFA Login Flow]
 
-  1. ユーザーが email + password でログイン
-  2. パスワード検証成功
-  3. MFA が有効かチェック
-     ├── MFA 無効 → セッション作成 → ダッシュボードへ
-     └── MFA 有効 → 一時トークン発行 → MFA 検証ページへ
-  4. MFA コード入力
-  5. MFA コード検証
-     ├── 成功 → セッション作成（MFA 認証済みフラグ付き）
-     └── 失敗 → エラー表示（リトライ回数制限あり）
+  1. User logs in with email + password
+  2. Password verification succeeds
+  3. Check if MFA is enabled
+     ├── MFA disabled → Create session → Go to dashboard
+     └── MFA enabled → Issue temporary token → Go to MFA verification page
+  4. User enters MFA code
+  5. MFA code verified
+     ├── Success → Create session (with MFA-verified flag)
+     └── Failure → Show error (with retry limit)
 ```
 
-### 9.2 TOTP ベースの MFA 実装
+### 9.2 TOTP-Based MFA Implementation
 
 ```typescript
 // ============================================
-// TOTP（Time-based One-Time Password）MFA 実装
+// TOTP (Time-based One-Time Password) MFA Implementation
 // ============================================
 
 // lib/auth/totp.ts
 import { createHmac, randomBytes } from 'crypto';
 import { encode as base32Encode, decode as base32Decode } from 'hi-base32';
 
-// TOTP シークレット生成
+// Generate TOTP secret
 export function generateTOTPSecret(): string {
   const buffer = randomBytes(20);
   return base32Encode(buffer).replace(/=/g, '');
 }
 
-// TOTP コード生成
+// Generate TOTP code
 export function generateTOTPCode(secret: string, timeStep = 30): string {
   const time = Math.floor(Date.now() / 1000 / timeStep);
   const timeBuffer = Buffer.alloc(8);
@@ -2752,7 +2753,7 @@ export function generateTOTPCode(secret: string, timeStep = 30): string {
   return code.toString().padStart(6, '0');
 }
 
-// TOTP コード検証（前後のタイムウィンドウも許容）
+// Verify TOTP code (also allows adjacent time windows)
 export function verifyTOTPCode(
   secret: string,
   code: string,
@@ -2784,7 +2785,7 @@ export function verifyTOTPCode(
   return false;
 }
 
-// QR コード用 URI 生成
+// Generate URI for QR code
 export function generateTOTPUri(
   secret: string,
   email: string,
@@ -2794,7 +2795,7 @@ export function generateTOTPUri(
 }
 
 // ============================================
-// MFA セットアップ API
+// MFA Setup API
 // ============================================
 
 // app/api/auth/mfa/setup/route.ts
@@ -2807,7 +2808,7 @@ export async function POST(request: NextRequest) {
   const secret = generateTOTPSecret();
   const uri = generateTOTPUri(secret, session.user.email, 'MyApp');
 
-  // 一時的にシークレットを保存（まだ有効化しない）
+  // Save secret temporarily (not activated yet)
   await prisma.user.update({
     where: { id: session.user.id },
     data: { pendingMFASecret: secret },
@@ -2835,7 +2836,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // コード検証
+  // Code verification
   const isValid = verifyTOTPCode(user.pendingMFASecret, code);
   if (!isValid) {
     return NextResponse.json(
@@ -2844,12 +2845,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // バックアップコード生成
+  // Generate backup codes
   const backupCodes = Array.from({ length: 10 }, () =>
     randomBytes(4).toString('hex')
   );
 
-  // MFA を有効化
+  // Activate MFA
   await prisma.user.update({
     where: { id: session.user.id },
     data: {
@@ -2864,25 +2865,25 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    backupCodes, // これは一度だけ表示する
+    backupCodes, // Displayed only once
   });
 }
 ```
 
-### 9.3 MFA 認証ガードの実装
+### 9.3 Implementing an MFA Authentication Guard
 
 ```typescript
 // ============================================
-// MFA 対応の認証ガード
+// MFA-Aware Authentication Guard
 // ============================================
 
-// middleware.ts での MFA チェック
+// MFA check in middleware.ts
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('session-token')?.value;
   const mfaToken = request.cookies.get('mfa-verified')?.value;
 
-  // 認証チェック（通常のフロー）
+  // Authentication check (standard flow)
   if (!token && isProtectedRoute(pathname)) {
     return redirectToLogin(request, pathname);
   }
@@ -2893,10 +2894,10 @@ export async function middleware(request: NextRequest) {
       return redirectToLogin(request, pathname);
     }
 
-    // MFA チェック
-    // MFA が有効なユーザーで、MFA 検証が完了していない場合
+    // MFA check
+    // For users with MFA enabled who have not completed MFA verification
     if (payload.mfaEnabled && !mfaToken && pathname !== '/auth/mfa') {
-      // MFA 検証ページ以外へのアクセスは MFA ページへリダイレクト
+      // Redirect to MFA page for any access other than the MFA verification page
       return NextResponse.redirect(new URL('/auth/mfa', request.url));
     }
   }
@@ -2904,7 +2905,7 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// app/auth/mfa/page.tsx — MFA 検証ページ
+// app/auth/mfa/page.tsx — MFA Verification Page
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -2917,31 +2918,31 @@ export default function MFAVerificationPage() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
 
-  // 最初の入力にフォーカス
+  // Focus the first input on mount
   useEffect(() => {
     inputRefs.current[0]?.focus();
   }, []);
 
   const handleChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return; // 数字のみ
+    if (!/^\d*$/.test(value)) return; // Numbers only
 
     const newCode = [...code];
     newCode[index] = value;
     setCode(newCode);
 
-    // 次の入力に自動フォーカス
+    // Auto-focus next input
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
 
-    // 6桁入力完了で自動送信
+    // Auto-submit when all 6 digits are entered
     if (newCode.every(c => c !== '') && index === 5) {
       handleSubmit(newCode.join(''));
     }
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    // Backspace で前の入力に戻る
+    // Move to previous input on Backspace
     if (e.key === 'Backspace' && !code[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -2978,12 +2979,12 @@ export default function MFAVerificationPage() {
         router.push('/dashboard');
       } else {
         const data = await response.json();
-        setError(data.error || '認証コードが正しくありません');
+        setError(data.error || 'The verification code is incorrect');
         setCode(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
       }
     } catch {
-      setError('認証に失敗しました。もう一度お試しください。');
+      setError('Authentication failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -2993,9 +2994,9 @@ export default function MFAVerificationPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-6 p-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold">二段階認証</h2>
+          <h2 className="text-2xl font-bold">Two-Factor Authentication</h2>
           <p className="mt-2 text-gray-600">
-            認証アプリに表示されている6桁のコードを入力してください
+            Enter the 6-digit code shown in your authenticator app
           </p>
         </div>
 
@@ -3028,9 +3029,9 @@ export default function MFAVerificationPage() {
           <button
             type="button"
             className="text-sm text-blue-600 hover:text-blue-500"
-            onClick={() => {/* バックアップコード入力モードに切り替え */}}
+            onClick={() => {/* Switch to backup code entry mode */}}
           >
-            バックアップコードを使用
+            Use a backup code
           </button>
         </div>
       </div>
@@ -3039,26 +3040,26 @@ export default function MFAVerificationPage() {
 }
 ```
 
-### 9.4 段階的認証（Step-up Authentication）
+### 9.4 Step-Up Authentication
 
-高セキュリティ操作時に追加認証を要求するパターンである。
+This pattern requires additional authentication for high-security operations.
 
 ```typescript
 // ============================================
-// 段階的認証の実装
+// Step-Up Authentication Implementation
 // ============================================
 
 // lib/auth/stepUpAuth.ts
 
-// 認証レベルの定義
+// Authentication level definitions
 enum AuthLevel {
-  BASIC = 1,       // パスワードのみ
-  MFA = 2,         // パスワード + MFA
-  RECENT_MFA = 3,  // 直近の MFA（5分以内）
-  BIOMETRIC = 4,   // 生体認証
+  BASIC = 1,       // Password only
+  MFA = 2,         // Password + MFA
+  RECENT_MFA = 3,  // Recent MFA (within 5 minutes)
+  BIOMETRIC = 4,   // Biometric authentication
 }
 
-// 操作ごとの必要認証レベル
+// Required authentication level per operation
 const operationAuthLevels: Record<string, AuthLevel> = {
   'view:dashboard': AuthLevel.BASIC,
   'edit:profile': AuthLevel.BASIC,
@@ -3072,7 +3073,7 @@ const operationAuthLevels: Record<string, AuthLevel> = {
   'export:all-data': AuthLevel.RECENT_MFA,
 };
 
-// 現在の認証レベルを取得
+// Get current authentication level
 function getCurrentAuthLevel(session: Session): AuthLevel {
   if (!session) return 0;
 
@@ -3093,7 +3094,7 @@ function getCurrentAuthLevel(session: Session): AuthLevel {
   return AuthLevel.BASIC;
 }
 
-// 認証レベルチェック
+// Check authentication level
 export function requireAuthLevel(
   session: Session,
   operation: string
@@ -3137,22 +3138,22 @@ export function useStepUpAuth() {
   return { requireAuth, isReauthModalOpen, setIsReauthModalOpen, onReauthSuccess };
 }
 
-// 使用例
+// Usage example
 function BillingPage() {
   const { requireAuth, isReauthModalOpen, setIsReauthModalOpen, onReauthSuccess } = useStepUpAuth();
 
   const handleUpdateBilling = () => {
     requireAuth('update:billing', () => {
-      // 課金情報更新の処理
+      // Process billing information update
       updateBillingInfo();
     });
   };
 
   return (
     <div>
-      <h1>課金設定</h1>
+      <h1>Billing Settings</h1>
       <Button onClick={handleUpdateBilling}>
-        課金情報を更新
+        Update Billing Information
       </Button>
 
       <ReauthModal
@@ -3167,43 +3168,43 @@ function BillingPage() {
 
 ---
 
-## 10. OAuth / OpenID Connect 連携の認証ガード
+## 10. Authentication Guards with OAuth / OpenID Connect Integration
 
-### 10.1 OAuth 2.0 フロー概要
+### 10.1 OAuth 2.0 Flow Overview
 
 ```
-【OAuth 2.0 Authorization Code Flow】
+[OAuth 2.0 Authorization Code Flow]
 
-  1. ユーザーが「Google でログイン」をクリック
-  2. アプリが Google の認可エンドポイントにリダイレクト
+  1. User clicks "Sign in with Google"
+  2. App redirects to Google's authorization endpoint
      URL: https://accounts.google.com/o/oauth2/v2/auth
-     パラメータ:
-       - client_id: アプリのクライアント ID
-       - redirect_uri: コールバック URL
+     Parameters:
+       - client_id: App's client ID
+       - redirect_uri: Callback URL
        - response_type: code
        - scope: openid email profile
-       - state: CSRF 対策のランダム文字列
-       - code_challenge: PKCE のチャレンジ
-  3. ユーザーが Google で認証・承認
-  4. Google がコールバック URL にリダイレクト（認可コード付き）
-  5. アプリがバックエンドで認可コードをトークンに交換
+       - state: Random string for CSRF protection
+       - code_challenge: PKCE challenge
+  3. User authenticates and authorizes in Google
+  4. Google redirects to callback URL (with authorization code)
+  5. App exchanges authorization code for tokens on the backend
      POST https://oauth2.googleapis.com/token
-  6. アクセストークン + ID トークンを取得
-  7. ID トークンからユーザー情報を取得
-  8. セッション作成、ダッシュボードへリダイレクト
+  6. Obtain access token + ID token
+  7. Retrieve user information from ID token
+  8. Create session, redirect to dashboard
 
-【セキュリティ上の重要ポイント】
-  - state パラメータで CSRF 攻撃を防止
-  - PKCE（Proof Key for Code Exchange）で認可コード傍受を防止
-  - トークン交換はバックエンドで実施（クライアントシークレットを保護）
-  - nonce パラメータでリプレイ攻撃を防止
+[Key Security Points]
+  - Prevent CSRF attacks with the state parameter
+  - Prevent authorization code interception with PKCE (Proof Key for Code Exchange)
+  - Perform token exchange on the backend (protect client secret)
+  - Prevent replay attacks with the nonce parameter
 ```
 
-### 10.2 OAuth コールバックハンドラー
+### 10.2 OAuth Callback Handler
 
 ```typescript
 // ============================================
-// OAuth コールバック処理
+// OAuth Callback Processing
 // ============================================
 
 // app/api/auth/callback/[provider]/route.ts
@@ -3239,7 +3240,7 @@ export async function GET(
   const state = searchParams.get('state');
   const error = searchParams.get('error');
 
-  // エラーチェック
+  // Error check
   if (error) {
     return NextResponse.redirect(
       new URL(`/login?error=${encodeURIComponent(error)}`, request.url)
@@ -3252,7 +3253,7 @@ export async function GET(
     );
   }
 
-  // State 検証（CSRF 対策）
+  // State verification (CSRF protection)
   const cookieStore = await cookies();
   const storedState = cookieStore.get('oauth-state')?.value;
   if (state !== storedState) {
@@ -3262,12 +3263,12 @@ export async function GET(
   }
   cookieStore.delete('oauth-state');
 
-  // PKCE verifier 取得
+  // Retrieve PKCE verifier
   const codeVerifier = cookieStore.get('oauth-code-verifier')?.value;
   cookieStore.delete('oauth-code-verifier');
 
   try {
-    // トークン交換
+    // Token exchange
     const tokenResponse = await fetch(provider.tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -3287,13 +3288,13 @@ export async function GET(
       throw new Error('Token exchange failed');
     }
 
-    // ユーザー情報取得
+    // Retrieve user information
     const userInfoResponse = await fetch(provider.userInfoUrl, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
     const userInfo = await userInfoResponse.json();
 
-    // ユーザーの作成 or 更新
+    // Create or update user
     const user = await prisma.user.upsert({
       where: {
         email: userInfo.email,
@@ -3323,7 +3324,7 @@ export async function GET(
       },
     });
 
-    // セッション作成
+    // Create session
     const sessionToken = await createSessionToken(user);
     cookieStore.set('session-token', sessionToken, {
       httpOnly: true,
@@ -3333,7 +3334,7 @@ export async function GET(
       path: '/',
     });
 
-    // callbackUrl にリダイレクト
+    // Redirect to callbackUrl
     const callbackUrl = cookieStore.get('oauth-callback-url')?.value || '/dashboard';
     cookieStore.delete('oauth-callback-url');
 
@@ -3349,13 +3350,13 @@ export async function GET(
 
 ---
 
-## 11. 認証ガードのテスト
+## 11. Testing Authentication Guards
 
-### 11.1 ユニットテスト
+### 11.1 Unit Tests
 
 ```typescript
 // ============================================
-// 認証ガードのユニットテスト
+// Unit Tests for Authentication Guards
 // ============================================
 
 // __tests__/auth/permissions.test.ts
@@ -3369,23 +3370,23 @@ import {
 
 describe('RBAC Permission System', () => {
   describe('hasPermission', () => {
-    it('viewer は投稿を閲覧できる', () => {
+    it('viewer can read posts', () => {
       expect(hasPermission('viewer', 'posts:read')).toBe(true);
     });
 
-    it('viewer はユーザーを削除できない', () => {
+    it('viewer cannot delete users', () => {
       expect(hasPermission('viewer', 'users:delete')).toBe(false);
     });
 
-    it('admin は editor の権限を継承する', () => {
+    it('admin inherits editor permissions', () => {
       expect(hasPermission('admin', 'posts:publish')).toBe(true);
     });
 
-    it('editor は admin の権限を持たない', () => {
+    it('editor does not have admin permissions', () => {
       expect(hasPermission('editor', 'users:delete')).toBe(false);
     });
 
-    it('superadmin は全権限を持つ', () => {
+    it('superadmin has all permissions', () => {
       expect(hasPermission('superadmin', 'billing:update')).toBe(true);
       expect(hasPermission('superadmin', 'users:delete')).toBe(true);
       expect(hasPermission('superadmin', 'posts:publish')).toBe(true);
@@ -3393,13 +3394,13 @@ describe('RBAC Permission System', () => {
   });
 
   describe('hasAllPermissions', () => {
-    it('admin は users:create と users:delete の両方を持つ', () => {
+    it('admin has both users:create and users:delete', () => {
       expect(
         hasAllPermissions('admin', ['users:create', 'users:delete'])
       ).toBe(true);
     });
 
-    it('editor は users:create を持たない', () => {
+    it('editor does not have users:create', () => {
       expect(
         hasAllPermissions('editor', ['posts:publish', 'users:create'])
       ).toBe(false);
@@ -3407,13 +3408,13 @@ describe('RBAC Permission System', () => {
   });
 
   describe('hasAnyPermission', () => {
-    it('editor は posts:publish または users:create のいずれかを持つ', () => {
+    it('editor has either posts:publish or users:create', () => {
       expect(
         hasAnyPermission('editor', ['posts:publish', 'users:create'])
       ).toBe(true);
     });
 
-    it('viewer は posts:create も users:create も持たない', () => {
+    it('viewer has neither posts:create nor users:create', () => {
       expect(
         hasAnyPermission('viewer', ['posts:create', 'users:create'])
       ).toBe(false);
@@ -3421,20 +3422,20 @@ describe('RBAC Permission System', () => {
   });
 
   describe('getAllPermissions', () => {
-    it('ロール階層に基づいて全権限を取得する', () => {
+    it('retrieves all permissions based on role hierarchy', () => {
       const adminPerms = getAllPermissions('admin');
-      // admin 直接の権限
+      // Direct admin permissions
       expect(adminPerms).toContain('users:create');
       expect(adminPerms).toContain('users:delete');
-      // editor から継承
+      // Inherited from editor
       expect(adminPerms).toContain('posts:publish');
-      // viewer から継承
+      // Inherited from viewer
       expect(adminPerms).toContain('posts:read');
-      // superadmin の権限は含まない
+      // Does not include superadmin permissions
       expect(adminPerms).not.toContain('billing:update');
     });
 
-    it('重複なく権限を返す', () => {
+    it('returns permissions without duplicates', () => {
       const perms = getAllPermissions('admin');
       const unique = [...new Set(perms)];
       expect(perms.length).toBe(unique.length);
@@ -3446,7 +3447,7 @@ describe('RBAC Permission System', () => {
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getSession, refreshSession } from '@/lib/auth/session';
 
-// モック設定
+// Mock setup
 vi.mock('next/headers', () => ({
   cookies: vi.fn(() => ({
     get: vi.fn(),
@@ -3470,7 +3471,7 @@ describe('Session Management', () => {
     vi.clearAllMocks();
   });
 
-  it('有効なトークンがない場合は null を返す', async () => {
+  it('returns null when no valid token is present', async () => {
     const { cookies } = await import('next/headers');
     (cookies as any).mockReturnValue({
       get: () => null,
@@ -3480,7 +3481,7 @@ describe('Session Management', () => {
     expect(session).toBeNull();
   });
 
-  it('無効なトークンの場合は null を返す', async () => {
+  it('returns null for an invalid token', async () => {
     const { cookies } = await import('next/headers');
     (cookies as any).mockReturnValue({
       get: () => ({ value: 'invalid-token' }),
@@ -3495,19 +3496,19 @@ describe('Session Management', () => {
 });
 ```
 
-### 11.2 統合テスト（E2E）
+### 11.2 Integration Tests (E2E)
 
 ```typescript
 // ============================================
-// Playwright E2E テスト
+// Playwright E2E Tests
 // ============================================
 
 // e2e/auth/login.spec.ts
 import { test, expect } from '@playwright/test';
 
-test.describe('認証フロー', () => {
+test.describe('Authentication Flow', () => {
   test.beforeEach(async ({ page }) => {
-    // テストユーザーのシードデータを投入
+    // Seed test user data
     await page.request.post('/api/test/seed', {
       data: {
         users: [
@@ -3518,107 +3519,107 @@ test.describe('認証フロー', () => {
     });
   });
 
-  test('未認証ユーザーはダッシュボードにアクセスできない', async ({ page }) => {
+  test('unauthenticated users cannot access the dashboard', async ({ page }) => {
     await page.goto('/dashboard');
-    // ログインページにリダイレクトされる
+    // Should be redirected to login page
     await expect(page).toHaveURL(/\/login/);
-    // callbackUrl が設定されている
+    // callbackUrl should be set
     expect(page.url()).toContain('callbackUrl=%2Fdashboard');
   });
 
-  test('正しい認証情報でログインできる', async ({ page }) => {
+  test('can log in with correct credentials', async ({ page }) => {
     await page.goto('/login');
 
     await page.fill('input[name="email"]', 'user@test.com');
     await page.fill('input[name="password"]', 'password123');
     await page.click('button[type="submit"]');
 
-    // ダッシュボードにリダイレクトされる
+    // Should be redirected to dashboard
     await expect(page).toHaveURL('/dashboard');
-    // ユーザー名が表示される
+    // User name should be visible
     await expect(page.locator('[data-testid="user-name"]')).toBeVisible();
   });
 
-  test('間違った認証情報でエラーが表示される', async ({ page }) => {
+  test('shows an error with incorrect credentials', async ({ page }) => {
     await page.goto('/login');
 
     await page.fill('input[name="email"]', 'user@test.com');
     await page.fill('input[name="password"]', 'wrongpassword');
     await page.click('button[type="submit"]');
 
-    // エラーメッセージが表示される
+    // Error message should be displayed
     await expect(
-      page.locator('text=メールアドレスまたはパスワードが正しくありません')
+      page.locator('text=Invalid email address or password')
     ).toBeVisible();
-    // ログインページに留まる
+    // Should remain on login page
     await expect(page).toHaveURL(/\/login/);
   });
 
-  test('一般ユーザーは管理者ページにアクセスできない', async ({ page }) => {
-    // ログイン
+  test('regular users cannot access admin pages', async ({ page }) => {
+    // Log in
     await page.goto('/login');
     await page.fill('input[name="email"]', 'user@test.com');
     await page.fill('input[name="password"]', 'password123');
     await page.click('button[type="submit"]');
     await expect(page).toHaveURL('/dashboard');
 
-    // 管理者ページにアクセス
+    // Access admin page
     await page.goto('/admin');
-    // 403 ページまたはダッシュボードにリダイレクト
+    // Should be redirected to 403 page or dashboard
     await expect(page).toHaveURL(/\/(403|dashboard)/);
   });
 
-  test('管理者は管理者ページにアクセスできる', async ({ page }) => {
-    // 管理者でログイン
+  test('admins can access admin pages', async ({ page }) => {
+    // Log in as admin
     await page.goto('/login');
     await page.fill('input[name="email"]', 'admin@test.com');
     await page.fill('input[name="password"]', 'admin123');
     await page.click('button[type="submit"]');
 
-    // 管理者ページにアクセス
+    // Access admin page
     await page.goto('/admin');
     await expect(page).toHaveURL('/admin');
-    await expect(page.locator('text=管理者モード')).toBeVisible();
+    await expect(page.locator('text=Admin Mode')).toBeVisible();
   });
 
-  test('ログアウト後はダッシュボードにアクセスできない', async ({ page }) => {
-    // ログイン
+  test('cannot access dashboard after logging out', async ({ page }) => {
+    // Log in
     await page.goto('/login');
     await page.fill('input[name="email"]', 'user@test.com');
     await page.fill('input[name="password"]', 'password123');
     await page.click('button[type="submit"]');
     await expect(page).toHaveURL('/dashboard');
 
-    // ログアウト
+    // Log out
     await page.click('[data-testid="logout-button"]');
     await expect(page).toHaveURL('/login');
 
-    // ダッシュボードにアクセス
+    // Try to access dashboard
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/login/);
   });
 
-  test('callbackUrl が正しく機能する', async ({ page }) => {
-    // 設定ページにアクセス（未認証）
+  test('callbackUrl works correctly', async ({ page }) => {
+    // Access settings page (unauthenticated)
     await page.goto('/settings/profile');
     await expect(page).toHaveURL(/\/login.*callbackUrl/);
 
-    // ログイン
+    // Log in
     await page.fill('input[name="email"]', 'user@test.com');
     await page.fill('input[name="password"]', 'password123');
     await page.click('button[type="submit"]');
 
-    // 設定ページにリダイレクトされる
+    // Should be redirected to settings page
     await expect(page).toHaveURL('/settings/profile');
   });
 });
 ```
 
-### 11.3 Middleware のテスト
+### 11.3 Testing Middleware
 
 ```typescript
 // ============================================
-// Next.js Middleware のテスト
+// Testing Next.js Middleware
 // ============================================
 
 // __tests__/middleware.test.ts
@@ -3626,7 +3627,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { middleware } from '@/middleware';
 
-// NextRequest のモック作成ヘルパー
+// Helper to create mock NextRequest
 function createMockRequest(
   url: string,
   options: {
@@ -3652,32 +3653,32 @@ function createMockRequest(
 }
 
 describe('Middleware', () => {
-  it('公開パスはそのまま通す', async () => {
+  it('allows public paths through', async () => {
     const request = createMockRequest('/');
     const response = await middleware(request);
     expect(response.status).not.toBe(302);
     expect(response.status).not.toBe(401);
   });
 
-  it('認証なしで保護されたパスにアクセスするとリダイレクト', async () => {
+  it('redirects to login when accessing a protected path without authentication', async () => {
     const request = createMockRequest('/dashboard');
     const response = await middleware(request);
     expect(response.status).toBe(307); // Temporary Redirect
     expect(response.headers.get('location')).toContain('/login');
   });
 
-  it('認証なしで API にアクセスすると 401 を返す', async () => {
+  it('returns 401 when accessing an API without authentication', async () => {
     const request = createMockRequest('/api/users');
     const response = await middleware(request);
     expect(response.status).toBe(401);
   });
 
-  it('有効なトークンがあればそのまま通す', async () => {
+  it('allows through with a valid token', async () => {
     const request = createMockRequest('/dashboard', {
       cookies: { 'session-token': 'valid-jwt-token' },
     });
 
-    // JWT検証のモック
+    // Mock JWT verification
     vi.mocked(jwtVerify).mockResolvedValueOnce({
       payload: { sub: 'user-1', role: 'user', exp: Date.now() / 1000 + 3600 },
       protectedHeader: { alg: 'HS256' },
@@ -3687,7 +3688,7 @@ describe('Middleware', () => {
     expect(response.status).toBe(200);
   });
 
-  it('管理者でないユーザーが /admin にアクセスすると 403', async () => {
+  it('returns 403 when a non-admin user accesses /admin', async () => {
     const request = createMockRequest('/admin', {
       cookies: { 'session-token': 'valid-jwt-token' },
     });
@@ -3706,58 +3707,58 @@ describe('Middleware', () => {
 
 ---
 
-## 12. セキュリティのベストプラクティス
+## 12. Security Best Practices
 
-### 12.1 推奨事項
+### 12.1 Recommendations
 
 ```
-【認証ガードのベストプラクティス】
+[Authentication Guard Best Practices]
 
-1. 多層防御を実装する
-   - Middleware + Layout + API Route の3層でチェック
-   - クライアントとサーバーの両方で検証
-   - データベースレベルでの RLS も検討
+1. Implement Defense in Depth
+   - Check at three layers: Middleware + Layout + API Route
+   - Validate on both client and server
+   - Consider RLS at the database level as well
 
-2. トークン管理
-   - HttpOnly + Secure + SameSite=Lax な Cookie を使用
-   - トークンの有効期限を適切に設定（長すぎない）
-   - リフレッシュトークンの回転（Rotation）を実装
-   - ログアウト時にサーバーサイドでトークンを無効化
+2. Token Management
+   - Use HttpOnly + Secure + SameSite=Lax cookies
+   - Set appropriate token expiry (not too long)
+   - Implement refresh token rotation
+   - Invalidate tokens server-side on logout
 
-3. パスワードセキュリティ
-   - bcrypt / argon2 でハッシュ化（ストレッチング 12 ラウンド以上）
-   - タイミング攻撃対策（存在しないユーザーでも同じ処理時間）
-   - アカウントロック機構（5回失敗で15分ロック）
-   - パスワード強度チェック（zxcvbn 等）
+3. Password Security
+   - Hash with bcrypt / argon2 (stretching with 12+ rounds)
+   - Timing attack mitigation (apply same processing time for non-existent users)
+   - Account lock mechanism (lock for 15 minutes after 5 failures)
+   - Password strength check (zxcvbn, etc.)
 
-4. セッション管理
-   - セッションの有効期限を設定
-   - スライディングウィンドウでセッション更新
-   - 複数デバイスのセッション管理
-   - 不審なログイン検知（異なる IP / デバイス）
+4. Session Management
+   - Set session expiry
+   - Refresh session with sliding window
+   - Manage sessions across multiple devices
+   - Detect suspicious logins (different IP / device)
 
-5. CSRF 対策
-   - SameSite Cookie 属性を設定
-   - CSRF トークンを使用（フォーム送信時）
-   - Origin / Referer ヘッダーの検証
+5. CSRF Mitigation
+   - Set SameSite cookie attribute
+   - Use CSRF tokens (for form submissions)
+   - Validate Origin / Referer headers
 
-6. 入力検証
-   - サーバーサイドでのバリデーション（Zod 等）
-   - SQL インジェクション対策（ORM / パラメータバインディング）
-   - XSS 対策（入力のサニタイズ）
+6. Input Validation
+   - Server-side validation (Zod, etc.)
+   - SQL injection prevention (ORM / parameter binding)
+   - XSS prevention (input sanitization)
 
-7. 監査ログ
-   - ログイン / ログアウトの記録
-   - 権限変更の記録
-   - 重要な操作の記録
-   - 不正アクセス試行の記録
+7. Audit Logging
+   - Log login / logout events
+   - Log permission changes
+   - Log critical operations
+   - Log unauthorized access attempts
 ```
 
-### 12.2 Cookie セキュリティ設定
+### 12.2 Cookie Security Settings
 
 ```typescript
 // ============================================
-// セキュアな Cookie 設定のガイドライン
+// Guidelines for Secure Cookie Configuration
 // ============================================
 
 // lib/auth/cookies.ts
@@ -3771,115 +3772,115 @@ interface CookieOptions {
   domain?: string;
 }
 
-// セッション Cookie の推奨設定
+// Recommended settings for session cookies
 export const SESSION_COOKIE_OPTIONS: CookieOptions = {
-  httpOnly: true,     // JavaScript からアクセス不可（XSS 対策）
-  secure: process.env.NODE_ENV === 'production', // HTTPS のみ
-  sameSite: 'lax',    // CSRF 対策（GET リクエストのクロスサイトは許可）
-  maxAge: 7 * 24 * 60 * 60, // 7日
+  httpOnly: true,     // Inaccessible from JavaScript (XSS protection)
+  secure: process.env.NODE_ENV === 'production', // HTTPS only
+  sameSite: 'lax',    // CSRF protection (allows cross-site GET navigation)
+  maxAge: 7 * 24 * 60 * 60, // 7 days
   path: '/',
-  // domain: '.example.com', // サブドメイン共有が必要な場合
+  // domain: '.example.com', // Required for subdomain sharing
 };
 
-// CSRF トークン Cookie の設定
+// CSRF token cookie settings
 export const CSRF_COOKIE_OPTIONS: CookieOptions = {
-  httpOnly: false,    // JavaScript から読み取り可能（フォームに含めるため）
+  httpOnly: false,    // Readable from JavaScript (to include in forms)
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict', // 厳格な CSRF 対策
-  maxAge: 60 * 60,    // 1時間
+  sameSite: 'strict', // Strict CSRF protection
+  maxAge: 60 * 60,    // 1 hour
   path: '/',
 };
 
-// OAuth State Cookie の設定
+// OAuth state cookie settings
 export const OAUTH_STATE_COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax',    // OAuth リダイレクトで必要
-  maxAge: 10 * 60,    // 10分（OAuth フロー中のみ有効）
+  sameSite: 'lax',    // Required for OAuth redirects
+  maxAge: 10 * 60,    // 10 minutes (valid only during OAuth flow)
   path: '/',
 };
 
 // ============================================
-// SameSite 属性の選択ガイド
+// Guide for Choosing the SameSite Attribute
 // ============================================
 //
-// 'strict': 最も厳格。外部サイトからのリクエストに Cookie を送信しない。
-//           OAuth リダイレクトでも Cookie が送信されないため注意。
+// 'strict': Most restrictive. Cookies are not sent with requests from external sites.
+//           Note: Cookies are also not sent during OAuth redirects.
 //
-// 'lax':    GET リクエストのクロスサイトナビゲーションでは Cookie を送信。
-//           POST リクエストのクロスサイトでは送信しない。
-//           一般的な Web アプリに推奨。
+// 'lax':    Cookies are sent for cross-site GET navigation.
+//           Not sent for cross-site POST requests.
+//           Recommended for general web apps.
 //
-// 'none':   クロスサイトで常に Cookie を送信。Secure 属性が必須。
-//           サードパーティ Cookie が必要な場合のみ使用。
+// 'none':   Cookies are always sent cross-site. Requires the Secure attribute.
+//           Use only when third-party cookies are needed.
 ```
 
 ---
 
-## 13. アンチパターンと対策
+## 13. Anti-Patterns and Mitigations
 
-### 13.1 よくある間違い
+### 13.1 Common Mistakes
 
 ```typescript
 // ============================================
-// アンチパターン集
+// Anti-Pattern Collection
 // ============================================
 
-// NG アンチパターン1: クライアントサイドのみの保護
-// クライアントサイドの条件分岐は簡単にバイパスできる
+// BAD Anti-pattern 1: Client-side-only protection
+// Client-side conditional rendering can easily be bypassed
 function BadProtectedPage() {
   const { user } = useAuth();
-  if (!user) return <LoginPage />;  // NG: DevTools で回避可能
+  if (!user) return <LoginPage />;  // BAD: Can be circumvented via DevTools
   return <SecretContent />;
 }
 
-// OK 正しいパターン: サーバーサイドで保護
+// GOOD Correct pattern: Server-side protection
 export default async function ProtectedPage() {
   const session = await getSession();
-  if (!session) redirect('/login'); // OK: サーバーで制御
+  if (!session) redirect('/login'); // GOOD: Controlled by the server
   return <SecretContent />;
 }
 
 // ─────────────────────────────────────────
 
-// NG アンチパターン2: トークンを localStorage に保存
-localStorage.setItem('token', jwt); // NG: XSS で盗取可能
+// BAD Anti-pattern 2: Storing tokens in localStorage
+localStorage.setItem('token', jwt); // BAD: Can be stolen via XSS
 fetch('/api/data', {
   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
 });
 
-// OK 正しいパターン: HttpOnly Cookie を使用
-// サーバーで Cookie を設定（JavaScript からアクセス不可）
+// GOOD Correct pattern: Use HttpOnly cookies
+// Set cookie on the server (inaccessible from JavaScript)
 cookieStore.set('session-token', jwt, {
-  httpOnly: true,  // OK: XSS から保護
+  httpOnly: true,  // GOOD: Protected from XSS
   secure: true,
   sameSite: 'lax',
 });
 
 // ─────────────────────────────────────────
 
-// NG アンチパターン3: フロントエンドで権限チェックのみ
+// BAD Anti-pattern 3: Permission check only on the frontend
 function DeleteButton({ userId }: { userId: string }) {
   const { user } = useAuth();
-  // NG: フロントだけのチェックは不十分
+  // BAD: Frontend-only check is insufficient
   if (user.role !== 'admin') return null;
-  return <button onClick={() => deleteUser(userId)}>削除</button>;
+  return <button onClick={() => deleteUser(userId)}>Delete</button>;
 }
 
-// OK 正しいパターン: API でも権限チェック
-// フロントエンド: UI の制御
+// GOOD Correct pattern: Permission check in the API as well
+// Frontend: UI control
 function DeleteButton({ userId }: { userId: string }) {
   const { user } = useAuth();
-  if (user.role !== 'admin') return null; // UI 制御
-  return <button onClick={() => deleteUser(userId)}>削除</button>;
+  if (user.role !== 'admin') return null; // UI control
+  return <button onClick={() => deleteUser(userId)}>Delete</button>;
 }
 
-// バックエンド: 実際の権限チェック OK
+// Backend: Actual permission check GOOD
 export async function DELETE(request: NextRequest) {
   const session = await getSession();
   if (!session) return unauthorized();
   if (!hasPermission(session.user.role, 'users:delete')) {
-    return forbidden(); // OK: サーバーでも必ずチェック
+    return forbidden(); // GOOD: Always check on the server too
   }
   await prisma.user.delete({ where: { id: userId } });
   return NextResponse.json({ success: true });
@@ -3887,24 +3888,24 @@ export async function DELETE(request: NextRequest) {
 
 // ─────────────────────────────────────────
 
-// NG アンチパターン4: ユーザー入力をそのまま callbackUrl に使用
+// BAD Anti-pattern 4: Using user input directly as callbackUrl
 const callbackUrl = searchParams.get('callbackUrl');
-redirect(callbackUrl); // NG: オープンリダイレクト脆弱性
+redirect(callbackUrl); // BAD: Open redirect vulnerability
 
-// OK 正しいパターン: callbackUrl を検証
+// GOOD Correct pattern: Validate the callbackUrl
 function sanitizeCallbackUrl(url: string | null): string {
   if (!url) return '/dashboard';
 
-  // 相対パスのみ許可
+  // Allow relative paths only
   if (!url.startsWith('/')) return '/dashboard';
 
-  // プロトコルを含むURLは拒否
+  // Reject URLs containing a protocol
   if (url.includes('://')) return '/dashboard';
 
-  // ダブルスラッシュを拒否（//evil.com 対策）
+  // Reject double slashes (protection against //evil.com)
   if (url.startsWith('//')) return '/dashboard';
 
-  // 許可されたパスのプレフィックスチェック
+  // Check against allowed path prefixes
   const allowedPrefixes = ['/dashboard', '/settings', '/admin', '/app'];
   if (!allowedPrefixes.some(prefix => url.startsWith(prefix))) {
     return '/dashboard';
@@ -3915,103 +3916,103 @@ function sanitizeCallbackUrl(url: string | null): string {
 
 // ─────────────────────────────────────────
 
-// NG アンチパターン5: エラーメッセージでの情報漏洩
-if (!user) return { error: 'ユーザーが見つかりません' };
-// NG: メールアドレスの存在を確認できてしまう
+// BAD Anti-pattern 5: Information leakage via error messages
+if (!user) return { error: 'User not found' };
+// BAD: Confirms whether the email address exists
 
-if (!isValid) return { error: 'パスワードが間違っています' };
-// NG: アカウントの存在を確認できてしまう
+if (!isValid) return { error: 'Password is incorrect' };
+// BAD: Confirms the account exists
 
-// OK 正しいパターン: 曖昧なエラーメッセージ
-return { error: 'メールアドレスまたはパスワードが正しくありません' };
-// OK: どちらが間違いか特定できない
+// GOOD Correct pattern: Use vague error messages
+return { error: 'Invalid email address or password' };
+// GOOD: Cannot determine which one is wrong
 
 // ─────────────────────────────────────────
 
-// NG アンチパターン6: JWT シークレットのハードコーディング
-const secret = 'my-super-secret-key-12345'; // NG: ソースコードに秘密情報
+// BAD Anti-pattern 6: Hardcoding JWT secret
+const secret = 'my-super-secret-key-12345'; // BAD: Secret in source code
 
-// OK 正しいパターン: 環境変数を使用
+// GOOD Correct pattern: Use environment variables
 const secret = process.env.JWT_SECRET!;
-// さらに、シークレットが設定されていない場合は起動時にエラー
+// Additionally, throw an error at startup if the secret is not set
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is required');
 }
 
 // ─────────────────────────────────────────
 
-// NG アンチパターン7: トークンの有効期限が長すぎる
-.setExpirationTime('365d') // NG: 1年は長すぎる
+// BAD Anti-pattern 7: Token expiry that is too long
+.setExpirationTime('365d') // BAD: 1 year is too long
 
-// OK 正しいパターン: 適切な有効期限
-// アクセストークン: 15分〜1時間
+// GOOD Correct pattern: Appropriate expiry times
+// Access token: 15 minutes to 1 hour
 .setExpirationTime('1h')
-// リフレッシュトークン: 7日〜30日
-// セッション Cookie: 7日（スライディングウィンドウで延長）
+// Refresh token: 7 to 30 days
+// Session cookie: 7 days (extended with sliding window)
 ```
 
-### 13.2 セキュリティチェックリスト
+### 13.2 Security Checklist
 
 ```
-【認証ガード セキュリティチェックリスト】
+[Authentication Guard Security Checklist]
 
-□ 認証
-  □ パスワードは bcrypt / argon2 でハッシュ化しているか
-  □ タイミング攻撃対策を実装しているか
-  □ アカウントロック機構があるか
-  □ パスワードリセットフローは安全か
-  □ MFA オプションを提供しているか
+□ Authentication
+  □ Are passwords hashed with bcrypt / argon2?
+  □ Is timing attack mitigation implemented?
+  □ Is there an account lock mechanism?
+  □ Is the password reset flow secure?
+  □ Is an MFA option available?
 
-□ セッション管理
-  □ セッショントークンは HttpOnly Cookie に保存しているか
-  □ Secure フラグを設定しているか
-  □ SameSite 属性を設定しているか
-  □ セッションの有効期限は適切か
-  □ ログアウト時にサーバーサイドでセッションを無効化しているか
+□ Session Management
+  □ Are session tokens stored in HttpOnly cookies?
+  □ Is the Secure flag set?
+  □ Is the SameSite attribute set?
+  □ Is the session expiry appropriate?
+  □ Are sessions invalidated server-side on logout?
 
-□ 認可
-  □ サーバーサイドで権限チェックを行っているか
-  □ API エンドポイントすべてに認可チェックがあるか
-  □ IDOR（Insecure Direct Object Reference）対策をしているか
-  □ 水平権限昇格の対策をしているか
-  □ 垂直権限昇格の対策をしているか
+□ Authorization
+  □ Are permission checks performed server-side?
+  □ Do all API endpoints have authorization checks?
+  □ Is IDOR (Insecure Direct Object Reference) mitigated?
+  □ Is horizontal privilege escalation mitigated?
+  □ Is vertical privilege escalation mitigated?
 
-□ 入力検証
-  □ callbackUrl / redirectUrl の検証を行っているか
-  □ ユーザー入力のサニタイズを行っているか
-  □ SQL インジェクション対策をしているか
+□ Input Validation
+  □ Are callbackUrl / redirectUrl values validated?
+  □ Is user input sanitized?
+  □ Is SQL injection prevention in place?
 
-□ 通信
-  □ HTTPS を強制しているか
-  □ HSTS ヘッダーを設定しているか
-  □ CSP（Content Security Policy）を設定しているか
+□ Communication
+  □ Is HTTPS enforced?
+  □ Is the HSTS header set?
+  □ Is CSP (Content Security Policy) configured?
 
-□ 監査
-  □ ログイン / ログアウトの監査ログがあるか
-  □ 権限変更の監査ログがあるか
-  □ 不正アクセス試行の検知と通知があるか
+□ Auditing
+  □ Are login / logout events logged?
+  □ Are permission changes logged?
+  □ Is detection and notification of unauthorized access attempts in place?
 ```
 
 ---
 
-## 14. トラブルシューティング
+## 14. Troubleshooting
 
-### 14.1 よくある問題と解決策
+### 14.1 Common Issues and Solutions
 
 ```
-【問題1: 無限リダイレクトループ】
+[Issue 1: Infinite Redirect Loop]
 
-症状: /login → /dashboard → /login → ... のループが発生
+Symptom: A loop occurs: /login → /dashboard → /login → ...
 
-原因:
-  - Middleware がログインページ自体も保護している
-  - セッション Cookie の設定が不正（path や domain の問題）
-  - リダイレクト先のルートも保護されている
+Cause:
+  - The Middleware is also protecting the login page itself
+  - Incorrect session cookie settings (path or domain issue)
+  - The redirect destination route is also protected
 
-解決策:
-  - publicPaths にログインページを含める
-  - Cookie の path を '/' に設定
-  - matcher 設定でログインページを除外
+Solution:
+  - Include the login page in publicPaths
+  - Set the cookie path to '/'
+  - Exclude the login page in the matcher configuration
 
   // middleware.ts
   export const config = {
@@ -4020,162 +4021,162 @@ if (!process.env.JWT_SECRET) {
 
 ---
 
-【問題2: Server Component でのリダイレクトが動作しない】
+[Issue 2: redirect() in Server Component Does Not Work]
 
-症状: redirect() を呼んでもリダイレクトされない
+Symptom: Calling redirect() does not redirect the page
 
-原因:
-  - redirect() を try-catch で捕捉している
-  - redirect() の後にレンダリングが続いている
-  - Client Component で Server 用の redirect を使っている
+Cause:
+  - redirect() is being caught by a try-catch block
+  - Rendering continues after redirect()
+  - The server-side redirect is being used inside a Client Component
 
-解決策:
-  - redirect() は例外をスローするため catch しない
+Solution:
+  - redirect() throws an exception, so do not catch it
 
-  // NG
+  // BAD
   try {
     const session = await getSession();
     if (!session) redirect('/login');
   } catch (error) {
-    // redirect の例外もここで捕捉されてしまう
+    // The redirect exception is also caught here
   }
 
-  // OK
+  // GOOD
   const session = await getSession();
   if (!session) redirect('/login');
-  // redirect 後のコードは実行されない
+  // Code after redirect() is never executed
 
 ---
 
-【問題3: Middleware で DB アクセスができない】
+[Issue 3: Cannot Access DB from Middleware]
 
-症状: Middleware から Prisma を呼ぶとエラーが発生
+Symptom: Calling Prisma from Middleware throws an error
 
-原因:
-  Middleware は Edge Runtime で動作し、Node.js API が制限される
-  Prisma クライアントは Node.js ランタイムを前提としている
+Cause:
+  Middleware runs in the Edge Runtime, which restricts Node.js APIs.
+  The Prisma client assumes the Node.js runtime.
 
-解決策:
-  - Middleware では JWT の署名検証のみ行い、DB アクセスは避ける
-  - DB が必要な完全な検証は Layout / Server Component で行う
-  - Edge 対応の DB クライアントを使う（例: @prisma/client/edge）
+Solution:
+  - In Middleware, only perform JWT signature verification; avoid DB access
+  - Perform full DB validation in Layout / Server Components
+  - Use an Edge-compatible DB client (e.g., @prisma/client/edge)
 
-  // Middleware: JWT 署名検証のみ（軽量）
+  // Middleware: JWT signature verification only (lightweight)
   export function middleware(request: NextRequest) {
     const token = request.cookies.get('session-token')?.value;
     if (!token) return redirectToLogin(request);
 
-    // JWT の署名のみ検証（DB アクセスなし）
+    // Verify JWT signature only (no DB access)
     try {
-      jwtVerify(token, secret); // jose は Edge Runtime 対応
+      jwtVerify(token, secret); // jose supports Edge Runtime
     } catch {
       return redirectToLogin(request);
     }
     return NextResponse.next();
   }
 
-  // Layout: 完全な検証（DB アクセスあり）
+  // Layout: Full validation (with DB access)
   export default async function Layout({ children }) {
-    const session = await getSession(); // DB から最新情報を取得
+    const session = await getSession(); // Fetch latest info from DB
     if (!session) redirect('/login');
     return <>{children}</>;
   }
 
 ---
 
-【問題4: CORS エラーでログインできない】
+[Issue 4: CORS Error Prevents Login]
 
-症状: フロントエンドとバックエンドが別ドメインの場合、
-      Cookie が送信されない / 設定されない
+Symptom: When the frontend and backend are on different domains,
+         cookies are not sent / set
 
-原因:
-  - credentials: 'include' を設定していない
-  - サーバーの CORS 設定が不適切
-  - Cookie の SameSite 設定が厳しすぎる
+Cause:
+  - credentials: 'include' is not configured
+  - Incorrect CORS settings on the server
+  - Cookie SameSite setting is too strict
 
-解決策:
-  // フロントエンド
+Solution:
+  // Frontend
   fetch('https://api.example.com/auth/login', {
     method: 'POST',
-    credentials: 'include', // Cookie を送信
+    credentials: 'include', // Send cookies
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
 
-  // バックエンド（Next.js API Route）
+  // Backend (Next.js API Route)
   const response = NextResponse.json({ success: true });
   response.headers.set('Access-Control-Allow-Origin', 'https://app.example.com');
   response.headers.set('Access-Control-Allow-Credentials', 'true');
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Cookie 設定
+  // Cookie settings
   response.cookies.set('session-token', token, {
     httpOnly: true,
     secure: true,
-    sameSite: 'none',  // クロスドメイン必要時（Secure 必須）
-    domain: '.example.com', // サブドメイン共有
+    sameSite: 'none',  // Required for cross-domain (Secure is mandatory)
+    domain: '.example.com', // Subdomain sharing
   });
 
 ---
 
-【問題5: セッションが予期せず切れる】
+[Issue 5: Session Expires Unexpectedly]
 
-症状: ユーザーがアクティブなのにログアウトされる
+Symptom: Users are logged out even while active
 
-原因:
-  - トークンの有効期限が短すぎる
-  - スライディングウィンドウが実装されていない
-  - 複数タブ間でのセッション競合
-  - サーバー時刻のずれ
+Cause:
+  - Token expiry is too short
+  - Sliding window is not implemented
+  - Session conflict across multiple tabs
+  - Server time drift
 
-解決策:
-  - トークン有効期限を適切に設定（推奨: 7日）
-  - Middleware でトークンの有効期限延長を実装
-  - BroadcastChannel でタブ間同期
-  - NTP でサーバー時刻を同期
+Solution:
+  - Set an appropriate token expiry (recommended: 7 days)
+  - Implement token expiry extension in Middleware
+  - Synchronize tabs with BroadcastChannel
+  - Synchronize server time with NTP
 
-  // タブ間セッション同期
+  // Cross-tab session synchronization
   const channel = new BroadcastChannel('auth');
   channel.addEventListener('message', (event) => {
     if (event.data.type === 'LOGOUT') {
-      // 他のタブでログアウトされた
+      // Logged out in another tab
       window.location.href = '/login';
     }
     if (event.data.type === 'SESSION_UPDATED') {
-      // 他のタブでセッションが更新された
+      // Session updated in another tab
       refreshSession();
     }
   });
 
-  // ログアウト時に通知
+  // Notify on logout
   function logout() {
     channel.postMessage({ type: 'LOGOUT' });
-    // ... ログアウト処理
+    // ... logout processing
   }
 
 ---
 
-【問題6: 権限変更がリアルタイムに反映されない】
+[Issue 6: Permission Changes Are Not Reflected in Real Time]
 
-症状: 管理者がユーザーのロールを変更しても、
-      そのユーザーのセッションに反映されない
+Symptom: When an admin changes a user's role,
+         the change is not reflected in that user's session
 
-原因:
-  JWT にロール情報を含めている場合、
-  トークンが更新されるまで古い情報が使われる
+Cause:
+  If role information is embedded in the JWT,
+  the old information is used until the token is refreshed.
 
-解決策:
-  - セッション取得時に必ず DB からロールを確認する
-  - トークンにはユーザーIDのみ含め、権限は毎回 DB から取得
-  - 権限変更時にユーザーのセッションを強制無効化
+Solution:
+  - Always verify the role from the DB when retrieving a session
+  - Include only the user ID in the token; retrieve permissions from the DB each time
+  - Force-invalidate the user's session on permission change
 
-  // セッション取得時に DB から最新の権限を取得
+  // Retrieve the latest permissions from DB when fetching the session
   export async function getSession(): Promise<Session | null> {
     const token = getTokenFromCookie();
     const payload = await verifyToken(token);
 
-    // DB から最新の情報を取得（ここがポイント）
+    // Retrieve the latest information from DB (this is the key point)
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
       select: { id: true, role: true, isActive: true },
@@ -4183,18 +4184,18 @@ if (!process.env.JWT_SECRET) {
 
     if (!user || !user.isActive) return null;
 
-    return { user }; // DB の最新情報を返す
+    return { user }; // Return the latest info from DB
   }
 ```
 
-### 14.2 デバッグテクニック
+### 14.2 Debugging Techniques
 
 ```typescript
 // ============================================
-// 認証ガードのデバッグ
+// Debugging Authentication Guards
 // ============================================
 
-// 1. Middleware のデバッグログ
+// 1. Middleware debug logging
 export async function middleware(request: NextRequest) {
   if (process.env.NODE_ENV === 'development') {
     console.log('[Middleware]', {
@@ -4205,10 +4206,10 @@ export async function middleware(request: NextRequest) {
     });
   }
 
-  // ... 認証ロジック
+  // ... authentication logic
 }
 
-// 2. セッションデバッグエンドポイント（開発環境のみ）
+// 2. Session debug endpoint (development only)
 // app/api/debug/session/route.ts
 export async function GET(request: NextRequest) {
   if (process.env.NODE_ENV !== 'development') {
@@ -4246,7 +4247,7 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// 3. 権限デバッグコンポーネント（開発環境のみ）
+// 3. Permission debug component (development only)
 function PermissionDebugger() {
   if (process.env.NODE_ENV !== 'development') return null;
 
@@ -4268,7 +4269,7 @@ function PermissionDebugger() {
       {isOpen && (
         <div className="absolute bottom-10 right-0 bg-white border shadow-lg
                         rounded-lg p-4 w-80 max-h-96 overflow-y-auto">
-          <h3 className="font-bold mb-2">権限一覧</h3>
+          <h3 className="font-bold mb-2">Permission List</h3>
           <ul className="text-xs space-y-1">
             {allPerms.map(p => (
               <li key={p} className="font-mono">{p}</li>
@@ -4283,60 +4284,60 @@ function PermissionDebugger() {
 
 ---
 
-## まとめ
+## Summary
 
-### 認証ガードの設計原則
+### Authentication Guard Design Principles
 
-| 原則 | 説明 | 実装 |
-|------|------|------|
-| 多層防御 | 複数レイヤーで保護 | Middleware + Layout + API |
-| 最小権限 | 必要最小限の権限を付与 | RBAC / ABAC |
-| フェイルセーフ | デフォルトで拒否 | 明示的な許可が必要 |
-| 完全な仲介 | すべてのアクセスをチェック | API ルートごとに認証チェック |
-| セキュアなデフォルト | 安全な初期設定 | HttpOnly + Secure + SameSite |
+| Principle | Description | Implementation |
+|-----------|-------------|----------------|
+| Defense in Depth | Protect across multiple layers | Middleware + Layout + API |
+| Least Privilege | Grant only the minimum necessary permissions | RBAC / ABAC |
+| Fail-Safe | Deny by default | Explicit allow required |
+| Complete Mediation | Check every access | Auth check per API route |
+| Secure Defaults | Safe initial settings | HttpOnly + Secure + SameSite |
 
-### レイヤー別の役割
+### Roles per Layer
 
-| レイヤー | 役割 | ツール | 適切な用途 |
-|---------|------|--------|-----------|
-| Middleware | ルート保護 | middleware.ts | 大まかなアクセス制御、トークン検証 |
-| Layout | エリア保護 | Server Component | セッション検証、共通UI制御 |
-| Component | 要素制御 | RBAC + RequirePermission | ボタン表示/非表示 |
-| API Route | データ保護 | withPermission HOF | データアクセスの最終防御 |
-| Database | 行レベル保護 | RLS / Policies | データの最終保護 |
+| Layer | Role | Tools | Appropriate Use |
+|-------|------|-------|-----------------|
+| Middleware | Route protection | middleware.ts | Coarse-grained access control, token verification |
+| Layout | Area protection | Server Component | Session verification, shared UI control |
+| Component | Element control | RBAC + RequirePermission | Show/hide buttons |
+| API Route | Data protection | withPermission HOF | Final defense for data access |
+| Database | Row-level protection | RLS / Policies | Final data protection |
 
-### フレームワーク選択ガイド
+### Framework Selection Guide
 
-| 要件 | 推奨フレームワーク | 理由 |
-|------|-----------------|------|
-| SSR + 認証 | Next.js | Middleware + Server Component の統合 |
-| SPA | React Router + バックエンド | クライアントガード + API 保護 |
-| エンタープライズ | Angular | 組み込みのガードシステム |
-| 軽量 SPA | Vue Router | シンプルなナビゲーションガード |
+| Requirement | Recommended Framework | Reason |
+|-------------|----------------------|--------|
+| SSR + Authentication | Next.js | Middleware + Server Component integration |
+| SPA | React Router + backend | Client guard + API protection |
+| Enterprise | Angular | Built-in guard system |
+| Lightweight SPA | Vue Router | Simple navigation guards |
 
 ---
 
-## 前提知識
+## Prerequisites
 
-この章を最大限に活用するために、以下の知識を事前に習得しておくことを推奨する。
+To get the most out of this chapter, it is recommended to have prior knowledge of the following topics.
 
-- **ナビゲーションパターン**: ルーティングとナビゲーションの基本設計 → `./02-navigation-patterns.md`
-- **認証の基礎**: 認証と認可の違い、JWT・セッションベース認証 → `../../network-fundamentals/docs/03-security/01-authentication.md`
-- **ミドルウェアの概念**: リクエスト処理の中間層としてのミドルウェアの役割
+- **Navigation Patterns**: Basic design of routing and navigation → `./02-navigation-patterns.md`
+- **Authentication Basics**: The difference between authentication and authorization, JWT and session-based authentication → `../../network-fundamentals/docs/03-security/01-authentication.md`
+- **Middleware Concepts**: The role of middleware as an intermediate layer in request processing
 
-これらの概念を理解することで、セキュアで使いやすい認証ガードを実装できる。
+Understanding these concepts enables you to implement secure and user-friendly authentication guards.
 
 ---
 
 ## FAQ
 
-### Q1: Middleware での認証チェック実装のベストプラクティスは?
+### Q1: What is the best practice for implementing authentication checks in Middleware?
 
-**A:** Middleware では軽量なトークン検証のみ行い、詳細な権限チェックは Layout または API Route で実施する。
+**A:** In Middleware, perform only lightweight token verification. Detailed permission checks should be done in Layout or API Routes.
 
 ```typescript
 // =========================================
-// middleware.ts（推奨実装）
+// middleware.ts (Recommended Implementation)
 // =========================================
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -4345,22 +4346,22 @@ import { verifyJWT } from '@/lib/auth';
 export async function middleware(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value;
 
-  // 1. 公開パスはスキップ
+  // 1. Skip public paths
   const publicPaths = ['/login', '/signup', '/forgot-password', '/api/health'];
   if (publicPaths.some(path => request.nextUrl.pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
-  // 2. トークンの存在チェック
+  // 2. Check for token presence
   if (!token) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // 3. トークンの検証（軽量な検証のみ）
+  // 3. Verify token (lightweight verification only)
   try {
     const payload = await verifyJWT(token);
 
-    // リクエストヘッダーに userId を追加（後続処理で利用）
+    // Add userId to request headers for use in subsequent processing
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-user-id', payload.userId);
 
@@ -4370,27 +4371,27 @@ export async function middleware(request: NextRequest) {
       },
     });
   } catch (error) {
-    // トークンが無効 → ログインページへ
+    // Invalid token → redirect to login page
     const response = NextResponse.redirect(new URL('/login', request.url));
-    response.cookies.delete('auth-token'); // 無効なトークンを削除
+    response.cookies.delete('auth-token'); // Delete the invalid token
     return response;
   }
 }
 
-// Middleware を適用するパスを指定
+// Specify paths to apply Middleware to
 export const config = {
   matcher: [
-    // 認証が必要なパス
+    // Paths requiring authentication
     '/dashboard/:path*',
     '/admin/:path*',
     '/api/protected/:path*',
-    // 除外: 静的ファイル、Next.js 内部パス
+    // Exclude: static files, Next.js internal paths
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
 
 // =========================================
-// layout.tsx（詳細な権限チェック）
+// layout.tsx (Detailed permission check)
 // =========================================
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
@@ -4406,7 +4407,7 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  // 詳細な権限チェック
+  // Detailed permission check
   if (!session.user.roles.includes('admin')) {
     redirect('/forbidden');
   }
@@ -4415,18 +4416,18 @@ export default async function DashboardLayout({
 }
 ```
 
-**重要なポイント**:
-- Middleware は Edge Runtime で動作するため、データベースアクセスを避ける
-- セッション検証はサーバーコンポーネントで行う
-- トークンのリフレッシュは API Route で実施
+**Key Points**:
+- Middleware runs in the Edge Runtime, so avoid database access
+- Session validation should be done in Server Components
+- Token refresh should be handled in API Routes
 
-### Q2: RBAC（Role-Based Access Control）の実装方法は?
+### Q2: How do I implement RBAC (Role-Based Access Control)?
 
-**A:** ユーザーにロールを割り当て、ロールごとに権限セットを定義する。コンポーネント・API・データベースの各レイヤーで権限チェックを実施する。
+**A:** Assign roles to users and define a permission set per role. Enforce permission checks at every layer: components, APIs, and the database.
 
 ```typescript
 // =========================================
-// 型定義
+// Type definitions
 // =========================================
 type Role = 'admin' | 'editor' | 'viewer';
 type Permission =
@@ -4443,7 +4444,7 @@ const rolePermissions: Record<Role, Permission[]> = {
 };
 
 // =========================================
-// 権限チェック関数
+// Permission check function
 // =========================================
 function hasPermission(userRoles: Role[], permission: Permission): boolean {
   return userRoles.some(role =>
@@ -4452,7 +4453,7 @@ function hasPermission(userRoles: Role[], permission: Permission): boolean {
 }
 
 // =========================================
-// Server Component での使用
+// Usage in Server Component
 // =========================================
 import { getServerSession } from 'next-auth';
 
@@ -4467,7 +4468,7 @@ export default async function AdminPage() {
 }
 
 // =========================================
-// Client Component での使用
+// Usage in Client Component
 // =========================================
 'use client';
 
@@ -4477,7 +4478,7 @@ function DeleteButton({ postId }: { postId: string }) {
   const { data: session } = useSession();
 
   if (!session || !hasPermission(session.user.roles, 'posts:delete')) {
-    return null; // ボタンを非表示
+    return null; // Hide the button
   }
 
   return (
@@ -4488,7 +4489,7 @@ function DeleteButton({ postId }: { postId: string }) {
 }
 
 // =========================================
-// API Route での使用
+// Usage in API Route
 // =========================================
 import { getServerSession } from 'next-auth';
 
@@ -4511,13 +4512,13 @@ export async function DELETE(
 }
 ```
 
-### Q3: 認証状態の SSR 対応は?
+### Q3: How do I handle SSR with authentication state?
 
-**A:** サーバーコンポーネントでセッションを取得し、クライアントコンポーネントには Context 経由で渡す。初回レンダリング時の認証状態とクライアント側の状態を一致させる。
+**A:** Retrieve the session in a Server Component and pass it to Client Components via Context. This ensures the authentication state matches between the initial render and the client side.
 
 ```typescript
 // =========================================
-// app/layout.tsx（Server Component）
+// app/layout.tsx (Server Component)
 // =========================================
 import { getServerSession } from 'next-auth';
 import { SessionProvider } from '@/components/session-provider';
@@ -4527,13 +4528,13 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // サーバー側でセッション取得
+  // Retrieve session on the server
   const session = await getServerSession();
 
   return (
     <html>
       <body>
-        {/* クライアント側に渡す */}
+        {/* Pass to the client side */}
         <SessionProvider session={session}>
           {children}
         </SessionProvider>
@@ -4543,7 +4544,7 @@ export default async function RootLayout({
 }
 
 // =========================================
-// components/session-provider.tsx（Client Component）
+// components/session-provider.tsx (Client Component)
 // =========================================
 'use client';
 
@@ -4564,7 +4565,7 @@ export function SessionProvider({
 }
 
 // =========================================
-// components/user-menu.tsx（Client Component）
+// components/user-menu.tsx (Client Component)
 // =========================================
 'use client';
 
@@ -4573,7 +4574,7 @@ import { useSession } from 'next-auth/react';
 export function UserMenu() {
   const { data: session, status } = useSession();
 
-  // 初回レンダリング時もサーバーから受け取ったセッションが使える
+  // The session received from the server is available on initial render
   if (status === 'loading') {
     return <UserMenuSkeleton />;
   }
@@ -4591,7 +4592,7 @@ export function UserMenu() {
 }
 
 // =========================================
-// app/dashboard/page.tsx（Server Component）
+// app/dashboard/page.tsx (Server Component)
 // =========================================
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
@@ -4603,25 +4604,25 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  // サーバー側で認証済みデータをフェッチ
+  // Fetch authenticated data on the server side
   const userData = await fetchUserData(session.user.id);
 
   return <Dashboard data={userData} />;
 }
 ```
 
-**重要なポイント**:
-- Server Component で取得したセッションをクライアントに渡すことで、初回レンダリング時の Hydration エラーを防ぐ
-- 機密性の高いデータは Server Component でフェッチし、クライアントに送らない
-- `useSession` は認証状態の変更を監視し、リアルタイムで UI を更新
+**Key Points**:
+- Passing the session retrieved in a Server Component to the client prevents Hydration errors on initial render
+- Fetch sensitive data in Server Components; do not send it to the client
+- `useSession` monitors authentication state changes and updates the UI in real time
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
 ---
 
-## 参考文献
+## References
 1. Next.js. "Authentication." nextjs.org/docs, 2024.
 2. Auth.js. "NextAuth.js Documentation." authjs.dev, 2024.
 3. Clerk. "Authentication for Next.js." clerk.com, 2024.
