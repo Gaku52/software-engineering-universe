@@ -1,37 +1,37 @@
 # Elastic Beanstalk
 
-> アプリケーションのデプロイ・スケーリング・監視を自動化する AWS の PaaS サービスを使いこなす
+> Master AWS's PaaS service that automates application deployment, scaling, and monitoring
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. Elastic Beanstalk の対応プラットフォームとアーキテクチャを理解し、適切な構成を選択できる
-2. 4つのデプロイ戦略の特性を比較し、ダウンタイムなしのデプロイを実現できる
-3. .ebextensions と環境変数を使ったカスタマイズとモニタリング設定ができる
-4. Blue/Green デプロイによる安全なリリースとロールバックを実装できる
-5. Docker プラットフォームを使ったコンテナベースのデプロイを実現できる
+1. Understand Elastic Beanstalk's supported platforms and architecture, and choose the appropriate configuration
+2. Compare the characteristics of 4 deployment strategies and achieve zero-downtime deployments
+3. Configure customizations and monitoring using .ebextensions and environment variables
+4. Implement safe releases and rollbacks using Blue/Green deployments
+5. Achieve container-based deployments using the Docker platform
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [EC2 応用](./01-ec2-advanced.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of [EC2 Advanced](./01-ec2-advanced.md) content
 
 ---
 
-## 1. Elastic Beanstalk とは
+## 1. What is Elastic Beanstalk?
 
-### 1.1 アーキテクチャ概要
+### 1.1 Architecture Overview
 
 ```
-Elastic Beanstalk 環境構成
+Elastic Beanstalk Environment Configuration
 +----------------------------------------------------------+
 |  Elastic Beanstalk Environment                            |
 |                                                           |
 |  +--------------------------------------------------+    |
-|  |  ALB (ロードバランサー)                              |   |
+|  |  ALB (Load Balancer)                              |    |
 |  +--------------------------------------------------+    |
 |              |              |              |               |
 |  +-----------v--+ +---------v----+ +-------v------+       |
@@ -49,52 +49,52 @@ Elastic Beanstalk 環境構成
 |  +--------------------------------------------------+    |
 |                                                           |
 |  +--------------------------------------------------+    |
-|  | Security Groups + CloudWatch + S3 (ログ)          |    |
+|  | Security Groups + CloudWatch + S3 (Logs)          |    |
 |  +--------------------------------------------------+    |
 +----------------------------------------------------------+
 ```
 
-### 1.2 Elastic Beanstalk の責任分界
+### 1.2 Elastic Beanstalk Responsibility Boundaries
 
 ```
 +------------------------+------------------------+
-|    ユーザーの責任        |   Beanstalk が管理      |
+|    User Responsibility  |   Beanstalk Manages    |
 +------------------------+------------------------+
-| アプリケーションコード   | EC2 プロビジョニング     |
-| 環境変数の設定          | Auto Scaling 設定        |
-| デプロイ戦略の選択      | ロードバランサー管理      |
-| .ebextensions 設定     | OS パッチ (マネージド更新) |
-| アプリケーション監視     | ヘルスモニタリング        |
-| カスタムドメイン設定     | ログ収集                 |
-| SSL 証明書の準備        | セキュリティグループ作成  |
+| Application code       | EC2 provisioning        |
+| Environment variables  | Auto Scaling setup      |
+| Deployment strategy    | Load balancer management|
+| .ebextensions config   | OS patches (managed)    |
+| Application monitoring | Health monitoring       |
+| Custom domain setup    | Log collection          |
+| SSL certificate prep   | Security group creation |
 +------------------------+------------------------+
 ```
 
-### 1.3 環境タイプ
+### 1.3 Environment Types
 
-| 環境タイプ | 説明 | 構成要素 | ユースケース |
+| Environment Type | Description | Components | Use Case |
 |-----------|------|---------|------------|
-| Web サーバー環境 | HTTP リクエストを処理 | ALB + EC2 + ASG | Web アプリ、API |
-| ワーカー環境 | バックグラウンドジョブを処理 | SQS + EC2 + ASG | バッチ処理、非同期タスク |
+| Web Server Environment | Handles HTTP requests | ALB + EC2 + ASG | Web apps, APIs |
+| Worker Environment | Handles background jobs | SQS + EC2 + ASG | Batch processing, async tasks |
 
 ```
-Web サーバー環境 vs ワーカー環境
+Web Server Environment vs Worker Environment
 
-Web サーバー環境:
-  クライアント → ALB → EC2 (アプリケーション)
-                          ↓ (非同期タスクを SQS に投入)
-ワーカー環境:
-  SQS キュー → sqsd デーモン → EC2 (ワーカーアプリ)
-                                  ↓ (処理完了で SQS からメッセージ削除)
+Web Server Environment:
+  Client → ALB → EC2 (Application)
+                          ↓ (Submit async tasks to SQS)
+Worker Environment:
+  SQS Queue → sqsd daemon → EC2 (Worker App)
+                                  ↓ (Delete message from SQS upon completion)
 ```
 
 ---
 
-## 2. 対応プラットフォーム
+## 2. Supported Platforms
 
-### 2.1 サポートプラットフォーム一覧
+### 2.1 Supported Platform List
 
-| 言語/フレームワーク | プラットフォーム | コンテナ | デフォルトポート |
+| Language/Framework | Platform | Container | Default Port |
 |-------------------|---------------|---------|---------------|
 | Node.js | Node.js 18/20 on Amazon Linux 2023 | AL2023 | 8080 |
 | Python | Python 3.11/3.12 on Amazon Linux 2023 | AL2023 | 8000 |
@@ -104,20 +104,20 @@ Web サーバー環境:
 | Ruby | Ruby 3.2/3.3 on Amazon Linux 2023 | AL2023 | 8080 |
 | PHP | PHP 8.2/8.3 on Amazon Linux 2023 | AL2023 | 80 (Apache) |
 | Docker | Docker on Amazon Linux 2023 | AL2023 | 80 |
-| Multi-container Docker | ECS managed Docker | ECS | 各コンテナによる |
+| Multi-container Docker | ECS managed Docker | ECS | Varies by container |
 
-### 2.2 プラットフォーム選定ガイド
+### 2.2 Platform Selection Guide
 
 ```
-プラットフォーム選定フロー
+Platform Selection Flow
 ==========================
 
-コンテナ化されている？
-├─ Yes → Docker プラットフォーム
-│   ├─ 単一コンテナ → Docker on AL2023
-│   └─ 複数コンテナ → Multi-container Docker (ECS)
+Is it containerized?
+├─ Yes → Docker Platform
+│   ├─ Single container → Docker on AL2023
+│   └─ Multiple containers → Multi-container Docker (ECS)
 │
-└─ No → 言語/フレームワークに応じて選択
+└─ No → Select based on language/framework
     ├─ Python (Django/Flask) → Python on AL2023
     ├─ Node.js (Express/NestJS) → Node.js on AL2023
     ├─ Java (Spring Boot) → Corretto on AL2023
@@ -126,11 +126,11 @@ Web サーバー環境:
     ├─ Ruby (Rails) → Ruby on AL2023
     └─ PHP (Laravel) → PHP on AL2023
 
-注意: Amazon Linux 2 は 2025年6月にサポート終了
-→ 必ず Amazon Linux 2023 ベースを選択すること
+Note: Amazon Linux 2 reaches end of support in June 2025
+→ Always select Amazon Linux 2023-based platforms
 ```
 
-### 2.3 コード例: EB CLI のインストールと初期化
+### 2.3 Code Example: Installing and Initializing EB CLI
 
 ```bash
 # EB CLI インストール
@@ -157,7 +157,7 @@ eb init my-web-app \
   --keyname my-key-pair
 ```
 
-### 2.4 コード例: 環境の作成
+### 2.4 Code Example: Creating an Environment
 
 ```bash
 # 環境を作成
@@ -189,7 +189,7 @@ eb list
 eb terminate production-env
 ```
 
-### 2.5 アプリケーション構成例（Python/Django）
+### 2.5 Application Structure Example (Python/Django)
 
 ```
 my-django-app/
@@ -242,20 +242,20 @@ node_modules
 
 ---
 
-## 3. デプロイ戦略
+## 3. Deployment Strategies
 
-### 3.1 5つのデプロイ戦略比較
+### 3.1 Comparison of 5 Deployment Strategies
 
 ```
-All at Once (一括更新)
+All at Once
 +---------+---------+---------+
-| v1→v2   | v1→v2   | v1→v2   |  全インスタンスを同時に更新
-+---------+---------+---------+  ダウンタイム: あり
+| v1→v2   | v1→v2   | v1→v2   |  Update all instances simultaneously
++---------+---------+---------+  Downtime: Yes
 
-Rolling (ローリング)
+Rolling
 +---------+---------+---------+
-| v1→v2   | v1      | v1      |  バッチごとに順次更新
-+---------+---------+---------+  ダウンタイム: なし（容量一時低下）
+| v1→v2   | v1      | v1      |  Update sequentially in batches
++---------+---------+---------+  Downtime: No (temporary capacity reduction)
     ↓
 +---------+---------+---------+
 | v2      | v1→v2   | v1      |
@@ -265,38 +265,39 @@ Rolling (ローリング)
 | v2      | v2      | v1→v2   |
 +---------+---------+---------+
 
-Rolling with Additional Batch (追加バッチ付き)
+Rolling with Additional Batch
 +---------+---------+---------+---------+
-| v1→v2   | v1      | v1      | v2(新)  |  追加インスタンスで容量維持
-+---------+---------+---------+---------+  ダウンタイム: なし
+| v1→v2   | v1      | v1      | v2(new) |  Additional instances maintain capacity
++---------+---------+---------+---------+  Downtime: No
 
-Immutable (イミュータブル)
+Immutable
 +---------+---------+---------+   +---------+---------+---------+
 | v1      | v1      | v1      |   | v2      | v2      | v2      |
 +---------+---------+---------+   +---------+---------+---------+
-  旧 ASG (ヘルスチェック後削除)      新 ASG (ヘルスチェック後に切替)
-  ダウンタイム: なし、ロールバック: 高速
+  Old ASG (deleted after health     New ASG (switched after health
+  check)                            check)
+  Downtime: No, Rollback: Fast
 
-Traffic Splitting (トラフィック分割)
+Traffic Splitting
 +---------+---------+---------+   +---------+
 | v1      | v1      | v1      |   | v2      |
 +---------+---------+---------+   +---------+
-  旧 TG (90% のトラフィック)         新 TG (10% のトラフィック)
-  → 段階的にトラフィックを移行       → カナリアリリース的な手法
+  Old TG (90% of traffic)           New TG (10% of traffic)
+  → Gradually shift traffic          → Canary release approach
 ```
 
-### 3.2 デプロイ戦略比較表
+### 3.2 Deployment Strategy Comparison Table
 
-| 戦略 | ダウンタイム | デプロイ速度 | コスト | ロールバック | 推奨環境 |
+| Strategy | Downtime | Deploy Speed | Cost | Rollback | Recommended For |
 |------|-----------|-----------|--------|-----------|---------|
-| All at Once | あり | 最速 | 追加コストなし | 再デプロイ必要 | 開発環境 |
-| Rolling | なし | 中 | 追加コストなし | 再デプロイ必要 | ステージング |
-| Rolling + Batch | なし | 中 | 一時的追加 | 再デプロイ必要 | 本番（低リスク） |
-| Immutable | なし | 遅い | 一時的に2倍 | 高速（旧環境に戻す） | 本番（推奨） |
-| Traffic Splitting | なし | 遅い | 一時的に追加 | 高速 | 本番（カナリア） |
-| Blue/Green | なし | 遅い | 常に2倍 | 最速（URL スワップ） | 本番（最高安全性） |
+| All at Once | Yes | Fastest | No additional cost | Requires redeploy | Development |
+| Rolling | No | Medium | No additional cost | Requires redeploy | Staging |
+| Rolling + Batch | No | Medium | Temporary addition | Requires redeploy | Production (low risk) |
+| Immutable | No | Slow | Temporarily 2x | Fast (revert to old env) | Production (recommended) |
+| Traffic Splitting | No | Slow | Temporary addition | Fast | Production (canary) |
+| Blue/Green | No | Slow | Always 2x | Fastest (URL swap) | Production (highest safety) |
 
-### 3.3 コード例: デプロイ設定 (.ebextensions)
+### 3.3 Code Example: Deployment Configuration (.ebextensions)
 
 ```yaml
 # .ebextensions/01-deploy.config
@@ -312,7 +313,7 @@ option_settings:
     MinInstancesInService: 1
 ```
 
-### 3.4 コード例: Traffic Splitting の設定
+### 3.4 Code Example: Traffic Splitting Configuration
 
 ```yaml
 # .ebextensions/traffic-splitting.config
@@ -324,7 +325,7 @@ option_settings:
     EvaluationTime: 10
 ```
 
-### 3.5 デプロイの実行
+### 3.5 Executing Deployments
 
 ```bash
 # 現在のディレクトリのコードをデプロイ
@@ -351,46 +352,46 @@ aws elasticbeanstalk describe-application-versions \
 
 ---
 
-## 4. 設定カスタマイズ
+## 4. Configuration Customization
 
-### 4.1 .ebextensions の構造
+### 4.1 .ebextensions Structure
 
 ```
 my-app/
 ├── .ebextensions/
-│   ├── 01-packages.config      # パッケージインストール
-│   ├── 02-files.config         # ファイル配置
-│   ├── 03-commands.config      # コマンド実行
-│   ├── 04-options.config       # 環境設定
-│   ├── 05-resources.config     # CloudFormation リソース
-│   └── 06-logging.config       # ログ設定
+│   ├── 01-packages.config      # Package installation
+│   ├── 02-files.config         # File placement
+│   ├── 03-commands.config      # Command execution
+│   ├── 04-options.config       # Environment settings
+│   ├── 05-resources.config     # CloudFormation resources
+│   └── 06-logging.config       # Logging settings
 ├── .platform/
 │   ├── hooks/
-│   │   ├── prebuild/           # ビルド前フック
-│   │   ├── predeploy/          # デプロイ前フック
-│   │   └── postdeploy/         # デプロイ後フック
+│   │   ├── prebuild/           # Pre-build hooks
+│   │   ├── predeploy/          # Pre-deploy hooks
+│   │   └── postdeploy/         # Post-deploy hooks
 │   ├── confighooks/
-│   │   ├── prebuild/           # 設定変更時のビルド前フック
-│   │   └── predeploy/          # 設定変更時のデプロイ前フック
+│   │   ├── prebuild/           # Pre-build hooks on config change
+│   │   └── predeploy/          # Pre-deploy hooks on config change
 │   └── nginx/
-│       ├── nginx.conf          # NGINX メイン設定（完全上書き）
+│       ├── nginx.conf          # NGINX main config (full override)
 │       └── conf.d/
-│           └── custom.conf     # NGINX カスタム設定（追加）
+│           └── custom.conf     # NGINX custom config (additive)
 ├── application.py
 └── requirements.txt
 
-.ebextensions の実行順序:
-1. packages       — OS パッケージインストール
-2. groups         — Linux グループ作成
-3. users          — Linux ユーザー作成
-4. sources        — アーカイブ展開
-5. files          — ファイル配置
-6. commands       — アプリデプロイ前のコマンド
-7. services       — サービス起動/有効化
-8. container_commands — アプリデプロイ後のコマンド（leader_only 対応）
+.ebextensions execution order:
+1. packages       — OS package installation
+2. groups         — Linux group creation
+3. users          — Linux user creation
+4. sources        — Archive extraction
+5. files          — File placement
+6. commands       — Commands before app deployment
+7. services       — Service startup/enablement
+8. container_commands — Commands after app deployment (leader_only supported)
 ```
 
-### 4.2 コード例: パッケージインストールと設定
+### 4.2 Code Example: Package Installation and Configuration
 
 ```yaml
 # .ebextensions/01-packages.config
@@ -440,7 +441,7 @@ container_commands:
       DJANGO_SUPERUSER_PASSWORD: InitialPassword123!
 ```
 
-### 4.3 コード例: 環境変数の設定
+### 4.3 Code Example: Environment Variable Configuration
 
 ```bash
 # CLI で環境変数を設定
@@ -473,7 +474,7 @@ aws elasticbeanstalk update-environment \
   ]'
 ```
 
-### 4.4 コード例: NGINX カスタム設定
+### 4.4 Code Example: Custom NGINX Configuration
 
 ```nginx
 # .platform/nginx/conf.d/custom.conf
@@ -485,18 +486,18 @@ upstream backend {
 server {
     listen 80;
 
-    # gzip 圧縮
+    # gzip compression
     gzip on;
     gzip_comp_level 6;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
 
-    # セキュリティヘッダー
+    # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
-    # 静的ファイル
+    # Static files
     location /static/ {
         alias /var/app/current/staticfiles/;
         expires 30d;
@@ -504,20 +505,20 @@ server {
         access_log off;
     }
 
-    # メディアファイル
+    # Media files
     location /media/ {
         alias /var/app/current/media/;
         expires 7d;
         add_header Cache-Control "public";
     }
 
-    # ヘルスチェック（ログ不要）
+    # Health check (no logging needed)
     location /health {
         proxy_pass http://backend;
         access_log off;
     }
 
-    # アプリケーション
+    # Application
     location / {
         proxy_pass http://backend;
         proxy_http_version 1.1;
@@ -541,7 +542,7 @@ server {
 }
 ```
 
-### 4.5 コード例: CloudFormation リソースの追加
+### 4.5 Code Example: Adding CloudFormation Resources
 
 ```yaml
 # .ebextensions/05-resources.config
@@ -561,7 +562,7 @@ Resources:
       HealthCheckType: ELB
       HealthCheckGracePeriod: 300
 
-  # CloudWatch アラーム
+  # CloudWatch Alarm
   CPUAlarmHigh:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -587,12 +588,12 @@ Resources:
           Endpoint: alerts@example.com
 ```
 
-### 4.6 コード例: Auto Scaling の設定
+### 4.6 Code Example: Auto Scaling Configuration
 
 ```yaml
 # .ebextensions/autoscaling.config
 option_settings:
-  # インスタンスタイプ
+  # Instance type
   aws:autoscaling:launchconfiguration:
     InstanceType: t3.small
     IamInstanceProfile: aws-elasticbeanstalk-ec2-role
@@ -600,13 +601,13 @@ option_settings:
     RootVolumeType: gp3
     RootVolumeSize: 30
 
-  # Auto Scaling 設定
+  # Auto Scaling settings
   aws:autoscaling:asg:
     MinSize: 2
     MaxSize: 8
     Cooldown: 300
 
-  # スケーリングトリガー
+  # Scaling triggers
   aws:autoscaling:trigger:
     MeasureName: CPUUtilization
     Statistic: Average
@@ -618,16 +619,16 @@ option_settings:
     LowerThreshold: 30
     LowerBreachScaleIncrement: -1
 
-  # スケジュールスケーリング
+  # Scheduled scaling
   aws:autoscaling:scheduledaction:
-    # 平日の朝にスケールアウト
+    # Scale out on weekday mornings
     - ResourceId: AWSEBAutoScalingGroup
       Schedule: "cron(0 0 * * MON-FRI)"
       MinSize: 4
       MaxSize: 8
       DesiredCapacity: 4
 
-  # ロードバランサー設定
+  # Load balancer settings
   aws:elasticbeanstalk:environment:
     LoadBalancerType: application
 
@@ -641,7 +642,7 @@ option_settings:
     DefaultProcess: default
     ListenerEnabled: true
 
-  # ヘルスチェック
+  # Health check
   aws:elasticbeanstalk:application:
     Application Healthcheck URL: /health
 
@@ -655,22 +656,22 @@ option_settings:
     StickinessLBCookieDuration: 3600
 ```
 
-### 4.7 Platform Hooks の使い方
+### 4.7 How to Use Platform Hooks
 
 ```bash
 #!/bin/bash
 # .platform/hooks/predeploy/01_migrate.sh
-# デプロイ前にデータベースマイグレーションを実行
+# Run database migrations before deployment
 
 set -euo pipefail
 
 echo "Running database migrations..."
 cd /var/app/staging
 
-# 仮想環境を有効化
+# Activate virtual environment
 source /var/app/venv/*/bin/activate
 
-# マイグレーション実行
+# Run migrations
 python manage.py migrate --noinput
 
 echo "Database migrations completed successfully"
@@ -679,13 +680,13 @@ echo "Database migrations completed successfully"
 ```bash
 #!/bin/bash
 # .platform/hooks/postdeploy/01_health_check.sh
-# デプロイ後にヘルスチェックを実行
+# Run health check after deployment
 
 set -euo pipefail
 
 echo "Running post-deploy health check..."
 
-# アプリケーションが起動するまで待機
+# Wait for the application to start
 for i in $(seq 1 30); do
   if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
     echo "Health check passed!"
@@ -701,16 +702,16 @@ exit 1
 
 ---
 
-## 5. モニタリングとトラブルシューティング
+## 5. Monitoring and Troubleshooting
 
-### 5.1 ヘルスモニタリング
+### 5.1 Health Monitoring
 
 ```
-EB ヘルスダッシュボード
+EB Health Dashboard
 
-  環境全体: ● OK (Green)
+  Overall Environment: ● OK (Green)
 
-  インスタンス別ヘルス:
+  Per-Instance Health:
   +-------------+--------+---------+----------+--------+
   | Instance ID | Status | CPU (%) | Req/sec  | P99(ms)|
   +-------------+--------+---------+----------+--------+
@@ -719,20 +720,20 @@ EB ヘルスダッシュボード
   | i-ccc       | ▲ Warn | 78      | 95       | 250    |
   +-------------+--------+---------+----------+--------+
 
-  ヘルスカラー:
-  ● Green  = 正常
-  ● Yellow = 警告（デプロイ中含む）
-  ● Red    = 異常（アクションが必要）
-  ● Grey   = 情報不足
+  Health Colors:
+  ● Green  = Healthy
+  ● Yellow = Warning (including during deployment)
+  ● Red    = Unhealthy (action required)
+  ● Grey   = Insufficient data
 
-  拡張ヘルスのメトリクス:
-  - ApplicationRequests*: 各 HTTP ステータスコードのリクエスト数
-  - ApplicationLatencyP*: レイテンシのパーセンタイル (P50, P90, P99)
-  - InstanceHealth: インスタンスレベルのヘルス情報
+  Enhanced Health Metrics:
+  - ApplicationRequests*: Request count per HTTP status code
+  - ApplicationLatencyP*: Latency percentiles (P50, P90, P99)
+  - InstanceHealth: Instance-level health information
   - CPUUtilization, LoadAverage, RootFilesystemUtil
 ```
 
-### 5.2 コード例: ログの取得と確認
+### 5.2 Code Example: Retrieving and Reviewing Logs
 
 ```bash
 # 最新のログを取得
@@ -758,7 +759,7 @@ eb ssh
 # デプロイログ:           /var/log/eb-activity.log
 ```
 
-### 5.3 CloudWatch Logs ストリーミング
+### 5.3 CloudWatch Logs Streaming
 
 ```yaml
 # .ebextensions/06-logging.config
@@ -773,7 +774,7 @@ option_settings:
     DeleteOnTerminate: false
     RetentionInDays: 7
 
-# カスタムログファイルの追加
+# Adding custom log files
 files:
   "/opt/elasticbeanstalk/tasks/bundlelogs.d/app-logs.conf":
     mode: "000644"
@@ -790,36 +791,36 @@ files:
       /var/app/current/logs/*.log
 ```
 
-### 5.4 トラブルシューティングチェックリスト
+### 5.4 Troubleshooting Checklist
 
-| 症状 | 確認箇所 | 対処法 |
+| Symptom | Where to Check | Resolution |
 |------|---------|--------|
-| デプロイ失敗 | `/var/log/eb-engine.log` | コマンド実行エラーを確認 |
-| 502 Bad Gateway | NGINX → アプリの接続 | ポート番号、アプリ起動状態を確認 |
-| ヘルスチェック失敗 | `/health` エンドポイント | SG、パス、レスポンスコードを確認 |
-| 環境が Red | 拡張ヘルス詳細 | `eb health` でインスタンス別状態確認 |
-| メモリ不足 | CloudWatch メトリクス | インスタンスタイプのスケールアップ |
-| ディスク容量不足 | `/var/log`, `/tmp` | 古いデプロイバージョンの削除 |
+| Deployment failure | `/var/log/eb-engine.log` | Check for command execution errors |
+| 502 Bad Gateway | NGINX to app connection | Check port number and app startup status |
+| Health check failure | `/health` endpoint | Check SG, path, and response code |
+| Environment is Red | Enhanced health details | Check per-instance status with `eb health` |
+| Out of memory | CloudWatch metrics | Scale up instance type |
+| Disk space full | `/var/log`, `/tmp` | Delete old deployment versions |
 
 ```bash
-# トラブルシューティング用のコマンド集
+# Troubleshooting command collection
 
-# 環境の詳細状態
+# Detailed environment status
 eb health --refresh
 
-# イベント一覧（エラーを確認）
+# Event list (check for errors)
 eb events -f
 
-# 環境設定のダンプ
+# Dump environment configuration
 eb config
 
-# 環境の再構築（最終手段）
+# Rebuild environment (last resort)
 eb rebuild
 
-# SSH 接続してログを確認
+# SSH in and check logs
 eb ssh --command "tail -100 /var/log/eb-engine.log"
 
-# AWS CLI でインスタンスのヘルスを確認
+# Check instance health via AWS CLI
 aws elasticbeanstalk describe-instances-health \
   --environment-name production-env \
   --attribute-names All \
@@ -828,27 +829,27 @@ aws elasticbeanstalk describe-instances-health \
 
 ---
 
-## 6. Blue/Green デプロイ
+## 6. Blue/Green Deployment
 
 ```
-Blue/Green デプロイフロー
+Blue/Green Deployment Flow
 
-  1. 現在の環境 (Blue)
-     production.example.com → Blue 環境
+  1. Current environment (Blue)
+     production.example.com → Blue Environment
 
-  2. 新環境を作成 (Green)
+  2. Create new environment (Green)
      eb clone production-env --clone-name green-env
 
-  3. Green 環境にデプロイ・テスト
+  3. Deploy and test on Green environment
      eb deploy green-env
 
-  4. URL スワップ
+  4. URL Swap
      eb swap production-env --destination-name green-env
-     production.example.com → Green 環境
+     production.example.com → Green Environment
 
-  5. 問題があれば再度スワップでロールバック
+  5. If issues arise, swap again to rollback
      eb swap production-env --destination-name green-env
-     production.example.com → Blue 環境（元に戻る）
+     production.example.com → Blue Environment (reverted)
 ```
 
 ```bash
@@ -876,7 +877,7 @@ eb swap production-env --destination-name green-env
 eb terminate green-env --force
 ```
 
-### 6.1 Blue/Green デプロイの自動化スクリプト
+### 6.1 Blue/Green Deployment Automation Script
 
 ```bash
 #!/bin/bash
@@ -891,7 +892,7 @@ HEALTH_CHECK_URL="/health"
 
 echo "=== Blue/Green Deploy: $VERSION_LABEL ==="
 
-# 1. Green 環境の作成（既存の場合はスキップ）
+# 1. Create Green environment (skip if already exists)
 if aws elasticbeanstalk describe-environments \
   --environment-names $GREEN_ENV \
   --query 'Environments[?Status!=`Terminated`]' \
@@ -905,11 +906,11 @@ else
     --environment-name $GREEN_ENV
 fi
 
-# 2. Green 環境にデプロイ
+# 2. Deploy to Green environment
 echo "Deploying to green environment..."
 eb deploy $GREEN_ENV --label $VERSION_LABEL
 
-# 3. ヘルスチェック
+# 3. Health check
 echo "Running health checks..."
 GREEN_URL=$(aws elasticbeanstalk describe-environments \
   --environment-names $GREEN_ENV \
@@ -924,7 +925,7 @@ for i in $(seq 1 10); do
   sleep 10
 done
 
-# 4. URL スワップ
+# 4. URL Swap
 echo "Swapping URLs..."
 eb swap $BLUE_ENV --destination-name $GREEN_ENV
 
@@ -934,9 +935,9 @@ echo "New production URL: $GREEN_URL"
 
 ---
 
-## 7. Docker プラットフォーム
+## 7. Docker Platform
 
-### 7.1 単一コンテナ Docker
+### 7.1 Single Container Docker
 
 ```dockerfile
 # Dockerfile
@@ -957,7 +958,7 @@ CMD ["node", "dist/server.js"]
 ```
 
 ```json
-// Dockerrun.aws.json (v1 — 単一コンテナ)
+// Dockerrun.aws.json (v1 — Single container)
 {
   "AWSEBDockerrunVersion": "1",
   "Image": {
@@ -974,7 +975,7 @@ CMD ["node", "dist/server.js"]
 }
 ```
 
-### 7.2 マルチコンテナ Docker (docker-compose)
+### 7.2 Multi-Container Docker (docker-compose)
 
 ```yaml
 # docker-compose.yml
@@ -1017,9 +1018,9 @@ services:
 
 ---
 
-## 8. マネージドプラットフォーム更新
+## 8. Managed Platform Updates
 
-### 8.1 マネージドプラットフォーム更新の設定
+### 8.1 Managed Platform Update Configuration
 
 ```yaml
 # .ebextensions/managed-updates.config
@@ -1051,9 +1052,9 @@ aws elasticbeanstalk list-available-solution-stacks \
 
 ---
 
-## 9. RDS との連携
+## 9. RDS Integration
 
-### 9.1 EB 環境に RDS を直接関連付ける方法（開発用）
+### 9.1 Directly Associating RDS with an EB Environment (For Development)
 
 ```yaml
 # .ebextensions/rds.config（開発環境のみ推奨）
@@ -1069,7 +1070,7 @@ option_settings:
     MultiAZDatabase: false
 ```
 
-### 9.2 外部 RDS を使用する方法（本番推奨）
+### 9.2 Using an External RDS (Recommended for Production)
 
 ```bash
 # 環境変数で RDS 接続情報を設定
@@ -1091,45 +1092,45 @@ export RDS_PASSWORD=$(echo $SECRET | jq -r '.password')
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: 全設定をコンソールで手動管理する
+### Anti-Pattern 1: Managing All Configuration Manually via Console
 
-コンソールで変更した設定は再現性がなく、環境再構築時に漏れが発生する。`.ebextensions` と `.platform` でコード化し、Git で管理すべきである。
-
-```
-# 悪い例
-コンソールで NGINX 設定を手動変更
-→ 環境再構築時に設定が消える
-→ 他のチームメンバーが設定を知らない
-
-# 良い例
-.platform/nginx/conf.d/custom.conf に設定を記述
-→ デプロイのたびに自動適用
-→ Git で変更履歴を追跡可能
-```
-
-### アンチパターン 2: All at Once デプロイを本番で使う
-
-全インスタンスが同時に更新されるため、デプロイ中にダウンタイムが発生する。本番環境では Rolling with Additional Batch または Immutable を使用すべきである。
-
-### アンチパターン 3: EB 環境に RDS を直接関連付ける（本番）
-
-EB 環境を終了すると関連付けられた RDS も削除される。本番環境では必ず外部の RDS を使用し、環境変数で接続情報を渡すべきである。
+Settings changed in the console are not reproducible, and omissions occur when rebuilding environments. They should be codified with `.ebextensions` and `.platform` and managed with Git.
 
 ```
-# 悪い例（本番）
-EB 環境に RDS を関連付け
-→ eb terminate で RDS も一緒に削除される
-→ Blue/Green デプロイで別の DB が作られてしまう
+# Bad example
+Manually changing NGINX settings in the console
+→ Settings are lost when rebuilding the environment
+→ Other team members are unaware of the settings
 
-# 良い例（本番）
-RDS は Terraform/CloudFormation で別管理
-→ EB 環境の終了に影響されない
-→ Blue/Green の両環境で同じ DB を共有
+# Good example
+Describe settings in .platform/nginx/conf.d/custom.conf
+→ Automatically applied with every deployment
+→ Change history trackable via Git
 ```
 
-### アンチパターン 4: 環境変数にシークレットを直接設定する
+### Anti-Pattern 2: Using All at Once Deployment in Production
+
+Since all instances are updated simultaneously, downtime occurs during deployment. Use Rolling with Additional Batch or Immutable for production environments.
+
+### Anti-Pattern 3: Directly Associating RDS with EB Environment (Production)
+
+When the EB environment is terminated, the associated RDS is also deleted. Always use an external RDS for production environments and pass connection information via environment variables.
+
+```
+# Bad example (Production)
+Associate RDS with EB environment
+→ eb terminate deletes the RDS as well
+→ Blue/Green deployment creates a separate DB
+
+# Good example (Production)
+Manage RDS separately with Terraform/CloudFormation
+→ Not affected by EB environment termination
+→ Both Blue/Green environments share the same DB
+```
+
+### Anti-Pattern 4: Setting Secrets Directly in Environment Variables
 
 ```bash
 # 悪い例
@@ -1141,7 +1142,7 @@ eb setenv DB_SECRET_ARN=arn:aws:secretsmanager:ap-northeast-1:123456789012:secre
 # → アプリ側で Secrets Manager から動的に取得
 ```
 
-### アンチパターン 5: .ebignore を設定しない
+### Anti-Pattern 5: Not Configuring .ebignore
 
 ```bash
 # 悪い例 — 全ファイルをデプロイ
@@ -1164,16 +1165,16 @@ docs/
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
 # 演習1: 基本実装のテンプレート
@@ -1220,9 +1221,9 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
 # 演習2: 応用パターン
@@ -1289,9 +1290,9 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
 # 演習3: パフォーマンス最適化
@@ -1340,34 +1341,34 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be conscious of algorithm computational complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## 11. FAQ
 
-### Q1. Elastic Beanstalk と ECS / Fargate のどちらを選ぶべきか？
+### Q1. Should I choose Elastic Beanstalk or ECS/Fargate?
 
-| 観点 | Elastic Beanstalk | ECS / Fargate |
+| Aspect | Elastic Beanstalk | ECS / Fargate |
 |------|------------------|--------------|
-| 運用複雑度 | 低い | 中〜高い |
-| カスタマイズ性 | 中程度 | 高い |
-| コンテナ対応 | Docker プラットフォーム | ネイティブ |
-| サイドカー | 困難 | 容易 |
-| サービスメッシュ | 非対応 | App Mesh 対応 |
-| 対象ユーザー | 小〜中規模チーム | 大規模・マイクロサービス |
+| Operational complexity | Low | Medium to High |
+| Customizability | Moderate | High |
+| Container support | Docker platform | Native |
+| Sidecars | Difficult | Easy |
+| Service mesh | Not supported | App Mesh supported |
+| Target users | Small to medium teams | Large-scale / microservices |
 
-Beanstalk は「アプリケーションをデプロイするだけ」のシンプルさが利点。コンテナオーケストレーションの詳細な制御（サイドカーパターン、サービスメッシュ等）が必要なら ECS/Fargate を選択する。
+Beanstalk's advantage is its simplicity of "just deploying an application." If you need detailed control over container orchestration (sidecar patterns, service mesh, etc.), choose ECS/Fargate.
 
-### Q2. Elastic Beanstalk のコストは？
+### Q2. What does Elastic Beanstalk cost?
 
-Beanstalk 自体は無料で、裏側の EC2、ALB、RDS などの料金のみが発生する。ただし Beanstalk が自動作成する ALB やスケーリング設定が想定以上のコストを生む場合があるので、作成されるリソースを確認する。不要な環境は速やかに終了すること。
+Beanstalk itself is free; you only pay for the underlying EC2, ALB, RDS, and other resources. However, the ALB and scaling settings that Beanstalk automatically creates can generate costs beyond expectations, so verify the resources being created. Terminate unnecessary environments promptly.
 
-### Q3. カスタムドメインと HTTPS をどう設定するか？
+### Q3. How do I set up a custom domain and HTTPS?
 
-Route 53 でドメインを ALB に ALIAS レコードで向け、ACM (AWS Certificate Manager) で SSL 証明書を取得して ALB のリスナーに設定する。`.ebextensions` で HTTPS リスナーの設定を自動化できる。
+Point the domain to the ALB with an ALIAS record in Route 53, obtain an SSL certificate with ACM (AWS Certificate Manager), and configure it on the ALB listener. You can automate the HTTPS listener configuration with `.ebextensions`.
 
 ```yaml
 # .ebextensions/https.config
@@ -1377,7 +1378,7 @@ option_settings:
     SSLCertificateArns: arn:aws:acm:ap-northeast-1:123456789012:certificate/xxx
     SSLPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
 
-  # HTTP → HTTPS リダイレクト
+  # HTTP → HTTPS redirect
   aws:elbv2:listener:80:
     DefaultProcess: default
     ListenerEnabled: true
@@ -1390,7 +1391,7 @@ option_settings:
     Priority: 1
 ```
 
-### Q4. EB の環境構成を別のアカウントに移行するには？
+### Q4. How do I migrate an EB environment configuration to another account?
 
 ```bash
 # 環境設定をエクスポート
@@ -1403,7 +1404,7 @@ cat .elasticbeanstalk/saved_configs/saved-config.cfg.yml
 eb create new-production-env --cfg saved-config
 ```
 
-### Q5. EB 環境のインスタンスに SSH する方法は？
+### Q5. How do I SSH into EB environment instances?
 
 ```bash
 # EB CLI で SSH 接続
@@ -1421,39 +1422,39 @@ aws ssm start-session --target i-0123456789abcdef0
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in daily development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 12. まとめ
+## 12. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| 位置づけ | EC2 + ALB + ASG をまとめて管理する PaaS |
-| プラットフォーム | Node.js, Python, Java, Go, .NET, Docker 等（AL2023 必須） |
-| デプロイ戦略 | 本番は Immutable か Traffic Splitting 推奨 |
-| カスタマイズ | .ebextensions と .platform で宣言的に管理 |
-| Blue/Green | eb swap で URL を切り替え、高速ロールバック |
-| モニタリング | 拡張ヘルス + CloudWatch Logs ストリーミング |
-| RDS | 本番は外部 RDS を使用、環境変数で接続情報を渡す |
-| シークレット | Secrets Manager で管理、環境変数に平文を置かない |
-| Docker | 単一コンテナまたは docker-compose で柔軟にデプロイ |
+| Positioning | PaaS that manages EC2 + ALB + ASG together |
+| Platforms | Node.js, Python, Java, Go, .NET, Docker, etc. (AL2023 required) |
+| Deployment strategy | Immutable or Traffic Splitting recommended for production |
+| Customization | Manage declaratively with .ebextensions and .platform |
+| Blue/Green | Switch URLs with eb swap for fast rollback |
+| Monitoring | Enhanced health + CloudWatch Logs streaming |
+| RDS | Use external RDS for production, pass connection info via env vars |
+| Secrets | Manage with Secrets Manager, never store plaintext in env vars |
+| Docker | Deploy flexibly with single container or docker-compose |
 
 ---
 
-## 13. CloudFormation / CDK による EB 環境の定義
+## 13. CloudFormation / CDK EB Environment Definitions
 
-### 13.1 CloudFormation テンプレート
+### 13.1 CloudFormation Template
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
@@ -1467,13 +1468,13 @@ Parameters:
     Type: AWS::EC2::VPC::Id
   PublicSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: ALB 用パブリックサブネット
+    Description: Public subnets for ALB
   PrivateSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: EC2 用プライベートサブネット
+    Description: Private subnets for EC2
   CertificateArn:
     Type: String
-    Description: ACM 証明書の ARN
+    Description: ACM certificate ARN
   InstanceType:
     Type: String
     Default: t3.small
@@ -1503,7 +1504,7 @@ Resources:
         Name: WebServer
         Type: Standard
       OptionSettings:
-        # VPC 設定
+        # VPC settings
         - Namespace: aws:ec2:vpc
           OptionName: VPCId
           Value: !Ref VpcId
@@ -1517,7 +1518,7 @@ Resources:
           OptionName: AssociatePublicIpAddress
           Value: 'false'
 
-        # インスタンス設定
+        # Instance settings
         - Namespace: aws:autoscaling:launchconfiguration
           OptionName: InstanceType
           Value: !Ref InstanceType
@@ -1544,7 +1545,7 @@ Resources:
           OptionName: SSLCertificateArns
           Value: !Ref CertificateArn
 
-        # デプロイ戦略
+        # Deployment strategy
         - Namespace: aws:elasticbeanstalk:command
           OptionName: DeploymentPolicy
           Value: Immutable
@@ -1552,12 +1553,12 @@ Resources:
           OptionName: Timeout
           Value: '600'
 
-        # ヘルスチェック
+        # Health check
         - Namespace: aws:elasticbeanstalk:application
           OptionName: Application Healthcheck URL
           Value: /health
 
-        # 拡張ヘルスレポート
+        # Enhanced health reporting
         - Namespace: aws:elasticbeanstalk:healthreporting:system
           OptionName: SystemType
           Value: enhanced
@@ -1570,7 +1571,7 @@ Resources:
           OptionName: RetentionInDays
           Value: '30'
 
-        # マネージド更新
+        # Managed updates
         - Namespace: aws:elasticbeanstalk:managedactions
           OptionName: ManagedActionsEnabled
           Value: 'true'
@@ -1584,13 +1585,13 @@ Resources:
 Outputs:
   EnvironmentURL:
     Value: !GetAtt Environment.EndpointURL
-    Description: EB 環境の URL
+    Description: EB environment URL
   EnvironmentName:
     Value: !Ref Environment
-    Description: EB 環境名
+    Description: EB environment name
 ```
 
-### 13.2 CDK (TypeScript) による定義
+### 13.2 CDK (TypeScript) Definition
 
 ```typescript
 import * as cdk from 'aws-cdk-lib';
@@ -1603,7 +1604,7 @@ export class EbStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // EC2 インスタンスプロファイル
+    // EC2 instance profile
     const role = new iam.Role(this, 'EbInstanceRole', {
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
       managedPolicies: [
@@ -1616,7 +1617,7 @@ export class EbStack extends cdk.Stack {
       roles: [role.roleName],
     });
 
-    // アプリケーション
+    // Application
     const app = new elasticbeanstalk.CfnApplication(this, 'App', {
       applicationName: 'my-web-app',
       resourceLifecycleConfig: {
@@ -1631,7 +1632,7 @@ export class EbStack extends cdk.Stack {
       },
     });
 
-    // 環境
+    // Environment
     const env = new elasticbeanstalk.CfnEnvironment(this, 'Env', {
       applicationName: app.applicationName!,
       environmentName: 'my-web-app-production',
@@ -1660,18 +1661,18 @@ export class EbStack extends cdk.Stack {
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [../02-storage/00-s3-basics.md](../02-storage/00-s3-basics.md) — S3 の基礎
-- [../03-database/00-rds-basics.md](../03-database/00-rds-basics.md) — RDS の基礎
+- [../02-storage/00-s3-basics.md](../02-storage/00-s3-basics.md) -- S3 Basics
+- [../03-database/00-rds-basics.md](../03-database/00-rds-basics.md) -- RDS Basics
 
 ---
 
-## 参考文献
+## References
 
-1. AWS Elastic Beanstalk 開発者ガイド — https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/
-2. EB CLI コマンドリファレンス — https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb-cli3.html
-3. Elastic Beanstalk デプロイポリシー — https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/using-features.rolling-version-deploy.html
-4. .ebextensions 設定ガイド — https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/ebextensions.html
-5. Platform Hooks — https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/platforms-linux-extend.html
-6. Docker プラットフォーム — https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create_deploy_docker.html
+1. AWS Elastic Beanstalk Developer Guide -- https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/
+2. EB CLI Command Reference -- https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb-cli3.html
+3. Elastic Beanstalk Deployment Policies -- https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/using-features.rolling-version-deploy.html
+4. .ebextensions Configuration Guide -- https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/ebextensions.html
+5. Platform Hooks -- https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/platforms-linux-extend.html
+6. Docker Platform -- https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create_deploy_docker.html
