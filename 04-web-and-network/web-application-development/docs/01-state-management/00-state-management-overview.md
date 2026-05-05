@@ -1,194 +1,194 @@
-# 状態管理概論
+# State Management Overview
 
-> 状態管理はWebアプリの複雑さの根源。ローカル状態、グローバル状態、サーバー状態、URL状態の分類を理解し、各カテゴリに最適なツールを選択することで、シンプルで保守しやすい状態管理を実現する。
+> State management is the root of complexity in web applications. By understanding the four categories of state — local, global, server, and URL — and selecting the right tool for each, you can achieve simple and maintainable state management.
 
-## 前提知識
+## Prerequisites
 
-この章を効果的に学習するために、以下の知識を事前に習得しておくことを推奨する:
+To study this chapter effectively, it is recommended that you acquire the following knowledge in advance:
 
-  - REST API の概念、fetch/axios の基本的な使い方、非同期処理の理解
-- **Reactの基本フック**
-  - `useState`: コンポーネント内でのローカル状態管理
-  - `useReducer`: より複雑な状態遷移の管理
-  - `useEffect`: 副作用の扱い方とクリーンアップ
-- **単方向データフロー**
-  - React の宣言的UI（`UI = f(state)`）の考え方
-  - Props の受け渡しと状態の持ち上げ（State Lifting）
-  - イベントハンドラによる状態更新フロー
+  - REST API concepts, basic usage of fetch/axios, understanding of asynchronous processing
+- **Basic React Hooks**
+  - `useState`: Managing local state within a component
+  - `useReducer`: Managing more complex state transitions
+  - `useEffect`: Handling side effects and cleanup
+- **Unidirectional Data Flow**
+  - React's declarative UI concept (`UI = f(state)`)
+  - Passing props and state lifting
+  - State update flow through event handlers
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] 状態の4つのカテゴリを理解する
-- [ ] 各カテゴリに適したツールの選定基準を把握する
-- [ ] 状態管理の設計原則を学ぶ
-- [ ] パフォーマンスを考慮した状態設計ができるようになる
-- [ ] 実務での状態管理アンチパターンを回避できるようになる
-- [ ] 大規模アプリケーションでの状態管理戦略を策定できるようになる
+- [ ] Understand the four categories of state
+- [ ] Grasp the criteria for selecting the right tool for each category
+- [ ] Learn the design principles of state management
+- [ ] Be able to design state with performance in mind
+- [ ] Avoid common state management anti-patterns in real-world projects
+- [ ] Be able to formulate state management strategies for large-scale applications
 
 ---
 
-## 1. 状態とは何か
+## 1. What Is State?
 
-Webアプリケーションにおける「状態」とは、アプリケーションが現在どのような振る舞いをすべきかを決定するデータの総体である。ボタンが押されたか、ユーザーがログインしているか、APIからどんなデータが返ってきたか、URLにどんなパラメータが含まれているか。これらすべてが「状態」であり、UIはこの状態の関数として描画される。
+"State" in a web application refers to the totality of data that determines how the application should behave at any given moment. Whether a button was pressed, whether the user is logged in, what data was returned from an API, what parameters are in the URL — all of these are "state," and the UI is rendered as a function of this state.
 
 ```
 UI = f(state)
 
-この式が意味すること:
-  - 同じ状態が与えられれば、同じUIが描画される
-  - 状態が変化するとUIが再描画される
-  - UIの問題 = 状態の問題（デバッグの基本方針）
+What this equation means:
+  - Given the same state, the same UI is rendered
+  - When state changes, the UI re-renders
+  - UI problems = state problems (the basic debugging approach)
 
-Reactの基本的なメンタルモデル:
-  1. 状態を宣言する（useState, useReducer）
-  2. 状態に基づいてUIを宣言的に記述する
-  3. イベントハンドラで状態を更新する
-  4. Reactが差分検出して効率的にDOMを更新する
+React's basic mental model:
+  1. Declare state (useState, useReducer)
+  2. Declaratively describe the UI based on state
+  3. Update state with event handlers
+  4. React detects differences and efficiently updates the DOM
 
-重要な区別:
-  - 状態（State）: 時間とともに変化するデータ
-  - 定数（Constant）: 変化しないデータ → 状態にすべきでない
-  - 導出値（Derived）: 既存の状態から計算可能 → 状態にすべきでない
-  - Props: 親から渡されるデータ → 子コンポーネントの状態にすべきでない
+Important distinctions:
+  - State: Data that changes over time
+  - Constant: Data that does not change → should not be state
+  - Derived value: Computable from existing state → should not be state
+  - Props: Data passed from the parent → should not be state in child components
 ```
 
-### 1.1 状態管理が難しい理由
+### 1.1 Why State Management Is Difficult
 
 ```
-なぜ状態管理が複雑化するのか:
+Why state management becomes complex:
 
-  ① 状態の散在:
-     → 同じデータが複数のコンポーネントで必要
-     → どこに配置すべきかの判断が難しい
-     → Props Drilling vs Context vs 外部ストア
+  ① Scattered state:
+     → The same data is needed across multiple components
+     → Difficult to decide where to place it
+     → Props Drilling vs Context vs external store
 
-  ② 状態の同期:
-     → クライアント側のキャッシュとサーバーのデータのズレ
-     → 複数タブ間での状態同期
-     → オフライン/オンライン切り替え時の整合性
+  ② State synchronization:
+     → Mismatch between client-side cache and server data
+     → State synchronization across multiple tabs
+     → Consistency when switching between offline/online
 
-  ③ 状態の正規化:
-     → ネストしたオブジェクトの更新の複雑さ
-     → 同じエンティティが複数の場所に存在
-     → 部分的な更新と全体の整合性
+  ③ State normalization:
+     → Complexity of updating nested objects
+     → The same entity existing in multiple places
+     → Partial updates and overall consistency
 
-  ④ 非同期状態:
-     → ローディング、エラー、成功の3状態の管理
-     → 競合する複数のリクエストの処理
-     → 楽観的更新とロールバック
+  ④ Asynchronous state:
+     → Managing the three states: loading, error, success
+     → Handling multiple competing requests
+     → Optimistic updates and rollback
 
-  ⑤ パフォーマンス:
-     → 不必要な再レンダリングの発生
-     → メモリリーク（適切なクリーンアップの欠如）
-     → 巨大な状態ツリーの管理コスト
+  ⑤ Performance:
+     → Unnecessary re-renders occurring
+     → Memory leaks (lack of proper cleanup)
+     → Management cost of large state trees
 ```
 
 ---
 
-## 2. 状態の4つのカテゴリ
+## 2. The Four Categories of State
 
 ```
-4つの状態カテゴリ:
+Four state categories:
 
-  ① ローカル状態（UI State）:
-     → コンポーネント固有の一時的な状態
-     → モーダルの開閉、フォーム入力値、ホバー状態
-     → ツール: useState, useReducer
-     → ライフサイクル: コンポーネントのマウント〜アンマウント
+  ① Local state (UI State):
+     → Temporary state specific to a component
+     → Modal open/close, form input values, hover state
+     → Tools: useState, useReducer
+     → Lifecycle: from component mount to unmount
 
-  ② グローバル状態（Client State）:
-     → 複数コンポーネントで共有する状態
-     → テーマ、言語設定、ユーザー認証状態
-     → ツール: Zustand, Jotai, Context
-     → ライフサイクル: アプリ全体のライフタイム
+  ② Global state (Client State):
+     → State shared across multiple components
+     → Theme, language settings, user authentication state
+     → Tools: Zustand, Jotai, Context
+     → Lifecycle: the entire app's lifetime
 
-  ③ サーバー状態（Server State）:
-     → APIから取得したデータ
-     → ユーザー一覧、商品データ、注文履歴
-     → ツール: TanStack Query, SWR
-     → ライフサイクル: キャッシュの有効期限に基づく
+  ③ Server state (Server State):
+     → Data fetched from an API
+     → User lists, product data, order history
+     → Tools: TanStack Query, SWR
+     → Lifecycle: based on cache expiration
 
-  ④ URL状態（URL State）:
-     → URLに反映される状態
-     → 検索クエリ、フィルタ、ページ番号、ソート
-     → ツール: useSearchParams, nuqs
-     → ライフサイクル: ナビゲーションに連動
+  ④ URL state (URL State):
+     → State reflected in the URL
+     → Search queries, filters, page numbers, sort order
+     → Tools: useSearchParams, nuqs
+     → Lifecycle: linked to navigation
 
-よくある間違い:
-  ✗ サーバー状態を useState で管理
-    → キャッシュ、リトライ、再検証が全て手動に
-    → TanStack Query に任せるべき
+Common mistakes:
+  ✗ Managing server state with useState
+    → Caching, retries, and revalidation all become manual
+    → Should be delegated to TanStack Query
 
-  ✗ ローカル状態をグローバルに置く
-    → 不要な再レンダリング
-    → useState で十分
+  ✗ Placing local state globally
+    → Unnecessary re-renders
+    → useState is sufficient
 
-  ✗ URL状態を useState で管理
-    → ブックマーク不可、共有不可
-    → useSearchParams に
+  ✗ Managing URL state with useState
+    → Not bookmarkable, not shareable
+    → Use useSearchParams instead
 
-  ✗ 導出値を状態として管理
-    → 同期が崩れるバグの温床
-    → useMemo で計算すべき
+  ✗ Managing derived values as state
+    → A breeding ground for synchronization bugs
+    → Should be computed with useMemo
 
-原則:
-  「最も局所的な場所で、最も適切なツールで管理する」
+Principle:
+  "Manage state in the most local place possible, with the most appropriate tool."
 ```
 
-### 2.1 状態カテゴリの判定フローチャート
+### 2.1 State Category Decision Flowchart
 
 ```
-状態カテゴリ判定フロー:
+State category decision flow:
 
-  Q1: そのデータはAPIから取得するものか？
+  Q1: Is the data something fetched from an API?
   │
-  ├─ Yes → サーバー状態（TanStack Query / SWR）
+  ├─ Yes → Server state (TanStack Query / SWR)
   │
   └─ No
      │
-     Q2: URLに反映すべきか？（ブックマーク/共有で保持したい？）
+     Q2: Should it be reflected in the URL? (Do you want to persist it via bookmark/share?)
      │
-     ├─ Yes → URL状態（useSearchParams / nuqs）
+     ├─ Yes → URL state (useSearchParams / nuqs)
      │
      └─ No
         │
-        Q3: 複数のコンポーネントで共有するか？
+        Q3: Is it shared across multiple components?
         │
         ├─ Yes
         │  │
-        │  Q4: 更新頻度はどの程度か？
+        │  Q4: How often is it updated?
         │  │
-        │  ├─ 低頻度（テーマ/認証/言語）→ Context
+        │  ├─ Low frequency (theme/auth/language) → Context
         │  │
-        │  └─ 中〜高頻度 → Zustand / Jotai
+        │  └─ Medium to high frequency → Zustand / Jotai
         │
-        └─ No → ローカル状態（useState / useReducer）
+        └─ No → Local state (useState / useReducer)
 
-実務での判断例:
+Practical judgment examples:
 
-  「ショッピングカートの中身」
-  → 複数ページで参照 → グローバル状態
-  → ただしサーバーに永続化するなら → サーバー状態
+  "Shopping cart contents"
+  → Referenced across multiple pages → Global state
+  → But if persisted to the server → Server state
 
-  「検索結果のフィルタ条件」
-  → URLに反映してブックマーク可能にしたい → URL状態
+  "Search result filter conditions"
+  → Want to reflect in URL to enable bookmarking → URL state
 
-  「フォームの入力途中のデータ」
-  → そのページでしか使わない → ローカル状態
+  "Data being entered in a form"
+  → Only used on that page → Local state
 
-  「ログイン中ユーザーの情報」
-  → APIから取得 → サーバー状態（TanStack Queryで管理）
-  → 認証トークン自体 → グローバル状態
+  "Currently logged-in user's information"
+  → Fetched from API → Server state (managed with TanStack Query)
+  → The authentication token itself → Global state
 ```
 
 ---
 
-## 3. ローカル状態の詳細
+## 3. Local State in Depth
 
-### 3.1 useState: 最もシンプルな状態管理
+### 3.1 useState: The Simplest State Management
 
 ```typescript
-// useState: 最もシンプル
+// useState: the simplest approach
 function ToggleButton() {
   const [isOpen, setIsOpen] = useState(false);
   return (
@@ -198,7 +198,7 @@ function ToggleButton() {
   );
 }
 
-// フォーム入力の管理
+// Managing form input
 function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -211,7 +211,7 @@ function LoginForm() {
     try {
       await login(email, password);
     } catch (err) {
-      setError('ログインに失敗しました');
+      setError('Login failed');
     }
   };
 
@@ -221,81 +221,81 @@ function LoginForm() {
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="メールアドレス"
+        placeholder="Email address"
       />
       <div className="password-field">
         <input
           type={showPassword ? 'text' : 'password'}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="パスワード"
+          placeholder="Password"
         />
         <button
           type="button"
           onClick={() => setShowPassword(!showPassword)}
         >
-          {showPassword ? '隠す' : '表示'}
+          {showPassword ? 'Hide' : 'Show'}
         </button>
       </div>
       {error && <p className="error">{error}</p>}
-      <button type="submit">ログイン</button>
+      <button type="submit">Login</button>
     </form>
   );
 }
 ```
 
-### 3.2 useState の注意点
+### 3.2 Caveats of useState
 
 ```typescript
-// ① バッチ更新の理解
+// ① Understanding batch updates
 function Counter() {
   const [count, setCount] = useState(0);
 
-  // NG: 同じレンダリングサイクル内の値を参照
+  // NG: referencing a value within the same render cycle
   const handleClick = () => {
     setCount(count + 1);
-    setCount(count + 1); // count は古い値のまま → 結果: +1
+    setCount(count + 1); // count still holds the old value → result: +1
   };
 
-  // OK: 関数型アップデートで前の値を参照
+  // OK: use functional updates to reference the previous value
   const handleClickCorrect = () => {
     setCount((prev) => prev + 1);
-    setCount((prev) => prev + 1); // prev は更新後の値 → 結果: +2
+    setCount((prev) => prev + 1); // prev is the updated value → result: +2
   };
 
   return <button onClick={handleClickCorrect}>{count}</button>;
 }
 
-// ② 初期値の遅延初期化
+// ② Lazy initialization of initial value
 function ExpensiveComponent() {
-  // NG: 毎レンダリングで computeExpensiveValue() が実行される
-  // （結果は初回のみ使われるが、関数呼び出し自体は毎回行われる）
+  // NG: computeExpensiveValue() runs on every render
+  // (the result is only used on the first render, but the function call happens every time)
   const [value, setValue] = useState(computeExpensiveValue());
 
-  // OK: 関数を渡すと初回のみ実行される
+  // OK: passing a function runs it only on the first render
   const [value2, setValue2] = useState(() => computeExpensiveValue());
 
   return <div>{value2}</div>;
 }
 
-// ③ オブジェクト状態の更新
+// ③ Updating object state
 function UserProfile() {
   const [user, setUser] = useState({
     name: 'Taro',
     email: 'taro@example.com',
     preferences: {
       theme: 'dark',
-      language: 'ja',
+      language: 'en',
     },
   });
 
-  // NG: 直接変更（Reactが変更を検知できない）
+  // NG: direct mutation (React cannot detect the change)
   const updateThemeBad = () => {
     user.preferences.theme = 'light';
-    setUser(user); // 同じ参照なので再レンダリングされない
+    setUser(user); // same reference → no re-render
   };
 
-  // OK: イミュータブルに更新
+  // OK: update immutably
   const updateThemeGood = () => {
     setUser({
       ...user,
@@ -306,14 +306,14 @@ function UserProfile() {
     });
   };
 
-  return <button onClick={updateThemeGood}>テーマ変更</button>;
+  return <button onClick={updateThemeGood}>Change Theme</button>;
 }
 ```
 
-### 3.3 useReducer: 複雑な状態遷移
+### 3.3 useReducer: Complex State Transitions
 
 ```typescript
-// useReducer: 複雑な状態遷移
+// useReducer: complex state transitions
 type State = { count: number; step: number; history: number[] };
 type Action =
   | { type: 'increment' }
@@ -369,10 +369,10 @@ function Counter() {
         -{state.step}
       </button>
       <button onClick={() => dispatch({ type: 'undo' })}>
-        元に戻す
+        Undo
       </button>
       <button onClick={() => dispatch({ type: 'reset' })}>
-        リセット
+        Reset
       </button>
       <input
         type="number"
@@ -385,29 +385,29 @@ function Counter() {
   );
 }
 
-// useReducer を使うべき場面:
-// → 3つ以上の関連する状態
-// → 状態遷移のルールが複雑
-// → 次の状態が前の状態に依存
-// → Undo/Redo が必要
-// → テストしやすくしたい（reducerは純粋関数）
+// When to use useReducer:
+// → Three or more related states
+// → Complex state transition rules
+// → The next state depends on the previous state
+// → Undo/Redo is required
+// → You want it to be easily testable (reducers are pure functions)
 ```
 
-### 3.4 実務例: マルチステップフォーム
+### 3.4 Practical Example: Multi-Step Form
 
 ```typescript
-// マルチステップフォームの状態管理
+// State management for a multi-step form
 type FormData = {
-  // Step 1: 基本情報
+  // Step 1: Basic information
   firstName: string;
   lastName: string;
   email: string;
-  // Step 2: 住所
+  // Step 2: Address
   postalCode: string;
   prefecture: string;
   city: string;
   address: string;
-  // Step 3: 支払い
+  // Step 3: Payment
   cardNumber: string;
   expiryDate: string;
   cvv: string;
@@ -510,24 +510,24 @@ function MultiStepForm() {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
 
     if (step === 0) {
-      if (!data.firstName) newErrors.firstName = '名前は必須です';
-      if (!data.lastName) newErrors.lastName = '姓は必須です';
-      if (!data.email) newErrors.email = 'メールは必須です';
+      if (!data.firstName) newErrors.firstName = 'First name is required';
+      if (!data.lastName) newErrors.lastName = 'Last name is required';
+      if (!data.email) newErrors.email = 'Email is required';
       if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-        newErrors.email = '有効なメールアドレスを入力してください';
+        newErrors.email = 'Please enter a valid email address';
       }
     }
 
     if (step === 1) {
-      if (!data.postalCode) newErrors.postalCode = '郵便番号は必須です';
-      if (!data.prefecture) newErrors.prefecture = '都道府県は必須です';
-      if (!data.city) newErrors.city = '市区町村は必須です';
+      if (!data.postalCode) newErrors.postalCode = 'Postal code is required';
+      if (!data.prefecture) newErrors.prefecture = 'Prefecture is required';
+      if (!data.city) newErrors.city = 'City is required';
     }
 
     if (step === 2) {
-      if (!data.cardNumber) newErrors.cardNumber = 'カード番号は必須です';
-      if (!data.expiryDate) newErrors.expiryDate = '有効期限は必須です';
-      if (!data.cvv) newErrors.cvv = 'CVVは必須です';
+      if (!data.cardNumber) newErrors.cardNumber = 'Card number is required';
+      if (!data.expiryDate) newErrors.expiryDate = 'Expiry date is required';
+      if (!data.cvv) newErrors.cvv = 'CVV is required';
     }
 
     dispatch({ type: 'SET_ERRORS', errors: newErrors });
@@ -547,7 +547,7 @@ function MultiStepForm() {
       await submitOrder(data);
       dispatch({ type: 'SUBMIT_SUCCESS' });
     } catch (err) {
-      dispatch({ type: 'SUBMIT_ERROR', error: '送信に失敗しました' });
+      dispatch({ type: 'SUBMIT_ERROR', error: 'Submission failed' });
     }
   };
 
@@ -570,14 +570,14 @@ function MultiStepForm() {
       <div className="navigation">
         {currentStep > 0 && (
           <button onClick={() => dispatch({ type: 'PREV_STEP' })}>
-            戻る
+            Back
           </button>
         )}
         {currentStep < 2 ? (
-          <button onClick={handleNext}>次へ</button>
+          <button onClick={handleNext}>Next</button>
         ) : (
           <button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? '送信中...' : '注文を確定'}
+            {isSubmitting ? 'Submitting...' : 'Place Order'}
           </button>
         )}
       </div>
@@ -588,72 +588,72 @@ function MultiStepForm() {
 
 ---
 
-## 4. グローバル状態の選定
+## 4. Choosing a Global State Solution
 
-### 4.1 ライブラリ比較
+### 4.1 Library Comparison
 
 ```
-ライブラリ詳細比較:
+Detailed library comparison:
 
   Zustand:
-  → シンプル、ボイラープレート最小
-  → ストア = 関数（Reduxより直感的）
-  → React外からもアクセス可能
-  → バンドルサイズ: ~1.1kB (gzip)
-  → TypeScript対応: 優秀（型推論が自然）
-  → DevTools: Redux DevTools に対応
-  → ミドルウェア: persist, devtools, immer, subscribeWithSelector
-  → 推奨: 中規模以上のアプリ
-  → 学習コスト: 低
+  → Simple, minimal boilerplate
+  → Store = function (more intuitive than Redux)
+  → Accessible from outside React
+  → Bundle size: ~1.1kB (gzip)
+  → TypeScript support: excellent (natural type inference)
+  → DevTools: compatible with Redux DevTools
+  → Middleware: persist, devtools, immer, subscribeWithSelector
+  → Recommended for: medium-sized and larger apps
+  → Learning cost: low
 
   Jotai:
-  → アトムベース（Recoilの後継的）
-  → コンポーネント単位の細かい再レンダリング制御
-  → バンドルサイズ: ~3.8kB (gzip)
-  → TypeScript対応: 優秀（ジェネリクス活用）
-  → DevTools: React DevTools の Atoms Inspector
-  → 拡張: atomWithStorage, atomWithQuery, atomWithMachine
-  → 推奨: 複雑なUIの状態管理
-  → 学習コスト: 中
+  → Atom-based (spiritual successor to Recoil)
+  → Fine-grained re-render control at the component level
+  → Bundle size: ~3.8kB (gzip)
+  → TypeScript support: excellent (leverages generics)
+  → DevTools: Atoms Inspector in React DevTools
+  → Extensions: atomWithStorage, atomWithQuery, atomWithMachine
+  → Recommended for: complex UI state management
+  → Learning cost: medium
 
   React Context:
-  → React組み込み、追加依存なし
-  → 頻繁に変化する値には不向き（再レンダリング問題）
-  → バンドルサイズ: 0kB（React内蔵）
-  → TypeScript対応: 手動の型定義が必要
-  → DevTools: React DevTools で確認可能
-  → 推奨: テーマ、認証情報等の低頻度更新
-  → 学習コスト: 低
+  → Built into React, no additional dependencies
+  → Not suitable for frequently changing values (re-render issue)
+  → Bundle size: 0kB (built into React)
+  → TypeScript support: requires manual type definitions
+  → DevTools: viewable in React DevTools
+  → Recommended for: low-frequency updates like theme, auth info
+  → Learning cost: low
 
   Redux Toolkit:
-  → 最も成熟したエコシステム
-  → DevTools が優秀
-  → ボイラープレートが多い
-  → バンドルサイズ: ~12.7kB (gzip)
-  → TypeScript対応: 優秀（RTK は型推論が強力）
-  → ミドルウェア: RTK Query, Thunk, Saga, Observable
-  → 推奨: 大規模エンタープライズ
-  → 学習コスト: 高
+  → Most mature ecosystem
+  → Excellent DevTools
+  → More boilerplate
+  → Bundle size: ~12.7kB (gzip)
+  → TypeScript support: excellent (RTK has powerful type inference)
+  → Middleware: RTK Query, Thunk, Saga, Observable
+  → Recommended for: large-scale enterprise apps
+  → Learning cost: high
 
   Valtio:
-  → Proxy ベースの状態管理
-  → ミュータブルな書き方が可能
-  → バンドルサイズ: ~3.3kB (gzip)
-  → 推奨: ミュータブルAPIを好む場合
-  → 学習コスト: 低
+  → Proxy-based state management
+  → Can be written in a mutable style
+  → Bundle size: ~3.3kB (gzip)
+  → Recommended for: those who prefer a mutable API
+  → Learning cost: low
 
-選定フロー:
-  テーマ/認証/言語（低頻度更新）→ Context
-  中規模の共有状態 → Zustand
-  アトム単位の細かい制御 → Jotai
-  大規模 + 厳密なアーキテクチャ → Redux Toolkit
-  ミュータブル志向 → Valtio
+Selection flow:
+  Theme/auth/language (low-frequency updates) → Context
+  Medium-scale shared state → Zustand
+  Fine-grained atom-level control → Jotai
+  Large-scale + strict architecture → Redux Toolkit
+  Mutable-oriented → Valtio
 ```
 
-### 4.2 各ライブラリのコード比較
+### 4.2 Code Comparison Across Libraries
 
 ```typescript
-// === 同じ機能を各ライブラリで実装（カウンター + テーマ） ===
+// === The same feature implemented in each library (counter + theme) ===
 
 // --- React Context ---
 type ThemeContextType = {
@@ -669,8 +669,8 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [count, setCount] = useState(0);
 
-  // useMemoでvalueをメモ化しないと、毎レンダリングで
-  // 新しいオブジェクトが生成され、全消費者が再レンダリングされる
+  // Without memoizing value with useMemo, a new object is created on every render,
+  // causing all consumers to re-render
   const value = useMemo(
     () => ({
       theme,
@@ -686,11 +686,11 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Context の問題: count が変わるとテーマだけ使うコンポーネントも再レンダリング
+// Context problem: when count changes, components that only use theme also re-render
 function ThemeOnlyComponent() {
   const ctx = useContext(ThemeContext);
-  // count の変更でもこのコンポーネントは再レンダリングされる！
-  return <div className={ctx?.theme}>テーマのみ使用</div>;
+  // This component re-renders even when count changes!
+  return <div className={ctx?.theme}>Theme only</div>;
 }
 
 // --- Zustand ---
@@ -713,11 +713,11 @@ const useAppStore = create<AppStore>((set) => ({
   increment: () => set((state) => ({ count: state.count + 1 })),
 }));
 
-// Zustand: セレクターで必要な値だけ取得 → 最小限の再レンダリング
+// Zustand: use selectors to get only what you need → minimal re-renders
 function ThemeOnlyComponentZustand() {
   const theme = useAppStore((state) => state.theme);
-  // count が変わってもこのコンポーネントは再レンダリングされない！
-  return <div className={theme}>テーマのみ使用</div>;
+  // This component does NOT re-render when count changes!
+  return <div className={theme}>Theme only</div>;
 }
 
 // --- Jotai ---
@@ -726,7 +726,7 @@ import { atom, useAtom, useAtomValue, useSetAtom } from 'jotai';
 const themeAtom = atom<'light' | 'dark'>('light');
 const countAtom = atom(0);
 
-// 派生アトム
+// Derived atom
 const themeClassAtom = atom((get) => {
   const theme = get(themeAtom);
   return theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white text-black';
@@ -734,8 +734,8 @@ const themeClassAtom = atom((get) => {
 
 function ThemeOnlyComponentJotai() {
   const themeClass = useAtomValue(themeClassAtom);
-  // countAtom の変更でこのコンポーネントは再レンダリングされない！
-  return <div className={themeClass}>テーマのみ使用</div>;
+  // This component does NOT re-render when countAtom changes!
+  return <div className={themeClass}>Theme only</div>;
 }
 
 function CounterJotai() {
@@ -748,12 +748,12 @@ function CounterJotai() {
 }
 ```
 
-### 4.3 Context の再レンダリング問題と対策
+### 4.3 Context Re-render Problem and Solutions
 
 ```typescript
-// Context の再レンダリング問題を理解する
+// Understanding the Context re-render problem
 
-// NG: 1つのContextに全状態を入れる
+// NG: putting all state in one Context
 const AppContext = createContext<{
   user: User | null;
   theme: Theme;
@@ -761,9 +761,9 @@ const AppContext = createContext<{
   sidebarOpen: boolean;
 } | null>(null);
 
-// → notificationsが更新されると、themeだけ使うコンポーネントも再レンダリング
+// → When notifications updates, components that only use theme also re-render
 
-// OK: Contextを分割する
+// OK: split Context
 const UserContext = createContext<User | null>(null);
 const ThemeContext = createContext<Theme>('light');
 const NotificationContext = createContext<Notification[]>([]);
@@ -775,7 +775,7 @@ const SidebarContext = createContext<{
   toggle: () => {},
 });
 
-// さらに良い: 状態と更新関数を分離
+// Even better: separate state from update functions
 const ThemeValueContext = createContext<Theme>('light');
 const ThemeDispatchContext = createContext<(theme: Theme) => void>(() => {});
 
@@ -791,27 +791,27 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// テーマの値だけ必要なコンポーネント
+// Component that only needs the theme value
 function ThemedComponent() {
   const theme = useContext(ThemeValueContext);
-  // setThemeが変わっても再レンダリングされない
-  return <div className={theme}>テーマ適用済み</div>;
+  // Does not re-render when setTheme changes
+  return <div className={theme}>Theme applied</div>;
 }
 
-// テーマの変更だけ行うコンポーネント
+// Component that only performs theme updates
 function ThemeToggle() {
   const setTheme = useContext(ThemeDispatchContext);
-  // theme値が変わっても再レンダリングされない
-  return <button onClick={() => setTheme('dark')}>ダークモード</button>;
+  // Does not re-render when the theme value changes
+  return <button onClick={() => setTheme('dark')}>Dark Mode</button>;
 }
 ```
 
 ---
 
-## 5. サーバー状態の概要
+## 5. Server State Overview
 
 ```typescript
-// サーバー状態を useState で管理する場合の問題点
+// Problems with managing server state using useState
 function UserListBad() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -838,37 +838,37 @@ function UserListBad() {
     };
   }, []);
 
-  // 問題点:
-  // → キャッシュなし（他のコンポーネントで同じデータが必要な場合、再取得が発生）
-  // → 自動再検証なし（データが古くなっても気づけない）
-  // → リトライロジックなし
-  // → ローディング/エラー状態の管理が手動
-  // → 重複リクエストの抑制なし
-  // → 楽観的更新の実装が困難
-  // → Suspense非対応
-  // → ウィンドウフォーカス時の再取得なし
+  // Problems:
+  // → No caching (if the same data is needed in another component, it re-fetches)
+  // → No automatic revalidation (no way to notice when data becomes stale)
+  // → No retry logic
+  // → Loading/error state management is manual
+  // → No deduplication of requests
+  // → Difficult to implement optimistic updates
+  // → No Suspense support
+  // → No refetch on window focus
 
   return loading ? <Spinner /> : <UserTable users={users} />;
 }
 
-// TanStack Query で同じことを実現
+// Achieving the same with TanStack Query
 function UserListGood() {
   const { data: users, isLoading, error } = useQuery({
     queryKey: ['users'],
     queryFn: fetchUsers,
-    staleTime: 5 * 60 * 1000, // 5分間キャッシュを新鮮とみなす
+    staleTime: 5 * 60 * 1000, // Treat cache as fresh for 5 minutes
     retry: 3,
     refetchOnWindowFocus: true,
   });
 
-  // 自動で得られる機能:
-  // ✓ キャッシュ（他のコンポーネントから同じqueryKeyで取得 → キャッシュから即座に返す）
-  // ✓ 自動再検証（staleTime経過後、バックグラウンドで再取得）
-  // ✓ リトライ（失敗時に自動リトライ）
-  // ✓ ローディング/エラー状態の自動管理
-  // ✓ 重複リクエストの自動抑制
-  // ✓ ウィンドウフォーカス時の再取得
-  // ✓ Suspense対応
+  // Features you get automatically:
+  // ✓ Caching (fetching with the same queryKey from another component → returns from cache instantly)
+  // ✓ Automatic revalidation (re-fetches in the background after staleTime expires)
+  // ✓ Retry (automatically retries on failure)
+  // ✓ Automatic loading/error state management
+  // ✓ Automatic deduplication of requests
+  // ✓ Refetch on window focus
+  // ✓ Suspense support
 
   if (isLoading) return <Spinner />;
   if (error) return <ErrorMessage error={error} />;
@@ -876,58 +876,58 @@ function UserListGood() {
 }
 ```
 
-### 5.1 サーバー状態の特殊性
+### 5.1 The Unique Nature of Server State
 
 ```
-サーバー状態がクライアント状態と本質的に異なる点:
+How server state fundamentally differs from client state:
 
-  ① 所有権がサーバーにある:
-     → クライアントが持つのは「スナップショット」にすぎない
-     → 別のユーザーがサーバー上のデータを変更する可能性がある
-     → 定期的な再検証（revalidation）が必要
+  ① Ownership is on the server:
+     → What the client holds is merely a "snapshot"
+     → Another user may change the data on the server
+     → Periodic revalidation is necessary
 
-  ② 非同期で取得する:
-     → ローディング状態が常に存在する
-     → ネットワークエラーの可能性
-     → レイテンシーの考慮
+  ② Fetched asynchronously:
+     → A loading state always exists
+     → Possibility of network errors
+     → Latency considerations
 
-  ③ キャッシュの概念が必要:
-     → 同じデータを何度も取得するのは無駄
-     → しかしキャッシュが古くなる問題
-     → stale-while-revalidate パターン
+  ③ The concept of caching is required:
+     → Fetching the same data multiple times is wasteful
+     → But there is the problem of stale cache
+     → The stale-while-revalidate pattern
 
-  ④ 楽観的更新が有用:
-     → ユーザー操作に即座に反映 → UX向上
-     → サーバー応答後に整合性を確認
-     → エラー時はロールバック
+  ④ Optimistic updates are useful:
+     → Immediately reflect user actions → improved UX
+     → Check consistency after server response
+     → Roll back on error
 
-stale-while-revalidate パターン:
-  1. キャッシュにデータがあれば即座に返す（stale data）
-  2. バックグラウンドで最新データを取得する（revalidate）
-  3. 最新データが取得できたらキャッシュを更新してUIに反映
+The stale-while-revalidate pattern:
+  1. If data exists in cache, return it immediately (stale data)
+  2. Fetch the latest data in the background (revalidate)
+  3. Once the latest data is fetched, update the cache and reflect it in the UI
 
-  ユーザー体験:
-  → 初回: ローディング → データ表示
-  → 2回目以降: 即座にキャッシュ表示 → (バックグラウンド更新) → 最新データに切り替え
-  → ユーザーは「一瞬で表示される」と感じる
+  User experience:
+  → First time: Loading → data displayed
+  → Second time onwards: cache displayed instantly → (background update) → switches to latest data
+  → The user feels it "appeared instantly"
 ```
 
 ---
 
-## 6. URL状態の概要
+## 6. URL State Overview
 
 ```typescript
-// URL状態をuseStateで管理した場合の問題
+// Problems with managing URL state using useState
 function SearchPageBad() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [page, setPage] = useState(1);
 
-  // 問題:
-  // → URLに反映されない → ブックマーク不可
-  // → ブラウザの戻る/進むで状態が復元されない
-  // → URLをコピーして共有しても検索条件が再現されない
-  // → SEO的にも不利
+  // Problems:
+  // → Not reflected in URL → not bookmarkable
+  // → State is not restored with browser back/forward
+  // → Copying and sharing the URL does not reproduce the search conditions
+  // → Also disadvantageous for SEO
 
   return (
     <div>
@@ -938,7 +938,7 @@ function SearchPageBad() {
   );
 }
 
-// URL状態として管理した場合
+// When managed as URL state
 function SearchPageGood() {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') ?? '';
@@ -959,12 +959,12 @@ function SearchPageGood() {
     });
   };
 
-  // メリット:
+  // Benefits:
   // ✓ URL: /search?q=react&category=books&page=2
-  // ✓ ブックマーク可能
-  // ✓ ブラウザの戻る/進むで状態が復元される
-  // ✓ URLを共有すれば検索条件が再現される
-  // ✓ SSR/SSGでの初期値として利用可能
+  // ✓ Bookmarkable
+  // ✓ State restored with browser back/forward
+  // ✓ Sharing the URL reproduces the search conditions
+  // ✓ Can be used as initial value for SSR/SSG
 
   return (
     <div>
@@ -984,7 +984,7 @@ function SearchPageGood() {
   );
 }
 
-// nuqs を使ったより型安全なURL状態管理
+// More type-safe URL state management with nuqs
 import { useQueryState, parseAsInteger, parseAsString } from 'nuqs';
 
 function SearchPageNuqs() {
@@ -995,12 +995,12 @@ function SearchPageNuqs() {
   );
   const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
 
-  // nuqs のメリット:
-  // ✓ 型安全（parseAsInteger は自動的に数値型）
-  // ✓ デフォルト値の指定が簡潔
-  // ✓ Next.js App Router との深い統合
-  // ✓ サーバーコンポーネントからの初期値渡しに対応
-  // ✓ 浅いルーティング（ナビゲーションなしでURL更新）
+  // Benefits of nuqs:
+  // ✓ Type-safe (parseAsInteger automatically gives a number type)
+  // ✓ Concise default value specification
+  // ✓ Deep integration with Next.js App Router
+  // ✓ Supports passing initial values from server components
+  // ✓ Shallow routing (update URL without navigation)
 
   return (
     <div>
@@ -1012,69 +1012,69 @@ function SearchPageNuqs() {
 }
 ```
 
-### 6.1 URL状態にすべきもの、すべきでないもの
+### 6.1 What Should and Should Not Be URL State
 
 ```
-URL状態にすべきもの:
-  ✓ 検索クエリ（?q=react）
-  ✓ フィルタ条件（?category=books&price=low）
-  ✓ ソート順（?sort=price&order=asc）
-  ✓ ページ番号（?page=3）
-  ✓ 表示モード（?view=grid）
-  ✓ タブ選択（?tab=settings）
-  ✓ 日付範囲（?from=2024-01-01&to=2024-12-31）
-  ✓ 選択中のアイテムID（/items/123）
+What should be URL state:
+  ✓ Search queries (?q=react)
+  ✓ Filter conditions (?category=books&price=low)
+  ✓ Sort order (?sort=price&order=asc)
+  ✓ Page number (?page=3)
+  ✓ View mode (?view=grid)
+  ✓ Tab selection (?tab=settings)
+  ✓ Date range (?from=2024-01-01&to=2024-12-31)
+  ✓ Currently selected item ID (/items/123)
 
-URL状態にすべきでないもの:
-  ✗ フォームの入力途中のデータ
-  ✗ モーダルの開閉状態（議論あり、場合による）
-  ✗ ホバー状態、ドラッグ状態
-  ✗ アニメーション状態
-  ✗ 認証トークン
-  ✗ 一時的なエラーメッセージ
-  ✗ 大量のデータ（URLの長さ制限）
+What should NOT be URL state:
+  ✗ Data being entered in a form
+  ✗ Modal open/close state (debatable, depends on the case)
+  ✗ Hover state, drag state
+  ✗ Animation state
+  ✗ Authentication tokens
+  ✗ Temporary error messages
+  ✗ Large amounts of data (URL length limits)
 
-判断基準:
-  「そのページをブックマークして後で開いた時、
-   その状態が復元されるべきか？」
-  → Yes → URL状態
-  → No → ローカル or グローバル状態
+Judgment criteria:
+  "If you bookmark this page and open it later,
+   should that state be restored?"
+  → Yes → URL state
+  → No → Local or global state
 ```
 
 ---
 
-## 7. 設計原則
+## 7. Design Principles
 
-### 7.1 状態の最小化
+### 7.1 Minimizing State
 
 ```typescript
-// 原則①: 状態の最小化 — 計算できる値は状態にしない
+// Principle ①: Minimize state — do not make computable values into state
 
-// NG: 冗長な状態
+// NG: redundant state
 function CartBad() {
   const [items, setItems] = useState<CartItem[]>([]);
-  const [totalPrice, setTotalPrice] = useState(0);     // items から計算可能
-  const [itemCount, setItemCount] = useState(0);        // items から計算可能
-  const [isEmpty, setIsEmpty] = useState(true);          // items から計算可能
+  const [totalPrice, setTotalPrice] = useState(0);     // computable from items
+  const [itemCount, setItemCount] = useState(0);        // computable from items
+  const [isEmpty, setIsEmpty] = useState(true);          // computable from items
 
-  // items を更新するたびに他の3つも同期する必要がある → バグの温床
+  // Every time items is updated, the other three must also be synchronized → breeding ground for bugs
   const addItem = (item: CartItem) => {
     const newItems = [...items, item];
     setItems(newItems);
     setTotalPrice(newItems.reduce((sum, i) => sum + i.price * i.quantity, 0));
     setItemCount(newItems.reduce((sum, i) => sum + i.quantity, 0));
     setIsEmpty(false);
-    // 1つでも更新を忘れると不整合が発生
+    // Forgetting to update even one causes inconsistency
   };
 
   return <div>{totalPrice}</div>;
 }
 
-// OK: 1つの状態から導出
+// OK: derive from a single state
 function CartGood() {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  // 導出値: useMemo で計算（items が変わった時だけ再計算）
+  // Derived values: computed with useMemo (only recalculated when items changes)
   const totalPrice = useMemo(
     () => items.reduce((sum, i) => sum + i.price * i.quantity, 0),
     [items]
@@ -1083,23 +1083,23 @@ function CartGood() {
     () => items.reduce((sum, i) => sum + i.quantity, 0),
     [items]
   );
-  const isEmpty = items.length === 0; // 軽い計算は useMemo 不要
+  const isEmpty = items.length === 0; // Light computation doesn't need useMemo
 
   const addItem = (item: CartItem) => {
     setItems((prev) => [...prev, item]);
-    // totalPrice, itemCount は自動で再計算される → 不整合が起きない
+    // totalPrice, itemCount are automatically recalculated → no inconsistency
   };
 
   return <div>{totalPrice}</div>;
 }
 ```
 
-### 7.2 Derived State（導出状態）
+### 7.2 Derived State
 
 ```typescript
-// 原則②: Derived State
+// Principle ②: Derived State
 
-// NG: 同期が必要な冗長な状態
+// NG: redundant state that requires synchronization
 function ProductListBad() {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -1107,8 +1107,8 @@ function ProductListBad() {
   const [filter, setFilter] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'price'>('name');
 
-  // products, filter, sortBy のどれが変わっても
-  // filteredProducts と sortedProducts を手動で更新する必要がある
+  // Whenever products, filter, or sortBy changes,
+  // filteredProducts and sortedProducts must be updated manually
   useEffect(() => {
     const filtered = products.filter((p) =>
       p.name.toLowerCase().includes(filter.toLowerCase())
@@ -1124,18 +1124,18 @@ function ProductListBad() {
     );
     setSortedProducts(sorted);
   }, [filteredProducts, sortBy]);
-  // 問題: useEffect の連鎖 → 理解しづらい、バグが生まれやすい
+  // Problem: chained useEffects → hard to understand, prone to bugs
 
   return <ProductGrid products={sortedProducts} />;
 }
 
-// OK: 導出値として計算
+// OK: compute as derived values
 function ProductListGood() {
   const [products, setProducts] = useState<Product[]>([]);
   const [filter, setFilter] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'price'>('name');
 
-  // 状態は3つだけ。表示用データは計算で得る
+  // Only three state values. Display data is obtained by computation.
   const displayProducts = useMemo(() => {
     return products
       .filter((p) => p.name.toLowerCase().includes(filter.toLowerCase()))
@@ -1153,32 +1153,32 @@ function ProductListGood() {
 ### 7.3 Colocate State
 
 ```typescript
-// 原則③: Colocate State（状態を使う場所の近くに配置）
+// Principle ③: Colocate State (place state close to where it is used)
 
-// NG: 不必要にグローバルにした状態
+// NG: state unnecessarily made global
 // store.ts
 const useStore = create<{
-  modalOpen: boolean;           // ← 1つのコンポーネントでしか使わない
-  tooltipText: string;          // ← 1つのコンポーネントでしか使わない
-  dropdownItems: string[];      // ← 1つのコンポーネントでしか使わない
-  searchQuery: string;          // ← 実際に共有が必要
-  user: User | null;            // ← 実際に共有が必要
+  modalOpen: boolean;           // ← only used by one component
+  tooltipText: string;          // ← only used by one component
+  dropdownItems: string[];      // ← only used by one component
+  searchQuery: string;          // ← actually needs to be shared
+  user: User | null;            // ← actually needs to be shared
 }>((set) => ({
   // ...
 }));
 
-// OK: ローカルにすべきものはローカルに
+// OK: what should be local stays local
 function Modal() {
-  const [isOpen, setIsOpen] = useState(false); // ローカルで十分
+  const [isOpen, setIsOpen] = useState(false); // local is sufficient
   return (
     <>
-      <button onClick={() => setIsOpen(true)}>開く</button>
+      <button onClick={() => setIsOpen(true)}>Open</button>
       {isOpen && <ModalDialog onClose={() => setIsOpen(false)} />}
     </>
   );
 }
 
-// グローバルストアには本当に共有が必要なものだけ
+// Only put what truly needs to be shared in the global store
 const useStore = create<{
   searchQuery: string;
   user: User | null;
@@ -1188,12 +1188,12 @@ const useStore = create<{
 }));
 ```
 
-### 7.4 Props Drilling とコンポジション
+### 7.4 Props Drilling and Composition
 
 ```typescript
-// 原則④: Props Drilling の許容範囲と代替手段
+// Principle ④: Acceptable range of Props Drilling and alternatives
 
-// Props Drilling: 2-3階層は許容
+// Props Drilling: 2-3 levels is acceptable
 function App() {
   const [user, setUser] = useState<User | null>(null);
   return <Dashboard user={user} />;
@@ -1207,8 +1207,8 @@ function Header({ user }: { user: User | null }) {
   return <UserMenu user={user} />;
 }
 
-// 4階層以上の場合 → コンポジションで解決
-// コンポジションパターン: children を使って中間コンポーネントを「飛ばす」
+// For 4 or more levels → solve with composition
+// Composition pattern: use children to "skip" intermediate components
 function App() {
   const [user, setUser] = useState<User | null>(null);
   return (
@@ -1228,30 +1228,30 @@ function Header({ children }: { children: React.ReactNode }) {
   return <header>{children}</header>;
 }
 
-// → Dashboard と Header は user を知る必要がない
-// → UserMenu だけが user を受け取る
-// → Props Drilling が解消される
+// → Dashboard and Header don't need to know about user
+// → Only UserMenu receives user
+// → Props Drilling is eliminated
 ```
 
 ### 7.5 Single Source of Truth
 
 ```typescript
-// 原則⑤: Single Source of Truth
+// Principle ⑤: Single Source of Truth
 
-// NG: 同じユーザーデータを複数箇所で管理
+// NG: managing the same user data in multiple places
 function App() {
-  // ヘッダー表示用
+  // For header display
   const [headerUser, setHeaderUser] = useState<User | null>(null);
-  // プロフィールページ用
+  // For profile page
   const [profileUser, setProfileUser] = useState<User | null>(null);
-  // 設定ページ用
+  // For settings page
   const [settingsUser, setSettingsUser] = useState<User | null>(null);
-  // → 1つ更新して他を忘れると不整合
+  // → Updating one and forgetting another causes inconsistency
 
   return <div>...</div>;
 }
 
-// OK: TanStack Query でサーバーデータを一元管理
+// OK: centralize server data management with TanStack Query
 function useCurrentUser() {
   return useQuery({
     queryKey: ['currentUser'],
@@ -1260,7 +1260,7 @@ function useCurrentUser() {
   });
 }
 
-// どのコンポーネントから呼んでも同じキャッシュを参照
+// Any component calling this references the same cache
 function Header() {
   const { data: user } = useCurrentUser();
   return <div>{user?.name}</div>;
@@ -1277,7 +1277,7 @@ function SettingsPage() {
 
   const updateUser = async (data: Partial<User>) => {
     await api.updateUser(data);
-    // キャッシュを無効化 → 全コンポーネントが最新データに
+    // Invalidate cache → all components get the latest data
     queryClient.invalidateQueries({ queryKey: ['currentUser'] });
   };
 
@@ -1285,27 +1285,27 @@ function SettingsPage() {
 }
 ```
 
-### 7.6 不変性（Immutability）
+### 7.6 Immutability
 
 ```typescript
-// 原則⑥: 不変性（Immutability）
+// Principle ⑥: Immutability
 
-// NG: 直接変更
+// NG: direct mutation
 function TodoListBad() {
   const [todos, setTodos] = useState<Todo[]>([]);
 
   const toggleTodo = (id: string) => {
     const todo = todos.find((t) => t.id === id);
     if (todo) {
-      todo.completed = !todo.completed; // 直接変更！
-      setTodos([...todos]); // スプレッドしても元のオブジェクトは変更済み
+      todo.completed = !todo.completed; // direct mutation!
+      setTodos([...todos]); // spreading creates a new array but the original object is already mutated
     }
   };
 
   return <div>{/* ... */}</div>;
 }
 
-// OK: イミュータブルに更新
+// OK: update immutably
 function TodoListGood() {
   const [todos, setTodos] = useState<Todo[]>([]);
 
@@ -1331,7 +1331,7 @@ function TodoListGood() {
   return <div>{/* ... */}</div>;
 }
 
-// ネストが深い場合は Immer を活用
+// Use Immer for deeply nested state
 import { produce } from 'immer';
 
 function NestedStateUpdate() {
@@ -1349,7 +1349,7 @@ function NestedStateUpdate() {
     },
   });
 
-  // Immer なし: スプレッドの嵐
+  // Without Immer: a cascade of spreads
   const updateCityManual = () => {
     setState({
       ...state,
@@ -1369,7 +1369,7 @@ function NestedStateUpdate() {
     });
   };
 
-  // Immer あり: 直感的な書き方
+  // With Immer: intuitive syntax
   const updateCityImmer = () => {
     setState(
       produce((draft) => {
@@ -1384,20 +1384,20 @@ function NestedStateUpdate() {
 
 ---
 
-## 8. パフォーマンス最適化
+## 8. Performance Optimization
 
-### 8.1 再レンダリングの理解
+### 8.1 Understanding Re-renders
 
 ```typescript
-// React の再レンダリングが発生する条件
-// 1. state が変更された
-// 2. props が変更された
-// 3. 親コンポーネントが再レンダリングされた
-// 4. コンテキストの値が変更された
+// Conditions that trigger React re-renders:
+// 1. state changes
+// 2. props change
+// 3. The parent component re-renders
+// 4. The context value changes
 
-// 再レンダリングの最適化テクニック
+// Re-render optimization techniques
 
-// ① React.memo: props が変わらなければ再レンダリングをスキップ
+// ① React.memo: skip re-render if props haven't changed
 const ExpensiveList = React.memo(function ExpensiveList({
   items,
 }: {
@@ -1413,9 +1413,9 @@ const ExpensiveList = React.memo(function ExpensiveList({
   );
 });
 
-// ② useMemo: 計算結果をメモ化
+// ② useMemo: memoize computation results
 function Dashboard({ orders }: { orders: Order[] }) {
-  // orders が変わった時だけ再計算
+  // Recalculate only when orders changes
   const stats = useMemo(() => {
     return {
       total: orders.length,
@@ -1433,25 +1433,25 @@ function Dashboard({ orders }: { orders: Order[] }) {
 
   return (
     <div>
-      <StatCard title="総注文数" value={stats.total} />
-      <StatCard title="売上" value={stats.revenue} />
-      <StatCard title="平均注文額" value={stats.averageOrder} />
+      <StatCard title="Total Orders" value={stats.total} />
+      <StatCard title="Revenue" value={stats.revenue} />
+      <StatCard title="Average Order Value" value={stats.averageOrder} />
     </div>
   );
 }
 
-// ③ useCallback: コールバックをメモ化
+// ③ useCallback: memoize callbacks
 function ParentComponent() {
   const [count, setCount] = useState(0);
   const [text, setText] = useState('');
 
-  // useCallback なし: text が変わるたびに新しい関数が生成
-  // → ChildComponent が React.memo でも再レンダリングされる
+  // Without useCallback: a new function is generated every time text changes
+  // → ChildComponent re-renders even with React.memo
   const handleClickBad = () => {
     setCount((c) => c + 1);
   };
 
-  // useCallback あり: count の変更時のみ新しい関数
+  // With useCallback: a new function is created only when count changes
   const handleClickGood = useCallback(() => {
     setCount((c) => c + 1);
   }, []);
@@ -1476,12 +1476,12 @@ const MemoizedChild = React.memo(function Child({
 });
 ```
 
-### 8.2 状態の構造とパフォーマンス
+### 8.2 State Structure and Performance
 
 ```typescript
-// 状態の構造がパフォーマンスに与える影響
+// The impact of state structure on performance
 
-// NG: フラットな巨大配列 → 1つの変更で全体が再レンダリング
+// NG: a flat large array → any single change re-renders the whole thing
 function BigListBad() {
   const [items, setItems] = useState<Item[]>(generateItems(10000));
 
@@ -1491,8 +1491,8 @@ function BigListBad() {
         item.id === id ? { ...item, selected: !item.selected } : item
       )
     );
-    // 10000要素の配列を全部mapして新しい配列を作成
-    // → items が新しい参照 → リスト全体が再レンダリング
+    // Maps over the entire array of 10,000 elements to create a new array
+    // → items is a new reference → the entire list re-renders
   };
 
   return (
@@ -1506,7 +1506,7 @@ function BigListBad() {
   );
 }
 
-// OK: 正規化されたデータ構造 + React.memo
+// OK: normalized data structure + React.memo
 function BigListGood() {
   const [itemsById, setItemsById] = useState<Record<string, Item>>({});
   const [itemIds, setItemIds] = useState<string[]>([]);
@@ -1516,7 +1516,7 @@ function BigListGood() {
       ...prev,
       [id]: { ...prev[id], selected: !prev[id].selected },
     }));
-    // 変更されたアイテムのみ新しいオブジェクトが生成される
+    // Only the changed item gets a new object
   }, []);
 
   return (
@@ -1548,13 +1548,13 @@ const MemoizedItem = React.memo(function ItemRow({
     </li>
   );
 });
-// → 変更されたアイテムのみ再レンダリング
+// → Only the changed item re-renders
 ```
 
-### 8.3 仮想化（Virtualization）
+### 8.3 Virtualization
 
 ```typescript
-// 大量リストのパフォーマンス対策: 仮想化
+// Performance measure for large lists: virtualization
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 function VirtualizedList({ items }: { items: Item[] }) {
@@ -1563,8 +1563,8 @@ function VirtualizedList({ items }: { items: Item[] }) {
   const virtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 50, // 各行の推定高さ（px）
-    overscan: 5, // ビューポート外に余分にレンダリングする行数
+    estimateSize: () => 50, // Estimated height of each row (px)
+    overscan: 5, // Number of rows to render outside the viewport
   });
 
   return (
@@ -1597,89 +1597,89 @@ function VirtualizedList({ items }: { items: Item[] }) {
       </div>
     </div>
   );
-  // 10000アイテムでも、画面に表示される分（+ overscan）だけレンダリング
-  // → DOMノード数を大幅に削減
+  // Even with 10,000 items, only what is visible (+ overscan) is rendered
+  // → Dramatically reduces DOM node count
 }
 ```
 
 ---
 
-## 9. 実務での状態管理アーキテクチャ
+## 9. State Management Architecture in Practice
 
-### 9.1 小規模アプリ（〜10ページ）
+### 9.1 Small-Scale Apps (~10 pages)
 
 ```
-推奨構成:
-  - ローカル状態: useState / useReducer
-  - サーバー状態: TanStack Query
-  - URL状態: useSearchParams
-  - グローバル状態: React Context（必要な場合のみ）
+Recommended setup:
+  - Local state: useState / useReducer
+  - Server state: TanStack Query
+  - URL state: useSearchParams
+  - Global state: React Context (only when needed)
 
-ディレクトリ構成:
+Directory structure:
   src/
   ├── components/
-  │   ├── Header.tsx          // ローカル状態のみ
-  │   └── SearchForm.tsx      // ローカル + URL状態
+  │   ├── Header.tsx          // local state only
+  │   └── SearchForm.tsx      // local + URL state
   ├── hooks/
   │   ├── useUsers.ts         // TanStack Query
   │   └── useAuth.ts          // TanStack Query + Context
   ├── contexts/
-  │   └── AuthContext.tsx      // 認証状態
+  │   └── AuthContext.tsx      // authentication state
   └── pages/
-      └── UsersPage.tsx       // URL状態 + サーバー状態
+      └── UsersPage.tsx       // URL state + server state
 
-特徴:
-  → 追加ライブラリは TanStack Query のみ
-  → Context は認証やテーマなど1-2個
-  → シンプルで学習コストが低い
+Characteristics:
+  → Only additional library is TanStack Query
+  → Context limited to 1-2 uses (auth, theme, etc.)
+  → Simple with low learning cost
 ```
 
-### 9.2 中規模アプリ（10〜50ページ）
+### 9.2 Medium-Scale Apps (10-50 pages)
 
 ```
-推奨構成:
-  - ローカル状態: useState / useReducer
-  - サーバー状態: TanStack Query
-  - URL状態: nuqs
-  - グローバル状態: Zustand
+Recommended setup:
+  - Local state: useState / useReducer
+  - Server state: TanStack Query
+  - URL state: nuqs
+  - Global state: Zustand
 
-ディレクトリ構成:
+Directory structure:
   src/
   ├── components/
   ├── hooks/
-  │   ├── queries/            // TanStack Query のカスタムフック
+  │   ├── queries/            // TanStack Query custom hooks
   │   │   ├── useUsers.ts
   │   │   ├── useProducts.ts
   │   │   └── useOrders.ts
-  │   └── mutations/          // TanStack Query のミューテーション
+  │   └── mutations/          // TanStack Query mutations
   │       ├── useCreateUser.ts
   │       └── useUpdateProduct.ts
-  ├── stores/                 // Zustand ストア
-  │   ├── useUIStore.ts       // UI状態（サイドバー、モーダル等）
-  │   ├── useCartStore.ts     // カート状態
-  │   └── usePreferenceStore.ts  // ユーザー設定
+  ├── stores/                 // Zustand stores
+  │   ├── useUIStore.ts       // UI state (sidebar, modal, etc.)
+  │   ├── useCartStore.ts     // cart state
+  │   └── usePreferenceStore.ts  // user preferences
   └── pages/
 
-特徴:
-  → Zustand でクライアント状態を効率的に管理
-  → TanStack Query でサーバー状態を一元管理
-  → nuqs で型安全なURL状態管理
-  → 明確な責務分離
+Characteristics:
+  → Efficiently manage client state with Zustand
+  → Centralize server state management with TanStack Query
+  → Type-safe URL state management with nuqs
+  → Clear separation of responsibilities
 ```
 
-### 9.3 大規模アプリ（50ページ以上）
+### 9.3 Large-Scale Apps (50+ pages)
 
 ```
-推奨構成:
-  - ローカル状態: useState / useReducer
-  - サーバー状態: TanStack Query
-  - URL状態: nuqs
-  - グローバル状態: Zustand（ドメイン分割）
-  - フォーム状態: React Hook Form + Zod
+Recommended setup:
+  - Local state: useState / useReducer
+  - Server state: TanStack Query
+  - URL state: nuqs
+  - Global state: Zustand (split by domain)
+  - Form state: React Hook Form + Zod
 
-ディレクトリ構成:
+Directory structure:
   src/
-  ├── features/               // 機能ベースのモジュール分割
+  ├── features/               // module split by feature
   │   ├── auth/
   │   │   ├── hooks/
   │   │   │   ├── useLogin.ts
@@ -1698,25 +1698,25 @@ function VirtualizedList({ items }: { items: Item[] }) {
   │       ├── stores/
   │       └── components/
   ├── shared/
-  │   ├── stores/             // アプリ全体で共有する状態
+  │   ├── stores/             // state shared across the entire app
   │   │   └── useUIStore.ts
   │   └── hooks/
   │       └── useSearchParams.ts
   └── lib/
-      ├── queryClient.ts      // TanStack Query の設定
-      └── api.ts              // API クライアント
+      ├── queryClient.ts      // TanStack Query configuration
+      └── api.ts              // API client
 
-特徴:
-  → 機能ベースのモジュール分割で責務を明確化
-  → 各機能が独自のストア、フック、コンポーネントを持つ
-  → 共有状態は shared/ に集約
-  → チーム開発でのコンフリクトを最小化
+Characteristics:
+  → Feature-based module split for clear responsibilities
+  → Each feature has its own store, hooks, and components
+  → Shared state is centralized in shared/
+  → Minimizes conflicts in team development
 ```
 
-### 9.4 状態管理の実装パターン集
+### 9.4 Collection of State Management Implementation Patterns
 
 ```typescript
-// パターン1: カスタムフックで状態ロジックをカプセル化
+// Pattern 1: encapsulate state logic in a custom hook
 function useToggle(initialValue = false) {
   const [value, setValue] = useState(initialValue);
 
@@ -1727,18 +1727,18 @@ function useToggle(initialValue = false) {
   return { value, toggle, setTrue, setFalse } as const;
 }
 
-// 使用例
+// Usage example
 function Sidebar() {
   const { value: isOpen, toggle, setFalse: close } = useToggle(false);
   return (
     <>
-      <button onClick={toggle}>メニュー</button>
+      <button onClick={toggle}>Menu</button>
       {isOpen && <SidebarContent onClose={close} />}
     </>
   );
 }
 
-// パターン2: useReducer + Context で Domain-Specific な状態管理
+// Pattern 2: domain-specific state management with useReducer + Context
 type CartState = {
   items: CartItem[];
   discount: number;
@@ -1801,7 +1801,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
   }
 }
 
-// パターン3: Zustand のスライスパターン
+// Pattern 3: Zustand slice pattern
 interface UserSlice {
   user: User | null;
   setUser: (user: User | null) => void;
@@ -1822,7 +1822,7 @@ interface NotificationSlice {
   clearAll: () => void;
 }
 
-// スライスを結合
+// Combine slices
 type AppStore = UserSlice & UISlice & NotificationSlice;
 
 const useAppStore = create<AppStore>()((...a) => ({
@@ -1831,7 +1831,7 @@ const useAppStore = create<AppStore>()((...a) => ({
   ...createNotificationSlice(...a),
 }));
 
-// 各スライスは別ファイルで定義
+// Each slice is defined in a separate file
 // stores/userSlice.ts
 const createUserSlice: StateCreator<AppStore, [], [], UserSlice> = (set) => ({
   user: null,
@@ -1851,12 +1851,12 @@ const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => ({
 
 ---
 
-## 10. React 19 と状態管理の進化
+## 10. React 19 and the Evolution of State Management
 
-### 10.1 useActionState（旧 useFormState）
+### 10.1 useActionState (formerly useFormState)
 
 ```typescript
-// React 19 の useActionState
+// React 19's useActionState
 import { useActionState } from 'react';
 
 type FormState = {
@@ -1875,7 +1875,7 @@ async function submitAction(
     await login(email, password);
     return { error: null, success: true };
   } catch (err) {
-    return { error: 'ログインに失敗しました', success: false };
+    return { error: 'Login failed', success: false };
   }
 }
 
@@ -1891,7 +1891,7 @@ function LoginForm() {
       <input name="password" type="password" />
       {state.error && <p className="error">{state.error}</p>}
       <button type="submit" disabled={isPending}>
-        {isPending ? 'ログイン中...' : 'ログイン'}
+        {isPending ? 'Logging in...' : 'Login'}
       </button>
     </form>
   );
@@ -1901,7 +1901,7 @@ function LoginForm() {
 ### 10.2 useOptimistic
 
 ```typescript
-// React 19 の useOptimistic
+// React 19's useOptimistic
 import { useOptimistic, useTransition } from 'react';
 
 function TodoList() {
@@ -1920,11 +1920,11 @@ function TodoList() {
     };
 
     startTransition(async () => {
-      // 楽観的にUIを更新（即座に表示）
+      // Optimistically update the UI (displayed immediately)
       addOptimisticTodo(newTodo);
-      // サーバーに送信
+      // Send to server
       const savedTodo = await api.createTodo(newTodo);
-      // サーバーの応答で実際のデータに置き換え
+      // Replace with actual data from server response
       setTodos((prev) => [...prev, savedTodo]);
     });
   };
@@ -1942,16 +1942,16 @@ function TodoList() {
 }
 ```
 
-### 10.3 use() フック
+### 10.3 The use() Hook
 
 ```typescript
-// React 19 の use() フック
+// React 19's use() hook
 import { use, Suspense } from 'react';
 
-// Promise を直接読み取る
+// Read a Promise directly
 function UserProfile({ userPromise }: { userPromise: Promise<User> }) {
   const user = use(userPromise);
-  // Suspense が自動で Loading 状態をハンドル
+  // Suspense automatically handles the Loading state
   return (
     <div>
       <h1>{user.name}</h1>
@@ -1961,7 +1961,7 @@ function UserProfile({ userPromise }: { userPromise: Promise<User> }) {
 }
 
 function App() {
-  const userPromise = fetchUser(1); // Promiseを渡す（awaitしない）
+  const userPromise = fetchUser(1); // Pass the Promise (don't await it)
   return (
     <Suspense fallback={<Spinner />}>
       <UserProfile userPromise={userPromise} />
@@ -1969,26 +1969,26 @@ function App() {
   );
 }
 
-// Context を条件付きで読み取る（use は if 文の中で使える）
+// Read Context conditionally (use can be called inside if statements)
 function ConditionalTheme({ useTheme }: { useTheme: boolean }) {
-  // 従来の useContext はトップレベルでしか呼べなかった
-  // use() は条件分岐の中で使える
+  // Traditional useContext could only be called at the top level
+  // use() can be used inside conditionals
   if (useTheme) {
     const theme = use(ThemeContext);
-    return <div className={theme}>テーマ適用</div>;
+    return <div className={theme}>Theme applied</div>;
   }
-  return <div>デフォルト</div>;
+  return <div>Default</div>;
 }
 ```
 
 ---
 
-## 11. テスト戦略
+## 11. Testing Strategy
 
-### 11.1 状態管理のテスト
+### 11.1 Testing State Management
 
 ```typescript
-// useReducer のテスト（純粋関数なので簡単）
+// Testing useReducer (easy because it's a pure function)
 describe('formReducer', () => {
   const initialState: FormState = {
     currentStep: 0,
@@ -2004,7 +2004,7 @@ describe('formReducer', () => {
       value: 'Taro',
     });
     expect(result.data.firstName).toBe('Taro');
-    // エラーがクリアされることも確認
+    // Also verify that the error is cleared
     expect(result.errors.firstName).toBeUndefined();
   });
 
@@ -2019,12 +2019,12 @@ describe('formReducer', () => {
   });
 });
 
-// Zustand ストアのテスト
+// Testing Zustand store
 import { act, renderHook } from '@testing-library/react';
 
 describe('useCartStore', () => {
   beforeEach(() => {
-    // テスト間でストアをリセット
+    // Reset store between tests
     useCartStore.setState({ items: [], discount: 0 });
   });
 
@@ -2034,28 +2034,28 @@ describe('useCartStore', () => {
     act(() => {
       result.current.addItem({
         id: '1',
-        name: 'テスト商品',
+        name: 'Test Product',
         price: 1000,
       });
     });
 
     expect(result.current.items).toHaveLength(1);
-    expect(result.current.items[0].name).toBe('テスト商品');
+    expect(result.current.items[0].name).toBe('Test Product');
   });
 
   it('should calculate total correctly', () => {
     const { result } = renderHook(() => useCartStore());
 
     act(() => {
-      result.current.addItem({ id: '1', name: '商品A', price: 1000 });
-      result.current.addItem({ id: '2', name: '商品B', price: 2000 });
+      result.current.addItem({ id: '1', name: 'Product A', price: 1000 });
+      result.current.addItem({ id: '2', name: 'Product B', price: 2000 });
     });
 
     expect(result.current.total).toBe(3000);
   });
 });
 
-// TanStack Query のテスト
+// Testing TanStack Query
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 
@@ -2074,7 +2074,7 @@ function createWrapper() {
 
 describe('useUsers', () => {
   it('should fetch users successfully', async () => {
-    // MSW でAPIをモック
+    // Mock API with MSW
     server.use(
       http.get('/api/users', () => {
         return HttpResponse.json([
@@ -2088,10 +2088,10 @@ describe('useUsers', () => {
       wrapper: createWrapper(),
     });
 
-    // 初期状態: ローディング
+    // Initial state: loading
     expect(result.current.isLoading).toBe(true);
 
-    // データ取得完了を待つ
+    // Wait for data fetch to complete
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
     });
@@ -2104,27 +2104,27 @@ describe('useUsers', () => {
 
 ---
 
-## 12. よくあるアンチパターンと解決策
+## 12. Common Anti-Patterns and Solutions
 
-### 12.1 useEffect での状態同期
+### 12.1 State Synchronization via useEffect
 
 ```typescript
-// アンチパターン①: useEffect で状態を同期する
+// Anti-pattern ①: synchronizing state with useEffect
 
-// NG: props を state にコピー
+// NG: copying props into state
 function UserProfile({ user }: { user: User }) {
   const [name, setName] = useState(user.name);
 
-  // props が変わったら state を更新...
+  // Updating state when props change...
   useEffect(() => {
     setName(user.name);
   }, [user.name]);
-  // → 1フレーム遅れる、不要な再レンダリング
+  // → One frame delay, unnecessary re-renders
 
   return <div>{name}</div>;
 }
 
-// OK: key を使ってコンポーネントをリセット
+// OK: use key to reset the component
 function UserProfilePage({ userId }: { userId: string }) {
   return <EditableUserProfile key={userId} userId={userId} />;
 }
@@ -2132,12 +2132,12 @@ function UserProfilePage({ userId }: { userId: string }) {
 function EditableUserProfile({ userId }: { userId: string }) {
   const { data: user } = useUser(userId);
   const [name, setName] = useState(user?.name ?? '');
-  // key が変わるとコンポーネント全体がリマウントされ、stateがリセットされる
+  // When key changes, the entire component remounts and state is reset
   return <input value={name} onChange={(e) => setName(e.target.value)} />;
 }
 
-// アンチパターン②: useEffect の連鎖
-// NG: 「useEffect → setState → 別のuseEffect → setState ...」
+// Anti-pattern ②: chaining useEffects
+// NG: "useEffect → setState → another useEffect → setState ..."
 function FilteredListBad() {
   const [items, setItems] = useState<Item[]>([]);
   const [filter, setFilter] = useState('');
@@ -2151,12 +2151,12 @@ function FilteredListBad() {
   useEffect(() => {
     setSorted([...filtered].sort((a, b) => a.name.localeCompare(b.name)));
   }, [filtered]);
-  // → 3回のレンダリングが発生（items変更 → filtered変更 → sorted変更）
+  // → 3 renders occur (items change → filtered change → sorted change)
 
   return <List items={sorted} />;
 }
 
-// OK: useMemo で同期的に計算
+// OK: compute synchronously with useMemo
 function FilteredListGood() {
   const [items, setItems] = useState<Item[]>([]);
   const [filter, setFilter] = useState('');
@@ -2166,45 +2166,45 @@ function FilteredListGood() {
       .filter((i) => i.name.includes(filter))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [items, filter]);
-  // → 1回のレンダリングで完結
+  // → Completes in a single render
 
   return <List items={displayItems} />;
 }
 ```
 
-### 12.2 グローバルストアの肥大化
+### 12.2 Bloated Global Store
 
 ```typescript
-// アンチパターン③: 何でもグローバルストアに入れる
+// Anti-pattern ③: putting everything in the global store
 
-// NG: 巨大な単一ストア
+// NG: one massive store
 const useMegaStore = create<{
-  // UI状態
+  // UI state
   sidebarOpen: boolean;
   modalOpen: boolean;
   activeTab: string;
   tooltipText: string;
   dropdownOpen: boolean;
-  // ユーザー状態
+  // User state
   user: User | null;
   isAuthenticated: boolean;
-  // 商品状態
+  // Product state
   products: Product[];
   selectedProduct: Product | null;
-  // カート状態
+  // Cart state
   cartItems: CartItem[];
   cartTotal: number;
-  // 検索状態
+  // Search state
   searchQuery: string;
   searchResults: Product[];
-  // 通知状態
+  // Notification state
   notifications: Notification[];
-  // ... 50以上のプロパティ
+  // ... 50+ properties
 }>((set) => ({
-  // ... 膨大なアクション定義
+  // ... enormous action definitions
 }));
 
-// OK: 関心ごとに分割
+// OK: split by concern
 const useUIStore = create<UIStore>((set) => ({
   sidebarOpen: false,
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
@@ -2218,22 +2218,23 @@ const useCartStore = create<CartStore>((set, get) => ({
   },
 }));
 
-// サーバーデータは TanStack Query に任せる（ストアに入れない）
+// Delegate server data to TanStack Query (don't put it in the store)
 function useProducts() {
   return useQuery({ queryKey: ['products'], queryFn: fetchProducts });
 }
 ```
 
-### 12.3 不要な状態の保持
+### 12.3 Holding Unnecessary State
 
 ```typescript
-// アンチパターン④: propsを状態にコピーする
+// Anti-pattern ④: copying props into state
 
 // NG
 function UserCard({ user }: { user: User }) {
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
-  // → user.name や user.email が変わっても反映されない（初期値として1回だけ使われる）
+  // → Changes to user.name or user.email will not be reflected
+  //   (used only once as the initial value)
 
   return (
     <div>
@@ -2243,7 +2244,7 @@ function UserCard({ user }: { user: User }) {
   );
 }
 
-// OK: props をそのまま使う
+// OK: use props directly
 function UserCard({ user }: { user: User }) {
   return (
     <div>
@@ -2253,7 +2254,7 @@ function UserCard({ user }: { user: User }) {
   );
 }
 
-// 編集機能がある場合は、編集中の値だけ状態にする
+// When editing is needed, only make the edited value state
 function EditableUserCard({ user, onSave }: {
   user: User;
   onSave: (data: Partial<User>) => void;
@@ -2262,7 +2263,7 @@ function EditableUserCard({ user, onSave }: {
   const [editName, setEditName] = useState('');
 
   const startEditing = () => {
-    setEditName(user.name); // 編集開始時に初期値をセット
+    setEditName(user.name); // Set initial value when editing starts
     setIsEditing(true);
   };
 
@@ -2276,13 +2277,13 @@ function EditableUserCard({ user, onSave }: {
       {isEditing ? (
         <>
           <input value={editName} onChange={(e) => setEditName(e.target.value)} />
-          <button onClick={save}>保存</button>
-          <button onClick={() => setIsEditing(false)}>キャンセル</button>
+          <button onClick={save}>Save</button>
+          <button onClick={() => setIsEditing(false)}>Cancel</button>
         </>
       ) : (
         <>
           <p>{user.name}</p>
-          <button onClick={startEditing}>編集</button>
+          <button onClick={startEditing}>Edit</button>
         </>
       )}
     </div>
@@ -2292,195 +2293,126 @@ function EditableUserCard({ user, onSave }: {
 
 ---
 
-## 13. 状態管理のチェックリスト
+## 13. State Management Checklist
 
 ```
-プロジェクト開始時の状態管理チェックリスト:
+State management checklist at project start:
 
-  □ 状態のカテゴリ分類を行ったか
-    - ローカル、グローバル、サーバー、URLの4分類
-  □ サーバー状態には TanStack Query / SWR を使っているか
-    - useState + useEffect でのデータフェッチはNG
-  □ URL状態を適切に使っているか
-    - ブックマーク/共有可能にすべき状態はURLに
-  □ グローバル状態は本当に必要か
-    - ローカルで済むものをグローバルにしていないか
-  □ 導出値を状態にしていないか
-    - 既存の状態から計算可能な値は useMemo で
-  □ 再レンダリングの最適化は適切か
-    - Context の分割、セレクター、React.memo
-  □ テスト可能な設計になっているか
-    - Reducer は純粋関数、ストアはリセット可能
-  □ TypeScript で型安全か
-    - any を使っていないか、discriminated union を活用しているか
+  □ Have you categorized your state?
+    - Four categories: local, global, server, URL
+  □ Are you using TanStack Query / SWR for server state?
+    - Data fetching with useState + useEffect is NG
+  □ Are you using URL state appropriately?
+    - State that should be bookmarkable/shareable should go in the URL
+  □ Is global state truly necessary?
+    - Are you globalizing things that could be local?
+  □ Are you making derived values into state?
+    - Values computable from existing state should use useMemo
+  □ Are re-render optimizations appropriate?
+    - Context splitting, selectors, React.memo
+  □ Is the design testable?
+    - Reducers are pure functions, stores are resettable
+  □ Is it type-safe with TypeScript?
+    - Are you avoiding any, leveraging discriminated unions?
 
-コードレビュー時の状態管理チェックポイント:
-  □ useEffect で状態を同期していないか → useMemo / 導出値に
-  □ props を useState にコピーしていないか → そのまま使う or key でリセット
-  □ グローバルストアが肥大化していないか → 分割
-  □ 同じデータが複数箇所で管理されていないか → Single Source of Truth
-  □ 不変性が守られているか → Immer or スプレッド
-  □ 適切なメモ化がされているか → ただし過剰なメモ化も避ける
+State management checkpoints during code review:
+  □ Are you synchronizing state with useEffect? → Use useMemo / derived values instead
+  □ Are you copying props into useState? → Use them directly or reset with key
+  □ Is the global store bloating? → Split it
+  □ Is the same data managed in multiple places? → Single Source of Truth
+  □ Is immutability maintained? → Immer or spread operators
+  □ Is memoization appropriate? → But also avoid excessive memoization
 ```
 
 ---
 
-## 14. 状態管理ライブラリの歴史と変遷
+## 14. History and Evolution of State Management Libraries
 
 ```
-Reactの状態管理ライブラリの歴史:
+History of React state management libraries:
 
-  2014: Flux（Facebookが提唱）
-  → 単方向データフローの概念を広めた
-  → 実装は複数（Fluxxor, Alt, Reflux等）
+  2014: Flux (proposed by Facebook)
+  → Popularized the concept of unidirectional data flow
+  → Multiple implementations (Fluxxor, Alt, Reflux, etc.)
 
-  2015: Redux（Dan Abramov）
-  → Fluxの実装を統一
-  → 単一ストア、純粋なReducer、不変性
-  → React エコシステムの事実上の標準に
-  → ボイラープレートの多さが批判の対象に
+  2015: Redux (Dan Abramov)
+  → Unified Flux implementations
+  → Single store, pure reducers, immutability
+  → Became the de facto standard in the React ecosystem
+  → Criticized for excessive boilerplate
 
   2016-2018: MobX
-  → Observable パターンで状態変更を自動追跡
-  → ボイラープレートが少ない
-  → 「magic」が多いという批判も
+  → Automatically tracks state changes with the Observable pattern
+  → Less boilerplate
+  → Also criticized for too much "magic"
 
   2019: Redux Toolkit
-  → Redux のボイラープレートを大幅削減
+  → Dramatically reduced Redux boilerplate
   → createSlice, createAsyncThunk
-  → 公式推奨のReduxの書き方に
+  → Became the officially recommended way to write Redux
 
-  2020: Recoil（Facebook実験的）
-  → アトムベースの状態管理
-  → React の concurrent features との相性を意識
-  → 2025年時点でメンテナンス停滞
+  2020: Recoil (experimental by Facebook)
+  → Atom-based state management
+  → Designed with React concurrent features in mind
+  → Maintenance stagnating as of 2025
 
-  2020: React Query（TanStack Query）
-  → サーバー状態の管理を革命的に簡素化
-  → 「サーバー状態はクライアント状態ではない」という認識を広めた
+  2020: React Query (TanStack Query)
+  → Revolutionarily simplified server state management
+  → Spread the awareness that "server state is not client state"
 
   2021: Zustand
-  → シンプル、軽量、ボイラープレート最小
-  → React の外からもアクセス可能
-  → 急速にシェアを拡大
+  → Simple, lightweight, minimal boilerplate
+  → Accessible from outside React
+  → Rapidly growing market share
 
   2021: Jotai
-  → Recoilのコンセプトをよりシンプルに
-  → アトムベース、TypeScript ファースト
-  → pmndrs（Zustandと同じ開発者グループ）
+  → Simplifies the Recoil concept
+  → Atom-based, TypeScript-first
+  → pmndrs (same developer group as Zustand)
 
-  2022-2024: サーバーコンポーネント時代
+  2022-2024: The Server Component era
   → Next.js App Router / React Server Components
-  → サーバーでデータを取得 → クライアント状態の必要性が減少
-  → 「本当にクライアントで管理すべき状態」の見極めが重要に
+  → Fetch data on the server → reduces the need for client state
+  → Identifying "what truly needs to be managed on the client" becomes critical
 
-  2024-2026: 現在のトレンド
-  → 軽量ライブラリ（Zustand, Jotai）が主流
-  → TanStack Query がサーバー状態管理のデファクト
-  → URL状態管理（nuqs等）への関心の高まり
-  → React 19 の新しいフック（useActionState, useOptimistic, use）
-  → signals への関心（Preact Signals, Angular Signals）
+  2024-2026: Current trends
+  → Lightweight libraries (Zustand, Jotai) dominate
+  → TanStack Query is the de facto standard for server state management
+  → Growing interest in URL state management (nuqs, etc.)
+  → React 19's new hooks (useActionState, useOptimistic, use)
+  → Interest in signals (Preact Signals, Angular Signals)
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| カテゴリ | 例 | 推奨ツール | 選定理由 |
+| Category | Examples | Recommended Tools | Reason for Selection |
 |---------|-----|-----------|---------|
-| ローカル | モーダル開閉、入力値 | useState, useReducer | React組み込み、追加依存なし |
-| グローバル | テーマ、認証 | Zustand, Context | 軽量、シンプル、型安全 |
-| サーバー | API データ | TanStack Query | キャッシュ、再検証、リトライ自動 |
-| URL | 検索、フィルタ | useSearchParams, nuqs | ブックマーク、共有、SEO |
-| フォーム | バリデーション | React Hook Form + Zod | パフォーマンス、型安全 |
+| Local | Modal open/close, input values | useState, useReducer | Built into React, no additional dependencies |
+| Global | Theme, authentication | Zustand, Context | Lightweight, simple, type-safe |
+| Server | API data | TanStack Query | Automatic caching, revalidation, retry |
+| URL | Search, filters | useSearchParams, nuqs | Bookmarkable, shareable, SEO-friendly |
+| Form | Validation | React Hook Form + Zod | Performance, type-safe |
 
-### 状態管理の黄金律
+### The Golden Rules of State Management
 
 ```
-1. 「最も局所的な場所で、最も適切なツールで管理する」
+1. "Manage state in the most local place possible, with the most appropriate tool."
 
-2. 「状態は最小限に。計算可能な値は状態にしない」
+2. "Keep state minimal. Do not make computable values into state."
 
-3. 「サーバーデータはサーバー状態として管理する」
+3. "Manage server data as server state."
 
-4. 「URLに反映すべきものはURL状態として管理する」
+4. "Manage what should be in the URL as URL state."
 
-5. 「グローバル状態は最後の手段。まずローカル、次にコンポジション」
+5. "Global state is a last resort. Start local, then try composition."
 
-6. 「Single Source of Truth を守る」
+6. "Maintain a Single Source of Truth."
 
-7. 「不変性を守る。直接変更しない」
+7. "Maintain immutability. Never mutate directly."
 
-8. 「テスト可能な設計にする」
+8. "Design for testability."
 ```
 
 ---
-
-## FAQ
-
-### Q1: Reduxは今でも必要か？
-
-A: 2026年現在、新規プロジェクトでReduxを採用する必然性は低くなっている。ただし、以下の場合は検討に値する:
-
-- **大規模エンタープライズアプリケーション**: 複雑な状態遷移ルールがあり、Redux DevToolsの強力なデバッグ機能が必要な場合
-- **既存のReduxエコシステム**: チームがReduxに精通しており、Redux Toolkitのベストプラクティスが確立されている場合
-- **厳密なアーキテクチャ**: Action → Reducer → State の一方向フローを明示的に強制したい場合
-
-一方、中小規模のプロジェクトでは、Zustand（軽量・シンプル）やJotai（アトムベース）を選ぶことで、Reduxのボイラープレートなしに同等の機能を実現できる。サーバーデータについては、TanStack Queryに任せることで、Reduxでの管理が不要になるケースが多い。
-
-### Q2: 状態管理ライブラリの選択基準は？
-
-A: プロジェクトの特性に応じて以下の基準で選定する:
-
-**軽量・シンプルを重視（中規模アプリ）**:
-- Zustand: ストアベース、React外アクセス可能、ミドルウェア充実
-- バンドルサイズ: ~1.1KB、学習コスト: 低
-
-**細かい再レンダリング制御（複雑なUI）**:
-- Jotai: アトムベース、派生状態が多い、動的なフィールド管理
-- バンドルサイズ: ~3.8KB、学習コスト: 中
-
-**低頻度更新の共有状態（テーマ/認証）**:
-- React Context: 追加依存なし、ただし頻繁な更新には不向き
-
-**大規模・厳密なアーキテクチャ**:
-- Redux Toolkit: 成熟したエコシステム、強力なDevTools
-- バンドルサイズ: ~12.7KB、学習コスト: 高
-
-実務では、**Zustand（グローバル状態）+ TanStack Query（サーバー状態）+ URL状態（nuqs）+ useState（ローカル状態）**の組み合わせが最も多く採用されている。
-
-### Q3: グローバル状態とサーバー状態をどう分離すべきか？
-
-A: この分離が不適切だと、キャッシュ管理やデータ同期が複雑化する。以下の原則に従う:
-
-**サーバー状態として管理すべきデータ（TanStack Query / SWR）**:
-- APIから取得したデータ（ユーザー一覧、商品データ、注文履歴）
-- 他のクライアントが同時に変更する可能性があるデータ
-- 定期的な再検証が必要なデータ
-→ 理由: 自動キャッシュ、自動再検証、楽観的更新、リトライロジックが組み込み済み
-
-**グローバル状態として管理すべきデータ（Zustand / Jotai）**:
-- クライアント側でのみ管理される状態（カート、UIテーマ、認証トークン）
-- サーバーに永続化されないデータ
-- React外からアクセスする必要があるデータ
-→ 理由: アプリケーションのライフタイム全体で保持、localStorage永続化が容易
-
-**よくある間違い**: サーバーから取得したデータをuseStateやZustandストアに保存し、手動でキャッシュ管理・再検証を実装する。これは**アンチパターン**であり、TanStack Queryに任せるべき。
-
----
-
-## 次に読むべきガイド
-
----
-
-## 参考文献
-1. Kent C. Dodds. "Application State Management with React." kentcdodds.com, 2020.
-2. TkDodo. "Practical React Query." tkdodo.eu, 2024.
-3. Zustand. "Documentation." github.com/pmndrs/zustand, 2024.
-4. Jotai. "Documentation." jotai.org, 2024.
-5. TanStack Query. "Documentation." tanstack.com/query, 2024.
-6. React. "Managing State." react.dev, 2024.
-7. Mark Erikson. "Blogged Answers: Why Redux Toolkit Uses Thunks for Async Logic." blog.isquaredsoftware.com, 2023.
-8. Daishi Kato. "When I Use Valtio and When I Use Jotai." blog.axlight.com, 2023.
-9. nuqs. "Documentation." nuqs.47ng.com, 2024.
-10. React. "React 19 Blog Post." react.dev, 2024.
