@@ -1,71 +1,73 @@
-# Amazon ECS 基礎
+# Amazon ECS Basics
 
-> Amazon Elastic Container Service (ECS) の基本概念であるタスク定義、サービス、Fargate と EC2 起動タイプの違い、ALB 統合、ログ設定までを体系的に学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **ECS のアーキテクチャとコア概念** -- クラスター、タスク定義、サービス、タスクの関係を理解する
-2. **Fargate と EC2 起動タイプの使い分け** -- 各起動タイプの特徴、コスト、制約を比較し適切に選択する
-3. **ALB 統合とログ設定** -- ロードバランサーによるトラフィック分散と CloudWatch Logs へのログ出力を構成する
-4. **デプロイ戦略** -- ローリングアップデート、Blue/Green デプロイ、サーキットブレーカーの設定を習得する
-5. **ECS Exec とデバッグ** -- 実行中のコンテナへのインタラクティブアクセスとトラブルシューティング手法を学ぶ
-6. **CloudFormation / CDK による ECS 構成のコード化** -- インフラをコードで管理する実践的なテンプレートを作成する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> A systematic guide to the core concepts of Amazon Elastic Container Service (ECS): task definitions, services, the differences between Fargate and EC2 launch types, ALB integration, and log configuration.
 
 ---
 
-## 1. ECS のアーキテクチャ
+## What You Will Learn
 
-### 1.1 コア概念の関係
+1. **ECS Architecture and Core Concepts** -- Understand the relationships between clusters, task definitions, services, and tasks
+2. **Choosing Between Fargate and EC2 Launch Types** -- Compare the characteristics, costs, and constraints of each launch type to make the right choice
+3. **ALB Integration and Log Configuration** -- Configure load balancer traffic distribution and log output to CloudWatch Logs
+4. **Deployment Strategies** -- Learn rolling update, Blue/Green deployment, and circuit breaker configuration
+5. **ECS Exec and Debugging** -- Interactive access to running containers and troubleshooting techniques
+6. **Codifying ECS Configuration with CloudFormation / CDK** -- Create practical templates to manage infrastructure as code
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. ECS Architecture
+
+### 1.1 Core Concept Relationships
 
 ```
-ECS の階層構造:
+ECS Hierarchical Structure:
 
 +------------------------------------------+
-|  ECS クラスター                            |
+|  ECS Cluster                              |
 |  +--------------------------------------+ |
-|  |  サービス A (Desired Count: 3)        | |
+|  |  Service A (Desired Count: 3)        | |
 |  |  +----------+ +----------+ +--------+| |
-|  |  | タスク 1  | | タスク 2  | | タスク 3|| |
+|  |  | Task 1   | | Task 2   | | Task 3 || |
 |  |  | +------+ | | +------+ | | +------+| |
-|  |  | |コンテナ| | | |コンテナ| | | |コンテナ|| |
+|  |  | |Cont- | | | |Cont- | | | |Cont- || |
+|  |  | |ainer | | | |ainer | | | |ainer || |
 |  |  | |  A   | | | |  A   | | | |  A   || |
 |  |  | +------+ | | +------+ | | +------+| |
-|  |  | |コンテナ| | | |コンテナ| | | |コンテナ|| |
+|  |  | |Cont- | | | |Cont- | | | |Cont- || |
+|  |  | |ainer | | | |ainer | | | |ainer || |
 |  |  | |  B   | | | |  B   | | | |  B   || |
 |  |  | +------+ | | +------+ | | +------+| |
 |  |  +----------+ +----------+ +--------+| |
 |  +--------------------------------------+ |
 |  +--------------------------------------+ |
-|  |  サービス B (Desired Count: 2)        | |
+|  |  Service B (Desired Count: 2)        | |
 |  |  +----------+ +----------+            | |
-|  |  | タスク 1  | | タスク 2  |            | |
+|  |  | Task 1   | | Task 2   |            | |
 |  |  +----------+ +----------+            | |
 |  +--------------------------------------+ |
 +------------------------------------------+
 ```
 
-| 概念 | 説明 |
+| Concept | Description |
 |------|------|
-| クラスター | タスクとサービスの論理グループ |
-| タスク定義 | コンテナの設計図(イメージ、CPU、メモリ、ポート等) |
-| タスク | タスク定義のインスタンス(実行中のコンテナ群) |
-| サービス | タスクの希望数を維持するスケジューラ |
-| コンテナ定義 | タスク定義内の個別コンテナ設定 |
+| Cluster | Logical grouping of tasks and services |
+| Task Definition | Blueprint for containers (image, CPU, memory, ports, etc.) |
+| Task | Instance of a task definition (group of running containers) |
+| Service | Scheduler that maintains the desired number of tasks |
+| Container Definition | Individual container settings within a task definition |
 
-### 1.2 ECS のデータプレーン
+### 1.2 ECS Data Plane
 
 ```
-コントロールプレーン (AWS管理)
+Control Plane (AWS Managed)
 +----------------------------+
 |  ECS API / Scheduler       |
 +----------------------------+
@@ -73,45 +75,47 @@ ECS の階層構造:
          v           v
    +-----------+ +-----------+
    | Fargate   | | EC2       |
-   | (サーバー  | | (自己管理  |
-   |  レス)    | |  インスタンス)|
+   | (Server-  | | (Self-    |
+   |  less)    | |  Managed  |
+   |           | |  Instances)|
    +-----------+ +-----------+
    | MicroVM   | | EC2       |
-   | 自動管理  | | ECS Agent |
-   | パッチ不要 | | AMI管理   |
+   | Auto Mgmt | | ECS Agent |
+   | No Patch  | | AMI Mgmt  |
    +-----------+ +-----------+
 ```
 
-### 1.3 ECS の主要コンポーネント詳細
+### 1.3 Key ECS Component Details
 
 ```
-ECS エコシステムの全体像:
+ECS Ecosystem Overview:
 
 +-------------------------------------------------------------+
 |  Amazon ECS                                                 |
 |                                                             |
 |  +-------------------+  +------------------+                |
 |  | ECR               |  | Service Connect  |                |
-|  | (コンテナレジストリ) |  | (サービス間通信)  |                |
+|  | (Container        |  | (Service-to-     |                |
+|  |  Registry)        |  |  Service Comm.)  |                |
 |  +-------------------+  +------------------+                |
 |                                                             |
 |  +-------------------+  +------------------+                |
 |  | Task Definition   |  | Capacity Provider|                |
-|  | (タスク設計図)      |  | (キャパシティ管理) |                |
+|  | (Task Blueprint)  |  | (Capacity Mgmt)  |                |
 |  +-------------------+  +------------------+                |
 |                                                             |
 |  +-------------------+  +------------------+                |
 |  | Service           |  | Cluster          |                |
-|  | (サービス管理)      |  | (クラスター)      |                |
+|  | (Service Mgmt)    |  | (Cluster)        |                |
 |  +-------------------+  +------------------+                |
 |                                                             |
-|  データプレーン:                                               |
+|  Data Plane:                                                |
 |  +-------------------+  +------------------+                |
 |  | AWS Fargate       |  | EC2 Instances    |                |
-|  | (サーバーレス)      |  | (セルフマネージド)  |                |
+|  | (Serverless)      |  | (Self-Managed)   |                |
 |  +-------------------+  +------------------+                |
 |                                                             |
-|  統合サービス:                                                 |
+|  Integrated Services:                                       |
 |  +--------+ +--------+ +--------+ +--------+ +--------+    |
 |  | ALB    | | NLB    | | CloudMap| | X-Ray  | | CW Logs|    |
 |  +--------+ +--------+ +--------+ +--------+ +--------+    |
@@ -120,9 +124,9 @@ ECS エコシステムの全体像:
 
 ---
 
-## 2. タスク定義
+## 2. Task Definitions
 
-### 2.1 基本的なタスク定義
+### 2.1 Basic Task Definition
 
 ```json
 {
@@ -174,19 +178,19 @@ ECS エコシステムの全体像:
 }
 ```
 
-### 2.2 Fargate の CPU/メモリ組み合わせ
+### 2.2 Fargate CPU/Memory Combinations
 
-| CPU (vCPU) | メモリ (GB) |
+| CPU (vCPU) | Memory (GB) |
 |-----------|------------|
 | 0.25 | 0.5, 1, 2 |
 | 0.5 | 1, 2, 3, 4 |
 | 1 | 2, 3, 4, 5, 6, 7, 8 |
-| 2 | 4 - 16 (1GB刻み) |
-| 4 | 8 - 30 (1GB刻み) |
-| 8 | 16 - 60 (4GB刻み) |
-| 16 | 32 - 120 (8GB刻み) |
+| 2 | 4 - 16 (1GB increments) |
+| 4 | 8 - 30 (1GB increments) |
+| 8 | 16 - 60 (4GB increments) |
+| 16 | 32 - 120 (8GB increments) |
 
-### 2.3 マルチコンテナタスク定義 (サイドカーパターン)
+### 2.3 Multi-Container Task Definition (Sidecar Pattern)
 
 ```json
 {
@@ -229,29 +233,29 @@ ECS エコシステムの全体像:
 }
 ```
 
-### 2.4 タスク定義の実行ロールとタスクロール
+### 2.4 Task Definition Execution Role vs Task Role
 
 ```
-ロールの違い:
+Role Differences:
 
-実行ロール (Execution Role):
-  ECS エージェントが使用するロール
+Execution Role:
+  Role used by the ECS agent
   +--------------------------------------+
-  | 用途:                                 |
-  |   - ECR からのイメージプル             |
-  |   - CloudWatch Logs へのログ書き込み   |
-  |   - Secrets Manager からのシークレット取得|
-  |   - SSM Parameter Store からの値取得  |
+  | Purpose:                              |
+  |   - Pulling images from ECR           |
+  |   - Writing logs to CloudWatch Logs   |
+  |   - Retrieving secrets from Secrets Manager|
+  |   - Retrieving values from SSM Parameter Store|
   +--------------------------------------+
 
-タスクロール (Task Role):
-  コンテナ内のアプリケーションが使用するロール
+Task Role:
+  Role used by the application inside the container
   +--------------------------------------+
-  | 用途:                                 |
-  |   - DynamoDB へのアクセス              |
-  |   - S3 バケットへのアクセス             |
-  |   - SQS キューへのメッセージ送信       |
-  |   - その他 AWS サービスへのアクセス     |
+  | Purpose:                              |
+  |   - Accessing DynamoDB                |
+  |   - Accessing S3 buckets              |
+  |   - Sending messages to SQS queues    |
+  |   - Accessing other AWS services      |
   +--------------------------------------+
 ```
 
@@ -301,31 +305,31 @@ ECS エコシステムの全体像:
 }
 ```
 
-### 2.5 AWS CLI によるタスク定義の管理
+### 2.5 Managing Task Definitions with AWS CLI
 
 ```bash
-# タスク定義の登録
+# Register a task definition
 aws ecs register-task-definition \
   --cli-input-json file://task-definition.json
 
-# タスク定義の一覧表示
+# List task definitions
 aws ecs list-task-definitions --family-prefix my-web-app
 
-# 特定のタスク定義の詳細表示
+# Show details of a specific task definition
 aws ecs describe-task-definition \
   --task-definition my-web-app:3
 
-# タスク定義のリビジョン比較
+# Compare task definition revisions
 aws ecs describe-task-definition --task-definition my-web-app:2 \
   --query 'taskDefinition.containerDefinitions[0].image'
 aws ecs describe-task-definition --task-definition my-web-app:3 \
   --query 'taskDefinition.containerDefinitions[0].image'
 
-# 古いタスク定義の登録解除
+# Deregister an old task definition
 aws ecs deregister-task-definition \
   --task-definition my-web-app:1
 
-# スタンドアロンタスクの実行 (バッチ処理等)
+# Run a standalone task (for batch processing, etc.)
 aws ecs run-task \
   --cluster my-cluster \
   --task-definition my-batch-job:1 \
@@ -352,58 +356,58 @@ aws ecs run-task \
 
 ---
 
-## 3. Fargate vs EC2 起動タイプ
+## 3. Fargate vs EC2 Launch Type
 
-### 3.1 比較表
+### 3.1 Comparison Table
 
-| 特性 | Fargate | EC2 |
+| Characteristic | Fargate | EC2 |
 |------|---------|-----|
-| インフラ管理 | 不要 | EC2 インスタンスの管理が必要 |
-| パッチ適用 | AWS が自動管理 | ユーザーが AMI 更新 |
-| スケーリング | タスク単位で自動 | ASG + タスク配置 |
-| GPU サポート | なし | あり |
-| ネットワークモード | awsvpc のみ | awsvpc, bridge, host, none |
-| 最大 CPU/メモリ | 16 vCPU / 120 GB | インスタンスタイプに依存 |
-| スポット利用 | Fargate Spot | EC2 Spot |
-| 起動速度 | 30-60秒 | 即座(インスタンス起動済みなら) |
-| 料金モデル | vCPU + メモリ秒課金 | EC2 インスタンス料金 |
-| EBS ボリューム | 20-200 GB エフェメラルストレージ | インスタンスに依存 |
-| 特権コンテナ | 不可 | 可能 |
-| Docker-in-Docker | 不可 | 可能 |
+| Infrastructure Management | Not required | EC2 instance management required |
+| Patching | AWS manages automatically | User updates AMI |
+| Scaling | Automatic per task | ASG + task placement |
+| GPU Support | No | Yes |
+| Network Mode | awsvpc only | awsvpc, bridge, host, none |
+| Max CPU/Memory | 16 vCPU / 120 GB | Depends on instance type |
+| Spot Usage | Fargate Spot | EC2 Spot |
+| Startup Speed | 30-60 seconds | Immediate (if instance already running) |
+| Pricing Model | Per vCPU + memory second | EC2 instance pricing |
+| EBS Volume | 20-200 GB ephemeral storage | Depends on instance |
+| Privileged Container | Not allowed | Allowed |
+| Docker-in-Docker | Not allowed | Allowed |
 
-### 3.2 コスト比較の目安
+### 3.2 Cost Comparison Estimates
 
 ```
-月間コスト試算 (東京リージョン, 24時間稼働, 1 vCPU / 2GB メモリ):
+Monthly cost estimate (Tokyo Region, 24/7 operation, 1 vCPU / 2GB memory):
 
 Fargate:
-  vCPU: $0.05056/時 x 24時間 x 30日 = $36.40
-  メモリ: $0.00553/GB/時 x 2GB x 24時間 x 30日 = $7.96
-  合計: 約 $44.36/月/タスク
+  vCPU: $0.05056/hr x 24hr x 30 days = $36.40
+  Memory: $0.00553/GB/hr x 2GB x 24hr x 30 days = $7.96
+  Total: approx. $44.36/month/task
 
 Fargate Spot:
-  約 $44.36 x 0.3 = 約 $13.31/月/タスク (最大70%割引)
+  approx. $44.36 x 0.3 = approx. $13.31/month/task (up to 70% discount)
 
-EC2 (t3.small オンデマンド):
-  $0.0272/時 x 24時間 x 30日 = $19.58/月
-  ※ 1タスクのみの場合。複数タスクを同一インスタンスに配置可能
+EC2 (t3.small On-Demand):
+  $0.0272/hr x 24hr x 30 days = $19.58/month
+  * For a single task. Multiple tasks can be placed on the same instance.
 
-EC2 (t3.small リザーブド 1年):
-  約 $12.48/月
+EC2 (t3.small Reserved 1-year):
+  approx. $12.48/month
 
-結論:
-  - 少数タスク: EC2 の方が安い
-  - 運用コスト含む: Fargate の方がTCOは有利な場合が多い
-  - バースト対応: Fargate Spot が最もコスト効率が良い
+Conclusion:
+  - Small number of tasks: EC2 is cheaper
+  - Including operational costs: Fargate often has a lower TCO
+  - Burst handling: Fargate Spot is most cost-efficient
 ```
 
-### 3.3 Capacity Provider による柔軟なインフラ管理
+### 3.3 Flexible Infrastructure Management with Capacity Providers
 
 ```
-Capacity Provider の仕組み:
+How Capacity Providers Work:
 
 +------------------------------------------+
-|  ECS クラスター                            |
+|  ECS Cluster                              |
 |                                          |
 |  Capacity Provider Strategy:             |
 |  +--------------------------------------+|
@@ -411,19 +415,19 @@ Capacity Provider の仕組み:
 |  | FARGATE_SPOT  : weight=3, base=0     ||
 |  +--------------------------------------+|
 |                                          |
-|  結果:                                    |
-|  タスク数5の場合:                          |
-|    FARGATE: 2 (base) + 0 = 2タスク        |
-|    FARGATE_SPOT: 0 (base) + 3 = 3タスク   |
+|  Result:                                 |
+|  With 5 tasks:                           |
+|    FARGATE: 2 (base) + 0 = 2 tasks       |
+|    FARGATE_SPOT: 0 (base) + 3 = 3 tasks  |
 |                                          |
-|  タスク数10の場合:                         |
-|    FARGATE: 2 (base) + 2 = 4タスク        |
-|    FARGATE_SPOT: 0 (base) + 6 = 6タスク   |
+|  With 10 tasks:                          |
+|    FARGATE: 2 (base) + 2 = 4 tasks       |
+|    FARGATE_SPOT: 0 (base) + 6 = 6 tasks  |
 +------------------------------------------+
 ```
 
 ```bash
-# Capacity Provider の設定
+# Configure Capacity Providers
 aws ecs put-cluster-capacity-providers \
   --cluster my-cluster \
   --capacity-providers FARGATE FARGATE_SPOT \
@@ -431,7 +435,7 @@ aws ecs put-cluster-capacity-providers \
     capacityProvider=FARGATE,weight=1,base=2 \
     capacityProvider=FARGATE_SPOT,weight=3,base=0
 
-# EC2 Capacity Provider の作成
+# Create EC2 Capacity Provider
 aws ecs create-capacity-provider \
   --name my-ec2-capacity-provider \
   --auto-scaling-group-provider '{
@@ -449,15 +453,15 @@ aws ecs create-capacity-provider \
 
 ---
 
-## 4. サービスの作成と管理
+## 4. Creating and Managing Services
 
-### 4.1 ECS サービスの作成
+### 4.1 Creating an ECS Service
 
 ```bash
-# クラスターの作成
+# Create a cluster
 aws ecs create-cluster --cluster-name my-cluster
 
-# サービスの作成
+# Create a service
 aws ecs create-service \
   --cluster my-cluster \
   --service-name my-web-service \
@@ -488,14 +492,14 @@ aws ecs create-service \
     }
   }'
 
-# サービスの更新 (新しいタスク定義でデプロイ)
+# Update a service (deploy with a new task definition)
 aws ecs update-service \
   --cluster my-cluster \
   --service my-web-service \
   --task-definition my-web-app:2 \
   --force-new-deployment
 
-# サービスの状態確認
+# Check service status
 aws ecs describe-services \
   --cluster my-cluster \
   --services my-web-service \
@@ -514,10 +518,10 @@ aws ecs describe-services \
   }'
 ```
 
-### 4.2 Auto Scaling の設定
+### 4.2 Configuring Auto Scaling
 
 ```bash
-# Application Auto Scaling ターゲットの登録
+# Register Application Auto Scaling target
 aws application-autoscaling register-scalable-target \
   --service-namespace ecs \
   --resource-id "service/my-cluster/my-web-service" \
@@ -525,7 +529,7 @@ aws application-autoscaling register-scalable-target \
   --min-capacity 2 \
   --max-capacity 20
 
-# ターゲット追跡スケーリングポリシー (CPU)
+# Target tracking scaling policy (CPU)
 aws application-autoscaling put-scaling-policy \
   --service-namespace ecs \
   --resource-id "service/my-cluster/my-web-service" \
@@ -541,7 +545,7 @@ aws application-autoscaling put-scaling-policy \
     "ScaleOutCooldown": 60
   }'
 
-# ターゲット追跡スケーリングポリシー (メモリ)
+# Target tracking scaling policy (Memory)
 aws application-autoscaling put-scaling-policy \
   --service-namespace ecs \
   --resource-id "service/my-cluster/my-web-service" \
@@ -557,7 +561,7 @@ aws application-autoscaling put-scaling-policy \
     "ScaleOutCooldown": 60
   }'
 
-# ALB リクエスト数ベースのスケーリング
+# ALB request count-based scaling
 aws application-autoscaling put-scaling-policy \
   --service-namespace ecs \
   --resource-id "service/my-cluster/my-web-service" \
@@ -574,7 +578,7 @@ aws application-autoscaling put-scaling-policy \
     "ScaleOutCooldown": 60
   }'
 
-# スケジュールベースのスケーリング
+# Schedule-based scaling
 aws application-autoscaling put-scheduled-action \
   --service-namespace ecs \
   --resource-id "service/my-cluster/my-web-service" \
@@ -594,62 +598,62 @@ aws application-autoscaling put-scheduled-action \
 
 ---
 
-## 5. デプロイ戦略
+## 5. Deployment Strategies
 
-### 5.1 ローリングアップデート
+### 5.1 Rolling Update
 
 ```
-ローリングアップデートの流れ (minimumHealthyPercent=100, maximumPercent=200):
+Rolling Update Flow (minimumHealthyPercent=100, maximumPercent=200):
 
-時刻 T0: 初期状態
-  [v1] [v1] [v1]  (3タスク稼働中)
+Time T0: Initial state
+  [v1] [v1] [v1]  (3 tasks running)
 
-時刻 T1: 新タスク起動
-  [v1] [v1] [v1] [v2] [v2] [v2]  (6タスクまで許容)
+Time T1: New tasks starting
+  [v1] [v1] [v1] [v2] [v2] [v2]  (up to 6 tasks allowed)
 
-時刻 T2: 新タスクがヘルシー
+Time T2: New tasks become healthy
   [v1] [v1] [v1] [v2:healthy] [v2:healthy] [v2:healthy]
 
-時刻 T3: 旧タスク停止
-  [v2] [v2] [v2]  (3タスクに戻る)
+Time T3: Old tasks stopped
+  [v2] [v2] [v2]  (back to 3 tasks)
 
-デプロイ所要時間: 数分～10分程度
-ダウンタイム: なし
+Deployment time: a few minutes to ~10 minutes
+Downtime: none
 ```
 
-### 5.2 Blue/Green デプロイ (CodeDeploy)
+### 5.2 Blue/Green Deployment (CodeDeploy)
 
 ```
-Blue/Green デプロイの流れ:
+Blue/Green Deployment Flow:
 
-Phase 1: Blue (現行) が稼働中
+Phase 1: Blue (current) is running
   ALB --> Target Group 1 (Blue)
           [v1] [v1] [v1]
 
-Phase 2: Green (新版) を起動
+Phase 2: Green (new version) starts
   ALB --> Target Group 1 (Blue)
           [v1] [v1] [v1]
-          Target Group 2 (Green)  <-- テスト用リスナーで検証
+          Target Group 2 (Green)  <-- validate via test listener
           [v2] [v2] [v2]
 
-Phase 3: トラフィック切り替え
+Phase 3: Switch traffic
   ALB --> Target Group 2 (Green)
           [v2] [v2] [v2]
-          Target Group 1 (Blue)  <-- 一定時間保持 (ロールバック用)
+          Target Group 1 (Blue)  <-- retained for a period (for rollback)
           [v1] [v1] [v1]
 
-Phase 4: Blue を削除
+Phase 4: Delete Blue
   ALB --> Target Group 2 (Green)
           [v2] [v2] [v2]
 ```
 
 ```bash
-# Blue/Green デプロイ用の CodeDeploy アプリケーション作成
+# Create CodeDeploy application for Blue/Green deployment
 aws deploy create-application \
   --application-name my-ecs-app \
   --compute-platform ECS
 
-# デプロイグループの作成
+# Create deployment group
 aws deploy create-deployment-group \
   --application-name my-ecs-app \
   --deployment-group-name my-ecs-dg \
@@ -687,51 +691,52 @@ aws deploy create-deployment-group \
   }'
 ```
 
-### 5.3 デプロイ設定オプション
+### 5.3 Deployment Configuration Options
 
-| デプロイ設定 | 説明 |
+| Deployment Configuration | Description |
 |-------------|------|
-| CodeDeployDefault.ECSAllAtOnce | 即座に全トラフィックを切り替え |
-| CodeDeployDefault.ECSLinear10PercentEvery1Minutes | 毎分10%ずつ移行 |
-| CodeDeployDefault.ECSLinear10PercentEvery3Minutes | 3分毎に10%ずつ移行 |
-| CodeDeployDefault.ECSCanary10Percent5Minutes | 最初に10%、5分後に残り全て |
-| CodeDeployDefault.ECSCanary10Percent15Minutes | 最初に10%、15分後に残り全て |
+| CodeDeployDefault.ECSAllAtOnce | Switches all traffic immediately |
+| CodeDeployDefault.ECSLinear10PercentEvery1Minutes | Shifts 10% every minute |
+| CodeDeployDefault.ECSLinear10PercentEvery3Minutes | Shifts 10% every 3 minutes |
+| CodeDeployDefault.ECSCanary10Percent5Minutes | 10% first, then all remaining after 5 minutes |
+| CodeDeployDefault.ECSCanary10Percent15Minutes | 10% first, then all remaining after 15 minutes |
 
-### 5.4 デプロイサーキットブレーカー
+### 5.4 Deployment Circuit Breaker
 
 ```
-サーキットブレーカーの動作:
+Circuit Breaker Behavior:
 
-デプロイ開始
+Deployment starts
     |
     v
-新タスク起動 → 起動失敗 → リトライ → 起動失敗 → リトライ → 起動失敗
+New task starts --> Startup fails --> Retry --> Startup fails --> Retry --> Startup fails
     |
     v
-閾値超過 (連続失敗)
+Threshold exceeded (consecutive failures)
     |
     v
 +----------------------------+
-| サーキットブレーカー発動     |
-| - デプロイを停止            |
-| - rollback=true なら        |
-|   前バージョンに自動ロールバック|
+| Circuit Breaker Triggered  |
+| - Deployment stops         |
+| - If rollback=true:        |
+|   Automatic rollback to    |
+|   previous version         |
 +----------------------------+
 
-設定:
+Configuration:
   deploymentCircuitBreaker:
     enable: true
-    rollback: true  ← 自動ロールバックを有効化
+    rollback: true  <- Enable automatic rollback
 ```
 
 ---
 
-## 6. ALB 統合
+## 6. ALB Integration
 
-### 6.1 ALB + ECS の構成
+### 6.1 ALB + ECS Configuration
 
 ```
-インターネット
+Internet
     |
     v
 +--------------------+
@@ -739,30 +744,30 @@ aws deploy create-deployment-group \
 | Balancer (ALB)     |
 +--------------------+
     |
-    +------ リスナー (80/443)
+    +------ Listener (80/443)
     |         |
     |    +----+----+
-    |    |ルール    |
+    |    | Rules   |
     |    +---------+
-    |    /path1 --> ターゲットグループ A
-    |    /path2 --> ターゲットグループ B
-    |    default -> ターゲットグループ A
+    |    /path1 --> Target Group A
+    |    /path2 --> Target Group B
+    |    default -> Target Group A
     |
     v                          v
 +----------+  +----------+  +----------+
-| タスク 1  |  | タスク 2  |  | タスク 3  |
+| Task 1   |  | Task 2   |  | Task 3   |
 | :8080    |  | :8080    |  | :8080    |
-| (動的Port)|  | (動的Port)|  | (動的Port)|
+| (Dynamic)|  | (Dynamic)|  | (Dynamic)|
 +----------+  +----------+  +----------+
 
-awsvpc モードでは各タスクが独自のENIを持つ
-→ 動的ポートマッピングは不要、containerPort に直接ルーティング
+In awsvpc mode, each task has its own ENI
+-> No dynamic port mapping needed; routes directly to containerPort
 ```
 
-### 6.2 ALB ヘルスチェックの設定
+### 6.2 ALB Health Check Configuration
 
 ```bash
-# ターゲットグループの作成
+# Create target group
 aws elbv2 create-target-group \
   --name my-app-tg \
   --protocol HTTP \
@@ -776,7 +781,7 @@ aws elbv2 create-target-group \
   --unhealthy-threshold-count 3 \
   --health-check-timeout-seconds 5
 
-# ALB の作成
+# Create ALB
 aws elbv2 create-load-balancer \
   --name my-app-alb \
   --subnets subnet-public-1 subnet-public-2 \
@@ -784,7 +789,7 @@ aws elbv2 create-load-balancer \
   --scheme internet-facing \
   --type application
 
-# リスナーの作成 (HTTPS)
+# Create HTTPS listener
 aws elbv2 create-listener \
   --load-balancer-arn arn:aws:elasticloadbalancing:...:loadbalancer/app/my-app-alb/... \
   --protocol HTTPS \
@@ -793,7 +798,7 @@ aws elbv2 create-listener \
   --ssl-policy ELBSecurityPolicy-TLS13-1-2-2021-06 \
   --default-actions Type=forward,TargetGroupArn=arn:aws:elasticloadbalancing:...:targetgroup/my-app-tg/...
 
-# HTTP → HTTPS リダイレクトリスナー
+# HTTP -> HTTPS redirect listener
 aws elbv2 create-listener \
   --load-balancer-arn arn:aws:elasticloadbalancing:...:loadbalancer/app/my-app-alb/... \
   --protocol HTTP \
@@ -808,11 +813,11 @@ aws elbv2 create-listener \
   }]'
 ```
 
-### 6.3 パスベースルーティング
+### 6.3 Path-Based Routing
 
 ```bash
-# パスベースルーティングルールの追加
-# /api/* → API サービス
+# Add path-based routing rule
+# /api/* --> API service
 aws elbv2 create-rule \
   --listener-arn arn:aws:elasticloadbalancing:...:listener/... \
   --priority 10 \
@@ -825,8 +830,8 @@ aws elbv2 create-rule \
     "TargetGroupArn": "arn:aws:elasticloadbalancing:...:targetgroup/api-tg/..."
   }]'
 
-# ホストヘッダベースルーティング
-# api.example.com → API サービス
+# Host header-based routing
+# api.example.com --> API service
 aws elbv2 create-rule \
   --listener-arn arn:aws:elasticloadbalancing:...:listener/... \
   --priority 20 \
@@ -842,27 +847,27 @@ aws elbv2 create-rule \
 
 ---
 
-## 7. ログ設定
+## 7. Log Configuration
 
-### 7.1 CloudWatch Logs への出力
+### 7.1 Outputting to CloudWatch Logs
 
 ```
-ECS タスク ログフロー:
+ECS Task Log Flow:
 
-コンテナ stdout/stderr
+Container stdout/stderr
     |
     v
 +-------------------+
-| awslogs ドライバー |
+| awslogs driver    |
 +-------------------+
     |
     v
 +-------------------+     +-------------------+
 | CloudWatch Logs   | --> | Logs Insights     |
-| /ecs/my-app       |     | でクエリ分析       |
+| /ecs/my-app       |     | query analysis    |
 +-------------------+     +-------------------+
     |
-    v (サブスクリプション)
+    v (subscription)
 +-------------------+
 | Lambda / Kinesis  |
 | / OpenSearch      |
@@ -870,37 +875,37 @@ ECS タスク ログフロー:
 ```
 
 ```
-# CloudWatch Logs Insights クエリ例
+# CloudWatch Logs Insights query examples
 
-# エラーログの検索
+# Search for error logs
 fields @timestamp, @message
 | filter @message like /ERROR/
 | sort @timestamp desc
 | limit 50
 
-# レスポンスタイムの分析
+# Analyze response times
 fields @timestamp, @message
 | parse @message "response_time=* ms" as response_time
 | stats avg(response_time), max(response_time), p99(response_time) by bin(5m)
 
-# HTTP ステータスコード別集計
+# Aggregate by HTTP status code
 fields @timestamp, @message
 | parse @message "status=*" as status_code
 | stats count(*) by status_code
 | sort count desc
 
-# 特定のリクエストIDを追跡
+# Track a specific request ID
 fields @timestamp, @message, @logStream
 | filter @message like /req-abc123/
 | sort @timestamp asc
 
-# メモリ使用量の追跡
+# Track memory usage
 fields @timestamp, @message
 | parse @message "memory_used=* MB" as memoryUsed
 | stats avg(memoryUsed), max(memoryUsed), min(memoryUsed) by bin(5m)
 ```
 
-### 7.2 FireLens (Fluent Bit) によるログルーティング
+### 7.2 Log Routing with FireLens (Fluent Bit)
 
 ```json
 {
@@ -938,7 +943,7 @@ fields @timestamp, @message
 }
 ```
 
-### 7.3 複数の送信先へのログルーティング
+### 7.3 Routing Logs to Multiple Destinations
 
 ```json
 {
@@ -956,8 +961,8 @@ fields @timestamp, @message
 ```
 
 ```ini
-# Fluent Bit カスタム設定 (extra.conf)
-# CloudWatch Logs と S3 の両方にログを送信
+# Fluent Bit custom configuration (extra.conf)
+# Send logs to both CloudWatch Logs and S3
 
 [OUTPUT]
     Name cloudwatch_logs
@@ -980,18 +985,18 @@ fields @timestamp, @message
 
 ---
 
-## 8. ECS Exec (コンテナへのアクセス)
+## 8. ECS Exec (Accessing Containers)
 
-### 8.1 ECS Exec の有効化
+### 8.1 Enabling ECS Exec
 
 ```bash
-# サービスで ECS Exec を有効化
+# Enable ECS Exec on a service
 aws ecs update-service \
   --cluster my-cluster \
   --service my-web-service \
   --enable-execute-command
 
-# タスクロールに必要な権限を追加
+# Add required permissions to the task role
 # {
 #   "Version": "2012-10-17",
 #   "Statement": [
@@ -1008,7 +1013,7 @@ aws ecs update-service \
 #   ]
 # }
 
-# コンテナへのアクセス
+# Access a container
 aws ecs execute-command \
   --cluster my-cluster \
   --task arn:aws:ecs:ap-northeast-1:123456789012:task/my-cluster/abc123 \
@@ -1016,7 +1021,7 @@ aws ecs execute-command \
   --interactive \
   --command "/bin/sh"
 
-# ECS Exec の状態確認
+# Check ECS Exec status
 aws ecs describe-tasks \
   --cluster my-cluster \
   --tasks arn:aws:ecs:...:task/my-cluster/abc123 \
@@ -1029,16 +1034,16 @@ aws ecs describe-tasks \
   }'
 ```
 
-### 8.2 トラブルシューティング
+### 8.2 Troubleshooting
 
 ```bash
-# タスクの一覧と状態確認
+# List tasks and check status
 aws ecs list-tasks \
   --cluster my-cluster \
   --service-name my-web-service \
   --desired-status RUNNING
 
-# タスクの詳細確認
+# Check task details
 aws ecs describe-tasks \
   --cluster my-cluster \
   --tasks arn:aws:ecs:...:task/... \
@@ -1055,7 +1060,7 @@ aws ecs describe-tasks \
     }
   }'
 
-# 停止したタスクの理由を確認
+# Check reasons for stopped tasks
 aws ecs list-tasks \
   --cluster my-cluster \
   --desired-status STOPPED \
@@ -1065,7 +1070,7 @@ aws ecs list-tasks \
     --tasks {} \
     --query 'tasks[*].{TaskArn: taskArn, StoppedReason: stoppedReason}'
 
-# サービスイベントの確認
+# Check service events
 aws ecs describe-services \
   --cluster my-cluster \
   --services my-web-service \
@@ -1076,43 +1081,43 @@ aws ecs describe-services \
 
 ## 9. ECS Service Connect
 
-### 9.1 Service Connect の概要
+### 9.1 Service Connect Overview
 
 ```
-Service Connect の仕組み:
+How Service Connect Works:
 
-従来 (Cloud Map + App Mesh):
-  サービスA --> DNS ルックアップ --> Cloud Map --> サービスB
-  + App Mesh Envoy プロキシ (複雑な設定が必要)
+Traditional approach (Cloud Map + App Mesh):
+  Service A --> DNS lookup --> Cloud Map --> Service B
+  + App Mesh Envoy proxy (complex configuration required)
 
 Service Connect:
-  サービスA --> Service Connect プロキシ --> サービスB
-  (ECS が自動的にプロキシを管理)
+  Service A --> Service Connect proxy --> Service B
+  (ECS automatically manages the proxy)
 
 +---------------------+          +---------------------+
-| サービスA            |          | サービスB            |
+| Service A            |          | Service B            |
 | +-------+ +-------+ |          | +-------+ +-------+ |
 | | App   | | SC    | | -------> | | SC    | | App   | |
 | |       | |Proxy  | |          | |Proxy  | |       | |
 | +-------+ +-------+ |          | +-------+ +-------+ |
 +---------------------+          +---------------------+
 
-メリット:
-  - サービス間通信の自動検出
-  - ロードバランシング
-  - ヘルスチェック
-  - リトライ
-  - メトリクス収集
-  - TLS 暗号化
+Benefits:
+  - Automatic service discovery for inter-service communication
+  - Load balancing
+  - Health checks
+  - Retries
+  - Metrics collection
+  - TLS encryption
 ```
 
 ```bash
-# Service Connect 用の名前空間作成
+# Create namespace for Service Connect
 aws servicediscovery create-http-namespace \
   --name my-apps \
   --description "Service Connect namespace"
 
-# サービスの作成 (Service Connect 有効)
+# Create service with Service Connect enabled
 aws ecs create-service \
   --cluster my-cluster \
   --service-name backend-api \
@@ -1140,13 +1145,13 @@ aws ecs create-service \
 
 ---
 
-## 10. CloudFormation テンプレート
+## 10. CloudFormation Templates
 
-### 10.1 ECS Fargate 完全構成テンプレート
+### 10.1 Full ECS Fargate Configuration Template
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'ECS Fargate 完全構成テンプレート'
+Description: 'Full ECS Fargate Configuration Template'
 
 Parameters:
   EnvironmentName:
@@ -1157,15 +1162,15 @@ Parameters:
   ImageTag:
     Type: String
     Default: latest
-    Description: コンテナイメージのタグ
+    Description: Container image tag
 
   DesiredCount:
     Type: Number
     Default: 3
-    Description: 希望タスク数
+    Description: Desired task count
 
 Resources:
-  # ECS クラスター
+  # ECS Cluster
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
@@ -1184,14 +1189,14 @@ Resources:
           Weight: 3
           Base: 0
 
-  # ロググループ
+  # Log Group
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '/ecs/${EnvironmentName}-web-app'
       RetentionInDays: 30
 
-  # タスク定義
+  # Task Definition
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -1232,7 +1237,7 @@ Resources:
             Retries: 3
             StartPeriod: 60
 
-  # ECS サービス
+  # ECS Service
   Service:
     Type: AWS::ECS::Service
     DependsOn: ALBListener
@@ -1286,7 +1291,7 @@ Resources:
         ScaleInCooldown: 300
         ScaleOutCooldown: 60
 
-  # CloudWatch アラーム
+  # CloudWatch Alarm
   HighCPUAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -1319,57 +1324,57 @@ Outputs:
 
   ALBDNSName:
     Value: !GetAtt ALB.DNSName
-    Description: ALB の DNS 名
+    Description: ALB DNS name
 ```
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### 11.1 latest タグへの依存
+### 11.1 Relying on the `latest` Tag
 
 ```
-[悪い例]
-タスク定義で image: "my-app:latest" を使用
+[Bad Example]
+Using image: "my-app:latest" in a task definition
 
-問題:
-  - どのバージョンがデプロイされたか追跡不能
-  - ロールバックが困難
-  - 同一タスク定義で異なるバージョンが動作する可能性
+Problems:
+  - Cannot track which version was deployed
+  - Rollback is difficult
+  - Different versions may run under the same task definition
 
-[良い例]
-image: "my-app:v1.2.3" または
+[Good Example]
+image: "my-app:v1.2.3" or
 image: "my-app:abc123def" (Git SHA)
 
-CI/CD パイプラインで:
-  1. イメージをビルド、一意のタグでプッシュ
-  2. タスク定義を新しいイメージタグで更新
-  3. サービスを更新
+In CI/CD pipeline:
+  1. Build image, push with a unique tag
+  2. Update task definition with the new image tag
+  3. Update the service
 ```
 
-### 11.2 タスクロールに過剰な権限を付与
+### 11.2 Granting Excessive Permissions to the Task Role
 
-**問題点**: `AdministratorAccess` や広範なワイルドカードをタスクロールに付与すると、コンテナが侵害された場合に大きな被害が生じる。
+**Problem**: Granting `AdministratorAccess` or broad wildcards to a task role can cause significant damage if a container is compromised.
 
-**改善**: タスクが必要とする最小限のリソースとアクションのみを許可する。実行ロール(ECR プル、ログ書込み)とタスクロール(アプリケーションが使うAWSリソース)を明確に分離する。
+**Improvement**: Allow only the minimum resources and actions the task needs. Clearly separate the execution role (ECR pull, log writes) from the task role (AWS resources the application uses).
 
-### 11.3 ヘルスチェックの未設定
+### 11.3 Not Configuring Health Checks
 
 ```
-[悪い例]
-ALB のヘルスチェックを / (トップページ) に設定
-→ アプリケーションが部分的に機能不全でもヘルシー判定
+[Bad Example]
+Setting the ALB health check to / (top page)
+-> Application judged healthy even when partially malfunctioning
 
-[良い例]
-専用のヘルスチェックエンドポイント /health を実装:
-  - DB 接続を確認
-  - 外部サービスの疎通を確認
-  - メモリ使用量を確認
-  - 依存サービスの状態を確認
+[Good Example]
+Implement a dedicated health check endpoint /health:
+  - Verify DB connection
+  - Verify connectivity to external services
+  - Verify memory usage
+  - Verify status of dependent services
 ```
 
 ```python
-# Flask アプリケーションのヘルスチェック実装例
+# Health check implementation example for a Flask application
 from flask import Flask, jsonify
 import psycopg2
 import redis
@@ -1382,7 +1387,7 @@ def health_check():
     checks = {}
     overall_healthy = True
 
-    # DB 接続チェック
+    # DB connection check
     try:
         conn = psycopg2.connect(os.environ["DATABASE_URL"])
         conn.close()
@@ -1391,7 +1396,7 @@ def health_check():
         checks["database"] = f"unhealthy: {str(e)}"
         overall_healthy = False
 
-    # Redis 接続チェック
+    # Redis connection check
     try:
         r = redis.Redis.from_url(os.environ["REDIS_URL"])
         r.ping()
@@ -1407,26 +1412,26 @@ def health_check():
     }), status_code
 ```
 
-### 11.4 Graceful Shutdown の未実装
+### 11.4 Not Implementing Graceful Shutdown
 
 ```
-[悪い例]
-SIGTERM シグナルを無視して即座にプロセスが終了
-→ 処理中のリクエストが失敗
+[Bad Example]
+Process exits immediately, ignoring the SIGTERM signal
+-> In-flight requests fail
 
-[良い例]
-SIGTERM を受け取ったら:
-  1. 新規リクエストの受付を停止
-  2. 処理中のリクエストを完了まで待機
-  3. DB 接続をクリーンに切断
-  4. プロセスを正常終了
+[Good Example]
+Upon receiving SIGTERM:
+  1. Stop accepting new requests
+  2. Wait for in-flight requests to complete
+  3. Cleanly close DB connections
+  4. Exit the process normally
 
-ECS の stopTimeout: 120 (デフォルト30秒)
-→ SIGTERM 送信後、120秒待ってから SIGKILL
+ECS stopTimeout: 120 (default 30 seconds)
+-> Sends SIGTERM, then waits 120 seconds before SIGKILL
 ```
 
 ```python
-# Python の Graceful Shutdown 実装例
+# Graceful shutdown implementation example in Python
 import signal
 import sys
 import time
@@ -1443,16 +1448,16 @@ class GracefulServer:
     def handle_sigterm(self, signum, frame):
         print("SIGTERM received, starting graceful shutdown...")
         self.is_shutting_down = True
-        # 処理中のリクエスト完了を待つ
+        # Wait for in-flight requests to complete
         self.server.shutdown()
-        # クリーンアップ
+        # Cleanup
         self.cleanup()
         sys.exit(0)
 
     def cleanup(self):
-        # DB 接続の切断
-        # キャッシュの保存
-        # 一時ファイルの削除
+        # Close DB connections
+        # Save cache
+        # Delete temporary files
         print("Cleanup completed")
 
     def serve_forever(self):
@@ -1462,45 +1467,45 @@ class GracefulServer:
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1509,26 +1514,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1536,7 +1541,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1547,14 +1552,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1562,7 +1567,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1570,44 +1575,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1616,7 +1621,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1631,94 +1636,94 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## 12. FAQ
 
-### Q1. Fargate と EC2 のどちらを選ぶべきですか？
+### Q1. Should I choose Fargate or EC2?
 
-まず Fargate を検討するのが推奨される。インフラ管理が不要で、セキュリティパッチも自動適用される。GPU が必要、特殊なカーネル設定が必要、EC2 リザーブドインスタンスで大幅なコスト削減が見込める場合に EC2 起動タイプを選択する。
+Fargate is generally the recommended starting point. It requires no infrastructure management and security patches are applied automatically. Choose the EC2 launch type when you need GPU support, require special kernel configurations, or when EC2 Reserved Instances offer significant cost savings.
 
-### Q2. ECS サービスのローリングアップデート中にダウンタイムは発生しますか？
+### Q2. Does a rolling update on an ECS service cause downtime?
 
-`minimumHealthyPercent: 100`、`maximumPercent: 200` に設定すれば、新しいタスクが正常に起動してからデプロイメントが進むため、ダウンタイムは発生しない。ALB のヘルスチェックと連携させることで、トラフィックは常に正常なタスクにのみルーティングされる。
+Setting `minimumHealthyPercent: 100` and `maximumPercent: 200` ensures the deployment only proceeds after new tasks start up successfully, so no downtime occurs. By integrating with ALB health checks, traffic is always routed only to healthy tasks.
 
-### Q3. ECS タスク内のコンテナ間通信はどうなりますか？
+### Q3. How does inter-container communication work within an ECS task?
 
-awsvpc ネットワークモードでは、同一タスク内のコンテナは `localhost` で通信できる。例えば Web コンテナから同一タスク内の Redis サイドカーには `localhost:6379` でアクセス可能である。
+In awsvpc network mode, containers within the same task can communicate via `localhost`. For example, a web container can access a Redis sidecar in the same task at `localhost:6379`.
 
-### Q4. ECS でコンテナのデバッグはどうすればよいですか？
+### Q4. How do I debug containers in ECS?
 
-ECS Exec を有効化することで、`aws ecs execute-command` コマンドで実行中のコンテナにシェルアクセスできる。タスクロールに SSM の権限を追加し、サービスで `enableExecuteCommand` を true に設定する必要がある。
+By enabling ECS Exec, you can get shell access to a running container using the `aws ecs execute-command` command. You need to add SSM permissions to the task role and set `enableExecuteCommand` to true on the service.
 
-### Q5. Fargate のエフェメラルストレージを拡張できますか？
+### Q5. Can I expand Fargate ephemeral storage?
 
-Fargate Platform Version 1.4.0 以降では、タスク定義の `ephemeralStorage` パラメータで 20GB から 200GB まで拡張可能である。デフォルトは 20GB で、追加分にはストレージ料金が発生する。
+From Fargate Platform Version 1.4.0 onwards, you can expand ephemeral storage from 20GB up to 200GB using the `ephemeralStorage` parameter in the task definition. The default is 20GB, and additional storage incurs charges.
 
-### Q6. ECS と EKS のどちらを選ぶべきですか？
+### Q6. Should I choose ECS or EKS?
 
-Kubernetes の経験がない、または AWS 中心のアーキテクチャであれば ECS が適している。ECS は AWS サービスとの統合が深く、学習コストが低い。Kubernetes の経験があり、マルチクラウド/ハイブリッドクラウド戦略がある場合は EKS が適している。
+If you have no Kubernetes experience or are building an AWS-centric architecture, ECS is the better fit. ECS integrates deeply with AWS services and has a lower learning curve. If you have Kubernetes experience and have a multi-cloud or hybrid cloud strategy, EKS is the appropriate choice.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Rather than theory alone, actually writing code and verifying its behavior will deepen your understanding.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| クラスター | タスクとサービスの論理グループ |
-| タスク定義 | コンテナの設計図。CPU/メモリ/イメージ/ポートを定義 |
-| サービス | タスクの希望数を維持するスケジューラ |
-| Fargate | サーバーレス。インフラ管理不要 |
-| EC2 | 自己管理。GPU 対応、コスト最適化が可能 |
-| ALB 統合 | awsvpc + ターゲットグループで直接ルーティング |
-| ログ | awslogs ドライバーまたは FireLens で CloudWatch Logs へ |
-| デプロイ | ローリングアップデート / Blue/Green / サーキットブレーカー |
-| ECS Exec | 実行中のコンテナへの対話型アクセス |
-| Service Connect | サービス間通信の自動化 |
-| Capacity Provider | Fargate/Fargate Spot の割合を柔軟に制御 |
+| Cluster | Logical grouping of tasks and services |
+| Task Definition | Blueprint for containers. Defines CPU/memory/image/ports |
+| Service | Scheduler that maintains the desired number of tasks |
+| Fargate | Serverless. No infrastructure management required |
+| EC2 | Self-managed. Supports GPU, allows cost optimization |
+| ALB Integration | Direct routing via awsvpc + target groups |
+| Logging | Output to CloudWatch Logs via awslogs driver or FireLens |
+| Deployment | Rolling update / Blue/Green / Circuit Breaker |
+| ECS Exec | Interactive access to running containers |
+| Service Connect | Automates inter-service communication |
+| Capacity Provider | Flexibly controls Fargate/Fargate Spot ratio |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [ECR](./01-ecr.md) -- コンテナイメージの管理
-- [EKS 概要](./02-eks-overview.md) -- Kubernetes ベースのオーケストレーション
-- [CodePipeline](../07-devops/02-codepipeline.md) -- ECS への CI/CD パイプライン
+- [ECR](./01-ecr.md) -- Managing container images
+- [EKS Overview](./02-eks-overview.md) -- Kubernetes-based orchestration
+- [CodePipeline](../07-devops/02-codepipeline.md) -- CI/CD pipeline for ECS
 
 ---
 
-## 参考文献
+## References
 
-1. AWS 公式ドキュメント「Amazon ECS デベロッパーガイド」 https://docs.aws.amazon.com/ecs/latest/developerguide/
-2. AWS 公式ドキュメント「Amazon ECS ベストプラクティスガイド」 https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/
-3. Nathan Peck「Amazon ECS ベストプラクティス」 https://ecsworkshop.com/
+1. AWS Official Documentation "Amazon ECS Developer Guide" https://docs.aws.amazon.com/ecs/latest/developerguide/
+2. AWS Official Documentation "Amazon ECS Best Practices Guide" https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/
+3. Nathan Peck "Amazon ECS Best Practices" https://ecsworkshop.com/
 4. AWS Containers Blog https://aws.amazon.com/blogs/containers/
-5. AWS 公式「ECS Service Connect」 https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect.html
+5. AWS Official "ECS Service Connect" https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect.html
