@@ -1,16 +1,16 @@
 # Form Design
 
-> Forms are the primary interaction point between users and applications. Master best practices for usable and maintainable form design — from React Hook Form basics, controlled/uncontrolled components, and performance optimization, all the way to accessibility.
+> Forms are the primary interaction point between users and your application. Master best practices for building usable, maintainable forms — covering React Hook Form, controlled/uncontrolled components, performance optimization, and accessibility.
 
 ## What You Will Learn
 
-- [ ] Understand core patterns and advanced techniques in React Hook Form
+- [ ] Understand the fundamental patterns and advanced techniques of React Hook Form
 - [ ] Know when to use controlled vs. uncontrolled components and how to implement each
-- [ ] Learn best practices for form UX and accessibility
-- [ ] Be able to implement integration patterns with Server Actions
+- [ ] Learn UX and accessibility best practices for forms
+- [ ] Implement integration patterns with Server Actions
 - [ ] Design complex forms (multi-step, dynamic fields)
 - [ ] Understand form performance optimization techniques
-- [ ] Acquire testing strategies and debugging approaches
+- [ ] Acquire testing strategies and debugging methods
 
 ---
 
@@ -18,15 +18,15 @@
 
 To get the most out of this chapter, it is recommended that you have prior knowledge of the following:
 
-- **Component Architecture**: Understand the React component design principles and how to build reusable components, as covered in `../00-architecture/02-component-architecture.md`
-- **React Hooks Fundamentals**: Be familiar with basic hooks such as `useState`, `useRef`, and `useEffect`, and understand custom hook design patterns
-- **HTML Form Elements**: Have foundational knowledge of native HTML elements like `<form>`, `<input>`, `<select>`, and `<textarea>`, including their behavior, attributes, and event handling
+- **Component Architecture**: Understanding of React component design principles and how to build reusable components, as covered in `../00-architecture/02-component-architecture.md`
+- **React Hooks Fundamentals**: Familiarity with basic hooks such as `useState`, `useRef`, and `useEffect`, as well as custom hook design patterns
+- **HTML Form Elements**: Basic knowledge of native HTML elements like `<form>`, `<input>`, `<select>`, and `<textarea>` — their behavior, attributes, and event handling
 
 ---
 
 ## 1. Core Principles of Form Design
 
-The most important goal in form design is enabling users to accomplish their objectives with minimal friction. Before diving into technical implementation, it is essential to understand the underlying design principles.
+The most important goal in form design is to let users accomplish their objective with minimal friction. Before diving into technical implementation, it is essential to understand these design principles.
 
 ### 1.1 The Three Pillars of Form Design
 
@@ -36,13 +36,13 @@ The Three Pillars of Form Design:
 1. Usability
    - Intuitive layout and flow
    - Clear labels and placeholders
-   - Meaningful error messages and feedback
+   - Helpful error messages and feedback
    - Mobile-friendly input experience
 
 2. Accessibility
    - Screen reader support
    - Keyboard navigation
-   - Sufficient color contrast ratios
+   - Sufficient contrast ratios
    - Proper use of ARIA attributes
 
 3. Performance
@@ -56,15 +56,15 @@ The Three Pillars of Form Design:
 
 A comparison of the major form libraries in the React ecosystem.
 
-| Characteristic | React Hook Form | Formik | React Final Form | Native useState |
-|----------------|----------------|--------|-----------------|-----------------|
+| Characteristic | React Hook Form | Formik | React Final Form | Plain useState |
+|----------------|----------------|--------|-----------------|----------------|
 | Bundle size | ~9KB | ~13KB | ~5KB | 0KB |
 | Re-renders | Minimal (uncontrolled-based) | On every field change | Minimal | On every field change |
-| TypeScript support | Excellent (strong inference) | Good | Good | Full (manual definitions) |
+| TypeScript support | Excellent (inference works well) | Good | Good | Full (manual definitions) |
 | Validation | Zod/Yup integration | Yup integration | Custom | Manual implementation |
 | Learning curve | Low–Medium | Medium | Medium | Low |
 | Ecosystem | Rich (DevTools, etc.) | Mature | Limited | None |
-| Maintenance status | Active | Somewhat stalled | Stable | — |
+| Maintenance status | Active | Somewhat stagnant | Stable | — |
 | Performance | Best | Average | Good | Depends on implementation |
 
 ### 1.3 Why Choose React Hook Form
@@ -72,20 +72,20 @@ A comparison of the major form libraries in the React ecosystem.
 ```typescript
 // Reasons to choose React Hook Form:
 
-// 1. Performance: Uncontrolled component-based, minimal re-renders
+// 1. Performance: Uncontrolled component-based with minimal re-renders
 //    → Fast even on pages with many form fields
 
 // 2. DX (Developer Experience): Easy field registration with register()
 //    → Less boilerplate code
 
-// 3. Validation integration: Works with Zod, Yup, Joi, and other major validation libraries
+// 3. Validation integration: Works with major validation libraries like Zod, Yup, and Joi
 //    → Schema-first validation
 
-// 4. TypeScript inference: Types are automatically inferred from schemas
+// 4. TypeScript inference: Types are automatically inferred from the schema
 //    → Type-safe form development
 
-// 5. DevTools: View form state in real time with React Hook Form DevTools
-//    → Easier debugging
+// 5. DevTools: React Hook Form DevTools for real-time state inspection
+//    → Easy debugging
 
 // 6. Lightweight: ~9KB gzipped
 //    → Minimal impact on bundle size
@@ -138,7 +138,7 @@ const userSchema = z.object({
   }),
 });
 
-// Step 2: Automatic type inference
+// Step 2: Automatically infer the type
 type UserFormData = z.infer<typeof userSchema>;
 // Inferred type:
 // {
@@ -154,20 +154,20 @@ type UserFormData = z.infer<typeof userSchema>;
 // ========================================
 function CreateUserForm() {
   const {
-    register,       // Register inputs as uncontrolled components
-    handleSubmit,   // Form submission handler (with validation)
+    register,       // Register an input as an uncontrolled component
+    handleSubmit,   // Form submission handler (includes validation)
     formState: {
       errors,        // Validation error object
-      isSubmitting,  // Submission in-progress flag
-      isDirty,       // Whether the form has been modified
-      isValid,       // Whether the form is valid
+      isSubmitting,  // True while the form is being submitted
+      isDirty,       // True if the form has been modified
+      isValid,       // True if the form is valid
       dirtyFields,   // Fields that have been modified
       touchedFields, // Fields that have been touched
     },
     reset,          // Reset the form
-    watch,          // Watch values (triggers re-renders)
+    watch,          // Watch field values (triggers re-renders)
     setValue,       // Set a value programmatically
-    getValues,      // Get values without triggering re-renders
+    getValues,      // Get values without triggering a re-render
     setError,       // Set an error manually
     clearErrors,    // Clear errors
     trigger,        // Manually trigger validation
@@ -179,11 +179,11 @@ function CreateUserForm() {
       role: 'user',
       agreed: false as any,
     },
-    mode: 'onBlur',           // Validation timing
-    reValidateMode: 'onChange', // Re-validation timing
+    mode: 'onBlur',             // When to run validation
+    reValidateMode: 'onChange', // When to re-run validation
   });
 
-  // Submission handler
+  // Submit handler
   const onSubmit = async (data: UserFormData) => {
     try {
       await api.users.create(data);
@@ -203,7 +203,7 @@ function CreateUserForm() {
   // Error handler (called when validation fails)
   const onError = (errors: FieldErrors<UserFormData>) => {
     console.error('Validation errors:', errors);
-    // Focus the first error field automatically
+    // Focus the first error field (happens automatically)
   };
 
   return (
@@ -278,7 +278,7 @@ function CreateUserForm() {
           {...register('role')}
           aria-invalid={!!errors.role}
         >
-          <option value="user">General User</option>
+          <option value="user">User</option>
           <option value="editor">Editor</option>
           <option value="admin">Admin</option>
         </select>
@@ -322,12 +322,12 @@ function CreateUserForm() {
 ### 2.3 useForm Options in Detail
 
 ```typescript
-// Full options reference for useForm
+// Full reference for useForm options
 const form = useForm<FormData>({
   // Validation resolver
   resolver: zodResolver(schema),
 
-  // Default values (can be async)
+  // Default values (can also be async)
   defaultValues: {
     name: '',
     email: '',
@@ -352,23 +352,23 @@ const form = useForm<FormData>({
   // 'onChange'  - On every value change (default)
   // 'onSubmit'  - Only on submission
 
-  // Move focus to error field on submit
+  // Focus the first error field on submit
   shouldFocusError: true,
 
-  // How to collect validation errors
+  // How to report multiple errors per field
   criteriaMode: 'firstError',
   // 'firstError' - Only the first error (default)
   // 'all'        - Collect all errors
 
-  // Whether to keep fields registered after unmounting
+  // Whether to keep fields registered after unmount
   shouldUnregister: false,
 
   // Whether to use native browser validation
   shouldUseNativeValidation: false,
 
-  // Options for resetting when defaultValues change
+  // Options for when default values change
   resetOptions: {
-    keepDirtyValues: true,  // Keep values the user has changed
+    keepDirtyValues: true,  // Keep values changed by the user
     keepErrors: false,
   },
 });
@@ -380,7 +380,7 @@ const form = useForm<FormData>({
 // Options for register()
 <input
   {...register('fieldName', {
-    // Native React Hook Form validation (when not using Zod)
+    // React Hook Form native validation (when not using Zod)
     required: 'This field is required',
     minLength: { value: 3, message: 'Must be at least 3 characters' },
     maxLength: { value: 100, message: 'Must be 100 characters or fewer' },
@@ -388,54 +388,54 @@ const form = useForm<FormData>({
     max: { value: 150, message: 'Must be 150 or less' },
     pattern: {
       value: /^[A-Za-z]+$/,
-      message: 'Only alphabetic characters are allowed',
+      message: 'Only letters are allowed',
     },
     validate: {
       // Custom validators (multiple can be defined)
-      notAdmin: (v) => v !== 'admin' || 'The name "admin" cannot be used',
+      notAdmin: (v) => v !== 'admin' || 'The name "admin" is not allowed',
       unique: async (v) => {
         const exists = await checkUsername(v);
         return !exists || 'This username is already taken';
       },
     },
-    // Transform field value
+    // Transform the field value
     setValueAs: (v) => v.trim(),
     // Or convert to number:
     // valueAsNumber: true,
-    // Or convert to date:
+    // Or convert to Date:
     // valueAsDate: true,
 
-    // Disable field
+    // Disable the field
     disabled: false,
 
     // onChange / onBlur event handlers
     onChange: (e) => console.log('Changed:', e.target.value),
     onBlur: (e) => console.log('Blurred:', e.target.value),
 
-    // Re-validate dependent fields
-    deps: ['otherField'], // Re-validates this field when otherField changes
+    // Dependent field validation
+    deps: ['otherField'], // Re-validate this field when otherField changes
   })}
 />
 ```
 
-### 2.5 Using watch and Caveats
+### 2.5 Using watch and What to Watch Out For
 
 ```typescript
 // watch: reactively observe field values
 function ConditionalForm() {
   const { register, watch, control } = useForm<FormData>();
 
-  // 1. Watch a specific field (causes re-renders)
+  // 1. Watch a specific field (triggers re-renders)
   const role = watch('role');
 
   // 2. Watch multiple fields
   const [firstName, lastName] = watch(['firstName', 'lastName']);
 
-  // 3. Watch all fields (use with caution — performance impact)
+  // 3. Watch all fields (be careful with performance)
   // const allValues = watch();
 
-  // 4. useWatch: isolated at the component level (recommended)
-  // → Only the component watching the field re-renders when it changes
+  // 4. useWatch: isolate to a child component (recommended)
+  // → Only that component re-renders when the watched field changes
   return (
     <form>
       <select {...register('role')}>
@@ -443,7 +443,7 @@ function ConditionalForm() {
         <option value="admin">Admin</option>
       </select>
 
-      {/* Conditionally show field */}
+      {/* Conditionally display a field */}
       {role === 'admin' && (
         <div>
           <label htmlFor="adminCode">Admin Code</label>
@@ -460,7 +460,7 @@ function ConditionalForm() {
   );
 }
 
-// useWatch: only this component re-renders when the watched field changes
+// useWatch: only this component re-renders
 import { useWatch } from 'react-hook-form';
 
 function PriceDisplay({ control }: { control: Control<FormData> }) {
@@ -473,7 +473,7 @@ function PriceDisplay({ control }: { control: Control<FormData> }) {
 
   return (
     <div className="price-display">
-      Total: {total.toLocaleString()}
+      Total: ${total.toLocaleString()}
     </div>
   );
 }
@@ -507,9 +507,9 @@ function FormWithDevTools() {
 // Information available in DevTools:
 // - Current form values
 // - Validation errors
-// - touched / dirty / valid state
+// - touched / dirty / valid states
 // - Field registration status
-// - Submission count and result
+// - Number of submissions and their results
 ```
 
 ---
@@ -522,10 +522,10 @@ function FormWithDevTools() {
 Uncontrolled Components:
   ┌────────────────────────────────────────┐
   │ The DOM manages the value              │
-  │ register() attaches a ref              │
+  │ A ref is registered via register()     │
   │ Better performance (no re-renders)     │
   │                                        │
-  │ Used with: native HTML elements        │
+  │ Use with: native HTML elements         │
   │   - <input type="text" />              │
   │   - <input type="email" />             │
   │   - <input type="number" />            │
@@ -538,10 +538,11 @@ Uncontrolled Components:
 Controlled Components:
   ┌────────────────────────────────────────┐
   │ React manages the value                │
-  │ Controller integrates with React HF    │
+  │ Integrated with React Hook Form via    │
+  │ Controller                             │
   │ Required for custom UI components      │
   │                                        │
-  │ Used with: custom / third-party UI     │
+  │ Use with: custom / third-party UI      │
   │   - DatePicker                         │
   │   - Autocomplete                       │
   │   - Rich Text Editor                   │
@@ -554,7 +555,7 @@ Controlled Components:
 ### 3.2 Uncontrolled Component Pattern
 
 ```typescript
-// Uncontrolled components: using register()
+// Uncontrolled component: using register()
 function UncontrolledExample() {
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
@@ -739,7 +740,7 @@ function ProjectForm() {
               onCheckedChange={field.onChange}
               id="is-public"
             />
-            <label htmlFor="is-public">Public Project</label>
+            <label htmlFor="is-public">Public project</label>
           </div>
         )}
       />
@@ -754,7 +755,7 @@ function ProjectForm() {
             onChange={field.onChange}
             onBlur={field.onBlur}
             options={members}
-            placeholder="Search assignee..."
+            placeholder="Search for an assignee..."
             displayValue={(item) => item?.name || ''}
           />
         )}
@@ -766,15 +767,15 @@ function ProjectForm() {
 }
 ```
 
-### 3.4 Decision Flow for Controlled vs. Uncontrolled
+### 3.4 Decision Flow: Controlled vs. Uncontrolled
 
 ```
 What type of field is it?
 │
 ├─ Native HTML element (input, select, textarea)
 │  │
-│  ├─ Need to display value in real time?
-│  │  ├─ YES → Use watch() or useWatch() (remains uncontrolled)
+│  ├─ Need to display the value in real time?
+│  │  ├─ YES → Use watch() or useWatch() (still uncontrolled)
 │  │  └─ NO  → Use register() only (uncontrolled)
 │  │
 │  └─ → Uncontrolled component: register()
@@ -782,7 +783,7 @@ What type of field is it?
 ├─ Third-party UI component
 │  │
 │  ├─ Does it support ref?
-│  │  ├─ YES → Try register() (may work as uncontrolled)
+│  │  ├─ YES → Try register() first (may work as uncontrolled)
 │  │  └─ NO  → Controller is required
 │  │
 │  └─ → Controlled component: Controller
@@ -791,31 +792,31 @@ What type of field is it?
    │
    ├─ Does it forward ref with forwardRef?
    │  ├─ YES → register() can be used
-   │  └─ NO  → Controller is required
+   │  └─ NO  → Controller is needed
    │
-   └─ → Typically a controlled component: Controller
+   └─ → Usually a controlled component: Controller
 ```
 
 ### 3.5 Performance Comparison
 
 ```typescript
-// Render behavior of uncontrolled vs. controlled components
-// When typing "hello" into an input:
+// Rendering behavior of uncontrolled vs. controlled components
+// When a user types "hello" into an input:
 //
 // Uncontrolled (register):
-//   Initial render: 1
-//   While typing: 0 (DOM manages the value directly)
-//   On submit: 1
-//   Total: 2
+//   Initial render:  1
+//   While typing:    0 (the DOM manages the value directly)
+//   On submit:       1
+//   Total:           2
 //
 // Controlled (Controller + onChange):
-//   Initial render: 1
-//   While typing: 5 ("h", "he", "hel", "hell", "hello")
-//   On submit: 1
-//   Total: 7
+//   Initial render:  1
+//   While typing:    5 ("h", "he", "hel", "hell", "hello")
+//   On submit:       1
+//   Total:           7
 
-// → With many fields, uncontrolled is significantly faster
-// → That said, controlled components can be optimized with React.memo
+// → When there are many fields, uncontrolled is significantly more efficient
+// → However, controlled components can also be optimized with React.memo
 
 // Performance optimization: isolate useWatch into a separate component
 function OptimizedForm() {
@@ -1022,7 +1023,7 @@ function OrderTotal({ control }: { control: Control<OrderFormData> }) {
 }
 ```
 
-### 4.2 Multi-Step Form
+### 4.2 Multi-Step Forms
 
 ```typescript
 import { useForm, FormProvider, useFormContext } from 'react-hook-form';
@@ -1088,7 +1089,7 @@ function MultiStepForm() {
 
   // Advance to the next step
   const handleNext = async () => {
-    // Validate only the fields in the current step
+    // Validate only the fields on the current step
     const fieldsToValidate = stepFields[currentStep];
     const isValid = await trigger(fieldsToValidate);
 
@@ -1203,6 +1204,12 @@ function Step1BasicInfo() {
     </div>
   );
 }
+```
+        )}
+      </div>
+    </div>
+  );
+}
 
 // Step 2: Company Info
 function Step2CompanyInfo() {
@@ -1246,7 +1253,7 @@ function Step3PlanSelection() {
     <div>
       <h2>Plan Selection</h2>
       <fieldset>
-        <legend>Select a Plan *</legend>
+        <legend>Choose a Plan *</legend>
         <label className="plan-option">
           <input type="radio" value="free" {...register('plan')} />
           <span>Free - $0/month</span>
@@ -1320,7 +1327,7 @@ function PersonalInfoSection() {
 
   return (
     <fieldset>
-      <legend>Personal Info</legend>
+      <legend>Personal Information</legend>
       <input {...register('personal.name')} />
       {errors.personal?.name && (
         <p className="error-message">{errors.personal.name.message}</p>
@@ -1333,19 +1340,19 @@ function PersonalInfoSection() {
   );
 }
 
-// Address section (with auto-fill from postal code)
+// Address section (example of auto-filling address from postal code)
 function AddressSection() {
   const { register, setValue, formState: { errors } } = useFormContext<ProfileFormData>();
 
   const handleZipCodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const zip = e.target.value.replace(/[^0-9]/g, '');
-    if (zip.length === 7) {
+    if (zip.length === 5) {
       try {
         const address = await fetchAddressFromZipCode(zip);
-        setValue('address.prefecture', address.prefecture, { shouldValidate: true });
+        setValue('address.state', address.state, { shouldValidate: true });
         setValue('address.city', address.city, { shouldValidate: true });
       } catch {
-        // Failed to fetch address — prompt user to enter manually
+        // Address lookup failed - prompt the user to enter manually
       }
     }
   };
@@ -1356,15 +1363,15 @@ function AddressSection() {
       <input
         {...register('address.zip')}
         onChange={(e) => {
-          register('address.zip').onChange(e); // Also fire RHF's event
+          register('address.zip').onChange(e); // Also fire the RHF event
           handleZipCodeChange(e);
         }}
-        placeholder="1234567"
+        placeholder="12345"
         inputMode="numeric"
       />
-      <input {...register('address.prefecture')} placeholder="State / Province" />
-      <input {...register('address.city')} placeholder="City" />
-      <input {...register('address.street')} placeholder="Street address" />
+      <input {...register('address.state')} placeholder="California" />
+      <input {...register('address.city')} placeholder="San Francisco" />
+      <input {...register('address.street')} placeholder="123 Main St" />
     </fieldset>
   );
 }
@@ -1429,7 +1436,7 @@ function CreateUserForm() {
         const valid = await form.trigger();
         if (!valid) return;
 
-        // Step 2: Execute Server Action
+        // Step 2: Execute the Server Action
         startTransition(async () => {
           const result = await createUser(formData);
 
@@ -1490,13 +1497,13 @@ function CreateUserForm() {
 ### 5.2 Integration with useActionState (React 19)
 
 ```typescript
-// Pattern using React 19's useActionState
+// Pattern using useActionState from React 19
 'use client';
 import { useActionState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-// Return type for Server Action
+// Return type of the Server Action
 interface ActionState {
   success: boolean;
   errors?: Record<string, string[]>;
@@ -1508,7 +1515,7 @@ function CreateUserFormWithActionState() {
     resolver: zodResolver(userSchema),
   });
 
-  // Manage server action state with useActionState
+  // Manage Server Action state with useActionState
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     async (prevState, formData) => {
       // Client-side validation
@@ -1517,7 +1524,7 @@ function CreateUserFormWithActionState() {
         return { success: false, message: 'Validation error' };
       }
 
-      // Call Server Action
+      // Call the Server Action
       const result = await createUser(formData);
 
       if (!result.success && result.errors) {
@@ -1540,7 +1547,7 @@ function CreateUserFormWithActionState() {
       <input {...form.register('name')} />
       <input {...form.register('email')} />
 
-      {/* Success message from server */}
+      {/* Success message from the server */}
       {state.success && (
         <div className="success-message" role="status">
           {state.message || 'User created successfully'}
@@ -1576,7 +1583,7 @@ async function submitForm(formData: FormData) {
   redirect('/users');
 }
 
-// Pattern 2: React Hook Form + Server Actions (client validation when JS is enabled)
+// Pattern 2: React Hook Form + Server Actions (client-side validation when JS is enabled)
 function ProgressiveForm() {
   const form = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
@@ -1598,7 +1605,7 @@ function ProgressiveForm() {
       <input name="name" {...form.register('name')} />
       <input name="email" type="email" {...form.register('email')} />
 
-      {/* Show message when JS is disabled */}
+      {/* Show a message when JavaScript is disabled */}
       <noscript>
         <p className="info-text">
           When JavaScript is disabled, validation is handled server-side.
@@ -1648,7 +1655,7 @@ function CommentForm({ comments }: { comments: Comment[] }) {
           <li key={comment.id} className={comment.isPending ? 'opacity-50' : ''}>
             <p>{comment.text}</p>
             <span>{comment.author}</span>
-            {comment.isPending && <span className="badge">Sending...</span>}
+            {comment.isPending && <span className="badge">Posting...</span>}
           </li>
         ))}
       </ul>
@@ -1658,7 +1665,7 @@ function CommentForm({ comments }: { comments: Comment[] }) {
         action={async (formData) => {
           const text = formData.get('text') as string;
 
-          // Optimistically update UI (shown immediately)
+          // Optimistically update the UI (show immediately)
           addOptimisticComment({
             id: `temp-${Date.now()}`,
             text,
@@ -1669,7 +1676,7 @@ function CommentForm({ comments }: { comments: Comment[] }) {
 
           form.reset();
 
-          // Actually save via Server Action
+          // Persist with a Server Action
           await addComment(formData);
         }}
       >
@@ -1685,49 +1692,49 @@ function CommentForm({ comments }: { comments: Comment[] }) {
 
 ## 6. Form UX Best Practices
 
-### 6.1 Validation Timing Strategy
+### 6.1 Designing Validation Timing
 
 ```
 Validation Timing Strategy:
 
-Recommended pattern: "On submit → real-time thereafter"
+Recommended pattern: "On submit → real-time afterwards"
 
-1. On initial input:
-   ✗ Do not show errors
-   ✗ Do not validate as soon as the form opens
-   → The user has not finished entering input yet
+1. First input:
+   ✗ Do not show errors yet
+   ✗ Do not validate the moment the form opens
+   → The user has not finished typing yet
 
-2. On first submission:
+2. First submission attempt:
    ✓ Validate all fields
-   ✓ If there are errors, focus the relevant field
-   → The user has indicated intent to complete the form
+   ✓ Focus the first field with an error
+   → The user has indicated they are done with input
 
-3. While editing after submission:
-   ✓ Real-time validation on onChange / onBlur
-   ✓ Remove error message immediately when corrected
-   → Feedback while the user is fixing errors
+3. After first submission, while editing:
+   ✓ Real-time validation via onChange / onBlur
+   ✓ Clear error messages immediately once corrected
+   → Feedback for the user as they fix errors
 
 React Hook Form configuration:
-  mode: 'onSubmit'         → Validate only on submission
-  reValidateMode: 'onChange' → Real-time validation after first submission
+  mode: 'onSubmit'           → Validate only on submission
+  reValidateMode: 'onChange' → Real-time validation after first submit
   or
-  mode: 'onBlur'           → Validate when a field loses focus
+  mode: 'onBlur'             → Validate when a field loses focus
   reValidateMode: 'onChange' → Real-time validation after an error appears
 ```
 
 ### 6.2 Designing Error Messages
 
 ```typescript
-// Principles for error message design
+// Error message design principles
 
 // Good error messages:
-// 1. Specifically describe what is wrong
-// 2. Tell the user how to fix it
+// 1. Specifically describe what the problem is
+// 2. Show how to fix it
 // 3. Do not blame the user
 
 const goodMessages = {
-  required: 'Please enter your name',              // What to do
-  email: 'Please enter a valid email address (e.g., user@example.com)',
+  required: 'Please enter your name',
+  email: 'Please enter a valid email address (e.g. user@example.com)',
   minLength: 'Password must be at least 8 characters',
   pattern: 'Only alphanumeric characters are allowed',
   unique: 'This email is already registered. Would you like to log in?',
@@ -1735,11 +1742,11 @@ const goodMessages = {
 
 // Bad error messages:
 const badMessages = {
-  required: 'Input error',             // Unclear what is wrong
-  email: 'Invalid email',              // Not localized / no guidance
-  minLength: 'Error: too short',       // Too technical
-  pattern: 'Invalid input',            // Too vague
-  unique: 'Error: 409 Conflict',       // Raw HTTP status code
+  required: 'Input error',            // Unclear what the problem is
+  email: 'Invalid email',             // No guidance on how to fix it
+  minLength: 'Error: too short',      // Too technical
+  pattern: 'Invalid input',           // Too vague
+  unique: 'Error: 409 Conflict',      // Exposes an HTTP status code
 };
 
 // Error message component
@@ -1758,7 +1765,7 @@ function FieldError({ error }: { error?: FieldError }) {
 ### 6.3 Managing Submission State
 
 ```typescript
-// Preventing double submission and showing a loading state
+// Preventing double submission and displaying a loading state
 function SubmitButton({
   isSubmitting,
   isDirty,
@@ -1795,10 +1802,10 @@ function SubmitButton({
 }
 ```
 
-### 6.4 Warning About Unsaved Changes
+### 6.4 Unsaved Changes Warning
 
 ```typescript
-// Warn on page navigation with unsaved changes
+// Warn the user before navigating away
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -1806,7 +1813,7 @@ function useUnsavedChangesWarning(isDirty: boolean) {
   const router = useRouter();
 
   useEffect(() => {
-    // Native browser beforeunload warning
+    // Native browser navigation warning
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
         e.preventDefault();
@@ -1845,7 +1852,7 @@ function useUnsavedChangesWarning(isDirty: boolean) {
 function EditForm() {
   const { register, handleSubmit, formState: { isDirty } } = useForm();
 
-  // Enable unsaved changes warning
+  // Enable the navigation warning
   useUnsavedChangesWarning(isDirty);
 
   return (
@@ -1868,29 +1875,29 @@ Form Layout Principles:
 
 1. Use a single-column layout as the default
    ✓ Natural top-to-bottom reading flow
-   ✓ Works on mobile without changes
-   ✗ Two columns only for related fields (first/last name, city/state, etc.)
+   ✓ Works on mobile as-is
+   ✗ Two columns only for related fields (e.g. first/last name, city/state)
 
 2. Label placement
-   ✓ Above the field (recommended): readable and easy to adapt for mobile
-   △ Left of the field: aligned on desktop, but may break on mobile
-   ✗ Inside the field (placeholder only): disappears after the user types
+   ✓ Above the field (recommended): easy to read, mobile-friendly
+   △ Left of the field: aligned on desktop but can break on mobile
+   ✗ Inside the field (placeholder only): disappears after typing
 
-3. Indicating required / optional
+3. Required / optional indicators
    ✓ When most fields are required: mark optional fields with "(optional)"
    ✓ When most fields are optional: mark required fields with "*"
    ✗ Using "*" alone without explanation
 
 4. Grouping
    ✓ Group related fields with fieldset + legend
-   ✓ Visually separate sections with spacing or borders
-   ✓ Include section headings
+   ✓ Visually separate groups with spacing or borders
+   ✓ Add section headings
 
-5. Mobile optimization
+5. Mobile support
    ✓ Set inputMode appropriately (numeric, tel, email, url)
-   ✓ Set autoComplete (to support browser autofill)
-   ✓ Minimum touch target size of 44x44px
-   ✓ Prevent zoom: keep font-size at 16px or larger
+   ✓ Set autoComplete (supports browser autofill)
+   ✓ Touch target size should be at least 44x44px
+   ✓ Prevent zoom: set font-size to 16px or larger
 ```
 
 ```css
@@ -1911,7 +1918,7 @@ Form Layout Principles:
 .form-group textarea {
   width: 100%;
   padding: 0.75rem 1rem;
-  font-size: 1rem; /* 16px or larger to prevent iOS zoom */
+  font-size: 1rem; /* 16px or larger prevents iOS zoom */
   border: 1px solid #d1d5db;
   border-radius: 0.375rem;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -1999,7 +2006,7 @@ function FormField({
   const errorId = `${fieldId}-error`;
   const hintId = `${fieldId}-hint`;
 
-  // Build aria-describedby value
+  // Build the aria-describedby value
   const describedBy = [
     hint ? hintId : null,
     error ? errorId : null,
@@ -2047,17 +2054,17 @@ function FormField({
 ```typescript
 // Keyboard navigation support
 // Key principles:
-// 1. All fields reachable via Tab key
-// 2. Form submission via Enter key
-// 3. Close modal forms via Escape key
-// 4. Toggle checkboxes/radio buttons via Space key
+// 1. All fields must be reachable via the Tab key
+// 2. Enter submits the form
+// 3. Escape closes a modal form
+// 4. Space toggles checkboxes/radio buttons
 
 function AccessibleForm() {
   const formRef = useRef<HTMLFormElement>(null);
 
   // Custom keyboard event handling
   const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
-    // Ctrl+Enter to submit (useful when there is a textarea)
+    // Ctrl+Enter to submit (useful when textarea is present)
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       formRef.current?.requestSubmit();
@@ -2065,7 +2072,7 @@ function AccessibleForm() {
 
     // Escape to reset the form
     if (e.key === 'Escape') {
-      const confirmed = window.confirm('Reset all entered content?');
+      const confirmed = window.confirm('Reset all input? This cannot be undone.');
       if (confirmed) {
         form.reset();
       }
@@ -2078,12 +2085,12 @@ function AccessibleForm() {
       onKeyDown={handleKeyDown}
       onSubmit={form.handleSubmit(onSubmit)}
     >
-      {/* Be mindful of tabIndex order */}
+      {/* Be careful with tabIndex order */}
       <input {...form.register('name')} tabIndex={1} />
       <input {...form.register('email')} tabIndex={2} />
       <textarea {...form.register('message')} tabIndex={3} />
 
-      {/* Skip link for long forms */}
+      {/* Skip link: useful for long forms */}
       <a href="#form-actions" className="sr-only focus:not-sr-only">
         Skip to submit button
       </a>
@@ -2104,7 +2111,7 @@ function AccessibleForm() {
 ```typescript
 // Optimizations for screen readers
 
-// 1. Live region: announce dynamic error messages
+// 1. Live regions: announce dynamic error messages
 function LiveErrorSummary({ errors }: { errors: FieldErrors }) {
   const errorMessages = Object.entries(errors)
     .map(([field, error]) => `${field}: ${error?.message}`)
@@ -2163,32 +2170,32 @@ function FormSuccessMessage({ show }: { show: boolean }) {
       tabIndex={-1}
       ref={(el) => el?.focus()}
     >
-      The form was submitted successfully
+      Your form was submitted successfully
     </div>
   );
 }
 ```
 
-### 7.4 Complete Guide to the autoComplete Attribute
+### 7.4 Complete Guide to autoComplete
 
 ```html
 <!-- autoComplete attribute reference -->
-<!-- Important for correct browser autofill behavior -->
+<!-- Important for enabling correct browser autofill behavior -->
 
 <!-- Name -->
 <input autoComplete="name" />           <!-- Full name -->
 <input autoComplete="given-name" />     <!-- First name -->
 <input autoComplete="family-name" />    <!-- Last name -->
-<input autoComplete="honorific-prefix" /> <!-- Title/prefix -->
+<input autoComplete="honorific-prefix" /> <!-- Title/salutation -->
 
 <!-- Contact -->
 <input autoComplete="email" />
 <input autoComplete="tel" />            <!-- Phone number -->
-<input autoComplete="tel-national" />   <!-- National phone number -->
+<input autoComplete="tel-national" />   <!-- Domestic phone number -->
 
 <!-- Address -->
 <input autoComplete="postal-code" />    <!-- Postal / ZIP code -->
-<input autoComplete="address-level1" /> <!-- State / Province -->
+<input autoComplete="address-level1" /> <!-- State / province -->
 <input autoComplete="address-level2" /> <!-- City -->
 <input autoComplete="street-address" /> <!-- Street address -->
 <input autoComplete="country" />        <!-- Country -->
@@ -2201,7 +2208,7 @@ function FormSuccessMessage({ show }: { show: boolean }) {
 <!-- Payment -->
 <input autoComplete="cc-name" />        <!-- Cardholder name -->
 <input autoComplete="cc-number" />      <!-- Card number -->
-<input autoComplete="cc-exp" />         <!-- Expiration date -->
+<input autoComplete="cc-exp" />         <!-- Expiry date -->
 <input autoComplete="cc-csc" />         <!-- Security code -->
 
 <!-- Other -->
@@ -2213,7 +2220,7 @@ function FormSuccessMessage({ show }: { show: boolean }) {
 
 <!-- Disable autofill -->
 <input autoComplete="off" />            <!-- Standard approach -->
-<!-- Note: Some browsers may ignore "off" -->
+<!-- Note: some browsers ignore "off" -->
 <!-- In that case, use a unique value: -->
 <input autoComplete="nope" />
 ```
@@ -2223,25 +2230,25 @@ function FormSuccessMessage({ show }: { show: boolean }) {
 ```
 Form WCAG 2.1 Compliance Checklist:
 
-Level A (Required):
-  [x] All form controls have associated labels (1.3.1)
+Level A (required):
+  [x] All form controls have an associated label (1.3.1)
   [x] Errors are described in text when they occur (3.3.1)
-  [x] The purpose of form controls can be determined (1.3.5)
-  [x] All functionality is operable via keyboard (2.1.1)
+  [x] The purpose of each form control can be determined (1.3.5)
+  [x] All functionality is operable via keyboard alone (2.1.1)
   [x] Focus is visible (2.4.7)
   [x] Context changes are predictable (3.2.1, 3.2.2)
 
-Level AA (Recommended):
+Level AA (recommended):
   [x] Error correction suggestions are provided (3.3.3)
-  [x] Legal/financial data can be confirmed or reversed (3.3.4)
-  [x] Text contrast ratio of at least 4.5:1 (1.4.3)
-  [x] Target size of at least 24x24px (2.5.8)
+  [x] Legal or financial submissions can be confirmed or reversed (3.3.4)
+  [x] Text contrast ratio is at least 4.5:1 (1.4.3)
+  [x] Target size is at least 24x24px (2.5.8)
   [x] Focus indicator is sufficiently visible (2.4.11)
 
-Level AAA (Ideal):
+Level AAA (ideal):
   [x] Help is available (3.3.5)
-  [x] Target size of at least 44x44px (2.5.5)
-  [x] Text contrast ratio of at least 7:1 (1.4.6)
+  [x] Target size is at least 44x44px (2.5.5)
+  [x] Text contrast ratio is at least 7:1 (1.4.6)
 ```
 
 ---
@@ -2251,10 +2258,10 @@ Level AAA (Ideal):
 ### 8.1 Minimizing Re-renders
 
 ```typescript
-// Collection of performance optimization patterns
+// Performance optimization patterns
 
-// Pattern 1: Isolate components with useWatch
-// → Only the component watching the field re-renders when it changes
+// Pattern 1: Isolate watched values with useWatch
+// → Only the component that uses useWatch re-renders when the watched field changes
 import { useWatch } from 'react-hook-form';
 
 // Bad: the entire parent component re-renders
@@ -2265,9 +2272,9 @@ function BadForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <input {...register('name')} />
-      <input {...register('email')} />    {/* Also re-renders when name changes */}
-      <input {...register('phone')} />    {/* Also re-renders when name changes */}
-      <input {...register('address')} />  {/* Also re-renders when name changes */}
+      <input {...register('email')} />    {/* Also re-renders on name change */}
+      <input {...register('phone')} />    {/* Also re-renders on name change */}
+      <input {...register('address')} />  {/* Also re-renders on name change */}
       <p>Preview: {name}</p>
     </form>
   );
@@ -2280,9 +2287,9 @@ function GoodForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <input {...register('name')} />
-      <input {...register('email')} />    {/* Does not re-render when name changes */}
-      <input {...register('phone')} />    {/* Does not re-render when name changes */}
-      <input {...register('address')} />  {/* Does not re-render when name changes */}
+      <input {...register('email')} />    {/* Does not re-render on name change */}
+      <input {...register('phone')} />    {/* Does not re-render on name change */}
+      <input {...register('address')} />  {/* Does not re-render on name change */}
       <NamePreview control={control} />   {/* Only this re-renders */}
     </form>
   );
@@ -2314,14 +2321,14 @@ const MemoizedField = React.memo(function MemoizedField({
   );
 });
 
-// Pattern 3: Subscribe only to needed state with useFormState
+// Pattern 3: Subscribe only to the state you need with useFormState
 import { useFormState } from 'react-hook-form';
 
 function SubmitButtonOptimized({ control }: { control: Control }) {
-  // Re-renders only when isSubmitting changes
+  // Only re-renders when isSubmitting changes
   const { isSubmitting, isDirty } = useFormState({
     control,
-    name: ['isSubmitting', 'isDirty'], // Limit subscribed state
+    name: ['isSubmitting', 'isDirty'], // Limit the subscribed state
   });
 
   return (
@@ -2332,13 +2339,13 @@ function SubmitButtonOptimized({ control }: { control: Control }) {
 }
 ```
 
-### 8.2 Optimizing Large Numbers of Fields
+### 8.2 Optimizing for Large Numbers of Fields
 
 ```typescript
-// Optimization strategies for forms with many fields
+// Optimization strategies when there are many fields
 
 // Strategy 1: Virtualization
-// → Only render the fields currently visible on screen
+// → Render only the fields currently visible on screen
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 function VirtualizedFieldList() {
@@ -2350,7 +2357,7 @@ function VirtualizedFieldList() {
   const virtualizer = useVirtualizer({
     count: fieldNames.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 60, // Estimated height per field
+    estimateSize: () => 60, // Estimated height of each field
     overscan: 5, // Pre-render 5 fields outside the viewport
   });
 
@@ -2380,7 +2387,7 @@ function VirtualizedFieldList() {
   );
 }
 
-// Strategy 2: Section splitting and lazy loading
+// Strategy 2: Section splitting with lazy loading
 function SectionedForm() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(['basic'])
@@ -2400,15 +2407,15 @@ function SectionedForm() {
 
   return (
     <form>
-      {/* Each section is collapsible */}
+      {/* Each section can be collapsed */}
       <details open={expandedSections.has('basic')}>
-        <summary onClick={() => toggleSection('basic')}>Basic Info</summary>
+        <summary onClick={() => toggleSection('basic')}>Basic Information</summary>
         <BasicInfoFields />
       </details>
 
       <details open={expandedSections.has('contact')}>
         <summary onClick={() => toggleSection('contact')}>Contact</summary>
-        {/* Only render when expanded */}
+        {/* Render only when expanded */}
         {expandedSections.has('contact') && <ContactFields />}
       </details>
 
@@ -2451,7 +2458,7 @@ function DebouncedValidation() {
 ```typescript
 // Bundle size optimization
 
-// 1. Lazy-load forms with dynamic imports
+// 1. Lazy-load the form with dynamic import
 const EditProfileForm = lazy(() => import('./EditProfileForm'));
 
 function ProfilePage() {
@@ -2471,7 +2478,7 @@ function ProfilePage() {
 }
 
 // 2. Split Zod schemas
-// Splitting large schemas to enable tree-shaking
+// Split large schemas to benefit from tree-shaking
 // schema/user.ts
 export const userBasicSchema = z.object({
   name: z.string().min(1),
@@ -2485,7 +2492,7 @@ export const userExtendedSchema = userBasicSchema.extend({
   preferences: preferencesSchema,
 });
 
-// 3. Dynamically import resolver
+// 3. Dynamically import the resolver
 async function loadResolver() {
   const { zodResolver } = await import('@hookform/resolvers/zod');
   return zodResolver;
@@ -2499,7 +2506,7 @@ async function loadResolver() {
 ### 9.1 Form Testing with React Testing Library
 
 ```typescript
-// Unit testing forms
+// Form unit tests
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CreateUserForm } from './CreateUserForm';
@@ -2507,11 +2514,11 @@ import { CreateUserForm } from './CreateUserForm';
 describe('CreateUserForm', () => {
   const user = userEvent.setup();
 
-  it('can submit the form successfully', async () => {
+  it('successfully submits the form', async () => {
     const onSubmit = vi.fn();
     render(<CreateUserForm onSubmit={onSubmit} />);
 
-    // Enter values into fields
+    // Fill in the fields
     await user.type(screen.getByLabelText('Name *'), 'Jane Doe');
     await user.type(screen.getByLabelText('Email Address *'), 'jane@example.com');
     await user.selectOptions(screen.getByLabelText('Role *'), 'admin');
@@ -2534,21 +2541,21 @@ describe('CreateUserForm', () => {
   it('shows errors when required fields are empty', async () => {
     render(<CreateUserForm />);
 
-    // Submit without filling in anything
+    // Submit without entering anything
     await user.click(screen.getByRole('button', { name: /Create User/ }));
 
-    // Verify error messages are shown
+    // Verify that error messages are displayed
     await waitFor(() => {
       expect(screen.getByText('Name is required')).toBeInTheDocument();
       expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
     });
   });
 
-  it('shows an error when email address is invalid', async () => {
+  it('shows an error when the email address is invalid', async () => {
     render(<CreateUserForm />);
 
     await user.type(screen.getByLabelText('Email Address *'), 'invalid-email');
-    await user.tab(); // Remove focus (onBlur validation)
+    await user.tab(); // Blur the field (onBlur validation)
 
     await waitFor(() => {
       expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
@@ -2571,7 +2578,7 @@ describe('CreateUserForm', () => {
     expect(screen.getByRole('button', { name: /Creating/ })).toBeDisabled();
   });
 
-  it('clears the error message after correction', async () => {
+  it('clears the error message after it is corrected', async () => {
     render(<CreateUserForm />);
 
     // Enter an invalid email and submit
@@ -2582,7 +2589,7 @@ describe('CreateUserForm', () => {
       expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
     });
 
-    // Fix with a valid email
+    // Correct the email
     const emailInput = screen.getByLabelText('Email Address *');
     await user.clear(emailInput);
     await user.type(emailInput, 'valid@example.com');
@@ -2610,7 +2617,7 @@ describe('CreateUserForm Accessibility', () => {
     expect(results).toHaveNoViolations();
   });
 
-  it('has no accessibility violations in error state', async () => {
+  it('has no accessibility violations in the error state', async () => {
     const { container } = render(<CreateUserForm />);
     const user = userEvent.setup();
 
@@ -2623,21 +2630,21 @@ describe('CreateUserForm Accessibility', () => {
     });
   });
 
-  it('all fields have associated labels', () => {
+  it('all fields have an associated label', () => {
     render(<CreateUserForm />);
 
-    // Verify all inputs have labels
+    // Verify that all inputs have labels
     const inputs = screen.getAllByRole('textbox');
     inputs.forEach((input) => {
       expect(input).toHaveAccessibleName();
     });
   });
 
-  it('focus moves between fields via keyboard', async () => {
+  it('focus can be moved with the keyboard', async () => {
     render(<CreateUserForm />);
     const user = userEvent.setup();
 
-    // Move focus with Tab key
+    // Move focus with Tab
     await user.tab();
     expect(screen.getByLabelText('Name *')).toHaveFocus();
 
@@ -2669,7 +2676,7 @@ describe('CreateUserForm Accessibility', () => {
 ### 9.3 E2E Testing (Playwright)
 
 ```typescript
-// Form E2E testing with Playwright
+// Form E2E tests with Playwright
 import { test, expect } from '@playwright/test';
 
 test.describe('Create User Form', () => {
@@ -2678,13 +2685,13 @@ test.describe('Create User Form', () => {
   });
 
   test('successful form submission', async ({ page }) => {
-    // Fill in fields
+    // Fill in the fields
     await page.getByLabel('Name').fill('Jane Doe');
     await page.getByLabel('Email Address').fill('jane@example.com');
     await page.getByLabel('Role').selectOption('admin');
     await page.getByLabel('I agree to the Terms of Service').check();
 
-    // Wait for API response
+    // Wait for the API response
     const responsePromise = page.waitForResponse(
       (response) => response.url().includes('/api/users') && response.status() === 201
     );
@@ -2692,26 +2699,26 @@ test.describe('Create User Form', () => {
     // Submit
     await page.getByRole('button', { name: 'Create User' }).click();
 
-    // Verify API response
+    // Verify the API response
     const response = await responsePromise;
     expect(response.status()).toBe(201);
 
-    // Verify success message
+    // Verify the success message
     await expect(page.getByText('User created successfully')).toBeVisible();
 
-    // Verify form was reset
+    // Verify the form was reset
     await expect(page.getByLabel('Name')).toHaveValue('');
   });
 
-  test('display and fix validation errors', async ({ page }) => {
-    // Submit without filling in anything
+  test('displaying and fixing validation errors', async ({ page }) => {
+    // Submit without filling anything in
     await page.getByRole('button', { name: 'Create User' }).click();
 
     // Verify error messages
     await expect(page.getByText('Name is required')).toBeVisible();
     await expect(page.getByText('Please enter a valid email address')).toBeVisible();
 
-    // Focus should have moved to the first error field
+    // Verify focus moved to the first error field
     await expect(page.getByLabel('Name')).toBeFocused();
 
     // Fix the error
@@ -2721,8 +2728,8 @@ test.describe('Create User Form', () => {
     await expect(page.getByText('Name is required')).not.toBeVisible();
   });
 
-  test('server error on duplicate email', async ({ page }) => {
-    // Mock server error
+  test('server error for duplicate email address', async ({ page }) => {
+    // Mock a server error
     await page.route('**/api/users', (route) => {
       route.fulfill({
         status: 409,
@@ -2741,19 +2748,19 @@ test.describe('Create User Form', () => {
     await page.getByLabel('I agree to the Terms of Service').check();
     await page.getByRole('button', { name: 'Create User' }).click();
 
-    // Verify server error message is displayed
+    // Verify the server error message is displayed
     await expect(page.getByText('This email address is already registered')).toBeVisible();
   });
 
   test('form interaction on mobile', async ({ page }) => {
-    // Switch to mobile viewport
+    // Switch to a mobile viewport
     await page.setViewportSize({ width: 375, height: 812 });
 
-    // Fill in the form with touch
+    // Fill in the form using touch events
     await page.getByLabel('Name').tap();
     await page.getByLabel('Name').fill('Jane Doe');
 
-    // Scroll to the submit button at the bottom
+    // Scroll to the submit button at the bottom of the screen
     await page.getByRole('button', { name: 'Create User' }).scrollIntoViewIfNeeded();
     await page.getByRole('button', { name: 'Create User' }).tap();
   });
@@ -2767,8 +2774,8 @@ test.describe('Create User Form', () => {
 ### 10.1 Common Anti-Patterns
 
 ```typescript
-// Anti-pattern 1: Double-managing state with both register and useState
-// Bad: managing state with both React Hook Form and useState
+// Anti-pattern 1: Managing both register and state
+// Bad: Duplicating state between React Hook Form and useState
 function BadDoubleState() {
   const { register } = useForm();
   const [name, setName] = useState(''); // Unnecessary!
@@ -2776,34 +2783,34 @@ function BadDoubleState() {
   return (
     <input
       {...register('name')}
-      value={name}                       // Overrides register's value
-      onChange={(e) => setName(e.target.value)} // Overrides register's onChange
+      value={name}                       // Overrides the register value
+      onChange={(e) => setName(e.target.value)} // Overrides the register onChange
     />
   );
 }
 
-// Good: let React Hook Form handle it
+// Good: Let React Hook Form manage the state
 function GoodSingleSource() {
   const { register, watch } = useForm();
-  const name = watch('name'); // Use watch only when you need the value
+  const name = watch('name'); // Get the value with watch only when needed
 
   return <input {...register('name')} />;
 }
 
 
-// Anti-pattern 2: Using index as key in useFieldArray
-// Bad: using index as key causes bugs on delete / reorder
+// Anti-pattern 2: Using index as the key in useFieldArray
+// Bad: Using index as the key causes bugs on delete and reorder
 function BadFieldArray() {
   const { fields } = useFieldArray({ control, name: 'items' });
 
   return fields.map((field, index) => (
-    <div key={index}>  {/* Values shift when an item is deleted */}
+    <div key={index}>  {/* Field values shift on delete */}
       <input {...register(`items.${index}.name`)} />
     </div>
   ));
 }
 
-// Good: use field.id as key
+// Good: use field.id as the key
 function GoodFieldArray() {
   const { fields } = useFieldArray({ control, name: 'items' });
 
@@ -2816,7 +2823,7 @@ function GoodFieldArray() {
 
 
 // Anti-pattern 3: defaultValues reference changes on every render
-// Bad: a new object is created on every render
+// Bad: A new object is created on every render
 function BadDefaultValues() {
   const form = useForm({
     defaultValues: {  // New reference on every render
@@ -2825,7 +2832,7 @@ function BadDefaultValues() {
   });
 }
 
-// Good: define outside the component or use useMemo
+// Good: Define outside the component or use useMemo
 const defaultValues = { items: [] };
 
 function GoodDefaultValues() {
@@ -2837,7 +2844,7 @@ function GoodDefaultValues() {
 // Bad: mode: 'onChange' + heavy async validation
 function BadValidationMode() {
   const form = useForm({
-    mode: 'onChange', // API call on every keystroke!
+    mode: 'onChange', // Makes an API call on every keystroke!
   });
 
   return (
@@ -2871,25 +2878,25 @@ function GoodValidationMode() {
 }
 
 
-// Anti-pattern 5: Showing errors on initial render
-// Bad: showing errors when the form first loads
+// Anti-pattern 5: Showing errors at the wrong time
+// Bad: Showing errors on the initial render
 function BadInitialErrors() {
   const { register, formState: { errors } } = useForm({
-    mode: 'all',       // Validate on all events
+    mode: 'all',       // Validate in all modes
     defaultValues: {
-      name: '',        // Initial value is empty → error shown immediately
+      name: '',        // Empty initial value → error shown immediately
     },
   });
 
   return (
     <div>
       <input {...register('name', { required: 'Name is required' })} />
-      {errors.name && <p>{errors.name.message}</p>} {/* Error shown on first render! */}
+      {errors.name && <p>{errors.name.message}</p>} {/* Error on first render! */}
     </div>
   );
 }
 
-// Good: account for touchedFields
+// Good: Consider touchedFields
 function GoodInitialDisplay() {
   const { register, formState: { errors, touchedFields } } = useForm({
     mode: 'onTouched',
@@ -2911,34 +2918,34 @@ function GoodInitialDisplay() {
 ```
 Troubleshooting:
 
-Q: Cannot get the value from a registered input
+Q: Can't get the value of a registered input
 A: Possible causes:
    1. defaultValues not set
       → useForm({ defaultValues: { fieldName: '' } })
-   2. Using register on a custom component that requires Controller
+   2. Using register on a custom component that needs Controller
       → Switch to Controller
-   3. Component is unmounting and remounting
+   3. Component unmounts and remounts
       → Set shouldUnregister: false
 
 Q: Validation is not running
 A: Possible causes:
-   1. Wrong resolver import
+   1. Incorrect resolver import
       → import { zodResolver } from '@hookform/resolvers/zod'
-   2. Schema property name does not match field name
-      → If register('name') is used, the schema must have a 'name' property
-   3. Validation mode setting
+   2. Mismatch between schema and field names
+      → If register('name'), the schema must have a 'name' property
+   3. mode setting
       → mode: 'onSubmit' (default) only runs on submission
 
 Q: TypeScript type errors
 A: Possible causes:
-   1. Mismatch between z.infer type and form type
+   1. Type mismatch between z.infer and the form type
       → Use type FormData = z.infer<typeof schema>
-   2. Register name does not exist in the schema
-      → Match the property name to the schema
+   2. The name passed to register does not exist in the schema
+      → Align with the schema property name
    3. Type of optional fields
       → Use z.coerce.number().optional() to allow undefined
 
-Q: Values are wrong after deleting from useFieldArray
+Q: Values become incorrect after deleting a useFieldArray item
 A: Possible causes:
    1. Using index as the key
       → Change to key={field.id}
@@ -2955,10 +2962,10 @@ A: Possible causes:
 Q: formData is empty in a Server Action
 A: Possible causes:
    1. Input has no name attribute
-      → register('name') sets name automatically, but
-         when using handleSubmit, parsed data is passed, not FormData
-   2. Using action and onSubmit at the same time
-      → Standardize on one approach
+      → register('name') sets the name automatically, but when using
+         handleSubmit, parsed data is passed instead of FormData
+   2. Using both action and onSubmit
+      → Stick to one or the other
 
 Q: Poor performance with a large number of fields
 A: Solutions:
@@ -2969,7 +2976,7 @@ A: Solutions:
    5. Memoize field components with React.memo
 ```
 
-### 10.3 Complete Error Handling Pattern
+### 10.3 Comprehensive Error Handling Pattern
 
 ```typescript
 // Comprehensive error handling implementation
@@ -2988,7 +2995,7 @@ class FormSubmitError extends Error {
   }
 }
 
-// Form with error handling
+// Form with comprehensive error handling
 function RobustForm() {
   const [globalError, setGlobalError] = useState<string | null>(null);
 
@@ -3033,7 +3040,7 @@ function RobustForm() {
 
           case 422:
             // Unprocessable entity
-            setGlobalError('Failed to process the input data. Please review your entries.');
+            setGlobalError('Failed to process the input data. Please check your submission.');
             break;
 
           case 429:
@@ -3127,7 +3134,7 @@ function RobustForm() {
 
 ---
 
-## 11. Reusable Form Component Design
+## 11. Designing Reusable Form Components
 
 ### 11.1 Generic Form Field Component
 
@@ -3328,29 +3335,29 @@ function CreateUserPage() {
 | Concept | Key Points |
 |---------|-----------|
 | React Hook Form | Achieve type-safe, high-performance forms with register + zodResolver |
-| Uncontrolled Components | Use for native HTML elements; best performance with no re-renders |
-| Controlled Components | Use Controller to integrate with custom UI / third-party components |
+| Uncontrolled components | Use with native HTML elements for best performance with no re-renders |
+| Controlled components | Use Controller to integrate custom UI / third-party components |
 | useFieldArray | Efficiently manage dynamic field arrays; always use field.id as the key |
-| Multi-step | Partial validation with FormProvider + trigger; centralized state management |
+| Multi-step forms | FormProvider + trigger for per-step validation; centralized state management |
 | Server Actions | Progressive enhancement support; optimistic update patterns |
-| UX | Real-time validation after submit, double-submission prevention, unsaved changes warning |
+| UX | Real-time validation after first submit; double-submit prevention; unsaved changes warning |
 | Accessibility | ARIA attributes, keyboard navigation, screen reader support |
-| Performance | Isolate with useWatch, React.memo, virtualization, debounce |
-| Testing | Test user interactions with RTL, accessibility with axe, end-to-end with Playwright |
-| Error Handling | Integrate client/server errors; global error display |
-| Reusability | Generics for form fields and wrappers |
+| Performance | Isolate with useWatch; React.memo; virtualization; debounce |
+| Testing | Test user interactions with RTL; a11y testing with axe; E2E with Playwright |
+| Error handling | Unified client/server error handling; global error display |
+| Reusability | Generic types for form field and wrapper components |
 
 ---
 
 ## Frequently Asked Questions (FAQ)
 
-### Q1. How should I decide between Controlled and Uncontrolled Components?
+### Q1. How should I choose between Controlled and Uncontrolled Components?
 
-**A:** In general, prefer **Controlled Components** for the following reasons:
+**A:** In general, **prefer Controlled Components**. The reasons are:
 
-- **Immediate validation**: Input changes can be validated in real time
-- **Conditional UI**: The form can change dynamically based on user input
-- **Easier debugging**: State is managed by React, making it easy to track in developer tools
+- **Immediate validation**: You can validate the value in real time as it changes
+- **Conditional UI**: You can dynamically change the form based on the input
+- **Easier debugging**: State is managed by React, making it easy to track in DevTools
 
 However, **Uncontrolled Components are more appropriate** in these cases:
 
@@ -3366,27 +3373,27 @@ React Hook Form uses an uncontrolled mechanism internally while providing a cont
 
 | Item | React Hook Form | Formik |
 |------|----------------|---------|
-| Performance | Excellent (uncontrolled, minimal re-renders) | Acceptable (controlled, more re-renders) |
+| Performance | Excellent (uncontrolled approach minimizes re-renders) | Acceptable (controlled approach causes more re-renders) |
 | Bundle size | 8.5KB (gzip) | 15KB (gzip) |
-| TypeScript support | Full support, powerful type inference | Supported but weaker |
+| TypeScript support | Full support with strong type inference | Supported but weaker inference |
 | Ecosystem | Easy Zod/Yup integration | Yup recommended |
-| Learning curve | Somewhat steep (requires familiarity with useForm API) | Gentle (Formik components are intuitive) |
+| Learning curve | Slightly steep (takes time to get used to the useForm API) | Gentle (Formik components are intuitive) |
 | Maintenance | Active | Slowing down |
 
 Where Formik excels:
 
-- **Intuitive API**: Write in a React-like style with `<Formik>` and `<Field>` components
-- **Rich documentation**: Long history and abundant learning resources
+- **Intuitive API**: Write in a React-idiomatic style with `<Formik>` and `<Field>` components
+- **Rich documentation**: Long history and plenty of learning resources
 
 Where React Hook Form excels:
 
-- **Performance**: Fast even with large forms
+- **Performance**: Fast even for large forms
 - **TypeScript integration**: Types automatically inferred from Zod schemas
-- **Modern React philosophy**: Hooks-based, aligned with modern React development
+- **Modern React philosophy**: Hooks-based and well-suited to modern React development
 
 ### Q3. How should I design a multi-step form?
 
-**A:** There are four approaches to designing multi-step forms:
+**A:** There are four main approaches for designing multi-step forms:
 
 **1. Independent form per step (recommended)**
 
@@ -3399,21 +3406,21 @@ const Step1 = () => {
 };
 ```
 
-Advantages: Each step is independent, validation is isolated, back navigation is easy to implement
-Disadvantages: Sharing data between steps requires Context or a state management library
+Pros: Each step is independent; validation is isolated; back button is easy to implement
+Cons: Sharing data between steps requires Context or a state management library
 
-**2. Single form with conditional display**
+**2. Single form with conditional rendering**
 
 ```typescript
 const MultiStepForm = () => {
   const { register, handleSubmit } = useForm<AllStepsData>();
   const [currentStep, setCurrentStep] = useState(1);
-  // Keep all fields; only toggle which ones are displayed
+  // Hold all fields, just switch what's displayed
 };
 ```
 
-Advantages: Simple implementation; all data is in one form
-Disadvantages: Can become complex at scale; validation control is harder
+Pros: Simple implementation; all data is in one form
+Cons: Gets complex at scale; validation is harder to control
 
 **3. Per-step schema + merge strategy**
 
@@ -3423,25 +3430,25 @@ const step2Schema = z.object({ email: z.string().email() });
 const finalSchema = step1Schema.merge(step2Schema);
 ```
 
-Advantages: Leverages Zod type inference; step-by-step progressive validation
-Disadvantages: Complexity of schema merging
+Pros: Leverages Zod type inference; step-by-step validation
+Cons: Schema merging can get complex
 
-**Recommended design pattern:**
+**Recommended design patterns:**
 
-- 3–5 steps: **Independent form per step + Context for state sharing**
-- 2 steps: **Single form with conditional display**
-- 6+ steps: Consider adopting a **form builder library** (e.g., react-multi-step-form)
+- 3–5 steps: **Independent form per step + share state with Context**
+- 2 steps: **Single form with conditional rendering**
+- 6+ steps: Consider a **form builder library** (e.g. react-multi-step-form)
 
 **UX considerations:**
 
-- Always show a progress bar
-- Allow navigation back to previous steps
-- Save to localStorage on each step completion (in case the user leaves)
-- Show a final confirmation screen with all entered data
+- Always display a progress bar
+- Allow the user to go back to previous steps
+- Save progress to localStorage on each step completion (prevents data loss on exit)
+- Show a confirmation screen with all inputs before final submission
 
 ---
 
-## Further Reading
+## What to Read Next
 
 ---
 
