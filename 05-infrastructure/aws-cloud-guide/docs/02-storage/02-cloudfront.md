@@ -1,47 +1,47 @@
 # CloudFront
 
-> AWS のグローバル CDN — キャッシュポリシー、オリジン設定、Lambda@Edge、OAC でコンテンツ配信を最適化する
+> AWS Global CDN — Optimize content delivery with cache policies, origin configuration, Lambda@Edge, and OAC
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. CloudFront のディストリビューションとオリジンを設計し、効率的なコンテンツ配信を構築できる
-2. キャッシュポリシーとキャッシュ無効化を適切に設定し、パフォーマンスと鮮度を両立できる
-3. Lambda@Edge / CloudFront Functions と OAC を使って、エッジでの処理とセキュアなオリジンアクセスを実現できる
-4. CloudFormation / CDK を使った CloudFront ディストリビューションの Infrastructure as Code を実装できる
-5. WAF 連携、署名付き URL、地理的制限などのセキュリティ機能を活用できる
+1. Design CloudFront distributions and origins to build efficient content delivery
+2. Configure cache policies and cache invalidation appropriately to balance performance and freshness
+3. Use Lambda@Edge / CloudFront Functions and OAC to achieve edge processing and secure origin access
+4. Implement Infrastructure as Code for CloudFront distributions using CloudFormation / CDK
+5. Leverage security features such as WAF integration, signed URLs, and geo-restrictions
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [S3 応用](./01-s3-advanced.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [S3 Advanced](./01-s3-advanced.md)
 
 ---
 
-## 1. CloudFront とは
+## 1. What Is CloudFront
 
-### 1.1 CloudFront のアーキテクチャ
+### 1.1 CloudFront Architecture
 
 ```
-CloudFront グローバルネットワーク
+CloudFront Global Network
 
-  ユーザー (東京)                ユーザー (ニューヨーク)
+  User (Tokyo)                    User (New York)
        |                              |
        v                              v
   +----------+                   +----------+
   | Edge     |                   | Edge     |
   | Location |                   | Location |
-  | (東京)   |                   | (NYC)    |
+  | (Tokyo)  |                   | (NYC)    |
   +----+-----+                   +----+-----+
        |                              |
-       | キャッシュミス時のみ            |
+       | Only on cache miss           |
        v                              v
   +------------------+          +------------------+
   | Regional Edge    |          | Regional Edge    |
-  | Cache (大阪)     |          | Cache (バージニア)|
+  | Cache (Osaka)    |          | Cache (Virginia) |
   +--------+---------+          +--------+---------+
            |                             |
            +-------------+---------------+
@@ -49,87 +49,87 @@ CloudFront グローバルネットワーク
                          v
                   +-------------+
                   |   Origin    |
-                  | (S3/ALB等)  |
+                  | (S3/ALB etc)|
                   +-------------+
 
-  Edge Location: 400+ 拠点（ユーザーに最も近い）
-  Regional Edge Cache: 13 拠点（中間キャッシュ層）
+  Edge Location: 400+ locations (closest to the user)
+  Regional Edge Cache: 13 locations (intermediate cache layer)
 ```
 
-### 1.2 CloudFront の主要コンポーネント
+### 1.2 Key Components of CloudFront
 
 ```
 +------------------------------------------------------+
-| Distribution (ディストリビューション)                    |
+| Distribution                                          |
 |                                                       |
 |  +------------------------------------------------+  |
-|  | Origins (オリジン)                                |  |
-|  | - S3 バケット                                    |  |
+|  | Origins                                         |  |
+|  | - S3 Bucket                                     |  |
 |  | - ALB / EC2                                     |  |
-|  | - カスタムオリジン (任意の HTTP サーバー)           |  |
+|  | - Custom Origin (any HTTP server)               |  |
 |  | - MediaStore / MediaPackage                     |  |
 |  +------------------------------------------------+  |
 |                                                       |
 |  +------------------------------------------------+  |
-|  | Behaviors (ビヘイビア)                            |  |
-|  | - パスパターン: /api/*, /static/*, デフォルト(*)  |  |
-|  | - キャッシュポリシー                              |  |
-|  | - オリジンリクエストポリシー                       |  |
-|  | - レスポンスヘッダーポリシー                       |  |
+|  | Behaviors                                       |  |
+|  | - Path pattern: /api/*, /static/*, default(*)   |  |
+|  | - Cache policy                                  |  |
+|  | - Origin request policy                         |  |
+|  | - Response headers policy                       |  |
 |  +------------------------------------------------+  |
 |                                                       |
 |  +------------------------------------------------+  |
 |  | Settings                                        |  |
-|  | - 代替ドメイン (CNAME)                           |  |
-|  | - SSL 証明書 (ACM)                              |  |
-|  | - 価格クラス                                    |  |
-|  | - WAF 連携                                     |  |
+|  | - Alternate domain (CNAME)                      |  |
+|  | - SSL certificate (ACM)                         |  |
+|  | - Price class                                   |  |
+|  | - WAF integration                               |  |
 |  +------------------------------------------------+  |
 +------------------------------------------------------+
 ```
 
-### 1.3 CloudFront の料金体系
+### 1.3 CloudFront Pricing
 
-| 課金項目 | 内容 | 東京リージョン参考価格 |
+| Billing Item | Description | Tokyo Region Reference Price |
 |---------|------|---------------------|
-| データ転送量 | Edge → インターネット | $0.114/GB (最初の 10TB) |
-| HTTP リクエスト | GET/HEAD | $0.0090/万リクエスト |
-| HTTPS リクエスト | GET/HEAD | $0.0120/万リクエスト |
-| Invalidation | キャッシュ無効化 | 月 1,000 パスまで無料 |
-| Lambda@Edge | 実行回数 + 実行時間 | $0.60/100万リクエスト |
-| CloudFront Functions | 実行回数 | $0.10/100万リクエスト |
+| Data transfer | Edge to Internet | $0.114/GB (first 10TB) |
+| HTTP requests | GET/HEAD | $0.0090/10K requests |
+| HTTPS requests | GET/HEAD | $0.0120/10K requests |
+| Invalidation | Cache invalidation | Free up to 1,000 paths/month |
+| Lambda@Edge | Invocation count + execution time | $0.60/1M requests |
+| CloudFront Functions | Invocation count | $0.10/1M requests |
 
-### 1.4 価格クラスの選択
+### 1.4 Choosing a Price Class
 
 ```bash
-# 価格クラスの比較
-# PriceClass_All:     全 Edge Location を使用（最高パフォーマンス）
-# PriceClass_200:     北米、欧州、アジア、中東、アフリカ
-# PriceClass_100:     北米、欧州のみ（最安）
+# Price class comparison
+# PriceClass_All:     Use all Edge Locations (best performance)
+# PriceClass_200:     North America, Europe, Asia, Middle East, Africa
+# PriceClass_100:     North America, Europe only (cheapest)
 
-# 日本向けサービスなら PriceClass_200 が推奨
-# PriceClass_100 だとアジアの Edge Location が使われない
+# For Japan-focused services, PriceClass_200 is recommended
+# PriceClass_100 does not use Asian Edge Locations
 ```
 
 ---
 
-## 2. オリジン設定
+## 2. Origin Configuration
 
-### 2.1 オリジンタイプ比較
+### 2.1 Origin Type Comparison
 
-| オリジンタイプ | 用途 | 認証方式 | プロトコル |
+| Origin Type | Use Case | Authentication | Protocol |
 |--------------|------|---------|----------|
-| S3 バケット | 静的ファイル | OAC (推奨) | HTTPS |
-| ALB | 動的コンテンツ | カスタムヘッダー | HTTP/HTTPS |
-| EC2 | 直接接続 | セキュリティグループ | HTTP/HTTPS |
+| S3 Bucket | Static files | OAC (recommended) | HTTPS |
+| ALB | Dynamic content | Custom header | HTTP/HTTPS |
+| EC2 | Direct connection | Security group | HTTP/HTTPS |
 | API Gateway | API | IAM / Cognito | HTTPS |
-| MediaStore | 動画配信 | OAC | HTTPS |
-| カスタムオリジン | 外部サーバー | 共有シークレット | HTTPS |
+| MediaStore | Video delivery | OAC | HTTPS |
+| Custom Origin | External server | Shared secret | HTTPS |
 
-### 2.2 コード例: CloudFront ディストリビューションの作成
+### 2.2 Code Example: Creating a CloudFront Distribution
 
 ```bash
-# S3 + ALB のマルチオリジン構成
+# Multi-origin configuration with S3 + ALB
 aws cloudfront create-distribution --distribution-config '{
   "CallerReference": "my-dist-2024",
   "Comment": "Production distribution",
@@ -195,27 +195,27 @@ aws cloudfront create-distribution --distribution-config '{
 }'
 ```
 
-### 2.3 オリジンフェイルオーバー
+### 2.3 Origin Failover
 
 ```
-オリジンフェイルオーバー構成
+Origin Failover Configuration
 
   CloudFront
       |
   Origin Group
   +-----------------------+
-  | Primary:   S3-主系    |  ← 通常はこちらに転送
-  | Secondary: S3-DR系    |  ← Primary が 5xx/4xx を返した場合に自動切替
+  | Primary:   S3-main    |  <- Normally forwards here
+  | Secondary: S3-DR      |  <- Automatically switches when Primary returns 5xx/4xx
   +-----------------------+
 
-  フェイルオーバー条件:
+  Failover conditions:
   - HTTP 500, 502, 503, 504
-  - HTTP 403, 404（オプション）
-  - 接続タイムアウト
+  - HTTP 403, 404 (optional)
+  - Connection timeout
 ```
 
 ```bash
-# オリジングループの作成（フェイルオーバー構成）
+# Create an origin group (failover configuration)
 aws cloudfront create-distribution --distribution-config '{
   "CallerReference": "failover-dist-2024",
   "Comment": "Distribution with origin failover",
@@ -266,15 +266,15 @@ aws cloudfront create-distribution --distribution-config '{
 }'
 ```
 
-### 2.4 ALB オリジンのセキュリティ強化
+### 2.4 Securing ALB Origin
 
 ```bash
-# ALB が CloudFront 経由のリクエストのみ受け付けるようにする
+# Ensure ALB only accepts requests via CloudFront
 
-# 方法1: カスタムヘッダーで検証
-# CloudFront 側でカスタムヘッダーを付与し、ALB のルールで検証
+# Method 1: Validate with custom header
+# Add a custom header on the CloudFront side and validate with ALB rules
 
-# ALB リスナールールの設定
+# ALB listener rule configuration
 aws elbv2 create-rule \
   --listener-arn arn:aws:elasticloadbalancing:ap-northeast-1:123456789012:listener/app/my-alb/xxx/yyy \
   --conditions '[{
@@ -287,13 +287,13 @@ aws elbv2 create-rule \
   --actions '[{"Type": "forward", "TargetGroupArn": "arn:aws:elasticloadbalancing:ap-northeast-1:123456789012:targetgroup/my-targets/xxx"}]' \
   --priority 10
 
-# カスタムヘッダーなしのリクエストを拒否するデフォルトルール
+# Default rule to reject requests without the custom header
 aws elbv2 modify-rule \
   --rule-arn arn:aws:elasticloadbalancing:ap-northeast-1:123456789012:listener-rule/app/my-alb/xxx/yyy/zzz \
   --actions '[{"Type": "fixed-response", "FixedResponseConfig": {"StatusCode": "403", "ContentType": "text/plain", "MessageBody": "Direct access not allowed"}}]'
 
-# 方法2: AWS マネージドプレフィックスリストで CloudFront の IP 範囲を許可
-# Security Group に CloudFront の IP 範囲を追加
+# Method 2: Allow CloudFront IP ranges using AWS managed prefix list
+# Add CloudFront IP ranges to the Security Group
 aws ec2 authorize-security-group-ingress \
   --group-id sg-0123456789abcdef0 \
   --ip-permissions '[{
@@ -302,63 +302,63 @@ aws ec2 authorize-security-group-ingress \
     "ToPort": 443,
     "PrefixListIds": [{"PrefixListId": "pl-3b927c52"}]
   }]'
-# pl-3b927c52 は CloudFront のマネージドプレフィックスリスト
+# pl-3b927c52 is the CloudFront managed prefix list
 ```
 
 ---
 
-## 3. キャッシュポリシー
+## 3. Cache Policies
 
-### 3.1 キャッシュの仕組み
+### 3.1 How Caching Works
 
 ```
-キャッシュヒット/ミスのフロー
+Cache Hit/Miss Flow
 
-  リクエスト → Edge Location
+  Request -> Edge Location
                   |
-          キャッシュキーで検索
+          Search by cache key
                   |
          +--------+--------+
          |                 |
-      ヒット             ミス
+       Hit               Miss
          |                 |
-    キャッシュから     Regional Edge Cache
-    即座にレスポンス        |
+    Respond from     Regional Edge Cache
+    cache immediately      |
                     +------+------+
                     |             |
-                 ヒット         ミス
+                  Hit           Miss
                     |             |
-               キャッシュから   オリジンに
-               レスポンス     リクエスト転送
+               Respond from   Forward request
+               cache          to origin
 
-  キャッシュキー = URL + ヘッダー + クエリ文字列 + Cookie
-  (キャッシュポリシーで構成要素を制御)
+  Cache key = URL + Headers + Query strings + Cookies
+  (Cache policy controls the key components)
 ```
 
-### 3.2 マネージドキャッシュポリシー
+### 3.2 Managed Cache Policies
 
-| ポリシー名 | ポリシー ID | TTL | クエリ文字列 | ヘッダー | 用途 |
+| Policy Name | Policy ID | TTL | Query Strings | Headers | Use Case |
 |-----------|-----------|-----|------------|---------|------|
-| CachingOptimized | 658327ea-... | 86400s | なし | なし | 静的コンテンツ |
-| CachingOptimizedForUncompressedObjects | b2884449-... | 86400s | なし | なし | 非圧縮 |
-| CachingDisabled | 4135ea2d-... | 0s | 全て | 全て | API / 動的ページ |
-| Amplify | 2e54312d-... | 2s | 全て | Authorization | Amplify アプリ |
-| Elemental-MediaPackage | 08627262-... | 86400s | 一部 | なし | 動画配信 |
+| CachingOptimized | 658327ea-... | 86400s | None | None | Static content |
+| CachingOptimizedForUncompressedObjects | b2884449-... | 86400s | None | None | Uncompressed |
+| CachingDisabled | 4135ea2d-... | 0s | All | All | API / Dynamic pages |
+| Amplify | 2e54312d-... | 2s | All | Authorization | Amplify apps |
+| Elemental-MediaPackage | 08627262-... | 86400s | Some | None | Video delivery |
 
-### 3.3 マネージドオリジンリクエストポリシー
+### 3.3 Managed Origin Request Policies
 
-| ポリシー名 | 用途 | 転送内容 |
+| Policy Name | Use Case | Forwarded Content |
 |-----------|------|---------|
-| AllViewer | 全てのビューワーヘッダーを転送 | ヘッダー全て、クエリ文字列全て、Cookie 全て |
-| AllViewerExceptHostHeader | Host 以外を転送 | ALB オリジン向け |
-| CORS-S3Origin | CORS ヘッダーを転送 | Origin, Access-Control-Request-* |
-| UserAgentRefererHeaders | UA + Referer を転送 | 分析用途 |
-| AllViewerAndCloudFrontHeaders-2022-06 | CF ヘッダー含む全て | 地理情報等の CF 独自ヘッダーも転送 |
+| AllViewer | Forward all viewer headers | All headers, all query strings, all cookies |
+| AllViewerExceptHostHeader | Forward all except Host | For ALB origins |
+| CORS-S3Origin | Forward CORS headers | Origin, Access-Control-Request-* |
+| UserAgentRefererHeaders | Forward UA + Referer | For analytics |
+| AllViewerAndCloudFrontHeaders-2022-06 | Forward all including CF headers | Also forwards CF-specific headers like geo info |
 
-### 3.4 コード例: カスタムキャッシュポリシー
+### 3.4 Code Example: Custom Cache Policy
 
 ```bash
-# カスタムキャッシュポリシーを作成
+# Create a custom cache policy
 aws cloudfront create-cache-policy --cache-policy-config '{
   "Name": "CustomStaticAssets",
   "Comment": "Static assets with long TTL",
@@ -384,7 +384,7 @@ aws cloudfront create-cache-policy --cache-policy-config '{
   }
 }'
 
-# API 向けカスタムキャッシュポリシー（短 TTL + Authorization ヘッダー）
+# Custom cache policy for APIs (short TTL + Authorization header)
 aws cloudfront create-cache-policy --cache-policy-config '{
   "Name": "ApiShortTTL",
   "Comment": "API with short TTL and Authorization cache key",
@@ -411,25 +411,25 @@ aws cloudfront create-cache-policy --cache-policy-config '{
 }'
 ```
 
-### 3.5 コード例: キャッシュ無効化 (Invalidation)
+### 3.5 Code Example: Cache Invalidation
 
 ```bash
-# 特定パスのキャッシュを無効化
+# Invalidate cache for specific paths
 aws cloudfront create-invalidation \
   --distribution-id EXXXXXXXXXX \
   --paths '/index.html' '/css/*' '/js/*'
 
-# 全キャッシュを無効化（コスト注意: 月 1,000 パスまで無料）
+# Invalidate all cache (cost note: free up to 1,000 paths/month)
 aws cloudfront create-invalidation \
   --distribution-id EXXXXXXXXXX \
   --paths '/*'
 
-# 無効化の状態確認
+# Check invalidation status
 aws cloudfront get-invalidation \
   --distribution-id EXXXXXXXXXX \
   --id IXXXXXXXXX
 
-# デプロイ後のキャッシュ無効化スクリプト
+# Post-deployment cache invalidation script
 #!/bin/bash
 DIST_ID="EXXXXXXXXXX"
 INVALIDATION_ID=$(aws cloudfront create-invalidation \
@@ -439,7 +439,7 @@ INVALIDATION_ID=$(aws cloudfront create-invalidation \
 
 echo "Invalidation ID: $INVALIDATION_ID"
 
-# 完了を待機
+# Wait for completion
 aws cloudfront wait invalidation-completed \
   --distribution-id $DIST_ID \
   --id $INVALIDATION_ID
@@ -447,10 +447,10 @@ aws cloudfront wait invalidation-completed \
 echo "Invalidation completed!"
 ```
 
-### 3.6 キャッシュヒット率の最適化
+### 3.6 Optimizing Cache Hit Rate
 
 ```bash
-# キャッシュヒット率の確認
+# Check cache hit rate
 aws cloudwatch get-metric-statistics \
   --namespace AWS/CloudFront \
   --metric-name CacheHitRate \
@@ -460,34 +460,34 @@ aws cloudwatch get-metric-statistics \
   --period 3600 \
   --statistics Average
 
-# キャッシュヒット率が低い場合のチェックリスト:
-# 1. クエリ文字列: 不要なクエリ文字列をキャッシュキーから除外
-# 2. Cookie: 不要な Cookie をキャッシュキーから除外
-# 3. ヘッダー: Accept-Encoding 以外の不要なヘッダーを除外
-# 4. TTL: MinTTL が 0 の場合、オリジンの Cache-Control ヘッダーを確認
-# 5. バージョニング: ファイル名にハッシュを含めて長い TTL を設定
+# Checklist when cache hit rate is low:
+# 1. Query strings: Exclude unnecessary query strings from the cache key
+# 2. Cookies: Exclude unnecessary cookies from the cache key
+# 3. Headers: Exclude unnecessary headers other than Accept-Encoding
+# 4. TTL: If MinTTL is 0, check the origin's Cache-Control header
+# 5. Versioning: Include hashes in file names and set long TTLs
 ```
 
 ---
 
-## 4. Lambda@Edge と CloudFront Functions
+## 4. Lambda@Edge and CloudFront Functions
 
-### 4.1 実行タイミング
+### 4.1 Execution Timing
 
 ```
-リクエスト/レスポンスの4つのイベントポイント
+Four Event Points in Request/Response
 
-  クライアント                               オリジン
+  Client                                  Origin
      |                                        |
      |  Viewer Request                        |
      |  (CF Functions / Lambda@Edge)          |
      +------->+                               |
               |  Origin Request               |
-              |  (Lambda@Edge のみ)            |
+              |  (Lambda@Edge only)            |
               +------------------------------>+
               |                               |
               |  Origin Response              |
-              |  (Lambda@Edge のみ)            |
+              |  (Lambda@Edge only)            |
               +<------------------------------+
      |  Viewer Response                       |
      |  (CF Functions / Lambda@Edge)          |
@@ -497,27 +497,27 @@ aws cloudwatch get-metric-statistics \
 
 ### 4.2 CloudFront Functions vs Lambda@Edge
 
-| 特性 | CloudFront Functions | Lambda@Edge |
+| Feature | CloudFront Functions | Lambda@Edge |
 |------|---------------------|-------------|
-| 実行場所 | 全 Edge Location (400+) | Regional Edge Cache (13) |
-| 実行時間 | 最大 1ms | 最大 5s (Viewer) / 30s (Origin) |
-| メモリ | 2MB | 128-3008 MB |
-| ネットワークアクセス | 不可 | 可能 |
-| ファイルシステム | 不可 | /tmp (512MB) |
-| ランタイム | JavaScript (ES 5.1) | Node.js / Python |
-| 料金 | $0.10/100万リクエスト | $0.60/100万リクエスト + 実行時間 |
-| ログ | CloudWatch Logs (限定的) | CloudWatch Logs (各リージョン) |
-| ユースケース | URL 書き換え、ヘッダー操作、単純認証 | A/Bテスト、認証、画像リサイズ、レスポンス生成 |
+| Execution location | All Edge Locations (400+) | Regional Edge Caches (13) |
+| Execution time | Max 1ms | Max 5s (Viewer) / 30s (Origin) |
+| Memory | 2MB | 128-3008 MB |
+| Network access | No | Yes |
+| File system | No | /tmp (512MB) |
+| Runtime | JavaScript (ES 5.1) | Node.js / Python |
+| Pricing | $0.10/1M requests | $0.60/1M requests + execution time |
+| Logs | CloudWatch Logs (limited) | CloudWatch Logs (each region) |
+| Use cases | URL rewriting, header manipulation, simple auth | A/B testing, authentication, image resizing, response generation |
 
-### 4.3 コード例: CloudFront Functions
+### 4.3 Code Example: CloudFront Functions
 
 ```javascript
-// === SPA のフォールバック: /about → /index.html ===
+// === SPA Fallback: /about -> /index.html ===
 function handler(event) {
   var request = event.request;
   var uri = request.uri;
 
-  // 拡張子がないパスは index.html にフォールバック
+  // Fall back to index.html for paths without extensions
   if (!uri.includes('.')) {
     request.uri = '/index.html';
   }
@@ -527,7 +527,7 @@ function handler(event) {
 ```
 
 ```javascript
-// === Basic 認証 ===
+// === Basic Authentication ===
 function handler(event) {
   var request = event.request;
   var headers = request.headers;
@@ -552,12 +552,12 @@ function handler(event) {
 ```
 
 ```javascript
-// === URL の正規化（トレイリングスラッシュの統一） ===
+// === URL Normalization (trailing slash unification) ===
 function handler(event) {
   var request = event.request;
   var uri = request.uri;
 
-  // ファイル拡張子がない場合、末尾にスラッシュを追加
+  // Add trailing slash for paths without file extensions
   if (!uri.endsWith('/') && !uri.includes('.')) {
     return {
       statusCode: 301,
@@ -568,7 +568,7 @@ function handler(event) {
     };
   }
 
-  // /index.html は / にリダイレクト
+  // Redirect /index.html to /
   if (uri.endsWith('/index.html')) {
     return {
       statusCode: 301,
@@ -584,19 +584,19 @@ function handler(event) {
 ```
 
 ```bash
-# CloudFront Function を作成
+# Create a CloudFront Function
 aws cloudfront create-function \
   --name spa-url-rewrite \
   --function-config '{"Comment":"SPA URL rewrite","Runtime":"cloudfront-js-2.0"}' \
   --function-code fileb://function.js
 
-# テスト
+# Test
 aws cloudfront test-function \
   --name spa-url-rewrite \
   --if-match EXXXXX \
   --event-object fileb://test-event.json
 
-# テストイベントの例
+# Test event example
 # test-event.json:
 # {
 #   "version": "1.0",
@@ -610,12 +610,12 @@ aws cloudfront test-function \
 #   }
 # }
 
-# 公開
+# Publish
 aws cloudfront publish-function \
   --name spa-url-rewrite \
   --if-match EXXXXX
 
-# ディストリビューションのビヘイビアに関連付け
+# Associate with a distribution behavior
 aws cloudfront update-distribution --id EXXXXXXXXXX \
   --distribution-config '{
     ...
@@ -632,10 +632,10 @@ aws cloudfront update-distribution --id EXXXXXXXXXX \
   }'
 ```
 
-### 4.4 コード例: Lambda@Edge (画像リサイズ)
+### 4.4 Code Example: Lambda@Edge (Image Resizing)
 
 ```javascript
-// Origin Response で画像をリサイズ
+// Resize images in Origin Response
 const sharp = require('sharp');
 const aws = require('aws-sdk');
 const s3 = new aws.S3();
@@ -659,7 +659,7 @@ exports.handler = async (event) => {
       let pipeline = sharp(s3Response.Body)
         .resize(width, height, { fit: 'inside', withoutEnlargement: true });
 
-      // フォーマット変換
+      // Format conversion
       switch (format) {
         case 'avif':
           pipeline = pipeline.avif({ quality: 80 });
@@ -676,7 +676,7 @@ exports.handler = async (event) => {
 
       const resized = await pipeline.toBuffer();
 
-      // Lambda@Edge のレスポンスボディ上限は 1MB
+      // Lambda@Edge response body limit is 1MB
       if (resized.length < 1048576) {
         response.body = resized.toString('base64');
         response.bodyEncoding = 'base64';
@@ -690,15 +690,15 @@ exports.handler = async (event) => {
 };
 ```
 
-### 4.5 コード例: Lambda@Edge (A/B テスト)
+### 4.5 Code Example: Lambda@Edge (A/B Testing)
 
 ```javascript
-// Viewer Request で A/B テストのルーティングを行う
+// Route A/B tests in Viewer Request
 exports.handler = async (event) => {
   const request = event.Records[0].cf.request;
   const headers = request.headers;
 
-  // 既存の Cookie からバリアント判定
+  // Determine variant from existing cookie
   const cookies = headers.cookie || [];
   let variant = null;
 
@@ -710,17 +710,17 @@ exports.handler = async (event) => {
     }
   }
 
-  // Cookie がない場合、ランダムに振り分け
+  // If no cookie, randomly assign
   if (!variant) {
     variant = Math.random() < 0.5 ? 'A' : 'B';
   }
 
-  // バリアントに応じてオリジンパスを変更
+  // Change origin path based on variant
   if (variant === 'B') {
     request.origin.s3.path = '/variant-b';
   }
 
-  // カスタムヘッダーにバリアント情報を追加
+  // Add variant info to custom header
   request.headers['x-ab-variant'] = [{ key: 'X-AB-Variant', value: variant }];
 
   return request;
@@ -728,7 +728,7 @@ exports.handler = async (event) => {
 ```
 
 ```javascript
-// Viewer Response で A/B テストの Cookie を設定
+// Set A/B test cookie in Viewer Response
 exports.handler = async (event) => {
   const response = event.Records[0].cf.response;
   const request = event.Records[0].cf.request;
@@ -737,7 +737,7 @@ exports.handler = async (event) => {
     ? request.headers['x-ab-variant'][0].value
     : 'A';
 
-  // Cookie を設定（30日間有効）
+  // Set cookie (valid for 30 days)
   response.headers['set-cookie'] = response.headers['set-cookie'] || [];
   response.headers['set-cookie'].push({
     value: `ab-variant=${variant}; Path=/; Max-Age=2592000; SameSite=Lax`
@@ -754,24 +754,24 @@ exports.handler = async (event) => {
 ### 5.1 OAC vs OAI
 
 ```
-OAI (旧方式、非推奨):
-  CloudFront --- OAI (特別な IAM) ---> S3
-  制限: SSE-KMS 非対応、署名 V2、S3 のみ
+OAI (legacy, deprecated):
+  CloudFront --- OAI (special IAM) ---> S3
+  Limitations: No SSE-KMS support, Signature V2, S3 only
 
-OAC (新方式、推奨):
-  CloudFront --- OAC (SigV4 署名) ---> S3 / MediaStore / Lambda URL
-  利点:
-  - SSE-KMS 暗号化バケットに対応
-  - 署名 V4（最新の署名方式）
-  - S3 以外のオリジンタイプにも対応
-  - きめ細かいポリシー制御
-  - 全 AWS リージョンをサポート
+OAC (new, recommended):
+  CloudFront --- OAC (SigV4 signing) ---> S3 / MediaStore / Lambda URL
+  Benefits:
+  - Supports SSE-KMS encrypted buckets
+  - Signature V4 (latest signing method)
+  - Supports origin types beyond S3
+  - Fine-grained policy control
+  - Supports all AWS regions
 ```
 
-### 5.2 コード例: OAC の設定
+### 5.2 Code Example: OAC Configuration
 
 ```bash
-# OAC を作成
+# Create OAC
 OAC_ID=$(aws cloudfront create-origin-access-control \
   --origin-access-control-config '{
     "Name": "my-s3-oac",
@@ -783,7 +783,7 @@ OAC_ID=$(aws cloudfront create-origin-access-control \
 
 echo "OAC ID: $OAC_ID"
 
-# S3 バケットポリシー（CloudFront からのアクセスのみ許可）
+# S3 bucket policy (allow access only from CloudFront)
 aws s3api put-bucket-policy --bucket my-static-bucket --policy '{
   "Version": "2012-10-17",
   "Statement": [
@@ -804,8 +804,8 @@ aws s3api put-bucket-policy --bucket my-static-bucket --policy '{
   ]
 }'
 
-# SSE-KMS 暗号化バケットの場合、KMS キーポリシーも必要
-# KMS キーポリシーに CloudFront サービスプリンシパルを追加
+# For SSE-KMS encrypted buckets, a KMS key policy is also required
+# Add CloudFront service principal to the KMS key policy
 aws kms put-key-policy --key-id alias/my-s3-key --policy-name default --policy '{
   "Version": "2012-10-17",
   "Statement": [
@@ -830,10 +830,10 @@ aws kms put-key-policy --key-id alias/my-s3-key --policy-name default --policy '
 }'
 ```
 
-### 5.3 OAI から OAC への移行
+### 5.3 Migrating from OAI to OAC
 
 ```bash
-# 1. OAC を作成
+# 1. Create OAC
 OAC_ID=$(aws cloudfront create-origin-access-control \
   --origin-access-control-config '{
     "Name": "migration-oac",
@@ -842,34 +842,34 @@ OAC_ID=$(aws cloudfront create-origin-access-control \
     "SigningProtocol": "sigv4"
   }' --query 'OriginAccessControl.Id' --output text)
 
-# 2. ディストリビューションを更新（OAI → OAC）
-# ETag を取得
+# 2. Update the distribution (OAI -> OAC)
+# Get the ETag
 ETAG=$(aws cloudfront get-distribution-config --id EXXXXXXXXXX --query 'ETag' --output text)
 
-# config を取得して OAC に変更
+# Get config and switch to OAC
 aws cloudfront get-distribution-config --id EXXXXXXXXXX --query 'DistributionConfig' > dist-config.json
 
-# dist-config.json を編集:
-# Origins.Items[].S3OriginConfig.OriginAccessIdentity を "" に変更
-# Origins.Items[].OriginAccessControlId に OAC_ID を設定
+# Edit dist-config.json:
+# Change Origins.Items[].S3OriginConfig.OriginAccessIdentity to ""
+# Set Origins.Items[].OriginAccessControlId to OAC_ID
 
 aws cloudfront update-distribution \
   --id EXXXXXXXXXX \
   --if-match $ETAG \
   --distribution-config file://dist-config.json
 
-# 3. S3 バケットポリシーを OAC 用に更新
-# (上記 5.2 の AllowCloudFrontServicePrincipal を追加)
+# 3. Update the S3 bucket policy for OAC
+# (Add AllowCloudFrontServicePrincipal from section 5.2 above)
 
-# 4. 動作確認後、OAI を削除
+# 4. After verifying operation, delete the OAI
 aws cloudfront delete-cloud-front-origin-access-identity --id OAIXXXXXXXXX --if-match $OAI_ETAG
 ```
 
 ---
 
-## 6. セキュリティヘッダーとレスポンスポリシー
+## 6. Security Headers and Response Policies
 
-### 6.1 コード例: レスポンスヘッダーポリシー
+### 6.1 Code Example: Response Headers Policy
 
 ```bash
 aws cloudfront create-response-headers-policy \
@@ -934,49 +934,49 @@ aws cloudfront create-response-headers-policy \
 }'
 ```
 
-### 6.2 Server-Timing ヘッダー
+### 6.2 Server-Timing Header
 
 ```
-# Server-Timing ヘッダーの出力例
+# Server-Timing header output example
 Server-Timing: cdn-cache-hit;desc="Hit from cloudfront", cdn-upstream-layer;desc="EDGE"
 
-# SamplingRate で出力比率を制御（0-100）
-# 50 = 50% のリクエストに Server-Timing ヘッダーを付与
-# パフォーマンス測定に有用だが、本番では 1-10% 程度に設定
+# Control output ratio with SamplingRate (0-100)
+# 50 = Add Server-Timing header to 50% of requests
+# Useful for performance measurement, but set to 1-10% in production
 ```
 
 ---
 
-## 7. 署名付き URL / Cookie
+## 7. Signed URLs / Cookies
 
-### 7.1 署名付きアクセスの概要
+### 7.1 Overview of Signed Access
 
 ```
-署名付き URL vs 署名付き Cookie
+Signed URLs vs Signed Cookies
 
-署名付き URL:
-  - 単一ファイルへのアクセス制御
-  - メール等で共有する一時的なリンク
-  - 例: https://d111.cloudfront.net/premium/video.mp4?
+Signed URLs:
+  - Access control for a single file
+  - Temporary links shared via email, etc.
+  - Example: https://d111.cloudfront.net/premium/video.mp4?
         Expires=1708099200&Signature=xxxx&Key-Pair-Id=KYYY
 
-署名付き Cookie:
-  - 複数ファイルへのアクセス制御
-  - ログイン済みユーザーへの限定コンテンツ配信
-  - 例: Set-Cookie: CloudFront-Policy=xxx;
+Signed Cookies:
+  - Access control for multiple files
+  - Delivering restricted content to logged-in users
+  - Example: Set-Cookie: CloudFront-Policy=xxx;
         Set-Cookie: CloudFront-Signature=yyy;
         Set-Cookie: CloudFront-Key-Pair-Id=zzz;
 ```
 
-### 7.2 コード例: 署名付き URL の生成
+### 7.2 Code Example: Generating Signed URLs
 
 ```bash
-# CloudFront キーペアの作成（パブリックキーのアップロード）
-# まず RSA キーペアを生成
+# Create a CloudFront key pair (upload public key)
+# First, generate an RSA key pair
 openssl genrsa -out private_key.pem 2048
 openssl rsa -in private_key.pem -pubout -out public_key.pem
 
-# パブリックキーを CloudFront に登録
+# Register the public key with CloudFront
 PUBLIC_KEY_ID=$(aws cloudfront create-public-key \
   --public-key-config '{
     "CallerReference": "my-key-2024",
@@ -984,7 +984,7 @@ PUBLIC_KEY_ID=$(aws cloudfront create-public-key \
     "EncodedKey": "'"$(cat public_key.pem)"'"
   }' --query 'PublicKey.Id' --output text)
 
-# キーグループを作成
+# Create a key group
 KEY_GROUP_ID=$(aws cloudfront create-key-group \
   --key-group-config '{
     "Name": "my-key-group",
@@ -992,11 +992,11 @@ KEY_GROUP_ID=$(aws cloudfront create-key-group \
   }' --query 'KeyGroup.Id' --output text)
 
 echo "Key Group ID: $KEY_GROUP_ID"
-# ディストリビューションのビヘイビアに TrustedKeyGroups として設定
+# Set as TrustedKeyGroups in the distribution behavior
 ```
 
 ```python
-# Python で署名付き URL を生成
+# Generate a signed URL in Python
 import datetime
 from botocore.signers import CloudFrontSigner
 from cryptography.hazmat.primitives import hashes, serialization
@@ -1012,14 +1012,14 @@ def rsa_signer(message):
 key_id = 'KXXXXXXXXXX'
 cf_signer = CloudFrontSigner(key_id, rsa_signer)
 
-# 署名付き URL を生成（1時間有効）
+# Generate a signed URL (valid for 1 hour)
 url = cf_signer.generate_presigned_url(
     url='https://d111111abcdef8.cloudfront.net/premium/video.mp4',
     date_less_than=datetime.datetime.utcnow() + datetime.timedelta(hours=1)
 )
 print(url)
 
-# カスタムポリシーで IP 制限付き署名 URL を生成
+# Generate a signed URL with IP restriction using a custom policy
 from botocore.signers import CloudFrontSigner
 import json
 
@@ -1041,12 +1041,12 @@ signed_url = cf_signer.generate_presigned_url(
 
 ---
 
-## 8. 地理的制限とアクセス制御
+## 8. Geo-Restrictions and Access Control
 
-### 8.1 地理的制限の設定
+### 8.1 Geo-Restriction Configuration
 
 ```bash
-# 特定の国からのアクセスをブロック
+# Block access from specific countries
 aws cloudfront update-distribution --id EXXXXXXXXXX \
   --distribution-config '{
     ...
@@ -1059,7 +1059,7 @@ aws cloudfront update-distribution --id EXXXXXXXXXX \
     }
   }'
 
-# 特定の国のみ許可（ホワイトリスト）
+# Allow only specific countries (whitelist)
 aws cloudfront update-distribution --id EXXXXXXXXXX \
   --distribution-config '{
     ...
@@ -1073,10 +1073,10 @@ aws cloudfront update-distribution --id EXXXXXXXXXX \
   }'
 ```
 
-### 8.2 WAF 連携
+### 8.2 WAF Integration
 
 ```bash
-# WAF Web ACL を CloudFront に関連付け
+# Associate a WAF Web ACL with CloudFront
 aws wafv2 create-web-acl \
   --name cloudfront-waf \
   --scope CLOUDFRONT \
@@ -1138,15 +1138,15 @@ aws wafv2 create-web-acl \
     "MetricName": "cloudfront-waf"
   }'
 
-# WAF Web ACL をディストリビューションに関連付け
-# ディストリビューション作成/更新時に WebACLId を指定
+# Associate the WAF Web ACL with the distribution
+# Specify WebACLId when creating/updating the distribution
 ```
 
 ---
 
-## 9. CloudFormation / CDK による構築
+## 9. Building with CloudFormation / CDK
 
-### 9.1 CloudFormation テンプレート
+### 9.1 CloudFormation Template
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
@@ -1155,19 +1155,19 @@ Description: CloudFront Distribution with S3 + ALB origins, OAC, WAF
 Parameters:
   DomainName:
     Type: String
-    Description: カスタムドメイン名
+    Description: Custom domain name
   CertificateArn:
     Type: String
-    Description: ACM 証明書 ARN (us-east-1)
+    Description: ACM certificate ARN (us-east-1)
   AlbDomainName:
     Type: String
-    Description: ALB のドメイン名
+    Description: ALB domain name
   HostedZoneId:
     Type: String
-    Description: Route 53 ホストゾーン ID
+    Description: Route 53 hosted zone ID
 
 Resources:
-  # S3 バケット（静的コンテンツ）
+  # S3 Bucket (static content)
   StaticBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -1182,7 +1182,7 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
 
-  # S3 バケットポリシー
+  # S3 Bucket Policy
   StaticBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -1209,7 +1209,7 @@ Resources:
         SigningBehavior: always
         SigningProtocol: sigv4
 
-  # キャッシュポリシー（静的コンテンツ）
+  # Cache Policy (static content)
   StaticCachePolicy:
     Type: AWS::CloudFront::CachePolicy
     Properties:
@@ -1231,7 +1231,7 @@ Resources:
               - v
               - ver
 
-  # レスポンスヘッダーポリシー
+  # Response Headers Policy
   SecurityHeadersPolicy:
     Type: AWS::CloudFront::ResponseHeadersPolicy
     Properties:
@@ -1252,7 +1252,7 @@ Resources:
             ReferrerPolicy: strict-origin-when-cross-origin
             Override: true
 
-  # CloudFront Function (SPA URL 書き換え)
+  # CloudFront Function (SPA URL rewrite)
   SpaRewriteFunction:
     Type: AWS::CloudFront::Function
     Properties:
@@ -1271,7 +1271,7 @@ Resources:
           return request;
         }
 
-  # ディストリビューション
+  # Distribution
   Distribution:
     Type: AWS::CloudFront::Distribution
     Properties:
@@ -1342,7 +1342,7 @@ Resources:
             ResponsePagePath: /index.html
             ErrorCachingMinTTL: 10
 
-  # Route 53 レコード
+  # Route 53 Record
   DnsRecord:
     Type: AWS::Route53::RecordSet
     Properties:
@@ -1351,7 +1351,7 @@ Resources:
       Type: A
       AliasTarget:
         DNSName: !GetAtt Distribution.DomainName
-        HostedZoneId: Z2FDTNDATAQYW2  # CloudFront のグローバルホストゾーン ID
+        HostedZoneId: Z2FDTNDATAQYW2  # CloudFront global hosted zone ID
 
 Outputs:
   DistributionId:
@@ -1362,7 +1362,7 @@ Outputs:
     Value: !Ref StaticBucket
 ```
 
-### 9.2 CDK (TypeScript) による構築
+### 9.2 Building with CDK (TypeScript)
 
 ```typescript
 import * as cdk from 'aws-cdk-lib';
@@ -1386,25 +1386,25 @@ export class CloudFrontStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: CloudFrontStackProps) {
     super(scope, id, props);
 
-    // S3 バケット
+    // S3 Bucket
     const bucket = new s3.Bucket(this, 'StaticBucket', {
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // ACM 証明書（us-east-1 が必要）
+    // ACM Certificate (us-east-1 required)
     const certificate = acm.Certificate.fromCertificateArn(
       this, 'Cert',
       `arn:aws:acm:us-east-1:${this.account}:certificate/xxx`
     );
 
-    // ALB の参照
+    // ALB Reference
     const alb = elbv2.ApplicationLoadBalancer.fromLookup(this, 'ALB', {
       loadBalancerArn: props.albArn,
     });
 
-    // CloudFront Function（SPA 書き換え）
+    // CloudFront Function (SPA rewrite)
     const spaRewrite = new cloudfront.Function(this, 'SpaRewrite', {
       code: cloudfront.FunctionCode.fromInline(`
         function handler(event) {
@@ -1418,7 +1418,7 @@ export class CloudFrontStack extends cdk.Stack {
       runtime: cloudfront.FunctionRuntime.JS_2_0,
     });
 
-    // レスポンスヘッダーポリシー
+    // Response Headers Policy
     const responseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
       securityHeadersBehavior: {
         strictTransportSecurity: {
@@ -1439,7 +1439,7 @@ export class CloudFrontStack extends cdk.Stack {
       },
     });
 
-    // ディストリビューション
+    // Distribution
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(bucket),
@@ -1476,7 +1476,7 @@ export class CloudFrontStack extends cdk.Stack {
       ],
     });
 
-    // Route 53 レコード
+    // Route 53 Record
     const hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'Zone', {
       hostedZoneId: props.hostedZoneId,
       zoneName: props.zoneName,
@@ -1488,7 +1488,7 @@ export class CloudFrontStack extends cdk.Stack {
       target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution)),
     });
 
-    // 出力
+    // Outputs
     new cdk.CfnOutput(this, 'DistributionId', { value: distribution.distributionId });
     new cdk.CfnOutput(this, 'BucketName', { value: bucket.bucketName });
   }
@@ -1497,12 +1497,12 @@ export class CloudFrontStack extends cdk.Stack {
 
 ---
 
-## 10. 監視とトラブルシューティング
+## 10. Monitoring and Troubleshooting
 
-### 10.1 CloudWatch メトリクス
+### 10.1 CloudWatch Metrics
 
 ```bash
-# リクエスト数の取得
+# Get request count
 aws cloudwatch get-metric-statistics \
   --namespace AWS/CloudFront \
   --metric-name Requests \
@@ -1512,17 +1512,17 @@ aws cloudwatch get-metric-statistics \
   --period 3600 \
   --statistics Sum
 
-# 主要メトリクス一覧
-# Requests:         リクエスト総数
-# BytesDownloaded:  ダウンロードバイト数
-# BytesUploaded:    アップロードバイト数
-# TotalErrorRate:   全エラー率
-# 4xxErrorRate:     4xx エラー率
-# 5xxErrorRate:     5xx エラー率
-# CacheHitRate:     キャッシュヒット率
-# OriginLatency:    オリジンレイテンシ
+# Key metrics list
+# Requests:         Total request count
+# BytesDownloaded:  Downloaded bytes
+# BytesUploaded:    Uploaded bytes
+# TotalErrorRate:   Total error rate
+# 4xxErrorRate:     4xx error rate
+# 5xxErrorRate:     5xx error rate
+# CacheHitRate:     Cache hit rate
+# OriginLatency:    Origin latency
 
-# CloudWatch アラームの設定（5xx エラー率）
+# Set up a CloudWatch alarm (5xx error rate)
 aws cloudwatch put-metric-alarm \
   --alarm-name "CloudFront-5xx-Error-Rate" \
   --metric-name 5xxErrorRate \
@@ -1536,10 +1536,10 @@ aws cloudwatch put-metric-alarm \
   --alarm-actions "arn:aws:sns:us-east-1:123456789012:alerts"
 ```
 
-### 10.2 CloudFront ログの分析
+### 10.2 CloudFront Log Analysis
 
 ```bash
-# 標準ログ（S3 配信）の有効化
+# Enable standard logs (S3 delivery)
 aws cloudfront update-distribution --id EXXXXXXXXXX \
   --distribution-config '{
     ...
@@ -1551,7 +1551,7 @@ aws cloudfront update-distribution --id EXXXXXXXXXX \
     }
   }'
 
-# リアルタイムログの設定（Kinesis Data Streams 連携）
+# Set up real-time logs (Kinesis Data Streams integration)
 aws cloudfront create-realtime-log-config \
   --name production-realtime-logs \
   --sampling-rate 100 \
@@ -1564,8 +1564,8 @@ aws cloudfront create-realtime-log-config \
     }
   }]'
 
-# Athena で標準ログを分析
-# テーブル作成
+# Analyze standard logs with Athena
+# Create table
 # CREATE EXTERNAL TABLE cloudfront_logs (
 #   `date` date, time string, x_edge_location string,
 #   sc_bytes bigint, c_ip string, cs_method string,
@@ -1586,7 +1586,7 @@ aws cloudfront create-realtime-log-config \
 # LOCATION 's3://my-cf-logs/production/'
 # TBLPROPERTIES ('skip.header.line.count'='2');
 
-# 上位 404 パスの集計
+# Aggregate top 404 paths
 # SELECT cs_uri_stem, COUNT(*) as cnt
 # FROM cloudfront_logs
 # WHERE sc_status = 404
@@ -1596,97 +1596,97 @@ aws cloudfront create-realtime-log-config \
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### アンチパターン 1: API レスポンスを長時間キャッシュする
+### Anti-Pattern 1: Caching API Responses for Long Periods
 
-動的な API レスポンスを長い TTL でキャッシュすると、ユーザーに古いデータが返り続ける。API はキャッシュ無効 (`CachingDisabled`) か短い TTL を設定すべきである。
-
-```
-# 悪い例
-/api/* → CachingOptimized (TTL: 24時間)
-→ ユーザー情報が24時間古いまま
-
-# 良い例
-/api/* → CachingDisabled (キャッシュなし)
-/static/* → CachingOptimized (TTL: 24時間)
-/api/public/* → カスタムポリシー (TTL: 5秒)  ← 公開 API は短い TTL
-```
-
-### アンチパターン 2: OAI (旧方式) を新規構成で使い続ける
-
-OAI は SSE-KMS 暗号化バケットに対応しておらず、SigV2 ベースで将来的な廃止が予想される。新規構成では必ず OAC を使用すべきである。
-
-### アンチパターン 3: Invalidation を頻繁に使う
+Caching dynamic API responses with a long TTL causes stale data to be returned to users. APIs should use cache disabled (`CachingDisabled`) or a short TTL.
 
 ```
-# 悪い例
-デプロイのたびに /* を Invalidation
-→ 月 1,000 パスを超えると課金
-→ 全 Edge Location への伝播に数分かかる
+# Bad example
+/api/* -> CachingOptimized (TTL: 24 hours)
+-> User information remains stale for 24 hours
 
-# 良い例
-ファイル名にコンテンツハッシュを含める
+# Good example
+/api/* -> CachingDisabled (no cache)
+/static/* -> CachingOptimized (TTL: 24 hours)
+/api/public/* -> Custom policy (TTL: 5 seconds)  <- Short TTL for public APIs
+```
+
+### Anti-Pattern 2: Continuing to Use OAI (Legacy) in New Configurations
+
+OAI does not support SSE-KMS encrypted buckets, is based on SigV2, and is expected to be deprecated in the future. Always use OAC for new configurations.
+
+### Anti-Pattern 3: Frequent Use of Invalidation
+
+```
+# Bad example
+Invalidate /* with every deployment
+-> Charges apply beyond 1,000 paths per month
+-> Propagation to all Edge Locations takes several minutes
+
+# Good example
+Include content hashes in file names
 app.abc123.js, styles.def456.css
-→ ファイル名が変わるのでキャッシュが自然に更新される
-→ index.html のみ短い TTL を設定
+-> Cache naturally updates as file names change
+-> Set only a short TTL for index.html
 ```
 
-### アンチパターン 4: キャッシュキーに不要な要素を含める
+### Anti-Pattern 4: Including Unnecessary Elements in Cache Keys
 
 ```
-# 悪い例
-全てのヘッダーとクエリ文字列をキャッシュキーに含める
-→ ヘッダーの微差でキャッシュミス（ヒット率低下）
-→ 同じコンテンツが異なるキーで重複キャッシュ
+# Bad example
+Include all headers and query strings in the cache key
+-> Cache misses due to minor header differences (lower hit rate)
+-> Same content cached under different keys
 
-# 良い例
-必要最小限のキャッシュキーを設定
-- 静的コンテンツ: ヘッダーなし、Cookie なし、クエリ文字列なし
-- API: Authorization ヘッダー + 全クエリ文字列
+# Good example
+Set minimal cache keys
+- Static content: No headers, no cookies, no query strings
+- API: Authorization header + all query strings
 ```
 
-### アンチパターン 5: カスタムエラーページを設定しない
+### Anti-Pattern 5: Not Configuring Custom Error Pages
 
 ```
-# 悪い例
-S3 オリジンで存在しないパスにアクセス
-→ 403 Forbidden の XML エラーが表示される
-→ ユーザー体験が悪い
+# Bad example
+Accessing a non-existent path on an S3 origin
+-> XML 403 Forbidden error is displayed
+-> Poor user experience
 
-# 良い例
-CustomErrorResponses で 403/404 を /index.html (200) にマップ
-→ SPA がクライアント側でルーティング処理
-→ カスタム 404 ページを表示
+# Good example
+Map 403/404 to /index.html (200) with CustomErrorResponses
+-> SPA handles routing on the client side
+-> Display a custom 404 page
 ```
 
 ---
 
 ## 12. FAQ
 
-### Q1. CloudFront の料金体系は？
+### Q1. What is CloudFront's pricing structure?
 
-主に (1) データ転送量 (GB あたり)、(2) HTTP/HTTPS リクエスト数、(3) Lambda@Edge / CloudFront Functions 実行数で課金される。価格クラスを制限 (PriceClass_100 など) すると、一部リージョンの Edge を除外しコストを削減できる。Shield Standard（DDoS 防御）は無料で含まれる。
+Charges are primarily based on (1) data transfer volume (per GB), (2) number of HTTP/HTTPS requests, and (3) Lambda@Edge / CloudFront Functions invocations. Restricting the price class (e.g., PriceClass_100) excludes Edge Locations in some regions to reduce costs. Shield Standard (DDoS protection) is included at no charge.
 
-### Q2. キャッシュ無効化 (Invalidation) のコストは？
+### Q2. What is the cost of cache invalidation?
 
-月間 1,000 パスまで無料、それ以降は 1 パスあたり $0.005。`/*` は 1 パスとしてカウントされる。頻繁な無効化が必要な場合は、ファイル名にバージョン文字列（例: `app.abc123.js`）を含める方が効率的。
+Free up to 1,000 paths per month, then $0.005 per path. `/*` counts as 1 path. If frequent invalidation is needed, including version strings in file names (e.g., `app.abc123.js`) is more efficient.
 
-### Q3. CloudFront で SPA (React / Vue) を配信する際の注意点は？
+### Q3. What should I be aware of when serving an SPA (React / Vue) with CloudFront?
 
-CloudFront Functions で URL 書き換えを行い、拡張子のないパス (`/about`, `/users/123`) を `/index.html` にフォールバックさせる。カスタムエラーページで 403/404 を `index.html` にリダイレクトする方法もあるが、CloudFront Functions の方が柔軟。HTTP/2 と Brotli 圧縮を有効にするとパフォーマンスが大幅に向上する。
+Use CloudFront Functions for URL rewriting to fall back paths without extensions (`/about`, `/users/123`) to `/index.html`. You can also redirect 403/404 to `index.html` using custom error pages, but CloudFront Functions offer more flexibility. Enabling HTTP/2 and Brotli compression significantly improves performance.
 
-### Q4. CloudFront と S3 の静的ウェブサイトホスティングの違いは？
+### Q4. What is the difference between CloudFront and S3 static website hosting?
 
-S3 静的ウェブサイトホスティングは HTTP のみで HTTPS 非対応、カスタムドメインの HTTPS にはCloudFront が必須。CloudFront は HTTPS、HTTP/2、HTTP/3、Brotli 圧縮、地理的制限、WAF 連携など多くの機能を提供する。コスト面でも、CloudFront 経由の S3 アクセスはデータ転送料金が無料になるため、直接 S3 からの配信よりも安くなる場合がある。
+S3 static website hosting supports only HTTP, not HTTPS. CloudFront is required for HTTPS with custom domains. CloudFront provides many features including HTTPS, HTTP/2, HTTP/3, Brotli compression, geo-restrictions, and WAF integration. In terms of cost, S3 access via CloudFront has free data transfer charges, which can be cheaper than serving directly from S3.
 
-### Q5. CloudFront の HTTP/3 (QUIC) を有効にするには？
+### Q5. How do I enable HTTP/3 (QUIC) on CloudFront?
 
-ディストリビューションの設定で `HttpVersion` を `http2and3` に設定するだけで有効化できる。HTTP/3 はクライアントが対応していれば自動的に使用され、非対応の場合は HTTP/2 にフォールバックする。
+Simply set `HttpVersion` to `http2and3` in the distribution settings to enable it. HTTP/3 is automatically used when the client supports it, falling back to HTTP/2 for unsupported clients.
 
 ```bash
-# HTTP/3 の有効化
-# ディストリビューション作成/更新時に HttpVersion を設定
+# Enable HTTP/3
+# Set HttpVersion when creating/updating the distribution
 aws cloudfront update-distribution --id EXXXXXXXXXX \
   --distribution-config '{
     ...
@@ -1694,18 +1694,18 @@ aws cloudfront update-distribution --id EXXXXXXXXXX \
   }'
 ```
 
-### Q6. CloudFront のキャッシュが反映されているか確認する方法は？
+### Q6. How can I verify that CloudFront caching is working?
 
 ```bash
-# curl でレスポンスヘッダーを確認
+# Check response headers with curl
 curl -I https://www.example.com/index.html
 
-# チェックすべきヘッダー:
-# X-Cache: Hit from cloudfront  → キャッシュヒット
-# X-Cache: Miss from cloudfront → キャッシュミス
-# X-Cache: RefreshHit from cloudfront → TTL 切れ後の再取得
-# Age: 3600 → キャッシュされてからの秒数
-# X-Amz-Cf-Pop: NRT52-C4 → Edge Location の識別子
+# Headers to check:
+# X-Cache: Hit from cloudfront  -> Cache hit
+# X-Cache: Miss from cloudfront -> Cache miss
+# X-Cache: RefreshHit from cloudfront -> Re-fetch after TTL expiry
+# Age: 3600 -> Seconds since cached
+# X-Amz-Cf-Pop: NRT52-C4 -> Edge Location identifier
 ```
 
 ---
@@ -1713,50 +1713,50 @@ curl -I https://www.example.com/index.html
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 13. まとめ
+## 13. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| Edge Location | 400+ 拠点、ユーザーに最も近い場所からコンテンツ配信 |
-| オリジン | S3 (静的) + ALB (動的) のマルチオリジン構成が一般的 |
-| フェイルオーバー | Origin Group で Primary/Secondary の自動切替 |
-| キャッシュ | 静的=長 TTL、動的=キャッシュ無効、バージョン付きファイル名推奨 |
-| Lambda@Edge | 認証、A/B テスト、画像リサイズ等のエッジ処理 |
-| CloudFront Functions | URL 書き換え、ヘッダー操作（軽量・安価） |
-| OAC | S3 オリジンへのセキュアアクセス（OAI より推奨） |
-| セキュリティ | レスポンスヘッダーポリシー + WAF 連携 + 署名付き URL/Cookie |
-| 監視 | CloudWatch メトリクス + 標準ログ + リアルタイムログ |
-| IaC | CloudFormation / CDK で宣言的に管理 |
+| Edge Location | 400+ locations, delivering content from the closest point to the user |
+| Origin | Multi-origin configuration with S3 (static) + ALB (dynamic) is common |
+| Failover | Automatic Primary/Secondary switching with Origin Groups |
+| Cache | Static=long TTL, dynamic=no cache, versioned file names recommended |
+| Lambda@Edge | Edge processing for authentication, A/B testing, image resizing, etc. |
+| CloudFront Functions | URL rewriting, header manipulation (lightweight and inexpensive) |
+| OAC | Secure access to S3 origins (preferred over OAI) |
+| Security | Response headers policy + WAF integration + signed URLs/Cookies |
+| Monitoring | CloudWatch metrics + standard logs + real-time logs |
+| IaC | Declarative management with CloudFormation / CDK |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [../03-database/00-rds-basics.md](../03-database/00-rds-basics.md) — RDS の基礎
-- [../04-networking/01-route53.md](../04-networking/01-route53.md) — Route 53 DNS 設定
+- [../03-database/00-rds-basics.md](../03-database/00-rds-basics.md) — RDS Basics
+- [../04-networking/01-route53.md](../04-networking/01-route53.md) — Route 53 DNS Configuration
 
 ---
 
-## 参考文献
+## References
 
-1. Amazon CloudFront 開発者ガイド — https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/
-2. CloudFront キャッシュポリシー — https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/controlling-the-cache-key.html
-3. Lambda@Edge 開発者ガイド — https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/lambda-at-the-edge.html
-4. OAC ユーザーガイド — https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html
-5. CloudFront Functions 開発者ガイド — https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cloudfront-functions.html
-6. CloudFront 署名付き URL — https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-urls.html
-7. AWS WAF と CloudFront の統合 — https://docs.aws.amazon.com/waf/latest/developerguide/cloudfront-features.html
+1. Amazon CloudFront Developer Guide — https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/
+2. CloudFront Cache Policies — https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/controlling-the-cache-key.html
+3. Lambda@Edge Developer Guide — https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/lambda-at-the-edge.html
+4. OAC User Guide — https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html
+5. CloudFront Functions Developer Guide — https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cloudfront-functions.html
+6. CloudFront Signed URLs — https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-urls.html
+7. AWS WAF and CloudFront Integration — https://docs.aws.amazon.com/waf/latest/developerguide/cloudfront-features.html
