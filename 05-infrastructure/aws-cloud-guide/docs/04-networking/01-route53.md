@@ -1,145 +1,145 @@
 # Amazon Route 53
 
-> AWS のフルマネージド DNS サービスを理解し、ドメイン管理・ルーティングポリシー・ヘルスチェックを活用した高可用性アーキテクチャを構築する
+> Understand AWS's fully managed DNS service and build highly available architectures leveraging domain management, routing policies, and health checks
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **Route 53 の基本概念** — ホストゾーン、レコードタイプ、DNS 解決の仕組み
-2. **ルーティングポリシー** — シンプル、加重、レイテンシ、フェイルオーバー、位置情報ルーティング
-3. **ヘルスチェックと DNS フェイルオーバー** — エンドポイント監視と自動切替
-4. **ドメイン管理** — ドメイン登録、移管、DNSSEC の設定
-5. **Traffic Flow** — ビジュアルエディタによる高度なルーティング設計
-6. **Resolver** — ハイブリッド DNS とオンプレミス連携
+1. **Route 53 Fundamentals** -- Hosted zones, record types, and how DNS resolution works
+2. **Routing Policies** -- Simple, weighted, latency, failover, and geolocation routing
+3. **Health Checks and DNS Failover** -- Endpoint monitoring and automatic switchover
+4. **Domain Management** -- Domain registration, transfers, and DNSSEC configuration
+5. **Traffic Flow** -- Advanced routing design with the visual editor
+6. **Resolver** -- Hybrid DNS and on-premises integration
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Amazon VPC 基礎](./00-vpc-basics.md) の内容を理解していること
-
----
-
-## 1. Route 53 とは
-
-Route 53 は AWS のスケーラブルな DNS サービスで、ドメイン登録、DNS ルーティング、ヘルスチェックの 3 つの機能を提供する。100% の可用性 SLA を持つ唯一の AWS サービスである。
-
-### 図解 1: DNS 解決の流れ
-
-```
-ユーザーが www.example.com にアクセス:
-
-  ブラウザ
-    │
-    ▼
-  ┌──────────────────┐
-  │ ローカル DNS      │ ← キャッシュあれば即返却
-  │ リゾルバ          │
-  └────────┬─────────┘
-           │ キャッシュなし
-           ▼
-  ┌──────────────────┐
-  │ ルート DNS        │ → .com の権威サーバーを返却
-  │ サーバー (.)      │
-  └────────┬─────────┘
-           ▼
-  ┌──────────────────┐
-  │ TLD DNS サーバー   │ → example.com の NS を返却
-  │ (.com)            │
-  └────────┬─────────┘
-           ▼
-  ┌──────────────────┐
-  │ Route 53          │ → www.example.com の IP を返却
-  │ (権威 DNS)        │    (ルーティングポリシーに基づく)
-  │                   │
-  │ Hosted Zone:      │
-  │ example.com       │
-  └────────┬─────────┘
-           │
-           ▼
-  ブラウザが IP で接続 → ALB/CloudFront/EC2
-```
-
-### Route 53 の料金体系
-
-| 項目 | 料金 |
-|------|------|
-| ホストゾーン | $0.50/月（最初の25ゾーン） |
-| DNS クエリ（標準） | $0.40/100万クエリ |
-| DNS クエリ（Alias） | 無料（AWS リソース宛） |
-| DNS クエリ（レイテンシ） | $0.60/100万クエリ |
-| DNS クエリ（Geo） | $0.70/100万クエリ |
-| ヘルスチェック（基本） | $0.50/月 |
-| ヘルスチェック（HTTPS） | $0.75/月 |
-| ヘルスチェック（文字列検索付き） | $1.00/月 |
-| ドメイン登録（.com） | ~$13/年 |
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Familiarity with the content in [Amazon VPC Basics](./00-vpc-basics.md)
 
 ---
 
-## 2. ホストゾーンとレコード
+## 1. What Is Route 53
 
-### パブリック vs プライベートホストゾーン
+Route 53 is AWS's scalable DNS service that provides three functions: domain registration, DNS routing, and health checks. It is the only AWS service with a 100% availability SLA.
+
+### Diagram 1: DNS Resolution Flow
 
 ```
-パブリックホストゾーン:
+User accesses www.example.com:
+
+  Browser
+    |
+    v
+  +--------------------+
+  | Local DNS           | <-- Returns immediately if cached
+  | Resolver            |
+  +--------+-----------+
+           | Cache miss
+           v
+  +--------------------+
+  | Root DNS            | --> Returns authoritative server for .com
+  | Server (.)          |
+  +--------+-----------+
+           v
+  +--------------------+
+  | TLD DNS Server      | --> Returns NS for example.com
+  | (.com)              |
+  +--------+-----------+
+           v
+  +--------------------+
+  | Route 53            | --> Returns IP for www.example.com
+  | (Authoritative DNS) |    (Based on routing policy)
+  |                     |
+  | Hosted Zone:        |
+  | example.com         |
+  +--------+-----------+
+           |
+           v
+  Browser connects via IP --> ALB/CloudFront/EC2
+```
+
+### Route 53 Pricing
+
+| Item | Price |
+|------|-------|
+| Hosted Zone | $0.50/month (first 25 zones) |
+| DNS Queries (Standard) | $0.40/million queries |
+| DNS Queries (Alias) | Free (for AWS resources) |
+| DNS Queries (Latency) | $0.60/million queries |
+| DNS Queries (Geo) | $0.70/million queries |
+| Health Check (Basic) | $0.50/month |
+| Health Check (HTTPS) | $0.75/month |
+| Health Check (with String Matching) | $1.00/month |
+| Domain Registration (.com) | ~$13/year |
+
+---
+
+## 2. Hosted Zones and Records
+
+### Public vs Private Hosted Zones
+
+```
+Public Hosted Zone:
 ======================
-  インターネット上のどこからでも DNS 解決可能
-  example.com → 203.0.113.10
+  DNS resolution available from anywhere on the internet
+  example.com --> 203.0.113.10
 
-プライベートホストゾーン:
+Private Hosted Zone:
 ========================
-  VPC 内部からのみ DNS 解決可能
-  internal.example.com → 10.0.1.50
+  DNS resolution available only from within the VPC
+  internal.example.com --> 10.0.1.50
 
-  複数の VPC を関連付け可能:
-  ┌───────────────────────────────────────┐
-  │ Private Hosted Zone                   │
-  │ internal.example.com                  │
-  │                                       │
-  │  ┌─── VPC-A (ap-northeast-1)         │
-  │  ├─── VPC-B (ap-northeast-1)         │
-  │  └─── VPC-C (us-east-1)             │
-  └───────────────────────────────────────┘
+  Can associate multiple VPCs:
+  +---------------------------------------+
+  | Private Hosted Zone                   |
+  | internal.example.com                  |
+  |                                       |
+  |  +--- VPC-A (ap-northeast-1)         |
+  |  +--- VPC-B (ap-northeast-1)         |
+  |  +--- VPC-C (us-east-1)             |
+  +---------------------------------------+
 ```
 
-### コード例 1: ホストゾーンの作成
+### Code Example 1: Creating a Hosted Zone
 
 ```bash
-# パブリックホストゾーンの作成
+# Create a public hosted zone
 aws route53 create-hosted-zone \
   --name example.com \
   --caller-reference "$(date +%s)" \
   --hosted-zone-config Comment="Production zone"
 
-# プライベートホストゾーンの作成（VPC 内部用）
+# Create a private hosted zone (for internal VPC use)
 aws route53 create-hosted-zone \
   --name internal.example.com \
   --caller-reference "$(date +%s)" \
   --vpc VPCRegion=ap-northeast-1,VPCId=vpc-0abc1234 \
   --hosted-zone-config Comment="Internal DNS",PrivateZone=true
 
-# プライベートホストゾーンに追加の VPC を関連付け
+# Associate an additional VPC with the private hosted zone
 aws route53 associate-vpc-with-hosted-zone \
   --hosted-zone-id Z0123456789ABCDEF \
   --vpc VPCRegion=ap-northeast-1,VPCId=vpc-0def5678
 
-# ホストゾーン一覧の取得
+# List hosted zones
 aws route53 list-hosted-zones \
   --query 'HostedZones[*].{Name:Name,Id:Id,Private:Config.PrivateZone}' \
   --output table
 
-# ホストゾーンのレコード一覧
+# List records in a hosted zone
 aws route53 list-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --output table
 ```
 
-### コード例 2: DNS レコードの登録
+### Code Example 2: Registering DNS Records
 
 ```bash
-# A レコード（ALB の Alias）
+# A record (ALB Alias)
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -157,7 +157,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# AAAA レコード（IPv6 Alias）
+# AAAA record (IPv6 Alias)
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -175,7 +175,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# MX レコード（メール）
+# MX record (Mail)
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -193,7 +193,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# TXT レコード（SPF/DKIM）
+# TXT record (SPF/DKIM)
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -210,7 +210,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# CNAME レコード（外部サービス）
+# CNAME record (External service)
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -227,7 +227,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# CAA レコード（証明書認証局制限）
+# CAA record (Certificate Authority restriction)
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -247,7 +247,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# 複数レコードの一括変更
+# Batch change of multiple records
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -281,75 +281,76 @@ aws route53 change-resource-record-sets \
   }'
 ```
 
-### レコードタイプ一覧
+### Record Type Reference
 
 ```
-┌──────────┬──────────────────────────────────────┐
-│ レコード │ 用途                                 │
-├──────────┼──────────────────────────────────────┤
-│ A        │ IPv4 アドレス                        │
-│ AAAA     │ IPv6 アドレス                        │
-│ CNAME    │ 別ドメインへの転送（Zone Apex 不可） │
-│ Alias    │ AWS リソースへのエイリアス（推奨）   │
-│ MX       │ メールサーバー                       │
-│ TXT      │ テキスト（SPF, DKIM, 検証用）        │
-│ NS       │ ネームサーバー                       │
-│ SOA      │ ゾーン管理情報                       │
-│ SRV      │ サービスロケーション                 │
-│ CAA      │ 証明書認証局制限                     │
-│ NAPTR    │ Name Authority Pointer               │
-│ DS       │ DNSSEC 委任署名者                    │
-└──────────┴──────────────────────────────────────┘
++----------+--------------------------------------+
+| Record   | Purpose                              |
++----------+--------------------------------------+
+| A        | IPv4 address                         |
+| AAAA     | IPv6 address                         |
+| CNAME    | Redirect to another domain           |
+|          | (not allowed at Zone Apex)           |
+| Alias    | Alias to AWS resource (recommended)  |
+| MX       | Mail server                          |
+| TXT      | Text (SPF, DKIM, verification)       |
+| NS       | Name server                          |
+| SOA      | Zone management information          |
+| SRV      | Service location                     |
+| CAA      | Certificate Authority restriction    |
+| NAPTR    | Name Authority Pointer               |
+| DS       | DNSSEC Delegation Signer             |
++----------+--------------------------------------+
 ```
 
 ---
 
-## 3. ルーティングポリシー
+## 3. Routing Policies
 
-### 図解 2: ルーティングポリシーの比較
+### Diagram 2: Routing Policy Comparison
 
 ```
-1. Simple (シンプル):
-   DNS Query → 1 つの値を返却（複数値ならランダム）
+1. Simple:
+   DNS Query --> Returns a single value (random if multiple values)
 
-2. Weighted (加重):
-   DNS Query → 重みに基づいて分散
-   ┌─ 70% → us-east-1 (v2)
-   └─ 30% → us-east-1 (v1)   ← カナリアデプロイに最適
+2. Weighted:
+   DNS Query --> Distributes based on weight
+   +-- 70% --> us-east-1 (v2)
+   +-- 30% --> us-east-1 (v1)   <-- Ideal for canary deployments
 
-3. Latency (レイテンシ):
-   DNS Query → 最もレイテンシが低いリージョンに振分
-   東京ユーザー → ap-northeast-1
-   米国ユーザー → us-east-1
+3. Latency:
+   DNS Query --> Routes to the region with lowest latency
+   Tokyo user --> ap-northeast-1
+   US user --> us-east-1
 
-4. Failover (フェイルオーバー):
-   DNS Query → Primary 正常なら Primary、異常なら Secondary
-   ┌─ Primary (ap-northeast-1)  ← ヘルスチェック OK
-   └─ Secondary (us-west-2)     ← Primary 異常時に切替
+4. Failover:
+   DNS Query --> Primary if healthy, Secondary if unhealthy
+   +-- Primary (ap-northeast-1)  <-- Health check OK
+   +-- Secondary (us-west-2)     <-- Switches when Primary is unhealthy
 
-5. Geolocation (地理的位置):
-   DNS Query → ユーザーの地理的位置に基づいて振分
-   日本 → ap-northeast-1
-   米国 → us-east-1
-   デフォルト → eu-west-1
+5. Geolocation:
+   DNS Query --> Routes based on user's geographic location
+   Japan --> ap-northeast-1
+   US --> us-east-1
+   Default --> eu-west-1
 
 6. Multivalue Answer:
-   DNS Query → 最大 8 個の正常なレコードを返却
-   ※ ヘルスチェック付きの簡易ロードバランシング
+   DNS Query --> Returns up to 8 healthy records
+   * Simple load balancing with health checks
 
-7. Geoproximity (地理的近接性):
-   DNS Query → バイアス値で地理的範囲を調整
-   ※ Traffic Flow でのみ使用可能
+7. Geoproximity:
+   DNS Query --> Adjusts geographic range with bias values
+   * Only available with Traffic Flow
 
-8. IP-based (IPベース):
-   DNS Query → クライアント IP の CIDR 範囲に基づいて振分
-   ※ ISP 毎の最適なルーティング等に使用
+8. IP-based:
+   DNS Query --> Routes based on client IP CIDR range
+   * Used for ISP-specific optimal routing, etc.
 ```
 
-### コード例 3: 加重ルーティング（カナリアデプロイ）
+### Code Example 3: Weighted Routing (Canary Deployment)
 
 ```bash
-# v2（新バージョン）に 90% の重みを設定
+# Set 90% weight for v2 (new version)
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -369,7 +370,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# v1（旧バージョン）に 10% の重みを設定
+# Set 10% weight for v1 (old version)
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -389,8 +390,8 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# カナリアデプロイの段階的な重み変更
-# Phase 1: 90/10 → Phase 2: 70/30 → Phase 3: 0/100
+# Gradual weight change for canary deployment
+# Phase 1: 90/10 --> Phase 2: 70/30 --> Phase 3: 0/100
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -425,10 +426,10 @@ aws route53 change-resource-record-sets \
   }'
 ```
 
-### コード例 3b: レイテンシルーティング
+### Code Example 3b: Latency Routing
 
 ```bash
-# 東京リージョン
+# Tokyo region
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -448,7 +449,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# バージニアリージョン
+# Virginia region
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -468,7 +469,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# フランクフルトリージョン
+# Frankfurt region
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -489,10 +490,10 @@ aws route53 change-resource-record-sets \
   }'
 ```
 
-### コード例 4: フェイルオーバールーティング
+### Code Example 4: Failover Routing
 
 ```bash
-# ヘルスチェックの作成
+# Create a health check
 aws route53 create-health-check \
   --caller-reference "primary-$(date +%s)" \
   --health-check-config '{
@@ -505,9 +506,9 @@ aws route53 create-health-check \
     "EnableSNI": true,
     "FullyQualifiedDomainName": "api.example.com"
   }'
-# → HealthCheckId: hc-primary-001
+# --> HealthCheckId: hc-primary-001
 
-# Primary レコード
+# Primary record
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -528,7 +529,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# Secondary レコード（DR リージョン）
+# Secondary record (DR region)
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -548,7 +549,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# S3 静的ウェブサイトを Secondary（メンテナンスページ）に使用
+# Use S3 static website as Secondary (maintenance page)
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -569,10 +570,10 @@ aws route53 change-resource-record-sets \
   }'
 ```
 
-### コード例 4b: 地理的位置ルーティング
+### Code Example 4b: Geolocation Routing
 
 ```bash
-# 日本からのアクセス → 東京リージョン
+# Access from Japan --> Tokyo region
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -594,7 +595,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# 米国からのアクセス → バージニアリージョン
+# Access from the US --> Virginia region
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -616,7 +617,7 @@ aws route53 change-resource-record-sets \
     }]
   }'
 
-# デフォルト（その他の地域）→ フランクフルトリージョン
+# Default (other regions) --> Frankfurt region
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -641,34 +642,34 @@ aws route53 change-resource-record-sets \
 
 ---
 
-## 4. ヘルスチェック
+## 4. Health Checks
 
-### 図解 3: ヘルスチェックの種類
+### Diagram 3: Types of Health Checks
 
 ```
-1. エンドポイントヘルスチェック:
-   Route 53 ──→ HTTPS GET /health ──→ App
-                     │
-                     ├─ 2xx/3xx → Healthy
-                     └─ Timeout/5xx → Unhealthy
+1. Endpoint Health Check:
+   Route 53 ---> HTTPS GET /health ---> App
+                     |
+                     +-- 2xx/3xx --> Healthy
+                     +-- Timeout/5xx --> Unhealthy
 
-   ※ 世界中の 15+ ヘルスチェッカーから監視
-   ※ 18% 以上が Healthy と判定 → 全体 Healthy
+   * Monitored from 15+ health checkers worldwide
+   * Overall Healthy if 18%+ of checkers report Healthy
 
-2. 計算済みヘルスチェック:
-   ┌─ HC-1 (us-east-1)  → Healthy ─┐
-   ├─ HC-2 (eu-west-1)  → Healthy ─┼→ AND/OR → 全体結果
-   └─ HC-3 (ap-ne-1)    → Unhealthy┘
+2. Calculated Health Check:
+   +-- HC-1 (us-east-1)  --> Healthy --+
+   +-- HC-2 (eu-west-1)  --> Healthy --+--> AND/OR --> Overall result
+   +-- HC-3 (ap-ne-1)    --> Unhealthy-+
 
-3. CloudWatch アラームヘルスチェック:
-   CloudWatch Alarm → Route 53 Health Check
-   (DynamoDB, Lambda 等の内部リソース監視に使用)
+3. CloudWatch Alarm Health Check:
+   CloudWatch Alarm --> Route 53 Health Check
+   (Used for monitoring internal resources like DynamoDB, Lambda, etc.)
 ```
 
-### コード例 5: さまざまなヘルスチェック設定
+### Code Example 5: Various Health Check Configurations
 
 ```bash
-# HTTPS エンドポイントヘルスチェック（文字列検索付き）
+# HTTPS endpoint health check (with string matching)
 aws route53 create-health-check \
   --caller-reference "api-health-$(date +%s)" \
   --health-check-config '{
@@ -683,7 +684,7 @@ aws route53 create-health-check \
     "Regions": ["us-east-1", "eu-west-1", "ap-southeast-1"]
   }'
 
-# TCP ヘルスチェック（データベース等）
+# TCP health check (for databases, etc.)
 aws route53 create-health-check \
   --caller-reference "db-health-$(date +%s)" \
   --health-check-config '{
@@ -694,7 +695,7 @@ aws route53 create-health-check \
     "FailureThreshold": 3
   }'
 
-# 計算済みヘルスチェック（子ヘルスチェックの組み合わせ）
+# Calculated health check (combination of child health checks)
 aws route53 create-health-check \
   --caller-reference "calculated-$(date +%s)" \
   --health-check-config '{
@@ -707,7 +708,7 @@ aws route53 create-health-check \
     "HealthThreshold": 2
   }'
 
-# CloudWatch アラーム連動ヘルスチェック
+# CloudWatch alarm-based health check
 aws route53 create-health-check \
   --caller-reference "cw-alarm-$(date +%s)" \
   --health-check-config '{
@@ -719,22 +720,22 @@ aws route53 create-health-check \
     "InsufficientDataHealthStatus": "Unhealthy"
   }'
 
-# ヘルスチェックにタグを付ける
+# Tag a health check
 aws route53 change-tags-for-resource \
   --resource-type healthcheck \
   --resource-id hc-api-001 \
   --add-tags Key=Name,Value="API Health Check" Key=Environment,Value=production
 
-# ヘルスチェックの状態確認
+# Check health check status
 aws route53 get-health-check-status \
   --health-check-id hc-api-001 \
   --query 'HealthCheckObservations[*].{Region:Region,Status:StatusReport.Status}'
 ```
 
-### コード例 6: Terraform でヘルスチェック付きフェイルオーバー
+### Code Example 6: Failover with Health Checks in Terraform
 
 ```hcl
-# ヘルスチェック
+# Health check
 resource "aws_route53_health_check" "primary" {
   fqdn              = "api.example.com"
   port               = 443
@@ -754,7 +755,7 @@ resource "aws_route53_health_check" "primary" {
   }
 }
 
-# CloudWatch アラーム連動ヘルスチェック
+# CloudWatch alarm-based health check
 resource "aws_route53_health_check" "cloudwatch" {
   type                            = "CLOUDWATCH_METRIC"
   cloudwatch_alarm_name           = aws_cloudwatch_metric_alarm.api_error.alarm_name
@@ -762,7 +763,7 @@ resource "aws_route53_health_check" "cloudwatch" {
   insufficient_data_health_status = "Unhealthy"
 }
 
-# 計算済みヘルスチェック
+# Calculated health check
 resource "aws_route53_health_check" "calculated" {
   type                   = "CALCULATED"
   child_health_threshold = 2
@@ -776,7 +777,7 @@ resource "aws_route53_health_check" "calculated" {
   }
 }
 
-# Primary レコード
+# Primary record
 resource "aws_route53_record" "primary" {
   zone_id         = aws_route53_zone.main.zone_id
   name            = "api.example.com"
@@ -795,7 +796,7 @@ resource "aws_route53_record" "primary" {
   }
 }
 
-# Secondary レコード
+# Secondary record
 resource "aws_route53_record" "secondary" {
   zone_id        = aws_route53_zone.main.zone_id
   name           = "api.example.com"
@@ -813,7 +814,7 @@ resource "aws_route53_record" "secondary" {
   }
 }
 
-# レイテンシルーティング（マルチリージョン）
+# Latency routing (multi-region)
 resource "aws_route53_record" "latency_tokyo" {
   zone_id        = aws_route53_zone.main.zone_id
   name           = "global.example.com"
@@ -851,41 +852,41 @@ resource "aws_route53_record" "latency_virginia" {
 
 ---
 
-## 5. ルーティングポリシー比較
+## 5. Routing Policy Comparison
 
-### 比較表 1: ルーティングポリシー選定
+### Comparison Table 1: Routing Policy Selection
 
-| ポリシー | 用途 | ヘルスチェック | 複雑さ |
-|----------|------|---------------|--------|
-| **Simple** | 単一リソース | なし | 低 |
-| **Weighted** | カナリア / A-B テスト | 対応 | 低 |
-| **Latency** | マルチリージョン最適化 | 対応 | 中 |
-| **Failover** | Active-Passive DR | 必須 | 中 |
-| **Geolocation** | 地域制限 / コンプライアンス | 対応 | 中 |
-| **Multivalue** | 簡易ロードバランシング | 対応 | 低 |
-| **Geoproximity** | 地理的範囲調整 | 対応 | 高 |
-| **IP-based** | ISP / ネットワーク最適化 | 対応 | 高 |
+| Policy | Use Case | Health Check | Complexity |
+|--------|----------|--------------|------------|
+| **Simple** | Single resource | None | Low |
+| **Weighted** | Canary / A-B testing | Supported | Low |
+| **Latency** | Multi-region optimization | Supported | Medium |
+| **Failover** | Active-Passive DR | Required | Medium |
+| **Geolocation** | Regional restrictions / compliance | Supported | Medium |
+| **Multivalue** | Simple load balancing | Supported | Low |
+| **Geoproximity** | Geographic range adjustment | Supported | High |
+| **IP-based** | ISP / network optimization | Supported | High |
 
-### 比較表 2: Alias vs CNAME
+### Comparison Table 2: Alias vs CNAME
 
-| 項目 | Alias | CNAME |
+| Item | Alias | CNAME |
 |------|-------|-------|
-| **Zone Apex 対応** | 可 (example.com) | 不可 |
-| **DNS クエリ課金** | 無料（AWS リソース宛） | 有料 |
-| **ヘルスチェック** | EvaluateTargetHealth で連携 | 別途設定 |
-| **対応先** | ALB, CloudFront, S3, API GW 等 | 任意のドメイン |
-| **TTL** | AWS が自動管理 | 自分で設定 |
-| **推奨** | AWS リソースには必ず Alias | 外部サービスのみ |
+| **Zone Apex Support** | Yes (example.com) | No |
+| **DNS Query Charges** | Free (for AWS resources) | Charged |
+| **Health Check** | Linked via EvaluateTargetHealth | Separate configuration |
+| **Target** | ALB, CloudFront, S3, API GW, etc. | Any domain |
+| **TTL** | Automatically managed by AWS | Manually configured |
+| **Recommendation** | Always use Alias for AWS resources | External services only |
 
-### 対応する AWS リソースの Alias ホストゾーン ID
+### Alias Hosted Zone IDs for AWS Resources
 
 ```
-主要サービスの Alias ターゲット HostedZoneId:
+Alias Target HostedZoneIds for Major Services:
 =============================================
 
-CloudFront:       Z2FDTNDATAQYW2 (全リージョン共通)
-API Gateway:      リージョンごとに異なる
-S3 Website:       リージョンごとに異なる
+CloudFront:       Z2FDTNDATAQYW2 (same across all regions)
+API Gateway:      Varies by region
+S3 Website:       Varies by region
 
 ALB/NLB:
   ap-northeast-1: Z14GRHDCWA56QT
@@ -899,27 +900,27 @@ ALB/NLB:
 
 ## 6. DNSSEC
 
-DNSSEC（DNS Security Extensions）は、DNS レスポンスの真正性を検証するためのセキュリティ拡張である。
+DNSSEC (DNS Security Extensions) is a security extension for verifying the authenticity of DNS responses.
 
 ```bash
-# DNSSEC の有効化
-# Step 1: KSK（Key Signing Key）の作成
+# Enable DNSSEC
+# Step 1: Create a KSK (Key Signing Key)
 aws route53 create-key-signing-key \
   --hosted-zone-id Z1234567890 \
   --name my-ksk-key \
   --key-management-service-arn arn:aws:kms:us-east-1:123456789012:key/xxx-xxx \
   --status ACTIVE
 
-# Step 2: DNSSEC 署名の有効化
+# Step 2: Enable DNSSEC signing
 aws route53 enable-hosted-zone-dnssec \
   --hosted-zone-id Z1234567890
 
-# Step 3: DS レコードを親ゾーン（レジストラ）に登録
-# Route 53 で登録したドメインの場合:
+# Step 3: Register the DS record with the parent zone (registrar)
+# For domains registered with Route 53:
 aws route53domains enable-domain-transfer-lock \
   --domain-name example.com
 
-# DNSSEC の状態確認
+# Check DNSSEC status
 aws route53 get-dnssec \
   --hosted-zone-id Z1234567890
 ```
@@ -928,29 +929,29 @@ aws route53 get-dnssec \
 
 ## 7. Route 53 Resolver
 
-ハイブリッド環境でのDNS解決を実現する。
+Enables DNS resolution in hybrid environments.
 
 ```
-Route 53 Resolver のアーキテクチャ:
+Route 53 Resolver Architecture:
 ====================================
 
-オンプレミス DNS                        AWS VPC
+On-Premises DNS                      AWS VPC
 +------------------+                  +------------------+
 |                  |                  |                  |
-| Corporate DNS    |  ←── Outbound   | Route 53         |
+| Corporate DNS    |  <-- Outbound   | Route 53         |
 | (10.0.0.53)     |       Endpoint   | Resolver         |
 |                  |                  |                  |
-|                  |  ──→ Inbound    |                  |
+|                  |  --> Inbound    |                  |
 |                  |       Endpoint   |                  |
 +------------------+                  +------------------+
 
-Inbound Endpoint:  オンプレミス → AWS の DNS 解決
-Outbound Endpoint: AWS → オンプレミスの DNS 解決
-Resolver Rules:    条件付き転送ルール
+Inbound Endpoint:  On-premises --> AWS DNS resolution
+Outbound Endpoint: AWS --> On-premises DNS resolution
+Resolver Rules:    Conditional forwarding rules
 ```
 
 ```bash
-# Inbound Endpoint の作成（オンプレミスからの DNS 解決用）
+# Create an Inbound Endpoint (for DNS resolution from on-premises)
 aws route53resolver create-resolver-endpoint \
   --creator-request-id "inbound-$(date +%s)" \
   --name "inbound-resolver" \
@@ -958,7 +959,7 @@ aws route53resolver create-resolver-endpoint \
   --direction INBOUND \
   --ip-addresses SubnetId=subnet-0123,Ip=10.0.1.10 SubnetId=subnet-0456,Ip=10.0.2.10
 
-# Outbound Endpoint の作成（AWS からオンプレミスへの DNS 解決用）
+# Create an Outbound Endpoint (for DNS resolution from AWS to on-premises)
 aws route53resolver create-resolver-endpoint \
   --creator-request-id "outbound-$(date +%s)" \
   --name "outbound-resolver" \
@@ -966,7 +967,7 @@ aws route53resolver create-resolver-endpoint \
   --direction OUTBOUND \
   --ip-addresses SubnetId=subnet-0123 SubnetId=subnet-0456
 
-# 転送ルールの作成（特定ドメインをオンプレミスに転送）
+# Create a forwarding rule (forward specific domains to on-premises)
 aws route53resolver create-resolver-rule \
   --creator-request-id "forward-$(date +%s)" \
   --name "forward-to-onprem" \
@@ -975,13 +976,13 @@ aws route53resolver create-resolver-rule \
   --resolver-endpoint-id rslvr-out-xxx \
   --target-ips Ip=10.0.0.53,Port=53
 
-# ルールを VPC に関連付け
+# Associate the rule with a VPC
 aws route53resolver associate-resolver-rule \
   --resolver-rule-id rslvr-rr-xxx \
   --vpc-id vpc-0abc1234
 ```
 
-### コード例 7: Resolver Terraform 定義
+### Code Example 7: Resolver Terraform Definition
 
 ```hcl
 resource "aws_route53_resolver_endpoint" "inbound" {
@@ -1045,121 +1046,121 @@ resource "aws_route53_resolver_rule_association" "forward" {
 
 ## 8. Route 53 Profiles
 
-複数アカウント/VPC での DNS 設定を一元管理する機能。
+A feature for centrally managing DNS settings across multiple accounts/VPCs.
 
 ```
 Route 53 Profiles:
 ==================
 
 Profile
-  ├── DNS Firewall Rule Group Association
-  ├── Private Hosted Zone Association
-  └── Resolver Rule Association
+  +-- DNS Firewall Rule Group Association
+  +-- Private Hosted Zone Association
+  +-- Resolver Rule Association
 
-  → 1つの Profile を複数の VPC に関連付け
-  → AWS Organizations 全体で共有可能
-  → DNS 設定の一貫性を保証
+  --> Associate a single Profile with multiple VPCs
+  --> Shareable across entire AWS Organizations
+  --> Ensures consistency of DNS settings
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン 1: TTL を極端に短くする
-
-```
-[悪い例]
-  TTL = 5 秒 (全レコード)
-  → DNS クエリが増加しコストが上がる
-  → DNS リゾルバへの負荷が増加
-  → ユーザーのレイテンシが微増
-
-[良い例]
-  通常レコード:    TTL = 300 秒 (5 分)
-  フェイルオーバー: TTL = 60 秒 (1 分)
-  移行中:          TTL = 60 秒 → 移行後に 300 秒に戻す
-
-  ポイント:
-  - 移行前に TTL を下げておく（旧 TTL の 2 倍の時間前）
-  - 移行完了後は TTL を戻す
-  - Alias レコードは TTL が自動管理される
-```
-
-### アンチパターン 2: ヘルスチェックなしのフェイルオーバー
+### Anti-Pattern 1: Setting Extremely Short TTLs
 
 ```
-[悪い例]
-  Primary → ALB (ヘルスチェックなし)
-  Secondary → S3 Static Site
+[Bad Example]
+  TTL = 5 seconds (all records)
+  --> DNS queries increase, raising costs
+  --> Increased load on DNS resolvers
+  --> Slight increase in user latency
 
-  Primary の ALB が異常でもフェイルオーバーが発生しない
-  → ユーザーはエラーページを見続ける
+[Good Example]
+  Normal records:    TTL = 300 seconds (5 minutes)
+  Failover:          TTL = 60 seconds (1 minute)
+  During migration:  TTL = 60 seconds --> Restore to 300 seconds after migration
 
-[良い例]
-  Primary → ALB (ヘルスチェック: /health を監視)
-  Secondary → S3 Static Site ("メンテナンス中" ページ)
+  Key Points:
+  - Lower TTL before migration (2x the old TTL duration in advance)
+  - Restore TTL after migration is complete
+  - Alias records have automatically managed TTL
+```
 
-  ヘルスチェック設定:
+### Anti-Pattern 2: Failover Without Health Checks
+
+```
+[Bad Example]
+  Primary --> ALB (no health check)
+  Secondary --> S3 Static Site
+
+  Failover does not trigger even when Primary ALB is unhealthy
+  --> Users continue seeing error pages
+
+[Good Example]
+  Primary --> ALB (health check: monitors /health)
+  Secondary --> S3 Static Site ("Under Maintenance" page)
+
+  Health Check Configuration:
   - Type: HTTPS
   - Path: /health
-  - Interval: 10 秒
+  - Interval: 10 seconds
   - Failure Threshold: 3
-  - EvaluateTargetHealth: true (ALB の背後も監視)
+  - EvaluateTargetHealth: true (also monitors behind the ALB)
 ```
 
-### アンチパターン 3: Zone Apex に CNAME を使用する
+### Anti-Pattern 3: Using CNAME at Zone Apex
 
 ```
-[悪い例]
-  example.com → CNAME → d111111.cloudfront.net
-  → RFC 違反: Zone Apex に CNAME は設定不可
-  → DNS エラーが発生する
+[Bad Example]
+  example.com --> CNAME --> d111111.cloudfront.net
+  --> RFC violation: CNAME cannot be set at Zone Apex
+  --> DNS errors will occur
 
-[良い例]
-  example.com → Alias → d111111.cloudfront.net
-  → Zone Apex でも使用可能
-  → DNS クエリ無料
-  → TTL 自動管理
+[Good Example]
+  example.com --> Alias --> d111111.cloudfront.net
+  --> Can be used at Zone Apex
+  --> Free DNS queries
+  --> Automatically managed TTL
 ```
 
-### アンチパターン 4: Geolocation でデフォルトを設定しない
+### Anti-Pattern 4: Not Setting a Default for Geolocation
 
 ```
-[悪い例]
-  JP → ap-northeast-1
-  US → us-east-1
-  → JP/US 以外のユーザーは DNS 解決に失敗（NXDOMAIN）
+[Bad Example]
+  JP --> ap-northeast-1
+  US --> us-east-1
+  --> Users outside JP/US fail DNS resolution (NXDOMAIN)
 
-[良い例]
-  JP → ap-northeast-1
-  US → us-east-1
-  * (デフォルト) → eu-west-1  ← 必ずデフォルトを設定
+[Good Example]
+  JP --> ap-northeast-1
+  US --> us-east-1
+  * (Default) --> eu-west-1  <-- Always set a default
 ```
 
 ---
 
 ## 10. DNS Firewall
 
-Route 53 Resolver DNS Firewall は、VPC からの DNS クエリをフィルタリングし、悪意のあるドメインへのアクセスをブロックする。
+Route 53 Resolver DNS Firewall filters DNS queries from VPCs and blocks access to malicious domains.
 
 ```bash
-# DNS Firewall ドメインリストの作成
+# Create a DNS Firewall domain list
 aws route53resolver create-firewall-domain-list \
   --name "blocked-domains" \
   --creator-request-id "blocked-$(date +%s)"
 
-# ドメインの追加
+# Add domains
 aws route53resolver update-firewall-domains \
   --firewall-domain-list-id rslvr-fdl-xxx \
   --operation ADD \
   --domains "*.malware.example.com" "phishing.example.com" "*.crypto-mining.example.com"
 
-# ファイアウォールルールグループの作成
+# Create a firewall rule group
 aws route53resolver create-firewall-rule-group \
   --name "security-rules" \
   --creator-request-id "rules-$(date +%s)"
 
-# ルールの追加（ブロック）
+# Add a rule (block)
 aws route53resolver create-firewall-rule \
   --firewall-rule-group-id rslvr-frg-xxx \
   --firewall-domain-list-id rslvr-fdl-xxx \
@@ -1168,11 +1169,11 @@ aws route53resolver create-firewall-rule \
   --block-response NXDOMAIN \
   --name "block-malware"
 
-# AWS Managed ドメインリストの利用（推奨）
-# AmazonGuardDutyThreatList - GuardDuty が検出した脅威ドメイン
-# AmazonRegisteredDomains - AWS に登録されたドメイン
+# Use AWS Managed domain lists (recommended)
+# AmazonGuardDutyThreatList - Threat domains detected by GuardDuty
+# AmazonRegisteredDomains - Domains registered with AWS
 
-# ルールグループを VPC に関連付け
+# Associate the rule group with a VPC
 aws route53resolver associate-firewall-rule-group \
   --firewall-rule-group-id rslvr-frg-xxx \
   --vpc-id vpc-0abc1234 \
@@ -1180,7 +1181,7 @@ aws route53resolver associate-firewall-rule-group \
   --name "protect-vpc"
 ```
 
-### Terraform による DNS Firewall 設定
+### DNS Firewall Configuration with Terraform
 
 ```hcl
 resource "aws_route53_resolver_firewall_domain_list" "blocked" {
@@ -1212,45 +1213,45 @@ resource "aws_route53_resolver_firewall_rule_group_association" "main" {
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1259,26 +1260,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1286,7 +1287,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1297,14 +1298,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1312,7 +1313,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1320,44 +1321,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1366,7 +1367,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1381,47 +1382,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm time complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Configuration file issues | Verify configuration file path and format |
+| Timeout | Network latency/resource shortage | Adjust timeout values, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Verify execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Procedure
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read stack traces and identify the location of occurrence
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Incremental verification**: Verify hypotheses using log output and debuggers
+5. **Fix and regression test**: After fixing, also run tests on related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1429,102 +1430,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception occurred: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Review disk and network I/O status
+4. **Check concurrent connections**: Review connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|-------------|-----------------|----------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criteria | When Prioritized | When Acceptable to Compromise |
+|----------|-----------------|-------------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
-┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
-│                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
-│                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
-│                                                 │
-└─────────────────────────────────────────────────┘
++------------------------------------------------+
+|         Architecture Selection Flow             |
++------------------------------------------------+
+|                                                 |
+|  1. Team size?                                  |
+|    +-- Small (1-5) --> Monolith                 |
+|    +-- Large (10+) --> Go to 2.                 |
+|                                                 |
+|  2. Deployment frequency?                       |
+|    +-- Weekly or less --> Monolith + modules    |
+|    +-- Daily/multiple times --> Go to 3.        |
+|                                                 |
+|  3. Independence between teams?                 |
+|    +-- High --> Microservices                   |
+|    +-- Medium --> Modular monolith              |
+|                                                 |
++------------------------------------------------+
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- Methods that are fast short-term can become technical debt long-term
+- Conversely, over-engineering has high short-term costs and can cause project delays
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables best-fit solutions but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction has high reusability but can make debugging more difficult
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1534,17 +1535,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and challenge"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1552,7 +1553,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1560,15 +1561,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
-            icon = "✅" if c['type'] == 'positive' else "⚠️"
+            icon = "+" if c['type'] == 'positive' else "!"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1577,33 +1578,33 @@ class ArchitectureDecisionRecord:
 
 ## 11. FAQ
 
-### Q1: Route 53 でドメインを購入できますか？
+### Q1: Can I purchase a domain with Route 53?
 
-**A:** はい、Route 53 はドメインレジストラとしても機能する。`.com`、`.jp`、`.io` など多数の TLD に対応している。購入したドメインは自動的にホストゾーンが作成される。年間登録料はドメインによって異なる（.com は約 $13/年）。ただし .co.jp などの一部ドメインは Route 53 では購入できないため、外部レジストラ（お名前.com 等）で購入し、NS レコードを Route 53 に向ける方法が一般的。
+**A:** Yes, Route 53 also functions as a domain registrar. It supports many TLDs including `.com`, `.jp`, `.io`, and more. A hosted zone is automatically created for purchased domains. Annual registration fees vary by domain (.com is approximately $13/year). However, some domains like .co.jp cannot be purchased through Route 53, so the common approach is to purchase from an external registrar and point the NS records to Route 53.
 
-### Q2: CNAME と Alias の使い分けは？
+### Q2: When should I use CNAME vs Alias?
 
-**A:** AWS リソース（ALB、CloudFront、S3 等）への参照には必ず Alias を使用する。Alias は Zone Apex（example.com）にも設定でき、DNS クエリも無料。CNAME は Zone Apex に設定できず、クエリ課金もされる。外部サービス（Heroku、Vercel 等）へのポイントには CNAME を使用する。
+**A:** Always use Alias for references to AWS resources (ALB, CloudFront, S3, etc.). Alias can be set at Zone Apex (example.com) and DNS queries are free. CNAME cannot be set at Zone Apex and queries are charged. Use CNAME for pointing to external services (Heroku, Vercel, etc.).
 
-### Q3: マルチリージョンの DNS 設計はどうすべきですか？
+### Q3: How should I design DNS for multi-region?
 
-**A:** レイテンシルーティング + ヘルスチェック + フェイルオーバーを組み合わせる。まずレイテンシルーティングで最寄りリージョンに振り分け、ヘルスチェックで異常を検知したらフェイルオーバーする。この構成を Terraform の `aws_route53_record` で宣言的に管理し、IaC で全リージョンを統一管理するのがベストプラクティスである。
+**A:** Combine latency routing + health checks + failover. First, use latency routing to direct traffic to the nearest region, then failover when health checks detect anomalies. The best practice is to manage this configuration declaratively with Terraform's `aws_route53_record` and use IaC to uniformly manage all regions.
 
-### Q4: Route 53 で DNS の変更が反映されるまでの時間は？
+### Q4: How long does it take for DNS changes to propagate in Route 53?
 
-**A:** Route 53 自体への変更は通常 60 秒以内に全世界のエッジロケーションに伝播する。ただし、既存のレコードの変更の場合、以前の TTL が切れるまでキャッシュが残る。そのため、DNS 移行時は事前に TTL を短く（60秒程度に）設定しておき、変更後に TTL を戻すのがベストプラクティスである。
+**A:** Changes to Route 53 itself typically propagate to all edge locations worldwide within 60 seconds. However, for changes to existing records, the cache remains until the previous TTL expires. Therefore, the best practice for DNS migration is to set the TTL to a short value (around 60 seconds) in advance, then restore the TTL after the change.
 
-### Q5: Route 53 のクエリログを取得するには？
+### Q5: How do I obtain query logs from Route 53?
 
-**A:** Route 53 Query Logging を使用する。CloudWatch Logs にクエリログを送信でき、クエリされたドメイン名、レコードタイプ、レスポンスコード、ソース IP 等を記録できる。セキュリティ監査やトラブルシューティングに有用。
+**A:** Use Route 53 Query Logging. You can send query logs to CloudWatch Logs, recording the queried domain name, record type, response code, source IP, and more. This is useful for security audits and troubleshooting.
 
 ```bash
-# クエリログの有効化
+# Enable query logging
 aws route53resolver create-resolver-query-log-config \
   --name "dns-query-log" \
   --destination-arn "arn:aws:logs:ap-northeast-1:123456789012:log-group:/route53/query-log"
 
-# VPC との関連付け
+# Associate with a VPC
 aws route53resolver associate-resolver-query-log-config \
   --resolver-query-log-config-id rqlc-xxx \
   --resource-id vpc-0abc1234
@@ -1614,53 +1615,53 @@ aws route53resolver associate-resolver-query-log-config \
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not only through theory but also by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| ホストゾーン | パブリック（インターネット）とプライベート（VPC 内部）を使い分け |
-| レコードタイプ | AWS リソースには Alias を優先。Zone Apex にも対応 |
-| ルーティング | 用途に応じてポリシーを選択。フェイルオーバーは本番必須 |
-| ヘルスチェック | エンドポイント監視 + EvaluateTargetHealth を組合せ |
-| TTL | 通常 300 秒。移行時は事前に短縮、完了後に戻す |
-| コスト | Alias クエリは無料。ヘルスチェックは数百円/月 |
-| DNSSEC | ゾーン署名でDNSレスポンスの真正性を検証 |
-| Resolver | ハイブリッド環境での DNS 解決（Inbound/Outbound） |
-| セキュリティ | CAA レコード + DNSSEC + クエリログで保護 |
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [02-api-gateway.md](./02-api-gateway.md) — Route 53 と連携する API Gateway
-- [00-vpc-basics.md](./00-vpc-basics.md) — プライベートホストゾーンの基盤となる VPC
-- [02-waf-shield.md](../08-security/02-waf-shield.md) — Route 53 + Shield による DDoS 対策
+| Item | Key Point |
+|------|-----------|
+| Hosted Zones | Use public (internet) and private (within VPC) appropriately |
+| Record Types | Prefer Alias for AWS resources. Also supports Zone Apex |
+| Routing | Select policies based on use case. Failover is essential for production |
+| Health Checks | Combine endpoint monitoring + EvaluateTargetHealth |
+| TTL | Normally 300 seconds. Shorten before migration, restore after completion |
+| Cost | Alias queries are free. Health checks cost a few hundred yen/month |
+| DNSSEC | Zone signing to verify authenticity of DNS responses |
+| Resolver | DNS resolution in hybrid environments (Inbound/Outbound) |
+| Security | Protect with CAA records + DNSSEC + query logging |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
 
-1. **AWS 公式ドキュメント** — Amazon Route 53 開発者ガイド
+- [02-api-gateway.md](./02-api-gateway.md) -- API Gateway that integrates with Route 53
+- [00-vpc-basics.md](./00-vpc-basics.md) -- VPC, the foundation for private hosted zones
+- [02-waf-shield.md](../08-security/02-waf-shield.md) -- DDoS protection with Route 53 + Shield
+
+---
+
+## References
+
+1. **AWS Official Documentation** -- Amazon Route 53 Developer Guide
    https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/
-2. **AWS Route 53 ルーティングポリシー** — 各ポリシーの詳細と設定方法
+2. **AWS Route 53 Routing Policies** -- Details and configuration for each policy
    https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-policy.html
-3. **AWS Well-Architected — Reliability Pillar** — DNS とフェイルオーバー設計
+3. **AWS Well-Architected -- Reliability Pillar** -- DNS and failover design
    https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/
-4. **AWS Route 53 Resolver** — ハイブリッド DNS 設計ガイド
+4. **AWS Route 53 Resolver** -- Hybrid DNS design guide
    https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resolver.html
-5. **DNSSEC 署名** — Route 53 での DNSSEC 設定
+5. **DNSSEC Signing** -- Configuring DNSSEC in Route 53
    https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dns-configuring-dnssec.html
