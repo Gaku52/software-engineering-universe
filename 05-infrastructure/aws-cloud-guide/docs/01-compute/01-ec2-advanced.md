@@ -1,63 +1,63 @@
-# EC2 応用
+# EC2 Advanced
 
-> Auto Scaling、ロードバランサー、スポットインスタンス、Savings Plans で EC2 をプロダクションレベルで運用する
+> Operate EC2 at a production level using Auto Scaling, load balancers, Spot Instances, and Savings Plans
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. Auto Scaling グループを設計し、負荷に応じたスケーリングポリシーを実装できる
-2. ALB / NLB の特性を理解し、適切なロードバランサーを選択・設定できる
-3. スポットインスタンスと Savings Plans を活用してコストを最適化できる
-4. CloudFormation / CDK で Auto Scaling + ALB のインフラをコード管理できる
-5. 混合インスタンスポリシーで Graviton とスポットを組み合わせた高コスパ構成を実現できる
+1. Design Auto Scaling groups and implement scaling policies that respond to load
+2. Understand the characteristics of ALB / NLB and select and configure the appropriate load balancer
+3. Optimize costs by leveraging Spot Instances and Savings Plans
+4. Manage Auto Scaling + ALB infrastructure as code with CloudFormation / CDK
+5. Achieve a high cost-performance configuration by combining Graviton and Spot with mixed instances policies
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [EC2 基礎](./00-ec2-basics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Familiarity with the content of [EC2 Basics](./00-ec2-basics.md)
 
 ---
 
 ## 1. Auto Scaling
 
-### 1.1 Auto Scaling の構成要素
+### 1.1 Components of Auto Scaling
 
 ```
-Auto Scaling アーキテクチャ
+Auto Scaling Architecture
 +----------------------------------------------------------+
 |                                                           |
 |  +-------------------+     +--------------------------+  |
-|  | 起動テンプレート   |     | Auto Scaling グループ      |  |
-|  | - AMI             | --> | - 最小: 2                  |  |
-|  | - インスタンスタイプ |     | - 希望: 2                  |  |
-|  | - セキュリティGrp  |     | - 最大: 10                 |  |
+|  | Launch Template    |     | Auto Scaling Group        |  |
+|  | - AMI             | --> | - Min: 2                   |  |
+|  | - Instance Type   |     | - Desired: 2               |  |
+|  | - Security Grp    |     | - Max: 10                  |  |
 |  | - User Data       |     | - AZ: 1a, 1c, 1d          |  |
 |  +-------------------+     +--------------------------+  |
 |                                    |                      |
 |                                    v                      |
 |  +---------------------------------------------------+   |
-|  | スケーリングポリシー                                  |  |
-|  | - ターゲット追跡: CPU 60% 維持                       |  |
-|  | - ステップ: CPU 80%→+2台, 90%→+4台                 |  |
-|  | - スケジュール: 平日 9時に5台                         |  |
-|  | - 予測: ML ベースの需要予測                           |  |
+|  | Scaling Policies                                   |  |
+|  | - Target Tracking: Maintain CPU at 60%             |  |
+|  | - Step: CPU 80%→+2 instances, 90%→+4 instances    |  |
+|  | - Scheduled: 5 instances at 9 AM on weekdays       |  |
+|  | - Predictive: ML-based demand forecasting          |  |
 |  +---------------------------------------------------+   |
 |                                                           |
 |  +---------------------------------------------------+   |
-|  | ライフサイクルフック                                   |  |
-|  | - 起動時: 設定完了まで待機                            |  |
-|  | - 終了時: ログ退避・接続ドレイン                       |  |
+|  | Lifecycle Hooks                                    |  |
+|  | - On launch: Wait until configuration completes    |  |
+|  | - On termination: Evacuate logs, drain connections |  |
 |  +---------------------------------------------------+   |
 +----------------------------------------------------------+
 ```
 
-### 1.2 コード例: 起動テンプレートの作成
+### 1.2 Code Example: Creating a Launch Template
 
 ```bash
-# 起動テンプレートを作成
+# Create a launch template
 aws ec2 create-launch-template \
   --launch-template-name web-server-template \
   --version-description "v1.0 - NGINX + Node.js" \
@@ -98,7 +98,7 @@ aws ec2 create-launch-template \
     "UserData": "'$(base64 -w 0 startup.sh)'"
   }'
 
-# 起動テンプレートの新バージョンを作成
+# Create a new version of the launch template
 aws ec2 create-launch-template-version \
   --launch-template-name web-server-template \
   --version-description "v2.0 - Graviton migration" \
@@ -108,22 +108,22 @@ aws ec2 create-launch-template-version \
     "InstanceType": "t4g.small"
   }'
 
-# デフォルトバージョンの設定
+# Set default version
 aws ec2 modify-launch-template \
   --launch-template-name web-server-template \
   --default-version 2
 
-# 起動テンプレートのバージョン一覧
+# List launch template versions
 aws ec2 describe-launch-template-versions \
   --launch-template-name web-server-template \
   --query 'LaunchTemplateVersions[].[VersionNumber,VersionDescription,LaunchTemplateData.InstanceType]' \
   --output table
 ```
 
-### 1.3 コード例: Auto Scaling グループの作成
+### 1.3 Code Example: Creating an Auto Scaling Group
 
 ```bash
-# Auto Scaling グループを作成
+# Create an Auto Scaling group
 aws autoscaling create-auto-scaling-group \
   --auto-scaling-group-name web-asg \
   --launch-template LaunchTemplateName=web-server-template,Version='$Latest' \
@@ -143,19 +143,19 @@ aws autoscaling create-auto-scaling-group \
     {"Key": "Environment", "Value": "production", "PropagateAtLaunch": true}
   ]'
 
-# ASG の状態確認
+# Check ASG status
 aws autoscaling describe-auto-scaling-groups \
   --auto-scaling-group-names web-asg \
   --query 'AutoScalingGroups[0].{Min:MinSize,Max:MaxSize,Desired:DesiredCapacity,Instances:Instances[*].{Id:InstanceId,AZ:AvailabilityZone,Health:HealthStatus,State:LifecycleState}}' \
   --output json
 ```
 
-### 1.4 混合インスタンスポリシー（Graviton + スポット）
+### 1.4 Mixed Instances Policy (Graviton + Spot)
 
-コスト最適化の決定版として、Graviton インスタンスとスポットインスタンスを組み合わせる構成がある。
+As the definitive cost optimization approach, there is a configuration that combines Graviton instances with Spot Instances.
 
 ```bash
-# 混合インスタンスポリシーで ASG を作成
+# Create an ASG with a mixed instances policy
 aws autoscaling create-auto-scaling-group \
   --auto-scaling-group-name web-asg-mixed \
   --mixed-instances-policy '{
@@ -188,27 +188,27 @@ aws autoscaling create-auto-scaling-group \
   --health-check-type ELB \
   --health-check-grace-period 300
 
-# 結果:
-# - ベースの 2 台はオンデマンド（安定性確保）
-# - 追加分の 75% はスポット（コスト削減）
-# - 追加分の 25% はオンデマンド（可用性確保）
-# - capacity-optimized で中断リスクが低いプールを自動選択
+# Result:
+# - Base 2 instances are On-Demand (ensuring stability)
+# - 75% of additional capacity is Spot (cost reduction)
+# - 25% of additional capacity is On-Demand (ensuring availability)
+# - capacity-optimized automatically selects pools with lower interruption risk
 ```
 
-### 1.5 スケーリングポリシーの種類
+### 1.5 Types of Scaling Policies
 
-| ポリシー | 仕組み | ユースケース | 設定の複雑さ |
-|---------|--------|-------------|------------|
-| ターゲット追跡 | メトリクスを目標値に維持 | CPU 使用率 60% を維持 | 低 |
-| ステップスケーリング | 閾値超過量に応じて段階的に増減 | 急激な負荷変動 | 中 |
-| シンプルスケーリング | 1つの閾値で固定台数を増減 | 単純なルール | 低 |
-| スケジュール | 時刻指定でキャパシティ変更 | 営業時間の負荷パターン | 低 |
-| 予測スケーリング | ML で需要を予測し事前スケール | 周期的なトラフィック | 低 |
+| Policy | Mechanism | Use Case | Configuration Complexity |
+|--------|-----------|----------|------------------------|
+| Target Tracking | Maintains a metric at a target value | Maintain CPU utilization at 60% | Low |
+| Step Scaling | Scales in stages based on threshold breach amount | Sudden load fluctuations | Medium |
+| Simple Scaling | Adds/removes a fixed number at a single threshold | Simple rules | Low |
+| Scheduled | Changes capacity at specified times | Business hours load patterns | Low |
+| Predictive Scaling | Pre-scales based on ML demand forecasting | Cyclical traffic | Low |
 
-### 1.6 コード例: ターゲット追跡ポリシー
+### 1.6 Code Example: Target Tracking Policy
 
 ```bash
-# CPU 使用率 60% を維持するポリシー
+# Policy to maintain CPU utilization at 60%
 aws autoscaling put-scaling-policy \
   --auto-scaling-group-name web-asg \
   --policy-name cpu-target-tracking \
@@ -223,7 +223,7 @@ aws autoscaling put-scaling-policy \
     "DisableScaleIn": false
   }'
 
-# リクエスト数ベースのポリシー
+# Request count-based policy
 aws autoscaling put-scaling-policy \
   --auto-scaling-group-name web-asg \
   --policy-name request-count-tracking \
@@ -236,7 +236,7 @@ aws autoscaling put-scaling-policy \
     "TargetValue": 1000.0
   }'
 
-# カスタムメトリクスベースのポリシー（SQS キュー長）
+# Custom metric-based policy (SQS queue length)
 aws autoscaling put-scaling-policy \
   --auto-scaling-group-name worker-asg \
   --policy-name sqs-queue-tracking \
@@ -254,10 +254,10 @@ aws autoscaling put-scaling-policy \
   }'
 ```
 
-### 1.7 コード例: ステップスケーリングポリシー
+### 1.7 Code Example: Step Scaling Policy
 
 ```bash
-# スケールアウト: CPU に応じて段階的に台数追加
+# Scale out: Add instances in stages based on CPU
 aws autoscaling put-scaling-policy \
   --auto-scaling-group-name web-asg \
   --policy-name cpu-step-scale-out \
@@ -270,7 +270,7 @@ aws autoscaling put-scaling-policy \
   ]' \
   --metric-aggregation-type Average
 
-# 対応する CloudWatch アラーム
+# Corresponding CloudWatch alarm
 aws cloudwatch put-metric-alarm \
   --alarm-name "web-asg-cpu-high" \
   --namespace AWS/EC2 \
@@ -284,10 +284,10 @@ aws cloudwatch put-metric-alarm \
   --alarm-actions "arn:aws:autoscaling:ap-northeast-1:123456789012:scalingPolicy:xxx:autoScalingGroupName/web-asg:policyName/cpu-step-scale-out"
 ```
 
-### 1.8 コード例: スケジュールスケーリング
+### 1.8 Code Example: Scheduled Scaling
 
 ```bash
-# 平日 9:00 (JST) にスケールアウト
+# Scale out at 9:00 AM (JST) on weekdays
 aws autoscaling put-scheduled-update-group-action \
   --auto-scaling-group-name web-asg \
   --scheduled-action-name weekday-scale-out \
@@ -297,7 +297,7 @@ aws autoscaling put-scheduled-update-group-action \
   --desired-capacity 4 \
   --time-zone "Asia/Tokyo"
 
-# 平日 22:00 (JST) にスケールイン
+# Scale in at 10:00 PM (JST) on weekdays
 aws autoscaling put-scheduled-update-group-action \
   --auto-scaling-group-name web-asg \
   --scheduled-action-name weekday-scale-in \
@@ -307,7 +307,7 @@ aws autoscaling put-scheduled-update-group-action \
   --desired-capacity 2 \
   --time-zone "Asia/Tokyo"
 
-# 週末は最小構成
+# Minimum configuration on weekends
 aws autoscaling put-scheduled-update-group-action \
   --auto-scaling-group-name web-asg \
   --scheduled-action-name weekend-scale-down \
@@ -317,16 +317,16 @@ aws autoscaling put-scheduled-update-group-action \
   --desired-capacity 2 \
   --time-zone "Asia/Tokyo"
 
-# スケジュール一覧の確認
+# Check schedule list
 aws autoscaling describe-scheduled-actions \
   --auto-scaling-group-name web-asg \
   --output table
 ```
 
-### 1.9 予測スケーリング
+### 1.9 Predictive Scaling
 
 ```bash
-# 予測スケーリングを有効化
+# Enable predictive scaling
 aws autoscaling put-scaling-policy \
   --auto-scaling-group-name web-asg \
   --policy-name predictive-scaling \
@@ -343,7 +343,7 @@ aws autoscaling put-scaling-policy \
     "MaxCapacityBreachBehavior": "HonorMaxCapacity"
   }'
 
-# 予測結果の確認
+# Check prediction results
 aws autoscaling get-predictive-scaling-forecast \
   --auto-scaling-group-name web-asg \
   --policy-name predictive-scaling \
@@ -351,10 +351,10 @@ aws autoscaling get-predictive-scaling-forecast \
   --end-time "$(date -u -v+2d +%Y-%m-%dT%H:%M:%SZ)"
 ```
 
-### 1.10 ライフサイクルフック
+### 1.10 Lifecycle Hooks
 
 ```bash
-# 起動時のライフサイクルフック（設定完了まで待機）
+# Lifecycle hook on launch (wait until configuration completes)
 aws autoscaling put-lifecycle-hook \
   --auto-scaling-group-name web-asg \
   --lifecycle-hook-name launch-hook \
@@ -363,7 +363,7 @@ aws autoscaling put-lifecycle-hook \
   --default-result CONTINUE \
   --notification-target-arn arn:aws:sns:ap-northeast-1:123456789012:asg-lifecycle
 
-# 終了時のライフサイクルフック（ログ退避・接続ドレイン）
+# Lifecycle hook on termination (log evacuation, connection draining)
 aws autoscaling put-lifecycle-hook \
   --auto-scaling-group-name web-asg \
   --lifecycle-hook-name terminate-hook \
@@ -372,7 +372,7 @@ aws autoscaling put-lifecycle-hook \
   --default-result CONTINUE \
   --notification-target-arn arn:aws:sns:ap-northeast-1:123456789012:asg-lifecycle
 
-# ライフサイクルアクション完了通知
+# Lifecycle action completion notification
 aws autoscaling complete-lifecycle-action \
   --auto-scaling-group-name web-asg \
   --lifecycle-hook-name launch-hook \
@@ -384,10 +384,10 @@ aws autoscaling complete-lifecycle-action \
 
 ## 2. Elastic Load Balancing
 
-### 2.1 ロードバランサーの種類
+### 2.1 Types of Load Balancers
 
 ```
-                       クライアント
+                       Client
                            |
               +------------+------------+
               |            |            |
@@ -395,35 +395,35 @@ aws autoscaling complete-lifecycle-action \
          |   ALB   |  |  NLB   |  |  GLB   |
          | (L7)    |  | (L4)   |  | (L3)   |
          +---------+  +--------+  +--------+
-         HTTP/HTTPS   TCP/UDP/TLS  アプライアンス
-         パスルーティング 超低レイテンシ  透過型
-         ホストルーティング 固定IP      IDS/IPS
-         WebSocket    NLB→ALB連携
-         gRPC
+         HTTP/HTTPS   TCP/UDP/TLS  Appliance
+         Path routing  Ultra-low    Transparent
+         Host routing  latency      IDS/IPS
+         WebSocket    Fixed IP
+         gRPC         NLB→ALB chaining
 ```
 
-### 2.2 ALB vs NLB 比較
+### 2.2 ALB vs NLB Comparison
 
-| 特性 | ALB | NLB |
-|------|-----|-----|
-| OSI レイヤー | L7 (HTTP/HTTPS) | L4 (TCP/UDP/TLS) |
-| ルーティング | パス、ホスト、ヘッダー、クエリ | ポートベース |
-| レイテンシ | 数ミリ秒 | 超低レイテンシ (数百マイクロ秒) |
-| 固定 IP | 不可 (DNS 名) | 可能 (Elastic IP) |
-| SSL 終端 | 可能 | 可能 |
-| WebSocket | 対応 | 対応 |
-| gRPC | 対応 | TCP で対応 |
-| ヘルスチェック | HTTP/HTTPS | TCP/HTTP/HTTPS |
-| スティッキーセッション | Cookie ベース | なし（ソース IP ハッシュ） |
-| クロスゾーン | デフォルト有効 | デフォルト無効 |
-| 料金 | やや高い | やや安い |
-| PrivateLink | 不可 | 対応 |
-| WAF 連携 | 対応 | 不可 |
+| Feature | ALB | NLB |
+|---------|-----|-----|
+| OSI Layer | L7 (HTTP/HTTPS) | L4 (TCP/UDP/TLS) |
+| Routing | Path, host, header, query | Port-based |
+| Latency | A few milliseconds | Ultra-low latency (hundreds of microseconds) |
+| Fixed IP | Not available (DNS name) | Available (Elastic IP) |
+| SSL Termination | Supported | Supported |
+| WebSocket | Supported | Supported |
+| gRPC | Supported | Supported via TCP |
+| Health Checks | HTTP/HTTPS | TCP/HTTP/HTTPS |
+| Sticky Sessions | Cookie-based | None (source IP hash) |
+| Cross-Zone | Enabled by default | Disabled by default |
+| Pricing | Slightly higher | Slightly lower |
+| PrivateLink | Not available | Supported |
+| WAF Integration | Supported | Not available |
 
-### 2.3 コード例: ALB の作成
+### 2.3 Code Example: Creating an ALB
 
 ```bash
-# ALB を作成
+# Create an ALB
 ALB_ARN=$(aws elbv2 create-load-balancer \
   --name web-alb \
   --subnets subnet-aaa subnet-bbb subnet-ccc \
@@ -434,7 +434,7 @@ ALB_ARN=$(aws elbv2 create-load-balancer \
   --tags Key=Environment,Value=production \
   --query 'LoadBalancers[0].LoadBalancerArn' --output text)
 
-# ALB のアクセスログを S3 に出力
+# Output ALB access logs to S3
 aws elbv2 modify-load-balancer-attributes \
   --load-balancer-arn $ALB_ARN \
   --attributes '[
@@ -446,7 +446,7 @@ aws elbv2 modify-load-balancer-attributes \
     {"Key": "routing.http2.enabled", "Value": "true"}
   ]'
 
-# ターゲットグループを作成
+# Create a target group
 TG_ARN=$(aws elbv2 create-target-group \
   --name web-tg \
   --protocol HTTP --port 80 \
@@ -460,7 +460,7 @@ TG_ARN=$(aws elbv2 create-target-group \
   --matcher '{"HttpCode": "200-299"}' \
   --query 'TargetGroups[0].TargetGroupArn' --output text)
 
-# ターゲットグループの属性設定
+# Configure target group attributes
 aws elbv2 modify-target-group-attributes \
   --target-group-arn $TG_ARN \
   --attributes '[
@@ -471,7 +471,7 @@ aws elbv2 modify-target-group-attributes \
     {"Key": "stickiness.lb_cookie.duration_seconds", "Value": "3600"}
   ]'
 
-# HTTPS リスナーを作成
+# Create an HTTPS listener
 aws elbv2 create-listener \
   --load-balancer-arn $ALB_ARN \
   --protocol HTTPS --port 443 \
@@ -479,7 +479,7 @@ aws elbv2 create-listener \
   --default-actions Type=forward,TargetGroupArn=$TG_ARN \
   --ssl-policy ELBSecurityPolicy-TLS13-1-2-2021-06
 
-# HTTP → HTTPS リダイレクト
+# HTTP to HTTPS redirect
 aws elbv2 create-listener \
   --load-balancer-arn $ALB_ARN \
   --protocol HTTP --port 80 \
@@ -493,23 +493,24 @@ aws elbv2 create-listener \
   }]'
 ```
 
-### 2.4 ALB パスベースルーティング
+### 2.4 ALB Path-Based Routing
 
 ```
                     ALB
                      |
         +------------+------------+-----------+
         |            |            |           |
-   /api/*       /static/*     /ws/*      /* (デフォルト)
+   /api/*       /static/*     /ws/*      /* (default)
         |            |            |           |
    +----v----+  +---v----+  +---v----+  +---v----+
    | API TG  |  | S3     |  | WS TG  |  | Web TG |
-   | (Fargate)|  | (固定応答)|  | (WS)   |  | (EC2)  |
-   +---------+  +--------+  +--------+  +--------+
+   | (Fargate)|  | (fixed |  | (WS)   |  | (EC2)  |
+   +---------+  | resp.) +  +--------+  +--------+
+                +--------+
 ```
 
 ```bash
-# パスベースルーティングルールを追加
+# Add path-based routing rules
 aws elbv2 create-rule \
   --listener-arn $LISTENER_ARN \
   --conditions '[{
@@ -522,7 +523,7 @@ aws elbv2 create-rule \
   }]' \
   --priority 10
 
-# ホストベースルーティング
+# Host-based routing
 aws elbv2 create-rule \
   --listener-arn $LISTENER_ARN \
   --conditions '[{
@@ -535,7 +536,7 @@ aws elbv2 create-rule \
   }]' \
   --priority 20
 
-# 複合条件（パス + ヘッダー）
+# Compound conditions (path + header)
 aws elbv2 create-rule \
   --listener-arn $LISTENER_ARN \
   --conditions '[
@@ -548,7 +549,7 @@ aws elbv2 create-rule \
   }]' \
   --priority 5
 
-# 加重ターゲットグループ（カナリアリリース）
+# Weighted target groups (canary release)
 aws elbv2 create-rule \
   --listener-arn $LISTENER_ARN \
   --conditions '[{"Field": "path-pattern", "Values": ["/feature/*"]}]' \
@@ -568,10 +569,10 @@ aws elbv2 create-rule \
   --priority 15
 ```
 
-### 2.5 コード例: NLB の作成
+### 2.5 Code Example: Creating an NLB
 
 ```bash
-# NLB を作成（固定 IP 付き）
+# Create an NLB (with fixed IP)
 NLB_ARN=$(aws elbv2 create-load-balancer \
   --name tcp-nlb \
   --type network \
@@ -579,7 +580,7 @@ NLB_ARN=$(aws elbv2 create-load-balancer \
   --scheme internet-facing \
   --query 'LoadBalancers[0].LoadBalancerArn' --output text)
 
-# 固定 Elastic IP を割り当てる場合
+# When assigning fixed Elastic IPs
 NLB_ARN=$(aws elbv2 create-load-balancer \
   --name tcp-nlb-eip \
   --type network \
@@ -590,7 +591,7 @@ NLB_ARN=$(aws elbv2 create-load-balancer \
   --scheme internet-facing \
   --query 'LoadBalancers[0].LoadBalancerArn' --output text)
 
-# TCP ターゲットグループ
+# TCP target group
 NLB_TG_ARN=$(aws elbv2 create-target-group \
   --name tcp-tg \
   --protocol TCP --port 443 \
@@ -602,7 +603,7 @@ NLB_TG_ARN=$(aws elbv2 create-target-group \
   --unhealthy-threshold-count 2 \
   --query 'TargetGroups[0].TargetGroupArn' --output text)
 
-# TLS リスナー（NLB で TLS 終端）
+# TLS listener (TLS termination at NLB)
 aws elbv2 create-listener \
   --load-balancer-arn $NLB_ARN \
   --protocol TLS --port 443 \
@@ -611,18 +612,18 @@ aws elbv2 create-listener \
   --ssl-policy ELBSecurityPolicy-TLS13-1-2-2021-06
 ```
 
-### 2.6 ALB + NLB の連携パターン
+### 2.6 ALB + NLB Chaining Pattern
 
 ```
-  クライアント
+     Client
        |
   +----v----+
-  |   NLB   |  ← 固定 IP / PrivateLink 用
+  |   NLB   |  <- For fixed IP / PrivateLink
   |  (L4)   |
   +----+----+
        |
   +----v----+
-  |   ALB   |  ← L7 ルーティング / WAF
+  |   ALB   |  <- L7 routing / WAF
   |  (L7)   |
   +----+----+
        |
@@ -634,33 +635,33 @@ aws elbv2 create-listener \
 
 ---
 
-## 3. スポットインスタンス
+## 3. Spot Instances
 
-### 3.1 購入オプション比較
+### 3.1 Purchase Option Comparison
 
-| オプション | 割引率 | コミットメント | 中断リスク | ユースケース |
-|-----------|--------|-------------|-----------|------------|
-| オンデマンド | 0% | なし | なし | ベースライン |
-| リザーブド (1年) | 最大 40% | 1年 | なし | 定常ワークロード |
-| リザーブド (3年) | 最大 60% | 3年 | なし | 長期利用 |
-| Savings Plans (Compute) | 最大 66% | 1-3年 | なし | 柔軟なコミットメント |
-| Savings Plans (EC2) | 最大 72% | 1-3年 | なし | 特定ファミリー固定 |
-| スポット | 最大 90% | なし | あり (2分通知) | バッチ、耐障害性あるワークロード |
+| Option | Discount | Commitment | Interruption Risk | Use Case |
+|--------|----------|------------|-------------------|----------|
+| On-Demand | 0% | None | None | Baseline |
+| Reserved (1 year) | Up to 40% | 1 year | None | Steady-state workloads |
+| Reserved (3 years) | Up to 60% | 3 years | None | Long-term usage |
+| Savings Plans (Compute) | Up to 66% | 1-3 years | None | Flexible commitment |
+| Savings Plans (EC2) | Up to 72% | 1-3 years | None | Fixed to specific family |
+| Spot | Up to 90% | None | Yes (2-min notice) | Batch, fault-tolerant workloads |
 
-### 3.2 スポットインスタンスの割り当て戦略
+### 3.2 Spot Instance Allocation Strategies
 
-| 戦略 | 説明 | 推奨ユースケース |
-|------|------|----------------|
-| capacity-optimized | 最も利用可能な容量のプールから割り当て | 一般的なワークロード（推奨） |
-| capacity-optimized-prioritized | 優先度付きで容量最適化 | 特定タイプを優先したい場合 |
-| lowest-price | 最低価格のプールから割り当て | コスト最重視 |
-| diversified | 複数プールに均等分配 | 大規模フリート |
-| price-capacity-optimized | 価格と容量のバランス | コストと可用性の両立 |
+| Strategy | Description | Recommended Use Case |
+|----------|-------------|---------------------|
+| capacity-optimized | Allocates from the pool with the most available capacity | General workloads (recommended) |
+| capacity-optimized-prioritized | Capacity optimization with priorities | When you want to prioritize specific types |
+| lowest-price | Allocates from the lowest-price pool | Maximum cost priority |
+| diversified | Distributes evenly across multiple pools | Large fleets |
+| price-capacity-optimized | Balances price and capacity | Balancing cost and availability |
 
-### 3.3 コード例: スポットインスタンスのリクエスト
+### 3.3 Code Example: Requesting Spot Instances
 
 ```bash
-# スポットインスタンスリクエスト（推奨: ASG の混合ポリシーを使う）
+# Spot Instance request (recommended: use ASG mixed policy)
 aws ec2 request-spot-instances \
   --instance-count 5 \
   --type "one-time" \
@@ -673,7 +674,7 @@ aws ec2 request-spot-instances \
     "IamInstanceProfile": {"Name": "BatchWorkerProfile"}
   }'
 
-# スポットフリートを起動（複数インスタンスタイプ）
+# Launch a Spot Fleet (multiple instance types)
 aws ec2 request-spot-fleet \
   --spot-fleet-request-config '{
     "IamFleetRole": "arn:aws:iam::123456789012:role/aws-ec2-spot-fleet-role",
@@ -691,7 +692,7 @@ aws ec2 request-spot-fleet \
     "ReplaceUnhealthyInstances": true
   }'
 
-# スポット価格履歴の確認
+# Check Spot price history
 aws ec2 describe-spot-price-history \
   --instance-types c5.xlarge c5a.xlarge c6i.xlarge \
   --product-descriptions "Linux/UNIX" \
@@ -700,25 +701,26 @@ aws ec2 describe-spot-price-history \
   --output table
 ```
 
-### 3.4 スポットの中断対策
+### 3.4 Spot Interruption Handling
 
 ```
-スポット中断ハンドリングフロー
+Spot Interruption Handling Flow
 
-  EC2 メタデータ          EventBridge            ASG
-  (2分前通知)             (中断イベント)          (自動代替)
+  EC2 Metadata            EventBridge            ASG
+  (2-min notice)          (Interruption event)   (Auto replacement)
        |                       |                    |
        v                       v                    v
   +----------+          +-----------+         +-----------+
-  | 処理中の   |          | Lambda    |         | 新しい     |
-  | ジョブを   |          | SQS再投入  |         | インスタンス |
-  | チェック   |          | Slack通知  |         | 自動起動   |
-  | ポイント   |          | メトリクス  |         |           |
+  | Check-   |          | Lambda    |         | New       |
+  | point    |          | SQS re-   |         | instance  |
+  | in-      |          | queue     |         | auto      |
+  | progress |          | Slack     |         | launched  |
+  | jobs     |          | notify    |         |           |
   +----------+          +-----------+         +-----------+
 ```
 
 ```bash
-# EC2 メタデータでスポット中断通知を確認するスクリプト
+# Script to check Spot interruption notice via EC2 metadata
 #!/bin/bash
 TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
   -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
@@ -733,14 +735,14 @@ while true; do
       http://169.254.169.254/latest/meta-data/spot/instance-action)
     echo "Spot interruption notice received: $ACTION"
 
-    # グレースフルシャットダウン処理
-    # 1. 新しいリクエストの受付を停止
+    # Graceful shutdown process
+    # 1. Stop accepting new requests
     /usr/local/bin/stop-accepting-requests.sh
-    # 2. 進行中のジョブをチェックポイント
+    # 2. Checkpoint in-progress jobs
     /usr/local/bin/checkpoint-jobs.sh
-    # 3. ログを S3 に退避
+    # 3. Flush logs to S3
     /usr/local/bin/flush-logs-to-s3.sh
-    # 4. ロードバランサーからデタッチ
+    # 4. Deregister from load balancer
     /usr/local/bin/deregister-from-lb.sh
     break
   fi
@@ -749,8 +751,8 @@ done
 ```
 
 ```bash
-# EventBridge でスポット中断をキャッチする Lambda
-# EventBridge ルール
+# Lambda to catch Spot interruptions via EventBridge
+# EventBridge rule
 aws events put-rule \
   --name "spot-interruption-handler" \
   --event-pattern '{
@@ -758,7 +760,7 @@ aws events put-rule \
     "detail-type": ["EC2 Spot Instance Interruption Warning"]
   }'
 
-# Lambda ターゲットの設定
+# Lambda target configuration
 aws events put-targets \
   --rule "spot-interruption-handler" \
   --targets '[{
@@ -767,70 +769,70 @@ aws events put-targets \
   }]'
 ```
 
-### 3.5 スポット活用のベストプラクティス
+### 3.5 Spot Instance Best Practices
 
-1. **複数インスタンスタイプ**: 最低6つ以上のインスタンスタイプを指定
-2. **複数 AZ**: 全ての利用可能な AZ を使用
-3. **capacity-optimized**: 中断リスクが低いプールを自動選択
-4. **x86 + ARM 混合**: Graviton を含めることでプール拡大
-5. **チェックポイント**: 長時間ジョブは定期的に状態を保存
-6. **ASG 統合**: スポットフリート単独より ASG の混合ポリシーを推奨
+1. **Multiple instance types**: Specify at least 6 or more instance types
+2. **Multiple AZs**: Use all available AZs
+3. **capacity-optimized**: Automatically selects pools with lower interruption risk
+4. **x86 + ARM mixed**: Expand the pool by including Graviton
+5. **Checkpointing**: Periodically save state for long-running jobs
+6. **ASG integration**: ASG mixed policy is recommended over standalone Spot Fleet
 
 ---
 
 ## 4. Savings Plans
 
-### 4.1 Savings Plans の種類
+### 4.1 Types of Savings Plans
 
 ```
   +-----------------------------------------------+
   | Compute Savings Plans                          |
-  | - EC2, Fargate, Lambda に適用                   |
-  | - リージョン・ファミリー・OS 変更自由            |
-  | - 割引率: 最大 66%                              |
-  | - 最も柔軟な選択肢                              |
+  | - Applies to EC2, Fargate, Lambda              |
+  | - Free to change region, family, OS            |
+  | - Discount: Up to 66%                          |
+  | - The most flexible option                     |
   +-----------------------------------------------+
   | EC2 Instance Savings Plans                     |
-  | - 特定リージョン・ファミリーに限定               |
-  | - インスタンスサイズ・OS は変更可能              |
-  | - 割引率: 最大 72%                              |
-  | - 高い割引率を求める場合                        |
+  | - Limited to specific region and family        |
+  | - Instance size and OS can be changed          |
+  | - Discount: Up to 72%                          |
+  | - When higher discounts are needed             |
   +-----------------------------------------------+
   | SageMaker Savings Plans                        |
-  | - SageMaker インスタンスに適用                  |
-  | - 割引率: 最大 64%                              |
+  | - Applies to SageMaker instances               |
+  | - Discount: Up to 64%                          |
   +-----------------------------------------------+
 ```
 
-### 4.2 支払いオプション比較
+### 4.2 Payment Option Comparison
 
-| 支払い方法 | 割引率 | キャッシュフロー |
-|-----------|--------|---------------|
-| 全額前払い (All Upfront) | 最大 | 初期一括支払い |
-| 一部前払い (Partial Upfront) | 中間 | 半額前払い + 月額 |
-| 前払いなし (No Upfront) | 最小 | 月額のみ |
+| Payment Method | Discount | Cash Flow |
+|---------------|----------|-----------|
+| All Upfront | Maximum | One-time upfront payment |
+| Partial Upfront | Medium | Half upfront + monthly |
+| No Upfront | Minimum | Monthly only |
 
-### 4.3 コード例: Savings Plans の情報取得
+### 4.3 Code Example: Retrieving Savings Plans Information
 
 ```bash
-# 推奨 Savings Plans を確認
+# Check recommended Savings Plans
 aws savingsplans describe-savings-plans-offerings \
   --service-codes AmazonEC2 \
   --payment-options NoUpfront \
   --plan-types ComputeSavingsPlans \
   --region us-east-1
 
-# 現在の Savings Plans 一覧
+# List current Savings Plans
 aws savingsplans describe-savings-plans \
   --query 'savingsPlans[].[savingsPlanId,savingsPlanType,commitment,state,start,end]' \
   --output table
 
-# Savings Plans の利用率確認
+# Check Savings Plans utilization
 aws ce get-savings-plans-utilization \
   --time-period Start=2026-01-01,End=2026-02-01 \
   --query 'Total.{Utilization:Utilization.UtilizationPercentage,TotalCommitment:AmortizedCommitment.TotalAmortizedCommitment,TotalSavings:SavingsPlansSavings}'
 
-# Cost Explorer で Savings Plans の推奨を取得
+# Get Savings Plans recommendations from Cost Explorer
 aws ce get-savings-plans-purchase-recommendation \
   --savings-plans-type COMPUTE_SP \
   --payment-option NO_UPFRONT \
@@ -840,43 +842,43 @@ aws ce get-savings-plans-purchase-recommendation \
 
 ---
 
-## 5. コスト最適化戦略
+## 5. Cost Optimization Strategies
 
 ```
-EC2 コスト最適化ピラミッド
+EC2 Cost Optimization Pyramid
 
          /\
-        /  \  スポット (中断許容)
-       /    \    最大 90% 割引
+        /  \  Spot (interruption tolerant)
+       /    \    Up to 90% discount
       /------\
      /        \  Savings Plans / RI
-    /          \    40-72% 割引
+    /          \    40-72% discount
    /------------\
-  /              \  右サイジング + Graviton
- /                \   20-40% 削減
+  /              \  Right-sizing + Graviton
+ /                \   20-40% reduction
 /------------------\
-  オンデマンド (ベースライン)
+  On-Demand (baseline)
 ```
 
-| 戦略 | 効果 | 実装難易度 | 優先度 |
-|------|------|-----------|--------|
-| 未使用リソース削除 | 即効性あり | 低 | 最優先 |
-| 右サイジング | 20-30% 削減 | 中 | 高 |
-| gp2 → gp3 移行 | 20% 削減（EBS） | 低 | 高 |
-| Graviton 移行 | 20-40% 削減 | 中 | 高 |
-| Savings Plans | 40-72% 削減 | 低 | 高 |
-| スポット活用 | 最大 90% 削減 | 中-高 | 中 |
-| 開発環境の停止 | 50-70% 削減 | 低 | 高 |
+| Strategy | Impact | Implementation Difficulty | Priority |
+|----------|--------|--------------------------|----------|
+| Remove unused resources | Immediate effect | Low | Highest |
+| Right-sizing | 20-30% reduction | Medium | High |
+| gp2 to gp3 migration | 20% reduction (EBS) | Low | High |
+| Graviton migration | 20-40% reduction | Medium | High |
+| Savings Plans | 40-72% reduction | Low | High |
+| Spot utilization | Up to 90% reduction | Medium-High | Medium |
+| Stopping dev environments | 50-70% reduction | Low | High |
 
-### 5.1 コスト最適化の実装例
+### 5.1 Cost Optimization Implementation Examples
 
 ```bash
-# 未使用の Elastic IP を検出・削除
+# Detect and delete unused Elastic IPs
 aws ec2 describe-addresses \
   --query 'Addresses[?AssociationId==null].[AllocationId,PublicIp]' \
   --output table
 
-# 低使用率インスタンスの検出（CPU 使用率 5% 以下）
+# Detect underutilized instances (CPU utilization 5% or below)
 aws cloudwatch get-metric-statistics \
   --namespace AWS/EC2 \
   --metric-name CPUUtilization \
@@ -886,37 +888,37 @@ aws cloudwatch get-metric-statistics \
   --period 86400 \
   --statistics Average
 
-# 未アタッチの EBS ボリュームを検出
+# Detect unattached EBS volumes
 aws ec2 describe-volumes \
   --filters "Name=status,Values=available" \
   --query 'Volumes[].[VolumeId,Size,VolumeType,CreateTime]' \
   --output table
 
-# 古いスナップショットの検出（90日以上前）
+# Detect old snapshots (older than 90 days)
 aws ec2 describe-snapshots --owner-ids self \
   --query "Snapshots[?StartTime<='$(date -u -v-90d +%Y-%m-%dT%H:%M:%SZ)'].[SnapshotId,VolumeSize,StartTime,Description]" \
   --output table
 
-# AWS Compute Optimizer の推奨を取得
+# Get AWS Compute Optimizer recommendations
 aws compute-optimizer get-ec2-instance-recommendations \
   --query 'instanceRecommendations[].{Instance:instanceArn,Current:currentInstanceType,Recommended:recommendationOptions[0].instanceType,Finding:finding,Savings:recommendationOptions[0].estimatedMonthlySavings.value}' \
   --output table
 ```
 
-### 5.2 開発環境の自動停止・起動
+### 5.2 Automatic Stop/Start of Development Environments
 
 ```bash
-# EventBridge + Lambda で開発環境を夜間停止
-# Lambda 関数例（Python）
-# 停止対象: Environment=development タグのインスタンス
+# Stop dev environments at night using EventBridge + Lambda
+# Lambda function example (Python)
+# Stop targets: Instances with Environment=development tag
 
-# 停止スケジュール（毎日 20:00 JST）
+# Stop schedule (daily at 8:00 PM JST)
 aws events put-rule \
   --name stop-dev-instances \
   --schedule-expression "cron(0 11 * * ? *)" \
   --state ENABLED
 
-# 起動スケジュール（毎日 09:00 JST）
+# Start schedule (daily at 9:00 AM JST)
 aws events put-rule \
   --name start-dev-instances \
   --schedule-expression "cron(0 0 ? * MON-FRI *)" \
@@ -925,7 +927,7 @@ aws events put-rule \
 
 ---
 
-## 6. CloudFormation テンプレート（ALB + ASG）
+## 6. CloudFormation Template (ALB + ASG)
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
@@ -945,7 +947,7 @@ Parameters:
     Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
 
 Resources:
-  # ALB セキュリティグループ
+  # ALB Security Group
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -961,7 +963,7 @@ Resources:
           ToPort: 443
           CidrIp: 0.0.0.0/0
 
-  # EC2 セキュリティグループ
+  # EC2 Security Group
   EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -989,7 +991,7 @@ Resources:
         - Key: routing.http.drop_invalid_header_fields.enabled
           Value: 'true'
 
-  # ターゲットグループ
+  # Target Group
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -1006,7 +1008,7 @@ Resources:
         - Key: deregistration_delay.timeout_seconds
           Value: '30'
 
-  # HTTPS リスナー
+  # HTTPS Listener
   HTTPSListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -1020,7 +1022,7 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
 
-  # HTTP → HTTPS リダイレクト
+  # HTTP to HTTPS Redirect
   HTTPListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -1034,7 +1036,7 @@ Resources:
             Port: '443'
             StatusCode: HTTP_301
 
-  # 起動テンプレート
+  # Launch Template
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -1056,7 +1058,7 @@ Resources:
               VolumeType: gp3
               Encrypted: true
 
-  # Auto Scaling グループ
+  # Auto Scaling Group
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -1077,7 +1079,7 @@ Resources:
           Value: web-server
           PropagateAtLaunch: true
 
-  # スケーリングポリシー
+  # Scaling Policy
   CPUScalingPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
@@ -1099,54 +1101,54 @@ Outputs:
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン 1: 単一 AZ に全インスタンスを配置する
+### Anti-Pattern 1: Placing All Instances in a Single AZ
 
 ```
-# 悪い例 — 1つの AZ のみ
-Auto Scaling Group → subnet-1a のみ
-→ AZ 障害で全滅
+# Bad example - Only 1 AZ
+Auto Scaling Group -> subnet-1a only
+-> Total outage if the AZ fails
 
-# 良い例 — 複数 AZ に分散
-Auto Scaling Group → subnet-1a, subnet-1c, subnet-1d
-→ 1つの AZ が障害でも残りで継続
+# Good example - Distributed across multiple AZs
+Auto Scaling Group -> subnet-1a, subnet-1c, subnet-1d
+-> If one AZ fails, the rest continue operating
 ```
 
-### アンチパターン 2: Auto Scaling の最小値を 0 にする
+### Anti-Pattern 2: Setting the Auto Scaling Minimum to 0
 
-最小値 0 ではスケールイン時に全インスタンスが終了する可能性がある。本番環境では最小 2（マルチ AZ）を確保すべきである。
+With a minimum of 0, all instances may be terminated during scale-in. In production environments, you should ensure a minimum of 2 (multi-AZ).
 
 ```bash
-# 悪い例
+# Bad example
 --min-size 0 --desired-capacity 1
 
-# 良い例（本番環境）
+# Good example (production)
 --min-size 2 --desired-capacity 2 --max-size 10
 ```
 
-### アンチパターン 3: ヘルスチェックなしでスケーリングする
+### Anti-Pattern 3: Scaling Without Health Checks
 
-EC2 のステータスチェックだけでは、アプリケーションレベルの障害を検知できない。ELB ヘルスチェックとカスタムヘルスチェックを組み合わせるべきである。
+EC2 status checks alone cannot detect application-level failures. You should combine ELB health checks with custom health checks.
 
 ```bash
-# 悪い例 — EC2 ステータスチェックのみ
+# Bad example - EC2 status checks only
 --health-check-type EC2
 
-# 良い例 — ELB ヘルスチェック（HTTP レベル）
+# Good example - ELB health check (HTTP level)
 --health-check-type ELB --health-check-grace-period 300
 ```
 
-### アンチパターン 4: スポットインスタンスを単一タイプで使う
+### Anti-Pattern 4: Using Spot Instances with a Single Type
 
 ```bash
-# 悪い例 — 1つのインスタンスタイプのみ
+# Bad example - Only one instance type
 "LaunchSpecifications": [
   {"InstanceType": "c5.xlarge", ...}
 ]
-# → そのプールの容量不足で全て中断される可能性
+# -> All may be interrupted due to capacity shortage in that pool
 
-# 良い例 — 複数タイプ・複数 AZ
+# Good example - Multiple types and multiple AZs
 "Overrides": [
   {"InstanceType": "c5.xlarge"},
   {"InstanceType": "c5a.xlarge"},
@@ -1157,60 +1159,60 @@ EC2 のステータスチェックだけでは、アプリケーションレベ�
 ]
 ```
 
-### アンチパターン 5: デプロイ時にヘルスチェック猶予期間を設定しない
+### Anti-Pattern 5: Not Setting a Health Check Grace Period During Deployment
 
 ```bash
-# 悪い例 — 猶予期間なし
-# → アプリケーション起動前に unhealthy 判定され、無限ループ
+# Bad example - No grace period
+# -> Marked unhealthy before the application starts, causing an infinite loop
 --health-check-grace-period 0
 
-# 良い例 — アプリケーション起動時間を考慮
-# アプリが起動完了するまで 5 分待つ
+# Good example - Account for application startup time
+# Wait 5 minutes for the app to finish starting
 --health-check-grace-period 300
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1219,26 +1221,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1246,7 +1248,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1257,14 +1259,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1272,7 +1274,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1280,44 +1282,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1326,7 +1328,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1341,43 +1343,43 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup factor: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm computational complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## 8. FAQ
 
-### Q1. ALB と NLB のどちらを選ぶべきか？
+### Q1. Should I choose ALB or NLB?
 
-HTTP/HTTPS ベースの Web アプリケーションには ALB を選択する。TCP/UDP レベルのルーティング、超低レイテンシ、固定 IP が必要な場合は NLB を選択する。gRPC は ALB が L7 レベルでサポートしているが、NLB でも TCP として通すことは可能。WAF を使いたい場合は ALB が必須。PrivateLink で VPC 間のサービス公開が必要な場合は NLB を使う。
+Choose ALB for HTTP/HTTPS-based web applications. Choose NLB when you need TCP/UDP-level routing, ultra-low latency, or fixed IPs. ALB supports gRPC at the L7 level, but NLB can also pass it through as TCP. ALB is required if you want to use WAF. Use NLB when you need to expose services between VPCs via PrivateLink.
 
-### Q2. スポットインスタンスの中断はどのくらいの頻度で起きるか？
+### Q2. How often do Spot Instance interruptions occur?
 
-リージョンとインスタンスタイプに依存するが、capacityOptimized 戦略を使い複数タイプを指定すると中断頻度は大幅に下がる。AWS Spot Instance Advisor で中断率を事前確認できる。一般的に、6つ以上のインスタンスタイプと3つ以上の AZ を使うと、中断率は 5% 以下に抑えられることが多い。
+It depends on the region and instance type, but using the capacityOptimized strategy with multiple types significantly reduces interruption frequency. You can check interruption rates in advance with the AWS Spot Instance Advisor. Generally, using 6 or more instance types and 3 or more AZs can keep the interruption rate below 5%.
 
-### Q3. Savings Plans とリザーブドインスタンスの違いは？
+### Q3. What is the difference between Savings Plans and Reserved Instances?
 
-Savings Plans は「コミット金額/時」ベースで柔軟性が高く、インスタンスファミリー・リージョン・OS の変更が可能（Compute SP の場合）。RI は特定インスタンスタイプ・AZ に紐づく。新規購入では Savings Plans を推奨する。RI は既に所有している場合のみ継続利用し、新規購入は SP を選択すべきである。
+Savings Plans are based on "committed amount/hour" and offer high flexibility, allowing changes to instance family, region, and OS (for Compute SP). RIs are tied to specific instance types and AZs. Savings Plans are recommended for new purchases. RIs should only be continued if already owned, and new purchases should use SPs.
 
-### Q4. Auto Scaling のスケールアウトが遅い場合の対策は？
+### Q4. What should I do when Auto Scaling scale-out is slow?
 
-1. **予測スケーリング**: ML ベースで事前にスケールする
-2. **ウォームプール**: 事前に停止状態のインスタンスを準備
-3. **ゴールデン AMI**: 起動時のセットアップ時間を最小化
-4. **スケールアウト冷却期間の短縮**: 60秒程度に設定
-5. **ステップスケーリング**: 急激な負荷に対応
+1. **Predictive Scaling**: Pre-scale using ML-based forecasting
+2. **Warm Pool**: Pre-prepare instances in stopped state
+3. **Golden AMI**: Minimize setup time at launch
+4. **Shorten scale-out cooldown period**: Set to around 60 seconds
+5. **Step Scaling**: Handle sudden load spikes
 
 ```bash
-# ウォームプールの設定
+# Warm pool configuration
 aws autoscaling put-warm-pool \
   --auto-scaling-group-name web-asg \
   --pool-state Stopped \
@@ -1385,61 +1387,61 @@ aws autoscaling put-warm-pool \
   --max-group-prepared-capacity 5
 ```
 
-### Q5. ロードバランサーのヘルスチェックが失敗し続ける場合は？
+### Q5. What if the load balancer health checks keep failing?
 
-1. **ヘルスチェックパスの確認**: アプリケーションが `/health` で 200 を返すか
-2. **セキュリティグループの確認**: ALB → EC2 のポートが開いているか
-3. **猶予期間の確認**: アプリ起動に十分な時間が設定されているか
-4. **ヘルスチェック間隔とタイムアウト**: タイムアウトが短すぎないか
-5. **アプリケーションログの確認**: エラーが発生していないか
+1. **Check the health check path**: Verify the application returns 200 at `/health`
+2. **Check security groups**: Ensure the port from ALB to EC2 is open
+3. **Check the grace period**: Ensure sufficient time is configured for app startup
+4. **Health check interval and timeout**: Check if the timeout is too short
+5. **Check application logs**: Look for errors
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 9. まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| Auto Scaling | 起動テンプレート + ASG + スケーリングポリシーの3層構成 |
-| 混合ポリシー | Graviton + スポット + オンデマンドの組み合わせでコスト最適化 |
-| ALB | L7 ルーティング、パス/ホストベース、HTTP/HTTPS、WAF 連携 |
-| NLB | L4 ルーティング、超低レイテンシ、固定 IP、PrivateLink |
-| スポット | 最大 90% 割引、中断対策必須、capacityOptimized 推奨、複数タイプ |
-| Savings Plans | Compute SP で柔軟にコスト削減、1年/3年コミット |
-| コスト最適化 | 削除→右サイジング→Graviton→SP/RI→スポットの順で実施 |
-| ライフサイクル | フックで起動・終了時のカスタム処理を実装 |
-| IaC | CloudFormation / CDK で ALB + ASG を一括管理 |
+Knowledge of this topic is frequently used in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 9. Summary
 
-- [02-elastic-beanstalk.md](./02-elastic-beanstalk.md) — Elastic Beanstalk によるマネージドデプロイ
-- [../04-networking/00-vpc-basics.md](../04-networking/00-vpc-basics.md) — VPC の設計
+| Item | Key Points |
+|------|-----------|
+| Auto Scaling | Three-layer structure: Launch Template + ASG + Scaling Policies |
+| Mixed Policy | Cost optimization by combining Graviton + Spot + On-Demand |
+| ALB | L7 routing, path/host-based, HTTP/HTTPS, WAF integration |
+| NLB | L4 routing, ultra-low latency, fixed IP, PrivateLink |
+| Spot | Up to 90% discount, interruption handling required, capacityOptimized recommended, multiple types |
+| Savings Plans | Flexible cost reduction with Compute SP, 1-year/3-year commitment |
+| Cost Optimization | Execute in order: delete -> right-size -> Graviton -> SP/RI -> Spot |
+| Lifecycle | Implement custom processing at launch/termination with hooks |
+| IaC | Manage ALB + ASG together with CloudFormation / CDK |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
 
-1. Amazon EC2 Auto Scaling ユーザーガイド — https://docs.aws.amazon.com/autoscaling/ec2/userguide/
-2. Elastic Load Balancing ユーザーガイド — https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/
-3. Amazon EC2 スポットインスタンスベストプラクティス — https://docs.aws.amazon.com/ec2/latest/userguide/spot-best-practices.html
-4. Savings Plans ユーザーガイド — https://docs.aws.amazon.com/savingsplans/latest/userguide/
-5. Auto Scaling 混合インスタンスポリシー — https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-mixed-instances-groups.html
-6. ALB リスナールール — https://docs.aws.amazon.com/elasticloadbalancing/latest/application/listener-update-rules.html
+- [02-elastic-beanstalk.md](./02-elastic-beanstalk.md) -- Managed deployment with Elastic Beanstalk
+- [../04-networking/00-vpc-basics.md](../04-networking/00-vpc-basics.md) -- VPC design
+
+---
+
+## References
+
+1. Amazon EC2 Auto Scaling User Guide -- https://docs.aws.amazon.com/autoscaling/ec2/userguide/
+2. Elastic Load Balancing User Guide -- https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/
+3. Amazon EC2 Spot Instance Best Practices -- https://docs.aws.amazon.com/ec2/latest/userguide/spot-best-practices.html
+4. Savings Plans User Guide -- https://docs.aws.amazon.com/savingsplans/latest/userguide/
+5. Auto Scaling Mixed Instances Policy -- https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-mixed-instances-groups.html
+6. ALB Listener Rules -- https://docs.aws.amazon.com/elasticloadbalancing/latest/application/listener-update-rules.html
