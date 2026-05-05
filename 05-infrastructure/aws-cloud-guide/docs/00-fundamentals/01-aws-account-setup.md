@@ -1,88 +1,89 @@
-# AWS アカウント設定
+# AWS Account Setup
 
-> AWS を安全かつ効率的に利用するための初期設定 — アカウント作成から IAM、MFA、Organizations、請求アラート、AWS Control Tower まで
+> Initial setup for using AWS securely and efficiently — from account creation to IAM, MFA, Organizations, billing alerts, and AWS Control Tower
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. AWS アカウントを作成し、ルートユーザーのセキュリティを確保できる
-2. IAM ユーザー・グループ・ポリシーを適切に設計し、最小権限の原則を適用できる
-3. AWS Organizations と請求アラートを設定し、マルチアカウント運用とコスト管理を実現できる
-4. IAM Identity Center (旧 SSO) を構築し、一元的なアクセス管理を導入できる
-5. AWS Control Tower を活用して、ガバナンスの効いたランディングゾーンを構築できる
+1. Create an AWS account and secure the root user
+2. Properly design IAM users, groups, and policies, applying the principle of least privilege
+3. Set up AWS Organizations and billing alerts to achieve multi-account operations and cost management
+4. Build IAM Identity Center (formerly SSO) and introduce centralized access management
+5. Leverage AWS Control Tower to build a well-governed landing zone
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [クラウドコンピューティング概要](./00-cloud-overview.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Cloud Computing Overview](./00-cloud-overview.md)
 
 ---
 
-## 1. AWS アカウントの作成
+## 1. Creating an AWS Account
 
-### 1.1 アカウント作成フロー
+### 1.1 Account Creation Flow
 
 ```
 +------------------+     +------------------+     +------------------+
-| 1. サインアップ    | --> | 2. 連絡先情報     | --> | 3. 支払い情報     |
-| メールアドレス     |     | 氏名/住所/電話    |     | クレジットカード   |
-| パスワード設定     |     |                  |     |                  |
+| 1. Sign Up       | --> | 2. Contact Info   | --> | 3. Payment Info   |
+| Email address    |     | Name/Address/Phone|     | Credit card       |
+| Password setup   |     |                  |     |                  |
 +------------------+     +------------------+     +------------------+
          |                                                   |
          v                                                   v
 +------------------+     +------------------+     +------------------+
-| 6. 完了           | <-- | 5. サポートプラン  | <-- | 4. 本人確認       |
-| コンソールログイン |     | Basic(無料)推奨   |     | SMS/音声認証      |
-+------------------+     +------------------+     +------------------+
+| 6. Complete      | <-- | 5. Support Plan   | <-- | 4. Identity      |
+| Console login    |     | Basic(free) rec.  |     | verification     |
++------------------+     +------------------+     | SMS/voice auth   |
+                                                  +------------------+
 ```
 
-### 1.2 アカウント作成のベストプラクティス
+### 1.2 Best Practices for Account Creation
 
 ```bash
-# ルートユーザー用メールアドレスは専用のものを使う
-# 例: aws-root@example.com（個人メールは避ける）
+# Use a dedicated email address for the root user
+# Example: aws-root@example.com (avoid personal emails)
 
-# アカウント作成後、最初にやるべきこと
-# 1. ルートユーザーに MFA を設定
-# 2. IAM 管理者ユーザーを作成
-# 3. ルートユーザーのアクセスキーを作成しない（絶対に）
-# 4. デフォルトリージョンを確認して東京リージョンに切り替え
-# 5. 請求アラートを設定する
+# First things to do after account creation
+# 1. Set up MFA for the root user
+# 2. Create an IAM administrator user
+# 3. Never create access keys for the root user (absolutely never)
+# 4. Check the default region and switch to the Tokyo region
+# 5. Set up billing alerts
 ```
 
-### 1.3 アカウント作成時のメールアドレス管理戦略
+### 1.3 Email Address Management Strategy for Account Creation
 
-大規模組織では複数の AWS アカウントを運用するため、メールアドレスの管理が重要になる。
+For large organizations operating multiple AWS accounts, managing email addresses becomes important.
 
 ```
-メールアドレス管理戦略
+Email Address Management Strategy
 +----------------------------------------------------------+
-|  パターン 1: メーリングリスト方式（推奨）                     |
-|  aws-root-prod@example.com → チーム全員に配信             |
-|  aws-root-staging@example.com → チーム全員に配信          |
-|  aws-root-dev@example.com → チーム全員に配信              |
+|  Pattern 1: Mailing List Approach (Recommended)           |
+|  aws-root-prod@example.com -> Delivered to all team       |
+|  aws-root-staging@example.com -> Delivered to all team    |
+|  aws-root-dev@example.com -> Delivered to all team        |
 |                                                           |
-|  パターン 2: Gmail エイリアス方式（小規模向け）              |
+|  Pattern 2: Gmail Alias Approach (For Small Scale)        |
 |  aws+prod@example.com                                     |
 |  aws+staging@example.com                                  |
 |  aws+dev@example.com                                      |
 |                                                           |
-|  パターン 3: 専用ドメイン方式（エンタープライズ）            |
+|  Pattern 3: Dedicated Domain Approach (Enterprise)        |
 |  root@prod.aws.example.com                                |
 |  root@staging.aws.example.com                             |
 |  root@dev.aws.example.com                                 |
 +----------------------------------------------------------+
 ```
 
-### 1.4 アカウント作成直後のセキュリティ設定スクリプト
+### 1.4 Post-Account-Creation Security Setup Script
 
 ```bash
 #!/bin/bash
-# AWS アカウント初期セキュリティ設定スクリプト
-# 前提: IAM 管理者ユーザーの認証情報で実行
+# AWS Account Initial Security Setup Script
+# Prerequisite: Run with IAM administrator user credentials
 
 set -euo pipefail
 
@@ -91,11 +92,11 @@ ADMIN_USER="admin-user"
 ADMIN_GROUP="Administrators"
 REGION="ap-northeast-1"
 
-echo "=== Step 1: アカウントエイリアスの設定 ==="
+echo "=== Step 1: Set Account Alias ==="
 aws iam create-account-alias --account-alias "$ACCOUNT_ALIAS"
-echo "アカウントエイリアス '$ACCOUNT_ALIAS' を設定しました"
+echo "Account alias '$ACCOUNT_ALIAS' has been set"
 
-echo "=== Step 2: パスワードポリシーの設定 ==="
+echo "=== Step 2: Set Password Policy ==="
 aws iam update-account-password-policy \
   --minimum-password-length 14 \
   --require-symbols \
@@ -106,20 +107,20 @@ aws iam update-account-password-policy \
   --max-password-age 90 \
   --password-reuse-prevention 12 \
   --hard-expiry
-echo "パスワードポリシーを設定しました"
+echo "Password policy has been set"
 
-echo "=== Step 3: 管理者グループの作成 ==="
+echo "=== Step 3: Create Administrator Group ==="
 aws iam create-group --group-name "$ADMIN_GROUP"
 aws iam attach-group-policy \
   --group-name "$ADMIN_GROUP" \
   --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
-echo "管理者グループ '$ADMIN_GROUP' を作成しました"
+echo "Administrator group '$ADMIN_GROUP' has been created"
 
-echo "=== Step 4: CloudTrail の有効化 ==="
+echo "=== Step 4: Enable CloudTrail ==="
 TRAIL_BUCKET="cloudtrail-logs-$(aws sts get-caller-identity --query Account --output text)"
 aws s3 mb "s3://$TRAIL_BUCKET" --region "$REGION" 2>/dev/null || true
 
-# バケットポリシーを設定
+# Set bucket policy
 cat > /tmp/trail-bucket-policy.json << EOF
 {
   "Version": "2012-10-17",
@@ -157,87 +158,87 @@ aws cloudtrail create-trail \
   --include-global-service-events
 
 aws cloudtrail start-logging --name management-trail
-echo "CloudTrail を有効化しました"
+echo "CloudTrail has been enabled"
 
-echo "=== Step 5: GuardDuty の有効化 ==="
+echo "=== Step 5: Enable GuardDuty ==="
 aws guardduty create-detector \
   --enable \
   --finding-publishing-frequency FIFTEEN_MINUTES \
   --region "$REGION"
-echo "GuardDuty を有効化しました"
+echo "GuardDuty has been enabled"
 
-echo "=== Step 6: EBS デフォルト暗号化の有効化 ==="
+echo "=== Step 6: Enable EBS Default Encryption ==="
 aws ec2 enable-ebs-encryption-by-default --region "$REGION"
-echo "EBS デフォルト暗号化を有効化しました"
+echo "EBS default encryption has been enabled"
 
-echo "=== Step 7: S3 パブリックアクセスブロック（アカウントレベル）==="
+echo "=== Step 7: S3 Public Access Block (Account Level) ==="
 aws s3control put-public-access-block \
   --account-id "$(aws sts get-caller-identity --query Account --output text)" \
   --public-access-block-configuration \
     BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
-echo "S3 パブリックアクセスブロックを設定しました"
+echo "S3 public access block has been configured"
 
-echo "=== 初期セキュリティ設定が完了しました ==="
+echo "=== Initial security setup is complete ==="
 ```
 
 ---
 
-## 2. ルートユーザーの保護
+## 2. Protecting the Root User
 
-### 2.1 ルートユーザー vs IAM ユーザー
+### 2.1 Root User vs IAM User
 
-| 項目 | ルートユーザー | IAM ユーザー |
-|------|---------------|-------------|
-| 作成タイミング | アカウント作成時に自動生成 | 管理者が手動作成 |
-| 権限 | 全権限（制限不可） | ポリシーで制御可能 |
-| 用途 | アカウント設定のみ | 日常運用 |
-| MFA | 必須 | 強く推奨 |
-| アクセスキー | 作成禁止 | 必要に応じて作成 |
-| SCP による制限 | 不可 | 可能 |
-| 監査ログ | CloudTrail で記録 | CloudTrail で記録 |
+| Item | Root User | IAM User |
+|------|-----------|----------|
+| Creation Timing | Auto-generated at account creation | Manually created by administrator |
+| Permissions | Full permissions (cannot be restricted) | Controllable via policies |
+| Use Case | Account settings only | Daily operations |
+| MFA | Required | Strongly recommended |
+| Access Keys | Must not create | Create as needed |
+| SCP Restriction | Not possible | Possible |
+| Audit Logs | Recorded in CloudTrail | Recorded in CloudTrail |
 
-### 2.2 ルートユーザーでしかできない操作
+### 2.2 Operations Only the Root User Can Perform
 
-以下の操作はルートユーザーでのみ実行可能であり、IAM ユーザーには委任できない。
+The following operations can only be performed by the root user and cannot be delegated to IAM users.
 
 ```
-ルートユーザー専用タスク一覧
+Root User Exclusive Task List
 +-------------------------------------------------------------+
-| 1. アカウント設定の変更                                        |
-|    - アカウント名、メールアドレス、パスワードの変更              |
-|    - 連絡先情報の変更                                         |
+| 1. Account Settings Changes                                  |
+|    - Change account name, email address, password            |
+|    - Change contact information                              |
 |                                                              |
-| 2. 請求関連                                                   |
-|    - 支払い方法の変更                                         |
-|    - 請求情報への IAM アクセスの有効化/無効化                   |
+| 2. Billing Related                                           |
+|    - Change payment methods                                  |
+|    - Enable/disable IAM access to billing information        |
 |                                                              |
-| 3. サポートプラン                                              |
-|    - サポートプランの変更                                      |
+| 3. Support Plan                                              |
+|    - Change support plan                                     |
 |                                                              |
-| 4. IAM 関連                                                   |
-|    - 最初の IAM 管理者ユーザーの作成                           |
-|    - アカウントの STS リージョン設定                            |
+| 4. IAM Related                                               |
+|    - Create the first IAM administrator user                 |
+|    - Account STS region settings                             |
 |                                                              |
-| 5. サービス固有                                                |
-|    - Route 53 ドメインの移管                                   |
-|    - CloudFront キーペアの作成                                 |
-|    - S3 バケットの MFA Delete 有効化                           |
+| 5. Service Specific                                          |
+|    - Route 53 domain transfers                               |
+|    - Create CloudFront key pairs                             |
+|    - Enable S3 bucket MFA Delete                             |
 |                                                              |
-| 6. アカウントの閉鎖                                            |
-|    - AWS アカウントの閉鎖（復元不可）                          |
+| 6. Account Closure                                           |
+|    - Close the AWS account (irreversible)                    |
 +-------------------------------------------------------------+
 ```
 
-### 2.3 MFA (多要素認証) の設定
+### 2.3 Setting Up MFA (Multi-Factor Authentication)
 
 ```bash
-# AWS CLI で仮想 MFA デバイスを作成
+# Create a virtual MFA device with AWS CLI
 aws iam create-virtual-mfa-device \
   --virtual-mfa-device-name root-mfa \
   --outfile /tmp/QRCode.png \
   --bootstrap-method QRCodePNG
 
-# MFA デバイスを有効化（TOTP コード2つが必要）
+# Enable the MFA device (two TOTP codes required)
 aws iam enable-mfa-device \
   --user-name root \
   --serial-number arn:aws:iam::123456789012:mfa/root-mfa \
@@ -245,18 +246,18 @@ aws iam enable-mfa-device \
   --authentication-code2 789012
 ```
 
-### 2.4 MFA の種類比較
+### 2.4 MFA Type Comparison
 
-| MFA タイプ | セキュリティ | 利便性 | コスト | 推奨用途 |
-|-----------|------------|--------|--------|---------|
-| 仮想 MFA (TOTP) | 中 | 高 | 無料 | IAM ユーザー |
-| FIDO2 セキュリティキー | 高 | 中 | 有料 | ルートユーザー |
-| ハードウェア MFA | 最高 | 低 | 有料 | ルート/高権限 |
-| パスキー | 高 | 高 | 無料 | IAM ユーザー（2024年以降） |
+| MFA Type | Security | Convenience | Cost | Recommended Use |
+|----------|----------|-------------|------|-----------------|
+| Virtual MFA (TOTP) | Medium | High | Free | IAM users |
+| FIDO2 Security Key | High | Medium | Paid | Root user |
+| Hardware MFA | Highest | Low | Paid | Root/high privilege |
+| Passkey | High | High | Free | IAM users (2024 onwards) |
 
-### 2.5 MFA 強制ポリシー
+### 2.5 MFA Enforcement Policy
 
-全 IAM ユーザーに MFA の使用を強制するためのポリシー例を示す。
+The following is an example policy to enforce MFA usage for all IAM users.
 
 ```json
 {
@@ -319,50 +320,50 @@ aws iam enable-mfa-device \
 }
 ```
 
-### 2.6 ルートユーザーの緊急アクセス手順
+### 2.6 Emergency Access Procedure for Root User
 
-ルートユーザーの認証情報は「金庫に保管」が原則だが、緊急時のアクセス手順を事前に文書化しておくべきである。
+The root user credentials should be "stored in a safe" as a rule, but the emergency access procedure should be documented in advance.
 
 ```
-ルートユーザー緊急アクセス手順書（テンプレート）
+Root User Emergency Access Procedure (Template)
 +-------------------------------------------------------------+
-| 1. 準備事項                                                   |
-|    - ルートユーザーのメールアドレス: aws-root@example.com       |
-|    - MFA デバイスの保管場所: 金庫 A（経理部フロア）             |
-|    - バックアップ MFA の保管場所: 金庫 B（IT部門フロア）        |
+| 1. Preparation                                               |
+|    - Root user email: aws-root@example.com                   |
+|    - MFA device location: Safe A (Accounting dept floor)     |
+|    - Backup MFA location: Safe B (IT dept floor)             |
 |                                                              |
-| 2. アクセス手順                                                |
-|    a. 承認者2名以上の承認を取得（メール証跡を残す）             |
-|    b. 金庫から MFA デバイスを取り出す                          |
-|    c. AWS コンソールにルートユーザーでログイン                  |
-|    d. 必要な操作を実施（CloudTrail で記録される）               |
-|    e. 操作完了後、即座にログアウト                              |
-|    f. MFA デバイスを金庫に戻す                                 |
-|    g. 作業内容を記録し、チームに共有                           |
+| 2. Access Procedure                                          |
+|    a. Obtain approval from 2+ approvers (keep email trail)   |
+|    b. Retrieve MFA device from safe                          |
+|    c. Log in to AWS Console as root user                     |
+|    d. Perform required operations (recorded by CloudTrail)   |
+|    e. Log out immediately after completion                   |
+|    f. Return MFA device to safe                              |
+|    g. Document the work and share with team                  |
 |                                                              |
-| 3. 禁止事項                                                   |
-|    - ルートユーザーのアクセスキーを作成しない                   |
-|    - パスワードを変更しない（緊急時を除く）                    |
-|    - 不要な操作を行わない                                     |
+| 3. Prohibited Actions                                        |
+|    - Do not create root user access keys                     |
+|    - Do not change the password (except in emergencies)      |
+|    - Do not perform unnecessary operations                   |
 +-------------------------------------------------------------+
 ```
 
 ---
 
-## 3. IAM の設計
+## 3. IAM Design
 
-### 3.1 IAM コンポーネント
+### 3.1 IAM Components
 
 ```
-AWS IAM アーキテクチャ
+AWS IAM Architecture
 +------------------------------------------------------+
 |  AWS Account                                          |
 |                                                       |
-|  +----------+    所属    +----------+                 |
-|  | IAM User | --------> | IAM Group|                 |
-|  +----------+           +----------+                  |
+|  +----------+  belongs to +----------+                |
+|  | IAM User | ---------> | IAM Group|                 |
+|  +----------+            +----------+                 |
 |       |                      |                        |
-|       | (直接 or グループ経由)  |                      |
+|       | (direct or via group) |                       |
 |       v                      v                        |
 |  +-------------------------------------------+        |
 |  |          IAM Policy (JSON)                |        |
@@ -374,49 +375,49 @@ AWS IAM アーキテクチャ
 |  +-------------------------------------------+        |
 |                                                       |
 |  +----------+                                         |
-|  | IAM Role | <-- EC2, Lambda などが引き受ける         |
+|  | IAM Role | <-- Assumed by EC2, Lambda, etc.        |
 |  +----------+                                         |
 +------------------------------------------------------+
 ```
 
-### 3.2 IAM ポリシーの種類
+### 3.2 Types of IAM Policies
 
-| ポリシー種類 | 説明 | 管理主体 | 用途 |
-|------------|------|---------|------|
-| AWS 管理ポリシー | AWS が提供する定義済みポリシー | AWS | 一般的な権限パターン |
-| カスタマー管理ポリシー | ユーザーが作成するポリシー | ユーザー | 組織固有の要件 |
-| インラインポリシー | エンティティに直接埋め込み | ユーザー | 1:1の権限（非推奨） |
-| サービスコントロールポリシー (SCP) | Organizations で使用 | 管理者 | アカウント全体のガードレール |
-| アクセス許可境界 | IAM エンティティの権限上限 | 管理者 | 権限委任の安全性確保 |
-| セッションポリシー | AssumeRole 時に指定 | 呼び出し元 | 一時的な権限制限 |
-| リソースベースポリシー | リソースに直接アタッチ | リソース所有者 | クロスアカウントアクセス |
+| Policy Type | Description | Managed By | Use Case |
+|-------------|-------------|------------|----------|
+| AWS Managed Policy | Predefined policies provided by AWS | AWS | Common permission patterns |
+| Customer Managed Policy | Policies created by users | User | Organization-specific requirements |
+| Inline Policy | Embedded directly in an entity | User | 1:1 permissions (not recommended) |
+| Service Control Policy (SCP) | Used with Organizations | Administrator | Account-wide guardrails |
+| Permissions Boundary | Upper limit of IAM entity permissions | Administrator | Safe permission delegation |
+| Session Policy | Specified during AssumeRole | Caller | Temporary permission restriction |
+| Resource-Based Policy | Attached directly to a resource | Resource Owner | Cross-account access |
 
-### 3.3 コード例: IAM ユーザーとグループの作成
+### 3.3 Code Example: Creating IAM Users and Groups
 
 ```bash
-# 開発者グループを作成
+# Create a developer group
 aws iam create-group --group-name Developers
 
-# IAM ポリシーをアタッチ
+# Attach IAM policy
 aws iam attach-group-policy \
   --group-name Developers \
   --policy-arn arn:aws:iam::aws:policy/PowerUserAccess
 
-# IAM ユーザーを作成
+# Create an IAM user
 aws iam create-user --user-name tanaka
 
-# ユーザーをグループに追加
+# Add user to group
 aws iam add-user-to-group \
   --user-name tanaka \
   --group-name Developers
 
-# ログインプロファイル（パスワード）を作成
+# Create login profile (password)
 aws iam create-login-profile \
   --user-name tanaka \
   --password 'TempP@ssw0rd!' \
   --password-reset-required
 
-# タグを付与（部署、チーム情報）
+# Add tags (department, team information)
 aws iam tag-user \
   --user-name tanaka \
   --tags \
@@ -425,7 +426,7 @@ aws iam tag-user \
     Key=CostCenter,Value=CC-001
 ```
 
-### 3.4 コード例: カスタム IAM ポリシー (JSON)
+### 3.4 Code Example: Custom IAM Policy (JSON)
 
 ```json
 {
@@ -453,7 +454,7 @@ aws iam tag-user \
 }
 ```
 
-### 3.5 コード例: 条件付きポリシー（高度な制御）
+### 3.5 Code Example: Conditional Policy (Advanced Control)
 
 ```json
 {
@@ -519,10 +520,10 @@ aws iam tag-user \
 }
 ```
 
-### 3.6 コード例: IAM ロールの作成 (EC2 用)
+### 3.6 Code Example: Creating an IAM Role (For EC2)
 
 ```bash
-# 信頼ポリシーを作成
+# Create a trust policy
 cat > trust-policy.json << 'EOF'
 {
   "Version": "2012-10-17",
@@ -536,17 +537,17 @@ cat > trust-policy.json << 'EOF'
 }
 EOF
 
-# ロールを作成
+# Create the role
 aws iam create-role \
   --role-name EC2-S3-ReadOnly \
   --assume-role-policy-document file://trust-policy.json
 
-# ポリシーをアタッチ
+# Attach a policy
 aws iam attach-role-policy \
   --role-name EC2-S3-ReadOnly \
   --policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
 
-# インスタンスプロファイルを作成してロールを関連付け
+# Create an instance profile and associate the role
 aws iam create-instance-profile \
   --instance-profile-name EC2-S3-ReadOnly-Profile
 aws iam add-role-to-instance-profile \
@@ -554,11 +555,11 @@ aws iam add-role-to-instance-profile \
   --role-name EC2-S3-ReadOnly
 ```
 
-### 3.7 コード例: クロスアカウントロールの作成
+### 3.7 Code Example: Creating a Cross-Account Role
 
 ```bash
-# アカウント B（対象）にロールを作成
-# アカウント A（呼び出し元）からのアクセスを許可する信頼ポリシー
+# Create a role in Account B (target)
+# Trust policy allowing access from Account A (caller)
 cat > cross-account-trust.json << 'EOF'
 {
   "Version": "2012-10-17",
@@ -587,16 +588,16 @@ aws iam attach-role-policy \
   --role-name CrossAccountReadOnly \
   --policy-arn arn:aws:iam::aws:policy/ReadOnlyAccess
 
-# アカウント A（呼び出し元）からロールを引き受ける
+# Assume the role from Account A (caller)
 aws sts assume-role \
   --role-arn arn:aws:iam::222222222222:role/CrossAccountReadOnly \
   --role-session-name cross-account-session \
   --external-id my-external-id-12345
 ```
 
-### 3.8 アクセス許可境界（Permissions Boundary）
+### 3.8 Permissions Boundary
 
-アクセス許可境界は、IAM エンティティが持てる最大権限を制限する仕組みである。権限委任を安全に行うために重要。
+A permissions boundary is a mechanism that limits the maximum permissions an IAM entity can have. It is important for safely delegating permissions.
 
 ```json
 {
@@ -634,52 +635,53 @@ aws sts assume-role \
 ```
 
 ```bash
-# アクセス許可境界をユーザーに設定
+# Set permissions boundary on a user
 aws iam put-user-permissions-boundary \
   --user-name developer-tanaka \
   --permissions-boundary arn:aws:iam::123456789012:policy/DeveloperBoundary
 
-# アクセス許可境界をロールに設定
+# Set permissions boundary on a role
 aws iam put-role-permissions-boundary \
   --role-name LambdaExecutionRole \
   --permissions-boundary arn:aws:iam::123456789012:policy/LambdaBoundary
 ```
 
-### 3.9 最小権限の原則
+### 3.9 Principle of Least Privilege
 
 ```
-権限設計のアプローチ
+Permission Design Approach
 +------------------------------------------+
 |                                          |
-|  1. 必要最小限の権限から開始              |
-|     ↓                                    |
-|  2. IAM Access Analyzer で不足を検出     |
-|     ↓                                    |
-|  3. 必要な権限だけを追加                  |
-|     ↓                                    |
-|  4. 定期的に未使用権限を棚卸し            |
-|     ↓                                    |
-|  5. 不要な権限を削除                      |
+|  1. Start with minimum required perms    |
+|     |                                    |
+|  2. Detect gaps with IAM Access Analyzer |
+|     |                                    |
+|  3. Add only the necessary permissions   |
+|     |                                    |
+|  4. Periodically audit unused perms      |
+|     |                                    |
+|  5. Remove unnecessary permissions       |
 |                                          |
-|  ※ "AdministratorAccess" を安易に付与しない |
+|  * Do not casually grant                 |
+|    "AdministratorAccess"                 |
 +------------------------------------------+
 ```
 
-### 3.10 IAM Access Analyzer の活用
+### 3.10 Leveraging IAM Access Analyzer
 
 ```bash
-# Access Analyzer を作成（アカウントレベル）
+# Create an Access Analyzer (account level)
 aws accessanalyzer create-analyzer \
   --analyzer-name account-analyzer \
   --type ACCOUNT
 
-# 分析結果（外部からアクセス可能なリソース）を確認
+# Check findings (externally accessible resources)
 aws accessanalyzer list-findings \
   --analyzer-arn arn:aws:access-analyzer:ap-northeast-1:123456789012:analyzer/account-analyzer \
   --query 'findings[].{Resource:resource,ResourceType:resourceType,Status:status}' \
   --output table
 
-# ポリシー生成（CloudTrail ログから最小権限ポリシーを生成）
+# Policy generation (generate least-privilege policy from CloudTrail logs)
 aws accessanalyzer start-policy-generation \
   --policy-generation-details '{
     "principalArn": "arn:aws:iam::123456789012:role/MyAppRole",
@@ -697,7 +699,7 @@ aws accessanalyzer start-policy-generation \
     }
   }'
 
-# 未使用のアクセスキー・パスワードを検出
+# Detect unused access keys and passwords
 aws accessanalyzer create-analyzer \
   --analyzer-name unused-access-analyzer \
   --type ACCOUNT_UNUSED_ACCESS \
@@ -710,12 +712,12 @@ aws accessanalyzer create-analyzer \
 
 ---
 
-## 4. IAM Identity Center (旧 AWS SSO)
+## 4. IAM Identity Center (Formerly AWS SSO)
 
-### 4.1 IAM Identity Center の概要
+### 4.1 IAM Identity Center Overview
 
 ```
-IAM Identity Center アーキテクチャ
+IAM Identity Center Architecture
 +----------------------------------------------------------+
 |  AWS Organizations (Management Account)                    |
 |                                                           |
@@ -723,13 +725,13 @@ IAM Identity Center アーキテクチャ
 |  |  IAM Identity Center                                |  |
 |  |                                                     |  |
 |  |  +----------------+    +------------------------+   |  |
-|  |  | ID ソース       |    | 権限セット              |  |  |
+|  |  | ID Source       |    | Permission Sets        |  |  |
 |  |  | - Identity Center|   | - AdministratorAccess  |  |  |
 |  |  | - Active Dir.   |    | - PowerUserAccess      |  |  |
-|  |  | - 外部 IdP      |    | - ViewOnlyAccess       |  |  |
-|  |  +----------------+    | - カスタム権限セット     |  |  |
+|  |  | - External IdP  |    | - ViewOnlyAccess       |  |  |
+|  |  +----------------+    | - Custom Perm. Sets    |  |  |
 |  |                        +------------------------+   |  |
-|  |  ユーザー/グループ ← 権限セット → AWSアカウント       |  |
+|  |  Users/Groups <- Permission Sets -> AWS Accounts     |  |
 |  +----------------------------------------------------+  |
 |                                                           |
 |  +-------------------+  +-------------------+             |
@@ -738,13 +740,13 @@ IAM Identity Center アーキテクチャ
 +----------------------------------------------------------+
 ```
 
-### 4.2 IAM Identity Center のセットアップ
+### 4.2 Setting Up IAM Identity Center
 
 ```bash
-# IAM Identity Center のインスタンスを作成
+# Create an IAM Identity Center instance
 aws sso-admin create-instance --name "my-org-sso"
 
-# 権限セットを作成
+# Create a permission set
 aws sso-admin create-permission-set \
   --instance-arn arn:aws:sso:::instance/ssoins-xxxx \
   --name "DeveloperAccess" \
@@ -752,13 +754,13 @@ aws sso-admin create-permission-set \
   --session-duration "PT8H" \
   --relay-state ""
 
-# 管理ポリシーをアタッチ
+# Attach a managed policy
 aws sso-admin attach-managed-policy-to-permission-set \
   --instance-arn arn:aws:sso:::instance/ssoins-xxxx \
   --permission-set-arn arn:aws:sso:::permissionSet/ssoins-xxxx/ps-xxxx \
   --managed-policy-arn arn:aws:iam::aws:policy/PowerUserAccess
 
-# カスタムインラインポリシーをアタッチ
+# Attach a custom inline policy
 aws sso-admin put-inline-policy-to-permission-set \
   --instance-arn arn:aws:sso:::instance/ssoins-xxxx \
   --permission-set-arn arn:aws:sso:::permissionSet/ssoins-xxxx/ps-xxxx \
@@ -777,7 +779,7 @@ aws sso-admin put-inline-policy-to-permission-set \
     ]
   }'
 
-# アカウントに権限セットを割り当て
+# Assign permission set to an account
 aws sso-admin create-account-assignment \
   --instance-arn arn:aws:sso:::instance/ssoins-xxxx \
   --target-id 123456789012 \
@@ -787,25 +789,25 @@ aws sso-admin create-account-assignment \
   --principal-id "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```
 
-### 4.3 外部 IdP との連携（SAML 2.0）
+### 4.3 Integration with External IdP (SAML 2.0)
 
 ```
-外部 IdP 連携フロー
+External IdP Integration Flow
 +----------------------------------------------------------+
 |                                                           |
-|  1. ユーザーが AWS アクセスポータルにアクセス               |
-|     ↓                                                     |
-|  2. IAM Identity Center → 外部 IdP にリダイレクト          |
-|     ↓                                                     |
-|  3. 外部 IdP で認証（MFA含む）                             |
-|     ↓                                                     |
-|  4. SAML アサーションを IAM Identity Center に返却          |
-|     ↓                                                     |
-|  5. IAM Identity Center が一時認証情報を発行                |
-|     ↓                                                     |
-|  6. ユーザーが AWS アカウント/ロールを選択                   |
+|  1. User accesses AWS access portal                      |
+|     |                                                     |
+|  2. IAM Identity Center -> Redirects to external IdP     |
+|     |                                                     |
+|  3. Authenticates at external IdP (including MFA)        |
+|     |                                                     |
+|  4. Returns SAML assertion to IAM Identity Center        |
+|     |                                                     |
+|  5. IAM Identity Center issues temporary credentials     |
+|     |                                                     |
+|  6. User selects AWS account/role                        |
 |                                                           |
-|  対応 IdP:                                                 |
+|  Supported IdPs:                                          |
 |  - Azure AD (Entra ID)                                    |
 |  - Okta                                                   |
 |  - Google Workspace                                       |
@@ -818,38 +820,38 @@ aws sso-admin create-account-assignment \
 
 ## 5. AWS Organizations
 
-### 5.1 マルチアカウント戦略
+### 5.1 Multi-Account Strategy
 
 ```
-AWS Organizations 構成例
+AWS Organizations Configuration Example
 +----------------------------------------------------+
-| Management Account (請求統合・ガバナンス)             |
+| Management Account (Consolidated billing/governance) |
 |                                                     |
-| ├── OU: Security                                    |
-| │   ├── Log Archive Account (CloudTrail, Config)    |
-| │   └── Security Tooling Account (GuardDuty, etc.)  |
-| │                                                   |
-| ├── OU: Infrastructure                              |
-| │   ├── Network Account (Transit Gateway, VPN)      |
-| │   └── Shared Services Account (CI/CD, ECR)        |
-| │                                                   |
-| ├── OU: Workloads                                   |
-| │   ├── Production Account                          |
-| │   ├── Staging Account                             |
-| │   └── Development Account                         |
-| │                                                   |
-| └── OU: Sandbox                                     |
-|     └── Developer Sandbox Account                   |
+| +-- OU: Security                                    |
+| |   +-- Log Archive Account (CloudTrail, Config)    |
+| |   +-- Security Tooling Account (GuardDuty, etc.)  |
+| |                                                   |
+| +-- OU: Infrastructure                              |
+| |   +-- Network Account (Transit Gateway, VPN)      |
+| |   +-- Shared Services Account (CI/CD, ECR)        |
+| |                                                   |
+| +-- OU: Workloads                                   |
+| |   +-- Production Account                          |
+| |   +-- Staging Account                             |
+| |   +-- Development Account                         |
+| |                                                   |
+| +-- OU: Sandbox                                     |
+|     +-- Developer Sandbox Account                   |
 +----------------------------------------------------+
 ```
 
-### 5.2 コード例: Organizations の操作
+### 5.2 Code Example: Organizations Operations
 
 ```bash
-# 組織を作成
+# Create an organization
 aws organizations create-organization --feature-set ALL
 
-# OU (組織単位) を作成
+# Create OUs (Organizational Units)
 ROOT_ID=$(aws organizations list-roots --query 'Roots[0].Id' --output text)
 
 aws organizations create-organizational-unit \
@@ -868,29 +870,29 @@ aws organizations create-organizational-unit \
   --parent-id "$ROOT_ID" \
   --name "Sandbox"
 
-# 新しいメンバーアカウントを作成
+# Create a new member account
 aws organizations create-account \
   --email prod@example.com \
   --account-name "Production"
 
-# SCP（サービスコントロールポリシー）をアタッチ
+# Attach an SCP (Service Control Policy)
 aws organizations attach-policy \
   --policy-id p-xxxx \
   --target-id ou-xxxx
 
-# OU の一覧を確認
+# List OUs
 aws organizations list-organizational-units-for-parent \
   --parent-id "$ROOT_ID" \
   --query 'OrganizationalUnits[].[Id,Name]' \
   --output table
 
-# アカウント一覧
+# List accounts
 aws organizations list-accounts \
   --query 'Accounts[].[Id,Name,Email,Status]' \
   --output table
 ```
 
-### 5.3 Service Control Policy (SCP) 例
+### 5.3 Service Control Policy (SCP) Example
 
 ```json
 {
@@ -928,7 +930,7 @@ aws organizations list-accounts \
 }
 ```
 
-### 5.4 SCP のベストプラクティス集
+### 5.4 SCP Best Practices Collection
 
 ```json
 {
@@ -1014,80 +1016,80 @@ aws organizations list-accounts \
 
 ## 6. AWS Control Tower
 
-### 6.1 Control Tower の概要
+### 6.1 Control Tower Overview
 
-AWS Control Tower は、AWS のベストプラクティスに基づいたマルチアカウント環境（ランディングゾーン）を自動構築するサービスである。
+AWS Control Tower is a service that automatically builds a multi-account environment (landing zone) based on AWS best practices.
 
 ```
-Control Tower ランディングゾーン
+Control Tower Landing Zone
 +----------------------------------------------------------+
 |  Management Account                                       |
-|  ├── AWS Control Tower                                    |
-|  ├── AWS Organizations                                    |
-|  ├── AWS Service Catalog                                  |
-|  └── AWS CloudFormation StackSets                         |
+|  +-- AWS Control Tower                                    |
+|  +-- AWS Organizations                                    |
+|  +-- AWS Service Catalog                                  |
+|  +-- AWS CloudFormation StackSets                         |
 |                                                           |
 |  OU: Security                                             |
-|  ├── Log Archive Account                                  |
-|  │   ├── CloudTrail ログ (全アカウント)                    |
-|  │   ├── AWS Config ログ (全アカウント)                    |
-|  │   └── VPC フローログ                                   |
-|  └── Audit Account                                        |
-|      ├── SNS 通知                                         |
-|      ├── AWS Config アグリゲーター                         |
-|      └── Security Hub                                     |
+|  +-- Log Archive Account                                  |
+|  |   +-- CloudTrail logs (all accounts)                   |
+|  |   +-- AWS Config logs (all accounts)                   |
+|  |   +-- VPC Flow Logs                                    |
+|  +-- Audit Account                                        |
+|      +-- SNS notifications                                |
+|      +-- AWS Config Aggregator                            |
+|      +-- Security Hub                                     |
 |                                                           |
-|  OU: Sandbox (カスタム OU)                                 |
-|  └── Developer Sandbox Accounts                           |
+|  OU: Sandbox (Custom OU)                                  |
+|  +-- Developer Sandbox Accounts                           |
 |                                                           |
-|  OU: Workloads (カスタム OU)                               |
-|  ├── Production Accounts                                  |
-|  └── Development Accounts                                 |
+|  OU: Workloads (Custom OU)                                |
+|  +-- Production Accounts                                  |
+|  +-- Development Accounts                                 |
 +----------------------------------------------------------+
 ```
 
-### 6.2 ガードレール（Controls）
+### 6.2 Guardrails (Controls)
 
 ```
-ガードレールの分類
+Guardrail Classification
 +----------------------------------------------------------+
-|  強制（Preventive） - SCP で禁止行為をブロック               |
-|  ├── CloudTrail の無効化を禁止                              |
-|  ├── S3 バケットのパブリックアクセスを禁止                   |
-|  ├── ルートユーザーのアクセスキー作成を禁止                  |
-|  └── リージョン制限                                        |
+|  Preventive - Block prohibited actions via SCPs            |
+|  +-- Prevent disabling CloudTrail                         |
+|  +-- Prevent public access to S3 buckets                  |
+|  +-- Prevent root user access key creation                |
+|  +-- Region restrictions                                  |
 |                                                           |
-|  検出（Detective） - AWS Config Rules で違反を検出          |
-|  ├── MFA が未設定のユーザーを検出                           |
-|  ├── 暗号化されていない EBS ボリュームを検出                 |
-|  ├── パブリック IP が付与された EC2 を検出                   |
-|  └── 未使用のアクセスキーを検出                             |
+|  Detective - Detect violations via AWS Config Rules        |
+|  +-- Detect users without MFA                             |
+|  +-- Detect unencrypted EBS volumes                       |
+|  +-- Detect EC2 instances with public IPs                 |
+|  +-- Detect unused access keys                            |
 |                                                           |
-|  予防（Proactive） - CloudFormation フックで事前チェック     |
-|  ├── EC2 に IMDSv2 が必須か検証                            |
-|  ├── RDS が暗号化されているか検証                           |
-|  └── Lambda が VPC 内にあるか検証                           |
+|  Proactive - Pre-check via CloudFormation Hooks            |
+|  +-- Verify IMDSv2 is required for EC2                    |
+|  +-- Verify RDS is encrypted                              |
+|  +-- Verify Lambda is in a VPC                            |
 +----------------------------------------------------------+
 ```
 
 ---
 
-## 7. 請求アラートとコスト管理
+## 7. Billing Alerts and Cost Management
 
-### 7.1 コード例: 請求アラートの設定 (CloudWatch)
+### 7.1 Code Example: Setting Up Billing Alerts (CloudWatch)
 
 ```bash
-# 請求メトリクスを有効化（コンソールで先に有効化が必要）
+# Enable billing metrics (must be enabled in console first)
 # Billing > Billing Preferences > Receive Billing Alerts
 
-# SNS トピックを作成
+# Create an SNS topic
 aws sns create-topic --name billing-alerts
 aws sns subscribe \
   --topic-arn arn:aws:sns:us-east-1:123456789012:billing-alerts \
   --protocol email \
   --notification-endpoint admin@example.com
 
-# CloudWatch 請求アラームを作成（月額 $50 超過で通知）
+# Create a CloudWatch billing alarm (notify when monthly exceeds $50)
 aws cloudwatch put-metric-alarm \
   --alarm-name "MonthlyBillingAlarm-50USD" \
   --metric-name EstimatedCharges \
@@ -1101,7 +1103,7 @@ aws cloudwatch put-metric-alarm \
   --dimensions Name=Currency,Value=USD \
   --region us-east-1
 
-# 段階的なアラーム（$100, $200, $500）
+# Tiered alarms ($100, $200, $500)
 for threshold in 100 200 500; do
   aws cloudwatch put-metric-alarm \
     --alarm-name "MonthlyBillingAlarm-${threshold}USD" \
@@ -1118,10 +1120,10 @@ for threshold in 100 200 500; do
 done
 ```
 
-### 7.2 AWS Budgets の設定
+### 7.2 Setting Up AWS Budgets
 
 ```bash
-# 月間予算を作成（$100 の予算、80% で通知）
+# Create a monthly budget ($100 budget, notify at 80%)
 aws budgets create-budget \
   --account-id 123456789012 \
   --budget '{
@@ -1161,7 +1163,7 @@ aws budgets create-budget \
     }
   ]'
 
-# サービス別の予算を作成
+# Create a per-service budget
 aws budgets create-budget \
   --account-id 123456789012 \
   --budget '{
@@ -1191,10 +1193,10 @@ aws budgets create-budget \
   ]'
 ```
 
-### 7.3 AWS Cost Explorer の活用
+### 7.3 Leveraging AWS Cost Explorer
 
 ```bash
-# 過去30日のサービス別コスト
+# Service-wise cost for the past 30 days
 aws ce get-cost-and-usage \
   --time-period Start=$(date -v-30d +%Y-%m-%d),End=$(date +%Y-%m-%d) \
   --granularity MONTHLY \
@@ -1203,7 +1205,7 @@ aws ce get-cost-and-usage \
   --query 'ResultsByTime[].Groups[?Metrics.BlendedCost.Amount > `1.0`].{Service:Keys[0],Cost:Metrics.BlendedCost.Amount}' \
   --output table
 
-# 日別のコスト推移
+# Daily cost trend
 aws ce get-cost-and-usage \
   --time-period Start=$(date -v-7d +%Y-%m-%d),End=$(date +%Y-%m-%d) \
   --granularity DAILY \
@@ -1211,17 +1213,17 @@ aws ce get-cost-and-usage \
   --query 'ResultsByTime[].{Date:TimePeriod.Start,Cost:Total.BlendedCost.Amount}' \
   --output table
 
-# コスト予測（今月末の予測値）
+# Cost forecast (projected value at end of month)
 aws ce get-cost-forecast \
   --time-period Start=$(date +%Y-%m-%d),End=$(date -v+1m -v1d -v-1d +%Y-%m-%d) \
   --metric BLENDED_COST \
   --granularity MONTHLY
 ```
 
-### 7.4 コスト異常検知
+### 7.4 Cost Anomaly Detection
 
 ```bash
-# コスト異常検知モニターを作成
+# Create a cost anomaly detection monitor
 aws ce create-anomaly-monitor \
   --anomaly-monitor '{
     "MonitorName": "ServiceMonitor",
@@ -1229,7 +1231,7 @@ aws ce create-anomaly-monitor \
     "MonitorDimension": "SERVICE"
   }'
 
-# サブスクリプション（通知先）を作成
+# Create a subscription (notification destination)
 aws ce create-anomaly-subscription \
   --anomaly-subscription '{
     "SubscriptionName": "CostAnomalyAlerts",
@@ -1247,13 +1249,13 @@ aws ce create-anomaly-subscription \
 
 ---
 
-## 8. CloudFormation による IAM リソースの IaC 管理
+## 8. Managing IAM Resources as IaC with CloudFormation
 
-### 8.1 IAM ユーザー・グループ・ポリシーの CloudFormation テンプレート
+### 8.1 CloudFormation Template for IAM Users, Groups, and Policies
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'IAM初期設定 - ユーザー、グループ、ポリシーの作成'
+Description: 'IAM Initial Setup - Create Users, Groups, and Policies'
 
 Parameters:
   EnvironmentName:
@@ -1262,10 +1264,10 @@ Parameters:
     AllowedValues: [production, staging, development]
 
 Resources:
-  # パスワードポリシー
-  # CloudFormation では直接設定できないため、カスタムリソースが必要
+  # Password Policy
+  # Cannot be set directly with CloudFormation; requires a custom resource
 
-  # 管理者グループ
+  # Administrator Group
   AdminGroup:
     Type: AWS::IAM::Group
     Properties:
@@ -1273,7 +1275,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AdministratorAccess
 
-  # 開発者グループ
+  # Developer Group
   DeveloperGroup:
     Type: AWS::IAM::Group
     Properties:
@@ -1294,7 +1296,7 @@ Resources:
                   - 'organizations:*'
                 Resource: '*'
 
-  # 読み取り専用グループ
+  # Read-Only Group
   ReadOnlyGroup:
     Type: AWS::IAM::Group
     Properties:
@@ -1302,7 +1304,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/ReadOnlyAccess
 
-  # MFA 強制ポリシー
+  # MFA Enforcement Policy
   MFAEnforcementPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -1337,7 +1339,7 @@ Resources:
               BoolIfExists:
                 'aws:MultiFactorAuthPresent': 'false'
 
-  # EC2 用ロール
+  # EC2 Role
   EC2WebServerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -1375,7 +1377,7 @@ Outputs:
       Name: !Sub '${EnvironmentName}-ec2-webserver-role-arn'
 ```
 
-### 8.2 AWS CDK による IAM 設定
+### 8.2 IAM Configuration with AWS CDK
 
 ```typescript
 import * as cdk from 'aws-cdk-lib';
@@ -1386,7 +1388,7 @@ export class IamSetupStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // 開発者グループ
+    // Developer group
     const developerGroup = new iam.Group(this, 'DeveloperGroup', {
       groupName: 'developers',
       managedPolicies: [
@@ -1394,7 +1396,7 @@ export class IamSetupStack extends cdk.Stack {
       ],
     });
 
-    // カスタムポリシー
+    // Custom policy
     const restrictedPolicy = new iam.ManagedPolicy(this, 'RestrictedPolicy', {
       managedPolicyName: 'developer-restrictions',
       statements: [
@@ -1421,7 +1423,7 @@ export class IamSetupStack extends cdk.Stack {
     });
     developerGroup.addManagedPolicy(restrictedPolicy);
 
-    // EC2 用ロール
+    // EC2 role
     const ec2Role = new iam.Role(this, 'EC2WebServerRole', {
       roleName: 'ec2-webserver-role',
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
@@ -1432,7 +1434,7 @@ export class IamSetupStack extends cdk.Stack {
       maxSessionDuration: cdk.Duration.hours(4),
     });
 
-    // Lambda 実行ロール
+    // Lambda execution role
     const lambdaRole = new iam.Role(this, 'LambdaExecutionRole', {
       roleName: 'lambda-execution-role',
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
@@ -1459,7 +1461,7 @@ export class IamSetupStack extends cdk.Stack {
       },
     });
 
-    // 出力
+    // Outputs
     new cdk.CfnOutput(this, 'EC2RoleArn', {
       value: ec2Role.roleArn,
       exportName: 'ec2-webserver-role-arn',
@@ -1470,34 +1472,34 @@ export class IamSetupStack extends cdk.Stack {
 
 ---
 
-## 9. 初期設定チェックリスト
+## 9. Initial Setup Checklist
 
-| # | タスク | 優先度 | カテゴリ | 完了 |
-|---|--------|--------|---------|------|
-| 1 | ルートユーザーに MFA を設定 | 必須 | セキュリティ | [ ] |
-| 2 | ルートユーザーのアクセスキーを削除/未作成確認 | 必須 | セキュリティ | [ ] |
-| 3 | IAM 管理者ユーザーを作成 | 必須 | セキュリティ | [ ] |
-| 4 | パスワードポリシーを設定 | 必須 | セキュリティ | [ ] |
-| 5 | IAM グループを作成し、ポリシーをアタッチ | 高 | IAM | [ ] |
-| 6 | アカウントエイリアスを設定 | 高 | アカウント | [ ] |
-| 7 | CloudTrail を有効化 | 高 | 監査 | [ ] |
-| 8 | 請求アラートを設定 | 高 | コスト | [ ] |
-| 9 | AWS Budgets を設定 | 高 | コスト | [ ] |
-| 10 | AWS Config を有効化 | 中 | コンプライアンス | [ ] |
-| 11 | GuardDuty を有効化 | 中 | セキュリティ | [ ] |
-| 12 | Security Hub を有効化 | 中 | セキュリティ | [ ] |
-| 13 | EBS デフォルト暗号化を有効化 | 中 | セキュリティ | [ ] |
-| 14 | S3 パブリックアクセスブロック（アカウントレベル） | 中 | セキュリティ | [ ] |
-| 15 | Organizations で環境分離 | 中 | ガバナンス | [ ] |
-| 16 | IAM Identity Center の設定 | 中 | IAM | [ ] |
-| 17 | コスト異常検知を設定 | 低 | コスト | [ ] |
-| 18 | VPC フローログの有効化 | 低 | 監査 | [ ] |
+| # | Task | Priority | Category | Done |
+|---|------|----------|----------|------|
+| 1 | Set up MFA for root user | Required | Security | [ ] |
+| 2 | Delete/verify no root user access keys exist | Required | Security | [ ] |
+| 3 | Create IAM administrator user | Required | Security | [ ] |
+| 4 | Set password policy | Required | Security | [ ] |
+| 5 | Create IAM groups and attach policies | High | IAM | [ ] |
+| 6 | Set account alias | High | Account | [ ] |
+| 7 | Enable CloudTrail | High | Audit | [ ] |
+| 8 | Set up billing alerts | High | Cost | [ ] |
+| 9 | Set up AWS Budgets | High | Cost | [ ] |
+| 10 | Enable AWS Config | Medium | Compliance | [ ] |
+| 11 | Enable GuardDuty | Medium | Security | [ ] |
+| 12 | Enable Security Hub | Medium | Security | [ ] |
+| 13 | Enable EBS default encryption | Medium | Security | [ ] |
+| 14 | S3 public access block (account level) | Medium | Security | [ ] |
+| 15 | Environment isolation with Organizations | Medium | Governance | [ ] |
+| 16 | Set up IAM Identity Center | Medium | IAM | [ ] |
+| 17 | Set up cost anomaly detection | Low | Cost | [ ] |
+| 18 | Enable VPC Flow Logs | Low | Audit | [ ] |
 
 ---
 
-## 10. Terraform による IAM 管理
+## 10. IAM Management with Terraform
 
-### 10.1 IAM モジュール
+### 10.1 IAM Module
 
 ```hcl
 # main.tf
@@ -1515,7 +1517,7 @@ provider "aws" {
   region = "ap-northeast-1"
 }
 
-# IAM グループ
+# IAM Groups
 resource "aws_iam_group" "developers" {
   name = "developers"
   path = "/teams/"
@@ -1526,7 +1528,7 @@ resource "aws_iam_group" "readonly" {
   path = "/teams/"
 }
 
-# グループポリシーアタッチメント
+# Group policy attachments
 resource "aws_iam_group_policy_attachment" "developers_power_user" {
   group      = aws_iam_group.developers.name
   policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
@@ -1537,10 +1539,10 @@ resource "aws_iam_group_policy_attachment" "readonly_access" {
   policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }
 
-# カスタムポリシー
+# Custom policy
 resource "aws_iam_policy" "developer_restrictions" {
   name        = "developer-restrictions"
-  description = "開発者の権限制限"
+  description = "Developer permission restrictions"
   policy      = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -1580,7 +1582,7 @@ resource "aws_iam_group_policy_attachment" "developers_restrictions" {
   policy_arn = aws_iam_policy.developer_restrictions.arn
 }
 
-# EC2 用ロール
+# EC2 Role
 resource "aws_iam_role" "ec2_webserver" {
   name = "ec2-webserver-role"
   assume_role_policy = jsonencode({
@@ -1593,7 +1595,7 @@ resource "aws_iam_role" "ec2_webserver" {
       }
     ]
   })
-  max_session_duration = 14400  # 4時間
+  max_session_duration = 14400  # 4 hours
 }
 
 resource "aws_iam_role_policy_attachment" "ec2_s3_readonly" {
@@ -1606,7 +1608,7 @@ resource "aws_iam_instance_profile" "ec2_webserver" {
   role = aws_iam_role.ec2_webserver.name
 }
 
-# パスワードポリシー
+# Password policy
 resource "aws_iam_account_password_policy" "strict" {
   minimum_password_length        = 14
   require_lowercase_characters   = true
@@ -1619,122 +1621,122 @@ resource "aws_iam_account_password_policy" "strict" {
   hard_expiry                    = true
 }
 
-# 出力
+# Outputs
 output "ec2_webserver_role_arn" {
   value       = aws_iam_role.ec2_webserver.arn
-  description = "EC2 Web Server ロールの ARN"
+  description = "ARN of the EC2 Web Server role"
 }
 ```
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### アンチパターン 1: ルートユーザーで日常操作する
+### Anti-Pattern 1: Using the Root User for Daily Operations
 
-ルートユーザーは権限を制限できないため、誤操作や漏洩時のリスクが甚大。アカウント設定の変更（支払い情報、アカウント閉鎖）以外は IAM ユーザーまたは IAM Identity Center (SSO) で運用すべきである。
+The root user's permissions cannot be restricted, so the risk from misoperations or credential leaks is enormous. Except for account settings changes (payment information, account closure), you should operate with IAM users or IAM Identity Center (SSO).
 
 ```
-# 悪い例
-ルートユーザーで毎日 EC2 を操作
-↓
-# 良い例
-IAM ユーザー (MFA有効) で操作
-ルートユーザーは金庫に保管（物理 MFA 推奨）
+# Bad example
+Operating EC2 daily with the root user
+->
+# Good example
+Operating with IAM user (MFA enabled)
+Root user stored in a safe (physical MFA recommended)
 ```
 
-### アンチパターン 2: IAM ユーザーにアクセスキーを長期間放置する
+### Anti-Pattern 2: Leaving IAM User Access Keys for Extended Periods
 
-アクセスキーは漏洩リスクがあるため、90日ごとにローテーションし、不要なキーは即座に削除する。可能であれば IAM ロール（一時認証情報）を使うべきである。
+Access keys carry a risk of leakage, so they should be rotated every 90 days and unnecessary keys should be deleted immediately. Where possible, use IAM roles (temporary credentials) instead.
 
 ```bash
-# アクセスキーの最終使用日を確認
+# Check when an access key was last used
 aws iam get-access-key-last-used \
   --access-key-id AKIAIOSFODNN7EXAMPLE
 
-# 90日以上未使用のキーを一覧表示
+# List keys unused for 90+ days
 aws iam list-access-keys --user-name tanaka
-# → CreateDate を確認し、古いキーは無効化 → 削除
+# -> Check CreateDate and disable -> delete old keys
 
-# アクセスキーのローテーションスクリプト
+# Access key rotation script
 #!/bin/bash
 USER_NAME="tanaka"
 OLD_KEY_ID=$(aws iam list-access-keys --user-name "$USER_NAME" \
   --query 'AccessKeyMetadata[0].AccessKeyId' --output text)
 
-# 新しいキーを作成
+# Create a new key
 NEW_KEY=$(aws iam create-access-key --user-name "$USER_NAME")
-echo "新しいアクセスキー: $(echo $NEW_KEY | jq -r '.AccessKey.AccessKeyId')"
+echo "New access key: $(echo $NEW_KEY | jq -r '.AccessKey.AccessKeyId')"
 
-# アプリケーションに新しいキーを設定した後に古いキーを削除
+# Delete the old key after configuring the new key in your application
 # aws iam delete-access-key --user-name "$USER_NAME" --access-key-id "$OLD_KEY_ID"
 ```
 
-### アンチパターン 3: 全員に AdministratorAccess を付与する
+### Anti-Pattern 3: Granting AdministratorAccess to Everyone
 
-開発スピードを優先して全員に管理者権限を付与するのは危険。最小権限の原則に基づき、役割に応じた権限を設計する。
-
-```
-# 悪い例
-全開発者 → AdministratorAccess
-→ 誤って本番 DB を削除するリスク
-
-# 良い例
-開発者 → PowerUserAccess + カスタム制限
-SRE   → AdministratorAccess（限定メンバーのみ）
-QA    → ReadOnlyAccess + テスト環境の操作権限
-```
-
-### アンチパターン 4: 単一アカウントで全環境を運用する
-
-本番・ステージング・開発環境を1つのアカウントで運用すると、権限分離が困難になり、開発環境の誤操作が本番に影響するリスクがある。
+Granting administrator permissions to everyone in favor of development speed is dangerous. Design permissions based on roles following the principle of least privilege.
 
 ```
-# 悪い例
-1つのアカウントに prod, staging, dev のリソースが混在
-→ タグで区別（タグの付け忘れでリスク）
+# Bad example
+All developers -> AdministratorAccess
+-> Risk of accidentally deleting the production DB
 
-# 良い例
-Organizations で環境ごとにアカウント分離
+# Good example
+Developers -> PowerUserAccess + custom restrictions
+SRE        -> AdministratorAccess (limited members only)
+QA         -> ReadOnlyAccess + test environment operation permissions
+```
+
+### Anti-Pattern 4: Running All Environments in a Single Account
+
+Running production, staging, and development environments in a single account makes permission isolation difficult and creates the risk that mistakes in the development environment affect production.
+
+```
+# Bad example
+One account with prod, staging, dev resources mixed together
+-> Distinguished by tags (risk of forgotten tags)
+
+# Good example
+Separate accounts per environment with Organizations
 prod: 123456789012
 staging: 234567890123
 dev: 345678901234
-→ SCP でガードレール、IAM Identity Center で一元管理
+-> Guardrails with SCPs, centralized management with IAM Identity Center
 ```
 
 ---
 
 ## 12. FAQ
 
-### Q1. 無料枠の範囲はどこまでか？
+### Q1. What is covered by the free tier?
 
-AWS 無料枠には3種類ある。(1) 12ヶ月無料枠（EC2 t2.micro 750時間/月など）、(2) 常時無料（Lambda 100万リクエスト/月、DynamoDB 25GB など）、(3) トライアル（一部サービスの期間限定無料）。詳細は https://aws.amazon.com/free/ を確認する。
+There are three types of AWS free tiers: (1) 12-month free tier (e.g., EC2 t2.micro 750 hours/month), (2) Always free (e.g., Lambda 1 million requests/month, DynamoDB 25GB), (3) Trials (time-limited free usage of certain services). Check https://aws.amazon.com/free/ for details.
 
-### Q2. アカウントが不正利用されたらどうする？
+### Q2. What should I do if my account is compromised?
 
-(1) ルートユーザーのパスワードを即座に変更、(2) 全アクセスキーを無効化、(3) 不正なリソースを停止・削除、(4) AWS サポートに連絡。事前対策として CloudTrail のログ監視と GuardDuty の有効化が重要。
+(1) Immediately change the root user password, (2) Deactivate all access keys, (3) Stop and delete unauthorized resources, (4) Contact AWS Support. As preventive measures, CloudTrail log monitoring and GuardDuty activation are important.
 
 ```bash
-# 緊急対応スクリプト
+# Emergency response script
 #!/bin/bash
-echo "=== 不正アクセス緊急対応 ==="
+echo "=== Unauthorized Access Emergency Response ==="
 
-# 1. 全 IAM ユーザーのアクセスキーを無効化
+# 1. Deactivate all IAM user access keys
 for user in $(aws iam list-users --query 'Users[].UserName' --output text); do
   for key in $(aws iam list-access-keys --user-name "$user" \
     --query 'AccessKeyMetadata[].AccessKeyId' --output text); do
     aws iam update-access-key --user-name "$user" --access-key-id "$key" --status Inactive
-    echo "無効化: $user / $key"
+    echo "Deactivated: $user / $key"
   done
 done
 
-# 2. 不審な EC2 インスタンスを停止
+# 2. Stop suspicious EC2 instances
 aws ec2 describe-instances \
   --filters "Name=instance-state-name,Values=running" \
   --query 'Reservations[].Instances[].[InstanceId,LaunchTime,InstanceType]' \
   --output table
 
-# 3. CloudTrail で不審なアクティビティを確認
+# 3. Check CloudTrail for suspicious activity
 aws cloudtrail lookup-events \
   --lookup-attributes AttributeKey=EventName,AttributeValue=RunInstances \
   --start-time "$(date -v-24H -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -1742,68 +1744,68 @@ aws cloudtrail lookup-events \
   --output table
 ```
 
-### Q3. IAM Identity Center (旧 SSO) と IAM ユーザーの使い分けは？
+### Q3. When should I use IAM Identity Center (formerly SSO) vs IAM users?
 
-AWS Organizations を使う場合は IAM Identity Center を推奨。シングルサインオン、一元的なアクセス管理、一時認証情報の自動発行が利点。小規模・単一アカウントであれば IAM ユーザー + MFA でも十分。
+IAM Identity Center is recommended when using AWS Organizations. Its advantages include single sign-on, centralized access management, and automatic issuance of temporary credentials. For small-scale or single-account setups, IAM users with MFA are sufficient.
 
-### Q4. AWS アカウントを閉鎖する手順は？
+### Q4. What is the procedure for closing an AWS account?
 
-アカウント閉鎖は取り消し不可能（90日以内は復元可能だが保証されない）。閉鎖前に: (1) 必要なデータを他のアカウントに移行、(2) Route 53 ドメインを移管、(3) サポートケースをクローズ、(4) ルートユーザーでコンソールから閉鎖を実行。
+Account closure is irreversible (recovery within 90 days is possible but not guaranteed). Before closing: (1) Migrate necessary data to other accounts, (2) Transfer Route 53 domains, (3) Close support cases, (4) Execute closure from the console as the root user.
 
-### Q5. 複数リージョンの利用に関する注意点は？
+### Q5. What should I be aware of when using multiple regions?
 
-IAM はグローバルサービスだが、他のほとんどのサービスはリージョナル。CloudTrail はマルチリージョン対応を有効化し、SCP でリージョン制限をかけることを推奨。主な例外: IAM、Route 53、CloudFront、WAF (Global)、Organizations。
+IAM is a global service, but most other services are regional. It is recommended to enable multi-region support for CloudTrail and apply region restrictions via SCPs. Notable exceptions: IAM, Route 53, CloudFront, WAF (Global), Organizations.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 13. まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| ルートユーザー | MFA 必須、日常利用禁止、アクセスキー作成禁止 |
-| IAM 設計 | グループベースの権限管理、最小権限の原則 |
-| IAM ロール | EC2/Lambda からの AWS サービスアクセスに使用 |
-| アクセス許可境界 | 権限委任時の上限設定で安全性確保 |
-| MFA | 全 IAM ユーザーに設定、ルートには FIDO2 推奨 |
-| IAM Identity Center | マルチアカウント運用での一元的アクセス管理 |
-| Organizations | 環境ごとにアカウント分離、SCP でガードレール |
-| Control Tower | ベストプラクティスベースのランディングゾーン |
-| コスト管理 | Budgets + CloudWatch アラーム + 異常検知で超過を早期検知 |
-| IaC | CloudFormation / CDK / Terraform で IAM をコード管理 |
+Knowledge of this topic is frequently utilized in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 13. Summary
 
-- [02-aws-cli-sdk.md](./02-aws-cli-sdk.md) — CLI/SDK のセットアップと認証情報管理
-- [../01-compute/00-ec2-basics.md](../01-compute/00-ec2-basics.md) — EC2 インスタンスの基礎
+| Item | Key Points |
+|------|-----------|
+| Root User | MFA required, daily use prohibited, access key creation prohibited |
+| IAM Design | Group-based permission management, principle of least privilege |
+| IAM Roles | Used for AWS service access from EC2/Lambda |
+| Permissions Boundary | Sets upper limit during permission delegation for safety |
+| MFA | Set for all IAM users, FIDO2 recommended for root |
+| IAM Identity Center | Centralized access management for multi-account operations |
+| Organizations | Separate accounts per environment, guardrails with SCPs |
+| Control Tower | Landing zone based on best practices |
+| Cost Management | Early detection of overages with Budgets + CloudWatch alarms + anomaly detection |
+| IaC | Manage IAM as code with CloudFormation / CDK / Terraform |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
 
-1. AWS IAM ベストプラクティス — https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html
-2. AWS Organizations ユーザーガイド — https://docs.aws.amazon.com/organizations/latest/userguide/
-3. AWS Security Best Practices (Whitepaper) — https://docs.aws.amazon.com/whitepapers/latest/aws-security-best-practices/
-4. AWS Well-Architected Framework — Security Pillar — https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/
-5. IAM Identity Center ユーザーガイド — https://docs.aws.amazon.com/singlesignon/latest/userguide/
-6. AWS Control Tower ユーザーガイド — https://docs.aws.amazon.com/controltower/latest/userguide/
-7. AWS Cost Management ユーザーガイド — https://docs.aws.amazon.com/cost-management/latest/userguide/
-8. AWS CDK IAM モジュール — https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_iam-readme.html
+- [02-aws-cli-sdk.md](./02-aws-cli-sdk.md) -- CLI/SDK setup and credential management
+- [../01-compute/00-ec2-basics.md](../01-compute/00-ec2-basics.md) -- EC2 instance fundamentals
+
+---
+
+## References
+
+1. AWS IAM Best Practices -- https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html
+2. AWS Organizations User Guide -- https://docs.aws.amazon.com/organizations/latest/userguide/
+3. AWS Security Best Practices (Whitepaper) -- https://docs.aws.amazon.com/whitepapers/latest/aws-security-best-practices/
+4. AWS Well-Architected Framework -- Security Pillar -- https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/
+5. IAM Identity Center User Guide -- https://docs.aws.amazon.com/singlesignon/latest/userguide/
+6. AWS Control Tower User Guide -- https://docs.aws.amazon.com/controltower/latest/userguide/
+7. AWS Cost Management User Guide -- https://docs.aws.amazon.com/cost-management/latest/userguide/
+8. AWS CDK IAM Module -- https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_iam-readme.html
