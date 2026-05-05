@@ -1,64 +1,64 @@
-# AWS Lambda 基礎
+# AWS Lambda Basics
 
-> サーバーを一切管理せずにコードを実行できる AWS Lambda の基本概念、関数の作成方法、トリガー設定、IAM ロール、環境変数、レイヤーまでを体系的に学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **Lambda 関数の作成とデプロイ** -- ランタイム選択からコードのアップロード、テスト実行までの一連の流れを理解する
-2. **トリガーと IAM ロールの設計** -- API Gateway・S3・SQS などのイベントソースと、最小権限の実行ロールを正しく構成する
-3. **環境変数とレイヤーの活用** -- 設定の外部化と共通ライブラリの再利用でメンテナンス性を高める手法を身につける
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> A systematic guide to AWS Lambda — running code without managing any servers — covering core concepts, function creation, trigger configuration, IAM roles, environment variables, and layers.
 
 ---
 
-## 1. Lambda とは何か
+## What You Will Learn
 
-### 1.1 サーバーレスコンピューティングの位置づけ
+1. **Creating and deploying Lambda functions** -- understand the end-to-end flow from selecting a runtime to uploading code and running tests
+2. **Designing triggers and IAM roles** -- correctly configure event sources such as API Gateway, S3, and SQS, along with least-privilege execution roles
+3. **Using environment variables and layers** -- learn how to externalize configuration and reuse shared libraries to improve maintainability
 
-```
-従来型 (EC2)              コンテナ (ECS/EKS)          サーバーレス (Lambda)
-+-----------------+      +-----------------+      +-----------------+
-| アプリケーション |      | アプリケーション |      | アプリケーション |
-+-----------------+      +-----------------+      +-----------------+
-| ミドルウェア     |      | コンテナランタイム|      |                 |
-+-----------------+      +-----------------+      |  AWS が全て管理  |
-| OS              |      |  OS (共有)       |      |                 |
-+-----------------+      +-----------------+      +-----------------+
-| ハードウェア     |      | ハードウェア     |      | ハードウェア     |
-+-----------------+      +-----------------+      +-----------------+
-  ユーザー管理範囲:広      ユーザー管理範囲:中      ユーザー管理範囲:狭
-```
 
-Lambda はイベント駆動型のコンピューティングサービスであり、以下の特徴を持つ。
+## Prerequisites
 
-- **プロビジョニング不要** -- サーバーの起動・停止・スケーリングは AWS が自動管理
-- **実行時間課金** -- リクエスト数と実行時間(1ms 単位)で課金
-- **自動スケーリング** -- 同時実行数は需要に応じて自動的に増減
-- **幅広い言語サポート** -- Python、Node.js、Java、Go、.NET、Ruby、カスタムランタイム
+Having the following knowledge before reading this guide will deepen your understanding:
 
-### 1.2 Lambda の実行モデル
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. What Is Lambda?
+
+### 1.1 Where Serverless Computing Fits In
 
 ```
-イベントソース           Lambda サービス              実行環境
+Traditional (EC2)         Containers (ECS/EKS)        Serverless (Lambda)
++-----------------+      +-----------------+      +-----------------+
+| Application     |      | Application     |      | Application     |
++-----------------+      +-----------------+      +-----------------+
+| Middleware      |      | Container RT    |      |                 |
++-----------------+      +-----------------+      |  Managed by AWS |
+| OS              |      |  OS (shared)    |      |                 |
++-----------------+      +-----------------+      +-----------------+
+| Hardware        |      | Hardware        |      | Hardware        |
++-----------------+      +-----------------+      +-----------------+
+  User manages: broad     User manages: medium     User manages: narrow
+```
+
+Lambda is an event-driven computing service with the following characteristics.
+
+- **No provisioning required** -- AWS automatically manages server start/stop and scaling
+- **Pay-per-execution** -- billed by number of requests and execution duration (1 ms increments)
+- **Automatic scaling** -- concurrent executions increase and decrease automatically with demand
+- **Broad language support** -- Python, Node.js, Java, Go, .NET, Ruby, and custom runtimes
+
+### 1.2 Lambda Execution Model
+
+```
+Event Sources            Lambda Service               Execution Environment
 +------------+        +------------------+        +------------------+
-|            |  呼出  |                  |  配置  |  実行環境 (MicroVM)|
+|            | invoke |                  | place  |  Exec Env (MicroVM)|
 | API Gateway| -----> |  Lambda Control  | -----> |  +-------------+ |
-| S3         |        |  Plane           |        |  | ランタイム  | |
-| SQS        |        |                  |        |  | + ユーザー  | |
-| EventBridge|        +------------------+        |  |   コード    | |
+| S3         |        |  Plane           |        |  | Runtime     | |
+| SQS        |        |                  |        |  | + User      | |
+| EventBridge|        +------------------+        |  |   Code      | |
 +------------+               |                    |  +-------------+ |
-                             |  ログ送信          +------------------+
+                             |  send logs         +------------------+
                              v                           |
-                    +------------------+                  | メトリクス
+                    +------------------+                  | metrics
                     |  CloudWatch Logs |                  v
                     +------------------+          +------------------+
                                                   | CloudWatch       |
@@ -66,88 +66,88 @@ Lambda はイベント駆動型のコンピューティングサービスであ�
                                                   +------------------+
 ```
 
-### 1.3 Lambda の課金モデル
+### 1.3 Lambda Pricing Model
 
-Lambda の料金は「リクエスト数」と「実行時間（GB-秒）」の2軸で決定される。
+Lambda pricing is determined by two axes: "number of requests" and "execution duration (GB-seconds)".
 
-| 料金要素 | 単価 (東京リージョン) | 無料枠 (月間) |
-|---------|---------------------|-------------|
-| リクエスト数 | $0.20 / 100 万リクエスト | 100 万リクエスト |
-| 実行時間 (GB-秒) | $0.0000166667 / GB-秒 | 400,000 GB-秒 |
-| Provisioned Concurrency | $0.0000041667 / GB-秒 | なし |
-| Lambda@Edge リクエスト | $0.60 / 100 万リクエスト | なし |
+| Pricing Factor | Unit Price (Tokyo Region) | Free Tier (Monthly) |
+|----------------|--------------------------|---------------------|
+| Number of requests | $0.20 / 1 million requests | 1 million requests |
+| Execution duration (GB-seconds) | $0.0000166667 / GB-second | 400,000 GB-seconds |
+| Provisioned Concurrency | $0.0000041667 / GB-second | None |
+| Lambda@Edge requests | $0.60 / 1 million requests | None |
 
 ```
-コスト計算例:
+Cost calculation example:
 
-関数の設定:
-  メモリ: 512 MB (= 0.5 GB)
-  平均実行時間: 200 ms (= 0.2 秒)
-  月間リクエスト: 500 万
+Function configuration:
+  Memory: 512 MB (= 0.5 GB)
+  Average execution time: 200 ms (= 0.2 seconds)
+  Monthly requests: 5 million
 
-計算:
-  GB-秒 = 0.5 GB × 0.2 秒 × 5,000,000 = 500,000 GB-秒
-  無料枠差し引き = 500,000 - 400,000 = 100,000 GB-秒
-  実行時間料金 = 100,000 × $0.0000166667 = $1.67
-  リクエスト料金 = (5,000,000 - 1,000,000) × $0.20/1,000,000 = $0.80
+Calculation:
+  GB-seconds = 0.5 GB × 0.2 s × 5,000,000 = 500,000 GB-seconds
+  After free tier = 500,000 - 400,000 = 100,000 GB-seconds
+  Duration cost = 100,000 × $0.0000166667 = $1.67
+  Request cost = (5,000,000 - 1,000,000) × $0.20/1,000,000 = $0.80
 
-  月額合計 = $1.67 + $0.80 = $2.47
+  Monthly total = $1.67 + $0.80 = $2.47
 ```
 
-### 1.4 Lambda のライフサイクル
+### 1.4 Lambda Lifecycle
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  Lambda 実行環境のライフサイクル                                │
+│  Lambda Execution Environment Lifecycle                       │
 │                                                              │
-│  INIT フェーズ (コールドスタート時のみ)                        │
+│  INIT Phase (cold start only)                                │
 │  ┌──────────────────────────────────────────────────┐        │
-│  │ 1. Extension Init   (Lambda Extensions の初期化)  │        │
-│  │ 2. Runtime Init     (ランタイムの初期化)           │        │
-│  │ 3. Function Init    (ハンドラ外コードの実行)       │        │
-│  │    - グローバル変数の初期化                        │        │
-│  │    - SDK クライアントの生成                        │        │
-│  │    - DB コネクションの確立                         │        │
+│  │ 1. Extension Init   (Lambda Extensions init)     │        │
+│  │ 2. Runtime Init     (Runtime initialization)     │        │
+│  │ 3. Function Init    (Execute code outside handler)│        │
+│  │    - Initialize global variables                 │        │
+│  │    - Create SDK clients                          │        │
+│  │    - Establish DB connections                    │        │
 │  └──────────────────────────────────────────────────┘        │
 │                        │                                     │
 │                        ▼                                     │
-│  INVOKE フェーズ (毎回実行)                                   │
+│  INVOKE Phase (runs every time)                              │
 │  ┌──────────────────────────────────────────────────┐        │
-│  │ 4. lambda_handler(event, context) の実行          │        │
-│  │    - イベントデータの処理                          │        │
-│  │    - ビジネスロジック                              │        │
-│  │    - レスポンスの返却                              │        │
+│  │ 4. Execute lambda_handler(event, context)        │        │
+│  │    - Process event data                          │        │
+│  │    - Business logic                              │        │
+│  │    - Return response                             │        │
 │  └──────────────────────────────────────────────────┘        │
 │                        │                                     │
 │                        ▼                                     │
-│  SHUTDOWN フェーズ (環境破棄時)                                │
+│  SHUTDOWN Phase (when environment is destroyed)              │
 │  ┌──────────────────────────────────────────────────┐        │
-│  │ 5. Runtime Shutdown  (ランタイムの終了処理)        │        │
-│  │ 6. Extension Shutdown (Extensions の終了処理)     │        │
+│  │ 5. Runtime Shutdown  (Runtime teardown)          │        │
+│  │ 6. Extension Shutdown (Extensions teardown)      │        │
 │  └──────────────────────────────────────────────────┘        │
 │                                                              │
-│  ※ 実行環境は一定時間再利用される (Warm Start)                │
-│  ※ 再利用時は INVOKE フェーズのみ実行される                    │
+│  * Execution environments are reused for a period (Warm Start)│
+│  * On reuse, only the INVOKE phase runs                      │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Lambda 関数の作成
+## 2. Creating Lambda Functions
 
-### 2.1 対応ランタイム一覧
+### 2.1 Supported Runtimes
 
-| ランタイム | 識別子 | サポート状況 | 主な用途 |
-|-----------|--------|-------------|---------|
-| Python 3.12 | `python3.12` | GA | データ処理、API バックエンド |
-| Node.js 20.x | `nodejs20.x` | GA | API バックエンド、リアルタイム処理 |
-| Java 21 | `java21` | GA | エンタープライズ、バッチ処理 |
-| Go (provided.al2023) | `provided.al2023` | GA | 高性能処理 |
-| .NET 8 | `dotnet8` | GA | Windows 連携、エンタープライズ |
-| Ruby 3.3 | `ruby3.3` | GA | スクリプト、Webhook |
-| カスタムランタイム | `provided.al2023` | GA | Rust、PHP など任意の言語 |
+| Runtime | Identifier | Support Status | Primary Use Cases |
+|---------|-----------|---------------|-------------------|
+| Python 3.12 | `python3.12` | GA | Data processing, API backend |
+| Node.js 20.x | `nodejs20.x` | GA | API backend, real-time processing |
+| Java 21 | `java21` | GA | Enterprise, batch processing |
+| Go (provided.al2023) | `provided.al2023` | GA | High-performance processing |
+| .NET 8 | `dotnet8` | GA | Windows integration, enterprise |
+| Ruby 3.3 | `ruby3.3` | GA | Scripts, webhooks |
+| Custom runtime | `provided.al2023` | GA | Rust, PHP, and any other language |
 
-### 2.2 Python で Hello World
+### 2.2 Hello World in Python
 
 ```python
 # lambda_function.py
@@ -186,7 +186,7 @@ def lambda_handler(event, context):
     }
 ```
 
-### 2.3 Node.js での実装例
+### 2.3 Node.js Implementation Example
 
 ```javascript
 // index.mjs (ES Modules)
@@ -209,13 +209,13 @@ export const handler = async (event, context) => {
 };
 ```
 
-### 2.4 AWS CLI による関数作成
+### 2.4 Creating a Function with AWS CLI
 
 ```bash
-# 1. デプロイパッケージ作成
+# 1. Create deployment package
 zip function.zip lambda_function.py
 
-# 2. Lambda 関数の作成
+# 2. Create the Lambda function
 aws lambda create-function \
   --function-name my-hello-function \
   --runtime python3.12 \
@@ -226,7 +226,7 @@ aws lambda create-function \
   --memory-size 256 \
   --description "Hello World Lambda function"
 
-# 3. テスト呼び出し
+# 3. Test invocation
 aws lambda invoke \
   --function-name my-hello-function \
   --payload '{"queryStringParameters": {"name": "AWS"}}' \
@@ -236,54 +236,54 @@ aws lambda invoke \
 cat output.json
 ```
 
-### 2.5 Lambda のメモリとタイムアウト設定
+### 2.5 Memory and Timeout Settings
 
-| 設定項目 | 最小値 | 最大値 | デフォルト | 備考 |
-|---------|--------|--------|-----------|------|
-| メモリ | 128 MB | 10,240 MB | 128 MB | CPU は比例配分 |
-| タイムアウト | 1 秒 | 900 秒 (15分) | 3 秒 | API Gateway 経由は 29 秒制限 |
-| エフェメラルストレージ | 512 MB | 10,240 MB | 512 MB | /tmp 領域 |
-| デプロイパッケージ | - | 50 MB (zip) / 250 MB (展開後) | - | レイヤー含む |
-| コンテナイメージ | - | 10 GB | - | ECR イメージ使用時 |
+| Setting | Minimum | Maximum | Default | Notes |
+|---------|---------|---------|---------|-------|
+| Memory | 128 MB | 10,240 MB | 128 MB | CPU allocated proportionally |
+| Timeout | 1 second | 900 seconds (15 min) | 3 seconds | 29-second limit when via API Gateway |
+| Ephemeral storage | 512 MB | 10,240 MB | 512 MB | /tmp area |
+| Deployment package | - | 50 MB (zip) / 250 MB (unzipped) | - | Including layers |
+| Container image | - | 10 GB | - | When using ECR image |
 
 ```
-メモリとCPUの関係:
+Memory and CPU relationship:
 
-メモリ        vCPU相当      適用シーン
-128 MB   -->  ~0.08 vCPU    軽量なAPI応答
-512 MB   -->  ~0.33 vCPU    一般的なAPI処理
-1,024 MB -->  ~0.58 vCPU    データ変換
-1,769 MB -->  1 vCPU        計算処理
-3,008 MB -->  2 vCPU        画像処理
-10,240 MB --> 6 vCPU        ML推論、大規模バッチ
+Memory        Approx vCPU   Use Case
+128 MB   -->  ~0.08 vCPU    Lightweight API responses
+512 MB   -->  ~0.33 vCPU    General API processing
+1,024 MB -->  ~0.58 vCPU    Data transformation
+1,769 MB -->  1 vCPU        Compute-intensive tasks
+3,008 MB -->  2 vCPU        Image processing
+10,240 MB --> 6 vCPU        ML inference, large-scale batch
 ```
 
-### 2.6 コンテナイメージでのデプロイ
+### 2.6 Deploying with a Container Image
 
-ZIP パッケージの 250 MB 制限を超える場合や、既存の Docker ワークフローがある場合はコンテナイメージを使用する。
+Use a container image when the 250 MB ZIP package limit is exceeded or when an existing Docker workflow is in place.
 
 ```dockerfile
 # Dockerfile
 FROM public.ecr.aws/lambda/python:3.12
 
-# 依存パッケージのインストール
+# Install dependencies
 COPY requirements.txt ${LAMBDA_TASK_ROOT}
 RUN pip install -r requirements.txt --target "${LAMBDA_TASK_ROOT}"
 
-# 関数コードのコピー
+# Copy function code
 COPY app.py ${LAMBDA_TASK_ROOT}
 
-# ハンドラの指定
+# Specify handler
 CMD [ "app.lambda_handler" ]
 ```
 
 ```bash
-# 1. ECR リポジトリの作成
+# 1. Create ECR repository
 aws ecr create-repository \
   --repository-name my-lambda-function \
   --image-scanning-configuration scanOnPush=true
 
-# 2. Docker イメージのビルドとプッシュ
+# 2. Build and push Docker image
 aws ecr get-login-password --region ap-northeast-1 | \
   docker login --username AWS --password-stdin \
   123456789012.dkr.ecr.ap-northeast-1.amazonaws.com
@@ -294,7 +294,7 @@ docker tag my-lambda-function:latest \
 docker push \
   123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/my-lambda-function:latest
 
-# 3. コンテナイメージから Lambda 関数を作成
+# 3. Create Lambda function from container image
 aws lambda create-function \
   --function-name my-container-function \
   --package-type Image \
@@ -306,48 +306,48 @@ aws lambda create-function \
 
 ---
 
-## 3. トリガーとイベントソース
+## 3. Triggers and Event Sources
 
-### 3.1 主要なイベントソース
+### 3.1 Major Event Sources
 
 ```
-+------------------+     同期呼出      +--------+
-| API Gateway      | ----------------> |        |
-| ALB              |                   |        |
-| Lambda URL       |                   |        |
-+------------------+                   |        |
-                                       | Lambda |
-+------------------+     非同期呼出    |  関数  |
-| S3               | ----------------> |        |
-| SNS              |                   |        |
-| EventBridge      |                   |        |
-| IoT              |                   |        |
-+------------------+                   |        |
-                                       |        |
-+------------------+   ポーリングベース |        |
-| SQS              | ----------------> |        |
-| DynamoDB Streams | (Event Source     |        |
-| Kinesis          |  Mapping)         |        |
-+------------------+                   +--------+
++------------------+   Synchronous invoke  +--------+
+| API Gateway      | --------------------> |        |
+| ALB              |                       |        |
+| Lambda URL       |                       |        |
++------------------+                       |        |
+                                           | Lambda |
++------------------+  Asynchronous invoke  |  Func  |
+| S3               | --------------------> |        |
+| SNS              |                       |        |
+| EventBridge      |                       |        |
+| IoT              |                       |        |
++------------------+                       |        |
+                                           |        |
++------------------+   Polling-based       |        |
+| SQS              | --------------------> |        |
+| DynamoDB Streams | (Event Source         |        |
+| Kinesis          |  Mapping)             |        |
++------------------+                       +--------+
 ```
 
-### 3.2 呼び出しモデルの比較
+### 3.2 Invocation Model Comparison
 
-| 呼び出しモデル | イベントソース例 | リトライ動作 | エラーハンドリング |
-|---------------|----------------|-------------|-----------------|
-| 同期 (RequestResponse) | API Gateway, ALB | 呼び出し元が制御 | 即座にエラー応答 |
-| 非同期 (Event) | S3, SNS, EventBridge | 最大2回リトライ | DLQ / Destinations |
-| ポーリング (Event Source Mapping) | SQS, Kinesis, DynamoDB | ソースにより異なる | バッチ失敗時の制御 |
+| Invocation Model | Example Event Sources | Retry Behavior | Error Handling |
+|------------------|-----------------------|----------------|----------------|
+| Synchronous (RequestResponse) | API Gateway, ALB | Controlled by caller | Error response returned immediately |
+| Asynchronous (Event) | S3, SNS, EventBridge | Up to 2 retries | DLQ / Destinations |
+| Polling (Event Source Mapping) | SQS, Kinesis, DynamoDB | Varies by source | Batch failure control |
 
-### 3.3 API Gateway トリガーの設定
+### 3.3 Configuring an API Gateway Trigger
 
 ```bash
-# REST API の作成と Lambda 統合
+# Create REST API and Lambda integration
 aws apigateway create-rest-api \
   --name "HelloAPI" \
   --description "Hello World API"
 
-# Lambda パーミッション追加
+# Add Lambda permission
 aws lambda add-permission \
   --function-name my-hello-function \
   --statement-id apigateway-invoke \
@@ -356,10 +356,10 @@ aws lambda add-permission \
   --source-arn "arn:aws:execute-api:ap-northeast-1:123456789012:abc123/*"
 ```
 
-### 3.4 S3 トリガーの設定
+### 3.4 Configuring an S3 Trigger
 
 ```bash
-# S3 バケットからの Lambda 呼び出しを許可
+# Allow Lambda invocation from S3 bucket
 aws lambda add-permission \
   --function-name image-processor \
   --statement-id s3-invoke \
@@ -368,7 +368,7 @@ aws lambda add-permission \
   --source-arn "arn:aws:s3:::my-upload-bucket" \
   --source-account 123456789012
 
-# S3 バケット通知の設定
+# Configure S3 bucket notification
 aws s3api put-bucket-notification-configuration \
   --bucket my-upload-bucket \
   --notification-configuration '{
@@ -390,7 +390,7 @@ aws s3api put-bucket-notification-configuration \
 ```
 
 ```python
-# S3 トリガーの Lambda 関数
+# Lambda function for S3 trigger
 import json
 import boto3
 import urllib.parse
@@ -424,10 +424,10 @@ def lambda_handler(event, context):
     return {"statusCode": 200, "body": "Processed"}
 ```
 
-### 3.5 SQS トリガーの設定
+### 3.5 Configuring an SQS Trigger
 
 ```bash
-# SQS イベントソースマッピングの作成
+# Create SQS event source mapping
 aws lambda create-event-source-mapping \
   --function-name order-processor \
   --event-source-arn arn:aws:sqs:ap-northeast-1:123456789012:orders-queue \
@@ -437,7 +437,7 @@ aws lambda create-event-source-mapping \
 ```
 
 ```python
-# SQS トリガーの Lambda 関数 (部分バッチ失敗レポート対応)
+# Lambda function for SQS trigger (with partial batch failure reporting)
 import json
 
 def lambda_handler(event, context):
@@ -482,21 +482,21 @@ def process_order(order):
     })
 ```
 
-### 3.6 EventBridge トリガーの設定
+### 3.6 Configuring an EventBridge Trigger
 
 ```bash
-# EventBridge ルールの作成（スケジュール実行）
+# Create EventBridge rule (scheduled execution)
 aws events put-rule \
   --name "daily-cleanup" \
   --schedule-expression "cron(0 3 * * ? *)" \
-  --description "毎日 AM 3:00 (UTC) に実行"
+  --description "Runs daily at 3:00 AM (UTC)"
 
-# Lambda をターゲットとして追加
+# Add Lambda as target
 aws events put-targets \
   --rule "daily-cleanup" \
   --targets "Id"="1","Arn"="arn:aws:lambda:ap-northeast-1:123456789012:function:cleanup-function"
 
-# Lambda パーミッション追加
+# Add Lambda permission
 aws lambda add-permission \
   --function-name cleanup-function \
   --statement-id eventbridge-invoke \
@@ -506,7 +506,7 @@ aws lambda add-permission \
 ```
 
 ```bash
-# EventBridge ルール（カスタムイベントパターン）
+# EventBridge rule (custom event pattern)
 aws events put-rule \
   --name "order-created" \
   --event-pattern '{
@@ -516,18 +516,18 @@ aws events put-rule \
       "total": [{"numeric": [">=", 10000]}]
     }
   }' \
-  --description "10,000円以上の注文が作成されたら通知"
+  --description "Notify when an order of 10,000 yen or more is created"
 ```
 
-### 3.7 DynamoDB Streams トリガーの設定
+### 3.7 Configuring a DynamoDB Streams Trigger
 
 ```bash
-# DynamoDB Streams の有効化
+# Enable DynamoDB Streams
 aws dynamodb update-table \
   --table-name Users \
   --stream-specification StreamEnabled=true,StreamViewType=NEW_AND_OLD_IMAGES
 
-# イベントソースマッピングの作成
+# Create event source mapping
 STREAM_ARN=$(aws dynamodb describe-table \
   --table-name Users \
   --query 'Table.LatestStreamArn' \
@@ -550,10 +550,10 @@ aws lambda create-event-source-mapping \
 
 ### 3.8 Lambda Function URL
 
-API Gateway を使わずに、Lambda 関数に直接 HTTPS エンドポイントを付与する機能。
+A feature that assigns a direct HTTPS endpoint to a Lambda function without using API Gateway.
 
 ```bash
-# Function URL の作成
+# Create Function URL
 aws lambda create-function-url-config \
   --function-name my-hello-function \
   --auth-type NONE \
@@ -564,7 +564,7 @@ aws lambda create-function-url-config \
     "MaxAge": 86400
   }'
 
-# リソースベースポリシーを追加 (AuthType=NONE の場合必須)
+# Add resource-based policy (required when AuthType=NONE)
 aws lambda add-permission \
   --function-name my-hello-function \
   --statement-id FunctionURLAllowPublicAccess \
@@ -572,31 +572,31 @@ aws lambda add-permission \
   --principal "*" \
   --function-url-auth-type NONE
 
-# Function URL の確認
+# Check Function URL
 aws lambda get-function-url-config \
   --function-name my-hello-function
 # → https://abc123def456.lambda-url.ap-northeast-1.on.aws/
 ```
 
-| 項目 | Lambda Function URL | API Gateway HTTP API |
-|------|--------------------|--------------------|
-| コスト | Lambda 料金のみ | Lambda + API Gateway 料金 |
-| 認証 | IAM_AUTH or NONE | JWT, IAM, Lambda Auth |
-| スロットリング | なし（Lambda 同時実行制限のみ） | ルート単位で設定可 |
-| カスタムドメイン | CloudFront 経由で可能 | ネイティブサポート |
-| WAF | 不可 | REST API のみ |
-| 推奨 | 内部 API、Webhook、簡易エンドポイント | 本番 API |
+| Feature | Lambda Function URL | API Gateway HTTP API |
+|---------|--------------------|--------------------|
+| Cost | Lambda charges only | Lambda + API Gateway charges |
+| Authentication | IAM_AUTH or NONE | JWT, IAM, Lambda Auth |
+| Throttling | None (Lambda concurrency limit only) | Configurable per route |
+| Custom domain | Possible via CloudFront | Native support |
+| WAF | Not supported | REST API only |
+| Recommended for | Internal APIs, webhooks, simple endpoints | Production APIs |
 
 ---
 
-## 4. IAM ロールの設計
+## 4. IAM Role Design
 
-### 4.1 実行ロールの構成要素
+### 4.1 Components of an Execution Role
 
-Lambda 関数に必要な IAM ロールは2つの部分から成る。
+An IAM role required for a Lambda function consists of two parts.
 
-1. **信頼ポリシー (Trust Policy)** -- Lambda サービスがこのロールを引き受ける許可
-2. **アクセス許可ポリシー (Permission Policy)** -- 関数が AWS リソースにアクセスする許可
+1. **Trust Policy** -- permission for the Lambda service to assume this role
+2. **Permission Policy** -- permission for the function to access AWS resources
 
 ```json
 {
@@ -613,7 +613,7 @@ Lambda 関数に必要な IAM ロールは2つの部分から成る。
 }
 ```
 
-### 4.2 最小権限のポリシー例
+### 4.2 Least-Privilege Policy Example
 
 ```json
 {
@@ -643,10 +643,10 @@ Lambda 関数に必要な IAM ロールは2つの部分から成る。
 }
 ```
 
-### 4.3 AWS CLI による IAM ロール作成
+### 4.3 Creating an IAM Role with AWS CLI
 
 ```bash
-# 1. 信頼ポリシーファイルの作成
+# 1. Create trust policy file
 cat > trust-policy.json << 'EOF'
 {
   "Version": "2012-10-17",
@@ -660,22 +660,22 @@ cat > trust-policy.json << 'EOF'
 }
 EOF
 
-# 2. IAM ロールの作成
+# 2. Create IAM role
 aws iam create-role \
   --role-name order-processor-role \
   --assume-role-policy-document file://trust-policy.json
 
-# 3. AWS 管理ポリシーのアタッチ (基本的な CloudWatch Logs 権限)
+# 3. Attach AWS managed policy (basic CloudWatch Logs permissions)
 aws iam attach-role-policy \
   --role-name order-processor-role \
   --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
-# 4. VPC 内で実行する場合は追加ポリシー
+# 4. Add additional policy for VPC execution
 aws iam attach-role-policy \
   --role-name order-processor-role \
   --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
 
-# 5. カスタムインラインポリシーの追加
+# 5. Add custom inline policy
 aws iam put-role-policy \
   --role-name order-processor-role \
   --policy-name dynamodb-access \
@@ -706,12 +706,12 @@ aws iam put-role-policy \
 
 ---
 
-## 5. 環境変数
+## 5. Environment Variables
 
-### 5.1 環境変数の設定と利用
+### 5.1 Setting and Using Environment Variables
 
 ```bash
-# 環境変数の設定
+# Set environment variables
 aws lambda update-function-configuration \
   --function-name my-hello-function \
   --environment "Variables={
@@ -723,7 +723,7 @@ aws lambda update-function-configuration \
 ```
 
 ```python
-# lambda_function.py -- 環境変数の読み取り
+# lambda_function.py -- reading environment variables
 import os
 
 TABLE_NAME = os.environ.get("DB_TABLE", "default-table")
@@ -732,40 +732,40 @@ REGION = os.environ.get("REGION", "ap-northeast-1")
 FEATURE_FLAG = os.environ.get("FEATURE_FLAG_NEW_UI", "false") == "true"
 
 def lambda_handler(event, context):
-    # TABLE_NAME を使って DynamoDB にアクセス
+    # Access DynamoDB using TABLE_NAME
     import boto3
     dynamodb = boto3.resource("dynamodb", region_name=REGION)
     table = dynamodb.Table(TABLE_NAME)
     # ...
 ```
 
-### 5.2 環境変数の暗号化
+### 5.2 Encrypting Environment Variables
 
 ```
-環境変数の暗号化フロー:
+Environment variable encryption flow:
 
-設定時:
-  平文 --> AWS KMS で暗号化 --> 暗号化された環境変数を保存
+At configuration time:
+  Plaintext --> Encrypted with AWS KMS --> Encrypted env var stored
 
-実行時:
-  暗号化された環境変数 --> Lambda ランタイムが自動復号 --> 平文で利用可能
+At execution time:
+  Encrypted env var --> Lambda runtime decrypts automatically --> Available as plaintext
 
-カスタムKMS利用時:
-  Lambda 実行ロールに kms:Decrypt 権限が必要
+When using a custom KMS key:
+  Lambda execution role requires kms:Decrypt permission
 ```
 
-| 暗号化方式 | 説明 | 追加設定 |
-|-----------|------|---------|
-| デフォルト暗号化 | AWS 管理キーで自動暗号化 | 不要 |
-| カスタム KMS キー | 顧客管理キーで暗号化 | KMS キー ARN を指定 |
-| ヘルパーによる暗号化 | 転送中の暗号化を追加 | Lambda コンソールで設定 |
+| Encryption Method | Description | Additional Configuration |
+|-------------------|-------------|--------------------------|
+| Default encryption | Automatically encrypted with AWS managed key | None required |
+| Custom KMS key | Encrypted with a customer-managed key | Specify KMS key ARN |
+| Helper encryption | Adds encryption in transit | Configure in Lambda console |
 
-### 5.3 Secrets Manager / Parameter Store との連携
+### 5.3 Integration with Secrets Manager / Parameter Store
 
-機密情報（API キー、DB パスワード等）は環境変数ではなく Secrets Manager または Parameter Store に保存し、Lambda 実行時に取得するのがベストプラクティス。
+Sensitive information (API keys, DB passwords, etc.) should be stored in Secrets Manager or Parameter Store rather than environment variables, and retrieved at Lambda execution time — this is the best practice.
 
 ```python
-# Secrets Manager からシークレットを取得
+# Retrieve a secret from Secrets Manager
 import json
 import boto3
 from functools import lru_cache
@@ -792,8 +792,8 @@ def lambda_handler(event, context):
 ```
 
 ```python
-# Parameter Store + Lambda Extensions (パフォーマンス最適化)
-# AWS Parameters and Secrets Lambda Extension を使用
+# Parameter Store + Lambda Extensions (performance optimization)
+# Uses AWS Parameters and Secrets Lambda Extension
 import urllib.request
 import json
 import os
@@ -819,75 +819,75 @@ def lambda_handler(event, context):
 
 ---
 
-## 6. Lambda レイヤー
+## 6. Lambda Layers
 
-### 6.1 レイヤーの仕組み
+### 6.1 How Layers Work
 
 ```
-Lambda 関数のファイルシステム:
+Lambda function filesystem:
 
-/opt/                      <-- レイヤーの展開先
-  ├── python/              <-- Python ライブラリ
+/opt/                      <-- Layer extraction destination
+  ├── python/              <-- Python libraries
   │   └── lib/
   │       └── python3.12/
   │           └── site-packages/
   │               ├── requests/
   │               └── boto3/
-  ├── nodejs/              <-- Node.js ライブラリ
+  ├── nodejs/              <-- Node.js libraries
   │   └── node_modules/
-  └── bin/                 <-- カスタムバイナリ
+  └── bin/                 <-- Custom binaries
 
-/var/task/                 <-- 関数コード
+/var/task/                 <-- Function code
   └── lambda_function.py
 
-/tmp/                      <-- エフェメラルストレージ (512MB-10GB)
+/tmp/                      <-- Ephemeral storage (512MB-10GB)
 ```
 
-### 6.2 レイヤーの作成とアタッチ
+### 6.2 Creating and Attaching a Layer
 
 ```bash
-# 1. レイヤー用のディレクトリ構造を作成
+# 1. Create directory structure for the layer
 mkdir -p layer/python
 pip install requests -t layer/python/
 
-# 2. ZIP パッケージ作成
+# 2. Create ZIP package
 cd layer && zip -r ../my-layer.zip python/
 
-# 3. レイヤーの公開
+# 3. Publish the layer
 aws lambda publish-layer-version \
   --layer-name my-common-libs \
-  --description "共通ライブラリ (requests等)" \
+  --description "Common libraries (requests, etc.)" \
   --zip-file fileb://my-layer.zip \
   --compatible-runtimes python3.12 python3.11
 
-# 4. 関数にレイヤーをアタッチ
+# 4. Attach layer to a function
 aws lambda update-function-configuration \
   --function-name my-hello-function \
   --layers arn:aws:lambda:ap-northeast-1:123456789012:layer:my-common-libs:1
 ```
 
-### 6.3 レイヤーの制限事項
+### 6.3 Layer Limits
 
-| 項目 | 制限 |
-|------|-----|
-| 関数あたりの最大レイヤー数 | 5 |
-| レイヤー含む合計展開サイズ | 250 MB |
-| レイヤーバージョン数 | 無制限 |
-| レイヤー共有 | 同一リージョン内、クロスアカウント可 |
+| Item | Limit |
+|------|-------|
+| Maximum layers per function | 5 |
+| Total unzipped size including layers | 250 MB |
+| Number of layer versions | Unlimited |
+| Layer sharing | Within the same region; cross-account sharing possible |
 
-### 6.4 Powertools for AWS Lambda (Python) レイヤー
+### 6.4 Powertools for AWS Lambda (Python) Layer
 
-AWS が提供する Lambda Powertools はロギング、トレーシング、メトリクスなどの横断的関心事を簡潔に実装できるライブラリ。公開レイヤーとして利用可能。
+AWS Lambda Powertools is a library provided by AWS that makes it easy to implement cross-cutting concerns such as logging, tracing, and metrics. It is available as a public layer.
 
 ```bash
-# Powertools レイヤーの追加
+# Add Powertools layer
 aws lambda update-function-configuration \
   --function-name my-function \
   --layers arn:aws:lambda:ap-northeast-1:017000801446:layer:AWSLambdaPowertoolsPythonV2:67
 ```
 
 ```python
-# Powertools を使ったロギング・トレーシング・メトリクス
+# Logging, tracing, and metrics with Powertools
 from aws_lambda_powertools import Logger, Tracer, Metrics
 from aws_lambda_powertools.metrics import MetricUnit
 from aws_lambda_powertools.utilities.typing import LambdaContext
@@ -918,11 +918,11 @@ def lambda_handler(event: dict, context: LambdaContext):
 
 ---
 
-## 7. VPC 設定と RDS Proxy
+## 7. VPC Configuration and RDS Proxy
 
-### 7.1 VPC 内での Lambda 実行
+### 7.1 Running Lambda Inside a VPC
 
-Lambda 関数を VPC 内に配置すると、RDS やElastiCache などのプライベートリソースにアクセスできる。
+Placing a Lambda function inside a VPC allows it to access private resources such as RDS and ElastiCache.
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -944,27 +944,27 @@ Lambda 関数を VPC 内に配置すると、RDS やElastiCache などのプラ�
 │  └──────────────────┘    └──────────────────┘          │
 │                                                        │
 │  ┌──────────────────┐                                  │
-│  │ NAT Gateway      │ ← Lambda から外部 API を呼ぶ場合 │
-│  │ (Public Subnet)  │   に必要                         │
+│  │ NAT Gateway      │ ← Required when Lambda calls     │
+│  │ (Public Subnet)  │   external APIs                  │
 │  └──────────────────┘                                  │
 └────────────────────────────────────────────────────────┘
 ```
 
 ```bash
-# Lambda 関数を VPC に配置
+# Place Lambda function inside a VPC
 aws lambda update-function-configuration \
   --function-name my-vpc-function \
   --vpc-config SubnetIds=subnet-aaa,subnet-bbb,SecurityGroupIds=sg-xxx
 
-# VPC Lambda から外部インターネットにアクセスするには
-# NAT Gateway がパブリックサブネットに必要
-# (VPC Endpoint を使えば AWS サービスへのアクセスは NAT 不要)
+# To access the internet from a VPC Lambda,
+# a NAT Gateway in a public subnet is required.
+# (VPC Endpoints allow access to AWS services without NAT)
 ```
 
-### 7.2 RDS Proxy を使った接続管理
+### 7.2 Connection Management with RDS Proxy
 
 ```bash
-# RDS Proxy の作成
+# Create RDS Proxy
 aws rds create-db-proxy \
   --db-proxy-name my-lambda-proxy \
   --engine-family MYSQL \
@@ -977,22 +977,22 @@ aws rds create-db-proxy \
   --vpc-subnet-ids subnet-aaa subnet-bbb \
   --vpc-security-group-ids sg-xxx
 
-# ターゲットグループの登録
+# Register target group
 aws rds register-db-proxy-targets \
   --db-proxy-name my-lambda-proxy \
   --db-instance-identifiers my-rds-instance
 ```
 
 ```python
-# RDS Proxy 経由の接続 (IAM 認証)
+# Connection via RDS Proxy (IAM authentication)
 import boto3
 import pymysql
 import os
 
 rds_client = boto3.client("rds")
 
-# ハンドラ外 (グローバルスコープ) でコネクションを初期化
-# → 実行環境の再利用時にコネクションを使い回す
+# Initialize connection outside the handler (global scope)
+# → Reuse the connection when the execution environment is reused
 connection = None
 
 def get_connection():
@@ -1024,9 +1024,9 @@ def lambda_handler(event, context):
 
 ---
 
-## 8. SAM / CloudFormation によるデプロイ
+## 8. Deploying with SAM / CloudFormation
 
-### 8.1 SAM テンプレート
+### 8.1 SAM Template
 
 ```yaml
 # template.yaml
@@ -1067,13 +1067,13 @@ Resources:
           - Authorization
           - Content-Type
 
-  # Lambda 関数 (GET /orders)
+  # Lambda function (GET /orders)
   ListOrdersFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handlers/list_orders.lambda_handler
       CodeUri: src/
-      Description: "注文一覧を取得"
+      Description: "Retrieve order list"
       Events:
         GetOrders:
           Type: HttpApi
@@ -1085,13 +1085,13 @@ Resources:
         - DynamoDBReadPolicy:
             TableName: !Ref OrdersTable
 
-  # Lambda 関数 (POST /orders)
+  # Lambda function (POST /orders)
   CreateOrderFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handlers/create_order.lambda_handler
       CodeUri: src/
-      Description: "注文を作成"
+      Description: "Create an order"
       Events:
         PostOrder:
           Type: HttpApi
@@ -1105,7 +1105,7 @@ Resources:
         - SQSSendMessagePolicy:
             QueueName: !GetAtt NotificationQueue.QueueName
 
-  # SQS キュー
+  # SQS queue
   NotificationQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -1119,9 +1119,9 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "${Stage}-notification-dlq"
-      MessageRetentionPeriod: 1209600  # 14日
+      MessageRetentionPeriod: 1209600  # 14 days
 
-  # SQS トリガーの Lambda
+  # Lambda triggered by SQS
   NotificationFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1139,7 +1139,7 @@ Resources:
         - SESCrudPolicy:
             IdentityName: "example.com"
 
-  # DynamoDB テーブル
+  # DynamoDB table
   OrdersTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -1164,34 +1164,34 @@ Outputs:
 ```
 
 ```bash
-# SAM CLI によるデプロイ手順
-# 1. ビルド
+# Deployment steps with SAM CLI
+# 1. Build
 sam build
 
-# 2. ローカルテスト
+# 2. Local test
 sam local invoke ListOrdersFunction \
   --event events/get-orders.json
 
-# 3. ローカル API 起動
+# 3. Start local API
 sam local start-api --port 3000
 
-# 4. デプロイ
+# 4. Deploy
 sam deploy \
   --stack-name my-order-api \
   --parameter-overrides Stage=prod \
   --capabilities CAPABILITY_IAM \
   --resolve-s3
 
-# 5. ログの確認
+# 5. Check logs
 sam logs --name ListOrdersFunction --stack-name my-order-api --tail
 ```
 
-### 8.2 Terraform による Lambda デプロイ
+### 8.2 Lambda Deployment with Terraform
 
 ```hcl
 # main.tf
 
-# Lambda 関数
+# Lambda function
 resource "aws_lambda_function" "order_processor" {
   function_name = "${var.stage}-order-processor"
   role          = aws_iam_role.lambda_role.arn
@@ -1215,7 +1215,7 @@ resource "aws_lambda_function" "order_processor" {
     mode = "Active"
   }
 
-  # VPC 設定 (RDS にアクセスする場合)
+  # VPC configuration (when accessing RDS)
   vpc_config {
     subnet_ids         = var.private_subnet_ids
     security_group_ids = [aws_security_group.lambda.id]
@@ -1233,20 +1233,20 @@ resource "aws_lambda_function" "order_processor" {
   }
 }
 
-# デプロイパッケージの ZIP 化
+# ZIP the deployment package
 data "archive_file" "lambda_zip" {
   type        = "zip"
   source_dir  = "${path.module}/src"
   output_path = "${path.module}/dist/lambda.zip"
 }
 
-# CloudWatch Logs グループ (保持期間を指定)
+# CloudWatch Logs group (with retention period)
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${var.stage}-order-processor"
   retention_in_days = 30
 }
 
-# IAM ロール
+# IAM role
 resource "aws_iam_role" "lambda_role" {
   name = "${var.stage}-order-processor-role"
 
@@ -1294,7 +1294,7 @@ resource "aws_iam_role_policy" "dynamodb_access" {
   })
 }
 
-# SQS イベントソースマッピング
+# SQS event source mapping
 resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   event_source_arn                   = aws_sqs_queue.orders.arn
   function_name                      = aws_lambda_function.order_processor.arn
@@ -1304,7 +1304,7 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   function_response_types = ["ReportBatchItemFailures"]
 }
 
-# Lambda エイリアス (Blue/Green デプロイ用)
+# Lambda alias (for Blue/Green deployments)
 resource "aws_lambda_alias" "live" {
   name             = "live"
   function_name    = aws_lambda_function.order_processor.function_name
@@ -1312,7 +1312,7 @@ resource "aws_lambda_alias" "live" {
 
   routing_config {
     additional_version_weights = {
-      # カナリアデプロイ: 新バージョンに 10% のトラフィック
+      # Canary deploy: send 10% of traffic to the new version
       (aws_lambda_function.order_processor.version) = 0.1
     }
   }
@@ -1321,61 +1321,61 @@ resource "aws_lambda_alias" "live" {
 
 ---
 
-## 9. 同時実行数とスケーリング
+## 9. Concurrency and Scaling
 
-### 9.1 同時実行数の概念
+### 9.1 Understanding Concurrency
 
 ```
-同時実行数の計算:
-  同時実行数 = 秒間リクエスト数 × 平均実行時間(秒)
+Concurrency calculation:
+  Concurrency = Requests per second × Average execution time (seconds)
 
-例:
-  100 req/s × 0.2 秒 = 20 同時実行
-  1,000 req/s × 0.5 秒 = 500 同時実行
+Examples:
+  100 req/s × 0.2 s = 20 concurrent executions
+  1,000 req/s × 0.5 s = 500 concurrent executions
 ```
 
-### 9.2 予約済み同時実行とプロビジョニング済み同時実行
+### 9.2 Reserved Concurrency and Provisioned Concurrency
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  リージョン上限: 1,000 同時実行 (デフォルト)              │
+│  Region limit: 1,000 concurrent executions (default)     │
 │                                                          │
 │  ┌─────────────────────┐ Reserved Concurrency: 200       │
-│  │ 関数 A (API)        │ → 最大 200 同時実行を保証       │
-│  │ Provisioned: 50     │ → うち 50 は常時ウォーム        │
+│  │ Function A (API)    │ → Guarantees up to 200 concurrent│
+│  │ Provisioned: 50     │ → 50 always warm                │
 │  └─────────────────────┘                                 │
 │                                                          │
 │  ┌─────────────────────┐ Reserved Concurrency: 100       │
-│  │ 関数 B (バッチ)     │ → 最大 100 同時実行を保証       │
+│  │ Function B (Batch)  │ → Guarantees up to 100 concurrent│
 │  └─────────────────────┘                                 │
 │                                                          │
-│  ┌─────────────────────┐ Reserved Concurrency: なし      │
-│  │ 関数 C (その他)     │ → 残りの 700 を他の関数と共有   │
+│  ┌─────────────────────┐ Reserved Concurrency: None      │
+│  │ Function C (Other)  │ → Shares remaining 700 with others│
 │  └─────────────────────┘                                 │
 │                                                          │
 │  Unreserved = 1,000 - 200 - 100 = 700                   │
-│  ※ 100 は AWS が予約 (Unreserved 最低保証)               │
+│  * AWS reserves 100 (minimum guaranteed for unreserved)  │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ```bash
-# Reserved Concurrency の設定
+# Set Reserved Concurrency
 aws lambda put-function-concurrency \
   --function-name my-api-function \
   --reserved-concurrent-executions 200
 
-# Provisioned Concurrency の設定 (エイリアスまたはバージョン指定)
+# Set Provisioned Concurrency (specify alias or version)
 aws lambda put-provisioned-concurrency-config \
   --function-name my-api-function \
   --qualifier prod \
   --provisioned-concurrent-executions 50
 
-# Provisioned Concurrency の状態確認
+# Check Provisioned Concurrency status
 aws lambda get-provisioned-concurrency-config \
   --function-name my-api-function \
   --qualifier prod
 
-# Application Auto Scaling でProvisioned Concurrencyを自動調整
+# Auto-adjust Provisioned Concurrency with Application Auto Scaling
 aws application-autoscaling register-scalable-target \
   --service-namespace lambda \
   --resource-id "function:my-api-function:prod" \
@@ -1399,24 +1399,24 @@ aws application-autoscaling put-scaling-policy \
 
 ---
 
-## 10. 監視とロギング
+## 10. Monitoring and Logging
 
-### 10.1 CloudWatch メトリクス
+### 10.1 CloudWatch Metrics
 
-| メトリクス | 説明 | 単位 |
-|-----------|------|------|
-| Invocations | 関数呼び出し回数 | Count |
-| Duration | 実行時間 | Milliseconds |
-| Errors | エラー発生回数 (ハンドラ例外) | Count |
-| Throttles | スロットルされた呼び出し回数 | Count |
-| ConcurrentExecutions | 同時実行数 | Count |
-| IteratorAge | ストリーム系ソースの遅延 | Milliseconds |
-| DeadLetterErrors | DLQ 送信失敗回数 | Count |
+| Metric | Description | Unit |
+|--------|-------------|------|
+| Invocations | Number of function invocations | Count |
+| Duration | Execution time | Milliseconds |
+| Errors | Number of errors (handler exceptions) | Count |
+| Throttles | Number of throttled invocations | Count |
+| ConcurrentExecutions | Number of concurrent executions | Count |
+| IteratorAge | Lag for stream-based sources | Milliseconds |
+| DeadLetterErrors | Number of DLQ send failures | Count |
 
-### 10.2 CloudWatch Alarm の設定
+### 10.2 Configuring CloudWatch Alarms
 
 ```bash
-# エラー率アラーム (エラー率 > 5%)
+# Error rate alarm (error rate > 5%)
 aws cloudwatch put-metric-alarm \
   --alarm-name "lambda-error-rate-high" \
   --alarm-description "Lambda error rate exceeds 5%" \
@@ -1430,7 +1430,7 @@ aws cloudwatch put-metric-alarm \
   --dimensions Name=FunctionName,Value=my-api-function \
   --alarm-actions arn:aws:sns:ap-northeast-1:123456789012:alerts
 
-# スロットルアラーム
+# Throttle alarm
 aws cloudwatch put-metric-alarm \
   --alarm-name "lambda-throttle-alarm" \
   --metric-name Throttles \
@@ -1443,7 +1443,7 @@ aws cloudwatch put-metric-alarm \
   --dimensions Name=FunctionName,Value=my-api-function \
   --alarm-actions arn:aws:sns:ap-northeast-1:123456789012:alerts
 
-# Duration P99 アラーム (P99 レイテンシ > 5秒)
+# Duration P99 alarm (P99 latency > 5 seconds)
 aws cloudwatch put-metric-alarm \
   --alarm-name "lambda-duration-p99-high" \
   --metric-name Duration \
@@ -1457,10 +1457,10 @@ aws cloudwatch put-metric-alarm \
   --alarm-actions arn:aws:sns:ap-northeast-1:123456789012:alerts
 ```
 
-### 10.3 構造化ロギング
+### 10.3 Structured Logging
 
 ```python
-# 構造化ログ (JSON) の実装
+# Structured logging (JSON) implementation
 import json
 import logging
 import os
@@ -1481,7 +1481,7 @@ class JsonFormatter(logging.Formatter):
             log_entry["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_entry, ensure_ascii=False)
 
-# ロガーの設定
+# Configure logger
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
 handler = logging.StreamHandler()
@@ -1489,7 +1489,7 @@ handler.setFormatter(JsonFormatter())
 logger.handlers = [handler]
 
 def lambda_handler(event, context):
-    # request_id をログに自動付与
+    # Automatically attach request_id to logs
     extra = {"request_id": context.aws_request_id}
 
     logger.info("Processing request", extra=extra)
@@ -1508,29 +1508,29 @@ def lambda_handler(event, context):
         raise
 ```
 
-### 10.4 X-Ray トレーシング
+### 10.4 X-Ray Tracing
 
 ```bash
-# X-Ray トレーシングの有効化
+# Enable X-Ray tracing
 aws lambda update-function-configuration \
   --function-name my-api-function \
   --tracing-config Mode=Active
 ```
 
 ```python
-# X-Ray SDK による手動トレーシング
+# Manual tracing with X-Ray SDK
 from aws_xray_sdk.core import xray_recorder
 from aws_xray_sdk.core import patch_all
 import boto3
 
-# AWS SDK の自動計装
+# Auto-instrument AWS SDK
 patch_all()
 
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table("Orders")
 
 def lambda_handler(event, context):
-    # カスタムサブセグメント
+    # Custom subsegment
     with xray_recorder.in_subsegment("validate_input") as subsegment:
         subsegment.put_annotation("order_id", event.get("orderId"))
         subsegment.put_metadata("event", event)
@@ -1544,12 +1544,12 @@ def lambda_handler(event, context):
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### 11.1 モノリシック Lambda
+### 11.1 Monolithic Lambda
 
 ```
-[悪い例] 1つのLambda関数に全機能を詰め込む
+[Bad example] Packing all functionality into one Lambda function
 
 def lambda_handler(event, context):
     path = event["path"]
@@ -1561,177 +1561,177 @@ def lambda_handler(event, context):
         return handle_products(event)
     elif path == "/payments":
         return handle_payments(event)
-    # ... 数十のルート
+    # ... dozens of routes
 ```
 
-**問題点**: デプロイパッケージが巨大化し、コールドスタートが遅くなる。1つの変更で全機能に影響し、テストが困難になる。
+**Problems**: The deployment package grows huge, making cold starts slower. A single change affects all functionality, and testing becomes difficult.
 
-**改善**: 機能ごとに個別の Lambda 関数を作成し、API Gateway のルーティングで振り分ける。
+**Fix**: Create individual Lambda functions per feature and use API Gateway routing to dispatch requests.
 
-### 11.2 Lambda 内での同期的な待機
+### 11.2 Synchronous Waiting Inside Lambda
 
 ```python
-# [悪い例] Lambda 内で長時間の同期待機
+# [Bad example] Long synchronous wait inside Lambda
 import time
 
 def lambda_handler(event, context):
-    # 外部APIを呼び、結果が出るまでポーリング
+    # Start an external job and poll until complete
     job_id = start_external_job()
     while True:
         status = check_job_status(job_id)
         if status == "COMPLETE":
             break
-        time.sleep(10)  # 10秒ごとにポーリング -- 実行時間を浪費
+        time.sleep(10)  # Poll every 10 seconds -- wastes execution time
     return get_job_result(job_id)
 ```
 
-**問題点**: 実行時間が長くなりコストが増大。タイムアウトのリスクも高まる。
+**Problems**: Longer execution time increases costs. The risk of timeout also rises.
 
-**改善**: Step Functions でステートマシンを構成するか、コールバックパターンを利用する。
+**Fix**: Use Step Functions to define a state machine, or use a callback pattern.
 
-### 11.3 グローバルスコープでの SDK クライアント未初期化
+### 11.3 Not Initializing SDK Clients in Global Scope
 
 ```python
-# [悪い例] ハンドラ内で毎回 SDK クライアントを生成
+# [Bad example] Create SDK client on every handler invocation
 def lambda_handler(event, context):
     import boto3
-    dynamodb = boto3.resource("dynamodb")  # 毎回初期化 → 遅い
+    dynamodb = boto3.resource("dynamodb")  # Re-initialized every time → slow
     table = dynamodb.Table("MyTable")
     return table.get_item(Key={"PK": event["id"]})
 ```
 
 ```python
-# [良い例] グローバルスコープで SDK クライアントを初期化
+# [Good example] Initialize SDK client in global scope
 import boto3
 
-dynamodb = boto3.resource("dynamodb")  # 実行環境再利用時はスキップされる
+dynamodb = boto3.resource("dynamodb")  # Skipped on warm starts
 table = dynamodb.Table("MyTable")
 
 def lambda_handler(event, context):
     return table.get_item(Key={"PK": event["id"]})
 ```
 
-### 11.4 /tmp ストレージの未クリーンアップ
+### 11.4 Not Cleaning Up /tmp Storage
 
 ```python
-# [悪い例] /tmp にファイルを溜め続ける
+# [Bad example] Continuously accumulating files in /tmp
 def lambda_handler(event, context):
     file_path = f"/tmp/{event['fileId']}.json"
     with open(file_path, "w") as f:
         json.dump(event["data"], f)
-    # クリーンアップしない → 実行環境再利用時にディスクが圧迫される
+    # No cleanup → disk fills up when execution environment is reused
 ```
 
 ```python
-# [良い例] 処理後に /tmp をクリーンアップ
+# [Good example] Clean up /tmp after processing
 import os
 import tempfile
 
 def lambda_handler(event, context):
-    # tempfile を使って自動クリーンアップ
+    # Use tempfile for automatic cleanup
     with tempfile.NamedTemporaryFile(dir="/tmp", suffix=".json", delete=True) as f:
         f.write(json.dumps(event["data"]).encode())
         f.flush()
-        # ... f.name を使って処理
-    # with ブロックを抜けると自動削除
+        # ... process using f.name
+    # Automatically deleted when exiting the with block
 ```
 
-### 11.5 Lambda から Lambda の直接呼び出し
+### 11.5 Direct Lambda-to-Lambda Invocation
 
 ```
-[悪い例] Lambda が別の Lambda を同期呼び出し
+[Bad example] Lambda synchronously calls another Lambda
   Lambda A → Lambda B → Lambda C
 
-  問題点:
-  - Lambda A は B と C の実行時間分も課金される
-  - 3つの関数すべてが同時実行枠を消費
-  - エラー時のリトライが複雑になる
+  Problems:
+  - Lambda A is billed for the execution time of B and C as well
+  - All three functions consume concurrent execution capacity
+  - Retries on error become complex
 
-[良い例] 非同期連携を利用
-  方法 1: SQS / SNS を介した疎結合
+[Good example] Use asynchronous coupling
+  Option 1: Loose coupling via SQS / SNS
     Lambda A → SQS → Lambda B → SNS → Lambda C
 
-  方法 2: Step Functions でオーケストレーション
+  Option 2: Orchestration with Step Functions
     Step Functions → Lambda A → Lambda B → Lambda C
-    (各ステップの成功/失敗を管理、リトライ/分岐も容易)
+    (Manages success/failure of each step; retries and branching are easy)
 
-  方法 3: EventBridge によるイベント駆動
-    Lambda A → EventBridge → Lambda B, Lambda C (並列)
+  Option 3: Event-driven with EventBridge
+    Lambda A → EventBridge → Lambda B, Lambda C (in parallel)
 ```
 
 ---
 
 ## 12. FAQ
 
-### Q1. Lambda のコールドスタートとは何ですか？
+### Q1. What is a Lambda cold start?
 
-Lambda 関数が初めて呼び出されるとき、または実行環境がリサイクルされた後に、新しい実行環境の初期化が必要になる。この初期化時間を「コールドスタート」と呼ぶ。Python/Node.js で数百ミリ秒、Java/.NET で数秒かかることがある。対策としては、Provisioned Concurrency の利用や、デプロイパッケージの軽量化が有効である。
+When a Lambda function is invoked for the first time, or after an execution environment has been recycled, a new execution environment must be initialized. This initialization time is called a "cold start." It can take a few hundred milliseconds for Python/Node.js and a few seconds for Java/.NET. Mitigation strategies include using Provisioned Concurrency and reducing the deployment package size.
 
 ```
-コールドスタート時間の目安:
+Cold start time reference:
 
-ランタイム       VPC なし        VPC あり
-Python 3.12     200-500 ms     200-500 ms (Hyperplane ENI)
-Node.js 20.x   200-400 ms     200-400 ms
-Java 21         2-8 秒         2-8 秒
-Java 21+Snap   200-500 ms     N/A (VPC 非対応)
-.NET 8          1-3 秒         1-3 秒
-Go              < 100 ms       < 100 ms
+Runtime          Without VPC     With VPC
+Python 3.12      200-500 ms      200-500 ms (Hyperplane ENI)
+Node.js 20.x     200-400 ms      200-400 ms
+Java 21          2-8 s           2-8 s
+Java 21+Snap     200-500 ms      N/A (VPC not supported)
+.NET 8           1-3 s           1-3 s
+Go               < 100 ms        < 100 ms
 
-※ VPC Lambda の ENI 作成は 2019 年以降 Hyperplane により高速化済み
+* ENI creation for VPC Lambda has been accelerated by Hyperplane since 2019
 ```
 
-### Q2. Lambda 関数の同時実行数に制限はありますか？
+### Q2. Is there a limit on Lambda function concurrency?
 
-デフォルトではリージョンあたり 1,000 同時実行がソフトリミットとして設定されている。Service Quotas から引き上げをリクエストできる。また、関数単位で `ReservedConcurrentExecutions` を設定して、特定の関数が他の関数のキャパシティを奪わないよう制御できる。
+By default, a soft limit of 1,000 concurrent executions per region is set. You can request an increase via Service Quotas. You can also set `ReservedConcurrentExecutions` per function to prevent a specific function from consuming capacity needed by other functions.
 
 ```bash
-# 現在の同時実行制限を確認
+# Check current concurrency limit
 aws lambda get-account-settings \
   --query '{ConcurrentExecutions: AccountLimit.ConcurrentExecutions, UnreservedConcurrentExecutions: AccountLimit.UnreservedConcurrentExecutions}'
 
-# Service Quotas から引き上げリクエスト
+# Request a limit increase via Service Quotas
 aws service-quotas request-service-quota-increase \
   --service-code lambda \
   --quota-code L-B99A9384 \
   --desired-value 5000
 ```
 
-### Q3. Lambda でデータベース接続をどう管理すべきですか？
+### Q3. How should database connections be managed in Lambda?
 
-RDS を利用する場合は、RDS Proxy を経由して接続プーリングを行うのが推奨される。Lambda 関数のハンドラ外(グローバルスコープ)でコネクションを初期化し、実行環境の再利用時にコネクションを使い回すパターンが基本となる。DynamoDB のような HTTP ベースのサービスであればコネクション管理の問題は発生しない。
+When using RDS, it is recommended to use RDS Proxy for connection pooling. The basic pattern is to initialize the connection outside the handler (in global scope) and reuse it across execution environment reuses. HTTP-based services like DynamoDB do not have connection management issues.
 
-### Q4. Lambda 関数のデバッグ方法は？
+### Q4. How do I debug Lambda functions?
 
-ローカルデバッグには以下の方法がある。
+The following approaches are available for local debugging.
 
 ```bash
-# 1. SAM CLI でローカル実行
+# 1. Local execution with SAM CLI
 sam local invoke MyFunction --event event.json --debug-port 5678
 
-# 2. Docker コンテナでローカル実行
+# 2. Local execution with Docker container
 docker run --rm -v $(pwd)/src:/var/task \
   -e AWS_REGION=ap-northeast-1 \
   public.ecr.aws/lambda/python:3.12 \
   lambda_function.lambda_handler
 
-# 3. pytest でユニットテスト
+# 3. Unit tests with pytest
 # tests/test_handler.py
 def test_lambda_handler():
     event = {"queryStringParameters": {"name": "Test"}}
-    context = MockContext()  # aws_request_id 等を持つモックオブジェクト
+    context = MockContext()  # Mock object with aws_request_id, etc.
     response = lambda_handler(event, context)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     assert body["message"] == "Hello, Test!"
 ```
 
-### Q5. Lambda のコストを最適化するには？
+### Q5. How can I optimize Lambda costs?
 
-(1) **AWS Lambda Power Tuning** ツールを使い、メモリとコストの最適なバランスを見つける。メモリを増やすと CPU も増えるため、実行時間が短縮されトータルコストが下がることがある。(2) **Graviton2 (arm64)** アーキテクチャを選択すると、x86 と比較して最大 34% 安価で最大 20% 高速。(3) 不要な Provisioned Concurrency を削減する。(4) ログレベルを本番では WARN 以上に設定し、CloudWatch Logs のコストを削減する。
+(1) Use the **AWS Lambda Power Tuning** tool to find the optimal balance between memory and cost. Increasing memory also increases CPU, which can reduce execution time and lower the total cost. (2) Choosing the **Graviton2 (arm64)** architecture can be up to 34% cheaper and up to 20% faster than x86. (3) Reduce unnecessary Provisioned Concurrency. (4) Set the log level to WARN or higher in production to reduce CloudWatch Logs costs.
 
 ```bash
-# arm64 (Graviton2) で関数を作成
+# Create function with arm64 (Graviton2)
 aws lambda create-function \
   --function-name my-arm-function \
   --runtime python3.12 \
@@ -1746,50 +1746,50 @@ aws lambda create-function \
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to keep in mind when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it behaves.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend solidly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| Lambda とは | サーバー管理不要のイベント駆動型コンピューティング |
-| ランタイム | Python, Node.js, Java, Go, .NET, Ruby, カスタム |
-| トリガー | 同期(API Gateway)、非同期(S3, SNS)、ポーリング(SQS, Kinesis) |
-| IAM ロール | 信頼ポリシー + 最小権限のアクセス許可ポリシー |
-| 環境変数 | 設定の外部化、KMS による暗号化サポート |
-| レイヤー | 共通ライブラリの再利用、最大5レイヤーまでアタッチ可能 |
-| VPC | RDS 等のプライベートリソースアクセスに必要、RDS Proxy 推奨 |
-| 同時実行 | Reserved / Provisioned で制御、Auto Scaling で自動調整 |
-| 監視 | CloudWatch Logs + Metrics + Alarms + X-Ray |
-| 課金 | リクエスト数 + 実行時間(GB-秒)、arm64 で最大 34% 削減 |
+Knowledge of this topic is frequently applied in day-to-day development tasks, and becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [Lambda 応用](./01-lambda-advanced.md) -- コールドスタート最適化、Provisioned Concurrency、Step Functions
-- [サーバーレスパターン](./02-serverless-patterns.md) -- API+Lambda+DynamoDB、イベント駆動アーキテクチャ
-- [IAM 詳解](../08-security/00-iam-deep-dive.md) -- Lambda 実行ロールの高度な設計
+| Item | Key Points |
+|------|-----------|
+| What is Lambda | Event-driven computing with no server management |
+| Runtimes | Python, Node.js, Java, Go, .NET, Ruby, custom |
+| Triggers | Synchronous (API Gateway), asynchronous (S3, SNS), polling (SQS, Kinesis) |
+| IAM roles | Trust policy + least-privilege permission policy |
+| Environment variables | Externalize configuration; KMS encryption supported |
+| Layers | Reuse shared libraries; up to 5 layers can be attached |
+| VPC | Required for accessing private resources like RDS; RDS Proxy recommended |
+| Concurrency | Controlled via Reserved / Provisioned; auto-adjusted with Auto Scaling |
+| Monitoring | CloudWatch Logs + Metrics + Alarms + X-Ray |
+| Billing | Requests + duration (GB-seconds); up to 34% reduction with arm64 |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. AWS 公式ドキュメント「AWS Lambda デベロッパーガイド」 https://docs.aws.amazon.com/lambda/latest/dg/
-2. AWS Well-Architected Framework「サーバーレスアプリケーションレンズ」 https://docs.aws.amazon.com/wellarchitected/latest/serverless-applications-lens/
-3. Jeremy Daly「Serverless Architectures on AWS, 2nd Edition」Manning Publications, 2024
-4. AWS ブログ「Operating Lambda: Performance optimization」 https://aws.amazon.com/blogs/compute/operating-lambda-performance-optimization-part-1/
+- [Lambda Advanced](./01-lambda-advanced.md) -- Cold start optimization, Provisioned Concurrency, Step Functions
+- [Serverless Patterns](./02-serverless-patterns.md) -- API + Lambda + DynamoDB, event-driven architecture
+- [IAM Deep Dive](../08-security/00-iam-deep-dive.md) -- Advanced design of Lambda execution roles
+
+---
+
+## References
+
+1. AWS Official Documentation "AWS Lambda Developer Guide" https://docs.aws.amazon.com/lambda/latest/dg/
+2. AWS Well-Architected Framework "Serverless Applications Lens" https://docs.aws.amazon.com/wellarchitected/latest/serverless-applications-lens/
+3. Jeremy Daly "Serverless Architectures on AWS, 2nd Edition" Manning Publications, 2024
+4. AWS Blog "Operating Lambda: Performance optimization" https://aws.amazon.com/blogs/compute/operating-lambda-performance-optimization-part-1/
 5. AWS Lambda Powertools for Python https://docs.powertools.aws.dev/lambda/python/latest/
-6. AWS SAM CLI ドキュメント https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli.html
+6. AWS SAM CLI Documentation https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli.html
