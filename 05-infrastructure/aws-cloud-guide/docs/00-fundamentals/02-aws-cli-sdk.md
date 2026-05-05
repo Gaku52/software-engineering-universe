@@ -1,29 +1,29 @@
 # AWS CLI / SDK
 
-> コマンドラインと各種プログラミング言語から AWS を操作するための基盤ツールをマスターする
+> Master the foundational tools for operating AWS from the command line and various programming languages
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. AWS CLI v2 をインストール・設定し、プロファイルを使い分けて複数アカウントを操作できる
-2. JavaScript (AWS SDK v3) と Python (boto3) で AWS サービスを操作するコードを書ける
-3. 認証情報を安全に管理し、環境変数・IAM ロール・SSO を適切に使い分けられる
-4. AWS CLI の高度なテクニック（JMESPath、ページネーション、ウェイター）を活用できる
-5. CI/CD 環境での認証情報管理（OIDC、Secrets Manager）を実装できる
+1. Install and configure AWS CLI v2, and manage multiple accounts using profiles
+2. Write code to operate AWS services with JavaScript (AWS SDK v3) and Python (boto3)
+3. Manage credentials securely and properly use environment variables, IAM roles, and SSO
+4. Leverage advanced AWS CLI techniques (JMESPath, pagination, waiters)
+5. Implement credential management in CI/CD environments (OIDC, Secrets Manager)
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AWS アカウント設定](./01-aws-account-setup.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [AWS Account Setup](./01-aws-account-setup.md)
 
 ---
 
-## 1. AWS CLI v2 のインストールと設定
+## 1. Installing and Configuring AWS CLI v2
 
-### 1.1 インストール
+### 1.1 Installation
 
 ```bash
 # macOS
@@ -47,42 +47,42 @@ sudo ./aws/install
 
 # Docker
 docker run --rm -it amazon/aws-cli --version
-# エイリアス設定
+# Set up alias
 alias aws='docker run --rm -it -v ~/.aws:/root/.aws -v $(pwd):/aws amazon/aws-cli'
 
-# バージョン確認
+# Verify version
 aws --version
 # aws-cli/2.x.x Python/3.x.x ...
 
-# アップデート
+# Update
 sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
 ```
 
-### 1.2 初期設定
+### 1.2 Initial Configuration
 
 ```bash
-# インタラクティブ設定
+# Interactive configuration
 aws configure
 # AWS Access Key ID [None]: AKIAIOSFODNN7EXAMPLE
 # AWS Secret Access Key [None]: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 # Default region name [None]: ap-northeast-1
 # Default output format [None]: json
 
-# 設定ファイルの確認
+# Check configuration files
 cat ~/.aws/credentials
 cat ~/.aws/config
 
-# 設定値の個別確認
+# Check individual configuration values
 aws configure get region
 aws configure get profile.dev.region
 aws configure get default.output
 ```
 
-### 1.3 設定ファイルの構造
+### 1.3 Configuration File Structure
 
 ```
 ~/.aws/
-├── credentials    # 認証情報（アクセスキー）
+├── credentials    # Credentials (access keys)
 │   [default]
 │   aws_access_key_id = AKIA...
 │   aws_secret_access_key = wJal...
@@ -91,7 +91,7 @@ aws configure get default.output
 │   aws_access_key_id = AKIA...
 │   aws_secret_access_key = xxxx...
 │
-└── config         # リージョン、出力形式、ロール設定
+└── config         # Region, output format, role settings
     [default]
     region = ap-northeast-1
     output = json
@@ -106,29 +106,29 @@ aws configure get default.output
     region = ap-northeast-1
 ```
 
-### 1.4 環境変数による設定
+### 1.4 Configuration via Environment Variables
 
 ```bash
-# 認証情報の環境変数
+# Credential environment variables
 export AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE"
 export AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-export AWS_SESSION_TOKEN="FwoGZXIvYXdzEBYaD..."  # 一時認証情報の場合
+export AWS_SESSION_TOKEN="FwoGZXIvYXdzEBYaD..."  # For temporary credentials
 
-# プロファイルの切り替え
+# Switch profiles
 export AWS_PROFILE=dev
 
-# リージョンのオーバーライド
+# Override region
 export AWS_DEFAULT_REGION=us-east-1
 
-# デフォルト出力形式
+# Default output format
 export AWS_DEFAULT_OUTPUT=json
 
-# エンドポイント URL（LocalStack 等で使用）
+# Endpoint URL (used with LocalStack, etc.)
 export AWS_ENDPOINT_URL=http://localhost:4566
 
-# 設定の確認
+# Verify configuration
 aws configure list
-# 出力例:
+# Example output:
 #       Name                    Value             Type    Location
 #       ----                    -----             ----    --------
 #    profile                <not set>             None    None
@@ -139,169 +139,169 @@ aws configure list
 
 ---
 
-## 2. プロファイル管理
+## 2. Profile Management
 
-### 2.1 名前付きプロファイル
+### 2.1 Named Profiles
 
 ```bash
-# 名前付きプロファイルを作成
+# Create named profiles
 aws configure --profile dev
 aws configure --profile staging
 aws configure --profile prod
 
-# プロファイルを指定してコマンド実行
+# Execute commands with a specific profile
 aws s3 ls --profile dev
 aws ec2 describe-instances --profile prod
 
-# 環境変数でデフォルトプロファイルを切り替え
+# Switch default profile via environment variable
 export AWS_PROFILE=dev
-aws s3 ls  # dev プロファイルで実行される
+aws s3 ls  # Executed with the dev profile
 
-# プロファイル一覧の確認
+# List all profiles
 aws configure list-profiles
 ```
 
-### 2.2 認証情報の解決順序
+### 2.2 Credential Resolution Order
 
 ```
-AWS CLI / SDK の認証情報解決順序（優先度順）
+AWS CLI / SDK Credential Resolution Order (by priority)
 
   +-----------------------------------+
-  | 1. コマンドラインオプション         |  --profile, --region
+  | 1. Command-line options            |  --profile, --region
   +-----------------------------------+
-              ↓ (未設定なら)
+              ↓ (if not set)
   +-----------------------------------+
-  | 2. 環境変数                        |  AWS_ACCESS_KEY_ID
+  | 2. Environment variables           |  AWS_ACCESS_KEY_ID
   |                                   |  AWS_SECRET_ACCESS_KEY
   |                                   |  AWS_SESSION_TOKEN
   +-----------------------------------+
-              ↓ (未設定なら)
+              ↓ (if not set)
   +-----------------------------------+
   | 3. Web Identity Token              |  AWS_WEB_IDENTITY_TOKEN_FILE
   |                                   |  (EKS, GitHub Actions)
   +-----------------------------------+
-              ↓ (未設定なら)
+              ↓ (if not set)
   +-----------------------------------+
-  | 4. 共有認証情報ファイル             |  ~/.aws/credentials
+  | 4. Shared credentials file         |  ~/.aws/credentials
   +-----------------------------------+
-              ↓ (未設定なら)
+              ↓ (if not set)
   +-----------------------------------+
-  | 5. 共有設定ファイル                 |  ~/.aws/config
+  | 5. Shared config file              |  ~/.aws/config
   +-----------------------------------+
-              ↓ (未設定なら)
+              ↓ (if not set)
   +-----------------------------------+
-  | 6. ECS コンテナ認証情報             |  タスクロール
+  | 6. ECS container credentials       |  Task role
   +-----------------------------------+
-              ↓ (未設定なら)
+              ↓ (if not set)
   +-----------------------------------+
-  | 7. EC2 インスタンスメタデータ       |  インスタンスプロファイル
+  | 7. EC2 instance metadata           |  Instance profile
   +-----------------------------------+
 ```
 
-### 2.3 AssumeRole によるクロスアカウントアクセス
+### 2.3 Cross-Account Access with AssumeRole
 
 ```bash
-# ~/.aws/config でロールを設定
+# Configure role in ~/.aws/config
 # [profile prod]
 # role_arn = arn:aws:iam::111111111111:role/AdminRole
 # source_profile = default
 # mfa_serial = arn:aws:iam::999999999999:mfa/my-user
 
-# MFA 付きでロールを引き受ける
+# Assume role with MFA
 aws sts assume-role \
   --role-arn arn:aws:iam::111111111111:role/AdminRole \
   --role-session-name my-session \
   --serial-number arn:aws:iam::999999999999:mfa/my-user \
   --token-code 123456
 
-# 上記の結果を環境変数に設定
+# Set the results as environment variables
 export AWS_ACCESS_KEY_ID=ASIAXXXXXXXX
 export AWS_SECRET_ACCESS_KEY=XXXXXXXX
 export AWS_SESSION_TOKEN=XXXXXXXX
 ```
 
-### 2.4 プロファイル切り替えスクリプト
+### 2.4 Profile Switching Script
 
 ```bash
 #!/bin/bash
 # aws-switch-profile.sh
-# 使い方: source aws-switch-profile.sh
+# Usage: source aws-switch-profile.sh
 
-echo "利用可能なプロファイル:"
+echo "Available profiles:"
 aws configure list-profiles | nl
 
-read -p "プロファイル番号を選択: " num
+read -p "Select profile number: " num
 PROFILE=$(aws configure list-profiles | sed -n "${num}p")
 
 if [ -z "$PROFILE" ]; then
-  echo "無効な番号です"
+  echo "Invalid number"
   return 1
 fi
 
 export AWS_PROFILE="$PROFILE"
-echo "プロファイルを '$PROFILE' に切り替えました"
+echo "Switched profile to '$PROFILE'"
 
-# 現在の ID を確認
+# Verify current identity
 aws sts get-caller-identity --output table
 ```
 
-### 2.5 MFA 付き一時認証情報の取得スクリプト
+### 2.5 MFA Temporary Credential Retrieval Script
 
 ```bash
 #!/bin/bash
-# aws-mfa.sh - MFA 認証して一時認証情報を取得
-# 使い方: eval $(./aws-mfa.sh 123456)
+# aws-mfa.sh - Authenticate with MFA and retrieve temporary credentials
+# Usage: eval $(./aws-mfa.sh 123456)
 
 MFA_CODE=$1
 MFA_SERIAL="arn:aws:iam::123456789012:mfa/my-user"
-DURATION=43200  # 12時間
+DURATION=43200  # 12 hours
 
 if [ -z "$MFA_CODE" ]; then
   echo "Usage: eval \$(./aws-mfa.sh <MFA_CODE>)" >&2
   exit 1
 fi
 
-# 一時認証情報を取得
+# Retrieve temporary credentials
 CREDS=$(aws sts get-session-token \
   --serial-number "$MFA_SERIAL" \
   --token-code "$MFA_CODE" \
   --duration-seconds "$DURATION" \
   --output json)
 
-# 環境変数として出力
+# Output as environment variables
 echo "export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')"
 echo "export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')"
 echo "export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')"
 
 EXPIRY=$(echo $CREDS | jq -r '.Credentials.Expiration')
-echo "# 有効期限: $EXPIRY" >&2
+echo "# Expiration: $EXPIRY" >&2
 ```
 
 ---
 
-## 3. AWS CLI 実践テクニック
+## 3. Practical AWS CLI Techniques
 
-### 3.1 出力フォーマットと --query
+### 3.1 Output Formats and --query
 
 ```bash
-# JSON 出力（デフォルト）
+# JSON output (default)
 aws ec2 describe-instances --output json
 
-# テーブル形式（人間が読みやすい）
+# Table format (human-readable)
 aws ec2 describe-instances --output table
 
-# YAML 形式
+# YAML format
 aws ec2 describe-instances --output yaml
 
-# テキスト形式（スクリプト向け）
+# Text format (script-friendly)
 aws ec2 describe-instances --output text
 
-# --query で JMESPath フィルタ
+# JMESPath filter with --query
 aws ec2 describe-instances \
   --query 'Reservations[].Instances[].[InstanceId,State.Name,InstanceType]' \
   --output table
 
-# 特定タグのインスタンスだけ抽出
+# Extract only instances with a specific tag
 aws ec2 describe-instances \
   --filters "Name=tag:Environment,Values=production" \
   --query 'Reservations[].Instances[].{
@@ -313,15 +313,15 @@ aws ec2 describe-instances \
   --output table
 ```
 
-### 3.2 JMESPath 詳細ガイド
+### 3.2 JMESPath Detailed Guide
 
 ```bash
-# 基本的なフィルタリング
-# 配列から特定フィールドを抽出
+# Basic filtering
+# Extract specific fields from an array
 aws ec2 describe-instances \
   --query 'Reservations[].Instances[].InstanceId'
 
-# オブジェクトの構築
+# Object construction
 aws ec2 describe-instances \
   --query 'Reservations[].Instances[].{
     ID: InstanceId,
@@ -331,29 +331,29 @@ aws ec2 describe-instances \
     LaunchTime: LaunchTime
   }' --output table
 
-# 条件付きフィルタリング（running のインスタンスのみ）
+# Conditional filtering (only running instances)
 aws ec2 describe-instances \
   --query 'Reservations[].Instances[?State.Name==`running`].{
     ID: InstanceId,
     Type: InstanceType
   }' --output table
 
-# ソート
+# Sorting
 aws ec2 describe-instances \
   --query 'sort_by(Reservations[].Instances[], &LaunchTime)[].{
     ID: InstanceId,
     LaunchTime: LaunchTime
   }' --output table
 
-# 最初の N 件を取得
+# Get first N items
 aws ec2 describe-instances \
   --query 'Reservations[].Instances[][:5].InstanceId'
 
-# パイプ演算子
+# Pipe operator
 aws ec2 describe-instances \
   --query 'Reservations[].Instances[] | length(@)'
 
-# ネストされた配列のフラット化
+# Flatten nested arrays
 aws ec2 describe-security-groups \
   --query 'SecurityGroups[].{
     GroupName: GroupName,
@@ -364,7 +364,7 @@ aws ec2 describe-security-groups \
     }
   }' --output yaml
 
-# タグからの値取得
+# Get values from tags
 aws ec2 describe-instances \
   --query 'Reservations[].Instances[].{
     ID: InstanceId,
@@ -372,10 +372,10 @@ aws ec2 describe-instances \
   }' --output table
 ```
 
-### 3.3 便利なワンライナー集
+### 3.3 Useful One-Liners
 
 ```bash
-# 全リージョンの EC2 インスタンス一覧
+# List EC2 instances across all regions
 for region in $(aws ec2 describe-regions --query 'Regions[].RegionName' --output text); do
   echo "=== $region ==="
   aws ec2 describe-instances --region $region \
@@ -383,7 +383,7 @@ for region in $(aws ec2 describe-regions --query 'Regions[].RegionName' --output
     --output table
 done
 
-# S3 バケットサイズの確認
+# Check S3 bucket size
 aws cloudwatch get-metric-statistics \
   --namespace AWS/S3 \
   --metric-name BucketSizeBytes \
@@ -393,13 +393,13 @@ aws cloudwatch get-metric-statistics \
   --period 86400 \
   --statistics Average
 
-# 停止中のインスタンスを一括起動
+# Bulk start stopped instances
 aws ec2 describe-instances \
   --filters "Name=instance-state-name,Values=stopped" "Name=tag:Environment,Values=dev" \
   --query 'Reservations[].Instances[].InstanceId' \
   --output text | xargs -n 1 aws ec2 start-instances --instance-ids
 
-# 未アタッチの EBS ボリュームを検出
+# Detect unattached EBS volumes
 aws ec2 describe-volumes \
   --filters "Name=status,Values=available" \
   --query 'Volumes[].{
@@ -409,7 +409,7 @@ aws ec2 describe-volumes \
     Created: CreateTime
   }' --output table
 
-# セキュリティグループで 0.0.0.0/0 に SSH を公開しているものを検出
+# Detect security groups exposing SSH to 0.0.0.0/0
 aws ec2 describe-security-groups \
   --filters "Name=ip-permission.from-port,Values=22" \
     "Name=ip-permission.cidr,Values=0.0.0.0/0" \
@@ -419,7 +419,7 @@ aws ec2 describe-security-groups \
     VpcId: VpcId
   }' --output table
 
-# Lambda 関数のメモリとタイムアウト一覧
+# List Lambda functions with memory and timeout
 aws lambda list-functions \
   --query 'Functions[].{
     Name: FunctionName,
@@ -429,7 +429,7 @@ aws lambda list-functions \
     LastModified: LastModified
   }' --output table
 
-# IAM ユーザーのアクセスキー最終使用日を確認
+# Check last used date of IAM user access keys
 for user in $(aws iam list-users --query 'Users[].UserName' --output text); do
   echo "--- $user ---"
   aws iam list-access-keys --user-name "$user" --query 'AccessKeyMetadata[].{
@@ -440,63 +440,63 @@ for user in $(aws iam list-users --query 'Users[].UserName' --output text); do
 done
 ```
 
-### 3.4 ページネーションと自動ページング
+### 3.4 Pagination and Auto-Paging
 
 ```bash
-# AWS CLI v2 はデフォルトで自動ページネーション
+# AWS CLI v2 uses auto-pagination by default
 aws s3api list-objects-v2 --bucket my-bucket
-# → 1000件を超えても自動的に全件取得
+# → Automatically retrieves all items even beyond 1000
 
-# ページネーションを手動で制御
+# Manual pagination control
 aws s3api list-objects-v2 --bucket my-bucket --max-items 100
-# → NextToken が返る場合、次のページを取得
+# → If NextToken is returned, retrieve the next page
 aws s3api list-objects-v2 --bucket my-bucket --starting-token "TOKEN..."
 
-# ページネーションを無効化（パフォーマンス向上）
+# Disable pagination (for performance improvement)
 aws s3api list-objects-v2 --bucket my-bucket --no-paginate --max-items 100
 
-# server-side ページサイズを指定
+# Specify server-side page size
 aws s3api list-objects-v2 --bucket my-bucket --page-size 500
 ```
 
-### 3.5 ウェイター（非同期リソースの完了待ち）
+### 3.5 Waiters (Waiting for Async Resource Completion)
 
 ```bash
-# EC2 インスタンスの起動完了を待つ
+# Wait for EC2 instance launch to complete
 aws ec2 run-instances --image-id ami-xxx --instance-type t3.micro \
   --query 'Instances[0].InstanceId' --output text
 # → i-0123456789abcdef0
 
 aws ec2 wait instance-running --instance-ids i-0123456789abcdef0
-echo "インスタンスが running になりました"
+echo "Instance is now running"
 
-# EBS ボリュームの利用可能を待つ
+# Wait for EBS volume to become available
 aws ec2 wait volume-available --volume-ids vol-xxx
 
-# RDS インスタンスの起動完了を待つ
+# Wait for RDS instance launch to complete
 aws rds wait db-instance-available --db-instance-identifier my-db
 
-# スナップショットの完了を待つ
+# Wait for snapshot completion
 aws ec2 wait snapshot-completed --snapshot-ids snap-xxx
 
-# CloudFormation スタックの作成完了を待つ
+# Wait for CloudFormation stack creation to complete
 aws cloudformation wait stack-create-complete --stack-name my-stack
 
-# カスタムタイムアウト設定
+# Custom timeout configuration
 aws ec2 wait instance-running \
   --instance-ids i-xxx \
   --cli-read-timeout 600
 ```
 
-### 3.6 S3 の高度な操作
+### 3.6 Advanced S3 Operations
 
 ```bash
-# 高速同期（マルチパートアップロード設定）
+# High-speed sync (multipart upload configuration)
 aws configure set default.s3.max_concurrent_requests 20
 aws configure set default.s3.multipart_threshold 64MB
 aws configure set default.s3.multipart_chunksize 16MB
 
-# ディレクトリの同期
+# Directory sync
 aws s3 sync ./build s3://my-bucket/static \
   --delete \
   --exclude "*.tmp" \
@@ -504,20 +504,20 @@ aws s3 sync ./build s3://my-bucket/static \
   --cache-control "max-age=86400" \
   --acl private
 
-# プレサインド URL の生成
+# Generate presigned URL
 aws s3 presign s3://my-bucket/report.pdf --expires-in 3600
 
-# バケット間コピー（クロスリージョン）
+# Cross-region bucket-to-bucket copy
 aws s3 sync s3://source-bucket s3://dest-bucket \
   --source-region ap-northeast-1 \
   --region us-east-1
 
-# 大容量ファイルのマルチパートアップロード
+# Multipart upload for large files
 aws s3 cp large-file.tar.gz s3://my-bucket/ \
   --expected-size 10737418240 \
   --storage-class INTELLIGENT_TIERING
 
-# S3 Select でデータをクエリ
+# Query data with S3 Select
 aws s3api select-object-content \
   --bucket my-bucket \
   --key data.csv \
@@ -528,23 +528,23 @@ aws s3api select-object-content \
   output.csv
 ```
 
-### 3.7 AWS CLI のカスタマイズ
+### 3.7 Customizing AWS CLI
 
 ```bash
-# ~/.aws/config でのカスタマイズ
+# Customization in ~/.aws/config
 # [default]
 # region = ap-northeast-1
 # output = json
-# cli_pager = less      # ページャーの設定
-# cli_auto_prompt = on  # 自動補完を有効化
-# retry_mode = adaptive # リトライモード
+# cli_pager = less      # Pager setting
+# cli_auto_prompt = on  # Enable auto-completion
+# retry_mode = adaptive # Retry mode
 
-# ページャーを無効化（スクリプト向け）
+# Disable pager (for scripts)
 export AWS_PAGER=""
-# または
+# or
 aws ec2 describe-instances --no-cli-pager
 
-# エイリアスの設定 (~/.aws/cli/alias)
+# Alias configuration (~/.aws/cli/alias)
 # [toplevel]
 # whoami = sts get-caller-identity
 # running-instances = ec2 describe-instances \
@@ -556,7 +556,7 @@ aws ec2 describe-instances --no-cli-pager
 #   --query 'SecurityGroups[].{ID:GroupId,Name:GroupName}' \
 #   --output table
 
-# エイリアスの使用
+# Using aliases
 aws whoami
 aws running-instances
 aws sg-open-ssh
@@ -566,10 +566,10 @@ aws sg-open-ssh
 
 ## 4. AWS SDK for JavaScript (v3)
 
-### 4.1 セットアップ
+### 4.1 Setup
 
 ```bash
-# パッケージインストール（必要なサービスだけ）
+# Install packages (only the services you need)
 npm install @aws-sdk/client-s3
 npm install @aws-sdk/client-dynamodb
 npm install @aws-sdk/lib-dynamodb  # DocumentClient
@@ -577,13 +577,13 @@ npm install @aws-sdk/client-lambda
 npm install @aws-sdk/client-sqs
 npm install @aws-sdk/client-ses
 
-# 共通ユーティリティ
+# Common utilities
 npm install @aws-sdk/credential-providers
 npm install @aws-sdk/middleware-retry
 npm install @aws-sdk/s3-request-presigner
 ```
 
-### 4.2 S3 操作
+### 4.2 S3 Operations
 
 ```javascript
 import {
@@ -598,7 +598,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const s3 = new S3Client({ region: 'ap-northeast-1' });
 
-// ファイルアップロード
+// File upload
 async function uploadFile(bucket, key, body) {
   const command = new PutObjectCommand({
     Bucket: bucket,
@@ -615,7 +615,7 @@ async function uploadFile(bucket, key, body) {
   console.log('Upload success:', response.$metadata.httpStatusCode);
 }
 
-// ファイルダウンロード
+// File download
 async function downloadFile(bucket, key) {
   const command = new GetObjectCommand({ Bucket: bucket, Key: key });
   const response = await s3.send(command);
@@ -623,7 +623,7 @@ async function downloadFile(bucket, key) {
   return JSON.parse(body);
 }
 
-// オブジェクト一覧（ページネーション対応）
+// List objects (with pagination support)
 async function listAllObjects(bucket, prefix) {
   const allObjects = [];
   let continuationToken = undefined;
@@ -650,14 +650,14 @@ async function listAllObjects(bucket, prefix) {
   return allObjects;
 }
 
-// プレサインド URL の生成
+// Generate presigned URL
 async function generatePresignedUrl(bucket, key, expiresIn = 3600) {
   const command = new GetObjectCommand({ Bucket: bucket, Key: key });
   const url = await getSignedUrl(s3, command, { expiresIn });
   return url;
 }
 
-// ストリーミングアップロード
+// Streaming upload
 import { Upload } from '@aws-sdk/lib-storage';
 import { createReadStream } from 'fs';
 
@@ -669,8 +669,8 @@ async function uploadLargeFile(bucket, key, filePath) {
       Key: key,
       Body: createReadStream(filePath),
     },
-    queueSize: 4,         // 並列アップロード数
-    partSize: 5 * 1024 * 1024,  // パートサイズ: 5MB
+    queueSize: 4,         // Number of parallel uploads
+    partSize: 5 * 1024 * 1024,  // Part size: 5MB
   });
 
   upload.on('httpUploadProgress', (progress) => {
@@ -681,7 +681,7 @@ async function uploadLargeFile(bucket, key, filePath) {
 }
 ```
 
-### 4.3 DynamoDB 操作
+### 4.3 DynamoDB Operations
 
 ```javascript
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
@@ -704,28 +704,28 @@ const docClient = DynamoDBDocumentClient.from(client, {
   },
 });
 
-// アイテム書き込み
+// Write item
 async function putItem(tableName, item) {
   const command = new PutCommand({
     TableName: tableName,
     Item: item,
-    ConditionExpression: 'attribute_not_exists(PK)',  // 重複防止
+    ConditionExpression: 'attribute_not_exists(PK)',  // Prevent duplicates
   });
   await docClient.send(command);
 }
 
-// アイテム取得
+// Get item
 async function getItem(tableName, key) {
   const command = new GetCommand({
     TableName: tableName,
     Key: key,
-    ConsistentRead: true,  // 強い整合性
+    ConsistentRead: true,  // Strong consistency
   });
   const response = await docClient.send(command);
   return response.Item;
 }
 
-// クエリ（ページネーション対応）
+// Query (with pagination support)
 async function queryAllItems(tableName, pk, skPrefix) {
   const allItems = [];
   let lastKey = undefined;
@@ -749,7 +749,7 @@ async function queryAllItems(tableName, pk, skPrefix) {
   return allItems;
 }
 
-// 条件付き更新
+// Conditional update
 async function updateItem(tableName, key, updates) {
   const command = new UpdateCommand({
     TableName: tableName,
@@ -770,7 +770,7 @@ async function updateItem(tableName, key, updates) {
   return response.Attributes;
 }
 
-// バッチ書き込み（25件ずつ）
+// Batch write (25 items at a time)
 async function batchWriteItems(tableName, items) {
   const BATCH_SIZE = 25;
   for (let i = 0; i < items.length; i += BATCH_SIZE) {
@@ -786,7 +786,7 @@ async function batchWriteItems(tableName, items) {
   }
 }
 
-// トランザクション
+// Transaction
 async function transferPoints(fromUser, toUser, points) {
   const command = new TransactWriteCommand({
     TransactItems: [
@@ -812,7 +812,7 @@ async function transferPoints(fromUser, toUser, points) {
   await docClient.send(command);
 }
 
-// 使用例
+// Usage example
 await putItem('Users', {
   PK: 'USER#001', SK: 'PROFILE',
   name: '田中太郎', age: 30, points: 1000,
@@ -820,14 +820,14 @@ await putItem('Users', {
 const user = await getItem('Users', { PK: 'USER#001', SK: 'PROFILE' });
 ```
 
-### 4.4 Lambda 呼び出し
+### 4.4 Lambda Invocation
 
 ```javascript
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 const lambda = new LambdaClient({ region: 'ap-northeast-1' });
 
-// 同期呼び出し
+// Synchronous invocation
 async function invokeLambdaSync(functionName, payload) {
   const command = new InvokeCommand({
     FunctionName: functionName,
@@ -839,7 +839,7 @@ async function invokeLambdaSync(functionName, payload) {
   return result;
 }
 
-// 非同期呼び出し
+// Asynchronous invocation
 async function invokeLambdaAsync(functionName, payload) {
   const command = new InvokeCommand({
     FunctionName: functionName,
@@ -850,7 +850,7 @@ async function invokeLambdaAsync(functionName, payload) {
 }
 ```
 
-### 4.5 SQS 操作
+### 4.5 SQS Operations
 
 ```javascript
 import {
@@ -863,7 +863,7 @@ import {
 const sqs = new SQSClient({ region: 'ap-northeast-1' });
 const QUEUE_URL = 'https://sqs.ap-northeast-1.amazonaws.com/123456789012/my-queue';
 
-// メッセージ送信
+// Send message
 async function sendMessage(body, groupId) {
   const command = new SendMessageCommand({
     QueueUrl: QUEUE_URL,
@@ -874,12 +874,12 @@ async function sendMessage(body, groupId) {
   await sqs.send(command);
 }
 
-// メッセージ受信と処理
+// Receive and process messages
 async function processMessages() {
   const command = new ReceiveMessageCommand({
     QueueUrl: QUEUE_URL,
     MaxNumberOfMessages: 10,
-    WaitTimeSeconds: 20,  // ロングポーリング
+    WaitTimeSeconds: 20,  // Long polling
     VisibilityTimeout: 60,
   });
   const response = await sqs.send(command);
@@ -889,26 +889,26 @@ async function processMessages() {
       const body = JSON.parse(message.Body);
       await handleMessage(body);
 
-      // 正常処理後にメッセージを削除
+      // Delete message after successful processing
       await sqs.send(new DeleteMessageCommand({
         QueueUrl: QUEUE_URL,
         ReceiptHandle: message.ReceiptHandle,
       }));
     } catch (error) {
       console.error('Message processing failed:', error);
-      // メッセージは削除せず、VisibilityTimeout 後に再処理される
+      // Message is not deleted and will be reprocessed after VisibilityTimeout
     }
   }
 }
 ```
 
-### 4.6 エラーハンドリングとリトライ
+### 4.6 Error Handling and Retries
 
 ```javascript
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 
-// リトライ設定付きクライアント
+// Client with retry configuration
 const s3 = new S3Client({
   region: 'ap-northeast-1',
   maxAttempts: 5,
@@ -919,7 +919,7 @@ const s3 = new S3Client({
   }),
 });
 
-// エラーハンドリング
+// Error handling
 async function getObjectSafely(bucket, key) {
   try {
     const command = new GetObjectCommand({ Bucket: bucket, Key: key });
@@ -950,21 +950,21 @@ async function getObjectSafely(bucket, key) {
 
 ## 5. AWS SDK for Python (boto3)
 
-### 5.1 セットアップ
+### 5.1 Setup
 
 ```bash
 pip install boto3
-pip install boto3-stubs[essential]  # 型ヒント（開発時）
+pip install boto3-stubs[essential]  # Type hints (for development)
 ```
 
-### 5.2 S3 操作
+### 5.2 S3 Operations
 
 ```python
 import boto3
 import json
 from botocore.config import Config
 
-# リトライ設定付きクライアント
+# Client with retry configuration
 config = Config(
     region_name='ap-northeast-1',
     retries={'max_attempts': 5, 'mode': 'adaptive'},
@@ -973,7 +973,7 @@ config = Config(
 
 s3 = boto3.client('s3', config=config)
 
-# ファイルアップロード
+# File upload
 def upload_file(bucket, key, file_path):
     s3.upload_file(
         file_path, bucket, key,
@@ -985,7 +985,7 @@ def upload_file(bucket, key, file_path):
     )
     print(f"Uploaded: s3://{bucket}/{key}")
 
-# JSON データアップロード
+# Upload JSON data
 def upload_json(bucket, key, data):
     s3.put_object(
         Bucket=bucket,
@@ -994,13 +994,13 @@ def upload_json(bucket, key, data):
         ContentType='application/json'
     )
 
-# ファイルダウンロード
+# File download
 def download_json(bucket, key):
     response = s3.get_object(Bucket=bucket, Key=key)
     body = response['Body'].read().decode('utf-8')
     return json.loads(body)
 
-# Presigned URL 生成（期限付き公開 URL）
+# Generate presigned URL (time-limited public URL)
 def generate_presigned_url(bucket, key, expiration=3600):
     url = s3.generate_presigned_url(
         'get_object',
@@ -1009,7 +1009,7 @@ def generate_presigned_url(bucket, key, expiration=3600):
     )
     return url
 
-# ページネーション対応のオブジェクト一覧
+# List objects with pagination support
 def list_all_objects(bucket, prefix=''):
     paginator = s3.get_paginator('list_objects_v2')
     objects = []
@@ -1022,7 +1022,7 @@ def list_all_objects(bucket, prefix=''):
             })
     return objects
 
-# バケット間のコピー
+# Cross-bucket copy
 def copy_between_buckets(src_bucket, src_key, dest_bucket, dest_key):
     s3.copy_object(
         CopySource={'Bucket': src_bucket, 'Key': src_key},
@@ -1032,7 +1032,7 @@ def copy_between_buckets(src_bucket, src_key, dest_bucket, dest_key):
     )
 ```
 
-### 5.3 EC2 操作
+### 5.3 EC2 Operations
 
 ```python
 import boto3
@@ -1041,7 +1041,7 @@ from datetime import datetime, timedelta
 ec2 = boto3.resource('ec2', region_name='ap-northeast-1')
 ec2_client = boto3.client('ec2', region_name='ap-northeast-1')
 
-# インスタンス一覧
+# List instances
 def list_instances(state='running'):
     instances = ec2.instances.filter(
         Filters=[{'Name': 'instance-state-name', 'Values': [state]}]
@@ -1054,14 +1054,14 @@ def list_instances(state='running'):
         print(f"{instance.id} | {instance.instance_type} | "
               f"{name} | {instance.public_ip_address}")
 
-# インスタンス停止
+# Stop instances
 def stop_instances(instance_ids):
     ec2.instances.filter(InstanceIds=instance_ids).stop()
     print(f"Stopping: {instance_ids}")
 
-# タグでインスタンスを操作
+# Operate instances by tag
 def stop_dev_instances():
-    """開発環境のインスタンスを夜間停止"""
+    """Stop development environment instances at night"""
     instances = ec2.instances.filter(
         Filters=[
             {'Name': 'instance-state-name', 'Values': ['running']},
@@ -1073,7 +1073,7 @@ def stop_dev_instances():
         ec2.instances.filter(InstanceIds=ids).stop()
         print(f"Stopped {len(ids)} dev instances: {ids}")
 
-# 古いスナップショットの削除
+# Delete old snapshots
 def cleanup_old_snapshots(days=30):
     cutoff = datetime.now(tz=datetime.now().astimezone().tzinfo) - timedelta(days=days)
     snapshots = ec2_client.describe_snapshots(OwnerIds=['self'])['Snapshots']
@@ -1082,7 +1082,7 @@ def cleanup_old_snapshots(days=30):
             ec2_client.delete_snapshot(SnapshotId=snap['SnapshotId'])
             print(f"Deleted: {snap['SnapshotId']} ({snap['StartTime']})")
 
-# ウェイターの使用
+# Using waiters
 def launch_and_wait(ami_id, instance_type, key_name, sg_ids, subnet_id):
     instances = ec2.create_instances(
         ImageId=ami_id,
@@ -1099,14 +1099,14 @@ def launch_and_wait(ami_id, instance_type, key_name, sg_ids, subnet_id):
     instance = instances[0]
     print(f"Launching: {instance.id}")
 
-    # running 状態まで待機
+    # Wait until running state
     instance.wait_until_running()
     instance.reload()
     print(f"Running: {instance.public_ip_address}")
     return instance
 ```
 
-### 5.4 DynamoDB 操作
+### 5.4 DynamoDB Operations
 
 ```python
 import boto3
@@ -1116,17 +1116,17 @@ from decimal import Decimal
 dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-1')
 table = dynamodb.Table('Users')
 
-# アイテム書き込み
+# Write item
 def put_item(pk, sk, data):
     item = {'PK': pk, 'SK': sk, **data}
     table.put_item(Item=item)
 
-# アイテム取得
+# Get item
 def get_item(pk, sk):
     response = table.get_item(Key={'PK': pk, 'SK': sk})
     return response.get('Item')
 
-# クエリ
+# Query
 def query_items(pk, sk_prefix=None):
     if sk_prefix:
         response = table.query(
@@ -1138,13 +1138,13 @@ def query_items(pk, sk_prefix=None):
         )
     return response['Items']
 
-# バッチ書き込み
+# Batch write
 def batch_write(items):
     with table.batch_writer() as batch:
         for item in items:
             batch.put_item(Item=item)
 
-# トランザクション
+# Transaction
 def transfer_points(from_user, to_user, points):
     client = boto3.client('dynamodb', region_name='ap-northeast-1')
     client.transact_write_items(
@@ -1170,19 +1170,19 @@ def transfer_points(from_user, to_user, points):
     )
 ```
 
-### 5.5 セッション管理とマルチアカウント
+### 5.5 Session Management and Multi-Account
 
 ```python
 import boto3
 
-# デフォルトセッション
+# Default session
 default_session = boto3.Session(region_name='ap-northeast-1')
 
-# プロファイル指定セッション
+# Profile-specific sessions
 dev_session = boto3.Session(profile_name='dev')
 prod_session = boto3.Session(profile_name='prod')
 
-# AssumeRole でクロスアカウントアクセス
+# Cross-account access with AssumeRole
 def get_cross_account_session(role_arn, session_name='cross-account'):
     sts = boto3.client('sts')
     response = sts.assume_role(
@@ -1197,7 +1197,7 @@ def get_cross_account_session(role_arn, session_name='cross-account'):
         aws_session_token=credentials['SessionToken'],
     )
 
-# 使用例
+# Usage example
 prod_session = get_cross_account_session(
     'arn:aws:iam::111111111111:role/AdminRole'
 )
@@ -1207,22 +1207,22 @@ prod_s3.list_buckets()
 
 ---
 
-## 6. SSO (IAM Identity Center) との連携
+## 6. SSO (IAM Identity Center) Integration
 
-### 6.1 SSO プロファイルの設定
+### 6.1 SSO Profile Configuration
 
 ```bash
-# SSO 設定
+# SSO configuration
 aws configure sso
 # SSO session name: my-sso
 # SSO start URL: https://my-org.awsapps.com/start
 # SSO region: ap-northeast-1
 # SSO registration scopes: sso:account:access
 
-# SSO ログイン
+# SSO login
 aws sso login --profile my-sso-profile
 
-# ~/.aws/config に追記される設定例
+# Configuration added to ~/.aws/config
 # [profile my-sso-profile]
 # sso_session = my-sso
 # sso_account_id = 123456789012
@@ -1235,7 +1235,7 @@ aws sso login --profile my-sso-profile
 # sso_registration_scopes = sso:account:access
 ```
 
-### 6.2 複数アカウントの SSO 設定
+### 6.2 Multi-Account SSO Configuration
 
 ```
 # ~/.aws/config
@@ -1271,9 +1271,9 @@ region = ap-northeast-1
 
 ---
 
-## 7. CI/CD での認証情報管理
+## 7. Credential Management in CI/CD
 
-### 7.1 GitHub Actions + OIDC（推奨）
+### 7.1 GitHub Actions + OIDC (Recommended)
 
 ```yaml
 # .github/workflows/deploy.yml
@@ -1307,7 +1307,7 @@ jobs:
             --paths "/*"
 ```
 
-### 7.2 GitHub Actions 用 IAM ロール
+### 7.2 IAM Role for GitHub Actions
 
 ```json
 {
@@ -1332,17 +1332,17 @@ jobs:
 }
 ```
 
-### 7.3 Terraform での OIDC プロバイダー設定
+### 7.3 OIDC Provider Configuration with Terraform
 
 ```hcl
-# GitHub Actions OIDC プロバイダー
+# GitHub Actions OIDC Provider
 resource "aws_iam_openid_connect_provider" "github_actions" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = ["ffffffffffffffffffffffffffffffffffffffff"]
 }
 
-# GitHub Actions 用ロール
+# Role for GitHub Actions
 resource "aws_iam_role" "github_actions" {
   name = "github-actions-deploy-role"
   assume_role_policy = jsonencode({
@@ -1375,83 +1375,83 @@ resource "aws_iam_role_policy_attachment" "github_actions_s3" {
 
 ---
 
-## 8. 認証情報管理のベストプラクティス
+## 8. Credential Management Best Practices
 
-### 8.1 環境別の推奨方式
+### 8.1 Recommended Methods by Environment
 
-| 環境 | 推奨方式 | 理由 |
+| Environment | Recommended Method | Reason |
 |------|---------|------|
-| ローカル開発 | IAM Identity Center (SSO) | 一時認証情報、MFA 統合 |
-| CI/CD | OIDC (GitHub Actions 等) | アクセスキー不要 |
-| EC2 上 | インスタンスプロファイル | 自動ローテーション |
-| ECS 上 | タスクロール | コンテナ単位の権限分離 |
-| Lambda | 実行ロール | 自動付与 |
-| EKS 上 | IRSA (IAM Roles for Service Accounts) | Pod 単位の権限分離 |
-| ローカル（SSO 不可） | aws-vault + 一時認証情報 | 暗号化ストレージ |
+| Local development | IAM Identity Center (SSO) | Temporary credentials, MFA integration |
+| CI/CD | OIDC (GitHub Actions, etc.) | No access keys needed |
+| On EC2 | Instance profile | Automatic rotation |
+| On ECS | Task role | Per-container permission isolation |
+| Lambda | Execution role | Automatically assigned |
+| On EKS | IRSA (IAM Roles for Service Accounts) | Per-pod permission isolation |
+| Local (SSO unavailable) | aws-vault + temporary credentials | Encrypted storage |
 
-### 8.2 やってはいけない認証情報管理
+### 8.2 Credential Management Anti-Patterns
 
 ```
 +---------------------------------------------+
-|  絶対にやってはいけないこと                     |
+|  Things you must NEVER do                    |
 +---------------------------------------------+
-| x ソースコードにアクセスキーをハードコード       |
-| x .env ファイルを Git にコミット                |
-| x アクセスキーを Slack/メールで共有             |
-| x 全員が同じアクセスキーを共有                  |
-| x アクセスキーをローテーションしない             |
-| x ルートユーザーのアクセスキーを作成             |
+| x Hard-code access keys in source code       |
+| x Commit .env files to Git                   |
+| x Share access keys via Slack/email           |
+| x Share the same access key among everyone    |
+| x Never rotate access keys                   |
+| x Create access keys for the root user       |
 +---------------------------------------------+
-|  代わりにやるべきこと                           |
+|  What you should do instead                  |
 +---------------------------------------------+
-| o IAM ロール/一時認証情報を使う                 |
-| o AWS Secrets Manager でシークレット管理       |
-| o .gitignore に .env, credentials を追加      |
-| o git-secrets で漏洩を検出                     |
-| o 90日ごとにキーをローテーション                |
-| o CI/CD は OIDC 連携を使う                     |
+| o Use IAM roles / temporary credentials       |
+| o Manage secrets with AWS Secrets Manager     |
+| o Add .env and credentials to .gitignore      |
+| o Detect leaks with git-secrets               |
+| o Rotate keys every 90 days                   |
+| o Use OIDC integration for CI/CD              |
 +---------------------------------------------+
 ```
 
-### 8.3 git-secrets のセットアップ
+### 8.3 Setting Up git-secrets
 
 ```bash
-# インストール
+# Install
 brew install git-secrets  # macOS
-# または
+# or
 git clone https://github.com/awslabs/git-secrets.git
 cd git-secrets && make install
 
-# リポジトリに設定
+# Configure for a repository
 cd /path/to/repo
 git secrets --install
 git secrets --register-aws
 
-# グローバル設定（全リポジトリに適用）
+# Global configuration (applies to all repositories)
 git secrets --install ~/.git-templates/git-secrets
 git config --global init.templateDir ~/.git-templates/git-secrets
 git secrets --register-aws --global
 
-# テスト
+# Test
 echo "AKIAIOSFODNN7EXAMPLE" > test.txt
 git add test.txt
 git commit -m "test"
 # → ERROR: Matched one or more prohibited patterns
 ```
 
-### 8.4 AWS Secrets Manager との連携
+### 8.4 Integration with AWS Secrets Manager
 
 ```python
 import boto3
 import json
 
 def get_secret(secret_name, region='ap-northeast-1'):
-    """Secrets Manager からシークレットを取得"""
+    """Retrieve a secret from Secrets Manager"""
     client = boto3.client('secretsmanager', region_name=region)
     response = client.get_secret_value(SecretId=secret_name)
     return json.loads(response['SecretString'])
 
-# 使用例
+# Usage example
 db_creds = get_secret('prod/database')
 connection = psycopg2.connect(
     host=db_creds['host'],
@@ -1476,7 +1476,7 @@ async function getSecret(secretName) {
   return JSON.parse(response.SecretString);
 }
 
-// 使用例
+// Usage example
 const dbCreds = await getSecret('prod/database');
 ```
 
@@ -1484,69 +1484,71 @@ const dbCreds = await getSecret('prod/database');
 
 ## 9. AWS CloudShell
 
-### 9.1 CloudShell の概要
+### 9.1 CloudShell Overview
 
-AWS CloudShell は、AWS マネジメントコンソールからブラウザベースのシェル環境にアクセスできるサービスである。
+AWS CloudShell is a service that provides browser-based shell access from the AWS Management Console.
 
 ```
-CloudShell の特徴
+CloudShell Features
 +----------------------------------------------------------+
-|  ✓ AWS CLI v2 がプリインストール済み                       |
-|  ✓ 認証情報はコンソールログインセッションから自動取得        |
-|  ✓ 1GB の永続ストレージ ($HOME)                           |
-|  ✓ Python, Node.js, Java, PowerShell 等がプリインストール  |
-|  ✓ pip, npm 等でパッケージ追加可能                         |
-|  ✓ 無料（コンソールアクセス権限があれば利用可能）            |
+|  ✓ AWS CLI v2 comes pre-installed                         |
+|  ✓ Credentials are automatically obtained from the        |
+|    console login session                                  |
+|  ✓ 1GB of persistent storage ($HOME)                      |
+|  ✓ Python, Node.js, Java, PowerShell, etc. pre-installed  |
+|  ✓ Packages can be added via pip, npm, etc.               |
+|  ✓ Free (available with console access permissions)       |
 |                                                           |
-|  制限事項:                                                 |
-|  × 20分間操作がないとタイムアウト                           |
-|  × 同時セッション数制限あり                                |
-|  × 一部リージョンでは利用不可                              |
-|  × アウトバウンド通信のみ（インバウンド不可）               |
+|  Limitations:                                             |
+|  × Times out after 20 minutes of inactivity               |
+|  × Concurrent session limit applies                       |
+|  × Not available in some regions                          |
+|  × Outbound traffic only (no inbound)                     |
 +----------------------------------------------------------+
 ```
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: アクセスキーをソースコードに直接埋め込む
+### Anti-Pattern 1: Embedding Access Keys Directly in Source Code
 
 ```python
-# 悪い例 — 絶対にやってはいけない
+# Bad example — never do this
 s3 = boto3.client('s3',
     aws_access_key_id='AKIAIOSFODNN7EXAMPLE',
     aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
 )
 
-# 良い例 — 環境変数または IAM ロールを使用
+# Good example — use environment variables or IAM roles
 s3 = boto3.client('s3', region_name='ap-northeast-1')
-# 認証情報は環境変数 or ~/.aws/credentials or IAM ロールから自動解決
+# Credentials are automatically resolved from environment variables,
+# ~/.aws/credentials, or IAM roles
 ```
 
-### アンチパターン 2: 全操作で AdministratorAccess を使う
+### Anti-Pattern 2: Using AdministratorAccess for All Operations
 
-開発者全員に `AdministratorAccess` を付与すると、誤ったリソース削除やセキュリティ事故のリスクが高まる。最小権限のカスタムポリシーを作成すべきである。
+Granting `AdministratorAccess` to all developers increases the risk of accidental resource deletion and security incidents. Custom policies with minimum required permissions should be created instead.
 
 ```bash
-# 悪い例
+# Bad example
 aws iam attach-user-policy \
   --user-name developer \
   --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
 
-# 良い例 — 必要な権限だけのカスタムポリシー
+# Good example — custom policy with only necessary permissions
 aws iam attach-user-policy \
   --user-name developer \
   --policy-arn arn:aws:iam::123456789012:policy/DeveloperLimitedAccess
 ```
 
-### アンチパターン 3: エラーハンドリングなしで SDK を使用する
+### Anti-Pattern 3: Using SDK Without Error Handling
 
 ```python
-# 悪い例 — エラーハンドリングなし
+# Bad example — no error handling
 s3.get_object(Bucket='my-bucket', Key='data.json')
 
-# 良い例 — 適切なエラーハンドリング
+# Good example — proper error handling
 from botocore.exceptions import ClientError
 
 try:
@@ -1563,14 +1565,14 @@ except ClientError as e:
         raise
 ```
 
-### アンチパターン 4: ページネーションを考慮しない
+### Anti-Pattern 4: Not Considering Pagination
 
 ```python
-# 悪い例 — 最初の1000件しか取得できない
+# Bad example — only retrieves the first 1000 items
 response = s3.list_objects_v2(Bucket='my-bucket')
 objects = response['Contents']
 
-# 良い例 — ページネーターで全件取得
+# Good example — retrieve all items with paginator
 paginator = s3.get_paginator('list_objects_v2')
 objects = []
 for page in paginator.paginate(Bucket='my-bucket'):
@@ -1579,12 +1581,12 @@ for page in paginator.paginate(Bucket='my-bucket'):
 
 ---
 
-## 11. LocalStack でのローカル開発
+## 11. Local Development with LocalStack
 
-### 11.1 LocalStack のセットアップ
+### 11.1 Setting Up LocalStack
 
 ```bash
-# Docker で起動
+# Start with Docker
 docker run -d \
   --name localstack \
   -p 4566:4566 \
@@ -1593,13 +1595,13 @@ docker run -d \
   -v /var/run/docker.sock:/var/run/docker.sock \
   localstack/localstack
 
-# AWS CLI のエンドポイントを LocalStack に向ける
+# Point AWS CLI endpoint to LocalStack
 alias awslocal='aws --endpoint-url=http://localhost:4566'
 
-# S3 バケットを作成
+# Create an S3 bucket
 awslocal s3 mb s3://my-test-bucket
 
-# DynamoDB テーブルを作成
+# Create a DynamoDB table
 awslocal dynamodb create-table \
   --table-name Users \
   --attribute-definitions \
@@ -1611,12 +1613,12 @@ awslocal dynamodb create-table \
   --billing-mode PAY_PER_REQUEST
 ```
 
-### 11.2 Python での LocalStack 使用
+### 11.2 Using LocalStack with Python
 
 ```python
 import boto3
 
-# LocalStack 用のクライアント
+# Client for LocalStack
 def get_localstack_client(service):
     return boto3.client(
         service,
@@ -1629,7 +1631,7 @@ def get_localstack_client(service):
 s3 = get_localstack_client('s3')
 dynamodb = get_localstack_client('dynamodb')
 
-# テストコードで使用
+# Use in test code
 def test_upload_and_download():
     s3.put_object(
         Bucket='my-test-bucket',
@@ -1645,73 +1647,73 @@ def test_upload_and_download():
 
 ## 12. FAQ
 
-### Q1. AWS CLI v1 と v2 の違いは？
+### Q1. What is the difference between AWS CLI v1 and v2?
 
-v2 は v1 の後継で、SSO 統合、自動ページネーション、AWS CloudShell 対応、自動プロンプト (`--cli-auto-prompt`) などが追加されている。新規プロジェクトでは v2 を使用すべき。v1 は 2024年以降メンテナンスモードに移行。
+v2 is the successor to v1, with additions including SSO integration, auto-pagination, AWS CloudShell support, and auto-prompt (`--cli-auto-prompt`). New projects should use v2. v1 transitioned to maintenance mode after 2024.
 
-### Q2. SDK v2 と v3 (JavaScript) の違いは？
+### Q2. What is the difference between SDK v2 and v3 (JavaScript)?
 
-v3 はモジュラーアーキテクチャを採用し、必要なサービスのみインポートできる。バンドルサイズの削減、Tree-shaking 対応、ミドルウェアスタックのカスタマイズが利点。新規プロジェクトでは v3 を使用する。
+v3 adopts a modular architecture, allowing you to import only the services you need. Benefits include reduced bundle size, tree-shaking support, and customizable middleware stacks. Use v3 for new projects.
 
-### Q3. 認証情報が漏洩した場合の対処法は？
+### Q3. What should I do if credentials are leaked?
 
-(1) 該当アクセスキーを即座に無効化・削除、(2) CloudTrail で不正アクティビティを確認、(3) 影響を受けたリソースを特定・修復、(4) 新しいキーを生成（可能なら IAM ロールに移行）、(5) git-secrets や GuardDuty を導入して再発防止。
+(1) Immediately deactivate and delete the affected access key, (2) check CloudTrail for unauthorized activity, (3) identify and remediate affected resources, (4) generate new keys (migrate to IAM roles if possible), (5) implement git-secrets and GuardDuty to prevent recurrence.
 
-### Q4. boto3 の client と resource の違いは？
+### Q4. What is the difference between boto3's client and resource?
 
-client は低レベルの AWS API を直接呼び出す薄いラッパー。resource は高レベルのオブジェクト指向インターフェース。resource は一部サービスのみ対応。新しいサービスは client のみ対応していることが多い。パフォーマンスが重要な場合は client を使用する。
+client is a thin wrapper that directly calls low-level AWS APIs. resource is a high-level object-oriented interface. resource only supports some services. Newer services often only support client. Use client when performance is critical.
 
-### Q5. AWS SDK のリトライ戦略はどう設定するか？
+### Q5. How should I configure the AWS SDK retry strategy?
 
-デフォルトでは standard モードで3回リトライ。adaptive モードは API のレスポンスヘッダーに基づいてリトライ間隔を調整する。スロットリングが頻発する場合は adaptive モードと maxAttempts の増加を検討する。
+By default, standard mode retries 3 times. Adaptive mode adjusts retry intervals based on API response headers. If throttling occurs frequently, consider adaptive mode and increasing maxAttempts.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 13. まとめ
+## 13. Summary
 
-| 項目 | ポイント |
+| Topic | Key Points |
 |------|---------|
-| CLI インストール | v2 を使用、`aws configure` で初期設定 |
-| プロファイル | 環境ごとに名前付きプロファイルを分離 |
-| 認証情報解決 | コマンドライン → 環境変数 → ファイル → ロールの順 |
-| JMESPath | --query で必要なデータだけを抽出 |
-| ウェイター | 非同期リソースの完了を安全に待機 |
-| SDK (JavaScript) | v3 のモジュラーインポート、エラーハンドリング必須 |
-| SDK (Python) | boto3 は自動で認証情報を解決、ページネーター活用 |
-| セキュリティ | IAM ロール推奨、アクセスキーのハードコード厳禁 |
-| SSO | マルチアカウント運用では IAM Identity Center 推奨 |
-| CI/CD | OIDC 連携でアクセスキー不要のデプロイ |
-| ローカル開発 | LocalStack で AWS サービスをエミュレーション |
+| CLI Installation | Use v2, initial setup with `aws configure` |
+| Profiles | Separate named profiles for each environment |
+| Credential Resolution | Command line -> Environment variables -> Files -> Roles (in order) |
+| JMESPath | Extract only the data you need with --query |
+| Waiters | Safely wait for async resource completion |
+| SDK (JavaScript) | v3 modular imports, error handling is essential |
+| SDK (Python) | boto3 resolves credentials automatically, leverage paginators |
+| Security | IAM roles recommended, hard-coding access keys is strictly prohibited |
+| SSO | IAM Identity Center recommended for multi-account operations |
+| CI/CD | Access-key-free deployment with OIDC integration |
+| Local Development | Emulate AWS services with LocalStack |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [../01-compute/00-ec2-basics.md](../01-compute/00-ec2-basics.md) — EC2 インスタンスの基礎
-- [../02-storage/00-s3-basics.md](../02-storage/00-s3-basics.md) — S3 の基礎
+- [../01-compute/00-ec2-basics.md](../01-compute/00-ec2-basics.md) — EC2 Instance Basics
+- [../02-storage/00-s3-basics.md](../02-storage/00-s3-basics.md) — S3 Basics
 
 ---
 
-## 参考文献
+## References
 
-1. AWS CLI v2 ユーザーガイド — https://docs.aws.amazon.com/cli/latest/userguide/
+1. AWS CLI v2 User Guide — https://docs.aws.amazon.com/cli/latest/userguide/
 2. AWS SDK for JavaScript v3 Developer Guide — https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/
 3. Boto3 Documentation — https://boto3.amazonaws.com/v1/documentation/api/latest/index.html
 4. AWS Security Credentials Best Practices — https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
