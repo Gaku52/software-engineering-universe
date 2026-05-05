@@ -1,29 +1,29 @@
-# パフォーマンス最適化
+# Performance Optimization
 
-> パフォーマンスはユーザー体験の根幹。バンドルサイズ削減、画像最適化、コード分割、キャッシュ戦略、Core Web Vitals改善まで、本番環境で高速なWebアプリを実現する最適化テクニックを習得する。
+> Performance is the foundation of user experience. Master optimization techniques to deliver fast web apps in production, from bundle size reduction and image optimization to code splitting, caching strategies, and Core Web Vitals improvements.
 
-## 前提知識
+## Prerequisites
 
-このガイドを最大限に活用するために、以下の知識を事前に習得しておくことを推奨します。
+To get the most out of this guide, it is recommended that you have prior knowledge of the following.
 
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] バンドルサイズの分析と最適化を理解する
-- [ ] 画像・フォント・CSS の最適化を把握する
-- [ ] Core Web Vitals の改善戦略を学ぶ
-- [ ] キャッシュ戦略の設計と実装を習得する
-- [ ] レンダリングパフォーマンスの最適化手法を学ぶ
-- [ ] ネットワーク最適化とリソース配信戦略を理解する
-- [ ] パフォーマンス計測と継続的改善のプロセスを把握する
+- [ ] Understand bundle size analysis and optimization
+- [ ] Learn image, font, and CSS optimization
+- [ ] Learn Core Web Vitals improvement strategies
+- [ ] Master cache strategy design and implementation
+- [ ] Learn rendering performance optimization techniques
+- [ ] Understand network optimization and resource delivery strategies
+- [ ] Understand the process of performance measurement and continuous improvement
 
 ---
 
-## 1. バンドル最適化
+## 1. Bundle Optimization
 
-### 1.1 バンドルサイズの分析
+### 1.1 Bundle Size Analysis
 
-本番環境のパフォーマンスを改善するうえで、まず現状を正確に把握することが最も重要なステップである。バンドルサイズの分析には複数のツールが利用できる。
+The most important first step in improving production performance is to accurately understand the current state. Multiple tools are available for analyzing bundle size.
 
 ```bash
 # Next.js のビルド時サイズ分析
@@ -47,7 +47,7 @@ npm install --save-dev source-map-explorer
 npx source-map-explorer build/static/js/*.js
 ```
 
-**next.config.js での Bundle Analyzer 設定:**
+**Bundle Analyzer configuration in next.config.js:**
 
 ```javascript
 // next.config.js
@@ -62,7 +62,7 @@ module.exports = withBundleAnalyzer({
 // 使い方: ANALYZE=true npx next build
 ```
 
-**Vite プロジェクトでの分析:**
+**Analysis in a Vite project:**
 
 ```javascript
 // vite.config.ts
@@ -81,11 +81,11 @@ export default defineConfig({
 });
 ```
 
-### 1.2 コード分割（Code Splitting）
+### 1.2 Code Splitting
 
-コード分割は、アプリケーション全体を一つの巨大なバンドルとして配信するのではなく、必要な部分だけを必要なタイミングで読み込む技術である。
+Code splitting is a technique that loads only the needed parts at the right time, rather than delivering the entire application as one large bundle.
 
-#### Dynamic Import（動的インポート）
+#### Dynamic Import
 
 ```typescript
 // React.lazy を使った基本的なコード分割
@@ -134,7 +134,7 @@ function Page({ isAdmin }: { isAdmin: boolean }) {
 }
 ```
 
-#### ルートベースのコード分割
+#### Route-Based Code Splitting
 
 ```typescript
 // React Router v6 でのルートベースコード分割
@@ -160,7 +160,7 @@ function AppRoutes() {
 }
 ```
 
-#### 高度なコード分割パターン
+#### Advanced Code Splitting Patterns
 
 ```typescript
 // インタラクションベースのプリロード
@@ -220,7 +220,7 @@ function LazySection({ importFn, fallback }: {
 
 ### 1.3 Tree Shaking
 
-Tree Shaking は、ES Modules の静的構造を利用して未使用コードをビルド時に除去する最適化手法である。
+Tree shaking is an optimization technique that uses the static structure of ES Modules to eliminate unused code at build time.
 
 ```typescript
 // NG: デフォルトインポート（Tree Shakingが効かない）
@@ -243,7 +243,7 @@ import { formatDate } from '@/utils'; // 100個すべてがバンドルに含ま
 import { formatDate } from '@/utils/date';
 ```
 
-**package.json の sideEffects 設定:**
+**sideEffects configuration in package.json:**
 
 ```json
 {
@@ -255,7 +255,7 @@ import { formatDate } from '@/utils/date';
 }
 ```
 
-**Tree Shaking のデバッグ:**
+**Debugging Tree Shaking:**
 
 ```javascript
 // webpack.config.js での Tree Shaking 確認
@@ -269,22 +269,22 @@ module.exports = {
 };
 ```
 
-### 1.4 依存パッケージの最適化
+### 1.4 Dependency Package Optimization
 
-大規模な依存パッケージを軽量な代替に置き換えることで、バンドルサイズを劇的に削減できる。
+Replacing large dependency packages with lightweight alternatives can dramatically reduce bundle size.
 
-| 重いライブラリ | 軽量な代替 | サイズ削減 |
+| Heavy Library | Lightweight Alternative | Size Reduction |
 |-------------|----------|----------|
-| moment.js (67KB gzip) | date-fns (個別import可) | 最大95%削減 |
-| moment.js (67KB gzip) | dayjs (2KB gzip) | 97%削減 |
-| lodash (71KB gzip) | lodash-es (個別import可) | 最大90%削減 |
-| lodash (71KB gzip) | ネイティブJS | 100%削減 |
-| axios (14KB gzip) | fetch API (組み込み) | 100%削減 |
-| uuid (3KB gzip) | crypto.randomUUID() | 100%削減 |
-| classnames (1KB gzip) | clsx (0.5KB gzip) | 50%削減 |
-| numeral.js (16KB gzip) | Intl.NumberFormat (組み込み) | 100%削減 |
-| chalk (node用) | picocolors (0.1KB gzip) | 99%削減 |
-| request (deprecated) | node-fetch / undici | 大幅削減 |
+| moment.js (67KB gzip) | date-fns (tree-shakeable) | Up to 95% reduction |
+| moment.js (67KB gzip) | dayjs (2KB gzip) | 97% reduction |
+| lodash (71KB gzip) | lodash-es (tree-shakeable) | Up to 90% reduction |
+| lodash (71KB gzip) | Native JS | 100% reduction |
+| axios (14KB gzip) | fetch API (built-in) | 100% reduction |
+| uuid (3KB gzip) | crypto.randomUUID() | 100% reduction |
+| classnames (1KB gzip) | clsx (0.5KB gzip) | 50% reduction |
+| numeral.js (16KB gzip) | Intl.NumberFormat (built-in) | 100% reduction |
+| chalk (for Node) | picocolors (0.1KB gzip) | 99% reduction |
+| request (deprecated) | node-fetch / undici | Significant reduction |
 
 ```typescript
 // moment.js → dayjs への移行例
@@ -361,7 +361,7 @@ await fetch('/api/users', {
 });
 ```
 
-### 1.5 バンドルサイズの目標値
+### 1.5 Bundle Size Targets
 
 ```
 推奨バンドルサイズ目標:
@@ -389,22 +389,22 @@ await fetch('/api/users', {
 
 ---
 
-## 2. 画像最適化
+## 2. Image Optimization
 
-### 2.1 モダンな画像フォーマット
+### 2.1 Modern Image Formats
 
-画像はWebページの総データ量の中で最も大きな割合を占めることが多く、適切なフォーマット選択が重要である。
+Images often account for the largest share of a web page's total data size, making proper format selection critical.
 
-| フォーマット | 圧縮方式 | 透過 | アニメーション | ブラウザ対応 | ユースケース |
+| Format | Compression | Transparency | Animation | Browser Support | Use Case |
 |-----------|---------|-----|-------------|-----------|-----------|
-| JPEG | 非可逆 | × | × | 全ブラウザ | 写真、自然画 |
-| PNG | 可逆 | ○ | × | 全ブラウザ | ロゴ、スクリーンショット |
-| GIF | 可逆 | ○ | ○ | 全ブラウザ | 簡易アニメーション |
-| WebP | 可逆/非可逆 | ○ | ○ | 97%+ | 汎用（JPEG/PNGの代替） |
-| AVIF | 非可逆 | ○ | ○ | 92%+ | 次世代フォーマット |
-| SVG | ベクター | ○ | ○ | 全ブラウザ | アイコン、イラスト |
+| JPEG | Lossy | No | No | All browsers | Photos, natural images |
+| PNG | Lossless | Yes | No | All browsers | Logos, screenshots |
+| GIF | Lossless | Yes | Yes | All browsers | Simple animations |
+| WebP | Lossy/Lossless | Yes | Yes | 97%+ | General purpose (JPEG/PNG replacement) |
+| AVIF | Lossy | Yes | Yes | 92%+ | Next-gen format |
+| SVG | Vector | Yes | Yes | All browsers | Icons, illustrations |
 
-**フォーマット別の圧縮効率比較（同品質での一般的なファイルサイズ）:**
+**Compression efficiency comparison by format (typical file size at equivalent quality):**
 
 ```
 元画像: 1MB JPEG
@@ -416,7 +416,7 @@ await fetch('/api/users', {
   → AVIF:  約 50-70% 削減 → 150-250KB
 ```
 
-### 2.2 Next.js Image コンポーネント
+### 2.2 Next.js Image Component
 
 ```typescript
 import Image from 'next/image';
@@ -486,7 +486,7 @@ function ResponsiveHero() {
 }
 ```
 
-**next.config.js での画像設定:**
+**Image configuration in next.config.js:**
 
 ```javascript
 // next.config.js
@@ -515,7 +515,7 @@ module.exports = {
 };
 ```
 
-### 2.3 画像の遅延読み込みとプリロード
+### 2.3 Image Lazy Loading and Preloading
 
 ```typescript
 // ネイティブ lazy loading
@@ -556,7 +556,7 @@ module.exports = {
 />
 ```
 
-### 2.4 画像最適化の自動化パイプライン
+### 2.4 Automated Image Optimization Pipeline
 
 ```typescript
 // sharp を使ったビルド時画像最適化スクリプト
@@ -642,7 +642,7 @@ optimizeImages({
 });
 ```
 
-### 2.5 SVG の最適化
+### 2.5 SVG Optimization
 
 ```typescript
 // SVGO によるSVG最適化
@@ -690,11 +690,11 @@ function SearchButton() {
 
 ---
 
-## 3. フォント最適化
+## 3. Font Optimization
 
 ### 3.1 Next.js Font Optimization
 
-Next.js の `next/font` は、フォントファイルをビルド時にダウンロードし、セルフホスティングすることで外部リクエストを排除する。
+Next.js's `next/font` downloads font files at build time and self-hosts them, eliminating external requests.
 
 ```typescript
 // app/layout.tsx
@@ -736,7 +736,7 @@ export default function RootLayout({
 }
 ```
 
-### 3.2 ローカルフォントの使用
+### 3.2 Using Local Fonts
 
 ```typescript
 // next/font/local の使用
@@ -762,7 +762,7 @@ const customFont = localFont({
 });
 ```
 
-### 3.3 font-display 戦略の比較
+### 3.3 Comparing font-display Strategies
 
 ```
 font-display の各値と挙動:
@@ -788,7 +788,7 @@ font-display の各値と挙動:
 推奨: Core Web Vitals を重視する場合は swap または optional
 ```
 
-### 3.4 フォントサブセット化
+### 3.4 Font Subsetting
 
 ```bash
 # pyftsubset を使った日本語フォントのサブセット化
@@ -835,7 +835,7 @@ pyftsubset NotoSansJP-Regular.ttf \
 }
 ```
 
-### 3.5 Tailwind CSS でのフォント設定
+### 3.5 Font Configuration in Tailwind CSS
 
 ```typescript
 // tailwind.config.ts
@@ -869,9 +869,9 @@ export default config;
 
 ---
 
-## 4. CSS 最適化
+## 4. CSS Optimization
 
-### 4.1 未使用CSSの除去
+### 4.1 Removing Unused CSS
 
 ```javascript
 // Tailwind CSS の purge（content 設定）
@@ -916,7 +916,7 @@ module.exports = {
 };
 ```
 
-### 4.2 Critical CSS のインライン化
+### 4.2 Inlining Critical CSS
 
 ```typescript
 // critters による Critical CSS の自動抽出（Next.jsは内蔵）
@@ -957,7 +957,7 @@ module.exports = {
 </head>
 ```
 
-### 4.3 CSS-in-JS のパフォーマンス考慮
+### 4.3 CSS-in-JS Performance Considerations
 
 ```typescript
 // ランタイムCSS-in-JS のパフォーマンス問題
@@ -993,11 +993,11 @@ export const heading = style({
 
 ---
 
-## 5. キャッシュ戦略
+## 5. Caching Strategies
 
-### 5.1 Next.js のキャッシュ階層
+### 5.1 Next.js Cache Layers
 
-Next.js App Router には4層のキャッシュ機構が存在し、それぞれの特性を理解することが重要である。
+The Next.js App Router has four cache layers, and understanding the characteristics of each is important.
 
 ```
 Next.js キャッシュ階層の全体像:
@@ -1029,7 +1029,7 @@ Next.js キャッシュ階層の全体像:
      ・リクエスト完了後に破棄
 ```
 
-### 5.2 Data Cache の制御
+### 5.2 Controlling Data Cache
 
 ```typescript
 // ① キャッシュなし（毎回フェッチ）
@@ -1081,7 +1081,7 @@ export async function createPost(formData: FormData) {
 }
 ```
 
-### 5.3 HTTPキャッシュヘッダー
+### 5.3 HTTP Cache Headers
 
 ```typescript
 // Next.js Route Handler でのキャッシュヘッダー設定
@@ -1140,7 +1140,7 @@ module.exports = {
 };
 ```
 
-### 5.4 Cache-Control ディレクティブ一覧
+### 5.4 Cache-Control Directive Reference
 
 ```
 Cache-Control ディレクティブの詳細:
@@ -1177,7 +1177,7 @@ Cache-Control ディレクティブの詳細:
     Cache-Control: private, no-store
 ```
 
-### 5.5 Service Worker によるキャッシュ
+### 5.5 Caching with Service Workers
 
 ```typescript
 // next-pwa を使った Service Worker キャッシュ
@@ -1233,11 +1233,11 @@ module.exports = withPWA({
 
 ---
 
-## 6. Core Web Vitals 改善
+## 6. Core Web Vitals Improvement
 
-### 6.1 Core Web Vitals の概要
+### 6.1 Core Web Vitals Overview
 
-Core Web Vitals は Google が定義するWebページのユーザー体験品質指標であり、2021年からランキング要因にもなっている。3つの主要指標（LCP, INP, CLS）を継続的に計測・改善することが、SEOとUXの両面で不可欠である。
+Core Web Vitals are user experience quality metrics defined by Google and have been a ranking factor since 2021. Continuously measuring and improving the three key metrics (LCP, INP, CLS) is essential for both SEO and UX.
 
 ```
 Core Web Vitals の指標と閾値:
@@ -1266,9 +1266,9 @@ Core Web Vitals の指標と閾値:
   └────────┴──────────────────────────────┴──────────┘
 ```
 
-### 6.2 LCP（Largest Contentful Paint）の最適化
+### 6.2 LCP (Largest Contentful Paint) Optimization
 
-LCP は、ビューポート内で最も大きなコンテンツ要素が描画されるまでの時間である。通常、ヒーロー画像や大きなテキストブロックが LCP 要素となる。
+LCP is the time until the largest content element in the viewport is rendered. Typically, a hero image or a large text block becomes the LCP element.
 
 ```typescript
 // LCP 要素の特定と最適化
@@ -1307,7 +1307,7 @@ module.exports = {
 };
 
 // ③ レンダリングブロックリソースの削減
-// リソースヒントによる最適化
+// Resource hintsによる最適化
 function Head() {
   return (
     <>
@@ -1353,7 +1353,7 @@ export default async function Page() {
 }
 ```
 
-**LCP改善チェックリスト:**
+**LCP improvement checklist:**
 
 ```
 LCP 最適化チェックリスト:
@@ -1381,9 +1381,9 @@ LCP 最適化チェックリスト:
     □ fetchpriority="high" の設定
 ```
 
-### 6.3 INP（Interaction to Next Paint）の最適化
+### 6.3 INP (Interaction to Next Paint) Optimization
 
-INP は、ユーザーのインタラクション（クリック、タップ、キーボード入力）から次の視覚的な更新が描画されるまでの時間を計測する。FID の後継指標であり、ページの応答性全体を評価する。
+INP measures the time from a user interaction (click, tap, keyboard input) to the next visual update being rendered. It is the successor to FID and evaluates the overall responsiveness of the page.
 
 ```typescript
 // ① useTransition による非緊急更新の遅延
@@ -1588,9 +1588,9 @@ function ParentComponent() {
 }
 ```
 
-### 6.4 CLS（Cumulative Layout Shift）の最適化
+### 6.4 CLS (Cumulative Layout Shift) Optimization
 
-CLS は、ページの視覚的安定性を計測する指標である。ユーザーが意図しないレイアウトのずれ（広告の後読み込み、画像のサイズ未指定など）を検出する。
+CLS is a metric that measures the visual stability of a page. It detects unintended layout shifts (late-loading ads, images without specified dimensions, etc.).
 
 ```typescript
 // ① 画像のサイズ指定
@@ -1671,7 +1671,7 @@ function NotificationBar({ message }: { message: string | null }) {
 }
 ```
 
-**CLS改善チェックリスト:**
+**CLS improvement checklist:**
 
 ```
 CLS 最適化チェックリスト:
@@ -1699,11 +1699,11 @@ CLS 最適化チェックリスト:
 
 ---
 
-## 7. ネットワーク最適化
+## 7. Network Optimization
 
-### 7.1 リソースヒント
+### 7.1 Resource Hints
 
-ブラウザにリソースの取得を事前に指示することで、後続のページ遷移やリソース読み込みを高速化できる。
+Pre-instructing the browser to fetch resources speeds up subsequent page navigations and resource loading.
 
 ```html
 <!-- ① preconnect: DNS解決 + TCP接続 + TLSハンドシェイクを事前実行 -->
@@ -1779,7 +1779,7 @@ function Navigation() {
 }
 ```
 
-### 7.2 圧縮
+### 7.2 Compression
 
 ```
 圧縮アルゴリズムの比較:
@@ -1847,7 +1847,7 @@ server {
 }
 ```
 
-### 7.3 HTTP/2 と HTTP/3 の活用
+### 7.3 Leveraging HTTP/2 and HTTP/3
 
 ```
 HTTP/1.1 vs HTTP/2 vs HTTP/3:
@@ -1870,7 +1870,7 @@ HTTP/2 最適化のポイント:
   ✓ Server Push は慎重に使用（キャッシュとの競合に注意）
 ```
 
-### 7.4 CDN の活用
+### 7.4 Leveraging CDN
 
 ```typescript
 // Vercel Edge Config によるCDN最適化
@@ -1927,11 +1927,11 @@ export function middleware(request: NextRequest) {
 
 ---
 
-## 8. レンダリングパフォーマンス
+## 8. Rendering Performance
 
-### 8.1 React のレンダリング最適化
+### 8.1 React Rendering Optimization
 
-React のレンダリングパフォーマンスを向上させるためには、不要な再レンダリングの防止、計算コストの削減、適切な状態管理が重要である。
+To improve React rendering performance, it is important to prevent unnecessary re-renders, reduce computation costs, and manage state appropriately.
 
 ```typescript
 // ① React.memo による再レンダリングスキップ
@@ -2060,7 +2060,7 @@ function ProductList({ products, category }: Props) {
 }
 ```
 
-### 8.3 DOM 操作の最適化
+### 8.3 DOM Manipulation Optimization
 
 ```typescript
 // ① requestAnimationFrame による描画最適化
@@ -2132,7 +2132,7 @@ function LongList({ items }: { items: Item[] }) {
 }
 ```
 
-### 8.4 アニメーションパフォーマンス
+### 8.4 Animation Performance
 
 ```css
 /* GPU アクセラレーションを利用したアニメーション */
@@ -2196,9 +2196,9 @@ function LongList({ items }: { items: Item[] }) {
 
 ---
 
-## 9. パフォーマンス計測と監視
+## 9. Performance Measurement and Monitoring
 
-### 9.1 web-vitals ライブラリによる計測
+### 9.1 Measurement with the web-vitals Library
 
 ```typescript
 // lib/web-vitals.ts
@@ -2286,7 +2286,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
-### 9.2 Performance API による詳細計測
+### 9.2 Detailed Measurement with the Performance API
 
 ```typescript
 // カスタムパフォーマンスマーカー
@@ -2383,7 +2383,7 @@ function getSlowResources(threshold = 1000) {
 }
 ```
 
-### 9.3 Lighthouse CI による自動計測
+### 9.3 Automated Measurement with Lighthouse CI
 
 ```yaml
 # .github/workflows/lighthouse.yml
@@ -2450,7 +2450,7 @@ jobs:
 }
 ```
 
-### 9.4 パフォーマンスバジェット
+### 9.4 Performance Budget
 
 ```json
 // performance-budget.json
@@ -2574,11 +2574,11 @@ window.addEventListener('visibilitychange', () => {
 
 ---
 
-## 10. サードパーティスクリプトの最適化
+## 10. Third-Party Script Optimization
 
-### 10.1 サードパーティの影響
+### 10.1 Third-Party Impact
 
-サードパーティスクリプト（アナリティクス、広告、チャットウィジェットなど）は、パフォーマンスに多大な影響を与える。メインスレッドのブロック、ネットワーク帯域の消費、レイアウトシフトの原因となりうる。
+Third-party scripts (analytics, ads, chat widgets, etc.) have a significant impact on performance. They can block the main thread, consume network bandwidth, and cause layout shifts.
 
 ```typescript
 // ① Next.js Script コンポーネントによる読み込み戦略
@@ -2632,7 +2632,7 @@ const nextConfig = {
 // メインスレッドをブロックしない
 ```
 
-### 10.2 サードパーティ読み込みの最適化パターン
+### 10.2 Third-Party Loading Optimization Patterns
 
 ```typescript
 // ① 条件付き読み込み（ユーザーアクション時）
@@ -2740,7 +2740,7 @@ function YouTubeFacade({ videoId }: { videoId: string }) {
 }
 ```
 
-### 10.3 サードパーティの影響度分析
+### 10.3 Third-Party Impact Analysis
 
 ```
 サードパーティスクリプトの影響度チェック:
@@ -2770,9 +2770,9 @@ function YouTubeFacade({ videoId }: { videoId: string }) {
 
 ---
 
-## 11. トラブルシューティング
+## 11. Troubleshooting
 
-### 11.1 よくあるパフォーマンス問題と解決策
+### 11.1 Common Performance Problems and Solutions
 
 ```
 問題1: LCPが遅い（> 2.5秒）
@@ -2831,7 +2831,7 @@ function YouTubeFacade({ videoId }: { videoId: string }) {
     └─────────────────────────────┴──────────────────────────────────┘
 ```
 
-### 11.2 パフォーマンスデバッグのツールキット
+### 11.2 Performance Debugging Toolkit
 
 ```typescript
 // DevTools での主要なデバッグ手法
@@ -2890,7 +2890,7 @@ const clsObserver = new PerformanceObserver((list) => {
 clsObserver.observe({ entryTypes: ['layout-shift'] });
 ```
 
-### 11.3 パフォーマンスアンチパターン集
+### 11.3 Performance Anti-Pattern Collection
 
 ```typescript
 // アンチパターン 1: 不要なクライアントコンポーネント
@@ -2990,24 +2990,24 @@ const CartContext = createContext([]);
 
 ---
 
-## まとめ
+## Summary
 
-### パフォーマンス最適化の全体像
+### Performance Optimization Overview
 
-| カテゴリ | 主要テクニック | 影響する指標 |
+| Category | Key Techniques | Affected Metrics |
 |---------|-------------|-----------|
-| バンドル最適化 | dynamic import, tree shaking, 軽量ライブラリ | LCP, FCP, TTI |
-| 画像最適化 | next/image, WebP/AVIF, priority, lazy loading | LCP, CLS |
-| フォント最適化 | next/font, display: swap, サブセット化 | CLS, FCP |
-| CSS最適化 | Critical CSS, PurgeCSS, ゼロランタイムCSS-in-JS | FCP, LCP |
-| キャッシュ戦略 | Data Cache, HTTP Cache, Service Worker | TTFB, LCP |
-| Core Web Vitals | LCP < 2.5s, INP < 200ms, CLS < 0.1 | 全指標 |
-| ネットワーク | preconnect, Brotli, HTTP/2, CDN | TTFB, LCP |
-| レンダリング | memo, useTransition, 仮想スクロール | INP, TBT |
-| 計測・監視 | web-vitals, Lighthouse CI, RUM | 継続改善 |
-| サードパーティ | worker, facade, 条件付き読み込み | LCP, INP, CLS |
+| Bundle optimization | dynamic import, tree shaking, lightweight libraries | LCP, FCP, TTI |
+| Image optimization | next/image, WebP/AVIF, priority, lazy loading | LCP, CLS |
+| Font optimization | next/font, display: swap, subsetting | CLS, FCP |
+| CSS optimization | Critical CSS, PurgeCSS, zero-runtime CSS-in-JS | FCP, LCP |
+| Cache strategy | Data Cache, HTTP Cache, Service Worker | TTFB, LCP |
+| Core Web Vitals | LCP < 2.5s, INP < 200ms, CLS < 0.1 | All metrics |
+| Network | preconnect, Brotli, HTTP/2, CDN | TTFB, LCP |
+| Rendering | memo, useTransition, virtual scroll | INP, TBT |
+| Measurement/monitoring | web-vitals, Lighthouse CI, RUM | Continuous improvement |
+| Third-party | worker, facade, conditional loading | LCP, INP, CLS |
 
-### 最適化の優先順位
+### Optimization Priority
 
 ```
 パフォーマンス最適化の優先順位ガイド:
@@ -3034,7 +3034,7 @@ const CartContext = createContext([]);
     13. RUM による実ユーザーデータ分析
 ```
 
-### DevTools クイックリファレンス
+### DevTools Quick Reference
 
 ```
 パフォーマンスデバッグの手順:
@@ -3064,19 +3064,19 @@ const CartContext = createContext([]);
 
 ---
 
-## よくある質問（FAQ）
+## Frequently Asked Questions (FAQ)
 
-### Q1: Core Web Vitalsの改善戦略は？
+### Q1: What are the strategies for improving Core Web Vitals?
 
-**Core Web Vitalsの3つの指標と目標値:**
+**Three Core Web Vitals metrics and target values:**
 
-| 指標 | 目標値 | 測定対象 |
+| Metric | Target | What is measured |
 |------|--------|---------|
-| LCP (Largest Contentful Paint) | < 2.5秒 | 最大コンテンツの表示速度 |
-| INP (Interaction to Next Paint) | < 200ms | インタラクション応答性 |
-| CLS (Cumulative Layout Shift) | < 0.1 | レイアウトの安定性 |
+| LCP (Largest Contentful Paint) | < 2.5s | Render time of largest content element |
+| INP (Interaction to Next Paint) | < 200ms | Interaction responsiveness |
+| CLS (Cumulative Layout Shift) | < 0.1 | Layout stability |
 
-**LCP改善の優先順位:**
+**LCP improvement priority:**
 
 ```
 1. 画像最適化（最重要）
@@ -3107,7 +3107,7 @@ const CartContext = createContext([]);
 />
 ```
 
-**INP改善の戦略:**
+**INP improvement strategies:**
 
 ```typescript
 // 1. 重い処理をWeb Workerに移譲
@@ -3133,7 +3133,7 @@ import { debounce } from 'lodash-es';
 const debouncedSearch = debounce(search, 300);
 ```
 
-**CLS改善のチェックリスト:**
+**CLS improvement checklist:**
 
 ```
 □ すべての画像にwidth/heightを指定
@@ -3153,9 +3153,9 @@ const debouncedSearch = debounce(search, 300);
   ✗ margin-top: 10px; ← Reflow発生
 ```
 
-### Q2: バンドルサイズの最適化方法は？
+### Q2: How do I optimize bundle size?
 
-**分析ツールで現状把握:**
+**Understand the current state with analysis tools:**
 
 ```bash
 # Next.jsのビルド分析
@@ -3165,7 +3165,7 @@ ANALYZE=true npm run build
 npx source-map-explorer 'build/static/js/*.js'
 ```
 
-**最適化の優先順位:**
+**Optimization priority:**
 
 ```
 1. 不要な依存関係の削除（最も効果大）
@@ -3202,7 +3202,7 @@ npx source-map-explorer 'build/static/js/*.js'
    };
 ```
 
-**バンドルサイズのベンチマーク:**
+**Bundle size benchmarks:**
 
 ```
 Next.js アプリの目標値:
@@ -3218,9 +3218,9 @@ Per-page JavaScript:
   ✗ Poor:      > 100KB
 ```
 
-### Q3: 画像最適化のベストプラクティスは？
+### Q3: What are the best practices for image optimization?
 
-**Next.js Image コンポーネントの完全活用:**
+**Full utilization of the Next.js Image component:**
 
 ```typescript
 import Image from 'next/image';
@@ -3259,7 +3259,7 @@ import Image from 'next/image';
 />
 ```
 
-**next.config.js での最適化設定:**
+**Optimization configuration in next.config.js:**
 
 ```javascript
 module.exports = {
@@ -3278,7 +3278,7 @@ module.exports = {
 };
 ```
 
-**フォーマット選択の指針:**
+**Format selection guidelines:**
 
 ```
 シナリオ別の推奨フォーマット:
@@ -3299,7 +3299,7 @@ module.exports = {
   3rd: GIF (フォールバック)
 ```
 
-**パフォーマンス検証:**
+**Performance verification:**
 
 ```bash
 # Lighthouse で画像最適化を確認
@@ -3310,7 +3310,7 @@ npx lighthouse https://example.com --only-categories=performance
 # サイズが大きい画像を特定して最適化
 ```
 
-**CDN経由での配信:**
+**Delivery via CDN:**
 
 ```typescript
 // Cloudflare Images経由
@@ -3321,15 +3321,15 @@ const thumbnail = `${imageUrl}/width=400,height=300`;
 const optimized = `${imageUrl}/format=auto,quality=80`;
 ```
 
-これらの最適化を実施することで、LCPを劇的に改善できます。
+Implementing these optimizations will dramatically improve LCP.
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
 ---
 
-## 参考文献
+## References
 1. Next.js. "Optimizing." nextjs.org/docs, 2024.
 2. web.dev. "Core Web Vitals." web.dev, 2024.
 3. web.dev. "Performance." web.dev/performance, 2024.

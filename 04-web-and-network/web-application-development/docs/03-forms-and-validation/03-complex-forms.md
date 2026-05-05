@@ -554,7 +554,7 @@ function Step2Fields({ form }: { form: UseFormReturn<FormData> }) {
 | Anti-Pattern | Problem | Correct Approach |
 |-------------|--------|--------------|
 | Validating all fields at once | User confused by invisible errors | Validate per step |
-| ステップ間でフォームをリセット | データが失われる | 共通の form インスタンスを使用 |
+| Resetting form between steps | Data is lost | Use a shared form instance |
 | Back button clears entered data | UX degradation | Properly manage defaultValues |
 | API submission only on final step | Data lost on mid-flow abandonment | Save draft on step completion |
 | No progress bar | User cannot track progress | Always show progress |

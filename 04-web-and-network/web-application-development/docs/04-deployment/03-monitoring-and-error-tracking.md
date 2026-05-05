@@ -1,30 +1,30 @@
-# 監視とエラートラッキング
+# Monitoring and Error Tracking
 
-> 本番環境の監視はサービス品質の生命線。Sentry、Web Vitals計測、ロギング、アラート設計まで、本番環境のWebアプリケーションを安定運用するための監視体制を構築する。障害を「検知→通知→診断→復旧」の一連のサイクルで回すために必要な知識と実装パターンを網羅的に解説する。
+> Production monitoring is the lifeline of service quality. Build a monitoring system to stably operate web applications in production — from Sentry, Web Vitals measurement, and logging to alert design. This guide comprehensively explains the knowledge and implementation patterns needed to run the full incident cycle of "detect → notify → diagnose → recover."
 
-## 前提知識
+## Prerequisites
 
-このガイドを最大限に活用するために、以下の知識を事前に習得しておくことを推奨します。
+To get the most out of this guide, it is recommended that you have prior knowledge of the following.
 
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] Sentryによるエラートラッキングの設定と運用を理解する
-- [ ] エラーバウンダリによるユーザー体験の保護を実装する
-- [ ] Web Vitalsのリアルユーザー計測（RUM）を把握する
-- [ ] 構造化ログ戦略とログレベル設計を学ぶ
-- [ ] アラート設計とインシデント対応フローを構築する
-- [ ] APM（Application Performance Monitoring）ツールの選定と導入を理解する
-- [ ] 合成監視（Synthetic Monitoring）とリアルユーザー監視の使い分けを学ぶ
-- [ ] カスタムメトリクスの設計と可視化を実践する
+- [ ] Understand Sentry error tracking configuration and operation
+- [ ] Implement error boundaries to protect user experience
+- [ ] Understand Real User Monitoring (RUM) for Web Vitals
+- [ ] Learn structured logging strategy and log level design
+- [ ] Build alert design and incident response flows
+- [ ] Understand APM (Application Performance Monitoring) tool selection and adoption
+- [ ] Learn when to use Synthetic Monitoring versus Real User Monitoring
+- [ ] Practice custom metrics design and visualization
 
 ---
 
-## 1. 監視の全体像と設計原則
+## 1. Monitoring Overview and Design Principles
 
-### 1.1 オブザーバビリティの三本柱
+### 1.1 The Three Pillars of Observability
 
-本番環境の監視を適切に行うには、「オブザーバビリティ（Observability）」の3つの柱を理解する必要がある。
+To monitor production environments properly, you need to understand the three pillars of "Observability."
 
 ```
 オブザーバビリティの三本柱:
@@ -48,7 +48,7 @@
   Traces:  「どこで起きているか」をリクエスト単位で追跡
 ```
 
-### 1.2 監視設計の基本原則
+### 1.2 Basic Principles of Monitoring Design
 
 ```typescript
 /**
@@ -83,7 +83,7 @@ const GOOD_MONITORING = {
 };
 ```
 
-### 1.3 監視レイヤーの構成
+### 1.3 Monitoring Layer Architecture
 
 ```
 フロントエンド監視体制の全体像:
@@ -128,23 +128,23 @@ const GOOD_MONITORING = {
 
 ---
 
-## 2. Sentry（エラートラッキング）
+## 2. Sentry (Error Tracking)
 
-### 2.1 Sentry の基本概念
+### 2.1 Sentry Basic Concepts
 
-Sentry はオープンソースのエラー監視プラットフォームであり、フロントエンド・バックエンドの両方でエラーを自動的にキャプチャし、集約・分析する。以下の機能を提供する。
+Sentry is an open-source error monitoring platform that automatically captures, aggregates, and analyzes errors on both frontend and backend. It provides the following features.
 
-| 機能 | 説明 | 用途 |
+| Feature | Description | Use Case |
 |------|------|------|
-| Error Tracking | 未処理例外の自動キャプチャ | エラーの検知・集約 |
-| Performance Monitoring | トランザクションの計測 | パフォーマンスのボトルネック特定 |
-| Session Replay | ユーザー操作の動画記録 | エラー再現の効率化 |
-| Release Tracking | デプロイとエラーの関連付け | リグレッション検知 |
-| Source Maps | ソースマップによるスタックトレース | 本番コードのデバッグ |
-| Breadcrumbs | ユーザー操作の記録 | エラー発生までの経緯を追跡 |
-| Cron Monitoring | 定期実行ジョブの監視 | バッチ処理の異常検知 |
+| Error Tracking | Automatic capture of unhandled exceptions | Error detection and aggregation |
+| Performance Monitoring | Transaction measurement | Identify performance bottlenecks |
+| Session Replay | Video recording of user interactions | Efficient error reproduction |
+| Release Tracking | Link deploys to errors | Regression detection |
+| Source Maps | Stack traces via source maps | Debug production code |
+| Breadcrumbs | Record of user actions | Track the sequence leading to errors |
+| Cron Monitoring | Monitor scheduled jobs | Detect anomalies in batch processing |
 
-### 2.2 Next.js + Sentry の完全セットアップ
+### 2.2 Complete Setup for Next.js + Sentry
 
 ```bash
 # Sentry SDK のインストール
@@ -176,7 +176,7 @@ Sentry.init({
 
   // トレースサンプラー（より細かい制御）
   tracesSampler: (samplingContext) => {
-    // ヘルスチェックは計測しない
+    // Health checkは計測しない
     if (samplingContext.name?.includes('/api/health')) {
       return 0;
     }
@@ -217,7 +217,7 @@ Sentry.init({
     }),
   ],
 
-  // エラーの送信前にフィルタリング
+  // Send error前にフィルタリング
   beforeSend(event, hint) {
     const error = hint.originalException;
 
@@ -341,7 +341,7 @@ Sentry.init({
 });
 ```
 
-### 2.3 next.config.ts の Sentry 設定
+### 2.3 Sentry Configuration in next.config.ts
 
 ```typescript
 // next.config.ts
@@ -394,7 +394,7 @@ export default withSentryConfig(nextConfig, {
 });
 ```
 
-### 2.4 カスタムエラーの送信パターン
+### 2.4 Custom Error Reporting Patterns
 
 ```typescript
 // === エラーの分類と送信パターン ===
@@ -605,7 +605,7 @@ await measureCriticalFlow('user-registration', async () => {
 });
 ```
 
-### 2.5 Sentry のベストプラクティスとアンチパターン
+### 2.5 Sentry Best Practices and Anti-Patterns
 
 ```typescript
 // ✓ ベストプラクティス
@@ -677,9 +677,9 @@ try {
 
 ---
 
-## 3. エラーバウンダリ
+## 3. Error Boundaries
 
-### 3.1 Next.js App Router のエラーハンドリング体系
+### 3.1 Error Handling System in Next.js App Router
 
 ```
 Next.js App Router のエラーハンドリング階層:
@@ -696,7 +696,7 @@ Next.js App Router のエラーハンドリング階層:
   page.tsx → error.tsx → 親の error.tsx → ... → global-error.tsx
 ```
 
-### 3.2 セグメント単位のエラーバウンダリ
+### 3.2 Segment-Level Error Boundaries
 
 ```typescript
 // app/dashboard/error.tsx - ダッシュボード専用のエラーバウンダリ
@@ -809,7 +809,7 @@ export default function DashboardError({ error, reset }: ErrorBoundaryProps) {
 }
 ```
 
-### 3.3 グローバルエラーハンドラー
+### 3.3 Global Error Handler
 
 ```typescript
 // app/global-error.tsx - アプリケーション全体の最終エラーハンドラー
@@ -868,7 +868,7 @@ export default function GlobalError({
 }
 ```
 
-### 3.4 カスタム React Error Boundary
+### 3.4 Custom React Error Boundary
 
 ```typescript
 // components/ErrorBoundary.tsx - 再利用可能なエラーバウンダリ
@@ -978,14 +978,14 @@ function Dashboard() {
 }
 ```
 
-### 3.5 API ルートのエラーハンドリング
+### 3.5 Error Handling in API Routes
 
 ```typescript
 // lib/api-error-handler.ts - API ルート用のエラーハンドラー
 import * as Sentry from '@sentry/nextjs';
 import { NextRequest, NextResponse } from 'next/server';
 
-// カスタムエラークラス
+// Custom errorクラス
 export class AppError extends Error {
   constructor(
     message: string,
@@ -1103,9 +1103,9 @@ export const GET = withErrorHandling(async (req, { params }) => {
 
 ---
 
-## 4. Web Vitals 計測
+## 4. Web Vitals Measurement
 
-### 4.1 Core Web Vitals の詳細
+### 4.1 Core Web Vitals Details
 
 ```
 Core Web Vitals（2024年更新版）:
@@ -1144,7 +1144,7 @@ Core Web Vitals（2024年更新版）:
   └─────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Web Vitals の計測実装
+### 4.2 Web Vitals Measurement Implementation
 
 ```typescript
 // lib/web-vitals.ts - 包括的なWeb Vitals計測
@@ -1233,7 +1233,7 @@ export function initWebVitals() {
 }
 ```
 
-### 4.3 Next.js App Router での Web Vitals 統合
+### 4.3 Web Vitals Integration in Next.js App Router
 
 ```typescript
 // app/components/WebVitalsReporter.tsx
@@ -1309,7 +1309,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-### 4.4 Web Vitals API エンドポイント
+### 4.4 Web Vitals API Endpoint
 
 ```typescript
 // app/api/web-vitals/route.ts
@@ -1382,7 +1382,7 @@ export async function POST(req: NextRequest) {
 }
 ```
 
-### 4.5 Web Vitals の改善ガイド
+### 4.5 Web Vitals Improvement Guide
 
 ```typescript
 /**
@@ -1505,11 +1505,11 @@ function CardSkeleton() {
 
 ---
 
-## 5. ログ戦略
+## 5. Logging Strategy
 
-### 5.1 構造化ログの設計原則
+### 5.1 Structured Logging Design Principles
 
-ログは障害調査の最も重要な情報源である。非構造化な文字列ログではなく、構造化ログ（JSON形式）を採用することで、検索・集約・分析が容易になる。
+Logs are the most important information source for incident investigation. Using structured logs (JSON format) instead of unstructured string logs makes searching, aggregation, and analysis much easier.
 
 ```
 ログ設計の原則:
@@ -1537,7 +1537,7 @@ function CardSkeleton() {
   └──────────┴──────────────────────────────────────────┘
 ```
 
-### 5.2 フロントエンドロガーの実装
+### 5.2 Frontend Logger Implementation
 
 ```typescript
 // lib/logger.ts - 本格的なフロントエンドロガー
@@ -1835,7 +1835,7 @@ logger.error('Failed to load dashboard', new Error('Network error'), {
 });
 ```
 
-### 5.3 サーバーサイドロガー（Next.js API Routes / Server Actions）
+### 5.3 Server-Side Logger (Next.js API Routes / Server Actions)
 
 ```typescript
 // lib/server-logger.ts - サーバーサイドの構造化ロガー
@@ -1965,7 +1965,7 @@ export async function POST(req: NextRequest) {
 }
 ```
 
-### 5.4 ログの集約と分析基盤
+### 5.4 Log Aggregation and Analysis Infrastructure
 
 ```typescript
 // app/api/logs/route.ts - ログ収集エンドポイント
@@ -2056,7 +2056,7 @@ async function sendToAxiom(entries: any[]) {
 }
 ```
 
-### 5.5 ログのベストプラクティスとアンチパターン
+### 5.5 Logging Best Practices and Anti-Patterns
 
 ```typescript
 // ✓ ログのベストプラクティス
@@ -2126,9 +2126,9 @@ logger.info('Processing items batch', {
 
 ---
 
-## 6. アラート設計
+## 6. Alert Design
 
-### 6.1 アラート優先度の定義
+### 6.1 Defining Alert Priority
 
 ```
 アラートの優先度と対応フロー:
@@ -2182,7 +2182,7 @@ logger.info('Processing items batch', {
   └─────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 Sentry のアラートルール設定
+### 6.2 Sentry Alert Rule Configuration
 
 ```typescript
 // Sentry アラートルールの設定例（Sentry Web UI または API）
@@ -2302,7 +2302,7 @@ const performanceAlert = {
 };
 ```
 
-### 6.3 Slack 通知の自動化
+### 6.3 Automating Slack Notifications
 
 ```typescript
 // lib/slack-notifier.ts - Slack Webhook による通知
@@ -2410,7 +2410,7 @@ await sendSlackNotification({
 });
 ```
 
-### 6.4 インシデント対応フロー
+### 6.4 Incident Response Flow
 
 ```
 インシデント対応の標準フロー:
@@ -2472,7 +2472,7 @@ await sendSlackNotification({
   └──────────────────────────────────────────────────────────────┘
 ```
 
-### 6.5 Runbook テンプレート
+### 6.5 Runbook Template
 
 ```typescript
 /**
@@ -2531,9 +2531,9 @@ await sendSlackNotification({
 
 ---
 
-## 7. 合成監視（Synthetic Monitoring）
+## 7. Synthetic Monitoring
 
-### 7.1 合成監視 vs リアルユーザー監視
+### 7.1 Synthetic Monitoring vs Real User Monitoring
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -2572,7 +2572,7 @@ await sendSlackNotification({
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 Checkly による合成監視の実装
+### 7.2 Synthetic Monitoring Implementation with Checkly
 
 ```typescript
 // __checks__/homepage.check.ts - Checkly のブラウザチェック
@@ -2637,7 +2637,7 @@ test('API health check', async ({ request }) => {
 });
 ```
 
-### 7.3 Uptime 監視の実装
+### 7.3 Uptime Monitoring Implementation
 
 ```typescript
 // lib/health-check.ts - ヘルスチェックエンドポイント
@@ -2752,11 +2752,11 @@ export async function GET() {
 
 ---
 
-## 8. カスタムメトリクスの設計と可視化
+## 8. Custom Metrics Design and Visualization
 
-### 8.1 ビジネスメトリクスの計測
+### 8.1 Business Metrics Measurement
 
-技術的なメトリクスだけでなく、ビジネスに直結するメトリクスを計測することで、サービスの健全性をより正確に把握できる。
+Measuring metrics that directly relate to business — not just technical metrics — gives you a more accurate picture of service health.
 
 ```typescript
 // lib/metrics.ts - カスタムメトリクスの収集
@@ -2908,7 +2908,7 @@ function onFeatureUsed(featureName: string, userId: string) {
 }
 ```
 
-### 8.2 メトリクス収集 API エンドポイント
+### 8.2 Metrics Collection API Endpoint
 
 ```typescript
 // app/api/metrics/route.ts
@@ -2987,7 +2987,7 @@ async function sendToInfluxDB(events: MetricEvent[]) {
 }
 ```
 
-### 8.3 ダッシュボードの設計原則
+### 8.3 Dashboard Design Principles
 
 ```
 ダッシュボード設計のベストプラクティス:
@@ -3030,36 +3030,36 @@ async function sendToInfluxDB(events: MetricEvent[]) {
 
 ---
 
-## 9. モニタリングツール比較と選定
+## 9. Monitoring Tool Comparison and Selection
 
-### 9.1 ツールカテゴリ別比較表
+### 9.1 Comparison Table by Tool Category
 
-| カテゴリ | ツール | 特徴 | 料金目安（月額） | おすすめ度 |
+| Category | Tool | Features | Est. Price (monthly) | Recommendation |
 |---------|--------|------|----------------|-----------|
-| **エラートラッキング** | Sentry | OSS、ソースマップ対応、Session Replay | 無料~$26/月 | ★★★★★ |
-| | Bugsnag | モバイル強い、安定性モニタリング | $59~ | ★★★★ |
-| | LogRocket | セッションリプレイ特化 | $99~ | ★★★ |
-| | Rollbar | 自動グルーピング優秀 | $15~ | ★★★ |
-| **パフォーマンス** | Vercel Analytics | Web Vitals、Vercelユーザー向け | 無料~ | ★★★★★ |
-| | SpeedCurve | 合成+RUM、競合比較 | $10~ | ★★★★ |
-| | web-vitals | OSS、自前計測 | 無料 | ★★★★ |
-| | Calibre | パフォーマンス予算対応 | $29~ | ★★★ |
-| **ログ管理** | Datadog | フルスタック監視 | 従量制 | ★★★★★ |
-| | Axiom | コスト効率、Vercel連携 | 無料~$25/月 | ★★★★ |
-| | Grafana Loki | OSS、Grafana統合 | 無料（セルフホスト） | ★★★★ |
-| | LogDNA (Mezmo) | シンプルで使いやすい | $1.50/GB | ★★★ |
-| **Uptime 監視** | Better Uptime | 無料枠あり、ステータスページ付き | 無料~$25/月 | ★★★★★ |
-| | Checkly | Playwright ベースの合成監視 | 無料~$30/月 | ★★★★★ |
-| | Uptime Robot | シンプル、50モニター無料 | 無料~$7/月 | ★★★★ |
-| | Pingdom | 実績あり、SolarWinds傘下 | $10~ | ★★★ |
-| **APM** | Datadog APM | 分散トレーシング、豊富な統合 | 従量制 | ★★★★★ |
-| | New Relic | フルスタック、100GB/月無料 | 無料~従量制 | ★★★★ |
-| | Grafana Tempo | OSS、Grafana統合 | 無料（セルフホスト） | ★★★★ |
-| **ステータスページ** | Statuspage | Atlassian製、定番 | $29~ | ★★★★ |
-| | Instatus | モダンUI、軽量 | 無料~$20/月 | ★★★★ |
-| | Cachet | OSS、セルフホスト | 無料 | ★★★ |
+| **Error Tracking** | Sentry | OSS, source maps, Session Replay | Free–$26/mo | ★★★★★ |
+| | Bugsnag | Strong mobile support, stability monitoring | $59+ | ★★★★ |
+| | LogRocket | Session replay focused | $99+ | ★★★ |
+| | Rollbar | Excellent auto-grouping | $15+ | ★★★ |
+| **Performance** | Vercel Analytics | Web Vitals, for Vercel users | Free+ | ★★★★★ |
+| | SpeedCurve | Synthetic + RUM, competitor comparison | $10+ | ★★★★ |
+| | web-vitals | OSS, self-measured | Free | ★★★★ |
+| | Calibre | Performance budget support | $29+ | ★★★ |
+| **Log Management** | Datadog | Full-stack monitoring | Usage-based | ★★★★★ |
+| | Axiom | Cost-efficient, Vercel integration | Free–$25/mo | ★★★★ |
+| | Grafana Loki | OSS, Grafana integration | Free (self-hosted) | ★★★★ |
+| | LogDNA (Mezmo) | Simple and easy to use | $1.50/GB | ★★★ |
+| **Uptime Monitoring** | Better Uptime | Free tier, status page included | Free–$25/mo | ★★★★★ |
+| | Checkly | Playwright-based synthetic monitoring | Free–$30/mo | ★★★★★ |
+| | Uptime Robot | Simple, 50 monitors free | Free–$7/mo | ★★★★ |
+| | Pingdom | Proven, owned by SolarWinds | $10+ | ★★★ |
+| **APM** | Datadog APM | Distributed tracing, rich integrations | Usage-based | ★★★★★ |
+| | New Relic | Full-stack, 100GB/mo free | Free–usage-based | ★★★★ |
+| | Grafana Tempo | OSS, Grafana integration | Free (self-hosted) | ★★★★ |
+| **Status Page** | Statuspage | By Atlassian, industry standard | $29+ | ★★★★ |
+| | Instatus | Modern UI, lightweight | Free–$20/mo | ★★★★ |
+| | Cachet | OSS, self-hosted | Free | ★★★ |
 
-### 9.2 プロジェクト規模別の推奨構成
+### 9.2 Recommended Configuration by Project Scale
 
 ```
 プロジェクト規模別の推奨監視スタック:
@@ -3098,7 +3098,7 @@ async function sendToInfluxDB(events: MetricEvent[]) {
   └─────────────────────────────────────────────────────────────┘
 ```
 
-### 9.3 OpenTelemetry による標準化
+### 9.3 Standardization with OpenTelemetry
 
 ```typescript
 // lib/otel.ts - OpenTelemetry の導入
@@ -3176,7 +3176,7 @@ process.on('SIGTERM', () => {
 export { sdk };
 ```
 
-### 9.4 Next.js の instrumentation.ts での OpenTelemetry 設定
+### 9.4 OpenTelemetry Configuration in Next.js instrumentation.ts
 
 ```typescript
 // instrumentation.ts（Next.js のインストルメンテーションフック）
@@ -3191,9 +3191,9 @@ export async function register() {
 
 ---
 
-## 10. トラブルシューティングガイド
+## 10. Troubleshooting Guide
 
-### 10.1 よくある問題と解決策
+### 10.1 Common Problems and Solutions
 
 ```typescript
 /**
@@ -3309,7 +3309,7 @@ export async function register() {
 // 4. 時間帯別の閾値設定（深夜はトラフィックが少ない）
 ```
 
-### 10.2 監視の成熟度モデル
+### 10.2 Monitoring Maturity Model
 
 ```
 監視の成熟度モデル（Monitoring Maturity Model）:
@@ -3361,9 +3361,9 @@ export async function register() {
 
 ---
 
-## 11. SLO/SLI の設計
+## 11. SLO/SLI Design
 
-### 11.1 SLO/SLI/SLA の基本概念
+### 11.1 Basic Concepts of SLO/SLI/SLA
 
 ```
 SLA / SLO / SLI の関係:
@@ -3384,7 +3384,7 @@ SLA / SLO / SLI の関係:
   SLI（何を測るか） -> SLO（目標は何か） -> SLA（約束は何か）
 ```
 
-### 11.2 SLO の設定例
+### 11.2 SLO Configuration Examples
 
 ```typescript
 // lib/slo.ts - SLO の定義と計測
@@ -3464,23 +3464,23 @@ const budget = calculateErrorBudget(availabilitySLO, currentAvailability);
 
 ---
 
-## まとめ
+## Summary
 
-| 監視項目 | ツール | 重要度 | 導入優先度 |
+| Monitoring Item | Tool | Importance | Implementation Priority |
 |---------|--------|--------|-----------|
-| エラートラッキング | Sentry | 最重要 | 最優先 |
-| エラーバウンダリ | Next.js error.tsx | 最重要 | 最優先 |
-| Web Vitals (RUM) | web-vitals + Vercel Analytics | 重要 | 高 |
-| 構造化ログ | カスタムロガー + Datadog/Axiom | 重要 | 高 |
-| アラート | Sentry Alerts + Slack | 重要 | 高 |
-| Uptime 監視 | Checkly / Better Uptime | 重要 | 高 |
-| 合成監視 | Checkly (Playwright) | 中 | 中 |
-| カスタムメトリクス | Datadog / InfluxDB | 中 | 中 |
-| APM / トレーシング | Datadog APM / OpenTelemetry | 中 | 中 |
-| ステータスページ | Instatus / Statuspage | 低 | 低 |
-| SLO/SLI | カスタム実装 | 中 | 中 |
+| Error tracking | Sentry | Critical | Top priority |
+| Error boundaries | Next.js error.tsx | Critical | Top priority |
+| Web Vitals (RUM) | web-vitals + Vercel Analytics | Important | High |
+| Structured logging | Custom logger + Datadog/Axiom | Important | High |
+| Alerts | Sentry Alerts + Slack | Important | High |
+| Uptime monitoring | Checkly / Better Uptime | Important | High |
+| Synthetic monitoring | Checkly (Playwright) | Medium | Medium |
+| Custom metrics | Datadog / InfluxDB | Medium | Medium |
+| APM / Tracing | Datadog APM / OpenTelemetry | Medium | Medium |
+| Status page | Instatus / Statuspage | Low | Low |
+| SLO/SLI | Custom implementation | Medium | Medium |
 
-### 監視導入のロードマップ
+### Monitoring Adoption Roadmap
 
 ```
 Week 1: 基盤構築
@@ -3515,25 +3515,25 @@ Week 4: 応用
 
 ---
 
-## よくある質問（FAQ）
+## Frequently Asked Questions (FAQ)
 
-### Q1: Sentry vs Datadogの比較は？どちらを選ぶべきですか？
+### Q1: Sentry vs Datadog — which should I choose?
 
-**比較表:**
+**Comparison table:**
 
-| 項目 | Sentry | Datadog |
+| Item | Sentry | Datadog |
 |------|--------|---------|
-| **主な用途** | エラートラッキング特化 | 総合APM・インフラ監視 |
-| **価格** | $26/月〜（5k errors） | $15/月〜（APM） + インフラ |
-| **エラー管理** | ◎ 最高レベル | ○ 十分 |
-| **パフォーマンス監視** | △ 基本的なトレーシング | ◎ 詳細なAPM |
-| **インフラ監視** | × なし | ◎ CPU/メモリ/ネットワーク |
-| **Session Replay** | ◎ 高機能 | ○ RUM として提供 |
-| **ログ管理** | × なし（別サービス必要） | ◎ Log Management搭載 |
-| **セットアップ** | 簡単（SDK追加のみ） | やや複雑（Agent必要） |
-| **学習コスト** | 低 | 中〜高 |
+| **Primary use** | Error tracking focused | Full APM and infrastructure monitoring |
+| **Price** | $26/mo+ (5k errors) | $15/mo+ (APM) + infrastructure |
+| **Error management** | Excellent | Sufficient |
+| **Performance monitoring** | Basic tracing | Detailed APM |
+| **Infrastructure monitoring** | None | CPU/memory/network |
+| **Session Replay** | Feature-rich | Available as RUM |
+| **Log management** | None (requires separate service) | Built-in Log Management |
+| **Setup** | Easy (SDK only) | Somewhat complex (Agent required) |
+| **Learning curve** | Low | Medium–High |
 
-**選定基準:**
+**Selection criteria:**
 
 ```
 Sentryを選ぶべきケース:
@@ -3558,7 +3558,7 @@ Datadogを選ぶべきケース:
   - 全てを一つのプラットフォームで統合
 ```
 
-**併用パターン:**
+**Combined usage pattern:**
 
 ```typescript
 // SentryとDatadogの併用例
@@ -3566,7 +3566,7 @@ Datadogを選ぶべきケース:
 import * as Sentry from '@sentry/nextjs';
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
-  tracesSampleRate: 0.1,  // パフォーマンストレース10%
+  tracesSampleRate: 0.1,  // Performance trace10%
 });
 
 // Datadog: APM・メトリクス
@@ -3585,16 +3585,16 @@ datadogRum.init({
 // 役割分担: Sentryでエラー詳細、Datadogで全体パフォーマンス
 ```
 
-### Q2: エラーバウンダリの設計はどうすべきですか？
+### Q2: How should error boundaries be designed?
 
-**階層的なエラーバウンダリ設計:**
+**Hierarchical error boundary design:**
 
 ```
 app/
 ├── global-error.tsx          # 最上位（アプリ全体のクラッシュ）
 ├── error.tsx                 # ルート直下（予期しないエラー）
 ├── (dashboard)/
-│   ├── error.tsx             # ダッシュボード全体
+│   ├── error.tsx             # Dashboard全体
 │   └── analytics/
 │       └── error.tsx         # 分析画面固有のエラー
 └── (auth)/
@@ -3603,7 +3603,7 @@ app/
         └── error.tsx         # ログイン固有のエラー
 ```
 
-**実装例（Next.js App Router）:**
+**Implementation example (Next.js App Router):**
 
 ```typescript
 // app/error.tsx - 標準的なエラーバウンダリ
@@ -3650,7 +3650,7 @@ export default function Error({
 }
 ```
 
-**コンポーネントレベルのエラーバウンダリ:**
+**Component-level error boundary:**
 
 ```typescript
 // components/ErrorBoundary.tsx - 再利用可能なエラーバウンダリ
@@ -3704,7 +3704,7 @@ export class ErrorBoundary extends Component<Props, State> {
 </ErrorBoundary>
 ```
 
-**エラーバウンダリのベストプラクティス:**
+**Error boundary best practices:**
 
 ```
 1. 粒度を適切に設計する
@@ -3723,19 +3723,19 @@ export class ErrorBoundary extends Component<Props, State> {
    ✓ 本番環境ではスタックトレースを表示しない
 ```
 
-### Q3: RUM（Real User Monitoring）とSynthetic Monitoring（合成監視）の使い分けは？
+### Q3: How do I decide between RUM (Real User Monitoring) and Synthetic Monitoring?
 
-**2つの監視手法の違い:**
+**Differences between the two monitoring approaches:**
 
-| 項目 | RUM（リアルユーザー監視） | Synthetic Monitoring（合成監視） |
+| Item | RUM (Real User Monitoring) | Synthetic Monitoring |
 |------|--------------------------|-------------------------------|
-| **データソース** | 実際のユーザーアクセス | 定期的な自動テスト |
-| **メリット** | 実環境の正確なデータ | 障害の早期検知、安定したデータ |
-| **デメリット** | トラフィック依存、バイアスあり | 実ユーザーの体験と乖離の可能性 |
-| **主な用途** | パフォーマンス最適化、A/Bテスト | アラート、SLA監視、リグレッション検知 |
-| **ツール例** | Vercel Analytics, Datadog RUM | Checkly, Pingdom, UptimeRobot |
+| **Data source** | Actual user access | Periodic automated tests |
+| **Advantages** | Accurate real-environment data | Early incident detection, stable data |
+| **Disadvantages** | Traffic-dependent, may have bias | May diverge from real user experience |
+| **Main uses** | Performance optimization, A/B testing | Alerts, SLA monitoring, regression detection |
+| **Tool examples** | Vercel Analytics, Datadog RUM | Checkly, Pingdom, UptimeRobot |
 
-**RUM（Real User Monitoring）の実装:**
+**RUM (Real User Monitoring) implementation:**
 
 ```typescript
 // app/layout.tsx
@@ -3766,7 +3766,7 @@ function handleCheckout() {
 }
 ```
 
-**Synthetic Monitoringの実装（Checkly）:**
+**Synthetic Monitoring implementation (Checkly):**
 
 ```typescript
 // __checks__/home.check.ts
@@ -3801,7 +3801,7 @@ test('User can complete checkout', async ({ page }) => {
 });
 ```
 
-**使い分けの指針:**
+**Guidelines for choosing between them:**
 
 ```
 RUMを優先すべきケース:
@@ -3832,12 +3832,12 @@ Synthetic Monitoringを優先すべきケース:
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
 
 ---
 
-## 参考文献
+## References
 
 1. Sentry. "Next.js SDK Documentation." docs.sentry.io, 2024.
 2. web.dev. "Measure and optimize performance with web-vitals." web.dev, 2024.
