@@ -1,67 +1,67 @@
 # Amazon ElastiCache
 
-> AWS のフルマネージドインメモリキャッシュサービスを理解し、Redis/Memcached の選択・キャッシュ戦略・クラスター設計・運用パターン・障害対応を実践的に習得する
+> Understand AWS's fully managed in-memory cache service and practically master Redis/Memcached selection, caching strategies, cluster design, operational patterns, and failure response
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **ElastiCache の基本概念** — Redis と Memcached の特性比較と選定基準
-2. **キャッシュ戦略** — Cache-Aside、Write-Through、Write-Behind のパターン選択
-3. **運用と最適化** — クラスター設計、フェイルオーバー、メモリ管理、監視
-4. **高可用性設計** — マルチ AZ、レプリケーション、バックアップ/リストア
-5. **セキュリティ** — 暗号化、認証、ネットワーク設計のベストプラクティス
+1. **ElastiCache Fundamentals** --- Characteristics comparison and selection criteria for Redis and Memcached
+2. **Caching Strategies** --- Pattern selection for Cache-Aside, Write-Through, and Write-Behind
+3. **Operations and Optimization** --- Cluster design, failover, memory management, and monitoring
+4. **High Availability Design** --- Multi-AZ, replication, backup/restore
+5. **Security** --- Best practices for encryption, authentication, and network design
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Amazon DynamoDB](./01-dynamodb.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Understanding of the content in [Amazon DynamoDB](./01-dynamodb.md)
 
 ---
 
-## 1. ElastiCache アーキテクチャ
+## 1. ElastiCache Architecture
 
 ```
 +------------------------------------------------------------------+
-|  典型的なキャッシュ構成                                           |
+|  Typical Cache Architecture                                      |
 |                                                                  |
 |  Client --> ALB --> App Server --+--> ElastiCache (Redis)        |
-|                                  |   (< 1ms 応答)               |
-|                                  |      | Cache Miss時           |
+|                                  |   (< 1ms response)           |
+|                                  |      | On Cache Miss          |
 |                                  +----> RDS / DynamoDB           |
-|                                      (5-20ms 応答)              |
+|                                      (5-20ms response)           |
 |                                                                  |
-|  レイテンシ比較:                                                  |
+|  Latency Comparison:                                             |
 |    ElastiCache : < 1ms                                           |
 |    RDS         : 5-20ms                                          |
 |    DynamoDB    : 5-10ms                                          |
 +------------------------------------------------------------------+
 ```
 
-### キャッシュの効果測定
+### Measuring Cache Effectiveness
 
 ```
-キャッシュヒット率とレイテンシの関係:
-======================================
+Relationship Between Cache Hit Rate and Latency:
+=================================================
 
-ヒット率    平均レイテンシ      DB負荷
-0%          20ms (全てDB)      100%
-50%         ~10ms              50%
-80%         ~4ms               20%
-90%         ~2ms               10%
-95%         ~1.5ms             5%
-99%         ~1.2ms             1%
+Hit Rate    Avg Latency           DB Load
+0%          20ms (all DB)         100%
+50%         ~10ms                 50%
+80%         ~4ms                  20%
+90%         ~2ms                  10%
+95%         ~1.5ms                5%
+99%         ~1.2ms                1%
 
-損益分岐点:
-  ElastiCache cache.r7g.large (3ノード) ≈ $700/月
-  RDS db.r6g.xlarge ≈ $500/月
-  → キャッシュで RDS インスタンスサイズを1段階下げられれば元が取れる
-  → 読み取り比率が高い（80%+）ワークロードで特に効果的
+Break-even Point:
+  ElastiCache cache.r7g.large (3 nodes) ≈ $700/month
+  RDS db.r6g.xlarge ≈ $500/month
+  → If caching allows you to downsize the RDS instance by one tier, it pays for itself
+  → Especially effective for read-heavy (80%+) workloads
 ```
 
-### コード例 1: Redis クラスターの作成（AWS CLI）
+### Code Example 1: Creating a Redis Cluster (AWS CLI)
 
 ```bash
 # Redis クラスター（レプリケーショングループ）の作成
@@ -110,73 +110,73 @@ aws elasticache describe-replication-groups \
 
 ## 2. Redis vs Memcached
 
-### 機能比較表
+### Feature Comparison Table
 
-| 機能 | Redis | Memcached |
+| Feature | Redis | Memcached |
 |---|---|---|
-| **データ構造** | String, List, Set, Hash, Sorted Set, Stream 等 | String のみ |
-| **永続化** | RDB + AOF | なし（揮発性） |
-| **レプリケーション** | 対応（自動フェイルオーバー） | なし |
-| **クラスタリング** | Redis Cluster（シャーディング） | 分散ハッシュ（クライアント側） |
-| **Pub/Sub** | 対応 | なし |
-| **Lua スクリプト** | 対応 | なし |
-| **マルチスレッド** | I/O マルチスレッド（7.0+） | マルチスレッド |
-| **最大メモリ** | クラスター合計 ~500GB | ノードあたり数百GB |
-| **TLS** | 対応 | 対応（1.6.12+） |
-| **Streams** | 対応（ログ構造データ） | なし |
-| **Geospatial** | 対応（位置情報クエリ） | なし |
-| **JSON サポート** | RedisJSON モジュール対応 | なし |
+| **Data Structures** | String, List, Set, Hash, Sorted Set, Stream, etc. | String only |
+| **Persistence** | RDB + AOF | None (volatile) |
+| **Replication** | Supported (automatic failover) | None |
+| **Clustering** | Redis Cluster (sharding) | Distributed hashing (client-side) |
+| **Pub/Sub** | Supported | None |
+| **Lua Scripting** | Supported | None |
+| **Multi-threading** | I/O multi-threading (7.0+) | Multi-threaded |
+| **Max Memory** | Cluster total ~500GB | Several hundred GB per node |
+| **TLS** | Supported | Supported (1.6.12+) |
+| **Streams** | Supported (log-structured data) | None |
+| **Geospatial** | Supported (location queries) | None |
+| **JSON Support** | RedisJSON module supported | None |
 
-### 選定フローチャート
+### Selection Flowchart
 
 ```
-Redis vs Memcached 選定フロー
-=============================
+Redis vs Memcached Selection Flow
+==================================
 
-データ構造が必要? (List, Set, Hash等)
+Need data structures? (List, Set, Hash, etc.)
    |         |
   Yes        No
    |         |
    v         v
- Redis    永続化が必要?
+ Redis    Need persistence?
             |         |
            Yes        No
             |         |
             v         v
-          Redis    レプリカ/フェイルオーバーが必要?
+          Redis    Need replicas/failover?
                      |         |
                     Yes        No
                      |         |
                      v         v
                    Redis    Memcached
-                            (シンプルな KV キャッシュ)
+                            (Simple KV cache)
 ```
 
-### ノードタイプの選定ガイド
+### Node Type Selection Guide
 
-| 用途 | 推奨ノードタイプ | メモリ | ネットワーク | 月額概算（東京） |
+| Use Case | Recommended Node Type | Memory | Network | Monthly Estimate (Tokyo) |
 |---|---|---|---|---|
-| 開発/テスト | cache.t4g.micro | 0.5 GB | 最大 5 Gbps | ~$15 |
-| 小規模本番 | cache.r7g.large | 13.07 GB | 最大 12.5 Gbps | ~$230 |
-| 中規模本番 | cache.r7g.xlarge | 26.32 GB | 最大 12.5 Gbps | ~$460 |
-| 大規模本番 | cache.r7g.2xlarge | 52.82 GB | 最大 12.5 Gbps | ~$920 |
-| 超大規模 | cache.r7g.4xlarge | 105.81 GB | 最大 12.5 Gbps | ~$1,840 |
+| Dev/Test | cache.t4g.micro | 0.5 GB | Up to 5 Gbps | ~$15 |
+| Small Production | cache.r7g.large | 13.07 GB | Up to 12.5 Gbps | ~$230 |
+| Medium Production | cache.r7g.xlarge | 26.32 GB | Up to 12.5 Gbps | ~$460 |
+| Large Production | cache.r7g.2xlarge | 52.82 GB | Up to 12.5 Gbps | ~$920 |
+| Extra Large | cache.r7g.4xlarge | 105.81 GB | Up to 12.5 Gbps | ~$1,840 |
 
 ---
 
-## 3. キャッシュ戦略パターン
+## 3. Caching Strategy Patterns
 
-### パターン比較表
+### Pattern Comparison Table
 
-| パターン | 読み取り | 書き込み | 一貫性 | 適用場面 |
+| Pattern | Read | Write | Consistency | Use Case |
 |---|---|---|---|---|
-| **Cache-Aside** | App がキャッシュ確認 -> Miss時にDB読み取り -> キャッシュ書き込み | DB に直接書き込み | 結果整合 | 汎用、最も一般的 |
-| **Read-Through** | キャッシュが自動でDB読み取り | DB に直接書き込み | 結果整合 | ライブラリがサポート時 |
-| **Write-Through** | キャッシュから読み取り | キャッシュ -> DB の同期書き込み | 強い整合 | 読み取り頻度が高い |
-| **Write-Behind** | キャッシュから読み取り | キャッシュ -> DB の非同期書き込み | 結果整合 | 書き込み頻度が高い |
+| **Cache-Aside** | App checks cache -> On miss, reads from DB -> Writes to cache | Writes directly to DB | Eventual | General purpose, most common |
+| **Read-Through** | Cache automatically reads from DB | Writes directly to DB | Eventual | When library supports it |
+| **Write-Through** | Reads from cache | Synchronous write to cache -> DB | Strong | High read frequency |
+| **Write-Behind** | Reads from cache | Asynchronous write to cache -> DB | Eventual | High write frequency |
 
 ```
-キャッシュ戦略の詳細フロー:
+Detailed Caching Strategy Flows:
 
 1. Cache-Aside (Lazy Loading):
    Read:
@@ -185,11 +185,11 @@ Redis vs Memcached 選定フロー
        |-- MISS --> DB.SELECT --> Redis.SET(key, data, TTL) --> return data
 
    Write:
-     App --> DB.UPDATE --> Redis.DEL(key)  ← キャッシュ無効化
+     App --> DB.UPDATE --> Redis.DEL(key)  ← Cache invalidation
 
 2. Write-Through:
    Write:
-     App --> Redis.SET(key, data) --> DB.UPDATE  ← 同期的
+     App --> Redis.SET(key, data) --> DB.UPDATE  ← Synchronous
    Read:
      App --> Redis.GET(key)
        |-- HIT  --> return data
@@ -199,10 +199,10 @@ Redis vs Memcached 選定フロー
    Write:
      App --> Redis.SET(key, data) --> return success
                 |
-                +---> [非同期] DB.UPDATE  ← バッチ処理/遅延書き込み
+                +---> [Async] DB.UPDATE  ← Batch processing / delayed write
 ```
 
-### コード例 2: Cache-Aside パターン（Python）
+### Code Example 2: Cache-Aside Pattern (Python)
 
 ```python
 import redis
@@ -220,14 +220,14 @@ r = redis.Redis(
 )
 
 class CacheAside:
-    """Cache-Aside パターンの実装"""
+    """Cache-Aside pattern implementation"""
 
     def __init__(self, redis_client, default_ttl=300):
         self.redis = redis_client
         self.default_ttl = default_ttl
 
     def get_or_set(self, key: str, fetch_fn, ttl: int = None):
-        """キャッシュがあれば返し、なければ fetch_fn で取得してキャッシュ"""
+        """Return from cache if available, otherwise fetch with fetch_fn and cache"""
         cached = self.redis.get(key)
         if cached is not None:
             logger.debug(f"Cache HIT: {key}")
@@ -244,12 +244,12 @@ class CacheAside:
         return data
 
     def invalidate(self, key: str):
-        """キャッシュの無効化"""
+        """Invalidate cache"""
         self.redis.delete(key)
         logger.debug(f"Cache INVALIDATED: {key}")
 
     def invalidate_pattern(self, pattern: str):
-        """パターンに一致するキャッシュの一括無効化"""
+        """Bulk invalidation of cache entries matching a pattern"""
         cursor = 0
         deleted = 0
         while True:
@@ -262,18 +262,18 @@ class CacheAside:
         logger.info(f"Cache INVALIDATED {deleted} keys matching: {pattern}")
 
     def cached(self, prefix: str, ttl: int = None):
-        """デコレータとして使えるキャッシュ"""
+        """Cache as a decorator"""
         def decorator(func: Callable) -> Callable:
             @wraps(func)
             def wrapper(*args, **kwargs):
-                # 引数からキャッシュキーを生成
+                # Generate cache key from arguments
                 key_data = f"{prefix}:{args}:{sorted(kwargs.items())}"
                 cache_key = f"{prefix}:{hashlib.md5(key_data.encode()).hexdigest()}"
                 return self.get_or_set(cache_key, lambda: func(*args, **kwargs), ttl)
             return wrapper
         return decorator
 
-# 使用例
+# Usage example
 cache = CacheAside(r, default_ttl=600)
 
 def get_user(user_id):
@@ -287,17 +287,17 @@ def update_user(user_id, data):
     db.execute("UPDATE users SET name = %s WHERE id = %s", data['name'], user_id)
     cache.invalidate(f"user:{user_id}")
 
-# デコレータパターン
+# Decorator pattern
 @cache.cached("product", ttl=1800)
 def get_product(product_id: str):
     return db.query("SELECT * FROM products WHERE id = %s", product_id)
 ```
 
-### コード例 3: Write-Through パターン
+### Code Example 3: Write-Through Pattern
 
 ```python
 class WriteThrough:
-    """Write-Through パターン: キャッシュとDBを同期的に書き込み"""
+    """Write-Through pattern: Synchronous write to both cache and DB"""
 
     def __init__(self, redis_client, db_client, default_ttl=3600):
         self.redis = redis_client
@@ -314,13 +314,13 @@ class WriteThrough:
         return data
 
     def write(self, key: str, db_query: str, params: tuple, data: dict):
-        # DB に先に書き込み（失敗時にキャッシュだけ更新されることを防ぐ）
+        # Write to DB first (prevents updating only the cache on failure)
         self.db.execute(db_query, params)
         self.redis.setex(key, self.default_ttl, json.dumps(data, default=str))
 
 
 class WriteBehind:
-    """Write-Behind パターン: キャッシュに即時書き込み、DBに非同期書き込み"""
+    """Write-Behind pattern: Immediate write to cache, asynchronous write to DB"""
 
     def __init__(self, redis_client, default_ttl=3600):
         self.redis = redis_client
@@ -328,7 +328,7 @@ class WriteBehind:
         self.write_queue_key = "write_behind:queue"
 
     def write(self, key: str, data: dict):
-        """キャッシュに即時書き込み + キューに追加"""
+        """Immediate write to cache + add to queue"""
         pipe = self.redis.pipeline()
         pipe.setex(key, self.default_ttl, json.dumps(data, default=str))
         pipe.rpush(self.write_queue_key, json.dumps({
@@ -339,7 +339,7 @@ class WriteBehind:
         pipe.execute()
 
     def process_queue(self, batch_size: int = 100):
-        """キューからバッチで取り出してDBに書き込み"""
+        """Dequeue items in batches and write to DB"""
         items = []
         for _ in range(batch_size):
             item = self.redis.lpop(self.write_queue_key)
@@ -348,16 +348,16 @@ class WriteBehind:
             items.append(json.loads(item))
 
         if items:
-            # バッチでDBに書き込み
+            # Batch write to DB
             db.batch_upsert(items)
             logger.info(f"Write-Behind: processed {len(items)} items")
 ```
 
 ---
 
-## 4. Redis データ構造の活用
+## 4. Leveraging Redis Data Structures
 
-### コード例 4: 実践的なユースケース
+### Code Example 4: Practical Use Cases
 
 ```python
 import redis
@@ -367,7 +367,7 @@ from datetime import datetime, timezone
 
 r = redis.Redis(host='my-redis.cache.amazonaws.com', port=6379, ssl=True)
 
-# === セッション管理 ===
+# === Session Management ===
 def create_session(session_id: str, user_data: dict, ttl: int = 1800):
     r.hset(f"session:{session_id}", mapping=user_data)
     r.expire(f"session:{session_id}", ttl)
@@ -375,13 +375,13 @@ def create_session(session_id: str, user_data: dict, ttl: int = 1800):
 def get_session(session_id: str):
     data = r.hgetall(f"session:{session_id}")
     if data:
-        r.expire(f"session:{session_id}", 1800)  # スライディング期限
+        r.expire(f"session:{session_id}", 1800)  # Sliding expiration
     return data
 
 def destroy_session(session_id: str):
     r.delete(f"session:{session_id}")
 
-# === リアルタイムランキング ===
+# === Real-time Leaderboard ===
 def add_score(leaderboard: str, user_id: str, score: float):
     r.zadd(f"lb:{leaderboard}", {user_id: score})
 
@@ -393,7 +393,7 @@ def get_user_rank(leaderboard: str, user_id: str):
     return rank + 1 if rank is not None else None
 
 def get_around_user(leaderboard: str, user_id: str, n: int = 5):
-    """ユーザー前後のランキングを取得"""
+    """Get rankings around a specific user"""
     rank = r.zrevrank(f"lb:{leaderboard}", user_id)
     if rank is None:
         return None
@@ -401,7 +401,7 @@ def get_around_user(leaderboard: str, user_id: str, n: int = 5):
     end = rank + n
     return r.zrevrange(f"lb:{leaderboard}", start, end, withscores=True)
 
-# === レートリミッター（スライディングウィンドウ） ===
+# === Rate Limiter (Sliding Window) ===
 def is_rate_limited(user_id: str, max_requests: int = 100, window: int = 60):
     key = f"rate:{user_id}:{int(time.time()) // window}"
     current = r.incr(key)
@@ -409,23 +409,23 @@ def is_rate_limited(user_id: str, max_requests: int = 100, window: int = 60):
         r.expire(key, window)
     return current > max_requests
 
-# === 高精度レートリミッター（スライディングログ） ===
+# === High-Precision Rate Limiter (Sliding Log) ===
 def is_rate_limited_precise(user_id: str, max_requests: int = 100, window: int = 60):
-    """タイムスタンプベースの高精度レートリミッター"""
+    """Timestamp-based high-precision rate limiter"""
     key = f"rate:log:{user_id}"
     now = time.time()
     window_start = now - window
 
     pipe = r.pipeline()
-    pipe.zremrangebyscore(key, 0, window_start)  # 古いエントリを削除
-    pipe.zadd(key, {f"{now}": now})  # 現在のリクエストを追加
-    pipe.zcard(key)  # ウィンドウ内のリクエスト数を取得
+    pipe.zremrangebyscore(key, 0, window_start)  # Remove old entries
+    pipe.zadd(key, {f"{now}": now})  # Add current request
+    pipe.zcard(key)  # Get request count within window
     pipe.expire(key, window)
     results = pipe.execute()
 
     return results[2] > max_requests
 
-# === 分散ロック ===
+# === Distributed Lock ===
 def acquire_lock(lock_name: str, ttl: int = 10):
     token = str(time.time())
     acquired = r.set(f"lock:{lock_name}", token, nx=True, ex=ttl)
@@ -441,7 +441,7 @@ def release_lock(lock_name: str, token: str):
     """
     r.eval(script, 1, f"lock:{lock_name}", token)
 
-# === Pub/Sub メッセージング ===
+# === Pub/Sub Messaging ===
 def publish_event(channel: str, event_type: str, data: dict):
     message = json.dumps({
         'type': event_type,
@@ -451,7 +451,7 @@ def publish_event(channel: str, event_type: str, data: dict):
     r.publish(channel, message)
 
 def subscribe_events(channel: str, callback):
-    """イベントの購読（ブロッキング）"""
+    """Subscribe to events (blocking)"""
     pubsub = r.pubsub()
     pubsub.subscribe(channel)
     for message in pubsub.listen():
@@ -459,9 +459,9 @@ def subscribe_events(channel: str, callback):
             event = json.loads(message['data'])
             callback(event)
 
-# === Redis Streams（イベントログ） ===
+# === Redis Streams (Event Log) ===
 def add_to_stream(stream: str, data: dict, maxlen: int = 10000):
-    """Redis Streams にイベントを追加"""
+    """Add an event to Redis Streams"""
     r.xadd(
         f"stream:{stream}",
         data,
@@ -470,31 +470,31 @@ def add_to_stream(stream: str, data: dict, maxlen: int = 10000):
     )
 
 def read_stream(stream: str, last_id: str = '0', count: int = 100):
-    """Redis Streams からイベントを読み取り"""
+    """Read events from Redis Streams"""
     return r.xread(
         {f"stream:{stream}": last_id},
         count=count,
-        block=5000,  # 5秒間ブロック
+        block=5000,  # Block for 5 seconds
     )
 
-# === カウンター（HyperLogLog） ===
+# === Counter (HyperLogLog) ===
 def add_unique_visitor(page: str, visitor_id: str):
-    """ユニーク訪問者をカウント（メモリ効率的）"""
+    """Count unique visitors (memory efficient)"""
     r.pfadd(f"uv:{page}:{datetime.now().strftime('%Y-%m-%d')}", visitor_id)
 
 def get_unique_visitors(page: str, date: str = None):
-    """ユニーク訪問者数を取得（誤差 0.81%）"""
+    """Get unique visitor count (0.81% error margin)"""
     if date is None:
         date = datetime.now().strftime('%Y-%m-%d')
     return r.pfcount(f"uv:{page}:{date}")
 
-# === Geospatial（位置情報） ===
+# === Geospatial (Location Data) ===
 def add_location(key: str, name: str, longitude: float, latitude: float):
-    """位置情報を追加"""
+    """Add location data"""
     r.geoadd(f"geo:{key}", (longitude, latitude, name))
 
 def find_nearby(key: str, longitude: float, latitude: float, radius_km: float):
-    """近隣の位置を検索"""
+    """Search for nearby locations"""
     return r.geosearch(
         f"geo:{key}",
         longitude=longitude,
@@ -507,7 +507,7 @@ def find_nearby(key: str, longitude: float, latitude: float, radius_km: float):
     )
 ```
 
-### コード例 5: Terraform による ElastiCache 定義
+### Code Example 5: ElastiCache Definition with Terraform
 
 ```hcl
 # サブネットグループ
@@ -638,7 +638,7 @@ output "redis_configuration_endpoint" {
 }
 ```
 
-### コード例 5b: CloudFormation 定義
+### Code Example 5b: CloudFormation Definition
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
@@ -711,28 +711,28 @@ Outputs:
 
 ---
 
-## 5. メモリ管理とエビクションポリシー
+## 5. Memory Management and Eviction Policies
 
 ```
-エビクションポリシー選択ガイド
-===============================
+Eviction Policy Selection Guide
+================================
 
-allkeys-lru    --> 全キーから LRU で削除（最も一般的）
-volatile-lru   --> TTL 付きキーから LRU で削除
-allkeys-lfu    --> 全キーから LFU で削除（使用頻度ベース）
-volatile-lfu   --> TTL 付きキーから LFU で削除
-volatile-ttl   --> TTL が近いキーから削除
-allkeys-random --> 全キーからランダム削除
-noeviction     --> 削除せずエラー返却（データ損失不可の場合）
+allkeys-lru    --> Evict using LRU from all keys (most common)
+volatile-lru   --> Evict using LRU from keys with TTL
+allkeys-lfu    --> Evict using LFU from all keys (frequency-based)
+volatile-lfu   --> Evict using LFU from keys with TTL
+volatile-ttl   --> Evict keys with nearest TTL
+allkeys-random --> Evict random keys from all keys
+noeviction     --> Return error without eviction (when data loss is unacceptable)
 
-推奨:
-  キャッシュ用途     --> allkeys-lru or allkeys-lfu
-  セッション用途     --> volatile-lru
-  永続データ混在     --> volatile-lru
-  データ損失不可     --> noeviction (メモリ監視必須)
+Recommendations:
+  Cache use case        --> allkeys-lru or allkeys-lfu
+  Session use case      --> volatile-lru
+  Mixed persistent data --> volatile-lru
+  No data loss allowed  --> noeviction (memory monitoring required)
 ```
 
-### メモリ使用量の分析
+### Analyzing Memory Usage
 
 ```bash
 # Redis のメモリ情報を取得
@@ -756,33 +756,33 @@ redis-cli -h my-redis-cluster.xxxx.apne1.cache.amazonaws.com \
   --tls -p 6379 SLOWLOG GET 10
 ```
 
-### メモリ最適化のベストプラクティス
+### Memory Optimization Best Practices
 
 ```
-メモリ最適化チェックリスト:
-==============================
+Memory Optimization Checklist:
+===============================
 
-1. データ構造の選択
-   - 小さなハッシュ（<128フィールド）は ziplist で圧縮保存
-   - 小さなリスト（<128要素）は ziplist で圧縮保存
-   - 小さなセット（<128要素）は intset/ziplist で圧縮保存
+1. Data Structure Selection
+   - Small hashes (<128 fields) are stored compressed using ziplist
+   - Small lists (<128 elements) are stored compressed using ziplist
+   - Small sets (<128 elements) are stored compressed using intset/ziplist
 
-2. キーの命名
-   - 短いキー名を使用（user:123 vs user_profile_data:123）
-   - 一貫したプレフィックス（SCAN でのパターン検索に有効）
+2. Key Naming
+   - Use short key names (user:123 vs user_profile_data:123)
+   - Consistent prefixes (useful for pattern searching with SCAN)
 
-3. TTL の設定
-   - 全キャッシュキーに TTL を設定
-   - ビジネスロジックに応じた適切な TTL
-   - ランダムな TTL オフセットでスタンピードを防止
+3. TTL Configuration
+   - Set TTL on all cache keys
+   - Appropriate TTL based on business logic
+   - Random TTL offset to prevent stampede
 
-4. データの圧縮
-   - 大きな JSON は gzip/lz4 で圧縮して保存
-   - MessagePack 等のバイナリフォーマットの利用
+4. Data Compression
+   - Compress large JSON with gzip/lz4 before storing
+   - Use binary formats like MessagePack
 
-5. 不要データの削除
-   - UNLINK（非同期削除）を使用
-   - SCAN + DEL でバッチ削除
+5. Removing Unnecessary Data
+   - Use UNLINK (asynchronous deletion)
+   - Batch deletion with SCAN + DEL
 ```
 
 ```python
@@ -790,7 +790,7 @@ import gzip
 import json
 
 class CompressedCache:
-    """圧縮キャッシュ: 大きなデータを圧縮して保存"""
+    """Compressed cache: stores large data with compression"""
 
     def __init__(self, redis_client, compression_threshold=1024):
         self.redis = redis_client
@@ -805,7 +805,7 @@ class CompressedCache:
             self.redis.setex(key, ttl, serialized)
 
     def get(self, key: str) -> Optional[Any]:
-        # 圧縮版を先にチェック
+        # Check compressed version first
         data = self.redis.get(f"gz:{key}")
         if data is not None:
             return json.loads(gzip.decompress(data))
@@ -819,13 +819,13 @@ class CompressedCache:
 
 ---
 
-## 6. 高可用性設計
+## 6. High Availability Design
 
-### クラスターモードの比較
+### Cluster Mode Comparison
 
 ```
-クラスターモード無効 (Disabled):
-================================
+Cluster Mode Disabled:
+=======================
   +------------------+
   | Primary          |
   | (Read/Write)     |
@@ -837,15 +837,15 @@ class CompressedCache:
   | R1  |  | R2  |  ← Read Replica
   +-----+  +-----+
 
-  特徴:
-  - 単一シャード
-  - 最大5レプリカ
-  - 最大メモリ: ノードのメモリ
-  - Multi-AZ フェイルオーバー対応
+  Characteristics:
+  - Single shard
+  - Up to 5 replicas
+  - Max memory: node's memory
+  - Multi-AZ failover supported
 
 
-クラスターモード有効 (Enabled):
-================================
+Cluster Mode Enabled:
+======================
   Shard 1              Shard 2              Shard 3
   +--------+          +--------+          +--------+
   |Primary |          |Primary |          |Primary |
@@ -857,39 +857,39 @@ class CompressedCache:
   +--+  +--+          |R1|  |R2|          |R1|  |R2|
                       +--+  +--+          +--+  +--+
 
-  特徴:
-  - 最大500シャード
-  - シャードあたり最大5レプリカ
-  - ハッシュスロットベースの分散（16384スロット）
-  - オンラインリシャーディング対応
-  - 最大メモリ: ノード数 × ノードメモリ
+  Characteristics:
+  - Up to 500 shards
+  - Up to 5 replicas per shard
+  - Hash slot-based distribution (16384 slots)
+  - Online resharding supported
+  - Max memory: number of nodes x node memory
 ```
 
-### フェイルオーバーの動作
+### Failover Behavior
 
 ```
-フェイルオーバーのフロー:
-==========================
+Failover Flow:
+===============
 
-1. Primary ノード障害検知
-   ElastiCache → ヘルスチェック失敗（数秒）
+1. Primary node failure detection
+   ElastiCache → Health check failure (seconds)
                 ↓
-2. フェイルオーバー開始
-   ElastiCache → Read Replica を Primary に昇格
+2. Failover initiation
+   ElastiCache → Promote Read Replica to Primary
                 ↓
-3. DNS 更新
-   Primary Endpoint → 新 Primary の IP に更新
+3. DNS update
+   Primary Endpoint → Updated to new Primary's IP
                 ↓
-4. 新 Primary が書き込み受付開始
-   ダウンタイム: 通常 30秒～数分
+4. New Primary starts accepting writes
+   Downtime: typically 30 seconds to a few minutes
 
-対策:
-  - アプリケーション側でリトライロジックを実装
-  - 接続プールのリフレッシュ機構
-  - CloudWatch アラームで通知
+Countermeasures:
+  - Implement retry logic on the application side
+  - Connection pool refresh mechanism
+  - CloudWatch alarm notifications
 ```
 
-### コード例 6: 接続プール管理
+### Code Example 6: Connection Pool Management
 
 ```python
 import redis
@@ -908,9 +908,9 @@ def create_redis_client(
     socket_timeout: float = 5.0,
     retry_on_timeout: bool = True,
 ) -> redis.Redis:
-    """本番環境向け Redis クライアントの作成"""
+    """Create a production-ready Redis client"""
 
-    # リトライ設定
+    # Retry configuration
     retry = Retry(ExponentialBackoff(), retries=3)
 
     pool = redis.ConnectionPool(
@@ -929,7 +929,7 @@ def create_redis_client(
 
     client = redis.Redis(connection_pool=pool)
 
-    # 接続テスト
+    # Connection test
     try:
         client.ping()
         logger.info(f"Redis connection established: {host}:{port}")
@@ -945,7 +945,7 @@ def create_cluster_client(
     port: int = 6379,
     ssl: bool = True,
 ) -> redis.RedisCluster:
-    """クラスターモード有効時のクライアント"""
+    """Client for cluster mode enabled"""
 
     return redis.RedisCluster(
         host=host,
@@ -960,23 +960,23 @@ def create_cluster_client(
 
 ---
 
-## 7. CloudWatch 監視
+## 7. CloudWatch Monitoring
 
-### 主要メトリクス一覧
+### Key Metrics List
 
-| メトリクス | 説明 | アラーム閾値 |
+| Metric | Description | Alarm Threshold |
 |---|---|---|
-| CacheHitRate | キャッシュヒット率 | < 80% |
-| CPUUtilization | CPU 使用率 | > 70% |
-| EngineCPUUtilization | Redis エンジン CPU | > 90% |
-| DatabaseMemoryUsagePercentage | メモリ使用率 | > 75% |
-| CurrConnections | 現在の接続数 | > 最大の 80% |
-| Evictions | エビクション数 | > 0（監視） |
-| ReplicationLag | レプリケーション遅延 | > 1 秒 |
-| SwapUsage | スワップ使用量 | > 0（要調査） |
-| NetworkBandwidthInAllowanceExceeded | ネットワーク帯域超過 | > 0 |
+| CacheHitRate | Cache hit rate | < 80% |
+| CPUUtilization | CPU usage | > 70% |
+| EngineCPUUtilization | Redis engine CPU | > 90% |
+| DatabaseMemoryUsagePercentage | Memory usage | > 75% |
+| CurrConnections | Current connections | > 80% of max |
+| Evictions | Eviction count | > 0 (monitor) |
+| ReplicationLag | Replication lag | > 1 second |
+| SwapUsage | Swap usage | > 0 (investigate) |
+| NetworkBandwidthInAllowanceExceeded | Network bandwidth exceeded | > 0 |
 
-### コード例 7: CloudWatch アラーム設定
+### Code Example 7: CloudWatch Alarm Configuration
 
 ```bash
 # メモリ使用率アラーム
@@ -1057,7 +1057,7 @@ aws cloudwatch put-metric-alarm \
 
 ---
 
-## 8. バックアップとリストア
+## 8. Backup and Restore
 
 ```bash
 # 手動スナップショットの作成
@@ -1096,35 +1096,35 @@ aws elasticache delete-snapshot \
 
 ---
 
-## 9. セキュリティ設計
+## 9. Security Design
 
-### 認証と暗号化
+### Authentication and Encryption
 
 ```
-ElastiCache セキュリティレイヤー:
-=================================
+ElastiCache Security Layers:
+==============================
 
-1. ネットワーク分離
-   - VPC 内に配置（パブリックアクセス不可）
-   - プライベートサブネットに配置
-   - セキュリティグループでアクセス元を制限
+1. Network Isolation
+   - Placed within VPC (no public access)
+   - Placed in private subnets
+   - Security groups restrict access sources
 
-2. 暗号化
-   - 転送中の暗号化 (TLS)
-   - 保管時の暗号化 (KMS)
+2. Encryption
+   - Encryption in transit (TLS)
+   - Encryption at rest (KMS)
 
-3. 認証
-   - Redis AUTH（パスワード認証）
-   - RBAC（ロールベースアクセス制御、Redis 7.0+）
-   - IAM 認証（ElastiCache Serverless）
+3. Authentication
+   - Redis AUTH (password authentication)
+   - RBAC (Role-Based Access Control, Redis 7.0+)
+   - IAM authentication (ElastiCache Serverless)
 
-4. 監査
-   - CloudTrail（API 操作の記録）
-   - Slow Log（スロークエリの記録）
-   - Engine Log（エンジンイベントの記録）
+4. Auditing
+   - CloudTrail (API operation logging)
+   - Slow Log (slow query logging)
+   - Engine Log (engine event logging)
 ```
 
-### コード例 8: AUTH 認証付き接続
+### Code Example 8: Connection with AUTH Authentication
 
 ```python
 import redis
@@ -1174,11 +1174,11 @@ aws elasticache modify-replication-group \
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### 1. キャッシュスタンピード（Thundering Herd）
+### 1. Cache Stampede (Thundering Herd)
 
-**問題**: 人気キーの TTL が切れた瞬間に、大量のリクエストが同時にキャッシュミスとなり、全てがデータベースに殺到する。
+**Problem**: When a popular key's TTL expires, a flood of requests simultaneously experience a cache miss, all rushing to the database at once.
 
 ```python
 # [NG] 単純な Cache-Aside
@@ -1224,15 +1224,15 @@ def set_with_jitter(key: str, data: Any, base_ttl: int = 300):
     redis.setex(key, base_ttl + jitter, json.dumps(data, default=str))
 ```
 
-### 2. 巨大なキーの格納
+### 2. Storing Huge Keys
 
-**問題**: 1つのキーに数 MB のデータを格納すると、読み書き時にブロッキングが発生し、クラスター全体の性能が劣化する。Redis はシングルスレッドでコマンドを処理するため影響が大きい。
+**Problem**: Storing several MB of data in a single key causes blocking during reads and writes, degrading performance across the entire cluster. The impact is significant because Redis processes commands in a single thread.
 
-**対策**: 大きなデータは分割して格納する。リストは `LRANGE` でページネーション、ハッシュは `HSCAN` で部分取得。1キーのサイズは 100KB 以下を目安とする。
+**Solution**: Split large data into multiple keys. Use `LRANGE` for list pagination and `HSCAN` for partial hash retrieval. Aim to keep each key under 100KB.
 
-### 3. KEYS コマンドの使用
+### 3. Using the KEYS Command
 
-**問題**: `KEYS *` はブロッキング操作で、Redis が応答不能になる。
+**Problem**: `KEYS *` is a blocking operation that makes Redis unresponsive.
 
 ```python
 # [NG] KEYS コマンド（本番環境で絶対に使用禁止）
@@ -1248,9 +1248,9 @@ while True:
         break
 ```
 
-### 4. 接続管理の不備
+### 4. Poor Connection Management
 
-**問題**: Lambda など短命なプロセスで毎回新しい接続を作成すると、接続数が爆発する。
+**Problem**: Creating a new connection on every invocation in short-lived processes like Lambda causes connection count explosion.
 
 ```python
 # [NG] 関数呼び出しごとに接続作成
@@ -1275,16 +1275,16 @@ def handler(event, context):
 
 ---
 
-## 実践演習
+## Hands-on Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
 # 演習1: 基本実装のテンプレート
@@ -1331,9 +1331,9 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
 # 演習2: 応用パターン
@@ -1400,9 +1400,9 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
 # 演習3: パフォーマンス最適化
@@ -1451,37 +1451,37 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## FAQ
 
-### Q1: ElastiCache と DynamoDB DAX はどう使い分けますか？
+### Q1: How should I choose between ElastiCache and DynamoDB DAX?
 
 **A**:
-- **ElastiCache**: 汎用キャッシュ。RDS・DynamoDB・API レスポンスなど何でもキャッシュ可能。セッション管理、ランキング等の独自データ構造にも対応
-- **DAX**: DynamoDB 専用キャッシュ。アプリケーションコードの変更最小限で DynamoDB の読み取りを高速化
+- **ElastiCache**: General-purpose cache. Can cache anything including RDS, DynamoDB, and API responses. Also supports custom data structures for session management, leaderboards, etc.
+- **DAX**: DynamoDB-dedicated cache. Accelerates DynamoDB reads with minimal application code changes.
 
-DynamoDB のみのキャッシュなら DAX、複数データソースや高度なデータ構造が必要なら ElastiCache を選択します。
+Choose DAX for caching DynamoDB only, and ElastiCache when you need multiple data sources or advanced data structures.
 
-### Q2: Redis のメモリが枯渇した場合どうなりますか？
+### Q2: What happens when Redis runs out of memory?
 
-**A**: エビクションポリシーに依存します。`allkeys-lru` なら古いキーが自動削除され、`noeviction` なら書き込みエラーが返ります。CloudWatch の `DatabaseMemoryUsagePercentage` を監視し、75% 超過でアラートを設定してください。
+**A**: It depends on the eviction policy. With `allkeys-lru`, old keys are automatically evicted. With `noeviction`, write errors are returned. Monitor `DatabaseMemoryUsagePercentage` in CloudWatch and set alerts when it exceeds 75%.
 
-### Q3: Redis クラスターモードの有効/無効はどう判断しますか？
+### Q3: How do I decide whether to enable or disable Redis cluster mode?
 
-**A**: データ量が単一ノードのメモリに収まるなら無効（シンプル）。データが大きい、または書き込みスループットをスケールしたい場合は有効（シャーディング）。クラスターモード有効時はマルチキー操作に制約（同一スロット内のみ）があるため、アクセスパターンとの整合性を確認してください。
+**A**: If data fits in a single node's memory, disable it (simpler). Enable it (sharding) when data is large or you need to scale write throughput. Note that with cluster mode enabled, multi-key operations are restricted (same slot only), so verify alignment with your access patterns.
 
-### Q4: ElastiCache のスケーリング方法は？
+### Q4: How do I scale ElastiCache?
 
-**A**: 以下の方法があります:
-1. **スケールアップ**: ノードタイプを変更（ダウンタイムあり）
-2. **スケールアウト（読み取り）**: レプリカノードを追加（最大5）
-3. **シャード追加（クラスターモード）**: オンラインリシャーディングでシャードを追加
-4. **ElastiCache Serverless**: 自動スケーリング対応のサーバーレスオプション
+**A**: The following methods are available:
+1. **Scale Up**: Change the node type (with downtime)
+2. **Scale Out (reads)**: Add replica nodes (up to 5)
+3. **Add Shards (cluster mode)**: Add shards via online resharding
+4. **ElastiCache Serverless**: Serverless option with automatic scaling
 
 ```bash
 # レプリカの追加
@@ -1503,36 +1503,36 @@ aws elasticache modify-replication-group-shard-configuration \
   --apply-immediately
 ```
 
-### Q5: ElastiCache Serverless とは？
+### Q5: What is ElastiCache Serverless?
 
-**A**: 2023年に発表された新しいオプションで、キャパシティの自動スケーリングとパッチ適用を自動管理します。ECPU（ElastiCache Processing Unit）とデータストレージ量に基づく従量課金で、小規模から大規模まで柔軟に対応できます。ただし、従来のノードベースと比較するとコスト単価は高くなるため、安定した高負荷ワークロードでは従来型が有利です。
+**A**: Announced in 2023, this is a new option that automatically manages capacity auto-scaling and patching. It uses pay-per-use pricing based on ECPU (ElastiCache Processing Unit) and data storage volume, flexibly accommodating everything from small to large scale. However, compared to traditional node-based pricing, the per-unit cost is higher, so traditional node-based instances are more cost-effective for stable, high-load workloads.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| サービス概要 | フルマネージドインメモリキャッシュ。Redis / Memcached を選択可能 |
-| エンジン選択 | 迷ったら Redis。データ構造・永続化・レプリケーション全対応 |
-| キャッシュ戦略 | Cache-Aside が基本。書き込み頻度が高い場合は Write-Behind |
-| 高可用性 | マルチ AZ + 自動フェイルオーバーで可用性を確保 |
-| メモリ管理 | allkeys-lru が標準。75% 以上でスケーリング検討 |
-| 監視 | CacheHitRate、CPUUtilization、DatabaseMemoryUsage が主要メトリクス |
-| セキュリティ | VPC 内配置 + TLS + AUTH/RBAC + 保管時暗号化 |
-| バックアップ | 自動スナップショット（最大35日）+ 手動スナップショット |
-| スケーリング | レプリカ追加（読み取り）、リシャーディング（書き込み）、ノードタイプ変更 |
+| Service Overview | Fully managed in-memory cache. Choose between Redis / Memcached |
+| Engine Selection | When in doubt, choose Redis. Supports data structures, persistence, and replication |
+| Caching Strategy | Cache-Aside is the default. Use Write-Behind for high write frequency |
+| High Availability | Ensure availability with Multi-AZ + automatic failover |
+| Memory Management | allkeys-lru is standard. Consider scaling at 75%+ usage |
+| Monitoring | CacheHitRate, CPUUtilization, and DatabaseMemoryUsage are key metrics |
+| Security | VPC placement + TLS + AUTH/RBAC + encryption at rest |
+| Backup | Automatic snapshots (up to 35 days) + manual snapshots |
+| Scaling | Add replicas (reads), resharding (writes), change node type |
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [RDS 基礎](./00-rds-basics.md) — キャッシュ対象のリレーショナルデータベース
-- [DynamoDB](./01-dynamodb.md) — NoSQL との組み合わせパターン
-- [VPC 基礎](../04-networking/00-vpc-basics.md) — ElastiCache のネットワーク配置
+- [RDS Basics](./00-rds-basics.md) --- Relational databases as cache targets
+- [DynamoDB](./01-dynamodb.md) --- Combination patterns with NoSQL
+- [VPC Basics](../04-networking/00-vpc-basics.md) --- Network placement for ElastiCache
 
-## 参考文献
+## References
 
-1. **AWS 公式ドキュメント**: [Amazon ElastiCache for Redis ユーザーガイド](https://docs.aws.amazon.com/ja_jp/AmazonElastiCache/latest/red-ug/) — 設定・運用の詳細リファレンス
-2. **Redis 公式**: [Redis Documentation](https://redis.io/docs/) — データ構造・コマンドリファレンス
-3. **AWS アーキテクチャブログ**: [Caching Best Practices](https://aws.amazon.com/caching/best-practices/) — AWS でのキャッシュ戦略ガイド
-4. **AWS Well-Architected**: [Performance Efficiency Pillar](https://docs.aws.amazon.com/wellarchitected/latest/performance-efficiency-pillar/) — キャッシュ設計のベストプラクティス
-5. **Redis University**: [Redis University](https://university.redis.com/) — 無料のオンライン学習コース
+1. **AWS Official Documentation**: [Amazon ElastiCache for Redis User Guide](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/) --- Detailed reference for configuration and operations
+2. **Redis Official**: [Redis Documentation](https://redis.io/docs/) --- Data structures and command reference
+3. **AWS Architecture Blog**: [Caching Best Practices](https://aws.amazon.com/caching/best-practices/) --- Caching strategy guide for AWS
+4. **AWS Well-Architected**: [Performance Efficiency Pillar](https://docs.aws.amazon.com/wellarchitected/latest/performance-efficiency-pillar/) --- Best practices for cache design
+5. **Redis University**: [Redis University](https://university.redis.com/) --- Free online learning courses
