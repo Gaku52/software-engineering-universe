@@ -1,112 +1,112 @@
-# データフェッチングパターン
+# Data Fetching Patterns
 
-> データフェッチングはWebアプリの核心。TanStack Query、SWR、React Server Components、Server Actions、それぞれのキャッシュ戦略と使い分けを理解し、高速で安定したデータ取得を実現する。
+> Data fetching is at the heart of web applications. Understand the cache strategies of TanStack Query, SWR, React Server Components, and Server Actions, and know when to use each to achieve fast and reliable data retrieval.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] データフェッチングの基本概念と歴史的変遷を理解する
-- [ ] TanStack QueryとSWRのキャッシュ戦略を深く理解する
-- [ ] Server ComponentsとServer Actionsの使い分けを把握する
-- [ ] オプティミスティックアップデートとリアルタイム更新を学ぶ
-- [ ] エラーハンドリング・リトライ戦略を実装できるようになる
-- [ ] パフォーマンス最適化とトラブルシューティングの知見を身につける
+- [ ] Understand the fundamental concepts and historical evolution of data fetching
+- [ ] Deeply understand the cache strategies of TanStack Query and SWR
+- [ ] Know when to use Server Components vs. Server Actions
+- [ ] Learn optimistic updates and real-time data synchronization
+- [ ] Implement error handling and retry strategies
+- [ ] Gain knowledge in performance optimization and troubleshooting
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will aid comprehension:
 
-- コンポーネント設計とServer/Client境界の理解 — [コンポーネント設計](./02-component-architecture.md)
-- Fetch APIとasync/awaitによる非同期処理の基本
-- HTTPメソッド（GET/POST/PUT/DELETE）とステータスコードの理解
+- Understanding of component design and Server/Client boundaries — [Component Architecture](./02-component-architecture.md)
+- Basics of asynchronous programming with the Fetch API and async/await
+- Understanding of HTTP methods (GET/POST/PUT/DELETE) and status codes
 
 ---
 
-## 1. データフェッチングの歴史的変遷と基本概念
+## 1. Historical Evolution and Basic Concepts of Data Fetching
 
-### 1.1 Webアプリケーションにおけるデータ取得の進化
+### 1.1 Evolution of Data Retrieval in Web Applications
 
-Webアプリケーションのデータフェッチングは、技術の進化とともに大きく変遷してきた。この歴史を理解することで、現在のパターンがなぜ存在し、どのような課題を解決しているのかが明確になる。
+Data fetching in web applications has undergone significant changes alongside technological advances. Understanding this history clarifies why current patterns exist and what problems they solve.
 
 ```
-データフェッチングの進化タイムライン:
+Data Fetching Evolution Timeline:
 
-  2000年代前半: 同期的なページリロード
-  ├─ フォーム送信 → サーバー処理 → 全ページ再描画
-  ├─ iframe を使った部分更新（ハック的手法）
-  └─ 制限: UXが悪い、サーバー負荷が高い
+  Early 2000s: Synchronous page reloads
+  ├─ Form submission → Server processing → Full page re-render
+  ├─ Partial updates via iframe (hacky approach)
+  └─ Limitation: Poor UX, high server load
 
-  2005-2010年: Ajax（XMLHttpRequest）の台頭
-  ├─ Gmail が Ajax を採用し、非同期通信が主流に
-  ├─ jQuery.ajax() が事実上の標準に
-  ├─ JSON が XML に代わるデータ形式として普及
-  └─ 課題: コールバック地獄、手動キャッシュ管理
+  2005-2010: Rise of Ajax (XMLHttpRequest)
+  ├─ Gmail adopted Ajax, making async communication mainstream
+  ├─ jQuery.ajax() became the de facto standard
+  ├─ JSON spread as a data format replacing XML
+  └─ Challenges: Callback hell, manual cache management
 
-  2015-2018年: Fetch API と Promise ベースの通信
-  ├─ Fetch API がブラウザ標準に
-  ├─ async/await で非同期コードの可読性が向上
-  ├─ Redux + redux-saga / redux-thunk でのデータ管理
-  └─ 課題: ボイラープレートが多い、状態管理が複雑
+  2015-2018: Fetch API and Promise-based communication
+  ├─ Fetch API became a browser standard
+  ├─ async/await improved readability of async code
+  ├─ Data management with Redux + redux-saga / redux-thunk
+  └─ Challenges: Lots of boilerplate, complex state management
 
-  2019-2022年: 専用データフェッチングライブラリの時代
-  ├─ React Query（現 TanStack Query）の登場
-  ├─ SWR（Vercel）の登場
-  ├─ Apollo Client / urql（GraphQL向け）
-  └─ 利点: キャッシュ、リトライ、楽観的更新が宣言的に
+  2019-2022: Era of dedicated data fetching libraries
+  ├─ React Query (now TanStack Query) emerged
+  ├─ SWR (Vercel) emerged
+  ├─ Apollo Client / urql (for GraphQL)
+  └─ Advantages: Declarative cache, retry, and optimistic updates
 
-  2023年以降: サーバーファーストアーキテクチャ
-  ├─ React Server Components（RSC）
+  2023 onwards: Server-first architecture
+  ├─ React Server Components (RSC)
   ├─ Server Actions
-  ├─ Next.js App Router の fetch() キャッシュ
-  └─ 利点: ゼロバンドルコスト、直接DB/API アクセス
+  ├─ fetch() cache in Next.js App Router
+  └─ Advantages: Zero bundle cost, direct DB/API access
 ```
 
-### 1.2 データフェッチングの基本パターン
+### 1.2 Fundamental Data Fetching Patterns
 
-モダンなWebアプリケーションで使用されるデータフェッチングのパターンは、大きく以下の5つに分類できる。
+Data fetching patterns used in modern web applications can be broadly classified into the following five categories.
 
 ```
-データフェッチングの5つの基本パターン:
+Five Fundamental Data Fetching Patterns:
 
-  1. フェッチ・オン・レンダー (Fetch-on-Render)
-     ├─ コンポーネントのマウント時にデータを取得
-     ├─ useEffect + fetch の典型パターン
-     ├─ 利点: シンプル、理解しやすい
-     └─ 欠点: ウォーターフォール問題、ローディング状態の管理
+  1. Fetch-on-Render
+     ├─ Fetch data when a component mounts
+     ├─ Typical pattern with useEffect + fetch
+     ├─ Advantage: Simple, easy to understand
+     └─ Drawback: Waterfall problem, manual loading state management
 
-  2. フェッチ・ゼン・レンダー (Fetch-Then-Render)
-     ├─ データ取得完了後にレンダリング開始
-     ├─ ルートレベルでデータを一括取得
-     ├─ 利点: ウォーターフォール回避
-     └─ 欠点: 全データ取得まで何も表示されない
+  2. Fetch-Then-Render
+     ├─ Begin rendering after data is fully fetched
+     ├─ Fetch all data at the route level
+     ├─ Advantage: Avoids waterfall
+     └─ Drawback: Nothing is shown until all data is fetched
 
-  3. レンダー・アズ・ユー・フェッチ (Render-As-You-Fetch)
-     ├─ レンダリングとデータ取得を同時に開始
-     ├─ Suspense + RSC の推奨パターン
-     ├─ 利点: 最速の初期表示、段階的な表示
-     └─ 欠点: 実装が複雑
+  3. Render-As-You-Fetch
+     ├─ Start rendering and fetching data simultaneously
+     ├─ Recommended pattern with Suspense + RSC
+     ├─ Advantage: Fastest initial display, progressive rendering
+     └─ Drawback: Complex to implement
 
-  4. サーバーサイドフェッチ (Server-Side Fetch)
-     ├─ サーバーでデータを取得しHTMLに含める
+  4. Server-Side Fetch
+     ├─ Fetch data on the server and include it in HTML
      ├─ SSR / SSG / ISR
-     ├─ 利点: SEO対応、初期表示の高速化
-     └─ 欠点: サーバー負荷、TTFBへの影響
+     ├─ Advantage: SEO support, faster initial display
+     └─ Drawback: Server load, impact on TTFB
 
-  5. ハイブリッドフェッチ (Hybrid Fetch)
-     ├─ サーバーとクライアントの組み合わせ
-     ├─ RSC + TanStack Query の併用
-     ├─ 利点: 最適なパフォーマンスとUX
-     └─ 欠点: 複雑なアーキテクチャ
+  5. Hybrid Fetch
+     ├─ Combination of server and client
+     ├─ RSC + TanStack Query combined
+     ├─ Advantage: Optimal performance and UX
+     └─ Drawback: Complex architecture
 ```
 
-### 1.3 データフェッチングにおける共通課題
+### 1.3 Common Challenges in Data Fetching
 
-どのパターンを選択しても、以下の課題に対処する必要がある。
+Regardless of the pattern chosen, the following challenges must be addressed.
 
 ```typescript
-// データフェッチングで対処すべき共通課題
+// Common challenges to address in data fetching
 
-// 1. ローディング状態の管理
-// Bad: boolean フラグの手動管理
+// 1. Loading state management
+// Bad: Manual boolean flag management
 const [loading, setLoading] = useState(false);
 const [error, setError] = useState<Error | null>(null);
 const [data, setData] = useState<User[] | null>(null);
@@ -120,25 +120,25 @@ useEffect(() => {
     .finally(() => setLoading(false));
 }, []);
 
-// Good: 専用ライブラリで宣言的に管理
+// Good: Declarative management with a dedicated library
 const { data, isLoading, error } = useQuery({
   queryKey: ['users'],
   queryFn: fetchUsers,
 });
 
-// 2. キャッシュの一貫性
-// 同じデータを複数コンポーネントで使用する場合、
-// キャッシュが一元管理されていないと不整合が生じる
+// 2. Cache consistency
+// When the same data is used across multiple components,
+// inconsistencies arise if the cache is not centrally managed
 
-// 3. 競合状態（Race Condition）
-// Bad: useEffect でのフェッチは競合状態を引き起こす
+// 3. Race condition
+// Bad: Fetching in useEffect can cause race conditions
 useEffect(() => {
-  // ユーザーが素早く切り替えると、古いレスポンスが
-  // 新しいレスポンスを上書きする可能性がある
+  // If the user switches quickly, old responses may
+  // overwrite newer ones
   fetchUser(userId).then(setUser);
 }, [userId]);
 
-// Good: AbortController でキャンセル
+// Good: Cancel with AbortController
 useEffect(() => {
   const controller = new AbortController();
 
@@ -151,73 +151,73 @@ useEffect(() => {
   return () => controller.abort();
 }, [userId]);
 
-// 4. エラーハンドリングとリトライ
-// ネットワークエラー、タイムアウト、認証エラーなど
-// 各種エラーに対する適切な処理が必要
+// 4. Error handling and retry
+// Appropriate handling is needed for network errors, timeouts, auth errors, etc.
 
-// 5. メモリリーク防止
-// アンマウントされたコンポーネントへの状態更新を防ぐ
+
+// 5. Preventing memory leaks
+// Prevent state updates to unmounted components
 ```
 
 ---
 
-## 2. データフェッチングの選択肢と比較
+## 2. Data Fetching Options and Comparison
 
-### 2.1 主要ライブラリ・フレームワークの比較表
+### 2.1 Comparison Table of Major Libraries and Frameworks
 
-| 特徴 | TanStack Query | SWR | Apollo Client | Server Components |
+| Feature | TanStack Query | SWR | Apollo Client | Server Components |
 |------|---------------|-----|---------------|-------------------|
-| ランタイム | クライアント | クライアント | クライアント | サーバー |
-| プロトコル | REST / GraphQL | REST / GraphQL | GraphQL | 直接DB/API |
-| バンドルサイズ | ~39KB (gzip: ~11KB) | ~12KB (gzip: ~4KB) | ~33KB (gzip: ~10KB) | 0KB（サーバー実行） |
-| キャッシュ | 高度（stale-while-revalidate） | stale-while-revalidate | 正規化キャッシュ | fetch() キャッシュ |
-| DevTools | あり（公式） | なし（非公式あり） | あり（公式） | なし |
-| 楽観的更新 | 組み込み | 手動実装 | 組み込み | N/A |
-| 無限スクロール | useInfiniteQuery | useSWRInfinite | fetchMore | N/A |
-| SSR サポート | Hydration 対応 | Hydration 対応 | SSR 対応 | ネイティブ |
-| リアルタイム | プラグイン | プラグイン | Subscriptions | N/A |
-| 学習コスト | 中 | 低 | 高 | 低〜中 |
-| TypeScript | フルサポート | フルサポート | フルサポート | フルサポート |
-| ページネーション | 組み込み | 手動 | 組み込み | 手動 |
-| リトライ | 設定可能 | 設定可能 | 手動 | 手動 |
+| Runtime | Client | Client | Client | Server |
+| Protocol | REST / GraphQL | REST / GraphQL | GraphQL | Direct DB/API |
+| Bundle size | ~39KB (gzip: ~11KB) | ~12KB (gzip: ~4KB) | ~33KB (gzip: ~10KB) | 0KB (server-side) |
+| Cache | Advanced (stale-while-revalidate) | stale-while-revalidate | Normalized cache | fetch() cache |
+| DevTools | Yes (official) | No (unofficial available) | Yes (official) | No |
+| Optimistic updates | Built-in | Manual implementation | Built-in | N/A |
+| Infinite scroll | useInfiniteQuery | useSWRInfinite | fetchMore | N/A |
+| SSR support | Hydration support | Hydration support | SSR support | Native |
+| Real-time | Plugin | Plugin | Subscriptions | N/A |
+| Learning cost | Medium | Low | High | Low–Medium |
+| TypeScript | Full support | Full support | Full support | Full support |
+| Pagination | Built-in | Manual | Built-in | Manual |
+| Retry | Configurable | Configurable | Manual | Manual |
 
-### 2.2 選定フローチャート
+### 2.2 Selection Flowchart
 
 ```
-データフェッチング方式の選定:
+Data Fetching Strategy Selection:
 
-  Q1: SEOが必要か？
-  ├─ YES → Q2: データの更新頻度は？
-  │        ├─ 低い（ブログ等）→ SSG / ISR
-  │        ├─ 中程度 → SSR (Server Components)
-  │        └─ 高い（リアルタイム）→ SSR + クライアント再検証
+  Q1: Is SEO required?
+  ├─ YES → Q2: How frequently does data update?
+  │        ├─ Low (blog, etc.) → SSG / ISR
+  │        ├─ Moderate → SSR (Server Components)
+  │        └─ High (real-time) → SSR + client revalidation
   │
-  └─ NO → Q3: データの更新パターンは？
-           ├─ 読み取り中心 → Q4
-           ├─ 書き込み中心 → Server Actions + useMutation
-           └─ リアルタイム → TanStack Query + WebSocket / SSE
+  └─ NO → Q3: What is the data update pattern?
+           ├─ Read-heavy → Q4
+           ├─ Write-heavy → Server Actions + useMutation
+           └─ Real-time → TanStack Query + WebSocket / SSE
 
-  Q4: アプリケーションの規模は？
-  ├─ 小規模・シンプル → SWR
-  ├─ 中〜大規模 → TanStack Query
+  Q4: What is the scale of the application?
+  ├─ Small / Simple → SWR
+  ├─ Medium to Large → TanStack Query
   └─ GraphQL API → Apollo Client / urql
 
-選定基準の詳細:
-  ・データ読み取り（SEO不要）: TanStack Query / SWR
-  ・データ読み取り（SEO必要）: Server Components
-  ・データ変更: Server Actions + revalidate
-  ・リアルタイム: TanStack Query + WebSocket
-  ・GraphQL: Apollo Client + codegen
-  ・小規模プロジェクト: SWR（軽量、シンプル）
-  ・大規模プロジェクト: TanStack Query（多機能、DevTools）
+Detailed Selection Criteria:
+  · Read-only (no SEO): TanStack Query / SWR
+  · Read-only (with SEO): Server Components
+  · Data mutation: Server Actions + revalidate
+  · Real-time: TanStack Query + WebSocket
+  · GraphQL: Apollo Client + codegen
+  · Small project: SWR (lightweight, simple)
+  · Large project: TanStack Query (feature-rich, DevTools)
 ```
 
-### 2.3 各方式のアーキテクチャ図
+### 2.3 Architecture Diagrams for Each Approach
 
 ```
-■ クライアントサイドフェッチング（TanStack Query / SWR）
+■ Client-side Fetching (TanStack Query / SWR)
 
-  ブラウザ                           サーバー
+  Browser                            Server
   ┌──────────────────┐              ┌──────────────┐
   │  React Component │              │              │
   │  ┌────────────┐  │   HTTP/REST  │   API Server │
@@ -229,9 +229,9 @@ useEffect(() => {
   │  └────────────┘  │
   └──────────────────┘
 
-■ サーバーサイドフェッチング（React Server Components）
+■ Server-side Fetching (React Server Components)
 
-  サーバー                           ブラウザ
+  Server                             Browser
   ┌──────────────────┐              ┌──────────────┐
   │  Server Component│              │              │
   │  ┌────────────┐  │   RSC Stream │  Client      │
@@ -239,16 +239,16 @@ useEffect(() => {
   │  │ / Prisma   │  │              │              │
   │  └────────────┘  │              └──────────────┘
   │  ┌────────────┐  │
-  │  │ DB / API   │  │  ← 直接アクセス（ネットワーク不要）
+  │  │ DB / API   │  │  ← Direct access (no network hop)
   │  └────────────┘  │
   └──────────────────┘
 
-■ ハイブリッドフェッチング（RSC + TanStack Query）
+■ Hybrid Fetching (RSC + TanStack Query)
 
   サーバー                  ブラウザ
   ┌────────────┐           ┌─────────────────────┐
   │ RSC        │  Hydrate  │ Client Component     │
-  │ 初期データ  │─────────→│ ┌─────────────────┐  │
+  │ Initial    │─────────→│ ┌─────────────────┐  │
   │ prefetch   │           │ │ TanStack Query   │  │
   └────────────┘           │ │ hydrate + refetch│  │
                            │ └─────────────────┘  │
@@ -257,58 +257,58 @@ useEffect(() => {
 
 ---
 
-## 3. TanStack Query 完全ガイド
+## 3. TanStack Query Complete Guide
 
-### 3.1 セットアップとグローバル設定
+### 3.1 Setup and Global Configuration
 
 ```typescript
 // lib/query-client.ts
 import { QueryClient } from '@tanstack/react-query';
 
-// QueryClient のシングルトンインスタンスを作成
-// サーバーサイドではリクエストごとに新しいインスタンスを作成する必要がある
+// Create a singleton instance of QueryClient
+// On the server, a new instance must be created per request
 function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        // === キャッシュ制御 ===
-        staleTime: 60 * 1000,           // 60秒間はキャッシュを新鮮とみなす
-        gcTime: 5 * 60 * 1000,          // 5分間キャッシュをメモリに保持（旧 cacheTime）
-        refetchInterval: false,          // 自動ポーリング無効（必要な箇所で有効に）
+        // === Cache control ===
+        staleTime: 60 * 1000,           // Consider cache fresh for 60 seconds
+        gcTime: 5 * 60 * 1000,          // Keep cache in memory for 5 min (formerly cacheTime)
+        refetchInterval: false,          // Disable auto-polling (enable where needed)
 
-        // === リトライ制御 ===
-        retry: 3,                        // 失敗時に3回リトライ
-        retryDelay: (attemptIndex) =>     // 指数バックオフ
+        // === Retry control ===
+        retry: 3,                        // Retry 3 times on failure
+        retryDelay: (attemptIndex) =>     // Exponential backoff
           Math.min(1000 * 2 ** attemptIndex, 30000),
 
-        // === 再取得トリガー ===
-        refetchOnWindowFocus: true,      // ウィンドウフォーカス時に再取得
-        refetchOnReconnect: true,        // ネットワーク再接続時に再取得
-        refetchOnMount: true,            // コンポーネントマウント時に再取得
+        // === Refetch triggers ===
+        refetchOnWindowFocus: true,      // Refetch on window focus
+        refetchOnReconnect: true,        // Refetch on network reconnect
+        refetchOnMount: true,            // Refetch on component mount
 
-        // === 構造的共有 ===
-        structuralSharing: true,         // データの参照的同一性を保持
+        // === Structural sharing ===
+        structuralSharing: true,         // Maintain referential equality of data
 
-        // === ネットワーク状態 ===
-        networkMode: 'online',           // オフライン時はリクエストを一時停止
+        // === Network mode ===
+        networkMode: 'online',           // Pause requests when offline
       },
       mutations: {
-        retry: 1,                        // ミューテーションは1回だけリトライ
+        retry: 1,                        // Retry mutations only once
         networkMode: 'online',
       },
     },
   });
 }
 
-// ブラウザではシングルトン、サーバーでは毎回新規作成
+// Singleton in the browser, create new instance per request on the server
 let browserQueryClient: QueryClient | undefined;
 
 export function getQueryClient() {
   if (typeof window === 'undefined') {
-    // サーバー: 常に新しいインスタンスを作成
+    // Server: always create a new instance
     return makeQueryClient();
   }
-  // ブラウザ: シングルトンを使用
+  // Browser: use singleton
   if (!browserQueryClient) {
     browserQueryClient = makeQueryClient();
   }
@@ -325,7 +325,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { getQueryClient } from '@/lib/query-client';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  // NOTE: useState を使わないことで、Suspense 境界での再作成を防ぐ
+  // NOTE: Not using useState prevents re-creation across Suspense boundaries
   const queryClient = getQueryClient();
 
   return (
@@ -339,13 +339,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
 }
 ```
 
-### 3.2 Query Key の設計パターン
+### 3.2 Query Key Design Patterns
 
-Query Key は TanStack Query のキャッシュシステムの根幹であり、適切な設計が不可欠である。
+Query Keys are the foundation of the TanStack Query cache system; thoughtful design is essential.
 
 ```typescript
 // lib/query-keys.ts
-// Query Key Factory パターン — 大規模アプリで推奨
+// Query Key Factory pattern — recommended for large apps
 
 export const queryKeys = {
   // === Users ===
@@ -389,7 +389,7 @@ export const queryKeys = {
   },
 } as const;
 
-// 型定義
+// Type definitions
 interface UserFilters {
   role?: 'admin' | 'user' | 'moderator';
   status?: 'active' | 'inactive';
@@ -414,34 +414,34 @@ interface OrderFilters {
 ```
 
 ```typescript
-// Query Key Factory の使用例
+// Usage examples for the Query Key Factory
 
-// 全ユーザーキャッシュの無効化
+// Invalidate all user caches
 queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
 
-// フィルタ付きリストの無効化
+// Invalidate filtered list
 queryClient.invalidateQueries({
   queryKey: queryKeys.users.list({ role: 'admin' }),
 });
 
-// 特定ユーザーの詳細キャッシュのみ無効化
+// Invalidate only the detail cache for a specific user
 queryClient.invalidateQueries({
   queryKey: queryKeys.users.detail('user-123'),
 });
 
-// 全リスト系キャッシュの無効化（フィルタに関係なく）
+// Invalidate all list caches (regardless of filters)
 queryClient.invalidateQueries({
   queryKey: queryKeys.users.lists(),
 });
 
-// 特定ユーザーに関連する全キャッシュの無効化
-// （詳細 + プロフィール + 投稿）
+// Invalidate all caches related to a specific user
+// (detail + profile + posts)
 queryClient.invalidateQueries({
   queryKey: queryKeys.users.detail('user-123'),
 });
 ```
 
-### 3.3 カスタムフック設計パターン
+### 3.3 Custom Hook Design Patterns
 
 ```typescript
 // hooks/use-users.ts
@@ -451,7 +451,7 @@ import { api } from '@/lib/api-client';
 import type { User, CreateUserInput, UpdateUserInput, UserFilters } from '@/types';
 
 /**
- * ユーザー一覧を取得するカスタムフック
+ * Custom hook to fetch a list of users
  *
  * @example
  * ```tsx
@@ -462,14 +462,14 @@ export function useUsers(filters?: UserFilters) {
   return useQuery({
     queryKey: queryKeys.users.list(filters ?? {}),
     queryFn: () => api.users.list(filters),
-    staleTime: 30 * 1000, // 30秒間キャッシュ
-    placeholderData: (previousData) => previousData, // ページ切替時に前のデータを表示
+    staleTime: 30 * 1000, // Cache for 30 seconds
+    placeholderData: (previousData) => previousData, // Show previous data during page transitions
   });
 }
 
 /**
- * ユーザー詳細を取得するカスタムフック
- * 一覧データからの初期データ設定により、即座に表示可能
+ * Custom hook to fetch user details
+ * Sets initial data from list cache for instant display
  */
 export function useUser(userId: string) {
   const queryClient = useQueryClient();
@@ -477,8 +477,8 @@ export function useUser(userId: string) {
   return useQuery({
     queryKey: queryKeys.users.detail(userId),
     queryFn: () => api.users.get(userId),
-    staleTime: 5 * 60 * 1000, // 5分間キャッシュ
-    // 一覧データのキャッシュから初期データを設定
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    // Set initial data from the list cache
     initialData: () => {
       const listsCache = queryClient.getQueriesData<{ users: User[] }>({
         queryKey: queryKeys.users.lists(),
@@ -490,7 +490,7 @@ export function useUser(userId: string) {
       return undefined;
     },
     initialDataUpdatedAt: () => {
-      // 初期データのタイムスタンプを取得（staleTime の計算に使用）
+      // Get the timestamp of initial data (used for staleTime calculation)
       return queryClient.getQueryState(queryKeys.users.lists())
         ?.dataUpdatedAt;
     },
@@ -498,21 +498,21 @@ export function useUser(userId: string) {
 }
 
 /**
- * ユーザー検索フック（デバウンス付き）
+ * User search hook (with debounce)
  */
 export function useUserSearch(searchTerm: string) {
   return useQuery({
     queryKey: queryKeys.users.list({ search: searchTerm }),
     queryFn: () => api.users.search(searchTerm),
-    enabled: searchTerm.length >= 2, // 2文字以上で検索開始
+    enabled: searchTerm.length >= 2, // Start searching after 2+ characters
     staleTime: 10 * 1000,
     placeholderData: (previousData) => previousData,
   });
 }
 
 /**
- * ユーザー作成ミューテーション
- * 成功時にリストキャッシュを自動無効化
+ * User creation mutation
+ * Automatically invalidates the list cache on success
  */
 export function useCreateUser() {
   const queryClient = useQueryClient();
@@ -520,11 +520,11 @@ export function useCreateUser() {
   return useMutation({
     mutationFn: (data: CreateUserInput) => api.users.create(data),
     onSuccess: (newUser) => {
-      // リストキャッシュを無効化して再取得
+      // Invalidate list cache and re-fetch
       queryClient.invalidateQueries({
         queryKey: queryKeys.users.lists(),
       });
-      // 新しいユーザーの詳細キャッシュを設定
+      // Set detail cache for the new user
       queryClient.setQueryData(
         queryKeys.users.detail(newUser.id),
         newUser,
@@ -537,7 +537,7 @@ export function useCreateUser() {
 }
 
 /**
- * ユーザー更新ミューテーション（楽観的更新付き）
+ * User update mutation (with optimistic update)
  */
 export function useUpdateUser() {
   const queryClient = useQueryClient();
@@ -547,17 +547,17 @@ export function useUpdateUser() {
       api.users.update(id, data),
 
     onMutate: async ({ id, data }) => {
-      // 進行中のクエリをキャンセル
+      // Cancel in-flight queries
       await queryClient.cancelQueries({
         queryKey: queryKeys.users.detail(id),
       });
 
-      // スナップショットを保存
+      // Save snapshot
       const previousUser = queryClient.getQueryData<User>(
         queryKeys.users.detail(id),
       );
 
-      // 楽観的にキャッシュを更新
+      // Optimistically update the cache
       if (previousUser) {
         queryClient.setQueryData(
           queryKeys.users.detail(id),
@@ -569,7 +569,7 @@ export function useUpdateUser() {
     },
 
     onError: (error, { id }, context) => {
-      // エラー時にロールバック
+      // Roll back on error
       if (context?.previousUser) {
         queryClient.setQueryData(
           queryKeys.users.detail(id),
@@ -579,7 +579,7 @@ export function useUpdateUser() {
     },
 
     onSettled: (data, error, { id }) => {
-      // 最新データで再検証
+      // Revalidate with fresh data
       queryClient.invalidateQueries({
         queryKey: queryKeys.users.detail(id),
       });
@@ -591,7 +591,7 @@ export function useUpdateUser() {
 }
 
 /**
- * ユーザー削除ミューテーション
+ * User deletion mutation
  */
 export function useDeleteUser() {
   const queryClient = useQueryClient();
@@ -604,7 +604,7 @@ export function useDeleteUser() {
         queryKey: queryKeys.users.lists(),
       });
 
-      // 全リストキャッシュから楽観的に削除
+      // Optimistically remove from all list caches
       const previousLists = queryClient.getQueriesData<{ users: User[] }>({
         queryKey: queryKeys.users.lists(),
       });
@@ -621,7 +621,7 @@ export function useDeleteUser() {
     },
 
     onError: (error, userId, context) => {
-      // ロールバック
+      // Rollback
       context?.previousLists.forEach(([queryKey, data]) => {
         queryClient.setQueryData(queryKey, data);
       });
@@ -636,7 +636,7 @@ export function useDeleteUser() {
 }
 ```
 
-### 3.4 無限スクロールの実装
+### 3.4 Implementing Infinite Scroll
 
 ```typescript
 // hooks/use-infinite-products.ts
@@ -660,15 +660,15 @@ export function useInfiniteProducts(filters?: ProductFilters) {
     }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage: ProductsResponse) => lastPage.nextCursor,
-    // 前のページパラメータ（双方向スクロール時）
+    // Previous page param (for bidirectional scroll)
     getPreviousPageParam: undefined,
     staleTime: 60 * 1000,
-    // 最大ページ数を制限（メモリ節約）
+    // Limit max pages (memory saving)
     maxPages: 10,
   });
 }
 
-// コンポーネントでの使用
+// Usage in a component
 function InfiniteProductList() {
   const {
     data,
@@ -679,7 +679,7 @@ function InfiniteProductList() {
     error,
   } = useInfiniteProducts({ category: 'electronics' });
 
-  // Intersection Observer で自動読み込み
+  // Auto-load with Intersection Observer
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -715,7 +715,7 @@ function InfiniteProductList() {
       <div ref={loadMoreRef} className="h-20 flex items-center justify-center">
         {isFetchingNextPage && <Spinner />}
         {!hasNextPage && allProducts.length > 0 && (
-          <p className="text-gray-500">全ての商品を表示しました</p>
+          <p className="text-gray-500">All products displayed</p>
         )}
       </div>
     </div>
@@ -723,10 +723,10 @@ function InfiniteProductList() {
 }
 ```
 
-### 3.5 Prefetch とサーバーサイド統合
+### 3.5 Prefetch and Server-side Integration
 
 ```typescript
-// TanStack Query と Server Components の統合（Next.js App Router）
+// TanStack Query integration with Server Components (Next.js App Router)
 
 // app/users/page.tsx — Server Component
 import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
@@ -738,7 +738,7 @@ import { UserListClient } from './user-list-client';
 export default async function UsersPage() {
   const queryClient = getQueryClient();
 
-  // サーバーサイドでデータを事前取得
+  // Pre-fetch data on the server side
   await queryClient.prefetchQuery({
     queryKey: queryKeys.users.list({}),
     queryFn: () => api.users.list(),
@@ -757,8 +757,8 @@ export default async function UsersPage() {
 import { useUsers } from '@/hooks/use-users';
 
 export function UserListClient() {
-  // サーバーで prefetch したデータが即座に利用可能
-  // isLoading は false でスタート
+  // Data prefetched on the server is instantly available
+  // isLoading starts as false
   const { data, isLoading, error } = useUsers();
 
   if (isLoading) return <Skeleton />;
@@ -775,9 +775,9 @@ export function UserListClient() {
 ```
 
 ```typescript
-// Router レベルの Prefetch（ナビゲーション前にデータを取得）
+// Route-level Prefetch (fetch data before navigation)
 
-// リンクホバー時にプリフェッチ
+// Prefetch on link hover
 function UserLink({ userId, children }: { userId: string; children: React.ReactNode }) {
   const queryClient = useQueryClient();
 
@@ -801,40 +801,40 @@ function UserLink({ userId, children }: { userId: string; children: React.ReactN
 }
 ```
 
-### 3.6 ポーリングとリアルタイム連携
+### 3.6 Polling and Real-time Integration
 
 ```typescript
-// ポーリングによるリアルタイム更新
+// Real-time updates via polling
 
-// 通知カウントの定期取得
+// Periodic fetch of notification count
 export function useNotificationCount() {
   return useQuery({
     queryKey: ['notifications', 'count'],
     queryFn: () => api.notifications.getUnreadCount(),
-    refetchInterval: 30 * 1000,          // 30秒ごとにポーリング
-    refetchIntervalInBackground: false,   // バックグラウンドではポーリングしない
+    refetchInterval: 30 * 1000,          // Poll every 30 seconds
+    refetchIntervalInBackground: false,   // Do not poll in background
     staleTime: 10 * 1000,
   });
 }
 
-// ジョブの進捗状態をポーリング（完了したらポーリング停止）
+// Poll job progress status (stop polling when complete)
 export function useJobStatus(jobId: string) {
   return useQuery({
     queryKey: ['jobs', jobId],
     queryFn: () => api.jobs.getStatus(jobId),
     refetchInterval: (query) => {
-      // ジョブ完了時はポーリングを停止
+      // Stop polling when job is complete
       const status = query.state.data?.status;
       if (status === 'completed' || status === 'failed') {
         return false;
       }
-      return 2000; // 2秒ごとにポーリング
+      return 2000; // Poll every 2 seconds
     },
     enabled: !!jobId,
   });
 }
 
-// WebSocket との統合
+// WebSocket integration
 export function useRealtimeOrders() {
   const queryClient = useQueryClient();
 
@@ -846,14 +846,14 @@ export function useRealtimeOrders() {
 
       switch (update.type) {
         case 'ORDER_CREATED':
-          // リストキャッシュを無効化
+          // Invalidate list cache
           queryClient.invalidateQueries({
             queryKey: queryKeys.orders.lists(),
           });
           break;
 
         case 'ORDER_UPDATED':
-          // 特定の注文キャッシュを直接更新
+          // Directly update the specific order cache
           queryClient.setQueryData(
             queryKeys.orders.detail(update.orderId),
             (old: Order | undefined) =>
@@ -862,7 +862,7 @@ export function useRealtimeOrders() {
           break;
 
         case 'ORDER_DELETED':
-          // キャッシュから削除
+          // Remove from cache
           queryClient.removeQueries({
             queryKey: queryKeys.orders.detail(update.orderId),
           });
@@ -874,7 +874,7 @@ export function useRealtimeOrders() {
     };
 
     ws.onerror = () => {
-      // WebSocket エラー時はポーリングにフォールバック
+      // Fall back to polling on WebSocket error
       console.warn('WebSocket error, falling back to polling');
     };
 
@@ -891,17 +891,17 @@ export function useRealtimeOrders() {
 
 ---
 
-## 4. SWR 詳細ガイド
+## 4. SWR Detailed Guide
 
-### 4.1 SWR の基本と設定
+### 4.1 SWR Basics and Configuration
 
-SWR（stale-while-revalidate）は Vercel が開発した軽量なデータフェッチングライブラリである。名前の通り、HTTP キャッシュ無効化戦略である stale-while-revalidate に基づいている。
+SWR (stale-while-revalidate) is a lightweight data fetching library developed by Vercel. As the name implies, it is based on the stale-while-revalidate HTTP cache invalidation strategy.
 
 ```typescript
 // lib/swr-config.tsx
 import { SWRConfig } from 'swr';
 
-// グローバルフェッチャー関数
+// Global fetcher function
 const fetcher = async (url: string) => {
   const res = await fetch(url);
 
@@ -920,27 +920,27 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
     <SWRConfig
       value={{
         fetcher,
-        // === キャッシュ制御 ===
+        // === Cache control ===
         dedupingInterval: 2000,         // 2秒以内の同一リクエストを重複排除
-        revalidateOnFocus: true,        // フォーカス時に再検証
-        revalidateOnReconnect: true,    // ネットワーク復帰時に再検証
-        revalidateIfStale: true,        // マウント時にstaleデータを再検証
+        revalidateOnFocus: true,        // Revalidate on focus
+        revalidateOnReconnect: true,    // Revalidate on network reconnect
+        revalidateIfStale: true,        // Revalidate stale data on mount
 
-        // === エラーハンドリング ===
+        // === Error handling ===
         shouldRetryOnError: true,
         errorRetryCount: 3,
         errorRetryInterval: 5000,
 
-        // === ローディング ===
-        loadingTimeout: 3000,           // 3秒でslow判定
-        focusThrottleInterval: 5000,    // フォーカス再検証のスロットル
+        // === Loading ===
+        loadingTimeout: 3000,           // Mark as slow after 3 seconds
+        focusThrottleInterval: 5000,    // Throttle for focus revalidation
 
-        // === カスタムキャッシュプロバイダー ===
+        // === Custom cache provider ===
         provider: () => new Map(),
 
         onError: (error, key) => {
           if (error.status === 403 || error.status === 401) {
-            // 認証エラーのグローバルハンドリング
+            // Global handling for auth errors
             console.error(`Auth error for ${key}:`, error);
           }
         },
@@ -956,7 +956,7 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-### 4.2 SWR の実践的な使用パターン
+### 4.2 Practical SWR Usage Patterns
 
 ```typescript
 // hooks/use-swr-users.ts
@@ -964,24 +964,24 @@ import useSWR from 'swr';
 import useSWRMutation from 'swr/mutation';
 import useSWRInfinite from 'swr/infinite';
 
-// 基本的なデータ取得
+// Basic data fetching
 export function useUser(userId: string | undefined) {
   return useSWR(
-    userId ? `/api/users/${userId}` : null, // null でフェッチを無効化
+    userId ? `/api/users/${userId}` : null, // null disables fetching
   );
 }
 
-// 条件付きフェッチ
+// Conditional fetching
 export function useUserProfile(userId: string | undefined, enabled: boolean) {
   return useSWR(
     enabled && userId ? `/api/users/${userId}/profile` : null,
   );
 }
 
-// 依存フェッチ（前のデータに依存）
+// Dependent fetching (depends on previous data)
 export function useUserProjects(userId: string | undefined) {
   const { data: user } = useUser(userId);
-  // user データが取得されるまでフェッチしない
+  // Do not fetch until user data is available
   return useSWR(
     user ? `/api/users/${user.id}/projects` : null,
   );
@@ -1003,28 +1003,28 @@ export function useCreateUser() {
   );
 }
 
-// 無限スクロール with SWR
+// Infinite scroll with SWR
 export function useInfiniteUsers() {
   const getKey = (pageIndex: number, previousPageData: any) => {
-    // 最後のページに到達
+    // Reached the last page
     if (previousPageData && !previousPageData.nextCursor) return null;
 
-    // 最初のページ
+    // First page
     if (pageIndex === 0) return '/api/users?limit=20';
 
-    // 次のページ
+    // Next page
     return `/api/users?cursor=${previousPageData.nextCursor}&limit=20`;
   };
 
   return useSWRInfinite(getKey);
 }
 
-// 楽観的更新 with SWR
+// Optimistic update with SWR
 export function useToggleLike(postId: string) {
   const { data, mutate } = useSWR(`/api/posts/${postId}`);
 
   const toggleLike = async () => {
-    // 楽観的更新
+    // Optimistic update
     const optimisticData = {
       ...data,
       isLiked: !data.isLiked,
@@ -1036,13 +1036,13 @@ export function useToggleLike(postId: string) {
         fetch(`/api/posts/${postId}/like`, { method: 'POST' }).then(r => r.json()),
         {
           optimisticData,
-          rollbackOnError: true,  // エラー時に自動ロールバック
-          populateCache: true,    // レスポンスでキャッシュを更新
-          revalidate: false,      // 再検証しない（レスポンスを信頼）
+          rollbackOnError: true,  // Auto-rollback on error
+          populateCache: true,    // Update cache with response
+          revalidate: false,      // Skip revalidation (trust the response)
         },
       );
     } catch (error) {
-      // ロールバックは自動で行われる
+      // Rollbackは自動で行われる
       console.error('Failed to toggle like:', error);
     }
   };
@@ -1051,51 +1051,51 @@ export function useToggleLike(postId: string) {
 }
 ```
 
-### 4.3 TanStack Query vs SWR 詳細比較
+### 4.3 TanStack Query vs SWR Detailed Comparison
 
 ```
-TanStack Query vs SWR の詳細比較:
+TanStack Query vs SWR Detailed Comparison:
 
-  バンドルサイズ:
-  ├─ SWR:           ~4KB (gzipped)      ← 軽量
-  └─ TanStack Query: ~11KB (gzipped)    ← 多機能
+  Bundle size:
+  ├─ SWR:           ~4KB (gzipped)      ← Lightweight
+  └─ TanStack Query: ~11KB (gzipped)    ← Feature-rich
 
-  API 設計思想:
-  ├─ SWR:           URL ベースのキー     ← シンプル
-  └─ TanStack Query: 配列ベースのキー    ← 柔軟
+  API design philosophy:
+  ├─ SWR:           URL-based keys       ← Simple
+  └─ TanStack Query: Array-based keys    ← Flexible
 
   DevTools:
-  ├─ SWR:           公式なし（SWR DevTools 非公式）
-  └─ TanStack Query: 公式 DevTools       ← デバッグに強い
+  ├─ SWR:           No official (SWR DevTools is unofficial)
+  └─ TanStack Query: Official DevTools    ← Strong debugging
 
-  ミューテーション:
+  Mutations:
   ├─ SWR:           mutate() / useSWRMutation
-  └─ TanStack Query: useMutation + onMutate/onSuccess/onError ← 高度な制御
+  └─ TanStack Query: useMutation + onMutate/onSuccess/onError ← Advanced control
 
-  ページネーション:
-  ├─ SWR:           useSWRInfinite       ← 基本的
-  └─ TanStack Query: useInfiniteQuery    ← 双方向、maxPages
+  Pagination:
+  ├─ SWR:           useSWRInfinite       ← Basic
+  └─ TanStack Query: useInfiniteQuery    ← Bidirectional, maxPages
 
-  SSR 統合:
-  ├─ SWR:           fallback prop        ← シンプル
-  └─ TanStack Query: dehydrate/hydrate   ← 完全制御
+  SSR integration:
+  ├─ SWR:           fallback prop        ← Simple
+  └─ TanStack Query: dehydrate/hydrate   ← Full control
 
-  オフラインサポート:
-  ├─ SWR:           基本的
-  └─ TanStack Query: networkMode 設定    ← 高度
+  Offline support:
+  ├─ SWR:           Basic
+  └─ TanStack Query: networkMode setting  ← Advanced
 
-  推奨シーン:
-  ├─ SWR:           小〜中規模、シンプルなREST API、Next.js プロジェクト
-  └─ TanStack Query: 中〜大規模、複雑なキャッシュ要件、多様なデータソース
+  Recommended scenarios:
+  ├─ SWR:           Small to medium scale, simple REST API, Next.js projects
+  └─ TanStack Query: Medium to large scale, complex cache requirements, diverse data sources
 ```
 
 ---
 
-## 5. オプティミスティックアップデート（楽観的更新）
+## 5. Optimistic Updates
 
-### 5.1 基本概念と設計原則
+### 5.1 Basic Concepts and Design Principles
 
-オプティミスティックアップデート（楽観的更新）は、サーバーのレスポンスを待たずに UI を即座に更新するパターンである。ユーザー体験を大幅に向上させるが、失敗時のロールバック処理を適切に実装する必要がある。
+Optimistic updates are a pattern that immediately updates the UI without waiting for a server response. They greatly improve user experience, but require proper implementation of rollback handling on failure.
 
 ```
 楽観的更新のフロー:

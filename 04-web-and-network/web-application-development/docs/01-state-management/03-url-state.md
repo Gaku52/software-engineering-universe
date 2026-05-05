@@ -1,190 +1,190 @@
-# URL状態（URL State Management）
+# URL State (URL State Management)
 
-> URL状態はWebアプリの「共有可能な状態」。検索クエリ、フィルタ、ページ番号、ソート順をURLに反映することで、ブックマーク・共有・ブラウザバックが自然に動作するUXを実現する。URL は単なるリソースの識別子ではなく、アプリケーションの状態を永続化するための強力なメカニズムである。
+> URL state is the "shareable state" of web apps. By reflecting search queries, filters, page numbers, and sort orders in the URL, you naturally achieve UX where bookmarking, sharing, and browser back/forward work as expected. The URL is not merely a resource identifier — it is a powerful mechanism for persisting application state.
 
-## 前提知識
+## Prerequisites
 
-この章を効果的に学習するために、以下の知識を事前に習得しておくことを推奨する:
+To learn this chapter effectively, it is recommended to have prior knowledge of the following:
 
-  - TanStack Query の基本的な使い方
-  - キャッシュの概念と stale-while-revalidate パターン
-  - queryKey によるデータ識別の仕組み
-- **クライアントサイドルーティングの概念**
-  - React Router または Next.js App Router の基本
-  - ブラウザ履歴 API（pushState, replaceState）の理解
-  - 宣言的ナビゲーションと命令的ナビゲーションの違い
-- **URL のクエリパラメータ**
-  - URLSearchParams API の基本的な使い方
-  - クエリ文字列のエンコード/デコード
-  - URL の構造（pathname, search, hash）の理解
+  - Basic usage of TanStack Query
+  - The concept of caching and the stale-while-revalidate pattern
+  - How data is identified by queryKey
+- **Concept of client-side routing**
+  - Basics of React Router or Next.js App Router
+  - Understanding the browser History API (pushState, replaceState)
+  - Difference between declarative and imperative navigation
+- **URL query parameters**
+  - Basic usage of the URLSearchParams API
+  - Encoding/decoding of query strings
+  - Understanding URL structure (pathname, search, hash)
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] URL状態の重要性と設計原則を理解する
-- [ ] URLSearchParams API の基本操作を習得する
-- [ ] useSearchParams（React Router / Next.js）の使い方を把握する
-- [ ] nuqs（型安全なURL状態管理）の活用方法を学ぶ
-- [ ] Server Component との統合パターンを理解する
-- [ ] URL状態のデバウンス・バリデーション・セキュリティを理解する
-- [ ] URLとアプリ状態の同期パターンを学ぶ
-- [ ] 実践的なURL状態管理のアーキテクチャを設計できるようになる
+- [ ] Understand the importance of URL state and its design principles
+- [ ] Master basic operations of the URLSearchParams API
+- [ ] Learn how to use useSearchParams (React Router / Next.js)
+- [ ] Learn how to use nuqs (type-safe URL state management)
+- [ ] Understand integration patterns with Server Components
+- [ ] Understand URL state debouncing, validation, and security
+- [ ] Learn synchronization patterns between URL and application state
+- [ ] Be able to design practical URL state management architectures
 
 ---
 
-## 1. URL状態の重要性と基礎概念
+## 1. Importance and Fundamentals of URL State
 
-### 1.1 なぜURL状態が重要なのか
+### 1.1 Why URL State Matters
 
-Webアプリケーションにおいて、URLは単なるページの住所ではない。URLはアプリケーションの状態を表現する最も基本的で強力なメカニズムである。REST（Representational State Transfer）の原則においても、URLはリソースの状態を表す識別子として位置づけられている。
+In web applications, the URL is not just a page address. The URL is the most fundamental and powerful mechanism for representing application state. Even in the principles of REST (Representational State Transfer), the URL is positioned as an identifier representing the state of a resource.
 
-URL状態管理が適切に実装されたアプリケーションでは、以下のユーザー体験が自然に実現される:
-
-```
-URL状態がもたらす優れたUX:
-
-1. ブックマーク可能性（Bookmarkability）
-   - ユーザーが特定の検索結果やフィルタ状態をブックマークできる
-   - 後日アクセスしても同じ状態が復元される
-   - 例: /products?q=laptop&sort=price-asc&page=2
-
-2. 共有可能性（Shareability）
-   - URLをコピーして他のユーザーに送れば同じ画面が表示される
-   - SlackやTeamsでリンクを共有する際に完全な状態が伝わる
-   - 例: 「この検索結果見て」→ URLを送るだけでOK
-
-3. ブラウザナビゲーション（Browser Navigation）
-   - ブラウザの戻る/進むボタンが期待通りに動作する
-   - 各状態変更がブラウザ履歴に記録される
-   - ユーザーの操作フローが自然になる
-
-4. SEOフレンドリー（SEO Friendly）
-   - 検索エンジンのクローラーがパラメータ付きURLを解析できる
-   - カテゴリページやフィルタページがインデックスされる
-   - canonical URL の適切な設定が可能
-
-5. サーバーサイドレンダリング対応（SSR Compatible）
-   - Server Component で searchParams を受け取れる
-   - 初期描画時にサーバーで適切なデータを取得できる
-   - SEOとパフォーマンスの両立が可能
-
-6. デバッグ容易性（Debuggability）
-   - URLを見れば現在の状態がわかる
-   - バグ報告時に「このURLで再現します」と伝えられる
-   - QAテストで状態の再現が容易
-```
-
-### 1.2 URL状態に反映すべきもの・すべきでないもの
-
-URLに反映すべき状態とそうでない状態を明確に区別することが、URL状態設計の第一歩である。
+In applications where URL state management is properly implemented, the following user experiences are naturally achieved:
 
 ```
-URL に状態を反映すべき場面:
-  ✓ 検索クエリ: /products?q=laptop
-  ✓ フィルタ: /products?category=electronics&brand=apple
-  ✓ ソート: /products?sort=price&order=asc
-  ✓ ページネーション: /products?page=3&per_page=20
-  ✓ タブ/ビュー: /dashboard?view=chart
-  ✓ モーダルの状態: /products?modal=create
-  ✓ 日付範囲: /analytics?from=2024-01-01&to=2024-03-31
-  ✓ 表示密度: /products?density=compact
-  ✓ 言語/ロケール: /products?lang=ja（pathname推奨: /ja/products）
-  ✓ 比較対象: /compare?ids=1,2,3
-  ✓ アコーディオン/セクション展開: /faq?section=billing
-  ✓ 地図の表示範囲: /map?lat=35.68&lng=139.76&zoom=12
+Excellent UX delivered by URL state:
 
-URL に反映すべきでない状態:
-  ✗ 一時的なUI状態（ツールチップ、ホバー、アニメーション）
-  ✗ フォームの入力途中値（送信前のドラフト）
-  ✗ 認証トークンやセッション情報
-  ✗ 大量のデータ（URLは2048文字が実質上限）
-  ✗ 機密情報（パスワード、個人情報）
-  ✗ ドラッグ中の位置情報
-  ✗ ローディング状態やエラー状態
-  ✗ アプリ内通知の未読数
-  ✗ ユーザー固有の設定（ダークモードなど → localStorageが適切）
+1. Bookmarkability
+   - Users can bookmark specific search results or filter states
+   - The same state is restored when accessed later
+   - Example: /products?q=laptop&sort=price-asc&page=2
+
+2. Shareability
+   - Copying a URL and sending it to another user shows the same screen
+   - When sharing a link via Slack or Teams, the complete state is conveyed
+   - Example: "Look at this search result" → just send the URL
+
+3. Browser Navigation
+   - The browser's back/forward buttons work as expected
+   - Each state change is recorded in the browser history
+   - The user's operation flow feels natural
+
+4. SEO Friendly
+   - Search engine crawlers can parse URLs with parameters
+   - Category pages and filter pages can be indexed
+   - Proper canonical URL configuration is possible
+
+5. SSR Compatible
+   - Server Components can receive searchParams
+   - The server can fetch appropriate data during initial render
+   - Both SEO and performance can be achieved simultaneously
+
+6. Debuggability
+   - You can tell the current state by looking at the URL
+   - When reporting a bug, you can say "it reproduces at this URL"
+   - State reproduction is easy in QA testing
 ```
 
-### 1.3 URL状態の判断基準フローチャート
+### 1.2 What Should and Should Not Be Reflected in URL State
 
-状態をURLに含めるべきかどうかを判断するためのフローチャートを示す。
-
-```
-その状態は他のユーザーと共有できるべきか？
-├── Yes → ブックマークして後で同じ状態に戻りたいか？
-│   ├── Yes → URL状態に含める ✓
-│   └── No  → ブラウザバックで戻りたいか？
-│       ├── Yes → URL状態に含める ✓
-│       └── No  → React state / Context で管理
-└── No  → その状態はセキュリティ上問題ないか？
-    ├── Yes → 永続化が必要か？
-    │   ├── Yes → localStorage / Cookie で管理
-    │   └── No  → React state / Context で管理
-    └── No  → Cookie（HttpOnly）/ サーバーセッションで管理
-```
-
-### 1.4 URLの構造と各部分の役割
-
-URL状態管理を正しく行うためには、URLの構造を理解することが前提条件である。
+The first step in URL state design is clearly distinguishing which state should be reflected in the URL and which should not.
 
 ```
-完全なURL構造:
+Cases where state should be reflected in the URL:
+  ✓ Search queries: /products?q=laptop
+  ✓ Filters: /products?category=electronics&brand=apple
+  ✓ Sort: /products?sort=price&order=asc
+  ✓ Pagination: /products?page=3&per_page=20
+  ✓ Tab/View: /dashboard?view=chart
+  ✓ Modal state: /products?modal=create
+  ✓ Date ranges: /analytics?from=2024-01-01&to=2024-03-31
+  ✓ Display density: /products?density=compact
+  ✓ Language/locale: /products?lang=ja (pathname preferred: /ja/products)
+  ✓ Comparison items: /compare?ids=1,2,3
+  ✓ Accordion/section expansion: /faq?section=billing
+  ✓ Map display range: /map?lat=35.68&lng=139.76&zoom=12
+
+Cases where state should NOT be reflected in the URL:
+  ✗ Temporary UI states (tooltips, hover, animations)
+  ✗ Form intermediate values (drafts before submission)
+  ✗ Authentication tokens or session information
+  ✗ Large amounts of data (URLs have a practical limit of ~2048 characters)
+  ✗ Sensitive information (passwords, personal data)
+  ✗ Position information during drag
+  ✗ Loading or error states
+  ✗ Unread notification counts
+  ✗ User-specific settings (dark mode, etc. → localStorage is appropriate)
+```
+
+### 1.3 Flowchart for Deciding URL State
+
+A flowchart for deciding whether to include state in the URL is shown below.
+
+```
+Should this state be shareable with other users?
+├── Yes → Should users be able to bookmark and return to the same state later?
+│   ├── Yes → Include in URL state ✓
+│   └── No  → Should users be able to return with browser back?
+│       ├── Yes → Include in URL state ✓
+│       └── No  → Manage with React state / Context
+└── No  → Is this state safe from a security perspective?
+    ├── Yes → Does it need to be persisted?
+    │   ├── Yes → Manage with localStorage / Cookie
+    │   └── No  → Manage with React state / Context
+    └── No  → Manage with Cookie (HttpOnly) / server session
+```
+
+### 1.4 URL Structure and the Role of Each Part
+
+Understanding the structure of a URL is a prerequisite for correctly managing URL state.
+
+```
+Complete URL structure:
 https://example.com:443/products/electronics?q=laptop&page=2#reviews
 └─┬─┘   └───┬──────┘└┬┘└───────┬──────────┘└──────┬───────┘└──┬───┘
 scheme     host    port    pathname           search       hash
                                            (query string) (fragment)
 
-各部分の状態管理での役割:
+Role of each part in state management:
 
-pathname（パス）:
-  - リソースの種類・階層を表す
-  - 例: /products, /products/123, /users/profile
-  - ルーティングで使用（React Router, Next.js App Router）
-  - RESTful設計で重要
+pathname:
+  - Represents the type/hierarchy of the resource
+  - Example: /products, /products/123, /users/profile
+  - Used by routing (React Router, Next.js App Router)
+  - Important in RESTful design
 
-search / query string（クエリパラメータ）:
-  - リソースの表示方法・フィルタ条件を表す
-  - 例: ?q=laptop&sort=price&page=2
-  - URL状態管理のメインターゲット
-  - key=value のペアで表現
+search / query string:
+  - Represents how the resource is displayed / filter conditions
+  - Example: ?q=laptop&sort=price&page=2
+  - Main target of URL state management
+  - Expressed as key=value pairs
 
-hash / fragment（フラグメント）:
-  - ページ内の位置を表す
-  - 例: #reviews, #section-3
-  - サーバーに送信されない（クライアントのみ）
-  - SPA時代にはルーティングに使われた（Hash Router）
+hash / fragment:
+  - Represents a position within the page
+  - Example: #reviews, #section-3
+  - Not sent to the server (client-only)
+  - Used for routing in the SPA era (Hash Router)
 ```
 
-### 1.5 URLSearchParams API の基本
+### 1.5 Basics of the URLSearchParams API
 
-URL状態を操作する最も基本的なWeb標準APIが `URLSearchParams` である。ブラウザとNode.js の両方で利用可能である。
+The most fundamental Web standard API for manipulating URL state is `URLSearchParams`. It is available in both browsers and Node.js.
 
 ```typescript
-// === URLSearchParams の基本操作 ===
+// === Basic URLSearchParams operations ===
 
-// 1. 生成方法
+// 1. Construction
 const params1 = new URLSearchParams('q=laptop&page=2');
 const params2 = new URLSearchParams({ q: 'laptop', page: '2' });
 const params3 = new URLSearchParams([['q', 'laptop'], ['page', '2']]);
 const params4 = new URLSearchParams(window.location.search);
 
-// 2. 値の取得
+// 2. Getting values
 params1.get('q');        // 'laptop'
-params1.get('page');     // '2'（常に string）
+params1.get('page');     // '2' (always string)
 params1.get('missing');  // null
 
-// 3. 値の設定
-params1.set('sort', 'price');     // 追加（既存キーがあれば上書き）
-params1.append('tag', 'sale');    // 追加（同じキーが複数存在可能）
+// 3. Setting values
+params1.set('sort', 'price');     // Add (overwrites existing key)
+params1.append('tag', 'sale');    // Add (multiple values for same key allowed)
 params1.append('tag', 'new');
 
-// 4. 値の削除
-params1.delete('page');           // キーと値を削除
+// 4. Deleting values
+params1.delete('page');           // Delete key and value
 
-// 5. 存在確認
+// 5. Checking existence
 params1.has('q');                 // true
-params1.has('page');              // false（削除済み）
+params1.has('page');              // false (deleted)
 
-// 6. イテレーション
+// 6. Iteration
 for (const [key, value] of params1) {
   console.log(`${key}: ${value}`);
 }
@@ -193,25 +193,25 @@ for (const [key, value] of params1) {
 // tag: sale
 // tag: new
 
-// 7. 配列値の取得
+// 7. Getting array values
 params1.getAll('tag');            // ['sale', 'new']
 
-// 8. 文字列化
+// 8. Stringification
 params1.toString();               // 'q=laptop&sort=price&tag=sale&tag=new'
 
-// 9. ソート（キー順）
+// 9. Sort (by key)
 params1.sort();
 params1.toString();               // 'q=laptop&sort=price&tag=new&tag=sale'
 
-// 10. サイズ取得
-params1.size;                     // 4（エントリ数）
+// 10. Size
+params1.size;                     // 4 (number of entries)
 ```
 
 ```typescript
-// === URLSearchParams の実用的なヘルパー関数 ===
+// === Practical helper functions for URLSearchParams ===
 
 /**
- * 現在のURLのクエリパラメータを更新するヘルパー
+ * Helper to update query parameters of the current URL
  */
 function updateSearchParams(
   updates: Record<string, string | string[] | null | undefined>
@@ -229,20 +229,20 @@ function updateSearchParams(
     }
   }
 
-  // デフォルト値のキーを除去してURLをクリーンに保つ
+  // Remove default value keys to keep the URL clean
   return params.toString();
 }
 
-// 使用例
+// Usage example
 const newSearch = updateSearchParams({
   q: 'laptop',
-  page: null,          // 削除
-  tags: ['sale', 'new'] // 配列
+  page: null,          // delete
+  tags: ['sale', 'new'] // array
 });
 // → 'q=laptop&tags=sale&tags=new'
 
 /**
- * URLSearchParamsからオブジェクトに変換
+ * Convert URLSearchParams to an object
  */
 function searchParamsToObject(
   params: URLSearchParams
@@ -257,13 +257,13 @@ function searchParamsToObject(
   return result;
 }
 
-// 使用例
+// Usage example
 const params = new URLSearchParams('q=laptop&tag=sale&tag=new&page=2');
 const obj = searchParamsToObject(params);
 // { q: 'laptop', tag: ['sale', 'new'], page: '2' }
 
 /**
- * オブジェクトの差分をURLSearchParamsに適用
+ * Apply a diff of an object to URLSearchParams
  */
 function mergeSearchParams(
   base: URLSearchParams,
@@ -284,68 +284,68 @@ function mergeSearchParams(
 ```
 
 ```typescript
-// === エンコーディングの注意点 ===
+// === Encoding considerations ===
 
-// URLSearchParams は自動的にエンコード/デコードを行う
+// URLSearchParams automatically handles encode/decode
 const params = new URLSearchParams();
-params.set('q', '日本語 検索');
-params.toString();  // 'q=%E6%97%A5%E6%9C%AC%E8%AA%9E+%E6%A4%9C%E7%B4%A2'
+params.set('q', 'Japanese search');
+params.toString();  // 'q=Japanese+search'
 
-params.get('q');    // '日本語 検索'（自動デコード）
+params.get('q');    // 'Japanese search' (auto-decoded)
 
-// 注意: + はスペースとして扱われる
+// Note: + is treated as a space
 const params2 = new URLSearchParams('q=hello+world');
 params2.get('q');   // 'hello world'
 
-// 注意: encodeURIComponent との違い
-encodeURIComponent('hello world');  // 'hello%20world'（%20）
-new URLSearchParams({ q: 'hello world' }).toString();  // 'q=hello+world'（+）
+// Note: difference from encodeURIComponent
+encodeURIComponent('hello world');  // 'hello%20world' (%20)
+new URLSearchParams({ q: 'hello world' }).toString();  // 'q=hello+world' (+)
 
-// 特殊文字のエンコーディング
+// Encoding special characters
 const specialParams = new URLSearchParams();
 specialParams.set('filter', 'price>100&stock>0');
 specialParams.toString();  // 'filter=price%3E100%26stock%3E0'
-// & や > が正しくエンコードされる
+// & and > are correctly encoded
 ```
 
 ---
 
-## 2. useSearchParams（React Router / Next.js）
+## 2. useSearchParams (React Router / Next.js)
 
-### 2.1 React Router v6 での useSearchParams
+### 2.1 useSearchParams in React Router v6
 
-React Router v6 は `useSearchParams` フックを提供し、URLSearchParams のReactラッパーとして機能する。
+React Router v6 provides the `useSearchParams` hook, which acts as a React wrapper around URLSearchParams.
 
 ```typescript
-// === React Router v6 の useSearchParams ===
+// === React Router v6 useSearchParams ===
 import { useSearchParams } from 'react-router-dom';
 
 function ProductListPage() {
-  // URLSearchParams のReactラッパー
+  // React wrapper for URLSearchParams
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // 値の取得（常に string | null）
+  // Getting values (always string | null)
   const query = searchParams.get('q') ?? '';
   const page = Number(searchParams.get('page') ?? '1');
   const sort = searchParams.get('sort') ?? 'newest';
   const categories = searchParams.getAll('category');
 
-  // 方法1: 関数型アップデート（推奨）
+  // Method 1: Functional update (recommended)
   function handleSortChange(newSort: string) {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       next.set('sort', newSort);
-      next.delete('page'); // ソート変更時にページリセット
+      next.delete('page'); // Reset page when sort changes
       return next;
     });
   }
 
-  // 方法2: オブジェクト指定（全パラメータを置換）
+  // Method 2: Object specification (replaces all params)
   function handleReset() {
-    setSearchParams({}); // 全パラメータをクリア
+    setSearchParams({}); // Clear all params
   }
 
-  // 方法3: URLSearchParams を直接渡す
+  // Method 3: Pass URLSearchParams directly
   function handleSearch(q: string) {
     const params = new URLSearchParams(searchParams);
     if (q) {
@@ -353,17 +353,17 @@ function ProductListPage() {
     } else {
       params.delete('q');
     }
-    params.delete('page'); // 検索変更時にページリセット
+    params.delete('page'); // Reset page when search changes
     setSearchParams(params);
   }
 
-  // 方法4: replace オプション（ブラウザ履歴に残さない）
+  // Method 4: replace option (do not add to browser history)
   function handlePageChange(newPage: number) {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       next.set('page', String(newPage));
       return next;
-    }, { replace: true }); // 履歴スタックに追加しない
+    }, { replace: true }); // Don't add to history stack
   }
 
   return (
@@ -383,9 +383,9 @@ function ProductListPage() {
 ```
 
 ```typescript
-// === React Router: useSearchParams のデフォルト値パターン ===
+// === React Router: Default value patterns for useSearchParams ===
 
-// パターン1: インラインデフォルト値
+// Pattern 1: Inline default values
 function useProductFilters() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -398,7 +398,7 @@ function useProductFilters() {
   };
 }
 
-// パターン2: デフォルト値をuseSearchParamsに渡す
+// Pattern 2: Pass default values to useSearchParams
 function ProductPage() {
   const [searchParams, setSearchParams] = useSearchParams({
     sort: 'newest',
@@ -406,12 +406,12 @@ function ProductPage() {
     per_page: '20',
   });
 
-  // デフォルト値が設定された状態でスタート
+  // Start with default values set
   const sort = searchParams.get('sort')!; // non-null
   const page = Number(searchParams.get('page')!);
 }
 
-// パターン3: カスタムフックでラップ
+// Pattern 3: Wrap in a custom hook
 interface ProductFilterState {
   query: string;
   page: number;
@@ -490,7 +490,7 @@ function useProductFiltersAdvanced() {
         }
       }
 
-      // tags（配列）
+      // tags (array)
       if ('tags' in updates) {
         params.delete('tag');
         updates.tags?.forEach(tag => params.append('tag', tag));
@@ -513,7 +513,7 @@ function useProductFiltersAdvanced() {
         }
       }
 
-      // フィルタ変更時にページをリセット
+      // Reset page when filter changes
       if (!('page' in updates)) {
         params.delete('page');
       }
@@ -532,12 +532,12 @@ function useProductFiltersAdvanced() {
 }
 ```
 
-### 2.2 Next.js App Router での useSearchParams
+### 2.2 useSearchParams in Next.js App Router
 
-Next.js App Router では、`useSearchParams` は読み取り専用のフックであり、URL更新には `useRouter` を併用する。
+In Next.js App Router, `useSearchParams` is a read-only hook, and `useRouter` is used together to update the URL.
 
 ```typescript
-// === Next.js App Router の useSearchParams ===
+// === Next.js App Router useSearchParams ===
 'use client';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useCallback, useTransition } from 'react';
@@ -548,13 +548,13 @@ function ProductFilters() {
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
 
-  // 値の取得
+  // Getting values
   const category = searchParams.get('category') ?? 'all';
   const sort = searchParams.get('sort') ?? 'newest';
   const page = Number(searchParams.get('page') ?? '1');
   const query = searchParams.get('q') ?? '';
 
-  // URL更新ヘルパー（useCallback でメモ化）
+  // URL update helper (memoized with useCallback)
   const updateParams = useCallback(
     (updates: Record<string, string | null>) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -567,15 +567,15 @@ function ProductFilters() {
         }
       }
 
-      // フィルタ変更時はページをリセット
+      // Reset page on filter change
       if (!('page' in updates)) {
         params.delete('page');
       }
 
-      // useTransition でUIのブロッキングを防ぐ
+      // useTransition prevents UI blocking
       startTransition(() => {
         router.push(`${pathname}?${params.toString()}`, {
-          scroll: false, // スクロール位置を維持
+          scroll: false, // Maintain scroll position
         });
       });
     },
@@ -584,13 +584,13 @@ function ProductFilters() {
 
   return (
     <div className={isPending ? 'opacity-50' : ''}>
-      {/* 検索入力 */}
+      {/* Search input */}
       <SearchInput
         defaultValue={query}
         onSearch={(q) => updateParams({ q: q || null })}
       />
 
-      {/* カテゴリ選択 */}
+      {/* Category select */}
       <select
         value={category}
         onChange={(e) => updateParams({
@@ -603,7 +603,7 @@ function ProductFilters() {
         <option value="clothing">Clothing</option>
       </select>
 
-      {/* ソート選択 */}
+      {/* Sort select */}
       <select
         value={sort}
         onChange={(e) => updateParams({ sort: e.target.value })}
@@ -614,13 +614,13 @@ function ProductFilters() {
         <option value="popular">Most Popular</option>
       </select>
 
-      {/* ページネーション */}
+      {/* Pagination */}
       <Pagination
         currentPage={page}
         onPageChange={(p) => updateParams({ page: String(p) })}
       />
 
-      {/* ペンディングインジケータ */}
+      {/* Pending indicator */}
       {isPending && <LoadingSpinner />}
     </div>
   );
@@ -628,12 +628,12 @@ function ProductFilters() {
 ```
 
 ```typescript
-// === Next.js: createQueryString ユーティリティ ===
+// === Next.js: createQueryString utility ===
 'use client';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
 /**
- * Next.js App Router 向け URL パラメータ管理フック
+ * URL parameter management hook for Next.js App Router
  */
 function useURLParams() {
   const searchParams = useSearchParams();
@@ -641,7 +641,7 @@ function useURLParams() {
   const pathname = usePathname();
 
   /**
-   * 新しいクエリ文字列を生成する（イミュータブル）
+   * Generate a new query string (immutable)
    */
   const createQueryString = useCallback(
     (params: Record<string, string | string[] | null>) => {
@@ -664,7 +664,7 @@ function useURLParams() {
   );
 
   /**
-   * URLを更新（push）
+   * Update URL (push)
    */
   const pushParams = useCallback(
     (params: Record<string, string | string[] | null>, options?: {
@@ -684,7 +684,7 @@ function useURLParams() {
   );
 
   /**
-   * URLを更新（replace - 履歴に残さない）
+   * Update URL (replace - does not add to history)
    */
   const replaceParams = useCallback(
     (params: Record<string, string | string[] | null>) => {
@@ -696,7 +696,7 @@ function useURLParams() {
   );
 
   /**
-   * 全パラメータをクリア
+   * Clear all params
    */
   const clearParams = useCallback(() => {
     router.push(pathname, { scroll: false });
@@ -711,7 +711,7 @@ function useURLParams() {
   };
 }
 
-// 使用例
+// Usage example
 function FilterComponent() {
   const { searchParams, pushParams, clearParams } = useURLParams();
 
@@ -731,38 +731,38 @@ function FilterComponent() {
 }
 ```
 
-### 2.3 React Router v6 と Next.js の比較
+### 2.3 Comparison: React Router v6 vs Next.js
 
 ```
 ┌─────────────────────────┬────────────────────────┬───────────────────────────┐
-│ 機能                     │ React Router v6        │ Next.js App Router        │
+│ Feature                 │ React Router v6        │ Next.js App Router        │
 ├─────────────────────────┼────────────────────────┼───────────────────────────┤
-│ フック名                 │ useSearchParams        │ useSearchParams           │
-│ 戻り値                   │ [params, setParams]    │ ReadonlyURLSearchParams   │
-│ 書き込み方法             │ setSearchParams()      │ router.push / replace     │
-│ replace オプション       │ { replace: true }      │ router.replace()          │
-│ scroll 制御              │ なし（手動）           │ { scroll: false }         │
-│ Suspense 必要            │ 不要                   │ 必要（Suspense boundary） │
-│ Server Component 対応    │ なし                   │ searchParams prop         │
-│ Transition 対応          │ 手動                   │ useTransition 統合        │
-│ 配列パラメータ           │ getAll()               │ getAll()                  │
-│ 型安全性                 │ 低い（手動パース）     │ 低い（手動パース）        │
+│ Hook name               │ useSearchParams        │ useSearchParams           │
+│ Return value            │ [params, setParams]    │ ReadonlyURLSearchParams   │
+│ Write method            │ setSearchParams()      │ router.push / replace     │
+│ replace option          │ { replace: true }      │ router.replace()          │
+│ Scroll control          │ none (manual)          │ { scroll: false }         │
+│ Suspense required       │ No                     │ Yes (Suspense boundary)   │
+│ Server Component support│ No                     │ searchParams prop         │
+│ Transition support      │ Manual                 │ useTransition integration │
+│ Array parameters        │ getAll()               │ getAll()                  │
+│ Type safety             │ Low (manual parsing)   │ Low (manual parsing)      │
 └─────────────────────────┴────────────────────────┴───────────────────────────┘
 ```
 
-### 2.4 Next.js の Suspense boundary と useSearchParams
+### 2.4 Suspense Boundary and useSearchParams in Next.js
 
-Next.js App Router で `useSearchParams` を使う場合、Suspense boundary が必要である。これは、静的レンダリング時にクライアントサイドの値が確定しないためである。
+When using `useSearchParams` in Next.js App Router, a Suspense boundary is required. This is because the value is client-only and cannot be determined at static render time.
 
 ```typescript
-// === Suspense boundary が必要な理由と対処法 ===
+// === Why a Suspense boundary is required and how to handle it ===
 
-// NG: Suspense なしで useSearchParams を使うとビルドエラー
+// Bad: Using useSearchParams without Suspense causes a build error
 function Page() {
-  return <ProductFilters />; // エラー: useSearchParams requires Suspense
+  return <ProductFilters />; // Error: useSearchParams requires Suspense
 }
 
-// OK: Suspense で囲む
+// Good: Wrap with Suspense
 import { Suspense } from 'react';
 
 function Page() {
@@ -773,8 +773,8 @@ function Page() {
   );
 }
 
-// OK: コンポーネントを分離するパターン
-// app/products/page.tsx（Server Component）
+// Good: Pattern of separating components
+// app/products/page.tsx (Server Component)
 export default function ProductsPage() {
   return (
     <div>
@@ -789,60 +789,60 @@ export default function ProductsPage() {
   );
 }
 
-// ProductFilters.tsx（Client Component）
+// ProductFilters.tsx (Client Component)
 'use client';
 import { useSearchParams } from 'next/navigation';
 
 function ProductFilters() {
   const searchParams = useSearchParams();
-  // ... フィルタのUI
+  // ... filter UI
 }
 ```
 
 ---
 
-## 3. nuqs（型安全なURL状態管理）
+## 3. nuqs (Type-Safe URL State Management)
 
-### 3.1 nuqs の概要と利点
+### 3.1 Overview and Benefits of nuqs
 
-nuqs（旧名: next-usequerystate）は、Next.js 向けに設計された型安全な search params 管理ライブラリである。2024年以降、React Router や Remix でも利用可能になり、フレームワーク非依存のURL状態管理ライブラリへと進化している。
+nuqs (formerly next-usequerystate) is a type-safe search params management library designed for Next.js. Since 2024, it has also become available for React Router and Remix, evolving into a framework-agnostic URL state management library.
 
 ```
-nuqs の主な利点:
+Key benefits of nuqs:
 
-1. 型安全性
-   - パーサーを使って string → 適切な型に自動変換
-   - TypeScript の型推論が完全に効く
-   - コンパイル時にエラーを検出
+1. Type safety
+   - Parsers automatically convert string → appropriate type
+   - TypeScript type inference works completely
+   - Errors are detected at compile time
 
-2. デフォルト値
-   - withDefault() で型安全なデフォルト値を設定
-   - URL にデフォルト値は含まれない（URLがクリーン）
+2. Default values
+   - Set type-safe default values with withDefault()
+   - Default values are not included in the URL (keeps URL clean)
 
-3. シリアライズ/デシリアライズ
-   - 数値、boolean、日付、列挙型、JSON を自動処理
-   - カスタムパーサーも定義可能
+3. Serialization/deserialization
+   - Automatically handles numbers, booleans, dates, enums, JSON
+   - Custom parsers can also be defined
 
-4. バッチ更新
-   - 複数のパラメータを一度に更新
-   - 不要な再レンダリングを防止
+4. Batch updates
+   - Update multiple parameters at once
+   - Prevents unnecessary re-renders
 
-5. shallow routing 対応
-   - デフォルトでページ再読み込みなし
-   - Next.js のデータ再取得と統合可能
+5. Shallow routing support
+   - No page reload by default
+   - Can be integrated with Next.js data re-fetching
 
-6. Server Component 統合
-   - createSearchParamsCache で Server Component からも利用可能
-   - SSR 時のパフォーマンス最適化
+6. Server Component integration
+   - Available from Server Components via createSearchParamsCache
+   - SSR performance optimization
 ```
 
-### 3.2 インストールとセットアップ
+### 3.2 Installation and Setup
 
 ```bash
-# インストール
+# Install
 npm install nuqs
 
-# Next.js App Router の場合: layout.tsx にプロバイダーを設定
+# For Next.js App Router: set up the provider in layout.tsx
 ```
 
 ```typescript
@@ -855,7 +855,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ja">
+    <html lang="en">
       <body>
         <NuqsAdapter>{children}</NuqsAdapter>
       </body>
@@ -863,7 +863,7 @@ export default function RootLayout({
   );
 }
 
-// Next.js Pages Router の場合
+// For Next.js Pages Router
 // pages/_app.tsx
 import { NuqsAdapter } from 'nuqs/adapters/next/pages';
 
@@ -875,17 +875,17 @@ export default function App({ Component, pageProps }) {
   );
 }
 
-// React Router の場合
+// For React Router
 import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
 
-// Remix の場合
+// For Remix
 import { NuqsAdapter } from 'nuqs/adapters/remix';
 ```
 
-### 3.3 基本的な使い方
+### 3.3 Basic Usage
 
 ```typescript
-// === nuqs の基本: useQueryState ===
+// === nuqs basics: useQueryState ===
 'use client';
 import {
   useQueryState,
@@ -900,50 +900,50 @@ import {
 } from 'nuqs';
 
 function ProductPage() {
-  // 文字列パラメータ（デフォルトのパーサー）
+  // String parameter (default parser)
   const [query, setQuery] = useQueryState('q', { defaultValue: '' });
   // URL: ?q=laptop → query = 'laptop'
-  // URL: (なし)    → query = ''
+  // URL: (none)    → query = ''
 
-  // 数値パラメータ
+  // Numeric parameter
   const [page, setPage] = useQueryState(
     'page',
     parseAsInteger.withDefault(1)
   );
-  // URL: ?page=3 → page = 3（number型）
-  // URL: (なし)  → page = 1
+  // URL: ?page=3 → page = 3 (number type)
+  // URL: (none)  → page = 1
 
-  // 列挙型パラメータ
+  // Enum parameter
   const [sort, setSort] = useQueryState(
     'sort',
     parseAsStringEnum(['newest', 'price-asc', 'price-desc', 'popular'])
       .withDefault('newest')
   );
   // URL: ?sort=price-asc → sort = 'price-asc'
-  // 不正な値は無視される
+  // Invalid values are ignored
 
-  // boolean パラメータ
+  // Boolean parameter
   const [inStock, setInStock] = useQueryState(
     'in_stock',
     parseAsBoolean.withDefault(false)
   );
   // URL: ?in_stock=true → inStock = true
 
-  // null 可能なパラメータ（withDefault なし）
+  // Nullable parameter (without withDefault)
   const [category, setCategory] = useQueryState('category');
   // URL: ?category=books → category = 'books'
-  // URL: (なし)           → category = null
+  // URL: (none)           → category = null
 
   return (
     <div>
-      {/* 文字列入力 */}
+      {/* String input */}
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value || null)}
         placeholder="Search..."
       />
 
-      {/* ソート選択 */}
+      {/* Sort select */}
       <select
         value={sort}
         onChange={(e) => setSort(e.target.value as typeof sort)}
@@ -954,7 +954,7 @@ function ProductPage() {
         <option value="popular">Most Popular</option>
       </select>
 
-      {/* ページネーション */}
+      {/* Pagination */}
       <button
         disabled={page <= 1}
         onClick={() => setPage(page - 1)}
@@ -966,7 +966,7 @@ function ProductPage() {
         Next
       </button>
 
-      {/* 在庫フィルタ */}
+      {/* In stock filter */}
       <label>
         <input
           type="checkbox"
@@ -976,7 +976,7 @@ function ProductPage() {
         In Stock Only
       </label>
 
-      {/* カテゴリ（null 可能） */}
+      {/* Category (nullable) */}
       <select
         value={category ?? ''}
         onChange={(e) => setCategory(e.target.value || null)}
@@ -990,40 +990,40 @@ function ProductPage() {
 }
 ```
 
-### 3.4 高度なパーサー
+### 3.4 Advanced Parsers
 
 ```typescript
-// === nuqs の高度なパーサー ===
+// === nuqs advanced parsers ===
 
-// 1. 浮動小数点数
+// 1. Float
 const [price, setPrice] = useQueryState(
   'price',
   parseAsFloat.withDefault(0)
 );
 // URL: ?price=29.99 → price = 29.99
 
-// 2. ISO日時
+// 2. ISO datetime
 const [date, setDate] = useQueryState(
   'date',
   parseAsIsoDateTime.withDefault(new Date())
 );
-// URL: ?date=2024-03-15T10:30:00.000Z → Date オブジェクト
+// URL: ?date=2024-03-15T10:30:00.000Z → Date object
 
-// 3. 配列（カンマ区切り）
+// 3. Array (comma-separated)
 const [tags, setTags] = useQueryState(
   'tags',
   parseAsArrayOf(parseAsString, ',').withDefault([])
 );
 // URL: ?tags=sale,new,popular → tags = ['sale', 'new', 'popular']
 
-// 4. 数値配列
+// 4. Numeric array
 const [ids, setIds] = useQueryState(
   'ids',
   parseAsArrayOf(parseAsInteger, ',').withDefault([])
 );
 // URL: ?ids=1,2,3 → ids = [1, 2, 3]
 
-// 5. JSON パラメータ（複雑なオブジェクト）
+// 5. JSON parameter (complex objects)
 interface PriceRange {
   min: number;
   max: number;
@@ -1035,10 +1035,10 @@ const [priceRange, setPriceRange] = useQueryState<PriceRange>(
 );
 // URL: ?price_range={"min":100,"max":500}
 
-// 6. カスタムパーサー
+// 6. Custom parser
 import { createParser } from 'nuqs';
 
-// カスタム: カンマ区切りの数値範囲
+// Custom: numeric range from dash-separated value
 const parseAsRange = createParser({
   parse: (value: string) => {
     const [min, max] = value.split('-').map(Number);
@@ -1055,7 +1055,7 @@ const [range, setRange] = useQueryState(
 );
 // URL: ?range=10-50 → { min: 10, max: 50 }
 
-// 7. カスタム: スラッグ化された文字列
+// 7. Custom: slugified string
 const parseAsSlug = createParser({
   parse: (value: string) => value.replace(/-/g, ' '),
   serialize: (value: string) =>
@@ -1070,13 +1070,13 @@ const [searchTerm, setSearchTerm] = useQueryState(
 // setSearchTerm('Blue Jacket') → URL: ?q=blue-jacket
 ```
 
-### 3.5 useQueryStates（複数パラメータの一括管理）
+### 3.5 useQueryStates (Managing Multiple Parameters at Once)
 
 ```typescript
-// === useQueryStates: 複数パラメータを一度に管理 ===
+// === useQueryStates: Manage multiple parameters at once ===
 import { useQueryStates, parseAsInteger, parseAsStringEnum } from 'nuqs';
 
-// パーサー定義を一箇所にまとめる
+// Define parsers in one place
 const productFiltersParsers = {
   q: parseAsString.withDefault(''),
   page: parseAsInteger.withDefault(1),
@@ -1091,10 +1091,10 @@ const productFiltersParsers = {
 };
 
 function ProductPage() {
-  // 全パラメータを一括で管理
+  // Manage all parameters at once
   const [filters, setFilters] = useQueryStates(productFiltersParsers);
 
-  // filters の型は自動推論される:
+  // The type of filters is automatically inferred:
   // {
   //   q: string;
   //   page: number;
@@ -1107,15 +1107,15 @@ function ProductPage() {
   //   price_max: number | null;
   // }
 
-  // 一括更新（バッチ処理 → 1回のURL更新）
+  // Batch update (processed in batch → 1 URL update)
   function handleCategoryChange(category: string) {
     setFilters({
       category: category || null,
-      page: 1,  // ページリセット
+      page: 1,  // Reset page
     });
   }
 
-  // 全リセット
+  // Full reset
   function handleReset() {
     setFilters({
       q: '',
@@ -1130,12 +1130,12 @@ function ProductPage() {
     });
   }
 
-  // 条件付き更新
+  // Conditional update
   function handlePriceRangeChange(min: number | null, max: number | null) {
     setFilters({
       price_min: min,
       price_max: max,
-      page: 1,  // ページリセット
+      page: 1,  // Reset page
     });
   }
 
@@ -1152,10 +1152,10 @@ function ProductPage() {
 }
 ```
 
-### 3.6 nuqs + TanStack Query の統合
+### 3.6 nuqs + TanStack Query Integration
 
 ```typescript
-// === nuqs + TanStack Query: URL状態をデータフェッチに連動 ===
+// === nuqs + TanStack Query: Link URL state to data fetching ===
 import { useQueryStates, parseAsInteger, parseAsString, parseAsStringEnum } from 'nuqs';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 
@@ -1171,7 +1171,7 @@ function useProducts() {
   const [filters] = useQueryStates(searchParsers);
 
   return useQuery({
-    // URL パラメータをそのまま queryKey に使用
+    // Use URL parameters directly as queryKey
     queryKey: ['products', filters],
     queryFn: () => api.products.list({
       q: filters.q || undefined,
@@ -1179,9 +1179,9 @@ function useProducts() {
       sort: filters.sort,
       category: filters.category ?? undefined,
     }),
-    // ページ切り替え時にチラつきを防止
+    // Prevent flicker on page change
     placeholderData: keepPreviousData,
-    // URL パラメータが変わるたびに自動再フェッチ
+    // Auto re-fetch when URL parameters change
     staleTime: 30_000,
   });
 }
@@ -1192,16 +1192,16 @@ function ProductListPage() {
 
   return (
     <div>
-      {/* フィルタUI */}
+      {/* Filter UI */}
       <SearchInput
         value={filters.q}
         onChange={(q) => setFilters({ q: q || null, page: 1 })}
       />
 
-      {/* ローディング状態 */}
+      {/* Loading state */}
       {isLoading && <ProductGridSkeleton />}
 
-      {/* データ表示 */}
+      {/* Data display */}
       {data && (
         <>
           <p>{data.meta.total} products found</p>
@@ -1219,14 +1219,14 @@ function ProductListPage() {
 }
 ```
 
-### 3.7 nuqs の Server Component 統合
+### 3.7 nuqs Server Component Integration
 
 ```typescript
-// === nuqs: Server Component での searchParams キャッシュ ===
+// === nuqs: searchParams cache for Server Components ===
 import { createSearchParamsCache } from 'nuqs/server';
 import { parseAsInteger, parseAsString, parseAsStringEnum } from 'nuqs';
 
-// Server 用のパーサーキャッシュを定義
+// Define the parser cache for server use
 const searchParamsCache = createSearchParamsCache({
   q: parseAsString.withDefault(''),
   page: parseAsInteger.withDefault(1),
@@ -1235,18 +1235,18 @@ const searchParamsCache = createSearchParamsCache({
   category: parseAsString,
 });
 
-// app/products/page.tsx（Server Component）
+// app/products/page.tsx (Server Component)
 export default async function ProductsPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[]>>;
 }) {
-  // 型安全に searchParams をパース
+  // Parse searchParams with type safety
   const { q, page, sort, category } = await searchParamsCache.parse(
     await searchParams
   );
 
-  // Server Component でデータフェッチ
+  // Fetch data in Server Component
   const products = await getProducts({
     query: q || undefined,
     page,
@@ -1258,7 +1258,7 @@ export default async function ProductsPage({
     <div>
       <h1>Products</h1>
       <Suspense fallback={<FiltersSkeleton />}>
-        <ProductFilters />  {/* Client Component で nuqs を使用 */}
+        <ProductFilters />  {/* Client Component using nuqs */}
       </Suspense>
       <ProductGrid products={products.data} />
       <Pagination
@@ -1272,14 +1272,14 @@ export default async function ProductsPage({
 
 ---
 
-## 4. Server Component との統合
+## 4. Integration with Server Components
 
-### 4.1 Next.js App Router での searchParams
+### 4.1 searchParams in Next.js App Router
 
-Next.js App Router では、Server Component のページコンポーネントが `searchParams` をpropsとして受け取ることができる。これにより、サーバーサイドでURL状態に基づいたデータ取得が可能になる。
+In Next.js App Router, page components that are Server Components can receive `searchParams` as props. This enables server-side data fetching based on URL state.
 
 ```typescript
-// === Next.js App Router: Server Component での searchParams ===
+// === Next.js App Router: searchParams in Server Components ===
 // app/products/page.tsx
 
 interface SearchParams {
@@ -1299,7 +1299,7 @@ export default async function ProductsPage({
 }) {
   const params = await searchParams;
 
-  // パラメータのパースとバリデーション
+  // Parse and validate parameters
   const page = Math.max(1, Number(params.page ?? '1'));
   const sort = validateSort(params.sort ?? 'newest');
   const category = params.category ?? null;
@@ -1311,7 +1311,7 @@ export default async function ProductsPage({
   const priceMin = params.price_min ? Number(params.price_min) : undefined;
   const priceMax = params.price_max ? Number(params.price_max) : undefined;
 
-  // サーバーサイドでデータフェッチ
+  // Server-side data fetch
   const products = await getProducts({
     query: params.q,
     page,
@@ -1324,22 +1324,22 @@ export default async function ProductsPage({
 
   return (
     <div>
-      {/* SEO: 動的メタデータ */}
+      {/* SEO: Dynamic metadata */}
       <h1>
         {category ? `${category} Products` : 'All Products'}
         {params.q && ` - "${params.q}"`}
       </h1>
 
-      {/* Client Component: フィルタUI */}
+      {/* Client Component: Filter UI */}
       <Suspense fallback={<FiltersSkeleton />}>
         <ProductFilters />
       </Suspense>
 
-      {/* Server Component: 結果表示 */}
+      {/* Server Component: Results display */}
       <p>{products.meta.total} products found</p>
       <ProductGrid products={products.data} />
 
-      {/* Server Component: ページネーション（リンクベース） */}
+      {/* Server Component: Pagination (link-based) */}
       <ServerPagination
         currentPage={page}
         totalPages={products.meta.totalPages}
@@ -1349,19 +1349,19 @@ export default async function ProductsPage({
   );
 }
 
-// バリデーション関数
+// Validation function
 function validateSort(sort: string): string {
   const validSorts = ['newest', 'oldest', 'price-asc', 'price-desc', 'popular'];
   return validSorts.includes(sort) ? sort : 'newest';
 }
 ```
 
-### 4.2 Server Component のページネーション（リンクベース）
+### 4.2 Server Component Pagination (Link-Based)
 
-Server Component では `useSearchParams` が使えないため、`<Link>` コンポーネントを使ったページネーションが推奨される。
+Since `useSearchParams` cannot be used in Server Components, pagination using `<Link>` components is recommended.
 
 ```typescript
-// === Server Component: リンクベースのページネーション ===
+// === Server Component: Link-based pagination ===
 import Link from 'next/link';
 
 interface ServerPaginationProps {
@@ -1379,7 +1379,7 @@ function ServerPagination({
     const params = new URLSearchParams();
 
     for (const [key, value] of Object.entries(searchParams)) {
-      if (key === 'page') continue; // page は別途設定
+      if (key === 'page') continue; // page is set separately
       if (value === undefined) continue;
 
       if (Array.isArray(value)) {
@@ -1397,12 +1397,12 @@ function ServerPagination({
     return queryString ? `?${queryString}` : '';
   }
 
-  // ページ番号のリストを生成
+  // Generate list of page numbers
   const pages = generatePageNumbers(currentPage, totalPages);
 
   return (
     <nav aria-label="Pagination">
-      {/* 前のページ */}
+      {/* Previous page */}
       {currentPage > 1 ? (
         <Link href={createPageURL(currentPage - 1)}>
           Previous
@@ -1411,7 +1411,7 @@ function ServerPagination({
         <span aria-disabled="true">Previous</span>
       )}
 
-      {/* ページ番号 */}
+      {/* Page numbers */}
       {pages.map((page, index) => (
         page === '...' ? (
           <span key={`ellipsis-${index}`}>...</span>
@@ -1427,7 +1427,7 @@ function ServerPagination({
         )
       ))}
 
-      {/* 次のページ */}
+      {/* Next page */}
       {currentPage < totalPages ? (
         <Link href={createPageURL(currentPage + 1)}>
           Next
@@ -1439,7 +1439,7 @@ function ServerPagination({
   );
 }
 
-// ページ番号生成ロジック
+// Page number generation logic
 function generatePageNumbers(
   current: number,
   total: number
@@ -1460,12 +1460,12 @@ function generatePageNumbers(
 }
 ```
 
-### 4.3 動的メタデータとURL状態
+### 4.3 Dynamic Metadata and URL State
 
-URL状態に基づいて動的にメタデータを生成することで、SEO最適化を実現できる。
+By dynamically generating metadata based on URL state, SEO optimization can be achieved.
 
 ```typescript
-// === 動的メタデータの生成 ===
+// === Dynamic metadata generation ===
 // app/products/page.tsx
 
 import { Metadata } from 'next';
@@ -1504,7 +1504,7 @@ export async function generateMetadata({
   return {
     title,
     description,
-    // canonical URL でページネーションの重複を防ぐ
+    // Canonical URL to prevent pagination duplicates
     alternates: {
       canonical: params.q
         ? `/products?q=${encodeURIComponent(params.q)}`
@@ -1512,18 +1512,18 @@ export async function generateMetadata({
           ? `/products?category=${params.category}`
           : '/products',
     },
-    // 検索結果ページはインデックスしない
+    // Do not index search result pages
     robots: params.q ? { index: false } : undefined,
   };
 }
 ```
 
-### 4.4 Streaming SSR とURL状態
+### 4.4 Streaming SSR and URL State
 
-Next.js の Streaming SSR を活用して、URL状態に基づくデータフェッチを効率化できる。
+You can leverage Next.js Streaming SSR to efficiently handle data fetching based on URL state.
 
 ```typescript
-// === Streaming SSR パターン ===
+// === Streaming SSR pattern ===
 // app/products/page.tsx
 
 import { Suspense } from 'react';
@@ -1539,17 +1539,17 @@ export default async function ProductsPage({
     <div>
       <h1>Products</h1>
 
-      {/* フィルタUI: すぐに表示（Client Component） */}
+      {/* Filter UI: shown immediately (Client Component) */}
       <Suspense fallback={<FiltersSkeleton />}>
         <ProductFilters />
       </Suspense>
 
-      {/* 検索結果: データフェッチを待ってストリーミング */}
+      {/* Search results: streamed after data fetch */}
       <Suspense fallback={<ProductGridSkeleton count={20} />}>
         <ProductResults searchParams={params} />
       </Suspense>
 
-      {/* サイドバー: 独立してストリーミング */}
+      {/* Sidebar: streamed independently */}
       <Suspense fallback={<SidebarSkeleton />}>
         <CategorySidebar />
       </Suspense>
@@ -1557,13 +1557,13 @@ export default async function ProductsPage({
   );
 }
 
-// データフェッチを含む Server Component
+// Server Component with data fetching
 async function ProductResults({
   searchParams,
 }: {
   searchParams: Record<string, string>;
 }) {
-  // このデータフェッチが完了するまでフォールバックが表示される
+  // The fallback is shown until this data fetch completes
   const products = await getProducts({
     query: searchParams.q,
     page: Number(searchParams.page ?? '1'),
@@ -1587,61 +1587,61 @@ async function ProductResults({
 
 ---
 
-## 5. 設計パターンとベストプラクティス
+## 5. Design Patterns and Best Practices
 
-### 5.1 URL状態の設計原則
+### 5.1 URL State Design Principles
 
 ```
-URL状態の設計原則:
+URL state design principles:
 
-  ① デフォルト値はURL に含めない:
-     /products              ← デフォルト（page=1, sort=newest）
-     /products?sort=price   ← ソートだけ変更
-     → URLがシンプルになる
-     → デフォルト値が変更されても既存のブックマークが壊れない
+  1. Do not include default values in the URL:
+     /products              ← default (page=1, sort=newest)
+     /products?sort=price   ← only sort changed
+     → URLs become simpler
+     → Existing bookmarks are not broken when default values change
 
-  ② フィルタ変更時にページをリセット:
+  2. Reset page on filter change:
      /products?category=books&page=3
-     → category変更 → /products?category=electronics（page=1にリセット）
-     → ユーザーが存在しないページを見ることを防ぐ
+     → change category → /products?category=electronics (page reset to 1)
+     → Prevents users from viewing pages that don't exist
 
-  ③ 配列パラメータの方式を統一:
-     方式A: /products?tag=sale&tag=new     ← 同じキーを複数（Web標準）
-     方式B: /products?tags=sale,new         ← カンマ区切り（シンプル）
-     → プロジェクト全体で一つの方式に統一する
+  3. Unify the style for array parameters:
+     Style A: /products?tag=sale&tag=new     ← multiple same keys (Web standard)
+     Style B: /products?tags=sale,new         ← comma-separated (simple)
+     → Unify to one style throughout the project
 
-  ④ デバウンス（検索入力）:
-     → 入力ごとにURLを更新しない
-     → 300-500ms のデバウンスを入れる
-     → ブラウザ履歴が汚れるのを防ぐ
+  4. Debounce (search input):
+     → Do not update URL on every keystroke
+     → Apply a 300-500ms debounce
+     → Prevents polluting browser history
 
-  ⑤ shallow routing:
-     → URLを更新してもページ全体を再レンダリングしない
+  5. Shallow routing:
+     → Update URL without re-rendering the entire page
      → Next.js: router.push(url, { scroll: false })
-     → データフェッチはクライアントサイドで行う
+     → Perform data fetching on the client side
 
-  ⑥ URL の正規化:
-     → パラメータの順序を統一する（キー名の辞書順）
-     → 大文字/小文字を統一する
-     → 不要な空白やエンコーディングを除去する
+  6. URL normalization:
+     → Unify parameter order (alphabetical by key name)
+     → Unify casing
+     → Remove unnecessary whitespace or encoding
 
-  ⑦ 後方互換性:
-     → パラメータ名を変更する際は旧パラメータもサポートする
-     → リダイレクトで旧URLを新URLに転送する
+  7. Backward compatibility:
+     → When changing parameter names, also support old parameters
+     → Forward old URLs to new URLs via redirects
 ```
 
-### 5.2 デバウンスパターン
+### 5.2 Debounce Pattern
 
-検索入力のように頻繁に変化する値は、デバウンスを使ってURL更新の頻度を制限する必要がある。
+For values that change frequently such as search input, you need to use debouncing to limit how often the URL is updated.
 
 ```typescript
-// === デバウンス: 検索入力のURL同期 ===
+// === Debounce: Sync search input with URL ===
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 /**
- * デバウンスフック
+ * Debounce hook
  */
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -1655,22 +1655,22 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 /**
- * デバウンス付き検索入力コンポーネント
+ * Debounced search input component
  */
 function DebouncedSearchInput() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  // ローカル状態（即座に更新）
+  // Local state (updates immediately)
   const [inputValue, setInputValue] = useState(
     searchParams.get('q') ?? ''
   );
 
-  // デバウンスされた値（300ms後に確定）
+  // Debounced value (confirmed after 300ms)
   const debouncedQuery = useDebounce(inputValue, 300);
 
-  // デバウンスされた値が変更されたらURLを更新
+  // Update URL when debounced value changes
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
 
@@ -1679,16 +1679,16 @@ function DebouncedSearchInput() {
     } else {
       params.delete('q');
     }
-    params.delete('page'); // 検索変更時にページリセット
+    params.delete('page'); // Reset page on search change
 
     const queryString = params.toString();
     const url = queryString ? `${pathname}?${queryString}` : pathname;
 
-    // replace: 入力中の履歴を残さない
+    // replace: don't leave history while typing
     router.replace(url, { scroll: false });
   }, [debouncedQuery, pathname, router, searchParams]);
 
-  // URLが外部から変更された場合（ブラウザバック等）に同期
+  // Sync when URL is changed externally (e.g., browser back)
   useEffect(() => {
     const urlQuery = searchParams.get('q') ?? '';
     if (urlQuery !== inputValue) {
@@ -1708,16 +1708,16 @@ function DebouncedSearchInput() {
 ```
 
 ```typescript
-// === nuqs でのデバウンス ===
+// === Debounce with nuqs ===
 import { useQueryState } from 'nuqs';
 
 function SearchWithNuqs() {
   const [query, setQuery] = useQueryState('q', {
     defaultValue: '',
-    // nuqs v2+ では shallow オプションで制御
-    shallow: true, // サーバーへのリクエストを防ぐ
-    throttleMs: 300, // URL更新をスロットル
-    history: 'replace', // 入力中は履歴を汚さない
+    // In nuqs v2+, controlled via the shallow option
+    shallow: true, // Prevent requests to the server
+    throttleMs: 300, // Throttle URL updates
+    history: 'replace', // Don't pollute history while typing
   });
 
   return (
@@ -1731,15 +1731,15 @@ function SearchWithNuqs() {
 }
 ```
 
-### 5.3 URL状態のバリデーション
+### 5.3 URL State Validation
 
-ユーザーがURLを直接編集する可能性があるため、URL状態のバリデーションは必須である。
+Since users may edit the URL directly, validation of URL state is essential.
 
 ```typescript
-// === URL状態のバリデーション ===
+// === URL state validation ===
 import { z } from 'zod';
 
-// Zod スキーマでURL状態を定義
+// Define URL state with a Zod schema
 const searchParamsSchema = z.object({
   q: z.string().max(200).optional().default(''),
   page: z.coerce.number().int().positive().optional().default(1),
@@ -1762,7 +1762,7 @@ const searchParamsSchema = z.object({
 
 type ValidatedSearchParams = z.infer<typeof searchParamsSchema>;
 
-// Server Component でのバリデーション
+// Validation in Server Component
 export default async function ProductsPage({
   searchParams,
 }: {
@@ -1770,20 +1770,20 @@ export default async function ProductsPage({
 }) {
   const rawParams = await searchParams;
 
-  // バリデーションとデフォルト値の適用
+  // Validation and application of default values
   const result = searchParamsSchema.safeParse(rawParams);
 
   if (!result.success) {
-    // 不正なパラメータの場合はデフォルト値にリダイレクト
+    // Redirect to defaults if invalid parameters
     redirect('/products');
   }
 
   const validParams = result.data;
 
-  // ... データフェッチ
+  // ... data fetch
 }
 
-// カスタムフックでのバリデーション（Client Component）
+// Validation in a custom hook (Client Component)
 function useValidatedSearchParams() {
   const searchParams = useSearchParams();
 
@@ -1791,7 +1791,7 @@ function useValidatedSearchParams() {
   const result = searchParamsSchema.safeParse(rawParams);
 
   if (!result.success) {
-    // デフォルト値を返す
+    // Return default values
     return searchParamsSchema.parse({});
   }
 
@@ -1800,28 +1800,28 @@ function useValidatedSearchParams() {
 ```
 
 ```typescript
-// === XSS 対策: URL状態のサニタイズ ===
+// === XSS protection: Sanitizing URL state ===
 
 /**
- * URL パラメータのサニタイズ
- * XSSやインジェクション攻撃を防ぐ
+ * Sanitize URL parameters
+ * Prevents XSS and injection attacks
  */
 function sanitizeSearchParam(value: string): string {
-  // HTMLタグを除去
+  // Remove HTML tags
   const sanitized = value.replace(/<[^>]*>/g, '');
 
-  // 制御文字を除去
+  // Remove control characters
   const cleaned = sanitized.replace(/[\x00-\x1F\x7F]/g, '');
 
-  // 最大長を制限
+  // Limit max length
   return cleaned.slice(0, 500);
 }
 
 /**
- * URL パラメータを安全に表示する
+ * Safely display URL parameters
  */
 function SafeSearchDisplay({ query }: { query: string }) {
-  // React はデフォルトでXSSを防ぐが、追加の保護として
+  // React prevents XSS by default, but as additional protection:
   const safeQuery = sanitizeSearchParam(query);
 
   return (
@@ -1831,34 +1831,34 @@ function SafeSearchDisplay({ query }: { query: string }) {
   );
 }
 
-// 危険: URLパラメータを直接 dangerouslySetInnerHTML に使わない
-// NG:
+// Danger: Do not use URL parameters directly in dangerouslySetInnerHTML
+// Bad:
 function DangerousComponent() {
   const searchParams = useSearchParams();
   const q = searchParams.get('q') ?? '';
 
-  // 絶対にやってはいけない!
+  // Never do this!
   // return <div dangerouslySetInnerHTML={{ __html: q }} />;
 
-  // OK: React のテキストノードとして表示
+  // Good: Display as React text node
   return <div>{q}</div>;
 }
 ```
 
-### 5.4 History API との連携
+### 5.4 Working with the History API
 
-URL状態管理の裏側では History API が動作している。push と replace の使い分けを理解することが重要である。
+The History API operates under the hood of URL state management. It is important to understand when to use push vs replace.
 
 ```typescript
-// === History API: push vs replace の使い分け ===
+// === History API: When to use push vs replace ===
 
 /**
- * push（履歴に追加）を使うべき場面:
- * - フィルタの変更
- * - カテゴリの変更
- * - ソートの変更
- * - 検索の確定（デバウンス後）
- * → ブラウザバックで前のフィルタ状態に戻れる
+ * Cases where push (add to history) should be used:
+ * - Filter changes
+ * - Category changes
+ * - Sort changes
+ * - Search confirmation (after debounce)
+ * → Users can go back to the previous filter state with browser back
  */
 function handleFilterChange(newCategory: string) {
   // React Router
@@ -1866,19 +1866,19 @@ function handleFilterChange(newCategory: string) {
     const next = new URLSearchParams(prev);
     next.set('category', newCategory);
     return next;
-  }); // デフォルトは push
+  }); // Default is push
 
   // Next.js
   router.push(`${pathname}?category=${newCategory}`);
 }
 
 /**
- * replace（履歴を置換）を使うべき場面:
- * - 検索入力中のリアルタイム更新（デバウンス中）
- * - ページネーションの連続クリック
- * - 並び替えの頻繁な切り替え
- * - 初期パラメータの正規化
- * → ブラウザバックで大量の中間状態に戻らない
+ * Cases where replace (replace history) should be used:
+ * - Real-time updates while typing in search (during debounce)
+ * - Consecutive pagination clicks
+ * - Frequent sort switching
+ * - Normalization of initial parameters
+ * → Browser back won't return to a large number of intermediate states
  */
 function handleSearchInput(query: string) {
   // React Router
@@ -1887,20 +1887,20 @@ function handleSearchInput(query: string) {
     if (query) next.set('q', query);
     else next.delete('q');
     return next;
-  }, { replace: true }); // 履歴を置換
+  }, { replace: true }); // Replace history
 
   // Next.js
   router.replace(`${pathname}?q=${encodeURIComponent(query)}`);
 }
 
 /**
- * popstate イベント: ブラウザバック/フォワードの検知
+ * popstate event: Detect browser back/forward
  */
 useEffect(() => {
   function handlePopState(event: PopStateEvent) {
-    // ブラウザの戻る/進むが押されたときの処理
-    // React Router や Next.js は自動的にこれを処理するが、
-    // カスタムロジックが必要な場合に使用
+    // Handler when browser back/forward is pressed
+    // React Router and Next.js handle this automatically,
+    // but use this when custom logic is needed
     console.log('Navigation via browser back/forward');
     console.log('New URL:', window.location.href);
   }
@@ -1910,42 +1910,42 @@ useEffect(() => {
 }, []);
 ```
 
-### 5.5 配列パラメータの設計パターン
+### 5.5 Array Parameter Design Patterns
 
-複数選択のフィルタなど、配列値をURLに反映する方法は複数ある。それぞれの特徴を理解し、プロジェクトに適した方式を選択する。
+There are multiple ways to reflect array values such as multi-select filters in URLs. Understand the characteristics of each and choose the method appropriate for your project.
 
 ```typescript
-// === 配列パラメータの方式比較 ===
+// === Comparison of array parameter styles ===
 
-// 方式1: 同一キー反復（Web標準 / URLSearchParams 準拠）
+// Style 1: Repeated same key (Web standard / URLSearchParams compliant)
 // URL: ?tag=sale&tag=new&tag=popular
-// 取得: searchParams.getAll('tag') → ['sale', 'new', 'popular']
-// 利点: Web標準に準拠、URLSearchParams で自然に扱える
-// 欠点: URLが長くなりやすい
+// Get: searchParams.getAll('tag') → ['sale', 'new', 'popular']
+// Pro: Compliant with Web standards, naturally handled by URLSearchParams
+// Con: URL tends to get long
 
-// 方式2: カンマ区切り
+// Style 2: Comma-separated
 // URL: ?tags=sale,new,popular
-// 取得: searchParams.get('tags')?.split(',') ?? []
-// 利点: URLがコンパクト
-// 欠点: 値にカンマが含まれる場合にエスケープが必要
+// Get: searchParams.get('tags')?.split(',') ?? []
+// Pro: Compact URL
+// Con: Escaping needed if values contain commas
 
-// 方式3: ブラケット表記（PHP/Ruby on Rails スタイル）
+// Style 3: Bracket notation (PHP/Ruby on Rails style)
 // URL: ?tags[]=sale&tags[]=new&tags[]=popular
-// 取得: 手動パースが必要
-// 利点: バックエンドフレームワークとの互換性
-// 欠点: URLSearchParams で直接扱えない
+// Get: Manual parsing required
+// Pro: Compatibility with backend frameworks
+// Con: Cannot be handled directly by URLSearchParams
 
-// 方式4: JSON エンコード
+// Style 4: JSON encoding
 // URL: ?tags=["sale","new","popular"]
-// 取得: JSON.parse(searchParams.get('tags') ?? '[]')
-// 利点: 複雑な構造も表現可能
-// 欠点: URLが読みにくい、エンコードで長くなる
+// Get: JSON.parse(searchParams.get('tags') ?? '[]')
+// Pro: Can express complex structures
+// Con: URL is hard to read, encoding makes it long
 
-// 推奨: 方式1 または 方式2
-// 簡単な配列 → 方式2（カンマ区切り）
-// URLSearchParams との互換性重視 → 方式1（同一キー反復）
+// Recommendation: Style 1 or Style 2
+// Simple arrays → Style 2 (comma-separated)
+// URLSearchParams compatibility focus → Style 1 (repeated same key)
 
-// 実装例: カンマ区切り方式のヘルパー
+// Implementation example: comma-separated helper
 function useArrayParam(key: string): [string[], (values: string[]) => void] {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -1959,7 +1959,7 @@ function useArrayParam(key: string): [string[], (values: string[]) => void] {
       } else {
         params.delete(key);
       }
-      params.delete('page'); // ページリセット
+      params.delete('page'); // Reset page
       return params;
     });
   }, [key, setSearchParams]);
@@ -1967,7 +1967,7 @@ function useArrayParam(key: string): [string[], (values: string[]) => void] {
   return [values, setValues];
 }
 
-// 使用例
+// Usage example
 function TagFilter() {
   const [selectedTags, setSelectedTags] = useArrayParam('tags');
 
@@ -1999,20 +1999,20 @@ function TagFilter() {
 
 ---
 
-## 6. デバウンス・スロットル・最適化
+## 6. Debounce, Throttle, and Optimization
 
-### 6.1 パフォーマンス最適化の基本原則
+### 6.1 Basic Principles of Performance Optimization
 
-URL状態の変更は、以下の一連の処理を引き起こす:
-1. URLの更新（History API）
-2. React の再レンダリング（状態変更の検知）
-3. データフェッチ（API呼び出し）
-4. UIの更新（レンダリング結果の反映）
+A URL state change triggers the following sequence of operations:
+1. URL update (History API)
+2. React re-render (detection of state change)
+3. Data fetch (API call)
+4. UI update (reflecting render results)
 
-これらの処理が頻繁に発生するとパフォーマンス問題になるため、適切な最適化が必要である。
+If these processes occur frequently, it becomes a performance issue, so appropriate optimization is necessary.
 
 ```typescript
-// === パフォーマンス最適化: useDeferredValue ===
+// === Performance optimization: useDeferredValue ===
 'use client';
 import { useDeferredValue, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -2021,10 +2021,10 @@ function ProductListPage() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') ?? '';
 
-  // URLの値を遅延させる（UIのブロッキングを防ぐ）
+  // Defer the URL value (prevents UI blocking)
   const deferredQuery = useDeferredValue(query);
 
-  // 遅延された値でフィルタリング
+  // Filter with the deferred value
   const filteredProducts = useMemo(
     () => products.filter(p =>
       p.name.toLowerCase().includes(deferredQuery.toLowerCase())
@@ -2032,7 +2032,7 @@ function ProductListPage() {
     [products, deferredQuery]
   );
 
-  // 遅延中はスタイルを変更して表示
+  // Change style while deferred to indicate loading
   const isStale = query !== deferredQuery;
 
   return (
@@ -2044,7 +2044,7 @@ function ProductListPage() {
 ```
 
 ```typescript
-// === パフォーマンス最適化: useTransition ===
+// === Performance optimization: useTransition ===
 'use client';
 import { useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
@@ -2065,7 +2065,7 @@ function OptimizedFilters() {
     }
     params.delete('page');
 
-    // startTransition: UIの応答性を維持しながらURL更新
+    // startTransition: Update URL while maintaining UI responsiveness
     startTransition(() => {
       router.push(`${pathname}?${params.toString()}`, {
         scroll: false,
@@ -2075,7 +2075,7 @@ function OptimizedFilters() {
 
   return (
     <div>
-      {/* isPending を使ってローディング状態を表示 */}
+      {/* Show loading state using isPending */}
       {isPending && (
         <div className="absolute inset-0 bg-white/50 flex items-center justify-center">
           <Spinner />
@@ -2095,13 +2095,13 @@ function OptimizedFilters() {
 }
 ```
 
-### 6.2 URL状態の変更回数を制限する
+### 6.2 Limiting the Number of URL State Changes
 
 ```typescript
-// === スロットル: URL更新の頻度を制限 ===
+// === Throttle: Limit URL update frequency ===
 
 /**
- * スロットルフック: 一定間隔でのみ値を更新
+ * Throttle hook: Only update value at a fixed interval
  */
 function useThrottle<T>(value: T, intervalMs: number): T {
   const [throttledValue, setThrottledValue] = useState(value);
@@ -2127,12 +2127,12 @@ function useThrottle<T>(value: T, intervalMs: number): T {
   return throttledValue;
 }
 
-// 使用例: スライダーの値をURLに同期
+// Usage: Sync slider value to URL
 function PriceRangeSlider() {
   const [localMin, setLocalMin] = useState(0);
   const [localMax, setLocalMax] = useState(10000);
 
-  // 100msごとにしかURLを更新しない
+  // Update URL only every 100ms
   const throttledMin = useThrottle(localMin, 100);
   const throttledMax = useThrottle(localMax, 100);
 
@@ -2167,19 +2167,19 @@ function PriceRangeSlider() {
 }
 ```
 
-### 6.3 URL状態の差分検知と不要な更新の防止
+### 6.3 Diff Detection and Prevention of Unnecessary URL State Updates
 
 ```typescript
-// === 不要なURL更新を防止する ===
+// === Prevent unnecessary URL updates ===
 
 /**
- * URL状態が実質的に変化したかを判定する
+ * Determine if URL state has actually changed
  */
 function hasSearchParamsChanged(
   prev: URLSearchParams,
   next: URLSearchParams
 ): boolean {
-  // 同じキーの数を比較
+  // Compare the number of the same keys
   const prevKeys = new Set(prev.keys());
   const nextKeys = new Set(next.keys());
 
@@ -2199,7 +2199,7 @@ function hasSearchParamsChanged(
 }
 
 /**
- * 不要な更新を防止するフック
+ * Hook that prevents unnecessary updates
  */
 function useSafeSearchParams() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -2213,7 +2213,7 @@ function useSafeSearchParams() {
         ? updater(new URLSearchParams(searchParams))
         : updater;
 
-      // 実質的な変化がない場合は更新しない
+      // Don't update if there is no actual change
       if (!hasSearchParamsChanged(searchParams, nextParams)) {
         return;
       }
@@ -2227,18 +2227,18 @@ function useSafeSearchParams() {
 }
 ```
 
-### 6.4 URLの正規化（Normalization）
+### 6.4 URL Normalization
 
-同じ意味を持つ異なるURLを統一するために、URLの正規化を行う。
+To unify different URLs that have the same meaning, URL normalization is performed.
 
 ```typescript
-// === URL正規化 ===
+// === URL Normalization ===
 
 /**
- * URL パラメータを正規化する
- * - キーを辞書順にソート
- * - デフォルト値を除去
- * - 空の値を除去
+ * Normalize URL parameters
+ * - Sort keys alphabetically
+ * - Remove default values
+ * - Remove empty values
  */
 function normalizeSearchParams(
   params: URLSearchParams,
@@ -2246,12 +2246,12 @@ function normalizeSearchParams(
 ): URLSearchParams {
   const normalized = new URLSearchParams();
 
-  // エントリを取得してソート
+  // Get entries and sort
   const entries = Array.from(params.entries())
     .filter(([key, value]) => {
-      // 空の値を除去
+      // Remove empty values
       if (!value) return false;
-      // デフォルト値を除去
+      // Remove default values
       if (defaults[key] === value) return false;
       return true;
     })
@@ -2264,16 +2264,16 @@ function normalizeSearchParams(
   return normalized;
 }
 
-// 使用例
+// Usage example
 const params = new URLSearchParams('page=1&sort=newest&q=laptop&category=');
 const normalized = normalizeSearchParams(params, {
   page: '1',
   sort: 'newest',
 });
-normalized.toString(); // 'q=laptop'（デフォルト値と空値が除去された）
+normalized.toString(); // 'q=laptop' (default values and empty values removed)
 
 /**
- * URL正規化ミドルウェア（Next.js）
+ * URL normalization middleware (Next.js)
  */
 // middleware.ts
 import { NextRequest, NextResponse } from 'next/server';
@@ -2281,7 +2281,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export function middleware(request: NextRequest) {
   const url = request.nextUrl;
 
-  // 正規化が必要かチェック
+  // Check if normalization is needed
   const normalized = normalizeSearchParams(
     url.searchParams,
     { page: '1', sort: 'newest', per_page: '20' }
@@ -2290,7 +2290,7 @@ export function middleware(request: NextRequest) {
   const currentSearch = url.searchParams.toString();
   const normalizedSearch = normalized.toString();
 
-  // 正規化後のURLが異なる場合はリダイレクト
+  // Redirect if normalized URL is different
   if (currentSearch !== normalizedSearch) {
     url.search = normalizedSearch ? `?${normalizedSearch}` : '';
     return NextResponse.redirect(url, { status: 301 });
@@ -2306,31 +2306,31 @@ export const config = {
 
 ---
 
-## 7. アンチパターンと注意点
+## 7. Anti-Patterns and Cautions
 
-### 7.1 よくあるアンチパターン
+### 7.1 Common Anti-Patterns
 
-URL状態管理でよく見られるアンチパターンを理解し、回避することが重要である。
+It is important to understand and avoid common anti-patterns in URL state management.
 
 ```typescript
-// === アンチパターン集 ===
+// === Anti-patterns collection ===
 
-// ❌ アンチパターン1: URLに機密情報を含める
+// Anti-pattern 1: Including sensitive information in the URL
 // URL: /dashboard?token=eyJhbGciOiJIUzI1NiJ9...
-// → URLはブラウザ履歴、サーバーログ、リファラーヘッダーに残る
-// → 認証情報は Cookie（HttpOnly）に保存すべき
+// → URLs remain in browser history, server logs, and referrer headers
+// → Authentication information should be stored in Cookies (HttpOnly)
 
-// ❌ アンチパターン2: URLに大量のデータを詰め込む
+// Anti-pattern 2: Stuffing large amounts of data into the URL
 // URL: /products?ids=1,2,3,4,5,...,1000
-// → URLは2048文字が実質上限（ブラウザ・サーバーによる）
-// → 大量のデータはサーバーサイドのセッションや localStorage に保存
+// → URLs have a practical limit of ~2048 characters (depends on browser/server)
+// → Large amounts of data should be stored in server-side sessions or localStorage
 
-// ❌ アンチパターン3: デフォルト値をURLに含める
+// Anti-pattern 3: Including default values in the URL
 // URL: /products?page=1&sort=newest&per_page=20&view=grid
-// → URLが冗長になる
-// → デフォルト値はコードで管理し、URLからは省略する
+// → URL becomes verbose
+// → Manage default values in code and omit them from the URL
 
-// ❌ アンチパターン4: フィルタ変更時にページをリセットしない
+// Anti-pattern 4: Not resetting page when filter changes
 function BadFilterChange() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -2338,15 +2338,15 @@ function BadFilterChange() {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       next.set('category', category);
-      // ❌ page をリセットしていない！
-      // page=5 のまま category を変更すると、
-      // 新カテゴリで5ページ目が存在しない可能性がある
+      // Page not reset!
+      // If you change category while on page=5,
+      // page 5 may not exist in the new category
       return next;
     });
   }
 }
 
-// ✅ 正しいパターン
+// Correct pattern
 function GoodFilterChange() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -2354,80 +2354,80 @@ function GoodFilterChange() {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       next.set('category', category);
-      next.delete('page'); // ✅ ページをリセット
+      next.delete('page'); // Reset page
       return next;
     });
   }
 }
 
-// ❌ アンチパターン5: 型変換なしで使用
+// Anti-pattern 5: Using without type conversion
 function BadTypeHandling() {
   const [searchParams] = useSearchParams();
 
-  // ❌ string のまま比較・演算
+  // Using string directly for comparison/arithmetic
   const page = searchParams.get('page'); // string | null
-  if (page > 1) { /* 文字列比較になる！ '9' > '10' は true */ }
+  if (page > 1) { /* Becomes string comparison! '9' > '10' is true */ }
 }
 
-// ✅ 正しいパターン
+// Correct pattern
 function GoodTypeHandling() {
   const [searchParams] = useSearchParams();
 
-  // ✅ 明示的な型変換
+  // Explicit type conversion
   const page = Number(searchParams.get('page') ?? '1');
-  if (page > 1) { /* 数値比較 */ }
+  if (page > 1) { /* Numeric comparison */ }
 }
 
-// ❌ アンチパターン6: 毎レンダリングで新しい URLSearchParams を生成
+// Anti-pattern 6: Creating new URLSearchParams on every render
 function BadPerformance() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // ❌ レンダリングのたびに new URLSearchParams が実行される
-  // → 参照が毎回変わるため useEffect の無限ループを引き起こす可能性
+  // new URLSearchParams is called on every render
+  // → Reference changes every time, can cause infinite loops in useEffect
   const params = new URLSearchParams(searchParams);
   const query = params.get('q');
 
   useEffect(() => {
-    // params は毎回新しいオブジェクトなので無限ループ！
+    // params is a new object every time, so infinite loop!
     fetchProducts(params);
-  }, [params]); // ❌
+  }, [params]); // Bad
 }
 
-// ✅ 正しいパターン
+// Correct pattern
 function GoodPerformance() {
   const [searchParams] = useSearchParams();
 
-  // ✅ プリミティブ値を依存配列に使用
+  // Use primitive values in dependency array
   const query = searchParams.get('q') ?? '';
   const page = Number(searchParams.get('page') ?? '1');
 
   useEffect(() => {
     fetchProducts({ q: query, page });
-  }, [query, page]); // ✅ プリミティブ値なので安定
+  }, [query, page]); // Stable because they are primitive values
 }
 
-// ❌ アンチパターン7: URLパラメータの検証なし
+// Anti-pattern 7: No validation of URL parameters
 function BadValidation() {
   const [searchParams] = useSearchParams();
 
-  // ❌ ユーザーが ?page=-5 や ?page=abc を入力する可能性がある
+  // User might input ?page=-5 or ?page=abc
   const page = Number(searchParams.get('page'));
-  // NaN や負の数になる可能性
+  // Can become NaN or a negative number
 
-  // ❌ ソート値の検証なし
+  // No validation of sort value
   const sort = searchParams.get('sort');
-  // 任意の文字列が入る可能性（SQLインジェクションのリスク）
+  // Any string can be entered (risk of SQL injection)
 }
 
-// ✅ 正しいパターン
+// Correct pattern
 function GoodValidation() {
   const [searchParams] = useSearchParams();
 
-  // ✅ バリデーション付き
+  // With validation
   const rawPage = Number(searchParams.get('page'));
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
 
-  // ✅ ホワイトリストで検証
+  // Validate with whitelist
   const validSorts = ['newest', 'oldest', 'price-asc', 'price-desc'] as const;
   const rawSort = searchParams.get('sort');
   const sort = validSorts.includes(rawSort as any)
@@ -2435,7 +2435,7 @@ function GoodValidation() {
     : 'newest';
 }
 
-// ❌ アンチパターン8: 検索入力でデバウンスなし
+// Anti-pattern 8: No debounce on search input
 function BadSearchInput() {
   const router = useRouter();
   const pathname = usePathname();
@@ -2443,114 +2443,114 @@ function BadSearchInput() {
   return (
     <input
       onChange={(e) => {
-        // ❌ キー入力のたびにURLを更新
-        // → ブラウザ履歴が大量に作られる
-        // → 毎回ネットワークリクエストが発生
+        // URL updated on every keystroke
+        // → Large number of browser history entries created
+        // → Network request occurs every time
         router.push(`${pathname}?q=${e.target.value}`);
       }}
     />
   );
 }
 
-// ❌ アンチパターン9: searchParams を直接オブジェクトの比較に使う
+// Anti-pattern 9: Using searchParams directly for object comparison
 function BadComparison() {
   const [searchParams] = useSearchParams();
 
-  // ❌ URLSearchParams はオブジェクトなので参照比較
+  // URLSearchParams is an object, so reference comparison
   useEffect(() => {
-    // searchParams はレンダリングごとに新しいインスタンス
-    // → 毎回実行される
+    // searchParams is a new instance every render
+    // → Runs every time
   }, [searchParams]);
 
-  // ✅ 文字列に変換して比較
+  // Convert to string for comparison
   const searchString = searchParams.toString();
   useEffect(() => {
-    // 文字列比較なので内容が同じなら実行されない
+    // String comparison, so won't run if content is the same
   }, [searchString]);
 }
 ```
 
-### 7.2 URL状態管理のセキュリティ考慮事項
+### 7.2 Security Considerations for URL State Management
 
 ```
-URL状態のセキュリティチェックリスト:
+Security checklist for URL state:
 
-□ URLパラメータに認証トークンを含めていないか
-  → Cookie (HttpOnly, Secure, SameSite) を使用する
+□ Are authentication tokens not included in URL parameters?
+  → Use Cookie (HttpOnly, Secure, SameSite)
 
-□ URLパラメータをSQLクエリに直接使用していないか
-  → パラメータ化クエリを使用する
-  → ホワイトリストでバリデーションする
+□ Are URL parameters not used directly in SQL queries?
+  → Use parameterized queries
+  → Validate with a whitelist
 
-□ URLパラメータをHTMLに直接出力していないか
-  → React のテキストノードとして表示する（自動エスケープ）
-  → dangerouslySetInnerHTML は使用しない
+□ Are URL parameters not output directly as HTML?
+  → Display as React text nodes (auto-escaping)
+  → Do not use dangerouslySetInnerHTML
 
-□ URLパラメータの長さを制限しているか
-  → DoS攻撃対策として最大長を設定する
+□ Is the length of URL parameters limited?
+  → Set a maximum length as a DoS attack countermeasure
 
-□ Open Redirect 脆弱性がないか
-  → redirect パラメータは内部URLのみ許可する
-  → 外部URLへのリダイレクトは禁止する
+□ Are there no Open Redirect vulnerabilities?
+  → Only allow internal URLs for redirect parameters
+  → Prohibit redirects to external URLs
 
-□ URLパラメータでサーバーリソースを操作していないか
-  → 読み取り専用のパラメータのみURLに含める
-  → 副作用のある操作はPOSTリクエストで行う
+□ Are server resources not being manipulated via URL parameters?
+  → Only include read-only parameters in the URL
+  → Perform operations with side effects via POST requests
 
-□ リファラーヘッダーに機密情報が漏れないか
-  → Referrer-Policy ヘッダーを適切に設定する
-  → meta tag: <meta name="referrer" content="origin">
+□ Is sensitive information not leaking through the Referrer header?
+  → Set the Referrer-Policy header appropriately
+  → Meta tag: <meta name="referrer" content="origin">
 ```
 
 ```typescript
-// === Open Redirect 防止 ===
+// === Open Redirect Prevention ===
 
-// ❌ 危険: 外部URLにリダイレクトされる可能性
+// Dangerous: Can redirect to external URLs
 function DangerousRedirect() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect');
 
-  // /login?redirect=https://evil.com にアクセスすると
-  // ログイン後に evil.com にリダイレクトされる
-  router.push(redirectTo!); // ❌
+  // If you access /login?redirect=https://evil.com,
+  // after login you get redirected to evil.com
+  router.push(redirectTo!); // Bad
 }
 
-// ✅ 安全: 内部URLのみ許可
+// Safe: Only allow internal URLs
 function SafeRedirect() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect');
 
   function isInternalUrl(url: string): boolean {
-    // スラッシュで始まるパスのみ許可
+    // Only allow paths starting with a slash
     if (!url.startsWith('/')) return false;
-    // プロトコル相対URLを拒否
+    // Reject protocol-relative URLs
     if (url.startsWith('//')) return false;
-    // バックスラッシュを拒否（IE対策）
+    // Reject backslashes (IE countermeasure)
     if (url.includes('\\')) return false;
     return true;
   }
 
   const safeRedirect = redirectTo && isInternalUrl(redirectTo)
     ? redirectTo
-    : '/'; // デフォルトのリダイレクト先
+    : '/'; // Default redirect destination
 
-  router.push(safeRedirect); // ✅
+  router.push(safeRedirect); // Safe
 }
 ```
 
 ---
 
-## 8. テスト戦略
+## 8. Testing Strategy
 
-### 8.1 URL状態のユニットテスト
+### 8.1 Unit Tests for URL State
 
 ```typescript
-// === URL状態のテスト ===
+// === Testing URL state ===
 import { renderHook, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useProductFilters } from './useProductFilters';
 
-// React Router のテスト
+// React Router tests
 describe('useProductFilters', () => {
   function wrapper({ children }: { children: React.ReactNode }) {
     return (
@@ -2560,15 +2560,15 @@ describe('useProductFilters', () => {
     );
   }
 
-  it('URLからフィルタ値を正しく取得する', () => {
+  it('correctly retrieves filter values from URL', () => {
     const { result } = renderHook(() => useProductFilters(), { wrapper });
 
     expect(result.current.filters.query).toBe('laptop');
     expect(result.current.filters.page).toBe(2);
-    expect(result.current.filters.sort).toBe('newest'); // デフォルト値
+    expect(result.current.filters.sort).toBe('newest'); // default value
   });
 
-  it('フィルタ変更時にページがリセットされる', () => {
+  it('resets page when filter changes', () => {
     const { result } = renderHook(() => useProductFilters(), { wrapper });
 
     act(() => {
@@ -2576,10 +2576,10 @@ describe('useProductFilters', () => {
     });
 
     expect(result.current.filters.category).toBe('electronics');
-    expect(result.current.filters.page).toBe(1); // リセットされた
+    expect(result.current.filters.page).toBe(1); // reset
   });
 
-  it('不正な値の場合はデフォルト値が使われる', () => {
+  it('uses default values for invalid values', () => {
     function invalidWrapper({ children }: { children: React.ReactNode }) {
       return (
         <MemoryRouter initialEntries={['/products?page=abc&sort=invalid']}>
@@ -2593,11 +2593,11 @@ describe('useProductFilters', () => {
       { wrapper: invalidWrapper }
     );
 
-    expect(result.current.filters.page).toBe(1); // NaN → デフォルト
-    expect(result.current.filters.sort).toBe('newest'); // 不正値 → デフォルト
+    expect(result.current.filters.page).toBe(1); // NaN → default
+    expect(result.current.filters.sort).toBe('newest'); // invalid value → default
   });
 
-  it('リセットで全パラメータがクリアされる', () => {
+  it('clears all parameters on reset', () => {
     const { result } = renderHook(() => useProductFilters(), { wrapper });
 
     act(() => {
@@ -2611,108 +2611,108 @@ describe('useProductFilters', () => {
 });
 ```
 
-### 8.2 E2Eテスト（Playwright）
+### 8.2 E2E Tests (Playwright)
 
 ```typescript
-// === Playwright: URL状態のE2Eテスト ===
+// === Playwright: E2E tests for URL state ===
 import { test, expect } from '@playwright/test';
 
 test.describe('Product Filters - URL State', () => {
-  test('URLパラメータからフィルタが復元される', async ({ page }) => {
-    // 特定のURL状態で直接アクセス
+  test('filters are restored from URL parameters', async ({ page }) => {
+    // Access directly with a specific URL state
     await page.goto('/products?q=laptop&category=electronics&sort=price-asc');
 
-    // フィルタUIに値が反映されていることを確認
+    // Confirm values are reflected in the filter UI
     await expect(page.locator('input[type="search"]')).toHaveValue('laptop');
     await expect(page.locator('select[name="category"]')).toHaveValue('electronics');
     await expect(page.locator('select[name="sort"]')).toHaveValue('price-asc');
   });
 
-  test('フィルタ変更でURLが更新される', async ({ page }) => {
+  test('URL is updated when filter changes', async ({ page }) => {
     await page.goto('/products');
 
-    // カテゴリを変更
+    // Change category
     await page.selectOption('select[name="category"]', 'electronics');
 
-    // URLが更新されたことを確認
+    // Confirm URL has been updated
     await expect(page).toHaveURL(/category=electronics/);
 
-    // ページがリセットされたことを確認
+    // Confirm page has been reset
     await expect(page).not.toHaveURL(/page=/);
   });
 
-  test('ブラウザバックでフィルタ状態が復元される', async ({ page }) => {
+  test('filter state is restored with browser back', async ({ page }) => {
     await page.goto('/products');
 
-    // フィルタを変更
+    // Change filter
     await page.selectOption('select[name="category"]', 'electronics');
     await expect(page).toHaveURL(/category=electronics/);
 
-    // さらにフィルタを変更
+    // Change filter again
     await page.selectOption('select[name="sort"]', 'price-asc');
     await expect(page).toHaveURL(/sort=price-asc/);
 
-    // ブラウザバック
+    // Browser back
     await page.goBack();
 
-    // 前のフィルタ状態に戻ることを確認
+    // Confirm previous filter state is restored
     await expect(page).toHaveURL(/category=electronics/);
     await expect(page).not.toHaveURL(/sort=price-asc/);
   });
 
-  test('検索入力がデバウンスされる', async ({ page }) => {
+  test('search input is debounced', async ({ page }) => {
     await page.goto('/products');
 
-    // 素早く入力
+    // Type quickly
     await page.locator('input[type="search"]').fill('laptop');
 
-    // デバウンス期間を待つ
+    // Wait for debounce period
     await page.waitForTimeout(500);
 
-    // URLが最終値のみ反映されていることを確認
+    // Confirm URL reflects only the final value
     await expect(page).toHaveURL(/q=laptop/);
   });
 
-  test('共有URLで同じ状態が復元される', async ({ page, context }) => {
-    // ユーザーAがフィルタを設定
+  test('same state is restored from shared URL', async ({ page, context }) => {
+    // User A sets filters
     await page.goto('/products');
     await page.selectOption('select[name="category"]', 'electronics');
     await page.selectOption('select[name="sort"]', 'price-asc');
 
-    // URLを取得
+    // Get URL
     const sharedUrl = page.url();
 
-    // ユーザーBが同じURLにアクセス（新しいタブ）
+    // User B accesses the same URL (new tab)
     const newPage = await context.newPage();
     await newPage.goto(sharedUrl);
 
-    // 同じフィルタ状態が復元されることを確認
+    // Confirm the same filter state is restored
     await expect(newPage.locator('select[name="category"]')).toHaveValue('electronics');
     await expect(newPage.locator('select[name="sort"]')).toHaveValue('price-asc');
   });
 
-  test('不正なURLパラメータが安全に処理される', async ({ page }) => {
-    // 不正な値を含むURLにアクセス
+  test('invalid URL parameters are handled safely', async ({ page }) => {
+    // Access URL with invalid values
     await page.goto('/products?page=-1&sort=invalid&q=<script>alert(1)</script>');
 
-    // ページがクラッシュしないことを確認
+    // Confirm page doesn't crash
     await expect(page.locator('h1')).toBeVisible();
 
-    // 不正値がデフォルトに修正されていることを確認
-    // （実装による: リダイレクトまたはデフォルト値適用）
+    // Confirm invalid values are corrected to defaults
+    // (depends on implementation: redirect or apply default values)
   });
 });
 ```
 
-### 8.3 URL状態のヘルパー関数テスト
+### 8.3 Helper Function Tests for URL State
 
 ```typescript
-// === ヘルパー関数のテスト ===
+// === Tests for helper functions ===
 import { describe, it, expect } from 'vitest';
 import { normalizeSearchParams, searchParamsToObject } from './url-utils';
 
 describe('normalizeSearchParams', () => {
-  it('デフォルト値を除去する', () => {
+  it('removes default values', () => {
     const params = new URLSearchParams('page=1&sort=newest&q=laptop');
     const normalized = normalizeSearchParams(params, {
       page: '1',
@@ -2722,21 +2722,21 @@ describe('normalizeSearchParams', () => {
     expect(normalized.toString()).toBe('q=laptop');
   });
 
-  it('空の値を除去する', () => {
+  it('removes empty values', () => {
     const params = new URLSearchParams('q=&category=&sort=price');
     const normalized = normalizeSearchParams(params);
 
     expect(normalized.toString()).toBe('sort=price');
   });
 
-  it('キーをソートする', () => {
+  it('sorts keys', () => {
     const params = new URLSearchParams('z=1&a=2&m=3');
     const normalized = normalizeSearchParams(params);
 
     expect(normalized.toString()).toBe('a=2&m=3&z=1');
   });
 
-  it('空のパラメータを返す', () => {
+  it('returns empty params', () => {
     const params = new URLSearchParams('page=1&sort=newest');
     const normalized = normalizeSearchParams(params, {
       page: '1',
@@ -2748,21 +2748,21 @@ describe('normalizeSearchParams', () => {
 });
 
 describe('searchParamsToObject', () => {
-  it('単一値をstring として返す', () => {
+  it('returns single values as string', () => {
     const params = new URLSearchParams('q=laptop&page=2');
     const obj = searchParamsToObject(params);
 
     expect(obj).toEqual({ q: 'laptop', page: '2' });
   });
 
-  it('複数値を配列として返す', () => {
+  it('returns multiple values as array', () => {
     const params = new URLSearchParams('tag=a&tag=b&tag=c');
     const obj = searchParamsToObject(params);
 
     expect(obj).toEqual({ tag: ['a', 'b', 'c'] });
   });
 
-  it('混在する値を正しく処理する', () => {
+  it('correctly handles mixed values', () => {
     const params = new URLSearchParams('q=laptop&tag=a&tag=b&page=1');
     const obj = searchParamsToObject(params);
 
@@ -2777,16 +2777,16 @@ describe('searchParamsToObject', () => {
 
 ---
 
-## 9. 実践的なケーススタディ
+## 9. Practical Case Studies
 
-### 9.1 ECサイトの商品検索ページ
+### 9.1 E-Commerce Product Search Page
 
-実際のECサイトを想定した、URL状態管理の完全な実装例を示す。
+A complete implementation example of URL state management for an actual e-commerce site.
 
 ```typescript
-// === 完全な実装例: ECサイト商品検索 ===
+// === Complete implementation: E-commerce product search ===
 
-// 1. 共有パーサー定義（searchParams.ts）
+// 1. Shared parser definitions (searchParams.ts)
 import {
   parseAsString,
   parseAsInteger,
@@ -2798,14 +2798,14 @@ import {
 } from 'nuqs';
 
 export const productSearchParsers = {
-  // 検索
+  // Search
   q: parseAsString.withDefault(''),
 
-  // ページネーション
+  // Pagination
   page: parseAsInteger.withDefault(1),
   per_page: parseAsInteger.withDefault(24),
 
-  // ソート
+  // Sort
   sort: parseAsStringEnum([
     'relevance',
     'newest',
@@ -2815,7 +2815,7 @@ export const productSearchParsers = {
     'popular',
   ]).withDefault('relevance'),
 
-  // フィルタ
+  // Filters
   category: parseAsString,
   brand: parseAsString,
   tags: parseAsArrayOf(parseAsString, ',').withDefault([]),
@@ -2824,16 +2824,16 @@ export const productSearchParsers = {
   price_max: parseAsFloat,
   rating_min: parseAsInteger,
 
-  // 表示設定
+  // Display settings
   view: parseAsStringEnum(['grid', 'list']).withDefault('grid'),
 };
 
-// Server Component 用キャッシュ
+// Cache for Server Components
 export const productSearchParamsCache = createSearchParamsCache(
   productSearchParsers
 );
 
-// 型定義
+// Type definition
 export type ProductSearchParams = {
   [K in keyof typeof productSearchParsers]: ReturnType<
     (typeof productSearchParsers)[K]['parse']
@@ -2842,7 +2842,7 @@ export type ProductSearchParams = {
 ```
 
 ```typescript
-// 2. Server Component（page.tsx）
+// 2. Server Component (page.tsx)
 import { Suspense } from 'react';
 import { productSearchParamsCache } from './searchParams';
 
@@ -2853,7 +2853,7 @@ export default async function ProductsPage({
 }) {
   const filters = await productSearchParamsCache.parse(await searchParams);
 
-  // サーバーサイドでデータフェッチ
+  // Server-side data fetch
   const [products, categories, brands] = await Promise.all([
     getProducts(filters),
     getCategories(),
@@ -2862,7 +2862,7 @@ export default async function ProductsPage({
 
   return (
     <div className="flex gap-6">
-      {/* サイドバー: フィルタ */}
+      {/* Sidebar: Filters */}
       <aside className="w-64 shrink-0">
         <Suspense fallback={<FiltersSkeleton />}>
           <ProductFiltersSidebar
@@ -2872,25 +2872,25 @@ export default async function ProductsPage({
         </Suspense>
       </aside>
 
-      {/* メインコンテンツ */}
+      {/* Main content */}
       <main className="flex-1">
-        {/* 検索バー & ソート */}
+        {/* Search bar & sort */}
         <Suspense fallback={<SearchBarSkeleton />}>
           <SearchAndSort totalCount={products.meta.total} />
         </Suspense>
 
-        {/* アクティブフィルタ表示 */}
+        {/* Active filters display */}
         <Suspense fallback={null}>
           <ActiveFilters />
         </Suspense>
 
-        {/* 商品グリッド */}
+        {/* Product grid */}
         <ProductGrid
           products={products.data}
           view={filters.view ?? 'grid'}
         />
 
-        {/* ページネーション */}
+        {/* Pagination */}
         <ServerPagination
           currentPage={filters.page}
           totalPages={products.meta.totalPages}
@@ -2905,7 +2905,7 @@ export default async function ProductsPage({
 ```
 
 ```typescript
-// 3. Client Component: アクティブフィルタ表示
+// 3. Client Component: Active filters display
 'use client';
 import { useQueryStates } from 'nuqs';
 import { productSearchParsers } from './searchParams';
@@ -3014,10 +3014,10 @@ function ActiveFilters() {
 }
 ```
 
-### 9.2 ダッシュボードのフィルタパネル
+### 9.2 Dashboard Filter Panel
 
 ```typescript
-// === ダッシュボード: 日付範囲フィルタ ===
+// === Dashboard: Date range filter ===
 'use client';
 import { useQueryStates, parseAsString, parseAsStringEnum } from 'nuqs';
 import { startOfDay, endOfDay, subDays, format } from 'date-fns';
@@ -3050,7 +3050,7 @@ const dashboardParsers = {
 function DashboardFilters() {
   const [filters, setFilters] = useQueryStates(dashboardParsers);
 
-  // プリセットから日付範囲を計算
+  // Calculate date range from preset
   const dateRange = useMemo(() => {
     const now = new Date();
 
@@ -3093,7 +3093,7 @@ function DashboardFilters() {
 
   return (
     <div className="flex items-center gap-4">
-      {/* プリセット選択 */}
+      {/* Preset select */}
       <select
         value={filters.preset}
         onChange={(e) => handlePresetChange(e.target.value)}
@@ -3106,7 +3106,7 @@ function DashboardFilters() {
         <option value="custom">Custom Range</option>
       </select>
 
-      {/* カスタム日付範囲（preset=custom の場合のみ表示） */}
+      {/* Custom date range (shown only when preset=custom) */}
       {filters.preset === 'custom' && (
         <>
           <input
@@ -3123,7 +3123,7 @@ function DashboardFilters() {
         </>
       )}
 
-      {/* メトリクス選択 */}
+      {/* Metric select */}
       <select
         value={filters.metric}
         onChange={(e) => setFilters({ metric: e.target.value as any })}
@@ -3134,7 +3134,7 @@ function DashboardFilters() {
         <option value="conversion">Conversion Rate</option>
       </select>
 
-      {/* 粒度選択 */}
+      {/* Granularity select */}
       <select
         value={filters.granularity}
         onChange={(e) => setFilters({ granularity: e.target.value as any })}
@@ -3151,124 +3151,124 @@ function DashboardFilters() {
 
 ---
 
-## 10. URL状態管理ツール比較
+## 10. URL State Management Tool Comparison
 
-### 10.1 ツール選定ガイド
+### 10.1 Tool Selection Guide
 
-| ツール | 型安全 | フレームワーク | バッチ更新 | SSR対応 | 学習コスト | 推奨場面 |
-|--------|--------|----------------|-----------|---------|----------|---------|
-| URLSearchParams | 低 | なし（Web標準） | 手動 | 可 | 低 | シンプルなケース |
-| useSearchParams (RR) | 低 | React Router | 手動 | なし | 低 | React Router プロジェクト |
-| useSearchParams (Next) | 低 | Next.js | 手動 | 可 | 低 | Next.js プロジェクト |
-| nuqs | 高 | Next/RR/Remix | 自動 | 可 | 中 | 型安全が必要な場合 |
-| qs ライブラリ | 低 | なし | 手動 | 可 | 低 | ネストオブジェクトのシリアライズ |
-| カスタムフック | 中 | 任意 | 手動 | 依存 | 高 | 特殊要件がある場合 |
+| Tool | Type Safety | Framework | Batch Update | SSR Support | Learning Cost | Recommended For |
+|------|-------------|-----------|--------------|-------------|---------------|-----------------|
+| URLSearchParams | Low | None (Web standard) | Manual | Yes | Low | Simple cases |
+| useSearchParams (RR) | Low | React Router | Manual | No | Low | React Router projects |
+| useSearchParams (Next) | Low | Next.js | Manual | Yes | Low | Next.js projects |
+| nuqs | High | Next/RR/Remix | Automatic | Yes | Medium | When type safety is needed |
+| qs library | Low | None | Manual | Yes | Low | Serializing nested objects |
+| Custom hook | Medium | Any | Manual | Depends | High | When special requirements exist |
 
-### 10.2 プロジェクト規模別の推奨
+### 10.2 Recommendations by Project Scale
 
 ```
-小規模プロジェクト（1-3ページのフィルタ）:
-  → useSearchParams + カスタムヘルパー関数
-  → 追加ライブラリ不要
-  → シンプルで理解しやすい
+Small projects (1-3 pages with filters):
+  → useSearchParams + custom helper functions
+  → No additional libraries needed
+  → Simple and easy to understand
 
-中規模プロジェクト（5-10ページのフィルタ）:
-  → nuqs を導入
-  → 型安全性とバッチ更新の恩恵が大きい
-  → パーサー定義を共有して一貫性を保つ
+Medium projects (5-10 pages with filters):
+  → Introduce nuqs
+  → Great benefits from type safety and batch updates
+  → Share parser definitions to maintain consistency
 
-大規模プロジェクト（10+ページ、複雑なフィルタ）:
-  → nuqs + Zod バリデーション
-  → Server Component 統合（searchParamsCache）
-  → URL正規化ミドルウェア
-  → E2Eテストで URL状態の回帰テスト
+Large projects (10+ pages, complex filters):
+  → nuqs + Zod validation
+  → Server Component integration (searchParamsCache)
+  → URL normalization middleware
+  → Regression test URL state with E2E tests
 ```
 
 ---
 
-## 11. トラブルシューティング
+## 11. Troubleshooting
 
-### 11.1 よくある問題と解決策
+### 11.1 Common Issues and Solutions
 
 ```
-問題1: useSearchParams が Suspense boundary を要求する（Next.js）
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: Next.js App Router では useSearchParams がクライアントのみの値
-解決: <Suspense> で囲む、または fallback を提供する
+Issue 1: useSearchParams requires a Suspense boundary (Next.js)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cause: In Next.js App Router, useSearchParams is a client-only value
+Solution: Wrap with <Suspense> or provide a fallback
   <Suspense fallback={<Loading />}>
     <ComponentWithSearchParams />
   </Suspense>
 
-問題2: URLパラメータが消える / リセットされる
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: setSearchParams でオブジェクトを渡すと全パラメータが置換される
-解決: 関数型アップデートを使用する
+Issue 2: URL parameters disappear / are reset
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cause: Passing an object to setSearchParams replaces all parameters
+Solution: Use functional update
   setSearchParams(prev => {
     const next = new URLSearchParams(prev);
     next.set('key', 'value');
     return next;
   });
 
-問題3: useEffect の無限ループ
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: searchParams オブジェクトが毎レンダリングで新規生成される
-解決: 依存配列にはプリミティブ値を使用する
+Issue 3: Infinite loop in useEffect
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cause: searchParams object is newly created on every render
+Solution: Use primitive values in dependency array
   const query = searchParams.get('q') ?? '';
   useEffect(() => { ... }, [query]); // string
 
-問題4: ブラウザバックが効かない
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: router.replace を使っている（履歴に追加されない）
-解決: フィルタ変更には router.push を使用する
-  replace → 検索入力中のリアルタイム更新のみ
-  push → フィルタ確定時
+Issue 4: Browser back doesn't work
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cause: Using router.replace (not added to history)
+Solution: Use router.push for filter changes
+  replace → Only for real-time updates while typing in search
+  push → When confirming a filter
 
-問題5: 日本語が文字化けする
-━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: 手動で encodeURIComponent / decodeURIComponent を使っている
-解決: URLSearchParams を使用する（自動エンコード/デコード）
-  params.set('q', '日本語'); // 自動エンコード
-  params.get('q'); // '日本語'（自動デコード）
+Issue 5: Non-ASCII characters appear garbled
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cause: Manually using encodeURIComponent / decodeURIComponent
+Solution: Use URLSearchParams (auto encode/decode)
+  params.set('q', 'Japanese text'); // Auto encoded
+  params.get('q'); // 'Japanese text' (auto decoded)
 
-問題6: パラメータの順序が毎回変わる
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: URLSearchParams は挿入順
-解決: params.sort() で辞書順にソートする
-  → キャッシュヒット率の向上にも効果的
+Issue 6: Parameter order changes every time
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cause: URLSearchParams preserves insertion order
+Solution: Sort alphabetically with params.sort()
+  → Also effective for improving cache hit rate
 
-問題7: nuqs でURLが更新されない
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: NuqsAdapter の設定漏れ
-解決: layout.tsx で NuqsAdapter を設定する
+Issue 7: URL is not updated with nuqs
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cause: Missing NuqsAdapter configuration
+Solution: Set up NuqsAdapter in layout.tsx
   import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
-問題8: Server Component で searchParams が undefined
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: Next.js 15+ では searchParams が Promise に変更された
-解決: await で解決する
+Issue 8: searchParams is undefined in Server Component
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cause: In Next.js 15+, searchParams was changed to a Promise
+Solution: Resolve with await
   const params = await searchParams; // Next.js 15+
 
-問題9: 同じフィルタなのに毎回APIが呼ばれる
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: queryKey にオブジェクト参照を使っている
-解決: プリミティブ値 or JSON.stringify を queryKey に使用
+Issue 9: API is called every time even for the same filter
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cause: Using object references in queryKey
+Solution: Use primitive values or JSON.stringify in queryKey
   queryKey: ['products', query, page, sort] // OK
   queryKey: ['products', JSON.stringify(filters)] // OK
-  queryKey: ['products', filtersObject] // NG（参照比較）
+  queryKey: ['products', filtersObject] // Bad (reference comparison)
 
-問題10: iOS Safari でURLが更新されない
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: iOS Safari の History API 制限（100回/30秒）
-解決: スロットルを入れてURL更新頻度を制限する
-  → 特にスライダーやリアルタイム入力で注意
+Issue 10: URL is not updated in iOS Safari
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cause: iOS Safari History API limit (100 times/30 seconds)
+Solution: Add throttle to limit URL update frequency
+  → Pay special attention with sliders and real-time input
 ```
 
-### 11.2 デバッグテクニック
+### 11.2 Debugging Techniques
 
 ```typescript
-// === URL状態のデバッグ ===
+// === Debugging URL state ===
 
-// 1. 現在のURL状態をログ出力
+// 1. Log the current URL state
 function useDebugSearchParams() {
   const searchParams = useSearchParams();
 
@@ -3283,7 +3283,7 @@ function useDebugSearchParams() {
   }, [searchParams]);
 }
 
-// 2. URL変更の追跡
+// 2. Track URL changes
 function useTrackURLChanges() {
   const searchParams = useSearchParams();
   const prevRef = useRef(searchParams.toString());
@@ -3299,78 +3299,78 @@ function useTrackURLChanges() {
   }, [searchParams]);
 }
 
-// 3. React DevTools で URL状態を確認
-// nuqs を使用している場合、React DevTools の
-// コンポーネントツリーで各パラメータの値が確認できる
+// 3. Check URL state in React DevTools
+// When using nuqs, you can check the value of each parameter
+// in the component tree of React DevTools
 
-// 4. ブラウザの開発者ツールで History を確認
-// Performance タブ → Navigation タイミングを確認
-// Application タブ → History API の状態を確認
+// 4. Check History in browser developer tools
+// Performance tab → Check Navigation timing
+// Application tab → Check History API state
 ```
 
 ---
 
 ## FAQ
 
-### Q1: URL状態とReact状態はどう同期すべきか？
-URLをSingle Source of Truthとし、React状態はUI最適化のためのみに使う。検索入力のようなリアルタイム入力が必要な場合は、ローカルのuseStateで入力途中の値を管理し、デバウンス後にURLに反映する。ブラウザバック時はURLの変更を検知してローカル状態を同期する。nuqsライブラリを使用すると、この同期処理が自動化されて実装が大幅に簡潔になる。
+### Q1: How should URL state and React state be synchronized?
+Use the URL as the Single Source of Truth, and use React state only for UI optimization. For real-time input like search fields, manage the intermediate value with local useState and reflect it in the URL after debouncing. When the browser goes back, detect the URL change and sync the local state. Using the nuqs library automates this synchronization, significantly simplifying the implementation.
 
-### Q2: 検索フィルタをどうURL永続化すべきか？
-単一値のフィルタは `?category=electronics` のように通常のクエリパラメータで表現し、デフォルト値はURLから除外してURLをすっきりさせる。複数値のフィルタ（ブランド選択等）はカンマ区切り `?brands=apple,samsung` で表現する。フィルタ変更時はページ番号を必ず1にリセットすること。URLの最大長（ブラウザ依存だが約2000文字）を考慮し、過度に多いパラメータはサーバーサイドセッションに保存することも検討する。
+### Q2: How should search filters be persisted in the URL?
+Express single-value filters as ordinary query parameters like `?category=electronics`, and exclude default values from the URL to keep it clean. For multi-value filters (like brand selection), use comma-separated format `?brands=apple,samsung`. Always reset the page number to 1 when a filter changes. Also consider the maximum URL length (browser-dependent, but about 2000 characters), and consider storing an excessive number of parameters in a server-side session.
 
-### Q3: Next.js App RouterでURL状態をどう管理するか？
-Server Componentでは `searchParams` propsとしてURLパラメータを受け取り、データ取得に使用する。Client Componentでは `useSearchParams` や nuqs の `useQueryState` でURLを更新する。Server ComponentとClient Componentの役割分担を明確にし、Server Componentでデータ取得、Client ComponentでURLの更新操作を担当させることで、パフォーマンスとUXの両立を実現できる。
+### Q3: How should URL state be managed with Next.js App Router?
+In Server Components, receive URL parameters as `searchParams` props and use them for data fetching. In Client Components, update the URL with `useSearchParams` or nuqs's `useQueryState`. By clearly separating the roles of Server Components and Client Components — Server Components for data fetching, Client Components for URL update operations — you can achieve both performance and UX.
 
 ---
 
-## まとめ
+## Summary
 
-### URL状態管理の選択マトリクス
+### URL State Management Selection Matrix
 
-| 判断基準 | URLSearchParams | useSearchParams | nuqs |
-|---------|----------------|----------------|------|
-| 型安全性が必要 | - | - | Best |
+| Criterion | URLSearchParams | useSearchParams | nuqs |
+|-----------|----------------|----------------|------|
+| Type safety required | - | - | Best |
 | Next.js App Router | OK | OK | Best |
 | React Router | OK | Best | OK |
-| Server Component 統合 | 手動 | 手動 | Best |
-| 複雑なフィルタ（10+パラメータ） | 手動 | 手動 | Best |
-| 追加ライブラリを避けたい | Best | OK | - |
-| バッチ更新が必要 | 手動 | 手動 | Best |
-| カスタムパーサーが必要 | 手動 | 手動 | Best |
+| Server Component integration | Manual | Manual | Best |
+| Complex filters (10+ params) | Manual | Manual | Best |
+| Avoid additional libraries | Best | OK | - |
+| Batch updates needed | Manual | Manual | Best |
+| Custom parsers needed | Manual | Manual | Best |
 
-### URL状態設計のチェックリスト
+### URL State Design Checklist
 
 ```
-設計時:
-□ URLに含めるべき状態を特定した
-□ デフォルト値をURLから除外する設計にした
-□ 配列パラメータの形式を統一した
-□ パラメータ名の命名規則を決めた（snake_case / camelCase）
-□ URL長の上限を考慮した
+At design time:
+□ Identified state to include in URL
+□ Designed to exclude default values from URL
+□ Unified the format for array parameters
+□ Decided on naming conventions for parameter names (snake_case / camelCase)
+□ Considered the URL length limit
 
-実装時:
-□ 型安全なパーサーを使用している（nuqs or Zod）
-□ フィルタ変更時にページをリセットしている
-□ 検索入力にデバウンスを適用している
-□ push / replace を適切に使い分けている
-□ XSSやOpen Redirectの対策をしている
-□ バリデーションを実装している
+At implementation time:
+□ Using type-safe parsers (nuqs or Zod)
+□ Resetting page when filter changes
+□ Applying debounce to search input
+□ Using push / replace appropriately
+□ XSS and Open Redirect countermeasures in place
+□ Validation implemented
 
-テスト時:
-□ URLからの状態復元テスト
-□ ブラウザバック/フォワードテスト
-□ 不正なURLパラメータの処理テスト
-□ 共有URLの動作テスト
-□ E2Eテストでフィルタ操作を検証
+At test time:
+□ Test for state restoration from URL
+□ Test for browser back/forward
+□ Test for handling invalid URL parameters
+□ Test for shared URL behavior
+□ Verify filter operations with E2E tests
 ```
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
 ---
 
-## 参考文献
+## References
 1. nuqs. "Type-safe search params state manager for Next.js." github.com/47ng/nuqs, 2024.
 2. Next.js. "useSearchParams." nextjs.org/docs/app/api-reference/functions/use-search-params, 2024.
 3. React Router. "useSearchParams." reactrouter.com/en/main/hooks/use-search-params, 2024.

@@ -1,37 +1,37 @@
-# コンポーネント設計
+# Component Architecture
 
-> コンポーネント設計はUIの再利用性と保守性を決定づける。Atomic Design、Container/Presentational、Compound Components、Headless UIまで、スケーラブルなコンポーネントアーキテクチャの全パターンを習得する。
+> Component architecture determines the reusability and maintainability of UI. Master all patterns of scalable component architecture — from Atomic Design and Container/Presentational to Compound Components and Headless UI.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] コンポーネント分割の原則と粒度設計を理解する
-- [ ] 主要なコンポーネント設計パターンを把握する
-- [ ] Headless UIとコンポーネントライブラリの活用を学ぶ
-- [ ] Props設計の原則とパターンを習得する
-- [ ] Server/Clientコンポーネント境界の最適化を学ぶ
-- [ ] コンポーネントのテスト戦略を理解する
-- [ ] パフォーマンス最適化のためのコンポーネント設計を把握する
-- [ ] 大規模アプリケーションにおけるコンポーネント管理手法を学ぶ
+- [ ] Understand the principles and granularity design for component splitting
+- [ ] Grasp major component design patterns
+- [ ] Learn how to use Headless UI and component libraries
+- [ ] Master the principles and patterns of Props design
+- [ ] Learn optimization of Server/Client component boundaries
+- [ ] Understand component testing strategies
+- [ ] Grasp component design for performance optimization
+- [ ] Learn component management techniques in large-scale applications
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- プロジェクト構成とFeature-based設計 — [プロジェクト構成](./01-project-structure.md)
-- React の基本（JSX、Props、State、Hooks）
-- TypeScript の型システム（interface、type、Generics の基礎）
+- Project structure and feature-based design — [Project Structure](./01-project-structure.md)
+- React basics (JSX, Props, State, Hooks)
+- TypeScript type system (interface, type, Generics basics)
 
 ---
 
-## 1. コンポーネント分割の原則
+## 1. Principles of Component Splitting
 
-### 1.1 単一責任原則（SRP）
+### 1.1 Single Responsibility Principle (SRP)
 
-コンポーネント設計における最も重要な原則は、1つのコンポーネントが1つの責任のみを持つことである。これにより、コンポーネントの理解・テスト・保守が容易になる。
+The most important principle in component design is that one component has only one responsibility. This makes components easier to understand, test, and maintain.
 
 ```typescript
 // ============================================
-// アンチパターン: 1つのコンポーネントに全ての責任
+// Anti-pattern: All responsibilities in one component
 // ============================================
 function UserPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -66,13 +66,13 @@ function UserPage() {
 }
 
 // ============================================
-// 推奨パターン: 責任ごとにコンポーネントを分割
+// Recommended pattern: Split components by responsibility
 // ============================================
 
-// ページコンポーネント（構成のみ担当）
+// Page component (responsible for composition only)
 function UserPage() {
   return (
-    <PageLayout title="ユーザー管理">
+    <PageLayout title="User Management">
       <UserSearchBar />
       <UserFilters />
       <UserTableContainer />
@@ -81,7 +81,7 @@ function UserPage() {
   );
 }
 
-// 検索バー（検索機能のみ担当）
+// Search bar (responsible for search only)
 function UserSearchBar() {
   const [query, setQuery] = useQueryParam('q', '');
   const debouncedQuery = useDebounce(query, 300);
@@ -90,12 +90,12 @@ function UserSearchBar() {
     <SearchInput
       value={query}
       onChange={setQuery}
-      placeholder="ユーザーを検索..."
+      placeholder="Search users..."
     />
   );
 }
 
-// フィルター（フィルタリングのみ担当）
+// Filters (responsible for filtering only)
 function UserFilters() {
   const [filter, setFilter] = useQueryParam('filter', 'all');
 
@@ -114,7 +114,7 @@ function UserFilters() {
   );
 }
 
-// テーブルコンテナ（データ取得とテーブル表示の橋渡し）
+// Table container (bridge between data fetching and table display)
 function UserTableContainer() {
   const { data: users, isLoading, error } = useUsers();
 
@@ -125,37 +125,37 @@ function UserTableContainer() {
 }
 ```
 
-### 1.2 分割の判断基準
+### 1.2 Criteria for Splitting Decisions
 
-コンポーネントをいつ分割すべきかの判断基準を明確にしておくことが重要である。
+It is important to clarify the criteria for when to split a component.
 
 ```
-分割すべきサイン:
-  ✓ コンポーネントが50行を超えている
-  ✓ 同じUIパターンが2回以上出現している
-  ✓ テストしたい単位が明確に存在する
-  ✓ データ取得とUIレンダリングが混在している
-  ✓ 複数の状態が独立して管理されている
-  ✓ コンポーネント名に「And」が入りそうになる
-  ✓ JSXの中に複雑な条件分岐がある
+Signs that splitting is needed:
+  ✓ Component exceeds 50 lines
+  ✓ The same UI pattern appears 2+ times
+  ✓ A clear unit to test exists
+  ✓ Data fetching and UI rendering are mixed
+  ✓ Multiple states are managed independently
+  ✓ The component name would include "And"
+  ✓ Complex conditional branches inside JSX
 
-分割しすぎの兆候:
-  ✗ props が10個以上のバケツリレーが発生
-  ✗ 1つの変更で5ファイル以上の修正が必要
-  ✗ コンポーネント名が抽象的すぎる（Wrapper, Handler, Manager）
-  ✗ コンポーネントが単なるHTML要素の薄いラッパー
-  ✗ 親子間で大量のコールバックを受け渡している
-  ✗ ファイル数が多すぎて探すのに時間がかかる
+Signs of over-splitting:
+  ✗ Props drilling of 10+ props occurs
+  ✗ One change requires modifying 5+ files
+  ✗ Component name is too abstract (Wrapper, Handler, Manager)
+  ✗ Component is just a thin wrapper around an HTML element
+  ✗ Large numbers of callbacks passed between parent and child
+  ✗ Too many files, takes time to find anything
 ```
 
-### 1.3 コンポーネントの粒度設計
+### 1.3 Component Granularity Design
 
-コンポーネントの粒度は、プロジェクトの規模や要件に応じて調整する必要がある。粒度の基準を明確にしておくことで、チーム全体で一貫した設計が可能になる。
+Component granularity needs to be adjusted based on project scale and requirements. Having clear granularity standards allows the entire team to design consistently.
 
 ```typescript
 // ============================================
-// 粒度レベル1: プリミティブコンポーネント
-// HTML要素を拡張した最小単位
+// Granularity Level 1: Primitive Components
+// Minimal unit extending HTML elements
 // ============================================
 interface TextInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -197,8 +197,8 @@ function TextInput({ label, error, helperText, id, ...props }: TextInputProps) {
 }
 
 // ============================================
-// 粒度レベル2: 複合コンポーネント
-// プリミティブを組み合わせた機能単位
+// Granularity Level 2: Composite Components
+// Functional units combining primitives
 // ============================================
 interface SearchFormProps {
   onSearch: (query: string, filters: SearchFilters) => void;
@@ -218,13 +218,13 @@ function SearchForm({ onSearch, defaultQuery = '', categories }: SearchFormProps
   return (
     <form onSubmit={handleSubmit} className="flex gap-2 items-end">
       <TextInput
-        label="検索"
+        label="Search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="キーワードを入力..."
+        placeholder="Enter keyword..."
       />
       <Select
-        label="カテゴリ"
+        label="Category"
         options={categories}
         value={filters.category}
         onChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
@@ -237,8 +237,8 @@ function SearchForm({ onSearch, defaultQuery = '', categories }: SearchFormProps
 }
 
 // ============================================
-// 粒度レベル3: ドメインコンポーネント
-// ビジネスロジックを含む特定ドメインの単位
+// Granularity Level 3: Domain Components
+// Units for a specific domain including business logic
 // ============================================
 function UserProfile({ userId }: { userId: string }) {
   const { data: user, isLoading } = useUser(userId);
@@ -246,7 +246,7 @@ function UserProfile({ userId }: { userId: string }) {
   const [isEditing, setIsEditing] = useState(false);
 
   if (isLoading) return <ProfileSkeleton />;
-  if (!user) return <NotFound message="ユーザーが見つかりません" />;
+  if (!user) return <NotFound message="User not found" />;
 
   return (
     <Card>
@@ -280,8 +280,8 @@ function UserProfile({ userId }: { userId: string }) {
 }
 
 // ============================================
-// 粒度レベル4: ページ/レイアウトコンポーネント
-// ドメインコンポーネントを組み合わせた画面レベル
+// Granularity Level 4: Page/Layout Components
+// Screen-level combination of domain components
 // ============================================
 function DashboardPage() {
   return (
@@ -312,37 +312,37 @@ function DashboardPage() {
 
 ### 1.4 Atomic Design
 
-Atomic Designは、UIをAtoms（原子）、Molecules（分子）、Organisms（有機体）、Templates（テンプレート）、Pages（ページ）の5段階で構成するデザインシステムの方法論である。
+Atomic Design is a design system methodology that organizes UI into 5 levels: Atoms, Molecules, Organisms, Templates, and Pages.
 
 ```
-Atomic Design の5階層:
+Atomic Design 5 Layers:
 
-  Atoms（原子）:
-  → 最も小さなUI単位
+  Atoms:
+  → Smallest UI unit
   → Button, Input, Label, Icon, Badge, Avatar
-  → それ以上分割できない要素
-  → デザイントークン（色、フォント、スペーシング）を直接参照
+  → Elements that cannot be split further
+  → Directly reference design tokens (color, font, spacing)
 
-  Molecules（分子）:
-  → Atomsを組み合わせた機能単位
+  Molecules:
+  → Functional units combining Atoms
   → SearchBar = Input + Button + Icon
   → FormField = Label + Input + ErrorMessage
-  → 1つの明確な機能を持つ
+  → Has one clear function
 
-  Organisms（有機体）:
-  → Molecules + Atoms で構成される複雑なUI
+  Organisms:
+  → Complex UI composed of Molecules + Atoms
   → Header = Logo + Navigation + SearchBar + UserMenu
   → ProductCard = Image + Title + Price + AddToCartButton
-  → 独立してUIとして成立する
+  → Functions as a standalone UI
 
-  Templates（テンプレート）:
-  → ページのレイアウト構造を定義
-  → コンテンツのプレースホルダーを配置
-  → データなしの骨組み
+  Templates:
+  → Defines the layout structure of the page
+  → Places content placeholders
+  → Framework without data
 
-  Pages（ページ）:
-  → Templatesに実データを流し込んだもの
-  → 実際のユーザーが見る最終的な画面
+  Pages:
+  → Templates filled with real data
+  → The final screen seen by actual users
 ```
 
 ```typescript
@@ -455,46 +455,46 @@ function AdminListTemplate({ children }: { children: ReactNode }) {
 }
 ```
 
-### 1.5 コンポーネント分割のベストプラクティス比較表
+### 1.5 Component Splitting Best Practices Comparison
 
-| 基準 | 分割する | 分割しない |
+| Criterion | Split | Don't Split |
 |------|---------|-----------|
-| 行数 | 50行以上 | 30行以下 |
-| 責任 | 複数の関心事 | 単一の関心事 |
-| 再利用 | 2箇所以上で使用 | 1箇所でのみ使用 |
-| テスト | 独立テストが必要 | 親と一緒にテスト |
-| 状態 | 独立した状態管理 | 親の状態に依存 |
-| 変更頻度 | 他と異なる変更頻度 | 同じタイミングで変更 |
-| チーム | 異なるチームが担当 | 同じチームが担当 |
+| Lines | 50+ lines | 30 or fewer |
+| Responsibility | Multiple concerns | Single concern |
+| Reuse | Used in 2+ places | Used in only 1 place |
+| Testing | Independent test needed | Tested with parent |
+| State | Independent state management | Depends on parent state |
+| Change frequency | Different from others | Changed at the same time |
+| Team | Managed by different teams | Managed by same team |
 
 ---
 
-## 2. Container / Presentational パターン
+## 2. Container / Presentational Pattern
 
-### 2.1 パターンの基本概念
+### 2.1 Basic Concepts of the Pattern
 
-Container/Presentationalパターンは、コンポーネントをロジック担当（Container）と表示担当（Presentational）に分離する設計パターンである。Dan AbramovがReactコミュニティに広めたパターンで、関心の分離を実現する最も基本的な手法の1つである。
+The Container/Presentational pattern is a design pattern that separates components into logic-responsible (Container) and display-responsible (Presentational). A pattern popularized by Dan Abramov in the React community, it is one of the most fundamental approaches to achieving separation of concerns.
 
 ```
-Container（ロジック担当）:
-  → データ取得、状態管理、イベントハンドリング
-  → UIを持たない（Presentationalに委譲）
-  → カスタムフックとして実装することも多い
-  → 副作用（API呼び出し、ストレージアクセス等）を集約
+Container (logic-responsible):
+  → Data fetching, state management, event handling
+  → Has no UI (delegates to Presentational)
+  → Often implemented as custom hooks
+  → Consolidates side effects (API calls, storage access, etc.)
 
-Presentational（表示担当）:
-  → propsを受け取って表示するだけ
-  → 内部状態は最小限（UIの開閉、ホバー状態等）
-  → テストが容易（propsを渡すだけ）
-  → Storybookでのドキュメント化が容易
-  → 再利用性が高い
+Presentational (display-responsible):
+  → Only receives props and displays
+  → Minimal internal state (open/close UI, hover state, etc.)
+  → Easy to test (just pass props)
+  → Easy to document in Storybook
+  → High reusability
 ```
 
-### 2.2 実装パターン
+### 2.2 Implementation Patterns
 
 ```typescript
 // ============================================
-// パターン1: クラシックなContainer/Presentational
+// Pattern 1: Classic Container/Presentational
 // ============================================
 
 // --- Container ---
@@ -556,7 +556,7 @@ function UserListView({
   if (error) {
     return (
       <Alert variant="error">
-        <AlertTitle>エラー</AlertTitle>
+        <AlertTitle>Error</AlertTitle>
         <AlertDescription>{error.message}</AlertDescription>
       </Alert>
     );
@@ -575,7 +575,7 @@ function UserListView({
       {users.length === 0 ? (
         <EmptyState
           icon="users"
-          title="ユーザーが見つかりません"
+          title="User not found"
           description="検索条件を変更してください"
         />
       ) : (
@@ -592,10 +592,10 @@ function UserListView({
 }
 
 // ============================================
-// パターン2: カスタムフックによる分離（現代的アプローチ）
+// Pattern 2: Separation via custom hook (modern approach)
 // ============================================
 
-// カスタムフック = Container の役割
+// Custom hook = Container role
 function useUserList() {
   const { data: users, isLoading, error } = useUsers();
   const [filter, setFilter] = useState<UserFilter>('all');
@@ -627,7 +627,7 @@ function useUserList() {
   };
 }
 
-// コンポーネント側は表示に集中
+// Component focuses on display
 function UserList() {
   const {
     users,
@@ -640,7 +640,7 @@ function UserList() {
     handleDelete,
   } = useUserList();
 
-  // 表示ロジックのみ
+  // Display logic only
   if (error) return <ErrorMessage error={error} />;
   if (isLoading) return <LoadingSpinner />;
 
@@ -654,10 +654,10 @@ function UserList() {
 }
 
 // ============================================
-// パターン3: React Server Components による自然な分離
+// Pattern 3: Natural separation via React Server Components
 // ============================================
 
-// Server Component = Container（データ取得）
+// Server Component = Container (data fetching)
 // app/users/page.tsx
 async function UsersPage() {
   const users = await prisma.user.findMany({
@@ -674,7 +674,7 @@ async function UsersPage() {
   );
 }
 
-// Client Component = Presentational（インタラクション）
+// Client Component = Presentational (interaction)
 'use client';
 function UserListClient({ initialUsers }: { initialUsers: User[] }) {
   const [filter, setFilter] = useState<UserFilter>('all');
@@ -691,33 +691,33 @@ function UserListClient({ initialUsers }: { initialUsers: User[] }) {
 }
 ```
 
-### 2.3 Container/Presentational パターンの使い分け
+### 2.3 Choosing Between Container/Presentational Approaches
 
-| アプローチ | メリット | デメリット | 適用場面 |
+| Approach | Pros | Cons | Use Case |
 |-----------|---------|-----------|---------|
-| クラシックContainer | 明確な分離、テスト容易 | ファイル数増加 | 大規模チーム |
-| カスタムフック | 柔軟、再利用容易 | フックの依存管理 | 中規模プロジェクト |
-| RSC分離 | 自然な分離、パフォーマンス | Next.js依存 | Next.js App Router |
+| Classic Container | Clear separation, easy testing | More files | Large teams |
+| Custom hook | Flexible, reusable | Hook dependency management | Medium projects |
+| RSC separation | Natural separation, performance | Next.js dependency | Next.js App Router |
 
 ---
 
-## 3. Compound Components パターン
+## 3. Compound Components Pattern
 
-### 3.1 パターンの概要
+### 3.1 Pattern Overview
 
-Compound Componentsは、関連するコンポーネント群を1つのまとまりとして提供するパターンである。親コンポーネントが状態を管理し、子コンポーネントがその状態を暗黙的に共有する。HTMLの `<select>` と `<option>` の関係に類似している。
+Compound Components is a pattern that provides a group of related components as a single unit. The parent component manages state, and child components implicitly share that state. It is analogous to the relationship between HTML's `<select>` and `<option>`.
 
 ```typescript
 // ============================================
-// 使い方のイメージ: 宣言的で直感的なAPI
+// Usage: Declarative and intuitive API
 // ============================================
 
-// Tabsコンポーネントの使用例
+// Tabs component usage example
 <Tabs defaultValue="profile">
   <Tabs.List>
-    <Tabs.Trigger value="profile">プロフィール</Tabs.Trigger>
-    <Tabs.Trigger value="settings">設定</Tabs.Trigger>
-    <Tabs.Trigger value="billing">請求</Tabs.Trigger>
+    <Tabs.Trigger value="profile">Profile</Tabs.Trigger>
+    <Tabs.Trigger value="settings">Settings</Tabs.Trigger>
+    <Tabs.Trigger value="billing">Billing</Tabs.Trigger>
   </Tabs.List>
   <Tabs.Content value="profile">
     <ProfileForm />
@@ -730,43 +730,43 @@ Compound Componentsは、関連するコンポーネント群を1つのまとま
   </Tabs.Content>
 </Tabs>
 
-// Accordionコンポーネントの使用例
+// Accordion component usage example
 <Accordion type="single" defaultValue="item-1">
   <Accordion.Item value="item-1">
-    <Accordion.Trigger>セクション1</Accordion.Trigger>
-    <Accordion.Content>セクション1の内容</Accordion.Content>
+    <Accordion.Trigger>Section 1</Accordion.Trigger>
+    <Accordion.Content>Section 1 content</Accordion.Content>
   </Accordion.Item>
   <Accordion.Item value="item-2">
-    <Accordion.Trigger>セクション2</Accordion.Trigger>
-    <Accordion.Content>セクション2の内容</Accordion.Content>
+    <Accordion.Trigger>Section 2</Accordion.Trigger>
+    <Accordion.Content>Section 2 content</Accordion.Content>
   </Accordion.Item>
 </Accordion>
 
-// Dropdownメニューの使用例
+// Dropdown menu usage example
 <DropdownMenu>
   <DropdownMenu.Trigger>
-    <Button variant="ghost">メニュー</Button>
+    <Button variant="ghost">Menu</Button>
   </DropdownMenu.Trigger>
   <DropdownMenu.Content>
     <DropdownMenu.Item onSelect={() => navigate('/profile')}>
-      プロフィール
+      Profile
     </DropdownMenu.Item>
     <DropdownMenu.Separator />
     <DropdownMenu.Item onSelect={handleLogout} variant="destructive">
-      ログアウト
+      Logout
     </DropdownMenu.Item>
   </DropdownMenu.Content>
 </DropdownMenu>
 ```
 
-### 3.2 Tabsコンポーネントの実装
+### 3.2 Tabs Component Implementation
 
 ```typescript
 // ============================================
-// Compound Components の完全な実装例: Tabs
+// Complete implementation example of Compound Components: Tabs
 // ============================================
 
-// --- 型定義 ---
+// --- Type definitions ---
 interface TabsContextType {
   activeTab: string;
   setActiveTab: (value: string) => void;
@@ -779,12 +779,12 @@ const TabsContext = createContext<TabsContextType | null>(null);
 function useTabsContext() {
   const context = useContext(TabsContext);
   if (!context) {
-    throw new Error('Tabs のサブコンポーネントは <Tabs> 内で使用してください');
+    throw new Error('Tabs sub-components must be used inside <Tabs>');
   }
   return context;
 }
 
-// --- 親コンポーネント ---
+// --- Parent component ---
 interface TabsProps {
   defaultValue: string;
   value?: string;
@@ -860,7 +860,7 @@ Tabs.Trigger = function TabsTrigger({ value, children, disabled = false, classNa
   const isActive = activeTab === value;
   const ref = useRef<HTMLButtonElement>(null);
 
-  // キーボードナビゲーション
+  // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const triggers = ref.current?.parentElement?.querySelectorAll('[role="tab"]');
     if (!triggers) return;
@@ -943,7 +943,7 @@ Tabs.Content = function TabsContent({ value, children, className }: {
 };
 ```
 
-### 3.3 Accordionコンポーネントの実装
+### 3.3 Accordion Component Implementation
 
 ```typescript
 // ============================================
@@ -962,11 +962,11 @@ const AccordionContext = createContext<AccordionContextType | null>(null);
 
 function useAccordionContext() {
   const ctx = useContext(AccordionContext);
-  if (!ctx) throw new Error('Accordion サブコンポーネントは <Accordion> 内で使用してください');
+  if (!ctx) throw new Error('Accordion sub-components must be used inside <Accordion>');
   return ctx;
 }
 
-// --- Accordion 本体 ---
+// --- Accordion body ---
 interface AccordionProps {
   type?: AccordionType;
   defaultValue?: string | string[];
@@ -1076,34 +1076,34 @@ Accordion.Content = function AccordionContent({ children }: {
 };
 ```
 
-### 3.4 Compound Components パターンの利点と注意点
+### 3.4 Benefits and Caveats of Compound Components Pattern
 
 ```
-利点:
-  ✓ 宣言的で直感的なAPI
-  ✓ 柔軟なレイアウトカスタマイズ
-  ✓ 関連コンポーネント間の暗黙的な状態共有
-  ✓ コンポーネント間のpropsバケツリレーを回避
-  ✓ 各サブコンポーネントの独立したスタイリング
+Benefits:
+  ✓ Declarative and intuitive API
+  ✓ Flexible layout customization
+  ✓ Implicit state sharing between related components
+  ✓ Avoids props drilling between components
+  ✓ Independent styling for each sub-component
 
-注意点:
-  ✗ Context の過度なネストによるパフォーマンス問題
-  ✗ TypeScript の型定義が複雑になりがち
-  ✗ 関数コンポーネントの静的プロパティ（displayName等）の管理
-  ✗ 子コンポーネントの使い方を制約しにくい
+Caveats:
+  ✗ Performance issues from excessive Context nesting
+  ✗ TypeScript type definitions tend to be complex
+  ✗ Managing static properties of function components (displayName, etc.)
+  ✗ Hard to constrain usage of child components
 
-実装パターンの選択:
-  静的プロパティ方式:
+Choosing implementation pattern:
+  Static property approach:
     Tabs.List, Tabs.Trigger, Tabs.Content
-    → シンプルで直感的
-    → tree-shaking が効かない場合がある
+    → Simple and intuitive
+    → Tree-shaking may not work
 
-  名前付きエクスポート方式:
+  Named export approach:
     TabsList, TabsTrigger, TabsContent
-    → tree-shaking に対応
-    → import が冗長になる
+    → Tree-shaking compatible
+    → Import becomes verbose
 
-  推奨: shadcn/ui スタイルの名前付きエクスポート
+  Recommended: shadcn/ui style named exports
     import { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs';
 ```
 
@@ -1111,71 +1111,71 @@ Accordion.Content = function AccordionContent({ children }: {
 
 ## 4. Headless UI
 
-### 4.1 Headless UIの概念
+### 4.1 Headless UI Concept
 
-Headless UIとは、ロジック・状態管理・アクセシビリティのみを提供し、スタイルは一切含まないUIコンポーネントのアーキテクチャである。これにより、見た目の完全なカスタマイズを保ちながら、複雑なインタラクションロジックとアクセシビリティを再利用できる。
-
-```
-Headless UI の思想:
-  → ロジック層とプレゼンテーション層の完全な分離
-  → アクセシビリティ（WAI-ARIA）の標準準拠
-  → キーボードナビゲーションの完全サポート
-  → フォーカス管理の自動化
-  → スタイルの一切を消費者に委ねる
-
-従来のUIライブラリの課題:
-  → 見た目のカスタマイズが困難
-  → CSSの上書きが複雑（!important 地獄）
-  → デザインシステムとの統合が難しい
-  → バンドルサイズが大きい
-
-Headless UIが解決する問題:
-  → スタイルの制約がゼロ
-  → 既存のCSSフレームワークと自然に統合
-  → 必要なコンポーネントのみ利用可能
-  → アクセシビリティの自力実装が不要
-```
-
-### 4.2 主要なHeadless UIライブラリの比較
+Headless UI is a UI component architecture that provides only logic, state management, and accessibility — with no styles included. This allows full visual customization while reusing complex interaction logic and accessibility.
 
 ```
-ライブラリ比較:
+Headless UI philosophy:
+  → Complete separation of logic and presentation layers
+  → WAI-ARIA standards compliance
+  → Full keyboard navigation support
+  → Automated focus management
+  → Leaves all styling to the consumer
+
+Problems with traditional UI libraries:
+  → Difficult to customize appearance
+  → Complex CSS overriding (!important hell)
+  → Hard to integrate with design systems
+  → Large bundle size
+
+Problems solved by Headless UI:
+  → Zero style constraints
+  → Natural integration with existing CSS frameworks
+  → Only required components can be used
+  → No need to implement accessibility yourself
+```
+
+### 4.2 Comparison of Major Headless UI Libraries
+
+```
+Library comparison:
 
   ┌─────────────┬──────────┬─────────────┬──────────┬─────────┐
-  │ ライブラリ   │ 開発元   │ 特徴         │ サイズ    │ 推奨度  │
+  │ Library      │ Developer│ Features     │ Size     │ Rating  │
   ├─────────────┼──────────┼─────────────┼──────────┼─────────┤
-  │ Radix UI    │ WorkOS   │ 最も人気、    │ 中       │ ★★★★★ │
-  │             │          │ shadcn/ui   │          │         │
-  │             │          │ のベース     │          │         │
+  │ Radix UI    │ WorkOS   │ Most popular, │ Medium   │ ★★★★★ │
+  │             │          │ base of      │          │         │
+  │             │          │ shadcn/ui    │          │         │
   ├─────────────┼──────────┼─────────────┼──────────┼─────────┤
-  │ Headless UI │ Tailwind │ Tailwind    │ 小       │ ★★★★☆ │
-  │             │ Labs     │ との親和性高 │          │         │
+  │ Headless UI │ Tailwind │ High         │ Small    │ ★★★★☆ │
+  │             │ Labs     │ Tailwind fit │          │         │
   ├─────────────┼──────────┼─────────────┼──────────┼─────────┤
-  │ React Aria  │ Adobe    │ アクセシビリ │ 大       │ ★★★★★ │
-  │             │          │ ティ最高    │          │         │
+  │ React Aria  │ Adobe    │ Best         │ Large    │ ★★★★★ │
+  │             │          │ accessibility│          │         │
   ├─────────────┼──────────┼─────────────┼──────────┼─────────┤
-  │ Ariakit     │ OSS      │ 軽量、      │ 小       │ ★★★★☆ │
-  │             │          │ コンポーザ   │          │         │
-  │             │          │ ブル        │          │         │
+  │ Ariakit     │ OSS      │ Lightweight, │ Small    │ ★★★★☆ │
+  │             │          │ composable   │          │         │
+  │             │          │             │          │         │
   ├─────────────┼──────────┼─────────────┼──────────┼─────────┤
-  │ Ark UI      │ Chakra   │ Zag.js      │ 中       │ ★★★☆☆ │
-  │             │          │ ベース、     │          │         │
-  │             │          │ FW非依存    │          │         │
+  │ Ark UI      │ Chakra   │ Zag.js      │ Medium   │ ★★★☆☆ │
+  │             │          │ based,      │          │         │
+  │             │          │ FW agnostic │          │         │
   └─────────────┴──────────┴─────────────┴──────────┴─────────┘
 ```
 
-### 4.3 Radix UIの実践的な使い方
+### 4.3 Practical Use of Radix UI
 
 ```typescript
 // ============================================
-// Radix UI + Tailwind CSS でカスタムDialogを構築
+// Building a custom Dialog with Radix UI + Tailwind CSS
 // ============================================
 
 import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// shadcn/ui スタイルのDialog実装
+// Dialog implementation in shadcn/ui style
 const DialogRoot = Dialog.Root;
 const DialogTrigger = Dialog.Trigger;
 
@@ -1218,7 +1218,7 @@ const DialogContent = forwardRef<
       {children}
       <Dialog.Close className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 focus:ring-2">
         <X className="h-4 w-4" />
-        <span className="sr-only">閉じる</span>
+        <span className="sr-only">Close</span>
       </Dialog.Close>
     </Dialog.Content>
   </DialogPortal>
@@ -1251,7 +1251,7 @@ const DialogDescription = forwardRef<
   />
 ));
 
-// --- 使用例 ---
+// --- Usage example ---
 function ConfirmDeleteDialog({ userName, onConfirm }: {
   userName: string;
   onConfirm: () => void;
@@ -1259,21 +1259,21 @@ function ConfirmDeleteDialog({ userName, onConfirm }: {
   return (
     <DialogRoot>
       <DialogTrigger asChild>
-        <Button variant="destructive" size="sm">削除</Button>
+        <Button variant="destructive" size="sm">Delete</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>ユーザーの削除</DialogTitle>
+          <DialogTitle>Delete User</DialogTitle>
           <DialogDescription>
-            {userName} を削除しますか？この操作は取り消せません。
+            Are you sure you want to delete {userName}? This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <div className="flex justify-end gap-2 mt-6">
           <Dialog.Close asChild>
-            <Button variant="outline">キャンセル</Button>
+            <Button variant="outline">Cancel</Button>
           </Dialog.Close>
           <Button variant="destructive" onClick={onConfirm}>
-            削除する
+            Delete
           </Button>
         </div>
       </DialogContent>
@@ -1282,39 +1282,39 @@ function ConfirmDeleteDialog({ userName, onConfirm }: {
 }
 ```
 
-### 4.4 shadcn/ui の仕組みと活用
+### 4.4 How shadcn/ui Works and How to Use It
 
 ```
-shadcn/ui の設計思想:
-  → Radix UI（Headless）+ Tailwind CSS（スタイル）+ cva（バリアント管理）
-  → npm パッケージとしてインストールしない
-  → コピー＆ペーストでコンポーネントを追加
-  → 完全にカスタマイズ可能
-  → node_modules に依存しない
-  → コンポーネントのコードが手元にある安心感
+shadcn/ui design philosophy:
+  → Radix UI (Headless) + Tailwind CSS (styles) + cva (variant management)
+  → Not installed as an npm package
+  → Add components by copy & paste
+  → Fully customizable
+  → Does not depend on node_modules
+  → Peace of mind that component code is at hand
 
-セットアップ手順:
+Setup steps:
   npx shadcn@latest init
-  → tailwind.config.js の設定
-  → CSS変数の設定（テーマカラー）
-  → パス設定（components, lib, utils）
+  → tailwind.config.js configuration
+  → CSS variable setup (theme colors)
+  → Path configuration (components, lib, utils)
 
-コンポーネント追加:
+Adding components:
   npx shadcn@latest add button
-  → src/components/ui/button.tsx が生成
-  → 中身を自由に編集可能
+  → src/components/ui/button.tsx is generated
+  → Content can be freely edited
 
   npx shadcn@latest add dialog
-  → src/components/ui/dialog.tsx が生成
-  → Radix UI Dialog をラップしたコンポーネント
+  → src/components/ui/dialog.tsx is generated
+  → Component wrapping Radix UI Dialog
 
   npx shadcn@latest add form
-  → src/components/ui/form.tsx が生成
-  → React Hook Form + Zod との統合
+  → src/components/ui/form.tsx is generated
+  → Integration with React Hook Form + Zod
 ```
 
 ```typescript
-// shadcn/ui のButtonコンポーネント（生成されるコード）
+// shadcn/ui Button component (generated code)
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
@@ -1369,34 +1369,34 @@ Button.displayName = "Button"
 export { Button, buttonVariants }
 ```
 
-### 4.5 コンポーネントライブラリの選定ガイド
+### 4.5 Component Library Selection Guide
 
-| カテゴリ | ライブラリ | 特徴 | 推奨シーン |
+| Category | Library | Features | Recommended Use |
 |---------|-----------|------|-----------|
-| フルスタイル | MUI (Material UI) | Material Design準拠、機能豊富 | エンタープライズ、Material好み |
-| フルスタイル | Ant Design | エンタープライズ向け、中国発 | 管理画面、ダッシュボード |
-| フルスタイル | Chakra UI | DX重視、学習コスト低 | 中小規模、プロトタイプ |
-| フルスタイル | Mantine | React特化、モダン設計 | React専用プロジェクト |
-| Headless+スタイル | shadcn/ui | Radix + Tailwind | 新規プロジェクト（推奨） |
-| Headless+スタイル | Ark UI | Zag.jsベース、FW非依存 | マルチフレームワーク |
-| Headlessのみ | Radix UI | 最も人気、高品質 | カスタムデザイン |
-| Headlessのみ | React Aria | Adobe製、a11y最高 | アクセシビリティ重視 |
-| Headlessのみ | Headless UI | Tailwind Labs製 | Tailwind環境 |
+| Full style | MUI (Material UI) | Material Design compliant, feature-rich | Enterprise, Material preference |
+| Full style | Ant Design | Enterprise-grade, from China | Admin panels, dashboards |
+| Full style | Chakra UI | DX-focused, low learning cost | Small/medium scale, prototypes |
+| Full style | Mantine | React-specific, modern design | React-only projects |
+| Headless+style | shadcn/ui | Radix + Tailwind | New projects (recommended) |
+| Headless+style | Ark UI | Zag.js based, FW agnostic | Multi-framework |
+| Headless only | Radix UI | Most popular, high quality | Custom design |
+| Headless only | React Aria | By Adobe, best a11y | Accessibility-focused |
+| Headless only | Headless UI | By Tailwind Labs | Tailwind environment |
 
 ---
 
-## 5. Props設計
+## 5. Props Design
 
-### 5.1 Props設計の基本原則
+### 5.1 Basic Principles of Props Design
 
-Props設計は、コンポーネントの使いやすさと保守性に直結する。良いProps設計は、APIの一貫性、型安全性、拡張性を実現する。
+Props design directly determines the usability and maintainability of a component. Good Props design achieves API consistency, type safety, and extensibility.
 
 ```typescript
 // ============================================
-// 原則1: HTML標準属性を拡張する
+// Principle 1: Extend HTML standard attributes
 // ============================================
 
-// 悪い例: 独自のprops名を使い、HTML標準を無視
+// Bad example: Uses custom prop names, ignores HTML standards
 interface BadButtonProps {
   label: string;
   onPress: () => void;
@@ -1404,7 +1404,7 @@ interface BadButtonProps {
   buttonType: 'submit' | 'button';
 }
 
-// 良い例: HTML標準属性を拡張
+// Good example: Extends HTML standard attributes
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'default' | 'destructive' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
@@ -1422,7 +1422,7 @@ function Button({
   children,
   disabled,
   className,
-  ...props // onClick, type, form 等はそのまま透過
+  ...props // onClick, type, form etc. are passed through as-is
 }: ButtonProps) {
   return (
     <button
@@ -1438,23 +1438,23 @@ function Button({
 }
 
 // ============================================
-// 原則2: childrenを活用したコンポジション
+// Principle 2: Composition using children
 // ============================================
 
-// 悪い例: props で全てを制御
+// Bad example: Control everything with props
 <Card
   title="ユーザー情報"
   subtitle="基本情報"
   body={<UserDetails user={user} />}
-  footer={<Button onClick={onSave}>保存</Button>}
+  footer={<Button onClick={onSave}>Save</Button>}
   headerAction={<IconButton icon="edit" />}
 />
 
-// 良い例: children + Compound Components
+// Good example: children + Compound Components
 <Card>
   <Card.Header>
-    <Card.Title>ユーザー情報</Card.Title>
-    <Card.Description>基本情報</Card.Description>
+    <Card.Title>User Information</Card.Title>
+    <Card.Description>Basic Information</Card.Description>
     <Card.Action>
       <IconButton icon="edit" />
     </Card.Action>
@@ -1463,15 +1463,15 @@ function Button({
     <UserDetails user={user} />
   </Card.Body>
   <Card.Footer>
-    <Button onClick={onSave}>保存</Button>
+    <Button onClick={onSave}>Save</Button>
   </Card.Footer>
 </Card>
 
 // ============================================
-// 原則3: 条件付きProps（Discriminated Union）
+// Principle 3: Conditional Props (Discriminated Union)
 // ============================================
 
-// ステータスに応じて異なるpropsを要求
+// Require different props depending on status
 type NotificationProps =
   | { type: 'success'; message: string }
   | { type: 'error'; message: string; retryAction: () => void }
@@ -1520,20 +1520,20 @@ function Notification(props: NotificationProps) {
   }
 }
 
-// 使い方: 型安全にpropsが制約される
-<Notification type="error" message="保存に失敗" retryAction={() => save()} />
-// type="error" の場合、retryAction が必須
-// type="success" の場合、retryAction は不要
+// Usage: Props are type-safely constrained
+<Notification type="error" message="Save failed" retryAction={() => save()} />
+// When type="error", retryAction is required
+// When type="success", retryAction is not needed
 ```
 
-### 5.2 Render Props と Slots パターン
+### 5.2 Render Props and Slots Pattern
 
 ```typescript
 // ============================================
-// Render Props パターン
+// Render Props Pattern
 // ============================================
 
-// DataTableの柔軟なカスタマイズ
+// Flexible customization of DataTable
 interface DataTableProps<T> {
   data: T[];
   columns: ColumnDef<T>[];
@@ -1596,7 +1596,7 @@ function DataTable<T extends { id: string }>({
   );
 }
 
-// 使用例
+// Usage example
 <DataTable
   data={users}
   columns={userColumns}
@@ -1610,8 +1610,8 @@ function DataTable<T extends { id: string }>({
   renderEmpty={() => (
     <EmptyState
       icon="users"
-      title="ユーザーが見つかりません"
-      action={<Button onClick={onCreateUser}>ユーザーを追加</Button>}
+      title="User not found"
+      action={<Button onClick={onCreateUser}>Add User</Button>}
     />
   )}
   renderLoading={() => <TableSkeleton rows={5} columns={3} />}
@@ -1619,17 +1619,17 @@ function DataTable<T extends { id: string }>({
 />
 ```
 
-### 5.3 バリアント管理（CVA: Class Variance Authority）
+### 5.3 Variant Management (CVA: Class Variance Authority)
 
 ```typescript
 // ============================================
-// CVA によるバリアント管理の実践
+// Practical variant management with CVA
 // ============================================
 import { cva, type VariantProps } from 'class-variance-authority';
 
-// --- Alert コンポーネント ---
+// --- Alert component ---
 const alertVariants = cva(
-  // ベーススタイル（常に適用）
+  // Base styles (always applied)
   'relative w-full rounded-lg border p-4 flex items-start gap-3',
   {
     variants: {
@@ -1651,7 +1651,7 @@ const alertVariants = cva(
       },
     },
     compoundVariants: [
-      // 特定の組み合わせに対するスタイル
+      // Styles for specific combinations
       {
         variant: 'error',
         size: 'lg',
@@ -1703,32 +1703,32 @@ function Alert({
   );
 }
 
-// 使用例
+// Usage example
 <Alert variant="error" size="lg" dismissable onDismiss={() => setVisible(false)}>
-  <AlertTitle>エラー</AlertTitle>
-  <AlertDescription>データの保存に失敗しました。再試行してください。</AlertDescription>
+  <AlertTitle>Error</AlertTitle>
+  <AlertDescription>Failed to save data. Please try again.</AlertDescription>
 </Alert>
 ```
 
 ---
 
-## 6. Server / Client コンポーネント境界
+## 6. Server / Client Component Boundaries
 
-### 6.1 Next.js App Router でのコンポーネント設計
+### 6.1 Component Design in Next.js App Router
 
-Next.js App Routerでは、Server ComponentとClient Componentという2種類のコンポーネントが存在する。この境界を適切に設計することが、パフォーマンスと開発体験の両方に大きく影響する。
+In Next.js App Router, there are two types of components: Server Components and Client Components. Properly designing this boundary has a major impact on both performance and developer experience.
 
 ```
-基本ルール:
-  → デフォルトは Server Component
-  → 'use client' は必要最小限に
-  → Client の境界をなるべく葉（リーフ）に近づける
-  → Server Component から Client Component にはシリアライズ可能なpropsのみ渡せる
+Basic rules:
+  → Default is Server Component
+  → 'use client' only when absolutely necessary
+  → Push Client boundary as close to leaves as possible
+  → Only serializable props can be passed from Server Component to Client Component
 ```
 
 ```typescript
 // ============================================
-// 良い例: Client境界が小さい
+// Good example: Small Client boundary
 // ============================================
 
 // page.tsx (Server Component)
@@ -1738,74 +1738,74 @@ async function ProductPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="max-w-4xl mx-auto py-8">
-      {/* Server Component: 静的な部分 */}
+      {/* Server Component: static parts */}
       <h1 className="text-3xl font-bold">{product.name}</h1>
       <p className="mt-2 text-gray-600">{product.description}</p>
 
-      {/* Server Component: 画像ギャラリー（静的） */}
+      {/* Server Component: image gallery (static) */}
       <ProductImageGallery images={product.images} />
 
-      {/* Client Component: インタラクティブな部分のみ */}
+      {/* Client Component: interactive parts only */}
       <ProductPrice price={product.price} discount={product.discount} />
       <AddToCartButton productId={product.id} />
 
-      {/* Server Component: レビュー一覧（静的） */}
+      {/* Server Component: review list (static) */}
       <ReviewList reviews={reviews} />
 
-      {/* Client Component: レビュー投稿フォーム */}
+      {/* Client Component: review submission form */}
       <ReviewForm productId={product.id} />
     </div>
   );
 }
 
 // ============================================
-// 悪い例: ページ全体がClient
+// Bad example: Entire page is Client
 // ============================================
 
-// 'use client';  ← ページ全体をClientにしてしまっている
+// 'use client';  ← Making the entire page Client
 // function ProductPage({ params }) {
 //   const { data: product } = useQuery(...);
-//   // 全てがクライアントサイドで実行される
-//   // → バンドルサイズ増大、初期表示遅延
+//   // Everything runs client-side
+//   // → Larger bundle size, slower initial load
 // }
 ```
 
-### 6.2 Server/Client コンポーネントの判断基準
+### 6.2 Criteria for Server/Client Component Selection
 
 ```
-Server Component を使う場面:
-  → データベースへの直接アクセス
-  → サーバーサイドのAPIキーやシークレットの使用
-  → 大きな依存パッケージ（マークダウンパーサー、syntax highlighter等）
-  → 機密情報の処理
-  → SEOが重要なコンテンツ
-  → 初期表示パフォーマンスが重要な部分
+When to use Server Component:
+  → Direct database access
+  → Using server-side API keys and secrets
+  → Large dependency packages (markdown parsers, syntax highlighters, etc.)
+  → Processing sensitive information
+  → Content where SEO is important
+  → Parts where initial load performance matters
 
-Client Component を使う場面:
-  → useState, useEffect, useReducer などのReact Hooksが必要
-  → onClick, onChange 等のイベントハンドラが必要
-  → ブラウザAPI（localStorage, navigator, window等）へのアクセス
-  → サードパーティのクライアントサイドライブラリ
-  → Context Providerの利用
-  → アニメーションやトランジション
+When to use Client Component:
+  → React Hooks like useState, useEffect, useReducer are needed
+  → Event handlers like onClick, onChange are needed
+  → Access to browser APIs (localStorage, navigator, window, etc.)
+  → Third-party client-side libraries
+  → Using Context Provider
+  → Animations and transitions
 ```
 
-### 6.3 境界設計のパターン
+### 6.3 Boundary Design Patterns
 
 ```typescript
 // ============================================
-// パターン1: インタラクティブな部分だけをClient化
+// Pattern 1: Make only interactive parts Client
 // ============================================
 
 // SearchableList.tsx (Server Component)
 async function SearchableList() {
-  // サーバーサイドで全データを取得
+  // Fetch all data on server side
   const items = await fetchAllItems();
 
   return (
     <div>
-      <h2>アイテム一覧</h2>
-      {/* 検索機能だけをClient化 */}
+      <h2>Item List</h2>
+      {/* Make only search feature Client */}
       <SearchFilter items={items} />
     </div>
   );
@@ -1825,7 +1825,7 @@ function SearchFilter({ items }: { items: Item[] }) {
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="検索..."
+        placeholder="Search..."
       />
       <ul>
         {filtered.map(item => (
@@ -1837,7 +1837,7 @@ function SearchFilter({ items }: { items: Item[] }) {
 }
 
 // ============================================
-// パターン2: Provider のClient境界
+// Pattern 2: Client boundary of Provider
 // ============================================
 
 // providers.tsx (Client Component)
@@ -1863,7 +1863,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="ja">
       <body>
         <Providers>
-          {/* childrenはServer Componentのまま */}
+          {/* children remain as Server Component */}
           {children}
         </Providers>
       </body>
@@ -1872,7 +1872,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 }
 
 // ============================================
-// パターン3: Server Component を Children として渡す
+// Pattern 3: Pass Server Component as Children
 // ============================================
 
 // ClientWrapper.tsx (Client Component)
@@ -1883,7 +1883,7 @@ function Sidebar({ children }: { children: ReactNode }) {
   return (
     <aside className={cn('transition-all', isOpen ? 'w-64' : 'w-16')}>
       <button onClick={() => setIsOpen(!isOpen)}>
-        {isOpen ? '閉じる' : '開く'}
+        {isOpen ? 'Close' : 'Open'}
       </button>
       {isOpen && children}
     </aside>
@@ -1892,7 +1892,7 @@ function Sidebar({ children }: { children: ReactNode }) {
 
 // page.tsx (Server Component)
 async function DashboardPage() {
-  const navItems = await getNavItems(); // サーバーサイドで取得
+  const navItems = await getNavItems(); // Fetch on server side
 
   return (
     <div className="flex">
@@ -2892,7 +2892,7 @@ shadcn/uiはコピー&ペースト型のUIライブラリであり、プロジ�
 
 ## まとめ
 
-### コンポーネント設計パターンの全体マップ
+### Component Architectureパターンの全体マップ
 
 | パターン | 用途 | 適用場面 | 難易度 |
 |---------|------|---------|--------|

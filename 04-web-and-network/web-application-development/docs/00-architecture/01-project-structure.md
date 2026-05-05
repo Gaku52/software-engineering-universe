@@ -1,64 +1,64 @@
-# プロジェクト構成
+# Project Structure
 
-> プロジェクト構成は開発チームの生産性を決定づける。Feature-based構成、レイヤードアーキテクチャ、モノレポ設計まで、スケーラブルで保守しやすいディレクトリ設計の原則とパターンを習得する。
+> Project structure determines the productivity of the development team. Master the principles and patterns of scalable, maintainable directory design — from feature-based structures and layered architectures to monorepo design.
 
-## 前提知識
+## Prerequisites
 
-この章を学ぶ前に、以下の知識を習得しておくことを推奨する。
+Before studying this chapter, it is recommended to acquire the following knowledge.
 
-- SPA/MPA/SSRの概念とレンダリング方式の違い
-  - 参照: `./00-spa-mpa-ssr.md`
-- モジュールシステムの理解（ESM vs CommonJS）
-  - import/export の仕組み
-  - Tree-shaking の原理
-  - Dynamic import による遅延読み込み
+- Concepts of SPA/MPA/SSR and differences in rendering approaches
+  - Reference: `./00-spa-mpa-ssr.md`
+- Understanding of module systems (ESM vs CommonJS)
+  - How import/export works
+  - Principles of tree-shaking
+  - Lazy loading with dynamic import
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] Feature-basedなディレクトリ設計を理解する
-- [ ] レイヤードアーキテクチャの適用方法を把握する
-- [ ] モノレポとパッケージ分割の設計を学ぶ
-- [ ] ESLint による依存ルールの自動化を習得する
-- [ ] テスト配置戦略とCI/CDへの統合を理解する
-- [ ] プロジェクト規模に応じた構成の選択基準を把握する
+- [ ] Understand feature-based directory design
+- [ ] Grasp how to apply layered architecture
+- [ ] Learn monorepo and package splitting design
+- [ ] Master automating dependency rules with ESLint
+- [ ] Understand test placement strategy and CI/CD integration
+- [ ] Grasp selection criteria for structure based on project scale
 
-## 前提知識
+## Prerequisites
 
-この章を学習する前に、以下の知識を習得しておくことを推奨します。
+Before studying this chapter, it is recommended to acquire the following knowledge.
 
-- **SPA/MPA/SSRの概念**: 各レンダリング方式の特徴と選定基準の理解
-  → 参照: `./00-spa-mpa-ssr.md`
-- **モジュールシステム**: ESM（ES Modules）とCommonJSの違い、import/export の仕組み
-- **パス解決**: 相対パス vs 絶対パス、TypeScriptのpaths設定の理解
+- **SPA/MPA/SSR concepts**: Understanding the characteristics and selection criteria of each rendering approach
+  → Reference: `./00-spa-mpa-ssr.md`
+- **Module systems**: Differences between ESM (ES Modules) and CommonJS, how import/export works
+- **Path resolution**: Understanding relative vs absolute paths, TypeScript paths configuration
 
 ---
 
-## 1. ディレクトリ設計の原則
+## 1. Principles of Directory Design
 
-### 1.1 なぜディレクトリ設計が重要なのか
+### 1.1 Why Directory Design Matters
 
-ディレクトリ設計はソフトウェアアーキテクチャの「第一印象」であり、プロジェクト全体の品質に直結する。新しいメンバーがリポジトリを開いた瞬間、コードの場所が予測でき、修正すべきファイルに迷わず辿り着ける構成が理想的である。
+Directory design is the "first impression" of software architecture and directly impacts the overall quality of a project. The ideal structure allows new team members to predict where code lives the moment they open the repository, and to navigate to the file they need to modify without confusion.
 
-**良いディレクトリ設計がもたらす効果:**
+**Benefits of good directory design:**
 
-| 効果 | 説明 |
-|------|------|
-| 発見性（Discoverability） | 「このコードはどこにあるか？」が直感的にわかる |
-| 変更容易性（Changeability） | 機能追加・修正の影響範囲が明確で局所化される |
-| 削除容易性（Deletability） | 不要な機能をディレクトリごと安全に削除できる |
-| チームスケール | 複数チームが独立して作業でき、コンフリクトが減少する |
-| オンボーディング速度 | 新メンバーが短時間でプロジェクト全体を把握できる |
-| テスト効率 | 変更された機能に対するテストのみを実行できる |
+| Benefit | Description |
+|---------|-------------|
+| Discoverability | "Where is this code?" is intuitively clear |
+| Changeability | The impact of feature additions and changes is clear and localized |
+| Deletability | Unwanted features can be safely deleted directory by directory |
+| Team scale | Multiple teams can work independently, reducing conflicts |
+| Onboarding speed | New members can grasp the entire project in a short time |
+| Test efficiency | Only tests for changed features need to be run |
 
-### 1.2 アンチパターン: 型ベース（Technical-based）構成
+### 1.2 Anti-pattern: Technical-based Structure
 
-多くのプロジェクトが最初に採用しがちな構成が「型ベース」のディレクトリ設計である。これは技術的な役割でファイルをグループ化する。
+A common initial structure that many projects adopt is "technical-based" directory design. This groups files by their technical role.
 
 ```
-型ベースの構成（アンチパターン）:
+Technical-based structure (anti-pattern):
 
   src/
-  ├── components/         ← 全コンポーネントが混在
+  ├── components/         ← All components mixed together
   │   ├── Button.tsx
   │   ├── UserList.tsx
   │   ├── UserCard.tsx
@@ -67,24 +67,24 @@
   │   ├── AuthForm.tsx
   │   ├── SettingsPanel.tsx
   │   ├── DashboardChart.tsx
-  │   └── ... (100+ ファイル)
-  ├── hooks/              ← 全hooksが混在
+  │   └── ... (100+ files)
+  ├── hooks/              ← All hooks mixed together
   │   ├── useUsers.ts
   │   ├── useOrders.ts
   │   ├── useAuth.ts
   │   ├── useLocalStorage.ts
-  │   └── ... (50+ ファイル)
-  ├── utils/              ← 全ユーティリティが混在
+  │   └── ... (50+ files)
+  ├── utils/              ← All utilities mixed together
   │   ├── formatDate.ts
   │   ├── validateEmail.ts
   │   ├── calculatePrice.ts
-  │   └── ... (30+ ファイル)
-  ├── types/              ← 全型が混在
+  │   └── ... (30+ files)
+  ├── types/              ← All types mixed together
   │   ├── user.ts
   │   ├── order.ts
   │   ├── auth.ts
   │   └── ...
-  ├── api/                ← 全API呼び出しが混在
+  ├── api/                ← All API calls mixed together
   │   ├── users.ts
   │   ├── orders.ts
   │   └── auth.ts
@@ -93,40 +93,40 @@
       └── orderStatus.ts
 ```
 
-**型ベース構成の問題点:**
+**Problems with technical-based structure:**
 
 ```
-問題1: スケーラビリティの欠如
-  - components/ に100個以上のファイルが並び、目的のファイルを見つけられない
-  - ファイル名でアルファベット順にソートしても関連性は見えない
-  - IDE のファイルツリーをスクロールし続ける必要がある
+Problem 1: Lack of scalability
+  - 100+ files line up in components/, making it impossible to find what you need
+  - Sorting alphabetically by filename doesn't reveal relationships
+  - You have to keep scrolling through the file tree in the IDE
 
-問題2: 関連コードの分散
-  - User機能に関連するコードが5箇所以上に分散
+Problem 2: Scattered related code
+  - Code related to the User feature is scattered across 5+ locations:
     components/UserList.tsx, hooks/useUsers.ts, api/users.ts,
     types/user.ts, utils/formatUser.ts
-  - 1つの機能を変更するために複数ディレクトリを行き来する
+  - Changing one feature requires navigating across multiple directories
 
-問題3: 依存関係の不透明性
-  - どのコンポーネントがどのhookを使っているか把握困難
-  - 循環参照が発生しやすい
-  - 影響範囲の分析ができない
+Problem 3: Opaque dependencies
+  - Hard to track which component uses which hook
+  - Circular references are likely to occur
+  - Cannot analyze the scope of impact
 
-問題4: 削除・リファクタリングの困難
-  - 機能を削除するとき、関連ファイルが散在しているため漏れが生じる
-  - 「このユーティリティは他で使われているか？」の判断が難しい
-  - Dead code が蓄積しやすい
+Problem 4: Difficulty deleting and refactoring
+  - When deleting a feature, scattered related files lead to omissions
+  - Hard to determine "is this utility used elsewhere?"
+  - Dead code tends to accumulate
 ```
 
-### 1.3 推奨パターン: Feature-based 構成
+### 1.3 Recommended Pattern: Feature-based Structure
 
-Feature-based構成は、ビジネスドメインの機能単位でコードをグループ化する。
+Feature-based structure groups code by business domain feature.
 
 ```
-Feature-based 構成（推奨）:
+Feature-based structure (recommended):
 
   src/
-  ├── features/           ← 機能ごとにまとめる
+  ├── features/           ← Group by feature
   │   ├── users/
   │   │   ├── components/
   │   │   │   ├── UserList.tsx
@@ -145,7 +145,7 @@ Feature-based 構成（推奨）:
   │   │   ├── __tests__/
   │   │   │   ├── UserList.test.tsx
   │   │   │   └── useUsers.test.ts
-  │   │   └── index.ts    ← 公開APIの定義
+  │   │   └── index.ts    ← Define public API
   │   ├── orders/
   │   │   ├── components/
   │   │   ├── hooks/
@@ -162,7 +162,7 @@ Feature-based 構成（推奨）:
   │       ├── components/
   │       ├── hooks/
   │       └── index.ts
-  ├── shared/             ← 共有コンポーネント・ユーティリティ
+  ├── shared/             ← Shared components and utilities
   │   ├── components/
   │   │   ├── ui/
   │   │   │   ├── Button.tsx
@@ -186,45 +186,45 @@ Feature-based 構成（推奨）:
   │   │   └── common.ts
   │   └── constants/
   │       └── routes.ts
-  └── app/                ← ルーティング・レイアウト
+  └── app/                ← Routing and layouts
       ├── layout.tsx
       ├── page.tsx
       └── (routes)/
 ```
 
-**Feature-based 構成の利点:**
+**Benefits of feature-based structure:**
 
-| 利点 | 詳細 |
-|------|------|
-| 高凝集 | 関連するコードが1ディレクトリに集約される |
-| 低結合 | Feature間の依存を明示的に制御できる |
-| 独立デプロイ | 将来的なマイクロフロントエンド化が容易 |
-| チーム分割 | Feature単位でオーナーシップを設定できる |
-| テスト容易性 | Feature単位でテストを実行・管理できる |
+| Benefit | Details |
+|---------|---------|
+| High cohesion | Related code is consolidated in one directory |
+| Low coupling | Dependencies between features can be explicitly controlled |
+| Independent deploy | Easy future migration to micro-frontends |
+| Team splitting | Ownership can be assigned per feature |
+| Testability | Tests can be run and managed per feature |
 
-### 1.4 Feature-based 構成への段階的移行
+### 1.4 Gradual Migration to Feature-based Structure
 
-既存の型ベースプロジェクトからFeature-basedへ移行する手順は以下のとおりである。
+The steps to migrate from an existing technical-based project to feature-based are as follows.
 
 ```typescript
-// Step 1: shared/ ディレクトリを作成し、汎用コードを移動
-// 移行前
+// Step 1: Create shared/ directory and move generic code
+// Before migration
 // src/components/Button.tsx → src/shared/components/ui/Button.tsx
 // src/hooks/useLocalStorage.ts → src/shared/hooks/useLocalStorage.ts
 
-// Step 2: 最もまとまりのある機能から features/ に切り出す
+// Step 2: Extract the most cohesive feature into features/
 // src/components/UserList.tsx → src/features/users/components/UserList.tsx
 // src/hooks/useUsers.ts → src/features/users/hooks/useUsers.ts
 // src/api/users.ts → src/features/users/api/queries.ts
 // src/types/user.ts → src/features/users/types/user.ts
 
-// Step 3: index.ts を作成して公開APIを定義
+// Step 3: Create index.ts to define the public API
 // src/features/users/index.ts
 export { UserList } from './components/UserList';
 export { useUsers } from './hooks/useUsers';
 export type { User } from './types/user';
 
-// Step 4: 既存のimportを更新
+// Step 4: Update existing imports
 // Before
 import { UserList } from '@/components/UserList';
 import { useUsers } from '@/hooks/useUsers';
@@ -232,77 +232,77 @@ import { useUsers } from '@/hooks/useUsers';
 // After
 import { UserList, useUsers } from '@/features/users';
 
-// Step 5: 残りの機能を順次移行
+// Step 5: Migrate remaining features one by one
 // orders, auth, notifications, ...
 ```
 
-**移行時の注意点:**
+**Notes during migration:**
 
 ```
-1. 一度に全部移行しない
-   - 1つの feature ずつ移行し、各段階でテストを実行
-   - PR は feature 単位で作成
+1. Don't migrate everything at once
+   - Migrate one feature at a time, running tests at each step
+   - Create PRs per feature
 
-2. import の自動更新ツールを活用
-   - VS Code の "Move to a new file" 機能
-   - TypeScript の Language Service が参照を更新
-   - jscodeshift を使ったバッチ処理
+2. Use automatic import update tools
+   - VS Code "Move to a new file" feature
+   - TypeScript Language Service updates references
+   - Batch processing with jscodeshift
 
-3. CI でのインポートルールチェック
-   - ESLint の import/no-restricted-paths を設定
-   - 移行完了した feature への旧パスからのアクセスを禁止
+3. Import rule checks in CI
+   - Set up ESLint import/no-restricted-paths
+   - Prohibit access to migrated features via old paths
 
-4. ドキュメントの整備
-   - ARCHITECTURE.md に新しい構成ルールを記載
-   - ADR（Architecture Decision Records）に移行の判断理由を記録
+4. Documentation
+   - Describe new structure rules in ARCHITECTURE.md
+   - Record migration decision rationale in ADR (Architecture Decision Records)
 ```
 
-### 1.5 構成パターンの比較
+### 1.5 Comparison of Structure Patterns
 
-プロジェクトの規模やチーム構成に応じて適切なパターンは異なる。
+The appropriate pattern varies depending on the project scale and team composition.
 
 ```
-パターン比較表:
+Pattern comparison table:
 
-  パターン          | 適用規模    | メリット              | デメリット
-  ─────────────────|───────────|─────────────────────|───────────────────
-  型ベース          | 小規模     | シンプル、学習コスト低  | スケールしない
-  Feature-based    | 中〜大規模  | 高凝集、低結合         | 初期設計コスト
-  レイヤード        | 中規模     | 責務が明確            | 横断的変更が多い
-  モジュラーモノリス | 大規模     | マイクロサービス準備   | 設計スキル必要
-  マイクロフロントエンド | 超大規模 | チーム完全独立        | 運用コスト高い
+  Pattern              | Scale          | Pros                          | Cons
+  ---------------------|----------------|-------------------------------|--------------------
+  Technical-based      | Small          | Simple, low learning cost     | Doesn't scale
+  Feature-based        | Medium~large   | High cohesion, low coupling   | Initial design cost
+  Layered              | Medium         | Clear responsibilities        | Many cross-cutting changes
+  Modular monolith     | Large          | Ready for microservices       | Design skill required
+  Micro-frontends      | Very large     | Full team independence        | High operational cost
 
-  選択基準:
-  - ファイル数 < 50    → 型ベースでも可
-  - ファイル数 50-200  → Feature-based 推奨
-  - ファイル数 200+    → Feature-based + モノレポ
-  - チーム 1-3人       → Feature-based
-  - チーム 4-10人      → Feature-based + strict import rules
-  - チーム 10+人       → モノレポ + Feature-based
+  Selection criteria:
+  - File count < 50     → Technical-based is OK
+  - File count 50-200   → Feature-based recommended
+  - File count 200+     → Feature-based + monorepo
+  - Team 1-3 people     → Feature-based
+  - Team 4-10 people    → Feature-based + strict import rules
+  - Team 10+ people     → Monorepo + feature-based
 ```
 
 ---
 
-## 2. Next.js App Router のプロジェクト構成
+## 2. Next.js App Router Project Structure
 
-### 2.1 基本構成
+### 2.1 Basic Structure
 
-Next.js 14+ の App Router を使用する場合の推奨構成を示す。App Router はファイルシステムベースのルーティングを採用しており、ディレクトリ構成がそのままURLに対応する。
+The following shows the recommended structure when using Next.js 14+ App Router. App Router uses filesystem-based routing, where the directory structure directly corresponds to URLs.
 
 ```
-推奨構成（Next.js 14+）:
+Recommended structure (Next.js 14+):
 
   project-root/
   ├── src/
-  │   ├── app/                    ← ルーティング（App Router）
-  │   │   ├── layout.tsx          ← ルートレイアウト
-  │   │   ├── page.tsx            ← / ページ
-  │   │   ├── error.tsx           ← グローバルエラーUI
-  │   │   ├── loading.tsx         ← グローバルローディングUI
-  │   │   ├── not-found.tsx       ← 404ページ
-  │   │   ├── global-error.tsx    ← ルートエラーバウンダリ
-  │   │   ├── (marketing)/        ← ルートグループ（URLに影響なし）
-  │   │   │   ├── layout.tsx      ← マーケティング用レイアウト
+  │   ├── app/                    ← Routing (App Router)
+  │   │   ├── layout.tsx          ← Root layout
+  │   │   ├── page.tsx            ← / page
+  │   │   ├── error.tsx           ← Global error UI
+  │   │   ├── loading.tsx         ← Global loading UI
+  │   │   ├── not-found.tsx       ← 404 page
+  │   │   ├── global-error.tsx    ← Root error boundary
+  │   │   ├── (marketing)/        ← Route group (no effect on URL)
+  │   │   │   ├── layout.tsx      ← Marketing layout
   │   │   │   ├── page.tsx        ← /
   │   │   │   ├── about/
   │   │   │   │   └── page.tsx    ← /about
@@ -312,11 +312,11 @@ Next.js 14+ の App Router を使用する場合の推奨構成を示す。App R
   │   │   │       ├── page.tsx    ← /blog
   │   │   │       └── [slug]/
   │   │   │           └── page.tsx ← /blog/:slug
-  │   │   ├── (app)/              ← 認証必要エリア
-  │   │   │   ├── layout.tsx      ← 認証チェック付きレイアウト
+  │   │   ├── (app)/              ← Authentication-required area
+  │   │   │   ├── layout.tsx      ← Layout with auth check
   │   │   │   ├── dashboard/
   │   │   │   │   ├── page.tsx    ← /dashboard
-  │   │   │   │   └── loading.tsx ← ダッシュボード用ローディング
+  │   │   │   │   └── loading.tsx ← Dashboard loading
   │   │   │   ├── settings/
   │   │   │   │   ├── page.tsx    ← /settings
   │   │   │   │   ├── profile/
@@ -338,18 +338,18 @@ Next.js 14+ の App Router を使用する場合の推奨構成を示す。App R
   │   │       └── webhooks/
   │   │           └── stripe/
   │   │               └── route.ts
-  │   ├── features/               ← 機能モジュール
+  │   ├── features/               ← Feature modules
   │   │   ├── users/
   │   │   ├── projects/
   │   │   ├── billing/
   │   │   ├── auth/
   │   │   └── notifications/
-  │   ├── shared/                 ← 共有リソース
+  │   ├── shared/                 ← Shared resources
   │   │   ├── components/
-  │   │   │   ├── ui/             ← shadcn/ui等の基本UI
-  │   │   │   └── layout/         ← レイアウトコンポーネント
+  │   │   │   ├── ui/             ← Basic UI (shadcn/ui, etc.)
+  │   │   │   └── layout/         ← Layout components
   │   │   ├── hooks/
-  │   │   ├── lib/                ← ユーティリティ
+  │   │   ├── lib/                ← Utilities
   │   │   │   ├── api-client.ts
   │   │   │   ├── auth.ts
   │   │   │   ├── db.ts
@@ -363,13 +363,13 @@ Next.js 14+ の App Router を使用する場合の推奨構成を示す。App R
   │   ├── images/
   │   ├── fonts/
   │   └── favicon.ico
-  ├── prisma/                     ← Prisma スキーマ
+  ├── prisma/                     ← Prisma schema
   │   ├── schema.prisma
   │   ├── seed.ts
   │   └── migrations/
   ├── tests/
-  │   ├── e2e/                    ← E2Eテスト（Playwright）
-  │   └── integration/            ← 統合テスト
+  │   ├── e2e/                    ← E2E tests (Playwright)
+  │   └── integration/            ← Integration tests
   ├── .github/
   │   └── workflows/
   ├── next.config.js
@@ -380,13 +380,13 @@ Next.js 14+ の App Router を使用する場合の推奨構成を示す。App R
   └── package.json
 ```
 
-### 2.2 App Router の特殊ファイル
+### 2.2 Special Files in App Router
 
-Next.js App Router では、特定のファイル名が特別な意味を持つ。
+In Next.js App Router, certain filenames have special meanings.
 
 ```typescript
 // --- layout.tsx ---
-// ページ間で共有されるレイアウト。子ルートがnavigation しても再レンダリングされない
+// Layout shared between pages. Not re-rendered when child routes navigate.
 // src/app/(app)/layout.tsx
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
@@ -419,7 +419,7 @@ export default async function AppLayout({
 }
 
 // --- page.tsx ---
-// ルートのUIを定義。このファイルがあるディレクトリがURLに対応
+// Defines the route UI. The directory containing this file corresponds to the URL.
 // src/app/(app)/dashboard/page.tsx
 import { Suspense } from 'react';
 import { DashboardStats } from '@/features/dashboard/components/DashboardStats';
@@ -446,7 +446,7 @@ export default function DashboardPage() {
 }
 
 // --- error.tsx ---
-// エラーバウンダリ。実行時エラーをキャッチして fallback UI を表示
+// Error boundary. Catches runtime errors and displays a fallback UI.
 // src/app/(app)/dashboard/error.tsx
 'use client'; // Error components must be Client Components
 
@@ -461,7 +461,7 @@ export default function DashboardError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // エラー報告サービスにログ送信
+    // Send log to error reporting service
     console.error('Dashboard error:', error);
   }, [error]);
 
@@ -475,7 +475,7 @@ export default function DashboardError({
 }
 
 // --- loading.tsx ---
-// Suspense 境界のフォールバックUI。ストリーミングSSRで活用
+// Fallback UI for Suspense boundary. Used with streaming SSR.
 // src/app/(app)/dashboard/loading.tsx
 import { Skeleton } from '@/shared/components/ui/Skeleton';
 
@@ -494,7 +494,7 @@ export default function DashboardLoading() {
 }
 
 // --- not-found.tsx ---
-// カスタム404ページ
+// Custom 404 page
 // src/app/not-found.tsx
 import Link from 'next/link';
 import { Button } from '@/shared/components/ui/Button';
@@ -512,7 +512,7 @@ export default function NotFound() {
 }
 
 // --- route.ts ---
-// API Route Handler。RESTful なAPIエンドポイントを定義
+// API Route Handler. Defines RESTful API endpoints.
 // src/app/api/webhooks/stripe/route.ts
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
@@ -533,10 +533,10 @@ export async function POST(request: Request) {
 
     switch (event.type) {
       case 'checkout.session.completed':
-        // 支払い完了処理
+        // Handle payment completion
         break;
       case 'customer.subscription.updated':
-        // サブスクリプション更新処理
+        // Handle subscription update
         break;
     }
 
@@ -550,39 +550,39 @@ export async function POST(request: Request) {
 }
 ```
 
-### 2.3 ルートグループの活用
+### 2.3 Using Route Groups
 
-ルートグループ `()` はURLに影響を与えずにルートを論理的にグループ化する。
+Route groups `()` logically group routes without affecting the URL.
 
 ```
-ルートグループの活用パターン:
+Route group usage patterns:
 
   src/app/
-  ├── (marketing)/          ← 公開ページ（ヘッダー・フッター付き）
-  │   ├── layout.tsx        ← マーケティング用レイアウト
+  ├── (marketing)/          ← Public pages (with header/footer)
+  │   ├── layout.tsx        ← Marketing layout
   │   ├── page.tsx
   │   ├── about/
   │   └── pricing/
-  ├── (app)/                ← 認証が必要なページ（サイドバー付き）
-  │   ├── layout.tsx        ← アプリ用レイアウト（認証チェック）
+  ├── (app)/                ← Pages requiring authentication (with sidebar)
+  │   ├── layout.tsx        ← App layout (with auth check)
   │   ├── dashboard/
   │   └── settings/
-  ├── (auth)/               ← 認証関連ページ（ミニマルレイアウト）
-  │   ├── layout.tsx        ← 認証用レイアウト
+  ├── (auth)/               ← Auth-related pages (minimal layout)
+  │   ├── layout.tsx        ← Auth layout
   │   ├── login/
   │   ├── register/
   │   └── forgot-password/
-  └── layout.tsx            ← ルートレイアウト（Providers等）
+  └── layout.tsx            ← Root layout (Providers, etc.)
 
-  利点:
-  ✓ レイアウトをグループごとに分離できる
-  ✓ URLパスに影響を与えない
-  ✓ 認証・非認証エリアを明確に分離
-  ✓ CSS やロジックのスコープを限定
+  Benefits:
+  ✓ Layouts can be separated per group
+  ✓ Does not affect URL paths
+  ✓ Clearly separates authenticated and unauthenticated areas
+  ✓ Limits scope of CSS and logic
 ```
 
 ```typescript
-// src/app/(auth)/layout.tsx — 認証ページ用のミニマルレイアウト
+// src/app/(auth)/layout.tsx — Minimal layout for auth pages
 export default function AuthLayout({
   children,
 }: {
@@ -597,7 +597,7 @@ export default function AuthLayout({
   );
 }
 
-// src/app/(marketing)/layout.tsx — マーケティング用レイアウト
+// src/app/(marketing)/layout.tsx — Marketing layout
 import { MarketingHeader } from '@/shared/components/layout/MarketingHeader';
 import { Footer } from '@/shared/components/layout/Footer';
 
@@ -616,34 +616,34 @@ export default function MarketingLayout({
 }
 ```
 
-### 2.4 app/ ディレクトリの設計ルール
+### 2.4 Design Rules for the app/ Directory
 
 ```
-  ルール1: app/ にはルーティングとページコンポーネントのみ
-    app/ 内のファイルは「どのURLでどのコンポーネントを表示するか」のみを担当
-    ビジネスロジック、データ取得、状態管理は features/ に委譲
+  Rule 1: Only routing and page components in app/
+    Files in app/ are responsible only for "which component to display at which URL"
+    Delegate business logic, data fetching, and state management to features/
 
-  ルール2: ビジネスロジックは features/ に配置
-    ページコンポーネントは features/ のコンポーネントを組み合わせるだけ
-    直接 DB クエリや API 呼び出しをページファイル内に書かない
+  Rule 2: Business logic goes in features/
+    Page components only compose components from features/
+    Do not write direct DB queries or API calls inside page files
 
-  ルール3: 2つ以上の feature で使うものは shared/ に
-    Button, Modal, Table などの汎用UIは shared/components/
-    useLocalStorage, useDebounce などの汎用hooksは shared/hooks/
-    日付フォーマット、バリデーションなどは shared/lib/
+  Rule 3: Things used by 2+ features go in shared/
+    Generic UI like Button, Modal, Table goes in shared/components/
+    Generic hooks like useLocalStorage, useDebounce go in shared/hooks/
+    Date formatting, validation, etc. go in shared/lib/
 
-  ルール4: features間の直接import は禁止（shared 経由）
-    features/users/ → features/orders/ は NG
-    代わりに shared/ にインターフェースを定義して経由する
+  Rule 4: Direct imports between features are forbidden (go through shared/)
+    features/users/ → features/orders/ is NOT OK
+    Instead, define interfaces in shared/ and go through it
 ```
 
 ```typescript
-// ルール違反の例（BAD）
+// Rule violation example (BAD)
 // src/app/(app)/dashboard/page.tsx
-import { prisma } from '@/shared/lib/db';  // ← ページ内でDB直接アクセス
+import { prisma } from '@/shared/lib/db';  // ← Direct DB access in page
 
 export default async function DashboardPage() {
-  const users = await prisma.user.findMany();  // ← ビジネスロジックがページに混入
+  const users = await prisma.user.findMany();  // ← Business logic mixed into page
   const orders = await prisma.order.findMany({
     where: { status: 'pending' },
     include: { user: true },
@@ -652,13 +652,13 @@ export default async function DashboardPage() {
   return (
     <div>
       <h1>Dashboard</h1>
-      {/* 直接データを表示 */}
+      {/* Displaying data directly */}
       <ul>{users.map(u => <li key={u.id}>{u.name}</li>)}</ul>
     </div>
   );
 }
 
-// ルール準拠の例（GOOD）
+// Rule-compliant example (GOOD)
 // src/app/(app)/dashboard/page.tsx
 import { DashboardStats } from '@/features/dashboard/components/DashboardStats';
 import { RecentOrders } from '@/features/orders/components/RecentOrders';
@@ -677,7 +677,7 @@ export default function DashboardPage() {
   );
 }
 
-// データ取得は features/ 内で行う
+// Data fetching is done inside features/
 // src/features/dashboard/components/DashboardStats.tsx
 import { getDashboardStats } from '../api/queries';
 
@@ -697,45 +697,45 @@ export async function DashboardStats() {
 
 ---
 
-## 3. Feature モジュールの設計
+## 3. Feature Module Design
 
-### 3.1 Feature モジュールの構造
+### 3.1 Feature Module Structure
 
-各 feature モジュールは自己完結した単位であり、明確な内部構造を持つ。
+Each feature module is a self-contained unit with a clear internal structure.
 
 ```typescript
-// features/users/ の内部構造
+// Internal structure of features/users/
 // features/users/
-// ├── components/           ← UIコンポーネント
-// │   ├── UserList.tsx      ← Server Component（データフェッチ含む）
+// ├── components/           ← UI components
+// │   ├── UserList.tsx      ← Server Component (includes data fetching)
 // │   ├── UserCard.tsx      ← Server Component
 // │   ├── UserAvatar.tsx    ← Server Component
-// │   ├── UserSearchInput.tsx ← Client Component（インタラクティブ）
-// │   └── UserForm.tsx      ← Client Component（フォーム）
-// ├── hooks/                ← カスタムhooks
-// │   ├── useUsers.ts       ← ユーザー一覧取得
-// │   ├── useUser.ts        ← 個別ユーザー取得
-// │   └── useUserForm.ts    ← フォームロジック
-// ├── api/                  ← データ取得・更新
-// │   ├── queries.ts        ← サーバーサイドクエリ / TanStack Query
+// │   ├── UserSearchInput.tsx ← Client Component (interactive)
+// │   └── UserForm.tsx      ← Client Component (form)
+// ├── hooks/                ← Custom hooks
+// │   ├── useUsers.ts       ← Fetch user list
+// │   ├── useUser.ts        ← Fetch individual user
+// │   └── useUserForm.ts    ← Form logic
+// ├── api/                  ← Data fetching and mutation
+// │   ├── queries.ts        ← Server-side queries / TanStack Query
 // │   └── actions.ts        ← Server Actions
-// ├── types/                ← 型定義
+// ├── types/                ← Type definitions
 // │   └── user.ts
-// ├── utils/                ← feature固有のユーティリティ
-// │   ├── format.ts         ← ユーザー名フォーマット等
-// │   └── validation.ts     ← バリデーションスキーマ
-// ├── constants/            ← feature固有の定数
+// ├── utils/                ← Feature-specific utilities
+// │   ├── format.ts         ← User name formatting, etc.
+// │   └── validation.ts     ← Validation schema
+// ├── constants/            ← Feature-specific constants
 // │   └── roles.ts
-// ├── __tests__/            ← テスト
+// ├── __tests__/            ← Tests
 // │   ├── UserList.test.tsx
 // │   ├── useUsers.test.ts
 // │   └── actions.test.ts
-// └── index.ts              ← 公開API
+// └── index.ts              ← Public API
 
-// features/users/index.ts — 公開API定義
-// このファイルからのみ外部アクセスが可能
+// features/users/index.ts — Public API definition
+// Only accessible from this file externally
 
-// Components（外部から使用を許可するもののみ）
+// Components (only those allowed for external use)
 export { UserList } from './components/UserList';
 export { UserCard } from './components/UserCard';
 export { UserAvatar } from './components/UserAvatar';
@@ -750,20 +750,20 @@ export type { User, CreateUserInput, UpdateUserInput } from './types/user';
 // Actions
 export { createUser, updateUser, deleteUser } from './api/actions';
 
-// 注意: 内部実装は export しない
-// UserSearchInput, UserForm は内部コンポーネントとして扱う
-// format.ts, validation.ts も外部には公開しない
+// Note: Do not export internal implementations
+// UserSearchInput, UserForm are treated as internal components
+// format.ts, validation.ts are not exposed externally
 ```
 
-### 3.2 API レイヤーの設計
+### 3.2 API Layer Design
 
 ```typescript
 // features/users/api/queries.ts
-// サーバーサイドでのデータ取得（Server Components から呼び出す）
+// Server-side data fetching (called from Server Components)
 import { prisma } from '@/shared/lib/db';
 import { cache } from 'react';
 
-// React の cache() で同一レンダリング内の重複リクエストを排除
+// Eliminate duplicate requests within the same render using React's cache()
 export const getUsers = cache(async (params?: {
   page?: number;
   limit?: number;
@@ -833,7 +833,7 @@ export const getUser = cache(async (id: string) => {
 });
 
 // features/users/api/actions.ts
-// Server Actions（フォームやクライアントからの mutation）
+// Server Actions (mutations from forms or client)
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -891,11 +891,11 @@ export async function deleteUser(id: string) {
 }
 ```
 
-### 3.3 型定義の設計
+### 3.3 Type Definition Design
 
 ```typescript
 // features/users/types/user.ts
-// feature 内で使用する型定義
+// Type definitions used within the feature
 
 export interface User {
   id: string;
@@ -909,7 +909,7 @@ export interface User {
 
 export type UserRole = 'admin' | 'member' | 'viewer';
 
-// API リクエスト用の型
+// Types for API requests
 export interface CreateUserInput {
   name: string;
   email: string;
@@ -923,7 +923,7 @@ export interface UpdateUserInput {
   avatarUrl?: string | null;
 }
 
-// ページネーション付きレスポンス
+// Response with pagination
 export interface UsersResponse {
   users: User[];
   pagination: {
@@ -934,7 +934,7 @@ export interface UsersResponse {
   };
 }
 
-// フィルター条件
+// Filter conditions
 export interface UserFilters {
   search?: string;
   role?: UserRole;
@@ -942,7 +942,7 @@ export interface UserFilters {
   limit?: number;
 }
 
-// ユーザー詳細（リレーション含む）
+// User detail (including relations)
 export interface UserDetail extends User {
   orders: {
     id: string;
@@ -956,39 +956,39 @@ export interface UserDetail extends User {
 }
 ```
 
-### 3.4 依存ルールの実装
+### 3.4 Implementing Dependency Rules
 
-Feature 間の依存関係を厳格に管理することが、Feature-based 構成の最も重要な要素である。
+Strictly managing dependencies between features is the most important aspect of the feature-based structure.
 
 ```
-依存ルール（Dependency Rules）:
+Dependency Rules:
 
-  許可される依存:
-  ✓ features/users/  → shared/         （共有リソースの利用）
-  ✓ app/            → features/users/   （ページからの利用）
-  ✓ app/            → shared/           （共有リソースの利用）
+  Allowed dependencies:
+  ✓ features/users/  → shared/         (using shared resources)
+  ✓ app/            → features/users/   (used from pages)
+  ✓ app/            → shared/           (using shared resources)
 
-  禁止される依存:
-  ✗ features/users/  → features/orders/ （feature間の直接参照）
-  ✗ shared/          → features/users/  （共有から個別featureへの参照）
-  ✗ features/users/内部 → 外部から直接（index.ts経由でのみ）
+  Forbidden dependencies:
+  ✗ features/users/  → features/orders/ (direct reference between features)
+  ✗ shared/          → features/users/  (reference from shared to a specific feature)
+  ✗ Inside features/users/ → accessed externally (only via index.ts)
 
-  feature間の連携が必要な場合:
-  方法1: shared/ にインターフェースを定義
-    shared/types/events.ts に UserEvent 型を定義
-    features/users/ が UserEvent を発行
-    features/notifications/ が UserEvent を購読
+  When cross-feature communication is needed:
+  Method 1: Define interface in shared/
+    Define UserEvent type in shared/types/events.ts
+    features/users/ publishes UserEvent
+    features/notifications/ subscribes to UserEvent
 
-  方法2: app/ でオーケストレーション
-    app/(app)/dashboard/page.tsx で両方のfeatureを組み合わせる
+  Method 2: Orchestration in app/
+    Combine both features in app/(app)/dashboard/page.tsx
 
-  方法3: イベントバスパターン
-    shared/lib/event-bus.ts にイベントバスを定義
-    各 feature が独立してイベントを発行・購読
+  Method 3: Event bus pattern
+    Define event bus in shared/lib/event-bus.ts
+    Each feature independently publishes and subscribes to events
 ```
 
 ```typescript
-// shared/lib/event-bus.ts — feature間連携のためのイベントバス
+// shared/lib/event-bus.ts — Event bus for cross-feature communication
 type EventHandler<T = unknown> = (data: T) => void;
 
 class EventBus {
@@ -1000,7 +1000,7 @@ class EventBus {
     }
     this.handlers.get(event)!.add(handler as EventHandler);
 
-    // unsubscribe 関数を返す
+    // Return unsubscribe function
     return () => {
       this.handlers.get(event)?.delete(handler as EventHandler);
     };
@@ -1026,7 +1026,7 @@ export interface OrderCompletedEvent {
   total: number;
 }
 
-// features/users/api/actions.ts — イベント発行
+// features/users/api/actions.ts — Publishing events
 import { eventBus } from '@/shared/lib/event-bus';
 import type { UserCreatedEvent } from '@/shared/types/events';
 
@@ -1042,7 +1042,7 @@ export async function createUser(input: CreateUserInput) {
   return { data: user };
 }
 
-// features/notifications/hooks/useUserEvents.ts — イベント購読
+// features/notifications/hooks/useUserEvents.ts — Subscribing to events
 import { useEffect } from 'react';
 import { eventBus } from '@/shared/lib/event-bus';
 import type { UserCreatedEvent } from '@/shared/types/events';
@@ -1052,7 +1052,7 @@ export function useUserEvents() {
     const unsubscribe = eventBus.on<UserCreatedEvent>(
       'user:created',
       (data) => {
-        // 通知を表示
+        // Show notification
         showNotification(`New user: ${data.name}`);
       }
     );
@@ -1064,11 +1064,11 @@ export function useUserEvents() {
 
 ---
 
-## 4. パスエイリアスと Import 管理
+## 4. Path Aliases and Import Management
 
-### 4.1 TypeScript パスエイリアスの設定
+### 4.1 TypeScript Path Alias Configuration
 
-パスエイリアスを設定することで、相対パスの複雑さを解消し、コードの可読性と保守性を大幅に向上させる。
+Configuring path aliases eliminates the complexity of relative paths and greatly improves code readability and maintainability.
 
 ```json
 // tsconfig.json
@@ -1087,26 +1087,26 @@ export function useUserEvents() {
 ```
 
 ```typescript
-// パスエイリアスの使用例
+// Path alias usage examples
 
-// BAD: 相対パスはネストが深いと読みにくい
+// BAD: Relative paths are hard to read when deeply nested
 import { Button } from '../../../shared/components/ui/Button';
 import { useUsers } from '../../users/hooks/useUsers';
 import { formatDate } from '../../../shared/lib/utils';
 
-// GOOD: パスエイリアスで明確
+// GOOD: Clear with path aliases
 import { Button } from '@/shared/components/ui/Button';
 import { useUsers } from '@/features/users';
 import { formatDate } from '@/shared/lib/utils';
 
-// さらに良い: feature の index.ts 経由
+// Even better: Via feature's index.ts
 import { UserList, useUsers, type User } from '@features/users';
 import { Button, Modal, Table } from '@shared/components/ui';
 ```
 
-### 4.2 ESLint による Import ルールの自動化
+### 4.2 Automating Import Rules with ESLint
 
-依存ルールをドキュメントに書くだけでは不十分である。ESLint を使って自動的にルール違反を検出する。
+Writing dependency rules only in documentation is insufficient. Use ESLint to automatically detect rule violations.
 
 ```javascript
 // .eslintrc.js
@@ -1118,7 +1118,7 @@ module.exports = {
         alwaysTryTypes: true,
       },
     },
-    // boundaries プラグインの設定
+    // boundaries plugin configuration
     'boundaries/elements': [
       { type: 'app', pattern: 'src/app/*' },
       { type: 'features', pattern: 'src/features/*' },
@@ -1127,12 +1127,12 @@ module.exports = {
     'boundaries/ignore': ['**/*.test.*', '**/*.spec.*'],
   },
   rules: {
-    // features 間の直接 import を禁止
+    // Prohibit direct imports between features
     'import/no-restricted-paths': [
       'error',
       {
         zones: [
-          // features/users/ から features/orders/ への import を禁止
+          // Prohibit import from features/orders/ to features/users/
           {
             target: './src/features/users/**',
             from: './src/features/orders/**',
@@ -1143,7 +1143,7 @@ module.exports = {
             from: './src/features/users/**',
             message: 'Feature modules cannot import from other features directly. Use shared/ instead.',
           },
-          // shared/ から features/ への import を禁止
+          // Prohibit import from shared/ to features/
           {
             target: './src/shared/**',
             from: './src/features/**',
@@ -1153,18 +1153,18 @@ module.exports = {
       },
     ],
 
-    // import の順序を統一
+    // Enforce consistent import order
     'import/order': [
       'error',
       {
         groups: [
-          'builtin',       // Node.js 組み込みモジュール
-          'external',      // npm パッケージ
-          'internal',      // パスエイリアス
-          'parent',        // 親ディレクトリ
-          'sibling',       // 同階層
-          'index',         // index ファイル
-          'type',          // 型 import
+          'builtin',       // Node.js built-in modules
+          'external',      // npm packages
+          'internal',      // path aliases
+          'parent',        // parent directories
+          'sibling',       // same level
+          'index',         // index files
+          'type',          // type imports
         ],
         pathGroups: [
           { pattern: 'react', group: 'builtin', position: 'before' },
@@ -1177,7 +1177,7 @@ module.exports = {
       },
     ],
 
-    // feature 内部ファイルへの直接アクセスを禁止
+    // Prohibit direct access to feature internal files
     'no-restricted-imports': [
       'error',
       {
@@ -1193,10 +1193,10 @@ module.exports = {
 };
 ```
 
-### 4.3 Barrel Export パターンとその注意点
+### 4.3 Barrel Export Pattern and Its Caveats
 
 ```typescript
-// Barrel Export（index.ts からの再 export）
+// Barrel Export (re-export from index.ts)
 // src/shared/components/ui/index.ts
 export { Button } from './Button';
 export { Input } from './Input';
@@ -1209,45 +1209,45 @@ export { Badge } from './Badge';
 export { Card, CardHeader, CardContent, CardFooter } from './Card';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
 
-// 使用側
+// Consumer side
 import { Button, Modal, Table } from '@/shared/components/ui';
 ```
 
-**Barrel Export の注意点:**
+**Barrel Export caveats:**
 
 ```
-利点:
-  ✓ import 文が短くなり、可読性が向上する
-  ✓ 公開 API を明示的に制御できる
-  ✓ 内部実装の変更が外部に影響しない
+Benefits:
+  ✓ Import statements become shorter, improving readability
+  ✓ Public API can be explicitly controlled
+  ✓ Changes to internal implementation don't affect the outside
 
-注意点:
-  ✗ Tree-shaking の阻害
-    バンドラーが未使用の export を除去できない場合がある
-    特に Server Components では影響が大きい
+Caveats:
+  ✗ Tree-shaking interference
+    The bundler may not be able to remove unused exports
+    This has a large impact especially in Server Components
 
-  ✗ 循環参照のリスク
-    複数の barrel file が互いを参照すると循環が発生する
+  ✗ Risk of circular references
+    Multiple barrel files referencing each other can create cycles
 
-  ✗ パフォーマンス
-    大量の re-export はモジュール解決のオーバーヘッドになる
+  ✗ Performance
+    Large numbers of re-exports become overhead for module resolution
 
-対策:
-  - features/ の index.ts は使い分ける（推奨）
-  - shared/components/ui/ は barrel OK
-  - Next.js では modularizeImports の設定を活用
+Solutions:
+  - Use index.ts selectively in features/ (recommended)
+  - shared/components/ui/ barrel is OK
+  - Use modularizeImports configuration in Next.js
 ```
 
 ```javascript
-// next.config.js — modularizeImports で barrel export の問題を回避
+// next.config.js — Avoid barrel export issues with modularizeImports
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   modularizeImports: {
-    // lodash の個別インポートに自動変換
+    // Auto-convert to individual lodash imports
     'lodash': {
       transform: 'lodash/{{member}}',
     },
-    // @/shared/components/ui の個別インポートに自動変換
+    // Auto-convert to individual @/shared/components/ui imports
     '@/shared/components/ui': {
       transform: '@/shared/components/ui/{{member}}',
     },
@@ -1259,18 +1259,18 @@ module.exports = nextConfig;
 
 ---
 
-## 5. モノレポ設計
+## 5. Monorepo Design
 
-### 5.1 モノレポの基本構成
+### 5.1 Basic Monorepo Structure
 
-複数のアプリケーションやパッケージを1つのリポジトリで管理するモノレポは、中〜大規模プロジェクトで採用される。
+Monorepos managing multiple applications and packages in a single repository are adopted in medium to large projects.
 
 ```
-モノレポ構成（Turborepo + pnpm）:
+Monorepo structure (Turborepo + pnpm):
 
   monorepo/
-  ├── apps/                     ← アプリケーション
-  │   ├── web/                  ← Next.js フロントエンド
+  ├── apps/                     ← Applications
+  │   ├── web/                  ← Next.js frontend
   │   │   ├── src/
   │   │   │   ├── app/
   │   │   │   ├── features/
@@ -1279,41 +1279,41 @@ module.exports = nextConfig;
   │   │   ├── tailwind.config.ts
   │   │   ├── tsconfig.json     ← extends: @repo/typescript-config
   │   │   └── package.json
-  │   ├── admin/                ← 管理画面
+  │   ├── admin/                ← Admin panel
   │   │   ├── src/
   │   │   ├── next.config.js
   │   │   └── package.json
-  │   ├── api/                  ← バックエンドAPI（Hono / Express）
+  │   ├── api/                  ← Backend API (Hono / Express)
   │   │   ├── src/
   │   │   │   ├── routes/
   │   │   │   ├── services/
   │   │   │   └── middleware/
   │   │   └── package.json
-  │   ├── docs/                 ← ドキュメントサイト
+  │   ├── docs/                 ← Documentation site
   │   │   └── package.json
   │   └── mobile/               ← React Native / Expo
   │       └── package.json
-  ├── packages/                 ← 共有パッケージ
-  │   ├── ui/                   ← 共有UIコンポーネント
+  ├── packages/                 ← Shared packages
+  │   ├── ui/                   ← Shared UI components
   │   │   ├── src/
   │   │   │   ├── Button.tsx
   │   │   │   ├── Modal.tsx
   │   │   │   └── index.ts
   │   │   ├── tsconfig.json
   │   │   └── package.json
-  │   ├── db/                   ← Prismaスキーマ + クライアント
+  │   ├── db/                   ← Prisma schema + client
   │   │   ├── prisma/
   │   │   │   └── schema.prisma
   │   │   ├── src/
   │   │   │   └── client.ts
   │   │   └── package.json
-  │   ├── auth/                 ← 認証ロジック
+  │   ├── auth/                 ← Authentication logic
   │   │   ├── src/
   │   │   └── package.json
-  │   ├── email/                ← メールテンプレート
+  │   ├── email/                ← Email templates
   │   │   ├── src/
   │   │   └── package.json
-  │   ├── config/               ← 共有設定
+  │   ├── config/               ← Shared configuration
   │   │   ├── eslint/
   │   │   │   ├── base.js
   │   │   │   ├── next.js
@@ -1323,32 +1323,32 @@ module.exports = nextConfig;
   │   │       ├── next.json
   │   │       ├── node.json
   │   │       └── package.json
-  │   ├── types/                ← 共有型定義
+  │   ├── types/                ← Shared type definitions
   │   │   ├── src/
   │   │   │   ├── user.ts
   │   │   │   ├── order.ts
   │   │   │   └── index.ts
   │   │   └── package.json
-  │   └── utils/                ← 共有ユーティリティ
+  │   └── utils/                ← Shared utilities
   │       ├── src/
   │       │   ├── format.ts
   │       │   ├── validation.ts
   │       │   └── index.ts
   │       └── package.json
-  ├── tooling/                  ← 開発ツール設定
+  ├── tooling/                  ← Dev tool configuration
   │   ├── github/
   │   │   └── workflows/
   │   └── docker/
   │       ├── Dockerfile.web
   │       └── docker-compose.yml
-  ├── turbo.json                ← Turborepo 設定
-  ├── pnpm-workspace.yaml       ← pnpm ワークスペース定義
-  ├── package.json              ← ルート package.json
+  ├── turbo.json                ← Turborepo configuration
+  ├── pnpm-workspace.yaml       ← pnpm workspace definition
+  ├── package.json              ← Root package.json
   ├── .gitignore
   └── .env.example
 ```
 
-### 5.2 Turborepo の設定
+### 5.2 Turborepo Configuration
 
 ```json
 // turbo.json
@@ -1397,7 +1397,7 @@ packages:
 ```
 
 ```json
-// package.json（ルート）
+// package.json (root)
 {
   "name": "my-monorepo",
   "private": true,
@@ -1421,7 +1421,7 @@ packages:
 }
 ```
 
-### 5.3 共有パッケージの作成
+### 5.3 Creating Shared Packages
 
 ```json
 // packages/ui/package.json
@@ -1512,7 +1512,7 @@ export { Table } from './Table';
 ```
 
 ```typescript
-// apps/web/src/app/page.tsx — 共有パッケージの使用
+// apps/web/src/app/page.tsx — Using shared packages
 import { Button } from '@repo/ui';
 import { formatDate } from '@repo/utils';
 import type { User } from '@repo/types';
@@ -1529,32 +1529,32 @@ export default function HomePage() {
 }
 ```
 
-### 5.4 モノレポツールの比較
+### 5.4 Monorepo Tool Comparison
 
 ```
-ツール詳細比較:
+Detailed tool comparison:
 
-  特徴              | Turborepo      | Nx              | pnpm workspace
-  ─────────────────|───────────────|────────────────|──────────────────
-  リモートキャッシュ  | ✓ (Vercel)    | ✓ (Nx Cloud)   | ✗
-  ローカルキャッシュ  | ✓             | ✓              | ✗
-  タスク並列実行     | ✓             | ✓              | 限定的
-  依存グラフ可視化   | ✓             | ✓ (充実)       | ✗
-  コード生成        | ✗              | ✓ (Generator)  | ✗
-  プラグイン        | 少ない          | 豊富           | ✗
-  設定量           | 少ない          | 中程度          | 最小
-  学習コスト        | 低い           | 中程度          | 最低
-  パフォーマンス    | 高速           | 高速           | 中程度
-  推奨プロジェクト   | Web/フロント   | エンタープライズ  | 小規模
+  Feature              | Turborepo      | Nx              | pnpm workspace
+  ---------------------|----------------|-----------------|------------------
+  Remote cache         | ✓ (Vercel)    | ✓ (Nx Cloud)   | ✗
+  Local cache          | ✓             | ✓              | ✗
+  Parallel task exec   | ✓             | ✓              | Limited
+  Dependency graph viz | ✓             | ✓ (rich)       | ✗
+  Code generation      | ✗             | ✓ (Generator)  | ✗
+  Plugins              | Few            | Many           | ✗
+  Configuration        | Minimal        | Moderate       | Least
+  Learning cost        | Low            | Moderate       | Lowest
+  Performance          | Fast           | Fast           | Moderate
+  Recommended for      | Web/frontend   | Enterprise     | Small scale
 
-  選択ガイドライン:
-  - Web フロントエンド中心 → Turborepo（Vercel との統合が強力）
-  - エンタープライズ/大規模 → Nx（ツール・プラグインが豊富）
-  - 最小構成でシンプルに → pnpm workspace（追加ツール不要）
-  - React Native 含む → Turborepo or Nx
+  Selection guide:
+  - Web frontend focused → Turborepo (strong Vercel integration)
+  - Enterprise/large scale → Nx (rich tools and plugins)
+  - Minimal, simple setup → pnpm workspace (no extra tools needed)
+  - Includes React Native → Turborepo or Nx
 ```
 
-### 5.5 モノレポのCI/CD設計
+### 5.5 Monorepo CI/CD Design
 
 ```yaml
 # .github/workflows/ci.yml
@@ -1616,7 +1616,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-  # 影響を受けたパッケージのみデプロイ
+  # Deploy only affected packages
   deploy:
     runs-on: ubuntu-latest
     needs: build
@@ -1624,7 +1624,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # turbo の変更検出に必要
+          fetch-depth: 2  # Needed for turbo change detection
       - uses: pnpm/action-setup@v3
         with:
           version: 9
@@ -1633,45 +1633,45 @@ jobs:
           node-version: 20
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      # 変更があった app のみをデプロイ
+      # Deploy only changed apps
       - run: pnpm turbo build --filter=...[HEAD~1]
 ```
 
 ---
 
-## 6. テスト配置戦略
+## 6. Test Placement Strategy
 
-### 6.1 テストファイルの配置パターン
+### 6.1 Test File Placement Patterns
 
-テストファイルの配置には複数のパターンがあり、プロジェクトの特性に応じて選択する。
+There are multiple patterns for placing test files; choose based on project characteristics.
 
 ```
-パターン1: コロケーション（推奨）
-  テストを対象ファイルの近くに配置する
+Pattern 1: Colocation (recommended)
+  Place tests close to the target file
 
   features/users/
   ├── components/
   │   ├── UserList.tsx
-  │   ├── UserList.test.tsx      ← コンポーネントテスト
+  │   ├── UserList.test.tsx      ← Component test
   │   ├── UserCard.tsx
   │   └── UserCard.test.tsx
   ├── hooks/
   │   ├── useUsers.ts
-  │   └── useUsers.test.ts       ← hooks テスト
+  │   └── useUsers.test.ts       ← Hook test
   ├── api/
   │   ├── actions.ts
-  │   └── actions.test.ts        ← Server Actions テスト
+  │   └── actions.test.ts        ← Server Actions test
   └── utils/
       ├── format.ts
-      └── format.test.ts         ← ユーティリティテスト
+      └── format.test.ts         ← Utility test
 
-  利点:
-  ✓ テスト対象との関連が一目瞭然
-  ✓ feature を削除するとテストも一緒に消える
-  ✓ テストの追加忘れに気づきやすい
+  Benefits:
+  ✓ Relationship with test target is immediately clear
+  ✓ Tests disappear together when feature is deleted
+  ✓ Easy to notice when tests are missing
 
-パターン2: __tests__ ディレクトリ
-  feature 内に __tests__ ディレクトリを作成
+Pattern 2: __tests__ directory
+  Create a __tests__ directory inside the feature
 
   features/users/
   ├── components/
@@ -1684,33 +1684,33 @@ jobs:
       ├── UserCard.test.tsx
       └── useUsers.test.ts
 
-  利点:
-  ✓ テストとプロダクションコードが明確に分離
-  ✓ ファイルツリーがすっきりする
-  ✓ テストのみを対象にした操作がしやすい
+  Benefits:
+  ✓ Tests and production code are clearly separated
+  ✓ File tree is cleaner
+  ✓ Easy to operate on tests alone
 
-パターン3: トップレベル tests ディレクトリ
-  統合テストとE2Eテストに使用
+Pattern 3: Top-level tests directory
+  Used for integration tests and E2E tests
 
   project-root/
   ├── src/
   │   └── features/
   └── tests/
-      ├── unit/                  ← ユニットテスト（非推奨、コロケーション推奨）
-      ├── integration/           ← 統合テスト
+      ├── unit/                  ← Unit tests (not recommended, prefer colocation)
+      ├── integration/           ← Integration tests
       │   ├── users.test.ts
       │   └── orders.test.ts
-      └── e2e/                   ← E2Eテスト（Playwright）
+      └── e2e/                   ← E2E tests (Playwright)
           ├── auth.spec.ts
           ├── dashboard.spec.ts
           └── fixtures/
               └── test-data.ts
 ```
 
-### 6.2 テスト設定ファイル
+### 6.2 Test Configuration Files
 
 ```typescript
-// vitest.config.ts — ユニットテスト設定
+// vitest.config.ts — Unit test configuration
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -1737,7 +1737,7 @@ export default defineConfig({
         'src/**/*.test.{ts,tsx}',
         'src/**/*.d.ts',
         'src/**/index.ts',    // barrel files
-        'src/app/**',          // ルーティングファイル
+        'src/app/**',          // routing files
       ],
     },
   },
@@ -1750,7 +1750,7 @@ export default defineConfig({
   },
 });
 
-// playwright.config.ts — E2Eテスト設定
+// playwright.config.ts — E2E test configuration
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
@@ -1779,7 +1779,7 @@ export default defineConfig({
 });
 ```
 
-### 6.3 テストの実践例
+### 6.3 Practical Test Examples
 
 ```typescript
 // features/users/components/UserList.test.tsx
@@ -1788,10 +1788,10 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { UserList } from './UserList';
 
-// Server Component のテスト（async component）
+// Testing async Server Component
 describe('UserList', () => {
-  it('ユーザー一覧を表示する', async () => {
-    // Server Component は直接レンダリングをテスト
+  it('displays the user list', async () => {
+    // Test by directly rendering the Server Component
     const result = await UserList({ page: 1 });
     render(result);
 
@@ -1799,7 +1799,7 @@ describe('UserList', () => {
     expect(screen.getAllByRole('row')).toHaveLength(21); // header + 20 rows
   });
 
-  it('ユーザーが0件の場合、空状態メッセージを表示する', async () => {
+  it('shows empty state message when there are 0 users', async () => {
     vi.mocked(getUsers).mockResolvedValueOnce({
       users: [],
       pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
@@ -1833,7 +1833,7 @@ function createWrapper() {
 }
 
 describe('useUsers', () => {
-  it('ユーザー一覧を取得できる', async () => {
+  it('can fetch the user list', async () => {
     const { result } = renderHook(() => useUsers(), {
       wrapper: createWrapper(),
     });
@@ -1845,7 +1845,7 @@ describe('useUsers', () => {
     expect(result.current.data?.users).toHaveLength(20);
   });
 
-  it('検索フィルターを適用できる', async () => {
+  it('can apply search filter', async () => {
     const { result } = renderHook(
       () => useUsers({ search: 'John' }),
       { wrapper: createWrapper() }
@@ -1863,12 +1863,12 @@ describe('useUsers', () => {
   });
 });
 
-// features/users/api/actions.test.ts — Server Actions のテスト
+// features/users/api/actions.test.ts — Server Actions tests
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createUser, updateUser, deleteUser } from './actions';
 import { prisma } from '@/shared/lib/db';
 
-// Prisma のモック
+// Mock Prisma
 vi.mock('@/shared/lib/db', () => ({
   prisma: {
     user: {
@@ -1885,7 +1885,7 @@ describe('createUser', () => {
     vi.clearAllMocks();
   });
 
-  it('有効な入力でユーザーを作成できる', async () => {
+  it('can create a user with valid input', async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.user.create).mockResolvedValue({
       id: '1',
@@ -1907,7 +1907,7 @@ describe('createUser', () => {
     expect(prisma.user.create).toHaveBeenCalledOnce();
   });
 
-  it('既存メールアドレスの場合エラーを返す', async () => {
+  it('returns error for existing email address', async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       id: '1',
       name: 'Existing',
@@ -1927,7 +1927,7 @@ describe('createUser', () => {
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
-  it('バリデーション違反の場合エラーをスローする', async () => {
+  it('throws error on validation failure', async () => {
     await expect(
       createUser({ name: '', email: 'invalid' })
     ).rejects.toThrow();
@@ -1935,108 +1935,108 @@ describe('createUser', () => {
 });
 ```
 
-### 6.4 テストのファイル命名規則
+### 6.4 Test File Naming Conventions
 
 ```
-命名規則の比較:
+Naming convention comparison:
 
-  パターン              | 例                      | 用途
-  ────────────────────|──────────────────────────|──────────────
-  *.test.ts(x)        | UserList.test.tsx        | ユニットテスト
-  *.spec.ts(x)        | auth.spec.ts             | E2Eテスト
-  *.integration.ts    | api.integration.ts       | 統合テスト
+  Pattern              | Example                  | Use
+  ---------------------|--------------------------|------------------
+  *.test.ts(x)        | UserList.test.tsx        | Unit tests
+  *.spec.ts(x)        | auth.spec.ts             | E2E tests
+  *.integration.ts    | api.integration.ts       | Integration tests
   *.stories.tsx       | Button.stories.tsx       | Storybook
 
-  推奨:
-  - ユニットテスト → *.test.ts(x)（コロケーション）
-  - E2Eテスト → *.spec.ts（tests/e2e/ ディレクトリ）
-  - 統合テスト → *.integration.ts（tests/integration/）
-  - Storybook → *.stories.tsx（コロケーション）
+  Recommended:
+  - Unit tests → *.test.ts(x) (colocation)
+  - E2E tests → *.spec.ts (tests/e2e/ directory)
+  - Integration tests → *.integration.ts (tests/integration/)
+  - Storybook → *.stories.tsx (colocation)
 ```
 
 ---
 
-## 7. 命名規則とファイル構成ガイドライン
+## 7. Naming Conventions and File Structure Guidelines
 
-### 7.1 ファイル命名規則
+### 7.1 File Naming Conventions
 
 ```
-ファイル命名規則一覧:
+File naming convention list:
 
-  種類                    | 命名規則        | 例
-  ──────────────────────|───────────────|────────────────────
-  React コンポーネント     | PascalCase    | UserList.tsx
-  カスタム hooks          | camelCase     | useUsers.ts
-  ユーティリティ関数       | camelCase     | formatDate.ts
-  型定義ファイル           | camelCase     | user.ts
-  定数ファイル            | camelCase     | routes.ts
-  テストファイル           | 対象名.test   | UserList.test.tsx
-  Storybook              | 対象名.stories | Button.stories.tsx
-  Server Actions         | camelCase     | actions.ts
-  API クエリ              | camelCase     | queries.ts
-  設定ファイル            | kebab-case    | next.config.js
-  CSS/スタイル            | kebab-case    | globals.css
-  ディレクトリ名          | kebab-case    | user-profile/
-  feature ディレクトリ    | kebab-case    | order-management/
+  Type                    | Convention      | Example
+  ------------------------|-----------------|--------------------
+  React components        | PascalCase      | UserList.tsx
+  Custom hooks            | camelCase       | useUsers.ts
+  Utility functions       | camelCase       | formatDate.ts
+  Type definition files   | camelCase       | user.ts
+  Constant files          | camelCase       | routes.ts
+  Test files              | target.test     | UserList.test.tsx
+  Storybook               | target.stories  | Button.stories.tsx
+  Server Actions          | camelCase       | actions.ts
+  API queries             | camelCase       | queries.ts
+  Config files            | kebab-case      | next.config.js
+  CSS/styles              | kebab-case      | globals.css
+  Directory names         | kebab-case      | user-profile/
+  Feature directories     | kebab-case      | order-management/
 
-  特殊なNext.jsファイル:
+  Special Next.js files:
   - page.tsx, layout.tsx, loading.tsx, error.tsx, not-found.tsx
   - route.ts (API Route Handlers)
   - middleware.ts
-  - template.tsx (レイアウトのリセット版)
-  - default.tsx (Parallel Routes のデフォルト)
+  - template.tsx (layout reset version)
+  - default.tsx (default for Parallel Routes)
 ```
 
-### 7.2 ディレクトリ命名規則
+### 7.2 Directory Naming Conventions
 
 ```typescript
-// ディレクトリ名は kebab-case を使用
+// Directory names use kebab-case
 // GOOD
 src/features/user-management/
 src/features/order-processing/
 src/shared/components/data-table/
 
 // BAD
-src/features/UserManagement/    // PascalCase はコンポーネント名に予約
-src/features/userManagement/    // camelCase はファイル名に予約
-src/features/user_management/   // snake_case は使わない
+src/features/UserManagement/    // PascalCase is reserved for component names
+src/features/userManagement/    // camelCase is reserved for file names
+src/features/user_management/   // snake_case is not used
 
-// 例外: Next.js の動的ルートとルートグループ
-src/app/[slug]/                 // 動的セグメント
-src/app/(marketing)/            // ルートグループ
-src/app/[...catchAll]/          // キャッチオールセグメント
-src/app/@modal/                 // Parallel Routes（Named Slot）
+// Exceptions: Next.js dynamic routes and route groups
+src/app/[slug]/                 // Dynamic segment
+src/app/(marketing)/            // Route group
+src/app/[...catchAll]/          // Catch-all segment
+src/app/@modal/                 // Parallel Routes (Named Slot)
 src/app/(.)photo/               // Intercepting Routes
 ```
 
-### 7.3 Export の命名規則
+### 7.3 Export Naming Conventions
 
 ```typescript
-// コンポーネント: PascalCase の名前付き export
+// Components: named export with PascalCase
 // features/users/components/UserList.tsx
 export function UserList({ users }: UserListProps) { ... }
 
-// BAD: default export（名前の一貫性が保てない）
+// BAD: default export (can't maintain name consistency)
 export default function UserList() { ... }
-// 別ファイルで import するとき任意の名前にできてしまう:
-// import UsersList from './UserList';  // 異なる名前でも動く
+// When importing in another file, any name can be used:
+// import UsersList from './UserList';  // Different name still works
 
-// hooks: camelCase の名前付き export
+// Hooks: named export with camelCase
 // features/users/hooks/useUsers.ts
 export function useUsers(filters?: UserFilters) { ... }
 
-// 型: PascalCase の名前付き export（type キーワード付き）
+// Types: named export with PascalCase (with type keyword)
 // features/users/types/user.ts
 export interface User { ... }
 export type UserRole = 'admin' | 'member' | 'viewer';
 
-// 定数: UPPER_SNAKE_CASE
+// Constants: UPPER_SNAKE_CASE
 // shared/constants/config.ts
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 export const SUPPORTED_FORMATS = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
-// enum の代替: as const オブジェクト
+// Alternative to enum: as const object
 export const USER_ROLES = {
   ADMIN: 'admin',
   MEMBER: 'member',
@@ -2048,185 +2048,185 @@ export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
 
 ---
 
-## 8. 設計チェックリスト
+## 8. Design Checklist
 
-### 8.1 プロジェクト初期設定チェックリスト
-
-```
-プロジェクト初期設定チェックリスト:
-
-  ディレクトリ構成:
-  □ Feature-based でモジュール分割されているか
-  □ 各 feature が index.ts で公開APIを定義しているか
-  □ features 間の直接 import が禁止されているか
-  □ 共有コンポーネントが shared/ にあるか
-  □ app/ にはルーティングのみか
-  □ テストファイルの配置ルールが決まっているか
-
-  命名規則:
-  □ コンポーネント → PascalCase
-  □ hooks → camelCase (use プレフィックス)
-  □ ディレクトリ → kebab-case
-  □ 定数 → UPPER_SNAKE_CASE
-  □ パスエイリアスが設定されているか (@/, @features/, @shared/)
-  □ テストファイルが対象の近くにあるか
-
-  ツール設定:
-  □ TypeScript の strict mode が有効か
-  □ ESLint の import ルールが設定されているか
-  □ Prettier が設定されているか
-  □ husky + lint-staged で pre-commit チェックがあるか
-  □ CI/CD パイプラインが設定されているか
-
-  スケーラビリティ:
-  □ 新機能追加が既存コードに影響しないか
-  □ feature の削除が容易か
-  □ チームメンバーが迷わず配置できるか
-  □ テストが feature 単位で実行できるか
-
-  ドキュメント:
-  □ ARCHITECTURE.md が存在するか
-  □ feature の追加手順が文書化されているか
-  □ 依存ルールが明文化されているか
-  □ ADR（Architecture Decision Records）が整備されているか
-```
-
-### 8.2 コードレビューチェックリスト
+### 8.1 Project Initial Setup Checklist
 
 ```
-コードレビュー時のプロジェクト構成チェック:
+Project initial setup checklist:
 
-  ファイル配置:
-  □ 新しいファイルは正しいディレクトリに配置されているか
-  □ feature 固有のコードが shared/ に配置されていないか
-  □ 汎用コードが feature/ 内に閉じ込められていないか
-  □ テストファイルが追加されているか
+  Directory structure:
+  □ Is the module split done with feature-based approach?
+  □ Does each feature define its public API in index.ts?
+  □ Are direct imports between features prohibited?
+  □ Are shared components in shared/?
+  □ Does app/ contain only routing?
+  □ Is the test file placement rule established?
 
-  依存関係:
-  □ features 間の直接 import がないか
-  □ shared/ から features/ への依存がないか
-  □ 循環参照が発生していないか
-  □ 不要な依存関係が追加されていないか
+  Naming conventions:
+  □ Components → PascalCase
+  □ Hooks → camelCase (use prefix)
+  □ Directories → kebab-case
+  □ Constants → UPPER_SNAKE_CASE
+  □ Are path aliases configured? (@/, @features/, @shared/)
+  □ Are test files near their targets?
 
-  公開API:
-  □ 新しいコンポーネント/hooks が index.ts に追加されているか
-  □ 内部実装が不必要に公開されていないか
-  □ 型が適切に export されているか
+  Tool configuration:
+  □ Is TypeScript strict mode enabled?
+  □ Are ESLint import rules configured?
+  □ Is Prettier configured?
+  □ Are pre-commit checks set up with husky + lint-staged?
+  □ Is the CI/CD pipeline configured?
 
-  命名:
-  □ 命名規則に従っているか
-  □ コンポーネント名がファイル名と一致しているか
-  □ 汎用的すぎる命名（data, info, handler）を避けているか
+  Scalability:
+  □ Does adding new features not impact existing code?
+  □ Is it easy to delete a feature?
+  □ Can team members place files without confusion?
+  □ Can tests be run per feature?
+
+  Documentation:
+  □ Does ARCHITECTURE.md exist?
+  □ Is the procedure for adding features documented?
+  □ Are dependency rules explicitly stated?
+  □ Are ADR (Architecture Decision Records) maintained?
 ```
 
-### 8.3 ARCHITECTURE.md テンプレート
+### 8.2 Code Review Checklist
+
+```
+Project structure checks during code review:
+
+  File placement:
+  □ Are new files in the correct directory?
+  □ Is feature-specific code not placed in shared/?
+  □ Is generic code not confined inside feature/?
+  □ Have test files been added?
+
+  Dependencies:
+  □ Are there no direct imports between features?
+  □ Is there no dependency from shared/ to features/?
+  □ Has no circular reference occurred?
+  □ Have no unnecessary dependencies been added?
+
+  Public API:
+  □ Have new components/hooks been added to index.ts?
+  □ Is internal implementation not unnecessarily exposed?
+  □ Are types properly exported?
+
+  Naming:
+  □ Does it follow naming conventions?
+  □ Does the component name match the file name?
+  □ Are overly generic names avoided (data, info, handler)?
+```
+
+### 8.3 ARCHITECTURE.md Template
 
 ```markdown
 # Architecture
 
-## ディレクトリ構成
+## Directory Structure
 
-このプロジェクトは Feature-based 構成を採用しています。
+This project uses feature-based structure.
 
-### ルール
-1. `app/` にはルーティングとページコンポーネントのみ配置
-2. ビジネスロジックは `features/` に配置
-3. 2つ以上の feature で使うものは `shared/` に配置
-4. features 間の直接 import は禁止
+### Rules
+1. Place only routing and page components in `app/`
+2. Place business logic in `features/`
+3. Place things used by 2+ features in `shared/`
+4. Direct imports between features are prohibited
 
-### 新しい feature の追加手順
-1. `src/features/<feature-name>/` ディレクトリを作成
-2. components/, hooks/, api/, types/ サブディレクトリを作成
-3. index.ts で公開APIを定義
-4. テストを追加
-5. ESLint ルールに新しい feature を追加
+### Steps to Add a New Feature
+1. Create `src/features/<feature-name>/` directory
+2. Create components/, hooks/, api/, types/ subdirectories
+3. Define public API in index.ts
+4. Add tests
+5. Add new feature to ESLint rules
 
-### 依存関係図
+### Dependency Diagram
 app/ → features/ → shared/
 app/ → shared/
 
 ### ADR
-決定記録は docs/adr/ に保管しています。
+Decision records are stored in docs/adr/.
 ```
 
 ---
 
-## 9. トラブルシューティング
+## 9. Troubleshooting
 
-### 9.1 よくある問題と解決策
+### 9.1 Common Problems and Solutions
 
 ```
-問題1: 「この機能はどの feature に属するか判断できない」
+Problem 1: "Can't determine which feature this belongs to"
 
-  解決策:
-  - ドメインエキスパートに確認する
-  - ユーザーストーリーやユースケースに基づいて判断する
-  - 迷ったら仮配置して、後でリファクタリングする
-  - 2つの feature にまたがる場合は、新しい feature を作るか shared/ に配置
+  Solutions:
+  - Consult domain experts
+  - Decide based on user stories or use cases
+  - Place tentatively and refactor later
+  - If it spans two features, create a new feature or place in shared/
 
-問題2: 「shared/ が肥大化して型ベース構成に逆戻りしている」
+Problem 2: "shared/ has grown bloated and reverted to technical-based structure"
 
-  解決策:
-  - shared/ にも構造を持たせる（components/ui/, hooks/, lib/）
-  - 本当に2つ以上の feature で使われているか定期的に確認
-  - 1つの feature でしか使われていないものは feature 内に移動
+  Solutions:
+  - Give shared/ its own structure (components/ui/, hooks/, lib/)
+  - Periodically verify that items are actually used by 2+ features
+  - Move things used by only one feature back inside that feature
 
-問題3: 「feature 間で共有したいロジックがある」
+Problem 3: "There's logic to share between features"
 
-  解決策:
-  - shared/lib/ にユーティリティとして切り出す
-  - shared/types/ に共通の型を定義する
-  - イベントバスパターンで疎結合な連携を実現する
-  - React Context を shared/ に配置する
+  Solutions:
+  - Extract as utility into shared/lib/
+  - Define common types in shared/types/
+  - Use event bus pattern for loosely coupled communication
+  - Place React Context in shared/
 
-問題4: 「循環参照が発生している」
+Problem 4: "Circular references are occurring"
 
-  解決策:
-  - madge などのツールで依存グラフを可視化する
-  - 共通の依存を shared/ に抽出する
-  - インターフェース（型）を shared/ に定義して依存を逆転させる
-  - ESLint の import/no-cycle ルールを有効にする
+  Solutions:
+  - Visualize dependency graph with tools like madge
+  - Extract common dependencies into shared/
+  - Reverse dependencies by defining interfaces (types) in shared/
+  - Enable ESLint import/no-cycle rule
 
-問題5: 「テストが壊れやすい（Fragile Tests）」
+Problem 5: "Tests are fragile (Fragile Tests)"
 
-  解決策:
-  - 内部実装ではなく公開APIに対してテストする
-  - index.ts の export のみをテスト対象にする
-  - モックは最小限にする
-  - テストの独立性を確保する（テスト間の依存を排除）
+  Solutions:
+  - Test against public API, not internal implementation
+  - Only test exports from index.ts
+  - Minimize mocks
+  - Ensure test independence (eliminate dependencies between tests)
 ```
 
-### 9.2 パフォーマンス最適化
+### 9.2 Performance Optimization
 
 ```typescript
-// 問題: barrel export による不要なモジュール読み込み
-// BAD: shared/components/ui/index.ts から1つだけ使う場合でも
-// 全コンポーネントが読み込まれる可能性がある
+// Problem: Unnecessary module loading from barrel exports
+// BAD: Even when using just one from shared/components/ui/index.ts,
+// all components may be loaded
 import { Button } from '@/shared/components/ui';
 
-// GOOD: 直接インポート（Tree-shaking に確実に効く）
+// GOOD: Direct import (reliably tree-shakeable)
 import { Button } from '@/shared/components/ui/Button';
 
-// GOOD: next.config.js で modularizeImports を設定（前述）
+// GOOD: Configure modularizeImports in next.config.js (mentioned above)
 
-// 問題: 大きな feature モジュールの動的インポート
-// クライアントサイドで重い feature を遅延読み込み
+// Problem: Dynamic import of large feature modules
+// Lazy-load heavy features on the client side
 import dynamic from 'next/dynamic';
 
 const HeavyChart = dynamic(
   () => import('@/features/analytics/components/HeavyChart'),
   {
     loading: () => <Skeleton className="h-64" />,
-    ssr: false, // クライアントサイドのみ
+    ssr: false, // Client-side only
   }
 );
 
-// 問題: Server Components でのデータプリフェッチ
+// Problem: Data prefetching in Server Components
 // features/users/components/UserList.tsx
 import { Suspense } from 'react';
 import { getUsers } from '../api/queries';
 
-// Streaming SSR でデータ取得を並列化
+// Parallelize data fetching with Streaming SSR
 export async function UserList() {
   const { users } = await getUsers();
 
@@ -2244,142 +2244,142 @@ export async function UserList() {
 
 ## FAQ
 
-### Q1: モノレポとマルチレポ、どちらを選ぶべきか？
+### Q1: Should I choose monorepo or multi-repo?
 
-**A:** プロジェクト規模とチーム構成で判断します。
+**A:** Decide based on project scale and team composition.
 
-**モノレポが適している場合:**
+**When monorepo is suitable:**
 
-| メリット | 説明 |
-|---------|------|
-| コード共有が容易 | shared/ パッケージで型やユーティリティを一元管理 |
-| 依存関係の一貫性 | 全パッケージでライブラリバージョンを統一可能 |
-| アトミックな変更 | APIとフロントエンドを同一PRで変更できる |
-| リファクタリング効率 | IDE の Rename Symbol で全パッケージを一括修正 |
+| Benefit | Description |
+|---------|-------------|
+| Easy code sharing | Centrally manage types and utilities in shared/ packages |
+| Dependency consistency | Unify library versions across all packages |
+| Atomic changes | Can change API and frontend in the same PR |
+| Refactoring efficiency | Rename Symbol in IDE fixes all packages at once |
 
-例: マイクロサービス（Web/Mobile/Admin）、複数プロダクト共通基盤
+Examples: Microservices (Web/Mobile/Admin), common base across multiple products
 
-**マルチレポが適している場合:**
+**When multi-repo is suitable:**
 
-| メリット | 説明 |
-|---------|------|
-| 独立したリリースサイクル | 各リポジトリが個別にデプロイ可能 |
-| アクセス制御 | リポジトリ単位で権限を分離 |
-| ビルド速度 | 影響範囲が限定され、CI/CDが高速 |
+| Benefit | Description |
+|---------|-------------|
+| Independent release cycles | Each repository can deploy independently |
+| Access control | Permissions separated per repository |
+| Build speed | Impact is limited, CI/CD is faster |
 
-例: 完全独立したプロダクト群、異なるチームが管理
+Examples: Completely independent product groups, managed by different teams
 
-**ハイブリッドアプローチ:**
-- メインアプリ → モノレポ（apps/web, apps/mobile, packages/shared）
-- 独立プロダクト → 別リポジトリ
-- 共通ライブラリ → npm パッケージとして公開
+**Hybrid approach:**
+- Main app → monorepo (apps/web, apps/mobile, packages/shared)
+- Independent products → separate repositories
+- Common libraries → published as npm packages
 
-### Q2: Feature-based構成とLayer-based構成、どちらが優れているか？
+### Q2: Which is better: feature-based or layer-based structure?
 
-**A:** 規模と要件に応じて使い分けます。
+**A:** Use both depending on scale and requirements.
 
-**Feature-based構成の強み:**
+**Strengths of feature-based structure:**
 
 ```
 features/
-├── user-management/     ← 機能単位で完結
-│   ├── components/      ← この機能専用のUI
-│   ├── hooks/           ← この機能専用のロジック
-│   ├── api/             ← この機能専用のAPI通信
-│   └── types/           ← この機能専用の型定義
-└── order-processing/    ← 別の機能も同様
+├── user-management/     ← Self-contained per feature
+│   ├── components/      ← UI for this feature only
+│   ├── hooks/           ← Logic for this feature only
+│   ├── api/             ← API communication for this feature only
+│   └── types/           ← Type definitions for this feature only
+└── order-processing/    ← Another feature similarly
 ```
 
-- **凝集度が高い**: 関連するコードが物理的に近接
-- **削除が容易**: 機能を廃止する時はディレクトリごと削除
-- **チームスケール**: 複数チームが独立して作業可能
-- **適用場面**: 中〜大規模アプリ（10+ 機能）
+- **High cohesion**: Related code is physically close
+- **Easy to delete**: Deleting a feature means deleting the directory
+- **Team scale**: Multiple teams can work independently
+- **Use case**: Medium to large apps (10+ features)
 
-**Layer-based構成の強み:**
+**Strengths of layer-based structure:**
 
 ```
 src/
-├── components/    ← すべてのUIコンポーネント
-├── hooks/         ← すべてのカスタムフック
-├── api/           ← すべてのAPI通信
-└── types/         ← すべての型定義
+├── components/    ← All UI components
+├── hooks/         ← All custom hooks
+├── api/           ← All API communication
+└── types/         ← All type definitions
 ```
 
-- **シンプル**: 技術的な役割で明確に分類
-- **学習コスト低**: 初心者でも理解しやすい
-- **適用場面**: 小規模アプリ（5機能未満）、プロトタイプ
+- **Simple**: Clearly classified by technical role
+- **Low learning cost**: Easy to understand even for beginners
+- **Use case**: Small apps (fewer than 5 features), prototypes
 
-**推奨戦略:**
-1. プロジェクト開始時は Layer-based でスタート
-2. 機能が5つを超えたタイミングで Feature-based に移行
-3. shared/ には共通コンポーネント（Button, Modal等）を配置
+**Recommended strategy:**
+1. Start with layer-based at project start
+2. Migrate to feature-based when features exceed 5
+3. Place shared components (Button, Modal, etc.) in shared/
 
-### Q3: プロジェクト構成を変更するタイミングは？
+### Q3: When should I change the project structure?
 
-**A:** 以下のシグナルが見えたら構成見直しを検討します。
+**A:** Consider restructuring when you see these signals.
 
-**構成変更が必要なシグナル:**
+**Signals that indicate structure change is needed:**
 
-| シグナル | 症状 | 対処 |
-|---------|------|------|
-| ファイル発見に時間がかかる | 「このコードはどこ？」と毎回検索 | Feature-based に移行 |
-| import 文が長大化 | `../../../components/UserCard` | パスエイリアス導入 |
-| 循環参照が頻発 | 機能間の依存が複雑化 | 依存グラフ可視化 → リファクタリング |
-| 同じコードの重複 | 複数箇所で同じロジック | shared/ に共通化 |
-| テストが壊れやすい | 内部実装変更でテストが失敗 | 公開API（index.ts）のみをテスト |
-| ビルド時間が長い | 5分以上かかる | Turborepo導入、モノレポ最適化 |
+| Signal | Symptom | Action |
+|--------|---------|--------|
+| Takes time to find files | "Where is this code?" requires searching every time | Migrate to feature-based |
+| Import statements getting long | `../../../components/UserCard` | Introduce path aliases |
+| Frequent circular references | Cross-feature dependencies have become complex | Visualize dependency graph → refactor |
+| Duplicated code | Same logic in multiple places | Commonalize in shared/ |
+| Tests are fragile | Internal changes cause test failures | Test only public API (index.ts) |
+| Long build time | Takes more than 5 minutes | Introduce Turborepo, optimize monorepo |
 
-**段階的な移行手順:**
+**Gradual migration steps:**
 
 ```bash
-# Step 1: パスエイリアス導入（影響範囲: 低）
-# tsconfig.json に paths 設定を追加
-# 相対パス → @/features/xxx に置換
+# Step 1: Introduce path aliases (low impact)
+# Add paths configuration to tsconfig.json
+# Replace relative paths with @/features/xxx
 
-# Step 2: shared/ ディレクトリ作成（影響範囲: 中）
-# 共通コンポーネントを shared/components/ に移動
-# 共通hooks を shared/hooks/ に移動
+# Step 2: Create shared/ directory (moderate impact)
+# Move common components to shared/components/
+# Move common hooks to shared/hooks/
 
-# Step 3: features/ ディレクトリ作成（影響範囲: 高）
-# 機能ごとにディレクトリを作成
-# 関連ファイルを機能ディレクトリに移動
-# index.ts で公開APIを定義
+# Step 3: Create features/ directory (high impact)
+# Create directory per feature
+# Move related files to feature directory
+# Define public API in index.ts
 
-# Step 4: ESLint ルール追加（影響範囲: 低）
-# no-restricted-imports で依存ルールを強制
+# Step 4: Add ESLint rules (low impact)
+# Enforce dependency rules with no-restricted-imports
 
-# Step 5: モノレポ化（影響範囲: 最高）
-# Turborepo 導入、パッケージ分割
+# Step 5: Monorepo migration (highest impact)
+# Introduce Turborepo, split packages
 ```
 
-**タイミングの目安:**
-- プロジェクト開始〜3ヶ月: Layer-based でOK
-- 3〜6ヶ月（機能5つ以上）: Feature-based 移行を検討
-- 6ヶ月以上（複数アプリ）: モノレポ化を検討
+**Timing guidelines:**
+- Project start to 3 months: Layer-based is OK
+- 3 to 6 months (5+ features): Consider migrating to feature-based
+- 6+ months (multiple apps): Consider monorepo migration
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
-|------|---------|
-| Feature-based | 機能ごとにディレクトリを分割し、高凝集・低結合を実現 |
-| 公開API | index.ts で外部向けインターフェースを定義し、内部実装を隠蔽 |
-| 依存ルール | features間は直接参照禁止。ESLint で自動チェック |
-| App Router | app/ はルーティングのみ、ビジネスロジックは features/ |
-| モノレポ | Turborepo + pnpm workspace で複数アプリを統合管理 |
-| パスエイリアス | @features/, @shared/ で可読性向上と移行容易性確保 |
-| テスト配置 | コロケーション推奨。E2Eテストはトップレベル tests/ に |
-| 命名規則 | コンポーネント=PascalCase, hooks=camelCase, ディレクトリ=kebab-case |
-| Barrel Export | 便利だが Tree-shaking への影響に注意。modularizeImports で対策 |
-
----
-
-## 次に読むべきガイド
+| Concept | Key Points |
+|---------|-----------|
+| Feature-based | Split directories per feature for high cohesion and low coupling |
+| Public API | Define external interface in index.ts, hide internal implementation |
+| Dependency rules | No direct references between features. Auto-checked with ESLint |
+| App Router | app/ for routing only, business logic in features/ |
+| Monorepo | Manage multiple apps with Turborepo + pnpm workspace |
+| Path aliases | Improve readability and migration ease with @features/, @shared/ |
+| Test placement | Colocation recommended. E2E tests in top-level tests/ |
+| Naming conventions | Components=PascalCase, hooks=camelCase, directories=kebab-case |
+| Barrel Export | Convenient but be aware of tree-shaking impact. Use modularizeImports as mitigation |
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+---
+
+## References
 1. Bulletproof React. "Project Structure." github.com/alan2207/bulletproof-react, 2024.
 2. Next.js. "Project Organization." nextjs.org/docs, 2024.
 3. Turborepo. "Getting Started." turbo.build, 2024.

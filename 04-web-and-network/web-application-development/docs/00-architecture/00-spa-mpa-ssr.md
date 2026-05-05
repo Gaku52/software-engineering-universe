@@ -1,182 +1,182 @@
 # SPA / MPA / SSR
 
-> Webアプリのレンダリング方式は性能とUXを決定づける。SPA、MPA、SSR、SSG、ISR、Streaming SSR、React Server Componentsの特徴と選定基準を理解し、プロジェクト要件に最適なアーキテクチャを選択する。
+> The rendering approach for a web application determines its performance and UX. Understand the characteristics and selection criteria for SPA, MPA, SSR, SSG, ISR, Streaming SSR, and React Server Components, then choose the architecture that best fits your project requirements.
 
-## 前提知識
+## Prerequisites
 
-この章を学ぶ前に、以下の知識を習得しておくことを推奨する。
+Before studying this chapter, it is recommended to acquire the following knowledge.
 
-- HTTPの基礎（リクエスト/レスポンス、ステータスコード、キャッシュヘッダー）
-  - 参照: `../../network-fundamentals/docs/02-http/00-http-basics.md`
-- ブラウザのレンダリングパイプライン（DOM構築、CSSOM、レイアウト、ペイント）
-  - 参照: `../../browser-and-web-platform/docs/01-rendering/00-rendering-pipeline.md`
-- HTML/CSS/JavaScriptの基礎（DOM操作、イベント処理、非同期処理）
+- HTTP basics (request/response, status codes, cache headers)
+  - Reference: `../../network-fundamentals/docs/02-http/00-http-basics.md`
+- Browser rendering pipeline (DOM construction, CSSOM, layout, paint)
+  - Reference: `../../browser-and-web-platform/docs/01-rendering/00-rendering-pipeline.md`
+- HTML/CSS/JavaScript basics (DOM manipulation, event handling, asynchronous processing)
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] 各レンダリング方式の仕組みと特徴を理解する
-- [ ] パフォーマンスとSEOの観点から選定基準を把握する
-- [ ] ハイブリッドレンダリングの設計を学ぶ
-- [ ] Hydration の仕組みと最適化手法を理解する
-- [ ] React Server Components とStreaming SSR の実践を学ぶ
-- [ ] Islands Architecture とPartial Hydrationを把握する
+- [ ] Understand the mechanics and characteristics of each rendering approach
+- [ ] Grasp selection criteria from a performance and SEO perspective
+- [ ] Learn the design of hybrid rendering
+- [ ] Understand the Hydration mechanism and optimization techniques
+- [ ] Learn practical use of React Server Components and Streaming SSR
+- [ ] Understand Islands Architecture and Partial Hydration
 
-## 前提知識
+## Prerequisites
 
-この章を学習する前に、以下の知識を習得しておくことを推奨します。
+Before studying this chapter, it is recommended to acquire the following knowledge.
 
-- **HTTPの基礎**: リクエスト/レスポンスモデル、ステータスコード、ヘッダーの理解
-  → 参照: `../../network-fundamentals/docs/02-http/00-http-basics.md`
-- **ブラウザのレンダリング**: Critical Rendering Path、Paint、Layout の仕組み
-  → 参照: `../../browser-and-web-platform/docs/01-rendering/00-rendering-pipeline.md`
-- **HTML/CSS/JavaScriptの基礎**: DOM操作、イベント処理、非同期処理（Promise/async-await）の理解
+- **HTTP basics**: Understanding the request/response model, status codes, and headers
+  → Reference: `../../network-fundamentals/docs/02-http/00-http-basics.md`
+- **Browser rendering**: Understanding the Critical Rendering Path, Paint, and Layout
+  → Reference: `../../browser-and-web-platform/docs/01-rendering/00-rendering-pipeline.md`
+- **HTML/CSS/JavaScript basics**: Understanding DOM manipulation, event handling, and asynchronous processing (Promise/async-await)
 
 ---
 
-## 1. レンダリング方式の全体像
+## 1. Overview of Rendering Approaches
 
-### 1.1 方式の比較
-
-```
-方式の比較:
-
-         初期表示  操作性  SEO   サーバー負荷  複雑度  JSバンドル
-─────────────────────────────────────────────────────────────
-CSR/SPA   遅い     最高    悪い   低い         低い    大きい
-MPA       速い     低い    良い   中程度       低い    最小
-SSR       速い     高い    良い   高い         中程度  大きい
-SSG       最速     高い    最良   最低         低い    中程度
-ISR       速い     高い    良い   低い         中程度  中程度
-Streaming 速い     高い    良い   中程度       高い    中程度
-RSC       速い     高い    良い   中程度       高い    小さい
-Islands   速い     中程度  良い   低い         中程度  最小
-
-レンダリングのタイミング:
-  CSR:       クライアント（ブラウザ）でレンダリング
-  MPA:       リクエスト時にサーバーでHTML全体を返す（従来型）
-  SSR:       リクエスト時にサーバーでレンダリング + Hydration
-  SSG:       ビルド時にサーバーでレンダリング
-  ISR:       初回リクエスト時 + 定期的に再生成
-  Streaming: サーバーで段階的にレンダリング
-  RSC:       コンポーネント単位でサーバー/クライアント分離
-  Islands:   ページの一部だけをインタラクティブ化
-```
-
-### 1.2 レンダリング方式の歴史的変遷
+### 1.1 Comparison of Approaches
 
 ```
-Webレンダリングの進化:
+Comparison of approaches:
 
-  2000年代初頭: 伝統的MPA
+         Initial Load  Interactivity  SEO   Server Load  Complexity  JS Bundle
+─────────────────────────────────────────────────────────────────────────────
+CSR/SPA   Slow         Best           Poor  Low          Low         Large
+MPA       Fast         Low            Good  Moderate     Low         Minimal
+SSR       Fast         High           Good  High         Moderate    Large
+SSG       Fastest      High           Best  Lowest       Low         Moderate
+ISR       Fast         High           Good  Low          Moderate    Moderate
+Streaming Fast         High           Good  Moderate     High        Moderate
+RSC       Fast         High           Good  Moderate     High        Small
+Islands   Fast         Moderate       Good  Low          Moderate    Minimal
+
+Rendering timing:
+  CSR:       Rendered on the client (browser)
+  MPA:       Server returns complete HTML per request (traditional)
+  SSR:       Server renders per request + Hydration on client
+  SSG:       Server renders at build time
+  ISR:       On first request + periodic regeneration
+  Streaming: Server renders incrementally
+  RSC:       Server/client split at the component level
+  Islands:   Only specific parts of the page are made interactive
+```
+
+### 1.2 Historical Evolution of Rendering Approaches
+
+```
+Evolution of web rendering:
+
+  Early 2000s: Traditional MPA
   → PHP, JSP, Ruby on Rails
-  → サーバーが全HTMLを生成
-  → ページ遷移のたびに全画面リロード
+  → Server generates all HTML
+  → Full page reload on every navigation
 
-  2010年代前半: SPA の台頭
+  Early 2010s: Rise of SPA
   → Backbone.js, AngularJS, React
-  → クライアントサイドルーティング
-  → リッチなインタラクション
+  → Client-side routing
+  → Rich interactions
 
-  2010年代後半: SSR + SPA（Universal/Isomorphic）
+  Late 2010s: SSR + SPA (Universal/Isomorphic)
   → Next.js, Nuxt.js
-  → サーバーで初期HTML生成 + クライアントでHydration
-  → SEO + インタラクション両立
+  → Server generates initial HTML + client Hydration
+  → Both SEO and interactivity
 
-  2020年代前半: SSG + ISR
+  Early 2020s: SSG + ISR
   → Gatsby, Next.js SSG/ISR
-  → ビルド時に静的HTML生成
-  → CDN配信で最高速度
+  → Static HTML generated at build time
+  → Fastest delivery via CDN
 
-  2020年代中盤: RSC + Streaming + Islands
+  Mid 2020s: RSC + Streaming + Islands
   → React Server Components
   → Streaming SSR with Suspense
   → Astro (Islands Architecture)
-  → JSバンドルの最小化
+  → Minimizing JS bundles
 
-  現在のトレンド:
-  → ハイブリッドアプローチ（ページ単位で最適方式を選択）
-  → Server-first（デフォルトはサーバー、必要時のみクライアント）
-  → Progressive Enhancement（JSなしでも基本機能動作）
+  Current trends:
+  → Hybrid approach (choose optimal method per page)
+  → Server-first (server by default, client only when needed)
+  → Progressive Enhancement (basic functionality works without JS)
 ```
 
 ---
 
-## 2. CSR / SPA（Client Side Rendering / Single Page Application）
+## 2. CSR / SPA (Client Side Rendering / Single Page Application)
 
-### 2.1 SPA の仕組み
+### 2.1 How SPA Works
 
 ```
-SPA（Single Page Application）:
-  → ブラウザがJSを実行してHTMLを生成
-  → ページ遷移はクライアントサイドルーティング
-  → サーバーは空のHTMLとJSバンドルのみ配信
+SPA (Single Page Application):
+  → Browser executes JS to generate HTML
+  → Page transitions use client-side routing
+  → Server only serves an empty HTML shell and JS bundle
 
-  フロー:
-  1. ブラウザ: GET /
-  2. サーバー: 空の HTML + JS バンドルを返す
-  3. ブラウザ: JS を実行 → DOM を構築 → 画面表示
-  4. ブラウザ: API コール → データ取得 → 画面更新
+  Flow:
+  1. Browser: GET /
+  2. Server: Returns empty HTML + JS bundle
+  3. Browser: Executes JS → builds DOM → displays page
+  4. Browser: API call → fetches data → updates page
 
-  初回リクエスト時のHTML:
+  Initial HTML returned on first request:
   <html>
     <head>
       <title>App</title>
       <link rel="stylesheet" href="/assets/styles.a1b2c3.css">
     </head>
     <body>
-      <div id="root"></div>     ← 空のHTML
-      <script src="/assets/app.d4e5f6.js"></script>  ← JSが全てを描画
+      <div id="root"></div>     ← empty HTML
+      <script src="/assets/app.d4e5f6.js"></script>  ← JS renders everything
     </body>
   </html>
 
-  ページ遷移（/products → /products/123）:
-  → URLの変更（History API）
-  → 新しいJSコンポーネントの読み込み
-  → API呼び出し
-  → DOMの部分更新
-  → サーバーへのHTMLリクエストなし
+  Page transition (/products → /products/123):
+  → URL change (History API)
+  → Load new JS component
+  → API call
+  → Partial DOM update
+  → No HTML request to server
 ```
 
-### 2.2 SPA の利点と欠点
+### 2.2 SPA Advantages and Disadvantages
 
 ```
-利点:
-  ✓ ページ遷移が高速（サーバーリクエストなし）
-  ✓ リッチなインタラクション（アニメーション、トランジション）
-  ✓ サーバー負荷が低い（静的ファイル配信のみ）
-  ✓ オフライン対応が容易（PWA、Service Worker）
-  ✓ バックエンドとフロントエンドの完全分離
-  ✓ モバイルアプリとAPIを共有可能
-  ✓ デプロイが簡単（S3 + CloudFront等）
+Advantages:
+  ✓ Fast page transitions (no server request)
+  ✓ Rich interactions (animations, transitions)
+  ✓ Low server load (serves static files only)
+  ✓ Easy offline support (PWA, Service Worker)
+  ✓ Complete separation of backend and frontend
+  ✓ API can be shared with mobile apps
+  ✓ Simple deployment (S3 + CloudFront, etc.)
 
-欠点:
-  ✗ 初期表示が遅い（JSバンドルのダウンロード + パース + 実行）
-  ✗ SEO が困難（クローラーがJS実行しない場合がある）
-  ✗ FCP / LCPが遅い（JSが実行されるまで白画面）
-  ✗ JSが無効だと何も表示されない
-  ✗ メモリリークのリスク（ページ遷移でもメモリが解放されない）
-  ✗ バンドルサイズの管理が必要
-  ✗ ソーシャルメディアのOGP取得に工夫が必要
+Disadvantages:
+  ✗ Slow initial load (download + parse + execute JS bundle)
+  ✗ Difficult SEO (crawlers may not execute JS)
+  ✗ Slow FCP / LCP (blank screen until JS executes)
+  ✗ Nothing displayed if JS is disabled
+  ✗ Risk of memory leaks (memory not released on page transitions)
+  ✗ Bundle size management required
+  ✗ Extra work needed for social media OGP
 
-適用:
-  → 管理画面、ダッシュボード
-  → ログイン後のアプリケーション
-  → SEO不要なツール系アプリ
-  → メールクライアント、チャットアプリ
-  → デザインツール（Figma等）
-  → コードエディタ（VS Code Web）
+Use cases:
+  → Admin panels, dashboards
+  → Post-login applications
+  → Tool-type apps that don't need SEO
+  → Email clients, chat apps
+  → Design tools (Figma, etc.)
+  → Code editors (VS Code Web)
 
-フレームワーク:
-  → React（Vite）
-  → Vue（Vite）
+Frameworks:
+  → React (Vite)
+  → Vue (Vite)
   → Angular
-  → Svelte（SvelteKit CSR mode）
+  → Svelte (SvelteKit CSR mode)
 ```
 
-### 2.3 SPA の実装例
+### 2.3 SPA Implementation Example
 
 ```typescript
-// Vite + React での SPA 構成
+// SPA setup with Vite + React
 
 // main.tsx
 import { StrictMode } from 'react';
@@ -204,14 +204,14 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
-// App.tsx - ルーティング
+// App.tsx - routing
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { AuthProvider, RequireAuth } from './features/auth';
 import { AppLayout } from './shared/layouts/AppLayout';
 import { PageSkeleton } from './shared/components/PageSkeleton';
 
-// コード分割: 各ページを遅延ロード
+// Code splitting: lazy-load each page
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Users = lazy(() => import('./pages/Users'));
 const UserDetail = lazy(() => import('./pages/UserDetail'));
@@ -239,7 +239,7 @@ function App() {
 ```
 
 ```typescript
-// SPA でのデータフェッチング（TanStack Query）
+// Data fetching in SPA (TanStack Query)
 // pages/Users.tsx
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -260,7 +260,7 @@ function Users() {
 
   return (
     <div>
-      <h1>ユーザー一覧</h1>
+      <h1>User List</h1>
       <SearchInput value={search} onChange={setSearch} />
       <UserTable users={data.users} />
       <Pagination
@@ -273,33 +273,33 @@ function Users() {
 }
 ```
 
-### 2.4 SPA のSEO対策
+### 2.4 SPA SEO Strategies
 
 ```
-SPA のSEO問題と対策:
+SPA SEO problems and solutions:
 
-  問題:
-  → Googlebot は JS を実行できるが、遅延がある
-  → 他のクローラー（Bing, Twitter等）は JS を実行しない場合がある
-  → 動的メタタグが反映されない
-  → OGP画像が取得できない
+  Problems:
+  → Googlebot can execute JS, but with delay
+  → Other crawlers (Bing, Twitter, etc.) may not execute JS
+  → Dynamic meta tags may not be reflected
+  → OGP images may not be fetched
 
-  対策1: SSR / SSG への移行（推奨）
-  → Next.js, Nuxt.js でSSRする
-  → SEO必要なページのみSSR
+  Solution 1: Migrate to SSR / SSG (recommended)
+  → Use SSR with Next.js, Nuxt.js
+  → Apply SSR only to pages that need SEO
 
-  対策2: プリレンダリング
+  Solution 2: Pre-rendering
   → Prerender.io, Rendertron
-  → クローラーのUser-Agentを検出
-  → 事前レンダリングしたHTMLを返す
+  → Detect crawler User-Agent
+  → Return pre-rendered HTML
 
-  対策3: react-helmet / @tanstack/react-head
-  → 動的な <title>, <meta> タグの管理
-  → ただしCSR単体ではクローラーに反映されない場合がある
+  Solution 3: react-helmet / @tanstack/react-head
+  → Manage dynamic <title>, <meta> tags
+  → However, may not be reflected in crawlers with CSR alone
 ```
 
 ```typescript
-// react-helmet-async でのメタタグ管理
+// Managing meta tags with react-helmet-async
 import { Helmet } from 'react-helmet-async';
 
 function ProductPage({ product }: { product: Product }) {
@@ -326,45 +326,45 @@ function ProductPage({ product }: { product: Product }) {
 
 ---
 
-## 3. MPA（Multi Page Application）
+## 3. MPA (Multi Page Application)
 
-### 3.1 伝統的MPAの仕組み
+### 3.1 How Traditional MPA Works
 
 ```
-MPA（Multi Page Application）:
-  → 各URLに対してサーバーが完全なHTMLを生成
-  → ページ遷移のたびに全画面リロード
-  → サーバーサイドテンプレートエンジンで描画
+MPA (Multi Page Application):
+  → Server generates complete HTML for each URL
+  → Full page reload on every navigation
+  → Rendered by server-side template engine
 
-  フロー:
-  1. ブラウザ: GET /products
-  2. サーバー: テンプレート + データ → HTML生成
-  3. ブラウザ: HTML を受信 → 即座に表示
-  4. ユーザー: リンクをクリック
-  5. ブラウザ: GET /products/123
-  6. サーバー: テンプレート + データ → 新しいHTML生成
-  7. ブラウザ: 全画面リロード → HTML表示
+  Flow:
+  1. Browser: GET /products
+  2. Server: Template + data → generate HTML
+  3. Browser: Receives HTML → displays immediately
+  4. User: Clicks a link
+  5. Browser: GET /products/123
+  6. Server: Template + data → generate new HTML
+  7. Browser: Full page reload → display HTML
 
-  利点:
-  ✓ 初期表示が速い（サーバーでHTML生成済み）
-  ✓ SEO に最適（完全なHTMLが返る）
-  ✓ シンプル（JSフレームワーク不要）
-  ✓ JSが無効でも動作
-  ✓ メモリリークの心配なし（ページ遷移で全て破棄）
+  Advantages:
+  ✓ Fast initial load (server generates HTML)
+  ✓ Optimal for SEO (full HTML returned)
+  ✓ Simple (no JS framework required)
+  ✓ Works without JS
+  ✓ No memory leak concern (everything discarded on page navigation)
 
-  欠点:
-  ✗ ページ遷移が遅い（全画面リロード）
-  ✗ リッチなインタラクションが困難
-  ✗ 状態の維持が困難（ページ遷移で失われる）
-  ✗ サーバーとフロントエンドが密結合
+  Disadvantages:
+  ✗ Slow page transitions (full page reload)
+  ✗ Rich interactions are difficult
+  ✗ Hard to maintain state (lost on page navigation)
+  ✗ Server and frontend are tightly coupled
 
-  適用:
-  → ブログ、ニュースサイト
-  → ドキュメントサイト
-  → EC（カタログページ）
-  → コーポレートサイト
+  Use cases:
+  → Blogs, news sites
+  → Documentation sites
+  → E-commerce (catalog pages)
+  → Corporate sites
 
-  フレームワーク:
+  Frameworks:
   → Rails + ERB/Slim
   → Django + Jinja2
   → Laravel + Blade
@@ -372,15 +372,15 @@ MPA（Multi Page Application）:
   → Express + EJS/Pug
 ```
 
-### 3.2 モダンMPA（htmx + View Transitions）
+### 3.2 Modern MPA (htmx + View Transitions)
 
 ```html
-<!-- htmx: MPAにSPAライクな動作を追加 -->
-<!-- ページ全体のリロードなしで部分更新 -->
+<!-- htmx: Add SPA-like behavior to MPA -->
+<!-- Partial updates without full page reload -->
 
-<!-- 基本的なhtmx使用例 -->
+<!-- Basic htmx usage example -->
 <div id="user-list">
-  <!-- ユーザー検索: 入力のたびにサーバーにリクエスト -->
+  <!-- User search: sends request to server on each input -->
   <input
     type="search"
     name="search"
@@ -388,20 +388,20 @@ MPA（Multi Page Application）:
     hx-trigger="input changed delay:300ms"
     hx-target="#user-results"
     hx-indicator="#search-spinner"
-    placeholder="ユーザーを検索..."
+    placeholder="Search users..."
   >
   <span id="search-spinner" class="htmx-indicator">🔍</span>
 
   <div id="user-results">
-    <!-- サーバーから返されるHTMLフラグメントで置換 -->
+    <!-- Replaced by HTML fragment returned from server -->
   </div>
 </div>
 
-<!-- 無限スクロール -->
+<!-- Infinite scroll -->
 <div id="posts">
   <article>Post 1</article>
   <article>Post 2</article>
-  <!-- 最後の要素が表示されたら次のページを取得 -->
+  <!-- Fetch next page when last element is visible -->
   <div hx-get="/api/posts?page=2"
        hx-trigger="revealed"
        hx-swap="afterend"
@@ -410,9 +410,9 @@ MPA（Multi Page Application）:
   </div>
 </div>
 
-<!-- View Transitions API（MPA でもスムーズな遷移） -->
+<!-- View Transitions API (smooth transitions even in MPA) -->
 <style>
-  /* ページ遷移のアニメーション */
+  /* Page transition animation */
   @view-transition {
     navigation: auto;
   }
@@ -438,12 +438,12 @@ MPA（Multi Page Application）:
 ```
 
 ```typescript
-// Express + htmx のサーバー実装
+// Server implementation with Express + htmx
 import express from 'express';
 
 const app = express();
 
-// ユーザー検索 API（HTMLフラグメントを返す）
+// User search API (returns HTML fragment)
 app.get('/api/users/search', async (req, res) => {
   const { search } = req.query;
 
@@ -457,7 +457,7 @@ app.get('/api/users/search', async (req, res) => {
     take: 20,
   });
 
-  // HTMLフラグメントを返す（JSON ではなく）
+  // Return HTML fragment (not JSON)
   const html = users.map(user => `
     <div class="user-card" id="user-${user.id}">
       <h3>${user.name}</h3>
@@ -466,8 +466,8 @@ app.get('/api/users/search', async (req, res) => {
         hx-delete="/api/users/${user.id}"
         hx-target="#user-${user.id}"
         hx-swap="outerHTML"
-        hx-confirm="本当に削除しますか？"
-      >削除</button>
+        hx-confirm="Are you sure you want to delete?"
+      >Delete</button>
     </div>
   `).join('');
 
@@ -477,108 +477,108 @@ app.get('/api/users/search', async (req, res) => {
 
 ---
 
-## 4. SSR（Server Side Rendering）
+## 4. SSR (Server Side Rendering)
 
-### 4.1 SSR の仕組み
+### 4.1 How SSR Works
 
 ```
-SSR（サーバーサイドレンダリング）:
-  → リクエストごとにサーバーでHTMLを生成
-  → クライアントでHydrationしてインタラクティブに
+SSR (Server Side Rendering):
+  → Server generates HTML per request
+  → Client performs Hydration to make it interactive
 
-  フロー:
-  1. ブラウザ: GET /users
-  2. サーバー: React コンポーネントを実行 → HTML文字列生成
-  3. サーバー: データ取得 → HTML にデータを埋め込み
-  4. サーバー: 完全なHTMLをレスポンス
-  5. ブラウザ: 即座にHTML表示（FCP高速）
-  6. ブラウザ: JSバンドルをダウンロード + パース
-  7. ブラウザ: Hydration（DOMにイベントリスナーをアタッチ）
-  8. ブラウザ: インタラクティブに（TTI）
+  Flow:
+  1. Browser: GET /users
+  2. Server: Executes React components → generates HTML string
+  3. Server: Fetches data → embeds data in HTML
+  4. Server: Sends complete HTML in response
+  5. Browser: Displays HTML immediately (fast FCP)
+  6. Browser: Downloads + parses JS bundle
+  7. Browser: Hydration (attaches event listeners to DOM)
+  8. Browser: Interactive (TTI)
 
-  サーバーで生成されるHTML:
+  HTML generated on the server:
   <html>
     <head>
       <title>Users | MyApp</title>
-      <meta name="description" content="ユーザー一覧">
+      <meta name="description" content="User list">
       <link rel="stylesheet" href="/styles.css">
-      <!-- サーバーで取得したデータのハイドレーション用 -->
+      <!-- Initial data for hydration fetched on server -->
       <script>
         window.__INITIAL_DATA__ = {"users":[{"id":1,"name":"Taro"},...]};
       </script>
     </head>
     <body>
       <div id="root">
-        <h1>Users</h1>           ← サーバーで生成済み
+        <h1>Users</h1>           ← Generated on server
         <ul>
-          <li>Taro</li>          ← 即座に表示される
+          <li>Taro</li>          ← Displayed immediately
           <li>Hanako</li>
         </ul>
       </div>
-      <script src="app.js"></script>  ← Hydration用
+      <script src="app.js"></script>  ← For Hydration
     </body>
   </html>
 ```
 
-### 4.2 SSR の利点と欠点
+### 4.2 SSR Advantages and Disadvantages
 
 ```
-利点:
-  ✓ 初期表示が速い（HTMLが即座に描画可能）
-  ✓ SEO に最適（完全なHTMLがクローラーに返る）
-  ✓ ソーシャルメディアのOGP対応
-  ✓ ユーザー固有のコンテンツを初期表示可能
-  ✓ 動的データのリアルタイム反映
+Advantages:
+  ✓ Fast initial load (HTML can be rendered immediately)
+  ✓ Optimal for SEO (complete HTML returned to crawlers)
+  ✓ Social media OGP support
+  ✓ User-specific content can be shown on initial load
+  ✓ Real-time reflection of dynamic data
 
-欠点:
-  ✗ サーバー負荷が高い（リクエストごとにレンダリング）
-  ✗ TTFB（Time to First Byte）がSSGより遅い
-  ✗ Hydration中はインタラクティブでない（Uncanny Valley）
-  ✗ サーバーのスケーリングが必要
-  ✗ サーバー/クライアント両方で動作するコードが必要
-  ✗ Hydration不一致エラーのリスク
+Disadvantages:
+  ✗ High server load (rendering per request)
+  ✗ TTFB (Time to First Byte) is slower than SSG
+  ✗ Not interactive during Hydration (Uncanny Valley)
+  ✗ Server scaling required
+  ✗ Code must work on both server and client
+  ✗ Risk of Hydration mismatch errors
 
-適用:
-  → ECサイト（SEO + 動的データ + パーソナライズ）
-  → SNS（個人プロフィールページ）
-  → ニュースサイト（リアルタイム更新）
-  → 検索結果ページ
+Use cases:
+  → E-commerce sites (SEO + dynamic data + personalization)
+  → Social networks (personal profile pages)
+  → News sites (real-time updates)
+  → Search results pages
 
-フレームワーク:
-  → Next.js（React）
-  → Nuxt（Vue）
-  → Remix（React）
-  → SvelteKit（Svelte）
-  → Qwik City（Qwik）
-  → Solid Start（SolidJS）
+Frameworks:
+  → Next.js (React)
+  → Nuxt (Vue)
+  → Remix (React)
+  → SvelteKit (Svelte)
+  → Qwik City (Qwik)
+  → Solid Start (SolidJS)
 ```
 
-### 4.3 Next.js での SSR 実装
+### 4.3 SSR Implementation in Next.js
 
 ```typescript
-// Next.js App Router での SSR
+// SSR with Next.js App Router
 
 // app/users/page.tsx
-// デフォルトで Server Component = SSR
+// Server Component by default = SSR
 
 import { prisma } from '@/shared/lib/prisma';
 import { UserList } from '@/features/users';
 import { Metadata } from 'next';
 
-// 動的メタデータ生成
+// Dynamic metadata generation
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'ユーザー一覧 | MyApp',
-    description: '登録ユーザーの一覧を表示します',
+    title: 'User List | MyApp',
+    description: 'Displays a list of registered users',
     openGraph: {
-      title: 'ユーザー一覧',
-      description: '登録ユーザーの一覧',
+      title: 'User List',
+      description: 'List of registered users',
       type: 'website',
     },
   };
 }
 
-// SSR: リクエストのたびにデータ取得 + HTML生成
+// SSR: fetch data + generate HTML on every request
 export default async function UsersPage() {
   const users = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },
@@ -594,18 +594,18 @@ export default async function UsersPage() {
 
   return (
     <main>
-      <h1>ユーザー一覧</h1>
+      <h1>User List</h1>
       <UserList users={users} />
     </main>
   );
 }
 
-// force-dynamic: キャッシュなし、常にSSR
+// force-dynamic: no cache, always SSR
 export const dynamic = 'force-dynamic';
 ```
 
 ```typescript
-// Next.js Pages Router での SSR（getServerSideProps）
+// SSR with Next.js Pages Router (getServerSideProps)
 
 import { GetServerSideProps } from 'next';
 
@@ -635,7 +635,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
 
   return {
     props: {
-      users: JSON.parse(JSON.stringify(users)), // Date型のシリアライズ
+      users: JSON.parse(JSON.stringify(users)), // Serialize Date type
       totalCount,
     },
   };
@@ -644,7 +644,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
 export default function UsersPage({ users, totalCount }: Props) {
   return (
     <div>
-      <h1>ユーザー一覧 ({totalCount}件)</h1>
+      <h1>User List ({totalCount} items)</h1>
       <ul>
         {users.map(user => (
           <li key={user.id}>{user.name}</li>
@@ -655,48 +655,49 @@ export default function UsersPage({ users, totalCount }: Props) {
 }
 ```
 
-### 4.4 Hydration の詳細
+### 4.4 Hydration in Detail
 
 ```
-Hydration（ハイドレーション）の仕組み:
+How Hydration works:
 
-  概要:
-  → サーバーで生成した静的HTMLに、クライアントで
-    イベントリスナーや状態管理を追加してインタラクティブにする
+  Overview:
+  → Takes the static HTML generated on the server and adds
+    event listeners and state management on the client
+    to make it interactive
 
-  フロー:
-  1. サーバーHTML:  <button>いいね (0)</button>  ← 見た目だけ
-  2. JS ダウンロード + パース
-  3. React が仮想DOMを構築
-  4. サーバーHTMLと仮想DOMを照合（Reconciliation）
-  5. イベントリスナーをアタッチ
-  6. <button onClick={handleLike}>いいね (0)</button>  ← インタラクティブ
+  Flow:
+  1. Server HTML:  <button>Like (0)</button>  ← appearance only
+  2. JS download + parse
+  3. React builds virtual DOM
+  4. Reconcile server HTML with virtual DOM
+  5. Attach event listeners
+  6. <button onClick={handleLike}>Like (0)</button>  ← interactive
 
-  Hydration の問題点:
-  ① 処理コストが高い:
-     → 全コンポーネントツリーを走査
-     → 大きなアプリでは数秒かかる場合がある
+  Problems with Hydration:
+  ① High processing cost:
+     → Traverses the entire component tree
+     → Can take several seconds for large apps
 
   ② Uncanny Valley:
-     → HTMLは表示されているがクリックが効かない期間
-     → ユーザーは操作可能に見えるが反応しない
+     → HTML is displayed but clicks don't work
+     → Users see what looks interactive but gets no response
 
   ③ Hydration Mismatch:
-     → サーバーとクライアントの出力が異なるとエラー
-     → 原因: Date.now(), Math.random(), localStorage等
+     → Error when server and client output differ
+     → Causes: Date.now(), Math.random(), localStorage, etc.
 ```
 
 ```typescript
-// Hydration Mismatch の回避
+// Avoiding Hydration Mismatch
 
-// 悪い例: サーバーとクライアントで異なる出力
+// Bad example: different output on server and client
 function Greeting() {
-  // ✗ サーバーとクライアントで異なる時刻
+  // ✗ Time differs between server and client
   const now = new Date();
-  return <p>現在時刻: {now.toLocaleTimeString()}</p>;
+  return <p>Current time: {now.toLocaleTimeString()}</p>;
 }
 
-// 良い例: クライアントでのみ実行
+// Good example: only runs on client
 'use client';
 import { useState, useEffect } from 'react';
 
@@ -704,7 +705,7 @@ function Greeting() {
   const [time, setTime] = useState<string>('');
 
   useEffect(() => {
-    // クライアントでのみ時刻を設定
+    // Set time only on client
     setTime(new Date().toLocaleTimeString());
     const timer = setInterval(() => {
       setTime(new Date().toLocaleTimeString());
@@ -712,13 +713,13 @@ function Greeting() {
     return () => clearInterval(timer);
   }, []);
 
-  return <p>現在時刻: {time || '読み込み中...'}</p>;
+  return <p>Current time: {time || 'Loading...'}</p>;
 }
 
-// suppressHydrationWarning の使用（最終手段）
+// Using suppressHydrationWarning (last resort)
 function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
-    // サーバーとクライアントで異なるクラスが付く場合
+    // When different classes are applied on server and client
     <html suppressHydrationWarning>
       <body>{children}</body>
     </html>
@@ -728,57 +729,57 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 ---
 
-## 5. SSG（Static Site Generation）
+## 5. SSG (Static Site Generation)
 
-### 5.1 SSG の仕組み
+### 5.1 How SSG Works
 
 ```
-SSG（静的サイト生成）:
-  → ビルド時に全ページのHTMLを事前生成
-  → CDNから静的ファイルとして配信
+SSG (Static Site Generation):
+  → Pre-generates HTML for all pages at build time
+  → Served as static files from CDN
 
-  フロー:
-  1. ビルド時: データ取得 → 全ページのHTML生成
-  2. デプロイ: 生成されたHTMLをCDNにアップロード
-  3. ブラウザ: GET /about
-  4. CDN: 事前生成済みHTMLを返す（最速）
-  5. ブラウザ: 即座に表示 + Hydration
+  Flow:
+  1. Build time: Fetch data → generate HTML for all pages
+  2. Deploy: Upload generated HTML to CDN
+  3. Browser: GET /about
+  4. CDN: Returns pre-generated HTML (fastest)
+  5. Browser: Display immediately + Hydration
 
-  利点:
-  ✓ 最速の表示速度（CDNから静的ファイル配信）
-  ✓ サーバー負荷ゼロ
-  ✓ SEO最適
-  ✓ セキュリティが高い（サーバーサイドロジックなし）
-  ✓ ホスティングコストが最低
-  ✓ 安定性が高い（データベース障害の影響を受けない）
+  Advantages:
+  ✓ Fastest display speed (static files served from CDN)
+  ✓ Zero server load
+  ✓ Optimal SEO
+  ✓ High security (no server-side logic)
+  ✓ Lowest hosting cost
+  ✓ High stability (not affected by database failures)
 
-  欠点:
-  ✗ ビルド時間が長い（大量ページの場合）
-  ✗ データの更新にはリビルドが必要
-  ✗ ユーザー固有のコンテンツに不向き
-  ✗ ページ数が多いと実用的でない場合がある
-  ✗ ビルド時にデータソースへのアクセスが必要
+  Disadvantages:
+  ✗ Long build time (for large numbers of pages)
+  ✗ Data updates require rebuild
+  ✗ Not suitable for user-specific content
+  ✗ May not be practical for very large page counts
+  ✗ Access to data sources required at build time
 
-  適用:
-  → ブログ、ドキュメント
-  → ランディングページ
-  → コーポレートサイト
-  → マーケティングサイト
-  → ヘルプセンター
+  Use cases:
+  → Blogs, documentation
+  → Landing pages
+  → Corporate sites
+  → Marketing sites
+  → Help centers
 
-  フレームワーク:
-  → Next.js（React）
-  → Astro（マルチフレームワーク、推奨）
-  → Gatsby（React）
-  → Hugo（Go）
-  → 11ty / Eleventy（JS）
-  → VitePress（Vue）
+  Frameworks:
+  → Next.js (React)
+  → Astro (multi-framework, recommended)
+  → Gatsby (React)
+  → Hugo (Go)
+  → 11ty / Eleventy (JS)
+  → VitePress (Vue)
 ```
 
-### 5.2 Next.js での SSG 実装
+### 5.2 SSG Implementation in Next.js
 
 ```typescript
-// Next.js App Router での SSG
+// SSG with Next.js App Router
 
 // app/blog/[slug]/page.tsx
 
@@ -786,7 +787,7 @@ import { notFound } from 'next/navigation';
 import { getAllPosts, getPostBySlug } from '@/features/blog/api';
 import { Metadata } from 'next';
 
-// ビルド時に生成するパスを定義
+// Define paths to generate at build time
 export async function generateStaticParams() {
   const posts = await getAllPosts();
   return posts.map((post) => ({
@@ -794,7 +795,7 @@ export async function generateStaticParams() {
   }));
 }
 
-// 動的メタデータ
+// Dynamic metadata
 export async function generateMetadata({
   params,
 }: {
@@ -823,7 +824,7 @@ export async function generateMetadata({
   };
 }
 
-// ページコンポーネント
+// Page component
 export default async function BlogPost({
   params,
 }: {
@@ -839,7 +840,7 @@ export default async function BlogPost({
     <article>
       <header>
         <time dateTime={post.publishedAt}>
-          {new Date(post.publishedAt).toLocaleDateString('ja-JP')}
+          {new Date(post.publishedAt).toLocaleDateString('en-US')}
         </time>
         <h1>{post.title}</h1>
         <p>{post.excerpt}</p>
@@ -853,7 +854,7 @@ export default async function BlogPost({
 }
 ```
 
-### 5.3 Astro での SSG
+### 5.3 SSG with Astro
 
 ```astro
 ---
@@ -861,7 +862,7 @@ export default async function BlogPost({
 import { getCollection, getEntry } from 'astro:content';
 import BlogLayout from '../../layouts/BlogLayout.astro';
 import TableOfContents from '../../components/TableOfContents.astro';
-// React コンポーネントも使える（Islands Architecture）
+// React components can also be used (Islands Architecture)
 import ShareButton from '../../components/ShareButton.tsx';
 
 export async function getStaticPaths() {
@@ -880,7 +881,7 @@ const { Content, headings } = await post.render();
   <article>
     <h1>{post.data.title}</h1>
     <time datetime={post.data.publishedAt.toISOString()}>
-      {post.data.publishedAt.toLocaleDateString('ja-JP')}
+      {post.data.publishedAt.toLocaleDateString('en-US')}
     </time>
 
     <TableOfContents headings={headings} />
@@ -889,7 +890,7 @@ const { Content, headings } = await post.render();
       <Content />
     </div>
 
-    <!-- Islands Architecture: このコンポーネントだけがインタラクティブ -->
+    <!-- Islands Architecture: only this component is interactive -->
     <ShareButton
       client:visible
       title={post.data.title}
@@ -901,57 +902,57 @@ const { Content, headings } = await post.render();
 
 ---
 
-## 6. ISR（Incremental Static Regeneration）
+## 6. ISR (Incremental Static Regeneration)
 
-### 6.1 ISR の仕組み
+### 6.1 How ISR Works
 
 ```
-ISR = SSG + 定期的な再生成:
-  → 初回アクセス時にSSGと同様に静的ページを返す
-  → バックグラウンドで定期的にページを再生成
-  → stale-while-revalidate パターン
+ISR = SSG + periodic regeneration:
+  → Returns a static page like SSG on first access
+  → Periodically regenerates pages in the background
+  → stale-while-revalidate pattern
 
-  フロー:
-  1. 初回: SSR → HTMLをキャッシュ
-  2. revalidate秒以内: キャッシュされたHTMLを返す（即座）
-  3. revalidate秒後のリクエスト:
-     → キャッシュ(stale)を即座に返す
-     → バックグラウンドで再生成
-  4. 次のリクエスト: 新しいHTMLを返す
+  Flow:
+  1. First request: SSR → cache HTML
+  2. Within revalidate seconds: return cached HTML (instant)
+  3. Request after revalidate seconds:
+     → Return stale cache immediately
+     → Regenerate in the background
+  4. Next request: return new HTML
 
-  利点:
-  ✓ SSGの速度 + データの鮮度
-  ✓ ビルド時間が短い（全ページ事前生成不要）
-  ✓ CDNキャッシュが有効
-  ✓ データ更新時のリビルド不要
-  ✓ 大量ページ（100万+）でもスケール
+  Advantages:
+  ✓ SSG speed + data freshness
+  ✓ Short build time (no need to pre-generate all pages)
+  ✓ CDN caching works
+  ✓ No rebuild needed when data updates
+  ✓ Scales to millions of pages
 
-  欠点:
-  ✗ revalidate間隔だけデータが古い可能性
-  ✗ 初回アクセスはSSRと同じ速度（キャッシュミス）
-  ✗ Next.js のVercelデプロイ以外では制限がある場合も
+  Disadvantages:
+  ✗ Data may be stale by the revalidate interval
+  ✗ First access is as slow as SSR (cache miss)
+  ✗ May have limitations outside Next.js Vercel deployments
 
-  適用:
-  → ECサイトの商品ページ
-  → ブログの記事ページ
-  → 更新頻度が中程度のコンテンツ
-  → ドキュメント（CMS連携）
+  Use cases:
+  → E-commerce product pages
+  → Blog article pages
+  → Content with moderate update frequency
+  → Documentation (CMS integration)
 ```
 
-### 6.2 ISR の実装
+### 6.2 ISR Implementation
 
 ```typescript
-// Next.js App Router での ISR
+// ISR with Next.js App Router
 
 // app/products/[id]/page.tsx
 import { notFound } from 'next/navigation';
 
-// ISR: 60秒ごとに再検証
+// ISR: revalidate every 60 seconds
 export const revalidate = 60;
 
-// ビルド時に生成するページ（人気商品のみ）
+// Pages to generate at build time (top products only)
 export async function generateStaticParams() {
-  // 上位100商品のみビルド時に生成
+  // Generate only top 100 products at build time
   const topProducts = await prisma.product.findMany({
     orderBy: { salesCount: 'desc' },
     take: 100,
@@ -961,7 +962,7 @@ export async function generateStaticParams() {
   return topProducts.map((p) => ({
     id: p.id,
   }));
-  // ビルド時に生成されなかったページは、初回アクセス時に生成
+  // Pages not generated at build time are generated on first access
 }
 
 export default async function ProductPage({
@@ -994,13 +995,13 @@ export default async function ProductPage({
 ```
 
 ```typescript
-// オンデマンド ISR（On-demand Revalidation）
+// On-demand ISR (On-demand Revalidation)
 
 // app/api/revalidate/route.ts
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Webhook で特定ページを即座に再生成
+// Immediately regenerate specific pages via webhook
 export async function POST(request: NextRequest) {
   const secret = request.headers.get('x-revalidation-secret');
 
@@ -1010,13 +1011,13 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
 
-  // パスベースの再検証
+  // Path-based revalidation
   if (body.path) {
     revalidatePath(body.path);
     return NextResponse.json({ revalidated: true, path: body.path });
   }
 
-  // タグベースの再検証
+  // Tag-based revalidation
   if (body.tag) {
     revalidateTag(body.tag);
     return NextResponse.json({ revalidated: true, tag: body.tag });
@@ -1025,12 +1026,12 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ error: 'Missing path or tag' }, { status: 400 });
 }
 
-// CMS の Webhook でオンデマンド再生成
+// On-demand regeneration via CMS webhook
 // POST /api/revalidate
 // Body: { "path": "/products/123" }
 // or:   { "tag": "products" }
 
-// タグベースのキャッシュ管理
+// Tag-based cache management
 // app/products/[id]/page.tsx
 async function getProduct(id: string) {
   const res = await fetch(`${API_URL}/products/${id}`, {
@@ -1039,47 +1040,47 @@ async function getProduct(id: string) {
   return res.json();
 }
 
-// product-123 タグを再検証 → /products/123 ページが再生成
-// products タグを再検証 → 全商品ページが再生成
+// Revalidate product-123 tag → /products/123 page is regenerated
+// Revalidate products tag → all product pages are regenerated
 ```
 
 ---
 
 ## 7. Streaming SSR
 
-### 7.1 Streaming の仕組み
+### 7.1 How Streaming Works
 
 ```
 Streaming SSR:
-  → サーバーからHTMLを段階的に送信
-  → 重要な部分を先に表示、遅いデータは後から表示
+  → Sends HTML from server incrementally
+  → Display important parts first, slow data arrives later
   → React 18 + Suspense + Server Components
 
-  従来のSSR:
-  データ取得 ──────────→ HTML生成 ──→ 送信 ──→ 表示
-  (全データが揃うまで待機)
+  Traditional SSR:
+  Fetch data ──────────→ Generate HTML ──→ Send ──→ Display
+  (waits until all data is ready)
 
   Streaming SSR:
-  データ取得A ──→ HTML(A) ──→ 送信 ──→ 即座に表示
-  データ取得B ────────→ HTML(B) ──→ 送信 ──→ フォールバック → 実データ表示
-  データ取得C ──────────────→ HTML(C) → 送信 → フォールバック → 実データ表示
+  Fetch data A ──→ HTML(A) ──→ Send ──→ Display immediately
+  Fetch data B ────────→ HTML(B) ──→ Send ──→ Fallback → Display real data
+  Fetch data C ──────────────→ HTML(C) → Send → Fallback → Display real data
 
-  利点:
-  ✓ TTFB が大幅に改善（最初のバイトがすぐに返る）
-  ✓ FCP が高速（重要なコンテンツが先に表示）
-  ✓ 遅いデータ取得がページ全体をブロックしない
-  ✓ ユーザー体験が向上（段階的なコンテンツ表示）
+  Advantages:
+  ✓ Greatly improved TTFB (first byte returns quickly)
+  ✓ Fast FCP (important content displayed first)
+  ✓ Slow data fetching does not block the entire page
+  ✓ Better user experience (incremental content display)
 
-  技術的な仕組み:
+  Technical mechanics:
   → HTTP Transfer-Encoding: chunked
   → React renderToPipeableStream / renderToReadableStream
-  → Suspense 境界ごとに独立したストリーム
+  → Independent stream per Suspense boundary
 ```
 
-### 7.2 Streaming SSR の実装
+### 7.2 Streaming SSR Implementation
 
 ```typescript
-// Next.js App Router での Streaming SSR
+// Streaming SSR with Next.js App Router
 
 // app/products/[id]/page.tsx
 import { Suspense } from 'react';
@@ -1091,27 +1092,27 @@ export default async function ProductPage({
 }: {
   params: { id: string };
 }) {
-  // 即座にレスポンスを開始（商品の基本情報は高速に取得可能）
+  // Start response immediately (basic product info can be fetched quickly)
   const product = await getProduct(params.id);
 
   return (
     <div>
-      {/* 即座に表示される（First Chunk） */}
+      {/* Displayed immediately (First Chunk) */}
       <ProductHeader product={product} />
       <ProductGallery images={product.images} />
       <ProductPrice price={product.price} />
 
-      {/* レビュー: 別のDBクエリが必要 → Suspense で遅延 */}
+      {/* Reviews: requires separate DB query → deferred with Suspense */}
       <Suspense fallback={<ReviewsSkeleton />}>
         <ProductReviews productId={params.id} />
       </Suspense>
 
-      {/* おすすめ: ML推論が必要 → Suspense で遅延 */}
+      {/* Recommendations: requires ML inference → deferred with Suspense */}
       <Suspense fallback={<RecommendationsSkeleton />}>
         <Recommendations productId={params.id} />
       </Suspense>
 
-      {/* 在庫情報: 外部API → Suspense で遅延 */}
+      {/* Stock info: external API → deferred with Suspense */}
       <Suspense fallback={<StockSkeleton />}>
         <StockInfo productId={params.id} />
       </Suspense>
@@ -1119,9 +1120,9 @@ export default async function ProductPage({
   );
 }
 
-// ProductReviews は async Server Component
+// ProductReviews is an async Server Component
 async function ProductReviews({ productId }: { productId: string }) {
-  // この取得に2秒かかっても、ページ全体はブロックされない
+  // Even if this fetch takes 2 seconds, the whole page is not blocked
   const reviews = await prisma.review.findMany({
     where: { productId },
     orderBy: { createdAt: 'desc' },
@@ -1131,7 +1132,7 @@ async function ProductReviews({ productId }: { productId: string }) {
 
   return (
     <section>
-      <h2>レビュー ({reviews.length}件)</h2>
+      <h2>Reviews ({reviews.length})</h2>
       {reviews.map(review => (
         <ReviewCard key={review.id} review={review} />
       ))}
@@ -1141,10 +1142,10 @@ async function ProductReviews({ productId }: { productId: string }) {
 ```
 
 ```typescript
-// loading.tsx による自動Streaming
+// Automatic Streaming via loading.tsx
 
 // app/dashboard/loading.tsx
-// → /dashboard へのナビゲーション時に自動表示
+// → Automatically displayed when navigating to /dashboard
 export default function DashboardLoading() {
   return (
     <div className="space-y-4">
@@ -1160,7 +1161,7 @@ export default function DashboardLoading() {
 }
 
 // app/dashboard/page.tsx
-// loading.tsx があると自動的に Suspense 境界が設定される
+// Suspense boundary is automatically set when loading.tsx is present
 export default async function DashboardPage() {
   const [stats, recentOrders, topProducts] = await Promise.all([
     getStats(),
@@ -1180,49 +1181,49 @@ export default async function DashboardPage() {
 
 ---
 
-## 8. React Server Components（RSC）
+## 8. React Server Components (RSC)
 
-### 8.1 RSC の概念
+### 8.1 RSC Concept
 
 ```
-RSC（React Server Components）:
-  → コンポーネントレベルでサーバー/クライアントを使い分け
-  → Next.js App Router のデフォルト
-  → サーバーコンポーネントのJSはクライアントに送信されない
+RSC (React Server Components):
+  → Use server or client per component
+  → Default in Next.js App Router
+  → JS of Server Components is not sent to the client
 
-  Server Component（デフォルト）:
-  → サーバーでレンダリング
-  → JSバンドルに含まれない（バンドルサイズ削減）
-  → async/awaitでデータ取得可能
-  → 状態管理・イベントハンドラ不可
-  → Node.js API使用可（fs, crypto等）
-  → 直接DB/ファイルシステムにアクセス可能
+  Server Component (default):
+  → Rendered on server
+  → Not included in JS bundle (reduces bundle size)
+  → Can fetch data with async/await
+  → Cannot use state management or event handlers
+  → Can use Node.js APIs (fs, crypto, etc.)
+  → Can directly access DB/filesystem
 
-  Client Component（'use client'）:
-  → ブラウザでレンダリング
-  → JSバンドルに含まれる
-  → useState, useEffect 使用可
-  → イベントハンドラ使用可
-  → ブラウザAPI使用可（localStorage, window等）
+  Client Component ('use client'):
+  → Rendered in browser
+  → Included in JS bundle
+  → Can use useState, useEffect
+  → Can use event handlers
+  → Can use browser APIs (localStorage, window, etc.)
 
   RSC Payload:
-  → Server Componentの出力はReact要素のシリアライズ形式
-  → HTMLではなく、仮想DOMの記述
-  → Client Componentへの参照を含む
-  → 差分更新が可能（ページ遷移時に状態を維持）
+  → Output of Server Components is a serialized React element format
+  → Not HTML, but a description of the virtual DOM
+  → Contains references to Client Components
+  → Differential updates are possible (state is maintained on navigation)
 ```
 
-### 8.2 RSC の実装パターン
+### 8.2 RSC Implementation Patterns
 
 ```typescript
-// Server Component（デフォルト）
+// Server Component (default)
 // features/users/components/UserList.tsx
 
 import { prisma } from '@/shared/lib/prisma';
 import { UserCard } from './UserCard';
 import { UserSearchInput } from './UserSearchInput'; // Client Component
 
-// async Server Component: 直接DBアクセス
+// async Server Component: direct DB access
 export async function UserList({
   searchParams,
 }: {
@@ -1231,7 +1232,7 @@ export async function UserList({
   const query = searchParams.q || '';
   const page = Number(searchParams.page || '1');
 
-  // サーバーで直接データ取得（API不要）
+  // Fetch data directly on server (no API needed)
   const [users, total] = await Promise.all([
     prisma.user.findMany({
       where: query
@@ -1258,11 +1259,11 @@ export async function UserList({
 
   return (
     <div>
-      {/* Client Component: インタラクション必要 */}
+      {/* Client Component: requires interaction */}
       <UserSearchInput defaultValue={query} />
 
-      {/* Server Component: 静的な表示 */}
-      <p>{total}件のユーザー</p>
+      {/* Server Component: static display */}
+      <p>{total} users</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {users.map((user) => (
           <UserCard key={user.id} user={user} />
@@ -1311,7 +1312,7 @@ export function UserSearchInput({ defaultValue }: { defaultValue: string }) {
           setValue(e.target.value);
           handleSearch(e.target.value);
         }}
-        placeholder="ユーザーを検索..."
+        placeholder="Search users..."
         className="w-full px-4 py-2 border rounded-lg"
       />
       {isPending && (
@@ -1324,58 +1325,58 @@ export function UserSearchInput({ defaultValue }: { defaultValue: string }) {
 }
 ```
 
-### 8.3 Server/Client の境界設計
+### 8.3 Server/Client Boundary Design
 
 ```
-Server / Client の使い分け:
+When to use Server vs Client:
 
-  Server Component を使う:
-  ✓ データベースアクセス
-  ✓ サーバーのみのAPI呼び出し（内部マイクロサービス）
-  ✓ 大きな依存ライブラリ（マークダウンパーサー、構文ハイライト）
-  ✓ 機密情報の処理（APIキー、トークン）
-  ✓ 静的なUI表示
+  Use Server Component:
+  ✓ Database access
+  ✓ Server-only API calls (internal microservices)
+  ✓ Large dependency libraries (markdown parsers, syntax highlighters)
+  ✓ Handling sensitive information (API keys, tokens)
+  ✓ Static UI display
 
-  Client Component を使う:
-  ✓ useState, useEffect が必要
-  ✓ onClick, onChange 等のイベントハンドラ
-  ✓ ブラウザAPI（localStorage, window, navigator）
-  ✓ サードパーティのクライアントライブラリ（地図、チャート）
-  ✓ カスタムフック（状態を含む）
-  ✓ React Context（Provider）
+  Use Client Component:
+  ✓ Needs useState, useEffect
+  ✓ Event handlers like onClick, onChange
+  ✓ Browser APIs (localStorage, window, navigator)
+  ✓ Third-party client libraries (maps, charts)
+  ✓ Custom hooks (with state)
+  ✓ React Context (Provider)
 
-  境界設計のベストプラクティス:
-  → Client の境界をなるべく葉（リーフ）に近づける
-  → ページ全体を 'use client' にしない
-  → インタラクティブな部分だけを Client Component に分離
+  Best practices for boundary design:
+  → Keep Client boundary as close to the leaf as possible
+  → Do not mark entire pages as 'use client'
+  → Isolate only interactive parts as Client Components
 
   ┌─────────────────────────────────────────────┐
   │ ProductPage (Server)                         │
   │ ┌───────────────────────────────────────┐   │
   │ │ ProductInfo (Server)                   │   │
-  │ │ → 商品名、説明文、スペック（静的表示）  │   │
+  │ │ → Name, description, specs (static)   │   │
   │ └───────────────────────────────────────┘   │
   │ ┌──────────────┐ ┌────────────────────┐    │
   │ │ AddToCart     │ │ ImageGallery       │    │
   │ │ (Client)     │ │ (Client)           │    │
-  │ │ → onClick    │ │ → スワイプ操作     │    │
+  │ │ → onClick    │ │ → Swipe gesture    │    │
   │ │ → useState   │ │ → useState        │    │
   │ └──────────────┘ └────────────────────┘    │
   │ ┌───────────────────────────────────────┐   │
   │ │ Reviews (Server)                       │   │
-  │ │ → async データ取得、静的表示            │   │
+  │ │ → async data fetch, static display    │   │
   │ │ ┌─────────────────────────────────┐   │   │
   │ │ │ ReviewForm (Client)              │   │   │
-  │ │ │ → フォーム入力、送信             │   │   │
+  │ │ │ → Form input, submission        │   │   │
   │ │ └─────────────────────────────────┘   │   │
   │ └───────────────────────────────────────┘   │
   └─────────────────────────────────────────────┘
 ```
 
 ```typescript
-// Server Component から Client Component へのデータの渡し方
+// Passing data from Server Component to Client Component
 
-// 1. Props として渡す（シリアライズ可能なデータのみ）
+// 1. Pass as props (serializable data only)
 // Server Component
 async function ProductPage({ params }: { params: { id: string } }) {
   const product = await getProduct(params.id);
@@ -1383,7 +1384,7 @@ async function ProductPage({ params }: { params: { id: string } }) {
   return (
     <div>
       <h1>{product.name}</h1>
-      {/* シリアライズ可能な値のみ渡す */}
+      {/* Only pass serializable values */}
       <AddToCartButton
         productId={product.id}
         price={product.price}
@@ -1393,7 +1394,7 @@ async function ProductPage({ params }: { params: { id: string } }) {
   );
 }
 
-// 2. children パターン（Server Component を Client Component に渡す）
+// 2. Children pattern (pass Server Component into Client Component)
 // Client Component
 'use client';
 function TabPanel({ children, tabs }: { children: React.ReactNode; tabs: string[] }) {
@@ -1405,7 +1406,7 @@ function TabPanel({ children, tabs }: { children: React.ReactNode; tabs: string[
           <button key={tab} onClick={() => setActiveTab(i)}>{tab}</button>
         ))}
       </div>
-      {children} {/* Server Component の子要素をそのまま表示 */}
+      {children} {/* Render Server Component children as-is */}
     </div>
   );
 }
@@ -1413,8 +1414,8 @@ function TabPanel({ children, tabs }: { children: React.ReactNode; tabs: string[
 // Server Component
 async function ProductDetailPage() {
   return (
-    <TabPanel tabs={['詳細', 'レビュー', '仕様']}>
-      {/* これらは Server Component として実行される */}
+    <TabPanel tabs={['Details', 'Reviews', 'Specifications']}>
+      {/* These are executed as Server Components */}
       <ProductDetails />
       <ProductReviews />
       <ProductSpecs />
@@ -1422,30 +1423,30 @@ async function ProductDetailPage() {
   );
 }
 
-// 3. 渡せないもの
-// ✗ 関数（onClick等）: シリアライズ不可
-// ✗ Date オブジェクト: string/number に変換が必要
-// ✗ Map, Set: 配列/オブジェクトに変換が必要
-// ✗ クラスインスタンス: プレーンオブジェクトに変換が必要
+// 3. What cannot be passed
+// ✗ Functions (onClick, etc.): not serializable
+// ✗ Date objects: must be converted to string/number
+// ✗ Map, Set: must be converted to array/object
+// ✗ Class instances: must be converted to plain objects
 ```
 
 ---
 
 ## 9. Islands Architecture
 
-### 9.1 Islands の概念
+### 9.1 Islands Concept
 
 ```
 Islands Architecture:
-  → ページの大部分は静的HTML
-  → インタラクティブな部分だけをJavaScriptで「島」として実装
-  → 各「島」は独立してHydration
+  → Most of the page is static HTML
+  → Only interactive parts are implemented as JavaScript "islands"
+  → Each "island" hydrates independently
 
-  従来のSSR:
+  Traditional SSR:
   ┌────────────────────────────────────────┐
-  │ ████████████████████████████████████████│ ← 全体がHydration対象
-  │ ██ Header ██ Nav █████████████████████ │ ← 全JSがロードされるまで
-  │ ██████████████████████████████████████ │    インタラクティブにならない
+  │ ████████████████████████████████████████│ ← Entire page is Hydration target
+  │ ██ Header ██ Nav █████████████████████ │ ← Not interactive until all JS loads
+  │ ██████████████████████████████████████ │
   │ ██ Content ████████████████████████████│
   │ ██████████████████████████████████████ │
   │ ██ Sidebar ███ Footer █████████████████│
@@ -1454,33 +1455,33 @@ Islands Architecture:
   Islands Architecture:
   ┌────────────────────────────────────────┐
   │                      ┌──────────┐     │
-  │ Header(HTML)         │ SearchBar│     │ ← インタラクティブ島
+  │ Header(HTML)         │ SearchBar│     │ ← Interactive island
   │                      │ (Island) │     │
   │                      └──────────┘     │
   │                                        │
-  │ Content (HTML) ─── 静的HTML ──────────│
+  │ Content (HTML) ─── Static HTML ───────│
   │                                        │
   │           ┌──────────────┐             │
-  │           │ ImageCarousel│             │ ← インタラクティブ島
+  │           │ ImageCarousel│             │ ← Interactive island
   │           │ (Island)     │             │
   │           └──────────────┘             │
   │                                        │
   │ Footer (HTML) ────────────────────────│
   └────────────────────────────────────────┘
 
-  利点:
-  ✓ JSバンドルが最小限
-  ✓ TTI（Time to Interactive）が大幅改善
-  ✓ 静的部分のHydration不要
-  ✓ 各島が独立してロード・実行
+  Advantages:
+  ✓ Minimal JS bundle
+  ✓ Greatly improved TTI (Time to Interactive)
+  ✓ No Hydration needed for static parts
+  ✓ Each island loads and executes independently
 
-  フレームワーク:
-  → Astro（最も人気）
-  → Fresh（Deno）
+  Frameworks:
+  → Astro (most popular)
+  → Fresh (Deno)
   → Eleventy + is-land
 ```
 
-### 9.2 Astro での Islands 実装
+### 9.2 Islands Implementation with Astro
 
 ```astro
 ---
@@ -1488,76 +1489,76 @@ Islands Architecture:
 import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
 import Features from '../components/Features.astro';
-// インタラクティブ島（React コンポーネント）
+// Interactive islands (React components)
 import ContactForm from '../components/ContactForm.tsx';
 import TestimonialCarousel from '../components/TestimonialCarousel.tsx';
 import PricingCalculator from '../components/PricingCalculator.tsx';
 ---
 
 <Layout title="MyService">
-  <!-- 静的HTML: JSなし -->
+  <!-- Static HTML: no JS -->
   <Hero />
 
-  <!-- 静的HTML: JSなし -->
+  <!-- Static HTML: no JS -->
   <Features />
 
-  <!-- Island: ビューポートに入った時にHydration -->
+  <!-- Island: Hydrates when entering the viewport -->
   <TestimonialCarousel client:visible />
 
-  <!-- Island: ページロード時にHydration（重要なインタラクション） -->
+  <!-- Island: Hydrates on page load (important interaction) -->
   <PricingCalculator client:load />
 
-  <!-- Island: アイドル時にHydration（優先度低） -->
+  <!-- Island: Hydrates when browser is idle (low priority) -->
   <ContactForm client:idle />
 
-  <!-- Island: メディアクエリでHydration -->
+  <!-- Island: Hydrates based on media query -->
   <MobileMenu client:media="(max-width: 768px)" />
 </Layout>
 ```
 
 ```
-Astro の client ディレクティブ:
+Astro client directives:
 
-  client:load      → ページロード時に即座にHydration
-  client:idle      → ブラウザがアイドル時にHydration
-  client:visible   → ビューポートに入った時にHydration
-  client:media     → メディアクエリが一致した時にHydration
-  client:only      → SSRせずクライアントのみでレンダリング
+  client:load      → Hydrate immediately on page load
+  client:idle      → Hydrate when browser is idle
+  client:visible   → Hydrate when entering the viewport
+  client:media     → Hydrate when media query matches
+  client:only      → Render on client only, no SSR
 
-  パフォーマンスへの影響:
-  ┌──────────────┬──────────┬──────────────────────┐
-  │ ディレクティブ│ JS送信    │ 使用場面              │
-  ├──────────────┼──────────┼──────────────────────┤
-  │ (なし)       │ 0KB      │ 静的表示のみ          │
-  │ client:visible│ 遅延     │ ファーストビュー外    │
-  │ client:idle  │ 遅延     │ 優先度低い機能        │
-  │ client:load  │ 即座     │ 重要なインタラクション│
-  │ client:only  │ 即座     │ SSR不要な機能         │
-  └──────────────┴──────────┴──────────────────────┘
+  Performance impact:
+  ┌──────────────┬──────────┬──────────────────────────┐
+  │ Directive    │ JS sent  │ Use case                  │
+  ├──────────────┼──────────┼──────────────────────────┤
+  │ (none)       │ 0KB      │ Static display only       │
+  │ client:visible│ Deferred│ Below the fold            │
+  │ client:idle  │ Deferred │ Low-priority features     │
+  │ client:load  │ Immediate│ Important interactions    │
+  │ client:only  │ Immediate│ Features that don't need SSR│
+  └──────────────┴──────────┴──────────────────────────┘
 ```
 
 ---
 
-## 10. Partial Hydration と Selective Hydration
+## 10. Partial Hydration and Selective Hydration
 
-### 10.1 React 18 の Selective Hydration
+### 10.1 React 18 Selective Hydration
 
 ```typescript
-// React 18 の Selective Hydration
-// Suspense 境界ごとに独立してHydration
+// React 18 Selective Hydration
+// Hydrates independently per Suspense boundary
 
-// ユーザーがクリックした領域を優先的にHydration
+// Prioritizes hydration of the area the user clicked
 import { Suspense } from 'react';
 
 function App() {
   return (
     <div>
-      {/* この部分は先にHydration */}
+      {/* This part hydrates first */}
       <Header />
       <Navigation />
 
       <main>
-        {/* Hydration中にクリックされたら優先される */}
+        {/* If clicked during Hydration, gets priority */}
         <Suspense fallback={<ProductListSkeleton />}>
           <ProductList />
         </Suspense>
@@ -1567,7 +1568,7 @@ function App() {
         </Suspense>
       </main>
 
-      {/* 最後にHydration */}
+      {/* Hydrates last */}
       <Suspense fallback={<FooterSkeleton />}>
         <Footer />
       </Suspense>
@@ -1575,124 +1576,124 @@ function App() {
   );
 }
 
-// 仕組み:
-// 1. サーバーがストリームでHTMLを送信
-// 2. 各 Suspense 境界は独立してHydration
-// 3. ユーザーが ProductList をクリック
-// 4. React は ProductList を優先的にHydration
-// 5. クリックイベントはHydration完了後にリプレイ
+// How it works:
+// 1. Server sends HTML as a stream
+// 2. Each Suspense boundary hydrates independently
+// 3. User clicks ProductList
+// 4. React prioritizes hydration of ProductList
+// 5. Click event is replayed after Hydration completes
 ```
 
-### 10.2 Qwik の Resumability
+### 10.2 Qwik Resumability
 
 ```
-Qwik のアプローチ（Hydration の代替）:
+Qwik's approach (alternative to Hydration):
 
-  従来のHydration:
-  → サーバーでレンダリング
-  → クライアントでコンポーネントツリー全体を再構築
-  → イベントリスナーをアタッチ
-  → 問題: O(n) の処理コスト（コンポーネント数に比例）
+  Traditional Hydration:
+  → Render on server
+  → Rebuild entire component tree on client
+  → Attach event listeners
+  → Problem: O(n) processing cost (proportional to component count)
 
-  Qwik の Resumability:
-  → サーバーでレンダリング
-  → HTMLにイベントハンドラの参照を埋め込み
-  → クライアントで必要な時だけコードをロード（Lazy loading）
-  → 問題: O(1) の初期コスト
+  Qwik Resumability:
+  → Render on server
+  → Embed references to event handlers in HTML
+  → Load code on client only when needed (Lazy loading)
+  → Problem: O(1) initial cost
 
-  <!-- Qwik のHTML出力例 -->
+  <!-- Example Qwik HTML output -->
   <button on:click="./chunk-abc.js#handleClick_1">
-    いいね (0)
+    Like (0)
   </button>
-  <!-- イベント発生時に初めてJSをロード・実行 -->
+  <!-- JS is loaded and executed only when the event fires -->
 
-  比較:
-  ┌──────────┬──────────┬───────────────────────┐
-  │ 方式      │ 初期JS   │ TTI                    │
-  ├──────────┼──────────┼───────────────────────┤
-  │ SPA      │ 全バンドル│ JS ロード + 実行 後    │
-  │ SSR+Hydr │ 全バンドル│ Hydration 完了後       │
-  │ Islands  │ 島のみ   │ 島の Hydration 後      │
-  │ Qwik     │ ~1KB     │ 即座（イベント時にロード）│
-  └──────────┴──────────┴───────────────────────┘
+  Comparison:
+  ┌──────────┬──────────┬───────────────────────────┐
+  │ Approach │ Initial JS│ TTI                        │
+  ├──────────┼──────────┼───────────────────────────┤
+  │ SPA      │ Full bundle│ After JS load + execute  │
+  │ SSR+Hydr │ Full bundle│ After Hydration completes│
+  │ Islands  │ Islands only│ After island Hydration  │
+  │ Qwik     │ ~1KB     │ Instant (loads on event)  │
+  └──────────┴──────────┴───────────────────────────┘
 ```
 
 ---
 
-## 11. 選定フローチャートと実務ガイド
+## 11. Selection Flowchart and Practical Guide
 
-### 11.1 選定フローチャート
+### 11.1 Selection Flowchart
 
 ```
-SEO が必要？
-├── NO → 管理画面/ダッシュボード？
-│   ├── YES → SPA（Vite + React）
-│   └── NO → リアルタイム性が重要？
-│       ├── YES → SPA（WebSocket + React）
-│       └── NO → 要件次第（SPA or SSR）
-└── YES → コンテンツは動的？
-    ├── NO → 更新頻度は？
-    │   ├── ほぼなし → SSG（Astro / Next.js）
-    │   ├── 低い → SSG + On-demand Revalidation
-    │   └── 中程度 → ISR（Next.js, revalidate: 60）
-    └── YES → ユーザー固有コンテンツ？
-        ├── YES → SSR + Streaming（Next.js App Router）
-        └── NO → ページ数は？
-            ├── 少ない → SSR
-            └── 多い → ISR + On-demand Revalidation
+Is SEO required?
+├── NO → Admin panel / dashboard?
+│   ├── YES → SPA (Vite + React)
+│   └── NO → Is real-time critical?
+│       ├── YES → SPA (WebSocket + React)
+│       └── NO → Depends on requirements (SPA or SSR)
+└── YES → Is the content dynamic?
+    ├── NO → How often is it updated?
+    │   ├── Rarely → SSG (Astro / Next.js)
+    │   ├── Low → SSG + On-demand Revalidation
+    │   └── Moderate → ISR (Next.js, revalidate: 60)
+    └── YES → User-specific content?
+        ├── YES → SSR + Streaming (Next.js App Router)
+        └── NO → Number of pages?
+            ├── Few → SSR
+            └── Many → ISR + On-demand Revalidation
 
-コンテンツサイト（ブログ, ドキュメント）？
-├── YES → JSインタラクション多い？
+Content site (blog, docs)?
+├── YES → Heavy JS interaction?
 │   ├── YES → Next.js SSG/ISR
-│   └── NO → Astro（Islands Architecture）
-└── NO → 上記フローに従う
+│   └── NO → Astro (Islands Architecture)
+└── NO → Follow flowchart above
 ```
 
-### 11.2 ハイブリッドアプローチの実践
+### 11.2 Hybrid Approach in Practice
 
 ```
-実務のベストプラクティス:
-  → 1つのアプリ内でハイブリッドに使い分け
-  → ページ単位で最適な方式を選択
-  → Next.js App Router: RSC + ISR + Streaming を組み合わせ
+Real-world best practices:
+  → Use hybrid approach within a single app
+  → Choose optimal method per page
+  → Next.js App Router: combine RSC + ISR + Streaming
 
-例（ECサイト）:
-  / (トップ)          → SSG（更新少ない）
-  /products           → ISR（60秒ごと再生成）
-  /products/[id]      → ISR + Streaming（商品情報 + レビュー）
-  /search             → SSR（検索クエリに依存）
-  /cart               → CSR（ユーザー固有、SEO不要）
-  /checkout           → SSR（決済フロー、セキュリティ重要）
-  /account            → CSR（ログイン後、SEO不要）
-  /blog               → SSG（Astro, 最小限のJS）
+Example (E-commerce site):
+  / (home)            → SSG (rarely updated)
+  /products           → ISR (regenerate every 60 seconds)
+  /products/[id]      → ISR + Streaming (product info + reviews)
+  /search             → SSR (depends on search query)
+  /cart               → CSR (user-specific, no SEO needed)
+  /checkout           → SSR (payment flow, security critical)
+  /account            → CSR (post-login, no SEO needed)
+  /blog               → SSG (Astro, minimal JS)
   /blog/[slug]        → SSG + On-demand Revalidation
 
-例（SaaS アプリ）:
-  / (ランディングページ) → SSG
-  /pricing              → SSG + ISR
-  /docs                 → SSG（Astro / VitePress）
-  /login                → CSR
-  /dashboard            → CSR（SPA）
-  /settings             → CSR（SPA）
-  /admin                → CSR（SPA）
-  /api/*                → サーバーレスAPI
+Example (SaaS app):
+  / (landing page)    → SSG
+  /pricing            → SSG + ISR
+  /docs               → SSG (Astro / VitePress)
+  /login              → CSR
+  /dashboard          → CSR (SPA)
+  /settings           → CSR (SPA)
+  /admin              → CSR (SPA)
+  /api/*              → Serverless API
 
-例（メディアサイト）:
-  /                     → ISR（5分ごと再生成）
-  /category/[slug]      → ISR（5分ごと）
-  /article/[slug]       → ISR + On-demand（CMS Webhook）
-  /author/[slug]        → ISR（1時間ごと）
-  /search               → SSR
+Example (Media site):
+  /                   → ISR (regenerate every 5 minutes)
+  /category/[slug]    → ISR (every 5 minutes)
+  /article/[slug]     → ISR + On-demand (CMS Webhook)
+  /author/[slug]      → ISR (every 1 hour)
+  /search             → SSR
 ```
 
-### 11.3 パフォーマンス比較の実測値
+### 11.3 Real-world Performance Comparison
 
 ```
-実測パフォーマンス比較（同一アプリ、モバイル3G回線）:
+Real-world performance comparison (same app, mobile 3G):
 
-  ECサイト商品一覧ページ（20商品表示）:
+  E-commerce product list page (displaying 20 products):
   ┌──────────────┬────────┬────────┬────────┬────────┐
-  │ 方式          │ TTFB   │ FCP    │ LCP    │ TTI    │
+  │ Approach     │ TTFB   │ FCP    │ LCP    │ TTI    │
   ├──────────────┼────────┼────────┼────────┼────────┤
   │ CSR          │ 200ms  │ 4.2s   │ 5.8s   │ 5.8s   │
   │ SSR          │ 800ms  │ 1.2s   │ 2.1s   │ 4.5s   │
@@ -1703,119 +1704,119 @@ SEO が必要？
   │ Astro(Islands)│ 100ms │ 0.7s   │ 1.3s   │ 1.5s   │
   └──────────────┴────────┴────────┴────────┴────────┘
 
-  JSバンドルサイズ比較（gzip後）:
+  JS bundle size comparison (after gzip):
   ┌──────────────┬──────────────────┐
-  │ 方式          │ 初期JSバンドル    │
+  │ Approach     │ Initial JS bundle │
   ├──────────────┼──────────────────┤
   │ CSR          │ 185KB            │
   │ SSR          │ 185KB            │
   │ SSG          │ 165KB            │
   │ RSC          │ 95KB             │
-  │ Astro        │ 15KB（島のみ）    │
+  │ Astro        │ 15KB (islands only)│
   │ Qwik         │ 1KB              │
   └──────────────┴──────────────────┘
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 方式 | 初期表示 | SEO | JSバンドル | 適用例 |
-|------|---------|-----|-----------|--------|
-| CSR/SPA | 遅 | 悪 | 大 | 管理画面、ダッシュボード |
-| MPA | 速 | 良 | 最小 | ブログ（htmx） |
-| SSR | 速 | 良 | 大 | ECサイト、SNS |
-| SSG | 最速 | 最良 | 中 | ブログ、ドキュメント |
-| ISR | 速 | 良 | 中 | 商品ページ、記事 |
-| Streaming | 速 | 良 | 中 | 複雑なページ |
-| RSC | 速 | 良 | 小 | ハイブリッド（Next.js） |
-| Islands | 速 | 良 | 最小 | コンテンツサイト（Astro） |
-| Qwik | 最速 | 良 | 極小 | パフォーマンス最優先 |
+| Approach | Initial Load | SEO | JS Bundle | Use Cases |
+|----------|-------------|-----|-----------|-----------|
+| CSR/SPA | Slow | Poor | Large | Admin panels, dashboards |
+| MPA | Fast | Good | Minimal | Blogs (htmx) |
+| SSR | Fast | Good | Large | E-commerce, social networks |
+| SSG | Fastest | Best | Moderate | Blogs, documentation |
+| ISR | Fast | Good | Moderate | Product pages, articles |
+| Streaming | Fast | Good | Moderate | Complex pages |
+| RSC | Fast | Good | Small | Hybrid (Next.js) |
+| Islands | Fast | Good | Minimal | Content sites (Astro) |
+| Qwik | Fastest | Good | Tiny | Performance-critical |
 
 ---
 
 ## FAQ
 
-### Q1. SPA、MPA、SSRのどれを選ぶべきか？プロジェクトの選択基準は？
+### Q1. Which should I choose: SPA, MPA, or SSR? What are the selection criteria?
 
-**A.** プロジェクトの要件に応じて以下の基準で判断する。
+**A.** Use the following criteria based on project requirements.
 
-**SPA（CSR）を選ぶべき場合:**
-- 管理画面やダッシュボード（SEO不要）
-- ログイン後のアプリケーション（認証が前提）
-- 高度なインタラクティブ性が必要（リアルタイム編集、複雑なUI）
-- 例: Notion、Figma、Gmail
+**When to choose SPA (CSR):**
+- Admin panels and dashboards (no SEO needed)
+- Post-login applications (authentication is a prerequisite)
+- High interactivity required (real-time editing, complex UI)
+- Examples: Notion, Figma, Gmail
 
-**MPA（従来型）を選ぶべき場合:**
-- SEOが最優先でJavaScript依存を最小化したい
-- 静的コンテンツが中心（ブログ、ドキュメント）
-- htmxなど軽量なインタラクティブ性で十分
-- 例: 企業サイト、ブログ（htmx + Go/Rails）
+**When to choose MPA (traditional):**
+- SEO is the top priority and want to minimize JavaScript dependency
+- Mostly static content (blogs, documentation)
+- Lightweight interactions with htmx are sufficient
+- Examples: Corporate sites, blogs (htmx + Go/Rails)
 
-**SSR（Next.js App Router等）を選ぶべき場合:**
-- SEOとインタラクティブ性の両立が必要
-- ユーザーごとに異なるコンテンツを表示（パーソナライズ）
-- ECサイト、SNS、ニュースサイト
-- 例: Vercel公式サイト、ECサイト
+**When to choose SSR (Next.js App Router, etc.):**
+- Both SEO and interactivity are required
+- Display different content per user (personalization)
+- E-commerce sites, social networks, news sites
+- Examples: Vercel official site, e-commerce sites
 
-**SSG（Next.js / Astro）を選ぶべき場合:**
-- 更新頻度が低い静的コンテンツ
-- 最速の初期表示が必要
-- ドキュメント、ブログ、ランディングページ
-- 例: 技術ブログ（Astro）、ドキュメントサイト（VitePress）
+**When to choose SSG (Next.js / Astro):**
+- Static content with low update frequency
+- Fastest initial load needed
+- Documentation, blogs, landing pages
+- Examples: Technical blogs (Astro), documentation sites (VitePress)
 
-**ハイブリッド（SSR + SSG + CSR混在）を選ぶべき場合:**
-- 大規模アプリケーションで複数の要件が混在
-- Next.js App Router で1つのアプリ内でページごとに最適化
-- 例: ECサイト（トップページ=SSG、商品ページ=ISR、カート=CSR、検索=SSR）
+**When to choose Hybrid (mixed SSR + SSG + CSR):**
+- Large applications with multiple mixed requirements
+- Optimize per page within a single app using Next.js App Router
+- Examples: E-commerce (home=SSG, product page=ISR, cart=CSR, search=SSR)
 
-### Q2. Next.js の App Router と Pages Router の違いは？どちらを使うべきか？
+### Q2. What is the difference between Next.js App Router and Pages Router? Which should I use?
 
-**A.** **2024年以降の新規プロジェクトでは App Router を推奨する。** ただし、既存プロジェクトの移行は段階的に行う。
+**A.** **For new projects after 2024, App Router is recommended.** However, migrate existing projects gradually.
 
-**App Router の利点:**
-- React Server Components（RSC）によるバンドルサイズ削減
-- Streaming SSR によるTTFB改善
-- レイアウト共有機能（layout.tsx）の標準化
-- Server Actions によるフォーム処理の簡略化
-- Parallel Routes / Intercepting Routes などの高度なルーティング
+**App Router advantages:**
+- Reduced bundle size via React Server Components (RSC)
+- Improved TTFB via Streaming SSR
+- Standardized layout sharing (layout.tsx)
+- Simplified form handling via Server Actions
+- Advanced routing such as Parallel Routes / Intercepting Routes
 
-**Pages Router の利点:**
-- 安定性（枯れた技術、豊富な事例）
-- 学習コストが低い（従来のReact開発者に馴染みやすい）
-- 一部のライブラリがまだ App Router 未対応
+**Pages Router advantages:**
+- Stability (mature technology, abundant case studies)
+- Lower learning cost (familiar to traditional React developers)
+- Some libraries still don't support App Router
 
-**移行判断基準:**
-- 新規プロジェクト → App Router
-- 既存プロジェクト（小〜中規模） → 段階的に App Router へ移行
-- 既存プロジェクト（大規模、安定運用中） → Pages Router のまま維持も選択肢
+**Migration decision criteria:**
+- New project → App Router
+- Existing project (small to medium) → Gradually migrate to App Router
+- Existing project (large, stable production) → Staying on Pages Router is also an option
 
-### Q3. SSG と ISR の使い分けは？どちらを選ぶべきか？
+### Q3. How do I choose between SSG and ISR?
 
-**A.** データの更新頻度とビルド時間のトレードオフで判断する。
+**A.** Decide based on the trade-off between data update frequency and build time.
 
-**SSG（Static Site Generation）を選ぶべき場合:**
-- データの更新頻度が非常に低い（月1回以下）
-- ページ数が少ない（100ページ未満）
-- ビルド時間が許容範囲内（数分以内）
-- 例: 企業サイト、ドキュメント、小規模ブログ
+**When to choose SSG (Static Site Generation):**
+- Data updates very infrequently (once a month or less)
+- Few pages (under 100)
+- Build time is within acceptable range (within a few minutes)
+- Examples: Corporate sites, documentation, small blogs
 
-**ISR（Incremental Static Regeneration）を選ぶべき場合:**
-- データが定期的に更新される（数分〜数時間ごと）
-- ページ数が多い（数千〜数万ページ）
-- ビルド時間を短縮したい
-- 例: 大規模ECサイトの商品ページ、ニュースサイト
+**When to choose ISR (Incremental Static Regeneration):**
+- Data is updated regularly (every few minutes to hours)
+- Many pages (thousands to tens of thousands)
+- Want to reduce build time
+- Examples: Large e-commerce product pages, news sites
 
-**Next.js での実装例:**
+**Next.js implementation example:**
 
 ```typescript
-// SSG: ビルド時に全ページを生成
+// SSG: generate all pages at build time
 export async function generateStaticParams() {
   const posts = await getAllPosts();
   return posts.map(post => ({ slug: post.slug }));
 }
 
-// ISR: 60秒ごとに再生成 + On-demand Revalidation
+// ISR: regenerate every 60 seconds + On-demand Revalidation
 export const revalidate = 60;
 
 export default async function Page({ params }: { params: { slug: string } }) {
@@ -1823,7 +1824,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
   return <Article post={post} />;
 }
 
-// On-demand Revalidation（CMS Webhookから呼び出し）
+// On-demand Revalidation (called from CMS webhook)
 // app/api/revalidate/route.ts
 import { revalidatePath } from 'next/cache';
 
@@ -1834,53 +1835,53 @@ export async function POST(request: Request) {
 }
 ```
 
-**ISR の注意点:**
-- 初回リクエストはビルド済みページを返す（Stale）
-- バックグラウンドで再生成
-- 再生成失敗時は古いページを返し続ける（安全性）
+**ISR notes:**
+- First request returns the built page (Stale)
+- Regenerates in the background
+- When regeneration fails, continues to return the old page (safe fallback)
 
 ---
 
-## FAQ（よくある質問）
+## FAQ (Frequently Asked Questions)
 
-### Q1: SPA、MPA、SSRの選択基準は？
+### Q1: What are the selection criteria for SPA, MPA, and SSR?
 
-**A:** プロジェクト要件に応じて以下の基準で選択します。
+**A:** Select based on project requirements using the following criteria.
 
-| 要件 | 推奨方式 | 理由 |
-|------|---------|------|
-| SEOが最重要（ブログ、ECサイト） | SSG / ISR | 静的HTMLでクローラー最適化、LCP最速 |
-| SEO必要 + 動的コンテンツ（SNS、ニュース） | SSR / RSC | サーバーレンダリングで初期HTML生成 |
-| SEO不要 + 高インタラクティブ性（管理画面） | SPA (CSR) | クライアント側で高速なページ遷移 |
-| コンテンツサイト（ドキュメント、マーケティング） | Islands (Astro) | 最小JSでパフォーマンス最大化 |
-| ハイブリッド要件（ECサイト全体） | Next.js App Router | ページ単位でSSG/ISR/SSR/CSRを使い分け |
+| Requirement | Recommended | Reason |
+|-------------|-------------|--------|
+| SEO is critical (blogs, e-commerce) | SSG / ISR | Optimize crawlers with static HTML, fastest LCP |
+| SEO needed + dynamic content (social, news) | SSR / RSC | Generate initial HTML with server rendering |
+| No SEO + high interactivity (admin panel) | SPA (CSR) | Fast page transitions on the client side |
+| Content sites (docs, marketing) | Islands (Astro) | Maximize performance with minimal JS |
+| Hybrid requirements (entire e-commerce site) | Next.js App Router | Mix SSG/ISR/SSR/CSR per page |
 
-実際には、Next.js App Router のようなフレームワークで、ルート単位で最適な方式を組み合わせる **ハイブリッドアプローチ** が現代的です。
+In practice, a **hybrid approach** using frameworks like Next.js App Router to combine optimal methods per route is the modern standard.
 
-### Q2: Next.js の App Router と Pages Router の違いは？
+### Q2: What is the difference between Next.js App Router and Pages Router?
 
-**A:** App Router（Next.js 13+）は React Server Components をベースにした新しいアーキテクチャです。
+**A:** App Router (Next.js 13+) is a new architecture based on React Server Components.
 
-| 観点 | App Router | Pages Router |
-|------|-----------|--------------|
-| レンダリング | デフォルトでServer Components | デフォルトでClient Components |
-| レイアウト | layout.tsx で階層的に定義 | _app.tsx で全ページ共通 |
-| データフェッチ | async/await 直接記述 | getServerSideProps / getStaticProps |
-| ルーティング | ディレクトリベース（app/） | ファイルベース（pages/） |
-| Streaming | ネイティブサポート（Suspense） | 手動実装 |
-| バンドルサイズ | Server Componentsで大幅削減可能 | すべてクライアントバンドルに含まれる |
+| Aspect | App Router | Pages Router |
+|--------|-----------|--------------|
+| Rendering | Server Components by default | Client Components by default |
+| Layout | Defined hierarchically with layout.tsx | Shared across all pages via _app.tsx |
+| Data fetching | Write async/await directly | getServerSideProps / getStaticProps |
+| Routing | Directory-based (app/) | File-based (pages/) |
+| Streaming | Native support (Suspense) | Manual implementation |
+| Bundle size | Can be greatly reduced with Server Components | All included in client bundle |
 
-**推奨:** 新規プロジェクトはApp Routerを採用し、Server Componentsの恩恵を最大限活用すべきです。Pages Routerは既存プロジェクトのメンテナンスモードです。
+**Recommendation:** New projects should adopt App Router and take full advantage of Server Components. Pages Router is in maintenance mode for existing projects.
 
-### Q3: SSG と ISR の使い分けは？
+### Q3: How do I choose between SSG and ISR?
 
-**A:** データの更新頻度とページ数で判断します。
+**A:** Decide based on data update frequency and page count.
 
-**SSG（Static Site Generation）が適している場合:**
-- ビルド時に全ページを事前生成できる（ページ数が限定的）
-- コンテンツがほぼ静的（ブログ記事、ドキュメント、ランディングページ）
-- 更新は再デプロイで対応可能
-- 例: 個人ブログ（50記事）、企業サイト（20ページ）
+**When SSG (Static Site Generation) is suitable:**
+- All pages can be pre-generated at build time (limited page count)
+- Content is mostly static (blog articles, documentation, landing pages)
+- Updates can be handled by redeployment
+- Examples: Personal blog (50 articles), corporate site (20 pages)
 
 ```typescript
 // app/blog/[slug]/page.tsx (Next.js App Router)
@@ -1895,15 +1896,15 @@ export default async function BlogPost({ params }: { params: { slug: string } })
 }
 ```
 
-**ISR（Incremental Static Regeneration）が適している場合:**
-- ページ数が膨大（数千〜数万ページ）
-- 定期的にコンテンツが更新される（商品情報、記事）
-- On-demand Revalidation でCMS更新と連携したい
-- 例: ECサイト商品ページ（10万点）、メディアサイト（1万記事）
+**When ISR (Incremental Static Regeneration) is suitable:**
+- Enormous number of pages (thousands to tens of thousands)
+- Content is regularly updated (product info, articles)
+- Want to integrate with CMS updates via On-demand Revalidation
+- Examples: E-commerce product pages (100,000 items), media sites (10,000 articles)
 
 ```typescript
 // app/products/[id]/page.tsx
-export const revalidate = 3600; // 1時間ごとに再生成
+export const revalidate = 3600; // regenerate every 1 hour
 
 export default async function ProductPage({ params }: { params: { id: string } }) {
   const product = await getProduct(params.id);
@@ -1911,19 +1912,19 @@ export default async function ProductPage({ params }: { params: { id: string } }
 }
 ```
 
-**ハイブリッド戦略:**
-- 人気商品上位100点 → SSG（ビルド時生成）
-- その他の商品 → ISR（初回アクセス時に生成、1時間ごと再検証）
-- CMS更新時 → On-demand Revalidation（Webhookで即時反映）
+**Hybrid strategy:**
+- Top 100 popular products → SSG (generated at build time)
+- Other products → ISR (generated on first access, revalidated every 1 hour)
+- On CMS update → On-demand Revalidation (instant reflection via webhook)
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
 
 ---
 
-## 参考文献
+## References
 
 1. Vercel. "Rendering Fundamentals." nextjs.org/docs, 2024.
 2. patterns.dev. "Rendering Patterns." patterns.dev, 2024.
