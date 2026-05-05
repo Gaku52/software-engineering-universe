@@ -1,39 +1,39 @@
 # Amazon API Gateway
 
-> AWS のフルマネージド API サービスを理解し、REST API / HTTP API の構築・Lambda 統合・認証認可を実装する
+> Understand AWS's fully managed API service and implement REST API / HTTP API construction, Lambda integration, and authentication/authorization
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **API Gateway の基本概念** — REST API と HTTP API の違い、エンドポイントタイプの選択
-2. **Lambda 統合とプロキシ統合** — サーバーレス API の構築パターン
-3. **認証・認可の実装** — Cognito、IAM、Lambda オーソライザーの活用
+1. **API Gateway Fundamentals** — Differences between REST API and HTTP API, choosing endpoint types
+2. **Lambda Integration and Proxy Integration** — Serverless API construction patterns
+3. **Implementing Authentication and Authorization** — Leveraging Cognito, IAM, and Lambda Authorizers
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Amazon Route 53](./01-route53.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Amazon Route 53](./01-route53.md)
 
 ---
 
-## 1. API Gateway とは
+## 1. What is API Gateway
 
-API Gateway は、REST、HTTP、WebSocket API を作成・公開・管理するためのフルマネージドサービスである。バックエンドとして Lambda、EC2、任意の HTTP エンドポイントを統合できる。
+API Gateway is a fully managed service for creating, publishing, and managing REST, HTTP, and WebSocket APIs. It can integrate Lambda, EC2, and arbitrary HTTP endpoints as backends.
 
-### 図解 1: API Gateway のアーキテクチャ
+### Diagram 1: API Gateway Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    API Gateway                              │
 │                                                             │
-│  Client ──→ [カスタムドメイン] ──→ [ステージ: prod]          │
+│  Client ──→ [Custom Domain] ──→ [Stage: prod]              │
 │             api.example.com        │                        │
 │                                    ▼                        │
 │                              ┌──────────┐                   │
-│                              │ API 定義 │                   │
+│                              │ API Def  │                   │
 │                              └────┬─────┘                   │
 │                                   │                         │
 │         ┌─────────────────────────┼──────────────────┐      │
@@ -42,17 +42,17 @@ API Gateway は、REST、HTTP、WebSocket API を作成・公開・管理する�
 │  │ GET /users  │          │POST /users  │    │GET /health│ │
 │  │             │          │             │    │           │ │
 │  │ Lambda Fn   │          │ Lambda Fn   │    │ Mock      │ │
-│  │ (list)      │          │ (create)    │    │ 統合      │ │
+│  │ (list)      │          │ (create)    │    │ Integ.    │ │
 │  └─────────────┘          └─────────────┘    └───────────┘ │
 │         │                         │                         │
 │         ▼                         ▼                         │
 │  ┌──────────────────────────────────────┐                   │
-│  │        バックエンド                   │                   │
+│  │        Backend                        │                   │
 │  │  Lambda / EC2 / ECS / HTTP           │                   │
 │  └──────────────────────────────────────┘                   │
 │                                                             │
-│  機能: スロットリング、キャッシュ、認証、                    │
-│        CORS、WAF 統合、CloudWatch ログ                      │
+│  Features: Throttling, Caching, Auth,                       │
+│            CORS, WAF Integration, CloudWatch Logs           │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -60,27 +60,27 @@ API Gateway は、REST、HTTP、WebSocket API を作成・公開・管理する�
 
 ## 2. REST API vs HTTP API
 
-### 比較表 1: REST API vs HTTP API
+### Comparison Table 1: REST API vs HTTP API
 
-| 項目 | REST API | HTTP API |
+| Item | REST API | HTTP API |
 |------|----------|----------|
-| **プロトコル** | REST | HTTP (REST 互換) |
-| **コスト** | $3.50/100 万リクエスト | $1.00/100 万リクエスト |
-| **レイテンシ** | やや高い | 低い (最大 60% 削減) |
-| **Lambda 統合** | プロキシ / 非プロキシ | プロキシのみ |
-| **認証** | Cognito, IAM, Lambda Auth | Cognito, IAM, JWT |
-| **API キー / 使用量プラン** | あり | なし |
-| **キャッシュ** | あり | なし |
-| **WAF 統合** | あり | なし |
-| **リクエスト変換** | あり (VTL) | なし |
-| **WebSocket** | あり (別タイプ) | なし |
-| **推奨** | 高機能が必要な場合 | シンプルな API (推奨) |
+| **Protocol** | REST | HTTP (REST compatible) |
+| **Cost** | $3.50/1M requests | $1.00/1M requests |
+| **Latency** | Slightly higher | Low (up to 60% reduction) |
+| **Lambda Integration** | Proxy / Non-proxy | Proxy only |
+| **Authentication** | Cognito, IAM, Lambda Auth | Cognito, IAM, JWT |
+| **API Key / Usage Plans** | Yes | No |
+| **Caching** | Yes | No |
+| **WAF Integration** | Yes | No |
+| **Request Transformation** | Yes (VTL) | No |
+| **WebSocket** | Yes (separate type) | No |
+| **Recommended** | When advanced features are needed | Simple APIs (recommended) |
 
 ---
 
-## 3. API 構築
+## 3. Building APIs
 
-### コード例 1: AWS CLI で REST API を作成
+### Code Example 1: Creating a REST API with AWS CLI
 
 ```bash
 # REST API の作成
@@ -128,7 +128,7 @@ aws apigateway create-deployment \
   --stage-description "Production stage"
 ```
 
-### コード例 2: SAM テンプレートでサーバーレス API を構築
+### Code Example 2: Building a Serverless API with SAM Template
 
 ```yaml
 # template.yaml
@@ -242,7 +242,7 @@ Outputs:
     Value: !Sub "https://${HttpApi}.execute-api.ap-northeast-1.amazonaws.com/${Stage}"
 ```
 
-### コード例 3: Lambda ハンドラーの実装
+### Code Example 3: Lambda Handler Implementation
 
 ```python
 # src/app.py
@@ -323,9 +323,9 @@ def get_user(event, context):
 
 ---
 
-## 4. 認証・認可
+## 4. Authentication and Authorization
 
-### 図解 2: 認証方式の比較
+### Diagram 2: Comparison of Authentication Methods
 
 ```
 1. Cognito User Pools (JWT):
@@ -354,7 +354,7 @@ def get_user(event, context):
                    ※ 認証ではなくスロットリング/計測用
 ```
 
-### コード例 4: Lambda Authorizer の実装
+### Code Example 4: Lambda Authorizer Implementation
 
 ```python
 # authorizer.py
@@ -449,9 +449,9 @@ def generate_policy(
 
 ---
 
-## 5. カスタムドメインと CORS
+## 5. Custom Domain and CORS
 
-### コード例 5: カスタムドメインの設定
+### Code Example 5: Custom Domain Configuration
 
 ```bash
 # ACM 証明書の取得（us-east-1 が必要な場合もある）
@@ -491,7 +491,7 @@ aws route53 change-resource-record-sets \
   }'
 ```
 
-### 図解 3: API Gateway のステージとデプロイメント
+### Diagram 3: API Gateway Stages and Deployments
 
 ```
 API Gateway API
@@ -508,32 +508,32 @@ API Gateway API
   │
   └─ Stage: prod
       ├─ URL: https://abc123.execute-api.ap-ne-1.amazonaws.com/prod
-      │   → カスタムドメイン: api.example.com
+      │   → Custom Domain: api.example.com
       ├─ Stage Variables: {TABLE: "prod-Users", LOG_LEVEL: "WARN"}
       ├─ Deployment: deploy-003
-      ├─ Canary: 10% → deploy-004 (新バージョン)
-      ├─ Throttle: 10,000 req/s (バースト: 5,000)
+      ├─ Canary: 10% → deploy-004 (new version)
+      ├─ Throttle: 10,000 req/s (burst: 5,000)
       └─ Cache: 0.5 GB, TTL 300s
 ```
 
-### 比較表 2: エンドポイントタイプ
+### Comparison Table 2: Endpoint Types
 
-| 項目 | Regional | Edge-Optimized | Private |
+| Item | Regional | Edge-Optimized | Private |
 |------|----------|----------------|---------|
-| **配置** | リージョン内 | CloudFront 経由 | VPC 内 |
-| **レイテンシ** | リージョン近接で最小 | グローバル最適化 | VPC 内で最小 |
-| **カスタムドメイン** | ACM (同一リージョン) | ACM (us-east-1) | なし |
-| **WAF** | 直接アタッチ | CloudFront 経由 | なし |
-| **推奨** | 単一リージョン API | グローバル API | 内部 API |
+| **Placement** | Within region | Via CloudFront | Within VPC |
+| **Latency** | Minimal when close to region | Globally optimized | Minimal within VPC |
+| **Custom Domain** | ACM (same region) | ACM (us-east-1) | None |
+| **WAF** | Direct attachment | Via CloudFront | None |
+| **Recommended** | Single-region APIs | Global APIs | Internal APIs |
 
 ---
 
 ## 6. WebSocket API
 
-### 図解 4: WebSocket API のアーキテクチャ
+### Diagram 4: WebSocket API Architecture
 
 ```
-WebSocket API のルーティング:
+WebSocket API Routing:
 ==============================
 
 Client ──→ WebSocket API ──→ Route Selection
@@ -546,15 +546,15 @@ Client ──→ WebSocket API ──→ Route Selection
     │                                 │
     ▼                                 ▼
  DynamoDB                          DynamoDB
- (接続管理)                       (接続削除)
+ (Connection Mgmt)                (Connection Removal)
 
-カスタムルート:
-  sendMessage → Lambda → @connections API → 他クライアントに送信
-  joinRoom    → Lambda → DynamoDB (ルーム管理)
-  typing      → Lambda → @connections API → タイピング通知
+Custom Routes:
+  sendMessage → Lambda → @connections API → Send to other clients
+  joinRoom    → Lambda → DynamoDB (Room management)
+  typing      → Lambda → @connections API → Typing notification
 ```
 
-### コード例 5b: WebSocket API の Lambda ハンドラー
+### Code Example 5b: WebSocket API Lambda Handler
 
 ```python
 # websocket_handler.py
@@ -630,7 +630,7 @@ def send_message_handler(event, context):
     return {"statusCode": 200}
 ```
 
-### コード例 5c: WebSocket API の SAM テンプレート
+### Code Example 5c: WebSocket API SAM Template
 
 ```yaml
 Resources:
@@ -679,9 +679,9 @@ Outputs:
 
 ---
 
-## 7. スロットリングとキャッシュ
+## 7. Throttling and Caching
 
-### REST API のキャッシュ設定
+### REST API Cache Configuration
 
 ```bash
 # ステージのキャッシュを有効化
@@ -702,27 +702,27 @@ aws apigateway update-method \
     op=replace,path=/cacheTtlInSeconds,value=300
 ```
 
-### スロットリングの設定
+### Throttling Configuration
 
 ```
-スロットリングの階層:
+Throttling Hierarchy:
 ====================
 
-1. アカウントレベル (デフォルト)
-   - 10,000 req/s (リージョンあたり)
-   - バースト: 5,000
+1. Account Level (Default)
+   - 10,000 req/s (per region)
+   - Burst: 5,000
 
-2. ステージレベル
+2. Stage Level
    api.example.com/prod → 5,000 req/s
 
-3. ルートレベル（REST API）
+3. Route Level (REST API)
    GET /users → 1,000 req/s
    POST /orders → 500 req/s
 
-4. 使用量プラン + API キー（REST API のみ）
-   Free プラン: 100 req/日, 10 req/s
-   Pro プラン: 10,000 req/日, 100 req/s
-   Enterprise プラン: 100,000 req/日, 1,000 req/s
+4. Usage Plan + API Key (REST API only)
+   Free plan: 100 req/day, 10 req/s
+   Pro plan: 10,000 req/day, 100 req/s
+   Enterprise plan: 100,000 req/day, 1,000 req/s
 ```
 
 ```bash
@@ -763,9 +763,9 @@ aws apigatewayv2 update-stage \
 
 ---
 
-## 8. 監視とログ
+## 8. Monitoring and Logging
 
-### CloudWatch ログの設定
+### CloudWatch Log Configuration
 
 ```bash
 # REST API のアクセスログ設定
@@ -793,19 +793,19 @@ aws apigateway update-stage \
     op=replace,path=/tracingEnabled,value=true
 ```
 
-### 主要メトリクス
+### Key Metrics
 
-| メトリクス | 説明 | アラーム閾値 |
+| Metric | Description | Alarm Threshold |
 |---|---|---|
-| Count | リクエスト数 | 異常な急増/急減 |
-| 4XXError | クライアントエラー率 | > 5% |
-| 5XXError | サーバーエラー率 | > 1% |
-| Latency | エンドツーエンドレイテンシ | p99 > 3秒 |
-| IntegrationLatency | バックエンドレイテンシ | p99 > 2秒 |
-| CacheHitCount | キャッシュヒット数 | 監視（ヒット率計算用） |
-| CacheMissCount | キャッシュミス数 | 監視（ヒット率計算用） |
+| Count | Number of requests | Abnormal spikes/drops |
+| 4XXError | Client error rate | > 5% |
+| 5XXError | Server error rate | > 1% |
+| Latency | End-to-end latency | p99 > 3s |
+| IntegrationLatency | Backend latency | p99 > 2s |
+| CacheHitCount | Cache hit count | Monitor (for hit rate calculation) |
+| CacheMissCount | Cache miss count | Monitor (for hit rate calculation) |
 
-### CloudWatch アラームの設定
+### CloudWatch Alarm Configuration
 
 ```bash
 # 5xx エラー率アラーム
@@ -839,7 +839,7 @@ aws cloudwatch put-metric-alarm \
 
 ---
 
-## 9. Terraform による API Gateway 構成
+## 9. API Gateway Configuration with Terraform
 
 ```hcl
 # HTTP API
@@ -942,42 +942,42 @@ resource "aws_route53_record" "api" {
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: Lambda のコールドスタートを無視する
+### Anti-Pattern 1: Ignoring Lambda Cold Starts
 
 ```
-[悪い例]
-  API Gateway → Lambda (VPC 内、メモリ 128MB)
-  → コールドスタート: 5-10 秒
-  → API タイムアウト (29 秒) に近づく
+[Bad Example]
+  API Gateway → Lambda (in VPC, 128MB memory)
+  → Cold start: 5-10 seconds
+  → Approaches API timeout (29 seconds)
 
-[良い例]
-  対策 1: Provisioned Concurrency
+[Good Example]
+  Mitigation 1: Provisioned Concurrency
     aws lambda put-provisioned-concurrency-config \
       --function-name myFunction \
       --qualifier prod \
       --provisioned-concurrent-executions 10
 
-  対策 2: メモリを増やす（CPU も比例して増加）
+  Mitigation 2: Increase memory (CPU scales proportionally)
     MemorySize: 1024  # 128MB → 1024MB
 
-  対策 3: VPC 外に配置（可能な場合）
-    → VPC Lambda の ENI 作成時間を回避
+  Mitigation 3: Place outside VPC (when possible)
+    → Avoid VPC Lambda ENI creation time
 
-  対策 4: SnapStart（Java の場合）
+  Mitigation 4: SnapStart (for Java)
     SnapStart:
       ApplyOn: PublishedVersions
 ```
 
-### アンチパターン 2: 全てを 1 つの Lambda 関数に集約
+### Anti-Pattern 2: Consolidating Everything into a Single Lambda Function
 
 ```
-[悪い例]
-  API Gateway → 1 つの Lambda (全エンドポイント処理)
-  → デプロイが全エンドポイントに影響
-  → メモリ/タイムアウトが最大公約数
-  → 権限が過剰 (全リソースへのアクセス)
+[Bad Example]
+  API Gateway → Single Lambda (handles all endpoints)
+  → Deployments affect all endpoints
+  → Memory/timeout set to lowest common denominator
+  → Excessive permissions (access to all resources)
 
   def handler(event, context):
       path = event["path"]
@@ -988,28 +988,28 @@ resource "aws_route53_record" "api" {
           return create_user()
       elif path.startswith("/orders"):
           return handle_orders()
-      # ... 数十のルーティング
+      # ... dozens of routes
 
-[良い例]
-  API Gateway → 個別の Lambda 関数
+[Good Example]
+  API Gateway → Individual Lambda functions
   GET  /users  → listUsersFunction  (128MB, 5s timeout)
   POST /users  → createUserFunction (256MB, 10s timeout)
   GET  /orders → listOrdersFunction (512MB, 30s timeout)
 
-  メリット:
-  - 個別のメモリ/タイムアウト設定
-  - 最小権限の IAM ロール
-  - 個別のデプロイとロールバック
-  - 個別のメトリクスと監視
+  Benefits:
+  - Individual memory/timeout settings
+  - Least-privilege IAM roles
+  - Individual deployment and rollback
+  - Individual metrics and monitoring
 ```
 
 ---
 
-## 11. リクエストバリデーション
+## 11. Request Validation
 
-REST API では、バックエンド（Lambda）に到達する前にリクエストの検証が可能。不正なリクエストを早期に排除することで、Lambda 呼び出し回数を削減しコストを抑える。
+With REST APIs, requests can be validated before reaching the backend (Lambda). By rejecting invalid requests early, you can reduce Lambda invocation count and lower costs.
 
-### コード例 10: リクエストモデルとバリデーターの定義
+### Code Example 10: Defining Request Models and Validators
 
 ```yaml
 # SAM テンプレート: リクエストモデルとバリデーター
@@ -1082,7 +1082,7 @@ Resources:
         Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateUserFunction.Arn}/invocations"
 ```
 
-### コード例 11: HTTP API のパラメータバリデーション (OpenAPI)
+### Code Example 11: HTTP API Parameter Validation (OpenAPI)
 
 ```yaml
 # openapi.yaml — HTTP API 用
@@ -1113,7 +1113,7 @@ paths:
         payloadFormatVersion: "2.0"
 ```
 
-バリデーションエラー時は 400 Bad Request が自動返却される。
+A 400 Bad Request is automatically returned on validation errors.
 
 ```json
 {
@@ -1129,11 +1129,11 @@ paths:
 
 ---
 
-## 12. WAF 統合
+## 12. WAF Integration
 
-REST API は AWS WAF を直接アタッチでき、SQL インジェクション、XSS、ボット対策などを API レベルで適用できる。
+REST APIs can directly attach AWS WAF, applying SQL injection, XSS, and bot protection at the API level.
 
-### コード例 12: WAF WebACL の作成と API Gateway へのアタッチ
+### Code Example 12: Creating a WAF WebACL and Attaching to API Gateway
 
 ```bash
 # WAF WebACL の作成
@@ -1200,7 +1200,7 @@ aws wafv2 associate-web-acl \
   --resource-arn arn:aws:apigateway:ap-northeast-1::/restapis/abc123/stages/prod
 ```
 
-### コード例 13: Terraform WAF + API Gateway
+### Code Example 13: Terraform WAF + API Gateway
 
 ```hcl
 # WAF WebACL
@@ -1294,31 +1294,31 @@ resource "aws_wafv2_web_acl_association" "api" {
 }
 ```
 
-### 図解 5: WAF による多層防御
+### Diagram 5: Multi-Layer Defense with WAF
 
 ```
-クライアント
+Client
     │
     ▼
 ┌──────────────────────────────────────────────┐
 │  AWS WAF                                      │
 │  ┌────────────────────────────────────────┐   │
 │  │ Rule 1: AWS Managed Common Rules       │   │
-│  │  - XSS 検知 → Block                   │   │
-│  │  - サイズ制限超過 → Block              │   │
+│  │  - XSS Detection → Block              │   │
+│  │  - Size Limit Exceeded → Block         │   │
 │  ├────────────────────────────────────────┤   │
 │  │ Rule 2: SQLi Rule Set                  │   │
-│  │  - SQL インジェクション → Block        │   │
+│  │  - SQL Injection → Block               │   │
 │  ├────────────────────────────────────────┤   │
 │  │ Rule 3: Rate Limit (2000 req/5min/IP)  │   │
-│  │  - 超過 → Block (429)                  │   │
+│  │  - Exceeded → Block (429)              │   │
 │  ├────────────────────────────────────────┤   │
 │  │ Rule 4: Geo Block                      │   │
-│  │  - 特定国 → Block                      │   │
+│  │  - Specific Countries → Block          │   │
 │  └────────────────────────────────────────┘   │
 │  Default Action: Allow                        │
 └──────────────────────────┬───────────────────┘
-                           │ 通過
+                           │ Pass
                            ▼
                ┌──────────────────┐
                │  API Gateway     │
@@ -1336,16 +1336,16 @@ resource "aws_wafv2_web_acl_association" "api" {
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
 # 演習1: 基本実装のテンプレート
@@ -1392,9 +1392,9 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
 # 演習2: 応用パターン
@@ -1461,9 +1461,9 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
 # 演習3: パフォーマンス最適化
@@ -1512,29 +1512,29 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm computational complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## 13. FAQ
 
-### Q1: REST API と HTTP API のどちらを選ぶべきですか？
+### Q1: Should I choose REST API or HTTP API?
 
-**A:** 新規プロジェクトでは HTTP API を推奨する。コストが 70% 安く、レイテンシも低い。REST API は API キー管理、使用量プラン、リクエスト変換 (VTL)、キャッシュ、WAF 直接統合が必要な場合に選択する。既存の REST API を HTTP API に移行することも可能。
+**A:** HTTP API is recommended for new projects. It costs 70% less and has lower latency. Choose REST API when you need API key management, usage plans, request transformation (VTL), caching, or direct WAF integration. It is also possible to migrate existing REST APIs to HTTP APIs.
 
-### Q2: API Gateway のレート制限はどう設定しますか？
+### Q2: How do I configure rate limiting for API Gateway?
 
-**A:** REST API ではデフォルトで 10,000 req/s（バースト 5,000）。使用量プランと API キーで個別のスロットリングが可能。HTTP API ではルートごとにスロットリングを設定する。Lambda の同時実行数制限も考慮し、API Gateway のスロットルと Lambda の Reserved Concurrency を合わせて設計する。
+**A:** REST API defaults to 10,000 req/s (burst 5,000). Individual throttling is possible with usage plans and API keys. For HTTP API, configure throttling per route. Also consider Lambda concurrency limits, and design API Gateway throttling alongside Lambda Reserved Concurrency.
 
-### Q3: WebSocket API はどのような場面で使いますか？
+### Q3: When should I use WebSocket API?
 
-**A:** リアルタイム双方向通信が必要な場合に使用する。チャットアプリ、ライブダッシュボード、IoT デバイス通信、オンラインゲームなどが典型例。WebSocket API は $connect、$disconnect、$default のルートと、カスタムルートを定義して Lambda で処理する。接続管理には DynamoDB を使い、@connections API でサーバーからメッセージをプッシュする。
+**A:** Use it when real-time bidirectional communication is needed. Typical examples include chat applications, live dashboards, IoT device communication, and online games. WebSocket API defines $connect, $disconnect, $default routes, and custom routes processed by Lambda. Use DynamoDB for connection management and the @connections API to push messages from the server.
 
-### Q4: CORS エラーの原因と対処法は？
+### Q4: What causes CORS errors and how do I fix them?
 
-**A:** CORS エラーの主な原因は以下の 3 つ。(1) API Gateway で CORS が未設定 — HTTP API では `CorsConfiguration` を、REST API では OPTIONS メソッドに Mock 統合を追加。(2) Lambda のレスポンスに CORS ヘッダーが欠落 — プロキシ統合では Lambda 側で `Access-Control-Allow-Origin` を返す必要がある。(3) Cognito 認証ヘッダーが `AllowHeaders` に含まれていない — `Authorization` ヘッダーを明示的に許可する。
+**A:** The three main causes of CORS errors are: (1) CORS is not configured on API Gateway -- for HTTP API, set `CorsConfiguration`; for REST API, add Mock integration to the OPTIONS method. (2) Lambda response is missing CORS headers -- with proxy integration, Lambda must return `Access-Control-Allow-Origin`. (3) Cognito authentication headers are not included in `AllowHeaders` -- explicitly allow the `Authorization` header.
 
 ```python
 # Lambda プロキシ統合での CORS ヘッダー付与
@@ -1551,72 +1551,72 @@ def lambda_handler(event, context):
     }
 ```
 
-### Q5: API Gateway の 29 秒タイムアウトを回避する方法は？
+### Q5: How do I work around API Gateway's 29-second timeout?
 
-**A:** API Gateway の統合タイムアウト上限は 29 秒（変更不可）。長時間処理には以下のパターンを採用する。
+**A:** The API Gateway integration timeout limit is 29 seconds (not configurable). For long-running processes, adopt the following patterns:
 
 ```
-非同期処理パターン:
-1. POST /jobs → Lambda が SQS にジョブ登録 → 即座に jobId を返却 (< 1秒)
-2. バックエンド Lambda が SQS からジョブを取得して処理 (制限なし)
-3. GET /jobs/{jobId} → 処理結果をポーリングで取得
+Asynchronous Processing Pattern:
+1. POST /jobs → Lambda registers job in SQS → Immediately returns jobId (< 1s)
+2. Backend Lambda picks up job from SQS and processes it (no time limit)
+3. GET /jobs/{jobId} → Poll for processing results
 
-Step Functions パターン:
-1. POST /jobs → Step Functions 実行を開始 → executionArn を返却
-2. Step Functions 内で長時間処理を実行
-3. GET /jobs/{executionArn} → DescribeExecution で状態を取得
+Step Functions Pattern:
+1. POST /jobs → Start Step Functions execution → Return executionArn
+2. Execute long-running processing within Step Functions
+3. GET /jobs/{executionArn} → Get status via DescribeExecution
 ```
 
-### Q6: API Gateway のコスト最適化のポイントは？
+### Q6: What are the key points for API Gateway cost optimization?
 
-**A:** (1) HTTP API を選択（REST API の約 30% のコスト）。(2) REST API を使う場合はキャッシュを有効化してバックエンド呼び出しを削減。(3) 使用量プランで API キーごとにクォータを設定し、過剰利用を防止。(4) CloudFront を前段に配置してキャッシュヒット率を向上させる。(5) Lambda の Provisioned Concurrency とのバランスを取り、不要な事前ウォームアップを避ける。
+**A:** (1) Choose HTTP API (approximately 30% of REST API cost). (2) If using REST API, enable caching to reduce backend invocations. (3) Set quotas per API key with usage plans to prevent overuse. (4) Place CloudFront in front to improve cache hit rates. (5) Balance with Lambda Provisioned Concurrency and avoid unnecessary pre-warming.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| API タイプ | 新規は HTTP API 推奨。高機能が必要なら REST API |
-| 統合タイプ | Lambda プロキシ統合が最もシンプル |
-| 認証 | Cognito JWT が標準。カスタムロジックは Lambda Authorizer |
-| カスタムドメイン | ACM 証明書 + Route 53 Alias で設定 |
-| ステージ | dev/staging/prod で環境分離。Stage Variables で設定切替 |
-| 監視 | CloudWatch Logs + X-Ray でリクエスト追跡 |
-| コスト | HTTP API は $1/100 万リクエスト。REST API は $3.5 |
+| API Type | HTTP API recommended for new projects. REST API when advanced features are needed |
+| Integration Type | Lambda proxy integration is the simplest |
+| Authentication | Cognito JWT is the standard. Lambda Authorizer for custom logic |
+| Custom Domain | Configure with ACM certificate + Route 53 Alias |
+| Stages | Separate environments with dev/staging/prod. Switch settings with Stage Variables |
+| Monitoring | Track requests with CloudWatch Logs + X-Ray |
+| Cost | HTTP API is $1/1M requests. REST API is $3.5 |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [01-route53.md](./01-route53.md) — API Gateway のカスタムドメイン設定
-- [00-iam-deep-dive.md](../08-security/00-iam-deep-dive.md) — API Gateway の IAM 認証
-- [02-codepipeline.md](../07-devops/02-codepipeline.md) — API のCI/CD パイプライン
+- [01-route53.md](./01-route53.md) -- Custom domain configuration for API Gateway
+- [00-iam-deep-dive.md](../08-security/00-iam-deep-dive.md) -- IAM authentication for API Gateway
+- [02-codepipeline.md](../07-devops/02-codepipeline.md) -- CI/CD pipeline for APIs
 
 ---
 
-## 参考文献
+## References
 
-1. **AWS 公式ドキュメント** — Amazon API Gateway 開発者ガイド
+1. **AWS Official Documentation** -- Amazon API Gateway Developer Guide
    https://docs.aws.amazon.com/apigateway/latest/developerguide/
-2. **AWS SAM ドキュメント** — サーバーレスアプリケーションモデル
+2. **AWS SAM Documentation** -- Serverless Application Model
    https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/
-3. **HTTP API vs REST API** — 選定ガイド
+3. **HTTP API vs REST API** -- Selection Guide
    https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-vs-rest.html
