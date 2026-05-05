@@ -19,6 +19,7 @@ const { execSync } = require('child_process');
 
 const SKILLS_ROOT = path.resolve(__dirname, '../..');
 const EXCLUDE_DIRS = ['ja', '_meta', '_legacy', '_original-skills'];
+const EXCLUDE_CATEGORIES = ['08-hobby'];
 
 function isJapanese(filePath) {
   try {
@@ -62,7 +63,7 @@ function findFiles(pattern) {
 
   // Walk each category directory
   const categories = fs.readdirSync(SKILLS_ROOT)
-    .filter(d => /^\d{2}-/.test(d))
+    .filter(d => /^\d{2}-/.test(d) && !EXCLUDE_CATEGORIES.includes(d))
     .map(d => path.join(SKILLS_ROOT, d));
 
   for (const catDir of categories) {
@@ -93,7 +94,7 @@ function main() {
   const skillJp = skillFiles.filter(f => isJapanese(f));
   const skillEn = skillFiles.filter(f => !isJapanese(f));
 
-  const totalFiles = 952; // Known total
+  const totalFiles = docsFiles.length + skillFiles.length;
   const totalEn = docsEn.length + skillEn.length;
   const totalJp = docsJp.length + skillJp.length;
   const pct = ((totalEn / totalFiles) * 100).toFixed(1);
