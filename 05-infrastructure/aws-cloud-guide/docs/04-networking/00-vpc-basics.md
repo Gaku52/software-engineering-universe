@@ -1,26 +1,26 @@
-# Amazon VPC 基礎
+# Amazon VPC Fundamentals
 
-> AWS のネットワーク基盤である VPC を理解し、サブネット設計・ルートテーブル・IGW/NAT GW を使った本番ネットワーク構成を実践的に習得する
+> Understand VPC as the networking foundation of AWS, and practically master production network configurations using subnet design, route tables, and IGW/NAT GW
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **VPC の基本アーキテクチャ** — CIDR 設計、サブネット分割、AZ 配置の設計判断
-2. **ルーティングとゲートウェイ** — ルートテーブル、IGW、NAT GW の役割と構成
-3. **セキュリティ制御** — セキュリティグループ、ネットワーク ACL、VPC エンドポイント
-4. **VPC 間接続** — VPC Peering、Transit Gateway、PrivateLink の使い分け
-5. **VPC Flow Logs と監視** — ネットワークトラフィックの可視化とトラブルシューティング
+1. **VPC Basic Architecture** — Design decisions for CIDR design, subnet segmentation, and AZ placement
+2. **Routing and Gateways** — Roles and configuration of route tables, IGW, and NAT GW
+3. **Security Controls** — Security groups, network ACLs, and VPC endpoints
+4. **Inter-VPC Connectivity** — Choosing between VPC Peering, Transit Gateway, and PrivateLink
+5. **VPC Flow Logs and Monitoring** — Network traffic visibility and troubleshooting
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. VPC アーキテクチャ全体像
+## 1. VPC Architecture Overview
 
 ```
 +----------------------------------------------------------------------+
@@ -50,22 +50,22 @@
 +----------------------------------------------------------------------+
 ```
 
-### VPC の主要コンポーネント一覧
+### Key VPC Components
 
-| コンポーネント | 説明 | スコープ |
+| Component | Description | Scope |
 |---|---|---|
-| VPC | 仮想ネットワークの論理的な隔離空間 | リージョン |
-| サブネット | VPC 内の IP アドレス範囲 | アベイラビリティゾーン |
-| ルートテーブル | サブネットのトラフィックルーティング規則 | VPC |
-| Internet Gateway (IGW) | VPC とインターネット間の接続ポイント | VPC |
-| NAT Gateway | プライベートサブネットからの外向きインターネット接続 | AZ |
-| セキュリティグループ | インスタンスレベルのステートフルファイアウォール | VPC |
-| ネットワーク ACL | サブネットレベルのステートレスファイアウォール | VPC |
-| VPC エンドポイント | VPC 内から AWS サービスへのプライベート接続 | VPC |
-| Elastic IP | 静的なパブリック IPv4 アドレス | リージョン |
-| ENI | 仮想ネットワークインターフェースカード | AZ |
+| VPC | Logically isolated virtual network space | Region |
+| Subnet | IP address range within a VPC | Availability Zone |
+| Route Table | Traffic routing rules for subnets | VPC |
+| Internet Gateway (IGW) | Connection point between VPC and the internet | VPC |
+| NAT Gateway | Outbound internet connectivity from private subnets | AZ |
+| Security Group | Stateful firewall at the instance level | VPC |
+| Network ACL | Stateless firewall at the subnet level | VPC |
+| VPC Endpoint | Private connection from within VPC to AWS services | VPC |
+| Elastic IP | Static public IPv4 address | Region |
+| ENI | Virtual network interface card | AZ |
 
-### コード例 1: VPC とサブネットの作成（AWS CLI）
+### Code Example 1: Creating a VPC and Subnets (AWS CLI)
 
 ```bash
 # VPC の作成
@@ -122,83 +122,83 @@ aws ec2 modify-subnet-attribute \
 
 ---
 
-## 2. CIDR 設計
+## 2. CIDR Design
 
-### CIDR ブロックサイズ早見表
+### CIDR Block Size Quick Reference
 
-| CIDR | IP 数 | 利用可能 IP | 用途例 |
+| CIDR | IP Count | Available IPs | Use Case |
 |---|---|---|---|
-| /16 | 65,536 | 65,531 | VPC 全体（推奨） |
-| /20 | 4,096 | 4,091 | 大規模サブネット |
-| /24 | 256 | 251 | 標準サブネット |
-| /26 | 64 | 59 | 小規模サブネット |
-| /28 | 16 | 11 | 最小サブネット |
+| /16 | 65,536 | 65,531 | Entire VPC (recommended) |
+| /20 | 4,096 | 4,091 | Large subnet |
+| /24 | 256 | 251 | Standard subnet |
+| /26 | 64 | 59 | Small subnet |
+| /28 | 16 | 11 | Minimum subnet |
 
-> AWS はサブネットごとに 5 IP を予約する（ネットワーク、VPC ルーター、DNS、将来予約、ブロードキャスト）
+> AWS reserves 5 IPs per subnet (network, VPC router, DNS, future reservation, broadcast)
 
-### 推奨 CIDR 設計パターン
+### Recommended CIDR Design Patterns
 
 ```
-VPC: 10.0.0.0/16 の設計例
+VPC: 10.0.0.0/16 Design Example
 ============================
 
-Public Subnets     (各 /24 = 251 IP)
+Public Subnets     (each /24 = 251 IPs)
   AZ-a: 10.0.1.0/24
   AZ-c: 10.0.2.0/24
   AZ-d: 10.0.3.0/24
 
-Private App        (各 /20 = 4,091 IP)
+Private App        (each /20 = 4,091 IPs)
   AZ-a: 10.0.16.0/20
   AZ-c: 10.0.32.0/20
   AZ-d: 10.0.48.0/20
 
-Private DB         (各 /24 = 251 IP)
+Private DB         (each /24 = 251 IPs)
   AZ-a: 10.0.64.0/24
   AZ-c: 10.0.65.0/24
   AZ-d: 10.0.66.0/24
 
-予備               10.0.128.0/17 (将来の拡張用に確保)
+Reserved           10.0.128.0/17 (reserved for future expansion)
 ```
 
-### RFC 1918 プライベート IP アドレス範囲
+### RFC 1918 Private IP Address Ranges
 
-| 範囲 | CIDR | IP 数 | 推奨用途 |
+| Range | CIDR | IP Count | Recommended Use |
 |---|---|---|---|
-| 10.0.0.0 - 10.255.255.255 | 10.0.0.0/8 | 16,777,216 | 大規模ネットワーク（推奨） |
-| 172.16.0.0 - 172.31.255.255 | 172.16.0.0/12 | 1,048,576 | 中規模ネットワーク |
-| 192.168.0.0 - 192.168.255.255 | 192.168.0.0/16 | 65,536 | 小規模ネットワーク |
+| 10.0.0.0 - 10.255.255.255 | 10.0.0.0/8 | 16,777,216 | Large-scale networks (recommended) |
+| 172.16.0.0 - 172.31.255.255 | 172.16.0.0/12 | 1,048,576 | Medium-scale networks |
+| 192.168.0.0 - 192.168.255.255 | 192.168.0.0/16 | 65,536 | Small-scale networks |
 
-### マルチ VPC 環境での CIDR 割当計画
+### CIDR Allocation Plan for Multi-VPC Environments
 
 ```
-マルチアカウント・マルチ VPC の IP 割当例:
+Multi-Account / Multi-VPC IP Allocation Example:
 =============================================
 
-本番環境 (Production Account)
+Production Environment (Production Account)
   prod-vpc:       10.0.0.0/16
   shared-svc-vpc: 10.1.0.0/16
 
-ステージング環境 (Staging Account)
+Staging Environment (Staging Account)
   staging-vpc:    10.2.0.0/16
 
-開発環境 (Development Account)
+Development Environment (Development Account)
   dev-vpc:        10.3.0.0/16
 
-セキュリティ環境 (Security Account)
+Security Environment (Security Account)
   security-vpc:   10.4.0.0/16
 
-ログ集約環境 (Logging Account)
+Logging Environment (Logging Account)
   logging-vpc:    10.5.0.0/16
 
-ポイント:
-  - VPC 間で CIDR が重複しないように計画する
-  - VPC Peering / Transit Gateway で接続する場合は重複不可
-  - 10.0.0.0/8 の範囲を複数 /16 に分割して割当
-  - オンプレミスのネットワークとも重複しないよう調整
-  - Secondary CIDR の追加も検討（最大 5 つ）
+Key Points:
+  - Plan CIDRs so they do not overlap between VPCs
+  - Overlapping CIDRs are not allowed when connecting via VPC Peering / Transit Gateway
+  - Split the 10.0.0.0/8 range into multiple /16 blocks for allocation
+  - Coordinate with on-premises networks to avoid overlap
+  - Consider adding Secondary CIDRs (up to 5)
 ```
 
-### コード例 2: Secondary CIDR の追加
+### Code Example 2: Adding a Secondary CIDR
 
 ```bash
 # VPC に Secondary CIDR ブロックを追加
@@ -218,7 +218,7 @@ aws ec2 create-subnet --vpc-id $VPC_ID \
 # - RFC 6598 (100.64.0.0/10) は CGN 用だが VPC 内では利用可能
 ```
 
-### コード例 3: Terraform による VPC 定義
+### Code Example 3: VPC Definition with Terraform
 
 ```hcl
 module "vpc" {
@@ -281,7 +281,7 @@ output "database_subnet_group_name" {
 }
 ```
 
-### コード例 4: CloudFormation による VPC 定義
+### Code Example 4: VPC Definition with CloudFormation
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
@@ -447,7 +447,7 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet2
 
-  # Private Route Tables (AZ ごと)
+  # Private Route Tables (per AZ)
   PrivateRouteTable1:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -514,41 +514,41 @@ Outputs:
 
 ---
 
-## 3. ルートテーブルとゲートウェイ
+## 3. Route Tables and Gateways
 
 ```
-ルーティングの仕組み
+How Routing Works
 ======================
 
-[Public Subnet ルートテーブル]
+[Public Subnet Route Table]
 +--------------------+-----------+
 | Destination        | Target    |
 +--------------------+-----------+
-| 10.0.0.0/16        | local     |  <-- VPC 内通信
-| 0.0.0.0/0          | igw-xxx   |  <-- インターネットへ
+| 10.0.0.0/16        | local     |  <-- Intra-VPC communication
+| 0.0.0.0/0          | igw-xxx   |  <-- To the internet
 +--------------------+-----------+
 
-[Private App Subnet ルートテーブル]
+[Private App Subnet Route Table]
 +--------------------+-----------+
 | Destination        | Target    |
 +--------------------+-----------+
-| 10.0.0.0/16        | local     |  <-- VPC 内通信
-| 0.0.0.0/0          | nat-xxx   |  <-- NAT GW 経由
+| 10.0.0.0/16        | local     |  <-- Intra-VPC communication
+| 0.0.0.0/0          | nat-xxx   |  <-- Via NAT GW
 +--------------------+-----------+
 
-[Private DB Subnet ルートテーブル]
+[Private DB Subnet Route Table]
 +--------------------+-----------+
 | Destination        | Target    |
 +--------------------+-----------+
-| 10.0.0.0/16        | local     |  <-- VPC 内通信のみ
+| 10.0.0.0/16        | local     |  <-- Intra-VPC communication only
 +--------------------+-----------+
 ```
 
-### ルートテーブルの評価ルール
+### Route Table Evaluation Rules
 
-ルートテーブルでは、宛先 IP に対して最も具体的な（プレフィックスが長い）ルートが優先される。例えば、`10.1.0.0/16` と `0.0.0.0/0` の両方が存在する場合、`10.1.x.x` 宛のトラフィックは `10.1.0.0/16` のルートに従う。`local` ルートは常に最優先で、削除できない。
+In route tables, the most specific route (longest prefix) matching the destination IP takes priority. For example, if both `10.1.0.0/16` and `0.0.0.0/0` exist, traffic destined for `10.1.x.x` follows the `10.1.0.0/16` route. The `local` route always has the highest priority and cannot be deleted.
 
-### コード例 5: IGW と NAT GW の設定
+### Code Example 5: IGW and NAT GW Configuration
 
 ```bash
 # Internet Gateway
@@ -604,20 +604,20 @@ aws ec2 associate-route-table --route-table-id $PRIV_RT_1C --subnet-id $PRIV_APP
 aws ec2 associate-route-table --route-table-id $PRIV_RT_1C --subnet-id $PRIV_DB_1C
 ```
 
-### NAT Gateway vs NAT Instance 比較
+### NAT Gateway vs NAT Instance Comparison
 
-| 項目 | NAT Gateway | NAT Instance |
+| Item | NAT Gateway | NAT Instance |
 |---|---|---|
-| **可用性** | AZ 内で高可用（AWS 管理） | 手動でフェイルオーバー構成 |
-| **帯域幅** | 最大 100 Gbps | インスタンスタイプ依存 |
-| **メンテナンス** | AWS 管理（パッチ不要） | ユーザー管理 |
-| **コスト** | ~$0.062/時 + $0.062/GB | インスタンス料金のみ |
-| **セキュリティグループ** | 関連付け不可 | 関連付け可能 |
-| **ポートフォワーディング** | 非対応 | 対応 |
-| **Bastion ホスト兼用** | 不可 | 可能 |
-| **推奨** | 本番環境 | 開発/テスト環境（コスト重視） |
+| **Availability** | Highly available within AZ (AWS managed) | Manual failover configuration required |
+| **Bandwidth** | Up to 100 Gbps | Depends on instance type |
+| **Maintenance** | AWS managed (no patching required) | User managed |
+| **Cost** | ~$0.062/hr + $0.062/GB | Instance cost only |
+| **Security Groups** | Cannot be associated | Can be associated |
+| **Port Forwarding** | Not supported | Supported |
+| **Double as Bastion Host** | Not possible | Possible |
+| **Recommended For** | Production environments | Dev/test environments (cost-focused) |
 
-### コード例 6: NAT Instance による低コスト構成（開発環境向け）
+### Code Example 6: Low-Cost Configuration with NAT Instance (For Dev Environments)
 
 ```bash
 # NAT Instance の作成（Amazon Linux 2023 AMI）
@@ -652,20 +652,20 @@ aws ec2 create-route --route-table-id $PRIV_RT_1A \
 
 ---
 
-## 4. セキュリティグループとネットワーク ACL
+## 4. Security Groups and Network ACLs
 
-### SG vs NACL 比較表
+### SG vs NACL Comparison
 
-| 特性 | セキュリティグループ (SG) | ネットワーク ACL (NACL) |
+| Characteristic | Security Group (SG) | Network ACL (NACL) |
 |---|---|---|
-| **適用レベル** | ENI（インスタンス単位） | サブネット単位 |
-| **ステート** | ステートフル（戻りは自動許可） | ステートレス（戻りも明示必要） |
-| **ルール** | 許可のみ | 許可 + 拒否 |
-| **評価順序** | 全ルールを評価 | 番号順に評価、最初の一致 |
-| **デフォルト** | 全アウトバウンド許可 | 全トラフィック許可 |
-| **推奨用途** | 主要なアクセス制御 | 追加の防御層（サブネットレベル） |
+| **Applied At** | ENI (per instance) | Per subnet |
+| **State** | Stateful (return traffic automatically allowed) | Stateless (return traffic must be explicitly allowed) |
+| **Rules** | Allow only | Allow + Deny |
+| **Evaluation Order** | All rules evaluated | Evaluated in order by number, first match wins |
+| **Default** | All outbound allowed | All traffic allowed |
+| **Recommended Use** | Primary access control | Additional defense layer (subnet level) |
 
-### コード例 7: 3層アーキテクチャの SG 設計
+### Code Example 7: SG Design for 3-Tier Architecture
 
 ```bash
 # ALB 用 SG
@@ -712,7 +712,7 @@ aws ec2 authorize-security-group-ingress --group-id $ENDPOINT_SG \
   --protocol tcp --port 443 --cidr 10.0.0.0/16
 ```
 
-### コード例 8: ネットワーク ACL によるサブネットレベルの防御
+### Code Example 8: Subnet-Level Defense with Network ACLs
 
 ```bash
 # DB サブネット用 NACL
@@ -757,20 +757,20 @@ aws ec2 replace-network-acl-association \
   --network-acl-id $DB_NACL
 ```
 
-### セキュリティグループのベストプラクティス
+### Security Group Best Practices
 
 ```
-1. ソースには CIDR ではなく SG ID を指定
-   ✕ --cidr 10.0.11.0/24
-   ○ --source-group sg-app-xxxxx
-   理由: IP が変わっても追従する。意図が明確。
+1. Use SG IDs instead of CIDRs for sources
+   Bad:  --cidr 10.0.11.0/24
+   Good: --source-group sg-app-xxxxx
+   Reason: Tracks automatically even when IPs change. Intent is clearer.
 
-2. 用途ごとに SG を分離
-   ✕ 1つの SG に全ルールを集約
-   ○ ALB用、App用、DB用、管理用で分離
-   理由: 最小権限の原則。変更の影響範囲を限定。
+2. Separate SGs by purpose
+   Bad:  All rules in a single SG
+   Good: Separate SGs for ALB, App, DB, and management
+   Reason: Principle of least privilege. Limits the blast radius of changes.
 
-3. 説明フィールドを必ず記載
+3. Always fill in the description field
    aws ec2 authorize-security-group-ingress --group-id $SG \
      --ip-permissions '[{
        "IpProtocol": "tcp",
@@ -779,8 +779,8 @@ aws ec2 replace-network-acl-association \
        "IpRanges": [{"CidrIp": "0.0.0.0/0", "Description": "HTTPS from Internet"}]
      }]'
 
-4. 定期的な棚卸し
-   # 使用されていない SG の検出
+4. Conduct regular audits
+   # Detect unused SGs
    aws ec2 describe-security-groups \
      --query 'SecurityGroups[?length(IpPermissions)==`0` && length(IpPermissionsEgress)==`1`].[GroupId,GroupName]' \
      --output table
@@ -788,29 +788,29 @@ aws ec2 replace-network-acl-association \
 
 ---
 
-## 5. VPC エンドポイント
+## 5. VPC Endpoints
 
 ```
-VPC エンドポイントの種類
+Types of VPC Endpoints
 ==========================
 
-Gateway Endpoint (無料)
-  対応: S3, DynamoDB
-  ルートテーブルにエントリ追加
-  App --> Route Table --> S3 (AWS 内部ネットワーク)
+Gateway Endpoint (free)
+  Supported: S3, DynamoDB
+  Adds an entry to the route table
+  App --> Route Table --> S3 (AWS internal network)
 
-Interface Endpoint (有料: ~$0.014/時 + データ転送)
-  対応: ほぼ全 AWS サービス
-  サブネットに ENI を作成
-  App --> ENI --> AWS サービス (PrivateLink)
+Interface Endpoint (paid: ~$0.014/hr + data transfer)
+  Supported: Nearly all AWS services
+  Creates an ENI in the subnet
+  App --> ENI --> AWS Service (PrivateLink)
 
 Gateway Load Balancer Endpoint
-  対応: サードパーティアプライアンス
-  ネットワークトラフィックのインスペクション用
-  App --> GWLB Endpoint --> Firewall Appliance --> 宛先
+  Supported: Third-party appliances
+  For network traffic inspection
+  App --> GWLB Endpoint --> Firewall Appliance --> Destination
 ```
 
-### コード例 9: VPC エンドポイントの作成
+### Code Example 9: Creating VPC Endpoints
 
 ```bash
 # Gateway エンドポイント（S3）- 無料
@@ -880,19 +880,19 @@ aws ec2 create-vpc-endpoint \
   --tag-specifications 'ResourceType=vpc-endpoint,Tags=[{Key=Name,Value=sts-endpoint}]'
 ```
 
-### ECS/EKS で必要な VPC エンドポイント一覧
+### Required VPC Endpoints for ECS/EKS
 
-| サービス | エンドポイントタイプ | 必要性 | 用途 |
+| Service | Endpoint Type | Necessity | Purpose |
 |---|---|---|---|
-| S3 | Gateway (無料) | 必須 | ECR イメージレイヤーの取得 |
-| ECR (dkr) | Interface | 必須 | Docker イメージの Pull |
-| ECR (api) | Interface | 必須 | ECR API コール |
-| CloudWatch Logs | Interface | 推奨 | ログ送信 |
-| STS | Interface | EKS で必須 | IAM Roles for Service Accounts |
-| Secrets Manager | Interface | 推奨 | シークレット取得 |
-| SSM | Interface | 推奨 | パラメータストア、Session Manager |
+| S3 | Gateway (free) | Required | Fetching ECR image layers |
+| ECR (dkr) | Interface | Required | Docker image pull |
+| ECR (api) | Interface | Required | ECR API calls |
+| CloudWatch Logs | Interface | Recommended | Log delivery |
+| STS | Interface | Required for EKS | IAM Roles for Service Accounts |
+| Secrets Manager | Interface | Recommended | Secret retrieval |
+| SSM | Interface | Recommended | Parameter Store, Session Manager |
 
-### S3 Gateway エンドポイントのポリシー設定
+### S3 Gateway Endpoint Policy Configuration
 
 ```bash
 # S3 エンドポイントへのポリシー設定（特定バケットのみ許可）
@@ -929,27 +929,27 @@ aws ec2 modify-vpc-endpoint \
 
 ---
 
-## 6. VPC Peering と Transit Gateway
+## 6. VPC Peering and Transit Gateway
 
 ### VPC Peering
 
 ```
-VPC Peering の構成:
+VPC Peering Configuration:
 
   VPC-A (10.0.0.0/16) <----> VPC-B (10.1.0.0/16)
        |                          |
-       +---- Peering 接続 --------+
+       +---- Peering Connection --+
        |                          |
-  ルートテーブルに          ルートテーブルに
-  10.1.0.0/16 -> pcx-xxx   10.0.0.0/16 -> pcx-xxx
+  Add to route table:        Add to route table:
+  10.1.0.0/16 -> pcx-xxx    10.0.0.0/16 -> pcx-xxx
 
-制約:
-  - 推移的ルーティング不可 (A-B, B-C でも A-C は通信不可)
-  - CIDR 重複不可
-  - リージョン間対応 (Inter-Region Peering)
+Constraints:
+  - No transitive routing (A-B and B-C does not mean A-C can communicate)
+  - CIDR overlap not allowed
+  - Cross-region supported (Inter-Region Peering)
 ```
 
-### コード例 10: VPC Peering の設定
+### Code Example 10: VPC Peering Setup
 
 ```bash
 # VPC Peering 接続の作成
@@ -982,11 +982,11 @@ aws ec2 modify-vpc-peering-connection-options \
 ### Transit Gateway
 
 ```
-Transit Gateway の構成（ハブ&スポーク):
+Transit Gateway Configuration (Hub & Spoke):
 
                     +-------------------+
                     |  Transit Gateway  |
-                    |  (ハブ)           |
+                    |  (Hub)            |
                     +---+-----+-----+--+
                         |     |     |
             +-----------+     |     +-----------+
@@ -1002,14 +1002,14 @@ Transit Gateway の構成（ハブ&スポーク):
                                       | On-Premises |
                                       +-------------+
 
-利点:
-  - 推移的ルーティング対応 (A-B, B-C → A-C 通信可能)
-  - ルートテーブルで通信制御
-  - VPN / Direct Connect もアタッチ可能
-  - 複数アカウント対応 (RAM で共有)
+Benefits:
+  - Supports transitive routing (A-B and B-C enables A-C communication)
+  - Traffic control via route tables
+  - VPN / Direct Connect can also be attached
+  - Multi-account support (shared via RAM)
 ```
 
-### コード例 11: Transit Gateway の作成と VPC アタッチ
+### Code Example 11: Creating and Attaching a Transit Gateway
 
 ```bash
 # Transit Gateway の作成
@@ -1048,40 +1048,40 @@ aws ec2 search-transit-gateway-routes \
   --filters "Name=type,Values=propagated"
 ```
 
-### Peering vs Transit Gateway 使い分け
+### Peering vs Transit Gateway: When to Use Which
 
-| 項目 | VPC Peering | Transit Gateway |
+| Item | VPC Peering | Transit Gateway |
 |---|---|---|
-| **接続トポロジー** | ポイントツーポイント | ハブ&スポーク |
-| **推移的ルーティング** | 不可 | 可能 |
-| **最大接続数** | VPC あたり 125 | 5,000 アタッチメント |
-| **コスト** | データ転送料のみ | $0.07/時 + データ転送料 |
-| **帯域幅** | 制限なし | VPC アタッチメントあたり 50 Gbps |
-| **VPN/DX 統合** | 不可 | 可能 |
-| **推奨** | 2-3 VPC の少数接続 | 4+ VPC、VPN/DX 統合 |
+| **Connection Topology** | Point-to-point | Hub & spoke |
+| **Transitive Routing** | Not supported | Supported |
+| **Max Connections** | 125 per VPC | 5,000 attachments |
+| **Cost** | Data transfer only | $0.07/hr + data transfer |
+| **Bandwidth** | No limit | 50 Gbps per VPC attachment |
+| **VPN/DX Integration** | Not supported | Supported |
+| **Recommended For** | 2-3 VPCs with few connections | 4+ VPCs, VPN/DX integration |
 
 ---
 
 ## 7. VPC Flow Logs
 
-### VPC Flow Logs の概要
+### VPC Flow Logs Overview
 
-VPC Flow Logs は VPC 内のネットワークインターフェース間のトラフィック情報を記録する機能である。セキュリティ分析、ネットワーク監視、トラブルシューティングに不可欠である。
+VPC Flow Logs is a feature that records traffic information between network interfaces within a VPC. It is essential for security analysis, network monitoring, and troubleshooting.
 
 ```
-Flow Log の記録レベル:
+Flow Log Recording Levels:
 
-VPC レベル        → VPC 内の全 ENI のトラフィックを記録
-サブネットレベル  → 特定サブネット内の全 ENI のトラフィックを記録
-ENI レベル        → 特定の ENI のトラフィックのみ記録
+VPC level          -> Records traffic for all ENIs in the VPC
+Subnet level       -> Records traffic for all ENIs in a specific subnet
+ENI level          -> Records traffic for a specific ENI only
 
-送信先:
-  CloudWatch Logs  → リアルタイム分析、メトリクスフィルター
-  S3               → 長期保存、Athena でクエリ（推奨）
-  Kinesis Firehose → リアルタイム加工、SIEM 連携
+Destinations:
+  CloudWatch Logs  -> Real-time analysis, metric filters
+  S3               -> Long-term storage, query with Athena (recommended)
+  Kinesis Firehose -> Real-time processing, SIEM integration
 ```
 
-### コード例 12: VPC Flow Logs の設定
+### Code Example 12: VPC Flow Logs Configuration
 
 ```bash
 # CloudWatch Logs への Flow Log 設定
@@ -1144,7 +1144,7 @@ aws iam put-role-policy \
   }'
 ```
 
-### コード例 13: Athena で Flow Logs を分析
+### Code Example 13: Analyzing Flow Logs with Athena
 
 ```sql
 -- Athena テーブルの作成（S3 に保存した Flow Logs 用）
@@ -1213,7 +1213,7 @@ LIMIT 50;
 
 ---
 
-## 8. AWS CDK による VPC 構築
+## 8. Building a VPC with AWS CDK
 
 ```typescript
 // lib/vpc-stack.ts
@@ -1328,31 +1328,31 @@ export class VpcStack extends cdk.Stack {
 
 ---
 
-## 9. IPv6 対応
+## 9. IPv6 Support
 
-### デュアルスタック VPC の構成
+### Dual-Stack VPC Configuration
 
 ```
-デュアルスタック VPC:
+Dual-Stack VPC:
 
-  IPv4 CIDR: 10.0.0.0/16 (プライベート)
-  IPv6 CIDR: 2600:1f18:xxxx::/56 (AWS 割当パブリック)
+  IPv4 CIDR: 10.0.0.0/16 (private)
+  IPv6 CIDR: 2600:1f18:xxxx::/56 (AWS-assigned public)
 
-  サブネット:
+  Subnets:
     Public:  10.0.1.0/24 + 2600:1f18:xxxx:0100::/64
     Private: 10.0.11.0/24 + 2600:1f18:xxxx:0b00::/64
 
-  ルーティング:
-    Public:  ::/0 → igw-xxx (IPv6 インターネット直接)
-    Private: ::/0 → eigw-xxx (Egress-only Internet Gateway)
+  Routing:
+    Public:  ::/0 -> igw-xxx (direct IPv6 internet access)
+    Private: ::/0 -> eigw-xxx (Egress-only Internet Gateway)
 
   Egress-only Internet Gateway:
-    - IPv6 のアウトバウンドのみ許可（NAT GW の IPv6 版）
-    - インバウンドは拒否
-    - 無料
+    - Allows outbound IPv6 only (IPv6 equivalent of NAT GW)
+    - Inbound is denied
+    - Free
 ```
 
-### コード例 14: IPv6 対応 VPC の設定
+### Code Example 14: IPv6-Enabled VPC Configuration
 
 ```bash
 # VPC に IPv6 CIDR を関連付け
@@ -1383,114 +1383,114 @@ aws ec2 create-route --route-table-id $PUB_RT \
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### 1. 全リソースをパブリックサブネットに配置
+### 1. Placing All Resources in Public Subnets
 
-**問題**: EC2、RDS、ElastiCache をすべてパブリックサブネットに配置すると、セキュリティグループの設定ミスで内部リソースがインターネットに露出するリスクがある。多層防御の原則に反する。
+**Problem**: Placing EC2, RDS, and ElastiCache all in public subnets risks exposing internal resources to the internet if security group configurations are incorrect. This violates the principle of defense in depth.
 
-**対策**: 3層サブネット設計を採用する。パブリックには ALB/NAT GW のみ配置し、アプリケーションとデータベースはプライベートサブネットに配置する。
+**Solution**: Adopt a 3-tier subnet design. Place only ALB/NAT GW in public subnets, and place applications and databases in private subnets.
 
-### 2. CIDR の過小設計
+### 2. Undersized CIDR Design
 
-**問題**: VPC を `/24` のような小さい CIDR で作成すると、EKS ノード、Lambda ENI、ElastiCache ノードなど予想外に IP を消費するサービスで IP 枯渇が発生する。VPC の CIDR は後から変更できない。
+**Problem**: Creating a VPC with a small CIDR like `/24` leads to IP exhaustion from services that consume IPs unexpectedly, such as EKS nodes, Lambda ENIs, and ElastiCache nodes. A VPC's CIDR cannot be changed after creation.
 
-**対策**: VPC は `/16` で作成し、サブネットは用途に応じて `/20` 〜 `/24` で分割する。将来の拡張用に CIDR 空間の半分は予約しておく。
+**Solution**: Create VPCs with `/16` and segment subnets as `/20` to `/24` depending on purpose. Reserve half of the CIDR space for future expansion.
 
-### 3. シングル AZ 構成
+### 3. Single AZ Configuration
 
-**問題**: コスト削減のため 1 つの AZ にのみリソースを配置すると、AZ 障害時にサービス全体が停止する。AWS の AZ 障害は年に数回発生している。
+**Problem**: Placing resources in only one AZ to save costs means the entire service goes down during an AZ outage. AWS AZ failures occur several times per year.
 
-**対策**: 最低 2 AZ、可能であれば 3 AZ 構成にする。NAT Gateway もマルチ AZ にすることで、単一 AZ の障害がプライベートサブネットのインターネットアクセスに影響しないようにする。
+**Solution**: Use at least 2 AZs, ideally 3. Make NAT Gateways multi-AZ as well to prevent a single AZ failure from affecting internet access for private subnets.
 
-### 4. セキュリティグループの過剰許可
+### 4. Overly Permissive Security Groups
 
-**問題**: 開発の便宜のために `0.0.0.0/0` からの全ポート許可を設定し、本番にそのまま持ち込む。
+**Problem**: Allowing all ports from `0.0.0.0/0` for development convenience and carrying that configuration into production.
 
-**対策**: SG のソースには他の SG の ID を指定する。ポートは必要最小限に限定する。AWS Config の `restricted-ssh` や `restricted-common-ports` ルールで自動検出する。
+**Solution**: Use other SG IDs as sources in SG rules. Limit ports to the minimum required. Use AWS Config rules like `restricted-ssh` and `restricted-common-ports` for automatic detection.
 
-### 5. VPC エンドポイントを使わない NAT Gateway 経由のアクセス
+### 5. Accessing AWS Services via NAT Gateway Without VPC Endpoints
 
-**問題**: S3 や DynamoDB へのアクセスを NAT Gateway 経由で行うと、不要な NAT Gateway 料金（$0.062/GB）が発生する。
+**Problem**: Routing S3 and DynamoDB access through NAT Gateway incurs unnecessary NAT Gateway charges ($0.062/GB).
 
-**対策**: S3 と DynamoDB は Gateway Endpoint（無料）を使用する。ECR やその他の AWS サービスも Interface Endpoint を検討し、NAT Gateway のデータ処理量を削減する。
+**Solution**: Use Gateway Endpoints (free) for S3 and DynamoDB. Consider Interface Endpoints for ECR and other AWS services to reduce NAT Gateway data processing volume.
 
 ---
 
 ## FAQ
 
-### Q1: NAT Gateway のコストが高い場合の対策は？
+### Q1: What can be done when NAT Gateway costs are too high?
 
-**A**: NAT GW は約 $0.062/時 + データ処理 $0.062/GB で、月額約 $45 + データ転送量です。コスト削減策:
-1. **開発環境**: NAT Instance（t4g.nano: 約 $3/月）で代替
-2. **VPC エンドポイント**: S3・DynamoDB は Gateway Endpoint（無料）で NAT GW を経由しない
-3. **ECR Image Pull**: VPC エンドポイントで NAT GW トラフィックを削減
-4. **シングル NAT GW**: 開発環境では AZ ごとではなく1つの NAT GW を共有
-5. **Flow Logs 分析**: NAT GW を経由しているトラフィックの内訳を分析し、エンドポイント化可能なものを特定
+**A**: NAT GW costs approximately $0.062/hr + data processing at $0.062/GB, resulting in about $45/month plus data transfer. Cost reduction strategies:
+1. **Dev environments**: Replace with a NAT Instance (t4g.nano: approximately $3/month)
+2. **VPC endpoints**: Use Gateway Endpoints (free) for S3 and DynamoDB to bypass NAT GW
+3. **ECR image pull**: Reduce NAT GW traffic with VPC endpoints
+4. **Single NAT GW**: In dev environments, share one NAT GW instead of one per AZ
+5. **Flow Logs analysis**: Analyze traffic passing through NAT GW to identify what can be routed through endpoints
 
-### Q2: Peering と Transit Gateway はどう使い分けますか？
+### Q2: How do you choose between Peering and Transit Gateway?
 
 **A**:
-- **VPC Peering**: 2-3 VPC の接続。無料（データ転送料のみ）。1対1接続
-- **Transit Gateway**: 多数の VPC/オンプレミス接続。ハブ&スポーク構成。時間課金（約 $0.07/時）
-VPC が 3 つ以下なら Peering、4 つ以上や VPN 接続がある場合は Transit Gateway が効率的です。
+- **VPC Peering**: For connecting 2-3 VPCs. Free (data transfer only). Point-to-point connections
+- **Transit Gateway**: For connecting many VPCs/on-premises. Hub & spoke topology. Hourly charge (approximately $0.07/hr)
+Use Peering for 3 or fewer VPCs, and Transit Gateway for 4 or more VPCs or when VPN connections are needed.
 
-### Q3: VPC Flow Logs は有効にすべきですか？
+### Q3: Should VPC Flow Logs be enabled?
 
-**A**: プロダクション環境では必須です。セキュリティインシデント調査、ネットワークトラブルシュート、コンプライアンスで必要です。コスト最適化のため、送信先は S3（CloudWatch Logs より安価）を選び、カスタムフォーマットで必要なフィールドのみ記録してください。
+**A**: They are essential for production environments. They are needed for security incident investigation, network troubleshooting, and compliance. For cost optimization, choose S3 as the destination (cheaper than CloudWatch Logs) and use a custom format to record only the necessary fields.
 
-### Q4: AWS Network Firewall は必要ですか？
+### Q4: Is AWS Network Firewall necessary?
 
-**A**: 基本的な要件はセキュリティグループと NACL で十分ですが、以下の場合に Network Firewall を検討してください:
-- **IDS/IPS が必要**: Suricata ベースのルールで侵入検知・防止
-- **ドメインフィルタリング**: 特定のドメインへのアウトバウンドのみ許可
-- **TLS インスペクション**: 暗号化されたトラフィックの検査が必要
-- **コンプライアンス要件**: PCI DSS や HIPAA で要求される場合
+**A**: Basic requirements can be met with security groups and NACLs, but consider Network Firewall in the following cases:
+- **IDS/IPS needed**: Intrusion detection and prevention with Suricata-based rules
+- **Domain filtering**: Allow outbound traffic to specific domains only
+- **TLS inspection**: Inspection of encrypted traffic is required
+- **Compliance requirements**: Required by PCI DSS or HIPAA
 
-### Q5: セキュリティグループの上限に達した場合はどうしますか？
+### Q5: What should you do when security group limits are reached?
 
-**A**: デフォルトでは VPC あたり 2,500 SG、SG あたり 60 インバウンドルール + 60 アウトバウンドルールです。対策:
-1. **プレフィックスリストの活用**: 複数の CIDR を 1 つのプレフィックスリストにまとめる
-2. **SG の整理**: 未使用の SG を削除、類似ルールの SG を統合
-3. **Service Quotas で上限引き上げ**: AWS Support から引き上げを申請
-4. **NACL の活用**: サブネットレベルのルールを NACL に移行して SG ルールを削減
+**A**: The defaults are 2,500 SGs per VPC, and 60 inbound rules + 60 outbound rules per SG. Countermeasures:
+1. **Use prefix lists**: Consolidate multiple CIDRs into a single prefix list
+2. **Clean up SGs**: Delete unused SGs and consolidate SGs with similar rules
+3. **Raise limits via Service Quotas**: Request increases through AWS Support
+4. **Leverage NACLs**: Move subnet-level rules to NACLs to reduce SG rule count
 
-### Q6: VPC の DNS 設定でハマりやすいポイントは？
+### Q6: What are common pitfalls with VPC DNS settings?
 
-**A**: 以下の点に注意してください:
-1. **enableDnsSupport**: true にしないと VPC 内の DNS 解決が動作しない
-2. **enableDnsHostnames**: true にしないと EC2 インスタンスにパブリック DNS ホスト名が付与されない
-3. **DHCP オプションセット**: カスタム DNS サーバーを指定する場合に変更
-4. **Route 53 Resolver**: オンプレミスとの DNS 統合に必要（インバウンド/アウトバウンドエンドポイント）
-5. **プライベートホストゾーン**: VPC 内部のサービスディスカバリに活用
+**A**: Pay attention to the following:
+1. **enableDnsSupport**: DNS resolution within the VPC will not work unless set to true
+2. **enableDnsHostnames**: EC2 instances will not receive public DNS hostnames unless set to true
+3. **DHCP option sets**: Modify when specifying custom DNS servers
+4. **Route 53 Resolver**: Required for DNS integration with on-premises (inbound/outbound endpoints)
+5. **Private hosted zones**: Useful for service discovery within the VPC
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| VPC 設計 | /16 CIDR、3層サブネット（Public/Private App/Private DB）、マルチ AZ |
-| サブネット | Public: ALB/NAT、Private App: ECS/EC2、Private DB: RDS/Cache |
-| ルーティング | Public -> IGW、Private -> NAT GW、DB -> local のみ |
-| セキュリティ | SG でアクセス制御（主）、NACL で追加防御（補助） |
-| VPC エンドポイント | S3/DynamoDB は Gateway（無料）、その他は Interface |
-| VPC 間接続 | 少数は Peering、多数は Transit Gateway |
-| Flow Logs | S3 + Athena でコスト効率の良い分析 |
-| コスト注意 | NAT GW が主要コスト要素。VPC エンドポイントで削減 |
-| IPv6 | デュアルスタック対応、Egress-only IGW でプライベートアクセス |
+| VPC Design | /16 CIDR, 3-tier subnets (Public/Private App/Private DB), multi-AZ |
+| Subnets | Public: ALB/NAT, Private App: ECS/EC2, Private DB: RDS/Cache |
+| Routing | Public -> IGW, Private -> NAT GW, DB -> local only |
+| Security | SG for access control (primary), NACL for additional defense (supplementary) |
+| VPC Endpoints | S3/DynamoDB use Gateway (free), others use Interface |
+| Inter-VPC Connectivity | Peering for few VPCs, Transit Gateway for many |
+| Flow Logs | Cost-efficient analysis with S3 + Athena |
+| Cost Considerations | NAT GW is the major cost factor. Reduce with VPC endpoints |
+| IPv6 | Dual-stack support, Egress-only IGW for private access |
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [RDS 基礎](../03-database/00-rds-basics.md) — VPC 内でのデータベース配置
-- [ElastiCache](../03-database/02-elasticache.md) — プライベートサブネットでのキャッシュ構築
-- [DynamoDB](../03-database/01-dynamodb.md) — VPC エンドポイントでの接続最適化
-- [Route 53](./01-route53.md) — VPC のプライベートホストゾーンと DNS 設計
+- [RDS Fundamentals](../03-database/00-rds-basics.md) -- Database placement within a VPC
+- [ElastiCache](../03-database/02-elasticache.md) -- Building caches in private subnets
+- [DynamoDB](../03-database/01-dynamodb.md) -- Connection optimization with VPC endpoints
+- [Route 53](./01-route53.md) -- VPC private hosted zones and DNS design
 
-## 参考文献
+## References
 
-1. **AWS 公式ドキュメント**: [Amazon VPC ユーザーガイド](https://docs.aws.amazon.com/ja_jp/vpc/latest/userguide/) — VPC の全機能リファレンス
-2. **AWS Well-Architected Framework**: [セキュリティの柱](https://docs.aws.amazon.com/ja_jp/wellarchitected/latest/security-pillar/) — ネットワークセキュリティのベストプラクティス
-3. **AWS ブログ**: [VPC ベストプラクティス](https://aws.amazon.com/blogs/networking-and-content-delivery/) — 実践的な VPC 設計パターン
-4. **AWS re:Invent**: [NET305 - Advanced VPC design and new capabilities](https://www.youtube.com/results?search_query=aws+reinvent+advanced+vpc+design) — 高度な VPC 設計
-5. **AWS ドキュメント**: [VPC Flow Logs](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html) — トラフィック分析と監視
+1. **AWS Official Documentation**: [Amazon VPC User Guide](https://docs.aws.amazon.com/vpc/latest/userguide/) -- Complete VPC feature reference
+2. **AWS Well-Architected Framework**: [Security Pillar](https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/) -- Network security best practices
+3. **AWS Blog**: [VPC Best Practices](https://aws.amazon.com/blogs/networking-and-content-delivery/) -- Practical VPC design patterns
+4. **AWS re:Invent**: [NET305 - Advanced VPC design and new capabilities](https://www.youtube.com/results?search_query=aws+reinvent+advanced+vpc+design) -- Advanced VPC design
+5. **AWS Documentation**: [VPC Flow Logs](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html) -- Traffic analysis and monitoring
