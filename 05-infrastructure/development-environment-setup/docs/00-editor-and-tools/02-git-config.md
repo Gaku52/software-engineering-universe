@@ -1,123 +1,123 @@
-# Git 設定
+# Git Configuration
 
-> Git の初期設定からGPG署名・SSH鍵・diff/mergeツール連携まで、プロフェッショナルなGit環境を構築するための完全ガイド。
+> A complete guide to building a professional Git environment — from initial setup to GPG signing, SSH keys, and diff/merge tool integration.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. `.gitconfig` の体系的な設定と実用的なエイリアス構築
-2. GPG 署名と SSH 鍵の正しい設定方法
-3. diff/merge ツールの統合と credential helper の管理
-4. 複数アカウントの使い分けと Git hooks の活用
-5. トラブルシューティングとパフォーマンス最適化
+1. Systematic `.gitconfig` configuration and practical alias building
+2. Correct setup of GPG signing and SSH keys
+3. diff/merge tool integration and credential helper management
+4. Managing multiple accounts and leveraging Git hooks
+5. Troubleshooting and performance optimization
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ターミナル設定](./01-terminal-setup.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Terminal Setup](./01-terminal-setup.md)
 
 ---
 
-## 1. Git の初期設定
+## 1. Initial Git Setup
 
-### 1.1 基本設定
+### 1.1 Basic Configuration
 
 ```bash
-# ユーザー情報
+# User information
 git config --global user.name "Your Name"
 git config --global user.email "your.email@example.com"
 
-# デフォルトブランチ名
+# Default branch name
 git config --global init.defaultBranch main
 
-# エディタ設定
+# Editor setting
 git config --global core.editor "code --wait"
 
-# 改行コード処理
+# Line ending handling
 # macOS/Linux
 git config --global core.autocrlf input
 # Windows
 git config --global core.autocrlf true
 
-# 日本語ファイル名の表示
+# Display filenames with non-ASCII characters
 git config --global core.quotepath false
 
-# カラー出力
+# Color output
 git config --global color.ui auto
 
-# ページャー設定 (delta 推奨)
+# Pager setting (delta recommended)
 git config --global core.pager "delta"
 
-# 大文字小文字を区別
+# Case sensitivity
 git config --global core.ignorecase false
 
-# シンボリックリンクを追跡
+# Track symbolic links
 git config --global core.symlinks true
 ```
 
-### 1.2 設定ファイルの階層
+### 1.2 Configuration File Hierarchy
 
 ```
-Git 設定の優先順位 (高い順):
+Git configuration priority (highest to lowest):
 
 ┌─────────────────────────────────────────────┐
 │  1. Local    (.git/config)                   │
-│     → リポジトリ固有の設定                    │
+│     → Repository-specific settings           │
 │     → git config --local                     │
-│     → 例: プロジェクト固有の user.email       │
+│     → e.g., project-specific user.email      │
 ├─────────────────────────────────────────────┤
 │  2. Global   (~/.gitconfig)                  │
-│     → ユーザー共通の設定                      │
+│     → User-wide settings                     │
 │     → git config --global                    │
-│     → 例: 個人のエイリアス、エディタ設定      │
+│     → e.g., personal aliases, editor config  │
 ├─────────────────────────────────────────────┤
 │  3. System   (/etc/gitconfig)                │
-│     → システム全体の設定                      │
+│     → System-wide settings                   │
 │     → git config --system                    │
-│     → 例: 組織のプロキシ設定                  │
+│     → e.g., organization proxy settings      │
 ├─────────────────────────────────────────────┤
 │  4. Portable (/path/to/.gitconfig)           │
-│     → GIT_CONFIG_GLOBAL 環境変数で指定       │
-│     → dotfiles リポジトリからの共有設定      │
+│     → Specified via GIT_CONFIG_GLOBAL env var│
+│     → Shared config from dotfiles repository │
 └─────────────────────────────────────────────┘
 
-※ 同じキーが複数レベルで設定された場合、
-   上位（Local）の値が優先される
+* When the same key is set at multiple levels,
+  the higher level (Local) takes precedence
 ```
 
-### 1.3 設定の確認と管理
+### 1.3 Viewing and Managing Configuration
 
 ```bash
-# 全設定の一覧表示 (適用元も表示)
+# List all settings (with source)
 git config --list --show-origin
 
-# 特定のキーの値を確認
+# Check the value of a specific key
 git config user.email
 
-# 設定の適用元を確認
+# Check the source of a setting
 git config --show-origin user.email
 
-# 設定のスコープを確認
+# Check the scope of settings
 git config --show-scope --list
 
-# 設定を削除
+# Remove a setting
 git config --global --unset user.signingkey
 
-# 設定ファイルを直接編集
+# Edit the config file directly
 git config --global --edit
 
-# 条件付き設定の確認
+# Check conditional configurations
 git config --list --show-origin | grep includeIf
 ```
 
 ---
 
-## 2. .gitconfig 完全版
+## 2. Complete .gitconfig
 
-### 2.1 推奨設定
+### 2.1 Recommended Configuration
 
 ```ini
 # ~/.gitconfig
@@ -138,7 +138,7 @@ git config --list --show-origin | grep includeIf
     fsmonitor = true
     untrackedcache = true
     symlinks = true
-    # 大規模リポジトリでのパフォーマンス改善
+    # Performance improvement for large repositories
     # fsmonitor = true  # Git 2.37+ (Watchman or built-in)
 
 [init]
@@ -161,8 +161,8 @@ git config --list --show-origin | grep includeIf
     default = current
     autoSetupRemote = true
     followTags = true
-    # Git 2.40+: push 時に新しいブランチも自動設定
-    # useForceIfIncludes = true  # force-with-lease の強化版
+    # Git 2.40+: auto-setup new branches on push
+    # useForceIfIncludes = true  # Enhanced version of force-with-lease
 
 [pull]
     rebase = true
@@ -170,14 +170,14 @@ git config --list --show-origin | grep includeIf
 [fetch]
     prune = true
     prunetags = true
-    # 並列フェッチ (Git 2.36+)
-    parallel = 0  # CPUコア数に自動設定
+    # Parallel fetch (Git 2.36+)
+    parallel = 0  # Auto-set to number of CPU cores
     writeCommitGraph = true
 
 [merge]
     conflictstyle = zdiff3
     tool = vscode
-    # マージコミットに対象ブランチのログを含める
+    # Include log of target branch in merge commits
     log = 20
 
 [mergetool]
@@ -191,8 +191,8 @@ git config --list --show-origin | grep includeIf
     tool = vscode
     colorMoved = default
     algorithm = histogram
-    # バイナリファイルの差分表示
-    # wordRegex = .  # 単語単位の差分
+    # Show diff for binary files
+    # wordRegex = .  # Word-level diff
     renames = copies
     mnemonicPrefix = true
     submodule = log
@@ -206,19 +206,19 @@ git config --list --show-origin | grep includeIf
 [rebase]
     autosquash = true
     autostash = true
-    # rebase 時のコンフリクト検出を改善
+    # Improve conflict detection during rebase
     updateRefs = true
     # instructionFormat = "%s [%an, %ar]"
 
 [rerere]
     enabled = true
-    # rerere の自動ステージング
+    # Auto-staging for rerere
     autoupdate = true
 
 [commit]
     gpgsign = true
     verbose = true
-    # コミットメッセージテンプレート
+    # Commit message template
     # template = ~/.gitmessage
 
 [tag]
@@ -245,7 +245,7 @@ git config --list --show-origin | grep includeIf
 
 [branch]
     sort = -committerdate
-    # 新しいブランチ作成時に自動でリモート追跡
+    # Automatically track remote when creating a new branch
     autoSetupMerge = always
 
 [column]
@@ -253,23 +253,23 @@ git config --list --show-origin | grep includeIf
 
 [help]
     autocorrect = prompt
-    # autocorrect = 10  # 1秒後に自動修正実行
+    # autocorrect = 10  # Auto-correct after 1 second
 
 [log]
     date = iso
     # abbrevCommit = true
-    # follow = true  # ファイル名変更を自動追跡
+    # follow = true  # Auto-track file renames
 
 [status]
     showUntrackedFiles = all
     submoduleSummary = true
-    # short = true  # デフォルトで短縮形式
+    # short = true  # Use short format by default
 
 [stash]
     showPatch = true
 
 [transfer]
-    # Git オブジェクトの整合性チェック
+    # Integrity check for Git objects
     fsckObjects = true
 
 [receive]
@@ -278,7 +278,7 @@ git config --list --show-origin | grep includeIf
 [url "git@github.com:"]
     insteadOf = https://github.com/
 
-# GitHub CLI との統合
+# GitHub CLI integration
 [credential "https://github.com"]
     helper = !/usr/bin/gh auth git-credential
 
@@ -290,10 +290,10 @@ git config --list --show-origin | grep includeIf
     required = true
 ```
 
-### 2.2 コミットメッセージテンプレート
+### 2.2 Commit Message Template
 
 ```bash
-# テンプレートファイルを作成
+# Create the template file
 cat << 'EOF' > ~/.gitmessage
 
 # <type>(<scope>): <subject>
@@ -303,22 +303,22 @@ cat << 'EOF' > ~/.gitmessage
 # <footer>
 #
 # ─── Type ───────────────────────────
-# feat:     新機能
-# fix:      バグ修正
-# docs:     ドキュメント変更
-# style:    コードスタイル変更 (動作に影響しない)
-# refactor: リファクタリング
-# perf:     パフォーマンス改善
-# test:     テスト追加・修正
-# build:    ビルドシステム変更
-# ci:       CI 設定変更
-# chore:    その他の変更
-# revert:   コミットの取り消し
+# feat:     New feature
+# fix:      Bug fix
+# docs:     Documentation changes
+# style:    Code style changes (no functional impact)
+# refactor: Refactoring
+# perf:     Performance improvements
+# test:     Add or update tests
+# build:    Build system changes
+# ci:       CI configuration changes
+# chore:    Other changes
+# revert:   Revert a commit
 #
 # ─── Rules ──────────────────────────
-# Subject: 50文字以内、命令形、ピリオド不要
-# Body: 72文字で折り返し、何を・なぜ変えたか
-# Footer: Breaking Changes, Issue参照
+# Subject: max 50 chars, imperative mood, no period
+# Body: wrap at 72 chars, explain what and why
+# Footer: Breaking Changes, issue references
 #
 # ─── Example ────────────────────────
 # feat(auth): add JWT token refresh mechanism
@@ -331,21 +331,21 @@ cat << 'EOF' > ~/.gitmessage
 # BREAKING CHANGE: API now requires Authorization header
 EOF
 
-# テンプレートを有効化
+# Enable the template
 git config --global commit.template ~/.gitmessage
 ```
 
 ---
 
-## 3. エイリアス
+## 3. Aliases
 
-### 3.1 実用的エイリアス集
+### 3.1 Practical Alias Collection
 
 ```ini
-# ~/.gitconfig の [alias] セクション
+# [alias] section in ~/.gitconfig
 
 [alias]
-    # ─── 基本操作の短縮 ───
+    # ─── Shorthand for basic operations ───
     s = status
     a = add
     aa = add --all
@@ -373,112 +373,112 @@ git config --global commit.template ~/.gitmessage
     stp = stash pop
     stl = stash list
 
-    # ─── ログ表示 ───
+    # ─── Log display ───
     lg = log --oneline --graph --decorate --all -20
     ll = log --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset) %s %C(bold blue)<%an>%C(reset)%C(red)%d%C(reset)' --abbrev-commit -20
     hist = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --all
     lp = log --patch -5
     ls = log --stat --oneline -10
 
-    # ─── ファイル変更の追跡 ───
+    # ─── File change tracking ───
     filelog = log --follow -p --
     blame-line = "!f() { git log -L $1,$1:$2; }; f"
     contributors = shortlog --summary --numbered --email
 
-    # ─── 便利コマンド ───
-    # 直前のコミットを修正 (メッセージそのまま)
+    # ─── Useful commands ───
+    # Amend the last commit (keep message)
     amend = commit --amend --no-edit
 
-    # ステージング取り消し
+    # Unstage changes
     unstage = restore --staged
 
-    # 最後のコミットを取り消し (変更は保持)
+    # Undo the last commit (keep changes)
     undo = reset --soft HEAD~1
 
-    # 変更を一時退避
+    # Temporarily stash changes
     stash-all = stash push --include-untracked -m
 
-    # ブランチを最新に更新
+    # Update branch to latest
     sync = !git fetch --all --prune && git pull --rebase
 
-    # マージ済みブランチを削除
+    # Delete merged branches
     cleanup = !git branch --merged | grep -v '\\*\\|main\\|master\\|develop' | xargs -n 1 git branch -d
 
-    # リモートのマージ済みブランチも削除
+    # Delete merged remote branches too
     cleanup-remote = !git fetch --prune && git branch -r --merged origin/main | grep -v 'main\\|develop' | sed 's/origin\\///' | xargs -n 1 git push origin --delete
 
-    # ファイルの変更履歴
+    # File change history
     history = log --follow -p --
 
-    # 今日のコミット
+    # Today's commits
     today = log --since='midnight' --oneline --author='Your Name'
 
-    # 今週のコミット
+    # This week's commits
     week = log --since='1 week ago' --oneline --author='Your Name'
 
-    # WIP コミット
+    # WIP commit
     wip = !git add -A && git commit -m 'WIP: work in progress [skip ci]'
 
-    # WIP 取り消し
+    # Undo WIP
     unwip = !git log -1 --format='%s' | grep -q 'WIP' && git reset HEAD~1
 
-    # 初期コミット (空)
+    # Initial commit (empty)
     init-commit = !git init && git commit --allow-empty -m 'chore: initial commit'
 
-    # ブランチ名をコピー
+    # Copy branch name
     branch-name = rev-parse --abbrev-ref HEAD
 
-    # 最近のブランチ一覧
+    # List recent branches
     recent = branch --sort=-committerdate --format='%(committerdate:relative)\t%(refname:short)\t%(subject)' -20
 
-    # 差分の統計
+    # Diff statistics
     stat = diff --stat
 
-    # コミット間の差分ファイル一覧
+    # List changed files between commits
     changed = diff --name-only
 
-    # コンフリクトファイル一覧
+    # List conflicted files
     conflicts = diff --name-only --diff-filter=U
 
-    # Git root ディレクトリ表示
+    # Show Git root directory
     root = rev-parse --show-toplevel
 
-    # fixup コミット (autosquash 用)
+    # Fixup commit (for autosquash)
     fixup = "!f() { git commit --fixup=$1; }; f"
 
-    # タグ一覧 (バージョン順)
+    # List tags (by version)
     tags = tag -l --sort=-version:refname
 
-    # リモート URL 表示
+    # Show remote URL
     remote-url = remote get-url origin
 
-    # ブランチ比較 (何コミット差があるか)
+    # Compare branches (how many commits apart)
     ahead = "!f() { git rev-list --count HEAD..${1:-origin/main}; }; f"
     behind = "!f() { git rev-list --count ${1:-origin/main}..HEAD; }; f"
 
-    # インタラクティブな add (パッチモード)
+    # Interactive add (patch mode)
     patch = add --patch
 
-    # すべての変更を取り消し (注意して使用)
+    # Discard all changes (use with caution)
     nuke = !git reset --hard HEAD && git clean -fd
 
-    # ローカルの main を最新に
+    # Update local main to latest
     update-main = !git checkout main && git pull && git checkout -
 
-    # PR 用: 現在のブランチの全コミットを表示
+    # PR: show all commits on current branch
     pr-log = "!git log --oneline $(git merge-base HEAD main)..HEAD"
 
-    # PR 用: 現在のブランチの全変更ファイルを表示
+    # PR: show all changed files on current branch
     pr-files = "!git diff --name-only $(git merge-base HEAD main)..HEAD"
 
-    # PR 用: 現在のブランチの差分統計
+    # PR: show diff statistics for current branch
     pr-stat = "!git diff --stat $(git merge-base HEAD main)..HEAD"
 ```
 
-### 3.2 エイリアスの動作
+### 3.2 Alias Output Examples
 
 ```
-git lg の出力例:
+Example output of git lg:
 
   * a1b2c3d (HEAD -> feature/auth, origin/feature/auth) Add JWT middleware
   * d4e5f6g Add login endpoint
@@ -490,7 +490,7 @@ git lg の出力例:
   * s9t0u1v Fix database connection pool
   * v2w3x4y Add health check endpoint
 
-git recent の出力例:
+Example output of git recent:
 
   2 hours ago     feature/auth      Add JWT middleware
   5 hours ago     feature/ui        Update dashboard layout
@@ -498,7 +498,7 @@ git recent の出力例:
   3 days ago      main              Release v1.2.0
   1 week ago      feature/search    Add full-text search
 
-git pr-stat の出力例:
+Example output of git pr-stat:
 
   src/middleware/auth.ts   | 45 ++++++++++++
   src/routes/login.ts      | 32 +++++++++
@@ -509,52 +509,52 @@ git pr-stat の出力例:
 
 ---
 
-## 4. SSH 鍵の設定
+## 4. SSH Key Setup
 
-### 4.1 Ed25519 鍵の生成
+### 4.1 Generating an Ed25519 Key
 
 ```bash
-# SSH 鍵を生成 (Ed25519 推奨)
+# Generate an SSH key (Ed25519 recommended)
 ssh-keygen -t ed25519 -C "your.email@example.com"
 
-# 鍵の保存場所 (デフォルト: ~/.ssh/id_ed25519)
-# パスフレーズを設定 (空にしない)
+# Key storage location (default: ~/.ssh/id_ed25519)
+# Set a passphrase (do not leave it empty)
 
-# SSH エージェントに鍵を登録
+# Register the key with SSH agent
 eval "$(ssh-agent -s)"
 
-# macOS: キーチェーンに保存
+# macOS: save to Keychain
 ssh-add --apple-use-keychain ~/.ssh/id_ed25519
 
 # Linux
 ssh-add ~/.ssh/id_ed25519
 
-# 公開鍵をコピーして GitHub に登録
+# Copy public key and register it on GitHub
 cat ~/.ssh/id_ed25519.pub | pbcopy  # macOS
 cat ~/.ssh/id_ed25519.pub | xclip -selection clipboard  # Linux
 # GitHub → Settings → SSH and GPG keys → New SSH key
 
-# ─── 鍵の種類比較 ───
-# Ed25519:  推奨。高速、安全、鍵サイズが小さい
-# RSA 4096: レガシー互換。古いシステムとの接続に必要な場合
-# ECDSA:    非推奨。NSA関与の疑念あり
+# ─── Key type comparison ───
+# Ed25519:  Recommended. Fast, secure, small key size
+# RSA 4096: Legacy compatibility. Required for connecting to older systems
+# ECDSA:    Not recommended. Suspected NSA involvement
 ```
 
-### 4.2 SSH config
+### 4.2 SSH Config
 
 ```bash
 # ~/.ssh/config
 
-# ─── GitHub (個人) ───
+# ─── GitHub (personal) ───
 Host github.com
     HostName github.com
     User git
     IdentityFile ~/.ssh/id_ed25519
     AddKeysToAgent yes
-    UseKeychain yes  # macOS のみ
+    UseKeychain yes  # macOS only
     IdentitiesOnly yes
 
-# ─── GitHub (会社用アカウント) ───
+# ─── GitHub (work account) ───
 Host github-work
     HostName github.com
     User git
@@ -575,7 +575,7 @@ Host bitbucket.org
     User git
     IdentityFile ~/.ssh/id_ed25519
 
-# ─── 自社 Git サーバー ───
+# ─── Company Git server ───
 Host git.company.com
     HostName git.company.com
     User git
@@ -583,68 +583,68 @@ Host git.company.com
     IdentityFile ~/.ssh/id_ed25519_work
     ProxyCommand ssh -q -W %h:%p bastion.company.com
 
-# ─── 踏み台サーバー経由 ───
+# ─── Via bastion host ───
 Host bastion.company.com
     HostName bastion.company.com
     User your-username
     IdentityFile ~/.ssh/id_ed25519_work
 
-# ─── 全ホスト共通設定 ───
+# ─── Common settings for all hosts ───
 Host *
     ServerAliveInterval 60
     ServerAliveCountMax 3
     AddKeysToAgent yes
     Compression yes
 
-# 使い分け:
-# git clone git@github.com:personal/repo.git       # 個人
-# git clone git@github-work:company/repo.git       # 会社
+# Usage:
+# git clone git@github.com:personal/repo.git       # Personal
+# git clone git@github-work:company/repo.git       # Work
 # git clone git@gitlab.com:team/repo.git            # GitLab
 ```
 
-### 4.3 SSH 鍵のセキュリティベストプラクティス
+### 4.3 SSH Key Security Best Practices
 
 ```bash
-# ─── 鍵のパーミッション確認 ───
+# ─── Check key permissions ───
 ls -la ~/.ssh/
-# 正しいパーミッション:
+# Correct permissions:
 # drwx------  ~/.ssh/          (700)
 # -rw-------  id_ed25519       (600)
 # -rw-r--r--  id_ed25519.pub   (644)
 # -rw-------  config           (600)
 
-# パーミッション修正
+# Fix permissions
 chmod 700 ~/.ssh
 chmod 600 ~/.ssh/id_ed25519
 chmod 644 ~/.ssh/id_ed25519.pub
 chmod 600 ~/.ssh/config
 
-# ─── 鍵のフィンガープリント確認 ───
+# ─── Verify key fingerprint ───
 ssh-keygen -lf ~/.ssh/id_ed25519.pub
 # 256 SHA256:xxxxx your.email@example.com (ED25519)
 
-# ─── 複数鍵の管理 ───
-# ssh-add で登録済み鍵を確認
+# ─── Managing multiple keys ───
+# Check keys registered with ssh-add
 ssh-add -l
 
-# 特定の鍵を削除
+# Remove a specific key
 ssh-add -d ~/.ssh/id_ed25519_old
 
-# 全鍵を削除
+# Remove all keys
 ssh-add -D
 
-# ─── 鍵のローテーション ───
-# 1. 新しい鍵を生成
+# ─── Key rotation ───
+# 1. Generate a new key
 ssh-keygen -t ed25519 -C "your.email@example.com" -f ~/.ssh/id_ed25519_new
-# 2. GitHub に新しい公開鍵を追加
-# 3. SSH config を更新
-# 4. テスト
+# 2. Add the new public key to GitHub
+# 3. Update SSH config
+# 4. Test
 ssh -T git@github.com
-# 5. 古い公開鍵を GitHub から削除
-# 6. 古い鍵ファイルを削除
+# 5. Remove the old public key from GitHub
+# 6. Delete the old key files
 ```
 
-### 4.4 接続テスト
+### 4.4 Connection Testing
 
 ```bash
 # GitHub
@@ -656,57 +656,57 @@ ssh -T git@github.com
 ssh -T git@gitlab.com
 # Welcome to GitLab, @username!
 
-# 詳細デバッグ
+# Verbose debug
 ssh -vT git@github.com
-# デバッグ出力で認証プロセスを確認
+# Inspect the authentication process in debug output
 
-# 会社用アカウントのテスト
+# Test work account
 ssh -T git@github-work
 ```
 
 ---
 
-## 5. GPG 署名
+## 5. GPG Signing
 
-### 5.1 GPG 鍵の生成と設定
+### 5.1 Generating and Configuring a GPG Key
 
 ```bash
-# GPG 鍵を生成
+# Generate a GPG key
 gpg --full-generate-key
-# 種類: RSA and RSA (default)
-# 鍵長: 4096
-# 有効期限: 2y (推奨)
-# 名前とメールアドレス: Git と同じものを入力
+# Type: RSA and RSA (default)
+# Key length: 4096
+# Expiry: 2y (recommended)
+# Name and email: enter the same as your Git config
 
-# 鍵 ID を確認
+# Check the key ID
 gpg --list-secret-keys --keyid-format=long
 # sec   rsa4096/3AA5C34371567BD2 2024-01-01 [SC] [expires: 2026-01-01]
 #       ABCDEF1234567890ABCDEF1234567890ABCDEF12
 # uid                 [ultimate] Your Name <your.email@example.com>
 # ssb   rsa4096/42B317FD4BA89E7A 2024-01-01 [E] [expires: 2026-01-01]
 
-# 鍵 ID: 3AA5C34371567BD2
+# Key ID: 3AA5C34371567BD2
 
-# Git に設定
+# Configure Git
 git config --global user.signingkey 3AA5C34371567BD2
 git config --global commit.gpgsign true
 git config --global tag.gpgsign true
 
-# 公開鍵をエクスポートして GitHub に登録
+# Export public key and register it on GitHub
 gpg --armor --export 3AA5C34371567BD2 | pbcopy
 # GitHub → Settings → SSH and GPG keys → New GPG key
 
-# macOS: pinentry-mac でパスフレーズ入力を GUI 化
+# macOS: use pinentry-mac for GUI passphrase entry
 brew install pinentry-mac
 echo "pinentry-program $(which pinentry-mac)" >> ~/.gnupg/gpg-agent.conf
 gpgconf --kill gpg-agent
 
-# ─── GPG Agent の設定 ───
+# ─── GPG Agent configuration ───
 # ~/.gnupg/gpg-agent.conf
 cat << 'EOF' > ~/.gnupg/gpg-agent.conf
-# キャッシュ時間 (秒)
-default-cache-ttl 28800      # 8時間
-max-cache-ttl 86400           # 24時間
+# Cache duration (seconds)
+default-cache-ttl 28800      # 8 hours
+max-cache-ttl 86400           # 24 hours
 # macOS
 pinentry-program /opt/homebrew/bin/pinentry-mac
 # Linux (GUI)
@@ -715,66 +715,68 @@ pinentry-program /opt/homebrew/bin/pinentry-mac
 # pinentry-program /usr/bin/pinentry-tty
 EOF
 
-# GPG Agent を再起動
+# Restart GPG agent
 gpgconf --kill gpg-agent
 gpg-agent --daemon
 ```
 
-### 5.2 SSH 鍵による署名 (GPG の代替)
+### 5.2 SSH Key Signing (Alternative to GPG)
 
 ```bash
-# Git 2.34+ で SSH 鍵を使った署名が可能
-# GPG のセットアップが面倒な場合の代替手段
+# Git 2.34+ supports signing with SSH keys
+# An alternative when GPG setup is too cumbersome
 
-# SSH 鍵で署名する設定
+# Configure SSH key signing
 git config --global gpg.format ssh
 git config --global user.signingkey ~/.ssh/id_ed25519.pub
 git config --global commit.gpgsign true
 
-# 署名の検証に使う公開鍵リスト
+# Public key list used for signature verification
 git config --global gpg.ssh.allowedSignersFile ~/.ssh/allowed_signers
 
 # ~/.ssh/allowed_signers
-# メールアドレスと公開鍵のマッピング
+# Mapping of email addresses to public keys
 cat << 'EOF' > ~/.ssh/allowed_signers
 your.email@example.com ssh-ed25519 AAAA... your.email@example.com
 colleague@example.com ssh-ed25519 BBBB... colleague@example.com
 EOF
 
-# 署名の検証
+# Verify signatures
 git log --show-signature -1
 git verify-commit HEAD
 git verify-tag v1.0.0
 
-# GPG vs SSH 署名の比較:
-# GPG: 業界標準、GitHub "Verified" バッジ対応、設定が複雑
-# SSH: 設定が簡単、Git 2.34+ 必須、GitHub 対応済み
+# GPG vs SSH signing comparison:
+# GPG: Industry standard, GitHub "Verified" badge support, complex setup
+# SSH: Easy setup, requires Git 2.34+, supported by GitHub
 ```
 
-### 5.3 署名の検証フロー
+### 5.3 Signature Verification Flow
 
 ```
-GPG 署名付きコミットのフロー:
+Flow for GPG-signed commits:
 
-  開発者の環境                    GitHub
+  Developer environment             GitHub
   ┌──────────────────┐          ┌──────────────────┐
   │ git commit       │          │                  │
-  │      │           │          │  公開鍵を        │
-  │      ▼           │          │  登録済み        │
-  │ GPG/SSH 秘密鍵で │   push   │      │           │
-  │ 署名を付与       │ ───────→ │      ▼           │
-  │      │           │          │  公開鍵で        │
-  │      ▼           │          │  署名を検証      │
-  │ 署名付き         │          │      │           │
-  │ コミット         │          │      ▼           │
-  │ 完成             │          │  ✅ Verified     │
+  │      │           │          │  Public key      │
+  │      ▼           │          │  already         │
+  │ Sign with        │   push   │  registered      │
+  │ GPG/SSH private  │ ───────→ │      │           │
+  │ key              │          │      ▼           │
+  │      │           │          │  Verify          │
+  │      ▼           │          │  signature with  │
+  │ Signed           │          │  public key      │
+  │ commit           │          │      │           │
+  │ complete         │          │      ▼           │
+  │                  │          │  ✅ Verified     │
   └──────────────────┘          └──────────────────┘
 
-  Vigilant Mode 有効時:
+  When Vigilant Mode is enabled:
   ┌──────────────────┐
-  │ 署名なしコミット  │ → ⚠️ Unverified 表示
-  │ 署名あり (有効)   │ → ✅ Verified 表示
-  │ 署名あり (無効)   │ → ❌ Invalid 表示
+  │ Unsigned commit   │ → ⚠️ Unverified
+  │ Signed (valid)    │ → ✅ Verified
+  │ Signed (invalid)  │ → ❌ Invalid
   └──────────────────┘
 ```
 
@@ -782,7 +784,7 @@ GPG 署名付きコミットのフロー:
 
 ## 6. Credential Helper
 
-### 6.1 プラットフォーム別設定
+### 6.1 Platform-Specific Configuration
 
 ```bash
 # macOS (Keychain)
@@ -799,84 +801,84 @@ git config --global credential.helper /usr/share/doc/git/contrib/credential/libs
 # Linux (GNOME Keyring)
 git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 
-# GitHub CLI (推奨: 全プラットフォーム共通)
+# GitHub CLI (recommended: works on all platforms)
 gh auth login
 gh auth setup-git
 git config --global credential.helper '!gh auth git-credential'
 
-# キャッシュ (一時的、サーバー向け)
+# Cache (temporary, suitable for servers)
 git config --global credential.helper 'cache --timeout=3600'
 ```
 
-### 6.2 認証方式比較
+### 6.2 Authentication Method Comparison
 
-| 方式 | セキュリティ | 利便性 | 推奨度 | 備考 |
-|------|------------|--------|--------|------|
-| SSH 鍵 | 高 | 高 | 最推奨 | パスフレーズ + Agent |
-| gh auth (CLI) | 高 | 高 | 推奨 | OAuth ベース |
-| SSH 署名 | 高 | 高 | 推奨 | Git 2.34+ |
-| Personal Access Token | 中 | 中 | 可 | スコープ制限必須 |
-| Fine-grained PAT | 高 | 中 | 推奨 | リポジトリ単位制限 |
-| パスワード認証 | 低 | - | 廃止済み | 2021年8月廃止 |
+| Method | Security | Convenience | Recommendation | Notes |
+|--------|----------|-------------|----------------|-------|
+| SSH key | High | High | Most recommended | Passphrase + Agent |
+| gh auth (CLI) | High | High | Recommended | OAuth-based |
+| SSH signing | High | High | Recommended | Git 2.34+ |
+| Personal Access Token | Medium | Medium | Acceptable | Must limit scope |
+| Fine-grained PAT | High | Medium | Recommended | Per-repository restrictions |
+| Password auth | Low | - | Deprecated | Retired August 2021 |
 
-### 6.3 Personal Access Token の管理
+### 6.3 Managing Personal Access Tokens
 
 ```bash
-# Fine-grained Personal Access Token の作成手順:
+# Steps to create a Fine-grained Personal Access Token:
 # 1. GitHub → Settings → Developer settings
 # 2. Personal access tokens → Fine-grained tokens
 # 3. Generate new token
-# 4. 設定:
-#    - Token name: 用途を明記 (e.g., "CI/CD pipeline")
-#    - Expiration: 最大90日推奨
+# 4. Settings:
+#    - Token name: state the purpose (e.g., "CI/CD pipeline")
+#    - Expiration: max 90 days recommended
 #    - Repository access: Only select repositories
-#    - Permissions: 最小権限の原則
-#      - Contents: Read-only (クローンのみ)
-#      - Contents: Read and write (push も必要な場合)
-#      - Pull requests: Read and write (PR 操作)
+#    - Permissions: principle of least privilege
+#      - Contents: Read-only (clone only)
+#      - Contents: Read and write (if push is needed)
+#      - Pull requests: Read and write (for PR operations)
 
-# トークンの保存 (macOS)
-# Keychain Access に自動保存される
+# Storing tokens (macOS)
+# Automatically saved to Keychain Access
 
-# トークンの更新
-# 期限切れ時に再認証:
+# Refreshing tokens
+# Re-authenticate when expired:
 gh auth refresh
-# または: Credential Manager から古いエントリを削除
+# Or: delete the old entry from Credential Manager
 ```
 
 ---
 
-## 7. diff / merge ツール
+## 7. diff / merge Tools
 
-### 7.1 delta の設定
+### 7.1 delta Configuration
 
 ```bash
-# delta インストール
+# Install delta
 brew install git-delta  # macOS
 sudo apt install git-delta  # Ubuntu
 
-# ~/.gitconfig で設定 (前述の [delta] セクション参照)
+# Configure in ~/.gitconfig (see the [delta] section above)
 
-# 使用例
-git diff              # 自動で delta が適用される
-git log -p            # パッチ表示も delta で美麗に
-git show HEAD         # コミット詳細も delta 対応
-git stash show -p     # stash の差分も delta で表示
-git blame file.ts     # blame も delta 対応
+# Usage
+git diff              # delta is applied automatically
+git log -p            # patch display also rendered beautifully with delta
+git show HEAD         # commit details also supported by delta
+git stash show -p     # stash diffs displayed via delta
+git blame file.ts     # blame also supported by delta
 
-# delta の表示モード切替
-# サイドバイサイド (デフォルト設定)
+# Switching delta display modes
+# Side-by-side (default setting)
 git diff
-# 統合表示 (一時的に変更)
+# Unified view (temporary override)
 git -c delta.side-by-side=false diff
-# 行番号なし
+# Without line numbers
 git -c delta.line-numbers=false diff
 ```
 
-### 7.2 delta のテーマカスタマイズ
+### 7.2 Customizing delta Themes
 
 ```ini
-# ~/.gitconfig の [delta] セクション (詳細版)
+# [delta] section in ~/.gitconfig (detailed version)
 
 [delta]
     navigate = true
@@ -885,7 +887,7 @@ git -c delta.line-numbers=false diff
     line-numbers = true
     syntax-theme = Catppuccin Mocha
 
-    # ファイルヘッダー
+    # File header
     file-style = bold yellow ul
     file-decoration-style = none
     file-added-label = [+]
@@ -893,17 +895,17 @@ git -c delta.line-numbers=false diff
     file-removed-label = [-]
     file-renamed-label = [→]
 
-    # ハンクヘッダー
+    # Hunk header
     hunk-header-decoration-style = cyan box ul
     hunk-header-style = file line-number syntax
 
-    # 差分表示
+    # Diff display
     minus-style = syntax "#3B1219"
     minus-emph-style = syntax "#6F1223"
     plus-style = syntax "#1A2B1A"
     plus-emph-style = syntax "#2B4B2B"
 
-    # 行番号
+    # Line numbers
     line-numbers-minus-style = "#F38BA8"
     line-numbers-plus-style = "#A6E3A1"
     line-numbers-zero-style = "#585B70"
@@ -920,77 +922,77 @@ git -c delta.line-numbers=false diff
     merge-conflict-ours-diff-header-style = yellow bold
     merge-conflict-theirs-diff-header-style = cyan bold
 
-    # インライン差分 (単語単位)
+    # Inline diff (word-level)
     inline-hint-style = syntax
 ```
 
-### 7.3 VS Code をdiff/mergeツールに設定
+### 7.3 Setting VS Code as diff/merge Tool
 
 ```bash
-# diff ツール
+# diff tool
 git config --global diff.tool vscode
 git config --global difftool.vscode.cmd 'code --wait --diff $LOCAL $REMOTE'
 git config --global difftool.prompt false
 
-# merge ツール
+# merge tool
 git config --global merge.tool vscode
 git config --global mergetool.vscode.cmd 'code --wait --merge $REMOTE $LOCAL $BASE $MERGED'
 git config --global mergetool.keepBackup false
 git config --global mergetool.prompt false
 
-# 使用方法
-git difftool                 # VS Code で差分表示
-git difftool --dir-diff      # ディレクトリ単位の差分表示
-git mergetool                # VS Code でコンフリクト解決
+# Usage
+git difftool                 # Show diff in VS Code
+git difftool --dir-diff      # Show directory-level diff
+git mergetool                # Resolve conflicts in VS Code
 
-# IntelliJ IDEA を使う場合
+# Using IntelliJ IDEA
 git config --global diff.tool intellij
 git config --global difftool.intellij.cmd 'idea diff $LOCAL $REMOTE'
 git config --global merge.tool intellij
 git config --global mergetool.intellij.cmd 'idea merge $LOCAL $REMOTE $BASE $MERGED'
 ```
 
-### 7.4 コンフリクト解決のフロー
+### 7.4 Conflict Resolution Flow
 
 ```
-zdiff3 形式のコンフリクト表示:
+Conflict display in zdiff3 format:
 
-<<<<<<< HEAD (現在のブランチ)
+<<<<<<< HEAD (current branch)
   const timeout = 5000;
-||||||| parent of abc1234 (共通祖先)
+||||||| parent of abc1234 (common ancestor)
   const timeout = 3000;
 =======
   const timeout = 10000;
->>>>>>> feature/update-config (マージ元)
+>>>>>>> feature/update-config (incoming branch)
 
-zdiff3 の利点:
-  - 共通祖先 (|||||||) が表示される
-  - 「何から何に変えたか」が一目瞭然
-  - 標準の diff3 より見やすい
+Advantages of zdiff3:
+  - Shows the common ancestor (|||||||)
+  - Makes it clear "what changed from what"
+  - More readable than standard diff3
 
-コンフリクト解決のステップ:
-  1. git mergetool で VS Code を開く
-  2. 3ウェイマージビューで変更を比較
-  3. 「Accept Current」「Accept Incoming」「Accept Both」から選択
-  4. 必要に応じて手動編集
-  5. 保存してエディタを閉じる
+Steps to resolve a conflict:
+  1. Open VS Code with git mergetool
+  2. Compare changes in the 3-way merge view
+  3. Choose "Accept Current", "Accept Incoming", or "Accept Both"
+  4. Edit manually if needed
+  5. Save and close the editor
   6. git add <resolved-file>
-  7. git merge --continue (または git rebase --continue)
+  7. git merge --continue (or git rebase --continue)
 
-rerere が有効な場合:
-  - 一度解決したパターンが記録される
-  - 同じコンフリクトは自動で解決される
-  - git rerere status で記録を確認
+When rerere is enabled:
+  - Previously resolved patterns are recorded
+  - The same conflict is automatically resolved next time
+  - Check records with git rerere status
 ```
 
 ---
 
-## 8. グローバル .gitignore
+## 8. Global .gitignore
 
-### 8.1 設定
+### 8.1 Configuration
 
 ```bash
-# グローバル gitignore を設定
+# Set up a global gitignore
 git config --global core.excludesfile ~/.gitignore_global
 
 # ~/.gitignore_global
@@ -1004,7 +1006,7 @@ Desktop.ini
 ehthumbs.db
 $RECYCLE.BIN/
 
-# ─── エディタ / IDE ───
+# ─── Editor / IDE ───
 *.swp
 *.swo
 *~
@@ -1018,7 +1020,7 @@ $RECYCLE.BIN/
 *.sublime-workspace
 .vs/
 
-# ─── 環境変数 ───
+# ─── Environment variables ───
 .env
 .env.local
 .env.*.local
@@ -1026,19 +1028,19 @@ $RECYCLE.BIN/
 .env.test.local
 .env.production.local
 
-# ─── ビルド / キャッシュ ───
+# ─── Build / Cache ───
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# ─── ランタイム ───
+# ─── Runtime ───
 *.pid
 *.seed
 *.pid.lock
 
-# ─── その他 ───
+# ─── Other ───
 .direnv/
 .envrc
 .tool-versions
@@ -1051,24 +1053,24 @@ pnpm-debug.log*
 EOF
 ```
 
-### 8.2 プロジェクト固有の .gitignore
+### 8.2 Project-Specific .gitignore
 
 ```bash
-# gitignore.io を使って生成
+# Generate using gitignore.io
 curl -sL "https://www.toptal.com/developers/gitignore/api/node,react,typescript,vscode,macos" > .gitignore
 
-# gh CLI での生成
+# Generate with gh CLI
 gh api /gitignore/templates/Node -q .source >> .gitignore
 
-# よく使う言語・フレームワーク別テンプレート
+# Templates by language/framework
 # https://github.com/github/gitignore
 ```
 
 ---
 
-## 9. 複数アカウントの使い分け
+## 9. Managing Multiple Accounts
 
-### 9.1 includeIf によるディレクトリベース切替
+### 9.1 Directory-Based Switching with includeIf
 
 ```ini
 # ~/.gitconfig
@@ -1077,19 +1079,19 @@ gh api /gitignore/templates/Node -q .source >> .gitignore
     email = personal@example.com
     signingkey = PERSONAL_GPG_KEY_ID
 
-# 会社のディレクトリ
+# Work directory
 [includeIf "gitdir:~/work/"]
     path = ~/.gitconfig-work
 
-# OSS プロジェクト用
+# For OSS projects
 [includeIf "gitdir:~/oss/"]
     path = ~/.gitconfig-oss
 
-# 特定のリポジトリ
+# Specific repository
 [includeIf "gitdir:~/work/secret-project/"]
     path = ~/.gitconfig-secret
 
-# リモート URL ベースの切替 (Git 2.36+)
+# Remote URL-based switching (Git 2.36+)
 [includeIf "hasconfig:remote.*.url:git@github-work:**"]
     path = ~/.gitconfig-work
 ```
@@ -1104,7 +1106,7 @@ gh api /gitignore/templates/Node -q .source >> .gitignore
 [core]
     sshCommand = ssh -i ~/.ssh/id_ed25519_work
 
-# 会社のプロキシ設定
+# Company proxy settings
 [http]
     proxy = http://proxy.company.com:8080
 
@@ -1112,12 +1114,12 @@ gh api /gitignore/templates/Node -q .source >> .gitignore
     insteadOf = git@github.com:company/
 ```
 
-### 9.2 設定確認スクリプト
+### 9.2 Configuration Check Script
 
 ```bash
 #!/bin/bash
 # ~/bin/git-check-config.sh
-# 現在のディレクトリの Git 設定を確認
+# Check Git configuration for the current directory
 
 echo "=== Git Configuration Check ==="
 echo ""
@@ -1143,20 +1145,20 @@ git config --show-origin user.email
 
 ## 10. Git Hooks
 
-### 10.1 クライアントサイドフック
+### 10.1 Client-Side Hooks
 
 ```bash
-# ─── pre-commit フック ───
-# .git/hooks/pre-commit (プロジェクト固有)
+# ─── pre-commit hook ───
+# .git/hooks/pre-commit (project-specific)
 cat << 'HOOK' > .git/hooks/pre-commit
 #!/bin/bash
-# Lint & Format チェック
+# Lint & format check
 echo "Running pre-commit checks..."
 
-# ステージされたファイルのみ対象
+# Target only staged files
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=d)
 
-# TypeScript/JavaScript のリント
+# Lint TypeScript/JavaScript
 TS_FILES=$(echo "$STAGED_FILES" | grep -E '\.(ts|tsx|js|jsx)$')
 if [ -n "$TS_FILES" ]; then
     echo "Linting TypeScript/JavaScript files..."
@@ -1167,7 +1169,7 @@ if [ -n "$TS_FILES" ]; then
     fi
 fi
 
-# 機密情報のチェック
+# Check for secrets
 if git diff --cached --diff-filter=d | grep -iE '(password|secret|api_key|token)[\s]*=[\s]*["\x27][^"\x27]+'; then
     echo "❌ Possible secret detected in staged changes"
     echo "Please review and remove sensitive data"
@@ -1179,13 +1181,13 @@ HOOK
 chmod +x .git/hooks/pre-commit
 ```
 
-### 10.2 Husky + lint-staged (推奨)
+### 10.2 Husky + lint-staged (Recommended)
 
 ```bash
-# Husky のセットアップ
+# Set up Husky
 npx husky init
 
-# lint-staged のインストール
+# Install lint-staged
 npm install -D lint-staged
 ```
 
@@ -1219,10 +1221,10 @@ npx --no-install commitlint --edit $1
 npm test
 ```
 
-### 10.3 commitlint の設定
+### 10.3 commitlint Configuration
 
 ```bash
-# インストール
+# Install
 npm install -D @commitlint/cli @commitlint/config-conventional
 
 # commitlint.config.js
@@ -1246,65 +1248,65 @@ EOF
 
 ## 11. Git LFS (Large File Storage)
 
-### 11.1 セットアップ
+### 11.1 Setup
 
 ```bash
-# インストール
+# Install
 brew install git-lfs
 git lfs install
 
-# トラッキング対象の設定
+# Configure tracked file types
 git lfs track "*.psd"
 git lfs track "*.zip"
 git lfs track "*.mp4"
 git lfs track "*.woff2"
-git lfs track "*.model"      # ML モデル
-git lfs track "assets/**"    # ディレクトリ単位
+git lfs track "*.model"      # ML models
+git lfs track "assets/**"    # Directory-level tracking
 
-# .gitattributes が自動生成される
+# .gitattributes is generated automatically
 cat .gitattributes
 # *.psd filter=lfs diff=lfs merge=lfs -text
 # *.zip filter=lfs diff=lfs merge=lfs -text
 
-# .gitattributes を必ずコミット
+# Always commit .gitattributes
 git add .gitattributes
 git commit -m "chore: configure Git LFS tracking"
 
-# LFS の状態確認
+# Check LFS status
 git lfs status
-git lfs ls-files          # LFS で管理されているファイル一覧
-git lfs env               # LFS の設定情報
+git lfs ls-files          # List files managed by LFS
+git lfs env               # LFS configuration info
 ```
 
 ---
 
-## 12. アンチパターン
+## 12. Anti-Patterns
 
-### 12.1 GPG / SSH 鍵にパスフレーズを設定しない
-
-```
-❌ アンチパターン: ssh-keygen 実行時にパスフレーズを空にする
-
-問題:
-  - 秘密鍵が漏洩した場合、即座に悪用される
-  - セキュリティ監査で指摘される
-  - チームのセキュリティポリシー違反
-
-✅ 正しいアプローチ:
-  - 必ずパスフレーズを設定する
-  - SSH Agent + Keychain でパスフレーズ入力を自動化
-  - ssh-add --apple-use-keychain でセッション間で持続
-  - GPG Agent のキャッシュ時間を適切に設定
-```
-
-### 12.2 `git pull` をデフォルトのまま使う
+### 12.1 Not Setting a Passphrase on GPG / SSH Keys
 
 ```
-❌ アンチパターン: pull.rebase を設定せずに git pull を実行
+❌ Anti-pattern: leaving the passphrase empty when running ssh-keygen
 
-問題:
-  - 不要なマージコミットが大量発生
-  - git log が読みにくくなる
+Problem:
+  - If the private key is leaked, it can be immediately misused
+  - Flagged in security audits
+  - Violates team security policy
+
+✅ Correct approach:
+  - Always set a passphrase
+  - Automate passphrase entry with SSH Agent + Keychain
+  - Use ssh-add --apple-use-keychain to persist across sessions
+  - Configure appropriate cache duration in GPG Agent
+```
+
+### 12.2 Using `git pull` Without Configuration
+
+```
+❌ Anti-pattern: running git pull without setting pull.rebase
+
+Problem:
+  - Creates a large number of unnecessary merge commits
+  - Makes git log harder to read
 
   * abc (HEAD) Merge branch 'main' into feature
   |\
@@ -1313,93 +1315,93 @@ git lfs env               # LFS の設定情報
   |/
   * jkl Previous commit
 
-✅ 正しいアプローチ:
+✅ Correct approach:
   - git config --global pull.rebase true
-  - きれいなリニア履歴を維持
+  - Maintain a clean, linear history
 
   * abc (HEAD -> feature) Add feature
   * def (main) Update README
   * jkl Previous commit
 ```
 
-### 12.3 force push を main/master に実行する
+### 12.3 Force Pushing to main/master
 
 ```
-❌ アンチパターン: git push --force origin main
+❌ Anti-pattern: git push --force origin main
 
-問題:
-  - 他のメンバーのコミットが消失する
-  - CI/CD パイプラインが壊れる
-  - 復旧が困難
+Problem:
+  - Other members' commits are lost
+  - CI/CD pipelines break
+  - Difficult to recover
 
-✅ 正しいアプローチ:
-  - feature ブランチでも --force-with-lease を使う
-  - main/master には force push を禁止する (GitHub Branch Protection)
+✅ Correct approach:
+  - Use --force-with-lease even on feature branches
+  - Prohibit force pushes to main/master (GitHub Branch Protection)
   - GitHub → Settings → Branches → Branch protection rules
     ✅ Do not allow force pushes
     ✅ Require pull request reviews before merging
     ✅ Require status checks to pass before merging
 ```
 
-### 12.4 大きなバイナリファイルを直接コミット
+### 12.4 Committing Large Binary Files Directly
 
 ```
-❌ アンチパターン: 画像・動画・モデルファイルを Git に直接コミット
+❌ Anti-pattern: committing images, videos, or model files directly to Git
 
-問題:
-  - リポジトリサイズが膨張
-  - clone / fetch が遅くなる
-  - 一度コミットすると履歴から完全削除が困難
+Problem:
+  - Repository size balloons
+  - clone / fetch becomes slow
+  - Once committed, complete removal from history is difficult
 
-✅ 正しいアプローチ:
-  - Git LFS を使って大きなファイルを管理
-  - .gitattributes でトラッキングルールを定義
-  - バイナリファイルの上限サイズを決める (例: 1MB)
-  - CI で pre-commit フックによるサイズチェック
+✅ Correct approach:
+  - Use Git LFS to manage large files
+  - Define tracking rules in .gitattributes
+  - Decide on a maximum file size (e.g., 1MB)
+  - Add a size check with a pre-commit hook in CI
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1408,26 +1410,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation with the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1435,7 +1437,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1446,14 +1448,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1461,7 +1463,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1469,44 +1471,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hashmap"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1515,7 +1517,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1530,47 +1532,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured config file | Verify the path and format of the config file |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check executing user's permissions, review settings |
+| Data inconsistency | Concurrent process conflict | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Validate incrementally**: Use log output or a debugger to test hypotheses
+5. **Fix and run regression tests**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debug utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1578,102 +1580,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O wait**: Inspect disk and network I/O status
+4. **Check concurrent connections**: Inspect connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem type | Diagnostic tool | Solution |
+|-------------|----------------|---------|
+| CPU load | cProfile, py-spy | Improve algorithms, parallelize |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Here is a summary of criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize when | Can compromise when |
+|-----------|----------------|-------------------|
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-first, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith              │
+│    └─ Large (10+ people) → go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How often do you deploy?                     │
+│    ├─ Weekly or less → Monolith + module split   │
+│    └─ Daily / multiple times → go to ③          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are the teams?               │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term cost**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering incurs high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables the right tool for the job but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1683,17 +1685,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1701,7 +1703,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1709,15 +1711,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1726,88 +1728,88 @@ class ArchitectureDecisionRecord:
 
 ## 13. FAQ
 
-### Q1: 会社と個人で異なる Git アカウントを使い分けるには？
+### Q1: How do I switch between company and personal Git accounts?
 
-**A:** `includeIf` ディレクティブを使う。`~/work/` 配下のリポジトリでは会社の設定を自動適用し、それ以外では個人の設定を使う。SSH の config も分けることで、clone 時に `git@github-work:company/repo.git` のように使い分けられる。詳細はセクション9を参照。
+**A:** Use the `includeIf` directive. Repositories under `~/work/` automatically apply the work configuration; everything else uses the personal config. Separating SSH config as well lets you use `git@github-work:company/repo.git` style when cloning. See Section 9 for details.
 
-### Q2: `rerere` とは何？有効にすべき？
+### Q2: What is `rerere` and should I enable it?
 
-**A:** REuse REcorded REsolution の略。一度解決したコンフリクトのパターンを記録し、同じコンフリクトが再発した際に自動で同じ解決を適用する。feature ブランチを頻繁に rebase する環境では必須レベルの設定。`git config --global rerere.enabled true` で有効化する。`rerere.autoupdate = true` にすると、自動解決後にステージングも自動で行われる。
+**A:** REuse REcorded REsolution. It records the pattern of a resolved conflict and automatically applies the same resolution when the same conflict recurs. It is virtually essential in environments where feature branches are frequently rebased. Enable it with `git config --global rerere.enabled true`. Setting `rerere.autoupdate = true` automatically stages the auto-resolved files as well.
 
-### Q3: コミット署名は必要？
+### Q3: Is commit signing necessary?
 
-**A:** 個人開発なら任意だが、チーム開発・OSS では強く推奨。GitHub の "Verified" バッジはコミットの真正性を証明する。GitHub Actions の bot コミットがなりすましでないことの確認にも使われる。Organization の設定で署名必須にすることも可能。GPG が面倒なら SSH 鍵署名 (Git 2.34+) が手軽で推奨。
+**A:** Optional for personal development, but strongly recommended for team development and open source. GitHub's "Verified" badge proves the authenticity of a commit. It is also used to confirm that GitHub Actions bot commits are not impersonations. Organizations can enforce signing as a requirement. If GPG is cumbersome, SSH key signing (Git 2.34+) is easy to set up and recommended.
 
-### Q4: `git push --force` と `--force-with-lease` の違いは？
+### Q4: What is the difference between `git push --force` and `--force-with-lease`?
 
-**A:** `--force` はリモートの状態を無条件に上書きする。他のメンバーのコミットを消す危険がある。`--force-with-lease` はリモートが自分の知っている状態と同じ場合のみ強制 push する。他の人が push していた場合は拒否される。feature ブランチの rebase 後には `--force-with-lease` を使うべき。main/master への force push は設定で禁止する。
+**A:** `--force` unconditionally overwrites the remote state and risks erasing other members' commits. `--force-with-lease` only force-pushes if the remote is in the same state as what you last saw — it is rejected if someone else has pushed in the meantime. After rebasing a feature branch, always use `--force-with-lease`. Force pushes to main/master should be prohibited via settings.
 
-### Q5: histogram diff とは何か？
+### Q5: What is histogram diff?
 
-**A:** `diff.algorithm = histogram` は patience diff の改良版で、コードの移動や構造的な変更をより賢く検出する。デフォルトの Myers diff よりも「意味のある」差分を生成する傾向がある。特に関数の追加・削除・移動が多いリファクタリング時に効果的。パフォーマンスへの影響はほぼない。
+**A:** `diff.algorithm = histogram` is an improved version of patience diff that more intelligently detects code movement and structural changes. It tends to produce more "meaningful" diffs than the default Myers diff. It is particularly effective during refactoring involving many function additions, deletions, and moves. The performance impact is negligible.
 
-### Q6: fsmonitor とは何か？有効にすべき？
+### Q6: What is fsmonitor and should I enable it?
 
-**A:** `core.fsmonitor = true` はファイルシステムの変更を監視するデーモンを使い、`git status` や `git diff` の速度を劇的に改善する。10万ファイル超の大規模リポジトリでは数十倍の高速化が見られる。Git 2.37+ の組み込み FSMonitor か、Facebook の Watchman が使える。小規模リポジトリでは効果が薄いが、有効にしてデメリットはほぼない。
+**A:** `core.fsmonitor = true` uses a daemon to monitor filesystem changes, dramatically improving the speed of `git status` and `git diff`. Repositories with more than 100,000 files can see tens of times speedup. Either the built-in FSMonitor (Git 2.37+) or Facebook's Watchman can be used. The effect is limited for small repositories, but there is virtually no downside to enabling it.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 14. まとめ
-
-| 設定項目 | 推奨値 | 理由 |
-|---------|--------|------|
-| `init.defaultBranch` | `main` | 業界標準 |
-| `pull.rebase` | `true` | きれいな履歴 |
-| `fetch.prune` | `true` | 削除済みブランチの自動掃除 |
-| `merge.conflictstyle` | `zdiff3` | 共通祖先表示 |
-| `commit.gpgsign` | `true` | コミット検証 |
-| `push.autoSetupRemote` | `true` | 初回 push の手間削減 |
-| `rebase.autosquash` | `true` | fixup コミット自動整理 |
-| `rebase.updateRefs` | `true` | スタックされた PR の自動更新 |
-| `rerere.enabled` | `true` | コンフリクト自動再解決 |
-| `diff.algorithm` | `histogram` | より賢い差分検出 |
-| `core.pager` | `delta` | 美しい diff 表示 |
-| `core.fsmonitor` | `true` | 大規模リポジトリの高速化 |
-| `branch.sort` | `-committerdate` | 最新ブランチ優先表示 |
-| `tag.sort` | `version:refname` | セマンティックバージョン順 |
-| `help.autocorrect` | `prompt` | タイポ時に候補提示 |
+Knowledge of this topic is frequently applied in day-to-day development tasks. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 14. Summary
 
-- [03-ai-tools.md](./03-ai-tools.md) -- AI 開発ツールの導入
-- [../03-team-setup/00-project-standards.md](../03-team-setup/00-project-standards.md) -- チーム共通の Git 規約
-- [../01-runtime-and-package/03-linter-formatter.md](../01-runtime-and-package/03-linter-formatter.md) -- pre-commit フック連携
+| Setting | Recommended value | Reason |
+|---------|------------------|--------|
+| `init.defaultBranch` | `main` | Industry standard |
+| `pull.rebase` | `true` | Clean history |
+| `fetch.prune` | `true` | Auto-clean deleted branches |
+| `merge.conflictstyle` | `zdiff3` | Shows common ancestor |
+| `commit.gpgsign` | `true` | Commit verification |
+| `push.autoSetupRemote` | `true` | Reduces effort on first push |
+| `rebase.autosquash` | `true` | Auto-organize fixup commits |
+| `rebase.updateRefs` | `true` | Auto-update stacked PRs |
+| `rerere.enabled` | `true` | Auto-resolve recurring conflicts |
+| `diff.algorithm` | `histogram` | Smarter diff detection |
+| `core.pager` | `delta` | Beautiful diff display |
+| `core.fsmonitor` | `true` | Speed up large repositories |
+| `branch.sort` | `-committerdate` | Show newest branches first |
+| `tag.sort` | `version:refname` | Semantic version order |
+| `help.autocorrect` | `prompt` | Suggest correction on typo |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. **Pro Git (2nd Edition)** -- https://git-scm.com/book/ja/v2 -- Git の最も包括的な無料リファレンス。日本語版あり。
-2. **GitHub SSH ドキュメント** -- https://docs.github.com/ja/authentication/connecting-to-github-with-ssh -- 公式の SSH 設定ガイド。
-3. **git-delta** -- https://github.com/dandavison/delta -- delta の公式リポジトリ。設定例が豊富。
-4. **gitconfig のベストプラクティス** -- https://jvns.ca/blog/2024/02/16/popular-git-config-options/ -- Julia Evans による実用的な解説。
-5. **Conventional Commits** -- https://www.conventionalcommits.org/ja/ -- コミットメッセージ規約の標準仕様。日本語版。
-6. **Git LFS Documentation** -- https://git-lfs.com/ -- Git LFS の公式ドキュメント。
-7. **Husky** -- https://typicode.github.io/husky/ -- Git hooks の管理ツール。
-8. **GitHub Branch Protection** -- https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-a-branch-protection-rule -- ブランチ保護ルールの設定。
-9. **SSH 鍵署名 (Git Blog)** -- https://github.blog/changelog/2022-08-23-ssh-commit-verification-now-supported/ -- SSH 署名の公式アナウンス。
-10. **Git Performance** -- https://git-scm.com/docs/git-maintenance -- Git のメンテナンスと最適化コマンド。
+- [03-ai-tools.md](./03-ai-tools.md) -- Setting up AI development tools
+- [../03-team-setup/00-project-standards.md](../03-team-setup/00-project-standards.md) -- Team-wide Git conventions
+- [../01-runtime-and-package/03-linter-formatter.md](../01-runtime-and-package/03-linter-formatter.md) -- pre-commit hook integration
+
+---
+
+## References
+
+1. **Pro Git (2nd Edition)** -- https://git-scm.com/book/ja/v2 -- The most comprehensive free Git reference. Available in Japanese.
+2. **GitHub SSH Documentation** -- https://docs.github.com/ja/authentication/connecting-to-github-with-ssh -- Official SSH setup guide.
+3. **git-delta** -- https://github.com/dandavison/delta -- Official delta repository. Rich in configuration examples.
+4. **gitconfig Best Practices** -- https://jvns.ca/blog/2024/02/16/popular-git-config-options/ -- Practical explanation by Julia Evans.
+5. **Conventional Commits** -- https://www.conventionalcommits.org/ja/ -- Standard specification for commit message conventions. Available in Japanese.
+6. **Git LFS Documentation** -- https://git-lfs.com/ -- Official Git LFS documentation.
+7. **Husky** -- https://typicode.github.io/husky/ -- Git hooks management tool.
+8. **GitHub Branch Protection** -- https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-a-branch-protection-rule -- Branch protection rule configuration.
+9. **SSH Key Signing (Git Blog)** -- https://github.blog/changelog/2022-08-23-ssh-commit-verification-now-supported/ -- Official announcement of SSH signing.
+10. **Git Performance** -- https://git-scm.com/docs/git-maintenance -- Git maintenance and optimization commands.
