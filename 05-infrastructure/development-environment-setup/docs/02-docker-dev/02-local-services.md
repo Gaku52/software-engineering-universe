@@ -1,32 +1,31 @@
-# ローカルサービスの Docker 化
+# Dockerizing Local Services
 
-> PostgreSQL、MySQL、Redis、MailHog、MinIO などの開発用サービスを Docker で統一管理し、チーム全員が同一のローカル環境で開発できるインフラ構成を学ぶ。
+> Learn how to centrally manage development services such as PostgreSQL, MySQL, Redis, MailHog, and MinIO with Docker, and set up an infrastructure configuration where all team members can develop in an identical local environment.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **データベース (PostgreSQL / MySQL) の Docker 化** -- 初期スキーマ・シードデータの自動投入を含む、開発用 DB コンテナの構築パターンを習得する
-2. **キャッシュ・メール・ストレージの Docker 化** -- Redis、MailHog、MinIO を組み合わせた開発インフラの構成を学ぶ
-3. **Docker Compose による統合管理とデータ永続化** -- 複数サービスの依存関係管理、Volume 設計、ヘルスチェックを実践する
+1. **Dockerizing Databases (PostgreSQL / MySQL)** -- Master the patterns for building development DB containers, including automatic injection of initial schemas and seed data
+2. **Dockerizing Cache, Mail, and Storage** -- Learn how to configure a development infrastructure combining Redis, MailHog, and MinIO
+3. **Integrated Management and Data Persistence with Docker Compose** -- Practice managing dependencies between multiple services, Volume design, and health checks
 
+## Prerequisites
 
-## 前提知識
+Having the following knowledge before reading this guide will deepen your understanding:
 
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Dev Container](./01-devcontainer.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Dev Container](./01-devcontainer.md)
 
 ---
 
-## 1. 全体アーキテクチャ
+## 1. Overall Architecture
 
 ```
 +------------------------------------------------------------------+
-|              ローカル開発サービス構成図                              |
+|              Local Development Services Architecture             |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [アプリケーション]                                                |
+|  [Application]                                                   |
 |       |         |          |          |           |              |
 |       v         v          v          v           v              |
 |  +--------+ +--------+ +-------+ +--------+ +---------+         |
@@ -42,50 +41,50 @@
 +------------------------------------------------------------------+
 ```
 
-### 1.1 サービス選択の判断基準
+### 1.1 Criteria for Selecting Services
 
-ローカル開発でどのサービスを Docker 化するかは、プロジェクトの要件に応じて判断する。以下のフローチャートを参考にする。
+Which services to Dockerize for local development depends on the project requirements. Refer to the following flowchart as a guide.
 
 ```
 +------------------------------------------------------------------+
-|        ローカルサービス選択フロー                                    |
+|        Local Service Selection Flow                              |
 +------------------------------------------------------------------+
 |                                                                  |
-|  RDB が必要か？                                                   |
+|  Do you need an RDB?                                             |
 |    |                                                             |
-|    +--[Yes]--> JSON/配列型が多い？ → PostgreSQL                   |
-|    |           シンプルなCRUD？ → MySQL でも可                    |
-|    |           既存が MySQL？ → MySQL を継続                      |
+|    +--[Yes]--> Lots of JSON/array types? → PostgreSQL            |
+|    |           Simple CRUD? → MySQL is also fine                 |
+|    |           Already using MySQL? → Continue with MySQL        |
 |    |                                                             |
-|    +--[No]---> NoSQL が必要か？                                   |
+|    +--[No]---> Do you need NoSQL?                                |
 |                  |                                               |
-|                  +--[Yes]--> MongoDB / DynamoDB Local             |
-|                  +--[No]---> SQLite で十分な場合もある             |
+|                  +--[Yes]--> MongoDB / DynamoDB Local            |
+|                  +--[No]---> SQLite may be sufficient            |
 |                                                                  |
-|  キャッシュが必要か？ → Redis                                      |
-|  セッションストアが必要か？ → Redis                                |
-|  メール送信テストが必要か？ → Mailpit (MailHog 後継)               |
-|  ファイルアップロードが必要か？ → MinIO (S3 互換)                   |
-|  全文検索が必要か？ → Meilisearch or Elasticsearch                 |
-|  メッセージキューが必要か？ → RabbitMQ or Redis Streams            |
-|  認証テストが必要か？ → Keycloak or mock-oauth2-server             |
+|  Do you need caching? → Redis                                    |
+|  Do you need a session store? → Redis                            |
+|  Do you need mail send testing? → Mailpit (MailHog successor)    |
+|  Do you need file uploads? → MinIO (S3 compatible)               |
+|  Do you need full-text search? → Meilisearch or Elasticsearch    |
+|  Do you need a message queue? → RabbitMQ or Redis Streams        |
+|  Do you need auth testing? → Keycloak or mock-oauth2-server      |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 1.2 ポート管理戦略
+### 1.2 Port Management Strategy
 
-複数プロジェクトや複数のデータベースを同時に使う場合、ポート競合を避ける戦略が必要である。
+When using multiple projects or multiple databases simultaneously, a strategy to avoid port conflicts is necessary.
 
-| 戦略 | 説明 | 向いているケース |
-|------|------|----------------|
-| プロジェクトごとにオフセット | Project A: 5432, Project B: 5433 | 2-3 プロジェクト同時開発 |
-| `.env` でポートを変数化 | `${DB_PORT:-5432}` | チームで柔軟に運用 |
-| Docker ネットワーク分離 | ポート公開せず、コンテナ間通信のみ | Dev Container 環境 |
-| profiles で排他管理 | `docker compose --profile projectA up` | 多数のプロジェクト |
+| Strategy | Description | Suitable Cases |
+|----------|-------------|----------------|
+| Offset per project | Project A: 5432, Project B: 5433 | Simultaneous development of 2-3 projects |
+| Parameterize ports in `.env` | `${DB_PORT:-5432}` | Flexible team operation |
+| Docker network isolation | No port exposure, container-to-container only | Dev Container environments |
+| Exclusive management with profiles | `docker compose --profile projectA up` | Many projects |
 
 ```yaml
-# .env でポートを変数化する例
+# Example of parameterizing ports in .env
 # .env
 POSTGRES_PORT=5432
 REDIS_PORT=6379
@@ -111,9 +110,9 @@ services:
 
 ---
 
-## 2. PostgreSQL の Docker 化
+## 2. Dockerizing PostgreSQL
 
-### 2.1 基本設定
+### 2.1 Basic Configuration
 
 ```yaml
 # docker-compose.yml
@@ -145,21 +144,21 @@ volumes:
     driver: local
 ```
 
-### 2.2 初期化スクリプト
+### 2.2 Initialization Scripts
 
-`/docker-entrypoint-initdb.d/` に配置したファイルは、コンテナ初回起動時にアルファベット順で実行される。`.sql`, `.sql.gz`, `.sh` ファイルがサポートされている。
+Files placed in `/docker-entrypoint-initdb.d/` are executed in alphabetical order on the first container startup. `.sql`, `.sql.gz`, and `.sh` files are supported.
 
 ```sql
 -- docker/postgres/init/01-create-databases.sql
--- 開発用・テスト用の DB を自動作成
+-- Automatically create development and test DBs
 
 CREATE DATABASE myapp_test;
 
--- テスト用ユーザー
+-- Test user
 CREATE USER test_user WITH PASSWORD 'test_password';
 GRANT ALL PRIVILEGES ON DATABASE myapp_test TO test_user;
 
--- 拡張機能のインストール
+-- Install extensions
 \c myapp_development
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -187,15 +186,15 @@ EOSQL
 
 ```sql
 -- docker/postgres/init/03-create-schemas.sql
--- マルチテナント用スキーマ分離パターン
+-- Schema separation pattern for multi-tenancy
 
 \c myapp_development
 
--- テナントごとのスキーマ
+-- Per-tenant schemas
 CREATE SCHEMA IF NOT EXISTS tenant_demo;
 CREATE SCHEMA IF NOT EXISTS tenant_test;
 
--- 共有テーブル（public スキーマ）
+-- Shared tables (public schema)
 CREATE TABLE IF NOT EXISTS public.tenants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
@@ -209,22 +208,22 @@ INSERT INTO public.tenants (name, schema_name) VALUES
 ON CONFLICT DO NOTHING;
 ```
 
-### 2.3 PostgreSQL 設定のカスタマイズ
+### 2.3 Customizing PostgreSQL Configuration
 
 ```conf
-# docker/postgres/postgresql.conf (開発用に最適化)
-# パフォーマンス (開発マシン向け)
+# docker/postgres/postgresql.conf (optimized for development)
+# Performance (for development machines)
 shared_buffers = 256MB
 work_mem = 16MB
 maintenance_work_mem = 128MB
 effective_cache_size = 512MB
 
-# WAL 設定 (開発用)
+# WAL settings (for development)
 wal_buffers = 16MB
 checkpoint_completion_target = 0.9
 max_wal_size = 1GB
 
-# ログ (デバッグしやすく)
+# Logging (easy to debug)
 log_statement = 'all'
 log_duration = on
 log_min_duration_statement = 100
@@ -232,16 +231,16 @@ log_line_prefix = '%t [%p] %u@%d '
 log_lock_waits = on
 log_temp_files = 0
 
-# 開発用設定 (本番では使わない)
+# Development settings (do not use in production)
 fsync = off
 synchronous_commit = off
 full_page_writes = off
 
-# 接続設定
+# Connection settings
 max_connections = 100
 ```
 
-カスタム設定ファイルを適用するには、Compose ファイルで以下のように指定する。
+To apply a custom configuration file, specify it in the Compose file as follows.
 
 ```yaml
 services:
@@ -256,43 +255,43 @@ services:
       - ./docker/postgres/init:/docker-entrypoint-initdb.d
 ```
 
-### 2.4 PostgreSQL のバックアップとリストア
+### 2.4 PostgreSQL Backup and Restore
 
-開発中のデータベース状態を保存・復元する方法は以下の通りである。
+The procedure for saving and restoring the database state during development is as follows.
 
 ```bash
-# バックアップ（ダンプ）
+# Backup (dump)
 docker compose exec postgres pg_dump -U postgres -d myapp_development \
   --format=custom --file=/tmp/backup.dump
 
-# ホストにコピー
+# Copy to host
 docker compose cp postgres:/tmp/backup.dump ./backups/
 
-# リストア
+# Restore
 docker compose cp ./backups/backup.dump postgres:/tmp/
 docker compose exec postgres pg_restore -U postgres -d myapp_development \
   --clean --if-exists /tmp/backup.dump
 
-# テキスト形式でのダンプ（Git 管理しやすい）
+# Text format dump (easy to manage with Git)
 docker compose exec postgres pg_dump -U postgres -d myapp_development \
   --schema-only --no-owner --no-privileges > ./docker/postgres/schema.sql
 
-# データのみダンプ
+# Data-only dump
 docker compose exec postgres pg_dump -U postgres -d myapp_development \
   --data-only --inserts > ./docker/postgres/seed-data.sql
 ```
 
-### 2.5 PostgreSQL の監視とデバッグ
+### 2.5 PostgreSQL Monitoring and Debugging
 
 ```bash
-# 実行中のクエリを確認
+# Check running queries
 docker compose exec postgres psql -U postgres -d myapp_development -c \
   "SELECT pid, now() - pg_stat_activity.query_start AS duration, query, state
    FROM pg_stat_activity
    WHERE state != 'idle' AND query NOT ILIKE '%pg_stat_activity%'
    ORDER BY duration DESC;"
 
-# テーブルサイズの確認
+# Check table sizes
 docker compose exec postgres psql -U postgres -d myapp_development -c \
   "SELECT schemaname, tablename,
           pg_size_pretty(pg_total_relation_size(schemaname || '.' || tablename)) AS total_size
@@ -300,21 +299,21 @@ docker compose exec postgres psql -U postgres -d myapp_development -c \
    WHERE schemaname = 'public'
    ORDER BY pg_total_relation_size(schemaname || '.' || tablename) DESC;"
 
-# インデックスの使用状況
+# Index usage statistics
 docker compose exec postgres psql -U postgres -d myapp_development -c \
   "SELECT relname, indexrelname, idx_scan, idx_tup_read, idx_tup_fetch
    FROM pg_stat_user_indexes
    ORDER BY idx_scan ASC;"
 
-# コネクション数の確認
+# Check connection count
 docker compose exec postgres psql -U postgres -c \
   "SELECT count(*), state FROM pg_stat_activity GROUP BY state;"
 ```
 
-### 2.6 pgAdmin の追加（GUI 管理ツール）
+### 2.6 Adding pgAdmin (GUI Management Tool)
 
 ```yaml
-# docker-compose.yml に追加
+# Add to docker-compose.yml
 services:
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -338,7 +337,7 @@ volumes:
 ```
 
 ```json
-// docker/pgadmin/servers.json (自動接続設定)
+// docker/pgadmin/servers.json (auto-connection settings)
 {
   "Servers": {
     "1": {
@@ -357,12 +356,12 @@ volumes:
 
 ---
 
-## 3. MySQL の Docker 化
+## 3. Dockerizing MySQL
 
-### 3.1 基本設定
+### 3.1 Basic Configuration
 
 ```yaml
-# docker-compose.yml (MySQL 版)
+# docker-compose.yml (MySQL version)
 services:
   mysql:
     image: mysql:8.0
@@ -395,33 +394,33 @@ volumes:
     driver: local
 ```
 
-### 3.2 MySQL カスタム設定
+### 3.2 MySQL Custom Configuration
 
 ```ini
 # docker/mysql/my.cnf
 [mysqld]
-# 文字コード
+# Character set
 character-set-server = utf8mb4
 collation-server = utf8mb4_unicode_ci
 
-# パフォーマンス (開発用)
+# Performance (for development)
 innodb_buffer_pool_size = 256M
 innodb_log_file_size = 64M
 innodb_flush_log_at_trx_commit = 0
 sync_binlog = 0
 innodb_flush_method = O_DIRECT
 
-# ログ
+# Logging
 general_log = 1
 general_log_file = /var/log/mysql/general.log
 slow_query_log = 1
 slow_query_log_file = /var/log/mysql/slow.log
 long_query_time = 1
 
-# タイムゾーン
+# Timezone
 default-time-zone = '+09:00'
 
-# 接続設定
+# Connection settings
 max_connections = 100
 wait_timeout = 28800
 interactive_timeout = 28800
@@ -430,7 +429,7 @@ interactive_timeout = 28800
 default-character-set = utf8mb4
 ```
 
-### 3.3 MySQL の初期化スクリプト
+### 3.3 MySQL Initialization Scripts
 
 ```sql
 -- docker/mysql/init/01-create-databases.sql
@@ -438,7 +437,7 @@ CREATE DATABASE IF NOT EXISTS myapp_test
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
--- テスト用ユーザーに権限付与
+-- Grant privileges to test user
 GRANT ALL PRIVILEGES ON myapp_test.* TO 'developer'@'%';
 FLUSH PRIVILEGES;
 ```
@@ -458,41 +457,41 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 3.4 MySQL のバックアップとリストア
+### 3.4 MySQL Backup and Restore
 
 ```bash
-# バックアップ
+# Backup
 docker compose exec mysql mysqldump -u root -proot \
   --single-transaction --routines --triggers \
   myapp_development > ./backups/mysql_backup.sql
 
-# リストア
+# Restore
 docker compose exec -T mysql mysql -u root -proot \
   myapp_development < ./backups/mysql_backup.sql
 
-# 特定のテーブルのみダンプ
+# Dump specific tables only
 docker compose exec mysql mysqldump -u root -proot \
   myapp_development users orders > ./backups/partial_backup.sql
 
-# スキーマのみダンプ
+# Schema-only dump
 docker compose exec mysql mysqldump -u root -proot \
   --no-data myapp_development > ./docker/mysql/schema.sql
 ```
 
-### 3.5 MySQL 8.4 への移行
+### 3.5 Migrating to MySQL 8.4
 
-MySQL 8.4 LTS では `mysql_native_password` が非推奨となり、`caching_sha2_password` がデフォルトになっている。
+In MySQL 8.4 LTS, `mysql_native_password` is deprecated and `caching_sha2_password` is now the default.
 
 ```yaml
-# MySQL 8.4 LTS 対応
+# MySQL 8.4 LTS compatible
 services:
   mysql:
     image: mysql:8.4
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: myapp_development
-    # mysql_native_password は非推奨
-    # アプリケーションの MySQL クライアントが caching_sha2_password に対応しているか確認
+    # mysql_native_password is deprecated
+    # Verify your application's MySQL client supports caching_sha2_password
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
@@ -500,12 +499,12 @@ services:
 
 ---
 
-## 4. Redis の Docker 化
+## 4. Dockerizing Redis
 
-### 4.1 基本設定
+### 4.1 Basic Configuration
 
 ```yaml
-# docker-compose.yml に追加
+# Add to docker-compose.yml
 services:
   redis:
     image: redis:7-alpine
@@ -523,35 +522,35 @@ services:
       retries: 5
 ```
 
-### 4.2 Redis 設定
+### 4.2 Redis Configuration
 
 ```conf
-# docker/redis/redis.conf (開発用)
-# メモリ制限
+# docker/redis/redis.conf (for development)
+# Memory limit
 maxmemory 128mb
 maxmemory-policy allkeys-lru
 
-# 永続化 (開発では不要なら off)
+# Persistence (disable if not needed in development)
 save ""
 appendonly no
 
-# ログ
+# Logging
 loglevel verbose
 
-# パスワード (開発環境)
+# Password (development environment)
 # requirepass dev_redis_password
 
-# キーの有効期限通知（Pub/Sub で期限切れイベントを受け取る）
+# Key expiry notifications (receive expiry events via Pub/Sub)
 notify-keyspace-events Ex
 ```
 
-### 4.3 Redis の用途別設定パターン
+### 4.3 Redis Configuration Patterns by Use Case
 
-#### セッションストアとして使う場合
+#### When Using as a Session Store
 
 ```conf
 # docker/redis/redis-session.conf
-# セッションデータは永続化が必要
+# Session data requires persistence
 save 60 1000
 save 300 100
 appendonly yes
@@ -561,11 +560,11 @@ maxmemory 256mb
 maxmemory-policy volatile-lru
 ```
 
-#### キャッシュとして使う場合
+#### When Using as a Cache
 
 ```conf
 # docker/redis/redis-cache.conf
-# キャッシュは永続化不要
+# Cache does not require persistence
 save ""
 appendonly no
 
@@ -573,49 +572,49 @@ maxmemory 512mb
 maxmemory-policy allkeys-lfu
 ```
 
-#### ジョブキュー（BullMQ / Sidekiq）として使う場合
+#### When Using as a Job Queue (BullMQ / Sidekiq)
 
 ```conf
 # docker/redis/redis-queue.conf
-# ジョブデータの永続化が必要
+# Job data requires persistence
 save 60 1
 appendonly yes
 appendfsync everysec
 
 maxmemory 256mb
-maxmemory-policy noeviction  # キューデータは削除しない
+maxmemory-policy noeviction  # Do not evict queue data
 ```
 
-### 4.4 Redis の監視とデバッグ
+### 4.4 Redis Monitoring and Debugging
 
 ```bash
-# Redis の情報を表示
+# Display Redis information
 docker compose exec redis redis-cli INFO
 
-# メモリ使用状況
+# Memory usage
 docker compose exec redis redis-cli INFO memory
 
-# リアルタイムのコマンド監視
+# Real-time command monitoring
 docker compose exec redis redis-cli MONITOR
 
-# キーの一覧（開発環境のみ）
+# List keys (development environment only)
 docker compose exec redis redis-cli KEYS "*"
 
-# 特定のキーの内容を確認
+# Check the content of a specific key
 docker compose exec redis redis-cli GET "session:abc123"
 docker compose exec redis redis-cli HGETALL "user:1"
 
-# キーの有効期限を確認
+# Check key expiry
 docker compose exec redis redis-cli TTL "cache:products"
 
-# 全キーの削除（開発環境のみ）
+# Delete all keys (development environment only)
 docker compose exec redis redis-cli FLUSHALL
 
-# スロークエリの確認
+# Check slow queries
 docker compose exec redis redis-cli SLOWLOG GET 10
 ```
 
-### 4.5 Redis のアプリケーション接続
+### 4.5 Connecting Redis from Your Application
 
 ```typescript
 // config/redis.ts
@@ -630,7 +629,7 @@ function createRedisClient(): Redis {
       const delay = Math.min(times * 50, 2000);
       return delay;
     },
-    // 接続が切れた場合の自動再接続
+    // Auto-reconnect on connection drop
     reconnectOnError(err) {
       const targetError = 'READONLY';
       if (err.message.includes(targetError)) {
@@ -654,10 +653,10 @@ function createRedisClient(): Redis {
 export const redis = createRedisClient();
 ```
 
-### 4.6 RedisInsight（GUI 管理ツール）
+### 4.6 RedisInsight (GUI Management Tool)
 
 ```yaml
-# docker-compose.yml に追加
+# Add to docker-compose.yml
 services:
   redis-insight:
     image: redis/redisinsight:latest
@@ -677,21 +676,21 @@ volumes:
 
 ---
 
-## 5. MailHog / Mailpit (メールテスト)
+## 5. MailHog / Mailpit (Mail Testing)
 
-### 5.1 Mailpit（推奨 -- MailHog の後継）
+### 5.1 Mailpit (Recommended -- MailHog Successor)
 
-MailHog はメンテナンスが停止しているため、後継の Mailpit を推奨する。API 互換性があり、移行は容易である。
+MailHog is no longer maintained, so its successor Mailpit is recommended. It has API compatibility, making migration straightforward.
 
 ```yaml
-# docker-compose.yml に追加
+# Add to docker-compose.yml
 services:
   mailpit:
     image: axllent/mailpit:latest
     container_name: myapp-mailpit
     restart: unless-stopped
     ports:
-      - "1025:1025"    # SMTP サーバー
+      - "1025:1025"    # SMTP server
       - "8025:8025"    # Web UI
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
@@ -706,19 +705,19 @@ volumes:
   mailpit_data:
 ```
 
-### 5.2 MailHog（レガシー）
+### 5.2 MailHog (Legacy)
 
-既存プロジェクトで MailHog を使用している場合の設定は以下の通りである。
+The configuration for projects that are still using MailHog is as follows.
 
 ```yaml
-# docker-compose.yml に追加
+# Add to docker-compose.yml
 services:
   mailhog:
     image: mailhog/mailhog:latest
     container_name: myapp-mailhog
     restart: unless-stopped
     ports:
-      - "1025:1025"    # SMTP サーバー
+      - "1025:1025"    # SMTP server
       - "8025:8025"    # Web UI
     environment:
       MH_STORAGE: memory
@@ -726,7 +725,7 @@ services:
       MH_UI_BIND_ADDR: 0.0.0.0:8025
 ```
 
-### 5.3 アプリからの接続設定
+### 5.3 Connection Settings from Your Application
 
 ```typescript
 // config/mail.ts
@@ -734,19 +733,19 @@ import nodemailer from 'nodemailer';
 
 function createMailTransport() {
   if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
-    // Mailpit / MailHog （SMTP 互換）
+    // Mailpit / MailHog (SMTP compatible)
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'localhost',
       port: parseInt(process.env.SMTP_PORT || '1025'),
       secure: false,
-      // Mailpit / MailHog は認証不要
+      // Mailpit / MailHog require no authentication
       tls: {
         rejectUnauthorized: false,
       },
     });
   }
 
-  // 本番環境
+  // Production environment
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT || '587'),
@@ -781,9 +780,9 @@ else:
     EMAIL_HOST_PASSWORD = os.getenv('SMTP_PASS')
 ```
 
-### 5.4 Mailpit API の活用（E2E テスト）
+### 5.4 Using the Mailpit API (E2E Testing)
 
-Mailpit の API を使って、E2E テストでメール送信を検証できる。
+You can use the Mailpit API to verify email sending in E2E tests.
 
 ```typescript
 // tests/helpers/mail.ts
@@ -876,12 +875,12 @@ test('パスワードリセットメールが送信される', async ({ page }) 
 
 ---
 
-## 6. MinIO (S3 互換ストレージ)
+## 6. MinIO (S3 Compatible Storage)
 
-### 6.1 設定
+### 6.1 Configuration
 
 ```yaml
-# docker-compose.yml に追加
+# Add to docker-compose.yml
 services:
   minio:
     image: minio/minio:latest
@@ -902,7 +901,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # 初期バケット作成
+  # Initial bucket creation
   minio-init:
     image: minio/mc:latest
     depends_on:
@@ -924,7 +923,7 @@ volumes:
     driver: local
 ```
 
-### 6.2 AWS SDK での接続
+### 6.2 Connecting with the AWS SDK
 
 ```typescript
 // config/storage.ts
@@ -940,17 +939,17 @@ function createStorageClient(): S3Client {
         accessKeyId: process.env.S3_ACCESS_KEY || 'minioadmin',
         secretAccessKey: process.env.S3_SECRET_KEY || 'minioadmin',
       },
-      forcePathStyle: true, // MinIO ではパススタイル必須
+      forcePathStyle: true, // Path style is required for MinIO
     });
   }
 
-  // 本番は通常の S3
+  // Production uses standard S3
   return new S3Client({ region: process.env.AWS_REGION || 'ap-northeast-1' });
 }
 
 export const storageClient = createStorageClient();
 
-// ファイルアップロード
+// File upload
 export async function uploadFile(
   bucket: string,
   key: string,
@@ -972,7 +971,7 @@ export async function uploadFile(
   return `https://${bucket}.s3.amazonaws.com/${key}`;
 }
 
-// 署名付き URL の生成
+// Generate presigned URL
 export async function getPresignedUrl(
   bucket: string,
   key: string,
@@ -982,7 +981,7 @@ export async function getPresignedUrl(
   return getSignedUrl(storageClient, command, { expiresIn });
 }
 
-// ファイル削除
+// Delete file
 export async function deleteFile(bucket: string, key: string): Promise<void> {
   await storageClient.send(
     new DeleteObjectCommand({ Bucket: bucket, Key: key })
@@ -990,34 +989,34 @@ export async function deleteFile(bucket: string, key: string): Promise<void> {
 }
 ```
 
-### 6.3 MinIO 管理コマンド
+### 6.3 MinIO Management Commands
 
 ```bash
-# MinIO Client (mc) の設定
+# Configure MinIO Client (mc)
 docker compose exec minio mc alias set local http://localhost:9000 minioadmin minioadmin
 
-# バケット一覧
+# List buckets
 docker compose exec minio mc ls local
 
-# バケット内のオブジェクト一覧
+# List objects in a bucket
 docker compose exec minio mc ls local/uploads --recursive
 
-# ファイルのアップロード（ホストから）
+# Upload a file (from host)
 docker compose exec minio mc cp /data/test.jpg local/uploads/test.jpg
 
-# バケットのポリシー確認
+# Check bucket policy
 docker compose exec minio mc anonymous get local/avatars
 
-# バケットの統計情報
+# Bucket statistics
 docker compose exec minio mc stat local/uploads
 
-# 全オブジェクトの削除
+# Delete all objects
 docker compose exec minio mc rm --recursive --force local/uploads
 ```
 
 ---
 
-## 7. その他のサービス
+## 7. Additional Services
 
 ### 7.1 Elasticsearch / OpenSearch
 
@@ -1040,7 +1039,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Kibana (管理UI)
+  # Kibana (management UI)
   kibana:
     image: docker.elastic.co/kibana/kibana:8.12.0
     container_name: myapp-kibana
@@ -1056,9 +1055,9 @@ volumes:
   esdata:
 ```
 
-### 7.2 Meilisearch（軽量全文検索）
+### 7.2 Meilisearch (Lightweight Full-Text Search)
 
-Elasticsearch が重い場合の代替として Meilisearch が適している。
+Meilisearch is a suitable alternative when Elasticsearch is too heavy.
 
 ```yaml
 services:
@@ -1084,7 +1083,7 @@ volumes:
   meilidata:
 ```
 
-### 7.3 RabbitMQ（メッセージキュー）
+### 7.3 RabbitMQ (Message Queue)
 
 ```yaml
 services:
@@ -1133,7 +1132,7 @@ services:
       timeout: 3s
       retries: 5
 
-  # Mongo Express (管理UI)
+  # Mongo Express (management UI)
   mongo-express:
     image: mongo-express:latest
     container_name: myapp-mongo-express
@@ -1154,9 +1153,9 @@ volumes:
   mongodata:
 ```
 
-### 7.5 Keycloak（認証サーバー）
+### 7.5 Keycloak (Authentication Server)
 
-OAuth2 / OpenID Connect のテスト用として Keycloak を使用する。
+Use Keycloak for testing OAuth2 / OpenID Connect.
 
 ```yaml
 services:
@@ -1179,7 +1178,7 @@ services:
         condition: service_healthy
 ```
 
-### 7.6 LocalStack（AWS サービスエミュレーター）
+### 7.6 LocalStack (AWS Service Emulator)
 
 ```yaml
 services:
@@ -1206,17 +1205,17 @@ volumes:
 ```bash
 #!/bin/bash
 # docker/localstack/init/init-aws.sh
-# LocalStack 初期化スクリプト
+# LocalStack initialization script
 
-# S3 バケット作成
+# Create S3 buckets
 awslocal s3 mb s3://uploads
 awslocal s3 mb s3://avatars
 
-# SQS キュー作成
+# Create SQS queues
 awslocal sqs create-queue --queue-name email-queue
 awslocal sqs create-queue --queue-name notification-queue
 
-# DynamoDB テーブル作成
+# Create DynamoDB table
 awslocal dynamodb create-table \
   --table-name Sessions \
   --attribute-definitions AttributeName=id,AttributeType=S \
@@ -1228,12 +1227,12 @@ echo "LocalStack initialization complete"
 
 ---
 
-## 8. 統合 Docker Compose
+## 8. Integrated Docker Compose
 
-### 8.1 完全な構成例
+### 8.1 Complete Configuration Example
 
 ```yaml
-# docker-compose.yml (統合版)
+# docker-compose.yml (integrated version)
 services:
   postgres:
     image: postgres:16-alpine
@@ -1323,93 +1322,93 @@ volumes:
   miniodata:
 ```
 
-### 8.2 プロファイルによるサービス分離
+### 8.2 Service Isolation Using Profiles
 
 ```yaml
-# docker-compose.yml (プロファイル対応)
+# docker-compose.yml (with profiles)
 services:
   postgres:
     image: postgres:16-alpine
-    # ... (基本設定)
+    # ... (basic settings)
     profiles: ["db", "full"]
 
   mysql:
     image: mysql:8.0
-    # ... (基本設定)
+    # ... (basic settings)
     profiles: ["mysql", "full"]
 
   redis:
     image: redis:7-alpine
-    # ... (基本設定)
+    # ... (basic settings)
     profiles: ["cache", "full"]
 
   mailpit:
     image: axllent/mailpit:latest
-    # ... (基本設定)
+    # ... (basic settings)
     profiles: ["mail", "full"]
 
   minio:
     image: minio/minio:latest
-    # ... (基本設定)
+    # ... (basic settings)
     profiles: ["storage", "full"]
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
-    # ... (基本設定)
+    # ... (basic settings)
     profiles: ["search", "full"]
 ```
 
 ```bash
-# 必要なサービスだけ起動
+# Start only the necessary services
 docker compose --profile db --profile cache up -d
 
-# 全サービス起動
+# Start all services
 docker compose --profile full up -d
 ```
 
-### 8.3 Makefile による操作の簡略化
+### 8.3 Simplifying Operations with a Makefile
 
 ```makefile
 # Makefile
 .PHONY: up down restart logs status clean db-shell redis-shell psql
 
-# サービスの起動
+# Start services
 up:
 	docker compose up -d
 
-# サービスの停止
+# Stop services
 down:
 	docker compose down
 
-# サービスの再起動
+# Restart services
 restart:
 	docker compose restart
 
-# ログの表示
+# Show logs
 logs:
 	docker compose logs -f
 
-# 特定サービスのログ
+# Logs for a specific service
 logs-%:
 	docker compose logs -f $*
 
-# ステータス確認
+# Check status
 status:
 	docker compose ps
 
-# データベースシェル
+# Database shell
 db-shell:
 	docker compose exec postgres psql -U postgres -d myapp_development
 
-# Redis シェル
+# Redis shell
 redis-shell:
 	docker compose exec redis redis-cli
 
-# MySQL シェル
+# MySQL shell
 mysql-shell:
 	docker compose exec mysql mysql -u root -proot myapp_development
 
-# データベースのリセット
+# Reset database
 db-reset:
 	docker compose down -v
 	docker compose up -d postgres
@@ -1417,19 +1416,19 @@ db-reset:
 	@sleep 5
 	@echo "Database reset complete"
 
-# 全データの削除
+# Delete all data
 clean:
 	docker compose down -v --remove-orphans
 	docker volume prune -f
 
-# バックアップ
+# Backup
 backup:
 	@mkdir -p backups
 	docker compose exec postgres pg_dump -U postgres -d myapp_development \
 		--format=custom > backups/backup_$(shell date +%Y%m%d_%H%M%S).dump
 	@echo "Backup created"
 
-# リストア (使用法: make restore FILE=backups/backup_xxx.dump)
+# Restore (usage: make restore FILE=backups/backup_xxx.dump)
 restore:
 	docker compose exec -T postgres pg_restore -U postgres -d myapp_development \
 		--clean --if-exists < $(FILE)
@@ -1438,13 +1437,13 @@ restore:
 
 ---
 
-## 9. サービス接続情報まとめ
+## 9. Local Service Connection Reference
 
 ```
 +------------------------------------------------------------------+
-|           ローカルサービス接続情報一覧                               |
+|           Local Service Connection Reference                     |
 +------------------------------------------------------------------+
-| サービス     | ホスト:ポート       | UI / 管理画面               |
+| Service      | Host:Port           | UI / Admin Panel            |
 |-------------|--------------------|-----------------------------|
 | PostgreSQL  | localhost:5432     | pgAdmin (localhost:5050)    |
 | MySQL       | localhost:3306     | phpMyAdmin or DBeaver       |
@@ -1460,30 +1459,30 @@ restore:
 +------------------------------------------------------------------+
 ```
 
-### サービス選択ガイド
+### Service Selection Guide
 
-| 要件 | 推奨サービス | 代替 | 備考 |
-|------|------------|------|------|
-| RDB (汎用) | PostgreSQL 16 | MySQL 8.0 | JSON, 配列型が豊富 |
-| RDB (レガシー) | MySQL 8.0 | MariaDB 11 | 既存資産との互換性 |
-| キャッシュ | Redis 7 | Memcached | Pub/Sub も使える |
-| セッション | Redis 7 | PostgreSQL | 永続化設定を有効に |
-| メールテスト | Mailpit | MailHog (非推奨) | API でテスト検証可 |
-| S3互換ストレージ | MinIO | LocalStack | 軽量で高速 |
-| AWS 全般 | LocalStack | - | 複数サービスをエミュレート |
-| 全文検索 (軽量) | Meilisearch | - | セットアップが簡単 |
-| 全文検索 (高機能) | Elasticsearch | OpenSearch | 集約・分析機能が豊富 |
-| メッセージキュー | RabbitMQ | Redis Streams | 複雑なルーティング |
-| NoSQL | MongoDB 7 | DynamoDB (LocalStack) | ドキュメント DB |
-| 認証テスト | Keycloak | mock-oauth2-server | OAuth2/OIDC 完全サポート |
+| Requirement | Recommended Service | Alternative | Notes |
+|-------------|--------------------|-----------|----|
+| RDB (general) | PostgreSQL 16 | MySQL 8.0 | Rich JSON and array types |
+| RDB (legacy) | MySQL 8.0 | MariaDB 11 | Compatibility with existing assets |
+| Cache | Redis 7 | Memcached | Pub/Sub also available |
+| Session | Redis 7 | PostgreSQL | Enable persistence settings |
+| Mail testing | Mailpit | MailHog (deprecated) | API-based test verification available |
+| S3-compatible storage | MinIO | LocalStack | Lightweight and fast |
+| AWS in general | LocalStack | - | Emulates multiple services |
+| Full-text search (lightweight) | Meilisearch | - | Easy to set up |
+| Full-text search (advanced) | Elasticsearch | OpenSearch | Rich aggregation and analytics |
+| Message queue | RabbitMQ | Redis Streams | Complex routing |
+| NoSQL | MongoDB 7 | DynamoDB (LocalStack) | Document DB |
+| Auth testing | Keycloak | mock-oauth2-server | Full OAuth2/OIDC support |
 
 ---
 
-## 10. ヘルスチェックとサービス起動順序
+## 10. Health Checks and Service Startup Order
 
-### 10.1 ヘルスチェックの重要性
+### 10.1 Importance of Health Checks
 
-`depends_on` だけではコンテナの「起動」しか保証されず、サービスが「使用可能」になるまで待機しない。`healthcheck` と `condition: service_healthy` を組み合わせることで、確実な起動順序を実現する。
+`depends_on` alone only guarantees container "startup" and does not wait until the service becomes "usable." By combining `healthcheck` with `condition: service_healthy`, a reliable startup order is achieved.
 
 ```yaml
 services:
@@ -1495,7 +1494,7 @@ services:
       redis:
         condition: service_healthy
       mailpit:
-        condition: service_started  # ヘルスチェック不要なサービス
+        condition: service_started  # For services that don't need a health check
 
   postgres:
     image: postgres:16-alpine
@@ -1504,7 +1503,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 10s  # 初期化中はチェックしない
+      start_period: 10s  # Do not check during initialization
 
   redis:
     image: redis:7-alpine
@@ -1515,9 +1514,9 @@ services:
       retries: 5
 ```
 
-### 10.2 アプリケーション側のリトライ
+### 10.2 Application-Side Retry Logic
 
-ヘルスチェックだけに依存せず、アプリケーション側でもリトライロジックを実装する。
+Do not rely solely on health checks; implement retry logic on the application side as well.
 
 ```typescript
 // lib/db.ts
@@ -1546,18 +1545,18 @@ export const prisma = await createPrismaClient();
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: Volume なしでデータベースを運用
+### Anti-Pattern 1: Operating a Database Without Volumes
 
 ```yaml
-# NG: Volume 未設定 → docker-compose down でデータ全消失
+# NG: No Volume set → all data lost on docker-compose down
 services:
   postgres:
     image: postgres:16-alpine
-    # volumes が未設定
+    # volumes not configured
 
-# OK: 名前付き Volume でデータを永続化
+# OK: Persist data with named Volumes
 services:
   postgres:
     image: postgres:16-alpine
@@ -1569,36 +1568,36 @@ volumes:
     driver: local
 ```
 
-**問題点**: Volume を設定しないと `docker-compose down` や `docker-compose rm` でデータベースの全データが消失する。開発中のテストデータやマイグレーション状態が失われ、再構築に時間がかかる。
+**Problem**: Without Volumes, all database data is lost when running `docker-compose down` or `docker-compose rm`. Test data and migration state accumulated during development are lost, and rebuilding takes time.
 
-### アンチパターン 2: 本番と同じ認証情報をローカルで使用
+### Anti-Pattern 2: Using Production Credentials Locally
 
 ```yaml
-# NG: 本番の認証情報をそのまま使用
+# NG: Using production credentials as-is
 services:
   postgres:
     environment:
-      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD}  # 本番パスワード
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD}  # Production password
 
-# OK: 開発専用の固定パスワード
+# OK: Fixed password dedicated to development
 services:
   postgres:
     environment:
-      POSTGRES_PASSWORD: postgres  # 開発専用
+      POSTGRES_PASSWORD: postgres  # Development only
 ```
 
-**問題点**: 本番認証情報がローカル環境に残ると、`docker-compose.yml` のコミットや `.env` の誤共有で漏洩するリスクがある。開発環境では固定のシンプルなパスワードを使い、本番環境とは完全に分離する。
+**Problem**: If production credentials remain in the local environment, there is a risk of leakage through committing `docker-compose.yml` or accidentally sharing `.env`. Use fixed, simple passwords in development environments and keep them completely separate from production.
 
-### アンチパターン 3: バインドマウントでデータベースのデータを管理
+### Anti-Pattern 3: Managing Database Data with Bind Mounts
 
 ```yaml
-# NG: バインドマウント (I/O が遅い + 権限問題)
+# NG: Bind mount (slow I/O + permission issues)
 services:
   postgres:
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
 
-# OK: 名前付き Volume (高速 + 権限問題なし)
+# OK: Named Volume (fast + no permission issues)
 services:
   postgres:
     volumes:
@@ -1608,18 +1607,18 @@ volumes:
   pgdata:
 ```
 
-**問題点**: macOS / Windows ではバインドマウントの I/O 性能が低く、特にデータベースの書き込みパフォーマンスに大きく影響する。また、コンテナ内の UID/GID とホストの権限が一致しない問題も発生しやすい。名前付き Volume はこれらの問題を回避する。
+**Problem**: On macOS / Windows, bind mount I/O performance is poor and significantly impacts database write performance in particular. Permission mismatches between the container's UID/GID and the host can also occur frequently. Named Volumes avoid these problems.
 
-### アンチパターン 4: ヘルスチェックなしの depends_on
+### Anti-Pattern 4: depends_on Without Health Checks
 
 ```yaml
-# NG: ヘルスチェックなし → DB 起動前にアプリが接続を試みる
+# NG: No health check → app tries to connect before DB is ready
 services:
   app:
     depends_on:
-      - postgres  # コンテナ起動のみ保証
+      - postgres  # Only guarantees container startup
 
-# OK: ヘルスチェックで起動完了を保証
+# OK: Guarantee startup completion with health checks
 services:
   app:
     depends_on:
@@ -1634,19 +1633,19 @@ services:
       retries: 5
 ```
 
-**問題点**: `depends_on` はコンテナの起動順序しか保証しない。PostgreSQL のコンテナが起動しても、初期化スクリプトの実行やソケットのリッスン開始まで数秒かかる。この間にアプリケーションが接続を試みると接続エラーが発生する。
+**Problem**: `depends_on` only guarantees the container startup order. Even after a PostgreSQL container starts, it takes several seconds until initialization scripts finish running and the socket starts listening. If the application tries to connect during this time, a connection error occurs.
 
-### アンチパターン 5: latest タグを本番同等のサービスに使用
+### Anti-Pattern 5: Using the latest Tag for Production-Equivalent Services
 
 ```yaml
-# NG: バージョンが不定
+# NG: Version is indeterminate
 services:
   postgres:
     image: postgres:latest
   redis:
     image: redis:latest
 
-# OK: メジャーバージョンを固定
+# OK: Pin major versions
 services:
   postgres:
     image: postgres:16-alpine
@@ -1654,78 +1653,78 @@ services:
     image: redis:7-alpine
 ```
 
-**問題点**: `latest` タグは `docker pull` のタイミングで異なるバージョンが取得される可能性がある。チームメンバー間でバージョンが異なると、互換性の問題やデータフォーマットの不整合が発生する。メジャーバージョンを固定し、マイナーバージョンのアップデートは意図的に行う。
+**Problem**: The `latest` tag may fetch a different version at the time of `docker pull`. If versions differ between team members, compatibility issues and data format inconsistencies can arise. Pin the major version and intentionally update minor versions.
 
 ---
 
 ## FAQ
 
-### Q1: Docker for Mac/Windows でデータベースの I/O が遅いのですが、改善方法はありますか？
+### Q1: Database I/O is slow on Docker for Mac/Windows. How can I improve it?
 
-**A**: 名前付き Volume を使うことが最も効果的。バインドマウント (`./data:/var/lib/postgresql/data`) は macOS/Windows ではファイルシステムの変換オーバーヘッドが大きい。名前付き Volume は Docker VM 内のネイティブファイルシステムを使うため、I/O 性能が大幅に向上する。PostgreSQL の場合、`fsync=off` や `synchronous_commit=off` を開発専用設定として追加するのも有効。macOS では OrbStack の利用も検討する価値がある。
+**A**: Using named Volumes is the most effective approach. Bind mounts (`./data:/var/lib/postgresql/data`) have significant filesystem conversion overhead on macOS/Windows. Named Volumes use the native filesystem inside the Docker VM, greatly improving I/O performance. For PostgreSQL, adding `fsync=off` and `synchronous_commit=off` as development-only settings is also effective. On macOS, using OrbStack is also worth considering.
 
-### Q2: 複数プロジェクトで同じポート (5432 等) を使いたい場合はどうしますか？
+### Q2: What should I do when I want to use the same port (e.g., 5432) across multiple projects?
 
-**A**: プロジェクトごとにポートをずらす (`5432`, `5433`, `5434` 等) か、Docker Compose のプロファイル機能で排他的に起動する。もう一つの方法は、すべてのプロジェクトで共通の開発用インフラを一つの `docker-compose.yml` で管理し、データベース名で分離する方式。Dev Container を使う場合は、コンテナ内から Docker ネットワーク経由でアクセスするためポート競合は発生しない。`.env` ファイルでポート番号を変数化するのも有効な手段である。
+**A**: Offset ports per project (`5432`, `5433`, `5434`, etc.) or use Docker Compose profiles to start them exclusively. Another approach is to manage a single shared development infrastructure for all projects in one `docker-compose.yml` and isolate by database name. When using Dev Containers, port conflicts do not occur because access is made via Docker network from inside the container. Parameterizing port numbers in `.env` files is also an effective strategy.
 
-### Q3: MailHog の代わりに Mailpit を使うべきですか？
+### Q3: Should I use Mailpit instead of MailHog?
 
-**A**: はい。MailHog はメンテナンスが停止しており、Mailpit がその後継として活発に開発されている。Mailpit は MailHog と API 互換性があり、より高速で、HTML メールのレンダリングや添付ファイルの表示も改善されている。Docker イメージは `axllent/mailpit` で、SMTP ポートは `1025`、Web UI は `8025` と同じ設定で移行可能。さらに、Mailpit は検索 API が充実しており、E2E テストでのメール検証にも優れている。
+**A**: Yes. MailHog is no longer maintained, and Mailpit is actively developed as its successor. Mailpit has API compatibility with MailHog, is faster, and has improved HTML mail rendering and attachment display. The Docker image is `axllent/mailpit`, and migration is possible with the same settings: SMTP port `1025` and Web UI `8025`. Furthermore, Mailpit has a rich search API, making it excellent for email verification in E2E tests.
 
-### Q4: docker compose down と docker compose stop の違いは？
+### Q4: What is the difference between docker compose down and docker compose stop?
 
-**A**: `docker compose stop` はコンテナを停止するだけで、コンテナとネットワークは保持される。次回 `docker compose start` で高速に再開できる。一方、`docker compose down` はコンテナとネットワークを削除する。`-v` フラグを付けると Volume も削除される。開発中は `stop` / `start` を使い、環境をリセットしたい場合のみ `down` を使うのが効率的である。
+**A**: `docker compose stop` only stops containers; containers and networks are retained. You can resume quickly with `docker compose start` next time. On the other hand, `docker compose down` removes containers and networks. Adding the `-v` flag also removes Volumes. It is efficient to use `stop` / `start` during development and only use `down` when you want to reset the environment.
 
-### Q5: 初期化スクリプトが再実行されないのはなぜですか？
+### Q5: Why aren't initialization scripts re-executed?
 
-**A**: PostgreSQL / MySQL の初期化スクリプト (`docker-entrypoint-initdb.d/`) は、データディレクトリが空の場合にのみ実行される。Volume にデータが残っている場合はスキップされる。初期化スクリプトを再実行するには、Volume を削除して再作成する必要がある: `docker compose down -v && docker compose up -d`。
+**A**: PostgreSQL / MySQL initialization scripts (`docker-entrypoint-initdb.d/`) are only executed when the data directory is empty. They are skipped if data remains in the Volume. To re-run initialization scripts, you need to delete and recreate the Volume: `docker compose down -v && docker compose up -d`.
 
-### Q6: LocalStack と MinIO の使い分けは？
+### Q6: How do I choose between LocalStack and MinIO?
 
-**A**: MinIO は S3 互換ストレージに特化しており、軽量で高速。S3 のみが必要な場合は MinIO を推奨する。LocalStack は S3 以外にも SQS, SNS, DynamoDB, Lambda, SES など多数の AWS サービスをエミュレートする。複数の AWS サービスを使う場合は LocalStack が適している。ただし LocalStack は Pro 版（有料）でないとサポートされないサービスもある。
+**A**: MinIO is specialized for S3-compatible storage and is lightweight and fast. If you only need S3, MinIO is recommended. LocalStack emulates many AWS services beyond S3, including SQS, SNS, DynamoDB, Lambda, and SES. LocalStack is suitable when you use multiple AWS services. However, some services in LocalStack are only supported in the Pro (paid) version.
 
-### Q7: テスト用データベースはどのように管理するのが良いですか？
+### Q7: What is the best way to manage test databases?
 
-**A**: 以下の 3 つのパターンがある。
-1. **テスト用 DB を別途作成**: 初期化スクリプトで `myapp_test` DB を作成し、テスト実行前にマイグレーション
-2. **テストごとにリセット**: 各テストの前にトランザクションを開始し、終了後にロールバック
-3. **テスト用コンテナ**: `docker compose --profile test up -d` で専用コンテナを起動
+**A**: There are three patterns:
+1. **Create a separate test DB**: Create `myapp_test` DB in initialization scripts and run migrations before test execution
+2. **Reset per test**: Start a transaction before each test and roll back after completion
+3. **Dedicated test container**: Start a dedicated container with `docker compose --profile test up -d`
 
-最も一般的なのはパターン 1 + パターン 2 の組み合わせであり、テスト DB をパターン 1 で用意し、各テストの分離をパターン 2 で行う。
+The most common approach is a combination of Pattern 1 + Pattern 2: prepare the test DB with Pattern 1 and achieve test isolation with Pattern 2.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| PostgreSQL | alpine イメージ + init スクリプトで開発DB自動構築 |
-| MySQL | `utf8mb4` + 開発用パフォーマンス設定を `my.cnf` で管理 |
-| Redis | 用途別に設定を分離（キャッシュ / セッション / キュー） |
-| Mailpit | MailHog の後継。SMTP テスト + API テスト検証に最適 |
-| MinIO | S3 互換 API。`forcePathStyle: true` が必須 |
-| LocalStack | 複数 AWS サービスのエミュレーション |
-| Meilisearch | 軽量全文検索。Elasticsearch の代替 |
-| Volume 設計 | DB データは名前付き Volume。バインドマウントは避ける |
-| ヘルスチェック | 全サービスに `healthcheck` を設定し、依存順序を保証 |
-| ポート管理 | `.env` で変数化、またはプロファイルで排他管理 |
-| プロファイル | `--profile` で必要なサービスだけ起動 |
-| Makefile | 頻繁に使うコマンドを簡略化 |
-| バックアップ | `pg_dump` / `mysqldump` でスキーマとデータを管理 |
-| GUI ツール | pgAdmin / RedisInsight / Kibana 等を必要に応じて追加 |
+| Item | Key Points |
+|------|-----------|
+| PostgreSQL | Auto-build development DB with alpine image + init scripts |
+| MySQL | Manage `utf8mb4` + development performance settings via `my.cnf` |
+| Redis | Separate configuration by use case (cache / session / queue) |
+| Mailpit | MailHog successor. Ideal for SMTP testing + API test verification |
+| MinIO | S3-compatible API. `forcePathStyle: true` is required |
+| LocalStack | Emulation of multiple AWS services |
+| Meilisearch | Lightweight full-text search. Alternative to Elasticsearch |
+| Volume design | Use named Volumes for DB data. Avoid bind mounts |
+| Health checks | Set `healthcheck` for all services to guarantee dependency order |
+| Port management | Parameterize with `.env`, or use profiles for exclusive management |
+| Profiles | Use `--profile` to start only needed services |
+| Makefile | Simplify frequently used commands |
+| Backup | Manage schema and data with `pg_dump` / `mysqldump` |
+| GUI tools | Add pgAdmin / RedisInsight / Kibana as needed |
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [Dev Container](./01-devcontainer.md) -- Docker 開発環境を VS Code / Codespaces と統合
-- Docker Compose 基礎 -- Compose ファイルの構文と設計パターン
-- [プロジェクト標準](../03-team-setup/00-project-standards.md) -- チーム共通の設定ファイル管理
+- [Dev Container](./01-devcontainer.md) -- Integrate Docker development environment with VS Code / Codespaces
+- Docker Compose Basics -- Compose file syntax and design patterns
+- [Project Standards](../03-team-setup/00-project-standards.md) -- Managing shared configuration files across teams
 
-## 参考文献
+## References
 
-1. **Docker Hub 公式イメージ** -- https://hub.docker.com/ -- PostgreSQL, MySQL, Redis 等の公式イメージと設定オプション
-2. **Mailpit 公式** -- https://mailpit.axllent.org/ -- MailHog 後継の SMTP テストツール
-3. **MinIO 公式ドキュメント** -- https://min.io/docs/minio/container/index.html -- MinIO の Docker デプロイとクライアント設定
-4. **Docker Compose 公式リファレンス** -- https://docs.docker.com/compose/compose-file/ -- Compose ファイル仕様の詳細
-5. **LocalStack 公式** -- https://localstack.cloud/ -- AWS サービスのローカルエミュレーション
-6. **Meilisearch 公式** -- https://www.meilisearch.com/ -- 軽量全文検索エンジン
-7. **Redis 公式ドキュメント** -- https://redis.io/docs/ -- Redis の設定とコマンドリファレンス
+1. **Docker Hub Official Images** -- https://hub.docker.com/ -- Official images and configuration options for PostgreSQL, MySQL, Redis, etc.
+2. **Mailpit Official** -- https://mailpit.axllent.org/ -- SMTP testing tool, successor to MailHog
+3. **MinIO Official Documentation** -- https://min.io/docs/minio/container/index.html -- MinIO Docker deployment and client configuration
+4. **Docker Compose Official Reference** -- https://docs.docker.com/compose/compose-file/ -- Detailed Compose file specification
+5. **LocalStack Official** -- https://localstack.cloud/ -- Local emulation of AWS services
+6. **Meilisearch Official** -- https://www.meilisearch.com/ -- Lightweight full-text search engine
+7. **Redis Official Documentation** -- https://redis.io/docs/ -- Redis configuration and command reference
