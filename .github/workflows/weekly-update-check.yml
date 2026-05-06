@@ -121,20 +121,14 @@ jobs:
             # リリースノートをファイルに保存（env経由で安全に渡す）
             printf '%s' "$JEST_RELEASE_BODY" > /tmp/jest_release.txt
 
-            # jqでJSON化してAPIリクエスト（jq --arg でエスケープ）
-            PROMPT="以下はJestのリリースノートです。このアップデートを分析してください：
-
-$(cat /tmp/jest_release.txt)
-
-以下の形式で回答してください：
-1. 破壊的変更: あり/なし
-2. 重要度: 高/中/低
-3. 影響範囲: テストコード/設定ファイル/その他
-4. 推奨アクション: 具体的に何をすべきか
-5. 概要: 変更内容を3行で要約"
+            RELEASE_NOTES=$(cat /tmp/jest_release.txt)
+            PROMPT=$(printf '%s\n\n%s\n\n%s' \
+              "Analyze the following Jest release notes:" \
+              "$RELEASE_NOTES" \
+              "Answer in the following format: 1. Breaking changes: yes/no 2. Severity: high/medium/low 3. Impact scope: test code/config files/other 4. Recommended action: specifics 5. Summary: 3-line overview")
 
             REQUEST_BODY=$(jq -n \
-              --arg model "claude-3-5-sonnet-20241022" \
+              --arg model "claude-sonnet-4-6" \
               --argjson max_tokens 2000 \
               --arg content "$PROMPT" \
               '{model: $model, max_tokens: $max_tokens, messages: [{role: "user", content: $content}]}')
@@ -154,19 +148,14 @@ $(cat /tmp/jest_release.txt)
           if [ "$PLAYWRIGHT_CURRENT" != "$PLAYWRIGHT_LATEST" ]; then
             printf '%s' "$PLAYWRIGHT_RELEASE_BODY" > /tmp/playwright_release.txt
 
-            PROMPT="以下はPlaywrightのリリースノートです。このアップデートを分析してください：
-
-$(cat /tmp/playwright_release.txt)
-
-以下の形式で回答してください：
-1. 破壊的変更: あり/なし
-2. 重要度: 高/中/低
-3. 影響範囲: テストコード/設定ファイル/その他
-4. 推奨アクション: 具体的に何をすべきか
-5. 概要: 変更内容を3行で要約"
+            RELEASE_NOTES=$(cat /tmp/playwright_release.txt)
+            PROMPT=$(printf '%s\n\n%s\n\n%s' \
+              "Analyze the following Playwright release notes:" \
+              "$RELEASE_NOTES" \
+              "Answer in the following format: 1. Breaking changes: yes/no 2. Severity: high/medium/low 3. Impact scope: test code/config files/other 4. Recommended action: specifics 5. Summary: 3-line overview")
 
             REQUEST_BODY=$(jq -n \
-              --arg model "claude-3-5-sonnet-20241022" \
+              --arg model "claude-sonnet-4-6" \
               --argjson max_tokens 2000 \
               --arg content "$PROMPT" \
               '{model: $model, max_tokens: $max_tokens, messages: [{role: "user", content: $content}]}')
