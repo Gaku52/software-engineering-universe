@@ -2,6 +2,7 @@ a024250187e36d95ae83b2805fc8a3010556709b:04-web-and-network/api-and-library-guid
 a024250187e36d95ae83b2805fc8a3010556709b:04-web-and-network/api-and-library-guide/docs/03-api-security/00-authentication-patterns.md:generic-api-key:320
 a024250187e36d95ae83b2805fc8a3010556709b:04-web-and-network/api-and-library-guide/docs/03-api-security/00-authentication-patterns.md:stripe-access-token:1719
 70ef9eae033507ed4ca814ba22933d51ce1731ff:05-infrastructure/aws-cloud-guide/docs/05-serverless/02-serverless-patterns.md:generic-api-key:1712
+74a037adb4320b3bb3774f30c7967c6918df78f1:05-infrastructure/aws-cloud-guide/docs/05-serverless/02-serverless-patterns.md:generic-api-key:1712
 f21d1f4c295e9880c8c660d1df7bbc9114ba8cbe:ja/02-programming/typescript-complete-guide/docs/02-patterns/03-branded-types.md:generic-api-key:997
 6196aaa9804055d80d423854b6437bb813d0ec44:04-web-and-network/api-and-library-guide/docs/03-api-security/00-authentication-patterns.md:generic-api-key:319
 6196aaa9804055d80d423854b6437bb813d0ec44:04-web-and-network/api-and-library-guide/docs/03-api-security/00-authentication-patterns.md:generic-api-key:320
