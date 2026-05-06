@@ -1,66 +1,66 @@
-# 開発用 Docker
+# Docker for Development
 
-> Docker Desktop、Dev Containers、docker compose を活用し、再現性の高い開発環境を構築するための実践ガイド。
+> A practical guide for building highly reproducible development environments using Docker Desktop, Dev Containers, and docker compose.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. Docker Desktop のインストール・リソース設定・パフォーマンスチューニング
-2. docker compose による開発環境の構築と管理
-3. ホットリロード・ボリュームマウント・ネットワーク設計の実践テクニック
-4. マルチステージビルドによる開発/本番イメージの分離
-5. Docker のセキュリティベストプラクティスと運用ノウハウ
-6. トラブルシューティングと CI/CD パイプラインとの連携
+1. Installing Docker Desktop, configuring resources, and performance tuning
+2. Building and managing development environments with docker compose
+3. Practical techniques for hot reload, volume mounts, and network design
+4. Separating development and production images with multi-stage builds
+5. Docker security best practices and operational know-how
+6. Troubleshooting and integration with CI/CD pipelines
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. Docker Desktop のセットアップ
+## 1. Docker Desktop Setup
 
-### 1.1 インストール
+### 1.1 Installation
 
 ```bash
 # macOS (Homebrew)
 brew install --cask docker
 
-# macOS (OrbStack -- 推奨代替)
+# macOS (OrbStack -- recommended alternative)
 brew install --cask orbstack
 
-# Windows (WSL2 バックエンド推奨)
+# Windows (WSL2 backend recommended)
 winget install Docker.DockerDesktop
 
-# Linux (Docker Engine -- 公式スクリプト)
+# Linux (Docker Engine -- official script)
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
-# 再ログイン後に有効化
+# Effective after re-login
 
 # Linux (Ubuntu -- apt)
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
 
-### 1.2 リソース設定
+### 1.2 Resource Configuration
 
 ```
-Docker Desktop 推奨リソース設定:
+Docker Desktop recommended resource settings:
 
 ┌─────────────────────────────────────┐
 │ Settings → Resources                │
 │                                      │
-│  CPU:     4+ コア (ホストの半分)     │
+│  CPU:     4+ cores (half of host)   │
 │  Memory:  4-8 GB                     │
 │  Swap:    1 GB                       │
 │  Disk:    64+ GB                     │
 │                                      │
 │ Settings → General                   │
 │  ✅ Use virtualization framework     │
-│  ✅ VirtioFS (macOS - 高速)          │
+│  ✅ VirtioFS (macOS - fast)          │
 │  ✅ Use Rosetta for x86/amd64       │
 │     emulation (Apple Silicon)        │
 │                                      │
@@ -83,108 +83,108 @@ Docker Desktop 推奨リソース設定:
 │  }                                   │
 └─────────────────────────────────────┘
 
-プロジェクト規模別の推奨:
-┌──────────────┬────────┬────────┬──────┐
-│ 規模          │ CPU    │ Memory │ Disk │
-├──────────────┼────────┼────────┼──────┤
-│ 小規模 (1-2)  │ 2 コア │ 2 GB   │ 32GB │
-│ 中規模 (3-5)  │ 4 コア │ 4 GB   │ 64GB │
-│ 大規模 (5+)   │ 6 コア │ 8 GB   │ 128GB│
-│ ML/AI 開発    │ 8 コア │ 16 GB  │ 256GB│
-└──────────────┴────────┴────────┴──────┘
+Recommendations by project scale:
+┌──────────────────┬────────┬────────┬──────┐
+│ Scale            │ CPU    │ Memory │ Disk │
+├──────────────────┼────────┼────────┼──────┤
+│ Small (1-2)      │ 2 core │ 2 GB   │ 32GB │
+│ Medium (3-5)     │ 4 core │ 4 GB   │ 64GB │
+│ Large (5+)       │ 6 core │ 8 GB   │ 128GB│
+│ ML/AI dev        │ 8 core │ 16 GB  │ 256GB│
+└──────────────────┴────────┴────────┴──────┘
 ```
 
-### 1.3 代替ツール
+### 1.3 Alternative Tools
 
-| ツール | OS | 特徴 | 料金 |
-|--------|-----|------|------|
-| Docker Desktop | 全OS | 公式・GUI付き | 個人無料/企業有料 |
-| OrbStack | macOS | 軽量・高速・低メモリ | 個人無料 |
-| Rancher Desktop | 全OS | OSS・containerd対応 | 無料 |
-| Podman Desktop | 全OS | rootless・デーモンレス | 無料 |
-| Colima | macOS/Linux | CLI専用・軽量 | 無料 |
-| Lima | macOS | VM ベース・柔軟 | 無料 |
+| Tool | OS | Features | Pricing |
+|------|-----|----------|---------|
+| Docker Desktop | All OS | Official, GUI included | Free personal / Paid enterprise |
+| OrbStack | macOS | Lightweight, fast, low memory | Free personal |
+| Rancher Desktop | All OS | OSS, containerd support | Free |
+| Podman Desktop | All OS | Rootless, daemonless | Free |
+| Colima | macOS/Linux | CLI only, lightweight | Free |
+| Lima | macOS | VM-based, flexible | Free |
 
 ```
-代替ツールの選択フローチャート:
+Alternative tool selection flowchart:
 
-  Q1: OS は何か？
+  Q1: What OS?
   │
   ├── macOS
   │   │
-  │   └── Q2: GUI は必要？
-  │       ├── Yes → OrbStack (推奨) / Docker Desktop
+  │   └── Q2: Is GUI needed?
+  │       ├── Yes → OrbStack (recommended) / Docker Desktop
   │       └── No  → Colima
   │
   ├── Windows
   │   │
-  │   └── Q2: WSL2 を使える？
+  │   └── Q2: Can use WSL2?
   │       ├── Yes → Docker Desktop / Rancher Desktop
   │       └── No  → Docker Desktop (Hyper-V)
   │
   └── Linux
       │
-      └── Q2: rootless が必要？
+      └── Q2: Is rootless needed?
           ├── Yes → Podman
-          └── No  → Docker Engine (公式)
+          └── No  → Docker Engine (official)
 
   OrbStack vs Docker Desktop (macOS):
   ┌────────────────────┬───────────┬──────────────┐
-  │ 項目                │ OrbStack  │ Docker Desktop│
+  │ Item               │ OrbStack  │ Docker Desktop│
   ├────────────────────┼───────────┼──────────────┤
-  │ メモリ使用量        │ ~200 MB   │ ~1-2 GB      │
-  │ 起動時間            │ ~2 秒     │ ~30 秒       │
-  │ ファイルI/O速度     │ 高速      │ 普通         │
-  │ ライセンス問題      │ なし      │ 大企業は有料  │
-  │ Docker CLI 互換     │ 100%      │ 100%         │
-  │ K8s サポート        │ あり      │ あり          │
-  │ GUI                │ あり      │ あり          │
+  │ Memory usage       │ ~200 MB   │ ~1-2 GB      │
+  │ Startup time       │ ~2 sec    │ ~30 sec      │
+  │ File I/O speed     │ Fast      │ Average      │
+  │ License issues     │ None      │ Paid for large orgs│
+  │ Docker CLI compat  │ 100%      │ 100%         │
+  │ K8s support        │ Yes       │ Yes          │
+  │ GUI                │ Yes       │ Yes          │
   └────────────────────┴───────────┴──────────────┘
 ```
 
-### 1.4 Docker CLI の基本確認
+### 1.4 Basic Docker CLI Verification
 
 ```bash
-# バージョン確認
+# Check version
 docker version
 docker compose version
 
-# システム情報
+# System information
 docker system info
 
-# ディスク使用量
+# Disk usage
 docker system df
-docker system df -v     # 詳細表示
+docker system df -v     # Verbose output
 
-# ヘルスチェック
+# Health check
 docker run --rm hello-world
 ```
 
 ---
 
-## 2. 開発用 Dockerfile
+## 2. Dockerfile for Development
 
-### 2.1 マルチステージビルド
+### 2.1 Multi-Stage Build
 
 ```dockerfile
-# ─── ステージ 1: 依存インストール ───
+# ─── Stage 1: Install dependencies ───
 FROM node:20-slim AS deps
 WORKDIR /app
 
-# パッケージマネージャーの有効化
+# Enable package manager
 RUN corepack enable
 
-# 依存定義ファイルのみコピー (キャッシュ活用)
+# Copy only package definition files (leverage cache)
 COPY package.json pnpm-lock.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile
 
-# ─── ステージ 2: 開発環境 ───
+# ─── Stage 2: Development environment ───
 FROM node:20-slim AS dev
 WORKDIR /app
 
 RUN corepack enable
 
-# 開発に必要なツール
+# Tools needed for development
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -198,7 +198,7 @@ COPY . .
 EXPOSE 3000
 CMD ["pnpm", "dev"]
 
-# ─── ステージ 3: ビルド ───
+# ─── Stage 3: Build ───
 FROM node:20-slim AS build
 WORKDIR /app
 
@@ -207,63 +207,63 @@ RUN corepack enable
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# ビルド時環境変数
+# Build-time environment variables
 ARG NODE_ENV=production
 ENV NODE_ENV=${NODE_ENV}
 
 RUN pnpm build
 
-# 本番用の依存のみ再インストール
+# Reinstall only production dependencies
 RUN pnpm install --prod --frozen-lockfile
 
-# ─── ステージ 4: 本番 ───
+# ─── Stage 4: Production ───
 FROM node:20-slim AS production
 WORKDIR /app
 
-# セキュリティ: 非 root ユーザー
+# Security: non-root user
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 appuser
 
-# 本番に必要なファイルのみコピー
+# Copy only files needed for production
 COPY --from=build --chown=appuser:nodejs /app/dist ./dist
 COPY --from=build --chown=appuser:nodejs /app/node_modules ./node_modules
 COPY --from=build --chown=appuser:nodejs /app/package.json ./package.json
 
-# セキュリティ: 読み取り専用ファイルシステム対応
+# Security: support read-only filesystem
 USER appuser
 
 EXPOSE 3000
 
-# ヘルスチェック
+# Health check
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
 
 CMD ["node", "dist/index.js"]
 ```
 
-### 2.2 Python プロジェクト用 Dockerfile
+### 2.2 Dockerfile for Python Projects
 
 ```dockerfile
-# ─── ステージ 1: ビルダー ───
+# ─── Stage 1: Builder ───
 FROM python:3.12-slim AS builder
 WORKDIR /app
 
-# uv を使った高速インストール
+# Fast installation using uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# 依存定義のみコピー
+# Copy only dependency definitions
 COPY pyproject.toml uv.lock ./
 
-# 仮想環境を作成して依存インストール
+# Create virtual environment and install dependencies
 RUN uv sync --frozen --no-dev
 
-# ─── ステージ 2: 開発環境 ───
+# ─── Stage 2: Development environment ───
 FROM python:3.12-slim AS dev
 WORKDIR /app
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# 開発ツール
+# Development tools
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -277,7 +277,7 @@ COPY . .
 EXPOSE 8000
 CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
-# ─── ステージ 3: 本番 ───
+# ─── Stage 3: Production ───
 FROM python:3.12-slim AS production
 WORKDIR /app
 
@@ -298,32 +298,32 @@ HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-### 2.3 ステージの構造
+### 2.3 Stage Structure
 
 ```
-マルチステージビルドのフロー:
+Multi-stage build flow:
 
-  deps ──→ dev (開発時)
+  deps ──→ dev (for development)
     │
-    └──→ build ──→ production (本番時)
+    └──→ build ──→ production (for production)
 
-  開発時:
-    docker compose up     → dev ステージを使用
-                           (ソースをマウント + ホットリロード)
+  Development:
+    docker compose up     → Uses dev stage
+                           (mount source + hot reload)
 
-  本番時:
-    docker build --target production → 最小イメージ
-                                       (node_modules + dist のみ)
+  Production:
+    docker build --target production → Minimal image
+                                       (only node_modules + dist)
 
-  イメージサイズ比較:
-  ┌────────────────────┬───────────┬──────────────────┐
-  │ ステージ            │ サイズ     │ 含まれるもの      │
-  ├────────────────────┼───────────┼──────────────────┤
-  │ dev (全依存 + src)  │ ~800 MB   │ devDeps + ツール  │
-  │ build (全依存+成果) │ ~700 MB   │ ビルド成果物      │
-  │ production (最小)   │ ~150 MB   │ prodDeps + dist  │
-  │ distroless         │ ~80 MB    │ ランタイムのみ     │
-  └────────────────────┴───────────┴──────────────────┘
+  Image size comparison:
+  ┌────────────────────────┬───────────┬──────────────────┐
+  │ Stage                  │ Size      │ Contents         │
+  ├────────────────────────┼───────────┼──────────────────┤
+  │ dev (all deps + src)   │ ~800 MB   │ devDeps + tools  │
+  │ build (all deps+output)│ ~700 MB   │ Build artifacts  │
+  │ production (minimal)   │ ~150 MB   │ prodDeps + dist  │
+  │ distroless             │ ~80 MB    │ Runtime only     │
+  └────────────────────────┴───────────┴──────────────────┘
 ```
 
 ### 2.4 .dockerignore
@@ -350,38 +350,38 @@ compose*.yaml
 .dockerignore
 ```
 
-### 2.5 Dockerfile のベストプラクティス
+### 2.5 Dockerfile Best Practices
 
 ```
-Dockerfile 最適化チェックリスト:
+Dockerfile optimization checklist:
 
-□ マルチステージビルドを使用している
-□ .dockerignore でビルドコンテキストを最小化
-□ COPY は変更頻度の低いファイルから順にコピー
-  (package.json → lockfile → ソースコード)
-□ RUN は && で連結して層を削減
-□ apt-get は install 後に rm -rf /var/lib/apt/lists/*
-□ 非 root ユーザーで実行 (USER)
-□ HEALTHCHECK を設定
-□ 不要な環境変数を本番イメージに含めない
-□ slim / alpine ベースイメージを使用
-□ LABEL でメタデータを付与
-□ COPY --chown でファイル権限を設定
-□ ARG で環境固有の値を注入可能に
+□ Using multi-stage builds
+□ Minimize build context with .dockerignore
+□ COPY in order from least-changed to most-changed files
+  (package.json → lockfile → source code)
+□ Chain RUN with && to reduce layers
+□ apt-get: run rm -rf /var/lib/apt/lists/* after install
+□ Run as non-root user (USER)
+□ Set HEALTHCHECK
+□ Do not include unnecessary env vars in production image
+□ Use slim / alpine base images
+□ Add metadata with LABEL
+□ Set file permissions with COPY --chown
+□ Use ARG to inject environment-specific values
 ```
 
 ---
 
-## 3. docker compose で開発環境構築
+## 3. Building a Development Environment with docker compose
 
-### 3.1 基本構成
+### 3.1 Basic Configuration
 
 ```yaml
-# compose.yaml (docker compose v2 形式)
+# compose.yaml (docker compose v2 format)
 name: my-project
 
 services:
-  # ─── アプリケーション ───
+  # ─── Application ───
   app:
     build:
       context: .
@@ -392,8 +392,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - .:/app                           # ソースコードマウント
-      - /app/node_modules                # node_modules はコンテナ内を使用
+      - .:/app                           # Source code mount
+      - /app/node_modules                # Use node_modules inside container
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb
@@ -405,7 +405,7 @@ services:
       redis:
         condition: service_started
     develop:
-      watch:                             # docker compose watch 用
+      watch:                             # For docker compose watch
         - action: sync
           path: ./src
           target: /app/src
@@ -415,7 +415,7 @@ services:
           path: pnpm-lock.yaml
     restart: unless-stopped
 
-  # ─── データベース ───
+  # ─── Database ───
   db:
     image: postgres:16-alpine
     container_name: ${COMPOSE_PROJECT_NAME:-myproject}-db
@@ -438,7 +438,7 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # ─── キャッシュ ───
+  # ─── Cache ───
   redis:
     image: redis:7-alpine
     container_name: ${COMPOSE_PROJECT_NAME:-myproject}-redis
@@ -454,7 +454,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # ─── メールテスト ───
+  # ─── Mail testing ───
   mailpit:
     image: axllent/mailpit:latest
     container_name: ${COMPOSE_PROJECT_NAME:-myproject}-mail
@@ -471,10 +471,10 @@ volumes:
   redis_data:
 ```
 
-### 3.2 docker compose の override パターン
+### 3.2 docker compose Override Pattern
 
 ```yaml
-# compose.yaml (ベース -- CI/本番共通)
+# compose.yaml (base -- shared for CI/production)
 services:
   app:
     build:
@@ -485,7 +485,7 @@ services:
 ```
 
 ```yaml
-# compose.override.yaml (ローカル開発用 -- 自動読み込み)
+# compose.override.yaml (for local development -- auto-loaded)
 services:
   app:
     build:
@@ -514,7 +514,7 @@ volumes:
 ```
 
 ```yaml
-# compose.ci.yaml (CI 用)
+# compose.ci.yaml (for CI)
 services:
   app:
     build:
@@ -528,69 +528,69 @@ services:
     environment:
       POSTGRES_DB: testdb
     tmpfs:
-      - /var/lib/postgresql/data  # CI ではメモリ上で高速化
+      - /var/lib/postgresql/data  # In-memory for faster CI
 ```
 
 ```bash
-# 使い方
-docker compose up                                    # base + override (自動)
+# Usage
+docker compose up                                    # base + override (automatic)
 docker compose -f compose.yaml -f compose.ci.yaml up # base + CI
-docker compose -f compose.yaml up                    # base のみ
+docker compose -f compose.yaml up                    # base only
 ```
 
-### 3.3 よく使うコマンド
+### 3.3 Commonly Used Commands
 
 ```bash
-# ─── 起動 ───
-docker compose up -d                    # バックグラウンド起動
-docker compose up --build               # リビルドして起動
-docker compose up --build --force-recreate  # 強制再作成
-docker compose watch                    # ファイル変更を監視 (v2.22+)
-docker compose up -d --wait             # ヘルスチェック完了まで待機
+# ─── Start ───
+docker compose up -d                    # Start in background
+docker compose up --build               # Rebuild and start
+docker compose up --build --force-recreate  # Force recreate
+docker compose watch                    # Watch file changes (v2.22+)
+docker compose up -d --wait             # Wait until health checks pass
 
-# ─── ログ ───
-docker compose logs -f app              # app のログを追跡
-docker compose logs --tail 100 db       # db の最新100行
-docker compose logs --since 5m          # 直近5分のログ
-docker compose logs -f --no-log-prefix  # プレフィックスなし
+# ─── Logs ───
+docker compose logs -f app              # Follow app logs
+docker compose logs --tail 100 db       # Last 100 lines of db
+docker compose logs --since 5m          # Logs from last 5 minutes
+docker compose logs -f --no-log-prefix  # Without prefix
 
-# ─── 操作 ───
-docker compose exec app sh              # コンテナ内でシェル
-docker compose exec app bash            # bash が使える場合
-docker compose exec db psql -U postgres # DB に接続
+# ─── Operations ───
+docker compose exec app sh              # Shell inside container
+docker compose exec app bash            # If bash is available
+docker compose exec db psql -U postgres # Connect to DB
 docker compose exec redis redis-cli     # Redis CLI
-docker compose run --rm app pnpm test   # 一時コンテナでテスト
-docker compose run --rm app pnpm prisma migrate dev  # マイグレーション
+docker compose run --rm app pnpm test   # Run tests in temporary container
+docker compose run --rm app pnpm prisma migrate dev  # Migration
 
-# ─── スケーリング ───
-docker compose up -d --scale worker=3   # worker を3インスタンスに
+# ─── Scaling ───
+docker compose up -d --scale worker=3   # Scale worker to 3 instances
 
-# ─── 状態確認 ───
-docker compose ps                       # サービス一覧
-docker compose ps -a                    # 停止中も含む
-docker compose top                      # プロセス一覧
-docker compose stats                    # リソース使用状況
+# ─── Status ───
+docker compose ps                       # List services
+docker compose ps -a                    # Include stopped
+docker compose top                      # Process list
+docker compose stats                    # Resource usage
 
-# ─── 停止・削除 ───
-docker compose down                     # 停止
-docker compose down -v                  # ボリュームも削除
-docker compose down --rmi all           # イメージも削除
-docker compose down --remove-orphans    # 孤立コンテナも削除
+# ─── Stop and remove ───
+docker compose down                     # Stop
+docker compose down -v                  # Also remove volumes
+docker compose down --rmi all           # Also remove images
+docker compose down --remove-orphans    # Also remove orphan containers
 
-# ─── クリーンアップ ───
-docker system prune -af                 # 不要な全リソース削除
-docker volume prune                     # 未使用ボリューム削除
-docker builder prune -af                # ビルドキャッシュ削除
-docker image prune -af                  # 不要イメージ削除
+# ─── Cleanup ───
+docker system prune -af                 # Remove all unused resources
+docker volume prune                     # Remove unused volumes
+docker builder prune -af                # Remove build cache
+docker image prune -af                  # Remove unused images
 ```
 
-### 3.4 Makefile による操作簡略化
+### 3.4 Simplify Operations with Makefile
 
 ```makefile
 # Makefile
 .PHONY: up down restart build logs shell db-cli redis-cli seed clean
 
-# ─── 起動・停止 ───
+# ─── Start / Stop ───
 up:
 	docker compose up -d --wait
 
@@ -603,14 +603,14 @@ restart:
 build:
 	docker compose up -d --build --wait
 
-# ─── ログ ───
+# ─── Logs ───
 logs:
 	docker compose logs -f
 
 logs-app:
 	docker compose logs -f app
 
-# ─── シェル ───
+# ─── Shell ───
 shell:
 	docker compose exec app sh
 
@@ -620,7 +620,7 @@ db-cli:
 redis-cli:
 	docker compose exec redis redis-cli
 
-# ─── データベース ───
+# ─── Database ───
 migrate:
 	docker compose exec app pnpm prisma migrate dev
 
@@ -630,14 +630,14 @@ seed:
 db-reset:
 	docker compose exec app pnpm prisma migrate reset --force
 
-# ─── テスト ───
+# ─── Testing ───
 test:
 	docker compose run --rm app pnpm test
 
 test-watch:
 	docker compose run --rm app pnpm test:watch
 
-# ─── クリーンアップ ───
+# ─── Cleanup ───
 clean:
 	docker compose down -v --rmi all --remove-orphans
 	docker system prune -af
@@ -651,65 +651,65 @@ ci:
 
 ---
 
-## 4. ボリュームマウントとパフォーマンス
+## 4. Volume Mounts and Performance
 
-### 4.1 macOS のパフォーマンス問題と解決策
+### 4.1 macOS Performance Issues and Solutions
 
 ```
-macOS でのファイルシステムパフォーマンス:
+File system performance on macOS:
 
   ┌─────────────────────────────────────┐
-  │  macOS ホスト                        │
+  │  macOS host                          │
   │  ┌───────────────────────────────┐  │
-  │  │  ソースコード (/Users/...)     │  │
+  │  │  Source code (/Users/...)     │  │
   │  └───────────┬───────────────────┘  │
   │              │                       │
   │         VirtioFS / gRPC FUSE         │
-  │         (ファイル共有レイヤー)        │
+  │         (File sharing layer)         │
   │              │                       │
   │  ┌───────────┴───────────────────┐  │
   │  │  Linux VM (Docker Engine)      │  │
   │  │  ┌─────────────────────────┐  │  │
-  │  │  │  コンテナ                │  │  │
-  │  │  │  /app (マウントポイント)  │  │  │
+  │  │  │  Container               │  │  │
+  │  │  │  /app (mount point)      │  │  │
   │  │  └─────────────────────────┘  │  │
   │  └───────────────────────────────┘  │
   └─────────────────────────────────────┘
 
-  パフォーマンス (npm install の比較):
+  Performance (npm install comparison):
   ┌──────────────────────┬──────────┬──────────┐
-  │ 方式                  │ 速度     │ 推奨度    │
+  │ Method               │ Speed    │ Recommended│
   ├──────────────────────┼──────────┼──────────┤
-  │ ネイティブ (ホスト)    │ 1x (基準)│ -        │
+  │ Native (host)        │ 1x (base)│ -        │
   │ VirtioFS             │ 1.5-2x  │ ★★★★    │
   │ gRPC FUSE            │ 3-5x    │ ★★      │
-  │ 名前付きボリューム     │ 1.1x    │ ★★★★★  │
+  │ Named volume         │ 1.1x    │ ★★★★★  │
   │ OrbStack             │ 1.2x    │ ★★★★★  │
-  │ 匿名ボリューム        │ 1.1x    │ ★★★     │
+  │ Anonymous volume     │ 1.1x    │ ★★★     │
   └──────────────────────┴──────────┴──────────┘
 
-  ※ 名前付きボリュームが最速だが、ホストから直接アクセスできない
-  ※ VirtioFS は Docker Desktop v4.6+ でデフォルト
+  * Named volumes are fastest but not directly accessible from host
+  * VirtioFS is the default since Docker Desktop v4.6+
 ```
 
-### 4.2 パフォーマンス最適化
+### 4.2 Performance Optimization
 
 ```yaml
-# compose.yaml のベストプラクティス
+# compose.yaml best practices
 services:
   app:
     volumes:
-      # ソースコードはバインドマウント (ホットリロード用)
+      # Source code as bind mount (for hot reload)
       - .:/app
 
-      # node_modules は名前付きボリューム (高速)
+      # node_modules as named volume (faster)
       - node_modules:/app/node_modules
 
-      # ビルドキャッシュも名前付きボリューム
+      # Build cache also as named volume
       - next_cache:/app/.next
       - turbo_cache:/app/.turbo
 
-      # 一時ファイルは tmpfs (メモリ上)
+      # Temporary files as tmpfs (in memory)
       - type: tmpfs
         target: /app/tmp
 
@@ -720,25 +720,25 @@ volumes:
 ```
 
 ```
-ボリューム戦略の使い分け:
+Volume strategy guide:
 
   ┌──────────────────────┬──────────────────────────────┐
-  │ データの種類          │ 推奨マウント方式               │
+  │ Data type            │ Recommended mount method      │
   ├──────────────────────┼──────────────────────────────┤
-  │ ソースコード          │ バインドマウント (ホスト→コンテナ) │
-  │ node_modules         │ 名前付きボリューム              │
-  │ DB データ            │ 名前付きボリューム              │
-  │ ビルドキャッシュ       │ 名前付きボリューム              │
-  │ ログ (一時)          │ tmpfs                        │
-  │ テスト成果物          │ バインドマウント (結果取得用)     │
-  │ 設定ファイル          │ バインドマウント (読み取り専用)   │
+  │ Source code          │ Bind mount (host → container) │
+  │ node_modules         │ Named volume                  │
+  │ DB data              │ Named volume                  │
+  │ Build cache          │ Named volume                  │
+  │ Logs (temporary)     │ tmpfs                         │
+  │ Test artifacts       │ Bind mount (to retrieve results)│
+  │ Config files         │ Bind mount (read-only)        │
   └──────────────────────┴──────────────────────────────┘
 ```
 
 ### 4.3 docker compose watch
 
 ```yaml
-# compose.yaml (docker compose watch 設定)
+# compose.yaml (docker compose watch configuration)
 services:
   app:
     build:
@@ -746,84 +746,84 @@ services:
       target: dev
     develop:
       watch:
-        # ソースコード変更 → コンテナにコピー (高速)
+        # Source code change → copy to container (fast)
         - action: sync
           path: ./src
           target: /app/src
           ignore:
             - "**/*.test.ts"
 
-        # 設定ファイル変更 → コンテナにコピー
+        # Config file change → copy to container
         - action: sync
           path: ./public
           target: /app/public
 
-        # 依存変更 → コンテナ再ビルド
+        # Dependency change → rebuild container
         - action: rebuild
           path: package.json
 
         - action: rebuild
           path: pnpm-lock.yaml
 
-        # Dockerfile 変更 → コンテナ再ビルド
+        # Dockerfile change → rebuild container
         - action: rebuild
           path: Dockerfile
 ```
 
 ```bash
-# docker compose watch の実行
+# Run docker compose watch
 docker compose watch
 
-# バックグラウンドで実行
+# Run in background
 docker compose watch &
 
-# ログも表示
-docker compose watch --no-up  # 既に起動済みの場合
+# Also show logs
+docker compose watch --no-up  # When already running
 ```
 
 ```
-docker compose watch の動作:
+docker compose watch behavior:
 
-  ホスト側でファイル変更を検知
+  Detect file change on host side
        │
        ▼
   ┌──────────────────────┐
-  │  action: sync        │ → ファイルをコンテナにコピー
-  │  (src/ の変更)        │   ビルド不要、即反映
-  │                      │   ホットリロードが効く
+  │  action: sync        │ → Copy file to container
+  │  (src/ change)       │   No rebuild needed, immediate
+  │                      │   Hot reload works
   ├──────────────────────┤
-  │  action: rebuild     │ → コンテナを再ビルド
-  │  (package.json 変更)  │   新しい依存を反映
-  │                      │   数十秒かかる
+  │  action: rebuild     │ → Rebuild container
+  │  (package.json chg)  │   Reflect new dependencies
+  │                      │   Takes tens of seconds
   ├──────────────────────┤
-  │  action: sync+restart│ → ファイルコピー後に再起動
-  │  (設定ファイル変更)    │   プロセスの再読み込みが必要
+  │  action: sync+restart│ → Copy file then restart
+  │  (config file change)│   Needed for process reload
   └──────────────────────┘
 
-  vs バインドマウント:
+  vs bind mount:
   ┌────────────────────────┬──────────────────────┐
-  │ バインドマウント        │ docker compose watch  │
+  │ Bind mount             │ docker compose watch  │
   ├────────────────────────┼──────────────────────┤
-  │ リアルタイム反映        │ イベント駆動          │
-  │ I/O オーバーヘッド大    │ コピー時のみ          │
-  │ macOS で遅い          │ OS 依存しない          │
-  │ node_modules も共有    │ sync 対象のみ          │
-  │ 設定不要              │ develop.watch 設定必要  │
+  │ Real-time reflection   │ Event-driven          │
+  │ High I/O overhead      │ Only on copy          │
+  │ Slow on macOS          │ OS-independent        │
+  │ Shares node_modules    │ Only sync targets     │
+  │ No configuration       │ develop.watch needed  │
   └────────────────────────┴──────────────────────┘
 ```
 
 ---
 
-## 5. 環境変数管理
+## 5. Environment Variable Management
 
-### 5.1 .env ファイルの構成
+### 5.1 .env File Structure
 
 ```bash
-# .env (docker compose が自動読込 -- チーム共有)
+# .env (auto-loaded by docker compose -- shared with team)
 COMPOSE_PROJECT_NAME=my-project
 NODE_ENV=development
 
-# データベース
+# Database
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=mydb
@@ -832,13 +832,13 @@ DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb
 # Redis
 REDIS_URL=redis://redis:6379
 
-# .env.local (個人設定 -- .gitignore に追加)
+# .env.local (personal settings -- add to .gitignore)
 GITHUB_TOKEN=ghp_xxxxx
 AWS_ACCESS_KEY_ID=AKIA...
 AWS_SECRET_ACCESS_KEY=...
 
-# .env.example (テンプレート -- リポジトリにコミット)
-# コピーして .env.local を作成: cp .env.example .env.local
+# .env.example (template -- commit to repository)
+# Copy to create .env.local: cp .env.example .env.local
 GITHUB_TOKEN=
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
@@ -852,17 +852,17 @@ services:
       - path: .env
         required: true
       - path: .env.local
-        required: false   # 存在しなくてもエラーにしない
+        required: false   # No error if not present
     environment:
-      # env_file の値を上書き
+      # Override env_file values
       - LOG_LEVEL=debug
       - ENABLE_FEATURE_X=true
 ```
 
-### 5.2 シークレット管理
+### 5.2 Secret Management
 
 ```yaml
-# compose.yaml (Docker Secrets を使った管理)
+# compose.yaml (management using Docker Secrets)
 services:
   db:
     image: postgres:16-alpine
@@ -873,53 +873,53 @@ services:
 
 secrets:
   db_password:
-    file: ./secrets/db_password.txt   # ローカルファイル
-    # または
-    # environment: DB_PASSWORD        # 環境変数から
+    file: ./secrets/db_password.txt   # Local file
+    # or
+    # environment: DB_PASSWORD        # From environment variable
 ```
 
 ```
-シークレット管理のベストプラクティス:
+Secret management best practices:
 
-  開発環境:
-  ├── .env (共有設定) → リポジトリにコミット
-  ├── .env.local (個人のシークレット) → .gitignore
-  └── .env.example (テンプレート) → リポジトリにコミット
+  Development environment:
+  ├── .env (shared settings) → commit to repository
+  ├── .env.local (personal secrets) → .gitignore
+  └── .env.example (template) → commit to repository
 
-  CI 環境:
-  ├── GitHub Actions Secrets → 環境変数として注入
-  └── GitHub Actions Variables → 非機密設定
+  CI environment:
+  ├── GitHub Actions Secrets → injected as environment variables
+  └── GitHub Actions Variables → non-sensitive settings
 
-  本番環境:
+  Production environment:
   ├── AWS Secrets Manager / SSM Parameter Store
   ├── HashiCorp Vault
-  └── Docker Secrets (Swarm 使用時)
+  └── Docker Secrets (when using Swarm)
 
-  絶対にやってはいけないこと:
-  ❌ .env.local をリポジトリにコミット
-  ❌ Dockerfile に ENV でシークレットを埋め込む
-  ❌ docker-compose.yml にパスワードを直書き (開発用以外)
-  ❌ ビルドイメージにシークレットを含める
+  Things you must never do:
+  ❌ Commit .env.local to repository
+  ❌ Embed secrets using ENV in Dockerfile
+  ❌ Write passwords directly in docker-compose.yml (except for development)
+  ❌ Include secrets in built images
 ```
 
 ---
 
-## 6. ネットワーク設計
+## 6. Network Design
 
-### 6.1 サービス間通信
+### 6.1 Inter-Service Communication
 
 ```
-docker compose のネットワーク:
+docker compose networking:
 
   ┌─────────────── my-project_default ──────────────┐
-  │            (Docker 内部ネットワーク)                │
+  │            (Docker internal network)              │
   │                                                    │
   │  ┌─────────┐   ┌──────┐   ┌───────┐              │
   │  │   app   │──→│  db  │   │ redis │              │
   │  │ :3000   │   │:5432 │   │ :6379 │              │
   │  └────┬────┘   └──────┘   └───────┘              │
   │       │                                            │
-  │  サービス名で通信:                                  │
+  │  Communicate by service name:                      │
   │  db:5432 (NOT localhost:5432)                      │
   │  redis:6379 (NOT localhost:6379)                   │
   └────┬──────────────────────────────────────────────┘
@@ -927,20 +927,20 @@ docker compose のネットワーク:
        │ ports: "3000:3000"
        ▼
   ┌──────────┐
-  │  ホスト    │
+  │  Host    │
   │ localhost │
   │  :3000    │
   └──────────┘
 
-  ※ ホストからは localhost:3000 でアクセス
-  ※ コンテナ間はサービス名で通信
-  ※ DNS 解決は Docker の内部 DNS が自動処理
+  * Access from host via localhost:3000
+  * Containers communicate by service name
+  * DNS resolution handled automatically by Docker's internal DNS
 ```
 
-### 6.2 カスタムネットワーク
+### 6.2 Custom Networks
 
 ```yaml
-# compose.yaml (複数ネットワーク)
+# compose.yaml (multiple networks)
 services:
   app:
     networks:
@@ -957,7 +957,7 @@ services:
   db:
     networks:
       - backend
-    # ↑ frontend からはアクセス不可 (セキュリティ)
+    # ↑ Not accessible from frontend (security)
 
   redis:
     networks:
@@ -968,10 +968,10 @@ networks:
     driver: bridge
   backend:
     driver: bridge
-    internal: true  # 外部からのアクセスを遮断
+    internal: true  # Block external access
 ```
 
-### 6.3 複数プロジェクト間の通信
+### 6.3 Communication Between Multiple Projects
 
 ```yaml
 # project-a/compose.yaml
@@ -1000,224 +1000,224 @@ networks:
 ```
 
 ```bash
-# 共有ネットワークの作成
+# Create shared network
 docker network create shared-network
 
-# 両プロジェクトを起動
+# Start both projects
 cd project-a && docker compose up -d
 cd project-b && docker compose up -d
 
-# project-b の web から project-a の api にアクセス可能
+# project-b's web can access project-a's api
 ```
 
 ---
 
-## 7. Docker ビルドの最適化
+## 7. Docker Build Optimization
 
-### 7.1 BuildKit の活用
+### 7.1 Leveraging BuildKit
 
 ```dockerfile
 # syntax=docker/dockerfile:1
 
-# BuildKit のキャッシュマウント
+# BuildKit cache mount
 FROM node:20-slim AS deps
 WORKDIR /app
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml ./
 
-# パッケージマネージャーのキャッシュをマウント
+# Mount package manager cache
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
-# シークレットのマウント (イメージに残らない)
+# Secret mount (does not remain in image)
 RUN --mount=type=secret,id=npm_token \
     NPM_TOKEN=$(cat /run/secrets/npm_token) pnpm install
 ```
 
 ```bash
-# BuildKit を有効にしてビルド
+# Build with BuildKit enabled
 DOCKER_BUILDKIT=1 docker build .
 
-# シークレットを渡してビルド
+# Build with secret passed
 docker build --secret id=npm_token,src=./.npmrc .
 
-# マルチプラットフォームビルド
+# Multi-platform build
 docker buildx build --platform linux/amd64,linux/arm64 -t myapp:latest .
 ```
 
-### 7.2 ビルドキャッシュの最適化
+### 7.2 Build Cache Optimization
 
 ```
-Docker レイヤーキャッシュの仕組み:
+How Docker layer caching works:
 
-  Dockerfile の各命令 (FROM, COPY, RUN 等) はレイヤーを生成
-  レイヤーは前回のビルド結果をキャッシュ
-  変更があったレイヤー以降は全て再実行
+  Each instruction in Dockerfile (FROM, COPY, RUN, etc.) creates a layer
+  Layers cache results from previous builds
+  All layers after a changed layer are re-executed
 
-  最適化の原則:
-  1. 変更頻度の低いものを上に
-  2. 変更頻度の高いものを下に
+  Optimization principles:
+  1. Put less-frequently-changed items at the top
+  2. Put more-frequently-changed items at the bottom
 
-  ❌ 悪い例:
-  COPY . .                    # ← ソース変更で毎回
-  RUN pnpm install            # ← 依存は変わってないのに再実行
+  ❌ Bad example:
+  COPY . .                    # ← Re-runs every time source changes
+  RUN pnpm install            # ← Re-runs even when dependencies haven't changed
 
-  ✅ 良い例:
-  COPY package.json pnpm-lock.yaml ./  # ← 依存定義のみ
-  RUN pnpm install                      # ← 依存が変わった時のみ
-  COPY . .                              # ← ソース変更は最後
+  ✅ Good example:
+  COPY package.json pnpm-lock.yaml ./  # ← Dependency definitions only
+  RUN pnpm install                      # ← Only when dependencies change
+  COPY . .                              # ← Source change at the end
 ```
 
 ---
 
-## 8. セキュリティベストプラクティス
+## 8. Security Best Practices
 
-### 8.1 イメージのセキュリティ
+### 8.1 Image Security
 
 ```dockerfile
-# ─── ベストプラクティス ───
+# ─── Best practices ───
 
-# 1. 特定バージョンを指定 (latest は使わない)
-FROM node:20.12.0-slim   # ✅ 固定バージョン
-# FROM node:latest       # ❌ バージョン不定
+# 1. Specify exact version (do not use latest)
+FROM node:20.12.0-slim   # ✅ Pinned version
+# FROM node:latest       # ❌ Version undefined
 
-# 2. 非 root ユーザーで実行
+# 2. Run as non-root user
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 appuser
 USER appuser
 
-# 3. 読み取り専用ファイルシステム
-# compose.yaml で: read_only: true
+# 3. Read-only filesystem
+# In compose.yaml: read_only: true
 
-# 4. セキュリティスキャン
+# 4. Security scanning
 # docker scout quickview myapp:latest
 # docker scout cves myapp:latest
 
-# 5. 不要なパッケージを含めない
-# slim / distroless イメージを使用
+# 5. Do not include unnecessary packages
+# Use slim / distroless images
 ```
 
-### 8.2 compose.yaml のセキュリティ設定
+### 8.2 Security Configuration in compose.yaml
 
 ```yaml
 services:
   app:
-    # セキュリティオプション
+    # Security options
     security_opt:
-      - no-new-privileges:true    # 権限昇格を防止
-    read_only: true               # ファイルシステムを読み取り専用
+      - no-new-privileges:true    # Prevent privilege escalation
+    read_only: true               # Read-only filesystem
     tmpfs:
-      - /tmp                      # 書き込み可能な一時領域
+      - /tmp                      # Writable temporary area
       - /app/tmp
     cap_drop:
-      - ALL                       # 全ケーパビリティを除去
+      - ALL                       # Drop all capabilities
     cap_add:
-      - NET_BIND_SERVICE          # 必要なものだけ追加
+      - NET_BIND_SERVICE          # Add only what is needed
 ```
 
 ---
 
-## 9. トラブルシューティング
+## 9. Troubleshooting
 
-### 9.1 よくある問題と解決策
+### 9.1 Common Issues and Solutions
 
 ```
-問題: コンテナが起動しない / すぐに終了する
+Issue: Container does not start / exits immediately
 
-解決:
-  1. ログを確認: docker compose logs app
-  2. インタラクティブに起動: docker compose run --rm app sh
-  3. CMD を確認: docker inspect myapp:latest | jq '.[0].Config.Cmd'
-  4. ヘルスチェック状態: docker compose ps (STATUS 列)
-
----
-
-問題: ポートが既に使用されている (port already in use)
-
-解決:
-  1. 使用中のポートを確認: lsof -i :3000
-  2. compose.yaml でポートを変更: "3001:3000"
-  3. 既存コンテナを停止: docker compose down
-  4. ホスト側のプロセスを停止
+Solution:
+  1. Check logs: docker compose logs app
+  2. Start interactively: docker compose run --rm app sh
+  3. Check CMD: docker inspect myapp:latest | jq '.[0].Config.Cmd'
+  4. Health check status: docker compose ps (STATUS column)
 
 ---
 
-問題: node_modules がホストとコンテナで競合する
+Issue: Port already in use
 
-解決:
-  1. 名前付きボリュームで分離:
+Solution:
+  1. Check what is using the port: lsof -i :3000
+  2. Change port in compose.yaml: "3001:3000"
+  3. Stop existing containers: docker compose down
+  4. Stop the process on the host
+
+---
+
+Issue: node_modules conflicts between host and container
+
+Solution:
+  1. Isolate with named volume:
      volumes:
        - node_modules:/app/node_modules
-  2. ホストでも pnpm install を実行 (IDE 補完用)
-  3. Dev Container を使う (推奨)
+  2. Also run pnpm install on host (for IDE completion)
+  3. Use Dev Container (recommended)
 
 ---
 
-問題: ファイル変更がコンテナに反映されない
+Issue: File changes not reflected in container
 
-解決:
-  1. ボリュームマウントを確認: docker compose config
-  2. .dockerignore を確認 (マウント対象外?)
-  3. docker compose watch を使う
-  4. inotify の制限を確認 (Linux):
+Solution:
+  1. Check volume mount: docker compose config
+  2. Check .dockerignore (is it excluded from mount?)
+  3. Use docker compose watch
+  4. Check inotify limit (Linux):
      echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf
 
 ---
 
-問題: コンテナのディスク容量が不足
+Issue: Container running out of disk space
 
-解決:
-  1. 不要リソースの削除: docker system prune -af
-  2. ビルドキャッシュの削除: docker builder prune -af
-  3. Docker Desktop のディスクサイズを拡張
-  4. 定期的な自動クリーンアップスクリプトを設定
+Solution:
+  1. Remove unused resources: docker system prune -af
+  2. Remove build cache: docker builder prune -af
+  3. Expand disk size in Docker Desktop
+  4. Set up periodic automatic cleanup script
 
 ---
 
-問題: macOS でのビルド / I/O が遅い
+Issue: Slow build / I/O on macOS
 
-解決:
-  1. VirtioFS を有効化 (Docker Desktop Settings)
-  2. OrbStack に切り替え
-  3. node_modules を名前付きボリュームに
-  4. .dockerignore を適切に設定
-  5. docker compose watch を使う (バインドマウントの代替)
+Solution:
+  1. Enable VirtioFS (Docker Desktop Settings)
+  2. Switch to OrbStack
+  3. Move node_modules to named volume
+  4. Configure .dockerignore properly
+  5. Use docker compose watch (alternative to bind mount)
 ```
 
-### 9.2 デバッグコマンド
+### 9.2 Debug Commands
 
 ```bash
-# ─── コンテナの状態確認 ───
+# ─── Check container state ───
 docker compose ps -a
 docker compose logs --tail 50 app
 docker inspect <container_id>
 
-# ─── ネットワーク確認 ───
+# ─── Check network ───
 docker network ls
 docker network inspect my-project_default
-docker compose exec app ping db    # サービス間の疎通確認
+docker compose exec app ping db    # Verify inter-service connectivity
 
-# ─── リソース確認 ───
-docker stats                        # リアルタイムリソース使用量
-docker compose top                  # コンテナ内プロセス
-docker system df -v                 # ディスク使用量詳細
+# ─── Check resources ───
+docker stats                        # Real-time resource usage
+docker compose top                  # Processes inside container
+docker system df -v                 # Detailed disk usage
 
-# ─── イメージの中身を確認 ───
+# ─── Check image contents ───
 docker run --rm -it myapp:latest sh
-docker history myapp:latest         # レイヤー履歴
-docker inspect myapp:latest | jq '.[0].Config'  # 設定確認
+docker history myapp:latest         # Layer history
+docker inspect myapp:latest | jq '.[0].Config'  # Check configuration
 
-# ─── ビルドのデバッグ ───
-docker build --progress=plain .     # ビルドログの詳細表示
-docker build --no-cache .           # キャッシュ無しでビルド
+# ─── Debug build ───
+docker build --progress=plain .     # Verbose build log output
+docker build --no-cache .           # Build without cache
 ```
 
 ---
 
-## 10. CI/CD との連携
+## 10. CI/CD Integration
 
-### 10.1 GitHub Actions での Docker ビルド
+### 10.1 Docker Build in GitHub Actions
 
 ```yaml
 # .github/workflows/docker.yml
@@ -1234,10 +1234,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Docker Buildx のセットアップ
+      # Set up Docker Buildx
       - uses: docker/setup-buildx-action@v3
 
-      # Docker レイヤーキャッシュ
+      # Docker layer cache
       - uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
@@ -1245,7 +1245,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      # ビルド
+      # Build
       - uses: docker/build-push-action@v5
         with:
           context: .
@@ -1254,13 +1254,13 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
-      # キャッシュの更新
+      # Update cache
       - run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 ```
 
-### 10.2 docker compose を使ったテスト
+### 10.2 Testing with docker compose
 
 ```yaml
 # .github/workflows/test.yml
@@ -1289,134 +1289,134 @@ jobs:
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### 11.1 開発用と本番用で同じ Dockerfile を使う
+### 11.1 Using the Same Dockerfile for Development and Production
 
 ```
-❌ アンチパターン: 1つの Dockerfile を全環境で共用
+❌ Anti-pattern: Sharing one Dockerfile across all environments
 
 FROM node:20
 WORKDIR /app
 COPY . .
-RUN npm install       # devDependencies も入る
-CMD ["npm", "start"]  # 開発ツールも含んだ巨大イメージ
+RUN npm install       # devDependencies also installed
+CMD ["npm", "start"]  # Huge image including dev tools
 
-問題:
-  - 本番イメージが不必要に大きい
-  - 開発ツール (eslint等) が本番に含まれる
-  - セキュリティリスク増大
-  - 攻撃対象面 (attack surface) が拡大
+Problems:
+  - Production image is unnecessarily large
+  - Dev tools (eslint, etc.) included in production
+  - Increased security risk
+  - Expanded attack surface
 
-✅ 正しいアプローチ:
-  - マルチステージビルドで分離
-  - dev ステージ: 全依存 + ホットリロード
-  - production ステージ: 最小依存 + ビルド成果物のみ
-  - --target フラグで使い分け
+✅ Correct approach:
+  - Separate with multi-stage builds
+  - dev stage: all dependencies + hot reload
+  - production stage: minimal dependencies + build artifacts only
+  - Use --target flag to switch
 ```
 
-### 11.2 ボリュームデータのバックアップを取らない
+### 11.2 Not Backing Up Volume Data
 
 ```
-❌ アンチパターン: docker compose down -v で開発データ全消失
+❌ Anti-pattern: Losing all development data with docker compose down -v
 
-問題:
-  - テストデータの再作成に時間がかかる
-  - シードデータが失われる
-  - 「あの不具合が再現できない」
+Problems:
+  - Recreating test data takes time
+  - Seed data is lost
+  - "Can't reproduce that bug anymore"
 
-✅ 正しいアプローチ:
-  - シードスクリプトを用意 (init.sql, seed.ts)
-  - docker-entrypoint-initdb.d/ に初期化SQLを配置
-  - Makefile に seed コマンドを定義
-  - 定期的な docker compose down は -v なしで
-  - 重要なデータは pg_dump でバックアップスクリプトを用意
+✅ Correct approach:
+  - Prepare seed scripts (init.sql, seed.ts)
+  - Place initialization SQL in docker-entrypoint-initdb.d/
+  - Define seed command in Makefile
+  - Run regular docker compose down without -v
+  - Prepare pg_dump backup script for important data
 ```
 
-### 11.3 latest タグを使う
+### 11.3 Using the latest Tag
 
 ```
-❌ アンチパターン: ベースイメージに latest を使用
+❌ Anti-pattern: Using latest for base images
 
 FROM node:latest
 FROM postgres:latest
 
-問題:
-  - ビルドごとに異なるバージョンが使われる可能性
-  - 「先週まで動いていたのに」問題
-  - 再現性がない
+Problems:
+  - Different versions may be used for each build
+  - "It worked last week" problem
+  - No reproducibility
 
-✅ 正しいアプローチ:
+✅ Correct approach:
   FROM node:20.12.0-slim
   FROM postgres:16.2-alpine
-  - メジャー.マイナー.パッチまで固定
-  - Renovate / Dependabot で自動更新 PR を作成
+  - Pin to major.minor.patch
+  - Use Renovate / Dependabot for automatic update PRs
 ```
 
-### 11.4 root ユーザーで実行する
+### 11.4 Running as Root User
 
 ```
-❌ アンチパターン: 本番コンテナを root で実行
+❌ Anti-pattern: Running production containers as root
 
 FROM node:20
 WORKDIR /app
 COPY . .
-# USER 指定なし → root で実行
+# No USER specified → runs as root
 
-問題:
-  - コンテナ脱出時にホスト root 権限を取得される
-  - ファイル書き込みの権限問題
-  - セキュリティ監査で指摘される
+Problems:
+  - Host root privileges obtained on container escape
+  - File permission issues
+  - Flagged in security audits
 
-✅ 正しいアプローチ:
+✅ Correct approach:
   RUN adduser --system --uid 1001 appuser
   USER appuser
-  - 開発時は root でも可 (Dev Container 等)
-  - 本番は必ず非 root
+  - Root is acceptable during development (Dev Container, etc.)
+  - Always non-root in production
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
             raise ValueError("入力値がNoneです")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1434,17 +1434,17 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1452,7 +1452,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1463,14 +1463,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1478,7 +1478,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1486,13 +1486,13 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
@@ -1503,27 +1503,27 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1532,7 +1532,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1554,69 +1554,69 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize when | Can compromise when |
+|-----------|----------------|---------------------|
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal info, financial data | Public data, internal use |
+| Development speed | MVP, time to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① Team size?                                   │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → go to ②             │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② Deployment frequency?                        │
+│    ├─ Weekly or less → Monolith + module split  │
+│    └─ Daily/multiple times → go to ③           │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ Team independence?                           │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs long-term cost**
+- A short-term fast approach can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs flexibility**
+- A unified technology stack has low learning costs
+- Adopting diverse technologies enables best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction increases reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1626,17 +1626,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and issues"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe decision content"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1644,7 +1644,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1652,7 +1652,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
         md += f"## 背景\n{self.context}\n\n"
         md += f"## 決定\n{self.decision}\n\n"
@@ -1668,53 +1668,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on minimum necessary features
+- Automated tests for critical paths only
+- Introduce monitoring from early on
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renewing a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate gradually using the Strangler Fig pattern
+- Create Characterization Tests first if no existing tests
+- Coexist old and new systems with an API gateway
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work content | Estimated duration | Risk |
+|-------|-------------|-------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Start migration | Migrate peripheral functions first | 3-6 months | Medium |
+| 4. Core migration | Migrate core functions | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with domain-driven design
+- Set ownership per team
+- Manage shared libraries with Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1727,20 +1727,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1749,7 +1749,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1770,110 +1770,110 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system where millisecond-level response times are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization method | Effect | Implementation cost | Use case |
+|--------------------|--------|---------------------|----------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 ---
 
 ## 12. FAQ
 
-### Q1: Docker Desktop と OrbStack、どちらを使うべき？
+### Q1: Which should I use, Docker Desktop or OrbStack?
 
-**A:** macOS ユーザーには OrbStack を推奨。Docker Desktop と比較してメモリ使用量が半分以下 (約200MB vs 1-2GB)、起動が数秒で完了し、ファイルシステムのパフォーマンスも優れている。Docker CLI と完全互換なので移行コストはゼロ。Docker Desktop のライセンス問題（従業員250人以上 or 年間売上1000万ドル以上の企業は有料）を避けられるメリットもある。
+**A:** OrbStack is recommended for macOS users. Compared to Docker Desktop, memory usage is less than half (~200MB vs 1-2GB), startup completes in a few seconds, and file system performance is superior. Migration cost is zero since it is fully compatible with Docker CLI. It also avoids Docker Desktop's license issue (companies with 250+ employees or annual revenue over $10M must pay).
 
-### Q2: `docker compose up` と `docker compose watch` の違いは？
+### Q2: What is the difference between `docker compose up` and `docker compose watch`?
 
-**A:** `docker compose up` はコンテナ起動のみ。ボリュームマウントでファイル変更は反映されるが、`package.json` の変更などは手動リビルドが必要。`docker compose watch` は `compose.yaml` の `develop.watch` セクションに基づき、ファイル変更を検知して sync（コピー）や rebuild（再ビルド）を自動実行する。macOS でバインドマウントのパフォーマンスが問題になる場合は watch の sync 方式が効果的。
+**A:** `docker compose up` only starts containers. File changes are reflected via volume mounts, but changes like `package.json` require a manual rebuild. `docker compose watch` automatically detects file changes based on the `develop.watch` section in `compose.yaml` and performs sync (copy) or rebuild automatically. When bind mount performance is an issue on macOS, the watch sync approach is effective.
 
-### Q3: コンテナ内の node_modules とホストの IDE の補完が合わない場合は？
+### Q3: What do I do when node_modules inside the container and IDE completion on the host don't match?
 
-**A:** 名前付きボリュームで node_modules を分離している場合、ホストには node_modules が存在しないため IDE の補完が効かない。対策は以下の通り。
-1. ホストでも `pnpm install` を実行（二重管理になるが最も簡単）
-2. Dev Containers を使ってコンテナ内で VS Code を動かす（推奨）
-3. ボリュームマウント自体を使わず、`docker compose watch` の sync を使う
-4. `.vscode/settings.json` で TypeScript SDK のパスをコンテナ内のものに設定
+**A:** When node_modules is isolated with a named volume, IDE completion doesn't work because node_modules doesn't exist on the host. The workarounds are as follows:
+1. Also run `pnpm install` on the host (becomes double management but is easiest)
+2. Use Dev Containers to run VS Code inside the container (recommended)
+3. Don't use volume mounts at all, and use `docker compose watch` sync instead
+4. Configure `.vscode/settings.json` to point to the TypeScript SDK path inside the container
 
-### Q4: Apple Silicon (M1/M2/M3) で amd64 イメージを使う場合の注意点は？
+### Q4: What should I be aware of when using amd64 images on Apple Silicon (M1/M2/M3)?
 
-**A:** Rosetta 2 エミュレーションにより動作するが、パフォーマンスが低下する。Docker Desktop の Settings > General > "Use Rosetta for x86_64/amd64 emulation on Apple Silicon" を有効にすると qemu より高速。ただし、可能な限り arm64 対応のイメージ (`:alpine`, `:slim` の多くは multi-arch) を使用すべき。`--platform linux/arm64` を明示するとネイティブ速度で動作する。
+**A:** It works via Rosetta 2 emulation, but performance degrades. Enabling "Use Rosetta for x86_64/amd64 emulation on Apple Silicon" in Docker Desktop Settings > General makes it faster than qemu. However, you should use arm64-compatible images (most `:alpine`, `:slim` are multi-arch) wherever possible. Specifying `--platform linux/arm64` explicitly achieves native speed.
 
-### Q5: docker compose の環境変数の優先順位は？
+### Q5: What is the priority order for environment variables in docker compose?
 
-**A:** 以下の優先順位で適用される（上が高い）。
-1. `docker compose run -e KEY=VALUE` (コマンドライン)
-2. `environment:` セクション (compose.yaml)
-3. `env_file:` で指定したファイル
-4. Dockerfile の `ENV`
-5. シェルの環境変数
+**A:** Applied in the following priority order (higher is first):
+1. `docker compose run -e KEY=VALUE` (command line)
+2. `environment:` section (compose.yaml)
+3. Files specified in `env_file:`
+4. `ENV` in Dockerfile
+5. Shell environment variables
 
-`environment:` が `env_file:` より優先されるため、`env_file` でデフォルト値を設定し、`environment` で上書きするパターンが有効。
+Since `environment:` takes priority over `env_file:`, the pattern of setting default values with `env_file` and overriding with `environment` is effective.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 13. まとめ
-
-| 構成要素 | 推奨 | 備考 |
-|---------|------|------|
-| ランタイム | Docker Desktop / OrbStack | macOS は OrbStack 推奨 |
-| Dockerfile | マルチステージ | dev / production 分離 |
-| ベースイメージ | slim / alpine | バージョン固定必須 |
-| Compose 形式 | compose.yaml (v2) | docker-compose.yml は旧形式 |
-| ファイル共有 | VirtioFS + 名前付きボリューム | node_modules は分離 |
-| ファイル同期 | docker compose watch | バインドマウントの代替 |
-| 環境変数 | .env + .env.local | .env.local は gitignore |
-| ヘルスチェック | 必須 | depends_on の condition |
-| セキュリティ | 非 root + no-new-privileges | 本番は必須 |
-| クリーンアップ | docker system prune | 定期実行推奨 |
-| 操作簡略化 | Makefile | チーム共通のインターフェース |
-| CI 連携 | BuildKit + レイヤーキャッシュ | ビルド時間短縮 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 13. Summary
 
-- [01-devcontainer.md](./01-devcontainer.md) -- Dev Container で VS Code をコンテナ内で動かす
-- [02-local-services.md](./02-local-services.md) -- DB・キャッシュ等のローカルサービス構築
-- [../03-team-setup/01-onboarding-automation.md](../03-team-setup/01-onboarding-automation.md) -- Docker を使ったオンボーディング自動化
+| Component | Recommended | Notes |
+|-----------|-------------|-------|
+| Runtime | Docker Desktop / OrbStack | OrbStack recommended for macOS |
+| Dockerfile | Multi-stage | Separate dev / production |
+| Base image | slim / alpine | Version pinning required |
+| Compose format | compose.yaml (v2) | docker-compose.yml is old format |
+| File sharing | VirtioFS + named volumes | Isolate node_modules |
+| File sync | docker compose watch | Alternative to bind mount |
+| Environment variables | .env + .env.local | .env.local in gitignore |
+| Health check | Required | condition for depends_on |
+| Security | Non-root + no-new-privileges | Required for production |
+| Cleanup | docker system prune | Recommended to run periodically |
+| Simplify operations | Makefile | Common interface for the team |
+| CI integration | BuildKit + layer cache | Reduce build time |
 
 ---
 
-## 参考文献
+## Next Guides to Read
 
-1. **Docker Compose Documentation** -- https://docs.docker.com/compose/ -- docker compose の公式ドキュメント。
-2. **Docker Development Best Practices** -- https://docs.docker.com/develop/dev-best-practices/ -- 公式のベストプラクティスガイド。
-3. **OrbStack** -- https://orbstack.dev/ -- macOS 向け高速 Docker 代替。
-4. **Dockerfile Best Practices** -- https://docs.docker.com/build/building/best-practices/ -- マルチステージビルド等の公式ガイド。
-5. **Docker Compose Watch** -- https://docs.docker.com/compose/file-watch/ -- ファイル監視・同期機能の公式ドキュメント。
-6. **Docker Security** -- https://docs.docker.com/engine/security/ -- Docker セキュリティのベストプラクティス。
-7. **BuildKit** -- https://docs.docker.com/build/buildkit/ -- 高速ビルドエンジンの公式ガイド。
+- [01-devcontainer.md](./01-devcontainer.md) -- Run VS Code inside a container with Dev Container
+- [02-local-services.md](./02-local-services.md) -- Build local services for DB, cache, etc.
+- [../03-team-setup/01-onboarding-automation.md](../03-team-setup/01-onboarding-automation.md) -- Automate onboarding using Docker
+
+---
+
+## References
+
+1. **Docker Compose Documentation** -- https://docs.docker.com/compose/ -- Official documentation for docker compose.
+2. **Docker Development Best Practices** -- https://docs.docker.com/develop/dev-best-practices/ -- Official best practices guide.
+3. **OrbStack** -- https://orbstack.dev/ -- Fast Docker alternative for macOS.
+4. **Dockerfile Best Practices** -- https://docs.docker.com/build/building/best-practices/ -- Official guide for multi-stage builds and more.
+5. **Docker Compose Watch** -- https://docs.docker.com/compose/file-watch/ -- Official documentation for file watching and sync features.
+6. **Docker Security** -- https://docs.docker.com/engine/security/ -- Docker security best practices.
+7. **BuildKit** -- https://docs.docker.com/build/buildkit/ -- Official guide for the fast build engine.
