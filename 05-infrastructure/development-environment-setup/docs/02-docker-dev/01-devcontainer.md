@@ -1,199 +1,202 @@
 # Dev Container
 
-> .devcontainer 設定で開発環境をコンテナ化し、VS Code 統合と GitHub Codespaces によってチーム全員が同一環境で即座に開発を開始できる仕組みを構築する。
+> By containerizing the development environment with `.devcontainer` configuration, you can build a system where every team member can instantly start developing in an identical environment through VS Code integration and GitHub Codespaces.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **devcontainer.json の構造と設定パターン** -- コンテナベースの開発環境を宣言的に定義し、再現性を確保する手法を理解する
-2. **VS Code Remote - Containers との統合** -- ローカルの VS Code からコンテナ内で透過的に開発するワークフローを構築する
-3. **GitHub Codespaces の活用と最適化** -- クラウドベースの Dev Container で、ローカルマシンに依存しない開発環境を実現する
+1. **devcontainer.json structure and configuration patterns** -- Understand how to declaratively define container-based development environments and ensure reproducibility
+2. **Integration with VS Code Remote - Containers** -- Build a workflow for transparent in-container development from your local VS Code
+3. **Using and optimizing GitHub Codespaces** -- Achieve a development environment independent of local machines using cloud-based Dev Containers
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [開発用 Docker](./00-docker-for-dev.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Docker for Development](./00-docker-for-dev.md)
 
 ---
 
-## 1. Dev Container の概要
+## 1. Overview of Dev Containers
 
-### 1.1 Dev Container とは
+### 1.1 What is a Dev Container?
 
 ```
 +------------------------------------------------------------------+
-|                 従来の開発環境 vs Dev Container                     |
+|           Traditional Development vs Dev Container               |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [従来]                                                          |
-|  開発者A: macOS + Node 18 + Python 3.9 + MySQL 8.0              |
-|  開発者B: Windows + Node 20 + Python 3.11 + MySQL 5.7           |
-|  開発者C: Ubuntu + Node 16 + Python 3.10 + MariaDB              |
-|  → 環境差異によるバグ「自分の環境では動くんですが...」              |
+|  [Traditional]                                                   |
+|  Developer A: macOS + Node 18 + Python 3.9 + MySQL 8.0          |
+|  Developer B: Windows + Node 20 + Python 3.11 + MySQL 5.7       |
+|  Developer C: Ubuntu + Node 16 + Python 3.10 + MariaDB          |
+|  → Bugs caused by environment differences: "It works on my      |
+|    machine though..."                                            |
 |                                                                  |
 |  [Dev Container]                                                 |
-|  開発者A: macOS + Docker → コンテナ(Node 20 + Python 3.11 + ...)  |
-|  開発者B: Windows + Docker → コンテナ(Node 20 + Python 3.11 + ...) |
-|  開発者C: Ubuntu + Docker → コンテナ(Node 20 + Python 3.11 + ...) |
-|  → 全員が同一環境。設定は .devcontainer/ にコード管理              |
+|  Developer A: macOS + Docker → Container (Node 20 + Python 3.11 + ...) |
+|  Developer B: Windows + Docker → Container (Node 20 + Python 3.11 + ...) |
+|  Developer C: Ubuntu + Docker → Container (Node 20 + Python 3.11 + ...) |
+|  → Everyone uses the same environment. Config is managed as     |
+|    code in .devcontainer/                                        |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-Dev Container は、開発環境全体をコンテナとして定義する仕組みである。従来の「README にインストール手順を書いて各自実行する」アプローチでは、OS の違い、ツールのバージョン差、設定のドリフトによって環境差異が避けられなかった。Dev Container はこの問題を根本的に解決する。
+A Dev Container is a system that defines the entire development environment as a container. The traditional approach of "write installation steps in the README and have each person run them" inevitably leads to environment differences due to OS variations, tool version discrepancies, and configuration drift. Dev Containers fundamentally solve this problem.
 
-Dev Container の主な利点は以下の通りである。
+The main benefits of Dev Containers are as follows.
 
-1. **環境の再現性**: devcontainer.json にすべての環境定義が含まれるため、誰がいつビルドしても同じ環境が得られる
-2. **オンボーディングの高速化**: 新メンバーは「リポジトリをクローンして Dev Container を開く」だけで開発を開始できる
-3. **環境のバージョン管理**: .devcontainer/ ディレクトリがリポジトリに含まれるため、環境変更の履歴を Git で追跡できる
-4. **ホストマシンの汚染防止**: すべてのツール・依存関係がコンテナ内に閉じるため、ホストマシンをクリーンに保てる
-5. **マルチプロジェクト対応**: プロジェクトごとに異なるランタイムバージョンを利用しても競合しない
+1. **Environment reproducibility**: Since all environment definitions are contained in `devcontainer.json`, the same environment is obtained regardless of who builds it or when
+2. **Faster onboarding**: New team members can start developing by simply "cloning the repository and opening the Dev Container"
+3. **Version control for environments**: Since the `.devcontainer/` directory is included in the repository, changes to the environment can be tracked with Git
+4. **Preventing host machine pollution**: Since all tools and dependencies are confined within the container, the host machine stays clean
+5. **Multi-project support**: Different runtime versions can be used per project without conflicts
 
-### 1.2 Dev Container のアーキテクチャ
+### 1.2 Dev Container Architecture
 
 ```
 +------------------------------------------------------------------+
-|              Dev Container アーキテクチャ                          |
+|              Dev Container Architecture                          |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [ホストマシン]                                                   |
+|  [Host Machine]                                                  |
 |    +-- VS Code / Cursor                                          |
-|    |     +-- Remote - Containers 拡張                             |
+|    |     +-- Remote - Containers Extension                       |
 |    |     |     (JSON-RPC over stdio)                             |
 |    |     v                                                       |
 |    +-- Docker Engine                                             |
 |          |                                                       |
 |          v                                                       |
 |    +-- Dev Container ──────────────────────+                     |
-|    |   |  ベースイメージ (Ubuntu/Debian)     |                    |
+|    |   |  Base Image (Ubuntu/Debian)       |                    |
 |    |   |  + Node.js / Python / Go etc.     |                    |
 |    |   |  + VS Code Server                 |                    |
-|    |   |  + 拡張機能 (コンテナ内)            |                    |
+|    |   |  + Extensions (inside container)  |                    |
 |    |   |                                   |                    |
-|    |   |  /workspace ← プロジェクトマウント  |                    |
+|    |   |  /workspace ← Project Mount       |                    |
 |    |   +-----------------------------------+                    |
 |    |                                                            |
-|    +-- Volume: node_modules, .cache 等                           |
+|    +-- Volume: node_modules, .cache, etc.                       |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 1.3 Dev Container の動作フロー
+### 1.3 Dev Container Lifecycle
 
-Dev Container のライフサイクルを理解することで、適切なタイミングで設定やコマンドを配置できる。
+Understanding the Dev Container lifecycle allows you to place configurations and commands at the appropriate timing.
 
 ```
 +------------------------------------------------------------------+
-|          Dev Container ライフサイクル                                |
+|          Dev Container Lifecycle                                 |
 +------------------------------------------------------------------+
 |                                                                  |
 |  1. "Reopen in Container" (VS Code) or "devcontainer up" (CLI)   |
 |     |                                                            |
 |     v                                                            |
-|  2. Docker イメージのビルド (Dockerfile / image / compose)         |
-|     |  - ベースイメージの取得                                      |
-|     |  - Features のインストール (install.sh 実行)                 |
-|     |  - カスタム Dockerfile のビルド                               |
+|  2. Docker image build (Dockerfile / image / compose)            |
+|     |  - Pulling the base image                                  |
+|     |  - Installing Features (running install.sh)               |
+|     |  - Building custom Dockerfile                             |
 |     v                                                            |
-|  3. コンテナの作成と起動                                           |
-|     |  - ボリュームのマウント                                      |
-|     |  - ポートフォワーディング設定                                 |
-|     |  - 環境変数の注入                                            |
+|  3. Container creation and startup                               |
+|     |  - Mounting volumes                                        |
+|     |  - Configuring port forwarding                            |
+|     |  - Injecting environment variables                        |
 |     v                                                            |
-|  4. initializeCommand (ホスト側で実行)                             |
+|  4. initializeCommand (runs on host side)                        |
 |     |                                                            |
 |     v                                                            |
-|  5. onCreateCommand (初回作成時のみ)                               |
+|  5. onCreateCommand (first creation only)                        |
 |     |                                                            |
 |     v                                                            |
-|  6. updateContentCommand (作成時 + Rebuild 時)                     |
+|  6. updateContentCommand (on creation + Rebuild)                 |
 |     |                                                            |
 |     v                                                            |
-|  7. postCreateCommand (作成完了後)                                 |
+|  7. postCreateCommand (after creation completes)                 |
 |     |                                                            |
 |     v                                                            |
-|  8. postStartCommand (起動ごとに実行)                              |
+|  8. postStartCommand (runs on each startup)                      |
 |     |                                                            |
 |     v                                                            |
-|  9. postAttachCommand (エディタ接続ごとに実行)                      |
+|  9. postAttachCommand (runs on each editor attach)               |
 |     |                                                            |
 |     v                                                            |
-|  10. VS Code Server 起動 + 拡張機能インストール                    |
-|     → 開発準備完了                                                |
+|  10. VS Code Server starts + Extensions installed                |
+|     → Ready for development                                      |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-各ライフサイクルコマンドの使い分けは以下の通りである。
+The appropriate use cases for each lifecycle command are as follows.
 
-| コマンド | 実行タイミング | 用途の例 |
-|---------|-------------|---------|
-| `initializeCommand` | コンテナ作成前（ホスト側） | Git サブモジュールの初期化、.env ファイルの生成 |
-| `onCreateCommand` | コンテナ初回作成時のみ | 大規模な依存関係のインストール、DB 初期化 |
-| `updateContentCommand` | 作成時 + コンテンツ更新時 | `npm ci`、Prebuild で実行される |
-| `postCreateCommand` | コンテナ作成完了後 | DB マイグレーション、Git フック設定 |
-| `postStartCommand` | コンテナ起動ごと | バックグラウンドサービス起動、キャッシュウォーム |
-| `postAttachCommand` | エディタ接続ごと | ウェルカムメッセージ、環境状態の表示 |
+| Command | Execution Timing | Example Use Cases |
+|---------|-----------------|-------------------|
+| `initializeCommand` | Before container creation (host side) | Initializing Git submodules, generating .env files |
+| `onCreateCommand` | First container creation only | Installing large dependencies, DB initialization |
+| `updateContentCommand` | On creation + content updates | `npm ci`, runs during Prebuild |
+| `postCreateCommand` | After container creation completes | DB migrations, Git hook setup |
+| `postStartCommand` | On each container startup | Starting background services, warming caches |
+| `postAttachCommand` | On each editor attach | Welcome messages, displaying environment status |
 
-### 1.4 Dev Container 導入判断フローチャート
+### 1.4 Dev Container Adoption Decision Flowchart
 
 ```
 +------------------------------------------------------------------+
-|        Dev Container 導入判断フロー                                 |
+|        Dev Container Adoption Decision Flow                      |
 +------------------------------------------------------------------+
 |                                                                  |
-|  チーム開発か？                                                    |
+|  Is it team development?                                         |
 |    |                                                             |
-|    +--[Yes]--> 環境差異の問題が発生しているか？                     |
-|    |             |                                                |
-|    |             +--[Yes]--> Dev Container を導入                  |
-|    |             |                                                |
-|    |             +--[No]---> 新メンバーの参加頻度は？               |
-|    |                          |                                   |
-|    |                          +--[高い]--> Dev Container 推奨     |
-|    |                          |                                   |
-|    |                          +--[低い]--> Docker Compose のみ    |
-|    |                                                              |
-|    +--[No]----> 複数プロジェクトを同時開発か？                      |
-|                   |                                               |
-|                   +--[Yes]--> Dev Container 推奨                  |
-|                   |                                               |
-|                   +--[No]---> ローカル開発 or Docker Compose       |
+|    +--[Yes]--> Are environment difference issues occurring?      |
+|    |             |                                               |
+|    |             +--[Yes]--> Introduce Dev Container            |
+|    |             |                                               |
+|    |             +--[No]---> How often do new members join?     |
+|    |                          |                                  |
+|    |                          +--[Frequently]--> Dev Container  |
+|    |                          |                  recommended    |
+|    |                          +--[Rarely]-----> Docker Compose  |
+|    |                                             only           |
+|    +--[No]----> Developing multiple projects simultaneously?    |
+|                   |                                              |
+|                   +--[Yes]--> Dev Container recommended         |
+|                   |                                              |
+|                   +--[No]---> Local development or             |
+|                               Docker Compose                    |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. devcontainer.json の設定
+## 2. devcontainer.json Configuration
 
-### 2.1 基本構成
+### 2.1 Basic Structure
 
 ```jsonc
 // .devcontainer/devcontainer.json
 {
   "name": "My Project Dev",
 
-  // ベースイメージ（シンプルな場合）
+  // Base image (for simple cases)
   "image": "mcr.microsoft.com/devcontainers/typescript-node:20-bookworm",
 
-  // または Dockerfile を使う場合
+  // Or when using a Dockerfile
   // "build": {
   //   "dockerfile": "Dockerfile",
   //   "context": "..",
   //   "args": { "NODE_VERSION": "20" }
   // },
 
-  // または Docker Compose を使う場合
+  // Or when using Docker Compose
   // "dockerComposeFile": "docker-compose.yml",
   // "service": "app",
   // "workspaceFolder": "/workspace",
 
-  // Features (追加ツールのモジュラーインストール)
+  // Features (modular installation of additional tools)
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
@@ -203,7 +206,7 @@ Dev Container のライフサイクルを理解することで、適切なタイ
     }
   },
 
-  // VS Code 設定
+  // VS Code settings
   "customizations": {
     "vscode": {
       "extensions": [
@@ -220,7 +223,7 @@ Dev Container のライフサイクルを理解することで、適切なタイ
     }
   },
 
-  // ポートフォワーディング
+  // Port forwarding
   "forwardPorts": [3000, 5432, 6379],
   "portsAttributes": {
     "3000": { "label": "App", "onAutoForward": "openBrowser" },
@@ -228,21 +231,21 @@ Dev Container のライフサイクルを理解することで、適切なタイ
     "6379": { "label": "Redis", "onAutoForward": "silent" }
   },
 
-  // ライフサイクルコマンド
+  // Lifecycle commands
   "postCreateCommand": "npm ci",
   "postStartCommand": "npm run db:migrate",
   "postAttachCommand": "echo 'Dev Container ready!'",
 
-  // コンテナユーザー
+  // Container user
   "remoteUser": "node",
 
-  // マウント設定
+  // Mount settings
   "mounts": [
     "source=${localWorkspaceFolder}/.env,target=/workspace/.env,type=bind,consistency=cached",
     "source=node_modules,target=/workspace/node_modules,type=volume"
   ],
 
-  // 環境変数
+  // Environment variables
   "remoteEnv": {
     "NODE_ENV": "development",
     "DATABASE_URL": "postgresql://postgres:postgres@db:5432/myapp_dev"
@@ -250,46 +253,46 @@ Dev Container のライフサイクルを理解することで、適切なタイ
 }
 ```
 
-### 2.2 Dockerfile を使った高度な設定
+### 2.2 Advanced Configuration with Dockerfile
 
 ```dockerfile
 # .devcontainer/Dockerfile
 FROM mcr.microsoft.com/devcontainers/typescript-node:20-bookworm
 
-# システムパッケージ
+# System packages
 RUN apt-get update && apt-get install -y \
     postgresql-client \
     redis-tools \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-# グローバル npm パッケージ
+# Global npm packages
 RUN su node -c "npm install -g \
     tsx \
     prisma \
     @biomejs/biome \
     turbo"
 
-# AWS CLI (オプション)
+# AWS CLI (optional)
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
     -o "awscliv2.zip" \
     && unzip awscliv2.zip \
     && ./aws/install \
     && rm -rf aws awscliv2.zip
 
-# カスタムシェル設定
+# Custom shell configuration
 COPY .devcontainer/.zshrc /home/node/.zshrc
 RUN chown node:node /home/node/.zshrc
 ```
 
-### 2.3 マルチステージ Dockerfile パターン
+### 2.3 Multi-Stage Dockerfile Pattern
 
-大規模プロジェクトでは、Dev Container 用の Dockerfile をマルチステージビルドで構成すると効率的である。
+For large-scale projects, it is efficient to structure the Dev Container Dockerfile as a multi-stage build.
 
 ```dockerfile
-# .devcontainer/Dockerfile (マルチステージ)
+# .devcontainer/Dockerfile (multi-stage)
 
-# ステージ1: システム依存関係
+# Stage 1: System dependencies
 FROM mcr.microsoft.com/devcontainers/typescript-node:20-bookworm AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -300,7 +303,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-# ステージ2: CLI ツール群
+# Stage 2: CLI tools
 FROM base AS tools
 
 # Terraform
@@ -314,15 +317,15 @@ RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/sh
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
     && unzip awscliv2.zip && ./aws/install && rm -rf aws awscliv2.zip
 
-# gcloud CLI (オプション)
+# gcloud CLI (optional)
 # RUN curl https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz > /tmp/gcloud.tar.gz \
 #     && mkdir -p /usr/local/gcloud && tar -C /usr/local/gcloud -xf /tmp/gcloud.tar.gz \
 #     && /usr/local/gcloud/google-cloud-sdk/install.sh --quiet
 
-# ステージ3: 最終イメージ
+# Stage 3: Final image
 FROM tools AS devcontainer
 
-# Node.js グローバルパッケージ (node ユーザーで)
+# Node.js global packages (as node user)
 RUN su node -c "npm install -g \
     tsx \
     prisma \
@@ -330,16 +333,16 @@ RUN su node -c "npm install -g \
     turbo \
     wrangler"
 
-# シェル設定
+# Shell configuration
 COPY .devcontainer/.zshrc /home/node/.zshrc
 COPY .devcontainer/.p10k.zsh /home/node/.p10k.zsh
 RUN chown -R node:node /home/node
 
-# ワークスペース
+# Workspace
 WORKDIR /workspace
 ```
 
-### 2.4 Docker Compose との連携
+### 2.4 Integration with Docker Compose
 
 ```yaml
 # .devcontainer/docker-compose.yml
@@ -398,71 +401,71 @@ networks:
   dev:
 ```
 
-### 2.5 devcontainer.json の高度な設定オプション
+### 2.5 Advanced devcontainer.json Configuration Options
 
-#### runArgs によるコンテナ実行オプション
+#### Container Execution Options via runArgs
 
 ```jsonc
 {
-  // Docker run に渡す追加引数
+  // Additional arguments passed to Docker run
   "runArgs": [
-    "--cap-add=SYS_PTRACE",   // デバッガのアタッチに必要
-    "--security-opt", "seccomp=unconfined",  // パフォーマンスプロファイリング
+    "--cap-add=SYS_PTRACE",   // Required for debugger attachment
+    "--security-opt", "seccomp=unconfined",  // Performance profiling
     "--name", "my-devcontainer",
-    "--network", "host",       // ホストネットワークモード (Linux のみ)
-    "--gpus", "all"            // GPU アクセス (ML 開発)
+    "--network", "host",       // Host network mode (Linux only)
+    "--gpus", "all"            // GPU access (ML development)
   ]
 }
 ```
 
-#### containerEnv vs remoteEnv の違い
+#### Difference Between containerEnv and remoteEnv
 
 ```jsonc
 {
-  // containerEnv: コンテナ全体で有効（ライフサイクルコマンドにも適用）
+  // containerEnv: effective throughout the container (applies to lifecycle commands as well)
   "containerEnv": {
     "TZ": "Asia/Tokyo",
     "LANG": "ja_JP.UTF-8",
     "DOCKER_BUILDKIT": "1"
   },
 
-  // remoteEnv: VS Code のターミナルプロセスでのみ有効
+  // remoteEnv: effective only in VS Code terminal processes
   "remoteEnv": {
     "NODE_ENV": "development",
     "DATABASE_URL": "postgresql://postgres:postgres@db:5432/myapp_dev",
-    // ホストの環境変数を参照
+    // Reference host environment variable
     "LOCAL_USER": "${localEnv:USER}",
-    // コンテナ内の環境変数を参照
+    // Reference container environment variable
     "PATH": "${containerEnv:PATH}:/workspace/scripts"
   }
 }
 ```
 
-#### 複数設定ファイルの管理
+#### Managing Multiple Configuration Files
 
 ```
 .devcontainer/
-├── devcontainer.json          # デフォルト設定
+├── devcontainer.json          # Default configuration
 ├── Dockerfile
 ├── docker-compose.yml
 ├── post-create.sh
 ├── .zshrc
 └── variants/
     ├── gpu/
-    │   └── devcontainer.json  # GPU 開発用
+    │   └── devcontainer.json  # For GPU development
     ├── minimal/
-    │   └── devcontainer.json  # 軽量版
+    │   └── devcontainer.json  # Lightweight version
     └── full/
-        └── devcontainer.json  # フル構成
+        └── devcontainer.json  # Full configuration
 ```
 
-VS Code のコマンドパレットで「Dev Containers: Open Folder in Container...」を実行すると、複数の devcontainer.json がある場合に選択ダイアログが表示される。
+Running "Dev Containers: Open Folder in Container..." from the VS Code command palette will display a selection dialog when multiple `devcontainer.json` files exist.
 
 ---
 
 ## 3. Dev Container Features
 
-### 3.1 Features の仕組み
+### 3.1 How Features Work
 
 ```
 +------------------------------------------------------------------+
@@ -476,50 +479,50 @@ VS Code のコマンドパレットで「Dev Containers: Open Folder in Containe
 |      "ghcr.io/devcontainers/features/go:1": {}                  |
 |    }                                                             |
 |         |                                                        |
-|         v  各 Feature は OCI イメージとして配布                    |
+|         v  Each Feature is distributed as an OCI image          |
 |    +-----------------------------------+                         |
-|    | install.sh (インストールスクリプト) |                        |
-|    | devcontainer-feature.json (定義)   |                        |
+|    | install.sh (installation script) |                         |
+|    | devcontainer-feature.json (def.) |                         |
 |    +-----------------------------------+                         |
 |         |                                                        |
-|         v  ベースイメージに順番に適用                              |
-|    最終的な Dev Container イメージ                                |
+|         v  Applied to the base image sequentially               |
+|    Final Dev Container image                                     |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-Features は OCI (Open Container Initiative) 仕様に準拠したパッケージとして配布される。各 Feature は以下のファイルで構成される。
+Features are distributed as packages conforming to the OCI (Open Container Initiative) specification. Each Feature consists of the following files.
 
 ```
 my-feature/
-├── devcontainer-feature.json   # Feature のメタデータとオプション定義
-├── install.sh                  # インストールスクリプト
-└── README.md                   # ドキュメント
+├── devcontainer-feature.json   # Feature metadata and option definitions
+├── install.sh                  # Installation script
+└── README.md                   # Documentation
 ```
 
-### 3.2 よく使う Features 一覧
+### 3.2 Commonly Used Features
 
-| Feature | 用途 | 設定例 |
-|---------|------|--------|
-| `node` | Node.js ランタイム | `"version": "20"` |
-| `python` | Python ランタイム | `"version": "3.11"` |
-| `go` | Go ランタイム | `"version": "1.21"` |
-| `rust` | Rust ツールチェーン | `"profile": "default"` |
+| Feature | Purpose | Configuration Example |
+|---------|---------|----------------------|
+| `node` | Node.js runtime | `"version": "20"` |
+| `python` | Python runtime | `"version": "3.11"` |
+| `go` | Go runtime | `"version": "1.21"` |
+| `rust` | Rust toolchain | `"profile": "default"` |
 | `java` | Java JDK | `"version": "21"`, `"installGradle": true` |
-| `docker-in-docker` | コンテナ内 Docker | デフォルトでOK |
-| `docker-outside-of-docker` | ホスト Docker 共有 | 軽量だがホストのコンテナが見える |
-| `github-cli` | gh コマンド | デフォルトでOK |
-| `aws-cli` | AWS CLI v2 | デフォルトでOK |
+| `docker-in-docker` | Docker inside container | Default is fine |
+| `docker-outside-of-docker` | Share host Docker | Lightweight but host containers are visible |
+| `github-cli` | gh command | Default is fine |
+| `aws-cli` | AWS CLI v2 | Default is fine |
 | `terraform` | Terraform | `"version": "latest"` |
-| `kubectl-helm-minikube` | K8s ツール群 | デフォルトでOK |
-| `git` | 最新 Git | デフォルトでOK |
-| `git-lfs` | Git Large File Storage | デフォルトでOK |
-| `common-utils` | zsh, Oh My Zsh 等 | `"installZsh": true` |
-| `sshd` | SSH サーバー | リモートデバッグ用 |
+| `kubectl-helm-minikube` | K8s tools | Default is fine |
+| `git` | Latest Git | Default is fine |
+| `git-lfs` | Git Large File Storage | Default is fine |
+| `common-utils` | zsh, Oh My Zsh, etc. | `"installZsh": true` |
+| `sshd` | SSH server | For remote debugging |
 
-### 3.3 カスタム Feature の作成
+### 3.3 Creating Custom Features
 
-チーム固有のツールや設定を Feature として配布できる。
+Team-specific tools and configurations can be distributed as Features.
 
 ```jsonc
 // my-org-feature/devcontainer-feature.json
@@ -527,18 +530,18 @@ my-feature/
   "id": "my-org-tools",
   "version": "1.0.0",
   "name": "My Organization Development Tools",
-  "description": "社内標準の開発ツールセット",
+  "description": "Internal standard development toolset",
   "options": {
     "installLinter": {
       "type": "boolean",
       "default": true,
-      "description": "社内カスタムリンターをインストールする"
+      "description": "Install the internal custom linter"
     },
     "environment": {
       "type": "string",
       "enum": ["staging", "production"],
       "default": "staging",
-      "description": "接続先環境"
+      "description": "Target environment to connect to"
     }
   }
 }
@@ -549,21 +552,21 @@ my-feature/
 # my-org-feature/install.sh
 set -e
 
-# オプションの取得
+# Retrieve options
 INSTALL_LINTER="${INSTALLLINTER:-true}"
 ENVIRONMENT="${ENVIRONMENT:-staging}"
 
 echo "Installing My Org Tools..."
 
-# 社内 CLI ツール
+# Internal CLI tool
 curl -fsSL https://internal.example.com/cli/install.sh | bash
 
-# カスタムリンター
+# Custom linter
 if [ "$INSTALL_LINTER" = "true" ]; then
     npm install -g @my-org/linter@latest
 fi
 
-# 環境設定ファイル
+# Environment configuration file
 cat > /etc/my-org/config.json << EOF
 {
   "environment": "$ENVIRONMENT",
@@ -574,7 +577,7 @@ EOF
 echo "My Org Tools installed successfully!"
 ```
 
-Feature を GitHub Container Registry に公開する場合の GitHub Actions は以下の通りである。
+The GitHub Actions workflow for publishing a Feature to GitHub Container Registry is as follows.
 
 ```yaml
 # .github/workflows/publish-feature.yml
@@ -603,7 +606,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-公開後、他のプロジェクトから以下のように参照できる。
+After publishing, other projects can reference it as follows.
 
 ```jsonc
 {
@@ -616,23 +619,23 @@ jobs:
 }
 ```
 
-### 3.4 Features のインストール順序と競合
+### 3.4 Feature Installation Order and Conflicts
 
-Features は `devcontainer.json` に記載された順序でインストールされる。順序が重要になるケースがある。
+Features are installed in the order listed in `devcontainer.json`. There are cases where the order matters.
 
 ```jsonc
 {
   "features": {
-    // 1. まず common-utils で zsh をインストール
+    // 1. First install zsh with common-utils
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": true,
       "configureZshAsDefaultShell": true
     },
-    // 2. 次に Node.js をインストール（zsh の PATH に追加される）
+    // 2. Then install Node.js (added to zsh's PATH)
     "ghcr.io/devcontainers/features/node:1": {
       "version": "20"
     },
-    // 3. 最後に Docker-in-Docker（Docker デーモン起動）
+    // 3. Finally Docker-in-Docker (starts Docker daemon)
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "dockerDashComposeVersion": "v2"
     }
@@ -640,7 +643,7 @@ Features は `devcontainer.json` に記載された順序でインストール�
 }
 ```
 
-Features 間で競合が発生する場合は `overrideFeatureInstallOrder` で制御できる。
+When conflicts occur between Features, you can control the order with `overrideFeatureInstallOrder`.
 
 ```jsonc
 {
@@ -656,26 +659,26 @@ Features 間で競合が発生する場合は `overrideFeatureInstallOrder` で�
 
 ## 4. GitHub Codespaces
 
-### 4.1 Codespaces の設定
+### 4.1 Codespaces Configuration
 
 ```jsonc
-// .devcontainer/devcontainer.json (Codespaces 用追加設定)
+// .devcontainer/devcontainer.json (additional settings for Codespaces)
 {
   "name": "My Project (Codespaces)",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
 
-  // Codespaces 固有設定
+  // Codespaces-specific settings
   "hostRequirements": {
     "cpus": 4,
     "memory": "8gb",
     "storage": "32gb"
   },
 
-  // Prebuild 設定（初回起動を高速化）
+  // Prebuild settings (speeds up first startup)
   "updateContentCommand": "npm ci",
   "postCreateCommand": "npm run setup",
 
-  // GitHub Codespaces 固有のカスタマイズ
+  // GitHub Codespaces-specific customizations
   "customizations": {
     "codespaces": {
       "openFiles": ["README.md", "src/index.ts"]
@@ -688,9 +691,9 @@ Features 間で競合が発生する場合は `overrideFeatureInstallOrder` で�
     }
   },
 
-  // シークレット (Codespaces Settings で設定)
-  // GITHUB_TOKEN は自動注入
-  // その他は Settings > Codespaces > Secrets で管理
+  // Secrets (configured in Codespaces Settings)
+  // GITHUB_TOKEN is automatically injected
+  // Others are managed in Settings > Codespaces > Secrets
   "secrets": {
     "DATABASE_URL": {
       "description": "PostgreSQL connection string"
@@ -702,22 +705,22 @@ Features 間で競合が発生する場合は `overrideFeatureInstallOrder` で�
 }
 ```
 
-### 4.2 Prebuild の設定
+### 4.2 Prebuild Configuration
 
 ```yaml
 # .github/codespaces/prebuild-configuration.yml
-# リポジトリ Settings > Codespaces > Prebuild configuration で設定
+# Configure in repository Settings > Codespaces > Prebuild configuration
 
-# または devcontainer.json の lifecycle commands で対応:
-# "updateContentCommand" は Prebuild 時に実行される
-# "postCreateCommand" は初回作成時に実行される
-# "postStartCommand" は起動ごとに実行される
+# Or handle with devcontainer.json lifecycle commands:
+# "updateContentCommand" runs during Prebuild
+# "postCreateCommand" runs on first creation
+# "postStartCommand" runs on each startup
 ```
 
-Prebuild を最大限活用するための構成は以下の通りである。
+The configuration to maximize Prebuild usage is as follows.
 
 ```jsonc
-// .devcontainer/devcontainer.json (Prebuild 最適化)
+// .devcontainer/devcontainer.json (Prebuild optimized)
 {
   "name": "My Project (Prebuild Optimized)",
   "build": {
@@ -726,105 +729,105 @@ Prebuild を最大限活用するための構成は以下の通りである。
     "cacheFrom": "ghcr.io/my-org/my-project-devcontainer:latest"
   },
 
-  // updateContentCommand: Prebuild 時に実行される
-  // → 依存関係のインストールをここで行う
+  // updateContentCommand: runs during Prebuild
+  // → perform dependency installation here
   "updateContentCommand": {
     "install": "npm ci",
     "prisma": "npx prisma generate",
     "build-libs": "npm run build:libs"
   },
 
-  // postCreateCommand: 初回作成時のみ
-  // → DB マイグレーションなど環境固有の処理
+  // postCreateCommand: first creation only
+  // → environment-specific tasks such as DB migrations
   "postCreateCommand": {
     "migrate": "npm run db:migrate",
     "seed": "npm run db:seed",
     "hooks": "npx husky install"
   },
 
-  // postStartCommand: 起動ごと
-  // → 短時間で完了するタスクのみ
+  // postStartCommand: on each startup
+  // → only tasks that complete quickly
   "postStartCommand": "npm run dev:prepare"
 }
 ```
 
-### 4.3 Codespaces のコスト管理
+### 4.3 Codespaces Cost Management
 
-Codespaces の課金は「コンピュートコスト（稼働時間）」と「ストレージコスト（保持時間）」の2軸で発生する。
+Codespaces billing is charged on two axes: "compute cost (active hours)" and "storage cost (retention time)".
 
 ```
 +------------------------------------------------------------------+
-|           Codespaces コスト管理                                    |
+|           Codespaces Cost Management                             |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [コンピュートコスト]                                              |
-|  マシンタイプ    | コア | RAM   | 時間単価 (目安)                  |
-|  ───────────────┼──────┼───────┼──────────────────                |
-|  2-core         | 2    | 8 GB  | $0.18/hr                       |
-|  4-core         | 4    | 16 GB | $0.36/hr                       |
-|  8-core         | 8    | 32 GB | $0.72/hr                       |
-|  16-core        | 16   | 64 GB | $1.44/hr                       |
-|  32-core        | 32   | 128GB | $2.88/hr                       |
+|  [Compute Cost]                                                  |
+|  Machine Type    | Cores | RAM   | Hourly Rate (approx.)        |
+|  ───────────────┼───────┼───────┼──────────────────             |
+|  2-core         | 2     | 8 GB  | $0.18/hr                     |
+|  4-core         | 4     | 16 GB | $0.36/hr                     |
+|  8-core         | 8     | 32 GB | $0.72/hr                     |
+|  16-core        | 16    | 64 GB | $1.44/hr                     |
+|  32-core        | 32    | 128GB | $2.88/hr                     |
 |                                                                  |
-|  [ストレージコスト]                                                |
-|  $0.07/GB/月 (Prebuild スナップショット含む)                       |
+|  [Storage Cost]                                                  |
+|  $0.07/GB/month (including Prebuild snapshots)                  |
 |                                                                  |
-|  [Free 枠 (Personal)]                                            |
-|  - 120 コア時間/月 (2-core で 60 時間)                            |
-|  - 15 GB ストレージ/月                                            |
+|  [Free Tier (Personal)]                                          |
+|  - 120 core-hours/month (60 hours on 2-core)                    |
+|  - 15 GB storage/month                                          |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-コスト最適化のベストプラクティスは以下の通りである。
+Best practices for cost optimization are as follows.
 
 ```jsonc
-// リポジトリの .devcontainer/devcontainer.json
+// Repository's .devcontainer/devcontainer.json
 {
-  // 最小限のマシンスペックを指定
+  // Specify minimum machine specs
   "hostRequirements": {
-    "cpus": 2,        // フロントエンド開発なら 2 コアで十分
+    "cpus": 2,        // 2 cores is sufficient for frontend development
     "memory": "8gb"
   }
 }
 ```
 
-Organization レベルのポリシー設定（GitHub リポジトリの Settings > Codespaces）で以下を推奨する。
+The following settings are recommended at the Organization level policy (repository Settings > Codespaces).
 
-| 設定 | 推奨値 | 説明 |
-|------|-------|------|
-| Default idle timeout | 30 分 | 無操作時の自動停止 |
-| Maximum idle timeout | 60 分 | ユーザーが設定できる最大値 |
-| Retention period | 14 日 | 未使用 Codespace の自動削除 |
-| Machine type policy | 2-core, 4-core | 利用可能なマシンタイプの制限 |
-| Prebuild regions | 1 リージョン | 不要なリージョンの Prebuild を削減 |
+| Setting | Recommended Value | Description |
+|---------|------------------|-------------|
+| Default idle timeout | 30 minutes | Auto-stop when idle |
+| Maximum idle timeout | 60 minutes | Maximum value users can configure |
+| Retention period | 14 days | Auto-delete unused Codespaces |
+| Machine type policy | 2-core, 4-core | Restrict available machine types |
+| Prebuild regions | 1 region | Reduce Prebuild in unnecessary regions |
 
-### 4.4 ローカル Dev Container vs Codespaces 比較
+### 4.4 Local Dev Container vs Codespaces Comparison
 
-| 項目 | ローカル Dev Container | GitHub Codespaces |
-|------|----------------------|-------------------|
-| 実行場所 | ローカルマシン | GitHub クラウド |
-| Docker 必要 | 必要 | 不要 |
-| スペック | ローカルに依存 | 2〜32 コア選択可 |
-| コスト | Docker のみ | 従量課金(Free枠あり) |
-| ネットワーク | ローカルネットワーク | GitHub ネットワーク |
-| 起動速度 | イメージDL後は速い | Prebuild で高速化可 |
-| オフライン | 可能 | 不可 |
-| ポートフォワード | localhost直接 | ポート転送(公開URL可) |
-| Git 認証 | ローカル設定 | GitHub 自動認証 |
-| シークレット | .env ファイル | Codespaces Secrets |
-| GPU 利用 | ホスト GPU パススルー | GPU マシン選択可 |
-| コラボレーション | 不可 | Live Share 統合可 |
-| セキュリティ | ローカルポリシー | Organization ポリシー |
+| Item | Local Dev Container | GitHub Codespaces |
+|------|---------------------|-------------------|
+| Execution location | Local machine | GitHub cloud |
+| Docker required | Yes | No |
+| Specs | Depends on local machine | 2-32 cores selectable |
+| Cost | Docker only | Pay-as-you-go (free tier available) |
+| Network | Local network | GitHub network |
+| Startup speed | Fast after image pull | Can be accelerated with Prebuild |
+| Offline | Possible | Not possible |
+| Port forwarding | Direct localhost | Port forwarding (public URL available) |
+| Git authentication | Local settings | GitHub auto-authentication |
+| Secrets | .env files | Codespaces Secrets |
+| GPU usage | Host GPU passthrough | GPU machine selectable |
+| Collaboration | Not possible | Live Share integration available |
+| Security | Local policy | Organization policy |
 
 ---
 
-## 5. 実践的なプロジェクトテンプレート
+## 5. Practical Project Templates
 
-### 5.1 フルスタック Web アプリ
+### 5.1 Full-Stack Web Application
 
 ```jsonc
-// .devcontainer/devcontainer.json (フルスタック)
+// .devcontainer/devcontainer.json (full-stack)
 {
   "name": "Full Stack App",
   "dockerComposeFile": "docker-compose.yml",
@@ -872,7 +875,7 @@ Organization レベルのポリシー設定（GitHub リポジトリの Settings
 }
 ```
 
-### 5.2 Python + FastAPI テンプレート
+### 5.2 Python + FastAPI Template
 
 ```jsonc
 // .devcontainer/devcontainer.json (Python FastAPI)
@@ -929,27 +932,27 @@ Organization レベルのポリシー設定（GitHub リポジトリの Settings
 }
 ```
 
-対応する Dockerfile は以下の通りである。
+The corresponding Dockerfile is as follows.
 
 ```dockerfile
 # .devcontainer/Dockerfile (Python)
 FROM mcr.microsoft.com/devcontainers/python:3.12-bookworm
 
-# システムパッケージ
+# System packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
 
-# uv (高速 pip 代替)
+# uv (fast pip alternative)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Poetry (オプション)
+# Poetry (optional)
 # RUN curl -sSL https://install.python-poetry.org | python3 -
 
 WORKDIR /workspace
 ```
 
-### 5.3 Go + gRPC テンプレート
+### 5.3 Go + gRPC Template
 
 ```jsonc
 // .devcontainer/devcontainer.json (Go gRPC)
@@ -998,9 +1001,9 @@ WORKDIR /workspace
 }
 ```
 
-### 5.4 Monorepo テンプレート
+### 5.4 Monorepo Template
 
-Turborepo や Nx を使う monorepo プロジェクトでの Dev Container 設定は以下の通りである。
+The Dev Container configuration for monorepo projects using Turborepo or Nx is as follows.
 
 ```jsonc
 // .devcontainer/devcontainer.json (Monorepo)
@@ -1049,12 +1052,12 @@ Turborepo や Nx を使う monorepo プロジェクトでの Dev Container 設�
     "6379": { "label": "Redis", "onAutoForward": "silent" }
   },
 
-  // monorepo 用: pnpm + turbo のインストール
+  // For monorepo: install pnpm + turbo
   "postCreateCommand": "corepack enable && pnpm install && pnpm turbo run build --filter='./packages/*'",
   "postStartCommand": "pnpm turbo run dev --filter='./apps/*' &",
   "remoteUser": "node",
 
-  // monorepo で重要: node_modules を Volume にする
+  // Important for monorepo: use Volume for node_modules
   "mounts": [
     "source=monorepo-node_modules,target=/workspace/node_modules,type=volume",
     "source=monorepo-turbo-cache,target=/workspace/.turbo,type=volume"
@@ -1062,7 +1065,7 @@ Turborepo や Nx を使う monorepo プロジェクトでの Dev Container 設�
 }
 ```
 
-### 5.5 セットアップスクリプト
+### 5.5 Setup Script
 
 ```bash
 #!/bin/bash
@@ -1072,23 +1075,23 @@ set -euo pipefail
 
 echo "=== Dev Container Setup ==="
 
-# 依存関係インストール
+# Install dependencies
 echo ">>> Installing dependencies..."
 npm ci
 
-# データベースマイグレーション
+# Database migrations
 echo ">>> Running database migrations..."
 npx prisma migrate dev --name init 2>/dev/null || npx prisma migrate deploy
 
-# シードデータ
+# Seed data
 echo ">>> Seeding database..."
 npx prisma db seed 2>/dev/null || echo "No seed script found, skipping"
 
-# Git フック
+# Git hooks
 echo ">>> Setting up Git hooks..."
 npx husky install 2>/dev/null || echo "Husky not configured, skipping"
 
-# 完了メッセージ
+# Completion message
 echo ""
 echo "========================================="
 echo "  Dev Container is ready!"
@@ -1096,15 +1099,15 @@ echo "  Run 'npm run dev' to start developing"
 echo "========================================="
 ```
 
-### 5.6 高度なセットアップスクリプト（Monorepo 対応）
+### 5.6 Advanced Setup Script (Monorepo Support)
 
 ```bash
 #!/bin/bash
-# .devcontainer/post-create.sh (Monorepo 対応版)
+# .devcontainer/post-create.sh (Monorepo-compatible version)
 
 set -euo pipefail
 
-# 色付き出力
+# Colored output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -1121,14 +1124,14 @@ echo "   Dev Container Post-Create Setup"
 echo "============================================"
 echo ""
 
-# 1. パッケージマネージャの設定
+# 1. Configure package manager
 log_info "Configuring package manager..."
 if command -v corepack &> /dev/null; then
     corepack enable
     log_ok "Corepack enabled"
 fi
 
-# 2. 依存関係のインストール
+# 2. Install dependencies
 log_info "Installing dependencies..."
 if [ -f "pnpm-lock.yaml" ]; then
     pnpm install --frozen-lockfile
@@ -1144,7 +1147,7 @@ else
     npm install
 fi
 
-# 3. データベース準備
+# 3. Prepare database
 log_info "Setting up database..."
 MAX_RETRIES=30
 RETRY_COUNT=0
@@ -1159,7 +1162,7 @@ until pg_isready -h db -U postgres -q 2>/dev/null; do
 done
 log_ok "Database is ready"
 
-# マイグレーション
+# Migrations
 if [ -f "prisma/schema.prisma" ]; then
     npx prisma migrate deploy
     npx prisma generate
@@ -1169,14 +1172,14 @@ elif [ -d "alembic" ]; then
     log_ok "Alembic migrations applied"
 fi
 
-# シードデータ
+# Seed data
 if npm run --silent seed 2>/dev/null; then
     log_ok "Database seeded"
 else
     log_warn "No seed script found, skipping"
 fi
 
-# 4. Git 設定
+# 4. Git configuration
 log_info "Configuring Git..."
 git config --global --add safe.directory /workspace
 if [ -f ".husky/_/husky.sh" ]; then
@@ -1184,7 +1187,7 @@ if [ -f ".husky/_/husky.sh" ]; then
     log_ok "Git hooks configured"
 fi
 
-# 5. 環境変数チェック
+# 5. Environment variable check
 log_info "Checking environment..."
 REQUIRED_VARS=("DATABASE_URL" "NODE_ENV")
 MISSING_VARS=()
@@ -1199,7 +1202,7 @@ else
     log_ok "All required environment variables set"
 fi
 
-# 6. 完了
+# 6. Done
 echo ""
 echo "============================================"
 echo -e "  ${GREEN}Dev Container is ready!${NC}"
@@ -1216,30 +1219,30 @@ echo "============================================"
 
 ## 6. devcontainer CLI
 
-### 6.1 CLI のインストールと基本操作
+### 6.1 CLI Installation and Basic Operations
 
-VS Code を使わずに Dev Container を操作したい場合は `devcontainer` CLI を使用する。
+Use the `devcontainer` CLI when you want to operate Dev Containers without VS Code.
 
 ```bash
-# CLI のインストール
+# Install the CLI
 npm install -g @devcontainers/cli
 
-# Dev Container の起動
+# Start Dev Container
 devcontainer up --workspace-folder .
 
-# コンテナ内でコマンドを実行
+# Run a command inside the container
 devcontainer exec --workspace-folder . npm run test
 
-# Dev Container のビルドのみ
+# Build the Dev Container only
 devcontainer build --workspace-folder .
 
-# Features のテスト
+# Test Features
 devcontainer features test --features ./my-feature
 ```
 
-### 6.2 CI/CD での活用
+### 6.2 Using in CI/CD
 
-Dev Container を CI/CD パイプラインで活用することで、開発環境と CI 環境を完全に一致させることができる。
+Using Dev Containers in CI/CD pipelines allows you to perfectly align the development environment with the CI environment.
 
 ```yaml
 # .github/workflows/ci.yml
@@ -1273,7 +1276,7 @@ jobs:
         run: devcontainer exec --workspace-folder . npm run type-check
 ```
 
-より効率的な方法として、Dev Container をキャッシュ付きでビルドする。
+A more efficient method is to build the Dev Container with caching.
 
 ```yaml
 # .github/workflows/ci-cached.yml
@@ -1327,24 +1330,24 @@ jobs:
 
 ---
 
-## 7. マルチエディタ対応
+## 7. Multi-Editor Support
 
 ### 7.1 JetBrains IDEs (Gateway)
 
-JetBrains Gateway を使うと、IntelliJ IDEA / WebStorm / PyCharm などから Dev Container に接続できる。
+Using JetBrains Gateway, you can connect to Dev Containers from IntelliJ IDEA / WebStorm / PyCharm and more.
 
 ```jsonc
-// .devcontainer/devcontainer.json (JetBrains 対応)
+// .devcontainer/devcontainer.json (JetBrains support)
 {
   "name": "My Project",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
 
   "customizations": {
-    // VS Code 設定
+    // VS Code settings
     "vscode": {
       "extensions": ["dbaeumer.vscode-eslint"]
     },
-    // JetBrains 設定
+    // JetBrains settings
     "jetbrains": {
       "backend": "WebStorm",
       "plugins": [
@@ -1355,20 +1358,20 @@ JetBrains Gateway を使うと、IntelliJ IDEA / WebStorm / PyCharm などから
 }
 ```
 
-### 7.2 Neovim / ターミナルエディタ
+### 7.2 Neovim / Terminal Editors
 
 ```bash
-# devcontainer CLI でコンテナを起動
+# Start container with devcontainer CLI
 devcontainer up --workspace-folder .
 
-# コンテナ内で Neovim を起動
+# Launch Neovim inside the container
 devcontainer exec --workspace-folder . nvim
 
-# または docker exec で直接接続
+# Or connect directly with docker exec
 docker exec -it $(docker ps -q --filter "label=devcontainer.local_folder=$(pwd)") bash
 ```
 
-Neovim ユーザー向けの Features 設定は以下の通りである。
+The Features configuration for Neovim users is as follows.
 
 ```jsonc
 {
@@ -1386,27 +1389,27 @@ Neovim ユーザー向けの Features 設定は以下の通りである。
 
 ### 7.3 DevPod
 
-DevPod はオープンソースの Dev Container クライアントであり、任意のバックエンド（ローカル Docker、SSH、Kubernetes、クラウド）で Dev Container を実行できる。
+DevPod is an open-source Dev Container client that can run Dev Containers on any backend (local Docker, SSH, Kubernetes, cloud).
 
 ```bash
-# DevPod のインストール (macOS)
+# Install DevPod (macOS)
 brew install loft-sh/tap/devpod
 
-# ローカルの Docker で Dev Container を起動
+# Start Dev Container with local Docker
 devpod up . --provider docker
 
-# SSH 経由のリモートマシンで実行
+# Run on a remote machine via SSH
 devpod up . --provider ssh --option HOST=dev.example.com
 
-# Kubernetes クラスタで実行
+# Run on a Kubernetes cluster
 devpod up . --provider kubernetes
 ```
 
 ---
 
-## 8. パフォーマンス最適化
+## 8. Performance Optimization
 
-### 8.1 ビルド時間の短縮
+### 8.1 Reducing Build Time
 
 ```jsonc
 // .devcontainer/devcontainer.json
@@ -1414,7 +1417,7 @@ devpod up . --provider kubernetes
   "build": {
     "dockerfile": "Dockerfile",
     "context": "..",
-    // ビルドキャッシュの活用
+    // Leverage build cache
     "cacheFrom": "ghcr.io/my-org/my-project-devcontainer:latest",
     "args": {
       "BUILDKIT_INLINE_CACHE": "1"
@@ -1424,43 +1427,43 @@ devpod up . --provider kubernetes
 ```
 
 ```dockerfile
-# .devcontainer/Dockerfile (キャッシュ最適化)
+# .devcontainer/Dockerfile (cache optimized)
 FROM mcr.microsoft.com/devcontainers/typescript-node:20-bookworm
 
-# 変更頻度の低いレイヤーを先に
+# Layers that change infrequently come first
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client-16 \
     redis-tools \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-# グローバル npm パッケージも別レイヤーに
+# Global npm packages also in a separate layer
 RUN su node -c "npm install -g tsx prisma @biomejs/biome turbo"
 
-# プロジェクト依存関係は postCreateCommand で処理
-# （Dockerfile に含めるとソース変更のたびに再ビルドになる）
+# Project dependencies are handled in postCreateCommand
+# (Including them in Dockerfile causes a rebuild on every source change)
 ```
 
-### 8.2 I/O パフォーマンスの改善
+### 8.2 Improving I/O Performance
 
-macOS / Windows では Docker のファイルシステムブリッジがボトルネックになる。以下の方法で改善できる。
+On macOS / Windows, the Docker filesystem bridge becomes a bottleneck. You can improve this with the following approaches.
 
 ```jsonc
 {
-  // 1. node_modules を Volume にする（最も効果的）
+  // 1. Use Volume for node_modules (most effective)
   "mounts": [
     "source=myproject-node_modules,target=/workspace/node_modules,type=volume",
     "source=myproject-turbo-cache,target=/workspace/.turbo,type=volume",
     "source=myproject-next-cache,target=/workspace/.next,type=volume"
   ],
 
-  // 2. ワークスペースの consistency を cached に
-  // (docker-compose.yml で設定)
+  // 2. Set workspace consistency to cached
+  // (configured in docker-compose.yml)
   // volumes:
   //   - ..:/workspace:cached
 
-  // 3. 不要なファイルの同期を除外
-  // (VS Code 設定)
+  // 3. Exclude unnecessary files from sync
+  // (VS Code settings)
   "customizations": {
     "vscode": {
       "settings": {
@@ -1476,77 +1479,77 @@ macOS / Windows では Docker のファイルシステムブリッジがボト�
 }
 ```
 
-### 8.3 OrbStack の活用（macOS）
+### 8.3 Using OrbStack (macOS)
 
-macOS では Docker Desktop の代わりに OrbStack を使うことで、Dev Container のパフォーマンスが大幅に向上する。
+On macOS, using OrbStack instead of Docker Desktop dramatically improves Dev Container performance.
 
 ```bash
-# OrbStack のインストール
+# Install OrbStack
 brew install --cask orbstack
 
-# OrbStack は Docker CLI 互換
-# Dev Container は設定変更なしで動作する
-docker version  # OrbStack の Docker エンジンが表示される
+# OrbStack is compatible with the Docker CLI
+# Dev Containers work without any configuration changes
+docker version  # Shows the OrbStack Docker engine
 ```
 
-OrbStack の利点は以下の通りである。
+The advantages of OrbStack are as follows.
 
-| 比較項目 | Docker Desktop | OrbStack |
-|---------|---------------|----------|
-| メモリ消費 | 2-4 GB | 0.5-1 GB |
-| CPU 使用率 (idle) | 5-15% | ~0% |
-| ファイル I/O (macOS) | 遅い (VirtioFS) | 高速 (独自実装) |
-| 起動時間 | 30-60 秒 | 2-5 秒 |
-| ネットワーク | NAT | ネイティブに近い |
-| `npm install` 速度 | 基準値 | 2-3x 高速 |
+| Comparison | Docker Desktop | OrbStack |
+|------------|---------------|----------|
+| Memory usage | 2-4 GB | 0.5-1 GB |
+| CPU usage (idle) | 5-15% | ~0% |
+| File I/O (macOS) | Slow (VirtioFS) | Fast (proprietary implementation) |
+| Startup time | 30-60 seconds | 2-5 seconds |
+| Network | NAT | Near-native |
+| `npm install` speed | Baseline | 2-3x faster |
 
 ---
 
-## 9. セキュリティ
+## 9. Security
 
-### 9.1 シークレット管理
+### 9.1 Secret Management
 
 ```jsonc
 // .devcontainer/devcontainer.json
 {
-  // NG: ハードコードされた秘密情報
+  // NG: Hardcoded secrets
   // "remoteEnv": {
   //   "API_KEY": "sk-1234567890abcdef"
   // }
 
-  // OK: ホストの環境変数を参照
+  // OK: Reference host environment variables
   "remoteEnv": {
     "API_KEY": "${localEnv:API_KEY}",
     "DATABASE_URL": "${localEnv:DATABASE_URL}"
   },
 
-  // OK: .env ファイルをバインドマウント (.gitignore に追加)
+  // OK: Bind mount .env file (add to .gitignore)
   "mounts": [
     "source=${localWorkspaceFolder}/.env.local,target=/workspace/.env.local,type=bind,consistency=cached"
   ]
 }
 ```
 
-### 9.2 コンテナの権限設定
+### 9.2 Container Permission Settings
 
 ```jsonc
 {
-  // 非 root ユーザーで実行
+  // Run as non-root user
   "remoteUser": "node",
 
-  // 必要最小限の capabilities
+  // Minimum required capabilities
   "runArgs": [
     "--cap-drop=ALL",
-    "--cap-add=SYS_PTRACE",   // デバッガに必要
-    "--cap-add=NET_RAW"       // ネットワークツールに必要な場合
+    "--cap-add=SYS_PTRACE",   // Required for debugger
+    "--cap-add=NET_RAW"       // Required for network tools in some cases
   ],
 
-  // read-only ファイルシステム（高セキュリティ環境）
+  // Read-only filesystem (high security environments)
   // "runArgs": ["--read-only", "--tmpfs=/tmp"]
 }
 ```
 
-### 9.3 ネットワーク分離
+### 9.3 Network Isolation
 
 ```yaml
 # .devcontainer/docker-compose.yml
@@ -1556,94 +1559,94 @@ services:
       context: ..
       dockerfile: .devcontainer/Dockerfile
     networks:
-      - dev-internal  # 内部ネットワークのみ
+      - dev-internal  # Internal network only
 
   db:
     image: postgres:16-alpine
     networks:
       - dev-internal
-    # ports は公開しない（コンテナ間通信のみ）
+    # ports not exposed (container-to-container communication only)
 
 networks:
   dev-internal:
-    internal: true  # 外部アクセスを遮断
+    internal: true  # Block external access
 ```
 
 ---
 
-## 10. トラブルシューティング
+## 10. Troubleshooting
 
-### 10.1 よくある問題と対処法
+### 10.1 Common Issues and Solutions
 
-| 問題 | 原因 | 対処法 |
-|------|------|--------|
-| コンテナが起動しない | Dockerfile のビルドエラー | `devcontainer build` でエラーログ確認 |
-| 権限エラー (EACCES) | UID/GID の不一致 | `remoteUser` の設定確認、Volume の権限修正 |
-| npm install が遅い | node_modules のバインドマウント | Volume マウントに切り替え |
-| ポートフォワードが効かない | ポート競合 | `lsof -i :PORT` で確認、別ポートに変更 |
-| Git が認証失敗 | SSH キーの未マウント | `ssh-agent` Feature を使用 |
-| 拡張機能が動かない | コンテナ内に未インストール | `extensions` に追加して Rebuild |
-| Rebuild で設定が反映されない | キャッシュ | `Dev Containers: Rebuild Without Cache` |
-| Volume データが残る | 古い Volume | `docker volume prune` で削除 |
-| WSL2 で遅い | Windows のファイルシステム | WSL2 内にリポジトリを配置 |
-| Apple Silicon で動かない | amd64 イメージ | `--platform linux/arm64` を指定 |
+| Issue | Cause | Solution |
+|-------|-------|---------|
+| Container does not start | Dockerfile build error | Check error log with `devcontainer build` |
+| Permission error (EACCES) | UID/GID mismatch | Check `remoteUser` setting, fix Volume permissions |
+| npm install is slow | Bind mount for node_modules | Switch to Volume mount |
+| Port forwarding does not work | Port conflict | Check with `lsof -i :PORT`, change to another port |
+| Git authentication failure | SSH key not mounted | Use `ssh-agent` Feature |
+| Extension does not work | Not installed inside container | Add to `extensions` and Rebuild |
+| Settings not applied after Rebuild | Cache | Use `Dev Containers: Rebuild Without Cache` |
+| Volume data persists | Old Volume | Delete with `docker volume prune` |
+| Slow on WSL2 | Windows filesystem | Place repository inside WSL2 |
+| Does not work on Apple Silicon | amd64 image | Specify `--platform linux/arm64` |
 
-### 10.2 デバッグ手順
+### 10.2 Debug Procedure
 
 ```bash
-# 1. Dev Container CLI でビルドエラーを確認
+# 1. Check build errors with Dev Container CLI
 devcontainer build --workspace-folder . --log-level trace 2>&1 | tee build.log
 
-# 2. コンテナの状態を確認
+# 2. Check container status
 docker ps -a --filter "label=devcontainer.local_folder"
 
-# 3. コンテナのログを確認
+# 3. Check container logs
 docker logs <container-id>
 
-# 4. コンテナ内に直接接続
+# 4. Connect directly inside the container
 docker exec -it <container-id> bash
 
-# 5. Volume の状態を確認
+# 5. Check Volume status
 docker volume ls --filter "label=devcontainer"
 
-# 6. ネットワークの状態を確認
+# 6. Check network status
 docker network ls
 docker network inspect <network-name>
 
-# 7. リソース使用状況
+# 7. Check resource usage
 docker stats --no-stream
 
-# 8. Dev Container の設定を確認
+# 8. Check Dev Container configuration
 devcontainer read-configuration --workspace-folder .
 ```
 
-### 10.3 Apple Silicon (ARM64) 対応
+### 10.3 Apple Silicon (ARM64) Support
 
-Apple Silicon Mac では一部のイメージが amd64 のみ提供されている場合がある。
+On Apple Silicon Macs, some images may only be available for amd64.
 
 ```jsonc
 {
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
-      // プラットフォームを明示
+      // Explicitly specify platform
       "TARGETPLATFORM": "linux/arm64"
     }
   },
 
-  // Rosetta 2 エミュレーションで amd64 イメージを使用（遅い）
+  // Use amd64 image with Rosetta 2 emulation (slow)
   // "runArgs": ["--platform", "linux/amd64"]
 }
 ```
 
 ```dockerfile
-# .devcontainer/Dockerfile (マルチアーキテクチャ)
+# .devcontainer/Dockerfile (multi-architecture)
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/devcontainers/typescript-node:20-bookworm
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
-# アーキテクチャに応じたバイナリのインストール
+# Install architecture-specific binaries
 RUN case "$TARGETPLATFORM" in \
     "linux/arm64") ARCH="aarch64" ;; \
     "linux/amd64") ARCH="x86_64" ;; \
@@ -1654,18 +1657,18 @@ RUN case "$TARGETPLATFORM" in \
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: ベースイメージの肥大化
+### Anti-Pattern 1: Bloated Base Image
 
 ```jsonc
-// NG: 不要なツールを大量にインストール
+// NG: Installing a large number of unnecessary tools
 {
   "image": "ubuntu:22.04",
   "postCreateCommand": "apt-get update && apt-get install -y nodejs npm python3 python3-pip golang-go rustc ruby default-jdk php dotnet-sdk-7.0 && npm install -g yarn pnpm tsx typescript..."
 }
 
-// OK: 必要最小限の公式 Dev Container イメージ + Features
+// OK: Minimal official Dev Container image + Features
 {
   "image": "mcr.microsoft.com/devcontainers/typescript-node:20-bookworm",
   "features": {
@@ -1674,19 +1677,19 @@ RUN case "$TARGETPLATFORM" in \
 }
 ```
 
-**問題点**: ベースイメージの肥大化はビルド時間の増大、ディスク容量の浪費、セキュリティリスクの増加を招く。Dev Container Features を使えば、必要なツールをモジュラーに追加できる。
+**Problem**: A bloated base image leads to increased build times, wasted disk space, and increased security risks. Using Dev Container Features allows you to add necessary tools in a modular fashion.
 
-### アンチパターン 2: node_modules のバインドマウント
+### Anti-Pattern 2: Bind Mounting node_modules
 
 ```jsonc
-// NG: node_modules をホストと共有 (パフォーマンス最悪)
+// NG: Sharing node_modules with host (worst performance)
 {
   "mounts": []
-  // デフォルトでプロジェクト全体がバインドマウントされ、
-  // node_modules もホスト-コンテナ間で同期される
+  // By default the entire project is bind-mounted,
+  // and node_modules is also synchronized between host and container
 }
 
-// OK: node_modules を名前付きボリュームに分離
+// OK: Isolate node_modules into a named volume
 {
   "mounts": [
     "source=myproject-node_modules,target=/workspace/node_modules,type=volume"
@@ -1694,22 +1697,22 @@ RUN case "$TARGETPLATFORM" in \
 }
 ```
 
-**問題点**: macOS / Windows ではバインドマウントの I/O 性能が Linux ネイティブに比べ大幅に低い。`node_modules` のような大量の小ファイルをバインドマウントすると `npm install` やビルドが10倍以上遅くなることがある。
+**Problem**: On macOS / Windows, bind mount I/O performance is significantly lower than native Linux. Bind mounting a directory with many small files like `node_modules` can make `npm install` and builds more than 10x slower.
 
-### アンチパターン 3: postCreateCommand にすべてを詰め込む
+### Anti-Pattern 3: Stuffing Everything into postCreateCommand
 
 ```jsonc
-// NG: 長い一行コマンド
+// NG: Long one-liner command
 {
   "postCreateCommand": "npm ci && npx prisma migrate deploy && npx prisma db seed && npx husky install && npm run build:libs && echo 'done'"
 }
 
-// OK: 外部スクリプトに分離
+// OK: Separate into an external script
 {
   "postCreateCommand": "bash .devcontainer/post-create.sh"
 }
 
-// さらに良い: ライフサイクルを分離
+// Even better: Separate lifecycle tasks
 {
   "updateContentCommand": "npm ci",
   "postCreateCommand": {
@@ -1721,12 +1724,12 @@ RUN case "$TARGETPLATFORM" in \
 }
 ```
 
-**問題点**: 長い一行コマンドはデバッグが困難であり、一部のコマンドが失敗した場合にどこで止まったのかを特定しづらい。外部スクリプトに分離するか、オブジェクト形式で各タスクを名前付きで定義すると可視性が向上する。
+**Problem**: Long one-liner commands are hard to debug, and it is difficult to identify where the process stopped when some commands fail. Separating into an external script or defining each task with a name in object format improves visibility.
 
-### アンチパターン 4: Codespaces で大きなマシンタイプを常用
+### Anti-Pattern 4: Consistently Using Large Machine Types in Codespaces
 
 ```jsonc
-// NG: 必要以上に大きなマシンタイプ
+// NG: Machine type larger than necessary
 {
   "hostRequirements": {
     "cpus": 16,
@@ -1734,7 +1737,7 @@ RUN case "$TARGETPLATFORM" in \
   }
 }
 
-// OK: タスクに応じた最小限のスペック
+// OK: Minimum specs appropriate for the task
 {
   "hostRequirements": {
     "cpus": 4,
@@ -1743,12 +1746,12 @@ RUN case "$TARGETPLATFORM" in \
 }
 ```
 
-**問題点**: 大きなマシンタイプは時間単価が高い。フロントエンド開発は 2-core で十分であり、ビルドが遅い場合は Prebuild で対応する方がコスト効率が良い。
+**Problem**: Large machine types have a higher hourly rate. 2-core is sufficient for frontend development, and if builds are slow, it is more cost-effective to address it with Prebuild.
 
-### アンチパターン 5: Feature の順序を考慮しない
+### Anti-Pattern 5: Not Considering Feature Installation Order
 
 ```jsonc
-// NG: Node.js Feature の前に common-utils をインストールしない
+// NG: Not installing common-utils before Node.js Feature
 {
   "features": {
     "ghcr.io/devcontainers/features/node:1": { "version": "20" },
@@ -1758,7 +1761,7 @@ RUN case "$TARGETPLATFORM" in \
   }
 }
 
-// OK: common-utils を先にインストール
+// OK: Install common-utils first
 {
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {
@@ -1770,43 +1773,43 @@ RUN case "$TARGETPLATFORM" in \
 }
 ```
 
-**問題点**: Features のインストール順序によっては、PATH の設定やシェルの初期化スクリプトに問題が発生する。`common-utils` はシェル環境を構成するため、他の Features よりも先にインストールする。
+**Problem**: Depending on the installation order of Features, issues may arise with PATH settings or shell initialization scripts. Since `common-utils` configures the shell environment, it should be installed before other Features.
 
 ---
 
 ## FAQ
 
-### Q1: Dev Container はチーム全員が VS Code を使っていないと利用できませんか？
+### Q1: Can Dev Containers only be used when the entire team uses VS Code?
 
-**A**: いいえ。Dev Container は Open Specification (devcontainers.github.io) として公開されており、VS Code 以外にも JetBrains の IntelliJ / WebStorm (Gateway 経由)、Neovim (devcontainer CLI 経由)、GitHub Codespaces (ブラウザ)、DevPod などがサポートしている。`devcontainer` CLI を直接使えば、任意のエディタと組み合わせることも可能。
+**A**: No. Dev Container is published as an Open Specification (devcontainers.github.io), and besides VS Code, JetBrains IntelliJ / WebStorm (via Gateway), Neovim (via devcontainer CLI), GitHub Codespaces (browser), and DevPod all support it. Using the `devcontainer` CLI directly also allows combining it with any editor.
 
-### Q2: Dev Container 内から Docker コマンドを使いたい場合はどうすればよいですか？
+### Q2: How can I use Docker commands from inside a Dev Container?
 
-**A**: `docker-in-docker` Feature を使うのが最も簡単。これはコンテナ内に独立した Docker デーモンを起動する。もう一つの方法は `docker-outside-of-docker` Feature で、ホストの Docker ソケットをマウントする方式。前者はクリーンだがリソース消費が大きく、後者は軽量だがホストのコンテナが見える。CI/CD テストでコンテナをビルドする場合は `docker-in-docker` が推奨。
+**A**: Using the `docker-in-docker` Feature is the simplest approach. This starts an independent Docker daemon inside the container. Another method is the `docker-outside-of-docker` Feature, which mounts the host Docker socket. The former is clean but consumes more resources, while the latter is lightweight but allows seeing the host's containers. `docker-in-docker` is recommended when building containers during CI/CD tests.
 
-### Q3: Codespaces の Prebuild はどのくらい起動時間を短縮できますか？
+### Q3: How much can Prebuild in Codespaces reduce startup time?
 
-**A**: プロジェクトの規模によるが、一般的に `npm ci` + DB マイグレーションに 3-5 分かかるプロジェクトの場合、Prebuild を設定すると起動が 30 秒以内に短縮される。Prebuild は指定したブランチへのプッシュ時に自動実行され、事前にコンテナイメージと依存関係をキャッシュする。大規模 monorepo では特に効果が大きい。
+**A**: It depends on project size, but for a project where `npm ci` + DB migrations take 3-5 minutes, configuring Prebuild can reduce startup to within 30 seconds. Prebuild automatically runs when pushing to the specified branch and pre-caches the container image and dependencies. The effect is especially large for large monorepos.
 
-### Q4: 既存プロジェクトに Dev Container を導入する際の手順は？
+### Q4: What is the procedure for introducing Dev Containers into an existing project?
 
-**A**: 以下の手順が推奨される。
+**A**: The following steps are recommended.
 
-1. VS Code のコマンドパレットで「Dev Containers: Add Dev Container Configuration Files...」を実行
-2. プロジェクトのスタックに合ったテンプレートを選択（例: Node.js + TypeScript）
-3. 必要な Features を追加（GitHub CLI、Docker-in-Docker 等）
-4. 生成された `.devcontainer/devcontainer.json` をカスタマイズ
-5. `postCreateCommand` にプロジェクト固有のセットアップを追加
-6. チームメンバーにテスト依頼し、フィードバックを反映
-7. `.devcontainer/` をリポジトリにコミット
+1. Run "Dev Containers: Add Dev Container Configuration Files..." from the VS Code command palette
+2. Select a template matching your project's stack (e.g., Node.js + TypeScript)
+3. Add necessary Features (GitHub CLI, Docker-in-Docker, etc.)
+4. Customize the generated `.devcontainer/devcontainer.json`
+5. Add project-specific setup to `postCreateCommand`
+6. Ask team members to test and incorporate feedback
+7. Commit `.devcontainer/` to the repository
 
-### Q5: Dev Container で SSH 鍵を使うにはどうすればよいですか？
+### Q5: How can I use SSH keys inside a Dev Container?
 
-**A**: VS Code の Remote - Containers 拡張は、ホストの SSH Agent を自動的にコンテナに転送する。macOS / Linux では `ssh-add` でキーが Agent に登録されていれば、コンテナ内で透過的に使える。Windows では Pageant または OpenSSH Agent サービスを使用する。明示的に設定する場合は以下の通り。
+**A**: The VS Code Remote - Containers extension automatically forwards the host SSH Agent into the container. On macOS / Linux, if keys are registered with the Agent via `ssh-add`, they can be used transparently inside the container. On Windows, use Pageant or the OpenSSH Agent service. For explicit configuration, use the following.
 
 ```jsonc
 {
-  // SSH Agent の転送を明示
+  // Explicitly forward SSH Agent
   "mounts": [
     "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"
   ],
@@ -1816,9 +1819,9 @@ RUN case "$TARGETPLATFORM" in \
 }
 ```
 
-### Q6: Dev Container を使いつつ、ローカルの GPU にアクセスするには？
+### Q6: How can I access a local GPU while using a Dev Container?
 
-**A**: NVIDIA GPU の場合、`nvidia-container-toolkit` をホストにインストールした上で、以下の設定を行う。
+**A**: For NVIDIA GPUs, install `nvidia-container-toolkit` on the host and apply the following settings.
 
 ```jsonc
 {
@@ -1834,44 +1837,44 @@ RUN case "$TARGETPLATFORM" in \
 }
 ```
 
-### Q7: Codespaces の dotfiles リポジトリとは何ですか？
+### Q7: What is a Codespaces dotfiles repository?
 
-**A**: GitHub の Settings > Codespaces > Dotfiles repository で、自分の dotfiles リポジトリ（例: `username/dotfiles`）を指定すると、すべての Codespace 起動時にそのリポジトリが自動的にクローンされ、`install.sh` / `setup.sh` / `bootstrap.sh` のいずれかが実行される。`.zshrc`, `.gitconfig`, `.vimrc` などの個人設定をすべての Codespace に適用できる仕組みである。
+**A**: By specifying your dotfiles repository (e.g., `username/dotfiles`) in GitHub Settings > Codespaces > Dotfiles repository, that repository is automatically cloned on every Codespace startup, and one of `install.sh` / `setup.sh` / `bootstrap.sh` is executed. This is a mechanism for applying personal settings such as `.zshrc`, `.gitconfig`, and `.vimrc` to all Codespaces.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| devcontainer.json | コンテナベース開発環境の宣言的定義ファイル |
-| ベースイメージ | mcr.microsoft.com/devcontainers/ の公式イメージを推奨 |
-| Features | ツールのモジュラーインストール機構。Dockerfile の代替 |
-| カスタム Feature | OCI 準拠のパッケージとして社内配布可能 |
-| Docker Compose 連携 | DB・Redis 等の依存サービスをまとめて管理 |
-| VS Code 統合 | 拡張機能・設定をコンテナ内で一括管理 |
-| JetBrains 対応 | Gateway 経由で IntelliJ / WebStorm から接続可能 |
-| devcontainer CLI | VS Code なしで CLI からコンテナ操作・CI 統合 |
-| GitHub Codespaces | クラウドベースの Dev Container。Prebuild で高速起動 |
-| コスト管理 | マシンタイプの制限、idle timeout、Prebuild 最適化 |
-| パフォーマンス | node_modules は Volume マウントで I/O 性能を確保 |
-| OrbStack | macOS で Docker Desktop より高速軽量な代替 |
-| マルチエディタ | devcontainer CLI / DevPod で VS Code 以外からも利用可能 |
-| セキュリティ | 非 root 実行、capability 制限、ネットワーク分離 |
-| Apple Silicon | ARM64 ネイティブイメージの使用を推奨 |
+| Item | Key Point |
+|------|-----------|
+| devcontainer.json | Declarative definition file for container-based development environments |
+| Base image | Official images from mcr.microsoft.com/devcontainers/ are recommended |
+| Features | Modular tool installation mechanism; alternative to Dockerfile |
+| Custom Feature | Can be distributed internally as OCI-compliant packages |
+| Docker Compose integration | Manage dependent services like DB and Redis together |
+| VS Code integration | Centrally manage extensions and settings inside the container |
+| JetBrains support | Connect from IntelliJ / WebStorm via Gateway |
+| devcontainer CLI | Operate containers from CLI and integrate with CI without VS Code |
+| GitHub Codespaces | Cloud-based Dev Container. Fast startup with Prebuild |
+| Cost management | Restrict machine types, idle timeout, Prebuild optimization |
+| Performance | Use Volume mount for node_modules to ensure I/O performance |
+| OrbStack | Faster, lighter alternative to Docker Desktop on macOS |
+| Multi-editor | Also usable from non-VS Code editors via devcontainer CLI / DevPod |
+| Security | Non-root execution, capability restrictions, network isolation |
+| Apple Silicon | Recommended to use ARM64 native images |
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [ローカルサービスの Docker 化](./02-local-services.md) -- PostgreSQL / Redis / MailHog の Docker 構成
-- [プロジェクト標準](../03-team-setup/00-project-standards.md) -- EditorConfig / .npmrc / .nvmrc のチーム標準化
-- [オンボーディング自動化](../03-team-setup/01-onboarding-automation.md) -- 新メンバーのセットアップ自動化
+- [Dockerizing Local Services](./02-local-services.md) -- Docker configuration for PostgreSQL / Redis / MailHog
+- [Project Standards](../03-team-setup/00-project-standards.md) -- Team standardization of EditorConfig / .npmrc / .nvmrc
+- [Onboarding Automation](../03-team-setup/01-onboarding-automation.md) -- Automating new member setup
 
-## 参考文献
+## References
 
-1. **Dev Container Specification** -- https://containers.dev/ -- Dev Container の公式仕様と Features レジストリ
-2. **VS Code Dev Containers ドキュメント** -- https://code.visualstudio.com/docs/devcontainers/containers -- VS Code での Dev Container の使い方
-3. **GitHub Codespaces ドキュメント** -- https://docs.github.com/en/codespaces -- Codespaces の設定・Prebuild・課金の詳細
-4. **Dev Container Features 一覧** -- https://github.com/devcontainers/features -- 公式 Features リポジトリとカスタム Feature の作成方法
-5. **devcontainer CLI** -- https://github.com/devcontainers/cli -- CLI ツールのリポジトリとドキュメント
-6. **DevPod** -- https://devpod.sh/ -- オープンソースの Dev Container クライアント
-7. **OrbStack** -- https://orbstack.dev/ -- macOS 向け高速 Docker 実行環境
+1. **Dev Container Specification** -- https://containers.dev/ -- Official Dev Container specification and Features registry
+2. **VS Code Dev Containers Documentation** -- https://code.visualstudio.com/docs/devcontainers/containers -- How to use Dev Containers in VS Code
+3. **GitHub Codespaces Documentation** -- https://docs.github.com/en/codespaces -- Details on Codespaces configuration, Prebuild, and billing
+4. **Dev Container Features List** -- https://github.com/devcontainers/features -- Official Features repository and how to create custom Features
+5. **devcontainer CLI** -- https://github.com/devcontainers/cli -- CLI tool repository and documentation
+6. **DevPod** -- https://devpod.sh/ -- Open-source Dev Container client
+7. **OrbStack** -- https://orbstack.dev/ -- High-performance Docker runtime for macOS
