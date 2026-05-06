@@ -1,114 +1,114 @@
 # Linter / Formatter
 
-> ESLint、Prettier、Biome、Ruff を活用したコード品質管理の実践ガイド。設定共有と CI 統合で、チーム全体のコードスタイルを統一する。
+> A practical guide to code quality management using ESLint, Prettier, Biome, and Ruff. Unify code style across your entire team through shared configuration and CI integration.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. ESLint (v9 Flat Config) と Prettier の正しい設定と連携
-2. Biome (Rust 製高速ツール) と Ruff (Python) の導入方法
-3. 設定共有パターンと CI / pre-commit フックの統合
-4. Stylelint による CSS/SCSS のリンティング
-5. エディタ連携と自動修正の最適化
-6. モノレポでの設定共有パターンと大規模プロジェクトでの運用
+1. Correct configuration and integration of ESLint (v9 Flat Config) and Prettier
+2. How to set up Biome (a high-speed Rust-based tool) and Ruff (for Python)
+3. Configuration sharing patterns and CI / pre-commit hook integration
+4. CSS/SCSS linting with Stylelint
+5. Optimizing editor integration and auto-fix
+6. Configuration sharing patterns in monorepos and operations in large-scale projects
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [モノレポ設定](./02-monorepo-setup.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Monorepo Setup](./02-monorepo-setup.md)
 
 ---
 
-## 1. ツール全体像
+## 1. Tool Overview
 
-### 1.1 Linter vs Formatter の違い
+### 1.1 Differences Between Linters and Formatters
 
 ```
-Linter と Formatter の役割分担:
+Roles of Linter and Formatter:
 
-  ソースコード
+  Source code
       │
       ▼
   ┌──────────────┐     ┌──────────────┐
   │   Formatter   │     │    Linter     │
   │               │     │               │
-  │ コードの       │     │ コードの       │
-  │ "見た目" を    │     │ "品質" を      │
-  │ 統一する       │     │ 検査する       │
+  │ Unifies the   │     │ Inspects the  │
+  │ "appearance"  │     │ "quality" of  │
+  │ of code       │     │ code          │
   │               │     │               │
-  │ 例:           │     │ 例:           │
-  │ - インデント   │     │ - 未使用変数   │
-  │ - 改行位置     │     │ - any 型使用   │
-  │ - 引用符統一   │     │ - 安全でない   │
-  │ - セミコロン   │     │   型変換       │
-  │ - 括弧の位置   │     │ - 到達不能     │
-  │ - 空白の調整   │     │   コード       │
-  │               │     │ - セキュリティ  │
-  │               │     │   脆弱性       │
+  │ Examples:     │     │ Examples:     │
+  │ - Indentation │     │ - Unused vars │
+  │ - Line breaks │     │ - any type    │
+  │ - Quote style │     │ - Unsafe type │
+  │ - Semicolons  │     │   conversions │
+  │ - Bracket pos │     │ - Unreachable │
+  │ - Whitespace  │     │   code        │
+  │               │     │ - Security    │
+  │               │     │   vulns       │
   └──────────────┘     └──────────────┘
         │                      │
         ▼                      ▼
-  自動修正可能            一部自動修正可能
-  (100%)                (ルールによる)
+  Auto-fixable            Partially auto-fixable
+  (100%)                (depends on rule)
 
-  重要な原則:
+  Key principle:
   ┌─────────────────────────────────────────┐
-  │ Formatter → 見た目の統一 (議論の余地なし)  │
-  │ Linter   → 品質の担保 (ルール選択が重要)   │
+  │ Formatter → unify appearance (non-negotiable) │
+  │ Linter   → ensure quality (rule selection matters) │
   │                                           │
-  │ 両者の責務を分離することで:                 │
-  │ - 設定の競合を防止                         │
-  │ - 実行速度の最適化                         │
-  │ - メンテナンスの簡素化                      │
+  │ By separating responsibilities:           │
+  │ - Prevent configuration conflicts         │
+  │ - Optimize execution speed                │
+  │ - Simplify maintenance                    │
   └─────────────────────────────────────────┘
 ```
 
-### 1.2 主要ツール比較
+### 1.2 Comparison of Major Tools
 
-| ツール | 対象言語 | 種類 | 速度 | 設定形式 | エコシステム |
+| Tool | Target Language | Type | Speed | Config Format | Ecosystem |
 |--------|---------|------|------|---------|------------|
-| ESLint | JS/TS | Linter | 普通 | Flat Config (JS) | 最大 (1000+ プラグイン) |
-| Prettier | 多言語 | Formatter | 普通 | JSON/JS | 広い (プラグイン対応) |
-| Biome | JS/TS/JSON/CSS | 両方 | 超高速 | JSON | 成長中 |
-| Ruff | Python | 両方 | 超高速 | TOML | Python 特化 |
-| Stylelint | CSS/SCSS | Linter | 普通 | JSON/JS | CSS 特化 |
-| oxlint | JS/TS | Linter | 超高速 | JSON | ESLint 互換 (一部) |
-| dprint | 多言語 | Formatter | 高速 | JSON | Rust 製・プラグイン対応 |
+| ESLint | JS/TS | Linter | Normal | Flat Config (JS) | Largest (1000+ plugins) |
+| Prettier | Multi-language | Formatter | Normal | JSON/JS | Wide (plugin support) |
+| Biome | JS/TS/JSON/CSS | Both | Ultra-fast | JSON | Growing |
+| Ruff | Python | Both | Ultra-fast | TOML | Python-specific |
+| Stylelint | CSS/SCSS | Linter | Normal | JSON/JS | CSS-specific |
+| oxlint | JS/TS | Linter | Ultra-fast | JSON | ESLint-compatible (partial) |
+| dprint | Multi-language | Formatter | Fast | JSON | Rust-based, plugin support |
 
-### 1.3 ツール選定フローチャート
+### 1.3 Tool Selection Flowchart
 
 ```
-プロジェクトに最適なツール選定:
+Selecting the best tool for your project:
 
-  Q1: 言語は何か？
+  Q1: What language?
   │
   ├── JavaScript / TypeScript
   │   │
-  │   └── Q2: プラグインの豊富さは重要？
+  │   └── Q2: Is plugin richness important?
   │       │
-  │       ├── Yes → ESLint + Prettier (定番構成)
-  │       │   - react-hooks, jsx-a11y 等が必要
-  │       │   - 型チェック連携 (recommendedTypeChecked)
-  │       │   - カスタムルールの作成
+  │       ├── Yes → ESLint + Prettier (standard setup)
+  │       │   - Needs react-hooks, jsx-a11y, etc.
+  │       │   - Type-check integration (recommendedTypeChecked)
+  │       │   - Creating custom rules
   │       │
-  │       └── No → Biome (高速・シンプル)
-  │           - 設定ファイル1つ
-  │           - Linter + Formatter 統合
-  │           - ESLint からの移行ツールあり
+  │       └── No → Biome (fast & simple)
+  │           - Single config file
+  │           - Integrated Linter + Formatter
+  │           - Migration tool from ESLint available
   │
   ├── Python
-  │   └── Ruff (デファクト)
-  │       - Flake8 + isort + Black + pyupgrade を統合
-  │       - 10-100倍高速
+  │   └── Ruff (de facto standard)
+  │       - Integrates Flake8 + isort + Black + pyupgrade
+  │       - 10-100x faster
   │
   ├── CSS / SCSS
   │   └── Stylelint + Prettier
   │
-  └── Go / Rust / その他
-      └── 各言語の公式ツール
+  └── Go / Rust / Others
+      └── Official tools for each language
           - Go: gofmt + golangci-lint
           - Rust: rustfmt + clippy
 ```
@@ -117,38 +117,38 @@ Linter と Formatter の役割分担:
 
 ## 2. ESLint (v9 Flat Config)
 
-### 2.1 セットアップ
+### 2.1 Setup
 
 ```bash
-# インストール
+# Install
 pnpm add -D eslint @eslint/js typescript-eslint globals
 
-# 型チェック統合が必要な場合
+# If type-check integration is needed
 pnpm add -D @typescript-eslint/parser
 
-# React プロジェクトの場合
+# For React projects
 pnpm add -D eslint-plugin-react eslint-plugin-react-hooks eslint-plugin-jsx-a11y
 
-# Next.js プロジェクトの場合
+# For Next.js projects
 pnpm add -D @next/eslint-plugin-next
 
-# インポート整理
+# Import organization
 pnpm add -D eslint-plugin-import eslint-plugin-unused-imports
 
-# Prettier との競合回避
+# Avoid conflicts with Prettier
 pnpm add -D eslint-config-prettier
 ```
 
-### 2.2 設定ファイル (基本)
+### 2.2 Configuration File (Basic)
 
 ```javascript
-// eslint.config.js (Flat Config 形式 -- v9 推奨)
+// eslint.config.js (Flat Config format -- recommended for v9)
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import globals from "globals";
 
 export default tseslint.config(
-  // グローバル無視
+  // Global ignores
   {
     ignores: [
       "dist/",
@@ -162,13 +162,13 @@ export default tseslint.config(
     ],
   },
 
-  // JavaScript 推奨ルール
+  // JavaScript recommended rules
   js.configs.recommended,
 
-  // TypeScript 推奨ルール
+  // TypeScript recommended rules
   ...tseslint.configs.recommendedTypeChecked,
 
-  // プロジェクト共通設定
+  // Project-wide settings
   {
     languageOptions: {
       ecmaVersion: 2024,
@@ -183,7 +183,7 @@ export default tseslint.config(
       },
     },
     rules: {
-      // ─── 型安全性 ───
+      // ─── Type safety ───
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unsafe-assignment": "error",
       "@typescript-eslint/no-unsafe-call": "error",
@@ -198,7 +198,7 @@ export default tseslint.config(
       }],
       "@typescript-eslint/consistent-type-exports": "error",
 
-      // ─── コード品質 ───
+      // ─── Code quality ───
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
@@ -225,7 +225,7 @@ export default tseslint.config(
       "no-return-await": "off",
       "@typescript-eslint/return-await": ["error", "in-try-catch"],
 
-      // ─── 命名規則 ───
+      // ─── Naming conventions ───
       "@typescript-eslint/naming-convention": [
         "error",
         {
@@ -248,7 +248,7 @@ export default tseslint.config(
     },
   },
 
-  // テストファイル用の緩和ルール
+  // Relaxed rules for test files
   {
     files: ["**/*.test.ts", "**/*.spec.ts", "**/__tests__/**"],
     rules: {
@@ -261,7 +261,7 @@ export default tseslint.config(
     },
   },
 
-  // 設定ファイル用
+  // For config files
   {
     files: ["*.config.ts", "*.config.js"],
     rules: {
@@ -272,7 +272,7 @@ export default tseslint.config(
 );
 ```
 
-### 2.3 React / Next.js 用設定
+### 2.3 Configuration for React / Next.js
 
 ```javascript
 // eslint.config.js (React + Next.js)
@@ -293,7 +293,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
 
-  // React 設定
+  // React settings
   {
     files: ["**/*.tsx", "**/*.jsx"],
     plugins: {
@@ -330,7 +330,7 @@ export default tseslint.config(
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
 
-      // アクセシビリティ
+      // Accessibility
       "jsx-a11y/alt-text": "error",
       "jsx-a11y/anchor-is-valid": "error",
       "jsx-a11y/click-events-have-key-events": "warn",
@@ -340,7 +340,7 @@ export default tseslint.config(
     },
   },
 
-  // Next.js 固有ルール
+  // Next.js-specific rules
   {
     plugins: { "@next/next": nextPlugin },
     rules: {
@@ -349,23 +349,23 @@ export default tseslint.config(
     },
   },
 
-  // Prettier と競合するルールを無効化 (必ず最後)
+  // Disable rules that conflict with Prettier (must be last)
   prettierConfig,
 );
 ```
 
-### 2.4 ESLint v8 から v9 への移行
+### 2.4 Migrating from ESLint v8 to v9
 
 ```
-ESLint v8 (Legacy) → v9 (Flat Config) の主要な変更点:
+Key changes from ESLint v8 (Legacy) → v9 (Flat Config):
 
-  設定ファイル:
+  Config file:
   ┌────────────────────────────────────────────┐
   │ v8: .eslintrc.json / .eslintrc.js          │
   │ v9: eslint.config.js / eslint.config.mjs   │
   └────────────────────────────────────────────┘
 
-  プラグインの指定方法:
+  How to specify plugins:
   ┌────────────────────────────────────────────┐
   │ v8:                                        │
   │   "plugins": ["@typescript-eslint"]        │
@@ -383,7 +383,7 @@ ESLint v8 (Legacy) → v9 (Flat Config) の主要な変更点:
   ┌────────────────────────────────────────────┐
   │ v8: "ignorePatterns": ["dist/"]            │
   │ v9: { ignores: ["dist/"] }                │
-  │     (.eslintignore は不要)                 │
+  │     (.eslintignore is no longer needed)    │
   └────────────────────────────────────────────┘
 
   env → globals:
@@ -397,32 +397,32 @@ ESLint v8 (Legacy) → v9 (Flat Config) の主要な変更点:
   │     }                                      │
   └────────────────────────────────────────────┘
 
-  移行コマンド:
+  Migration command:
   npx @eslint/migrate-config .eslintrc.json
-  → eslint.config.mjs が自動生成される
+  → eslint.config.mjs is auto-generated
 ```
 
-### 2.5 実行コマンド
+### 2.5 Run Commands
 
 ```bash
-# リント実行
+# Run lint
 pnpm eslint .
 
-# 自動修正
+# Auto-fix
 pnpm eslint --fix .
 
-# 特定ファイル
+# Specific file
 pnpm eslint src/utils/validate.ts
 
-# キャッシュを使って高速化
+# Speed up with cache
 pnpm eslint --cache .
 pnpm eslint --cache --cache-location .eslintcache .
 
-# デバッグ (どのルールが適用されているか確認)
+# Debug (check which rules are being applied)
 pnpm eslint --print-config src/index.ts
 pnpm eslint --debug src/index.ts
 
-# package.json に scripts を追加
+# Add scripts to package.json
 # {
 #   "scripts": {
 #     "lint": "eslint .",
@@ -432,7 +432,7 @@ pnpm eslint --debug src/index.ts
 # }
 ```
 
-### 2.6 カスタムルールの作成
+### 2.6 Creating Custom Rules
 
 ```javascript
 // eslint-rules/no-hardcoded-credentials.js
@@ -478,24 +478,24 @@ export default {
 
 ## 3. Prettier
 
-### 3.1 セットアップ
+### 3.1 Setup
 
 ```bash
-# インストール
+# Install
 pnpm add -D prettier
 
-# ESLint との競合回避
+# Avoid conflicts with ESLint
 pnpm add -D eslint-config-prettier
 
-# プラグイン
-pnpm add -D prettier-plugin-tailwindcss    # Tailwind クラスソート
-pnpm add -D prettier-plugin-organize-imports  # インポートソート
-pnpm add -D @ianvs/prettier-plugin-sort-imports  # インポートソート (高機能)
-pnpm add -D prettier-plugin-prisma          # Prisma スキーマ
-pnpm add -D prettier-plugin-packagejson     # package.json ソート
+# Plugins
+pnpm add -D prettier-plugin-tailwindcss    # Tailwind class sorting
+pnpm add -D prettier-plugin-organize-imports  # Import sorting
+pnpm add -D @ianvs/prettier-plugin-sort-imports  # Import sorting (advanced)
+pnpm add -D prettier-plugin-prisma          # Prisma schema
+pnpm add -D prettier-plugin-packagejson     # package.json sorting
 ```
 
-### 3.2 設定ファイル
+### 3.2 Configuration File
 
 ```jsonc
 // .prettierrc
@@ -557,88 +557,88 @@ yarn.lock
 *.min.css
 ```
 
-### 3.3 ESLint + Prettier の連携
+### 3.3 ESLint + Prettier Integration
 
 ```javascript
-// eslint.config.js に追加
+// Add to eslint.config.js
 import prettierConfig from "eslint-config-prettier";
 
 export default tseslint.config(
-  // ...既存の設定...
+  // ...existing config...
 
-  // Prettier と競合するルールを無効化 (必ず最後に配置)
+  // Disable rules that conflict with Prettier (must be placed last)
   prettierConfig,
 );
 ```
 
 ```
-ESLint + Prettier の役割分担:
+Role separation for ESLint + Prettier:
 
   ┌─────────────────────────────────────┐
   │         Prettier (Formatter)         │
-  │  インデント、改行、引用符、セミコロン  │
-  │  → 見た目に関する全てを担当           │
+  │  Indentation, line breaks, quotes,  │
+  │  semicolons → handles all appearance │
   └──────────────┬──────────────────────┘
                  │
                  │  eslint-config-prettier
-                 │  (Prettier と競合する
-                 │   ESLint ルールを OFF)
+                 │  (turns OFF ESLint rules
+                 │   that conflict with Prettier)
                  │
   ┌──────────────┴──────────────────────┐
   │          ESLint (Linter)             │
-  │  型安全性、未使用変数、パターン検出    │
-  │  → コード品質に関する検査を担当        │
+  │  Type safety, unused vars, pattern  │
+  │  detection → handles code quality   │
   └─────────────────────────────────────┘
 
-  実行順序 (推奨):
-  1. ESLint --fix (自動修正可能なルールを適用)
-  2. Prettier --write (フォーマットを統一)
+  Recommended execution order:
+  1. ESLint --fix (apply auto-fixable rules)
+  2. Prettier --write (unify formatting)
 
-  lint-staged での設定例:
+  Example lint-staged configuration:
   "*.{ts,tsx}": ["eslint --fix", "prettier --write"]
 ```
 
-### 3.4 Prettier の主要オプション解説
+### 3.4 Key Prettier Options Explained
 
 ```
-よく議論になるオプションとその推奨値:
+Commonly debated options and their recommended values:
 
 ┌─────────────────────┬──────────────┬─────────────────────────┐
-│ オプション            │ 推奨値       │ 理由                    │
+│ Option              │ Recommended  │ Reason                  │
 ├─────────────────────┼──────────────┼─────────────────────────┤
-│ semi                │ true         │ ASI の罠を避ける        │
-│ singleQuote         │ true         │ タイプ数削減             │
-│ trailingComma       │ "all"        │ diff がクリーン          │
-│ printWidth          │ 80           │ 分割画面で読みやすい     │
-│ tabWidth            │ 2            │ JS/TS の慣習            │
-│ arrowParens         │ "always"     │ 型注釈追加時に楽        │
-│ endOfLine           │ "lf"         │ OS 間の差異を排除       │
-│ bracketSameLine     │ false        │ 可読性重視              │
+│ semi                │ true         │ Avoid ASI pitfalls      │
+│ singleQuote         │ true         │ Fewer keystrokes        │
+│ trailingComma       │ "all"        │ Cleaner diffs           │
+│ printWidth          │ 80           │ Readable in split view  │
+│ tabWidth            │ 2            │ JS/TS convention        │
+│ arrowParens         │ "always"     │ Easier to add type ann. │
+│ endOfLine           │ "lf"         │ Eliminate OS differences│
+│ bracketSameLine     │ false        │ Readability first       │
 └─────────────────────┴──────────────┴─────────────────────────┘
 
-※ これらは「決め」の問題。チームで合意した値を使い、議論を終わらせる
-※ Prettier の哲学: 「オプションは少なく、議論を減らす」
+* These are matters of convention. Use values agreed upon by the team and end the debate.
+* Prettier's philosophy: "fewer options, less debate"
 ```
 
 ---
 
-## 4. Biome (高速オールインワン)
+## 4. Biome (Fast All-in-One)
 
-### 4.1 セットアップ
+### 4.1 Setup
 
 ```bash
-# インストール
+# Install
 pnpm add -D @biomejs/biome
 
-# 初期設定
+# Initial setup
 pnpm biome init
 
-# ESLint / Prettier からの移行
+# Migrate from ESLint / Prettier
 pnpm biome migrate eslint --write
 pnpm biome migrate prettier --write
 ```
 
-### 4.2 設定ファイル
+### 4.2 Configuration File
 
 ```jsonc
 // biome.json
@@ -753,66 +753,66 @@ pnpm biome migrate prettier --write
 }
 ```
 
-### 4.3 Biome コマンド
+### 4.3 Biome Commands
 
 ```bash
-# ─── リント ───
+# ─── Lint ───
 pnpm biome lint .
-pnpm biome lint --write .          # 自動修正
+pnpm biome lint --write .          # Auto-fix
 
-# ─── フォーマット ───
+# ─── Format ───
 pnpm biome format .
-pnpm biome format --write .        # フォーマット適用
+pnpm biome format --write .        # Apply formatting
 
-# ─── チェックのみ (CI 用) ───
-pnpm biome check .                 # lint + format を同時チェック
-pnpm biome ci .                    # CI モード (エラー時に非ゼロ終了)
+# ─── Check only (for CI) ───
+pnpm biome check .                 # Check lint + format simultaneously
+pnpm biome ci .                    # CI mode (exit non-zero on error)
 
-# ─── 全自動修正 ───
-pnpm biome check --write .        # lint fix + format を同時適用
+# ─── Full auto-fix ───
+pnpm biome check --write .        # Apply lint fix + format simultaneously
 
-# ─── インポートのソート ───
+# ─── Sort imports ───
 pnpm biome check --write --organize-imports-enabled=true .
 
-# ─── 特定ファイル ───
+# ─── Specific files ───
 pnpm biome lint src/utils/validate.ts
 pnpm biome format src/components/Button.tsx
 ```
 
-### 4.4 ESLint + Prettier vs Biome 比較
+### 4.4 ESLint + Prettier vs Biome Comparison
 
-| 観点 | ESLint + Prettier | Biome |
+| Aspect | ESLint + Prettier | Biome |
 |------|-------------------|-------|
-| 速度 | 1x (基準) | 20-100x |
-| 設定ファイル数 | 2-3個 | 1個 |
-| プラグイン | 豊富 (1000+) | 限定的 |
-| TypeScript対応 | 型チェック連携可 | 構文ベースのみ |
-| CSS 対応 | Stylelint 別途 | 組み込み |
-| JSON 対応 | 限定的 | 組み込み (フォーマット+リント) |
-| インポートソート | eslint-plugin-import | 組み込み |
-| エコシステム成熟度 | 非常に高い | 成長中 |
-| 移行コスト | - | `biome migrate` で自動化 |
-| 推奨 | 大規模・カスタム | 高速・シンプル |
-| メモリ使用量 | 多い (Node.js) | 少ない (Rust native) |
-| VS Code 拡張 | 各ツール別 | 1つで完結 |
+| Speed | 1x (baseline) | 20-100x |
+| Number of config files | 2-3 | 1 |
+| Plugins | Rich (1000+) | Limited |
+| TypeScript support | Type-check integration available | Syntax-based only |
+| CSS support | Requires separate Stylelint | Built-in |
+| JSON support | Limited | Built-in (format + lint) |
+| Import sorting | eslint-plugin-import | Built-in |
+| Ecosystem maturity | Very high | Growing |
+| Migration cost | - | Automated with `biome migrate` |
+| Recommendation | Large-scale / custom | Fast & simple |
+| Memory usage | High (Node.js) | Low (Rust native) |
+| VS Code extension | Separate per tool | Single extension |
 
-### 4.5 ESLint から Biome への段階的移行
+### 4.5 Gradual Migration from ESLint to Biome
 
 ```bash
-# Step 1: 移行分析
+# Step 1: Migration analysis
 pnpm biome migrate eslint --include-inspired
-# → どのルールが Biome に移行可能か表示
+# → Shows which rules can be migrated to Biome
 
-# Step 2: biome.json 生成
+# Step 2: Generate biome.json
 pnpm biome migrate eslint --write
 pnpm biome migrate prettier --write
 
-# Step 3: 並行運用期間
-# - Biome で lint + format
-# - ESLint は型チェック連携ルールのみ残す
-# - CI で両方実行して結果を比較
+# Step 3: Parallel operation period
+# - Lint + format with Biome
+# - Keep ESLint only for type-check integration rules
+# - Run both in CI and compare results
 
-# Step 4: ESLint の削除
+# Step 4: Remove ESLint
 pnpm remove eslint eslint-config-prettier @typescript-eslint/eslint-plugin \
   @typescript-eslint/parser eslint-plugin-import prettier
 ```
@@ -821,20 +821,20 @@ pnpm remove eslint eslint-config-prettier @typescript-eslint/eslint-plugin \
 
 ## 5. Ruff (Python)
 
-### 5.1 セットアップ
+### 5.1 Setup
 
 ```bash
-# インストール
+# Install
 pip install ruff
-# または
+# or
 brew install ruff
-# または uv
+# or with uv
 uv add --dev ruff
-# または pipx
+# or with pipx
 pipx install ruff
 ```
 
-### 5.2 設定
+### 5.2 Configuration
 
 ```toml
 # pyproject.toml
@@ -844,10 +844,10 @@ line-length = 88
 indent-width = 4
 fix = true
 
-# ソースディレクトリの指定
+# Specify source directories
 src = ["src", "tests"]
 
-# 除外パターン
+# Exclusion patterns
 exclude = [
     ".git",
     ".venv",
@@ -863,40 +863,40 @@ select = [
     "E",    # pycodestyle errors
     "W",    # pycodestyle warnings
     "F",    # Pyflakes
-    "I",    # isort (インポートソート)
+    "I",    # isort (import sorting)
     "N",    # pep8-naming
-    "UP",   # pyupgrade (古い構文の検出)
-    "B",    # flake8-bugbear (バグ候補の検出)
-    "SIM",  # flake8-simplify (簡略化可能なコード)
-    "C4",   # flake8-comprehensions (内包表記の最適化)
-    "DTZ",  # flake8-datetimez (タイムゾーン関連)
-    "T20",  # flake8-print (print 文の検出)
-    "RUF",  # Ruff固有ルール
-    "ANN",  # flake8-annotations (型ヒント)
-    "S",    # flake8-bandit (セキュリティ)
-    "PT",   # flake8-pytest-style (pytest スタイル)
-    "RET",  # flake8-return (return 文)
-    "ARG",  # flake8-unused-arguments (未使用引数)
-    "ERA",  # eradicate (コメントアウトされたコード)
-    "PL",   # Pylint (一部ルール)
-    "PERF", # Perflint (パフォーマンス)
-    "FURB", # refurb (モダン Python)
+    "UP",   # pyupgrade (detect outdated syntax)
+    "B",    # flake8-bugbear (detect bug candidates)
+    "SIM",  # flake8-simplify (simplifiable code)
+    "C4",   # flake8-comprehensions (optimize comprehensions)
+    "DTZ",  # flake8-datetimez (timezone-related)
+    "T20",  # flake8-print (detect print statements)
+    "RUF",  # Ruff-specific rules
+    "ANN",  # flake8-annotations (type hints)
+    "S",    # flake8-bandit (security)
+    "PT",   # flake8-pytest-style (pytest style)
+    "RET",  # flake8-return (return statements)
+    "ARG",  # flake8-unused-arguments (unused arguments)
+    "ERA",  # eradicate (commented-out code)
+    "PL",   # Pylint (partial rules)
+    "PERF", # Perflint (performance)
+    "FURB", # refurb (modern Python)
 ]
 ignore = [
-    "E501",   # line too long (formatter に任せる)
-    "ANN101", # self の型ヒント (不要)
-    "ANN102", # cls の型ヒント (不要)
-    "ANN401", # Any 型 (場合による)
+    "E501",   # line too long (delegate to formatter)
+    "ANN101", # self type hint (unnecessary)
+    "ANN102", # cls type hint (unnecessary)
+    "ANN401", # Any type (case-by-case)
 ]
 
-# 自動修正可能なルール
+# Auto-fixable rules
 fixable = ["ALL"]
 unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["T20", "S101", "ANN"]  # テストでは print, assert, 型ヒント省略OK
+"tests/**/*.py" = ["T20", "S101", "ANN"]  # Allow print, assert, omit type hints in tests
 "conftest.py" = ["ANN"]
-"__init__.py" = ["F401"]  # 再エクスポートの未使用インポート
+"__init__.py" = ["F401"]  # Unused imports for re-exports
 
 [tool.ruff.lint.isort]
 known-first-party = ["myproject"]
@@ -915,35 +915,35 @@ docstring-code-format = true
 docstring-code-line-length = 72
 ```
 
-### 5.3 実行コマンド
+### 5.3 Run Commands
 
 ```bash
-# ─── リント ───
+# ─── Lint ───
 ruff check .
-ruff check --fix .              # 自動修正
-ruff check --fix --unsafe-fixes . # 安全でない修正も含む
+ruff check --fix .              # Auto-fix
+ruff check --fix --unsafe-fixes . # Include unsafe fixes
 
-# ─── フォーマット ───
+# ─── Format ───
 ruff format .
-ruff format --check .           # チェックのみ (CI 用)
-ruff format --diff .            # 差分表示
+ruff format --check .           # Check only (for CI)
+ruff format --diff .            # Show diff
 
-# ─── 特定ルールの確認 ───
-ruff rule E501                  # ルールの詳細説明
-ruff linter                     # 利用可能なルール一覧
+# ─── Check specific rules ───
+ruff rule E501                  # Detailed explanation of a rule
+ruff linter                     # List available rules
 
-# ─── 設定の確認 ───
-ruff check --show-settings      # 現在の設定を表示
-ruff check --statistics         # 違反統計
+# ─── Check configuration ───
+ruff check --show-settings      # Show current settings
+ruff check --statistics         # Violation statistics
 
-# Ruff は Flake8 + isort + Black + pyupgrade を1つで置き換える
-# 速度は Flake8 の 10-100倍
+# Ruff replaces Flake8 + isort + Black + pyupgrade in a single tool
+# 10-100x faster than Flake8
 ```
 
-### 5.4 mypy との併用
+### 5.4 Using with mypy
 
 ```toml
-# pyproject.toml (mypy 設定)
+# pyproject.toml (mypy configuration)
 [tool.mypy]
 python_version = "3.12"
 strict = true
@@ -953,58 +953,58 @@ disallow_untyped_defs = true
 disallow_any_generics = true
 check_untyped_defs = true
 
-# ライブラリのスタブ
+# Library stubs
 module = ["redis.*", "celery.*"]
 ignore_missing_imports = true
 ```
 
 ```
-Ruff と mypy の役割分担:
+Role separation between Ruff and mypy:
 
-  Ruff (高速):
-  ├── スタイルチェック (PEP 8)
-  ├── バグ候補検出 (Bugbear)
-  ├── セキュリティチェック (Bandit)
-  ├── インポートソート (isort)
-  ├── コードフォーマット (Black 互換)
-  └── モダン構文への変換 (pyupgrade)
+  Ruff (fast):
+  ├── Style checking (PEP 8)
+  ├── Bug candidate detection (Bugbear)
+  ├── Security checking (Bandit)
+  ├── Import sorting (isort)
+  ├── Code formatting (Black-compatible)
+  └── Convert to modern syntax (pyupgrade)
 
-  mypy (型チェック):
-  ├── 型整合性の検証
-  ├── 型ガードの検証
-  ├── ジェネリクスの検証
-  └── None チェックの検証
+  mypy (type checking):
+  ├── Validate type consistency
+  ├── Validate type guards
+  ├── Validate generics
+  └── Validate None checks
 
-  実行順序:
-  1. ruff check --fix .  (高速: 数ミリ秒)
-  2. ruff format .       (高速: 数ミリ秒)
-  3. mypy .              (低速: 数秒-数分)
+  Execution order:
+  1. ruff check --fix .  (fast: milliseconds)
+  2. ruff format .       (fast: milliseconds)
+  3. mypy .              (slow: seconds to minutes)
 ```
 
 ---
 
 ## 6. Stylelint (CSS / SCSS)
 
-### 6.1 セットアップ
+### 6.1 Setup
 
 ```bash
-# インストール
+# Install
 pnpm add -D stylelint stylelint-config-standard
 
-# SCSS の場合
+# For SCSS
 pnpm add -D stylelint-config-standard-scss
 
-# CSS-in-JS の場合
+# For CSS-in-JS
 pnpm add -D postcss-styled-syntax
 
-# Prettier との連携
+# Integration with Prettier
 pnpm add -D stylelint-config-prettier-scss
 
-# プロパティ順序
+# Property ordering
 pnpm add -D stylelint-order stylelint-config-recess-order
 ```
 
-### 6.2 設定ファイル
+### 6.2 Configuration File
 
 ```jsonc
 // .stylelintrc.json
@@ -1041,10 +1041,10 @@ pnpm add -D stylelint-order stylelint-config-recess-order
 }
 ```
 
-### 6.3 Tailwind CSS プロジェクトでの注意
+### 6.3 Notes for Tailwind CSS Projects
 
 ```jsonc
-// .stylelintrc.json (Tailwind 対応)
+// .stylelintrc.json (Tailwind support)
 {
   "extends": ["stylelint-config-standard"],
   "rules": {
@@ -1069,15 +1069,15 @@ pnpm add -D stylelint-order stylelint-config-recess-order
 
 ---
 
-## 7. Pre-commit フック
+## 7. Pre-commit Hooks
 
 ### 7.1 lint-staged + husky
 
 ```bash
-# インストール
+# Install
 pnpm add -D husky lint-staged
 
-# husky 初期化
+# Initialize husky
 pnpm husky init
 ```
 
@@ -1119,10 +1119,10 @@ pnpm husky init
 pnpm lint-staged
 ```
 
-### 7.2 Biome を使った高速 lint-staged
+### 7.2 Fast lint-staged with Biome
 
 ```jsonc
-// package.json (Biome 版)
+// package.json (Biome version)
 {
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,css}": [
@@ -1139,10 +1139,10 @@ pnpm lint-staged
 }
 ```
 
-### 7.3 pre-commit フローの動作
+### 7.3 How the Pre-commit Flow Works
 
 ```
-git commit 実行時のフロー:
+Flow when running git commit:
 
   git commit -m "Add feature"
        │
@@ -1152,8 +1152,8 @@ git commit 実行時のフロー:
   │       │               │
   │       ▼               │
   │  lint-staged          │
-  │  (ステージされた       │
-  │   ファイルのみ対象)    │
+  │  (targets only        │
+  │   staged files)       │
   │       │               │
   │       ├── *.ts,*.tsx  │
   │       │   → eslint    │
@@ -1169,23 +1169,23 @@ git commit 実行時のフロー:
   │       └── *.py        │
   │           → ruff      │
   │                       │
-  │  全てパス？            │
-  │  ├── Yes → コミット    │
-  │  └── No  → コミット   │
-  │           中止 + エラー │
+  │  All pass?            │
+  │  ├── Yes → Commit     │
+  │  └── No  → Abort      │
+  │           commit + err│
   └──────────────────────┘
 
-  ポイント:
-  - ステージされたファイルのみが対象 (全ファイルではない)
-  - --fix / --write で自動修正し、修正結果を再ステージ
-  - CI では --check モードで確認するだけ (修正しない)
-  - lint-staged v15+ はデフォルトで修正ファイルを再ステージ
+  Key points:
+  - Only staged files are targeted (not all files)
+  - --fix / --write auto-fixes and re-stages the result
+  - In CI, use --check mode to verify only (no fixes)
+  - lint-staged v15+ re-stages fixed files by default
 ```
 
-### 7.4 lefthook (husky の代替)
+### 7.4 lefthook (Alternative to husky)
 
 ```yaml
-# lefthook.yml (husky + lint-staged の代替)
+# lefthook.yml (alternative to husky + lint-staged)
 pre-commit:
   parallel: true
   commands:
@@ -1204,26 +1204,26 @@ pre-commit:
 ```
 
 ```bash
-# lefthook のセットアップ
+# lefthook setup
 pnpm add -D lefthook
 pnpm lefthook install
 ```
 
 ---
 
-## 8. エディタ連携
+## 8. Editor Integration
 
-### 8.1 VS Code 設定
+### 8.1 VS Code Settings
 
 ```jsonc
 // .vscode/settings.json
 {
-  // ─── デフォルトフォーマッター ───
+  // ─── Default formatter ───
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
   "editor.formatOnPaste": false,
 
-  // ─── ESLint 連携 ───
+  // ─── ESLint integration ───
   "eslint.enable": true,
   "eslint.useFlatConfig": true,
   "editor.codeActionsOnSave": {
@@ -1231,7 +1231,7 @@ pnpm lefthook install
     "source.organizeImports": "never"
   },
 
-  // ─── 言語別フォーマッター ───
+  // ─── Language-specific formatters ───
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
@@ -1264,22 +1264,22 @@ pnpm lefthook install
     "editor.defaultFormatter": "Prisma.prisma"
   },
 
-  // ─── Stylelint 連携 ───
+  // ─── Stylelint integration ───
   "stylelint.validate": ["css", "scss"],
   "css.validate": false,
   "scss.validate": false,
 
-  // ─── ファイル設定 ───
+  // ─── File settings ───
   "files.eol": "\n",
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
 
-  // ─── formatOnSave の最適化 ───
+  // ─── Optimize formatOnSave ───
   "editor.formatOnSaveMode": "modificationsIfAvailable"
 }
 ```
 
-### 8.2 VS Code 推奨拡張機能
+### 8.2 Recommended VS Code Extensions
 
 ```jsonc
 // .vscode/extensions.json
@@ -1294,16 +1294,16 @@ pnpm lefthook install
     "Prisma.prisma"
   ],
   "unwantedRecommendations": [
-    // Biome 使用時は ESLint + Prettier を非推奨に
+    // When using Biome, mark ESLint + Prettier as unwanted
     // "biomejs.biome"
   ]
 }
 ```
 
-### 8.3 Biome の VS Code 設定
+### 8.3 VS Code Settings for Biome
 
 ```jsonc
-// .vscode/settings.json (Biome 版)
+// .vscode/settings.json (Biome version)
 {
   "editor.defaultFormatter": "biomejs.biome",
   "editor.formatOnSave": true,
@@ -1323,7 +1323,7 @@ pnpm lefthook install
 ### 8.4 EditorConfig
 
 ```ini
-# .editorconfig (エディタ横断の基本設定)
+# .editorconfig (basic cross-editor settings)
 root = true
 
 [*]
@@ -1353,7 +1353,7 @@ indent_size = 4
 
 ---
 
-## 9. CI 統合
+## 9. CI Integration
 
 ### 9.1 GitHub Actions (ESLint + Prettier)
 
@@ -1380,15 +1380,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # ESLint (キャッシュ使用)
+      # ESLint (with cache)
       - name: Lint
         run: pnpm eslint --cache .
 
-      # Format チェック (修正なし -- 差分検出)
+      # Format check (no fixes -- detect diff)
       - name: Format check
         run: pnpm prettier --check .
 
-      # 型チェック
+      # Type check
       - name: Typecheck
         run: pnpm tsc --noEmit
 
@@ -1440,7 +1440,7 @@ jobs:
         run: pnpm biome ci .
 ```
 
-### 9.3 PR レビューコメントの自動投稿
+### 9.3 Auto-posting PR Review Comments
 
 ```yaml
 # .github/workflows/lint-review.yml
@@ -1465,7 +1465,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # ESLint の結果を PR コメントとして投稿
+      # Post ESLint results as PR comments
       - name: ESLint
         uses: reviewdog/action-eslint@v1
         with:
@@ -1475,29 +1475,29 @@ jobs:
 
 ---
 
-## 10. モノレポでの設定共有
+## 10. Configuration Sharing in Monorepos
 
-### 10.1 共有設定パッケージの構成
+### 10.1 Structure of a Shared Config Package
 
 ```
 packages/config/
 ├── package.json
 ├── eslint/
-│   ├── base.js          # JavaScript/TypeScript 基本ルール
-│   ├── react.js         # React 用ルール (base を extends)
-│   ├── next.js          # Next.js 用ルール (react を extends)
-│   └── node.js          # Node.js バックエンド用ルール
+│   ├── base.js          # JavaScript/TypeScript base rules
+│   ├── react.js         # React rules (extends base)
+│   ├── next.js          # Next.js rules (extends react)
+│   └── node.js          # Node.js backend rules
 ├── prettier/
-│   └── index.json       # Prettier 共通設定
+│   └── index.json       # Shared Prettier config
 ├── tsconfig/
-│   ├── base.json        # TypeScript 基本設定
-│   ├── react.json       # React 用 (JSX 有効化)
-│   ├── nextjs.json      # Next.js 用
-│   └── node.json        # Node.js バックエンド用
+│   ├── base.json        # TypeScript base config
+│   ├── react.json       # React (enable JSX)
+│   ├── nextjs.json      # Next.js
+│   └── node.json        # Node.js backend
 ├── stylelint/
-│   └── index.json       # Stylelint 共通設定
+│   └── index.json       # Shared Stylelint config
 └── biome/
-    └── biome.json       # Biome 共通設定 (代替構成)
+    └── biome.json       # Shared Biome config (alternative setup)
 ```
 
 ```jsonc
@@ -1533,132 +1533,132 @@ packages/config/
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-patterns
 
-### 11.1 ESLint に Formatter の仕事をさせる
+### 11.1 Making ESLint Do the Formatter's Job
 
 ```
-❌ アンチパターン: ESLint でインデントや引用符を矯正
+Anti-pattern: using ESLint to enforce indentation and quotes
 
   eslint.config.js:
     rules: {
-      "indent": ["error", 2],           // ← Formatter の仕事
-      "quotes": ["error", "single"],     // ← Formatter の仕事
-      "semi": ["error", "always"],       // ← Formatter の仕事
-      "max-len": ["error", 80],          // ← Formatter の仕事
-      "comma-dangle": ["error", "always-multiline"], // ← Formatter の仕事
+      "indent": ["error", 2],           // ← Formatter's job
+      "quotes": ["error", "single"],     // ← Formatter's job
+      "semi": ["error", "always"],       // ← Formatter's job
+      "max-len": ["error", 80],          // ← Formatter's job
+      "comma-dangle": ["error", "always-multiline"], // ← Formatter's job
     }
 
-問題:
-  - Prettier との競合で無限修正ループ
-  - ESLint の実行が遅くなる
-  - 役割の重複でメンテナンスコスト増大
+Problems:
+  - Conflict with Prettier causes infinite fix loops
+  - ESLint runs slower
+  - Duplicated responsibilities increase maintenance cost
 
-✅ 正しいアプローチ:
-  - 見た目のルールは Prettier に任せる
-  - eslint-config-prettier で競合ルールを OFF
-  - ESLint はコード品質チェックに専念
-  - ESLint の stylistic ルールは全て無効化
+Correct approach:
+  - Delegate appearance rules to Prettier
+  - Disable conflicting rules with eslint-config-prettier
+  - Have ESLint focus solely on code quality checks
+  - Disable all ESLint stylistic rules
 ```
 
-### 11.2 チームで設定を共有しない
+### 11.2 Not Sharing Configuration Across the Team
 
 ```
-❌ アンチパターン: 各開発者が独自の Linter 設定を使用
+Anti-pattern: each developer uses their own Linter configuration
 
-問題:
-  - PR の差分がスタイル変更で埋もれる
-  - "好みの違い" でコードレビューが紛糾
-  - CI で別の設定が動いてエラー
-  - 新メンバーのオンボーディングが困難
+Problems:
+  - PR diffs are buried in style changes
+  - Code reviews derail over "personal preferences"
+  - A different config runs in CI and causes errors
+  - Difficult onboarding for new team members
 
-✅ 正しいアプローチ:
-  - 設定ファイルをリポジトリにコミット
-  - .vscode/settings.json で formatOnSave を強制
-  - .vscode/extensions.json で推奨拡張を提示
-  - pre-commit フックで強制フォーマット
-  - CI で --check モードでゲート
-  - EditorConfig でエディタ横断の基本設定
+Correct approach:
+  - Commit config files to the repository
+  - Enforce formatOnSave via .vscode/settings.json
+  - Suggest recommended extensions via .vscode/extensions.json
+  - Enforce formatting with pre-commit hooks
+  - Gate with --check mode in CI
+  - Set baseline cross-editor config with EditorConfig
 ```
 
-### 11.3 全ルールを有効化する
+### 11.3 Enabling All Rules
 
 ```
-❌ アンチパターン: recommended + すべてのプラグインを有効
+Anti-pattern: enabling recommended + all plugins
 
-問題:
-  - ルール同士が矛盾する場合がある
-  - 過度に厳しい設定で開発速度が低下
-  - 意味のない lint エラーへの対処に時間を浪費
-  - // eslint-disable の乱用
+Problems:
+  - Rules can conflict with each other
+  - Overly strict settings slow down development
+  - Time wasted dealing with meaningless lint errors
+  - Overuse of // eslint-disable
 
-✅ 正しいアプローチ:
-  - recommended をベースに、プロジェクトに必要なルールのみ追加
-  - warn と error を適切に使い分け
-    - error: セキュリティ、型安全性 (絶対に許容しない)
-    - warn: コード品質 (改善すべきだが緊急ではない)
-  - 段階的に厳しくする (最初は recommended のみ)
+Correct approach:
+  - Start from recommended and add only project-needed rules
+  - Use warn and error appropriately:
+    - error: security, type safety (never acceptable)
+    - warn: code quality (should improve but not urgent)
+  - Tighten gradually (start with recommended only)
 ```
 
-### 11.4 CI でのみ lint を実行する
+### 11.4 Running Lint Only in CI
 
 ```
-❌ アンチパターン: ローカルでは lint せず、CI で初めてエラーを発見
+Anti-pattern: not linting locally, discovering errors in CI for the first time
 
-問題:
-  - CI でエラー → 修正 → 再プッシュのサイクルが遅い
-  - 開発者体験が悪い
-  - CI のコンピュートリソースを浪費
+Problems:
+  - Slow cycle of CI error → fix → re-push
+  - Poor developer experience
+  - Wastes CI compute resources
 
-✅ 正しいアプローチ:
-  - エディタ連携: formatOnSave + codeActionsOnSave
-  - pre-commit フック: lint-staged で差分のみチェック
-  - CI: --check モードで最終ゲート (修正なし)
-  - 3段階の防御で品質を担保
+Correct approach:
+  - Editor integration: formatOnSave + codeActionsOnSave
+  - Pre-commit hook: check only diffs with lint-staged
+  - CI: final gate with --check mode (no fixes)
+  - Three-layer defense to ensure quality
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
             raise ValueError("入力値がNoneです")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1676,17 +1676,17 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1694,7 +1694,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1705,14 +1705,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1720,7 +1720,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1728,13 +1728,13 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
@@ -1745,27 +1745,27 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1774,7 +1774,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1796,97 +1796,97 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## 12. FAQ
 
-### Q1: Biome は ESLint + Prettier を完全に置き換えられる？
+### Q1: Can Biome completely replace ESLint + Prettier?
 
-**A:** 多くのプロジェクトでは可能だが、以下の場合は ESLint が必要。
-- TypeScript の型情報に基づくルール（`no-unsafe-*` 系、`no-floating-promises`）を使いたい
-- eslint-plugin-react-hooks 等の特定プラグインに依存
-- カスタムルールを自作している
-- eslint-plugin-import の高度なインポートルールが必要
+**A:** This is possible for most projects, but ESLint is still required in the following cases:
+- You want to use rules that depend on TypeScript type information (the `no-unsafe-*` family, `no-floating-promises`)
+- You depend on specific plugins like eslint-plugin-react-hooks
+- You have self-made custom rules
+- You need the advanced import rules of eslint-plugin-import
 
-新規プロジェクトで特殊な要件がなければ Biome がシンプルで高速。既存の ESLint 設定が複雑なプロジェクトは `biome migrate` で段階的に移行を検討する。ハイブリッド構成（Biome でフォーマット + ESLint で型チェック連携ルールのみ）も有効。
+For new projects with no special requirements, Biome is simpler and faster. For projects with complex existing ESLint configurations, consider a gradual migration using `biome migrate`. A hybrid setup (Biome for formatting + ESLint only for type-check integration rules) is also effective.
 
-### Q2: formatOnSave が遅い場合の対処法は？
+### Q2: What should I do if formatOnSave is slow?
 
 **A:**
-1. `editor.formatOnSaveMode` を `"modificationsIfAvailable"` に設定（変更行のみフォーマット）
-2. Biome に切り替える（Prettier の 20-100倍高速）
-3. `.prettierignore` で不要なファイルを除外
-4. ESLint の `codeActionsOnSave` と Prettier の `formatOnSave` が二重実行されていないか確認
-5. ESLint のキャッシュを有効化 (`eslint --cache`)
-6. `eslint.codeActionsOnSave.mode` を `"problems"` に設定
-7. 大きなファイルでは `editor.formatOnSaveTimeout` を調整
+1. Set `editor.formatOnSaveMode` to `"modificationsIfAvailable"` (format only changed lines)
+2. Switch to Biome (20-100x faster than Prettier)
+3. Exclude unnecessary files in `.prettierignore`
+4. Check that ESLint `codeActionsOnSave` and Prettier `formatOnSave` are not running twice
+5. Enable ESLint cache (`eslint --cache`)
+6. Set `eslint.codeActionsOnSave.mode` to `"problems"`
+7. Adjust `editor.formatOnSaveTimeout` for large files
 
-### Q3: Ruff だけで Python の Linter + Formatter は十分？
+### Q3: Is Ruff alone sufficient as a Python Linter + Formatter?
 
-**A:** はい。Ruff は Flake8、isort、Black、pyupgrade、flake8-bugbear、flake8-bandit 等の機能を1つのツールで提供する。速度は Flake8 の 10-100倍。2025年時点で Python の新規プロジェクトでは Ruff がデファクトスタンダードになっている。ただし mypy（型チェック）は別途必要。Ruff は構文ベースの解析のみで、型情報に基づくチェックは行わない。
+**A:** Yes. Ruff provides the functionality of Flake8, isort, Black, pyupgrade, flake8-bugbear, flake8-bandit, and more in a single tool. It is 10-100x faster than Flake8. As of 2025, Ruff has become the de facto standard for new Python projects. However, mypy (type checking) is still required separately. Ruff performs only syntax-based analysis and does not perform checks based on type information.
 
-### Q4: ESLint の Flat Config と Legacy Config は混在できる？
+### Q4: Can ESLint Flat Config and Legacy Config coexist?
 
-**A:** いいえ。ESLint v9 は Flat Config のみをサポートする。ただし `ESLINT_USE_FLAT_CONFIG=false` 環境変数で一時的にレガシーモードに戻すことは可能（v9.x の間のみ）。プラグインがまだ Flat Config に対応していない場合は `@eslint/compat` パッケージの `fixupPluginRules` を使って互換レイヤーを挟む。
+**A:** No. ESLint v9 only supports Flat Config. However, you can temporarily revert to legacy mode with the `ESLINT_USE_FLAT_CONFIG=false` environment variable (only during v9.x). If a plugin has not yet been updated for Flat Config, use `fixupPluginRules` from the `@eslint/compat` package as a compatibility shim.
 
-### Q5: モノレポで各パッケージの ESLint 設定を変えたい場合は？
+### Q5: What if I want different ESLint configurations for each package in a monorepo?
 
-**A:** 共有設定パッケージ (`@repo/config`) に複数の設定プリセットを用意し、各パッケージの `eslint.config.js` で適切なものを import する。例えば `@repo/config/eslint/react` はフロントエンド用、`@repo/config/eslint/node` はバックエンド用。各パッケージの `eslint.config.js` はプリセットを extends した上で、パッケージ固有のルールを追加する。
+**A:** Prepare multiple configuration presets in a shared config package (`@repo/config`) and import the appropriate one in each package's `eslint.config.js`. For example, `@repo/config/eslint/react` for the frontend and `@repo/config/eslint/node` for the backend. Each package's `eslint.config.js` extends a preset and then adds package-specific rules on top.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and rushing to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 13. まとめ
+## 13. Summary
 
-| エコシステム | Linter | Formatter | 推奨度 |
+| Ecosystem | Linter | Formatter | Recommendation |
 |------------|--------|-----------|--------|
-| JS/TS (標準) | ESLint v9 | Prettier | 最も汎用的 |
-| JS/TS (高速) | Biome | Biome | シンプル・新規向け |
-| JS/TS (ハイブリッド) | ESLint (型ルール) + Biome (他) | Biome | バランス型 |
-| Python | Ruff + mypy | Ruff | デファクト |
-| CSS/SCSS | Stylelint | Prettier | CSS専用 |
-| Pre-commit | husky + lint-staged / lefthook | - | 必須レベル |
-| CI | `--check` モード | `--check` モード | ゲート必須 |
-| エディタ | VS Code + 各拡張 | formatOnSave | 自動化必須 |
-| モノレポ | packages/config/ で共有 | 同上 | 設定の一元管理 |
+| JS/TS (standard) | ESLint v9 | Prettier | Most versatile |
+| JS/TS (fast) | Biome | Biome | Simple, ideal for new projects |
+| JS/TS (hybrid) | ESLint (type rules) + Biome (rest) | Biome | Balanced approach |
+| Python | Ruff + mypy | Ruff | De facto standard |
+| CSS/SCSS | Stylelint | Prettier | CSS-specific |
+| Pre-commit | husky + lint-staged / lefthook | - | Essentially required |
+| CI | `--check` mode | `--check` mode | Gate required |
+| Editor | VS Code + each extension | formatOnSave | Automation required |
+| Monorepo | Share via packages/config/ | Same | Centralized config management |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [02-monorepo-setup.md](./02-monorepo-setup.md) -- モノレポでの設定共有
-- [../00-editor-and-tools/00-vscode-setup.md](../00-editor-and-tools/00-vscode-setup.md) -- VS Code との連携設定
-- [../03-team-setup/00-project-standards.md](../03-team-setup/00-project-standards.md) -- チーム標準ルールの策定
+- [02-monorepo-setup.md](./02-monorepo-setup.md) -- Sharing configuration in monorepos
+- [../00-editor-and-tools/00-vscode-setup.md](../00-editor-and-tools/00-vscode-setup.md) -- VS Code integration settings
+- [../03-team-setup/00-project-standards.md](../03-team-setup/00-project-standards.md) -- Defining team standard rules
 
 ---
 
-## 参考文献
+## References
 
-1. **ESLint v9 Flat Config** -- https://eslint.org/docs/latest/use/configure/configuration-files -- ESLint v9 の新設定形式の公式ガイド。
-2. **Biome Documentation** -- https://biomejs.dev/guides/getting-started/ -- Biome 公式ドキュメント。ESLint からの移行ガイドあり。
-3. **Ruff Documentation** -- https://docs.astral.sh/ruff/ -- Ruff 公式。対応ルール一覧とベンチマーク。
-4. **Prettier Options** -- https://prettier.io/docs/en/options -- Prettier の全オプション解説。
-5. **typescript-eslint** -- https://typescript-eslint.io/ -- TypeScript ESLint の公式サイト。型チェック連携の詳細。
-6. **Stylelint** -- https://stylelint.io/ -- CSS/SCSS Linter の公式ドキュメント。
-7. **lint-staged** -- https://github.com/lint-staged/lint-staged -- ステージングファイル限定の lint 実行ツール。
-8. **lefthook** -- https://github.com/evilmartians/lefthook -- husky + lint-staged の高速代替ツール。
+1. **ESLint v9 Flat Config** -- https://eslint.org/docs/latest/use/configure/configuration-files -- Official guide to the new ESLint v9 configuration format.
+2. **Biome Documentation** -- https://biomejs.dev/guides/getting-started/ -- Official Biome documentation. Includes a migration guide from ESLint.
+3. **Ruff Documentation** -- https://docs.astral.sh/ruff/ -- Official Ruff docs. Supported rule list and benchmarks.
+4. **Prettier Options** -- https://prettier.io/docs/en/options -- Explanation of all Prettier options.
+5. **typescript-eslint** -- https://typescript-eslint.io/ -- Official TypeScript ESLint site. Details on type-check integration.
+6. **Stylelint** -- https://stylelint.io/ -- Official documentation for the CSS/SCSS Linter.
+7. **lint-staged** -- https://github.com/lint-staged/lint-staged -- Tool for running lint only on staged files.
+8. **lefthook** -- https://github.com/evilmartians/lefthook -- A fast alternative to husky + lint-staged.
