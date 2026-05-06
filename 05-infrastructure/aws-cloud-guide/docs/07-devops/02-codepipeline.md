@@ -1,31 +1,31 @@
 # AWS CodePipeline
 
-> AWS のフルマネージド CI/CD サービスを理解し、CodeCommit・CodeBuild・CodeDeploy・GitHub を統合した自動化パイプラインを構築する
+> Understand AWS's fully managed CI/CD service and build automated pipelines integrating CodeCommit, CodeBuild, CodeDeploy, and GitHub
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **CodePipeline の基本概念** — ステージ、アクション、アーティファクトの構造
-2. **CodeBuild と CodeDeploy の統合** — ビルド・テスト・デプロイの自動化
-3. **GitHub 統合とベストプラクティス** — GitHub Actions との連携、承認ゲート、ロールバック
-4. **CDK による CodePipeline 構築** — Infrastructure as Code でパイプラインを管理
-5. **パイプラインの監視とトラブルシューティング** — CloudWatch、EventBridge による障害対応
+1. **Core Concepts of CodePipeline** — Structure of stages, actions, and artifacts
+2. **CodeBuild and CodeDeploy Integration** — Automating build, test, and deploy
+3. **GitHub Integration and Best Practices** — Integration with GitHub Actions, approval gates, and rollback
+4. **Building CodePipeline with CDK** — Managing pipelines as Infrastructure as Code
+5. **Pipeline Monitoring and Troubleshooting** — Handling failures with CloudWatch and EventBridge
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AWS CDK (Cloud Development Kit)](./01-cdk.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [AWS CDK (Cloud Development Kit)](./01-cdk.md)
 
 ---
 
-## 1. CodePipeline とは
+## 1. What is CodePipeline?
 
-CodePipeline は、コードの変更を検知してビルド、テスト、デプロイを自動実行する継続的デリバリーサービスである。各ステージを連結し、ソフトウェアリリースプロセスを完全に自動化する。
+CodePipeline is a continuous delivery service that detects code changes and automatically runs build, test, and deploy processes. It connects stages in sequence to fully automate the software release process.
 
-### 図解 1: CodePipeline の全体フロー
+### Diagram 1: Overall CodePipeline Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -45,32 +45,32 @@ CodePipeline は、コードの変更を検知してビルド、テスト、デ�
 │  │  source.zip → build.zip → test-results → deploy.zip │  │
 │  └──────────────────────────────────────────────────────┘  │
 │                                                             │
-│  オプションステージ:                                        │
+│  Optional stages:                                           │
 │  ┌──────────┐  ┌──────────┐                                │
 │  │ Approval │  │ Deploy   │                                │
-│  │ (手動承認)│→│ (本番)   │                                │
+│  │ (Manual) │→│ (Prod)   │                                │
 │  └──────────┘  └──────────┘                                │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 CodePipeline の主要コンポーネント
+### 1.1 Key Components of CodePipeline
 
-| コンポーネント | 説明 | 例 |
-|--------------|------|-----|
-| **Pipeline** | ステージの集合体。ソースからデプロイまでの一連のフロー | my-app-pipeline |
-| **Stage** | パイプライン内の論理的なフェーズ | Source, Build, Test, Deploy |
-| **Action** | ステージ内で実行される個別のタスク | CodeBuild アクション、ECS デプロイアクション |
-| **Artifact** | ステージ間で受け渡されるファイル（S3 に保存） | SourceOutput, BuildOutput |
-| **Transition** | ステージ間の接続。有効/無効を切り替え可能 | Build → Test の遷移 |
+| Component | Description | Example |
+|-----------|-------------|---------|
+| **Pipeline** | A collection of stages representing the entire flow from source to deploy | my-app-pipeline |
+| **Stage** | A logical phase within the pipeline | Source, Build, Test, Deploy |
+| **Action** | An individual task executed within a stage | CodeBuild action, ECS deploy action |
+| **Artifact** | Files passed between stages (stored in S3) | SourceOutput, BuildOutput |
+| **Transition** | Connection between stages; can be enabled or disabled | Build → Test transition |
 
-### 1.2 CodePipeline V2 の新機能
+### 1.2 New Features in CodePipeline V2
 
-CodePipeline V2 では以下の機能が追加された:
+CodePipeline V2 introduced the following features:
 
-- **トリガーフィルタ**: ブランチ名、ファイルパス、タグでパイプライン実行を制御
-- **変数の拡張**: ステージ間で変数を引き渡し
-- **実行モード**: QUEUED（キュー）、SUPERSEDED（最新優先）、PARALLEL（並列）
-- **Git タグトリガー**: タグの作成・更新でパイプラインを起動
+- **Trigger filters**: Control pipeline execution by branch name, file path, or tag
+- **Extended variables**: Pass variables between stages
+- **Execution modes**: QUEUED, SUPERSEDED, and PARALLEL
+- **Git tag triggers**: Start pipelines on tag creation or update
 
 ```json
 {
@@ -102,29 +102,29 @@ CodePipeline V2 では以下の機能が追加された:
 
 ---
 
-## 2. パイプラインの構築
+## 2. Building a Pipeline
 
-### コード例 1: AWS CLI でパイプラインを作成
+### Code Example 1: Creating a Pipeline with the AWS CLI
 
 ```bash
-# CodeCommit リポジトリの作成
+# Create a CodeCommit repository
 aws codecommit create-repository \
   --repository-name my-app \
   --repository-description "Application repository"
 
-# パイプライン定義 JSON を使って作成
+# Create a pipeline using a JSON definition file
 aws codepipeline create-pipeline --cli-input-json file://pipeline.json
 
-# パイプラインの状態確認
+# Check the pipeline state
 aws codepipeline get-pipeline-state --name my-app-pipeline
 
-# パイプラインの手動実行
+# Manually trigger the pipeline
 aws codepipeline start-pipeline-execution --name my-app-pipeline
 
-# パイプラインの実行履歴
+# View pipeline execution history
 aws codepipeline list-pipeline-executions --pipeline-name my-app-pipeline
 
-# 特定ステージのリトライ
+# Retry a specific stage
 aws codepipeline retry-stage-execution \
   --pipeline-name my-app-pipeline \
   --stage-name Build \
@@ -132,7 +132,7 @@ aws codepipeline retry-stage-execution \
   --retry-mode FAILED_ACTIONS
 ```
 
-### コード例 1.5: パイプライン定義 JSON
+### Code Example 1.5: Pipeline Definition JSON
 
 ```json
 {
@@ -210,7 +210,7 @@ aws codepipeline retry-stage-execution \
           },
           "configuration": {
             "NotificationArn": "arn:aws:sns:ap-northeast-1:123456789012:deploy-approval",
-            "CustomData": "ステージング環境を確認してから承認してください"
+            "CustomData": "Please verify the staging environment before approving"
           }
         }]
       },
@@ -241,19 +241,19 @@ aws codepipeline retry-stage-execution \
 
 ## 3. CodeBuild
 
-### 3.1 CodeBuild の環境とコンピュートタイプ
+### 3.1 CodeBuild Environments and Compute Types
 
-| コンピュートタイプ | vCPU | メモリ | 月額目安（ビルド分） | 推奨用途 |
-|-------------------|------|--------|---------------------|---------|
-| BUILD_GENERAL1_SMALL | 2 | 3 GB | $0.005/分 | 軽量ビルド、Lint |
-| BUILD_GENERAL1_MEDIUM | 4 | 7 GB | $0.010/分 | 一般的なビルド |
-| BUILD_GENERAL1_LARGE | 8 | 15 GB | $0.020/分 | Docker ビルド |
-| BUILD_GENERAL1_XLARGE | 36 | 70 GB | $0.040/分 | 大規模ビルド |
-| BUILD_GENERAL1_2XLARGE | 72 | 145 GB | $0.080/分 | モノレポ |
-| BUILD_LAMBDA_1GB | 2 | 1 GB | $0.00375/分 | Lambda 環境 |
-| BUILD_LAMBDA_10GB | 2 | 10 GB | $0.01875/分 | Lambda 大 |
+| Compute Type | vCPU | Memory | Estimated Monthly Cost (per build minute) | Recommended Use |
+|--------------|------|--------|-------------------------------------------|-----------------|
+| BUILD_GENERAL1_SMALL | 2 | 3 GB | $0.005/min | Lightweight builds, Lint |
+| BUILD_GENERAL1_MEDIUM | 4 | 7 GB | $0.010/min | General builds |
+| BUILD_GENERAL1_LARGE | 8 | 15 GB | $0.020/min | Docker builds |
+| BUILD_GENERAL1_XLARGE | 36 | 70 GB | $0.040/min | Large-scale builds |
+| BUILD_GENERAL1_2XLARGE | 72 | 145 GB | $0.080/min | Monorepos |
+| BUILD_LAMBDA_1GB | 2 | 1 GB | $0.00375/min | Lambda environment |
+| BUILD_LAMBDA_10GB | 2 | 10 GB | $0.01875/min | Lambda (large) |
 
-### コード例 2: buildspec.yml の作成
+### Code Example 2: Creating a buildspec.yml
 
 ```yaml
 # buildspec.yml
@@ -337,10 +337,10 @@ cache:
     - "/root/.docker/**/*"
 ```
 
-### 3.2 マルチステージ buildspec（テストとビルドの分離）
+### 3.2 Multi-Stage buildspec (Separating Test and Build)
 
 ```yaml
-# buildspec-test.yml（テスト専用）
+# buildspec-test.yml (test-only)
 version: 0.2
 
 phases:
@@ -352,13 +352,13 @@ phases:
 
   build:
     commands:
-      # ユニットテスト
+      # Unit tests
       - pytest tests/unit/ -v --junitxml=reports/unit-test.xml
-      # 統合テスト
+      # Integration tests
       - pytest tests/integration/ -v --junitxml=reports/integration-test.xml
-      # カバレッジ
+      # Coverage
       - pytest tests/ --cov=src --cov-report=xml:reports/coverage.xml --cov-fail-under=80
-      # セキュリティスキャン
+      # Security scan
       - safety check --json --output reports/safety.json || true
       - bandit -r src/ -f json -o reports/bandit.json || true
 
@@ -378,7 +378,7 @@ reports:
 ```
 
 ```yaml
-# buildspec-build.yml（ビルド専用）
+# buildspec-build.yml (build-only)
 version: 0.2
 
 phases:
@@ -411,7 +411,7 @@ artifacts:
     - taskdef.json
 ```
 
-### コード例 3: CodeBuild プロジェクトの作成
+### Code Example 3: Creating a CodeBuild Project
 
 ```bash
 aws codebuild create-project \
@@ -431,10 +431,10 @@ aws codebuild create-project \
   --artifacts type=CODEPIPELINE
 ```
 
-### 3.3 CodeBuild のキャッシュ戦略
+### 3.3 CodeBuild Cache Strategies
 
 ```bash
-# S3 キャッシュ（ビルド間で共有）
+# S3 cache (shared across builds)
 aws codebuild update-project \
   --name my-app-build \
   --cache '{
@@ -442,7 +442,7 @@ aws codebuild update-project \
     "location": "my-codebuild-cache/my-app"
   }'
 
-# ローカルキャッシュ（同じビルドホスト内で共有）
+# Local cache (shared within the same build host)
 aws codebuild update-project \
   --name my-app-build \
   --cache '{
@@ -455,7 +455,7 @@ aws codebuild update-project \
   }'
 ```
 
-### 3.4 CodeBuild のバッチビルド
+### 3.4 CodeBuild Batch Builds
 
 ```yaml
 # buildspec-batch.yml
@@ -483,22 +483,22 @@ batch:
 
 ## 4. CodeDeploy
 
-### 図解 2: CodeDeploy のデプロイ戦略
+### Diagram 2: CodeDeploy Deployment Strategies
 
 ```
-1. In-Place (インプレース):
+1. In-Place:
    ┌────────┐  ┌────────┐  ┌────────┐
    │ EC2-1  │  │ EC2-2  │  │ EC2-3  │
    │  v1    │  │  v1    │  │  v1    │
    └───┬────┘  └────────┘  └────────┘
-       │ デプロイ
+       │ deploy
        ▼
    ┌────────┐  ┌────────┐  ┌────────┐
    │ EC2-1  │  │ EC2-2  │  │ EC2-3  │
    │  v2    │  │  v1    │  │  v1    │
    └────────┘  └───┬────┘  └────────┘
-                   │ デプロイ
-                   ▼ ... 順次実行
+                   │ deploy
+                   ▼ ... sequential
 
 2. Blue/Green (ECS):
    ┌─────────────────────────────────┐
@@ -511,7 +511,7 @@ batch:
    │  │100%  │    │ 0%   │         │
    │  └──────┘    └──────┘         │
    └─────────────────────────────────┘
-        │ トラフィック移行 (Linear/Canary/AllAtOnce)
+        │ traffic shift (Linear/Canary/AllAtOnce)
         ▼
    ┌─────────────────────────────────┐
    │            ALB                  │
@@ -524,12 +524,12 @@ batch:
    │  └──────┘    └──────┘         │
    └─────────────────────────────────┘
 
-3. Lambda (カナリア/リニア):
+3. Lambda (Canary/Linear):
    v1: 100% ──→ v1: 90% / v2: 10% ──→ v1: 0% / v2: 100%
    (Canary10Percent5Minutes / Linear10PercentEvery1Minute)
 ```
 
-### コード例 4: appspec.yml (ECS Blue/Green)
+### Code Example 4: appspec.yml (ECS Blue/Green)
 
 ```yaml
 # appspec.yml (ECS)
@@ -556,15 +556,15 @@ Hooks:
   - AfterAllowTraffic: "LambdaFunctionToRunSmokeTests"
 ```
 
-### 4.1 ECS Blue/Green デプロイの設定
+### 4.1 ECS Blue/Green Deployment Configuration
 
 ```bash
-# CodeDeploy アプリケーション作成
+# Create a CodeDeploy application
 aws deploy create-application \
   --application-name my-ecs-app \
   --compute-platform ECS
 
-# デプロイグループ作成（Canary デプロイ）
+# Create a deployment group (Canary deployment)
 aws deploy create-deployment-group \
   --application-name my-ecs-app \
   --deployment-group-name my-ecs-dg \
@@ -615,21 +615,21 @@ aws deploy create-deployment-group \
   }'
 ```
 
-### 4.2 デプロイ設定の比較
+### 4.2 Deployment Configuration Comparison
 
-| デプロイ設定名 | 戦略 | トラフィック移行 | 用途 |
-|---------------|------|----------------|------|
-| CodeDeployDefault.ECSAllAtOnce | 一括 | 即時 100% | 開発環境 |
-| CodeDeployDefault.ECSLinear10PercentEvery1Minute | リニア | 1分ごとに10% | テスト環境 |
-| CodeDeployDefault.ECSLinear10PercentEvery3Minutes | リニア | 3分ごとに10% | ステージング |
-| CodeDeployDefault.ECSCanary10Percent5Minutes | カナリア | 10%→5分待機→90% | 本番環境推奨 |
-| CodeDeployDefault.ECSCanary10Percent15Minutes | カナリア | 10%→15分待機→90% | 本番環境高安全 |
+| Deployment Config Name | Strategy | Traffic Shift | Use Case |
+|------------------------|----------|---------------|----------|
+| CodeDeployDefault.ECSAllAtOnce | All-at-once | Immediate 100% | Development environment |
+| CodeDeployDefault.ECSLinear10PercentEvery1Minute | Linear | 10% every 1 minute | Test environment |
+| CodeDeployDefault.ECSLinear10PercentEvery3Minutes | Linear | 10% every 3 minutes | Staging |
+| CodeDeployDefault.ECSCanary10Percent5Minutes | Canary | 10% → wait 5 min → 90% | Recommended for production |
+| CodeDeployDefault.ECSCanary10Percent15Minutes | Canary | 10% → wait 15 min → 90% | High-safety production |
 
-### 4.3 Lambda デプロイのライフサイクルフック
+### 4.3 Lambda Deployment Lifecycle Hooks
 
 ```python
 # hooks/validate_after_install.py
-"""CodeDeploy のライフサイクルフック: デプロイ後の検証"""
+"""CodeDeploy lifecycle hook: post-deployment validation"""
 import boto3
 import json
 import urllib3
@@ -643,7 +643,7 @@ def handler(event, context):
     lifecycle_event_hook_execution_id = event["LifecycleEventHookExecutionId"]
 
     try:
-        # ヘルスチェック
+        # Health check
         response = http.request("GET", "http://localhost:8080/health", timeout=10)
 
         if response.status == 200:
@@ -657,7 +657,7 @@ def handler(event, context):
         status = "Failed"
         print(f"Health check error: {str(e)}")
 
-    # 結果を CodeDeploy に報告
+    # Report result to CodeDeploy
     codedeploy.put_lifecycle_event_hook_execution_status(
         deploymentId=deployment_id,
         lifecycleEventHookExecutionId=lifecycle_event_hook_execution_id,
@@ -669,9 +669,9 @@ def handler(event, context):
 
 ---
 
-## 5. CDK による CodePipeline 構築
+## 5. Building CodePipeline with CDK
 
-### コード例 5: CDK でパイプラインを構築
+### Code Example 5: Building a Pipeline with CDK
 
 ```typescript
 import * as cdk from 'aws-cdk-lib';
@@ -698,7 +698,7 @@ export class PipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: PipelineStackProps) {
     super(scope, id, props);
 
-    // SNS トピック（通知用）
+    // SNS topic (for approval notifications)
     const approvalTopic = new sns.Topic(this, 'ApprovalTopic', {
       displayName: 'Deploy Approval Notifications',
     });
@@ -706,7 +706,7 @@ export class PipelineStack extends cdk.Stack {
       new sns_subscriptions.EmailSubscription(props.notificationEmail)
     );
 
-    // パイプライン失敗通知用
+    // SNS topic for pipeline failure notifications
     const failureTopic = new sns.Topic(this, 'FailureTopic', {
       displayName: 'Pipeline Failure Notifications',
     });
@@ -714,12 +714,12 @@ export class PipelineStack extends cdk.Stack {
       new sns_subscriptions.EmailSubscription(props.notificationEmail)
     );
 
-    // アーティファクト
+    // Artifacts
     const sourceOutput = new codepipeline.Artifact('SourceOutput');
     const buildOutput = new codepipeline.Artifact('BuildOutput');
     const testOutput = new codepipeline.Artifact('TestOutput');
 
-    // CodeBuild プロジェクト（テスト）
+    // CodeBuild project (test)
     const testProject = new codebuild.PipelineProject(this, 'TestProject', {
       projectName: 'my-app-test',
       buildSpec: codebuild.BuildSpec.fromSourceFilename('buildspec-test.yml'),
@@ -730,14 +730,14 @@ export class PipelineStack extends cdk.Stack {
       timeout: cdk.Duration.minutes(15),
     });
 
-    // CodeBuild プロジェクト（ビルド）
+    // CodeBuild project (build)
     const buildProject = new codebuild.PipelineProject(this, 'BuildProject', {
       projectName: 'my-app-build',
       buildSpec: codebuild.BuildSpec.fromSourceFilename('buildspec-build.yml'),
       environment: {
         buildImage: codebuild.LinuxBuildImage.STANDARD_7_0,
         computeType: codebuild.ComputeType.MEDIUM,
-        privileged: true, // Docker ビルドに必要
+        privileged: true, // Required for Docker builds
         environmentVariables: {
           ECR_REPO_URI: {
             value: props.ecrRepository.repositoryUri,
@@ -754,17 +754,17 @@ export class PipelineStack extends cdk.Stack {
       timeout: cdk.Duration.minutes(30),
     });
 
-    // ECR への push 権限
+    // Grant push permissions to ECR
     props.ecrRepository.grantPullPush(buildProject);
 
-    // パイプライン
+    // Pipeline
     const pipeline = new codepipeline.Pipeline(this, 'Pipeline', {
       pipelineName: 'my-app-pipeline',
       crossAccountKeys: false,
       restartExecutionOnUpdate: true,
     });
 
-    // ソースステージ
+    // Source stage
     pipeline.addStage({
       stageName: 'Source',
       actions: [
@@ -780,7 +780,7 @@ export class PipelineStack extends cdk.Stack {
       ],
     });
 
-    // テストステージ
+    // Test stage
     pipeline.addStage({
       stageName: 'Test',
       actions: [
@@ -793,7 +793,7 @@ export class PipelineStack extends cdk.Stack {
       ],
     });
 
-    // ビルドステージ
+    // Build stage
     pipeline.addStage({
       stageName: 'Build',
       actions: [
@@ -806,7 +806,7 @@ export class PipelineStack extends cdk.Stack {
       ],
     });
 
-    // ステージングデプロイ
+    // Staging deploy
     pipeline.addStage({
       stageName: 'Deploy-Staging',
       actions: [
@@ -818,20 +818,20 @@ export class PipelineStack extends cdk.Stack {
       ],
     });
 
-    // 手動承認
+    // Manual approval
     pipeline.addStage({
       stageName: 'Approval',
       actions: [
         new codepipeline_actions.ManualApprovalAction({
           actionName: 'Approve-Production',
           notificationTopic: approvalTopic,
-          additionalInformation: 'ステージング環境での動作確認が完了したら承認してください',
+          additionalInformation: 'Please approve after confirming the staging environment is working correctly',
           externalEntityUrl: 'https://staging.example.com',
         }),
       ],
     });
 
-    // 本番デプロイ
+    // Production deploy
     pipeline.addStage({
       stageName: 'Deploy-Production',
       actions: [
@@ -843,7 +843,7 @@ export class PipelineStack extends cdk.Stack {
       ],
     });
 
-    // パイプライン失敗時の通知
+    // Notification on pipeline failure
     pipeline.onStateChange('PipelineStateChange', {
       target: new events_targets.SnsTopic(failureTopic),
       eventPattern: {
@@ -858,18 +858,18 @@ export class PipelineStack extends cdk.Stack {
 
 ---
 
-## 6. Terraform での完全なパイプライン構築
+## 6. Complete Pipeline with Terraform
 
-### コード例 6: Terraform でパイプラインを構築
+### Code Example 6: Building a Pipeline with Terraform
 
 ```hcl
-# CodeStar Connection (GitHub 連携)
+# CodeStar Connection (GitHub integration)
 resource "aws_codestarconnections_connection" "github" {
   name          = "github-connection"
   provider_type = "GitHub"
 }
 
-# CodeBuild プロジェクト
+# CodeBuild project
 resource "aws_codebuild_project" "app" {
   name         = "my-app-build"
   service_role = aws_iam_role.codebuild.arn
@@ -927,7 +927,7 @@ resource "aws_codepipeline" "app" {
     }
   }
 
-  # ソースステージ
+  # Source stage
   stage {
     name = "Source"
     action {
@@ -947,7 +947,7 @@ resource "aws_codepipeline" "app" {
     }
   }
 
-  # ビルドステージ
+  # Build stage
   stage {
     name = "Build"
     action {
@@ -965,7 +965,7 @@ resource "aws_codepipeline" "app" {
     }
   }
 
-  # ステージングデプロイ
+  # Staging deploy
   stage {
     name = "Deploy-Staging"
     action {
@@ -984,7 +984,7 @@ resource "aws_codepipeline" "app" {
     }
   }
 
-  # 手動承認
+  # Manual approval
   stage {
     name = "Approval"
     action {
@@ -996,12 +996,12 @@ resource "aws_codepipeline" "app" {
 
       configuration = {
         NotificationArn = aws_sns_topic.approval.arn
-        CustomData      = "ステージング確認後、本番デプロイを承認してください"
+        CustomData      = "Please approve production deployment after verifying staging"
       }
     }
   }
 
-  # 本番デプロイ
+  # Production deploy
   stage {
     name = "Deploy-Production"
     action {
@@ -1021,10 +1021,10 @@ resource "aws_codepipeline" "app" {
   }
 }
 
-# パイプライン失敗時の EventBridge ルール
+# EventBridge rule for pipeline failures
 resource "aws_cloudwatch_event_rule" "pipeline_failure" {
   name        = "pipeline-failure-notification"
-  description = "パイプライン失敗時の通知"
+  description = "Notification on pipeline failure"
 
   event_pattern = jsonencode({
     source      = ["aws.codepipeline"]
@@ -1042,7 +1042,7 @@ resource "aws_cloudwatch_event_target" "pipeline_failure_sns" {
   arn       = aws_sns_topic.failure.arn
 }
 
-# IAM ロール: CodePipeline
+# IAM role: CodePipeline
 resource "aws_iam_role" "codepipeline" {
   name = "CodePipelineRole"
 
@@ -1126,65 +1126,65 @@ resource "aws_iam_role_policy" "codepipeline" {
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 比較表 1: AWS CI/CD サービス比較
+### Comparison Table 1: AWS CI/CD Services
 
-| 項目 | CodePipeline | CodeBuild | CodeDeploy | GitHub Actions |
+| Item | CodePipeline | CodeBuild | CodeDeploy | GitHub Actions |
 |------|-------------|-----------|------------|---------------|
-| **カテゴリ** | オーケストレーション | ビルド/テスト | デプロイ | CI/CD 統合 |
-| **実行環境** | AWS マネージド | AWS マネージド | エージェント | GitHub ホスト |
-| **課金** | パイプライン/月 | ビルド時間/分 | デプロイ/回 | 分単位 |
-| **GitHub 統合** | CodeStar Connection | Webhook | なし | ネイティブ |
-| **ECS デプロイ** | ECS アクション | なし | Blue/Green | aws-actions |
-| **Lambda デプロイ** | Lambda アクション | SAM deploy | カナリア | SAM CLI |
-| **承認ゲート** | あり | なし | なし | Environment Protection |
-| **パイプライン as Code** | JSON/CDK | buildspec.yml | appspec.yml | YAML workflow |
-| **セルフホストランナー** | なし | なし | EC2 エージェント | あり |
-| **並列実行** | ステージ内アクション | バッチビルド | なし | matrix |
+| **Category** | Orchestration | Build/Test | Deploy | CI/CD integrated |
+| **Runtime** | AWS managed | AWS managed | Agent-based | GitHub hosted |
+| **Billing** | Per pipeline/month | Per build minute | Per deployment | Per minute |
+| **GitHub integration** | CodeStar Connection | Webhook | None | Native |
+| **ECS deploy** | ECS action | None | Blue/Green | aws-actions |
+| **Lambda deploy** | Lambda action | SAM deploy | Canary | SAM CLI |
+| **Approval gates** | Yes | None | None | Environment Protection |
+| **Pipeline as Code** | JSON/CDK | buildspec.yml | appspec.yml | YAML workflow |
+| **Self-hosted runners** | None | None | EC2 agent | Yes |
+| **Parallel execution** | Actions within stage | Batch builds | None | matrix |
 
-### 比較表 2: デプロイ戦略比較
+### Comparison Table 2: Deployment Strategy Comparison
 
-| 戦略 | ダウンタイム | ロールバック | リスク | コスト |
-|------|-------------|-------------|--------|--------|
-| **All-at-once** | あり | 手動再デプロイ | 高 | 最低 |
-| **Rolling** | 最小 | 手動 | 中 | 低 |
-| **Blue/Green** | なし | 即座 (トラフィック切替) | 低 | 高 (2 倍のリソース) |
-| **Canary** | なし | 自動 (メトリクス判定) | 最低 | 中 |
-| **Linear** | なし | 自動 | 低 | 中 |
+| Strategy | Downtime | Rollback | Risk | Cost |
+|----------|----------|----------|------|------|
+| **All-at-once** | Yes | Manual redeploy | High | Lowest |
+| **Rolling** | Minimal | Manual | Medium | Low |
+| **Blue/Green** | None | Immediate (traffic switch) | Low | High (2x resources) |
+| **Canary** | None | Automatic (metric-based) | Lowest | Medium |
+| **Linear** | None | Automatic | Low | Medium |
 
-### 比較表 3: CodePipeline V1 vs V2
+### Comparison Table 3: CodePipeline V1 vs V2
 
-| 機能 | V1 | V2 |
-|------|-----|-----|
-| トリガーフィルタ | なし | ブランチ、ファイルパス、タグ |
-| 実行モード | SUPERSEDED のみ | QUEUED, SUPERSEDED, PARALLEL |
-| 変数 | 制限あり | ステージ間変数引き渡し |
-| 料金 | $1/パイプライン/月 | $1/パイプライン/月 + アクション料 |
-| Git タグトリガー | なし | あり |
+| Feature | V1 | V2 |
+|---------|-----|-----|
+| Trigger filters | None | Branch, file path, tag |
+| Execution modes | SUPERSEDED only | QUEUED, SUPERSEDED, PARALLEL |
+| Variables | Limited | Pass variables between stages |
+| Pricing | $1/pipeline/month | $1/pipeline/month + action fees |
+| Git tag triggers | None | Yes |
 
 ---
 
-## 8. 図解 3: GitHub Actions との連携パターン
+## 8. Diagram 3: GitHub Actions Integration Patterns
 
 ```
-パターン 1: GitHub Actions → AWS デプロイ
+Pattern 1: GitHub Actions → AWS Deploy
   ┌─────────────┐     ┌───────────────┐     ┌──────────┐
   │ GitHub      │     │ GitHub Actions│     │ AWS      │
   │ push/PR     │ ──→ │ Build & Test  │ ──→ │ ECS/     │
   │             │     │ Docker Build  │     │ Lambda   │
   └─────────────┘     └───────────────┘     └──────────┘
-  ※ OIDC で IAM ロール引き受け (アクセスキー不要)
+  * Assumes IAM role via OIDC (no access keys required)
 
-パターン 2: GitHub → CodePipeline
+Pattern 2: GitHub → CodePipeline
   ┌─────────────┐     ┌───────────────┐     ┌──────────┐
   │ GitHub      │     │ CodePipeline  │     │ AWS      │
   │ push        │ ──→ │ CodeBuild     │ ──→ │ CodeDeploy│
   │             │     │ (buildspec)   │     │ Blue/Green│
   └─────────────┘     └───────────────┘     └──────────┘
-  ※ CodeStar Connection で連携
+  * Connected via CodeStar Connection
 
-パターン 3: ハイブリッド
+Pattern 3: Hybrid
   ┌─────────────┐     ┌───────────────┐
   │ GitHub      │     │ GitHub Actions│
   │ push/PR     │ ──→ │ Lint & Test   │ ← CI (GitHub)
@@ -1198,7 +1198,7 @@ resource "aws_iam_role_policy" "codepipeline" {
   └─────────────┘
 ```
 
-### コード例 7: GitHub Actions で AWS にデプロイ
+### Code Example 7: Deploying to AWS with GitHub Actions
 
 ```yaml
 # .github/workflows/deploy.yml
@@ -1303,7 +1303,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```
 
-### コード例 8: OIDC プロバイダの設定（CloudFormation）
+### Code Example 8: Configuring the OIDC Provider (CloudFormation)
 
 ```yaml
 # github-oidc.yaml
@@ -1364,12 +1364,12 @@ Resources:
 
 ---
 
-## 9. パイプラインの監視とトラブルシューティング
+## 9. Pipeline Monitoring and Troubleshooting
 
-### 9.1 EventBridge によるパイプラインイベント監視
+### 9.1 Monitoring Pipeline Events with EventBridge
 
 ```bash
-# パイプラインの状態変更を監視するルール
+# Rule to monitor pipeline state changes
 aws events put-rule \
   --name "pipeline-state-change" \
   --event-pattern '{
@@ -1381,7 +1381,7 @@ aws events put-rule \
     }
   }'
 
-# Lambda をターゲットとして Slack 通知
+# Send Slack notification via Lambda target
 aws events put-targets \
   --rule "pipeline-state-change" \
   --targets '[{
@@ -1390,7 +1390,7 @@ aws events put-targets \
   }]'
 ```
 
-### 9.2 Slack 通知 Lambda
+### 9.2 Slack Notification Lambda
 
 ```python
 # slack_notify.py
@@ -1452,10 +1452,10 @@ def handler(event, context):
     return {"statusCode": response.status}
 ```
 
-### 9.3 CloudWatch ダッシュボード
+### 9.3 CloudWatch Dashboard
 
 ```bash
-# パイプラインのメトリクスダッシュボード作成
+# Create a metrics dashboard for the pipeline
 aws cloudwatch put-dashboard \
   --dashboard-name "CICD-Dashboard" \
   --dashboard-body '{
@@ -1504,48 +1504,48 @@ aws cloudwatch put-dashboard \
   }'
 ```
 
-### 9.4 よくあるトラブルシューティング
+### 9.4 Common Troubleshooting
 
-| 問題 | 原因 | 解決策 |
-|------|------|--------|
-| Source ステージ失敗 | CodeStar Connection が保留状態 | AWS コンソールで接続を手動承認 |
-| Build ステージタイムアウト | Docker ビルドが遅い | キャッシュ有効化、コンピュートタイプ変更 |
-| Deploy ステージ失敗 | タスク定義のイメージ不一致 | imagedefinitions.json の形式確認 |
-| 権限エラー | IAM ロール不足 | CodePipeline/CodeBuild ロールにポリシー追加 |
-| アーティファクト S3 エラー | バケットポリシー | KMS キーポリシーと S3 バケットポリシー確認 |
-| ECS サービス不安定 | ヘルスチェック失敗 | ターゲットグループのヘルスチェック設定確認 |
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Source stage failure | CodeStar Connection is in pending state | Manually approve the connection in the AWS console |
+| Build stage timeout | Docker build is slow | Enable caching, change compute type |
+| Deploy stage failure | Task definition image mismatch | Verify the format of imagedefinitions.json |
+| Permission error | Insufficient IAM role | Add policies to CodePipeline/CodeBuild roles |
+| Artifact S3 error | Bucket policy issue | Check KMS key policy and S3 bucket policy |
+| ECS service instability | Health check failure | Verify target group health check settings |
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: 本番直接デプロイ（承認ゲートなし）
-
-```
-[悪い例]
-  Source → Build → Deploy (本番)
-  → テストなし、承認なし
-  → バグが即座に本番に到達
-
-[良い例]
-  Source → Build → Test → Deploy(Staging) → 手動承認 → Deploy(Production)
-  → ステージング環境で動作確認
-  → 手動承認で人間のチェックを挟む
-  → 問題があればパイプラインを停止
-```
-
-### アンチパターン 2: ビルドのシークレットをハードコード
+### Anti-Pattern 1: Direct Production Deploy (No Approval Gate)
 
 ```
-[悪い例]
+[Bad]
+  Source → Build → Deploy (production)
+  → No tests, no approval
+  → Bugs reach production immediately
+
+[Good]
+  Source → Build → Test → Deploy(Staging) → Manual Approval → Deploy(Production)
+  → Verify behavior in staging environment
+  → Insert human review via manual approval
+  → Stop the pipeline if issues are found
+```
+
+### Anti-Pattern 2: Hardcoding Secrets in Builds
+
+```
+[Bad]
   # buildspec.yml
   phases:
     build:
       commands:
-        - export DB_PASSWORD="MySecret123"  # ハードコード！
-        - export API_KEY="sk-abc123"         # バージョン管理される！
+        - export DB_PASSWORD="MySecret123"  # Hardcoded!
+        - export API_KEY="sk-abc123"         # Goes into version control!
 
-[良い例]
+[Good]
   # buildspec.yml
   env:
     parameter-store:
@@ -1553,7 +1553,7 @@ aws cloudwatch put-dashboard \
     secrets-manager:
       API_KEY: myapp/api-key:API_KEY
 
-  # または CodeBuild の環境変数で Parameter Store を参照
+  # Or reference Parameter Store via CodeBuild environment variables
   aws codebuild update-project \
     --name my-build \
     --environment '{
@@ -1565,122 +1565,122 @@ aws cloudwatch put-dashboard \
     }'
 ```
 
-### アンチパターン 3: パイプラインの IAM ロールに広すぎる権限
+### Anti-Pattern 3: Overly Broad IAM Permissions for the Pipeline Role
 
 ```
-[悪い例]
+[Bad]
   {
     "Effect": "Allow",
     "Action": "*",
     "Resource": "*"
   }
-  → 全サービスへの全操作が可能
-  → セキュリティリスクが極めて高い
+  → All operations on all services are permitted
+  → Extremely high security risk
 
-[良い例]
-  パイプラインのロール:
-  - codepipeline:* → 自パイプラインのみ
-  - s3:GetObject/PutObject → アーティファクトバケットのみ
-  - codebuild:StartBuild → 指定プロジェクトのみ
+[Good]
+  Pipeline role:
+  - codepipeline:* → own pipeline only
+  - s3:GetObject/PutObject → artifact bucket only
+  - codebuild:StartBuild → specified project only
 
-  CodeBuild のロール:
-  - ecr:GetAuthorizationToken, ecr:BatchGetImage → 指定リポジトリのみ
-  - logs:CreateLogGroup, PutLogEvents → 指定ロググループのみ
-  - s3:GetObject → キャッシュバケットのみ
+  CodeBuild role:
+  - ecr:GetAuthorizationToken, ecr:BatchGetImage → specified repository only
+  - logs:CreateLogGroup, PutLogEvents → specified log group only
+  - s3:GetObject → cache bucket only
 ```
 
-### アンチパターン 4: テストなしの自動デプロイ
+### Anti-Pattern 4: Automatic Deploy Without Tests
 
 ```
-[悪い例]
+[Bad]
   Source → Build → Deploy
-  → コンパイルは通るがテストなし
-  → ランタイムエラーが本番で発覚
+  → Compiles but no tests
+  → Runtime errors discovered in production
 
-[良い例]
+[Good]
   Source → Lint → Unit Test → Integration Test → Build → Deploy
-  → リンターで静的解析
-  → ユニットテストでロジック検証
-  → 統合テストで外部サービス連携検証
-  → テストカバレッジ閾値でゲート
+  → Static analysis with linter
+  → Logic verification with unit tests
+  → External service integration verification with integration tests
+  → Gate on test coverage threshold
 ```
 
 ---
 
 ## 11. FAQ
 
-### Q1: CodePipeline と GitHub Actions のどちらを使うべきですか？
+### Q1: Should I use CodePipeline or GitHub Actions?
 
-**A:** チームが GitHub を中心に開発しているなら GitHub Actions で CI/CD を完結させるのが効率的。AWS サービス（ECS Blue/Green、CodeDeploy Canary）の高度なデプロイ機能を使いたい場合は CodePipeline を選択するか、GitHub Actions の CI + CodePipeline の CD のハイブリッド構成を推奨する。OIDC 連携を使えば GitHub Actions から安全に AWS にデプロイできる。
+**A:** If your team develops around GitHub, it is more efficient to handle CI/CD entirely in GitHub Actions. If you need advanced deployment features from AWS services (ECS Blue/Green, CodeDeploy Canary), choose CodePipeline or a hybrid setup with GitHub Actions for CI and CodePipeline for CD. Using OIDC integration allows you to deploy to AWS from GitHub Actions securely.
 
-### Q2: パイプラインが失敗した場合のロールバック方法は？
+### Q2: How do I roll back when a pipeline fails?
 
-**A:** ECS Blue/Green デプロイの場合、CodeDeploy がヘルスチェック失敗を検知すると自動ロールバックする。手動ロールバックは `aws deploy stop-deployment` で実行する。Lambda のカナリアデプロイも CloudWatch アラームに基づく自動ロールバックが可能。EC2 の In-Place デプロイではロールバックが難しいため、Blue/Green を推奨する。
+**A:** For ECS Blue/Green deployments, CodeDeploy automatically rolls back when it detects health check failures. Manual rollback can be performed with `aws deploy stop-deployment`. Lambda canary deployments also support automatic rollback based on CloudWatch alarms. For EC2 In-Place deployments, rollback is difficult, so Blue/Green is recommended.
 
-### Q3: ビルド時間を短縮するにはどうすればよいですか？
+### Q3: How can I shorten build times?
 
-**A:** (1) CodeBuild のキャッシュ（S3 または ローカルキャッシュ）で依存関係のダウンロードを省略、(2) マルチステージ Docker ビルドでレイヤーキャッシュを活用、(3) CodeBuild のコンピュートタイプを上げる（MEDIUM → LARGE）、(4) テストの並列実行、(5) 変更されたパッケージのみをビルドするモノレポ戦略を導入する。
+**A:** (1) Use CodeBuild caching (S3 or local cache) to skip downloading dependencies, (2) leverage layer caching with multi-stage Docker builds, (3) increase the CodeBuild compute type (MEDIUM → LARGE), (4) run tests in parallel, (5) adopt a monorepo strategy that builds only changed packages.
 
-### Q4: CodePipeline V2 に移行すべきですか？
+### Q4: Should I migrate to CodePipeline V2?
 
-**A:** ブランチフィルタやファイルパスフィルタが必要な場合、またはパイプライン実行のキューイングが必要な場合は V2 への移行を推奨する。V2 ではトリガーの柔軟性が大幅に向上しており、不要なパイプライン実行を削減できる。既存の V1 パイプラインは引き続きサポートされるため、新規作成時に V2 を選択するのが最も自然な移行パスとなる。
+**A:** Migration to V2 is recommended if you need branch filters, file path filters, or pipeline execution queuing. V2 significantly improves trigger flexibility, reducing unnecessary pipeline executions. Existing V1 pipelines continue to be supported, so choosing V2 for new pipelines is the most natural migration path.
 
-### Q5: モノレポでのパイプライン設計はどうすべきですか？
+### Q5: How should I design a pipeline for a monorepo?
 
-**A:** CodePipeline V2 のファイルパスフィルタを使い、変更されたディレクトリに応じて異なるパイプラインをトリガーする設計が推奨される。または、CodeBuild のバッチビルドで変更検知ロジックを実装し、影響を受けるサービスのみをビルド・デプロイする。GitHub Actions の場合は `paths` フィルタとマトリクスビルドの組み合わせが効果的である。
+**A:** The recommended approach is to use CodePipeline V2 file path filters to trigger different pipelines based on which directory changed. Alternatively, implement change detection logic in CodeBuild batch builds to build and deploy only affected services. For GitHub Actions, combining `paths` filters with matrix builds is effective.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to understand when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend fully understanding the basic concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| パイプライン構成 | Source → Build → Test → Staging → Approval → Production |
-| ソース統合 | GitHub は CodeStar Connection で連携。OIDC 認証推奨 |
-| ビルド | CodeBuild の buildspec.yml で定義。キャッシュで高速化 |
-| デプロイ戦略 | 本番は Blue/Green またはカナリア。ロールバック自動化 |
-| シークレット | Parameter Store / Secrets Manager から参照。ハードコード禁止 |
-| 承認ゲート | 本番デプロイ前に手動承認ステージを設置 |
-| 監視 | EventBridge + CloudWatch でパイプライン失敗を通知 |
-| CDK 統合 | CDK Pipelines でセルフミューテーションパイプラインを構築 |
-| IAM | 最小権限の原則。パイプライン/CodeBuild 各ロールに必要最小限の権限 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [00-iam-deep-dive.md](../08-security/00-iam-deep-dive.md) — パイプラインの IAM ロール設計
-- [01-secrets-management.md](../08-security/01-secrets-management.md) — ビルド時のシークレット管理
-- [00-cost-optimization.md](../09-cost/00-cost-optimization.md) — CI/CD コストの最適化
+| Item | Key Points |
+|------|------------|
+| Pipeline structure | Source → Build → Test → Staging → Approval → Production |
+| Source integration | Connect GitHub via CodeStar Connection. OIDC authentication recommended |
+| Build | Defined in CodeBuild's buildspec.yml. Use caching to speed up |
+| Deployment strategy | Use Blue/Green or Canary for production. Automate rollback |
+| Secrets | Reference from Parameter Store / Secrets Manager. Never hardcode |
+| Approval gate | Add a manual approval stage before production deployment |
+| Monitoring | Notify on pipeline failures with EventBridge + CloudWatch |
+| CDK integration | Build self-mutating pipelines with CDK Pipelines |
+| IAM | Principle of least privilege. Grant only necessary permissions to pipeline/CodeBuild roles |
 
 ---
 
-## 参考文献
+## Further Reading
 
-1. **AWS 公式ドキュメント** — AWS CodePipeline ユーザーガイド
+- [00-iam-deep-dive.md](../08-security/00-iam-deep-dive.md) — IAM role design for pipelines
+- [01-secrets-management.md](../08-security/01-secrets-management.md) — Managing secrets during builds
+- [00-cost-optimization.md](../09-cost/00-cost-optimization.md) — Optimizing CI/CD costs
+
+---
+
+## References
+
+1. **AWS Official Documentation** — AWS CodePipeline User Guide
    https://docs.aws.amazon.com/codepipeline/latest/userguide/
-2. **AWS CodeBuild ユーザーガイド** — buildspec リファレンスとベストプラクティス
+2. **AWS CodeBuild User Guide** — buildspec reference and best practices
    https://docs.aws.amazon.com/codebuild/latest/userguide/
-3. **GitHub Actions — AWS デプロイ** — OIDC と aws-actions の公式ガイド
+3. **GitHub Actions — AWS Deploy** — Official guide for OIDC and aws-actions
    https://docs.github.com/en/actions/deployment/deploying-to-aws
-4. **AWS CDK Pipelines** — CDK Pipelines のデベロッパーガイド
+4. **AWS CDK Pipelines** — Developer guide for CDK Pipelines
    https://docs.aws.amazon.com/cdk/v2/guide/cdk_pipeline.html
-5. **AWS CodeDeploy** — Blue/Green デプロイの設定ガイド
+5. **AWS CodeDeploy** — Blue/Green deployment configuration guide
    https://docs.aws.amazon.com/codedeploy/latest/userguide/
