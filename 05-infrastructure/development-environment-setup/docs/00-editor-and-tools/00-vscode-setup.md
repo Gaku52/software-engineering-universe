@@ -1,37 +1,37 @@
-# VS Code セットアップ
+# VS Code Setup
 
-> Visual Studio Code のインストールから実践的なカスタマイズまで、開発生産性を最大化するための完全ガイド。
+> A complete guide to maximizing development productivity — from installing Visual Studio Code to practical customization.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. VS Code のインストール・初期設定・設定同期を正しく構成する方法
-2. 開発効率を飛躍的に向上させる拡張機能の選定と管理手法
-3. マルチカーソル・スニペット・キーバインドを使いこなす実践テクニック
-4. ワークスペース設定を活用したチーム統一環境の構築方法
-5. デバッグ・タスク・リモート開発の実践的な構成手法
-6. パフォーマンス最適化とトラブルシューティングの体系的アプローチ
+1. How to correctly configure VS Code installation, initial settings, and settings sync
+2. Techniques for selecting and managing extensions that dramatically improve development efficiency
+3. Practical techniques for mastering multi-cursor, snippets, and key bindings
+4. How to build a unified team environment using workspace settings
+5. Practical configuration methods for debugging, tasks, and remote development
+6. A systematic approach to performance optimization and troubleshooting
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. インストールと初期設定
+## 1. Installation and Initial Setup
 
-### 1.1 プラットフォーム別インストール
+### 1.1 Platform-specific Installation
 
 ```bash
 # macOS (Homebrew)
 brew install --cask visual-studio-code
 
-# macOS (手動ダウンロード後、CLI でバージョン確認)
-# https://code.visualstudio.com/download からダウンロード
-# /Applications/Visual Studio Code.app にドラッグ&ドロップ
+# macOS (after manual download, check version via CLI)
+# Download from https://code.visualstudio.com/download
+# Drag & drop to /Applications/Visual Studio Code.app
 
 # Ubuntu/Debian
 sudo apt install wget gpg
@@ -56,17 +56,17 @@ scoop bucket add extras
 scoop install vscode
 ```
 
-### 1.2 CLI ツール `code` の有効化
+### 1.2 Enabling the `code` CLI Tool
 
-macOS では手動でパスを通す必要がある場合がある。
+On macOS, you may need to manually add the path.
 
 ```
-コマンドパレット (Cmd+Shift+P)
+Command Palette (Cmd+Shift+P)
   → "Shell Command: Install 'code' command in PATH"
-    → 完了
+    → Done
 ```
 
-確認:
+Verify:
 
 ```bash
 code --version
@@ -75,54 +75,54 @@ code --version
 # arm64
 ```
 
-CLI の便利な使い方:
+Useful CLI usage:
 
 ```bash
-# カレントディレクトリを VS Code で開く
+# Open current directory in VS Code
 code .
 
-# 特定ファイルを開く
+# Open a specific file
 code src/index.ts
 
-# 差分表示
+# Show diff
 code --diff file1.ts file2.ts
 
-# 特定の行にジャンプして開く
+# Open and jump to a specific line
 code --goto src/app.ts:42:10
 
-# 拡張機能のインストール
+# Install an extension
 code --install-extension dbaeumer.vscode-eslint
 
-# 拡張機能の一覧表示
+# List extensions
 code --list-extensions
 
-# 拡張機能のアンインストール
+# Uninstall an extension
 code --uninstall-extension <extension-id>
 
-# 新しいウィンドウで開く
+# Open in a new window
 code --new-window .
 
-# 既存ウィンドウに追加
+# Add to existing window
 code --add /path/to/another/folder
 
-# ユーザーデータディレクトリを指定して起動（ポータブル運用）
+# Launch with a specified user data directory (portable mode)
 code --user-data-dir /path/to/portable-data .
 
-# 拡張機能を無効にして起動（トラブルシュート）
+# Launch with extensions disabled (troubleshooting)
 code --disable-extensions .
 
-# 拡張機能のバージョン指定インストール
+# Install a specific version of an extension
 code --install-extension dbaeumer.vscode-eslint@2.4.0
 
-# VS Code のログレベル指定
+# Specify VS Code log level
 code --log trace
 ```
 
-### 1.3 アーキテクチャ概要
+### 1.3 Architecture Overview
 
 ```
 +--------------------------------------------------+
-|                VS Code アーキテクチャ               |
+|                VS Code Architecture               |
 +--------------------------------------------------+
 |  UI Layer (Electron)                              |
 |  +--------------------------------------------+  |
@@ -132,11 +132,11 @@ code --log trace
 |  |  Status Bar    | Panel (Terminal/Output)    |  |
 |  +--------------------------------------------+  |
 |                                                    |
-|  Extension Host (Node.js プロセス)                 |
+|  Extension Host (Node.js process)                 |
 |  +--------------------------------------------+  |
 |  |  Language Server Protocol (LSP)             |  |
 |  |  Debug Adapter Protocol (DAP)               |  |
-|  |  拡張機能 API                                |  |
+|  |  Extension API                              |  |
 |  +--------------------------------------------+  |
 |                                                    |
 |  Workspace Storage / Settings                     |
@@ -146,7 +146,7 @@ code --log trace
 |  +--------------------------------------------+  |
 +--------------------------------------------------+
 
-プロセスモデル:
+Process model:
 ┌──────────────────────────────────────────────────┐
 │  Main Process (Electron)                          │
 │  ├── Renderer Process (UI / Monaco Editor)        │
@@ -154,43 +154,43 @@ code --log trace
 │  │   ├── Language Extension (TypeScript, Python)  │
 │  │   ├── Linter Extension (ESLint)                │
 │  │   └── Theme Extension                          │
-│  ├── Shared Process (拡張機能管理, Settings Sync) │
+│  ├── Shared Process (Extension management, Settings Sync) │
 │  ├── File Watcher Process (chokidar)              │
 │  ├── Search Process (ripgrep)                     │
 │  └── Terminal Process (pty)                       │
 └──────────────────────────────────────────────────┘
 ```
 
-### 1.4 初回起動時にやるべきこと
+### 1.4 Things to Do on First Launch
 
 ```
-VS Code 初回セットアップチェックリスト:
+VS Code Initial Setup Checklist:
 
-□ 1. Settings Sync を有効化（GitHub アカウント連携）
-□ 2. カラーテーマの選択
-     コマンドパレット → "Preferences: Color Theme"
-□ 3. フォントのインストール・設定
+□ 1. Enable Settings Sync (link with GitHub account)
+□ 2. Select a color theme
+     Command Palette → "Preferences: Color Theme"
+□ 3. Install and configure fonts
      - JetBrains Mono: https://www.jetbrains.com/lp/mono/
      - Fira Code: https://github.com/tonsky/FiraCode
-□ 4. 日本語 UI（必要な場合）
-     拡張機能: MS-CEINTL.vscode-language-pack-ja
-□ 5. デフォルトターミナルシェルの設定
-□ 6. code CLI コマンドのパス登録（macOS）
-□ 7. プロジェクト固有拡張機能のインストール
-□ 8. .vscode フォルダの確認・設定
+□ 4. Japanese UI (if needed)
+     Extension: MS-CEINTL.vscode-language-pack-ja
+□ 5. Set the default terminal shell
+□ 6. Register the code CLI command in PATH (macOS)
+□ 7. Install project-specific extensions
+□ 8. Review and configure the .vscode folder
 ```
 
 ---
 
-## 2. 設定ファイル（settings.json）
+## 2. Settings File (settings.json)
 
-### 2.1 推奨初期設定（詳細版）
+### 2.1 Recommended Initial Settings (Detailed Version)
 
 ```jsonc
-// .vscode/settings.json (ワークスペース設定)
+// .vscode/settings.json (workspace settings)
 {
   // ===================================
-  // エディタ基本設定
+  // Editor Basic Settings
   // ===================================
   "editor.fontSize": 14,
   "editor.fontFamily": "'JetBrains Mono', 'Fira Code', Menlo, monospace",
@@ -219,7 +219,7 @@ VS Code 初回セットアップチェックリスト:
   "editor.unicodeHighlight.ambiguousCharacters": true,
 
   // ===================================
-  // 保存時の自動処理
+  // Auto-processing on Save
   // ===================================
   "editor.formatOnSave": true,
   "editor.formatOnPaste": false,
@@ -230,7 +230,7 @@ VS Code 初回セットアップチェックリスト:
   },
 
   // ===================================
-  // ファイル設定
+  // File Settings
   // ===================================
   "files.autoSave": "onFocusChange",
   "files.trimTrailingWhitespace": true,
@@ -260,7 +260,7 @@ VS Code 初回セットアップチェックリスト:
   },
 
   // ===================================
-  // ターミナル設定
+  // Terminal Settings
   // ===================================
   "terminal.integrated.fontSize": 13,
   "terminal.integrated.fontFamily": "'JetBrains Mono', 'MesloLGS NF', monospace",
@@ -273,7 +273,7 @@ VS Code 初回セットアップチェックリスト:
   },
 
   // ===================================
-  // 検索設定
+  // Search Settings
   // ===================================
   "search.exclude": {
     "**/node_modules": true,
@@ -290,7 +290,7 @@ VS Code 初回セットアップチェックリスト:
   "search.smartCase": true,
 
   // ===================================
-  // Explorer 設定
+  // Explorer Settings
   // ===================================
   "explorer.confirmDelete": false,
   "explorer.confirmDragAndDrop": false,
@@ -307,7 +307,7 @@ VS Code 初回セットアップチェックリスト:
   },
 
   // ===================================
-  // 言語固有設定
+  // Language-specific Settings
   // ===================================
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
@@ -370,7 +370,7 @@ VS Code 初回セットアップチェックリスト:
   },
 
   // ===================================
-  // Git 設定
+  // Git Settings
   // ===================================
   "git.autofetch": true,
   "git.confirmSync": false,
@@ -379,7 +379,7 @@ VS Code 初回セットアップチェックリスト:
   "diffEditor.ignoreTrimWhitespace": false,
 
   // ===================================
-  // ワークベンチ設定
+  // Workbench Settings
   // ===================================
   "workbench.startupEditor": "none",
   "workbench.editor.enablePreview": true,
@@ -391,7 +391,7 @@ VS Code 初回セットアップチェックリスト:
   "workbench.editor.tabSizing": "shrink",
 
   // ===================================
-  // Breadcrumbs（パンくずリスト）
+  // Breadcrumbs
   // ===================================
   "breadcrumbs.enabled": true,
   "breadcrumbs.filePath": "on",
@@ -399,10 +399,10 @@ VS Code 初回セットアップチェックリスト:
 }
 ```
 
-### 2.2 設定の優先順位
+### 2.2 Settings Priority
 
 ```
-高 ← ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ → 低
+High ← ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ → Low
 
   Workspace      >    User       >   Default
   Folder              Settings       Settings
@@ -410,24 +410,24 @@ VS Code 初回セットアップチェックリスト:
    settings.json)      Code/User/
                        settings.json)
 
-※ Workspace 設定が User 設定を上書きする
-※ マルチルートワークスペースでは Folder 設定が最優先
-※ 言語固有設定（[typescript] など）は同レベルの汎用設定より優先
+* Workspace settings override User settings
+* In a multi-root workspace, Folder settings take the highest priority
+* Language-specific settings (e.g., [typescript]) take priority over general settings at the same level
 
-詳細な優先順位チェーン:
-  1. 言語固有ワークスペースフォルダ設定
-  2. ワークスペースフォルダ設定
-  3. 言語固有ワークスペース設定
-  4. ワークスペース設定
-  5. 言語固有ユーザー設定
-  6. ユーザー設定
-  7. デフォルト設定
+Detailed priority chain:
+  1. Language-specific workspace folder settings
+  2. Workspace folder settings
+  3. Language-specific workspace settings
+  4. Workspace settings
+  5. Language-specific user settings
+  6. User settings
+  7. Default settings
 ```
 
-### 2.3 マルチルートワークスペース設定
+### 2.3 Multi-root Workspace Settings
 
 ```jsonc
-// workspace.code-workspace（マルチルート構成ファイル）
+// workspace.code-workspace (multi-root configuration file)
 {
   "folders": [
     {
@@ -448,7 +448,7 @@ VS Code 初回セットアップチェックリスト:
     }
   ],
   "settings": {
-    // ワークスペース全体に適用される設定
+    // Settings applied to the entire workspace
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "search.exclude": {
@@ -456,7 +456,7 @@ VS Code 初回セットアップチェックリスト:
       "**/dist": true,
       "**/coverage": true
     },
-    // フォルダ固有の設定は各フォルダの .vscode/settings.json に記述
+    // Folder-specific settings are written in each folder's .vscode/settings.json
     "files.exclude": {
       "**/.git": true,
       "**/node_modules": true
@@ -471,85 +471,85 @@ VS Code 初回セットアップチェックリスト:
 }
 ```
 
-### 2.4 設定のエクスポート・インポート
+### 2.4 Exporting and Importing Settings
 
 ```bash
-# 現在の設定を確認
+# Check current settings
 cat ~/Library/Application\ Support/Code/User/settings.json
 
-# 拡張機能一覧をエクスポート
+# Export extension list
 code --list-extensions > vscode-extensions.txt
 
-# 拡張機能を一括インストール
+# Batch install extensions
 cat vscode-extensions.txt | xargs -L 1 code --install-extension
 
-# プロファイルのエクスポート（CLI）
-# コマンドパレット → "Profiles: Export Profile" でも可能
+# Export profile (CLI)
+# Also available via Command Palette → "Profiles: Export Profile"
 ```
 
 ---
 
-## 3. 推奨拡張機能リスト
+## 3. Recommended Extensions List
 
-### 3.1 カテゴリ別一覧（詳細版）
+### 3.1 Categorized List (Detailed Version)
 
-| カテゴリ | 拡張機能 | ID | 用途 |
+| Category | Extension | ID | Purpose |
 |---------|---------|-----|------|
-| **言語サポート** | ESLint | `dbaeumer.vscode-eslint` | JavaScript/TypeScript リント |
-| | Prettier | `esbenp.prettier-vscode` | コードフォーマッタ |
-| | Python | `ms-python.python` | Python 言語サポート |
-| | Pylance | `ms-python.vscode-pylance` | Python 高速型チェック |
-| | Black Formatter | `ms-python.black-formatter` | Python フォーマッタ |
-| | Rust Analyzer | `rust-lang.rust-analyzer` | Rust 言語サポート |
-| | Go | `golang.go` | Go 言語サポート |
-| | C/C++ | `ms-vscode.cpptools` | C/C++ 言語サポート |
-| **TypeScript** | Pretty TypeScript Errors | `yoavbls.pretty-ts-errors` | TS エラーを読みやすく |
-| | TypeScript Importer | `pmneo.tsimporter` | 自動 import |
-| | Total TypeScript | `mattpocock.ts-error-translator` | TSエラー日本語化 |
-| **Git** | GitLens | `eamodio.gitlens` | Git 履歴・blame 表示 |
-| | Git Graph | `mhutchie.git-graph` | ブランチグラフ可視化 |
-| | Conventional Commits | `vivaxy.vscode-conventional-commits` | コミットメッセージ補助 |
-| **AI** | GitHub Copilot | `github.copilot` | AI コード補完 |
-| | GitHub Copilot Chat | `github.copilot-chat` | AI チャット |
-| **開発効率** | Error Lens | `usernamehw.errorlens` | インラインエラー表示 |
-| | TODO Highlight | `wayou.vscode-todo-highlight` | TODO/FIXME ハイライト |
-| | Path Intellisense | `christian-kohler.path-intellisense` | パス自動補完 |
-| | Auto Rename Tag | `formulahendry.auto-rename-tag` | HTML/JSX タグ連動変更 |
-| | Code Spell Checker | `streetsidesoftware.code-spell-checker` | スペルチェック |
-| | Better Comments | `aaron-bond.better-comments` | コメント色分け |
-| | Bookmarks | `alefragnani.bookmarks` | コードにブックマーク |
-| | Import Cost | `wix.vscode-import-cost` | import サイズ表示 |
-| **テスト** | Jest Runner | `firsttris.vscode-jest-runner` | Jest テスト実行 |
-| | Vitest | `vitest.explorer` | Vitest テスト実行 |
-| | Test Explorer UI | `hbenl.vscode-test-explorer` | テスト統合 UI |
-| **外観** | Material Icon Theme | `pkief.material-icon-theme` | ファイルアイコン |
-| | One Dark Pro | `zhuangtongfa.material-theme` | カラーテーマ |
-| | GitHub Theme | `github.github-vscode-theme` | GitHub 風テーマ |
-| | Catppuccin | `catppuccin.catppuccin-vsc` | パステルテーマ |
-| | Indent Rainbow | `oderwat.indent-rainbow` | インデント可視化 |
-| **コンテナ** | Dev Containers | `ms-vscode-remote.remote-containers` | Docker 開発環境 |
-| | Docker | `ms-azuretools.vscode-docker` | Docker 管理 |
-| **リモート** | Remote - SSH | `ms-vscode-remote.remote-ssh` | SSH リモート開発 |
-| | Remote - WSL | `ms-vscode-remote.remote-wsl` | WSL 連携 |
-| | Remote - Tunnels | `ms-vscode.remote-server` | トンネル接続 |
-| **データ** | Thunder Client | `rangav.vscode-thunder-client` | REST API クライアント |
-| | Database Client | `cweijan.vscode-database-client2` | DB クライアント |
-| | YAML | `redhat.vscode-yaml` | YAML バリデーション |
-| | DotENV | `mikestead.dotenv` | .env ハイライト |
-| **Markdown** | Markdown All in One | `yzhang.markdown-all-in-one` | Markdown 拡張 |
-| | Markdown Preview Enhanced | `shd101wyy.markdown-preview-enhanced` | Markdown プレビュー |
-| | Mermaid Preview | `bierner.markdown-mermaid` | Mermaid 図表プレビュー |
-| **CSS/HTML** | Tailwind CSS IntelliSense | `bradlc.vscode-tailwindcss` | Tailwind 補完 |
-| | CSS Peek | `pranaygp.vscode-css-peek` | CSS 定義へジャンプ |
-| | HTML CSS Support | `ecmel.vscode-html-css` | HTML/CSS 補完 |
+| **Language Support** | ESLint | `dbaeumer.vscode-eslint` | JavaScript/TypeScript linting |
+| | Prettier | `esbenp.prettier-vscode` | Code formatter |
+| | Python | `ms-python.python` | Python language support |
+| | Pylance | `ms-python.vscode-pylance` | Fast Python type checking |
+| | Black Formatter | `ms-python.black-formatter` | Python formatter |
+| | Rust Analyzer | `rust-lang.rust-analyzer` | Rust language support |
+| | Go | `golang.go` | Go language support |
+| | C/C++ | `ms-vscode.cpptools` | C/C++ language support |
+| **TypeScript** | Pretty TypeScript Errors | `yoavbls.pretty-ts-errors` | Makes TS errors readable |
+| | TypeScript Importer | `pmneo.tsimporter` | Auto import |
+| | Total TypeScript | `mattpocock.ts-error-translator` | TS error translation |
+| **Git** | GitLens | `eamodio.gitlens` | Git history and blame display |
+| | Git Graph | `mhutchie.git-graph` | Branch graph visualization |
+| | Conventional Commits | `vivaxy.vscode-conventional-commits` | Commit message assistance |
+| **AI** | GitHub Copilot | `github.copilot` | AI code completion |
+| | GitHub Copilot Chat | `github.copilot-chat` | AI chat |
+| **Productivity** | Error Lens | `usernamehw.errorlens` | Inline error display |
+| | TODO Highlight | `wayou.vscode-todo-highlight` | TODO/FIXME highlighting |
+| | Path Intellisense | `christian-kohler.path-intellisense` | Path auto-completion |
+| | Auto Rename Tag | `formulahendry.auto-rename-tag` | HTML/JSX tag sync rename |
+| | Code Spell Checker | `streetsidesoftware.code-spell-checker` | Spell checking |
+| | Better Comments | `aaron-bond.better-comments` | Comment color coding |
+| | Bookmarks | `alefragnani.bookmarks` | Code bookmarks |
+| | Import Cost | `wix.vscode-import-cost` | Display import size |
+| **Testing** | Jest Runner | `firsttris.vscode-jest-runner` | Run Jest tests |
+| | Vitest | `vitest.explorer` | Run Vitest tests |
+| | Test Explorer UI | `hbenl.vscode-test-explorer` | Unified test UI |
+| **Appearance** | Material Icon Theme | `pkief.material-icon-theme` | File icons |
+| | One Dark Pro | `zhuangtongfa.material-theme` | Color theme |
+| | GitHub Theme | `github.github-vscode-theme` | GitHub-style theme |
+| | Catppuccin | `catppuccin.catppuccin-vsc` | Pastel theme |
+| | Indent Rainbow | `oderwat.indent-rainbow` | Indent visualization |
+| **Containers** | Dev Containers | `ms-vscode-remote.remote-containers` | Docker dev environment |
+| | Docker | `ms-azuretools.vscode-docker` | Docker management |
+| **Remote** | Remote - SSH | `ms-vscode-remote.remote-ssh` | SSH remote development |
+| | Remote - WSL | `ms-vscode-remote.remote-wsl` | WSL integration |
+| | Remote - Tunnels | `ms-vscode.remote-server` | Tunnel connection |
+| **Data** | Thunder Client | `rangav.vscode-thunder-client` | REST API client |
+| | Database Client | `cweijan.vscode-database-client2` | DB client |
+| | YAML | `redhat.vscode-yaml` | YAML validation |
+| | DotENV | `mikestead.dotenv` | .env highlighting |
+| **Markdown** | Markdown All in One | `yzhang.markdown-all-in-one` | Markdown enhancements |
+| | Markdown Preview Enhanced | `shd101wyy.markdown-preview-enhanced` | Markdown preview |
+| | Mermaid Preview | `bierner.markdown-mermaid` | Mermaid diagram preview |
+| **CSS/HTML** | Tailwind CSS IntelliSense | `bradlc.vscode-tailwindcss` | Tailwind completion |
+| | CSS Peek | `pranaygp.vscode-css-peek` | Jump to CSS definitions |
+| | HTML CSS Support | `ecmel.vscode-html-css` | HTML/CSS completion |
 
-### 3.2 拡張機能の一括インストール
+### 3.2 Batch Extension Installation
 
 ```bash
-# プロジェクトで推奨する拡張機能を一括インストール
+# Batch install recommended extensions for a project
 cat extensions.txt | xargs -L 1 code --install-extension
 
-# extensions.txt の例:
+# Example extensions.txt:
 # dbaeumer.vscode-eslint
 # esbenp.prettier-vscode
 # eamodio.gitlens
@@ -557,7 +557,7 @@ cat extensions.txt | xargs -L 1 code --install-extension
 # usernamehw.errorlens
 # pkief.material-icon-theme
 
-# プロジェクト種別ごとのセットアップスクリプト
+# Setup script by project type
 # setup-vscode-extensions.sh
 #!/bin/bash
 
@@ -636,109 +636,109 @@ case "$1" in
 esac
 ```
 
-### 3.3 ワークスペース推奨設定
+### 3.3 Workspace Recommendation Settings
 
 ```jsonc
 // .vscode/extensions.json
 {
   "recommendations": [
-    // 必須
+    // Required
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
     "eamodio.gitlens",
     "github.copilot",
     "usernamehw.errorlens",
-    // フロントエンド
+    // Frontend
     "bradlc.vscode-tailwindcss",
     "formulahendry.auto-rename-tag",
     "yoavbls.pretty-ts-errors",
-    // テスト
+    // Testing
     "vitest.explorer"
   ],
   "unwantedRecommendations": [
-    "hookyqr.beautify",   // Prettier と競合
-    "esbenp.prettier-vscode" // Python プロジェクトの場合
+    "hookyqr.beautify",   // Conflicts with Prettier
+    "esbenp.prettier-vscode" // For Python projects
   ]
 }
 ```
 
-### 3.4 拡張機能の競合と解決策
+### 3.4 Extension Conflicts and Solutions
 
 ```
-よくある拡張機能の競合パターン:
+Common extension conflict patterns:
 
-1. フォーマッタの競合
-   ❌ Prettier + Beautify が同時に有効
-   ✅ defaultFormatter で明示的に指定
+1. Formatter conflicts
+   ❌ Prettier + Beautify both enabled simultaneously
+   ✅ Explicitly specify with defaultFormatter
    "[typescript]": {
      "editor.defaultFormatter": "esbenp.prettier-vscode"
    }
 
-2. Linter の競合
-   ❌ ESLint + TSLint が同時に動作
-   ✅ TSLint は非推奨。ESLint に統一。
+2. Linter conflicts
+   ❌ ESLint + TSLint running simultaneously
+   ✅ TSLint is deprecated. Consolidate to ESLint.
 
-3. IntelliSense の競合
-   ❌ Tabnine + Copilot + IntelliCode が同時有効
-   ✅ AI 補完は1つに絞る（推奨: Copilot）
+3. IntelliSense conflicts
+   ❌ Tabnine + Copilot + IntelliCode all enabled simultaneously
+   ✅ Limit to one AI completion tool (recommended: Copilot)
 
-4. Git 拡張の競合
-   ❌ GitLens + Git History + Git Blame が同時に動作
-   ✅ GitLens 1つで網羅可能。他は無効化。
+4. Git extension conflicts
+   ❌ GitLens + Git History + Git Blame running simultaneously
+   ✅ GitLens alone covers everything. Disable others.
 
-5. 括弧ペアの色分け
-   ❌ Bracket Pair Colorizer 拡張（非推奨）
-   ✅ VS Code ネイティブ機能を使用
+5. Bracket pair colorization
+   ❌ Bracket Pair Colorizer extension (deprecated)
+   ✅ Use VS Code's native feature
    "editor.bracketPairColorization.enabled": true
 ```
 
 ---
 
-## 4. キーバインド
+## 4. Key Bindings
 
-### 4.1 必須ショートカット一覧
+### 4.1 Essential Shortcuts List
 
-| 操作 | macOS | Windows/Linux |
+| Action | macOS | Windows/Linux |
 |------|-------|---------------|
-| コマンドパレット | `Cmd+Shift+P` | `Ctrl+Shift+P` |
-| ファイル検索 | `Cmd+P` | `Ctrl+P` |
-| シンボル検索（ワークスペース） | `Cmd+T` | `Ctrl+T` |
-| シンボル検索（ファイル内） | `Cmd+Shift+O` | `Ctrl+Shift+O` |
-| 全文検索 | `Cmd+Shift+F` | `Ctrl+Shift+F` |
-| 全文置換 | `Cmd+Shift+H` | `Ctrl+Shift+H` |
-| ターミナル切替 | `` Ctrl+` `` | `` Ctrl+` `` |
-| 新しいターミナル | `` Ctrl+Shift+` `` | `` Ctrl+Shift+` `` |
-| サイドバー切替 | `Cmd+B` | `Ctrl+B` |
-| パネル切替 | `Cmd+J` | `Ctrl+J` |
-| 行の移動 | `Alt+Up/Down` | `Alt+Up/Down` |
-| 行の複製 | `Shift+Alt+Up/Down` | `Shift+Alt+Up/Down` |
-| 行の削除 | `Cmd+Shift+K` | `Ctrl+Shift+K` |
-| 定義へ移動 | `F12` | `F12` |
-| 定義をピーク | `Alt+F12` | `Alt+F12` |
-| 型定義へ移動 | `Cmd+Click` | `Ctrl+Click` |
-| 参照を検索 | `Shift+F12` | `Shift+F12` |
-| リネーム | `F2` | `F2` |
-| クイックフィックス | `Cmd+.` | `Ctrl+.` |
-| ファイルを閉じる | `Cmd+W` | `Ctrl+W` |
-| すべてのファイルを閉じる | `Cmd+K Cmd+W` | `Ctrl+K Ctrl+W` |
-| 分割エディタ | `Cmd+\` | `Ctrl+\` |
-| エディタグループ切替 | `Cmd+1/2/3` | `Ctrl+1/2/3` |
-| 折りたたみ | `Cmd+Shift+[` | `Ctrl+Shift+[` |
-| 展開 | `Cmd+Shift+]` | `Ctrl+Shift+]` |
-| コメントトグル | `Cmd+/` | `Ctrl+/` |
-| ブロックコメント | `Shift+Alt+A` | `Shift+Alt+A` |
-| インデント追加 | `Cmd+]` | `Ctrl+]` |
-| インデント削除 | `Cmd+[` | `Ctrl+[` |
-| 前のエディタに戻る | `Ctrl+-` | `Alt+Left` |
-| 次のエディタに進む | `Ctrl+Shift+-` | `Alt+Right` |
+| Command Palette | `Cmd+Shift+P` | `Ctrl+Shift+P` |
+| File search | `Cmd+P` | `Ctrl+P` |
+| Symbol search (workspace) | `Cmd+T` | `Ctrl+T` |
+| Symbol search (in file) | `Cmd+Shift+O` | `Ctrl+Shift+O` |
+| Global search | `Cmd+Shift+F` | `Ctrl+Shift+F` |
+| Global replace | `Cmd+Shift+H` | `Ctrl+Shift+H` |
+| Toggle terminal | `` Ctrl+` `` | `` Ctrl+` `` |
+| New terminal | `` Ctrl+Shift+` `` | `` Ctrl+Shift+` `` |
+| Toggle sidebar | `Cmd+B` | `Ctrl+B` |
+| Toggle panel | `Cmd+J` | `Ctrl+J` |
+| Move line | `Alt+Up/Down` | `Alt+Up/Down` |
+| Duplicate line | `Shift+Alt+Up/Down` | `Shift+Alt+Up/Down` |
+| Delete line | `Cmd+Shift+K` | `Ctrl+Shift+K` |
+| Go to definition | `F12` | `F12` |
+| Peek definition | `Alt+F12` | `Alt+F12` |
+| Go to type definition | `Cmd+Click` | `Ctrl+Click` |
+| Find references | `Shift+F12` | `Shift+F12` |
+| Rename | `F2` | `F2` |
+| Quick fix | `Cmd+.` | `Ctrl+.` |
+| Close file | `Cmd+W` | `Ctrl+W` |
+| Close all files | `Cmd+K Cmd+W` | `Ctrl+K Ctrl+W` |
+| Split editor | `Cmd+\` | `Ctrl+\` |
+| Switch editor group | `Cmd+1/2/3` | `Ctrl+1/2/3` |
+| Fold | `Cmd+Shift+[` | `Ctrl+Shift+[` |
+| Unfold | `Cmd+Shift+]` | `Ctrl+Shift+]` |
+| Toggle comment | `Cmd+/` | `Ctrl+/` |
+| Block comment | `Shift+Alt+A` | `Shift+Alt+A` |
+| Increase indent | `Cmd+]` | `Ctrl+]` |
+| Decrease indent | `Cmd+[` | `Ctrl+[` |
+| Go back | `Ctrl+-` | `Alt+Left` |
+| Go forward | `Ctrl+Shift+-` | `Alt+Right` |
 | Zen Mode | `Cmd+K Z` | `Ctrl+K Z` |
 
-### 4.2 カスタムキーバインド
+### 4.2 Custom Key Bindings
 
 ```jsonc
 // keybindings.json
 [
-  // --- 基本編集 ---
+  // --- Basic Editing ---
   {
     "key": "cmd+shift+d",
     "command": "editor.action.copyLinesDownAction",
@@ -755,13 +755,13 @@ esac
     "when": "editorTextFocus"
   },
 
-  // --- ファイル操作 ---
+  // --- File Operations ---
   {
     "key": "cmd+k cmd+o",
     "command": "workbench.action.openRecent"
   },
 
-  // --- ターミナル ---
+  // --- Terminal ---
   {
     "key": "cmd+shift+t",
     "command": "workbench.action.terminal.new"
@@ -777,7 +777,7 @@ esac
     "when": "terminalFocus"
   },
 
-  // --- パネル操作 ---
+  // --- Panel Operations ---
   {
     "key": "cmd+shift+m",
     "command": "workbench.actions.view.problems"
@@ -787,13 +787,13 @@ esac
     "command": "workbench.action.output.toggleOutput"
   },
 
-  // --- Git 操作 ---
+  // --- Git Operations ---
   {
     "key": "cmd+shift+g cmd+shift+g",
     "command": "workbench.view.scm"
   },
 
-  // --- テスト実行（Jest/Vitest） ---
+  // --- Test Execution (Jest/Vitest) ---
   {
     "key": "cmd+shift+r",
     "command": "testing.runAtCursor",
@@ -805,13 +805,13 @@ esac
     "when": "editorTextFocus"
   },
 
-  // --- エクスプローラーでファイルを表示 ---
+  // --- Reveal file in Explorer ---
   {
     "key": "cmd+shift+1",
     "command": "revealFileInOS"
   },
 
-  // --- マルチカーソル追加操作 ---
+  // --- Multi-cursor Operations ---
   {
     "key": "cmd+alt+up",
     "command": "editor.action.insertCursorAbove",
@@ -825,45 +825,45 @@ esac
 ]
 ```
 
-### 4.3 Vim キーバインドの導入
+### 4.3 Introducing Vim Key Bindings
 
 ```jsonc
-// Vim 拡張機能（vscodevim.vim）を使用する場合の設定
-// settings.json に追加
+// Settings when using the Vim extension (vscodevim.vim)
+// Add to settings.json
 {
   "vim.enable": true,
   "vim.leader": "<space>",
   "vim.useSystemClipboard": true,
   "vim.useCtrlKeys": true,
   "vim.handleKeys": {
-    "<C-a>": false,   // VS Code の「全選択」を維持
-    "<C-f>": false,   // VS Code の「検索」を維持
-    "<C-c>": false,   // VS Code の「コピー」を維持
-    "<C-v>": false,   // VS Code の「ペースト」を維持
-    "<C-x>": false,   // VS Code の「切り取り」を維持
-    "<C-z>": false,   // VS Code の「元に戻す」を維持
-    "<C-shift-p>": false  // コマンドパレットを維持
+    "<C-a>": false,   // Keep VS Code "Select All"
+    "<C-f>": false,   // Keep VS Code "Find"
+    "<C-c>": false,   // Keep VS Code "Copy"
+    "<C-v>": false,   // Keep VS Code "Paste"
+    "<C-x>": false,   // Keep VS Code "Cut"
+    "<C-z>": false,   // Keep VS Code "Undo"
+    "<C-shift-p>": false  // Keep Command Palette
   },
   "vim.normalModeKeyBindingsNonRecursive": [
-    // <space>f でファイル検索
+    // <space>f for file search
     { "before": ["<leader>", "f"], "commands": ["workbench.action.quickOpen"] },
-    // <space>g で全文検索
+    // <space>g for global search
     { "before": ["<leader>", "g"], "commands": ["workbench.action.findInFiles"] },
-    // <space>e でエクスプローラー切替
+    // <space>e to toggle Explorer
     { "before": ["<leader>", "e"], "commands": ["workbench.view.explorer"] },
-    // <space>w で保存
+    // <space>w to save
     { "before": ["<leader>", "w"], "commands": [":w"] },
-    // <space>q で閉じる
+    // <space>q to close
     { "before": ["<leader>", "q"], "commands": [":q"] },
-    // gh で定義をホバー表示
+    // gh to show hover
     { "before": ["g", "h"], "commands": ["editor.action.showHover"] },
-    // gd で定義へジャンプ
+    // gd to jump to definition
     { "before": ["g", "d"], "commands": ["editor.action.revealDefinition"] },
-    // gr で参照検索
+    // gr to find references
     { "before": ["g", "r"], "commands": ["editor.action.goToReferences"] }
   ],
   "vim.visualModeKeyBindingsNonRecursive": [
-    // > でインデント（ビジュアルモード維持）
+    // > to indent (remain in visual mode)
     { "before": [">"], "commands": ["editor.action.indentLines"] },
     { "before": ["<"], "commands": ["editor.action.outdentLines"] }
   ]
@@ -872,42 +872,42 @@ esac
 
 ---
 
-## 5. マルチカーソル
+## 5. Multi-cursor
 
-### 5.1 基本操作
+### 5.1 Basic Operations
 
 ```
-テキスト例:
+Text example:
   const firstName = "Alice";
   const lastName = "Bob";
   const nickName = "Charlie";
 
-操作: Cmd+D で "Name" を連続選択 → 3箇所同時編集
+Action: Select "Name" consecutively with Cmd+D → edit 3 locations simultaneously
 
-  1. カーソルを "firstName" の "Name" に置く
-  2. Cmd+D → "lastName" の "Name" も選択
-  3. Cmd+D → "nickName" の "Name" も選択
-  4. 一括で編集: "Name" → "Label"
+  1. Place cursor on "Name" in "firstName"
+  2. Cmd+D → also selects "Name" in "lastName"
+  3. Cmd+D → also selects "Name" in "nickName"
+  4. Edit all at once: "Name" → "Label"
 
-結果:
+Result:
   const firstLabel = "Alice";
   const lastLabel = "Bob";
   const nickLabel = "Charlie";
 ```
 
-### 5.2 矩形選択
+### 5.2 Column Selection
 
 ```
-操作フロー:
+Operation flow:
 
-  Step 1: Alt+Shift+ドラッグ で矩形選択
+  Step 1: Alt+Shift+Drag for column selection
   ┌─────────────────────────┐
   │ item1: "apple"          │
-  │ item2: "banana"    ←──── 縦にカーソル追加
+  │ item2: "banana"    ←──── Add cursors vertically
   │ item3: "cherry"         │
   └─────────────────────────┘
 
-  Step 2: 同時に入力
+  Step 2: Type simultaneously
   ┌─────────────────────────┐
   │ item1: "fresh_apple"    │
   │ item2: "fresh_banana"   │
@@ -915,12 +915,12 @@ esac
   └─────────────────────────┘
 ```
 
-### 5.3 実践的なマルチカーソル活用例
+### 5.3 Practical Multi-cursor Examples
 
 ```
-例1: JSON のキーを一括変更
+Example 1: Batch rename JSON keys
 
-変更前:
+Before:
 {
   "user_name": "Alice",
   "user_age": 30,
@@ -928,12 +928,12 @@ esac
   "user_phone": "090-1234-5678"
 }
 
-操作:
-  1. "user_" を選択
-  2. Cmd+Shift+L → すべての "user_" を一括選択
-  3. 全て削除して空にする
+Action:
+  1. Select "user_"
+  2. Cmd+Shift+L → select all "user_" at once
+  3. Delete all of them
 
-変更後:
+After:
 {
   "name": "Alice",
   "age": 30,
@@ -943,9 +943,9 @@ esac
 
 ─────────────────────────────────
 
-例2: 配列要素をオブジェクトに変換
+Example 2: Convert array elements to objects
 
-変更前:
+Before:
 const colors = [
   "red",
   "green",
@@ -953,13 +953,13 @@ const colors = [
   "yellow",
 ];
 
-操作:
-  1. 各行の先頭 " にカーソルを置く（Alt+Click で追加）
-  2. "{ name: " と入力
-  3. End キーで行末に移動
-  4. ", value: '#000' }" と入力
+Action:
+  1. Place cursor at the leading " of each line (add with Alt+Click)
+  2. Type "{ name: "
+  3. Move to end of line with End key
+  4. Type ", value: '#000' }"
 
-変更後:
+After:
 const colors = [
   { name: "red", value: '#000' },
   { name: "green", value: '#000' },
@@ -969,9 +969,9 @@ const colors = [
 
 ─────────────────────────────────
 
-例3: CSS プロパティの一括追加
+Example 3: Batch add CSS properties
 
-変更前:
+Before:
 .card {
   border-radius: 8px;
 }
@@ -982,23 +982,23 @@ const colors = [
   border-radius: 6px;
 }
 
-操作:
-  1. Cmd+Shift+F で "border-radius" を検索
-  2. 各行末にカーソルを追加
-  3. Enter して新しい行で "overflow: hidden;" を入力
+Action:
+  1. Search for "border-radius" with Cmd+Shift+F
+  2. Add cursors to the end of each line
+  3. Press Enter and type "overflow: hidden;" on the new line
 ```
 
 ---
 
-## 6. スニペット
+## 6. Snippets
 
-### 6.1 ユーザースニペット定義（拡充版）
+### 6.1 User Snippet Definitions (Extended Version)
 
 ```jsonc
 // .vscode/project.code-snippets
 {
   // ===================================
-  // React コンポーネント
+  // React Components
   // ===================================
   "React Functional Component": {
     "prefix": "rfc",
@@ -1062,7 +1062,7 @@ const colors = [
   },
 
   // ===================================
-  // テスト
+  // Testing
   // ===================================
   "Describe Block": {
     "prefix": "desc",
@@ -1110,7 +1110,7 @@ const colors = [
   },
 
   // ===================================
-  // 一般的なパターン
+  // Common Patterns
   // ===================================
   "Console Log Variable": {
     "prefix": "clv",
@@ -1203,7 +1203,7 @@ const colors = [
   },
 
   // ===================================
-  // ドキュメントコメント
+  // Documentation Comments
   // ===================================
   "JSDoc Function": {
     "prefix": "jsdoc",
@@ -1227,12 +1227,12 @@ const colors = [
 }
 ```
 
-### 6.2 スニペット変数リファレンス
+### 6.2 Snippet Variable Reference
 
 ```
-VS Code スニペットで使える組み込み変数:
+Built-in variables available in VS Code snippets:
 
-ファイル関連:
+File-related:
   $TM_FILENAME          → "index.ts"
   $TM_FILENAME_BASE     → "index"
   $TM_DIRECTORY         → "/Users/gaku/project/src"
@@ -1241,7 +1241,7 @@ VS Code スニペットで使える組み込み変数:
   $WORKSPACE_NAME       → "my-project"
   $WORKSPACE_FOLDER     → "/Users/gaku/project"
 
-日付・時刻:
+Date and time:
   $CURRENT_YEAR         → "2026"
   $CURRENT_MONTH        → "02"
   $CURRENT_DATE         → "15"
@@ -1249,34 +1249,34 @@ VS Code スニペットで使える組み込み変数:
   $CURRENT_MINUTE       → "30"
   $CURRENT_SECOND       → "00"
 
-その他:
-  $CLIPBOARD            → クリップボードの内容
-  $LINE_COMMENT         → 言語のラインコメント（// や #）
-  $BLOCK_COMMENT_START  → 言語のブロックコメント開始（/* や <!--）
-  $BLOCK_COMMENT_END    → 言語のブロックコメント終了（*/ や -->）
-  $UUID                 → UUID v4 生成
-  $RANDOM               → 6桁のランダム整数
-  $RANDOM_HEX           → 6桁のランダム hex
+Other:
+  $CLIPBOARD            → Clipboard contents
+  $LINE_COMMENT         → Language line comment (// or #)
+  $BLOCK_COMMENT_START  → Language block comment start (/* or <!--)
+  $BLOCK_COMMENT_END    → Language block comment end (*/ or -->)
+  $UUID                 → Generate UUID v4
+  $RANDOM               → 6-digit random integer
+  $RANDOM_HEX           → 6-digit random hex
 
-変換（Transform）:
-  ${1/(.*)/${1:/upcase}/}      → 大文字変換
-  ${1/(.*)/${1:/downcase}/}    → 小文字変換
-  ${1/(.*)/${1:/capitalize}/}  → 先頭大文字
+Transforms:
+  ${1/(.*)/${1:/upcase}/}      → Uppercase
+  ${1/(.*)/${1:/downcase}/}    → Lowercase
+  ${1/(.*)/${1:/capitalize}/}  → Capitalize first letter
   ${1/(.*)/${1:/pascalcase}/}  → PascalCase
   ${1/(.*)/${1:/camelcase}/}   → camelCase
 
-プレースホルダ:
-  $1, $2, ...           → タブストップ（入力順）
-  $0                    → 最終カーソル位置
-  ${1:default}          → デフォルト値付きタブストップ
-  ${1|one,two,three|}   → 選択肢付きタブストップ
+Placeholders:
+  $1, $2, ...           → Tab stops (in input order)
+  $0                    → Final cursor position
+  ${1:default}          → Tab stop with default value
+  ${1|one,two,three|}   → Tab stop with choices
 ```
 
 ---
 
-## 7. デバッグ設定
+## 7. Debug Configuration
 
-### 7.1 launch.json の基本構成
+### 7.1 Basic launch.json Structure
 
 ```jsonc
 // .vscode/launch.json
@@ -1284,7 +1284,7 @@ VS Code スニペットで使える組み込み変数:
   "version": "0.2.0",
   "configurations": [
     // ===================================
-    // Node.js アプリケーション
+    // Node.js Applications
     // ===================================
     {
       "name": "Node.js: Current File",
@@ -1339,7 +1339,7 @@ VS Code スニペットで使える組み込み変数:
     },
 
     // ===================================
-    // テスト
+    // Testing
     // ===================================
     {
       "name": "Jest: Current File",
@@ -1433,7 +1433,7 @@ VS Code スニペットで使える組み込み変数:
     },
 
     // ===================================
-    // ブラウザ
+    // Browser
     // ===================================
     {
       "name": "Chrome: Open URL",
@@ -1447,7 +1447,7 @@ VS Code スニペットで使える組み込み変数:
     },
 
     // ===================================
-    // Docker（リモートアタッチ）
+    // Docker (Remote Attach)
     // ===================================
     {
       "name": "Docker: Attach to Node",
@@ -1463,7 +1463,7 @@ VS Code スニペットで使える組み込み変数:
   ],
 
   // ===================================
-  // 複合実行（Compound）
+  // Compound Configurations
   // ===================================
   "compounds": [
     {
@@ -1478,44 +1478,44 @@ VS Code スニペットで使える組み込み変数:
 }
 ```
 
-### 7.2 デバッグのテクニック
+### 7.2 Debugging Techniques
 
 ```
-ブレークポイントの種類:
+Breakpoint types:
 
-1. 通常ブレークポイント
-   - 行番号の左をクリック（赤い丸）
-   - F9 でトグル
+1. Standard breakpoint
+   - Click to the left of the line number (red circle)
+   - Toggle with F9
 
-2. 条件付きブレークポイント
-   - ブレークポイントを右クリック → "Edit Breakpoint"
-   - 条件式: i > 100 && user.role === "admin"
+2. Conditional breakpoint
+   - Right-click breakpoint → "Edit Breakpoint"
+   - Condition expression: i > 100 && user.role === "admin"
 
-3. ログポイント（Logpoint）
-   - 実行を止めずにログを出力
-   - ブレークポイントを右クリック → "Add Logpoint"
-   - メッセージ: "User: {user.name}, Count: {count}"
-   - ダイヤ型のアイコンで表示
+3. Logpoint
+   - Output logs without stopping execution
+   - Right-click breakpoint → "Add Logpoint"
+   - Message: "User: {user.name}, Count: {count}"
+   - Displayed as a diamond-shaped icon
 
-4. ヒットカウントブレークポイント
-   - N回目のヒットで停止
-   - 条件: "Hit Count" → 100
+4. Hit count breakpoint
+   - Stop on the Nth hit
+   - Condition: "Hit Count" → 100
 
-5. 例外ブレークポイント
-   - Debug パネル → Breakpoints → "Caught Exceptions" をチェック
-   - 全ての例外で停止
+5. Exception breakpoint
+   - Debug panel → Breakpoints → Check "Caught Exceptions"
+   - Stop on all exceptions
 
-デバッグコンソールの活用:
-  - 停止中に変数を評価: user.name
-  - メソッド呼び出し: JSON.stringify(data, null, 2)
-  - 値の変更: user.name = "NewValue"（注意して使用）
+Using the debug console:
+  - Evaluate variables while paused: user.name
+  - Call methods: JSON.stringify(data, null, 2)
+  - Change values: user.name = "NewValue" (use with caution)
 ```
 
 ---
 
-## 8. タスク設定
+## 8. Task Configuration
 
-### 8.1 tasks.json の構成
+### 8.1 tasks.json Structure
 
 ```jsonc
 // .vscode/tasks.json
@@ -1523,7 +1523,7 @@ VS Code スニペットで使える組み込み変数:
   "version": "2.0.0",
   "tasks": [
     // ===================================
-    // ビルドタスク
+    // Build Tasks
     // ===================================
     {
       "label": "Build: TypeScript",
@@ -1552,7 +1552,7 @@ VS Code スニペットで使える組み込み変数:
     },
 
     // ===================================
-    // 開発サーバー
+    // Dev Servers
     // ===================================
     {
       "label": "Dev: Frontend",
@@ -1597,7 +1597,7 @@ VS Code スニペットで使える組み込み変数:
     },
 
     // ===================================
-    // テスト
+    // Testing
     // ===================================
     {
       "label": "Test: Unit",
@@ -1685,7 +1685,7 @@ VS Code スニペットで使える組み込み変数:
     },
 
     // ===================================
-    // データベース
+    // Database
     // ===================================
     {
       "label": "DB: Migrate",
@@ -1717,34 +1717,34 @@ VS Code スニペットで使える組み込み変数:
 }
 ```
 
-### 8.2 タスクの実行方法
+### 8.2 How to Run Tasks
 
 ```
-タスク実行のショートカット:
+Shortcuts for running tasks:
 
-1. コマンドパレットから:
-   Cmd+Shift+P → "Tasks: Run Task" → タスク選択
+1. From the Command Palette:
+   Cmd+Shift+P → "Tasks: Run Task" → Select task
 
-2. ショートカットキー:
-   Cmd+Shift+B → デフォルトビルドタスク実行
-   (テストタスクもキーバインド設定可能)
+2. Shortcut keys:
+   Cmd+Shift+B → Run the default build task
+   (Test tasks can also be bound to keys)
 
-3. ターミナルのタスク表示:
-   Terminal パネル → ドロップダウンでタスクごとのターミナル切替
+3. Terminal task display:
+   Terminal panel → Switch between task terminals via dropdown
 
-4. 複合タスクの活用:
-   dependsOn で複数タスクを並列・逐次実行
+4. Using compound tasks:
+   Run multiple tasks in parallel or sequence with dependsOn
    dependsOrder: "parallel" | "sequence"
 ```
 
 ---
 
-## 9. 設定同期
+## 9. Settings Sync
 
-### 9.1 Settings Sync の構成
+### 9.1 Settings Sync Configuration
 
 ```
-Settings Sync で同期される項目:
+Items synced by Settings Sync:
 ┌─────────────────────────────────────┐
 │  ✅ Settings (settings.json)         │
 │  ✅ Keyboard Shortcuts               │
@@ -1752,81 +1752,81 @@ Settings Sync で同期される項目:
 │  ✅ User Snippets                     │
 │  ✅ UI State                          │
 │                                       │
-│  同期方法:                            │
-│  ├── GitHub アカウント               │
-│  └── Microsoft アカウント            │
+│  Sync methods:                        │
+│  ├── GitHub account                  │
+│  └── Microsoft account               │
 │                                       │
-│  有効化:                              │
+│  Enable:                              │
 │  Cmd+Shift+P → "Settings Sync: Turn On" │
 └─────────────────────────────────────┘
 
-同期の競合解決:
-  - 初回同期時に「マージ」or「置換」を選択
-  - ローカルとリモートの差分がプレビュー表示される
-  - 設定項目ごとに同期の有効/無効を制御可能
+Resolving sync conflicts:
+  - Choose "Merge" or "Replace" on first sync
+  - Diff between local and remote is previewed
+  - Sync can be enabled/disabled per setting item
 
-同期から除外する設定:
-  settings.json に以下を追加:
+Settings to exclude from sync:
+  Add the following to settings.json:
   "settingsSync.ignoredSettings": [
-    "editor.fontSize",     // 個人の好みで異なる
+    "editor.fontSize",     // Varies by personal preference
     "terminal.integrated.fontSize",
     "workbench.colorTheme"
   ]
 ```
 
-### 9.2 プロファイル機能
+### 9.2 Profile Feature
 
 ```bash
-# プロファイルの切替で用途別の環境を管理
+# Manage purpose-specific environments by switching profiles
 #
-# 例: "Frontend" プロファイル
+# Example: "Frontend" profile
 #   - ESLint, Prettier, Tailwind CSS IntelliSense
-#   - React/Vue 拡張
-#   - フロントエンド向けテーマ
+#   - React/Vue extensions
+#   - Frontend-oriented theme
 #
-# 例: "Backend" プロファイル
-#   - Python, Go, Rust 言語サポート
+# Example: "Backend" profile
+#   - Python, Go, Rust language support
 #   - REST Client, Database Client
-#   - シンプルなテーマ
+#   - Simple theme
 #
-# 例: "Python Data Science" プロファイル
+# Example: "Python Data Science" profile
 #   - Python, Jupyter, Pylance
-#   - データ可視化拡張
-#   - 分析向け設定
+#   - Data visualization extensions
+#   - Analytics-oriented settings
 #
-# 例: "DevOps" プロファイル
+# Example: "DevOps" profile
 #   - Docker, Kubernetes, Terraform
 #   - YAML, Helm
 #   - SSH Remote
 #
-# 例: "Writing" プロファイル
+# Example: "Writing" profile
 #   - Markdown All in One
 #   - Spell Checker
-#   - Zen Mode 設定
+#   - Zen Mode settings
 
-# CLI でプロファイル指定して起動
+# Launch with a specified profile via CLI
 code --profile "Frontend" .
 
-# プロファイルの管理
-# コマンドパレット → "Profiles: Create Profile"
-# コマンドパレット → "Profiles: Switch Profile"
-# コマンドパレット → "Profiles: Delete Profile"
-# コマンドパレット → "Profiles: Export Profile"
-# コマンドパレット → "Profiles: Import Profile"
+# Managing profiles
+# Command Palette → "Profiles: Create Profile"
+# Command Palette → "Profiles: Switch Profile"
+# Command Palette → "Profiles: Delete Profile"
+# Command Palette → "Profiles: Export Profile"
+# Command Palette → "Profiles: Import Profile"
 
-# プロファイルの共有
-# エクスポートしたプロファイルは URL として共有可能
-# チームメンバーが URL をクリックするだけで同一環境を構築
+# Sharing profiles
+# Exported profiles can be shared as URLs
+# Team members can set up the same environment with a single click
 ```
 
 ---
 
-## 10. リモート開発
+## 10. Remote Development
 
 ### 10.1 Remote - SSH
 
 ```jsonc
-// SSH 設定（~/.ssh/config）
+// SSH configuration (~/.ssh/config)
 // Host dev-server
 //   HostName 192.168.1.100
 //   User developer
@@ -1834,7 +1834,7 @@ code --profile "Frontend" .
 //   IdentityFile ~/.ssh/id_ed25519
 //   ForwardAgent yes
 
-// VS Code 設定（settings.json）
+// VS Code settings (settings.json)
 {
   "remote.SSH.remotePlatform": {
     "dev-server": "linux"
@@ -1849,24 +1849,24 @@ code --profile "Frontend" .
 ```
 
 ```
-Remote SSH の接続フロー:
+Remote SSH connection flow:
 
-ローカルPC                    リモートサーバー
+Local PC                      Remote Server
 ┌──────────┐                ┌──────────────────┐
 │ VS Code  │ ── SSH ───── →│ VS Code Server   │
 │ (UI)     │                │ (Extension Host) │
 │          │← File Ops ─── │                  │
-│          │← LSP Data ─── │ ソースコード      │
-│          │← Terminal ─── │ ランタイム         │
+│          │← LSP Data ─── │ Source code       │
+│          │← Terminal ─── │ Runtime           │
 └──────────┘                └──────────────────┘
 
-パフォーマンス最適化:
-  1. files.watcherExclude に大きなディレクトリを追加
-  2. search.exclude で不要なパスを除外
-  3. リモート側に必要な拡張機能のみインストール
-  4. SSH ControlMaster で接続を再利用
+Performance optimization:
+  1. Add large directories to files.watcherExclude
+  2. Exclude unnecessary paths with search.exclude
+  3. Install only required extensions on the remote side
+  4. Reuse connections with SSH ControlMaster
 
-  ~/.ssh/config に追加:
+  Add to ~/.ssh/config:
   Host *
     ControlMaster auto
     ControlPath ~/.ssh/sockets/%r@%h-%p
@@ -1876,88 +1876,88 @@ Remote SSH の接続フロー:
 ### 10.2 Remote - WSL
 
 ```jsonc
-// WSL 環境での設定
+// Settings for WSL environment
 {
   "remote.WSL.useShellEnvironment": true,
   "terminal.integrated.defaultProfile.linux": "zsh",
-  // Windows 側のパスを WSL パスに変換
+  // Convert Windows paths to WSL paths
   "remote.WSL.fileWatcher.polling": false
 }
 ```
 
 ```bash
-# WSL から VS Code を開く
+# Open VS Code from WSL
 wsl
 cd /home/user/project
 code .
 
-# 特定のディストリビューションを指定
+# Specify a specific distribution
 code --remote wsl+Ubuntu-22.04 /home/user/project
 ```
 
-### 10.3 Remote Tunnels（VS Code Server）
+### 10.3 Remote Tunnels (VS Code Server)
 
 ```bash
-# リモートマシンで VS Code Server を起動
-# ブラウザや別の VS Code からアクセス可能
+# Start VS Code Server on remote machine
+# Accessible from a browser or another VS Code instance
 
-# サーバー側でトンネル作成
+# Create tunnel on server side
 code tunnel
 
-# 名前付きトンネル
+# Named tunnel
 code tunnel --name my-dev-server
 
-# サービスとして登録（Linux）
+# Register as a service (Linux)
 code tunnel service install
 
-# クライアント側から接続
-# vscode.dev にアクセス → リモートマシンを選択
-# または VS Code デスクトップ版からリモート接続
+# Connect from client side
+# Access vscode.dev → select remote machine
+# Or connect remotely from VS Code desktop
 ```
 
 ---
 
-## 11. パフォーマンス最適化
+## 11. Performance Optimization
 
-### 11.1 起動速度の改善
+### 11.1 Improving Startup Speed
 
 ```
-VS Code が遅い場合のチェックリスト:
+Checklist when VS Code is slow:
 
-□ 1. 拡張機能の数を確認
-     コマンドパレット → "Extensions: Show Running Extensions"
-     起動時間が表示される。100ms 以上の拡張機能に注目。
+□ 1. Check the number of extensions
+     Command Palette → "Extensions: Show Running Extensions"
+     Startup time is displayed. Focus on extensions over 100ms.
 
-□ 2. 不要な拡張機能を無効化
-     ワークスペースごとに必要な拡張機能のみ有効化
-     プロファイル機能で用途別に管理
+□ 2. Disable unnecessary extensions
+     Enable only required extensions per workspace
+     Manage by purpose using the profile feature
 
-□ 3. files.exclude / files.watcherExclude を設定
-     node_modules, .git, dist, build 等を除外
+□ 3. Configure files.exclude / files.watcherExclude
+     Exclude node_modules, .git, dist, build, etc.
 
-□ 4. search.exclude を設定
-     大きなバイナリやロック系ファイルを除外
+□ 4. Configure search.exclude
+     Exclude large binaries and lock files
 
-□ 5. メモリ使用量の確認
-     コマンドパレット → "Developer: Open Process Explorer"
-     Extension Host のメモリが 500MB 超なら拡張機能の見直し
+□ 5. Check memory usage
+     Command Palette → "Developer: Open Process Explorer"
+     If Extension Host memory exceeds 500MB, review extensions
 
-□ 6. 設定の見直し
-     editor.minimap.enabled: false（CPU 負荷軽減）
-     editor.renderWhitespace: "boundary"（"all" は避ける）
-     editor.occurrencesHighlight: false（大きなファイルで軽快に）
+□ 6. Review settings
+     editor.minimap.enabled: false (reduce CPU load)
+     editor.renderWhitespace: "boundary" (avoid "all")
+     editor.occurrencesHighlight: false (smoother on large files)
 
-□ 7. TypeScript の設定
-     tsconfig.json の include/exclude を適切に設定
-     不要なファイルを型チェック対象から除外
+□ 7. TypeScript configuration
+     Properly configure include/exclude in tsconfig.json
+     Exclude unnecessary files from type checking
 ```
 
-### 11.2 大規模プロジェクトでの対策
+### 11.2 Strategies for Large Projects
 
 ```jsonc
-// 大規模モノレポでの設定例
+// Settings example for large monorepos
 {
-  // ファイル監視の最適化
+  // File watcher optimization
   "files.watcherExclude": {
     "**/node_modules/**": true,
     "**/.git/objects/**": true,
@@ -1971,7 +1971,7 @@ VS Code が遅い場合のチェックリスト:
     "**/tmp/**": true
   },
 
-  // 検索除外
+  // Search exclusions
   "search.exclude": {
     "**/node_modules": true,
     "**/dist": true,
@@ -1985,200 +1985,200 @@ VS Code が遅い場合のチェックリスト:
     "**/.turbo": true
   },
 
-  // TypeScript の最適化
+  // TypeScript optimization
   "typescript.tsserver.maxTsServerMemory": 4096,
   "typescript.tsserver.watchOptions": {
     "watchFile": "useFsEventsOnParentDirectory",
     "watchDirectory": "useFsEvents"
   },
 
-  // ESLint の最適化
+  // ESLint optimization
   "eslint.workingDirectories": [
     { "mode": "auto" }
   ],
 
-  // Git の最適化
+  // Git optimization
   "git.repositoryScanMaxDepth": 1
 }
 ```
 
-### 11.3 Startup Performance の診断
+### 11.3 Diagnosing Startup Performance
 
 ```bash
-# VS Code の起動パフォーマンスレポート
+# VS Code startup performance report
 code --status
 
-# 拡張機能の起動時間を確認
-# コマンドパレット → "Developer: Startup Performance"
-# 各フェーズの所要時間が表示される:
+# Check extension startup time
+# Command Palette → "Developer: Startup Performance"
+# Shows elapsed time for each phase:
 #   - Electron Main → Window Load
 #   - Window Load → Require Main
 #   - Require Main → Workbench Ready
 #   - Extensions Activated
 
-# Extension Bisect（問題拡張機能の特定）
-# コマンドパレット → "Help: Start Extension Bisect"
-# 二分探索で問題のある拡張機能を自動特定
+# Extension Bisect (identify problematic extensions)
+# Command Palette → "Help: Start Extension Bisect"
+# Automatically identifies problematic extensions via binary search
 
-# verbose ログで起動
+# Launch with verbose logging
 code --verbose --log trace
 ```
 
 ---
 
-## 12. アンチパターン
+## 12. Anti-patterns
 
-### 12.1 拡張機能の入れすぎ
-
-```
-❌ アンチパターン: 拡張機能を100個以上インストール
-
-問題:
-  - 起動時間が 10秒以上 に増大
-  - メモリ使用量が 2GB 超
-  - 拡張機能同士の競合（フォーマッタの二重適用など）
-  - IntelliSense の応答が遅延
-
-✅ 正しいアプローチ:
-  - プロファイル機能でプロジェクト種別ごとに分離
-  - 使っていない拡張機能は無効化/アンインストール
-  - ワークスペース単位で拡張機能を推奨・制限
-  - Extension Bisect で問題拡張機能を特定
-```
-
-### 12.2 User Settings にプロジェクト固有設定を書く
+### 12.1 Installing Too Many Extensions
 
 ```
-❌ アンチパターン: 全プロジェクト共通の User Settings に
-   特定フレームワーク用の設定を書く
+❌ Anti-pattern: Installing more than 100 extensions
+
+Problems:
+  - Startup time increases to over 10 seconds
+  - Memory usage exceeds 2GB
+  - Extension conflicts (e.g., double formatter application)
+  - IntelliSense response delays
+
+✅ Correct approach:
+  - Separate by project type using the profile feature
+  - Disable/uninstall unused extensions
+  - Recommend/restrict extensions per workspace
+  - Identify problematic extensions with Extension Bisect
+```
+
+### 12.2 Writing Project-specific Settings in User Settings
+
+```
+❌ Anti-pattern: Writing settings specific to a framework
+   in User Settings shared across all projects
 
 {
-  // User settings.json に書いてしまう
+  // Written in User settings.json
   "eslint.workingDirectories": [{ "mode": "auto" }],
   "tailwindCSS.experimental.classRegex": [...]
 }
 
-✅ 正しいアプローチ:
-  - プロジェクト固有設定は .vscode/settings.json に記述
-  - チームで共有すべき設定はリポジトリにコミット
-  - 個人的な見た目設定のみ User Settings に置く
+✅ Correct approach:
+  - Write project-specific settings in .vscode/settings.json
+  - Commit settings that should be shared with the team to the repository
+  - Keep only personal appearance settings in User Settings
 ```
 
-### 12.3 その他のアンチパターン
+### 12.3 Other Anti-patterns
 
 ```
-❌ .vscode フォルダを .gitignore に入れる
-  → チーム統一設定が共有できない
+❌ Adding the .vscode folder to .gitignore
+  → Team unified settings cannot be shared
 
-✅ コミットすべきファイル:
-  - .vscode/settings.json（プロジェクト設定）
-  - .vscode/extensions.json（推奨拡張機能）
-  - .vscode/launch.json（デバッグ設定）
-  - .vscode/*.code-snippets（スニペット）
+✅ Files that should be committed:
+  - .vscode/settings.json (project settings)
+  - .vscode/extensions.json (recommended extensions)
+  - .vscode/launch.json (debug configuration)
+  - .vscode/*.code-snippets (snippets)
 
-✅ .gitignore に入れるべきファイル:
-  - .vscode/tasks.json（個人のタスク設定の場合）
-  - .vscode/*.code-workspace（個人のワークスペース設定の場合）
-
-─────────────────────────────────
-
-❌ formatOnSave を無効にして手動フォーマット
-  → フォーマットの適用漏れ、チーム間で差異が発生
-
-✅ 正しいアプローチ:
-  - formatOnSave: true を必ず有効化
-  - .prettierrc でルールを統一
-  - CI でもフォーマットチェックを実行
+✅ Files that should be in .gitignore:
+  - .vscode/tasks.json (when it's a personal task config)
+  - .vscode/*.code-workspace (when it's a personal workspace config)
 
 ─────────────────────────────────
 
-❌ settings.json に秘密情報を書く
-  → API キーや認証情報がリポジトリに漏洩
+❌ Disabling formatOnSave and formatting manually
+  → Missed formatting, differences between team members
 
-✅ 正しいアプローチ:
-  - .env ファイルに分離
-  - .env を .gitignore に追加
-  - .env.example をコミットしてテンプレート共有
+✅ Correct approach:
+  - Always enable formatOnSave: true
+  - Unify rules with .prettierrc
+  - Run format checks in CI as well
 
 ─────────────────────────────────
 
-❌ すべての警告・エラーを無視する設定
-  → コードの品質低下
+❌ Writing secrets in settings.json
+  → API keys and credentials leak into the repository
 
-✅ 正しいアプローチ:
-  - 必要に応じて特定のルールのみ無効化
-  - eslint-disable は理由をコメントで記載
-  - チームで共通の除外ルールを設定
+✅ Correct approach:
+  - Separate into .env files
+  - Add .env to .gitignore
+  - Commit .env.example as a template
+
+─────────────────────────────────
+
+❌ Settings that ignore all warnings and errors
+  → Code quality degrades
+
+✅ Correct approach:
+  - Disable only specific rules as needed
+  - Include a comment with the reason when using eslint-disable
+  - Configure common exclusion rules as a team
 ```
 
 ---
 
-## 13. 実践的なワークフロー
+## 13. Practical Workflows
 
-### 13.1 日常開発のワークフロー
+### 13.1 Daily Development Workflow
 
 ```
-典型的な VS Code 開発ワークフロー:
+Typical VS Code development workflow:
 
-1. プロジェクトを開く
+1. Open project
    $ code ~/projects/my-app
 
-2. ターミナルで開発サーバー起動
+2. Start dev server from terminal
    Ctrl+` → npm run dev
 
-3. コーディング
-   - Cmd+P でファイル検索
-   - F12 で定義ジャンプ
-   - Shift+F12 で参照検索
-   - Cmd+Shift+O でシンボル検索
+3. Coding
+   - Cmd+P to search files
+   - F12 to jump to definition
+   - Shift+F12 to find references
+   - Cmd+Shift+O for symbol search
 
-4. Git 操作
-   - Cmd+Shift+G で Source Control パネル
-   - 変更をステージング（+ ボタン）
-   - コミットメッセージ入力 → Cmd+Enter でコミット
-   - GitLens で blame 確認
+4. Git operations
+   - Cmd+Shift+G for Source Control panel
+   - Stage changes (+ button)
+   - Enter commit message → Cmd+Enter to commit
+   - Check blame with GitLens
 
-5. デバッグ
-   - ブレークポイント設定
-   - F5 でデバッグ開始
-   - F10 ステップオーバー
-   - F11 ステップイン
-   - Shift+F11 ステップアウト
+5. Debugging
+   - Set breakpoints
+   - F5 to start debugging
+   - F10 step over
+   - F11 step into
+   - Shift+F11 step out
 
-6. テスト
-   - Testing パネルでテスト一覧表示
-   - テストの実行・デバッグ
-   - カバレッジ確認
+6. Testing
+   - Display test list in Testing panel
+   - Run and debug tests
+   - Check coverage
 
-7. PR 作成前チェック
-   - Cmd+Shift+B でビルド
-   - 型チェック（tsc --noEmit）
-   - Lint チェック
-   - テスト全実行
+7. Pre-PR checks
+   - Cmd+Shift+B to build
+   - Type check (tsc --noEmit)
+   - Lint check
+   - Run all tests
 ```
 
-### 13.2 コードレビューワークフロー
+### 13.2 Code Review Workflow
 
 ```
-PR レビューを VS Code で行う:
+Conducting PR reviews in VS Code:
 
-1. GitHub Pull Requests 拡張機能をインストール
+1. Install GitHub Pull Requests extension
    code --install-extension github.vscode-pull-request-github
 
-2. PR の一覧表示
-   Activity Bar → GitHub アイコン → Pull Requests
+2. Display PR list
+   Activity Bar → GitHub icon → Pull Requests
 
-3. レビュー操作
-   - PR を選択 → Checkout
-   - 変更されたファイルの差分表示
-   - インラインコメント追加
+3. Review operations
+   - Select PR → Checkout
+   - View diff of changed files
+   - Add inline comments
    - Approve / Request Changes
 
 4. Suggested Changes
-   - コード変更を提案として追加
-   - レビュー相手が1クリックで適用可能
+   - Add code changes as suggestions
+   - Reviewer can apply with a single click
 
-設定:
+Settings:
 {
   "githubPullRequests.pullBranch": "prompt",
   "githubPullRequests.defaultMergeMethod": "squash",
@@ -2186,26 +2186,26 @@ PR レビューを VS Code で行う:
 }
 ```
 
-### 13.3 ペアプログラミング（Live Share）
+### 13.3 Pair Programming (Live Share)
 
 ```
-VS Code Live Share の活用:
+Using VS Code Live Share:
 
-セットアップ:
-  1. 拡張機能インストール: ms-vsliveshare.vsliveshare
-  2. GitHub / Microsoft アカウントでサインイン
-  3. ステータスバーの "Live Share" → "Share" をクリック
-  4. 共有リンクをチームメンバーに送付
+Setup:
+  1. Install extension: ms-vsliveshare.vsliveshare
+  2. Sign in with GitHub / Microsoft account
+  3. Click "Live Share" in the status bar → "Share"
+  4. Send the sharing link to team members
 
-機能:
-  - リアルタイムのコード共同編集
-  - カーソル位置の共有
-  - ターミナルの共有
-  - ローカルサーバーの共有（ポートフォワーディング）
-  - デバッグセッションの共有
-  - 音声通話（Live Share Audio 拡張）
+Features:
+  - Real-time collaborative code editing
+  - Cursor position sharing
+  - Terminal sharing
+  - Local server sharing (port forwarding)
+  - Debug session sharing
+  - Voice calls (Live Share Audio extension)
 
-設定:
+Settings:
 {
   "liveshare.presence": true,
   "liveshare.guestApprovalRequired": true,
@@ -2219,75 +2219,75 @@ VS Code Live Share の活用:
 
 ## 14. FAQ
 
-### Q1: VS Code と VS Code Insiders の違いは？
+### Q1: What is the difference between VS Code and VS Code Insiders?
 
-**A:** Insiders は毎日更新されるプレビュー版。最新機能をいち早く試せるが安定性は劣る。本番開発には安定版を推奨。Insiders は別アプリとして共存可能なので、両方インストールして使い分けるのが理想的。
+**A:** Insiders is a preview version updated daily. You can try the latest features early, but stability is lower. The stable version is recommended for production development. Insiders can coexist as a separate app, so ideally install both and use them as needed.
 
-### Q2: `.vscode` フォルダはリポジトリにコミットすべき？
+### Q2: Should the `.vscode` folder be committed to the repository?
 
-**A:** 以下のルールで判断する。
+**A:** Use the following rules to decide.
 
-| ファイル | コミット | 理由 |
+| File | Commit | Reason |
 |---------|---------|------|
-| `settings.json` | する | チーム共通設定（フォーマッタ等） |
-| `extensions.json` | する | 推奨拡張機能の共有 |
-| `launch.json` | する | デバッグ設定の共有 |
-| `*.code-snippets` | する | プロジェクト固有スニペット |
-| `tasks.json` | 場合による | CI と重複しないか確認 |
+| `settings.json` | Yes | Team common settings (formatter, etc.) |
+| `extensions.json` | Yes | Share recommended extensions |
+| `launch.json` | Yes | Share debug configuration |
+| `*.code-snippets` | Yes | Project-specific snippets |
+| `tasks.json` | Depends | Check for overlap with CI |
 
-### Q3: Remote Development (SSH/WSL) が遅い場合の対処法は？
+### Q3: What to do when Remote Development (SSH/WSL) is slow?
 
-**A:** 以下を確認する。
-1. `remote.SSH.useLocalServer` を `true` に設定
-2. リモート側で不要な拡張機能を無効化
-3. `files.watcherExclude` に `node_modules` 等を追加
-4. SSH 接続に `ControlMaster` を設定して接続を再利用
-5. `remote.SSH.remotePlatform` を明示的に設定（OS 自動検出をスキップ）
+**A:** Check the following.
+1. Set `remote.SSH.useLocalServer` to `true`
+2. Disable unnecessary extensions on the remote side
+3. Add `node_modules` etc. to `files.watcherExclude`
+4. Configure `ControlMaster` for SSH connection reuse
+5. Explicitly set `remote.SSH.remotePlatform` (skip OS auto-detection)
 
-### Q4: VS Code のメモリ使用量が多すぎる場合は？
+### Q4: What to do when VS Code uses too much memory?
 
-**A:** 以下の手順で調査・対策する。
+**A:** Investigate and address with the following steps.
 
 ```bash
-# Process Explorer で確認
-# コマンドパレット → "Developer: Open Process Explorer"
+# Check with Process Explorer
+# Command Palette → "Developer: Open Process Explorer"
 
-# 対策:
-# 1. 拡張機能の見直し（Running Extensions で起動時間確認）
-# 2. TypeScript サーバーのメモリ制限
+# Solutions:
+# 1. Review extensions (check startup time with Running Extensions)
+# 2. Limit TypeScript server memory
 "typescript.tsserver.maxTsServerMemory": 2048
 
-# 3. ファイル監視の最適化
+# 3. Optimize file watching
 "files.watcherExclude": { ... }
 
-# 4. 大きなファイルの自動折りたたみ
+# 4. Auto-fold large files
 "editor.foldingMaximumRegions": 5000
 
-# 5. ミニマップの無効化
+# 5. Disable minimap
 "editor.minimap.enabled": false
 ```
 
-### Q5: 複数の VS Code ウィンドウ間で設定を分けたい場合は？
+### Q5: How to use different settings across multiple VS Code windows?
 
-**A:** プロファイル機能を使用する。各プロファイルには独立した設定・拡張機能・スニペットが保持される。`code --profile "プロファイル名" .` でプロファイル指定起動が可能。
+**A:** Use the profile feature. Each profile maintains independent settings, extensions, and snippets. You can launch with a specific profile using `code --profile "ProfileName" .`.
 
-### Q6: VS Code をポータブルモードで使うには？
+### Q6: How to use VS Code in portable mode?
 
-**A:** `--user-data-dir` と `--extensions-dir` を指定して起動する。
+**A:** Launch with `--user-data-dir` and `--extensions-dir` specified.
 
 ```bash
-# ポータブルモード
+# Portable mode
 code \
   --user-data-dir /path/to/portable/data \
   --extensions-dir /path/to/portable/extensions \
   /path/to/project
 ```
 
-USB ドライブに VS Code と設定を入れて持ち運びが可能。
+You can carry VS Code and its settings on a USB drive.
 
-### Q7: 特定のファイルタイプで異なるフォーマッタを使いたい場合は？
+### Q7: How to use different formatters for specific file types?
 
-**A:** 言語固有設定で `editor.defaultFormatter` を指定する。
+**A:** Specify `editor.defaultFormatter` in language-specific settings.
 
 ```jsonc
 {
@@ -2306,21 +2306,21 @@ USB ドライブに VS Code と設定を入れて持ち運びが可能。
 }
 ```
 
-### Q8: 大きなファイル（1MB 以上）を VS Code で開くと重い場合は？
+### Q8: What to do when VS Code is slow opening large files (1MB or more)?
 
-**A:** 以下の設定を調整する。
+**A:** Adjust the following settings.
 
 ```jsonc
 {
-  // 大きなファイルの処理
+  // Large file handling
   "editor.largeFileOptimizations": true,
-  // トークン化の上限（行数）
+  // Tokenization limit (lines)
   "editor.maxTokenizationLineLength": 20000,
-  // ミニマップを無効化
+  // Disable minimap
   "editor.minimap.enabled": false,
-  // 折りたたみを無効化
+  // Disable folding
   "editor.folding": false,
-  // ワードラップを無効化
+  // Disable word wrap
   "editor.wordWrap": "off"
 }
 ```
@@ -2330,54 +2330,54 @@ USB ドライブに VS Code と設定を入れて持ち運びが可能。
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Jumping to advanced topics without mastering the basics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 15. まとめ
+## 15. Summary
 
-| 項目 | 推奨設定・ツール | 備考 |
+| Item | Recommended Setting/Tool | Notes |
 |------|-----------------|------|
-| インストール | Homebrew / winget | パッケージマネージャー経由 |
-| フォント | JetBrains Mono | リガチャ対応 |
-| テーマ | One Dark Pro / GitHub Theme | 好みで選択 |
-| フォーマッタ | Prettier | `formatOnSave` 有効化 |
-| リンター | ESLint | `codeActionsOnSave` 連携 |
-| Git | GitLens + Git Graph | 必須レベル |
-| AI | GitHub Copilot | 有料だが投資対効果大 |
-| 設定同期 | Settings Sync | GitHub アカウント推奨 |
-| プロファイル | 用途別に分離 | Frontend / Backend / Data |
-| デバッグ | launch.json | 言語・フレームワーク別に設定 |
-| タスク | tasks.json | ビルド・テスト・Dev Server |
-| リモート | Remote SSH / WSL / Tunnels | 用途に応じて選択 |
-| パフォーマンス | watcherExclude / search.exclude | 大規模プロジェクト対応 |
+| Installation | Homebrew / winget | Via package manager |
+| Font | JetBrains Mono | Ligature support |
+| Theme | One Dark Pro / GitHub Theme | Choose by preference |
+| Formatter | Prettier | Enable `formatOnSave` |
+| Linter | ESLint | Integrate with `codeActionsOnSave` |
+| Git | GitLens + Git Graph | Essential level |
+| AI | GitHub Copilot | Paid but high ROI |
+| Settings sync | Settings Sync | GitHub account recommended |
+| Profiles | Separate by purpose | Frontend / Backend / Data |
+| Debugging | launch.json | Configure per language/framework |
+| Tasks | tasks.json | Build / Test / Dev Server |
+| Remote | Remote SSH / WSL / Tunnels | Choose based on use case |
+| Performance | watcherExclude / search.exclude | For large projects |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [01-terminal-setup.md](./01-terminal-setup.md) -- ターミナル環境の構築
-- [02-git-config.md](./02-git-config.md) -- Git の詳細設定
-- [03-ai-tools.md](./03-ai-tools.md) -- AI 開発ツールの導入
+- [01-terminal-setup.md](./01-terminal-setup.md) -- Building a terminal environment
+- [02-git-config.md](./02-git-config.md) -- Detailed Git configuration
+- [03-ai-tools.md](./03-ai-tools.md) -- Introduction to AI development tools
 
 ---
 
-## 参考文献
+## References
 
-1. **Visual Studio Code Documentation** -- https://code.visualstudio.com/docs -- 公式ドキュメント。設定リファレンスが最も正確。
-2. **VS Code Can Do That?!** (Burke Holland, Sarah Drasner) -- https://vscodecandothat.com/ -- 知られざる便利機能のコレクション。
-3. **Awesome VS Code** -- https://github.com/viatsko/awesome-vscode -- コミュニティが管理する拡張機能・リソース集。
-4. **VS Code Tips and Tricks** -- https://code.visualstudio.com/docs/getstarted/tips-and-tricks -- 公式の Tips 集。初心者から上級者まで有用。
-5. **VS Code API Reference** -- https://code.visualstudio.com/api -- 拡張機能開発者向けの API リファレンス。
-6. **Language Server Protocol** -- https://microsoft.github.io/language-server-protocol/ -- LSP の仕様。VS Code の言語サポートの基盤。
-7. **Debug Adapter Protocol** -- https://microsoft.github.io/debug-adapter-protocol/ -- DAP の仕様。デバッグ機能の基盤。
+1. **Visual Studio Code Documentation** -- https://code.visualstudio.com/docs -- Official documentation. The settings reference is the most accurate.
+2. **VS Code Can Do That?!** (Burke Holland, Sarah Drasner) -- https://vscodecandothat.com/ -- A collection of little-known useful features.
+3. **Awesome VS Code** -- https://github.com/viatsko/awesome-vscode -- Community-maintained collection of extensions and resources.
+4. **VS Code Tips and Tricks** -- https://code.visualstudio.com/docs/getstarted/tips-and-tricks -- Official tips collection. Useful for beginners through advanced users.
+5. **VS Code API Reference** -- https://code.visualstudio.com/api -- API reference for extension developers.
+6. **Language Server Protocol** -- https://microsoft.github.io/language-server-protocol/ -- LSP specification. The foundation of VS Code's language support.
+7. **Debug Adapter Protocol** -- https://microsoft.github.io/debug-adapter-protocol/ -- DAP specification. The foundation of debugging features.
