@@ -1,38 +1,38 @@
-# Amazon EKS 概要
+# Amazon EKS Overview
 
-> Amazon Elastic Kubernetes Service (EKS) のクラスター作成、ノードグループ、Fargate プロファイル、Helm、IRSA (IAM Roles for Service Accounts) までを体系的に学ぶ。EKS アドオン管理、Cluster Autoscaler / Karpenter、ネットワークポリシー、可観測性、セキュリティ、GitOps まで含めた実践的な運用知識を網羅する。
-
----
-
-## この章で学ぶこと
-
-1. **EKS クラスターの構成と作成** -- コントロールプレーンとデータプレーンの関係、eksctl によるクラスター構築を理解する
-2. **ノードグループと Fargate プロファイル** -- マネージドノードグループ、セルフマネージドノード、Fargate の使い分けを習得する
-3. **Helm と IRSA の活用** -- パッケージマネージャによるアプリケーションデプロイと、Pod レベルの IAM 権限制御を身につける
-4. **EKS アドオンとオートスケーリング** -- マネージドアドオン、Cluster Autoscaler、Karpenter によるクラスター運用の自動化を学ぶ
-5. **セキュリティとネットワーク** -- Pod Security Standards、ネットワークポリシー、Secrets 管理の実践を理解する
-6. **可観測性と GitOps** -- Container Insights、Prometheus、ArgoCD/Flux を用いた運用パターンを習得する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Amazon ECR (Elastic Container Registry)](./01-ecr.md) の内容を理解していること
+> A systematic guide covering Amazon Elastic Kubernetes Service (EKS) cluster creation, node groups, Fargate profiles, Helm, and IRSA (IAM Roles for Service Accounts). This guide provides comprehensive practical operational knowledge including EKS add-on management, Cluster Autoscaler / Karpenter, network policies, observability, security, and GitOps.
 
 ---
 
-## 1. EKS のアーキテクチャ
+## What You Will Learn
 
-### 1.1 全体構成
+1. **EKS Cluster Configuration and Creation** -- Understand the relationship between the control plane and data plane, and learn cluster setup with eksctl
+2. **Node Groups and Fargate Profiles** -- Master the use cases for managed node groups, self-managed nodes, and Fargate
+3. **Using Helm and IRSA** -- Learn application deployment with a package manager and Pod-level IAM permission control
+4. **EKS Add-ons and Auto Scaling** -- Learn cluster operations automation using managed add-ons, Cluster Autoscaler, and Karpenter
+5. **Security and Networking** -- Understand practical implementation of Pod Security Standards, network policies, and Secrets management
+6. **Observability and GitOps** -- Master operational patterns using Container Insights, Prometheus, ArgoCD/Flux
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Amazon ECR (Elastic Container Registry)](./01-ecr.md)
+
+---
+
+## 1. EKS Architecture
+
+### 1.1 Overall Structure
 
 ```
 +----------------------------------------------------------+
-|  Amazon EKS クラスター                                     |
+|  Amazon EKS Cluster                                       |
 |                                                          |
-|  コントロールプレーン (AWS 管理)                              |
+|  Control Plane (AWS Managed)                             |
 |  +------------------------------------------------------+|
 |  | +--------+ +----------+ +----------+ +-----------+   ||
 |  | | kube-  | | kube-    | | kube-    | | etcd      |   ||
@@ -41,11 +41,11 @@
 |  | +--------+ +----------+ +----------+ +-----------+   ||
 |  +------------------------------------------------------+|
 |           |                                              |
-|           | (ENI / API エンドポイント)                      |
+|           | (ENI / API Endpoint)                         |
 |           |                                              |
-|  データプレーン (ユーザー管理)                                |
+|  Data Plane (User Managed)                               |
 |  +------------------------------------------------------+|
-|  | マネージドノードグループ     Fargate                     ||
+|  | Managed Node Group          Fargate                  ||
 |  | +----------+ +----------+ +-----------+              ||
 |  | | EC2 Node | | EC2 Node | | Fargate   |              ||
 |  | | +------+ | | +------+ | | Pod       |              ||
@@ -59,28 +59,28 @@
 +----------------------------------------------------------+
 ```
 
-### 1.2 EKS vs ECS 比較
+### 1.2 EKS vs ECS Comparison
 
-| 特性 | EKS | ECS |
-|------|-----|-----|
-| オーケストレータ | Kubernetes | AWS 独自 |
-| 学習コスト | 高い | 低い |
-| 可搬性 | 高い (K8s 互換) | AWS 固有 |
-| エコシステム | 非常に広い (CNCF) | AWS サービスと密連携 |
-| コントロールプレーン費用 | $0.10/時 (~$73/月) | 無料 |
-| 設定の柔軟性 | 非常に高い | 適度 |
-| 運用複雑性 | 高い | 低い |
-| 向いている組織 | K8s 経験あり/マルチクラウド | AWS 中心/小規模チーム |
+| Feature | EKS | ECS |
+|---------|-----|-----|
+| Orchestrator | Kubernetes | AWS proprietary |
+| Learning curve | High | Low |
+| Portability | High (K8s compatible) | AWS-specific |
+| Ecosystem | Very broad (CNCF) | Tight AWS service integration |
+| Control plane cost | $0.10/hr (~$73/mo) | Free |
+| Configuration flexibility | Very high | Moderate |
+| Operational complexity | High | Low |
+| Best suited for | K8s experience / multi-cloud | AWS-centric / small teams |
 
-### 1.3 EKS のネットワークアーキテクチャ
+### 1.3 EKS Network Architecture
 
 ```
-EKS ネットワーク構成:
+EKS Network Configuration:
 
 +------------------------------------------------------------------+
 |  VPC (10.0.0.0/16)                                                |
 |                                                                  |
-|  パブリックサブネット                                               |
+|  Public Subnets                                                   |
 |  +---------------------+  +---------------------+                 |
 |  | 10.0.1.0/24 (AZ-a)  |  | 10.0.2.0/24 (AZ-c)  |                |
 |  | +------+  +------+  |  | +------+  +------+  |                |
@@ -90,7 +90,7 @@ EKS ネットワーク構成:
 |  | +------+  +------+  |  | +------+  +------+  |                |
 |  +---------------------+  +---------------------+                 |
 |                                                                  |
-|  プライベートサブネット                                              |
+|  Private Subnets                                                  |
 |  +---------------------+  +---------------------+                 |
 |  | 10.0.10.0/24 (AZ-a) |  | 10.0.20.0/24 (AZ-c) |                |
 |  | +------+ +------+   |  | +------+ +------+   |                |
@@ -101,17 +101,17 @@ EKS ネットワーク構成:
 |  | +------+ +------+   |  | +------+ +------+   |                |
 |  +---------------------+  +---------------------+                 |
 |                                                                  |
-|  ENI (コントロールプレーン通信用)                                    |
+|  ENI (for control plane communication)                            |
 |  +---------------------+  +---------------------+                 |
 |  | 10.0.100.0/24       |  | 10.0.200.0/24       |                |
 |  +---------------------+  +---------------------+                 |
 +------------------------------------------------------------------+
 ```
 
-### 1.4 EKS API エンドポイントのアクセス制御
+### 1.4 EKS API Endpoint Access Control
 
 ```bash
-# パブリック + プライベートエンドポイント (推奨)
+# Public + Private endpoint (recommended)
 aws eks update-cluster-config \
   --name my-cluster \
   --resources-vpc-config \
@@ -119,7 +119,7 @@ aws eks update-cluster-config \
     endpointPrivateAccess=true,\
     publicAccessCidrs='["203.0.113.0/24","198.51.100.0/24"]'
 
-# プライベートエンドポイントのみ (最もセキュア)
+# Private endpoint only (most secure)
 aws eks update-cluster-config \
   --name my-cluster \
   --resources-vpc-config \
@@ -128,26 +128,26 @@ aws eks update-cluster-config \
 ```
 
 ```
-API エンドポイントの選択:
+API Endpoint Options:
 
-パブリックのみ:
-  kubectl → インターネット → EKS API
-  ⚠ セキュリティリスク
+Public only:
+  kubectl → Internet → EKS API
+  ⚠ Security risk
 
-パブリック + プライベート (推奨):
-  kubectl (社外) → インターネット → EKS API (CIDR制限)
-  kubectl (VPC内) → ENI → EKS API (プライベート)
+Public + Private (recommended):
+  kubectl (external) → Internet → EKS API (CIDR restricted)
+  kubectl (within VPC) → ENI → EKS API (private)
 
-プライベートのみ:
+Private only:
   kubectl → VPN/DirectConnect → VPC → ENI → EKS API
-  ✓ 最もセキュア / VPN必須
+  ✓ Most secure / VPN required
 ```
 
 ---
 
-## 2. クラスターの作成
+## 2. Cluster Creation
 
-### 2.1 eksctl によるクラスター作成
+### 2.1 Creating a Cluster with eksctl
 
 ```yaml
 # cluster-config.yaml
@@ -162,7 +162,7 @@ metadata:
 vpc:
   cidr: "10.0.0.0/16"
   nat:
-    gateway: HighlyAvailable  # 各AZにNAT GW
+    gateway: HighlyAvailable  # NAT GW in each AZ
 
 managedNodeGroups:
   - name: general-purpose
@@ -211,21 +211,21 @@ cloudWatch:
 ```
 
 ```bash
-# クラスター作成
+# Create cluster
 eksctl create cluster -f cluster-config.yaml
 
-# kubeconfig の設定
+# Configure kubeconfig
 aws eks update-kubeconfig --name my-cluster --region ap-northeast-1
 
-# クラスター情報の確認
+# Verify cluster information
 kubectl cluster-info
 kubectl get nodes
 ```
 
-### 2.2 AWS CLI によるクラスター作成
+### 2.2 Creating a Cluster with AWS CLI
 
 ```bash
-# 1. クラスターロールの作成
+# 1. Create cluster role
 aws iam create-role \
   --role-name eksClusterRole \
   --assume-role-policy-document '{
@@ -241,7 +241,7 @@ aws iam attach-role-policy \
   --role-name eksClusterRole \
   --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
 
-# 2. クラスターの作成
+# 2. Create cluster
 aws eks create-cluster \
   --name my-cluster \
   --role-arn arn:aws:iam::123456789012:role/eksClusterRole \
@@ -251,7 +251,7 @@ securityGroupIds=sg-12345678 \
   --kubernetes-version 1.29
 ```
 
-### 2.3 eksctl 高度な設定例
+### 2.3 Advanced eksctl Configuration Example
 
 ```yaml
 # production-cluster.yaml
@@ -266,11 +266,11 @@ metadata:
     Environment: production
     Team: platform
 
-# KMS によるシークレット暗号化
+# Secrets encryption with KMS
 secretsEncryption:
   keyARN: arn:aws:kms:ap-northeast-1:123456789012:key/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
-# VPC 設定
+# VPC configuration
 vpc:
   cidr: "10.0.0.0/16"
   nat:
@@ -281,7 +281,7 @@ vpc:
   publicAccessCIDRs:
     - "203.0.113.0/24"
 
-# IAM OIDC プロバイダ (IRSA用)
+# IAM OIDC provider (for IRSA)
 iam:
   withOIDC: true
   serviceAccounts:
@@ -301,7 +301,7 @@ iam:
       wellKnownPolicies:
         autoScaler: true
 
-# マネージドアドオン
+# Managed add-ons
 addons:
   - name: vpc-cni
     version: latest
@@ -314,7 +314,7 @@ addons:
     version: latest
     serviceAccountRoleARN: arn:aws:iam::123456789012:role/ebs-csi-role
 
-# ノードグループ
+# Node groups
 managedNodeGroups:
   - name: system
     instanceType: m5.large
@@ -372,7 +372,7 @@ managedNodeGroups:
         effect: NoSchedule
     privateNetworking: true
 
-# ログ設定
+# Logging configuration
 cloudWatch:
   clusterLogging:
     enableTypes:
@@ -384,43 +384,43 @@ cloudWatch:
     logRetentionInDays: 90
 ```
 
-### 2.4 クラスターのバージョンアップグレード
+### 2.4 Cluster Version Upgrade
 
 ```bash
-# 現在のバージョン確認
+# Check current version
 aws eks describe-cluster \
   --name my-cluster \
   --query 'cluster.version'
 
-# コントロールプレーンのアップグレード
+# Upgrade control plane
 aws eks update-cluster-version \
   --name my-cluster \
   --kubernetes-version 1.30
 
-# アップグレード状況の確認
+# Check upgrade status
 aws eks describe-update \
   --name my-cluster \
   --update-id <update-id>
 
-# アドオンの互換性確認
+# Check add-on compatibility
 aws eks describe-addon-versions \
   --kubernetes-version 1.30 \
   --addon-name vpc-cni
 
-# アドオンのアップグレード
+# Upgrade add-on
 aws eks update-addon \
   --cluster-name my-cluster \
   --addon-name vpc-cni \
   --addon-version v1.16.0-eksbuild.1 \
   --resolve-conflicts OVERWRITE
 
-# マネージドノードグループのアップグレード
+# Upgrade managed node group
 aws eks update-nodegroup-version \
   --cluster-name my-cluster \
   --nodegroup-name general-ng \
   --kubernetes-version 1.30
 
-# ノードグループのアップグレード状況
+# Check node group upgrade status
 aws eks describe-nodegroup \
   --cluster-name my-cluster \
   --nodegroup-name general-ng \
@@ -428,61 +428,61 @@ aws eks describe-nodegroup \
 ```
 
 ```
-EKS バージョンアップグレード手順:
+EKS Version Upgrade Steps:
 
-1. リリースノート確認
-   ↓  非推奨 API、Breaking Changes の確認
-2. ステージング環境でテスト
-   ↓  アプリケーション互換性テスト
-3. アドオン互換性確認
-   ↓  vpc-cni, coredns, kube-proxy 対応バージョン
-4. コントロールプレーンアップグレード
-   ↓  約 20-30 分 (ダウンタイムなし)
-5. アドオンアップグレード
-   ↓  各アドオンを順次更新
-6. ノードグループアップグレード
-   ↓  ローリングアップデート (Pod のドレイン → 新ノード起動)
-7. アプリケーション動作確認
+1. Review release notes
+   ↓  Check for deprecated APIs and breaking changes
+2. Test in staging environment
+   ↓  Application compatibility testing
+3. Check add-on compatibility
+   ↓  Compatible versions for vpc-cni, coredns, kube-proxy
+4. Upgrade control plane
+   ↓  Approx. 20-30 minutes (no downtime)
+5. Upgrade add-ons
+   ↓  Update each add-on sequentially
+6. Upgrade node groups
+   ↓  Rolling update (drain Pods → launch new nodes)
+7. Verify application behavior
 
-⚠ 1バージョンずつ上げること (1.28 → 1.29 → 1.30)
-⚠ コントロールプレーンとデータプレーンは2マイナーバージョン差まで
+⚠ Upgrade one version at a time (1.28 → 1.29 → 1.30)
+⚠ Control plane and data plane can differ by at most 2 minor versions
 ```
 
 ---
 
-## 3. ノードグループ
+## 3. Node Groups
 
-### 3.1 ノードタイプの比較
+### 3.1 Node Type Comparison
 
 ```
-ノードの選択肢:
+Node Options:
 
 +-------------------+     +-------------------+     +-------------------+
-| マネージドノード   |     | セルフマネージド    |     | Fargate           |
-| グループ          |     | ノード            |     |                   |
+| Managed Node      |     | Self-Managed      |     | Fargate           |
+| Group             |     | Nodes             |     |                   |
 +-------------------+     +-------------------+     +-------------------+
-| EC2 の管理を      |     | EC2 を完全に      |     | サーバーレス       |
-| AWS が支援        |     | ユーザーが管理    |     | Pod 単位の実行     |
+| EC2 management    |     | EC2 fully managed |     | Serverless        |
+| assisted by AWS   |     | by user           |     | Pod-level exec    |
 |                   |     |                   |     |                   |
-| AMI 更新: 半自動  |     | AMI 更新: 手動    |     | AMI 管理: 不要    |
-| ASG 管理: 自動    |     | ASG 管理: 手動    |     | スケール: 自動    |
-| ドレイン: 自動    |     | ドレイン: 手動    |     | DaemonSet: 不可   |
+| AMI updates: semi |     | AMI updates:      |     | AMI mgmt: none    |
+| ASG mgmt: auto    |     | ASG mgmt: manual  |     | Scaling: auto     |
+| Drain: auto       |     | Drain: manual     |     | DaemonSet: N/A    |
 +-------------------+     +-------------------+     +-------------------+
 ```
 
-| 項目 | マネージドノードグループ | セルフマネージド | Fargate |
-|------|----------------------|----------------|---------|
-| インフラ管理 | 低 | 高 | なし |
-| カスタマイズ性 | 中 | 高 | 低 |
-| GPU サポート | あり | あり | なし |
-| DaemonSet | あり | あり | なし |
-| 起動速度 | 中 (EC2起動) | 中 | やや遅い |
-| コスト | EC2 料金 | EC2 料金 | vCPU+メモリ課金 |
+| Feature | Managed Node Group | Self-Managed | Fargate |
+|---------|-------------------|--------------|---------|
+| Infrastructure management | Low | High | None |
+| Customizability | Medium | High | Low |
+| GPU support | Yes | Yes | No |
+| DaemonSet | Yes | Yes | No |
+| Launch speed | Medium (EC2 startup) | Medium | Somewhat slow |
+| Cost | EC2 pricing | EC2 pricing | vCPU+memory billing |
 
-### 3.2 マネージドノードグループの作成
+### 3.2 Creating a Managed Node Group
 
 ```bash
-# ノードロールの作成
+# Create node role
 aws iam create-role \
   --role-name eksNodeRole \
   --assume-role-policy-document '{
@@ -494,7 +494,7 @@ aws iam create-role \
     }]
   }'
 
-# 必要なポリシーのアタッチ
+# Attach required policies
 aws iam attach-role-policy --role-name eksNodeRole \
   --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
 aws iam attach-role-policy --role-name eksNodeRole \
@@ -502,7 +502,7 @@ aws iam attach-role-policy --role-name eksNodeRole \
 aws iam attach-role-policy --role-name eksNodeRole \
   --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
 
-# ノードグループの作成
+# Create node group
 aws eks create-nodegroup \
   --cluster-name my-cluster \
   --nodegroup-name general-ng \
@@ -514,11 +514,11 @@ aws eks create-nodegroup \
   --capacity-type ON_DEMAND
 ```
 
-### 3.3 カスタム Launch Template の活用
+### 3.3 Using Custom Launch Templates
 
 ```bash
-# Launch Template を使ったノードグループ作成
-# カスタム AMI、UserData、セキュリティグループなどを細かく制御可能
+# Create node group with Launch Template
+# Allows fine-grained control of custom AMI, UserData, security groups, etc.
 
 aws ec2 create-launch-template \
   --launch-template-name eks-custom-lt \
@@ -551,7 +551,7 @@ aws ec2 create-launch-template \
     ]
   }'
 
-# Launch Template を使用してノードグループ作成
+# Create node group using Launch Template
 aws eks create-nodegroup \
   --cluster-name my-cluster \
   --nodegroup-name custom-ng \
@@ -561,10 +561,10 @@ aws eks create-nodegroup \
   --scaling-config minSize=2,maxSize=10,desiredSize=3
 ```
 
-### 3.4 Bottlerocket ノード
+### 3.4 Bottlerocket Nodes
 
 ```yaml
-# eksctl での Bottlerocket ノードグループ
+# Bottlerocket node group with eksctl
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 metadata:
@@ -594,59 +594,59 @@ managedNodeGroups:
 Bottlerocket vs Amazon Linux 2:
 
 Bottlerocket:
-  ✓ コンテナ実行に特化した軽量 OS
-  ✓ 不変インフラ (immutable)
-  ✓ 自動セキュリティアップデート
-  ✓ SSH 不要 (SSM 経由の admin container)
-  ✓ 攻撃対象面が小さい
-  ✗ 汎用的なパッケージ追加は不可
-  ✗ 一部のカスタム設定に制限
+  ✓ Lightweight OS specialized for container execution
+  ✓ Immutable infrastructure
+  ✓ Automatic security updates
+  ✓ No SSH required (admin container via SSM)
+  ✓ Smaller attack surface
+  ✗ General-purpose package installation not possible
+  ✗ Some custom configurations are restricted
 
 Amazon Linux 2:
-  ✓ 汎用的で柔軟
-  ✓ yum でパッケージ追加可能
-  ✓ 既存の運用ツールが使える
-  ✗ OS パッチ管理が必要
-  ✗ セキュリティ管理の負担が大きい
+  ✓ General-purpose and flexible
+  ✓ Package installation via yum
+  ✓ Existing operational tools are compatible
+  ✗ OS patch management required
+  ✗ Higher security management burden
 ```
 
 ---
 
-## 4. Fargate プロファイル
+## 4. Fargate Profiles
 
-### 4.1 Fargate プロファイルの仕組み
+### 4.1 How Fargate Profiles Work
 
 ```
-Fargate Pod スケジューリング:
+Fargate Pod Scheduling:
 
-Pod 作成リクエスト
+Pod creation request
     |
     v
 +----------------------------+
-| EKS スケジューラ            |
-| Fargate プロファイルを確認   |
+| EKS Scheduler              |
+| Checks Fargate profiles    |
 +----------------------------+
     |
-    | namespace + labels がマッチ？
+    | Does namespace + labels match?
     |
  +--+--+
  |     |
-マッチ  不一致
+Match  No match
  |     |
  v     v
-Fargate  EC2 ノード
-で実行   で実行
+Fargate  EC2 Node
+execute  execute
 
-Fargate プロファイル:
+Fargate Profile:
   namespace: "batch-jobs"
   labels:
     compute: "fargate"
 ```
 
-### 4.2 Fargate プロファイルの作成
+### 4.2 Creating a Fargate Profile
 
 ```bash
-# Fargate Pod 実行ロール
+# Fargate Pod execution role
 aws iam create-role \
   --role-name eksFargatePodRole \
   --assume-role-policy-document '{
@@ -661,7 +661,7 @@ aws iam create-role \
 aws iam attach-role-policy --role-name eksFargatePodRole \
   --policy-arn arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy
 
-# Fargate プロファイルの作成
+# Create Fargate profile
 aws eks create-fargate-profile \
   --cluster-name my-cluster \
   --fargate-profile-name batch-profile \
@@ -675,34 +675,34 @@ aws eks create-fargate-profile \
   ]'
 ```
 
-### 4.3 Fargate の制限事項と対策
+### 4.3 Fargate Limitations and Workarounds
 
 ```
-Fargate の制限事項:
+Fargate Limitations:
 
-1. DaemonSet が使えない
-   → サイドカーコンテナで代替
-   → Fluent Bit サイドカーでログ転送
+1. DaemonSet is not supported
+   → Use sidecar containers as an alternative
+   → Use Fluent Bit sidecar for log forwarding
 
-2. HostPort / HostNetwork が使えない
-   → Service (LoadBalancer/ClusterIP) で対応
+2. HostPort / HostNetwork is not supported
+   → Use Service (LoadBalancer/ClusterIP) instead
 
-3. EBS ボリュームが使えない
-   → EFS (Elastic File System) を使用
-   → emptyDir は一時的に利用可能
+3. EBS volumes are not supported
+   → Use EFS (Elastic File System)
+   → emptyDir can be used temporarily
 
-4. GPU が使えない
-   → GPU ワークロードは EC2 ノードへ
+4. GPU is not supported
+   → Route GPU workloads to EC2 nodes
 
-5. Privileged Container が使えない
-   → セキュリティコンテキストの制限
+5. Privileged Containers are not supported
+   → Security context restrictions apply
 
-6. 起動が遅い (30秒〜2分)
-   → レイテンシに敏感なワークロードは EC2 ノードへ
+6. Slow startup (30 seconds to 2 minutes)
+   → Use EC2 nodes for latency-sensitive workloads
 ```
 
 ```yaml
-# Fargate での Fluent Bit サイドカー例
+# Fluent Bit sidecar example for Fargate
 apiVersion: v1
 kind: Pod
 metadata:
@@ -738,10 +738,10 @@ spec:
         name: fluent-bit-config
 ```
 
-### 4.4 Fargate でのロギング (FireLens)
+### 4.4 Logging on Fargate (FireLens)
 
 ```yaml
-# Fargate Pod のログを CloudWatch に送信する ConfigMap
+# ConfigMap to send Fargate Pod logs to CloudWatch
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -778,62 +778,62 @@ data:
 
 ## 5. Helm
 
-### 5.1 Helm の概念
+### 5.1 Helm Concepts
 
 ```
-Helm の構成要素:
+Helm Components:
 
-Chart (パッケージ):
+Chart (Package):
   my-chart/
-  ├── Chart.yaml          # チャートのメタデータ
-  ├── values.yaml         # デフォルト設定値
-  ├── templates/          # Kubernetes マニフェストテンプレート
+  ├── Chart.yaml          # Chart metadata
+  ├── values.yaml         # Default configuration values
+  ├── templates/          # Kubernetes manifest templates
   │   ├── deployment.yaml
   │   ├── service.yaml
   │   ├── ingress.yaml
-  │   └── _helpers.tpl    # テンプレートヘルパー
-  └── charts/             # 依存チャート
+  │   └── _helpers.tpl    # Template helpers
+  └── charts/             # Dependent charts
 
-Release (インストール済みインスタンス):
+Release (Installed instance):
   helm install my-release my-chart --values custom-values.yaml
 ```
 
-### 5.2 Helm によるアプリケーションデプロイ
+### 5.2 Application Deployment with Helm
 
 ```bash
-# Helm リポジトリの追加
+# Add Helm repository
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
 
-# チャートの検索
+# Search for charts
 helm search repo nginx
 
-# インストール (NGINX Ingress Controller の例)
+# Install (NGINX Ingress Controller example)
 helm install ingress-nginx ingress-nginx/ingress-nginx \
   --namespace ingress-nginx \
   --create-namespace \
   --set controller.service.type=LoadBalancer \
   --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"=nlb
 
-# カスタム values ファイルでインストール
+# Install with custom values file
 helm install my-app ./my-chart \
   --namespace production \
   --create-namespace \
   --values production-values.yaml
 
-# アップグレード
+# Upgrade
 helm upgrade my-app ./my-chart \
   --namespace production \
   --values production-values.yaml
 
-# ロールバック
+# Rollback
 helm rollback my-app 1 --namespace production
 
-# 一覧確認
+# List releases
 helm list --all-namespaces
 ```
 
-### 5.3 values.yaml の例
+### 5.3 values.yaml Example
 
 ```yaml
 # production-values.yaml
@@ -876,13 +876,13 @@ serviceAccount:
     eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/my-app-role
 ```
 
-### 5.4 Helm Chart の作成
+### 5.4 Creating a Helm Chart
 
 ```bash
-# 新しい Chart のスキャフォールド
+# Scaffold a new Chart
 helm create my-web-app
 
-# 生成される構造
+# Generated structure
 # my-web-app/
 # ├── Chart.yaml
 # ├── values.yaml
@@ -992,16 +992,16 @@ spec:
 ```
 
 ```bash
-# Chart のテスト
+# Test Chart
 helm template my-app ./my-web-app --values production-values.yaml
 
-# Lint チェック
+# Lint check
 helm lint ./my-web-app
 
-# Chart パッケージ
+# Package Chart
 helm package ./my-web-app
 
-# OCI レジストリ (ECR) への Chart プッシュ
+# Push Chart to OCI registry (ECR)
 aws ecr create-repository --repository-name helm-charts/my-web-app
 helm push my-web-app-0.1.0.tgz oci://123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/helm-charts
 ```
@@ -1010,18 +1010,18 @@ helm push my-web-app-0.1.0.tgz oci://123456789012.dkr.ecr.ap-northeast-1.amazona
 
 ## 6. IRSA (IAM Roles for Service Accounts)
 
-### 6.1 IRSA の仕組み
+### 6.1 How IRSA Works
 
 ```
-IRSA の認証フロー:
+IRSA Authentication Flow:
 
-1. Pod 起動時、ServiceAccount にアノテーションされた
-   IAM ロール ARN を取得
+1. At Pod startup, retrieve the IAM role ARN
+   annotated on the ServiceAccount
 
-2. EKS が OIDC プロバイダ経由で STS と連携
+2. EKS integrates with STS via the OIDC provider
 
-3. Pod 内のアプリケーションが AWS SDK で
-   自動的に一時認証情報を取得
+3. The application inside the Pod automatically
+   obtains temporary credentials using the AWS SDK
 
 +--------+     +--------+     +---------+     +-----+
 | Pod    | --> | OIDC   | --> | AWS STS | --> | IAM |
@@ -1032,20 +1032,20 @@ IRSA の認証フロー:
     | AWS_ROLE_ARN                               |
     v                                            v
 +--------+                                  +--------+
-|一時認証 | <------------------------------- |権限付与 |
-|情報取得 |                                  |        |
+|Temp    | <------------------------------- |Perms   |
+|creds   |                                  |granted |
 +--------+                                  +--------+
 ```
 
-### 6.2 IRSA の設定手順
+### 6.2 IRSA Setup Steps
 
 ```bash
-# 1. OIDC プロバイダの作成 (クラスター作成時に1回)
+# 1. Create OIDC provider (once per cluster creation)
 eksctl utils associate-iam-oidc-provider \
   --cluster my-cluster \
   --approve
 
-# 2. IAM ポリシーの作成
+# 2. Create IAM policy
 aws iam create-policy \
   --policy-name my-app-s3-policy \
   --policy-document '{
@@ -1057,7 +1057,7 @@ aws iam create-policy \
     }]
   }'
 
-# 3. ServiceAccount と IAM ロールの紐付け
+# 3. Link ServiceAccount with IAM role
 eksctl create iamserviceaccount \
   --cluster my-cluster \
   --namespace production \
@@ -1065,7 +1065,7 @@ eksctl create iamserviceaccount \
   --attach-policy-arn arn:aws:iam::123456789012:policy/my-app-s3-policy \
   --approve
 
-# 4. Pod で ServiceAccount を指定
+# 4. Specify ServiceAccount in Pod
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Pod
@@ -1080,7 +1080,7 @@ spec:
 EOF
 ```
 
-### 6.3 IRSA の IAM ロール信頼ポリシー
+### 6.3 IRSA IAM Role Trust Policy
 
 ```json
 {
@@ -1103,18 +1103,18 @@ EOF
 }
 ```
 
-### 6.4 EKS Pod Identity (IRSA の後継)
+### 6.4 EKS Pod Identity (Successor to IRSA)
 
 ```bash
-# EKS Pod Identity Association の作成 (IRSA より簡単)
-# OIDC プロバイダの設定が不要
+# Create EKS Pod Identity Association (simpler than IRSA)
+# No OIDC provider configuration required
 
-# 1. Pod Identity Agent アドオンのインストール
+# 1. Install Pod Identity Agent add-on
 aws eks create-addon \
   --cluster-name my-cluster \
   --addon-name eks-pod-identity-agent
 
-# 2. IAM ロールの信頼ポリシー (Pod Identity 用)
+# 2. IAM role trust policy (for Pod Identity)
 aws iam create-role \
   --role-name my-app-pod-identity-role \
   --assume-role-policy-document '{
@@ -1131,14 +1131,14 @@ aws iam create-role \
     }]
   }'
 
-# 3. Pod Identity Association の作成
+# 3. Create Pod Identity Association
 aws eks create-pod-identity-association \
   --cluster-name my-cluster \
   --namespace production \
   --service-account my-app-sa \
   --role-arn arn:aws:iam::123456789012:role/my-app-pod-identity-role
 
-# 4. ServiceAccount の作成 (アノテーション不要！)
+# 4. Create ServiceAccount (no annotation needed!)
 kubectl create serviceaccount my-app-sa -n production
 ```
 
@@ -1146,46 +1146,46 @@ kubectl create serviceaccount my-app-sa -n production
 IRSA vs EKS Pod Identity:
 
 IRSA:
-  ✓ 成熟した仕組み、広くドキュメント化
-  ✗ クラスターごとに OIDC プロバイダ設定が必要
-  ✗ IAM ロール信頼ポリシーにクラスター固有の OIDC URL が必要
-  ✗ クラスター間の移行が煩雑
+  ✓ Mature mechanism, widely documented
+  ✗ Requires OIDC provider setup per cluster
+  ✗ IAM role trust policy requires cluster-specific OIDC URL
+  ✗ Migration between clusters is cumbersome
 
-EKS Pod Identity (推奨):
-  ✓ OIDC プロバイダ不要
-  ✓ IAM ロールの信頼ポリシーがシンプル
-  ✓ クラスター間の移行が容易
-  ✓ ServiceAccount にアノテーション不要
-  ✗ 比較的新しい機能 (2023年11月〜)
-  ✗ Fargate 非対応 (IRSA を使用)
+EKS Pod Identity (recommended):
+  ✓ No OIDC provider required
+  ✓ Simpler IAM role trust policy
+  ✓ Easy migration between clusters
+  ✓ No ServiceAccount annotation required
+  ✗ Relatively new feature (since November 2023)
+  ✗ Not supported for Fargate (use IRSA)
 ```
 
 ---
 
-## 7. EKS マネージドアドオン
+## 7. EKS Managed Add-ons
 
-### 7.1 主要なマネージドアドオン
+### 7.1 Key Managed Add-ons
 
 ```bash
-# 利用可能なアドオン一覧
+# List available add-ons
 aws eks describe-addon-versions \
   --kubernetes-version 1.29 \
   --query 'addons[].{name:addonName,versions:addonVersions[0].addonVersion}' \
   --output table
 
-# アドオンのインストール
+# Install add-on
 aws eks create-addon \
   --cluster-name my-cluster \
   --addon-name vpc-cni \
   --addon-version v1.16.0-eksbuild.1 \
   --service-account-role-arn arn:aws:iam::123456789012:role/vpc-cni-role
 
-# アドオンの状態確認
+# Check add-on status
 aws eks describe-addon \
   --cluster-name my-cluster \
   --addon-name vpc-cni
 
-# アドオンの更新
+# Update add-on
 aws eks update-addon \
   --cluster-name my-cluster \
   --addon-name vpc-cni \
@@ -1194,46 +1194,46 @@ aws eks update-addon \
 ```
 
 ```
-主要アドオン一覧:
+Key Add-ons List:
 
-必須アドオン:
-  vpc-cni          Pod のネットワーキング (ENI ベース)
-  coredns          クラスター内 DNS
-  kube-proxy       ネットワークプロキシ
+Essential Add-ons:
+  vpc-cni          Pod networking (ENI-based)
+  coredns          In-cluster DNS
+  kube-proxy       Network proxy
 
-ストレージ:
-  aws-ebs-csi-driver    EBS ボリューム
-  aws-efs-csi-driver    EFS ボリューム
+Storage:
+  aws-ebs-csi-driver    EBS volumes
+  aws-efs-csi-driver    EFS volumes
 
-セキュリティ:
+Security:
   eks-pod-identity-agent  Pod Identity
-  aws-guardduty-agent     脅威検知
+  aws-guardduty-agent     Threat detection
 
-ネットワーク:
-  aws-load-balancer-controller  ALB/NLB 管理 (※Helmで導入)
+Networking:
+  aws-load-balancer-controller  ALB/NLB management (※Installed via Helm)
 
-可観測性:
+Observability:
   amazon-cloudwatch-observability  Container Insights
   adot                             AWS Distro for OpenTelemetry
 ```
 
-### 7.2 VPC CNI の高度な設定
+### 7.2 Advanced VPC CNI Configuration
 
 ```bash
-# Prefix Delegation の有効化 (Pod 密度の向上)
-# 通常: ENI ごとに IP を 1 つずつ割り当て
-# Prefix: ENI ごとに /28 プレフィックス (16 IP) を割り当て
+# Enable Prefix Delegation (improves Pod density)
+# Normal: Assign one IP per ENI
+# Prefix: Assign /28 prefix (16 IPs) per ENI
 kubectl set env daemonset aws-node \
   -n kube-system \
   ENABLE_PREFIX_DELEGATION=true \
   WARM_PREFIX_TARGET=1
 
-# カスタムネットワーキング (Pod を別サブネットで実行)
+# Custom networking (run Pods in separate subnets)
 kubectl set env daemonset aws-node \
   -n kube-system \
   AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG=true
 
-# ENIConfig リソースの作成
+# Create ENIConfig resource
 kubectl apply -f - <<EOF
 apiVersion: crd.k8s.amazonaws.com/v1alpha1
 kind: ENIConfig
@@ -1247,29 +1247,29 @@ EOF
 ```
 
 ```
-VPC CNI の IP アドレス管理:
+VPC CNI IP Address Management:
 
-通常モード (Secondary IP):
-  m5.large: ENI 3個 × IP 10個 = 最大 29 Pod
+Normal mode (Secondary IP):
+  m5.large: 3 ENIs × 10 IPs = max 29 Pods
 
-Prefix Delegation モード:
-  m5.large: ENI 3個 × /28 プレフィックス = 最大 110 Pod
-  → Pod 密度が約 4 倍に向上
+Prefix Delegation mode:
+  m5.large: 3 ENIs × /28 prefix = max 110 Pods
+  → Pod density improves approximately 4x
 
-カスタムネットワーキング:
-  ノード: 10.0.0.0/16 (VPC CIDR)
-  Pod:  100.64.0.0/16 (別 CIDR)
-  → VPC の IP アドレス枯渇を回避
+Custom networking:
+  Node: 10.0.0.0/16 (VPC CIDR)
+  Pod:  100.64.0.0/16 (separate CIDR)
+  → Avoids VPC IP address exhaustion
 ```
 
 ---
 
-## 8. オートスケーリング
+## 8. Auto Scaling
 
 ### 8.1 Cluster Autoscaler
 
 ```yaml
-# Cluster Autoscaler のデプロイ (Helm)
+# Deploy Cluster Autoscaler (Helm)
 # values.yaml
 autoDiscovery:
   clusterName: my-cluster
@@ -1292,20 +1292,20 @@ extraArgs:
 ```
 
 ```bash
-# Helm でインストール
+# Install with Helm
 helm repo add autoscaler https://kubernetes.github.io/autoscaler
 helm install cluster-autoscaler autoscaler/cluster-autoscaler \
   --namespace kube-system \
   --values ca-values.yaml
 
-# 動作確認
+# Verify operation
 kubectl logs -f deployment/cluster-autoscaler -n kube-system
 ```
 
-### 8.2 Karpenter (推奨)
+### 8.2 Karpenter (Recommended)
 
 ```bash
-# Karpenter のインストール
+# Install Karpenter
 export KARPENTER_VERSION="v0.33.0"
 export CLUSTER_NAME="my-cluster"
 export AWS_ACCOUNT_ID="123456789012"
@@ -1325,7 +1325,7 @@ helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
 ```
 
 ```yaml
-# NodePool 定義 (旧 Provisioner)
+# NodePool definition (formerly Provisioner)
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 metadata:
@@ -1359,7 +1359,7 @@ spec:
     memory: 400Gi
   disruption:
     consolidationPolicy: WhenUnderutilized
-    expireAfter: 720h  # 30日でノード更新
+    expireAfter: 720h  # Node rotation after 30 days
 ---
 # EC2NodeClass
 apiVersion: karpenter.k8s.aws/v1beta1
@@ -1397,26 +1397,26 @@ spec:
 Cluster Autoscaler vs Karpenter:
 
 Cluster Autoscaler:
-  ✓ 安定した成熟プロジェクト
-  ✓ 設定がシンプル
-  ✗ ASG ベース → インスタンスタイプが固定
-  ✗ スケールアウトが遅い (1-3分)
-  ✗ ビンパッキングが非効率
+  ✓ Stable and mature project
+  ✓ Simple configuration
+  ✗ ASG-based → instance type is fixed
+  ✗ Slow scale-out (1-3 minutes)
+  ✗ Inefficient bin packing
 
-Karpenter (推奨):
-  ✓ ASG 不要 → 直接 EC2 API を呼び出し
-  ✓ スケールアウトが速い (数秒〜)
-  ✓ Pod の要件に最適なインスタンスタイプを自動選択
-  ✓ 効率的なビンパッキングとコンソリデーション
-  ✓ Spot の中断を自動ハンドリング
-  ✗ EKS 固有 (他の K8s ディストリビューションには未対応)
-  ✗ 比較的新しいプロジェクト
+Karpenter (recommended):
+  ✓ No ASG → calls EC2 API directly
+  ✓ Fast scale-out (within seconds)
+  ✓ Automatically selects optimal instance type for Pod requirements
+  ✓ Efficient bin packing and consolidation
+  ✓ Automatic Spot interruption handling
+  ✗ EKS-specific (not supported for other K8s distributions)
+  ✗ Relatively new project
 ```
 
 ### 8.3 Horizontal Pod Autoscaler (HPA)
 
 ```yaml
-# HPA の定義
+# HPA definition
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -1442,7 +1442,7 @@ spec:
         target:
           type: Utilization
           averageUtilization: 80
-    # カスタムメトリクス (Prometheus Adapter 経由)
+    # Custom metrics (via Prometheus Adapter)
     - type: Pods
       pods:
         metric:
@@ -1468,7 +1468,7 @@ spec:
 ### 8.4 KEDA (Kubernetes Event-Driven Autoscaling)
 
 ```yaml
-# KEDA ScaledObject (SQS キューベースのスケーリング)
+# KEDA ScaledObject (SQS queue-based scaling)
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -1487,7 +1487,7 @@ spec:
         name: keda-aws-credentials
       metadata:
         queueURL: https://sqs.ap-northeast-1.amazonaws.com/123456789012/my-queue
-        queueLength: "5"    # メッセージ5件につき1 Pod
+        queueLength: "5"    # 1 Pod per 5 messages
         awsRegion: ap-northeast-1
         identityOwner: operator
 ---
@@ -1503,12 +1503,12 @@ spec:
 
 ---
 
-## 9. ネットワークとセキュリティ
+## 9. Networking and Security
 
 ### 9.1 AWS Load Balancer Controller
 
 ```bash
-# AWS Load Balancer Controller のインストール
+# Install AWS Load Balancer Controller
 helm repo add eks https://aws.github.io/eks-charts
 helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
   --namespace kube-system \
@@ -1518,7 +1518,7 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
 ```
 
 ```yaml
-# Ingress リソース (ALB)
+# Ingress resource (ALB)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -1559,10 +1559,10 @@ spec:
                   number: 80
 ```
 
-### 9.2 ネットワークポリシー
+### 9.2 Network Policies
 
 ```bash
-# Calico のインストール (ネットワークポリシーエンジン)
+# Install Calico (network policy engine)
 helm repo add projectcalico https://docs.projectcalico.org/charts
 helm install calico projectcalico/tigera-operator \
   --namespace tigera-operator \
@@ -1570,7 +1570,7 @@ helm install calico projectcalico/tigera-operator \
 ```
 
 ```yaml
-# デフォルト拒否ポリシー (namespace 内の全通信を拒否)
+# Default deny policy (deny all traffic within namespace)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -1582,7 +1582,7 @@ spec:
     - Ingress
     - Egress
 ---
-# フロントエンド → バックエンド通信の許可
+# Allow frontend → backend communication
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -1603,7 +1603,7 @@ spec:
         - protocol: TCP
           port: 8080
 ---
-# バックエンド → データベース通信の許可
+# Allow backend → database communication
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -1623,7 +1623,7 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
-    # DNS 解決を許可
+    # Allow DNS resolution
     - to:
         - namespaceSelector: {}
           podSelector:
@@ -1639,10 +1639,10 @@ spec:
 ### 9.3 Pod Security Standards
 
 ```yaml
-# Pod Security Admission (PSA) の設定
-# namespace レベルでセキュリティ基準を適用
+# Pod Security Admission (PSA) configuration
+# Apply security standards at the namespace level
 
-# Restricted レベル (最も厳格)
+# Restricted level (most strict)
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -1653,7 +1653,7 @@ metadata:
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
 ---
-# Baseline レベル (開発環境向け)
+# Baseline level (for development environments)
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -1664,7 +1664,7 @@ metadata:
 ```
 
 ```yaml
-# Restricted レベルに準拠した Pod 定義
+# Pod definition compliant with Restricted level
 apiVersion: v1
 kind: Pod
 metadata:
@@ -1698,17 +1698,17 @@ spec:
       emptyDir: {}
 ```
 
-### 9.4 Secrets 管理
+### 9.4 Secrets Management
 
 ```bash
-# AWS Secrets Manager CSI Driver のインストール
+# Install AWS Secrets Manager CSI Driver
 helm repo add secrets-store-csi-driver \
   https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
 helm install csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver \
   --namespace kube-system \
   --set syncSecret.enabled=true
 
-# AWS Provider のインストール
+# Install AWS Provider
 kubectl apply -f https://raw.githubusercontent.com/aws/secrets-store-csi-driver-provider-aws/main/deployment/aws-provider-installer.yaml
 ```
 
@@ -1741,7 +1741,7 @@ spec:
         - objectName: db-password
           key: password
 ---
-# Pod で Secret をマウント
+# Mount Secret in Pod
 apiVersion: v1
 kind: Pod
 metadata:
@@ -1778,12 +1778,12 @@ spec:
 
 ---
 
-## 10. 可観測性 (Observability)
+## 10. Observability
 
 ### 10.1 Amazon CloudWatch Container Insights
 
 ```bash
-# Container Insights アドオンのインストール
+# Install Container Insights add-on
 aws eks create-addon \
   --cluster-name my-cluster \
   --addon-name amazon-cloudwatch-observability \
@@ -1792,7 +1792,7 @@ aws eks create-addon \
 ```
 
 ```yaml
-# CloudWatch Agent の高度な設定
+# Advanced CloudWatch Agent configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -1840,12 +1840,12 @@ data:
 ### 10.2 Prometheus + Grafana
 
 ```bash
-# Amazon Managed Prometheus (AMP) ワークスペースの作成
+# Create Amazon Managed Prometheus (AMP) workspace
 aws amp create-workspace \
   --alias my-cluster-metrics \
   --tags Environment=production
 
-# Prometheus の Helm インストール (AMP リモートライト)
+# Install Prometheus with Helm (AMP remote write)
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm install prometheus prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
@@ -1865,7 +1865,7 @@ prometheus:
           maxSamplesPerSend: 1000
           maxShards: 200
           capacity: 2500
-    retention: 2h  # ローカル保持は短く
+    retention: 2h  # Keep local retention short
     resources:
       requests:
         cpu: 500m
@@ -1917,7 +1917,7 @@ alertmanager:
 ```
 
 ```yaml
-# ServiceMonitor (アプリケーションメトリクスの収集)
+# ServiceMonitor (collect application metrics)
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -1939,7 +1939,7 @@ spec:
 ### 10.3 AWS Distro for OpenTelemetry (ADOT)
 
 ```yaml
-# ADOT Collector の設定
+# ADOT Collector configuration
 apiVersion: opentelemetry.io/v1alpha1
 kind: OpenTelemetryCollector
 metadata:
@@ -2003,7 +2003,7 @@ spec:
 ### 11.1 ArgoCD
 
 ```bash
-# ArgoCD のインストール
+# Install ArgoCD
 helm repo add argo https://argoproj.github.io/argo-helm
 helm install argocd argo/argo-cd \
   --namespace argocd \
@@ -2014,7 +2014,7 @@ helm install argocd argo/argo-cd \
 ```
 
 ```yaml
-# ArgoCD Application 定義
+# ArgoCD Application definition
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -2050,9 +2050,9 @@ spec:
     - group: apps
       kind: Deployment
       jsonPointers:
-        - /spec/replicas  # HPA が管理するため無視
+        - /spec/replicas  # Ignored because managed by HPA
 ---
-# ApplicationSet (複数環境の一括管理)
+# ApplicationSet (manage multiple environments at once)
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -2094,10 +2094,10 @@ spec:
 ### 11.2 Flux CD
 
 ```bash
-# Flux CLI のインストール
+# Install Flux CLI
 curl -s https://fluxcd.io/install.sh | sudo bash
 
-# Flux のブートストラップ
+# Bootstrap Flux
 flux bootstrap github \
   --owner=my-org \
   --repository=fleet-infra \
@@ -2147,36 +2147,36 @@ spec:
 ArgoCD vs Flux:
 
 ArgoCD:
-  ✓ リッチな Web UI
-  ✓ マルチクラスター管理が容易
-  ✓ ApplicationSet で大規模管理
-  ✓ RBAC が充実
-  ✗ リソース消費がやや大きい
-  ✗ 学習コストがやや高い
+  ✓ Rich Web UI
+  ✓ Easy multi-cluster management
+  ✓ Large-scale management with ApplicationSet
+  ✓ Comprehensive RBAC
+  ✗ Somewhat higher resource consumption
+  ✗ Somewhat higher learning curve
 
 Flux:
-  ✓ 軽量・シンプル
-  ✓ Git 中心の設計思想
-  ✓ Helm Controller 内蔵
-  ✓ CNCF Graduated プロジェクト
-  ✗ Web UI が別途必要
-  ✗ マルチクラスター管理がやや煩雑
+  ✓ Lightweight and simple
+  ✓ Git-centric design philosophy
+  ✓ Built-in Helm Controller
+  ✓ CNCF Graduated project
+  ✗ Separate Web UI required
+  ✗ Multi-cluster management is somewhat complex
 ```
 
 ---
 
-## 12. コスト最適化
+## 12. Cost Optimization
 
-### 12.1 コスト構造の理解
+### 12.1 Understanding the Cost Structure
 
 ```
-EKS のコスト構成:
+EKS Cost Components:
 
 +--------------------------------------------+
-| コントロールプレーン: $0.10/時 ($73/月)       |
+| Control Plane: $0.10/hr ($73/mo)            |
 +--------------------------------------------+
 |                                            |
-| データプレーン (コストの大部分):               |
+| Data Plane (majority of cost):             |
 | +----------------------------------------+ |
 | | EC2 (On-Demand)    $$$$               | |
 | | EC2 (Spot)         $$                  | |
@@ -2184,20 +2184,20 @@ EKS のコスト構成:
 | | Fargate            $$$                | |
 | +----------------------------------------+ |
 |                                            |
-| ネットワーク:                                |
+| Networking:                                |
 | +----------------------------------------+ |
 | | NAT Gateway        $$                  | |
 | | ALB/NLB            $                   | |
-| | データ転送          $                   | |
+| | Data transfer      $                   | |
 | +----------------------------------------+ |
 |                                            |
-| ストレージ:                                  |
+| Storage:                                   |
 | +----------------------------------------+ |
 | | EBS (gp3)          $                   | |
 | | EFS                $$                  | |
 | +----------------------------------------+ |
 |                                            |
-| ログ・モニタリング:                           |
+| Logging & Monitoring:                      |
 | +----------------------------------------+ |
 | | CloudWatch Logs    $                   | |
 | | Container Insights $                   | |
@@ -2205,10 +2205,10 @@ EKS のコスト構成:
 +--------------------------------------------+
 ```
 
-### 12.2 コスト最適化のベストプラクティス
+### 12.2 Cost Optimization Best Practices
 
 ```yaml
-# Spot インスタンスの活用 (Karpenter)
+# Leveraging Spot instances (Karpenter)
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 metadata:
@@ -2230,7 +2230,7 @@ spec:
         name: default
   disruption:
     consolidationPolicy: WhenUnderutilized
-  weight: 80  # Spot を優先
+  weight: 80  # Prefer Spot
 ---
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
@@ -2248,12 +2248,12 @@ spec:
           values: ["m"]
       nodeClassRef:
         name: default
-  weight: 20  # フォールバック
+  weight: 20  # Fallback
 ```
 
 ```yaml
-# リソースリクエスト/リミットの適正化
-# VPA (Vertical Pod Autoscaler) で推奨値を取得
+# Rightsizing resource requests/limits
+# Use VPA (Vertical Pod Autoscaler) to get recommendations
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
@@ -2265,7 +2265,7 @@ spec:
     kind: Deployment
     name: my-app
   updatePolicy:
-    updateMode: "Off"  # まずは推奨値の確認のみ
+    updateMode: "Off"  # First, only check recommendations
   resourcePolicy:
     containerPolicies:
       - containerName: app
@@ -2278,10 +2278,10 @@ spec:
 ```
 
 ```bash
-# VPA の推奨値確認
+# Check VPA recommendations
 kubectl describe vpa my-app-vpa -n production
 
-# Kubecost のインストール (コスト可視化)
+# Install Kubecost (cost visualization)
 helm repo add kubecost https://kubecost.github.io/cost-analyzer/
 helm install kubecost kubecost/cost-analyzer \
   --namespace kubecost \
@@ -2291,43 +2291,43 @@ helm install kubecost kubecost/cost-analyzer \
 
 ---
 
-## 13. アンチパターン
+## 13. Anti-Patterns
 
-### 13.1 ノードの IAM ロールに広い権限を付与
-
-```
-[悪い例]
-ノードロール --> AdministratorAccess
-  → 全Podが管理者権限を持つ
-
-[良い例]
-ノードロール --> 最小限 (EKS Worker Policy, CNI Policy, ECR ReadOnly)
-Pod レベル --> IRSA で個別に必要な権限を付与
-  → 各Podが必要最小限の権限のみ持つ
-```
-
-**問題点**: ノードの IAM ロールに広い権限を付与すると、そのノード上の全 Pod がその権限を利用できてしまう。
-
-**改善**: IRSA または EKS Pod Identity を使って Pod/ServiceAccount 単位で最小権限を付与する。
-
-### 13.2 EKS アドオンを手動管理
-
-**問題点**: CoreDNS、kube-proxy、VPC CNI などのクリティカルコンポーネントを手動でインストール・更新すると、バージョンの不整合やセキュリティパッチの遅れが発生する。
-
-**改善**: EKS マネージドアドオンを使用し、AWS が推奨するバージョンの自動更新を活用する。
-
-### 13.3 リソースリクエスト/リミット未設定
+### 13.1 Granting Broad Permissions to Node IAM Roles
 
 ```
-[悪い例]
+[Bad example]
+Node role --> AdministratorAccess
+  → All Pods have admin privileges
+
+[Good example]
+Node role --> Minimal (EKS Worker Policy, CNI Policy, ECR ReadOnly)
+Pod level --> Grant individual permissions with IRSA
+  → Each Pod has only the minimum required permissions
+```
+
+**Problem**: Granting broad permissions to the node IAM role allows all Pods on that node to use those permissions.
+
+**Improvement**: Use IRSA or EKS Pod Identity to grant minimum permissions per Pod/ServiceAccount.
+
+### 13.2 Manually Managing EKS Add-ons
+
+**Problem**: Manually installing and updating critical components like CoreDNS, kube-proxy, and VPC CNI leads to version inconsistencies and delayed security patches.
+
+**Improvement**: Use EKS managed add-ons and leverage AWS-recommended automatic version updates.
+
+### 13.3 Not Setting Resource Requests/Limits
+
+```
+[Bad example]
 containers:
   - name: app
     image: my-app:v1
-    # resources 未設定
-    # → ノードリソースを無制限に消費
-    # → OOMKill や CPU スロットリングの原因
+    # resources not set
+    # → Consumes node resources without limit
+    # → Causes OOMKill and CPU throttling
 
-[良い例]
+[Good example]
 containers:
   - name: app
     image: my-app:v1
@@ -2338,16 +2338,16 @@ containers:
       limits:
         cpu: 500m
         memory: 512Mi
-    # → スケジューラが適切にスケジュール
-    # → HPA/VPA が正しく機能
+    # → Scheduler allocates resources appropriately
+    # → HPA/VPA functions correctly
 ```
 
-### 13.4 PodDisruptionBudget 未設定
+### 13.4 Not Setting PodDisruptionBudget
 
 ```yaml
-# PDB を設定しないと、ノード更新時に全 Pod が同時停止する可能性
+# Without PDB, all Pods may stop simultaneously during node updates
 
-# 推奨: PDB の設定
+# Recommended: Configure PDB
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -2355,16 +2355,16 @@ metadata:
   namespace: production
 spec:
   minAvailable: 2
-  # または maxUnavailable: 1
+  # or maxUnavailable: 1
   selector:
     matchLabels:
       app: my-app
 ```
 
-### 13.5 単一 AZ へのデプロイ
+### 13.5 Deploying to a Single AZ
 
 ```yaml
-# Pod Anti-Affinity で AZ 分散を強制
+# Enforce AZ distribution with Pod Anti-Affinity
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -2384,11 +2384,11 @@ spec:
 
 ---
 
-## 14. CloudFormation テンプレート
+## 14. CloudFormation Template
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'EKS クラスターの CloudFormation テンプレート'
+Description: 'CloudFormation template for EKS cluster'
 
 Parameters:
   ClusterName:
@@ -2416,7 +2416,7 @@ Parameters:
     Default: 10
 
 Resources:
-  # EKS クラスターロール
+  # EKS cluster role
   EKSClusterRole:
     Type: AWS::IAM::Role
     Properties:
@@ -2432,7 +2432,7 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
         - arn:aws:iam::aws:policy/AmazonEKSVPCResourceController
 
-  # ノードロール
+  # Node role
   EKSNodeRole:
     Type: AWS::IAM::Role
     Properties:
@@ -2450,7 +2450,7 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 
-  # EKS クラスター
+  # EKS cluster
   EKSCluster:
     Type: AWS::EKS::Cluster
     Properties:
@@ -2476,7 +2476,7 @@ Resources:
             - Type: controllerManager
             - Type: scheduler
 
-  # クラスターセキュリティグループ
+  # Cluster security group
   ClusterSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -2486,7 +2486,7 @@ Resources:
         - Key: Name
           Value: !Sub '${ClusterName}-cluster-sg'
 
-  # マネージドノードグループ
+  # Managed node group
   EKSNodeGroup:
     Type: AWS::EKS::Nodegroup
     DependsOn: EKSCluster
@@ -2510,7 +2510,7 @@ Resources:
       Tags:
         Environment: production
 
-  # OIDC プロバイダ (IRSA 用)
+  # OIDC provider (for IRSA)
   OIDCProvider:
     Type: AWS::IAM::OIDCProvider
     DependsOn: EKSCluster
@@ -2545,87 +2545,87 @@ Outputs:
 
 ## 15. FAQ
 
-### Q1. EKS と ECS のどちらを選ぶべきですか？
+### Q1. Which should I choose: EKS or ECS?
 
-Kubernetes の経験がある、マルチクラウド/ハイブリッドクラウド戦略がある、CNCF エコシステム(Istio, ArgoCD 等)を活用したい場合は EKS が適している。AWS 中心のシンプルなコンテナワークロード、小規模チーム、運用負荷を最小限にしたい場合は ECS が適している。
+EKS is appropriate when you have Kubernetes experience, a multi-cloud/hybrid cloud strategy, or want to leverage the CNCF ecosystem (Istio, ArgoCD, etc.). ECS is appropriate for simple container workloads centered on AWS, small teams, or when you want to minimize operational overhead.
 
-### Q2. EKS のバージョンアップグレードはどう行うべきですか？
+### Q2. How should EKS version upgrades be performed?
 
-EKS は Kubernetes のバージョンサポート期間が限られている(約14ヶ月)。コントロールプレーンのアップグレードは `aws eks update-cluster-version` で実行し、その後マネージドノードグループの更新を行う。アドオンの互換性確認、アプリケーションの互換性テストを事前に実施し、ステージング環境で検証してから本番に適用する。
+EKS has a limited Kubernetes version support period (approximately 14 months). Upgrade the control plane with `aws eks update-cluster-version`, then update the managed node groups. Verify add-on compatibility and application compatibility testing in advance, validate in a staging environment, and then apply to production.
 
-### Q3. EKS の費用はどのくらいですか？
+### Q3. How much does EKS cost?
 
-コントロールプレーン料金は $0.10/時($73/月)。これに加えてデータプレーン(EC2 インスタンスまたは Fargate)の料金がかかる。EKS 自体よりもデータプレーンのコストが大きくなるため、ノードの適正サイズ選定やスポットインスタンス活用がコスト最適化の鍵となる。
+The control plane fee is $0.10/hr ($73/mo). In addition, data plane costs (EC2 instances or Fargate) apply. Since data plane costs are greater than EKS itself, proper node sizing and Spot instance utilization are key to cost optimization.
 
-### Q4. Cluster Autoscaler と Karpenter のどちらを使うべきですか？
+### Q4. Which should I use: Cluster Autoscaler or Karpenter?
 
-新規クラスターでは Karpenter を推奨する。Karpenter は ASG を使わず直接 EC2 API を呼び出すため、インスタンスタイプの柔軟な選択、高速なスケールアウト、効率的なビンパッキングが可能である。既存の ASG ベースの運用がある場合は Cluster Autoscaler を継続利用しつつ、段階的に Karpenter へ移行する戦略が現実的である。
+For new clusters, Karpenter is recommended. Since Karpenter calls the EC2 API directly without using ASG, it enables flexible instance type selection, fast scale-out, and efficient bin packing. For existing ASG-based operations, a practical strategy is to continue using Cluster Autoscaler while gradually migrating to Karpenter.
 
-### Q5. IRSA と EKS Pod Identity のどちらを使うべきですか？
+### Q5. Which should I use: IRSA or EKS Pod Identity?
 
-新規セットアップでは EKS Pod Identity を推奨する。OIDC プロバイダの設定が不要で、IAM ロールの信頼ポリシーもシンプルになる。ただし Fargate Pod には対応していないため、Fargate を使う場合は IRSA を引き続き使用する。既存の IRSA 設定は移行の必要性は低く、新規の ServiceAccount から Pod Identity を使い始めるのが合理的である。
+For new setups, EKS Pod Identity is recommended. No OIDC provider configuration is required, and the IAM role trust policy becomes simpler. However, since it does not support Fargate Pods, continue using IRSA when using Fargate. There is little need to migrate existing IRSA configurations; a reasonable approach is to start using Pod Identity for new ServiceAccounts.
 
-### Q6. EKS で複数チームがクラスターを共有する際のベストプラクティスは？
+### Q6. What are the best practices for multiple teams sharing an EKS cluster?
 
-Namespace による論理的な分離、RBAC による権限制御、ResourceQuota による リソース制限、NetworkPolicy によるネットワーク分離、Pod Security Standards によるセキュリティ基準の適用を組み合わせる。大規模な組織では、チームごとにクラスターを分離し、GitOps ツール (ArgoCD ApplicationSet) で統一管理するアプローチも有効である。
+Combine logical isolation with Namespaces, permission control with RBAC, resource limits with ResourceQuota, network isolation with NetworkPolicy, and application of security standards with Pod Security Standards. For large organizations, separating clusters per team and using GitOps tools (ArgoCD ApplicationSet) for unified management is also effective.
 
-### Q7. EKS で GPU ワークロードを実行するには？
+### Q7. How do I run GPU workloads on EKS?
 
-GPU ノードグループ (p3, p4, g4dn, g5 インスタンス) を作成し、NVIDIA Device Plugin をインストールする。EKS 最適化 GPU AMI を使用すれば、ドライバのインストールは不要である。GPU リソースは `nvidia.com/gpu` としてリクエストし、Taint/Toleration でGPU ノードに専用 Pod のみスケジュールされるよう制御する。Karpenter を使えば、GPU インスタンスのオンデマンドな確保も自動化できる。
+Create a GPU node group (p3, p4, g4dn, g5 instances) and install the NVIDIA Device Plugin. Using the EKS-optimized GPU AMI eliminates the need to install drivers. Request GPU resources as `nvidia.com/gpu`, and use Taint/Toleration to ensure only dedicated Pods are scheduled on GPU nodes. With Karpenter, on-demand provisioning of GPU instances can also be automated.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not only through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and moving on to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| EKS アーキテクチャ | コントロールプレーン (AWS管理) + データプレーン (ユーザー管理) |
-| ノードグループ | マネージド(推奨)、セルフマネージド、Fargate から選択 |
-| Fargate プロファイル | namespace + labels でマッチする Pod をサーバーレス実行 |
-| Helm | Kubernetes のパッケージマネージャ。Chart でアプリケーションを管理 |
-| IRSA / Pod Identity | Pod 単位で IAM ロールを付与。最小権限の実現に必須 |
-| EKS アドオン | vpc-cni, coredns, kube-proxy 等をマネージドで管理 |
-| オートスケーリング | Karpenter 推奨。HPA/KEDA で Pod レベルもスケール |
-| セキュリティ | PSA, NetworkPolicy, Secrets CSI Driver で多層防御 |
-| 可観測性 | Container Insights, Prometheus/Grafana, ADOT で統合監視 |
-| GitOps | ArgoCD / Flux で宣言的なデプロイメント管理 |
-| コスト最適化 | Spot + Karpenter, VPA, Kubecost で継続的に最適化 |
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [ECS 基礎](./00-ecs-basics.md) -- ECS との比較検討に
-- [ECR](./01-ecr.md) -- コンテナイメージの管理
-- [IAM 詳解](../08-security/00-iam-deep-dive.md) -- IRSA の IAM 設計を深める
-- [CloudFormation](../07-devops/00-cloudformation.md) -- EKS クラスターの IaC 管理
+| Item | Key Points |
+|------|-----------|
+| EKS Architecture | Control plane (AWS managed) + Data plane (user managed) |
+| Node Groups | Choose from managed (recommended), self-managed, or Fargate |
+| Fargate Profiles | Serverless execution of Pods matching namespace + labels |
+| Helm | Kubernetes package manager. Manage applications with Charts |
+| IRSA / Pod Identity | Assign IAM roles per Pod. Essential for least privilege |
+| EKS Add-ons | Manage vpc-cni, coredns, kube-proxy, etc. as managed add-ons |
+| Auto Scaling | Karpenter recommended. Scale at the Pod level with HPA/KEDA |
+| Security | Multi-layered defense with PSA, NetworkPolicy, Secrets CSI Driver |
+| Observability | Integrated monitoring with Container Insights, Prometheus/Grafana, ADOT |
+| GitOps | Declarative deployment management with ArgoCD / Flux |
+| Cost Optimization | Continuously optimize with Spot + Karpenter, VPA, Kubecost |
 
 ---
 
-## 参考文献
+## Further Reading
 
-1. AWS 公式ドキュメント「Amazon EKS ユーザーガイド」 https://docs.aws.amazon.com/eks/latest/userguide/
-2. AWS 公式「Amazon EKS ベストプラクティスガイド」 https://aws.github.io/aws-eks-best-practices/
-3. eksctl 公式ドキュメント https://eksctl.io/
-4. Helm 公式ドキュメント https://helm.sh/docs/
-5. Karpenter 公式ドキュメント https://karpenter.sh/docs/
-6. ArgoCD 公式ドキュメント https://argo-cd.readthedocs.io/
-7. Flux CD 公式ドキュメント https://fluxcd.io/docs/
-8. AWS 公式「EKS Pod Identity」 https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html
+- [ECS Basics](./00-ecs-basics.md) -- For comparison with ECS
+- [ECR](./01-ecr.md) -- Container image management
+- [IAM Deep Dive](../08-security/00-iam-deep-dive.md) -- Deepen IAM design for IRSA
+- [CloudFormation](../07-devops/00-cloudformation.md) -- IaC management for EKS clusters
+
+---
+
+## References
+
+1. AWS Official Documentation "Amazon EKS User Guide" https://docs.aws.amazon.com/eks/latest/userguide/
+2. AWS Official "Amazon EKS Best Practices Guide" https://aws.github.io/aws-eks-best-practices/
+3. eksctl Official Documentation https://eksctl.io/
+4. Helm Official Documentation https://helm.sh/docs/
+5. Karpenter Official Documentation https://karpenter.sh/docs/
+6. ArgoCD Official Documentation https://argo-cd.readthedocs.io/
+7. Flux CD Official Documentation https://fluxcd.io/docs/
+8. AWS Official "EKS Pod Identity" https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html
