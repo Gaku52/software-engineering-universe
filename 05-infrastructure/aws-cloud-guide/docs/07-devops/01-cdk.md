@@ -1,58 +1,57 @@
 # AWS CDK (Cloud Development Kit)
 
-> プログラミング言語で AWS インフラを定義する AWS CDK の基本概念、TypeScript/Python での実装、L1/L2/L3 コンストラクト、テスト、CI/CD 統合までを体系的に学ぶ。
+> A systematic guide to AWS CDK — defining AWS infrastructure with programming languages — covering core concepts, TypeScript/Python implementation, L1/L2/L3 constructs, testing, and CI/CD integration.
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **CDK の基本概念とプロジェクト構成** -- App、Stack、Construct の階層構造と、CDK プロジェクトの初期化・デプロイフローを理解する
-2. **L1/L2/L3 コンストラクトの使い分け** -- 抽象化レベルの異なるコンストラクトを適切に選択して効率的にインフラを定義する
-3. **テストと CI/CD 統合** -- スナップショットテスト、ファイングレインドアサーション、パイプラインでの自動デプロイを実践する
-4. **マルチスタック設計とクロススタック参照** -- 複数のスタックを連携させた大規模インフラの設計パターンを習得する
-5. **CDK Pipelines による自動デプロイ** -- CDK 自身をパイプラインで管理するセルフミューテーションパターンを理解する
+1. **CDK Core Concepts and Project Structure** -- Understand the App/Stack/Construct hierarchy and the CDK project initialization and deployment workflow
+2. **Choosing Between L1/L2/L3 Constructs** -- Select constructs at the appropriate abstraction level to define infrastructure efficiently
+3. **Testing and CI/CD Integration** -- Practice snapshot testing, fine-grained assertions, and automated deployment via pipelines
+4. **Multi-Stack Design and Cross-Stack References** -- Learn design patterns for large-scale infrastructure that coordinates multiple stacks
+5. **Automated Deployment with CDK Pipelines** -- Understand the self-mutation pattern that manages CDK itself through a pipeline
 
+## Prerequisites
 
-## 前提知識
+Having the following knowledge before reading this guide will deepen your understanding:
 
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AWS CloudFormation](./00-cloudformation.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [AWS CloudFormation](./00-cloudformation.md)
 
 ---
 
-## 1. CDK の基本概念
+## 1. CDK Core Concepts
 
-### 1.1 CDK のアーキテクチャ
+### 1.1 CDK Architecture
 
 ```
-CDK のワークフロー:
+CDK Workflow:
 
-TypeScript / Python コード
+TypeScript / Python code
     |
     | cdk synth
     v
 +----------------------+
 | CloudFormation       |
-| テンプレート (JSON)   |
+| Template (JSON)      |
 +----------------------+
     |
     | cdk deploy
     v
 +----------------------+
 | CloudFormation       |
-| スタック             |
+| Stack                |
 +----------------------+
     |
     v
 +----------------------+
-| AWS リソース         |
+| AWS Resources        |
 | (VPC, Lambda, etc.)  |
 +----------------------+
 
-CDK の階層:
+CDK Hierarchy:
 +-----------------------------------+
 | App                               |
 |   +-----------------------------+ |
@@ -73,99 +72,99 @@ CDK の階層:
 
 ### 1.2 CDK vs CloudFormation vs Terraform
 
-| 特性 | CDK | CloudFormation | Terraform |
-|------|-----|---------------|-----------|
-| 言語 | TypeScript, Python, Java, Go, C# | YAML/JSON | HCL |
-| 抽象化 | L1/L2/L3 コンストラクト | なし | モジュール |
-| ループ/条件 | 言語ネイティブ | 限定的 | count, for_each |
-| テスト | 単体テスト可能 | cfn-lint | terraform plan |
-| 状態管理 | CloudFormation | CloudFormation | tfstate |
-| マルチクラウド | AWS のみ | AWS のみ | マルチ対応 |
-| 学習コスト | プログラマに低い | 中程度 | 中程度 |
-| IDE サポート | 型補完、リファクタリング | VSCode プラグイン | VSCode プラグイン |
-| ドリフト検出 | CloudFormation 経由 | ネイティブ | plan で検出 |
-| エコシステム | Construct Hub | Registry | Registry |
+| Property | CDK | CloudFormation | Terraform |
+|----------|-----|----------------|-----------|
+| Language | TypeScript, Python, Java, Go, C# | YAML/JSON | HCL |
+| Abstraction | L1/L2/L3 constructs | None | Modules |
+| Loops/Conditions | Native language features | Limited | count, for_each |
+| Testing | Unit-testable | cfn-lint | terraform plan |
+| State Management | CloudFormation | CloudFormation | tfstate |
+| Multi-Cloud | AWS only | AWS only | Multi-cloud |
+| Learning Curve | Low for programmers | Moderate | Moderate |
+| IDE Support | Type completion, refactoring | VSCode plugin | VSCode plugin |
+| Drift Detection | Via CloudFormation | Native | Detected by plan |
+| Ecosystem | Construct Hub | Registry | Registry |
 
-### 1.3 CDK v2 の特徴
+### 1.3 Features of CDK v2
 
-CDK v2 では全てのモジュールが `aws-cdk-lib` 単一パッケージに統合された。v1 では個別にインストールしていた `@aws-cdk/aws-s3` や `@aws-cdk/aws-lambda` が不要になり、依存関係の管理が大幅に簡素化された。
+In CDK v2, all modules are consolidated into the single `aws-cdk-lib` package. The individual packages such as `@aws-cdk/aws-s3` and `@aws-cdk/aws-lambda` that were installed separately in v1 are no longer needed, greatly simplifying dependency management.
 
 ```typescript
-// CDK v1 (旧)
+// CDK v1 (legacy)
 import * as s3 from '@aws-cdk/aws-s3';
 import * as lambda from '@aws-cdk/aws-lambda';
 
-// CDK v2 (現行)
+// CDK v2 (current)
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 ```
 
-主な変更点:
-- **単一パッケージ**: `aws-cdk-lib` に全モジュール統合
-- **Constructs ライブラリ分離**: `constructs` パッケージが独立
-- **安定 API のみ含有**: 実験的 API は `@aws-cdk` スコープの alpha パッケージに分離
-- **後方互換性**: マイナーバージョン間で後方互換性が保証
+Key changes:
+- **Single package**: All modules consolidated into `aws-cdk-lib`
+- **Constructs library separated**: The `constructs` package is now independent
+- **Stable APIs only**: Experimental APIs are separated into alpha packages under the `@aws-cdk` scope
+- **Backward compatibility**: Backward compatibility is guaranteed between minor versions
 
 ---
 
-## 2. CDK プロジェクトの構成
+## 2. CDK Project Structure
 
-### 2.1 プロジェクト初期化
+### 2.1 Project Initialization
 
 ```bash
-# CDK CLI のインストール
+# Install CDK CLI
 npm install -g aws-cdk
 
-# バージョン確認
+# Check version
 cdk --version
 
-# TypeScript プロジェクトの作成
+# Create a TypeScript project
 mkdir my-cdk-app && cd my-cdk-app
 cdk init app --language typescript
 
-# Python プロジェクトの作成
+# Create a Python project
 mkdir my-cdk-app && cd my-cdk-app
 cdk init app --language python
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# Java プロジェクトの作成
+# Create a Java project
 mkdir my-cdk-app && cd my-cdk-app
 cdk init app --language java
 
-# Go プロジェクトの作成
+# Create a Go project
 mkdir my-cdk-app && cd my-cdk-app
 cdk init app --language go
 ```
 
-### 2.2 TypeScript プロジェクト構造
+### 2.2 TypeScript Project Structure
 
 ```
 my-cdk-app/
 ├── bin/
-│   └── my-cdk-app.ts        # App エントリポイント
+│   └── my-cdk-app.ts        # App entry point
 ├── lib/
-│   ├── network-stack.ts      # ネットワークスタック
-│   ├── app-stack.ts          # アプリケーションスタック
-│   ├── database-stack.ts     # データベーススタック
-│   ├── monitoring-stack.ts   # 監視スタック
-│   └── constructs/           # カスタムコンストラクト
+│   ├── network-stack.ts      # Network stack
+│   ├── app-stack.ts          # Application stack
+│   ├── database-stack.ts     # Database stack
+│   ├── monitoring-stack.ts   # Monitoring stack
+│   └── constructs/           # Custom constructs
 │       ├── api-construct.ts
 │       └── vpc-construct.ts
 ├── test/
-│   ├── network-stack.test.ts # テスト
+│   ├── network-stack.test.ts # Tests
 │   ├── app-stack.test.ts
-│   └── snapshot/             # スナップショット
-├── lambda/                   # Lambda 関数のソースコード
+│   └── snapshot/             # Snapshots
+├── lambda/                   # Lambda function source code
 │   ├── handler.py
 │   └── requirements.txt
-├── cdk.json                  # CDK 設定
-├── cdk.context.json          # コンテキスト値のキャッシュ
+├── cdk.json                  # CDK configuration
+├── cdk.context.json          # Context value cache
 ├── package.json
 └── tsconfig.json
 ```
 
-### 2.3 App エントリポイント
+### 2.3 App Entry Point
 
 ```typescript
 // bin/my-cdk-app.ts
@@ -177,16 +176,16 @@ import { MonitoringStack } from '../lib/monitoring-stack';
 
 const app = new cdk.App();
 
-// 環境設定
+// Environment configuration
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
   region: process.env.CDK_DEFAULT_REGION || 'ap-northeast-1',
 };
 
-// コンテキストから環境名を取得
+// Get the environment name from context
 const environmentName = app.node.tryGetContext('env') || 'dev';
 
-// スタック間の依存関係を定義
+// Define inter-stack dependencies
 const networkStack = new NetworkStack(app, `${environmentName}-NetworkStack`, {
   env,
   environmentName,
@@ -212,13 +211,13 @@ new MonitoringStack(app, `${environmentName}-MonitoringStack`, {
   environmentName,
 });
 
-// タグをアプリ全体に適用
+// Apply tags to the entire app
 cdk.Tags.of(app).add('Project', 'MyApp');
 cdk.Tags.of(app).add('Environment', environmentName);
 cdk.Tags.of(app).add('ManagedBy', 'CDK');
 ```
 
-### 2.4 cdk.json の設定
+### 2.4 cdk.json Configuration
 
 ```json
 {
@@ -256,29 +255,29 @@ cdk.Tags.of(app).add('ManagedBy', 'CDK');
 
 ---
 
-## 3. L1/L2/L3 コンストラクト
+## 3. L1/L2/L3 Constructs
 
-### 3.1 コンストラクトの抽象化レベル
+### 3.1 Construct Abstraction Levels
 
 ```
-コンストラクトの階層:
+Construct Hierarchy:
 
-L3 (Patterns): 複数リソースの組み合わせ
+L3 (Patterns): Combinations of multiple resources
   aws-ecs-patterns.ApplicationLoadBalancedFargateService
-  → ALB + ECS Service + タスク定義 + CloudWatch を一括作成
+  → Creates ALB + ECS Service + Task Definition + CloudWatch all at once
        |
        v
-L2 (High-level): 個別リソースの高レベル抽象化
+L2 (High-level): High-level abstraction for individual resources
   aws-ec2.Vpc, aws-lambda.Function, aws-s3.Bucket
-  → デフォルト値、ヘルパーメソッド、型安全
+  → Default values, helper methods, type safety
        |
        v
-L1 (CFn Resources): CloudFormation リソースの 1:1 マッピング
+L1 (CFn Resources): 1:1 mapping to CloudFormation resources
   aws-ec2.CfnVPC, aws-lambda.CfnFunction
-  → CloudFormation テンプレートと同じ粒度
+  → Same granularity as CloudFormation templates
 ```
 
-### 3.2 L2 コンストラクトでの VPC 定義
+### 3.2 Defining a VPC with L2 Constructs
 
 ```typescript
 // lib/network-stack.ts
@@ -296,7 +295,7 @@ export class NetworkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: NetworkStackProps) {
     super(scope, id, props);
 
-    // L2 コンストラクト: デフォルトで NAT GW、IGW、ルートテーブルを自動作成
+    // L2 construct: automatically creates NAT GW, IGW, and route tables by default
     this.vpc = new ec2.Vpc(this, 'Vpc', {
       maxAzs: 3,
       ipAddresses: ec2.IpAddresses.cidr('10.0.0.0/16'),
@@ -318,7 +317,7 @@ export class NetworkStack extends cdk.Stack {
         },
       ],
       natGateways: props.environmentName === 'prod' ? 3 : 1,
-      // VPC フローログの有効化
+      // Enable VPC Flow Logs
       flowLogs: {
         's3FlowLog': {
           destination: ec2.FlowLogDestination.toS3(),
@@ -327,7 +326,7 @@ export class NetworkStack extends cdk.Stack {
       },
     });
 
-    // VPC エンドポイントの追加（プライベートサブネットからの AWS サービスアクセス）
+    // Add VPC endpoints (access AWS services from private subnets)
     this.vpc.addGatewayEndpoint('S3Endpoint', {
       service: ec2.GatewayVpcEndpointAwsService.S3,
     });
@@ -341,10 +340,10 @@ export class NetworkStack extends cdk.Stack {
       subnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
     });
 
-    // タグ付け
+    // Tagging
     cdk.Tags.of(this.vpc).add('Environment', props.environmentName);
 
-    // 出力
+    // Outputs
     new cdk.CfnOutput(this, 'VpcId', {
       value: this.vpc.vpcId,
       exportName: `${props.environmentName}-VpcId`,
@@ -358,7 +357,7 @@ export class NetworkStack extends cdk.Stack {
 }
 ```
 
-### 3.3 L2 コンストラクトでの Lambda 定義
+### 3.3 Defining a Lambda Function with L2 Constructs
 
 ```typescript
 // lib/app-stack.ts
@@ -384,14 +383,14 @@ export class AppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
 
-    // Lambda レイヤー（共通ライブラリ）
+    // Lambda layer (shared libraries)
     const commonLayer = new lambda.LayerVersion(this, 'CommonLayer', {
       code: lambda.Code.fromAsset('lambda/layers/common'),
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_12],
-      description: '共通ユーティリティライブラリ',
+      description: 'Common utility library',
     });
 
-    // Lambda 関数
+    // Lambda function
     this.handler = new lambda.Function(this, 'ApiHandler', {
       runtime: lambda.Runtime.PYTHON_3_12,
       code: lambda.Code.fromAsset('lambda/'),
@@ -407,12 +406,12 @@ export class AppStack extends cdk.Stack {
       tracing: lambda.Tracing.ACTIVE,
       layers: [commonLayer],
       logRetention: logs.RetentionDays.ONE_MONTH,
-      // VPC 内で実行する場合
+      // To run inside a VPC:
       // vpc: props.vpc,
       // vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
     });
 
-    // IAM 権限の付与 (CDK が自動的に最小権限ポリシーを生成)
+    // Grant IAM permissions (CDK automatically generates least-privilege policies)
     props.table.grantReadWriteData(this.handler);
 
     // API Gateway
@@ -444,7 +443,7 @@ export class AppStack extends cdk.Stack {
     item.addMethod('PUT', new apigateway.LambdaIntegration(this.handler));
     item.addMethod('DELETE', new apigateway.LambdaIntegration(this.handler));
 
-    // 出力
+    // Outputs
     new cdk.CfnOutput(this, 'ApiUrl', {
       value: this.api.url,
       description: 'API Gateway URL',
@@ -453,7 +452,7 @@ export class AppStack extends cdk.Stack {
 }
 ```
 
-### 3.4 L3 コンストラクト (パターン) の例
+### 3.4 Example of L3 Constructs (Patterns)
 
 ```typescript
 import * as cdk from 'aws-cdk-lib';
@@ -463,7 +462,7 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 
-// L3: ALB + Fargate サービスを一行で作成
+// L3: Create an ALB + Fargate service in a single call
 const cluster = new ecs.Cluster(this, 'Cluster', {
   vpc,
   containerInsights: true,
@@ -498,7 +497,7 @@ const service = new ecsPatterns.ApplicationLoadBalancedFargateService(
   }
 );
 
-// ヘルスチェックの設定
+// Configure health check
 service.targetGroup.configureHealthCheck({
   path: '/health',
   interval: cdk.Duration.seconds(30),
@@ -507,7 +506,7 @@ service.targetGroup.configureHealthCheck({
   unhealthyThresholdCount: 3,
 });
 
-// Auto Scaling の追加
+// Add Auto Scaling
 const scaling = service.service.autoScaleTaskCount({
   minCapacity: 2,
   maxCapacity: 20,
@@ -522,7 +521,7 @@ scaling.scaleOnMemoryUtilization('MemoryScaling', {
 });
 ```
 
-### 3.5 カスタム L2 コンストラクトの作成
+### 3.5 Creating a Custom L2 Construct
 
 ```typescript
 // lib/constructs/secure-bucket.ts
@@ -534,25 +533,25 @@ import { Construct } from 'constructs';
 
 export interface SecureBucketProps {
   /**
-   * バケット名のプレフィックス。アカウント ID が自動付与される。
+   * Bucket name prefix. The account ID is automatically appended.
    */
   bucketNamePrefix: string;
   /**
-   * 環境名 (dev/staging/prod)
+   * Environment name (dev/staging/prod)
    */
   environmentName: string;
   /**
-   * ライフサイクルルール: 日数後に Glacier に移行
+   * Lifecycle rule: transition to Glacier after this many days
    * @default 90
    */
   glacierTransitionDays?: number;
   /**
-   * ライフサイクルルール: 日数後に削除
+   * Lifecycle rule: delete after this many days
    * @default 365
    */
   expirationDays?: number;
   /**
-   * バージョニングの有効化
+   * Enable versioning
    * @default true
    */
   versioned?: boolean;
@@ -565,7 +564,7 @@ export class SecureBucket extends Construct {
   constructor(scope: Construct, id: string, props: SecureBucketProps) {
     super(scope, id);
 
-    // KMS キーの作成
+    // Create KMS key
     this.encryptionKey = new kms.Key(this, 'Key', {
       alias: `${props.bucketNamePrefix}-${props.environmentName}`,
       enableKeyRotation: true,
@@ -573,7 +572,7 @@ export class SecureBucket extends Construct {
       description: `Encryption key for ${props.bucketNamePrefix}`,
     });
 
-    // セキュアな S3 バケットの作成
+    // Create a secure S3 bucket
     this.bucket = new s3.Bucket(this, 'Bucket', {
       bucketName: `${props.bucketNamePrefix}-${props.environmentName}-${cdk.Stack.of(this).account}`,
       encryption: s3.BucketEncryption.KMS,
@@ -611,7 +610,7 @@ export class SecureBucket extends Construct {
       }),
     });
 
-    // バケットポリシー: HTTPS のみ許可
+    // Bucket policy: allow HTTPS only
     this.bucket.addToResourcePolicy(new iam.PolicyStatement({
       sid: 'DenyInsecureTransport',
       effect: iam.Effect.DENY,
@@ -625,7 +624,7 @@ export class SecureBucket extends Construct {
   }
 
   /**
-   * 指定のロールにバケットへの読み取り権限を付与
+   * Grant read access to the bucket for the specified role
    */
   grantRead(grantee: iam.IGrantable): iam.Grant {
     this.encryptionKey.grantDecrypt(grantee);
@@ -633,7 +632,7 @@ export class SecureBucket extends Construct {
   }
 
   /**
-   * 指定のロールにバケットへの読み書き権限を付与
+   * Grant read/write access to the bucket for the specified role
    */
   grantReadWrite(grantee: iam.IGrantable): iam.Grant {
     this.encryptionKey.grantEncryptDecrypt(grantee);
@@ -644,9 +643,9 @@ export class SecureBucket extends Construct {
 
 ---
 
-## 4. Python での CDK
+## 4. CDK with Python
 
-### 4.1 Python スタック定義
+### 4.1 Python Stack Definition
 
 ```python
 # lib/app_stack.py
@@ -685,7 +684,7 @@ class AppStack(Stack):
             stream=dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
         )
 
-        # GSI の追加
+        # Add a GSI
         table.add_global_secondary_index(
             index_name="StatusIndex",
             partition_key=dynamodb.Attribute(
@@ -715,7 +714,7 @@ class AppStack(Stack):
             log_retention=logs.RetentionDays.ONE_MONTH,
         )
 
-        # 権限付与
+        # Grant permissions
         table.grant_read_write_data(handler)
 
         # API Gateway
@@ -742,7 +741,7 @@ class AppStack(Stack):
         CfnOutput(self, "TableName", value=table.table_name)
 ```
 
-### 4.2 Python でのカスタムコンストラクト
+### 4.2 Custom Constructs in Python
 
 ```python
 # lib/constructs/monitored_lambda.py
@@ -758,7 +757,7 @@ from constructs import Construct
 
 
 class MonitoredLambda(Construct):
-    """Lambda 関数に CloudWatch アラーム・ダッシュボードを自動付与するコンストラクト"""
+    """A construct that automatically attaches CloudWatch alarms and dashboards to a Lambda function"""
 
     def __init__(
         self,
@@ -778,7 +777,7 @@ class MonitoredLambda(Construct):
     ):
         super().__init__(scope, id)
 
-        # Lambda 関数
+        # Lambda function
         self.function = lambda_.Function(
             self, "Function",
             function_name=function_name,
@@ -792,7 +791,7 @@ class MonitoredLambda(Construct):
             log_retention=logs.RetentionDays.TWO_WEEKS,
         )
 
-        # エラー率アラーム
+        # Error rate alarm
         errors = self.function.metric_errors(period=Duration.minutes(5))
         invocations = self.function.metric_invocations(period=Duration.minutes(5))
 
@@ -812,11 +811,11 @@ class MonitoredLambda(Construct):
             threshold=error_rate_threshold,
             evaluation_periods=3,
             comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-            alarm_description=f"{function_name} のエラー率が {error_rate_threshold}% を超過",
+            alarm_description=f"Error rate for {function_name} exceeded {error_rate_threshold}%",
             treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
         )
 
-        # レイテンシアラーム
+        # Latency alarm
         self.duration_alarm = cloudwatch.Alarm(
             self, "DurationAlarm",
             metric=self.function.metric_duration(
@@ -825,10 +824,10 @@ class MonitoredLambda(Construct):
             ),
             threshold=duration_threshold_ms,
             evaluation_periods=3,
-            alarm_description=f"{function_name} の p99 レイテンシが {duration_threshold_ms}ms を超過",
+            alarm_description=f"p99 latency for {function_name} exceeded {duration_threshold_ms}ms",
         )
 
-        # SNS 通知
+        # SNS notifications
         if alarm_topic:
             self.error_alarm.add_alarm_action(cw_actions.SnsAction(alarm_topic))
             self.duration_alarm.add_alarm_action(cw_actions.SnsAction(alarm_topic))
@@ -836,25 +835,25 @@ class MonitoredLambda(Construct):
 
 ---
 
-## 5. テスト
+## 5. Testing
 
-### 5.1 テストの種類
+### 5.1 Types of Tests
 
 ```
-CDK テストの種類:
+CDK Test Types:
 
 +--------------------+     +--------------------+     +--------------------+
-| スナップショット    |     | ファイングレインド  |     | バリデーション      |
-| テスト             |     | アサーション        |     | テスト             |
+| Snapshot           |     | Fine-grained       |     | Validation         |
+| Tests              |     | Assertions         |     | Tests              |
 +--------------------+     +--------------------+     +--------------------+
-| 生成される CFn     |     | 特定のリソースや   |     | コンテキストに     |
-| テンプレート全体を |     | プロパティの存在   |     | よるカスタム       |
-| スナップショットと |     | を検証             |     | バリデーション     |
-| 比較               |     |                    |     |                    |
+| Compare the entire |     | Verify the         |     | Custom             |
+| generated CFn      |     | existence of       |     | validation based   |
+| template against   |     | specific resources |     | on context         |
+| a snapshot         |     | or properties      |     |                    |
 +--------------------+     +--------------------+     +--------------------+
 ```
 
-### 5.2 テストコード (TypeScript)
+### 5.2 Test Code (TypeScript)
 
 ```typescript
 // test/app-stack.test.ts
@@ -884,8 +883,8 @@ describe('AppStack', () => {
     template = Template.fromStack(appStack);
   });
 
-  // ファイングレインドアサーション
-  test('DynamoDB テーブルが PAY_PER_REQUEST で作成される', () => {
+  // Fine-grained assertions
+  test('DynamoDB table is created with PAY_PER_REQUEST', () => {
     template.hasResourceProperties('AWS::DynamoDB::Table', {
       BillingMode: 'PAY_PER_REQUEST',
       PointInTimeRecoverySpecification: {
@@ -894,7 +893,7 @@ describe('AppStack', () => {
     });
   });
 
-  test('Lambda 関数が正しいランタイムで作成される', () => {
+  test('Lambda function is created with the correct runtime', () => {
     template.hasResourceProperties('AWS::Lambda::Function', {
       Runtime: 'python3.12',
       Timeout: 30,
@@ -905,7 +904,7 @@ describe('AppStack', () => {
     });
   });
 
-  test('Lambda に DynamoDB への読み書き権限が付与される', () => {
+  test('Lambda is granted read/write permissions to DynamoDB', () => {
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: {
         Statement: Match.arrayWith([
@@ -922,13 +921,13 @@ describe('AppStack', () => {
     });
   });
 
-  // リソース数のテスト
-  test('API Gateway REST API が1つ作成される', () => {
+  // Resource count test
+  test('One API Gateway REST API is created', () => {
     template.resourceCountIs('AWS::ApiGateway::RestApi', 1);
   });
 
-  // Capture を使ったテスト
-  test('Lambda 環境変数に TABLE_NAME が設定される', () => {
+  // Test using Capture
+  test('TABLE_NAME is set in the Lambda environment variables', () => {
     const envCapture = new Capture();
     template.hasResourceProperties('AWS::Lambda::Function', {
       Environment: {
@@ -937,12 +936,12 @@ describe('AppStack', () => {
         },
       },
     });
-    // Capture した値を検証
+    // Verify the captured value
     expect(envCapture.asObject()).toBeDefined();
   });
 
-  // 特定のリソースが存在しないことを検証
-  test('パブリック S3 バケットが作成されない', () => {
+  // Verify that a specific resource does not exist
+  test('No public S3 buckets are created', () => {
     const resources = template.findResources('AWS::S3::Bucket', {
       Properties: {
         PublicAccessBlockConfiguration: Match.absent(),
@@ -951,39 +950,39 @@ describe('AppStack', () => {
     expect(Object.keys(resources)).toHaveLength(0);
   });
 
-  // スナップショットテスト
-  test('テンプレートがスナップショットと一致する', () => {
+  // Snapshot test
+  test('Template matches the snapshot', () => {
     expect(template.toJSON()).toMatchSnapshot();
   });
 });
 ```
 
-### 5.3 テストの実行
+### 5.3 Running Tests
 
 ```bash
-# テストの実行
+# Run tests
 npm test
 
-# カバレッジ付きテスト
+# Run tests with coverage
 npm test -- --coverage
 
-# 特定のテストファイルのみ実行
+# Run only a specific test file
 npm test -- --testPathPattern app-stack
 
-# スナップショットの更新
+# Update snapshots
 npm test -- -u
 
-# CDK diff (デプロイ前の差分確認)
+# CDK diff (check differences before deployment)
 cdk diff
 
-# CDK synth (テンプレート生成確認)
+# CDK synth (verify template generation)
 cdk synth
 
-# 特定スタックのテンプレート生成
+# Generate template for a specific stack
 cdk synth AppStack > template.yaml
 ```
 
-### 5.4 Python でのテスト
+### 5.4 Testing with Python
 
 ```python
 # test/test_app_stack.py
@@ -1002,14 +1001,14 @@ def template():
 
 
 def test_dynamodb_table_created(template):
-    """DynamoDB テーブルが正しい設定で作成される"""
+    """DynamoDB table is created with the correct configuration"""
     template.has_resource_properties("AWS::DynamoDB::Table", {
         "BillingMode": "PAY_PER_REQUEST",
     })
 
 
 def test_lambda_function_runtime(template):
-    """Lambda 関数が Python 3.12 ランタイムで作成される"""
+    """Lambda function is created with Python 3.12 runtime"""
     template.has_resource_properties("AWS::Lambda::Function", {
         "Runtime": "python3.12",
         "MemorySize": 256,
@@ -1017,12 +1016,12 @@ def test_lambda_function_runtime(template):
 
 
 def test_api_gateway_created(template):
-    """API Gateway が1つ作成される"""
+    """One API Gateway is created"""
     template.resource_count_is("AWS::ApiGateway::RestApi", 1)
 
 
 def test_lambda_has_table_name_env(template):
-    """Lambda に TABLE_NAME 環境変数が設定される"""
+    """TABLE_NAME environment variable is set in Lambda"""
     env_capture = Capture()
     template.has_resource_properties("AWS::Lambda::Function", {
         "Environment": {
@@ -1035,7 +1034,7 @@ def test_lambda_has_table_name_env(template):
 
 
 def test_no_public_s3_buckets(template):
-    """パブリックアクセス可能な S3 バケットが存在しない"""
+    """No publicly accessible S3 buckets exist"""
     template.has_resource_properties("AWS::S3::Bucket", {
         "PublicAccessBlockConfiguration": {
             "BlockPublicAcls": True,
@@ -1048,17 +1047,17 @@ def test_no_public_s3_buckets(template):
 
 ---
 
-## 6. CDK Pipelines（セルフミューテーション）
+## 6. CDK Pipelines (Self-Mutation)
 
-### 6.1 CDK Pipelines の概念
+### 6.1 CDK Pipelines Concepts
 
 ```
-CDK Pipelines のセルフミューテーション:
+CDK Pipelines Self-Mutation:
 
-1. パイプライン定義を CDK で記述
-2. パイプライン自身がソースの変更を検知
-3. パイプラインが自分自身を更新 (Self-Mutation)
-4. 更新後のパイプラインがアプリケーションをデプロイ
+1. Define the pipeline using CDK
+2. The pipeline itself detects changes to the source
+3. The pipeline updates itself (Self-Mutation)
+4. The updated pipeline deploys the application
 
 ┌──────────────────────────────────────────────────────────────┐
 │                    CDK Pipeline                              │
@@ -1070,12 +1069,12 @@ CDK Pipelines のセルフミューテーション:
 │  │          │  │          │  │  Mutate) │  │              ││
 │  └──────────┘  └──────────┘  └──────────┘  └──────────────┘│
 │                                                              │
-│  Self-Mutation: パイプライン定義が変わったら                   │
-│  自動的にパイプライン自身を更新する                           │
+│  Self-Mutation: When the pipeline definition changes,        │
+│  the pipeline automatically updates itself                   │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 CDK Pipelines の実装
+### 6.2 Implementing CDK Pipelines
 
 ```typescript
 // lib/pipeline-stack.ts
@@ -1089,12 +1088,12 @@ export class PipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // ソースリポジトリ
+    // Source repository
     const repo = codecommit.Repository.fromRepositoryName(
       this, 'Repo', 'my-cdk-app'
     );
 
-    // パイプラインの定義
+    // Pipeline definition
     const pipeline = new pipelines.CodePipeline(this, 'Pipeline', {
       pipelineName: 'MyAppPipeline',
       crossAccountKeys: true,
@@ -1107,18 +1106,18 @@ export class PipelineStack extends cdk.Stack {
         ],
         primaryOutputDirectory: 'cdk.out',
       }),
-      // Docker ビルドを使用するかどうか
+      // Whether to use Docker builds
       dockerEnabledForSynth: true,
       dockerEnabledForSelfMutation: true,
     });
 
-    // 開発環境ステージ
+    // Development environment stage
     const devStage = pipeline.addStage(new AppStage(this, 'Dev', {
       env: { account: '111111111111', region: 'ap-northeast-1' },
       environmentName: 'dev',
     }));
 
-    // 開発環境のポストデプロイテスト
+    // Post-deploy tests for the development environment
     devStage.addPost(new pipelines.ShellStep('IntegrationTest', {
       commands: [
         'curl -f $API_URL/health || exit 1',
@@ -1128,26 +1127,26 @@ export class PipelineStack extends cdk.Stack {
       },
     }));
 
-    // ステージング環境ステージ
+    // Staging environment stage
     const stagingStage = pipeline.addStage(new AppStage(this, 'Staging', {
       env: { account: '222222222222', region: 'ap-northeast-1' },
       environmentName: 'staging',
     }));
 
-    // 本番環境ステージ（手動承認付き）
+    // Production environment stage (with manual approval)
     const prodStage = pipeline.addStage(new AppStage(this, 'Prod', {
       env: { account: '333333333333', region: 'ap-northeast-1' },
       environmentName: 'prod',
     }));
 
     prodStage.addPre(new pipelines.ManualApprovalStep('PromoteToProd', {
-      comment: 'ステージング環境の動作を確認後、本番デプロイを承認してください',
+      comment: 'Please verify the staging environment and approve for production deployment',
     }));
   }
 }
 ```
 
-### 6.3 App Stage の定義
+### 6.3 App Stage Definition
 
 ```typescript
 // lib/app-stage.ts
@@ -1189,107 +1188,107 @@ export class AppStage extends cdk.Stage {
 
 ---
 
-## 7. CDK デプロイコマンド
+## 7. CDK Deployment Commands
 
 ```bash
-# ブートストラップ (初回のみ、各アカウント・リージョンごと)
+# Bootstrap (once per account/region)
 cdk bootstrap aws://123456789012/ap-northeast-1
 
-# クロスアカウントブートストラップ（信頼関係の設定）
+# Cross-account bootstrap (configure trust relationship)
 cdk bootstrap aws://222222222222/ap-northeast-1 \
   --trust 111111111111 \
   --cloudformation-execution-policies 'arn:aws:iam::aws:policy/AdministratorAccess' \
   --trust-for-lookup 111111111111
 
-# テンプレートの合成
+# Synthesize template
 cdk synth
 
-# 差分確認
+# Check differences
 cdk diff
 
-# 全スタックのデプロイ
+# Deploy all stacks
 cdk deploy --all
 
-# 特定スタックのデプロイ
+# Deploy a specific stack
 cdk deploy AppStack
 
-# コンテキスト値を渡してデプロイ
+# Deploy with context values
 cdk deploy --all --context env=prod --context vpcCidr=10.1.0.0/16
 
-# 承認なしでデプロイ (CI/CD 向け)
+# Deploy without approval prompt (for CI/CD)
 cdk deploy --all --require-approval never
 
-# ロールバック無効化（デバッグ時）
+# Deploy with rollback disabled (for debugging)
 cdk deploy --all --no-rollback
 
-# ホットスワップデプロイ（開発環境向け高速デプロイ）
+# Hotswap deploy (fast deployment for development environments)
 cdk deploy --hotswap
 
-# ウォッチモード（ファイル変更を検知して自動デプロイ）
+# Watch mode (detect file changes and auto-deploy)
 cdk watch
 
-# スタックの一覧
+# List stacks
 cdk list
 
-# スタックの削除
+# Destroy stacks
 cdk destroy --all
 
-# コンテキストキャッシュのクリア
+# Clear the context cache
 cdk context --clear
 ```
 
-### 7.1 環境変数の活用
+### 7.1 Using Environment Variables
 
 ```bash
-# CDK で使える主な環境変数
+# Key environment variables for CDK
 export CDK_DEFAULT_ACCOUNT=123456789012
 export CDK_DEFAULT_REGION=ap-northeast-1
 export CDK_NEW_BOOTSTRAP=1
 
-# AWS プロファイルの指定
+# Specify an AWS profile
 cdk deploy --all --profile my-profile
 
-# verbose モード（デバッグ出力）
+# Verbose mode (debug output)
 cdk deploy --all -v
 
-# 出力を JSON 形式で取得
+# Get output in JSON format
 cdk synth --json
 ```
 
 ---
 
-## 8. CDK のベストプラクティス
+## 8. CDK Best Practices
 
-### 8.1 スタック分割戦略
+### 8.1 Stack Splitting Strategy
 
 ```
-推奨されるスタック分割:
+Recommended Stack Splitting:
 
-1. ライフサイクルベース:
+1. Lifecycle-based:
    ┌─────────────────────────────────────────────┐
-   │ 変更頻度: 低 → 高                            │
+   │ Change frequency: Low → High                 │
    │                                             │
    │ NetworkStack    DatabaseStack    AppStack   │
    │ (VPC, Subnet)  (RDS, DynamoDB)  (Lambda,   │
    │                                  API GW)    │
-   │ 月1回程度      月数回           日次        │
+   │ ~Monthly       Several/month    Daily       │
    └─────────────────────────────────────────────┘
 
-2. チームベース:
+2. Team-based:
    Platform Team → NetworkStack, SecurityStack
    Backend Team  → AppStack, DatabaseStack
    Frontend Team → CDNStack, S3StaticStack
 
-3. 環境ベース:
+3. Environment-based:
    Dev   → dev-NetworkStack, dev-AppStack, ...
    Stg   → stg-NetworkStack, stg-AppStack, ...
    Prod  → prod-NetworkStack, prod-AppStack, ...
 ```
 
-### 8.2 設定の外部化
+### 8.2 Externalizing Configuration
 
 ```typescript
-// 環境ごとの設定ファイル
+// Per-environment configuration files
 // config/dev.ts
 export const devConfig = {
   environmentName: 'dev',
@@ -1316,14 +1315,14 @@ export const prodConfig = {
   enableWaf: true,
 };
 
-// bin/app.ts で設定を使用
+// Use configuration in bin/app.ts
 import { devConfig } from '../config/dev';
 import { prodConfig } from '../config/prod';
 
 const config = process.env.CDK_ENV === 'prod' ? prodConfig : devConfig;
 ```
 
-### 8.3 Aspects による横断的関心事
+### 8.3 Cross-Cutting Concerns with Aspects
 
 ```typescript
 // lib/aspects/tagging-aspect.ts
@@ -1331,7 +1330,7 @@ import * as cdk from 'aws-cdk-lib';
 import { IConstruct } from 'constructs';
 
 /**
- * 全リソースに必須タグを自動付与する Aspect
+ * An Aspect that automatically applies mandatory tags to all resources
  */
 class MandatoryTagsAspect implements cdk.IAspect {
   constructor(
@@ -1348,7 +1347,7 @@ class MandatoryTagsAspect implements cdk.IAspect {
 }
 
 /**
- * S3 バケットのパブリックアクセスを禁止する Aspect
+ * An Aspect that disallows public access on S3 buckets
  */
 class BucketSecurityAspect implements cdk.IAspect {
   visit(node: IConstruct): void {
@@ -1364,16 +1363,16 @@ class BucketSecurityAspect implements cdk.IAspect {
 }
 
 /**
- * Lambda 関数の設定を強制する Aspect
+ * An Aspect that enforces Lambda function configuration
  */
 class LambdaSecurityAspect implements cdk.IAspect {
   visit(node: IConstruct): void {
     if (node instanceof cdk.aws_lambda.CfnFunction) {
-      // X-Ray トレーシングの強制
+      // Enforce X-Ray tracing
       if (!node.tracingConfig) {
         node.addPropertyOverride('TracingConfig.Mode', 'Active');
       }
-      // 予約済み同時実行数の上限設定
+      // Set a cap on reserved concurrency
       if (!node.reservedConcurrentExecutions) {
         node.addPropertyOverride('ReservedConcurrentExecutions', 100);
       }
@@ -1381,7 +1380,7 @@ class LambdaSecurityAspect implements cdk.IAspect {
   }
 }
 
-// 使用例
+// Usage example
 const app = new cdk.App();
 cdk.Aspects.of(app).add(new MandatoryTagsAspect({
   Project: 'MyApp',
@@ -1394,44 +1393,44 @@ cdk.Aspects.of(app).add(new LambdaSecurityAspect());
 
 ---
 
-## 9. Construct Hub とサードパーティコンストラクト
+## 9. Construct Hub and Third-Party Constructs
 
-### 9.1 Construct Hub の活用
+### 9.1 Using Construct Hub
 
-Construct Hub (https://constructs.dev/) は CDK コンストラクトのレジストリで、AWS 公式および OSS コミュニティのコンストラクトを検索・利用できる。
+Construct Hub (https://constructs.dev/) is a registry of CDK constructs where you can search and use both official AWS and OSS community constructs.
 
 ```bash
-# よく使われるサードパーティコンストラクト
+# Commonly used third-party constructs
 npm install @aws-solutions-constructs/aws-lambda-dynamodb
 npm install @aws-solutions-constructs/aws-cloudfront-s3
 npm install cdk-nag
 ```
 
-### 9.2 cdk-nag によるセキュリティチェック
+### 9.2 Security Checks with cdk-nag
 
 ```typescript
 import { Aspects } from 'aws-cdk-lib';
 import { AwsSolutionsChecks, NagSuppressions } from 'cdk-nag';
 
 const app = new cdk.App();
-// AWS Solutions のベストプラクティスチェック
+// Check against AWS Solutions best practices
 Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
 
-// 特定の警告を抑制する場合
+// Suppress specific warnings when needed
 NagSuppressions.addStackSuppressions(myStack, [
   {
     id: 'AwsSolutions-IAM4',
-    reason: '開発環境では AWS マネージドポリシーの使用を許可',
+    reason: 'AWS managed policies are permitted in the development environment',
   },
 ]);
 ```
 
-### 9.3 AWS Solutions Constructs の活用
+### 9.3 Using AWS Solutions Constructs
 
 ```typescript
 import { LambdaToDynamoDB } from '@aws-solutions-constructs/aws-lambda-dynamodb';
 
-// Lambda + DynamoDB のベストプラクティス構成を一括作成
+// Create a best-practice Lambda + DynamoDB configuration in one call
 const lambdaDdb = new LambdaToDynamoDB(this, 'LambdaToDdb', {
   lambdaFunctionProps: {
     runtime: lambda.Runtime.PYTHON_3_12,
@@ -1444,70 +1443,70 @@ const lambdaDdb = new LambdaToDynamoDB(this, 'LambdaToDdb', {
   },
 });
 
-// 自動的に以下が設定される:
-// - Lambda に DynamoDB への最小権限
-// - Lambda の CloudWatch Logs
-// - DynamoDB の暗号化
+// Automatically configured:
+// - Least-privilege Lambda permissions to DynamoDB
+// - CloudWatch Logs for Lambda
+// - DynamoDB encryption
 // - Dead Letter Queue
 ```
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### 10.1 ハードコードされた値
+### 10.1 Hardcoded Values
 
 ```typescript
-// [悪い例]
+// [Bad example]
 const bucket = new s3.Bucket(this, 'Bucket', {
-  bucketName: 'my-company-prod-data-bucket',  // 環境ごとに変更が必要
+  bucketName: 'my-company-prod-data-bucket',  // Must be changed per environment
 });
 
-// [良い例]
+// [Good example]
 const bucket = new s3.Bucket(this, 'Bucket', {
   bucketName: `${props.environmentName}-data-${this.account}`,
-  // または bucketName を省略して CDK に自動生成させる
+  // Or omit bucketName and let CDK auto-generate it
 });
 ```
 
-### 10.2 L1 コンストラクトの多用
+### 10.2 Overuse of L1 Constructs
 
-**問題点**: L1 (CfnXxx) コンストラクトを使うと、CDK の恩恵(自動的な IAM ポリシー生成、デフォルト値、型安全性)を失い、CloudFormation を直接書くのと変わらなくなる。
+**Problem**: Using L1 (CfnXxx) constructs means losing CDK benefits (automatic IAM policy generation, default values, type safety), making it no different from writing CloudFormation directly.
 
-**改善**: 可能な限り L2 コンストラクトを使い、L2 で対応していないプロパティのみ `addOverride` や `node.defaultChild` でカスタマイズする。
+**Solution**: Use L2 constructs wherever possible, and only use `addOverride` or `node.defaultChild` to customize properties not supported by L2.
 
 ```typescript
-// [悪い例]: L1 で VPC を定義
+// [Bad example]: Define a VPC with L1
 const cfnVpc = new ec2.CfnVPC(this, 'Vpc', {
   cidrBlock: '10.0.0.0/16',
   enableDnsHostnames: true,
   enableDnsSupport: true,
 });
-// サブネット、ルートテーブル、IGW、NAT GW を全て手動で作成する必要がある
+// Must manually create subnets, route tables, IGW, NAT GW, etc.
 
-// [良い例]: L2 + エスケープハッチ
+// [Good example]: L2 + escape hatch
 const vpc = new ec2.Vpc(this, 'Vpc', {
   maxAzs: 3,
 });
-// L1 にアクセスしてカスタマイズ
+// Access L1 to customize
 const cfnVpc = vpc.node.defaultChild as ec2.CfnVPC;
 cfnVpc.addPropertyOverride('InstanceTenancy', 'dedicated');
 ```
 
-### 10.3 巨大な単一スタック
+### 10.3 One Giant Monolithic Stack
 
 ```typescript
-// [悪い例]: 全リソースを1つのスタックに詰め込む
+// [Bad example]: Pack all resources into a single stack
 class MonolithStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
     // VPC, Lambda, DynamoDB, S3, CloudFront, WAF, ...
-    // 500+ リソース → CloudFormation の上限 (500) に近づく
-    // デプロイに 30 分以上かかる
+    // 500+ resources → approaching the CloudFormation limit (500)
+    // Deployment takes 30+ minutes
   }
 }
 
-// [良い例]: 責務ごとにスタックを分割
+// [Good example]: Split stacks by responsibility
 // NetworkStack → VPC, Subnet, NAT GW
 // DatabaseStack → DynamoDB, RDS
 // AppStack → Lambda, API Gateway
@@ -1515,21 +1514,21 @@ class MonolithStack extends cdk.Stack {
 // MonitoringStack → CloudWatch, SNS
 ```
 
-### 10.4 コンストラクト ID の変更
+### 10.4 Changing Construct IDs
 
 ```typescript
-// [危険]: コンストラクト ID を変更すると、リソースの論理 ID が変わり、
-// 既存リソースが削除されて新しいリソースが作成される
-// (ステートフルリソースの場合、データ損失のリスク)
+// [Danger]: Changing a construct ID changes the resource's logical ID,
+// causing the existing resource to be deleted and a new one created
+// (risk of data loss for stateful resources)
 
-// 変更前
+// Before
 const table = new dynamodb.Table(this, 'ItemsTable', { ... });
-// 変更後（論理 ID が変わる → テーブルが再作成される）
+// After (logical ID changes → table is recreated)
 const table = new dynamodb.Table(this, 'ItemsTableV2', { ... });
 
-// 安全な対処法: RemovalPolicy.RETAIN を事前に設定
+// Safe approach: set RemovalPolicy.RETAIN in advance
 const table = new dynamodb.Table(this, 'ItemsTable', {
-  removalPolicy: cdk.RemovalPolicy.RETAIN,  // スタック削除時もテーブルを残す
+  removalPolicy: cdk.RemovalPolicy.RETAIN,  // Retain the table even when the stack is deleted
 });
 ```
 
@@ -1537,77 +1536,77 @@ const table = new dynamodb.Table(this, 'ItemsTable', {
 
 ## 11. FAQ
 
-### Q1. CDK と CloudFormation のどちらから始めるべきですか？
+### Q1. Should I start with CDK or CloudFormation?
 
-プログラミング経験があるなら CDK から始めることを推奨する。CDK は CloudFormation テンプレートを内部で生成するため、CDK を使いながら CloudFormation の概念も自然に学べる。`cdk synth` で生成されるテンプレートを確認することで理解が深まる。
+If you have programming experience, starting with CDK is recommended. Since CDK generates CloudFormation templates internally, you naturally learn CloudFormation concepts while using CDK. Inspecting the templates generated by `cdk synth` will deepen your understanding.
 
-### Q2. CDK のバージョンアップはどう管理すべきですか？
+### Q2. How should CDK version upgrades be managed?
 
-CDK v2 では全モジュールが `aws-cdk-lib` に統合されているため、バージョン管理が簡素化されている。`package.json` の `aws-cdk-lib` バージョンを更新し、テストを実行して互換性を確認する。マイナーバージョンアップは後方互換性が保たれている。
+In CDK v2, all modules are consolidated into `aws-cdk-lib`, simplifying version management. Update the `aws-cdk-lib` version in `package.json` and run tests to verify compatibility. Minor version upgrades maintain backward compatibility.
 
 ```bash
-# CDK のバージョン確認
+# Check CDK version
 npx cdk --version
 
-# パッケージの更新
+# Update packages
 npm update aws-cdk-lib constructs
 
-# CLI の更新
+# Update CLI
 npm install -g aws-cdk@latest
 
-# 更新後のテスト実行
+# Run tests after updating
 npm test
 cdk diff
 ```
 
-### Q3. CDK でステートフルリソースを安全に管理するには？
+### Q3. How do you safely manage stateful resources with CDK?
 
-DynamoDB テーブルや RDS インスタンスなどのステートフルリソースには `removalPolicy: RemovalPolicy.RETAIN` を設定し、スタック削除時にリソースが残るようにする。また、リソースの論理 ID が変わらないよう、コンストラクト ID の変更には注意が必要である。
+For stateful resources such as DynamoDB tables and RDS instances, set `removalPolicy: RemovalPolicy.RETAIN` so that resources are preserved when the stack is deleted. Also, be careful not to change construct IDs to ensure the resource logical ID remains stable.
 
-### Q4. cdk synth で生成されるテンプレートが巨大すぎる場合の対策は？
+### Q4. What can be done when the template generated by `cdk synth` is too large?
 
-CloudFormation テンプレートの上限はパッケージ化後で 1 MB。大規模な場合はスタックを分割する。ネストされたスタック（`NestedStack`）を使う方法もあるが、CDK では独立したスタック間のクロススタック参照がよりシンプルで推奨される。
+The CloudFormation template limit is 1 MB after packaging. For large-scale deployments, split into multiple stacks. Using nested stacks (`NestedStack`) is also an option, but cross-stack references between independent stacks is simpler and recommended in CDK.
 
-### Q5. CDK で既存の AWS リソースをインポートするには？
+### Q5. How do you import existing AWS resources into CDK?
 
 ```typescript
-// 既存 VPC のインポート
+// Import an existing VPC
 const existingVpc = ec2.Vpc.fromLookup(this, 'ExistingVpc', {
   vpcId: 'vpc-12345678',
 });
 
-// 既存 S3 バケットのインポート
+// Import an existing S3 bucket
 const existingBucket = s3.Bucket.fromBucketName(
   this, 'ExistingBucket', 'my-existing-bucket'
 );
 
-// 既存 DynamoDB テーブルのインポート
+// Import an existing DynamoDB table
 const existingTable = dynamodb.Table.fromTableName(
   this, 'ExistingTable', 'existing-table'
 );
 
-// 既存 Lambda 関数のインポート
+// Import an existing Lambda function
 const existingFunction = lambda.Function.fromFunctionArn(
   this, 'ExistingFunc',
   'arn:aws:lambda:ap-northeast-1:123456789012:function:my-function'
 );
 ```
 
-### Q6. CDK のデプロイが遅い場合の高速化方法は？
+### Q6. How can slow CDK deployments be sped up?
 
 ```bash
-# ホットスワップデプロイ（Lambda、ECS、Step Functions 等に対応）
-# CloudFormation を経由せずに直接リソースを更新
+# Hotswap deploy (supports Lambda, ECS, Step Functions, etc.)
+# Updates resources directly without going through CloudFormation
 cdk deploy --hotswap
 
-# ウォッチモード（ファイル変更を検知して自動ホットスワップ）
+# Watch mode (detect file changes and auto hotswap)
 cdk watch
 
-# 並列デプロイ（依存関係のないスタックを並列実行）
+# Parallel deploy (run stacks without dependencies in parallel)
 cdk deploy --all --concurrency 5
 ```
 
-### Q7. マルチリージョンデプロイはどう実装する？
+### Q7. How is multi-region deployment implemented?
 
 ```typescript
 const regions = ['ap-northeast-1', 'us-east-1', 'eu-west-1'];
@@ -1622,7 +1621,7 @@ for (const region of regions) {
   });
 }
 
-// CloudFormation StackSets を使用する場合は AWS SDK 経由で管理
+// When using CloudFormation StackSets, manage via the AWS SDK
 ```
 
 ---
@@ -1630,50 +1629,50 @@ for (const region of regions) {
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| CDK とは | プログラミング言語で AWS インフラを定義するフレームワーク |
-| コンストラクト | L1(CFn 1:1)、L2(高レベル抽象化)、L3(パターン) |
-| 言語 | TypeScript, Python, Java, Go, C# |
-| テスト | スナップショットテスト + ファイングレインドアサーション |
-| デプロイ | cdk synth -> cdk diff -> cdk deploy |
-| CDK Pipelines | セルフミューテーションで CI/CD を自動化 |
-| Aspects | 横断的関心事（タグ付け、セキュリティ）を一括適用 |
-| ベストプラクティス | スタック分割、設定外部化、cdk-nag でセキュリティチェック |
-| 利点 | 型安全、テスト可能、IDE 補完、ループ/条件がネイティブ |
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [CloudFormation](./00-cloudformation.md) -- CDK の内部で生成されるテンプレートの理解
-- [CodePipeline](./02-codepipeline.md) -- CDK を CI/CD パイプラインに統合
-- [Lambda 基礎](../05-serverless/00-lambda-basics.md) -- CDK でデプロイする Lambda の設計
+| Item | Key Point |
+|------|-----------|
+| What is CDK | A framework for defining AWS infrastructure with programming languages |
+| Constructs | L1 (CFn 1:1), L2 (high-level abstraction), L3 (patterns) |
+| Languages | TypeScript, Python, Java, Go, C# |
+| Testing | Snapshot tests + fine-grained assertions |
+| Deployment | cdk synth -> cdk diff -> cdk deploy |
+| CDK Pipelines | Automate CI/CD with self-mutation |
+| Aspects | Apply cross-cutting concerns (tagging, security) in bulk |
+| Best Practices | Stack splitting, externalized config, security checks with cdk-nag |
+| Advantages | Type-safe, testable, IDE completion, native loops/conditions |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. AWS 公式ドキュメント「AWS CDK v2 デベロッパーガイド」 https://docs.aws.amazon.com/cdk/v2/guide/
-2. AWS CDK API リファレンス https://docs.aws.amazon.com/cdk/api/v2/
+- [CloudFormation](./00-cloudformation.md) -- Understanding the templates generated internally by CDK
+- [CodePipeline](./02-codepipeline.md) -- Integrating CDK into CI/CD pipelines
+- [Lambda Basics](../05-serverless/00-lambda-basics.md) -- Designing Lambda functions deployed with CDK
+
+---
+
+## References
+
+1. AWS Official Documentation "AWS CDK v2 Developer Guide" https://docs.aws.amazon.com/cdk/v2/guide/
+2. AWS CDK API Reference https://docs.aws.amazon.com/cdk/api/v2/
 3. CDK Patterns https://cdkpatterns.com/
-4. Matt Coulter「The CDK Book」 https://www.thecdkbook.com/
+4. Matt Coulter "The CDK Book" https://www.thecdkbook.com/
 5. Construct Hub https://constructs.dev/
 6. AWS Solutions Constructs https://docs.aws.amazon.com/solutions/latest/constructs/
 7. cdk-nag https://github.com/cdklabs/cdk-nag
