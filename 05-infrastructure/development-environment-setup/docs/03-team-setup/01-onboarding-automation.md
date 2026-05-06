@@ -1,115 +1,115 @@
-# オンボーディング自動化 (Onboarding Automation)
+# Onboarding Automation
 
-> 新メンバーが 1 コマンドで開発環境を構築できるセットアップスクリプトと Makefile を設計し、オンボーディングの時間を数日から数分に短縮する手法を学ぶ。
+> Learn how to design setup scripts and Makefiles that let new members build their development environment with a single command, reducing onboarding time from days to minutes.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **セットアップスクリプトの設計と実装** -- プラットフォーム差異を吸収し、依存ツールのインストールから初回ビルドまでを自動化するスクリプトを構築する
-2. **Makefile によるタスクランナーの構築** -- よく使う開発タスクを `make` コマンドで標準化し、手順書の代わりにする
-3. **環境検証と troubleshooting の自動化** -- セットアップの成否を自動検証し、問題発生時の診断情報を収集する仕組みを整備する
-4. **マルチプラットフォーム対応のベストプラクティス** -- macOS / Linux / Windows (WSL2) の差異を吸収するクロスプラットフォームスクリプトの設計手法を習得する
-5. **CI/CD でのセットアップスクリプト検証** -- セットアップスクリプトの陳腐化を防ぐ自動テストの仕組みを構築する
+1. **Designing and implementing setup scripts** -- Build scripts that abstract platform differences and automate everything from dependency installation to the first build
+2. **Building a task runner with Makefile** -- Standardize common development tasks under `make` commands to replace written procedures
+3. **Automating environment validation and troubleshooting** -- Establish mechanisms to automatically verify setup success and collect diagnostic information when problems occur
+4. **Best practices for multi-platform support** -- Learn cross-platform script design techniques that handle the differences between macOS, Linux, and Windows (WSL2)
+5. **Validating setup scripts in CI/CD** -- Build automated tests to prevent setup scripts from becoming stale
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [プロジェクト標準 (Project Standards)](./00-project-standards.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Project Standards](./00-project-standards.md)
 
 ---
 
-## 1. オンボーディングの課題
+## 1. The Onboarding Problem
 
 ```
 +------------------------------------------------------------------+
-|              従来のオンボーディング vs 自動化                        |
+|          Traditional Onboarding vs. Automation                   |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [従来 - 手順書ベース]                                            |
-|  1. Confluence の手順書を読む (30分)                               |
-|  2. Homebrew をインストール (10分)                                 |
-|  3. Node.js をインストール → バージョンが違う (30分)               |
-|  4. npm install → エラー (1時間)                                  |
-|  5. PostgreSQL をインストール → 設定がわからない (1時間)            |
-|  6. 環境変数を設定 → 何を設定するかわからない (30分)               |
-|  7. 先輩に質問 → 先輩の時間も消費 (2時間)                          |
-|  合計: 1-2日                                                      |
+|  [Traditional - Documentation-Based]                            |
+|  1. Read Confluence documentation (30 min)                       |
+|  2. Install Homebrew (10 min)                                    |
+|  3. Install Node.js -> wrong version (30 min)                   |
+|  4. npm install -> error (1 hour)                                |
+|  5. Install PostgreSQL -> configuration unclear (1 hour)         |
+|  6. Set environment variables -> unclear what to set (30 min)   |
+|  7. Ask a senior dev -> consuming their time too (2 hours)       |
+|  Total: 1-2 days                                                 |
 |                                                                  |
-|  [自動化]                                                        |
+|  [Automated]                                                     |
 |  1. git clone && make setup                                      |
-|  合計: 5-15分                                                     |
+|  Total: 5-15 minutes                                             |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 1.1 オンボーディング自動化の投資対効果
+### 1.1 Return on Investment for Onboarding Automation
 
-| 指標 | 手動 (年間) | 自動化 (年間) | 削減効果 |
-|------|-----------|-------------|---------|
-| 新メンバー1人あたりのセットアップ時間 | 8-16時間 | 0.5-1時間 | 90%削減 |
-| 先輩エンジニアのサポート時間 | 4-8時間 | 0-0.5時間 | 95%削減 |
-| 年間入社5人の場合の合計工数 | 60-120時間 | 2.5-7.5時間 | 95%削減 |
-| セットアップ関連の問い合わせ件数 | 月10-20件 | 月0-2件 | 90%削減 |
-| 環境不一致によるバグ | 月5-10件 | 月0-1件 | 90%削減 |
-| 自動化スクリプトの初期構築コスト | -- | 8-16時間 | -- |
-| 月次メンテナンスコスト | -- | 1-2時間 | -- |
+| Metric | Manual (per year) | Automated (per year) | Reduction |
+|--------|------------------|---------------------|-----------|
+| Setup time per new member | 8-16 hours | 0.5-1 hour | 90% reduction |
+| Senior engineer support time | 4-8 hours | 0-0.5 hours | 95% reduction |
+| Total effort for 5 new hires per year | 60-120 hours | 2.5-7.5 hours | 95% reduction |
+| Setup-related inquiries | 10-20 per month | 0-2 per month | 90% reduction |
+| Bugs due to environment mismatch | 5-10 per month | 0-1 per month | 90% reduction |
+| Initial automation script build cost | -- | 8-16 hours | -- |
+| Monthly maintenance cost | -- | 1-2 hours | -- |
 
-### 1.2 オンボーディング自動化のアーキテクチャ
+### 1.2 Onboarding Automation Architecture
 
 ```
 +------------------------------------------------------------------+
-|              オンボーディング自動化の全体像                          |
+|              Onboarding Automation Overview                       |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [エントリーポイント]                                              |
+|  [Entry Point]                                                   |
 |  make setup                                                      |
 |    |                                                             |
 |    v                                                             |
 |  scripts/setup.sh                                                |
 |    |                                                             |
-|    +-- OS 検出 (macOS / Linux / WSL2)                            |
-|    +-- 前提ツールチェック & インストール                            |
+|    +-- OS detection (macOS / Linux / WSL2)                       |
+|    +-- Prerequisite tool check & install                         |
 |    |   +-- Homebrew (macOS)                                      |
 |    |   +-- git, curl, jq                                         |
 |    |   +-- Docker Desktop / Docker Engine                        |
-|    |   +-- Node.js バージョンマネージャ (fnm)                     |
-|    +-- Node.js セットアップ (.nvmrc 準拠)                         |
-|    +-- 依存関係インストール (pnpm install)                        |
-|    +-- 環境変数セットアップ (.env.example → .env)                 |
-|    +-- Docker サービス起動 (DB, Redis, etc.)                     |
-|    +-- データベースマイグレーション & シード                       |
-|    +-- ヘルスチェック & 検証                                      |
+|    |   +-- Node.js version manager (fnm)                         |
+|    +-- Node.js setup (per .nvmrc)                                |
+|    +-- Dependency installation (pnpm install)                    |
+|    +-- Environment variable setup (.env.example -> .env)         |
+|    +-- Docker service startup (DB, Redis, etc.)                  |
+|    +-- Database migration & seed                                 |
+|    +-- Health check & validation                                 |
 |    |                                                             |
 |    v                                                             |
 |  "Setup Complete! Run: make dev"                                 |
 |                                                                  |
-|  [日常運用]                                                       |
-|  make dev      -- 開発サーバー起動                                |
-|  make test     -- テスト実行                                      |
-|  make lint     -- Lint チェック                                   |
-|  make doctor   -- 環境診断                                        |
-|  make help     -- コマンド一覧                                    |
+|  [Daily Operations]                                              |
+|  make dev      -- Start development server                       |
+|  make test     -- Run tests                                      |
+|  make lint     -- Run lint checks                                |
+|  make doctor   -- Diagnose environment                           |
+|  make help     -- List all commands                              |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. セットアップスクリプト
+## 2. Setup Scripts
 
-### 2.1 メインスクリプト
+### 2.1 Main Script
 
 ```bash
 #!/bin/bash
 # scripts/setup.sh
-# プロジェクトの初回セットアップスクリプト
+# Initial project setup script
 
 set -euo pipefail
 
-# カラー出力
+# Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -121,7 +121,7 @@ log_ok()    { echo -e "${GREEN}[OK]${NC}    $1"; }
 log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# OS 検出
+# OS detection
 detect_os() {
   case "$(uname -s)" in
     Darwin*) echo "macos" ;;
@@ -135,16 +135,16 @@ OS=$(detect_os)
 log_info "OS detected: $OS"
 
 # ======================================
-# 1. 前提ツールのチェックとインストール
+# 1. Check and install prerequisites
 # ======================================
 check_prerequisites() {
-  log_info "前提条件をチェック中..."
+  log_info "Checking prerequisites..."
 
   # Git
   if command -v git &>/dev/null; then
     log_ok "Git $(git --version | cut -d' ' -f3)"
   else
-    log_error "Git が見つかりません"
+    log_error "Git not found"
     exit 1
   fi
 
@@ -152,12 +152,12 @@ check_prerequisites() {
   if command -v docker &>/dev/null; then
     log_ok "Docker $(docker --version | cut -d' ' -f3 | tr -d ',')"
   else
-    log_warn "Docker が未インストール。DB 等のローカルサービスに必要です"
+    log_warn "Docker is not installed. Required for local services such as DB"
     log_info "  macOS: brew install --cask docker"
     log_info "  Linux: https://docs.docker.com/engine/install/"
   fi
 
-  # Node.js バージョンマネージャ
+  # Node.js version manager
   if command -v fnm &>/dev/null; then
     log_ok "fnm $(fnm --version)"
   elif command -v nvm &>/dev/null; then
@@ -165,13 +165,13 @@ check_prerequisites() {
   elif command -v volta &>/dev/null; then
     log_ok "volta $(volta --version)"
   else
-    log_warn "Node.js バージョンマネージャが未インストール"
+    log_warn "No Node.js version manager installed"
     install_node_manager
   fi
 }
 
 install_node_manager() {
-  log_info "fnm をインストール中..."
+  log_info "Installing fnm..."
   case "$OS" in
     macos)
       if command -v brew &>/dev/null; then
@@ -184,18 +184,18 @@ install_node_manager() {
       curl -fsSL https://fnm.vercel.app/install | bash
       ;;
     *)
-      log_error "手動で fnm をインストールしてください: https://github.com/Schniz/fnm"
+      log_error "Please install fnm manually: https://github.com/Schniz/fnm"
       ;;
   esac
 }
 
 # ======================================
-# 2. Node.js のセットアップ
+# 2. Node.js setup
 # ======================================
 setup_node() {
-  log_info "Node.js をセットアップ中..."
+  log_info "Setting up Node.js..."
 
-  # .nvmrc からバージョンを読み取り
+  # Read version from .nvmrc
   if [ -f .nvmrc ]; then
     NODE_VERSION=$(cat .nvmrc | tr -d '[:space:]')
   elif [ -f .node-version ]; then
@@ -216,115 +216,115 @@ setup_node() {
 }
 
 # ======================================
-# 3. 依存関係のインストール
+# 3. Install dependencies
 # ======================================
 install_dependencies() {
-  log_info "依存関係をインストール中..."
+  log_info "Installing dependencies..."
 
   if [ -f pnpm-lock.yaml ]; then
     if ! command -v pnpm &>/dev/null; then
       npm install -g pnpm
     fi
     pnpm install --frozen-lockfile
-    log_ok "pnpm install 完了"
+    log_ok "pnpm install complete"
   elif [ -f yarn.lock ]; then
     if ! command -v yarn &>/dev/null; then
       npm install -g yarn
     fi
     yarn install --frozen-lockfile
-    log_ok "yarn install 完了"
+    log_ok "yarn install complete"
   else
     npm ci
-    log_ok "npm ci 完了"
+    log_ok "npm ci complete"
   fi
 }
 
 # ======================================
-# 4. 環境変数のセットアップ
+# 4. Environment variable setup
 # ======================================
 setup_env() {
-  log_info "環境変数をセットアップ中..."
+  log_info "Setting up environment variables..."
 
   if [ -f .env.example ] && [ ! -f .env ]; then
     cp .env.example .env
-    log_ok ".env.example から .env を作成"
-    log_warn ".env の値を確認し、必要に応じて更新してください"
+    log_ok "Created .env from .env.example"
+    log_warn "Please review .env values and update as needed"
   elif [ -f .env ]; then
-    log_ok ".env は既に存在"
+    log_ok ".env already exists"
   else
-    log_warn ".env.example が見つかりません"
+    log_warn ".env.example not found"
   fi
 }
 
 # ======================================
-# 5. Docker サービスの起動
+# 5. Start Docker services
 # ======================================
 setup_services() {
-  log_info "Docker サービスを起動中..."
+  log_info "Starting Docker services..."
 
   if command -v docker &>/dev/null && [ -f docker-compose.yml ]; then
     docker compose up -d
-    log_info "サービスの起動を待機中..."
+    log_info "Waiting for services to start..."
     sleep 5
-    log_ok "Docker サービス起動完了"
+    log_ok "Docker services started"
   else
-    log_warn "Docker Compose をスキップ"
+    log_warn "Skipping Docker Compose"
   fi
 }
 
 # ======================================
-# 6. データベースのセットアップ
+# 6. Database setup
 # ======================================
 setup_database() {
-  log_info "データベースをセットアップ中..."
+  log_info "Setting up database..."
 
   if [ -f prisma/schema.prisma ]; then
     npx prisma migrate dev 2>/dev/null || npx prisma migrate deploy
-    log_ok "Prisma マイグレーション完了"
+    log_ok "Prisma migration complete"
 
     if npx prisma db seed 2>/dev/null; then
-      log_ok "シードデータ投入完了"
+      log_ok "Seed data inserted"
     fi
   elif [ -f knexfile.js ] || [ -f knexfile.ts ]; then
     npx knex migrate:latest
     npx knex seed:run 2>/dev/null || true
-    log_ok "Knex マイグレーション完了"
+    log_ok "Knex migration complete"
   fi
 }
 
 # ======================================
-# 7. 検証
+# 7. Validation
 # ======================================
 verify_setup() {
-  log_info "セットアップを検証中..."
+  log_info "Verifying setup..."
   local errors=0
 
-  # Node.js バージョン
+  # Node.js version
   if node --version &>/dev/null; then
     log_ok "Node.js: $(node --version)"
   else
-    log_error "Node.js が動作しません"
+    log_error "Node.js is not working"
     ((errors++))
   fi
 
-  # TypeScript コンパイル
+  # TypeScript compilation
   if npx tsc --noEmit 2>/dev/null; then
-    log_ok "TypeScript コンパイル成功"
+    log_ok "TypeScript compilation successful"
   else
-    log_warn "TypeScript にエラーがあります (後で修正可)"
+    log_warn "TypeScript has errors (can be fixed later)"
   fi
 
-  # DB 接続
+  # DB connection
   if command -v docker &>/dev/null; then
     if docker compose exec -T postgres pg_isready 2>/dev/null; then
-      log_ok "PostgreSQL 接続可能"
+      log_ok "PostgreSQL connection available"
     else
-      log_warn "PostgreSQL に接続できません"
+      log_warn "Cannot connect to PostgreSQL"
     fi
   fi
 
   if [ "$errors" -gt 0 ]; then
-    log_error "$errors 個のエラーが見つかりました"
+    log_error "$errors error(s) found"
     return 1
   fi
 
@@ -332,7 +332,7 @@ verify_setup() {
 }
 
 # ======================================
-# メイン実行
+# Main execution
 # ======================================
 main() {
   echo ""
@@ -354,99 +354,99 @@ main() {
   echo -e "  ${GREEN}Setup Complete!${NC}"
   echo "=================================="
   echo ""
-  echo "次のコマンドで開発を開始できます:"
+  echo "You can start development with the following commands:"
   echo ""
-  echo "  make dev    # 開発サーバー起動"
-  echo "  make test   # テスト実行"
-  echo "  make help   # 全コマンド一覧"
+  echo "  make dev    # Start development server"
+  echo "  make test   # Run tests"
+  echo "  make help   # List all commands"
   echo ""
 }
 
 main "$@"
 ```
 
-### 2.2 Homebrew による macOS セットアップ
+### 2.2 macOS Setup with Homebrew
 
-macOS では Homebrew の Brewfile を使って、必要なツールを宣言的にインストールできる。
+On macOS, you can use Homebrew's Brewfile to declaratively install required tools.
 
 ```ruby
 # Brewfile
-# macOS の開発ツールを宣言的にインストール
-# 実行: brew bundle
+# Declaratively install macOS development tools
+# Run: brew bundle
 
-# === CLI ツール ===
+# === CLI Tools ===
 brew "git"
 brew "gh"           # GitHub CLI
-brew "jq"           # JSON パーサー
-brew "yq"           # YAML パーサー
-brew "fnm"          # Node.js バージョン管理
-brew "mise"         # 多言語バージョン管理
-brew "shellcheck"   # シェルスクリプト Linter
-brew "act"          # GitHub Actions ローカル実行
-brew "direnv"       # ディレクトリ別環境変数
+brew "jq"           # JSON parser
+brew "yq"           # YAML parser
+brew "fnm"          # Node.js version manager
+brew "mise"         # Multi-language version manager
+brew "shellcheck"   # Shell script linter
+brew "act"          # Run GitHub Actions locally
+brew "direnv"       # Per-directory environment variables
 
-# === コンテナ ===
+# === Containers ===
 cask "docker"       # Docker Desktop
 brew "lazydocker"   # Docker TUI
 
-# === データベースツール ===
-brew "postgresql@16"  # PostgreSQL クライアント (psql)
-brew "redis"          # Redis クライアント
+# === Database Tools ===
+brew "postgresql@16"  # PostgreSQL client (psql)
+brew "redis"          # Redis client
 
-# === エディタ ===
+# === Editor ===
 cask "visual-studio-code"
-# cask "cursor"       # AI エディタ
+# cask "cursor"       # AI editor
 
-# === フォント ===
+# === Fonts ===
 cask "font-jetbrains-mono"
 cask "font-jetbrains-mono-nerd-font"
 
-# === その他ツール ===
-cask "iterm2"       # ターミナル
-cask "raycast"      # ランチャー
-cask "figma"        # デザインツール
+# === Other Tools ===
+cask "iterm2"       # Terminal
+cask "raycast"      # Launcher
+cask "figma"        # Design tool
 ```
 
 ```bash
-# Brewfile を使ったセットアップスクリプト (macOS 用)
+# Setup script using Brewfile (for macOS)
 #!/bin/bash
 # scripts/setup-macos.sh
 
 set -euo pipefail
 
-# Homebrew がインストールされていない場合
+# If Homebrew is not installed
 if ! command -v brew &>/dev/null; then
-  echo "Homebrew をインストール中..."
+  echo "Installing Homebrew..."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 
-# Brewfile のインストール
-echo "Brewfile のパッケージをインストール中..."
+# Install Brewfile packages
+echo "Installing Brewfile packages..."
 brew bundle --file=Brewfile
 
-# fnm のシェル設定を追加
+# Add fnm shell configuration
 if ! grep -q "fnm env" ~/.zshrc 2>/dev/null; then
   echo 'eval "$(fnm env --use-on-cd)"' >> ~/.zshrc
-  echo "fnm のシェル設定を .zshrc に追加しました"
+  echo "Added fnm shell configuration to .zshrc"
 fi
 
-echo "macOS セットアップ完了"
+echo "macOS setup complete"
 ```
 
-### 2.3 Linux (Ubuntu/Debian) セットアップ
+### 2.3 Linux (Ubuntu/Debian) Setup
 
 ```bash
 #!/bin/bash
 # scripts/setup-linux.sh
-# Ubuntu/Debian 向けのセットアップスクリプト
+# Setup script for Ubuntu/Debian
 
 set -euo pipefail
 
 log_info() { echo -e "\033[0;34m[INFO]\033[0m  $1"; }
 log_ok()   { echo -e "\033[0;32m[OK]\033[0m    $1"; }
 
-# 基本パッケージのインストール
-log_info "基本パッケージをインストール中..."
+# Install base packages
+log_info "Installing base packages..."
 sudo apt-get update -qq
 sudo apt-get install -y -qq \
   build-essential \
@@ -459,30 +459,30 @@ sudo apt-get install -y -qq \
   gnupg \
   lsb-release
 
-# Docker のインストール
+# Install Docker
 if ! command -v docker &>/dev/null; then
-  log_info "Docker をインストール中..."
+  log_info "Installing Docker..."
   curl -fsSL https://get.docker.com | sudo sh
   sudo usermod -aG docker "$USER"
-  log_ok "Docker インストール完了 (再ログインが必要です)"
+  log_ok "Docker installation complete (re-login required)"
 fi
 
-# Docker Compose V2 の確認
+# Verify Docker Compose V2
 if docker compose version &>/dev/null; then
   log_ok "Docker Compose $(docker compose version --short)"
 fi
 
-# fnm のインストール
+# Install fnm
 if ! command -v fnm &>/dev/null; then
-  log_info "fnm をインストール中..."
+  log_info "Installing fnm..."
   curl -fsSL https://fnm.vercel.app/install | bash
   export PATH="$HOME/.local/share/fnm:$PATH"
   eval "$(fnm env)"
 fi
 
-# GitHub CLI のインストール
+# Install GitHub CLI
 if ! command -v gh &>/dev/null; then
-  log_info "GitHub CLI をインストール中..."
+  log_info "Installing GitHub CLI..."
   curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
     sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | \
@@ -491,15 +491,15 @@ if ! command -v gh &>/dev/null; then
   sudo apt-get install -y -qq gh
 fi
 
-log_ok "Linux セットアップ完了"
+log_ok "Linux setup complete"
 ```
 
-### 2.4 WSL2 環境のセットアップ
+### 2.4 WSL2 Environment Setup
 
 ```bash
 #!/bin/bash
 # scripts/setup-wsl.sh
-# WSL2 (Windows Subsystem for Linux) 向けの追加セットアップ
+# Additional setup for WSL2 (Windows Subsystem for Linux)
 
 set -euo pipefail
 
@@ -507,61 +507,61 @@ log_info() { echo -e "\033[0;34m[INFO]\033[0m  $1"; }
 log_ok()   { echo -e "\033[0;32m[OK]\033[0m    $1"; }
 log_warn() { echo -e "\033[0;33m[WARN]\033[0m  $1"; }
 
-# WSL2 の検出
+# Detect WSL2
 if [ -z "${WSL_DISTRO_NAME:-}" ]; then
-  echo "このスクリプトは WSL2 環境で実行してください"
+  echo "Please run this script in a WSL2 environment"
   exit 1
 fi
 
-log_info "WSL2 環境: ${WSL_DISTRO_NAME}"
+log_info "WSL2 environment: ${WSL_DISTRO_NAME}"
 
-# Windows 側の Docker Desktop を使用する設定の確認
+# Check configuration to use Docker Desktop on the Windows side
 if command -v docker &>/dev/null; then
-  log_ok "Docker は利用可能"
+  log_ok "Docker is available"
 else
-  log_warn "Docker Desktop for Windows をインストールし、WSL2 統合を有効にしてください"
-  log_info "  Settings > Resources > WSL Integration > ${WSL_DISTRO_NAME} を有効化"
+  log_warn "Please install Docker Desktop for Windows and enable WSL2 integration"
+  log_info "  Settings > Resources > WSL Integration > Enable ${WSL_DISTRO_NAME}"
 fi
 
-# /mnt/c 以下ではなく WSL ファイルシステムを使用するよう案内
+# Guide to use WSL filesystem instead of /mnt/c
 CURRENT_DIR=$(pwd)
 if [[ "$CURRENT_DIR" == /mnt/* ]]; then
-  log_warn "Windows ファイルシステム上で作業しています"
-  log_warn "パフォーマンス向上のため、~/projects/ など WSL ファイルシステム上にリポジトリを配置してください"
-  log_info "  例: cd ~ && mkdir -p projects && cd projects"
+  log_warn "Working on Windows filesystem"
+  log_warn "For better performance, place your repository on the WSL filesystem (e.g., ~/projects/)"
+  log_info "  Example: cd ~ && mkdir -p projects && cd projects"
 fi
 
-# Git の改行コード設定
+# Git line ending configuration
 git config --global core.autocrlf input
-log_ok "Git autocrlf を input に設定"
+log_ok "Set Git autocrlf to input"
 
-# Linux セットアップを実行
+# Run Linux setup
 bash scripts/setup-linux.sh
 
-log_ok "WSL2 セットアップ完了"
+log_ok "WSL2 setup complete"
 ```
 
 ---
 
 ## 3. Makefile
 
-### 3.1 プロジェクト用 Makefile
+### 3.1 Project Makefile
 
 ```makefile
 # Makefile
 .PHONY: help setup dev test lint format build clean docker-up docker-down db-migrate db-seed
 
-# デフォルトターゲット
+# Default target
 .DEFAULT_GOAL := help
 
-# 変数
+# Variables
 NODE_BIN := ./node_modules/.bin
 DOCKER_COMPOSE := docker compose
 
 # ======================================
-# ヘルプ (make help)
+# Help (make help)
 # ======================================
-help: ## コマンド一覧を表示
+help: ## Display list of commands
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
@@ -571,12 +571,12 @@ help: ## コマンド一覧を表示
 	@echo ""
 
 # ======================================
-# 初期セットアップ
+# Initial setup
 # ======================================
-setup: ## 初回セットアップ (新メンバーはこれを実行)
+setup: ## Initial setup (new members run this)
 	@bash scripts/setup.sh
 
-setup-quick: node_modules .env ## 高速セットアップ (依存関係のみ)
+setup-quick: node_modules .env ## Quick setup (dependencies only)
 	@echo "Quick setup complete"
 
 node_modules: package.json pnpm-lock.yaml
@@ -588,146 +588,146 @@ node_modules: package.json pnpm-lock.yaml
 	@echo ".env created from .env.example"
 
 # ======================================
-# 開発
+# Development
 # ======================================
-dev: ## 開発サーバー起動
+dev: ## Start development server
 	$(NODE_BIN)/next dev
 
-dev-all: docker-up ## 全サービス + 開発サーバー起動
+dev-all: docker-up ## Start all services + development server
 	$(NODE_BIN)/next dev
 
-dev-turbo: ## Turbo モードで開発サーバー起動
+dev-turbo: ## Start development server in turbo mode
 	$(NODE_BIN)/next dev --turbo
 
 # ======================================
-# テスト
+# Testing
 # ======================================
-test: ## テスト実行
+test: ## Run tests
 	$(NODE_BIN)/vitest run
 
-test-watch: ## テスト (watch モード)
+test-watch: ## Run tests (watch mode)
 	$(NODE_BIN)/vitest
 
-test-coverage: ## テスト + カバレッジ
+test-coverage: ## Run tests + coverage
 	$(NODE_BIN)/vitest run --coverage
 
-test-e2e: ## E2E テスト
+test-e2e: ## Run E2E tests
 	$(NODE_BIN)/playwright test
 
-test-e2e-ui: ## E2E テスト (UI モード)
+test-e2e-ui: ## Run E2E tests (UI mode)
 	$(NODE_BIN)/playwright test --ui
 
 # ======================================
-# コード品質
+# Code quality
 # ======================================
-lint: ## Lint チェック
+lint: ## Run lint checks
 	$(NODE_BIN)/eslint src/
 	$(NODE_BIN)/tsc --noEmit
 
-lint-fix: ## Lint 自動修正
+lint-fix: ## Auto-fix lint issues
 	$(NODE_BIN)/eslint src/ --fix
 
-format: ## コードフォーマット
+format: ## Format code
 	$(NODE_BIN)/prettier --write "src/**/*.{ts,tsx,json,css}"
 
-format-check: ## フォーマットチェック (CI 用)
+format-check: ## Check formatting (for CI)
 	$(NODE_BIN)/prettier --check "src/**/*.{ts,tsx,json,css}"
 
-typecheck: ## TypeScript 型チェック
+typecheck: ## TypeScript type check
 	$(NODE_BIN)/tsc --noEmit
 
-check: lint format-check typecheck test ## 全品質チェック実行 (CI 相当)
+check: lint format-check typecheck test ## Run all quality checks (equivalent to CI)
 
 # ======================================
-# ビルド
+# Build
 # ======================================
-build: ## プロダクションビルド
+build: ## Production build
 	$(NODE_BIN)/next build
 
-build-analyze: ## バンドル分析付きビルド
+build-analyze: ## Build with bundle analysis
 	ANALYZE=true $(NODE_BIN)/next build
 
 # ======================================
 # Docker
 # ======================================
-docker-up: ## Docker サービス起動
+docker-up: ## Start Docker services
 	$(DOCKER_COMPOSE) up -d
 	@echo "Waiting for services..."
 	@sleep 3
 	@$(DOCKER_COMPOSE) ps
 
-docker-down: ## Docker サービス停止
+docker-down: ## Stop Docker services
 	$(DOCKER_COMPOSE) down
 
-docker-logs: ## Docker ログ表示
+docker-logs: ## Show Docker logs
 	$(DOCKER_COMPOSE) logs -f
 
-docker-clean: ## Docker ボリューム含めて完全削除
+docker-clean: ## Remove everything including Docker volumes
 	$(DOCKER_COMPOSE) down -v --remove-orphans
 
-docker-rebuild: ## Docker イメージ再ビルド
+docker-rebuild: ## Rebuild Docker images
 	$(DOCKER_COMPOSE) build --no-cache
 	$(DOCKER_COMPOSE) up -d
 
 # ======================================
-# データベース
+# Database
 # ======================================
-db-migrate: ## マイグレーション実行
+db-migrate: ## Run migrations
 	$(NODE_BIN)/prisma migrate dev
 
-db-seed: ## シードデータ投入
+db-seed: ## Insert seed data
 	$(NODE_BIN)/prisma db seed
 
-db-reset: ## DB リセット (データ全削除)
+db-reset: ## Reset DB (delete all data)
 	$(NODE_BIN)/prisma migrate reset --force
 
-db-studio: ## Prisma Studio 起動
+db-studio: ## Start Prisma Studio
 	$(NODE_BIN)/prisma studio
 
-db-generate: ## Prisma Client 再生成
+db-generate: ## Regenerate Prisma Client
 	$(NODE_BIN)/prisma generate
 
 # ======================================
-# コード生成
+# Code generation
 # ======================================
-generate: ## 全コード生成実行
+generate: ## Run all code generation
 	$(NODE_BIN)/prisma generate
 	$(NODE_BIN)/graphql-codegen
 
-generate-api: ## OpenAPI からクライアント生成
+generate-api: ## Generate client from OpenAPI
 	$(NODE_BIN)/openapi-typescript api/openapi.yaml -o src/types/api.d.ts
 
 # ======================================
-# ユーティリティ
+# Utilities
 # ======================================
-clean: ## ビルド成果物を削除
+clean: ## Delete build artifacts
 	rm -rf .next dist node_modules/.cache
 
-clean-all: clean ## 全キャッシュ削除 (node_modules 含む)
+clean-all: clean ## Delete all caches (including node_modules)
 	rm -rf node_modules
 
-doctor: ## 環境診断
+doctor: ## Diagnose environment
 	@bash scripts/doctor.sh
 
-update-deps: ## 依存関係の更新チェック
+update-deps: ## Check for dependency updates
 	$(NODE_BIN)/npm-check-updates -u
 	pnpm install
 
-storybook: ## Storybook 起動
+storybook: ## Start Storybook
 	$(NODE_BIN)/storybook dev -p 6006
 
-storybook-build: ## Storybook ビルド
+storybook-build: ## Build Storybook
 	$(NODE_BIN)/storybook build
 ```
 
-### 3.2 フローの可視化
+### 3.2 Flow Visualization
 
 ```
 +------------------------------------------------------------------+
-|              Makefile タスク依存関係                                |
+|              Makefile Task Dependencies                          |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [初回セットアップ]                                                |
+|  [Initial Setup]                                                 |
 |  make setup                                                      |
 |    +-- scripts/setup.sh                                          |
 |        +-- check_prerequisites                                   |
@@ -738,9 +738,9 @@ storybook-build: ## Storybook ビルド
 |        +-- setup_database (= db-migrate + db-seed)               |
 |        +-- verify_setup                                          |
 |                                                                  |
-|  [日常開発]                                                       |
+|  [Daily Development]                                             |
 |  make dev-all                                                    |
-|    +-- docker-up (DB, Redis 等)                                  |
+|    +-- docker-up (DB, Redis, etc.)                               |
 |    +-- next dev                                                  |
 |                                                                  |
 |  [CI]                                                            |
@@ -750,50 +750,50 @@ storybook-build: ## Storybook ビルド
 |    +-- typecheck (tsc --noEmit)                                  |
 |    +-- test (Vitest)                                             |
 |                                                                  |
-|  [リリース]                                                       |
+|  [Release]                                                       |
 |  make build                                                      |
 |    +-- next build                                                |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 3.3 Makefile の高度なテクニック
+### 3.3 Advanced Makefile Techniques
 
 ```makefile
-# Makefile (高度な設定例)
+# Makefile (advanced configuration example)
 
-# シェルの指定 (bash の機能を使うため)
+# Specify shell (to use bash features)
 SHELL := /bin/bash
 
-# 変数
--include .env  # .env ファイルを読み込み (存在しない場合はスキップ)
+# Variables
+-include .env  # Load .env file (skip if not present)
 
 PROJECT_NAME := myapp
 GIT_HASH := $(shell git rev-parse --short HEAD)
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 TIMESTAMP := $(shell date +%Y%m%d-%H%M%S)
 
-# ファイル依存による条件実行
-# node_modules が package.json より古い場合のみ再インストール
+# Conditional execution based on file dependencies
+# Re-install only if node_modules is older than package.json
 node_modules: package.json pnpm-lock.yaml
 	pnpm install --frozen-lockfile
 	@touch $@
 
-# 環境変数の検証
+# Environment variable validation
 .PHONY: check-env
-check-env: ## 環境変数の検証
+check-env: ## Validate environment variables
 	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL is not set" && exit 1)
 	@test -n "$(REDIS_URL)" || (echo "REDIS_URL is not set" && exit 1)
-	@echo "環境変数 OK"
+	@echo "Environment variables OK"
 
-# 並列実行の例
+# Parallel execution example
 .PHONY: ci
-ci: ## CI パイプラインを並列実行
+ci: ## Run CI pipeline in parallel
 	@$(MAKE) -j4 lint typecheck format-check test
 
-# コンテナイメージのビルド
+# Container image build
 .PHONY: docker-build
-docker-build: ## Docker イメージをビルド
+docker-build: ## Build Docker image
 	docker build \
 		--build-arg GIT_HASH=$(GIT_HASH) \
 		--build-arg BUILD_TIME=$(TIMESTAMP) \
@@ -801,30 +801,30 @@ docker-build: ## Docker イメージをビルド
 		-t $(PROJECT_NAME):latest \
 		.
 
-# 秘密情報の漏洩チェック
+# Secret leak detection
 .PHONY: secrets-scan
-secrets-scan: ## 秘密情報の漏洩チェック
+secrets-scan: ## Check for secret leaks
 	@if command -v gitleaks &>/dev/null; then \
 		gitleaks detect --source . --verbose; \
 	else \
-		echo "gitleaks がインストールされていません: brew install gitleaks"; \
+		echo "gitleaks is not installed: brew install gitleaks"; \
 	fi
 
-# ライセンスチェック
+# License check
 .PHONY: license-check
-license-check: ## 依存パッケージのライセンスチェック
+license-check: ## Check licenses of dependency packages
 	$(NODE_BIN)/license-checker --production --onlyAllow \
 		'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0'
 ```
 
 ---
 
-## 4. 環境診断スクリプト (doctor)
+## 4. Environment Diagnostic Script (doctor)
 
 ```bash
 #!/bin/bash
 # scripts/doctor.sh
-# 環境の問題を診断するスクリプト
+# Script to diagnose environment problems
 
 set -uo pipefail
 
@@ -887,12 +887,12 @@ echo -e "${BLUE}INFO${NC}  User: $(whoami)"
 echo ""
 
 echo "--- Tools ---"
-check "Git" "command -v git" "git をインストールしてください"
-check "Node.js" "command -v node" "Node.js をインストールしてください"
-check "Docker" "command -v docker" "Docker をインストールしてください"
-check "Docker Compose" "docker compose version" "Docker Compose V2 が必要です"
-check "pnpm" "command -v pnpm" "npm install -g pnpm を実行してください"
-check "GitHub CLI (gh)" "command -v gh" "任意: brew install gh"
+check "Git" "command -v git" "Please install git"
+check "Node.js" "command -v node" "Please install Node.js"
+check "Docker" "command -v docker" "Please install Docker"
+check "Docker Compose" "docker compose version" "Docker Compose V2 is required"
+check "pnpm" "command -v pnpm" "Run: npm install -g pnpm"
+check "GitHub CLI (gh)" "command -v gh" "Optional: brew install gh"
 
 echo ""
 echo "--- Node.js ---"
@@ -905,24 +905,24 @@ elif [ -f .node-version ]; then
     "node -v | tr -d 'v'" \
     "$(cat .node-version 2>/dev/null)"
 fi
-check "node_modules exists" "[ -d node_modules ]" "make setup を実行してください"
+check "node_modules exists" "[ -d node_modules ]" "Run: make setup"
 check "TypeScript compiles" "npx tsc --noEmit 2>/dev/null" ""
 
 echo ""
 echo "--- Services ---"
-check "Docker daemon running" "docker info" "Docker Desktop を起動してください"
+check "Docker daemon running" "docker info" "Please start Docker Desktop"
 check "PostgreSQL reachable" "pg_isready -h localhost -p 5432 2>/dev/null" ""
 check "Redis reachable" "redis-cli -h localhost ping 2>/dev/null" ""
 
 echo ""
 echo "--- Files ---"
-check ".env exists" "[ -f .env ]" "cp .env.example .env を実行してください"
+check ".env exists" "[ -f .env ]" "Run: cp .env.example .env"
 check ".env has DATABASE_URL" "grep -q DATABASE_URL .env 2>/dev/null" ""
 check ".env has REDIS_URL" "grep -q REDIS_URL .env 2>/dev/null" ""
 
 echo ""
 echo "--- Ports ---"
-check "Port 3000 available" "! lsof -i :3000 -sTCP:LISTEN" "ポート 3000 が使用中です"
+check "Port 3000 available" "! lsof -i :3000 -sTCP:LISTEN" "Port 3000 is in use"
 check "Port 5432 (PostgreSQL)" "lsof -i :5432 -sTCP:LISTEN" ""
 check "Port 6379 (Redis)" "lsof -i :6379 -sTCP:LISTEN" ""
 
@@ -938,19 +938,19 @@ echo -e "Results: ${GREEN}${pass} passed${NC}, ${YELLOW}${warn} warnings${NC}, $
 echo ""
 
 if [ "$fail" -gt 0 ]; then
-  echo -e "${RED}環境に問題があります。上記の FAIL 項目を修正してください。${NC}"
+  echo -e "${RED}There are issues with your environment. Please fix the FAIL items above.${NC}"
   echo ""
 fi
 
 exit $fail
 ```
 
-### 4.1 自動修復スクリプト (doctor --fix)
+### 4.1 Auto-fix Script (doctor --fix)
 
 ```bash
 #!/bin/bash
 # scripts/doctor-fix.sh
-# 自動修復可能な問題を修正する
+# Fix automatically repairable issues
 
 set -euo pipefail
 
@@ -966,17 +966,17 @@ echo ""
 echo "=== Auto Fix ==="
 echo ""
 
-# .env ファイルの作成
+# Create .env file
 if [ ! -f .env ] && [ -f .env.example ]; then
   cp .env.example .env
-  log_fix ".env ファイルを作成しました"
+  log_fix "Created .env file"
 else
-  log_skip ".env は既に存在します"
+  log_skip ".env already exists"
 fi
 
-# node_modules のインストール
+# Install node_modules
 if [ ! -d node_modules ]; then
-  echo "node_modules をインストール中..."
+  echo "Installing node_modules..."
   if [ -f pnpm-lock.yaml ]; then
     pnpm install --frozen-lockfile
   elif [ -f yarn.lock ]; then
@@ -984,25 +984,25 @@ if [ ! -d node_modules ]; then
   else
     npm ci
   fi
-  log_fix "node_modules をインストールしました"
+  log_fix "Installed node_modules"
 else
-  log_skip "node_modules は既に存在します"
+  log_skip "node_modules already exists"
 fi
 
-# Docker サービスの起動
+# Start Docker services
 if command -v docker &>/dev/null && [ -f docker-compose.yml ]; then
   RUNNING=$(docker compose ps --services --filter "status=running" 2>/dev/null | wc -l | tr -d ' ')
   DEFINED=$(docker compose config --services 2>/dev/null | wc -l | tr -d ' ')
 
   if [ "$RUNNING" -lt "$DEFINED" ]; then
     docker compose up -d
-    log_fix "Docker サービスを起動しました"
+    log_fix "Started Docker services"
   else
-    log_skip "Docker サービスは全て起動済みです"
+    log_skip "All Docker services are already running"
   fi
 fi
 
-# Node.js バージョンの切り替え
+# Switch Node.js version
 if [ -f .nvmrc ]; then
   EXPECTED=$(cat .nvmrc | tr -d '[:space:]')
   ACTUAL=$(node -v 2>/dev/null | tr -d 'v[:space:]')
@@ -1010,63 +1010,63 @@ if [ -f .nvmrc ]; then
   if [ "$ACTUAL" != "$EXPECTED" ]; then
     if command -v fnm &>/dev/null; then
       fnm install "$EXPECTED" && fnm use "$EXPECTED"
-      log_fix "Node.js を $EXPECTED に切り替えました"
+      log_fix "Switched Node.js to $EXPECTED"
     elif command -v nvm &>/dev/null; then
       nvm install "$EXPECTED" && nvm use "$EXPECTED"
-      log_fix "Node.js を $EXPECTED に切り替えました"
+      log_fix "Switched Node.js to $EXPECTED"
     fi
   else
-    log_skip "Node.js バージョンは正しいです ($ACTUAL)"
+    log_skip "Node.js version is correct ($ACTUAL)"
   fi
 fi
 
-# Prisma Client 再生成
+# Regenerate Prisma Client
 if [ -f prisma/schema.prisma ]; then
   npx prisma generate 2>/dev/null
-  log_fix "Prisma Client を再生成しました"
+  log_fix "Regenerated Prisma Client"
 fi
 
 echo ""
-echo "=== 修復完了 ==="
-echo "make doctor で状態を確認してください"
+echo "=== Fix Complete ==="
+echo "Run 'make doctor' to verify the state"
 echo ""
 ```
 
 ---
 
-## 5. .env.example テンプレート
+## 5. .env.example Template
 
 ```bash
 # .env.example
-# このファイルをコピーして .env を作成してください
+# Copy this file to create .env
 # cp .env.example .env
 
-# ===== アプリケーション =====
+# ===== Application =====
 NODE_ENV=development
 PORT=3000
 APP_URL=http://localhost:3000
 APP_NAME=MyApp
 
-# ===== データベース =====
-# docker-compose.yml の設定と一致させること
+# ===== Database =====
+# Must match the settings in docker-compose.yml
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/myapp_development
 
 # ===== Redis =====
 REDIS_URL=redis://localhost:6379
 
-# ===== メール (MailHog) =====
+# ===== Email (MailHog) =====
 SMTP_HOST=localhost
 SMTP_PORT=1025
 SMTP_FROM=noreply@example.com
 
-# ===== ストレージ (MinIO) =====
+# ===== Storage (MinIO) =====
 S3_ENDPOINT=http://localhost:9000
 S3_ACCESS_KEY=minioadmin
 S3_SECRET_KEY=minioadmin
 S3_BUCKET=uploads
 S3_REGION=us-east-1
 
-# ===== 認証 =====
+# ===== Authentication =====
 JWT_SECRET=dev-secret-change-in-production
 SESSION_SECRET=dev-session-secret
 # OAuth (Google)
@@ -1076,38 +1076,38 @@ SESSION_SECRET=dev-session-secret
 # GITHUB_CLIENT_ID=xxx
 # GITHUB_CLIENT_SECRET=xxx
 
-# ===== 外部 API (開発用ダミー値) =====
+# ===== External APIs (development dummy values) =====
 # STRIPE_SECRET_KEY=sk_test_xxx
 # SENDGRID_API_KEY=SG.xxx
 # OPENAI_API_KEY=sk-xxx
 
-# ===== モニタリング =====
+# ===== Monitoring =====
 # SENTRY_DSN=https://xxx@sentry.io/xxx
 # DATADOG_API_KEY=xxx
 
-# ===== ログ =====
+# ===== Logging =====
 LOG_LEVEL=debug
 LOG_FORMAT=pretty
 ```
 
-### 5.1 .env の管理戦略
+### 5.1 .env Management Strategy
 
 ```
 +------------------------------------------------------------------+
-|              .env ファイルの管理戦略                                 |
+|              .env File Management Strategy                       |
 +------------------------------------------------------------------+
 |                                                                  |
-|  .env.example          -- Git にコミット。テンプレート              |
-|  .env                  -- Git に含めない。ローカル設定              |
-|  .env.test             -- Git にコミット可。テスト用設定             |
-|  .env.development      -- Git にコミット可。開発共通設定             |
-|  .env.local            -- Git に含めない。個人設定                   |
-|  .env.production.local -- Git に含めない。本番設定                   |
+|  .env.example          -- Committed to Git. Template file        |
+|  .env                  -- Not in Git. Local configuration        |
+|  .env.test             -- Can be committed. Test settings        |
+|  .env.development      -- Can be committed. Shared dev settings  |
+|  .env.local            -- Not in Git. Personal settings          |
+|  .env.production.local -- Not in Git. Production settings        |
 |                                                                  |
-|  読み込み優先順位 (Next.js の場合):                                 |
+|  Load priority (for Next.js):                                    |
 |  .env.local > .env.development > .env                            |
 |                                                                  |
-|  Secret Manager (本番環境):                                       |
+|  Secret Manager (production environment):                        |
 |  - AWS Secrets Manager                                           |
 |  - Google Secret Manager                                         |
 |  - HashiCorp Vault                                               |
@@ -1117,12 +1117,12 @@ LOG_FORMAT=pretty
 +------------------------------------------------------------------+
 ```
 
-### 5.2 .env バリデーションスクリプト
+### 5.2 .env Validation Script
 
 ```bash
 #!/bin/bash
 # scripts/validate-env.sh
-# .env ファイルの必須項目を検証する
+# Validate required fields in .env file
 
 set -euo pipefail
 
@@ -1133,7 +1133,7 @@ NC='\033[0m'
 ENV_FILE="${1:-.env}"
 ERRORS=0
 
-# 必須環境変数の一覧
+# List of required environment variables
 REQUIRED_VARS=(
   "DATABASE_URL"
   "REDIS_URL"
@@ -1141,83 +1141,83 @@ REQUIRED_VARS=(
   "SESSION_SECRET"
 )
 
-# 警告レベルの環境変数
+# Warning-level environment variables
 OPTIONAL_VARS=(
   "SMTP_HOST"
   "S3_ENDPOINT"
 )
 
-echo "=== .env バリデーション ==="
+echo "=== .env Validation ==="
 echo "File: $ENV_FILE"
 echo ""
 
 if [ ! -f "$ENV_FILE" ]; then
-  echo -e "${RED}FAIL${NC} $ENV_FILE が見つかりません"
-  echo "  cp .env.example .env を実行してください"
+  echo -e "${RED}FAIL${NC} $ENV_FILE not found"
+  echo "  Run: cp .env.example .env"
   exit 1
 fi
 
-# 必須チェック
+# Required checks
 echo "--- Required ---"
 for var in "${REQUIRED_VARS[@]}"; do
   if grep -q "^${var}=" "$ENV_FILE" 2>/dev/null; then
     VALUE=$(grep "^${var}=" "$ENV_FILE" | cut -d'=' -f2-)
     if [ -z "$VALUE" ] || [ "$VALUE" = "xxx" ]; then
-      echo -e "${RED}FAIL${NC} $var: 値が未設定です"
+      echo -e "${RED}FAIL${NC} $var: value is not set"
       ((ERRORS++))
     else
       echo -e "${GREEN}PASS${NC} $var"
     fi
   else
-    echo -e "${RED}FAIL${NC} $var: キーが見つかりません"
+    echo -e "${RED}FAIL${NC} $var: key not found"
     ((ERRORS++))
   fi
 done
 
 echo ""
 
-# オプションチェック
+# Optional checks
 echo "--- Optional ---"
 for var in "${OPTIONAL_VARS[@]}"; do
   if grep -q "^${var}=" "$ENV_FILE" 2>/dev/null; then
     echo -e "${GREEN}SET ${NC} $var"
   else
-    echo -e "SKIP $var (未設定)"
+    echo -e "SKIP $var (not set)"
   fi
 done
 
 echo ""
 
-# セキュリティチェック
+# Security checks
 echo "--- Security ---"
-# デフォルト値が残っていないか
+# Check for remaining default values
 if grep -q "dev-secret-change-in-production" "$ENV_FILE" 2>/dev/null; then
-  echo -e "${RED}WARN${NC} JWT_SECRET がデフォルト値です (開発環境以外では変更してください)"
+  echo -e "${RED}WARN${NC} JWT_SECRET is the default value (change it in non-development environments)"
 fi
 
-# 本番用シークレットが含まれていないか
+# Check for production secrets
 if grep -qE "^(STRIPE_SECRET_KEY|SENDGRID_API_KEY)=.+[^x]" "$ENV_FILE" 2>/dev/null; then
-  echo -e "${RED}WARN${NC} 本番用の API キーが含まれている可能性があります"
+  echo -e "${RED}WARN${NC} Production API keys may be present"
 fi
 
 echo ""
 if [ "$ERRORS" -gt 0 ]; then
-  echo -e "${RED}$ERRORS 個のエラーがあります${NC}"
+  echo -e "${RED}$ERRORS error(s) found${NC}"
   exit 1
 else
-  echo -e "${GREEN}バリデーション OK${NC}"
+  echo -e "${GREEN}Validation OK${NC}"
 fi
 ```
 
 ---
 
-## 6. Docker Compose 開発環境
+## 6. Docker Compose Development Environment
 
-### 6.1 docker-compose.yml の標準テンプレート
+### 6.1 Standard docker-compose.yml Template
 
 ```yaml
 # docker-compose.yml
-# ローカル開発用のサービス構成
+# Service configuration for local development
 
 services:
   # === PostgreSQL ===
@@ -1253,7 +1253,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # === MailHog (メール確認) ===
+  # === MailHog (email verification) ===
   mailhog:
     image: mailhog/mailhog:latest
     container_name: myapp-mailhog
@@ -1261,7 +1261,7 @@ services:
       - "1025:1025"   # SMTP
       - "8025:8025"   # Web UI
 
-  # === MinIO (S3 互換ストレージ) ===
+  # === MinIO (S3-compatible storage) ===
   minio:
     image: minio/minio:latest
     container_name: myapp-minio
@@ -1286,12 +1286,12 @@ volumes:
   minio_data:
 ```
 
-### 6.2 サービスの待機スクリプト
+### 6.2 Service Wait Script
 
 ```bash
 #!/bin/bash
 # scripts/wait-for-services.sh
-# Docker サービスが利用可能になるまで待機する
+# Wait until Docker services become available
 
 set -euo pipefail
 
@@ -1325,45 +1325,45 @@ echo "All services are ready!"
 
 ---
 
-## 7. Task Runner 比較
+## 7. Task Runner Comparison
 
-| ツール | 設定ファイル | 言語 | 並列実行 | 依存管理 | 学習コスト |
-|-------|-----------|------|---------|---------|-----------|
-| Make | Makefile | シェル | 限定的 | ファイル依存 | 低 |
-| npm scripts | package.json | シェル | npm-run-all | なし | 最低 |
-| just | justfile | シェル | なし | なし | 低 |
-| task (Taskfile) | Taskfile.yml | YAML+シェル | あり | タスク依存 | 低 |
-| turbo | turbo.json | JSON | あり(高速) | パッケージ依存 | 中 |
-| nx | nx.json | JSON | あり(高速) | プロジェクトグラフ | 高 |
+| Tool | Config File | Language | Parallel Execution | Dependency Management | Learning Cost |
+|------|------------|---------|-------------------|----------------------|--------------|
+| Make | Makefile | Shell | Limited | File dependencies | Low |
+| npm scripts | package.json | Shell | npm-run-all | None | Lowest |
+| just | justfile | Shell | None | None | Low |
+| task (Taskfile) | Taskfile.yml | YAML+Shell | Yes | Task dependencies | Low |
+| turbo | turbo.json | JSON | Yes (fast) | Package dependencies | Medium |
+| nx | nx.json | JSON | Yes (fast) | Project graph | High |
 
-### 7.1 just の設定例
+### 7.1 just Configuration Example
 
-just は Make の代替として設計された Rust 製のコマンドランナーで、Makefile の煩雑さを解消する。
+just is a Rust-based command runner designed as a Make alternative that eliminates the complexity of Makefiles.
 
 ```just
 # justfile
 
-# デフォルトレシピ
+# Default recipe
 default:
   @just --list
 
-# 初回セットアップ
+# Initial setup
 setup:
   bash scripts/setup.sh
 
-# 開発サーバー起動
+# Start development server
 dev:
   pnpm next dev
 
-# 全サービス起動 + 開発サーバー
+# Start all services + development server
 dev-all: docker-up
   pnpm next dev
 
-# テスト
+# Test
 test *ARGS:
   pnpm vitest run {{ARGS}}
 
-# テスト (watch モード)
+# Test (watch mode)
 test-watch:
   pnpm vitest
 
@@ -1372,45 +1372,45 @@ lint:
   pnpm eslint src/
   pnpm tsc --noEmit
 
-# Lint 自動修正
+# Auto-fix lint
 lint-fix:
   pnpm eslint src/ --fix
 
-# フォーマット
+# Format
 format:
   pnpm prettier --write "src/**/*.{ts,tsx,json,css}"
 
-# ビルド
+# Build
 build:
   pnpm next build
 
-# Docker 起動
+# Start Docker
 docker-up:
   docker compose up -d
 
-# Docker 停止
+# Stop Docker
 docker-down:
   docker compose down
 
-# DB マイグレーション
+# DB migration
 db-migrate:
   pnpm prisma migrate dev
 
-# DB リセット
+# DB reset
 db-reset:
   pnpm prisma migrate reset --force
 
-# 環境診断
+# Environment diagnostics
 doctor:
   bash scripts/doctor.sh
 
-# 全品質チェック (CI 相当)
+# Run all quality checks (equivalent to CI)
 check: lint
   pnpm prettier --check "src/**/*.{ts,tsx,json,css}"
   pnpm vitest run
 ```
 
-### 7.2 Taskfile (task) の設定例
+### 7.2 Taskfile (task) Configuration Example
 
 ```yaml
 # Taskfile.yml
@@ -1421,55 +1421,55 @@ vars:
 
 tasks:
   default:
-    desc: コマンド一覧を表示
+    desc: Display list of commands
     cmds:
       - task --list
 
   setup:
-    desc: 初回セットアップ
+    desc: Initial setup
     cmds:
       - bash scripts/setup.sh
 
   dev:
-    desc: 開発サーバー起動
+    desc: Start development server
     cmds:
       - "{{.NODE_BIN}}/next dev"
 
   test:
-    desc: テスト実行
+    desc: Run tests
     cmds:
       - "{{.NODE_BIN}}/vitest run"
 
   lint:
-    desc: Lint チェック
+    desc: Run lint checks
     cmds:
       - "{{.NODE_BIN}}/eslint src/"
       - "{{.NODE_BIN}}/tsc --noEmit"
 
   build:
-    desc: プロダクションビルド
+    desc: Production build
     cmds:
       - "{{.NODE_BIN}}/next build"
 
   docker:up:
-    desc: Docker サービス起動
+    desc: Start Docker services
     cmds:
       - docker compose up -d
       - sleep 3
       - docker compose ps
 
   docker:down:
-    desc: Docker サービス停止
+    desc: Stop Docker services
     cmds:
       - docker compose down
 
   db:migrate:
-    desc: DB マイグレーション
+    desc: Run DB migration
     cmds:
       - "{{.NODE_BIN}}/prisma migrate dev"
 
   check:
-    desc: 全品質チェック
+    desc: Run all quality checks
     deps: [lint]
     cmds:
       - "{{.NODE_BIN}}/prettier --check 'src/**/*.{ts,tsx,json,css}'"
@@ -1478,11 +1478,11 @@ tasks:
 
 ---
 
-## 8. CI/CD でのセットアップ検証
+## 8. Setup Validation in CI/CD
 
-### 8.1 フレッシュインストールテスト
+### 8.1 Fresh Install Test
 
-セットアップスクリプトの陳腐化を防ぐため、CI で定期的にフレッシュインストールを実行する。
+To prevent setup scripts from becoming stale, run fresh installs periodically in CI.
 
 ```yaml
 # .github/workflows/fresh-install-test.yml
@@ -1490,7 +1490,7 @@ name: Fresh Install Test
 
 on:
   schedule:
-    - cron: '0 9 * * 1'  # 毎週月曜 9:00 UTC
+    - cron: '0 9 * * 1'  # Every Monday at 9:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -1574,22 +1574,22 @@ jobs:
           pnpm run test -- --run
 ```
 
-### 8.2 セットアップドキュメントの自動生成
+### 8.2 Automatic Setup Documentation Generation
 
 ```bash
 #!/bin/bash
 # scripts/generate-setup-docs.sh
-# セットアップに必要な情報を自動で抽出してドキュメント化する
+# Automatically extract and document information needed for setup
 
 set -euo pipefail
 
-echo "# 開発環境セットアップガイド"
+echo "# Development Environment Setup Guide"
 echo ""
-echo "自動生成: $(date +%Y-%m-%d)"
+echo "Auto-generated: $(date +%Y-%m-%d)"
 echo ""
 
-# Node.js バージョン
-echo "## 必要な Node.js バージョン"
+# Node.js version
+echo "## Required Node.js Version"
 if [ -f .nvmrc ]; then
   echo "- Node.js: $(cat .nvmrc)"
 elif [ -f .node-version ]; then
@@ -1597,12 +1597,12 @@ elif [ -f .node-version ]; then
 fi
 echo ""
 
-# パッケージマネージャ
-echo "## パッケージマネージャ"
+# Package manager
+echo "## Package Manager"
 if [ -f pnpm-lock.yaml ]; then
   echo "- pnpm"
   PNPM_VERSION=$(grep -m1 'packageManager' package.json 2>/dev/null | grep -oP 'pnpm@\K[^"]+' || echo "latest")
-  echo "- バージョン: $PNPM_VERSION"
+  echo "- Version: $PNPM_VERSION"
 elif [ -f yarn.lock ]; then
   echo "- yarn"
 else
@@ -1610,9 +1610,9 @@ else
 fi
 echo ""
 
-# Docker サービス
+# Docker services
 if [ -f docker-compose.yml ]; then
-  echo "## Docker サービス"
+  echo "## Docker Services"
   docker compose config --services 2>/dev/null | while read -r service; do
     IMAGE=$(docker compose config 2>/dev/null | grep -A5 "^  $service:" | grep "image:" | awk '{print $2}' || echo "custom")
     echo "- $service ($IMAGE)"
@@ -1620,9 +1620,9 @@ if [ -f docker-compose.yml ]; then
   echo ""
 fi
 
-# 環境変数
+# Environment variables
 if [ -f .env.example ]; then
-  echo "## 環境変数"
+  echo "## Environment Variables"
   echo ""
   echo '```bash'
   cat .env.example
@@ -1630,9 +1630,9 @@ if [ -f .env.example ]; then
   echo ""
 fi
 
-# Make コマンド
+# Make commands
 if [ -f Makefile ]; then
-  echo "## 利用可能なコマンド"
+  echo "## Available Commands"
   echo ""
   echo '```'
   grep -E '^[a-zA-Z_-]+:.*?## .*$' Makefile | sort | \
@@ -1643,53 +1643,53 @@ fi
 
 ---
 
-## 9. オンボーディングチェックリスト
+## 9. Onboarding Checklist
 
-### 9.1 新メンバー向けチェックリスト
+### 9.1 Checklist for New Members
 
 ```markdown
-# 新メンバーオンボーディングチェックリスト
+# New Member Onboarding Checklist
 
-## Day 1: 環境構築
-- [ ] GitHub アカウントで組織に招待されたことを確認
-- [ ] リポジトリのアクセス権限を確認
-- [ ] `git clone` でリポジトリを取得
-- [ ] `make setup` を実行 (5-15分)
-- [ ] `make dev` で開発サーバーが起動することを確認
-- [ ] `make test` でテストが通ることを確認
-- [ ] `make doctor` で環境に問題がないことを確認
+## Day 1: Environment Setup
+- [ ] Confirm you have been invited to the organization with your GitHub account
+- [ ] Verify repository access permissions
+- [ ] Clone the repository with `git clone`
+- [ ] Run `make setup` (5-15 minutes)
+- [ ] Confirm the development server starts with `make dev`
+- [ ] Confirm tests pass with `make test`
+- [ ] Confirm no environment issues with `make doctor`
 
-## Day 1-2: 開発フロー理解
-- [ ] ブランチ戦略を理解 (main / develop / feature/*)
-- [ ] PR テンプレートを確認
-- [ ] コミットメッセージ規約 (Conventional Commits) を理解
-- [ ] CI/CD パイプラインの流れを確認
-- [ ] コードレビューのガイドラインを読む
+## Day 1-2: Understanding the Development Flow
+- [ ] Understand the branching strategy (main / develop / feature/*)
+- [ ] Review the PR template
+- [ ] Understand the commit message convention (Conventional Commits)
+- [ ] Review the CI/CD pipeline flow
+- [ ] Read the code review guidelines
 
-## Day 2-3: コードベース理解
-- [ ] ディレクトリ構造を確認
-- [ ] 主要なモジュールの概要を把握
-- [ ] ADR (Architecture Decision Records) を読む
-- [ ] API ドキュメントを確認
-- [ ] テスト戦略を理解
+## Day 2-3: Understanding the Codebase
+- [ ] Review the directory structure
+- [ ] Understand the overview of key modules
+- [ ] Read the ADRs (Architecture Decision Records)
+- [ ] Review the API documentation
+- [ ] Understand the testing strategy
 
-## Week 1: 初めてのコントリビューション
-- [ ] Good First Issue を1つ完了
-- [ ] PR を作成しレビューを受ける
-- [ ] レビューのフィードバックを反映してマージ
+## Week 1: First Contribution
+- [ ] Complete one Good First Issue
+- [ ] Create a PR and receive a review
+- [ ] Incorporate review feedback and get merged
 
-## 参考リンク
-- ドキュメントサイト: http://docs.example.com
-- Figma デザイン: https://figma.com/xxx
-- Slack チャンネル: #team-dev
+## Reference Links
+- Documentation site: http://docs.example.com
+- Figma design: https://figma.com/xxx
+- Slack channel: #team-dev
 ```
 
-### 9.2 チェックリストの自動化
+### 9.2 Checklist Automation
 
 ```bash
 #!/bin/bash
 # scripts/onboarding-check.sh
-# 新メンバーのオンボーディング進捗を自動チェック
+# Automatically check new member onboarding progress
 
 set -uo pipefail
 
@@ -1715,28 +1715,28 @@ check_item() {
 }
 
 echo ""
-echo "=== オンボーディング進捗チェック ==="
+echo "=== Onboarding Progress Check ==="
 echo ""
 
-echo "--- 環境構築 ---"
-check_item "Git が設定されている" "git config user.name && git config user.email"
-check_item "Node.js が正しいバージョン" "[ \"\$(node -v | tr -d 'v')\" = \"\$(cat .nvmrc 2>/dev/null | tr -d '[:space:]')\" ]"
-check_item "node_modules がインストール済み" "[ -d node_modules ]"
-check_item ".env が設定されている" "[ -f .env ]"
-check_item "Docker サービスが起動している" "docker compose ps --services --filter 'status=running' | grep -q ."
-check_item "テストが通る" "npx vitest run --reporter=silent 2>/dev/null"
+echo "--- Environment Setup ---"
+check_item "Git is configured" "git config user.name && git config user.email"
+check_item "Node.js is the correct version" "[ \"\$(node -v | tr -d 'v')\" = \"\$(cat .nvmrc 2>/dev/null | tr -d '[:space:]')\" ]"
+check_item "node_modules is installed" "[ -d node_modules ]"
+check_item ".env is configured" "[ -f .env ]"
+check_item "Docker services are running" "docker compose ps --services --filter 'status=running' | grep -q ."
+check_item "Tests pass" "npx vitest run --reporter=silent 2>/dev/null"
 
 echo ""
-echo "--- Git 設定 ---"
-check_item "SSH キーが設定されている" "ssh -T git@github.com 2>&1 | grep -qi 'success\\|authenticated'"
-check_item "GitHub CLI が認証済み" "gh auth status 2>/dev/null"
-check_item "husky フックがインストール済み" "[ -d .husky ]"
+echo "--- Git Configuration ---"
+check_item "SSH key is configured" "ssh -T git@github.com 2>&1 | grep -qi 'success\\|authenticated'"
+check_item "GitHub CLI is authenticated" "gh auth status 2>/dev/null"
+check_item "husky hooks are installed" "[ -d .husky ]"
 
 echo ""
-echo "--- ツール ---"
-check_item "VS Code がインストール済み" "command -v code"
-check_item "Docker がインストール済み" "command -v docker"
-check_item "pnpm がインストール済み" "command -v pnpm"
+echo "--- Tools ---"
+check_item "VS Code is installed" "command -v code"
+check_item "Docker is installed" "command -v docker"
+check_item "pnpm is installed" "command -v pnpm"
 
 echo ""
 echo "==========================="
@@ -1746,35 +1746,35 @@ echo ""
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン 1: 手順書だけで自動化しない
+### Anti-pattern 1: Using Documentation Without Automation
 
 ```
-# NG: Confluence に書かれた手動手順
-1. https://nodejs.org から Node.js v20 をダウンロード
-2. インストーラーを実行
-3. ターミナルを開いて npm install を実行
-4. .env.example を .env にコピー
-5. DATABASE_URL を以下のように設定...
-(20ステップ続く)
+# Bad: Manual steps written in Confluence
+1. Download Node.js v20 from https://nodejs.org
+2. Run the installer
+3. Open terminal and run npm install
+4. Copy .env.example to .env
+5. Set DATABASE_URL as follows...
+(continues for 20 steps)
 
-# OK: 1 コマンドで完了
+# Good: Complete with 1 command
 $ make setup
 ```
 
-**問題点**: 手順書は書いた時点で陳腐化し始める。ステップの抜け、順序の間違い、OS 差異への未対応が蓄積し、新メンバーが設定に丸一日費やすことになる。スクリプト化すれば、手順書自体がコードとして検証・メンテナンスされる。
+**Problem**: Documentation starts becoming outdated the moment it is written. Missing steps, wrong order, and unaddressed OS differences accumulate, causing new members to spend an entire day on configuration. When scripted, the documentation itself is validated and maintained as code.
 
-### アンチパターン 2: セットアップスクリプトにエラーハンドリングがない
+### Anti-pattern 2: Setup Scripts Without Error Handling
 
 ```bash
-# NG: エラーを無視して続行
+# Bad: Continue ignoring errors
 npm install
 cp .env.example .env
 npx prisma migrate dev
-echo "Setup complete!"  # 途中でエラーがあっても表示される
+echo "Setup complete!"  # Displayed even if there was an error midway
 
-# OK: エラー時に即座に停止し、明確なメッセージを出す
+# Good: Stop immediately on error with a clear message
 set -euo pipefail
 
 npm ci || { echo "npm ci failed. Check Node.js version."; exit 1; }
@@ -1789,34 +1789,34 @@ npx prisma migrate dev || { echo "DB migration failed. Is PostgreSQL running?"; 
 echo "Setup complete!"
 ```
 
-**問題点**: `set -e` なしだとエラーが握り潰され、後続ステップが不正な状態で実行される。新メンバーは「スクリプトは成功したのに動かない」という状況に陥り、デバッグに余計な時間がかかる。
+**Problem**: Without `set -e`, errors are swallowed and subsequent steps run in an invalid state. New members end up in a situation where "the script succeeded but nothing works," wasting extra time on debugging.
 
-### アンチパターン 3: root 権限を要求するスクリプト
+### Anti-pattern 3: Scripts That Require Root Privileges
 
 ```bash
-# NG: sudo を多用するスクリプト
+# Bad: Script that overuses sudo
 sudo apt-get install nodejs
 sudo npm install -g pnpm
 sudo chmod -R 777 /var/data
 
-# OK: ユーザー権限で動作するように設計
-# バージョンマネージャを使ってユーザー空間にインストール
+# Good: Design to operate with user permissions
+# Install in user space using version manager
 fnm install 20
 fnm use 20
-# npm のグローバルインストールはホームディレクトリに
+# Set npm global installs to home directory
 npm config set prefix ~/.npm-global
 ```
 
-**問題点**: `sudo` を要求するスクリプトはセキュリティリスクが高く、企業環境では管理者権限が制限されていることも多い。可能な限りユーザー空間で完結するよう設計し、root 権限が必要な操作は明示的に分離する。
+**Problem**: Scripts requiring `sudo` carry high security risk and administrator privileges are often restricted in corporate environments. Design scripts to complete entirely in user space where possible, and explicitly separate operations that require root privileges.
 
-### アンチパターン 4: OS 差異を考慮しないスクリプト
+### Anti-pattern 4: Scripts That Don't Account for OS Differences
 
 ```bash
-# NG: macOS でしか動かない
+# Bad: Only works on macOS
 brew install postgresql
 open -a "Docker"
 
-# OK: OS を検出して分岐
+# Good: Detect OS and branch accordingly
 case "$(uname -s)" in
   Darwin*)
     brew install postgresql
@@ -1833,35 +1833,35 @@ case "$(uname -s)" in
 esac
 ```
 
-**問題点**: macOS だけを想定したスクリプトは、Linux 環境の CI/CD や WSL2 ユーザーが使えない。OS を検出して処理を分岐させることで、クロスプラットフォーム対応が実現できる。
+**Problem**: Scripts that only assume macOS cannot be used by CI/CD on Linux or WSL2 users. Detecting the OS and branching the process enables cross-platform support.
 
 ---
 
 ## FAQ
 
-### Q1: Make と npm scripts のどちらを使うべきですか？
+### Q1: Should I use Make or npm scripts?
 
-**A**: 両方使うのが現実的。npm scripts はパッケージのライフサイクル（`prepare`, `pretest` 等）に適しており、Make は OS レベルのタスク（Docker 操作、DB マイグレーション、複数ステップのワークフロー）に適している。Makefile は `make help` で全コマンドを一覧表示でき、新メンバーのディスカバラビリティが高い。npm scripts と Make が重複する部分は、Make から npm scripts を呼ぶ形で統一すると管理しやすい。
+**A**: Using both is practical. npm scripts are suited for package lifecycle hooks (`prepare`, `pretest`, etc.), while Make is suited for OS-level tasks (Docker operations, DB migrations, multi-step workflows). Makefile can list all commands with `make help`, giving high discoverability for new members. Where npm scripts and Make overlap, it is easier to manage by having Make call npm scripts.
 
-### Q2: Windows 環境で Make を使えますか？
+### Q2: Can I use Make in a Windows environment?
 
-**A**: WSL2 (Windows Subsystem for Linux) 経由であれば問題なく使える。Git for Windows に含まれる MinGW の make も利用可能。ただし、Windows ネイティブ環境では make が入っていないことが多い。代替として `just`（Rust 製、Windows ネイティブ対応）や `Taskfile.yml`（Go 製、クロスプラットフォーム）を検討してもよい。Dev Container を使う場合は Linux 環境なので make は問題なく動作する。
+**A**: It works fine via WSL2 (Windows Subsystem for Linux). The make included with Git for Windows (MinGW) is also usable. However, make is often not present in native Windows environments. As alternatives, consider `just` (Rust-based, native Windows support) or `Taskfile.yml` (Go-based, cross-platform). When using Dev Containers, the environment is Linux so make works without issues.
 
-### Q3: セットアップスクリプトはどのくらいの頻度でメンテナンスすべきですか？
+### Q3: How often should setup scripts be maintained?
 
-**A**: 最低限、以下のタイミングで更新すべき: (1) Node.js バージョンの変更時、(2) 新しいサービス（DB、Redis 等）の追加時、(3) 依存ツールの変更時（npm → pnpm 移行等）。CI/CD で定期的にセットアップスクリプトを実行する「フレッシュインストールテスト」を組み込むことで、スクリプトの陳腐化を自動検知できる。月に一度、新メンバーの視点でスクリプトを実行してみるのも効果的。
+**A**: At a minimum, update them at the following times: (1) when the Node.js version changes, (2) when new services (DB, Redis, etc.) are added, (3) when dependent tools change (e.g., migrating from npm to pnpm). By incorporating a "fresh install test" that runs the setup script periodically in CI/CD, you can automatically detect when scripts become stale. It is also effective to run the script from a new member's perspective once a month.
 
-### Q4: Dev Container を使えばセットアップスクリプトは不要ですか？
+### Q4: Does using Dev Containers eliminate the need for setup scripts?
 
-**A**: Dev Container は開発環境の完全な再現性を提供するが、セットアップスクリプトも依然として必要。Dev Container の `postCreateCommand` としてセットアップスクリプトを呼び出す設計が最も効果的。Dev Container を使わないメンバー（パフォーマンス要件やハードウェア制約がある場合）のためにも、ネイティブ環境用のセットアップスクリプトは維持すべき。
+**A**: Dev Containers provide complete reproducibility of the development environment, but setup scripts are still necessary. The most effective design is to call setup scripts from the Dev Container's `postCreateCommand`. Setup scripts for native environments should also be maintained for members who do not use Dev Containers (due to performance requirements or hardware constraints).
 
-### Q5: モノレポの場合、セットアップはどう設計しますか？
+### Q5: How do you design setup for a monorepo?
 
-**A**: モノレポでは、ルートの Makefile から各パッケージのセットアップを呼び出す構成が基本。
+**A**: In a monorepo, the basic structure calls each package's setup from the root Makefile.
 
 ```makefile
-# ルート Makefile
-setup: ## 全パッケージのセットアップ
+# Root Makefile
+setup: ## Setup all packages
 	pnpm install --frozen-lockfile
 	$(MAKE) -C apps/web setup
 	$(MAKE) -C apps/api setup
@@ -1872,14 +1872,14 @@ setup:
 	cp .env.example .env
 ```
 
-Turborepo や Nx を使う場合は、`turbo run setup` でパッケージ間の依存関係を考慮した並列セットアップが可能。
+When using Turborepo or Nx, `turbo run setup` enables parallel setup considering inter-package dependencies.
 
-### Q6: 企業のプロキシ環境ではどう対応しますか？
+### Q6: How do you handle corporate proxy environments?
 
-**A**: プロキシ環境ではセットアップスクリプトでプロキシ設定を検出・適用する処理を追加する。
+**A**: In proxy environments, add processing to detect and apply proxy settings in the setup script.
 
 ```bash
-# プロキシ設定の検出と適用
+# Detect and apply proxy settings
 if [ -n "${HTTP_PROXY:-}" ]; then
   npm config set proxy "$HTTP_PROXY"
   npm config set https-proxy "${HTTPS_PROXY:-$HTTP_PROXY}"
@@ -1890,35 +1890,35 @@ fi
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| setup.sh | OS 検出・ツールインストール・依存関係・DB セットアップを 1 コマンドで |
-| Makefile | `make help` で全タスク一覧。新メンバーのエントリーポイント |
-| doctor.sh | 環境の問題を自動診断。トラブルシューティングの第一歩 |
-| doctor --fix | 自動修復可能な問題を自動的に修正 |
-| .env.example | 環境変数のテンプレート。コメント付きで必要な値を明記 |
-| .env バリデーション | 必須項目の存在チェックとセキュリティ検証 |
-| エラーハンドリング | `set -euo pipefail` + 明確なエラーメッセージ |
-| クロスプラットフォーム | macOS / Linux / WSL2 の差異を OS 検出で吸収 |
-| CI 統合 | セットアップスクリプトを CI で定期実行して陳腐化を防止 |
-| Docker Compose | ローカルサービスを宣言的に管理。ヘルスチェック付き |
-| タスクランナー | Make (汎用) + npm scripts (パッケージ) の組み合わせが実用的 |
-| オンボーディングチェック | 新メンバーの進捗を自動的にチェック |
+| Item | Key Points |
+|------|-----------|
+| setup.sh | OS detection, tool installation, dependencies, and DB setup with 1 command |
+| Makefile | `make help` lists all tasks. Entry point for new members |
+| doctor.sh | Automatically diagnose environment issues. First step in troubleshooting |
+| doctor --fix | Automatically fix auto-repairable issues |
+| .env.example | Template for environment variables. Clearly document required values with comments |
+| .env validation | Check for required fields and security verification |
+| Error handling | `set -euo pipefail` + clear error messages |
+| Cross-platform | Handle macOS / Linux / WSL2 differences with OS detection |
+| CI integration | Run setup scripts periodically in CI to prevent staleness |
+| Docker Compose | Manage local services declaratively. With health checks |
+| Task runner | Combination of Make (general purpose) + npm scripts (packages) is practical |
+| Onboarding check | Automatically check new member progress |
 
-## 次に読むべきガイド
+## Further Reading
 
-- [ドキュメント環境](./02-documentation-setup.md) -- VitePress / Docusaurus / ADR によるドキュメント基盤
-- [プロジェクト標準](./00-project-standards.md) -- EditorConfig / .npmrc の共通設定
-- [Dev Container](../02-docker-dev/01-devcontainer.md) -- コンテナベース環境でオンボーディングをさらに簡素化
+- [Documentation Environment](./02-documentation-setup.md) -- Documentation infrastructure with VitePress / Docusaurus / ADR
+- [Project Standards](./00-project-standards.md) -- Common settings for EditorConfig / .npmrc
+- [Dev Container](../02-docker-dev/01-devcontainer.md) -- Further simplify onboarding with container-based environments
 
-## 参考文献
+## References
 
-1. **GNU Make マニュアル** -- https://www.gnu.org/software/make/manual/ -- Make の完全なリファレンス
-2. **just (コマンドランナー)** -- https://github.com/casey/just -- Make の代替となる Rust 製タスクランナー
-3. **The Twelve-Factor App - Dev/prod parity** -- https://12factor.net/ja/dev-prod-parity -- 開発環境と本番環境の一致原則
-4. **Taskfile** -- https://taskfile.dev/ -- YAML ベースのタスクランナー
-5. **Homebrew Bundle** -- https://github.com/Homebrew/homebrew-bundle -- macOS パッケージの宣言的管理
-6. **direnv** -- https://direnv.net/ -- ディレクトリ別の環境変数管理
-7. **Doppler** -- https://www.doppler.com/ -- チーム向けシークレット管理サービス
+1. **GNU Make Manual** -- https://www.gnu.org/software/make/manual/ -- Complete Make reference
+2. **just (command runner)** -- https://github.com/casey/just -- Rust-based task runner as a Make alternative
+3. **The Twelve-Factor App - Dev/prod parity** -- https://12factor.net/dev-prod-parity -- Principle of matching development and production environments
+4. **Taskfile** -- https://taskfile.dev/ -- YAML-based task runner
+5. **Homebrew Bundle** -- https://github.com/Homebrew/homebrew-bundle -- Declarative macOS package management
+6. **direnv** -- https://direnv.net/ -- Per-directory environment variable management
+7. **Doppler** -- https://www.doppler.com/ -- Secret management service for teams
