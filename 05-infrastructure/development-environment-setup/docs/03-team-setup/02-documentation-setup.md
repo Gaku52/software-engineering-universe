@@ -1,125 +1,125 @@
-# ドキュメント環境 (Documentation Setup)
+# Documentation Setup
 
-> VitePress / Docusaurus によるドキュメントサイトの構築と、ADR (Architecture Decision Records) による意思決定の記録を通じて、チームの知識を体系的に管理する手法を学ぶ。
+> Learn how to systematically manage team knowledge by building documentation sites with VitePress / Docusaurus and recording decisions with ADR (Architecture Decision Records).
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **VitePress / Docusaurus の導入と設定** -- Markdown ベースのドキュメントサイトを構築し、自動デプロイまでのパイプラインを整備する
-2. **ADR (Architecture Decision Records) の運用** -- アーキテクチャの意思決定を記録し、「なぜこの設計にしたのか」を追跡可能にする
-3. **ドキュメント運用のベストプラクティス** -- ドキュメントの鮮度を保ち、コードと一緒にメンテナンスする文化を構築する
-4. **API ドキュメントの自動生成** -- OpenAPI / TypeDoc / Storybook を活用して、常に最新のリファレンスを自動生成する
-5. **Diataxis フレームワークによるドキュメント設計** -- Tutorial / How-to / Reference / Explanation の4象限でドキュメントを体系化する
+1. **Setting up and configuring VitePress / Docusaurus** -- Build a Markdown-based documentation site and establish an automated deployment pipeline
+2. **Operating ADR (Architecture Decision Records)** -- Record architecture decisions to make "why we chose this design" traceable
+3. **Best practices for documentation maintenance** -- Keep documentation fresh and build a culture of maintaining it alongside code
+4. **Auto-generating API documentation** -- Use OpenAPI / TypeDoc / Storybook to automatically generate always-up-to-date references
+5. **Document design with the Diataxis framework** -- Organize documentation into four quadrants: Tutorial / How-to / Reference / Explanation
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [オンボーディング自動化 (Onboarding Automation)](./01-onboarding-automation.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of [Onboarding Automation](./01-onboarding-automation.md)
 
 ---
 
-## 1. ドキュメントツールの選択
+## 1. Choosing a Documentation Tool
 
-### 1.1 ツール比較
+### 1.1 Tool Comparison
 
-| 項目 | VitePress | Docusaurus | Nextra | GitBook | Starlight |
+| Item | VitePress | Docusaurus | Nextra | GitBook | Starlight |
 |------|-----------|------------|--------|---------|-----------|
-| フレームワーク | Vue 3 / Vite | React / Webpack | Next.js | SaaS | Astro |
-| ビルド速度 | 非常に高速 | 中 | 高速 | N/A | 高速 |
-| カスタマイズ | Vue コンポーネント | React コンポーネント | React | 限定的 | Astro コンポーネント |
-| 多言語 (i18n) | 対応 | 強力な対応 | 対応 | 対応 | 対応 |
-| バージョニング | 手動 | 標準対応 | 手動 | 対応 | 手動 |
-| 検索 | 内蔵(miniSearch) | Algolia 統合 | Flexsearch | 内蔵 | Pagefind |
-| デプロイ | 静的ホスティング | 静的ホスティング | Vercel推奨 | SaaS | 静的ホスティング |
-| 学習コスト | 低 | 中 | 低 | 最低 | 低 |
-| 適用場面 | OSS / 技術文書 | 大規模プロジェクト | Next.js利用者 | 非エンジニア含む | 高速サイト |
+| Framework | Vue 3 / Vite | React / Webpack | Next.js | SaaS | Astro |
+| Build speed | Very fast | Medium | Fast | N/A | Fast |
+| Customization | Vue components | React components | React | Limited | Astro components |
+| Multilingual (i18n) | Supported | Strong support | Supported | Supported | Supported |
+| Versioning | Manual | Built-in | Manual | Supported | Manual |
+| Search | Built-in (miniSearch) | Algolia integration | Flexsearch | Built-in | Pagefind |
+| Deployment | Static hosting | Static hosting | Vercel recommended | SaaS | Static hosting |
+| Learning cost | Low | Medium | Low | Lowest | Low |
+| Use case | OSS / technical docs | Large-scale projects | Next.js users | Includes non-engineers | High-performance sites |
 
-### 1.2 選択ガイド
+### 1.2 Selection Guide
 
 ```
 +------------------------------------------------------------------+
-|              ドキュメントツール選択フロー                            |
+|              Documentation Tool Selection Flow                    |
 +------------------------------------------------------------------+
 |                                                                  |
-|  チームは React を使っている?                                      |
+|  Is the team using React?                                        |
 |    |                                                             |
 |   YES                          NO                                |
 |    |                            |                                |
 |    v                            v                                |
-|  バージョニングが必要?       Vue を使っている?                      |
+|  Need versioning?          Using Vue?                            |
 |    |        |                  |        |                        |
 |   YES      NO                 YES      NO                        |
 |    |        |                  |        |                        |
 |    v        v                  v        v                        |
 | Docusaurus  Nextra          VitePress  VitePress                 |
-|                                        (学習コスト最低)           |
+|                                        (lowest learning cost)    |
 |                                                                  |
-|  パフォーマンス最優先?                                              |
-|    YES → Starlight (Astro ベース)                                |
+|  Performance is the top priority?                                |
+|    YES → Starlight (Astro-based)                                 |
 |                                                                  |
-|  非エンジニアも編集する?                                            |
+|  Non-engineers need to edit?                                     |
 |    YES → GitBook / Notion                                        |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 1.3 Diataxis フレームワーク
+### 1.3 The Diataxis Framework
 
-ドキュメントを効果的に構造化するためのフレームワーク。ドキュメントを4つの象限に分類する。
+A framework for effectively structuring documentation. It classifies documentation into four quadrants.
 
 ```
 +------------------------------------------------------------------+
-|              Diataxis フレームワーク                                |
+|              Diataxis Framework                                   |
 +------------------------------------------------------------------+
 |                                                                  |
-|       学習 (Learning)          |     実践 (Doing)                 |
+|       Learning                 |     Doing                       |
 |  ─────────────────────────────|──────────────────────────────    |
 |                               |                                  |
 |   TUTORIALS                   |   HOW-TO GUIDES                  |
-|   チュートリアル               |   ハウツーガイド                   |
-|   ・学習体験を提供             |   ・特定タスクの手順               |
-|   ・初心者向け                 |   ・問題解決型                    |
-|   ・ステップバイステップ       |   ・結果指向                      |
-|   例: 初めてのデプロイ         |   例: メール送信機能の追加         |
+|   · Provide learning          |   · Steps for specific tasks     |
+|     experiences               |   · Problem-solving oriented     |
+|   · For beginners             |   · Results-oriented             |
+|   · Step-by-step              |                                  |
+|   e.g.: First deployment      |   e.g.: Adding email feature     |
 |                               |                                  |
 |  ─────────────────────────────|──────────────────────────────    |
 |                               |                                  |
 |   EXPLANATION                 |   REFERENCE                      |
-|   説明                         |   リファレンス                    |
-|   ・背景・コンテキストの提供   |   ・正確な技術情報                |
-|   ・概念の理解                 |   ・自動生成可能                  |
-|   ・「なぜ」を説明             |   ・API仕様、型定義               |
-|   例: アーキテクチャ解説       |   例: API エンドポイント一覧       |
+|   · Provide background        |   · Accurate technical info      |
+|     and context               |   · Can be auto-generated        |
+|   · Conceptual understanding  |   · API specs, type definitions  |
+|   · Explains "why"            |                                  |
+|   e.g.: Architecture overview |   e.g.: API endpoint list        |
 |                               |                                  |
-|       理解 (Understanding)    |     情報 (Information)            |
+|       Understanding           |     Information                   |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. VitePress の導入
+## 2. Setting Up VitePress
 
-### 2.1 初期セットアップ
+### 2.1 Initial Setup
 
 ```bash
-# プロジェクト内にドキュメントを追加
-# docs/ ディレクトリで管理
+# Add documentation inside the project
+# Managed under the docs/ directory
 
-# pnpm (推奨)
+# pnpm (recommended)
 pnpm add -D vitepress
 
-# ディレクトリ構造
+# Directory structure
 # docs/
 #   .vitepress/
-#     config.ts     -- サイト設定
-#     theme/        -- カスタムテーマ
+#     config.ts     -- Site configuration
+#     theme/        -- Custom theme
 #       index.ts
 #       style.css
-#   index.md        -- トップページ
+#   index.md        -- Top page
 #   guide/
 #     getting-started.md
 #     architecture.md
@@ -141,7 +141,7 @@ pnpm add -D vitepress
 #     first-deploy.md
 ```
 
-### 2.2 VitePress 設定ファイル
+### 2.2 VitePress Configuration File
 
 ```typescript
 // docs/.vitepress/config.ts
@@ -306,10 +306,10 @@ export default defineConfig({
 });
 ```
 
-### 2.3 package.json スクリプト
+### 2.3 package.json Scripts
 
 ```jsonc
-// package.json (docs 関連)
+// package.json (docs related)
 {
   "scripts": {
     "docs:dev": "vitepress dev docs",
@@ -319,7 +319,7 @@ export default defineConfig({
 }
 ```
 
-### 2.4 VitePress のカスタムテーマ
+### 2.4 VitePress Custom Theme
 
 ```typescript
 // docs/.vitepress/theme/index.ts
@@ -373,7 +373,7 @@ export default {
 }
 ```
 
-### 2.5 VitePress のトップページ
+### 2.5 VitePress Top Page
 
 ```markdown
 ---
@@ -417,15 +417,15 @@ features:
 
 ---
 
-## 3. Docusaurus の導入
+## 3. Setting Up Docusaurus
 
-### 3.1 初期セットアップ
+### 3.1 Initial Setup
 
 ```bash
 npx create-docusaurus@latest docs classic --typescript
 ```
 
-### 3.2 Docusaurus 設定
+### 3.2 Docusaurus Configuration
 
 ```typescript
 // docs/docusaurus.config.ts
@@ -521,18 +521,18 @@ const config: Config = {
 export default config;
 ```
 
-### 3.3 Docusaurus のバージョニング
+### 3.3 Docusaurus Versioning
 
 ```bash
-# 現在のドキュメントを v1.0.0 としてスナップショット
+# Snapshot the current documentation as v1.0.0
 npx docusaurus docs:version 1.0.0
 
-# ディレクトリ構造:
+# Directory structure:
 # docs/
-#   intro.md                   ← 最新 (next)
+#   intro.md                   ← Latest (next)
 # versioned_docs/
 #   version-1.0.0/
-#     intro.md                 ← v1.0.0 時点のスナップショット
+#     intro.md                 ← Snapshot at v1.0.0
 # versioned_sidebars/
 #   version-1.0.0-sidebars.json
 # versions.json                ← ["1.0.0"]
@@ -542,101 +542,101 @@ npx docusaurus docs:version 1.0.0
 
 ## 4. ADR (Architecture Decision Records)
 
-### 4.1 ADR テンプレート
+### 4.1 ADR Template
 
 ```markdown
 <!-- docs/adr/NNNN-title.md -->
-# ADR-NNNN: タイトル
+# ADR-NNNN: Title
 
-## ステータス
+## Status
 
-提案中 | 承認済 | 非推奨 | 廃止
+Proposed | Accepted | Deprecated | Superseded
 
-## 日付
+## Date
 
 2025-01-15
 
-## コンテキスト
+## Context
 
-<!-- どのような状況・課題が意思決定を必要としたか -->
+<!-- What situation or challenge necessitated this decision -->
 
-## 決定
+## Decision
 
-<!-- 何を決定したか。具体的に記述 -->
+<!-- What was decided. Describe specifically -->
 
-## 検討した選択肢
+## Considered Options
 
-### 選択肢 A: xxx
-- メリット: ...
-- デメリット: ...
+### Option A: xxx
+- Pros: ...
+- Cons: ...
 
-### 選択肢 B: xxx
-- メリット: ...
-- デメリット: ...
+### Option B: xxx
+- Pros: ...
+- Cons: ...
 
-## 結果
+## Consequences
 
-<!-- この決定によってどのような影響が予想されるか -->
+<!-- What impacts are expected from this decision -->
 
-## 参考資料
+## References
 
-- リンク
+- Link
 ```
 
-### 4.2 ADR の例
+### 4.2 ADR Example
 
 ```markdown
-# ADR-0001: TypeScript の採用
+# ADR-0001: Adopting TypeScript
 
-## ステータス
+## Status
 
-承認済
+Accepted
 
-## 日付
+## Date
 
 2025-01-10
 
-## コンテキスト
+## Context
 
-プロジェクトの規模が拡大し、JavaScript のみでは型安全性の欠如による
-ランタイムエラーが増加している。新メンバーのオンボーディング時にも
-コードの理解に時間がかかっている。
+As the project has grown in scale, runtime errors due to the lack of type
+safety in JavaScript alone have been increasing. New members also take
+longer to understand the code during onboarding.
 
-## 決定
+## Decision
 
-フロントエンド・バックエンド共に TypeScript を採用する。
-strict モードを有効にし、any の使用を原則禁止する。
+Adopt TypeScript for both frontend and backend.
+Enable strict mode and prohibit use of any in principle.
 
-## 検討した選択肢
+## Considered Options
 
-### 選択肢 A: TypeScript (strict mode)
-- メリット: 型安全、IDE 補完、リファクタリング容易
-- デメリット: 学習コスト、ビルド時間増加
+### Option A: TypeScript (strict mode)
+- Pros: Type safety, IDE completion, easy refactoring
+- Cons: Learning cost, increased build time
 
-### 選択肢 B: JavaScript + JSDoc
-- メリット: ビルド不要、学習コスト低
-- デメリット: 型チェックが不完全、大規模では限界
+### Option B: JavaScript + JSDoc
+- Pros: No build step required, lower learning cost
+- Cons: Incomplete type checking, limited at large scale
 
-### 選択肢 C: JavaScript のまま
-- メリット: 変更不要
-- デメリット: 現状の課題が解決しない
+### Option C: Stay with JavaScript
+- Pros: No changes required
+- Cons: Current issues remain unresolved
 
-## 結果
+## Consequences
 
-- 型エラーの早期検出により、本番障害が減少する見込み
-- 初期の移行コスト (約2週間) が発生するが、長期的には開発速度向上
-- tsconfig.json を strict: true で統一
+- Early detection of type errors is expected to reduce production incidents
+- Initial migration cost (approximately 2 weeks) occurs, but development speed improves long-term
+- Unify tsconfig.json with strict: true
 ```
 
-### 4.3 ADR のディレクトリ構造
+### 4.3 ADR Directory Structure
 
 ```
 +------------------------------------------------------------------+
-|              ADR ディレクトリ構造                                   |
+|              ADR Directory Structure                              |
 +------------------------------------------------------------------+
 |                                                                  |
 |  docs/adr/                                                       |
-|    +-- index.md               ← ADR 一覧 (自動生成可)            |
+|    +-- index.md               ← ADR list (can be auto-generated) |
 |    +-- 0001-use-typescript.md                                    |
 |    +-- 0002-choose-postgresql.md                                 |
 |    +-- 0003-adopt-monorepo.md                                    |
@@ -645,43 +645,44 @@ strict モードを有効にし、any の使用を原則禁止する。
 |    +-- 0006-adopt-graphql.md                                     |
 |    +-- 0007-use-redis-for-caching.md                             |
 |    +-- 0008-container-orchestration.md                           |
-|    +-- template.md            ← テンプレート                      |
+|    +-- template.md            ← Template                         |
 |                                                                  |
-|  命名規則: NNNN-kebab-case-title.md                              |
-|  番号は連番。非推奨になっても削除しない (履歴として残す)            |
+|  Naming convention: NNNN-kebab-case-title.md                     |
+|  Numbers are sequential. Do not delete deprecated ADRs           |
+|  (keep them as history)                                          |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 4.4 ADR 自動生成スクリプト
+### 4.4 ADR Auto-Generation Script
 
 ```bash
 #!/bin/bash
 # scripts/new-adr.sh
-# 新しい ADR を作成するスクリプト
+# Script to create a new ADR
 
 set -euo pipefail
 
 ADR_DIR="docs/adr"
 TEMPLATE="$ADR_DIR/template.md"
 
-# 次の番号を取得
+# Get the next number
 LAST_NUM=$(ls "$ADR_DIR"/*.md 2>/dev/null | grep -oP '\d{4}' | sort -rn | head -1 || echo "0000")
 NEXT_NUM=$(printf "%04d" $((10#$LAST_NUM + 1)))
 
-# タイトルの入力
+# Input the title
 if [ -z "${1:-}" ]; then
-  echo -n "ADR タイトルを入力してください: "
+  echo -n "Enter ADR title: "
   read -r TITLE
 else
   TITLE="$*"
 fi
 
-# kebab-case に変換
+# Convert to kebab-case
 KEBAB=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g' | sed 's/[^a-z0-9-]//g')
 FILENAME="$ADR_DIR/${NEXT_NUM}-${KEBAB}.md"
 
-# テンプレートからコピー
+# Copy from template
 if [ -f "$TEMPLATE" ]; then
   sed "s/NNNN/$NEXT_NUM/g; s/タイトル/$TITLE/g" "$TEMPLATE" > "$FILENAME"
 else
@@ -724,17 +725,17 @@ $(date +%Y-%m-%d)
 EOF
 fi
 
-echo "作成: $FILENAME"
-echo "エディタで開きます..."
+echo "Created: $FILENAME"
+echo "Opening in editor..."
 ${EDITOR:-code} "$FILENAME"
 ```
 
-### 4.5 ADR 一覧の自動生成
+### 4.5 Auto-Generating the ADR Index
 
 ```bash
 #!/bin/bash
 # scripts/update-adr-index.sh
-# ADR の一覧ページを自動生成する
+# Auto-generate the ADR index page
 
 set -euo pipefail
 
@@ -744,10 +745,10 @@ INDEX_FILE="$ADR_DIR/index.md"
 cat > "$INDEX_FILE" << 'HEADER'
 # Architecture Decision Records
 
-アーキテクチャに関する意思決定の記録一覧。
+List of recorded architecture decisions.
 
-| 番号 | タイトル | ステータス | 日付 |
-|------|---------|----------|------|
+| Number | Title | Status | Date |
+|--------|-------|--------|------|
 HEADER
 
 for file in "$ADR_DIR"/[0-9][0-9][0-9][0-9]-*.md; do
@@ -762,14 +763,14 @@ for file in "$ADR_DIR"/[0-9][0-9][0-9][0-9]-*.md; do
 done
 
 echo ""
-echo "ADR 一覧を更新しました: $INDEX_FILE"
+echo "ADR index updated: $INDEX_FILE"
 ```
 
 ---
 
-## 5. ドキュメント自動デプロイ
+## 5. Automated Documentation Deployment
 
-### 5.1 GitHub Pages へのデプロイ (VitePress)
+### 5.1 Deploying to GitHub Pages (VitePress)
 
 ```yaml
 # .github/workflows/docs.yml
@@ -824,7 +825,7 @@ jobs:
         id: deployment
 ```
 
-### 5.2 Vercel / Netlify へのデプロイ
+### 5.2 Deploying to Vercel / Netlify
 
 ```toml
 # netlify.toml (VitePress)
@@ -835,7 +836,7 @@ jobs:
 [build.environment]
   NODE_VERSION = "20"
 
-# リダイレクト設定
+# Redirect configuration
   from = "/docs/*"
   to = "/:splat"
   status = 301
@@ -853,7 +854,7 @@ jobs:
 }
 ```
 
-### 5.3 Cloudflare Pages へのデプロイ
+### 5.3 Deploying to Cloudflare Pages
 
 ```yaml
 # .github/workflows/docs-cloudflare.yml
@@ -893,9 +894,9 @@ jobs:
 
 ---
 
-## 6. API ドキュメントの自動生成
+## 6. Auto-Generating API Documentation
 
-### 6.1 OpenAPI (Swagger) からの生成
+### 6.1 Generating from OpenAPI (Swagger)
 
 ```yaml
 # api/openapi.yaml
@@ -1045,7 +1046,7 @@ security:
   - bearerAuth: []
 ```
 
-### 6.2 TypeDoc による TypeScript ドキュメント生成
+### 6.2 Generating TypeScript Documentation with TypeDoc
 
 ```jsonc
 // typedoc.json
@@ -1065,14 +1066,14 @@ security:
 ```
 
 ```bash
-# TypeDoc の実行
+# Running TypeDoc
 npx typedoc
 
-# VitePress と統合する場合
-# docs/api-reference/ に Markdown が生成される
+# When integrating with VitePress,
+# Markdown is generated in docs/api-reference/
 ```
 
-### 6.3 Storybook によるコンポーネントドキュメント
+### 6.3 Component Documentation with Storybook
 
 ```typescript
 // src/components/Button/Button.stories.tsx
@@ -1129,49 +1130,49 @@ export const Disabled: Story = {
 
 ---
 
-## 7. ドキュメント運用のプラクティス
+## 7. Documentation Maintenance Practices
 
-### 7.1 ドキュメントの鮮度を保つ仕組み
+### 7.1 Mechanisms for Keeping Documentation Fresh
 
 ```
 +------------------------------------------------------------------+
-|           ドキュメント鮮度維持の仕組み                               |
+|           Mechanisms for Maintaining Documentation Freshness      |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [自動化]                                                        |
-|  1. PR テンプレートにドキュメント更新チェックリスト                  |
-|  2. 変更されたコードに関連する docs/ があれば CI で警告             |
-|  3. lastUpdated 表示で古いページを可視化                           |
-|  4. API ドキュメントは OpenAPI spec から自動生成                    |
-|  5. TypeDoc でコードから型ドキュメントを自動生成                    |
-|  6. Storybook で UI コンポーネントを自動ドキュメント化              |
+|  [Automation]                                                    |
+|  1. Document update checklist in PR template                     |
+|  2. CI warning when changed code has related docs/               |
+|  3. Visualize stale pages via lastUpdated display                |
+|  4. API docs auto-generated from OpenAPI spec                    |
+|  5. Type docs auto-generated from code via TypeDoc               |
+|  6. UI components auto-documented via Storybook                  |
 |                                                                  |
-|  [文化]                                                          |
-|  1. 「コードを書いたらドキュメントも書く」をルール化                 |
-|  2. ドキュメントのレビューを PR レビューに含める                    |
-|  3. 月次で古いドキュメントの棚卸し                                 |
-|  4. ADR は意思決定のタイミングで必ず作成                           |
-|  5. README は常に最新の状態を維持                                  |
+|  [Culture]                                                       |
+|  1. Make "write docs when you write code" a rule                 |
+|  2. Include doc review in PR review                              |
+|  3. Monthly audit of stale documentation                         |
+|  4. Always create an ADR at the time of a decision               |
+|  5. Keep README always up to date                                |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 7.2 PR テンプレートへの組み込み
+### 7.2 Embedding in PR Template
 
 ```markdown
-<!-- .github/pull_request_template.md (抜粋) -->
-## チェックリスト
+<!-- .github/pull_request_template.md (excerpt) -->
+## Checklist
 
-- [ ] テストを追加/更新した
-- [ ] ドキュメントを更新した (該当する場合)
-  - [ ] API 変更: docs/api/ を更新
-  - [ ] 設定変更: docs/guide/ を更新
-  - [ ] アーキテクチャ変更: ADR を作成
-  - [ ] コンポーネント変更: Storybook を更新
-- [ ] CHANGELOG.md を更新した (ユーザー向け変更の場合)
+- [ ] Added / updated tests
+- [ ] Updated documentation (if applicable)
+  - [ ] API changes: update docs/api/
+  - [ ] Configuration changes: update docs/guide/
+  - [ ] Architecture changes: create an ADR
+  - [ ] Component changes: update Storybook
+- [ ] Updated CHANGELOG.md (for user-facing changes)
 ```
 
-### 7.3 ドキュメント品質チェックの自動化
+### 7.3 Automating Documentation Quality Checks
 
 ```yaml
 # .github/workflows/docs-check.yml
@@ -1189,7 +1190,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ドキュメントのビルドチェック
+      # Documentation build check
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -1198,27 +1199,27 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm docs:build
 
-      # リンク切れチェック
+      # Broken link check
       - name: Check broken links
         run: npx linkinator docs/.vitepress/dist --recurse --skip "^https?"
 
-      # src/ の変更に対して docs/ の変更がないか警告
+      # Warn if src/ changed but docs/ was not updated
       - name: Check docs update
         run: |
           SRC_CHANGED=$(git diff --name-only origin/main...HEAD -- 'src/' | wc -l)
           DOCS_CHANGED=$(git diff --name-only origin/main...HEAD -- 'docs/' | wc -l)
 
           if [ "$SRC_CHANGED" -gt 0 ] && [ "$DOCS_CHANGED" -eq 0 ]; then
-            echo "::warning::src/ に変更がありますが、docs/ は更新されていません。ドキュメントの更新が必要か確認してください。"
+            echo "::warning::src/ has changes but docs/ was not updated. Please check whether documentation needs to be updated."
           fi
 ```
 
-### 7.4 古いドキュメントの検知
+### 7.4 Detecting Stale Documentation
 
 ```bash
 #!/bin/bash
 # scripts/stale-docs.sh
-# 90日以上更新されていないドキュメントを一覧表示する
+# List documents that have not been updated in 90+ days
 
 set -euo pipefail
 
@@ -1226,7 +1227,7 @@ DAYS=${1:-90}
 STALE_DATE=$(date -d "-${DAYS} days" +%s 2>/dev/null || date -v-${DAYS}d +%s)
 COUNT=0
 
-echo "=== ${DAYS}日以上更新されていないドキュメント ==="
+echo "=== Documents not updated in ${DAYS}+ days ==="
 echo ""
 
 while IFS= read -r file; do
@@ -1236,43 +1237,43 @@ while IFS= read -r file; do
     LAST_DATE=$(git log -1 --format="%ci" -- "$file" 2>/dev/null | cut -d' ' -f1)
     LAST_AUTHOR=$(git log -1 --format="%an" -- "$file" 2>/dev/null)
     echo "  $file"
-    echo "    最終更新: $LAST_DATE ($LAST_AUTHOR)"
+    echo "    Last updated: $LAST_DATE ($LAST_AUTHOR)"
     ((COUNT++))
   fi
 done < <(find docs -name "*.md" -type f)
 
 echo ""
-echo "合計: ${COUNT} ファイル"
+echo "Total: ${COUNT} files"
 ```
 
 ---
 
-## 8. ドキュメントのディレクトリ構造テンプレート
+## 8. Documentation Directory Structure Templates
 
-### 8.1 小規模プロジェクト
+### 8.1 Small-Scale Project
 
 ```
 docs/
-  README.md               ← プロジェクト概要
-  CONTRIBUTING.md          ← 貢献ガイド
-  CHANGELOG.md             ← 変更履歴
+  README.md               ← Project overview
+  CONTRIBUTING.md          ← Contribution guide
+  CHANGELOG.md             ← Change history
   guide/
-    getting-started.md     ← クイックスタート
-    dev-setup.md           ← 開発環境セットアップ
+    getting-started.md     ← Quick start
+    dev-setup.md           ← Development environment setup
   api/
-    overview.md            ← API 概要
+    overview.md            ← API overview
   adr/
     0001-xxx.md            ← ADR
 ```
 
-### 8.2 中規模プロジェクト
+### 8.2 Medium-Scale Project
 
 ```
 docs/
   .vitepress/
     config.ts
     theme/
-  index.md                 ← トップページ
+  index.md                 ← Top page
   guide/
     getting-started.md
     architecture.md
@@ -1297,7 +1298,7 @@ docs/
     configuration.md
 ```
 
-### 8.3 大規模プロジェクト
+### 8.3 Large-Scale Project
 
 ```
 docs/
@@ -1367,109 +1368,109 @@ docs/
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: コードと別リポジトリでドキュメントを管理
+### Anti-Pattern 1: Managing Documentation in a Separate Repository from Code
 
 ```
-# NG: ドキュメントを別リポジトリに分離
-myapp/           ← アプリコード
-myapp-docs/      ← ドキュメント (別リポ)
-→ コードを変更してもドキュメントの更新を忘れやすい
+# NG: Separating documentation into a separate repository
+myapp/           ← Application code
+myapp-docs/      ← Documentation (separate repo)
+→ Easy to forget updating docs when code changes
 
-# OK: 同一リポジトリ内の docs/ ディレクトリ
+# OK: docs/ directory within the same repository
 myapp/
-  src/           ← アプリコード
-  docs/          ← ドキュメント (同一リポ)
-  → 同じ PR でコードとドキュメントを同時に更新
+  src/           ← Application code
+  docs/          ← Documentation (same repo)
+  → Update code and docs together in the same PR
 ```
 
-**問題点**: 別リポジトリに分離すると、コード変更とドキュメント更新の同期が取れず、ドキュメントが急速に陳腐化する。同一リポジトリにすることで、PR レビューでドキュメント更新も確認でき、CI/CD でデプロイも自動化しやすい。
+**Problem**: Separating into a different repository means code changes and documentation updates lose sync, causing documentation to become stale rapidly. Keeping them in the same repository allows PR reviews to also verify documentation updates, and makes CI/CD deployment automation easier.
 
-### アンチパターン 2: ADR を書かない or 後から書く
-
-```
-# NG: 「後で書こう」→ 永遠に書かれない
-#     3ヶ月後: 「なんでこの技術を選んだんだっけ...」
-
-# OK: 意思決定のタイミングで即座に ADR を書く
-#     レビュー中の PR に ADR ドキュメントを含める
-#     決定の背景を「今」記録する (記憶が新鮮なうちに)
-```
-
-**問題点**: ADR は意思決定の「なぜ」を記録するものであり、実装後に書くと動機や検討した代替案が曖昧になる。意思決定の議論中に ADR のドラフトを作成し、決定と同時に確定させるのが理想。
-
-### アンチパターン 3: ドキュメントの更新を任意にする
+### Anti-Pattern 2: Not Writing ADRs, or Writing Them After the Fact
 
 ```
-# NG: ドキュメント更新はオプション
-# → 誰も更新しなくなる
+# NG: "I'll write it later" → Never gets written
+#     3 months later: "Why did we choose this technology again...?"
 
-# OK: CI でドキュメントの鮮度を検証
-# → src/ 変更時に docs/ の変更がなければ警告
-# → PR テンプレートにチェックリスト
-# → レビューでドキュメント更新を確認
+# OK: Write the ADR immediately at the time of decision
+#     Include the ADR document in the PR under review
+#     Record the background of the decision "now" (while memory is fresh)
 ```
 
-**問題点**: ドキュメント更新を任意にすると、「今は急いでいるから後で」が積み重なり、ドキュメントとコードの乖離が拡大する。CI での警告やPR テンプレートのチェックリストで半強制的に更新を促す仕組みが必要。
+**Problem**: ADRs record the "why" of a decision, and writing them after implementation makes the motivation and considered alternatives vague. The ideal approach is to draft the ADR during the decision discussion and finalize it simultaneously with the decision.
 
-### アンチパターン 4: 全てを手動で書く
+### Anti-Pattern 3: Making Documentation Updates Optional
 
 ```
-# NG: API ドキュメントを手動で書く
-# → コード変更のたびに手動更新 → 乖離
+# NG: Documentation updates are optional
+# → Nobody ends up updating them
 
-# OK: 自動生成 + 手動の組み合わせ
-# 自動生成: API リファレンス (OpenAPI → ドキュメント)
-# 自動生成: 型定義 (TypeDoc)
-# 自動生成: UI コンポーネント (Storybook)
-# 手動記述: アーキテクチャ説明、チュートリアル、ADR
+# OK: Validate documentation freshness in CI
+# → Warn when src/ changes without docs/ changes
+# → Checklist in PR template
+# → Verify documentation updates in review
 ```
 
-**問題点**: 自動生成可能な情報（API エンドポイント、型定義、コンポーネントの Props）を手動で書くと、コードとの乖離が不可避。「what/how は自動生成、why は手動」の原則を守ることで、メンテナンスコストを最小化できる。
+**Problem**: Making documentation updates optional allows "I'm in a hurry, I'll do it later" to accumulate, widening the gap between docs and code. Mechanisms that semi-enforce updates via CI warnings and PR template checklists are necessary.
+
+### Anti-Pattern 4: Writing Everything Manually
+
+```
+# NG: Writing API docs manually
+# → Manual updates every time code changes → Divergence
+
+# OK: Combination of auto-generation + manual writing
+# Auto-generate: API reference (OpenAPI → documentation)
+# Auto-generate: Type definitions (TypeDoc)
+# Auto-generate: UI components (Storybook)
+# Manual write: Architecture explanations, tutorials, ADRs
+```
+
+**Problem**: Manually writing auto-generatable information (API endpoints, type definitions, component Props) makes divergence from code inevitable. Adhering to the principle of "what/how is auto-generated, why is written manually" minimizes maintenance costs.
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code satisfying the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement error handling appropriately
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
             raise ValueError("入力値がNoneです")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1487,17 +1488,17 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1505,7 +1506,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1516,14 +1517,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1531,7 +1532,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1539,7 +1540,7 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
@@ -1556,27 +1557,27 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1585,7 +1586,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1607,35 +1608,35 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured configuration file | Check configuration file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Check executing user's permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Incremental verification**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debug utility
 import logging
 import traceback
 from functools import wraps
@@ -1648,7 +1649,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
         logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
@@ -1664,87 +1665,87 @@ def debug_decorator(func):
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
         raise ValueError("空のデータ")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Verify whether memory leaks are present
+3. **Check for I/O wait**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem type | Diagnostic tool | Solution |
+|-------------|----------------|---------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 ---
 
 ## FAQ
 
-### Q1: VitePress と Docusaurus のどちらを選ぶべきですか？
+### Q1: Which should I choose, VitePress or Docusaurus?
 
-**A**: プロジェクトの規模と要件で判断する。小〜中規模で高速なビルドが必要なら VitePress。大規模で多言語対応・バージョニング・プラグインエコシステムが必要なら Docusaurus。チームが Vue ベースなら VitePress、React ベースなら Docusaurus/Nextra が自然。迷ったら VitePress から始めて、不足を感じたら移行するのが低リスク。
+**A**: Decide based on project scale and requirements. For small to medium scale where fast builds are needed, choose VitePress. For large scale requiring multilingual support, versioning, and a plugin ecosystem, choose Docusaurus. If the team is Vue-based, VitePress is natural; if React-based, Docusaurus/Nextra is natural. When in doubt, start with VitePress and migrate if you find it lacking -- this is the lowest-risk approach.
 
-### Q2: ADR はどのくらいの粒度で書くべきですか？
+### Q2: What level of granularity should ADRs be written at?
 
-**A**: 「チームの複数人に影響する技術的意思決定」を基準にする。具体的には、フレームワークの選定、データベースの選択、API 設計方針、認証方式、テスト戦略、デプロイ方式などが対象。変数名やコーディングスタイルのような細かい決定は EditorConfig や ESLint ルールとして記録すれば十分。迷ったら書いた方が良い -- 不要になった ADR は「非推奨」ステータスにすればよい。
+**A**: Use "technical decisions that affect multiple team members" as the criterion. Concretely, this includes framework selection, database choice, API design policies, authentication methods, test strategies, and deployment methods. Fine-grained decisions like variable names or coding style are sufficient to record as EditorConfig or ESLint rules. When in doubt, it's better to write one -- an ADR that becomes unnecessary can simply be given a "deprecated" status.
 
-### Q3: ドキュメントの自動生成はどこまで有効ですか？
+### Q3: How effective is auto-generating documentation?
 
-**A**: API リファレンス（OpenAPI/Swagger → ドキュメント生成）や型定義からのインターフェース一覧などは自動生成が非常に有効。一方、アーキテクチャの説明、チュートリアル、ADR などの「なぜ」を説明するドキュメントは手動で書くしかない。理想は「what/how は自動生成、why は手動記述」の組み合わせ。TypeDoc (TypeScript)、Storybook (コンポーネント)、Swagger UI (API) などのツールを活用する。
+**A**: Auto-generation is highly effective for API references (OpenAPI/Swagger → documentation generation) and interface lists from type definitions. On the other hand, architecture explanations, tutorials, and ADRs that explain "why" must be written manually. The ideal is a combination of "what/how is auto-generated, why is written manually." Use tools such as TypeDoc (TypeScript), Storybook (components), and Swagger UI (API).
 
-### Q4: ドキュメントの検索はどう実装しますか？
+### Q4: How do I implement documentation search?
 
-**A**: ドキュメントツールにより選択肢が異なる。
+**A**: Options vary by documentation tool.
 
-- **VitePress**: 内蔵の miniSearch (設定不要)。小〜中規模で十分な精度。
-- **Docusaurus**: Algolia DocSearch (無料枠あり、OSS は無料)。大規模サイトに最適。
-- **Starlight**: Pagefind (ビルド時に検索インデックスを生成)。サーバー不要。
-- **自前実装**: FlexSearch や Lunr.js をクライアントサイドで使用。
+- **VitePress**: Built-in miniSearch (no setup required). Sufficient precision for small to medium scale.
+- **Docusaurus**: Algolia DocSearch (free tier available, free for OSS). Optimal for large-scale sites.
+- **Starlight**: Pagefind (generates search index at build time). No server required.
+- **Custom implementation**: Use FlexSearch or Lunr.js on the client side.
 
-### Q5: ドキュメントの多言語対応はどう進めますか？
+### Q5: How do I approach multilingual documentation?
 
-**A**: Docusaurus は i18n サポートが最も充実しており、`docusaurus write-translations` コマンドで翻訳ファイルの雛形を自動生成できる。VitePress では手動でディレクトリを分ける。翻訳作業自体は Crowdin や Weblate などの翻訳管理サービスと統合するのが効率的。まずは英語で書き、需要に応じて日本語化する（またはその逆）のが現実的。
+**A**: Docusaurus has the most comprehensive i18n support, and can auto-generate translation file templates with the `docusaurus write-translations` command. With VitePress, directories are split manually. For the translation work itself, integrating with translation management services like Crowdin or Weblate is efficient. Writing in English first and adding Japanese as demand arises (or vice versa) is the realistic approach.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| VitePress | Vue/Vite ベース。高速ビルド。小〜中規模に最適 |
-| Docusaurus | React ベース。バージョニング・i18n が強力。大規模向け |
-| Starlight | Astro ベース。高速。コンテンツ重視のサイトに最適 |
-| ADR | アーキテクチャ意思決定の記録。意思決定時に即座に書く |
-| Diataxis | ドキュメントを4象限 (Tutorial/How-to/Reference/Explanation) に分類 |
-| 同一リポ管理 | コードと docs/ を同じリポジトリで管理 |
-| 自動デプロイ | GitHub Pages / Vercel / Netlify / Cloudflare Pages で自動公開 |
-| API ドキュメント | OpenAPI / TypeDoc で自動生成。手動は「なぜ」の部分のみ |
-| Storybook | UI コンポーネントの視覚的ドキュメント |
-| 鮮度維持 | PR テンプレート + CI 警告 + 月次棚卸しで陳腐化を防止 |
-| 品質チェック | リンク切れ検知、ビルドチェック、更新漏れ警告を CI で自動化 |
+| Item | Key Points |
+|------|-----------|
+| VitePress | Vue/Vite based. Fast builds. Best for small to medium scale |
+| Docusaurus | React based. Powerful versioning and i18n. For large scale |
+| Starlight | Astro based. Fast. Best for content-heavy sites |
+| ADR | Record architecture decisions. Write immediately at decision time |
+| Diataxis | Classify docs into 4 quadrants (Tutorial/How-to/Reference/Explanation) |
+| Same-repo management | Manage code and docs/ in the same repository |
+| Auto-deployment | Auto-publish via GitHub Pages / Vercel / Netlify / Cloudflare Pages |
+| API documentation | Auto-generate with OpenAPI / TypeDoc. Manual writing only for the "why" |
+| Storybook | Visual documentation for UI components |
+| Freshness maintenance | Prevent staleness with PR template + CI warnings + monthly audits |
+| Quality checks | Automate broken link detection, build checks, and update-miss warnings in CI |
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [プロジェクト標準](./00-project-standards.md) -- EditorConfig / .npmrc の共通設定
-- [オンボーディング自動化](./01-onboarding-automation.md) -- セットアップスクリプトと Makefile
-- [Dev Container](../02-docker-dev/01-devcontainer.md) -- 開発環境のコンテナ化
+- [Project Standards](./00-project-standards.md) -- Shared settings for EditorConfig / .npmrc
+- [Onboarding Automation](./01-onboarding-automation.md) -- Setup scripts and Makefile
+- [Dev Container](../02-docker-dev/01-devcontainer.md) -- Containerizing the development environment
 
-## 参考文献
+## References
 
-1. **VitePress 公式ドキュメント** -- https://vitepress.dev/ -- VitePress の設定と機能の包括的リファレンス
-2. **Docusaurus 公式ドキュメント** -- https://docusaurus.io/ -- Docusaurus の設定・プラグイン・テーマカスタマイズ
-3. **ADR GitHub Organization** -- https://adr.github.io/ -- Architecture Decision Records の標準テンプレートとツール
-4. **Diataxis フレームワーク** -- https://diataxis.fr/ -- ドキュメントの4象限分類 (Tutorial / How-to / Reference / Explanation)
-5. **Starlight 公式ドキュメント** -- https://starlight.astro.build/ -- Astro ベースのドキュメントフレームワーク
-6. **Storybook 公式** -- https://storybook.js.org/ -- UI コンポーネントの開発・テスト・ドキュメント化
-7. **TypeDoc** -- https://typedoc.org/ -- TypeScript コードからのドキュメント自動生成
-8. **Algolia DocSearch** -- https://docsearch.algolia.com/ -- ドキュメントサイト向け検索サービス
+1. **VitePress Official Documentation** -- https://vitepress.dev/ -- Comprehensive reference for VitePress configuration and features
+2. **Docusaurus Official Documentation** -- https://docusaurus.io/ -- Docusaurus configuration, plugins, and theme customization
+3. **ADR GitHub Organization** -- https://adr.github.io/ -- Standard templates and tools for Architecture Decision Records
+4. **Diataxis Framework** -- https://diataxis.fr/ -- Four-quadrant documentation classification (Tutorial / How-to / Reference / Explanation)
+5. **Starlight Official Documentation** -- https://starlight.astro.build/ -- Astro-based documentation framework
+6. **Storybook Official** -- https://storybook.js.org/ -- Development, testing, and documentation for UI components
+7. **TypeDoc** -- https://typedoc.org/ -- Auto-generating documentation from TypeScript code
+8. **Algolia DocSearch** -- https://docsearch.algolia.com/ -- Search service for documentation sites
