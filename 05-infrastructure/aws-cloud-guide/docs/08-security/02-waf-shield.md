@@ -1,40 +1,40 @@
-# WAF / Shield — WAF ルールと DDoS 対策
+# WAF / Shield — WAF Rules and DDoS Protection
 
-> AWS WAF でアプリケーション層（L7）の攻撃を防御し、AWS Shield で DDoS 攻撃（L3/L4）から保護するための実践ガイド。
-
----
-
-## この章で学ぶこと
-
-1. **AWS WAF** のルール設計と Web ACL によるリクエストフィルタリング
-2. **AWS Shield Standard / Advanced** による DDoS 防御アーキテクチャ
-3. **WAF + CloudFront + ALB** を組み合わせた多層防御パターン
-4. **WAF ログの分析と運用** — Athena、CloudWatch、自動対応
-5. **CDK/Terraform による WAF の IaC 管理** — 再現可能なセキュリティ構成
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [シークレット管理 — Secrets Manager / Parameter Store / KMS](./01-secrets-management.md) の内容を理解していること
+> A practical guide to defending against application-layer (L7) attacks with AWS WAF and protecting against DDoS attacks (L3/L4) with AWS Shield.
 
 ---
 
-## 1. AWS WAF の全体アーキテクチャ
+## What You Will Learn
 
-### 1.1 WAF の配置と処理フロー
+1. **AWS WAF** rule design and request filtering via Web ACL
+2. **AWS Shield Standard / Advanced** DDoS protection architecture
+3. Multi-layered defense patterns combining **WAF + CloudFront + ALB**
+4. **WAF log analysis and operations** — Athena, CloudWatch, and automated response
+5. **WAF IaC management with CDK/Terraform** — reproducible security configurations
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Secret Management — Secrets Manager / Parameter Store / KMS](./01-secrets-management.md)
+
+---
+
+## 1. AWS WAF Overall Architecture
+
+### 1.1 WAF Placement and Processing Flow
 
 ```
 ┌─────────┐     ┌──────────────┐     ┌───────────┐     ┌─────────┐
 │ Client  │ ──→ │ CloudFront   │ ──→ │  ALB      │ ──→ │ EC2/ECS │
-│ (攻撃者)│     │ + WAF        │     │ + WAF     │     │ App     │
-└─────────┘     │ (エッジ防御) │     │ (リージョン│     └─────────┘
-                └──────┬───────┘     │  防御)    │
+│(Attacker)│    │ + WAF        │     │ + WAF     │     │ App     │
+└─────────┘     │ (Edge Guard) │     │ (Regional │     └─────────┘
+                └──────┬───────┘     │  Guard)   │
                        │             └─────┬─────┘
-                 Web ACL 評価          Web ACL 評価
+                 Web ACL Evaluation   Web ACL Evaluation
                        │                   │
                 ┌──────▼───────┐     ┌─────▼─────┐
                 │ Allow/Block  │     │ Allow/Block│
@@ -42,49 +42,49 @@
                 └──────────────┘     └───────────┘
 ```
 
-### 1.2 WAF のルール評価順序
+### 1.2 WAF Rule Evaluation Order
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              Web ACL ルール評価                   │
+│              Web ACL Rule Evaluation             │
 │                                                 │
-│  Priority 0:  IP ブロックリスト (Block)          │
+│  Priority 0:  IP Block List (Block)             │
 │       │                                         │
-│       ▼ マッチしなければ次へ                     │
+│       ▼ If no match, proceed to next            │
 │  Priority 1:  AWS Managed Rules - Common        │
-│       │       (SQLi, XSS 等を Block)            │
+│       │       (Block SQLi, XSS, etc.)           │
 │       ▼                                         │
-│  Priority 2:  レートベースルール                 │
-│       │       (2000 req/5min 超過で Block)       │
+│  Priority 2:  Rate-Based Rule                   │
+│       │       (Block if > 2000 req/5min)        │
 │       ▼                                         │
-│  Priority 3:  Geo マッチルール                   │
-│       │       (特定国からの Block)               │
+│  Priority 3:  Geo Match Rule                    │
+│       │       (Block from specific countries)   │
 │       ▼                                         │
-│  Priority 4:  カスタムルール                     │
-│       │       (Bot 検知等)                       │
+│  Priority 4:  Custom Rules                      │
+│       │       (Bot detection, etc.)             │
 │       ▼                                         │
 │  Default Action: Allow                          │
-│  (どのルールにもマッチしなかったリクエスト)       │
+│  (Requests that did not match any rule)         │
 └─────────────────────────────────────────────────┘
 ```
 
-### 1.3 WAF が対応するリソース
+### 1.3 Resources Supported by WAF
 
-| リソースタイプ | スコープ | 用途 |
+| Resource Type | Scope | Use Case |
 |--------------|---------|------|
-| **Amazon CloudFront** | CLOUDFRONT | エッジでのグローバル防御 |
-| **Application Load Balancer** | REGIONAL | リージョナルなL7防御 |
-| **Amazon API Gateway REST API** | REGIONAL | API エンドポイントの保護 |
-| **AWS AppSync GraphQL API** | REGIONAL | GraphQL API の保護 |
-| **Amazon Cognito User Pool** | REGIONAL | 認証エンドポイントの保護 |
-| **AWS App Runner** | REGIONAL | コンテナサービスの保護 |
-| **AWS Verified Access** | REGIONAL | ゼロトラストアクセスの保護 |
+| **Amazon CloudFront** | CLOUDFRONT | Global edge protection |
+| **Application Load Balancer** | REGIONAL | Regional L7 protection |
+| **Amazon API Gateway REST API** | REGIONAL | API endpoint protection |
+| **AWS AppSync GraphQL API** | REGIONAL | GraphQL API protection |
+| **Amazon Cognito User Pool** | REGIONAL | Auth endpoint protection |
+| **AWS App Runner** | REGIONAL | Container service protection |
+| **AWS Verified Access** | REGIONAL | Zero-trust access protection |
 
 ---
 
-## 2. WAF ルール設計
+## 2. WAF Rule Design
 
-### 2.1 AWS マネージドルールの適用（CloudFormation）
+### 2.1 Applying AWS Managed Rules (CloudFormation)
 
 ```yaml
 AWSTemplateFormatVersion: "2010-09-09"
@@ -93,7 +93,7 @@ Resources:
     Type: AWS::WAFv2::WebACL
     Properties:
       Name: production-web-acl
-      Scope: REGIONAL    # ALB/API Gateway 用。CloudFront は CLOUDFRONT
+      Scope: REGIONAL    # For ALB/API Gateway. Use CLOUDFRONT for CloudFront
       DefaultAction:
         Allow: {}
       VisibilityConfig:
@@ -101,7 +101,7 @@ Resources:
         MetricName: production-web-acl
         SampledRequestsEnabled: true
       Rules:
-        # AWS マネージドルール: 一般的な脆弱性
+        # AWS Managed Rule: Common vulnerabilities
         - Name: AWSManagedRulesCommonRuleSet
           Priority: 0
           OverrideAction:
@@ -111,13 +111,13 @@ Resources:
               VendorName: AWS
               Name: AWSManagedRulesCommonRuleSet
               ExcludedRules:
-                - Name: SizeRestrictions_BODY    # 大きいPOSTが必要な場合
+                - Name: SizeRestrictions_BODY    # If large POST bodies are needed
           VisibilityConfig:
             CloudWatchMetricsEnabled: true
             MetricName: CommonRuleSet
             SampledRequestsEnabled: true
 
-        # AWS マネージドルール: SQLインジェクション
+        # AWS Managed Rule: SQL Injection
         - Name: AWSManagedRulesSQLiRuleSet
           Priority: 1
           OverrideAction:
@@ -131,7 +131,7 @@ Resources:
             MetricName: SQLiRuleSet
             SampledRequestsEnabled: true
 
-        # AWS マネージドルール: 既知の脆弱性入力
+        # AWS Managed Rule: Known bad inputs
         - Name: AWSManagedRulesKnownBadInputsRuleSet
           Priority: 2
           OverrideAction:
@@ -145,7 +145,7 @@ Resources:
             MetricName: KnownBadInputs
             SampledRequestsEnabled: true
 
-        # AWS マネージドルール: Linux OS 固有攻撃
+        # AWS Managed Rule: Linux OS-specific attacks
         - Name: AWSManagedRulesLinuxRuleSet
           Priority: 3
           OverrideAction:
@@ -159,21 +159,21 @@ Resources:
             MetricName: LinuxRuleSet
             SampledRequestsEnabled: true
 
-        # レートベースルール
+        # Rate-based rule
         - Name: RateLimitRule
           Priority: 4
           Action:
             Block: {}
           Statement:
             RateBasedStatement:
-              Limit: 2000           # 5分間で2000リクエスト
+              Limit: 2000           # 2000 requests per 5 minutes
               AggregateKeyType: IP
           VisibilityConfig:
             CloudWatchMetricsEnabled: true
             MetricName: RateLimitRule
             SampledRequestsEnabled: true
 
-        # IPブロックリスト
+        # IP block list
         - Name: IPBlockList
           Priority: 5
           Action:
@@ -200,9 +200,9 @@ Resources:
       Name: blocked-ips
       Scope: REGIONAL
       IPAddressVersion: IPV4
-      Addresses: []    # CLI/API で動的に追加
+      Addresses: []    # Dynamically added via CLI/API
 
-  # ALB との関連付け
+  # Association with ALB
   WebACLAssociation:
     Type: AWS::WAFv2::WebACLAssociation
     Properties:
@@ -210,10 +210,10 @@ Resources:
       WebACLArn: !GetAtt WebACL.Arn
 ```
 
-### 2.2 カスタムルール: 特定パスの保護
+### 2.2 Custom Rules: Protecting Specific Paths
 
 ```yaml
-        # /admin パスへのアクセスを IP 制限
+        # Restrict access to /admin by IP
         - Name: AdminPathIPRestriction
           Priority: 6
           Action:
@@ -238,7 +238,7 @@ Resources:
             MetricName: AdminIPRestriction
             SampledRequestsEnabled: true
 
-        # CAPTCHA チャレンジ（Bot対策）
+        # CAPTCHA challenge (bot mitigation)
         - Name: CAPTCHAForSensitivePaths
           Priority: 7
           Action:
@@ -271,7 +271,7 @@ Resources:
             MetricName: CAPTCHAChallenge
             SampledRequestsEnabled: true
 
-        # 特定ヘッダーの検査
+        # Inspect specific headers
         - Name: RequireAPIKey
           Priority: 8
           Action:
@@ -310,11 +310,11 @@ Resources:
       Scope: REGIONAL
       IPAddressVersion: IPV4
       Addresses:
-        - 203.0.113.0/24     # オフィス IP
+        - 203.0.113.0/24     # Office IP
         - 198.51.100.10/32   # VPN IP
 ```
 
-### 2.3 Terraform での WAF 構成
+### 2.3 WAF Configuration with Terraform
 
 ```hcl
 resource "aws_wafv2_web_acl" "main" {
@@ -355,7 +355,7 @@ resource "aws_wafv2_web_acl" "main" {
     }
   }
 
-  # カスタム: ログインエンドポイントへのレート制限
+  # Custom: rate limit on login endpoint
   rule {
     name     = "LoginRateLimit"
     priority = 1
@@ -366,7 +366,7 @@ resource "aws_wafv2_web_acl" "main" {
 
     statement {
       rate_based_statement {
-        limit              = 100    # 5分間で100回
+        limit              = 100    # 100 times per 5 minutes
         aggregate_key_type = "IP"
 
         scope_down_statement {
@@ -394,7 +394,7 @@ resource "aws_wafv2_web_acl" "main" {
     }
   }
 
-  # Geo制限: 特定国からのアクセスをブロック
+  # Geo restriction: block access from specific countries
   rule {
     name     = "GeoRestriction"
     priority = 2
@@ -405,7 +405,7 @@ resource "aws_wafv2_web_acl" "main" {
 
     statement {
       geo_match_statement {
-        country_codes = ["CN", "RU", "KP"]  # 必要に応じて調整
+        country_codes = ["CN", "RU", "KP"]  # Adjust as needed
       }
     }
 
@@ -416,7 +416,7 @@ resource "aws_wafv2_web_acl" "main" {
     }
   }
 
-  # リクエストボディサイズ制限
+  # Request body size limit
   rule {
     name     = "RequestBodySizeLimit"
     priority = 3
@@ -510,17 +510,17 @@ resource "aws_wafv2_web_acl" "main" {
   }
 }
 
-# WAF と ALB の関連付け
+# Associate WAF with ALB
 resource "aws_wafv2_web_acl_association" "main" {
   resource_arn = aws_lb.main.arn
   web_acl_arn  = aws_wafv2_web_acl.main.arn
 }
 ```
 
-### 2.4 WAF ログの有効化と分析
+### 2.4 Enabling and Analyzing WAF Logs
 
 ```bash
-# WAF ログを S3 に送信
+# Send WAF logs to S3
 aws wafv2 put-logging-configuration \
   --logging-configuration '{
     "ResourceArn": "arn:aws:wafv2:ap-northeast-1:123456789012:regional/webacl/production-web-acl/xxxx",
@@ -549,7 +549,7 @@ aws wafv2 put-logging-configuration \
     }
   }'
 
-# WAF ログを CloudWatch Logs に送信
+# Send WAF logs to CloudWatch Logs
 aws wafv2 put-logging-configuration \
   --logging-configuration '{
     "ResourceArn": "arn:aws:wafv2:ap-northeast-1:123456789012:regional/webacl/production-web-acl/xxxx",
@@ -558,7 +558,7 @@ aws wafv2 put-logging-configuration \
     ]
   }'
 
-# Kinesis Data Firehose 経由で S3 + OpenSearch に送信
+# Send to S3 + OpenSearch via Kinesis Data Firehose
 aws wafv2 put-logging-configuration \
   --logging-configuration '{
     "ResourceArn": "arn:aws:wafv2:ap-northeast-1:123456789012:regional/webacl/production-web-acl/xxxx",
@@ -568,10 +568,10 @@ aws wafv2 put-logging-configuration \
   }'
 ```
 
-### 2.5 Athena による WAF ログ分析
+### 2.5 WAF Log Analysis with Athena
 
 ```sql
--- Athena テーブルの作成
+-- Create Athena table
 CREATE EXTERNAL TABLE waf_logs (
   timestamp bigint,
   formatVersion int,
@@ -625,7 +625,7 @@ CREATE EXTERNAL TABLE waf_logs (
 ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
 LOCATION 's3://my-waf-logs-bucket/AWSLogs/123456789012/WAFLogs/ap-northeast-1/production-web-acl/';
 
--- ブロックされたリクエストの分析
+-- Analyze blocked requests
 SELECT
   httprequest.clientip,
   httprequest.uri,
@@ -639,7 +639,7 @@ GROUP BY 1, 2, 3, 4
 ORDER BY block_count DESC
 LIMIT 20;
 
--- 国別のリクエスト分布
+-- Request distribution by country
 SELECT
   httprequest.country,
   action,
@@ -649,7 +649,7 @@ WHERE from_unixtime(timestamp/1000) > current_timestamp - interval '7' day
 GROUP BY 1, 2
 ORDER BY request_count DESC;
 
--- SQLi/XSS 検出の詳細
+-- Details of SQLi/XSS detections
 SELECT
   httprequest.clientip,
   httprequest.uri,
@@ -661,7 +661,7 @@ WHERE terminatingruleid IN ('AWSManagedRulesSQLiRuleSet', 'CrossSiteScripting_BO
   AND from_unixtime(timestamp/1000) > current_timestamp - interval '24' hour
 LIMIT 50;
 
--- レートベースルールでブロックされたIP
+-- IPs blocked by rate-based rule
 SELECT
   httprequest.clientip,
   httprequest.country,
@@ -676,13 +676,13 @@ ORDER BY blocked_count DESC
 LIMIT 20;
 ```
 
-### 2.6 CloudWatch メトリクスとアラーム
+### 2.6 CloudWatch Metrics and Alarms
 
 ```yaml
-# CloudFormation: WAF の CloudWatch アラーム
+# CloudFormation: CloudWatch alarms for WAF
 AWSTemplateFormatVersion: "2010-09-09"
 Resources:
-  # ブロック率の急増アラーム
+  # Alarm for sudden spike in block rate
   HighBlockRateAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -698,14 +698,14 @@ Resources:
         - Name: Rule
           Value: ALL
       Statistic: Sum
-      Period: 300            # 5分間
-      EvaluationPeriods: 2   # 2期間連続
-      Threshold: 1000        # 5分間で1000ブロック
+      Period: 300            # 5 minutes
+      EvaluationPeriods: 2   # 2 consecutive periods
+      Threshold: 1000        # 1000 blocks per 5 minutes
       ComparisonOperator: GreaterThanThreshold
       AlarmActions:
         - !Ref SecurityAlertTopic
 
-  # レートベースルールのトリガーアラーム
+  # Alarm when rate-based rule is triggered
   RateLimitAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -728,7 +728,7 @@ Resources:
       AlarmActions:
         - !Ref SecurityAlertTopic
 
-  # 全リクエスト数の異常検知
+  # Anomaly detection for total request volume
   RequestAnomalyAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -761,7 +761,7 @@ Resources:
           Endpoint: security@example.com
 ```
 
-### 2.7 IP セットの動的管理
+### 2.7 Dynamic IP Set Management
 
 ```python
 import boto3
@@ -771,8 +771,8 @@ from datetime import datetime
 waf = boto3.client("wafv2", region_name="ap-northeast-1")
 
 def add_ip_to_blocklist(ip_address: str, ip_set_name: str, ip_set_id: str):
-    """IP アドレスをブロックリストに追加"""
-    # 現在の IP セットを取得
+    """Add an IP address to the block list"""
+    # Retrieve current IP set
     response = waf.get_ip_set(
         Name=ip_set_name,
         Scope="REGIONAL",
@@ -782,7 +782,7 @@ def add_ip_to_blocklist(ip_address: str, ip_set_name: str, ip_set_id: str):
     addresses = response["IPSet"]["Addresses"]
     lock_token = response["LockToken"]
 
-    # CIDR 表記に変換
+    # Convert to CIDR notation
     if "/" not in ip_address:
         ip_address = f"{ip_address}/32"
 
@@ -801,7 +801,7 @@ def add_ip_to_blocklist(ip_address: str, ip_set_name: str, ip_set_id: str):
         print(f"{ip_address} already in blocklist")
 
 def remove_ip_from_blocklist(ip_address: str, ip_set_name: str, ip_set_id: str):
-    """IP アドレスをブロックリストから削除"""
+    """Remove an IP address from the block list"""
     response = waf.get_ip_set(
         Name=ip_set_name,
         Scope="REGIONAL",
@@ -826,9 +826,9 @@ def remove_ip_from_blocklist(ip_address: str, ip_set_name: str, ip_set_id: str):
         )
         print(f"Removed {ip_address} from blocklist")
 
-# 自動ブロック: WAF ログから攻撃元 IP を自動追加
+# Auto-block: automatically add attacking IPs from WAF logs
 def auto_block_from_logs(threshold: int = 100):
-    """CloudWatch Logs Insights で攻撃元 IP を検出してブロック"""
+    """Detect attacking IPs via CloudWatch Logs Insights and block them"""
     logs = boto3.client("logs", region_name="ap-northeast-1")
 
     query = f"""
@@ -842,12 +842,12 @@ def auto_block_from_logs(threshold: int = 100):
 
     response = logs.start_query(
         logGroupName="aws-waf-logs-production",
-        startTime=int((datetime.now().timestamp() - 3600)),  # 過去1時間
+        startTime=int((datetime.now().timestamp() - 3600)),  # Past 1 hour
         endTime=int(datetime.now().timestamp()),
         queryString=query,
     )
 
-    # クエリ結果を取得して IP をブロック
+    # Retrieve query results and block IPs
     import time
     time.sleep(10)
 
@@ -867,20 +867,20 @@ def auto_block_from_logs(threshold: int = 100):
             )
 ```
 
-### 2.8 AWS WAF JavaScript SDK（Bot検知）
+### 2.8 AWS WAF JavaScript SDK (Bot Detection)
 
 ```html
-<!-- WAF CAPTCHA/Challenge の統合 -->
+<!-- WAF CAPTCHA/Challenge integration -->
 <script type="text/javascript"
   src="https://xxxxx.token.awswaf.com/xxxxx/challenge.js"
   defer>
 </script>
 
 <script>
-// WAF Token の取得と送信
+// Retrieve and submit WAF Token
 async function submitForm() {
   try {
-    // WAF Challenge トークンを取得
+    // Obtain WAF Challenge token
     const token = await AwsWafIntegration.getToken();
 
     const response = await fetch('/api/login', {
@@ -913,40 +913,40 @@ async function submitForm() {
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                   Shield Standard                        │
-│  (全 AWS アカウントに自動適用・無料)                      │
+│  (Automatically applied to all AWS accounts — free)      │
 │                                                          │
 │  ┌────────────────────────────────────────────────┐      │
-│  │ L3/L4 DDoS 防御                                │      │
+│  │ L3/L4 DDoS Protection                          │      │
 │  │ - SYN/UDP Flood                                │      │
-│  │ - Reflection 攻撃                              │      │
-│  │ - CloudFront / Route 53 で自動軽減             │      │
+│  │ - Reflection attacks                           │      │
+│  │ - Automatic mitigation via CloudFront/Route 53 │      │
 │  └────────────────────────────────────────────────┘      │
 └──────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────┐
 │                   Shield Advanced                        │
-│  ($3,000/月 + データ転送料、1年コミット)                  │
+│  ($3,000/month + data transfer, 1-year commitment)       │
 │                                                          │
 │  ┌────────────────────────────────────────────────┐      │
-│  │ Standard の全機能 +                             │      │
-│  │ - L7 DDoS 検知・自動緩和                       │      │
-│  │ - DDoS Response Team (DRT) 24/7 サポート       │      │
-│  │ - コスト保護（DDoS 起因のスケールアウト費用）   │      │
-│  │ - リアルタイム攻撃可視化                       │      │
-│  │ - WAF 料金が Shield Advanced に含まれる         │      │
-│  │ - Health-based 検知（Route 53 ヘルスチェック）  │      │
-│  │ - SRT による proactive engagement              │      │
+│  │ All Standard features +                         │      │
+│  │ - L7 DDoS detection and automatic mitigation   │      │
+│  │ - DDoS Response Team (DRT) 24/7 support        │      │
+│  │ - Cost protection (scale-out costs from DDoS)  │      │
+│  │ - Real-time attack visibility                  │      │
+│  │ - WAF charges included with Shield Advanced    │      │
+│  │ - Health-based detection (Route 53 checks)     │      │
+│  │ - Proactive engagement by SRT                  │      │
 │  └────────────────────────────────────────────────┘      │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Shield Advanced の設定
+### 3.2 Configuring Shield Advanced
 
 ```bash
-# Shield Advanced の有効化（年間コミット）
+# Enable Shield Advanced (annual commitment)
 aws shield create-subscription
 
-# 保護対象リソースの追加
+# Add protected resources
 aws shield create-protection \
   --name "Production-ALB" \
   --resource-arn "arn:aws:elasticloadbalancing:ap-northeast-1:123456789012:loadbalancer/app/prod-alb/xxxx"
@@ -959,20 +959,20 @@ aws shield create-protection \
   --name "Production-EIP" \
   --resource-arn "arn:aws:ec2:ap-northeast-1:123456789012:eip-allocation/eipalloc-xxxx"
 
-# 保護一覧の確認
+# List protections
 aws shield list-protections
 
-# DRT へのアクセス権限付与
+# Grant DRT access
 aws shield associate-drt-role \
   --role-arn "arn:aws:iam::123456789012:role/ShieldDRTAccessRole"
 
 aws shield associate-drt-log-bucket \
   --log-bucket "my-waf-logs-bucket"
 
-# Proactive Engagement の有効化
+# Enable Proactive Engagement
 aws shield enable-proactive-engagement
 
-# Emergency Contact の設定
+# Configure Emergency Contact
 aws shield associate-health-check \
   --protection-id "protection-id-xxxx" \
   --health-check-arn "arn:aws:route53:::healthcheck/xxxx"
@@ -984,15 +984,15 @@ aws shield update-emergency-contact-settings \
   ]'
 ```
 
-### 3.3 Shield Advanced のイベント監視
+### 3.3 Monitoring Shield Advanced Events
 
 ```python
 import boto3
 from datetime import datetime, timedelta
 
 def get_ddos_attacks(hours: int = 24) -> list[dict]:
-    """過去N時間のDDoS攻撃イベントを取得"""
-    shield = boto3.client("shield", region_name="us-east-1")  # Shield はus-east-1
+    """Retrieve DDoS attack events from the past N hours"""
+    shield = boto3.client("shield", region_name="us-east-1")  # Shield uses us-east-1
 
     start_time = datetime.utcnow() - timedelta(hours=hours)
     end_time = datetime.utcnow()
@@ -1027,7 +1027,7 @@ def get_ddos_attacks(hours: int = 24) -> list[dict]:
 
     return attacks
 
-# 実行
+# Execute
 attacks = get_ddos_attacks(24)
 for attack in attacks:
     print(f"Attack: {attack['AttackId']}")
@@ -1039,17 +1039,17 @@ for attack in attacks:
 
 ---
 
-## 4. 多層防御アーキテクチャ
+## 4. Multi-Layered Defense Architecture
 
-### 4.1 完全な防御構成
+### 4.1 Complete Defense Configuration
 
 ```
 Internet
     │
     ▼
 ┌──────────────────┐
-│ Route 53         │  ← Shield Standard (DNS DDoS 防御)
-│ (DNS)            │     DNSSEC 有効化
+│ Route 53         │  ← Shield Standard (DNS DDoS protection)
+│ (DNS)            │     DNSSEC enabled
 └────────┬─────────┘
          │
          ▼
@@ -1057,31 +1057,31 @@ Internet
 │ CloudFront       │  ← Shield Standard/Advanced + WAF
 │ (CDN + Edge WAF) │     Geo Restriction
 │                  │     Origin Access Control
-│                  │     TLS 1.2+ 強制
+│                  │     TLS 1.2+ enforced
 └────────┬─────────┘
-         │ Origin Access (署名付きリクエスト)
+         │ Origin Access (signed requests)
          ▼
 ┌──────────────────┐
 │ ALB              │  ← WAF (Regional) + Security Group
-│ (Load Balancer)  │     リクエスト検証
-│                  │     SG: CloudFront Prefix List のみ許可
+│ (Load Balancer)  │     Request validation
+│                  │     SG: allow only CloudFront Prefix List
 └────────┬─────────┘
          │
          ▼
 ┌──────────────────┐
-│ ECS / EC2        │  ← Security Group (ALB からのみ)
-│ (Application)    │     アプリケーション側バリデーション
-│                  │     OWASP Top 10 対策
+│ ECS / EC2        │  ← Security Group (ALB only)
+│ (Application)    │     Application-side validation
+│                  │     OWASP Top 10 countermeasures
 └──────────────────┘
 ```
 
-### 4.2 CloudFront + ALB の二段 WAF 構成
+### 4.2 Two-Stage WAF Configuration with CloudFront + ALB
 
 ```yaml
-# CloudFront WAF（エッジ防御）
+# CloudFront WAF (edge protection)
 AWSTemplateFormatVersion: "2010-09-09"
 Resources:
-  # エッジ WAF（us-east-1 で作成する必要あり）
+  # Edge WAF (must be created in us-east-1)
   EdgeWebACL:
     Type: AWS::WAFv2::WebACL
     Properties:
@@ -1090,7 +1090,7 @@ Resources:
       DefaultAction:
         Allow: {}
       Rules:
-        # Geo制限（エッジで早期ブロック）
+        # Geo restriction (early block at edge)
         - Name: GeoBlock
           Priority: 0
           Action:
@@ -1099,13 +1099,13 @@ Resources:
             NotStatement:
               Statement:
                 GeoMatchStatement:
-                  CountryCodes: ["JP", "US", "SG"]  # 許可国のみ
+                  CountryCodes: ["JP", "US", "SG"]  # Allow only these countries
           VisibilityConfig:
             CloudWatchMetricsEnabled: true
             MetricName: GeoBlock
             SampledRequestsEnabled: true
 
-        # IP レピュテーション
+        # IP reputation
         - Name: AmazonIPReputation
           Priority: 1
           OverrideAction:
@@ -1119,11 +1119,11 @@ Resources:
             MetricName: IPReputation
             SampledRequestsEnabled: true
 
-        # Anonymous IP（VPN/Tor）
+        # Anonymous IP (VPN/Tor)
         - Name: AnonymousIP
           Priority: 2
           OverrideAction:
-            Count: {}    # まず Count で様子見
+            Count: {}    # Start with Count to observe
           Statement:
             ManagedRuleGroupStatement:
               VendorName: AWS
@@ -1133,14 +1133,14 @@ Resources:
             MetricName: AnonymousIP
             SampledRequestsEnabled: true
 
-        # グローバルレート制限
+        # Global rate limit
         - Name: GlobalRateLimit
           Priority: 3
           Action:
             Block: {}
           Statement:
             RateBasedStatement:
-              Limit: 5000    # エッジでの全体制限
+              Limit: 5000    # Overall limit at edge
               AggregateKeyType: IP
           VisibilityConfig:
             CloudWatchMetricsEnabled: true
@@ -1152,14 +1152,14 @@ Resources:
         SampledRequestsEnabled: true
 ```
 
-### 4.3 ALB セキュリティグループの設定
+### 4.3 ALB Security Group Configuration
 
 ```bash
-# CloudFront のマネージドプレフィックスリストを使用
+# Use CloudFront managed prefix list
 aws ec2 describe-managed-prefix-lists \
   --filters Name=prefix-list-name,Values=com.amazonaws.global.cloudfront.origin-facing
 
-# ALB のセキュリティグループ: CloudFront からのみ許可
+# ALB security group: allow only from CloudFront
 aws ec2 authorize-security-group-ingress \
   --group-id sg-alb-xxxx \
   --ip-permissions '[
@@ -1173,16 +1173,16 @@ aws ec2 authorize-security-group-ingress \
     }
   ]'
 
-# CloudFront のカスタムヘッダーで検証
-# CloudFront → ALB にカスタムヘッダーを追加
-# ALB のリスナールールでヘッダーを検証
+# Validate with CloudFront custom header
+# Add custom header from CloudFront to ALB
+# Validate header in ALB listener rules
 ```
 
 ---
 
-## 5. CDK による WAF の完全構成
+## 5. Full WAF Configuration with CDK
 
-### 5.1 CDK での WAF スタック
+### 5.1 WAF Stack in CDK
 
 ```typescript
 import * as cdk from 'aws-cdk-lib';
@@ -1197,7 +1197,7 @@ export class WafStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // IP ブロックリスト
+    // IP block list
     const blockedIpSet = new wafv2.CfnIPSet(this, 'BlockedIPs', {
       name: 'blocked-ips',
       scope: 'REGIONAL',
@@ -1205,7 +1205,7 @@ export class WafStack extends cdk.Stack {
       addresses: [],
     });
 
-    // 管理者許可 IP セット
+    // Admin allowed IP set
     const adminIpSet = new wafv2.CfnIPSet(this, 'AdminIPs', {
       name: 'admin-allowed-ips',
       scope: 'REGIONAL',
@@ -1224,7 +1224,7 @@ export class WafStack extends cdk.Stack {
         sampledRequestsEnabled: true,
       },
       rules: [
-        // IP ブロックリスト
+        // IP block list
         {
           name: 'IPBlockList',
           priority: 0,
@@ -1238,7 +1238,7 @@ export class WafStack extends cdk.Stack {
             sampledRequestsEnabled: true,
           },
         },
-        // AWS マネージドルール: Common
+        // AWS Managed Rules: Common
         {
           name: 'AWSCommonRules',
           priority: 1,
@@ -1255,7 +1255,7 @@ export class WafStack extends cdk.Stack {
             sampledRequestsEnabled: true,
           },
         },
-        // AWS マネージドルール: SQLi
+        // AWS Managed Rules: SQLi
         {
           name: 'AWSSQLiRules',
           priority: 2,
@@ -1272,7 +1272,7 @@ export class WafStack extends cdk.Stack {
             sampledRequestsEnabled: true,
           },
         },
-        // レート制限
+        // Rate limit
         {
           name: 'RateLimit',
           priority: 3,
@@ -1292,7 +1292,7 @@ export class WafStack extends cdk.Stack {
       ],
     });
 
-    // CloudWatch アラーム
+    // CloudWatch alarm
     const alertTopic = new sns.Topic(this, 'WafAlerts', {
       topicName: 'waf-security-alerts',
     });
@@ -1319,207 +1319,207 @@ export class WafStack extends cdk.Stack {
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 6.1 WAF マネージドルールグループ比較
+### 6.1 WAF Managed Rule Group Comparison
 
-| ルールグループ | 防御対象 | WCU | 推奨 |
+| Rule Group | Protection Target | WCU | Recommendation |
 |--------------|---------|-----|------|
-| **AWSManagedRulesCommonRuleSet** | XSS, パストラバーサル, ファイルインジェクション | 700 | 全アプリ必須 |
-| **AWSManagedRulesSQLiRuleSet** | SQL インジェクション | 200 | DB 利用アプリ必須 |
-| **AWSManagedRulesKnownBadInputsRuleSet** | Log4j, 既知の脆弱性 | 200 | Java アプリは必須 |
-| **AWSManagedRulesBotControlRuleSet** | Bot 検知・制御 | 50 | EC サイト推奨 |
-| **AWSManagedRulesATPRuleSet** | アカウント乗っ取り防止 | 50 | 認証ありアプリ |
-| **AWSManagedRulesAnonymousIPList** | VPN/Tor/プロキシ | 50 | セキュリティ重視 |
-| **AWSManagedRulesAmazonIpReputationList** | 悪意あるIP | 25 | 全アプリ推奨 |
-| **AWSManagedRulesLinuxRuleSet** | Linux固有攻撃 | 200 | Linux環境 |
-| **AWSManagedRulesWindowsRuleSet** | Windows固有攻撃 | 200 | Windows環境 |
-| **AWSManagedRulesPHPRuleSet** | PHP固有攻撃 | 100 | PHP アプリ |
-| **AWSManagedRulesWordPressRuleSet** | WordPress固有攻撃 | 100 | WordPress |
+| **AWSManagedRulesCommonRuleSet** | XSS, path traversal, file injection | 700 | Required for all apps |
+| **AWSManagedRulesSQLiRuleSet** | SQL injection | 200 | Required for DB apps |
+| **AWSManagedRulesKnownBadInputsRuleSet** | Log4j, known vulnerabilities | 200 | Required for Java apps |
+| **AWSManagedRulesBotControlRuleSet** | Bot detection and control | 50 | Recommended for e-commerce |
+| **AWSManagedRulesATPRuleSet** | Account takeover prevention | 50 | Apps with authentication |
+| **AWSManagedRulesAnonymousIPList** | VPN/Tor/proxy | 50 | Security-focused apps |
+| **AWSManagedRulesAmazonIpReputationList** | Malicious IPs | 25 | Recommended for all apps |
+| **AWSManagedRulesLinuxRuleSet** | Linux-specific attacks | 200 | Linux environments |
+| **AWSManagedRulesWindowsRuleSet** | Windows-specific attacks | 200 | Windows environments |
+| **AWSManagedRulesPHPRuleSet** | PHP-specific attacks | 100 | PHP apps |
+| **AWSManagedRulesWordPressRuleSet** | WordPress-specific attacks | 100 | WordPress |
 
-### 6.2 DDoS 対策レイヤー比較
+### 6.2 DDoS Protection Layer Comparison
 
-| レイヤー | 攻撃例 | 防御サービス | 自動/手動 |
+| Layer | Attack Examples | Protection Service | Auto/Manual |
 |---------|--------|-------------|----------|
-| **L3 (ネットワーク)** | UDP Flood, ICMP Flood | Shield Standard | 自動 |
-| **L4 (トランスポート)** | SYN Flood, TCP RST | Shield Standard | 自動 |
-| **L7 (アプリケーション)** | HTTP Flood, Slowloris | WAF + Shield Advanced | ルール設定必要 |
-| **DNS** | DNS Query Flood | Route 53 + Shield | 自動 |
-| **API** | API 呼び出し集中 | API Gateway Throttling + WAF | 設定必要 |
+| **L3 (Network)** | UDP Flood, ICMP Flood | Shield Standard | Automatic |
+| **L4 (Transport)** | SYN Flood, TCP RST | Shield Standard | Automatic |
+| **L7 (Application)** | HTTP Flood, Slowloris | WAF + Shield Advanced | Rule configuration required |
+| **DNS** | DNS Query Flood | Route 53 + Shield | Automatic |
+| **API** | API call flooding | API Gateway Throttling + WAF | Configuration required |
 
-### 6.3 Shield Standard vs Advanced 詳細比較
+### 6.3 Shield Standard vs Advanced Detailed Comparison
 
-| 機能 | Shield Standard | Shield Advanced |
+| Feature | Shield Standard | Shield Advanced |
 |------|----------------|----------------|
-| **料金** | 無料 | $3,000/月 + データ転送 |
-| **L3/L4 防御** | 自動 | 自動 + 高度な検知 |
-| **L7 防御** | なし | WAF 統合で自動緩和 |
-| **DRT サポート** | なし | 24/7 対応 |
-| **コスト保護** | なし | DDoS起因のスケールアウト費用を補填 |
-| **攻撃可視化** | 基本的 | リアルタイムダッシュボード |
-| **WAF 料金** | 別途 | Shield Advanced に含む |
-| **ヘルスチェック連携** | なし | Route 53 ヘルスチェック |
-| **Proactive Engagement** | なし | DRT による事前対応 |
-| **対象リソース** | CloudFront, Route53 | ALB, EIP, CloudFront, Route53, GA |
+| **Pricing** | Free | $3,000/month + data transfer |
+| **L3/L4 Protection** | Automatic | Automatic + advanced detection |
+| **L7 Protection** | None | Automatic mitigation via WAF integration |
+| **DRT Support** | None | 24/7 availability |
+| **Cost Protection** | None | Covers scale-out costs caused by DDoS |
+| **Attack Visibility** | Basic | Real-time dashboard |
+| **WAF Charges** | Separate | Included with Shield Advanced |
+| **Health Check Integration** | None | Route 53 health checks |
+| **Proactive Engagement** | None | Pre-emptive response by DRT |
+| **Covered Resources** | CloudFront, Route53 | ALB, EIP, CloudFront, Route53, GA |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### 7.1 WAF ルールを Count モードのまま放置
-
-```
-NG: 導入時に Count モードで開始 → そのまま数ヶ月放置
-    → 攻撃をログに記録するだけでブロックしていない
-
-OK: 段階的な移行プロセス
-    Week 1-2: Count モードで誤検知を監視
-    Week 3:   誤検知ルールを ExcludedRules に追加
-    Week 4:   Block モードに切り替え
-    継続:     CloudWatch アラームでブロック率を監視
-```
-
-**対策**: Count モードでの運用期間をプロジェクト計画に組み込み、切り替えの判断基準を事前に定義する。
-
-### 7.2 WAF を ALB にだけ設定し CloudFront を経由しない
+### 7.1 Leaving WAF Rules in Count Mode Indefinitely
 
 ```
-NG:
+BAD: Start in Count mode at launch → leave it for months
+    → Only logging attacks, not blocking them
+
+GOOD: Phased migration process
+    Week 1-2: Monitor false positives in Count mode
+    Week 3:   Add false positive rules to ExcludedRules
+    Week 4:   Switch to Block mode
+    Ongoing:  Monitor block rate with CloudWatch alarms
+```
+
+**Mitigation**: Incorporate a Count mode evaluation period into the project plan and define the criteria for switching to Block mode in advance.
+
+### 7.2 Applying WAF Only to ALB Without CloudFront
+
+```
+BAD:
   Client → ALB (WAF) → App
-  問題: DDoS が ALB に直撃、オリジン IP が露出
+  Problem: DDoS hits ALB directly, origin IP is exposed
 
-OK:
-  Client → CloudFront (WAF + Shield) → ALB (SG: CloudFront のみ許可) → App
-  利点: エッジで攻撃軽減、ALB への直接アクセスを遮断
+GOOD:
+  Client → CloudFront (WAF + Shield) → ALB (SG: CloudFront only) → App
+  Benefit: Attack mitigation at edge, direct access to ALB blocked
 ```
 
-**対策**: ALB のセキュリティグループで CloudFront の IP レンジのみを許可し、直接アクセスをブロックする。AWS が公開する CloudFront IP リストを AWS Managed Prefix List で参照可能。
+**Mitigation**: Restrict the ALB security group to allow only CloudFront IP ranges, blocking direct access. The CloudFront IP list published by AWS can be referenced via AWS Managed Prefix List.
 
-### 7.3 全てのマネージドルールを無条件に適用
-
-```
-NG:
-  全マネージドルールを Block モードで一括適用
-  → 正常なリクエストまでブロックされる（誤検知）
-  → WCU 上限に到達
-
-OK:
-  段階的導入:
-  1. まず Common + SQLi を Count モードで適用
-  2. 1-2週間ログを監視して誤検知を確認
-  3. ExcludedRules で誤検知ルールを除外
-  4. Block モードに切り替え
-  5. 次のルールグループを追加
-```
-
-### 7.4 WAF ログを保存・分析していない
+### 7.3 Unconditionally Applying All Managed Rules
 
 ```
-NG:
-  WAF ログを有効化していない
-  → 攻撃の傾向が把握できない
-  → 誤検知の原因調査ができない
+BAD:
+  Apply all managed rules in Block mode at once
+  → Legitimate requests get blocked (false positives)
+  → WCU limit reached
 
-OK:
-  WAF ログを S3 + Athena で分析
-  → ブロックされたリクエストの傾向を定期的にレビュー
-  → ダッシュボードで攻撃状況を可視化
-  → 自動アラートで異常検知
+GOOD:
+  Phased adoption:
+  1. Apply Common + SQLi in Count mode first
+  2. Monitor logs for 1-2 weeks to check for false positives
+  3. Exclude false positive rules via ExcludedRules
+  4. Switch to Block mode
+  5. Add the next rule group
 ```
 
-### 7.5 レート制限が緩すぎる/厳しすぎる
+### 7.4 Not Storing or Analyzing WAF Logs
 
 ```
-NG:
-  レート制限を全エンドポイントに一律 10,000 req/5min で設定
-  → ログインページへのブルートフォースを防げない
-  → 正常な API 利用がブロックされる
+BAD:
+  WAF logging not enabled
+  → Cannot understand attack trends
+  → Cannot investigate false positive causes
 
-OK:
-  エンドポイント別のレート制限:
-  - /api/login    → 100 req/5min (厳しく)
-  - /api/signup   → 50 req/5min (厳しく)
-  - /api/data     → 5000 req/5min (通常)
-  - Global        → 10000 req/5min (全体の安全弁)
+GOOD:
+  Analyze WAF logs with S3 + Athena
+  → Regularly review blocked request trends
+  → Visualize attack status on a dashboard
+  → Detect anomalies with automated alerts
+```
+
+### 7.5 Rate Limits That Are Too Loose or Too Strict
+
+```
+BAD:
+  Apply a uniform rate limit of 10,000 req/5min to all endpoints
+  → Cannot prevent brute force on login pages
+  → Normal API usage gets blocked
+
+GOOD:
+  Per-endpoint rate limits:
+  - /api/login    → 100 req/5min (strict)
+  - /api/signup   → 50 req/5min (strict)
+  - /api/data     → 5000 req/5min (normal)
+  - Global        → 10000 req/5min (overall safety valve)
 ```
 
 ---
 
 ## 8. FAQ
 
-### Q1. WAF の WCU（Web ACL Capacity Unit）制限にどう対処する？
+### Q1. How do I handle the WAF WCU (Web ACL Capacity Unit) limit?
 
-**A.** Web ACL のデフォルト上限は 5,000 WCU。マネージドルールの WCU を確認し、不要なルールグループを削除するか、scope-down statement でルール適用範囲を限定する。それでも不足する場合は AWS サポートに上限緩和をリクエストできる。
+**A.** The default limit for a Web ACL is 5,000 WCU. Check the WCU of each managed rule and remove unnecessary rule groups, or use scope-down statements to narrow the scope of rule application. If still insufficient, you can request a limit increase from AWS Support.
 
-### Q2. WAF のルール変更はどのくらいで反映される？
+### Q2. How quickly do WAF rule changes take effect?
 
-**A.** REGIONAL スコープ（ALB/API Gateway）は通常数秒から1分。CLOUDFRONT スコープはエッジロケーションへの伝播に数分かかる場合がある。本番環境では Count モードで事前テストすることを推奨。
+**A.** For REGIONAL scope (ALB/API Gateway), changes typically propagate within a few seconds to one minute. For CLOUDFRONT scope, propagation to edge locations may take a few minutes. It is recommended to pre-test using Count mode in production environments.
 
-### Q3. Shield Advanced は本当に $3,000/月の価値がある？
+### Q3. Is Shield Advanced really worth $3,000/month?
 
-**A.** 以下の条件に当てはまる場合は検討の価値あり:
-- DDoS 攻撃による売上損失が月 $3,000 を超える可能性がある
-- 24/7 の DDoS Response Team サポートが必要
-- DDoS によるスケールアウト費用の保護が必要
-- WAF を大規模に使用しており WAF 料金の節約になる
+**A.** It is worth considering if any of the following apply:
+- Revenue loss from DDoS attacks could exceed $3,000/month
+- 24/7 DDoS Response Team support is required
+- Protection from scale-out costs due to DDoS is needed
+- WAF is used at large scale and the WAF cost savings justify it
 
-小から中規模サービスでは Shield Standard + WAF + CloudFront の組み合わせで十分な場合が多い。
+For small to mid-sized services, the combination of Shield Standard + WAF + CloudFront is often sufficient.
 
-### Q4. WAF の誤検知が発生した場合の対処方法は？
+### Q4. What should I do when WAF false positives occur?
 
-**A.** (1) WAF ログから該当リクエストの terminatingRuleId を特定、(2) 該当ルールを ExcludedRules に追加するか Count モードに変更、(3) 必要に応じて scope-down statement で適用範囲を限定（特定パスのみ等）、(4) カスタムルールで代替の保護を実装。誤検知の頻度が高い場合はルールのラベル機能を使って詳細な制御を行う。
+**A.** (1) Identify the terminatingRuleId of the relevant request from WAF logs, (2) add the rule to ExcludedRules or switch it to Count mode, (3) use a scope-down statement to limit the scope if needed (e.g., specific paths only), (4) implement alternative protection with a custom rule. If false positives are frequent, use rule labels for more granular control.
 
-### Q5. API Gateway と ALB の WAF を使い分ける基準は？
+### Q5. What is the criteria for choosing between WAF on API Gateway vs ALB?
 
-**A.** API Gateway REST API には直接 WAF を適用可能。ALB の場合も同様。CloudFront を前段に置く場合は CloudFront の WAF が最前線になる。推奨構成は CloudFront (WAF: Geo制限/IP制限/レート制限) + ALB (WAF: SQLi/XSS/アプリケーション固有ルール) の二段構成。API Gateway を使う場合は API Gateway の WAF + API キー + Usage Plan による追加の保護を組み合わせる。
+**A.** WAF can be applied directly to API Gateway REST APIs. The same applies to ALBs. When CloudFront is placed in front, CloudFront's WAF becomes the first line of defense. The recommended configuration is a two-stage setup: CloudFront (WAF: geo restriction/IP restriction/rate limiting) + ALB (WAF: SQLi/XSS/application-specific rules). When using API Gateway, combine its WAF with API keys and Usage Plans for additional protection.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Rather than theory alone, understanding deepens by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 9. まとめ
+## 9. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| **AWS WAF** | Web ACL でルールを評価、マネージドルールで即座に一般的攻撃を防御 |
-| **Shield Standard** | 全アカウント無料、L3/L4 DDoS 自動防御 |
-| **Shield Advanced** | $3,000/月、L7 DDoS 対応、DRT サポート、コスト保護 |
-| **多層防御** | CloudFront (Edge) + ALB (Regional) の 2 段 WAF が理想 |
-| **ルール設計** | マネージドルール + カスタムルールの組み合わせ、エンドポイント別レート制限 |
-| **運用** | Count → Block の段階的移行、CloudWatch でブロック率監視 |
-| **ログ分析** | S3 + Athena でブロックパターンを分析、EventBridge で自動アラート |
-| **IaC** | CDK/Terraform で WAF 構成をコード管理、環境間の一貫性を確保 |
+| **AWS WAF** | Evaluate rules via Web ACL; use managed rules to immediately defend against common attacks |
+| **Shield Standard** | Free for all accounts; automatic L3/L4 DDoS protection |
+| **Shield Advanced** | $3,000/month; L7 DDoS support, DRT support, cost protection |
+| **Multi-layered defense** | Two-stage WAF with CloudFront (Edge) + ALB (Regional) is ideal |
+| **Rule design** | Combine managed rules with custom rules; apply per-endpoint rate limits |
+| **Operations** | Phased Count → Block migration; monitor block rate with CloudWatch |
+| **Log analysis** | Analyze block patterns with S3 + Athena; automated alerts via EventBridge |
+| **IaC** | Manage WAF configuration as code with CDK/Terraform for consistency across environments |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [01-secrets-management.md](./01-secrets-management.md) — シークレット管理で機密情報を保護
-- [00-iam-deep-dive.md](./00-iam-deep-dive.md) — IAM ポリシー設計ガイド
-- VPC セキュリティガイド — ネットワーク層の防御
+- [01-secrets-management.md](./01-secrets-management.md) — Protect sensitive information with secret management
+- [00-iam-deep-dive.md](./00-iam-deep-dive.md) — IAM policy design guide
+- VPC Security Guide — Network-layer defense
 
 ---
 
-## 参考文献
+## References
 
-1. **AWS公式ドキュメント** — "AWS WAF Developer Guide" — https://docs.aws.amazon.com/waf/latest/developerguide/
-2. **AWS公式ドキュメント** — "AWS Shield Developer Guide" — https://docs.aws.amazon.com/waf/latest/developerguide/shield-chapter.html
-3. **AWS公式ブログ** — "AWS WAF を使った一般的な Web 攻撃の防御" — https://aws.amazon.com/blogs/security/
+1. **AWS Official Documentation** — "AWS WAF Developer Guide" — https://docs.aws.amazon.com/waf/latest/developerguide/
+2. **AWS Official Documentation** — "AWS Shield Developer Guide" — https://docs.aws.amazon.com/waf/latest/developerguide/shield-chapter.html
+3. **AWS Official Blog** — "Defending common web attacks using AWS WAF" — https://aws.amazon.com/blogs/security/
 4. **AWS Well-Architected Framework** — Security Pillar — "Infrastructure protection" — https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/
 5. **AWS WAF Security Automations** — "AWS WAF Security Automations Solution" — https://aws.amazon.com/solutions/implementations/aws-waf-security-automations/
 6. **OWASP Top 10** — "OWASP Top 10 Web Application Security Risks" — https://owasp.org/www-project-top-ten/
