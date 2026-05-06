@@ -1,122 +1,122 @@
-# AI 開発ツール
+# AI Development Tools
 
-> GitHub Copilot、Claude Code CLI、Cursor を活用し、AI を開発ワークフローに統合してコーディング効率を飛躍的に向上させるためのガイド。
+> A guide for integrating AI into your development workflow using GitHub Copilot, Claude Code CLI, and Cursor to dramatically improve coding efficiency.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. GitHub Copilot の設定と効果的なプロンプトテクニック
-2. Claude Code CLI のセットアップと実践的な活用方法
-3. Cursor エディタの導入と AI エディタの比較選定
-4. AI ツールのセキュリティ・プライバシー管理
-5. チーム導入時のガバナンスとベストプラクティス
+1. GitHub Copilot configuration and effective prompting techniques
+2. Claude Code CLI setup and practical usage
+3. Cursor editor introduction and AI editor comparison
+4. Security and privacy management for AI tools
+5. Governance and best practices for team adoption
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Git 設定](./02-git-config.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of relevant foundational concepts
+- Familiarity with the content in [Git Configuration](./02-git-config.md)
 
 ---
 
-## 1. AI 開発ツールの全体像
+## 1. Overview of AI Development Tools
 
-### 1.1 主要ツール比較
+### 1.1 Key Tool Comparison
 
-| 特徴 | GitHub Copilot | Claude Code CLI | Cursor | Cody (Sourcegraph) | Windsurf | Aider |
-|------|---------------|-----------------|--------|---------------------|----------|-------|
-| 形態 | VS Code 拡張 | CLI ツール | エディタ | VS Code 拡張 | エディタ | CLI ツール |
-| AI モデル | GPT-4o / Claude | Claude | GPT-4o / Claude | 複数対応 | Claude / GPT | 複数対応 |
-| インライン補完 | あり | なし | あり | あり | あり | なし |
-| チャット | あり | あり | あり | あり | あり | あり |
-| エージェント | あり | あり | あり | 一部 | あり | あり |
-| ファイル編集 | あり | あり | あり | 限定的 | あり | あり |
-| マルチファイル | あり | あり | あり | 限定的 | あり | あり |
-| MCP サポート | あり | あり | あり | なし | あり | なし |
-| 料金 (月額) | $10-39 | 従量制 | $20 | 無料枠あり | $15 | 無料(API費用) |
-| オフライン | 不可 | 不可 | 不可 | 不可 | 不可 | 不可 |
+| Feature | GitHub Copilot | Claude Code CLI | Cursor | Cody (Sourcegraph) | Windsurf | Aider |
+|---------|---------------|-----------------|--------|---------------------|----------|-------|
+| Type | VS Code extension | CLI tool | Editor | VS Code extension | Editor | CLI tool |
+| AI Model | GPT-4o / Claude | Claude | GPT-4o / Claude | Multiple | Claude / GPT | Multiple |
+| Inline Completion | Yes | No | Yes | Yes | Yes | No |
+| Chat | Yes | Yes | Yes | Yes | Yes | Yes |
+| Agent | Yes | Yes | Yes | Partial | Yes | Yes |
+| File Editing | Yes | Yes | Yes | Limited | Yes | Yes |
+| Multi-file | Yes | Yes | Yes | Limited | Yes | Yes |
+| MCP Support | Yes | Yes | Yes | No | Yes | No |
+| Price (monthly) | $10-39 | Pay-as-you-go | $20 | Free tier available | $15 | Free (API costs) |
+| Offline | No | No | No | No | No | No |
 
-### 1.2 AI ツールの役割分担
+### 1.2 Role Division Among AI Tools
 
 ```
-AI 開発ツールの活用レイヤー:
+AI Development Tool Usage Layers:
 
 ┌─────────────────────────────────────────────┐
-│            開発ワークフロー                    │
+│            Development Workflow               │
 ├──────────────┬──────────────┬───────────────┤
-│   コード記述  │  コードレビュー │  アーキテクチャ  │
+│ Code Writing │ Code Review  │ Architecture  │
 │              │              │               │
 │  Copilot     │  Claude Code │  Claude Code  │
 │  Cursor      │  Copilot Chat│  Cursor       │
-│  (補完中心)   │  (分析中心)   │  (設計中心)    │
+│  (completion)│  (analysis)  │  (design)     │
 ├──────────────┼──────────────┼───────────────┤
-│   デバッグ    │  テスト生成   │  ドキュメント   │
+│  Debugging   │ Test Gen     │ Documentation │
 │              │              │               │
 │  Copilot Chat│  Claude Code │  Claude Code  │
 │  Cursor      │  Copilot     │  Copilot Chat │
-│  (対話中心)   │  (生成中心)   │  (生成中心)    │
+│  (dialogue)  │  (generation)│  (generation) │
 ├──────────────┼──────────────┼───────────────┤
-│  CI/CD 設定   │  マイグレーション│  学習・調査    │
+│  CI/CD Setup │  Migration   │  Learning     │
 │              │              │               │
 │  Claude Code │  Claude Code │  Copilot Chat │
 │  Cursor      │  Cursor      │  Claude Code  │
-│  (生成中心)   │  (分析+生成)  │  (対話中心)    │
+│  (generation)│(analysis+gen)│  (dialogue)   │
 └──────────────┴──────────────┴───────────────┘
 ```
 
-### 1.3 AI 開発ツールの進化 (2024-2026)
+### 1.3 Evolution of AI Development Tools (2024–2026)
 
 ```
-AI 開発ツールのパラダイムシフト:
+Paradigm Shift in AI Development Tools:
 
-  2023: 補完 (Autocomplete)
-  ├── 1行～数行のコード補完
-  ├── Tab キーで受け入れ
-  └── コンテキスト: 現在のファイル
+  2023: Completion (Autocomplete)
+  ├── Single-line to multi-line code completion
+  ├── Accept with Tab key
+  └── Context: current file
 
-  2024: チャット + エージェント
-  ├── マルチファイル編集
-  ├── ターミナルコマンド実行
-  ├── テスト生成・実行
-  └── コンテキスト: プロジェクト全体
+  2024: Chat + Agent
+  ├── Multi-file editing
+  ├── Terminal command execution
+  ├── Test generation and execution
+  └── Context: entire project
 
-  2025-2026: 自律エージェント
-  ├── タスク全体の自律実行
-  ├── Plan → Code → Test → Fix サイクル
-  ├── MCP でツール連携
-  ├── CI/CD パイプライン統合
-  └── コンテキスト: リポジトリ + 外部知識
+  2025-2026: Autonomous Agents
+  ├── Autonomous execution of full tasks
+  ├── Plan → Code → Test → Fix cycle
+  ├── Tool integration via MCP
+  ├── CI/CD pipeline integration
+  └── Context: repository + external knowledge
 ```
 
 ---
 
 ## 2. GitHub Copilot
 
-### 2.1 セットアップ
+### 2.1 Setup
 
 ```bash
-# VS Code に拡張機能をインストール
+# Install extensions in VS Code
 code --install-extension GitHub.copilot
 code --install-extension GitHub.copilot-chat
 
-# GitHub アカウントでサインイン
-# VS Code 左下のアカウントアイコン → Sign in with GitHub
+# Sign in with your GitHub account
+# Click the account icon in the bottom-left of VS Code → Sign in with GitHub
 
-# プラン確認
-# GitHub → Settings → Copilot → ライセンスタイプ確認
-# Individual: $10/月
-# Business: $19/月 (組織管理、IP保護)
-# Enterprise: $39/月 (カスタマイズ、監査ログ)
+# Check your plan
+# GitHub → Settings → Copilot → Check license type
+# Individual: $10/month
+# Business: $19/month (org management, IP protection)
+# Enterprise: $39/month (customization, audit logs)
 ```
 
-### 2.2 VS Code 設定
+### 2.2 VS Code Settings
 
 ```jsonc
 // .vscode/settings.json
 {
-  // Copilot の基本設定
+  // Basic Copilot settings
   "github.copilot.enable": {
     "*": true,
     "plaintext": false,
@@ -124,54 +124,54 @@ code --install-extension GitHub.copilot-chat
     "yaml": true
   },
 
-  // インライン候補の表示
+  // Show inline suggestions
   "editor.inlineSuggest.enabled": true,
 
-  // 言語ごとの無効化 (機密ファイル)
+  // Disable for specific file types (sensitive files)
   "github.copilot.enable": {
     "dotenv": false,
     "properties": false,
     "ini": false
   },
 
-  // Copilot Chat の設定
+  // Copilot Chat settings
   "github.copilot.chat.localeOverride": "ja",
 
-  // エディタ内での候補表示設定
+  // Inline suggestion display settings
   "github.copilot.editor.enableAutoCompletions": true,
 
-  // Next Edit Suggestions (NES) の有効化
+  // Enable Next Edit Suggestions (NES)
   "github.copilot.nextEditSuggestions.enabled": true
 }
 ```
 
-### 2.3 効果的なプロンプトテクニック
+### 2.3 Effective Prompting Techniques
 
 ```typescript
-// ─── テクニック 1: 関数シグネチャ + コメントで誘導 ───
+// ─── Technique 1: Guide with function signature + comments ───
 
-// ユーザーの年齢を検証する。18歳未満は不可。
-// エラー時は具体的なメッセージを返す。
+// Validates a user's age. Under 18 is not allowed.
+// Returns a specific message on error.
 function validateAge(age: unknown): { valid: boolean; message: string } {
-  // ← Copilot が適切な実装を提案
+  // ← Copilot suggests an appropriate implementation
 }
 
-// ─── テクニック 2: テストケースを先に書く (TDD) ───
+// ─── Technique 2: Write tests first (TDD) ───
 
 describe('calculateDiscount', () => {
-  it('通常会員は5%割引', () => {
+  it('regular members get 5% discount', () => {
     expect(calculateDiscount(1000, 'normal')).toBe(950);
   });
-  it('プレミアム会員は15%割引', () => {
+  it('premium members get 15% discount', () => {
     expect(calculateDiscount(1000, 'premium')).toBe(850);
   });
-  it('割引後の金額は0未満にならない', () => {
+  it('discounted price should not go below 0', () => {
     expect(calculateDiscount(10, 'premium')).toBe(0);
   });
 });
-// → テストから実装を自動生成させる
+// → Auto-generate implementation from tests
 
-// ─── テクニック 3: 型定義から実装を生成 ───
+// ─── Technique 3: Generate implementation from type definitions ───
 
 type SortDirection = 'asc' | 'desc';
 
@@ -182,28 +182,28 @@ interface SortOptions<T> {
 }
 
 function sortBy<T>(options: SortOptions<T>): T[] {
-  // ← 型情報から正確な実装が提案される
+  // ← Accurate implementation is suggested from type information
 }
 
-// ─── テクニック 4: 例示パターン (Few-shot) ───
+// ─── Technique 4: Few-shot example pattern ───
 
-// 既にある関数の隣に同様の関数を書くと、パターンを学習して提案
+// Writing a similar function next to an existing one teaches the pattern
 function getUserById(id: string): Promise<User> {
   return db.users.findUnique({ where: { id } });
 }
 
 function getPostById(id: string): Promise<Post> {
-  // ← 上の関数のパターンから正確に推論
+  // ← Accurately inferred from the pattern above
 }
 
-// ─── テクニック 5: JSDoc で意図を明示 ───
+// ─── Technique 5: Clarify intent with JSDoc ───
 
 /**
- * CSV ファイルを読み込み、指定されたカラムでグループ化する
- * @param filePath CSVファイルのパス
- * @param groupBy グループ化するカラム名
- * @returns グループ化されたデータ
- * @throws FileNotFoundError ファイルが存在しない場合
+ * Reads a CSV file and groups the data by a specified column
+ * @param filePath Path to the CSV file
+ * @param groupBy Column name to group by
+ * @returns Grouped data
+ * @throws FileNotFoundError if the file does not exist
  * @example
  * const result = await groupCsvByColumn('./data.csv', 'department');
  * // { 'engineering': [...], 'marketing': [...] }
@@ -212,60 +212,60 @@ async function groupCsvByColumn(
   filePath: string,
   groupBy: string
 ): Promise<Record<string, any[]>> {
-  // ← JSDoc の情報から正確な実装が提案される
+  // ← Accurate implementation is suggested from JSDoc information
 }
 ```
 
-### 2.4 Copilot Chat の活用
+### 2.4 Using Copilot Chat
 
 ```
-Copilot Chat の主要コマンド:
+Copilot Chat Key Commands:
 
 ┌──────────────────────────────────────────┐
-│ /explain   → コードの説明                 │
-│ /fix       → バグ修正の提案               │
-│ /tests     → テストコード生成             │
-│ /doc       → ドキュメント生成             │
-│ /optimize  → パフォーマンス最適化提案     │
-│ /new       → 新規ファイル/プロジェクト生成│
-│ @workspace → ワークスペース全体を文脈に   │
-│ @terminal  → ターミナル出力を文脈に       │
-│ @vscode    → VS Code の設定に関する質問   │
-│ @github    → GitHub 関連の操作            │
-│ #file      → 特定ファイルを文脈に追加     │
-│ #selection → 選択中のコードを文脈に       │
-│ #codebase  → コードベース全体を検索       │
-│ #terminalSelection → ターミナル選択を文脈に│
+│ /explain   → Explain code                 │
+│ /fix       → Suggest bug fixes            │
+│ /tests     → Generate test code           │
+│ /doc       → Generate documentation       │
+│ /optimize  → Suggest performance optimizations │
+│ /new       → Generate new file/project    │
+│ @workspace → Include entire workspace as context │
+│ @terminal  → Include terminal output as context │
+│ @vscode    → Ask about VS Code settings   │
+│ @github    → GitHub-related operations    │
+│ #file      → Add specific file to context │
+│ #selection → Add selected code to context │
+│ #codebase  → Search entire codebase       │
+│ #terminalSelection → Add terminal selection to context │
 └──────────────────────────────────────────┘
 
-効果的な使い方の例:
-  "@workspace このプロジェクトの認証フローを説明して"
-  "#file:src/auth/middleware.ts /fix セキュリティの問題を修正して"
-  "@terminal このエラーの原因と解決策を教えて"
-  "#selection /tests このコードのユニットテストを生成して"
-  "/explain この正規表現は何をしているか"
+Examples of effective usage:
+  "@workspace Explain the authentication flow of this project"
+  "#file:src/auth/middleware.ts /fix Fix the security issues"
+  "@terminal Explain the cause of this error and how to fix it"
+  "#selection /tests Generate unit tests for this code"
+  "/explain What does this regex do"
 ```
 
-### 2.5 Copilot Agent モード (Copilot Edits)
+### 2.5 Copilot Agent Mode (Copilot Edits)
 
 ```
-Copilot Agent モード (VS Code):
+Copilot Agent Mode (VS Code):
 
   ┌─────────────────────────────────────────┐
   │ Cmd+Shift+I (macOS) / Ctrl+Shift+I      │
   │                                           │
-  │ 機能:                                    │
-  │ - 複数ファイルにまたがる変更を一括実行   │
-  │ - ファイルの作成・削除も可能             │
-  │ - 変更のプレビュー付き                   │
-  │ - Undo/Redo 対応                         │
+  │ Features:                                 │
+  │ - Apply changes across multiple files at once │
+  │ - Create and delete files                 │
+  │ - Preview changes before applying         │
+  │ - Supports Undo/Redo                      │
   │                                           │
-  │ 使用例:                                  │
-  │ "Userモデルにemailフィールドを追加して、  │
-  │  バリデーション、テスト、マイグレーション │
-  │  も一緒に更新して"                       │
+  │ Example:                                  │
+  │ "Add an email field to the User model,    │
+  │  and also update the validation,          │
+  │  tests, and migrations"                   │
   │                                           │
-  │ → 4-5ファイルを同時に正確に変更          │
+  │ → Accurately modifies 4-5 files at once  │
   └─────────────────────────────────────────┘
 ```
 
@@ -273,195 +273,195 @@ Copilot Agent モード (VS Code):
 
 ## 3. Claude Code CLI
 
-### 3.1 インストール
+### 3.1 Installation
 
 ```bash
-# npm でインストール
+# Install via npm
 npm install -g @anthropic-ai/claude-code
 
-# 認証
+# Authenticate
 claude auth login
 
-# バージョン確認
+# Check version
 claude --version
 
-# アップデート
+# Update
 npm update -g @anthropic-ai/claude-code
 ```
 
-### 3.2 基本的な使い方
+### 3.2 Basic Usage
 
 ```bash
-# インタラクティブモードで起動
+# Launch in interactive mode
 claude
 
-# ワンショットコマンド
-claude "このプロジェクトの構造を説明して"
+# One-shot command
+claude "Explain the structure of this project"
 
-# パイプで入力
-cat error.log | claude "このエラーの原因を分析して"
+# Pipe input
+cat error.log | claude "Analyze the cause of this error"
 
-# 特定ファイルを指定
-claude "この関数のテストを書いて" --file src/utils/validate.ts
+# Specify a file
+claude "Write tests for this function" --file src/utils/validate.ts
 
-# 出力形式の指定
-claude --output-format json "package.json の依存関係を分析して"
+# Specify output format
+claude --output-format json "Analyze the dependencies in package.json"
 
-# ─── セッション管理 ───
-claude --resume         # 前回のセッションを再開
-claude --session-id abc  # 特定セッションを再開
+# ─── Session management ───
+claude --resume         # Resume previous session
+claude --session-id abc  # Resume a specific session
 
-# ─── モデル指定 ───
-# デフォルトは最新の Claude モデル
-# API キーに応じたモデルが使用される
+# ─── Model selection ───
+# Defaults to the latest Claude model
+# The model used depends on your API key
 ```
 
-### 3.3 プロジェクト設定
+### 3.3 Project Configuration
 
 ```markdown
-# CLAUDE.md (プロジェクトルートに配置)
+# CLAUDE.md (place in project root)
 
-## プロジェクト概要
-TypeScript + React のWebアプリケーション
-バックエンドは Express + Prisma
+## Project Overview
+Web application built with TypeScript + React
+Backend uses Express + Prisma
 
-## 技術スタック
+## Tech Stack
 - Frontend: React 19, TypeScript, Tailwind CSS, Zustand
 - Backend: Express, Prisma, PostgreSQL
 - Testing: Vitest, React Testing Library, Playwright
 - CI/CD: GitHub Actions
 - Deploy: Vercel (Frontend), Railway (Backend)
 
-## コーディング規約
-- 関数コンポーネントのみ使用 (クラスコンポーネント禁止)
-- 状態管理は Zustand を使用
-- スタイリングは Tailwind CSS
-- テストは Vitest + Testing Library
-- エラーハンドリングは Result 型パターン
-- `any` 型の使用禁止
-- console.log の使用禁止 (logger を使用)
+## Coding Conventions
+- Use functional components only (no class components)
+- State management with Zustand
+- Styling with Tailwind CSS
+- Testing with Vitest + Testing Library
+- Error handling with Result type pattern
+- No use of `any` type
+- No use of console.log (use logger instead)
 
-## ディレクトリ構造
+## Directory Structure
 ```
 src/
-├── components/    # UIコンポーネント
-│   ├── ui/        # 汎用コンポーネント (Button, Input等)
-│   ├── features/  # 機能別コンポーネント
-│   └── layouts/   # レイアウトコンポーネント
-├── hooks/         # カスタムフック
-├── stores/        # Zustand ストア
-├── utils/         # ユーティリティ関数
-├── types/         # 型定義
-├── lib/           # 外部ライブラリのラッパー
-├── api/           # API クライアント
-└── __tests__/     # テスト
+├── components/    # UI components
+│   ├── ui/        # Generic components (Button, Input, etc.)
+│   ├── features/  # Feature-specific components
+│   └── layouts/   # Layout components
+├── hooks/         # Custom hooks
+├── stores/        # Zustand stores
+├── utils/         # Utility functions
+├── types/         # Type definitions
+├── lib/           # External library wrappers
+├── api/           # API clients
+└── __tests__/     # Tests
 ```
 
-## コマンド
-- `npm run dev` - 開発サーバー起動 (port 3000)
-- `npm test` - テスト実行
-- `npm run test:watch` - テスト監視モード
-- `npm run build` - ビルド
-- `npm run lint` - ESLint 実行
-- `npm run lint:fix` - ESLint 自動修正
-- `npm run format` - Prettier 実行
-- `npm run typecheck` - TypeScript 型チェック
-- `npm run db:migrate` - Prisma マイグレーション実行
-- `npm run db:seed` - シードデータ投入
+## Commands
+- `npm run dev` - Start development server (port 3000)
+- `npm test` - Run tests
+- `npm run test:watch` - Watch mode for tests
+- `npm run build` - Build
+- `npm run lint` - Run ESLint
+- `npm run lint:fix` - Auto-fix ESLint issues
+- `npm run format` - Run Prettier
+- `npm run typecheck` - TypeScript type check
+- `npm run db:migrate` - Run Prisma migration
+- `npm run db:seed` - Seed data
 
-## やってはいけないこと
-- テストなしで機能を追加しない
-- Prisma の raw query を使わない (ORM メソッドを使用)
-- 環境変数をハードコードしない
-- node_modules 内のファイルを変更しない
+## What NOT to Do
+- Do not add features without tests
+- Do not use raw Prisma queries (use ORM methods)
+- Do not hardcode environment variables
+- Do not modify files inside node_modules
 ```
 
-### 3.4 CLAUDE.md の階層構造
+### 3.4 CLAUDE.md Hierarchy
 
 ```bash
-# CLAUDE.md は複数の場所に配置可能
-# 優先順位: ローカル > プロジェクト > グローバル
+# CLAUDE.md can be placed in multiple locations
+# Priority: local > project > global
 
-~/.claude/CLAUDE.md              # グローバル設定 (全プロジェクト共通)
-~/projects/my-app/CLAUDE.md      # プロジェクトルート
-~/projects/my-app/src/CLAUDE.md  # サブディレクトリ (追加ルール)
+~/.claude/CLAUDE.md              # Global settings (shared across all projects)
+~/projects/my-app/CLAUDE.md      # Project root
+~/projects/my-app/src/CLAUDE.md  # Subdirectory (additional rules)
 
-# グローバル CLAUDE.md の例
+# Example global CLAUDE.md
 # ~/.claude/CLAUDE.md
 # ---
-# ## 共通ルール
-# - 日本語でコメントを書くこと
-# - TypeScript を使用する場合は strict モードを有効にする
-# - テストは必ずユニットテストと統合テストを含める
-# - コミットメッセージは Conventional Commits に従う
+# ## Common Rules
+# - Write comments in Japanese
+# - Enable strict mode when using TypeScript
+# - Always include both unit tests and integration tests
+# - Follow Conventional Commits for commit messages
 ```
 
-### 3.5 実践的なワークフロー
+### 3.5 Practical Workflow
 
 ```
-Claude Code の典型的な活用パターン:
+Typical Claude Code Usage Patterns:
 
 ┌─────────────────────────────────────────┐
-│ 1. コードレビュー                        │
-│    claude "src/api/の変更をレビューして"   │
-│    → セキュリティ・パフォーマンス指摘     │
-│    → 具体的な改善コード提案              │
+│ 1. Code Review                           │
+│    claude "Review changes in src/api/"   │
+│    → Flags security and performance issues │
+│    → Proposes specific improvement code  │
 │                                           │
-│ 2. リファクタリング                      │
-│    claude "この関数を小さく分割して"       │
-│    → ファイル分割とテスト更新を一括実行  │
-│    → import パスの自動更新              │
+│ 2. Refactoring                           │
+│    claude "Split this function into smaller pieces" │
+│    → Splits files and updates tests together │
+│    → Auto-updates import paths            │
 │                                           │
-│ 3. バグ修正                              │
-│    cat error.log | claude "修正して"      │
-│    → エラー分析 → 原因特定 → 修正適用   │
-│    → テストで修正を検証                  │
+│ 3. Bug Fixing                            │
+│    cat error.log | claude "Fix this"      │
+│    → Analyzes error → Identifies cause → Applies fix │
+│    → Verifies fix with tests              │
 │                                           │
-│ 4. テスト生成                            │
-│    claude "src/utils/のテストを追加して"   │
-│    → カバレッジの低い部分を特定して生成  │
-│    → エッジケースの網羅                  │
+│ 4. Test Generation                       │
+│    claude "Add tests for src/utils/"      │
+│    → Identifies low-coverage areas and generates tests │
+│    → Covers edge cases                    │
 │                                           │
-│ 5. ドキュメント更新                      │
-│    claude "API変更に合わせてREADME更新"    │
-│    → コード変更を検出して自動反映        │
+│ 5. Documentation Update                  │
+│    claude "Update README to match API changes" │
+│    → Detects code changes and auto-applies them │
 │                                           │
-│ 6. マイグレーション                      │
-│    claude "React Router v6 → v7 に移行"   │
-│    → Breaking Changes の検出と修正       │
-│    → テストの更新                        │
+│ 6. Migration                             │
+│    claude "Migrate from React Router v6 to v7" │
+│    → Detects and fixes breaking changes   │
+│    → Updates tests                        │
 │                                           │
-│ 7. 新機能実装                            │
-│    claude "ユーザー招待機能を実装して"     │
-│    → DB設計 → API → UI → テスト         │
-│    → 段階的にファイルを作成・編集        │
+│ 7. New Feature Implementation            │
+│    claude "Implement a user invitation feature" │
+│    → DB design → API → UI → Tests        │
+│    → Creates and edits files step by step │
 │                                           │
-│ 8. CI/CD 構築                            │
-│    claude "GitHub Actions の CI を設定して"│
-│    → lint → test → build → deploy       │
-│    → キャッシュ最適化も自動で            │
+│ 8. CI/CD Setup                           │
+│    claude "Set up CI with GitHub Actions" │
+│    → lint → test → build → deploy        │
+│    → Cache optimization included automatically │
 └─────────────────────────────────────────┘
 ```
 
-### 3.6 Claude Code のスラッシュコマンド
+### 3.6 Claude Code Slash Commands
 
 ```bash
-# インタラクティブモード内で使用
-/help           # ヘルプ表示
-/clear          # 会話履歴をクリア
-/compact        # コンテキストを圧縮 (メモリ節約)
-/config         # 設定の確認・変更
-/cost           # 現在のセッションのコスト表示
-/doctor         # 環境診断
-/init           # CLAUDE.md の初期化
-/review         # コードレビューモード
-/terminal       # ターミナルコマンド実行
+# Used in interactive mode
+/help           # Display help
+/clear          # Clear conversation history
+/compact        # Compress context (save memory)
+/config         # View/change settings
+/cost           # Show cost for current session
+/doctor         # Run environment diagnostics
+/init           # Initialize CLAUDE.md
+/review         # Enter code review mode
+/terminal       # Execute terminal commands
 
-# MCP (Model Context Protocol) ツール
-/mcp            # MCP サーバーの管理
+# MCP (Model Context Protocol) tools
+/mcp            # Manage MCP servers
 ```
 
-### 3.7 Claude Code の MCP 統合
+### 3.7 Claude Code MCP Integration
 
 ```json
 // ~/.claude/claude_desktop_config.json
@@ -497,7 +497,7 @@ Claude Code の典型的な活用パターン:
 ```
 
 ```
-MCP (Model Context Protocol) の活用:
+Using MCP (Model Context Protocol):
 
   ┌─────────────────────────────────────────┐
   │  Claude Code                             │
@@ -507,11 +507,11 @@ MCP (Model Context Protocol) の活用:
   │  │ Server  │ │ Server   │ │  Server  │ │
   │  └─────────┘ └──────────┘ └──────────┘ │
   │                                           │
-  │  活用例:                                 │
-  │  - GitHub Issues から仕様を取得して実装   │
-  │  - DB スキーマを確認しながらクエリ作成   │
-  │  - ドキュメントを検索して最新の API 確認 │
-  │  - PR のコメントを分析してコード修正     │
+  │  Use cases:                              │
+  │  - Fetch specs from GitHub Issues and implement them │
+  │  - Create queries while checking the DB schema │
+  │  - Search documentation to check the latest API │
+  │  - Analyze PR comments and fix code      │
   └─────────────────────────────────────────┘
 ```
 
@@ -519,58 +519,58 @@ MCP (Model Context Protocol) の活用:
 
 ## 4. Cursor
 
-### 4.1 セットアップ
+### 4.1 Setup
 
 ```bash
 # macOS
 brew install --cask cursor
 
-# VS Code 設定のインポート
-# Cursor 初回起動時に "Import VS Code Settings" を選択
-# → 拡張機能、設定、キーバインドが自動移行
+# Import VS Code settings
+# Select "Import VS Code Settings" on first launch
+# → Extensions, settings, and keybindings are migrated automatically
 ```
 
-### 4.2 Cursor 固有の機能
+### 4.2 Cursor-Specific Features
 
 ```
-Cursor の AI 機能:
+Cursor AI Features:
 
   ┌─────────────────────────────────────────┐
   │ Cmd+K (Inline Edit)                      │
-  │   コード内で直接 AI に編集を依頼          │
-  │   例: "この関数にエラーハンドリングを追加" │
-  │   選択範囲がある場合はその部分を編集     │
-  │   選択なしの場合は新しいコードを生成     │
+  │   Ask AI to edit directly within code    │
+  │   Example: "Add error handling to this function" │
+  │   If a selection exists, edits that part │
+  │   Without selection, generates new code  │
   ├─────────────────────────────────────────┤
   │ Cmd+L (Chat)                             │
-  │   サイドパネルで AI と対話               │
-  │   @ファイル名 で特定ファイルを参照       │
-  │   @codebase でプロジェクト全体を検索     │
-  │   @docs で公式ドキュメントを参照         │
-  │   @web でウェブ検索結果を参照            │
+  │   Interact with AI in a side panel       │
+  │   Reference a file with @filename        │
+  │   Search the entire project with @codebase │
+  │   Reference official docs with @docs     │
+  │   Reference web search results with @web │
   ├─────────────────────────────────────────┤
   │ Cmd+I (Composer)                         │
-  │   複数ファイルにまたがる変更を一括実行   │
-  │   プロジェクト全体の文脈を理解           │
-  │   Agent モード: 自律的にコード変更       │
-  │   ファイル作成・削除も可能               │
+  │   Apply changes across multiple files at once │
+  │   Understands the full project context   │
+  │   Agent mode: changes code autonomously  │
+  │   Can create and delete files            │
   ├─────────────────────────────────────────┤
   │ Tab (Autocomplete)                       │
-  │   次の編集位置を予測して提案             │
-  │   複数行の変更を一度に適用               │
-  │   カーソル位置から文脈を推測             │
-  │   diff に基づく編集予測                  │
+  │   Predicts and suggests the next edit position │
+  │   Applies multi-line changes at once     │
+  │   Infers context from cursor position    │
+  │   Predicts edits based on diff           │
   ├─────────────────────────────────────────┤
   │ Cmd+Shift+K (Terminal Cmd+K)             │
-  │   ターミナル内でAIにコマンドを生成させる │
-  │   自然言語 → シェルコマンドに変換       │
+  │   Have AI generate commands in the terminal │
+  │   Converts natural language to shell commands │
   └─────────────────────────────────────────┘
 ```
 
-### 4.3 .cursorrules 設定
+### 4.3 .cursorrules Configuration
 
 ```markdown
-# .cursorrules (プロジェクトルートに配置)
+# .cursorrules (place in project root)
 
 You are an expert TypeScript developer working on a React + Express application.
 
@@ -622,13 +622,13 @@ You are an expert TypeScript developer working on a React + Express application.
 - Subject in English, body in Japanese is OK
 ```
 
-### 4.4 Cursor の @docs 機能
+### 4.4 Cursor @docs Feature
 
 ```bash
-# Cursor の @docs で外部ドキュメントを参照可能
+# Cursor's @docs allows referencing external documentation
 # Cursor Settings → Features → Docs → Add
 
-# 追加推奨ドキュメント:
+# Recommended docs to add:
 # - React: https://react.dev
 # - Next.js: https://nextjs.org/docs
 # - Tailwind CSS: https://tailwindcss.com/docs
@@ -636,144 +636,144 @@ You are an expert TypeScript developer working on a React + Express application.
 # - tRPC: https://trpc.io/docs
 # - Vitest: https://vitest.dev/guide/
 
-# 使い方:
-# Chat で "@docs React の useEffect の正しい使い方を教えて"
-# → React 公式ドキュメントの内容を踏まえた回答
+# Usage:
+# In Chat: "@docs Explain the correct usage of useEffect in React"
+# → Answer based on the official React documentation
 ```
 
 ---
 
-## 5. AI ツールの効率的な使い分け
+## 5. Efficient Use of AI Tools
 
-### 5.1 タスク別最適ツール
+### 5.1 Best Tool for Each Task
 
-| タスク | 推奨ツール | 理由 |
-|--------|-----------|------|
-| 1行のコード補完 | Copilot / Cursor Tab | リアルタイム補完が最速 |
-| 関数の実装 | Copilot + コメント誘導 | シグネチャから推論 |
-| バグ修正 | Claude Code / Cursor | コンテキスト理解が深い |
-| リファクタリング | Claude Code | 複数ファイル一括変更 |
-| テスト生成 | Claude Code / Copilot | 既存コードから推論 |
-| コードレビュー | Claude Code | セキュリティ分析に強い |
-| アーキテクチャ設計 | Claude Code / Cursor | 大局的な判断が必要 |
-| 学習・理解 | Copilot Chat / Claude | 対話で深掘り |
-| DB マイグレーション | Claude Code | スキーマ理解+SQL生成 |
-| CI/CD 構築 | Claude Code / Cursor | YAML 生成が正確 |
-| ドキュメント生成 | Claude Code | 構造化された出力 |
-| 依存関係更新 | Claude Code | Breaking Changes 検出 |
+| Task | Recommended Tool | Reason |
+|------|-----------------|--------|
+| Single-line code completion | Copilot / Cursor Tab | Fastest real-time completion |
+| Function implementation | Copilot + comment guidance | Infers from signature |
+| Bug fixing | Claude Code / Cursor | Deep context understanding |
+| Refactoring | Claude Code | Batch multi-file changes |
+| Test generation | Claude Code / Copilot | Infers from existing code |
+| Code review | Claude Code | Strong at security analysis |
+| Architecture design | Claude Code / Cursor | Requires big-picture judgment |
+| Learning and exploration | Copilot Chat / Claude | Deep-dive through dialogue |
+| DB migration | Claude Code | Schema understanding + SQL generation |
+| CI/CD setup | Claude Code / Cursor | Accurate YAML generation |
+| Documentation generation | Claude Code | Structured output |
+| Dependency updates | Claude Code | Detects breaking changes |
 
-### 5.2 プロンプトエンジニアリング原則
+### 5.2 Prompt Engineering Principles
 
 ```
-効果的なプロンプトの構造:
+Structure of an Effective Prompt:
 
 ┌─────────────────────────────────────────┐
-│ 1. コンテキスト (何のプロジェクトか)      │
-│    "TypeScript + Express の REST API で"  │
+│ 1. Context (what project is it?)         │
+│    "In a TypeScript + Express REST API"  │
 │                                           │
-│ 2. タスク (何をしてほしいか)              │
-│    "ユーザー認証のミドルウェアを作成して"   │
+│ 2. Task (what do you want it to do?)     │
+│    "Create a user authentication middleware" │
 │                                           │
-│ 3. 制約 (守るべきルール)                  │
-│    "JWT を使い、エラーは AppError で統一"   │
+│ 3. Constraints (rules to follow)         │
+│    "Use JWT, unify errors with AppError"  │
 │                                           │
-│ 4. 出力形式 (どう返してほしいか)          │
-│    "型定義とテストも含めて"               │
+│ 4. Output format (how to return it?)     │
+│    "Include type definitions and tests"   │
 │                                           │
-│ 5. 例示 (具体的な入出力例)               │
-│    "入力: { email, password }             │
-│     出力: { token, user }"                │
+│ 5. Examples (concrete input/output)      │
+│    "Input: { email, password }            │
+│     Output: { token, user }"             │
 └─────────────────────────────────────────┘
 
-❌ "認証を作って"
+Bad: "Create authentication"
 
-✅ "Express + TypeScript で JWT ベースの認証ミドルウェアを作成して。
-    トークンの検証失敗時は 401 を返し、AppError クラスを使って
-    エラーハンドリングすること。リフレッシュトークンの仕組みも含める。
-    Vitest のテストも含めて。"
+Good: "Create a JWT-based authentication middleware for Express + TypeScript.
+    Return 401 on token verification failure, use the AppError class
+    for error handling, and include a refresh token mechanism.
+    Also include Vitest tests."
 
-さらに良い:
-✅ "Express + TypeScript で JWT 認証ミドルウェアを実装してください。
+Even better:
+"Implement a JWT authentication middleware for Express + TypeScript.
 
-    要件:
-    1. アクセストークン (15分) とリフレッシュトークン (7日) の2トークン方式
-    2. リフレッシュトークンは HTTP-only Cookie に保存
-    3. トークン検証失敗時は AppError(401, 'UNAUTHORIZED') を throw
-    4. req.user に { id, email, role } をセット
+    Requirements:
+    1. Two-token approach: access token (15 min) + refresh token (7 days)
+    2. Store refresh token in HTTP-only Cookie
+    3. Throw AppError(401, 'UNAUTHORIZED') on token verification failure
+    4. Set { id, email, role } in req.user
 
-    既存のコード:
-    - AppError クラス: src/errors/AppError.ts
-    - User 型: src/types/User.ts
-    - 環境変数: JWT_SECRET, JWT_REFRESH_SECRET
+    Existing code:
+    - AppError class: src/errors/AppError.ts
+    - User type: src/types/User.ts
+    - Environment variables: JWT_SECRET, JWT_REFRESH_SECRET
 
-    テストは Vitest で、正常系と異常系の両方を含めてください。"
+    Please include Vitest tests covering both success and failure cases."
 ```
 
-### 5.3 反復的な改善プロセス
+### 5.3 Iterative Improvement Process
 
 ```
-AI との効果的な反復プロセス:
+Effective Iterative Process with AI:
 
-  Step 1: 初回指示
-  ├── 要件を明確に伝える
-  ├── 技術スタックを指定
-  └── 出力形式を指定
+  Step 1: Initial Instruction
+  ├── Clearly communicate requirements
+  ├── Specify the tech stack
+  └── Specify the output format
 
-  Step 2: レビューと修正指示
-  ├── 生成されたコードをレビュー
-  ├── 問題点を具体的にフィードバック
-  └── "〇〇の部分を △△ に変更して"
+  Step 2: Review and Correction
+  ├── Review the generated code
+  ├── Provide specific feedback on issues
+  └── "Change the X part to Y"
 
-  Step 3: テストで検証
-  ├── テストを実行
-  ├── 失敗するテストを報告
-  └── "このテストが失敗する。修正して"
+  Step 3: Validate with Tests
+  ├── Run tests
+  ├── Report failing tests
+  └── "This test fails. Fix it."
 
-  Step 4: エッジケース対処
-  ├── "空配列の場合はどうなる？"
-  ├── "並行処理でのレースコンディションは？"
-  └── "100万件のデータでのパフォーマンスは？"
+  Step 4: Address Edge Cases
+  ├── "What happens with an empty array?"
+  ├── "Are there race conditions in concurrent processing?"
+  └── "What's the performance with 1 million records?"
 
-  避けるべきパターン:
-  ❌ 一度で完璧を求める
-  ❌ 曖昧な指示で "いい感じに" 頼む
-  ❌ 生成結果を読まずに次の指示を出す
-  ✅ 小さく分割して段階的に改善する
+  Patterns to Avoid:
+  Bad: Expecting perfection in one shot
+  Bad: Vague instructions like "make it look good"
+  Bad: Issuing the next instruction without reading the output
+  Good: Divide into small pieces and improve incrementally
 ```
 
 ---
 
-## 6. セキュリティとプライバシー
+## 6. Security and Privacy
 
-### 6.1 注意すべき設定
+### 6.1 Important Settings
 
 ```jsonc
 // .vscode/settings.json
 {
-  // 機密ファイルでの Copilot 無効化
+  // Disable Copilot for sensitive files
   "github.copilot.enable": {
     "dotenv": false,
     "properties": false,
     "ini": false
   },
 
-  // Telemetry の制限
+  // Telemetry restrictions
   "github.copilot.advanced": {
-    // 公開コードと類似する提案をブロック
+    // Block suggestions similar to public code
     "duplicationDetection": "block"
   }
 }
 ```
 
 ```bash
-# .gitignore に AI 関連の設定ファイルを追加
-echo '.cursorrules' >> .gitignore  # 必要に応じて
-# CLAUDE.md はコミットする (チーム共有のため)
+# Add AI-related config files to .gitignore
+echo '.cursorrules' >> .gitignore  # if needed
+# CLAUDE.md should be committed (for team sharing)
 
-# ─── .aiignore (Claude Code 用) ───
-# Claude Code に読ませたくないファイルを指定
+# ─── .aiignore (for Claude Code) ───
+# Specify files you don't want Claude Code to read
 cat << 'EOF' > .aiignore
-# 機密ファイル
+# Sensitive files
 .env
 .env.*
 secrets/
@@ -781,127 +781,127 @@ credentials/
 *.pem
 *.key
 
-# 大きなバイナリ
+# Large binaries
 *.zip
 *.tar.gz
 node_modules/
 dist/
 build/
 
-# 生成ファイル
+# Generated files
 coverage/
 .next/
 EOF
 ```
 
-### 6.2 データ送信の範囲
+### 6.2 Scope of Data Transmitted
 
 ```
-各ツールが送信するデータ:
+Data transmitted by each tool:
 
 ┌──────────────┬─────────────────────────────┐
-│ ツール        │ 送信されるデータ             │
+│ Tool          │ Data Transmitted             │
 ├──────────────┼─────────────────────────────┤
-│ Copilot      │ 開いているファイルの一部      │
-│ Individual   │ 隣接ファイルのコンテキスト    │
-│              │ (コード断片は学習に使用される) │
+│ Copilot      │ Portion of open files        │
+│ Individual   │ Context from adjacent files  │
+│              │ (code snippets used for training) │
 ├──────────────┼─────────────────────────────┤
-│ Copilot      │ 同上だがデータ保持なし        │
-│ Business     │ (学習にデータは使用されない)  │
-│              │ 監査ログ利用可能             │
+│ Copilot      │ Same but no data retention   │
+│ Business     │ (data not used for training) │
+│              │ Audit logs available         │
 ├──────────────┼─────────────────────────────┤
-│ Claude Code  │ 指定ファイルの内容           │
-│              │ コマンド出力                 │
-│              │ (30日後に削除)               │
-│              │ .aiignore で除外可能         │
+│ Claude Code  │ Contents of specified files  │
+│              │ Command output               │
+│              │ (deleted after 30 days)      │
+│              │ Excludable via .aiignore     │
 ├──────────────┼─────────────────────────────┤
-│ Cursor       │ アクティブファイル           │
-│              │ @参照ファイル                │
-│              │ (Privacy Mode で送信制限可)  │
-│              │ SOC 2 Type II 認証済み       │
+│ Cursor       │ Active file                  │
+│              │ @referenced files            │
+│              │ (Privacy Mode limits transmission) │
+│              │ SOC 2 Type II certified      │
 ├──────────────┼─────────────────────────────┤
-│ Aider        │ 指定ファイルの内容           │
-│              │ API キー経由で直接送信       │
-│              │ (ツール側でのデータ保持なし)  │
+│ Aider        │ Contents of specified files  │
+│              │ Sent directly via API key    │
+│              │ (no data retention on tool side) │
 └──────────────┴─────────────────────────────┘
 ```
 
-### 6.3 企業導入時のセキュリティチェックリスト
+### 6.3 Enterprise Adoption Security Checklist
 
 ```
-AI ツール企業導入チェックリスト:
+AI Tool Enterprise Adoption Checklist:
 
-  □ データ保持ポリシーの確認
-    - 送信されたコードは学習に使用されるか？
-    - データの保持期間は？
-    - データの保存場所 (リージョン) は？
+  □ Confirm data retention policy
+    - Is submitted code used for training?
+    - What is the data retention period?
+    - Where is data stored (region)?
 
-  □ アクセス制御
-    - SSO/SAML 連携は可能か？
-    - チーム/ロールベースのアクセス制御は？
-    - 監査ログは取得可能か？
+  □ Access control
+    - Is SSO/SAML integration possible?
+    - Is team/role-based access control available?
+    - Are audit logs obtainable?
 
-  □ コンプライアンス
-    - SOC 2 Type II 認証済みか？
-    - GDPR 対応しているか？
-    - IP (知的財産) 保護の条項は？
+  □ Compliance
+    - SOC 2 Type II certified?
+    - GDPR compliant?
+    - IP (intellectual property) protection clause?
 
-  □ 技術的制限
-    - 特定のリポジトリ/ファイルの除外設定は？
-    - VPN/プロキシ経由での利用は？
-    - オンプレミスデプロイの選択肢は？
+  □ Technical restrictions
+    - Can specific repositories/files be excluded?
+    - Can it be used via VPN/proxy?
+    - Are on-premises deployment options available?
 
-  □ ライセンス
-    - AI 生成コードの著作権は？
-    - オープンソースライセンス侵害のリスクは？
-    - 公開コード類似検出機能は？
+  □ Licensing
+    - Who owns the copyright for AI-generated code?
+    - Risk of open-source license violations?
+    - Public code similarity detection feature?
 ```
 
 ---
 
-## 7. AI コード品質の担保
+## 7. Ensuring AI Code Quality
 
-### 7.1 AI 生成コードのレビューチェックリスト
+### 7.1 AI-Generated Code Review Checklist
 
 ```
-AI 生成コードレビューの重点項目:
+Key Review Points for AI-Generated Code:
 
-  □ セキュリティ
-    - SQL インジェクション / XSS の脆弱性
-    - 認証・認可の欠落
-    - 機密情報のハードコード
-    - 入力バリデーションの不足
-    - CORS 設定の緩さ
+  □ Security
+    - SQL injection / XSS vulnerabilities
+    - Missing authentication and authorization
+    - Hardcoded sensitive information
+    - Insufficient input validation
+    - Loose CORS configuration
 
-  □ ロジック
-    - エッジケースの処理
-    - null/undefined の安全な処理
-    - off-by-one エラー
-    - レースコンディション
-    - リソースリーク (close 忘れ等)
+  □ Logic
+    - Edge case handling
+    - Safe handling of null/undefined
+    - Off-by-one errors
+    - Race conditions
+    - Resource leaks (unclosed handles, etc.)
 
-  □ パフォーマンス
-    - N+1 クエリ問題
-    - 不要なリレンダリング (React)
-    - メモリリーク
-    - 非効率なアルゴリズム
-    - 大量データの同期処理
+  □ Performance
+    - N+1 query problem
+    - Unnecessary re-renders (React)
+    - Memory leaks
+    - Inefficient algorithms
+    - Synchronous processing of large datasets
 
-  □ 保守性
-    - 過度な複雑さ
-    - マジックナンバー / マジックストリング
-    - DRY 原則違反
-    - テスト可能性
-    - ドキュメントの正確性
+  □ Maintainability
+    - Excessive complexity
+    - Magic numbers / magic strings
+    - DRY principle violations
+    - Testability
+    - Accuracy of documentation
 
-  □ 依存関係
-    - 非推奨 API の使用
-    - 古いライブラリバージョン
-    - ライセンス問題
-    - 不要な依存の追加
+  □ Dependencies
+    - Use of deprecated APIs
+    - Outdated library versions
+    - License issues
+    - Unnecessary dependency additions
 ```
 
-### 7.2 自動検証パイプライン
+### 7.2 Automated Verification Pipeline
 
 ```yaml
 # .github/workflows/ai-code-quality.yml
@@ -943,129 +943,129 @@ jobs:
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### 8.1 AI の出力を検証せずに受け入れる
-
-```
-❌ アンチパターン: AI が生成したコードをそのままコミット
-
-問題:
-  - セキュリティ脆弱性 (SQL インジェクション等)
-  - 非推奨 API の使用
-  - エッジケースの未処理
-  - ライセンス問題のあるコードの混入
-  - 不正確なロジック
-
-✅ 正しいアプローチ:
-  - AI 生成コードは「ドラフト」として扱う
-  - 必ず自分でレビューしてから採用
-  - テストを書いて動作を検証
-  - セキュリティスキャン (npm audit, Snyk) を実行
-  - CI で自動品質チェックを実施
-```
-
-### 8.2 コンテキストを与えずにプロンプトを書く
+### 8.1 Accepting AI Output Without Verification
 
 ```
-❌ アンチパターン:
-  "ソートする関数を書いて"
+Anti-pattern: Committing AI-generated code as-is
 
-問題:
-  - 言語が不明
-  - 何をソートするか不明
-  - パフォーマンス要件が不明
-  - エラー処理の方針が不明
+Problems:
+  - Security vulnerabilities (SQL injection, etc.)
+  - Use of deprecated APIs
+  - Unhandled edge cases
+  - Inclusion of code with license issues
+  - Incorrect logic
 
-✅ 正しいアプローチ:
-  "TypeScript で、ユーザーオブジェクトの配列を
-   最終ログイン日時の降順でソートする関数を書いて。
-   配列が空の場合は空配列を返すこと。
-   型: User[] を受け取り User[] を返す。
-   User 型は { id: string, name: string, lastLoginAt: Date }。"
+Correct approach:
+  - Treat AI-generated code as a "draft"
+  - Always review it yourself before adopting
+  - Write tests to verify behavior
+  - Run security scans (npm audit, Snyk)
+  - Enforce automated quality checks in CI
 ```
 
-### 8.3 AI に依存しすぎて学習しない
+### 8.2 Writing Prompts Without Context
 
 ```
-❌ アンチパターン: 理解せずに AI の出力をコピペし続ける
+Anti-pattern:
+  "Write a function that sorts"
 
-問題:
-  - 基礎的な理解が不足する
-  - AI が使えない環境で作業できなくなる
-  - デバッグ能力が育たない
-  - コードレビューで問題を見抜けない
+Problems:
+  - Language is unclear
+  - What to sort is unclear
+  - Performance requirements are unclear
+  - Error handling policy is unclear
 
-✅ 正しいアプローチ:
-  - AI の出力を読んで理解してから採用する
-  - 「なぜこう書いたのか」を AI に説明させる
-  - 基礎的なアルゴリズム・データ構造は自分で学ぶ
-  - AI 生成コードを改善・最適化する練習をする
-  - 時には AI なしでコードを書いてみる
+Correct approach:
+  "Write a TypeScript function that sorts an array of user objects
+   in descending order by last login time.
+   Return an empty array if the array is empty.
+   Type: takes User[] and returns User[].
+   User type is { id: string, name: string, lastLoginAt: Date }."
 ```
 
-### 8.4 全てを1つのプロンプトで解決しようとする
+### 8.3 Over-relying on AI Without Learning
 
 ```
-❌ アンチパターン:
-  "ECサイトの商品管理機能を全部作って"
+Anti-pattern: Continuously copy-pasting AI output without understanding it
 
-問題:
-  - コンテキストが大きすぎてAI が混乱
-  - 生成されるコードの品質が低下
-  - レビューが困難
+Problems:
+  - Lack of foundational understanding
+  - Unable to work in environments without AI
+  - Debugging skills do not develop
+  - Unable to spot problems in code reviews
 
-✅ 正しいアプローチ:
-  1. "商品の型定義を作って"
-  2. "商品のCRUD APIエンドポイントを作って"
-  3. "商品一覧コンポーネントを作って"
-  4. "商品検索・フィルタ機能を追加して"
-  5. "各機能のテストを書いて"
-  → 小さなタスクに分割して段階的に進める
+Correct approach:
+  - Read and understand AI output before adopting it
+  - Ask AI to explain "why it was written this way"
+  - Learn fundamental algorithms and data structures yourself
+  - Practice improving and optimizing AI-generated code
+  - Occasionally try writing code without AI
+```
+
+### 8.4 Trying to Solve Everything in One Prompt
+
+```
+Anti-pattern:
+  "Build all the product management features for an e-commerce site"
+
+Problems:
+  - Context is too large, AI gets confused
+  - Quality of generated code degrades
+  - Review becomes difficult
+
+Correct approach:
+  1. "Create the type definitions for products"
+  2. "Create the CRUD API endpoints for products"
+  3. "Create the product list component"
+  4. "Add product search and filter functionality"
+  5. "Write tests for each feature"
+  → Divide into small tasks and proceed incrementally
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement error handling appropriately
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1074,26 +1074,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1101,7 +1101,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1112,14 +1112,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1127,7 +1127,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1135,44 +1135,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1181,7 +1181,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1196,47 +1196,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured config file | Check config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form a hypothesis**: List possible causes
+4. **Incremental verification**: Validate hypotheses using log output or a debugger
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1244,102 +1244,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Called: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Check the status of disk and network I/O
+4. **Check concurrent connection count**: Check the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|-------------|----------------|---------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Here is a summary of the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When to compromise |
+|-----------|-------------------|--------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│         Architecture Selection Flow              │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith              │
+│    └─ Large (10+ people) → Go to 2               │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. What is the deployment frequency?            │
+│    ├─ Weekly or less → Monolith + modular split  │
+│    └─ Daily / multiple times → Go to 3           │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?               │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies allows using the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- Higher abstraction improves reusability but can make debugging more difficult
+- Lower abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1349,17 +1349,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1367,7 +1367,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1375,15 +1375,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1391,53 +1391,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum viable features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't over-engineer (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally replacing a system that has been in operation for 10+ years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Create Characterization Tests first if no existing tests exist
+- Coexist old and new systems with an API gateway
+- Migrate data in phases
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work | Estimated Duration | Risk |
+|-------|------|--------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Start migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development in a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use Domain-Driven Design to clarify boundaries
+- Assign ownership per team
+- Manage shared libraries with Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1450,20 +1450,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1472,7 +1472,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1493,86 +1493,87 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Effect | Implementation Cost | Use Case |
+|--------------------|---------|--------------------|----------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processes |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 
 ---
 
-## チーム開発での活用
+## Team Development
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Are there any performance impacts?
+- [ ] Are there any security issues?
+- [ ] Has documentation been updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Method | Frequency | Audience | Effect |
+|--------|-----------|----------|--------|
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talk | Weekly | Entire team | Horizontal knowledge transfer |
+| ADR (Design record) | Per decision | Future members | Transparency of decisions |
+| Retrospective | Every 2 weeks | Entire team | Continuous improvement |
+| Mob programming | Monthly | Key design work | Consensus building |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │Plan │Act  │
+    │and  │imme-│
+    │addr │diat-│
+    │ess  │ely  │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Log  │Next │
+    │only │Spri-│
+    │     │nt   │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Frequency  High Frequency
 ```
 
 ---
 
-## マイグレーションガイド
+## Migration Guide
 
-### バージョンアップ時の注意点
+### Notes on Version Upgrades
 
-| バージョン | 主な変更点 | 移行作業 | 影響範囲 |
-|-----------|-----------|---------|---------|
-| v1.x → v2.x | API設計の刷新 | エンドポイント変更 | 全クライアント |
-| v2.x → v3.x | 認証方式の変更 | トークン形式更新 | 認証関連 |
-| v3.x → v4.x | データモデル変更 | マイグレーションスクリプト実行 | DB関連 |
+| Version | Main Changes | Migration Work | Affected Scope |
+|---------|-------------|----------------|---------------|
+| v1.x → v2.x | API redesign | Endpoint changes | All clients |
+| v2.x → v3.x | Authentication method change | Token format update | Auth-related |
+| v3.x → v4.x | Data model change | Run migration script | DB-related |
 
-### 段階的移行の手順
+### Steps for Incremental Migration
 
 ```python
-# マイグレーションスクリプトのテンプレート
+# Migration script template
 import json
 import logging
 from pathlib import Path
@@ -1582,7 +1583,7 @@ from typing import List, Dict, Callable
 logger = logging.getLogger(__name__)
 
 class MigrationRunner:
-    """段階的マイグレーション実行エンジン"""
+    """Incremental migration execution engine"""
 
     def __init__(self, migration_dir: str):
         self.migration_dir = Path(migration_dir)
@@ -1591,7 +1592,7 @@ class MigrationRunner:
 
     def register(self, version: str, description: str,
                  up: Callable, down: Callable):
-        """マイグレーションの登録"""
+        """Register a migration"""
         self.migrations.append({
             'version': version,
             'description': description,
@@ -1601,35 +1602,35 @@ class MigrationRunner:
         })
 
     def run_up(self, target_version: str = None):
-        """マイグレーションの実行（アップグレード）"""
+        """Run migrations (upgrade)"""
         for migration in self.migrations:
             if migration['version'] in self.completed:
                 continue
-            logger.info(f"実行中: {migration['version']} - "
+            logger.info(f"Running: {migration['version']} - "
                        f"{migration['description']}")
             try:
                 migration['up']()
                 self.completed.append(migration['version'])
-                logger.info(f"完了: {migration['version']}")
+                logger.info(f"Completed: {migration['version']}")
             except Exception as e:
-                logger.error(f"失敗: {migration['version']}: {e}")
+                logger.error(f"Failed: {migration['version']}: {e}")
                 raise
             if target_version and migration['version'] == target_version:
                 break
 
     def run_down(self, target_version: str):
-        """マイグレーションのロールバック"""
+        """Roll back migrations"""
         for migration in reversed(self.migrations):
             if migration['version'] not in self.completed:
                 continue
             if migration['version'] == target_version:
                 break
-            logger.info(f"ロールバック: {migration['version']}")
+            logger.info(f"Rolling back: {migration['version']}")
             migration['down']()
             self.completed.remove(migration['version'])
 
     def status(self) -> Dict:
-        """マイグレーション状態の確認"""
+        """Check migration status"""
         return {
             'total': len(self.migrations),
             'completed': len(self.completed),
@@ -1642,101 +1643,101 @@ class MigrationRunner:
         }
 ```
 
-### ロールバック計画
+### Rollback Plan
 
-移行作業には必ずロールバック計画を準備してください:
+Always prepare a rollback plan for migration work:
 
-1. **データのバックアップ**: 移行前に完全バックアップを取得
-2. **テスト環境での検証**: 本番と同等の環境で事前検証
-3. **段階的なロールアウト**: カナリアリリースで段階的に展開
-4. **監視の強化**: 移行中はメトリクスの監視間隔を短縮
-5. **判断基準の明確化**: ロールバックを判断する基準を事前に定義
+1. **Data backup**: Take a full backup before migration
+2. **Validation in test environment**: Pre-validate in an environment equivalent to production
+3. **Incremental rollout**: Deploy incrementally with canary releases
+4. **Enhanced monitoring**: Shorten metric monitoring intervals during migration
+5. **Clarify decision criteria**: Define rollback criteria in advance
 ---
 
 ## 9. FAQ
 
-### Q1: Copilot と Cursor、両方契約すべき？
+### Q1: Should I subscribe to both Copilot and Cursor?
 
-**A:** 基本的にはどちらか一方で十分。VS Code ベースのワークフローを変えたくないなら Copilot、AI ファーストの体験を求めるなら Cursor。Cursor は VS Code の fork なので、Copilot 拡張も併用可能だが、補完が競合する場合がある。予算に余裕があれば Claude Code CLI + Copilot の組み合わせが最もカバー範囲が広い。Cursor の Composer 機能はマルチファイル編集に強く、Claude Code のエージェント機能は自律的なタスク実行に強い。
+**A:** Generally, one is sufficient. If you don't want to change your VS Code-based workflow, choose Copilot. If you want an AI-first experience, choose Cursor. Since Cursor is a fork of VS Code, you can use the Copilot extension alongside it, but completions may conflict. If budget allows, the Claude Code CLI + Copilot combination offers the widest coverage. Cursor's Composer feature is strong for multi-file editing, while Claude Code's agent feature excels at autonomous task execution.
 
-### Q2: AI ツールで生成したコードの著作権は？
+### Q2: Who owns the copyright for AI-generated code?
 
-**A:** 2026年時点で法的にはグレーゾーンが多いが、主要ツールの利用規約では生成コードの権利はユーザーに帰属するとされている。ただし、既存のOSSコードに酷似した出力には注意が必要。Copilot Business/Enterprise の `duplicationDetection: "block"` 設定で公開コードに類似する提案をフィルタリングできる。企業利用では法務確認を推奨する。
+**A:** As of 2026, there are many legal grey areas, but the terms of major tools state that the rights to generated code belong to the user. However, be cautious of output that closely resembles existing OSS code. The `duplicationDetection: "block"` setting in Copilot Business/Enterprise can filter suggestions similar to public code. Legal review is recommended for enterprise use.
 
-### Q3: Claude Code の CLAUDE.md は何を書くべき？
+### Q3: What should I write in CLAUDE.md for Claude Code?
 
-**A:** 以下の要素を含める。
-1. プロジェクト概要（技術スタック、アーキテクチャ）
-2. コーディング規約（命名規則、パターン）
-3. ディレクトリ構造の説明
-4. よく使うコマンド（ビルド、テスト、デプロイ）
-5. やってはいけないこと（禁止パターン）
-6. 環境変数の説明（値は書かない）
-7. DB スキーマの概要
+**A:** Include the following elements:
+1. Project overview (tech stack, architecture)
+2. Coding conventions (naming rules, patterns)
+3. Explanation of directory structure
+4. Commonly used commands (build, test, deploy)
+5. What NOT to do (prohibited patterns)
+6. Description of environment variables (not the values)
+7. Overview of DB schema
 
-チームで共有する情報なのでリポジトリにコミットすべき。機密情報（APIキー等）は絶対に書かない。
+Since this is information shared with the team, it should be committed to the repository. Never include sensitive information (API keys, etc.).
 
-### Q4: AI ツールのコストを抑えるには？
+### Q4: How can I reduce AI tool costs?
 
-**A:** 以下の戦略が有効。
-1. CLAUDE.md / .cursorrules をしっかり書いて、やり直しの回数を減らす
-2. 小さなタスクに分割して、1回のプロンプトで確実に成果を得る
-3. Copilot (定額) でインライン補完、Claude Code (従量) で複雑なタスクと使い分ける
-4. `/compact` コマンドでコンテキストを圧縮し、トークン消費を抑える
-5. 不要なファイルを .aiignore で除外し、コンテキスト汚染を防ぐ
+**A:** The following strategies are effective:
+1. Write thorough CLAUDE.md / .cursorrules to reduce the number of retries
+2. Divide into small tasks to reliably get results from each prompt
+3. Use Copilot (flat rate) for inline completion and Claude Code (pay-as-you-go) for complex tasks
+4. Use the `/compact` command to compress context and reduce token consumption
+5. Exclude unnecessary files with .aiignore to prevent context pollution
 
-### Q5: MCP とは何か？導入すべき？
+### Q5: What is MCP? Should I adopt it?
 
-**A:** MCP (Model Context Protocol) は AI モデルが外部ツール・データソースと連携するためのオープンプロトコル。Anthropic が策定し、GitHub、Cursor、Windsurf 等が採用。データベース、GitHub Issues、ドキュメント検索等を AI が直接参照できるようになる。開発ワークフローの自動化が大幅に進むため、チーム開発では積極的に導入を推奨する。ただし、データベースへの書き込み権限等はセキュリティリスクがあるため、読み取り専用からスタートするのが安全。
+**A:** MCP (Model Context Protocol) is an open protocol for AI models to integrate with external tools and data sources. Developed by Anthropic and adopted by GitHub, Cursor, Windsurf, and others. It allows AI to directly reference databases, GitHub Issues, documentation search, and more. It significantly advances development workflow automation, so team adoption is highly recommended. However, write permissions to databases carry security risks, so it is safer to start with read-only access.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+The most important thing is to gain practical experience. Understanding deepens not just through theory but by actually writing code and confirming how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 10. まとめ
-
-| ツール | 主な用途 | 導入コスト | 効果 |
-|--------|---------|-----------|------|
-| GitHub Copilot | インライン補完・チャット | $10-39/月 | コード記述速度 2-3倍 |
-| Claude Code | エージェント・複雑タスク | 従量制 | リファクタ・レビュー自動化 |
-| Cursor | AI統合エディタ | $20/月 | ファイル横断編集 |
-| CLAUDE.md | プロジェクト文脈共有 | 無料 | AI 出力品質向上 |
-| .cursorrules | Cursor 文脈設定 | 無料 | Cursor 出力品質向上 |
-| MCP | ツール連携プロトコル | 無料 | AI の行動範囲拡大 |
-| Aider | CLI エージェント | 無料(API費用) | Git 統合が優秀 |
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 10. Summary
 
-- [00-vscode-setup.md](./00-vscode-setup.md) -- VS Code の詳細設定
-- [../01-runtime-and-package/03-linter-formatter.md](../01-runtime-and-package/03-linter-formatter.md) -- AI 生成コードの品質チェック
-- [../03-team-setup/00-project-standards.md](../03-team-setup/00-project-standards.md) -- チーム標準の設定
+| Tool | Main Use | Adoption Cost | Effect |
+|------|---------|--------------|--------|
+| GitHub Copilot | Inline completion & chat | $10-39/month | 2-3x code writing speed |
+| Claude Code | Agent & complex tasks | Pay-as-you-go | Refactoring & review automation |
+| Cursor | AI-integrated editor | $20/month | Cross-file editing |
+| CLAUDE.md | Sharing project context | Free | Improves AI output quality |
+| .cursorrules | Cursor context configuration | Free | Improves Cursor output quality |
+| MCP | Tool integration protocol | Free | Expands AI action scope |
+| Aider | CLI agent | Free (API costs) | Excellent Git integration |
 
 ---
 
-## 参考文献
+## Next Guides to Read
 
-1. **GitHub Copilot Documentation** -- https://docs.github.com/en/copilot -- Copilot の公式ドキュメント。設定から活用法まで。
-2. **Claude Code CLI** -- https://docs.anthropic.com/en/docs/claude-code -- Claude Code の公式ドキュメント。
-3. **Cursor Documentation** -- https://docs.cursor.com -- Cursor エディタの公式ドキュメントと設定ガイド。
-4. **Pragmatic AI-Assisted Development** -- https://martinfowler.com/articles/exploring-gen-ai.html -- Martin Fowler による AI 開発ツールの実践的考察。
-5. **Model Context Protocol (MCP)** -- https://modelcontextprotocol.io/ -- MCP の公式仕様ドキュメント。
-6. **Aider** -- https://aider.chat/ -- Aider の公式サイト。Git 統合 AI ペアプログラミング。
-7. **AI Code Review Best Practices** -- https://github.blog/developer-skills/github/how-to-review-code-generated-by-ai/ -- GitHub による AI 生成コードのレビュー手法。
-8. **OWASP AI Security** -- https://owasp.org/www-project-ai-security-and-privacy-guide/ -- AI 活用時のセキュリティガイドライン。
+- [00-vscode-setup.md](./00-vscode-setup.md) -- Detailed VS Code configuration
+- [../01-runtime-and-package/03-linter-formatter.md](../01-runtime-and-package/03-linter-formatter.md) -- Quality checks for AI-generated code
+- [../03-team-setup/00-project-standards.md](../03-team-setup/00-project-standards.md) -- Setting team standards
+
+---
+
+## References
+
+1. **GitHub Copilot Documentation** -- https://docs.github.com/en/copilot -- Official Copilot documentation covering setup to usage.
+2. **Claude Code CLI** -- https://docs.anthropic.com/en/docs/claude-code -- Official Claude Code documentation.
+3. **Cursor Documentation** -- https://docs.cursor.com -- Official documentation and configuration guide for the Cursor editor.
+4. **Pragmatic AI-Assisted Development** -- https://martinfowler.com/articles/exploring-gen-ai.html -- Martin Fowler's practical insights on AI development tools.
+5. **Model Context Protocol (MCP)** -- https://modelcontextprotocol.io/ -- Official MCP specification documentation.
+6. **Aider** -- https://aider.chat/ -- Official Aider website. Git-integrated AI pair programming.
+7. **AI Code Review Best Practices** -- https://github.blog/developer-skills/github/how-to-review-code-generated-by-ai/ -- GitHub's guide to reviewing AI-generated code.
+8. **OWASP AI Security** -- https://owasp.org/www-project-ai-security-and-privacy-guide/ -- Security guidelines for AI usage.
