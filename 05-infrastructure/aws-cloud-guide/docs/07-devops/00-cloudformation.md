@@ -1,48 +1,48 @@
 # AWS CloudFormation
 
-> AWS リソースをコードで定義・管理する CloudFormation のテンプレート構文、スタック管理、クロススタック参照、ドリフト検出までを体系的に学ぶ。カスタムリソース、マクロ、スタックセット、CI/CD 統合、トラブルシューティングまで含めた実践的な運用知識を網羅する。
+> Systematically learn CloudFormation for defining and managing AWS resources as code — covering template syntax, stack management, cross-stack references, and drift detection. Includes practical operational knowledge spanning custom resources, macros, stack sets, CI/CD integration, and troubleshooting.
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **テンプレート構文の理解** -- YAML/JSON によるリソース定義、パラメータ、マッピング、条件、組み込み関数を習得する
-2. **スタックの管理と運用** -- スタックの作成・更新・削除、変更セット、ネストスタックの設計を理解する
-3. **クロススタック参照とドリフト検出** -- 複数スタック間のリソース共有と、実際の構成との差分検出を身につける
-4. **カスタムリソースとマクロ** -- Lambda ベースのカスタムリソースやテンプレートマクロで CloudFormation を拡張する方法を学ぶ
-5. **スタックセットとマルチアカウント管理** -- AWS Organizations と連携した大規模デプロイメントを理解する
-6. **CI/CD 統合とトラブルシューティング** -- CloudFormation を CI/CD パイプラインに組み込み、障害対応のスキルを身につける
+1. **Understanding Template Syntax** -- Master resource definitions, parameters, mappings, conditions, and intrinsic functions using YAML/JSON
+2. **Stack Management and Operations** -- Understand stack creation, updates, deletion, change sets, and nested stack design
+3. **Cross-Stack References and Drift Detection** -- Learn resource sharing between multiple stacks and detecting differences from actual configurations
+4. **Custom Resources and Macros** -- Learn how to extend CloudFormation with Lambda-backed custom resources and template macros
+5. **Stack Sets and Multi-Account Management** -- Understand large-scale deployments integrated with AWS Organizations
+6. **CI/CD Integration and Troubleshooting** -- Integrate CloudFormation into CI/CD pipelines and develop incident response skills
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. CloudFormation の基本概念
+## 1. CloudFormation Fundamentals
 
 ### 1.1 Infrastructure as Code (IaC)
 
 ```
-CloudFormation のワークフロー:
+CloudFormation workflow:
 
-テンプレート (YAML/JSON)
+Template (YAML/JSON)
     |
     v
 +------------------+
 | CloudFormation   |
-| サービス         |
+| Service          |
 +------------------+
     |
-    | リソースのプロビジョニング
+    | Resource provisioning
     |
     v
 +------------------+
-| スタック         |
+| Stack            |
 | +------+ +-----+|
 | | VPC  | | EC2 ||
 | +------+ +-----+|
@@ -51,94 +51,94 @@ CloudFormation のワークフロー:
 | +------+ +-----+|
 +------------------+
     |
-    | 状態追跡・変更管理
+    | State tracking & change management
     v
 +------------------+
-| スタックイベント  |
-| ドリフト検出      |
+| Stack Events     |
+| Drift Detection  |
 +------------------+
 ```
 
-### 1.2 テンプレート構造の全体像
+### 1.2 Template Structure Overview
 
 ```
-テンプレートのセクション:
+Template sections:
 
 +-------------------------------------------+
-| AWSTemplateFormatVersion (バージョン)       |
+| AWSTemplateFormatVersion (version)         |
 +-------------------------------------------+
-| Description (説明)                         |
+| Description                                |
 +-------------------------------------------+
-| Metadata (メタデータ)                      |
+| Metadata                                   |
 +-------------------------------------------+
-| Parameters (パラメータ -- 入力値)           |
+| Parameters (input values)                  |
 +-------------------------------------------+
-| Rules (ルール -- パラメータ検証)             |
+| Rules (parameter validation)               |
 +-------------------------------------------+
-| Mappings (マッピング -- 静的な定数テーブル)  |
+| Mappings (static lookup tables)            |
 +-------------------------------------------+
-| Conditions (条件 -- リソース作成の制御)     |
+| Conditions (control resource creation)     |
 +-------------------------------------------+
-| Transform (変換 -- マクロの適用)            |
+| Transform (apply macros)                   |
 +-------------------------------------------+
-| Resources (リソース -- 必須セクション)      |
+| Resources (required section)               |
 +-------------------------------------------+
-| Outputs (出力 -- エクスポート値)            |
+| Outputs (exported values)                  |
 +-------------------------------------------+
 ```
 
-### 1.3 CloudFormation vs 他の IaC ツール
+### 1.3 CloudFormation vs Other IaC Tools
 
-| 特性 | CloudFormation | Terraform | CDK | Pulumi |
-|------|---------------|-----------|-----|--------|
-| 提供元 | AWS | HashiCorp | AWS | Pulumi |
-| 対応クラウド | AWS のみ | マルチクラウド | AWS のみ | マルチクラウド |
-| 言語 | YAML/JSON | HCL | TypeScript/Python等 | TypeScript/Python等 |
-| 状態管理 | AWS マネージド | tfstate ファイル | CloudFormation | Pulumi Cloud |
-| 変更プレビュー | 変更セット | plan | diff | preview |
-| ドリフト検出 | あり | あり | あり (CFn経由) | あり |
-| 費用 | 無料 | 無料/有料 | 無料 | 無料/有料 |
-| 学習コスト | 低〜中 | 中 | 中〜高 | 中〜高 |
-| エコシステム | AWS 密連携 | 非常に広い | AWS 密連携 | 広い |
+| Property | CloudFormation | Terraform | CDK | Pulumi |
+|----------|---------------|-----------|-----|--------|
+| Vendor | AWS | HashiCorp | AWS | Pulumi |
+| Cloud Support | AWS only | Multi-cloud | AWS only | Multi-cloud |
+| Language | YAML/JSON | HCL | TypeScript/Python etc. | TypeScript/Python etc. |
+| State Management | AWS managed | tfstate file | CloudFormation | Pulumi Cloud |
+| Change Preview | Change sets | plan | diff | preview |
+| Drift Detection | Yes | Yes | Yes (via CFn) | Yes |
+| Cost | Free | Free/Paid | Free | Free/Paid |
+| Learning Curve | Low to medium | Medium | Medium to high | Medium to high |
+| Ecosystem | Deep AWS integration | Very broad | Deep AWS integration | Broad |
 
 ```
-選択の指針:
+Selection guide:
 
-AWS のみ + YAML 派                → CloudFormation
-AWS のみ + プログラミング言語派    → CDK
-マルチクラウド + 宣言的            → Terraform
-マルチクラウド + プログラミング派   → Pulumi
-既存 CFn 資産あり                 → CloudFormation または CDK
+AWS only + YAML preference             → CloudFormation
+AWS only + programming language pref.  → CDK
+Multi-cloud + declarative              → Terraform
+Multi-cloud + programming language     → Pulumi
+Existing CFn assets                    → CloudFormation or CDK
 ```
 
 ---
 
-## 2. テンプレート構文
+## 2. Template Syntax
 
-### 2.1 基本的なテンプレート
+### 2.1 Basic Template
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Web アプリケーション基盤テンプレート'
+Description: 'Web Application Infrastructure Template'
 
 Parameters:
   EnvironmentName:
     Type: String
     Default: dev
     AllowedValues: [dev, stg, prod]
-    Description: デプロイ先環境名
+    Description: Target deployment environment name
 
   InstanceType:
     Type: String
     Default: t3.micro
     AllowedValues: [t3.micro, t3.small, t3.medium]
-    Description: EC2 インスタンスタイプ
+    Description: EC2 instance type
 
   VpcCidr:
     Type: String
     Default: '10.0.0.0/16'
     AllowedPattern: '(\d{1,3}\.){3}\d{1,3}/\d{1,2}'
-    Description: VPC の CIDR ブロック
+    Description: VPC CIDR block
 
 Mappings:
   RegionAMI:
@@ -204,32 +204,32 @@ Outputs:
       Name: !Sub '${EnvironmentName}-VpcId'
 
   WebServerPublicIP:
-    Description: Web サーバーのパブリック IP
+    Description: Web server public IP address
     Value: !GetAtt WebServer.PublicIp
 ```
 
-### 2.2 主要な組み込み関数
+### 2.2 Key Intrinsic Functions
 
-| 関数 | 用途 | 使用例 |
-|------|------|--------|
-| `!Ref` | パラメータ/リソースの参照 | `!Ref VPC` |
-| `!Sub` | 文字列内の変数展開 | `!Sub '${Env}-vpc'` |
-| `!GetAtt` | リソースの属性取得 | `!GetAtt EC2.PublicIp` |
-| `!Join` | 文字列結合 | `!Join ['-', [a, b, c]]` |
-| `!Select` | リストから要素選択 | `!Select [0, !GetAZs '']` |
-| `!Split` | 文字列分割 | `!Split [',', 'a,b,c']` |
-| `!If` | 条件分岐 | `!If [IsProd, t3.large, t3.micro]` |
-| `!FindInMap` | マッピング検索 | `!FindInMap [Map, Key1, Key2]` |
-| `!ImportValue` | 別スタックの出力参照 | `!ImportValue 'vpc-id'` |
-| `!Cidr` | CIDR 分割 | `!Cidr [!Ref VpcCidr, 4, 8]` |
-| `!GetAZs` | AZ リスト取得 | `!GetAZs ''` |
-| `!Base64` | Base64 エンコード | `!Base64 !Sub 'script'` |
-| `!Transform` | マクロの適用 | `!Transform {Name: macro}` |
+| Function | Purpose | Example |
+|----------|---------|---------|
+| `!Ref` | Reference a parameter or resource | `!Ref VPC` |
+| `!Sub` | Variable substitution in strings | `!Sub '${Env}-vpc'` |
+| `!GetAtt` | Get a resource attribute | `!GetAtt EC2.PublicIp` |
+| `!Join` | Concatenate strings | `!Join ['-', [a, b, c]]` |
+| `!Select` | Select an element from a list | `!Select [0, !GetAZs '']` |
+| `!Split` | Split a string | `!Split [',', 'a,b,c']` |
+| `!If` | Conditional branching | `!If [IsProd, t3.large, t3.micro]` |
+| `!FindInMap` | Look up a mapping value | `!FindInMap [Map, Key1, Key2]` |
+| `!ImportValue` | Reference output from another stack | `!ImportValue 'vpc-id'` |
+| `!Cidr` | Split CIDR block | `!Cidr [!Ref VpcCidr, 4, 8]` |
+| `!GetAZs` | Get list of AZs | `!GetAZs ''` |
+| `!Base64` | Base64 encode | `!Base64 !Sub 'script'` |
+| `!Transform` | Apply a macro | `!Transform {Name: macro}` |
 
-### 2.3 組み込み関数の活用例
+### 2.3 Intrinsic Function Usage Examples
 
 ```yaml
-# !Sub の高度な使い方
+# Advanced usage of !Sub
 BucketPolicy:
   Type: AWS::S3::BucketPolicy
   Properties:
@@ -242,9 +242,9 @@ BucketPolicy:
           Action: 's3:GetObject'
           Resource: !Sub 'arn:aws:s3:::${MyBucket}/*'
 
-# !Cidr による自動サブネット計算
+# Automatic subnet calculation with !Cidr
 Subnets:
-  # 10.0.0.0/16 から 4つの /24 サブネットを自動計算
+  # Automatically calculate 4 /24 subnets from 10.0.0.0/16
   # → 10.0.0.0/24, 10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24
   - !Select [0, !Cidr [!Ref VpcCidr, 4, 8]]
   - !Select [1, !Cidr [!Ref VpcCidr, 4, 8]]
@@ -252,100 +252,100 @@ Subnets:
   - !Select [3, !Cidr [!Ref VpcCidr, 4, 8]]
 ```
 
-### 2.4 パラメータの高度な設定
+### 2.4 Advanced Parameter Configuration
 
 ```yaml
 Parameters:
-  # SSM Parameter Store からの動的参照
+  # Dynamic reference from SSM Parameter Store
   LatestAmiId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
-    Description: 最新の Amazon Linux 2 AMI ID
+    Description: Latest Amazon Linux 2 AMI ID
 
-  # 正規表現によるバリデーション
+  # Regex-based validation
   ProjectName:
     Type: String
     MinLength: 3
     MaxLength: 20
     AllowedPattern: '[a-z][a-z0-9-]*'
-    ConstraintDescription: 小文字英数字とハイフンのみ。先頭は英字。
+    ConstraintDescription: Lowercase alphanumeric and hyphens only. Must start with a letter.
 
-  # 複数選択可能なパラメータ
+  # Multi-select parameter
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: デプロイ先サブネット
+    Description: Target deployment subnets
 
-  # NoEcho でパスワードを隠す
+  # Hide password with NoEcho
   DatabasePassword:
     Type: String
     NoEcho: true
     MinLength: 8
     MaxLength: 128
     AllowedPattern: '[a-zA-Z0-9!@#$%^&*()_+-=]*'
-    Description: RDS マスターパスワード
+    Description: RDS master password
 
-  # Secrets Manager からの動的参照
+  # Dynamic reference from Secrets Manager
   DatabaseCredentials:
     Type: String
     Default: '{{resolve:secretsmanager:prod/db/credentials:SecretString:password}}'
 ```
 
-### 2.5 Rules セクション (パラメータ検証)
+### 2.5 Rules Section (Parameter Validation)
 
 ```yaml
 Rules:
-  # 本番環境では t3.micro を使用禁止
+  # Prohibit t3.micro in production
   ProdInstanceTypeRule:
     RuleCondition: !Equals [!Ref EnvironmentName, prod]
     Assertions:
       - Assert: !Not [!Equals [!Ref InstanceType, t3.micro]]
-        AssertDescription: 本番環境では t3.micro は使用できません
+        AssertDescription: t3.micro cannot be used in the production environment
 
-  # マルチ AZ は本番環境でのみ必須
+  # Multi-AZ is required only in production
   MultiAZRule:
     RuleCondition: !Equals [!Ref EnvironmentName, prod]
     Assertions:
       - Assert: !Equals [!Ref MultiAZDatabase, true]
-        AssertDescription: 本番環境ではマルチ AZ を有効にしてください
+        AssertDescription: Please enable Multi-AZ in the production environment
 ```
 
-### 2.6 Metadata セクション
+### 2.6 Metadata Section
 
 ```yaml
 Metadata:
-  # コンソールでのパラメータグループ化
+  # Parameter grouping in the console
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: ネットワーク設定
+          default: Network Configuration
         Parameters:
           - VpcCidr
           - SubnetIds
       - Label:
-          default: コンピューティング設定
+          default: Compute Configuration
         Parameters:
           - InstanceType
           - KeyPairName
       - Label:
-          default: データベース設定
+          default: Database Configuration
         Parameters:
           - DatabasePassword
           - MultiAZDatabase
     ParameterLabels:
       VpcCidr:
-        default: VPC CIDR ブロック
+        default: VPC CIDR Block
       InstanceType:
-        default: EC2 インスタンスタイプ
+        default: EC2 Instance Type
 ```
 
 ---
 
-## 3. スタック管理
+## 3. Stack Management
 
-### 3.1 スタックの CRUD 操作
+### 3.1 Stack CRUD Operations
 
 ```bash
-# スタックの作成
+# Create a stack
 aws cloudformation create-stack \
   --stack-name my-web-stack \
   --template-body file://template.yaml \
@@ -355,7 +355,7 @@ aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM \
   --tags Key=Project,Value=MyApp
 
-# 変更セットの作成 (更新前にプレビュー)
+# Create a change set (preview before updating)
 aws cloudformation create-change-set \
   --stack-name my-web-stack \
   --change-set-name update-instance-type \
@@ -363,53 +363,53 @@ aws cloudformation create-change-set \
   --parameters \
     ParameterKey=InstanceType,ParameterValue=t3.medium
 
-# 変更セットの確認
+# Describe a change set
 aws cloudformation describe-change-set \
   --stack-name my-web-stack \
   --change-set-name update-instance-type
 
-# 変更セットの実行
+# Execute a change set
 aws cloudformation execute-change-set \
   --stack-name my-web-stack \
   --change-set-name update-instance-type
 
-# スタックの削除
+# Delete a stack
 aws cloudformation delete-stack \
   --stack-name my-web-stack
 
-# スタック作成完了まで待機
+# Wait for stack creation to complete
 aws cloudformation wait stack-create-complete \
   --stack-name my-web-stack
 
-# スタックイベントの確認
+# Check stack events
 aws cloudformation describe-stack-events \
   --stack-name my-web-stack \
   --query 'StackEvents[0:10].{Time:Timestamp,Status:ResourceStatus,Type:ResourceType,Reason:ResourceStatusReason}' \
   --output table
 ```
 
-### 3.2 スタック更新時のリソース影響
+### 3.2 Resource Impact Levels During Stack Updates
 
 ```
-更新の影響レベル:
+Update impact levels:
 
-更新なし (No Interruption):
-  タグ変更、セキュリティグループルール追加
-  → サービス影響なし
+No Interruption:
+  Tag changes, adding security group rules
+  → No service impact
 
-一時中断 (Some Interruption):
-  EC2 インスタンスタイプ変更
-  → 一時的にサービス停止
+Some Interruption:
+  EC2 instance type change
+  → Temporary service downtime
 
-置換 (Replacement):
-  RDS エンジン変更、EC2 AMI 変更
-  → 新リソースを作成し旧リソースを削除
-  ⚠ データ損失の可能性あり！
+Replacement:
+  RDS engine change, EC2 AMI change
+  → Creates new resource and deletes old resource
+  ⚠ Potential data loss!
 
-変更セットで事前に影響を確認することが必須
+Always verify impact in advance using change sets
 ```
 
-### 3.3 スタックポリシー
+### 3.3 Stack Policies
 
 ```json
 {
@@ -436,20 +436,20 @@ aws cloudformation describe-stack-events \
 ```
 
 ```bash
-# スタックポリシーの設定
+# Set a stack policy
 aws cloudformation set-stack-policy \
   --stack-name my-web-stack \
   --stack-policy-body file://stack-policy.json
 
-# スタックポリシーの確認
+# Get a stack policy
 aws cloudformation get-stack-policy \
   --stack-name my-web-stack
 ```
 
-### 3.4 ロールバック設定
+### 3.4 Rollback Configuration
 
 ```bash
-# ロールバック設定付きでスタック作成
+# Create a stack with rollback configuration
 aws cloudformation create-stack \
   --stack-name my-web-stack \
   --template-body file://template.yaml \
@@ -457,19 +457,19 @@ aws cloudformation create-stack \
     RollbackTriggers='[{Arn=arn:aws:cloudwatch:ap-northeast-1:123456789012:alarm:HighErrorRate,Type=AWS::CloudWatch::Alarm}]',\
     MonitoringTimeInMinutes=10
 
-# ロールバック無効化 (デバッグ時)
+# Disable rollback (for debugging)
 aws cloudformation update-stack \
   --stack-name my-web-stack \
   --template-body file://template-v2.yaml \
   --disable-rollback
 ```
 
-### 3.5 スタックのインポート
+### 3.5 Stack Import
 
 ```bash
-# 既存リソースをスタックにインポート
-# 1. インポートテンプレートを準備 (DeletionPolicy: Retain 必須)
-# 2. 変更セットを作成
+# Import existing resources into a stack
+# 1. Prepare an import template (DeletionPolicy: Retain is required)
+# 2. Create a change set
 aws cloudformation create-change-set \
   --stack-name my-web-stack \
   --change-set-name import-existing-resources \
@@ -483,7 +483,7 @@ aws cloudformation create-change-set \
     }
   ]'
 
-# 変更セットの確認と実行
+# Describe and execute the change set
 aws cloudformation describe-change-set \
   --stack-name my-web-stack \
   --change-set-name import-existing-resources
@@ -494,7 +494,7 @@ aws cloudformation execute-change-set \
 ```
 
 ```yaml
-# インポート用テンプレート (DeletionPolicy: Retain が必須)
+# Import template (DeletionPolicy: Retain is required)
 Resources:
   WebSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -506,14 +506,14 @@ Resources:
 
 ---
 
-## 4. クロススタック参照
+## 4. Cross-Stack References
 
-### 4.1 Export/Import パターン
+### 4.1 Export/Import Pattern
 
 ```
-クロススタック参照:
+Cross-stack references:
 
-ネットワークスタック              アプリケーションスタック
+Network Stack                       Application Stack
 +------------------+            +------------------+
 | VPC              |            | EC2 Instance     |
 | Subnets          |  Export    | SubnetId:        |
@@ -527,7 +527,7 @@ Resources:
 ```
 
 ```yaml
-# network-stack.yaml (エクスポート側)
+# network-stack.yaml (exporting side)
 Outputs:
   VpcId:
     Value: !Ref VPC
@@ -539,7 +539,7 @@ Outputs:
     Export:
       Name: !Sub '${EnvironmentName}-PublicSubnetIds'
 
-# app-stack.yaml (インポート側)
+# app-stack.yaml (importing side)
 Resources:
   WebServer:
     Type: AWS::EC2::Instance
@@ -551,7 +551,7 @@ Resources:
         - !ImportValue 'prod-WebSG'
 ```
 
-### 4.2 ネストスタック
+### 4.2 Nested Stacks
 
 ```yaml
 # parent-stack.yaml
@@ -583,89 +583,89 @@ Resources:
         DatabaseEndpoint: !GetAtt DatabaseStack.Outputs.Endpoint
 ```
 
-### 4.3 Export/Import vs ネストスタック
+### 4.3 Export/Import vs Nested Stacks
 
 ```
 Export/Import:
-  ✓ スタック間の疎結合
-  ✓ 個別にデプロイ・更新可能
-  ✓ 異なるチームが個別管理
-  ✗ Export 値変更時にインポート側への影響
-  ✗ 削除順序の管理が必要
+  ✓ Loose coupling between stacks
+  ✓ Can deploy and update independently
+  ✓ Different teams can manage separately
+  ✗ Impact on importing stacks when export values change
+  ✗ Deletion order must be managed carefully
 
-ネストスタック:
-  ✓ 親スタックで一括管理
-  ✓ パラメータの受け渡しが明示的
-  ✓ 一括デプロイ・削除
-  ✗ 密結合
-  ✗ 更新時の影響範囲が広い
-  ✗ テンプレートを S3 に配置する必要
+Nested Stacks:
+  ✓ Centrally managed by the parent stack
+  ✓ Explicit parameter passing
+  ✓ Deploy and delete all at once
+  ✗ Tight coupling
+  ✗ Wide blast radius during updates
+  ✗ Templates must be stored in S3
 
-推奨パターン:
-  レイヤー間 (Network ↔ App) → Export/Import
-  同一レイヤー内の分割       → ネストスタック
+Recommended patterns:
+  Between layers (Network ↔ App)  → Export/Import
+  Splitting within the same layer  → Nested Stacks
 ```
 
 ---
 
-## 5. ドリフト検出
+## 5. Drift Detection
 
-### 5.1 ドリフトとは
+### 5.1 What Is Drift?
 
 ```
-ドリフト検出の仕組み:
+How drift detection works:
 
-CloudFormation テンプレート           実際のリソース状態
+CloudFormation Template               Actual Resource State
 +--------------------+              +--------------------+
 | SG: port 80, 443   |              | SG: port 80, 443,  |
 |                    |   !=          |     8080           |
-|                    |              | (手動で追加された)   |
+|                    |              | (added manually)   |
 +--------------------+              +--------------------+
 
-ドリフト検出結果:
-  - リソース: WebSecurityGroup
-  - ドリフトステータス: MODIFIED
-  - 差分: SecurityGroupIngress に port 8080 が追加
+Drift detection result:
+  - Resource: WebSecurityGroup
+  - Drift Status: MODIFIED
+  - Difference: port 8080 added to SecurityGroupIngress
 ```
 
-### 5.2 ドリフト検出の実行
+### 5.2 Running Drift Detection
 
 ```bash
-# ドリフト検出の開始
+# Start drift detection
 aws cloudformation detect-stack-drift \
   --stack-name my-web-stack
 
-# ドリフト検出結果の確認
+# Check drift detection results
 aws cloudformation describe-stack-drift-detection-status \
   --stack-drift-detection-id <detection-id>
 
-# リソースごとのドリフト詳細
+# Drift details per resource
 aws cloudformation describe-stack-resource-drifts \
   --stack-name my-web-stack \
   --stack-resource-drift-status-filters MODIFIED DELETED
 
-# 特定リソースのドリフト検出
+# Detect drift for a specific resource
 aws cloudformation detect-stack-resource-drift \
   --stack-name my-web-stack \
   --logical-resource-id WebSecurityGroup
 ```
 
-| ドリフトステータス | 意味 |
-|------------------|------|
-| IN_SYNC | テンプレートと一致 |
-| MODIFIED | プロパティが変更されている |
-| DELETED | リソースが削除されている |
-| NOT_CHECKED | 未チェック |
+| Drift Status | Meaning |
+|--------------|---------|
+| IN_SYNC | Matches the template |
+| MODIFIED | Properties have been changed |
+| DELETED | Resource has been deleted |
+| NOT_CHECKED | Not yet checked |
 
-### 5.3 ドリフト検出の自動化
+### 5.3 Automating Drift Detection
 
 ```yaml
-# EventBridge + Lambda でドリフトを定期チェック
+# Periodic drift check using EventBridge + Lambda
 Resources:
   DriftCheckSchedule:
     Type: AWS::Events::Rule
     Properties:
-      Description: 日次ドリフト検出
+      Description: Daily drift detection
       ScheduleExpression: 'cron(0 9 * * ? *)'
       State: ENABLED
       Targets:
@@ -687,7 +687,7 @@ Resources:
           sns = boto3.client('sns')
 
           def handler(event, context):
-              # 全スタックのドリフト検出
+              # Detect drift for all stacks
               stacks = cfn.list_stacks(
                   StackStatusFilter=['CREATE_COMPLETE', 'UPDATE_COMPLETE']
               )
@@ -711,14 +711,14 @@ Resources:
 
 ---
 
-## 6. カスタムリソース
+## 6. Custom Resources
 
-### 6.1 Lambda ベースのカスタムリソース
+### 6.1 Lambda-Backed Custom Resources
 
 ```yaml
-# カスタムリソースの定義
+# Custom resource definition
 Resources:
-  # Lambda 関数
+  # Lambda function
   CustomResourceFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -739,8 +739,8 @@ Resources:
 
               try:
                   if event['RequestType'] == 'Create':
-                      # リソース作成ロジック
-                      # 例: S3 バケットにデフォルトファイルをアップロード
+                      # Resource creation logic
+                      # Example: upload default file to S3 bucket
                       s3 = boto3.client('s3')
                       bucket_name = event['ResourceProperties']['BucketName']
                       s3.put_object(
@@ -752,14 +752,14 @@ Resources:
                       response_data['Message'] = 'Created successfully'
 
                   elif event['RequestType'] == 'Update':
-                      # リソース更新ロジック
+                      # Resource update logic
                       response_data['Message'] = 'Updated successfully'
 
                   elif event['RequestType'] == 'Delete':
-                      # リソース削除ロジック (クリーンアップ)
+                      # Resource deletion logic (cleanup)
                       s3 = boto3.client('s3')
                       bucket_name = event['ResourceProperties']['BucketName']
-                      # バケット内のオブジェクトを削除
+                      # Delete objects in the bucket
                       objects = s3.list_objects_v2(Bucket=bucket_name)
                       if 'Contents' in objects:
                           delete_objects = [{'Key': obj['Key']} for obj in objects['Contents']]
@@ -794,7 +794,7 @@ Resources:
               )
               urllib.request.urlopen(req)
 
-  # カスタムリソースの呼び出し
+  # Calling the custom resource
   BucketInitializer:
     Type: Custom::BucketInit
     DependsOn: MyBucket
@@ -808,10 +808,10 @@ Resources:
       BucketName: !Sub '${AWS::StackName}-data-bucket'
 ```
 
-### 6.2 cfn-response モジュール
+### 6.2 cfn-response Module
 
 ```yaml
-# cfn-response を使ったシンプルなカスタムリソース
+# Simple custom resource using cfn-response
 CustomResourceFunction:
   Type: AWS::Lambda::Function
   Properties:
@@ -826,7 +826,7 @@ CustomResourceFunction:
         def handler(event, context):
             try:
                 if event['RequestType'] == 'Create':
-                    # 処理
+                    # Processing
                     response_data = {'Result': 'Success'}
                     cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
                 elif event['RequestType'] == 'Delete':
@@ -840,38 +840,38 @@ CustomResourceFunction:
 ### 6.3 AWS::CloudFormation::CustomResource vs Custom::*
 
 ```
-Custom::BucketInit (推奨):
-  - Type 名でリソースの目的が明確
-  - 複数のカスタムリソースを区別しやすい
-  - CloudFormation コンソールで見やすい
+Custom::BucketInit (recommended):
+  - Type name makes the resource purpose clear
+  - Easier to distinguish multiple custom resources
+  - More readable in the CloudFormation console
 
 AWS::CloudFormation::CustomResource:
-  - 公式のリソースタイプ名
-  - Custom:: と機能は同一
-  - やや冗長
+  - Official resource type name
+  - Functionally identical to Custom::
+  - Slightly more verbose
 ```
 
 ---
 
-## 7. CloudFormation マクロ
+## 7. CloudFormation Macros
 
-### 7.1 マクロの仕組み
+### 7.1 How Macros Work
 
 ```
-マクロの処理フロー:
+Macro processing flow:
 
-テンプレート → CloudFormation → マクロ (Lambda) → 変換後テンプレート → リソース作成
-                    |                                     ↑
-                    | Transform セクション                 |
-                    +-------------------------------------+
+Template → CloudFormation → Macro (Lambda) → Transformed Template → Resource creation
+                |                                     ↑
+                | Transform section                   |
+                +-------------------------------------+
 
-組み込みマクロ:
-  AWS::Include     → 外部テンプレート断片のインクルード
-  AWS::Serverless  → SAM テンプレートの変換
+Built-in macros:
+  AWS::Include     → Include external template fragments
+  AWS::Serverless  → Transform SAM templates
 ```
 
 ```yaml
-# AWS::Include マクロの使用例
+# Using the AWS::Include macro
 Resources:
   MyResource:
     Fn::Transform:
@@ -879,7 +879,7 @@ Resources:
       Parameters:
         Location: s3://my-bucket/resource-snippet.yaml
 
-# SAM テンプレート (AWS::Serverless マクロ)
+# SAM template (AWS::Serverless macro)
 Transform: AWS::Serverless-2016-10-31
 
 Resources:
@@ -896,10 +896,10 @@ Resources:
             Method: get
 ```
 
-### 7.2 カスタムマクロの作成
+### 7.2 Creating Custom Macros
 
 ```yaml
-# マクロ登録テンプレート
+# Macro registration template
 Resources:
   MacroFunction:
     Type: AWS::Lambda::Function
@@ -913,7 +913,7 @@ Resources:
           import copy
 
           def handler(event, context):
-              """全 Lambda 関数に共通環境変数を自動注入するマクロ"""
+              """Macro that automatically injects common environment variables into all Lambda functions"""
               fragment = event['fragment']
               common_env = event['templateParameterValues'].get('CommonEnvVars', {})
 
@@ -945,7 +945,7 @@ Resources:
 ```
 
 ```yaml
-# マクロの使用
+# Using the macro
 Transform: EnvVarInjector
 
 Resources:
@@ -954,43 +954,43 @@ Resources:
     Properties:
       Runtime: python3.12
       Handler: index.handler
-      # Environment は自動で注入される
+      # Environment is automatically injected
 ```
 
 ---
 
-## 8. スタックセット (マルチアカウント・マルチリージョン)
+## 8. Stack Sets (Multi-Account and Multi-Region)
 
-### 8.1 スタックセットの概念
+### 8.1 Stack Set Concepts
 
 ```
-スタックセット:
+Stack Sets:
 
-管理アカウント
+Management Account
 +---------------------+
 | StackSet            |
-| (テンプレート定義)   |
+| (template definition)|
 +---------------------+
         |
-        | デプロイ
+        | Deploy
         |
-        +--→ アカウント A / ap-northeast-1  → Stack Instance
+        +--→ Account A / ap-northeast-1  → Stack Instance
         |
-        +--→ アカウント A / us-east-1       → Stack Instance
+        +--→ Account A / us-east-1       → Stack Instance
         |
-        +--→ アカウント B / ap-northeast-1  → Stack Instance
+        +--→ Account B / ap-northeast-1  → Stack Instance
         |
-        +--→ アカウント B / us-east-1       → Stack Instance
+        +--→ Account B / us-east-1       → Stack Instance
 
-デプロイモデル:
-  Self-managed: 手動で IAM ロールを設定
-  Service-managed: AWS Organizations と自動連携
+Deployment models:
+  Self-managed: Manually configure IAM roles
+  Service-managed: Automatically integrated with AWS Organizations
 ```
 
-### 8.2 スタックセットの作成と管理
+### 8.2 Creating and Managing Stack Sets
 
 ```bash
-# スタックセットの作成 (Service-managed)
+# Create a stack set (Service-managed)
 aws cloudformation create-stack-set \
   --stack-set-name security-baseline \
   --template-body file://security-baseline.yaml \
@@ -998,7 +998,7 @@ aws cloudformation create-stack-set \
   --auto-deployment Enabled=true,RetainStacksOnAccountRemoval=false \
   --capabilities CAPABILITY_NAMED_IAM
 
-# スタックインスタンスのデプロイ (OU 指定)
+# Deploy stack instances (specifying an OU)
 aws cloudformation create-stack-instances \
   --stack-set-name security-baseline \
   --deployment-targets OrganizationalUnitIds='["ou-xxxx-yyyyyyy"]' \
@@ -1008,26 +1008,26 @@ aws cloudformation create-stack-instances \
     MaxConcurrentPercentage=25,\
     RegionConcurrencyType=PARALLEL
 
-# スタックセットの更新
+# Update a stack set
 aws cloudformation update-stack-set \
   --stack-set-name security-baseline \
   --template-body file://security-baseline-v2.yaml
 
-# スタックインスタンスの状態確認
+# Check stack instance status
 aws cloudformation list-stack-instances \
   --stack-set-name security-baseline \
   --query 'Summaries[].{Account:Account,Region:Region,Status:Status}' \
   --output table
 ```
 
-### 8.3 セキュリティベースラインテンプレート
+### 8.3 Security Baseline Template
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'セキュリティベースライン (全アカウント共通)'
+Description: 'Security Baseline (common to all accounts)'
 
 Resources:
-  # CloudTrail 有効化
+  # Enable CloudTrail
   CloudTrail:
     Type: AWS::CloudTrail::Trail
     Properties:
@@ -1037,7 +1037,7 @@ Resources:
       EnableLogFileValidation: true
       S3BucketName: !Sub 'cloudtrail-${AWS::AccountId}'
 
-  # GuardDuty 有効化
+  # Enable GuardDuty
   GuardDutyDetector:
     Type: AWS::GuardDuty::Detector
     Properties:
@@ -1049,7 +1049,7 @@ Resources:
           AuditLogs:
             Enable: true
 
-  # Config 有効化
+  # Enable Config
   ConfigRecorder:
     Type: AWS::Config::ConfigurationRecorder
     Properties:
@@ -1059,7 +1059,7 @@ Resources:
         AllSupported: true
         IncludeGlobalResourceTypes: true
 
-  # デフォルト VPC の削除を防止する Config ルール
+  # Config rule to prevent default VPC deletion
   RestrictedSSH:
     Type: AWS::Config::ConfigRule
     DependsOn: ConfigRecorder
@@ -1069,7 +1069,7 @@ Resources:
         Owner: AWS
         SourceIdentifier: INCOMING_SSH_DISABLED
 
-  # パスワードポリシー
+  # Password policy
   PasswordPolicy:
     Type: Custom::PasswordPolicy
     Properties:
@@ -1082,7 +1082,7 @@ Resources:
       MaxPasswordAge: 90
       PasswordReusePrevention: 12
 
-  # S3 パブリックアクセスブロック (アカウントレベル)
+  # S3 public access block (account level)
   S3PublicAccessBlock:
     Type: AWS::S3::AccountPublicAccessBlock
     Properties:
@@ -1094,12 +1094,12 @@ Resources:
 
 ---
 
-## 9. CI/CD 統合
+## 9. CI/CD Integration
 
 ### 9.1 CodePipeline + CloudFormation
 
 ```yaml
-# CI/CD パイプラインテンプレート
+# CI/CD pipeline template
 Resources:
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
@@ -1110,7 +1110,7 @@ Resources:
         Type: S3
         Location: !Ref ArtifactBucket
       Stages:
-        # ソースステージ
+        # Source stage
         - Name: Source
           Actions:
             - Name: SourceAction
@@ -1126,7 +1126,7 @@ Resources:
               OutputArtifacts:
                 - Name: SourceOutput
 
-        # テストステージ
+        # Test stage
         - Name: Test
           Actions:
             - Name: CFnLint
@@ -1140,7 +1140,7 @@ Resources:
               InputArtifacts:
                 - Name: SourceOutput
 
-        # ステージング環境
+        # Staging environment
         - Name: Staging
           Actions:
             - Name: CreateChangeSet
@@ -1173,7 +1173,7 @@ Resources:
                 ChangeSetName: staging-changeset
               RunOrder: 2
 
-        # 承認ステージ
+        # Approval stage
         - Name: Approval
           Actions:
             - Name: ManualApproval
@@ -1184,9 +1184,9 @@ Resources:
                 Version: "1"
               Configuration:
                 NotificationArn: !Ref ApprovalTopic
-                CustomData: "本番環境へのデプロイを承認してください"
+                CustomData: "Please approve the deployment to the production environment"
 
-        # 本番環境
+        # Production environment
         - Name: Production
           Actions:
             - Name: CreateChangeSet
@@ -1325,35 +1325,35 @@ jobs:
             --stack-name production-stack
 ```
 
-### 9.3 テンプレートの Lint とテスト
+### 9.3 Template Linting and Testing
 
 ```bash
-# cfn-lint (構文チェック)
+# cfn-lint (syntax check)
 pip install cfn-lint
 cfn-lint template.yaml
 
-# cfn-nag (セキュリティチェック)
+# cfn-nag (security check)
 gem install cfn-nag
 cfn_nag_scan --input-path template.yaml
 
-# TaskCat (マルチリージョンテスト)
+# TaskCat (multi-region testing)
 pip install taskcat
 taskcat test run
 
-# Rain (CloudFormation の便利ツール)
-# テンプレートのフォーマット
+# Rain (CloudFormation utility tool)
+# Format a template
 rain fmt template.yaml
 
-# テンプレートのデプロイ (対話的)
+# Deploy a template (interactive)
 rain deploy template.yaml my-stack
 
-# スタック情報の表示
+# Show stack information
 rain ls
 rain watch my-stack
 ```
 
 ```yaml
-# taskcat の設定ファイル (.taskcat.yml)
+# TaskCat configuration file (.taskcat.yml)
 project:
   name: my-infra
   regions:
@@ -1369,94 +1369,94 @@ tests:
 
 ---
 
-## 10. トラブルシューティング
+## 10. Troubleshooting
 
-### 10.1 よくあるエラーと対処法
+### 10.1 Common Errors and Solutions
 
 ```
-エラー 1: CREATE_FAILED - Resource already exists
-原因: 同名のリソースが既に存在
-対処:
-  - リソース名を変更する
-  - 既存リソースをインポートする
-  - 既存リソースを削除してからスタック作成
+Error 1: CREATE_FAILED - Resource already exists
+Cause: A resource with the same name already exists
+Solution:
+  - Change the resource name
+  - Import the existing resource
+  - Delete the existing resource before creating the stack
 
-エラー 2: UPDATE_ROLLBACK_FAILED
-原因: ロールバック中にもエラーが発生
-対処:
-  - ContinueUpdateRollback を実行
+Error 2: UPDATE_ROLLBACK_FAILED
+Cause: An error occurred during rollback
+Solution:
+  - Run ContinueUpdateRollback
   aws cloudformation continue-update-rollback \
     --stack-name my-stack \
     --resources-to-skip LogicalResourceId1
 
-エラー 3: DELETE_FAILED
-原因: リソースが他から参照されている / 手動変更されている
-対処:
-  - 依存リソースを先に削除
-  - retain-resources オプションで強制削除
+Error 3: DELETE_FAILED
+Cause: Resource is referenced elsewhere / was manually modified
+Solution:
+  - Delete dependent resources first
+  - Force delete with the retain-resources option
   aws cloudformation delete-stack \
     --stack-name my-stack \
     --retain-resources WebSecurityGroup
 
-エラー 4: Template validation error
-原因: テンプレート構文エラー
-対処:
-  - aws cloudformation validate-template で事前検証
+Error 4: Template validation error
+Cause: Template syntax error
+Solution:
+  - Validate in advance with aws cloudformation validate-template
   aws cloudformation validate-template \
     --template-body file://template.yaml
 
-エラー 5: InsufficientCapabilities
-原因: IAM リソース作成に capabilities が不足
-対処:
-  - --capabilities CAPABILITY_NAMED_IAM を追加
-  - CAPABILITY_AUTO_EXPAND (マクロ使用時)
+Error 5: InsufficientCapabilities
+Cause: Missing capabilities for creating IAM resources
+Solution:
+  - Add --capabilities CAPABILITY_NAMED_IAM
+  - CAPABILITY_AUTO_EXPAND (when using macros)
 ```
 
-### 10.2 UPDATE_ROLLBACK_FAILED の対処
+### 10.2 Handling UPDATE_ROLLBACK_FAILED
 
 ```bash
-# 1. 失敗したリソースの特定
+# 1. Identify the failed resource
 aws cloudformation describe-stack-events \
   --stack-name my-stack \
   --query 'StackEvents[?ResourceStatus==`UPDATE_FAILED`].{Resource:LogicalResourceId,Reason:ResourceStatusReason}' \
   --output table
 
-# 2. 問題のあるリソースをスキップしてロールバック続行
+# 2. Skip the problematic resource and continue the rollback
 aws cloudformation continue-update-rollback \
   --stack-name my-stack \
   --resources-to-skip MyLambdaFunction MySecurityGroup
 
-# 3. ロールバック完了を待機
+# 3. Wait for rollback to complete
 aws cloudformation wait stack-rollback-complete \
   --stack-name my-stack
 ```
 
-### 10.3 スタック削除のスタック
+### 10.3 Stuck Stack Deletion
 
 ```bash
-# 削除保護の解除
+# Remove termination protection
 aws cloudformation update-termination-protection \
   --no-enable-termination-protection \
   --stack-name my-stack
 
-# 依存関係の確認
+# Check dependencies
 aws cloudformation list-imports \
   --export-name 'my-stack-VpcId'
 
-# S3 バケットが空でない場合の対処
+# Handle non-empty S3 bucket
 aws s3 rm s3://my-bucket --recursive
 aws cloudformation delete-stack --stack-name my-stack
 
-# 強制削除 (一部リソースを残す)
+# Force delete (retain some resources)
 aws cloudformation delete-stack \
   --stack-name my-stack \
   --retain-resources SecurityGroup VPCEndpoint
 ```
 
-### 10.4 デバッグテクニック
+### 10.4 Debugging Techniques
 
 ```yaml
-# cfn-init と cfn-signal を使った EC2 初期化とシグナル
+# EC2 initialization and signaling with cfn-init and cfn-signal
 
 Resources:
   WebServer:
@@ -1464,7 +1464,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
-        Timeout: PT15M  # 15分でタイムアウト
+        Timeout: PT15M  # Timeout after 15 minutes
     Metadata:
       AWS::CloudFormation::Init:
         configSets:
@@ -1496,14 +1496,14 @@ Resources:
           yum update -y
           yum install -y aws-cfn-bootstrap
 
-          # cfn-init の実行
+          # Run cfn-init
           /opt/aws/bin/cfn-init -v \
             --stack ${AWS::StackName} \
             --resource WebServer \
             --configsets full_install \
             --region ${AWS::Region}
 
-          # 結果を cfn-signal で報告
+          # Report result with cfn-signal
           /opt/aws/bin/cfn-signal -e $? \
             --stack ${AWS::StackName} \
             --resource WebServer \
@@ -1512,13 +1512,13 @@ Resources:
 
 ---
 
-## 11. 高度なテンプレートパターン
+## 11. Advanced Template Patterns
 
-### 11.1 DeletionPolicy と UpdateReplacePolicy
+### 11.1 DeletionPolicy and UpdateReplacePolicy
 
 ```yaml
 Resources:
-  # スナップショット取得後に削除
+  # Delete after taking a snapshot
   Database:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Snapshot
@@ -1529,14 +1529,14 @@ Resources:
       MasterUsername: admin
       MasterUserPassword: !Ref DatabasePassword
 
-  # 削除しない (スタック削除時もリソースを残す)
+  # Retain (keep the resource even when the stack is deleted)
   ImportantBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     Properties:
       BucketName: !Sub '${AWS::StackName}-important-data'
 
-  # 通常削除 (デフォルト)
+  # Normal deletion (default)
   TempBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
@@ -1544,11 +1544,11 @@ Resources:
       BucketName: !Sub '${AWS::StackName}-temp'
 ```
 
-### 11.2 DependsOn と WaitCondition
+### 11.2 DependsOn and WaitCondition
 
 ```yaml
 Resources:
-  # 明示的な依存関係
+  # Explicit dependency
   ApplicationServer:
     Type: AWS::EC2::Instance
     DependsOn:
@@ -1557,7 +1557,7 @@ Resources:
     Properties:
       # ...
 
-  # WaitCondition (外部プロセスからのシグナル待ち)
+  # WaitCondition (wait for signal from external process)
   WaitHandle:
     Type: AWS::CloudFormation::WaitConditionHandle
 
@@ -1570,7 +1570,7 @@ Resources:
       Count: 1
 ```
 
-### 11.3 条件分岐の活用
+### 11.3 Using Conditions
 
 ```yaml
 Conditions:
@@ -1582,7 +1582,7 @@ Conditions:
   UseCustomDomain: !Not [!Equals [!Ref DomainName, '']]
 
 Resources:
-  # 条件付きリソース作成
+  # Conditional resource creation
   ReadReplica:
     Type: AWS::RDS::DBInstance
     Condition: CreateReplica
@@ -1590,7 +1590,7 @@ Resources:
       SourceDBInstanceIdentifier: !Ref Database
       DBInstanceClass: db.t3.medium
 
-  # 条件付きプロパティ
+  # Conditional property
   ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -1600,14 +1600,14 @@ Resources:
         - [!Ref PublicSubnet1, !Ref PublicSubnet2, !Ref PublicSubnet3]
         - [!Ref PublicSubnet1, !Ref PublicSubnet2]
 
-  # 条件付き出力
+  # Conditional output
   Outputs:
     ReplicaEndpoint:
       Condition: CreateReplica
       Value: !GetAtt ReadReplica.Endpoint.Address
 ```
 
-### 11.4 動的参照 (Dynamic References)
+### 11.4 Dynamic References
 
 ```yaml
 Resources:
@@ -1616,12 +1616,12 @@ Resources:
     Properties:
       DBInstanceClass: db.t3.medium
       Engine: mysql
-      # SSM Parameter Store からの参照
+      # Reference from SSM Parameter Store
       MasterUsername: '{{resolve:ssm:/prod/db/username}}'
-      # Secrets Manager からの参照
+      # Reference from Secrets Manager
       MasterUserPassword: '{{resolve:secretsmanager:prod/db/credentials:SecretString:password}}'
 
-  # SSM SecureString からの参照
+  # Reference from SSM SecureString
   ApiServer:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -1634,13 +1634,13 @@ Resources:
 
 ---
 
-## 12. 本格的なテンプレート例
+## 12. Production-Grade Template Examples
 
-### 12.1 3 層 Web アプリケーション
+### 12.1 3-Tier Web Application
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
-Description: '3層 Web アプリケーション基盤'
+Description: '3-Tier Web Application Infrastructure'
 
 Parameters:
   EnvironmentName:
@@ -1681,7 +1681,7 @@ Resources:
       InternetGatewayId: !Ref InternetGateway
       VpcId: !Ref VPC
 
-  # パブリックサブネット
+  # Public subnets
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -1704,7 +1704,7 @@ Resources:
         - Key: Name
           Value: !Sub '${EnvironmentName}-public-2'
 
-  # プライベートサブネット
+  # Private subnets
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -1738,7 +1738,7 @@ Resources:
       AllocationId: !GetAtt NatGateway1EIP.AllocationId
       SubnetId: !Ref PublicSubnet1
 
-  # ルートテーブル
+  # Route tables
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -1987,32 +1987,32 @@ Outputs:
 
 ---
 
-## 13. アンチパターン
+## 13. Anti-Patterns
 
-### 13.1 巨大な単一テンプレート
+### 13.1 One Massive Template
 
 ```
-[悪い例]
-1つのテンプレートに全リソース (VPC, EC2, RDS, Lambda, IAM...) を定義
-→ 500行超のテンプレート
-→ 更新時のリスクが高い、チーム分業が困難
+[Bad example]
+Define all resources in a single template (VPC, EC2, RDS, Lambda, IAM...)
+→ Template exceeds 500 lines
+→ High risk during updates, difficult team collaboration
 
-[良い例]
-レイヤー別にスタックを分割:
-  network-stack.yaml   → VPC, Subnet, NAT GW
-  security-stack.yaml  → IAM, SG, KMS
-  database-stack.yaml  → RDS, ElastiCache
-  app-stack.yaml       → EC2, ECS, Lambda
+[Good example]
+Split stacks by layer:
+  network-stack.yaml    → VPC, Subnet, NAT GW
+  security-stack.yaml   → IAM, SG, KMS
+  database-stack.yaml   → RDS, ElastiCache
+  app-stack.yaml        → EC2, ECS, Lambda
   monitoring-stack.yaml → CloudWatch, SNS
 
-各スタック間は Export/Import で連携
+Stacks communicate via Export/Import
 ```
 
-### 13.2 DeletionPolicy 未設定でのデータベース運用
+### 13.2 Running Databases Without DeletionPolicy
 
-**問題点**: スタック削除時にデータベースも一緒に削除され、データが失われる。
+**Problem**: The database is deleted along with the stack, causing data loss.
 
-**改善**: RDS や DynamoDB などのステートフルリソースには `DeletionPolicy: Snapshot` または `DeletionPolicy: Retain` を設定する。
+**Fix**: Set `DeletionPolicy: Snapshot` or `DeletionPolicy: Retain` on stateful resources such as RDS and DynamoDB.
 
 ```yaml
 Database:
@@ -2023,20 +2023,20 @@ Database:
     # ...
 ```
 
-### 13.3 ハードコードされた値
+### 13.3 Hardcoded Values
 
 ```yaml
-# [悪い例]
+# [Bad example]
 Resources:
   Instance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ami-0abcdef1234567890  # ハードコード
-      SubnetId: subnet-12345678       # ハードコード
+      ImageId: ami-0abcdef1234567890  # hardcoded
+      SubnetId: subnet-12345678       # hardcoded
       SecurityGroupIds:
-        - sg-87654321                 # ハードコード
+        - sg-87654321                 # hardcoded
 
-# [良い例]
+# [Good example]
 Parameters:
   LatestAmiId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
@@ -2052,23 +2052,23 @@ Resources:
         - !ImportValue 'security-WebSGId'
 ```
 
-### 13.4 変更セットを使わない直接更新
+### 13.4 Direct Updates Without Change Sets
 
 ```
-[悪い例]
+[Bad example]
 aws cloudformation update-stack --stack-name prod-stack ...
-→ 意図しない置換 (Replacement) が発生する可能性
+→ Risk of unintended Replacement occurring
 
-[良い例]
+[Good example]
 1. aws cloudformation create-change-set ...
-2. aws cloudformation describe-change-set ...  ← 影響を確認
+2. aws cloudformation describe-change-set ...  ← Verify impact
 3. aws cloudformation execute-change-set ...
 ```
 
-### 13.5 削除保護なしの本番スタック
+### 13.5 Production Stacks Without Termination Protection
 
 ```bash
-# 本番スタックには必ず削除保護を有効化
+# Always enable termination protection for production stacks
 aws cloudformation update-termination-protection \
   --enable-termination-protection \
   --stack-name production-stack
@@ -2078,85 +2078,85 @@ aws cloudformation update-termination-protection \
 
 ## 14. FAQ
 
-### Q1. CloudFormation と Terraform のどちらを使うべきですか？
+### Q1. Should I use CloudFormation or Terraform?
 
-AWS のみを利用する場合は CloudFormation が AWS サービスとの統合が深く、変更セットやドリフト検出など運用機能も充実している。マルチクラウドやオンプレミスも管理する場合は Terraform が適している。組織の既存スキルセットも重要な判断要素である。
+If you only use AWS, CloudFormation offers deep AWS service integration and rich operational features such as change sets and drift detection. If you also manage multi-cloud or on-premises resources, Terraform is more appropriate. Your organization's existing skill set is also an important factor.
 
-### Q2. テンプレートの最大サイズは？
+### Q2. What is the maximum template size?
 
-テンプレート本文は 51,200 バイト(約50KB)が上限。S3 に配置したテンプレートを参照する場合は 460,800 バイト(約450KB)まで拡大される。大規模な構成ではネストスタックで分割するか、CDK の利用を検討する。
+The template body limit is 51,200 bytes (approximately 50 KB). When referencing a template stored in S3, this expands to 460,800 bytes (approximately 450 KB). For large configurations, consider splitting into nested stacks or using CDK.
 
-### Q3. スタック更新に失敗した場合はどうなりますか？
+### Q3. What happens when a stack update fails?
 
-デフォルトでは自動ロールバックが実行され、更新前の状態に戻る。`--disable-rollback` オプションを使うとロールバックを無効化でき、失敗原因の調査がしやすくなるが、スタックは UPDATE_FAILED 状態のままになる。本番環境では自動ロールバックを有効にしておくべきである。
+By default, automatic rollback is executed, reverting to the state before the update. Using the `--disable-rollback` option disables rollback, making it easier to investigate the cause of failure, but the stack remains in the UPDATE_FAILED state. In production environments, automatic rollback should always be enabled.
 
-### Q4. CloudFormation で管理できないリソースがある場合は？
+### Q4. What if there are resources that CloudFormation cannot manage?
 
-カスタムリソース (Lambda-backed) を使って、CloudFormation が直接サポートしていないリソースも管理できる。例えば、サードパーティ API の設定や、AWS の新サービスがサポートされる前のリソース作成にも活用できる。また、AWS CloudFormation Registry にサードパーティのリソースタイプを登録する方法もある。
+Using custom resources (Lambda-backed), you can manage resources that CloudFormation does not directly support. For example, they can be used for third-party API configuration or creating resources for new AWS services before CloudFormation support is available. You can also register third-party resource types in the AWS CloudFormation Registry.
 
-### Q5. CDK と CloudFormation の関係は？
+### Q5. What is the relationship between CDK and CloudFormation?
 
-CDK は TypeScript や Python などのプログラミング言語で記述し、最終的に CloudFormation テンプレートを生成・デプロイする。CDK の裏側では CloudFormation が動作しているため、CloudFormation の知識は CDK を使う上でも必須である。複雑なロジックや再利用性が求められる場合は CDK が適しており、シンプルなテンプレートには CloudFormation を直接使うのが効率的である。
+CDK is written in programming languages such as TypeScript or Python and ultimately generates and deploys CloudFormation templates. Since CloudFormation runs under the hood of CDK, knowledge of CloudFormation is essential even when using CDK. CDK is more appropriate for complex logic and reusability requirements, while using CloudFormation directly is more efficient for simple templates.
 
-### Q6. スタックの数に上限はありますか？
+### Q6. Is there a limit on the number of stacks?
 
-デフォルトでは 1 リージョンあたり 2,000 スタックが上限。Service Quotas からの引き上げリクエストが可能。Export 値は 1 リージョンあたり 5,000 が上限で、こちらは引き上げできないため、大規模構成では SSM Parameter Store を代替として使うことを検討する。
+By default, the limit is 2,000 stacks per region. You can submit a raise request via Service Quotas. Export values have a limit of 5,000 per region, which cannot be raised, so for large-scale configurations consider using SSM Parameter Store as an alternative.
 
-### Q7. CloudFormation のデプロイを高速化するには？
+### Q7. How can I speed up CloudFormation deployments?
 
-テンプレートの分割、並列リソース作成 (DependsOn の最小化)、不要なリソースの除外が基本。また、`aws cloudformation deploy` コマンドは変更セットの作成と実行を自動化するため、スクリプトでの利用に適している。CI/CD パイプラインでは、ステージング環境のテスト結果をキャッシュして本番環境のデプロイ時間を短縮する戦略も有効である。
+The basics are splitting templates, parallel resource creation (minimizing DependsOn), and excluding unnecessary resources. The `aws cloudformation deploy` command also automates change set creation and execution, making it suitable for use in scripts. In CI/CD pipelines, caching staging environment test results to reduce production deployment time is also an effective strategy.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just from theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| テンプレート | YAML/JSON でリソースを宣言的に定義 |
-| パラメータ | 環境ごとの設定値を外部化、SSM/Secrets Manager との動的参照も可能 |
-| 組み込み関数 | !Ref, !Sub, !GetAtt, !If などで動的な値を構成 |
-| 変更セット | 更新前に影響範囲をプレビュー (本番更新の必須プロセス) |
-| クロススタック参照 | Export/Import でスタック間の値を共有 |
-| ネストスタック | 大規模テンプレートの分割と再利用 |
-| ドリフト検出 | テンプレートと実際の構成の差分を検出・自動化可能 |
-| カスタムリソース | Lambda で CloudFormation を拡張 |
-| スタックセット | マルチアカウント・マルチリージョンデプロイ |
-| CI/CD 統合 | CodePipeline / GitHub Actions で自動デプロイ |
-| トラブルシューティング | ロールバック対処、リソースインポート、デバッグ手法 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [AWS CDK](./01-cdk.md) -- プログラミング言語でインフラを定義
-- [CodePipeline](./02-codepipeline.md) -- CloudFormation を CI/CD に統合
-- [IAM 詳解](../08-security/00-iam-deep-dive.md) -- CloudFormation で使う IAM の設計
-- [ECS 基礎](../06-containers/00-ecs-basics.md) -- CloudFormation で ECS を構築
+| Item | Key Points |
+|------|-----------|
+| Templates | Declaratively define resources in YAML/JSON |
+| Parameters | Externalize environment-specific settings; dynamic references from SSM/Secrets Manager also available |
+| Intrinsic Functions | Compose dynamic values using !Ref, !Sub, !GetAtt, !If, etc. |
+| Change Sets | Preview the scope of impact before updates (mandatory process for production updates) |
+| Cross-Stack References | Share values between stacks via Export/Import |
+| Nested Stacks | Split and reuse large templates |
+| Drift Detection | Detect differences between template and actual configuration; can be automated |
+| Custom Resources | Extend CloudFormation with Lambda |
+| Stack Sets | Multi-account and multi-region deployments |
+| CI/CD Integration | Automated deployments with CodePipeline / GitHub Actions |
+| Troubleshooting | Rollback handling, resource import, debugging techniques |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. AWS 公式ドキュメント「AWS CloudFormation ユーザーガイド」 https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/
-2. AWS 公式「CloudFormation ベストプラクティス」 https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/best-practices.html
-3. AWS 公式「リソースおよびプロパティリファレンス」 https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html
-4. cfn-lint GitHub リポジトリ https://github.com/aws-cloudformation/cfn-lint
-5. Rain (CloudFormation CLI ツール) https://github.com/aws-cloudformation/rain
-6. TaskCat (テストフレームワーク) https://github.com/aws-ia/taskcat
+- [AWS CDK](./01-cdk.md) -- Define infrastructure using programming languages
+- [CodePipeline](./02-codepipeline.md) -- Integrate CloudFormation into CI/CD
+- [IAM Deep Dive](../08-security/00-iam-deep-dive.md) -- IAM design for use with CloudFormation
+- [ECS Basics](../06-containers/00-ecs-basics.md) -- Build ECS with CloudFormation
+
+---
+
+## References
+
+1. AWS Official Documentation "AWS CloudFormation User Guide" https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/
+2. AWS Official "CloudFormation Best Practices" https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/best-practices.html
+3. AWS Official "Resource and Property Reference" https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html
+4. cfn-lint GitHub Repository https://github.com/aws-cloudformation/cfn-lint
+5. Rain (CloudFormation CLI tool) https://github.com/aws-cloudformation/rain
+6. TaskCat (testing framework) https://github.com/aws-ia/taskcat
