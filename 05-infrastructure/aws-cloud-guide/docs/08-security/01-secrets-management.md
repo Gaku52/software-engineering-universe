@@ -1,118 +1,118 @@
-# シークレット管理 — Secrets Manager / Parameter Store / KMS
+# Secrets Management — Secrets Manager / Parameter Store / KMS
 
-> AWS におけるシークレット（機密情報）のライフサイクルを安全に管理し、アプリケーションからハードコードされた認証情報を排除するための実践ガイド。
-
----
-
-## この章で学ぶこと
-
-1. **AWS Secrets Manager** によるシークレットの自動ローテーションと取得パターン
-2. **Systems Manager Parameter Store** との使い分けと階層型パラメータ設計
-3. **AWS KMS（Key Management Service）** によるエンベロープ暗号化と鍵ポリシー設計
-4. **マルチアカウント・マルチリージョン** のシークレット管理戦略
-5. **シークレットの監査・監視・自動修復** のベストプラクティス
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AWS IAM 詳解](./00-iam-deep-dive.md) の内容を理解していること
+> A practical guide for safely managing the lifecycle of secrets (sensitive information) in AWS, and eliminating hardcoded credentials from applications.
 
 ---
 
-## 1. シークレット管理の全体像
+## What You Will Learn
 
-### 1.1 なぜシークレット管理が必要か
+1. Automatic rotation and retrieval patterns for secrets using **AWS Secrets Manager**
+2. How to choose between **Systems Manager Parameter Store** and Secrets Manager, and hierarchical parameter design
+3. Envelope encryption and key policy design with **AWS KMS (Key Management Service)**
+4. Secrets management strategies for **multi-account and multi-region** environments
+5. Best practices for **auditing, monitoring, and auto-remediation** of secrets
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [AWS IAM Deep Dive](./00-iam-deep-dive.md)
+
+---
+
+## 1. Overview of Secrets Management
+
+### 1.1 Why Secrets Management Is Necessary
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│              アンチパターン: ハードコード              │
+│              Anti-Pattern: Hardcoding                 │
 │                                                      │
 │   app.py                                             │
 │   ┌──────────────────────────────────────┐           │
-│   │ DB_PASSWORD = "P@ssw0rd123"          │ ← 危険!   │
+│   │ DB_PASSWORD = "P@ssw0rd123"          │ ← Danger! │
 │   │ API_KEY     = "sk-abc123..."         │           │
 │   └──────────────────────────────────────┘           │
 │        │                                             │
 │        ▼                                             │
-│   Git リポジトリに push → 漏洩リスク                  │
+│   Push to Git repository → Risk of exposure          │
 └──────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────┐
-│              ベストプラクティス: 外部管理              │
+│              Best Practice: External Management       │
 │                                                      │
 │   app.py                                             │
 │   ┌──────────────────────────────────────┐           │
-│   │ secret = get_secret("prod/db/pass")  │ ← 安全    │
+│   │ secret = get_secret("prod/db/pass")  │ ← Safe    │
 │   └──────────────────┬───────────────────┘           │
 │                      │ API Call                      │
 │                      ▼                               │
 │   ┌──────────────────────────────────────┐           │
 │   │  AWS Secrets Manager / SSM           │           │
-│   │  (暗号化・監査・ローテーション)       │           │
+│   │  (Encryption, Auditing, Rotation)    │           │
 │   └──────────────────────────────────────┘           │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.2 サービス選択フロー
+### 1.2 Service Selection Flow
 
 ```
-シークレットを管理したい
+I want to manage a secret
         │
-        ├─ 自動ローテーションが必要？
+        ├─ Is automatic rotation required?
         │       │
         │       ├─ Yes → Secrets Manager
         │       │
         │       └─ No ─┐
         │               │
-        ├─ 設定値か機密値か？
+        ├─ Configuration value or sensitive value?
         │       │
-        │       ├─ 設定値（Feature Flag 等） → Parameter Store (String)
+        │       ├─ Configuration value (Feature Flag, etc.) → Parameter Store (String)
         │       │
-        │       └─ 機密値（パスワード等）   → Parameter Store (SecureString)
-        │                                     または Secrets Manager
+        │       └─ Sensitive value (password, etc.)        → Parameter Store (SecureString)
+        │                                                     or Secrets Manager
         │
-        └─ 暗号鍵の管理が必要？ → KMS
+        └─ Is encryption key management needed? → KMS
 ```
 
-### 1.3 シークレット管理のライフサイクル
+### 1.3 Secret Lifecycle
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│              シークレットライフサイクル                      │
+│              Secret Lifecycle                            │
 │                                                          │
-│  1. 生成 (Generation)                                    │
-│     ├── Secrets Manager の GenerateSecretString           │
-│     ├── KMS の GenerateRandom                            │
-│     └── 強力なパスワードポリシーの適用                     │
+│  1. Generation                                           │
+│     ├── Secrets Manager GenerateSecretString             │
+│     ├── KMS GenerateRandom                               │
+│     └── Applying strong password policies                │
 │                                                          │
-│  2. 保管 (Storage)                                       │
-│     ├── Secrets Manager (KMS 暗号化)                     │
-│     ├── Parameter Store SecureString (KMS 暗号化)        │
-│     └── バージョニングによる履歴管理                       │
+│  2. Storage                                              │
+│     ├── Secrets Manager (KMS encrypted)                  │
+│     ├── Parameter Store SecureString (KMS encrypted)     │
+│     └── History management through versioning            │
 │                                                          │
-│  3. 配布 (Distribution)                                  │
-│     ├── SDK/CLI での動的取得                               │
-│     ├── ECS/Lambda の環境変数注入                         │
-│     └── VPC エンドポイント経由のアクセス                   │
+│  3. Distribution                                         │
+│     ├── Dynamic retrieval via SDK/CLI                    │
+│     ├── Environment variable injection for ECS/Lambda    │
+│     └── Access via VPC Endpoint                          │
 │                                                          │
-│  4. ローテーション (Rotation)                             │
-│     ├── Secrets Manager の自動ローテーション               │
-│     ├── Lambda 関数によるカスタムローテーション             │
-│     └── マルチユーザーローテーション戦略                    │
+│  4. Rotation                                             │
+│     ├── Automatic rotation in Secrets Manager            │
+│     ├── Custom rotation via Lambda functions             │
+│     └── Multi-user rotation strategy                     │
 │                                                          │
-│  5. 監査 (Auditing)                                      │
-│     ├── CloudTrail によるアクセスログ                      │
-│     ├── Config Rules によるコンプライアンス監視             │
-│     └── EventBridge による異常検知アラート                  │
+│  5. Auditing                                             │
+│     ├── Access logs via CloudTrail                       │
+│     ├── Compliance monitoring via Config Rules           │
+│     └── Anomaly detection alerts via EventBridge         │
 │                                                          │
-│  6. 廃棄 (Revocation)                                    │
-│     ├── スケジュール削除 (7-30日の復旧期間)                │
-│     ├── 即座のアクセス無効化 (リソースポリシー変更)        │
-│     └── KMS キーの無効化                                  │
+│  6. Revocation                                           │
+│     ├── Scheduled deletion (7-30 day recovery window)    │
+│     ├── Immediate access revocation (resource policy change) │
+│     └── KMS key deactivation                             │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -120,10 +120,10 @@
 
 ## 2. AWS Secrets Manager
 
-### 2.1 シークレットの作成（CLI）
+### 2.1 Creating a Secret (CLI)
 
 ```bash
-# シークレット作成
+# Create a secret
 aws secretsmanager create-secret \
   --name "prod/myapp/database" \
   --description "Production DB credentials" \
@@ -131,38 +131,38 @@ aws secretsmanager create-secret \
   --kms-key-id "alias/prod-database-key" \
   --tags Key=Environment,Value=Production Key=Application,Value=myapp
 
-# シークレット取得
+# Retrieve a secret
 aws secretsmanager get-secret-value \
   --secret-id "prod/myapp/database" \
   --query 'SecretString' \
   --output text
 
-# 特定バージョンの取得
+# Retrieve a specific version
 aws secretsmanager get-secret-value \
   --secret-id "prod/myapp/database" \
   --version-stage "AWSPREVIOUS"
 
-# シークレットの更新
+# Update a secret
 aws secretsmanager update-secret \
   --secret-id "prod/myapp/database" \
   --secret-string '{"username":"admin","password":"N3wS3cur3P@ss!","host":"db.example.com","port":5432}'
 
-# シークレットの一覧取得（フィルタ付き）
+# List secrets (with filter)
 aws secretsmanager list-secrets \
   --filters Key=name,Values=prod/ \
   --query 'SecretList[*].{Name:Name,Description:Description,LastRotated:LastRotatedDate}'
 
-# シークレットの削除（復旧期間あり）
+# Delete a secret (with recovery window)
 aws secretsmanager delete-secret \
   --secret-id "prod/myapp/database" \
   --recovery-window-in-days 7
 
-# 削除の取り消し
+# Restore a deleted secret
 aws secretsmanager restore-secret \
   --secret-id "prod/myapp/database"
 ```
 
-### 2.2 Python からの取得
+### 2.2 Retrieving Secrets from Python
 
 ```python
 import json
@@ -170,7 +170,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 def get_secret(secret_name: str, region: str = "ap-northeast-1") -> dict:
-    """Secrets Manager からシークレットを取得する"""
+    """Retrieve a secret from Secrets Manager"""
     client = boto3.client("secretsmanager", region_name=region)
 
     try:
@@ -180,12 +180,12 @@ def get_secret(secret_name: str, region: str = "ap-northeast-1") -> dict:
     except ClientError as e:
         error_code = e.response["Error"]["Code"]
         if error_code == "ResourceNotFoundException":
-            raise ValueError(f"シークレット '{secret_name}' が見つかりません")
+            raise ValueError(f"Secret '{secret_name}' not found")
         elif error_code == "DecryptionFailureException":
-            raise PermissionError("KMS 復号に失敗しました")
+            raise PermissionError("KMS decryption failed")
         raise
 
-# 使用例
+# Usage example
 creds = get_secret("prod/myapp/database")
 connection_string = (
     f"postgresql://{creds['username']}:{creds['password']}"
@@ -193,51 +193,51 @@ connection_string = (
 )
 ```
 
-### 2.3 クライアント側キャッシュの実装
+### 2.3 Implementing Client-Side Caching
 
 ```python
 from aws_secretsmanager_caching import SecretCache, SecretCacheConfig
 import boto3
 
-# キャッシュ設定
+# Cache configuration
 cache_config = SecretCacheConfig(
-    max_cache_size=1000,           # キャッシュする最大シークレット数
-    exception_retry_delay_base=1,   # リトライ間隔（秒）
+    max_cache_size=1000,           # Maximum number of secrets to cache
+    exception_retry_delay_base=1,   # Retry interval (seconds)
     exception_retry_growth_factor=2,
     exception_retry_delay_max=3600,
     default_secret_version_stage="AWSCURRENT",
-    secret_refresh_interval=3600,   # キャッシュの TTL（秒）
+    secret_refresh_interval=3600,   # Cache TTL (seconds)
     secret_version_stage_refresh_interval=3600,
 )
 
-# キャッシュの初期化
+# Initialize cache
 client = boto3.client("secretsmanager", region_name="ap-northeast-1")
 cache = SecretCache(config=cache_config, client=client)
 
-# キャッシュ経由でシークレット取得（TTL内はAPI呼び出しなし）
+# Retrieve secret via cache (no API call within TTL)
 secret_string = cache.get_secret_string("prod/myapp/database")
 secret_dict = json.loads(secret_string)
 
-# バイナリシークレットの場合
+# For binary secrets
 binary_secret = cache.get_secret_binary("prod/myapp/certificate")
 ```
 
-### 2.4 Lambda Extensions によるシークレット取得
+### 2.4 Retrieving Secrets via Lambda Extensions
 
 ```python
-# Lambda Extension を使ったシークレット取得（コールドスタート最適化）
+# Retrieving secrets via Lambda Extension (cold start optimization)
 import urllib3
 import json
 import os
 
-# AWS Parameters and Secrets Lambda Extension のエンドポイント
+# AWS Parameters and Secrets Lambda Extension endpoint
 SECRETS_EXTENSION_HTTP_PORT = 2773
 SECRETS_EXTENSION_ENDPOINT = f"http://localhost:{SECRETS_EXTENSION_HTTP_PORT}"
 
 http = urllib3.PoolManager()
 
 def get_secret_from_extension(secret_id: str) -> dict:
-    """Lambda Extension 経由でシークレットを取得（キャッシュ付き）"""
+    """Retrieve a secret via Lambda Extension (with caching)"""
     headers = {
         "X-Aws-Parameters-Secrets-Token": os.environ.get("AWS_SESSION_TOKEN", ""),
     }
@@ -251,8 +251,8 @@ def get_secret_from_extension(secret_id: str) -> dict:
     return json.loads(body["SecretString"])
 
 def handler(event, context):
-    """Lambda ハンドラー"""
-    # Extension が自動的にキャッシュするため、毎回 API を呼ばない
+    """Lambda handler"""
+    # Extension automatically caches, so API is not called every time
     db_creds = get_secret_from_extension("prod/myapp/database")
     api_key = get_secret_from_extension("prod/myapp/api-key")
 
@@ -263,7 +263,7 @@ def handler(event, context):
 ```
 
 ```yaml
-# SAM テンプレートで Lambda Extension を追加
+# Adding Lambda Extension in a SAM template
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Resources:
@@ -280,7 +280,7 @@ Resources:
           PARAMETERS_SECRETS_EXTENSION_CACHE_ENABLED: "true"
           PARAMETERS_SECRETS_EXTENSION_CACHE_SIZE: "1000"
           PARAMETERS_SECRETS_EXTENSION_HTTP_PORT: "2773"
-          SECRETS_MANAGER_TTL: "300"  # 5分キャッシュ
+          SECRETS_MANAGER_TTL: "300"  # 5-minute cache
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -292,7 +292,7 @@ Resources:
               Resource: "arn:aws:kms:ap-northeast-1:*:key/*"
 ```
 
-### 2.5 自動ローテーション（CloudFormation）
+### 2.5 Automatic Rotation (CloudFormation)
 
 ```yaml
 AWSTemplateFormatVersion: "2010-09-09"
@@ -313,7 +313,7 @@ Resources:
       SecretId: !Ref DBSecret
       RotationLambdaARN: !GetAtt RotationFunction.Arn
       RotationRules:
-        AutomaticallyAfterDays: 30    # 30日ごとに自動ローテーション
+        AutomaticallyAfterDays: 30    # Automatic rotation every 30 days
 
   RotationFunction:
     Type: AWS::Lambda::Function
@@ -339,7 +339,7 @@ Resources:
           logger.setLevel(logging.INFO)
 
           def handler(event, context):
-              """Secrets Manager ローテーション Lambda"""
+              """Secrets Manager rotation Lambda"""
               step = event["Step"]
               secret_id = event["SecretId"]
               token = event["ClientRequestToken"]
@@ -356,13 +356,13 @@ Resources:
                   finish_secret(client, secret_id, token)
 
           def create_secret(client, secret_id, token):
-              """新パスワードを生成してPENDINGバージョンとして保存"""
+              """Generate a new password and save it as PENDING version"""
               current = client.get_secret_value(
                   SecretId=secret_id, VersionStage="AWSCURRENT"
               )
               current_secret = json.loads(current["SecretString"])
 
-              # 新しいパスワードを生成
+              # Generate a new password
               new_password = client.get_random_password(
                   PasswordLength=32,
                   ExcludeCharacters='"@/\\'
@@ -378,18 +378,18 @@ Resources:
               logger.info(f"createSecret: New secret version created for {secret_id}")
 
           def set_secret(client, secret_id, token):
-              """データベースのパスワードを新しい値に変更"""
+              """Update the database password to the new value"""
               pending = client.get_secret_value(
                   SecretId=secret_id, VersionId=token, VersionStage="AWSPENDING"
               )
               secret = json.loads(pending["SecretString"])
 
-              # PostgreSQL のパスワード変更
+              # Change the PostgreSQL password
               import psycopg2
               conn = psycopg2.connect(
                   host=secret["host"],
                   port=secret["port"],
-                  user="admin_master",  # マスターユーザーで接続
+                  user="admin_master",  # Connect with the master user
                   password=get_master_password(client),
                   database="mydb"
               )
@@ -403,7 +403,7 @@ Resources:
               logger.info(f"setSecret: DB password updated for {secret_id}")
 
           def test_secret(client, secret_id, token):
-              """新パスワードで接続テスト"""
+              """Test connection with the new password"""
               pending = client.get_secret_value(
                   SecretId=secret_id, VersionId=token, VersionStage="AWSPENDING"
               )
@@ -421,7 +421,7 @@ Resources:
               logger.info(f"testSecret: Connection test passed for {secret_id}")
 
           def finish_secret(client, secret_id, token):
-              """AWSCURRENT ラベルを新バージョンに移動"""
+              """Move the AWSCURRENT label to the new version"""
               metadata = client.describe_secret(SecretId=secret_id)
               current_version = None
               for version_id, stages in metadata["VersionIdsToStages"].items():
@@ -467,64 +467,64 @@ Resources:
                 Resource: "*"
 ```
 
-### 2.6 ローテーションの流れ
+### 2.6 Rotation Flow
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│            Secrets Manager ローテーション 4 Step          │
+│            Secrets Manager Rotation 4 Steps             │
 │                                                         │
 │  Step 1: createSecret                                   │
-│  ┌───────────┐    新パスワード生成    ┌──────────────┐  │
-│  │ Secrets   │ ──────────────────── → │ AWSPENDING   │  │
-│  │ Manager   │                        │ (新バージョン)│  │
-│  └───────────┘                        └──────────────┘  │
+│  ┌───────────┐    Generate new password  ┌──────────────┐  │
+│  │ Secrets   │ ──────────────────────── → │ AWSPENDING   │  │
+│  │ Manager   │                            │ (new version)│  │
+│  └───────────┘                            └──────────────┘  │
 │       │                                                 │
 │  Step 2: setSecret                                      │
-│       │    DB のパスワードを新しい値に変更               │
+│       │    Update the DB password to the new value      │
 │       ▼                                                 │
 │  ┌───────────┐                        ┌──────────────┐  │
 │  │ RDS / DB  │ ← ALTER USER ... ──── │ Lambda       │  │
 │  └───────────┘                        └──────────────┘  │
 │       │                                                 │
 │  Step 3: testSecret                                     │
-│       │    新パスワードで接続テスト                      │
+│       │    Test connection with the new password        │
 │       ▼                                                 │
 │  Step 4: finishSecret                                   │
-│       │    AWSCURRENT ラベルを新バージョンに移動         │
+│       │    Move the AWSCURRENT label to the new version │
 │       ▼                                                 │
 │  ┌──────────────┐                                       │
-│  │ AWSCURRENT   │  ← ラベル移動完了                     │
-│  │ (新バージョン)│                                       │
+│  │ AWSCURRENT   │  ← Label move complete                │
+│  │ (new version)│                                       │
 │  └──────────────┘                                       │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 2.7 マルチユーザーローテーション戦略
+### 2.7 Multi-User Rotation Strategy
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│      マルチユーザーローテーション (Alternating Users)       │
+│      Multi-User Rotation (Alternating Users)             │
 │                                                          │
-│  初期状態:                                                │
+│  Initial state:                                          │
 │  ┌──────────────────────┐                                │
-│  │ app_user_1 (CURRENT) │  ← アプリはこのユーザーで接続   │
-│  │ app_user_2 (STANDBY) │  ← 待機中                      │
+│  │ app_user_1 (CURRENT) │  ← App connects with this user │
+│  │ app_user_2 (STANDBY) │  ← Waiting on standby          │
 │  └──────────────────────┘                                │
 │                                                          │
-│  ローテーション後:                                        │
+│  After rotation:                                         │
 │  ┌──────────────────────┐                                │
-│  │ app_user_1 (STANDBY) │  ← パスワード変更済み・待機     │
-│  │ app_user_2 (CURRENT) │  ← アプリはこのユーザーに切替   │
+│  │ app_user_1 (STANDBY) │  ← Password changed, standby   │
+│  │ app_user_2 (CURRENT) │  ← App switches to this user   │
 │  └──────────────────────┘                                │
 │                                                          │
-│  利点:                                                   │
-│  - ローテーション中のダウンタイムなし                      │
-│  - ロールバックが容易                                     │
-│  - 古い接続が有効なまま新接続を開始可能                    │
+│  Benefits:                                               │
+│  - No downtime during rotation                           │
+│  - Easy rollback                                         │
+│  - Old connections remain valid while new ones start     │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 2.8 Secrets Manager のリソースポリシー
+### 2.8 Secrets Manager Resource Policy
 
 ```json
 {
@@ -561,20 +561,20 @@ Resources:
 ```
 
 ```bash
-# リソースポリシーの設定
+# Set a resource policy
 aws secretsmanager put-resource-policy \
   --secret-id "prod/myapp/database" \
   --resource-policy file://secret-policy.json
 
-# リソースポリシーの検証
+# Validate a resource policy
 aws secretsmanager validate-resource-policy \
   --resource-policy file://secret-policy.json
 ```
 
-### 2.9 シークレットのレプリケーション
+### 2.9 Secret Replication
 
 ```bash
-# マルチリージョンレプリケーション
+# Multi-region replication
 aws secretsmanager replicate-secret-to-regions \
   --secret-id "prod/myapp/database" \
   --add-replica-regions '[
@@ -582,12 +582,12 @@ aws secretsmanager replicate-secret-to-regions \
     {"Region": "eu-west-1", "KmsKeyId": "alias/prod-key-euw1"}
   ]'
 
-# レプリカの状態確認
+# Check replica status
 aws secretsmanager describe-secret \
   --secret-id "prod/myapp/database" \
   --query 'ReplicationStatus'
 
-# レプリカの削除
+# Remove a replica
 aws secretsmanager remove-regions-from-replication \
   --secret-id "prod/myapp/database" \
   --remove-replica-regions "eu-west-1"
@@ -597,10 +597,10 @@ aws secretsmanager remove-regions-from-replication \
 
 ## 3. Systems Manager Parameter Store
 
-### 3.1 パラメータの階層設計
+### 3.1 Hierarchical Parameter Design
 
 ```bash
-# 階層型パラメータの作成
+# Create hierarchical parameters
 aws ssm put-parameter \
   --name "/myapp/prod/database/host" \
   --value "db.example.com" \
@@ -610,7 +610,7 @@ aws ssm put-parameter \
   --name "/myapp/prod/database/password" \
   --value "S3cur3P@ss!" \
   --type SecureString \
-  --key-id "alias/myapp-key"    # KMS キーを指定
+  --key-id "alias/myapp-key"    # Specify a KMS key
 
 aws ssm put-parameter \
   --name "/myapp/prod/database/port" \
@@ -618,38 +618,38 @@ aws ssm put-parameter \
   --type String \
   --tags Key=Environment,Value=Production
 
-# 階層ごとの一括取得
+# Bulk retrieval by hierarchy
 aws ssm get-parameters-by-path \
   --path "/myapp/prod/database" \
   --with-decryption \
   --recursive
 
-# 複数パラメータの同時取得
+# Retrieve multiple parameters at once
 aws ssm get-parameters \
   --names "/myapp/prod/database/host" "/myapp/prod/database/port" \
   --with-decryption
 
-# パラメータの履歴取得
+# Get parameter history
 aws ssm get-parameter-history \
   --name "/myapp/prod/database/password" \
   --with-decryption \
   --query 'Parameters[*].{Version:Version,Value:Value,LastModifiedDate:LastModifiedDate}'
 ```
 
-### 3.2 階層設計のベストプラクティス
+### 3.2 Best Practices for Hierarchical Design
 
 ```
-推奨する階層構造:
+Recommended hierarchy structure:
 
 /
-├── myapp/                          # アプリケーション名
-│   ├── shared/                     # 全環境共通
+├── myapp/                          # Application name
+│   ├── shared/                     # Common across all environments
 │   │   ├── log-level               # String: "INFO"
 │   │   └── feature-flags/          # Feature Flags
 │   │       ├── dark-mode           # String: "true"
 │   │       └── new-ui              # String: "false"
 │   │
-│   ├── prod/                       # 本番環境
+│   ├── prod/                       # Production environment
 │   │   ├── database/
 │   │   │   ├── host                # String: "prod-db.xxx.rds.amazonaws.com"
 │   │   │   ├── port                # String: "5432"
@@ -661,27 +661,27 @@ aws ssm get-parameter-history \
 │   │       ├── stripe              # SecureString: "sk_live_xxx"
 │   │       └── sendgrid            # SecureString: "SG.xxx"
 │   │
-│   └── staging/                    # ステージング環境
+│   └── staging/                    # Staging environment
 │       ├── database/
 │       │   ├── host                # String: "staging-db.xxx.rds.amazonaws.com"
 │       │   └── password            # SecureString: "xxx"
 │       └── api-keys/
 │           └── stripe              # SecureString: "sk_test_xxx"
 
-IAM ポリシーでの階層制御:
-- /myapp/prod/*    → 本番チームのみ
-- /myapp/staging/* → 開発チームも可
-- /myapp/shared/*  → 全チーム読み取り可
+IAM policy-based hierarchy control:
+- /myapp/prod/*    → Production team only
+- /myapp/staging/* → Development team also allowed
+- /myapp/shared/*  → All teams can read
 ```
 
-### 3.3 Python での階層的なパラメータ取得
+### 3.3 Hierarchical Parameter Retrieval in Python
 
 ```python
 import boto3
 from typing import Any
 
 class ParameterStoreClient:
-    """Parameter Store の階層型パラメータをdictとして取得するクライアント"""
+    """Client that retrieves hierarchical parameters from Parameter Store as a dict"""
 
     def __init__(self, region: str = "ap-northeast-1"):
         self.client = boto3.client("ssm", region_name=region)
@@ -689,7 +689,7 @@ class ParameterStoreClient:
     def get_parameters_by_path(
         self, path: str, decrypt: bool = True
     ) -> dict[str, Any]:
-        """指定パス以下のパラメータを辞書として返す"""
+        """Return parameters under the specified path as a dictionary"""
         parameters = {}
         paginator = self.client.get_paginator("get_parameters_by_path")
 
@@ -699,30 +699,30 @@ class ParameterStoreClient:
             WithDecryption=decrypt,
         ):
             for param in page["Parameters"]:
-                # パスの末尾部分をキーにする
+                # Use the tail of the path as the key
                 key = param["Name"].replace(path, "").lstrip("/")
                 parameters[key] = param["Value"]
 
         return parameters
 
     def get_config(self, app: str, env: str) -> dict:
-        """アプリケーション設定を環境ごとに取得"""
-        # 共通設定
+        """Retrieve application configuration per environment"""
+        # Shared settings
         shared = self.get_parameters_by_path(f"/{app}/shared")
-        # 環境固有設定
+        # Environment-specific settings
         env_specific = self.get_parameters_by_path(f"/{app}/{env}")
 
-        # 環境固有が共通を上書き
+        # Environment-specific overrides shared
         config = {**shared, **env_specific}
         return config
 
-# 使用例
+# Usage example
 ssm = ParameterStoreClient()
 config = ssm.get_config("myapp", "prod")
 # → {"log-level": "INFO", "database/host": "prod-db.xxx", ...}
 ```
 
-### 3.4 ECS タスク定義での参照
+### 3.4 Referencing in ECS Task Definitions
 
 ```json
 {
@@ -751,12 +751,12 @@ config = ssm.get_config("myapp", "prod")
 }
 ```
 
-### 3.5 CloudFormation での動的参照
+### 3.5 Dynamic References in CloudFormation
 
 ```yaml
 AWSTemplateFormatVersion: "2010-09-09"
 Resources:
-  # Parameter Store の値を参照
+  # Reference a Parameter Store value
   MyRDSInstance:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -766,7 +766,7 @@ Resources:
       MasterUserPassword: "{{resolve:ssm-secure:/myapp/prod/database/password}}"
       DBInstanceClass: db.r6g.large
 
-  # Secrets Manager の値を参照
+  # Reference a Secrets Manager value
   MyRDSInstanceV2:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -776,13 +776,13 @@ Resources:
       MasterUserPassword: "{{resolve:secretsmanager:prod/myapp/database:SecretString:password}}"
       DBInstanceClass: db.r6g.large
 
-  # Secrets Manager + バージョン指定
+  # Secrets Manager with version specification
   MySecret:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: prod/myapp/database
 
-  # RDS と Secrets Manager の直接統合
+  # Direct integration between RDS and Secrets Manager
   SecretRDSAttachment:
     Type: AWS::SecretsManager::SecretTargetAttachment
     Properties:
@@ -793,61 +793,61 @@ Resources:
 
 ---
 
-## 4. AWS KMS（Key Management Service）
+## 4. AWS KMS (Key Management Service)
 
-### 4.1 エンベロープ暗号化の仕組み
+### 4.1 How Envelope Encryption Works
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│              エンベロープ暗号化                            │
+│              Envelope Encryption                         │
 │                                                          │
 │  ┌─────────────┐                                         │
-│  │ CMK (Master)│  KMS 内部に保管（エクスポート不可）      │
+│  │ CMK (Master)│  Stored inside KMS (cannot be exported) │
 │  │  Key        │                                         │
 │  └──────┬──────┘                                         │
 │         │ GenerateDataKey API                            │
 │         ▼                                                │
 │  ┌─────────────────────────────────┐                     │
-│  │ Data Key (平文)   │ Data Key    │                     │
-│  │                   │ (暗号化済み) │                     │
-│  └────────┬──────────┴──────┬──────┘                     │
-│           │                 │                            │
-│    平文 Data Key で         │ 暗号化済み Data Key を      │
-│    データを暗号化            │ データと一緒に保存          │
-│           │                 │                            │
-│           ▼                 ▼                            │
+│  │ Data Key (plaintext) │ Data Key │                     │
+│  │                      │(encrypted│                     │
+│  └────────┬─────────────┴──────┬───┘                     │
+│           │                   │                          │
+│    Encrypt data with          │ Store encrypted Data Key  │
+│    plaintext Data Key         │ alongside the data        │
+│           │                   │                          │
+│           ▼                   ▼                          │
 │  ┌──────────────────────────────┐                        │
-│  │ 暗号化データ + 暗号化 Data Key │  ← S3 等に保存        │
+│  │ Encrypted data + Encrypted Data Key │ ← Save to S3, etc. │
 │  └──────────────────────────────┘                        │
 │                                                          │
-│  ※ 平文 Data Key はメモリから即座に削除                   │
+│  * Plaintext Data Key is immediately deleted from memory │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 KMS キーの作成とポリシー
+### 4.2 Creating a KMS Key and Its Policy
 
 ```bash
-# カスタマーマネージドキー作成
+# Create a customer-managed key
 aws kms create-key \
   --description "MyApp encryption key" \
   --key-usage ENCRYPT_DECRYPT \
   --key-spec SYMMETRIC_DEFAULT \
   --tags TagKey=Environment,TagValue=Production TagKey=Application,TagValue=myapp
 
-# エイリアス設定
+# Set an alias
 aws kms create-alias \
   --alias-name alias/myapp-key \
   --target-key-id "arn:aws:kms:ap-northeast-1:123456789012:key/xxxx-xxxx"
 
-# キーの自動ローテーション有効化（1年ごと）
+# Enable automatic key rotation (annually)
 aws kms enable-key-rotation \
   --key-id alias/myapp-key
 
-# ローテーション状態の確認
+# Check rotation status
 aws kms get-key-rotation-status \
   --key-id alias/myapp-key
 
-# キーポリシーの設定
+# Set key policy
 aws kms put-key-policy \
   --key-id alias/myapp-key \
   --policy-name default \
@@ -899,7 +899,7 @@ aws kms put-key-policy \
   }'
 ```
 
-### 4.3 Python でのエンベロープ暗号化
+### 4.3 Envelope Encryption in Python
 
 ```python
 import boto3
@@ -909,21 +909,21 @@ import base64
 kms = boto3.client("kms", region_name="ap-northeast-1")
 
 def encrypt_data(plaintext: str, key_id: str) -> dict:
-    """エンベロープ暗号化でデータを暗号化"""
-    # 1. データキーを生成
+    """Encrypt data using envelope encryption"""
+    # 1. Generate a data key
     response = kms.generate_data_key(
         KeyId=key_id,
         KeySpec="AES_256"
     )
-    plaintext_key = response["Plaintext"]        # 平文データキー
-    encrypted_key = response["CiphertextBlob"]    # 暗号化データキー
+    plaintext_key = response["Plaintext"]        # Plaintext data key
+    encrypted_key = response["CiphertextBlob"]    # Encrypted data key
 
-    # 2. 平文データキーでデータを暗号化
+    # 2. Encrypt the data with the plaintext data key
     fernet_key = base64.urlsafe_b64encode(plaintext_key)
     f = Fernet(fernet_key)
     encrypted_data = f.encrypt(plaintext.encode())
 
-    # 3. 平文データキーをメモリから削除
+    # 3. Delete the plaintext data key from memory
     del plaintext_key, fernet_key
 
     return {
@@ -932,15 +932,15 @@ def encrypt_data(plaintext: str, key_id: str) -> dict:
     }
 
 def decrypt_data(encrypted_payload: dict) -> str:
-    """エンベロープ暗号化されたデータを復号"""
+    """Decrypt data that was encrypted with envelope encryption"""
     encrypted_key = base64.b64decode(encrypted_payload["encrypted_key"])
     encrypted_data = base64.b64decode(encrypted_payload["encrypted_data"])
 
-    # 1. KMS でデータキーを復号
+    # 1. Decrypt the data key with KMS
     response = kms.decrypt(CiphertextBlob=encrypted_key)
     plaintext_key = response["Plaintext"]
 
-    # 2. 復号されたデータキーでデータを復号
+    # 2. Decrypt the data with the decrypted data key
     fernet_key = base64.urlsafe_b64encode(plaintext_key)
     f = Fernet(fernet_key)
     decrypted = f.decrypt(encrypted_data)
@@ -949,14 +949,14 @@ def decrypt_data(encrypted_payload: dict) -> str:
     return decrypted.decode()
 ```
 
-### 4.4 AWS Encryption SDK の活用
+### 4.4 Using the AWS Encryption SDK
 
 ```python
-# AWS Encryption SDK を使ったより堅牢な暗号化
+# More robust encryption using the AWS Encryption SDK
 import aws_encryption_sdk
 from aws_encryption_sdk import CommitmentPolicy
 
-# クライアント初期化
+# Initialize client
 client = aws_encryption_sdk.EncryptionSDKClient(
     commitment_policy=CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT
 )
@@ -965,71 +965,71 @@ client = aws_encryption_sdk.EncryptionSDKClient(
 kms_key_provider = aws_encryption_sdk.StrictAwsKmsMasterKeyProvider(
     key_ids=[
         "arn:aws:kms:ap-northeast-1:123456789012:key/xxxx-xxxx",
-        "arn:aws:kms:us-west-2:123456789012:key/yyyy-yyyy",  # マルチリージョンキー
+        "arn:aws:kms:us-west-2:123456789012:key/yyyy-yyyy",  # Multi-region key
     ]
 )
 
 def encrypt_with_sdk(plaintext: str, context: dict) -> bytes:
-    """Encryption SDK でデータを暗号化（暗号化コンテキスト付き）"""
+    """Encrypt data with the Encryption SDK (with encryption context)"""
     ciphertext, encryptor_header = client.encrypt(
         source=plaintext.encode(),
         key_provider=kms_key_provider,
-        encryption_context=context,  # 改ざん検知用のコンテキスト
+        encryption_context=context,  # Context for tamper detection
     )
     return ciphertext
 
 def decrypt_with_sdk(ciphertext: bytes, expected_context: dict) -> str:
-    """Encryption SDK でデータを復号"""
+    """Decrypt data with the Encryption SDK"""
     plaintext, decryptor_header = client.decrypt(
         source=ciphertext,
         key_provider=kms_key_provider,
     )
-    # 暗号化コンテキストの検証
+    # Validate the encryption context
     for key, value in expected_context.items():
         assert decryptor_header.encryption_context.get(key) == value, \
             f"Encryption context mismatch for key: {key}"
 
     return plaintext.decode()
 
-# 使用例
+# Usage example
 context = {
     "purpose": "user-data-encryption",
     "tenant": "company-a",
     "data-type": "pii",
 }
-encrypted = encrypt_with_sdk("個人情報データ", context)
+encrypted = encrypt_with_sdk("Personal information data", context)
 decrypted = decrypt_with_sdk(encrypted, context)
 ```
 
-### 4.5 KMS キーの用途別分離設計
+### 4.5 Key Separation Design by Purpose
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│              KMS キー分離設計                               │
+│              KMS Key Separation Design                   │
 │                                                          │
-│  用途別キー:                                              │
+│  Keys by purpose:                                        │
 │  ┌──────────────────┐                                    │
-│  │ alias/prod-db    │ → RDS, Secrets Manager (DB認証情報) │
-│  │ alias/prod-s3    │ → S3 バケット暗号化                 │
-│  │ alias/prod-ebs   │ → EBS ボリューム暗号化              │
-│  │ alias/prod-logs  │ → CloudWatch Logs 暗号化            │
-│  │ alias/prod-sqs   │ → SQS メッセージ暗号化              │
-│  │ alias/prod-sign  │ → 署名用 (RSA/ECC)                 │
+│  │ alias/prod-db    │ → RDS, Secrets Manager (DB credentials) │
+│  │ alias/prod-s3    │ → S3 bucket encryption              │
+│  │ alias/prod-ebs   │ → EBS volume encryption             │
+│  │ alias/prod-logs  │ → CloudWatch Logs encryption        │
+│  │ alias/prod-sqs   │ → SQS message encryption            │
+│  │ alias/prod-sign  │ → Signing (RSA/ECC)                 │
 │  └──────────────────┘                                    │
 │                                                          │
-│  利点:                                                   │
-│  - キーポリシーで最小権限を実現                            │
-│  - 1つのキー無効化が全サービスに影響しない                 │
-│  - 監査ログでアクセス目的を特定しやすい                    │
-│  - コンプライアンス要件（PCI DSS 等）への対応が容易        │
+│  Benefits:                                               │
+│  - Achieve least privilege through key policies          │
+│  - Disabling one key does not affect all services        │
+│  - Easier to identify access purpose in audit logs       │
+│  - Easier to meet compliance requirements (PCI DSS, etc.)│
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. CDK によるシークレット管理
+## 5. Secrets Management with CDK
 
-### 5.1 CDK でのシークレット定義
+### 5.1 Defining Secrets in CDK
 
 ```typescript
 import * as cdk from 'aws-cdk-lib';
@@ -1043,7 +1043,7 @@ export class SecretsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // KMS キーの作成
+    // Create a KMS key
     const dbEncryptionKey = new kms.Key(this, 'DBEncryptionKey', {
       alias: 'prod-database-key',
       description: 'Encryption key for database secrets',
@@ -1051,7 +1051,7 @@ export class SecretsStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // Secrets Manager でシークレット作成
+    // Create a secret in Secrets Manager
     const dbSecret = new secretsmanager.Secret(this, 'DBSecret', {
       secretName: 'prod/myapp/database',
       description: 'Production database credentials',
@@ -1064,7 +1064,7 @@ export class SecretsStack extends cdk.Stack {
       },
     });
 
-    // RDS インスタンスとの統合
+    // Integrate with an RDS instance
     const dbInstance = new rds.DatabaseInstance(this, 'Database', {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_15_4,
@@ -1077,7 +1077,7 @@ export class SecretsStack extends cdk.Stack {
       storageEncryptionKey: dbEncryptionKey,
     });
 
-    // 自動ローテーションの設定
+    // Configure automatic rotation
     dbSecret.addRotationSchedule('RotationSchedule', {
       automaticallyAfter: cdk.Duration.days(30),
       hostedRotation: secretsmanager.HostedRotation.postgreSqlSingleUser({
@@ -1085,14 +1085,14 @@ export class SecretsStack extends cdk.Stack {
       }),
     });
 
-    // Parameter Store パラメータ
+    // Parameter Store parameter
     new ssm.StringParameter(this, 'DBHost', {
       parameterName: '/myapp/prod/database/host',
       stringValue: dbInstance.instanceEndpoint.hostname,
       tier: ssm.ParameterTier.STANDARD,
     });
 
-    // シークレット ARN の出力
+    // Output the secret ARN
     new cdk.CfnOutput(this, 'SecretArn', {
       value: dbSecret.secretArn,
       description: 'Database secret ARN',
@@ -1103,13 +1103,13 @@ export class SecretsStack extends cdk.Stack {
 
 ---
 
-## 6. VPC エンドポイント経由のシークレットアクセス
+## 6. Accessing Secrets via VPC Endpoint
 
-### 6.1 プライベートサブネットからのアクセス設計
+### 6.1 Access Design from Private Subnets
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│              VPC エンドポイント経由のアクセス                │
+│              Access via VPC Endpoint                     │
 │                                                          │
 │  VPC (10.0.0.0/16)                                       │
 │  ┌────────────────────────────────────────────────────┐  │
@@ -1130,12 +1130,12 @@ export class SecretsStack extends cdk.Stack {
 │  │  └───────────────┘                     └─────────┘ │  │
 │  └────────────────────────────────────────────────────┘  │
 │                                                          │
-│  トラフィックはインターネットを経由しない                   │
+│  Traffic does not go through the internet                │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ```bash
-# VPC エンドポイントの作成
+# Create VPC endpoints
 aws ec2 create-vpc-endpoint \
   --vpc-id vpc-xxxx \
   --service-name com.amazonaws.ap-northeast-1.secretsmanager \
@@ -1163,9 +1163,9 @@ aws ec2 create-vpc-endpoint \
 
 ---
 
-## 7. シークレットの監査と監視
+## 7. Auditing and Monitoring Secrets
 
-### 7.1 CloudTrail によるアクセス監視
+### 7.1 Access Monitoring with CloudTrail
 
 ```python
 import boto3
@@ -1173,7 +1173,7 @@ import json
 from datetime import datetime, timedelta
 
 def audit_secret_access(secret_name: str, hours: int = 24) -> list[dict]:
-    """特定シークレットへのアクセス履歴を取得"""
+    """Retrieve access history for a specific secret"""
     ct = boto3.client("cloudtrail", region_name="ap-northeast-1")
 
     events = ct.lookup_events(
@@ -1198,13 +1198,13 @@ def audit_secret_access(secret_name: str, hours: int = 24) -> list[dict]:
     return results
 ```
 
-### 7.2 Config Rules によるコンプライアンス監視
+### 7.2 Compliance Monitoring with Config Rules
 
 ```yaml
 # AWS Config Rules for Secrets Manager
 AWSTemplateFormatVersion: "2010-09-09"
 Resources:
-  # シークレットのローテーションが有効か確認
+  # Check whether secret rotation is enabled
   SecretRotationEnabled:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1213,9 +1213,9 @@ Resources:
         Owner: AWS
         SourceIdentifier: SECRETSMANAGER_ROTATION_ENABLED_CHECK
       InputParameters:
-        maximumAllowedRotationFrequency: 90  # 最大90日間隔
+        maximumAllowedRotationFrequency: 90  # Maximum 90-day interval
 
-  # シークレットが未使用でないか確認
+  # Check that secrets are not unused
   SecretUnused:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1226,7 +1226,7 @@ Resources:
       InputParameters:
         unusedForDays: 90
 
-  # シークレットが自動ローテーション対象か確認
+  # Check that secrets are subject to automatic rotation
   SecretScheduledRotation:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1235,7 +1235,7 @@ Resources:
         Owner: AWS
         SourceIdentifier: SECRETSMANAGER_SCHEDULED_ROTATION_SUCCESS_CHECK
 
-  # KMS キーのローテーションが有効か確認
+  # Check that KMS key rotation is enabled
   KMSKeyRotation:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1245,10 +1245,10 @@ Resources:
         SourceIdentifier: CMK_BACKING_KEY_ROTATION_ENABLED
 ```
 
-### 7.3 EventBridge によるシークレット異常検知
+### 7.3 Anomaly Detection for Secrets via EventBridge
 
 ```yaml
-# シークレットへの異常アクセスを検知
+# Detect anomalous access to secrets
 AWSTemplateFormatVersion: "2010-09-09"
 Resources:
   SecretAccessAlert:
@@ -1297,111 +1297,111 @@ Resources:
 
 ---
 
-## 8. サービス比較
+## 8. Service Comparison
 
 ### 8.1 Secrets Manager vs Parameter Store
 
-| 機能 | Secrets Manager | Parameter Store (Standard) | Parameter Store (Advanced) |
-|------|----------------|---------------------------|---------------------------|
-| **料金** | $0.40/シークレット/月 + API料 | 無料 | $0.05/パラメータ/月 |
-| **最大サイズ** | 64 KB | 4 KB | 8 KB |
-| **自動ローテーション** | 組み込みサポート | Lambda で自前実装 | Lambda で自前実装 |
-| **クロスアカウント共有** | IAM ポリシーで可能 | 不可 | 不可 |
-| **バージョニング** | あり（ステージラベル） | あり（番号のみ） | あり（番号のみ） |
-| **暗号化** | KMS 必須 | SecureString で KMS | SecureString で KMS |
-| **CloudFormation 動的参照** | `{{resolve:secretsmanager:...}}` | `{{resolve:ssm:...}}` | `{{resolve:ssm:...}}` |
-| **レプリケーション** | マルチリージョン対応 | 不可 | 不可 |
-| **リソースポリシー** | あり | なし | なし |
-| **推奨用途** | DB 認証情報, API キー | 設定値, Feature Flag | 大きめの設定値 |
-| **Lambda Extension** | あり | あり | あり |
-| **パラメータ数上限** | 制限なし (API制限あり) | 10,000 | 100,000 |
+| Feature | Secrets Manager | Parameter Store (Standard) | Parameter Store (Advanced) |
+|---------|----------------|---------------------------|---------------------------|
+| **Pricing** | $0.40/secret/month + API fees | Free | $0.05/parameter/month |
+| **Max size** | 64 KB | 4 KB | 8 KB |
+| **Automatic rotation** | Built-in support | Custom implementation via Lambda | Custom implementation via Lambda |
+| **Cross-account sharing** | Possible via IAM policy | Not supported | Not supported |
+| **Versioning** | Yes (stage labels) | Yes (number only) | Yes (number only) |
+| **Encryption** | KMS required | KMS via SecureString | KMS via SecureString |
+| **CloudFormation dynamic reference** | `{{resolve:secretsmanager:...}}` | `{{resolve:ssm:...}}` | `{{resolve:ssm:...}}` |
+| **Replication** | Multi-region supported | Not supported | Not supported |
+| **Resource policy** | Yes | No | No |
+| **Recommended use** | DB credentials, API keys | Config values, Feature Flags | Larger config values |
+| **Lambda Extension** | Yes | Yes | Yes |
+| **Parameter limit** | No limit (API limits apply) | 10,000 | 100,000 |
 
-### 8.2 KMS キータイプ比較
+### 8.2 KMS Key Type Comparison
 
-| キータイプ | 管理者 | コスト | ローテーション | ユースケース |
-|-----------|--------|--------|---------------|-------------|
-| **AWS マネージドキー** (`aws/xxx`) | AWS | 無料 | 自動（3年） | サービスデフォルト暗号化 |
-| **カスタマーマネージドキー** | ユーザー | $1/月 + API料 | 手動 or 自動設定 | 細かいアクセス制御が必要 |
-| **カスタマー提供キー** (BYOK) | ユーザー | API料のみ | ユーザー管理 | コンプライアンス要件 |
-| **外部キーストア** | ユーザー | $1/月 + API料 | ユーザー管理 | HSM 連携, 規制対応 |
-| **マルチリージョンキー** | ユーザー | $1/月/リージョン | 自動(設定時) | DR, マルチリージョン暗号化 |
+| Key type | Manager | Cost | Rotation | Use case |
+|----------|---------|------|----------|----------|
+| **AWS managed key** (`aws/xxx`) | AWS | Free | Automatic (3 years) | Default service encryption |
+| **Customer managed key** | User | $1/month + API fees | Manual or automatic | When fine-grained access control is needed |
+| **Customer-provided key** (BYOK) | User | API fees only | User-managed | Compliance requirements |
+| **External key store** | User | $1/month + API fees | User-managed | HSM integration, regulatory compliance |
+| **Multi-region key** | User | $1/month/region | Automatic (when configured) | DR, multi-region encryption |
 
-### 8.3 暗号化コンテキストの活用比較
+### 8.3 Encryption Context Usage Comparison
 
-| 用途 | コンテキストキー | 値の例 | 効果 |
-|------|-----------------|--------|------|
-| **テナント分離** | `tenant-id` | `company-abc` | テナント間のデータ混在防止 |
-| **データ分類** | `data-classification` | `pii`, `confidential` | データ種別の追跡 |
-| **アクセス制御** | `purpose` | `backup`, `analytics` | IAM Condition での制御 |
-| **監査** | `request-id` | `req-12345` | CloudTrail での追跡 |
+| Purpose | Context key | Example value | Effect |
+|---------|-------------|---------------|--------|
+| **Tenant isolation** | `tenant-id` | `company-abc` | Prevents data mixing between tenants |
+| **Data classification** | `data-classification` | `pii`, `confidential` | Tracks data type |
+| **Access control** | `purpose` | `backup`, `analytics` | Control via IAM Condition |
+| **Auditing** | `request-id` | `req-12345` | Tracking in CloudTrail |
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### 9.1 環境変数にシークレットを平文で設定
+### 9.1 Setting Secrets as Plaintext Environment Variables
 
 ```yaml
-# NG: docker-compose.yml にパスワードをハードコード
+# Bad: Hardcoding passwords in docker-compose.yml
 services:
   app:
     environment:
-      - DB_PASSWORD=P@ssw0rd123    # Git に commit される
-      - API_KEY=sk-live-abc123     # docker inspect で閲覧可能
+      - DB_PASSWORD=P@ssw0rd123    # Gets committed to Git
+      - API_KEY=sk-live-abc123     # Visible via docker inspect
 
-# OK: Secrets Manager から動的取得
+# Good: Dynamically retrieve from Secrets Manager
 services:
   app:
     environment:
       - SECRET_ARN=arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:prod/db
-    # アプリ起動時に SDK で取得
+    # Retrieve via SDK at application startup
 ```
 
-**問題点**: 環境変数は `docker inspect`、`/proc/<pid>/environ`、ログ出力で容易に漏洩する。
+**Problem**: Environment variables can easily be exposed via `docker inspect`, `/proc/<pid>/environ`, or log output.
 
-### 9.2 全てのシークレットに同一 KMS キーを使う
-
-```
-NG:
-  全シークレット → aws/secretsmanager (デフォルトキー)
-    → 鍵の取り消しで全シークレットが使用不能
-
-OK:
-  本番DB → alias/prod-database-key
-  API連携 → alias/prod-api-key
-  監査ログ → alias/prod-audit-key
-    → 影響範囲を限定
-```
-
-**問題点**: キーポリシー変更の影響が全シークレットに波及し、障害時の影響範囲が広がる。
-
-### 9.3 ローテーションなしで長期間使用
+### 9.2 Using the Same KMS Key for All Secrets
 
 ```
-NG:
-  DB パスワードを作成時から一度も変更せず2年間使用
-  → 退職者が古いパスワードを知っている可能性
-  → 侵害されていても検知できない
+Bad:
+  All secrets → aws/secretsmanager (default key)
+    → Revoking the key disables all secrets
 
-OK:
-  Secrets Manager の自動ローテーションを30日間隔で設定
-  → 定期的にパスワードが自動変更される
-  → 仮に漏洩しても有効期間が限定される
+Good:
+  Production DB → alias/prod-database-key
+  API integrations → alias/prod-api-key
+  Audit logs → alias/prod-audit-key
+    → Limits the blast radius
 ```
 
-### 9.4 シークレットのログ出力
+**Problem**: Changes to key policies affect all secrets, widening the impact area during incidents.
+
+### 9.3 Long-Term Use Without Rotation
+
+```
+Bad:
+  DB password used for 2 years without a single change since creation
+  → Former employees may still know the old password
+  → A compromise cannot be detected
+
+Good:
+  Set automatic rotation in Secrets Manager at 30-day intervals
+  → Password is automatically changed regularly
+  → Even if leaked, the window of validity is limited
+```
+
+### 9.4 Logging Secrets
 
 ```python
-# NG: シークレットをログに出力
+# Bad: Logging secrets
 import logging
 logger = logging.getLogger()
 
 secret = get_secret("prod/myapp/database")
-logger.info(f"DB connection: {secret}")  # パスワードがログに残る
+logger.info(f"DB connection: {secret}")  # Password remains in logs
 
-# OK: マスキングしてログ出力
+# Good: Mask before logging
 def mask_secret(secret_dict: dict, mask_keys: list[str]) -> dict:
-    """機密フィールドをマスクして返す"""
+    """Return a copy with sensitive fields masked"""
     masked = secret_dict.copy()
     for key in mask_keys:
         if key in masked:
@@ -1411,44 +1411,44 @@ def mask_secret(secret_dict: dict, mask_keys: list[str]) -> dict:
 logger.info(f"DB connection: {mask_secret(secret, ['password', 'api_key'])}")
 ```
 
-### 9.5 VPC エンドポイントなしでプライベートサブネットからアクセス
+### 9.5 Accessing from Private Subnets Without a VPC Endpoint
 
 ```
-NG:
+Bad:
   Private Subnet → NAT Gateway → Internet → Secrets Manager
-  → インターネットを経由するため通信経路が長い
-  → NAT Gateway のコストが発生
-  → セキュリティリスクが増加
+  → Long communication path through the internet
+  → NAT Gateway costs incurred
+  → Increased security risk
 
-OK:
+Good:
   Private Subnet → VPC Endpoint → Secrets Manager
-  → AWS ネットワーク内で完結
-  → インターネット非経由でコスト削減
-  → VPC エンドポイントポリシーで追加制御
+  → Stays within the AWS network
+  → Reduced costs by avoiding the internet
+  → Additional control via VPC endpoint policies
 ```
 
 ---
 
 ## 10. FAQ
 
-### Q1. Secrets Manager と Parameter Store SecureString、どちらを使うべき？
+### Q1. Which should I use — Secrets Manager or Parameter Store SecureString?
 
-**A.** 自動ローテーションが必要なら Secrets Manager。コスト重視で手動管理可能なら Parameter Store SecureString。RDS/Redshift/DocumentDB のローテーションは Secrets Manager に組み込みテンプレートがあり、設定が容易。クロスアカウント共有が必要な場合も Secrets Manager を選択する。
+**A.** Use Secrets Manager if automatic rotation is required. Use Parameter Store SecureString if cost is a priority and manual management is acceptable. Secrets Manager has built-in rotation templates for RDS/Redshift/DocumentDB, making setup easy. Choose Secrets Manager if cross-account sharing is also needed.
 
-### Q2. KMS の API コール料金が心配。キャッシュは可能？
+### Q2. I'm worried about KMS API call costs. Is caching possible?
 
-**A.** Secrets Manager SDK にはクライアント側キャッシュライブラリがある。`aws-secretsmanager-caching` (Python) や `aws-secretsmanager-caching-java` を使えば TTL ベースでキャッシュされ、API コール数を大幅に削減できる。Lambda Extension も同様のキャッシュ機能を提供する。
+**A.** The Secrets Manager SDK includes a client-side caching library. Using `aws-secretsmanager-caching` (Python) or `aws-secretsmanager-caching-java` enables TTL-based caching, significantly reducing the number of API calls. Lambda Extensions also provide equivalent caching functionality.
 
 ```python
 from aws_secretsmanager_caching import SecretCache
 
 cache = SecretCache()
-secret = cache.get_secret_string("prod/myapp/database")  # TTL 内はキャッシュ
+secret = cache.get_secret_string("prod/myapp/database")  # Cached within TTL
 ```
 
-### Q3. Lambda からシークレットにアクセスする最も安全な方法は？
+### Q3. What is the most secure way to access secrets from Lambda?
 
-**A.** Lambda の実行ロールに最小権限の IAM ポリシーをアタッチし、VPC エンドポイント経由でアクセスする。Lambda Extensions を使えばランタイム外でシークレットを取得・キャッシュできる。
+**A.** Attach a least-privilege IAM policy to the Lambda execution role and access secrets via a VPC endpoint. Using Lambda Extensions allows you to retrieve and cache secrets outside the runtime.
 
 ```json
 {
@@ -1468,20 +1468,20 @@ secret = cache.get_secret_string("prod/myapp/database")  # TTL 内はキャッ�
 }
 ```
 
-### Q4. シークレットのローテーション中にアプリケーションが影響を受けないようにするには？
+### Q4. How can I prevent applications from being affected during secret rotation?
 
-**A.** (1) マルチユーザーローテーション戦略を使い、2つのユーザーを交互に切り替える。(2) アプリケーション側でシークレット取得時にリトライロジックを実装する。(3) Secrets Manager のバージョンステージ（AWSCURRENT/AWSPREVIOUS）を活用し、古い認証情報でも一時的にアクセス可能にする。(4) コネクションプールの再接続ロジックを実装する。
+**A.** (1) Use a multi-user rotation strategy to alternate between two users. (2) Implement retry logic on the application side when retrieving secrets. (3) Use Secrets Manager version stages (AWSCURRENT/AWSPREVIOUS) to allow temporary access with old credentials. (4) Implement reconnection logic in the connection pool.
 
-### Q5. git-secrets などのツールでシークレットの漏洩を防ぐ方法は？
+### Q5. How can I prevent secret leakage with tools like git-secrets?
 
-**A.** (1) `git-secrets` をプリコミットフックに設定し、AWS アクセスキーパターンをブロック。(2) GitHub の Secret Scanning を有効化。(3) `trufflehog` や `gitleaks` で定期的にリポジトリをスキャン。(4) AWS の IAM Access Analyzer で公開されたシークレットを検出。これらを CI/CD パイプラインに組み込むことで多層防御を実現する。
+**A.** (1) Set up `git-secrets` as a pre-commit hook to block AWS access key patterns. (2) Enable GitHub's Secret Scanning. (3) Periodically scan repositories with `trufflehog` or `gitleaks`. (4) Use AWS IAM Access Analyzer to detect publicly exposed secrets. Integrating these into a CI/CD pipeline achieves defense in depth.
 
 ```bash
-# git-secrets のセットアップ
+# Set up git-secrets
 git secrets --install
 git secrets --register-aws
 
-# プリコミットフックで検査
+# Scan with the pre-commit hook
 git secrets --scan
 ```
 
@@ -1490,49 +1490,49 @@ git secrets --scan
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 11. まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| **Secrets Manager** | 自動ローテーション対応、RDS 統合、$0.40/月/シークレット |
-| **Parameter Store** | 無料枠あり、階層構造、設定値と機密値の両方に対応 |
-| **KMS** | エンベロープ暗号化の基盤、キーポリシーで細かいアクセス制御 |
-| **設計原則** | シークレットはコードに含めない、最小権限、用途別にキーを分離 |
-| **キャッシュ** | クライアント側キャッシュや Lambda Extension で API コスト削減 |
-| **ローテーション** | 30日以内の自動ローテーション、マルチユーザー戦略でダウンタイム回避 |
-| **ネットワーク** | VPC エンドポイント経由でインターネット非経由のアクセス |
-| **監査** | CloudTrail + Config Rules + EventBridge で監視・コンプライアンス |
-| **IaC** | CDK/CloudFormation でシークレット管理をコード化 |
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 11. Summary
 
-- [02-waf-shield.md](./02-waf-shield.md) — WAF/Shield によるアプリケーション保護
-- [00-iam-deep-dive.md](./00-iam-deep-dive.md) — IAM ポリシー設計とロール管理
-- VPC エンドポイント設計 — プライベートネットワークからのサービスアクセス
+| Item | Key Point |
+|------|-----------|
+| **Secrets Manager** | Supports automatic rotation, RDS integration, $0.40/month/secret |
+| **Parameter Store** | Free tier available, hierarchical structure, handles both config values and sensitive values |
+| **KMS** | Foundation for envelope encryption, fine-grained access control via key policies |
+| **Design Principles** | Do not include secrets in code, least privilege, separate keys by purpose |
+| **Caching** | Reduce API costs with client-side caching or Lambda Extensions |
+| **Rotation** | Automatic rotation within 30 days, multi-user strategy to avoid downtime |
+| **Networking** | Access via VPC endpoint without going through the internet |
+| **Auditing** | Monitor and ensure compliance with CloudTrail + Config Rules + EventBridge |
+| **IaC** | Codify secrets management with CDK/CloudFormation |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. **AWS公式ドキュメント** — "AWS Secrets Manager User Guide" — https://docs.aws.amazon.com/secretsmanager/latest/userguide/
-2. **AWS公式ドキュメント** — "AWS Systems Manager Parameter Store User Guide" — https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
-3. **AWS公式ドキュメント** — "AWS Key Management Service Developer Guide" — https://docs.aws.amazon.com/kms/latest/developerguide/
+- [02-waf-shield.md](./02-waf-shield.md) — Application protection with WAF/Shield
+- [00-iam-deep-dive.md](./00-iam-deep-dive.md) — IAM policy design and role management
+- VPC Endpoint Design — Service access from private networks
+
+---
+
+## References
+
+1. **AWS Official Documentation** — "AWS Secrets Manager User Guide" — https://docs.aws.amazon.com/secretsmanager/latest/userguide/
+2. **AWS Official Documentation** — "AWS Systems Manager Parameter Store User Guide" — https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
+3. **AWS Official Documentation** — "AWS Key Management Service Developer Guide" — https://docs.aws.amazon.com/kms/latest/developerguide/
 4. **AWS Well-Architected Framework** — Security Pillar — "Protect data at rest" — https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/
 5. **AWS Encryption SDK** — "AWS Encryption SDK Developer Guide" — https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/
 6. **AWS Lambda Extensions** — "Using AWS Parameters and Secrets Lambda Extension" — https://docs.aws.amazon.com/secretsmanager/latest/userguide/retrieving-secrets_lambda.html
