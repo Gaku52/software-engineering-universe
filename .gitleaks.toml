@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+  '''05-infrastructure/aws-cloud-guide/docs/05-serverless/02-serverless-patterns\.md''',
+  '''05-infrastructure/aws-cloud-guide/docs/08-security/01-secrets-management\.md''',
+  '''ja/05-infrastructure/aws-cloud-guide/docs/08-security/01-secrets-management\.md''',
+  '''aws-cloud-guide/docs/08-security/01-secrets-management\.md''',
+]
