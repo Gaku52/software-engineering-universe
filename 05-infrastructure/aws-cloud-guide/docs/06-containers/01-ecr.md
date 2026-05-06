@@ -1,42 +1,42 @@
 # Amazon ECR (Elastic Container Registry)
 
-> コンテナイメージの保存・管理を行う Amazon ECR のリポジトリ作成、イメージのプッシュ/プル、ライフサイクルポリシー、イメージスキャンまでを体系的に学ぶ。
+> A systematic guide to Amazon ECR for storing and managing container images, covering repository creation, image push/pull, lifecycle policies, and image scanning.
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **ECR リポジトリの作成と管理** -- プライベート/パブリックリポジトリの作成、アクセス制御の基本を理解する
-2. **イメージのビルド・プッシュ・プル** -- Docker CLI を使ったイメージ操作と ECR 認証の仕組みを習得する
-3. **ライフサイクルポリシーとイメージスキャン** -- 不要イメージの自動削除と脆弱性スキャンでセキュリティと運用コストを管理する
-4. **クロスリージョン/クロスアカウントレプリケーション** -- マルチリージョンやマルチアカウント環境でのイメージ配布戦略を学ぶ
-5. **CI/CD パイプラインとの統合** -- ECR をビルドパイプラインに組み込む実践的な手法を習得する
-6. **セキュリティベストプラクティス** -- イメージ署名、非rootユーザー実行、脆弱性対応の自動化を実装する
+1. **ECR Repository Creation and Management** -- Understand the basics of creating private/public repositories and access control
+2. **Building, Pushing, and Pulling Images** -- Master image operations with the Docker CLI and ECR authentication mechanisms
+3. **Lifecycle Policies and Image Scanning** -- Manage security and operational costs through automatic deletion of unused images and vulnerability scanning
+4. **Cross-Region/Cross-Account Replication** -- Learn image distribution strategies for multi-region and multi-account environments
+5. **CI/CD Pipeline Integration** -- Master practical techniques for integrating ECR into build pipelines
+6. **Security Best Practices** -- Implement image signing, non-root user execution, and automated vulnerability remediation
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+The following knowledge will help you understand this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Amazon ECS 基礎](./00-ecs-basics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Amazon ECS Basics](./00-ecs-basics.md)
 
 ---
 
-## 1. ECR の概要
+## 1. ECR Overview
 
-### 1.1 ECR のアーキテクチャ
+### 1.1 ECR Architecture
 
 ```
-開発者 / CI/CD
+Developer / CI/CD
     |
     | docker push / pull
     v
 +--------------------------------+
 | Amazon ECR                     |
 | +----------------------------+ |
-| | プライベートリポジトリ       | |
+| | Private Repository          | |
 | | +--------+ +--------+     | |
 | | | my-app | | my-api |     | |
 | | | :v1.0  | | :v2.1  |     | |
@@ -44,7 +44,7 @@
 | | +--------+ +--------+     | |
 | +----------------------------+ |
 | +----------------------------+ |
-| | パブリックリポジトリ         | |
+| | Public Repository           | |
 | | (ECR Public Gallery)       | |
 | +----------------------------+ |
 +--------------------------------+
@@ -52,63 +52,63 @@
     v               v
 +----------+  +----------+
 | ECS      |  | EKS      |
-| Fargate  |  | ノード    |
+| Fargate  |  | Nodes    |
 +----------+  +----------+
 ```
 
-### 1.2 ECR の特徴
+### 1.2 ECR Features
 
-| 特徴 | 説明 |
-|------|------|
-| フルマネージド | インフラ管理不要、高可用性 |
-| 暗号化 | 保存時暗号化 (AES-256 or KMS) |
-| IAM 統合 | きめ細かなアクセス制御 |
-| イメージスキャン | 脆弱性の自動検出 |
-| レプリケーション | クロスリージョン/クロスアカウント |
-| イメージ署名 | コンテンツの信頼性検証 |
-| ライフサイクルポリシー | 不要イメージの自動削除 |
-| OCI 互換 | OCI アーティファクト(Helm チャート等)の保存に対応 |
+| Feature | Description |
+|---------|-------------|
+| Fully Managed | No infrastructure management required, high availability |
+| Encryption | Encryption at rest (AES-256 or KMS) |
+| IAM Integration | Fine-grained access control |
+| Image Scanning | Automatic vulnerability detection |
+| Replication | Cross-region/cross-account |
+| Image Signing | Content trust verification |
+| Lifecycle Policies | Automatic deletion of unused images |
+| OCI Compatible | Supports storing OCI artifacts (Helm charts, etc.) |
 
-### 1.3 ECR の料金体系
+### 1.3 ECR Pricing
 
 ```
-ECR の料金構成:
+ECR Pricing Structure:
 
-1. ストレージ料金:
-   $0.10/GB/月 (プライベートリポジトリ)
+1. Storage:
+   $0.10/GB/month (private repositories)
 
-2. データ転送:
-   - 同一リージョン内: 無料
-   - リージョン間: 標準データ転送料金
-   - インターネットへ: 標準データ転送料金
+2. Data Transfer:
+   - Within the same region: Free
+   - Between regions: Standard data transfer rates
+   - To the internet: Standard data transfer rates
 
-3. プルスルーキャッシュ:
-   - Docker Hub 等からの初回プル: データ転送料金
-   - キャッシュからのプル: 無料
+3. Pull-Through Cache:
+   - First pull from Docker Hub, etc.: Data transfer fees apply
+   - Pull from cache: Free
 
-コスト試算例:
-  イメージサイズ: 500 MB x 20 バージョン = 10 GB
-  月額: 10 GB x $0.10 = $1.00/月
+Cost Estimate Example:
+  Image size: 500 MB x 20 versions = 10 GB
+  Monthly cost: 10 GB x $0.10 = $1.00/month
 
-  ライフサイクルポリシーで保持数を制限することで
-  ストレージコストを大幅に削減可能
+  Using lifecycle policies to limit the number of retained images
+  can significantly reduce storage costs.
 ```
 
 ---
 
-## 2. リポジトリの作成
+## 2. Creating Repositories
 
-### 2.1 AWS CLI によるリポジトリ作成
+### 2.1 Creating a Repository with the AWS CLI
 
 ```bash
-# プライベートリポジトリの作成
+# Create a private repository
 aws ecr create-repository \
   --repository-name my-app \
   --image-scanning-configuration scanOnPush=true \
   --encryption-configuration encryptionType=AES256 \
   --image-tag-mutability IMMUTABLE
 
-# 出力例:
+# Example output:
 # {
 #   "repository": {
 #     "repositoryArn": "arn:aws:ecr:ap-northeast-1:123456789012:repository/my-app",
@@ -117,7 +117,7 @@ aws ecr create-repository \
 #   }
 # }
 
-# KMS 暗号化を使用するリポジトリの作成
+# Create a repository with KMS encryption
 aws ecr create-repository \
   --repository-name my-secure-app \
   --image-scanning-configuration scanOnPush=true \
@@ -127,52 +127,52 @@ aws ecr create-repository \
   }' \
   --image-tag-mutability IMMUTABLE
 
-# 名前空間付きリポジトリの作成 (組織構造を反映)
+# Create namespaced repositories (reflecting organizational structure)
 aws ecr create-repository --repository-name team-a/frontend
 aws ecr create-repository --repository-name team-a/backend
 aws ecr create-repository --repository-name team-b/data-pipeline
 aws ecr create-repository --repository-name shared/base-images
 
-# リポジトリの一覧表示
+# List repositories
 aws ecr describe-repositories \
   --query 'repositories[*].{Name: repositoryName, URI: repositoryUri, Scanning: imageScanningConfiguration.scanOnPush, TagMutability: imageTagMutability}'
 
-# リポジトリの削除 (イメージが含まれている場合は --force が必要)
+# Delete a repository (--force is required if images exist)
 aws ecr delete-repository \
   --repository-name my-old-app \
   --force
 ```
 
-### 2.2 タグの不変性 (Immutability)
+### 2.2 Tag Immutability
 
 ```
-タグの不変性設定:
+Tag Immutability Settings:
 
-MUTABLE (デフォルト):
-  push my-app:v1.0  -->  イメージA を v1.0 で保存
-  push my-app:v1.0  -->  イメージB で v1.0 を上書き ← 危険！
+MUTABLE (default):
+  push my-app:v1.0  -->  Save image A with tag v1.0
+  push my-app:v1.0  -->  Overwrite v1.0 with image B ← Dangerous!
 
-IMMUTABLE (推奨):
-  push my-app:v1.0  -->  イメージA を v1.0 で保存
-  push my-app:v1.0  -->  エラー！既存タグは上書き不可
-  push my-app:v1.1  -->  イメージB を v1.1 で保存 ← OK
+IMMUTABLE (recommended):
+  push my-app:v1.0  -->  Save image A with tag v1.0
+  push my-app:v1.0  -->  Error! Existing tags cannot be overwritten
+  push my-app:v1.1  -->  Save image B with tag v1.1 ← OK
 ```
 
-| 設定 | MUTABLE | IMMUTABLE |
-|------|---------|-----------|
-| 同一タグの上書き | 可能 | 不可 |
-| デプロイの再現性 | 低い | 高い |
-| 監査追跡 | 困難 | 容易 |
-| 推奨環境 | 開発 | 本番 |
+| Setting | MUTABLE | IMMUTABLE |
+|---------|---------|-----------|
+| Overwrite same tag | Allowed | Not allowed |
+| Deployment reproducibility | Low | High |
+| Audit trail | Difficult | Easy |
+| Recommended environment | Development | Production |
 
 ```bash
-# タグの不変性設定の変更
+# Change tag immutability setting
 aws ecr put-image-tag-mutability \
   --repository-name my-app \
   --image-tag-mutability IMMUTABLE
 ```
 
-### 2.3 リポジトリポリシー (クロスアカウントアクセス)
+### 2.3 Repository Policies (Cross-Account Access)
 
 ```json
 {
@@ -223,21 +223,21 @@ aws ecr put-image-tag-mutability \
 ```
 
 ```bash
-# リポジトリポリシーの適用
+# Apply a repository policy
 aws ecr set-repository-policy \
   --repository-name my-app \
   --policy-text file://ecr-policy.json
 
-# リポジトリポリシーの確認
+# View the repository policy
 aws ecr get-repository-policy \
   --repository-name my-app
 
-# リポジトリポリシーの削除
+# Delete the repository policy
 aws ecr delete-repository-policy \
   --repository-name my-app
 ```
 
-### 2.4 レジストリレベルのポリシー
+### 2.4 Registry-Level Policies
 
 ```json
 {
@@ -263,73 +263,73 @@ aws ecr delete-repository-policy \
 ```
 
 ```bash
-# レジストリポリシーの設定
+# Set the registry policy
 aws ecr put-registry-policy \
   --policy-text file://registry-policy.json
 
-# レジストリポリシーの確認
+# View the registry policy
 aws ecr get-registry-policy
 ```
 
 ---
 
-## 3. イメージのビルドとプッシュ
+## 3. Building and Pushing Images
 
-### 3.1 ECR 認証とプッシュの流れ
+### 3.1 ECR Authentication and Push Workflow
 
 ```
-イメージプッシュのフロー:
+Image Push Flow:
 
-1. ECR 認証トークン取得
+1. Obtain ECR authentication token
    aws ecr get-login-password
         |
         v
-2. Docker ログイン
+2. Docker login
    docker login --username AWS --password <token>
         |
         v
-3. イメージビルド
+3. Build image
    docker build -t my-app:v1.0 .
         |
         v
-4. タグ付け
+4. Tag image
    docker tag my-app:v1.0 <ECR_URI>/my-app:v1.0
         |
         v
-5. プッシュ
+5. Push
    docker push <ECR_URI>/my-app:v1.0
         |
         v
-6. ECR に保存 (暗号化、スキャン)
+6. Stored in ECR (encrypted, scanned)
 ```
 
-### 3.2 実際のコマンド
+### 3.2 Actual Commands
 
 ```bash
-# 変数定義
+# Define variables
 AWS_ACCOUNT_ID=123456789012
 REGION=ap-northeast-1
 REPO_NAME=my-app
 IMAGE_TAG=v1.0.0
 ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
-# 1. ECR にログイン
+# 1. Log in to ECR
 aws ecr get-login-password --region ${REGION} | \
   docker login --username AWS --password-stdin ${ECR_URI}
 
-# 2. イメージのビルド
+# 2. Build the image
 docker build -t ${REPO_NAME}:${IMAGE_TAG} .
 
-# 3. ECR 用にタグ付け
+# 3. Tag for ECR
 docker tag ${REPO_NAME}:${IMAGE_TAG} ${ECR_URI}/${REPO_NAME}:${IMAGE_TAG}
 
-# 4. プッシュ
+# 4. Push
 docker push ${ECR_URI}/${REPO_NAME}:${IMAGE_TAG}
 
-# 5. イメージ一覧の確認
+# 5. List images
 aws ecr list-images --repository-name ${REPO_NAME}
 
-# 6. イメージの詳細確認
+# 6. View image details
 aws ecr describe-images \
   --repository-name ${REPO_NAME} \
   --image-ids imageTag=${IMAGE_TAG} \
@@ -342,12 +342,12 @@ aws ecr describe-images \
     ScanFindings: imageScanFindingsSummary
   }'
 
-# 7. イメージの削除
+# 7. Delete an image
 aws ecr batch-delete-image \
   --repository-name ${REPO_NAME} \
   --image-ids imageTag=v0.9.0
 
-# 8. マルチアーキテクチャビルド (amd64 + arm64)
+# 8. Multi-architecture build (amd64 + arm64)
 docker buildx create --use
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
@@ -355,10 +355,10 @@ docker buildx build \
   --push .
 ```
 
-### 3.3 マルチステージビルドの Dockerfile 例
+### 3.3 Example Multi-Stage Build Dockerfile
 
 ```dockerfile
-# ---- ビルドステージ ----
+# ---- Build Stage ----
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
@@ -366,11 +366,11 @@ RUN npm ci --only=production
 COPY . .
 RUN npm run build
 
-# ---- 本番ステージ ----
+# ---- Production Stage ----
 FROM node:20-alpine AS production
 WORKDIR /app
 
-# セキュリティ: 非rootユーザーで実行
+# Security: run as non-root user
 RUN addgroup -g 1001 -S appgroup && \
     adduser -S appuser -u 1001 -G appgroup
 USER appuser
@@ -386,10 +386,10 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 CMD ["node", "dist/server.js"]
 ```
 
-### 3.4 Go アプリケーションの軽量イメージ
+### 3.4 Lightweight Image for Go Applications
 
 ```dockerfile
-# Go アプリケーション用の超軽量イメージ
+# Ultra-lightweight image for Go applications
 FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
@@ -400,7 +400,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-w -s" -o /app/server ./cmd/server
 
-# distroless イメージで実行 (シェルすらない超軽量イメージ)
+# Run with distroless image (ultra-lightweight, no shell)
 FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=builder /app/server /server
@@ -411,36 +411,36 @@ EXPOSE 8080
 ENTRYPOINT ["/server"]
 ```
 
-### 3.5 Python アプリケーションの最適化
+### 3.5 Optimized Python Application
 
 ```dockerfile
-# Python アプリケーション用の最適化 Dockerfile
+# Optimized Dockerfile for Python applications
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# 仮想環境を使って依存関係を分離
+# Use a virtual environment to isolate dependencies
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 本番ステージ
+# Production stage
 FROM python:3.12-slim
 
-# セキュリティパッチの適用
+# Apply security patches
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
-# 非rootユーザーの作成
+# Create non-root user
 RUN useradd --create-home --shell /bin/bash appuser
 USER appuser
 
 WORKDIR /app
 
-# ビルドステージから仮想環境をコピー
+# Copy virtual environment from build stage
 COPY --from=builder --chown=appuser:appuser /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
@@ -453,7 +453,7 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "4", "app:app"]
 ```
 
-### 3.6 .dockerignore の設定
+### 3.6 .dockerignore Configuration
 
 ```
 # .dockerignore
@@ -487,42 +487,42 @@ docs/
 
 ---
 
-## 4. ライフサイクルポリシー
+## 4. Lifecycle Policies
 
-### 4.1 ポリシーの仕組み
+### 4.1 How Policies Work
 
 ```
-ライフサイクルポリシーの動作:
+Lifecycle Policy Behavior:
 
-リポジトリ内イメージ:
-  v1.0  (30日前)  ←── 古いイメージを自動削除
-  v1.1  (20日前)  ←── 古いイメージを自動削除
-  v1.2  (10日前)
-  v1.3  (5日前)
-  v1.4  (2日前)
-  v1.5  (今日)     ←── 最新N個は保持
+Images in repository:
+  v1.0  (30 days ago)  <-- Old images are automatically deleted
+  v1.1  (20 days ago)  <-- Old images are automatically deleted
+  v1.2  (10 days ago)
+  v1.3  (5 days ago)
+  v1.4  (2 days ago)
+  v1.5  (today)        <-- Latest N images are retained
 
-ポリシー適用後:
-  v1.2  (10日前)   ←── 保持 (最新4個)
-  v1.3  (5日前)    ←── 保持
-  v1.4  (2日前)    ←── 保持
-  v1.5  (今日)     ←── 保持
+After policy is applied:
+  v1.2  (10 days ago)  <-- Retained (latest 4)
+  v1.3  (5 days ago)   <-- Retained
+  v1.4  (2 days ago)   <-- Retained
+  v1.5  (today)        <-- Retained
 
-ポリシーの評価順序:
-  1. rulePriority の低い順に評価
-  2. 各ルールのフィルタに一致するイメージを選択
-  3. 条件に基づいてイメージを期限切れにマーク
-  4. 低い優先度で一致したイメージは高い優先度のルールでは評価されない
+Policy evaluation order:
+  1. Evaluate in ascending order of rulePriority
+  2. Select images matching each rule's filter
+  3. Mark images for expiration based on conditions
+  4. Images matched by lower-priority rules are not evaluated by higher-priority rules
 ```
 
-### 4.2 ライフサイクルポリシーの設定
+### 4.2 Lifecycle Policy Configuration
 
 ```json
 {
   "rules": [
     {
       "rulePriority": 1,
-      "description": "untagged イメージを7日後に削除",
+      "description": "Delete untagged images after 7 days",
       "selection": {
         "tagStatus": "untagged",
         "countType": "sinceImagePushed",
@@ -535,7 +535,7 @@ docs/
     },
     {
       "rulePriority": 2,
-      "description": "dev タグは最新5個を保持",
+      "description": "Retain last 5 dev-tagged images",
       "selection": {
         "tagStatus": "tagged",
         "tagPrefixList": ["dev-"],
@@ -548,7 +548,7 @@ docs/
     },
     {
       "rulePriority": 3,
-      "description": "stg タグは最新10個を保持",
+      "description": "Retain last 10 stg-tagged images",
       "selection": {
         "tagStatus": "tagged",
         "tagPrefixList": ["stg-"],
@@ -561,7 +561,7 @@ docs/
     },
     {
       "rulePriority": 4,
-      "description": "release タグは最新100個を保持",
+      "description": "Retain last 100 release-tagged images",
       "selection": {
         "tagStatus": "tagged",
         "tagPrefixList": ["v", "release-"],
@@ -574,7 +574,7 @@ docs/
     },
     {
       "rulePriority": 5,
-      "description": "その他のタグ付きイメージは90日で削除",
+      "description": "Delete other tagged images after 90 days",
       "selection": {
         "tagStatus": "any",
         "countType": "sinceImagePushed",
@@ -590,29 +590,29 @@ docs/
 ```
 
 ```bash
-# ライフサイクルポリシーの適用
+# Apply a lifecycle policy
 aws ecr put-lifecycle-policy \
   --repository-name my-app \
   --lifecycle-policy-text file://lifecycle-policy.json
 
-# ポリシーの確認
+# View the policy
 aws ecr get-lifecycle-policy \
   --repository-name my-app
 
-# ポリシーのプレビュー (ドライラン)
+# Preview the policy (dry run)
 aws ecr start-lifecycle-policy-preview \
   --repository-name my-app \
   --lifecycle-policy-text file://lifecycle-policy.json
 
-# プレビュー結果の確認
+# View preview results
 aws ecr get-lifecycle-policy-preview \
   --repository-name my-app
 
-# ポリシーの削除
+# Delete the policy
 aws ecr delete-lifecycle-policy \
   --repository-name my-app
 
-# 全リポジトリに一括適用するスクリプト
+# Script to apply to all repositories at once
 REPOS=$(aws ecr describe-repositories --query 'repositories[*].repositoryName' --output text)
 for REPO in $REPOS; do
   echo "Applying lifecycle policy to ${REPO}..."
@@ -624,42 +624,42 @@ done
 
 ---
 
-## 5. イメージスキャン
+## 5. Image Scanning
 
-### 5.1 スキャンの種類
+### 5.1 Types of Scanning
 
 ```
-スキャン方式の比較:
+Scan Method Comparison:
 
-ベーシックスキャン (無料):
-  プッシュ時 --> Clair エンジン --> OS パッケージの CVE 検出
-  手動実行可能
+Basic Scanning (free):
+  On push --> Clair engine --> Detect CVEs in OS packages
+  Manual execution supported
 
-拡張スキャン (Amazon Inspector 統合):
-  プッシュ時 --> Inspector --> OS パッケージ + プログラミング言語
-  継続的スキャン                パッケージの CVE 検出
-  (新しいCVE発見時に自動再スキャン)
+Enhanced Scanning (Amazon Inspector integration):
+  On push --> Inspector --> OS packages + programming language
+  Continuous scanning            package CVE detection
+  (automatically re-scans when new CVEs are discovered)
 ```
 
-| 機能 | ベーシックスキャン | 拡張スキャン |
-|------|-----------------|-------------|
-| 料金 | 無料 | Amazon Inspector 料金 |
-| スキャン対象 | OS パッケージ | OS + 言語パッケージ |
-| トリガー | プッシュ時/手動 | プッシュ時 + 継続的 |
-| 新規 CVE 対応 | 手動再スキャン | 自動再スキャン |
-| EventBridge 連携 | あり | あり |
-| 対応言語 | - | Java, Python, Node.js, Go, Ruby, .NET |
-| SBOM 生成 | なし | あり |
+| Feature | Basic Scanning | Enhanced Scanning |
+|---------|---------------|------------------|
+| Cost | Free | Amazon Inspector pricing |
+| Scan target | OS packages | OS + language packages |
+| Trigger | On push / manual | On push + continuous |
+| New CVE response | Manual re-scan | Automatic re-scan |
+| EventBridge integration | Yes | Yes |
+| Supported languages | - | Java, Python, Node.js, Go, Ruby, .NET |
+| SBOM generation | No | Yes |
 
-### 5.2 スキャン結果の確認
+### 5.2 Viewing Scan Results
 
 ```bash
-# ベーシックスキャンの有効化 (リポジトリ単位)
+# Enable basic scanning (per repository)
 aws ecr put-image-scanning-configuration \
   --repository-name my-app \
   --image-scanning-configuration scanOnPush=true
 
-# 拡張スキャンの有効化 (レジストリ単位)
+# Enable enhanced scanning (per registry)
 aws ecr put-registry-scanning-configuration \
   --scan-type ENHANCED \
   --rules '[
@@ -674,23 +674,23 @@ aws ecr put-registry-scanning-configuration \
     }
   ]'
 
-# 手動スキャンの開始
+# Start a manual scan
 aws ecr start-image-scan \
   --repository-name my-app \
   --image-id imageTag=v1.0.0
 
-# スキャン結果の確認
+# View scan results
 aws ecr describe-image-scan-findings \
   --repository-name my-app \
   --image-id imageTag=v1.0.0
 
-# 重要度別のフィルタリング
+# Filter by severity
 aws ecr describe-image-scan-findings \
   --repository-name my-app \
   --image-id imageTag=v1.0.0 \
   --query 'imageScanFindings.findingsSeverityCounts'
 
-# CRITICAL と HIGH の脆弱性のみ表示
+# Show only CRITICAL and HIGH vulnerabilities
 aws ecr describe-image-scan-findings \
   --repository-name my-app \
   --image-id imageTag=v1.0.0 \
@@ -702,11 +702,11 @@ aws ecr describe-image-scan-findings \
   }'
 ```
 
-### 5.3 スキャン結果に基づく自動通知
+### 5.3 Automated Notifications Based on Scan Results
 
 ```python
-# EventBridge ルールで ECR スキャン完了イベントを検知し、
-# CRITICAL/HIGH 脆弱性があれば Slack に通知する Lambda
+# Lambda that detects ECR scan completion events via EventBridge
+# and sends a Slack notification if CRITICAL/HIGH vulnerabilities are found
 import json
 import os
 import urllib3
@@ -736,7 +736,7 @@ def lambda_handler(event, context):
                         {"title": "MEDIUM", "value": str(medium), "short": True},
                         {"title": "Repository", "value": repo, "short": True}
                     ],
-                    "text": "脆弱性が検出されました。確認してください。",
+                    "text": "Vulnerabilities detected. Please review.",
                     "footer": "Amazon ECR Image Scan"
                 }
             ]
@@ -750,12 +750,12 @@ def lambda_handler(event, context):
 ```
 
 ```yaml
-# EventBridge ルール (CloudFormation)
+# EventBridge rule (CloudFormation)
 ECRScanEventRule:
   Type: AWS::Events::Rule
   Properties:
     Name: ecr-scan-findings
-    Description: ECR スキャン完了イベントを検知
+    Description: Detect ECR scan completion events
     EventPattern:
       source:
         - "aws.ecr"
@@ -772,12 +772,12 @@ ECRScanEventRule:
         Id: ScanNotification
 ```
 
-### 5.4 CI/CD パイプラインでのスキャンゲート
+### 5.4 Scan Gate in CI/CD Pipelines
 
 ```bash
 #!/bin/bash
-# CI/CD パイプラインでのイメージスキャンゲート
-# CRITICAL/HIGH 脆弱性がある場合はデプロイをブロック
+# Image scan gate in CI/CD pipeline
+# Blocks deployment if CRITICAL/HIGH vulnerabilities are found
 
 REPO_NAME=$1
 IMAGE_TAG=$2
@@ -789,7 +789,7 @@ aws ecr wait image-scan-complete \
   --repository-name ${REPO_NAME} \
   --image-id imageTag=${IMAGE_TAG}
 
-# スキャン結果の取得
+# Retrieve scan results
 FINDINGS=$(aws ecr describe-image-scan-findings \
   --repository-name ${REPO_NAME} \
   --image-id imageTag=${IMAGE_TAG} \
@@ -816,32 +816,32 @@ exit 0
 
 ---
 
-## 6. クロスリージョン/クロスアカウントレプリケーション
+## 6. Cross-Region/Cross-Account Replication
 
-### 6.1 レプリケーション設定
+### 6.1 Replication Configuration
 
 ```
-レプリケーション構成:
+Replication Setup:
 
-ソースリージョン (ap-northeast-1)
+Source Region (ap-northeast-1)
 +------------------+
 | ECR: my-app      |  push
 | :v1.0            | ----+
 +------------------+     |
-                         | 自動レプリケーション
+                         | Automatic Replication
                          |
     +--------------------+--------------------+
     |                                         |
     v                                         v
-宛先リージョン (us-east-1)           宛先アカウント (987654321098)
+Destination Region (us-east-1)      Destination Account (987654321098)
 +------------------+               +------------------+
 | ECR: my-app      |               | ECR: my-app      |
-| :v1.0 (複製)     |               | :v1.0 (複製)     |
+| :v1.0 (replica)  |               | :v1.0 (replica)  |
 +------------------+               +------------------+
 ```
 
 ```bash
-# クロスリージョンレプリケーション設定
+# Configure cross-region replication
 aws ecr put-replication-configuration \
   --replication-configuration '{
     "rules": [
@@ -866,7 +866,7 @@ aws ecr put-replication-configuration \
     ]
   }'
 
-# クロスアカウントレプリケーション設定
+# Configure cross-account replication
 aws ecr put-replication-configuration \
   --replication-configuration '{
     "rules": [
@@ -887,12 +887,12 @@ aws ecr put-replication-configuration \
     ]
   }'
 
-# レプリケーション設定の確認
+# View replication configuration
 aws ecr describe-registry \
   --query 'replicationConfiguration'
 
-# 宛先アカウント側でのレジストリポリシー設定
-# (レプリケーションを受け入れるために必要)
+# Set registry policy on the destination account
+# (required to accept replication)
 aws ecr put-registry-policy \
   --policy-text '{
     "Version": "2012-10-17",
@@ -913,55 +913,55 @@ aws ecr put-registry-policy \
   }'
 ```
 
-### 6.2 プルスルーキャッシュ
+### 6.2 Pull-Through Cache
 
 ```
-プルスルーキャッシュの仕組み:
+How Pull-Through Cache Works:
 
-1回目のプル:
-  ECS/EKS --> ECR (キャッシュなし) --> Docker Hub --> イメージ取得
+First pull:
+  ECS/EKS --> ECR (no cache) --> Docker Hub --> Fetch image
                     |
                     v
-              キャッシュに保存
+              Save to cache
 
-2回目以降のプル:
-  ECS/EKS --> ECR (キャッシュあり) --> イメージ取得 (高速)
-  Docker Hub への通信なし = レート制限の影響を回避
+Subsequent pulls:
+  ECS/EKS --> ECR (cached) --> Fetch image (fast)
+  No communication with Docker Hub = avoid rate limit impact
 ```
 
 ```bash
-# プルスルーキャッシュルールの作成
+# Create a pull-through cache rule
 aws ecr create-pull-through-cache-rule \
   --ecr-repository-prefix docker-hub \
   --upstream-registry-url registry-1.docker.io
 
-# GitHub Container Registry のキャッシュ
+# Cache for GitHub Container Registry
 aws ecr create-pull-through-cache-rule \
   --ecr-repository-prefix ghcr \
   --upstream-registry-url ghcr.io
 
-# Quay.io のキャッシュ
+# Cache for Quay.io
 aws ecr create-pull-through-cache-rule \
   --ecr-repository-prefix quay \
   --upstream-registry-url quay.io
 
-# プルスルーキャッシュの利用
+# Using the pull-through cache
 # docker pull 123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/docker-hub/library/nginx:latest
-# → 初回は Docker Hub からプル、以降は ECR キャッシュからプル
+# --> First pull from Docker Hub, subsequent pulls from ECR cache
 
-# キャッシュルールの一覧
+# List cache rules
 aws ecr describe-pull-through-cache-rules
 
-# キャッシュルールの削除
+# Delete a cache rule
 aws ecr delete-pull-through-cache-rule \
   --ecr-repository-prefix docker-hub
 ```
 
 ---
 
-## 7. CI/CD パイプラインとの統合
+## 7. CI/CD Pipeline Integration
 
-### 7.1 GitHub Actions での ECR 統合
+### 7.1 ECR Integration with GitHub Actions
 
 ```yaml
 # .github/workflows/build-and-push.yml
@@ -1027,7 +1027,7 @@ jobs:
           fi
 ```
 
-### 7.2 CodeBuild での ECR 統合
+### 7.2 ECR Integration with CodeBuild
 
 ```yaml
 # buildspec.yml
@@ -1068,150 +1068,150 @@ artifacts:
 
 ---
 
-## 8. セキュリティベストプラクティス
+## 8. Security Best Practices
 
-### 8.1 イメージ署名 (Sigstore/Cosign)
+### 8.1 Image Signing (Sigstore/Cosign)
 
 ```bash
-# Cosign によるイメージ署名
-# 1. キーペアの生成
+# Image signing with Cosign
+# 1. Generate a key pair
 cosign generate-key-pair
 
-# 2. イメージへの署名
+# 2. Sign the image
 cosign sign --key cosign.key \
   ${ECR_URI}/${REPO_NAME}:${IMAGE_TAG}
 
-# 3. 署名の検証
+# 3. Verify the signature
 cosign verify --key cosign.pub \
   ${ECR_URI}/${REPO_NAME}:${IMAGE_TAG}
 
-# 4. キーレス署名 (OIDC プロバイダ利用)
+# 4. Keyless signing (using OIDC provider)
 cosign sign --identity-token=$(gcloud auth print-identity-token) \
   ${ECR_URI}/${REPO_NAME}:${IMAGE_TAG}
 ```
 
-### 8.2 SBOM (Software Bill of Materials) の生成
+### 8.2 SBOM (Software Bill of Materials) Generation
 
 ```bash
-# Syft による SBOM 生成
+# Generate SBOM with Syft
 syft ${ECR_URI}/${REPO_NAME}:${IMAGE_TAG} \
   -o spdx-json > sbom.spdx.json
 
-# SBOM を ECR に OCI アーティファクトとしてアタッチ
+# Attach SBOM to ECR as an OCI artifact
 cosign attach sbom \
   --sbom sbom.spdx.json \
   ${ECR_URI}/${REPO_NAME}:${IMAGE_TAG}
 
-# Grype による SBOM ベースの脆弱性スキャン
+# Vulnerability scan based on SBOM using Grype
 grype sbom:sbom.spdx.json
 ```
 
-### 8.3 ベースイメージの管理
+### 8.3 Base Image Management
 
 ```
-ベースイメージ戦略:
+Base Image Strategy:
 
-推奨イメージ (軽量・セキュア):
-  1. distroless (google) - シェルなし、最小限
-  2. Alpine Linux - 5MB、musl libc
-  3. Debian slim - glibc 互換、軽量
-  4. Amazon Linux 2023 - AWS 最適化
+Recommended Images (lightweight and secure):
+  1. distroless (Google) - No shell, minimal footprint
+  2. Alpine Linux - 5MB, musl libc
+  3. Debian slim - glibc compatible, lightweight
+  4. Amazon Linux 2023 - AWS-optimized
 
-非推奨:
-  ❌ ubuntu:latest (大きい、頻繁に更新)
-  ❌ node:latest (700MB+)
-  ❌ python:latest (900MB+)
+Not Recommended:
+  X ubuntu:latest (large, frequently updated)
+  X node:latest (700MB+)
+  X python:latest (900MB+)
 
-イメージサイズ比較:
-  python:3.12         → ~900 MB
-  python:3.12-slim    → ~120 MB
-  python:3.12-alpine  → ~50 MB
-  distroless/python3  → ~30 MB
+Image Size Comparison:
+  python:3.12         --> ~900 MB
+  python:3.12-slim    --> ~120 MB
+  python:3.12-alpine  --> ~50 MB
+  distroless/python3  --> ~30 MB
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### 9.1 latest タグのみでの運用
+### 9.1 Using Only the latest Tag
 
 ```
-[悪い例]
-docker push my-app:latest  (毎回 latest を上書き)
+[Bad Example]
+docker push my-app:latest  (overwrite latest every time)
 
-問題:
-  - ロールバック時にどのイメージに戻すか不明
-  - 複数環境で異なるバージョンが latest として存在
-  - タグの不変性を設定できない
+Problems:
+  - Unclear which image to roll back to
+  - Different versions exist as latest across multiple environments
+  - Cannot configure tag immutability
 
-[良い例]
-docker push my-app:v1.2.3           (セマンティックバージョニング)
+[Good Example]
+docker push my-app:v1.2.3           (semantic versioning)
 docker push my-app:git-abc123def    (Git SHA)
-docker push my-app:build-456        (ビルド番号)
+docker push my-app:build-456        (build number)
 
-さらに良い例 (複数タグの併用):
+Even Better (using multiple tags):
 docker push my-app:v1.2.3
 docker push my-app:git-abc123def
-docker push my-app:latest           (参考用、デプロイには使わない)
+docker push my-app:latest           (for reference only, do not use for deployment)
 ```
 
-### 9.2 ライフサイクルポリシー未設定
+### 9.2 Not Configuring Lifecycle Policies
 
-**問題点**: イメージが蓄積し続け、ストレージコストが増大する。数千のイメージが残り、必要なイメージの特定が困難になる。
+**Problem**: Images accumulate indefinitely, increasing storage costs. Thousands of images remain, making it difficult to identify the needed ones.
 
-**改善**: プロジェクト初期からライフサイクルポリシーを設定し、untagged イメージの自動削除と、タグ付きイメージの保持数上限を定める。
+**Improvement**: Configure lifecycle policies from the start of the project, setting automatic deletion of untagged images and defining limits on the number of retained tagged images.
 
-### 9.3 ルートユーザーでのコンテナ実行
+### 9.3 Running Containers as Root
 
 ```
-[悪い例]
+[Bad Example]
 FROM python:3.12
 COPY . /app
 CMD ["python", "/app/main.py"]
-→ root (UID 0) で実行される
+--> Runs as root (UID 0)
 
-[良い例]
+[Good Example]
 FROM python:3.12
 RUN useradd --create-home appuser
 USER appuser
 COPY --chown=appuser:appuser . /app
 CMD ["python", "/app/main.py"]
-→ 非 root (UID 1000) で実行される
+--> Runs as non-root (UID 1000)
 
-[さらに良い例]
+[Even Better]
 FROM gcr.io/distroless/python3-debian12:nonroot
 COPY . /app
 CMD ["python", "/app/main.py"]
-→ nonroot (UID 65532) で実行、シェルアクセスも不可
+--> Runs as nonroot (UID 65532), no shell access
 ```
 
-### 9.4 認証情報のハードコード
+### 9.4 Hardcoding Credentials
 
 ```
-[悪い例]
+[Bad Example]
 FROM python:3.12
-ENV DB_PASSWORD=my-secret-password  ← イメージに含まれる！
+ENV DB_PASSWORD=my-secret-password  <-- Included in the image!
 COPY . /app
 CMD ["python", "/app/main.py"]
 
-[良い例]
+[Good Example]
 FROM python:3.12
-# 認証情報は環境変数で実行時に注入
-# ECS: タスク定義の secrets パラメータで Secrets Manager を参照
-# EKS: Kubernetes Secrets + IRSA で管理
+# Credentials are injected at runtime via environment variables
+# ECS: Reference Secrets Manager via the secrets parameter in task definitions
+# EKS: Managed via Kubernetes Secrets + IRSA
 COPY . /app
 CMD ["python", "/app/main.py"]
 ```
 
 ---
 
-## 10. CloudFormation テンプレート
+## 10. CloudFormation Template
 
-### 10.1 ECR リポジトリの完全構成テンプレート
+### 10.1 Complete ECR Repository Configuration Template
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'ECR リポジトリ構成テンプレート'
+Description: 'ECR Repository Configuration Template'
 
 Parameters:
   EnvironmentName:
@@ -1224,7 +1224,7 @@ Parameters:
     Default: my-app
 
 Resources:
-  # ECR リポジトリ
+  # ECR Repository
   ECRRepository:
     Type: AWS::ECR::Repository
     Properties:
@@ -1279,7 +1279,7 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # スキャン通知用 EventBridge ルール
+  # EventBridge rule for scan notifications
   ECRScanRule:
     Type: AWS::Events::Rule
     Properties:
@@ -1306,7 +1306,7 @@ Resources:
             InputTemplate: |
               "ECR Scan Alert: <repo>:<tag> - CRITICAL: <critical>, HIGH: <high>"
 
-  # SNS トピック
+  # SNS Topic
   AlertTopic:
     Type: AWS::SNS::Topic
     Properties:
@@ -1314,58 +1314,58 @@ Resources:
 
 Outputs:
   RepositoryUri:
-    Description: ECR リポジトリ URI
+    Description: ECR Repository URI
     Value: !GetAtt ECRRepository.RepositoryUri
     Export:
       Name: !Sub '${ProjectName}-ECRRepositoryUri'
 
   RepositoryArn:
-    Description: ECR リポジトリ ARN
+    Description: ECR Repository ARN
     Value: !GetAtt ECRRepository.Arn
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1374,26 +1374,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1401,7 +1401,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1412,14 +1412,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1427,7 +1427,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1435,44 +1435,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1481,7 +1481,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1496,47 +1496,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|---------|
+| Initialization error | Invalid configuration file | Check configuration file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access privileges | Check execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflict | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Incremental verification**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1544,102 +1544,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debugging target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Verify the presence of memory leaks
+3. **Check I/O wait**: Examine disk and network I/O status
+4. **Check concurrent connections**: Verify the state of connection pools
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Issue Type | Diagnostic Tool | Remedy |
+|------------|----------------|--------|
+| CPU load | cProfile, py-spy | Improve algorithms, parallelize |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology decisions.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize when | Can compromise when |
+|-----------|----------------|---------------------|
+| Performance | Real-time processing, large-scale data | Admin UIs, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
-┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
-│                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
-│                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
-│                                                 │
-└─────────────────────────────────────────────────┘
++-------------------------------------------------+
+|         Architecture Selection Flow             |
++-------------------------------------------------+
+|                                                 |
+|  1. What is the team size?                      |
+|    +-- Small (1-5)    --> Monolith              |
+|    +-- Large (10+)    --> Go to 2               |
+|                                                 |
+|  2. How often do you deploy?                    |
+|    +-- Weekly or less --> Monolith + modules    |
+|    +-- Daily/multiple --> Go to 3               |
+|                                                 |
+|  3. How independent are teams?                  |
+|    +-- High       --> Microservices             |
+|    +-- Moderate   --> Modular monolith          |
+|                                                 |
++-------------------------------------------------+
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A faster short-term approach may become technical debt in the long run
+- Conversely, over-engineering incurs high short-term costs and causes project delays
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction promotes reusability but can make debugging difficult
+- Low abstraction is intuitive but tends to result in code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1649,17 +1649,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1667,7 +1667,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1675,15 +1675,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
-            icon = "✅" if c['type'] == 'positive' else "⚠️"
+            icon = "+" if c['type'] == 'positive' else "!"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1692,77 +1692,77 @@ class ArchitectureDecisionRecord:
 
 ## 11. FAQ
 
-### Q1. ECR の認証トークンの有効期限はどのくらいですか？
+### Q1. How long is the ECR authentication token valid?
 
-ECR の認証トークンは 12 時間有効である。CI/CD パイプラインでは、ビルドの最初に `aws ecr get-login-password` を実行してトークンを取得する。長時間稼働するビルドエージェントでは、cron 等で定期的に再認証が必要になる。
+The ECR authentication token is valid for 12 hours. In CI/CD pipelines, run `aws ecr get-login-password` at the start of the build to obtain a token. For long-running build agents, periodic re-authentication via cron or similar is required.
 
-### Q2. ECR Public と Docker Hub の違いは何ですか？
+### Q2. What is the difference between ECR Public and Docker Hub?
 
-ECR Public Gallery (public.ecr.aws) は AWS が提供するパブリックコンテナレジストリで、匿名プルが可能。Docker Hub と比較して、AWS アカウントからのプルはレート制限が緩和されている。AWS 公式のベースイメージ(Lambda, AL2023 等)は ECR Public で提供されている。
+ECR Public Gallery (public.ecr.aws) is a public container registry provided by AWS that allows anonymous pulls. Compared to Docker Hub, rate limits are relaxed for pulls from AWS accounts. AWS official base images (Lambda, AL2023, etc.) are provided via ECR Public.
 
-### Q3. イメージサイズを小さくするにはどうすべきですか？
+### Q3. How should I reduce image size?
 
-マルチステージビルドでビルドツールを最終イメージから除外する。Alpine ベースの軽量イメージや distroless イメージを使用する。`.dockerignore` でビルドコンテキストから不要ファイルを除外する。レイヤーキャッシュを活用するため、変更頻度の低い命令(依存関係インストール)を先に記述する。
+Use multi-stage builds to exclude build tools from the final image. Use lightweight images like Alpine-based or distroless images. Exclude unnecessary files from the build context using `.dockerignore`. Write instructions that change infrequently (dependency installation) first to leverage layer caching.
 
-### Q4. ECR のプルスルーキャッシュとは何ですか？
+### Q4. What is ECR pull-through cache?
 
-Docker Hub、GitHub Container Registry、Quay.io などのアップストリームレジストリからのイメージプルを ECR 経由でキャッシュする機能である。Docker Hub のレート制限を回避し、プルの高速化とネットワークコスト削減を実現する。一度キャッシュされたイメージはその後 ECR から直接プルされる。
+It is a feature that caches image pulls from upstream registries such as Docker Hub, GitHub Container Registry, and Quay.io via ECR. It avoids Docker Hub rate limits and achieves faster pulls and reduced network costs. Once an image is cached, subsequent pulls are served directly from ECR.
 
-### Q5. マルチアーキテクチャイメージはどう管理すべきですか？
+### Q5. How should multi-architecture images be managed?
 
-`docker buildx` を使用して amd64 と arm64 の両方のイメージを同一タグで管理できる。ECR はマニフェストリストをサポートしており、プル時にクライアントのアーキテクチャに適したイメージが自動的に選択される。Graviton (arm64) と x86_64 の両方で動作するアプリケーションでは、マルチアーキテクチャビルドを推奨する。
+Using `docker buildx`, you can manage both amd64 and arm64 images under the same tag. ECR supports manifest lists, and the appropriate image for the client's architecture is automatically selected at pull time. Multi-architecture builds are recommended for applications running on both Graviton (arm64) and x86_64.
 
-### Q6. イメージのダイジェスト (SHA) で管理すべきですか？
+### Q6. Should images be managed by digest (SHA)?
 
-本番デプロイでは、タグではなくイメージダイジェスト (sha256:xxx) でイメージを指定することが最も安全である。タグは上書き可能 (MUTABLE の場合) だが、ダイジェストは不変である。ただし IMMUTABLE タグ設定であればタグでの管理も安全性が高い。CI/CD パイプラインではタグとダイジェストの両方を記録するのがベストプラクティスである。
+For production deployments, specifying images by image digest (sha256:xxx) rather than tag is the safest approach. Tags can be overwritten (if MUTABLE), but digests are immutable. However, if IMMUTABLE tag settings are configured, managing by tag is also sufficiently safe. In CI/CD pipelines, recording both the tag and digest is a best practice.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| リポジトリ作成 | IMMUTABLE タグ + スキャン有効化が推奨 |
-| イメージプッシュ | get-login-password で認証後、tag + push |
-| ライフサイクルポリシー | untagged の自動削除、タグ付きの保持数制限 |
-| イメージスキャン | ベーシック(無料) / 拡張(Inspector) |
-| レプリケーション | クロスリージョン/クロスアカウントの自動複製 |
-| プルスルーキャッシュ | Docker Hub レート制限の回避 |
-| セキュリティ | 非 root 実行、マルチステージビルド、イメージ署名 |
-| CI/CD 統合 | GitHub Actions / CodeBuild でのビルド・プッシュ自動化 |
-| SBOM | ソフトウェア構成の可視化と脆弱性追跡 |
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [ECS 基礎](./00-ecs-basics.md) -- ECR イメージを ECS で実行する
-- [EKS 概要](./02-eks-overview.md) -- ECR イメージを EKS で実行する
-- [CodePipeline](../07-devops/02-codepipeline.md) -- ECR を CI/CD に統合する
+| Item | Key Point |
+|------|-----------|
+| Repository creation | IMMUTABLE tags + enabling scanning is recommended |
+| Image push | Authenticate with get-login-password, then tag + push |
+| Lifecycle policies | Automatic deletion of untagged images, limit retained tagged images |
+| Image scanning | Basic (free) / Enhanced (Inspector) |
+| Replication | Automatic cross-region/cross-account replication |
+| Pull-through cache | Avoid Docker Hub rate limits |
+| Security | Non-root execution, multi-stage builds, image signing |
+| CI/CD integration | Automated build and push with GitHub Actions / CodeBuild |
+| SBOM | Visibility into software composition and vulnerability tracking |
 
 ---
 
-## 参考文献
+## Next Guides to Read
 
-1. AWS 公式ドキュメント「Amazon ECR ユーザーガイド」 https://docs.aws.amazon.com/AmazonECR/latest/userguide/
-2. AWS 公式「コンテナイメージのベストプラクティス」 https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/container-images.html
-3. Docker 公式「Dockerfile ベストプラクティス」 https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
-4. Sigstore/Cosign 公式ドキュメント https://docs.sigstore.dev/
-5. AWS 公式「ECR プルスルーキャッシュ」 https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html
+- [ECS Basics](./00-ecs-basics.md) -- Run ECR images on ECS
+- [EKS Overview](./02-eks-overview.md) -- Run ECR images on EKS
+- [CodePipeline](../07-devops/02-codepipeline.md) -- Integrate ECR into CI/CD
+
+---
+
+## References
+
+1. AWS Official Documentation "Amazon ECR User Guide" https://docs.aws.amazon.com/AmazonECR/latest/userguide/
+2. AWS Official "Container Image Best Practices" https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/container-images.html
+3. Docker Official "Dockerfile Best Practices" https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
+4. Sigstore/Cosign Official Documentation https://docs.sigstore.dev/
+5. AWS Official "ECR Pull-Through Cache" https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html
