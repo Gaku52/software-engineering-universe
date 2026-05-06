@@ -1,65 +1,65 @@
-# Well-Architected Framework — 6 つの柱とレビュープロセス
+# Well-Architected Framework — 6 Pillars and Review Process
 
-> AWS Well-Architected Framework の 6 つの柱を理解し、自社ワークロードを体系的にレビュー・改善するための実践ガイド。
-
----
-
-## この章で学ぶこと
-
-1. **6 つの柱** それぞれの設計原則とベストプラクティス
-2. **Well-Architected Tool** を使ったワークロードレビューの進め方
-3. **改善の優先順位付け** と継続的なアーキテクチャ改善プロセス
-4. **Trusted Advisor** との連携と自動チェック
-5. **CDK / CloudFormation** による Well-Architected 準拠の自動化
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [コスト最適化 — Cost Explorer / Budgets / Savings Plans](./00-cost-optimization.md) の内容を理解していること
+> A practical guide for understanding the 6 pillars of the AWS Well-Architected Framework and systematically reviewing and improving your workloads.
 
 ---
 
-## 1. Well-Architected Framework の全体像
+## What You Will Learn
 
-### 1.1 6 つの柱
+1. Design principles and best practices for each of the **6 pillars**
+2. How to conduct workload reviews using the **Well-Architected Tool**
+3. **Prioritizing improvements** and the continuous architecture improvement process
+4. Integration with **Trusted Advisor** and automated checks
+5. Automating Well-Architected compliance with **CDK / CloudFormation**
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Cost Optimization — Cost Explorer / Budgets / Savings Plans](./00-cost-optimization.md)
+
+---
+
+## 1. Overview of the Well-Architected Framework
+
+### 1.1 The 6 Pillars
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │            AWS Well-Architected Framework                 │
-│                   6 つの柱 (Pillars)                      │
+│                      6 Pillars                           │
 │                                                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │ 1. 運用上の  │  │ 2. セキュリ │  │ 3. 信頼性    │   │
-│  │   優秀性     │  │   ティ      │  │ (Reliability)│   │
-│  │ (Operational │  │ (Security)  │  │              │   │
-│  │  Excellence) │  │             │  │              │   │
+│  │ 1. Operational│  │ 2. Security  │  │ 3. Reliability│  │
+│  │   Excellence  │  │              │  │              │   │
+│  │              │  │             │  │              │   │
+│  │              │  │             │  │              │   │
 │  └──────────────┘  └──────────────┘  └──────────────┘   │
 │                                                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │ 4. パフォー  │  │ 5. コスト   │  │ 6. 持続可    │   │
-│  │  マンス効率  │  │   最適化    │  │   能性       │   │
-│  │ (Performance │  │ (Cost       │  │(Sustainability│  │
-│  │  Efficiency) │  │ Optimization│  │             ) │   │
+│  │ 4. Performance│  │ 5. Cost      │  │ 6. Sustain-  │   │
+│  │   Efficiency  │  │   Optimization│  │   ability    │   │
+│  │              │  │              │  │              │   │
+│  │              │  │              │  │              │   │
 │  └──────────────┘  └──────────────┘  └──────────────┘   │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 各柱の関係性
+### 1.2 Relationship Between the Pillars
 
 ```
                    ┌─────────────────┐
-                   │   ビジネス価値   │
+                   │  Business Value  │
                    └────────┬────────┘
                             │
            ┌────────────────┼────────────────┐
            │                │                │
      ┌─────▼─────┐   ┌─────▼─────┐   ┌─────▼─────┐
-     │ セキュリティ│   │  信頼性   │   │ パフォー  │
-     │ (基盤)     │   │ (基盤)    │   │  マンス   │
+     │ Security  │   │Reliability│   │Performance│
+     │(Foundation)│  │(Foundation)│  │           │
      └─────┬─────┘   └─────┬─────┘   └─────┬─────┘
            │                │                │
            └────────────────┼────────────────┘
@@ -67,44 +67,46 @@
            ┌────────────────┼────────────────┐
            │                │                │
      ┌─────▼─────┐   ┌─────▼─────┐   ┌─────▼─────┐
-     │ 運用上の   │   │  コスト   │   │ 持続可    │
-     │ 優秀性     │   │  最適化   │   │ 能性      │
-     │ (横断)     │   │ (最適化)  │   │ (最適化)  │
+     │Operational│   │   Cost    │   │Sustain-   │
+     │Excellence │   │Optimization│  │ ability   │
+     │(Cross-cut)│   │(Optimize) │   │(Optimize) │
      └───────────┘   └───────────┘   └───────────┘
 ```
 
-### 1.3 Framework の適用タイミング
+### 1.3 When to Apply the Framework
 
-Well-Architected Framework はワークロードのライフサイクル全体で適用する。
+The Well-Architected Framework applies throughout the entire workload lifecycle.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  ワークロードライフサイクルと Well-Architected                     │
+│  Workload Lifecycle and Well-Architected                        │
 │                                                                 │
-│  設計フェーズ ──→ 実装フェーズ ──→ 運用フェーズ ──→ 最適化フェーズ  │
+│  Design Phase ──→ Build Phase ──→ Operate Phase ──→ Optimize   │
 │       │               │               │                │        │
 │       ▼               ▼               ▼                ▼        │
 │  ┌─────────┐   ┌─────────┐   ┌─────────────┐  ┌──────────┐    │
-│  │設計レビュー│  │実装レビュー│  │定期レビュー  │  │改善レビュー│   │
-│  │(初回)    │   │(ローンチ前)│  │(四半期ごと) │  │(変更後)  │    │
+│  │Design   │   │Build    │   │Periodic     │  │Improvement│   │
+│  │Review   │   │Review   │   │Review       │  │Review     │   │
+│  │(Initial)│   │(Pre-    │   │(Quarterly)  │  │(Post-     │   │
+│  │         │   │launch)  │   │             │  │change)    │    │
 │  └─────────┘   └─────────┘   └─────────────┘  └──────────┘    │
 │                                                                 │
-│  ポイント:                                                       │
-│  - 設計時: アーキテクチャ方針の妥当性検証                          │
-│  - ローンチ前: 本番稼働に向けた最終チェック                        │
-│  - 運用中: ドリフト検出と継続改善                                  │
-│  - 変更後: 大きなアーキテクチャ変更のインパクト評価                  │
+│  Key Points:                                                    │
+│  - Design: Validate architecture decisions                      │
+│  - Pre-launch: Final checks before production                   │
+│  - Operations: Drift detection and continuous improvement       │
+│  - Post-change: Impact assessment after major architecture changes│
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.4 Well-Architected Tool の基本操作（CLI）
+### 1.4 Basic Well-Architected Tool Operations (CLI)
 
 ```bash
-# ワークロード一覧の取得
+# List workloads
 aws wellarchitected list-workloads \
   --query 'WorkloadSummaries[*].{Name:WorkloadName,Id:WorkloadId,Risk:RiskCounts}'
 
-# ワークロードの作成
+# Create a workload
 aws wellarchitected create-workload \
   --workload-name "MyApp-Production" \
   --description "Production e-commerce application" \
@@ -114,14 +116,14 @@ aws wellarchitected create-workload \
   --aws-regions ap-northeast-1 \
   --tags Project=myapp,Environment=production
 
-# 特定の柱の質問一覧を取得
+# Get the list of questions for a specific pillar
 aws wellarchitected list-answers \
   --workload-id "abc123def456" \
   --lens-alias wellarchitected \
   --pillar-id operationalExcellence \
   --query 'AnswerSummaries[*].{Q:QuestionTitle,Risk:Risk}'
 
-# 質問への回答を更新
+# Update an answer to a question
 aws wellarchitected update-answer \
   --workload-id "abc123def456" \
   --lens-alias wellarchitected \
@@ -129,12 +131,12 @@ aws wellarchitected update-answer \
   --selected-choices "ops_ops-how-do-you-design-workload_1" "ops_ops-how-do-you-design-workload_2" \
   --notes "IaC with CDK, CI/CD with CodePipeline"
 
-# マイルストーンの作成
+# Create a milestone
 aws wellarchitected create-milestone \
   --workload-id "abc123def456" \
   --milestone-name "Q1-2025-Review"
 
-# レビュー結果のレポート取得
+# Get the review report
 aws wellarchitected get-lens-review-report \
   --workload-id "abc123def456" \
   --lens-alias wellarchitected \
@@ -144,63 +146,63 @@ aws wellarchitected get-lens-review-report \
 
 ---
 
-## 2. 6 つの柱の詳細
+## 2. Details of the 6 Pillars
 
-### 2.1 柱 1: 運用上の優秀性（Operational Excellence）
+### 2.1 Pillar 1: Operational Excellence
 
 ```yaml
-# 設計原則
+# Design principles
 principles:
-  - 運用をコードとして管理 (IaC)
-  - 小さく可逆的な変更を頻繁に行う
-  - 運用手順を頻繁に改善する
-  - 障害を予測する
-  - 全ての運用上の障害から学ぶ
+  - Perform operations as code (IaC)
+  - Make frequent, small, reversible changes
+  - Refine operations procedures frequently
+  - Anticipate failure
+  - Learn from all operational failures
 
-# チェックリスト例
+# Example checklist
 checklist:
   organization:
-    - チームの責任範囲が明確か
-    - 運用の優先順位がビジネス目標と整合しているか
+    - Are team responsibilities clearly defined?
+    - Are operational priorities aligned with business goals?
   prepare:
-    - ワークロードの可観測性が設計されているか
-    - デプロイ戦略 (Blue/Green, Canary) が定義されているか
+    - Is workload observability designed in?
+    - Are deployment strategies (Blue/Green, Canary) defined?
   operate:
-    - ランブックとプレイブックが整備されているか
-    - ダッシュボードとアラートが適切に設定されているか
+    - Are runbooks and playbooks maintained?
+    - Are dashboards and alerts configured appropriately?
   evolve:
-    - ポストモーテム (振り返り) プロセスがあるか
-    - 改善項目がバックログに追加されているか
+    - Is there a post-mortem (retrospective) process?
+    - Are improvement items added to the backlog?
 ```
 
-#### 運用上の優秀性 — 主要 AWS サービスと実装パターン
+#### Operational Excellence — Key AWS Services and Implementation Patterns
 
 ```bash
-# === IaC (Infrastructure as Code) の実装 ===
+# === Implementing IaC (Infrastructure as Code) ===
 
-# CloudFormation スタックのドリフト検出
+# Detect stack drift in CloudFormation
 aws cloudformation detect-stack-drift --stack-name my-production-stack
 aws cloudformation describe-stack-drift-detection-status \
   --stack-drift-detection-id "aaaabbbb-1234-5678"
 
-# Systems Manager Automation でランブックを自動化
+# Automate runbooks with Systems Manager Automation
 aws ssm start-automation-execution \
   --document-name "AWS-RestartEC2Instance" \
   --parameters '{"InstanceId":["i-0123456789abcdef0"]}'
 
-# === 可観測性の実装 ===
+# === Implementing Observability ===
 
-# CloudWatch ダッシュボードの作成
+# Create a CloudWatch dashboard
 aws cloudwatch put-dashboard \
   --dashboard-name "ProductionOverview" \
   --dashboard-body file://dashboard-definition.json
 
-# X-Ray トレーシンググループの作成
+# Create an X-Ray tracing group
 aws xray create-group \
   --group-name "HighLatencyTraces" \
   --filter-expression 'responsetime > 5'
 
-# CloudWatch Synthetics Canary でエンドポイント監視
+# Monitor endpoints with CloudWatch Synthetics Canary
 aws synthetics create-canary \
   --name "api-health-check" \
   --artifact-s3-location "s3://my-canary-artifacts/" \
@@ -209,9 +211,9 @@ aws synthetics create-canary \
   --runtime-version "syn-nodejs-puppeteer-6.2" \
   --code '{"Handler":"apiCanary.handler","ZipFile":"..."}'
 
-# === デプロイ戦略 ===
+# === Deployment Strategies ===
 
-# CodeDeploy で Blue/Green デプロイ設定
+# Configure Blue/Green deployment with CodeDeploy
 aws deploy create-deployment-group \
   --application-name MyApp \
   --deployment-group-name Production \
@@ -221,16 +223,16 @@ aws deploy create-deployment-group \
 ```
 
 ```python
-# 図1: 運用ダッシュボード自動生成スクリプト
+# Figure 1: Script to auto-generate operations dashboards
 import boto3
 import json
 
 def create_operations_dashboard(stack_name: str, region: str = "ap-northeast-1"):
-    """CloudFormation スタックから自動的に運用ダッシュボードを生成"""
+    """Automatically generate an operations dashboard from a CloudFormation stack"""
     cf_client = boto3.client("cloudformation", region_name=region)
     cw_client = boto3.client("cloudwatch", region_name=region)
 
-    # スタックのリソースを取得
+    # Get stack resources
     resources = cf_client.list_stack_resources(StackName=stack_name)
     widgets = []
     y_pos = 0
@@ -241,7 +243,7 @@ def create_operations_dashboard(stack_name: str, region: str = "ap-northeast-1")
         physical_id = resource["PhysicalResourceId"]
 
         if resource_type == "AWS::ECS::Service":
-            # ECS サービスのCPU/メモリウィジェット
+            # CPU/memory widget for ECS service
             cluster_name, service_name = physical_id.rsplit("/", 1)
             widgets.append({
                 "type": "metric",
@@ -261,7 +263,7 @@ def create_operations_dashboard(stack_name: str, region: str = "ap-northeast-1")
             y_pos += 6
 
         elif resource_type == "AWS::RDS::DBInstance":
-            # RDS のコネクション数/CPU ウィジェット
+            # Connection count/CPU widget for RDS
             widgets.append({
                 "type": "metric",
                 "x": 0, "y": y_pos, "width": 12, "height": 6,
@@ -281,7 +283,7 @@ def create_operations_dashboard(stack_name: str, region: str = "ap-northeast-1")
             y_pos += 6
 
         elif resource_type == "AWS::Lambda::Function":
-            # Lambda のエラー率/実行時間ウィジェット
+            # Error rate/duration widget for Lambda
             widgets.append({
                 "type": "metric",
                 "x": 0, "y": y_pos, "width": 12, "height": 6,
@@ -299,7 +301,7 @@ def create_operations_dashboard(stack_name: str, region: str = "ap-northeast-1")
             })
             y_pos += 6
 
-    # ダッシュボード作成
+    # Create dashboard
     dashboard_body = {"widgets": widgets}
     cw_client.put_dashboard(
         DashboardName=f"{stack_name}-operations",
@@ -309,45 +311,45 @@ def create_operations_dashboard(stack_name: str, region: str = "ap-northeast-1")
     return dashboard_body
 ```
 
-### 2.2 柱 2: セキュリティ（Security）
+### 2.2 Pillar 2: Security
 
 ```yaml
 principles:
-  - 強力な ID 基盤を実装する
-  - トレーサビリティを有効にする
-  - 全レイヤーにセキュリティを適用する
-  - セキュリティのベストプラクティスを自動化する
-  - 転送中および保管中のデータを保護する
-  - データに人の手を触れさせない
-  - セキュリティイベントに備える
+  - Implement a strong identity foundation
+  - Enable traceability
+  - Apply security at all layers
+  - Automate security best practices
+  - Protect data in transit and at rest
+  - Keep people away from data
+  - Prepare for security events
 
 checklist:
   identity:
-    - MFA が全 IAM ユーザーに強制されているか
-    - ルートアカウントが日常業務で使われていないか
-    - 最小権限の原則が適用されているか
+    - Is MFA enforced for all IAM users?
+    - Is the root account not used for daily operations?
+    - Is the principle of least privilege applied?
   detection:
-    - CloudTrail が全リージョンで有効か
-    - GuardDuty が有効か
-    - Security Hub が設定されているか
+    - Is CloudTrail enabled in all regions?
+    - Is GuardDuty enabled?
+    - Is Security Hub configured?
   protection:
-    - VPC フローログが有効か
-    - WAF が設定されているか
-    - データが暗号化されているか (KMS)
+    - Are VPC flow logs enabled?
+    - Is WAF configured?
+    - Is data encrypted (KMS)?
 ```
 
-#### セキュリティ — 自動監査と修復の実装
+#### Security — Implementing Automated Auditing and Remediation
 
 ```python
-# 図2: Security Hub の検出結果を集約し自動修復をトリガーするスクリプト
+# Figure 2: Script to aggregate Security Hub findings and trigger auto-remediation
 import boto3
 from datetime import datetime, timedelta
 
 def audit_security_hub_findings(region: str = "ap-northeast-1"):
-    """Security Hub の CRITICAL/HIGH 検出結果を取得し改善アクションを生成"""
+    """Retrieve CRITICAL/HIGH Security Hub findings and generate remediation actions"""
     sh_client = boto3.client("securityhub", region_name=region)
 
-    # 過去7日間のCRITICAL/HIGH検出結果を取得
+    # Get CRITICAL/HIGH findings from the past 7 days
     response = sh_client.get_findings(
         Filters={
             "SeverityLabel": [
@@ -396,7 +398,7 @@ def audit_security_hub_findings(region: str = "ap-northeast-1"):
             "remediation": finding.get("Remediation", {}).get("Recommendation", {}).get("Text", ""),
         }
 
-        # 検出結果をカテゴリ別に分類
+        # Classify findings by category
         if "IAM" in title or "MFA" in title or "credential" in title.lower():
             findings_by_pillar["identity"].append(item)
         elif "CloudTrail" in title or "GuardDuty" in title or "logging" in title.lower():
@@ -408,7 +410,7 @@ def audit_security_hub_findings(region: str = "ap-northeast-1"):
         else:
             findings_by_pillar["incident_response"].append(item)
 
-    # サマリーレポート生成
+    # Generate summary report
     total = sum(len(v) for v in findings_by_pillar.values())
     print(f"=== Security Hub Audit Report ===")
     print(f"Total findings: {total}")
@@ -425,89 +427,89 @@ def audit_security_hub_findings(region: str = "ap-northeast-1"):
 ```
 
 ```bash
-# Security Hub の有効化と標準の適用
+# Enable Security Hub and apply standards
 aws securityhub enable-security-hub \
   --enable-default-standards
 
-# CIS AWS Foundations Benchmark の有効化
+# Enable CIS AWS Foundations Benchmark
 aws securityhub batch-enable-standards \
   --standards-subscription-requests '[
     {"StandardsArn":"arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.4.0"}
   ]'
 
-# GuardDuty の有効化
+# Enable GuardDuty
 aws guardduty create-detector --enable
 
-# Config Rules のコンプライアンスサマリー
+# Get compliance summary for Config Rules
 aws configservice get-compliance-summary-by-config-rule \
   --query 'ComplianceSummary.{Compliant:CompliantResourceCount.CappedCount,NonCompliant:NonCompliantResourceCount.CappedCount}'
 ```
 
-### 2.3 柱 3: 信頼性（Reliability）
+### 2.3 Pillar 3: Reliability
 
 ```yaml
 principles:
-  - 障害から自動的に復旧する
-  - 復旧手順をテストする
-  - 水平にスケールする
-  - キャパシティの推測をやめる
-  - 自動化で変更を管理する
+  - Automatically recover from failure
+  - Test recovery procedures
+  - Scale horizontally
+  - Stop guessing capacity
+  - Manage change through automation
 
 checklist:
   foundations:
-    - サービスクォータが適切に設定されているか
-    - ネットワークトポロジが冗長化されているか
+    - Are service quotas properly configured?
+    - Is the network topology redundant?
   workload_architecture:
-    - マイクロサービス or SOA で障害分離ができているか
-    - 分散システムでの障害処理が実装されているか
+    - Is failure isolation achieved with microservices or SOA?
+    - Is failure handling implemented in distributed systems?
   change_management:
-    - Auto Scaling が設定されているか
-    - 変更がモニタリングされているか
+    - Is Auto Scaling configured?
+    - Are changes monitored?
   failure_management:
-    - バックアップと DR 戦略が定義されているか
-    - RTO/RPO が明確に定義されているか
+    - Are backup and DR strategies defined?
+    - Are RTO/RPO clearly defined?
 ```
 
-#### 信頼性 — DR 戦略と実装パターン
+#### Reliability — DR Strategies and Implementation Patterns
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                   DR 戦略の比較                                   │
+│                   DR Strategy Comparison                         │
 │                                                                  │
 │  ┌─────────────────────────────────────────────────────────────┐ │
-│  │ 戦略         │ RTO      │ RPO      │ コスト │ 複雑度       │ │
+│  │ Strategy     │ RTO      │ RPO      │ Cost   │ Complexity   │ │
 │  │─────────────│──────────│──────────│────────│─────────────│ │
 │  │ Backup &    │ 24h+     │ 24h      │ $      │ Low          │ │
 │  │ Restore     │          │          │        │              │ │
 │  │─────────────│──────────│──────────│────────│─────────────│ │
-│  │ Pilot Light │ 数時間   │ 数分     │ $$     │ Medium       │ │
+│  │ Pilot Light │ Hours    │ Minutes  │ $$     │ Medium       │ │
 │  │─────────────│──────────│──────────│────────│─────────────│ │
-│  │ Warm        │ 数分     │ 秒単位   │ $$$    │ Medium-High  │ │
+│  │ Warm        │ Minutes  │ Seconds  │ $$$    │ Medium-High  │ │
 │  │ Standby     │          │          │        │              │ │
 │  │─────────────│──────────│──────────│────────│─────────────│ │
-│  │ Multi-Site  │ リアル   │ ゼロに   │ $$$$   │ High         │ │
-│  │ Active      │ タイム   │ 近い     │        │              │ │
+│  │ Multi-Site  │ Real-    │ Near     │ $$$$   │ High         │ │
+│  │ Active      │ time     │ Zero     │        │              │ │
 │  └─────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
 ```bash
-# === サービスクォータの管理 ===
+# === Service Quota Management ===
 
-# 現在のクォータ値を確認
+# Check current quota values
 aws service-quotas get-service-quota \
   --service-code ec2 \
   --quota-code L-1216C47A  # Running On-Demand Standard instances
 
-# クォータ引き上げリクエスト
+# Request a quota increase
 aws service-quotas request-service-quota-increase \
   --service-code ec2 \
   --quota-code L-1216C47A \
   --desired-value 200
 
-# === バックアップ戦略 ===
+# === Backup Strategy ===
 
-# AWS Backup プラン作成
+# Create an AWS Backup plan
 aws backup create-backup-plan --backup-plan '{
   "BackupPlanName": "DailyBackup",
   "Rules": [
@@ -531,9 +533,9 @@ aws backup create-backup-plan --backup-plan '{
   ]
 }'
 
-# === Route 53 ヘルスチェック ===
+# === Route 53 Health Checks ===
 
-# ヘルスチェックの作成
+# Create a health check
 aws route53 create-health-check --caller-reference "$(date +%s)" \
   --health-check-config '{
     "IPAddress": "203.0.113.1",
@@ -546,7 +548,7 @@ aws route53 create-health-check --caller-reference "$(date +%s)" \
     "EnableSNI": true
   }'
 
-# フェイルオーバーレコードの作成
+# Create a failover record
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890 \
   --change-batch '{
@@ -569,11 +571,11 @@ aws route53 change-resource-record-sets \
 ```
 
 ```python
-# 図3: サービスクォータ自動監視スクリプト
+# Figure 3: Script to automatically monitor service quotas
 import boto3
 
 def check_service_quotas(services: list[str], threshold_pct: float = 80.0):
-    """サービスクォータの使用率をチェックし閾値超過をアラート"""
+    """Check service quota utilization and alert when threshold is exceeded"""
     sq_client = boto3.client("service-quotas", region_name="ap-northeast-1")
     alerts = []
 
@@ -585,7 +587,7 @@ def check_service_quotas(services: list[str], threshold_pct: float = 80.0):
                     quota_name = quota["QuotaName"]
                     quota_value = quota["Value"]
 
-                    # 使用量の取得（利用可能な場合）
+                    # Get usage (if available)
                     if quota.get("UsageMetric"):
                         metric = quota["UsageMetric"]
                         cw_client = boto3.client("cloudwatch", region_name="ap-northeast-1")
@@ -616,7 +618,7 @@ def check_service_quotas(services: list[str], threshold_pct: float = 80.0):
         except Exception as e:
             print(f"Error checking {service_code}: {e}")
 
-    # アラートレポート
+    # Alert report
     if alerts:
         print(f"⚠ {len(alerts)} quotas above {threshold_pct}% threshold:")
         for a in alerts:
@@ -626,41 +628,41 @@ def check_service_quotas(services: list[str], threshold_pct: float = 80.0):
 
     return alerts
 
-# 使用例
+# Usage example
 # check_service_quotas(["ec2", "lambda", "rds", "elasticloadbalancing"])
 ```
 
-### 2.4 柱 4: パフォーマンス効率（Performance Efficiency）
+### 2.4 Pillar 4: Performance Efficiency
 
 ```yaml
 principles:
-  - 高度なテクノロジーを民主化する
-  - 数分でグローバルにデプロイする
-  - サーバーレスアーキテクチャを活用する
-  - より頻繁に実験する
-  - メカニカルシンパシー (技術への共感) を持つ
+  - Democratize advanced technologies
+  - Go global in minutes
+  - Use serverless architectures
+  - Experiment more often
+  - Consider mechanical sympathy
 
 checklist:
   selection:
-    - ワークロードに最適なコンピュートタイプを選択しているか
+    - Is the optimal compute type selected for the workload?
       (EC2 / Lambda / ECS / EKS / Fargate)
-    - ストレージ種別は適切か (gp3 / io2 / S3 Intelligent-Tiering)
-    - データベースエンジンは適切か (Aurora / DynamoDB / ElastiCache)
+    - Is the storage type appropriate? (gp3 / io2 / S3 Intelligent-Tiering)
+    - Is the database engine appropriate? (Aurora / DynamoDB / ElastiCache)
   review:
-    - ベンチマークテストが定期的に実施されているか
-    - CloudWatch メトリクスでパフォーマンスを継続監視しているか
+    - Are benchmark tests conducted regularly?
+    - Is performance continuously monitored with CloudWatch metrics?
   monitoring:
-    - P50/P90/P99 レイテンシが計測されているか
-    - ボトルネックの特定プロセスがあるか (X-Ray / Profiler)
+    - Are P50/P90/P99 latencies measured?
+    - Is there a process for identifying bottlenecks? (X-Ray / Profiler)
   tradeoffs:
-    - キャッシュ戦略が定義されているか (CloudFront / ElastiCache / DAX)
-    - リードレプリカが活用されているか
+    - Is a caching strategy defined? (CloudFront / ElastiCache / DAX)
+    - Are read replicas being utilized?
 ```
 
 ```bash
-# === パフォーマンス分析 ===
+# === Performance Analysis ===
 
-# Compute Optimizer の推奨事項を取得
+# Get Compute Optimizer recommendations
 aws compute-optimizer get-ec2-instance-recommendations \
   --query 'InstanceRecommendations[*].{
     Instance:InstanceArn,
@@ -670,15 +672,15 @@ aws compute-optimizer get-ec2-instance-recommendations \
     Savings:RecommendationOptions[0].ProjectedUtilizationMetrics[?Name==`CPU`].Value|[0]
   }'
 
-# Lambda 関数のパフォーマンス分析
+# Analyze Lambda function performance
 aws lambda get-function-configuration \
   --function-name my-function \
   --query '{MemorySize:MemorySize,Timeout:Timeout,Architecture:Architectures[0]}'
 
-# Lambda Power Tuning の結果を確認（Step Functions 経由で実行後）
-# 最適なメモリサイズを特定: 128MB → 256MB → 512MB → 1024MB の比較
+# Check Lambda Power Tuning results (run via Step Functions)
+# Identify optimal memory size: compare 128MB → 256MB → 512MB → 1024MB
 
-# CloudFront キャッシュヒット率の確認
+# Check CloudFront cache hit rate
 aws cloudwatch get-metric-statistics \
   --namespace AWS/CloudFront \
   --metric-name CacheHitRate \
@@ -688,7 +690,7 @@ aws cloudwatch get-metric-statistics \
   --period 86400 \
   --statistics Average
 
-# RDS Performance Insights の有効化
+# Enable RDS Performance Insights
 aws rds modify-db-instance \
   --db-instance-identifier my-database \
   --enable-performance-insights \
@@ -696,12 +698,12 @@ aws rds modify-db-instance \
 ```
 
 ```python
-# 図4: パフォーマンスベースライン自動取得スクリプト
+# Figure 4: Script to automatically retrieve performance baselines
 import boto3
 from datetime import datetime, timedelta
 
 def get_performance_baseline(resource_type: str, resource_id: str, days: int = 30):
-    """リソースの過去N日間のパフォーマンスベースラインを取得"""
+    """Retrieve the performance baseline for a resource over the past N days"""
     cw = boto3.client("cloudwatch", region_name="ap-northeast-1")
     end_time = datetime.utcnow()
     start_time = end_time - timedelta(days=days)
@@ -744,7 +746,7 @@ def get_performance_baseline(resource_type: str, resource_id: str, days: int = 3
             Dimensions=[{"Name": config["dimension"], "Value": resource_id}],
             StartTime=start_time,
             EndTime=end_time,
-            Period=86400,  # 日次
+            Period=86400,  # daily
             Statistics=["Average", "Maximum", "p99"],
             ExtendedStatistics=["p50", "p90", "p99"],
         )
@@ -767,45 +769,45 @@ def get_performance_baseline(resource_type: str, resource_id: str, days: int = 3
     return baseline
 ```
 
-### 2.5 柱 5: コスト最適化（Cost Optimization）
+### 2.5 Pillar 5: Cost Optimization
 
 ```yaml
 principles:
-  - クラウド財務管理を実装する
-  - 消費モデルを導入する
-  - 全体的な効率を測定する
-  - 差別化につながらない高負荷の作業への支出をやめる
-  - 費用を分析し帰属させる
+  - Implement cloud financial management
+  - Adopt a consumption model
+  - Measure overall efficiency
+  - Stop spending money on undifferentiated heavy lifting
+  - Analyze and attribute expenditure
 
 checklist:
   practice_cloud_financial_management:
-    - コスト配分タグが全リソースに適用されているか
-    - 予算アラートが設定されているか (AWS Budgets)
-    - 月次のコストレビューミーティングが実施されているか
+    - Are cost allocation tags applied to all resources?
+    - Are budget alerts configured? (AWS Budgets)
+    - Are monthly cost review meetings held?
   expenditure_and_usage_awareness:
-    - Cost Explorer で使用状況を分析しているか
-    - 未使用リソース (EIP, EBS, snapshots) の棚卸しが定期的か
+    - Is Cost Explorer used to analyze usage?
+    - Are unused resources (EIP, EBS, snapshots) inventoried regularly?
   cost_effective_resources:
-    - Savings Plans / Reserved Instances を活用しているか
-    - Spot インスタンスの活用を検討しているか
-    - Graviton (ARM) インスタンスへの移行を検討しているか
+    - Are Savings Plans / Reserved Instances being utilized?
+    - Has the use of Spot Instances been considered?
+    - Has migration to Graviton (ARM) instances been considered?
   manage_demand_and_supply:
-    - Auto Scaling で需要に応じたスケーリングをしているか
-    - サーバーレスアーキテクチャへの移行を検討しているか
+    - Is Auto Scaling used to scale with demand?
+    - Has migration to serverless architecture been considered?
   optimize_over_time:
-    - Compute Optimizer の推奨事項を定期的に確認しているか
-    - S3 Intelligent-Tiering を活用しているか
+    - Are Compute Optimizer recommendations reviewed regularly?
+    - Is S3 Intelligent-Tiering being utilized?
 ```
 
 ```bash
-# === コスト可視化と最適化 ===
+# === Cost Visualization and Optimization ===
 
-# コスト配分タグの有効化確認
+# Check active cost allocation tags
 aws ce list-cost-allocation-tags \
   --status Active \
   --query 'CostAllocationTags[*].TagKey'
 
-# 月次コストサマリー
+# Monthly cost summary
 aws ce get-cost-and-usage \
   --time-period Start=2025-01-01,End=2025-02-01 \
   --granularity MONTHLY \
@@ -813,26 +815,26 @@ aws ce get-cost-and-usage \
   --group-by Type=DIMENSION,Key=SERVICE \
   --query 'ResultsByTime[0].Groups | sort_by(@, &Metrics.BlendedCost.Amount) | reverse(@) | [:10]'
 
-# 未使用リソースの検出
-# 未使用 EIP
+# Detect unused resources
+# Unused EIPs
 aws ec2 describe-addresses \
   --query 'Addresses[?AssociationId==null].{IP:PublicIp,AllocId:AllocationId}'
 
-# 未アタッチ EBS ボリューム
+# Unattached EBS volumes
 aws ec2 describe-volumes \
   --filters Name=status,Values=available \
   --query 'Volumes[*].{Id:VolumeId,Size:Size,Type:VolumeType,Created:CreateTime}'
 
-# 古い EBS スナップショット（90日以上前）
+# Old EBS snapshots (older than 90 days)
 aws ec2 describe-snapshots --owner-ids self \
   --query "Snapshots[?StartTime<='$(date -u -v-90d +%Y-%m-%dT%H:%M:%S)'].{Id:SnapshotId,Size:VolumeSize,Date:StartTime}"
 
-# Savings Plans カバレッジの確認
+# Check Savings Plans coverage
 aws ce get-savings-plans-coverage \
   --time-period Start=2025-01-01,End=2025-02-01 \
   --query 'SavingsPlansCoverages[*].{Date:TimePeriod.Start,Coverage:CoveragePercentage}'
 
-# Savings Plans 推奨事項の取得
+# Get Savings Plans purchase recommendations
 aws ce get-savings-plans-purchase-recommendation \
   --savings-plans-type COMPUTE_SP \
   --term-in-years ONE_YEAR \
@@ -841,21 +843,21 @@ aws ce get-savings-plans-purchase-recommendation \
 ```
 
 ```python
-# 図5: コスト異常検出と自動アラートスクリプト
+# Figure 5: Script to detect cost anomalies and send automated alerts
 import boto3
 from datetime import datetime, timedelta
 
 def detect_cost_anomalies(threshold_pct: float = 20.0):
-    """前月比でコスト異常を検出"""
+    """Detect cost anomalies compared to the previous month"""
     ce = boto3.client("ce", region_name="us-east-1")
 
-    # 今月と先月のコストを取得
+    # Get costs for this month and last month
     today = datetime.utcnow()
     this_month_start = today.replace(day=1).strftime("%Y-%m-%d")
     last_month_start = (today.replace(day=1) - timedelta(days=1)).replace(day=1).strftime("%Y-%m-%d")
     last_month_end = today.replace(day=1).strftime("%Y-%m-%d")
 
-    # 先月のサービス別コスト
+    # Last month's cost by service
     last_month = ce.get_cost_and_usage(
         TimePeriod={"Start": last_month_start, "End": last_month_end},
         Granularity="MONTHLY",
@@ -863,7 +865,7 @@ def detect_cost_anomalies(threshold_pct: float = 20.0):
         GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],
     )
 
-    # 今月のサービス別コスト（日割り換算）
+    # This month's cost by service (prorated)
     this_month = ce.get_cost_and_usage(
         TimePeriod={"Start": this_month_start, "End": today.strftime("%Y-%m-%d")},
         Granularity="MONTHLY",
@@ -872,7 +874,7 @@ def detect_cost_anomalies(threshold_pct: float = 20.0):
     )
 
     days_elapsed = (today - today.replace(day=1)).days or 1
-    days_in_month = 30  # 概算
+    days_in_month = 30  # approximate
 
     anomalies = []
     last_costs = {}
@@ -887,7 +889,7 @@ def detect_cost_anomalies(threshold_pct: float = 20.0):
         projected_cost = current_cost * (days_in_month / days_elapsed)
 
         last_cost = last_costs.get(service, 0)
-        if last_cost > 1:  # $1以上のサービスのみ
+        if last_cost > 1:  # only services with more than $1
             change_pct = ((projected_cost - last_cost) / last_cost) * 100
             if change_pct > threshold_pct:
                 anomalies.append({
@@ -906,37 +908,37 @@ def detect_cost_anomalies(threshold_pct: float = 20.0):
     return anomalies
 ```
 
-### 2.6 柱 6: 持続可能性（Sustainability）
+### 2.6 Pillar 6: Sustainability
 
 ```yaml
 principles:
-  - 影響を理解する
-  - 持続可能性の目標を設定する
-  - 使用率を最大化する
-  - より効率的な新しいハードウェアとソフトウェアを活用する
-  - マネージドサービスを使用する
-  - クラウドワークロードの下流への影響を最小化する
+  - Understand your impact
+  - Establish sustainability goals
+  - Maximize utilization
+  - Anticipate and adopt new, more efficient hardware and software
+  - Use managed services
+  - Reduce the downstream impact of your cloud workloads
 
 checklist:
   region_selection:
-    - カーボンフリーエネルギーの比率が高いリージョンを選択しているか
-    - ユーザーに近いリージョンで無駄な通信を削減しているか
+    - Is a region with a high proportion of carbon-free energy selected?
+    - Is unnecessary data transfer minimized by using a region close to users?
   compute:
-    - Graviton (ARM) プロセッサを利用しているか
-    - Spot インスタンスで余剰キャパシティを活用しているか
-    - Lambda でアイドル時のリソース消費をゼロにしているか
+    - Are Graviton (ARM) processors being used?
+    - Are Spot Instances used to leverage spare capacity?
+    - Is Lambda used to eliminate resource consumption during idle time?
   storage:
-    - S3 Intelligent-Tiering でストレージクラスを自動最適化しているか
-    - 不要なデータのライフサイクルポリシーを設定しているか
+    - Is S3 Intelligent-Tiering used for automatic storage class optimization?
+    - Are lifecycle policies configured for data that is no longer needed?
   data_transfer:
-    - CloudFront でエッジキャッシュを活用しているか
-    - VPC エンドポイントで不要なインターネット通信を削減しているか
+    - Is CloudFront used for edge caching?
+    - Are VPC endpoints used to reduce unnecessary internet traffic?
 ```
 
 ```bash
-# === 持続可能性の実践 ===
+# === Sustainability Practices ===
 
-# Graviton インスタンスの利用状況確認
+# Check Graviton instance utilization
 aws ec2 describe-instances \
   --query 'Reservations[*].Instances[*].{
     Id:InstanceId,
@@ -945,10 +947,10 @@ aws ec2 describe-instances \
     Platform:PlatformDetails
   }' --output table
 
-# Customer Carbon Footprint Tool（コンソールでのみ利用可能）
-# 代替: CloudWatch で CO2 関連メトリクスを推定
+# Customer Carbon Footprint Tool (available in the console only)
+# Alternative: estimate CO2-related metrics with CloudWatch
 
-# S3 Intelligent-Tiering の設定
+# Configure S3 Intelligent-Tiering
 aws s3api put-bucket-intelligent-tiering-configuration \
   --bucket my-data-bucket \
   --id "FullTiering" \
@@ -961,7 +963,7 @@ aws s3api put-bucket-intelligent-tiering-configuration \
     ]
   }'
 
-# S3 ライフサイクルポリシーの設定
+# Configure S3 lifecycle policy
 aws s3api put-bucket-lifecycle-configuration \
   --bucket my-logs-bucket \
   --lifecycle-configuration '{
@@ -981,17 +983,17 @@ aws s3api put-bucket-lifecycle-configuration \
   }'
 ```
 
-### 2.7 6 つの柱のベストプラクティス要約
+### 2.7 Summary of Best Practices for the 6 Pillars
 
 ```python
-# Well-Architected レビューの自動化スクリプト例
+# Example script to automate a Well-Architected review
 import boto3
 
 def run_well_architected_review():
-    """Well-Architected Tool でワークロードレビューを自動化"""
+    """Automate a workload review with the Well-Architected Tool"""
     wa_client = boto3.client("wellarchitected", region_name="ap-northeast-1")
 
-    # ワークロード作成
+    # Create workload
     workload = wa_client.create_workload(
         WorkloadName="MyApp Production",
         Description="Main production workload",
@@ -1005,11 +1007,11 @@ def run_well_architected_review():
 
     workload_id = workload["WorkloadId"]
 
-    # 質問一覧の取得
+    # Get list of questions
     answers = wa_client.list_answers(
         WorkloadId=workload_id,
         LensAlias="wellarchitected",
-        PillarId="operationalExcellence",    # 柱を指定
+        PillarId="operationalExcellence",    # specify pillar
     )
 
     for answer in answers["AnswerSummaries"]:
@@ -1020,30 +1022,30 @@ def run_well_architected_review():
     return workload_id
 ```
 
-### 2.8 Lens の活用
+### 2.8 Using Lenses
 
 ```bash
-# 利用可能な Lens の一覧
+# List available lenses
 aws wellarchitected list-lenses --query 'LensSummaries[*].{Name:LensName,Alias:LensAlias}'
 
-# よく使う Lens:
-# - wellarchitected          : AWS Well-Architected (デフォルト)
+# Commonly used lenses:
+# - wellarchitected          : AWS Well-Architected (default)
 # - serverless               : Serverless Applications Lens
 # - saas                     : SaaS Lens
-# - foundational-technical-review : FTR Lens (APN パートナー向け)
+# - foundational-technical-review : FTR Lens (for APN partners)
 # - machine-learning         : Machine Learning Lens
 
-# カスタム Lens の作成
+# Create a custom lens
 aws wellarchitected create-lens-version \
   --lens-alias "arn:aws:wellarchitected:ap-northeast-1:123456789012:lens/my-custom-lens" \
   --lens-version "2.0.0"
 
-# ワークロードに Lens を関連付け
+# Associate a lens with a workload
 aws wellarchitected associate-lenses \
   --workload-id "abc123def456" \
   --lens-aliases serverless saas
 
-# Lens の改善計画を取得
+# Get the improvement plan for a lens
 aws wellarchitected list-lens-review-improvements \
   --workload-id "abc123def456" \
   --lens-alias wellarchitected \
@@ -1053,49 +1055,52 @@ aws wellarchitected list-lens-review-improvements \
 
 ---
 
-## 3. Well-Architected Tool でのレビュー
+## 3. Conducting Reviews with the Well-Architected Tool
 
-### 3.1 レビュープロセス
+### 3.1 Review Process
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│         Well-Architected Review プロセス                  │
+│         Well-Architected Review Process                  │
 │                                                         │
-│  Phase 1: 準備 (1-2日)                                  │
+│  Phase 1: Preparation (1-2 days)                        │
 │  ┌───────────────────────────────────────┐              │
-│  │ - アーキテクチャ図の準備               │              │
-│  │ - ステークホルダーの特定               │              │
-│  │ - 既知のリスクの整理                   │              │
+│  │ - Prepare architecture diagrams       │              │
+│  │ - Identify stakeholders               │              │
+│  │ - Organize known risks                │              │
 │  └──────────────────┬────────────────────┘              │
 │                     ▼                                   │
-│  Phase 2: レビュー (2-5日)                               │
+│  Phase 2: Review (2-5 days)                             │
 │  ┌───────────────────────────────────────┐              │
-│  │ - 6つの柱ごとに質問に回答             │              │
-│  │ - ベストプラクティスとの差分を特定     │              │
-│  │ - リスクレベルの評価                   │              │
+│  │ - Answer questions for each of the    │              │
+│  │   6 pillars                           │              │
+│  │ - Identify gaps from best practices   │              │
+│  │ - Assess risk levels                  │              │
 │  │   (High Risk / Medium Risk / No Risk) │              │
 │  └──────────────────┬────────────────────┘              │
 │                     ▼                                   │
-│  Phase 3: 改善計画 (1-2日)                               │
+│  Phase 3: Improvement Plan (1-2 days)                   │
 │  ┌───────────────────────────────────────┐              │
-│  │ - High Risk 項目の改善策を策定         │              │
-│  │ - 優先順位とマイルストーンを設定       │              │
-│  │ - 改善項目を Jira/Backlog に登録       │              │
+│  │ - Develop remediation for High Risk   │              │
+│  │   items                               │              │
+│  │ - Set priorities and milestones       │              │
+│  │ - Register improvement items in       │              │
+│  │   Jira/Backlog                        │              │
 │  └──────────────────┬────────────────────┘              │
 │                     ▼                                   │
-│  Phase 4: 実行と再レビュー (継続)                        │
+│  Phase 4: Execute and Re-review (ongoing)               │
 │  ┌───────────────────────────────────────┐              │
-│  │ - 改善を実施                           │              │
-│  │ - 四半期ごとに再レビュー               │              │
-│  │ - マイルストーンで進捗を記録           │              │
+│  │ - Implement improvements              │              │
+│  │ - Re-review quarterly                 │              │
+│  │ - Record progress with milestones     │              │
 │  └───────────────────────────────────────┘              │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 レビュー実施の詳細手順
+### 3.2 Detailed Review Steps
 
 ```bash
-# Step 1: ワークロードの作成
+# Step 1: Create a workload
 WORKLOAD_ID=$(aws wellarchitected create-workload \
   --workload-name "E-Commerce-Production" \
   --description "Primary e-commerce platform serving ap-northeast-1" \
@@ -1109,7 +1114,7 @@ WORKLOAD_ID=$(aws wellarchitected create-workload \
 
 echo "Created workload: $WORKLOAD_ID"
 
-# Step 2: 各柱の質問と回答状況を確認
+# Step 2: Check questions and answer status for each pillar
 for PILLAR in operationalExcellence security reliability performance costOptimization sustainability; do
   echo "=== $PILLAR ==="
   aws wellarchitected list-answers \
@@ -1120,7 +1125,7 @@ for PILLAR in operationalExcellence security reliability performance costOptimiz
     --output table
 done
 
-# Step 3: 回答の更新（選択肢を選ぶ）
+# Step 3: Update answers (select choices)
 aws wellarchitected update-answer \
   --workload-id "$WORKLOAD_ID" \
   --lens-alias wellarchitected \
@@ -1131,12 +1136,12 @@ aws wellarchitected update-answer \
     "sec_sec-how-do-you-manage-identities_3" \
   --notes "IAM Identity Center with SAML 2.0 federation. MFA enforced for all users. Service-linked roles for AWS services."
 
-# Step 4: マイルストーンの作成（レビュー完了時点のスナップショット）
+# Step 4: Create a milestone (snapshot at time of review completion)
 aws wellarchitected create-milestone \
   --workload-id "$WORKLOAD_ID" \
   --milestone-name "Q1-2025-Initial-Review"
 
-# Step 5: 改善計画の取得
+# Step 5: Get the improvement plan
 aws wellarchitected list-lens-review-improvements \
   --workload-id "$WORKLOAD_ID" \
   --lens-alias wellarchitected \
@@ -1144,42 +1149,42 @@ aws wellarchitected list-lens-review-improvements \
   --query 'ImprovementSummaries[?Risk==`HIGH`].{Q:QuestionTitle,Risk:Risk}'
 ```
 
-### 3.3 改善計画テンプレート
+### 3.3 Improvement Plan Template
 
 ```markdown
-## Well-Architected 改善計画
+## Well-Architected Improvement Plan
 
-### High Risk Items (最優先)
+### High Risk Items (Highest Priority)
 
-| # | 柱 | 質問 | 現状のリスク | 改善アクション | 担当 | 期限 |
+| # | Pillar | Question | Current Risk | Remediation Action | Owner | Due |
 |---|---|------|------------|---------------|------|------|
-| 1 | セキュリティ | 認証情報の管理 | ハードコード | Secrets Manager 導入 | @security | 2W |
-| 2 | 信頼性 | バックアップ | 手動・不定期 | AWS Backup 自動化 | @infra | 3W |
-| 3 | 運用 | モニタリング | ログ未収集 | CloudWatch + X-Ray | @sre | 4W |
+| 1 | Security | Credential management | Hardcoded | Introduce Secrets Manager | @security | 2W |
+| 2 | Reliability | Backup | Manual/irregular | Automate with AWS Backup | @infra | 3W |
+| 3 | Operations | Monitoring | Logs not collected | CloudWatch + X-Ray | @sre | 4W |
 
-### Medium Risk Items (次フェーズ)
+### Medium Risk Items (Next Phase)
 
-| # | 柱 | 質問 | 改善アクション | 期限 |
+| # | Pillar | Question | Remediation Action | Due |
 |---|---|------|---------------|------|
-| 4 | コスト | ライトサイジング | Compute Optimizer 適用 | Q2 |
-| 5 | パフォーマンス | キャッシュ戦略 | ElastiCache 導入 | Q2 |
+| 4 | Cost | Right-sizing | Apply Compute Optimizer | Q2 |
+| 5 | Performance | Cache strategy | Introduce ElastiCache | Q2 |
 ```
 
-### 3.4 レビュー結果の自動レポート生成
+### 3.4 Automated Report Generation from Review Results
 
 ```python
-# 図6: Well-Architected レビュー結果をMarkdownレポートとして出力
+# Figure 6: Script to output Well-Architected review results as a Markdown report
 import boto3
 from datetime import datetime
 
 def generate_wa_report(workload_id: str, output_file: str = "wa-report.md"):
-    """Well-Architected レビュー結果をMarkdownレポートに変換"""
+    """Convert Well-Architected review results to a Markdown report"""
     wa = boto3.client("wellarchitected", region_name="ap-northeast-1")
 
-    # ワークロード情報の取得
+    # Get workload information
     workload = wa.get_workload(WorkloadId=workload_id)["Workload"]
 
-    # Lens レビューの取得
+    # Get the lens review
     review = wa.get_lens_review(
         WorkloadId=workload_id,
         LensAlias="wellarchitected",
@@ -1197,7 +1202,7 @@ def generate_wa_report(workload_id: str, output_file: str = "wa-report.md"):
         f"",
     ]
 
-    # リスクサマリー
+    # Risk summary
     risk_counts = review.get("RiskCounts", {})
     total_questions = sum(risk_counts.values())
     report_lines.extend([
@@ -1210,14 +1215,14 @@ def generate_wa_report(workload_id: str, output_file: str = "wa-report.md"):
         f"",
     ])
 
-    # 柱ごとの詳細
+    # Details by pillar
     pillars = [
-        ("operationalExcellence", "Operational Excellence (運用上の優秀性)"),
-        ("security", "Security (セキュリティ)"),
-        ("reliability", "Reliability (信頼性)"),
-        ("performance", "Performance Efficiency (パフォーマンス効率)"),
-        ("costOptimization", "Cost Optimization (コスト最適化)"),
-        ("sustainability", "Sustainability (持続可能性)"),
+        ("operationalExcellence", "Operational Excellence"),
+        ("security", "Security"),
+        ("reliability", "Reliability"),
+        ("performance", "Performance Efficiency"),
+        ("costOptimization", "Cost Optimization"),
+        ("sustainability", "Sustainability"),
     ]
 
     for pillar_id, pillar_name in pillars:
@@ -1242,7 +1247,7 @@ def generate_wa_report(workload_id: str, output_file: str = "wa-report.md"):
                 f"| {ans['QuestionTitle'][:60]} | {risk_emoji} | {notes} |"
             )
 
-    # 改善計画
+    # Improvement plan
     report_lines.extend([
         f"",
         f"## Improvement Plan",
@@ -1264,7 +1269,7 @@ def generate_wa_report(workload_id: str, output_file: str = "wa-report.md"):
                 f"{item.get('ImprovementPlanUrl', 'See AWS documentation')}"
             )
 
-    # ファイル出力
+    # Write to file
     report_content = "\n".join(report_lines)
     with open(output_file, "w") as f:
         f.write(report_content)
@@ -1276,55 +1281,55 @@ def generate_wa_report(workload_id: str, output_file: str = "wa-report.md"):
 
 ---
 
-## 4. Trusted Advisor との連携
+## 4. Integration with Trusted Advisor
 
-### 4.1 Trusted Advisor カテゴリと Well-Architected 柱の対応
+### 4.1 Mapping Trusted Advisor Categories to Well-Architected Pillars
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│  Trusted Advisor カテゴリ      │  Well-Architected 柱              │
+│  Trusted Advisor Category      │  Well-Architected Pillar           │
 │──────────────────────────────────────────────────────────────────── │
-│  Cost Optimization             │  コスト最適化                      │
-│  Performance                   │  パフォーマンス効率                │
-│  Security                      │  セキュリティ                      │
-│  Fault Tolerance               │  信頼性                            │
-│  Service Limits                │  信頼性 (Foundations)              │
-│  Operational Excellence (新設) │  運用上の優秀性                    │
+│  Cost Optimization             │  Cost Optimization                  │
+│  Performance                   │  Performance Efficiency             │
+│  Security                      │  Security                           │
+│  Fault Tolerance               │  Reliability                        │
+│  Service Limits                │  Reliability (Foundations)          │
+│  Operational Excellence (new)  │  Operational Excellence             │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
 ```bash
-# Trusted Advisor チェック結果の取得（Business/Enterprise Support 必要）
+# Get Trusted Advisor check results (requires Business/Enterprise Support)
 aws support describe-trusted-advisor-checks \
-  --language ja \
+  --language en \
   --query 'checks[*].{Id:id,Name:name,Category:category}' \
   --output table
 
-# 特定のチェックの結果を取得
+# Get the result for a specific check
 aws support describe-trusted-advisor-check-result \
   --check-id "Qch7DwouX1" \
   --query 'result.{Status:status,Flagged:flaggedResources|length(@)}'
 
-# 全チェックのサマリー
+# Summary of all checks
 aws support describe-trusted-advisor-check-summaries \
   --check-ids $(aws support describe-trusted-advisor-checks \
     --language en \
     --query 'checks[*].id' --output text) \
   --query 'summaries[?status!=`ok`].{Check:checkId,Status:status,Flagged:flaggedResources.resourcesFlagged}'
 
-# チェック結果のリフレッシュ
+# Refresh check results
 aws support refresh-trusted-advisor-check --check-id "Qch7DwouX1"
 ```
 
 ```python
-# 図7: Trusted Advisor 結果を Well-Architected 形式で集約するスクリプト
+# Figure 7: Script to aggregate Trusted Advisor results by Well-Architected pillar
 import boto3
 
 def aggregate_trusted_advisor_by_pillar():
-    """Trusted Advisor の結果を Well-Architected の柱別に集約"""
+    """Aggregate Trusted Advisor results by Well-Architected pillar"""
     support = boto3.client("support", region_name="us-east-1")
 
-    # カテゴリと柱のマッピング
+    # Mapping from category to pillar
     category_to_pillar = {
         "cost_optimizing": "costOptimization",
         "performance": "performance",
@@ -1364,9 +1369,9 @@ def aggregate_trusted_advisor_by_pillar():
                     "description": check.get("description", "")[:100],
                 })
         except Exception:
-            pass  # チェックがサポートプランで利用不可の場合
+            pass  # Check not available in the support plan
 
-    # レポート出力
+    # Report output
     print("=== Trusted Advisor → Well-Architected Mapping ===\n")
     for pillar, data in pillar_results.items():
         total = data["ok"] + data["warning"] + data["error"]
@@ -1382,12 +1387,12 @@ def aggregate_trusted_advisor_by_pillar():
 
 ---
 
-## 5. CDK による Well-Architected 準拠スタック
+## 5. Well-Architected Compliant Stack with CDK
 
-### 5.1 CDK で Well-Architected のベストプラクティスを自動適用
+### 5.1 Automatically Applying Well-Architected Best Practices with CDK
 
 ```typescript
-// 図8: Well-Architected 準拠の基盤スタック（CDK TypeScript）
+// Figure 8: Well-Architected compliant foundation stack (CDK TypeScript)
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
@@ -1413,20 +1418,20 @@ export class WellArchitectedFoundationStack extends cdk.Stack {
     super(scope, id, props);
 
     // ============================================================
-    // 柱1: セキュリティ — 暗号化キーの集中管理
+    // Pillar 1: Security — Centralized encryption key management
     // ============================================================
     const encryptionKey = new kms.Key(this, "EncryptionKey", {
       alias: `${props.environment}-master-key`,
-      enableKeyRotation: true,           // 年次自動ローテーション
+      enableKeyRotation: true,           // Annual automatic rotation
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       description: "Master encryption key for all data-at-rest encryption",
     });
 
     // ============================================================
-    // 柱2: 信頼性 — マルチAZ VPC
+    // Pillar 2: Reliability — Multi-AZ VPC
     // ============================================================
     this.vpc = new ec2.Vpc(this, "Vpc", {
-      maxAzs: 3,                          // 3AZ 冗長構成
+      maxAzs: 3,                          // 3-AZ redundant configuration
       natGateways: props.environment === "production" ? 3 : 1,
       ipAddresses: ec2.IpAddresses.cidr("10.0.0.0/16"),
       subnetConfiguration: [
@@ -1455,7 +1460,7 @@ export class WellArchitectedFoundationStack extends cdk.Stack {
     });
 
     // ============================================================
-    // 柱3: 運用上の優秀性 — アラーム通知
+    // Pillar 3: Operational Excellence — Alarm notifications
     // ============================================================
     this.alarmTopic = new sns.Topic(this, "AlarmTopic", {
       topicName: `${props.environment}-wa-alarms`,
@@ -1468,7 +1473,7 @@ export class WellArchitectedFoundationStack extends cdk.Stack {
       endpoint: props.alertEmail,
     });
 
-    // VPC NAT Gateway のエラー監視
+    // Monitor VPC NAT Gateway errors
     const natErrorAlarm = new cloudwatch.Alarm(this, "NatGatewayError", {
       metric: new cloudwatch.Metric({
         namespace: "AWS/NATGateway",
@@ -1486,7 +1491,7 @@ export class WellArchitectedFoundationStack extends cdk.Stack {
     );
 
     // ============================================================
-    // 柱4: 信頼性 — 自動バックアップ
+    // Pillar 4: Reliability — Automated backups
     // ============================================================
     const backupPlan = new backup.BackupPlan(this, "BackupPlan", {
       backupPlanName: `${props.environment}-daily-backup`,
@@ -1515,7 +1520,7 @@ export class WellArchitectedFoundationStack extends cdk.Stack {
       ],
     });
 
-    // タグベースでバックアップ対象を選択
+    // Select backup targets by tag
     backupPlan.addSelection("TaggedResources", {
       resources: [
         backup.BackupResource.fromTag("backup", "true"),
@@ -1523,7 +1528,7 @@ export class WellArchitectedFoundationStack extends cdk.Stack {
     });
 
     // ============================================================
-    // 柱5: コスト最適化 — 予算アラート
+    // Pillar 5: Cost Optimization — Budget alerts
     // ============================================================
     new budgets.CfnBudget(this, "MonthlyBudget", {
       budget: {
@@ -1562,7 +1567,7 @@ export class WellArchitectedFoundationStack extends cdk.Stack {
     });
 
     // ============================================================
-    // タグ付け（全柱共通のベストプラクティス）
+    // Tagging (best practice common to all pillars)
     // ============================================================
     cdk.Tags.of(this).add("Environment", props.environment);
     cdk.Tags.of(this).add("ManagedBy", "CDK");
@@ -1570,7 +1575,7 @@ export class WellArchitectedFoundationStack extends cdk.Stack {
     cdk.Tags.of(this).add("backup", "true");
 
     // ============================================================
-    // 出力
+    // Outputs
     // ============================================================
     new cdk.CfnOutput(this, "VpcId", { value: this.vpc.vpcId });
     new cdk.CfnOutput(this, "AlarmTopicArn", { value: this.alarmTopic.topicArn });
@@ -1579,10 +1584,10 @@ export class WellArchitectedFoundationStack extends cdk.Stack {
 }
 ```
 
-### 5.2 CloudFormation による Well-Architected 自動チェック（Config Rules）
+### 5.2 Automated Well-Architected Checks via CloudFormation (Config Rules)
 
 ```yaml
-# 図9: Well-Architected ベストプラクティスの自動チェック（Config Rules）
+# Figure 9: Automated Well-Architected best practice checks (Config Rules)
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Well-Architected compliance checks via AWS Config"
 
@@ -1592,7 +1597,7 @@ Parameters:
     Description: Email for compliance alerts
 
 Resources:
-  # === コンプライアンス通知 ===
+  # === Compliance notifications ===
   ComplianceTopic:
     Type: AWS::SNS::Topic
     Properties:
@@ -1601,9 +1606,9 @@ Resources:
         - Protocol: email
           Endpoint: !Ref AlertEmail
 
-  # === セキュリティの柱 ===
+  # === Security pillar ===
 
-  # S3 バケットのパブリックアクセスブロック確認
+  # Check S3 bucket public access block
   S3PublicAccessCheck:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1612,7 +1617,7 @@ Resources:
         Owner: AWS
         SourceIdentifier: S3_BUCKET_PUBLIC_READ_PROHIBITED
 
-  # 暗号化されていない EBS ボリュームの検出
+  # Detect unencrypted EBS volumes
   EbsEncryptionCheck:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1621,7 +1626,7 @@ Resources:
         Owner: AWS
         SourceIdentifier: EC2_EBS_ENCRYPTION_BY_DEFAULT
 
-  # MFA 削除が有効でない S3 バケット
+  # S3 buckets without MFA delete enabled
   S3MfaDeleteCheck:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1630,7 +1635,7 @@ Resources:
         Owner: AWS
         SourceIdentifier: S3_BUCKET_VERSIONING_ENABLED
 
-  # ルートアカウントの MFA 確認
+  # Check root account MFA
   RootMfaCheck:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1639,9 +1644,9 @@ Resources:
         Owner: AWS
         SourceIdentifier: ROOT_ACCOUNT_MFA_ENABLED
 
-  # === 信頼性の柱 ===
+  # === Reliability pillar ===
 
-  # RDS のマルチ AZ 確認
+  # Check RDS Multi-AZ
   RdsMultiAzCheck:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1650,7 +1655,7 @@ Resources:
         Owner: AWS
         SourceIdentifier: RDS_MULTI_AZ_SUPPORT
 
-  # RDS の自動バックアップ確認
+  # Check RDS automatic backups
   RdsBackupCheck:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1661,7 +1666,7 @@ Resources:
       InputParameters:
         backupRetentionMinimum: "7"
 
-  # ELB の Cross-Zone Load Balancing 確認
+  # Check ELB Cross-Zone Load Balancing
   ElbCrossZoneCheck:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1670,9 +1675,9 @@ Resources:
         Owner: AWS
         SourceIdentifier: ELB_CROSS_ZONE_LOAD_BALANCING_ENABLED
 
-  # === コスト最適化の柱 ===
+  # === Cost Optimization pillar ===
 
-  # 未使用 EIP の検出
+  # Detect unused EIPs
   UnusedEipCheck:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1681,7 +1686,7 @@ Resources:
         Owner: AWS
         SourceIdentifier: EIP_ATTACHED
 
-  # 未使用 EBS ボリュームの検出
+  # Detect unused EBS volumes
   UnusedEbsCheck:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1690,9 +1695,9 @@ Resources:
         Owner: AWS
         SourceIdentifier: EC2_VOLUME_INUSE_CHECK
 
-  # === 運用上の優秀性の柱 ===
+  # === Operational Excellence pillar ===
 
-  # CloudTrail の有効化確認
+  # Check CloudTrail is enabled
   CloudTrailEnabledCheck:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1701,7 +1706,7 @@ Resources:
         Owner: AWS
         SourceIdentifier: CLOUD_TRAIL_ENABLED
 
-  # CloudWatch ログの保持期間確認
+  # Check CloudWatch log retention period
   CloudWatchLogRetentionCheck:
     Type: AWS::Config::ConfigRule
     Properties:
@@ -1712,7 +1717,7 @@ Resources:
       InputParameters:
         MinRetentionTime: "90"
 
-  # === コンプライアンス変更の自動通知 ===
+  # === Automated notification on compliance change ===
   ComplianceChangeRule:
     Type: AWS::Events::Rule
     Properties:
@@ -1751,20 +1756,20 @@ Outputs:
 
 ---
 
-## 6. Well-Architected レビュー自動化パイプライン
+## 6. Well-Architected Review Automation Pipeline
 
-### 6.1 CI/CD パイプラインとの統合
+### 6.1 Integration with CI/CD Pipelines
 
 ```python
-# 図10: GitHub Actions / CodePipeline でのレビュー自動化
+# Figure 10: Review automation with GitHub Actions / CodePipeline
 import boto3
 import json
 import sys
 
 def ci_well_architected_gate(workload_id: str, max_high_risk: int = 0):
-    """CI/CD パイプラインのゲートとして Well-Architected チェックを実行
+    """Run a Well-Architected check as a CI/CD pipeline gate
 
-    High Risk が閾値を超えた場合にデプロイをブロック
+    Blocks deployment if High Risk items exceed the threshold
     """
     wa = boto3.client("wellarchitected", region_name="ap-northeast-1")
 
@@ -1782,7 +1787,7 @@ def ci_well_architected_gate(workload_id: str, max_high_risk: int = 0):
     print(f"Workload: {workload_id}")
     print(f"HIGH: {high_risk}, MEDIUM: {medium_risk}, UNANSWERED: {unanswered}")
 
-    # High Risk の詳細を取得
+    # Get High Risk details
     if high_risk > 0:
         print(f"\n--- High Risk Details ---")
         pillars = ["operationalExcellence", "security", "reliability",
@@ -1797,7 +1802,7 @@ def ci_well_architected_gate(workload_id: str, max_high_risk: int = 0):
                 if item.get("Risk") == "HIGH":
                     print(f"  [{pillar}] {item['QuestionTitle']}")
 
-    # ゲート判定
+    # Gate decision
     if high_risk > max_high_risk:
         print(f"\n❌ GATE FAILED: {high_risk} high risk items (max: {max_high_risk})")
         sys.exit(1)
@@ -1807,7 +1812,7 @@ def ci_well_architected_gate(workload_id: str, max_high_risk: int = 0):
 ```
 
 ```yaml
-# GitHub Actions でのパイプライン統合例
+# Example pipeline integration with GitHub Actions
 # .github/workflows/well-architected-gate.yml
 name: Well-Architected Gate
 
@@ -1850,162 +1855,163 @@ jobs:
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 7.1 6 つの柱 概要比較
+### 7.1 Overview Comparison of the 6 Pillars
 
-| 柱 | 焦点 | 主要 AWS サービス | KPI 例 |
+| Pillar | Focus | Key AWS Services | Example KPIs |
 |----|------|------------------|--------|
-| **運用上の優秀性** | 運用の自動化と継続改善 | CloudFormation, Systems Manager, CloudWatch | デプロイ頻度, MTTR |
-| **セキュリティ** | データと資産の保護 | IAM, KMS, GuardDuty, Security Hub | 未対応の検出結果数 |
-| **信頼性** | 障害復旧と可用性 | Route 53, ELB, Auto Scaling, Backup | 可用性 %, RTO/RPO |
-| **パフォーマンス効率** | リソースの効率的な使用 | CloudFront, ElastiCache, Lambda | レイテンシ P99 |
-| **コスト最適化** | 無駄の排除と価値最大化 | Cost Explorer, Budgets, Savings Plans | 月間コスト, SP カバー率 |
-| **持続可能性** | 環境への影響最小化 | Graviton, Spot, サーバーレス | CO2 排出量推定 |
+| **Operational Excellence** | Automate operations and continuously improve | CloudFormation, Systems Manager, CloudWatch | Deployment frequency, MTTR |
+| **Security** | Protect data and assets | IAM, KMS, GuardDuty, Security Hub | Number of unresolved findings |
+| **Reliability** | Disaster recovery and availability | Route 53, ELB, Auto Scaling, Backup | Availability %, RTO/RPO |
+| **Performance Efficiency** | Efficient use of resources | CloudFront, ElastiCache, Lambda | Latency P99 |
+| **Cost Optimization** | Eliminate waste and maximize value | Cost Explorer, Budgets, Savings Plans | Monthly cost, SP coverage rate |
+| **Sustainability** | Minimize environmental impact | Graviton, Spot, Serverless | Estimated CO2 emissions |
 
-### 7.2 レビュー方式比較
+### 7.2 Review Method Comparison
 
-| 方式 | 対象 | 所要時間 | コスト | 推奨場面 |
+| Method | Audience | Time Required | Cost | Recommended When |
 |------|------|---------|--------|---------|
-| **セルフレビュー** | 自チーム | 2-5日 | 無料 | 定期レビュー |
-| **AWS SA レビュー** | SA 支援 | 1-2週間 | 無料（Enterprise Support） | 初回レビュー |
-| **パートナーレビュー** | APN パートナー | 2-4週間 | 有料 | 大規模ワークロード |
-| **AWS Well-Architected Tool** | ツール支援 | 1-3日 | 無料 | 全ケースで利用推奨 |
+| **Self-review** | Own team | 2-5 days | Free | Regular reviews |
+| **AWS SA Review** | SA-assisted | 1-2 weeks | Free (Enterprise Support) | Initial review |
+| **Partner Review** | APN partner | 2-4 weeks | Paid | Large-scale workloads |
+| **AWS Well-Architected Tool** | Tool-assisted | 1-3 days | Free | Recommended for all cases |
 
-### 7.3 Lens 比較
+### 7.3 Lens Comparison
 
-| Lens | 対象ワークロード | 追加の柱 | 質問数（目安） | 推奨場面 |
+| Lens | Target Workload | Additional Pillars | Approx. Questions | Recommended When |
 |------|----------------|---------|-------------|---------|
-| **Well-Architected (標準)** | 全般 | なし | ~58 | 全ワークロード |
-| **Serverless** | Lambda, API GW, DynamoDB | なし | ~30 | サーバーレスアプリ |
-| **SaaS** | マルチテナント SaaS | テナント分離 | ~40 | SaaS プロバイダー |
-| **Machine Learning** | ML ワークロード | ML ライフサイクル | ~35 | ML/AI アプリ |
-| **Data Analytics** | データ分析基盤 | データ品質 | ~30 | データレイク, ETL |
-| **Container** | ECS, EKS | コンテナ運用 | ~25 | コンテナワークロード |
-| **IoT** | IoT デバイス管理 | デバイス管理 | ~30 | IoT プラットフォーム |
-| **FTR (Foundational Technical Review)** | APN パートナー | なし | ~50 | パートナー認定 |
-| **カスタム Lens** | 自社基準 | 任意 | 任意 | 社内標準の強制 |
+| **Well-Architected (Standard)** | General | None | ~58 | All workloads |
+| **Serverless** | Lambda, API GW, DynamoDB | None | ~30 | Serverless apps |
+| **SaaS** | Multi-tenant SaaS | Tenant isolation | ~40 | SaaS providers |
+| **Machine Learning** | ML workloads | ML lifecycle | ~35 | ML/AI apps |
+| **Data Analytics** | Data analytics platforms | Data quality | ~30 | Data lakes, ETL |
+| **Container** | ECS, EKS | Container operations | ~25 | Container workloads |
+| **IoT** | IoT device management | Device management | ~30 | IoT platforms |
+| **FTR (Foundational Technical Review)** | APN partners | None | ~50 | Partner certification |
+| **Custom Lens** | Internal standards | Any | Any | Enforcing internal standards |
 
-### 7.4 Well-Architected vs 他のフレームワーク
+### 7.4 Well-Architected vs. Other Frameworks
 
-| 項目 | AWS Well-Architected | TOGAF | ITIL | ISO 27001 |
+| Item | AWS Well-Architected | TOGAF | ITIL | ISO 27001 |
 |------|---------------------|-------|------|-----------|
-| **焦点** | クラウドアーキテクチャ | エンタープライズ全体 | IT サービス管理 | 情報セキュリティ |
-| **スコープ** | AWS ワークロード | 組織横断 | IT 運用プロセス | セキュリティ管理 |
-| **ツール** | WA Tool (無料) | 商用ツール | 商用ツール | 認証機関 |
-| **更新頻度** | 随時（AWS サービス追加） | 数年ごと | 数年ごと | 定期改訂 |
-| **コスト** | 無料 | ライセンス費 | トレーニング費 | 認証費用 |
-| **認証/資格** | なし（自己評価） | TOGAF 認定 | ITIL 認定 | ISO 認証 |
-| **クラウド対応** | AWS ネイティブ | クラウド非依存 | クラウド非依存 | クラウド非依存 |
-| **補完関係** | - | 全体設計→WA で詳細化 | 運用プロセス補完 | セキュリティの柱を詳細化 |
+| **Focus** | Cloud architecture | Entire enterprise | IT service management | Information security |
+| **Scope** | AWS workloads | Cross-organizational | IT operational processes | Security management |
+| **Tools** | WA Tool (free) | Commercial tools | Commercial tools | Certification bodies |
+| **Update Frequency** | Ongoing (as AWS adds services) | Every few years | Every few years | Periodic revision |
+| **Cost** | Free | License fees | Training costs | Certification costs |
+| **Certification/Qualifications** | None (self-assessment) | TOGAF certified | ITIL certified | ISO certified |
+| **Cloud Support** | AWS native | Cloud-agnostic | Cloud-agnostic | Cloud-agnostic |
+| **Complementary Relationship** | - | Overall design → detail with WA | Complements operational processes | Adds detail to Security pillar |
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### 8.1 レビューを一度やって終わり
+### 8.1 Treating the Review as a One-Time Event
 
 ```
-NG:
-  リリース前に Well-Architected レビュー実施
-  → "完了" として棚上げ
-  → 1年後: アーキテクチャが変わり、リスクが再発
+BAD:
+  Conduct a Well-Architected review before release
+  → Mark as "complete" and shelve
+  → 1 year later: architecture has changed, risks have returned
 
-OK:
-  四半期ごとの定期レビューサイクル
+GOOD:
+  Quarterly review cycle
   ┌──────────────────────────────────┐
-  │  Q1: フルレビュー                │
-  │  Q2: High Risk 改善確認          │
-  │  Q3: フルレビュー（再評価）      │
-  │  Q4: 年間振り返り + 次年度計画   │
+  │  Q1: Full review                 │
+  │  Q2: Verify High Risk improvements│
+  │  Q3: Full review (re-assessment) │
+  │  Q4: Annual retrospective + next │
+  │      year planning               │
   └──────────────────────────────────┘
 ```
 
-### 8.2 全ての柱を均等に扱う
+### 8.2 Treating All Pillars Equally
 
 ```
-NG:
-  6つの柱 × 均等リソース配分
-  → セキュリティのクリティカルな問題が後回しに
+BAD:
+  6 pillars × equal resource allocation
+  → Critical security issues are deprioritized
 
-OK:
-  リスクベースの優先順位付け
-  1. セキュリティの High Risk → 即対応（1-2週間）
-  2. 信頼性の High Risk → 次スプリント
-  3. 運用の Medium Risk → バックログ
-  4. コスト/パフォーマンス → 四半期計画
+GOOD:
+  Risk-based prioritization
+  1. Security High Risk → Immediate action (1-2 weeks)
+  2. Reliability High Risk → Next sprint
+  3. Operations Medium Risk → Backlog
+  4. Cost/Performance → Quarterly planning
 ```
 
-### 8.3 チェックリストとして形式的に実施する
+### 8.3 Treating It as a Formality
 
 ```
-NG:
-  - 全質問に "はい" を選択して形式的に完了
-  - リスクを「受容」として全てクローズ
-  - レビュー結果を共有せず担当者だけが把握
+BAD:
+  - Select "yes" for all questions to formally complete the review
+  - Close all risks as "accepted"
+  - Results are known only to the person in charge, not shared
 
-OK:
-  - 各質問に対してエビデンス（設定画面のスクショ、IaC コード）を添付
-  - リスク受容には経営層の承認プロセスを設ける
-  - レビュー結果をチーム全体に共有し、改善を透明化
+GOOD:
+  - Attach evidence (configuration screenshots, IaC code) for each question
+  - Risk acceptance requires management approval
+  - Share review results with the entire team for transparent improvement
 
-  エビデンスの例:
+  Evidence example:
   ┌────────────────────────────────────────────────────┐
-  │ 質問: データは暗号化されていますか？                    │
+  │ Question: Is data encrypted?                        │
   │                                                    │
-  │ 回答: はい                                          │
+  │ Answer: Yes                                        │
   │                                                    │
-  │ エビデンス:                                         │
-  │ - RDS: storage_encrypted=true (CDK コード L.142)    │
-  │ - S3: BucketEncryption SSE-KMS (CDK コード L.87)    │
-  │ - EBS: encrypted=true (デフォルト設定 ON)             │
-  │ - DynamoDB: SSE-KMS (CDK コード L.203)               │
-  │ - Config Rule: encrypted-volumes COMPLIANT           │
+  │ Evidence:                                          │
+  │ - RDS: storage_encrypted=true (CDK code L.142)     │
+  │ - S3: BucketEncryption SSE-KMS (CDK code L.87)     │
+  │ - EBS: encrypted=true (default setting ON)         │
+  │ - DynamoDB: SSE-KMS (CDK code L.203)               │
+  │ - Config Rule: encrypted-volumes COMPLIANT         │
   └────────────────────────────────────────────────────┘
 ```
 
-### 8.4 コスト最適化を後回しにする
+### 8.4 Deferring Cost Optimization
 
 ```
-NG:
-  開発完了 → 本番運用開始 → 「コストが高い」と気づく
-  → 半年後にようやくコスト最適化プロジェクト開始
-  → すでに数万ドルの無駄が発生
+BAD:
+  Development complete → Production launch → "Costs are high" realized
+  → Cost optimization project finally starts 6 months later
+  → Tens of thousands of dollars already wasted
 
-OK:
-  設計段階からコスト最適化を組み込む
+GOOD:
+  Incorporate cost optimization from the design stage
   ┌────────────────────────────────────────────────────┐
-  │ Day 1 から実施すべきコスト最適化:                      │
+  │ Cost optimization to implement from Day 1:          │
   │                                                    │
-  │ 1. コスト配分タグの設計と適用                         │
-  │ 2. AWS Budgets の設定（80%/100% アラート）            │
-  │ 3. Cost Anomaly Detection の有効化                   │
-  │ 4. 開発環境の自動停止スケジュール                      │
-  │ 5. S3 ライフサイクルポリシーの設定                     │
-  │ 6. Compute Optimizer の有効化                        │
+  │ 1. Design and apply cost allocation tags           │
+  │ 2. Configure AWS Budgets (80%/100% alerts)         │
+  │ 3. Enable Cost Anomaly Detection                   │
+  │ 4. Schedule auto-stop for development environments │
+  │ 5. Configure S3 lifecycle policies                 │
+  │ 6. Enable Compute Optimizer                        │
   └────────────────────────────────────────────────────┘
 ```
 
-### 8.5 単一の柱だけに注力する
+### 8.5 Focusing on Only One Pillar
 
 ```
-NG:
-  セキュリティチームが主導
-  → セキュリティの柱だけ詳細にレビュー
-  → 信頼性やパフォーマンスのリスクを見落とし
-  → 障害発生時に復旧できない
+BAD:
+  Security team leads the review
+  → Only the Security pillar is reviewed in detail
+  → Reliability and Performance risks are overlooked
+  → Unable to recover when an outage occurs
 
-OK:
-  クロスファンクショナルチームで全柱をレビュー
+GOOD:
+  Cross-functional team reviews all pillars
   ┌────────────────────────────────────────┐
-  │ レビューチーム構成:                      │
+  │ Review team composition:               │
   │                                        │
-  │ - テックリード（運用上の優秀性）         │
-  │ - セキュリティエンジニア（セキュリティ）  │
-  │ - SRE（信頼性）                         │
-  │ - バックエンドエンジニア（パフォーマンス） │
-  │ - FinOps 担当（コスト最適化）            │
-  │ - アーキテクト（持続可能性 + 全体統括）   │
+  │ - Tech Lead (Operational Excellence)   │
+  │ - Security Engineer (Security)         │
+  │ - SRE (Reliability)                   │
+  │ - Backend Engineer (Performance)       │
+  │ - FinOps (Cost Optimization)           │
+  │ - Architect (Sustainability + overall) │
   └────────────────────────────────────────┘
 ```
 
@@ -2013,109 +2019,109 @@ OK:
 
 ## 9. FAQ
 
-### Q1. Well-Architected Review は誰が主導すべき？
+### Q1. Who should lead the Well-Architected Review?
 
-**A.** ワークロードのテックリードまたはアーキテクトが主導し、開発・運用・セキュリティの各チームメンバーが参加する。AWS の Solutions Architect に初回の支援を依頼すると効率的。Enterprise Support 契約があれば無料で SA の支援を受けられる。
+**A.** The tech lead or architect for the workload should lead the review, with participation from development, operations, and security team members. Asking an AWS Solutions Architect to assist with the initial review is efficient. If you have an Enterprise Support contract, you can receive SA assistance for free.
 
-### Q2. 小規模なスタートアップでも Well-Architected は必要？
+### Q2. Is Well-Architected necessary for small startups?
 
-**A.** 規模に関わらず有用。ただし全ての質問に完璧に対応する必要はない。まずセキュリティと信頼性の High Risk 項目に集中し、ビジネスの成長に合わせて他の柱も強化していく段階的アプローチが現実的。
+**A.** It is useful regardless of scale. However, you do not need to perfectly address every question. A realistic approach is to first focus on Security and Reliability High Risk items, then strengthen the other pillars as the business grows.
 
-### Q3. Well-Architected Tool の結果は AWS に共有される？
+### Q3. Are Well-Architected Tool results shared with AWS?
 
-**A.** 通常は共有されない。ただし「AWS Solutions Architect とワークロードを共有」を明示的に有効にした場合のみ、担当 SA がレビュー結果にアクセスできる。データは暗号化されアカウント所有者が管理権限を持つ。
+**A.** They are not shared by default. The results are only accessible to your assigned SA if you explicitly enable "Share workload with AWS Solutions Architect." Data is encrypted and the account owner retains control.
 
-### Q4. マルチアカウント環境でのレビューはどう進める？
+### Q4. How do you conduct reviews in a multi-account environment?
 
-**A.** Organizations の管理アカウントまたは専用のアーキテクチャアカウントで Well-Architected Tool を使い、各メンバーアカウントのワークロードを個別に登録する。共通基盤（VPC、IAM、ログ集約）は一つのワークロードとして、アプリケーションは別のワークロードとしてレビューする。AWS RAM (Resource Access Manager) を使ってレビュー結果をアカウント間で共有することも可能。
+**A.** Use the Well-Architected Tool in the Organizations management account or a dedicated architecture account, and register each member account's workloads individually. Review common infrastructure (VPC, IAM, log aggregation) as one workload and applications as separate workloads. You can also use AWS RAM (Resource Access Manager) to share review results across accounts.
 
-### Q5. カスタム Lens を作成するメリットは？
+### Q5. What are the benefits of creating a custom lens?
 
-**A.** 自社固有のコンプライアンス要件、業界規制（PCI DSS、HIPAA 等）、社内アーキテクチャ標準をフレームワーク化できる。標準の Well-Architected Lens では対応しきれない固有の要件を体系的にレビューでき、組織全体で一貫したアーキテクチャ品質を維持できる。JSON 形式で Lens を定義し、AWS CLI でインポートする。
+**A.** You can formalize your company's unique compliance requirements, industry regulations (PCI DSS, HIPAA, etc.), and internal architecture standards as a framework. This allows you to systematically review requirements that the standard Well-Architected Lens does not cover, and maintain consistent architecture quality across the organization. Define the lens in JSON format and import it using the AWS CLI.
 
 ```bash
-# カスタム Lens の作成例
+# Example of creating a custom lens
 aws wellarchitected import-lens \
   --json-string file://custom-lens.json \
   --tags Department=Engineering,Standard=InternalV2
 
-# カスタム Lens の公開（組織内共有）
+# Publish the custom lens (share within the organization)
 aws wellarchitected create-lens-share \
   --lens-alias "arn:aws:wellarchitected:ap-northeast-1:123456789012:lens/my-custom-lens" \
   --shared-with "arn:aws:organizations::123456789012:organization/o-abc123"
 ```
 
-### Q6. レビューの自動化はどこまで可能？
+### Q6. How far can review automation be taken?
 
-**A.** Well-Architected Tool の API を使って、ワークロードの作成・質問への回答・マイルストーン作成・レポート取得まで完全に自動化できる。ただし、質問への回答は技術的判断を伴うため、自動回答は推奨されない。実用的なアプローチは以下の通り。
+**A.** Using the Well-Architected Tool API, you can fully automate workload creation, answering questions, creating milestones, and retrieving reports. However, since answering questions requires technical judgment, automated answers are not recommended. The practical approach is as follows:
 
-- **自動化すべき**: ワークロード作成、マイルストーン作成、レポート生成、Slack/Teams への通知
-- **半自動化**: Config Rules / Security Hub の結果をもとに回答を提案
-- **手動維持**: 最終的な回答判断、改善計画の策定、優先順位付け
+- **Automate**: Workload creation, milestone creation, report generation, Slack/Teams notifications
+- **Semi-automate**: Suggest answers based on Config Rules / Security Hub results
+- **Keep manual**: Final answer decisions, improvement plan formulation, prioritization
 
-### Q7. Well-Architected レビューと SOC 2 / ISO 27001 監査の関係は？
+### Q7. What is the relationship between Well-Architected reviews and SOC 2 / ISO 27001 audits?
 
-**A.** Well-Architected レビューは自己評価のフレームワークであり、監査や認証ではない。ただし、セキュリティの柱のベストプラクティスは SOC 2 や ISO 27001 の要件と大きく重複する。Well-Architected レビューを定期的に実施し、エビデンスを記録しておくことで、監査対応時の準備工数を大幅に削減できる。特に以下の領域が重複する。
+**A.** Well-Architected reviews are a self-assessment framework, not an audit or certification. However, the best practices in the Security pillar overlap significantly with SOC 2 and ISO 27001 requirements. By conducting Well-Architected reviews regularly and recording evidence, you can significantly reduce preparation effort for audits. The following areas in particular overlap:
 
 | Well-Architected | SOC 2 | ISO 27001 |
 |-----------------|-------|-----------|
-| IAM / MFA | CC6.1 論理アクセス | A.9 アクセス制御 |
-| 暗号化 | CC6.7 暗号化 | A.10 暗号 |
-| ログ / 監査証跡 | CC7.2 モニタリング | A.12.4 ログ取得 |
-| バックアップ / DR | A1.2 事業継続 | A.17 事業継続管理 |
-| インシデント対応 | CC7.3 インシデント | A.16 インシデント管理 |
+| IAM / MFA | CC6.1 Logical access | A.9 Access control |
+| Encryption | CC6.7 Encryption | A.10 Cryptography |
+| Logging / Audit trail | CC7.2 Monitoring | A.12.4 Logging |
+| Backup / DR | A1.2 Business continuity | A.17 Business continuity management |
+| Incident response | CC7.3 Incident | A.16 Incident management |
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 10. まとめ
+## 10. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| **6 つの柱** | 運用、セキュリティ、信頼性、パフォーマンス、コスト、持続可能性 |
-| **レビューツール** | AWS Well-Architected Tool で質問に回答し、リスクを可視化 |
-| **優先順位** | セキュリティ > 信頼性 > 運用 > パフォーマンス > コスト > 持続可能性 |
-| **継続性** | 四半期ごとの定期レビュー、マイルストーンで進捗管理 |
-| **Lens** | ワークロード種別に応じた専用 Lens を活用 |
-| **自動化** | Config Rules + Security Hub + Trusted Advisor で継続的コンプライアンス |
-| **CI/CD 統合** | パイプラインのゲートとして High Risk チェックを組み込む |
-| **エビデンス** | 各質問にIaCコード・設定スクリーンショット等のエビデンスを記録 |
+| **6 Pillars** | Operations, Security, Reliability, Performance, Cost, Sustainability |
+| **Review Tool** | Use the AWS Well-Architected Tool to answer questions and visualize risks |
+| **Priority** | Security > Reliability > Operations > Performance > Cost > Sustainability |
+| **Continuity** | Quarterly periodic reviews, milestone-based progress tracking |
+| **Lenses** | Use specialized lenses based on the type of workload |
+| **Automation** | Config Rules + Security Hub + Trusted Advisor for continuous compliance |
+| **CI/CD Integration** | Incorporate High Risk checks as a pipeline gate |
+| **Evidence** | Record IaC code, configuration screenshots, and other evidence for each question |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [00-cost-optimization.md](./00-cost-optimization.md) — コスト最適化の具体的な実践
-- セキュリティガイド — IAM / KMS / WAF の詳細設計
-- 信頼性ガイド — マルチ AZ / DR 戦略
+- [00-cost-optimization.md](./00-cost-optimization.md) — Practical cost optimization
+- Security Guide — Detailed design for IAM / KMS / WAF
+- Reliability Guide — Multi-AZ / DR strategies
 
 ---
 
-## 参考文献
+## References
 
-1. **AWS公式ドキュメント** — "AWS Well-Architected Framework" — https://docs.aws.amazon.com/wellarchitected/latest/framework/
-2. **AWS公式ドキュメント** — "AWS Well-Architected Tool User Guide" — https://docs.aws.amazon.com/wellarchitected/latest/userguide/
-3. **AWS公式ホワイトペーパー** — "AWS Well-Architected Framework: Six Pillars" — https://aws.amazon.com/architecture/well-architected/
-4. **AWS公式ブログ** — "Well-Architected Labs" — https://www.wellarchitectedlabs.com/
-5. **AWS公式ドキュメント** — "Operational Excellence Pillar" — https://docs.aws.amazon.com/wellarchitected/latest/operational-excellence-pillar/
-6. **AWS公式ドキュメント** — "Security Pillar" — https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/
-7. **AWS公式ドキュメント** — "Reliability Pillar" — https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/
-8. **AWS公式ドキュメント** — "Performance Efficiency Pillar" — https://docs.aws.amazon.com/wellarchitected/latest/performance-efficiency-pillar/
-9. **AWS公式ドキュメント** — "Cost Optimization Pillar" — https://docs.aws.amazon.com/wellarchitected/latest/cost-optimization-pillar/
-10. **AWS公式ドキュメント** — "Sustainability Pillar" — https://docs.aws.amazon.com/wellarchitected/latest/sustainability-pillar/
+1. **AWS Official Documentation** — "AWS Well-Architected Framework" — https://docs.aws.amazon.com/wellarchitected/latest/framework/
+2. **AWS Official Documentation** — "AWS Well-Architected Tool User Guide" — https://docs.aws.amazon.com/wellarchitected/latest/userguide/
+3. **AWS Official Whitepaper** — "AWS Well-Architected Framework: Six Pillars" — https://aws.amazon.com/architecture/well-architected/
+4. **AWS Official Blog** — "Well-Architected Labs" — https://www.wellarchitectedlabs.com/
+5. **AWS Official Documentation** — "Operational Excellence Pillar" — https://docs.aws.amazon.com/wellarchitected/latest/operational-excellence-pillar/
+6. **AWS Official Documentation** — "Security Pillar" — https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/
+7. **AWS Official Documentation** — "Reliability Pillar" — https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/
+8. **AWS Official Documentation** — "Performance Efficiency Pillar" — https://docs.aws.amazon.com/wellarchitected/latest/performance-efficiency-pillar/
+9. **AWS Official Documentation** — "Cost Optimization Pillar" — https://docs.aws.amazon.com/wellarchitected/latest/cost-optimization-pillar/
+10. **AWS Official Documentation** — "Sustainability Pillar" — https://docs.aws.amazon.com/wellarchitected/latest/sustainability-pillar/
