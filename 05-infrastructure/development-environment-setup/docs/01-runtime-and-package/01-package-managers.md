@@ -1,54 +1,54 @@
-# パッケージマネージャー
+# Package Managers
 
-> npm / pnpm / yarn、pip / poetry / uv、cargo、Homebrew など主要パッケージマネージャーの設定・運用・使い分けを解説する実践ガイド。
+> A practical guide covering the configuration, operation, and selection of major package managers including npm / pnpm / yarn, pip / poetry / uv, cargo, and Homebrew.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. Node.js エコシステムのパッケージマネージャー（npm / pnpm / yarn）の特性と選定基準
-2. Python（pip / poetry / uv）と Rust（cargo）のパッケージ管理手法
-3. Homebrew によるシステムツール管理とチーム統一の方法
-4. Corepack によるパッケージマネージャーのバージョン統一
-5. セキュリティ対策とサプライチェーン攻撃への防御
-6. モノレポ環境でのパッケージ管理
+1. Characteristics and selection criteria for Node.js ecosystem package managers (npm / pnpm / yarn)
+2. Package management approaches for Python (pip / poetry / uv) and Rust (cargo)
+3. System tool management with Homebrew and how to unify team environments
+4. Package manager version unification with Corepack
+5. Security measures and defense against supply chain attacks
+6. Package management in monorepo environments
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [バージョンマネージャー](./00-version-managers.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Version Managers](./00-version-managers.md)
 
 ---
 
-## 1. Node.js パッケージマネージャー
+## 1. Node.js Package Managers
 
-### 1.1 比較表
+### 1.1 Comparison Table
 
-| 特徴 | npm | pnpm | yarn (berry/v4) |
-|------|-----|------|-----------------|
-| 付属 | Node.js 同梱 | 別途インストール | 別途インストール |
-| ディスク効率 | 低い (各プロジェクトに複製) | 高い (コンテンツアドレス) | 中 (PnP で最小) |
-| インストール速度 | 普通 | 高速 | 高速 |
-| ロックファイル | package-lock.json | pnpm-lock.yaml | yarn.lock |
-| ワークスペース | あり | あり (優秀) | あり |
-| Phantom Dependencies | あり | なし (厳密) | なし (PnP) |
-| 学習コスト | 低 | 低 | 中 (PnP) |
-| node_modules 構造 | フラット | シンボリックリンク | PnP / node_modules |
-| オフラインインストール | 部分的 | あり | あり (Zero-Installs) |
-| パッチ機能 | なし | あり (pnpm patch) | あり (yarn patch) |
+| Feature | npm | pnpm | yarn (berry/v4) |
+|---------|-----|------|-----------------|
+| Bundled | Included with Node.js | Separate install | Separate install |
+| Disk efficiency | Low (copies per project) | High (content-addressed) | Medium (minimal with PnP) |
+| Install speed | Average | Fast | Fast |
+| Lock file | package-lock.json | pnpm-lock.yaml | yarn.lock |
+| Workspaces | Yes | Yes (excellent) | Yes |
+| Phantom Dependencies | Yes | No (strict) | No (PnP) |
+| Learning cost | Low | Low | Medium (PnP) |
+| node_modules structure | Flat | Symlinks | PnP / node_modules |
+| Offline install | Partial | Yes | Yes (Zero-Installs) |
+| Patch feature | No | Yes (pnpm patch) | Yes (yarn patch) |
 
-### 1.2 npm の設定
+### 1.2 npm Configuration
 
 ```bash
-# ─── 初期設定 ───
+# ─── Initial setup ───
 npm config set init-author-name "Your Name"
 npm config set init-author-email "your@email.com"
 npm config set init-license "MIT"
-npm config set save-exact true        # バージョン固定
+npm config set save-exact true        # Pin versions
 
-# ─── .npmrc (プロジェクトルート) ───
+# ─── .npmrc (project root) ───
 cat << 'EOF' > .npmrc
 engine-strict=true
 save-exact=true
@@ -57,53 +57,53 @@ fund=false
 audit-level=moderate
 EOF
 
-# ─── 基本操作 ───
-npm init -y                           # 初期化
-npm install express                   # 依存追加
-npm install -D typescript             # 開発依存追加
-npm ci                                # ロックファイルから厳密インストール (CI用)
-npm audit                             # 脆弱性チェック
-npm outdated                          # 更新可能パッケージ表示
-npm update                            # パッチ/マイナー更新
+# ─── Basic operations ───
+npm init -y                           # Initialize
+npm install express                   # Add dependency
+npm install -D typescript             # Add dev dependency
+npm ci                                # Strict install from lock file (for CI)
+npm audit                             # Vulnerability check
+npm outdated                          # Show upgradable packages
+npm update                            # Update patch/minor versions
 ```
 
-### 1.2.1 npm の高度な設定
+### 1.2.1 Advanced npm Configuration
 
 ```bash
-# ─── .npmrc の全オプション ───
+# ─── Full .npmrc options ───
 cat << 'EOF' > .npmrc
-# バージョン管理
-save-exact=true                       # ^ や ~ なしの正確なバージョン
-save-prefix=""                        # バージョンプレフィックスを空に
+# Version management
+save-exact=true                       # Exact versions without ^ or ~
+save-prefix=""                        # Empty version prefix
 
-# セキュリティ
-engine-strict=true                    # engines フィールドを厳格に検証
-audit-level=moderate                  # npm audit の最小レベル
-ignore-scripts=false                  # postinstall スクリプトの制御
+# Security
+engine-strict=true                    # Strictly validate engines field
+audit-level=moderate                  # Minimum level for npm audit
+ignore-scripts=false                  # Control postinstall scripts
 
-# パフォーマンス
-package-lock=true                     # ロックファイルを必ず生成
-prefer-offline=true                   # オフラインキャッシュを優先
-fund=false                            # funding メッセージを非表示
-update-notifier=false                 # npm 更新通知を無効化
+# Performance
+package-lock=true                     # Always generate lock file
+prefer-offline=true                   # Prefer offline cache
+fund=false                            # Hide funding messages
+update-notifier=false                 # Disable npm update notifications
 
-# レジストリ設定
+# Registry settings
 registry=https://registry.npmjs.org/
-# プライベートレジストリ（スコープ付き）
+# Private registry (scoped)
 @mycompany:registry=https://npm.pkg.github.com/
 //npm.pkg.github.com/:_authToken=${NPM_TOKEN}
 
-# プロキシ設定（企業環境）
+# Proxy settings (corporate environments)
 # proxy=http://proxy.example.com:8080
 # https-proxy=http://proxy.example.com:8080
 # no-proxy=localhost,127.0.0.1
 
-# ログ設定
+# Log settings
 loglevel=warn
 EOF
 
-# ─── package.json の engines フィールド ───
-# バージョンマネージャーと合わせて設定
+# ─── engines field in package.json ───
+# Configure together with the version manager
 {
   "engines": {
     "node": ">=20.0.0 <21",
@@ -113,7 +113,7 @@ EOF
 }
 ```
 
-### 1.2.2 npm のスクリプト活用
+### 1.2.2 Leveraging npm Scripts
 
 ```json
 {
@@ -139,39 +139,39 @@ EOF
 ```
 
 ```bash
-# ─── npm スクリプトの実行 ───
-npm run dev                           # scripts のコマンド実行
-npm run build -- --debug              # 追加引数を渡す (-- の後)
-npm run validate                      # 複合スクリプト実行
+# ─── Running npm scripts ───
+npm run dev                           # Run a scripts command
+npm run build -- --debug              # Pass extra arguments (after --)
+npm run validate                      # Run a composite script
 
-# ─── npm ライフサイクルスクリプト ───
+# ─── npm lifecycle scripts ───
 # preinstall  → install → postinstall
 # prepublish  → prepare → postpublish
 # preversion  → version → postversion
 
-# ─── npx でローカルパッケージを実行 ───
-npx eslint .                          # devDependencies の eslint を実行
-npx -y create-next-app@latest         # 未インストールパッケージの一時実行
-npx --package=typescript tsc --init   # 特定パッケージのコマンドを実行
+# ─── Run local packages with npx ───
+npx eslint .                          # Run eslint from devDependencies
+npx -y create-next-app@latest         # Temporarily run an uninstalled package
+npx --package=typescript tsc --init   # Run a command from a specific package
 ```
 
-### 1.2.3 npm のセキュリティ機能
+### 1.2.3 npm Security Features
 
 ```bash
-# ─── 脆弱性監査 ───
-npm audit                             # 脆弱性レポート表示
-npm audit --json                      # JSON 形式で出力
-npm audit fix                         # 自動修正（セーフなアップデート）
-npm audit fix --force                 # 破壊的変更を含む修正（注意）
-npm audit signatures                  # パッケージ署名の検証
+# ─── Vulnerability auditing ───
+npm audit                             # Show vulnerability report
+npm audit --json                      # Output in JSON format
+npm audit fix                         # Auto-fix (safe updates)
+npm audit fix --force                 # Fix including breaking changes (caution)
+npm audit signatures                  # Verify package signatures
 
-# ─── provenance（出所証明） ───
-# npm v9.5+ で利用可能
-# CI/CD でパッケージ公開時に SLSA provenance を付与
+# ─── provenance (proof of origin) ───
+# Available in npm v9.5+
+# Attach SLSA provenance when publishing packages from CI/CD
 npm publish --provenance
 
-# ─── overrides で脆弱なバージョンを強制更新 ───
-# package.json に追加
+# ─── Force-update vulnerable versions with overrides ───
+# Add to package.json
 {
   "overrides": {
     "lodash": "4.17.21",
@@ -180,77 +180,77 @@ npm publish --provenance
   }
 }
 
-# ─── パッケージロックの差分確認（コードレビュー時） ───
-# package-lock.json の変更を確認するポイント:
-# 1. 新しい依存の追加（意図したものか）
-# 2. integrity ハッシュの変更（改竄検知）
-# 3. resolved URL の変更（レジストリ改竄検知）
+# ─── Check lock file diff (during code review) ───
+# Key points to check in package-lock.json changes:
+# 1. New dependencies added (intentional?)
+# 2. integrity hash changes (tamper detection)
+# 3. resolved URL changes (registry tamper detection)
 ```
 
-### 1.3 pnpm の設定
+### 1.3 pnpm Configuration
 
 ```bash
-# ─── インストール ───
-# corepack (Node.js 16.13+ 同梱)
+# ─── Installation ───
+# corepack (bundled with Node.js 16.13+)
 corepack enable
 corepack prepare pnpm@latest --activate
 
-# または直接インストール
+# Or install directly
 npm install -g pnpm
 
 # Homebrew
 brew install pnpm
 
-# ─── .npmrc (pnpm対応) ───
+# ─── .npmrc (pnpm compatible) ───
 cat << 'EOF' > .npmrc
 shamefully-hoist=false
 strict-peer-dependencies=true
 auto-install-peers=true
 EOF
 
-# ─── 基本操作 ───
-pnpm install                          # 依存インストール
-pnpm add express                      # 依存追加
-pnpm add -D typescript                # 開発依存追加
-pnpm remove lodash                    # 依存削除
-pnpm up --latest                      # 全パッケージ最新化
-pnpm store prune                      # 不要キャッシュ削除
-pnpm why lodash                       # なぜこの依存があるか表示
-pnpm list --depth=0                   # 直接依存の一覧
+# ─── Basic operations ───
+pnpm install                          # Install dependencies
+pnpm add express                      # Add dependency
+pnpm add -D typescript                # Add dev dependency
+pnpm remove lodash                    # Remove dependency
+pnpm up --latest                      # Update all packages to latest
+pnpm store prune                      # Remove unnecessary cache
+pnpm why lodash                       # Show why this dependency exists
+pnpm list --depth=0                   # List direct dependencies
 ```
 
-### 1.3.1 pnpm の詳細設定
+### 1.3.1 pnpm Detailed Configuration
 
 ```yaml
-# .pnpmrc または .npmrc で設定可能
-# 推奨設定:
+# Configurable in .pnpmrc or .npmrc
+# Recommended settings:
 
-# ─── 厳密モード ───
-# shamefully-hoist=false               # phantom dependencies を防止（デフォルト）
-# strict-peer-dependencies=true        # peer dependency の不整合をエラーに
-# auto-install-peers=true              # peer dependency を自動インストール
+# ─── Strict mode ───
+# shamefully-hoist=false               # Prevent phantom dependencies (default)
+# strict-peer-dependencies=true        # Treat peer dependency mismatches as errors
+# auto-install-peers=true              # Auto-install peer dependencies
 
-# ─── パフォーマンス ───
-# store-dir=~/.local/share/pnpm/store  # ストアの場所（デフォルト）
-# network-concurrency=16               # 同時ダウンロード数
-# prefer-offline=true                  # オフラインキャッシュ優先
+# ─── Performance ───
+# store-dir=~/.local/share/pnpm/store  # Store location (default)
+# network-concurrency=16               # Simultaneous downloads
+# prefer-offline=true                  # Prefer offline cache
 
-# ─── セキュリティ ───
-# ignore-scripts=true                  # postinstall スクリプトを無効化
-# side-effects-cache=true              # ビルドキャッシュを有効化
+# ─── Security ───
+# ignore-scripts=true                  # Disable postinstall scripts
+# side-effects-cache=true              # Enable build cache
 ```
 
 ```bash
-# ─── pnpm の便利機能 ───
+# ─── Useful pnpm features ───
 
-# パッチ機能（依存パッケージにパッチを当てる）
-pnpm patch express@4.18.2             # パッチ用の一時ディレクトリを作成
-# → 表示されたディレクトリでファイルを編集
-pnpm patch-commit <patch-dir>         # パッチを確定
+# Patch feature (apply patches to dependency packages)
+pnpm patch express@4.18.2             # Create a temporary directory for patching
+# → Edit files in the displayed directory
+pnpm patch-commit <patch-dir>         # Commit the patch
 
-# パッチの結果:
-# patches/express@4.18.2.patch が生成される
-# package.json に以下が追加:
+# Result of patching:
+# patches/express@4.18.2.patch is generated
+# The following is added to package.json:
 # {
 #   "pnpm": {
 #     "patchedDependencies": {
@@ -259,8 +259,8 @@ pnpm patch-commit <patch-dir>         # パッチを確定
 #   }
 # }
 
-# ─── overrides（依存バージョンの上書き） ───
-# package.json に追加
+# ─── overrides (override dependency versions) ───
+# Add to package.json
 {
   "pnpm": {
     "overrides": {
@@ -270,122 +270,122 @@ pnpm patch-commit <patch-dir>         # パッチを確定
   }
 }
 
-# ─── カタログ機能（モノレポでのバージョン統一） ───
-# pnpm-workspace.yaml に定義
+# ─── Catalog feature (version unification in monorepos) ───
+# Define in pnpm-workspace.yaml
 # catalog:
 #   react: "^18.2.0"
 #   typescript: "^5.4.0"
-# → ワークスペース内で catalog: プレフィックスで参照可能
+# → Can be referenced with the catalog: prefix within the workspace
 
-# ─── pnpm deploy（依存のみのデプロイ） ───
+# ─── pnpm deploy (deploy only dependencies) ───
 pnpm deploy --filter=my-app /deploy/my-app
-# → 本番に必要な依存のみを別ディレクトリに展開
+# → Expand only the dependencies needed for production to a separate directory
 ```
 
-### 1.4 pnpm の仕組み
+### 1.4 How pnpm Works
 
 ```
-pnpm のコンテンツアドレス型ストレージ:
+pnpm content-addressed storage:
 
-  従来 (npm):
+  Traditional (npm):
   ┌──────────────┐  ┌──────────────┐
   │ Project A    │  │ Project B    │
   │ node_modules │  │ node_modules │
-  │ ├── lodash/  │  │ ├── lodash/  │  同じパッケージが
-  │ │  (4.17.21) │  │ │  (4.17.21) │  プロジェクトごとに複製
-  │ └── express/ │  │ └── axios/   │  → ディスク浪費
+  │ ├── lodash/  │  │ ├── lodash/  │  Same package is
+  │ │  (4.17.21) │  │ │  (4.17.21) │  duplicated per project
+  │ └── express/ │  │ └── axios/   │  → Disk waste
   └──────────────┘  └──────────────┘
 
   pnpm:
   ~/.local/share/pnpm/store/
-  ├── lodash@4.17.21/        ← 1箇所に保存
+  ├── lodash@4.17.21/        ← Stored in one place
   └── express@4.18.2/
 
   Project A/node_modules/     Project B/node_modules/
   └── .pnpm/                  └── .pnpm/
       └── lodash@4.17.21         └── lodash@4.17.21
-          → ハードリンク             → ハードリンク
-            (ディスクコピーなし)       (ディスクコピーなし)
+          → hard link                → hard link
+            (no disk copy)             (no disk copy)
 
-  効果: ディスク使用量 50-70% 削減、インストール 2-3倍高速
+  Effect: 50-70% disk reduction, 2-3x faster installs
 
-  node_modules の内部構造:
+  Internal node_modules structure:
   ┌──────────────────────────────────────────────┐
   │ Project/node_modules/                         │
   │ ├── .pnpm/                                   │
   │ │   ├── express@4.18.2/                      │
   │ │   │   └── node_modules/                    │
-  │ │   │       ├── express/ → ハードリンク      │
-  │ │   │       ├── accepts/ → ハードリンク      │
-  │ │   │       └── body-parser/ → ハードリンク  │
+  │ │   │       ├── express/ → hard link         │
+  │ │   │       ├── accepts/ → hard link         │
+  │ │   │       └── body-parser/ → hard link     │
   │ │   └── lodash@4.17.21/                      │
   │ │       └── node_modules/                    │
-  │ │           └── lodash/ → ハードリンク       │
+  │ │           └── lodash/ → hard link          │
   │ ├── express → .pnpm/express@4.18.2/...       │
   │ └── lodash → .pnpm/lodash@4.17.21/...       │
   └──────────────────────────────────────────────┘
 
-  これにより:
-  - express の内部依存に直接アクセスできない（phantom dependencies 防止）
-  - 各パッケージは自分の依存のみ参照可能（厳密な依存解決）
+  This means:
+  - Cannot directly access express's internal dependencies (prevents phantom dependencies)
+  - Each package can only reference its own dependencies (strict dependency resolution)
 ```
 
-### 1.5 yarn (v4/berry) の設定
+### 1.5 yarn (v4/berry) Configuration
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 corepack enable
 corepack prepare yarn@stable --activate
 
-# ─── プロジェクト初期化 ───
-yarn init -2                          # yarn berry プロジェクト作成
-yarn set version stable               # 最新安定版に設定
+# ─── Project initialization ───
+yarn init -2                          # Create a yarn berry project
+yarn set version stable               # Set to latest stable version
 
 # ─── .yarnrc.yml ───
 cat << 'EOF' > .yarnrc.yml
-nodeLinker: node-modules               # PnP を使わない場合
+nodeLinker: node-modules               # When not using PnP
 enableGlobalCache: true
 nmHoistingLimits: workspaces
 EOF
 
-# ─── 基本操作 ───
-yarn install                          # 依存インストール
-yarn add express                      # 依存追加
-yarn add -D typescript                # 開発依存追加
-yarn remove lodash                    # 依存削除
-yarn up --interactive                 # 対話的アップデート
-yarn why lodash                       # 依存関係の確認
-yarn info express                     # パッケージ情報表示
-yarn dlx create-next-app              # npx 相当（一時実行）
+# ─── Basic operations ───
+yarn install                          # Install dependencies
+yarn add express                      # Add dependency
+yarn add -D typescript                # Add dev dependency
+yarn remove lodash                    # Remove dependency
+yarn up --interactive                 # Interactive update
+yarn why lodash                       # Check dependency relationships
+yarn info express                     # Show package info
+yarn dlx create-next-app              # npx equivalent (temporary execution)
 ```
 
-### 1.5.1 yarn の Plug'n'Play (PnP)
+### 1.5.1 yarn Plug'n'Play (PnP)
 
 ```yaml
-# .yarnrc.yml - PnP モードの設定
-nodeLinker: pnp                        # PnP を有効化
-pnpMode: loose                         # loose モード（互換性重視）
-# pnpMode: strict                      # strict モード（厳密）
+# .yarnrc.yml - PnP mode configuration
+nodeLinker: pnp                        # Enable PnP
+pnpMode: loose                         # loose mode (compatibility-focused)
+# pnpMode: strict                      # strict mode
 
-# PnP の動作原理:
-# node_modules ディレクトリを作成しない
-# 代わりに .pnp.cjs (または .pnp.loader.mjs) を生成
-# Node.js のモジュール解決をオーバーライドして直接パッケージを参照
+# How PnP works:
+# Does not create a node_modules directory
+# Instead generates .pnp.cjs (or .pnp.loader.mjs)
+# Overrides Node.js module resolution to reference packages directly
 
-# PnP のメリット:
-# - インストール時間の大幅短縮（ファイルコピー不要）
-# - ディスク使用量の削減
-# - phantom dependencies の完全防止
-# - Zero-Installs（.yarn/cache をコミットして CI 高速化）
+# PnP benefits:
+# - Drastically reduced install time (no file copying)
+# - Reduced disk usage
+# - Complete prevention of phantom dependencies
+# - Zero-Installs (commit .yarn/cache to speed up CI)
 
-# PnP のデメリット:
-# - 一部ツールとの互換性問題（対応が必要）
-# - エディタ統合に追加設定が必要
+# PnP drawbacks:
+# - Compatibility issues with some tools (requires additional setup)
+# - Additional configuration needed for editor integration
 ```
 
 ```bash
-# ─── PnP で Zero-Installs を実現 ───
-# .gitattributes に追加（バイナリとして扱う）
+# ─── Achieve Zero-Installs with PnP ───
+# Add to .gitattributes (treat as binary)
 cat << 'EOF' >> .gitattributes
 .yarn/cache/** binary
 .yarn/releases/** binary
@@ -404,19 +404,19 @@ cat << 'EOF' >> .gitignore
 !.yarn/versions
 EOF
 
-# Zero-Installs の効果:
-# clone 後に yarn install 不要
-# CI のインストールステップが不要（数分の短縮）
+# Zero-Installs effect:
+# No yarn install needed after clone
+# Install step in CI is unnecessary (saves several minutes)
 
-# ─── PnP + VSCode の連携 ───
-yarn dlx @yarnpkg/sdks vscode         # VSCode SDK をインストール
-# → .vscode/settings.json に TypeScript SDK パスが設定される
+# ─── PnP + VSCode integration ───
+yarn dlx @yarnpkg/sdks vscode         # Install VSCode SDK
+# → TypeScript SDK path is configured in .vscode/settings.json
 ```
 
-### 1.5.2 yarn のワークスペース機能
+### 1.5.2 yarn Workspace Features
 
 ```json
-// package.json (ルート)
+// package.json (root)
 {
   "workspaces": [
     "packages/*",
@@ -426,139 +426,139 @@ yarn dlx @yarnpkg/sdks vscode         # VSCode SDK をインストール
 ```
 
 ```bash
-# ─── ワークスペース操作 ───
-yarn workspaces list                   # ワークスペース一覧
-yarn workspace my-app add express      # 特定ワークスペースに依存追加
-yarn workspace my-app run build        # 特定ワークスペースでスクリプト実行
+# ─── Workspace operations ───
+yarn workspaces list                   # List workspaces
+yarn workspace my-app add express      # Add dependency to a specific workspace
+yarn workspace my-app run build        # Run script in a specific workspace
 
-# ─── yarn constraints（依存の制約ルール） ───
-# yarn.config.cjs で制約を定義
+# ─── yarn constraints (dependency constraint rules) ───
+# Define constraints in yarn.config.cjs
 module.exports = {
   async constraints({ Yarn }) {
-    // 全ワークスペースで同じ TypeScript バージョンを強制
+    // Enforce the same TypeScript version across all workspaces
     for (const dep of Yarn.dependencies({ ident: 'typescript' })) {
       dep.update('^5.4.0');
     }
-    // react のバージョンを統一
+    // Unify react version
     for (const dep of Yarn.dependencies({ ident: 'react' })) {
       dep.update('^18.2.0');
     }
   }
 };
 
-# yarn constraints            # 制約チェック
-# yarn constraints --fix      # 自動修正
+# yarn constraints            # Check constraints
+# yarn constraints --fix      # Auto-fix
 ```
 
-### 1.6 Node.js パッケージマネージャーのベンチマーク
+### 1.6 Node.js Package Manager Benchmarks
 
 ```
-npm vs pnpm vs yarn のベンチマーク比較:
+npm vs pnpm vs yarn benchmark comparison:
 
-  テスト環境: 中規模プロジェクト (約200依存)
+  Test environment: medium-sized project (approx. 200 dependencies)
 
-  クリーンインストール (キャッシュあり):
+  Clean install (with cache):
   ┌──────────┬──────────┬──────────┬──────────┐
   │          │   npm    │   pnpm   │   yarn   │
   ├──────────┼──────────┼──────────┼──────────┤
-  │ 時間     │  18.5s   │   6.2s   │   7.8s   │
-  │ ディスク │  245MB   │   98MB   │  112MB   │
+  │ Time     │  18.5s   │   6.2s   │   7.8s   │
+  │ Disk     │  245MB   │   98MB   │  112MB   │
   └──────────┴──────────┴──────────┴──────────┘
 
-  ロックファイルからのインストール (npm ci 相当):
+  Install from lock file (npm ci equivalent):
   ┌──────────┬──────────┬──────────┬──────────┐
   │          │  npm ci  │ pnpm i   │ yarn i   │
   │          │          │ --frozen │          │
   ├──────────┼──────────┼──────────┼──────────┤
-  │ 時間     │  12.3s   │   4.8s   │   5.1s   │
+  │ Time     │  12.3s   │   4.8s   │   5.1s   │
   └──────────┴──────────┴──────────┴──────────┘
 
-  10プロジェクトでの累計ディスク使用量:
+  Cumulative disk usage across 10 projects:
   ┌──────────┬──────────┬──────────┬──────────┐
   │          │   npm    │   pnpm   │   yarn   │
   ├──────────┼──────────┼──────────┼──────────┤
-  │ 合計     │  2.45GB  │  0.35GB  │  1.12GB  │
-  │ 削減率   │   -      │  -86%    │  -54%    │
+  │ Total    │  2.45GB  │  0.35GB  │  1.12GB  │
+  │ Reduction│   -      │  -86%    │  -54%    │
   └──────────┴──────────┴──────────┴──────────┘
 
-  pnpm のディスク効率はコンテンツアドレスストレージによるもの
-  同じパッケージバージョンは1つだけ保存され、ハードリンクで共有
+  pnpm's disk efficiency comes from content-addressed storage
+  The same package version is stored only once and shared via hard links
 ```
 
 ---
 
-## 2. Python パッケージマネージャー
+## 2. Python Package Managers
 
-### 2.1 比較表
+### 2.1 Comparison Table
 
-| 特徴 | pip + venv | Poetry | uv |
-|------|-----------|--------|-----|
-| 速度 | 遅い | 普通 | 超高速 (10-100倍) |
-| 依存解決 | 基本的 | 高度 | 高度 |
-| ロックファイル | なし (手動生成) | poetry.lock | uv.lock |
-| 仮想環境 | 手動作成 | 自動 | 自動 |
-| ビルド | setuptools | 組み込み | 組み込み |
-| pyproject.toml | 部分対応 | 完全対応 | 完全対応 |
-| Python バージョン管理 | なし | なし | あり |
-| スクリプト実行 | なし | poetry run | uv run |
+| Feature | pip + venv | Poetry | uv |
+|---------|-----------|--------|-----|
+| Speed | Slow | Average | Ultra-fast (10-100x) |
+| Dependency resolution | Basic | Advanced | Advanced |
+| Lock file | None (manual generation) | poetry.lock | uv.lock |
+| Virtual environment | Manual creation | Automatic | Automatic |
+| Build | setuptools | Built-in | Built-in |
+| pyproject.toml | Partial support | Full support | Full support |
+| Python version management | No | No | Yes |
+| Script execution | No | poetry run | uv run |
 
-### 2.2 uv (推奨 -- 次世代パッケージマネージャー)
+### 2.2 uv (Recommended -- Next-Generation Package Manager)
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 curl -LsSf https://astral.sh/uv/install.sh | sh
-# または
+# Or
 brew install uv
-# pip 経由
+# Via pip
 pip install uv
 
-# ─── プロジェクト初期化 ───
+# ─── Project initialization ───
 uv init my-project
 cd my-project
 
-# ─── 依存管理 ───
-uv add requests                       # 依存追加
-uv add --dev pytest ruff              # 開発依存追加
-uv add --optional docs sphinx         # オプション依存追加
-uv remove requests                    # 依存削除
-uv lock                               # ロックファイル生成
-uv sync                               # ロックファイルから同期
+# ─── Dependency management ───
+uv add requests                       # Add dependency
+uv add --dev pytest ruff              # Add dev dependencies
+uv add --optional docs sphinx         # Add optional dependency
+uv remove requests                    # Remove dependency
+uv lock                               # Generate lock file
+uv sync                               # Sync from lock file
 
-# ─── スクリプト実行 ───
-uv run python main.py                 # 仮想環境内で実行
-uv run pytest                         # テスト実行
-uv run ruff check .                   # リント実行
+# ─── Script execution ───
+uv run python main.py                 # Run inside virtual environment
+uv run pytest                         # Run tests
+uv run ruff check .                   # Run linter
 
-# ─── Python バージョン管理 (pyenv 不要) ───
-uv python install 3.12                # Python 自体もインストール可能
-uv python pin 3.12                    # プロジェクトに固定
+# ─── Python version management (no pyenv needed) ───
+uv python install 3.12                # Can also install Python itself
+uv python pin 3.12                    # Pin to project
 ```
 
-### 2.2.1 uv の高度な使い方
+### 2.2.1 Advanced uv Usage
 
 ```bash
-# ─── pip 互換モード ───
-# 既存プロジェクトで uv を pip の高速代替として使う
-uv pip install -r requirements.txt    # pip の 10-100倍高速
-uv pip install flask                  # 個別パッケージ
-uv pip compile requirements.in -o requirements.txt  # ロックファイル生成
-uv pip sync requirements.txt          # ロックファイルから同期
+# ─── pip compatibility mode ───
+# Use uv as a fast drop-in replacement for pip in existing projects
+uv pip install -r requirements.txt    # 10-100x faster than pip
+uv pip install flask                  # Individual package
+uv pip compile requirements.in -o requirements.txt  # Generate lock file
+uv pip sync requirements.txt          # Sync from lock file
 
-# ─── uv の仮想環境管理 ───
-uv venv                               # .venv を作成
-uv venv --python 3.12                  # 特定バージョンで作成
-uv venv my-env                         # 名前付き仮想環境
-source .venv/bin/activate              # 有効化（uv run を使えば不要）
+# ─── uv virtual environment management ───
+uv venv                               # Create .venv
+uv venv --python 3.12                  # Create with a specific version
+uv venv my-env                         # Named virtual environment
+source .venv/bin/activate              # Activate (unnecessary if using uv run)
 
-# ─── ツール実行（pipx 代替） ───
-uv tool run ruff check .              # ツールを一時的にインストールして実行
-uv tool install ruff                   # ツールを永続的にインストール
-uv tool list                           # インストール済みツール一覧
-uvx ruff check .                       # uv tool run のショートカット
+# ─── Tool execution (pipx alternative) ───
+uv tool run ruff check .              # Temporarily install and run a tool
+uv tool install ruff                   # Permanently install a tool
+uv tool list                           # List installed tools
+uvx ruff check .                       # Shortcut for uv tool run
 ```
 
 ```toml
-# pyproject.toml - uv プロジェクト設定
+# pyproject.toml - uv project configuration
 
 [project]
 name = "my-project"
@@ -592,13 +592,13 @@ dev-dependencies = [
 ]
 
 [tool.uv.sources]
-# プライベートレジストリ
+# Private registry
 # my-internal-package = { index = "internal" }
 
-# Git リポジトリから直接
+# Directly from Git repository
 # my-lib = { git = "https://github.com/org/my-lib.git", tag = "v1.0.0" }
 
-# ローカルパス（モノレポ内の別パッケージ）
+# Local path (another package within a monorepo)
 # shared-utils = { path = "../shared-utils" }
 
 [build-system]
@@ -606,83 +606,83 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 ```
 
-### 2.2.2 uv のベンチマーク
+### 2.2.2 uv Benchmarks
 
 ```
-uv vs pip vs poetry のインストール速度比較:
+uv vs pip vs poetry install speed comparison:
 
-  テスト: Django プロジェクト（約80依存）
+  Test: Django project (approx. 80 dependencies)
 
-  コールドインストール:
+  Cold install:
   ┌──────────────┬──────────┬──────────┬──────────┐
   │              │   pip    │  poetry  │    uv    │
   ├──────────────┼──────────┼──────────┼──────────┤
-  │ 時間         │  32.5s   │  28.1s   │   1.2s   │
-  │ 速度比       │   1x     │   1.2x   │   27x    │
+  │ Time         │  32.5s   │  28.1s   │   1.2s   │
+  │ Speed ratio  │   1x     │   1.2x   │   27x    │
   └──────────────┴──────────┴──────────┴──────────┘
 
-  ウォームインストール（キャッシュあり）:
+  Warm install (with cache):
   ┌──────────────┬──────────┬──────────┬──────────┐
   │              │   pip    │  poetry  │    uv    │
   ├──────────────┼──────────┼──────────┼──────────┤
-  │ 時間         │  15.8s   │  12.3s   │   0.3s   │
-  │ 速度比       │   1x     │   1.3x   │   53x    │
+  │ Time         │  15.8s   │  12.3s   │   0.3s   │
+  │ Speed ratio  │   1x     │   1.3x   │   53x    │
   └──────────────┴──────────┴──────────┴──────────┘
 
-  依存解決:
+  Dependency resolution:
   ┌──────────────┬──────────┬──────────┬──────────┐
   │              │   pip    │  poetry  │    uv    │
   ├──────────────┼──────────┼──────────┼──────────┤
-  │ 時間         │  8.2s    │  5.1s    │   0.4s   │
+  │ Time         │  8.2s    │  5.1s    │   0.4s   │
   └──────────────┴──────────┴──────────┴──────────┘
 
-  uv が高速な理由:
-  - Rust で実装（pip は Python、Poetry も Python）
-  - 並列ダウンロード・解凍
-  - 効率的な依存解決アルゴリズム（PubGrub）
-  - インテリジェントなキャッシュ
+  Why uv is fast:
+  - Implemented in Rust (pip is Python, Poetry is also Python)
+  - Parallel download and extraction
+  - Efficient dependency resolution algorithm (PubGrub)
+  - Intelligent caching
 ```
 
 ### 2.3 Poetry
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 curl -sSL https://install.python-poetry.org | python3 -
-# または
+# Or
 pipx install poetry
 
-# ─── 設定 ───
-poetry config virtualenvs.in-project true   # .venv をプロジェクト内に作成
-poetry config virtualenvs.prefer-active-python true  # アクティブな Python を優先
+# ─── Configuration ───
+poetry config virtualenvs.in-project true   # Create .venv inside the project
+poetry config virtualenvs.prefer-active-python true  # Prefer the active Python
 
-# ─── プロジェクト初期化 ───
-poetry init                           # 対話的初期化
-poetry new my-project                 # プロジェクトテンプレート作成
-poetry install                        # 依存インストール
+# ─── Project initialization ───
+poetry init                           # Interactive initialization
+poetry new my-project                 # Create project template
+poetry install                        # Install dependencies
 
-# ─── 依存管理 ───
-poetry add requests                   # 依存追加
-poetry add --group dev pytest         # 開発依存追加
-poetry add --group docs sphinx        # ドキュメント依存追加
-poetry remove requests                # 依存削除
-poetry lock                           # ロックファイル更新
-poetry show --outdated                # 更新可能パッケージ
-poetry show --tree                    # 依存ツリー表示
+# ─── Dependency management ───
+poetry add requests                   # Add dependency
+poetry add --group dev pytest         # Add dev dependency
+poetry add --group docs sphinx        # Add docs dependency
+poetry remove requests                # Remove dependency
+poetry lock                           # Update lock file
+poetry show --outdated                # Upgradable packages
+poetry show --tree                    # Show dependency tree
 
-# ─── 実行 ───
+# ─── Execution ───
 poetry run python main.py
-poetry shell                          # 仮想環境を有効化
+poetry shell                          # Activate virtual environment
 
-# ─── ビルド & 公開 ───
-poetry build                          # sdist + wheel ビルド
-poetry publish                        # PyPI に公開
-poetry publish --build                # ビルド + 公開を同時に
+# ─── Build & publish ───
+poetry build                          # Build sdist + wheel
+poetry publish                        # Publish to PyPI
+poetry publish --build                # Build + publish at once
 ```
 
-### 2.3.1 Poetry の pyproject.toml
+### 2.3.1 Poetry pyproject.toml
 
 ```toml
-# pyproject.toml - Poetry 形式
+# pyproject.toml - Poetry format
 
 [tool.poetry]
 name = "my-project"
@@ -717,106 +717,106 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 ```
 
-### 2.4 pip + venv（標準ライブラリのみ）
+### 2.4 pip + venv (Standard Library Only)
 
 ```bash
-# ─── 仮想環境の作成と有効化 ───
+# ─── Create and activate virtual environment ───
 python -m venv .venv
 source .venv/bin/activate             # macOS/Linux
 # .venv\Scripts\activate              # Windows
 
-# ─── 依存管理 ───
-pip install flask                     # パッケージインストール
-pip install -r requirements.txt       # 一括インストール
-pip freeze > requirements.txt         # 現在の依存を出力
+# ─── Dependency management ───
+pip install flask                     # Install package
+pip install -r requirements.txt       # Batch install
+pip freeze > requirements.txt         # Output current dependencies
 
-# ─── pip-compile で再現性を確保 ───
+# ─── Ensure reproducibility with pip-compile ───
 pip install pip-tools
-# requirements.in に直接依存を記述:
+# Write direct dependencies in requirements.in:
 # flask
 # sqlalchemy>=2.0
-pip-compile requirements.in           # ロックファイル生成
-pip-sync requirements.txt             # ロックファイルから同期
+pip-compile requirements.in           # Generate lock file
+pip-sync requirements.txt             # Sync from lock file
 
-# ─── 開発依存と本番依存の分離 ───
+# ─── Separate dev and production dependencies ───
 pip-compile requirements.in -o requirements.txt
 pip-compile requirements-dev.in -o requirements-dev.txt
 ```
 
-### 2.5 Python パッケージマネージャー選定フロー
+### 2.5 Python Package Manager Selection Flow
 
 ```
-Python プロジェクトのパッケージマネージャー選定:
+Python project package manager selection:
 
                     START
                       │
                       ▼
-            新規プロジェクト？ ─── No ──→ 既存ツールを継続
-                   │                     (移行コスト考慮)
+            New project? ─── No ──→ Continue with existing tool
+                   │                     (consider migration cost)
                   Yes
                    │
                    ▼
-            速度が最優先？ ─── Yes ──→ uv
-                   │                  (Rust 製・超高速)
+            Speed top priority? ─── Yes ──→ uv
+                   │                         (Rust-based, ultra-fast)
                   No
                    │
                    ▼
-            プラグインエコシステム
-            が必要？ ──── Yes ──→ Poetry
-                   │               (成熟したエコシステム)
+            Plugin ecosystem
+            needed? ──── Yes ──→ Poetry
+                   │               (mature ecosystem)
                   No
                    │
                    ▼
-            Python バージョンも
-            管理したい？ ──── Yes ──→ uv
-                   │                  (pyenv 不要)
+            Also want to manage
+            Python versions? ──── Yes ──→ uv
+                   │                       (no pyenv needed)
                   No
                    │
                    ▼
-            最小限の依存で
-            済ませたい？ ──── Yes ──→ pip + venv + pip-tools
-                   │                  (標準ライブラリのみ)
+            Minimal dependencies
+            preferred? ──── Yes ──→ pip + venv + pip-tools
+                   │                  (standard library only)
                   No
                    │
                    ▼
-              uv (総合的に推奨)
+              uv (recommended overall)
 ```
 
 ---
 
-## 3. Rust パッケージマネージャー (Cargo)
+## 3. Rust Package Manager (Cargo)
 
-### 3.1 基本操作
+### 3.1 Basic Operations
 
 ```bash
-# ─── プロジェクト作成 ───
-cargo new my-project                  # バイナリプロジェクト
-cargo new --lib my-lib                # ライブラリプロジェクト
-cargo init                            # 既存ディレクトリで初期化
+# ─── Create project ───
+cargo new my-project                  # Binary project
+cargo new --lib my-lib                # Library project
+cargo init                            # Initialize in existing directory
 
-# ─── 依存管理 (Cargo.toml) ───
-cargo add serde --features derive     # 依存追加
-cargo add tokio -F full               # feature flag 付き
-cargo add --dev mockall               # 開発依存
-cargo add --build bindgen             # ビルド依存
-cargo remove serde                    # 依存削除
+# ─── Dependency management (Cargo.toml) ───
+cargo add serde --features derive     # Add dependency
+cargo add tokio -F full               # With feature flags
+cargo add --dev mockall               # Dev dependency
+cargo add --build bindgen             # Build dependency
+cargo remove serde                    # Remove dependency
 
-# ─── ビルド & 実行 ───
-cargo build                           # デバッグビルド
-cargo build --release                 # リリースビルド
-cargo run                             # ビルド + 実行
-cargo run --release                   # リリースモードで実行
-cargo test                            # テスト実行
-cargo test -- --nocapture             # テスト出力を表示
-cargo clippy                          # リント
-cargo clippy -- -D warnings           # 警告をエラーとして扱う
-cargo fmt                             # フォーマット
-cargo fmt -- --check                  # フォーマットチェック（CI用）
-cargo doc --open                      # ドキュメント生成 + ブラウザで開く
-cargo bench                           # ベンチマーク実行
+# ─── Build & run ───
+cargo build                           # Debug build
+cargo build --release                 # Release build
+cargo run                             # Build + run
+cargo run --release                   # Run in release mode
+cargo test                            # Run tests
+cargo test -- --nocapture             # Show test output
+cargo clippy                          # Lint
+cargo clippy -- -D warnings           # Treat warnings as errors
+cargo fmt                             # Format
+cargo fmt -- --check                  # Format check (for CI)
+cargo doc --open                      # Generate docs + open in browser
+cargo bench                           # Run benchmarks
 ```
 
-### 3.2 Cargo.toml の設定
+### 3.2 Cargo.toml Configuration
 
 ```toml
 [package]
@@ -841,26 +841,26 @@ axum = "0.7"
 mockall = "0.12"
 tokio-test = "0.4"
 criterion = { version = "0.5", features = ["html_reports"] }
-insta = "1"                           # スナップショットテスト
+insta = "1"                           # Snapshot testing
 
 [build-dependencies]
-# ビルドスクリプトで使う依存
+# Dependencies used in build scripts
 
 [profile.release]
 lto = true                            # Link-Time Optimization
-codegen-units = 1                     # 1つのコード生成ユニット
-strip = true                          # デバッグ情報を除去
-panic = "abort"                       # パニック時にアボート
-opt-level = 3                         # 最大最適化
+codegen-units = 1                     # Single code generation unit
+strip = true                          # Strip debug info
+panic = "abort"                       # Abort on panic
+opt-level = 3                         # Maximum optimization
 
 [profile.dev]
-opt-level = 1                         # デバッグビルドでも若干の最適化
-# debug = true                        # デバッグ情報（デフォルトで有効）
+opt-level = 1                         # Some optimization even in debug builds
+# debug = true                        # Debug info (enabled by default)
 
 [profile.dev.package."*"]
-opt-level = 2                         # 依存のデバッグビルドを最適化
+opt-level = 2                         # Optimize debug builds of dependencies
 
-# ─── Feature フラグ ───
+# ─── Feature flags ───
 [features]
 default = ["json"]
 json = ["serde_json"]
@@ -868,7 +868,7 @@ full = ["json", "yaml", "toml-support"]
 yaml = ["serde_yaml"]
 toml-support = ["toml"]
 
-# ─── ワークスペース ───
+# ─── Workspace ───
 [workspace]
 members = [
     "crates/core",
@@ -878,41 +878,41 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-# ワークスペース全体で共有する依存バージョン
+# Shared dependency versions across the workspace
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
-### 3.3 Cargo の便利なサブコマンド
+### 3.3 Useful Cargo Subcommands
 
 ```bash
-# ─── cargo-install で追加ツールをインストール ───
-cargo install cargo-watch              # ファイル変更を監視して自動ビルド
-cargo install cargo-expand             # マクロ展開を表示
-cargo install cargo-audit              # 脆弱性チェック
-cargo install cargo-tarpaulin          # コードカバレッジ
-cargo install cargo-nextest            # 高速テストランナー
-cargo install cargo-deny               # 依存ポリシーチェック
-cargo install cargo-udeps              # 未使用依存の検出
-cargo install cargo-bloat              # バイナリサイズ分析
+# ─── Install additional tools with cargo-install ───
+cargo install cargo-watch              # Watch file changes and auto-build
+cargo install cargo-expand             # Show macro expansions
+cargo install cargo-audit              # Vulnerability check
+cargo install cargo-tarpaulin          # Code coverage
+cargo install cargo-nextest            # Fast test runner
+cargo install cargo-deny               # Dependency policy check
+cargo install cargo-udeps              # Detect unused dependencies
+cargo install cargo-bloat              # Binary size analysis
 
-# ─── 使い方 ───
-cargo watch -x test                    # テストを自動実行
-cargo watch -x "run -- --port 8080"    # サーバーを自動再起動
-cargo expand                           # マクロ展開結果を表示
-cargo audit                            # 脆弱性レポート
-cargo nextest run                      # 並列テスト実行
-cargo tarpaulin --out html             # カバレッジレポート生成
-cargo udeps                            # 未使用依存の検出
-cargo bloat --release                  # バイナリサイズの分析
+# ─── Usage ───
+cargo watch -x test                    # Auto-run tests
+cargo watch -x "run -- --port 8080"    # Auto-restart server
+cargo expand                           # Show macro expansion results
+cargo audit                            # Vulnerability report
+cargo nextest run                      # Run tests in parallel
+cargo tarpaulin --out html             # Generate coverage report
+cargo udeps                            # Detect unused dependencies
+cargo bloat --release                  # Analyze binary size
 
-# ─── cargo-deny で依存ポリシーを強制 ───
-cargo deny init                        # deny.toml を生成
-cargo deny check                       # ポリシーチェック
+# ─── Enforce dependency policy with cargo-deny ───
+cargo deny init                        # Generate deny.toml
+cargo deny check                       # Policy check
 ```
 
 ```toml
-# deny.toml - 依存ポリシー設定
+# deny.toml - Dependency policy configuration
 [licenses]
 allow = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC"]
 deny = ["GPL-3.0"]
@@ -920,7 +920,7 @@ deny = ["GPL-3.0"]
 [bans]
 multiple-versions = "warn"
 deny = [
-    { name = "openssl" },              # 代わりに rustls を使用
+    { name = "openssl" },              # Use rustls instead
 ]
 
 [advisories]
@@ -936,104 +936,104 @@ unknown-git = "deny"
 
 ## 4. Homebrew (macOS / Linux)
 
-### 4.1 セットアップと運用
+### 4.1 Setup and Operations
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# ─── 基本操作 ───
-brew install ripgrep fd bat           # CLI ツール
-brew install --cask firefox           # GUI アプリ
-brew update                           # Homebrew 自体を更新
-brew upgrade                          # 全パッケージ更新
-brew upgrade ripgrep                  # 特定パッケージを更新
-brew cleanup                          # 古いバージョン削除
-brew cleanup --prune=7                # 7日以上前のキャッシュを削除
-brew list                             # インストール済み一覧
-brew list --cask                      # cask 一覧
-brew doctor                           # 環境診断
-brew info ripgrep                     # パッケージ情報
-brew deps --tree ripgrep              # 依存ツリー
-brew leaves                           # 他の依存にならないパッケージ一覧
-brew autoremove                       # 不要な依存を自動削除
+# ─── Basic operations ───
+brew install ripgrep fd bat           # CLI tools
+brew install --cask firefox           # GUI apps
+brew update                           # Update Homebrew itself
+brew upgrade                          # Update all packages
+brew upgrade ripgrep                  # Update a specific package
+brew cleanup                          # Remove old versions
+brew cleanup --prune=7                # Remove cache older than 7 days
+brew list                             # List installed packages
+brew list --cask                      # List casks
+brew doctor                           # Diagnose environment
+brew info ripgrep                     # Package info
+brew deps --tree ripgrep              # Dependency tree
+brew leaves                           # List packages not depended on by others
+brew autoremove                       # Auto-remove unnecessary dependencies
 
-# ─── Brewfile でチーム統一 ───
-brew bundle dump                      # 現在の環境を Brewfile に出力
-brew bundle dump --force              # 既存の Brewfile を上書き
-brew bundle install                   # Brewfile からインストール
-brew bundle check                     # Brewfile との差分確認
-brew bundle cleanup                   # Brewfile にないパッケージを削除
+# ─── Unify team with Brewfile ───
+brew bundle dump                      # Export current environment to Brewfile
+brew bundle dump --force              # Overwrite existing Brewfile
+brew bundle install                   # Install from Brewfile
+brew bundle check                     # Check diff with Brewfile
+brew bundle cleanup                   # Remove packages not in Brewfile
 ```
 
 ### 4.2 Brewfile
 
 ```ruby
 # Brewfile
-# brew bundle install で一括インストール
+# Install all at once with: brew bundle install
 
-# ─── タップ ───
+# ─── Taps ───
 tap "homebrew/bundle"
-tap "homebrew/services"               # サービス管理
+tap "homebrew/services"               # Service management
 
-# ─── CLI ツール ───
+# ─── CLI tools ───
 brew "git"
 brew "gh"                             # GitHub CLI
-brew "fnm"                            # Node.js バージョン管理
-brew "mise"                           # 多言語バージョン管理
-brew "ripgrep"                        # 高速 grep
-brew "fd"                             # 高速 find
-brew "bat"                            # cat 代替
-brew "eza"                            # ls 代替
-brew "fzf"                            # ファジーファインダー
-brew "zoxide"                         # cd 代替（学習型）
-brew "jq"                             # JSON パーサー
-brew "yq"                             # YAML パーサー
-brew "delta"                          # git diff 表示
-brew "starship"                       # プロンプト
-brew "tmux"                           # ターミナルマルチプレクサ
-brew "direnv"                         # ディレクトリごとの環境変数
-brew "hyperfine"                      # コマンドベンチマーク
-brew "tokei"                          # コード行数カウント
-brew "dust"                           # du 代替
-brew "bottom"                         # top 代替
-brew "procs"                          # ps 代替
-brew "httpie"                         # HTTP クライアント
-brew "wget"                           # ダウンロード
-brew "tree"                           # ディレクトリツリー
-brew "watch"                          # コマンド定期実行
+brew "fnm"                            # Node.js version manager
+brew "mise"                           # Multi-language version manager
+brew "ripgrep"                        # Fast grep
+brew "fd"                             # Fast find
+brew "bat"                            # cat alternative
+brew "eza"                            # ls alternative
+brew "fzf"                            # Fuzzy finder
+brew "zoxide"                         # cd alternative (learning-based)
+brew "jq"                             # JSON parser
+brew "yq"                             # YAML parser
+brew "delta"                          # git diff viewer
+brew "starship"                       # Prompt
+brew "tmux"                           # Terminal multiplexer
+brew "direnv"                         # Per-directory environment variables
+brew "hyperfine"                      # Command benchmark
+brew "tokei"                          # Line count tool
+brew "dust"                           # du alternative
+brew "bottom"                         # top alternative
+brew "procs"                          # ps alternative
+brew "httpie"                         # HTTP client
+brew "wget"                           # Download tool
+brew "tree"                           # Directory tree
+brew "watch"                          # Periodic command execution
 
-# ─── 開発ツール ───
-brew "docker"                         # コンテナ
-brew "docker-compose"                 # コンテナオーケストレーション
+# ─── Development tools ───
+brew "docker"                         # Containers
+brew "docker-compose"                 # Container orchestration
 brew "kubectl"                        # Kubernetes CLI
-brew "helm"                           # Kubernetes パッケージマネージャー
+brew "helm"                           # Kubernetes package manager
 brew "terraform"                      # IaC
 brew "awscli"                         # AWS CLI
-brew "uv"                             # Python パッケージマネージャー
+brew "uv"                             # Python package manager
 
-# ─── データベース ───
+# ─── Databases ───
 brew "postgresql@16"                  # PostgreSQL
 brew "redis"                          # Redis
 brew "sqlite"                         # SQLite
 
-# ─── GUI アプリ ───
+# ─── GUI apps ───
 cask "visual-studio-code"
-cask "cursor"                         # AI エディタ
+cask "cursor"                         # AI editor
 cask "iterm2"
-cask "warp"                           # AI ターミナル
+cask "warp"                           # AI terminal
 cask "docker"                         # Docker Desktop
 cask "firefox"
 cask "google-chrome"
-cask "raycast"                        # Spotlight 代替
-cask "1password"                      # パスワード管理
-cask "figma"                          # デザインツール
-cask "notion"                         # ドキュメント
-cask "slack"                          # チャット
-cask "zoom"                           # ビデオ会議
-cask "obsidian"                       # ノートアプリ
+cask "raycast"                        # Spotlight alternative
+cask "1password"                      # Password manager
+cask "figma"                          # Design tool
+cask "notion"                         # Documentation
+cask "slack"                          # Chat
+cask "zoom"                           # Video conferencing
+cask "obsidian"                       # Note-taking app
 
-# ─── フォント ───
+# ─── Fonts ───
 cask "font-jetbrains-mono-nerd-font"
 cask "font-fira-code-nerd-font"
 cask "font-hack-nerd-font"
@@ -1043,104 +1043,104 @@ cask "font-hack-nerd-font"
 # mas "Keynote", id: 409183694
 ```
 
-### 4.3 Homebrew のサービス管理
+### 4.3 Homebrew Service Management
 
 ```bash
-# ─── サービスの起動・停止 ───
-brew services start postgresql@16     # PostgreSQL を起動
-brew services stop postgresql@16      # 停止
-brew services restart postgresql@16   # 再起動
-brew services list                    # サービス一覧
-brew services info postgresql@16      # サービス情報
+# ─── Start/stop services ───
+brew services start postgresql@16     # Start PostgreSQL
+brew services stop postgresql@16      # Stop
+brew services restart postgresql@16   # Restart
+brew services list                    # List services
+brew services info postgresql@16      # Service info
 
-# ─── ログイン時自動起動 ───
-# brew services start で自動的に LaunchAgent が設定される
-# 手動で無効化する場合:
+# ─── Auto-start at login ───
+# brew services start automatically configures a LaunchAgent
+# To disable manually:
 brew services stop postgresql@16
 ```
 
-### 4.4 Homebrew のトラブルシューティング
+### 4.4 Homebrew Troubleshooting
 
 ```bash
-# ─── よくある問題と解決策 ───
+# ─── Common problems and solutions ───
 
-# 問題: brew update が失敗する
-brew update-reset                     # Homebrew リポジトリをリセット
+# Problem: brew update fails
+brew update-reset                     # Reset Homebrew repository
 
-# 問題: Permission denied
+# Problem: Permission denied
 sudo chown -R $(whoami) /opt/homebrew  # Apple Silicon Mac
 sudo chown -R $(whoami) /usr/local     # Intel Mac
 
-# 問題: cask のインストールがブロックされる（Gatekeeper）
-# システム環境設定 > プライバシーとセキュリティ で許可
-# または:
+# Problem: cask installation blocked (Gatekeeper)
+# Allow in System Preferences > Privacy & Security
+# Or:
 xattr -cr /Applications/SomeApp.app
 
-# 問題: 古いバージョンを使いたい
+# Problem: Want to use an older version
 brew tap homebrew/cask-versions
-brew install --cask firefox@esr       # ESR 版
+brew install --cask firefox@esr       # ESR version
 
-# 問題: ディスク使用量が多い
-brew cleanup --prune=0                # 全てのキャッシュを削除
-du -sh $(brew --cache)                # キャッシュサイズ確認
+# Problem: High disk usage
+brew cleanup --prune=0                # Remove all cache
+du -sh $(brew --cache)                # Check cache size
 ```
 
 ---
 
-## 5. パッケージマネージャー選定フロー
+## 5. Package Manager Selection Flow
 
 ```
-Node.js プロジェクトのパッケージマネージャー選定:
+Node.js project package manager selection:
 
                     START
                       │
                       ▼
-              モノレポ？ ─── Yes ──→ pnpm
-                   │                  (ワークスペース最強)
+              Monorepo? ─── Yes ──→ pnpm
+                   │                  (best workspace support)
                   No
                    │
                    ▼
-          ディスク容量が
-          気になる？ ─── Yes ──→ pnpm
-                   │              (コンテンツアドレス)
+          Disk space a
+          concern? ─── Yes ──→ pnpm
+                   │              (content-addressed)
                   No
                    │
                    ▼
-          Zero-Installs が
-          必要？ ─── Yes ──→ yarn (PnP)
-                   │            (CI 高速化)
+          Zero-Installs
+          needed? ─── Yes ──→ yarn (PnP)
+                   │            (faster CI)
                   No
                    │
                    ▼
-          チームに npm 以外の
-          経験がない？ ─── Yes ──→ npm
-                   │               (追加学習不要)
+          Team has no experience
+          beyond npm? ─── Yes ──→ npm
+                   │               (no additional learning)
                   No
                    │
                    ▼
-              pnpm (総合的に推奨)
+              pnpm (recommended overall)
 ```
 
 ---
 
-## 6. Corepack によるバージョン統一
+## 6. Version Unification with Corepack
 
 ```bash
-# Corepack は Node.js 16.13+ に同梱
+# Corepack is bundled with Node.js 16.13+
 corepack enable
 
-# package.json で指定
+# Specify in package.json
 {
   "packageManager": "pnpm@9.1.0"
 }
 
-# チームメンバーが npm install を実行すると:
-# → "This project is configured to use pnpm" とエラーで教えてくれる
-# → 正しいバージョンの pnpm が自動で使われる
+# When a team member runs npm install:
+# → Notified with "This project is configured to use pnpm"
+# → The correct version of pnpm is used automatically
 ```
 
 ```
-Corepack の動作フロー:
+Corepack operation flow:
 
   package.json
   "packageManager": "pnpm@9.1.0"
@@ -1148,38 +1148,38 @@ Corepack の動作フロー:
          ▼
   ┌──────────────────────────────┐
   │  corepack                     │
-  │  (Node.js 同梱のプロキシ)      │
+  │  (proxy bundled with Node.js) │
   │                                │
-  │  pnpm コマンド実行時:          │
-  │  1. package.json を確認        │
-  │  2. 指定バージョンを検証       │
-  │  3. 未インストールなら自動DL   │
-  │  4. 正しいバージョンで実行     │
+  │  When running pnpm command:   │
+  │  1. Check package.json        │
+  │  2. Validate specified version│
+  │  3. Auto-download if missing  │
+  │  4. Run with correct version  │
   └──────────────────────────────┘
 ```
 
-### 6.1 Corepack の詳細設定
+### 6.1 Corepack Detailed Configuration
 
 ```bash
-# ─── Corepack の有効化と設定 ───
-corepack enable                        # Corepack を有効化
-corepack enable pnpm                   # pnpm のみ有効化
-corepack enable yarn                   # yarn のみ有効化
+# ─── Enable and configure Corepack ───
+corepack enable                        # Enable Corepack
+corepack enable pnpm                   # Enable only pnpm
+corepack enable yarn                   # Enable only yarn
 
-# ─── パッケージマネージャーの準備 ───
-corepack prepare pnpm@9.1.0 --activate # 特定バージョンを準備
+# ─── Prepare package managers ───
+corepack prepare pnpm@9.1.0 --activate # Prepare a specific version
 corepack prepare yarn@4.1.0 --activate
 
-# ─── package.json への記述 ───
-# npm init で自動設定されないため手動で追加
+# ─── Add to package.json ───
+# Not auto-configured by npm init, so add manually
 {
   "packageManager": "pnpm@9.1.0+sha512.xxxxx"
 }
 
-# ハッシュ付きで指定すると整合性チェックが行われる
-# corepack use pnpm@9.1.0 で自動生成される
+# Specifying with hash enables integrity checks
+# Auto-generated with: corepack use pnpm@9.1.0
 
-# ─── CI での Corepack ───
+# ─── Corepack in CI ───
 # GitHub Actions
 - uses: actions/setup-node@v4
   with:
@@ -1187,47 +1187,47 @@ corepack prepare yarn@4.1.0 --activate
 - run: corepack enable
 - run: pnpm install --frozen-lockfile
 
-# ─── Corepack のオフラインモード ───
-# CI でネットワークアクセスを制限する場合
+# ─── Corepack offline mode ───
+# When restricting network access in CI
 corepack prepare pnpm@9.1.0 --activate
-corepack pack                          # バンドルを作成
-# → corepack.tgz を CI にキャッシュ
+corepack pack                          # Create bundle
+# → Cache corepack.tgz in CI
 
-# ─── 間違ったパッケージマネージャーの使用を防ぐ ───
-# package.json に追加:
+# ─── Prevent use of wrong package manager ───
+# Add to package.json:
 {
   "scripts": {
     "preinstall": "npx only-allow pnpm"
   }
 }
-# → npm install や yarn install を実行するとエラーになる
+# → Running npm install or yarn install will produce an error
 ```
 
 ---
 
-## 7. セキュリティとサプライチェーン対策
+## 7. Security and Supply Chain Countermeasures
 
-### 7.1 npm / pnpm のセキュリティ設定
+### 7.1 npm / pnpm Security Configuration
 
 ```bash
-# ─── 脆弱性の定期チェック ───
-npm audit                              # 脆弱性レポート
-pnpm audit                             # pnpm 版
-yarn npm audit                         # yarn 版
+# ─── Regular vulnerability checks ───
+npm audit                              # Vulnerability report
+pnpm audit                             # pnpm version
+yarn npm audit                         # yarn version
 
-# ─── CI でのセキュリティチェック ───
-npm audit --audit-level=high           # high 以上で失敗
-npm audit --omit=dev                   # 本番依存のみチェック
+# ─── Security checks in CI ───
+npm audit --audit-level=high           # Fail on high severity and above
+npm audit --omit=dev                   # Check only production dependencies
 
-# ─── Socket.dev との連携 ───
-# サプライチェーン攻撃の検知に特化したツール
-npx socket-security audit              # Socket.dev による分析
+# ─── Integration with Socket.dev ───
+# A tool specialized in detecting supply chain attacks
+npx socket-security audit              # Analysis by Socket.dev
 
-# ─── npm provenance（出所証明） ───
-# GitHub Actions からの公開時に SLSA provenance を付与
+# ─── npm provenance (proof of origin) ───
+# Attach SLSA provenance when publishing from GitHub Actions
 # npm publish --provenance
 
-# ─── lockfile-lint でロックファイルを検証 ───
+# ─── Validate lock files with lockfile-lint ───
 npx lockfile-lint \
   --path pnpm-lock.yaml \
   --type pnpm \
@@ -1235,87 +1235,94 @@ npx lockfile-lint \
   --allowed-schemes "https:"
 ```
 
-### 7.2 サプライチェーン攻撃の防御
+### 7.2 Defense Against Supply Chain Attacks
 
 ```
-サプライチェーン攻撃のベクトルと対策:
+Supply chain attack vectors and countermeasures:
 
-  1. Typosquatting（タイポスクワッティング）
+  1. Typosquatting
   ┌──────────────────────────────────────────────┐
-  │ 攻撃: 類似名パッケージの公開                    │
-  │   例: lodash → lodahs, lod-ash                │
+  │ Attack: Publish a package with a similar name  │
+  │   e.g.: lodash → lodahs, lod-ash              │
   │                                                │
-  │ 対策:                                          │
-  │   - パッケージ名をコピー&ペースト               │
-  │   - npm info <package> で確認してからインストール│
-  │   - Socket.dev などの検知ツール導入              │
+  │ Countermeasures:                               │
+  │   - Copy & paste package names                 │
+  │   - Verify with npm info <package> before      │
+  │     installing                                 │
+  │   - Introduce detection tools like Socket.dev  │
   └──────────────────────────────────────────────┘
 
-  2. Dependency Confusion（依存関係混乱攻撃）
+  2. Dependency Confusion
   ┌──────────────────────────────────────────────┐
-  │ 攻撃: 社内パッケージ名で公開レジストリに同名公開│
-  │   → npm が公開レジストリのバージョンを優先        │
+  │ Attack: Publish a package with the same name  │
+  │   as an internal package on the public        │
+  │   registry                                    │
+  │   → npm prioritizes the public registry       │
   │                                                │
-  │ 対策:                                          │
-  │   - .npmrc でスコープとレジストリを明示設定     │
+  │ Countermeasures:                               │
+  │   - Explicitly configure scopes and registries │
+  │     in .npmrc                                  │
   │   @mycompany:registry=https://internal-npm/    │
-  │   - パッケージ名にスコープを必ず付ける          │
+  │   - Always use scopes in package names         │
   │   @mycompany/my-package                        │
   └──────────────────────────────────────────────┘
 
   3. Malicious postinstall scripts
   ┌──────────────────────────────────────────────┐
-  │ 攻撃: postinstall スクリプトで悪意のあるコード │
-  │   → npm install 時に自動実行                   │
+  │ Attack: Malicious code in postinstall script  │
+  │   → Auto-executed during npm install          │
   │                                                │
-  │ 対策:                                          │
-  │   - .npmrc: ignore-scripts=true                │
-  │   - 信頼できるパッケージのスクリプトのみ許可    │
-  │   - pnpm の onlyBuiltDependencies で制御       │
+  │ Countermeasures:                               │
+  │   - .npmrc: ignore-scripts=true               │
+  │   - Allow scripts only for trusted packages   │
+  │   - Control with pnpm's onlyBuiltDependencies │
   └──────────────────────────────────────────────┘
 
-  4. Compromised Maintainer（メンテナアカウント侵害）
+  4. Compromised Maintainer
   ┌──────────────────────────────────────────────┐
-  │ 攻撃: メンテナのアカウントが乗っ取られ         │
-  │   → 正規パッケージに悪意のあるバージョン公開    │
+  │ Attack: Maintainer account is hijacked        │
+  │   → A malicious version is published to the   │
+  │     legitimate package                        │
   │                                                │
-  │ 対策:                                          │
-  │   - ロックファイルの差分レビュー               │
-  │   - npm audit signatures で署名検証            │
-  │   - 依存の自動更新に注意（Dependabot PR は要確認）│
-  │   - save-exact=true でバージョンを固定          │
+  │ Countermeasures:                               │
+  │   - Review lock file diffs                    │
+  │   - Verify signatures with npm audit          │
+  │     signatures                                │
+  │   - Be cautious with auto-updates             │
+  │     (Dependabot PRs require manual review)    │
+  │   - Pin versions with save-exact=true         │
   └──────────────────────────────────────────────┘
 ```
 
-### 7.3 Python のセキュリティ対策
+### 7.3 Python Security Measures
 
 ```bash
-# ─── pip-audit（脆弱性チェック） ───
+# ─── pip-audit (vulnerability check) ───
 pip install pip-audit
-pip-audit                              # 現在の環境の脆弱性チェック
-pip-audit -r requirements.txt          # requirements.txt のチェック
+pip-audit                              # Check vulnerabilities in current environment
+pip-audit -r requirements.txt          # Check requirements.txt
 
-# ─── uv での脆弱性チェック ───
-# uv は依存解決時に脆弱性を自動チェックする設定が可能
+# ─── Vulnerability check with uv ───
+# uv can be configured to automatically check vulnerabilities during dependency resolution
 
-# ─── safety（Python 脆弱性データベース） ───
+# ─── safety (Python vulnerability database) ───
 pip install safety
-safety check                           # 脆弱性チェック
-safety check -r requirements.txt       # ファイル指定
+safety check                           # Vulnerability check
+safety check -r requirements.txt       # Specify a file
 
-# ─── ハッシュ検証 ───
-# requirements.txt にハッシュを含めることで改竄を検知
+# ─── Hash verification ───
+# Including hashes in requirements.txt detects tampering
 pip install --require-hashes -r requirements.txt
 
-# uv pip compile で自動ハッシュ付与
+# Auto-generate hashes with uv pip compile
 uv pip compile requirements.in --generate-hashes -o requirements.txt
 ```
 
 ---
 
-## 8. モノレポでのパッケージ管理
+## 8. Package Management in Monorepos
 
-### 8.1 pnpm ワークスペース
+### 8.1 pnpm Workspaces
 
 ```yaml
 # pnpm-workspace.yaml
@@ -1326,17 +1333,17 @@ packages:
 ```
 
 ```bash
-# ─── ワークスペース操作 ───
-pnpm install                           # 全ワークスペースの依存をインストール
-pnpm add -D typescript -w              # ルートに依存追加
-pnpm add express --filter my-app       # 特定ワークスペースに依存追加
-pnpm run build --filter my-app         # 特定ワークスペースでビルド
-pnpm run build --filter "./packages/*" # パターンマッチでビルド
-pnpm run test -r                       # 全ワークスペースでテスト（再帰）
-pnpm run build --filter my-app...      # my-app とその依存を全てビルド
-pnpm run build --filter ...my-app      # my-app に依存するものを全てビルド
+# ─── Workspace operations ───
+pnpm install                           # Install dependencies for all workspaces
+pnpm add -D typescript -w              # Add dependency to root
+pnpm add express --filter my-app       # Add dependency to a specific workspace
+pnpm run build --filter my-app         # Build in a specific workspace
+pnpm run build --filter "./packages/*" # Build with pattern matching
+pnpm run test -r                       # Run tests in all workspaces (recursive)
+pnpm run build --filter my-app...      # Build my-app and all its dependencies
+pnpm run build --filter ...my-app      # Build everything that depends on my-app
 
-# ─── ワークスペース間の依存 ───
+# ─── Dependencies between workspaces ───
 # packages/my-lib/package.json
 {
   "name": "@myproject/my-lib",
@@ -1346,11 +1353,11 @@ pnpm run build --filter ...my-app      # my-app に依存するものを全て�
 # apps/my-app/package.json
 {
   "dependencies": {
-    "@myproject/my-lib": "workspace:*"  # ワークスペース内の最新版を参照
+    "@myproject/my-lib": "workspace:*"  # Reference the latest version in workspace
   }
 }
 
-# ─── カタログ機能（バージョン統一） ───
+# ─── Catalog feature (version unification) ───
 # pnpm-workspace.yaml
 packages:
   - "packages/*"
@@ -1361,7 +1368,7 @@ catalog:
   typescript: "^5.4.0"
   vitest: "^1.3.0"
 
-# 各パッケージで catalog: プレフィックスを使用
+# Use the catalog: prefix in each package
 # packages/my-app/package.json
 {
   "dependencies": {
@@ -1371,7 +1378,7 @@ catalog:
 }
 ```
 
-### 8.2 Turborepo との組み合わせ
+### 8.2 Combination with Turborepo
 
 ```json
 // turbo.json
@@ -1399,36 +1406,36 @@ catalog:
 ```
 
 ```bash
-# ─── Turborepo の基本操作 ───
-npx turbo run build                    # 全パッケージをビルド（依存順・キャッシュ付き）
-npx turbo run test --filter=my-app     # 特定パッケージのテスト
-npx turbo run lint test build          # 複数タスクを依存順に実行
-npx turbo run build --dry-run          # 実行計画を表示（実行はしない）
-npx turbo run build --graph            # 依存グラフを表示
+# ─── Basic Turborepo operations ───
+npx turbo run build                    # Build all packages (dependency-ordered, with cache)
+npx turbo run test --filter=my-app     # Test a specific package
+npx turbo run lint test build          # Run multiple tasks in dependency order
+npx turbo run build --dry-run          # Show execution plan (without running)
+npx turbo run build --graph            # Show dependency graph
 ```
 
-### 8.3 Nx との組み合わせ
+### 8.3 Combination with Nx
 
 ```bash
-# ─── Nx の初期化 ───
-npx nx init                            # 既存プロジェクトに Nx を追加
+# ─── Initialize Nx ───
+npx nx init                            # Add Nx to an existing project
 
-# ─── 基本操作 ───
-npx nx build my-app                    # 特定プロジェクトのビルド
-npx nx run-many -t build               # 全プロジェクトのビルド
-npx nx affected -t test                # 変更の影響を受けるプロジェクトのテスト
-npx nx graph                           # 依存グラフの可視化
+# ─── Basic operations ───
+npx nx build my-app                    # Build a specific project
+npx nx run-many -t build               # Build all projects
+npx nx affected -t test                # Test projects affected by changes
+npx nx graph                           # Visualize dependency graph
 
-# ─── キャッシュ ───
-# Nx はビルド結果をキャッシュし、変更がない場合はキャッシュを返す
-# リモートキャッシュ（Nx Cloud）を使うとチーム全体で共有可能
+# ─── Caching ───
+# Nx caches build results and returns cached output when there are no changes
+# Using remote cache (Nx Cloud) allows sharing across the team
 ```
 
 ---
 
-## 9. プライベートレジストリ
+## 9. Private Registries
 
-### 9.1 npm プライベートレジストリ
+### 9.1 npm Private Registry
 
 ```bash
 # ─── GitHub Packages ───
@@ -1442,185 +1449,185 @@ npx nx graph                           # 依存グラフの可視化
 //npm.mycompany.com/:_authToken=${NPM_TOKEN}
 always-auth=true
 
-# ─── Verdaccio（セルフホスト） ───
-# Docker で起動
+# ─── Verdaccio (self-hosted) ───
+# Start with Docker
 docker run -d --name verdaccio -p 4873:4873 verdaccio/verdaccio
 
 # .npmrc
 registry=http://localhost:4873/
-# プロキシ設定（不在のパッケージは npmjs.org にフォールバック）
+# Proxy settings (falls back to npmjs.org for absent packages)
 ```
 
-### 9.2 Python プライベートレジストリ
+### 9.2 Python Private Registry
 
 ```bash
-# ─── pip の設定 ───
+# ─── pip configuration ───
 pip install my-package --index-url https://pypi.mycompany.com/simple/
 pip install my-package --extra-index-url https://pypi.mycompany.com/simple/
 
-# ─── uv の設定 ───
+# ─── uv configuration ───
 # pyproject.toml
 [tool.uv]
 index-url = "https://pypi.mycompany.com/simple/"
 extra-index-url = ["https://pypi.org/simple/"]
 
-# ─── Poetry の設定 ───
+# ─── Poetry configuration ───
 poetry config repositories.mycompany https://pypi.mycompany.com/simple/
 poetry config http-basic.mycompany username password
 ```
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### 10.1 ロックファイルをコミットしない
+### 10.1 Not Committing Lock Files
 
 ```
-❌ アンチパターン: .gitignore にロックファイルを追加
+Anti-pattern: Adding lock files to .gitignore
 
   .gitignore:
-    package-lock.json    # ← NG
-    pnpm-lock.yaml       # ← NG
+    package-lock.json    # ← Bad
+    pnpm-lock.yaml       # ← Bad
 
-問題:
-  - チーム内でインストールされるバージョンがバラバラ
-  - CI と開発環境で異なる依存バージョン
-  - 再現不能なバグの原因
+Problems:
+  - Different versions installed across team members
+  - Different dependency versions between CI and dev environments
+  - Source of non-reproducible bugs
 
-✅ 正しいアプローチ:
-  - ロックファイルは必ずコミット
-  - CI では npm ci / pnpm install --frozen-lockfile を使用
-  - ロックファイルの差分レビューでセキュリティチェック
+Correct approach:
+  - Always commit lock files
+  - Use npm ci / pnpm install --frozen-lockfile in CI
+  - Security check by reviewing lock file diffs
 ```
 
-### 10.2 グローバルインストールの乱用
+### 10.2 Overusing Global Installs
 
 ```
-❌ アンチパターン: npm install -g でプロジェクトツールを入れる
+Anti-pattern: Installing project tools with npm install -g
 
   npm install -g eslint typescript ts-node
 
-問題:
-  - プロジェクト間でバージョン競合
-  - チームメンバーと異なるバージョン
-  - CI で再現できない
+Problems:
+  - Version conflicts between projects
+  - Different versions from team members
+  - Cannot reproduce in CI
 
-✅ 正しいアプローチ:
-  - devDependencies に入れて npx で実行
+Correct approach:
+  - Add to devDependencies and run with npx
   - npm install -D eslint typescript
   - npx eslint .  /  pnpm exec eslint .
-  - package.json の scripts に定義
+  - Define in package.json scripts
 
-例外（グローバルインストールが適切なケース）:
-  - パッケージマネージャー自体: pnpm, yarn
-  - プロジェクト横断ツール: vercel, netlify-cli
-  - シェル統合ツール: nvm, fnm
+Exceptions (cases where global install is appropriate):
+  - Package managers themselves: pnpm, yarn
+  - Cross-project tools: vercel, netlify-cli
+  - Shell integration tools: nvm, fnm
 ```
 
-### 10.3 node_modules をコミットする
+### 10.3 Committing node_modules
 
 ```
-❌ アンチパターン: node_modules をリポジトリにコミット
+Anti-pattern: Committing node_modules to the repository
 
-問題:
-  - リポジトリサイズが巨大化（数百MB～数GB）
-  - clone / pull が極端に遅くなる
-  - OS / アーキテクチャ依存のバイナリが含まれる
-  - ロックファイルの意味がなくなる
+Problems:
+  - Repository size explodes (hundreds of MB to several GB)
+  - clone / pull becomes extremely slow
+  - Contains OS / architecture-dependent binaries
+  - Lock files become meaningless
 
-✅ 正しいアプローチ:
-  .gitignore に追加:
+Correct approach:
+  Add to .gitignore:
     node_modules/
     .venv/
     __pycache__/
     target/          # Rust
 
-  CI では毎回クリーンインストール:
+  Do a clean install every time in CI:
     npm ci / pnpm install --frozen-lockfile
 ```
 
-### 10.4 バージョン範囲を広く取りすぎる
+### 10.4 Overly Wide Version Ranges
 
 ```
-❌ アンチパターン: dependencies でワイルドカードや広すぎる範囲を指定
+Anti-pattern: Specifying wildcards or too-wide ranges in dependencies
 
   {
     "dependencies": {
-      "express": "*",              # 任意のバージョン
-      "lodash": ">=4.0.0",        # 4.x 以上なら何でも
-      "react": "^17 || ^18"       # 複数メジャーバージョン
+      "express": "*",              # Any version
+      "lodash": ">=4.0.0",        # Anything 4.x or above
+      "react": "^17 || ^18"       # Multiple major versions
     }
   }
 
-問題:
-  - ロックファイルなしだとインストールのたびに異なるバージョン
-  - 破壊的変更を含むバージョンがインストールされる可能性
-  - セキュリティ脆弱性のあるバージョンが入る可能性
+Problems:
+  - Without a lock file, a different version is installed every time
+  - Risk of installing versions with breaking changes
+  - Risk of installing versions with security vulnerabilities
 
-✅ 正しいアプローチ:
+Correct approach:
   {
     "dependencies": {
-      "express": "4.18.2",         # 正確なバージョン (save-exact)
-      "lodash": "^4.17.21",       # パッチ/マイナー更新のみ許可
-      "react": "^18.2.0"          # 1つのメジャーバージョン
+      "express": "4.18.2",         # Exact version (save-exact)
+      "lodash": "^4.17.21",       # Allow patch/minor updates only
+      "react": "^18.2.0"          # One major version
     }
   }
 ```
 
-### 10.5 複数のロックファイルを混在させる
+### 10.5 Mixing Multiple Lock Files
 
 ```
-❌ アンチパターン: 同一プロジェクトに複数のロックファイル
+Anti-pattern: Multiple lock files in the same project
 
   my-project/
   ├── package-lock.json   # npm
   ├── pnpm-lock.yaml      # pnpm
   └── yarn.lock           # yarn
 
-問題:
-  - どのパッケージマネージャーを使うべきか不明
-  - ロックファイル間で依存バージョンが異なる
-  - CI での挙動が予測不能
+Problems:
+  - Unclear which package manager to use
+  - Different dependency versions between lock files
+  - Unpredictable CI behavior
 
-✅ 正しいアプローチ:
-  - 1つのパッケージマネージャーに統一
-  - 不要なロックファイルを削除して .gitignore に追加
-  - package.json の packageManager フィールドで明示
-  - "preinstall": "npx only-allow pnpm" で強制
+Correct approach:
+  - Unify to one package manager
+  - Remove unnecessary lock files and add to .gitignore
+  - Explicitly state with the packageManager field in package.json
+  - Enforce with "preinstall": "npx only-allow pnpm"
 ```
 
 ---
 
 ## 11. FAQ
 
-### Q1: npm と pnpm、チーム導入するならどちら？
+### Q1: Between npm and pnpm, which should be introduced to a team?
 
-**A:** 新規プロジェクトなら pnpm を推奨する。理由は以下の通り。
-- ディスク使用量 50-70% 削減
-- インストール速度 2-3倍
-- 厳密な依存解決（phantom dependencies 防止）
-- Corepack で npm との共存も容易
+**A:** pnpm is recommended for new projects. Reasons are as follows.
+- 50-70% disk usage reduction
+- 2-3x faster installs
+- Strict dependency resolution (prevents phantom dependencies)
+- Easy coexistence with npm via Corepack
 
-既存プロジェクトで npm を使っている場合、`pnpm import` で `package-lock.json` から `pnpm-lock.yaml` に変換可能。
+For existing projects using npm, you can convert from `package-lock.json` to `pnpm-lock.yaml` with `pnpm import`.
 
-### Q2: uv は Poetry を置き換えられる？
+### Q2: Can uv replace Poetry?
 
-**A:** 多くのケースでは置き換え可能。uv は Poetry と比較して 10-100倍高速で、`pyproject.toml` を共通フォーマットとして使える。ただし Poetry のプラグインエコシステムに依存している場合は段階的な移行を推奨。2025年時点で uv は急速に成熟しており、新規プロジェクトでは uv がファーストチョイス。
+**A:** In most cases, yes. uv is 10-100x faster than Poetry and uses `pyproject.toml` as a common format. However, if you depend on Poetry's plugin ecosystem, a gradual migration is recommended. As of 2025, uv is maturing rapidly, and for new projects, uv is the first choice.
 
-### Q3: Brewfile はどこに置くべき？
+### Q3: Where should Brewfile be placed?
 
-**A:** 2つのパターンがある。
-1. **dotfiles リポジトリ** -- 個人の開発環境再構築用。全マシンで共通のツールセット。
-2. **プロジェクトリポジトリ** -- チーム全員が必要なツールのみ記述。`scripts/setup.sh` から `brew bundle install` を呼ぶ。
+**A:** There are two patterns.
+1. **dotfiles repository** -- For rebuilding personal development environments. Common toolset across all machines.
+2. **Project repository** -- Describe only the tools all team members need. Call `brew bundle install` from `scripts/setup.sh`.
 
-### Q4: pnpm の shamefully-hoist はいつ使うべき？
+### Q4: When should pnpm's shamefully-hoist be used?
 
-**A:** 基本的には使わないべき。`shamefully-hoist=true` は npm と同じフラットな node_modules を作成し、phantom dependencies を許してしまう。ただし、以下のケースではやむを得ず使用する。
-- 古いパッケージが正しく依存を宣言していない場合
-- React Native など特定のフレームワークが要求する場合
-- 段階的な npm → pnpm 移行の初期段階
+**A:** Basically, it should not be used. `shamefully-hoist=true` creates a flat node_modules like npm and allows phantom dependencies. However, it may be unavoidable in the following cases:
+- When an old package does not correctly declare its dependencies
+- When a specific framework such as React Native requires it
+- During the initial stage of a gradual npm → pnpm migration
 
-代替策として `public-hoist-pattern` で特定パッケージのみ巻き上げる方がよい。
+As an alternative, it is better to hoist only specific packages using `public-hoist-pattern`.
 
 ```
 # .npmrc
@@ -1628,112 +1635,112 @@ public-hoist-pattern[]=*eslint*
 public-hoist-pattern[]=*prettier*
 ```
 
-### Q5: Cargo.lock はライブラリプロジェクトでもコミットすべき？
+### Q5: Should Cargo.lock be committed even for library projects?
 
-**A:** はい、Cargo.lock はライブラリプロジェクトでもコミットすることが推奨されている（Rust 公式ガイドラインの変更により）。ただし、ライブラリの利用者は自身の Cargo.lock を使用するため、ライブラリの Cargo.lock は開発時の再現性のためにのみ使われる。
+**A:** Yes, committing Cargo.lock is recommended even for library projects (per a change in Rust's official guidelines). However, since library consumers use their own Cargo.lock, the library's Cargo.lock is only used for reproducibility during development.
 
-### Q6: npm ci と npm install の違いは？
+### Q6: What is the difference between npm ci and npm install?
 
-**A:** 主な違いは以下の通り。
+**A:** The main differences are as follows.
 
 | | npm install | npm ci |
 |---|---|---|
-| ロックファイル | 更新される場合がある | 厳密に従う（不一致ならエラー） |
-| node_modules | 差分更新 | 削除して再作成 |
-| 速度 | 速い（差分のみ） | 遅い（毎回クリーン） |
-| 用途 | 開発中の追加・更新 | CI / クリーンインストール |
+| Lock file | May be updated | Strictly followed (error on mismatch) |
+| node_modules | Incremental update | Deleted and recreated |
+| Speed | Fast (incremental only) | Slow (always clean) |
+| Use case | Adding/updating during development | CI / clean install |
 
-CI では必ず `npm ci`（pnpm なら `pnpm install --frozen-lockfile`）を使うべき。開発中は `npm install` で十分。
+Always use `npm ci` in CI (or `pnpm install --frozen-lockfile` for pnpm). `npm install` is sufficient during development.
 
-### Q7: Python で requirements.txt と pyproject.toml、どちらを使うべき？
+### Q7: For Python, should requirements.txt or pyproject.toml be used?
 
-**A:** 新規プロジェクトでは pyproject.toml を推奨。PEP 621 で標準化されたフォーマットであり、uv / Poetry / Flit / Hatch など主要ツールが全て対応している。requirements.txt は以下のケースで引き続き使用する。
-- レガシープロジェクトとの互換性
-- Docker の `pip install -r requirements.txt` との統合
-- ハッシュ検証（`--require-hashes`）が必要な場合
+**A:** pyproject.toml is recommended for new projects. It is a format standardized in PEP 621, and all major tools including uv / Poetry / Flit / Hatch fully support it. requirements.txt should continue to be used in the following cases:
+- Compatibility with legacy projects
+- Integration with Docker's `pip install -r requirements.txt`
+- When hash verification (`--require-hashes`) is needed
 
-uv や pip-compile で `pyproject.toml` から `requirements.txt` を生成するのが最も再現性が高い。
+The most reproducible approach is to generate `requirements.txt` from `pyproject.toml` using uv or pip-compile.
 
-### Q8: パッケージマネージャーの移行はどう進めるべき？
+### Q8: How should a package manager migration be approached?
 
-**A:** 段階的なアプローチを推奨。
-1. **調査**: 現在の依存で互換性問題がないか確認
-2. **ブランチで検証**: 移行ブランチで CI が通ることを確認
-3. **ロックファイル変換**: `pnpm import` 等で既存ロックファイルを変換
-4. **チーム通知**: 移行日を決めて全員に周知
-5. **一斉切替**: マージ後に古いロックファイルを削除
-6. **Corepack 設定**: 間違ったパッケージマネージャーの使用を防止
+**A:** A gradual approach is recommended.
+1. **Research**: Confirm there are no compatibility issues with the current dependencies
+2. **Verify on a branch**: Confirm that CI passes on a migration branch
+3. **Convert lock file**: Convert the existing lock file using `pnpm import` etc.
+4. **Notify the team**: Decide on a migration date and inform everyone
+5. **Switch all at once**: Delete the old lock file after merging
+6. **Configure Corepack**: Prevent use of the wrong package manager
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 12. まとめ
+## 12. Summary
 
-| エコシステム | 推奨ツール | ロックファイル | 備考 |
-|------------|-----------|---------------|------|
-| Node.js | pnpm | pnpm-lock.yaml | ディスク効率最良 |
-| Node.js (シンプル) | npm | package-lock.json | 追加インストール不要 |
-| Node.js (Zero-Installs) | yarn (PnP) | yarn.lock | CI 高速化 |
-| Python | uv | uv.lock | 超高速・次世代 |
-| Python (既存) | Poetry | poetry.lock | エコシステム成熟 |
-| Python (最小) | pip + pip-tools | requirements.txt | 標準ライブラリのみ |
-| Rust | Cargo | Cargo.lock | 公式唯一 |
-| macOS ツール | Homebrew | Brewfile.lock.json | Brewfile でチーム統一 |
+| Ecosystem | Recommended tool | Lock file | Notes |
+|-----------|-----------------|-----------|-------|
+| Node.js | pnpm | pnpm-lock.yaml | Best disk efficiency |
+| Node.js (simple) | npm | package-lock.json | No additional install needed |
+| Node.js (Zero-Installs) | yarn (PnP) | yarn.lock | Faster CI |
+| Python | uv | uv.lock | Ultra-fast, next-generation |
+| Python (existing) | Poetry | poetry.lock | Mature ecosystem |
+| Python (minimal) | pip + pip-tools | requirements.txt | Standard library only |
+| Rust | Cargo | Cargo.lock | The one official option |
+| macOS tools | Homebrew | Brewfile.lock.json | Unify team with Brewfile |
 
-### パッケージ管理の5原則
+### 5 Principles of Package Management
 
 ```
-1. ロックファイルは必ずコミットする
-   → 再現性のないビルドは信頼できない
+1. Always commit lock files
+   → Builds without reproducibility cannot be trusted
 
-2. CI ではクリーンインストールを行う
+2. Perform clean installs in CI
    → npm ci / pnpm install --frozen-lockfile
 
-3. グローバルインストールを避ける
+3. Avoid global installs
    → devDependencies + npx / pnpm exec
 
-4. チーム全体で1つのパッケージマネージャーに統一する
-   → Corepack + packageManager フィールドで強制
+4. Unify the entire team on one package manager
+   → Enforce with Corepack + packageManager field
 
-5. 依存の更新は計画的に行う
-   → Renovate / Dependabot で自動 PR + 人間がレビュー
+5. Update dependencies in a planned manner
+   → Auto-PR with Renovate / Dependabot + human review
 ```
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [02-monorepo-setup.md](./02-monorepo-setup.md) -- モノレポでのワークスペース活用
-- [03-linter-formatter.md](./03-linter-formatter.md) -- Linter/Formatter の設定
-- [00-version-managers.md](./00-version-managers.md) -- ランタイムのバージョン管理
+- [02-monorepo-setup.md](./02-monorepo-setup.md) -- Leveraging workspaces in monorepos
+- [03-linter-formatter.md](./03-linter-formatter.md) -- Linter/Formatter configuration
+- [00-version-managers.md](./00-version-managers.md) -- Runtime version management
 
 ---
 
-## 参考文献
+## References
 
-1. **pnpm Documentation** -- https://pnpm.io/ja/ -- pnpm 公式ドキュメント（日本語）。
-2. **uv Documentation** -- https://docs.astral.sh/uv/ -- uv 公式ドキュメント。pip 比較ベンチマークあり。
-3. **Corepack Documentation** -- https://nodejs.org/api/corepack.html -- Node.js 公式の Corepack 解説。
-4. **Homebrew Bundle** -- https://github.com/Homebrew/homebrew-bundle -- Brewfile の仕様と使い方。
-5. **Yarn Berry** -- https://yarnpkg.com/ -- Yarn v4 の公式ドキュメント。PnP の詳細解説。
-6. **npm Documentation** -- https://docs.npmjs.com/ -- npm 公式ドキュメント。セキュリティ機能の解説。
-7. **Cargo Book** -- https://doc.rust-lang.org/cargo/ -- Cargo 公式ドキュメント。ワークスペースの詳細。
-8. **Poetry Documentation** -- https://python-poetry.org/docs/ -- Poetry 公式ドキュメント。
-9. **Turborepo** -- https://turbo.build/ -- Turborepo 公式。モノレポのビルドシステム。
-10. **Socket.dev** -- https://socket.dev/ -- サプライチェーンセキュリティ。npm パッケージの安全性分析。
+1. **pnpm Documentation** -- https://pnpm.io/ja/ -- Official pnpm documentation (Japanese).
+2. **uv Documentation** -- https://docs.astral.sh/uv/ -- Official uv documentation. Includes pip comparison benchmarks.
+3. **Corepack Documentation** -- https://nodejs.org/api/corepack.html -- Official Node.js Corepack explanation.
+4. **Homebrew Bundle** -- https://github.com/Homebrew/homebrew-bundle -- Brewfile specification and usage.
+5. **Yarn Berry** -- https://yarnpkg.com/ -- Official Yarn v4 documentation. Detailed PnP explanation.
+6. **npm Documentation** -- https://docs.npmjs.com/ -- Official npm documentation. Explanation of security features.
+7. **Cargo Book** -- https://doc.rust-lang.org/cargo/ -- Official Cargo documentation. Details on workspaces.
+8. **Poetry Documentation** -- https://python-poetry.org/docs/ -- Official Poetry documentation.
+9. **Turborepo** -- https://turbo.build/ -- Official Turborepo. Build system for monorepos.
+10. **Socket.dev** -- https://socket.dev/ -- Supply chain security. npm package safety analysis.
