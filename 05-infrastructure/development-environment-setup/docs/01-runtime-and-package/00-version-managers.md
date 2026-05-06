@@ -1,256 +1,264 @@
-# バージョンマネージャー
+# Version Managers
 
-> プログラミング言語のバージョンをプロジェクト単位で管理し、チーム全体で統一された開発環境を実現するためのガイド。
+> A guide to managing programming language versions per project, enabling a unified development environment across the entire team.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. nvm / fnm / Volta による Node.js のバージョン管理と使い分け
-2. pyenv (Python)、rustup (Rust) の設定と運用方法
-3. mise (旧 rtx) を使った統合的なバージョン管理
-4. Go、Java、Ruby など他言語のバージョン管理
-5. CI/CD パイプラインとバージョンマネージャーの連携
-6. トラブルシューティングと移行ガイド
+1. Node.js version management with nvm / fnm / Volta, and how to choose between them
+2. Setting up and operating pyenv (Python) and rustup (Rust)
+3. Integrated version management using mise (formerly rtx)
+4. Version management for other languages such as Go, Java, and Ruby
+5. Integrating version managers with CI/CD pipelines
+6. Troubleshooting and migration guides
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. なぜバージョンマネージャーが必要か
+## 1. Why Version Managers Are Necessary
 
-### 1.1 バージョン管理なしの問題
+### 1.1 Problems Without Version Management
 
 ```
-バージョンマネージャーなしの世界:
+World without version managers:
 
-  開発者A (Node 18)          開発者B (Node 20)
+  Developer A (Node 18)          Developer B (Node 20)
   ┌──────────────────┐      ┌──────────────────┐
   │ npm install      │      │ npm install      │
-  │   → 成功 ✅      │      │   → 失敗 ❌       │
-  │                  │      │ (engines不一致)   │
+  │   → Success ✅   │      │   → Failure ❌    │
+  │                  │      │ (engines mismatch)│
   │ npm run build    │      │ npm run build    │
-  │   → 成功 ✅      │      │   → 型エラー ❌   │
+  │   → Success ✅   │      │   → Type error ❌ │
   └──────────────────┘      └──────────────────┘
 
   CI (Node 22)
   ┌──────────────────┐
   │ npm test         │
-  │   → 失敗 ❌       │
-  │ (API差異)        │
+  │   → Failure ❌    │
+  │ (API difference) │
   └──────────────────┘
 
-  全員バラバラ → "僕の環境では動くんだけど..."
+  Everyone on different versions → "But it works on my machine..."
 ```
 
-### 1.2 バージョン管理がもたらす効果
+### 1.2 Benefits of Version Management
 
 ```
-バージョンマネージャーで統一された世界:
+World unified by version managers:
 
   .node-version: "20.11.0"
          │
-         ├──→ 開発者A: fnm use → Node 20.11.0
-         ├──→ 開発者B: fnm use → Node 20.11.0
-         ├──→ CI:      setup-node → Node 20.11.0
-         └──→ Docker:  FROM node:20.11.0
+         ├──→ Developer A: fnm use → Node 20.11.0
+         ├──→ Developer B: fnm use → Node 20.11.0
+         ├──→ CI:          setup-node → Node 20.11.0
+         └──→ Docker:      FROM node:20.11.0
 
-  全員同じバージョン → 再現性 100%
+  Everyone on the same version → 100% reproducibility
 
-  追加の効果:
+  Additional benefits:
   ┌─────────────────────────────────────────────┐
-  │ 1. オンボーディング時間の短縮                  │
-  │    新メンバーが cd project && fnm use で即開発 │
-  │                                                │
-  │ 2. バグ再現の容易さ                            │
-  │    同一環境 → 同一結果が保証される              │
-  │                                                │
-  │ 3. セキュリティパッチの統一適用                 │
-  │    バージョンファイル更新 → 全員に自動反映      │
-  │                                                │
-  │ 4. 複数プロジェクトの並行開発                   │
-  │    Project A (Node 18) と                      │
-  │    Project B (Node 22) を同時に開発可能        │
+  │ 1. Shorter onboarding time                  │
+  │    New members can start developing with    │
+  │    cd project && fnm use                    │
+  │                                             │
+  │ 2. Easier bug reproduction                  │
+  │    Same environment → same results          │
+  │    guaranteed                               │
+  │                                             │
+  │ 3. Unified security patch application       │
+  │    Update version file → automatically      │
+  │    reflected for everyone                   │
+  │                                             │
+  │ 4. Parallel development across projects     │
+  │    Develop Project A (Node 18) and          │
+  │    Project B (Node 22) simultaneously       │
   └─────────────────────────────────────────────┘
 ```
 
-### 1.3 主要ツール比較
+### 1.3 Major Tool Comparison
 
-| ツール | 対象言語 | 速度 | .nvmrc 互換 | シェル起動影響 | 自動切替 |
-|--------|---------|------|------------|-------------|---------|
-| nvm | Node.js | 遅い | ネイティブ | 大きい | あり |
-| fnm | Node.js | 高速 | あり | 小さい | あり |
-| Volta | Node.js (+npm/yarn) | 高速 | 部分的 | なし | あり |
-| pyenv | Python | 普通 | - | 中程度 | あり |
-| rustup | Rust | 高速 | - | なし | あり |
-| mise | 多言語 | 高速 | あり | 小さい | あり |
-| asdf | 多言語 | 遅い | プラグイン | 中程度 | あり |
-| goenv | Go | 普通 | - | 中程度 | あり |
-| sdkman | Java/Kotlin/Scala | 普通 | - | 中程度 | あり |
-| rbenv | Ruby | 普通 | - | 中程度 | あり |
+| Tool | Target Language | Speed | .nvmrc Compatible | Shell Startup Impact | Auto-switch |
+|------|----------------|-------|-------------------|---------------------|-------------|
+| nvm | Node.js | Slow | Native | Large | Yes |
+| fnm | Node.js | Fast | Yes | Small | Yes |
+| Volta | Node.js (+npm/yarn) | Fast | Partial | None | Yes |
+| pyenv | Python | Average | - | Medium | Yes |
+| rustup | Rust | Fast | - | None | Yes |
+| mise | Multi-language | Fast | Yes | Small | Yes |
+| asdf | Multi-language | Slow | Plugin | Medium | Yes |
+| goenv | Go | Average | - | Medium | Yes |
+| sdkman | Java/Kotlin/Scala | Average | - | Medium | Yes |
+| rbenv | Ruby | Average | - | Medium | Yes |
 
-### 1.4 バージョンマネージャーの動作原理
+### 1.4 How Version Managers Work
 
 ```
-バージョンマネージャーの共通メカニズム:
+Common mechanisms of version managers:
 
-  1. PATH シム方式 (pyenv, rbenv)
+  1. PATH shim method (pyenv, rbenv)
   ┌────────────────────────────────────────────┐
-  │ PATH の先頭にシムディレクトリを挿入          │
-  │                                              │
-  │ PATH=~/.pyenv/shims:$ORIGINAL_PATH          │
-  │                                              │
-  │ python コマンド実行時:                       │
-  │   ~/.pyenv/shims/python (シムスクリプト)     │
-  │     → .python-version を読む                │
-  │     → 正しいバージョンの python に転送       │
-  │     → ~/.pyenv/versions/3.12.3/bin/python   │
+  │ Insert a shim directory at the front of    │
+  │ PATH                                       │
+  │                                            │
+  │ PATH=~/.pyenv/shims:$ORIGINAL_PATH         │
+  │                                            │
+  │ When python command is executed:           │
+  │   ~/.pyenv/shims/python (shim script)      │
+  │     → reads .python-version               │
+  │     → forwards to the correct version of  │
+  │       python                              │
+  │     → ~/.pyenv/versions/3.12.3/bin/python │
   └────────────────────────────────────────────┘
 
-  2. PATH 動的書換方式 (fnm, mise)
+  2. Dynamic PATH rewrite method (fnm, mise)
   ┌────────────────────────────────────────────┐
-  │ シェルフックで cd 時に PATH を書き換え       │
-  │                                              │
-  │ cd ~/project-a の時:                        │
-  │   PATH=~/.fnm/node-versions/v20/bin:...    │
-  │                                              │
-  │ cd ~/project-b の時:                        │
-  │   PATH=~/.fnm/node-versions/v22/bin:...    │
-  │                                              │
-  │ メリット: シムのオーバーヘッドなし            │
+  │ Shell hook rewrites PATH on cd             │
+  │                                            │
+  │ When cd ~/project-a:                       │
+  │   PATH=~/.fnm/node-versions/v20/bin:...   │
+  │                                            │
+  │ When cd ~/project-b:                       │
+  │   PATH=~/.fnm/node-versions/v22/bin:...   │
+  │                                            │
+  │ Advantage: no shim overhead                │
   └────────────────────────────────────────────┘
 
-  3. プロキシバイナリ方式 (Volta)
+  3. Proxy binary method (Volta)
   ┌────────────────────────────────────────────┐
-  │ Volta がインストールする node バイナリ自体が │
-  │ プロキシとして動作                           │
-  │                                              │
-  │ ~/.volta/bin/node を実行すると:              │
-  │   1. カレントディレクトリの package.json 確認│
-  │   2. volta.node フィールドからバージョン特定│
-  │   3. 正しいバージョンの Node.js で実行       │
-  │                                              │
-  │ メリット: シェルフック不要・起動影響ゼロ      │
+  │ The node binary that Volta installs acts   │
+  │ as a proxy                                 │
+  │                                            │
+  │ When ~/.volta/bin/node is executed:        │
+  │   1. Check package.json in current dir     │
+  │   2. Identify version from volta.node      │
+  │      field                                 │
+  │   3. Execute with the correct Node.js      │
+  │      version                               │
+  │                                            │
+  │ Advantage: no shell hooks, zero startup    │
+  │            impact                          │
   └────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Node.js バージョン管理
+## 2. Node.js Version Management
 
-### 2.1 fnm (Fast Node Manager) -- 推奨
+### 2.1 fnm (Fast Node Manager) -- Recommended
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 # macOS
 brew install fnm
 # Linux/macOS (curl)
 curl -fsSL https://fnm.vercel.app/install | bash
 # Windows
 winget install Schniz.fnm
-# Cargo (Rust 環境がある場合)
+# Cargo (if Rust environment is available)
 cargo install fnm
 
-# ─── シェル設定 ───
-# ~/.zshrc に追加
+# ─── Shell configuration ───
+# Add to ~/.zshrc
 eval "$(fnm env --use-on-cd --shell zsh)"
-# ~/.bashrc に追加
+# Add to ~/.bashrc
 eval "$(fnm env --use-on-cd --shell bash)"
-# ~/.config/fish/config.fish に追加
+# Add to ~/.config/fish/config.fish
 fnm env --use-on-cd --shell fish | source
-# PowerShell ($PROFILE に追加)
+# PowerShell (add to $PROFILE)
 fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
 
-# ─── 基本操作 ───
-fnm list-remote              # 利用可能なバージョン一覧
-fnm install 20               # Node.js 20.x 最新をインストール
-fnm install 22               # Node.js 22.x 最新をインストール
-fnm install --lts            # 最新 LTS をインストール
-fnm use 20                   # 現在のシェルで切替
-fnm default 20               # デフォルトバージョン設定
-fnm list                     # インストール済み一覧
-fnm current                  # 現在のバージョン確認
-fnm uninstall 18             # 不要バージョン削除
+# ─── Basic operations ───
+fnm list-remote              # List available versions
+fnm install 20               # Install latest Node.js 20.x
+fnm install 22               # Install latest Node.js 22.x
+fnm install --lts            # Install latest LTS
+fnm use 20                   # Switch in current shell
+fnm default 20               # Set default version
+fnm list                     # List installed versions
+fnm current                  # Check current version
+fnm uninstall 18             # Remove unnecessary version
 
-# ─── プロジェクト設定 ───
-echo "20" > .node-version    # プロジェクトルートに配置
-# → cd でディレクトリに入ると自動切替 (--use-on-cd)
+# ─── Project configuration ───
+echo "20" > .node-version    # Place at project root
+# → auto-switch when entering the directory with cd (--use-on-cd)
 
-# ─── 特定のマイナー/パッチバージョンを指定 ───
+# ─── Specifying a specific minor/patch version ───
 echo "20.11.0" > .node-version
-fnm install                  # .node-version に記載されたバージョンをインストール
-fnm use                      # .node-version に記載されたバージョンに切替
+fnm install                  # Install version specified in .node-version
+fnm use                      # Switch to version specified in .node-version
 ```
 
-### 2.1.1 fnm の高度な設定
+### 2.1.1 Advanced fnm Configuration
 
 ```bash
-# ─── fnm 環境変数によるカスタマイズ ───
-# ~/.zshrc に追加
+# ─── Customization via fnm environment variables ───
+# Add to ~/.zshrc
 
-# インストールディレクトリの変更
+# Change installation directory
 export FNM_DIR="$HOME/.fnm"
 
-# Corepack を自動有効化
+# Auto-enable Corepack
 export FNM_COREPACK_ENABLED="true"
 
-# バージョン解決方式（.node-version を上位ディレクトリも探索）
+# Version resolution strategy (also search parent directories for .node-version)
 export FNM_RESOLVE_ENGINES="true"
 
-# ログレベル設定
+# Log level setting
 export FNM_LOGLEVEL="info"  # quiet, info, all, error
 
-# 全オプションを含む完全な設定
+# Full configuration including all options
 eval "$(fnm env --use-on-cd --version-file-strategy=recursive --corepack-enabled --shell zsh)"
 
-# ─── バージョンファイル戦略 ───
-# recursive: カレントから上位ディレクトリを再帰的に探索
-# local: カレントディレクトリのみ
+# ─── Version file strategy ───
+# recursive: recursively search from current to parent directories
+# local: current directory only
 eval "$(fnm env --use-on-cd --version-file-strategy=recursive --shell zsh)"
 
 # ─── fnm completions ───
-# zsh 補完の有効化
+# Enable zsh completion
 fnm completions --shell zsh > "${fpath[1]}/_fnm"
-# bash 補完
+# bash completion
 fnm completions --shell bash > /etc/bash_completion.d/fnm
 
-# ─── エイリアス管理 ───
-fnm alias 20.11.0 lts-iron   # カスタムエイリアス作成
-fnm alias 22.0.0 latest      # 最新版にエイリアス
-fnm alias list                # エイリアス一覧
-fnm default lts-iron          # エイリアスをデフォルトに設定
+# ─── Alias management ───
+fnm alias 20.11.0 lts-iron   # Create custom alias
+fnm alias 22.0.0 latest      # Alias for latest version
+fnm alias list                # List aliases
+fnm default lts-iron          # Set alias as default
 ```
 
-### 2.1.2 fnm のベンチマーク
+### 2.1.2 fnm Benchmarks
 
 ```
-fnm vs nvm シェル起動時間の比較:
+Shell startup time comparison: fnm vs nvm
 
-  nvm をロードした場合:
+  With nvm loaded:
   $ time zsh -i -c exit
-  real    0m0.523s    ← 500ms 以上のオーバーヘッド
+  real    0m0.523s    ← 500ms+ overhead
   user    0m0.312s
   sys     0m0.178s
 
-  fnm をロードした場合:
+  With fnm loaded:
   $ time zsh -i -c exit
-  real    0m0.047s    ← 50ms 以下
+  real    0m0.047s    ← under 50ms
   user    0m0.028s
   sys     0m0.015s
 
-  差分: 約 10倍の速度差
-  (1日 100回ターミナルを開く場合、年間 4.8時間の差)
+  Difference: approximately 10x speed difference
+  (Opening terminal 100 times a day = 4.8 hours difference per year)
 
-  バージョン切替速度の比較:
+  Version switching speed comparison:
   ┌──────────┬─────────┬─────────┐
-  │ 操作     │   nvm   │   fnm   │
+  │ Operation│   nvm   │   fnm   │
   ├──────────┼─────────┼─────────┤
   │ use      │  280ms  │   12ms  │
-  │ install  │ 15.2s   │  14.8s  │ ← ダウンロード依存で差は小さい
+  │ install  │ 15.2s   │  14.8s  │ ← small difference due to download
   │ list     │  150ms  │    8ms  │
   │ current  │  120ms  │    3ms  │
   └──────────┴─────────┴─────────┘
@@ -259,28 +267,28 @@ fnm vs nvm シェル起動時間の比較:
 ### 2.2 nvm (Node Version Manager)
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 
-# ─── ~/.zshrc に自動追加される設定 ───
+# ─── Configuration automatically added to ~/.zshrc ───
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
-# ─── 基本操作 ───
-nvm install 20               # インストール
-nvm install --lts            # 最新 LTS
-nvm use 20                   # 切替
-nvm alias default 20         # デフォルト設定
-nvm ls                       # インストール済み一覧
-nvm ls-remote --lts          # リモートの LTS 一覧
-nvm uninstall 18             # 不要バージョン削除
+# ─── Basic operations ───
+nvm install 20               # Install
+nvm install --lts            # Latest LTS
+nvm use 20                   # Switch
+nvm alias default 20         # Set default
+nvm ls                       # List installed versions
+nvm ls-remote --lts          # List remote LTS versions
+nvm uninstall 18             # Remove unnecessary version
 
 # ─── .nvmrc ───
 echo "20" > .nvmrc
-nvm use                      # .nvmrc のバージョンを使用
+nvm use                      # Use version from .nvmrc
 
-# ─── 自動切替スクリプト (~/.zshrc に追加) ───
+# ─── Auto-switch script (add to ~/.zshrc) ───
 autoload -U add-zsh-hook
 load-nvmrc() {
   local nvmrc_path="$(nvm_find_nvmrc)"
@@ -297,22 +305,22 @@ add-zsh-hook chpwd load-nvmrc
 load-nvmrc
 ```
 
-### 2.2.1 nvm の遅延ロード最適化
+### 2.2.1 nvm Lazy Load Optimization
 
 ```bash
-# nvm のシェル起動時間を改善する遅延ロード設定
-# ~/.zshrc に追加（nvm 標準設定の代わりに使用）
+# Lazy load configuration to improve nvm shell startup time
+# Add to ~/.zshrc (use instead of standard nvm configuration)
 
 export NVM_DIR="$HOME/.nvm"
 
-# nvm を遅延ロードする関数群
+# Functions that lazy-load nvm
 lazy_load_nvm() {
   unset -f nvm node npm npx yarn pnpm corepack
   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
   [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 }
 
-# コマンド初回呼び出し時にロード
+# Load on first command invocation
 nvm() { lazy_load_nvm; nvm "$@"; }
 node() { lazy_load_nvm; node "$@"; }
 npm() { lazy_load_nvm; npm "$@"; }
@@ -321,66 +329,66 @@ yarn() { lazy_load_nvm; yarn "$@"; }
 pnpm() { lazy_load_nvm; pnpm "$@"; }
 corepack() { lazy_load_nvm; corepack "$@"; }
 
-# 効果:
-# - シェル起動時間: 500ms → 50ms（nvm 本体のロードを遅延）
-# - 初回 node コマンド実行時に一度だけロード
-# - デメリット: 初回コマンドが少し遅い（500ms 程度の追加遅延）
+# Effect:
+# - Shell startup time: 500ms → 50ms (defer loading of nvm itself)
+# - Only loads once on first node command execution
+# - Downside: first command is slightly slower (about 500ms additional delay)
 ```
 
-### 2.2.2 nvm からの移行パッケージ保持
+### 2.2.2 Preserving Packages When Migrating from nvm
 
 ```bash
-# nvm でグローバルインストールしたパッケージを新バージョンに引き継ぐ
+# Carry over globally installed packages to a new version with nvm
 nvm install 22 --reinstall-packages-from=20
 
-# nvm から fnm への移行手順
-# 1. 現在のバージョンを確認
+# Migration steps from nvm to fnm
+# 1. Check current versions
 nvm ls
 #   v18.19.1
 #   v20.11.0
 # → default -> 20
 
-# 2. fnm をインストール
+# 2. Install fnm
 brew install fnm
 
-# 3. シェル設定を置き換え
-# ~/.zshrc から nvm 関連行を削除し、以下を追加:
+# 3. Replace shell configuration
+# Remove nvm-related lines from ~/.zshrc and add:
 eval "$(fnm env --use-on-cd --shell zsh)"
 
-# 4. 同じバージョンをインストール
+# 4. Install the same versions
 fnm install 18
 fnm install 20
 fnm default 20
 
-# 5. .nvmrc はそのまま使える（fnm は .nvmrc を読める）
+# 5. .nvmrc can be used as-is (fnm can read .nvmrc)
 
-# 6. nvm を削除
+# 6. Remove nvm
 rm -rf ~/.nvm
-# ~/.zshrc から NVM_DIR 関連の行を削除
+# Remove NVM_DIR-related lines from ~/.zshrc
 ```
 
 ### 2.3 Volta
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 # macOS / Linux
 curl https://get.volta.sh | bash
 # Windows
-# https://github.com/volta-cli/volta/releases から .msi をダウンロード
+# Download .msi from https://github.com/volta-cli/volta/releases
 
-# ─── 基本操作 ───
-volta install node@20        # Node.js インストール
-volta install node@latest    # 最新版インストール
-volta install npm@10         # npm バージョン固定
-volta install yarn@4         # yarn バージョン固定
-volta install pnpm@9         # pnpm バージョン固定
+# ─── Basic operations ───
+volta install node@20        # Install Node.js
+volta install node@latest    # Install latest version
+volta install npm@10         # Pin npm version
+volta install yarn@4         # Pin yarn version
+volta install pnpm@9         # Pin pnpm version
 
-# ─── プロジェクト固定 (package.json に記録) ───
+# ─── Project pinning (recorded in package.json) ───
 volta pin node@20
 volta pin npm@10
 volta pin yarn@4
 
-# package.json に自動追記される:
+# Automatically appended to package.json:
 # {
 #   "volta": {
 #     "node": "20.11.0",
@@ -389,48 +397,48 @@ volta pin yarn@4
 #   }
 # }
 
-# ─── グローバルツールのインストール ───
-volta install typescript      # tsc コマンドをグローバルに利用可能
-volta install @angular/cli    # ng コマンドをグローバルに利用可能
+# ─── Installing global tools ───
+volta install typescript      # Make tsc command globally available
+volta install @angular/cli    # Make ng command globally available
 volta install create-react-app
 
-# ─── 情報確認 ───
-volta list                   # インストール済みツール一覧
-volta list all               # 全バージョン一覧
-volta which node             # 現在のプロジェクトで使われる node のパス
+# ─── Information ───
+volta list                   # List installed tools
+volta list all               # List all versions
+volta which node             # Path to node used in current project
 ```
 
-### 2.3.1 Volta の特殊な機能
+### 2.3.1 Volta's Special Features
 
 ```bash
-# ─── Volta のプロジェクト自動検出 ───
-# package.json の volta フィールドがあるディレクトリに入ると
-# 自動的にそのバージョンの Node.js が使われる
+# ─── Volta's automatic project detection ───
+# When entering a directory with a volta field in package.json,
+# that version of Node.js is automatically used
 
-# プロジェクトA (Node 18)
+# Project A (Node 18)
 $ cd ~/projects/legacy-app
 $ node --version
 v18.19.1
 
-# プロジェクトB (Node 22)
+# Project B (Node 22)
 $ cd ~/projects/new-app
 $ node --version
 v22.0.0
 
-# シェルフック不要 — Volta の node バイナリ自体がプロキシ
+# No shell hooks needed — Volta's own node binary acts as a proxy
 
-# ─── Volta のツールチェーン管理 ───
-# Volta はパッケージマネージャーのバージョンも固定できる
+# ─── Volta's toolchain management ───
+# Volta can also pin the version of the package manager
 volta pin node@20.11.0
 volta pin npm@10.2.4
 volta pin yarn@4.1.0
 
-# チームメンバーが Volta を使っていれば、
-# clone 後すぐに同じバージョンで開発可能
+# If team members use Volta,
+# they can start developing with the same versions immediately after clone
 
-# ─── package.json の engines との連携 ───
-# Volta は engines フィールドも参考にするが、
-# volta フィールドが優先される
+# ─── Integration with package.json engines field ───
+# Volta also references the engines field, but
+# the volta field takes priority
 {
   "engines": {
     "node": ">=20.0.0"
@@ -440,8 +448,8 @@ volta pin yarn@4.1.0
   }
 }
 
-# ─── Volta のフック ───
-# ~/.volta/hooks.json で追加設定が可能
+# ─── Volta hooks ───
+# Additional configuration possible via ~/.volta/hooks.json
 {
   "node": {
     "index": {
@@ -451,183 +459,185 @@ volta pin yarn@4.1.0
 }
 ```
 
-### 2.4 Node.js バージョンマネージャー選定フロー
+### 2.4 Node.js Version Manager Selection Flow
 
 ```
-どの Node.js バージョンマネージャーを使うべきか？
+Which Node.js version manager should you use?
 
                     START
                       │
                       ▼
-              チーム開発？ ──── No ──→ fnm (軽量・高速)
+              Team development? ──── No ──→ fnm (lightweight & fast)
                    │
                   Yes
                    │
                    ▼
-          npm/yarn バージョンも
-          固定したい？ ──── Yes ──→ Volta
-                   │                   (package.json管理)
+          Also want to pin
+          npm/yarn versions? ──── Yes ──→ Volta
+                   │                        (managed in package.json)
                   No
                    │
                    ▼
-          既存の .nvmrc が
-          ある？ ──── Yes ──→ fnm (.nvmrc互換 + 高速)
-                   │
-                  No
-                   │
-                   ▼
-          多言語プロジェクト？ ──── Yes ──→ mise (統合管理)
+          Existing .nvmrc
+          files? ──── Yes ──→ fnm (.nvmrc compatible + fast)
                    │
                   No
                    │
                    ▼
-              fnm (デフォルト推奨)
+          Multi-language project? ──── Yes ──→ mise (unified management)
+                   │
+                  No
+                   │
+                   ▼
+              fnm (default recommendation)
 ```
 
-### 2.5 Node.js の LTS スケジュール理解
+### 2.5 Understanding the Node.js LTS Schedule
 
 ```
-Node.js リリーススケジュール:
+Node.js release schedule:
 
-  バージョン  │ ステータス   │ LTS 開始    │ EOL
-  ──────────┼────────────┼────────────┼──────────
+  Version   │ Status      │ LTS Start  │ EOL
+  ──────────┼─────────────┼────────────┼──────────
   18.x      │ Maintenance │ 2022-10    │ 2025-04
   20.x      │ LTS Active  │ 2023-10    │ 2026-04
   22.x      │ LTS Active  │ 2024-10    │ 2027-04
   24.x      │ Current     │ 2025-10    │ 2028-04
 
-  偶数バージョン = LTS 対象
-  奇数バージョン = Current のみ（短命）
+  Even-numbered versions = eligible for LTS
+  Odd-numbered versions = Current only (short-lived)
 
-  推奨戦略:
+  Recommended strategy:
   ┌─────────────────────────────────────────────┐
-  │ 本番環境: 最新の Active LTS を使用            │
-  │ 開発環境: Active LTS + 次の Current も検証    │
-  │ レガシー: Maintenance LTS（パッチのみ提供）   │
-  │                                               │
-  │ バージョンアップのタイミング:                   │
-  │   新 LTS リリース後 1-2ヶ月で検証開始          │
-  │   エコシステムの互換性確認後に移行              │
+  │ Production: use the latest Active LTS        │
+  │ Development: test Active LTS + next Current  │
+  │ Legacy: Maintenance LTS (patches only)       │
+  │                                              │
+  │ Timing for version upgrades:                 │
+  │   Start validation 1-2 months after          │
+  │   new LTS release                            │
+  │   Migrate after confirming ecosystem         │
+  │   compatibility                              │
   └─────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Python バージョン管理 (pyenv)
+## 3. Python Version Management (pyenv)
 
-### 3.1 セットアップ
+### 3.1 Setup
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 # macOS
 brew install pyenv pyenv-virtualenv
 
 # Linux (Ubuntu/Debian)
 curl https://pyenv.run | bash
 
-# Linux (依存パッケージのインストールが必要)
+# Linux (build dependencies must be installed)
 sudo apt-get update && sudo apt-get install -y \
   make build-essential libssl-dev zlib1g-dev \
   libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
   libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
   libffi-dev liblzma-dev
 
-# ─── シェル設定 (~/.zshrc) ───
+# ─── Shell configuration (~/.zshrc) ───
 export PYENV_ROOT="$HOME/.pyenv"
 [[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
 eval "$(pyenv virtualenv-init -)"
 
-# ─── bash の場合 (~/.bashrc) ───
+# ─── For bash (~/.bashrc) ───
 export PYENV_ROOT="$HOME/.pyenv"
 command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
 eval "$(pyenv virtualenv-init -)"
 
-# ─── ビルド依存のインストール (macOS) ───
+# ─── Install build dependencies (macOS) ───
 brew install openssl readline sqlite3 xz zlib tcl-tk
 
-# ─── 基本操作 ───
-pyenv install --list | grep '3.12'   # 利用可能バージョン
-pyenv install --list | grep '3.13'   # 最新バージョンの確認
-pyenv install 3.12.3                  # インストール
-pyenv global 3.12.3                   # グローバルデフォルト
-pyenv local 3.12.3                    # プロジェクト固定 (.python-version)
-pyenv versions                        # インストール済み一覧
-pyenv version                         # 現在のバージョン
-pyenv uninstall 3.11.0                # 不要バージョン削除
+# ─── Basic operations ───
+pyenv install --list | grep '3.12'   # Available versions
+pyenv install --list | grep '3.13'   # Check latest versions
+pyenv install 3.12.3                  # Install
+pyenv global 3.12.3                   # Set global default
+pyenv local 3.12.3                    # Pin to project (.python-version)
+pyenv versions                        # List installed versions
+pyenv version                         # Current version
+pyenv uninstall 3.11.0                # Remove unnecessary version
 
-# ─── 仮想環境 ───
+# ─── Virtual environments ───
 pyenv virtualenv 3.12.3 myproject-env
 pyenv activate myproject-env
 pyenv deactivate
 ```
 
-### 3.2 pyenv のビルドトラブルシューティング
+### 3.2 pyenv Build Troubleshooting
 
 ```bash
-# ─── macOS でよくあるビルドエラーと解決策 ───
+# ─── Common build errors and solutions on macOS ───
 
-# エラー: "zlib not available"
+# Error: "zlib not available"
 CFLAGS="-I$(brew --prefix zlib)/include" \
 LDFLAGS="-L$(brew --prefix zlib)/lib" \
 pyenv install 3.12.3
 
-# エラー: "openssl not found"
+# Error: "openssl not found"
 CONFIGURE_OPTS="--with-openssl=$(brew --prefix openssl@3)" \
 pyenv install 3.12.3
 
-# macOS Sonoma 以降の包括的な環境変数設定
+# Comprehensive environment variable settings for macOS Sonoma and later
 export LDFLAGS="-L$(brew --prefix openssl@3)/lib -L$(brew --prefix readline)/lib -L$(brew --prefix zlib)/lib"
 export CPPFLAGS="-I$(brew --prefix openssl@3)/include -I$(brew --prefix readline)/include -I$(brew --prefix zlib)/include"
 export PKG_CONFIG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix readline)/lib/pkgconfig:$(brew --prefix zlib)/lib/pkgconfig"
 pyenv install 3.12.3
 
-# ─── Linux でよくあるビルドエラー ───
+# ─── Common build errors on Linux ───
 
-# エラー: "No module named '_ctypes'"
+# Error: "No module named '_ctypes'"
 sudo apt-get install libffi-dev
 pyenv install 3.12.3
 
-# エラー: "ModuleNotFoundError: No module named '_lzma'"
+# Error: "ModuleNotFoundError: No module named '_lzma'"
 sudo apt-get install liblzma-dev
 pyenv install 3.12.3
 
-# エラー: "WARNING: The Python tkinter extension was not compiled"
+# Error: "WARNING: The Python tkinter extension was not compiled"
 sudo apt-get install tk-dev
 pyenv install 3.12.3
 
-# ─── 最適化ビルド ───
-# PROFILE_TASK を使ってプロファイルガイド最適化 (PGO) を有効化
+# ─── Optimized build ───
+# Enable profile-guided optimization (PGO) with PROFILE_TASK
 PYTHON_CONFIGURE_OPTS="--enable-optimizations --with-lto" \
 PYTHON_CFLAGS="-march=native -mtune=native" \
 pyenv install 3.12.3
 
-# ─── デバッグビルド ───
-# メモリリークやセグフォルトの調査用
+# ─── Debug build ───
+# For investigating memory leaks or segfaults
 pyenv install --debug 3.12.3
 ```
 
-### 3.3 pyenv-virtualenv の高度な使い方
+### 3.3 Advanced pyenv-virtualenv Usage
 
 ```bash
-# ─── 仮想環境の作成と管理 ───
-pyenv virtualenv 3.12.3 myproject-3.12    # バージョン名付き仮想環境
-pyenv virtualenvs                          # 仮想環境の一覧
-pyenv virtualenv-delete myproject-3.12     # 仮想環境の削除
+# ─── Creating and managing virtual environments ───
+pyenv virtualenv 3.12.3 myproject-3.12    # Virtual environment with version name
+pyenv virtualenvs                          # List virtual environments
+pyenv virtualenv-delete myproject-3.12     # Delete virtual environment
 
-# ─── プロジェクトごとの自動有効化 ───
+# ─── Auto-activation per project ───
 cd ~/projects/myproject
 pyenv local myproject-3.12
-# → .python-version に "myproject-3.12" が書かれる
-# → 以降このディレクトリに入ると自動で仮想環境が有効になる
+# → "myproject-3.12" is written to .python-version
+# → the virtual environment automatically activates when entering this directory
 
-# ─── 複数 Python バージョンでのテスト ───
-# tox や nox と組み合わせて複数バージョンテスト
+# ─── Testing across multiple Python versions ───
+# Use with tox or nox for multi-version testing
 pyenv install 3.11.8
 pyenv install 3.12.3
 pyenv install 3.13.0
-pyenv local 3.12.3 3.11.8 3.13.0  # 複数バージョンを設定
+pyenv local 3.12.3 3.11.8 3.13.0  # Set multiple versions
 
 # tox.ini
 # [tox]
@@ -635,73 +645,73 @@ pyenv local 3.12.3 3.11.8 3.13.0  # 複数バージョンを設定
 # [testenv]
 # commands = pytest
 
-# ─── pyenv と uv の併用 ───
-# pyenv で Python バージョンを管理し、uv でパッケージを管理
+# ─── Using pyenv together with uv ───
+# Manage Python versions with pyenv and packages with uv
 pyenv local 3.12.3
-uv venv                      # pyenv の Python を使って仮想環境作成
+uv venv                      # Create virtual environment using pyenv's Python
 uv pip install -r requirements.txt
 ```
 
-### 3.4 uv による Python バージョン管理
+### 3.4 Python Version Management with uv
 
 ```bash
-# uv は pyenv の代替としても使える（2025年以降の推奨）
-# Python 自体のインストール・管理が可能
+# uv can also be used as an alternative to pyenv (recommended from 2025 onward)
+# Capable of installing and managing Python itself
 
-# ─── Python のインストール ───
-uv python install 3.12       # Python 3.12 をインストール
-uv python install 3.11 3.12 3.13  # 複数バージョンを一括インストール
-uv python list                # 利用可能バージョン一覧
-uv python find 3.12           # インストール済み 3.12 のパスを表示
+# ─── Installing Python ───
+uv python install 3.12       # Install Python 3.12
+uv python install 3.11 3.12 3.13  # Install multiple versions at once
+uv python list                # List available versions
+uv python find 3.12           # Show path to installed 3.12
 
-# ─── プロジェクト固定 ───
-uv python pin 3.12            # .python-version を生成
+# ─── Project pinning ───
+uv python pin 3.12            # Generate .python-version
 
-# ─── pyenv との違い ───
-# pyenv: ソースからビルド（ビルド依存が必要・時間がかかる）
-# uv:    プリビルドバイナリをダウンロード（数秒で完了）
-#        → python-build-standalone プロジェクトのバイナリを使用
+# ─── Differences from pyenv ───
+# pyenv: builds from source (requires build dependencies, takes time)
+# uv:    downloads pre-built binaries (completes in seconds)
+#        → uses binaries from the python-build-standalone project
 
-# ─── uv で Python + パッケージを統合管理 ───
-uv init my-project            # プロジェクト初期化
+# ─── Unified management of Python + packages with uv ───
+uv init my-project            # Initialize project
 cd my-project
-uv python pin 3.12            # Python バージョン固定
-uv add requests flask         # パッケージ追加
-uv run python main.py         # 仮想環境内で実行
+uv python pin 3.12            # Pin Python version
+uv add requests flask         # Add packages
+uv run python main.py         # Execute inside virtual environment
 ```
 
 ---
 
-## 4. Rust バージョン管理 (rustup)
+## 4. Rust Version Management (rustup)
 
-### 4.1 セットアップ
+### 4.1 Setup
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# インストール時のオプション選択
+# Options during installation
 # 1) Proceed with standard installation (default)
 # 2) Customize installation
 # 3) Cancel installation
-# → 通常は 1 を選択
+# → Usually select 1
 
-# ─── シェル設定（自動で追加されるが確認） ───
-# ~/.zshrc または ~/.bashrc
+# ─── Shell configuration (automatically added, but verify) ───
+# ~/.zshrc or ~/.bashrc
 source "$HOME/.cargo/env"
 
-# ─── 基本操作 ───
-rustup show                          # 現在の toolchain
-rustup update                        # 全 toolchain 更新
-rustup default stable                # デフォルト設定
-rustup default nightly               # nightly をデフォルトに
-rustup toolchain install nightly     # nightly インストール
-rustup toolchain install 1.77.0     # 特定バージョンをインストール
-rustup toolchain list                # インストール済み toolchain 一覧
-rustup toolchain uninstall nightly   # 不要 toolchain 削除
+# ─── Basic operations ───
+rustup show                          # Current toolchain
+rustup update                        # Update all toolchains
+rustup default stable                # Set default
+rustup default nightly               # Set nightly as default
+rustup toolchain install nightly     # Install nightly
+rustup toolchain install 1.77.0     # Install specific version
+rustup toolchain list                # List installed toolchains
+rustup toolchain uninstall nightly   # Remove unnecessary toolchain
 
-# ─── プロジェクト固定 ───
-# rust-toolchain.toml (プロジェクトルート)
+# ─── Project pinning ───
+# rust-toolchain.toml (project root)
 cat << 'EOF' > rust-toolchain.toml
 [toolchain]
 channel = "1.77.0"
@@ -709,107 +719,107 @@ components = ["rustfmt", "clippy"]
 targets = ["wasm32-unknown-unknown"]
 EOF
 
-# ─── コンポーネント管理 ───
-rustup component add rustfmt         # フォーマッタ
-rustup component add clippy          # リンター
+# ─── Component management ───
+rustup component add rustfmt         # Formatter
+rustup component add clippy          # Linter
 rustup component add rust-analyzer   # LSP
-rustup component add rust-src        # ソースコード（IDE 補完用）
-rustup component add llvm-tools      # LLVM ツール（カバレッジ等）
-rustup component add miri            # 未定義動作検出ツール（nightly のみ）
-rustup component list                # 利用可能コンポーネント一覧
+rustup component add rust-src        # Source code (for IDE completion)
+rustup component add llvm-tools      # LLVM tools (for coverage, etc.)
+rustup component add miri            # Undefined behavior detector (nightly only)
+rustup component list                # List available components
 ```
 
-### 4.2 rustup の高度な使い方
+### 4.2 Advanced rustup Usage
 
 ```bash
-# ─── クロスコンパイル ───
-# ターゲットプラットフォームの追加
-rustup target add x86_64-unknown-linux-musl     # 静的リンク Linux
+# ─── Cross-compilation ───
+# Adding target platforms
+rustup target add x86_64-unknown-linux-musl     # Statically linked Linux
 rustup target add aarch64-unknown-linux-gnu     # ARM64 Linux
 rustup target add wasm32-unknown-unknown        # WebAssembly
 rustup target add aarch64-apple-darwin          # Apple Silicon
 rustup target add x86_64-pc-windows-msvc        # Windows
 
-# クロスコンパイルの実行
+# Running cross-compilation
 cargo build --target x86_64-unknown-linux-musl
 
-# ─── nightly 機能の利用 ───
-# 特定のファイルだけ nightly を使う
+# ─── Using nightly features ───
+# Use nightly for specific files
 rustup run nightly cargo build
 rustup run nightly cargo +nightly fmt
 
-# nightly のみの機能をプロジェクトで使う
+# Using nightly-only features in a project
 cat << 'EOF' > rust-toolchain.toml
 [toolchain]
 channel = "nightly-2024-03-15"
 components = ["rustfmt", "clippy", "miri", "rust-src"]
 EOF
 
-# ─── rustup のプロキシ設定 ───
-# 企業プロキシ環境での設定
+# ─── Proxy configuration for rustup ───
+# Configuration for corporate proxy environments
 export RUSTUP_DIST_SERVER="https://your-mirror.example.com/rustup"
 export RUSTUP_UPDATE_ROOT="https://your-mirror.example.com/rustup/rustup"
 
-# ─── rustup self コマンド ───
-rustup self update              # rustup 自体を更新
-rustup self uninstall           # rustup と全 toolchain を削除
+# ─── rustup self commands ───
+rustup self update              # Update rustup itself
+rustup self uninstall           # Remove rustup and all toolchains
 
-# ─── オーバーライド ───
-# 特定ディレクトリで異なる toolchain を使用
-rustup override set nightly     # カレントディレクトリ用
-rustup override list            # オーバーライド一覧
-rustup override unset           # オーバーライド解除
+# ─── Overrides ───
+# Use a different toolchain for a specific directory
+rustup override set nightly     # For current directory
+rustup override list            # List overrides
+rustup override unset           # Remove override
 ```
 
-### 4.3 rust-toolchain.toml の詳細設定
+### 4.3 Detailed rust-toolchain.toml Configuration
 
 ```toml
-# rust-toolchain.toml - プロジェクトルートに配置
+# rust-toolchain.toml - place at project root
 
 [toolchain]
-# チャンネル指定（以下のいずれか）
-channel = "1.77.0"          # 特定バージョン
-# channel = "stable"        # 最新安定版（推奨しない: 再現性が低い）
-# channel = "nightly"       # 最新 nightly
-# channel = "nightly-2024-03-15"  # 日付指定 nightly
+# Channel specification (one of the following)
+channel = "1.77.0"          # Specific version
+# channel = "stable"        # Latest stable (not recommended: low reproducibility)
+# channel = "nightly"       # Latest nightly
+# channel = "nightly-2024-03-15"  # Date-specified nightly
 
-# 必要なコンポーネント
+# Required components
 components = [
-  "rustfmt",        # コードフォーマッタ
-  "clippy",         # リンター
-  "rust-analyzer",  # LSP サーバー
-  "rust-src",       # ソースコード（IDE 補完に必要）
+  "rustfmt",        # Code formatter
+  "clippy",         # Linter
+  "rust-analyzer",  # LSP server
+  "rust-src",       # Source code (required for IDE completion)
 ]
 
-# クロスコンパイルターゲット
+# Cross-compilation targets
 targets = [
   "x86_64-unknown-linux-musl",
   "wasm32-unknown-unknown",
   "aarch64-apple-darwin",
 ]
 
-# プロファイル（minimal, default, complete）
+# Profile (minimal, default, complete)
 profile = "default"
 ```
 
 ---
 
-## 5. mise (統合バージョンマネージャー)
+## 5. mise (Unified Version Manager)
 
-### 5.1 セットアップ
+### 5.1 Setup
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 # macOS
 brew install mise
-# Linux (推奨)
+# Linux (recommended)
 curl https://mise.run | sh
 # npm
 npm install -g @jdx/mise
 # cargo
 cargo install mise
 
-# ─── シェル設定 ───
+# ─── Shell configuration ───
 # ~/.zshrc
 eval "$(mise activate zsh)"
 # ~/.bashrc
@@ -817,14 +827,14 @@ eval "$(mise activate bash)"
 # ~/.config/fish/config.fish
 mise activate fish | source
 
-# ─── 基本操作 ───
-mise use node@20              # Node.js インストール & 設定
-mise use python@3.12          # Python インストール & 設定
-mise use go@1.22              # Go インストール & 設定
-mise use java@21              # Java インストール & 設定
-mise use ruby@3.3             # Ruby インストール & 設定
+# ─── Basic operations ───
+mise use node@20              # Install & configure Node.js
+mise use python@3.12          # Install & configure Python
+mise use go@1.22              # Install & configure Go
+mise use java@21              # Install & configure Java
+mise use ruby@3.3             # Install & configure Ruby
 
-# ─── プロジェクト設定 (.mise.toml) ───
+# ─── Project configuration (.mise.toml) ───
 cat << 'EOF' > .mise.toml
 [tools]
 node = "20"
@@ -836,90 +846,92 @@ NODE_ENV = "development"
 DATABASE_URL = "postgresql://localhost:5432/mydb"
 EOF
 
-# mise が .nvmrc, .python-version, .tool-versions も読める
-mise ls                       # インストール済み一覧
-mise outdated                 # 更新可能なツール表示
-mise prune                    # 未使用バージョンの削除
+# mise can also read .nvmrc, .python-version, .tool-versions
+mise ls                       # List installed tools
+mise outdated                 # Show tools with available updates
+mise prune                    # Remove unused versions
 ```
 
-### 5.2 mise のアーキテクチャ
+### 5.2 mise Architecture
 
 ```
-mise の動作原理:
+How mise works:
 
   .mise.toml / .nvmrc / .tool-versions
          │
          ▼
   ┌──────────────────────────────────────┐
-  │  mise activate (シェルフック)          │
-  │                                        │
-  │  cd コマンド時:                        │
-  │    1. 設定ファイルを検索               │
-  │    2. 必要なバージョンを特定           │
-  │    3. PATH を動的に書き換え            │
-  │                                        │
-  │  ~/.local/share/mise/installs/        │
-  │  ├── node/                            │
-  │  │   ├── 18.19.0/                     │
-  │  │   └── 20.11.0/ ← PATH に追加      │
-  │  ├── python/                          │
-  │  │   └── 3.12.3/                      │
-  │  └── go/                              │
-  │      └── 1.22.0/                      │
+  │  mise activate (shell hook)          │
+  │                                      │
+  │  On cd command:                      │
+  │    1. Search for config files        │
+  │    2. Identify required versions     │
+  │    3. Dynamically rewrite PATH       │
+  │                                      │
+  │  ~/.local/share/mise/installs/       │
+  │  ├── node/                           │
+  │  │   ├── 18.19.0/                    │
+  │  │   └── 20.11.0/ ← added to PATH   │
+  │  ├── python/                         │
+  │  │   └── 3.12.3/                     │
+  │  └── go/                             │
+  │      └── 1.22.0/                     │
   └──────────────────────────────────────┘
 
-  設定ファイルの優先順位:
+  Config file priority:
   ┌──────────────────────────────────────┐
-  │ 1. .mise.local.toml  (gitignore 推奨) │
-  │ 2. .mise.toml                         │
-  │ 3. .mise/config.toml                  │
-  │ 4. .tool-versions   (asdf 互換)       │
-  │ 5. .node-version    (fnm/nvm 互換)    │
-  │ 6. .python-version  (pyenv 互換)      │
-  │ 7. ~/.config/mise/config.toml (global)│
+  │ 1. .mise.local.toml  (add to         │
+  │    .gitignore)                       │
+  │ 2. .mise.toml                        │
+  │ 3. .mise/config.toml                 │
+  │ 4. .tool-versions   (asdf compat)    │
+  │ 5. .node-version    (fnm/nvm compat) │
+  │ 6. .python-version  (pyenv compat)   │
+  │ 7. ~/.config/mise/config.toml        │
+  │    (global)                          │
   └──────────────────────────────────────┘
 ```
 
-### 5.3 mise の高度な設定
+### 5.3 Advanced mise Configuration
 
 ```toml
-# .mise.toml - 全機能を活用した設定例
+# .mise.toml - configuration example using all features
 
-# ツールバージョン指定
+# Tool version specification
 [tools]
-node = "20"                    # メジャーバージョン指定（最新パッチを自動選択）
-python = "3.12.3"              # 完全バージョン指定
-go = "latest"                  # 最新版を常に使用
-rust = "1.77.0"                # Rust（rustup 連携）
+node = "20"                    # Major version (automatically selects latest patch)
+python = "3.12.3"              # Full version specification
+go = "latest"                  # Always use latest
+rust = "1.77.0"                # Rust (integrates with rustup)
 terraform = "1.7"              # HashiCorp Terraform
 kubectl = "1.29"               # Kubernetes CLI
 awscli = "2"                   # AWS CLI v2
 java = "temurin-21"            # Eclipse Temurin JDK 21
 
-# 環境変数設定
+# Environment variable settings
 [env]
 NODE_ENV = "development"
 PYTHONDONTWRITEBYTECODE = "1"
 RUST_BACKTRACE = "1"
 LOG_LEVEL = "debug"
 
-# .env ファイルの読み込み
-# mise は .env ファイルも自動で読み込める
+# Load .env file
+# mise can also automatically load .env files
 _.file = ".env"
-_.path = "./node_modules/.bin"  # PATH に追加
+_.path = "./node_modules/.bin"  # Add to PATH
 
-# タスク定義（mise tasks）
+# Task definitions (mise tasks)
 [tasks.dev]
 run = "npm run dev"
-description = "開発サーバー起動"
+description = "Start development server"
 
 [tasks.test]
 run = "npm test"
-description = "テスト実行"
+description = "Run tests"
 
 [tasks.lint]
 run = ["npm run lint", "npm run typecheck"]
-description = "リント & 型チェック"
+description = "Lint & type check"
 
 [tasks.setup]
 run = """
@@ -927,103 +939,116 @@ npm install
 cp .env.example .env
 npm run db:migrate
 """
-description = "プロジェクト初期セットアップ"
+description = "Initial project setup"
 ```
 
 ```bash
-# ─── mise tasks の実行 ───
-mise run dev                  # 開発サーバー起動
-mise run test                 # テスト実行
-mise run lint                 # リント & 型チェック
-mise tasks                    # 利用可能タスク一覧
+# ─── Running mise tasks ───
+mise run dev                  # Start development server
+mise run test                 # Run tests
+mise run lint                 # Lint & type check
+mise tasks                    # List available tasks
 
-# ─── mise のグローバル設定 ───
+# ─── mise global configuration ───
 # ~/.config/mise/config.toml
 cat << 'EOF' > ~/.config/mise/config.toml
 [tools]
-node = "20"          # デフォルトの Node.js バージョン
-python = "3.12"      # デフォルトの Python バージョン
+node = "20"          # Default Node.js version
+python = "3.12"      # Default Python version
 
 [settings]
-experimental = true   # 実験的機能を有効化
-verbose = false       # 詳細出力を無効化
-asdf_compat = true    # asdf 互換モード
+experimental = true   # Enable experimental features
+verbose = false       # Disable verbose output
+asdf_compat = true    # asdf compatibility mode
 
 [env]
 EDITOR = "code --wait"
 EOF
 ```
 
-### 5.4 asdf からの移行
+### 5.4 Migrating from asdf
 
 ```bash
-# mise は asdf のドロップイン代替として使える
+# mise can be used as a drop-in replacement for asdf
 
-# asdf の .tool-versions をそのまま読める
+# Can read asdf's .tool-versions directly
 # .tool-versions
 # nodejs 20.11.0
 # python 3.12.3
 # golang 1.22.0
 
-# asdf → mise 移行手順
-# 1. mise をインストール
+# Migration steps from asdf to mise
+# 1. Install mise
 brew install mise
 
-# 2. シェル設定を変更
-# ~/.zshrc から asdf 関連行を削除
-# 以下を追加:
+# 2. Update shell configuration
+# Remove asdf-related lines from ~/.zshrc
+# Add:
 eval "$(mise activate zsh)"
 
-# 3. .tool-versions はそのまま使える
-# (mise は .tool-versions を自動的に読む)
-
-# 4. プラグイン不要
-# asdf はプラグインのインストールが必要だったが
-# mise は組み込みで多くのツールに対応
-
-# 5. 互換性の確認
-mise ls                       # asdf で管理していたツールが表示される
-
-# 6. 段階的に .mise.toml に移行（任意）
+# 3. Enable asdf compatibility mode
 mise settings set asdf_compat true
+
+# 4. .tool-versions can be used as-is
+# (mise automatically reads .tool-versions)
+# No plugin installation needed
+
+# 5. Verify
+mise ls                       # Shows tools previously managed by asdf
+node --version
+python --version
+
+# 6. Optionally migrate .tool-versions → .mise.toml
+# .tool-versions:
+# nodejs 20.11.0
+# python 3.12.3
+#
+# → .mise.toml:
+# [tools]
+# node = "20.11.0"
+# python = "3.12.3"
+
+# 7. Uninstall asdf
+brew uninstall asdf
+rm -rf ~/.asdf
 ```
 
 ---
 
-## 6. Go バージョン管理
+## 6. Go Version Management
 
-### 6.1 goenv によるバージョン管理
+### 6.1 Version Management with goenv
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 git clone https://github.com/go-nv/goenv.git ~/.goenv
 
-# ─── シェル設定 (~/.zshrc) ───
+# ─── Shell configuration (~/.zshrc) ───
 export GOENV_ROOT="$HOME/.goenv"
 export PATH="$GOENV_ROOT/bin:$PATH"
 eval "$(goenv init -)"
 export PATH="$GOROOT/bin:$PATH"
 export PATH="$GOPATH/bin:$PATH"
 
-# ─── 基本操作 ───
-goenv install --list           # 利用可能バージョン
-goenv install 1.22.0           # インストール
-goenv global 1.22.0            # グローバルデフォルト
-goenv local 1.22.0             # プロジェクト固定 (.go-version)
-goenv versions                 # インストール済み一覧
+# ─── Basic operations ───
+goenv install --list           # Available versions
+goenv install 1.22.0           # Install
+goenv global 1.22.0            # Set global default
+goenv local 1.22.0             # Pin to project (.go-version)
+goenv versions                 # List installed versions
 ```
 
-### 6.2 mise による Go バージョン管理（推奨）
+### 6.2 Go Version Management with mise (Recommended)
 
 ```bash
-# goenv の代わりに mise を使う方がシンプル
-mise use go@1.22               # Go 1.22 をインストール & 設定
+# Using mise instead of goenv is simpler
+mise use go@1.22               # Install & configure Go 1.22
 
 # .mise.toml
 # [tools]
 # go = "1.22"
 
-# go.mod の go ディレクティブとの整合性を確認
+# Verify consistency with go directive in go.mod
 # go.mod:
 # module example.com/myproject
 # go 1.22
@@ -1031,42 +1056,42 @@ mise use go@1.22               # Go 1.22 をインストール & 設定
 
 ---
 
-## 7. Java バージョン管理 (SDKMAN / mise)
+## 7. Java Version Management (SDKMAN / mise)
 
 ### 7.1 SDKMAN
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 curl -s "https://get.sdkman.io" | bash
 
-# ─── 基本操作 ───
-sdk list java                   # 利用可能バージョン一覧
+# ─── Basic operations ───
+sdk list java                   # List available versions
 sdk install java 21.0.2-tem    # Eclipse Temurin JDK 21
 sdk install java 21.0.2-graal  # GraalVM CE 21
 sdk install java 17.0.10-tem   # JDK 17 (LTS)
-sdk use java 21.0.2-tem        # 現在のシェルで切替
-sdk default java 21.0.2-tem    # デフォルト設定
-sdk current java                # 現在のバージョン
+sdk use java 21.0.2-tem        # Switch in current shell
+sdk default java 21.0.2-tem    # Set default
+sdk current java                # Current version
 
-# ─── .sdkmanrc でプロジェクト固定 ───
+# ─── Project pinning with .sdkmanrc ───
 cat << 'EOF' > .sdkmanrc
 java=21.0.2-tem
 gradle=8.5
 maven=3.9.6
 EOF
 
-sdk env                         # .sdkmanrc の設定を適用
-sdk env install                 # .sdkmanrc のツールをインストール
+sdk env                         # Apply settings from .sdkmanrc
+sdk env install                 # Install tools from .sdkmanrc
 
-# ─── 自動切替の有効化 ───
+# ─── Enable auto-switch ───
 sdk config
-# sdkman_auto_env=true に設定
+# Set sdkman_auto_env=true
 ```
 
-### 7.2 mise による Java 管理
+### 7.2 Java Management with mise
 
 ```bash
-# SDKMAN の代替として mise を使う
+# Use mise as an alternative to SDKMAN
 mise use java@temurin-21       # Temurin JDK 21
 mise use java@corretto-21      # Amazon Corretto 21
 mise use java@graalvm-21       # GraalVM CE 21
@@ -1075,7 +1100,7 @@ mise use java@graalvm-21       # GraalVM CE 21
 # [tools]
 # java = "temurin-21"
 
-# 利用可能なディストリビューション
+# Available distributions
 mise ls-remote java | head -20
 # temurin-21.0.2
 # corretto-21.0.2
@@ -1086,12 +1111,12 @@ mise ls-remote java | head -20
 
 ---
 
-## 8. Ruby バージョン管理 (rbenv)
+## 8. Ruby Version Management (rbenv)
 
-### 8.1 セットアップ
+### 8.1 Setup
 
 ```bash
-# ─── インストール ───
+# ─── Installation ───
 # macOS
 brew install rbenv ruby-build
 
@@ -1099,52 +1124,52 @@ brew install rbenv ruby-build
 git clone https://github.com/rbenv/rbenv.git ~/.rbenv
 git clone https://github.com/rbenv/ruby-build.git ~/.rbenv/plugins/ruby-build
 
-# ─── シェル設定 (~/.zshrc) ───
+# ─── Shell configuration (~/.zshrc) ───
 eval "$(rbenv init - zsh)"
 
-# ─── 基本操作 ───
-rbenv install --list           # 利用可能バージョン
-rbenv install 3.3.0            # インストール
-rbenv global 3.3.0             # グローバルデフォルト
-rbenv local 3.3.0              # プロジェクト固定 (.ruby-version)
-rbenv versions                 # インストール済み一覧
-rbenv rehash                   # shim の再構築
+# ─── Basic operations ───
+rbenv install --list           # Available versions
+rbenv install 3.3.0            # Install
+rbenv global 3.3.0             # Set global default
+rbenv local 3.3.0              # Pin to project (.ruby-version)
+rbenv versions                 # List installed versions
+rbenv rehash                   # Rebuild shims
 
-# ─── mise による代替（推奨） ───
-mise use ruby@3.3              # Ruby 3.3 をインストール & 設定
+# ─── Alternative with mise (recommended) ───
+mise use ruby@3.3              # Install & configure Ruby 3.3
 ```
 
 ---
 
-## 9. チーム運用のベストプラクティス
+## 9. Team Operation Best Practices
 
-### 9.1 プロジェクトテンプレート
+### 9.1 Project Template
 
 ```bash
-# プロジェクトルートに配置するファイル群
+# Files to place at the project root
 my-project/
-├── .node-version          # Node.js バージョン (fnm/nvm対応)
-├── .nvmrc                 # nvm 互換 (= .node-version と同じ値)
-├── .python-version        # pyenv 用
-├── .mise.toml             # mise 用 (統合)
-├── .mise.local.toml       # ローカル設定 (.gitignore に追加)
-├── rust-toolchain.toml    # Rust 用
-├── .go-version            # Go 用 (goenv)
-├── .ruby-version          # Ruby 用 (rbenv)
-├── .sdkmanrc              # Java 用 (SDKMAN)
-└── package.json           # volta の場合はここに記述
+├── .node-version          # Node.js version (fnm/nvm compatible)
+├── .nvmrc                 # nvm compatible (= same value as .node-version)
+├── .python-version        # For pyenv
+├── .mise.toml             # For mise (unified)
+├── .mise.local.toml       # Local config (add to .gitignore)
+├── rust-toolchain.toml    # For Rust
+├── .go-version            # For Go (goenv)
+├── .ruby-version          # For Ruby (rbenv)
+├── .sdkmanrc              # For Java (SDKMAN)
+└── package.json           # Specify here for Volta
 ```
 
-### 9.2 バージョンファイルの同期スクリプト
+### 9.2 Version File Synchronization Script
 
 ```bash
 #!/usr/bin/env bash
 # scripts/sync-versions.sh
-# 各ツールのバージョンファイルを統一管理
+# Centrally manage version files for each tool
 
 set -euo pipefail
 
-# 定義ファイルから読み込み
+# Load from definition file
 NODE_VERSION="20.11.0"
 PYTHON_VERSION="3.12.3"
 
@@ -1162,35 +1187,35 @@ node = "$NODE_VERSION"
 python = "$PYTHON_VERSION"
 EOF
 
-# package.json の engines フィールドを更新
-# (jq が必要)
+# Update engines field in package.json
+# (requires jq)
 if command -v jq &> /dev/null && [ -f package.json ]; then
   jq --arg node "$NODE_VERSION" \
      '.engines.node = ">=" + ($node | split(".") | .[0] + ".0.0")' \
      package.json > package.json.tmp && mv package.json.tmp package.json
 fi
 
-echo "バージョンファイルを同期しました"
+echo "Version files synchronized"
 echo "  Node.js: $NODE_VERSION"
 echo "  Python:  $PYTHON_VERSION"
 ```
 
-### 9.3 新メンバーオンボーディングスクリプト
+### 9.3 New Member Onboarding Script
 
 ```bash
 #!/usr/bin/env bash
 # scripts/setup-dev.sh
-# 新メンバーが最初に実行するスクリプト
+# Script to be run by new members first
 
 set -euo pipefail
 
-echo "=== 開発環境セットアップを開始します ==="
+echo "=== Starting development environment setup ==="
 
-# ─── バージョンマネージャーの確認 ───
+# ─── Check version managers ───
 check_command() {
   if ! command -v "$1" &> /dev/null; then
-    echo "❌ $1 が見つかりません"
-    echo "   インストール: $2"
+    echo "❌ $1 not found"
+    echo "   Install: $2"
     return 1
   else
     echo "✅ $1 $(eval "$1 --version 2>&1 | head -1")"
@@ -1198,58 +1223,58 @@ check_command() {
 }
 
 echo ""
-echo "--- ツール確認 ---"
+echo "--- Tool check ---"
 check_command fnm "brew install fnm" || MISSING=true
 check_command pyenv "brew install pyenv" || MISSING=true
 
 if [ "${MISSING:-}" = "true" ]; then
   echo ""
-  echo "不足しているツールをインストールしてから再実行してください"
+  echo "Please install missing tools and run again"
   exit 1
 fi
 
-# ─── Node.js バージョンのインストール ───
+# ─── Install Node.js version ───
 echo ""
-echo "--- Node.js セットアップ ---"
+echo "--- Node.js setup ---"
 if [ -f .node-version ]; then
   NODE_VER=$(cat .node-version)
   echo "  .node-version: $NODE_VER"
   fnm install "$NODE_VER"
   fnm use "$NODE_VER"
-  echo "  ✅ Node.js $(node --version) を使用中"
+  echo "  ✅ Using Node.js $(node --version)"
 fi
 
-# ─── Python バージョンのインストール ───
+# ─── Install Python version ───
 echo ""
-echo "--- Python セットアップ ---"
+echo "--- Python setup ---"
 if [ -f .python-version ]; then
   PYTHON_VER=$(cat .python-version)
   echo "  .python-version: $PYTHON_VER"
   pyenv install -s "$PYTHON_VER"
   pyenv local "$PYTHON_VER"
-  echo "  ✅ Python $(python --version) を使用中"
+  echo "  ✅ Using Python $(python --version)"
 fi
 
-# ─── 依存のインストール ───
+# ─── Install dependencies ───
 echo ""
-echo "--- 依存インストール ---"
+echo "--- Dependency installation ---"
 if [ -f package.json ]; then
-  echo "  npm ci を実行中..."
+  echo "  Running npm ci..."
   npm ci
-  echo "  ✅ Node.js 依存インストール完了"
+  echo "  ✅ Node.js dependencies installed"
 fi
 
 if [ -f requirements.txt ]; then
-  echo "  pip install を実行中..."
+  echo "  Running pip install..."
   pip install -r requirements.txt
-  echo "  ✅ Python 依存インストール完了"
+  echo "  ✅ Python dependencies installed"
 fi
 
 echo ""
-echo "=== セットアップ完了 ==="
+echo "=== Setup complete ==="
 ```
 
-### 9.4 CI との統一
+### 9.4 Unifying with CI
 
 ```yaml
 # .github/workflows/ci.yml
@@ -1261,23 +1286,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # .node-version / .nvmrc を自動検出
+      # Auto-detect .node-version / .nvmrc
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.node-version'
-          cache: 'npm'  # npm キャッシュを有効化
+          cache: 'npm'  # Enable npm cache
 
-      # .python-version を自動検出
+      # Auto-detect .python-version
       - uses: actions/setup-python@v5
         with:
           python-version-file: '.python-version'
-          cache: 'pip'  # pip キャッシュを有効化
+          cache: 'pip'  # Enable pip cache
 
       - run: npm ci
       - run: npm test
 ```
 
-### 9.4.1 CI での Rust セットアップ
+### 9.4.1 Rust Setup in CI
 
 ```yaml
 # .github/workflows/rust-ci.yml
@@ -1289,11 +1314,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # rust-toolchain.toml を自動検出
+      # Auto-detect rust-toolchain.toml
       - uses: dtolnay/rust-toolchain@stable
-        # rust-toolchain.toml がある場合は自動的に読み込まれる
+        # Automatically loaded if rust-toolchain.toml exists
 
-      # Rust のビルドキャッシュ
+      # Rust build cache
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -1303,7 +1328,7 @@ jobs:
       - run: cargo fmt -- --check
 ```
 
-### 9.4.2 CI での mise セットアップ
+### 9.4.2 mise Setup in CI
 
 ```yaml
 # .github/workflows/mise-ci.yml
@@ -1315,23 +1340,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # mise で全ツールを一括セットアップ
+      # Set up all tools at once with mise
       - uses: jdx/mise-action@v2
         with:
           experimental: true
 
-      # mise が .mise.toml を読んで全ツールをインストール
+      # mise reads .mise.toml and installs all tools
       - run: node --version
       - run: python --version
       - run: npm ci
       - run: npm test
 ```
 
-### 9.5 Docker でのバージョン統一
+### 9.5 Version Unification with Docker
 
 ```dockerfile
 # Dockerfile
-# .node-version の値をビルド引数として受け取る
+# Receive .node-version value as a build argument
 
 ARG NODE_VERSION=20.11.0
 FROM node:${NODE_VERSION}-slim
@@ -1344,7 +1369,7 @@ CMD ["node", "server.js"]
 ```
 
 ```bash
-# docker-compose.yml から .node-version を読む
+# Read .node-version from docker-compose.yml
 # docker-compose.yml
 # services:
 #   app:
@@ -1353,11 +1378,11 @@ CMD ["node", "server.js"]
 #       args:
 #         NODE_VERSION: ${NODE_VERSION:-20.11.0}
 
-# ビルド時に .node-version を参照
+# Reference .node-version at build time
 NODE_VERSION=$(cat .node-version) docker compose build
 ```
 
-### 9.6 Renovate / Dependabot でのバージョン更新自動化
+### 9.6 Automated Version Updates with Renovate / Dependabot
 
 ```json
 // renovate.json
@@ -1392,82 +1417,82 @@ NODE_VERSION=$(cat .node-version) docker compose build
 
 ---
 
-## 10. バージョンマネージャー間の移行
+## 10. Migrating Between Version Managers
 
-### 10.1 nvm → fnm 移行チェックリスト
+### 10.1 nvm to fnm Migration Checklist
 
 ```
-nvm → fnm 移行チェックリスト:
+nvm → fnm migration checklist:
 
-  ☐ 1. 現在の nvm バージョン一覧を記録
+  ☐ 1. Record current nvm version list
        nvm ls > ~/nvm-versions-backup.txt
 
-  ☐ 2. グローバルパッケージの一覧を記録
+  ☐ 2. Record global package list
        nvm use default
        npm list -g --depth=0 > ~/global-packages-backup.txt
 
-  ☐ 3. fnm をインストール
+  ☐ 3. Install fnm
        brew install fnm
 
-  ☐ 4. シェル設定を更新 (~/.zshrc)
-       # 削除:
+  ☐ 4. Update shell configuration (~/.zshrc)
+       # Remove:
        # export NVM_DIR="$HOME/.nvm"
        # [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-       # (自動切替スクリプトも削除)
-       # 追加:
+       # (also remove auto-switch script)
+       # Add:
        eval "$(fnm env --use-on-cd --shell zsh)"
 
-  ☐ 5. 必要なバージョンを fnm でインストール
+  ☐ 5. Install required versions with fnm
        fnm install 18
        fnm install 20
        fnm default 20
 
-  ☐ 6. 既存の .nvmrc は変更不要（fnm が読める）
+  ☐ 6. Existing .nvmrc does not need to be changed (fnm can read it)
 
-  ☐ 7. グローバルパッケージを再インストール（必要な場合のみ）
+  ☐ 7. Reinstall global packages (only if needed)
        npm install -g typescript @angular/cli
 
-  ☐ 8. 動作確認
+  ☐ 8. Verify operation
        cd ~/projects/project-a && node --version
        cd ~/projects/project-b && node --version
 
-  ☐ 9. nvm をアンインストール
+  ☐ 9. Uninstall nvm
        rm -rf ~/.nvm
-       # ~/.zshrc から残りの NVM 設定を削除
+       # Remove remaining NVM settings from ~/.zshrc
 
-  ☐ 10. チームメンバーに移行を通知
+  ☐ 10. Notify team members of migration
 ```
 
-### 10.2 asdf → mise 移行チェックリスト
+### 10.2 asdf to mise Migration Checklist
 
 ```
-asdf → mise 移行チェックリスト:
+asdf → mise migration checklist:
 
-  ☐ 1. 現在の asdf ツール一覧を記録
+  ☐ 1. Record current asdf tool list
        asdf list > ~/asdf-tools-backup.txt
 
-  ☐ 2. mise をインストール
+  ☐ 2. Install mise
        brew install mise
 
-  ☐ 3. シェル設定を更新 (~/.zshrc)
-       # 削除:
+  ☐ 3. Update shell configuration (~/.zshrc)
+       # Remove:
        # . $(brew --prefix asdf)/libexec/asdf.sh
-       # 追加:
+       # Add:
        eval "$(mise activate zsh)"
 
-  ☐ 4. asdf 互換モードを有効化
+  ☐ 4. Enable asdf compatibility mode
        mise settings set asdf_compat true
 
-  ☐ 5. .tool-versions はそのまま使える
-       # mise は .tool-versions を自動的に読み込む
-       # プラグインのインストールは不要
+  ☐ 5. .tool-versions can be used as-is
+       # mise automatically reads .tool-versions
+       # No plugin installation required
 
-  ☐ 6. 動作確認
-       mise ls        # 管理中のツール一覧
+  ☐ 6. Verify operation
+       mise ls        # List managed tools
        node --version
        python --version
 
-  ☐ 7. (オプション) .tool-versions → .mise.toml に変換
+  ☐ 7. (Optional) Convert .tool-versions → .mise.toml
        # .tool-versions:
        # nodejs 20.11.0
        # python 3.12.3
@@ -1477,49 +1502,49 @@ asdf → mise 移行チェックリスト:
        # node = "20.11.0"
        # python = "3.12.3"
 
-  ☐ 8. asdf をアンインストール
+  ☐ 8. Uninstall asdf
        brew uninstall asdf
        rm -rf ~/.asdf
 ```
 
-### 10.3 個別ツール → mise への統合移行
+### 10.3 Migrating from Individual Tools to mise
 
 ```bash
-# 複数のバージョンマネージャーを mise 1つに統合する
+# Consolidate multiple version managers into a single mise
 
 # Before:
 #   fnm (Node.js) + pyenv (Python) + goenv (Go) + rbenv (Ruby)
 #
 # After:
-#   mise (全部)
+#   mise (all)
 
-# ─── 現在のバージョンを確認 ───
+# ─── Check current versions ───
 echo "Node.js: $(node --version)"
 echo "Python: $(python --version)"
 echo "Go: $(go version)"
 echo "Ruby: $(ruby --version)"
 
-# ─── mise をインストール ───
+# ─── Install mise ───
 brew install mise
 
-# ─── シェル設定を一本化 ───
-# ~/.zshrc から以下を全て削除:
+# ─── Consolidate shell configuration ───
+# Remove all of the following from ~/.zshrc:
 # eval "$(fnm env --use-on-cd --shell zsh)"
 # eval "$(pyenv init -)"
 # eval "$(pyenv virtualenv-init -)"
 # eval "$(goenv init -)"
 # eval "$(rbenv init - zsh)"
 
-# 代わりに:
+# Replace with:
 # eval "$(mise activate zsh)"
 
-# ─── 必要なバージョンをインストール ───
+# ─── Install required versions ───
 mise use --global node@20
 mise use --global python@3.12
 mise use --global go@1.22
 mise use --global ruby@3.3
 
-# ─── プロジェクトの .mise.toml を作成 ───
+# ─── Create project .mise.toml ───
 cat << 'EOF' > .mise.toml
 [tools]
 node = "20.11.0"
@@ -1528,14 +1553,14 @@ go = "1.22.0"
 ruby = "3.3.0"
 EOF
 
-# ─── 動作確認 ───
-mise ls                       # 全ツール一覧
+# ─── Verify operation ───
+mise ls                       # List all tools
 node --version
 python --version
 go version
 ruby --version
 
-# ─── 古いツールを削除 ───
+# ─── Remove old tools ───
 brew uninstall fnm
 brew uninstall pyenv pyenv-virtualenv
 rm -rf ~/.goenv
@@ -1544,215 +1569,215 @@ brew uninstall rbenv
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-patterns
 
-### 11.1 システムグローバルに直接インストール
+### 11.1 Installing Directly to the System Global
 
 ```
-❌ アンチパターン: brew install node で直接インストール
+❌ Anti-pattern: installing directly with brew install node
 
-問題:
-  - プロジェクト間でバージョン切替不可
-  - バージョンマネージャーとの競合
-  - sudo が必要になるケース発生
+Problems:
+  - Cannot switch versions between projects
+  - Conflicts with version managers
+  - May require sudo
 
-✅ 正しいアプローチ:
-  - バージョンマネージャー経由でインストール
-  - Homebrew の node/python は削除
+✅ Correct approach:
+  - Install via version manager
+  - Remove Homebrew's node/python
   - brew uninstall node python
 ```
 
-### 11.2 バージョン指定ファイルをコミットしない
+### 11.2 Not Committing Version Specification Files
 
 ```
-❌ アンチパターン: .node-version を .gitignore に入れる
+❌ Anti-pattern: adding .node-version to .gitignore
 
-問題:
-  - チームメンバーが異なるバージョンを使用
-  - CI と開発環境の不一致
-  - "僕の環境では動く" 問題の再発
+Problems:
+  - Team members use different versions
+  - Mismatch between CI and development environment
+  - "Works on my machine" problem recurs
 
-✅ 正しいアプローチ:
-  - .node-version, .python-version は必ずコミット
-  - package.json の engines フィールドも設定
-  - CI で同じバージョン指定ファイルを参照
+✅ Correct approach:
+  - Always commit .node-version and .python-version
+  - Also set the engines field in package.json
+  - Reference the same version specification files in CI
 ```
 
-### 11.3 メジャーバージョンのみ指定
+### 11.3 Specifying Only the Major Version
 
 ```
-❌ アンチパターン: .node-version に "20" とだけ書く
+❌ Anti-pattern: writing only "20" in .node-version
 
-問題:
-  - 開発者 A は 20.10.0 を使用
-  - 開発者 B は 20.11.0 を使用
-  - パッチバージョンの違いでの微妙なバグが発生
-  (例: TLS 関連の挙動変更、V8 エンジンの最適化差異)
+Problems:
+  - Developer A uses 20.10.0
+  - Developer B uses 20.11.0
+  - Subtle bugs from patch version differences
+  (e.g., TLS behavior changes, V8 engine optimization differences)
 
-✅ 正しいアプローチ:
-  - パッチバージョンまで指定: "20.11.0"
-  - engines フィールドは範囲指定: ">=20.11.0 <21"
-  - 本番環境と完全一致させる
+✅ Correct approach:
+  - Specify down to the patch version: "20.11.0"
+  - Use a range in the engines field: ">=20.11.0 <21"
+  - Match exactly with the production environment
 ```
 
-### 11.4 複数のバージョンマネージャーを混在させる
+### 11.4 Mixing Multiple Version Managers
 
 ```
-❌ アンチパターン: fnm と nvm を同時に使う
+❌ Anti-pattern: using fnm and nvm simultaneously
 
-問題:
-  - PATH の優先順位が不定
-  - どちらの node が使われるか予測不能
-  - シェル起動時間が倍増
-  - デバッグが困難
+Problems:
+  - PATH priority is undefined
+  - Unpredictable which node will be used
+  - Shell startup time doubles
+  - Difficult to debug
 
-✅ 正しいアプローチ:
-  - チーム全体で1つのツールに統一
-  - 移行期間は短く設定（2週間以内）
-  - 古いツールは完全に削除
+✅ Correct approach:
+  - Unify the entire team on one tool
+  - Keep the transition period short (within 2 weeks)
+  - Completely remove old tools
 
-確認方法:
+Verification:
   which -a node
-  # 1つの結果のみ表示されるべき
-  # 複数表示された場合は競合している
+  # Should show only one result
+  # Multiple results indicate a conflict
 ```
 
-### 11.5 バージョンマネージャーを更新しない
+### 11.5 Not Updating the Version Manager
 
 ```
-❌ アンチパターン: インストール後にバージョンマネージャー自体を放置
+❌ Anti-pattern: leaving the version manager untouched after installation
 
-問題:
-  - 新しいランタイムバージョンをインストールできない
-  - セキュリティ修正が適用されない
-  - 最新 OS との互換性問題
+Problems:
+  - Cannot install new runtime versions
+  - Security fixes are not applied
+  - Compatibility issues with the latest OS
 
-✅ 正しいアプローチ:
-  定期的な更新スケジュール:
-  - Homebrew: brew upgrade fnm mise（月1回）
-  - rustup: rustup self update（自動）
-  - nvm: nvm のインストールスクリプトを再実行
-  - mise: mise self-update（組み込み機能）
+✅ Correct approach:
+  Regular update schedule:
+  - Homebrew: brew upgrade fnm mise (monthly)
+  - rustup: rustup self update (automatic)
+  - nvm: re-run the nvm installation script
+  - mise: mise self-update (built-in feature)
 ```
 
 ---
 
-## 12. トラブルシューティング
+## 12. Troubleshooting
 
-### 12.1 "command not found" エラー
+### 12.1 "command not found" Error
 
 ```bash
-# ─── node が見つからない場合 ───
+# ─── When node is not found ───
 
-# 1. バージョンマネージャーがロードされているか確認
-which fnm        # fnm 自体のパスが返るか
-fnm current      # 現在のバージョンが表示されるか
+# 1. Check if the version manager is loaded
+which fnm        # Does it return the path to fnm itself?
+fnm current      # Does it show the current version?
 
-# 2. シェル設定が正しいか確認
+# 2. Check if shell configuration is correct
 cat ~/.zshrc | grep fnm
-# eval "$(fnm env --use-on-cd --shell zsh)" が含まれているか
+# Check if eval "$(fnm env --use-on-cd --shell zsh)" is included
 
-# 3. fnm にバージョンがインストールされているか
+# 3. Check if a version is installed in fnm
 fnm list
-# 何も表示されない場合:
+# If nothing is shown:
 fnm install --lts
 
-# 4. 新しいシェルを開いて確認
+# 4. Open a new shell and verify
 exec zsh
 node --version
 
-# ─── pyenv の python が見つからない場合 ───
+# ─── When pyenv's python is not found ───
 
-# 1. pyenv のシム確認
+# 1. Check pyenv shims
 which python
-# ~/.pyenv/shims/python が返るべき
+# Should return ~/.pyenv/shims/python
 
-# 2. shim の再構築
+# 2. Rebuild shims
 pyenv rehash
 
-# 3. バージョンが設定されているか確認
+# 3. Check if a version is configured
 pyenv version
-# "system" と表示される場合は未設定
+# If "system" is shown, it is not configured
 pyenv global 3.12.3
 ```
 
-### 12.2 バージョンが切り替わらない
+### 12.2 Version Not Switching
 
 ```bash
-# ─── cd しても自動切替が動かない場合 ───
+# ─── When auto-switch does not work on cd ───
 
-# 1. fnm の --use-on-cd が有効か確認
+# 1. Check if fnm's --use-on-cd is enabled
 fnm env | grep "FNM_VERSION_FILE_STRATEGY"
-# "recursive" が推奨
+# "recursive" is recommended
 
-# 2. .node-version ファイルの内容確認
+# 2. Check contents of .node-version file
 cat .node-version
-# 改行コードに注意（LF であるべき、CRLF だと問題になることがある）
+# Note line endings (should be LF; CRLF can cause issues)
 file .node-version
-# "ASCII text" と表示されるべき
+# Should show "ASCII text"
 
-# 3. バージョンが実際にインストールされているか
+# 3. Check if the version is actually installed
 fnm list
-# .node-version に書かれたバージョンが一覧にあるか
+# Check if the version written in .node-version is in the list
 
-# 4. 手動切替は動くか
+# 4. Does manual switching work?
 fnm use
-# エラーが出る場合は fnm install を先に実行
+# If an error occurs, run fnm install first
 
-# ─── Volta で切り替わらない場合 ───
-# package.json の volta フィールドを確認
+# ─── When Volta does not switch ───
+# Check the volta field in package.json
 cat package.json | jq '.volta'
-# null の場合は volta pin node@20 を実行
+# If null, run volta pin node@20
 ```
 
-### 12.3 PATH の競合解決
+### 12.3 Resolving PATH Conflicts
 
 ```bash
-# ─── 複数のバージョンマネージャーが競合する場合 ───
+# ─── When multiple version managers conflict ───
 
-# 1. 全ての node の場所を確認
+# 1. Check all locations of node
 which -a node
 type -a node
 
-# 期待される出力（fnm の場合）:
+# Expected output (for fnm):
 # /Users/username/.fnm/node-versions/v20.11.0/installation/bin/node
 
-# 問題のある出力例:
-# /opt/homebrew/bin/node          ← brew install node の残骸
-# /Users/username/.nvm/versions/node/v20.11.0/bin/node  ← nvm の残骸
+# Problematic output example:
+# /opt/homebrew/bin/node          ← remnant of brew install node
+# /Users/username/.nvm/versions/node/v20.11.0/bin/node  ← remnant of nvm
 # /Users/username/.fnm/node-versions/v20.11.0/installation/bin/node
 
-# 2. 不要なインストールを削除
-brew uninstall node              # Homebrew の node を削除
-rm -rf ~/.nvm                    # nvm を完全削除
+# 2. Remove unnecessary installations
+brew uninstall node              # Remove Homebrew's node
+rm -rf ~/.nvm                    # Completely remove nvm
 
-# 3. PATH の順序を確認
+# 3. Check PATH order
 echo $PATH | tr ':' '\n' | head -20
-# バージョンマネージャーのパスが /usr/local/bin より前にあるべき
+# Version manager path should come before /usr/local/bin
 
-# 4. シェル設定で不要なパスが追加されていないか確認
+# 4. Check if unnecessary paths are added in shell configuration
 grep -n 'PATH' ~/.zshrc
 grep -n 'PATH' ~/.zprofile
 grep -n 'PATH' ~/.bash_profile
 ```
 
-### 12.4 pyenv のビルドが失敗する
+### 12.4 pyenv Build Failures
 
 ```bash
-# ─── macOS Sonoma/Sequoia でのビルドエラー ───
+# ─── Build errors on macOS Sonoma/Sequoia ───
 
-# "Build failed" の場合のデバッグ手順:
+# Debugging steps for "Build failed":
 
-# 1. Xcode Command Line Tools を更新
+# 1. Update Xcode Command Line Tools
 xcode-select --install
-# 既にインストール済みの場合:
+# If already installed:
 sudo rm -rf /Library/Developer/CommandLineTools
 xcode-select --install
 
-# 2. ビルド依存を再インストール
+# 2. Reinstall build dependencies
 brew reinstall openssl readline sqlite3 xz zlib tcl-tk
 
-# 3. 環境変数を設定してビルド
+# 3. Build with environment variables set
 LDFLAGS="-L$(brew --prefix openssl@3)/lib \
   -L$(brew --prefix readline)/lib \
   -L$(brew --prefix sqlite3)/lib \
@@ -1770,150 +1795,150 @@ $(brew --prefix zlib)/lib/pkgconfig:\
 $(brew --prefix xz)/lib/pkgconfig" \
 pyenv install 3.12.3
 
-# 4. それでもダメなら uv を代替として検討
-uv python install 3.12  # プリビルドバイナリなのでビルドエラーなし
+# 4. If still failing, consider uv as an alternative
+uv python install 3.12  # Pre-built binary, no build errors
 ```
 
 ---
 
 ## 13. FAQ
 
-### Q1: fnm と nvm、どちらを選ぶべき？
+### Q1: Which should I choose, fnm or nvm?
 
-**A:** 新規プロジェクトなら fnm を推奨。理由は以下の通り。
-- Rust 製で起動が 40倍以上高速（シェル起動時間に影響）
-- `.nvmrc` 互換なので nvm からの移行が容易
-- `--use-on-cd` でディレクトリ移動時の自動切替が標準機能
-- クロスプラットフォーム対応（Windows ネイティブ含む）
-- Corepack サポートが組み込み
+**A:** For new projects, fnm is recommended for the following reasons:
+- Written in Rust, over 40x faster startup (affects shell startup time)
+- Easy migration from nvm as `.nvmrc` is compatible
+- Auto-switch on directory change is a built-in feature with `--use-on-cd`
+- Cross-platform support (including native Windows)
+- Corepack support is built in
 
-nvm はエコシステムが最も成熟しているが、速度面で fnm に劣る。
+nvm has the most mature ecosystem, but is inferior to fnm in terms of speed.
 
-### Q2: mise は nvm/pyenv を置き換えられる？
+### Q2: Can mise replace nvm/pyenv?
 
-**A:** はい、mise は Node.js、Python、Go、Rust、Terraform など多くのツールを統一管理できる。既存の `.nvmrc`、`.python-version`、`.tool-versions` (asdf形式) を読めるので移行も容易。ただし、pyenv の virtualenv 連携や nvm 固有のスクリプトに依存している場合は段階的に移行するのが安全。
+**A:** Yes, mise can centrally manage many tools including Node.js, Python, Go, Rust, Terraform, and more. Since it can read existing `.nvmrc`, `.python-version`, and `.tool-versions` (asdf format), migration is easy. However, if you depend on pyenv's virtualenv integration or nvm-specific scripts, it is safer to migrate gradually.
 
-### Q3: .node-version と .nvmrc の違いは？
+### Q3: What is the difference between .node-version and .nvmrc?
 
-**A:** 内容は同じ（バージョン番号を1行書くだけ）。fnm と nvm は両方読める。Volta は package.json の volta フィールドを使う。チームで統一するなら `.node-version` が推奨（fnm のデフォルト、GitHub Actions の setup-node も対応）。
+**A:** The content is the same (just write a version number on one line). Both fnm and nvm can read both files. Volta uses the volta field in package.json. If you want to unify within the team, `.node-version` is recommended (fnm's default; GitHub Actions' setup-node also supports it).
 
-### Q4: uv で Python バージョン管理するのと pyenv、どちらが良い？
+### Q4: Is it better to manage Python versions with uv or pyenv?
 
-**A:** 2025年以降の新規プロジェクトでは uv を推奨。理由は以下の通り。
-- プリビルドバイナリのダウンロードなのでビルドエラーが発生しない
-- pyenv のビルド依存（openssl, readline 等）のインストールが不要
-- パッケージ管理と Python バージョン管理を uv 1つで完結できる
-- インストールが数秒で完了（pyenv は数分かかることがある）
+**A:** For new projects from 2025 onward, uv is recommended for the following reasons:
+- No build errors since it downloads pre-built binaries
+- No need to install pyenv build dependencies (openssl, readline, etc.)
+- Package management and Python version management can be handled by uv alone
+- Installation completes in seconds (pyenv can take several minutes)
 
-ただし、pyenv が必要なケースもある。
-- 特殊なビルドオプション（デバッグビルド、PGO 最適化等）が必要
-- CPython 以外の実装（PyPy 等）を使う必要がある場合
+However, there are cases where pyenv is necessary:
+- When special build options are needed (debug builds, PGO optimization, etc.)
+- When you need to use CPython implementations other than the standard (e.g., PyPy)
 
-### Q5: Volta と fnm の使い分けは？
+### Q5: How should I choose between Volta and fnm?
 
-**A:** 判断基準は以下の通り。
+**A:** The decision criteria are as follows:
 
-Volta が適しているケース:
-- npm/yarn/pnpm のバージョンも厳密に固定したい
-- package.json に全ての設定を集約したい
-- シェルフック不要の仕組みを好む（シェル起動影響ゼロ）
+Cases where Volta is appropriate:
+- You want to strictly pin the versions of npm/yarn/pnpm as well
+- You want to consolidate all settings in package.json
+- You prefer a mechanism that requires no shell hooks (zero shell startup impact)
 
-fnm が適しているケース:
-- Node.js のバージョンだけ管理できれば十分
-- .nvmrc との互換性が重要（nvm からの移行）
-- 軽量・高速なツールを好む
+Cases where fnm is appropriate:
+- Managing just the Node.js version is sufficient
+- .nvmrc compatibility is important (migrating from nvm)
+- You prefer a lightweight, fast tool
 
-### Q6: チームで異なるバージョンマネージャーを使っていても問題ない？
+### Q6: Is it okay if the team uses different version managers?
 
-**A:** バージョンファイルが統一されていれば実用上は問題ない。例えば `.node-version` ファイルは fnm でも nvm でも mise でも読める。ただし、以下の点に注意が必要。
-- バージョンファイルのフォーマットに互換性がない組み合わせがある（例: Volta は .nvmrc を読まない）
-- トラブルシューティング時の統一的なサポートが困難
-- 可能であればチーム全体で1つのツールに統一することを推奨
+**A:** As long as the version files are unified, there is no practical problem. For example, the `.node-version` file can be read by fnm, nvm, and mise alike. However, the following points need attention:
+- Some combinations are not compatible in version file format (e.g., Volta does not read .nvmrc)
+- Unified support during troubleshooting is difficult
+- If possible, it is recommended to unify the entire team on one tool
 
-### Q7: Node.js のバージョンアップはどのタイミングで行うべき？
+### Q7: When should I upgrade the Node.js version?
 
-**A:** 以下のスケジュールを推奨。
-1. **新 LTS リリース直後（10月）**: 検証用ブランチで依存の互換性テスト
-2. **リリース後 1-2ヶ月**: 主要ライブラリの対応を確認
-3. **リリース後 3ヶ月**: 本番移行を計画・実行
-4. **旧 LTS の EOL 3ヶ月前**: 移行を完了
+**A:** The following schedule is recommended:
+1. **Right after a new LTS release (October)**: Run compatibility tests on dependencies in a verification branch
+2. **1-2 months after release**: Confirm support from major libraries
+3. **3 months after release**: Plan and execute production migration
+4. **3 months before old LTS EOL**: Complete migration
 
-### Q8: バージョンマネージャー自体のバージョンは固定すべき？
+### Q8: Should the version manager itself be version-pinned?
 
-**A:** バージョンマネージャー自体は最新版を使うことを推奨。ランタイムのバージョンとは異なり、バージョンマネージャーの更新で破壊的変更が入ることは稀。ただし、CI では `actions/setup-node@v4` のようにメジャーバージョンを固定するのが安全。
+**A:** It is recommended to use the latest version of the version manager itself. Unlike runtime versions, breaking changes from version manager updates are rare. However, in CI, it is safer to pin to a major version such as `actions/setup-node@v4`.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to applications. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work, particularly during code reviews and architecture design.
 
 ---
 
-## 14. まとめ
+## 14. Summary
 
-| 言語 | 推奨ツール | 設定ファイル | 備考 |
-|------|-----------|-------------|------|
-| Node.js | fnm | `.node-version` | 高速・.nvmrc互換 |
-| Node.js (チーム) | Volta | `package.json` | npm/yarn も固定 |
-| Python (新規) | uv | `.python-version` | 超高速・ビルド不要 |
-| Python (既存) | pyenv | `.python-version` | virtualenv 連携 |
-| Rust | rustup | `rust-toolchain.toml` | 公式ツール |
-| Go | mise | `.mise.toml` | goenv より統合的 |
-| Java | SDKMAN / mise | `.sdkmanrc` / `.mise.toml` | ディストリビューション選択可 |
-| Ruby | rbenv / mise | `.ruby-version` / `.mise.toml` | mise 統合推奨 |
-| 多言語統合 | mise | `.mise.toml` | 全言語を1ツールで |
-| CI | actions/setup-* | 上記ファイルを参照 | 自動検出対応 |
+| Language | Recommended Tool | Config File | Notes |
+|----------|-----------------|-------------|-------|
+| Node.js | fnm | `.node-version` | Fast, .nvmrc compatible |
+| Node.js (team) | Volta | `package.json` | Also pins npm/yarn |
+| Python (new) | uv | `.python-version` | Ultra-fast, no build required |
+| Python (existing) | pyenv | `.python-version` | virtualenv integration |
+| Rust | rustup | `rust-toolchain.toml` | Official tool |
+| Go | mise | `.mise.toml` | More integrated than goenv |
+| Java | SDKMAN / mise | `.sdkmanrc` / `.mise.toml` | Distribution selection available |
+| Ruby | rbenv / mise | `.ruby-version` / `.mise.toml` | mise integration recommended |
+| Multi-language | mise | `.mise.toml` | All languages with one tool |
+| CI | actions/setup-* | References files above | Auto-detection supported |
 
-### バージョン管理の5原則
+### 5 Principles of Version Management
 
 ```
-1. パッチバージョンまで固定する
-   → "20.11.0" であって "20" ではない
+1. Pin down to the patch version
+   → "20.11.0", not "20"
 
-2. バージョンファイルは必ずコミットする
-   → .node-version, .python-version は .gitignore に入れない
+2. Always commit version files
+   → Do not add .node-version, .python-version to .gitignore
 
-3. CI と開発環境で同じバージョンを使う
-   → バージョンファイルを CI でも参照する
+3. Use the same version in CI and development environment
+   → Reference version files in CI as well
 
-4. チーム全体で同じバージョンマネージャーを使う
-   → 混在は PATH の競合やサポートの困難さを招く
+4. Use the same version manager across the entire team
+   → Mixing leads to PATH conflicts and support difficulties
 
-5. 定期的にバージョンを更新する
-   → LTS スケジュールに合わせた計画的な更新
+5. Update versions regularly
+   → Planned updates aligned with LTS schedule
 ```
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [01-package-managers.md](./01-package-managers.md) -- パッケージマネージャーの設定
-- [../00-editor-and-tools/01-terminal-setup.md](../00-editor-and-tools/01-terminal-setup.md) -- シェル設定との連携
-- [../03-team-setup/00-project-standards.md](../03-team-setup/00-project-standards.md) -- チーム標準の設定
+- [01-package-managers.md](./01-package-managers.md) -- Package manager configuration
+- [../00-editor-and-tools/01-terminal-setup.md](../00-editor-and-tools/01-terminal-setup.md) -- Integration with shell configuration
+- [../03-team-setup/00-project-standards.md](../03-team-setup/00-project-standards.md) -- Team standards configuration
 
 ---
 
-## 参考文献
+## References
 
-1. **fnm (Fast Node Manager)** -- https://github.com/Schniz/fnm -- fnm 公式リポジトリ。ベンチマーク比較あり。
-2. **mise documentation** -- https://mise.jdx.dev/ -- mise の公式ドキュメント。全対応ツール一覧。
-3. **pyenv** -- https://github.com/pyenv/pyenv -- pyenv 公式。ビルド依存のトラブルシューティングが充実。
-4. **Volta** -- https://volta.sh/ -- Volta 公式サイト。package.json 統合の詳細解説。
-5. **rustup** -- https://rust-lang.github.io/rustup/ -- rustup 公式ドキュメント。ツールチェーン管理の詳細。
-6. **uv** -- https://docs.astral.sh/uv/ -- uv 公式ドキュメント。Python バージョン管理機能の解説。
-7. **Node.js Release Schedule** -- https://github.com/nodejs/release -- Node.js のリリーススケジュールと EOL 情報。
-8. **SDKMAN** -- https://sdkman.io/ -- SDKMAN 公式サイト。Java ディストリビューションの選択ガイド。
-9. **rbenv** -- https://github.com/rbenv/rbenv -- rbenv 公式リポジトリ。Ruby バージョン管理。
-10. **goenv** -- https://github.com/go-nv/goenv -- goenv 公式リポジトリ。Go バージョン管理。
+1. **fnm (Fast Node Manager)** -- https://github.com/Schniz/fnm -- Official fnm repository. Includes benchmark comparisons.
+2. **mise documentation** -- https://mise.jdx.dev/ -- Official mise documentation. Full list of supported tools.
+3. **pyenv** -- https://github.com/pyenv/pyenv -- Official pyenv. Extensive build dependency troubleshooting.
+4. **Volta** -- https://volta.sh/ -- Official Volta site. Detailed explanation of package.json integration.
+5. **rustup** -- https://rust-lang.github.io/rustup/ -- Official rustup documentation. Detailed toolchain management.
+6. **uv** -- https://docs.astral.sh/uv/ -- Official uv documentation. Explanation of Python version management features.
+7. **Node.js Release Schedule** -- https://github.com/nodejs/release -- Node.js release schedule and EOL information.
+8. **SDKMAN** -- https://sdkman.io/ -- Official SDKMAN site. Guide for selecting Java distributions.
+9. **rbenv** -- https://github.com/rbenv/rbenv -- Official rbenv repository. Ruby version management.
+10. **goenv** -- https://github.com/go-nv/goenv -- Official goenv repository. Go version management.
