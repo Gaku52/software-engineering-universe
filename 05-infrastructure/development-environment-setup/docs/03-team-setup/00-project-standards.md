@@ -1,110 +1,110 @@
-# プロジェクト標準 (Project Standards)
+# Project Standards
 
-> EditorConfig、.npmrc、.nvmrc などの共通設定ファイルを活用し、チーム全体で一貫したコーディング規約と開発環境を維持するための標準化手法を学ぶ。
+> Learn standardization techniques for maintaining consistent coding conventions and development environments across the entire team, leveraging common configuration files such as EditorConfig, .npmrc, and .nvmrc.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **EditorConfig によるエディタ横断のフォーマット統一** -- タブ/スペース、改行コード、文字コードをエディタに依存せず統一する設定を理解する
-2. **.npmrc / .nvmrc / .node-version によるランタイム統一** -- Node.js のバージョンとパッケージマネージャの動作をチーム内で揃える手法を習得する
-3. **Linter / Formatter / Git Hooks の統合設定** -- ESLint、Prettier、husky、lint-staged を組み合わせた品質ゲートを構築する
-4. **多言語プロジェクトへの標準化適用** -- Python、Go、Rust など複数言語が混在するプロジェクトでの統一設定手法を習得する
-5. **CI/CD との統合による品質の二重防御** -- ローカルフックと CI パイプラインを連携させ、品質基準を自動的に強制する仕組みを構築する
+1. **Cross-editor formatting unification with EditorConfig** -- Understand configurations that standardize tabs/spaces, line endings, and character encoding independently of the editor
+2. **Runtime unification with .npmrc / .nvmrc / .node-version** -- Learn how to align Node.js versions and package manager behavior across the team
+3. **Integrated configuration of Linter / Formatter / Git Hooks** -- Build a quality gate combining ESLint, Prettier, husky, and lint-staged
+4. **Applying standards to multi-language projects** -- Learn unified configuration techniques for projects mixing multiple languages such as Python, Go, and Rust
+5. **Dual defense through CI/CD integration** -- Build a system that automatically enforces quality standards by linking local hooks with CI pipelines
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. プロジェクト標準化の全体像
+## 1. Overview of Project Standardization
 
 ```
 +------------------------------------------------------------------+
-|             プロジェクト標準化レイヤー                               |
+|             Project Standardization Layers                        |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [レイヤー 1] エディタ設定                                        |
-|    .editorconfig        -- タブ幅、改行コード、文字コード           |
-|    .vscode/settings.json -- VS Code 固有設定                     |
-|    .idea/               -- JetBrains 固有設定                    |
+|  [Layer 1] Editor Settings                                       |
+|    .editorconfig        -- Tab width, line endings, encoding     |
+|    .vscode/settings.json -- VS Code-specific settings            |
+|    .idea/               -- JetBrains-specific settings           |
 |                                                                  |
-|  [レイヤー 2] ランタイム設定                                      |
-|    .nvmrc / .node-version -- Node.js バージョン固定               |
-|    .npmrc               -- パッケージマネージャ設定                |
-|    .tool-versions       -- asdf 全般 (Ruby, Python 等)           |
-|    .python-version      -- Python バージョン固定                  |
-|    rust-toolchain.toml  -- Rust ツールチェーン固定                 |
+|  [Layer 2] Runtime Settings                                      |
+|    .nvmrc / .node-version -- Pin Node.js version                 |
+|    .npmrc               -- Package manager settings              |
+|    .tool-versions       -- asdf general (Ruby, Python, etc.)     |
+|    .python-version      -- Pin Python version                    |
+|    rust-toolchain.toml  -- Pin Rust toolchain                    |
 |                                                                  |
-|  [レイヤー 3] コード品質                                          |
-|    eslint.config.js     -- Lint ルール                            |
-|    .prettierrc          -- フォーマットルール                      |
-|    biome.json           -- Biome 統合設定                         |
-|    tsconfig.json        -- TypeScript 設定                       |
+|  [Layer 3] Code Quality                                          |
+|    eslint.config.js     -- Lint rules                            |
+|    .prettierrc          -- Format rules                          |
+|    biome.json           -- Biome integrated settings             |
+|    tsconfig.json        -- TypeScript settings                   |
 |    pyproject.toml       -- Python Lint/Format (ruff, black)      |
-|    .golangci.yml        -- Go Lint 設定                           |
+|    .golangci.yml        -- Go Lint settings                      |
 |                                                                  |
-|  [レイヤー 4] Git ワークフロー                                    |
-|    .husky/              -- Git フック                             |
-|    .lintstagedrc        -- ステージファイルの自動修正               |
-|    .commitlintrc        -- コミットメッセージ規約                  |
-|    .gitattributes       -- 改行コード・バイナリ判定                |
-|    .gitignore           -- 追跡対象外ファイルの定義                 |
+|  [Layer 4] Git Workflow                                          |
+|    .husky/              -- Git hooks                             |
+|    .lintstagedrc        -- Auto-fix staged files                 |
+|    .commitlintrc        -- Commit message conventions            |
+|    .gitattributes       -- Line endings & binary detection       |
+|    .gitignore           -- Definition of untracked files         |
 |                                                                  |
-|  [レイヤー 5] CI/CD パイプライン                                  |
-|    .github/workflows/   -- GitHub Actions ワークフロー             |
-|    .gitlab-ci.yml       -- GitLab CI 設定                         |
-|    Dockerfile           -- コンテナビルド設定                      |
-|    docker-compose.yml   -- ローカルサービス構成                    |
+|  [Layer 5] CI/CD Pipeline                                        |
+|    .github/workflows/   -- GitHub Actions workflows              |
+|    .gitlab-ci.yml       -- GitLab CI settings                    |
+|    Dockerfile           -- Container build settings              |
+|    docker-compose.yml   -- Local service configuration           |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 1.1 標準化のメリットと導入コスト
+### 1.1 Benefits and Introduction Cost of Standardization
 
-| 観点 | 標準化なし | 標準化あり |
-|------|----------|----------|
-| 新メンバーの環境構築 | 1-2日 | 5-15分 |
-| コードレビューでのスタイル指摘 | 毎回発生 | 自動修正で不要 |
-| CI での想定外エラー | 頻発 | 事前に防止 |
-| バージョン不一致バグ | 再現困難 | engines で検知 |
-| コミットメッセージの品質 | バラバラ | Conventional Commits 準拠 |
-| 導入コスト | -- | 初回 2-4 時間 |
-| メンテナンスコスト | -- | 月 30 分程度 |
+| Aspect | Without Standardization | With Standardization |
+|--------|------------------------|----------------------|
+| New member environment setup | 1-2 days | 5-15 minutes |
+| Style comments in code review | Occurs every time | Unnecessary with auto-fix |
+| Unexpected CI errors | Frequent | Prevented in advance |
+| Version mismatch bugs | Hard to reproduce | Detected via engines |
+| Commit message quality | Inconsistent | Follows Conventional Commits |
+| Introduction cost | -- | 2-4 hours initially |
+| Maintenance cost | -- | ~30 minutes per month |
 
-### 1.2 段階的な導入戦略
+### 1.2 Phased Introduction Strategy
 
-既存プロジェクトへの標準化導入は、一度にすべてを適用するのではなく、段階的に進めるのが安全である。
+When introducing standardization into an existing project, it is safer to proceed in stages rather than applying everything at once.
 
 ```
 +------------------------------------------------------------------+
-|              標準化の段階的導入ロードマップ                          |
+|              Phased Standardization Roadmap                       |
 +------------------------------------------------------------------+
 |                                                                  |
-|  Phase 1 (初日): 基盤設定                                        |
+|  Phase 1 (Day 1): Foundation                                     |
 |    ✓ .editorconfig                                               |
 |    ✓ .gitattributes                                              |
 |    ✓ .gitignore                                                  |
 |    ✓ .nvmrc / .node-version                                     |
 |                                                                  |
-|  Phase 2 (1週目): コード品質                                     |
-|    ✓ ESLint / Biome 設定                                         |
-|    ✓ Prettier / フォーマッター設定                                |
-|    ✓ .npmrc 設定                                                 |
-|    ✓ VS Code 共有設定                                             |
+|  Phase 2 (Week 1): Code Quality                                  |
+|    ✓ ESLint / Biome settings                                     |
+|    ✓ Prettier / Formatter settings                               |
+|    ✓ .npmrc settings                                             |
+|    ✓ VS Code shared settings                                     |
 |                                                                  |
-|  Phase 3 (2週目): Git ワークフロー                                |
+|  Phase 3 (Week 2): Git Workflow                                  |
 |    ✓ husky + lint-staged                                         |
 |    ✓ commitlint                                                  |
-|    ✓ PR テンプレート                                              |
+|    ✓ PR template                                                 |
 |                                                                  |
-|  Phase 4 (3週目): CI/CD 統合                                     |
-|    ✓ GitHub Actions / GitLab CI での品質チェック                   |
-|    ✓ 自動テスト                                                   |
-|    ✓ 自動デプロイ                                                 |
+|  Phase 4 (Week 3): CI/CD Integration                             |
+|    ✓ Quality checks via GitHub Actions / GitLab CI               |
+|    ✓ Automated testing                                           |
+|    ✓ Automated deployment                                        |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
@@ -113,7 +113,7 @@
 
 ## 2. EditorConfig
 
-### 2.1 基本設定
+### 2.1 Basic Configuration
 
 ```ini
 # .editorconfig
@@ -121,7 +121,7 @@
 
 root = true
 
-# 全ファイル共通
+# Common to all files
 [*]
 charset = utf-8
 end_of_line = lf
@@ -151,11 +151,11 @@ indent_size = 4
 [*.{cs,csx}]
 indent_size = 4
 
-# Makefile (タブ必須)
+# Makefile (tabs required)
 [Makefile]
 indent_style = tab
 
-# マークダウン (末尾スペースは意味がある)
+# Markdown (trailing spaces are meaningful)
 [*.md]
 trim_trailing_whitespace = false
 
@@ -189,23 +189,23 @@ indent_size = 2
 indent_size = 2
 ```
 
-### 2.2 EditorConfig の対応状況
+### 2.2 EditorConfig Support Status
 
-| エディタ | ネイティブ対応 | プラグイン |
-|---------|-------------|-----------|
-| VS Code | プラグイン必要 | EditorConfig for VS Code |
-| JetBrains (IntelliJ等) | 標準対応 | 不要 |
-| Vim / Neovim | プラグイン必要 | editorconfig-vim |
-| Sublime Text | プラグイン必要 | EditorConfig |
-| Emacs | プラグイン必要 | editorconfig-emacs |
-| GitHub Web | 標準対応 | 不要 |
-| Zed | 標準対応 | 不要 |
-| Cursor | プラグイン必要 | EditorConfig for VS Code |
+| Editor | Native Support | Plugin |
+|--------|---------------|--------|
+| VS Code | Plugin required | EditorConfig for VS Code |
+| JetBrains (IntelliJ, etc.) | Built-in | Not required |
+| Vim / Neovim | Plugin required | editorconfig-vim |
+| Sublime Text | Plugin required | EditorConfig |
+| Emacs | Plugin required | editorconfig-emacs |
+| GitHub Web | Built-in | Not required |
+| Zed | Built-in | Not required |
+| Cursor | Plugin required | EditorConfig for VS Code |
 
-### 2.3 EditorConfig の高度な設定パターン
+### 2.3 Advanced EditorConfig Patterns
 
 ```ini
-# .editorconfig (大規模プロジェクト向け拡張)
+# .editorconfig (extended for large-scale projects)
 
 root = true
 
@@ -218,7 +218,7 @@ indent_style = space
 indent_size = 2
 max_line_length = 120
 
-# プロトコルバッファ
+# Protocol Buffers
 [*.proto]
 indent_size = 2
 
@@ -226,18 +226,18 @@ indent_size = 2
 [*.{graphql,gql}]
 indent_size = 2
 
-# 環境変数ファイル
+# Environment variable files
 [.env*]
 insert_final_newline = true
 
-# バッチファイル / PowerShell
+# Batch files / PowerShell
 [*.{bat,cmd}]
 end_of_line = crlf
 [*.ps1]
 end_of_line = crlf
 charset = utf-8-bom
 
-# ライセンスファイル
+# License files
 [LICENSE*]
 insert_final_newline = true
 trim_trailing_whitespace = true
@@ -250,75 +250,75 @@ indent_size = 2
 [*.php]
 indent_size = 4
 
-# ソリューションファイル
+# Solution files
 [*.sln]
 end_of_line = crlf
 
-# csproj (Microsoft XML形式)
+# csproj (Microsoft XML format)
 [*.{csproj,vbproj,vcxproj,proj}]
 indent_size = 2
 end_of_line = crlf
 ```
 
-### 2.4 EditorConfig の検証
+### 2.4 Verifying EditorConfig
 
-EditorConfig の設定が正しく適用されているかを検証するスクリプトを用意しておくと、トラブルシューティングが容易になる。
+Having a script to verify that EditorConfig settings are being applied correctly makes troubleshooting easier.
 
 ```bash
 #!/bin/bash
 # scripts/check-editorconfig.sh
-# EditorConfig の適用状態を検証する
+# Verify EditorConfig application status
 
 set -euo pipefail
 
 ERRORS=0
 
-# UTF-8 BOM チェック
-echo "=== UTF-8 BOM チェック ==="
+# UTF-8 BOM check
+echo "=== UTF-8 BOM Check ==="
 BOM_FILES=$(find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.json" \) \
   -exec grep -Pl '\xEF\xBB\xBF' {} \; 2>/dev/null || true)
 if [ -n "$BOM_FILES" ]; then
-  echo "FAIL: BOM 付きファイルが見つかりました:"
+  echo "FAIL: Files with BOM found:"
   echo "$BOM_FILES"
   ((ERRORS++))
 else
-  echo "PASS: BOM 付きファイルなし"
+  echo "PASS: No files with BOM"
 fi
 
-# 末尾改行チェック
+# Final newline check
 echo ""
-echo "=== 末尾改行チェック ==="
+echo "=== Final Newline Check ==="
 MISSING_NEWLINE=$(find . -type f \( -name "*.ts" -o -name "*.js" \) \
   -not -path "*/node_modules/*" -not -path "*/.git/*" \
   -exec sh -c '[ -s "$1" ] && [ "$(tail -c1 "$1" | xxd -p)" != "0a" ] && echo "$1"' _ {} \; 2>/dev/null || true)
 if [ -n "$MISSING_NEWLINE" ]; then
-  echo "WARN: 末尾改行がないファイル:"
+  echo "WARN: Files missing final newline:"
   echo "$MISSING_NEWLINE"
 else
-  echo "PASS: 全ファイルに末尾改行あり"
+  echo "PASS: All files have final newline"
 fi
 
-# CRLF チェック (LF が正しい環境)
+# CRLF check (in environments where LF is correct)
 echo ""
-echo "=== 改行コードチェック ==="
+echo "=== Line Ending Check ==="
 CRLF_FILES=$(find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.json" \) \
   -not -path "*/node_modules/*" -not -path "*/.git/*" \
   -exec grep -Prl '\r\n' {} \; 2>/dev/null || true)
 if [ -n "$CRLF_FILES" ]; then
-  echo "WARN: CRLF が検出されたファイル:"
+  echo "WARN: Files with CRLF detected:"
   echo "$CRLF_FILES"
 else
-  echo "PASS: CRLF ファイルなし"
+  echo "PASS: No CRLF files"
 fi
 
 echo ""
-echo "=== 結果: ${ERRORS} エラー ==="
+echo "=== Result: ${ERRORS} errors ==="
 exit $ERRORS
 ```
 
 ---
 
-## 3. Node.js バージョン管理
+## 3. Node.js Version Management
 
 ### 3.1 .nvmrc
 
@@ -327,14 +327,14 @@ exit $ERRORS
 20.11.0
 ```
 
-### 3.2 .node-version (fnm / nodenv / volta 対応)
+### 3.2 .node-version (fnm / nodenv / volta compatible)
 
 ```
 # .node-version
 20.11.0
 ```
 
-### 3.3 package.json の engines フィールド
+### 3.3 engines Field in package.json
 
 ```jsonc
 // package.json
@@ -351,29 +351,29 @@ exit $ERRORS
 }
 ```
 
-### 3.4 バージョン管理ツール比較
+### 3.4 Version Manager Comparison
 
 ```
 +------------------------------------------------------------------+
-|          Node.js バージョン管理ツール比較                           |
+|          Node.js Version Manager Comparison                       |
 +------------------------------------------------------------------+
-| ツール  | 設定ファイル        | 自動切替 | 速度   | 対応言語       |
-|---------|-------------------|---------|--------|---------------|
-| nvm     | .nvmrc            | フック   | 遅い   | Node.js のみ   |
-| fnm     | .node-version     | 自動    | 高速   | Node.js のみ   |
-| volta   | package.json      | 自動    | 高速   | Node.js のみ   |
-| asdf    | .tool-versions    | 自動    | 中     | 多言語対応     |
-| mise    | .tool-versions    | 自動    | 高速   | 多言語対応     |
-| nodenv  | .node-version     | 自動    | 高速   | Node.js のみ   |
+| Tool    | Config File         | Auto Switch | Speed  | Languages |
+|---------|---------------------|-------------|--------|-----------|
+| nvm     | .nvmrc              | Hook        | Slow   | Node.js only |
+| fnm     | .node-version       | Auto        | Fast   | Node.js only |
+| volta   | package.json        | Auto        | Fast   | Node.js only |
+| asdf    | .tool-versions      | Auto        | Medium | Multi-language |
+| mise    | .tool-versions      | Auto        | Fast   | Multi-language |
+| nodenv  | .node-version       | Auto        | Fast   | Node.js only |
 +------------------------------------------------------------------+
 ```
 
-### 3.5 fnm の詳細設定
+### 3.5 fnm Detailed Configuration
 
-fnm (Fast Node Manager) は Rust 製の高速な Node.js バージョン管理ツールで、nvm の代替として推奨される。
+fnm (Fast Node Manager) is a fast Node.js version manager written in Rust, recommended as an alternative to nvm.
 
 ```bash
-# fnm のインストール
+# Install fnm
 # macOS
 brew install fnm
 
@@ -383,44 +383,44 @@ curl -fsSL https://fnm.vercel.app/install | bash
 # Windows (winget)
 winget install Schniz.fnm
 
-# シェル設定 (~/.zshrc or ~/.bashrc)
+# Shell configuration (~/.zshrc or ~/.bashrc)
 eval "$(fnm env --use-on-cd)"
-# --use-on-cd: ディレクトリ移動時に .nvmrc / .node-version を自動読み込み
+# --use-on-cd: automatically reads .nvmrc / .node-version when changing directories
 
-# 基本操作
-fnm install 20.11.0        # インストール
-fnm use 20.11.0             # 切り替え
-fnm default 20.11.0         # デフォルト設定
-fnm list                    # インストール済み一覧
-fnm list-remote             # 利用可能なバージョン一覧
-fnm current                 # 現在のバージョン
+# Basic operations
+fnm install 20.11.0        # Install
+fnm use 20.11.0             # Switch
+fnm default 20.11.0         # Set as default
+fnm list                    # List installed versions
+fnm list-remote             # List available versions
+fnm current                 # Current version
 
-# .nvmrc を読み込んでインストール & 使用
+# Install & use version from .nvmrc
 fnm install
 fnm use
 ```
 
-### 3.6 Volta の詳細設定
+### 3.6 Volta Detailed Configuration
 
-Volta は package.json 内でバージョンを管理する独自のアプローチを採る。
+Volta takes a unique approach to managing versions within package.json.
 
 ```bash
-# Volta のインストール
+# Install Volta
 curl https://get.volta.sh | bash
 
-# Node.js のインストール & ピン留め
+# Install & pin Node.js
 volta install node@20.11.0
-volta pin node@20.11.0      # package.json に記録
+volta pin node@20.11.0      # Records in package.json
 
-# パッケージマネージャのピン留め
+# Pin package manager
 volta install pnpm@9.0.0
 volta pin pnpm@9.0.0
 
-# グローバルツールのインストール
+# Install global tools
 volta install typescript
 volta install @biomejs/biome
 
-# package.json に自動追記される:
+# Automatically appended to package.json:
 # {
 #   "volta": {
 #     "node": "20.11.0",
@@ -429,10 +429,10 @@ volta install @biomejs/biome
 # }
 ```
 
-### 3.7 mise (旧 rtx) による多言語バージョン管理
+### 3.7 Multi-language Version Management with mise (formerly rtx)
 
 ```toml
-# .mise.toml (旧 .tool-versions 形式も対応)
+# .mise.toml (also supports legacy .tool-versions format)
 [tools]
 node = "20.11.0"
 python = "3.12.1"
@@ -447,69 +447,69 @@ NODE_ENV = "development"
 
 [tasks.dev]
 run = "npm run dev"
-description = "開発サーバー起動"
+description = "Start development server"
 
 [tasks.test]
 run = "npm test"
-description = "テスト実行"
+description = "Run tests"
 ```
 
 ```bash
-# mise のインストール
+# Install mise
 brew install mise
 
-# シェル設定
+# Shell configuration
 eval "$(mise activate zsh)"
 
-# バージョンのインストール
-mise install           # .mise.toml に記載の全ツールをインストール
-mise use node@20.11.0  # .mise.toml にバージョンを記録
+# Install versions
+mise install           # Install all tools listed in .mise.toml
+mise use node@20.11.0  # Record version in .mise.toml
 
-# タスク実行
+# Run tasks
 mise run dev
 mise run test
 ```
 
 ---
 
-## 4. .npmrc の設定
+## 4. .npmrc Configuration
 
-### 4.1 プロジェクト用 .npmrc
+### 4.1 Project .npmrc
 
 ```ini
 # .npmrc
 
-# エンジンバージョンを厳密にチェック
+# Strictly check engine versions
 engine-strict=true
 
-# package-lock.json を必ず生成
+# Always generate package-lock.json
 package-lock=true
 
-# 正確なバージョンでインストール (^ や ~ を付けない)
+# Install with exact versions (no ^ or ~)
 save-exact=true
 
-# npm audit のレベル設定
+# npm audit level setting
 audit-level=moderate
 
-# プライベートレジストリ (社内パッケージがある場合)
+# Private registry (if using internal packages)
 # @mycompany:registry=https://npm.mycompany.com/
 # //npm.mycompany.com/:_authToken=${NPM_TOKEN}
 
-# ピアデプとの自動解決
+# Auto-resolve peer dependencies
 legacy-peer-deps=false
 auto-install-peers=true
 
-# ログレベル
+# Log level
 loglevel=warn
 
-# Node.js のバージョンが合わない場合に npm install を阻止
-# （engines + engine-strict=true と併用）
+# Block npm install when Node.js version doesn't match
+# (used together with engines + engine-strict=true)
 ```
 
-### 4.2 pnpm の場合 (.npmrc + pnpm-workspace.yaml)
+### 4.2 For pnpm (.npmrc + pnpm-workspace.yaml)
 
 ```ini
-# .npmrc (pnpm 用)
+# .npmrc (for pnpm)
 shamefully-hoist=false
 strict-peer-dependencies=true
 auto-install-peers=true
@@ -523,21 +523,21 @@ packages:
   - 'tools/*'
 ```
 
-### 4.3 yarn の設定 (.yarnrc.yml)
+### 4.3 yarn Configuration (.yarnrc.yml)
 
 ```yaml
 # .yarnrc.yml (Yarn Berry / Yarn 4)
-nodeLinker: node-modules  # PnP を使わない場合
+nodeLinker: node-modules  # When not using PnP
 enableGlobalCache: false
 checksumBehavior: update
 
-# プライベートレジストリ
+# Private registry
 npmScopes:
   mycompany:
     npmRegistryServer: "https://npm.mycompany.com/"
     npmAuthToken: "${NPM_TOKEN}"
 
-# プラグイン
+# Plugins
 plugins:
   - path: .yarn/plugins/@yarnpkg/plugin-interactive-tools.cjs
     spec: "@yarnpkg/plugin-interactive-tools"
@@ -545,41 +545,41 @@ plugins:
     spec: "@yarnpkg/plugin-workspace-tools"
 ```
 
-### 4.4 .npmrc のセキュリティ設定
+### 4.4 .npmrc Security Settings
 
 ```ini
-# .npmrc (セキュリティ強化)
+# .npmrc (security hardening)
 
-# postinstall スクリプトの実行を制限
+# Restrict postinstall script execution
 ignore-scripts=false
 
-# パッケージの provenance (出所) を検証
-# npm v9.5+ で利用可能
+# Verify package provenance (origin)
+# Available in npm v9.5+
 audit=true
 audit-level=moderate
 
-# パッケージの署名を検証 (npm v9.8+)
+# Verify package signatures (npm v9.8+)
 # sign-git-tag=true
 
-# 2FA を強制 (npm publish 時)
+# Enforce 2FA (when publishing with npm publish)
 # auth-type=web
 ```
 
-### 4.5 パッケージマネージャ比較
+### 4.5 Package Manager Comparison
 
 ```
 +------------------------------------------------------------------+
-|            パッケージマネージャ比較                                  |
+|            Package Manager Comparison                             |
 +------------------------------------------------------------------+
-| 項目          | npm     | pnpm     | yarn     | bun       |
-|---------------|---------|----------|----------|-----------|
-| ディスク使用量 | 多い    | 少ない   | 中       | 少ない     |
-| インストール速度| 中     | 高速     | 高速     | 最速       |
-| ロックファイル | package-lock.json | pnpm-lock.yaml | yarn.lock | bun.lockb |
-| モノレポ対応   | workspaces | workspaces | workspaces | workspaces |
-| 厳密な依存解決 | 普通   | 厳密     | 普通     | 普通       |
-| Phantom Deps  | あり   | なし     | あり     | あり       |
-| Node.js 不要  | いいえ | いいえ   | いいえ   | はい(Bun)  |
+| Item            | npm     | pnpm     | yarn     | bun       |
+|-----------------|---------|----------|----------|-----------|
+| Disk usage      | High    | Low      | Medium   | Low       |
+| Install speed   | Medium  | Fast     | Fast     | Fastest   |
+| Lock file       | package-lock.json | pnpm-lock.yaml | yarn.lock | bun.lockb |
+| Monorepo support| workspaces | workspaces | workspaces | workspaces |
+| Strict deps     | Normal  | Strict   | Normal   | Normal    |
+| Phantom Deps    | Yes     | No       | Yes      | Yes       |
+| No Node.js      | No      | No       | No       | Yes (Bun) |
 +------------------------------------------------------------------+
 ```
 
@@ -587,15 +587,15 @@ audit-level=moderate
 
 ## 5. .gitattributes
 
-### 5.1 基本設定
+### 5.1 Basic Configuration
 
 ```gitattributes
 # .gitattributes
 
-# 改行コードの統一
+# Normalize line endings
 * text=auto eol=lf
 
-# 明示的なテキストファイル
+# Explicit text files
 *.js    text eol=lf
 *.ts    text eol=lf
 *.jsx   text eol=lf
@@ -622,12 +622,12 @@ audit-level=moderate
 *.cfg   text eol=lf
 *.env   text eol=lf
 
-# Windows バッチファイル
+# Windows batch files
 *.bat   text eol=crlf
 *.cmd   text eol=crlf
 *.ps1   text eol=crlf
 
-# バイナリファイル
+# Binary files
 *.png   binary
 *.jpg   binary
 *.jpeg  binary
@@ -646,52 +646,52 @@ audit-level=moderate
 *.mp3   binary
 *.wav   binary
 
-# ロックファイル (マージ時にコンフリクトを防ぐ)
+# Lock files (prevent conflicts during merge)
 package-lock.json merge=ours linguist-generated
 pnpm-lock.yaml   merge=ours linguist-generated
 yarn.lock        merge=ours linguist-generated
 
-# 自動生成ファイル (diff に表示しない)
+# Auto-generated files (hide from diff)
 *.min.js linguist-generated
 *.min.css linguist-generated
 dist/** linguist-generated
 ```
 
-### 5.2 .gitattributes の高度な設定
+### 5.2 Advanced .gitattributes Configuration
 
 ```gitattributes
-# Git LFS (Large File Storage) 設定
-# 大きなバイナリファイルを LFS で管理
+# Git LFS (Large File Storage) settings
+# Manage large binary files with LFS
 *.psd filter=lfs diff=lfs merge=lfs -text
 *.sketch filter=lfs diff=lfs merge=lfs -text
 *.fig filter=lfs diff=lfs merge=lfs -text
 *.ai filter=lfs diff=lfs merge=lfs -text
 *.mov filter=lfs diff=lfs merge=lfs -text
 
-# Diff のカスタマイズ
-# JSON の差分を見やすくする
+# Customize diffs
+# Make JSON diffs more readable
 *.json diff=json
 
-# CSS / SCSS の差分を関数単位で表示
+# Show CSS / SCSS diffs by function
 *.css diff=css
 *.scss diff=css
 
-# Markdown の差分を見出し単位で表示
+# Show Markdown diffs by heading
 *.md diff=markdown
 
-# Go の差分を関数単位で表示
+# Show Go diffs by function
 *.go diff=golang
 
-# Ruby の差分をメソッド単位で表示
+# Show Ruby diffs by method
 *.rb diff=ruby
 ```
 
-### 5.3 .gitignore の標準テンプレート
+### 5.3 Standard .gitignore Template
 
 ```gitignore
 # .gitignore
 
-# === 依存関係 ===
+# === Dependencies ===
 node_modules/
 .pnpm-store/
 vendor/
@@ -700,7 +700,7 @@ __pycache__/
 .venv/
 venv/
 
-# === ビルド成果物 ===
+# === Build artifacts ===
 dist/
 build/
 .next/
@@ -709,14 +709,14 @@ build/
 out/
 *.tsbuildinfo
 
-# === 環境変数 ===
+# === Environment variables ===
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# === エディタ ===
+# === Editors ===
 .idea/
 *.swp
 *.swo
@@ -730,14 +730,14 @@ out/
 Thumbs.db
 Desktop.ini
 
-# === テスト / カバレッジ ===
+# === Tests / Coverage ===
 coverage/
 .nyc_output/
 *.lcov
 test-results/
 playwright-report/
 
-# === ログ ===
+# === Logs ===
 *.log
 logs/
 npm-debug.log*
@@ -753,7 +753,7 @@ docker-compose.override.yml
 *.tfstate.backup
 .terraform/
 
-# === その他 ===
+# === Other ===
 .cache/
 .temp/
 .tmp/
@@ -763,14 +763,14 @@ docker-compose.override.yml
 
 ---
 
-## 6. VS Code 共有設定
+## 6. VS Code Shared Settings
 
 ### 6.1 .vscode/settings.json
 
 ```jsonc
 // .vscode/settings.json
 {
-  // エディタ基本設定
+  // Basic editor settings
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit",
@@ -782,7 +782,7 @@ docker-compose.override.yml
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
 
-  // ファイル除外
+  // File exclusions
   "files.exclude": {
     "**/.git": true,
     "**/node_modules": true,
@@ -790,7 +790,7 @@ docker-compose.override.yml
     "**/.next": true
   },
 
-  // 検索除外
+  // Search exclusions
   "search.exclude": {
     "**/node_modules": true,
     "**/dist": true,
@@ -798,15 +798,15 @@ docker-compose.override.yml
     "**/pnpm-lock.yaml": true
   },
 
-  // ファイルの自動保存
+  // Auto save
   "files.autoSave": "onFocusChange",
 
-  // 末尾の空白を自動トリム
+  // Auto-trim trailing whitespace
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,
   "files.trimFinalNewlines": true,
 
-  // 言語固有設定
+  // Language-specific settings
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
@@ -850,7 +850,7 @@ docker-compose.override.yml
     "typescriptreact"
   ],
 
-  // テスト
+  // Testing
   "testing.automaticallyOpenPeekView": "never"
 }
 ```
@@ -882,7 +882,7 @@ docker-compose.override.yml
 }
 ```
 
-### 6.3 .vscode/launch.json (デバッグ設定)
+### 6.3 .vscode/launch.json (Debug Configuration)
 
 ```jsonc
 // .vscode/launch.json
@@ -920,7 +920,7 @@ docker-compose.override.yml
 }
 ```
 
-### 6.4 .vscode/tasks.json (タスク設定)
+### 6.4 .vscode/tasks.json (Task Configuration)
 
 ```jsonc
 // .vscode/tasks.json
@@ -965,16 +965,16 @@ docker-compose.override.yml
 
 ## 7. Git Hooks (husky + lint-staged)
 
-### 7.1 セットアップ
+### 7.1 Setup
 
 ```bash
-# husky と lint-staged のインストール
+# Install husky and lint-staged
 pnpm add -D husky lint-staged
 
-# husky の初期化
+# Initialize husky
 pnpm exec husky init
 
-# pre-commit フックの作成
+# Create pre-commit hook
 echo "npx lint-staged" > .husky/pre-commit
 ```
 
@@ -1007,7 +1007,7 @@ echo "npx lint-staged" > .husky/pre-commit
 }
 ```
 
-### 7.2 husky フック
+### 7.2 husky Hooks
 
 ```bash
 #!/bin/sh
@@ -1024,12 +1024,12 @@ npx --no -- commitlint --edit "$1"
 ```bash
 #!/bin/sh
 # .husky/pre-push
-# プッシュ前にテストと型チェックを実行
+# Run tests and type checking before push
 npm run typecheck
 npm run test -- --run
 ```
 
-### 7.3 Commitlint 設定
+### 7.3 Commitlint Configuration
 
 ```javascript
 // commitlint.config.js
@@ -1040,18 +1040,18 @@ export default {
       2,
       'always',
       [
-        'feat',     // 新機能
-        'fix',      // バグ修正
-        'docs',     // ドキュメント
-        'style',    // フォーマット変更
-        'refactor', // リファクタリング
-        'perf',     // パフォーマンス改善
-        'test',     // テスト
-        'chore',    // ビルド・ツール
-        'ci',       // CI 設定
-        'revert',   // 取り消し
-        'build',    // ビルドシステム変更
-        'deps',     // 依存関係更新
+        'feat',     // New feature
+        'fix',      // Bug fix
+        'docs',     // Documentation
+        'style',    // Format changes
+        'refactor', // Refactoring
+        'perf',     // Performance improvement
+        'test',     // Tests
+        'chore',    // Build & tools
+        'ci',       // CI configuration
+        'revert',   // Revert
+        'build',    // Build system changes
+        'deps',     // Dependency updates
       ],
     ],
     'subject-max-length': [2, 'always', 72],
@@ -1062,11 +1062,11 @@ export default {
 };
 ```
 
-### 7.4 Conventional Commits の運用ガイド
+### 7.4 Conventional Commits Operation Guide
 
 ```
 +------------------------------------------------------------------+
-|            Conventional Commits フォーマット                        |
+|            Conventional Commits Format                            |
 +------------------------------------------------------------------+
 |                                                                  |
 |  <type>(<scope>): <description>                                  |
@@ -1077,26 +1077,27 @@ export default {
 |                                                                  |
 +------------------------------------------------------------------+
 |                                                                  |
-|  例:                                                             |
-|  feat(auth): ソーシャルログイン機能を追加                          |
-|  fix(api): ユーザー検索のN+1問題を修正                             |
-|  docs(readme): セットアップ手順を更新                              |
-|  refactor(db): クエリビルダーをPrismaに移行                        |
-|  perf(search): 全文検索のインデックスを最適化                      |
-|  test(user): ユーザー登録のE2Eテストを追加                         |
-|  ci(deploy): ステージング環境の自動デプロイを設定                   |
-|  chore(deps): TypeScript を 5.4 にアップデート                    |
+|  Examples:                                                       |
+|  feat(auth): add social login feature                            |
+|  fix(api): fix N+1 problem in user search                        |
+|  docs(readme): update setup instructions                         |
+|  refactor(db): migrate query builder to Prisma                   |
+|  perf(search): optimize full-text search index                   |
+|  test(user): add E2E test for user registration                  |
+|  ci(deploy): configure automated staging deployment              |
+|  chore(deps): update TypeScript to 5.4                           |
 |                                                                  |
 |  BREAKING CHANGE:                                                |
-|  feat(api)!: レスポンス形式をJSONAPIに変更                         |
-|  → "!" または footer の BREAKING CHANGE で破壊的変更を示す         |
+|  feat(api)!: change response format to JSONAPI                   |
+|  -> Use "!" or BREAKING CHANGE in footer to indicate             |
+|     breaking changes                                             |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 7.5 lefthook (husky の代替)
+### 7.5 lefthook (husky alternative)
 
-lefthook は Go 製の高速な Git フック管理ツールで、husky の代替として注目されている。
+lefthook is a fast Git hook manager written in Go, gaining attention as an alternative to husky.
 
 ```yaml
 # lefthook.yml
@@ -1125,7 +1126,7 @@ pre-push:
 
 ---
 
-## 8. ESLint (Flat Config) の設定
+## 8. ESLint (Flat Config) Configuration
 
 ### 8.1 eslint.config.js (ESLint v9+)
 
@@ -1138,7 +1139,7 @@ import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import importPlugin from 'eslint-plugin-import';
 
 export default tseslint.config(
-  // グローバル無視
+  // Global ignores
   {
     ignores: [
       'dist/**',
@@ -1151,10 +1152,10 @@ export default tseslint.config(
     ],
   },
 
-  // 基本ルール
+  // Base rules
   js.configs.recommended,
 
-  // TypeScript ルール
+  // TypeScript rules
   ...tseslint.configs.recommendedTypeChecked,
   {
     languageOptions: {
@@ -1165,7 +1166,7 @@ export default tseslint.config(
     },
   },
 
-  // React ルール
+  // React rules
   {
     plugins: {
       react: reactPlugin,
@@ -1182,7 +1183,7 @@ export default tseslint.config(
     },
   },
 
-  // Import ルール
+  // Import rules
   {
     plugins: {
       import: importPlugin,
@@ -1207,7 +1208,7 @@ export default tseslint.config(
     },
   },
 
-  // カスタムルール
+  // Custom rules
   {
     rules: {
       '@typescript-eslint/no-unused-vars': [
@@ -1225,7 +1226,7 @@ export default tseslint.config(
 );
 ```
 
-### 8.2 Prettier 設定
+### 8.2 Prettier Configuration
 
 ```jsonc
 // .prettierrc
@@ -1266,7 +1267,7 @@ yarn.lock
 *.min.css
 ```
 
-### 8.3 Biome 設定 (ESLint + Prettier の代替)
+### 8.3 Biome Configuration (ESLint + Prettier alternative)
 
 ```jsonc
 // biome.json
@@ -1332,35 +1333,35 @@ yarn.lock
 
 ---
 
-## 9. TypeScript 設定
+## 9. TypeScript Configuration
 
-### 9.1 tsconfig.json (共通ベース)
+### 9.1 tsconfig.json (Common Base)
 
 ```jsonc
 // tsconfig.json
 {
   "compilerOptions": {
-    // 言語設定
+    // Language settings
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
 
-    // 厳密モード
+    // Strict mode
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
 
-    // 出力設定
+    // Output settings
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
 
-    // パスエイリアス
+    // Path aliases
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
@@ -1369,13 +1370,13 @@ yarn.lock
       "@/types/*": ["./src/types/*"]
     },
 
-    // インポート
+    // Imports
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
 
-    // 型チェックの追加設定
+    // Additional type check settings
     "skipLibCheck": true,
     "incremental": true
   },
@@ -1386,41 +1387,41 @@ yarn.lock
 
 ---
 
-## 10. プロジェクト標準ファイル一覧
+## 10. Project Standards File List
 
 ```
 +------------------------------------------------------------------+
-|           プロジェクトルートに配置すべきファイル一覧                  |
+|           Files to Place in the Project Root                      |
 +------------------------------------------------------------------+
-| ファイル                  | 用途                    | 必須度     |
-|--------------------------|------------------------|-----------|
-| .editorconfig            | エディタ横断フォーマット  | 必須       |
-| .gitattributes           | Git の改行/バイナリ設定  | 必須       |
-| .gitignore               | Git 除外ルール          | 必須       |
-| .nvmrc / .node-version   | Node.js バージョン固定  | 推奨       |
-| .npmrc                   | npm/pnpm 動作設定       | 推奨       |
-| .prettierrc              | Prettier ルール         | 推奨       |
-| .prettierignore          | Prettier 除外           | 推奨       |
-| eslint.config.js         | ESLint ルール           | 推奨       |
-| biome.json               | Biome 統合設定          | 代替推奨   |
-| tsconfig.json            | TypeScript 設定         | TS利用時必須 |
-| .vscode/settings.json    | VS Code 共有設定        | 推奨       |
-| .vscode/extensions.json  | 推奨拡張機能            | 推奨       |
-| .vscode/launch.json      | デバッグ設定            | 任意       |
-| .husky/                  | Git フック              | 推奨       |
-| commitlint.config.js     | コミットメッセージ規約   | 推奨       |
-| .mise.toml               | 多言語バージョン管理     | 任意       |
-| Makefile                 | タスクランナー          | 推奨       |
-| docker-compose.yml       | ローカルサービス構成     | 推奨       |
-| renovate.json            | 依存関係自動更新        | 推奨       |
+| File                      | Purpose                  | Required  |
+|--------------------------|--------------------------|-----------|
+| .editorconfig            | Cross-editor formatting  | Required  |
+| .gitattributes           | Git line endings/binary  | Required  |
+| .gitignore               | Git exclusion rules      | Required  |
+| .nvmrc / .node-version   | Pin Node.js version      | Recommended |
+| .npmrc                   | npm/pnpm settings        | Recommended |
+| .prettierrc              | Prettier rules           | Recommended |
+| .prettierignore          | Prettier exclusions      | Recommended |
+| eslint.config.js         | ESLint rules             | Recommended |
+| biome.json               | Biome integrated config  | Alt. recommended |
+| tsconfig.json            | TypeScript settings      | Required for TS |
+| .vscode/settings.json    | VS Code shared settings  | Recommended |
+| .vscode/extensions.json  | Recommended extensions   | Recommended |
+| .vscode/launch.json      | Debug configuration      | Optional  |
+| .husky/                  | Git hooks                | Recommended |
+| commitlint.config.js     | Commit message rules     | Recommended |
+| .mise.toml               | Multi-language versioning| Optional  |
+| Makefile                 | Task runner              | Recommended |
+| docker-compose.yml       | Local service config     | Recommended |
+| renovate.json            | Auto dependency updates  | Recommended |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 11. 依存関係の自動更新 (Renovate / Dependabot)
+## 11. Automated Dependency Updates (Renovate / Dependabot)
 
-### 11.1 Renovate 設定
+### 11.1 Renovate Configuration
 
 ```jsonc
 // renovate.json
@@ -1464,7 +1465,7 @@ yarn.lock
 }
 ```
 
-### 11.2 Dependabot 設定
+### 11.2 Dependabot Configuration
 
 ```yaml
 # .github/dependabot.yml
@@ -1509,9 +1510,9 @@ updates:
 
 ---
 
-## 12. CI/CD との統合
+## 12. CI/CD Integration
 
-### 12.1 GitHub Actions による品質チェック
+### 12.1 Quality Checks with GitHub Actions
 
 ```yaml
 # .github/workflows/ci.yml
@@ -1573,13 +1574,13 @@ jobs:
       - run: pnpm run build
 ```
 
-### 12.2 ブランチ保護ルール
+### 12.2 Branch Protection Rules
 
-GitHub のブランチ保護ルールを設定し、CI が通らないマージを防止する。
+Configure GitHub branch protection rules to prevent merges when CI does not pass.
 
 ```
 +------------------------------------------------------------------+
-|           main ブランチ保護ルール推奨設定                            |
+|           Recommended main Branch Protection Settings             |
 +------------------------------------------------------------------+
 |                                                                  |
 |  ✓ Require a pull request before merging                         |
@@ -1597,20 +1598,20 @@ GitHub のブランチ保護ルールを設定し、CI が通らないマージ�
 |                                                                  |
 |  ✓ Require signed commits                                        |
 |  ✓ Require linear history                                        |
-|  ✗ Allow force pushes (無効にすること)                              |
-|  ✗ Allow deletions (無効にすること)                                 |
+|  ✗ Allow force pushes (must be disabled)                         |
+|  ✗ Allow deletions (must be disabled)                            |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン 1: 個人設定をリポジトリにコミット
+### Anti-pattern 1: Committing Personal Settings to the Repository
 
 ```jsonc
-// NG: .vscode/settings.json に個人の好みを入れる
+// NG: adding personal preferences to .vscode/settings.json
 {
   "editor.fontSize": 18,
   "editor.fontFamily": "JetBrains Mono",
@@ -1618,7 +1619,7 @@ GitHub のブランチ保護ルールを設定し、CI が通らないマージ�
   "terminal.integrated.shell.osx": "/bin/zsh"
 }
 
-// OK: チームに関係する設定のみ
+// OK: only settings relevant to the team
 {
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
@@ -1626,18 +1627,18 @@ GitHub のブランチ保護ルールを設定し、CI が通らないマージ�
 }
 ```
 
-**問題点**: フォントサイズやテーマなどの個人設定はチームメンバー間で異なるのが当然であり、コミットすると不要なコンフリクトが発生する。個人設定は VS Code のユーザー設定で管理し、リポジトリには Linter/Formatter 関連の設定のみコミットする。
+**Problem**: Personal settings such as font size and theme are naturally different between team members, and committing them causes unnecessary conflicts. Manage personal settings in VS Code user settings and only commit Linter/Formatter-related settings to the repository.
 
-### アンチパターン 2: engines フィールドなしでの運用
+### Anti-pattern 2: Operating Without the engines Field
 
 ```jsonc
-// NG: engines 未指定 → 各自のバージョンで動かす
+// NG: no engines specified -> run with each person's version
 {
   "name": "myapp",
   "version": "1.0.0"
 }
 
-// OK: engines + .nvmrc + engine-strict で強制
+// OK: enforce with engines + .nvmrc + engine-strict
 // package.json
 {
   "name": "myapp",
@@ -1651,64 +1652,64 @@ GitHub のブランチ保護ルールを設定し、CI が通らないマージ�
 // engine-strict=true
 ```
 
-**問題点**: Node.js のバージョン不一致はしばしば再現困難なバグを引き起こす。特に `Optional Chaining` や `import.meta` などの構文サポートはバージョンに依存する。`engines` + `engine-strict` で明示的にエラーにすることで、環境不一致を早期に検出できる。
+**Problem**: Node.js version mismatches often cause hard-to-reproduce bugs. In particular, syntax support for `Optional Chaining` and `import.meta` depends on the version. By making version mismatches explicit errors using `engines` + `engine-strict`, environment discrepancies can be detected early.
 
-### アンチパターン 3: Linter ルールの一斉適用
+### Anti-pattern 3: Applying Linter Rules All at Once
 
 ```bash
-# NG: 既存プロジェクトに厳密なルールを一度に適用
-# → 数百〜数千のエラーが出てチームが混乱
+# NG: apply strict rules all at once to an existing project
+# -> hundreds to thousands of errors overwhelm the team
 eslint . --max-warnings 0
 
-# OK: 段階的に導入
-# Step 1: warn レベルで導入（既存コードは触らない）
-# Step 2: 新規コードのみ strict 適用
-# Step 3: 既存コードを段階的に修正
-# Step 4: error レベルに昇格
+# OK: introduce gradually
+# Step 1: introduce at warn level (don't touch existing code)
+# Step 2: apply strict rules only to new code
+# Step 3: gradually fix existing code
+# Step 4: promote to error level
 ```
 
-**問題点**: 既存の大規模コードベースに厳密な Linter ルールを一度に適用すると、大量のエラーが発生し、開発が停止する。ESLint の `--max-warnings` を段階的に減らしていく、または `eslint-disable` コメントを一括挿入してから段階的に除去する戦略が有効。
+**Problem**: Applying strict Linter rules all at once to a large existing codebase generates massive errors and halts development. Effective strategies include gradually reducing `--max-warnings` in ESLint, or bulk-inserting `eslint-disable` comments and then removing them incrementally.
 
-### アンチパターン 4: 設定ファイルのコピペ伝播
+### Anti-pattern 4: Copy-paste Propagation of Config Files
 
 ```
-# NG: 別プロジェクトの設定をそのままコピー
-# → プロジェクト固有の要件に合っていない
+# NG: copy settings from another project as-is
+# -> doesn't match the project's specific requirements
 
-# OK: 共有設定パッケージを作成
+# OK: create shared config packages
 # @mycompany/eslint-config
 # @mycompany/prettier-config
 # @mycompany/tsconfig
 ```
 
-**問題点**: 設定ファイルをプロジェクト間でコピーすると、元の設定が更新されても伝播されない。npm パッケージとして共有設定を公開し、各プロジェクトから `extends` で参照する方式にすれば、一箇所の更新が全プロジェクトに反映される。
+**Problem**: Copying config files between projects means updates to the original are not propagated. By publishing shared configs as npm packages and referencing them via `extends` in each project, a single update is reflected across all projects.
 
 ---
 
 ## FAQ
 
-### Q1: EditorConfig と Prettier の両方が必要ですか？
+### Q1: Do you need both EditorConfig and Prettier?
 
-**A**: はい。役割が異なる。EditorConfig はエディタの入力時の動作（タブ幅、改行コード）を制御し、Prettier は保存時のコード整形（括弧の位置、セミコロン等）を行う。EditorConfig は Prettier 非対応のファイル（Makefile、INI ファイル等）にも適用でき、エディタの種類にも依存しない。両方設定しておくことで、入力時と保存時の両方で一貫性が保たれる。
+**A**: Yes. They serve different roles. EditorConfig controls editor input behavior (tab width, line endings), while Prettier handles code formatting on save (bracket placement, semicolons, etc.). EditorConfig also applies to files Prettier doesn't support (Makefile, INI files, etc.) and is independent of editor type. Configuring both ensures consistency at both input time and save time.
 
-### Q2: husky の Git フックはチーム全員に自動適用されますか？
+### Q2: Are husky Git hooks automatically applied to all team members?
 
-**A**: `package.json` の `"prepare": "husky"` スクリプトにより、`npm install` 実行時に自動でフックがインストールされる。ただし、`--no-verify` フラグで個人がフックをスキップすることは可能なため、CI/CD でも同じチェックを実行する二重防御が推奨される。また、pnpm の場合は `"prepare": "husky"` が自動実行されないため、明示的に `pnpm exec husky` を実行する手順をドキュメント化する必要がある。
+**A**: The `"prepare": "husky"` script in `package.json` automatically installs hooks when `npm install` is run. However, individuals can still skip hooks with the `--no-verify` flag, so running the same checks in CI/CD as a double defense is recommended. Also, with pnpm, `"prepare": "husky"` is not automatically executed, so the steps to run `pnpm exec husky` explicitly need to be documented.
 
-### Q3: Biome を使えば ESLint + Prettier は不要になりますか？
+### Q3: Does using Biome make ESLint + Prettier unnecessary?
 
-**A**: ほぼ不要になるケースが多い。Biome は Rust 製の高速ツールで、Lint とフォーマットの両方を 1 つのツールで処理する。ESLint + Prettier の組み合わせに比べて 10-100 倍速い。ただし、ESLint の一部プラグイン（eslint-plugin-react-hooks, @typescript-eslint の高度なルール等）に相当する機能がまだ不足している場合がある。新規プロジェクトでは Biome を第一候補として検討し、足りないルールのみ ESLint で補完する戦略が有効。
+**A**: In many cases, yes. Biome is a fast tool written in Rust that handles both linting and formatting with a single tool. It is 10-100x faster than the ESLint + Prettier combination. However, some functionality equivalent to certain ESLint plugins (such as eslint-plugin-react-hooks and advanced @typescript-eslint rules) may still be lacking. For new projects, consider Biome as the first candidate and supplement with ESLint only for missing rules.
 
-### Q4: モノレポでの標準化はどうすればいいですか？
+### Q4: How should standardization work in a monorepo?
 
-**A**: モノレポでは、ルートに共通設定を置き、各パッケージでオーバーライドする構成が基本。
+**A**: In a monorepo, the basic approach is to place common configs at the root and override them in each package.
 
 ```
 monorepo/
-  .editorconfig          # 全パッケージ共通
-  .prettierrc            # 全パッケージ共通
-  tsconfig.base.json     # 共通 TypeScript 設定
-  eslint.config.js       # 共通 ESLint 設定
+  .editorconfig          # Common to all packages
+  .prettierrc            # Common to all packages
+  tsconfig.base.json     # Common TypeScript settings
+  eslint.config.js       # Common ESLint settings
   packages/
     app/
       tsconfig.json      # extends: "../../tsconfig.base.json"
@@ -1718,14 +1719,14 @@ monorepo/
       tsconfig.json      # extends: "../../tsconfig.base.json"
 ```
 
-Turborepo や Nx を使う場合は、タスクのキャッシュと並列実行により、CI 時間を大幅に短縮できる。
+When using Turborepo or Nx, task caching and parallel execution can significantly reduce CI time.
 
-### Q5: 設定の共有パッケージはどう作りますか？
+### Q5: How do you create shared config packages?
 
-**A**: 組織内で統一した設定を配布するには、npm パッケージとして公開するのが最も効果的。
+**A**: Publishing as an npm package is the most effective way to distribute unified settings within an organization.
 
 ```bash
-# @mycompany/eslint-config パッケージ
+# @mycompany/eslint-config package
 mkdir eslint-config && cd eslint-config
 npm init --scope=@mycompany
 
@@ -1740,62 +1741,62 @@ npm init --scope=@mycompany
   }
 }
 
-# 利用側の package.json
+# Consumer's package.json
 {
   "devDependencies": {
     "@mycompany/eslint-config": "^1.0.0"
   }
 }
 
-# 利用側の eslint.config.js
+# Consumer's eslint.config.js
 import mycompanyConfig from '@mycompany/eslint-config';
-export default [...mycompanyConfig, /* プロジェクト固有のルール */];
+export default [...mycompanyConfig, /* project-specific rules */];
 ```
 
-### Q6: Python や Go のプロジェクトでも同じ戦略は使えますか？
+### Q6: Can the same strategy be used for Python or Go projects?
 
-**A**: 基本的な考え方は同じだが、ツールが異なる。
+**A**: The basic idea is the same, but the tools differ.
 
-- **Python**: `pyproject.toml` に ruff (Linter + Formatter)、mypy (型チェック) の設定を統合。`.python-version` でバージョン固定。pre-commit フレームワークでフック管理。
-- **Go**: `go.mod` でバージョン管理。`.golangci.yml` で golangci-lint の設定。`gofmt` / `goimports` でフォーマット。
-- **Rust**: `rust-toolchain.toml` でバージョン固定。`clippy.toml` で Lint 設定。`rustfmt.toml` でフォーマット設定。
+- **Python**: Integrate ruff (Linter + Formatter) and mypy (type checking) settings in `pyproject.toml`. Pin version with `.python-version`. Manage hooks with the pre-commit framework.
+- **Go**: Manage versions with `go.mod`. Configure golangci-lint with `.golangci.yml`. Format with `gofmt` / `goimports`.
+- **Rust**: Pin version with `rust-toolchain.toml`. Configure Lint with `clippy.toml`. Configure formatting with `rustfmt.toml`.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| EditorConfig | エディタ横断でタブ幅・改行コード・文字コードを統一 |
-| .nvmrc | Node.js バージョンをチームで固定。volta / fnm でも対応 |
-| .npmrc | `engine-strict=true` と `save-exact=true` を推奨 |
-| .gitattributes | 改行コードの自動変換とバイナリファイルの判定 |
-| .gitignore | 追跡対象外ファイルの明示的な定義 |
-| VS Code 設定 | チーム共通設定のみコミット。個人設定は除外 |
-| Git Hooks | husky + lint-staged でコミット前に自動 Lint/Format |
-| Commitlint | Conventional Commits でコミットメッセージの品質を担保 |
-| ESLint / Biome | Flat Config で統一。Biome は高速な代替 |
-| Prettier | コードフォーマットの自動統一 |
-| TypeScript | strict モード + noUncheckedIndexedAccess が推奨 |
-| Renovate / Dependabot | 依存関係の自動更新で脆弱性を早期対処 |
-| CI/CD 統合 | ローカルフック + CI/CD の両方で品質チェックを実行 |
-| 二重防御 | ローカルフックは `--no-verify` で回避できるため CI が最後の砦 |
+| Item | Key Points |
+|------|-----------|
+| EditorConfig | Unify tab width, line endings, and encoding across editors |
+| .nvmrc | Pin Node.js version across the team. Also works with volta / fnm |
+| .npmrc | `engine-strict=true` and `save-exact=true` are recommended |
+| .gitattributes | Automatic line ending conversion and binary file detection |
+| .gitignore | Explicit definition of files to exclude from tracking |
+| VS Code settings | Only commit team-common settings. Exclude personal settings |
+| Git Hooks | Auto Lint/Format before commit with husky + lint-staged |
+| Commitlint | Ensure commit message quality with Conventional Commits |
+| ESLint / Biome | Unify with Flat Config. Biome is a fast alternative |
+| Prettier | Automatic code format unification |
+| TypeScript | strict mode + noUncheckedIndexedAccess recommended |
+| Renovate / Dependabot | Early handling of vulnerabilities via automated dependency updates |
+| CI/CD integration | Run quality checks in both local hooks + CI/CD |
+| Dual defense | Local hooks can be bypassed with `--no-verify`, so CI is the last line of defense |
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [オンボーディング自動化](./01-onboarding-automation.md) -- セットアップスクリプトと Makefile
-- [ドキュメント環境](./02-documentation-setup.md) -- VitePress / Docusaurus / ADR
-- [Dev Container](../02-docker-dev/01-devcontainer.md) -- コンテナベースの統一開発環境
+- [Onboarding Automation](./01-onboarding-automation.md) -- Setup scripts and Makefile
+- [Documentation Environment](./02-documentation-setup.md) -- VitePress / Docusaurus / ADR
+- [Dev Container](../02-docker-dev/01-devcontainer.md) -- Unified development environment based on containers
 
-## 参考文献
+## References
 
-1. **EditorConfig 公式** -- https://editorconfig.org/ -- EditorConfig の仕様とエディタ対応状況
-2. **Conventional Commits** -- https://www.conventionalcommits.org/ja/ -- コミットメッセージ規約の仕様
-3. **husky 公式ドキュメント** -- https://typicode.github.io/husky/ -- Git フックの管理ツール
-4. **Biome 公式** -- https://biomejs.dev/ -- Rust 製の高速 Linter/Formatter ツール
-5. **ESLint v9 Flat Config** -- https://eslint.org/docs/latest/use/configure/configuration-files -- ESLint の新しい設定形式
-6. **Renovate 公式ドキュメント** -- https://docs.renovatebot.com/ -- 依存関係自動更新ツール
-7. **typescript-eslint** -- https://typescript-eslint.io/ -- TypeScript 向け ESLint プラグイン
-8. **fnm (Fast Node Manager)** -- https://github.com/Schniz/fnm -- Rust 製の高速な Node.js バージョン管理ツール
-9. **mise** -- https://mise.jdx.dev/ -- 多言語対応のバージョン管理ツール (旧 rtx)
-10. **lefthook** -- https://github.com/evilmartians/lefthook -- Go 製の高速 Git フック管理ツール
+1. **EditorConfig Official** -- https://editorconfig.org/ -- EditorConfig specification and editor support status
+2. **Conventional Commits** -- https://www.conventionalcommits.org/ja/ -- Commit message convention specification
+3. **husky Official Documentation** -- https://typicode.github.io/husky/ -- Git hook management tool
+4. **Biome Official** -- https://biomejs.dev/ -- Fast Linter/Formatter tool written in Rust
+5. **ESLint v9 Flat Config** -- https://eslint.org/docs/latest/use/configure/configuration-files -- New ESLint configuration format
+6. **Renovate Official Documentation** -- https://docs.renovatebot.com/ -- Automated dependency update tool
+7. **typescript-eslint** -- https://typescript-eslint.io/ -- ESLint plugin for TypeScript
+8. **fnm (Fast Node Manager)** -- https://github.com/Schniz/fnm -- Fast Node.js version manager written in Rust
+9. **mise** -- https://mise.jdx.dev/ -- Multi-language version manager (formerly rtx)
+10. **lefthook** -- https://github.com/evilmartians/lefthook -- Fast Git hook manager written in Go
