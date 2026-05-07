@@ -1,62 +1,62 @@
-# イメージ管理
+# Image Management
 
-> Docker イメージの取得・作成・配布からレジストリの活用まで、イメージのライフサイクル全体を管理するための実践ガイド。
-
----
-
-## この章で学ぶこと
-
-1. **Docker イメージのレイヤー構造とタグ体系**を理解し、効率的なイメージ管理ができる
-2. **Docker Hub と GitHub Container Registry** の使い分けを理解し、イメージを配布できる
-3. **イメージの検査・セキュリティ確認・クリーンアップ**を実践できる
-4. **マルチプラットフォームビルド**を理解し、異なるアーキテクチャ向けのイメージを構築・配布できる
-5. **CI/CD パイプラインにおけるイメージ管理戦略**を設計し、自動化された安全なイメージ配布フローを構築できる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Docker 基本操作](./02-docker-basics.md) の内容を理解していること
+> A practical guide to managing the full image lifecycle — from pulling, building, and distributing Docker images to leveraging container registries.
 
 ---
 
-## 1. イメージの構造
+## What You Will Learn
 
-### 1.1 レイヤーモデル
+1. Understand **Docker image layer structure and tagging systems** to manage images efficiently
+2. Understand when to use **Docker Hub vs. GitHub Container Registry** and distribute images accordingly
+3. Practice **image inspection, security checks, and cleanup**
+4. Understand **multi-platform builds** and build/distribute images for different architectures
+5. Design **image management strategies for CI/CD pipelines** and build automated, secure image distribution workflows
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Docker Basics](./02-docker-basics.md)
+
+---
+
+## 1. Image Structure
+
+### 1.1 Layer Model
 
 ```
 +------------------------------------------------------+
-|              Docker イメージのレイヤー構造              |
+|              Docker Image Layer Structure              |
 |                                                      |
 |  +------------------------------------------------+ |
-|  |  Layer 4: COPY . /app  (アプリコード)            | |  <- 変更頻度: 高
+|  |  Layer 4: COPY . /app  (app code)               | |  <- Change frequency: High
 |  +------------------------------------------------+ |
-|  |  Layer 3: RUN npm install (依存パッケージ)       | |  <- 変更頻度: 中
+|  |  Layer 3: RUN npm install (dependencies)        | |  <- Change frequency: Medium
 |  +------------------------------------------------+ |
-|  |  Layer 2: RUN apt-get install (システムパッケージ)| |  <- 変更頻度: 低
+|  |  Layer 2: RUN apt-get install (system packages) | |  <- Change frequency: Low
 |  +------------------------------------------------+ |
-|  |  Layer 1: FROM node:20-alpine (ベースイメージ)   | |  <- 変更頻度: 最低
+|  |  Layer 1: FROM node:20-alpine (base image)      | |  <- Change frequency: Lowest
 |  +------------------------------------------------+ |
 |                                                      |
-|  各レイヤーは SHA256 ハッシュで識別される               |
-|  変更されていないレイヤーはキャッシュから再利用           |
+|  Each layer is identified by a SHA256 hash           |
+|  Unchanged layers are reused from cache              |
 +------------------------------------------------------+
 ```
 
-Docker イメージは Union File System（OverlayFS）を使って複数の読み取り専用レイヤーを重ね合わせた構造になっている。各レイヤーは前のレイヤーからの差分（変更分）のみを保持するため、共通のベースイメージを使うイメージ同士ではレイヤーの共有が行われ、ディスク使用量とダウンロード時間を大幅に節約できる。
+A Docker image uses Union File System (OverlayFS) to stack multiple read-only layers on top of each other. Each layer stores only the diff (changes) from the previous layer, so images sharing a common base image can share those layers — significantly reducing disk usage and download time.
 
-コンテナを起動すると、イメージの最上部に書き込み可能なレイヤー（コンテナレイヤー）が追加される。コンテナ内での変更はすべてこのレイヤーに記録され、コンテナを削除するとこのレイヤーも削除される。これが「コンテナはエフェメラル（一時的）」と言われる理由である。
+When a container starts, a writable layer (the container layer) is added on top of the image. All changes made inside the container are recorded in this layer, and when the container is deleted, this layer is also deleted. This is why containers are said to be "ephemeral."
 
-### 1.2 レイヤーの確認
+### 1.2 Inspecting Layers
 
 ```bash
-# イメージのレイヤー情報を表示
+# Display layer information for an image
 docker history nginx:alpine
 
-# 出力例:
+# Example output:
 # IMAGE          CREATED       CREATED BY                                      SIZE
 # a1b2c3d4       2 days ago    CMD ["nginx" "-g" "daemon off;"]                0B
 # <missing>      2 days ago    EXPOSE map[80/tcp:{}]                           0B
@@ -66,105 +66,105 @@ docker history nginx:alpine
 # <missing>      3 weeks ago   /bin/sh -c #(nop) CMD ["/bin/sh"]               0B
 # <missing>      3 weeks ago   ADD file:xxx in /                               7.38MB
 
-# サイズなしでコマンドのみ表示
+# Show only commands without sizes
 docker history --no-trunc --format "{{.CreatedBy}}" nginx:alpine
 
-# イメージの詳細情報
+# Detailed image information
 docker inspect nginx:alpine
 
-# JSON 形式で特定のフィールドを抽出
+# Extract specific fields in JSON format
 docker inspect --format '{{json .RootFS.Layers}}' nginx:alpine | python3 -m json.tool
 
-# レイヤー数のカウント
+# Count the number of layers
 docker inspect --format '{{len .RootFS.Layers}}' nginx:alpine
 ```
 
-### 1.3 レイヤーの共有と効率性
+### 1.3 Layer Sharing and Efficiency
 
 ```bash
-# 同じベースイメージを使う2つのイメージのディスク使用量を確認
+# Check disk usage for two images using the same base image
 docker pull node:20-alpine
 docker pull node:18-alpine
 
-# 各イメージのサイズ
+# Size of each image
 docker images node
 # REPOSITORY   TAG         IMAGE ID       CREATED       SIZE
 # node         20-alpine   abc123         2 days ago    130MB
 # node         18-alpine   def456         5 days ago    125MB
 
-# 実際のディスク使用量（レイヤー共有を考慮）
+# Actual disk usage (accounting for layer sharing)
 docker system df -v
-# -> Shared Size が表示される
+# -> Shows Shared Size
 
-# レイヤーの共有状況を確認
+# Check layer sharing status
 docker inspect --format '{{.RootFS.Layers}}' node:20-alpine
 docker inspect --format '{{.RootFS.Layers}}' node:18-alpine
-# -> 共通するレイヤーハッシュがあれば、そのレイヤーは共有されている
+# -> Common layer hashes indicate shared layers
 ```
 
-### 1.4 Copy-on-Write (CoW) の仕組み
+### 1.4 How Copy-on-Write (CoW) Works
 
 ```
 +------------------------------------------------------+
-|           Copy-on-Write の動作                        |
+|           Copy-on-Write Behavior                      |
 |                                                      |
-|  コンテナ起動時:                                      |
+|  On container start:                                  |
 |  +--------------------------------------------+      |
-|  | コンテナレイヤー (R/W) - 空               |      |
+|  | Container layer (R/W) - empty              |      |
 |  +--------------------------------------------+      |
-|  | Layer 3 (R/O) - /app/server.js            |      |
+|  | Layer 3 (R/O) - /app/server.js             |      |
 |  +--------------------------------------------+      |
 |  | Layer 2 (R/O) - /usr/lib/...              |      |
 |  +--------------------------------------------+      |
-|  | Layer 1 (R/O) - ベースOS                   |      |
+|  | Layer 1 (R/O) - Base OS                    |      |
 |  +--------------------------------------------+      |
 |                                                      |
-|  ファイル読み取り: 上から下に検索、最初に見つかった     |
-|  レイヤーのファイルを返す                               |
+|  File read: search top to bottom, return the file    |
+|  from the first layer where it is found              |
 |                                                      |
-|  ファイル書き込み: 対象ファイルをコンテナレイヤーに      |
-|  コピーしてから変更（Copy-on-Write）                   |
+|  File write: copy the target file to the container   |
+|  layer, then modify it (Copy-on-Write)               |
 |                                                      |
-|  ファイル削除: whiteout ファイルでマスク               |
-|  （下のレイヤーのファイルは実際には削除されない）         |
+|  File delete: mask with a whiteout file              |
+|  (the file in the lower layer is not actually deleted)|
 +------------------------------------------------------+
 ```
 
 ---
 
-## 2. イメージの取得 (pull)
+## 2. Pulling Images
 
-### 2.1 基本操作
+### 2.1 Basic Operations
 
 ```bash
-# 最新バージョンを取得
+# Pull the latest version
 docker pull nginx
-# -> nginx:latest が取得される
+# -> nginx:latest is pulled
 
-# 特定バージョンを指定
+# Specify a particular version
 docker pull nginx:1.25.3-alpine
 
-# 特定のプラットフォームを指定
+# Specify a platform
 docker pull --platform linux/arm64 nginx:alpine
 
-# ダイジェスト（SHA256）で指定（完全な再現性）
+# Specify by digest (SHA256) for full reproducibility
 docker pull nginx@sha256:abc123def456...
 
-# 複数のタグを一度に取得
+# Pull multiple tags at once
 docker pull nginx:1.25.3-alpine
 docker pull nginx:1.25.3-bookworm
 
-# 全タグをリストする（Docker Hub API）
+# List all tags (Docker Hub API)
 curl -s "https://registry.hub.docker.com/v2/repositories/library/nginx/tags?page_size=100" | \
   python3 -c "import sys,json;[print(t['name']) for t in json.load(sys.stdin)['results']]"
 ```
 
-### 2.2 レジストリからの取得
+### 2.2 Pulling from Registries
 
 ```bash
-# Docker Hub（デフォルト）
+# Docker Hub (default)
 docker pull nginx:alpine
-# -> docker.io/library/nginx:alpine と同じ
+# -> same as docker.io/library/nginx:alpine
 
 # GitHub Container Registry
 docker pull ghcr.io/owner/image:tag
@@ -178,24 +178,24 @@ docker pull asia-northeast1-docker.pkg.dev/project/repo/image:tag
 # Azure Container Registry
 docker pull myregistry.azurecr.io/my-app:v1
 
-# セルフホストレジストリ
+# Self-hosted registry
 docker pull registry.example.com:5000/my-app:v1
 
 # Red Hat Quay
 docker pull quay.io/organization/image:tag
 ```
 
-### 2.3 pull の高速化と効率化
+### 2.3 Speeding Up and Optimizing Pulls
 
 ```bash
-# 並列ダウンロードの設定（daemon.json）
+# Configure parallel downloads (daemon.json)
 # /etc/docker/daemon.json
 # {
 #   "max-concurrent-downloads": 10,
 #   "max-concurrent-uploads": 5
 # }
 
-# ミラーレジストリの設定（Rate Limit 対策）
+# Configure mirror registries (to avoid rate limits)
 # /etc/docker/daemon.json
 # {
 #   "registry-mirrors": [
@@ -204,79 +204,79 @@ docker pull quay.io/organization/image:tag
 #   ]
 # }
 
-# プルポリシーの確認（Kubernetes / Docker Compose）
-# imagePullPolicy: IfNotPresent  -> ローカルになければ pull
-# imagePullPolicy: Always        -> 常に pull
-# imagePullPolicy: Never         -> ローカルのみ使用
+# Pull policy reference (Kubernetes / Docker Compose)
+# imagePullPolicy: IfNotPresent  -> pull only if not available locally
+# imagePullPolicy: Always        -> always pull
+# imagePullPolicy: Never         -> use local only
 
-# pull の進捗を確認
-docker pull --quiet nginx:alpine  # 進捗を非表示にする
-docker pull nginx:alpine 2>&1 | tail -1  # 最終結果のみ
+# Check pull progress
+docker pull --quiet nginx:alpine  # suppress progress output
+docker pull nginx:alpine 2>&1 | tail -1  # show only final result
 ```
 
 ---
 
-## 3. タグ体系
+## 3. Tagging System
 
-### 3.1 タグの命名規則
+### 3.1 Tag Naming Conventions
 
 ```
 +------------------------------------------------------+
-|                  イメージタグの構造                     |
+|                  Image Tag Structure                   |
 |                                                      |
-|  レジストリ / 名前空間 / リポジトリ : タグ              |
+|  registry / namespace / repository : tag             |
 |                                                      |
-|  例:                                                 |
+|  Examples:                                           |
 |  docker.io / library   / nginx     : 1.25.3-alpine   |
 |  ghcr.io   / myorg     / myapp     : v2.1.0          |
-|  (省略可)    (省略可)                 (デフォルト:latest)|
+|  (optional)  (optional)              (default: latest)|
 |                                                      |
-|  タグ命名のベストプラクティス:                          |
+|  Tag naming best practices:                           |
 |  +------------------------------------------------+ |
-|  | セマンティックバージョニング: v1.2.3              | |
-|  | Git SHA: sha-abc123f                            | |
-|  | 日付: 2024-01-15                                | |
-|  | 環境: production, staging                       | |
-|  | ベース指定: 1.25.3-alpine, 1.25.3-bookworm      | |
+|  | Semantic versioning: v1.2.3                    | |
+|  | Git SHA: sha-abc123f                           | |
+|  | Date: 2024-01-15                               | |
+|  | Environment: production, staging               | |
+|  | Base specification: 1.25.3-alpine, 1.25.3-bookworm | |
 |  +------------------------------------------------+ |
 +------------------------------------------------------+
 ```
 
 ```bash
-# タグの付与
+# Apply tags
 docker tag my-app:latest my-app:v1.0.0
 docker tag my-app:latest my-app:v1.0
 docker tag my-app:latest my-app:v1
 
-# リモートレジストリ用のタグ付け
+# Tag for remote registry
 docker tag my-app:v1.0.0 ghcr.io/myorg/my-app:v1.0.0
 docker tag my-app:v1.0.0 ghcr.io/myorg/my-app:latest
 
-# タグの一覧
+# List tags
 docker images my-app
 # REPOSITORY   TAG       IMAGE ID       CREATED       SIZE
 # my-app       latest    abc123def456   1 hour ago    150MB
 # my-app       v1.0.0    abc123def456   1 hour ago    150MB
 # my-app       v1.0      abc123def456   1 hour ago    150MB
 # my-app       v1        abc123def456   1 hour ago    150MB
-# (同じ IMAGE ID = 同じイメージに複数のタグ)
+# (same IMAGE ID = multiple tags pointing to the same image)
 ```
 
-### 3.2 セマンティックバージョニングの実践
+### 3.2 Semantic Versioning in Practice
 
 ```bash
-# CI/CD でのタグ戦略の実装例
+# Example tag strategy implementation for CI/CD
 #!/bin/bash
 # build-and-tag.sh
 
 APP_NAME="my-app"
 REGISTRY="ghcr.io/myorg"
-VERSION=$(cat version.txt)              # 例: 1.2.3
-GIT_SHA=$(git rev-parse --short HEAD)   # 例: abc123f
-BUILD_DATE=$(date -u +%Y%m%d)          # 例: 20240115
-BRANCH=$(git branch --show-current)     # 例: main
+VERSION=$(cat version.txt)              # e.g. 1.2.3
+GIT_SHA=$(git rev-parse --short HEAD)   # e.g. abc123f
+BUILD_DATE=$(date -u +%Y%m%d)          # e.g. 20240115
+BRANCH=$(git branch --show-current)     # e.g. main
 
-# ビルド
+# Build
 docker build \
   --label "org.opencontainers.image.version=${VERSION}" \
   --label "org.opencontainers.image.revision=${GIT_SHA}" \
@@ -286,19 +286,19 @@ docker build \
   -t "${REGISTRY}/${APP_NAME}:sha-${GIT_SHA}" \
   .
 
-# main ブランチなら latest もタグ付け
+# Also tag as latest if on the main branch
 if [ "$BRANCH" = "main" ]; then
   docker tag "${REGISTRY}/${APP_NAME}:${VERSION}" "${REGISTRY}/${APP_NAME}:latest"
 fi
 
-# プッシュ
+# Push
 docker push "${REGISTRY}/${APP_NAME}" --all-tags
 ```
 
-### 3.3 OCI イメージラベルの標準
+### 3.3 OCI Image Label Standards
 
 ```dockerfile
-# Dockerfile 内でのラベル設定（OCI Image Spec 準拠）
+# Label configuration in Dockerfile (OCI Image Spec compliant)
 LABEL org.opencontainers.image.title="My Application"
 LABEL org.opencontainers.image.description="A web application"
 LABEL org.opencontainers.image.version="1.2.3"
@@ -312,56 +312,56 @@ LABEL org.opencontainers.image.created="2024-01-15T10:00:00Z"
 LABEL org.opencontainers.image.revision="abc123f"
 ```
 
-### 比較表 1: タグ戦略
+### Comparison Table 1: Tagging Strategies
 
-| 戦略 | 例 | 用途 | メリット | デメリット |
+| Strategy | Example | Use Case | Advantages | Disadvantages |
 |---|---|---|---|---|
-| セマンティック | `v1.2.3` | リリース管理 | バージョンが明確 | 手動管理が必要 |
-| Git SHA | `sha-abc123f` | CI/CD | 完全なトレーサビリティ | 人間に分かりにくい |
-| 日付 | `2024-01-15` | 定期ビルド | 時系列が明確 | 1日複数ビルドで衝突 |
-| latest | `latest` | 開発テスト | 常に最新 | 再現性なし |
-| 環境 | `production` | デプロイ管理 | 直感的 | ミュータブル |
-| ブランチ名 | `feature-auth` | PR/開発 | 追跡が容易 | ブランチ削除後に孤児化 |
-| 複合 | `v1.2.3-sha-abc123f` | 本番リリース | 完全な識別 | タグが長い |
+| Semantic | `v1.2.3` | Release management | Clear versioning | Requires manual management |
+| Git SHA | `sha-abc123f` | CI/CD | Full traceability | Not human-readable |
+| Date | `2024-01-15` | Scheduled builds | Clear chronological order | Collisions with multiple builds in a day |
+| latest | `latest` | Development/testing | Always up to date | No reproducibility |
+| Environment | `production` | Deploy management | Intuitive | Mutable |
+| Branch name | `feature-auth` | PR/development | Easy to track | Becomes orphaned after branch deletion |
+| Composite | `v1.2.3-sha-abc123f` | Production releases | Fully identifiable | Long tag name |
 
 ---
 
-## 4. イメージの配布 (push)
+## 4. Distributing Images (push)
 
 ### 4.1 Docker Hub
 
 ```bash
-# Docker Hub にログイン
+# Log in to Docker Hub
 docker login
 # Username: myuser
 # Password: ****
 
-# イメージにタグを付ける
+# Tag the image
 docker tag my-app:v1.0.0 myuser/my-app:v1.0.0
 
-# プッシュ
+# Push
 docker push myuser/my-app:v1.0.0
 
-# 全タグをプッシュ
+# Push all tags
 docker push myuser/my-app --all-tags
 
-# ログアウト
+# Log out
 docker logout
 ```
 
 ### 4.2 GitHub Container Registry (GHCR)
 
 ```bash
-# GitHub Personal Access Token でログイン
+# Log in with a GitHub Personal Access Token
 echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
 
-# タグ付けとプッシュ
+# Tag and push
 docker tag my-app:v1.0.0 ghcr.io/myorg/my-app:v1.0.0
 docker push ghcr.io/myorg/my-app:v1.0.0
 ```
 
 ```yaml
-# GitHub Actions からのプッシュ
+# Push from GitHub Actions
 # .github/workflows/publish.yml
 name: Build and Push
 on:
@@ -404,21 +404,21 @@ jobs:
 ### 4.3 Amazon ECR
 
 ```bash
-# AWS CLI で ECR にログイン
+# Log in to ECR using the AWS CLI
 aws ecr get-login-password --region ap-northeast-1 | \
   docker login --username AWS --password-stdin \
   123456789.dkr.ecr.ap-northeast-1.amazonaws.com
 
-# リポジトリの作成（初回のみ）
+# Create a repository (first time only)
 aws ecr create-repository --repository-name my-app \
   --image-scanning-configuration scanOnPush=true \
   --encryption-configuration encryptionType=AES256
 
-# タグ付けとプッシュ
+# Tag and push
 docker tag my-app:v1.0.0 123456789.dkr.ecr.ap-northeast-1.amazonaws.com/my-app:v1.0.0
 docker push 123456789.dkr.ecr.ap-northeast-1.amazonaws.com/my-app:v1.0.0
 
-# ライフサイクルポリシーの設定（古いイメージの自動削除）
+# Set a lifecycle policy (auto-delete old images)
 aws ecr put-lifecycle-policy --repository-name my-app --lifecycle-policy-text '{
   "rules": [
     {
@@ -440,47 +440,47 @@ aws ecr put-lifecycle-policy --repository-name my-app --lifecycle-policy-text '{
 ### 4.4 Google Artifact Registry
 
 ```bash
-# gcloud CLI で認証
+# Authenticate with gcloud CLI
 gcloud auth configure-docker asia-northeast1-docker.pkg.dev
 
-# リポジトリの作成（初回のみ）
+# Create a repository (first time only)
 gcloud artifacts repositories create my-repo \
   --repository-format=docker \
   --location=asia-northeast1 \
   --description="My Docker repository"
 
-# タグ付けとプッシュ
+# Tag and push
 docker tag my-app:v1.0.0 asia-northeast1-docker.pkg.dev/my-project/my-repo/my-app:v1.0.0
 docker push asia-northeast1-docker.pkg.dev/my-project/my-repo/my-app:v1.0.0
 
-# イメージ一覧
+# List images
 gcloud artifacts docker images list asia-northeast1-docker.pkg.dev/my-project/my-repo
 ```
 
-### 4.5 プライベートレジストリの構築
+### 4.5 Setting Up a Private Registry
 
 ```bash
-# Docker Registry をローカルで起動
+# Start Docker Registry locally
 docker run -d -p 5000:5000 --name registry registry:2
 
-# ローカルレジストリにプッシュ
+# Push to local registry
 docker tag my-app:v1.0.0 localhost:5000/my-app:v1.0.0
 docker push localhost:5000/my-app:v1.0.0
 
-# ローカルレジストリからプル
+# Pull from local registry
 docker pull localhost:5000/my-app:v1.0.0
 
-# レジストリのカタログ確認
+# Check registry catalog
 curl http://localhost:5000/v2/_catalog
 # {"repositories":["my-app"]}
 
-# タグ一覧の確認
+# Check tag list
 curl http://localhost:5000/v2/my-app/tags/list
 # {"name":"my-app","tags":["v1.0.0"]}
 ```
 
 ```yaml
-# docker-compose.yml による本格的なプライベートレジストリ
+# Full-featured private registry with docker-compose.yml
 services:
   registry:
     image: registry:2
@@ -515,10 +515,10 @@ volumes:
 ```
 
 ```bash
-# htpasswd ファイルの作成
+# Create an htpasswd file
 docker run --rm --entrypoint htpasswd registry:2 -Bbn myuser mypassword > auth/htpasswd
 
-# TLS 証明書の作成（自己署名、開発用）
+# Create a TLS certificate (self-signed, for development)
 openssl req -newkey rsa:4096 -nodes -sha256 -keyout certs/domain.key \
   -x509 -days 365 -out certs/domain.crt \
   -subj "/CN=registry.example.com"
@@ -526,155 +526,156 @@ openssl req -newkey rsa:4096 -nodes -sha256 -keyout certs/domain.key \
 
 ---
 
-## 5. イメージの検査
+## 5. Inspecting Images
 
-### 5.1 イメージ情報の確認
+### 5.1 Checking Image Information
 
 ```bash
-# 基本情報
+# Basic information
 docker images
 # REPOSITORY   TAG            IMAGE ID       CREATED        SIZE
 # nginx        alpine         a1b2c3d4       2 days ago     42.6MB
 # node         20-alpine      e5f6g7h8       1 week ago     181MB
 # postgres     16-alpine      i9j0k1l2       3 days ago     244MB
 
-# 詳細情報
+# Detailed information
 docker inspect nginx:alpine
 
-# 特定の情報を抽出
+# Extract specific fields
 docker inspect --format '{{.Config.Env}}' nginx:alpine
 docker inspect --format '{{.Config.ExposedPorts}}' nginx:alpine
 docker inspect --format '{{.Config.Cmd}}' nginx:alpine
 docker inspect --format '{{.Architecture}}' nginx:alpine
 docker inspect --format '{{.Os}}' nginx:alpine
 
-# ラベル情報の取得
+# Get label information
 docker inspect --format '{{json .Config.Labels}}' nginx:alpine | python3 -m json.tool
 
-# イメージのエントリポイントを確認
+# Check the image entrypoint
 docker inspect --format '{{json .Config.Entrypoint}}' nginx:alpine
 
-# マニフェストの確認（マルチプラットフォーム対応確認）
+# Check the manifest (verify multi-platform support)
 docker manifest inspect nginx:alpine
 
-# イメージサイズの詳細（圧縮前後）
+# Detailed image size (before and after compression)
 docker manifest inspect --verbose nginx:alpine | \
   python3 -c "import sys,json;d=json.load(sys.stdin);print(f'Compressed: {sum(l[\"size\"] for l in d[\"SchemaV2Manifest\"][\"layers\"])/1e6:.1f}MB')"
 ```
 
-### 5.2 イメージの内容を探索
+### 5.2 Exploring Image Contents
 
 ```bash
-# イメージからコンテナを作成して中身を確認
+# Create a container from the image to inspect its contents
 docker run --rm -it nginx:alpine /bin/sh
 
-# イメージをtarにエクスポート
+# Export the image as a tar archive
 docker save nginx:alpine -o nginx-alpine.tar
-# tarの中身を確認
+# Inspect the contents of the tar
 tar tf nginx-alpine.tar | head -20
 
-# 特定のファイルだけ確認
+# Check a specific file
 docker run --rm nginx:alpine cat /etc/nginx/nginx.conf
 
-# ファイルシステムの差分を確認（コンテナが変更したファイル）
+# Check filesystem diffs (files changed by a container)
 docker diff my-running-container
 # A /tmp/newfile    (Added)
 # C /var/log        (Changed)
 # D /tmp/oldfile    (Deleted)
 
-# イメージ内のファイル一覧を取得
+# List files in the image
 docker run --rm nginx:alpine find / -type f 2>/dev/null | head -50
 
-# 特定のパッケージがインストールされているか確認
+# Check if a specific package is installed
 docker run --rm nginx:alpine apk list --installed 2>/dev/null
 docker run --rm python:3.12-slim dpkg -l 2>/dev/null | head -30
 ```
 
-### 5.3 dive によるイメージ分析
+### 5.3 Image Analysis with dive
 
 ```bash
-# dive のインストール
+# Install dive
 brew install dive  # macOS
-# または Docker で実行
+# Or run with Docker
 docker run --rm -it \
   -v /var/run/docker.sock:/var/run/docker.sock \
   wagoodman/dive nginx:alpine
 
-# dive でイメージを分析
+# Analyze an image with dive
 dive nginx:alpine
 
-# CI モードでイメージ効率をチェック
+# Check image efficiency in CI mode
 dive --ci nginx:alpine
-# -> イメージ効率スコアが表示される
-# -> 無駄なレイヤーや重複ファイルが検出される
+# -> Shows image efficiency score
+# -> Detects wasteful layers and duplicate files
 ```
 
-### 5.4 SBOM（Software Bill of Materials）の生成
+### 5.4 Generating a Software Bill of Materials (SBOM)
 
 ```bash
-# Docker SBOM（Docker Desktop 統合）
+# Docker SBOM (Docker Desktop integration)
 docker sbom nginx:alpine
 
-# Syft による SBOM 生成
-# インストール
+# Generate SBOM with Syft
+# Install
 brew install syft  # macOS
 
-# SBOM の生成（SPDX 形式）
+# Generate SBOM (SPDX format)
 syft nginx:alpine -o spdx-json > sbom.spdx.json
 
-# SBOM の生成（CycloneDX 形式）
+# Generate SBOM (CycloneDX format)
 syft nginx:alpine -o cyclonedx-json > sbom.cdx.json
 
-# テキスト形式で表示
+# Display in text format
 syft nginx:alpine
 
-# SBOM に基づく脆弱性スキャン
+# Vulnerability scan based on SBOM
 syft nginx:alpine -o spdx-json | grype
 ```
 
 ---
 
-## 6. レジストリ比較
+## 6. Registry Comparison
 
-### 比較表 2: コンテナレジストリ比較
+### Comparison Table 2: Container Registry Comparison
 
-| レジストリ | 無料枠 | プライベートリポジトリ | 主な用途 | 認証方法 |
+| Registry | Free Tier | Private Repositories | Primary Use | Authentication |
 |---|---|---|---|---|
-| Docker Hub | 1プライベートリポ | 有料プラン | OSS配布、公式イメージ | Docker ID |
-| GitHub Container Registry | 無制限（パブリック） | GitHub プランに依存 | GitHub統合プロジェクト | GitHub PAT |
-| Amazon ECR | 500MB/月(パブリック) | AWS料金 | AWS本番環境 | IAM |
-| Google Artifact Registry | 500MB/月 | GCP料金 | GCP本番環境 | gcloud auth |
-| Azure Container Registry | なし | Azure料金 | Azure本番環境 | Azure AD |
-| Harbor (OSS) | セルフホスト | 無制限 | オンプレミス | LDAP/OIDC |
-| Quay.io (Red Hat) | 無制限（パブリック） | 有料プラン | Red Hat エコシステム | Red Hat SSO |
-| GitLab Container Registry | GitLab プランに依存 | GitLab プランに依存 | GitLab CI/CD 統合 | GitLab トークン |
+| Docker Hub | 1 private repo | Paid plans | OSS distribution, official images | Docker ID |
+| GitHub Container Registry | Unlimited (public) | Depends on GitHub plan | GitHub-integrated projects | GitHub PAT |
+| Amazon ECR | 500MB/month (public) | AWS pricing | AWS production environments | IAM |
+| Google Artifact Registry | 500MB/month | GCP pricing | GCP production environments | gcloud auth |
+| Azure Container Registry | None | Azure pricing | Azure production environments | Azure AD |
+| Harbor (OSS) | Self-hosted | Unlimited | On-premises | LDAP/OIDC |
+| Quay.io (Red Hat) | Unlimited (public) | Paid plans | Red Hat ecosystem | Red Hat SSO |
+| GitLab Container Registry | Depends on GitLab plan | Depends on GitLab plan | GitLab CI/CD integration | GitLab token |
 
-### 比較表 3: コスト比較（月額目安）
+### Comparison Table 3: Cost Comparison (Approximate Monthly)
 
-| レジストリ | 小規模 (10GB) | 中規模 (100GB) | 大規模 (1TB) |
+| Registry | Small (10GB) | Medium (100GB) | Large (1TB) |
 |---|---|---|---|
-| Docker Hub (Team) | $7/user | $7/user | $7/user (ストレージ無制限) |
-| GHCR (GitHub Team) | $4/user | $4/user + ストレージ | $4/user + ストレージ |
+| Docker Hub (Team) | $7/user | $7/user | $7/user (unlimited storage) |
+| GHCR (GitHub Team) | $4/user | $4/user + storage | $4/user + storage |
 | Amazon ECR | ~$1 | ~$10 | ~$100 |
 | Google AR | ~$2.6 | ~$26 | ~$260 |
-| Azure ACR (Basic) | $5 (10GB含) | $50 (100GB含) | $200+ |
-| Harbor | サーバー費用のみ | サーバー費用のみ | サーバー費用のみ |
+| Azure ACR (Basic) | $5 (incl. 10GB) | $50 (incl. 100GB) | $200+ |
+| Harbor | Server costs only | Server costs only | Server costs only |
 
 ---
 
-## 7. イメージのセキュリティ
+## 7. Image Security
 
-### 7.1 脆弱性スキャン
+### 7.1 Vulnerability Scanning
 
 ```
 +------------------------------------------------------+
-|              イメージセキュリティスキャン                |
+|              Image Security Scanning                  |
 |                                                      |
-|  イメージ                                             |
+|  Image                                               |
 |    |                                                 |
 |    v                                                 |
 |  +------------------+                                |
-|  | 脆弱性スキャナー   |                                |
+|  | Vulnerability    |                                |
+|  | Scanner          |                                |
 |  +-----|------------+                                |
 |        |                                             |
 |  +-----+------+--------+--------+                    |
@@ -683,161 +684,161 @@ syft nginx:alpine -o spdx-json | grype
 | Docker Trivy  Snyk   Grype   Clair                  |
 | Scout                                               |
 |                                                      |
-|  スキャン対象:                                        |
-|  - OS パッケージ (apt/apk/yum)                       |
-|  - 言語パッケージ (npm/pip/go mod)                    |
-|  - 設定ファイルの問題                                  |
-|  - シークレットの検出                                  |
-|  - ライセンスコンプライアンス                            |
+|  Scan targets:                                       |
+|  - OS packages (apt/apk/yum)                        |
+|  - Language packages (npm/pip/go mod)               |
+|  - Configuration file issues                         |
+|  - Secret detection                                  |
+|  - License compliance                                |
 +------------------------------------------------------+
 ```
 
 ```bash
-# Docker Scout（Docker Desktop 統合）
+# Docker Scout (Docker Desktop integration)
 docker scout quickview nginx:alpine
 docker scout cves nginx:alpine
 docker scout recommendations nginx:alpine
 
-# Trivy（オープンソース、推奨）
-# インストール
+# Trivy (open source, recommended)
+# Install
 brew install aquasecurity/trivy/trivy  # macOS
-# または Docker で実行
+# Or run with Docker
 docker run --rm aquasec/trivy image nginx:alpine
 
-# Trivy でイメージスキャン
+# Scan an image with Trivy
 trivy image nginx:alpine
 
-# 重要度フィルタ
+# Filter by severity
 trivy image --severity HIGH,CRITICAL nginx:alpine
 
-# 修正可能な脆弱性のみ表示
+# Show only fixable vulnerabilities
 trivy image --ignore-unfixed nginx:alpine
 
-# JSON 形式で出力（CI/CD での利用）
+# Output in JSON format (for CI/CD use)
 trivy image --format json --output result.json nginx:alpine
 
-# テーブル形式で出力
+# Output in table format
 trivy image --format table nginx:alpine
 
-# 終了コードで CI を制御（CRITICAL があれば失敗）
+# Control CI exit code (fail if CRITICAL is found)
 trivy image --exit-code 1 --severity CRITICAL nginx:alpine
 
 # Grype
 docker run --rm anchore/grype nginx:alpine
 
-# Grype で特定の脆弱性を無視
+# Ignore a specific vulnerability with Grype
 echo "CVE-2023-12345" > .grype.yaml
 grype nginx:alpine --config .grype.yaml
 ```
 
-### 7.2 イメージ署名
+### 7.2 Image Signing
 
 ```bash
-# Docker Content Trust (DCT) を有効化
+# Enable Docker Content Trust (DCT)
 export DOCKER_CONTENT_TRUST=1
 
-# 署名付きでプッシュ
+# Push with signature
 docker push myuser/my-app:v1.0.0
-# 初回は署名鍵のパスフレーズ設定が求められる
+# On the first push, you will be prompted to set a signing key passphrase
 
-# 署名されたイメージのみプル可能
+# Only signed images can be pulled
 docker pull myuser/my-app:v1.0.0
 
-# cosign による署名（Sigstore）
-# インストール
+# Sign with cosign (Sigstore)
+# Install
 brew install cosign  # macOS
 
-# 鍵ペアの生成
+# Generate a key pair
 cosign generate-key-pair
 
-# イメージの署名
+# Sign an image
 cosign sign --key cosign.key ghcr.io/myorg/my-app:v1.0.0
 
-# 署名の検証
+# Verify a signature
 cosign verify --key cosign.pub ghcr.io/myorg/my-app:v1.0.0
 
-# キーレス署名（GitHub Actions OIDC 連携）
+# Keyless signing (integrated with GitHub Actions OIDC)
 cosign sign ghcr.io/myorg/my-app:v1.0.0
-# -> Sigstore の透明性ログ (Rekor) に記録される
+# -> Recorded in Sigstore's transparency log (Rekor)
 
-# 署名の確認
+# Verify the signature
 cosign verify \
   --certificate-identity "https://github.com/myorg/my-app/.github/workflows/build.yml@refs/tags/v1.0.0" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
   ghcr.io/myorg/my-app:v1.0.0
 ```
 
-### 7.3 セキュリティベストプラクティス
+### 7.3 Security Best Practices
 
 ```
 +------------------------------------------------------+
-|       イメージセキュリティのベストプラクティス            |
+|       Image Security Best Practices                   |
 |                                                      |
-|  1. 最小ベースイメージの使用                            |
+|  1. Use minimal base images                           |
 |     Alpine > Debian Slim > Ubuntu                    |
-|     Distroless > Alpine (攻撃面の最小化)              |
+|     Distroless > Alpine (minimize attack surface)    |
 |                                                      |
-|  2. non-root ユーザーでの実行                          |
-|     USER appuser (root 権限を回避)                    |
+|  2. Run as a non-root user                            |
+|     USER appuser (avoid root privileges)             |
 |                                                      |
-|  3. 読み取り専用ファイルシステム                        |
+|  3. Use a read-only filesystem                        |
 |     docker run --read-only --tmpfs /tmp ...           |
 |                                                      |
-|  4. 定期的な脆弱性スキャン                              |
-|     CI/CD パイプラインに Trivy を統合                  |
+|  4. Scan for vulnerabilities regularly               |
+|     Integrate Trivy into CI/CD pipelines             |
 |                                                      |
-|  5. イメージの署名と検証                                |
-|     cosign + Sigstore で供給チェーンを保護             |
+|  5. Sign and verify images                           |
+|     Use cosign + Sigstore to protect the supply chain|
 |                                                      |
-|  6. シークレットをイメージに含めない                     |
-|     ARG/ENV ではなく --mount=type=secret を使用       |
+|  6. Never include secrets in images                  |
+|     Use --mount=type=secret instead of ARG/ENV       |
 |                                                      |
-|  7. .dockerignore の徹底                              |
-|     .env, .git, credentials を除外                   |
+|  7. Always use .dockerignore                         |
+|     Exclude .env, .git, credentials                  |
 +------------------------------------------------------+
 ```
 
 ---
 
-## 8. マルチプラットフォームビルド
+## 8. Multi-Platform Builds
 
-### 8.1 buildx によるマルチプラットフォーム対応
+### 8.1 Multi-Platform Support with buildx
 
 ```bash
-# buildx ビルダーの確認
+# Check available buildx builders
 docker buildx ls
 
-# マルチプラットフォーム用ビルダーの作成
+# Create a builder for multi-platform builds
 docker buildx create --name multiplatform --driver docker-container --use
 
-# マルチプラットフォームビルド & プッシュ
+# Multi-platform build & push
 docker buildx build \
   --platform linux/amd64,linux/arm64,linux/arm/v7 \
   -t ghcr.io/myorg/my-app:v1.0.0 \
   --push \
   .
 
-# 特定のプラットフォームのみビルド
+# Build for a specific platform only
 docker buildx build \
   --platform linux/amd64 \
   -t my-app:v1.0.0 \
   --load \
   .
 
-# ビルド済みイメージの対応プラットフォーム確認
+# Check supported platforms for a built image
 docker manifest inspect ghcr.io/myorg/my-app:v1.0.0
 
-# QEMU エミュレーションのセットアップ（異なるアーキテクチャのビルド用）
+# Set up QEMU emulation (for building different architectures)
 docker run --privileged --rm tonistiigi/binfmt --install all
 ```
 
-### 8.2 マルチプラットフォーム対応 Dockerfile
+### 8.2 Multi-Platform Dockerfile
 
 ```dockerfile
-# マルチプラットフォーム対応の Dockerfile 例
+# Example Dockerfile with multi-platform support
 FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS builder
 
-# ビルドプラットフォーム情報
+# Build platform information
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 ARG TARGETOS
@@ -848,7 +849,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-# クロスコンパイル
+# Cross-compile
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -ldflags="-w -s" -o /server ./cmd/server
 
@@ -858,7 +859,7 @@ ENTRYPOINT ["/server"]
 ```
 
 ```bash
-# GitHub Actions でのマルチプラットフォームビルド
+# Multi-platform build with GitHub Actions
 # .github/workflows/multi-platform.yml
 ```
 
@@ -896,36 +897,36 @@ jobs:
 
 ---
 
-## 9. イメージのクリーンアップ
+## 9. Image Cleanup
 
 ```bash
-# ローカルイメージの一覧
+# List local images
 docker images
 
-# 特定のイメージを削除
+# Delete a specific image
 docker rmi nginx:alpine
 
-# 強制削除（使用中のコンテナがあっても削除）
+# Force delete (even if used by a running container)
 docker rmi -f nginx:alpine
 
-# dangling イメージ（タグなし）を削除
+# Delete dangling images (untagged)
 docker image prune
 
-# 未使用の全イメージを削除
+# Delete all unused images
 docker image prune -a
 
-# 特定の条件でフィルタリングして削除
-docker image prune -a --filter "until=24h"  # 24時間以上前のイメージ
-docker image prune -a --filter "label=env=dev"  # ラベル指定
-docker image prune -a --filter "label!=keep=true"  # 保持ラベルがないもの
+# Filter and delete by specific conditions
+docker image prune -a --filter "until=24h"  # images older than 24 hours
+docker image prune -a --filter "label=env=dev"  # by label
+docker image prune -a --filter "label!=keep=true"  # images without a keep label
 
-# 特定のパターンに一致するイメージを一括削除
+# Bulk delete images matching a pattern
 docker images --format '{{.Repository}}:{{.Tag}}' | grep 'my-app' | xargs docker rmi
 
-# dangling イメージのみ一覧表示
+# List only dangling images
 docker images --filter "dangling=true"
 
-# ディスク使用量の確認
+# Check disk usage
 docker system df
 # TYPE            TOTAL   ACTIVE   SIZE      RECLAIMABLE
 # Images          25      5        8.5GB     6.2GB (72%)
@@ -933,112 +934,112 @@ docker system df
 # Local Volumes   8       4        2.1GB     900MB (42%)
 # Build Cache     100     0        3.5GB     3.5GB (100%)
 
-# 詳細なディスク使用量
+# Detailed disk usage
 docker system df -v
 
-# ビルドキャッシュのクリーンアップ
+# Clean up build cache
 docker builder prune
-docker builder prune --all  # 全てのビルドキャッシュを削除
-docker builder prune --keep-storage 5GB  # 5GB を超える分のみ削除
+docker builder prune --all  # Delete all build cache
+docker builder prune --keep-storage 5GB  # Delete only what exceeds 5GB
 
-# 完全クリーンアップ
+# Full cleanup
 docker system prune -a --volumes
 ```
 
-### クリーンアップの自動化
+### Automating Cleanup
 
 ```bash
 #!/bin/bash
-# docker-cleanup.sh - 定期実行用クリーンアップスクリプト
+# docker-cleanup.sh - Cleanup script for scheduled execution
 
-echo "=== Docker クリーンアップ開始 ==="
+echo "=== Starting Docker Cleanup ==="
 
-# 停止中のコンテナを削除
-echo "--- 停止中のコンテナを削除 ---"
+# Remove stopped containers
+echo "--- Removing stopped containers ---"
 docker container prune -f
 
-# dangling イメージを削除
-echo "--- dangling イメージを削除 ---"
+# Remove dangling images
+echo "--- Removing dangling images ---"
 docker image prune -f
 
-# 7日以上前の未使用イメージを削除
-echo "--- 7日以上前の未使用イメージを削除 ---"
+# Remove unused images older than 7 days
+echo "--- Removing unused images older than 7 days ---"
 docker image prune -a -f --filter "until=168h"
 
-# 未使用のボリュームを削除
-echo "--- 未使用のボリュームを削除 ---"
+# Remove unused volumes
+echo "--- Removing unused volumes ---"
 docker volume prune -f
 
-# 未使用のネットワークを削除
-echo "--- 未使用のネットワークを削除 ---"
+# Remove unused networks
+echo "--- Removing unused networks ---"
 docker network prune -f
 
-# ビルドキャッシュを 10GB 以内に制限
-echo "--- ビルドキャッシュのクリーンアップ ---"
+# Limit build cache to 10GB
+echo "--- Cleaning up build cache ---"
 docker builder prune -f --keep-storage 10GB
 
-# 最終的なディスク使用量を表示
-echo "=== クリーンアップ完了 ==="
+# Show final disk usage
+echo "=== Cleanup Complete ==="
 docker system df
 ```
 
 ```bash
-# cron で毎日深夜に実行
+# Run daily at midnight with cron
 # crontab -e
 0 3 * * * /usr/local/bin/docker-cleanup.sh >> /var/log/docker-cleanup.log 2>&1
 ```
 
 ---
 
-## 10. イメージの保存と転送
+## 10. Saving and Transferring Images
 
 ```bash
-# イメージをファイルに保存
+# Save an image to a file
 docker save -o my-app-v1.tar my-app:v1.0.0
 
-# 圧縮して保存
+# Save with compression
 docker save my-app:v1.0.0 | gzip > my-app-v1.tar.gz
 
-# zstd 圧縮（より高速・高圧縮）
+# Save with zstd compression (faster and higher compression)
 docker save my-app:v1.0.0 | zstd > my-app-v1.tar.zst
 
-# ファイルからイメージを読み込み
+# Load an image from a file
 docker load -i my-app-v1.tar
 
-# 圧縮ファイルから読み込み
+# Load from a compressed file
 gunzip -c my-app-v1.tar.gz | docker load
 zstd -d -c my-app-v1.tar.zst | docker load
 
-# 複数イメージを1つの tar にまとめる
+# Bundle multiple images into one tar
 docker save -o all-images.tar my-app:v1.0.0 nginx:alpine postgres:16-alpine
 
-# コンテナの現在の状態をイメージとして保存
+# Save the current state of a container as an image
 docker commit my-container my-app:snapshot
-# 注意: commit は開発では非推奨。Dockerfile を使うべき。
+# Note: commit is not recommended for development. Use a Dockerfile instead.
 
-# SSH 経由で他のホストにイメージを転送
+# Transfer an image to another host via SSH
 docker save my-app:v1.0.0 | gzip | ssh user@remote "gunzip | docker load"
 
-# コンテナのファイルシステムを tar としてエクスポート（レイヤー情報は失われる）
+# Export container filesystem as a tar (layer info is lost)
 docker export my-container > container-fs.tar
 docker import container-fs.tar my-app:imported
 ```
 
-### 比較表 4: イメージ転送方法
+### Comparison Table 4: Image Transfer Methods
 
-| 方法 | 速度 | 用途 | メリット | デメリット |
+| Method | Speed | Use Case | Advantages | Disadvantages |
 |---|---|---|---|---|
-| レジストリ (push/pull) | 高速 | 通常の開発・デプロイ | レイヤーキャッシュが効く | レジストリが必要 |
-| docker save/load | 中速 | オフライン環境 | レジストリ不要 | 全レイヤーを含む |
-| docker export/import | 低速 | ファイルシステム抽出 | フラットな tar | レイヤー情報消失 |
-| SSH 直接転送 | 中速 | 緊急時 | インフラ不要 | 帯域に依存 |
-| 外部ストレージ | 中速 | CI/CD キャッシュ | S3 等と統合 | 設定が必要 |
+| Registry (push/pull) | Fast | Normal development/deployment | Layer caching works | Requires a registry |
+| docker save/load | Medium | Offline environments | No registry needed | Includes all layers |
+| docker export/import | Slow | Filesystem extraction | Flat tar | Layer info is lost |
+| SSH direct transfer | Medium | Emergencies | No infrastructure needed | Depends on bandwidth |
+| External storage | Medium | CI/CD cache | Integrates with S3 etc. | Requires configuration |
 
 ---
 
-## 11. CI/CD でのイメージ管理
+## 11. Image Management in CI/CD
 
-### 11.1 GitHub Actions でのビルドとプッシュ
+### 11.1 Build and Push with GitHub Actions
 
 ```yaml
 # .github/workflows/docker.yml
@@ -1095,7 +1096,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 脆弱性スキャン
+      # Vulnerability scan
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -1111,7 +1112,7 @@ jobs:
           sarif_file: 'trivy-results.sarif'
 ```
 
-### 11.2 GitLab CI でのビルド
+### 11.2 Build with GitLab CI
 
 ```yaml
 # .gitlab-ci.yml
@@ -1159,57 +1160,57 @@ push:
 
 ---
 
-## 12. アンチパターン
+## 12. Anti-Patterns
 
-### アンチパターン 1: latest タグだけで管理する
+### Anti-Pattern 1: Managing Everything with Only the latest Tag
 
 ```bash
-# NG: 全て latest でプッシュ
+# Bad: Push everything as latest
 docker build -t my-app .
 docker push my-app:latest
-# -> どのバージョンがデプロイされているか分からない
-# -> ロールバックできない
-# -> キャッシュの挙動が予測できない
+# -> Cannot tell which version is deployed
+# -> Cannot roll back
+# -> Cache behavior is unpredictable
 
-# OK: セマンティックバージョニング + Git SHA
+# Good: Semantic versioning + Git SHA
 docker build -t my-app:v1.2.3 -t my-app:sha-abc123f .
 docker push my-app:v1.2.3
 docker push my-app:sha-abc123f
-# -> バージョン特定可能、ロールバック容易
+# -> Version is identifiable, rollback is easy
 ```
 
-### アンチパターン 2: docker commit でイメージを作成する
+### Anti-Pattern 2: Creating Images with docker commit
 
 ```bash
-# NG: コンテナに手動変更してcommit
+# Bad: Make manual changes inside a container and commit
 docker run -it ubuntu bash
-# (コンテナ内で apt install, ファイル編集等)
+# (Run apt install, edit files, etc. inside the container)
 docker commit <container-id> my-custom-image
-# -> 再現性がない
-# -> 変更内容が不明
-# -> レビューできない
+# -> Not reproducible
+# -> Changes are opaque
+# -> Cannot be reviewed
 
-# OK: Dockerfile でイメージを定義
+# Good: Define the image with a Dockerfile
 # Dockerfile
 # FROM ubuntu:22.04
 # RUN apt-get update && apt-get install -y curl
 # COPY config.json /etc/app/
 docker build -t my-custom-image .
-# -> 再現性あり、レビュー可能、バージョン管理可能
+# -> Reproducible, reviewable, version-controlled
 ```
 
-### アンチパターン 3: ビルド時にシークレットを ARG/ENV で渡す
+### Anti-Pattern 3: Passing Secrets via ARG/ENV at Build Time
 
 ```dockerfile
-# NG: シークレットが レイヤーに残る
+# Bad: Secrets remain in layers
 FROM node:20-alpine
 WORKDIR /app
 ARG NPM_TOKEN
 COPY .npmrc .
 RUN npm ci
-RUN rm .npmrc  # 削除しても前のレイヤーに残っている！
+RUN rm .npmrc  # Deleting it still leaves it in the previous layer!
 
-# OK: BuildKit のシークレットマウントを使う
+# Good: Use BuildKit secret mounts
 FROM node:20-alpine
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -1220,72 +1221,72 @@ CMD ["node", "server.js"]
 ```
 
 ```bash
-# ビルド時にシークレットを渡す
+# Pass secrets at build time
 docker build --secret id=npmrc,src=.npmrc -t my-app .
 ```
 
-### アンチパターン 4: 巨大なベースイメージを使う
+### Anti-Pattern 4: Using a Large Base Image
 
 ```dockerfile
-# NG: フルサイズの ubuntu を使用
+# Bad: Using full-size ubuntu
 FROM ubuntu:22.04
 RUN apt-get update && apt-get install -y nodejs npm
 COPY . /app
 CMD ["node", "/app/server.js"]
-# -> 400MB+ のイメージ
+# -> 400MB+ image
 
-# OK: 言語固有の Alpine イメージを使用
+# Good: Use a language-specific Alpine image
 FROM node:20-alpine
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --only=production
 COPY . .
 CMD ["node", "server.js"]
-# -> 150MB 程度のイメージ
+# -> ~150MB image
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1294,26 +1295,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Should have raised an exception"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1321,7 +1322,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1332,14 +1333,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1347,7 +1348,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistical information"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1355,44 +1356,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hashmap"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1401,7 +1402,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1416,66 +1417,66 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## 13. FAQ
 
-### Q1: `docker pull` は毎回イメージ全体をダウンロードするのですか？
+### Q1: Does `docker pull` download the entire image every time?
 
-**A:** いいえ。Docker はレイヤー単位でダウンロードし、ローカルに既存のレイヤーはスキップする。そのため、ベースイメージが同じ場合、2 回目以降のプルは差分のみで非常に高速になる。`docker pull` の出力で `Already exists` と表示されるレイヤーはキャッシュが使われている。
+**A:** No. Docker downloads in layer units and skips layers that already exist locally. As a result, if the base image is the same, subsequent pulls will be much faster as only the diff is downloaded. Layers shown as `Already exists` in the `docker pull` output are being served from cache.
 
-### Q2: Docker Hub の Rate Limit はどの程度ですか？
+### Q2: What are Docker Hub's rate limits?
 
-**A:** 匿名ユーザーは 6 時間あたり 100 プル、無料アカウントは 6 時間あたり 200 プルの制限がある。CI/CD で頻繁にプルする場合は、Docker Hub の有料プランか、GitHub Container Registry 等の代替レジストリの利用を検討すべきである。ミラーレジストリを構築して Rate Limit を回避する方法もある。Rate Limit の状況は以下のコマンドで確認できる:
+**A:** Anonymous users are limited to 100 pulls per 6 hours, and free accounts to 200 pulls per 6 hours. If you frequently pull in CI/CD, consider a Docker Hub paid plan or an alternative registry like GitHub Container Registry. You can also set up a mirror registry to work around rate limits. Check your current rate limit status with:
 
 ```bash
-# Rate Limit の残り回数を確認
+# Check remaining rate limit
 TOKEN=$(curl -s "https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/nginx:pull" | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
 curl -sI -H "Authorization: Bearer $TOKEN" https://registry-1.docker.io/v2/library/nginx/manifests/latest 2>&1 | grep -i ratelimit
 ```
 
-### Q3: マルチプラットフォームイメージとは何ですか？
+### Q3: What is a multi-platform image?
 
-**A:** 1 つのタグで複数のアーキテクチャ（amd64, arm64 等）に対応するイメージのことである。`docker manifest` で管理され、`docker pull` 時にホストのアーキテクチャに合ったイメージが自動的に選択される。`docker buildx build --platform linux/amd64,linux/arm64` で作成できる。Apple Silicon Mac (arm64) と Linux サーバー (amd64) の両方で動作するイメージを1つのタグで管理したい場合に特に有用である。
+**A:** A multi-platform image is one tag that supports multiple architectures (amd64, arm64, etc.). It is managed via `docker manifest`, and when you run `docker pull`, the image appropriate for your host architecture is automatically selected. You can create one with `docker buildx build --platform linux/amd64,linux/arm64`. This is especially useful when you want a single tag to work on both Apple Silicon Macs (arm64) and Linux servers (amd64).
 
-### Q4: イメージサイズを確認する方法は？
+### Q4: How can I check image size?
 
-**A:** `docker images` でローカルのサイズを、`docker manifest inspect` でレジストリ上のサイズを確認できる。ただし、`docker images` の SIZE はレイヤー共有を考慮しない見かけのサイズである。実際のディスク使用量は `docker system df -v` で確認する。イメージのレイヤーごとのサイズは `docker history` で確認できる。さらに詳細な分析には `dive` ツールが有効で、各レイヤーの内容とイメージ効率スコアを可視化できる。
+**A:** Use `docker images` for local size and `docker manifest inspect` for size on the registry. Note that the SIZE shown by `docker images` is an apparent size that does not account for layer sharing. For actual disk usage, use `docker system df -v`. Layer-by-layer sizes can be checked with `docker history`. For more detailed analysis, the `dive` tool is effective, as it visualizes the contents of each layer and the image efficiency score.
 
-### Q5: イメージの脆弱性が見つかった場合、どう対応すべきですか？
+### Q5: What should I do if a vulnerability is found in an image?
 
-**A:** 対応の優先度は以下の通り:
-1. **CRITICAL**: 即座に対応。ベースイメージの更新、パッケージの更新で修正。
-2. **HIGH**: 次のリリースまでに対応。
-3. **MEDIUM/LOW**: 計画的に対応。修正パッケージがリリースされるまで待機する場合もある。
-ベースイメージを定期的に再ビルドすることで、OS パッケージの脆弱性は自動的に修正されることが多い。`--ignore-unfixed` オプションで修正が提供されていない脆弱性を除外してスキャンすることも有効である。
+**A:** Response priority is as follows:
+1. **CRITICAL**: Respond immediately. Fix by updating the base image or packages.
+2. **HIGH**: Respond by the next release.
+3. **MEDIUM/LOW**: Address in a planned manner. It may be acceptable to wait until a fix is released.
+Regularly rebuilding from the base image often automatically fixes OS package vulnerabilities. It is also effective to use the `--ignore-unfixed` option to exclude vulnerabilities for which no fix is yet available.
 
-### Q6: プライベートレジストリのバックアップはどうすべきですか？
+### Q6: How should I back up a private registry?
 
-**A:** 以下の方法がある:
-- **ボリュームバックアップ**: レジストリのデータボリューム (`/var/lib/registry`) をバックアップする
-- **S3 バックエンド**: レジストリのストレージを S3 に設定し、S3 のバージョニングとレプリケーションでバックアップ
-- **レジストリ間ミラーリング**: `skopeo` ツールを使って別のレジストリにイメージをコピー
-- **定期 save**: 重要なイメージを `docker save` で定期的にファイルに保存
+**A:** Options include:
+- **Volume backup**: Back up the registry data volume (`/var/lib/registry`)
+- **S3 backend**: Configure registry storage to use S3, and use S3 versioning and replication for backup
+- **Registry mirroring**: Use the `skopeo` tool to copy images to another registry
+- **Periodic save**: Periodically save important images to files using `docker save`
 
 ```bash
-# skopeo でのイメージコピー
+# Copy an image with skopeo
 skopeo copy \
   docker://registry.example.com/my-app:v1.0.0 \
   docker://backup-registry.example.com/my-app:v1.0.0
 
-# 全イメージの一括バックアップスクリプト
+# Bulk backup script for all images
 for repo in $(curl -s http://registry:5000/v2/_catalog | python3 -c "import sys,json;[print(r) for r in json.load(sys.stdin)['repositories']]"); do
   for tag in $(curl -s "http://registry:5000/v2/${repo}/tags/list" | python3 -c "import sys,json;[print(t) for t in json.load(sys.stdin)['tags']]"); do
     skopeo copy "docker://registry:5000/${repo}:${tag}" "dir:/backup/${repo}/${tag}"
@@ -1488,53 +1489,53 @@ done
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 14. まとめ
+## 14. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |---|---|
-| レイヤー構造 | イメージはレイヤーの積み重ね。変更されないレイヤーはキャッシュ再利用 |
-| タグ | セマンティックバージョニング推奨。latest 依存は避ける |
-| レジストリ | Docker Hub, GHCR, ECR 等。用途とコストで選択 |
-| セキュリティ | Trivy / Docker Scout で定期的に脆弱性スキャン |
-| マルチプラットフォーム | buildx で amd64/arm64 両対応のイメージを構築 |
-| 署名 | cosign + Sigstore でイメージの真正性を保証 |
-| SBOM | Syft で SBOM を生成し、依存関係を可視化 |
-| クリーンアップ | `docker system prune` で定期的にディスクを解放 |
-| 保存・転送 | `docker save/load` でオフライン環境にも対応 |
-| CI/CD | GitHub Actions / GitLab CI でビルド・スキャン・プッシュを自動化 |
-| ベストプラクティス | Dockerfile で管理、commit は非推奨、最小ベースイメージ使用 |
+| Layer structure | Images are a stack of layers. Unchanged layers are reused from cache |
+| Tags | Semantic versioning is recommended. Avoid relying on latest |
+| Registries | Docker Hub, GHCR, ECR, etc. Choose based on use case and cost |
+| Security | Regularly scan for vulnerabilities with Trivy / Docker Scout |
+| Multi-platform | Use buildx to build images supporting both amd64 and arm64 |
+| Signing | Use cosign + Sigstore to guarantee image authenticity |
+| SBOM | Generate SBOM with Syft to visualize dependencies |
+| Cleanup | Regularly free up disk with `docker system prune` |
+| Save/Transfer | Use `docker save/load` to handle offline environments |
+| CI/CD | Automate build, scan, and push with GitHub Actions / GitLab CI |
+| Best practices | Manage with Dockerfile; commit is discouraged; use minimal base images |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [../01-dockerfile/00-dockerfile-basics.md](../01-dockerfile/00-dockerfile-basics.md) -- Dockerfile の基礎
-- [../01-dockerfile/01-multi-stage-build.md](../01-dockerfile/01-multi-stage-build.md) -- マルチステージビルド
-- [../01-dockerfile/02-optimization.md](../01-dockerfile/02-optimization.md) -- Dockerfile の最適化
+- [../01-dockerfile/00-dockerfile-basics.md](../01-dockerfile/00-dockerfile-basics.md) -- Dockerfile Basics
+- [../01-dockerfile/01-multi-stage-build.md](../01-dockerfile/01-multi-stage-build.md) -- Multi-Stage Builds
+- [../01-dockerfile/02-optimization.md](../01-dockerfile/02-optimization.md) -- Dockerfile Optimization
 
 ---
 
-## 参考文献
+## References
 
-1. **Docker Documentation - Docker Hub** https://docs.docker.com/docker-hub/ -- Docker Hub の公式ドキュメント。リポジトリ管理、組織設定、Rate Limit の詳細。
-2. **GitHub Documentation - Working with the Container registry** https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry -- GitHub Container Registry の利用方法。
-3. **Aqua Security - Trivy** https://aquasecurity.github.io/trivy/ -- Trivy の公式ドキュメント。イメージスキャン、SBOM 生成、CI 統合の方法。
-4. **OCI Distribution Specification** https://github.com/opencontainers/distribution-spec -- コンテナイメージ配布の業界標準仕様。
-5. **Sigstore - cosign** https://docs.sigstore.dev/signing/signing_with_containers/ -- コンテナイメージの署名と検証。
-6. **Anchore - Syft** https://github.com/anchore/syft -- SBOM 生成ツールの公式ドキュメント。
-7. **dive** https://github.com/wagoodman/dive -- Docker イメージのレイヤー分析ツール。
-8. **skopeo** https://github.com/containers/skopeo -- コンテナイメージのコピー・検査ツール。
+1. **Docker Documentation - Docker Hub** https://docs.docker.com/docker-hub/ -- Official Docker Hub documentation. Details on repository management, organization settings, and rate limits.
+2. **GitHub Documentation - Working with the Container registry** https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry -- How to use GitHub Container Registry.
+3. **Aqua Security - Trivy** https://aquasecurity.github.io/trivy/ -- Official Trivy documentation. Image scanning, SBOM generation, and CI integration.
+4. **OCI Distribution Specification** https://github.com/opencontainers/distribution-spec -- Industry-standard specification for container image distribution.
+5. **Sigstore - cosign** https://docs.sigstore.dev/signing/signing_with_containers/ -- Container image signing and verification.
+6. **Anchore - Syft** https://github.com/anchore/syft -- Official documentation for the SBOM generation tool.
+7. **dive** https://github.com/wagoodman/dive -- Docker image layer analysis tool.
+8. **skopeo** https://github.com/containers/skopeo -- Tool for copying and inspecting container images.
