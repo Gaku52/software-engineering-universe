@@ -1,93 +1,94 @@
-# 再利用ワークフロー
+# Reusable Workflows
 
-> Composite Actions と Reusable Workflows を使って DRY 原則に基づいた保守性の高いCI/CDパイプラインを設計する
+> Design maintainable CI/CD pipelines based on the DRY principle using Composite Actions and Reusable Workflows
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. Composite Actions と Reusable Workflows の違いと使い分けを理解する
-2. 再利用可能なワークフローの設計・実装・公開方法を習得する
-3. 組織全体で共有するCI/CDライブラリの構築パターンを把握する
-4. バージョニング戦略とメンテナンス体制を確立する
-5. テスト駆動でアクションとワークフローの品質を担保する手法を学ぶ
+1. Understand the differences between Composite Actions and Reusable Workflows and when to use each
+2. Learn how to design, implement, and publish reusable workflows
+3. Understand patterns for building a CI/CD library shared across an organization
+4. Establish versioning strategies and maintenance practices
+5. Learn test-driven techniques to ensure quality of actions and workflows
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+The following knowledge will help you get more out of this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [GitHub Actions 応用](./01-actions-advanced.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [GitHub Actions Advanced](./01-actions-advanced.md)
 
 ---
 
-## 1. 再利用の2つのアプローチ
+## 1. Two Approaches to Reuse
 
-### 1.1 全体像
+### 1.1 Overview
 
 ```
-再利用の階層:
+Reuse hierarchy:
 
 ┌──────────────────────────────────────────────┐
 │ Reusable Workflow (workflow_call)              │
-│ ワークフロー全体を再利用                        │
+│ Reuse an entire workflow                       │
 │ ┌──────────────────────────────────────────┐  │
 │ │ Job A                                     │  │
 │ │ ┌──────────────────────────────────────┐ │  │
 │ │ │ Step 1: Composite Action             │ │  │
-│ │ │ (複数ステップをまとめた再利用単位)      │ │  │
+│ │ │ (reusable unit grouping multiple     │ │  │
+│ │ │  steps)                              │ │  │
 │ │ ├──────────────────────────────────────┤ │  │
-│ │ │ Step 2: 通常のアクション              │ │  │
+│ │ │ Step 2: Regular action               │ │  │
 │ │ ├──────────────────────────────────────┤ │  │
-│ │ │ Step 3: run コマンド                 │ │  │
+│ │ │ Step 3: run command                  │ │  │
 │ │ └──────────────────────────────────────┘ │  │
 │ └──────────────────────────────────────────┘  │
 └──────────────────────────────────────────────┘
 
 Composite Action:
-  - ステップレベルの再利用
-  - 1つのジョブ内の複数ステップをまとめる
-  - action.yml で定義
+  - Reuse at the step level
+  - Groups multiple steps within a single job
+  - Defined in action.yml
 
 Reusable Workflow:
-  - ワークフローレベルの再利用
-  - ジョブ全体を含むワークフローを呼び出す
-  - workflow_call トリガーで定義
+  - Reuse at the workflow level
+  - Calls a workflow that includes entire jobs
+  - Defined with the workflow_call trigger
 ```
 
-### 1.2 再利用の設計原則
+### 1.2 Design Principles for Reuse
 
-再利用可能なコンポーネントを設計する際には、以下の原則を念頭に置く。
+Keep the following principles in mind when designing reusable components.
 
 ```
-設計原則:
+Design principles:
 
-1. 単一責任の原則 (SRP)
-   - 1つのアクション/ワークフローは1つの明確な責任を持つ
-   - 「セットアップ」「テスト」「デプロイ」を1つにまとめない
+1. Single Responsibility Principle (SRP)
+   - Each action/workflow has one clear responsibility
+   - Do not combine "setup", "test", and "deploy" into one
 
-2. 入力の明確化
-   - 必須パラメータと任意パラメータを明確に区別する
-   - デフォルト値を適切に設定し、設定なしでも動作する状態を目指す
+2. Clear inputs
+   - Clearly distinguish required parameters from optional ones
+   - Set appropriate default values so the component works without configuration
 
-3. 出力の一貫性
-   - 呼び出し元が利用する情報を明確に outputs で公開する
-   - エラー時のメッセージフォーマットを統一する
+3. Consistent outputs
+   - Clearly expose information callers need via outputs
+   - Standardize error message formats
 
-4. バージョニング
-   - セマンティックバージョニングを採用する
-   - 破壊的変更はメジャーバージョンを上げる
+4. Versioning
+   - Adopt semantic versioning
+   - Increment the major version for breaking changes
 
-5. ドキュメント
-   - README.md に使用方法と全入力/出力の説明を記載する
-   - CHANGELOG.md で変更履歴を管理する
+5. Documentation
+   - Document usage and all inputs/outputs in README.md
+   - Track change history in CHANGELOG.md
 ```
 
 ---
 
 ## 2. Composite Actions
 
-### 2.1 基本構造
+### 2.1 Basic Structure
 
 ```yaml
 # .github/actions/setup-and-build/action.yml
@@ -132,7 +133,7 @@ runs:
         echo "path=${{ inputs.working-directory }}/dist" >> "$GITHUB_OUTPUT"
 ```
 
-### 2.2 Composite Action の使用
+### 2.2 Using a Composite Action
 
 ```yaml
 # .github/workflows/ci.yml
@@ -154,7 +155,7 @@ jobs:
       - run: echo "Build output at ${{ steps.build.outputs.build-path }}"
 ```
 
-### 2.3 実践的な Composite Action: テスト実行
+### 2.3 Practical Composite Action: Running Tests
 
 ```yaml
 # .github/actions/run-tests/action.yml
@@ -201,7 +202,7 @@ runs:
         retention-days: 7
 ```
 
-### 2.4 実践的な Composite Action: Docker セットアップ
+### 2.4 Practical Composite Action: Docker Setup
 
 ```yaml
 # .github/actions/docker-setup/action.yml
@@ -258,7 +259,7 @@ runs:
         echo "Platforms: ${{ inputs.platforms }}"
 ```
 
-### 2.5 実践的な Composite Action: Slack 通知
+### 2.5 Practical Composite Action: Slack Notifications
 
 ```yaml
 # .github/actions/notify-slack/action.yml
@@ -351,7 +352,7 @@ runs:
           }'
 ```
 
-### 2.6 実践的な Composite Action: PR コメント
+### 2.6 Practical Composite Action: PR Comments
 
 ```yaml
 # .github/actions/pr-comment/action.yml
@@ -392,7 +393,7 @@ runs:
         edit-mode: replace
 ```
 
-### 2.7 Composite Action のデバッグテクニック
+### 2.7 Debugging Techniques for Composite Actions
 
 ```yaml
 # デバッグ用の環境変数を活用
@@ -426,7 +427,7 @@ runs:
 
 ## 3. Reusable Workflows
 
-### 3.1 定義
+### 3.1 Definition
 
 ```yaml
 # .github/workflows/reusable-ci.yml
@@ -508,7 +509,7 @@ jobs:
       - run: npm run test:e2e
 ```
 
-### 3.2 呼び出し
+### 3.2 Calling a Reusable Workflow
 
 ```yaml
 # .github/workflows/ci.yml
@@ -535,7 +536,7 @@ jobs:
       - run: echo "Deploy version ${{ needs.ci.outputs.build-version }}"
 ```
 
-### 3.3 他リポジトリの Reusable Workflow を呼び出し
+### 3.3 Calling a Reusable Workflow from Another Repository
 
 ```yaml
 # 組織共通のワークフローを呼び出す
@@ -550,7 +551,7 @@ jobs:
     secrets: inherit  # 呼び出し元のシークレットを全て継承
 ```
 
-### 3.4 実践的な Reusable Workflow: Docker ビルド＆プッシュ
+### 3.4 Practical Reusable Workflow: Docker Build & Push
 
 ```yaml
 # .github/workflows/reusable-docker.yml
@@ -654,7 +655,7 @@ jobs:
           echo "| Tags | ${{ steps.meta.outputs.tags }} |" >> "$GITHUB_STEP_SUMMARY"
 ```
 
-### 3.5 実践的な Reusable Workflow: デプロイ
+### 3.5 Practical Reusable Workflow: Deployment
 
 ```yaml
 # .github/workflows/reusable-deploy.yml
@@ -666,19 +667,19 @@ on:
       environment:
         type: string
         required: true
-        description: 'デプロイ先環境 (staging, production)'
+        description: 'Target deployment environment (staging, production)'
       version:
         type: string
         required: true
-        description: 'デプロイするバージョン'
+        description: 'Version to deploy'
       dry-run:
         type: boolean
         default: false
-        description: 'ドライラン実行'
+        description: 'Perform a dry run'
       rollback-version:
         type: string
         default: ''
-        description: 'ロールバック先バージョン（空の場合は通常デプロイ）'
+        description: 'Version to roll back to (empty for normal deploy)'
     secrets:
       AWS_ROLE_ARN:
         required: true
@@ -686,10 +687,10 @@ on:
         required: false
     outputs:
       deploy-url:
-        description: 'デプロイ先 URL'
+        description: 'Deployed URL'
         value: ${{ jobs.deploy.outputs.url }}
       deploy-status:
-        description: 'デプロイ結果 (success / failure)'
+        description: 'Deployment result (success / failure)'
         value: ${{ jobs.deploy.outputs.status }}
 
 jobs:
@@ -795,7 +796,7 @@ jobs:
             }"
 ```
 
-### 3.6 Reusable Workflow のマトリクス活用
+### 3.6 Using a Matrix with Reusable Workflows
 
 ```yaml
 # 呼び出し元でマトリクスを使って同一ワークフローを複数パラメータで呼び出す
@@ -804,7 +805,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'デプロイするバージョン'
+        description: 'Version to deploy'
         required: true
 
 jobs:
@@ -829,7 +830,7 @@ jobs:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```
 
-### 3.7 Reusable Workflow と Environment 保護ルール
+### 3.7 Reusable Workflows and Environment Protection Rules
 
 ```yaml
 # Reusable Workflow 内で environment を使用することで
@@ -864,54 +865,54 @@ jobs:
 
 ## 4. Composite Actions vs Reusable Workflows
 
-### 4.1 比較表
+### 4.1 Comparison Table
 
-| 項目 | Composite Action | Reusable Workflow |
+| Item | Composite Action | Reusable Workflow |
 |---|---|---|
-| 再利用の単位 | ステップ群 | ジョブ群(ワークフロー全体) |
-| 定義場所 | action.yml | .github/workflows/*.yml |
-| ランナー指定 | 呼び出し元が決定 | 内部で runs-on を指定 |
-| シークレット | 呼び出し元の文脈で利用可能 | secrets で明示的に受け渡し |
-| ネスト | 可能(Action内でAction呼出) | 最大4階層 |
-| マーケットプレイス | 公開可能 | 公開可能(リポジトリ参照) |
-| 適用場面 | 共通のセットアップ手順 | 標準化されたCI/CDフロー |
-| 柔軟性 | 高(ステップレベル) | 中(ジョブ単位) |
-| 条件分岐 | steps の if で制御 | jobs の if で制御 |
-| サービスコンテナ | 利用不可 | 利用可能 |
-| 環境変数の継承 | 呼び出し元の env を継承 | 明示的に inputs で渡す |
-| environment | 利用不可 | 利用可能（承認フロー対応） |
-| concurrency | 利用不可 | 利用可能 |
-| strategy/matrix | 利用不可 | 利用可能 |
+| Unit of reuse | Group of steps | Group of jobs (entire workflow) |
+| Definition location | action.yml | .github/workflows/*.yml |
+| Runner specification | Determined by caller | Specified internally via runs-on |
+| Secrets | Available in caller's context | Passed explicitly via secrets |
+| Nesting | Supported (action calling action) | Up to 4 levels |
+| Marketplace | Can be published | Can be published (via repository reference) |
+| Use case | Common setup procedures | Standardized CI/CD flows |
+| Flexibility | High (step level) | Medium (job level) |
+| Conditional branching | Controlled with steps if | Controlled with jobs if |
+| Service containers | Not available | Available |
+| Environment variable inheritance | Inherits env from caller | Passed explicitly via inputs |
+| environment | Not available | Available (supports approval flows) |
+| concurrency | Not available | Available |
+| strategy/matrix | Not available | Available |
 
-### 4.2 使い分けガイド
+### 4.2 Decision Guide
 
 ```
-判断フローチャート:
+Decision flowchart:
 
-  再利用したいものは？
-       │
-  ┌────┴────┐
-  │         │
-  ステップ   ジョブ全体
-  (手順)    (フロー)
-  │         │
-  ↓         ↓
-  Composite  Reusable
-  Action     Workflow
+  What do you want to reuse?
+         │
+  ┌──────┴──────┐
+  │             │
+  Steps         Entire jobs
+  (procedures)  (flow)
+  │             │
+  ↓             ↓
+  Composite     Reusable
+  Action        Workflow
 
-  さらに:
-  - ランナーを呼び出し側で決めたい → Composite Action
-  - 環境 (environment) を使いたい → Reusable Workflow
-  - マーケットプレイスに公開したい → Composite Action
-  - 組織の標準CIフローを強制したい → Reusable Workflow
-  - サービスコンテナ(DB等)が必要 → Reusable Workflow
-  - 複数ジョブの依存関係を含む → Reusable Workflow
-  - 既存ワークフローの一部を共通化 → Composite Action
+  Additionally:
+  - Caller decides the runner → Composite Action
+  - Need to use environment → Reusable Workflow
+  - Want to publish to Marketplace → Composite Action
+  - Enforce org-wide standard CI flow → Reusable Workflow
+  - Need service containers (DB, etc.) → Reusable Workflow
+  - Includes dependencies across multiple jobs → Reusable Workflow
+  - Sharing part of an existing workflow → Composite Action
 ```
 
-### 4.3 組み合わせパターン
+### 4.3 Combining Both
 
-Composite Action と Reusable Workflow は排他的ではなく、組み合わせて使うのが最も効果的である。
+Composite Actions and Reusable Workflows are not mutually exclusive — combining them is the most effective approach.
 
 ```yaml
 # Reusable Workflow 内で Composite Action を使う
@@ -965,19 +966,19 @@ jobs:
 
 ---
 
-## 5. Action の公開
+## 5. Publishing Actions
 
-### 5.1 ディレクトリ構成
+### 5.1 Directory Structure
 
 ```
 my-action/
-├── action.yml          # アクション定義
+├── action.yml          # Action definition
 ├── src/
-│   └── index.ts        # JavaScript Action の場合
+│   └── index.ts        # For JavaScript Actions
 ├── dist/
-│   └── index.js        # ビルド済みファイル
+│   └── index.js        # Built file
 ├── __tests__/
-│   └── index.test.ts   # テスト
+│   └── index.test.ts   # Tests
 ├── package.json
 ├── tsconfig.json
 ├── LICENSE
@@ -985,7 +986,7 @@ my-action/
 └── CHANGELOG.md
 ```
 
-### 5.2 JavaScript Action の例
+### 5.2 Example JavaScript Action
 
 ```yaml
 # action.yml
@@ -1115,7 +1116,7 @@ async function run(): Promise<void> {
 run();
 ```
 
-### 5.3 Action のテスト
+### 5.3 Testing Actions
 
 ```typescript
 // __tests__/index.test.ts
@@ -1171,7 +1172,7 @@ describe('PR Size Label Action', () => {
 });
 ```
 
-### 5.4 Action のリリースワークフロー
+### 5.4 Action Release Workflow
 
 ```yaml
 # .github/workflows/release-action.yml
@@ -1221,22 +1222,22 @@ jobs:
 
 ---
 
-## 6. 組織共通ワークフローのパターン
+## 6. Patterns for Organization-Wide Shared Workflows
 
-### 6.1 リポジトリ構成
+### 6.1 Repository Structure
 
 ```
-組織共通リポジトリ構成:
+Organization-wide shared repository structure:
 
   my-org/shared-workflows/
   ├── .github/
   │   └── workflows/
   │       ├── node-ci.yml        # Node.js CI
   │       ├── python-ci.yml      # Python CI
-  │       ├── docker-build.yml   # Docker ビルド
-  │       ├── deploy-ecs.yml     # ECS デプロイ
-  │       ├── deploy-lambda.yml  # Lambda デプロイ
-  │       └── release.yml        # リリース管理
+  │       ├── docker-build.yml   # Docker build
+  │       ├── deploy-ecs.yml     # ECS deploy
+  │       ├── deploy-lambda.yml  # Lambda deploy
+  │       └── release.yml        # Release management
   ├── actions/
   │   ├── setup-node/
   │   │   └── action.yml
@@ -1249,17 +1250,17 @@ jobs:
   │   └── pr-comment/
   │       └── action.yml
   ├── docs/
-  │   ├── MIGRATION.md          # バージョンアップガイド
-  │   └── USAGE.md              # 使用方法
+  │   ├── MIGRATION.md          # Version upgrade guide
+  │   └── USAGE.md              # Usage instructions
   ├── CHANGELOG.md
   └── README.md
 
-  各プロジェクトリポジトリ:
+  Each project repository:
   my-org/my-app/.github/workflows/ci.yml
     → uses: my-org/shared-workflows/.github/workflows/node-ci.yml@v1
 ```
 
-### 6.2 共通ワークフローの段階的導入
+### 6.2 Gradual Adoption of Shared Workflows
 
 ```yaml
 # Phase 1: 基本的な CI をまず共通化
@@ -1319,64 +1320,64 @@ jobs:
     secrets: inherit
 ```
 
-### 6.3 共通ワークフローのバージョニング戦略
+### 6.3 Versioning Strategy for Shared Workflows
 
 ```
-バージョニング方針:
+Versioning policy:
 
-  リリースタグの管理:
-    v1.0.0 — 初回リリース
-    v1.1.0 — 後方互換の機能追加
-    v1.1.1 — バグ修正
-    v2.0.0 — 破壊的変更
+  Release tag management:
+    v1.0.0 — Initial release
+    v1.1.0 — Backward-compatible feature additions
+    v1.1.1 — Bug fixes
+    v2.0.0 — Breaking changes
 
-  メジャーバージョンタグ:
-    v1 → v1.3.2 を指す（最新の v1.x.x）
-    v2 → v2.1.0 を指す（最新の v2.x.x）
+  Major version tags:
+    v1 → points to v1.3.2 (latest v1.x.x)
+    v2 → points to v2.1.0 (latest v2.x.x)
 
-  利用者側の参照方法:
-    安定重視: my-org/shared-workflows/.github/workflows/ci.yml@v1
-    固定重視: my-org/shared-workflows/.github/workflows/ci.yml@v1.3.2
-    最高固定: my-org/shared-workflows/.github/workflows/ci.yml@abc1234def
+  How consumers reference versions:
+    Stability-focused: my-org/shared-workflows/.github/workflows/ci.yml@v1
+    Pinned:           my-org/shared-workflows/.github/workflows/ci.yml@v1.3.2
+    Most fixed:       my-org/shared-workflows/.github/workflows/ci.yml@abc1234def
 
-  破壊的変更時の移行手順:
-    1. v2 ブランチで新バージョンを開発
-    2. MIGRATION.md に移行手順を記載
-    3. v2.0.0 をリリース
-    4. 全チームに通知、移行期限を設定
-    5. v1 のメンテナンス期間（3ヶ月）を設ける
-    6. v1 を非推奨化し、最終的に削除
+  Migration procedure for breaking changes:
+    1. Develop new version on v2 branch
+    2. Document migration steps in MIGRATION.md
+    3. Release v2.0.0
+    4. Notify all teams and set a migration deadline
+    5. Provide a v1 maintenance period (3 months)
+    6. Deprecate v1 and eventually remove it
 ```
 
-### 6.4 Required Workflows（組織全体で強制）
+### 6.4 Required Workflows (Enforced Across the Organization)
 
 ```
-GitHub Organization の Required Workflows 機能を使うと、
-組織内の全リポジトリ（または指定リポジトリ）に対して
-特定のワークフローの実行を強制できる。
+Using GitHub Organization's Required Workflows feature, you can
+enforce execution of specific workflows across all repositories
+in the organization (or selected ones).
 
-設定方法:
+How to configure:
   Organization Settings → Actions → Required workflows
 
-使用例:
-  - セキュリティスキャンの強制
-  - ライセンスチェックの強制
-  - コーディング規約チェックの強制
+Use cases:
+  - Enforce security scanning
+  - Enforce license checks
+  - Enforce coding standards checks
 
-注意点:
-  - Required Workflow は PR のステータスチェックとして表示される
-  - 失敗するとマージがブロックされる
-  - 各リポジトリの maintainer はスキップ不可
+Notes:
+  - Required Workflows appear as PR status checks
+  - Failing checks block merges
+  - Repository maintainers cannot skip them
 ```
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン1: 過度な抽象化
+### Anti-Pattern 1: Over-abstraction
 
 ```yaml
-# 悪い例: 全てを Reusable Workflow にして理解困難に
+# Bad example: making everything a Reusable Workflow leads to incomprehensibility
 jobs:
   setup:
     uses: ./.github/workflows/reusable-setup.yml
@@ -1386,33 +1387,33 @@ jobs:
     uses: ./.github/workflows/reusable-test.yml
   build:
     uses: ./.github/workflows/reusable-build.yml
-  # 5つのファイルを見ないと全体像がわからない
+  # You have to look at 5 files to understand the full picture
 
-# 改善: 適切な粒度で抽象化
-# - 組織で共通化すべき部分のみ Reusable に
-# - プロジェクト固有のロジックはインラインで
+# Improvement: abstract at an appropriate granularity
+# - Only make Reusable what should be shared organization-wide
+# - Keep project-specific logic inline
 ```
 
-### アンチパターン2: バージョン固定なしの参照
+### Anti-Pattern 2: Referencing Without Version Pinning
 
 ```yaml
-# 悪い例: ブランチ参照 → 予期しない変更で壊れる
+# Bad example: branch reference → breaks with unexpected changes
 jobs:
   ci:
     uses: my-org/shared-workflows/.github/workflows/ci.yml@main
 
-# 改善: セマンティックバージョニングで固定
+# Improvement: pin with semantic versioning
 jobs:
   ci:
     uses: my-org/shared-workflows/.github/workflows/ci.yml@v2
-    # またはコミットSHAで固定
+    # Or pin to a commit SHA
     # uses: my-org/shared-workflows/.github/workflows/ci.yml@abc1234
 ```
 
-### アンチパターン3: 入力パラメータの肥大化
+### Anti-Pattern 3: Too Many Input Parameters
 
 ```yaml
-# 悪い例: 入力が多すぎて使いにくい
+# Bad example: too many inputs make the workflow hard to use
 on:
   workflow_call:
     inputs:
@@ -1427,22 +1428,22 @@ on:
       docker-image-name: { type: string }
       deploy-target: { type: string }
       slack-channel: { type: string }
-      # ... 20個以上のパラメータ
+      # ... 20+ parameters
 
-# 改善: 責任を分割して複数の Reusable Workflow に
-# reusable-ci.yml     → CI (lint, test, build) に集中
-# reusable-docker.yml → Docker ビルドに集中
-# reusable-deploy.yml → デプロイに集中
-# 各ワークフローのパラメータは5個以下を目安にする
+# Improvement: split responsibilities into multiple Reusable Workflows
+# reusable-ci.yml     → Focus on CI (lint, test, build)
+# reusable-docker.yml → Focus on Docker builds
+# reusable-deploy.yml → Focus on deployment
+# Aim for 5 or fewer parameters per workflow
 ```
 
-### アンチパターン4: テストなしの共通アクション公開
+### Anti-Pattern 4: Publishing Shared Actions Without Tests
 
 ```yaml
-# 悪い例: テストなしで共通アクションを公開
-# → 全プロジェクトのCIが一斉に壊れるリスク
+# Bad example: publishing shared actions without tests
+# → Risk of breaking CI across all projects simultaneously
 
-# 改善: アクション自体のCIを整備
+# Improvement: set up CI for the action itself
 # .github/workflows/test-action.yml
 name: Test Action
 on:
@@ -1456,19 +1457,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ユニットテスト
+      # Unit tests
       - run: npm ci && npm test
 
-      # 統合テスト: 実際にアクションを実行
-      - uses: ./  # 自分自身をテスト
+      # Integration test: actually run the action
+      - uses: ./  # Test itself
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### アンチパターン5: 秘密情報のログ出力
+### Anti-Pattern 5: Logging Secrets
 
 ```yaml
-# 悪い例: デバッグ目的でシークレットをログに出力
+# Bad example: logging secrets for debugging purposes
 runs:
   using: 'composite'
   steps:
@@ -1477,7 +1478,7 @@ runs:
         echo "Token: ${{ inputs.github-token }}"  # シークレットがログに表示される！
         curl -H "Authorization: Bearer ${{ inputs.github-token }}" ...
 
-# 改善: シークレットは環境変数経由で渡す
+# Improvement: pass secrets via environment variables
 runs:
   using: 'composite'
   steps:
@@ -1491,9 +1492,9 @@ runs:
 
 ---
 
-## 8. 高度なパターン
+## 8. Advanced Patterns
 
-### 8.1 動的マトリクスと Reusable Workflow の組み合わせ
+### 8.1 Combining Dynamic Matrices with Reusable Workflows
 
 ```yaml
 # .github/workflows/dynamic-matrix.yml
@@ -1525,7 +1526,7 @@ jobs:
     secrets: inherit
 ```
 
-### 8.2 Composite Action のチェーン
+### 8.2 Chaining Composite Actions
 
 ```yaml
 # 複数の Composite Action を連携させるパターン
@@ -1569,7 +1570,7 @@ jobs:
             | Security | ${{ steps.security.outputs.vulnerabilities == '0' && '✅' || '⚠️' }} |
 ```
 
-### 8.3 ワークフロー間のアーティファクト共有
+### 8.3 Sharing Artifacts Between Workflows
 
 ```yaml
 # Reusable Workflow 間でアーティファクトを共有する
@@ -1586,7 +1587,7 @@ jobs:
       node-version: '20'
     secrets: inherit
 
-  # ビルド結果をアーティファクト経由で次のジョブに渡す
+  # Pass build output to the next job via artifacts
   package:
     needs: build
     runs-on: ubuntu-latest
@@ -1616,10 +1617,10 @@ jobs:
     secrets: inherit
 ```
 
-### 8.4 条件付き Reusable Workflow 呼び出し
+### 8.4 Conditional Reusable Workflow Calls
 
 ```yaml
-# パスフィルターと組み合わせて必要なワークフローだけ実行
+# Run only necessary workflows using path filters
 name: Smart CI
 on:
   pull_request:
@@ -1674,35 +1675,35 @@ jobs:
 
 ## 9. FAQ
 
-### Q1: Reusable Workflow のネストは何階層まで可能か？
+### Q1: How many levels of nesting are supported for Reusable Workflows?
 
-最大4階層まで。ただし、深いネストは可読性を大きく損なうため、2階層以内を推奨する。それ以上の共通化が必要な場合は Composite Action に切り出して、Reusable Workflow のステップ内で使う構成が良い。
+Up to 4 levels. However, deep nesting significantly harms readability, so 2 levels or fewer is recommended. If you need more sharing beyond that, extract it into a Composite Action and use it within Reusable Workflow steps.
 
-### Q2: Reusable Workflow でマトリクスは使えるか？
+### Q2: Can matrices be used in Reusable Workflows?
 
-呼び出し元でマトリクスを使って同じ Reusable Workflow を異なるパラメータで呼び出すことが可能。Reusable Workflow 内部でもマトリクスを使える。ただし、呼び出し元のマトリクスと内部のマトリクスを組み合わせると実行ジョブ数が爆発するため注意。
+Yes — the caller can use a matrix to call the same Reusable Workflow with different parameters. Matrices can also be used inside Reusable Workflows. However, combining a caller-side matrix with an internal matrix can cause the job count to explode, so be careful.
 
-### Q3: secrets: inherit は安全か？
+### Q3: Is `secrets: inherit` safe?
 
-`secrets: inherit` は呼び出し元の全シークレットを渡す。便利だが、Reusable Workflow が信頼できるリポジトリにある場合のみ使うべき。外部リポジトリの Reusable Workflow には明示的に必要なシークレットだけを渡す方が安全。
+`secrets: inherit` passes all of the caller's secrets. It is convenient, but should only be used when the Reusable Workflow is in a trusted repository. For external repositories, it is safer to explicitly pass only the secrets that are needed.
 
-### Q4: Composite Action で shell を省略するとどうなるか？
+### Q4: What happens if you omit `shell` in a Composite Action?
 
-Composite Action の `run` ステップでは `shell` の指定が必須である。省略するとエラーになる。これは通常のワークフローの `run` ステップ（デフォルトが bash）と異なる点なので注意が必要。一般的には `shell: bash` を指定する。Windows ランナーを考慮する場合は `shell: pwsh` も検討する。
+The `shell` field is required in `run` steps of a Composite Action. Omitting it will result in an error. This differs from `run` steps in regular workflows (which default to bash), so be careful. Typically you should specify `shell: bash`. Consider `shell: pwsh` if you need to support Windows runners.
 
-### Q5: Reusable Workflow の inputs に配列やオブジェクトは渡せるか？
+### Q5: Can arrays or objects be passed as Reusable Workflow inputs?
 
-直接の配列やオブジェクト型はサポートされていない。`type: string` として JSON 文字列を渡し、ワークフロー内で `fromJSON()` を使って変換するパターンが一般的。
+Direct array or object types are not supported. The common pattern is to pass them as a JSON string with `type: string` and convert them inside the workflow using `fromJSON()`.
 
 ```yaml
-# 呼び出し元
+# Caller
 jobs:
   ci:
     uses: ./.github/workflows/reusable-ci.yml
     with:
       environments: '["staging", "production"]'
 
-# Reusable Workflow 内
+# Inside the Reusable Workflow
 jobs:
   deploy:
     strategy:
@@ -1710,20 +1711,20 @@ jobs:
         env: ${{ fromJSON(inputs.environments) }}
 ```
 
-### Q6: Composite Action の中で別の Composite Action を呼べるか？
+### Q6: Can a Composite Action call another Composite Action?
 
-はい、呼べる。Composite Action のステップ内で `uses:` を使って別の Action を参照できる。ただし、ネストが深くなるとデバッグが困難になるため、2階層以内に抑えることを推奨する。
+Yes. You can reference another Action using `uses:` within a Composite Action's steps. However, deep nesting makes debugging difficult, so it is recommended to keep nesting to 2 levels or fewer.
 
-### Q7: Reusable Workflow を workflow_dispatch と workflow_call の両方で使えるか？
+### Q7: Can a Reusable Workflow be used with both `workflow_dispatch` and `workflow_call`?
 
-はい、1つのワークフローファイルに両方のトリガーを定義できる。これにより、他のワークフローから呼び出すことも、手動で直接実行することも可能になる。
+Yes — you can define both triggers in a single workflow file. This allows it to be called from other workflows as well as triggered manually.
 
 ```yaml
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'デプロイ先'
+        description: 'Deployment target'
         type: choice
         options:
           - staging
@@ -1735,55 +1736,55 @@ on:
         required: true
 ```
 
-### Q8: Reusable Workflow の実行ログはどこで確認できるか？
+### Q8: Where can I view execution logs for a Reusable Workflow?
 
-呼び出し元のワークフロー実行ログ内に、Reusable Workflow のジョブがネストされた形で表示される。各ジョブをクリックすると詳細なステップログが確認できる。`uses:` の横にリンクが表示されるため、Reusable Workflow のソースコードにもジャンプ可能。
+The jobs of a Reusable Workflow appear nested within the execution log of the calling workflow. Click on each job to view detailed step logs. A link is also displayed next to `uses:`, so you can jump directly to the Reusable Workflow's source code.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work, especially during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Point |
 |---|---|
-| Composite Action | ステップ群をまとめて再利用、action.yml で定義 |
-| Reusable Workflow | ジョブ群を再利用、workflow_call で定義 |
-| 使い分け | セットアップ手順 → Composite、CIフロー → Reusable |
-| 組み合わせ | Reusable Workflow 内で Composite Action を使うのが最も効果的 |
-| 公開 | マーケットプレイス(Action)、リポジトリ参照(Workflow) |
-| バージョニング | セマンティックバージョンかSHAで固定必須 |
-| 組織パターン | shared-workflows リポジトリに集約 |
-| テスト | アクション自体のCI を整備し、破壊を防止 |
-| パラメータ設計 | 1つのワークフローの inputs は5個以下を目安 |
-| 段階的導入 | CI → Docker → Deploy の順で共通化を進める |
+| Composite Action | Groups steps for reuse; defined in action.yml |
+| Reusable Workflow | Groups jobs for reuse; defined with workflow_call |
+| When to use which | Setup procedures → Composite; CI flows → Reusable |
+| Combining both | Using Composite Actions inside Reusable Workflows is most effective |
+| Publishing | Marketplace (Actions), repository reference (Workflows) |
+| Versioning | Must pin to semantic version or SHA |
+| Org-wide pattern | Consolidate in a shared-workflows repository |
+| Testing | Set up CI for the action itself to prevent breakage |
+| Parameter design | Aim for 5 or fewer inputs per workflow |
+| Gradual adoption | Standardize in order: CI → Docker → Deploy |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [CI レシピ集](./03-ci-recipes.md) -- 再利用ワークフローを活用した実践例
-- [Actions セキュリティ](./04-security-actions.md) -- 公開アクションのセキュリティ
-- [GitHub Actions 基礎](./00-actions-basics.md) -- 基本構文の復習
+- [CI Recipe Collection](./03-ci-recipes.md) -- Practical examples using reusable workflows
+- [Actions Security](./04-security-actions.md) -- Security for published actions
+- [GitHub Actions Basics](./00-actions-basics.md) -- Review of basic syntax
 
 ---
 
-## 参考文献
+## References
 
 1. GitHub. "Reusing workflows." https://docs.github.com/en/actions/using-workflows/reusing-workflows
 2. GitHub. "Creating a composite action." https://docs.github.com/en/actions/creating-actions/creating-a-composite-action
