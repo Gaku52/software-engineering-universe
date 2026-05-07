@@ -1,67 +1,70 @@
-# デプロイ戦略
+# Deployment Strategies
 
-> Blue-Green、Canary、Rolling、Feature Flag など主要なデプロイ戦略を体系的に理解し、安全で高速なリリースを実現する
+> Systematically understand major deployment strategies including Blue-Green, Canary, Rolling, and Feature Flags to achieve safe and fast releases
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **主要デプロイ戦略の仕組みと使い分け** — Blue-Green、Canary、Rolling Update、Recreate の動作原理と適用条件
-2. **Feature Flag によるリリース制御** — コードデプロイとリリースを分離し、段階的ロールアウトを実現する手法
-3. **ロールバック設計とリスク軽減** — 障害発生時に即座に復旧するための仕組みと運用プロセス
-4. **DB マイグレーション戦略** — デプロイと連携したデータベーススキーマ変更の安全な実行方法
-5. **自動化されたデプロイパイプラインの設計** — GitHub Actions と連携した CI/CD パイプラインの構築
+1. **How major deployment strategies work and when to use them** — Operating principles and applicable conditions for Blue-Green, Canary, Rolling Update, and Recreate
+2. **Release control with Feature Flags** — Techniques to separate code deployment from release and achieve phased rollout
+3. **Rollback design and risk mitigation** — Mechanisms and operational processes for immediate recovery when failures occur
+4. **DB migration strategies** — Safe execution of database schema changes coordinated with deployments
+5. **Designing automated deployment pipelines** — Building CI/CD pipelines integrated with GitHub Actions
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. デプロイ戦略の全体像
+## 1. Overview of Deployment Strategies
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│              デプロイ戦略の分類                        │
+│              Deployment Strategy Classification       │
 ├─────────────────────────────────────────────────────┤
 │                                                     │
 │  ┌───────────┐   ┌───────────┐   ┌───────────┐    │
 │  │ Recreate  │   │  Rolling  │   │ Blue-Green│    │
-│  │  (全停止)  │   │ (段階置換) │   │ (環境切替) │    │
+│  │ (Full     │   │ (Staged   │   │ (Env      │    │
+│  │  Stop)    │   │  Replace) │   │  Switch)  │    │
 │  └─────┬─────┘   └─────┬─────┘   └─────┬─────┘    │
 │        │               │               │           │
 │        ▼               ▼               ▼           │
-│  ダウンタイム有    ゼロダウンタイム  ゼロダウンタイム   │
-│  最もシンプル     リソース効率良    即座にロールバック  │
+│  Has Downtime    Zero Downtime    Zero Downtime    │
+│  Simplest        Resource-        Instant          │
+│                  Efficient        Rollback         │
 │                                                     │
 │  ┌───────────┐   ┌───────────┐                     │
 │  │  Canary   │   │  A/B Test │                     │
-│  │ (段階公開) │   │ (比較検証) │                     │
+│  │ (Staged   │   │ (Compare  │                     │
+│  │  Release) │   │  & Verify)│                     │
 │  └─────┬─────┘   └─────┬─────┘                     │
 │        │               │                           │
 │        ▼               ▼                           │
-│  リスク最小化     データ駆動判断                      │
+│  Minimize Risk    Data-Driven Decisions            │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.1 選択基準マトリクス
+### 1.1 Selection Criteria Matrix
 
 ```
-デプロイ戦略を選ぶ際の判断フロー:
+Decision flow when choosing a deployment strategy:
 
-  ダウンタイムは許容できるか？
+  Is downtime acceptable?
        │
   ┌────┴────┐
   │ Yes     │ No
   │         │
-  ↓         ├── リソースコストを最小化したいか？
+  ↓         ├── Minimize resource cost?
   Recreate  │         │
             │    ┌────┴────┐
             │    │ Yes     │ No
             │    │         │
-            │    ↓         ├── 段階的なリスク検証が必要か？
+            │    ↓         ├── Need staged risk validation?
             │    Rolling   │         │
             │              │    ┌────┴────┐
             │              │    │ Yes     │ No
@@ -69,34 +72,34 @@
             │              │    ↓         ↓
             │              │    Canary    Blue-Green
             │              │
-            │              └── A/B テストが必要か？ → A/B Test
+            │              └── Need A/B testing? → A/B Test
             │
-            └── Feature Flag でリリースを制御するか？ → Feature Flag
+            └── Control releases with Feature Flag? → Feature Flag
 ```
 
 ---
 
-## 2. Recreate デプロイ
+## 2. Recreate Deployment
 
-全インスタンスを停止してから新バージョンを起動する、最もシンプルな戦略。
+The simplest strategy: stop all instances, then start the new version.
 
 ```
-Recreate デプロイの流れ:
+Recreate deployment flow:
 
-時間軸 ──────────────────────────────────────────►
+Time axis ──────────────────────────────────────────►
 
-ステップ1: 旧バージョンが稼働中
-  [v1] [v1] [v1] ◄── 全トラフィック
+Step 1: Old version is running
+  [v1] [v1] [v1] ◄── All traffic
 
-ステップ2: 全インスタンスを停止（ダウンタイム開始）
-  [---] [---] [---]  ← サービス停止
+Step 2: Stop all instances (downtime begins)
+  [---] [---] [---]  ← Service stopped
 
-ステップ3: 新バージョンを起動（ダウンタイム終了）
-  [v2] [v2] [v2] ◄── 全トラフィック
+Step 3: Start new version (downtime ends)
+  [v2] [v2] [v2] ◄── All traffic
 ```
 
 ```yaml
-# Kubernetes Recreate デプロイ
+# Kubernetes Recreate deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -104,7 +107,7 @@ metadata:
 spec:
   replicas: 3
   strategy:
-    type: Recreate  # 全 Pod を停止後に新 Pod を起動
+    type: Recreate  # Stop all Pods, then start new Pods
   selector:
     matchLabels:
       app: myapp
@@ -121,19 +124,19 @@ spec:
 ```
 
 ```
-Recreate が適するケース:
-  - 開発/ステージング環境
-  - バッチ処理サーバー
-  - DB スキーマの破壊的変更を伴うデプロイ
-  - 旧バージョンと新バージョンの共存が不可能な場合
-  - コスト制約が厳しく追加リソースを確保できない場合
+When Recreate is appropriate:
+  - Development/staging environments
+  - Batch processing servers
+  - Deployments involving destructive DB schema changes
+  - Cases where old and new versions cannot coexist
+  - Cases with strict cost constraints and no additional resources available
 ```
 
 ---
 
-## 3. Blue-Green デプロイ
+## 3. Blue-Green Deployment
 
-2つの同一環境（Blue/Green）を用意し、トラフィックを一括で切り替える戦略。
+A strategy that prepares two identical environments (Blue/Green) and switches all traffic at once.
 
 ```yaml
 # docker-compose.blue-green.yml
@@ -168,10 +171,10 @@ services:
 ```
 
 ```nginx
-# nginx.conf — Blue-Green切替
+# nginx.conf — Blue-Green switching
 upstream active_backend {
-    # 現在のアクティブスロットを指定
-    # Blue → Green に切り替えるときはここを変更
+    # Specify the currently active slot
+    # Change this when switching from Blue → Green
     server app-green:3000;
 }
 
@@ -188,7 +191,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 
-    # ヘルスチェック用
+    # For health checks
     location /health {
         proxy_pass http://active_backend/health;
     }
@@ -196,31 +199,31 @@ server {
 ```
 
 ```
-Blue-Green デプロイの流れ:
+Blue-Green deployment flow:
 
-時間軸 ──────────────────────────────────────────►
+Time axis ──────────────────────────────────────────►
 
-ステップ1: Blue(v1) が稼働中
-  [Blue v1] ◄── 全トラフィック
-  [Green   ] (待機)
+Step 1: Blue (v1) is running
+  [Blue v1] ◄── All traffic
+  [Green   ] (standby)
 
-ステップ2: Green に v2 をデプロイ
-  [Blue v1] ◄── 全トラフィック
-  [Green v2] (起動・テスト中)
+Step 2: Deploy v2 to Green
+  [Blue v1] ◄── All traffic
+  [Green v2] (starting up, being tested)
 
-ステップ3: ヘルスチェック通過後に切替
-  [Blue v1 ] (待機 = ロールバック先)
-  [Green v2] ◄── 全トラフィック
+Step 3: Switch after health check passes
+  [Blue v1 ] (standby = rollback target)
+  [Green v2] ◄── All traffic
 
-ステップ4: 問題なければ Blue を解放
-  [Blue    ] (解放 or 次バージョン用)
-  [Green v2] ◄── 全トラフィック
+Step 4: Release Blue if no issues
+  [Blue    ] (released or for next version)
+  [Green v2] ◄── All traffic
 ```
 
-### 3.1 AWS ALB を使った Blue-Green
+### 3.1 Blue-Green with AWS ALB
 
 ```yaml
-# GitHub Actions での Blue-Green デプロイ
+# Blue-Green deployment with GitHub Actions
 name: Blue-Green Deploy
 on:
   push:
@@ -243,7 +246,7 @@ jobs:
       - name: Determine target group
         id: target
         run: |
-          # 現在のアクティブターゲットグループを取得
+          # Get the currently active target group
           ACTIVE_TG=$(aws elbv2 describe-rules \
             --listener-arn ${{ secrets.ALB_LISTENER_ARN }} \
             --query 'Rules[0].Actions[0].TargetGroupArn' --output text)
@@ -258,14 +261,14 @@ jobs:
 
       - name: Deploy to standby environment
         run: |
-          # スタンバイ環境にデプロイ
+          # Deploy to the standby environment
           aws ecs update-service \
             --cluster production \
             --service myapp-${{ steps.target.outputs.deploy_tg }} \
             --task-definition myapp:latest \
             --force-new-deployment
 
-          # サービスが安定するまで待機
+          # Wait until the service is stable
           aws ecs wait services-stable \
             --cluster production \
             --services myapp-${{ steps.target.outputs.deploy_tg }}
@@ -287,7 +290,7 @@ jobs:
 
       - name: Switch traffic
         run: |
-          # ALB のリスナールールを更新してトラフィックを切り替え
+          # Update ALB listener rule to switch traffic
           aws elbv2 modify-rule \
             --rule-arn ${{ secrets.ALB_RULE_ARN }} \
             --actions Type=forward,TargetGroupArn=${{ secrets[format('TG_{0}_ARN', steps.target.outputs.deploy_tg)] }}
@@ -296,11 +299,11 @@ jobs:
 
       - name: Verify deployment
         run: |
-          sleep 30  # DNS 伝播待ち
+          sleep 30  # Wait for DNS propagation
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.example.com/health)
           if [ "$STATUS" != "200" ]; then
             echo "::error::Deployment verification failed! Rolling back..."
-            # ロールバック: 元のターゲットグループに戻す
+            # Rollback: revert to the original target group
             aws elbv2 modify-rule \
               --rule-arn ${{ secrets.ALB_RULE_ARN }} \
               --actions Type=forward,TargetGroupArn=${{ secrets[format('TG_{0}_ARN', steps.target.outputs.active_tg)] }}
@@ -311,12 +314,12 @@ jobs:
 
 ---
 
-## 4. Canary デプロイ
+## 4. Canary Deployment
 
-新バージョンへのトラフィックを少量ずつ段階的に増やし、問題がないことを確認しながら全体に展開する。
+Gradually increase traffic to the new version in small increments, expanding to the full user base while confirming there are no issues.
 
 ```yaml
-# Kubernetes - Canary デプロイ (Ingress ベース)
+# Kubernetes - Canary deployment (Ingress-based)
 # stable deployment (v1)
 apiVersion: apps/v1
 kind: Deployment
@@ -352,7 +355,7 @@ metadata:
     app: myapp
     version: canary
 spec:
-  replicas: 1  # 全10台中1台 = 10%
+  replicas: 1  # 1 out of 10 total = 10%
   selector:
     matchLabels:
       app: myapp
@@ -369,23 +372,23 @@ spec:
           ports:
             - containerPort: 3000
 ---
-# 共通 Service (両方にルーティング)
+# Common Service (routes to both)
 apiVersion: v1
 kind: Service
 metadata:
   name: myapp-service
 spec:
   selector:
-    app: myapp  # version ラベルは指定しない
+    app: myapp  # Do not specify version label
   ports:
     - port: 80
       targetPort: 3000
 ```
 
-### 4.1 Istio を使った高度な Canary デプロイ
+### 4.1 Advanced Canary Deployment with Istio
 
 ```yaml
-# Istio VirtualService でトラフィック比率を制御
+# Control traffic ratio with Istio VirtualService
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
@@ -407,10 +410,10 @@ spec:
           weight: 10
 ```
 
-### 4.2 AWS App Mesh を使った Canary
+### 4.2 Canary with AWS App Mesh
 
 ```yaml
-# AWS App Mesh Route で Canary トラフィック分割
+# Split canary traffic with AWS App Mesh Route
 apiVersion: appmesh.k8s.aws/v1beta2
 kind: VirtualRouter
 metadata:
@@ -435,21 +438,21 @@ spec:
               weight: 10
 ```
 
-### 4.3 Canary の段階的ロールアウトスクリプト
+### 4.3 Canary Phased Rollout Script
 
 ```bash
 #!/bin/bash
-# canary-rollout.sh — Canary の段階的ロールアウト
+# canary-rollout.sh — Canary phased rollout
 set -euo pipefail
 
-STAGES=(5 10 25 50 75 100)  # トラフィック比率(%)
-OBSERVATION_TIME=300          # 各段階の観測時間(秒)
-ERROR_THRESHOLD=5             # エラー率の閾値(%)
+STAGES=(5 10 25 50 75 100)  # Traffic ratio (%)
+OBSERVATION_TIME=300          # Observation time per stage (seconds)
+ERROR_THRESHOLD=5             # Error rate threshold (%)
 
 for WEIGHT in "${STAGES[@]}"; do
   echo "=== Stage: ${WEIGHT}% canary traffic ==="
 
-  # トラフィック比率を更新
+  # Update traffic ratio
   kubectl patch virtualservice myapp --type=json \
     -p="[{\"op\":\"replace\",\"path\":\"/spec/http/0/route/1/weight\",\"value\":${WEIGHT}},
          {\"op\":\"replace\",\"path\":\"/spec/http/0/route/0/weight\",\"value\":$((100-WEIGHT))}]"
@@ -457,7 +460,7 @@ for WEIGHT in "${STAGES[@]}"; do
   echo "Observing for ${OBSERVATION_TIME}s..."
   sleep "${OBSERVATION_TIME}"
 
-  # メトリクスを取得してエラー率を確認
+  # Get metrics and check error rate
   ERROR_RATE=$(curl -s "http://prometheus:9090/api/v1/query?query=rate(http_requests_total{version=\"canary\",code=~\"5..\"}[5m])/rate(http_requests_total{version=\"canary\"}[5m])*100" \
     | jq -r '.data.result[0].value[1] // "0"')
 
@@ -483,10 +486,10 @@ done
 
 ## 5. Rolling Update
 
-既存インスタンスを段階的に新バージョンに置き換える。Kubernetes のデフォルト戦略。
+Gradually replace existing instances with the new version. This is the default strategy for Kubernetes.
 
 ```yaml
-# Kubernetes Rolling Update 設定
+# Kubernetes Rolling Update configuration
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -496,8 +499,8 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 2        # 一度に追加できる Pod 数
-      maxUnavailable: 1  # 同時に停止できる Pod 数
+      maxSurge: 2        # Number of Pods that can be added at once
+      maxUnavailable: 1  # Number of Pods that can be stopped simultaneously
   selector:
     matchLabels:
       app: myapp
@@ -526,74 +529,74 @@ spec:
 ```
 
 ```
-Rolling Update の流れ (replicas=6, maxSurge=2, maxUnavailable=1):
+Rolling Update flow (replicas=6, maxSurge=2, maxUnavailable=1):
 
-ステップ1: 初期状態
-  [v1] [v1] [v1] [v1] [v1] [v1]  (6台稼働)
+Step 1: Initial state
+  [v1] [v1] [v1] [v1] [v1] [v1]  (6 running)
 
-ステップ2: 新 Pod を追加、旧 Pod を1台停止
-  [v1] [v1] [v1] [v1] [v1] [--] [v2] [v2]  (5台稼働 + 2台起動中)
+Step 2: Add new Pods, stop 1 old Pod
+  [v1] [v1] [v1] [v1] [v1] [--] [v2] [v2]  (5 running + 2 starting)
 
-ステップ3: v2 が Ready になったら次の旧 Pod を置換
-  [v1] [v1] [v1] [v1] [--] [v2] [v2] [v2]  (6台稼働 + 1台起動中)
+Step 3: Once v2 is Ready, replace the next old Pod
+  [v1] [v1] [v1] [v1] [--] [v2] [v2] [v2]  (6 running + 1 starting)
 
-ステップ4: 繰り返し
+Step 4: Repeat
   [v1] [v1] [v1] [--] [v2] [v2] [v2] [v2]
 
-ステップ5: 完了
-  [v2] [v2] [v2] [v2] [v2] [v2]  (6台すべて v2)
+Step 5: Complete
+  [v2] [v2] [v2] [v2] [v2] [v2]  (all 6 are v2)
 ```
 
-### 5.1 Rolling Update のパラメータチューニング
+### 5.1 Rolling Update Parameter Tuning
 
 ```
-maxSurge と maxUnavailable の設定ガイド:
+maxSurge and maxUnavailable configuration guide:
 
-高速デプロイ（リソースに余裕がある場合）:
+Fast deployment (when resources are available):
   maxSurge: 50%
   maxUnavailable: 25%
-  → 最大で全体の 150% のリソースを使用
-  → 4分の1が一度に停止
+  → Uses up to 150% of total resources
+  → One quarter stopped at once
 
-安全重視デプロイ（本番環境）:
+Safety-first deployment (production):
   maxSurge: 1
   maxUnavailable: 0
-  → 常にレプリカ数以上の Pod が稼働
-  → 1台ずつ慎重に置換
+  → Always keeps at least the replica count of Pods running
+  → Replaces one at a time carefully
 
-バランス（推奨）:
+Balanced (recommended):
   maxSurge: 25%
   maxUnavailable: 25%
-  → Kubernetes のデフォルト
-  → 多くのケースで適切
+  → Kubernetes default
+  → Appropriate for most cases
 ```
 
 ---
 
-## 6. Feature Flag によるリリース制御
+## 6. Release Control with Feature Flags
 
-### 6.1 Feature Flag の概念
+### 6.1 The Feature Flag Concept
 
 ```
-Feature Flag の基本概念:
+Core concept of Feature Flags:
 
-  デプロイ ≠ リリース
+  Deploy ≠ Release
 
-  従来:
-    コードデプロイ = ユーザーへの公開
-    → デプロイの失敗 = サービス障害
+  Traditional approach:
+    Code deployment = Publishing to users
+    → Deployment failure = Service outage
 
-  Feature Flag:
-    コードデプロイ → Flag OFF (ユーザーに見えない)
-    検証完了 → Flag ON (段階的に公開)
-    問題発生 → Flag OFF (即座に復旧)
-    → デプロイとリリースが分離される
+  Feature Flags:
+    Code deployed → Flag OFF (invisible to users)
+    Validation complete → Flag ON (gradually published)
+    Issue found → Flag OFF (instant recovery)
+    → Deployment and release are decoupled
 ```
 
-### 6.2 Feature Flag の実装
+### 6.2 Feature Flag Implementation
 
 ```typescript
-// feature-flag.ts — シンプルな Feature Flag 実装
+// feature-flag.ts — Simple Feature Flag implementation
 interface FeatureFlag {
   name: string;
   enabled: boolean;
@@ -619,12 +622,12 @@ class FeatureFlagService {
     if (!flag) return false;
     if (!flag.enabled) return false;
 
-    // 特定ユーザーに許可されている場合
+    // If allowed for specific users
     if (userId && flag.allowedUsers?.includes(userId)) {
       return true;
     }
 
-    // パーセンテージロールアウト
+    // Percentage rollout
     if (flag.rolloutPercentage < 100) {
       const hash = this.hashUserId(userId ?? 'anonymous');
       return (hash % 100) < flag.rolloutPercentage;
@@ -638,13 +641,13 @@ class FeatureFlagService {
     for (let i = 0; i < userId.length; i++) {
       const char = userId.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
-      hash |= 0; // 32bit整数に変換
+      hash |= 0; // Convert to 32-bit integer
     }
     return Math.abs(hash);
   }
 }
 
-// 使用例
+// Usage example
 const featureFlags = new FeatureFlagService(remoteConfigSource);
 await featureFlags.initialize();
 
@@ -655,21 +658,21 @@ if (featureFlags.isEnabled('new-checkout-flow', currentUser.id)) {
 }
 ```
 
-### 6.3 Feature Flag のライフサイクル管理
+### 6.3 Feature Flag Lifecycle Management
 
 ```typescript
-// feature-flag-lifecycle.ts — Flag のライフサイクル管理
+// feature-flag-lifecycle.ts — Flag lifecycle management
 interface FlagLifecycle {
   name: string;
   createdAt: Date;
   createdBy: string;
   status: 'development' | 'testing' | 'rollout' | 'fully-rolled-out' | 'cleanup';
-  expiresAt?: Date;  // 期限（これを過ぎたら削除対象）
-  jiraTicket?: string;  // 関連チケット
+  expiresAt?: Date;  // Expiry date (past this date, it is a candidate for deletion)
+  jiraTicket?: string;  // Related ticket
 }
 
 class FlagLifecycleManager {
-  // 期限切れの Flag を検出
+  // Detect expired Flags
   findExpiredFlags(flags: FlagLifecycle[]): FlagLifecycle[] {
     const now = new Date();
     return flags.filter(flag =>
@@ -678,20 +681,20 @@ class FlagLifecycleManager {
     );
   }
 
-  // Flag の棚卸しレポート生成
+  // Generate Flag audit report
   generateAuditReport(flags: FlagLifecycle[]): string {
     const lines = [
-      '# Feature Flag 棚卸しレポート',
-      `生成日: ${new Date().toISOString()}`,
+      '# Feature Flag Audit Report',
+      `Generated: ${new Date().toISOString()}`,
       '',
-      '| Flag | ステータス | 作成日 | 期限 | 担当者 |',
-      '|------|----------|-------|------|--------|',
+      '| Flag | Status | Created | Expires | Owner |',
+      '|------|--------|---------|---------|-------|',
     ];
 
     for (const flag of flags) {
       const isExpired = flag.expiresAt && flag.expiresAt < new Date();
       lines.push(
-        `| ${flag.name} | ${flag.status} ${isExpired ? '(期限切れ!)' : ''} | ${flag.createdAt.toISOString().slice(0, 10)} | ${flag.expiresAt?.toISOString().slice(0, 10) ?? '-'} | ${flag.createdBy} |`
+        `| ${flag.name} | ${flag.status} ${isExpired ? '(EXPIRED!)' : ''} | ${flag.createdAt.toISOString().slice(0, 10)} | ${flag.expiresAt?.toISOString().slice(0, 10) ?? '-'} | ${flag.createdBy} |`
       );
     }
 
@@ -700,14 +703,14 @@ class FlagLifecycleManager {
 }
 ```
 
-### 6.4 Feature Flag と GitHub Actions の連携
+### 6.4 Feature Flag Integration with GitHub Actions
 
 ```yaml
-# Feature Flag の状態を CI で検証
+# Validate Feature Flag state in CI
 name: Feature Flag Audit
 on:
   schedule:
-    - cron: '0 9 * * 1'  # 毎週月曜
+    - cron: '0 9 * * 1'  # Every Monday
   workflow_dispatch:
 
 jobs:
@@ -718,94 +721,94 @@ jobs:
 
       - name: Check for stale feature flags
         run: |
-          # コード内の Feature Flag 参照を検索
-          echo "## Feature Flag 使用状況" > flag-report.md
+          # Search for Feature Flag references in code
+          echo "## Feature Flag Usage" > flag-report.md
 
-          # isEnabled('flag-name') パターンを検索
+          # Search for isEnabled('flag-name') patterns
           grep -rn "isEnabled\|featureFlag\|FEATURE_" src/ --include="*.ts" --include="*.tsx" | \
             grep -oP "(?:isEnabled|featureFlag)\('\"" | \
             sort -u > found-flags.txt
 
-          echo "検出された Flag:" >> flag-report.md
+          echo "Detected Flags:" >> flag-report.md
           cat found-flags.txt >> flag-report.md
 
       - name: Create issue if stale flags found
         if: steps.check.outputs.stale_count > 0
         uses: peter-evans/create-issue-from-file@v5
         with:
-          title: "Feature Flag 棚卸し: 古い Flag が検出されました"
+          title: "Feature Flag Audit: Stale flags detected"
           content-filepath: flag-report.md
           labels: tech-debt,feature-flags
 ```
 
 ---
 
-## 7. DB マイグレーション戦略
+## 7. DB Migration Strategies
 
-### 7.1 Expand and Contract パターン
+### 7.1 Expand and Contract Pattern
 
 ```
-Expand and Contract パターンの3段階:
+Three phases of the Expand and Contract pattern:
 
-Phase 1: Expand（拡張）
-  - 新カラム/テーブルを追加
-  - 旧コードはそのまま動作する
-  - 新コードは新旧両方に対応
+Phase 1: Expand
+  - Add new columns/tables
+  - Old code continues to work as-is
+  - New code handles both old and new
 
   ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT false;
-  -- 既存の行は false がセットされる
-  -- 旧コードは email_verified を参照しないので影響なし
+  -- Existing rows get false set
+  -- Old code is not affected since it doesn't reference email_verified
 
-Phase 2: Migrate（移行）
-  - 全インスタンスが新バージョンになったことを確認
-  - データの移行を実行
-  - 新カラムのみを参照するようコードを更新
+Phase 2: Migrate
+  - Confirm all instances are on the new version
+  - Execute data migration
+  - Update code to reference only the new column
 
   UPDATE users SET email_verified = true WHERE verified_at IS NOT NULL;
-  -- バッチ処理でデータを移行
+  -- Migrate data via batch processing
 
-Phase 3: Contract（縮小）
-  - 旧カラム/テーブルを削除
-  - 不要なコードを削除
+Phase 3: Contract
+  - Delete old columns/tables
+  - Remove unnecessary code
 
   ALTER TABLE users DROP COLUMN verified_at;
-  -- 旧カラムを安全に削除
+  -- Safely delete the old column
 ```
 
-### 7.2 安全なマイグレーションのルール
+### 7.2 Rules for Safe Migrations
 
 ```
-安全なマイグレーション操作:
-  ✅ カラムの追加（デフォルト値付き）
-  ✅ テーブルの追加
-  ✅ インデックスの追加（CONCURRENTLY）
-  ✅ カラムの NULL 許容化
+Safe migration operations:
+  ✅ Adding a column (with default value)
+  ✅ Adding a table
+  ✅ Adding an index (CONCURRENTLY)
+  ✅ Making a column nullable
 
-危険なマイグレーション操作:
-  ❌ カラムの削除（旧バージョンが参照している可能性）
-  ❌ カラムの型変更
-  ❌ カラムのリネーム
-  ❌ NOT NULL 制約の追加（既存データが違反する可能性）
-  ❌ テーブルの削除
+Dangerous migration operations:
+  ❌ Dropping a column (old version may still reference it)
+  ❌ Changing a column type
+  ❌ Renaming a column
+  ❌ Adding NOT NULL constraint (existing data may violate it)
+  ❌ Dropping a table
 
-危険な操作の安全な実行方法:
-  カラムの削除:
-    1. コードからカラム参照を削除してデプロイ
-    2. 全インスタンスが新バージョンになったことを確認
-    3. カラムを削除
+Safe ways to execute dangerous operations:
+  Dropping a column:
+    1. Remove column references from code and deploy
+    2. Confirm all instances are on the new version
+    3. Drop the column
 
-  カラムのリネーム:
-    1. 新カラムを追加
-    2. 新旧カラムの両方に書き込むコードをデプロイ
-    3. データを新カラムに移行
-    4. 旧カラムの参照を削除してデプロイ
-    5. 旧カラムを削除
+  Renaming a column:
+    1. Add the new column
+    2. Deploy code that writes to both old and new columns
+    3. Migrate data to the new column
+    4. Remove old column references and deploy
+    5. Drop the old column
 ```
 
-### 7.3 マイグレーションと GitHub Actions
+### 7.3 Migrations with GitHub Actions
 
 ```yaml
-# マイグレーションの自動実行ワークフロー
+# Automated migration workflow
 name: DB Migration
 on:
   push:
@@ -830,7 +833,7 @@ jobs:
 
       - name: Run migration (dry-run)
         run: |
-          # まずドライランで確認
+          # First verify with a dry run
           npx prisma migrate diff \
             --from-schema-datasource prisma/schema.prisma \
             --to-migrations migrations/ \
@@ -845,18 +848,18 @@ jobs:
 
       - name: Verify migration
         run: |
-          # マイグレーション後のスキーマ検証
+          # Schema validation after migration
           npx prisma validate
 ```
 
 ---
 
-## 8. 自動ロールバック
+## 8. Automated Rollback
 
-### 8.1 メトリクスベースの自動ロールバック
+### 8.1 Metrics-Based Automated Rollback
 
 ```yaml
-# AWS Lambda + SAM の自動ロールバック
+# AWS Lambda + SAM automated rollback
 Resources:
   ApiFunction:
     Type: AWS::Serverless::Function
@@ -870,7 +873,7 @@ Resources:
           - !Ref ApiErrorAlarm
           - !Ref ApiLatencyAlarm
 
-  # エラー率のアラーム
+  # Error rate alarm
   ApiErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -883,7 +886,7 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
-  # レイテンシのアラーム
+  # Latency alarm
   ApiLatencyAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -892,14 +895,14 @@ Resources:
       ExtendedStatistic: p99
       Period: 60
       EvaluationPeriods: 2
-      Threshold: 3000  # 3秒
+      Threshold: 3000  # 3 seconds
       ComparisonOperator: GreaterThanThreshold
 ```
 
-### 8.2 Kubernetes の自動ロールバック
+### 8.2 Kubernetes Automated Rollback
 
 ```yaml
-# Argo Rollouts を使った自動ロールバック
+# Automated rollback with Argo Rollouts
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -932,7 +935,7 @@ spec:
         - name: myapp
           image: myapp:v2.0.0
 ---
-# 分析テンプレート
+# Analysis template
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -955,104 +958,104 @@ spec:
 
 ---
 
-## 9. デプロイ戦略比較表
+## 9. Deployment Strategy Comparison Table
 
-| 特性 | Recreate | Rolling | Blue-Green | Canary |
-|------|----------|---------|------------|--------|
-| ダウンタイム | あり | なし | なし | なし |
-| ロールバック速度 | 遅い（再デプロイ） | 中（段階的） | 即座（切替） | 即座（トラフィック変更） |
-| リソースコスト | 低い | 中 | 高い（2倍） | 中〜高 |
-| リスク | 高い | 中 | 低い | 最も低い |
-| 複雑さ | 最低 | 低い | 中 | 高い |
-| DB マイグレーション | 容易 | 注意が必要 | 注意が必要 | 注意が必要 |
-| 適用規模 | 小規模 | 中〜大規模 | 中〜大規模 | 大規模 |
-| テスト容易性 | 低い | 中 | 高い（スタンバイで確認可） | 高い（少量トラフィックで確認） |
-| 自動化難易度 | 低い | 低い | 中 | 高い |
+| Characteristic | Recreate | Rolling | Blue-Green | Canary |
+|----------------|----------|---------|------------|--------|
+| Downtime | Yes | No | No | No |
+| Rollback Speed | Slow (redeploy) | Medium (staged) | Instant (switch) | Instant (traffic change) |
+| Resource Cost | Low | Medium | High (2x) | Medium-High |
+| Risk | High | Medium | Low | Lowest |
+| Complexity | Minimal | Low | Medium | High |
+| DB Migration | Easy | Requires care | Requires care | Requires care |
+| Scale | Small | Medium-Large | Medium-Large | Large |
+| Testability | Low | Medium | High (verify on standby) | High (verify with small traffic) |
+| Automation Difficulty | Low | Low | Medium | High |
 
-| Feature Flag 比較 | 自前実装 | LaunchDarkly | Unleash (OSS) | AWS AppConfig |
-|-------------------|---------|-------------|---------------|---------------|
-| 導入コスト | 低い | 高い | 中 | 中 |
-| 運用負荷 | 高い | 低い | 中 | 低い |
-| リアルタイム更新 | 要実装 | 対応 | 対応 | 対応 |
-| ターゲティング | 要実装 | 高機能 | 中機能 | 基本的 |
-| 監査ログ | 要実装 | 対応 | 対応 | 対応 |
-| セルフホスト | 可能 | 不可 | 可能 | 不可 |
+| Feature Flag Comparison | Custom Implementation | LaunchDarkly | Unleash (OSS) | AWS AppConfig |
+|-------------------------|----------------------|-------------|---------------|---------------|
+| Adoption Cost | Low | High | Medium | Medium |
+| Operational Burden | High | Low | Medium | Low |
+| Real-Time Updates | Requires implementation | Supported | Supported | Supported |
+| Targeting | Requires implementation | Advanced | Intermediate | Basic |
+| Audit Logs | Requires implementation | Supported | Supported | Supported |
+| Self-Hosted | Possible | No | Possible | No |
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: ビッグバンデプロイ
-
-```
-[悪い例] 全変更を一度にデプロイ
-
-- 3ヶ月分の変更を一括リリース
-- テスト環境と本番環境の差異が大きい
-- 問題発生時にどの変更が原因か特定困難
-- ロールバックすると全機能が巻き戻る
-
-[良い例] 小さく頻繁にデプロイ
-
-- 1機能ずつ Feature Flag で保護してデプロイ
-- 段階的にロールアウト（1% → 10% → 50% → 100%）
-- 問題の切り分けが容易
-- 該当 Flag だけ OFF にすれば即復旧
-```
-
-### アンチパターン 2: ロールバック手順の未整備
+### Anti-Pattern 1: Big Bang Deployment
 
 ```
-[悪い例]
-- デプロイ手順書はあるがロールバック手順がない
-- 障害発生後に慌ててロールバック方法を調査
-- DBマイグレーションの巻き戻しが不可能
-- 夜間リリースで担当者が不在
+[Bad example] Deploy all changes at once
 
-[良い例]
-- デプロイごとにロールバック手順を文書化
-- 自動ロールバックの閾値を設定（エラー率 > 5% で自動復旧）
-- DBマイグレーションは前方互換を維持（カラム追加 → コード変更 → カラム削除）
-- ロールバック訓練を定期的に実施
+- Release 3 months of changes all at once
+- Large gap between test and production environments
+- Hard to identify which change caused the issue when problems occur
+- Rolling back reverts all features
+
+[Good example] Deploy small and frequently
+
+- Deploy one feature at a time, protected by Feature Flags
+- Gradually roll out (1% → 10% → 50% → 100%)
+- Easy to isolate issues
+- Instant recovery by turning off just that Flag
 ```
 
-### アンチパターン 3: Feature Flag の放置
+### Anti-Pattern 2: No Rollback Procedures
 
 ```
-[悪い例]
-- 100% ロールアウト済みの Flag がコードに残り続ける
-- 古い Flag の分岐が複雑に絡み合い保守困難
-- Flag の ON/OFF 状態を把握している人がいない
+[Bad example]
+- Deployment procedures exist but rollback procedures do not
+- Frantically investigate how to roll back after an incident
+- DB migration rollback is impossible
+- Night releases with no one on call
 
-[良い例]
-- Flag のライフサイクルを管理（作成日、期限）
-- 100% 展開後は技術的負債チケットを起票し、Flag を削除
-- Flag の棚卸しを月次で実施
+[Good example]
+- Document rollback procedures for every deployment
+- Set automated rollback thresholds (auto-recover when error rate > 5%)
+- Maintain forward compatibility in DB migrations (add column → change code → drop column)
+- Practice rollback drills regularly
 ```
 
-### アンチパターン 4: ヘルスチェックの不備
+### Anti-Pattern 3: Neglected Feature Flags
 
 ```
-[悪い例]
-- ヘルスチェックエンドポイントが常に 200 を返す
-- DB 接続が切れてもヘルスチェックが成功する
-- ヘルスチェックの間隔が長すぎて異常検知が遅い
+[Bad example]
+- 100% rolled-out Flags remain in the codebase indefinitely
+- Complex entangled branches from old Flags make maintenance difficult
+- Nobody knows the ON/OFF state of Flags
 
-[良い例]
-- ヘルスチェックで実際の依存関係（DB、外部API）を検証
-- Readiness Probe と Liveness Probe を適切に分離
-- 浅いヘルスチェック（/health）と深いヘルスチェック（/health/deep）を用意
+[Good example]
+- Manage Flag lifecycle (creation date, expiry date)
+- After 100% rollout, file a tech debt ticket and delete the Flag
+- Conduct monthly Flag audits
+```
+
+### Anti-Pattern 4: Inadequate Health Checks
+
+```
+[Bad example]
+- Health check endpoint always returns 200
+- Health check succeeds even when DB connection is lost
+- Health check intervals are too long, making anomaly detection slow
+
+[Good example]
+- Verify actual dependencies (DB, external APIs) in health checks
+- Properly separate Readiness Probe and Liveness Probe
+- Provide both shallow (/health) and deep (/health/deep) health checks
 ```
 
 ```typescript
-// health-check.ts — 適切なヘルスチェック実装
+// health-check.ts — Proper health check implementation
 app.get('/health', (req, res) => {
-  // 浅いヘルスチェック: アプリケーションが起動しているか
+  // Shallow health check: is the application running?
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
 app.get('/health/deep', async (req, res) => {
-  // 深いヘルスチェック: 依存関係が正常か
+  // Deep health check: are the dependencies healthy?
   const checks = {
     database: await checkDatabase(),
     redis: await checkRedis(),
@@ -1072,45 +1075,45 @@ app.get('/health/deep', async (req, res) => {
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1119,26 +1122,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1146,7 +1149,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1157,14 +1160,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1172,7 +1175,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1180,44 +1183,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1226,7 +1229,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1241,47 +1244,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm time complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Missing or incorrect configuration file | Check the configuration file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review configuration |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Validate step by step**: Use log output and debuggers to validate hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1289,102 +1292,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose performance issues when they occur:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check for I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|--------------|----------------|---------|
+| CPU load | cProfile, py-spy | Algorithm improvements, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize When | Can Compromise When |
+|-----------|----------------|---------------------|
+| Performance | Real-time processing, large-scale data | Admin dashboards, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development Speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│              Architecture Selection Flow         │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How frequent are deployments?                │
+│    ├─ Once a week or less → Monolith + modules  │
+│    └─ Daily/multiple times → go to ③            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are the teams?               │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular Monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A quick short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can cause project delays
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows for the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction increases reusability but can make debugging harder
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Architecture decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1394,17 +1397,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and issues"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1412,7 +1415,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1420,15 +1423,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1436,53 +1439,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on minimum viable features
+- Automated tests only for critical paths
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't over-engineer (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually modernize a system that has been running for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Use the Strangler Fig pattern for gradual migration
+- Create Characterization Tests first when no existing tests exist
+- Coexist old and new systems via API gateway
+- Execute data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work | Estimated Duration | Risk |
+|-------|------|--------------------|------|
+| 1. Assessment | Current analysis, understand dependencies | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Begin Migration | Migrate peripheral features gradually | 3-6 months | Medium |
+| 4. Core Migration | Migrate core functionality | 6-12 months | High |
+| 5. Completion | Decommission the old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Set ownership per team
+- Manage shared libraries with Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1495,20 +1498,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1517,7 +1520,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1538,99 +1541,99 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Technique | Effect | Implementation Cost | Use Case |
+|------------------------|--------|---------------------|----------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 ---
 
 ## 11. FAQ
 
-### Q1: Blue-Green と Canary はどちらを選ぶべきですか？
+### Q1: Should I choose Blue-Green or Canary?
 
-トラフィック量とリスク許容度で判断します。トラフィックが少ない場合や、迅速な全体切替が必要な場合は Blue-Green が適しています。大規模サービスで段階的にリスクを抑えたい場合は Canary が有効です。また、Blue-Green はインフラコストが2倍になるため、コスト制約も考慮してください。
+Decide based on traffic volume and risk tolerance. Blue-Green is appropriate when traffic is low or when a rapid full switchover is needed. Canary is effective for large-scale services where you want to reduce risk incrementally. Also note that Blue-Green doubles infrastructure costs, so consider cost constraints as well.
 
-### Q2: DB マイグレーションを伴うデプロイで注意すべきことは？
+### Q2: What should I be careful about when deploying with DB migrations?
 
-**Expand and Contract パターン**を使用します。(1) 新カラム/テーブルを追加（Expand）、(2) 新旧コードが共存できる状態にする、(3) 全インスタンスが新バージョンに切り替わった後に旧カラムを削除（Contract）。破壊的変更（カラム削除、型変更）を直接行うと、ローリング更新中に旧バージョンのインスタンスが参照エラーを起こします。
+Use the **Expand and Contract pattern**: (1) add new columns/tables (Expand), (2) make the code compatible with both old and new simultaneously, (3) after all instances have switched to the new version, remove old columns (Contract). Making destructive changes directly (dropping columns, changing types) causes reference errors in old-version instances during a rolling update.
 
-### Q3: Feature Flag の粒度はどのくらいが適切ですか？
+### Q3: What is the right granularity for Feature Flags?
 
-ユーザーから見える**機能単位**で切るのが基本です。1つの Flag が複数の独立した機能を制御すると、片方だけ無効化できず運用が困難になります。一方、細かすぎる Flag（例: ボタンの色変更ごと）は管理コストが増大します。目安として「この Flag を OFF にしたとき、ユーザー体験として一貫しているか」を判断基準にしてください。
+The basic rule is to scope flags to **user-visible features**. If a single Flag controls multiple independent features, you cannot disable just one, making operations difficult. Conversely, flags that are too fine-grained (e.g., per button color change) increase management overhead. A good rule of thumb: "Is the user experience consistent when this Flag is OFF?"
 
-### Q4: デプロイ頻度はどのくらいが理想ですか？
+### Q4: How frequently should I deploy?
 
-DORA メトリクスでは「Elite」パフォーマーは1日に複数回デプロイしています。ただし、頻度そのものが目標ではなく、「小さな変更を安全に、自信を持ってデプロイできる」状態を目指すべきです。Feature Flag を活用すれば、コードのデプロイ頻度を上げつつ、リリース（ユーザーへの公開）は慎重に制御できます。
+DORA metrics show that "Elite" performers deploy multiple times per day. However, frequency itself is not the goal — the aim should be to reach a state where "small changes can be deployed safely and confidently." By using Feature Flags, you can increase code deployment frequency while controlling the release (public rollout to users) more carefully.
 
-### Q5: Rolling Update で新旧バージョンが混在する期間のリスクは？
+### Q5: What are the risks of old and new versions coexisting during a Rolling Update?
 
-API のバージョニング（v1/v2）や、前方互換性のあるスキーマ設計で対処します。具体的には、(1) 新しいフィールドは追加のみ（削除しない）、(2) クライアントは未知のフィールドを無視する、(3) DB マイグレーションは Expand and Contract パターンに従う、というルールを徹底します。
+Address this with API versioning (v1/v2) and forward-compatible schema design. Specifically, enforce these rules: (1) only add new fields, never remove them; (2) clients ignore unknown fields; (3) follow the Expand and Contract pattern for DB migrations.
 
-### Q6: 自動ロールバックの閾値はどう設定すべきですか？
+### Q6: How should I set automated rollback thresholds?
 
-サービスの SLA とベースラインメトリクスに基づいて設定します。一般的な目安は、(1) エラー率: ベースラインの2倍以上（例: 通常0.1%なら閾値0.2%）、(2) レイテンシ: P99がベースラインの1.5倍以上、(3) リクエスト成功率: 99%を下回った場合。閾値が厳しすぎると誤検知でロールバックが頻発するため、段階的に調整してください。
+Set thresholds based on your service SLA and baseline metrics. Common guidelines: (1) Error rate: more than 2x the baseline (e.g., if normal is 0.1%, threshold is 0.2%), (2) Latency: P99 exceeds 1.5x the baseline, (3) Request success rate: drops below 99%. If thresholds are too strict, false positives will trigger rollbacks frequently — adjust gradually.
 
 ---
 
-## 12. デプロイ運用のベストプラクティス
+## 12. Deployment Operations Best Practices
 
-### 12.1 デプロイチェックリスト
-
-```
-デプロイ前チェック:
-  [  ] 全テスト（unit / integration / e2e）がパスしている
-  [  ] コードレビューが承認されている
-  [  ] DB マイグレーションが Expand and Contract に従っている
-  [  ] 環境変数・シークレットの追加/変更がドキュメント化されている
-  [  ] ロールバック手順が明確になっている
-  [  ] Feature Flag の状態が確認済みである
-  [  ] 依存サービスへの影響が評価されている
-
-デプロイ中チェック:
-  [  ] ヘルスチェックが正常を返している
-  [  ] エラー率がベースラインを超えていない
-  [  ] レイテンシが許容範囲内である
-  [  ] ログに異常なエラーパターンが出ていない
-
-デプロイ後チェック:
-  [  ] Smoke テストがパスしている
-  [  ] 主要なユーザーフロー（ログイン、購入等）が正常動作する
-  [  ] メトリクスダッシュボードで異常がない
-  [  ] 前バージョンの Feature Flag がクリーンアップ対象としてマークされている
-```
-
-### 12.2 デプロイ頻度と組織パフォーマンス
+### 12.1 Deployment Checklist
 
 ```
-DORA メトリクスによるパフォーマンス分類:
+Pre-deployment checks:
+  [  ] All tests (unit / integration / e2e) are passing
+  [  ] Code review has been approved
+  [  ] DB migrations follow the Expand and Contract pattern
+  [  ] Changes to environment variables/secrets are documented
+  [  ] Rollback procedures are clearly defined
+  [  ] Feature Flag state has been confirmed
+  [  ] Impact on dependent services has been assessed
 
-指標                    | Elite        | High         | Medium       | Low
-デプロイ頻度            | 日に複数回   | 週〜月1回    | 月〜半年1回  | 半年以上
-変更リードタイム        | 1時間未満    | 1日〜1週間   | 1週間〜1ヶ月 | 1ヶ月以上
-変更失敗率              | 0-15%        | 16-30%       | 16-30%       | 46-60%
-サービス復旧時間        | 1時間未満    | 1日未満      | 1日〜1週間   | 6ヶ月以上
+During deployment checks:
+  [  ] Health checks are returning normal
+  [  ] Error rate has not exceeded the baseline
+  [  ] Latency is within acceptable range
+  [  ] No abnormal error patterns in logs
 
-改善のアプローチ:
-1. テスト自動化 → 変更失敗率の低減
-2. CI/CD パイプライン最適化 → リードタイム短縮
-3. Feature Flag + Canary → デプロイ頻度向上
-4. 自動ロールバック + 監視 → 復旧時間短縮
+Post-deployment checks:
+  [  ] Smoke tests have passed
+  [  ] Key user flows (login, purchase, etc.) are working normally
+  [  ] No anomalies on the metrics dashboard
+  [  ] Previous version Feature Flags are marked as cleanup candidates
 ```
 
-### 12.3 デプロイ通知テンプレート
+### 12.2 Deployment Frequency and Organizational Performance
+
+```
+Performance classification by DORA metrics:
+
+Metric                  | Elite          | High          | Medium         | Low
+Deploy Frequency        | Multiple/day   | Weekly-Monthly| Monthly-6mo    | 6mo+
+Change Lead Time        | < 1 hour       | 1 day-1 week  | 1 week-1 month | 1 month+
+Change Failure Rate     | 0-15%          | 16-30%        | 16-30%         | 46-60%
+Service Recovery Time   | < 1 hour       | < 1 day       | 1 day-1 week   | 6 months+
+
+Improvement approaches:
+1. Test automation → Reduce change failure rate
+2. CI/CD pipeline optimization → Shorten lead time
+3. Feature Flag + Canary → Increase deployment frequency
+4. Automated rollback + monitoring → Reduce recovery time
+```
+
+### 12.3 Deployment Notification Template
 
 ```yaml
 # .github/workflows/deploy-notification.yml
@@ -1696,50 +1699,50 @@ jobs:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| Recreate | 最もシンプルだがダウンタイムあり。開発環境やバッチ向き |
-| Rolling Update | K8s デフォルト。段階的置換でゼロダウンタイム |
-| Blue-Green | 2環境を用意し即座に切替。ロールバックが最速 |
-| Canary | 少量トラフィックで検証。リスク最小化 |
-| Feature Flag | デプロイとリリースを分離。段階的ロールアウトに必須 |
-| DB マイグレーション | Expand and Contract パターンで前方互換を維持 |
-| ロールバック | 手順を事前に整備し、自動ロールバック閾値を設定 |
-| ヘルスチェック | 浅い/深いの2段階で依存関係まで検証 |
-| デプロイ頻度 | 小さく頻繁にデプロイし、Feature Flag でリリースを制御 |
-| DORA メトリクス | デプロイ頻度・リードタイム・失敗率・復旧時間を継続計測 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [01-cloud-deployment.md](./01-cloud-deployment.md) — AWS/Vercel/Cloudflare Workers へのクラウドデプロイ実践
-- [02-container-deployment.md](./02-container-deployment.md) — ECS/Kubernetes でのコンテナデプロイ
-- [03-release-management.md](./03-release-management.md) — セマンティックバージョニングとリリース管理
+| Item | Key Points |
+|------|------------|
+| Recreate | Simplest but has downtime. Suited for dev environments and batch jobs |
+| Rolling Update | Kubernetes default. Zero downtime through staged replacement |
+| Blue-Green | Prepare 2 environments and switch instantly. Fastest rollback |
+| Canary | Validate with small traffic. Minimizes risk |
+| Feature Flag | Separate deployment from release. Essential for phased rollout |
+| DB Migration | Maintain forward compatibility with the Expand and Contract pattern |
+| Rollback | Prepare procedures in advance and set automated rollback thresholds |
+| Health Check | Validate through two levels — shallow and deep — including dependencies |
+| Deploy Frequency | Deploy small and often, control releases with Feature Flags |
+| DORA Metrics | Continuously measure deploy frequency, lead time, failure rate, and recovery time |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. **Accelerate** — Nicole Forsgren, Jez Humble, Gene Kim (2018) — デプロイ頻度とリードタイムの科学的分析
-2. **Continuous Delivery** — Jez Humble, David Farley (2010) — デプロイパイプラインの原典
-3. **Kubernetes Documentation - Deployments** — https://kubernetes.io/docs/concepts/workloads/controllers/deployment/ — Rolling Update の公式リファレンス
-4. **Martin Fowler - Feature Toggles** — https://martinfowler.com/articles/feature-toggles.html — Feature Flag のパターン分類
-5. **Argo Rollouts** — https://argoproj.github.io/rollouts/ — Kubernetes の高度なデプロイ戦略
-6. **DORA Metrics** — https://dora.dev/research/ — デプロイ頻度と組織パフォーマンスの研究
+- [01-cloud-deployment.md](./01-cloud-deployment.md) — Practical cloud deployment to AWS/Vercel/Cloudflare Workers
+- [02-container-deployment.md](./02-container-deployment.md) — Container deployment on ECS/Kubernetes
+- [03-release-management.md](./03-release-management.md) — Semantic versioning and release management
+
+---
+
+## References
+
+1. **Accelerate** — Nicole Forsgren, Jez Humble, Gene Kim (2018) — Scientific analysis of deployment frequency and lead time
+2. **Continuous Delivery** — Jez Humble, David Farley (2010) — The original text on deployment pipelines
+3. **Kubernetes Documentation - Deployments** — https://kubernetes.io/docs/concepts/workloads/controllers/deployment/ — Official reference for Rolling Updates
+4. **Martin Fowler - Feature Toggles** — https://martinfowler.com/articles/feature-toggles.html — Pattern classification for Feature Flags
+5. **Argo Rollouts** — https://argoproj.github.io/rollouts/ — Advanced deployment strategies for Kubernetes
+6. **DORA Metrics** — https://dora.dev/research/ — Research on deployment frequency and organizational performance
