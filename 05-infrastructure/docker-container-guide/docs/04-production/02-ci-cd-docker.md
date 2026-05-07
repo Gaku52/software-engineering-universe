@@ -1,31 +1,31 @@
 # Docker CI/CD
 
-> GitHub Actionsを中心に、Dockerイメージのビルド自動化・テスト・レジストリプッシュ・デプロイパイプラインを構築する。
+> Centered on GitHub Actions, this guide covers building automated Docker image build, test, registry push, and deployment pipelines.
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **GitHub ActionsによるDockerイメージの自動ビルド・プッシュ**のワークフロー設計を理解する
-2. **マルチプラットフォームビルドとキャッシュ戦略**による高速化手法を習得する
-3. **ステージングから本番までのデプロイパイプライン**を構築できるようになる
-4. **セキュリティスキャンとイメージ署名**をCI/CDに統合する手法を理解する
-5. **GitLab CI / CircleCI**など他のCI/CDツールでのDocker連携パターンを把握する
+1. Understand workflow design for **automated Docker image build and push with GitHub Actions**
+2. Learn optimization techniques using **multi-platform builds and cache strategies**
+3. Be able to build a **deployment pipeline from staging to production**
+4. Understand how to integrate **security scanning and image signing** into CI/CD
+5. Learn Docker integration patterns with other CI/CD tools such as **GitLab CI / CircleCI**
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [モニタリング](./01-monitoring.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Monitoring](./01-monitoring.md)
 
 ---
 
-## 1. Docker CI/CDパイプラインの全体像
+## 1. Overview of the Docker CI/CD Pipeline
 
-### パイプラインアーキテクチャ
+### Pipeline Architecture
 
 ```
 ┌─────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
@@ -36,39 +36,43 @@
      │              │               │               │
      ▼              ▼               ▼               ▼
   git push     docker build    trivy scan     docker push
-  PR作成       multi-stage     unit test      kubectl apply
-  tag作成      layer cache     integration    docker compose
+  Create PR    multi-stage     unit test      kubectl apply
+  Create tag   layer cache     integration    docker compose
 ```
 
-### CI/CDパイプラインの原則
+### CI/CD Pipeline Principles
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│              CI/CDパイプラインの5原則                      │
+│              5 Principles of CI/CD Pipelines             │
 │                                                          │
-│  1. 再現可能性    同じコミットから常に同じイメージを生成   │
-│  2. 不変性        ビルド済みイメージは変更しない          │
-│  3. 高速性        キャッシュとパラレル実行で最適化        │
-│  4. 安全性        シークレット管理、スキャン、署名        │
-│  5. 可観測性      ビルドログ、メトリクス、通知の統合      │
+│  1. Reproducibility  Always produce the same image       │
+│                      from the same commit                │
+│  2. Immutability     Never modify a built image          │
+│  3. Speed            Optimize with caching & parallel    │
+│                      execution                           │
+│  4. Security         Secret management, scanning,        │
+│                      signing                             │
+│  5. Observability    Integrate build logs, metrics,      │
+│                      and notifications                   │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### CI/CDツール比較表
+### CI/CD Tool Comparison
 
-| ツール | Docker連携 | 特徴 | 無料枠 |
+| Tool | Docker Integration | Features | Free Tier |
 |--------|-----------|------|--------|
-| GitHub Actions | Docker公式Action | GitHub統合、GHCR連携 | 2,000分/月 |
-| GitLab CI | Docker-in-Docker | 組み込みレジストリ | 400分/月 |
-| CircleCI | Docker Executor | 高速、Docker Layer Cache | 6,000分/月 |
-| AWS CodeBuild | ECR連携 | AWSネイティブ | 100分/月 |
-| Jenkins | Docker Plugin | 自己ホスト、高カスタマイズ性 | 無制限（自己ホスト） |
+| GitHub Actions | Official Docker Action | GitHub integration, GHCR support | 2,000 min/month |
+| GitLab CI | Docker-in-Docker | Built-in registry | 400 min/month |
+| CircleCI | Docker Executor | Fast, Docker Layer Cache | 6,000 min/month |
+| AWS CodeBuild | ECR integration | AWS-native | 100 min/month |
+| Jenkins | Docker Plugin | Self-hosted, highly customizable | Unlimited (self-hosted) |
 
 ---
 
-## 2. GitHub Actions基本構成
+## 2. GitHub Actions Basic Configuration
 
-### コード例1: 基本的なDockerビルド・プッシュ
+### Code Example 1: Basic Docker Build and Push
 
 ```yaml
 # .github/workflows/docker-build.yml
@@ -93,15 +97,15 @@ jobs:
       packages: write
 
     steps:
-      # 1. チェックアウト
+      # 1. Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Docker Buildxのセットアップ
+      # 2. Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 3. レジストリへのログイン
+      # 3. Log in to registry
       - name: Log in to Container Registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -110,27 +114,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 4. メタデータの抽出（タグ、ラベル）
+      # 4. Extract metadata (tags, labels)
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # ブランチ名タグ
+            # Branch name tag
             type=ref,event=branch
-            # PRナンバータグ
+            # PR number tag
             type=ref,event=pr
-            # セマンティックバージョニング
+            # Semantic versioning
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            # Git SHA（短縮）
+            # Git SHA (short)
             type=sha,prefix=sha-
-            # latest（mainブランチのみ）
+            # latest (main branch only)
             type=raw,value=latest,enable={{is_default_branch}}
 
-      # 5. ビルド & プッシュ
+      # 5. Build & Push
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -143,7 +147,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
 ```
 
-### タグ戦略のフロー
+### Tag Strategy Flow
 
 ```
 git push main
@@ -163,24 +167,24 @@ git tag v1.2.3
          ghcr.io/user/app:latest
 
 Pull Request #42
-    └──► ghcr.io/user/app:pr-42  (プッシュされない)
+    └──► ghcr.io/user/app:pr-42  (not pushed)
 ```
 
-### タグ戦略の比較
+### Tag Strategy Comparison
 
-| 戦略 | 例 | 用途 | 特徴 |
+| Strategy | Example | Use Case | Characteristics |
 |------|---|------|------|
-| セマンティックバージョン | v1.2.3 | 本番リリース | 人間が読みやすい |
-| Git SHA | sha-abc1234 | 全ビルド | 完全な追跡可能性 |
-| ブランチ名 | main, develop | 開発・ステージング | 自動更新される |
-| タイムスタンプ | 20240115-1030 | CI/CD内部 | 時系列順序が明確 |
-| latest | latest | 開発用途のみ | **本番で使用禁止** |
+| Semantic version | v1.2.3 | Production release | Human-readable |
+| Git SHA | sha-abc1234 | All builds | Full traceability |
+| Branch name | main, develop | Development/staging | Auto-updated |
+| Timestamp | 20240115-1030 | CI/CD internal | Clear chronological order |
+| latest | latest | Development use only | **Prohibited in production** |
 
 ---
 
-## 3. テスト統合
+## 3. Test Integration
 
-### コード例2: テスト・セキュリティスキャン統合パイプライン
+### Code Example 2: Test and Security Scan Integration Pipeline
 
 ```yaml
 # .github/workflows/ci-pipeline.yml
@@ -193,7 +197,7 @@ on:
     branches: [main]
 
 jobs:
-  # === ユニットテスト ===
+  # === Unit Tests ===
   test:
     runs-on: ubuntu-latest
     steps:
@@ -212,7 +216,7 @@ jobs:
           name: test-results
           path: coverage/
 
-  # === Lint & 静的解析 ===
+  # === Lint & Static Analysis ===
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -229,7 +233,7 @@ jobs:
           docker compose -f docker-compose.yml config -q
           docker compose -f docker-compose.prod.yml config -q
 
-  # === イメージビルド ===
+  # === Image Build ===
   build:
     needs: [test, lint]
     runs-on: ubuntu-latest
@@ -272,7 +276,7 @@ jobs:
           provenance: true
           sbom: true
 
-  # === セキュリティスキャン ===
+  # === Security Scan ===
   security-scan:
     needs: [build]
     runs-on: ubuntu-latest
@@ -288,7 +292,7 @@ jobs:
           format: "sarif"
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH"
-          exit-code: "1"  # CRITICAL/HIGH が見つかったら失敗
+          exit-code: "1"  # Fail if CRITICAL/HIGH found
 
       - name: Upload Trivy scan results
         if: always()
@@ -296,7 +300,7 @@ jobs:
         with:
           sarif_file: "trivy-results.sarif"
 
-  # === Dockerfile ベストプラクティスチェック ===
+  # === Dockerfile Best Practices Check ===
   dockerfile-check:
     runs-on: ubuntu-latest
     steps:
@@ -309,7 +313,7 @@ jobs:
           exit-code: "1"
           exit-level: "WARN"
 
-  # === 統合テスト ===
+  # === Integration Tests ===
   integration-test:
     needs: [build]
     runs-on: ubuntu-latest
@@ -322,7 +326,7 @@ jobs:
         run: |
           docker compose -f docker-compose.integration.yml up -d
 
-          # ヘルスチェック待ち
+          # Wait for health check
           for i in $(seq 1 30); do
             if docker compose -f docker-compose.integration.yml exec -T api \
               wget -q --spider http://localhost:8080/health 2>/dev/null; then
@@ -333,11 +337,11 @@ jobs:
             sleep 2
           done
 
-          # テスト実行
+          # Run tests
           docker compose -f docker-compose.integration.yml run --rm \
             test npm run test:integration
 
-          # クリーンアップ
+          # Cleanup
           docker compose -f docker-compose.integration.yml down -v
 ```
 
@@ -349,7 +353,7 @@ services:
   test:
     build:
       context: .
-      target: test  # テスト用ステージ
+      target: test  # Test stage
     volumes:
       - ./coverage:/app/coverage
     environment:
@@ -363,7 +367,7 @@ services:
       POSTGRES_PASSWORD: test
       POSTGRES_DB: testdb
     tmpfs:
-      - /var/lib/postgresql/data  # テストはメモリ上で高速実行
+      - /var/lib/postgresql/data  # Tests run fast in memory
 ```
 
 ```yaml
@@ -424,9 +428,9 @@ services:
 
 ---
 
-## 4. キャッシュ戦略
+## 4. Cache Strategies
 
-### コード例3: 高度なキャッシュ設定
+### Code Example 3: Advanced Cache Configuration
 
 ```yaml
 # .github/workflows/cached-build.yml
@@ -439,7 +443,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 方式1: GitHub Actions Cache（推奨）
+      # Method 1: GitHub Actions Cache (recommended)
       - name: Build with GHA cache
         uses: docker/build-push-action@v5
         with:
@@ -449,95 +453,95 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 方式2: レジストリキャッシュ
+      # Method 2: Registry cache
       # cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache
       # cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache,mode=max
 
-      # 方式3: ローカルキャッシュ
+      # Method 3: Local cache
       # cache-from: type=local,src=/tmp/.buildx-cache
       # cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 ```
 
-### キャッシュ方式の比較表
+### Cache Method Comparison
 
-| 方式 | 速度 | 容量制限 | CI間共有 | 設定の簡便さ | コスト |
+| Method | Speed | Storage Limit | Shared Across CI | Ease of Setup | Cost |
 |------|------|---------|---------|-------------|--------|
-| GHA Cache | 高速 | 10GB | 同一リポ | 最も簡単 | 無料 |
-| Registry Cache | 中速 | 無制限 | 全環境 | 中程度 | レジストリ料金 |
-| Local Cache | 最速 | ディスク依存 | 不可 | 簡単 | 無料 |
-| Inline Cache | 中速 | イメージ内 | 全環境 | 簡単 | 無料 |
-| S3 Cache | 中速 | 無制限 | 全環境 | やや複雑 | S3料金 |
+| GHA Cache | Fast | 10GB | Same repo | Easiest | Free |
+| Registry Cache | Medium | Unlimited | All environments | Moderate | Registry fees |
+| Local Cache | Fastest | Disk-dependent | Not possible | Easy | Free |
+| Inline Cache | Medium | Inside image | All environments | Easy | Free |
+| S3 Cache | Medium | Unlimited | All environments | Somewhat complex | S3 fees |
 
-### キャッシュの動作原理
+### How Caching Works
 
 ```
-初回ビルド（キャッシュなし）
+First build (no cache)
 ┌──────────────────────────────────┐
-│ Layer 1: FROM node:20-alpine     │  ← ダウンロード
-│ Layer 2: COPY package*.json      │  ← 新規作成
-│ Layer 3: RUN npm ci              │  ← 新規作成（遅い）
-│ Layer 4: COPY . .                │  ← 新規作成
-│ Layer 5: RUN npm run build       │  ← 新規作成
+│ Layer 1: FROM node:20-alpine     │  ← Download
+│ Layer 2: COPY package*.json      │  ← New creation
+│ Layer 3: RUN npm ci              │  ← New creation (slow)
+│ Layer 4: COPY . .                │  ← New creation
+│ Layer 5: RUN npm run build       │  ← New creation
 └──────────────────────────────────┘
-  合計: 3分
+  Total: 3 minutes
 
-2回目ビルド（ソースコードのみ変更）
+Second build (only source code changed)
 ┌──────────────────────────────────┐
-│ Layer 1: FROM node:20-alpine     │  ← キャッシュHIT
-│ Layer 2: COPY package*.json      │  ← キャッシュHIT
-│ Layer 3: RUN npm ci              │  ← キャッシュHIT ★高速
-│ Layer 4: COPY . .                │  ← 再作成（変更検知）
-│ Layer 5: RUN npm run build       │  ← 再作成
+│ Layer 1: FROM node:20-alpine     │  ← Cache HIT
+│ Layer 2: COPY package*.json      │  ← Cache HIT
+│ Layer 3: RUN npm ci              │  ← Cache HIT ★ Fast
+│ Layer 4: COPY . .                │  ← Rebuilt (change detected)
+│ Layer 5: RUN npm run build       │  ← Rebuilt
 └──────────────────────────────────┘
-  合計: 30秒
+  Total: 30 seconds
 ```
 
-### Dockerfileのキャッシュ最適化
+### Dockerfile Cache Optimization
 
 ```dockerfile
-# === キャッシュを最大限活用するDockerfile ===
+# === Dockerfile that maximizes cache usage ===
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 1. パッケージマネージャーのロックファイルだけ先にコピー
-# → 依存関係が変わらない限りこのレイヤーはキャッシュされる
+# 1. Copy only package manager lock files first
+# → This layer is cached as long as dependencies don't change
 COPY package.json package-lock.json ./
 
-# 2. 依存関係インストール（最も遅いステップ）
-# → ロックファイルが変わった時だけ再実行
+# 2. Install dependencies (slowest step)
+# → Only re-executed when lock file changes
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
-# 3. ソースコードをコピー（頻繁に変わる）
+# 3. Copy source code (changes frequently)
 COPY tsconfig.json ./
 COPY src/ ./src/
 
-# 4. ビルド
+# 4. Build
 RUN npm run build
 
-# === 本番ステージ ===
+# === Production stage ===
 FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# 本番依存関係のみインストール
+# Install production dependencies only
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --only=production
 
-# ビルド成果物をコピー
+# Copy build artifacts
 COPY --from=builder /app/dist ./dist
 
 USER node
 CMD ["node", "dist/server.js"]
 ```
 
-### BuildKit マウントキャッシュ
+### BuildKit Mount Cache
 
 ```dockerfile
-# BuildKit のキャッシュマウント（--mount=type=cache）を活用
-# パッケージマネージャーのキャッシュをビルド間で共有
+# Leverage BuildKit cache mounts (--mount=type=cache)
+# Share package manager caches across builds
 
 # Go
 RUN --mount=type=cache,target=/go/pkg/mod \
@@ -564,9 +568,9 @@ RUN --mount=type=cache,target=/root/.gradle \
 
 ---
 
-## 5. デプロイパイプライン
+## 5. Deployment Pipeline
 
-### コード例4: ステージング→本番デプロイ
+### Code Example 4: Staging to Production Deployment
 
 ```yaml
 # .github/workflows/deploy.yml
@@ -620,7 +624,7 @@ jobs:
           provenance: true
           sbom: true
 
-  # === セキュリティスキャン ===
+  # === Security Scan ===
   security-scan:
     needs: [build]
     runs-on: ubuntu-latest
@@ -632,7 +636,7 @@ jobs:
           severity: "CRITICAL"
           exit-code: "1"
 
-  # === ステージングデプロイ ===
+  # === Staging Deploy ===
   deploy-staging:
     needs: [build, security-scan]
     runs-on: ubuntu-latest
@@ -646,7 +650,7 @@ jobs:
         env:
           VERSION: ${{ needs.build.outputs.version }}
         run: |
-          # SSH経由でデプロイ
+          # Deploy via SSH
           ssh -o StrictHostKeyChecking=no deploy@staging.example.com << EOF
             cd /opt/app
             export VERSION=${VERSION}
@@ -668,7 +672,7 @@ jobs:
             my-e2e-tests:latest \
             npm run test:e2e
 
-  # === 本番デプロイ（手動承認後） ===
+  # === Production Deploy (after manual approval) ===
   deploy-production:
     needs: [deploy-staging]
     runs-on: ubuntu-latest
@@ -685,12 +689,12 @@ jobs:
           ssh -o StrictHostKeyChecking=no deploy@prod.example.com << 'EOF'
             cd /opt/app
 
-            # ローリングデプロイ
+            # Rolling deploy
             export VERSION=${{ env.VERSION }}
             docker compose pull
             docker compose up -d --remove-orphans --scale api=3
 
-            # ヘルスチェック確認
+            # Health check
             for i in $(seq 1 30); do
               if docker compose exec -T api wget -q --spider http://localhost:8080/health; then
                 echo "Health check passed"
@@ -700,7 +704,7 @@ jobs:
               sleep 2
             done
 
-            # 古いイメージの削除
+            # Remove old images
             docker image prune -af --filter "until=168h"
           EOF
 
@@ -719,7 +723,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 ```
 
-### デプロイフロー
+### Deployment Flow
 
 ```
 git tag v1.2.3 && git push --tags
@@ -728,7 +732,7 @@ git tag v1.2.3 && git push --tags
 ┌──────────┐     ┌─────────────┐     ┌──────────────┐
 │  Build   │────►│  Security   │────►│  Staging     │
 │  & Push  │     │  Scan       │     │  Deploy      │
-│          │     │             │     │  (自動)       │
+│          │     │             │     │  (automatic) │
 └──────────┘     └─────────────┘     └──────┬───────┘
                                              │
                                         Smoke Test
@@ -737,15 +741,16 @@ git tag v1.2.3 && git push --tags
                                     ┌────────▼───────┐
                                     │  Production    │
                                     │  Deploy        │
-                                    │  (手動承認)     │
+                                    │  (manual       │
+                                    │   approval)    │
                                     └────────┬───────┘
                                              │
                                         Health Check
-                                        ローリング更新
-                                        Slack通知
+                                        Rolling Update
+                                        Slack Notification
 ```
 
-### ロールバック戦略
+### Rollback Strategy
 
 ```yaml
 # .github/workflows/rollback.yml
@@ -778,7 +783,7 @@ jobs:
             docker compose pull
             docker compose up -d --remove-orphans
 
-            # ヘルスチェック
+            # Health check
             for i in $(seq 1 30); do
               if docker compose exec -T api wget -q --spider http://localhost:8080/health; then
                 echo "Rollback successful - v${{ inputs.version }}"
@@ -799,9 +804,9 @@ jobs:
 
 ---
 
-## 6. マルチプラットフォームビルド
+## 6. Multi-Platform Builds
 
-### コード例5: ARM64 + AMD64 マルチプラットフォーム
+### Code Example 5: ARM64 + AMD64 Multi-Platform
 
 ```yaml
 # .github/workflows/multi-platform.yml
@@ -845,10 +850,10 @@ jobs:
           cache-to: type=gha,mode=max
 ```
 
-### プラットフォーム別ビルドのマトリックス戦略
+### Matrix Strategy for Per-Platform Builds
 
 ```yaml
-# 高速化: プラットフォームごとに並列ビルドし、後でマニフェストを統合
+# Speed up: build each platform in parallel, then merge manifests
 jobs:
   build-platform:
     strategy:
@@ -884,7 +889,7 @@ jobs:
           name: digest-${{ strategy.job-index }}
           path: /tmp/digest-*
 
-  # マニフェストリストの作成
+  # Create manifest list
   merge:
     needs: [build-platform]
     runs-on: ubuntu-latest
@@ -911,9 +916,9 @@ jobs:
 
 ---
 
-## 7. Docker Compose によるローカルCI再現
+## 7. Reproducing CI Locally with Docker Compose
 
-### コード例6: ローカルで CI パイプラインを再現
+### Code Example 6: Reproduce CI Pipeline Locally
 
 ```yaml
 # docker-compose.ci.yml
@@ -964,28 +969,28 @@ volumes:
 ```
 
 ```bash
-# ローカルでCIパイプラインを実行
+# Run CI pipeline locally
 docker compose -f docker-compose.ci.yml run --rm lint
 docker compose -f docker-compose.ci.yml run --rm test
 docker compose -f docker-compose.ci.yml run --rm security-scan
 docker compose -f docker-compose.ci.yml down -v
 ```
 
-### Makefile によるCI/CDタスク管理
+### CI/CD Task Management with Makefile
 
 ```makefile
-# Makefile - CI/CDタスクの統一インターフェース
+# Makefile - Unified interface for CI/CD tasks
 .PHONY: build test lint scan deploy-staging deploy-production
 
-# 変数
+# Variables
 IMAGE_NAME := ghcr.io/myorg/myapp
 VERSION := $(shell git describe --tags --always)
 
-# ビルド
+# Build
 build:
 	docker build -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .
 
-# テスト
+# Test
 test:
 	docker compose -f docker-compose.test.yml run --rm --build test
 
@@ -994,25 +999,25 @@ lint:
 	docker run --rm -v $(PWD)/Dockerfile:/Dockerfile \
 		hadolint/hadolint:latest-alpine hadolint /Dockerfile
 
-# セキュリティスキャン
+# Security scan
 scan:
 	trivy image --severity HIGH,CRITICAL $(IMAGE_NAME):$(VERSION)
 
-# 全CIステップ実行
+# Run all CI steps
 ci: lint test build scan
 
-# ステージングデプロイ
+# Staging deploy
 deploy-staging:
 	VERSION=$(VERSION) docker compose -f docker-compose.staging.yml pull
 	VERSION=$(VERSION) docker compose -f docker-compose.staging.yml up -d
 
-# 本番デプロイ
+# Production deploy
 deploy-production:
 	@echo "Deploying $(VERSION) to production..."
 	VERSION=$(VERSION) docker compose -f docker-compose.prod.yml pull
 	VERSION=$(VERSION) docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
-# クリーンアップ
+# Cleanup
 clean:
 	docker compose -f docker-compose.test.yml down -v
 	docker image prune -f
@@ -1020,9 +1025,9 @@ clean:
 
 ---
 
-## 8. GitLab CI / CircleCI での Docker CI/CD
+## 8. Docker CI/CD with GitLab CI / CircleCI
 
-### GitLab CI の Docker ビルド
+### Docker Build with GitLab CI
 
 ```yaml
 # .gitlab-ci.yml
@@ -1036,7 +1041,7 @@ variables:
   DOCKER_IMAGE: $CI_REGISTRY_IMAGE
   DOCKER_TAG: $CI_COMMIT_SHORT_SHA
 
-# テスト
+# Test
 test:
   stage: test
   image: docker:24-dind
@@ -1045,7 +1050,7 @@ test:
   script:
     - docker compose -f docker-compose.test.yml run --rm test
 
-# ビルド & プッシュ
+# Build & Push
 build:
   stage: build
   image: docker:24-dind
@@ -1058,14 +1063,14 @@ build:
     - docker push $DOCKER_IMAGE:$DOCKER_TAG
     - docker push $DOCKER_IMAGE:latest
 
-# セキュリティスキャン
+# Security scan
 scan:
   stage: scan
   image: aquasec/trivy:latest
   script:
     - trivy image --severity CRITICAL,HIGH $DOCKER_IMAGE:$DOCKER_TAG
 
-# ステージングデプロイ
+# Staging deploy
 deploy-staging:
   stage: deploy
   environment:
@@ -1076,7 +1081,7 @@ deploy-staging:
   only:
     - main
 
-# 本番デプロイ（手動）
+# Production deploy (manual)
 deploy-production:
   stage: deploy
   environment:
@@ -1089,7 +1094,7 @@ deploy-production:
     - tags
 ```
 
-### CircleCI の Docker ビルド
+### Docker Build with CircleCI
 
 ```yaml
 # .circleci/config.yml
@@ -1109,7 +1114,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          docker_layer_caching: true  # DLC（有料機能）
+          docker_layer_caching: true  # DLC (paid feature)
       - docker/check:
           registry: ghcr.io
           docker-username: GHCR_USER
@@ -1145,12 +1150,12 @@ workflows:
 
 ---
 
-## 9. イメージ署名とサプライチェーンセキュリティ
+## 9. Image Signing and Supply Chain Security
 
-### Cosign によるイメージ署名
+### Image Signing with Cosign
 
 ```yaml
-# GitHub Actions でのイメージ署名
+# Image signing in GitHub Actions
 - name: Install Cosign
   uses: sigstore/cosign-installer@v3
 
@@ -1169,20 +1174,20 @@ workflows:
       ghcr.io/${{ github.repository }}:latest
 ```
 
-### SBOM（ソフトウェア部品表）の生成
+### Generating an SBOM (Software Bill of Materials)
 
 ```yaml
-# ビルド時にSBOMを自動生成
+# Automatically generate SBOM at build time
 - name: Build with SBOM
   uses: docker/build-push-action@v5
   with:
     context: .
     push: true
     tags: ghcr.io/${{ github.repository }}:latest
-    sbom: true        # BuildKit によるSBOM生成
-    provenance: true  # SLSA Provenance の付与
+    sbom: true        # SBOM generation by BuildKit
+    provenance: true  # Attach SLSA Provenance
 
-# または Syft で明示的にSBOM生成
+# Or explicitly generate SBOM with Syft
 - name: Generate SBOM with Syft
   uses: anchore/sbom-action@v0
   with:
@@ -1199,9 +1204,9 @@ workflows:
 
 ---
 
-## 10. AWS ECR / Docker Hub へのデプロイ
+## 10. Deploying to AWS ECR / Docker Hub
 
-### AWS ECR へのプッシュ
+### Pushing to AWS ECR
 
 ```yaml
 # .github/workflows/ecr-push.yml
@@ -1236,7 +1241,7 @@ jobs:
           cache-to: type=gha,mode=max
 ```
 
-### Docker Hub へのプッシュ
+### Pushing to Docker Hub
 
 ```yaml
 # .github/workflows/dockerhub-push.yml
@@ -1264,34 +1269,34 @@ jobs:
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: latest タグのみでのデプロイ
+### Anti-Pattern 1: Deploying with Only the `latest` Tag
 
 ```yaml
-# NG: latestタグだけでデプロイ
+# BAD: Deploy with only the latest tag
 services:
   app:
-    image: my-app:latest  # どのバージョンが動いているか不明
+    image: my-app:latest  # Unclear which version is running
 
-# OK: 明示的なバージョンタグ
+# GOOD: Explicit version tag
 services:
   app:
-    image: my-app:1.2.3   # 完全なバージョン指定
-    # または
-    image: my-app:sha-abc1234  # Git SHA で特定
+    image: my-app:1.2.3   # Full version specification
+    # or
+    image: my-app:sha-abc1234  # Identified by Git SHA
 ```
 
-**なぜ問題か**: `latest` タグはミュータブル（上書き可能）であり、どのコミットのコードが本番で動いているか追跡できない。ロールバックも困難。
+**Why it's a problem**: The `latest` tag is mutable (can be overwritten), making it impossible to track which commit's code is running in production. Rollbacks also become difficult.
 
-### アンチパターン2: CI上でのシークレットのハードコード
+### Anti-Pattern 2: Hardcoding Secrets in CI
 
 ```yaml
-# NG: ワークフロー内にシークレットを直書き
+# BAD: Write secrets directly in the workflow
 - name: Login to Docker Hub
   run: docker login -u myuser -p MyP@ssw0rd!
 
-# OK: GitHub Secretsを使用
+# GOOD: Use GitHub Secrets
 - name: Login to Docker Hub
   uses: docker/login-action@v3
   with:
@@ -1299,19 +1304,19 @@ services:
     password: ${{ secrets.DOCKERHUB_TOKEN }}
 ```
 
-**なぜ問題か**: リポジトリにシークレットが漏洩し、認証情報が第三者に悪用される。GitHub Secretsは暗号化されてログにもマスクされる。
+**Why it's a problem**: Secrets leak into the repository and credentials can be exploited by third parties. GitHub Secrets are encrypted and masked even in logs.
 
-### アンチパターン3: テストなしでのデプロイ
+### Anti-Pattern 3: Deploying Without Tests
 
 ```yaml
-# NG: ビルドしたら即デプロイ
+# BAD: Deploy immediately after build
 jobs:
   build-and-deploy:
     steps:
       - uses: docker/build-push-action@v5
       - run: ssh prod "docker pull && docker compose up -d"
 
-# OK: テスト→スキャン→ステージング→承認→本番
+# GOOD: Test → Scan → Staging → Approval → Production
 jobs:
   test: ...
   build: { needs: [test] }
@@ -1320,12 +1325,12 @@ jobs:
   deploy-production: { needs: [deploy-staging] }
 ```
 
-**なぜ問題か**: テストやセキュリティスキャンをスキップすると、バグや脆弱性が本番に到達する。ステージングでの検証を経ることで、本番障害のリスクを低減する。
+**Why it's a problem**: Skipping tests and security scans allows bugs and vulnerabilities to reach production. Validating through staging reduces the risk of production incidents.
 
-### アンチパターン4: ビルドとデプロイの密結合
+### Anti-Pattern 4: Tightly Coupled Build and Deploy
 
 ```yaml
-# NG: 1つのジョブ内でビルドからデプロイまで実行
+# BAD: Run from build to deploy in a single job
 jobs:
   all-in-one:
     steps:
@@ -1333,57 +1338,57 @@ jobs:
       - run: docker push
       - run: ssh prod "deploy"
 
-# OK: ステージごとに分離し、ゲートを設ける
+# GOOD: Separate by stage and add gates
 jobs:
   build: ...
   test: { needs: [build] }
   deploy: { needs: [test], environment: production }
 ```
 
-**なぜ問題か**: 密結合すると、テスト失敗時にもデプロイが実行されるリスクがある。また、同じイメージを複数環境にデプロイする際に再ビルドが必要になる。
+**Why it's a problem**: Tight coupling risks running a deploy even when tests fail. It also requires a rebuild when deploying the same image to multiple environments.
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1392,26 +1397,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1419,7 +1424,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1430,14 +1435,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1445,7 +1450,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1453,44 +1458,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1499,7 +1504,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1514,47 +1519,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Check config file path and format |
+| Timeout | Network latency / resource shortage | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check executing user's permissions, review settings |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking mechanism, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Validate incrementally**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, run tests for related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1562,93 +1567,93 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose when performance issues occur:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Review connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 ---
 
 ## FAQ
 
-### Q1: Docker Hub と GitHub Container Registry (GHCR) のどちらを使うべき？
+### Q1: Should I use Docker Hub or GitHub Container Registry (GHCR)?
 
-**GHCR推奨**: GitHub Actionsとの連携がシームレス（`GITHUB_TOKEN` で認証可能）、リポジトリの可視性と連動、無料枠が十分。Docker Hubはパブリックイメージの配布に適するが、プルレート制限（100回/6時間）がCI環境で問題になることがある。
+**GHCR recommended**: Seamless integration with GitHub Actions (authentication with `GITHUB_TOKEN`), visibility tied to repository visibility, sufficient free tier. Docker Hub is suitable for distributing public images, but pull rate limits (100 pulls/6 hours) can be problematic in CI environments.
 
-### Q2: CI上でのDockerビルドが遅い場合の対策は？
+### Q2: What can I do if Docker builds on CI are slow?
 
-1. **レイヤーキャッシュ**: `cache-from: type=gha` を設定
-2. **マルチステージビルド**: テスト用ステージと本番ステージを分離
-3. **依存関係の分離**: `package.json` を先にCOPYし、`npm ci` のレイヤーをキャッシュ
-4. **BuildKitマウントキャッシュ**: `--mount=type=cache` でパッケージキャッシュを共有
-5. **並列ビルド**: 独立したサービスは `matrix` 戦略で並列実行
-6. **ランナースペック向上**: `runs-on: ubuntu-latest-8-cores` など大型ランナーを使用
+1. **Layer cache**: Set `cache-from: type=gha`
+2. **Multi-stage build**: Separate test and production stages
+3. **Dependency isolation**: COPY `package.json` first, cache the `npm ci` layer
+4. **BuildKit mount cache**: Share package caches with `--mount=type=cache`
+5. **Parallel builds**: Use `matrix` strategy to run independent services in parallel
+6. **Upgrade runner spec**: Use larger runners such as `runs-on: ubuntu-latest-8-cores`
 
-### Q3: ロールバックはどうやって行う？
+### Q3: How do I perform a rollback?
 
 ```bash
-# 即座に前のバージョンに戻す
-docker compose pull  # 旧バージョンタグに切り替え
+# Immediately revert to a previous version
+docker compose pull  # Switch to the old version tag
 VERSION=1.2.2 docker compose up -d
 
-# または特定のSHAに戻す
+# Or revert to a specific SHA
 docker compose up -d --no-deps \
   -e IMAGE_TAG=sha-abc1234 \
   api
 ```
 
-タグを使ったイミュータブルなデプロイを行うことで、任意のバージョンへの即座のロールバックが可能になる。
+Using immutable tags for deployment enables instant rollback to any version.
 
-### Q4: GitHub Actions の GITHUB_TOKEN でGHCRにプッシュできないときは？
+### Q4: What should I check if I can't push to GHCR with GITHUB_TOKEN?
 
-以下を確認する:
-1. ワークフローの `permissions` で `packages: write` を設定しているか
-2. リポジトリの Settings > Actions > General > Workflow permissions が "Read and write permissions" になっているか
-3. Organization の場合、パッケージの可視性設定が正しいか
+Check the following:
+1. Is `packages: write` set in the workflow's `permissions`?
+2. Is the repository's Settings > Actions > General > Workflow permissions set to "Read and write permissions"?
+3. For organizations, is the package visibility setting correct?
 
-### Q5: モノレポでの Docker CI/CD はどう設計するか？
+### Q5: How should Docker CI/CD be designed for a monorepo?
 
 ```yaml
-# パスフィルターで変更があったサービスのみビルド
+# Build only services that have changes using path filters
 on:
   push:
     paths:
       - "services/api/**"
       - "shared/**"
 
-# または matrix 戦略で全サービスを並列ビルド
+# Or build all services in parallel with matrix strategy
 jobs:
   build:
     strategy:
@@ -1664,38 +1669,38 @@ jobs:
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Topic | Key Point |
 |------|---------|
-| GitHub Actions | Docker公式Actionで統一。GHCR連携が最も簡便 |
-| タグ戦略 | セマンティックバージョニング + Git SHA。latestだけに依存しない |
-| キャッシュ | GHA Cacheが推奨。レイヤーの順序最適化で効果最大化 |
-| セキュリティ | Trivyスキャン、Hadolint、GitHub Secretsを必ず使用 |
-| テスト | Docker Compose でテスト環境を再現。CI とローカルで同一 |
-| デプロイ | ステージング→承認→本番のゲート付きパイプライン |
-| ロールバック | イミュータブルタグで即座にロールバック可能 |
-| イメージ署名 | Cosign でイメージの真正性を保証 |
-| SBOM | サプライチェーンの透明性確保 |
-| マルチプラットフォーム | QEMU + Buildx で ARM64/AMD64 対応 |
+| GitHub Actions | Use official Docker Actions. GHCR integration is the simplest |
+| Tag strategy | Semantic versioning + Git SHA. Do not rely solely on latest |
+| Cache | GHA Cache is recommended. Maximize effectiveness by optimizing layer order |
+| Security | Always use Trivy scan, Hadolint, and GitHub Secrets |
+| Testing | Reproduce test environment with Docker Compose. Identical in CI and locally |
+| Deployment | Gated pipeline: staging → approval → production |
+| Rollback | Instant rollback to any version with immutable tags |
+| Image signing | Guarantee image authenticity with Cosign |
+| SBOM | Ensure supply chain transparency |
+| Multi-platform | Support ARM64/AMD64 with QEMU + Buildx |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [オーケストレーション概要](../05-orchestration/00-orchestration-overview.md) -- K8s/Swarmへのデプロイ拡張
-- [コンテナセキュリティ](../06-security/00-container-security.md) -- CIでのイメージスキャン強化
-- [サプライチェーンセキュリティ](../06-security/01-supply-chain-security.md) -- イメージ署名とSBOM
+- [Orchestration Overview](../05-orchestration/00-orchestration-overview.md) -- Extend deployments to K8s/Swarm
+- [Container Security](../06-security/00-container-security.md) -- Enhance image scanning in CI
+- [Supply Chain Security](../06-security/01-supply-chain-security.md) -- Image signing and SBOM
 
 ---
 
-## 参考文献
+## References
 
-1. GitHub Actions 公式ドキュメント "Building and testing containers" -- https://docs.github.com/en/actions/publishing-packages/publishing-docker-images
-2. Docker 公式 GitHub Actions -- https://github.com/docker/build-push-action
-3. Docker 公式ドキュメント "CI/CD best practices" -- https://docs.docker.com/build/ci/github-actions/
+1. GitHub Actions official docs "Building and testing containers" -- https://docs.github.com/en/actions/publishing-packages/publishing-docker-images
+2. Docker official GitHub Actions -- https://github.com/docker/build-push-action
+3. Docker official docs "CI/CD best practices" -- https://docs.docker.com/build/ci/github-actions/
 4. Hadolint (Dockerfile Linter) -- https://github.com/hadolint/hadolint
 5. Aqua Security Trivy -- https://github.com/aquasecurity/trivy
 6. Sigstore Cosign -- https://github.com/sigstore/cosign
 7. SLSA (Supply chain Levels for Software Artifacts) -- https://slsa.dev/
-8. Docker 公式ドキュメント "BuildKit" -- https://docs.docker.com/build/buildkit/
+8. Docker official docs "BuildKit" -- https://docs.docker.com/build/buildkit/
