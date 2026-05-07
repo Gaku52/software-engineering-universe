@@ -1,48 +1,48 @@
-# 本番ベストプラクティス
+# Production Best Practices
 
-> Docker本番環境で必須となる非rootユーザー実行、ヘルスチェック、リソース制限、ログ戦略の4本柱を体系的に習得する。
-
----
-
-## この章で学ぶこと
-
-1. **非rootユーザーでのコンテナ実行**とセキュリティ強化の手法を理解する
-2. **ヘルスチェックとリソース制限**による堅牢な運用設計を習得する
-3. **構造化ログとログドライバー**を活用した効率的なログ戦略を構築できるようになる
-4. **Graceful Shutdown**とシグナルハンドリングの正しい実装パターンを身につける
-5. **本番用Dockerfile**と**docker-compose設定**のセキュリティ・パフォーマンス最適化を実践できるようになる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> Systematically learn the four pillars essential for Docker production environments: running containers as non-root users, health checks, resource limits, and logging strategy.
 
 ---
 
-## 1. 非rootユーザーでの実行
+## What You Will Learn
 
-コンテナのデフォルトはrootで実行される。これはコンテナエスケープ脆弱性が悪用された場合にホストのroot権限が奪取されるリスクを意味する。
+1. Understand **running containers as non-root users** and techniques for security hardening
+2. Master **health checks and resource limits** for robust operational design
+3. Learn to build an efficient logging strategy using **structured logs and log drivers**
+4. Acquire correct implementation patterns for **Graceful Shutdown** and signal handling
+5. Practice security and performance optimization for **production Dockerfiles** and **docker-compose configurations**
 
-### コード例1: 非rootユーザーの設定
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. Running as Non-Root User
+
+The default container runs as root. This means that if a container escape vulnerability is exploited, there is a risk of gaining root privileges on the host.
+
+### Code Example 1: Configuring a Non-Root User
 
 ```dockerfile
-# Dockerfile - Node.jsアプリケーション
+# Dockerfile - Node.js Application
 FROM node:20-alpine
 
-# アプリケーションディレクトリを作成
+# Create application directory
 WORKDIR /app
 
-# 依存関係をインストール（rootで実行）
+# Install dependencies (run as root)
 COPY package*.json ./
 RUN npm ci --only=production
 
-# アプリケーションコードをコピー
+# Copy application code
 COPY --chown=node:node . .
 
-# 非rootユーザーに切り替え
+# Switch to non-root user
 USER node
 
 EXPOSE 3000
@@ -50,7 +50,7 @@ CMD ["node", "server.js"]
 ```
 
 ```dockerfile
-# Dockerfile - Pythonアプリケーション（ユーザー作成パターン）
+# Dockerfile - Python Application (user creation pattern)
 FROM python:3.12-slim
 
 RUN groupadd --gid 1001 appgroup && \
@@ -69,7 +69,7 @@ CMD ["gunicorn", "--bind", "0.0.0.0:8000", "app:create_app()"]
 ```
 
 ```dockerfile
-# Dockerfile - Goアプリケーション（スクラッチベース）
+# Dockerfile - Go Application (scratch-based)
 FROM golang:1.22-alpine AS builder
 
 WORKDIR /build
@@ -79,17 +79,17 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/server ./cmd/server
 
-# 本番ステージ: scratchベースで最小構成
+# Production stage: minimal configuration based on scratch
 FROM scratch
 
-# 非rootユーザーを設定（/etc/passwdをコピー）
+# Configure non-root user (copy /etc/passwd)
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
 
-# TLS証明書をコピー（外部HTTPSアクセス用）
+# Copy TLS certificates (for external HTTPS access)
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# バイナリをコピー
+# Copy binary
 COPY --from=builder --chown=1001:1001 /app/server /server
 
 USER 1001
@@ -99,7 +99,7 @@ ENTRYPOINT ["/server"]
 ```
 
 ```dockerfile
-# Dockerfile - Javaアプリケーション（Spring Boot）
+# Dockerfile - Java Application (Spring Boot)
 FROM eclipse-temurin:21-jre-alpine
 
 RUN addgroup -g 1001 -S spring && \
@@ -109,7 +109,7 @@ WORKDIR /app
 
 COPY --chown=spring:spring target/*.jar app.jar
 
-# JVMのセキュリティ設定
+# JVM security settings
 ENV JAVA_OPTS="-XX:+UseContainerSupport \
     -XX:MaxRAMPercentage=75.0 \
     -Djava.security.egd=file:/dev/./urandom"
@@ -120,19 +120,19 @@ EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 ```
 
-### rootユーザーの危険性
+### Dangers of the Root User
 
 ```
 ┌─────────────────────────────────────────────────┐
 │  Container (root)                               │
 │  UID=0                                          │
 │                                                 │
-│  コンテナエスケープ脆弱性                        │
+│  Container escape vulnerability                 │
 │       │                                         │
 │       ▼                                         │
 │  ┌─────────────────────────────────────┐       │
 │  │  Host (root)                        │       │
-│  │  UID=0 → ホスト全体を掌握           │       │
+│  │  UID=0 → Full control of host       │       │
 │  └─────────────────────────────────────┘       │
 └─────────────────────────────────────────────────┘
 
@@ -140,19 +140,19 @@ ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 │  Container (non-root)                           │
 │  UID=1001                                       │
 │                                                 │
-│  コンテナエスケープ脆弱性                        │
+│  Container escape vulnerability                 │
 │       │                                         │
 │       ▼                                         │
 │  ┌─────────────────────────────────────┐       │
 │  │  Host (UID=1001)                    │       │
-│  │  権限なし → 被害を最小限に抑制       │       │
+│  │  No privileges → Damage minimized  │       │
 │  └─────────────────────────────────────┘       │
 └─────────────────────────────────────────────────┘
 ```
 
 ### User Namespace Remapping
 
-Docker ホストレベルでの追加防御として、User Namespace Remapping を設定できる。これにより、コンテナ内の root (UID=0) がホスト上では非特権UID にマッピングされる。
+As an additional defense at the Docker host level, you can configure User Namespace Remapping. This maps root (UID=0) inside the container to an unprivileged UID on the host.
 
 ```json
 // /etc/docker/daemon.json
@@ -162,51 +162,51 @@ Docker ホストレベルでの追加防御として、User Namespace Remapping 
 ```
 
 ```bash
-# User Namespace Remapping の確認
-# コンテナ内で root として実行されていても
-# ホスト上では別のUIDにマッピングされる
+# Verifying User Namespace Remapping
+# Even when running as root inside the container,
+# it is mapped to a different UID on the host
 docker run --rm alpine id
-# uid=0(root) gid=0(root) ← コンテナ内では root
+# uid=0(root) gid=0(root) ← root inside the container
 
-# ホスト上での実際のUID確認
-ps aux | grep "コンテナプロセス"
-# 165536 (非特権UID) で実行されている
+# Checking the actual UID on the host
+ps aux | grep "container process"
+# Running as 165536 (unprivileged UID)
 ```
 
 ### Rootless Docker
 
-Docker デーモン自体を非rootで実行する Rootless モードも本番環境で検討すべきオプションである。
+Rootless mode, which runs the Docker daemon itself as non-root, is also an option worth considering for production environments.
 
 ```bash
-# Rootless Docker のインストール
+# Installing Rootless Docker
 curl -fsSL https://get.docker.com/rootless | sh
 
-# 環境変数の設定
+# Setting environment variables
 export PATH=$HOME/bin:$PATH
 export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock
 
-# Rootless Docker の動作確認
+# Verifying Rootless Docker operation
 docker info | grep -i "root"
 # rootless: true
 ```
 
 ---
 
-## 2. ヘルスチェック
+## 2. Health Checks
 
-### コード例2: 各種ヘルスチェック設定
+### Code Example 2: Various Health Check Configurations
 
 ```dockerfile
-# Dockerfile内でのヘルスチェック定義
+# Health check definition in Dockerfile
 FROM nginx:alpine
 
-# HTTPエンドポイントによるヘルスチェック
+# Health check via HTTP endpoint
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1
 ```
 
 ```dockerfile
-# PostgreSQL用のヘルスチェック
+# Health check for PostgreSQL
 FROM postgres:16-alpine
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
@@ -214,7 +214,7 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
 ```
 
 ```dockerfile
-# Redis用のヘルスチェック
+# Health check for Redis
 FROM redis:7-alpine
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
@@ -222,7 +222,7 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
 ```
 
 ```dockerfile
-# MongoDB用のヘルスチェック
+# Health check for MongoDB
 FROM mongo:7
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
@@ -230,7 +230,7 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
 ```
 
 ```yaml
-# docker-compose.yml でのヘルスチェック定義
+# Health check definition in docker-compose.yml
 version: "3.9"
 
 services:
@@ -242,7 +242,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-      start_interval: 5s  # 起動期間中のチェック間隔（Compose v2.3+）
+      start_interval: 5s  # Check interval during startup period (Compose v2.3+)
 
   postgres:
     image: postgres:16-alpine
@@ -261,7 +261,7 @@ services:
       timeout: 3s
       retries: 3
 
-  # 依存サービスのヘルスチェックを待ってから起動
+  # Start after waiting for dependent services' health checks
   app:
     image: my-app:latest
     depends_on:
@@ -271,46 +271,46 @@ services:
         condition: service_healthy
 ```
 
-### ヘルスチェックパラメータ比較表
+### Health Check Parameter Comparison Table
 
-| パラメータ | 説明 | 推奨値 | 注意点 |
-|-----------|------|--------|--------|
-| interval | チェック間隔 | 10-30s | 短すぎると負荷増大 |
-| timeout | タイムアウト | 3-10s | intervalより短く設定 |
-| retries | 失敗許容回数 | 3-5 | 一時的な障害を許容 |
-| start_period | 起動猶予期間 | 10-60s | アプリの起動時間に合わせる |
-| start_interval | 起動中チェック間隔 | 3-5s | 起動完了を素早く検知 |
+| Parameter | Description | Recommended Value | Notes |
+|-----------|-------------|-------------------|-------|
+| interval | Check interval | 10-30s | Too short increases load |
+| timeout | Timeout | 3-10s | Set shorter than interval |
+| retries | Failure tolerance count | 3-5 | Allows for temporary failures |
+| start_period | Startup grace period | 10-60s | Align with application startup time |
+| start_interval | Check interval during startup | 3-5s | Quickly detect startup completion |
 
-### ヘルスチェックのベストプラクティス
+### Health Check Best Practices
 
 ```
-ヘルスチェック設計の判断フロー:
+Health check design decision flow:
 
-1. エンドポイントの選択
-   ├── Webアプリ → HTTP GET /health
-   ├── データベース → 専用コマンド (pg_isready, redis-cli ping)
-   ├── メッセージキュー → 接続確認
-   └── バッチ処理 → プロセス存在確認 or ファイルタイムスタンプ
+1. Endpoint selection
+   ├── Web app → HTTP GET /health
+   ├── Database → Dedicated command (pg_isready, redis-cli ping)
+   ├── Message queue → Connection verification
+   └── Batch processing → Process existence check or file timestamp
 
-2. チェック内容の深さ
-   ├── Shallow (浅い): プロセスが応答するか
-   │   └── 高速、低負荷、基本的な死活監視
-   ├── Medium (中程度): 依存サービスとの接続確認
-   │   └── DB接続プール、キャッシュ接続
-   └── Deep (深い): 完全な機能テスト
-       └── 高コスト、本番では注意して使用
+2. Check depth
+   ├── Shallow: Does the process respond?
+   │   └── Fast, low load, basic liveness monitoring
+   ├── Medium: Verify connection to dependent services
+   │   └── DB connection pool, cache connection
+   └── Deep: Full functional test
+       └── High cost, use with care in production
 
-3. 推奨: /health は Shallow、/ready は Medium
+3. Recommendation: /health for Shallow, /ready for Medium
 ```
 
-### アプリケーション側のヘルスチェックエンドポイント実装
+### Application-Side Health Check Endpoint Implementation
 
 ```javascript
-// Node.js/Express - ヘルスチェックエンドポイント
+// Node.js/Express - Health check endpoint
 const express = require("express");
 const app = express();
 
-// Shallow Health Check（Liveness用）
+// Shallow Health Check (for Liveness)
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "ok",
@@ -319,12 +319,12 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Deep Health Check（Readiness用）
+// Deep Health Check (for Readiness)
 app.get("/ready", async (req, res) => {
   const checks = {};
   let isReady = true;
 
-  // データベース接続チェック
+  // Database connection check
   try {
     await db.query("SELECT 1");
     checks.database = "ok";
@@ -333,7 +333,7 @@ app.get("/ready", async (req, res) => {
     isReady = false;
   }
 
-  // Redis接続チェック
+  // Redis connection check
   try {
     await redis.ping();
     checks.redis = "ok";
@@ -342,7 +342,7 @@ app.get("/ready", async (req, res) => {
     isReady = false;
   }
 
-  // 外部API接続チェック
+  // External API connection check
   try {
     await fetch("https://api.external.com/status", { timeout: 3000 });
     checks.externalApi = "ok";
@@ -361,7 +361,7 @@ app.get("/ready", async (req, res) => {
 ```
 
 ```python
-# Python/FastAPI - ヘルスチェックエンドポイント
+# Python/FastAPI - Health check endpoint
 from fastapi import FastAPI, Response
 from datetime import datetime
 import asyncpg
@@ -381,7 +381,7 @@ async def readiness_check(response: Response):
     checks = {}
     is_ready = True
 
-    # データベースチェック
+    # Database check
     try:
         conn = await asyncpg.connect(dsn=DATABASE_URL)
         await conn.fetchval("SELECT 1")
@@ -391,7 +391,7 @@ async def readiness_check(response: Response):
         checks["database"] = "error"
         is_ready = False
 
-    # Redisチェック
+    # Redis check
     try:
         redis = await aioredis.from_url(REDIS_URL)
         await redis.ping()
@@ -413,9 +413,9 @@ async def readiness_check(response: Response):
 
 ---
 
-## 3. リソース制限
+## 3. Resource Limits
 
-### コード例3: メモリとCPUの制限
+### Code Example 3: Memory and CPU Limits
 
 ```yaml
 # docker-compose.yml
@@ -427,11 +427,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M       # ハード上限（超過でOOM Kill）
-          cpus: "1.0"        # CPU 1コア分
+          memory: 512M       # Hard limit (OOM Kill if exceeded)
+          cpus: "1.0"        # 1 CPU core
         reservations:
-          memory: 256M       # 最低保証メモリ
-          cpus: "0.25"       # 最低保証CPU
+          memory: 256M       # Minimum guaranteed memory
+          cpus: "0.25"       # Minimum guaranteed CPU
 
   worker:
     image: my-worker:latest
@@ -443,8 +443,8 @@ services:
         reservations:
           memory: 512M
           cpus: "0.5"
-      # OOM優先度（OOMスコア調整）
-    oom_score_adj: 100  # 正の値 → OOM Kill されやすい
+      # OOM priority (OOM score adjustment)
+    oom_score_adj: 100  # Positive value → more likely to be OOM Killed
 
   database:
     image: postgres:16-alpine
@@ -456,27 +456,27 @@ services:
         reservations:
           memory: 1G
           cpus: "1.0"
-    oom_score_adj: -500  # 負の値 → OOM Kill されにくい
+    oom_score_adj: -500  # Negative value → less likely to be OOM Killed
 ```
 
 ```bash
-# docker run でのリソース制限
+# Resource limits with docker run
 docker run -d \
   --name api \
   --memory=512m \
-  --memory-swap=512m \       # スワップ無効化（メモリと同値）
+  --memory-swap=512m \       # Disable swap (same value as memory)
   --memory-reservation=256m \
   --cpus=1.0 \
-  --cpu-shares=512 \         # 相対的なCPU配分（デフォルト1024）
-  --pids-limit=100 \         # プロセス数上限（fork爆弾対策）
-  --ulimit nofile=65535:65535 \  # ファイルディスクリプタ上限
+  --cpu-shares=512 \         # Relative CPU allocation (default 1024)
+  --pids-limit=100 \         # Process count limit (fork bomb protection)
+  --ulimit nofile=65535:65535 \  # File descriptor limit
   my-api:latest
 
-# リソース使用状況のリアルタイム監視
+# Real-time resource usage monitoring
 docker stats --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.PIDs}}"
 ```
 
-### リソース制限の動作
+### Resource Limit Behavior
 
 ```
 ┌──────────────────────────────────────────┐
@@ -486,80 +486,80 @@ docker stats --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}
 │  │   API        │  │   Worker     │    │
 │  │  limit: 512M │  │  limit: 1G   │    │
 │  │  ┌────────┐  │  │  ┌────────┐  │    │
-│  │  │使用:   │  │  │  │使用:   │  │    │
+│  │  │Usage:  │  │  │  │Usage:  │  │    │
 │  │  │ 300M   │  │  │  │ 800M   │  │    │
 │  │  └────────┘  │  │  └────────┘  │    │
 │  │              │  │              │    │
-│  │  512M到達 → │  │  1G到達 →   │    │
+│  │  512M hit → │  │  1G hit →   │    │
 │  │  OOM Kill!  │  │  OOM Kill!  │    │
 │  └──────────────┘  └──────────────┘    │
 │                                          │
-│  reservations: 最低保証                  │
-│  limits: ハード上限（超過でOOM Kill）    │
+│  reservations: minimum guarantee         │
+│  limits: hard limit (OOM Kill if exceeded)│
 └──────────────────────────────────────────┘
 ```
 
-### 言語ランタイム別のメモリ設定
+### Memory Configuration by Language Runtime
 
-各言語ランタイムには、コンテナのメモリ制限を認識するための設定が必要な場合がある。
+Some language runtimes require configuration to recognize the container's memory limits.
 
 ```bash
-# Java - コンテナのメモリ制限を自動認識
-# JDK 8u191+ / JDK 11+ では UseContainerSupport がデフォルト有効
+# Java - Automatically recognize container memory limits
+# UseContainerSupport is enabled by default in JDK 8u191+ / JDK 11+
 docker run -d \
   --memory=512m \
   -e JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0" \
   my-java-app:latest
 
-# Node.js - ヒープサイズ制限
+# Node.js - Heap size limit
 docker run -d \
   --memory=512m \
   -e NODE_OPTIONS="--max-old-space-size=384" \
   my-node-app:latest
 
-# Python - メモリ制限はOS依存（特別な設定は不要だが監視は必要）
+# Python - Memory limits are OS-dependent (no special config needed, but monitoring is required)
 docker run -d \
   --memory=512m \
   -e PYTHONDONTWRITEBYTECODE=1 \
   my-python-app:latest
 
-# Go - GOMEMLIMIT で GC を最適化（Go 1.19+）
+# Go - Optimize GC with GOMEMLIMIT (Go 1.19+)
 docker run -d \
   --memory=512m \
   -e GOMEMLIMIT=400MiB \
   my-go-app:latest
 ```
 
-### リソース使用量のサイジング指針
+### Resource Sizing Guidelines
 
-| サービスタイプ | メモリ目安 | CPU目安 | 備考 |
-|---------------|-----------|---------|------|
-| Webフロントエンド (nginx) | 64-128M | 0.1-0.5 | 静的配信は軽量 |
-| APIサーバー (Node.js) | 256-512M | 0.25-1.0 | ヒープサイズに注意 |
-| APIサーバー (Java) | 512M-2G | 0.5-2.0 | JVMヒープサイズ設定必須 |
-| ワーカー/バッチ | 512M-4G | 1.0-4.0 | 処理内容に大きく依存 |
-| PostgreSQL | 1-4G | 1.0-4.0 | shared_buffers = メモリの25% |
-| Redis | 256M-2G | 0.5-1.0 | maxmemory設定必須 |
-| Elasticsearch | 2-8G | 2.0-4.0 | ヒープ = メモリの50% |
+| Service Type | Memory Estimate | CPU Estimate | Notes |
+|--------------|----------------|--------------|-------|
+| Web frontend (nginx) | 64-128M | 0.1-0.5 | Static serving is lightweight |
+| API server (Node.js) | 256-512M | 0.25-1.0 | Watch heap size |
+| API server (Java) | 512M-2G | 0.5-2.0 | JVM heap size config required |
+| Worker/Batch | 512M-4G | 1.0-4.0 | Highly dependent on workload |
+| PostgreSQL | 1-4G | 1.0-4.0 | shared_buffers = 25% of memory |
+| Redis | 256M-2G | 0.5-1.0 | maxmemory config required |
+| Elasticsearch | 2-8G | 2.0-4.0 | Heap = 50% of memory |
 
 ---
 
-## 4. ログ戦略
+## 4. Logging Strategy
 
-### コード例4: 構造化ログの設計
+### Code Example 4: Structured Log Design
 
 ```dockerfile
-# Dockerfile - ログ設計のベストプラクティス
+# Dockerfile - Logging best practices
 FROM node:20-alpine
 
 WORKDIR /app
 COPY . .
 
-# アプリケーションは stdout/stderr に出力する
-# ファイルへの書き込みは行わない
+# Application outputs to stdout/stderr
+# Do not write to files
 CMD ["node", "server.js"]
 
-# server.js 内のログ出力例:
+# Example log output in server.js:
 # console.log(JSON.stringify({
 #   timestamp: new Date().toISOString(),
 #   level: "info",
@@ -573,21 +573,21 @@ CMD ["node", "server.js"]
 ```
 
 ```yaml
-# docker-compose.yml - ログドライバー設定
+# docker-compose.yml - Log driver configuration
 version: "3.9"
 
 services:
   api:
     image: my-api:latest
     logging:
-      driver: json-file    # デフォルトドライバー
+      driver: json-file    # Default driver
       options:
-        max-size: "10m"    # ログファイルの最大サイズ
-        max-file: "5"      # ローテーションファイル数
-        compress: "true"   # 圧縮有効化
-        tag: "{{.Name}}/{{.ID}}"  # タグ付け
+        max-size: "10m"    # Maximum log file size
+        max-file: "5"      # Number of rotation files
+        compress: "true"   # Enable compression
+        tag: "{{.Name}}/{{.ID}}"  # Tagging
 
-  # Fluentdへの転送
+  # Forwarding to Fluentd
   worker:
     image: my-worker:latest
     logging:
@@ -595,38 +595,38 @@ services:
       options:
         fluentd-address: "localhost:24224"
         tag: "docker.{{.Name}}"
-        fluentd-async: "true"     # 非同期送信（ログ損失のリスクあり）
+        fluentd-async: "true"     # Asynchronous send (risk of log loss)
         fluentd-retry-wait: "1s"
         fluentd-max-retries: "10"
 ```
 
-### ログ出力のベストプラクティス比較表
+### Log Output Best Practices Comparison Table
 
-| 方針 | 推奨 | 非推奨 | 理由 |
-|------|------|--------|------|
-| 出力先 | stdout / stderr | ファイル | Docker ログドライバーが処理 |
-| フォーマット | JSON構造化 | プレーンテキスト | パース・フィルタリングが容易 |
-| レベル管理 | 環境変数で制御 | ハードコード | 本番ではINFO以上のみ出力 |
-| ローテーション | Dockerドライバーに委任 | アプリ内logrotate | 統一管理が可能 |
-| 相関ID | request_id / trace_id を含める | ID なし | 分散トレーシングに不可欠 |
-| 機密情報 | マスクまたは除外 | そのまま出力 | パスワード・トークンの漏洩防止 |
+| Policy | Recommended | Not Recommended | Reason |
+|--------|-------------|-----------------|--------|
+| Output destination | stdout / stderr | Files | Handled by Docker log driver |
+| Format | JSON structured | Plain text | Easy to parse and filter |
+| Level management | Controlled via env vars | Hard-coded | Output only INFO and above in production |
+| Rotation | Delegate to Docker driver | In-app logrotate | Unified management possible |
+| Correlation ID | Include request_id / trace_id | No ID | Essential for distributed tracing |
+| Sensitive info | Mask or exclude | Output as-is | Prevent password/token leakage |
 
-### ログドライバー比較
+### Log Driver Comparison
 
-| ドライバー | 特徴 | ユースケース | `docker logs` 対応 |
-|-----------|------|-------------|-------------------|
-| json-file | デフォルト、JSONで保存 | 小規模、開発 | 対応 |
-| local | 最適化されたファイル形式 | 単一ホスト本番 | 対応 |
-| fluentd | Fluentdに転送 | 中〜大規模 | 非対応 |
-| syslog | syslogに転送 | Linuxネイティブ | 非対応 |
-| awslogs | CloudWatch Logsに転送 | AWS環境 | 非対応 |
-| gcplogs | Cloud Loggingに転送 | GCP環境 | 非対応 |
-| gelf | Graylogに転送 | Graylog利用時 | 非対応 |
+| Driver | Characteristics | Use Case | `docker logs` Support |
+|--------|----------------|----------|----------------------|
+| json-file | Default, saved as JSON | Small-scale, development | Supported |
+| local | Optimized file format | Single-host production | Supported |
+| fluentd | Forward to Fluentd | Medium to large-scale | Not supported |
+| syslog | Forward to syslog | Linux native | Not supported |
+| awslogs | Forward to CloudWatch Logs | AWS environments | Not supported |
+| gcplogs | Forward to Cloud Logging | GCP environments | Not supported |
+| gelf | Forward to Graylog | When using Graylog | Not supported |
 
-### Docker デーモンレベルのログ設定
+### Docker Daemon-Level Log Configuration
 
 ```json
-// /etc/docker/daemon.json - 全コンテナ共通のログ設定
+// /etc/docker/daemon.json - Common log settings for all containers
 {
   "log-driver": "json-file",
   "log-opts": {
@@ -639,10 +639,10 @@ services:
 }
 ```
 
-### 構造化ログの実装パターン（各言語）
+### Structured Log Implementation Patterns (Per Language)
 
 ```python
-# Python - structlog を使った構造化ログ
+# Python - Structured logging with structlog
 import structlog
 import logging
 
@@ -663,7 +663,7 @@ structlog.configure(
 
 logger = structlog.get_logger()
 
-# 使用例
+# Usage example
 logger.info("request_handled",
     method="GET",
     path="/api/users",
@@ -671,11 +671,11 @@ logger.info("request_handled",
     duration_ms=45,
     request_id="abc-123",
 )
-# 出力: {"event":"request_handled","method":"GET","path":"/api/users","status":200,"duration_ms":45,"request_id":"abc-123","timestamp":"2024-01-15T10:30:00Z","level":"info"}
+# Output: {"event":"request_handled","method":"GET","path":"/api/users","status":200,"duration_ms":45,"request_id":"abc-123","timestamp":"2024-01-15T10:30:00Z","level":"info"}
 ```
 
 ```go
-// Go - slog を使った構造化ログ（Go 1.21+）
+// Go - Structured logging with slog (Go 1.21+)
 package main
 
 import (
@@ -684,13 +684,13 @@ import (
 )
 
 func main() {
-    // JSON形式でstdoutに出力
+    // Output to stdout in JSON format
     logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
         Level: slog.LevelInfo,
     }))
     slog.SetDefault(logger)
 
-    // 使用例
+    // Usage example
     slog.Info("request_handled",
         "method", "GET",
         "path", "/api/users",
@@ -705,10 +705,10 @@ func main() {
 
 ## 5. Graceful Shutdown
 
-### コード例5: シグナルハンドリング
+### Code Example 5: Signal Handling
 
 ```javascript
-// server.js - Node.js のGraceful Shutdown
+// server.js - Node.js Graceful Shutdown
 const http = require("http");
 
 const server = http.createServer((req, res) => {
@@ -720,18 +720,18 @@ server.listen(3000, () => {
   console.log("Server started on port 3000");
 });
 
-// SIGTERM: docker stop が送信するシグナル
+// SIGTERM: Signal sent by docker stop
 process.on("SIGTERM", () => {
   console.log("SIGTERM received. Shutting down gracefully...");
 
   server.close(() => {
     console.log("HTTP server closed");
-    // DB接続のクリーンアップ
-    // メッセージキューの切断
+    // DB connection cleanup
+    // Message queue disconnection
     process.exit(0);
   });
 
-  // 強制終了のタイムアウト（SIGKILLの前に自主終了）
+  // Forced shutdown timeout (self-exit before SIGKILL)
   setTimeout(() => {
     console.error("Forced shutdown after timeout");
     process.exit(1);
@@ -752,13 +752,13 @@ shutdown_event = asyncio.Event()
 @app.on_event("shutdown")
 async def shutdown():
     print("Shutting down gracefully...")
-    # DB接続プールのクローズ
+    # Close DB connection pool
     await database.disconnect()
-    # バックグラウンドタスクの完了待ち
+    # Wait for background tasks to complete
     await task_queue.close()
     print("Cleanup completed")
 
-# uvicornはSIGTERMを自動的にハンドリング
+# uvicorn handles SIGTERM automatically
 if __name__ == "__main__":
     uvicorn.run(
         app,
@@ -785,7 +785,7 @@ import (
 func main() {
     srv := &http.Server{Addr: ":8080"}
 
-    // シグナルハンドリング
+    // Signal handling
     sigChan := make(chan os.Signal, 1)
     signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 
@@ -797,11 +797,11 @@ func main() {
 
     log.Println("Server started on :8080")
 
-    // シグナル待ち
+    // Wait for signal
     sig := <-sigChan
     log.Printf("Received signal: %s. Shutting down...", sig)
 
-    // Graceful Shutdown（30秒タイムアウト）
+    // Graceful Shutdown (30 second timeout)
     ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer cancel()
 
@@ -814,19 +814,19 @@ func main() {
 ```
 
 ```dockerfile
-# Dockerfile - 正しいエントリポイント設定
+# Dockerfile - Correct entrypoint configuration
 FROM node:20-alpine
 
 WORKDIR /app
 COPY . .
 
-# NG: shell形式（シグナルが /bin/sh に届き、nodeプロセスに伝わらない）
+# NG: Shell form (signal reaches /bin/sh and does not propagate to node process)
 # CMD node server.js
 
-# OK: exec形式（nodeプロセスがPID 1として起動し、シグナルを直接受信）
+# OK: Exec form (node process starts as PID 1 and directly receives signals)
 CMD ["node", "server.js"]
 
-# または、tiniを使用してPID 1問題を解決
+# Or, use tini to solve PID 1 problem
 # RUN apk add --no-cache tini
 # ENTRYPOINT ["tini", "--"]
 # CMD ["node", "server.js"]
@@ -837,163 +837,163 @@ CMD ["node", "server.js"]
 services:
   api:
     image: my-api:latest
-    stop_grace_period: 30s  # SIGTERMからSIGKILLまでの猶予時間
-    stop_signal: SIGTERM    # デフォルト
+    stop_grace_period: 30s  # Grace period from SIGTERM to SIGKILL
+    stop_signal: SIGTERM    # Default
 ```
 
-### シグナルハンドリングのフロー
+### Signal Handling Flow
 
 ```
-docker stop コンテナ
+docker stop container
     │
     ▼
-SIGTERM をPID 1に送信
+Send SIGTERM to PID 1
     │
     ▼
 ┌────────────────────────────────────────┐
-│  アプリケーション                       │
-│  1. 新規リクエストの受付を停止          │
-│  2. 処理中のリクエストを完了            │
-│  3. DB接続をクローズ                    │
-│  4. ファイルハンドルをクローズ          │
-│  5. exit(0) で正常終了                  │
+│  Application                           │
+│  1. Stop accepting new requests        │
+│  2. Complete in-flight requests        │
+│  3. Close DB connections               │
+│  4. Close file handles                 │
+│  5. Normal exit with exit(0)           │
 └────────────────────────────────────────┘
     │
-    │ stop_grace_period 経過（デフォルト10秒）
+    │ stop_grace_period elapsed (default 10 seconds)
     ▼
-SIGKILL を送信（強制終了）
+Send SIGKILL (forced termination)
 ```
 
-### PID 1 問題と tini/dumb-init
+### PID 1 Problem and tini/dumb-init
 
-コンテナ内のPID 1プロセスには、通常のLinuxプロセスと異なる特殊な挙動がある。
+The PID 1 process inside a container has special behavior different from normal Linux processes.
 
 ```
-PID 1 の特殊性:
-- SIGTERMのデフォルト動作（終了）が適用されない
-- 子プロセスの終了（ゾンビプロセス）を回収する責任がある
-- シェル形式の CMD では /bin/sh が PID 1 になり、
-  アプリケーションプロセスにシグナルが伝播しない
+Special characteristics of PID 1:
+- The default SIGTERM behavior (termination) does not apply
+- Responsible for reaping terminated child processes (zombie processes)
+- With shell-form CMD, /bin/sh becomes PID 1
+  and signals do not propagate to the application process
 
-解決策:
+Solutions:
 ┌─────────────────────────────────────────────┐
-│ 1. exec形式のCMD（推奨）                     │
-│    CMD ["node", "server.js"]                 │
-│    → node が PID 1 として直接シグナルを受信   │
+│ 1. Exec-form CMD (recommended)              │
+│    CMD ["node", "server.js"]                │
+│    → node directly receives signals as PID 1│
 │                                              │
-│ 2. tini / dumb-init の使用（より堅牢）        │
-│    ENTRYPOINT ["tini", "--"]                 │
-│    CMD ["node", "server.js"]                 │
-│    → tini が PID 1、node は PID 2            │
-│    → ゾンビプロセス回収 + シグナル転送        │
+│ 2. Use tini / dumb-init (more robust)       │
+│    ENTRYPOINT ["tini", "--"]                │
+│    CMD ["node", "server.js"]                │
+│    → tini is PID 1, node is PID 2           │
+│    → Zombie process reaping + signal forward│
 │                                              │
-│ 3. Docker の --init フラグ                    │
-│    docker run --init my-app:latest           │
-│    → Docker が自動的に tini を注入            │
+│ 3. Docker's --init flag                     │
+│    docker run --init my-app:latest          │
+│    → Docker automatically injects tini      │
 └─────────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. 本番用Dockerfileのテンプレート
+## 6. Production Dockerfile Templates
 
-### コード例6: 本番グレードのマルチステージDockerfile
+### Code Example 6: Production-Grade Multi-Stage Dockerfile
 
 ```dockerfile
-# === ビルドステージ ===
+# === Build Stage ===
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 依存関係のインストール（キャッシュ活用）
+# Install dependencies (leveraging cache)
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# ソースコードのコピーとビルド
+# Copy source code and build
 COPY . .
 RUN npm run build
 
-# 不要な開発依存関係を除去
+# Remove unnecessary dev dependencies
 RUN npm prune --production
 
-# === 本番ステージ ===
+# === Production Stage ===
 FROM node:20-alpine AS production
 
-# セキュリティアップデート
+# Security updates
 RUN apk update && apk upgrade --no-cache && \
     apk add --no-cache tini dumb-init
 
-# 非rootユーザー
+# Non-root user
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
 WORKDIR /app
 
-# ビルド成果物のみコピー
+# Copy only build artifacts
 COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
 COPY --from=builder --chown=appuser:appgroup /app/package.json ./
 
-# ヘルスチェック
+# Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-# メタデータ
+# Metadata
 LABEL maintainer="team@example.com" \
       version="1.0.0" \
       description="Production API server"
 
-# 非rootユーザーで実行
+# Run as non-root user
 USER appuser
 
 EXPOSE 3000
 
-# tiniでPID 1問題を解決
+# Solve PID 1 problem with tini
 ENTRYPOINT ["tini", "--"]
 CMD ["node", "dist/server.js"]
 ```
 
-### Python 本番Dockerfile
+### Python Production Dockerfile
 
 ```dockerfile
-# === ビルドステージ ===
+# === Build Stage ===
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# 仮想環境を使用してシステムPythonを汚染しない
+# Use virtual environment to avoid polluting system Python
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# === 本番ステージ ===
+# === Production Stage ===
 FROM python:3.12-slim AS production
 
-# セキュリティアップデート
+# Security updates
 RUN apt-get update && apt-get upgrade -y --no-install-recommends && \
     apt-get install -y --no-install-recommends tini wget && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 非rootユーザー
+# Non-root user
 RUN groupadd -g 1001 appgroup && \
     useradd -u 1001 -g appgroup -s /bin/false -m appuser
 
 WORKDIR /app
 
-# 仮想環境をコピー
+# Copy virtual environment
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# アプリケーションコードをコピー
+# Copy application code
 COPY --chown=appuser:appgroup . .
 
-# ヘルスチェック
+# Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8000/health || exit 1
 
-# 環境変数
+# Environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
@@ -1005,10 +1005,10 @@ ENTRYPOINT ["tini", "--"]
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "app:create_app()"]
 ```
 
-### Go 本番Dockerfile
+### Go Production Dockerfile
 
 ```dockerfile
-# === ビルドステージ ===
+# === Build Stage ===
 FROM golang:1.22-alpine AS builder
 
 RUN apk add --no-cache ca-certificates tzdata
@@ -1023,7 +1023,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-s -w -X main.version=$(cat VERSION)" \
     -o /app/server ./cmd/server
 
-# === 本番ステージ（distroless） ===
+# === Production Stage (distroless) ===
 FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
@@ -1039,9 +1039,9 @@ ENTRYPOINT ["/server"]
 
 ---
 
-## 7. 本番チェックリスト
+## 7. Production Checklist
 
-### コード例7: docker-compose本番設定
+### Code Example 7: docker-compose Production Configuration
 
 ```yaml
 # docker-compose.prod.yml
@@ -1050,16 +1050,16 @@ version: "3.9"
 services:
   api:
     image: registry.example.com/api:${VERSION:-latest}
-    restart: unless-stopped        # 自動再起動
-    read_only: true                # ルートFS読み取り専用
+    restart: unless-stopped        # Auto-restart
+    read_only: true                # Root FS read-only
     tmpfs:
-      - /tmp:size=100m,noexec     # tmpのみ書き込み可
+      - /tmp:size=100m,noexec     # Only tmp is writable
     security_opt:
-      - no-new-privileges:true     # 権限昇格を禁止
+      - no-new-privileges:true     # Prohibit privilege escalation
     cap_drop:
-      - ALL                        # 全Capabilityを削除
+      - ALL                        # Remove all Capabilities
     cap_add:
-      - NET_BIND_SERVICE           # 必要なもののみ追加
+      - NET_BIND_SERVICE           # Add only what is needed
     deploy:
       resources:
         limits:
@@ -1082,68 +1082,68 @@ services:
       - app-net
 ```
 
-### 本番前デプロイチェックリスト
+### Pre-Production Deployment Checklist
 
-以下のチェックリストに全て合格してから本番デプロイを実施する。
+All items in the following checklist must pass before proceeding with production deployment.
 
 ```
-## セキュリティチェック
-□ 非rootユーザーで実行 (USER命令)
-□ read_only: true 設定
-□ cap_drop: ALL + 必要な cap_add のみ
+## Security Checks
+□ Running as non-root user (USER instruction)
+□ read_only: true configured
+□ cap_drop: ALL + only necessary cap_add
 □ no-new-privileges: true
-□ 機密情報は環境変数 or シークレット管理
-□ ベースイメージにセキュリティアップデート適用
-□ Trivyでイメージスキャン済み（CRITICAL/HIGH なし）
-□ .dockerignore で .env, .git, node_modules を除外
+□ Sensitive info via environment variables or secret management
+□ Security updates applied to base image
+□ Image scanned with Trivy (no CRITICAL/HIGH)
+□ .env, .git, node_modules excluded via .dockerignore
 
-## 信頼性チェック
-□ HEALTHCHECK 定義済み
-□ restart: unless-stopped 設定
-□ メモリ制限 (deploy.resources.limits.memory)
-□ CPU制限 (deploy.resources.limits.cpus)
-□ Graceful Shutdown 実装 (SIGTERM ハンドリング)
-□ stop_grace_period 設定
-□ 依存サービスの healthcheck + depends_on condition
+## Reliability Checks
+□ HEALTHCHECK defined
+□ restart: unless-stopped configured
+□ Memory limit (deploy.resources.limits.memory)
+□ CPU limit (deploy.resources.limits.cpus)
+□ Graceful Shutdown implemented (SIGTERM handling)
+□ stop_grace_period configured
+□ Dependent services have healthcheck + depends_on condition
 
-## ログ・監視チェック
-□ ログは stdout/stderr に出力
-□ JSON構造化ログ
-□ ログローテーション設定 (max-size, max-file)
-□ /health エンドポイント実装
-□ /metrics エンドポイント実装 (Prometheus)
-□ request_id / trace_id をログに含める
+## Logging and Monitoring Checks
+□ Logs output to stdout/stderr
+□ JSON structured logging
+□ Log rotation configured (max-size, max-file)
+□ /health endpoint implemented
+□ /metrics endpoint implemented (Prometheus)
+□ request_id / trace_id included in logs
 
-## イメージチェック
-□ マルチステージビルド（本番ステージにビルドツール不要）
-□ 明示的なバージョンタグ（latestタグ不使用）
-□ .dockerignore で不要ファイル除外
-□ LABEL でメタデータ付与
-□ exec形式の CMD（shell形式でない）
-□ tini or dumb-init で PID 1 問題を解決
+## Image Checks
+□ Multi-stage build (build tools not needed in production stage)
+□ Explicit version tags (no use of latest tag)
+□ Unnecessary files excluded via .dockerignore
+□ Metadata added with LABEL
+□ Exec-form CMD (not shell-form)
+□ PID 1 problem resolved with tini or dumb-init
 
-## ネットワークチェック
-□ 不要なポートを EXPOSE していない
-□ 内部通信用ネットワークは internal: true
-□ TLS/SSL 設定（直接 or リバースプロキシ経由）
+## Network Checks
+□ No unnecessary ports EXPOSEd
+□ Internal communication networks use internal: true
+□ TLS/SSL configured (directly or via reverse proxy)
 ```
 
-### 環境変数とシークレット管理
+### Environment Variables and Secret Management
 
 ```yaml
-# docker-compose.prod.yml - シークレット管理
+# docker-compose.prod.yml - Secret management
 version: "3.9"
 
 services:
   api:
     image: my-api:latest
     environment:
-      # 非機密設定は環境変数で直接指定
+      # Non-sensitive config specified directly as environment variables
       NODE_ENV: production
       LOG_LEVEL: info
       PORT: "3000"
     env_file:
-      - .env.production  # 環境固有の設定
+      - .env.production  # Environment-specific settings
     secrets:
       - db_password
       - api_key
@@ -1151,15 +1151,15 @@ services:
 
 secrets:
   db_password:
-    file: ./secrets/db_password.txt    # ファイルベース
+    file: ./secrets/db_password.txt    # File-based
   api_key:
-    external: true                      # Docker Swarm シークレット
+    external: true                      # Docker Swarm secret
   jwt_secret:
-    environment: JWT_SECRET             # 環境変数から（Compose v2.17+）
+    environment: JWT_SECRET             # From environment variable (Compose v2.17+)
 ```
 
 ```javascript
-// Node.js - Docker シークレットの読み取り
+// Node.js - Reading Docker secrets
 const fs = require("fs");
 const path = require("path");
 
@@ -1168,7 +1168,7 @@ function readSecret(secretName) {
   try {
     return fs.readFileSync(secretPath, "utf8").trim();
   } catch (err) {
-    // シークレットファイルがない場合は環境変数にフォールバック
+    // Fall back to environment variable if secret file is not found
     return process.env[secretName.toUpperCase()];
   }
 }
@@ -1179,12 +1179,12 @@ const jwtSecret = readSecret("jwt_secret");
 
 ---
 
-## 8. ネットワークセキュリティ
+## 8. Network Security
 
-### 本番ネットワーク設計
+### Production Network Design
 
 ```yaml
-# docker-compose.prod.yml - ネットワーク分離
+# docker-compose.prod.yml - Network isolation
 version: "3.9"
 
 services:
@@ -1194,37 +1194,37 @@ services:
       - "443:443"
     networks:
       - frontend
-    # nginx のみが外部に公開される
+    # Only nginx is exposed externally
 
   api:
     image: my-api:latest
     networks:
-      - frontend    # nginx からのリクエストを受信
-      - backend     # DB/Redis への接続
-    # ポートは公開しない（nginx経由のみ）
+      - frontend    # Receives requests from nginx
+      - backend     # Connects to DB/Redis
+    # Ports are not published (only via nginx)
 
   postgres:
     image: postgres:16-alpine
     networks:
-      - backend     # API からのみアクセス可能
-    # ポートは公開しない
+      - backend     # Accessible only from API
+    # Ports are not published
 
   redis:
     image: redis:7-alpine
     networks:
       - backend
-    # ポートは公開しない
+    # Ports are not published
 
 networks:
   frontend:
     driver: bridge
   backend:
     driver: bridge
-    internal: true  # 外部アクセス不可（インターネット接続なし）
+    internal: true  # No external access (no internet connection)
 ```
 
 ```
-ネットワーク分離の図:
+Network isolation diagram:
 
 Internet
     │
@@ -1248,25 +1248,25 @@ Internet
 │  │  redis   │◄─────│   api    │        │
 │  └──────────┘      └──────────┘        │
 │                                         │
-│  ※ internal: true により                │
-│    外部インターネットへの通信を遮断       │
+│  ※ internal: true blocks               │
+│    external internet communication      │
 └─────────────────────────────────────────┘
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: rootでのコンテナ実行
+### Anti-Pattern 1: Running Containers as Root
 
 ```dockerfile
-# NG: USERを指定しない（rootで実行される）
+# NG: No USER specified (runs as root)
 FROM node:20-alpine
 WORKDIR /app
 COPY . .
 CMD ["node", "server.js"]
 
-# OK: 専用ユーザーで実行
+# OK: Run as a dedicated user
 FROM node:20-alpine
 WORKDIR /app
 COPY . .
@@ -1274,18 +1274,18 @@ USER node
 CMD ["node", "server.js"]
 ```
 
-**なぜ問題か**: rootで実行されたコンテナが侵害されると、ホストのroot権限が奪取される可能性がある。最小権限の原則に従い、専用ユーザーで実行する。
+**Why it's a problem**: If a container running as root is compromised, there is a risk that host root privileges can be obtained. Follow the principle of least privilege and run as a dedicated user.
 
-### アンチパターン2: リソース制限なしでの本番運用
+### Anti-Pattern 2: Running in Production Without Resource Limits
 
 ```yaml
-# NG: リソース制限なし
+# NG: No resource limits
 services:
   api:
     image: my-api:latest
-    # → メモリリークで他のコンテナを巻き込んでホストがクラッシュ
+    # → Memory leak can crash the host, taking down other containers
 
-# OK: 適切なリソース制限を設定
+# OK: Set appropriate resource limits
 services:
   api:
     image: my-api:latest
@@ -1296,99 +1296,99 @@ services:
           cpus: "1.0"
 ```
 
-**なぜ問題か**: リソース制限のないコンテナがメモリリークを起こすと、ホスト全体のメモリを消費し、他の全コンテナとホストOSに影響する。
+**Why it's a problem**: If a container without resource limits experiences a memory leak, it will consume all host memory and affect all other containers and the host OS.
 
-### アンチパターン3: ログファイルのコンテナ内蓄積
+### Anti-Pattern 3: Accumulating Log Files Inside the Container
 
 ```bash
-# NG: ログをコンテナ内のファイルに書き込み
-# アプリが /var/log/app.log に書き込む → コンテナサイズ肥大化
+# NG: Write logs to a file inside the container
+# App writes to /var/log/app.log → Container size bloat
 
-# OK: stdout/stderrに出力し、Dockerログドライバーに委任
-# console.log(), print(), fmt.Println() を使用
+# OK: Output to stdout/stderr and delegate to Docker log driver
+# Use console.log(), print(), fmt.Println()
 ```
 
-**なぜ問題か**: コンテナ内のファイルシステムは一時的で、コンテナ再起動でログが消失する。またコンテナのディスク使用量が増大し続ける。
+**Why it's a problem**: The container filesystem is ephemeral, and logs are lost when the container restarts. Also, container disk usage grows continuously.
 
-### アンチパターン4: 環境変数にシークレットを直接記述
+### Anti-Pattern 4: Writing Secrets Directly in Environment Variables
 
 ```yaml
-# NG: docker-compose.yml にパスワードを直書き
+# NG: Write passwords directly in docker-compose.yml
 services:
   api:
     environment:
       DB_PASSWORD: "MySecretPassword123!"
       API_KEY: "sk-1234567890abcdef"
 
-# OK: Docker Secrets または .env ファイル（.gitignore対象）を使用
+# OK: Use Docker Secrets or .env file (included in .gitignore)
 services:
   api:
     env_file:
-      - .env.production  # .gitignore に含める
+      - .env.production  # Include in .gitignore
     secrets:
       - db_password
 ```
 
-**なぜ問題か**: docker-compose.yml をGitリポジトリにコミットすると、シークレットが履歴に残り、漏洩の原因になる。
+**Why it's a problem**: Committing docker-compose.yml to a Git repository leaves secrets in the history, leading to leakage.
 
-### アンチパターン5: shell形式のCMD
+### Anti-Pattern 5: Shell-Form CMD
 
 ```dockerfile
-# NG: shell形式（/bin/sh -c でラップされる）
+# NG: Shell form (wrapped in /bin/sh -c)
 CMD node server.js
 # PID 1 = /bin/sh, PID 2 = node
-# → SIGTERMが/bin/shに届き、nodeに伝わらない
+# → SIGTERM reaches /bin/sh and does not propagate to node
 
-# OK: exec形式
+# OK: Exec form
 CMD ["node", "server.js"]
 # PID 1 = node
-# → SIGTERMがnodeに直接届く
+# → SIGTERM reaches node directly
 ```
 
-**なぜ問題か**: shell形式では、SIGTERMシグナルがシェルプロセスに届き、アプリケーションプロセスにはデフォルトで転送されない。Graceful Shutdownが機能しなくなる。
+**Why it's a problem**: With shell form, the SIGTERM signal reaches the shell process and is not forwarded to the application process by default. Graceful Shutdown will not work.
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Input value validation"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1397,26 +1397,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1424,7 +1424,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1435,14 +1435,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1450,7 +1450,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1458,44 +1458,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1504,7 +1504,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1519,47 +1519,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Configuration file issues | Check configuration file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry processing |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access privileges | Check running user privileges, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Stepwise verification**: Verify hypotheses using log output or a debugger
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1567,102 +1567,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|-------------|----------------|----------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize When | Acceptable to Compromise When |
+|-----------|----------------|-------------------------------|
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② What is the deployment frequency?            │
+│    ├─ Weekly or less → Monolith + module split  │
+│    └─ Daily/multiple times → Go to ③            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are the teams?               │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Conduct analysis from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term costs**
+- A method that is fast in the short term may become technical debt in the long term
+- Conversely, over-engineering incurs high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has low learning costs
+- Adopting diverse technologies allows using the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction has high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1672,17 +1672,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1690,7 +1690,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1698,15 +1698,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1715,17 +1715,17 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: `restart: always` と `restart: unless-stopped` の違いは？
+### Q1: What is the difference between `restart: always` and `restart: unless-stopped`?
 
-`always` はDocker デーモン起動時に常にコンテナを再起動する。`unless-stopped` はユーザーが明示的に `docker stop` したコンテナはデーモン再起動時に再起動しない。本番では `unless-stopped` を推奨。メンテナンスのために停止したコンテナが意図せず再起動されることを防ぐ。
+`always` always restarts the container when the Docker daemon starts. `unless-stopped` does not restart containers that were explicitly stopped by the user when the daemon restarts. `unless-stopped` is recommended for production. This prevents containers stopped for maintenance from being unintentionally restarted.
 
-### Q2: ヘルスチェックのテストコマンドに curl と wget のどちらを使うべき？
+### Q2: Should I use curl or wget for the health check test command?
 
-alpineベースイメージには `wget` が含まれているが `curl` は含まれていない。追加パッケージのインストールはイメージサイズ増加につながるため、alpineベースでは `wget` を使う。Debianベースでは `curl` が利用可能。最も軽量な方法はアプリケーション内にヘルスチェック用CLIを組み込むこと。
+Alpine-based images include `wget` but not `curl`. Installing additional packages increases image size, so use `wget` with alpine-based images. `curl` is available on Debian-based images. The lightest approach is to embed a health check CLI within the application itself.
 
-### Q3: `read_only: true` でアプリケーションが動作しない場合の対処法は？
+### Q3: What should I do when the application does not work with `read_only: true`?
 
-`tmpfs` マウントで一時書き込み領域を提供する。多くのアプリケーションは `/tmp` や `/var/run` への書き込みが必要。
+Provide a temporary write area with `tmpfs` mounts. Many applications need to write to `/tmp` or `/var/run`.
 
 ```yaml
 services:
@@ -1736,81 +1736,81 @@ services:
       - /var/run:size=10m
 ```
 
-### Q4: Docker Composeの本番利用は推奨されるか？
+### Q4: Is Docker Compose recommended for production use?
 
-Docker Compose は単一ホストでの本番運用に十分対応できる。ただし以下の制約を理解した上で使用する:
+Docker Compose is fully capable of handling single-host production operations. However, use it with an understanding of the following limitations:
 
-- **単一障害点**: ホスト障害で全サービス停止
-- **スケーリング**: 同一ホスト内でのスケーリングのみ
-- **ゼロダウンタイムデプロイ**: `--scale` と healthcheck で疑似的に実現可能だが完全ではない
+- **Single point of failure**: All services stop if the host fails
+- **Scaling**: Scaling is only possible within the same host
+- **Zero-downtime deployment**: Can be approximated with `--scale` and healthcheck, but not complete
 
-中〜大規模や高可用性が必須の場合は、Docker Swarm や Kubernetes への移行を検討する。
+For medium to large scale or when high availability is required, consider migrating to Docker Swarm or Kubernetes.
 
-### Q5: コンテナのセキュリティスキャンはどの頻度で行うべきか？
+### Q5: How frequently should container security scans be performed?
 
-- **CIパイプライン**: 全ビルドでスキャン（必須）
-- **定期スキャン**: 週1回以上、デプロイ済みイメージをスキャン
-- **ベースイメージ更新時**: 即座にリビルド+スキャン
+- **CI pipeline**: Scan on every build (mandatory)
+- **Regular scans**: Scan deployed images at least once a week
+- **On base image updates**: Rebuild and scan immediately
 
 ```bash
-# Trivyでのイメージスキャン
+# Image scanning with Trivy
 trivy image --severity CRITICAL,HIGH my-app:latest
 
-# 既知の脆弱性のみを検知（修正可能なもの）
+# Detect only known vulnerabilities (fixable ones)
 trivy image --ignore-unfixed --severity CRITICAL my-app:latest
 
-# SBOM（ソフトウェア部品表）の生成
+# Generate SBOM (Software Bill of Materials)
 trivy image --format spdx-json --output sbom.json my-app:latest
 ```
 
-### Q6: distroless イメージとは何か？使うべきか？
+### Q6: What are distroless images? Should I use them?
 
-Googleが提供する最小構成のコンテナイメージ。シェル、パッケージマネージャー、その他のOSユーティリティを含まない。攻撃対象面が極小で、CVE数も最少。Go や Java のような単一バイナリ/JARのアプリケーションに最適。
+Minimal container images provided by Google. They do not include shells, package managers, or other OS utilities. The attack surface is minimal, and the number of CVEs is at a minimum. Ideal for applications like Go or Java that produce a single binary/JAR.
 
 ```dockerfile
-# distroless を使った Go アプリケーション
+# Go application using distroless
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=builder /app/server /server
 USER nonroot:nonroot
 ENTRYPOINT ["/server"]
 ```
 
-デバッグ時は `:debug` タグを使用するとシェルが含まれる。
+Use the `:debug` tag for debugging, which includes a shell.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
-|------|---------|
-| 非rootユーザー | `USER` 命令で専用ユーザーに切り替え。最小権限の原則 |
-| ヘルスチェック | interval/timeout/retries/start_period の4パラメータを適切に設定 |
-| リソース制限 | memory limits必須。cpus/pids-limitも設定。OOM Kill対策 |
-| ログ戦略 | stdout/stderrへのJSON構造化出力。ログドライバーで転送 |
-| Graceful Shutdown | SIGTERMハンドリング。exec形式CMD。tini活用 |
-| 読取専用FS | `read_only: true` + tmpfsで書き込みを最小化 |
-| Capability | `cap_drop: ALL` + 必要なもののみ `cap_add` |
-| ネットワーク分離 | frontend/backend分離。internal: true で外部遮断 |
-| シークレット管理 | Docker Secrets / env_file。直書き厳禁 |
-| イメージセキュリティ | Trivyスキャン。distroless / alpine で最小構成 |
-
----
-
-## 次に読むべきガイド
-
-- [モニタリング](./01-monitoring.md) -- Prometheus/Grafanaによる監視体制の構築
-- [Docker CI/CD](./02-ci-cd-docker.md) -- ビルド・デプロイ自動化パイプライン
-- [コンテナセキュリティ](../06-security/00-container-security.md) -- セキュリティの包括的な実践
+| Item | Key Points |
+|------|-----------|
+| Non-root user | Switch to a dedicated user with the `USER` instruction. Principle of least privilege |
+| Health check | Set the 4 parameters interval/timeout/retries/start_period appropriately |
+| Resource limits | Memory limits are mandatory. Also configure cpus/pids-limit. Prevent OOM Kill |
+| Logging strategy | JSON structured output to stdout/stderr. Forward with log driver |
+| Graceful Shutdown | SIGTERM handling. Exec-form CMD. Use tini |
+| Read-only FS | Minimize writes with `read_only: true` + tmpfs |
+| Capabilities | `cap_drop: ALL` + `cap_add` only what is necessary |
+| Network isolation | Separate frontend/backend. Block external access with internal: true |
+| Secret management | Docker Secrets / env_file. Never hard-code secrets |
+| Image security | Trivy scan. Minimal configuration with distroless / alpine |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. Docker公式ドキュメント "Docker security" -- https://docs.docker.com/engine/security/
+- [Monitoring](./01-monitoring.md) -- Building a monitoring system with Prometheus/Grafana
+- [Docker CI/CD](./02-ci-cd-docker.md) -- Build and deploy automation pipeline
+- [Container Security](../06-security/00-container-security.md) -- Comprehensive security practices
+
+---
+
+## References
+
+1. Docker Official Documentation "Docker security" -- https://docs.docker.com/engine/security/
 2. CIS Docker Benchmark -- https://www.cisecurity.org/benchmark/docker
 3. NIST SP 800-190 "Application Container Security Guide" -- https://csrc.nist.gov/publications/detail/sp/800-190/final
 4. Liz Rice (2020) *Container Security: Fundamental Technology Concepts that Protect Containerized Applications*, O'Reilly
-5. Docker公式ドキュメント "Configure logging drivers" -- https://docs.docker.com/config/containers/logging/
+5. Docker Official Documentation "Configure logging drivers" -- https://docs.docker.com/config/containers/logging/
 6. Google "Distroless" Container Images -- https://github.com/GoogleContainerTools/distroless
-7. Docker公式ドキュメント "Rootless mode" -- https://docs.docker.com/engine/security/rootless/
+7. Docker Official Documentation "Rootless mode" -- https://docs.docker.com/engine/security/rootless/
 8. Adrian Mouat (2023) *Docker: Up & Running*, 3rd Edition, O'Reilly
