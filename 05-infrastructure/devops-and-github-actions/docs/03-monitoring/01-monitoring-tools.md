@@ -1,122 +1,123 @@
-# 監視ツール
+# Monitoring Tools
 
-> Datadog、Grafana、CloudWatch の特徴を理解し、システム規模と要件に応じた最適な監視基盤を構築する
+> Understand the characteristics of Datadog, Grafana, and CloudWatch, and build an optimal monitoring infrastructure suited to your system scale and requirements
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Grafana + Prometheus によるOSS監視スタック** — メトリクス収集、ダッシュボード構築、PromQL の活用
-2. **Datadog によるフルスタック監視** — SaaS ベースの統合監視プラットフォームの活用
-3. **AWS CloudWatch による AWS ネイティブ監視** — メトリクス、ログ、アラーム、ダッシュボードの構成
-4. **Grafana Loki によるログ集約** — ラベルベースの軽量ログ基盤の設計と LogQL クエリ
-5. **長期保存とスケーリング** — Thanos・Cortex・Mimir によるマルチクラスタ監視の実現
+1. **OSS Monitoring Stack with Grafana + Prometheus** — Metrics collection, dashboard building, and PromQL usage
+2. **Full-Stack Monitoring with Datadog** — Leveraging a SaaS-based integrated monitoring platform
+3. **AWS-Native Monitoring with CloudWatch** — Configuring metrics, logs, alarms, and dashboards
+4. **Log Aggregation with Grafana Loki** — Designing a lightweight label-based log infrastructure and writing LogQL queries
+5. **Long-Term Storage and Scaling** — Achieving multi-cluster monitoring with Thanos, Cortex, and Mimir
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [オブザーバビリティ](./00-observability.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Observability](./00-observability.md)
 
 ---
 
-## 1. 監視ツールの全体像
+## 1. Overview of Monitoring Tools
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│               監視ツールの選択肢                       │
+│               Monitoring Tool Options                  │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
-│  OSS スタック (自前運用)                                │
+│  OSS Stack (self-hosted)                              │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐           │
 │  │Prometheus│─►│ Grafana  │  │  Loki    │           │
-│  │(メトリクス)│  │(可視化)   │  │(ログ)    │           │
+│  │(metrics) │  │(viz)     │  │(logs)    │           │
 │  └──────────┘  └──────────┘  └──────────┘           │
 │  ┌──────────┐  ┌──────────┐                         │
 │  │  Jaeger  │  │ Alertmgr │                         │
-│  │(トレース) │  │(アラート) │                         │
+│  │(traces)  │  │(alerts)  │                         │
 │  └──────────┘  └──────────┘                         │
 │                                                      │
-│  SaaS (マネージド)                                     │
+│  SaaS (managed)                                      │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐           │
 │  │ Datadog  │  │ New Relic│  │CloudWatch│           │
-│  │(フルスタック)│ │(APM重視) │  │(AWS特化) │           │
+│  │(full     │  │(APM-     │  │(AWS-     │           │
+│  │ stack)   │  │ focused) │  │ native)  │           │
 │  └──────────┘  └──────────┘  └──────────┘           │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.1 監視ツール選定フレームワーク
+### 1.1 Monitoring Tool Selection Framework
 
-監視ツールの選定は、組織のフェーズ・チーム規模・技術スタックに大きく依存する。以下のフレームワークで判断する。
+Choosing a monitoring tool depends heavily on your organization's phase, team size, and technology stack. Use the following framework to guide your decision.
 
 ```
-選定判断フロー:
+Selection Decision Flow:
 
   ┌───────────────────┐
-  │ AWS のみ使用？     │
+  │ AWS only?          │
   └────────┬──────────┘
            │
      ┌─────┼─────┐
      Yes         No
      │           │
      ▼           ▼
-  CloudWatch   ┌───────────────────┐
-  で十分か？    │ 専任 SRE チーム     │
-     │         │ がいるか？          │
-   ┌─┼─┐       └────────┬──────────┘
-   Yes No            ┌───┼────┐
-   │   │             Yes      No
-   ▼   ▼             │        │
-  CW   CW +          ▼        ▼
-  のみ  Grafana      OSS      SaaS
-       連携         スタック   (Datadog等)
+  Is CloudWatch  ┌───────────────────┐
+  enough?        │ Dedicated SRE     │
+     │           │ team available?    │
+   ┌─┼─┐         └────────┬──────────┘
+   Yes No              ┌───┼────┐
+   │   │               Yes      No
+   ▼   ▼               │        │
+  CW   CW +            ▼        ▼
+  only Grafana        OSS      SaaS
+       integration   Stack   (Datadog etc.)
 ```
 
-| 判断基準 | OSS (Prometheus+Grafana) | Datadog | CloudWatch |
-|----------|--------------------------|---------|------------|
-| チーム規模 | SRE 2名以上 | 少人数でも可 | AWS チームなら即時 |
-| 月額コスト | インフラ費のみ ($100-500) | $500-$10,000+ | $100-$500 |
-| カスタマイズ性 | 非常に高い | 高い | 中程度 |
-| 運用負荷 | 高い | 低い | 低い |
-| マルチクラウド | 得意 | 得意 | AWS のみ |
-| 立ち上げ速度 | 遅い (1-2週間) | 速い (数時間) | 最速 (即時) |
-| ベンダーロックイン | なし | あり | あり (AWS) |
+| Criterion | OSS (Prometheus+Grafana) | Datadog | CloudWatch |
+|-----------|--------------------------|---------|------------|
+| Team size | 2+ SRE engineers | Works with small teams | Immediate for AWS teams |
+| Monthly cost | Infrastructure only ($100–500) | $500–$10,000+ | $100–$500 |
+| Customizability | Very high | High | Moderate |
+| Operational burden | High | Low | Low |
+| Multi-cloud | Strength | Strength | AWS only |
+| Setup speed | Slow (1–2 weeks) | Fast (hours) | Fastest (immediate) |
+| Vendor lock-in | None | Yes | Yes (AWS) |
 
-### 1.2 監視成熟度モデル
+### 1.2 Monitoring Maturity Model
 
 ```
-Level 0 — なし
-  監視なし。障害はユーザー報告で気づく。
+Level 0 — None
+  No monitoring. Incidents are discovered through user reports.
 
-Level 1 — 基本的なインフラ監視
-  CPU/メモリ/ディスクの閾値ベースアラート。
-  ツール: CloudWatch 基本メトリクス、Zabbix
+Level 1 — Basic Infrastructure Monitoring
+  Threshold-based alerts for CPU/memory/disk.
+  Tools: CloudWatch basic metrics, Zabbix
 
-Level 2 — アプリケーション監視
-  APM 導入。レイテンシ・エラー率・スループットを計測。
-  ツール: Prometheus + Grafana、Datadog APM
+Level 2 — Application Monitoring
+  APM introduced. Measures latency, error rate, and throughput.
+  Tools: Prometheus + Grafana, Datadog APM
 
-Level 3 — SLO ベース監視
-  SLI/SLO を定義し、エラーバジェットでアラート。
-  ツール: Prometheus + バーンレートアラート、Datadog SLO
+Level 3 — SLO-Based Monitoring
+  SLI/SLO defined; alerts based on error budgets.
+  Tools: Prometheus + burn rate alerts, Datadog SLO
 
-Level 4 — フルオブザーバビリティ
-  ログ・メトリクス・トレースが統合。
-  任意のリクエストを追跡可能。
-  ツール: Grafana Stack (Prometheus+Loki+Tempo)、Datadog
+Level 4 — Full Observability
+  Logs, metrics, and traces integrated.
+  Any request can be traced end-to-end.
+  Tools: Grafana Stack (Prometheus+Loki+Tempo), Datadog
 
-Level 5 — 予測的監視
-  異常検知・予測アラート。
-  キャパシティプランニングの自動化。
-  ツール: Datadog Watchdog、ML ベースの異常検知
+Level 5 — Predictive Monitoring
+  Anomaly detection and predictive alerts.
+  Automated capacity planning.
+  Tools: Datadog Watchdog, ML-based anomaly detection
 ```
 
 ---
 
-## 2. Prometheus + Grafana スタック
+## 2. Prometheus + Grafana Stack
 
-### 2.1 Docker Compose による統合監視環境
+### 2.1 Integrated Monitoring Environment with Docker Compose
 
 ```yaml
 # docker-compose.monitoring.yml
@@ -135,9 +136,9 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=30d'
       - '--storage.tsdb.retention.size=10GB'
-      - '--web.enable-lifecycle'            # /-/reload で設定リロード
-      - '--web.enable-admin-api'            # 管理API有効化
-      - '--storage.tsdb.wal-compression'    # WAL圧縮でディスク節約
+      - '--web.enable-lifecycle'            # reload config via /-/reload
+      - '--web.enable-admin-api'            # enable admin API
+      - '--storage.tsdb.wal-compression'    # compress WAL to save disk
     restart: unless-stopped
     networks:
       - monitoring
@@ -244,10 +245,10 @@ networks:
     driver: bridge
 ```
 
-### 2.2 Prometheus 設定の詳細
+### 2.2 Prometheus Configuration Details
 
 ```yaml
-# prometheus.yml — Prometheus 設定
+# prometheus.yml — Prometheus configuration
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -259,29 +260,29 @@ global:
 rule_files:
   - "alerts/*.yml"
 
-# Alertmanager との連携
+# Integration with Alertmanager
 alerting:
   alertmanagers:
     - static_configs:
         - targets: ["alertmanager:9093"]
 
 scrape_configs:
-  # Prometheus 自身の監視
+  # Prometheus self-monitoring
   - job_name: "prometheus"
     static_configs:
       - targets: ["localhost:9090"]
 
-  # Node Exporter (サーバーメトリクス)
+  # Node Exporter (server metrics)
   - job_name: "node-exporter"
     static_configs:
       - targets: ["node-exporter:9100"]
 
-  # cAdvisor (コンテナメトリクス)
+  # cAdvisor (container metrics)
   - job_name: "cadvisor"
     static_configs:
       - targets: ["cadvisor:8080"]
 
-  # アプリケーション (Express/Fastify)
+  # Application (Express/Fastify)
   - job_name: "app"
     metrics_path: /metrics
     scrape_interval: 10s
@@ -291,7 +292,7 @@ scrape_configs:
           service: "order-service"
           environment: "production"
 
-  # マルチターゲットの例 (複数サービス)
+  # Multi-target example (multiple services)
   - job_name: "microservices"
     scrape_interval: 10s
     static_configs:
@@ -310,25 +311,25 @@ scrape_configs:
     kubernetes_sd_configs:
       - role: pod
     relabel_configs:
-      # prometheus.io/scrape: "true" アノテーションを持つ Pod のみ対象
+      # Only target Pods with annotation prometheus.io/scrape: "true"
       - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
         action: keep
         regex: true
-      # カスタムメトリクスパスの指定
+      # Specify custom metrics path
       - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
         action: replace
         target_label: __metrics_path__
         regex: (.+)
-      # カスタムポートの指定
+      # Specify custom port
       - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
         action: replace
         target_label: __address__
         regex: ([^:]+)(?::\d+)?;(\d+)
         replacement: $1:$2
-      # Pod のラベルをメトリクスラベルに転写
+      # Copy Pod labels to metrics labels
       - action: labelmap
         regex: __meta_kubernetes_pod_label_(.+)
-      # Namespace と Pod 名を追加
+      # Add namespace and Pod name
       - source_labels: [__meta_kubernetes_namespace]
         action: replace
         target_label: kubernetes_namespace
@@ -336,7 +337,7 @@ scrape_configs:
         action: replace
         target_label: kubernetes_pod_name
 
-  # Kubernetes Service Discovery — Service レベル
+  # Kubernetes Service Discovery — Service level
   - job_name: "kubernetes-services"
     kubernetes_sd_configs:
       - role: service
@@ -374,7 +375,7 @@ scrape_configs:
       - source_labels: [__meta_ec2_availability_zone]
         target_label: availability_zone
 
-  # Blackbox Exporter (外形監視)
+  # Blackbox Exporter (synthetic monitoring)
   - job_name: "blackbox-http"
     metrics_path: /probe
     params:
@@ -393,26 +394,26 @@ scrape_configs:
         replacement: blackbox-exporter:9115
 ```
 
-### 2.3 Recording Rules による計算の事前集約
+### 2.3 Pre-Aggregation with Recording Rules
 
 ```yaml
-# recording-rules.yml — よく使うクエリを事前計算
+# recording-rules.yml — pre-compute frequently used queries
 groups:
   - name: http_request_rules
     interval: 30s
     rules:
-      # リクエストレート (サービス・メソッド・ステータス別)
+      # Request rate (by service, method, and status class)
       - record: service:http_requests:rate5m
         expr: sum(rate(http_requests_total[5m])) by (service, method, status_class)
 
-      # エラーレート (サービス別)
+      # Error rate (by service)
       - record: service:http_error_rate:ratio_rate5m
         expr: |
           sum(rate(http_requests_total{status=~"5.."}[5m])) by (service)
           /
           sum(rate(http_requests_total[5m])) by (service)
 
-      # p50/p95/p99 レイテンシ (サービス別)
+      # p50/p95/p99 latency (by service)
       - record: service:http_request_duration_seconds:p50
         expr: |
           histogram_quantile(0.5,
@@ -434,14 +435,14 @@ groups:
   - name: node_rules
     interval: 60s
     rules:
-      # CPU 使用率 (インスタンス別)
+      # CPU utilization (by instance)
       - record: instance:node_cpu_utilization:ratio
         expr: |
           1 - avg by(instance) (
             irate(node_cpu_seconds_total{mode="idle"}[5m])
           )
 
-      # メモリ使用率 (インスタンス別)
+      # Memory utilization (by instance)
       - record: instance:node_memory_utilization:ratio
         expr: |
           1 - (
@@ -450,7 +451,7 @@ groups:
             node_memory_MemTotal_bytes
           )
 
-      # ディスク使用率 (インスタンス・マウントポイント別)
+      # Disk utilization (by instance and mount point)
       - record: instance:node_filesystem_utilization:ratio
         expr: |
           1 - (
@@ -459,7 +460,7 @@ groups:
             node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}
           )
 
-      # ネットワーク受信/送信レート
+      # Network receive/transmit rate
       - record: instance:node_network_receive_bytes:rate5m
         expr: sum(rate(node_network_receive_bytes_total{device!~"lo|veth.*|docker.*|br-.*"}[5m])) by (instance)
 
@@ -469,84 +470,84 @@ groups:
 
 ---
 
-## 3. PromQL の基本と応用
+## 3. PromQL Basics and Advanced Usage
 
-### 3.1 基本クエリ
+### 3.1 Basic Queries
 
 ```promql
-# 基本的な PromQL クエリ例
+# Basic PromQL query examples
 
-# 1. HTTP リクエストレート (1秒あたり)
+# 1. HTTP request rate (per second)
 rate(http_requests_total[5m])
 
-# 2. エラーレート (%)
+# 2. Error rate (%)
 sum(rate(http_requests_total{status=~"5.."}[5m]))
 /
 sum(rate(http_requests_total[5m]))
 * 100
 
-# 3. p95 レイテンシ
+# 3. p95 latency
 histogram_quantile(0.95,
   sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
 )
 
-# 4. CPU 使用率 (%)
+# 4. CPU utilization (%)
 100 - (avg by(instance) (
   irate(node_cpu_seconds_total{mode="idle"}[5m])
 ) * 100)
 
-# 5. メモリ使用率 (%)
+# 5. Memory utilization (%)
 (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
 
-# 6. ディスク使用率 (%)
+# 6. Disk utilization (%)
 (1 - (node_filesystem_avail_bytes{mountpoint="/"}
      / node_filesystem_size_bytes{mountpoint="/"})) * 100
 ```
 
-### 3.2 PromQL データモデルの詳細
+### 3.2 PromQL Data Model in Detail
 
 ```
-PromQL のデータモデル:
+PromQL Data Model:
 
-  時系列 (Time Series)
+  Time Series
   ┌────────────────────────────────────────────┐
-  │ メトリクス名{ラベル}                         │
+  │ metric_name{labels}                         │
   │                                            │
   │ http_requests_total{method="GET",status="200"}  │
   │                                            │
-  │  時刻        値                             │
+  │  Time        Value                          │
   │  T1    ──── 1000                           │
   │  T2    ──── 1050                           │
   │  T3    ──── 1120                           │
   │  T4    ──── 1200                           │
   │                                            │
-  │  rate() → 瞬間的な増加率を算出              │
+  │  rate() → calculates the instantaneous rate of increase  │
   │  (1200 - 1000) / (T4 - T1) = X req/sec    │
   └────────────────────────────────────────────┘
 
-  メトリクスの型:
+  Metric types:
   ┌─────────┬──────────────────────────────────┐
-  │ Counter │ 単調増加 (リクエスト数、エラー数)   │
-  │ Gauge   │ 上下する値 (CPU使用率、温度)       │
-  │Histogram│ 分布 (レイテンシ、サイズ)          │
-  │ Summary │ 分位数の直接計算                   │
+  │ Counter │ Monotonically increasing (requests, errors)  │
+  │ Gauge   │ Value that goes up and down (CPU usage, temp) │
+  │Histogram│ Distribution (latency, size)      │
+  │ Summary │ Direct quantile calculation       │
   └─────────┴──────────────────────────────────┘
 
   rate() vs irate():
   ┌─────────┬────────────────────────────────────────────┐
-  │ rate()  │ 指定範囲全体の平均増加率。安定したグラフ向き  │
-  │ irate() │ 直近2点の瞬間増加率。スパイク検知向き        │
-  │ 推奨    │ アラートには rate()、ダッシュボードに irate()  │
+  │ rate()  │ Average increase rate over the full window. Good for stable graphs. │
+  │ irate() │ Instantaneous rate from the last 2 points. Good for spike detection. │
+  │ Recommended │ Use rate() for alerts, irate() for dashboards │
   └─────────┴────────────────────────────────────────────┘
 ```
 
-### 3.3 応用クエリパターン
+### 3.3 Advanced Query Patterns
 
 ```promql
-# --- SLO 関連のクエリ ---
+# --- SLO-related queries ---
 
-# SLO バーンレート (Multi-window)
-# 短期ウィンドウ (5m) × 長期ウィンドウ (1h) の組み合わせ
+# SLO burn rate (Multi-window)
+# Combination of short window (5m) × long window (1h)
 (
   sum(rate(http_requests_total{status=~"5.."}[5m]))
   / sum(rate(http_requests_total[5m]))
@@ -557,14 +558,14 @@ and
   / sum(rate(http_requests_total[1h]))
 ) > (14.4 * 0.001)
 
-# 可用性 SLI (30日間)
+# Availability SLI (30 days)
 1 - (
   sum(increase(http_requests_total{status=~"5.."}[30d]))
   /
   sum(increase(http_requests_total[30d]))
 )
 
-# エラーバジェット残量 (%)
+# Remaining error budget (%)
 (1 - (
   sum(increase(http_requests_total{status=~"5.."}[30d]))
   /
@@ -573,55 +574,55 @@ and
   (1 - 0.999)  # SLO: 99.9%
 )) * 100
 
-# --- キャパシティプランニング ---
+# --- Capacity planning ---
 
-# ディスク枯渇予測 (24時間後の予測値)
+# Disk exhaustion prediction (predicted value 24 hours from now)
 predict_linear(
   node_filesystem_avail_bytes{mountpoint="/"}[6h],
   24 * 3600
 )
 
-# メモリ枯渇予測 (4時間後)
+# Memory exhaustion prediction (4 hours from now)
 predict_linear(
   node_memory_MemAvailable_bytes[1h],
   4 * 3600
 ) < 0
 
-# CPU 使用率のトレンド (1週間分の線形回帰)
+# CPU utilization trend (linear regression over 1 week)
 predict_linear(
   instance:node_cpu_utilization:ratio[7d],
-  30 * 24 * 3600  # 30日後
+  30 * 24 * 3600  # 30 days from now
 )
 
-# --- トップN 分析 ---
+# --- Top-N analysis ---
 
-# レイテンシが最も高い上位5エンドポイント
+# Top 5 endpoints with highest latency
 topk(5,
   histogram_quantile(0.95,
     sum(rate(http_request_duration_seconds_bucket[5m])) by (le, handler)
   )
 )
 
-# リクエスト数が最も多い上位10エンドポイント
+# Top 10 endpoints with most requests
 topk(10,
   sum(rate(http_requests_total[5m])) by (handler)
 )
 
-# エラーレートが最も高い上位5サービス
+# Top 5 services with highest error rate
 topk(5,
   sum(rate(http_requests_total{status=~"5.."}[5m])) by (service)
   /
   sum(rate(http_requests_total[5m])) by (service)
 )
 
-# --- 前日比・前週比 ---
+# --- Day-over-day and week-over-week comparisons ---
 
-# リクエスト数の前日比
+# Day-over-day request count comparison
 sum(rate(http_requests_total[1h]))
 /
 sum(rate(http_requests_total[1h] offset 1d))
 
-# エラーレートの前週比
+# Week-over-week error rate comparison
 (
   sum(rate(http_requests_total{status=~"5.."}[1h]))
   / sum(rate(http_requests_total[1h]))
@@ -632,26 +633,26 @@ sum(rate(http_requests_total[1h] offset 1d))
   / sum(rate(http_requests_total[1h] offset 7d))
 )
 
-# --- コンテナ監視 ---
+# --- Container monitoring ---
 
-# コンテナ CPU 使用率 (%)
+# Container CPU utilization (%)
 sum(rate(container_cpu_usage_seconds_total{name!=""}[5m])) by (name) * 100
 
-# コンテナ メモリ使用量 (MB)
+# Container memory usage (MB)
 container_memory_working_set_bytes{name!=""} / 1024 / 1024
 
-# コンテナ ネットワーク I/O (bytes/sec)
+# Container network I/O (bytes/sec)
 sum(rate(container_network_receive_bytes_total{name!=""}[5m])) by (name)
 
-# Pod の再起動回数
+# Pod restart count
 sum(kube_pod_container_status_restarts_total) by (namespace, pod)
 ```
 
 ---
 
-## 4. Grafana ダッシュボードの設計と管理
+## 4. Grafana Dashboard Design and Management
 
-### 4.1 Grafana Provisioning によるダッシュボード管理
+### 4.1 Dashboard Management with Grafana Provisioning
 
 ```yaml
 # grafana/provisioning/datasources/datasources.yml
@@ -734,12 +735,12 @@ providers:
       path: /var/lib/grafana/dashboards/slo
 ```
 
-### 4.2 Grafana ダッシュボード JSON の構造
+### 4.2 Grafana Dashboard JSON Structure
 
 ```json
 {
   "dashboard": {
-    "title": "サービスヘルスダッシュボード",
+    "title": "Service Health Dashboard",
     "uid": "service-health-main",
     "tags": ["service", "slo", "production"],
     "timezone": "Asia/Tokyo",
@@ -773,7 +774,7 @@ providers:
     },
     "panels": [
       {
-        "title": "リクエストレート",
+        "title": "Request Rate",
         "type": "timeseries",
         "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
         "targets": [
@@ -794,7 +795,7 @@ providers:
         }
       },
       {
-        "title": "エラーレート (%)",
+        "title": "Error Rate (%)",
         "type": "stat",
         "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
         "targets": [
@@ -816,7 +817,7 @@ providers:
         }
       },
       {
-        "title": "レイテンシ (p50/p95/p99)",
+        "title": "Latency (p50/p95/p99)",
         "type": "timeseries",
         "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
         "targets": [
@@ -845,10 +846,10 @@ providers:
 }
 ```
 
-### 4.3 Terraform による Grafana ダッシュボード管理
+### 4.3 Managing Grafana Dashboards with Terraform
 
 ```hcl
-# grafana.tf — Terraform で Grafana ダッシュボード管理
+# grafana.tf — Grafana dashboard management with Terraform
 terraform {
   required_providers {
     grafana = {
@@ -863,7 +864,7 @@ provider "grafana" {
   auth = var.grafana_api_key
 }
 
-# フォルダ作成
+# Create folders
 resource "grafana_folder" "infrastructure" {
   title = "Infrastructure"
 }
@@ -876,7 +877,7 @@ resource "grafana_folder" "slo" {
   title = "SLO Dashboards"
 }
 
-# ダッシュボード (JSON ファイルから読み込み)
+# Dashboards (loaded from JSON files)
 resource "grafana_dashboard" "service_health" {
   folder    = grafana_folder.applications.id
   overwrite = true
@@ -891,7 +892,7 @@ resource "grafana_dashboard" "node_overview" {
   config_json = file("${path.module}/dashboards/node-overview.json")
 }
 
-# データソース
+# Data sources
 resource "grafana_data_source" "prometheus" {
   type = "prometheus"
   name = "Prometheus"
@@ -915,7 +916,7 @@ resource "grafana_data_source" "loki" {
   })
 }
 
-# アラートルール
+# Alert rules
 resource "grafana_rule_group" "slo_alerts" {
   name             = "SLO Alerts"
   folder_uid       = grafana_folder.slo.uid
@@ -952,7 +953,7 @@ resource "grafana_rule_group" "slo_alerts" {
   }
 }
 
-# 通知ポリシー
+# Notification policy
 resource "grafana_notification_policy" "default" {
   contact_point = grafana_contact_point.slack.name
   group_by      = ["alertname", "service"]
@@ -986,57 +987,57 @@ resource "grafana_contact_point" "pagerduty" {
 }
 ```
 
-### 4.4 ダッシュボード階層設計
+### 4.4 Dashboard Hierarchy Design
 
 ```
-ダッシュボードの階層設計:
+Dashboard Hierarchy Design:
 
-  Level 0: Executive Overview (経営層)
+  Level 0: Executive Overview
   ┌────────────────────────────────────────┐
-  │ ・全サービスの稼働率 (SLA 達成状況)     │
-  │ ・月間インシデント数と MTTR             │
-  │ ・エラーバジェット消費率               │
-  │ ・トラフィックトレンド (前月比)         │
+  │ - Overall service uptime (SLA status)  │
+  │ - Monthly incident count and MTTR      │
+  │ - Error budget burn rate               │
+  │ - Traffic trends (month-over-month)    │
   └────────────────────────────────────────┘
          │
          ▼
-  Level 1: Service Overview (チームリード)
+  Level 1: Service Overview (Team Lead)
   ┌────────────────────────────────────────┐
-  │ ・サービス別の RED メトリクス            │
+  │ - RED metrics per service              │
   │   (Rate / Error / Duration)            │
-  │ ・SLO 達成状況とバーンレート            │
-  │ ・直近のデプロイとその影響              │
-  │ ・依存サービスのヘルス状態              │
+  │ - SLO status and burn rate             │
+  │ - Recent deploys and their impact      │
+  │ - Health of dependent services         │
   └────────────────────────────────────────┘
          │
          ▼
-  Level 2: Technical Detail (エンジニア)
+  Level 2: Technical Detail (Engineers)
   ┌────────────────────────────────────────┐
-  │ ・エンドポイント別レイテンシ分布        │
-  │ ・DB クエリパフォーマンス               │
-  │ ・キャッシュヒット率                    │
-  │ ・Pod/コンテナのリソース使用量          │
-  │ ・外部 API 呼び出しのレイテンシ         │
+  │ - Latency distribution by endpoint     │
+  │ - DB query performance                 │
+  │ - Cache hit rate                       │
+  │ - Pod/container resource utilization   │
+  │ - External API call latency            │
   └────────────────────────────────────────┘
          │
          ▼
-  Level 3: Debug (障害調査)
+  Level 3: Debug (Incident Investigation)
   ┌────────────────────────────────────────┐
-  │ ・トレース一覧と Span 詳細              │
-  │ ・ログストリーム (LogQL)                │
-  │ ・ネットワークレイテンシ               │
-  │ ・Goroutine / Thread dump              │
+  │ - Trace list and span details          │
+  │ - Log stream (LogQL)                   │
+  │ - Network latency                      │
+  │ - Goroutine / Thread dump              │
   └────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. Grafana Loki によるログ集約
+## 5. Log Aggregation with Grafana Loki
 
-### 5.1 Loki 設定
+### 5.1 Loki Configuration
 
 ```yaml
-# loki-config.yml — Loki サーバー設定
+# loki-config.yml — Loki server configuration
 auth_enabled: false
 
 server:
@@ -1070,8 +1071,8 @@ limits_config:
   ingestion_burst_size_mb: 20
   max_streams_per_user: 10000
   reject_old_samples: true
-  reject_old_samples_max_age: 168h  # 7日
-  retention_period: 744h            # 31日
+  reject_old_samples_max_age: 168h  # 7 days
+  retention_period: 744h            # 31 days
 
 storage_config:
   tsdb_shipper:
@@ -1086,10 +1087,10 @@ compactor:
   retention_delete_worker_count: 150
 ```
 
-### 5.2 Promtail 設定
+### 5.2 Promtail Configuration
 
 ```yaml
-# promtail-config.yml — ログ収集エージェント設定
+# promtail-config.yml — Log collection agent configuration
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
@@ -1104,7 +1105,7 @@ clients:
     tenant_id: default
 
 scrape_configs:
-  # Docker コンテナログ
+  # Docker container logs
   - job_name: docker
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
@@ -1118,7 +1119,7 @@ scrape_configs:
       - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
         target_label: 'service'
     pipeline_stages:
-      # JSON ログのパース
+      # Parse JSON logs
       - json:
           expressions:
             level: level
@@ -1131,12 +1132,12 @@ scrape_configs:
       - timestamp:
           source: timestamp
           format: RFC3339Nano
-      # 機密情報のマスク
+      # Mask sensitive information
       - replace:
           expression: '(password|token|secret|api_key)=\S+'
           replace: '$1=***REDACTED***'
 
-  # システムログ (/var/log)
+  # System logs (/var/log)
   - job_name: system
     static_configs:
       - targets: [localhost]
@@ -1153,7 +1154,7 @@ scrape_configs:
           source: timestamp
           format: "2006-01-02T15:04:05.000Z"
 
-  # Kubernetes Pod ログ
+  # Kubernetes Pod logs
   - job_name: kubernetes-pods
     kubernetes_sd_configs:
       - role: pod
@@ -1176,92 +1177,92 @@ scrape_configs:
           level:
 ```
 
-### 5.3 LogQL クエリの実践
+### 5.3 LogQL in Practice
 
 ```logql
-# --- 基本的な LogQL クエリ ---
+# --- Basic LogQL queries ---
 
-# サービス名でフィルタ
+# Filter by service name
 {service="order-service"}
 
-# 複数条件のフィルタ
+# Multi-condition filter
 {service="order-service", level="error"}
 
-# ログ内容で絞り込み (パイプライン)
+# Filter by log content (pipeline)
 {service="order-service"} |= "payment failed"
 
-# 正規表現フィルタ
+# Regex filter
 {service="order-service"} |~ "timeout|connection refused"
 
-# 除外フィルタ
+# Exclusion filter
 {service="order-service"} != "healthcheck" !~ "GET /health"
 
-# --- JSON パース ---
+# --- JSON parsing ---
 
-# JSON ログのフィールド抽出
+# Extract fields from JSON logs
 {service="order-service"} | json | level="error"
 
-# 特定フィールドの値でフィルタ
+# Filter by a specific field value
 {service="order-service"} | json | status_code >= 500
 
-# フィールド値をラベルとして使用
+# Use field values as labels
 {service="order-service"} | json | line_format "{{.method}} {{.path}} {{.status_code}} {{.duration}}ms"
 
-# --- メトリクスクエリ (Log-based Metrics) ---
+# --- Metric queries (Log-based Metrics) ---
 
-# エラーログの発生レート
+# Rate of error log occurrences
 rate({service="order-service", level="error"}[5m])
 
-# サービス別のログ量 (bytes/sec)
+# Log volume by service (bytes/sec)
 sum(bytes_rate({job="docker"}[5m])) by (service)
 
-# エラーメッセージの Top 10
+# Top 10 error messages
 topk(10,
   sum(count_over_time({service="order-service", level="error"}[1h]))
   by (msg)
 )
 
-# レイテンシの p95 (JSON ログからパース)
+# p95 latency (parsed from JSON logs)
 quantile_over_time(0.95,
   {service="order-service"} | json | unwrap duration [5m]
 ) by (method, path)
 
-# 特定のエラーパターンの出現回数
+# Occurrence count of a specific error pattern
 sum(count_over_time(
   {service="order-service"} |= "database connection" |= "timeout" [1h]
 ))
 
-# --- コンテキスト調査 ---
+# --- Contextual investigation ---
 
-# 特定のトレース ID に紐づくログ
+# Logs associated with a specific trace ID
 {traceId="abc123def456"}
 
-# 特定の時間範囲でのエラーログ
+# Error logs within a specific time range
 {service="order-service", level="error"}
   | json
   | timestamp >= "2025-03-15T14:30:00Z"
   | timestamp <= "2025-03-15T15:00:00Z"
 
-# 特定ユーザーの操作ログ (userId をパース)
+# Operation logs for a specific user (parse userId)
 {service="order-service"} | json | userId="user-12345"
 ```
 
 ---
 
-## 6. Datadog による統合監視
+## 6. Integrated Monitoring with Datadog
 
-### 6.1 Datadog APM セットアップ
+### 6.1 Datadog APM Setup
 
 ```typescript
-// datadog-apm.ts — Datadog APM のセットアップ
+// datadog-apm.ts — Datadog APM setup
 import tracer from 'dd-trace';
 
 tracer.init({
   service: 'order-service',
   env: process.env.NODE_ENV ?? 'development',
   version: process.env.APP_VERSION ?? '0.0.0',
-  logInjection: true,  // ログにトレースIDを自動挿入
-  runtimeMetrics: true, // Node.js ランタイムメトリクス
+  logInjection: true,  // auto-inject trace ID into logs
+  runtimeMetrics: true, // Node.js runtime metrics
   profiling: true,      // Continuous Profiling
   appsec: true,         // Application Security Monitoring
 });
@@ -1269,10 +1270,10 @@ tracer.init({
 export default tracer;
 ```
 
-### 6.2 Datadog Agent の Kubernetes デプロイ
+### 6.2 Kubernetes Deployment of Datadog Agent
 
 ```yaml
-# datadog-agent.yaml — Datadog Agent の Kubernetes DaemonSet
+# datadog-agent.yaml — Datadog Agent Kubernetes DaemonSet
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -1318,7 +1319,7 @@ spec:
                 secretKeyRef:
                   name: datadog-secrets
                   key: cluster-agent-token
-            # Kubernetes イベント収集
+            # Kubernetes event collection
             - name: DD_KUBERNETES_EVENTS_ENABLED
               value: "true"
             # Network Performance Monitoring
@@ -1361,10 +1362,10 @@ spec:
             path: /sys/fs/cgroup
 ```
 
-### 6.3 Datadog カスタムメトリクスの送信
+### 6.3 Sending Datadog Custom Metrics
 
 ```typescript
-// datadog-metrics.ts — カスタムメトリクスの送信
+// datadog-metrics.ts — Sending custom metrics
 import StatsD from 'hot-shots';
 
 const dogstatsd = new StatsD({
@@ -1381,9 +1382,9 @@ const dogstatsd = new StatsD({
   },
 });
 
-// ビジネスメトリクスの例
+// Business metrics examples
 class BusinessMetrics {
-  // 注文作成
+  // Order creation
   recordOrderCreated(paymentMethod: string, amount: number): void {
     dogstatsd.increment('orders.created', 1, [
       `payment_method:${paymentMethod}`,
@@ -1393,21 +1394,21 @@ class BusinessMetrics {
     ]);
   }
 
-  // 注文キャンセル
+  // Order cancellation
   recordOrderCancelled(reason: string): void {
     dogstatsd.increment('orders.cancelled', 1, [
       `reason:${reason}`,
     ]);
   }
 
-  // 在庫数の追跡
+  // Track inventory levels
   recordInventoryLevel(productId: string, quantity: number): void {
     dogstatsd.gauge('inventory.level', quantity, [
       `product_id:${productId}`,
     ]);
   }
 
-  // 外部 API 呼び出しのレイテンシ
+  // External API call latency
   recordExternalApiCall(
     provider: string,
     endpoint: string,
@@ -1425,7 +1426,7 @@ class BusinessMetrics {
     ]);
   }
 
-  // キャッシュヒット率
+  // Cache hit rate
   recordCacheAccess(cacheName: string, hit: boolean): void {
     dogstatsd.increment('cache.access', 1, [
       `cache:${cacheName}`,
@@ -1437,10 +1438,10 @@ class BusinessMetrics {
 export const businessMetrics = new BusinessMetrics();
 ```
 
-### 6.4 Datadog Monitor (Terraform)
+### 6.4 Datadog Monitors (Terraform)
 
 ```hcl
-# datadog-monitors.tf — Terraform による Monitor 管理
+# datadog-monitors.tf — Monitor management with Terraform
 terraform {
   required_providers {
     datadog = {
@@ -1456,20 +1457,20 @@ provider "datadog" {
   api_url = "https://api.ap1.datadoghq.com/"
 }
 
-# エラーレート監視
+# Error rate monitoring
 resource "datadog_monitor" "error_rate" {
   name    = "[${var.environment}] ${var.service_name} - High Error Rate"
   type    = "query alert"
   message = <<-EOT
-    ## エラーレートが閾値を超えています
+    ## Error rate has exceeded the threshold
 
-    サービス: ${var.service_name}
-    環境: ${var.environment}
+    Service: ${var.service_name}
+    Environment: ${var.environment}
 
-    **対応手順:**
-    1. [Runbook](https://wiki.example.com/runbooks/high-error-rate) を参照
-    2. APM のエラートレースを確認
-    3. 直近のデプロイを確認
+    **Response steps:**
+    1. Refer to [Runbook](https://wiki.example.com/runbooks/high-error-rate)
+    2. Check error traces in APM
+    3. Review recent deployments
 
     {{#is_alert}}@pagerduty-critical{{/is_alert}}
     {{#is_warning}}@slack-alerts-warning{{/is_warning}}
@@ -1500,20 +1501,20 @@ resource "datadog_monitor" "error_rate" {
   ]
 }
 
-# レイテンシ監視 (p95)
+# Latency monitoring (p95)
 resource "datadog_monitor" "latency_p95" {
   name    = "[${var.environment}] ${var.service_name} - High Latency (p95)"
   type    = "query alert"
   message = <<-EOT
-    ## p95 レイテンシが閾値を超えています
+    ## p95 latency has exceeded the threshold
 
-    サービス: ${var.service_name}
-    現在値: {{value}} ms
+    Service: ${var.service_name}
+    Current value: {{value}} ms
 
-    **確認事項:**
-    1. DB クエリのパフォーマンス
-    2. 外部 API のレスポンスタイム
-    3. CPU/メモリのリソース状況
+    **Items to check:**
+    1. DB query performance
+    2. External API response time
+    3. CPU/memory resource status
 
     {{#is_alert}}@pagerduty-critical{{/is_alert}}
     {{#is_warning}}@slack-alerts-warning{{/is_warning}}
@@ -1522,8 +1523,8 @@ resource "datadog_monitor" "latency_p95" {
   query = "percentile(last_5m):p95:trace.express.request{service:${var.service_name},env:${var.environment}} > 2000"
 
   monitor_thresholds {
-    critical = 2000  # 2秒
-    warning  = 1000  # 1秒
+    critical = 2000  # 2 seconds
+    warning  = 1000  # 1 second
   }
 
   tags = [
@@ -1532,15 +1533,15 @@ resource "datadog_monitor" "latency_p95" {
   ]
 }
 
-# Anomaly Detection (異常検知)
+# Anomaly Detection
 resource "datadog_monitor" "request_anomaly" {
   name    = "[${var.environment}] ${var.service_name} - Request Rate Anomaly"
   type    = "query alert"
   message = <<-EOT
-    ## リクエスト数に異常が検知されました
+    ## An anomaly has been detected in request volume
 
-    通常のパターンから大きく逸脱しています。
-    トラフィックの急増またはサービス障害の可能性があります。
+    A significant deviation from the normal pattern has been detected.
+    This may indicate a traffic spike or service outage.
 
     @slack-alerts-warning
   EOT
@@ -1595,10 +1596,10 @@ resource "datadog_service_level_objective" "availability" {
 
 ## 7. AWS CloudWatch
 
-### 7.1 カスタムメトリクスの送信
+### 7.1 Sending Custom Metrics
 
 ```typescript
-// cloudwatch-custom-metrics.ts — CloudWatch カスタムメトリクスの送信
+// cloudwatch-custom-metrics.ts — Sending CloudWatch custom metrics
 import {
   CloudWatchClient,
   PutMetricDataCommand,
@@ -1628,22 +1629,22 @@ async function publishMetric(
   );
 }
 
-// 使用例: API レイテンシの記録
+// Example: recording API latency
 await publishMetric('ApiLatency', 125, 'Milliseconds', [
   { Name: 'Service', Value: 'order-service' },
   { Name: 'Endpoint', Value: '/api/orders' },
 ]);
 
-// 使用例: ビジネスメトリクスの記録
+// Example: recording business metrics
 await publishMetric('OrdersCreated', 1, 'Count', [
   { Name: 'PaymentMethod', Value: 'credit_card' },
 ]);
 ```
 
-### 7.2 CloudWatch メトリクスのバッチ送信
+### 7.2 Batch Sending CloudWatch Metrics
 
 ```typescript
-// cloudwatch-batch-metrics.ts — 効率的なバッチ送信
+// cloudwatch-batch-metrics.ts — Efficient batch sending
 import {
   CloudWatchClient,
   PutMetricDataCommand,
@@ -1653,8 +1654,8 @@ import {
 
 class CloudWatchMetricsBatcher {
   private buffer: MetricDatum[] = [];
-  private readonly maxBatchSize = 20; // CloudWatch の上限
-  private readonly flushIntervalMs = 10000; // 10秒
+  private readonly maxBatchSize = 20; // CloudWatch limit
+  private readonly flushIntervalMs = 10000; // 10 seconds
   private timer: NodeJS.Timeout | null = null;
 
   constructor(
@@ -1683,7 +1684,7 @@ class CloudWatchMetricsBatcher {
     }
   }
 
-  // 統計値の送信 (集約済みデータ)
+  // Send statistical values (pre-aggregated data)
   addStatisticMetric(
     metricName: string,
     stats: { min: number; max: number; sum: number; count: number },
@@ -1734,43 +1735,43 @@ class CloudWatchMetricsBatcher {
   }
 }
 
-// 使用例
+// Example usage
 const batcher = new CloudWatchMetricsBatcher(
   new CloudWatchClient({ region: 'ap-northeast-1' }),
   'MyApp/Production'
 );
 
-// メトリクスを追加 (バッファリングされる)
+// Add metrics (they are buffered)
 batcher.addMetric('ApiLatency', 125, 'Milliseconds', [
   { Name: 'Service', Value: 'order-service' },
 ]);
 
-// アプリケーション終了時にフラッシュ
+// Flush on application shutdown
 process.on('SIGTERM', async () => {
   await batcher.shutdown();
   process.exit(0);
 });
 ```
 
-### 7.3 CloudWatch Logs Insights クエリ
+### 7.3 CloudWatch Logs Insights Queries
 
 ```
-# --- CloudWatch Logs Insights クエリ例 ---
+# --- CloudWatch Logs Insights query examples ---
 
-# エラーログの検索
+# Search for error logs
 fields @timestamp, @message
 | filter @message like /ERROR/
 | sort @timestamp desc
 | limit 100
 
-# JSON ログのパースと集計
+# Parse and aggregate JSON logs
 fields @timestamp, @message
 | parse @message '{"level":"*","msg":"*","service":"*","duration":*}' as level, msg, service, duration
 | filter level = "error"
 | stats count(*) as error_count by service
 | sort error_count desc
 
-# レイテンシの統計情報
+# Latency statistics
 fields @timestamp, @message
 | parse @message '"duration":*,' as duration
 | stats avg(duration) as avg_duration,
@@ -1779,13 +1780,13 @@ fields @timestamp, @message
         max(duration) as max_duration
   by bin(5m)
 
-# 特定のエラーパターンの発生頻度
+# Frequency of a specific error pattern
 fields @timestamp, @message
 | filter @message like /database connection/
 | stats count(*) as count by bin(1h)
 | sort @timestamp desc
 
-# Lambda 関数のコールドスタート分析
+# Lambda function cold start analysis
 filter @type = "REPORT"
 | parse @log /\/aws\/lambda\/(?<function>.*)/
 | stats count(*) as invocations,
@@ -1796,7 +1797,7 @@ filter @type = "REPORT"
         avg(@maxMemoryUsed / @memorySize * 100) as avg_memory_pct
   by function
 
-# API Gateway のレイテンシ分析
+# API Gateway latency analysis
 fields @timestamp, @message
 | parse @message '"httpMethod":"*","resourcePath":"*","status":"*","responseLatency":*' as method, path, status, latency
 | filter status like /5\d\d/
@@ -1805,16 +1806,16 @@ fields @timestamp, @message
   by method, path
 | sort error_count desc
 
-# ユニークユーザー数のカウント
+# Count unique users
 fields @timestamp, @message
 | parse @message '"userId":"*"' as userId
 | stats count_distinct(userId) as unique_users by bin(1h)
 ```
 
-### 7.4 CloudWatch ダッシュボード (CloudFormation)
+### 7.4 CloudWatch Dashboard (CloudFormation)
 
 ```yaml
-# cloudwatch-dashboard.yml — CloudFormation テンプレート
+# cloudwatch-dashboard.yml — CloudFormation template
 AWSTemplateFormatVersion: '2010-09-09'
 Description: CloudWatch Dashboard for Application Monitoring
 
@@ -1838,7 +1839,7 @@ Resources:
               "type": "metric",
               "x": 0, "y": 0, "width": 12, "height": 6,
               "properties": {
-                "title": "API リクエストレート",
+                "title": "API Request Rate",
                 "metrics": [
                   ["MyApp/Production", "RequestCount",
                    "Service", "${ServiceName}",
@@ -1853,7 +1854,7 @@ Resources:
               "type": "metric",
               "x": 12, "y": 0, "width": 12, "height": 6,
               "properties": {
-                "title": "API レイテンシ (p50/p95/p99)",
+                "title": "API Latency (p50/p95/p99)",
                 "metrics": [
                   ["MyApp/Production", "ApiLatency",
                    "Service", "${ServiceName}",
@@ -1869,7 +1870,7 @@ Resources:
               "type": "metric",
               "x": 0, "y": 6, "width": 8, "height": 6,
               "properties": {
-                "title": "エラー数",
+                "title": "Error Count",
                 "metrics": [
                   ["MyApp/Production", "ErrorCount",
                    "Service", "${ServiceName}",
@@ -1883,7 +1884,7 @@ Resources:
               "type": "log",
               "x": 0, "y": 12, "width": 24, "height": 6,
               "properties": {
-                "title": "直近のエラーログ",
+                "title": "Recent Error Logs",
                 "query": "fields @timestamp, @message\n| filter @message like /ERROR/\n| sort @timestamp desc\n| limit 20",
                 "region": "ap-northeast-1",
                 "stacked": false,
@@ -1898,7 +1899,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub "${ServiceName}-${Environment}-HighErrorRate"
-      AlarmDescription: "エラーレートが5%を超えています"
+      AlarmDescription: "Error rate has exceeded 5%"
       MetricName: ErrorCount
       Namespace: MyApp/Production
       Dimensions:
@@ -1924,12 +1925,12 @@ Resources:
 
 ---
 
-## 8. 長期保存とスケーリング — Thanos・Mimir
+## 8. Long-Term Storage and Scaling — Thanos and Mimir
 
-### 8.1 Thanos によるマルチクラスタ監視
+### 8.1 Multi-Cluster Monitoring with Thanos
 
 ```yaml
-# thanos-sidecar.yml — Prometheus に Thanos Sidecar を追加
+# thanos-sidecar.yml — Add Thanos Sidecar to Prometheus
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -1944,7 +1945,7 @@ spec:
           image: prom/prometheus:v2.50.0
           args:
             - '--config.file=/etc/prometheus/prometheus.yml'
-            - '--storage.tsdb.retention.time=2h'  # ローカルは短く
+            - '--storage.tsdb.retention.time=2h'  # keep local storage short
             - '--storage.tsdb.min-block-duration=2h'
             - '--storage.tsdb.max-block-duration=2h'
             - '--web.enable-lifecycle'
@@ -1968,7 +1969,7 @@ spec:
               mountPath: /etc/thanos
 
 ---
-# thanos-query.yml — Thanos Query (複数クラスタを横断クエリ)
+# thanos-query.yml — Thanos Query (cross-cluster queries)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1996,7 +1997,7 @@ spec:
               name: grpc
 
 ---
-# thanos-store.yml — Thanos Store Gateway (オブジェクトストレージからの読み取り)
+# thanos-store.yml — Thanos Store Gateway (reads from object storage)
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -2022,7 +2023,7 @@ spec:
               mountPath: /thanos/store
 
 ---
-# thanos-compactor.yml — Thanos Compactor (ダウンサンプリング)
+# thanos-compactor.yml — Thanos Compactor (downsampling)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -2039,16 +2040,16 @@ spec:
             - compact
             - '--objstore.config-file=/etc/thanos/objstore.yml'
             - '--data-dir=/thanos/compact'
-            - '--retention.resolution-raw=30d'      # 生データ: 30日
-            - '--retention.resolution-5m=180d'       # 5分解像度: 180日
-            - '--retention.resolution-1h=365d'       # 1時間解像度: 1年
+            - '--retention.resolution-raw=30d'      # raw data: 30 days
+            - '--retention.resolution-5m=180d'       # 5-min resolution: 180 days
+            - '--retention.resolution-1h=365d'       # 1-hour resolution: 1 year
             - '--compact.concurrency=2'
             - '--downsample.concurrency=2'
             - '--wait'
 ```
 
 ```yaml
-# objstore.yml — Thanos オブジェクトストレージ設定 (S3)
+# objstore.yml — Thanos object storage configuration (S3)
 type: S3
 config:
   bucket: "thanos-metrics-production"
@@ -2056,290 +2057,290 @@ config:
   region: "ap-northeast-1"
   access_key: "${AWS_ACCESS_KEY_ID}"
   secret_key: "${AWS_SECRET_ACCESS_KEY}"
-  # SSE-S3 による暗号化
+  # Encryption with SSE-S3
   sse_config:
     type: "SSE-S3"
 ```
 
-### 8.2 長期保存ソリューション比較
+### 8.2 Long-Term Storage Solution Comparison
 
 ```
-長期保存ソリューション比較:
+Long-term storage solution comparison:
 
 ┌────────────┬──────────────┬──────────────┬──────────────┐
-│ 特性       │ Thanos       │ Cortex       │ Mimir        │
+│ Property   │ Thanos       │ Cortex       │ Mimir        │
 ├────────────┼──────────────┼──────────────┼──────────────┤
-│ アーキテクチャ│ Sidecar 方式 │ Push 方式    │ Push 方式    │
-│ 既存環境対応│ 容易         │ 設定変更必要 │ 設定変更必要 │
-│ 複雑さ     │ 中           │ 高い         │ 中           │
-│ スケール性 │ 高い         │ 非常に高い   │ 非常に高い   │
-│ マルチテナント│ 限定的      │ ネイティブ   │ ネイティブ   │
-│ 開発元     │ Improbable   │ Cortex Project│ Grafana Labs │
-│ ダウンサンプリング│ 対応    │ 非対応       │ 対応         │
-│ 推奨規模   │ 中〜大規模   │ 大規模       │ 中〜大規模   │
-│ Grafana 統合│ 良好        │ 良好         │ 最高         │
+│ Architecture│ Sidecar     │ Push-based   │ Push-based   │
+│ Existing env│ Easy        │ Config change│ Config change│
+│ Complexity │ Medium       │ High         │ Medium       │
+│ Scalability│ High         │ Very high    │ Very high    │
+│ Multi-tenant│ Limited     │ Native       │ Native       │
+│ Developer  │ Improbable   │ Cortex Project│ Grafana Labs │
+│ Downsampling│ Supported   │ Not supported│ Supported    │
+│ Recommended scale│ Medium–large│ Large   │ Medium–large │
+│ Grafana integration│ Good  │ Good        │ Best         │
 └────────────┴──────────────┴──────────────┴──────────────┘
 
-推奨:
-- 既存 Prometheus に追加したい → Thanos
-- Grafana Cloud / LGTM スタック → Mimir
-- 大規模マルチテナント → Cortex or Mimir
+Recommendations:
+- Adding to existing Prometheus → Thanos
+- Grafana Cloud / LGTM stack → Mimir
+- Large-scale multi-tenant → Cortex or Mimir
 ```
 
 ---
 
-## 9. 比較表
+## 9. Comparison Tables
 
-| 特性 | Prometheus + Grafana | Datadog | CloudWatch |
-|------|---------------------|---------|------------|
-| 運用形態 | セルフホスト | SaaS | AWS マネージド |
-| メトリクス | Prometheus | 独自 | 独自 |
-| ログ | Loki | Log Management | CloudWatch Logs |
-| トレース | Jaeger/Tempo | APM | X-Ray |
-| ダッシュボード | Grafana (強力) | 内蔵 (高機能) | 基本的 |
-| アラート | Alertmanager | Monitors | CloudWatch Alarms |
-| 異常検知 | なし (外部連携) | Watchdog (ML) | Anomaly Detection |
-| 月額コスト (中規模) | インフラ費のみ | $500〜$5,000+ | $100〜$500 |
-| 学習コスト | 高い (複数ツール) | 中 | 低い (AWS 利用者) |
-| OpenTelemetry 対応 | ネイティブ | 対応 | 限定的 |
+| Property | Prometheus + Grafana | Datadog | CloudWatch |
+|----------|---------------------|---------|------------|
+| Operation model | Self-hosted | SaaS | AWS managed |
+| Metrics | Prometheus | Proprietary | Proprietary |
+| Logs | Loki | Log Management | CloudWatch Logs |
+| Traces | Jaeger/Tempo | APM | X-Ray |
+| Dashboards | Grafana (powerful) | Built-in (feature-rich) | Basic |
+| Alerting | Alertmanager | Monitors | CloudWatch Alarms |
+| Anomaly detection | None (external integration) | Watchdog (ML) | Anomaly Detection |
+| Monthly cost (medium scale) | Infrastructure only | $500–$5,000+ | $100–$500 |
+| Learning curve | High (multiple tools) | Medium | Low (for AWS users) |
+| OpenTelemetry support | Native | Supported | Limited |
 
-| ダッシュボードツール | Grafana | Datadog Dashboard | CloudWatch Dashboard |
-|---------------------|---------|-------------------|---------------------|
-| データソース数 | 100+ | Datadog内 | AWS内 |
-| テンプレート変数 | 強力 | 対応 | 限定的 |
-| 共有/埋め込み | 対応 | 対応 | 限定的 |
-| アラート統合 | Alertmanager | 内蔵 | SNS 連携 |
-| モバイル対応 | アプリあり | アプリあり | なし |
-| IaC サポート | Terraform/Jsonnet | Terraform | CloudFormation |
-| ダッシュボード as Code | Provisioning/API | API/Terraform | CloudFormation |
+| Dashboard tool | Grafana | Datadog Dashboard | CloudWatch Dashboard |
+|----------------|---------|-------------------|---------------------|
+| Data sources | 100+ | Within Datadog | Within AWS |
+| Template variables | Powerful | Supported | Limited |
+| Sharing/embedding | Supported | Supported | Limited |
+| Alert integration | Alertmanager | Built-in | SNS integration |
+| Mobile support | App available | App available | None |
+| IaC support | Terraform/Jsonnet | Terraform | CloudFormation |
+| Dashboard as Code | Provisioning/API | API/Terraform | CloudFormation |
 
-| ログ管理ツール | Loki | Datadog Logs | CloudWatch Logs | Elasticsearch |
-|---------------|------|-------------|-----------------|---------------|
-| インデックス方式 | ラベルのみ | フルテキスト | フルテキスト | フルテキスト |
-| ストレージ効率 | 非常に高い | 中 | 中 | 低い |
-| クエリ言語 | LogQL | 独自 | Insights | KQL/Lucene |
-| Grafana 連携 | ネイティブ | プラグイン | プラグイン | プラグイン |
-| 月額コスト (100GB/日) | インフラ費のみ | $2,000+ | $500+ | インフラ費 ($500+) |
-| 運用負荷 | 中 | 低い | 低い | 高い |
+| Log management tool | Loki | Datadog Logs | CloudWatch Logs | Elasticsearch |
+|---------------------|------|-------------|-----------------|---------------|
+| Index method | Labels only | Full-text | Full-text | Full-text |
+| Storage efficiency | Very high | Medium | Medium | Low |
+| Query language | LogQL | Proprietary | Insights | KQL/Lucene |
+| Grafana integration | Native | Plugin | Plugin | Plugin |
+| Monthly cost (100GB/day) | Infrastructure only | $2,000+ | $500+ | Infrastructure ($500+) |
+| Operational burden | Medium | Low | Low | High |
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: ダッシュボードの乱立
+### Anti-Pattern 1: Dashboard Sprawl
 
 ```
-[悪い例]
-- チームメンバーが個人でダッシュボードを大量作成
-- 同じメトリクスを異なるクエリで表示 → 数値が一致しない
-- 重要なダッシュボードが見つからない（50個以上のダッシュボード）
-- メンテナンスされず古いメトリクスを参照し続ける
+[Bad example]
+- Team members create a large number of personal dashboards
+- The same metric displayed with different queries → numbers don't match
+- Important dashboards are hard to find (50+ dashboards)
+- Dashboards are unmaintained and continue to reference stale metrics
 
-[良い例]
-- ダッシュボードの階層設計:
-  Level 0: サービス全体のヘルスチェック (経営層向け)
-  Level 1: サービス別の主要メトリクス (チームリード向け)
-  Level 2: 詳細な技術メトリクス (エンジニア向け)
-- ダッシュボードを IaC (Terraform/Jsonnet) で管理
-- 四半期ごとに不要なダッシュボードを棚卸し
-- ダッシュボードの命名規則を統一:
-  [環境]-[サービス]-[用途]
-  例: prod-order-service-overview
+[Good example]
+- Hierarchical dashboard design:
+  Level 0: Overall service health check (for executives)
+  Level 1: Key metrics per service (for team leads)
+  Level 2: Detailed technical metrics (for engineers)
+- Manage dashboards as IaC (Terraform/Jsonnet)
+- Quarterly review to retire unused dashboards
+- Standardize dashboard naming conventions:
+  [environment]-[service]-[purpose]
+  Example: prod-order-service-overview
 ```
 
-### アンチパターン 2: 高カーディナリティラベル
+### Anti-Pattern 2: High-Cardinality Labels
 
 ```promql
-# 悪い例: ユーザーIDをラベルにする → 数百万の時系列が生成
+# Bad example: using user ID as a label → generates millions of time series
 http_requests_total{user_id="user-123", method="GET", path="/api/items"}
-# ユーザー100万人 × メソッド4種 × パス50種 = 2億の時系列!
+# 1M users × 4 methods × 50 paths = 200M time series!
 
-# 良い例: 集計に意味のあるラベルのみ使用
+# Good example: only use labels that are meaningful for aggregation
 http_requests_total{method="GET", path="/api/items", status="200"}
-# メソッド4種 × パス50種 × ステータス10種 = 2,000の時系列
+# 4 methods × 50 paths × 10 statuses = 2,000 time series
 
-# ユーザー単位の分析はログやトレースで行う
+# Use logs or traces for per-user analysis
 ```
 
-### アンチパターン 3: メトリクス命名の不統一
+### Anti-Pattern 3: Inconsistent Metric Naming
 
 ```
-[悪い例]
-- チームごとに異なる命名規則:
+[Bad example]
+- Different naming conventions across teams:
   orderCount, order_count, orders.total, num_orders
-- 単位が不明: latency (ms? sec? us?)
-- 同じ意味のメトリクスが異なる名前で存在
+- Ambiguous units: latency (ms? sec? us?)
+- Metrics with the same meaning exist under different names
 
-[良い例]
-- OpenMetrics / Prometheus 命名規則に従う:
-  - snake_case を使用
-  - 単位をサフィックスに含める: _seconds, _bytes, _total
-  - Counter は _total サフィックス: http_requests_total
-  - Histogram は _bucket, _sum, _count サフィックス
+[Good example]
+- Follow OpenMetrics / Prometheus naming conventions:
+  - Use snake_case
+  - Include units as suffixes: _seconds, _bytes, _total
+  - Counters use _total suffix: http_requests_total
+  - Histograms use _bucket, _sum, _count suffixes
 
-- 命名テンプレート:
+- Naming template:
   {namespace}_{subsystem}_{name}_{unit}
-  例:
+  Examples:
     http_server_request_duration_seconds (Histogram)
     http_server_requests_total (Counter)
     process_resident_memory_bytes (Gauge)
     db_query_duration_seconds (Histogram)
 ```
 
-### アンチパターン 4: 監視の盲点 (Blind Spots)
+### Anti-Pattern 4: Monitoring Blind Spots
 
 ```
-[悪い例]
-- サーバーメトリクスだけ監視 (CPU/メモリ/ディスク)
-- ビジネスメトリクスがない (注文数、収益、ユーザー登録数)
-- 依存サービスの監視がない (外部 API、CDN、DNS)
-- 合成監視がない (定期的な外形監視)
+[Bad example]
+- Only monitoring server metrics (CPU/memory/disk)
+- No business metrics (order count, revenue, user registrations)
+- No monitoring of dependent services (external APIs, CDN, DNS)
+- No synthetic monitoring (periodic external checks)
 
-[良い例]
-- 4つの監視レイヤーを網羅:
-  1. インフラ: CPU, メモリ, ディスク, ネットワーク
-  2. アプリケーション: レイテンシ, エラー率, スループット
-  3. ビジネス: 注文数, 売上, コンバージョン率
-  4. ユーザー体験: Core Web Vitals, エラー率, ファネル
+[Good example]
+- Cover all 4 monitoring layers:
+  1. Infrastructure: CPU, memory, disk, network
+  2. Application: latency, error rate, throughput
+  3. Business: orders, revenue, conversion rate
+  4. User experience: Core Web Vitals, error rate, funnel
 
-- 依存サービスの監視:
-  - 外部 API のレスポンスタイム
-  - CDN のキャッシュヒット率
-  - DNS 解決時間
-  - SSL 証明書の有効期限
+- Monitor dependent services:
+  - External API response times
+  - CDN cache hit rate
+  - DNS resolution time
+  - SSL certificate expiration
 ```
 
 ---
 
-## 11. 運用のベストプラクティス
+## 11. Operational Best Practices
 
-### 11.1 Prometheus 運用チェックリスト
-
-```
-□ ストレージ容量の見積もり
-  - 時系列数 × サンプルサイズ(1-2bytes) × 保持期間
-  - 例: 100,000 時系列 × 2 bytes × 15s間隔 × 30日 ≈ 30GB
-
-□ WAL ディスクの監視
-  - prometheus_tsdb_wal_segment_current で WAL サイズ確認
-  - WAL 用に十分な IOPS を確保
-
-□ Recording Rules の活用
-  - ダッシュボードで頻繁に使うクエリは事前計算
-  - 高カーディナリティのクエリを集約
-
-□ Federation の検討
-  - クラスタ間でメトリクスを集約する場合
-  - match[] で必要なメトリクスのみ収集
-
-□ Alertmanager の冗長化
-  - 最低 2 台のクラスタ構成
-  - --cluster.peer で相互接続
-
-□ バックアップ
-  - TSDB スナップショット API: POST /api/v1/admin/tsdb/snapshot
-  - オブジェクトストレージへの定期コピー
-```
-
-### 11.2 Grafana 運用チェックリスト
+### 11.1 Prometheus Operations Checklist
 
 ```
-□ 認証・認可
-  - LDAP/OIDC/SAML による SSO
-  - Organization / Team でアクセス制御
-  - Viewer / Editor / Admin ロールの使い分け
+□ Storage capacity estimation
+  - Time series count × sample size (1–2 bytes) × retention period
+  - Example: 100,000 series × 2 bytes × 15s interval × 30 days ≈ 30GB
 
-□ バックアップ
-  - grafana.db (SQLite) の定期バックアップ
-  - ダッシュボード JSON のエクスポート
-  - Provisioning による Git 管理が最善
+□ Monitor WAL disk
+  - Check WAL size with prometheus_tsdb_wal_segment_current
+  - Ensure sufficient IOPS for the WAL disk
 
-□ プラグイン管理
-  - GF_INSTALL_PLUGINS 環境変数で宣言的に管理
-  - セキュリティアップデートの定期確認
+□ Use Recording Rules
+  - Pre-compute frequently used dashboard queries
+  - Aggregate high-cardinality queries
 
-□ パフォーマンス
-  - 重いダッシュボードの特定 (ロード時間 > 5秒)
-  - パネル数を適正に (1ダッシュボードあたり20パネル以下推奨)
-  - Auto-refresh 間隔を適切に設定 (最低 30秒)
+□ Consider Federation
+  - When aggregating metrics across clusters
+  - Use match[] to collect only necessary metrics
+
+□ Alertmanager redundancy
+  - Minimum 2-node cluster configuration
+  - Connect with --cluster.peer
+
+□ Backups
+  - TSDB snapshot API: POST /api/v1/admin/tsdb/snapshot
+  - Periodic copy to object storage
+```
+
+### 11.2 Grafana Operations Checklist
+
+```
+□ Authentication and authorization
+  - SSO via LDAP/OIDC/SAML
+  - Access control with Organization / Team
+  - Proper use of Viewer / Editor / Admin roles
+
+□ Backups
+  - Regular backup of grafana.db (SQLite)
+  - Export dashboard JSON
+  - Git management via Provisioning is the best approach
+
+□ Plugin management
+  - Manage declaratively via GF_INSTALL_PLUGINS environment variable
+  - Regular check for security updates
+
+□ Performance
+  - Identify heavy dashboards (load time > 5 seconds)
+  - Keep panel count reasonable (recommended: 20 or fewer per dashboard)
+  - Set appropriate auto-refresh intervals (30 seconds minimum)
 ```
 
 ---
 
 ## 12. FAQ
 
-### Q1: OSS スタックと SaaS、どちらを選ぶべきですか？
+### Q1: Should I choose an OSS stack or SaaS?
 
-運用チームの規模とスキルが判断基準です。専任の SRE/インフラチーム（2名以上）がいれば OSS（Prometheus + Grafana）でコストを抑えつつ高いカスタマイズ性が得られます。少人数チームで監視基盤の運用に時間を割けない場合は、Datadog のような SaaS を選択してください。AWS に閉じたシステムなら CloudWatch が最もシンプルです。
+The size and skill of your operations team is the key factor. If you have a dedicated SRE/infrastructure team (2 or more engineers), the OSS approach (Prometheus + Grafana) gives you lower costs and high customizability. If you have a small team with limited time to manage monitoring infrastructure, choose a SaaS solution like Datadog. For systems confined entirely to AWS, CloudWatch is the simplest option.
 
-### Q2: Prometheus のデータ保持期間はどのくらいが適切ですか？
+### Q2: How long should Prometheus data retention be?
 
-ローカルストレージでは 15〜30日が現実的です。長期保存が必要な場合は Thanos や Mimir などのリモートストレージソリューションを導入してください。Thanos の Compactor を使えば、ダウンサンプリングにより1年以上のデータも効率的に保持できます（生データ30日 → 5分解像度180日 → 1時間解像度1年）。
+15 to 30 days is realistic for local storage. If long-term storage is required, introduce a remote storage solution such as Thanos or Mimir. Using Thanos Compactor with downsampling allows you to retain over a year of data efficiently (raw data for 30 days → 5-minute resolution for 180 days → 1-hour resolution for 1 year).
 
-### Q3: Grafana のダッシュボードをコード管理する方法は？
+### Q3: How do I manage Grafana dashboards as code?
 
-3つのアプローチがあります。(1) **Grafana Provisioning**: YAML + JSON ファイルで Git 管理し、起動時に自動読み込み。(2) **Terraform provider**: `grafana_dashboard` リソースで IaC 管理。(3) **Grafonnet (Jsonnet)**: プログラマブルにダッシュボードを生成。チーム規模が大きい場合は Terraform、小規模なら Provisioning が推奨です。
+There are three approaches. (1) **Grafana Provisioning**: Manage with YAML + JSON files in Git, loaded automatically at startup. (2) **Terraform provider**: Manage as IaC with the `grafana_dashboard` resource. (3) **Grafonnet (Jsonnet)**: Generate dashboards programmatically. Terraform is recommended for larger teams; Provisioning is recommended for smaller ones.
 
-### Q4: Loki と Elasticsearch、どちらを選ぶべきですか？
+### Q4: Should I choose Loki or Elasticsearch?
 
-Loki はラベルベースのインデックスで、ストレージ効率が非常に高い反面、全文検索の性能は Elasticsearch に劣ります。Grafana エコシステムを活用しており、ログの検索パターンが「ラベルで絞り込み → テキスト検索」であれば Loki が最適です。全文検索やログの複雑な集計が主用途の場合は Elasticsearch（OpenSearch）を選択してください。
+Loki uses label-based indexing, which is very storage-efficient, but its full-text search performance is inferior to Elasticsearch. Loki integrates well with the Grafana ecosystem, and if your log search pattern is "filter by label then text search," Loki is the best fit. If full-text search or complex log aggregation is your primary use case, choose Elasticsearch (OpenSearch).
 
-### Q5: Datadog のコストを抑えるには？
+### Q5: How can I reduce Datadog costs?
 
-以下の戦略でコスト最適化できます。(1) **カスタムメトリクス数の管理**: 高カーディナリティなタグを避け、メトリクス数を制御する。(2) **ログの取り込み量制御**: 不要なログレベル（DEBUG/INFO）をフィルタリングし、重要なログのみ Datadog に送信する。(3) **APM サンプリング**: 全トレースではなく、エラートレースと一定割合のサンプリングを使用する。(4) **インデックスの最適化**: ログのインデックスを使い分け、長期保存は Archive に移す。
+You can optimize costs with these strategies. (1) **Control custom metric count**: Avoid high-cardinality tags to keep metric counts in check. (2) **Control log ingestion volume**: Filter out unnecessary log levels (DEBUG/INFO) and send only important logs to Datadog. (3) **APM sampling**: Use error traces and a sampling rate rather than collecting all traces. (4) **Index optimization**: Use different log indexes and move long-term storage to Archive.
 
-### Q6: CloudWatch の制限事項は何ですか？
+### Q6: What are the limitations of CloudWatch?
 
-主な制限として、(1) カスタムメトリクスの PutMetricData は 1回あたり20メトリクスまで（バッチ送信が必要）、(2) ダッシュボードの表現力が Grafana/Datadog に比べて限定的、(3) クロスリージョン・クロスアカウントのメトリクス集約には追加設定が必要、(4) Logs Insights のクエリは最大15分のタイムアウトがある、などがあります。これらの制限を超える要件がある場合は、CloudWatch をデータソースとして Grafana で可視化する構成が有効です。
+Key limitations include: (1) PutMetricData for custom metrics is limited to 20 metrics per call (batch sending required); (2) dashboard expressiveness is more limited compared to Grafana/Datadog; (3) cross-region and cross-account metric aggregation requires additional configuration; (4) Logs Insights queries have a maximum timeout of 15 minutes. If your requirements exceed these limitations, a setup using CloudWatch as a data source visualized in Grafana is effective.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| Prometheus | Pull 型メトリクス収集。PromQL で柔軟なクエリ。Recording Rules で事前集約 |
-| Grafana | 多数のデータソース対応。最も柔軟なダッシュボード。Provisioning/Terraform で IaC 管理 |
-| Loki | Grafana 連携のログ集約。ラベルベースのインデックスで高効率。LogQL でクエリ |
-| Datadog | フルスタック SaaS。APM/ログ/メトリクス統合。異常検知 (Watchdog) あり |
-| CloudWatch | AWS ネイティブ。追加設定なしで AWS リソース監視。Logs Insights でログ分析 |
-| Thanos/Mimir | Prometheus の長期保存・マルチクラスタ対応。ダウンサンプリングで効率的な保持 |
-| ダッシュボード設計 | 階層化し、IaC で管理。カーディナリティに注意。命名規則を統一 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [00-observability.md](./00-observability.md) — オブザーバビリティの3本柱
-- [02-alerting.md](./02-alerting.md) — アラート戦略とエスカレーション
-- [03-performance-monitoring.md](./03-performance-monitoring.md) — APM とパフォーマンス監視
+| Item | Key Points |
+|------|-----------|
+| Prometheus | Pull-based metrics collection. Flexible queries with PromQL. Pre-aggregation with Recording Rules. |
+| Grafana | Supports many data sources. Most flexible dashboards. IaC management with Provisioning/Terraform. |
+| Loki | Log aggregation with Grafana integration. Highly efficient with label-based indexing. Query with LogQL. |
+| Datadog | Full-stack SaaS. Integrated APM/logs/metrics. Anomaly detection (Watchdog) included. |
+| CloudWatch | AWS-native. Monitor AWS resources with no additional setup. Log analysis with Logs Insights. |
+| Thanos/Mimir | Long-term storage and multi-cluster support for Prometheus. Efficient retention with downsampling. |
+| Dashboard design | Hierarchical structure, managed as IaC. Be mindful of cardinality. Standardize naming conventions. |
 
 ---
 
-## 参考文献
+## Further Reading
 
-1. **Prometheus: Up & Running** — Brian Brazil (O'Reilly, 2018) — Prometheus の実践ガイド
-2. **Grafana Documentation** — https://grafana.com/docs/ — Grafana 公式ドキュメント
-3. **Datadog Documentation** — https://docs.datadoghq.com/ — Datadog 公式リファレンス
-4. **AWS CloudWatch Documentation** — https://docs.aws.amazon.com/AmazonCloudWatch/ — CloudWatch 公式ガイド
-5. **Thanos Documentation** — https://thanos.io/tip/thanos/getting-started.md/ — Thanos 公式ガイド
-6. **Grafana Loki Documentation** — https://grafana.com/docs/loki/latest/ — Loki 公式ドキュメント
-7. **PromQL Cheat Sheet** — https://promlabs.com/promql-cheat-sheet/ — PromQL クイックリファレンス
-8. **Grafana Mimir** — https://grafana.com/docs/mimir/latest/ — Mimir 長期ストレージ
+- [00-observability.md](./00-observability.md) — The three pillars of observability
+- [02-alerting.md](./02-alerting.md) — Alerting strategy and escalation
+- [03-performance-monitoring.md](./03-performance-monitoring.md) — APM and performance monitoring
+
+---
+
+## References
+
+1. **Prometheus: Up & Running** — Brian Brazil (O'Reilly, 2018) — Practical guide to Prometheus
+2. **Grafana Documentation** — https://grafana.com/docs/ — Official Grafana documentation
+3. **Datadog Documentation** — https://docs.datadoghq.com/ — Official Datadog reference
+4. **AWS CloudWatch Documentation** — https://docs.aws.amazon.com/AmazonCloudWatch/ — Official CloudWatch guide
+5. **Thanos Documentation** — https://thanos.io/tip/thanos/getting-started.md/ — Official Thanos guide
+6. **Grafana Loki Documentation** — https://grafana.com/docs/loki/latest/ — Official Loki documentation
+7. **PromQL Cheat Sheet** — https://promlabs.com/promql-cheat-sheet/ — PromQL quick reference
+8. **Grafana Mimir** — https://grafana.com/docs/mimir/latest/ — Mimir long-term storage
