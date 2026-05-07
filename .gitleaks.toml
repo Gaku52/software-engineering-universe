@@ -9,4 +9,6 @@ paths = [
   '''aws-cloud-guide/docs/08-security/01-secrets-management\.md''',
   '''05-infrastructure/development-environment-setup/docs/02-docker-dev/01-devcontainer\.md''',
   '''ja/05-infrastructure/development-environment-setup/docs/02-docker-dev/01-devcontainer\.md''',
+  '''05-infrastructure/docker-container-guide/docs/04-production/00-production-best-practices\.md''',
+  '''05-infrastructure/docker-container-guide/docs/05-orchestration/02-kubernetes-advanced\.md''',
 ]
