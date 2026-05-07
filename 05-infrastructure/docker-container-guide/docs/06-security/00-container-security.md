@@ -1,124 +1,124 @@
-# コンテナセキュリティ (Container Security)
+# Container Security
 
-> イメージスキャン (Trivy)、最小権限原則、シークレット管理を軸に、コンテナ環境のセキュリティを多層的に強化する手法を体系的に学ぶ。
+> Systematically learn how to strengthen container environment security through multiple layers, centered on image scanning (Trivy), the principle of least privilege, and secrets management.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **イメージスキャンによる脆弱性検出** -- Trivy を中心としたスキャンツールで、コンテナイメージの既知脆弱性を CI/CD パイプラインで自動検出する
-2. **最小権限コンテナの構築** -- 非 root ユーザー、読み取り専用ファイルシステム、Capability の制限により攻撃面を最小化する
-3. **シークレット管理と実行時セキュリティ** -- 機密情報の安全な注入と、実行時の異常検知・防御戦略を理解する
-4. **Kubernetes Pod Security Standards** -- Pod レベルのセキュリティポリシーを適用し、クラスタ全体のセキュリティベースラインを確立する
-5. **ランタイムセキュリティ監視** -- Falco を使ったリアルタイム異常検知と OPA/Gatekeeper によるポリシー適用
+1. **Vulnerability detection via image scanning** -- Automatically detect known vulnerabilities in container images within CI/CD pipelines using scanning tools centered on Trivy
+2. **Building least-privilege containers** -- Minimize attack surface through non-root users, read-only filesystems, and capability restrictions
+3. **Secrets management and runtime security** -- Understand safe secret injection and runtime anomaly detection/defense strategies
+4. **Kubernetes Pod Security Standards** -- Apply pod-level security policies to establish a security baseline across the entire cluster
+5. **Runtime security monitoring** -- Real-time anomaly detection with Falco and policy enforcement via OPA/Gatekeeper
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. コンテナセキュリティの多層防御
+## 1. Defense in Depth for Container Security
 
 ```
 +------------------------------------------------------------------+
-|              コンテナセキュリティの多層防御モデル                     |
+|              Container Security Defense-in-Depth Model           |
 +------------------------------------------------------------------+
 |                                                                  |
-|  Layer 1: イメージセキュリティ                                    |
-|    +-- ベースイメージの選択 (最小イメージ)                         |
-|    +-- 脆弱性スキャン (Trivy, Grype)                             |
-|    +-- マルチステージビルド                                       |
-|    +-- イメージ署名 (cosign)                                     |
+|  Layer 1: Image Security                                         |
+|    +-- Base image selection (minimal images)                     |
+|    +-- Vulnerability scanning (Trivy, Grype)                     |
+|    +-- Multi-stage builds                                        |
+|    +-- Image signing (cosign)                                    |
 |                                                                  |
-|  Layer 2: ビルドセキュリティ                                      |
-|    +-- Dockerfile ベストプラクティス                               |
-|    +-- シークレットのビルド時排除                                  |
-|    +-- CI/CD ゲート (スキャン不合格 = デプロイ拒否)               |
+|  Layer 2: Build Security                                         |
+|    +-- Dockerfile best practices                                 |
+|    +-- Excluding secrets at build time                           |
+|    +-- CI/CD gate (scan failure = deployment rejected)           |
 |    +-- Dockerfile Lint (hadolint)                                |
 |                                                                  |
-|  Layer 3: ランタイムセキュリティ                                   |
-|    +-- 非 root ユーザー                                          |
-|    +-- 読み取り専用ファイルシステム                                |
-|    +-- Capability 制限                                           |
-|    +-- seccomp / AppArmor プロファイル                            |
+|  Layer 3: Runtime Security                                       |
+|    +-- Non-root user                                             |
+|    +-- Read-only filesystem                                      |
+|    +-- Capability restrictions                                   |
+|    +-- seccomp / AppArmor profiles                               |
 |                                                                  |
-|  Layer 4: オーケストレーションセキュリティ                          |
+|  Layer 4: Orchestration Security                                 |
 |    +-- Pod Security Standards                                    |
 |    +-- Network Policy                                            |
 |    +-- RBAC                                                      |
-|    +-- Secret 管理                                               |
-|    +-- ServiceAccount トークンの自動マウント無効化                  |
+|    +-- Secret management                                         |
+|    +-- Disable automatic ServiceAccount token mounting           |
 |                                                                  |
-|  Layer 5: 監視・検知                                              |
-|    +-- ログ監査                                                  |
-|    +-- 異常検知 (Falco)                                          |
-|    +-- イメージポリシー (OPA/Gatekeeper)                         |
-|    +-- ネットワークトラフィック分析                                |
+|  Layer 5: Monitoring & Detection                                 |
+|    +-- Log auditing                                              |
+|    +-- Anomaly detection (Falco)                                 |
+|    +-- Image policy (OPA/Gatekeeper)                             |
+|    +-- Network traffic analysis                                  |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-各レイヤーが独立した防御を提供し、一つのレイヤーが突破されても他のレイヤーで防御できる「多層防御 (Defense in Depth)」の考え方が基本となる。単一のセキュリティ対策に依存するのではなく、複数のレイヤーを組み合わせることで、攻撃者にとって突破すべき壁を増やす。
+The fundamental concept is "Defense in Depth," where each layer provides independent protection so that even if one layer is breached, others can still defend. Rather than relying on a single security measure, combining multiple layers increases the number of barriers an attacker must overcome.
 
 ---
 
-## 2. イメージスキャン (Trivy)
+## 2. Image Scanning (Trivy)
 
-### 2.1 Trivy の基本使用
+### 2.1 Basic Trivy Usage
 
 ```bash
-# イメージスキャン
+# Image scan
 trivy image myapp:latest
 
-# 重大度フィルタ (CRITICAL と HIGH のみ)
+# Severity filter (CRITICAL and HIGH only)
 trivy image --severity CRITICAL,HIGH myapp:latest
 
-# JSON 出力 (CI 用)
+# JSON output (for CI)
 trivy image --format json --output results.json myapp:latest
 
-# テーブル形式でファイルに出力
+# Output to file in table format
 trivy image --format table --output results.txt myapp:latest
 
-# Dockerfile スキャン (設定ミス検出)
+# Dockerfile scan (misconfiguration detection)
 trivy config Dockerfile
 
-# Kubernetes マニフェストのスキャン
+# Kubernetes manifest scan
 trivy config --policy-bundle-repository ghcr.io/aquasecurity/trivy-policies k8s/
 
-# ファイルシステムスキャン (ローカルプロジェクト)
+# Filesystem scan (local project)
 trivy fs --scanners vuln,secret .
 
-# ライセンスコンプライアンスチェック
+# License compliance check
 trivy image --scanners license myapp:latest
 
-# SBOM 生成
+# Generate SBOM
 trivy image --format spdx-json --output sbom.json myapp:latest
 
-# 特定の CVE を無視
+# Ignore specific CVEs
 trivy image --ignorefile .trivyignore myapp:latest
 
-# 修正版がリリースされていない脆弱性を除外
+# Exclude vulnerabilities without a fix release
 trivy image --ignore-unfixed myapp:latest
 ```
 
-### 2.2 .trivyignore ファイル
+### 2.2 .trivyignore File
 
 ```text
 # .trivyignore
-# 修正版未リリースのため一時的に無視 (2025-06-01 まで追跡)
+# Temporarily ignored because no fix has been released (tracked until 2025-06-01)
 CVE-2024-12345
 
-# アプリで使用していないパッケージの脆弱性
-CVE-2024-67890  # libxml2 - このアプリでは XML パースを行わない
+# Vulnerability in a package not used by this app
+CVE-2024-67890  # libxml2 - this app does not perform XML parsing
 
-# テスト環境のみで使用するパッケージ
-CVE-2024-11111  # dev dependency のみ
+# Package used only in test environment
+CVE-2024-11111  # dev dependency only
 ```
 
-### 2.3 CI/CD への統合
+### 2.3 CI/CD Integration
 
 ```yaml
 # .github/workflows/security.yml
@@ -130,7 +130,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    # 毎日深夜に定期スキャン (新しい CVE の検出)
+    # Scheduled scan every night (to detect new CVEs)
     - cron: '0 0 * * *'
 
 jobs:
@@ -162,7 +162,7 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'           # 脆弱性が見つかったら失敗
+          exit-code: '1'           # Fail if vulnerabilities are found
           ignore-unfixed: true
 
       - name: Upload Trivy scan results
@@ -201,24 +201,24 @@ jobs:
           exit-code: '1'
 ```
 
-### 2.4 hadolint による Dockerfile リント
+### 2.4 Dockerfile Linting with hadolint
 
 ```bash
-# hadolint のインストール
+# Install hadolint
 # macOS
 brew install hadolint
 
 # Docker
 docker run --rm -i hadolint/hadolint < Dockerfile
 
-# 設定ファイル (.hadolint.yaml)
+# Configuration file (.hadolint.yaml)
 ```
 
 ```yaml
 # .hadolint.yaml
 ignored:
-  - DL3008  # apt-get でバージョン固定しない (alpine では不要)
-  - DL3018  # apk でバージョン固定しない
+  - DL3008  # Do not pin apt-get versions (not needed for alpine)
+  - DL3018  # Do not pin apk versions
 
 trustedRegistries:
   - docker.io
@@ -227,142 +227,142 @@ trustedRegistries:
 
 override:
   error:
-    - DL3000  # WORKDIR は絶対パスを使う
-    - DL3001  # パイプに関する注意
+    - DL3000  # Use absolute paths for WORKDIR
+    - DL3001  # Notes about pipes
   warning:
-    - DL3042  # pip install に --no-cache-dir を使う
+    - DL3042  # Use --no-cache-dir with pip install
   info:
-    - DL3059  # 複数の連続する RUN 命令を統合する
+    - DL3059  # Consolidate consecutive RUN instructions
 ```
 
-### 2.5 スキャンツール比較
+### 2.5 Scanning Tool Comparison
 
-| ツール | 開発元 | スキャン対象 | 速度 | DB 更新頻度 | OSS |
+| Tool | Developer | Scan Target | Speed | DB Update Frequency | OSS |
 |-------|-------|------------|------|-----------|-----|
-| Trivy | Aqua Security | イメージ/FS/IaC/Secret | 高速 | 毎日 | Yes |
-| Grype | Anchore | イメージ/FS | 高速 | 毎日 | Yes |
-| Snyk | Snyk | イメージ/コード/IaC | 中 | リアルタイム | Freemium |
-| Docker Scout | Docker | イメージ | 中 | 毎日 | Freemium |
-| Clair | CoreOS/RedHat | イメージ | 遅い | 毎日 | Yes |
+| Trivy | Aqua Security | Image/FS/IaC/Secret | Fast | Daily | Yes |
+| Grype | Anchore | Image/FS | Fast | Daily | Yes |
+| Snyk | Snyk | Image/Code/IaC | Medium | Real-time | Freemium |
+| Docker Scout | Docker | Image | Medium | Daily | Freemium |
+| Clair | CoreOS/RedHat | Image | Slow | Daily | Yes |
 
-### 2.6 Grype の使用例
+### 2.6 Grype Usage Examples
 
 ```bash
-# Grype のインストール
+# Install Grype
 curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
 
-# イメージスキャン
+# Image scan
 grype myapp:latest
 
-# SBOM からスキャン
+# Scan from SBOM
 grype sbom:sbom.json
 
-# JSON 出力
+# JSON output
 grype myapp:latest -o json > grype-results.json
 
-# 重大度でフィルタ
+# Filter by severity
 grype myapp:latest --fail-on critical
 ```
 
 ---
 
-## 3. 安全な Dockerfile の構築
+## 3. Building a Secure Dockerfile
 
-### 3.1 セキュアな Dockerfile (Node.js)
+### 3.1 Secure Dockerfile (Node.js)
 
 ```dockerfile
-# Dockerfile (セキュリティ強化版)
+# Dockerfile (security-hardened version)
 
-# ---- ビルドステージ ----
+# ---- Build Stage ----
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 依存関係のみ先にコピー (キャッシュ効率)
+# Copy dependencies first (cache efficiency)
 COPY package.json pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm build
 
-# 不要ファイルの削除
+# Remove unnecessary files
 RUN pnpm prune --production && \
     rm -rf .git .env* *.md tests/ src/
 
-# ---- 本番ステージ ----
+# ---- Production Stage ----
 FROM node:20-alpine AS production
 
-# セキュリティアップデート
+# Security updates
 RUN apk update && apk upgrade && \
     apk add --no-cache dumb-init && \
     rm -rf /var/cache/apk/*
 
-# 非 root ユーザーの作成
+# Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S appuser -u 1001 -G nodejs
 
 WORKDIR /app
 
-# ビルド成果物のみコピー
+# Copy only build artifacts
 COPY --from=builder --chown=appuser:nodejs /app/dist ./dist
 COPY --from=builder --chown=appuser:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=appuser:nodejs /app/package.json ./
 
-# 非 root ユーザーに切り替え
+# Switch to non-root user
 USER appuser
 
-# ヘルスチェック
+# Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"
 
-# 読み取り専用を示唆 (実行時に --read-only で強制)
+# Suggest read-only (enforced at runtime with --read-only)
 VOLUME ["/tmp"]
 
 EXPOSE 3000
 
-# PID 1 問題の回避 (シグナルの適切な処理)
+# Avoid PID 1 problem (proper signal handling)
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/index.js"]
 ```
 
-### 3.2 セキュアな Dockerfile (Python)
+### 3.2 Secure Dockerfile (Python)
 
 ```dockerfile
-# Dockerfile (Python セキュリティ強化版)
+# Dockerfile (Python security-hardened version)
 
-# ---- ビルドステージ ----
+# ---- Build Stage ----
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# 仮想環境を作成 (システム Python との分離)
+# Create virtual environment (isolate from system Python)
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# 依存関係のインストール
+# Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# ---- 本番ステージ ----
+# ---- Production Stage ----
 FROM python:3.12-slim AS production
 
-# セキュリティアップデート
+# Security updates
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends tini && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# 非 root ユーザー
+# Non-root user
 RUN groupadd -g 1001 appgroup && \
     useradd -u 1001 -g appgroup -s /bin/false -M appuser
 
 WORKDIR /app
 
-# 仮想環境をコピー
+# Copy virtual environment
 COPY --from=builder --chown=appuser:appgroup /opt/venv /opt/venv
 COPY --from=builder --chown=appuser:appgroup /app .
 
@@ -381,12 +381,12 @@ ENTRYPOINT ["tini", "--"]
 CMD ["gunicorn", "app.main:app", "--bind", "0.0.0.0:8000", "--workers", "4"]
 ```
 
-### 3.3 セキュアな Dockerfile (Go)
+### 3.3 Secure Dockerfile (Go)
 
 ```dockerfile
-# Dockerfile (Go セキュリティ強化版)
+# Dockerfile (Go security-hardened version)
 
-# ---- ビルドステージ ----
+# ---- Build Stage ----
 FROM golang:1.22-alpine AS builder
 
 RUN apk add --no-cache ca-certificates git
@@ -398,18 +398,18 @@ RUN go mod download && go mod verify
 
 COPY . .
 
-# 静的バイナリを生成 (CGO 無効)
+# Generate static binary (CGO disabled)
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-w -s -X main.version=1.0.0" \
     -o /server ./cmd/server
 
-# ---- 本番ステージ (scratch or distroless) ----
+# ---- Production Stage (scratch or distroless) ----
 FROM gcr.io/distroless/static-debian12:nonroot
 
-# CA 証明書 (HTTPS 通信に必要)
+# CA certificates (required for HTTPS communication)
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# バイナリのみコピー
+# Copy only the binary
 COPY --from=builder /server /server
 
 USER nonroot:nonroot
@@ -419,38 +419,38 @@ EXPOSE 8080
 ENTRYPOINT ["/server"]
 ```
 
-### 3.4 ベースイメージの選択
+### 3.4 Base Image Selection
 
 ```
 +------------------------------------------------------------------+
-|              ベースイメージのサイズとセキュリティ                     |
+|              Base Image Size and Security                         |
 +------------------------------------------------------------------+
 |                                                                  |
-|  イメージ              | サイズ   | CVE数(参考) | 用途           |
-|  ----------------------|---------|------------|---------------|
-|  ubuntu:22.04          | ~77MB   | 中         | 汎用           |
-|  debian:bookworm-slim  | ~74MB   | 中         | 汎用           |
-|  node:20-bookworm      | ~350MB  | 多         | 開発用         |
-|  node:20-alpine        | ~130MB  | 少         | 本番推奨       |
-|  node:20-slim          | ~180MB  | 中         | Alpine非互換時  |
-|  python:3.12-slim      | ~120MB  | 少         | Python 本番    |
-|  python:3.12-alpine    | ~50MB   | 最少       | Alpine 互換時  |
-|  golang:1.22-alpine    | ~250MB  | 少         | Go ビルド用    |
-|  gcr.io/distroless/    | ~20MB   | 最少       | 本番最適       |
-|  chainguard/           | ~10MB   | 最少       | 本番最適       |
-|  scratch               | 0MB     | なし       | Go/Rust静的バイナリ |
+|  Image                 | Size     | CVEs (ref) | Use Case       |
+|  ----------------------|---------|------------|----------------|
+|  ubuntu:22.04          | ~77MB   | Medium     | General        |
+|  debian:bookworm-slim  | ~74MB   | Medium     | General        |
+|  node:20-bookworm      | ~350MB  | Many       | Development    |
+|  node:20-alpine        | ~130MB  | Few        | Production     |
+|  node:20-slim          | ~180MB  | Medium     | Alpine-incompatible |
+|  python:3.12-slim      | ~120MB  | Few        | Python prod    |
+|  python:3.12-alpine    | ~50MB   | Minimal    | Alpine-compatible |
+|  golang:1.22-alpine    | ~250MB  | Few        | Go builds      |
+|  gcr.io/distroless/    | ~20MB   | Minimal    | Production-optimal |
+|  chainguard/           | ~10MB   | Minimal    | Production-optimal |
+|  scratch               | 0MB     | None       | Go/Rust static binary |
 |                                                                  |
-|  推奨: alpine (Node.js) / distroless (Go/Java) / scratch (Rust) |
+|  Recommended: alpine (Node.js) / distroless (Go/Java) / scratch (Rust) |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-ベースイメージの選択は、セキュリティとイメージサイズの両方に影響する。イメージに含まれるパッケージが多いほど CVE (既知脆弱性) の数も増える。最小イメージを使うことで攻撃面を縮小し、スキャン結果のノイズも減らせる。
+Base image selection affects both security and image size. The more packages an image contains, the more CVEs (known vulnerabilities) it will have. Using minimal images reduces the attack surface and also reduces noise in scan results.
 
-### 3.5 Distroless イメージの利用
+### 3.5 Using Distroless Images
 
 ```dockerfile
-# Go アプリの Distroless ビルド
+# Distroless build for a Go app
 FROM golang:1.22 AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -466,7 +466,7 @@ ENTRYPOINT ["/server"]
 ```
 
 ```dockerfile
-# Java アプリの Distroless ビルド
+# Distroless build for a Java app
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
 COPY . .
@@ -479,10 +479,10 @@ EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app.jar"]
 ```
 
-### 3.6 Chainguard Images (次世代の最小イメージ)
+### 3.6 Chainguard Images (Next-generation minimal images)
 
 ```dockerfile
-# Chainguard Images を使った Node.js アプリ
+# Node.js app using Chainguard Images
 FROM cgr.dev/chainguard/node:latest-dev AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -499,29 +499,29 @@ EXPOSE 3000
 CMD ["dist/index.js"]
 ```
 
-Chainguard Images は Wolfi Linux をベースとし、CVE ゼロを目標とする最小イメージ群。`apk` パッケージマネージャを使い、Alpine と互換性がある。Distroless の後継として注目されている。
+Chainguard Images are a family of minimal images based on Wolfi Linux, targeting zero CVEs. They use the `apk` package manager and are compatible with Alpine. They are gaining attention as a successor to Distroless.
 
 ---
 
-## 4. 最小権限の実行
+## 4. Least-Privilege Execution
 
-### 4.1 Docker run のセキュリティオプション
+### 4.1 Security Options for docker run
 
 ```bash
-# セキュリティ強化された docker run
+# Security-hardened docker run
 docker run \
-  --read-only \                        # 読み取り専用ファイルシステム
-  --tmpfs /tmp:noexec,nosuid,size=64m \ # 書き込み可能な一時領域
-  --cap-drop ALL \                     # 全 Capability を削除
-  --cap-add NET_BIND_SERVICE \         # 必要な Capability のみ追加
-  --security-opt no-new-privileges \   # 権限昇格を防止
-  --security-opt seccomp=default \     # seccomp プロファイル
-  --user 1001:1001 \                   # 非 root ユーザー
-  --pids-limit 100 \                   # プロセス数制限
-  --memory 256m \                      # メモリ制限
-  --cpus 0.5 \                         # CPU 制限
-  --network myapp-net \                # カスタムネットワーク (default bridge を使わない)
-  --dns 8.8.8.8 \                      # DNS サーバーの明示指定
+  --read-only \                        # Read-only filesystem
+  --tmpfs /tmp:noexec,nosuid,size=64m \ # Writable temporary area
+  --cap-drop ALL \                     # Remove all capabilities
+  --cap-add NET_BIND_SERVICE \         # Add only required capabilities
+  --security-opt no-new-privileges \   # Prevent privilege escalation
+  --security-opt seccomp=default \     # seccomp profile
+  --user 1001:1001 \                   # Non-root user
+  --pids-limit 100 \                   # Process count limit
+  --memory 256m \                      # Memory limit
+  --cpus 0.5 \                         # CPU limit
+  --network myapp-net \                # Custom network (don't use default bridge)
+  --dns 8.8.8.8 \                      # Explicit DNS server
   --health-cmd "curl -f http://localhost:3000/health || exit 1" \
   --health-interval 30s \
   --health-timeout 5s \
@@ -529,7 +529,7 @@ docker run \
   myapp:latest
 ```
 
-### 4.2 Docker Compose での設定
+### 4.2 Configuration in Docker Compose
 
 ```yaml
 # docker-compose.yml
@@ -569,36 +569,36 @@ services:
 networks:
   app-net:
     driver: bridge
-    internal: false  # true にすると外部通信を遮断
+    internal: false  # Set to true to block external communication
 ```
 
-### 4.3 Linux Capability の詳細
+### 4.3 Linux Capabilities in Detail
 
 ```
 +------------------------------------------------------------------+
-|              主要な Linux Capability                               |
+|              Key Linux Capabilities                               |
 +------------------------------------------------------------------+
 |                                                                  |
-|  Capability            | 説明                    | 必要な場面      |
-|  ----------------------|------------------------|----------------|
-|  NET_BIND_SERVICE      | 1024未満のポートにバインド | Nginx (80/443)  |
-|  NET_RAW               | RAW ソケット作成         | ping コマンド    |
-|  CHOWN                 | ファイル所有者の変更      | 初期化スクリプト  |
-|  DAC_OVERRIDE          | ファイルパーミッション無視 | 特権操作         |
-|  SETUID/SETGID         | UID/GID の変更           | su / sudo       |
-|  SYS_ADMIN             | 広範な管理権限            | マウント操作      |
-|  SYS_PTRACE            | プロセストレース          | デバッグ          |
-|  SYS_TIME              | システム時刻変更          | NTP クライアント  |
-|  AUDIT_WRITE           | 監査ログ書き込み          | sshd             |
-|  KILL                  | シグナル送信             | プロセス管理      |
+|  Capability            | Description              | When Needed   |
+|  ----------------------|--------------------------|---------------|
+|  NET_BIND_SERVICE      | Bind to ports below 1024 | Nginx (80/443) |
+|  NET_RAW               | Create RAW sockets       | ping command   |
+|  CHOWN                 | Change file ownership    | Init scripts   |
+|  DAC_OVERRIDE          | Bypass file permissions  | Privileged ops |
+|  SETUID/SETGID         | Change UID/GID           | su / sudo      |
+|  SYS_ADMIN             | Broad admin privileges   | Mount ops      |
+|  SYS_PTRACE            | Process tracing          | Debugging      |
+|  SYS_TIME              | Change system time       | NTP client     |
+|  AUDIT_WRITE           | Write to audit log       | sshd           |
+|  KILL                  | Send signals             | Process mgmt   |
 |                                                                  |
-|  デフォルト: Docker は 14 個の Capability を付与                   |
-|  推奨: cap_drop ALL + 必要最小限の cap_add                        |
+|  Default: Docker grants 14 capabilities                          |
+|  Recommended: cap_drop ALL + minimal cap_add as needed           |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 4.4 seccomp プロファイル
+### 4.4 seccomp Profiles
 
 ```json
 {
@@ -643,14 +643,14 @@ networks:
 ```
 
 ```bash
-# カスタム seccomp プロファイルの適用
+# Apply custom seccomp profile
 docker run --security-opt seccomp=seccomp-profile.json myapp:latest
 ```
 
 ### 4.5 Kubernetes Pod Security Standards
 
 ```yaml
-# pod-security.yaml (Restricted レベル)
+# pod-security.yaml (Restricted level)
 apiVersion: v1
 kind: Pod
 metadata:
@@ -663,7 +663,7 @@ spec:
     fsGroup: 1001
     seccompProfile:
       type: RuntimeDefault
-  automountServiceAccountToken: false  # SA トークンの自動マウントを無効化
+  automountServiceAccountToken: false  # Disable automatic SA token mounting
   containers:
     - name: app
       image: myapp:latest
@@ -688,52 +688,52 @@ spec:
         sizeLimit: 64Mi
 ```
 
-### 4.6 Pod Security Standards (PSS) の適用
+### 4.6 Applying Pod Security Standards (PSS)
 
 ```yaml
-# Namespace レベルで Pod Security Standards を適用
+# Apply Pod Security Standards at the Namespace level
 apiVersion: v1
 kind: Namespace
 metadata:
   name: production
   labels:
-    # Restricted レベルを強制
+    # Enforce Restricted level
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/enforce-version: latest
-    # Baseline レベルで警告
+    # Warn at Baseline level
     pod-security.kubernetes.io/warn: baseline
     pod-security.kubernetes.io/warn-version: latest
-    # Privileged レベルで監査ログ
+    # Audit log at Privileged level
     pod-security.kubernetes.io/audit: privileged
     pod-security.kubernetes.io/audit-version: latest
 ```
 
 ```
 +------------------------------------------------------------------+
-|              Pod Security Standards レベル                         |
+|              Pod Security Standards Levels                        |
 +------------------------------------------------------------------+
 |                                                                  |
-|  Privileged (特権):                                              |
-|    -> 制限なし。全ての設定が許可される                              |
-|    -> 用途: kube-system, 監視エージェント                          |
+|  Privileged:                                                     |
+|    -> No restrictions. All configurations are permitted.         |
+|    -> Use case: kube-system, monitoring agents                   |
 |                                                                  |
-|  Baseline (基準):                                                 |
-|    -> 既知の特権昇格を防止する最小限の制限                          |
-|    -> 禁止: hostNetwork, hostPID, hostIPC, 特権コンテナ            |
-|    -> 禁止: hostPath ボリューム (一部)                              |
-|    -> 用途: ステージング環境、開発環境                              |
+|  Baseline:                                                       |
+|    -> Minimal restrictions to prevent known privilege escalation |
+|    -> Prohibited: hostNetwork, hostPID, hostIPC, privileged containers |
+|    -> Prohibited: hostPath volumes (some)                        |
+|    -> Use case: staging, development environments                |
 |                                                                  |
-|  Restricted (制限):                                               |
-|    -> 現在のベストプラクティスに沿った厳格な制限                    |
-|    -> 追加要件: runAsNonRoot, readOnlyRootFilesystem              |
-|    -> 追加要件: allowPrivilegeEscalation: false                    |
-|    -> 追加要件: capabilities drop ALL, seccomp RuntimeDefault      |
-|    -> 用途: 本番環境                                               |
+|  Restricted:                                                     |
+|    -> Strict restrictions following current best practices       |
+|    -> Additional requirements: runAsNonRoot, readOnlyRootFilesystem |
+|    -> Additional requirements: allowPrivilegeEscalation: false   |
+|    -> Additional requirements: capabilities drop ALL, seccomp RuntimeDefault |
+|    -> Use case: production environments                          |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 4.7 RBAC (ロールベースアクセス制御)
+### 4.7 RBAC (Role-Based Access Control)
 
 ```yaml
 # ServiceAccount
@@ -745,18 +745,18 @@ metadata:
 automountServiceAccountToken: false
 
 ---
-# Role (namespace スコープ)
+# Role (namespace scope)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: myapp-role
   namespace: production
 rules:
-  # ConfigMap の読み取りのみ許可
+  # Allow read-only access to ConfigMaps
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list", "watch"]
-  # Secret の読み取りのみ許可 (特定名のみ)
+  # Allow read-only access to Secrets (specific names only)
   - apiGroups: [""]
     resources: ["secrets"]
     resourceNames: ["myapp-secret"]
@@ -781,59 +781,59 @@ roleRef:
 
 ---
 
-## 5. シークレット管理
+## 5. Secrets Management
 
-### 5.1 シークレット管理の比較
+### 5.1 Secrets Management Comparison
 
-| 方式 | セキュリティ | 複雑度 | コスト | 適用場面 |
+| Method | Security | Complexity | Cost | Use Case |
 |------|-----------|-------|-------|---------|
-| 環境変数 (直接) | 低 | 低 | 無料 | 開発環境のみ |
-| Docker Secrets | 中 | 低 | 無料 | Docker Swarm |
-| .env ファイル | 低 | 低 | 無料 | ローカル開発 |
-| HashiCorp Vault | 高 | 高 | 有料/OSS | エンタープライズ |
-| AWS Secrets Manager | 高 | 中 | 従量課金 | AWS 環境 |
-| GCP Secret Manager | 高 | 中 | 従量課金 | GCP 環境 |
-| Azure Key Vault | 高 | 中 | 従量課金 | Azure 環境 |
-| External Secrets | 高 | 中 | 連携先依存 | Kubernetes |
-| Sealed Secrets | 中 | 低 | 無料 | GitOps |
-| SOPS | 中 | 低 | 無料 | GitOps |
+| Environment variables (direct) | Low | Low | Free | Development only |
+| Docker Secrets | Medium | Low | Free | Docker Swarm |
+| .env file | Low | Low | Free | Local development |
+| HashiCorp Vault | High | High | Paid/OSS | Enterprise |
+| AWS Secrets Manager | High | Medium | Pay-per-use | AWS environments |
+| GCP Secret Manager | High | Medium | Pay-per-use | GCP environments |
+| Azure Key Vault | High | Medium | Pay-per-use | Azure environments |
+| External Secrets | High | Medium | Depends on backend | Kubernetes |
+| Sealed Secrets | Medium | Low | Free | GitOps |
+| SOPS | Medium | Low | Free | GitOps |
 
-### 5.2 ビルド時のシークレット
+### 5.2 Build-time Secrets
 
 ```dockerfile
-# NG: シークレットをビルド引数で渡す (レイヤーに残る)
+# BAD: Passing secrets as build args (persists in layers)
 ARG NPM_TOKEN
 RUN echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc && \
     npm ci && \
-    rm .npmrc   # 削除しても前のレイヤーに残っている！
+    rm .npmrc   # Deleting it doesn't help — it remains in the previous layer!
 
-# OK: BuildKit のシークレットマウント
+# GOOD: BuildKit secret mount
 # syntax=docker/dockerfile:1
 RUN --mount=type=secret,id=npmrc,target=/root/.npmrc \
     npm ci
 
-# OK: SSH 鍵のマウント (プライベート Git リポジトリのクローン用)
+# GOOD: SSH key mount (for cloning private Git repositories)
 RUN --mount=type=ssh \
     git clone git@github.com:myorg/private-repo.git
 ```
 
 ```bash
-# ビルド時のシークレット渡し
+# Pass secrets at build time
 docker build --secret id=npmrc,src=$HOME/.npmrc -t myapp .
 
-# SSH 鍵の転送
+# Forward SSH keys
 docker build --ssh default -t myapp .
 
-# BuildKit のシークレットマウントを使った pip install
+# pip install using BuildKit secret mount
 docker build \
   --secret id=pip_conf,src=$HOME/.pip/pip.conf \
   -t myapp .
 ```
 
-### 5.3 実行時のシークレット注入
+### 5.3 Runtime Secret Injection
 
 ```yaml
-# Docker Compose でのシークレット
+# Secrets in Docker Compose
 services:
   app:
     image: myapp:latest
@@ -851,17 +851,17 @@ secrets:
 ```
 
 ```typescript
-// アプリ側: ファイルベースのシークレット読み取り
+// App side: reading file-based secrets
 import { readFileSync, existsSync } from 'fs';
 
 function getSecret(name: string): string {
-  // Docker Secrets (ファイルベース) を優先
+  // Prefer Docker Secrets (file-based)
   const filePath = process.env[`${name}_FILE`];
   if (filePath && existsSync(filePath)) {
     return readFileSync(filePath, 'utf-8').trim();
   }
 
-  // Kubernetes Secret (環境変数) にフォールバック
+  // Fall back to Kubernetes Secret (environment variable)
   const envValue = process.env[name];
   if (envValue) {
     return envValue;
@@ -874,10 +874,10 @@ const dbPassword = getSecret('DB_PASSWORD');
 const apiKey = getSecret('API_KEY');
 ```
 
-### 5.4 HashiCorp Vault との統合
+### 5.4 HashiCorp Vault Integration
 
 ```yaml
-# Vault Agent Injector を使った Kubernetes 統合
+# Kubernetes integration using Vault Agent Injector
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -886,7 +886,7 @@ spec:
   template:
     metadata:
       annotations:
-        # Vault Agent Injector のアノテーション
+        # Vault Agent Injector annotations
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "myapp"
         vault.hashicorp.com/agent-inject-secret-db-creds: "secret/data/myapp/db"
@@ -906,17 +906,17 @@ spec:
 
 ---
 
-## 6. ランタイムセキュリティ
+## 6. Runtime Security
 
-### 6.1 Falco による異常検知
+### 6.1 Anomaly Detection with Falco
 
 ```yaml
-# Falco のインストール (Helm)
+# Install Falco (Helm)
 # helm install falco falcosecurity/falco -n falco --create-namespace
 
-# falco-rules.yaml (カスタムルール)
+# falco-rules.yaml (custom rules)
 - rule: Container Shell Spawned
-  desc: コンテナ内でシェルが起動された
+  desc: A shell was launched inside a container
   condition: >
     spawned_process and
     container and
@@ -930,7 +930,7 @@ spec:
   tags: [container, shell]
 
 - rule: Sensitive File Access
-  desc: 機密ファイルへのアクセスを検知
+  desc: Detect access to sensitive files
   condition: >
     open_read and
     container and
@@ -942,7 +942,7 @@ spec:
   tags: [container, filesystem]
 
 - rule: Outbound Connection to Suspicious Port
-  desc: 不審なポートへの外部接続
+  desc: Outbound connection to a suspicious port
   condition: >
     outbound and
     container and
@@ -956,7 +956,7 @@ spec:
   tags: [container, network]
 
 - rule: Package Manager Execution
-  desc: コンテナ内でパッケージマネージャが実行された
+  desc: A package manager was executed inside a container
   condition: >
     spawned_process and
     container and
@@ -969,7 +969,7 @@ spec:
   tags: [container, software_mgmt]
 ```
 
-### 6.2 Falco と Slack 連携 (アラート通知)
+### 6.2 Falco and Slack Integration (Alert Notifications)
 
 ```yaml
 # falco-values.yaml (Helm)
@@ -987,13 +987,13 @@ falcosidekick:
         *Time:* {{ .Time }}
 ```
 
-### 6.3 OPA/Gatekeeper によるポリシー適用
+### 6.3 Policy Enforcement with OPA/Gatekeeper
 
 ```yaml
-# Gatekeeper のインストール
+# Install Gatekeeper
 # helm install gatekeeper gatekeeper/gatekeeper -n gatekeeper-system --create-namespace
 
-# ConstraintTemplate: コンテナは root で実行してはならない
+# ConstraintTemplate: Containers must not run as root
 apiVersion: templates.gatekeeper.sh/v1
 kind: ConstraintTemplate
 metadata:
@@ -1020,7 +1020,7 @@ spec:
         }
 
 ---
-# Constraint: 適用
+# Constraint: Apply
 apiVersion: constraints.gatekeeper.sh/v1beta1
 kind: K8sRequireNonRootUser
 metadata:
@@ -1035,7 +1035,7 @@ spec:
 ```
 
 ```yaml
-# ConstraintTemplate: リソースリミットの必須化
+# ConstraintTemplate: Require resource limits
 apiVersion: templates.gatekeeper.sh/v1
 kind: ConstraintTemplate
 metadata:
@@ -1075,10 +1075,10 @@ spec:
     namespaces: ["production"]
 ```
 
-### 6.4 Kyverno によるポリシー適用
+### 6.4 Policy Enforcement with Kyverno
 
 ```yaml
-# Kyverno ポリシー: 非 root 実行の強制
+# Kyverno policy: enforce non-root execution
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -1106,7 +1106,7 @@ spec:
                   allowPrivilegeEscalation: false
 
 ---
-# Kyverno ポリシー: latest タグの禁止
+# Kyverno policy: disallow latest tag
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -1130,64 +1130,64 @@ spec:
 
 ---
 
-## 7. セキュリティスキャンの自動化フロー
+## 7. Security Scan Automation Flow
 
 ```
 +------------------------------------------------------------------+
-|              セキュリティスキャン自動化フロー                        |
+|              Security Scan Automation Flow                        |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [開発者]                                                        |
+|  [Developer]                                                     |
 |     | git push                                                   |
 |     v                                                            |
 |  [CI/CD]                                                         |
 |     |                                                            |
 |     +-- (1) Dockerfile Lint (hadolint)                           |
-|     |     -> Dockerfile のベストプラクティス違反を検出              |
+|     |     -> Detect Dockerfile best practice violations          |
 |     |                                                            |
-|     +-- (2) 依存関係スキャン (npm audit / Trivy fs)              |
-|     |     -> パッケージの既知脆弱性を検出                          |
+|     +-- (2) Dependency scan (npm audit / Trivy fs)               |
+|     |     -> Detect known vulnerabilities in packages            |
 |     |                                                            |
-|     +-- (3) シークレットスキャン (Trivy / gitleaks)              |
-|     |     -> ハードコードされた認証情報を検出                      |
+|     +-- (3) Secret scan (Trivy / gitleaks)                       |
+|     |     -> Detect hardcoded credentials                        |
 |     |                                                            |
-|     +-- (4) IaC スキャン (Trivy config / tfsec)                  |
-|     |     -> Kubernetes YAML / Terraform の設定ミスを検出          |
+|     +-- (4) IaC scan (Trivy config / tfsec)                      |
+|     |     -> Detect misconfigurations in Kubernetes YAML / Terraform |
 |     |                                                            |
-|     +-- (5) イメージビルド                                       |
+|     +-- (5) Image build                                          |
 |     |                                                            |
-|     +-- (6) イメージスキャン (Trivy image)                       |
-|     |     -> CRITICAL/HIGH -> ビルド失敗                           |
+|     +-- (6) Image scan (Trivy image)                             |
+|     |     -> CRITICAL/HIGH -> build fails                        |
 |     |                                                            |
-|     +-- (7) SBOM 生成                                            |
+|     +-- (7) SBOM generation                                      |
 |     |                                                            |
-|     +-- (8) イメージ署名 (cosign)                                |
+|     +-- (8) Image signing (cosign)                               |
 |     |                                                            |
-|     +-- (9) レジストリにプッシュ                                  |
+|     +-- (9) Push to registry                                     |
 |     |                                                            |
-|     +-- (10) デプロイ時: Admission Controller で署名検証          |
+|     +-- (10) At deploy time: Admission Controller verifies signing |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 7.1 gitleaks によるシークレット検出
+### 7.1 Secret Detection with gitleaks
 
 ```bash
-# gitleaks のインストール
+# Install gitleaks
 brew install gitleaks
 
-# リポジトリスキャン
+# Repository scan
 gitleaks detect --source . --verbose
 
-# Git 履歴全体のスキャン
+# Scan entire Git history
 gitleaks detect --source . --log-opts="--all"
 
-# pre-commit フックとして設定
+# Configure as pre-commit hook
 gitleaks protect --staged
 ```
 
 ```yaml
-# .gitleaks.toml (設定ファイル)
+# .gitleaks.toml (configuration file)
 [allowlist]
   description = "Allowlisted files and patterns"
   paths = [
@@ -1204,20 +1204,20 @@ gitleaks protect --staged
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン 1: root ユーザーでのコンテナ実行
+### Anti-pattern 1: Running containers as the root user
 
 ```dockerfile
-# NG: root で実行 (デフォルト)
+# BAD: Running as root (default)
 FROM node:20-alpine
 WORKDIR /app
 COPY . .
 CMD ["node", "index.js"]
-# -> コンテナ内で root 権限。脆弱性を突かれると
-#   ホストファイルシステムにアクセスされるリスク
+# -> Root privileges inside the container. If a vulnerability is exploited,
+#    the attacker risks accessing the host filesystem.
 
-# OK: 非 root ユーザーで実行
+# GOOD: Run as non-root user
 FROM node:20-alpine
 RUN addgroup -g 1001 -S appgroup && \
     adduser -S appuser -u 1001 -G appgroup
@@ -1227,20 +1227,20 @@ USER appuser
 CMD ["node", "index.js"]
 ```
 
-**問題点**: root でコンテナを実行すると、コンテナ脱出の脆弱性 (CVE-2024-21626 等) を突かれた場合にホストの root 権限を奪取される。非 root ユーザーで実行するだけで攻撃の影響を大幅に軽減できる。
+**Problem**: Running a container as root means that if a container escape vulnerability (e.g., CVE-2024-21626) is exploited, the attacker can gain root access to the host. Simply running as a non-root user dramatically reduces the impact of an attack.
 
-### アンチパターン 2: マルチステージビルドを使わない
+### Anti-pattern 2: Not using multi-stage builds
 
 ```dockerfile
-# NG: 単一ステージ (ビルドツール + ソースコードが本番イメージに残る)
+# BAD: Single stage (build tools + source code remain in the production image)
 FROM node:20
 WORKDIR /app
 COPY . .
 RUN npm ci && npm run build
 CMD ["node", "dist/index.js"]
-# -> gcc, make, python, .git, src/ が全て残る (攻撃面が広い)
+# -> gcc, make, python, .git, src/ all remain (wide attack surface)
 
-# OK: マルチステージで本番イメージを最小化
+# GOOD: Minimize production image with multi-stage build
 FROM node:20 AS builder
 WORKDIR /app
 COPY . .
@@ -1254,19 +1254,19 @@ USER node
 CMD ["node", "dist/index.js"]
 ```
 
-**問題点**: ビルドツール (gcc, make) やソースコード、テストファイルが本番イメージに含まれると、脆弱性の攻撃面が不必要に広がる。マルチステージビルドで実行に必要なファイルだけを最終イメージにコピーする。
+**Problem**: Including build tools (gcc, make), source code, and test files in the production image unnecessarily widens the vulnerability attack surface. Use multi-stage builds to copy only the files needed for execution into the final image.
 
-### アンチパターン 3: Capability を削除しない
+### Anti-pattern 3: Not dropping capabilities
 
 ```yaml
-# NG: デフォルトの Capability のまま実行
+# BAD: Running with default capabilities
 spec:
   containers:
     - name: app
       image: myapp:latest
-      # securityContext が未設定 -> 14個の Capability が付与される
+      # No securityContext -> 14 capabilities are granted
 
-# OK: 全削除して必要最小限のみ追加
+# GOOD: Drop all and add only the minimum required
 spec:
   containers:
     - name: app
@@ -1274,23 +1274,23 @@ spec:
       securityContext:
         capabilities:
           drop: ["ALL"]
-          add: ["NET_BIND_SERVICE"]  # 80番ポート使用時のみ
+          add: ["NET_BIND_SERVICE"]  # Only when using port 80
 ```
 
-**問題点**: Docker はデフォルトで 14 個の Linux Capability をコンテナに付与する。NET_RAW (パケット偽装)、SYS_CHROOT (chroot 脱出) など、多くのアプリでは不要な権限が含まれる。`drop: ALL` で全て削除し、必要なものだけを明示的に追加する。
+**Problem**: Docker grants 14 Linux capabilities to containers by default. Many of these, such as NET_RAW (packet spoofing) and SYS_CHROOT (chroot escape), are unnecessary for most applications. Use `drop: ALL` to remove all capabilities and explicitly add only what is needed.
 
-### アンチパターン 4: automountServiceAccountToken を無効化しない
+### Anti-pattern 4: Not disabling automountServiceAccountToken
 
 ```yaml
-# NG: SA トークンが自動マウントされる (デフォルト)
+# BAD: SA token is automatically mounted (default)
 spec:
   containers:
     - name: app
       image: myapp:latest
-      # /var/run/secrets/kubernetes.io/serviceaccount/token にトークンが存在
-      # -> コンテナが侵害された場合、Kubernetes API にアクセスされる
+      # A token exists at /var/run/secrets/kubernetes.io/serviceaccount/token
+      # -> If the container is compromised, the attacker can access the Kubernetes API
 
-# OK: 不要な場合は自動マウントを無効化
+# GOOD: Disable automatic mounting when not needed
 spec:
   automountServiceAccountToken: false
   containers:
@@ -1298,50 +1298,50 @@ spec:
       image: myapp:latest
 ```
 
-**問題点**: ServiceAccount トークンが自動的にマウントされると、コンテナ侵害時に攻撃者が Kubernetes API にアクセスできてしまう。Kubernetes API と通信する必要がないアプリケーションでは、必ず `automountServiceAccountToken: false` を設定する。
+**Problem**: When the ServiceAccount token is automatically mounted, an attacker can access the Kubernetes API if the container is compromised. For applications that do not need to communicate with the Kubernetes API, always set `automountServiceAccountToken: false`.
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1350,26 +1350,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1377,7 +1377,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1388,14 +1388,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1403,7 +1403,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1411,44 +1411,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1457,7 +1457,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1472,78 +1472,78 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## FAQ
 
-### Q1: Trivy のスキャン結果で CRITICAL が出たが、すぐに修正できない場合はどうすべきですか？
+### Q1: A CRITICAL was found in the Trivy scan results but I can't fix it immediately. What should I do?
 
-**A**: (1) `.trivyignore` ファイルに CVE ID を記載して一時的にスキップし、チケットを作成して追跡する。(2) ベースイメージを更新して修正版が含まれるか確認する。(3) 該当パッケージが実際にアプリで使用されているか確認する (到達可能性分析)。Trivy の `--ignore-unfixed` オプションで修正版がリリースされていない脆弱性を除外することも有効。重要なのは「無視する」のではなく「追跡する」こと。
+**A**: (1) Add the CVE ID to the `.trivyignore` file to temporarily skip it, and create a ticket to track it. (2) Update the base image to check if a fixed version is included. (3) Verify whether the affected package is actually used by the app (reachability analysis). Using Trivy's `--ignore-unfixed` option to exclude vulnerabilities without a released fix is also effective. The important thing is not to "ignore" but to "track."
 
-### Q2: Distroless イメージにシェルがないのですが、デバッグはどうすればよいですか？
+### Q2: The Distroless image has no shell. How should I debug it?
 
-**A**: (1) `gcr.io/distroless/base-debian12:debug` タグにはシェル (busybox) が含まれている。ステージング環境では debug タグを使い、本番では通常タグを使う。(2) Kubernetes では `kubectl debug` でエフェメラルコンテナをアタッチできる。(3) `docker exec` の代わりに `docker cp` でファイルを取り出して確認する。本番でデバッグ用ツールを排除するのはセキュリティ上重要。
+**A**: (1) The `gcr.io/distroless/base-debian12:debug` tag includes a shell (busybox). Use the debug tag in staging environments and the normal tag in production. (2) In Kubernetes, you can attach an ephemeral container with `kubectl debug`. (3) Instead of `docker exec`, use `docker cp` to extract files for inspection. Excluding debugging tools in production is important for security.
 
-### Q3: read_only ファイルシステムで動作しないアプリへの対処法は？
+### Q3: What should I do about apps that don't work with a read-only filesystem?
 
-**A**: 多くのアプリは `/tmp` や特定ディレクトリへの書き込みを必要とする。`tmpfs` で必要なパスだけを書き込み可能にする。Node.js の場合は `/tmp` と `/app/.cache`、Python の場合は `/tmp` と `__pycache__`、Nginx の場合は `/var/cache/nginx` と `/var/run` を tmpfs にマウントする。書き込み先を特定するには、`strace` やアプリのエラーログで `EROFS (Read-only file system)` を検索するとよい。
+**A**: Many applications need to write to `/tmp` or specific directories. Use `tmpfs` to make only the required paths writable. For Node.js, mount `/tmp` and `/app/.cache` as tmpfs; for Python, `/tmp` and `__pycache__`; for Nginx, `/var/cache/nginx` and `/var/run`. To identify which paths need to be writable, search for `EROFS (Read-only file system)` in `strace` output or application error logs.
 
-### Q4: Pod Security Standards の Restricted レベルを適用したら既存の Pod が起動しなくなりました。段階的に移行するには？
+### Q4: After applying Pod Security Standards at the Restricted level, some existing Pods stopped starting. How do I migrate incrementally?
 
-**A**: 段階的なアプローチを推奨する。(1) まず `audit` モードで Restricted を適用し、違反の Pod を特定する (`kubectl get events --field-selector reason=FailedCreate`)。(2) 各 Pod のセキュリティコンテキストを修正する。(3) `warn` モードに変更してテストする。(4) 全 Pod が準拠したら `enforce` モードに切り替える。一度に全 Namespace に適用するのではなく、1 つの Namespace ずつ進める。
+**A**: A phased approach is recommended. (1) First apply Restricted in `audit` mode to identify non-compliant Pods (`kubectl get events --field-selector reason=FailedCreate`). (2) Fix the security context of each Pod. (3) Switch to `warn` mode and test. (4) Once all Pods comply, switch to `enforce` mode. Rather than applying to all Namespaces at once, proceed one Namespace at a time.
 
-### Q5: Falco のアラートが多すぎて対応しきれません。チューニング方法は？
+### Q5: There are too many Falco alerts to handle. How do I tune them?
 
-**A**: (1) 正当な操作による誤検知を特定し、`exceptions` でホワイトリストに追加する。(2) 優先度 (priority) を調整し、本当に重要なアラートのみ通知する。(3) CronJob やバッチ処理による定期的なアラートは、対象コンテナやイメージを `condition` から除外する。(4) falcosidekick で `minimumpriority` を設定し、WARNING 以上のみ通知する。最初は少数のルールから始めて、環境に合わせて徐々にルールを追加するのが効果的。
+**A**: (1) Identify false positives caused by legitimate operations and add them to the allowlist using `exceptions`. (2) Adjust the priority so that only truly important alerts are notified. (3) For periodic alerts from CronJobs or batch processes, exclude the target containers or images from the `condition`. (4) Use falcosidekick to set `minimumpriority` so that only WARNING and above are notified. It is effective to start with a small number of rules and gradually add more as they fit your environment.
 
-### Q6: コンテナイメージのセキュリティスキャンを定期的に再実行する必要がありますか？
+### Q6: Is it necessary to periodically re-run security scans on container images?
 
-**A**: はい、必須。新しい CVE は毎日発見される。ビルド時にスキャンをパスしたイメージでも、後から脆弱性が発見される可能性がある。推奨は (1) ビルド時のスキャン (CI/CD ゲート)、(2) デプロイ済みイメージの定期スキャン (日次)、(3) 新しい CRITICAL CVE が公開された際の緊急スキャン。SBOM を保存しておけば、イメージを再プルせずに脆弱性の影響を確認できる。
+**A**: Yes, it is essential. New CVEs are discovered every day. Even images that passed a scan at build time may have vulnerabilities discovered later. The recommendation is: (1) scanning at build time (CI/CD gate), (2) periodic scans (daily) of deployed images, and (3) emergency scans when a new CRITICAL CVE is published. Saving an SBOM allows you to assess the vulnerability impact without re-pulling the image.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| イメージスキャン | Trivy を CI/CD に統合。CRITICAL/HIGH で自動ブロック |
-| Dockerfile Lint | hadolint でベストプラクティス違反を早期検出 |
-| ベースイメージ | alpine / distroless / scratch / chainguard を用途に応じて選択 |
-| マルチステージ | ビルドツールとソースコードを本番イメージから排除 |
-| 非 root 実行 | `USER` で非 root ユーザーを指定。UID 1001+ を使用 |
-| 読み取り専用 | `read_only: true` + `tmpfs` で書き込みを最小限に |
-| Capability | `cap_drop: ALL` + 必要最小限の `cap_add` |
-| Pod Security | Restricted レベルを本番 Namespace に適用 |
-| RBAC | 最小権限の ServiceAccount + Role を設定 |
-| シークレット | BuildKit secret mount / Docker Secrets / External Secrets |
-| ランタイム監視 | Falco で実行時の異常を検知。アラート連携 |
-| ポリシー適用 | OPA Gatekeeper / Kyverno で Admission Control |
-| シークレット検出 | gitleaks で Git 履歴内のシークレットを検出 |
+| Image scanning | Integrate Trivy into CI/CD. Auto-block on CRITICAL/HIGH |
+| Dockerfile lint | Detect best practice violations early with hadolint |
+| Base image | Choose alpine / distroless / scratch / chainguard depending on the use case |
+| Multi-stage | Exclude build tools and source code from the production image |
+| Non-root execution | Specify a non-root user with `USER`. Use UID 1001+ |
+| Read-only | Minimize writes with `read_only: true` + `tmpfs` |
+| Capabilities | `cap_drop: ALL` + minimal `cap_add` |
+| Pod Security | Apply Restricted level to production Namespaces |
+| RBAC | Configure least-privilege ServiceAccount + Role |
+| Secrets | BuildKit secret mount / Docker Secrets / External Secrets |
+| Runtime monitoring | Detect runtime anomalies with Falco. Integrate with alerting |
+| Policy enforcement | Admission Control with OPA Gatekeeper / Kyverno |
+| Secret detection | Detect secrets in Git history with gitleaks |
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [サプライチェーンセキュリティ](./01-supply-chain-security.md) -- イメージ署名 (cosign) と SBOM
-- [Kubernetes 応用](../05-orchestration/02-kubernetes-advanced.md) -- Pod Security Standards と Network Policy
-- Docker Compose 応用 -- セキュリティ設定を含む Compose 構成
+- [Supply Chain Security](./01-supply-chain-security.md) -- Image signing (cosign) and SBOM
+- [Kubernetes Advanced](../05-orchestration/02-kubernetes-advanced.md) -- Pod Security Standards and Network Policy
+- Docker Compose Advanced -- Compose configurations including security settings
 
-## 参考文献
+## References
 
-1. **Trivy 公式ドキュメント** -- https://aquasecurity.github.io/trivy/ -- Trivy のインストール・設定・CI 統合の完全ガイド
-2. **Docker セキュリティベストプラクティス** -- https://docs.docker.com/build/building/best-practices/ -- 公式が推奨するセキュアな Dockerfile の書き方
-3. **CIS Docker Benchmark** -- https://www.cisecurity.org/benchmark/docker -- Docker セキュリティの業界標準ベンチマーク
-4. **NIST SP 800-190** -- https://csrc.nist.gov/publications/detail/sp/800-190/final -- コンテナセキュリティに関する NIST ガイドライン
-5. **Falco 公式ドキュメント** -- https://falco.org/docs/ -- コンテナランタイムセキュリティ監視ツール
-6. **Pod Security Standards** -- https://kubernetes.io/docs/concepts/security/pod-security-standards/ -- Kubernetes 公式の Pod セキュリティ基準
-7. **OPA Gatekeeper** -- https://open-policy-agent.github.io/gatekeeper/ -- Kubernetes ポリシーエンジン
-8. **Kyverno** -- https://kyverno.io/docs/ -- Kubernetes ネイティブポリシー管理
+1. **Trivy Official Documentation** -- https://aquasecurity.github.io/trivy/ -- Complete guide to Trivy installation, configuration, and CI integration
+2. **Docker Security Best Practices** -- https://docs.docker.com/build/building/best-practices/ -- Secure Dockerfile writing recommended by Docker officially
+3. **CIS Docker Benchmark** -- https://www.cisecurity.org/benchmark/docker -- Industry-standard benchmark for Docker security
+4. **NIST SP 800-190** -- https://csrc.nist.gov/publications/detail/sp/800-190/final -- NIST guidelines on container security
+5. **Falco Official Documentation** -- https://falco.org/docs/ -- Container runtime security monitoring tool
+6. **Pod Security Standards** -- https://kubernetes.io/docs/concepts/security/pod-security-standards/ -- Official Kubernetes Pod security standards
+7. **OPA Gatekeeper** -- https://open-policy-agent.github.io/gatekeeper/ -- Kubernetes policy engine
+8. **Kyverno** -- https://kyverno.io/docs/ -- Kubernetes-native policy management
