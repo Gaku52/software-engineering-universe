@@ -1,61 +1,61 @@
-# Kubernetes 応用 (Kubernetes Advanced)
+# Kubernetes Advanced
 
-> Helm、Ingress、ConfigMap/Secret、HPA (Horizontal Pod Autoscaler) を活用し、本番環境で運用可能な Kubernetes クラスタのデプロイ・管理・スケーリング戦略を体系的に学ぶ。
+> Systematically learn deployment, management, and scaling strategies for production-ready Kubernetes clusters using Helm, Ingress, ConfigMap/Secret, and HPA (Horizontal Pod Autoscaler).
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Helm によるパッケージ管理とテンプレート化** -- Chart の作成・管理を通じて、再利用可能な Kubernetes マニフェストを構築する
-2. **Ingress と ConfigMap/Secret による設定管理** -- 外部トラフィックのルーティングとアプリケーション設定の安全な管理手法を理解する
-3. **HPA によるオートスケーリング** -- Pod の水平スケーリングを実装し、負荷に応じた自動調整で可用性とコスト効率を両立する
-4. **デプロイ戦略の選択と実装** -- ローリングアップデート、Blue-Green、Canary デプロイの使い分けと Argo Rollouts 連携
-5. **KEDA によるイベントドリブンスケーリング** -- キューベースのワークロードを 0 から N までスケーリングする実装パターン
-6. **Prometheus / Grafana による監視基盤** -- メトリクス収集からアラート設定までの可観測性スタック構築
+1. **Package management and templating with Helm** -- Build reusable Kubernetes manifests through Chart creation and management
+2. **Configuration management with Ingress and ConfigMap/Secret** -- Understand external traffic routing and secure application configuration management
+3. **Autoscaling with HPA** -- Implement horizontal Pod scaling for automatic adjustment under load, balancing availability and cost efficiency
+4. **Choosing and implementing deployment strategies** -- How to choose between Rolling Update, Blue-Green, and Canary deployments, and integration with Argo Rollouts
+5. **Event-driven scaling with KEDA** -- Implementation patterns for scaling queue-based workloads from 0 to N
+6. **Monitoring infrastructure with Prometheus / Grafana** -- Building an observability stack from metrics collection to alert configuration
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Kubernetes基礎](./01-kubernetes-basics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Kubernetes Basics](./01-kubernetes-basics.md)
 
 ---
 
 ## 1. Helm
 
-### 1.1 Helm の概要
+### 1.1 Overview of Helm
 
 ```
 +------------------------------------------------------------------+
-|              Helm のアーキテクチャ                                  |
+|              Helm Architecture                                     |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [開発者]                                                        |
+|  [Developer]                                                     |
 |     |  helm install / upgrade / rollback                         |
 |     v                                                            |
 |  [Helm CLI]                                                      |
-|     |  Chart (テンプレート + values)                              |
+|     |  Chart (templates + values)                                |
 |     v                                                            |
 |  [Kubernetes API Server]                                         |
-|     |  マニフェスト適用                                           |
+|     |  Apply manifests                                           |
 |     v                                                            |
-|  [Kubernetes クラスタ]                                            |
+|  [Kubernetes Cluster]                                            |
 |     +-- Deployment                                               |
 |     +-- Service                                                  |
 |     +-- Ingress                                                  |
 |     +-- ConfigMap / Secret                                       |
 |     +-- HPA                                                      |
 |                                                                  |
-|  Chart 構造:                                                     |
+|  Chart structure:                                                |
 |    mychart/                                                      |
-|      Chart.yaml          <- Chart メタデータ                      |
-|      values.yaml         <- デフォルト値                          |
-|      values-staging.yaml <- ステージング用オーバーライド            |
-|      values-prod.yaml    <- 本番用オーバーライド                    |
-|      charts/             <- 依存 Chart (サブチャート)              |
-|      crds/               <- CustomResourceDefinition              |
-|      templates/          <- Go テンプレート                       |
+|      Chart.yaml          <- Chart metadata                       |
+|      values.yaml         <- Default values                       |
+|      values-staging.yaml <- Staging overrides                    |
+|      values-prod.yaml    <- Production overrides                 |
+|      charts/             <- Dependency Charts (subcharts)        |
+|      crds/               <- CustomResourceDefinition             |
+|      templates/          <- Go templates                         |
 |        deployment.yaml                                           |
 |        service.yaml                                              |
 |        ingress.yaml                                              |
@@ -64,17 +64,17 @@
 |        hpa.yaml                                                  |
 |        pdb.yaml                                                  |
 |        serviceaccount.yaml                                       |
-|        NOTES.txt         <- インストール後に表示されるメモ          |
-|        _helpers.tpl      <- 共通ヘルパー                          |
-|      tests/              <- Helm テスト                           |
+|        NOTES.txt         <- Notes displayed after install        |
+|        _helpers.tpl      <- Common helpers                       |
+|      tests/              <- Helm tests                           |
 |        test-connection.yaml                                      |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-Helm は Kubernetes マニフェストのパッケージマネージャであり、テンプレートエンジンでもある。複数の YAML ファイルを一つの「Chart」として管理し、`values.yaml` の値を差し替えることで、同一テンプレートから開発・ステージング・本番など異なる環境向けのマニフェストを生成できる。
+Helm is both a package manager for Kubernetes manifests and a template engine. It manages multiple YAML files as a single "Chart" and, by substituting values in `values.yaml`, can generate manifests for different environments (development, staging, production) from the same template.
 
-Helm 3 以降は Tiller (サーバーサイドコンポーネント) が廃止され、クライアントのみで動作するようになった。リリース情報は Kubernetes の Secret として保存される。
+Since Helm 3, Tiller (the server-side component) has been removed, and Helm now operates client-side only. Release information is stored as Kubernetes Secrets.
 
 ### 1.2 Chart.yaml
 
@@ -84,20 +84,20 @@ apiVersion: v2
 name: myapp
 description: A Helm chart for MyApp
 type: application
-version: 0.1.0        # Chart バージョン
-appVersion: "1.2.0"   # アプリバージョン
+version: 0.1.0        # Chart version
+appVersion: "1.2.0"   # Application version
 
-# Chart のメンテナ情報
+# Chart maintainer information
 maintainers:
   - name: Platform Team
     email: platform@example.com
 
-# キーワード (検索用)
+# Keywords (for searching)
 keywords:
   - webapp
   - nodejs
 
-# ソースコードの場所
+# Source code location
 sources:
   - https://github.com/myorg/myapp
 
@@ -128,7 +128,7 @@ image:
   tag: "1.2.0"
   pullPolicy: IfNotPresent
 
-# イメージプルシークレット (プライベートレジストリ用)
+# Image pull secrets (for private registries)
 imagePullSecrets:
   - name: ghcr-credentials
 
@@ -138,13 +138,13 @@ serviceAccount:
   annotations: {}
   name: ""
 
-# Pod のアノテーション
+# Pod annotations
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "3000"
   prometheus.io/path: "/metrics"
 
-# Pod のラベル
+# Pod labels
 podLabels:
   team: backend
   cost-center: engineering
@@ -190,14 +190,14 @@ podDisruptionBudget:
   minAvailable: 1
   # maxUnavailable: 1
 
-# ノードセレクタ
+# Node selector
 nodeSelector:
   kubernetes.io/arch: amd64
 
-# Toleration
+# Tolerations
 tolerations: []
 
-# Affinity (Pod の配置制御)
+# Affinity (Pod placement control)
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -211,7 +211,7 @@ affinity:
                   - myapp
           topologyKey: kubernetes.io/hostname
 
-# Topology Spread Constraints (AZ 分散)
+# Topology Spread Constraints (AZ distribution)
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
@@ -224,11 +224,11 @@ env:
   NODE_ENV: production
   LOG_LEVEL: info
 
-# サブチャートの設定
+# Subchart configuration
 postgresql:
   enabled: true
   auth:
-    postgresPassword: ""  # Secret で管理
+    postgresPassword: ""  # Managed via Secret
     database: myapp
 
 redis:
@@ -236,7 +236,7 @@ redis:
   architecture: standalone
 ```
 
-### 1.4 _helpers.tpl (共通ヘルパーテンプレート)
+### 1.4 _helpers.tpl (Common Helper Templates)
 
 ```yaml
 {{/*
@@ -244,14 +244,14 @@ mychart/templates/_helpers.tpl
 */}}
 
 {{/*
-アプリケーション名 (Chart 名をベースにオーバーライド可能)
+Application name (can override Chart name)
 */}}
 {{- define "myapp.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
-フルネーム (リリース名 + Chart 名)
+Full name (release name + Chart name)
 */}}
 {{- define "myapp.fullname" -}}
 {{- if .Values.fullnameOverride }}
@@ -267,7 +267,7 @@ mychart/templates/_helpers.tpl
 {{- end }}
 
 {{/*
-共通ラベル
+Common labels
 */}}
 {{- define "myapp.labels" -}}
 helm.sh/chart: {{ include "myapp.chart" . }}
@@ -279,7 +279,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
 {{/*
-セレクタラベル
+Selector labels
 */}}
 {{- define "myapp.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "myapp.name" . }}
@@ -287,14 +287,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Chart 名 + バージョン
+Chart name + version
 */}}
 {{- define "myapp.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
-ServiceAccount 名
+ServiceAccount name
 */}}
 {{- define "myapp.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
@@ -305,7 +305,7 @@ ServiceAccount 名
 {{- end }}
 ```
 
-### 1.5 Deployment テンプレート
+### 1.5 Deployment Template
 
 ```yaml
 # mychart/templates/deployment.yaml
@@ -416,7 +416,7 @@ spec:
       {{- end }}
 ```
 
-### 1.6 Service テンプレート
+### 1.6 Service Template
 
 ```yaml
 # mychart/templates/service.yaml
@@ -437,7 +437,7 @@ spec:
     {{- include "myapp.selectorLabels" . | nindent 4 }}
 ```
 
-### 1.7 PodDisruptionBudget テンプレート
+### 1.7 PodDisruptionBudget Template
 
 ```yaml
 # mychart/templates/pdb.yaml
@@ -461,7 +461,7 @@ spec:
 {{- end }}
 ```
 
-### 1.8 Helm テスト
+### 1.8 Helm Tests
 
 ```yaml
 # mychart/templates/tests/test-connection.yaml
@@ -483,73 +483,73 @@ spec:
   restartPolicy: Never
 ```
 
-### 1.9 Helm コマンド
+### 1.9 Helm Commands
 
 ```bash
-# Chart の依存関係を解決
+# Resolve Chart dependencies
 helm dependency update ./mychart
 
-# Dry-run (マニフェストをプレビュー)
+# Dry-run (preview manifests)
 helm install myapp ./mychart --dry-run --debug
 
-# テンプレートのレンダリングのみ (クラスタ不要)
+# Render templates only (no cluster required)
 helm template myapp ./mychart -f values-production.yaml
 
-# Lint (構文チェック)
+# Lint (syntax check)
 helm lint ./mychart
 
-# インストール
+# Install
 helm install myapp ./mychart -n production --create-namespace
 
-# 値をオーバーライドしてインストール
+# Install with value overrides
 helm install myapp ./mychart \
   -f values-production.yaml \
   --set image.tag=1.3.0
 
-# アップグレード
+# Upgrade
 helm upgrade myapp ./mychart \
   --set image.tag=1.3.0 \
   --wait --timeout 5m
 
-# install と upgrade を統合 (存在しなければ install)
+# Combine install and upgrade (installs if not present)
 helm upgrade --install myapp ./mychart \
   -f values-production.yaml \
   --wait --timeout 5m \
-  --atomic  # 失敗時は自動ロールバック
+  --atomic  # Auto-rollback on failure
 
-# ロールバック
-helm rollback myapp 1  # リビジョン 1 に戻す
+# Rollback
+helm rollback myapp 1  # Roll back to revision 1
 
-# リリース一覧
+# List releases
 helm list -n production
 
-# 特定リリースの現在の values を表示
+# Show current values for a specific release
 helm get values myapp -n production
 
-# 特定リリースの全マニフェストを表示
+# Show all manifests for a specific release
 helm get manifest myapp -n production
 
-# 履歴
+# History
 helm history myapp -n production
 
-# テスト実行
+# Run tests
 helm test myapp -n production
 
-# アンインストール
+# Uninstall
 helm uninstall myapp -n production
 
-# OCI レジストリへの Chart プッシュ
+# Push Chart to OCI registry
 helm package ./mychart
 helm push myapp-0.1.0.tgz oci://ghcr.io/myorg/charts
 
-# OCI レジストリからのインストール
+# Install from OCI registry
 helm install myapp oci://ghcr.io/myorg/charts/myapp --version 0.1.0
 ```
 
-### 1.10 環境別 values ファイルの運用
+### 1.10 Managing Environment-Specific values Files
 
 ```yaml
-# values-staging.yaml (ステージング用オーバーライド)
+# values-staging.yaml (staging overrides)
 replicaCount: 1
 
 image:
@@ -583,7 +583,7 @@ env:
 ```
 
 ```yaml
-# values-production.yaml (本番用オーバーライド)
+# values-production.yaml (production overrides)
 replicaCount: 3
 
 image:
@@ -616,17 +616,17 @@ env:
 
 ## 2. Ingress
 
-### 2.1 Ingress の仕組み
+### 2.1 How Ingress Works
 
 ```
 +------------------------------------------------------------------+
-|              Ingress のトラフィックフロー                           |
+|              Ingress Traffic Flow                                  |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [インターネット]                                                 |
+|  [Internet]                                                      |
 |       |                                                          |
 |       v                                                          |
-|  [Load Balancer] (クラウドプロバイダ提供)                          |
+|  [Load Balancer] (provided by cloud provider)                    |
 |       |                                                          |
 |       v                                                          |
 |  [Ingress Controller] (nginx / traefik / ALB)                    |
@@ -642,7 +642,7 @@ env:
 +------------------------------------------------------------------+
 ```
 
-### 2.2 Ingress マニフェスト
+### 2.2 Ingress Manifest
 
 ```yaml
 # ingress.yaml
@@ -657,16 +657,16 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
     nginx.ingress.kubernetes.io/rate-limit: "100"
     nginx.ingress.kubernetes.io/rate-limit-window: "1m"
-    # タイムアウト設定
+    # Timeout configuration
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
-    # CORS 設定
+    # CORS configuration
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.example.com"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
     nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type"
-    # cert-manager による自動 TLS
+    # Automatic TLS via cert-manager
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: nginx
@@ -705,7 +705,7 @@ spec:
                   number: 8080
 ```
 
-### 2.3 WebSocket 対応 Ingress
+### 2.3 WebSocket-Enabled Ingress
 
 ```yaml
 # ingress-websocket.yaml
@@ -735,7 +735,7 @@ spec:
                   number: 8080
 ```
 
-### 2.4 gRPC 対応 Ingress
+### 2.4 gRPC-Enabled Ingress
 
 ```yaml
 # ingress-grpc.yaml
@@ -765,7 +765,7 @@ spec:
                   number: 50051
 ```
 
-### 2.5 cert-manager による自動 TLS 証明書管理
+### 2.5 Automatic TLS Certificate Management with cert-manager
 
 ```yaml
 # cert-manager ClusterIssuer (Let's Encrypt)
@@ -783,7 +783,7 @@ spec:
       - http01:
           ingress:
             class: nginx
-      # DNS01 チャレンジ (ワイルドカード証明書用)
+      # DNS01 challenge (for wildcard certificates)
       - dns01:
           route53:
             region: ap-northeast-1
@@ -793,7 +793,7 @@ spec:
             - "example.com"
 
 ---
-# ワイルドカード証明書
+# Wildcard certificate
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -809,24 +809,24 @@ spec:
     - "example.com"
 ```
 
-### 2.6 Ingress Controller 比較
+### 2.6 Ingress Controller Comparison
 
-| 項目 | NGINX Ingress | Traefik | AWS ALB | Istio Gateway |
+| Item | NGINX Ingress | Traefik | AWS ALB | Istio Gateway |
 |------|-------------|---------|---------|--------------|
-| プロトコル | HTTP/HTTPS/gRPC | HTTP/HTTPS/TCP/UDP | HTTP/HTTPS | HTTP/HTTPS/gRPC/TCP |
-| 設定方式 | Annotations | CRD / Labels | Annotations | CRD (VirtualService) |
-| 自動TLS | cert-manager | 内蔵 (ACME) | ACM | cert-manager |
-| レート制限 | Annotation | Middleware | WAF | EnvoyFilter |
-| 認証 | Basic / OAuth | ForwardAuth | Cognito | JWT / OAuth |
-| 可観測性 | Prometheus | 内蔵 Dashboard | CloudWatch | Kiali / Jaeger |
-| WebSocket | サポート | サポート | サポート | サポート |
-| gRPC | サポート | サポート | サポート | ネイティブサポート |
-| カナリア | Annotation | Weighted | Weighted Target Group | Traffic Shifting |
-| 学習コスト | 低 | 中 | 低 (AWS) | 高 |
+| Protocols | HTTP/HTTPS/gRPC | HTTP/HTTPS/TCP/UDP | HTTP/HTTPS | HTTP/HTTPS/gRPC/TCP |
+| Configuration | Annotations | CRD / Labels | Annotations | CRD (VirtualService) |
+| Auto TLS | cert-manager | Built-in (ACME) | ACM | cert-manager |
+| Rate limiting | Annotation | Middleware | WAF | EnvoyFilter |
+| Authentication | Basic / OAuth | ForwardAuth | Cognito | JWT / OAuth |
+| Observability | Prometheus | Built-in Dashboard | CloudWatch | Kiali / Jaeger |
+| WebSocket | Supported | Supported | Supported | Supported |
+| gRPC | Supported | Supported | Supported | Native support |
+| Canary | Annotation | Weighted | Weighted Target Group | Traffic Shifting |
+| Learning curve | Low | Medium | Low (AWS) | High |
 
 ---
 
-## 3. ConfigMap と Secret
+## 3. ConfigMap and Secret
 
 ### 3.1 ConfigMap
 
@@ -837,18 +837,18 @@ kind: ConfigMap
 metadata:
   name: myapp-config
 data:
-  # キー=値
+  # Key=value pairs
   NODE_ENV: production
   LOG_LEVEL: info
   APP_PORT: "3000"
 
-  # ファイル全体を値として格納
+  # Store an entire file as a value
   nginx.conf: |
     server {
       listen 80;
       server_name localhost;
 
-      # ヘルスチェック用エンドポイント
+      # Health check endpoint
       location /nginx-health {
         return 200 "ok";
         access_log off;
@@ -863,7 +863,7 @@ data:
       }
     }
 
-  # JSON 設定ファイル
+  # JSON configuration file
   app-config.json: |
     {
       "database": {
@@ -887,7 +887,7 @@ data:
 ### 3.2 Secret
 
 ```yaml
-# secret.yaml (Base64 エンコード)
+# secret.yaml (Base64 encoded)
 apiVersion: v1
 kind: Secret
 metadata:
@@ -898,26 +898,26 @@ data:
   JWT_SECRET: c3VwZXItc2VjcmV0LWtleQ==
   REDIS_PASSWORD: cmVkaXMtcGFzc3dvcmQ=
 
-# stringData を使えばエンコード不要
+# Using stringData avoids the need for encoding
 # stringData:
 #   DATABASE_URL: "postgresql://user:pass@db:5432/myapp"
 ```
 
-### 3.3 Pod からの利用パターン
+### 3.3 Usage Patterns from Pods
 
 ```yaml
 # deployment.yaml
 spec:
   containers:
     - name: app
-      # パターン 1: 環境変数として全体を注入
+      # Pattern 1: Inject entire ConfigMap/Secret as environment variables
       envFrom:
         - configMapRef:
             name: myapp-config
         - secretRef:
             name: myapp-secret
 
-      # パターン 2: 個別のキーを環境変数にマッピング
+      # Pattern 2: Map individual keys to environment variables
       env:
         - name: DB_HOST
           valueFrom:
@@ -930,14 +930,14 @@ spec:
               name: myapp-secret
               key: DB_PASSWORD
 
-      # パターン 3: ファイルとしてマウント
+      # Pattern 3: Mount as files
       volumeMounts:
         - name: config-volume
           mountPath: /etc/config
         - name: secret-volume
           mountPath: /etc/secrets
           readOnly: true
-        # 特定のキーのみマウント
+        # Mount only specific keys
         - name: nginx-config
           mountPath: /etc/nginx/conf.d/default.conf
           subPath: nginx.conf
@@ -950,7 +950,7 @@ spec:
     - name: secret-volume
       secret:
         secretName: myapp-secret
-        defaultMode: 0400  # 読み取り専用パーミッション
+        defaultMode: 0400  # Read-only permissions
     - name: nginx-config
       configMap:
         name: myapp-config
@@ -959,7 +959,7 @@ spec:
             path: nginx.conf
 ```
 
-### 3.4 External Secrets (外部シークレット管理)
+### 3.4 External Secrets (External Secret Management)
 
 ```yaml
 # ClusterSecretStore (AWS Secrets Manager)
@@ -1008,21 +1008,21 @@ spec:
         property: jwt_secret
 ```
 
-### 3.5 Sealed Secrets (GitOps 向け暗号化)
+### 3.5 Sealed Secrets (Encryption for GitOps)
 
 ```bash
-# Sealed Secrets Controller のインストール
+# Install Sealed Secrets Controller
 helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
 helm install sealed-secrets sealed-secrets/sealed-secrets -n kube-system
 
-# kubeseal CLI で暗号化
+# Encrypt with kubeseal CLI
 kubectl create secret generic myapp-secret \
   --from-literal=DATABASE_URL='postgresql://user:pass@db:5432/myapp' \
   --dry-run=client -o yaml | kubeseal --format yaml > sealed-secret.yaml
 ```
 
 ```yaml
-# sealed-secret.yaml (暗号化済み、Git にコミット可能)
+# sealed-secret.yaml (encrypted, safe to commit to Git)
 apiVersion: bitnami.com/v1alpha1
 kind: SealedSecret
 metadata:
@@ -1038,44 +1038,44 @@ spec:
 
 ## 4. HPA (Horizontal Pod Autoscaler)
 
-### 4.1 HPA の仕組み
+### 4.1 How HPA Works
 
 ```
 +------------------------------------------------------------------+
-|              HPA のオートスケーリングフロー                          |
+|              HPA Autoscaling Flow                                  |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [Metrics Server] -> CPU/メモリ使用率を収集                        |
+|  [Metrics Server] -> Collects CPU/memory utilization             |
 |       |                                                          |
 |       v                                                          |
-|  [HPA Controller] -> 15秒ごとにメトリクスを評価                    |
+|  [HPA Controller] -> Evaluates metrics every 15 seconds          |
 |       |                                                          |
-|       v  目標: CPU 使用率 70%                                     |
+|       v  Target: CPU utilization 70%                             |
 |                                                                  |
-|  現在: 3 Pods, CPU 使用率 90%                                    |
-|  計算: ceil(3 * 90/70) = ceil(3.86) = 4 Pods                    |
+|  Current: 3 Pods, CPU utilization 90%                            |
+|  Calculation: ceil(3 * 90/70) = ceil(3.86) = 4 Pods             |
 |       |                                                          |
-|       v  スケールアウト                                           |
-|  結果: 4 Pods に増加                                             |
+|       v  Scale out                                               |
+|  Result: Increase to 4 Pods                                      |
 |                                                                  |
-|  --- 負荷低下後 ---                                               |
-|  現在: 4 Pods, CPU 使用率 30%                                    |
-|  計算: ceil(4 * 30/70) = ceil(1.71) = 2 Pods                    |
+|  --- After load decreases ---                                    |
+|  Current: 4 Pods, CPU utilization 30%                            |
+|  Calculation: ceil(4 * 30/70) = ceil(1.71) = 2 Pods             |
 |       |                                                          |
-|       v  スケールイン (安定化ウィンドウ: 5分待機)                   |
-|  結果: 2 Pods に減少                                             |
+|       v  Scale in (stabilization window: wait 5 minutes)         |
+|  Result: Decrease to 2 Pods                                      |
 |                                                                  |
-|  スケーリング公式:                                                |
+|  Scaling formula:                                                |
 |    desiredReplicas = ceil[currentReplicas                        |
 |      * (currentMetricValue / desiredMetricValue)]                |
 |                                                                  |
-|  複数メトリクス使用時:                                             |
-|    各メトリクスで desiredReplicas を計算し、最大値を採用            |
+|  When using multiple metrics:                                    |
+|    Calculate desiredReplicas for each metric, use the maximum    |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 4.2 HPA マニフェスト
+### 4.2 HPA Manifest
 
 ```yaml
 # hpa.yaml
@@ -1091,21 +1091,21 @@ spec:
   minReplicas: 2
   maxReplicas: 20
   metrics:
-    # CPU 使用率ベース
+    # CPU utilization-based
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
           averageUtilization: 70
-    # メモリ使用率ベース
+    # Memory utilization-based
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
           averageUtilization: 80
-    # カスタムメトリクス (Prometheus 連携)
+    # Custom metrics (Prometheus integration)
     - type: Pods
       pods:
         metric:
@@ -1113,7 +1113,7 @@ spec:
         target:
           type: AverageValue
           averageValue: "100"
-    # 外部メトリクス (SQS キュー長など)
+    # External metrics (SQS queue length, etc.)
     - type: External
       external:
         metric:
@@ -1129,44 +1129,44 @@ spec:
       stabilizationWindowSeconds: 60
       policies:
         - type: Percent
-          value: 50          # 最大50%ずつ増加
+          value: 50          # Increase by up to 50% at a time
           periodSeconds: 60
         - type: Pods
-          value: 4           # 最大4 Pod ずつ増加
+          value: 4           # Increase by up to 4 Pods at a time
           periodSeconds: 60
       selectPolicy: Max
     scaleDown:
-      stabilizationWindowSeconds: 300  # 5分の安定化ウィンドウ
+      stabilizationWindowSeconds: 300  # 5-minute stabilization window
       policies:
         - type: Percent
-          value: 25          # 最大25%ずつ減少
+          value: 25          # Decrease by up to 25% at a time
           periodSeconds: 60
-      selectPolicy: Min  # 最も保守的なポリシーを選択
+      selectPolicy: Min  # Select the most conservative policy
 ```
 
-### 4.3 Metrics Server のインストールと確認
+### 4.3 Installing and Verifying Metrics Server
 
 ```bash
-# Metrics Server のインストール
+# Install Metrics Server
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 
-# メトリクスの確認
+# Check metrics
 kubectl top nodes
 kubectl top pods -n production
 
-# HPA の状態確認
+# Check HPA status
 kubectl get hpa -n production
 kubectl describe hpa myapp-hpa -n production
 
-# HPA のイベントログ確認
+# Check HPA event log
 kubectl get events --field-selector involvedObject.name=myapp-hpa -n production
 ```
 
-### 4.4 Prometheus Adapter (カスタムメトリクス HPA)
+### 4.4 Prometheus Adapter (Custom Metrics HPA)
 
 ```yaml
-# prometheus-adapter の設定
-# Prometheus のメトリクスを Kubernetes のカスタムメトリクス API に変換
+# prometheus-adapter configuration
+# Converts Prometheus metrics to Kubernetes custom metrics API
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -1175,7 +1175,7 @@ metadata:
 data:
   config.yaml: |
     rules:
-      # HTTP RPS をカスタムメトリクスとして公開
+      # Expose HTTP RPS as custom metrics
       - seriesQuery: 'http_requests_total{namespace!="",pod!=""}'
         resources:
           overrides:
@@ -1186,7 +1186,7 @@ data:
           as: "${1}_per_second"
         metricsQuery: 'rate(<<.Series>>{<<.LabelMatchers>>}[2m])'
 
-      # レスポンスタイム P99
+      # Response time P99
       - seriesQuery: 'http_request_duration_seconds_bucket{namespace!="",pod!=""}'
         resources:
           overrides:
@@ -1197,30 +1197,30 @@ data:
         metricsQuery: 'histogram_quantile(0.99, rate(<<.Series>>{<<.LabelMatchers>>}[5m]))'
 ```
 
-### 4.5 スケーリング戦略比較
+### 4.5 Scaling Strategy Comparison
 
-| 戦略 | メトリクス | レスポンス速度 | 精度 | 用途 |
+| Strategy | Metrics | Response speed | Accuracy | Use case |
 |------|----------|-------------|------|------|
-| HPA (CPU) | CPU 使用率 | 中 (15秒間隔) | 中 | 一般的な Web アプリ |
-| HPA (メモリ) | メモリ使用量 | 中 | 低 | メモリ集約型処理 |
-| HPA (カスタム) | RPS, レイテンシ等 | 中 | 高 | API サーバー |
-| KEDA | イベントソース | 高 | 高 | キューワーカー, FaaS |
-| VPA | CPU/メモリ | 遅い | 高 | リソース最適化 |
-| Cluster Autoscaler | ノードリソース | 遅い | - | ノード追加/削除 |
-| Karpenter | ノードリソース | 速い | 高 | AWS ノードプロビジョニング |
+| HPA (CPU) | CPU utilization | Medium (15s interval) | Medium | General web apps |
+| HPA (Memory) | Memory usage | Medium | Low | Memory-intensive processing |
+| HPA (Custom) | RPS, latency, etc. | Medium | High | API servers |
+| KEDA | Event sources | High | High | Queue workers, FaaS |
+| VPA | CPU/Memory | Slow | High | Resource optimization |
+| Cluster Autoscaler | Node resources | Slow | - | Node add/remove |
+| Karpenter | Node resources | Fast | High | AWS node provisioning |
 
 ---
 
 ## 5. KEDA (Kubernetes Event-Driven Autoscaling)
 
-### 5.1 KEDA の概要
+### 5.1 Overview of KEDA
 
 ```
 +------------------------------------------------------------------+
-|              KEDA のアーキテクチャ                                  |
+|              KEDA Architecture                                     |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [イベントソース]                                                  |
+|  [Event Sources]                                                 |
 |    +-- AWS SQS                                                   |
 |    +-- Apache Kafka                                              |
 |    +-- RabbitMQ                                                  |
@@ -1230,29 +1230,29 @@ data:
 |       |                                                          |
 |       v                                                          |
 |  [KEDA Operator]                                                 |
-|    +-- ScaledObject  -> Deployment のスケーリング                  |
-|    +-- ScaledJob     -> Job のスケーリング                        |
+|    +-- ScaledObject  -> Deployment scaling                       |
+|    +-- ScaledJob     -> Job scaling                              |
 |       |                                                          |
-|       v  メトリクス評価                                           |
-|  [HPA] (KEDA が内部的に HPA を生成・管理)                         |
+|       v  Metrics evaluation                                      |
+|  [HPA] (KEDA internally generates and manages HPA)               |
 |       |                                                          |
 |       v                                                          |
 |  [Deployment / Job]                                              |
-|    0 Pods <-----> N Pods (Scale-to-Zero 対応)                    |
+|    0 Pods <-----> N Pods (Scale-to-Zero supported)               |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 5.2 KEDA のインストール
+### 5.2 Installing KEDA
 
 ```bash
-# Helm でインストール
+# Install with Helm
 helm repo add kedacore https://kedacore.github.io/charts
 helm repo update
 helm install keda kedacore/keda -n keda --create-namespace
 ```
 
-### 5.3 SQS キューワーカーのスケーリング
+### 5.3 Scaling SQS Queue Workers
 
 ```yaml
 # keda-sqs-scaledobject.yaml
@@ -1264,21 +1264,21 @@ metadata:
 spec:
   scaleTargetRef:
     name: sqs-worker
-  pollingInterval: 15          # 15秒ごとにチェック
-  cooldownPeriod: 60           # スケールダウン前の待機時間
+  pollingInterval: 15          # Check every 15 seconds
+  cooldownPeriod: 60           # Wait time before scale down
   minReplicaCount: 0           # Scale-to-Zero
   maxReplicaCount: 50
   triggers:
     - type: aws-sqs-queue
       metadata:
         queueURL: https://sqs.ap-northeast-1.amazonaws.com/123456789/myapp-tasks
-        queueLength: "5"       # メッセージ5件あたり1 Pod
+        queueLength: "5"       # 1 Pod per 5 messages
         awsRegion: ap-northeast-1
       authenticationRef:
         name: aws-credentials
 
 ---
-# 認証情報の参照
+# Authentication reference
 apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
 metadata:
@@ -1286,10 +1286,10 @@ metadata:
   namespace: production
 spec:
   podIdentity:
-    provider: aws-eks  # EKS Pod Identity / IRSA を使用
+    provider: aws-eks  # Use EKS Pod Identity / IRSA
 ```
 
-### 5.4 Kafka コンシューマーのスケーリング
+### 5.4 Scaling Kafka Consumers
 
 ```yaml
 # keda-kafka-scaledobject.yaml
@@ -1308,11 +1308,11 @@ spec:
         bootstrapServers: kafka-broker:9092
         consumerGroup: myapp-group
         topic: events
-        lagThreshold: "100"      # ラグ100件あたり1 Pod
-        activationLagThreshold: "10"  # ラグ10件で0->1にスケール
+        lagThreshold: "100"      # 1 Pod per 100 lag messages
+        activationLagThreshold: "10"  # Scale from 0->1 at lag 10
 ```
 
-### 5.5 Cron ベースのスケーリング
+### 5.5 Cron-Based Scaling
 
 ```yaml
 # keda-cron-scaledobject.yaml
@@ -1324,14 +1324,14 @@ spec:
   scaleTargetRef:
     name: myapp
   triggers:
-    # 営業時間 (平日 9:00-18:00 JST) は多めに Pod を維持
+    # Keep more Pods during business hours (weekdays 9:00-18:00 JST)
     - type: cron
       metadata:
         timezone: Asia/Tokyo
         start: 0 9 * * 1-5
         end: 0 18 * * 1-5
         desiredReplicas: "10"
-    # 夜間・休日は最小構成
+    # Minimal configuration at night and on weekends
     - type: cron
       metadata:
         timezone: Asia/Tokyo
@@ -1342,9 +1342,9 @@ spec:
 
 ---
 
-## 6. デプロイ戦略
+## 6. Deployment Strategies
 
-### 6.1 ローリングアップデート
+### 6.1 Rolling Update
 
 ```yaml
 # deployment.yaml
@@ -1352,29 +1352,29 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 25%         # 一度に追加する Pod の割合
-      maxUnavailable: 25%   # 一度に停止する Pod の割合
+      maxSurge: 25%         # Percentage of Pods to add at once
+      maxUnavailable: 25%   # Percentage of Pods to stop at once
 ```
 
 ### 6.2 Blue-Green / Canary (Helm)
 
 ```bash
-# カナリアデプロイ (10% のトラフィック)
+# Canary deploy (10% of traffic)
 helm upgrade myapp ./mychart \
   --set canary.enabled=true \
   --set canary.weight=10 \
   --set canary.image.tag=1.3.0
 
-# 問題なければ本番に昇格
+# Promote to production if no issues
 helm upgrade myapp ./mychart \
   --set image.tag=1.3.0 \
   --set canary.enabled=false
 
-# 問題があればロールバック
+# Rollback if issues arise
 helm rollback myapp
 ```
 
-### 6.3 Argo Rollouts によるプログレッシブデリバリー
+### 6.3 Progressive Delivery with Argo Rollouts
 
 ```yaml
 # argo-rollout.yaml
@@ -1396,27 +1396,27 @@ spec:
         nginx:
           stableIngress: myapp-ingress
       steps:
-        # 5% のトラフィックをカナリアに振る
+        # Route 5% of traffic to canary
         - setWeight: 5
         - pause: {duration: 5m}
-        # メトリクスを自動分析
+        # Automatically analyze metrics
         - analysis:
             templates:
               - templateName: success-rate
             args:
               - name: service-name
                 value: myapp-canary
-        # 20% に増加
+        # Increase to 20%
         - setWeight: 20
         - pause: {duration: 5m}
-        # 50% に増加
+        # Increase to 50%
         - setWeight: 50
         - pause: {duration: 10m}
-        # 100% (昇格)
+        # 100% (promote)
         - setWeight: 100
 
 ---
-# 分析テンプレート
+# Analysis template
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -1442,20 +1442,20 @@ spec:
             }[5m]))
 ```
 
-### 6.4 デプロイ戦略比較
+### 6.4 Deployment Strategy Comparison
 
-| 戦略 | ダウンタイム | ロールバック速度 | リソース使用量 | 複雑度 |
+| Strategy | Downtime | Rollback speed | Resource usage | Complexity |
 |------|-----------|-------------|-------------|-------|
-| RollingUpdate | なし | 中 (Pod 入れ替え) | 低 (25% 増) | 低 |
-| Blue-Green | なし | 即時 (切り替え) | 高 (2倍) | 中 |
-| Canary | なし | 即時 | 低 (少量追加) | 高 |
-| Argo Rollouts | なし | 自動 | 低 | 高 |
+| RollingUpdate | None | Medium (Pod replacement) | Low (25% increase) | Low |
+| Blue-Green | None | Immediate (switch) | High (2x) | Medium |
+| Canary | None | Immediate | Low (small addition) | High |
+| Argo Rollouts | None | Automatic | Low | High |
 
 ---
 
 ## 7. Network Policy
 
-### 7.1 デフォルト拒否ポリシー
+### 7.1 Default Deny Policy
 
 ```yaml
 # network-policy-deny-all.yaml
@@ -1465,13 +1465,13 @@ metadata:
   name: deny-all
   namespace: production
 spec:
-  podSelector: {}  # 全 Pod に適用
+  podSelector: {}  # Apply to all Pods
   policyTypes:
     - Ingress
     - Egress
 ```
 
-### 7.2 アプリケーション固有のポリシー
+### 7.2 Application-Specific Policies
 
 ```yaml
 # network-policy-myapp.yaml
@@ -1488,7 +1488,7 @@ spec:
     - Ingress
     - Egress
   ingress:
-    # Ingress Controller からのトラフィックのみ許可
+    # Allow traffic only from Ingress Controller
     - from:
         - namespaceSelector:
             matchLabels:
@@ -1500,7 +1500,7 @@ spec:
         - protocol: TCP
           port: 3000
   egress:
-    # DNS クエリを許可
+    # Allow DNS queries
     - to:
         - namespaceSelector: {}
           podSelector:
@@ -1511,7 +1511,7 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # PostgreSQL への接続を許可
+    # Allow connections to PostgreSQL
     - to:
         - podSelector:
             matchLabels:
@@ -1519,7 +1519,7 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
-    # Redis への接続を許可
+    # Allow connections to Redis
     - to:
         - podSelector:
             matchLabels:
@@ -1527,7 +1527,7 @@ spec:
       ports:
         - protocol: TCP
           port: 6379
-    # 外部 API への HTTPS 接続を許可
+    # Allow HTTPS connections to external APIs
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
@@ -1542,12 +1542,12 @@ spec:
 
 ---
 
-## 8. Prometheus / Grafana 監視基盤
+## 8. Prometheus / Grafana Monitoring Infrastructure
 
-### 8.1 kube-prometheus-stack のインストール
+### 8.1 Installing kube-prometheus-stack
 
 ```bash
-# Prometheus Operator + Grafana のインストール
+# Install Prometheus Operator + Grafana
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
@@ -1588,7 +1588,7 @@ alertmanager:
               storage: 10Gi
 ```
 
-### 8.2 ServiceMonitor (アプリメトリクスの収集)
+### 8.2 ServiceMonitor (Collecting Application Metrics)
 
 ```yaml
 # servicemonitor.yaml
@@ -1598,7 +1598,7 @@ metadata:
   name: myapp-monitor
   namespace: production
   labels:
-    release: monitoring  # Prometheus Operator のセレクタに合わせる
+    release: monitoring  # Match the Prometheus Operator selector
 spec:
   selector:
     matchLabels:
@@ -1610,7 +1610,7 @@ spec:
       scrapeTimeout: 10s
 ```
 
-### 8.3 PrometheusRule (アラートルール)
+### 8.3 PrometheusRule (Alert Rules)
 
 ```yaml
 # prometheusrule.yaml
@@ -1625,7 +1625,7 @@ spec:
   groups:
     - name: myapp.rules
       rules:
-        # 高エラーレート
+        # High error rate
         - alert: HighErrorRate
           expr: |
             sum(rate(http_requests_total{service="myapp",status=~"5.."}[5m]))
@@ -1634,10 +1634,10 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "myapp のエラーレートが 5% を超えています"
-            description: "直近5分間のエラーレート: {{ $value | humanizePercentage }}"
+            summary: "myapp error rate exceeds 5%"
+            description: "Error rate over the last 5 minutes: {{ $value | humanizePercentage }}"
 
-        # 高レイテンシ
+        # High latency
         - alert: HighLatency
           expr: |
             histogram_quantile(0.99,
@@ -1647,9 +1647,9 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "myapp の P99 レイテンシが 2秒を超えています"
+            summary: "myapp P99 latency exceeds 2 seconds"
 
-        # Pod の再起動
+        # Pod restarts
         - alert: PodCrashLooping
           expr: |
             rate(kube_pod_container_status_restarts_total{
@@ -1660,39 +1660,39 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "Pod {{ $labels.pod }} が頻繁に再起動しています"
+            summary: "Pod {{ $labels.pod }} is restarting frequently"
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: Secret を Git にコミット
+### Anti-Pattern 1: Committing Secrets to Git
 
 ```yaml
-# NG: Secret の値をそのまま Git にコミット
+# NG: Committing raw Secret values to Git
 apiVersion: v1
 kind: Secret
 data:
   DATABASE_URL: cG9zdGdyZXNxbDovL2FkbWluOnBAc3N3b3JkQGRiOjU0MzIvcHJvZA==
-  # Base64 はエンコードであって暗号化ではない！
+  # Base64 is encoding, not encryption!
 
-# OK: 外部シークレット管理を使用
+# OK: Use external secret management
 # - External Secrets Operator + AWS Secrets Manager
-# - Sealed Secrets (暗号化して Git にコミット)
-# - SOPS (Mozilla) で暗号化
+# - Sealed Secrets (commit to Git in encrypted form)
+# - SOPS (Mozilla) for encryption
 ```
 
-**問題点**: Base64 は単なるエンコードであり、`echo "cG9z..." | base64 -d` で簡単にデコードできる。Git 履歴に一度でもコミットされると完全な削除が困難。External Secrets Operator や Sealed Secrets を使い、暗号化された状態でのみ Git に保存する。
+**Problem**: Base64 is mere encoding and can be easily decoded with `echo "cG9z..." | base64 -d`. Once committed to Git history, complete removal becomes difficult. Use External Secrets Operator or Sealed Secrets to store only encrypted data in Git.
 
-### アンチパターン 2: HPA と Deployment の replicas を同時指定
+### Anti-Pattern 2: Specifying replicas in Both HPA and Deployment
 
 ```yaml
-# NG: HPA が管理する replicas を Deployment にも指定
+# NG: Specifying replicas managed by HPA also in Deployment
 apiVersion: apps/v1
 kind: Deployment
 spec:
-  replicas: 3  # <- HPA と競合！ helm upgrade のたびにリセットされる
+  replicas: 3  # <- Conflicts with HPA! Resets on every helm upgrade
 
 ---
 apiVersion: autoscaling/v2
@@ -1701,30 +1701,30 @@ spec:
   minReplicas: 2
   maxReplicas: 10
 
-# OK: HPA 有効時は replicas を省略
+# OK: Omit replicas when HPA is enabled
 apiVersion: apps/v1
 kind: Deployment
 spec:
-  # replicas は HPA が管理するため省略
+  # replicas omitted as it is managed by HPA
   selector:
     matchLabels:
       app: myapp
 ```
 
-**問題点**: HPA が Pod 数を 7 に増やしていても、`helm upgrade` 実行時に `replicas: 3` で上書きされ、突然 Pod が 4 つ削除される。HPA 有効時は Deployment の `replicas` フィールドを省略する。
+**Problem**: Even if HPA has scaled Pods to 7, running `helm upgrade` with `replicas: 3` will overwrite it and suddenly delete 4 Pods. When HPA is enabled, omit the `replicas` field from the Deployment.
 
-### アンチパターン 3: リソースリクエスト/リミットを設定しない
+### Anti-Pattern 3: Not Setting Resource Requests/Limits
 
 ```yaml
-# NG: resources を未設定
+# NG: resources not configured
 spec:
   containers:
     - name: app
       image: myapp:latest
-      # resources が未設定 -> 無制限にリソースを消費可能
-      # -> 同一ノードの他 Pod に影響、OOMKiller のリスク
+      # resources not set -> can consume resources without limit
+      # -> affects other Pods on the same node, risk of OOMKiller
 
-# OK: 適切なリソース設定
+# OK: Appropriate resource configuration
 spec:
   containers:
     - name: app
@@ -1738,85 +1738,85 @@ spec:
           memory: 256Mi
 ```
 
-**問題点**: リソース制限を設定しない Pod は BestEffort QoS クラスに分類され、ノードのリソースが不足した際に最初に退去 (evict) される。また、1 つの Pod が CPU やメモリを占有して他の Pod に影響を与える「ノイジーネイバー」問題も発生する。requests を設定することでスケジューラが適切にノードを選択でき、limits を設定することで暴走を防止できる。
+**Problem**: Pods without resource limits are classified as BestEffort QoS class and are the first to be evicted when node resources run low. A single Pod monopolizing CPU or memory can also cause "noisy neighbor" problems affecting other Pods. Setting requests allows the scheduler to select appropriate nodes, and setting limits prevents runaway resource consumption.
 
-### アンチパターン 4: PodDisruptionBudget を設定しない
+### Anti-Pattern 4: Not Setting PodDisruptionBudget
 
 ```yaml
-# NG: PDB なしでは、ノードのメンテナンス時に全 Pod が同時停止する可能性
+# NG: Without PDB, all Pods may stop simultaneously during node maintenance
 
-# OK: PDB で最小可用数を保証
+# OK: Guarantee minimum availability with PDB
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: myapp-pdb
 spec:
-  minAvailable: 2  # 常に最低2 Pod は稼働
+  minAvailable: 2  # Always keep at least 2 Pods running
   selector:
     matchLabels:
       app: myapp
 ```
 
-**問題点**: Kubernetes ノードのアップグレードやスケールダウン時に `kubectl drain` が実行される。PDB がないと全 Pod が同時に退去させられ、サービスが一時的にダウンする。本番環境では必ず PDB を設定する。
+**Problem**: `kubectl drain` is executed during Kubernetes node upgrades or scale-downs. Without PDB, all Pods can be evicted simultaneously, causing temporary service downtime. Always configure PDB in production environments.
 
 ---
 
 ## FAQ
 
-### Q1: Helm Chart はどこに保存するのがベストですか？
+### Q1: Where is the best place to store Helm Charts?
 
-**A**: (1) アプリケーションリポジトリ内の `charts/` ディレクトリに同居させる (モノリポ方式)、(2) 専用の Helm Chart リポジトリに分離する (OCI レジストリ or ChartMuseum)。小~中規模なら (1) が管理しやすく、アプリとチャートのバージョンを同期できる。大規模で複数チームが同じ Chart を使う場合は (2) で共有 Chart として管理する。OCI レジストリ (GHCR, ECR 等) が現在の推奨。
+**A**: (1) Co-locate in a `charts/` directory within the application repository (monorepo approach), or (2) Separate into a dedicated Helm Chart repository (OCI registry or ChartMuseum). For small to medium scale, (1) is easier to manage and keeps app and chart versions in sync. For large-scale deployments where multiple teams share the same Chart, manage it as a shared Chart with (2). OCI registries (GHCR, ECR, etc.) are the current recommendation.
 
-### Q2: ConfigMap を変更した場合、Pod は自動的に再起動されますか？
+### Q2: Are Pods automatically restarted when a ConfigMap changes?
 
-**A**: いいえ。ConfigMap を更新しても既存の Pod は自動再起動されない。対応方法は (1) Deployment の annotation に ConfigMap の checksum を含める (`checksum/config: {{ sha256sum }}`) ことで、ConfigMap 変更時に Pod がローリングアップデートされる、(2) `kubectl rollout restart deployment myapp` で手動再起動、(3) Reloader (stakater/Reloader) を導入して自動検知・再起動。
+**A**: No. Updating a ConfigMap does not automatically restart existing Pods. Options are: (1) Include a ConfigMap checksum in Deployment annotations (`checksum/config: {{ sha256sum }}`), which triggers a rolling update when the ConfigMap changes; (2) Manually restart with `kubectl rollout restart deployment myapp`; (3) Install Reloader (stakater/Reloader) for automatic detection and restart.
 
-### Q3: KEDA と HPA の違いは何ですか？
+### Q3: What is the difference between KEDA and HPA?
 
-**A**: HPA は CPU/メモリやカスタムメトリクスに基づいてスケールするが、最小 1 Pod が必要 (0 にスケールダウンできない)。KEDA (Kubernetes Event-Driven Autoscaling) はイベントソース (SQS キュー長、Kafka ラグ、Cron 等) に基づいてスケールし、0 Pod までスケールダウンできる (Scale-to-Zero)。API サーバーには HPA、バックグラウンドワーカーやイベントドリブン処理には KEDA が適する。
+**A**: HPA scales based on CPU/memory or custom metrics but requires a minimum of 1 Pod (cannot scale down to 0). KEDA (Kubernetes Event-Driven Autoscaling) scales based on event sources (SQS queue length, Kafka lag, Cron, etc.) and can scale down to 0 Pods (Scale-to-Zero). HPA is suited for API servers, while KEDA is suited for background workers and event-driven processing.
 
-### Q4: VPA (Vertical Pod Autoscaler) と HPA を同時に使えますか？
+### Q4: Can VPA (Vertical Pod Autoscaler) and HPA be used simultaneously?
 
-**A**: CPU ベースの HPA と CPU ベースの VPA を同時に使うと競合する。推奨パターンは (1) HPA はカスタムメトリクス (RPS 等) でスケールし、VPA は CPU/メモリの requests を最適化する分担方式、(2) VPA を「UpdateMode: Off」で実行し、推奨値のレポートのみに使う (推奨値を人間が確認して手動で反映)。Multidimensional Pod Autoscaler (MPA) は両方を統合する試みだが、まだ成熟していない。
+**A**: Using CPU-based HPA and CPU-based VPA simultaneously causes conflicts. Recommended patterns are: (1) HPA scales based on custom metrics (RPS, etc.) while VPA optimizes CPU/memory requests in a divided role; (2) Run VPA in "UpdateMode: Off" to use only for reporting recommendations (humans review recommendations and apply them manually). The Multidimensional Pod Autoscaler (MPA) attempts to integrate both but is not yet mature.
 
-### Q5: Network Policy を設定したが通信できない場合のデバッグ方法は？
+### Q5: How do I debug when communication fails after setting Network Policy?
 
-**A**: (1) `kubectl describe networkpolicy <name>` でルールが正しいか確認する。(2) Network Policy をサポートする CNI (Calico, Cilium 等) がインストールされているか確認する (デフォルトの Flannel はサポートしない)。(3) DNS (kube-dns / CoreDNS) へのアクセスが Egress ルールで許可されているか確認する (これを忘れると名前解決ができず全通信が失敗する)。(4) `kubectl run debug --rm -it --image=nicolaka/netshoot -- bash` でデバッグ Pod を作成し、`nslookup` や `curl` で接続テストを行う。
+**A**: (1) Run `kubectl describe networkpolicy <name>` to verify rules are correct. (2) Verify that a CNI supporting Network Policy (Calico, Cilium, etc.) is installed (the default Flannel does not support it). (3) Verify that DNS (kube-dns / CoreDNS) access is permitted in Egress rules (forgetting this makes name resolution impossible, causing all communication to fail). (4) Create a debug Pod with `kubectl run debug --rm -it --image=nicolaka/netshoot -- bash` and test connectivity with `nslookup` or `curl`.
 
-### Q6: Argo Rollouts と Flagger の違いは何ですか？
+### Q6: What is the difference between Argo Rollouts and Flagger?
 
-**A**: どちらもプログレッシブデリバリーを実現するが、アプローチが異なる。Argo Rollouts は Deployment の代替リソース (Rollout CRD) を使い、Argo CD との統合が強い。Flagger は既存の Deployment をそのまま使い、Ingress/Service Mesh レベルでトラフィック制御する。Argo エコシステム (Argo CD, Argo Workflows) を使っているなら Rollouts、Istio/Linkerd ベースのサービスメッシュを使っているなら Flagger が自然な選択。
+**A**: Both achieve progressive delivery but with different approaches. Argo Rollouts uses an alternative resource (Rollout CRD) replacing Deployment and has strong integration with Argo CD. Flagger uses existing Deployments as-is and controls traffic at the Ingress/Service Mesh level. If you are using the Argo ecosystem (Argo CD, Argo Workflows), Rollouts is the natural choice; if you are using an Istio/Linkerd-based service mesh, Flagger is the natural choice.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| Helm | Chart でマニフェストをテンプレート化。values.yaml で環境差異を吸収 |
-| Ingress | ホスト名/パスベースルーティング。cert-manager で自動 TLS |
-| ConfigMap | 設定値を外部化。checksum annotation で変更検知 |
-| Secret | 機密情報の管理。External Secrets Operator で外部連携推奨 |
-| HPA | CPU/メモリ/カスタムメトリクスで水平スケーリング |
-| KEDA | イベントドリブンスケーリング。Scale-to-Zero 対応 |
-| デプロイ戦略 | RollingUpdate (標準)、Canary (Argo Rollouts)、Blue-Green |
-| Network Policy | デフォルト拒否 + ホワイトリストで通信を制御 |
-| PDB | ノードメンテナンス時の最小可用性を保証 |
-| 監視 | Prometheus + Grafana でメトリクス可視化。PrometheusRule でアラート |
+| Helm | Templatize manifests with Charts. Absorb environment differences with values.yaml |
+| Ingress | Host/path-based routing. Automatic TLS with cert-manager |
+| ConfigMap | Externalize configuration values. Detect changes with checksum annotations |
+| Secret | Manage sensitive information. External Secrets Operator recommended for external integration |
+| HPA | Horizontal scaling with CPU/memory/custom metrics |
+| KEDA | Event-driven scaling. Scale-to-Zero supported |
+| Deployment strategies | RollingUpdate (standard), Canary (Argo Rollouts), Blue-Green |
+| Network Policy | Control communication with default deny + whitelist |
+| PDB | Guarantee minimum availability during node maintenance |
+| Monitoring | Visualize metrics with Prometheus + Grafana. Alerts with PrometheusRule |
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [コンテナセキュリティ](../06-security/00-container-security.md) -- K8s 上のセキュリティベストプラクティス
-- [サプライチェーンセキュリティ](../06-security/01-supply-chain-security.md) -- イメージ署名と SBOM
-- Docker Compose から Kubernetes への移行 -- Kompose を使った移行パターン
+- [Container Security](../06-security/00-container-security.md) -- Security best practices on K8s
+- [Supply Chain Security](../06-security/01-supply-chain-security.md) -- Image signing and SBOM
+- Migrating from Docker Compose to Kubernetes -- Migration patterns using Kompose
 
-## 参考文献
+## References
 
-1. **Helm 公式ドキュメント** -- https://helm.sh/docs/ -- Helm Chart の作成と管理の包括的リファレンス
-2. **Kubernetes Ingress** -- https://kubernetes.io/docs/concepts/services-networking/ingress/ -- Ingress リソースの公式仕様
-3. **HPA 公式ドキュメント** -- https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/ -- HPA の設定と動作の詳細
-4. **External Secrets Operator** -- https://external-secrets.io/ -- 外部シークレット管理との統合
-5. **KEDA 公式ドキュメント** -- https://keda.sh/docs/ -- イベントドリブンオートスケーリングの設定ガイド
-6. **Argo Rollouts** -- https://argo-rollouts.readthedocs.io/ -- プログレッシブデリバリーの実装リファレンス
-7. **cert-manager** -- https://cert-manager.io/docs/ -- Kubernetes での TLS 証明書の自動管理
-8. **Kyverno** -- https://kyverno.io/docs/ -- Kubernetes ポリシー管理とセキュリティ適用
+1. **Helm Official Documentation** -- https://helm.sh/docs/ -- Comprehensive reference for Helm Chart creation and management
+2. **Kubernetes Ingress** -- https://kubernetes.io/docs/concepts/services-networking/ingress/ -- Official specification for Ingress resources
+3. **HPA Official Documentation** -- https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/ -- Details on HPA configuration and behavior
+4. **External Secrets Operator** -- https://external-secrets.io/ -- Integration with external secret management
+5. **KEDA Official Documentation** -- https://keda.sh/docs/ -- Configuration guide for event-driven autoscaling
+6. **Argo Rollouts** -- https://argo-rollouts.readthedocs.io/ -- Implementation reference for progressive delivery
+7. **cert-manager** -- https://cert-manager.io/docs/ -- Automatic TLS certificate management in Kubernetes
+8. **Kyverno** -- https://kyverno.io/docs/ -- Kubernetes policy management and security enforcement
