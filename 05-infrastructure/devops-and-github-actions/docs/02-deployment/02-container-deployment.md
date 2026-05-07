@@ -1,27 +1,27 @@
-# コンテナデプロイ
+# Container Deployment
 
-> ECS、Kubernetes、ArgoCD を活用したコンテナベースのデプロイパイプラインを構築し、スケーラブルで再現性の高いデプロイを実現する
+> Build container-based deployment pipelines leveraging ECS, Kubernetes, and ArgoCD to achieve scalable, reproducible deployments
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Docker イメージの最適化とレジストリ管理** — マルチステージビルド、イメージサイズ削減、ECR/GHCR の運用
-2. **ECS (Fargate) によるコンテナデプロイ** — タスク定義、サービス設定、CI/CD パイプライン構築
-3. **Kubernetes + ArgoCD による GitOps デプロイ** — マニフェスト管理、自動同期、Progressive Delivery
-4. **コンテナセキュリティとイメージ脆弱性管理** — スキャン自動化、ポリシー適用、セキュリティベストプラクティス
-5. **マルチ環境対応とプロモーション戦略** — dev/staging/production 間のイメージプロモーション設計
+1. **Docker image optimization and registry management** — Multi-stage builds, image size reduction, ECR/GHCR operations
+2. **Container deployment with ECS (Fargate)** — Task definitions, service configuration, CI/CD pipeline construction
+3. **GitOps deployment with Kubernetes + ArgoCD** — Manifest management, automated sync, Progressive Delivery
+4. **Container security and image vulnerability management** — Scan automation, policy enforcement, security best practices
+5. **Multi-environment support and promotion strategies** — Image promotion design across dev/staging/production
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [クラウドデプロイ](./01-cloud-deployment.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of [Cloud Deployment](./01-cloud-deployment.md)
 
 ---
 
-## 1. コンテナデプロイの全体像
+## 1. Container Deployment Overview
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -46,17 +46,17 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
-### コンテナデプロイの基本原則
+### Core Principles of Container Deployment
 
-コンテナベースのデプロイには、従来の VM ベースデプロイと比較して以下の原則が重要になる。
+Container-based deployment involves the following principles that are more important compared to traditional VM-based deployment.
 
-1. **イミュータブルインフラストラクチャ**: コンテナイメージは一度ビルドしたら変更しない。環境差分は環境変数やシークレットで注入する
-2. **宣言的構成管理**: デプロイの望ましい状態をコードで宣言し、オーケストレータがその状態を維持する
-3. **再現性の保証**: 同じイメージタグを使えば、いつでもどこでも同じ環境を再現できる
-4. **段階的ロールアウト**: 新バージョンを段階的にデプロイし、問題があれば即座にロールバックできる
+1. **Immutable infrastructure**: Container images are never modified once built. Environmental differences are injected via environment variables and secrets
+2. **Declarative configuration management**: The desired deployment state is declared as code, and the orchestrator maintains that state
+3. **Reproducibility guarantee**: Using the same image tag allows you to reproduce the same environment anywhere, anytime
+4. **Staged rollout**: New versions are deployed incrementally, and problems can be rolled back immediately
 
 ```
-コンテナデプロイのレイヤー構成:
+Container Deployment Layer Structure:
 
   ┌─────────────────────────────────────────────┐
   │         アプリケーション層                      │
@@ -85,24 +85,24 @@
 
 ---
 
-## 2. Docker イメージの最適化
+## 2. Docker Image Optimization
 
-### 2.1 マルチステージビルドの基本
+### 2.1 Multi-Stage Build Basics
 
 ```dockerfile
-# Dockerfile — マルチステージビルド (Node.js)
+# Dockerfile — Multi-stage build (Node.js)
 # ============================================
-# Stage 1: 依存関係のインストール
+# Stage 1: Install dependencies
 # ============================================
 FROM node:20-alpine AS deps
 WORKDIR /app
 
-# パッケージファイルだけを先にコピー (キャッシュ活用)
+# Copy package files first to leverage caching
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 # ============================================
-# Stage 2: ビルド
+# Stage 2: Build
 # ============================================
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -114,16 +114,16 @@ COPY . .
 RUN npm run build
 
 # ============================================
-# Stage 3: 本番イメージ (最小構成)
+# Stage 3: Production image (minimal)
 # ============================================
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# セキュリティ: 非root ユーザーで実行
+# Security: run as non-root user
 RUN addgroup --system --gid 1001 appgroup && \
     adduser --system --uid 1001 appuser
 
-# 本番依存関係とビルド成果物のみコピー
+# Copy only production dependencies and build artifacts
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
@@ -139,41 +139,41 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 CMD ["node", "dist/server.js"]
 ```
 
-### 2.2 Go アプリケーションのマルチステージビルド
+### 2.2 Multi-Stage Build for Go Applications
 
 ```dockerfile
-# Dockerfile — Go マルチステージビルド (スクラッチイメージ)
+# Dockerfile — Go multi-stage build (scratch image)
 # ============================================
-# Stage 1: ビルド
+# Stage 1: Build
 # ============================================
 FROM golang:1.22-alpine AS builder
 WORKDIR /app
 
-# 依存関係の先行ダウンロード (キャッシュ活用)
+# Pre-download dependencies (leverage caching)
 COPY go.mod go.sum ./
 RUN go mod download
 
-# ソースコードのコピーとビルド
+# Copy source code and build
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-w -s -X main.version=$(git describe --tags 2>/dev/null || echo 'dev')" \
     -o /app/server ./cmd/server
 
 # ============================================
-# Stage 2: 最小イメージ (scratch)
+# Stage 2: Minimal image (scratch)
 # ============================================
 FROM scratch
 
-# CA 証明書 (HTTPS 通信に必要)
+# CA certificates (required for HTTPS communication)
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# タイムゾーン情報
+# Timezone information
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
-# passwd ファイル (非root ユーザー)
+# passwd file (non-root user)
 COPY --from=builder /etc/passwd /etc/passwd
 
-# バイナリのみコピー
+# Copy binary only
 COPY --from=builder /app/server /server
 
 USER 1001
@@ -183,22 +183,22 @@ EXPOSE 8080
 ENTRYPOINT ["/server"]
 ```
 
-### 2.3 Python アプリケーションのマルチステージビルド
+### 2.3 Multi-Stage Build for Python Applications
 
 ```dockerfile
-# Dockerfile — Python (FastAPI) マルチステージビルド
+# Dockerfile — Python (FastAPI) multi-stage build
 # ============================================
-# Stage 1: 依存関係のビルド
+# Stage 1: Build dependencies
 # ============================================
 FROM python:3.12-slim AS builder
 WORKDIR /app
 
-# システム依存パッケージのインストール
+# Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# 仮想環境の作成と依存関係のインストール
+# Create virtual environment and install dependencies
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
@@ -206,25 +206,25 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ============================================
-# Stage 2: 本番イメージ
+# Stage 2: Production image
 # ============================================
 FROM python:3.12-slim AS runner
 WORKDIR /app
 
-# ランタイムに必要なライブラリのみインストール
+# Install only runtime-required libraries
 RUN apt-get update && \
     apt-get install -y --no-install-recommends libpq5 curl && \
     rm -rf /var/lib/apt/lists/*
 
-# 非root ユーザー
+# Non-root user
 RUN groupadd --system --gid 1001 appgroup && \
     useradd --system --uid 1001 --gid appgroup appuser
 
-# 仮想環境をコピー
+# Copy virtual environment
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# アプリケーションコードをコピー
+# Copy application code
 COPY . .
 
 USER appuser
@@ -237,7 +237,7 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-### 2.4 .dockerignore の設定
+### 2.4 .dockerignore Configuration
 
 ```yaml
 # .dockerignore
@@ -262,14 +262,14 @@ venv
 .venv
 ```
 
-### 2.5 イメージサイズ最適化のベストプラクティス
+### 2.5 Image Size Optimization Best Practices
 
 ```
-イメージサイズ比較:
+Image size comparison:
 
-  ベースイメージの選択による差:
+  Difference based on base image selection:
   ┌────────────────────┬────────────┐
-  │ ベースイメージ       │ サイズ     │
+  │ Base image         │ Size       │
   ├────────────────────┼────────────┤
   │ node:20            │ ~1.1 GB    │
   │ node:20-slim       │ ~240 MB    │
@@ -285,29 +285,29 @@ venv
   │ scratch (Go)       │ ~10-20 MB  │
   └────────────────────┴────────────┘
 
-  最適化テクニック:
-  1. Alpine / slim ベースイメージを使用
-  2. マルチステージビルドで不要なツールを排除
-  3. .dockerignore でビルドコンテキストを最小化
-  4. レイヤーの統合 (RUN 命令を && で連結)
-  5. apt-get install 後に rm -rf /var/lib/apt/lists/*
-  6. --no-install-recommends で推奨パッケージを除外
-  7. COPY の順序を工夫してキャッシュ効率を最大化
+  Optimization techniques:
+  1. Use Alpine / slim base images
+  2. Eliminate unnecessary tools with multi-stage builds
+  3. Minimize build context with .dockerignore
+  4. Merge layers (chain RUN instructions with &&)
+  5. After apt-get install, run rm -rf /var/lib/apt/lists/*
+  6. Exclude recommended packages with --no-install-recommends
+  7. Optimize COPY order to maximize cache efficiency
 ```
 
 ---
 
-## 3. コンテナレジストリの管理
+## 3. Container Registry Management
 
-### 3.1 ECR (Elastic Container Registry) の構成
+### 3.1 ECR (Elastic Container Registry) Configuration
 
 ```yaml
-# ecr-lifecycle-policy.json — イメージのライフサイクル管理
+# ecr-lifecycle-policy.json — Image lifecycle management
 {
   "rules": [
     {
       "rulePriority": 1,
-      "description": "セマンティックバージョンタグは保持",
+      "description": "Retain semantic version tags",
       "selection": {
         "tagStatus": "tagged",
         "tagPrefixList": ["v"],
@@ -320,7 +320,7 @@ venv
     },
     {
       "rulePriority": 2,
-      "description": "SHA タグは30日で削除",
+      "description": "Delete SHA tags after 30 days",
       "selection": {
         "tagStatus": "tagged",
         "tagPrefixList": ["sha-"],
@@ -334,7 +334,7 @@ venv
     },
     {
       "rulePriority": 3,
-      "description": "タグなしイメージは7日で削除",
+      "description": "Delete untagged images after 7 days",
       "selection": {
         "tagStatus": "untagged",
         "countType": "sinceImagePushed",
@@ -350,27 +350,27 @@ venv
 ```
 
 ```bash
-# ECR リポジトリ管理コマンド集
+# ECR repository management commands
 
-# リポジトリの作成
+# Create repository
 aws ecr create-repository \
   --repository-name myorg/myapp \
   --image-scanning-configuration scanOnPush=true \
   --encryption-configuration encryptionType=AES256 \
   --region ap-northeast-1
 
-# イメージスキャン結果の確認
+# Check image scan results
 aws ecr describe-image-scan-findings \
   --repository-name myorg/myapp \
   --image-id imageTag=v1.2.3 \
   --region ap-northeast-1
 
-# ライフサイクルポリシーの適用
+# Apply lifecycle policy
 aws ecr put-lifecycle-policy \
   --repository-name myorg/myapp \
   --lifecycle-policy-text file://ecr-lifecycle-policy.json
 
-# クロスアカウントアクセスの設定
+# Configure cross-account access
 aws ecr set-repository-policy \
   --repository-name myorg/myapp \
   --policy-text '{
@@ -389,15 +389,15 @@ aws ecr set-repository-policy \
   }'
 ```
 
-### 3.2 GHCR (GitHub Container Registry) の管理
+### 3.2 GHCR (GitHub Container Registry) Management
 
 ```yaml
-# .github/workflows/cleanup-ghcr.yml — 古いイメージの自動削除
+# .github/workflows/cleanup-ghcr.yml — Automatic deletion of old images
 name: Cleanup GHCR Images
 
 on:
   schedule:
-    - cron: '0 3 * * 0'  # 毎週日曜 3:00 UTC
+    - cron: '0 3 * * 0'  # Every Sunday at 3:00 UTC
 
 jobs:
   cleanup:
@@ -425,9 +425,9 @@ jobs:
 
 ---
 
-## 4. GitHub Actions — イメージビルドとプッシュ
+## 4. GitHub Actions — Image Build and Push
 
-### 4.1 基本的なビルド・プッシュワークフロー
+### 4.1 Basic Build and Push Workflow
 
 ```yaml
 # .github/workflows/build-and-push.yml
@@ -487,7 +487,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
 ```
 
-### 4.2 セキュリティスキャン統合ビルドワークフロー
+### 4.2 Security Scan Integrated Build Workflow
 
 ```yaml
 # .github/workflows/build-scan-push.yml
@@ -527,7 +527,7 @@ jobs:
           tags: scan-target:latest
           cache-from: type=gha
 
-      # Trivy による脆弱性スキャン
+      # Vulnerability scanning with Trivy
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -535,7 +535,7 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'  # CRITICAL/HIGH があればジョブ失敗
+          exit-code: '1'  # Fail job if CRITICAL/HIGH found
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
@@ -543,14 +543,14 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      # Hadolint による Dockerfile リンティング
+      # Dockerfile linting with Hadolint
       - name: Run Hadolint
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile
           failure-threshold: warning
 
-      # Docker Scout による SBOM 生成
+      # SBOM generation with Docker Scout
       - name: Docker Scout SBOM
         if: github.event_name != 'pull_request'
         uses: docker/scout-action@v1
@@ -559,7 +559,7 @@ jobs:
           image: scan-target:latest
           sarif-file: scout-results.sarif
 
-      # スキャン通過後にプッシュ
+      # Push after passing scan
       - name: Login to Container Registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -594,7 +594,7 @@ jobs:
           sbom: true
 ```
 
-### 4.3 マルチ環境プロモーションワークフロー
+### 4.3 Multi-Environment Promotion Workflow
 
 ```yaml
 # .github/workflows/promote-image.yml
@@ -646,7 +646,7 @@ jobs:
       - name: Update deployment manifest
         if: inputs.target-env == 'production'
         run: |
-          # K8s マニフェストのイメージタグを更新
+          # Update image tag in K8s manifest
           sed -i "s|image: ghcr.io/${{ github.repository }}:.*|image: ghcr.io/${{ github.repository }}:${{ inputs.image-tag }}|" \
             k8s/overlays/production/deployment-patch.yaml
 
@@ -659,9 +659,9 @@ jobs:
 
 ---
 
-## 5. ECS (Fargate) デプロイ
+## 5. ECS (Fargate) Deployment
 
-### 5.1 タスク定義
+### 5.1 Task Definition
 
 ```json
 // ecs-task-definition.json
@@ -713,10 +713,10 @@ jobs:
 }
 ```
 
-### 5.2 ECS サービス定義 (Terraform)
+### 5.2 ECS Service Definition (Terraform)
 
 ```hcl
-# ecs-service.tf — ECS サービスの Terraform 定義
+# ecs-service.tf — Terraform definition for ECS service
 
 resource "aws_ecs_cluster" "main" {
   name = "myapp-cluster"
@@ -743,15 +743,15 @@ resource "aws_ecs_service" "myapp" {
   desired_count   = 3
   launch_type     = "FARGATE"
 
-  # デプロイ設定
+  # Deployment configuration
   deployment_maximum_percent         = 200
   deployment_minimum_healthy_percent = 100
   health_check_grace_period_seconds  = 60
 
-  # デプロイサーキットブレーカー
+  # Deployment circuit breaker
   deployment_circuit_breaker {
     enable   = true
-    rollback = true  # 失敗時に自動ロールバック
+    rollback = true  # Automatic rollback on failure
   }
 
   network_configuration {
@@ -766,17 +766,17 @@ resource "aws_ecs_service" "myapp" {
     container_port   = 3000
   }
 
-  # サービスディスカバリ
+  # Service discovery
   service_registries {
     registry_arn = aws_service_discovery_service.myapp.arn
   }
 
   lifecycle {
-    ignore_changes = [task_definition]  # CI/CD でタスク定義を更新
+    ignore_changes = [task_definition]  # Task definition updated by CI/CD
   }
 }
 
-# オートスケーリング設定
+# Auto-scaling configuration
 resource "aws_appautoscaling_target" "myapp" {
   max_capacity       = 10
   min_capacity       = 3
@@ -820,7 +820,7 @@ resource "aws_appautoscaling_policy" "memory" {
 }
 ```
 
-### 5.3 ECS デプロイワークフロー
+### 5.3 ECS Deployment Workflow
 
 ```yaml
 # .github/workflows/deploy-ecs.yml
@@ -882,7 +882,7 @@ jobs:
 ```
 
 ```
-ECS Fargate デプロイの流れ:
+ECS Fargate deployment flow:
 
   GitHub Actions               ECR              ECS Service
       │                         │                    │
@@ -892,24 +892,24 @@ ECS Fargate デプロイの流れ:
       │── aws ecs               │                    │
       │   update-service ─────────────────────►      │
       │                         │                    │
-      │                         │   ┌── 新タスク起動  │
-      │                         │   │   (v2 イメージ) │
+      │                         │   ┌── New task start│
+      │                         │   │   (v2 image)   │
       │                         │   │                │
-      │                         │   │   ヘルスチェック │
-      │                         │   │   ┌─ OK ──►   │
-      │                         │   │   │   旧タスク  │
-      │                         │   │   │   停止     │
+      │                         │   │   Health check │
+      │                         │   │   ┌─ OK ──►    │
+      │                         │   │   │   Old task  │
+      │                         │   │   │   stopped  │
       │                         │   │   │            │
-      │                         │   │   └─ NG ──►   │
-      │                         │   │       ロール   │
-      │                         │   │       バック   │
+      │                         │   │   └─ NG ──►    │
+      │                         │   │       Roll-    │
+      │                         │   │       back     │
 ```
 
 ---
 
 ## 6. Kubernetes + ArgoCD (GitOps)
 
-### 6.1 Kubernetes マニフェスト (Kustomize ベース)
+### 6.1 Kubernetes Manifests (Kustomize-based)
 
 ```yaml
 # k8s/base/deployment.yaml
@@ -1030,7 +1030,7 @@ spec:
           periodSeconds: 60
 ```
 
-### 6.2 Kustomize による環境差分管理
+### 6.2 Environment Difference Management with Kustomize
 
 ```yaml
 # k8s/base/kustomization.yaml
@@ -1114,10 +1114,10 @@ spec:
       app: myapp
 ```
 
-### 6.3 ArgoCD Application 定義
+### 6.3 ArgoCD Application Definition
 
 ```yaml
-# argocd/application.yaml — ArgoCD Application 定義
+# argocd/application.yaml — ArgoCD Application definition
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -1139,8 +1139,8 @@ spec:
     namespace: production
   syncPolicy:
     automated:
-      prune: true        # 不要なリソースを自動削除
-      selfHeal: true      # 手動変更を自動修正
+      prune: true        # Automatically delete unnecessary resources
+      selfHeal: true      # Automatically correct manual changes
     syncOptions:
       - CreateNamespace=true
       - PrunePropagationPolicy=foreground
@@ -1155,10 +1155,10 @@ spec:
     - group: apps
       kind: Deployment
       jsonPointers:
-        - /spec/replicas  # HPA が管理するためArgoCD で無視
+        - /spec/replicas  # Ignored by ArgoCD because managed by HPA
 ```
 
-### 6.4 ArgoCD ApplicationSet によるマルチ環境管理
+### 6.4 Multi-Environment Management with ArgoCD ApplicationSet
 
 ```yaml
 # argocd/applicationset.yaml
@@ -1182,7 +1182,7 @@ spec:
           - env: production
             cluster: https://prod-cluster.example.com
             revision: main
-            autoSync: false  # 本番は手動同期
+            autoSync: false  # Manual sync for production
   template:
     metadata:
       name: 'myapp-{{env}}'
@@ -1202,10 +1202,10 @@ spec:
           selfHeal: '{{autoSync}}'
 ```
 
-### 6.5 Argo Rollouts による Progressive Delivery
+### 6.5 Progressive Delivery with Argo Rollouts
 
 ```yaml
-# k8s/base/rollout.yaml — Canary デプロイ
+# k8s/base/rollout.yaml — Canary deployment
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -1233,9 +1233,9 @@ spec:
         nginx:
           stableIngress: myapp-ingress
       steps:
-        - setWeight: 5        # 5% のトラフィックを新バージョンへ
+        - setWeight: 5        # Route 5% of traffic to new version
         - pause: { duration: 5m }
-        - analysis:            # メトリクスベースの自動判定
+        - analysis:            # Automatic decision based on metrics
             templates:
               - templateName: success-rate
             args:
@@ -1277,9 +1277,9 @@ spec:
 
 ---
 
-## 7. コンテナネットワーキングとサービスメッシュ
+## 7. Container Networking and Service Mesh
 
-### 7.1 Istio によるサービスメッシュ構成
+### 7.1 Service Mesh Configuration with Istio
 
 ```yaml
 # istio/virtual-service.yaml
@@ -1347,45 +1347,45 @@ spec:
 
 ---
 
-## 8. 比較表
+## 8. Comparison Tables
 
-| 特性 | ECS (Fargate) | Kubernetes (EKS) | Docker Compose |
-|------|--------------|-------------------|----------------|
-| 管理負荷 | 低い | 高い | 最低 |
-| スケーラビリティ | 高い | 最高 | 低い |
-| 学習コスト | 中 | 高い | 低い |
-| エコシステム | AWS 内完結 | 巨大 (CNCF) | 限定的 |
-| コスト | 中 | 高い (コントロールプレーン有料) | 低い |
-| GitOps 対応 | CodePipeline | ArgoCD / Flux | 困難 |
-| 適用規模 | 中〜大規模 | 大規模 | 開発/小規模 |
-| サービスメッシュ | App Mesh | Istio / Linkerd | なし |
-| マルチクラウド | 不可 | 可能 | 不可 |
+| Characteristic | ECS (Fargate) | Kubernetes (EKS) | Docker Compose |
+|----------------|--------------|-------------------|----------------|
+| Management overhead | Low | High | Minimal |
+| Scalability | High | Maximum | Low |
+| Learning cost | Medium | High | Low |
+| Ecosystem | AWS-contained | Large (CNCF) | Limited |
+| Cost | Medium | High (control plane fee) | Low |
+| GitOps support | CodePipeline | ArgoCD / Flux | Difficult |
+| Scale | Medium to large | Large | Dev / small |
+| Service mesh | App Mesh | Istio / Linkerd | None |
+| Multi-cloud | Not possible | Possible | Not possible |
 
-| GitOps ツール比較 | ArgoCD | Flux | Jenkins X |
-|-------------------|--------|------|-----------|
-| UI ダッシュボード | 充実 | 基本的 | あり |
-| マルチクラスタ | 対応 | 対応 | 限定的 |
-| Helm 対応 | 対応 | 対応 | 対応 |
-| Kustomize 対応 | 対応 | 対応 | 限定的 |
-| RBAC | 細かい制御 | K8s RBAC | 独自 |
-| コミュニティ | 大きい | 大きい | 小さい |
-| Progressive Delivery | Argo Rollouts | Flagger | 限定的 |
-| ApplicationSet | 対応 | Kustomization | 非対応 |
+| GitOps tool comparison | ArgoCD | Flux | Jenkins X |
+|------------------------|--------|------|-----------|
+| UI dashboard | Rich | Basic | Available |
+| Multi-cluster | Supported | Supported | Limited |
+| Helm support | Supported | Supported | Supported |
+| Kustomize support | Supported | Supported | Limited |
+| RBAC | Fine-grained control | K8s RBAC | Proprietary |
+| Community | Large | Large | Small |
+| Progressive Delivery | Argo Rollouts | Flagger | Limited |
+| ApplicationSet | Supported | Kustomization | Not supported |
 
-| コンテナレジストリ比較 | ECR | GHCR | Docker Hub | Harbor |
-|----------------------|-----|------|------------|--------|
-| 運用形態 | AWS マネージド | GitHub マネージド | SaaS | セルフホスト |
-| スキャン機能 | あり | なし (外部連携) | 有料プラン | あり |
-| ライフサイクルポリシー | あり | 手動/Actions | なし | あり |
-| マルチアーキテクチャ | 対応 | 対応 | 対応 | 対応 |
-| プライベートリポジトリ | 無制限 | 無制限 | 1つ (無料) | 無制限 |
-| コスト | ストレージ + 転送量 | 無料枠あり | 無料枠あり | インフラ費 |
+| Container registry comparison | ECR | GHCR | Docker Hub | Harbor |
+|-------------------------------|-----|------|------------|--------|
+| Operation model | AWS managed | GitHub managed | SaaS | Self-hosted |
+| Scan feature | Available | None (external integration) | Paid plan | Available |
+| Lifecycle policy | Available | Manual/Actions | None | Available |
+| Multi-architecture | Supported | Supported | Supported | Supported |
+| Private repositories | Unlimited | Unlimited | 1 (free) | Unlimited |
+| Cost | Storage + transfer | Free tier available | Free tier available | Infrastructure cost |
 
 ---
 
-## 9. コンテナランタイムセキュリティ
+## 9. Container Runtime Security
 
-### 9.1 Pod セキュリティスタンダード
+### 9.1 Pod Security Standards
 
 ```yaml
 # k8s/base/pod-security.yaml
@@ -1398,7 +1398,7 @@ metadata:
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
 ---
-# セキュアな Pod 設定の例
+# Example of secure Pod configuration
 apiVersion: v1
 kind: Pod
 metadata:
@@ -1432,7 +1432,7 @@ spec:
         sizeLimit: 100Mi
 ```
 
-### 9.2 NetworkPolicy による通信制御
+### 9.2 Communication Control with NetworkPolicy
 
 ```yaml
 # k8s/base/network-policy.yaml
@@ -1449,7 +1449,7 @@ spec:
     - Ingress
     - Egress
   ingress:
-    # ALB/Ingress Controller からのみ受信許可
+    # Allow inbound only from ALB/Ingress Controller
     - from:
         - namespaceSelector:
             matchLabels:
@@ -1458,14 +1458,14 @@ spec:
         - port: 3000
           protocol: TCP
   egress:
-    # DNS 解決
+    # DNS resolution
     - to: []
       ports:
         - port: 53
           protocol: UDP
         - port: 53
           protocol: TCP
-    # データベース
+    # Database
     - to:
         - namespaceSelector:
             matchLabels:
@@ -1473,7 +1473,7 @@ spec:
       ports:
         - port: 5432
           protocol: TCP
-    # 外部 HTTPS API
+    # External HTTPS API
     - to: []
       ports:
         - port: 443
@@ -1482,35 +1482,35 @@ spec:
 
 ---
 
-## 10. 運用コマンド集
+## 10. Operations Command Reference
 
-### 10.1 ECS 運用コマンド
+### 10.1 ECS Operations Commands
 
 ```bash
-# タスクのリスト表示
+# List tasks
 aws ecs list-tasks \
   --cluster myapp-cluster \
   --service-name myapp-service
 
-# タスクの詳細確認
+# Check task details
 aws ecs describe-tasks \
   --cluster myapp-cluster \
   --tasks arn:aws:ecs:ap-northeast-1:123456789012:task/myapp-cluster/abc123
 
-# サービスのイベントログ確認
+# Check service event log
 aws ecs describe-services \
   --cluster myapp-cluster \
   --services myapp-service \
   --query 'services[0].events[:10]' \
   --output table
 
-# 手動スケーリング
+# Manual scaling
 aws ecs update-service \
   --cluster myapp-cluster \
   --service myapp-service \
   --desired-count 5
 
-# ECS Exec でコンテナに接続 (デバッグ用)
+# Connect to container with ECS Exec (for debugging)
 aws ecs execute-command \
   --cluster myapp-cluster \
   --task abc123 \
@@ -1518,106 +1518,106 @@ aws ecs execute-command \
   --interactive \
   --command "/bin/sh"
 
-# 強制的な新デプロイ
+# Force new deployment
 aws ecs update-service \
   --cluster myapp-cluster \
   --service myapp-service \
   --force-new-deployment
 ```
 
-### 10.2 Kubernetes 運用コマンド
+### 10.2 Kubernetes Operations Commands
 
 ```bash
-# Pod のステータス確認
+# Check Pod status
 kubectl get pods -n production -l app=myapp -o wide
 
-# Pod のログ確認 (全 Pod のログを追跡)
+# Check Pod logs (follow logs across all Pods)
 kubectl logs -n production -l app=myapp --all-containers --follow --tail=100
 
-# Pod の詳細情報
+# Detailed Pod information
 kubectl describe pod -n production <pod-name>
 
-# ローリングアップデートの状況確認
+# Check rolling update status
 kubectl rollout status deployment/myapp -n production
 
-# ロールバック
+# Rollback
 kubectl rollout undo deployment/myapp -n production
 
-# 特定リビジョンへのロールバック
+# Rollback to a specific revision
 kubectl rollout undo deployment/myapp -n production --to-revision=3
 
-# リビジョン履歴の確認
+# Check revision history
 kubectl rollout history deployment/myapp -n production
 
-# Pod へのポートフォワード (デバッグ用)
+# Port-forward to Pod (for debugging)
 kubectl port-forward -n production svc/myapp 8080:80
 
-# リソース使用量の確認
+# Check resource usage
 kubectl top pods -n production -l app=myapp
 
-# HPA のステータス
+# HPA status
 kubectl get hpa -n production myapp -o yaml
 
-# ArgoCD の同期ステータス
+# ArgoCD sync status
 argocd app get myapp-production
 argocd app sync myapp-production
 argocd app diff myapp-production
 
-# ArgoCD のロールバック
+# ArgoCD rollback
 argocd app rollback myapp-production
 ```
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### アンチパターン 1: latest タグの本番利用
+### Anti-Pattern 1: Using the latest Tag in Production
 
 ```dockerfile
-# 悪い例: latest タグで本番デプロイ
-# どのバージョンが動いているか不明、ロールバック不可能
+# Bad: deploy to production with latest tag
+# Which version is running is unknown; rollback is impossible
 image: myapp:latest
 
-# 良い例: Git SHA または セマンティックバージョンを使用
+# Good: use Git SHA or semantic version
 image: ghcr.io/myorg/myapp:a1b2c3d
 image: ghcr.io/myorg/myapp:v1.2.3
 
-# CI/CD でイメージタグを自動設定する仕組みを整備する
+# Set up a mechanism to automatically configure image tags in CI/CD
 ```
 
-### アンチパターン 2: リソース制限なしでのデプロイ
+### Anti-Pattern 2: Deploying Without Resource Limits
 
 ```yaml
-# 悪い例: リソース制限なし
+# Bad: no resource limits
 containers:
   - name: app
     image: myapp:v1.0.0
-    # resources 未設定 → メモリリークで Node 全体に影響
+    # resources not set → memory leak can impact the entire Node
 
-# 良い例: requests と limits を適切に設定
+# Good: properly configure requests and limits
 containers:
   - name: app
     image: myapp:v1.0.0
     resources:
-      requests:        # スケジューリングの基準
-        cpu: 100m      # 0.1 CPU コア
+      requests:        # Basis for scheduling
+        cpu: 100m      # 0.1 CPU core
         memory: 128Mi
-      limits:          # 超過時に制限/OOMKill
+      limits:          # Restricted / OOMKilled when exceeded
         cpu: 500m
         memory: 512Mi
 ```
 
-### アンチパターン 3: シークレットのハードコーディング
+### Anti-Pattern 3: Hard-Coding Secrets
 
 ```yaml
-# 悪い例: 環境変数にシークレットを直接記載
+# Bad: secrets directly written in environment variables
 containers:
   - name: app
     env:
       - name: DATABASE_URL
-        value: "postgresql://user:password123@db:5432/mydb"  # 危険!
+        value: "postgresql://user:password123@db:5432/mydb"  # Dangerous!
 
-# 良い例: Kubernetes Secret または外部シークレット管理
+# Good: use Kubernetes Secret or external secret management
 containers:
   - name: app
     env:
@@ -1627,7 +1627,7 @@ containers:
             name: myapp-secrets
             key: database-url
 
-# さらに良い例: External Secrets Operator で AWS Secrets Manager と連携
+# Even better: integrate with AWS Secrets Manager using External Secrets Operator
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
@@ -1645,36 +1645,36 @@ spec:
         key: myapp/production/database-url
 ```
 
-### アンチパターン 4: ヘルスチェック未設定
+### Anti-Pattern 4: No Health Checks Configured
 
 ```yaml
-# 悪い例: ヘルスチェックなし
+# Bad: no health checks
 containers:
   - name: app
     image: myapp:v1.0.0
     ports:
       - containerPort: 3000
-    # アプリがハングしてもトラフィックが流れ続ける
+    # Traffic continues flowing even if the app hangs
 
-# 良い例: 3種類のプローブを適切に設定
+# Good: properly configure 3 types of probes
 containers:
   - name: app
     image: myapp:v1.0.0
-    # startupProbe: 起動完了を判定 (初回のみ)
+    # startupProbe: determines startup completion (first time only)
     startupProbe:
       httpGet:
         path: /health
         port: 3000
       failureThreshold: 30
       periodSeconds: 2
-    # readinessProbe: トラフィック受信可能かを判定
+    # readinessProbe: determines if traffic can be received
     readinessProbe:
       httpGet:
         path: /health/ready
         port: 3000
       periodSeconds: 10
       failureThreshold: 3
-    # livenessProbe: アプリが生存しているかを判定
+    # livenessProbe: determines if the app is alive
     livenessProbe:
       httpGet:
         path: /health/live
@@ -1683,15 +1683,15 @@ containers:
       failureThreshold: 3
 ```
 
-### アンチパターン 5: 単一レプリカの本番運用
+### Anti-Pattern 5: Running Production with a Single Replica
 
 ```yaml
-# 悪い例: レプリカ1で本番運用
+# Bad: running production with 1 replica
 spec:
   replicas: 1
-  # Pod 再起動時にサービス断が発生
+  # Service outage occurs when Pod restarts
 
-# 良い例: 最低3レプリカ + PDB + TopologySpreadConstraints
+# Good: minimum 3 replicas + PDB + TopologySpreadConstraints
 spec:
   replicas: 3
   template:
@@ -1703,98 +1703,98 @@ spec:
           labelSelector:
             matchLabels:
               app: myapp
-# + PDB で最低2 Pod を保証
+# + PDB guarantees a minimum of 2 Pods
 ```
 
 ---
 
 ## 12. FAQ
 
-### Q1: ECS と Kubernetes、どちらを選ぶべきですか？
+### Q1: Should I choose ECS or Kubernetes?
 
-チームの Kubernetes 経験と運用負荷の許容度で判断します。AWS に閉じたシンプルなコンテナ運用なら ECS Fargate が管理負荷が低く始めやすいです。マルチクラウド、高度なトラフィック制御（Istio 等）、豊富な OSS エコシステムが必要なら Kubernetes を選択してください。EKS のコントロールプレーン費用（約$73/月）も考慮に入れましょう。具体的な判断基準は以下の通りです:
+The decision depends on your team's Kubernetes experience and tolerance for operational overhead. For simple container operations contained within AWS, ECS Fargate has low management overhead and is easy to get started with. Choose Kubernetes if you need multi-cloud support, advanced traffic control (such as Istio), or access to a rich OSS ecosystem. Also factor in EKS control plane costs (approximately $73/month). Specific decision criteria:
 
-- **ECS を選ぶべき場合**: AWS 専用環境、チームに Kubernetes 経験者が少ない、運用チームが小規模（1-3名）、サービス数が10未満
-- **Kubernetes を選ぶべき場合**: マルチクラウド要件、サービスメッシュが必要、チームに Kubernetes 経験者がいる、サービス数が10以上、高度なスケジューリング要件
+- **When to choose ECS**: AWS-only environment, team has few Kubernetes experts, small operations team (1-3 people), fewer than 10 services
+- **When to choose Kubernetes**: Multi-cloud requirements, service mesh needed, team has Kubernetes experts, more than 10 services, advanced scheduling requirements
 
-### Q2: ArgoCD の「自動同期」は常に有効にすべきですか？
+### Q2: Should ArgoCD "automated sync" always be enabled?
 
-開発環境では有効にして問題ありません。本番環境では `automated.prune: true` と `selfHeal: true` を慎重に検討してください。特に `prune` は Git リポジトリから削除されたリソースを自動削除するため、誤操作のリスクがあります。段階的に導入し、まずは手動同期（Sync ボタン）から始めて信頼性を確認することを推奨します。本番環境でのベストプラクティスは、`selfHeal: true`（手動変更の自動修正）は有効にしつつ、`prune: false`（自動削除は無効）とする構成です。
+It is fine to enable it for development environments. For production, carefully consider `automated.prune: true` and `selfHeal: true`. In particular, `prune` automatically deletes resources removed from the Git repository, which carries risk of accidental deletion. It is recommended to introduce it gradually, starting with manual sync (the Sync button) to confirm reliability. The best practice for production is to enable `selfHeal: true` (automatically correct manual changes) while setting `prune: false` (disable automatic deletion).
 
-### Q3: コンテナイメージの脆弱性スキャンはどのタイミングで行うべきですか？
+### Q3: When should container image vulnerability scanning be performed?
 
-**ビルド時**（CI パイプライン内）と**定期スキャン**の2段階が推奨です。ビルド時には `trivy image` や `docker scout` を実行し、Critical/High の脆弱性があればビルドを失敗させます。レジストリに保存済みのイメージも、新しい CVE が公開される可能性があるため、日次の定期スキャンを設定してください。具体的には:
+A two-stage approach is recommended: **at build time** (within the CI pipeline) and **scheduled scanning**. At build time, run `trivy image` or `docker scout`, and fail the build if Critical/High vulnerabilities are found. Images stored in the registry also need daily scheduled scans configured because new CVEs may be published. Specifically:
 
-1. **PR 時**: Hadolint で Dockerfile のリンティング + Trivy でイメージスキャン
-2. **マージ時**: フルスキャン + SBOM 生成 + イメージ署名（cosign）
-3. **定期**: ECR のスキャン機能 or 日次の Trivy スキャン
-4. **デプロイ前**: アドミッション制御で未スキャンイメージのデプロイを拒否
+1. **On PR**: Dockerfile linting with Hadolint + image scanning with Trivy
+2. **On merge**: Full scan + SBOM generation + image signing (cosign)
+3. **Scheduled**: ECR scan feature or daily Trivy scan
+4. **Before deployment**: Deny deployment of unscanned images using admission control
 
-### Q4: Fargate と EC2 起動タイプ、どちらを使うべきですか？
+### Q4: Should I use Fargate or the EC2 launch type?
 
-**Fargate** はサーバー管理不要で運用コストが低いですが、GPU 対応が限定的で、カスタムカーネルパラメータの変更ができません。**EC2** は柔軟性が高く、スポットインスタンスでコスト最適化が可能ですが、EC2 インスタンスのパッチ適用やスケーリング管理が必要です。一般的な Web アプリケーションには Fargate を推奨し、GPU が必要な ML 推論ワークロードや特殊な要件がある場合に EC2 を選択してください。
+**Fargate** requires no server management and has low operational costs, but GPU support is limited and custom kernel parameter changes are not possible. **EC2** offers greater flexibility and can optimize costs with spot instances, but requires managing EC2 instance patching and scaling. Fargate is recommended for typical web applications; choose EC2 when GPU is needed for ML inference workloads or there are special requirements.
 
-### Q5: イメージプルに時間がかかる場合の対策は？
+### Q5: What can be done when image pull takes too long?
 
-以下の対策を検討してください:
+Consider the following countermeasures:
 
-1. **イメージサイズの縮小**: マルチステージビルドと Alpine ベースイメージの使用
-2. **イメージキャッシュ**: ECR Pull Through Cache を使用してクロスリージョンのプルを高速化
-3. **レジストリの近接配置**: デプロイ先と同じリージョンにレジストリを配置
-4. **Lazy Loading**: containerd の nerdctl + stargz で、イメージ全体をプルせずに起動（Seekable OCI）
-5. **ウォームプール**: ECS Capacity Provider のウォームプールで事前にインスタンスを起動
+1. **Reduce image size**: Use multi-stage builds and Alpine base images
+2. **Image caching**: Use ECR Pull Through Cache to speed up cross-region pulls
+3. **Keep registry close**: Place the registry in the same region as the deployment target
+4. **Lazy Loading**: Use containerd's nerdctl + stargz to start without pulling the entire image (Seekable OCI)
+5. **Warm pool**: Pre-launch instances with ECS Capacity Provider warm pools
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just from theory but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend solidly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| マルチステージビルド | ビルド成果物のみを最終イメージに含め、サイズと攻撃面を最小化 |
-| イメージタグ | 本番では Git SHA またはセマンティックバージョンを使用。latest 禁止 |
-| ECS Fargate | AWS マネージド。タスク定義 + サービスで運用。管理負荷が低い |
-| Kubernetes | 高い柔軟性。HPA でオートスケール、RBAC で権限管理 |
-| ArgoCD (GitOps) | Git リポジトリを信頼の源泉とし、宣言的にデプロイ状態を管理 |
-| リソース制限 | requests/limits を必ず設定。OOMKill やノード影響を防止 |
-| Kustomize | base + overlays で環境差分を管理。DRY なマニフェスト構成 |
-| Progressive Delivery | Argo Rollouts + AnalysisTemplate で安全なカナリーデプロイ |
-| セキュリティ | 非root 実行、readOnlyRootFilesystem、NetworkPolicy、イメージスキャン |
-| サービスメッシュ | Istio/Linkerd で mTLS、トラフィック制御、可観測性を統合 |
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [00-deployment-strategies.md](./00-deployment-strategies.md) — Blue-Green、Canary などのデプロイ戦略
+| Item | Key Point |
+|------|-----------|
+| Multi-stage build | Include only build artifacts in the final image to minimize size and attack surface |
+| Image tags | Use Git SHA or semantic version in production. Never use latest |
+| ECS Fargate | AWS managed. Operate with task definitions + services. Low management overhead |
+| Kubernetes | High flexibility. Auto-scale with HPA, manage permissions with RBAC |
+| ArgoCD (GitOps) | Use Git repository as the source of truth and manage deployment state declaratively |
+| Resource limits | Always configure requests/limits. Prevent OOMKill and node-wide impact |
+| Kustomize | Manage environment differences with base + overlays. DRY manifest structure |
+| Progressive Delivery | Safe canary deployments with Argo Rollouts + AnalysisTemplate |
+| Security | Non-root execution, readOnlyRootFilesystem, NetworkPolicy, image scanning |
+| Service mesh | Integrate mTLS, traffic control, and observability with Istio/Linkerd |
+
+---
+
+## Guides to Read Next
+
+- [00-deployment-strategies.md](./00-deployment-strategies.md) — Deployment strategies such as Blue-Green and Canary
 - [01-cloud-deployment.md](./01-cloud-deployment.md) — AWS/Vercel/Cloudflare Workers
-- [03-release-management.md](./03-release-management.md) — セマンティックバージョニングとリリース管理
+- [03-release-management.md](./03-release-management.md) — Semantic versioning and release management
 
 ---
 
-## 参考文献
+## References
 
-1. **Docker Documentation - Multi-stage builds** — https://docs.docker.com/build/building/multi-stage/ — マルチステージビルドの公式ガイド
-2. **Amazon ECS Developer Guide** — https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ — ECS の公式ドキュメント
-3. **ArgoCD Documentation** — https://argo-cd.readthedocs.io/ — GitOps ベースの CD ツール公式ドキュメント
+1. **Docker Documentation - Multi-stage builds** — https://docs.docker.com/build/building/multi-stage/ — Official guide to multi-stage builds
+2. **Amazon ECS Developer Guide** — https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ — Official ECS documentation
+3. **ArgoCD Documentation** — https://argo-cd.readthedocs.io/ — Official documentation for the GitOps-based CD tool
 4. **Kubernetes Best Practices** — Brendan Burns, Eddie Villalba, Dave Strebel, Lachlan Evenson (O'Reilly, 2019)
-5. **Argo Rollouts Documentation** — https://argoproj.github.io/argo-rollouts/ — Progressive Delivery の公式ガイド
-6. **Istio Documentation** — https://istio.io/latest/docs/ — サービスメッシュの公式ドキュメント
-7. **Kustomize Documentation** — https://kustomize.io/ — Kubernetes ネイティブの構成管理ツール
-8. **Trivy Documentation** — https://aquasecurity.github.io/trivy/ — コンテナ脆弱性スキャナーの公式ドキュメント
+5. **Argo Rollouts Documentation** — https://argoproj.github.io/argo-rollouts/ — Official guide for Progressive Delivery
+6. **Istio Documentation** — https://istio.io/latest/docs/ — Official documentation for the service mesh
+7. **Kustomize Documentation** — https://kustomize.io/ — Kubernetes-native configuration management tool
+8. **Trivy Documentation** — https://aquasecurity.github.io/trivy/ — Official documentation for the container vulnerability scanner
