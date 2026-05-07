@@ -1,161 +1,161 @@
-# コンテナ技術概要
+# Container Technology Overview
 
-> 仮想マシンとコンテナの違いを理解し、Docker とコンテナエコシステムの全体像を把握するための入門ガイド。Linux カーネル技術の基盤から OCI 標準、実務でのユースケース、代替ツールの比較まで体系的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **仮想化とコンテナ化の本質的な違い**を理解し、それぞれの適用領域を判断できる
-2. **Linux カーネル技術（namespaces / cgroups / UnionFS）**の仕組みを深く理解する
-3. **Docker の歴史と OCI 標準**を知り、コンテナエコシステムの全体像を把握する
-4. **コンテナランタイムの階層構造**（高レベル・低レベル）を理解する
-5. **コンテナのユースケース**を理解し、自分のプロジェクトへの適用を検討できる
-6. **Docker 以外の選択肢**（Podman, nerdctl, Buildah 等）を比較検討できる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> An introductory guide to understanding the differences between virtual machines and containers, and gaining a comprehensive picture of Docker and the container ecosystem. Systematically covers the Linux kernel foundations, OCI standards, real-world use cases, and comparisons of alternative tools.
 
 ---
 
-## 1. 仮想化とコンテナ化
+## What You Will Learn in This Chapter
 
-### 1.1 従来の仮想化（ハイパーバイザ型）
+1. Understand the **fundamental differences between virtualization and containerization** and determine which approach to apply in each scenario
+2. Gain a deep understanding of **Linux kernel technologies (namespaces / cgroups / UnionFS)**
+3. Learn about **Docker's history and the OCI standard** to grasp the overall container ecosystem
+4. Understand the **layered structure of container runtimes** (high-level and low-level)
+5. Understand **container use cases** and evaluate how to apply them to your own projects
+6. Compare and evaluate **alternatives to Docker** (Podman, nerdctl, Buildah, etc.)
 
-仮想マシン（VM）は、ハイパーバイザ上にゲスト OS を丸ごと起動する技術である。各 VM は独立したカーネルを持ち、完全なアイソレーションを提供する。
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. Virtualization and Containerization
+
+### 1.1 Traditional Virtualization (Hypervisor-Based)
+
+A virtual machine (VM) is a technology that boots an entire guest OS on top of a hypervisor. Each VM has its own independent kernel and provides complete isolation.
 
 ```
 +---------------------------------------------+
-|              ホスト OS                        |
+|              Host OS                          |
 +---------------------------------------------+
-|            ハイパーバイザ                      |
+|            Hypervisor                         |
 +----------+----------+----------+------------+
 |  VM 1    |  VM 2    |  VM 3    |            |
 | +------+ | +------+ | +------+ |            |
-| |アプリ | | |アプリ | | |アプリ | |            |
+| | App  | | | App  | | | App  | |            |
 | +------+ | +------+ | +------+ |            |
 | | Bins | | | Bins | | | Bins | |            |
 | +------+ | +------+ | +------+ |            |
-| |ゲストOS| | |ゲストOS| | |ゲストOS| |            |
+| |GuestOS| | |GuestOS| | |GuestOS| |            |
 | +------+ | +------+ | +------+ |            |
 +----------+----------+----------+------------+
 ```
 
-**Type 1（ベアメタル）ハイパーバイザ:**
+**Type 1 (Bare-Metal) Hypervisor:**
 
-ハードウェア上に直接動作するハイパーバイザで、パフォーマンスが高い。
+A hypervisor that runs directly on hardware with high performance.
 
 ```
 +-------------------------------------------------+
-|  ハードウェア (CPU, メモリ, ストレージ, NIC)       |
+|  Hardware (CPU, Memory, Storage, NIC)           |
 +-------------------------------------------------+
-|  Type 1 ハイパーバイザ                            |
-|  例: VMware ESXi, Microsoft Hyper-V,            |
-|      Xen, KVM (Linux カーネル統合)               |
+|  Type 1 Hypervisor                              |
+|  Examples: VMware ESXi, Microsoft Hyper-V,      |
+|      Xen, KVM (integrated into Linux kernel)    |
 +-------------------------------------------------+
 |  VM 1        |  VM 2        |  VM 3            |
 |  Ubuntu 22   |  Windows 11  |  RHEL 9          |
 +-------------------------------------------------+
 ```
 
-**Type 2（ホスト型）ハイパーバイザ:**
+**Type 2 (Hosted) Hypervisor:**
 
-ホスト OS 上のアプリケーションとして動作するハイパーバイザ。
+A hypervisor that runs as an application on the host OS.
 
 ```
 +-------------------------------------------------+
-|  ハードウェア                                     |
+|  Hardware                                       |
 +-------------------------------------------------+
-|  ホスト OS (macOS, Windows, Linux)              |
+|  Host OS (macOS, Windows, Linux)                |
 +-------------------------------------------------+
-|  Type 2 ハイパーバイザ                            |
-|  例: VirtualBox, VMware Workstation/Fusion,     |
+|  Type 2 Hypervisor                              |
+|  Examples: VirtualBox, VMware Workstation/Fusion|
 |      Parallels Desktop, QEMU                    |
 +-------------------------------------------------+
 |  VM 1        |  VM 2        |  VM 3            |
 +-------------------------------------------------+
 ```
 
-### 1.2 コンテナ化
+### 1.2 Containerization
 
-コンテナはホスト OS のカーネルを共有し、プロセスレベルでアイソレーションを実現する。ゲスト OS が不要なため、起動が高速でリソース効率が高い。
+Containers share the host OS kernel and achieve isolation at the process level. Since no guest OS is required, startup is fast and resource efficiency is high.
 
 ```
 +---------------------------------------------+
-|              ホスト OS カーネル                 |
+|              Host OS Kernel                   |
 +---------------------------------------------+
-|          コンテナランタイム (Docker)            |
+|          Container Runtime (Docker)           |
 +----------+----------+----------+------------+
-| コンテナ1 | コンテナ2 | コンテナ3 |            |
+|Container1 |Container2 |Container3 |            |
 | +------+ | +------+ | +------+ |            |
-| |アプリ | | |アプリ | | |アプリ | |            |
+| | App  | | | App  | | | App  | |            |
 | +------+ | +------+ | +------+ |            |
 | | Bins | | | Bins | | | Bins | |            |
 | +------+ | +------+ | +------+ |            |
 +----------+----------+----------+------------+
-  ゲスト OS なし - カーネルを共有
+  No Guest OS - Shares the Kernel
 ```
 
-**コンテナ化の本質的なメリット:**
+**Essential benefits of containerization:**
 
 ```
 +----------------------------------------------------------+
-|  イミュータビリティ (不変性)                                 |
-|  ├─ イメージは一度ビルドしたら変更しない                      |
-|  ├─ 設定変更 = 新しいイメージのビルド                        |
-|  └─ デプロイ = 古いコンテナ破棄 + 新しいコンテナ起動           |
-|                                                          |
-|  ポータビリティ (可搬性)                                    |
-|  ├─ 開発環境と本番環境で同一イメージを使用                    |
-|  ├─ "手元では動くのに本番で動かない" 問題の解消                |
-|  └─ クラウドベンダーに依存しない                             |
-|                                                          |
-|  効率性                                                   |
-|  ├─ 起動時間: 数百ミリ秒 (VM は数分)                        |
-|  ├─ メモリ: アプリ分のみ (VM は OS 分も必要)                 |
-|  ├─ ディスク: レイヤー共有で重複排除                          |
-|  └─ 密度: 1ホストに数百コンテナ (VM は数十)                  |
+|  Immutability                                             |
+|  ├─ Images are never changed once built                   |
+|  ├─ Config change = building a new image                  |
+|  └─ Deployment = discard old container + start new one    |
+|                                                           |
+|  Portability                                              |
+|  ├─ Use the same image in development and production      |
+|  ├─ Eliminates "works on my machine, not in production"   |
+|  └─ Not locked into any cloud vendor                      |
+|                                                           |
+|  Efficiency                                               |
+|  ├─ Startup time: hundreds of milliseconds (VMs: minutes) |
+|  ├─ Memory: only app footprint (VMs need OS memory too)   |
+|  ├─ Disk: layer sharing eliminates duplication            |
+|  └─ Density: hundreds of containers per host (VMs: tens)  |
 +----------------------------------------------------------+
 ```
 
-### 1.3 ハイブリッド構成（VM + コンテナ）
+### 1.3 Hybrid Configuration (VM + Containers)
 
-実際のクラウド環境では、VM の上でコンテナを動かすハイブリッド構成が一般的である。
+In real-world cloud environments, it is common to run containers on top of VMs in a hybrid configuration.
 
 ```
 +-----------------------------------------------------+
-|              クラウドプロバイダ (AWS / GCP / Azure)     |
+|              Cloud Provider (AWS / GCP / Azure)      |
 +-----------------------------------------------------+
-|              物理サーバー群                             |
+|              Physical Server Cluster                 |
 +-----------------------------------------------------+
-|              ハイパーバイザ (KVM 等)                    |
+|              Hypervisor (KVM, etc.)                  |
 +-----------------------------------------------------+
 |  VM (EC2)   |  VM (EC2)   |  VM (EC2)               |
 |  +---------+|  +---------+|  +---------+            |
-|  |コンテナ群||  |コンテナ群||  |コンテナ群|            |
+|  |Containers||  |Containers||  |Containers|            |
 |  | K8s Node||  | K8s Node||  | K8s Node|            |
 |  +---------+|  +---------+|  +---------+            |
 +-----------------------------------------------------+
-  VM = テナント分離 / コンテナ = アプリ分離
+  VM = Tenant isolation / Container = Application isolation
 ```
 
 ```bash
-# AWS EKS の場合の構成例
-# EC2 インスタンス (VM) が Kubernetes ワーカーノードとして動作
-# その上で Pod (コンテナ) が実行される
+# Example configuration for AWS EKS
+# EC2 instances (VMs) act as Kubernetes worker nodes
+# Pods (containers) run on top of them
 
-# ワーカーノード (VM) の確認
+# Check worker nodes (VMs)
 kubectl get nodes -o wide
 # NAME                         STATUS   ROLES    AGE   VERSION
 # ip-10-0-1-100.ec2.internal   Ready    <none>   5d    v1.28.3
 # ip-10-0-2-200.ec2.internal   Ready    <none>   5d    v1.28.3
 
-# Pod (コンテナ) の確認
+# Check Pods (containers)
 kubectl get pods -o wide
 # NAME                    READY   STATUS    NODE
 # web-7d8f9c-abc12        1/1     Running   ip-10-0-1-100.ec2.internal
@@ -164,255 +164,255 @@ kubectl get pods -o wide
 
 ---
 
-## 2. Linux カーネル技術の詳細
+## 2. Linux Kernel Technologies in Detail
 
-### 2.1 namespaces - リソースの可視性制御
+### 2.1 namespaces - Controlling Resource Visibility
 
-コンテナの基盤となる Linux カーネル技術で、プロセスから見えるリソースの範囲を制限する。
+A Linux kernel technology that forms the foundation of containers, restricting the range of resources visible to a process.
 
 ```
 +---------------------------------------------------+
-|               Linux カーネル                        |
+|               Linux Kernel                         |
 |                                                   |
 |  +-------------------+  +----------------------+  |
 |  |   namespaces      |  |      cgroups         |  |
 |  |                   |  |                      |  |
-|  |  - pid namespace  |  |  - CPU 制限          |  |
-|  |  - net namespace  |  |  - メモリ制限         |  |
-|  |  - mnt namespace  |  |  - I/O 制限          |  |
-|  |  - uts namespace  |  |  - プロセス数制限      |  |
+|  |  - pid namespace  |  |  - CPU limit         |  |
+|  |  - net namespace  |  |  - Memory limit      |  |
+|  |  - mnt namespace  |  |  - I/O limit         |  |
+|  |  - uts namespace  |  |  - Process limit     |  |
 |  |  - ipc namespace  |  |                      |  |
 |  |  - user namespace |  |                      |  |
 |  |  - cgroup ns      |  |                      |  |
 |  |  - time ns        |  |                      |  |
 |  +-------------------+  +----------------------+  |
 |                                                   |
-|  namespaces = 見える範囲の制限（アイソレーション）    |
-|  cgroups    = 使える量の制限（リソース制御）         |
+|  namespaces = Restricts visibility (isolation)    |
+|  cgroups    = Restricts usage (resource control)  |
 +---------------------------------------------------+
 ```
 
-**全 8 種類の namespaces 詳細:**
+**Details on all 8 namespaces:**
 
 ```bash
 # ===================================
-# 1. PID namespace - プロセスIDの分離
+# 1. PID namespace - Process ID isolation
 # ===================================
-# コンテナ内ではPID 1から始まる独立したプロセスツリー
+# Inside a container, an independent process tree starts from PID 1
 docker run --rm alpine ps aux
 # PID   USER     COMMAND
 #   1   root     ps aux
 
-# ホスト側から見るとコンテナプロセスは別のPIDを持つ
+# From the host, container processes have different PIDs
 docker run -d --name test-pid alpine sleep 3600
 docker inspect --format '{{.State.Pid}}' test-pid
-# 例: 45678 (ホスト側のPID)
+# Example: 45678 (host-side PID)
 
-# コンテナ内から見たPID
+# PID as seen from inside the container
 docker exec test-pid ps aux
 # PID   USER     COMMAND
 #   1   root     sleep 3600
 
-# /proc ファイルシステムでnamespaceを確認
+# Check namespace via the /proc filesystem
 docker exec test-pid ls -la /proc/1/ns/pid
 # lrwxrwxrwx 1 root root 0 /proc/1/ns/pid -> 'pid:[4026532456]'
 
 docker rm -f test-pid
 
 # ===================================
-# 2. Network namespace - ネットワークスタックの分離
+# 2. Network namespace - Network stack isolation
 # ===================================
-# 各コンテナは独自のネットワークインターフェース、IPアドレス、
-# ルーティングテーブル、iptablesルールを持つ
+# Each container has its own network interfaces, IP addresses,
+# routing tables, and iptables rules
 docker run --rm alpine ip addr
 # 1: lo: <LOOPBACK,UP,LOWER_UP>
 #     inet 127.0.0.1/8 scope host lo
 # 2: eth0@if123: <BROADCAST,MULTICAST,UP,LOWER_UP>
 #     inet 172.17.0.2/16 brd 172.17.255.255
 
-# ネットワーク名前空間の一覧（ホスト側）
+# List network namespaces (from the host)
 sudo ip netns list
 
-# コンテナのネットワーク設定を詳細確認
+# Inspect container network configuration in detail
 docker run --rm alpine sh -c "ip route && echo '---' && ip addr && echo '---' && cat /etc/resolv.conf"
 
 # ===================================
-# 3. Mount namespace - ファイルシステムの分離
+# 3. Mount namespace - Filesystem isolation
 # ===================================
-# コンテナは独自のマウントポイントを持つ
+# Containers have their own mount points
 docker run --rm alpine ls /
 # bin    etc    lib    mnt    proc   run    srv    tmp    var
 # dev    home   media  opt    root   sbin   sys    usr
 
-# ホストのファイルシステムとは完全に分離されている
+# Completely isolated from the host filesystem
 docker run --rm alpine cat /etc/os-release
 # NAME="Alpine Linux"
 
-# マウントポイントの確認
+# Check mount points
 docker run --rm alpine mount
 # overlay on / type overlay (...)
 # proc on /proc type proc (...)
 # tmpfs on /dev type tmpfs (...)
 
 # ===================================
-# 4. UTS namespace - ホスト名の分離
+# 4. UTS namespace - Hostname isolation
 # ===================================
-# 各コンテナは独自のホスト名を持つ
+# Each container has its own hostname
 docker run --rm --hostname my-container alpine hostname
 # my-container
 
 docker run --rm alpine hostname
-# ランダムな12文字のコンテナID
+# Random 12-character container ID
 
 # ===================================
-# 5. IPC namespace - プロセス間通信の分離
+# 5. IPC namespace - Inter-process communication isolation
 # ===================================
-# 共有メモリ、セマフォ、メッセージキューの分離
+# Isolation of shared memory, semaphores, and message queues
 docker run --rm alpine ipcs
 # ------ Message Queues --------
 # ------ Shared Memory Segments --------
 # ------ Semaphore Arrays --------
 
 # ===================================
-# 6. User namespace - ユーザーIDの分離
+# 6. User namespace - User ID isolation
 # ===================================
-# コンテナ内のroot(UID 0)をホストの非特権ユーザーにマッピング
+# Maps root (UID 0) inside the container to an unprivileged user on the host
 docker run --rm alpine id
 # uid=0(root) gid=0(root) groups=0(root)
 
-# rootless モードでの実行
-# コンテナ内のroot -> ホストの非特権ユーザー
+# Running in rootless mode
+# Container root -> Unprivileged host user
 docker run --rm --userns=host alpine cat /proc/self/uid_map
 #          0       1000          1
 
 # ===================================
 # 7. Cgroup namespace (Linux 4.6+)
 # ===================================
-# cgroupファイルシステムの仮想化
+# Virtualizes the cgroup filesystem
 docker run --rm alpine cat /proc/self/cgroup
 # 0::/
 
 # ===================================
 # 8. Time namespace (Linux 5.6+)
 # ===================================
-# CLOCK_MONOTONIC と CLOCK_BOOTTIME の仮想化
-# コンテナごとに異なるブート時間を設定可能
+# Virtualizes CLOCK_MONOTONIC and CLOCK_BOOTTIME
+# Allows each container to have a different boot time
 ```
 
-### 2.2 cgroups（Control Groups）- リソースの使用量制御
+### 2.2 cgroups (Control Groups) - Resource Usage Control
 
-cgroups はプロセスグループのリソース使用量を制限・監視する機能である。
+cgroups is a feature that limits and monitors the resource usage of process groups.
 
 ```bash
 # ===================================
-# cgroups v1 と v2 の確認
+# Checking cgroups v1 and v2
 # ===================================
-# cgroups バージョンの確認
+# Check the cgroups version
 stat -fc %T /sys/fs/cgroup/
 # cgroup2fs -> cgroups v2
 # tmpfs     -> cgroups v1
 
-# Docker が使用している cgroup driver の確認
+# Check the cgroup driver used by Docker
 docker info | grep -i cgroup
 # Cgroup Driver: systemd
 # Cgroup Version: 2
 
 # ===================================
-# メモリ制限
+# Memory limits
 # ===================================
-# メモリを256MBに制限
+# Limit memory to 256 MB
 docker run --memory=256m --rm alpine free -m
 
-# メモリ + スワップの制限
+# Limit memory + swap
 docker run --memory=256m --memory-swap=512m --rm alpine free -m
 
-# メモリ予約（ソフトリミット）
+# Memory reservation (soft limit)
 docker run --memory=512m --memory-reservation=256m --rm nginx
 
-# OOM (Out Of Memory) の挙動制御
+# OOM (Out Of Memory) kill behavior control
 docker run --memory=64m --oom-kill-disable --rm stress-ng --vm 1 --vm-bytes 128m
-# OOM Killer を無効化（危険: ホスト全体に影響する可能性）
+# Disables the OOM Killer (dangerous: may affect the entire host)
 
 # ===================================
-# CPU 制限
+# CPU limits
 # ===================================
-# CPUを1コアに制限
+# Limit CPU to 1 core
 docker run --cpus=1.0 --rm alpine cat /proc/cpuinfo
 
-# CPU シェア（相対的な重み付け）
-docker run --cpu-shares=1024 --rm nginx   # デフォルト
-docker run --cpu-shares=512 --rm nginx    # 半分の重み
+# CPU shares (relative weighting)
+docker run --cpu-shares=1024 --rm nginx   # Default
+docker run --cpu-shares=512 --rm nginx    # Half the weight
 
-# 特定のCPUコアに固定（CPU ピニング）
-docker run --cpuset-cpus="0,1" --rm nginx  # CPU 0 と 1 のみ使用
-docker run --cpuset-cpus="0-3" --rm nginx  # CPU 0〜3 を使用
+# Pin to specific CPU cores (CPU pinning)
+docker run --cpuset-cpus="0,1" --rm nginx  # Use only CPU 0 and 1
+docker run --cpuset-cpus="0-3" --rm nginx  # Use CPUs 0 through 3
 
-# CPU クォータ（周期ベースの制限）
+# CPU quota (period-based limit)
 docker run --cpu-period=100000 --cpu-quota=50000 --rm nginx
-# 100ms あたり 50ms の CPU 時間 = 0.5 CPU
+# 50ms of CPU time per 100ms period = 0.5 CPU
 
 # ===================================
-# I/O 制限
+# I/O limits
 # ===================================
-# ブロックデバイスの読み書き速度制限
+# Limit block device read/write speed
 docker run --device-read-bps=/dev/sda:1mb --rm alpine dd if=/dev/zero of=/tmp/test bs=1M count=10
 docker run --device-write-bps=/dev/sda:1mb --rm alpine dd if=/dev/zero of=/tmp/test bs=1M count=10
 
-# I/O ウェイト（相対的な重み付け）
-docker run --blkio-weight=500 --rm nginx  # デフォルト: 500, 範囲: 10-1000
+# I/O weight (relative weighting)
+docker run --blkio-weight=500 --rm nginx  # Default: 500, Range: 10-1000
 
 # ===================================
-# プロセス数制限 (pids cgroup)
+# Process count limit (pids cgroup)
 # ===================================
 docker run --pids-limit=100 --rm alpine sh -c "ulimit -u"
-# Fork Bomb 対策として重要
+# Important as protection against Fork Bombs
 
 # ===================================
-# リソース使用状況の確認
+# Checking resource usage
 # ===================================
 docker stats --no-stream
 # CONTAINER ID   NAME     CPU %   MEM USAGE / LIMIT   MEM %   NET I/O       BLOCK I/O    PIDS
 # abc123def456   web      0.50%   45.2MiB / 256MiB    17.66%  1.2kB / 0B    8.19kB / 0B  5
 
-# 特定のコンテナの詳細なリソース情報
+# Detailed resource info for a specific container
 docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.PIDs}}"
 
-# cgroup ファイルシステムから直接情報を取得
+# Retrieve information directly from the cgroup filesystem
 docker run -d --name cgroup-test --memory=256m nginx
 CONTAINER_ID=$(docker inspect --format '{{.Id}}' cgroup-test)
-# cgroups v2 の場合
+# For cgroups v2
 cat /sys/fs/cgroup/system.slice/docker-${CONTAINER_ID}.scope/memory.max
 # 268435456 (256MB)
 docker rm -f cgroup-test
 ```
 
-### 2.3 UnionFS / OverlayFS - レイヤー化ファイルシステム
+### 2.3 UnionFS / OverlayFS - Layered Filesystem
 
-コンテナイメージのレイヤー構造を支える技術である。
+The technology that underpins the layered structure of container images.
 
 ```
 +--------------------------------------------------+
-|  コンテナレイヤー構造                               |
+|  Container Layer Structure                        |
 |                                                  |
 |  +--------------------------------------------+ |
-|  | コンテナ層 (Read-Write)                      | |
-|  | 実行時の変更がここに書き込まれる                 | |
+|  | Container Layer (Read-Write)                | |
+|  | Runtime changes are written here            | |
 |  +--------------------------------------------+ |
-|  | レイヤー 4: COPY . /app (アプリコード)         | |
+|  | Layer 4: COPY . /app (application code)     | |
 |  +--------------------------------------------+ |
-|  | レイヤー 3: RUN npm install (依存パッケージ)   | |
+|  | Layer 3: RUN npm install (dependencies)     | |
 |  +--------------------------------------------+ |
-|  | レイヤー 2: RUN apt-get install (OS パッケージ)| |
+|  | Layer 2: RUN apt-get install (OS packages)  | |
 |  +--------------------------------------------+ |
-|  | レイヤー 1: ベースイメージ (ubuntu:22.04)      | |
+|  | Layer 1: Base image (ubuntu:22.04)          | |
 |  +--------------------------------------------+ |
-|  ↑ すべてのレイヤーは Read-Only                   |
-|  ↑ Copy-on-Write でファイル変更を上位層に書込み    |
+|  ^ All layers are Read-Only                    |
+|  ^ File changes written to upper layer via CoW |
 +--------------------------------------------------+
 ```
 
 ```bash
-# イメージのレイヤー情報を確認
+# Check image layer information
 docker history nginx:1.25-alpine
 # IMAGE          CREATED       CREATED BY                                      SIZE
 # 1234abcd5678   2 weeks ago   CMD ["nginx" "-g" "daemon off;"]                0B
@@ -421,35 +421,35 @@ docker history nginx:1.25-alpine
 # <missing>      2 weeks ago   RUN /bin/sh -c set -x && addgroup ...           5.14MB
 # <missing>      2 weeks ago   /bin/sh -c #(nop) ADD file:... in /            7.38MB
 
-# レイヤーの詳細を JSON で確認
+# Check layer details in JSON
 docker inspect nginx:1.25-alpine | python3 -m json.tool | head -50
 
-# overlay2 ストレージドライバの情報
+# overlay2 storage driver info
 docker info --format '{{.Driver}}'
 # overlay2
 
-# イメージの保存先を確認
+# Check where images are stored
 docker info --format '{{.DockerRootDir}}'
 # /var/lib/docker
 
-# 特定コンテナの OverlayFS マウント情報
+# OverlayFS mount info for a specific container
 docker run -d --name overlay-test nginx
 docker inspect overlay-test --format '{{.GraphDriver.Data.MergedDir}}'
 # /var/lib/docker/overlay2/<hash>/merged
 
 docker inspect overlay-test --format '{{.GraphDriver.Data.UpperDir}}'
-# /var/lib/docker/overlay2/<hash>/diff  (Read-Write 層)
+# /var/lib/docker/overlay2/<hash>/diff  (Read-Write layer)
 
 docker inspect overlay-test --format '{{.GraphDriver.Data.LowerDir}}'
-# /var/lib/docker/overlay2/<hash1>/diff:/var/lib/docker/overlay2/<hash2>/diff  (Read-Only 層)
+# /var/lib/docker/overlay2/<hash1>/diff:/var/lib/docker/overlay2/<hash2>/diff  (Read-Only layers)
 
 docker rm -f overlay-test
 
-# レイヤーの共有を確認（同じベースイメージを使うコンテナはレイヤーを共有）
+# Verify layer sharing (containers using the same base image share layers)
 docker pull nginx:1.25-alpine
-docker pull nginx:1.25  # alpine と non-alpine で共通レイヤーがあれば共有される
+docker pull nginx:1.25  # Common layers between alpine and non-alpine will be shared
 
-# ディスク使用量の確認
+# Check disk usage
 docker system df
 # TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
 # Images          15        5         3.258GB   2.1GB (64%)
@@ -457,23 +457,23 @@ docker system df
 # Local Volumes   8         3         500MB     200MB (40%)
 # Build Cache     20        0         1.5GB     1.5GB
 
-docker system df -v  # 詳細表示
+docker system df -v  # Verbose output
 ```
 
-### 2.4 seccomp - システムコールのフィルタリング
+### 2.4 seccomp - System Call Filtering
 
 ```bash
-# Docker のデフォルト seccomp プロファイルを確認
-# 約300以上のシステムコールのうち、約50が制限される
+# Check Docker's default seccomp profile
+# Out of 300+ system calls, approximately 50 are restricted
 docker run --rm alpine cat /proc/self/status | grep Seccomp
 # Seccomp:  2
 # Seccomp_filters:  1
 
-# seccomp プロファイルなしで実行（危険 - デバッグ目的のみ）
+# Run without a seccomp profile (dangerous - for debugging purposes only)
 docker run --rm --security-opt seccomp=unconfined alpine cat /proc/self/status | grep Seccomp
 # Seccomp:  0
 
-# カスタム seccomp プロファイルの例
+# Example of a custom seccomp profile
 cat > /tmp/my-seccomp.json << 'SECCOMP_EOF'
 {
   "defaultAction": "SCMP_ACT_ALLOW",
@@ -496,110 +496,110 @@ docker run --rm --security-opt seccomp=/tmp/my-seccomp.json alpine chmod 777 /tm
 # chmod: /tmp: Operation not permitted
 ```
 
-### 2.5 capabilities - 権限の細分化
+### 2.5 capabilities - Fine-Grained Privilege Control
 
 ```bash
-# Linux capabilities の一覧（コンテナに関連するもの）
-# Docker はデフォルトで限定的な capabilities のみ付与する
+# List of Linux capabilities (those relevant to containers)
+# Docker grants only a limited set of capabilities by default
 
-# デフォルトで付与される capabilities
+# Capabilities granted by default
 docker run --rm alpine sh -c 'cat /proc/self/status | grep Cap'
 # CapPrm:  00000000a80425fb
 # CapEff:  00000000a80425fb
 
-# capsh で人間が読める形式に変換
+# Decode to human-readable format using capsh
 docker run --rm alpine sh -c 'apk add -q libcap && capsh --decode=00000000a80425fb'
 # 0x00000000a80425fb=cap_chown,cap_dac_override,cap_fowner,...
 
-# 全ての capabilities を削除
+# Drop all capabilities
 docker run --rm --cap-drop=ALL alpine id
-# uid=0(root) gid=0(root)  # root だが実質的に権限なし
+# uid=0(root) gid=0(root)  # root but effectively powerless
 
-# 必要最小限の capabilities のみ追加
+# Add only the minimum required capabilities
 docker run --rm --cap-drop=ALL --cap-add=NET_BIND_SERVICE alpine sh -c 'id'
 
-# 危険な capabilities の例
-# --cap-add=SYS_ADMIN  # ほぼ root 相当（避けるべき）
-# --cap-add=NET_ADMIN  # ネットワーク設定変更可能
-# --cap-add=SYS_PTRACE # 他プロセスのデバッグ可能
+# Examples of dangerous capabilities
+# --cap-add=SYS_ADMIN  # Nearly equivalent to root (avoid)
+# --cap-add=NET_ADMIN  # Can modify network settings
+# --cap-add=SYS_PTRACE # Can debug other processes
 ```
 
 ---
 
-## 3. 仮想マシン vs コンテナ 徹底比較
+## 3. Virtual Machines vs. Containers: A Thorough Comparison
 
-### 比較表 1: 技術的特性
+### Comparison Table 1: Technical Characteristics
 
-| 特性 | 仮想マシン (VM) | コンテナ |
+| Characteristic | Virtual Machine (VM) | Container |
 |---|---|---|
-| アイソレーション | ハードウェアレベル | プロセスレベル |
-| OS | 各VMにゲストOS | ホストOSカーネル共有 |
-| 起動時間 | 数分 | 数秒〜数百ミリ秒 |
-| サイズ | GB単位 (数GB〜数十GB) | MB単位 (数MB〜数百MB) |
-| パフォーマンス | ハイパーバイザのオーバーヘッド (5-10%) | ほぼネイティブ (<1%) |
-| 密度 | 1ホストに数十VM | 1ホストに数百〜数千コンテナ |
-| セキュリティ | 強い分離（カーネルレベル） | カーネル共有のリスク |
-| ポータビリティ | VMイメージが巨大 (数GB) | コンテナイメージが軽量 (数十MB) |
-| ライブマイグレーション | サポートあり | 標準ではサポートなし |
-| ネステッド実行 | VM in VM（パフォーマンス低下） | コンテナ in コンテナ（DinD/DooD） |
-| スナップショット | VM単位のスナップショット | イメージレイヤーによるバージョン管理 |
-| ネットワーク | 仮想NIC、独立スタック | veth ペア、ブリッジネットワーク |
+| Isolation | Hardware level | Process level |
+| OS | Guest OS per VM | Shared host OS kernel |
+| Startup time | Minutes | Seconds to hundreds of milliseconds |
+| Size | GB scale (several to tens of GB) | MB scale (several to hundreds of MB) |
+| Performance | Hypervisor overhead (5-10%) | Near native (<1%) |
+| Density | Tens of VMs per host | Hundreds to thousands of containers per host |
+| Security | Strong isolation (kernel level) | Risk from shared kernel |
+| Portability | VM images are large (several GB) | Container images are lightweight (tens of MB) |
+| Live migration | Supported | Not supported by default |
+| Nested execution | VM in VM (performance degradation) | Container in container (DinD/DooD) |
+| Snapshots | Per-VM snapshots | Version management via image layers |
+| Networking | Virtual NIC, independent stack | veth pairs, bridge networking |
 
-### 比較表 2: 適用場面
+### Comparison Table 2: Applicable Scenarios
 
-| ユースケース | 推奨 | 理由 |
+| Use Case | Recommended | Reason |
 |---|---|---|
-| マイクロサービス | コンテナ | 軽量・高速デプロイ・個別スケール |
-| レガシーOS対応 | VM | 異なるカーネルが必要 |
-| 開発環境の統一 | コンテナ | 再現性が高く、docker-compose で一発構築 |
-| マルチテナント (SaaS) | VM | 強い分離が必要、カーネルの脆弱性リスク回避 |
-| CI/CD パイプライン | コンテナ | 起動が高速、使い捨て可能 |
-| デスクトップ仮想化 (VDI) | VM | GUI・ドライバ・周辺機器対応 |
-| バッチ処理・ジョブ | コンテナ | スケールが容易、完了後に自動破棄 |
-| セキュリティテスト | VM | 完全な分離、マルウェア解析に安全 |
-| GPU ワークロード | 両方 | VM: GPU パススルー / コンテナ: NVIDIA Container Runtime |
-| データベース | 両方 | 開発: コンテナ / 本番: VM or ベアメタル（I/O性能重視） |
-| エッジコンピューティング | コンテナ | リソース制約のある環境に適合 |
-| レガシーアプリ移行 | VM → コンテナ | 段階的移行、Lift & Shift → リファクタリング |
+| Microservices | Container | Lightweight, fast deployment, individual scaling |
+| Legacy OS support | VM | Requires a different kernel |
+| Unified development environment | Container | High reproducibility, one-command setup with docker-compose |
+| Multi-tenant (SaaS) | VM | Requires strong isolation, avoids risk from kernel vulnerabilities |
+| CI/CD pipeline | Container | Fast startup, disposable |
+| Desktop virtualization (VDI) | VM | Requires GUI, drivers, and peripheral support |
+| Batch processing / jobs | Container | Easy to scale, auto-destroyed after completion |
+| Security testing | VM | Complete isolation, safe for malware analysis |
+| GPU workloads | Both | VM: GPU passthrough / Container: NVIDIA Container Runtime |
+| Databases | Both | Development: container / Production: VM or bare-metal (I/O performance) |
+| Edge computing | Container | Suitable for resource-constrained environments |
+| Legacy app migration | VM -> Container | Phased migration: Lift & Shift -> Refactoring |
 
-### 比較表 3: 運用コスト
+### Comparison Table 3: Operational Costs
 
-| 観点 | 仮想マシン | コンテナ |
+| Aspect | Virtual Machine | Container |
 |---|---|---|
-| 初期学習コスト | 低い（従来のサーバー運用に近い） | 中〜高（新しい概念の理解が必要） |
-| 構築時間 | 数十分〜数時間 | 数秒〜数分 |
-| ライセンス費用 | ゲストOS分のライセンスが必要 | OS共有のためライセンス不要 |
-| ハードウェア効率 | 低い（OS分のオーバーヘッド） | 高い（アプリのみ） |
-| パッチ適用 | 各VMのOSにパッチ | ベースイメージ更新 + リビルド |
-| バックアップ | VMスナップショット（巨大） | イメージ + ボリュームバックアップ（軽量） |
-| 障害復旧 | スナップショットからリストア | イメージから即座に再作成 |
-| 監視・ログ | VM単位の従来型監視 | コンテナ対応の監視ツールが必要 |
+| Initial learning cost | Low (close to traditional server operations) | Medium to high (requires understanding new concepts) |
+| Setup time | Tens of minutes to hours | Seconds to minutes |
+| License costs | Requires licenses for each guest OS | No license needed since OS is shared |
+| Hardware efficiency | Low (OS overhead) | High (app only) |
+| Patch management | Patch each VM's OS | Update base image + rebuild |
+| Backup | VM snapshots (large) | Image + volume backup (lightweight) |
+| Disaster recovery | Restore from snapshot | Instantly recreate from image |
+| Monitoring / logging | Traditional per-VM monitoring | Requires container-aware monitoring tools |
 
-### 実測値での比較
+### Benchmark Comparison
 
 ```bash
 # ===================================
-# 起動時間の比較実験
+# Startup time comparison experiment
 # ===================================
 
-# コンテナの起動時間を計測
+# Measure container startup time
 time docker run --rm alpine echo "Hello"
-# real    0m0.432s  # 約0.4秒
+# real    0m0.432s  # Approximately 0.4 seconds
 
 time docker run --rm nginx sh -c "echo started"
-# real    0m0.512s  # 約0.5秒
+# real    0m0.512s  # Approximately 0.5 seconds
 
-# 100コンテナの同時起動
+# Simultaneous startup of 100 containers
 time for i in $(seq 1 100); do
   docker run -d --rm --name "bench-${i}" alpine sleep 30
 done
-# real    0m12.345s  # 約12秒で100コンテナ起動
+# real    0m12.345s  # 100 containers started in about 12 seconds
 
-# クリーンアップ
+# Cleanup
 docker stop $(docker ps -q --filter "name=bench-") 2>/dev/null
 
 # ===================================
-# イメージサイズの比較
+# Image size comparison
 # ===================================
 docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | sort -k3 -h
 # REPOSITORY   TAG              SIZE
@@ -611,142 +611,142 @@ docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | sort -k3 -
 # python       3.12-slim        130MB
 # golang       1.22-alpine      256MB
 # node         20               1.1GB
-# ubuntu       22.04 (VM OVA)   約2.5GB (参考: VM イメージ)
+# ubuntu       22.04 (VM OVA)   ~2.5GB (for reference: VM image)
 
 # ===================================
-# メモリ使用量の比較
+# Memory usage comparison
 # ===================================
-# コンテナ: アプリ分のメモリのみ
+# Container: only the app's memory footprint
 docker run -d --name mem-test nginx
 docker stats --no-stream mem-test
 # CONTAINER   MEM USAGE / LIMIT     MEM %
 # mem-test    3.5MiB / 16GiB        0.02%
 
-# VM: OS + アプリのメモリが必要
-# 最小構成の Ubuntu VM でも 512MB〜1GB のメモリが必要
+# VM: memory for both the OS and the app is required
+# Even a minimal Ubuntu VM needs 512 MB to 1 GB of memory
 ```
 
 ---
 
-## 4. Docker の歴史とエコシステム
+## 4. Docker's History and Ecosystem
 
-### 4.1 年表
+### 4.1 Timeline
 
 ```
-2000  FreeBSD Jail (コンテナ的分離の先駆け)
+2000  FreeBSD Jail (precursor to container-like isolation)
   |
 2004  Solaris Zones / Containers
   |
-2006  Google Process Containers → cgroups としてLinuxカーネルに統合
+2006  Google Process Containers -> integrated into Linux kernel as cgroups
   |
-2008  LXC (Linux Containers) リリース
-  |   - namespaces + cgroups を組み合わせた初のコンテナ技術
+2008  LXC (Linux Containers) released
+  |   - First container technology combining namespaces + cgroups
   |
-2013  Docker 0.1 リリース (dotCloud社)
-  |   - LXC をラップした使いやすい CLI
-  |   - Dockerfile によるイメージ定義
-  |   - Docker Hub によるイメージ共有
+2013  Docker 0.1 released (by dotCloud)
+  |   - User-friendly CLI wrapping LXC
+  |   - Image definition via Dockerfile
+  |   - Image sharing via Docker Hub
   |
 2014  Docker 1.0 GA
-  |   - libcontainer で LXC 依存を脱却
-  |   - Docker Machine, Docker Swarm 発表
-  |   - Google が Kubernetes をオープンソース化
+  |   - Freed from LXC dependency via libcontainer
+  |   - Docker Machine, Docker Swarm announced
+  |   - Google open-sourced Kubernetes
   |
-2015  OCI (Open Container Initiative) 設立
-  |   - Docker, CoreOS, Google, Microsoft 等が参加
-  |   - コンテナの標準仕様を策定
-  |   - Docker 1.8: Content Trust (イメージ署名)
+2015  OCI (Open Container Initiative) founded
+  |   - Docker, CoreOS, Google, Microsoft, etc. joined
+  |   - Established standard container specifications
+  |   - Docker 1.8: Content Trust (image signing)
   |
-2016  Docker 1.12 - Swarm Mode 統合
-  |   - CRI (Container Runtime Interface) 策定
+2016  Docker 1.12 - Swarm Mode integrated
+  |   - CRI (Container Runtime Interface) specified
   |
-2017  containerd を CNCF に寄贈
-  |   - Moby プロジェクト開始 (Docker のオープンソース部分)
-  |   - Kubernetes が CRI 対応
-  |   - LinuxKit 発表
+2017  containerd donated to CNCF
+  |   - Moby project started (open-source portion of Docker)
+  |   - Kubernetes added CRI support
+  |   - LinuxKit announced
   |
-2018  Docker Enterprise Edition 強化
-  |   - BuildKit がデフォルトビルダーに
+2018  Docker Enterprise Edition enhanced
+  |   - BuildKit became the default builder
   |
-2019  Docker Desktop 有料化方針
-  |   - Mirantis が Docker Enterprise を買収
+2019  Docker Desktop commercialization policy announced
+  |   - Mirantis acquired Docker Enterprise
   |
-2020  Kubernetes が dockershim を非推奨化
-  |   - containerd / CRI-O に移行
-  |   - rootless Docker が安定版に
+2020  Kubernetes deprecated dockershim
+  |   - Migration to containerd / CRI-O
+  |   - Rootless Docker became stable
   |
-2021  Docker Desktop ライセンス変更
-  |   - 大企業 (従業員250名以上 or 年商$10M以上) は有料サブスクリプション
-  |   - Docker Compose V2 (Go で書き直し)
+2021  Docker Desktop license changed
+  |   - Paid subscription required for large enterprises (250+ employees or $10M+ revenue)
+  |   - Docker Compose V2 (rewritten in Go)
   |
-2022  Docker Desktop for Linux リリース
-  |   - Docker Extensions マーケットプレイス
-  |   - WebAssembly (Wasm) ランタイムサポート
+2022  Docker Desktop for Linux released
+  |   - Docker Extensions marketplace
+  |   - WebAssembly (Wasm) runtime support
   |
-2023  Docker Scout (脆弱性スキャン)
-  |   Docker Init (Dockerfile自動生成)
-  |   Docker Debug (コンテナデバッグツール)
+2023  Docker Scout (vulnerability scanning)
+  |   Docker Init (automatic Dockerfile generation)
+  |   Docker Debug (container debugging tool)
   |
-2024  Docker Compose Watch (ファイル変更検知)
-  |   Docker Build Cloud (リモートビルド)
-  |   Docker Model Runner (AI モデル実行)
+2024  Docker Compose Watch (file change detection)
+  |   Docker Build Cloud (remote builds)
+  |   Docker Model Runner (AI model execution)
   |
-2025  Docker AI Agent (開発支援 AI)
+2025  Docker AI Agent (AI-assisted development)
       Docker MCP Catalog & Toolkit
 ```
 
-### 4.2 Docker のアーキテクチャ詳細
+### 4.2 Docker Architecture in Detail
 
 ```
 +-------------------------------------------------------------+
-|                  Docker クライアント                           |
+|                  Docker Client                               |
 |  docker CLI / Docker Desktop / Docker Compose                |
 +-------------------------------------------------------------+
         | REST API (unix:///var/run/docker.sock)
         v
 +-------------------------------------------------------------+
-|                  Docker デーモン (dockerd)                     |
-|  ├─ イメージ管理                                              |
-|  ├─ ネットワーク管理                                           |
-|  ├─ ボリューム管理                                             |
-|  └─ ビルド管理 (BuildKit)                                     |
+|                  Docker Daemon (dockerd)                      |
+|  ├─ Image management                                         |
+|  ├─ Network management                                        |
+|  ├─ Volume management                                         |
+|  └─ Build management (BuildKit)                               |
 +-------------------------------------------------------------+
         | gRPC
         v
 +-------------------------------------------------------------+
 |                  containerd                                   |
-|  ├─ コンテナライフサイクル管理                                  |
-|  ├─ イメージの pull/push                                      |
-|  ├─ スナップショット管理                                       |
-|  └─ タスク実行                                                |
+|  ├─ Container lifecycle management                            |
+|  ├─ Image pull/push                                           |
+|  ├─ Snapshot management                                       |
+|  └─ Task execution                                            |
 +-------------------------------------------------------------+
         | OCI Runtime Spec
         v
 +-------------------------------------------------------------+
 |                  containerd-shim                              |
-|  ├─ コンテナプロセスの親プロセス                                |
-|  ├─ デーモン再起動時もコンテナを維持                             |
-|  └─ exit status の管理                                        |
+|  ├─ Parent process of the container process                   |
+|  ├─ Keeps containers alive across daemon restarts             |
+|  └─ Manages exit status                                       |
 +-------------------------------------------------------------+
         |
         v
 +-------------------------------------------------------------+
 |                  runc (OCI Runtime)                           |
-|  ├─ namespaces の作成                                         |
-|  ├─ cgroups の設定                                            |
-|  ├─ seccomp プロファイル適用                                   |
-|  └─ コンテナプロセスの起動                                     |
+|  ├─ Creates namespaces                                        |
+|  ├─ Configures cgroups                                        |
+|  ├─ Applies seccomp profiles                                  |
+|  └─ Starts the container process                              |
 +-------------------------------------------------------------+
         |
         v
 +-------------------------------------------------------------+
-|                  Linux カーネル                                |
+|                  Linux Kernel                                 |
 |  namespaces / cgroups / OverlayFS / netfilter / seccomp      |
 +-------------------------------------------------------------+
 ```
 
 ```bash
-# Docker のバージョン確認（クライアントとサーバー）
+# Check Docker version (client and server)
 docker version
 # Client:
 #  Version:           24.0.7
@@ -766,7 +766,7 @@ docker version
 #   runc:             1.1.10
 #   docker-init:      0.19.0
 
-# Docker システム情報の確認
+# Check Docker system info
 docker info
 # Containers: 5
 #  Running: 3
@@ -781,27 +781,27 @@ docker info
 # Kernel Version: 6.5.0-14-generic
 # Operating System: Ubuntu 22.04.3 LTS
 
-# Docker デーモンのプロセス構成を確認
+# Check Docker daemon process structure
 ps aux | grep -E "(dockerd|containerd|shim)"
 # root  1234  dockerd --group docker
 # root  1235  containerd
 # root  5678  containerd-shim-runc-v2 -namespace moby -id abc123
 
-# Docker ソケットの確認
+# Check Docker socket
 ls -la /var/run/docker.sock
 # srw-rw---- 1 root docker 0 /var/run/docker.sock
 
-# Docker API に直接アクセス
+# Access Docker API directly
 curl --unix-socket /var/run/docker.sock http://localhost/v1.43/info 2>/dev/null | python3 -m json.tool | head -20
 ```
 
 ---
 
-## 5. OCI 標準
+## 5. OCI Standards
 
-OCI（Open Container Initiative）は、コンテナの業界標準を定める組織である。2015 年に Linux Foundation 傘下のプロジェクトとして設立され、Docker, Google, CoreOS, Microsoft, Red Hat, IBM 等が参加している。
+OCI (Open Container Initiative) is an organization that defines industry standards for containers. It was established in 2015 as a project under the Linux Foundation, with participation from Docker, Google, CoreOS, Microsoft, Red Hat, IBM, and others.
 
-### 5.1 OCI の 3 つの仕様
+### 5.1 The Three OCI Specifications
 
 ```
 +--------------------------------------------------+
@@ -809,46 +809,46 @@ OCI（Open Container Initiative）は、コンテナの業界標準を定める�
 |                                                  |
 |  +-------------------------------------------+  |
 |  | Runtime Specification (runtime-spec)       |  |
-|  | - コンテナの実行方法を定義                    |  |
-|  | - config.json によるコンテナ設定              |  |
-|  | - ライフサイクル: create → start → stop     |  |
-|  | - 実装例: runc, crun, youki, gVisor,       |  |
-|  |           Kata Containers                   |  |
+|  | - Defines how containers are executed      |  |
+|  | - Container config via config.json         |  |
+|  | - Lifecycle: create -> start -> stop       |  |
+|  | - Implementations: runc, crun, youki,      |  |
+|  |           gVisor, Kata Containers          |  |
 |  +-------------------------------------------+  |
 |                                                  |
 |  +-------------------------------------------+  |
 |  | Image Specification (image-spec)           |  |
-|  | - コンテナイメージのフォーマットを定義          |  |
-|  | - レイヤー構造（tar + gzip）                 |  |
-|  | - マニフェスト、設定、レイヤーの3要素           |  |
-|  | - マルチプラットフォーム対応                   |  |
+|  | - Defines the container image format       |  |
+|  | - Layer structure (tar + gzip)             |  |
+|  | - Three elements: manifest, config, layers |  |
+|  | - Multi-platform support                   |  |
 |  +-------------------------------------------+  |
 |                                                  |
 |  +-------------------------------------------+  |
 |  | Distribution Specification (dist-spec)     |  |
-|  | - イメージの配布方法を定義                    |  |
-|  | - レジストリ API (HTTP ベース)              |  |
-|  | - pull / push / discover の標準化           |  |
+|  | - Defines how images are distributed       |  |
+|  | - Registry API (HTTP-based)                |  |
+|  | - Standardizes pull / push / discover      |  |
 |  +-------------------------------------------+  |
 +--------------------------------------------------+
 ```
 
-### 5.2 OCI Runtime Spec の詳細
+### 5.2 OCI Runtime Spec in Detail
 
 ```bash
-# runc でOCIバンドルを手動で作成・実行する例
-# (Docker の内部動作を理解するためのデモ)
+# Example of manually creating and running an OCI bundle with runc
+# (A demo to understand Docker's internal workings)
 
-# 1. ルートファイルシステムを準備
+# 1. Prepare the root filesystem
 mkdir -p /tmp/oci-demo/rootfs
 docker export $(docker create alpine) | tar -C /tmp/oci-demo/rootfs -xf -
 
-# 2. OCI 設定ファイル (config.json) を生成
+# 2. Generate the OCI config file (config.json)
 cd /tmp/oci-demo
 runc spec
-# config.json が生成される
+# config.json is generated
 
-# 3. config.json の内容（主要部分）
+# 3. Key contents of config.json
 cat config.json
 # {
 #   "ociVersion": "1.0.2",
@@ -877,15 +877,15 @@ cat config.json
 #   }
 # }
 
-# 4. runc でコンテナを実行
+# 4. Run the container with runc
 sudo runc run my-container
-# -> alpine の sh が起動する
+# -> alpine's sh starts
 ```
 
-### 5.3 OCI Image Spec の詳細
+### 5.3 OCI Image Spec in Detail
 
 ```bash
-# イメージのマニフェストを確認
+# Check the image manifest
 docker manifest inspect nginx:1.25-alpine
 # {
 #   "schemaVersion": 2,
@@ -912,7 +912,7 @@ docker manifest inspect nginx:1.25-alpine
 #   ]
 # }
 
-# skopeo でイメージの詳細情報を取得
+# Get detailed image information with skopeo
 skopeo inspect docker://nginx:1.25-alpine
 # {
 #   "Name": "docker.io/library/nginx",
@@ -931,165 +931,165 @@ skopeo inspect docker://nginx:1.25-alpine
 #   ]
 # }
 
-# イメージを OCI フォーマットで保存
+# Save image in OCI format
 docker save nginx:1.25-alpine -o nginx-alpine.tar
 mkdir -p /tmp/oci-image && tar -xf nginx-alpine.tar -C /tmp/oci-image
 ls /tmp/oci-image/
 # blobs/  index.json  manifest.json  oci-layout
 ```
 
-### 5.4 OCI 準拠のツール群
+### 5.4 OCI-Compliant Tools
 
 ```bash
 # ===================================
-# runc - OCI ランタイムリファレンス実装
+# runc - OCI runtime reference implementation
 # ===================================
 runc --version
 # runc version 1.1.10
 # spec: 1.0.2-dev
 
 # ===================================
-# crun - C 言語実装の高速 OCI ランタイム
+# crun - High-speed OCI runtime implemented in C
 # ===================================
 crun --version
 # crun version 1.8.7
-# runc より起動が高速 (約2倍)
+# Faster startup than runc (approximately 2x)
 
 # ===================================
-# Podman - Docker互換のデーモンレスコンテナエンジン
+# Podman - Daemonless container engine compatible with Docker
 # ===================================
 podman run --rm alpine echo "Hello from Podman"
 
-# Docker CLI との互換性
-alias docker=podman  # これだけで多くのコマンドが動く
+# Compatibility with Docker CLI
+alias docker=podman  # Many commands work with just this
 
-# Podman の特徴: デーモンレス + rootless がデフォルト
+# Podman's characteristics: daemonless + rootless by default
 podman info | grep -A5 "host"
 # rootless: true
 
-# Pod (Kubernetes 互換のグルーピング)
+# Pod (Kubernetes-compatible grouping)
 podman pod create --name my-pod -p 8080:80
 podman run -d --pod my-pod nginx
 podman run -d --pod my-pod redis
 
 # ===================================
-# Buildah - OCI イメージビルドツール
+# Buildah - OCI image build tool
 # ===================================
-# Dockerfile なしでイメージを構築
+# Build an image without a Dockerfile
 container=$(buildah from alpine)
 buildah run $container apk add --no-cache nginx
 buildah config --port 80 $container
 buildah config --cmd "nginx -g 'daemon off;'" $container
 buildah commit $container my-nginx:latest
 
-# Dockerfile からビルド (docker build 互換)
+# Build from Dockerfile (docker build compatible)
 buildah bud -t my-app:v1 .
 
 # ===================================
-# Skopeo - コンテナイメージ操作ツール
+# Skopeo - Container image manipulation tool
 # ===================================
-# レジストリ間でイメージをコピー（ローカルに pull 不要）
+# Copy images between registries (no local pull needed)
 skopeo copy docker://nginx:1.25 docker://myregistry.example.com/nginx:1.25
 
-# イメージの詳細情報を取得（pull 不要）
+# Get detailed image information (no pull needed)
 skopeo inspect docker://alpine:latest
 
-# レジストリのタグ一覧
+# List registry tags
 skopeo list-tags docker://nginx
 
-# イメージの削除
+# Delete an image
 skopeo delete docker://myregistry.example.com/old-image:v1
 
 # ===================================
-# nerdctl - containerd ネイティブ CLI
+# nerdctl - containerd-native CLI
 # ===================================
-# Docker CLI 互換の containerd クライアント
+# containerd client compatible with Docker CLI
 nerdctl run --rm alpine echo "Hello from nerdctl"
 nerdctl build -t my-app:v1 .
 nerdctl compose up -d
 
-# Docker にない機能
-nerdctl image encrypt --recipient=jwe:public.pem my-app:v1  # イメージ暗号化
-nerdctl run --cosign-key=cosign.pub verified-image:v1        # 署名検証
+# Features not available in Docker
+nerdctl image encrypt --recipient=jwe:public.pem my-app:v1  # Image encryption
+nerdctl run --cosign-key=cosign.pub verified-image:v1        # Signature verification
 ```
 
 ---
 
-## 6. コンテナランタイムの階層構造
+## 6. Container Runtime Layer Structure
 
-### 6.1 高レベルランタイムと低レベルランタイム
+### 6.1 High-Level and Low-Level Runtimes
 
 ```
 +----------------------------------------------------------+
-|  コンテナランタイムの階層                                    |
+|  Container Runtime Layers                                 |
 |                                                          |
 |  +----------------------------------------------------+ |
-|  | コンテナエンジン (ユーザー向けインターフェース)           | |
+|  | Container Engine (User-Facing Interface)            | |
 |  | Docker Engine / Podman / nerdctl                    | |
 |  +----------------------------------------------------+ |
 |        |                                                 |
 |        v                                                 |
 |  +----------------------------------------------------+ |
-|  | 高レベルランタイム (コンテナライフサイクル管理)          | |
+|  | High-Level Runtime (Container Lifecycle Management) | |
 |  | containerd / CRI-O                                  | |
-|  | - イメージの管理 (pull / push / store)               | |
-|  | - コンテナのライフサイクル管理                         | |
-|  | - ネットワーク / ストレージの抽象化                    | |
+|  | - Image management (pull / push / store)            | |
+|  | - Container lifecycle management                    | |
+|  | - Networking / storage abstraction                  | |
 |  +----------------------------------------------------+ |
 |        |                                                 |
 |        v                                                 |
 |  +----------------------------------------------------+ |
-|  | 低レベルランタイム (OCI Runtime)                      | |
+|  | Low-Level Runtime (OCI Runtime)                     | |
 |  | runc / crun / youki / gVisor (runsc) / Kata         | |
-|  | - namespaces の作成                                  | |
-|  | - cgroups の設定                                     | |
-|  | - コンテナプロセスの起動                              | |
+|  | - Creates namespaces                                | |
+|  | - Configures cgroups                                | |
+|  | - Starts the container process                      | |
 |  +----------------------------------------------------+ |
 |        |                                                 |
 |        v                                                 |
 |  +----------------------------------------------------+ |
-|  | Linux カーネル                                       | |
+|  | Linux Kernel                                        | |
 |  | namespaces / cgroups / OverlayFS / seccomp          | |
 |  +----------------------------------------------------+ |
 +----------------------------------------------------------+
 ```
 
-### 6.2 Kubernetes と Docker の関係
+### 6.2 The Relationship Between Kubernetes and Docker
 
 ```
 +----------------------------------------------------------+
-|  Kubernetes のコンテナランタイムの変遷                       |
+|  Evolution of Container Runtimes in Kubernetes            |
 |                                                          |
-|  〜2020: dockershim (非推奨化)                             |
+|  ~2020: dockershim (deprecated)                           |
 |  +-----------+    +-----------+    +------+    +------+  |
 |  | kubelet   | -> | dockershim| -> |dockerd| -> |runc  |  |
 |  +-----------+    +-----------+    +------+    +------+  |
-|  ※ Docker 経由で containerd を呼ぶ冗長な構成               |
+|  * Redundant path calling containerd through Docker       |
 |                                                          |
-|  2020〜: CRI 対応ランタイムに直接接続                       |
+|  2020+: Direct connection to CRI-compliant runtimes       |
 |                                                          |
-|  パターン A: containerd                                   |
+|  Pattern A: containerd                                    |
 |  +-----------+    +-----------+    +------+              |
 |  | kubelet   | -> |containerd | -> |runc  |              |
 |  +-----------+    +-----------+    +------+              |
-|  ※ Docker の一部だった containerd に直接接続               |
+|  * Direct connection to containerd, formerly part of Docker|
 |                                                          |
-|  パターン B: CRI-O                                        |
+|  Pattern B: CRI-O                                         |
 |  +-----------+    +-----------+    +------+              |
 |  | kubelet   | -> |  CRI-O   | -> |runc  |              |
 |  +-----------+    +-----------+    +------+              |
-|  ※ Kubernetes 専用の軽量ランタイム                         |
+|  * Lightweight runtime dedicated to Kubernetes            |
 +----------------------------------------------------------+
 ```
 
 ```bash
-# Kubernetes のコンテナランタイムを確認
+# Check container runtimes in Kubernetes
 kubectl get nodes -o wide
 # NAME       STATUS   ROLES    VERSION   CONTAINER-RUNTIME
 # node-1     Ready    <none>   v1.28.3   containerd://1.7.6
 # node-2     Ready    <none>   v1.28.3   containerd://1.7.6
 
-# containerd の設定確認
+# Check containerd configuration
 cat /etc/containerd/config.toml
 # [plugins."io.containerd.grpc.v1.cri"]
 #   [plugins."io.containerd.grpc.v1.cri".containerd]
@@ -1097,7 +1097,7 @@ cat /etc/containerd/config.toml
 #     [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
 #       runtime_type = "io.containerd.runc.v2"
 
-# crictl (CRI デバッグツール) でコンテナ情報を取得
+# Get container info using crictl (CRI debugging tool)
 crictl ps
 # CONTAINER   IMAGE    CREATED    STATE    NAME          POD ID
 # abc123...   nginx    10m ago    Running  web-server    def456...
@@ -1107,40 +1107,42 @@ crictl images
 # docker.io/library/nginx   1.25      41.2MB
 ```
 
-### 6.3 サンドボックスランタイム
+### 6.3 Sandbox Runtimes
 
-従来のコンテナよりも強いセキュリティ分離を提供するランタイム。
+Runtimes that provide stronger security isolation than traditional containers.
 
 ```
 +----------------------------------------------------------+
-|  サンドボックスランタイムの比較                               |
+|  Comparison of Sandbox Runtimes                           |
 |                                                          |
 |  +-------------------+  +----------------------------+   |
 |  | gVisor (runsc)    |  | Kata Containers            |   |
 |  |                   |  |                            |   |
-|  | ユーザースペースで  |  | 軽量VMの中で                |   |
-|  | カーネルを再実装    |  | コンテナを実行              |   |
+|  | Re-implements     |  | Runs containers inside     |   |
+|  | the kernel in     |  | a lightweight VM           |   |
+|  | user space        |  |                            |   |
 |  |                   |  |                            |   |
 |  | +-------------+   |  | +------------------------+ |   |
-|  | | アプリ       |   |  | | 軽量 VM               | |   |
+|  | | App         |   |  | | Lightweight VM         | |   |
 |  | +-------------+   |  | | +------------------+   | |   |
-|  | | gVisor      |   |  | | | アプリ            |   | |   |
+|  | | gVisor      |   |  | | | App              |   | |   |
 |  | | Sentry      |   |  | | +------------------+   | |   |
-|  | | (カーネル    |   |  | | | ゲストカーネル     |   | |   |
-|  | |  エミュ)    |   |  | | +------------------+   | |   |
+|  | | (kernel     |   |  | | | Guest Kernel     |   | |   |
+|  | |  emulation) |   |  | | +------------------+   | |   |
 |  | +-------------+   |  | +------------------------+ |   |
-|  | | ホストカーネル|   |  | | QEMU / Firecracker   | |   |
+|  | | Host Kernel |   |  | | QEMU / Firecracker   | |   |
 |  | +-------------+   |  | +------------------------+ |   |
 |  +-------------------+  +----------------------------+   |
 |                                                          |
-|  gVisor: システムコールを          Kata: VMレベルの分離を    |
-|  フィルタ・再実装して安全性向上      コンテナの使い勝手で提供   |
+|  gVisor: Improves security by       Kata: Provides VM-    |
+|  filtering/reimplementing syscalls  level isolation with  |
+|                                     container usability   |
 +----------------------------------------------------------+
 ```
 
 ```bash
-# gVisor のインストールと使用
-# Docker に gVisor ランタイムを登録
+# Install gVisor and use it
+# Register the gVisor runtime with Docker
 cat > /etc/docker/daemon.json << 'EOF'
 {
   "runtimes": {
@@ -1152,28 +1154,28 @@ cat > /etc/docker/daemon.json << 'EOF'
 EOF
 sudo systemctl restart docker
 
-# gVisor でコンテナを実行
+# Run a container with gVisor
 docker run --runtime=runsc --rm alpine uname -a
 # Linux ... 4.4.0 ... gVisor
 
-# Kata Containers でコンテナを実行
+# Run a container with Kata Containers
 docker run --runtime=kata --rm alpine uname -a
-# Linux ... 5.15.0 ... (軽量VMのカーネル)
+# Linux ... 5.15.0 ... (lightweight VM kernel)
 
-# ランタイムごとのパフォーマンス比較
-# runc:    起動 ~300ms, メモリ +0MB (ベースライン)
-# gVisor:  起動 ~500ms, メモリ +50MB (Sentry プロセス分)
-# Kata:    起動 ~1.5s,  メモリ +128MB (軽量VM分)
+# Performance comparison by runtime
+# runc:    startup ~300ms, memory +0MB (baseline)
+# gVisor:  startup ~500ms, memory +50MB (Sentry process overhead)
+# Kata:    startup ~1.5s,  memory +128MB (lightweight VM overhead)
 ```
 
 ---
 
-## 7. コンテナのユースケース
+## 7. Container Use Cases
 
-### 7.1 マイクロサービスアーキテクチャ
+### 7.1 Microservices Architecture
 
 ```bash
-# 各サービスを独立したコンテナとして実行
+# Run each service as an independent container
 docker network create microservices
 
 # API Gateway
@@ -1183,27 +1185,27 @@ docker run -d --name api-gateway \
   -e UPSTREAM_SERVICES="user-service:8081,order-service:8082,payment-service:8083" \
   api-gateway:v1
 
-# ユーザーサービス
+# User service
 docker run -d --name user-service \
   --network microservices \
   -e DB_HOST=user-db \
   -e DB_PORT=5432 \
   user-service:v1
 
-# 注文サービス
+# Order service
 docker run -d --name order-service \
   --network microservices \
   -e DB_HOST=order-db \
   -e KAFKA_BROKERS=kafka:9092 \
   order-service:v1
 
-# 決済サービス
+# Payment service
 docker run -d --name payment-service \
   --network microservices \
   -e STRIPE_API_KEY_FILE=/run/secrets/stripe_key \
   payment-service:v1
 
-# データベース群
+# Databases
 docker run -d --name user-db \
   --network microservices \
   -v user-db-data:/var/lib/postgresql/data \
@@ -1214,7 +1216,7 @@ docker run -d --name order-db \
   -v order-db-data:/var/lib/postgresql/data \
   postgres:16-alpine
 
-# メッセージキュー
+# Message queue
 docker run -d --name kafka \
   --network microservices \
   -e KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092 \
@@ -1222,7 +1224,7 @@ docker run -d --name kafka \
 ```
 
 ```yaml
-# docker-compose.yml による マイクロサービス構成
+# Microservices configuration via docker-compose.yml
 services:
   api-gateway:
     image: api-gateway:v1
@@ -1282,10 +1284,10 @@ volumes:
   user-db-data:
 ```
 
-### 7.2 開発環境の統一
+### 7.2 Unified Development Environment
 
 ```yaml
-# docker-compose.yml による開発環境定義
+# Development environment definition via docker-compose.yml
 services:
   app:
     build:
@@ -1293,7 +1295,7 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - .:/app
-      - /app/node_modules  # node_modules はコンテナ内のものを使用
+      - /app/node_modules  # Use node_modules from inside the container
     ports:
       - "3000:3000"
     environment:
@@ -1352,10 +1354,10 @@ volumes:
   minio-data:
 ```
 
-### 7.3 CI/CD パイプライン
+### 7.3 CI/CD Pipeline
 
 ```yaml
-# GitHub Actions でのコンテナ活用例
+# Example of container usage in GitHub Actions
 name: CI/CD Pipeline
 on:
   push:
@@ -1448,16 +1450,16 @@ jobs:
     steps:
       - name: Deploy to production
         run: |
-          # Kubernetes にデプロイ
+          # Deploy to Kubernetes
           kubectl set image deployment/myapp \
             myapp=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           kubectl rollout status deployment/myapp --timeout=300s
 ```
 
-### 7.4 データサイエンス・機械学習
+### 7.4 Data Science and Machine Learning
 
 ```yaml
-# ML 開発環境の docker-compose.yml
+# docker-compose.yml for ML development environment
 services:
   jupyter:
     image: jupyter/scipy-notebook:latest
@@ -1515,7 +1517,7 @@ volumes:
 ```
 
 ```dockerfile
-# Dockerfile.gpu - GPU 対応の ML 環境
+# Dockerfile.gpu - GPU-enabled ML environment
 FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04
 
 RUN apt-get update && apt-get install -y \
@@ -1533,147 +1535,147 @@ COPY . .
 CMD ["python3", "train.py"]
 ```
 
-### 7.5 ローカルツール・サービスの実行
+### 7.5 Running Local Tools and Services
 
 ```bash
-# 一時的なデータベースの起動（開発・テスト用）
+# Start a temporary database (for development/testing)
 docker run --rm -d \
   --name temp-postgres \
   -p 5432:5432 \
   -e POSTGRES_PASSWORD=mypassword \
   postgres:16-alpine
 
-# 一時的な Redis の起動
+# Start a temporary Redis instance
 docker run --rm -d \
   --name temp-redis \
   -p 6379:6379 \
   redis:7-alpine
 
-# 静的サイトのプレビュー
+# Preview a static site
 docker run --rm -p 8080:80 \
   -v $(pwd)/dist:/usr/share/nginx/html:ro \
   nginx:alpine
 
-# データベースのマイグレーション実行
+# Run database migrations
 docker run --rm \
   --network host \
   -v $(pwd)/migrations:/migrations \
   migrate/migrate \
   -path=/migrations -database "postgresql://user:pass@localhost:5432/mydb?sslmode=disable" up
 
-# セキュリティスキャン
+# Security scan
 docker run --rm \
   -v /var/run/docker.sock:/var/run/docker.sock \
   aquasec/trivy:latest image nginx:1.25
 
-# コードフォーマット（言語に依存しない実行環境）
+# Code formatting (runtime independent of language)
 docker run --rm -v $(pwd):/work -w /work \
   golangci/golangci-lint:latest golangci-lint run
 
-# PlantUML による図の生成
+# Generate diagrams with PlantUML
 docker run --rm -v $(pwd):/data \
   plantuml/plantuml:latest /data/diagram.puml
 ```
 
 ---
 
-## 8. アンチパターンとベストプラクティス
+## 8. Anti-Patterns and Best Practices
 
-### アンチパターン 1: コンテナを VM のように使う
+### Anti-Pattern 1: Using Containers Like VMs
 
 ```bash
-# NG: 1コンテナに複数サービスを詰め込む
-# SSH, cron, アプリ, DB を全部1コンテナに入れる
+# NG: Stuffing multiple services into a single container
+# Cramming SSH, cron, the app, and the DB all into one container
 docker run -d my-monolith-container
-# -> メンテナンス困難、スケール不可、ログ管理が複雑
+# -> Difficult to maintain, cannot scale independently, complex log management
 
-# OK: 1コンテナ1プロセスの原則
+# OK: One container, one process principle
 docker run -d --name app my-app
 docker run -d --name db postgres:16
 docker run -d --name cache redis:7
-# -> 個別にスケール・更新・監視が可能
+# -> Each can be scaled, updated, and monitored independently
 ```
 
-### アンチパターン 2: latest タグへの依存
+### Anti-Pattern 2: Relying on the latest Tag
 
 ```bash
-# NG: バージョンを指定しない
+# NG: Not specifying a version
 docker run -d nginx:latest
-# -> 再現性がない。ある日突然動かなくなる可能性
-# -> CI で通ったバージョンと本番で異なるバージョンが動く危険
+# -> Not reproducible. May suddenly stop working one day.
+# -> Risk of running a different version in production than what passed CI
 
-# OK: 具体的なバージョンを指定
+# OK: Specify an explicit version
 docker run -d nginx:1.25.3-alpine
-# -> いつ実行しても同じイメージが使われる
+# -> The same image is always used regardless of when it runs
 
-# さらに厳密: ダイジェストで固定
+# Even stricter: Pin by digest
 docker run -d nginx@sha256:abc123def456...
-# -> タグが上書きされても影響を受けない
+# -> Not affected even if the tag is overwritten
 ```
 
-### アンチパターン 3: ホストネットワークの安易な使用
+### Anti-Pattern 3: Carelessly Using Host Networking
 
 ```bash
-# NG: ホストネットワークを常用
+# NG: Using host networking as a default
 docker run --network host my-app
-# -> ポート衝突、セキュリティリスク、ポータビリティ低下
+# -> Port conflicts, security risks, reduced portability
 
-# OK: ブリッジネットワークでポートマッピング
+# OK: Use bridge networking with port mapping
 docker run -p 8080:80 my-app
-# -> 明示的なポート制御、分離されたネットワーク
+# -> Explicit port control, isolated networking
 ```
 
-### アンチパターン 4: コンテナ内にデータを永続化
+### Anti-Pattern 4: Persisting Data Inside Containers
 
 ```bash
-# NG: コンテナ内にデータを保存
+# NG: Storing data inside the container
 docker run -d my-app
-# コンテナ再作成でデータが消失する
+# Data is lost when the container is recreated
 
-# OK: ボリュームを使用
+# OK: Use volumes
 docker run -d -v app-data:/data my-app
-# コンテナを破棄してもデータは永続化される
+# Data persists even after the container is destroyed
 
-# OK: バインドマウントを使用（開発環境向け）
+# OK: Use bind mounts (for development environments)
 docker run -d -v $(pwd)/data:/data my-app
 ```
 
-### アンチパターン 5: root ユーザーでの実行
+### Anti-Pattern 5: Running as Root
 
 ```bash
-# NG: root で実行（デフォルト）
+# NG: Running as root (the default)
 docker run -d my-app
-# コンテナエスケープ時にホストの root 権限を取得されるリスク
+# Risk of gaining host root privileges if the container is escaped
 
-# OK: 非特権ユーザーで実行
-# Dockerfile で指定:
+# OK: Run as a non-privileged user
+# Specify in Dockerfile:
 # RUN addgroup -S app && adduser -S app -G app
 # USER app
 
-# または実行時に指定:
+# Or specify at runtime:
 docker run -d --user 1000:1000 my-app
 
-# rootless Docker を使用:
+# Use rootless Docker:
 dockerd-rootless.sh
 ```
 
-### アンチパターン 6: 機密情報の埋め込み
+### Anti-Pattern 6: Embedding Secrets
 
 ```bash
-# NG: 環境変数でシークレットを渡す
+# NG: Passing secrets via environment variables
 docker run -e API_KEY=sk-12345secret my-app
-# -> docker inspect で丸見え、ログに漏洩する可能性
+# -> Visible via docker inspect, risk of leaking into logs
 
-# NG: Dockerfile にハードコード
+# NG: Hardcoding in Dockerfile
 # ENV API_KEY=sk-12345secret
-# -> イメージに永続的に保存される
+# -> Permanently stored in the image
 
-# OK: Docker Secrets を使用（Swarm mode）
+# OK: Use Docker Secrets (Swarm mode)
 echo "sk-12345secret" | docker secret create api_key -
 docker service create --secret api_key my-app
-# コンテナ内で /run/secrets/api_key として読める
+# Readable inside the container as /run/secrets/api_key
 
-# OK: 外部シークレット管理ツールとの連携
+# OK: Integration with external secret management tools
 docker run -d \
   -e VAULT_ADDR=https://vault.example.com \
   -e VAULT_TOKEN_FILE=/run/secrets/vault_token \
@@ -1682,22 +1684,22 @@ docker run -d \
 
 ---
 
-## 9. コンテナ技術の将来展望
+## 9. Future Outlook for Container Technology
 
-### 9.1 WebAssembly (Wasm) コンテナ
+### 9.1 WebAssembly (Wasm) Containers
 
 ```bash
-# Docker + Wasm の実行例
-# containerd の Wasm shim を使用
+# Example of running Docker + Wasm
+# Using the containerd Wasm shim
 docker run --runtime=io.containerd.wasmedge.v1 \
   --platform wasi/wasm \
   ghcr.io/example/wasm-app:latest
 
-# Wasm コンテナの特徴:
-# - 起動時間: ~1ms (通常のコンテナ: ~300ms)
-# - サイズ: ~KB単位 (通常のコンテナ: ~MB単位)
-# - セキュリティ: サンドボックスモデルが標準
-# - ポータビリティ: CPU アーキテクチャに依存しない
+# Characteristics of Wasm containers:
+# - Startup time: ~1ms (standard containers: ~300ms)
+# - Size: ~KB scale (standard containers: ~MB scale)
+# - Security: Sandbox model by default
+# - Portability: Not dependent on CPU architecture
 ```
 
 ### 9.2 Confidential Containers
@@ -1706,140 +1708,141 @@ docker run --runtime=io.containerd.wasmedge.v1 \
 +----------------------------------------------------------+
 |  Confidential Containers (CoCo)                          |
 |                                                          |
-|  ハードウェアベースの機密コンピューティング                   |
-|  TEE (Trusted Execution Environment) 内でコンテナを実行    |
+|  Hardware-based confidential computing                   |
+|  Runs containers inside a TEE                            |
+|  (Trusted Execution Environment)                         |
 |                                                          |
 |  +----------------------------------------------------+ |
 |  | TEE (Intel SGX / AMD SEV / ARM CCA)                | |
 |  | +------------------------------------------------+ | |
-|  | | 暗号化されたメモリ空間                              | | |
+|  | | Encrypted memory space                          | | |
 |  | | +--------------------------------------------+  | | |
-|  | | | コンテナ (暗号化イメージから起動)               |  | | |
-|  | | | データは TEE 内でのみ復号                     |  | | |
+|  | | | Container (started from encrypted image)   |  | | |
+|  | | | Data is only decrypted inside the TEE      |  | | |
 |  | | +--------------------------------------------+  | | |
 |  | +------------------------------------------------+ | |
 |  +----------------------------------------------------+ |
-|  ホスト OS やクラウドプロバイダもデータにアクセスできない     |
+|  Host OS and cloud providers cannot access the data      |
 +----------------------------------------------------------+
 ```
 
-### 9.3 eBPF によるコンテナ監視
+### 9.3 Container Monitoring with eBPF
 
 ```bash
-# eBPF ベースのコンテナセキュリティツール
-# Falco - ランタイムセキュリティ検知
+# eBPF-based container security tools
+# Falco - Runtime security detection
 docker run --rm -i -t \
   --privileged \
   -v /var/run/docker.sock:/host/var/run/docker.sock \
   -v /proc:/host/proc:ro \
   falcosecurity/falco:latest
 
-# Cilium - eBPF ベースのコンテナネットワーク
-# NetworkPolicy を eBPF で実装（iptables より高速）
-# L7 レベルのトラフィック可視化
+# Cilium - eBPF-based container networking
+# Implements NetworkPolicy with eBPF (faster than iptables)
+# L7-level traffic visibility
 ```
 
 ---
 
 ## 10. FAQ
 
-### Q1: コンテナは仮想マシンの上位互換ですか？
+### Q1: Are containers a superset of virtual machines?
 
-**A:** いいえ。コンテナと VM は相互補完的な技術である。コンテナはホスト OS のカーネルを共有するため、異なる OS カーネルを必要とする場面（例: Linux ホスト上で Windows アプリを動かす）には VM が必要である。また、強いセキュリティ分離が求められるマルチテナント環境では VM が適している。多くのクラウド環境では、VM の中でコンテナを動かすハイブリッド構成が採用されている。
+**A:** No. Containers and VMs are complementary technologies. Because containers share the host OS kernel, VMs are required in scenarios that need a different OS kernel (e.g., running a Windows application on a Linux host). VMs are also more appropriate for multi-tenant environments where strong security isolation is required. Many cloud environments adopt a hybrid configuration that runs containers inside VMs.
 
-### Q2: Docker と Podman はどう違いますか？
+### Q2: How do Docker and Podman differ?
 
-**A:** 最大の違いはアーキテクチャである。Docker はデーモン（dockerd）が常駐するクライアント-サーバー型だが、Podman はデーモンレスで各コンテナが独立したプロセスとして動く。Podman は OCI 準拠で Docker CLI と高い互換性がある（`alias docker=podman` で多くのコマンドが動く）。rootless 実行がデフォルトでサポートされている点もセキュリティ上の利点である。Podman には Pod という Kubernetes 互換のグルーピング機能もある。ただし、Docker Compose のような統合ツールチェーンは Docker の方が成熟しており、企業でのサポート体制も Docker の方が整っている。
+**A:** The biggest difference is their architecture. Docker uses a client-server model with a resident daemon (dockerd), whereas Podman is daemonless and each container runs as an independent process. Podman is OCI-compliant and has high compatibility with the Docker CLI (many commands work with just `alias docker=podman`). Rootless execution is supported by default, which is a security advantage. Podman also has a Pod feature for Kubernetes-compatible grouping. However, Docker has a more mature integrated toolchain (like Docker Compose) and better enterprise support.
 
-### Q3: Windows や macOS でコンテナはネイティブに動きますか？
+### Q3: Do containers run natively on Windows or macOS?
 
-**A:** Linux コンテナは Linux カーネルの機能（namespaces, cgroups）に依存するため、macOS や Windows ではネイティブに動作しない。Docker Desktop は内部で軽量な Linux VM を起動し、その中でコンテナを実行している。macOS では Apple の Virtualization.framework（Intel Mac では HyperKit）、Windows では WSL2（Windows Subsystem for Linux 2）が使われる。Windows コンテナ（Windows Server 上）は Windows カーネルでネイティブに動作するが、Linux コンテナとの互換性はない。
+**A:** Linux containers depend on Linux kernel features (namespaces, cgroups), so they do not run natively on macOS or Windows. Docker Desktop internally starts a lightweight Linux VM and runs containers inside it. On macOS, Apple's Virtualization.framework (or HyperKit on Intel Macs) is used; on Windows, WSL2 (Windows Subsystem for Linux 2) is used. Windows containers (on Windows Server) run natively on the Windows kernel but are not compatible with Linux containers.
 
-### Q4: コンテナのセキュリティは VM より弱いのですか？
+### Q4: Is container security weaker than VM security?
 
-**A:** カーネル共有によるリスクは存在するが、適切な対策により実用上十分なセキュリティを確保できる。具体的には、rootless コンテナの使用、seccomp プロファイル、AppArmor/SELinux、read-only ファイルシステム、最小権限の原則（capabilities の制限）を適用する。さらに、gVisor や Kata Containers のようなサンドボックスランタイムを使えば、VM に近いレベルの分離を実現できる。マルチテナント環境では VM + コンテナのハイブリッド構成が推奨される。
+**A:** While risks from a shared kernel do exist, sufficient practical security can be achieved with appropriate measures. Specifically: using rootless containers, applying seccomp profiles, AppArmor/SELinux, read-only filesystems, and the principle of least privilege (capability restrictions). Furthermore, sandbox runtimes like gVisor and Kata Containers can achieve isolation close to the VM level. A hybrid VM + container configuration is recommended for multi-tenant environments.
 
-### Q5: Docker Desktop のライセンスはどうなっていますか？
+### Q5: What is the Docker Desktop licensing situation?
 
-**A:** 2021 年 8 月の変更により、従業員 250 名以上または年間売上 $10M 以上の企業は有料サブスクリプション（Pro / Team / Business）が必要になった。個人利用、小規模企業、教育機関、オープンソースプロジェクトは引き続き無料で利用可能。代替手段として、Linux では Docker Engine（無料）を直接使用でき、macOS では Colima や Lima + nerdctl、Windows では WSL2 + Docker Engine を使う方法がある。
+**A:** As of the August 2021 change, companies with 250 or more employees or $10M or more in annual revenue must purchase a paid subscription (Pro / Team / Business). Individual use, small businesses, educational institutions, and open-source projects can continue to use it for free. Alternatives include using Docker Engine (free) directly on Linux, using Colima or Lima + nerdctl on macOS, or using WSL2 + Docker Engine on Windows.
 
-### Q6: containerd と CRI-O の違いは何ですか？
+### Q6: What is the difference between containerd and CRI-O?
 
-**A:** containerd は Docker から分離された汎用的なコンテナランタイムで、Docker Engine や nerdctl のバックエンドとしても使われる。CRI-O は Kubernetes 専用に設計された軽量ランタイムで、CRI（Container Runtime Interface）に特化している。containerd の方が汎用性が高く利用実績も多い。CRI-O は Kubernetes 以外では使われないが、そのぶん軽量でアタックサーフェスが小さい。どちらも OCI 準拠で runc を低レベルランタイムとして使用する。
+**A:** containerd is a general-purpose container runtime separated from Docker, also used as the backend for Docker Engine and nerdctl. CRI-O is a lightweight runtime designed specifically for Kubernetes, specialized for the CRI (Container Runtime Interface). containerd is more versatile and has a wider track record. CRI-O is not used outside Kubernetes, but for that reason it is lightweight and has a smaller attack surface. Both are OCI-compliant and use runc as the low-level runtime.
 
-### Q7: コンテナ内で systemd は使えますか？
+### Q7: Can systemd be used inside containers?
 
-**A:** 技術的には可能だが、推奨されない。コンテナは「1コンテナ1プロセス」の原則で設計されており、init システムを使うのはアンチパターンとされる。ただし、systemd に依存するレガシーアプリケーションの移行期には必要になることがある。その場合は `--privileged` フラグや `/sys/fs/cgroup` のマウントが必要になる。代替として `tini` や `dumb-init` などの軽量 init プロセスを PID 1 として使うことが推奨される（Docker は `--init` フラグで `tini` を自動的に使用できる）。
+**A:** It is technically possible but not recommended. Containers are designed around the "one container, one process" principle, and using an init system is considered an anti-pattern. However, it may be necessary during the migration of legacy applications that depend on systemd. In that case, the `--privileged` flag or mounting `/sys/fs/cgroup` is required. As an alternative, it is recommended to use a lightweight init process like `tini` or `dumb-init` as PID 1 (Docker can automatically use `tini` with the `--init` flag).
 
-### Q8: Docker の代替ツールとして何がありますか？
+### Q8: What are the alternatives to Docker?
 
-**A:** 主な代替ツールは以下の通り。
+**A:** The main alternative tools are as follows.
 
-| ツール | 用途 | 特徴 |
+| Tool | Use Case | Features |
 |---|---|---|
-| Podman | コンテナ実行 | デーモンレス、rootless、Docker CLI 互換 |
-| nerdctl | コンテナ実行 | containerd ネイティブ、Docker CLI 互換 |
-| Buildah | イメージビルド | Dockerfile 不要でもビルド可能 |
-| Skopeo | イメージ操作 | pull 不要でレジストリ間コピー |
-| Kaniko | CI/CD ビルド | Docker デーモン不要でビルド |
-| Lima | macOS 上の Linux VM | Docker Desktop の代替 |
-| Colima | macOS 上の Docker | Lima ベースの簡易 Docker 環境 |
-| Finch | コンテナ実行 | AWS 提供、Lima + nerdctl ベース |
+| Podman | Container execution | Daemonless, rootless, Docker CLI compatible |
+| nerdctl | Container execution | containerd-native, Docker CLI compatible |
+| Buildah | Image building | Can build without a Dockerfile |
+| Skopeo | Image operations | Copy between registries without pulling |
+| Kaniko | CI/CD builds | Builds without a Docker daemon |
+| Lima | Linux VM on macOS | Alternative to Docker Desktop |
+| Colima | Docker on macOS | Simple Docker environment based on Lima |
+| Finch | Container execution | Provided by AWS, based on Lima + nerdctl |
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to keep in mind when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it behaves.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work, particularly during code reviews and architecture design.
 
 ---
 
-## 11. まとめ
+## 11. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |---|---|
-| コンテナとは | ホストOSカーネルを共有するプロセスレベルの仮想化 |
-| 基盤技術 | Linux namespaces（分離）+ cgroups（リソース制限）+ UnionFS（レイヤーFS） |
-| VM との違い | ゲストOS不要で高速・軽量、ただし分離レベルは異なる |
-| Docker の位置づけ | コンテナエコシステムの事実上の標準ツールチェーン |
-| アーキテクチャ | Docker CLI → dockerd → containerd → runc → カーネル |
-| OCI 標準 | runtime-spec, image-spec, distribution-spec の3仕様 |
-| ランタイム階層 | 高レベル (containerd/CRI-O) + 低レベル (runc/crun) |
-| サンドボックス | gVisor（カーネル再実装）/ Kata（軽量VM） |
-| 主なユースケース | マイクロサービス、開発環境統一、CI/CD、ML/AI |
-| 設計原則 | 1コンテナ1プロセス、イミュータブル、バージョン固定 |
-| セキュリティ | rootless、seccomp、capabilities制限、最小ベースイメージ |
-| 将来展望 | WebAssembly コンテナ、Confidential Containers、eBPF |
+| What are containers | Process-level virtualization that shares the host OS kernel |
+| Underlying technologies | Linux namespaces (isolation) + cgroups (resource limits) + UnionFS (layered FS) |
+| Difference from VMs | Fast and lightweight with no guest OS, but isolation level differs |
+| Role of Docker | The de facto standard toolchain of the container ecosystem |
+| Architecture | Docker CLI -> dockerd -> containerd -> runc -> kernel |
+| OCI standards | Three specifications: runtime-spec, image-spec, distribution-spec |
+| Runtime layers | High-level (containerd/CRI-O) + Low-level (runc/crun) |
+| Sandboxes | gVisor (kernel reimplementation) / Kata (lightweight VM) |
+| Key use cases | Microservices, unified dev environments, CI/CD, ML/AI |
+| Design principles | One container per process, immutable, version-pinned |
+| Security | Rootless, seccomp, capability restrictions, minimal base image |
+| Future outlook | WebAssembly containers, Confidential Containers, eBPF |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [01-docker-install.md](./01-docker-install.md) -- Docker のインストールと初期設定
-- [02-docker-basics.md](./02-docker-basics.md) -- Docker の基本操作
-- [../01-dockerfile/00-dockerfile-basics.md](../01-dockerfile/00-dockerfile-basics.md) -- Dockerfile の基礎
+- [01-docker-install.md](./01-docker-install.md) -- Docker installation and initial setup
+- [02-docker-basics.md](./02-docker-basics.md) -- Docker basic operations
+- [../01-dockerfile/00-dockerfile-basics.md](../01-dockerfile/00-dockerfile-basics.md) -- Dockerfile basics
 
 ---
 
-## 参考文献
+## References
 
-1. **Docker Documentation - Get Started** https://docs.docker.com/get-started/ -- Docker 公式のチュートリアル。コンテナの基本概念から実践まで網羅。
-2. **Open Container Initiative (OCI)** https://opencontainers.org/ -- OCI の公式サイト。runtime-spec, image-spec, distribution-spec の仕様書を公開。
-3. **Linux man pages - namespaces(7)** https://man7.org/linux/man-pages/man7/namespaces.7.html -- Linux namespaces の公式ドキュメント。コンテナの基盤技術を深く理解するために参照。
-4. **Linux man pages - cgroups(7)** https://man7.org/linux/man-pages/man7/cgroups.7.html -- cgroups の公式ドキュメント。リソース制限の仕組みを詳細に解説。
-5. **Kubernetes Documentation - Container Runtimes** https://kubernetes.io/docs/setup/production-environment/container-runtimes/ -- containerd, CRI-O 等のコンテナランタイムの比較と設定方法。
-6. **containerd Documentation** https://containerd.io/docs/ -- containerd の公式ドキュメント。Docker の内部で使われるコンテナランタイムの詳細。
-7. **Podman Documentation** https://podman.io/docs -- Podman の公式ドキュメント。Docker 代替ツールの使い方。
-8. **gVisor Documentation** https://gvisor.dev/docs/ -- gVisor の公式ドキュメント。サンドボックスランタイムによるセキュリティ強化。
-9. **NIST SP 800-190 Application Container Security Guide** -- コンテナセキュリティのベストプラクティスガイド。
+1. **Docker Documentation - Get Started** https://docs.docker.com/get-started/ -- Official Docker tutorial covering everything from basic container concepts to practical usage.
+2. **Open Container Initiative (OCI)** https://opencontainers.org/ -- Official OCI website. Publishes the runtime-spec, image-spec, and distribution-spec specifications.
+3. **Linux man pages - namespaces(7)** https://man7.org/linux/man-pages/man7/namespaces.7.html -- Official documentation for Linux namespaces. Refer to this for a deep understanding of the foundational container technology.
+4. **Linux man pages - cgroups(7)** https://man7.org/linux/man-pages/man7/cgroups.7.html -- Official cgroups documentation. Explains the resource limiting mechanism in detail.
+5. **Kubernetes Documentation - Container Runtimes** https://kubernetes.io/docs/setup/production-environment/container-runtimes/ -- Comparison and configuration of container runtimes such as containerd and CRI-O.
+6. **containerd Documentation** https://containerd.io/docs/ -- Official containerd documentation. Details on the container runtime used internally by Docker.
+7. **Podman Documentation** https://podman.io/docs -- Official Podman documentation. Usage of the Docker alternative tool.
+8. **gVisor Documentation** https://gvisor.dev/docs/ -- Official gVisor documentation. Security hardening via sandbox runtime.
+9. **NIST SP 800-190 Application Container Security Guide** -- Best practices guide for container security.
