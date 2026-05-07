@@ -1,27 +1,27 @@
-# サプライチェーンセキュリティ (Supply Chain Security)
+# Supply Chain Security
 
-> コンテナイメージの署名 (cosign)、SBOM (Software Bill of Materials) の生成・検証を通じて、ビルドからデプロイまでのソフトウェアサプライチェーン全体の信頼性を確保する手法を学ぶ。
+> Learn how to ensure the trustworthiness of the entire software supply chain from build to deployment through container image signing (cosign), and SBOM (Software Bill of Materials) generation and verification.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **イメージ署名と検証 (cosign / Sigstore)** -- コンテナイメージにデジタル署名を付与し、改ざんされていないことを検証する仕組みを構築する
-2. **SBOM の生成と活用** -- ソフトウェアの構成要素を一覧化し、脆弱性の追跡と規制対応を実現する
-3. **CI/CD パイプラインでのサプライチェーン保護** -- ビルドの来歴 (Provenance) 記録と、ポリシーベースのデプロイ制御を実装する
-4. **VEX (Vulnerability Exploitability eXchange)** -- 脆弱性の影響度判断を SBOM と連携して管理する
-5. **依存関係の安全管理** -- パッケージの改ざん防止、typosquatting 対策、lockfile の重要性
+1. **Image Signing and Verification (cosign / Sigstore)** -- Build a system that attaches digital signatures to container images and verifies they have not been tampered with
+2. **SBOM Generation and Usage** -- List all software components, enabling vulnerability tracking and regulatory compliance
+3. **Supply Chain Protection in CI/CD Pipelines** -- Implement build provenance recording and policy-based deployment controls
+4. **VEX (Vulnerability Exploitability eXchange)** -- Manage vulnerability impact assessments in conjunction with SBOM
+5. **Safe Dependency Management** -- Prevent package tampering, defend against typosquatting, and understand the importance of lockfiles
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [コンテナセキュリティ (Container Security)](./00-container-security.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Container Security](./00-container-security.md)
 
 ---
 
-## 1. サプライチェーンセキュリティの全体像
+## 1. Overview of Supply Chain Security
 
 ```
 +------------------------------------------------------------------+
@@ -51,24 +51,24 @@
 +------------------------------------------------------------------+
 ```
 
-### 1.1 主要なサプライチェーン攻撃事例
+### 1.1 Major Supply Chain Attack Examples
 
-近年のサプライチェーン攻撃は深刻化している。以下は代表的な事例と教訓である。
+Supply chain attacks have become increasingly serious in recent years. The following are representative examples and the lessons they teach.
 
-| 事例 | 年 | 攻撃手法 | 教訓 |
-|------|-----|---------|------|
-| SolarWinds | 2020 | ビルドシステムへの侵入 | ビルド来歴の記録が重要 |
-| Codecov | 2021 | CI スクリプトの改ざん | 実行スクリプトの完全性検証 |
-| Log4Shell | 2021 | 依存ライブラリの脆弱性 | SBOM で影響範囲を即座に特定 |
-| ua-parser-js | 2021 | npm パッケージの乗っ取り | lockfile + 署名検証 |
-| colors/faker | 2022 | メンテナによる意図的破壊 | 依存関係のバージョン固定 |
-| xz-utils | 2024 | メンテナへのソーシャルエンジニアリング | コードレビュー + 再現可能ビルド |
+| Incident | Year | Attack Method | Lesson |
+|----------|------|---------------|--------|
+| SolarWinds | 2020 | Intrusion into the build system | Recording build provenance is critical |
+| Codecov | 2021 | Tampering with CI scripts | Integrity verification of executed scripts |
+| Log4Shell | 2021 | Vulnerability in a dependent library | SBOM enables immediate impact scoping |
+| ua-parser-js | 2021 | Hijacking of an npm package | lockfile + signature verification |
+| colors/faker | 2022 | Intentional sabotage by maintainer | Pin dependency versions |
+| xz-utils | 2024 | Social engineering against maintainer | Code review + reproducible builds |
 
 ---
 
-## 2. cosign によるイメージ署名
+## 2. Image Signing with cosign
 
-### 2.1 cosign の概要
+### 2.1 Overview of cosign
 
 ```
 +------------------------------------------------------------------+
@@ -97,7 +97,7 @@
 +------------------------------------------------------------------+
 ```
 
-### 2.2 Sigstore プロジェクトの構成
+### 2.2 Sigstore Project Components
 
 ```
 +------------------------------------------------------------------+
@@ -127,7 +127,7 @@
 +------------------------------------------------------------------+
 ```
 
-### 2.3 cosign のインストールと鍵生成
+### 2.3 Installing cosign and Generating Keys
 
 ```bash
 # インストール
@@ -155,7 +155,7 @@ cosign generate-key-pair --kms azurekms://myvault.vault.azure.net/keys/mykey
 cosign generate-key-pair k8s://production/cosign-key
 ```
 
-### 2.4 イメージ署名と検証
+### 2.4 Image Signing and Verification
 
 ```bash
 # イメージのビルドとプッシュ
@@ -199,7 +199,7 @@ cosign verify \
 cosign tree ghcr.io/myorg/myapp:1.0.0
 ```
 
-### 2.5 GitHub Actions での Keyless 署名
+### 2.5 Keyless Signing in GitHub Actions
 
 ```yaml
 # .github/workflows/build-sign.yml
@@ -304,7 +304,7 @@ jobs:
             ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
 ```
 
-### 2.6 GitLab CI での署名
+### 2.6 Signing in GitLab CI
 
 ```yaml
 # .gitlab-ci.yml
@@ -334,7 +334,7 @@ build-and-sign:
 
 ## 3. SBOM (Software Bill of Materials)
 
-### 3.1 SBOM とは
+### 3.1 What Is an SBOM?
 
 ```
 +------------------------------------------------------------------+
@@ -375,9 +375,9 @@ build-and-sign:
 +------------------------------------------------------------------+
 ```
 
-SBOM は「ソフトウェアの成分表」である。食品の原材料表示と同じように、ソフトウェアに含まれる全てのコンポーネント (OS パッケージ、ライブラリ、フレームワーク) とそのバージョン、ライセンス情報を一覧化する。新しい脆弱性が公開された際に、影響を受けるソフトウェアを即座に特定できる。
+An SBOM is an "ingredient list for software." Just like food labeling lists ingredients, it enumerates all components contained in software (OS packages, libraries, frameworks) along with their versions and license information. When a new vulnerability is disclosed, it allows you to immediately identify affected software.
 
-### 3.2 SBOM 生成ツール
+### 3.2 SBOM Generation Tools
 
 ```bash
 # Trivy で SBOM 生成 (SPDX 形式)
@@ -405,21 +405,21 @@ syft dir:. -o cyclonedx-json > sbom-source.json
 trivy fs --format spdx-json --output sbom-fs.json .
 ```
 
-### 3.3 SBOM 形式の比較
+### 3.3 Comparing SBOM Formats
 
-| 項目 | SPDX | CycloneDX | SWID |
+| Item | SPDX | CycloneDX | SWID |
 |------|------|-----------|------|
-| 標準化団体 | Linux Foundation | OWASP | ISO/IEC |
-| フォーマット | JSON, RDF, Tag-Value | JSON, XML, Protobuf | XML |
-| ライセンス情報 | 非常に詳細 | 基本的 | 基本的 |
-| 脆弱性情報 | 外部連携 | VEX 統合 | なし |
-| 依存関係グラフ | サポート | サポート | 限定的 |
-| サービス情報 | 限定的 | 詳細 (API, エンドポイント) | なし |
-| 採用事例 | 米国政府 (EO 14028) | セキュリティツール | レガシー |
-| ツール対応 | 広い | 広い | 限定的 |
-| 推奨用途 | ライセンスコンプライアンス | セキュリティ分析 | 資産管理 |
+| Standards Body | Linux Foundation | OWASP | ISO/IEC |
+| Formats | JSON, RDF, Tag-Value | JSON, XML, Protobuf | XML |
+| License Information | Very detailed | Basic | Basic |
+| Vulnerability Information | External integration | VEX integrated | None |
+| Dependency Graph | Supported | Supported | Limited |
+| Service Information | Limited | Detailed (API, endpoints) | None |
+| Adoption Examples | US Government (EO 14028) | Security tools | Legacy |
+| Tool Support | Broad | Broad | Limited |
+| Recommended Use Case | License compliance | Security analysis | Asset management |
 
-### 3.4 SBOM からの脆弱性スキャン
+### 3.4 Vulnerability Scanning from SBOM
 
 ```bash
 # SBOM を入力として脆弱性スキャン
@@ -444,7 +444,7 @@ trivy sbom --scanners license sbom-spdx.json
 trivy sbom --scanners license --severity HIGH sbom-spdx.json
 ```
 
-### 3.5 SBOM の継続的管理
+### 3.5 Continuous SBOM Management
 
 ```yaml
 # .github/workflows/sbom-management.yml
@@ -510,34 +510,34 @@ jobs:
 
 ## 4. VEX (Vulnerability Exploitability eXchange)
 
-### 4.1 VEX とは
+### 4.1 What Is VEX?
 
-VEX は「この脆弱性は我々の環境では影響しない」という判断を機械可読な形式で表現する仕組みである。SBOM に対する脆弱性スキャンで大量の CVE が検出されても、全てが実際に悪用可能とは限らない。VEX により、セキュリティチームの判断を記録・共有できる。
+VEX is a mechanism for expressing "this vulnerability does not affect our environment" in a machine-readable format. Even when a large number of CVEs are detected through vulnerability scanning of an SBOM, not all of them are necessarily exploitable. VEX allows security teams to record and share their assessments.
 
 ```
 +------------------------------------------------------------------+
 |              VEX のステータス                                      |
 +------------------------------------------------------------------+
 |                                                                  |
-|  Not Affected (影響なし):                                        |
-|    -> 脆弱なコードパスが到達不能                                   |
-|    -> 脆弱な機能を使用していない                                   |
-|    例: OpenSSL の DTLS 脆弱性だが、DTLS を使っていない              |
+|  Not Affected (not affected):                                    |
+|    -> The vulnerable code path is unreachable                    |
+|    -> The vulnerable feature is not used                         |
+|    Example: OpenSSL has a DTLS vulnerability, but DTLS is not used|
 |                                                                  |
-|  Affected (影響あり):                                             |
-|    -> 脆弱性の影響を受ける                                        |
-|    -> 修正対応が必要                                              |
+|  Affected (affected):                                            |
+|    -> The product is affected by the vulnerability               |
+|    -> Remediation action is required                             |
 |                                                                  |
-|  Fixed (修正済み):                                                |
-|    -> 修正バージョンに更新済み                                     |
+|  Fixed (fixed):                                                  |
+|    -> Updated to a version containing the fix                    |
 |                                                                  |
-|  Under Investigation (調査中):                                    |
-|    -> 影響の有無を調査中                                          |
+|  Under Investigation (under investigation):                      |
+|    -> Currently investigating whether there is an impact         |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 4.2 VEX ドキュメントの作成
+### 4.2 Creating a VEX Document
 
 ```json
 {
@@ -580,7 +580,7 @@ VEX は「この脆弱性は我々の環境では影響しない」という判�
 }
 ```
 
-### 4.3 VEX と Trivy の連携
+### 4.3 Integrating VEX with Trivy
 
 ```bash
 # VEX ファイルを使ったスキャン
@@ -592,7 +592,7 @@ trivy image --vex vex.json myapp:latest
 
 ---
 
-## 5. ビルド来歴 (Provenance)
+## 5. Build Provenance
 
 ### 5.1 SLSA (Supply chain Levels for Software Artifacts)
 
@@ -601,34 +601,34 @@ trivy image --vex vex.json myapp:latest
 |              SLSA レベル                                          |
 +------------------------------------------------------------------+
 |                                                                  |
-|  Level 0: なし                                                   |
-|    -> 何もしない                                                  |
+|  Level 0: None                                                   |
+|    -> No measures taken                                          |
 |                                                                  |
-|  Level 1: 来歴の存在                                             |
-|    -> ビルドプロセスの記録が存在する                                |
-|    -> 手動ビルドでも可                                             |
-|    -> 最小要件: ビルドスクリプトがバージョン管理されている           |
+|  Level 1: Provenance exists                                      |
+|    -> A record of the build process exists                       |
+|    -> Manual builds are acceptable                               |
+|    -> Minimum requirement: build scripts are version-controlled  |
 |                                                                  |
-|  Level 2: ホスティングされたビルド                                 |
-|    -> CI/CD サービスでビルド                                       |
-|    -> 来歴が自動生成される                                         |
-|    -> 要件: ビルドが CI/CD プラットフォーム上で実行される            |
+|  Level 2: Hosted build                                           |
+|    -> Built on a CI/CD service                                   |
+|    -> Provenance is automatically generated                      |
+|    -> Requirement: build runs on a CI/CD platform               |
 |                                                                  |
-|  Level 3: ハード化されたビルド                                     |
-|    -> ビルド環境が改ざん耐性を持つ                                  |
-|    -> 来歴が暗号署名される                                         |
-|    -> ビルドジョブ間のパラメータ注入が防止される                    |
-|    -> GitHub Actions + SLSA Generator が対応                      |
+|  Level 3: Hardened build                                         |
+|    -> Build environment is tamper-resistant                      |
+|    -> Provenance is cryptographically signed                     |
+|    -> Parameter injection between build jobs is prevented        |
+|    -> GitHub Actions + SLSA Generator supports this              |
 |                                                                  |
-|  Level 4 (将来): 完全な来歴                                       |
-|    -> 二者レビュー                                                |
-|    -> 密閉型ビルド (ネットワーク分離)                              |
-|    -> 再現可能ビルド                                              |
+|  Level 4 (future): Complete provenance                           |
+|    -> Two-party review                                           |
+|    -> Hermetic build (network isolation)                         |
+|    -> Reproducible builds                                        |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 5.2 GitHub Actions での Provenance 生成
+### 5.2 Generating Provenance in GitHub Actions
 
 ```yaml
 # .github/workflows/slsa-build.yml
@@ -683,7 +683,7 @@ jobs:
             ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
 ```
 
-### 5.3 SLSA Generator の使用
+### 5.3 Using SLSA Generator
 
 ```yaml
 # .github/workflows/slsa-generator.yml
@@ -731,7 +731,7 @@ jobs:
       registry-password: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### 5.4 in-toto によるビルドステップ証明
+### 5.4 Build Step Attestation with in-toto
 
 ```bash
 # in-toto: 各ビルドステップの証明を生成
@@ -762,9 +762,9 @@ in-toto-verify --layout root.layout \
 
 ---
 
-## 6. 依存関係の安全管理
+## 6. Safe Dependency Management
 
-### 6.1 lockfile による依存関係の固定
+### 6.1 Pinning Dependencies with Lockfiles
 
 ```bash
 # npm: package-lock.json
@@ -791,7 +791,7 @@ requests==2.31.0 \
     --hash=sha256:58cd2187c01e70e6e26505bca751777aa9f2ee0b7f4300988b709f44e013003eb
 ```
 
-### 6.2 依存関係の監査
+### 6.2 Auditing Dependencies
 
 ```bash
 # npm audit (脆弱性チェック)
@@ -813,7 +813,7 @@ trivy fs --scanners vuln .
 # Renovate / Dependabot で自動更新 PR
 ```
 
-### 6.3 Renovate による自動更新
+### 6.3 Automated Updates with Renovate
 
 ```json
 {
@@ -854,7 +854,7 @@ trivy fs --scanners vuln .
 }
 ```
 
-### 6.4 Dependabot の設定
+### 6.4 Dependabot Configuration
 
 ```yaml
 # .github/dependabot.yml
@@ -897,7 +897,7 @@ updates:
 
 ---
 
-## 7. デプロイ時のポリシー適用
+## 7. Policy Enforcement at Deploy Time
 
 ### 7.1 Kubernetes Admission Controller
 
@@ -965,7 +965,7 @@ metadata:
     policy.sigstore.dev/include: "true"
 ```
 
-### 7.3 OPA/Gatekeeper ポリシー
+### 7.3 OPA/Gatekeeper Policy
 
 ```yaml
 # ConstraintTemplate: 信頼済みレジストリのみ許可
@@ -1023,7 +1023,7 @@ spec:
       - "gcr.io/myproject/"
 ```
 
-### 7.4 ダイジェスト固定ポリシー
+### 7.4 Digest Pinning Policy
 
 ```yaml
 # Kyverno ポリシー: タグではなくダイジェストでの参照を強制
@@ -1052,46 +1052,46 @@ spec:
 
 ---
 
-## 8. サプライチェーンセキュリティツール一覧
+## 8. Supply Chain Security Tools Reference
 
 ```
 +------------------------------------------------------------------+
 |              サプライチェーンセキュリティツール                       |
 +------------------------------------------------------------------+
 |                                                                  |
-|  カテゴリ          | ツール         | 用途                       |
-|  ------------------|---------------|---------------------------|
-|  イメージ署名       | cosign        | 署名・検証                 |
-|                    | Notation      | OCI 署名 (MS/AWS推進)      |
-|  SBOM 生成         | Trivy         | スキャン + SBOM            |
-|                    | Syft          | SBOM 生成専用              |
-|                    | docker sbom   | Docker Desktop 統合        |
-|  脆弱性スキャン     | Trivy         | 包括的スキャン             |
-|                    | Grype         | SBOM ベーススキャン        |
-|                    | Snyk          | 開発者向けスキャン         |
-|  VEX              | OpenVEX       | 脆弱性影響度判断           |
-|                    | CycloneDX VEX | CycloneDX 統合            |
-|  来歴 (Provenance)  | SLSA Generator| ビルド来歴証明             |
-|                    | in-toto       | ビルドステップ証明         |
-|  透明性ログ         | Rekor         | 署名の公開ログ             |
-|                    | Fulcio        | 短命証明書の発行           |
-|  ポリシー適用       | Kyverno       | K8s ポリシー (署名検証)    |
-|                    | OPA/Gatekeeper| K8s ポリシー (汎用)        |
-|                    | policy-controller | Sigstore 統合ポリシー  |
-|  シークレット検出    | gitleaks      | Git 履歴のシークレット検出  |
-|                    | TruffleHog    | シークレット検出 (高精度)   |
-|  依存関係管理       | Renovate      | 自動更新 PR               |
-|                    | Dependabot    | GitHub 統合自動更新        |
-|  Dockerfile Lint   | hadolint      | Dockerfile 品質チェック    |
+|  Category           | Tool           | Purpose                  |
+|  -------------------|----------------|--------------------------|
+|  Image Signing      | cosign         | Sign & verify            |
+|                     | Notation       | OCI signing (MS/AWS)     |
+|  SBOM Generation    | Trivy          | Scan + SBOM              |
+|                     | Syft           | Dedicated SBOM gen       |
+|                     | docker sbom    | Docker Desktop integration|
+|  Vulnerability Scan | Trivy          | Comprehensive scan       |
+|                     | Grype          | SBOM-based scan          |
+|                     | Snyk           | Developer-oriented scan  |
+|  VEX                | OpenVEX        | Vulnerability impact     |
+|                     | CycloneDX VEX  | CycloneDX integration    |
+|  Provenance         | SLSA Generator | Build provenance proof   |
+|                     | in-toto        | Build step attestation   |
+|  Transparency Log   | Rekor          | Public signature log     |
+|                     | Fulcio         | Short-lived cert issuer  |
+|  Policy Enforcement | Kyverno        | K8s policy (sig verify)  |
+|                     | OPA/Gatekeeper | K8s policy (general)     |
+|                     | policy-controller | Sigstore policy      |
+|  Secret Detection   | gitleaks       | Git history secret scan  |
+|                     | TruffleHog     | High-precision secret det|
+|  Dependency Mgmt    | Renovate       | Auto update PRs          |
+|                     | Dependabot     | GitHub integrated update |
+|  Dockerfile Lint    | hadolint       | Dockerfile quality check |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 9. レジストリのセキュリティ設定
+## 9. Registry Security Configuration
 
-### 9.1 イミュータブルタグの設定
+### 9.1 Enabling Immutable Tags
 
 ```bash
 # ECR: イミュータブルタグの有効化
@@ -1104,7 +1104,7 @@ aws ecr put-image-tag-mutability \
 # "Prevent forked repositories from creating packages" を有効化
 ```
 
-### 9.2 脆弱性スキャンの有効化
+### 9.2 Enabling Vulnerability Scanning
 
 ```bash
 # ECR: スキャン設定
@@ -1117,7 +1117,7 @@ gcloud services enable containeranalysis.googleapis.com
 gcloud services enable containerscanning.googleapis.com
 ```
 
-### 9.3 レジストリのアクセス制御
+### 9.3 Registry Access Control
 
 ```json
 {
@@ -1168,9 +1168,9 @@ gcloud services enable containerscanning.googleapis.com
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: タグでイメージを参照する
+### Anti-Pattern 1: Referencing Images by Tag
 
 ```yaml
 # NG: タグは上書き可能。改ざんリスクがある
@@ -1193,9 +1193,9 @@ containers:
     # 改ざんされていれば検証で失敗する
 ```
 
-**問題点**: タグ (`latest`, `v1.0.0` 等) はレジストリ上で任意のイメージに再割り当てできる。攻撃者がレジストリに侵入した場合、タグを悪意のあるイメージに向けることが可能。ダイジェスト参照はイメージの内容 (SHA256 ハッシュ) を直接指定するため、改ざんが不可能。
+**Problem**: Tags (such as `latest` or `v1.0.0`) can be reassigned to any image in the registry. If an attacker gains access to the registry, they can point the tag at a malicious image. A digest reference directly specifies the content of the image (SHA256 hash), making tampering impossible.
 
-### アンチパターン 2: SBOM を生成するだけで活用しない
+### Anti-Pattern 2: Generating an SBOM but Never Using It
 
 ```bash
 # NG: SBOM を生成して放置
@@ -1218,9 +1218,9 @@ trivy sbom --scanners license sbom.json
 # 5. VEX で影響度を判断・記録
 ```
 
-**問題点**: SBOM は「生成すること」が目的ではなく、「継続的に脆弱性を追跡すること」が目的。新しい CVE が公開された際に、影響を受けるイメージを特定するためのデータベースとして活用する。
+**Problem**: The purpose of an SBOM is not "generating it" but "continuously tracking vulnerabilities." Use it as a database for identifying affected images when new CVEs are disclosed.
 
-### アンチパターン 3: lockfile を Git にコミットしない
+### Anti-Pattern 3: Not Committing Lockfiles to Git
 
 ```bash
 # NG: lockfile が .gitignore に含まれている
@@ -1234,9 +1234,9 @@ yarn.lock
 # lockfile なしでは、ビルドごとに異なるバージョンがインストールされるリスクがある
 ```
 
-**問題点**: lockfile がないと、`npm install` のたびに依存関係のバージョンが変わる可能性がある。攻撃者がパッケージの新バージョンに悪意のあるコードを挿入した場合、lockfile がなければ自動的にそのバージョンがインストールされる。`npm ci` (lockfile に厳密に従うインストール) を CI/CD で使用し、lockfile を必ずバージョン管理する。
+**Problem**: Without a lockfile, the version of dependencies can change with each `npm install`. If an attacker injects malicious code into a new version of a package, that version will be installed automatically without a lockfile. Use `npm ci` (which installs strictly according to the lockfile) in CI/CD, and always version-control lockfiles.
 
-### アンチパターン 4: 署名検証を本番でのみ実施する
+### Anti-Pattern 4: Enabling Signature Verification Only in Production
 
 ```yaml
 # NG: 本番環境でのみ署名検証
@@ -1247,67 +1247,67 @@ yarn.lock
 # 本番: Enforce モード (検証失敗時にデプロイを拒否)
 ```
 
-**問題点**: 署名検証を本番でのみ有効にすると、ステージングでは動作確認できたのに本番でデプロイが拒否されるという事態が発生する。ステージング環境でも署名検証を実施し、問題を早期に発見する。
+**Problem**: If signature verification is only enabled in production, a situation can arise where something works in staging but is rejected in production. Enable signature verification in staging environments as well to catch problems early.
 
 ---
 
 ## FAQ
 
-### Q1: cosign の Keyless 署名はどのような仕組みですか？
+### Q1: How does cosign Keyless signing work?
 
-**A**: Keyless 署名では長期的な秘密鍵を管理する必要がない。仕組みは (1) CI/CD プラットフォーム (GitHub Actions 等) が OIDC トークンを発行、(2) Fulcio (Sigstore の CA) がトークンを検証し、短命の署名用証明書 (10分間有効) を発行、(3) その証明書で署名を行い、(4) 署名と証明書が Rekor (透明性ログ) に記録される。検証時は Rekor ログと OIDC の issuer/subject を確認する。鍵管理の負担がなく、CI/CD 環境に最適。
+**A**: Keyless signing eliminates the need to manage long-lived private keys. The mechanism works as follows: (1) the CI/CD platform (e.g., GitHub Actions) issues an OIDC token, (2) Fulcio (Sigstore's CA) verifies the token and issues a short-lived signing certificate (valid for 10 minutes), (3) the signature is made with that certificate, and (4) the signature and certificate are recorded in Rekor (the transparency log). Verification checks the Rekor log and the OIDC issuer/subject. This approach eliminates key management overhead and is ideal for CI/CD environments.
 
-### Q2: SBOM のフォーマットは SPDX と CycloneDX のどちらを選ぶべきですか？
+### Q2: Should I choose SPDX or CycloneDX for SBOM format?
 
-**A**: 米国政府関連や法規制対応 (EO 14028) が必要な場合は SPDX。セキュリティ分析が主目的なら CycloneDX。実務的には多くのツール (Trivy, Grype, Syft) が両方をサポートしているため、消費するツールチェーンとの互換性で選択する。CycloneDX は VEX (Vulnerability Exploitability eXchange) との統合が優れており、「この脆弱性は我々の環境では影響なし」という判断を SBOM に組み込める。
+**A**: Use SPDX if US government compliance or regulatory requirements (EO 14028) are needed. Use CycloneDX if security analysis is the primary goal. In practice, most tools (Trivy, Grype, Syft) support both formats, so choose based on compatibility with your toolchain. CycloneDX has superior integration with VEX (Vulnerability Exploitability eXchange), enabling you to embed "this vulnerability has no impact in our environment" assessments directly into the SBOM.
 
-### Q3: サプライチェーンセキュリティの導入を段階的に進めるにはどうすべきですか？
+### Q3: How should I phase in supply chain security incrementally?
 
-**A**: 推奨する段階的導入: (1) まず Trivy でイメージスキャンを CI/CD に追加 (1日で導入可能)、(2) SBOM 生成を CI/CD に追加し、成果物として保存 (半日)、(3) cosign Keyless 署名を導入 (1日)、(4) ダイジェスト参照に移行 (1-2日)、(5) Admission Controller (Kyverno) で署名検証をステージング環境に導入 (1-2日)、(6) 本番環境への展開。全てを一度に導入しようとせず、各段階で効果を確認しながら進める。
+**A**: Recommended phased approach: (1) Add Trivy image scanning to CI/CD first (can be done in 1 day), (2) Add SBOM generation to CI/CD and save it as an artifact (half a day), (3) Introduce cosign Keyless signing (1 day), (4) Migrate to digest references (1-2 days), (5) Introduce Admission Controller (Kyverno) with signature verification in the staging environment (1-2 days), (6) Roll out to production. Avoid trying to introduce everything at once; confirm the effect at each stage before proceeding.
 
-### Q4: ダイジェスト参照にすると、バージョンが分かりにくくなります。どう管理すべきですか？
+### Q4: Digest references make versions hard to read. How should I manage them?
 
-**A**: (1) Kyverno の `mutate` ルールを使い、タグをダイジェストに自動変換する。(2) Flux CD や Argo CD の image automation 機能を使い、新しいイメージが push されたら自動的にダイジェスト参照を更新する。(3) コメントでタグ情報を残す (`# v1.2.0` のようなアノテーション)。(4) Renovate / Dependabot にダイジェスト固定と自動更新を任せる。実運用ではツールによる自動化が不可欠。
+**A**: (1) Use Kyverno's `mutate` rules to automatically convert tags to digests. (2) Use Flux CD or Argo CD's image automation feature to automatically update digest references when new images are pushed. (3) Leave tag information in comments (e.g., a `# v1.2.0` annotation). (4) Delegate digest pinning and automatic updates to Renovate or Dependabot. Automation by tooling is essential in practice.
 
-### Q5: Notation (ORAS/OCI 署名) と cosign の違いは何ですか？
+### Q5: What is the difference between Notation (ORAS/OCI signing) and cosign?
 
-**A**: cosign は Sigstore プロジェクトの一部で、Keyless 署名 (OIDC ベース) が最大の特徴。Notation は Microsoft と AWS が推進する OCI 署名仕様で、既存の PKI インフラ (X.509 証明書) との親和性が高い。cosign は CI/CD 環境での自動署名に優れ、Notation はエンタープライズの既存証明書基盤との統合に優れる。現時点では cosign のエコシステムが充実しているが、Notation も成熟が進んでいる。
+**A**: cosign is part of the Sigstore project and its biggest feature is Keyless signing (OIDC-based). Notation is an OCI signing specification promoted by Microsoft and AWS, and is highly compatible with existing PKI infrastructure (X.509 certificates). cosign excels at automated signing in CI/CD environments, while Notation excels at integrating with enterprise existing certificate infrastructure. The cosign ecosystem is currently more mature, but Notation is also maturing.
 
-### Q6: OpenSSF Scorecard とは何ですか？
+### Q6: What is OpenSSF Scorecard?
 
-**A**: OpenSSF Scorecard は OSS プロジェクトのセキュリティプラクティスを自動評価するツール。CI/CD のセキュリティ、ブランチ保護、コードレビュー、依存関係の管理状況などを 0-10 のスコアで評価する。`scorecard --repo=github.com/myorg/myapp` で実行でき、GitHub Actions にも統合できる。自分のプロジェクトのセキュリティ成熟度を客観的に把握し、改善点を特定するのに有効。
+**A**: OpenSSF Scorecard is a tool that automatically evaluates the security practices of OSS projects. It assesses CI/CD security, branch protection, code review, dependency management, and more on a scale of 0-10. It can be run with `scorecard --repo=github.com/myorg/myapp` and can also be integrated into GitHub Actions. It is useful for objectively understanding your project's security maturity and identifying areas for improvement.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| cosign | Sigstore プロジェクトのイメージ署名ツール。Keyless 推奨 |
-| Keyless 署名 | OIDC + Fulcio + Rekor で鍵管理不要の署名を実現 |
-| SBOM | SPDX / CycloneDX 形式でソフトウェア構成を記録 |
-| VEX | 脆弱性の影響度を機械可読な形式で判断・共有 |
-| Trivy + Syft | SBOM 生成と脆弱性スキャンの主要ツール |
-| Provenance | SLSA フレームワークでビルド来歴を記録・検証 |
-| ダイジェスト参照 | タグではなく SHA256 ダイジェストでイメージを参照 |
-| Admission Controller | Kyverno / OPA / policy-controller で署名済みイメージのみデプロイ許可 |
-| lockfile | 依存関係を固定し、再現可能なビルドを実現 |
-| 依存関係管理 | Renovate / Dependabot で自動更新 + 脆弱性アラート |
-| 段階的導入 | スキャン -> SBOM -> 署名 -> ポリシー適用の順で導入 |
+| Item | Key Points |
+|------|------------|
+| cosign | Image signing tool from the Sigstore project. Keyless is recommended |
+| Keyless signing | Achieves key-management-free signing via OIDC + Fulcio + Rekor |
+| SBOM | Records software composition in SPDX / CycloneDX format |
+| VEX | Expresses and shares vulnerability impact assessments in a machine-readable format |
+| Trivy + Syft | Primary tools for SBOM generation and vulnerability scanning |
+| Provenance | Records and verifies build provenance with the SLSA framework |
+| Digest reference | Reference images by SHA256 digest instead of tag |
+| Admission Controller | Allow only signed images to deploy via Kyverno / OPA / policy-controller |
+| lockfile | Pins dependencies to enable reproducible builds |
+| Dependency management | Automated updates + vulnerability alerts via Renovate / Dependabot |
+| Phased adoption | Introduce in order: scan -> SBOM -> signing -> policy enforcement |
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [コンテナセキュリティ](./00-container-security.md) -- イメージスキャン、最小権限、Dockerfile のセキュリティ
-- [Kubernetes 応用](../05-orchestration/02-kubernetes-advanced.md) -- Helm / Ingress / ConfigMap の本番運用
-- Docker Compose セキュリティ -- 開発環境でのセキュリティ意識
+- [Container Security](./00-container-security.md) -- Image scanning, least privilege, Dockerfile security
+- [Kubernetes Advanced](../05-orchestration/02-kubernetes-advanced.md) -- Production operations with Helm / Ingress / ConfigMap
+- Docker Compose Security -- Security awareness in development environments
 
-## 参考文献
+## References
 
-1. **Sigstore 公式** -- https://www.sigstore.dev/ -- cosign, Fulcio, Rekor を含む Sigstore プロジェクトの全体像
-2. **SLSA フレームワーク** -- https://slsa.dev/ -- Supply chain Levels for Software Artifacts の仕様と実装ガイド
-3. **SPDX Specification** -- https://spdx.dev/ -- SBOM の SPDX フォーマット仕様
-4. **CycloneDX** -- https://cyclonedx.org/ -- OWASP 主導の SBOM フォーマットと VEX 統合
-5. **Kyverno 公式** -- https://kyverno.io/ -- Kubernetes ポリシーエンジンによるイメージ署名検証
-6. **NIST SSDF (SP 800-218)** -- https://csrc.nist.gov/Projects/ssdf -- セキュアソフトウェア開発フレームワーク
-7. **OpenVEX** -- https://openvex.dev/ -- VEX の仕様と実装ガイド
-8. **OpenSSF Scorecard** -- https://scorecard.dev/ -- OSS プロジェクトのセキュリティ評価ツール
+1. **Sigstore Official** -- https://www.sigstore.dev/ -- Overview of the Sigstore project including cosign, Fulcio, and Rekor
+2. **SLSA Framework** -- https://slsa.dev/ -- Supply chain Levels for Software Artifacts specifications and implementation guide
+3. **SPDX Specification** -- https://spdx.dev/ -- SPDX format specification for SBOM
+4. **CycloneDX** -- https://cyclonedx.org/ -- OWASP-led SBOM format and VEX integration
+5. **Kyverno Official** -- https://kyverno.io/ -- Image signature verification with Kubernetes policy engine
+6. **NIST SSDF (SP 800-218)** -- https://csrc.nist.gov/Projects/ssdf -- Secure Software Development Framework
+7. **OpenVEX** -- https://openvex.dev/ -- VEX specification and implementation guide
+8. **OpenSSF Scorecard** -- https://scorecard.dev/ -- Security evaluation tool for OSS projects
