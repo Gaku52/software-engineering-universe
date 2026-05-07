@@ -1,125 +1,125 @@
 # GitOps
 
-> Gitリポジトリを唯一の信頼源(Single Source of Truth)とし、インフラとアプリケーションの宣言的な状態をプルベースで自動同期する運用モデル
+> An operational model that uses Git repositories as the Single Source of Truth, automatically synchronizing the declarative state of infrastructure and applications via a pull-based approach
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. GitOpsの4原則とプッシュ型/プル型デプロイの違いを理解する
-2. ArgoCD、Fluxの仕組みと基本的な設定方法を習得する
-3. イミュータブルインフラストラクチャとGitOpsの関係を把握する
-4. GitOpsにおけるシークレット管理とマルチクラスタ運用を実践できる
-5. GitOpsのトラブルシューティングと運用ベストプラクティスを理解する
+1. Understand the four principles of GitOps and the difference between push-based and pull-based deployments
+2. Learn how ArgoCD and Flux work and how to configure them
+3. Understand the relationship between immutable infrastructure and GitOps
+4. Practice secret management and multi-cluster operations in GitOps
+5. Understand GitOps troubleshooting and operational best practices
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Infrastructure as Code (IaC)](./02-infrastructure-as-code.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Infrastructure as Code (IaC)](./02-infrastructure-as-code.md)
 
 ---
 
-## 1. GitOps とは
+## 1. What Is GitOps
 
-### 1.1 GitOps の4原則
-
-```
-GitOps 4原則 (OpenGitOps):
-
-1. 宣言的 (Declarative)
-   システムのあるべき状態をコードで宣言する
-   例: Kubernetes マニフェスト、Helm チャート、Kustomize
-
-2. バージョン管理・イミュータブル (Versioned and Immutable)
-   あるべき状態は Git で管理し、変更履歴を保持する
-   例: 全ての変更が Git コミットとして記録される
-
-3. 自動プル (Pulled Automatically)
-   承認された変更はシステムに自動的に適用される
-   例: ArgoCD/Flux が Git の変更を検知して自動デプロイ
-
-4. 継続的リコンサイル (Continuously Reconciled)
-   実際の状態とあるべき状態の差分を検知し、自動修復する
-   例: 手動変更(kubectl)が自動で元に戻される
-```
-
-### 1.2 GitOps の歴史と背景
-
-GitOpsは2017年にWeaveWorksのAlexis Richardsonが提唱した概念である。Kubernetesの宣言的APIとGitの不変な変更履歴を組み合わせることで、信頼性の高いデプロイフローを実現する。
+### 1.1 The Four Principles of GitOps
 
 ```
-GitOps の進化:
+GitOps 4 Principles (OpenGitOps):
 
-2014年  Kubernetes の登場 → 宣言的インフラ管理の基盤
-2015年  Helm の登場 → パッケージ管理の標準化
-2017年  Weaveworks が "GitOps" を提唱
-2018年  Flux v1 リリース (初のGitOpsツール)
-2019年  Argo CD v1.0 リリース
-2020年  CNCF に Flux/ArgoCD が Sandbox プロジェクトとして参加
-2021年  Flux v2 リリース (完全リアーキテクチャ)
-2022年  OpenGitOps プロジェクト発足 (原則の標準化)
-2023年  Argo CD が CNCF Graduated プロジェクトに
-2024年  Flux が CNCF Graduated プロジェクトに
+1. Declarative
+   Declare the desired state of the system in code
+   Example: Kubernetes manifests, Helm charts, Kustomize
+
+2. Versioned and Immutable
+   Manage desired state in Git and retain change history
+   Example: All changes are recorded as Git commits
+
+3. Pulled Automatically
+   Approved changes are automatically applied to the system
+   Example: ArgoCD/Flux detects Git changes and deploys automatically
+
+4. Continuously Reconciled
+   Detect drift between actual and desired state and auto-repair
+   Example: Manual changes (kubectl) are automatically reverted
 ```
 
-### 1.3 プッシュ型 vs プル型デプロイ
+### 1.2 History and Background of GitOps
+
+GitOps is a concept proposed in 2017 by Alexis Richardson of Weaveworks. By combining Kubernetes' declarative API with Git's immutable change history, it achieves a highly reliable deployment flow.
 
 ```
-プッシュ型 (従来の CI/CD):
+Evolution of GitOps:
+
+2014  Kubernetes introduced → Foundation for declarative infrastructure management
+2015  Helm introduced → Standardization of package management
+2017  Weaveworks proposes "GitOps"
+2018  Flux v1 released (first GitOps tool)
+2019  Argo CD v1.0 released
+2020  Flux/ArgoCD join CNCF as Sandbox projects
+2021  Flux v2 released (complete rearchitecture)
+2022  OpenGitOps project founded (standardization of principles)
+2023  Argo CD becomes CNCF Graduated project
+2024  Flux becomes CNCF Graduated project
+```
+
+### 1.3 Push-Based vs Pull-Based Deployments
+
+```
+Push-Based (Traditional CI/CD):
   ┌─────┐     ┌──────┐     ┌───────────┐
   │ Git │ ──→ │ CI/CD │ ──→ │ Kubernetes │
   │     │     │Server│     │ Cluster    │
   └─────┘     └──────┘     └───────────┘
                   │
-           CI がクラスタに
-           直接デプロイ
+           CI deploys
+           directly to cluster
            (push)
 
-  問題:
-  - CI に本番環境への認証情報が必要
-  - CI サーバーが SPOF (単一障害点)
-  - ドリフト(実態の乖離)を検知できない
-  - CI の設定が複雑になりやすい
-  - 監査証跡がCIログに依存
+  Problems:
+  - CI requires credentials for the production environment
+  - CI server is a SPOF (Single Point of Failure)
+  - Cannot detect drift (divergence from actual state)
+  - CI configuration tends to become complex
+  - Audit trail depends on CI logs
 
-プル型 (GitOps):
+Pull-Based (GitOps):
   ┌─────┐                  ┌───────────┐
-  │ Git │ ←── 監視 ←────── │ Agent     │
+  │ Git │ ←── monitors ←── │ Agent     │
   │     │                  │ (ArgoCD)  │
   └─────┘                  │ in Cluster│
                            └───────────┘
                                 │
-                          差分を検知して
-                          自動適用 (pull)
+                          Detects drift and
+                          applies automatically (pull)
 
-  利点:
-  - クラスタ外に認証情報を露出しない
-  - エージェントが常に差分を監視・修復
-  - Git の履歴 = デプロイの履歴
-  - CI とデプロイの責務が明確に分離
-  - 監査証跡が Git コミットに残る
+  Benefits:
+  - Credentials are not exposed outside the cluster
+  - Agent continuously monitors and repairs drift
+  - Git history = deployment history
+  - Clear separation of CI and deployment responsibilities
+  - Audit trail remains in Git commits
 ```
 
-### 1.4 GitOps vs 従来の CI/CD
+### 1.4 GitOps vs Traditional CI/CD
 
-| 項目 | 従来の CI/CD | GitOps |
+| Item | Traditional CI/CD | GitOps |
 |---|---|---|
-| デプロイ方式 | プッシュ型 | プル型 |
-| 信頼源 | CI サーバー | Git リポジトリ |
-| ドリフト検知 | なし | 継続的リコンサイル |
-| ロールバック | 再デプロイ | Git revert |
-| 認証情報 | CI に保存 | クラスタ内に閉じる |
-| 監査証跡 | CI ログ | Git コミット履歴 |
-| 再現性 | CI 設定に依存 | Git の状態から完全再現 |
-| 障害復旧 | 手順書に依存 | Git から自動復元 |
+| Deployment method | Push-based | Pull-based |
+| Source of truth | CI server | Git repository |
+| Drift detection | None | Continuous reconciliation |
+| Rollback | Re-deploy | Git revert |
+| Credentials | Stored in CI | Confined within cluster |
+| Audit trail | CI logs | Git commit history |
+| Reproducibility | Depends on CI configuration | Fully reproducible from Git state |
+| Disaster recovery | Depends on runbooks | Auto-restored from Git |
 
 ---
 
 ## 2. ArgoCD
 
-### 2.1 ArgoCD の仕組み
+### 2.1 How ArgoCD Works
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -129,11 +129,11 @@ GitOps の進化:
 │  │  ArgoCD     │     │  Application     │    │
 │  │  Controller │ ──→ │  Resources       │    │
 │  │             │     │  (Deployment,    │    │
-│  │  ・Git監視   │     │   Service, etc.) │    │
-│  │  ・差分検知   │     └──────────────────┘    │
-│  │  ・自動同期   │                             │
+│  │  ・Git watch │     │   Service, etc.) │    │
+│  │  ・Drift detect│   └──────────────────┘    │
+│  │  ・Auto sync │                             │
 │  └──────┬──────┘                              │
-│         │ pull (3分ごと)                       │
+│         │ pull (every 3 minutes)              │
 └─────────┼────────────────────────────────────┘
           │
           ↓
@@ -147,31 +147,31 @@ GitOps の進化:
   └───────────────┘
 ```
 
-### 2.2 ArgoCD のインストールとセットアップ
+### 2.2 Installing and Setting Up ArgoCD
 
 ```bash
-# ArgoCD のインストール (Kubernetes クラスタが必要)
+# Install ArgoCD (requires a Kubernetes cluster)
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
-# ArgoCD CLI のインストール
+# Install ArgoCD CLI
 brew install argocd  # macOS
-# または
+# or
 curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
 chmod +x argocd && sudo mv argocd /usr/local/bin/
 
-# 初期パスワードの取得
+# Get initial password
 argocd admin initial-password -n argocd
 
-# ログイン
+# Login
 argocd login localhost:8080
 
-# パスワード変更
+# Change password
 argocd account update-password
 ```
 
 ```yaml
-# ArgoCD を Helm でインストール (推奨: 本番環境向け)
+# Install ArgoCD with Helm (recommended for production)
 # values.yaml
 apiVersion: v1
 kind: Namespace
@@ -179,7 +179,7 @@ metadata:
   name: argocd
 
 ---
-# Helm でのインストール
+# Install with Helm
 # helm repo add argo https://argoproj.github.io/argo-helm
 # helm install argocd argo/argo-cd -n argocd -f values.yaml
 
@@ -228,7 +228,7 @@ configs:
       g, ops-team, role:admin
 ```
 
-### 2.3 ArgoCD Application 定義
+### 2.3 ArgoCD Application Definition
 
 ```yaml
 # argocd-application.yaml
@@ -238,7 +238,7 @@ metadata:
   name: my-app
   namespace: argocd
   finalizers:
-    - resources-finalizer.argocd.argoproj.io  # アプリ削除時にリソースも削除
+    - resources-finalizer.argocd.argoproj.io  # Delete resources when app is deleted
 spec:
   project: default
 
@@ -253,13 +253,13 @@ spec:
 
   syncPolicy:
     automated:
-      prune: true          # Git から削除されたリソースを自動削除
-      selfHeal: true       # 手動変更を自動で元に戻す
+      prune: true          # Automatically delete resources removed from Git
+      selfHeal: true       # Automatically revert manual changes
       allowEmpty: false
     syncOptions:
       - CreateNamespace=true
       - PrunePropagationPolicy=foreground
-      - PruneLast=true      # 他リソース同期後に削除
+      - PruneLast=true      # Delete after syncing other resources
     retry:
       limit: 5
       backoff:
@@ -267,18 +267,18 @@ spec:
         factor: 2
         maxDuration: 3m
 
-  # ヘルスチェック設定
+  # Health check configuration
   ignoreDifferences:
     - group: apps
       kind: Deployment
       jsonPointers:
-        - /spec/replicas  # HPA と競合防止
+        - /spec/replicas  # Prevent conflict with HPA
 ```
 
-### 2.4 ApplicationSet (マルチ環境・マルチクラスタ)
+### 2.4 ApplicationSet (Multi-Environment and Multi-Cluster)
 
 ```yaml
-# ApplicationSet: 複数環境に一括デプロイ
+# ApplicationSet: Deploy to multiple environments at once
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -286,7 +286,7 @@ metadata:
   namespace: argocd
 spec:
   generators:
-    # リスト型: 明示的に環境を定義
+    # List type: explicitly define environments
     - list:
         elements:
           - cluster: dev
@@ -321,7 +321,7 @@ spec:
 ```
 
 ```yaml
-# Git Generator: ディレクトリ構造から自動生成
+# Git Generator: Auto-generate from directory structure
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -351,7 +351,7 @@ spec:
         namespace: '{{path.basename}}'
 ```
 
-### 2.5 Kustomize を使ったマニフェスト管理
+### 2.5 Manifest Management with Kustomize
 
 ```yaml
 # base/deployment.yaml
@@ -436,7 +436,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: my-app:v1.2.3  # 本番用のタグを固定
+          image: my-app:v1.2.3  # Pin to a specific production tag
           resources:
             requests:
               cpu: 500m
@@ -469,7 +469,7 @@ spec:
 ### 2.6 Helm + ArgoCD
 
 ```yaml
-# Helm チャートを ArgoCD で管理
+# Managing a Helm chart with ArgoCD
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -511,13 +511,13 @@ spec:
 
 ## 3. Flux
 
-### 3.1 Flux の構成
+### 3.1 Flux Architecture
 
 ```yaml
-# flux-system/gotk-components.yaml (Flux Bootstrap で自動生成)
-# Flux は以下のコントローラーで構成される:
+# flux-system/gotk-components.yaml (auto-generated by Flux Bootstrap)
+# Flux consists of the following controllers:
 
-# 1. Source Controller: Git リポジトリを監視
+# 1. Source Controller: Watches Git repositories
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
@@ -529,9 +529,9 @@ spec:
   ref:
     branch: main
   secretRef:
-    name: git-credentials  # 認証情報
+    name: git-credentials  # Authentication credentials
 
-# 2. Kustomize Controller: マニフェストを適用
+# 2. Kustomize Controller: Applies manifests
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -557,7 +557,7 @@ spec:
 ### 3.2 Flux Bootstrap
 
 ```bash
-# Flux のブートストラップ (GitHub)
+# Bootstrap Flux (GitHub)
 flux bootstrap github \
   --owner=myorg \
   --repository=k8s-manifests \
@@ -565,13 +565,13 @@ flux bootstrap github \
   --path=clusters/production \
   --personal
 
-# ブートストラップ後のディレクトリ構造
+# Directory structure after bootstrap
 k8s-manifests/
 ├── clusters/
 │   └── production/
 │       └── flux-system/
-│           ├── gotk-components.yaml  # Flux コンポーネント
-│           ├── gotk-sync.yaml        # 自己同期設定
+│           ├── gotk-components.yaml  # Flux components
+│           ├── gotk-sync.yaml        # Self-sync configuration
 │           └── kustomization.yaml
 ├── apps/
 │   └── my-app/
@@ -582,10 +582,10 @@ k8s-manifests/
     └── ingress-nginx/
 ```
 
-### 3.3 Flux のイメージ自動更新
+### 3.3 Flux Image Automation
 
 ```yaml
-# イメージリポジトリの監視
+# Monitor image repository
 apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImageRepository
 metadata:
@@ -598,7 +598,7 @@ spec:
     name: ghcr-credentials
 
 ---
-# イメージポリシー: セマンティックバージョニングで最新を選択
+# Image policy: Select latest using semantic versioning
 apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImagePolicy
 metadata:
@@ -612,7 +612,7 @@ spec:
       range: ">=1.0.0"
 
 ---
-# 自動更新設定: Git にコミットを自動作成
+# Auto-update configuration: Automatically create commits in Git
 apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImageUpdateAutomation
 metadata:
@@ -640,7 +640,7 @@ spec:
 ```
 
 ```yaml
-# マニフェストにマーカーを設定 (イメージ自動更新用)
+# Set markers in manifests (for image auto-update)
 # overlays/production/deployment-patch.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -654,10 +654,10 @@ spec:
           image: ghcr.io/myorg/my-app:v1.2.3  # {"$imagepolicy": "flux-system:my-app"}
 ```
 
-### 3.4 Flux の通知設定
+### 3.4 Flux Notification Configuration
 
 ```yaml
-# Slack 通知
+# Slack notification
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Provider
 metadata:
@@ -685,125 +685,125 @@ spec:
     - kind: HelmRelease
       name: '*'
   exclusionList:
-    - ".*upgrade.*"  # アップグレード通知を除外
+    - ".*upgrade.*"  # Exclude upgrade notifications
 ```
 
 ---
 
-## 4. ArgoCD vs Flux 比較
+## 4. ArgoCD vs Flux Comparison
 
-| 項目 | ArgoCD | Flux |
+| Item | ArgoCD | Flux |
 |---|---|---|
-| UI | リッチなWeb UI内蔵 | 別途 Weave GitOps UI |
-| マルチクラスタ | ApplicationSet で対応 | Kustomization のリモート参照 |
-| Helm 対応 | ネイティブ対応 | HelmRelease CRD |
-| SSO/RBAC | 内蔵 (OIDC, LDAP) | Kubernetes RBAC に委任 |
-| イメージ自動更新 | Argo Image Updater | Image Automation Controller |
-| アーキテクチャ | 中央集権型 (Server + UI) | 分散型 (CRD ベース) |
-| 学習コスト | 低 (UIが直感的) | 中 (CRDの理解が必要) |
-| 適用場面 | チームがUIを重視 | 軽量・CRDベースを好む |
-| リソース消費 | 中〜大 (UI+Server) | 小〜中 (Controller のみ) |
-| CNCF ステータス | Graduated | Graduated |
-| Webhook 対応 | あり (即座同期トリガー) | あり (Receiver Controller) |
+| UI | Rich built-in Web UI | Separate Weave GitOps UI |
+| Multi-cluster | Via ApplicationSet | Remote reference in Kustomization |
+| Helm support | Native support | HelmRelease CRD |
+| SSO/RBAC | Built-in (OIDC, LDAP) | Delegated to Kubernetes RBAC |
+| Image auto-update | Argo Image Updater | Image Automation Controller |
+| Architecture | Centralized (Server + UI) | Distributed (CRD-based) |
+| Learning curve | Low (intuitive UI) | Medium (requires understanding CRDs) |
+| Best suited for | Teams that value UI | Lightweight, CRD-based preference |
+| Resource consumption | Medium to large (UI+Server) | Small to medium (Controllers only) |
+| CNCF status | Graduated | Graduated |
+| Webhook support | Yes (immediate sync trigger) | Yes (Receiver Controller) |
 
-### GitOps ツールのデプロイフロー比較
+### GitOps Tool Deployment Flow Comparison
 
-| ステップ | ArgoCD | Flux |
+| Step | ArgoCD | Flux |
 |---|---|---|
-| リポジトリ監視 | Application CRD | GitRepository CRD |
-| 差分検知 | 3分間隔 (デフォルト) | 1分間隔 (設定可能) |
-| マニフェスト生成 | Kustomize/Helm/jsonnet | Kustomize/Helm |
-| 同期 | Sync (自動/手動) | Reconcile (自動) |
-| ヘルスチェック | 内蔵 (多数のリソース対応) | healthChecks フィールド |
-| ロールバック | UI からワンクリック | Git revert → 自動同期 |
+| Repository monitoring | Application CRD | GitRepository CRD |
+| Drift detection | Every 3 minutes (default) | Every 1 minute (configurable) |
+| Manifest generation | Kustomize/Helm/jsonnet | Kustomize/Helm |
+| Sync | Sync (automated/manual) | Reconcile (automated) |
+| Health checks | Built-in (supports many resource types) | healthChecks field |
+| Rollback | One-click from UI | Git revert → auto sync |
 
-### 4.1 選択ガイド
+### 4.1 Selection Guide
 
 ```
-GitOps ツール選定:
+GitOps Tool Selection:
 
-チームが Kubernetes の CRD に慣れている？
-├── Yes → Flux を検討
-│         ├── 軽量で運用コストを抑えたい → Flux
-│         ├── イメージ自動更新が必要 → Flux (Image Automation)
-│         └── 複数のソースからマニフェストを取得 → Flux
-└── No → ArgoCD を検討
-          ├── Web UI でデプロイ状況を可視化したい → ArgoCD
-          ├── マルチクラスタを一元管理したい → ArgoCD (ApplicationSet)
-          ├── SSO/RBAC が必要 → ArgoCD
-          └── 非技術者にもデプロイ状況を共有したい → ArgoCD
+Is the team familiar with Kubernetes CRDs?
+├── Yes → Consider Flux
+│         ├── Want lightweight with low operational cost → Flux
+│         ├── Need image auto-update → Flux (Image Automation)
+│         └── Fetching manifests from multiple sources → Flux
+└── No → Consider ArgoCD
+          ├── Want to visualize deployment status via Web UI → ArgoCD
+          ├── Want centralized multi-cluster management → ArgoCD (ApplicationSet)
+          ├── Need SSO/RBAC → ArgoCD
+          └── Want to share deployment status with non-technical staff → ArgoCD
 ```
 
 ---
 
-## 5. イミュータブルインフラストラクチャ
+## 5. Immutable Infrastructure
 
-### 5.1 ミュータブル vs イミュータブル
+### 5.1 Mutable vs Immutable
 
 ```
-ミュータブル (従来型):
-  サーバーに SSH → パッチ適用 → 設定変更 → 再起動
-  問題: 設定のドリフト、スノーフレークサーバー
+Mutable (Traditional):
+  SSH to server → Apply patch → Change config → Restart
+  Problem: Configuration drift, snowflake servers
 
   Server v1 → patch → Server v1.1 → patch → Server v1.2
-  (同じサーバーを変更し続ける)
+  (Continuously modifying the same server)
 
-イミュータブル (GitOps):
-  新しいイメージをビルド → 古いコンテナを新しいコンテナに置換
-  利点: 再現性、ロールバック容易、ドリフトなし
+Immutable (GitOps):
+  Build a new image → Replace old container with new container
+  Benefits: Reproducibility, easy rollback, no drift
 
-  Container v1 → 破棄
-  Container v2 → 新規作成
-  Container v3 → 新規作成
-  (変更するのではなく、置き換える)
+  Container v1 → Discard
+  Container v2 → Create new
+  Container v3 → Create new
+  (Replace rather than modify)
 ```
 
-### 5.2 GitOps + イミュータブルインフラの完全フロー
+### 5.2 Complete Flow of GitOps + Immutable Infrastructure
 
 ```
-GitOps + イミュータブルインフラの流れ:
+GitOps + Immutable Infrastructure flow:
   ┌────────┐    ┌────────┐    ┌────────────┐    ┌──────────┐
-  │コード変更│ →  │CI: ビルド│ →  │イメージPush │ →  │マニフェスト│
-  │PR merge │    │テスト   │    │ghcr.io/... │    │のタグ更新 │
+  │Code    │ →  │CI:Build│ →  │Image Push  │ →  │Manifest  │
+  │PR merge│    │Test    │    │ghcr.io/... │    │tag update│
   └────────┘    └────────┘    └────────────┘    └────┬─────┘
                                                       │
                                                       ↓
                                                 ┌──────────┐
                                                 │Git commit │
-                                                │(自動/手動) │
+                                                │(auto/manual)│
                                                 └────┬─────┘
                                                       │
                                                       ↓
                                                 ┌──────────┐
                                                 │ArgoCD/Flux│
-                                                │が同期     │
+                                                │syncs      │
                                                 └────┬─────┘
                                                       │
                                                       ↓
                                                 ┌──────────────┐
                                                 │ Rolling Update│
-                                                │ 旧Pod → 新Pod │
+                                                │ Old Pod → New Pod│
                                                 └──────────────┘
 ```
 
-### 5.3 イメージタグ戦略
+### 5.3 Image Tag Strategy
 
 ```
-推奨: タグの不変性を保証する
+Recommended: Guarantee tag immutability
 
-✗ 悪い例: latest タグを上書き
-  image: my-app:latest  # どのバージョンか不明、ロールバック不可
+✗ Bad: Overwriting the latest tag
+  image: my-app:latest  # Unknown version, cannot rollback
 
-✗ 微妙な例: ブランチ名タグ
-  image: my-app:main    # 上書きされる可能性
+✗ Questionable: Branch name tag
+  image: my-app:main    # May be overwritten
 
-○ 良い例: Git SHA タグ
-  image: my-app:abc1234  # 不変、追跡可能
+○ Good: Git SHA tag
+  image: my-app:abc1234  # Immutable, traceable
 
-◎ 最良: セマンティックバージョン + SHA
-  image: my-app:v1.2.3-abc1234  # バージョン + 追跡性
+◎ Best: Semantic version + SHA
+  image: my-app:v1.2.3-abc1234  # Version + traceability
 
-  タグ付けの CI 設定:
+  CI configuration for tagging:
     tags:
       - ghcr.io/myorg/my-app:${{ github.sha }}
       - ghcr.io/myorg/my-app:v${{ steps.version.outputs.value }}
@@ -811,30 +811,30 @@ GitOps + イミュータブルインフラの流れ:
 
 ---
 
-## 6. GitOps のリポジトリ戦略
+## 6. GitOps Repository Strategy
 
-### 6.1 モノレポ vs 分離レポ
+### 6.1 Monorepo vs Separate Repos
 
 ```yaml
-# 戦略1: モノレポ (アプリ + マニフェスト同一リポジトリ)
+# Strategy 1: Monorepo (app code and manifests in the same repository)
 my-app/
-├── src/                    # アプリケーションコード
+├── src/                    # Application code
 ├── Dockerfile
-├── k8s/                    # Kubernetes マニフェスト
+├── k8s/                    # Kubernetes manifests
 │   ├── base/
 │   └── overlays/
 └── .github/workflows/      # CI/CD
 
-# メリット: シンプル、アプリとインフラの変更を一緒にレビュー
-# デメリット: CI が頻繁にマニフェスト変更で発火、権限分離が困難
+# Pros: Simple, review app and infra changes together
+# Cons: CI fires frequently on manifest changes, difficult to separate permissions
 
-# 戦略2: 分離レポ (推奨)
-my-app/                     # アプリリポジトリ
+# Strategy 2: Separate repos (recommended)
+my-app/                     # Application repository
 ├── src/
 ├── Dockerfile
 └── .github/workflows/
 
-k8s-manifests/              # マニフェストリポジトリ
+k8s-manifests/              # Manifest repository
 ├── apps/
 │   ├── my-app/
 │   │   ├── base/
@@ -848,15 +848,15 @@ k8s-manifests/              # マニフェストリポジトリ
     ├── staging/
     └── production/
 
-# メリット: 関心の分離、アクセス制御、CI/CD の独立
-# デメリット: リポジトリ間の連携が必要
+# Pros: Separation of concerns, access control, independent CI/CD
+# Cons: Requires coordination between repositories
 ```
 
-### 6.2 マニフェストリポジトリの推奨構成
+### 6.2 Recommended Manifest Repository Structure
 
 ```
 k8s-manifests/
-├── apps/                          # アプリケーション
+├── apps/                          # Applications
 │   ├── frontend/
 │   │   ├── base/
 │   │   │   ├── deployment.yaml
@@ -875,19 +875,19 @@ k8s-manifests/
 │   └── worker/
 │       ├── base/
 │       └── overlays/
-├── infrastructure/                # インフラコンポーネント
+├── infrastructure/                # Infrastructure components
 │   ├── cert-manager/
 │   │   ├── namespace.yaml
-│   │   ├── helmrelease.yaml       # Helm リリース定義
+│   │   ├── helmrelease.yaml       # Helm release definition
 │   │   └── kustomization.yaml
 │   ├── ingress-nginx/
 │   ├── external-secrets/
 │   ├── prometheus-stack/
 │   └── kustomization.yaml
-├── clusters/                      # クラスタ別設定
+├── clusters/                      # Per-cluster configuration
 │   ├── dev/
-│   │   ├── apps.yaml             # どのアプリをデプロイするか
-│   │   └── infrastructure.yaml   # どのインフラをデプロイするか
+│   │   ├── apps.yaml             # Which apps to deploy
+│   │   └── infrastructure.yaml   # Which infra to deploy
 │   ├── staging/
 │   └── production/
 └── README.md
@@ -895,17 +895,17 @@ k8s-manifests/
 
 ---
 
-## 7. シークレット管理
+## 7. Secret Management
 
-GitOps では全ての状態を Git に保存するが、シークレット(パスワード、APIキー等)をそのままGitにコミットすることはセキュリティ上許容されない。以下の3つのアプローチが主流である。
+In GitOps, all state is stored in Git, but committing secrets (passwords, API keys, etc.) directly to Git is not acceptable from a security standpoint. The following three approaches are mainstream.
 
 ### 7.1 Sealed Secrets
 
 ```yaml
-# Sealed Secrets: クラスタの公開鍵で暗号化して Git に保存
-# 暗号化されたシークレットは Git にコミット可能
+# Sealed Secrets: Encrypt with the cluster's public key and store in Git
+# Encrypted secrets can be committed to Git
 
-# 1. kubeseal でシークレットを暗号化
+# 1. Encrypt a secret with kubeseal
 # kubeseal < secret.yaml > sealed-secret.yaml
 
 apiVersion: bitnami.com/v1alpha1
@@ -915,8 +915,8 @@ metadata:
   namespace: production
 spec:
   encryptedData:
-    password: AgBy3i4OJSWK+PiTySYZZA9rO43cGDEq...  # 暗号化済み
-    username: AgBy3i4OJSWK+PiTySYZZA9rO43cGDEq...  # 暗号化済み
+    password: AgBy3i4OJSWK+PiTySYZZA9rO43cGDEq...  # Encrypted
+    username: AgBy3i4OJSWK+PiTySYZZA9rO43cGDEq...  # Encrypted
   template:
     metadata:
       name: db-credentials
@@ -927,10 +927,10 @@ spec:
 ### 7.2 External Secrets Operator
 
 ```yaml
-# External Secrets Operator: 外部シークレットストアから取得
-# AWS Secrets Manager, HashiCorp Vault, GCP Secret Manager 等と連携
+# External Secrets Operator: Fetch from external secret stores
+# Integrates with AWS Secrets Manager, HashiCorp Vault, GCP Secret Manager, etc.
 
-# ClusterSecretStore の定義
+# ClusterSecretStore definition
 apiVersion: external-secrets.io/v1beta1
 kind: ClusterSecretStore
 metadata:
@@ -947,7 +947,7 @@ spec:
             namespace: external-secrets
 
 ---
-# ExternalSecret: AWS Secrets Manager からシークレットを取得
+# ExternalSecret: Fetch secrets from AWS Secrets Manager
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
@@ -973,17 +973,17 @@ spec:
 ### 7.3 SOPS (Secrets OPerationS)
 
 ```yaml
-# SOPS: Mozilla が開発した暗号化ツール
-# AGE, PGP, AWS KMS, GCP KMS, Azure Key Vault で暗号化
+# SOPS: Encryption tool developed by Mozilla
+# Encrypts with AGE, PGP, AWS KMS, GCP KMS, Azure Key Vault
 
-# .sops.yaml (暗号化ルール)
+# .sops.yaml (encryption rules)
 creation_rules:
   - path_regex: .*secrets.*\.yaml$
     age: age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
   - path_regex: .*prod.*secrets.*\.yaml$
     kms: arn:aws:kms:ap-northeast-1:123456789012:key/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
-# 暗号化されたファイル例
+# Example of encrypted file
 apiVersion: v1
 kind: Secret
 metadata:
@@ -1005,7 +1005,7 @@ sops:
 ```
 
 ```yaml
-# Flux での SOPS 統合
+# SOPS integration with Flux
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -1015,7 +1015,7 @@ spec:
   decryption:
     provider: sops
     secretRef:
-      name: sops-age  # AGE キーを含む Secret
+      name: sops-age  # Secret containing the AGE key
   interval: 5m
   path: ./overlays/production
   prune: true
@@ -1024,26 +1024,26 @@ spec:
     name: my-app
 ```
 
-### 7.4 シークレット管理の比較
+### 7.4 Secret Management Comparison
 
-| 項目 | Sealed Secrets | External Secrets | SOPS |
+| Item | Sealed Secrets | External Secrets | SOPS |
 |---|---|---|---|
-| 暗号化場所 | クラスタ内 | 外部サービス | ローカル/CI |
-| 復号場所 | クラスタ内 | クラスタ内 | クラスタ内 |
-| Git に保存 | 暗号化済みOK | 参照のみ | 暗号化済みOK |
-| ローテーション | 手動 | 外部サービスで自動 | 手動 |
-| 複数クラスタ | クラスタごとに再暗号化 | 共通の外部ストア | 共通キーで暗号化 |
-| 依存関係 | クラスタ公開鍵 | 外部サービス | 暗号化キー |
-| 推奨場面 | シンプルな構成 | エンタープライズ | マルチ環境 |
+| Encryption location | Within cluster | External service | Local/CI |
+| Decryption location | Within cluster | Within cluster | Within cluster |
+| Store in Git | Encrypted OK | Reference only | Encrypted OK |
+| Rotation | Manual | Automated via external service | Manual |
+| Multi-cluster | Re-encrypt per cluster | Shared external store | Shared key encryption |
+| Dependencies | Cluster public key | External service | Encryption key |
+| Best suited for | Simple configurations | Enterprise | Multi-environment |
 
 ---
 
-## 8. CI パイプラインとGitOpsの連携
+## 8. Integration Between CI Pipelines and GitOps
 
-### 8.1 典型的な連携フロー
+### 8.1 Typical Integration Flow
 
 ```yaml
-# アプリリポジトリの CI (GitOps 連携)
+# CI for app repository (GitOps integration)
 name: CI + GitOps Deploy
 on:
   push:
@@ -1091,13 +1091,13 @@ jobs:
           git commit -m "chore: update my-app image to ${{ github.sha }}"
           git push
 
-      # この後、ArgoCD/Flux が変更を検知して自動デプロイ
+      # After this, ArgoCD/Flux detects the change and deploys automatically
 ```
 
-### 8.2 PR ベースのデプロイフロー
+### 8.2 PR-Based Deployment Flow
 
 ```yaml
-# 本番デプロイを PR 経由で行う (より安全なアプローチ)
+# Deploy to production via PR (safer approach)
 name: Create Deploy PR
 on:
   push:
@@ -1138,69 +1138,69 @@ jobs:
 
 ---
 
-## 9. 運用とトラブルシューティング
+## 9. Operations and Troubleshooting
 
-### 9.1 ArgoCD のトラブルシューティング
+### 9.1 ArgoCD Troubleshooting
 
 ```bash
-# 同期状態の確認
+# Check sync status
 argocd app get my-app
 
-# 同期の詳細ログ
+# Detailed sync logs
 argocd app sync my-app --dry-run
 argocd app sync my-app --force
 
-# 差分の確認
+# Check diff
 argocd app diff my-app
 
-# リソースの状態確認
+# Check resource status
 argocd app resources my-app
 
-# 同期履歴
+# Sync history
 argocd app history my-app
 
-# ロールバック
+# Rollback
 argocd app rollback my-app <HISTORY_ID>
 
-# Webhook の手動トリガー
+# Manually trigger webhook
 argocd app sync my-app --revision HEAD
 ```
 
-### 9.2 よくある問題と対処法
+### 9.2 Common Issues and Solutions
 
 ```
-問題1: OutOfSync が解消しない
-原因: ignoreDifferences の設定漏れ
-対処:
-  - HPA が replicas を変更 → ignoreDifferences に /spec/replicas を追加
-  - Webhook が Last Applied を変更 → metadata.annotations を除外
-  - Operator が Status を更新 → status フィールドを無視
+Issue 1: OutOfSync does not resolve
+Cause: Missing ignoreDifferences configuration
+Fix:
+  - HPA changes replicas → Add /spec/replicas to ignoreDifferences
+  - Webhook changes Last Applied → Exclude metadata.annotations
+  - Operator updates Status → Ignore status field
 
-問題2: Sync Failed - ComparisonError
-原因: マニフェストの構文エラー、CRD 未インストール
-対処:
-  - kustomize build でローカル検証
-  - CRD が先にインストールされているか確認
-  - sync-wave アノテーションで順序制御
+Issue 2: Sync Failed - ComparisonError
+Cause: Manifest syntax error, CRD not installed
+Fix:
+  - Validate locally with kustomize build
+  - Confirm CRDs are installed first
+  - Control order with sync-wave annotation
 
-問題3: ImagePullBackOff
-原因: イメージタグの不一致、レジストリ認証エラー
-対処:
-  - イメージタグが正しいか確認
-  - imagePullSecrets の設定確認
-  - ECR/GHCR のトークン有効期限確認
+Issue 3: ImagePullBackOff
+Cause: Image tag mismatch, registry authentication error
+Fix:
+  - Verify the image tag is correct
+  - Check imagePullSecrets configuration
+  - Check token expiration for ECR/GHCR
 ```
 
-### 9.3 Sync Wave (同期順序の制御)
+### 9.3 Sync Wave (Controlling Sync Order)
 
 ```yaml
-# CRD を先にインストールし、次にアプリケーションを同期
+# Install CRDs first, then sync applications
 apiVersion: v1
 kind: Namespace
 metadata:
   name: cert-manager
   annotations:
-    argocd.argoproj.io/sync-wave: "-2"  # 最初に作成
+    argocd.argoproj.io/sync-wave: "-2"  # Create first
 
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -1208,7 +1208,7 @@ kind: Application
 metadata:
   name: cert-manager
   annotations:
-    argocd.argoproj.io/sync-wave: "-1"  # 名前空間の後
+    argocd.argoproj.io/sync-wave: "-1"  # After namespace
 spec:
   source:
     repoURL: https://charts.jetstack.io
@@ -1221,7 +1221,7 @@ kind: Application
 metadata:
   name: my-app
   annotations:
-    argocd.argoproj.io/sync-wave: "0"   # cert-manager の後
+    argocd.argoproj.io/sync-wave: "0"   # After cert-manager
 spec:
   source:
     repoURL: https://github.com/myorg/k8s-manifests.git
@@ -1230,113 +1230,113 @@ spec:
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン1: Git を経由しない手動変更
-
-```
-問題:
-  kubectl apply -f ... で直接クラスタに変更を適用する
-
-  Git の状態: replicas: 3
-  クラスタの状態: replicas: 5 (kubectl scale で手動変更)
-
-  → ArgoCD が差分を検知し、replicas: 3 に戻してしまう
-  → または selfHeal が無効の場合、ドリフトが放置される
-
-改善:
-  - selfHeal: true を有効にする
-  - kubectl での直接変更を禁止する RBAC 設定
-  - 全ての変更は Git PR 経由で行うルールを徹底
-  - 緊急時の手順書にも「PR 経由」を明記
-  - kubectl の write 権限を限定的な緊急用 ServiceAccount のみに付与
-```
-
-### アンチパターン2: シークレットを Git にコミット
+### Anti-Pattern 1: Manual Changes That Bypass Git
 
 ```
-問題:
-  データベースパスワードや API キーを平文で Git にコミット
-  → セキュリティ事故
+Problem:
+  Apply changes directly to the cluster using kubectl apply -f ...
 
-改善手段:
-  1. Sealed Secrets: クラスタの公開鍵で暗号化して Git に保存
-  2. External Secrets Operator: AWS Secrets Manager 等から取得
-  3. SOPS (Mozilla): 暗号化して Git に保存、復号は CI/CD で
-  4. Vault Agent: HashiCorp Vault からランタイムで取得
+  Git state: replicas: 3
+  Cluster state: replicas: 5 (manually changed with kubectl scale)
+
+  → ArgoCD detects the drift and reverts replicas back to 3
+  → Or, if selfHeal is disabled, the drift is left unaddressed
+
+Solution:
+  - Enable selfHeal: true
+  - Configure RBAC to prohibit direct kubectl changes
+  - Enforce the rule that all changes go through Git PRs
+  - Specify "via PR" in emergency runbooks as well
+  - Limit kubectl write access to emergency-only ServiceAccounts
 ```
 
-### アンチパターン3: latest タグの使用
+### Anti-Pattern 2: Committing Secrets to Git
 
 ```
-問題:
-  image: my-app:latest で GitOps を運用
-  → どのバージョンがデプロイされているか不明
-  → ロールバック不可
-  → ArgoCD が差分を検知できない(タグは同じだが中身が違う)
+Problem:
+  Committing database passwords or API keys in plaintext to Git
+  → Security incident
 
-改善:
-  - 必ず不変のタグ(Git SHA、セマンティックバージョン)を使用
-  - imagePullPolicy: Always は使わない
-  - イメージタグの更新は Git コミットで管理
+Solutions:
+  1. Sealed Secrets: Encrypt with cluster public key and store in Git
+  2. External Secrets Operator: Fetch from AWS Secrets Manager, etc.
+  3. SOPS (Mozilla): Encrypt and store in Git, decrypt in CI/CD
+  4. Vault Agent: Fetch from HashiCorp Vault at runtime
 ```
 
-### アンチパターン4: 全環境を1つの Application で管理
+### Anti-Pattern 3: Using the latest Tag
 
 ```
-問題:
-  dev/staging/production を1つの ArgoCD Application で管理
-  → 環境ごとの独立したデプロイができない
-  → dev の変更が production に影響
+Problem:
+  Running GitOps with image: my-app:latest
+  → Unknown which version is deployed
+  → Cannot rollback
+  → ArgoCD cannot detect drift (same tag but different content)
 
-改善:
-  - 環境ごとに別々の Application を定義
-  - ApplicationSet で環境パラメータを変数化
-  - overlays で環境ごとの差分を管理
+Solution:
+  - Always use immutable tags (Git SHA, semantic version)
+  - Do not use imagePullPolicy: Always
+  - Manage image tag updates via Git commits
+```
+
+### Anti-Pattern 4: Managing All Environments in a Single Application
+
+```
+Problem:
+  Managing dev/staging/production in a single ArgoCD Application
+  → Cannot deploy independently per environment
+  → Changes in dev affect production
+
+Solution:
+  - Define separate Applications per environment
+  - Parameterize environments with ApplicationSet
+  - Manage per-environment differences with overlays
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
             raise ValueError("入力値がNoneです")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1354,17 +1354,17 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1372,7 +1372,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1383,14 +1383,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1398,7 +1398,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1406,13 +1406,13 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
@@ -1423,27 +1423,27 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1452,7 +1452,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1474,40 +1474,40 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithmic complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured configuration file | Verify configuration file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check running user permissions, review configuration |
+| Data inconsistency | Concurrent processing conflict | Introduce locking mechanism, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Step-by-step verification**: Use log output or a debugger to validate hypotheses
+5. **Fix and regression test**: After fixing, run tests for related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1515,7 +1515,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
         logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
@@ -1531,86 +1531,86 @@ def debug_decorator(func):
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
         raise ValueError("空のデータ")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O wait**: Review disk and network I/O status
+4. **Check concurrent connections**: Review connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
+| Issue type | Diagnostic tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology decisions.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criteria | Prioritize when | Can compromise when |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin interfaces, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing Architecture Patterns
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to ②             │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② What is the deployment frequency?            │
+│    ├─ Weekly or less → Monolith + module split  │
+│    └─ Daily/multiple times → Go to ③           │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are the teams?               │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering increases short-term cost and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows using the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- Higher abstraction improves reusability but can make debugging harder
+- Lower abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1620,17 +1620,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1638,7 +1638,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1646,7 +1646,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
         md += f"## 背景\n{self.context}\n\n"
         md += f"## 決定\n{self.decision}\n\n"
@@ -1662,53 +1662,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum required features
+- Automate tests only for critical paths
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Do not strive for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually replacing a system that has been running for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Create Characterization Tests first if existing tests are absent
+- Coexist old and new systems with an API gateway
+- Perform data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Tasks | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Start migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use domain-driven design to clarify boundaries
+- Assign ownership per team
+- Manage shared libraries via Inner Source model
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1721,20 +1721,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1743,7 +1743,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1764,96 +1764,96 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level responses
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leverage asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization technique | Effect | Implementation cost | When to apply |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 ---
 
 ## 11. FAQ
 
-### Q1: GitOps は Kubernetes 以外でも使えるか？
+### Q1: Can GitOps be used outside of Kubernetes?
 
-原理的にはイエス。GitOps の本質は「Git をSingle Source of Truth として宣言的状態を自動同期する」ことであり、Kubernetes に限定されない。Terraform + Atlantis / Spacelift でインフラに GitOps を適用したり、Crossplane で任意のクラウドリソースを Kubernetes CRD として管理する方法もある。ただし、ツールの成熟度は Kubernetes エコシステムが最も高い。
+In principle, yes. The essence of GitOps is "using Git as the Single Source of Truth to automatically sync declarative state," which is not limited to Kubernetes. It is also possible to apply GitOps to infrastructure using Terraform + Atlantis/Spacelift, or manage any cloud resource as Kubernetes CRDs with Crossplane. However, the maturity of tooling is highest within the Kubernetes ecosystem.
 
-### Q2: GitOps でのロールバックはどう行うか？
+### Q2: How do you perform a rollback in GitOps?
 
-Git revert で前のバージョンのコミットを作成し、PR をマージする。ArgoCD/Flux がその変更を検知して自動同期する。これにより「ロールバックもGitの履歴に残る」という利点がある。ArgoCD のUIからは過去の同期ポイントに直接ロールバックすることも可能。ただし、データベースマイグレーションを伴う場合は単純な revert では対応できないため、別途手順が必要。
+Use `git revert` to create a new commit reverting to the previous version, then merge the PR. ArgoCD/Flux detects the change and syncs automatically. This has the advantage that "rollbacks also remain in the Git history." In ArgoCD's UI, you can also directly rollback to a previous sync point. However, if the rollback involves database migrations, a simple revert is not sufficient and a separate procedure is required.
 
-### Q3: CI パイプラインと GitOps はどう連携するか？
+### Q3: How do CI pipelines integrate with GitOps?
 
-典型的なフローは (1) アプリリポジトリで CI がビルド・テスト・イメージプッシュ、(2) CI がマニフェストリポジトリの PR を自動作成(イメージタグ更新)、(3) PR レビュー・マージ、(4) ArgoCD/Flux が自動同期。CI はイメージ作成まで、デプロイは GitOps エージェントが担当する責務分離が重要。
+A typical flow is: (1) CI builds, tests, and pushes images in the app repository; (2) CI automatically creates a PR in the manifest repository (updating the image tag); (3) PR review and merge; (4) ArgoCD/Flux syncs automatically. The key is the separation of responsibilities: CI handles up to image creation, and the GitOps agent handles deployment.
 
-### Q4: GitOps で DB マイグレーションはどう扱うか？
+### Q4: How are DB migrations handled in GitOps?
 
-DB マイグレーションは宣言的ではなく命令的な操作であるため、GitOps の原則に完全には適合しない。一般的なアプローチは、(1) Init Container でマイグレーションを実行、(2) Kubernetes Job としてマイグレーションを実行、(3) ArgoCD の PreSync Hook でマイグレーションを実行。いずれの場合もロールバック戦略を事前に定義しておくことが重要。
+DB migrations are imperative rather than declarative, so they do not fully align with GitOps principles. Common approaches are: (1) Run migrations in an Init Container; (2) Run migrations as a Kubernetes Job; (3) Run migrations in ArgoCD's PreSync Hook. In all cases, it is important to define a rollback strategy in advance.
 
-### Q5: マルチクラスタの GitOps はどう設計するか？
+### Q5: How do you design multi-cluster GitOps?
 
-ArgoCD の場合は ApplicationSet を使い、クラスタごとに異なるパラメータ(URL, 環境名, レプリカ数等)を指定する。Hub-and-Spoke モデル(中央の管理クラスタから各クラスタを制御)が一般的。Flux の場合は各クラスタに Flux をインストールし、同じ Git リポジトリの異なるパス(clusters/dev/, clusters/prod/)を参照させる。
+For ArgoCD, use ApplicationSet to specify different parameters per cluster (URL, environment name, replica count, etc.). A Hub-and-Spoke model (controlling each cluster from a central management cluster) is common. For Flux, install Flux on each cluster and have it reference different paths in the same Git repository (clusters/dev/, clusters/prod/).
 
-### Q6: GitOps の導入を段階的に進めるには？
+### Q6: How do you gradually introduce GitOps?
 
-Phase 1: 開発環境のみ GitOps 化(ArgoCD/Flux のインストール、1アプリの同期)、Phase 2: ステージング環境に拡大(ApplicationSet でマルチ環境)、Phase 3: 本番環境に適用(Protection Rules, シークレット管理)、Phase 4: インフラコンポーネントも GitOps 化(cert-manager, ingress 等)。各フェーズで1-2ヶ月の安定稼働を確認してから次に進む。
+Phase 1: GitOps for the development environment only (install ArgoCD/Flux, sync one app). Phase 2: Expand to staging (multi-environment with ApplicationSet). Phase 3: Apply to production (Protection Rules, secret management). Phase 4: Also GitOps-ify infrastructure components (cert-manager, ingress, etc.). Confirm stable operation for 1-2 months at each phase before proceeding to the next.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in daily development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| GitOps の本質 | Git が唯一の信頼源、宣言的、プルベース、自動リコンサイル |
-| プル型の利点 | 認証情報の局所化、ドリフト自動修復、監査証跡 |
-| ArgoCD | リッチUI、マルチクラスタ、ApplicationSet、直感的 |
-| Flux | 軽量、CRDベース、イメージ自動更新、SOPS統合 |
-| イミュータブル | 変更するのではなく置き換える、不変タグ必須 |
-| シークレット管理 | Sealed Secrets / External Secrets / SOPS |
-| リポジトリ戦略 | アプリとマニフェストを分離(推奨) |
-| CI連携 | CIはイメージ作成まで、デプロイはGitOpsエージェント |
-| トラブルシューティング | argocd app diff/sync、ログ確認、sync-wave |
+| Essence of GitOps | Git is the single source of truth, declarative, pull-based, auto-reconcile |
+| Benefits of pull-based | Localized credentials, automatic drift repair, audit trail |
+| ArgoCD | Rich UI, multi-cluster, ApplicationSet, intuitive |
+| Flux | Lightweight, CRD-based, image auto-update, SOPS integration |
+| Immutable | Replace rather than modify, immutable tags required |
+| Secret management | Sealed Secrets / External Secrets / SOPS |
+| Repository strategy | Separate app and manifests (recommended) |
+| CI integration | CI handles up to image creation; GitOps agent handles deployment |
+| Troubleshooting | argocd app diff/sync, check logs, sync-wave |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [コンテナデプロイ](../02-deployment/02-container-deployment.md) -- Kubernetes でのデプロイ実践
-- [デプロイ戦略](../02-deployment/00-deployment-strategies.md) -- Canary、Blue-Green との組合せ
-- [Actions セキュリティ](../01-github-actions/04-security-actions.md) -- OIDC連携とセキュアなCI
-- [Infrastructure as Code](./02-infrastructure-as-code.md) -- IaCとGitOpsの連携
+- [Container Deployment](../02-deployment/02-container-deployment.md) -- Deployment practice on Kubernetes
+- [Deployment Strategies](../02-deployment/00-deployment-strategies.md) -- Combining with Canary, Blue-Green
+- [Actions Security](../01-github-actions/04-security-actions.md) -- OIDC integration and secure CI
+- [Infrastructure as Code](./02-infrastructure-as-code.md) -- Integration of IaC and GitOps
 
 ---
 
-## 参考文献
+## References
 
 1. OpenGitOps. "GitOps Principles." https://opengitops.dev/
 2. Argo Project. "Argo CD - Declarative GitOps CD for Kubernetes." https://argo-cd.readthedocs.io/
