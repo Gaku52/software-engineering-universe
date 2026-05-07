@@ -1,103 +1,103 @@
-# クラウドデプロイ
+# Cloud Deployment
 
-> AWS、Vercel、Cloudflare Workers への実践的なデプロイ手法を習得し、プロジェクト特性に応じた最適なプラットフォームを選択する
+> Master practical deployment techniques for AWS, Vercel, and Cloudflare Workers, and select the optimal platform based on your project's characteristics
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **AWS (ECS/Lambda/S3+CloudFront) へのデプロイ** — IaC を活用した本格的なクラウドインフラ構築とデプロイ自動化
-2. **Vercel/Netlify によるフロントエンドデプロイ** — Git 連携による自動デプロイとプレビュー環境の活用
-3. **Cloudflare Workers によるエッジデプロイ** — エッジコンピューティングの特性を活かしたサーバーレスデプロイ
-4. **AWS ECS/Fargate によるコンテナデプロイ** — Docker コンテナを活用したスケーラブルなアプリケーション運用
-5. **GCP Cloud Run / Firebase Hosting** — Google Cloud のマネージドサービスを利用した効率的なデプロイ
-6. **マルチクラウド戦略** — 複数のクラウドプロバイダを組み合わせた最適なアーキテクチャ設計
+1. **Deploying to AWS (ECS/Lambda/S3+CloudFront)** — Building production-grade cloud infrastructure and automating deployments with IaC
+2. **Frontend Deployment with Vercel/Netlify** — Automated deployments via Git integration and leveraging preview environments
+3. **Edge Deployment with Cloudflare Workers** — Serverless deployment taking advantage of edge computing characteristics
+4. **Container Deployment with AWS ECS/Fargate** — Scalable application operations using Docker containers
+5. **GCP Cloud Run / Firebase Hosting** — Efficient deployment using Google Cloud managed services
+6. **Multi-Cloud Strategy** — Optimal architecture design combining multiple cloud providers
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [デプロイ戦略](./00-deployment-strategies.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Deployment Strategies](./00-deployment-strategies.md)
 
 ---
 
-## 1. クラウドデプロイの全体像
+## 1. Cloud Deployment Overview
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│               クラウドデプロイの選択肢                       │
+│               Cloud Deployment Options                    │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  ┌─────────────────┐  フルコントロール / 高い柔軟性        │
+│  ┌─────────────────┐  Full control / High flexibility   │
 │  │   AWS / GCP     │  EC2, ECS, EKS, Lambda              │
-│  │   Azure         │  複雑だが何でもできる                  │
+│  │   Azure         │  Complex but can do anything        │
 │  └────────┬────────┘                                     │
 │           │                                              │
-│  ┌────────▼────────┐  フロントエンド特化 / DX 重視         │
-│  │  Vercel         │  Next.js 最適化、プレビュー環境       │
-│  │  Netlify        │  JAMstack、フォーム/認証内蔵          │
+│  ┌────────▼────────┐  Frontend-focused / DX-first        │
+│  │  Vercel         │  Next.js optimized, preview envs   │
+│  │  Netlify        │  JAMstack, built-in forms/auth      │
 │  └────────┬────────┘                                     │
 │           │                                              │
-│  ┌────────▼────────┐  エッジ特化 / 超低レイテンシ          │
-│  │  Cloudflare     │  Workers、R2、KV、D1                 │
-│  │  Workers        │  V8 Isolate ベース                   │
+│  ┌────────▼────────┐  Edge-focused / Ultra-low latency   │
+│  │  Cloudflare     │  Workers, R2, KV, D1                 │
+│  │  Workers        │  V8 Isolate based                    │
 │  └─────────────────┘                                     │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 プラットフォーム選択のデシジョンツリー
+### 1.1 Platform Selection Decision Tree
 
 ```
-プロジェクト要件を確認
+Review project requirements
 │
-├── フロントエンドのみ（SSG/SSR）？
-│   ├── Next.js → Vercel（最適化済み）
+├── Frontend only (SSG/SSR)?
+│   ├── Next.js → Vercel (optimized)
 │   ├── Astro/Gatsby → Netlify or Cloudflare Pages
 │   └── SPA (React/Vue) → S3+CloudFront or Cloudflare Pages
 │
-├── API バックエンドが必要？
-│   ├── リクエスト駆動型（軽量）→ Lambda or Workers
-│   ├── 常時稼働型（WebSocket等）→ ECS/Fargate or Cloud Run
-│   └── ステートフル → ECS/EKS + EBS/EFS
+├── API backend needed?
+│   ├── Request-driven (lightweight) → Lambda or Workers
+│   ├── Always-on (WebSocket, etc.) → ECS/Fargate or Cloud Run
+│   └── Stateful → ECS/EKS + EBS/EFS
 │
-├── エッジ処理が必要？
-│   ├── A/B テスト → Cloudflare Workers or Lambda@Edge
-│   ├── 地理的ルーティング → CloudFront Functions or Workers
-│   └── リアルタイム変換 → Workers（Streams API）
+├── Edge processing needed?
+│   ├── A/B testing → Cloudflare Workers or Lambda@Edge
+│   ├── Geographic routing → CloudFront Functions or Workers
+│   └── Real-time transformation → Workers (Streams API)
 │
-└── VPC 内リソースへのアクセスが必要？
+└── Access to resources inside VPC needed?
     ├── RDS/ElastiCache → Lambda (VPC) or ECS
-    └── オンプレミス連携 → ECS + VPN/Direct Connect
+    └── On-premises integration → ECS + VPN/Direct Connect
 ```
 
-### 1.2 デプロイの成熟度モデル
+### 1.2 Deployment Maturity Model
 
 ```
-Level 0: 手動デプロイ
-  └── FTP/SCP でファイルを直接配置、サーバーに SSH して操作
+Level 0: Manual deployment
+  └── Place files directly via FTP/SCP, operate by SSH into server
 
-Level 1: スクリプトベース
-  └── デプロイスクリプト（シェルスクリプト/Makefile）で半自動化
+Level 1: Script-based
+  └── Semi-automated with deployment scripts (shell scripts/Makefile)
 
-Level 2: CI/CD パイプライン
-  └── GitHub Actions/Jenkins で自動ビルド＆デプロイ
+Level 2: CI/CD pipeline
+  └── Automated build & deploy with GitHub Actions/Jenkins
 
 Level 3: IaC + GitOps
-  └── Terraform/CDK でインフラ定義、Git 操作でデプロイトリガー
+  └── Infrastructure defined with Terraform/CDK, deployments triggered by Git operations
 
-Level 4: プログレッシブデリバリー
-  └── Canary/Blue-Green + 自動ロールバック + 観測性統合
+Level 4: Progressive delivery
+  └── Canary/Blue-Green + automated rollback + observability integration
 ```
 
 ---
 
-## 2. AWS デプロイ — S3 + CloudFront (静的サイト)
+## 2. AWS Deployment — S3 + CloudFront (Static Site)
 
-### 2.1 基本デプロイワークフロー
+### 2.1 Basic Deployment Workflow
 
 ```yaml
-# GitHub Actions — S3 + CloudFront デプロイ
+# GitHub Actions — S3 + CloudFront deployment
 name: Deploy to AWS S3 + CloudFront
 
 on:
@@ -138,7 +138,7 @@ jobs:
             --cache-control "public, max-age=31536000, immutable" \
             --exclude "index.html"
 
-          # index.html はキャッシュしない
+          # index.html should not be cached
           aws s3 cp dist/index.html s3://my-app-bucket/index.html \
             --cache-control "no-cache, no-store, must-revalidate"
 
@@ -149,11 +149,11 @@ jobs:
             --paths "/index.html" "/sw.js"
 ```
 
-### 2.2 Terraform による S3 + CloudFront インフラ定義
+### 2.2 S3 + CloudFront Infrastructure Definition with Terraform
 
 ```hcl
 # terraform/modules/static-site/main.tf
-# S3 バケット（静的サイトホスティング用）
+# S3 bucket (for static site hosting)
 resource "aws_s3_bucket" "site" {
   bucket = "${var.project_name}-${var.environment}-site"
 
@@ -171,7 +171,7 @@ resource "aws_s3_bucket_versioning" "site" {
   }
 }
 
-# S3 バケットポリシー（CloudFront OAC からのアクセスのみ許可）
+# S3 bucket policy (allow access only from CloudFront OAC)
 resource "aws_s3_bucket_policy" "site" {
   bucket = aws_s3_bucket.site.id
   policy = jsonencode({
@@ -202,7 +202,7 @@ resource "aws_cloudfront_origin_access_control" "site" {
   signing_protocol                  = "sigv4"
 }
 
-# CloudFront ディストリビューション
+# CloudFront distribution
 resource "aws_cloudfront_distribution" "site" {
   origin {
     domain_name              = aws_s3_bucket.site.bucket_regional_domain_name
@@ -213,7 +213,7 @@ resource "aws_cloudfront_distribution" "site" {
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
-  price_class         = "PriceClass_200"  # 北米+欧州+アジア
+  price_class         = "PriceClass_200"  # North America + Europe + Asia
 
   aliases = var.domain_names
 
@@ -224,14 +224,14 @@ resource "aws_cloudfront_distribution" "site" {
     viewer_protocol_policy = "redirect-to-https"
     compress               = true
 
-    # マネージドキャッシュポリシー: CachingOptimized
+    # Managed cache policy: CachingOptimized
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
 
-    # レスポンスヘッダーポリシー: SecurityHeadersPolicy
+    # Response headers policy: SecurityHeadersPolicy
     response_headers_policy_id = "67f7725c-6f97-4210-82d7-5512b31e9d03"
   }
 
-  # SPA 用: 404 を index.html にフォールバック
+  # For SPA: fall back 404 to index.html
   custom_error_response {
     error_code            = 404
     response_code         = 200
@@ -264,7 +264,7 @@ resource "aws_cloudfront_distribution" "site" {
   }
 }
 
-# Route 53 レコード
+# Route 53 record
 resource "aws_route53_record" "site" {
   for_each = toset(var.domain_names)
 
@@ -279,7 +279,7 @@ resource "aws_route53_record" "site" {
   }
 }
 
-# 出力
+# Outputs
 output "cloudfront_distribution_id" {
   value = aws_cloudfront_distribution.site.id
 }
@@ -293,51 +293,51 @@ output "s3_bucket_name" {
 }
 ```
 
-### 2.3 高度なキャッシュ戦略
+### 2.3 Advanced Cache Strategy
 
 ```yaml
-# GitHub Actions — アセット種別ごとのキャッシュ制御付きデプロイ
+# GitHub Actions — deployment with per-asset-type cache control
 - name: Deploy with granular cache control
   run: |
-    # JavaScript/CSS（ハッシュ付きファイル名）: 1年キャッシュ
+    # JavaScript/CSS (hashed filenames): 1-year cache
     aws s3 sync dist/assets/ s3://$BUCKET/assets/ \
       --delete \
       --cache-control "public, max-age=31536000, immutable" \
       --content-encoding gzip
 
-    # 画像ファイル: 1ヶ月キャッシュ
+    # Image files: 1-month cache
     aws s3 sync dist/images/ s3://$BUCKET/images/ \
       --delete \
       --cache-control "public, max-age=2592000"
 
-    # フォントファイル: 1年キャッシュ（CORS ヘッダー付き）
+    # Font files: 1-year cache (with CORS headers)
     aws s3 sync dist/fonts/ s3://$BUCKET/fonts/ \
       --delete \
       --cache-control "public, max-age=31536000, immutable" \
       --content-type "font/woff2"
 
-    # HTML ファイル: キャッシュなし（常に最新を取得）
+    # HTML files: no cache (always fetch latest)
     find dist/ -name "*.html" -exec \
       aws s3 cp {} s3://$BUCKET/{} \
         --cache-control "no-cache, no-store, must-revalidate" \;
 
-    # Service Worker: キャッシュなし
+    # Service Worker: no cache
     aws s3 cp dist/sw.js s3://$BUCKET/sw.js \
       --cache-control "no-cache, no-store, must-revalidate"
 
-    # manifest.json: 短期キャッシュ
+    # manifest.json: short-term cache
     aws s3 cp dist/manifest.json s3://$BUCKET/manifest.json \
       --cache-control "public, max-age=3600"
 ```
 
 ---
 
-## 3. AWS Lambda デプロイ (SAM)
+## 3. AWS Lambda Deployment (SAM)
 
-### 3.1 SAM テンプレート
+### 3.1 SAM Template
 
 ```yaml
-# template.yaml — AWS SAM テンプレート
+# template.yaml — AWS SAM template
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: API Backend on Lambda
@@ -369,7 +369,7 @@ Resources:
             TableName: !Ref AppTable
       AutoPublishAlias: live
       DeploymentPreference:
-        Type: Canary10Percent5Minutes  # Canary デプロイ
+        Type: Canary10Percent5Minutes  # Canary deployment
         Alarms:
           - !Ref ApiErrorAlarm
 
@@ -401,7 +401,7 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
 ```
 
-### 3.2 SAM デプロイ GitHub Actions ワークフロー
+### 3.2 SAM Deploy GitHub Actions Workflow
 
 ```yaml
 # .github/workflows/deploy-sam.yml
@@ -417,7 +417,7 @@ on:
 
 concurrency:
   group: deploy-sam-${{ github.ref }}
-  cancel-in-progress: false  # デプロイは途中キャンセルしない
+  cancel-in-progress: false  # Do not cancel deployments mid-flight
 
 jobs:
   test:
@@ -481,7 +481,7 @@ jobs:
               Environment=production \
               DatabaseHost=${{ secrets.DB_HOST }}
 
-          # デプロイ後の API URL を取得
+          # Get API URL after deployment
           API_URL=$(aws cloudformation describe-stacks \
             --stack-name my-app-prod \
             --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
@@ -499,10 +499,10 @@ jobs:
           echo "Smoke test passed: ${API_URL}/health returned 200"
 ```
 
-### 3.3 Lambda レイヤーの活用
+### 3.3 Using Lambda Layers
 
 ```yaml
-# template.yaml — Lambda Layers を使った依存関係の分離
+# template.yaml — Separating dependencies with Lambda Layers
 Resources:
   SharedDependenciesLayer:
     Type: AWS::Serverless::LayerVersion
@@ -541,9 +541,9 @@ Resources:
 
 ---
 
-## 4. AWS ECS/Fargate デプロイ
+## 4. AWS ECS/Fargate Deployment
 
-### 4.1 ECS タスク定義と GitHub Actions ワークフロー
+### 4.1 ECS Task Definition and GitHub Actions Workflow
 
 ```yaml
 # .github/workflows/deploy-ecs.yml
@@ -656,7 +656,7 @@ jobs:
           fi
 ```
 
-### 4.2 ECS タスク定義（Terraform）
+### 4.2 ECS Task Definition (Terraform)
 
 ```hcl
 # terraform/modules/ecs-service/main.tf
@@ -756,11 +756,11 @@ resource "aws_ecs_service" "app" {
 
   deployment_circuit_breaker {
     enable   = true
-    rollback = true  # デプロイ失敗時に自動ロールバック
+    rollback = true  # Automatic rollback on deployment failure
   }
 
   lifecycle {
-    ignore_changes = [task_definition]  # CI/CD で更新するため
+    ignore_changes = [task_definition]  # Updated by CI/CD
   }
 }
 
@@ -793,12 +793,12 @@ resource "aws_appautoscaling_policy" "cpu" {
 
 ---
 
-## 5. Vercel デプロイ
+## 5. Vercel Deployment
 
-### 5.1 Vercel 設定
+### 5.1 Vercel Configuration
 
 ```json
-// vercel.json — Vercel 設定
+// vercel.json — Vercel configuration
 {
   "framework": "nextjs",
   "regions": ["nrt1"],
@@ -828,20 +828,20 @@ resource "aws_appautoscaling_policy" "cpu" {
 ```
 
 ```
-Vercel のデプロイフロー:
+Vercel deployment flow:
 
-  開発者                  Vercel                     CDN
+  Developer               Vercel                     CDN
     │                      │                          │
     │── git push ──────►   │                          │
-    │                      │── ビルド開始              │
-    │                      │   (Next.js 自動検出)      │
+    │                      │── Build starts            │
+    │                      │   (Next.js auto-detected) │
     │                      │                          │
-    │                      │── プレビュー URL 生成     │
-    │   ◄── PR コメント ── │   (*.vercel.app)         │
+    │                      │── Preview URL generated  │
+    │   ◄── PR comment ─── │   (*.vercel.app)         │
     │                      │                          │
-    │── PR マージ ────►    │                          │
-    │                      │── 本番ビルド              │
-    │                      │── Edge Network 配信 ──► │
+    │── PR merge ────►      │                          │
+    │                      │── Production build        │
+    │                      │── Edge Network delivery ►│
     │                      │                          │
     │                      │   Serverless Functions   │
     │                      │   Edge Functions         │
@@ -849,7 +849,7 @@ Vercel のデプロイフロー:
     │                      │                          │
 ```
 
-### 5.2 Vercel + GitHub Actions 連携（カスタムパイプライン）
+### 5.2 Vercel + GitHub Actions Integration (Custom Pipeline)
 
 ```yaml
 # .github/workflows/deploy-vercel.yml
@@ -937,7 +937,7 @@ jobs:
 
       - name: Verify Deployment
         run: |
-          sleep 10  # Edge Network の伝播を待機
+          sleep 10  # Wait for Edge Network propagation
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ steps.deploy.outputs.url }}")
           if [ "$STATUS" != "200" ]; then
             echo "Deployment verification failed: HTTP $STATUS"
@@ -952,13 +952,13 @@ jobs:
 import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'edge';
-export const preferredRegion = ['nrt1', 'iad1'];  // 東京 + バージニア
+export const preferredRegion = ['nrt1', 'iad1'];  // Tokyo + Virginia
 
 export async function GET(request: NextRequest) {
   const geo = request.geo;
   const ip = request.ip;
 
-  // エッジでの地理情報に基づくレスポンス
+  // Edge response based on geographic information
   const response = {
     country: geo?.country ?? 'unknown',
     city: geo?.city ?? 'unknown',
@@ -979,33 +979,33 @@ export async function GET(request: NextRequest) {
 ```
 
 ```typescript
-// middleware.ts — Vercel Edge Middleware（全リクエストに適用）
+// middleware.ts — Vercel Edge Middleware (applied to all requests)
 import { NextRequest, NextResponse } from 'next/server';
 
 export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const country = request.geo?.country;
 
-  // 地域別リダイレクト
+  // Region-based redirect
   if (country === 'JP' && !url.pathname.startsWith('/ja')) {
     url.pathname = `/ja${url.pathname}`;
     return NextResponse.redirect(url);
   }
 
-  // A/B テスト: Cookie ベースのバケット割り当て
+  // A/B testing: cookie-based bucket assignment
   const bucket = request.cookies.get('ab-bucket')?.value;
   if (!bucket) {
     const newBucket = Math.random() < 0.5 ? 'control' : 'variant';
     const response = NextResponse.next();
     response.cookies.set('ab-bucket', newBucket, {
-      maxAge: 60 * 60 * 24 * 30,  // 30日
+      maxAge: 60 * 60 * 24 * 30,  // 30 days
       httpOnly: true,
       sameSite: 'lax',
     });
     return response;
   }
 
-  // レート制限ヘッダー
+  // Rate limit headers
   const response = NextResponse.next();
   response.headers.set('X-RateLimit-Limit', '100');
   response.headers.set('X-Robots-Tag', 'noindex, nofollow');
@@ -1020,9 +1020,9 @@ export const config = {
 
 ---
 
-## 6. Cloudflare Workers デプロイ
+## 6. Cloudflare Workers Deployment
 
-### 6.1 Worker 実装
+### 6.1 Worker Implementation
 
 ```typescript
 // src/worker.ts — Cloudflare Worker
@@ -1040,12 +1040,12 @@ export default {
   ): Promise<Response> {
     const url = new URL(request.url);
 
-    // ルーティング
+    // Routing
     if (url.pathname.startsWith('/api/')) {
       return handleApi(request, env, ctx);
     }
 
-    // 静的アセットは R2 から配信
+    // Serve static assets from R2
     const asset = await env.R2_BUCKET.get(url.pathname.slice(1));
     if (asset) {
       const headers = new Headers();
@@ -1066,7 +1066,7 @@ async function handleApi(
   const url = new URL(request.url);
 
   if (url.pathname === '/api/items' && request.method === 'GET') {
-    // D1 データベースクエリ
+    // D1 database query
     const { results } = await env.DB
       .prepare('SELECT * FROM items ORDER BY created_at DESC LIMIT 50')
       .all();
@@ -1082,7 +1082,7 @@ async function handleApi(
       .bind(body.name, body.value)
       .run();
 
-    // KV キャッシュを無効化
+    // Invalidate KV cache
     ctx.waitUntil(env.KV_STORE.delete('items-cache'));
 
     return Response.json({ success: true }, { status: 201 });
@@ -1092,16 +1092,16 @@ async function handleApi(
 }
 ```
 
-### 6.2 Wrangler 設定
+### 6.2 Wrangler Configuration
 
 ```toml
-# wrangler.toml — Cloudflare Workers 設定
+# wrangler.toml — Cloudflare Workers configuration
 name = "my-api"
 main = "src/worker.ts"
 compatibility_date = "2024-09-25"
 
 [placement]
-mode = "smart"  # スマート配置でレイテンシ最適化
+mode = "smart"  # Smart placement for latency optimization
 
 binding = "KV_STORE"
 id = "abc123"
@@ -1119,7 +1119,7 @@ routes = [
 ]
 ```
 
-### 6.3 Cloudflare Workers GitHub Actions デプロイ
+### 6.3 Cloudflare Workers GitHub Actions Deployment
 
 ```yaml
 # .github/workflows/deploy-workers.yml
@@ -1145,16 +1145,16 @@ jobs:
       - run: npm ci
       - run: npm test
 
-      # Miniflare を使ったローカル統合テスト
+      # Local integration test with Miniflare
       - name: Integration Test with Miniflare
         run: |
           npx wrangler dev --local --port 8787 &
           sleep 3
 
-          # ヘルスチェック
+          # Health check
           curl -f http://localhost:8787/api/health
 
-          # API テスト
+          # API test
           RESPONSE=$(curl -s -X POST http://localhost:8787/api/items \
             -H 'Content-Type: application/json' \
             -d '{"name":"test","value":"data"}')
@@ -1213,10 +1213,10 @@ jobs:
           echo "Smoke test passed"
 ```
 
-### 6.4 Durable Objects を使ったステートフル Worker
+### 6.4 Stateful Worker with Durable Objects
 
 ```typescript
-// src/counter.ts — Durable Object（ステートフルなエッジ処理）
+// src/counter.ts — Durable Object (stateful edge processing)
 export class Counter {
   private state: DurableObjectState;
   private env: Env;
@@ -1250,7 +1250,7 @@ export class Counter {
   }
 }
 
-// Worker からの Durable Object 呼び出し
+// Calling a Durable Object from a Worker
 async function handleCounter(
   request: Request,
   env: Env
@@ -1258,11 +1258,11 @@ async function handleCounter(
   const url = new URL(request.url);
   const counterId = url.searchParams.get('id') ?? 'default';
 
-  // Durable Object のスタブを取得
+  // Get the Durable Object stub
   const id = env.COUNTER.idFromName(counterId);
   const stub = env.COUNTER.get(id);
 
-  // Durable Object にリクエストを転送
+  // Forward the request to the Durable Object
   return stub.fetch(request);
 }
 ```
@@ -1289,7 +1289,7 @@ app.get('/api/posts', async (c) => {
 app.get('/api/posts/:id', async (c) => {
   const id = c.req.param('id');
 
-  // KV キャッシュを確認
+  // Check KV cache
   const cached = await c.env.KV.get(`post:${id}`, 'json');
   if (cached) {
     return c.json(cached);
@@ -1304,7 +1304,7 @@ app.get('/api/posts/:id', async (c) => {
     return c.json({ error: 'Not Found' }, 404);
   }
 
-  // KV にキャッシュ（60秒 TTL）
+  // Cache in KV (60-second TTL)
   c.executionCtx.waitUntil(
     c.env.KV.put(`post:${id}`, JSON.stringify(post), { expirationTtl: 60 })
   );
@@ -1328,9 +1328,9 @@ export const onRequest = app.fetch;
 
 ---
 
-## 7. GCP Cloud Run デプロイ
+## 7. GCP Cloud Run Deployment
 
-### 7.1 Cloud Run GitHub Actions ワークフロー
+### 7.1 Cloud Run GitHub Actions Workflow
 
 ```yaml
 # .github/workflows/deploy-cloud-run.yml
@@ -1403,12 +1403,12 @@ jobs:
 
       - name: Set traffic to new revision
         run: |
-          # 段階的トラフィック移行（Canary）
+          # Gradual traffic migration (Canary)
           gcloud run services update-traffic $SERVICE_NAME \
             --region=$REGION \
             --to-revisions=LATEST=10
 
-          # ヘルスチェック
+          # Health check
           sleep 30
           SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
             --region=$REGION \
@@ -1464,7 +1464,7 @@ jobs:
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          channelId: live  # 本番チャネル
+          channelId: live  # Production channel
           projectId: my-project-id
 ```
 
@@ -1515,9 +1515,9 @@ jobs:
 
 ---
 
-## 8. マルチクラウド・ハイブリッドデプロイ
+## 8. Multi-Cloud / Hybrid Deployment
 
-### 8.1 フロントエンド + バックエンド分離パターン
+### 8.1 Frontend + Backend Separation Pattern
 
 ```yaml
 # .github/workflows/deploy-multi.yml
@@ -1528,7 +1528,7 @@ on:
     branches: [main]
 
 jobs:
-  # フロントエンドは Vercel にデプロイ
+  # Deploy frontend to Vercel
   deploy-frontend:
     runs-on: ubuntu-latest
     steps:
@@ -1545,7 +1545,7 @@ jobs:
           npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
           npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
 
-  # バックエンドは AWS ECS にデプロイ
+  # Deploy backend to AWS ECS
   deploy-backend:
     runs-on: ubuntu-latest
     permissions:
@@ -1578,7 +1578,7 @@ jobs:
             --service api-service \
             --force-new-deployment
 
-  # エッジ処理は Cloudflare Workers にデプロイ
+  # Deploy edge processing to Cloudflare Workers
   deploy-edge:
     runs-on: ubuntu-latest
     steps:
@@ -1597,7 +1597,7 @@ jobs:
           workingDirectory: edge
           command: deploy
 
-  # 全デプロイ完了後の統合テスト
+  # Integration tests after all deployments complete
   integration-test:
     needs: [deploy-frontend, deploy-backend, deploy-edge]
     runs-on: ubuntu-latest
@@ -1618,11 +1618,11 @@ jobs:
           EDGE_URL: https://edge.example.com
 ```
 
-### 8.2 DNS ベースのフェイルオーバー
+### 8.2 DNS-Based Failover
 
 ```hcl
 # terraform/dns-failover.tf
-# Route 53 ヘルスチェック
+# Route 53 health checks
 resource "aws_route53_health_check" "primary" {
   fqdn              = "api-primary.example.com"
   port               = 443
@@ -1649,7 +1649,7 @@ resource "aws_route53_health_check" "secondary" {
   }
 }
 
-# フェイルオーバーレコード
+# Failover records
 resource "aws_route53_record" "primary" {
   zone_id = var.hosted_zone_id
   name    = "api.example.com"
@@ -1691,9 +1691,9 @@ resource "aws_route53_record" "secondary" {
 
 ---
 
-## 9. 環境管理とシークレット
+## 9. Environment Management and Secrets
 
-### 9.1 GitHub Environments によるデプロイ保護
+### 9.1 Deployment Protection with GitHub Environments
 
 ```yaml
 # .github/workflows/deploy-with-environments.yml
@@ -1714,7 +1714,7 @@ jobs:
       - name: Deploy to Staging
         run: echo "Deploying to staging..."
 
-  # 手動承認ゲート（environment protection rules で設定）
+  # Manual approval gate (configured via environment protection rules)
   deploy-production:
     needs: deploy-staging
     runs-on: ubuntu-latest
@@ -1727,10 +1727,10 @@ jobs:
         run: echo "Deploying to production..."
 ```
 
-### 9.2 シークレット管理のベストプラクティス
+### 9.2 Secrets Management Best Practices
 
 ```yaml
-# AWS Secrets Manager からシークレットを取得
+# Retrieve secrets from AWS Secrets Manager
 - name: Get Secrets from AWS Secrets Manager
   uses: aws-actions/aws-secretsmanager-get-secrets@v2
   with:
@@ -1739,17 +1739,17 @@ jobs:
       prod/api-keys
     parse-json-secrets: true
 
-# 使用例
+# Usage example
 - name: Use Secrets
   run: |
-    echo "Database host: $PROD_DATABASE_HOST"  # 自動的に環境変数に展開
+    echo "Database host: $PROD_DATABASE_HOST"  # Automatically expanded as environment variables
   env:
-    # Secrets Manager のシークレットが環境変数として利用可能
+    # Secrets Manager secrets are available as environment variables
     DB_URL: ${{ env.PROD_DATABASE_URL }}
 ```
 
 ```typescript
-// シークレット管理ユーティリティ（TypeScript）
+// Secrets management utility (TypeScript)
 import {
   SecretsManagerClient,
   GetSecretValueCommand,
@@ -1763,7 +1763,7 @@ interface AppSecrets {
   JWT_SECRET: string;
 }
 
-// キャッシュ付きシークレット取得
+// Cached secret retrieval
 let cachedSecrets: AppSecrets | null = null;
 let cacheExpiry = 0;
 
@@ -1784,7 +1784,7 @@ export async function getSecrets(): Promise<AppSecrets> {
   }
 
   cachedSecrets = JSON.parse(response.SecretString) as AppSecrets;
-  cacheExpiry = now + 5 * 60 * 1000; // 5分キャッシュ
+  cacheExpiry = now + 5 * 60 * 1000; // 5-minute cache
 
   return cachedSecrets;
 }
@@ -1792,9 +1792,9 @@ export async function getSecrets(): Promise<AppSecrets> {
 
 ---
 
-## 10. 監視とロールバック
+## 10. Monitoring and Rollback
 
-### 10.1 デプロイ後の自動監視ワークフロー
+### 10.1 Automated Post-Deploy Monitoring Workflow
 
 ```yaml
 # .github/workflows/post-deploy-monitor.yml
@@ -1858,7 +1858,7 @@ jobs:
         if: steps.health.outputs.healthy == 'true'
         id: error-rate
         run: |
-          # CloudWatch からエラー率を取得
+          # Retrieve error rate from CloudWatch
           ERROR_RATE=$(aws cloudwatch get-metric-statistics \
             --namespace "AWS/ApplicationELB" \
             --metric-name "HTTPCode_Target_5XX_Count" \
@@ -1918,7 +1918,7 @@ jobs:
             }
 ```
 
-### 10.2 ロールバックワークフロー
+### 10.2 Rollback Workflow
 
 ```yaml
 # .github/workflows/rollback.yml
@@ -1976,7 +1976,7 @@ jobs:
       - name: Rollback ECS Service
         if: inputs.environment == 'production'
         run: |
-          # 前回の安定版タスク定義を取得
+          # Get the previous stable task definition
           PREVIOUS_TD=$(aws ecs describe-services \
             --cluster prod-cluster \
             --services api-service \
@@ -1985,7 +1985,7 @@ jobs:
 
           if [ "$PREVIOUS_TD" = "None" ]; then
             echo "No previous task definition found. Using image from rollback ref."
-            # Git ref から Docker image を再ビルドしてデプロイ
+            # Rebuild and deploy Docker image from the Git ref
             # ...
           else
             echo "Rolling back to task definition: $PREVIOUS_TD"
@@ -2034,74 +2034,74 @@ jobs:
 
 ---
 
-## 11. プラットフォーム比較表
+## 11. Platform Comparison
 
-| 特性 | AWS (Lambda/ECS) | Vercel | Cloudflare Workers | GCP Cloud Run |
-|------|------------------|--------|-------------------|---------------|
-| 対象 | バックエンド全般 | フロントエンド+API | エッジAPI | コンテナ全般 |
-| コールドスタート | 100ms〜数秒 | 数十ms | ほぼ0ms (V8 Isolate) | 数百ms〜数秒 |
-| 最大実行時間 | 15分 (Lambda) | 10秒〜5分 | 30秒 (CPU 50ms) | 60分 |
-| メモリ上限 | 10GB (Lambda) | 1024MB | 128MB | 32GB |
-| ランタイム | Node.js, Python, Go等 | Node.js | JavaScript/WASM | 任意(Docker) |
-| DB 統合 | RDS, DynamoDB, Aurora | Vercel Postgres, KV | D1, KV, Durable Objects | Cloud SQL, Firestore |
-| 料金体系 | 従量課金(複雑) | 無料枠+従量 | 無料枠10万req/日 | 従量課金(秒単位) |
-| 学習コスト | 高い | 低い | 中 | 中 |
-| VPC 接続 | ネイティブ対応 | 非対応 | Tunnel 経由 | VPC コネクタ |
-| カスタムドメイン | Route 53 | 自動SSL | 自動SSL | Cloud DNS |
-| ロールバック | 手動/自動 | Instant Rollback | Wrangler rollback | リビジョン切替 |
+| Feature | AWS (Lambda/ECS) | Vercel | Cloudflare Workers | GCP Cloud Run |
+|---------|------------------|--------|-------------------|---------------|
+| Target use case | General backend | Frontend + API | Edge API | General containers |
+| Cold start | 100ms to several seconds | Tens of ms | Near 0ms (V8 Isolate) | Hundreds of ms to seconds |
+| Max execution time | 15 min (Lambda) | 10 sec to 5 min | 30 sec (CPU 50ms) | 60 min |
+| Memory limit | 10GB (Lambda) | 1024MB | 128MB | 32GB |
+| Runtime | Node.js, Python, Go, etc. | Node.js | JavaScript/WASM | Any (Docker) |
+| DB integration | RDS, DynamoDB, Aurora | Vercel Postgres, KV | D1, KV, Durable Objects | Cloud SQL, Firestore |
+| Pricing model | Pay-per-use (complex) | Free tier + pay-per-use | Free tier 100k req/day | Pay-per-use (per second) |
+| Learning curve | High | Low | Medium | Medium |
+| VPC connectivity | Native support | Not supported | Via Tunnel | VPC connector |
+| Custom domain | Route 53 | Auto SSL | Auto SSL | Cloud DNS |
+| Rollback | Manual/automated | Instant Rollback | Wrangler rollback | Revision switching |
 
-| デプロイ方法比較 | Git 連携 | CLI | IaC (CDK/Terraform) |
-|-----------------|---------|-----|---------------------|
-| 自動化レベル | 高い | 中 | 最高 |
-| 再現性 | 中 | 低い | 最高 |
-| 複雑さ | 低い | 低い | 高い |
-| 適用場面 | フロント / 小規模API | 開発/テスト | 本番インフラ全般 |
-| ロールバック | Git revert | 手動 | 状態管理で自動 |
+| Deployment method comparison | Git integration | CLI | IaC (CDK/Terraform) |
+|-----------------------------|----------------|-----|---------------------|
+| Automation level | High | Medium | Highest |
+| Reproducibility | Medium | Low | Highest |
+| Complexity | Low | Low | High |
+| Applicable scenarios | Frontend / small-scale API | Development/testing | Production infrastructure |
+| Rollback | Git revert | Manual | Automated via state management |
 
-### コスト比較シミュレーション
+### Cost Comparison Simulation
 
 ```
-月間 100万リクエスト、平均レスポンス 50ms の API の場合:
+For an API with 1 million requests/month and average response time of 50ms:
 
 AWS Lambda:
-  - リクエスト: $0.20 (100万 × $0.0000002)
-  - コンピューティング: $0.83 (128MB, 50ms × 100万)
+  - Requests: $0.20 (1M × $0.0000002)
+  - Compute: $0.83 (128MB, 50ms × 1M)
   - API Gateway: $3.50
-  - 合計: 約 $4.53/月
+  - Total: approx. $4.53/month
 
 Cloudflare Workers:
-  - 無料枠: 10万req/日 = 月300万req → 無料
-  - Paid plan ($5/月): 1000万req含む → $5.00/月
-  - 合計: $0〜5.00/月
+  - Free tier: 100k req/day = 3M req/month → Free
+  - Paid plan ($5/month): includes 10M req → $5.00/month
+  - Total: $0–5.00/month
 
 Vercel:
-  - Hobby (無料): 100GB帯域まで → $0
-  - Pro ($20/月): 1TB帯域、Serverless 1000時間 → $20/月
-  - 合計: $0〜20.00/月
+  - Hobby (free): up to 100GB bandwidth → $0
+  - Pro ($20/month): 1TB bandwidth, 1000 serverless hours → $20/month
+  - Total: $0–20.00/month
 
 GCP Cloud Run:
-  - CPU: $0.00002400/vCPU秒 × 50,000秒 = $1.20
-  - メモリ: $0.00000250/GiB秒 × 50,000秒 × 0.5GiB = $0.06
-  - リクエスト: $0.40 (100万 × $0.0000004)
-  - 合計: 約 $1.66/月（最小インスタンス0の場合）
+  - CPU: $0.00002400/vCPU-sec × 50,000 sec = $1.20
+  - Memory: $0.00000250/GiB-sec × 50,000 sec × 0.5GiB = $0.06
+  - Requests: $0.40 (1M × $0.0000004)
+  - Total: approx. $1.66/month (with minimum instances set to 0)
 ```
 
 ---
 
-## 12. アンチパターン
+## 12. Anti-Patterns
 
-### アンチパターン 1: 環境固有値のハードコード
+### Anti-Pattern 1: Hardcoding Environment-Specific Values
 
 ```typescript
-// 悪い例: 環境固有値をコードに埋め込む
+// Bad: embedding environment-specific values in code
 const API_URL = "https://prod-api.example.com";
 const DB_HOST = "prod-db.cluster-abc.ap-northeast-1.rds.amazonaws.com";
 
-// 良い例: 環境変数から取得
+// Good: retrieve from environment variables
 const API_URL = process.env.API_URL;
 const DB_HOST = process.env.DB_HOST;
 
-// さらに良い例: 型安全な設定管理
+// Even better: type-safe configuration management
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -2114,31 +2114,31 @@ const envSchema = z.object({
 export const config = envSchema.parse(process.env);
 ```
 
-### アンチパターン 2: キャッシュ戦略の欠如
+### Anti-Pattern 2: Lack of Cache Strategy
 
 ```
-[悪い例]
-- 全アセットに Cache-Control なし → CDN が効かず毎回オリジンへアクセス
-- index.html に長期キャッシュ → 新バージョンが配信されない
-- API レスポンスにキャッシュなし → Lambda/Worker の呼び出し回数が無駄に増加
+[Bad]
+- No Cache-Control on any assets → CDN is ineffective, every request hits the origin
+- Long-term cache on index.html → new versions are not delivered
+- No cache on API responses → unnecessary increase in Lambda/Worker invocations
 
-[良い例]
-- 静的アセット(JS/CSS/画像): Cache-Control: public, max-age=31536000, immutable
-  (ファイル名にハッシュを含める: app.a1b2c3.js)
-- index.html: Cache-Control: no-cache (毎回検証)
+[Good]
+- Static assets (JS/CSS/images): Cache-Control: public, max-age=31536000, immutable
+  (include a hash in the filename: app.a1b2c3.js)
+- index.html: Cache-Control: no-cache (validate every time)
 - API: Cache-Control: s-maxage=60, stale-while-revalidate=300
-  (CDN で60秒キャッシュ、バックグラウンドで300秒まで古いレスポンスを返す)
+  (CDN caches for 60 seconds, returns stale response for up to 300 seconds in the background)
 ```
 
-### アンチパターン 3: デプロイ後のヘルスチェック不在
+### Anti-Pattern 3: No Post-Deploy Health Check
 
 ```yaml
-# 悪い例: デプロイして終わり
+# Bad: deploy and done
 - name: Deploy
   run: npx vercel deploy --prod
-# → デプロイ後にアプリが正常に動作しているか確認しない
+# → No verification that the app is working correctly after deployment
 
-# 良い例: デプロイ後にヘルスチェックを実行
+# Good: run a health check after deployment
 - name: Deploy
   id: deploy
   run: |
@@ -2161,113 +2161,113 @@ export const config = envSchema.parse(process.env);
     exit 1
 ```
 
-### アンチパターン 4: 単一リージョン依存
+### Anti-Pattern 4: Single-Region Dependency
 
 ```
-[悪い例]
-- 全リソースを ap-northeast-1（東京）のみに配置
-- 東京リージョン障害時にサービス全停止
+[Bad]
+- All resources placed only in ap-northeast-1 (Tokyo)
+- Complete service outage when the Tokyo region goes down
 
-[良い例]
-- CloudFront / Cloudflare で静的コンテンツをグローバルに配信
-- クリティカルな API は複数リージョンに配置
-- Route 53 ヘルスチェックによるフェイルオーバー設定
-- データベースは Aurora Global Database またはリードレプリカ
+[Good]
+- Distribute static content globally via CloudFront / Cloudflare
+- Deploy critical APIs to multiple regions
+- Configure Route 53 health check-based failover
+- Use Aurora Global Database or read replicas for the database
 ```
 
-### アンチパターン 5: ビルド成果物の非再現性
+### Anti-Pattern 5: Non-Reproducible Build Artifacts
 
 ```yaml
-# 悪い例: ビルドのたびに異なる結果になる可能性
+# Bad: builds may produce different results each time
 - run: |
-    npm install  # package-lock.json を無視
+    npm install  # ignores package-lock.json
     npm run build
 
-# 良い例: 再現可能なビルド
+# Good: reproducible builds
 - run: |
-    npm ci                     # lock ファイルに厳密に従う
+    npm ci                     # strictly follows the lock file
     npm run build
   env:
     NODE_ENV: production
-    NEXT_TELEMETRY_DISABLED: 1  # テレメトリ無効化で確定的なビルド
+    NEXT_TELEMETRY_DISABLED: 1  # disable telemetry for deterministic builds
 ```
 
 ---
 
 ## 13. FAQ
 
-### Q1: Vercel と AWS、どちらを選ぶべきですか？
+### Q1: Should I choose Vercel or AWS?
 
-フロントエンド（Next.js/React）が中心で、バックエンドが軽量な API Routes 程度なら Vercel が圧倒的に楽です。複雑なバックエンド処理、VPC 内のリソースアクセス、長時間バッチ処理が必要な場合は AWS を選択してください。多くのプロジェクトでは「フロントは Vercel、バックエンドは AWS」という組み合わせが実用的です。
+If your project is frontend-focused (Next.js/React) with only lightweight API Routes on the backend, Vercel is far easier. Choose AWS when you need complex backend processing, access to resources inside a VPC, or long-running batch jobs. For many projects, the combination of "Vercel for the frontend, AWS for the backend" is the most practical approach.
 
-### Q2: Cloudflare Workers の CPU 制限 (50ms) は厳しすぎませんか？
+### Q2: Isn't the Cloudflare Workers CPU limit (50ms) too restrictive?
 
-CPU 時間 50ms は「I/O 待ち時間を除いた純粋な計算時間」です。データベースクエリや外部 API 呼び出しの待ち時間は含まれません。一般的な API 処理（JSON パース、バリデーション、レスポンス構築）は数 ms で完了するため、ほとんどのユースケースでは十分です。重い計算処理が必要な場合は Workers Unbound（CPU 時間 30 秒）を検討してください。
+The 50ms CPU time refers to "pure computation time excluding I/O wait time." It does not include wait time for database queries or external API calls. Typical API processing (JSON parsing, validation, response construction) completes in a few milliseconds, so it is sufficient for most use cases. If you need heavy computation, consider Workers Unbound (30 seconds of CPU time).
 
-### Q3: OIDC による AWS 認証とは何ですか？ なぜ推奨されるのですか？
+### Q3: What is OIDC-based AWS authentication, and why is it recommended?
 
-GitHub Actions から AWS にアクセスする際、従来は IAM ユーザーのアクセスキーをシークレットに保存していました。OIDC（OpenID Connect）では、GitHub が発行する短命トークンを AWS が直接検証するため、長期間有効なシークレットの管理が不要になります。キーローテーションの手間がなく、漏洩リスクも低減されます。
+Traditionally, IAM user access keys were stored as secrets when accessing AWS from GitHub Actions. With OIDC (OpenID Connect), AWS directly verifies short-lived tokens issued by GitHub, eliminating the need to manage long-lived secrets. This removes the burden of key rotation and reduces the risk of credential exposure.
 
-### Q4: Cloud Run と Lambda、どちらを選ぶべきですか？
+### Q4: Should I choose Cloud Run or Lambda?
 
-**Lambda が向いているケース:**
-- イベント駆動型処理（S3 アップロード、SQS メッセージ）
-- 既存の AWS サービスとの統合が多い
-- コールドスタートが許容される軽量 API
-- 従量課金でコストを最小化したい
+**When Lambda is a better fit:**
+- Event-driven processing (S3 uploads, SQS messages)
+- Heavy integration with existing AWS services
+- Lightweight APIs where cold starts are acceptable
+- Want to minimize costs with pay-per-use pricing
 
-**Cloud Run が向いているケース:**
-- 既存の Docker コンテナをそのままデプロイしたい
-- リクエスト処理時間が長い（15分超）
-- WebSocket やストリーミングが必要
-- ポータブルなコンテナ環境を維持したい
+**When Cloud Run is a better fit:**
+- Want to deploy existing Docker containers as-is
+- Long request processing times (over 15 minutes)
+- Need WebSocket or streaming support
+- Want to maintain a portable container environment
 
-### Q5: Vercel の Preview Deployment を効率的に使うコツは？
-
-```
-1. ブランチごとにプレビューURLが自動生成される
-   → PR レビューで実際の動作を確認可能
-
-2. 環境変数のスコープを適切に設定
-   → Preview / Production で異なるDB接続先を使用
-
-3. Vercel CLI でローカルからプレビューデプロイ
-   → CI を待たずに確認: npx vercel deploy
-
-4. PR コメントにプレビューURLを自動投稿（GitHub Integration）
-   → レビュアーがワンクリックで確認可能
-
-5. プレビュー環境でのみ有効な機能フラグ
-   → 未完成機能をプレビューで確認、本番には影響なし
-```
-
-### Q6: マルチクラウド構成のデメリットは何ですか？
-
-マルチクラウドには可用性向上やベンダーロックイン回避のメリットがある一方、以下のデメリットがあります:
-
-- **運用複雑性の増大**: 各クラウドの IAM、ネットワーク、監視を個別に管理する必要がある
-- **学習コスト**: チーム全員が複数のクラウドに精通する必要がある
-- **データ転送コスト**: クラウド間のデータ転送には Egress 料金が発生する
-- **整合性の確保**: 複数のクラウドにまたがるトランザクションの管理が困難
-- **ツール統一の困難**: Terraform で抽象化しても、各プロバイダ固有の設定は残る
-
-推奨アプローチ: 明確な理由がない限り、メインクラウドを1つ選び、エッジ処理（Cloudflare）やフロントエンド（Vercel）のみ別プラットフォームを使う「ハイブリッド」が現実的です。
-
-### Q7: ECS Fargate と EKS（Kubernetes）の使い分けは？
+### Q5: Tips for using Vercel Preview Deployments efficiently?
 
 ```
-ECS Fargate が適している:
-  - AWS ネイティブなサービス連携（ALB, CloudWatch, Secrets Manager）
-  - 小〜中規模のマイクロサービス（10サービス程度まで）
-  - Kubernetes の学習コストを避けたい
-  - AWS 以外のクラウドへの移植性が不要
+1. A preview URL is automatically generated for each branch
+   → Enables verifying actual behavior during PR reviews
 
-EKS が適している:
-  - 大規模なマイクロサービス（数十〜数百サービス）
-  - Kubernetes エコシステム（Istio, Argo, Helm）を活用したい
-  - マルチクラウド/ハイブリッドクラウドでの一貫した運用
-  - 高度なトラフィック制御（Service Mesh）が必要
-  - チームに Kubernetes の知見がある
+2. Set appropriate scopes for environment variables
+   → Use different DB connections for Preview vs. Production
+
+3. Deploy previews locally with the Vercel CLI
+   → Check without waiting for CI: npx vercel deploy
+
+4. Auto-post preview URL as a PR comment (GitHub Integration)
+   → Reviewers can check with a single click
+
+5. Feature flags active only in preview environments
+   → Verify unfinished features in preview without affecting production
+```
+
+### Q6: What are the drawbacks of a multi-cloud architecture?
+
+While multi-cloud offers benefits such as improved availability and avoiding vendor lock-in, it comes with the following drawbacks:
+
+- **Increased operational complexity**: IAM, networking, and monitoring for each cloud must be managed separately
+- **Learning costs**: The entire team must be proficient in multiple clouds
+- **Data transfer costs**: Egress fees apply for data transfer between clouds
+- **Ensuring consistency**: Managing transactions that span multiple clouds is difficult
+- **Difficulty unifying tooling**: Even with Terraform abstraction, provider-specific configuration remains
+
+Recommended approach: Unless there is a clear reason, choose one primary cloud and use a "hybrid" approach that only uses separate platforms for edge processing (Cloudflare) or frontend (Vercel).
+
+### Q7: When should I use ECS Fargate vs. EKS (Kubernetes)?
+
+```
+ECS Fargate is appropriate when:
+  - Native AWS service integration (ALB, CloudWatch, Secrets Manager)
+  - Small to medium-scale microservices (up to about 10 services)
+  - Want to avoid the Kubernetes learning curve
+  - Portability to clouds other than AWS is not needed
+
+EKS is appropriate when:
+  - Large-scale microservices (tens to hundreds of services)
+  - Want to leverage the Kubernetes ecosystem (Istio, Argo, Helm)
+  - Consistent operations across multi-cloud/hybrid cloud
+  - Advanced traffic control (Service Mesh) is needed
+  - The team has Kubernetes expertise
 ```
 
 ---
@@ -2275,52 +2275,52 @@ EKS が適している:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to keep in mind when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| AWS S3+CloudFront | 静的サイトの定番。IaC で管理し、CloudFront で高速配信。OAC による安全なアクセス制御 |
-| AWS Lambda (SAM) | サーバーレス API。Canary デプロイとアラーム連携が容易。Layer で依存関係を分離 |
-| AWS ECS/Fargate | コンテナデプロイの標準。Circuit Breaker で自動ロールバック。Auto Scaling で負荷対応 |
-| Vercel | Next.js 最適化。プレビュー環境と Git 連携が強力。Edge Functions でエッジ処理 |
-| Cloudflare Workers | エッジ実行でレイテンシ最小。D1/KV/R2/Durable Objects のエコシステム |
-| GCP Cloud Run | Docker コンテナをそのままデプロイ。段階的トラフィック移行が容易 |
-| OIDC 認証 | CI/CD からのクラウド認証はシークレットキーより OIDC を推奨 |
-| キャッシュ戦略 | アセットは immutable、HTML は no-cache、API は stale-while-revalidate |
-| マルチクラウド | フロント(Vercel) + バックエンド(AWS) + エッジ(Cloudflare) のハイブリッドが現実的 |
-| 監視とロールバック | デプロイ後のヘルスチェック必須。自動ロールバック機構を組み込む |
+Knowledge of this topic is frequently applied in day-to-day development work, particularly during code reviews and architectural design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [00-deployment-strategies.md](./00-deployment-strategies.md) — Blue-Green、Canary などのデプロイ戦略
-- [02-container-deployment.md](./02-container-deployment.md) — ECS/Kubernetes でのコンテナデプロイ
-- [03-release-management.md](./03-release-management.md) — セマンティックバージョニングとリリース管理
+| Topic | Key Points |
+|-------|------------|
+| AWS S3+CloudFront | The standard for static sites. Manage with IaC and deliver fast via CloudFront. Secure access control with OAC |
+| AWS Lambda (SAM) | Serverless API. Easy canary deployment and alarm integration. Separate dependencies with Layers |
+| AWS ECS/Fargate | The standard for container deployment. Automatic rollback with Circuit Breaker. Handle load with Auto Scaling |
+| Vercel | Optimized for Next.js. Powerful preview environments and Git integration. Edge processing with Edge Functions |
+| Cloudflare Workers | Minimum latency with edge execution. Ecosystem of D1/KV/R2/Durable Objects |
+| GCP Cloud Run | Deploy Docker containers as-is. Easy gradual traffic migration |
+| OIDC authentication | OIDC is recommended over secret keys for cloud authentication from CI/CD |
+| Cache strategy | Immutable for static assets, no-cache for HTML, stale-while-revalidate for APIs |
+| Multi-cloud | The hybrid of Frontend (Vercel) + Backend (AWS) + Edge (Cloudflare) is the practical choice |
+| Monitoring and rollback | Post-deploy health checks are mandatory. Build in an automated rollback mechanism |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. **AWS Well-Architected Framework** — https://docs.aws.amazon.com/wellarchitected/ — クラウドアーキテクチャのベストプラクティス
-2. **Vercel Documentation** — https://vercel.com/docs — Vercel の公式ドキュメント
-3. **Cloudflare Workers Documentation** — https://developers.cloudflare.com/workers/ — Workers の公式リファレンス
-4. **AWS SAM Developer Guide** — https://docs.aws.amazon.com/serverless-application-model/ — SAM によるサーバーレスデプロイ
-5. **AWS ECS Developer Guide** — https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ — ECS のベストプラクティス
-6. **Google Cloud Run Documentation** — https://cloud.google.com/run/docs — Cloud Run の公式ドキュメント
-7. **Firebase Hosting Documentation** — https://firebase.google.com/docs/hosting — Firebase Hosting のガイド
-8. **Terraform AWS Provider** — https://registry.terraform.io/providers/hashicorp/aws/ — Terraform による AWS リソース管理
+- [00-deployment-strategies.md](./00-deployment-strategies.md) — Deployment strategies such as Blue-Green and Canary
+- [02-container-deployment.md](./02-container-deployment.md) — Container deployment with ECS/Kubernetes
+- [03-release-management.md](./03-release-management.md) — Semantic versioning and release management
+
+---
+
+## References
+
+1. **AWS Well-Architected Framework** — https://docs.aws.amazon.com/wellarchitected/ — Best practices for cloud architecture
+2. **Vercel Documentation** — https://vercel.com/docs — Official Vercel documentation
+3. **Cloudflare Workers Documentation** — https://developers.cloudflare.com/workers/ — Official Workers reference
+4. **AWS SAM Developer Guide** — https://docs.aws.amazon.com/serverless-application-model/ — Serverless deployment with SAM
+5. **AWS ECS Developer Guide** — https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ — ECS best practices
+6. **Google Cloud Run Documentation** — https://cloud.google.com/run/docs — Official Cloud Run documentation
+7. **Firebase Hosting Documentation** — https://firebase.google.com/docs/hosting — Firebase Hosting guide
+8. **Terraform AWS Provider** — https://registry.terraform.io/providers/hashicorp/aws/ — AWS resource management with Terraform
