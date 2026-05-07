@@ -1,27 +1,27 @@
-# Docker Compose 開発ワークフロー (Development Workflow)
+# Docker Compose Development Workflow
 
-> Docker Compose を活用した日常の開発ワークフローを最適化し、ホットリロード、デバッガ接続、CI 統合を実現する実践的なパターンを学ぶ。
+> Learn practical patterns for optimizing your daily development workflow with Docker Compose, including hot reload, debugger attachment, and CI integration.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **ホットリロードとファイル同期の最適化** -- コンテナ内でのコード変更即時反映を実現し、快適な開発体験を構築する
-2. **デバッグ環境の構築** -- VS Code / JetBrains からコンテナ内のプロセスにデバッガを接続する方法を習得する
-3. **CI/CD パイプラインへの統合** -- Docker Compose をテスト・ビルドの CI/CD に組み込み、環境の一貫性を確保する
-4. **E2E テスト環境の構築** -- Playwright / Cypress を使ったブラウザテストをコンテナ上で実行する
-5. **開発効率を上げるスクリプトとツール** -- Makefile、シェルスクリプト、pre-commit フックで日常タスクを自動化する
+1. **Hot Reload and File Sync Optimization** -- Achieve instant reflection of code changes inside containers and build a comfortable development experience
+2. **Setting Up a Debug Environment** -- Learn how to attach a debugger from VS Code / JetBrains to processes running inside containers
+3. **CI/CD Pipeline Integration** -- Incorporate Docker Compose into your CI/CD for testing and building to ensure environment consistency
+4. **E2E Test Environment Setup** -- Run browser tests using Playwright / Cypress on containers
+5. **Scripts and Tools to Boost Development Efficiency** -- Automate daily tasks with Makefile, shell scripts, and pre-commit hooks
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Docker Compose 応用 (Compose Advanced)](./01-compose-advanced.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Docker Compose Advanced (Compose Advanced)](./01-compose-advanced.md)
 
 ---
 
-## 1. 開発ワークフローの全体像
+## 1. Overview of the Development Workflow
 
 ```
 +------------------------------------------------------------------+
@@ -56,9 +56,9 @@
 
 ---
 
-## 2. ホットリロードの設定
+## 2. Hot Reload Configuration
 
-### 2.1 Node.js (Next.js / Vite) のホットリロード
+### 2.1 Node.js (Next.js / Vite) Hot Reload
 
 ```yaml
 # docker-compose.yml
@@ -89,7 +89,7 @@ volumes:
   node_modules:
 ```
 
-### 2.2 Dockerfile.dev (開発用)
+### 2.2 Dockerfile.dev (for Development)
 
 ```dockerfile
 # Dockerfile.dev
@@ -109,7 +109,7 @@ EXPOSE 3000
 CMD ["pnpm", "dev"]
 ```
 
-### 2.3 Python (FastAPI / Django) のホットリロード
+### 2.3 Python (FastAPI / Django) Hot Reload
 
 ```yaml
 # docker-compose.yml
@@ -150,7 +150,7 @@ EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 ```
 
-### 2.4 Go のホットリロード (Air)
+### 2.4 Go Hot Reload (Air)
 
 ```yaml
 # docker-compose.yml
@@ -198,7 +198,7 @@ EXPOSE 8080
 CMD ["air", "-c", ".air.toml"]
 ```
 
-### 2.5 Ruby on Rails のホットリロード
+### 2.5 Ruby on Rails Hot Reload
 
 ```yaml
 # docker-compose.yml
@@ -277,7 +277,7 @@ docker compose up -d && docker compose watch
 docker compose watch app
 ```
 
-### 2.7 Docker Compose Watch の詳細設定例
+### 2.7 Docker Compose Watch Detailed Configuration Example
 
 ```yaml
 # docker-compose.yml - フルスタックアプリの Watch 設定
@@ -336,21 +336,21 @@ services:
           path: ./backend/package.json
 ```
 
-### 2.8 ファイル同期方式の比較
+### 2.8 Comparison of File Sync Methods
 
-| 方式 | 速度 | 設定難易度 | 双方向 | 適用場面 |
-|------|------|-----------|--------|---------|
-| バインドマウント | macOS: 遅い / Linux: 速い | 低 | あり | 一般的な開発 |
-| Volume + sync | 中 | 中 | なし | macOS でのパフォーマンス改善 |
-| Compose Watch | 速い | 低 | なし | Compose V2.22+ 推奨 |
-| Mutagen | 非常に速い | 中 | 設定可 | macOS の大規模プロジェクト |
-| Docker Desktop VirtioFS | 速い | 不要 | あり | Docker Desktop 利用時 |
+| Method | Speed | Configuration Difficulty | Bidirectional | Use Case |
+|--------|-------|--------------------------|---------------|----------|
+| Bind Mount | macOS: slow / Linux: fast | Low | Yes | General development |
+| Volume + sync | Medium | Medium | No | Performance improvement on macOS |
+| Compose Watch | Fast | Low | No | Recommended for Compose V2.22+ |
+| Mutagen | Very fast | Medium | Configurable | Large-scale projects on macOS |
+| Docker Desktop VirtioFS | Fast | None needed | Yes | When using Docker Desktop |
 
 ---
 
-## 3. デバッグ環境
+## 3. Debug Environment
 
-### 3.1 Node.js デバッグ
+### 3.1 Node.js Debugging
 
 ```yaml
 # docker-compose.yml
@@ -403,7 +403,7 @@ services:
 }
 ```
 
-### 3.3 Python デバッグ (debugpy)
+### 3.3 Python Debugging (debugpy)
 
 ```yaml
 services:
@@ -445,7 +445,7 @@ services:
 }
 ```
 
-### 3.4 Go デバッグ (Delve)
+### 3.4 Go Debugging (Delve)
 
 ```yaml
 services:
@@ -503,22 +503,22 @@ CMD ["dlv", "debug", "./cmd/server", "--headless", "--listen=:2345", "--api-vers
 }
 ```
 
-### 3.5 JetBrains IDE でのリモートデバッグ
+### 3.5 Remote Debugging with JetBrains IDEs
 
-JetBrains IDE (IntelliJ IDEA, GoLand, PyCharm, WebStorm) でのリモートデバッグ設定は以下の手順で行う。
+Remote debugging configuration in JetBrains IDEs (IntelliJ IDEA, GoLand, PyCharm, WebStorm) follows these steps.
 
 ```
-1. Run → Edit Configurations → + (追加)
-2. "Remote JVM Debug" (Java) / "Go Remote" (Go) / "Python Debug Server" (Python) を選択
-3. 設定:
+1. Run → Edit Configurations → + (Add)
+2. Select "Remote JVM Debug" (Java) / "Go Remote" (Go) / "Python Debug Server" (Python)
+3. Configuration:
    - Host: localhost
-   - Port: <デバッガポート> (例: 9229, 5678, 2345)
-   - Path mappings: ローカルパス ↔ コンテナ内パス
-4. docker compose up -d でコンテナ起動
-5. Run → Debug でアタッチ
+   - Port: <debugger port> (e.g. 9229, 5678, 2345)
+   - Path mappings: local path ↔ path inside container
+4. Start the container with docker compose up -d
+5. Attach with Run → Debug
 ```
 
-### 3.6 デバッグ時のトラブルシューティング
+### 3.6 Debugging Troubleshooting
 
 ```bash
 # デバッガポートが開いているか確認
@@ -536,9 +536,9 @@ docker compose logs -f app | grep -i "debugger"
 
 ---
 
-## 4. テスト環境
+## 4. Test Environment
 
-### 4.1 テスト用 Compose 設定
+### 4.1 Compose Configuration for Testing
 
 ```yaml
 # docker-compose.yml
@@ -591,7 +591,7 @@ services:
       - /var/lib/postgresql/data
 ```
 
-### 4.2 テスト実行コマンド
+### 4.2 Test Execution Commands
 
 ```bash
 # テスト実行
@@ -617,7 +617,7 @@ docker compose --profile test run --rm \
   test npm test -- --watch
 ```
 
-### 4.3 E2E テスト環境 (Playwright)
+### 4.3 E2E Test Environment (Playwright)
 
 ```yaml
 # docker-compose.yml
@@ -667,7 +667,7 @@ volumes:
   node_modules:
 ```
 
-### 4.4 E2E テスト環境 (Cypress)
+### 4.4 E2E Test Environment (Cypress)
 
 ```yaml
 services:
@@ -690,13 +690,13 @@ services:
     command: cypress run --browser chrome
 ```
 
-### 4.5 テスト用データベースの並列実行
+### 4.5 Parallel Execution of Test Databases
 
-テストの並列実行時にデータベース競合を防ぐためのパターン。
+A pattern to prevent database conflicts when running tests in parallel.
 
 ```yaml
 services:
-  # テスト用 DB プール（各ワーカーに専用 DB を割り当て）
+  # Test DB pool (assign a dedicated DB to each worker)
   db-test:
     profiles: ["test"]
     image: postgres:16-alpine
@@ -727,9 +727,9 @@ echo "Test databases created: myapp_test_1 through myapp_test_4"
 
 ---
 
-## 5. CI/CD 統合
+## 5. CI/CD Integration
 
-### 5.1 GitHub Actions での Compose 利用
+### 5.1 Using Compose in GitHub Actions
 
 ```yaml
 # .github/workflows/ci.yml
@@ -786,7 +786,7 @@ jobs:
         run: docker compose -f docker-compose.ci.yml down -v
 ```
 
-### 5.2 CI 用 Compose ファイル
+### 5.2 Compose File for CI
 
 ```yaml
 # docker-compose.ci.yml
@@ -830,7 +830,7 @@ volumes:
   coverage:
 ```
 
-### 5.3 GitLab CI での Compose 利用
+### 5.3 Using Compose in GitLab CI
 
 ```yaml
 # .gitlab-ci.yml
@@ -865,10 +865,10 @@ test:
     expire_in: 7 days
 ```
 
-### 5.4 CI でのビルドキャッシュ戦略
+### 5.4 Build Cache Strategy for CI
 
 ```yaml
-# .github/workflows/ci.yml (キャッシュ最適化版)
+# .github/workflows/ci.yml (cache-optimized version)
 name: CI with Cache
 
 on:
@@ -922,7 +922,7 @@ jobs:
         run: docker compose -f docker-compose.ci.yml down -v
 ```
 
-### 5.5 CI での E2E テスト実行
+### 5.5 Running E2E Tests in CI
 
 ```yaml
 # .github/workflows/e2e.yml
@@ -977,9 +977,9 @@ jobs:
 
 ---
 
-## 6. パフォーマンス最適化
+## 6. Performance Optimization
 
-### 6.1 macOS でのパフォーマンス改善
+### 6.1 Performance Improvements on macOS
 
 ```
 +------------------------------------------------------------------+
@@ -999,7 +999,7 @@ jobs:
 +------------------------------------------------------------------+
 ```
 
-### 6.2 Docker Desktop の設定最適化
+### 6.2 Docker Desktop Settings Optimization
 
 ```json
 // Docker Desktop settings.json
@@ -1016,7 +1016,7 @@ jobs:
 }
 ```
 
-### 6.3 node_modules のボリューム分離パターン
+### 6.3 node_modules Volume Isolation Pattern
 
 ```yaml
 # docker-compose.yml
@@ -1048,7 +1048,7 @@ volumes:
   next_cache:
 ```
 
-### 6.4 ビルドキャッシュの活用
+### 6.4 Leveraging Build Cache
 
 ```dockerfile
 # Dockerfile (マルチステージ + キャッシュ)
@@ -1086,7 +1086,7 @@ COPY --from=deps /app/node_modules ./node_modules
 CMD ["node", "dist/index.js"]
 ```
 
-### 6.5 ビルドコンテキストの最適化
+### 6.5 Build Context Optimization
 
 ```dockerignore
 # .dockerignore
@@ -1124,9 +1124,9 @@ cypress
 
 ---
 
-## 7. 便利なスクリプトとタスク
+## 7. Useful Scripts and Tasks
 
-### 7.1 Makefile の開発タスク
+### 7.1 Makefile Development Tasks
 
 ```makefile
 # Makefile (Docker Compose 関連)
@@ -1135,11 +1135,11 @@ cypress
 # デフォルトターゲット
 .DEFAULT_GOAL := help
 
-help: ## ヘルプを表示
+help: ## Show help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-setup: ## 初期セットアップ（.env コピー、依存関係インストール）
+setup: ## Initial setup (copy .env, install dependencies)
 	@test -f .env || cp .env.example .env
 	docker compose build
 	docker compose up -d db redis
@@ -1149,94 +1149,94 @@ setup: ## 初期セットアップ（.env コピー、依存関係インスト�
 	docker compose run --rm app npx prisma db seed
 	@echo "Setup complete! Run 'make dev' to start."
 
-dev: up ## 開発サーバー起動 (Docker + ローカル)
+dev: up ## Start development server (Docker + local)
 	npm run dev
 
-up: ## Docker サービス起動
+up: ## Start Docker services
 	docker compose up -d
 	@docker compose ps
 
-down: ## Docker サービス停止
+down: ## Stop Docker services
 	docker compose down
 
-logs: ## ログ表示
+logs: ## Show logs
 	docker compose logs -f --tail=100
 
-logs-app: ## アプリログのみ表示
+logs-app: ## Show app logs only
 	docker compose logs -f --tail=100 app
 
-shell: ## app コンテナに入る
+shell: ## Enter the app container
 	docker compose exec app sh
 
-db-shell: ## DB に接続
+db-shell: ## Connect to DB
 	docker compose exec db psql -U postgres -d myapp_dev
 
-db-dump: ## DB ダンプ
+db-dump: ## Dump DB
 	docker compose exec db pg_dump -U postgres myapp_dev > backup.sql
 
-db-restore: ## DB リストア
+db-restore: ## Restore DB
 	cat backup.sql | docker compose exec -T db psql -U postgres myapp_dev
 
-db-reset: ## DB リセット（マイグレーション再実行）
+db-reset: ## Reset DB (re-run migrations)
 	docker compose exec app npx prisma migrate reset --force
 
-test: ## テスト (Docker 上)
+test: ## Run tests (on Docker)
 	docker compose --profile test run --rm test
 
-test-watch: ## テスト ウォッチモード
+test-watch: ## Run tests in watch mode
 	docker compose --profile test run --rm test npm test -- --watch
 
-test-e2e: ## E2E テスト
+test-e2e: ## Run E2E tests
 	docker compose --profile e2e run --rm e2e
 
-lint: ## Lint 実行
+lint: ## Run lint
 	docker compose exec app npm run lint
 
-format: ## コードフォーマット
+format: ## Format code
 	docker compose exec app npm run format
 
-typecheck: ## 型チェック
+typecheck: ## Type check
 	docker compose exec app npm run typecheck
 
-clean: ## 全削除 (ボリューム含む)
+clean: ## Remove everything (including volumes)
 	docker compose down -v --remove-orphans
 	docker system prune -f
 
-rebuild: ## イメージ再ビルドして起動
+rebuild: ## Rebuild image and start
 	docker compose build --no-cache
 	docker compose up -d
 
-update-deps: ## 依存関係を更新
+update-deps: ## Update dependencies
 	docker compose exec app pnpm update
 	docker compose exec app pnpm install --frozen-lockfile
 ```
 
-### 7.2 シェルスクリプトによるセットアップ自動化
+### 7.2 Automating Setup with Shell Scripts
 
 ```bash
 #!/bin/bash
-# scripts/setup.sh - プロジェクト初期セットアップ
+# scripts/setup.sh - Project initial setup
 
 set -euo pipefail
 
 echo "=== Project Setup ==="
 
-# 1. 環境変数ファイルのコピー
+# 1. Copy environment variables file
 if [ ! -f .env ]; then
     echo "Creating .env file..."
     cp .env.example .env
     echo "  Please edit .env with your settings"
 fi
 
-# 2. Docker Compose ビルド
+# 2. Docker Compose build
 echo "Building Docker images..."
 docker compose build
 
-# 3. サービス起動
+# 3. Start services
 echo "Starting services..."
 docker compose up -d db redis
 
-# 4. DB が起動するまで待機
+# 4. Wait for DB to be ready
 echo "Waiting for database..."
 until docker compose exec -T db pg_isready -U postgres 2>/dev/null; do
     printf "."
@@ -1244,15 +1244,15 @@ until docker compose exec -T db pg_isready -U postgres 2>/dev/null; do
 done
 echo " Ready!"
 
-# 5. マイグレーション実行
+# 5. Run migrations
 echo "Running migrations..."
 docker compose run --rm app npx prisma migrate deploy
 
-# 6. シードデータ投入
+# 6. Seed data
 echo "Seeding database..."
 docker compose run --rm app npx prisma db seed
 
-# 7. 全サービス起動
+# 7. Start all services
 echo "Starting all services..."
 docker compose up -d
 
@@ -1264,22 +1264,22 @@ echo ""
 echo "Run 'make dev' or 'docker compose up -d' to start."
 ```
 
-### 7.3 pre-commit フック
+### 7.3 pre-commit Hooks
 
 ```bash
 #!/bin/bash
 # .git/hooks/pre-commit
-# コミット前にコンテナ内で lint + typecheck を実行
+# Run lint + typecheck inside the container before committing
 
 echo "Running pre-commit checks..."
 
-# lint チェック
+# Lint check
 if ! docker compose exec -T app npm run lint --quiet 2>/dev/null; then
     echo "Lint check failed. Please fix the errors and try again."
     exit 1
 fi
 
-# 型チェック
+# Type check
 if ! docker compose exec -T app npm run typecheck 2>/dev/null; then
     echo "Type check failed. Please fix the errors and try again."
     exit 1
@@ -1288,7 +1288,7 @@ fi
 echo "Pre-commit checks passed."
 ```
 
-### 7.4 VS Code タスク設定
+### 7.4 VS Code Task Configuration
 
 ```jsonc
 // .vscode/tasks.json
@@ -1340,9 +1340,9 @@ echo "Pre-commit checks passed."
 }
 ```
 
-### 7.5 devcontainer.json 設定
+### 7.5 devcontainer.json Configuration
 
-VS Code の Dev Containers 拡張を使うことで、コンテナ内で直接開発できる。
+Using the VS Code Dev Containers extension allows you to develop directly inside a container.
 
 ```jsonc
 // .devcontainer/devcontainer.json
@@ -1402,14 +1402,14 @@ volumes:
 
 ---
 
-## 8. 開発環境の完全な構成例
+## 8. Complete Development Environment Configuration Example
 
-### 8.1 フルスタック Web アプリケーション
+### 8.1 Full-Stack Web Application
 
 ```yaml
-# docker-compose.yml - 完全な開発環境
+# docker-compose.yml - Complete development environment
 services:
-  # --- フロントエンド ---
+  # --- Frontend ---
   frontend:
     build:
       context: ./frontend
@@ -1424,14 +1424,14 @@ services:
       VITE_HMR_HOST: localhost
     command: pnpm dev --host
 
-  # --- バックエンド API ---
+  # --- Backend API ---
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
     ports:
       - "8080:8080"
-      - "9229:9229"    # デバッガポート
+      - "9229:9229"    # Debugger port
     volumes:
       - ./backend:/app
       - backend_node_modules:/app/node_modules
@@ -1453,7 +1453,7 @@ services:
     command: >
       node --inspect=0.0.0.0:9229 node_modules/.bin/tsx watch src/index.ts
 
-  # --- データベース ---
+  # --- Database ---
   db:
     image: postgres:16-alpine
     environment:
@@ -1465,7 +1465,7 @@ services:
       timeout: 5s
       retries: 5
     ports:
-      - "5432:5432"    # 開発時は外部からアクセス可能にする
+      - "5432:5432"    # Accessible from outside during development
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -1478,7 +1478,7 @@ services:
     volumes:
       - redis_data:/data
 
-  # --- オブジェクトストレージ (S3 互換) ---
+  # --- Object Storage (S3-compatible) ---
   minio:
     image: minio/minio:latest
     ports:
@@ -1491,7 +1491,7 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
 
-  # --- メールキャッチャー ---
+  # --- Mail Catcher ---
   mailhog:
     image: mailhog/mailhog:latest
     profiles: ["debug"]
@@ -1499,7 +1499,7 @@ services:
       - "1025:1025"    # SMTP
       - "8025:8025"    # Web UI
 
-  # --- DB 管理ツール ---
+  # --- DB Administration Tool ---
   pgadmin:
     image: dpage/pgadmin4:latest
     profiles: ["debug"]
@@ -1509,7 +1509,7 @@ services:
     ports:
       - "5050:80"
 
-  # --- Redis 管理ツール ---
+  # --- Redis Administration Tool ---
   redis-commander:
     image: rediscommander/redis-commander:latest
     profiles: ["debug"]
@@ -1528,69 +1528,69 @@ volumes:
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: 開発用コンテナに本番 Dockerfile をそのまま使用
+### Anti-Pattern 1: Using the Production Dockerfile Directly for Development
 
 ```dockerfile
-# NG: 本番用 Dockerfile をそのまま開発に使用
+# NG: Using the production Dockerfile as-is for development
 FROM node:20-alpine
 WORKDIR /app
-COPY . .               # 全ファイルコピー → バインドマウントと競合
-RUN npm ci --production # devDependencies がない
-CMD ["node", "dist/index.js"]  # ビルド済み前提
+COPY . .               # Copies all files → conflicts with bind mount
+RUN npm ci --production # devDependencies are missing
+CMD ["node", "dist/index.js"]  # Assumes pre-built output
 
-# OK: マルチステージで開発ステージを用意
+# OK: Use multi-stage builds with a dedicated development stage
 FROM node:20-alpine AS development
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm install  # devDependencies も含む
-# COPY は省略 → バインドマウントでソースを注入
+RUN corepack enable && pnpm install  # Includes devDependencies
+# COPY is omitted → source is injected via bind mount
 CMD ["pnpm", "dev"]
 ```
 
-**問題点**: 本番用 Dockerfile は最小限のファイルコピーと production 依存のみを含む。開発時に必要な devDependencies (テストフレームワーク、Lint ツール等) がなく、バインドマウントとの COPY 競合でファイル同期も壊れる。
+**Problem**: The production Dockerfile includes only the minimum file copies and production dependencies. devDependencies needed during development (test frameworks, lint tools, etc.) are missing, and the COPY directive conflicts with bind mounts, breaking file synchronization.
 
-### アンチパターン 2: CI で docker compose up のまま放置
+### Anti-Pattern 2: Leaving docker compose up Running in CI Without Cleanup
 
 ```yaml
-# NG: クリーンアップを忘れる
+# NG: Forgetting to clean up
 steps:
   - run: docker compose up -d
   - run: npm test
-  # docker compose down を忘れている → 次回実行時にポート競合
+  # Forgot docker compose down → port conflicts on the next run
 
-# OK: always ステップでクリーンアップを保証
+# OK: Guarantee cleanup with an always step
 steps:
   - run: docker compose -f docker-compose.ci.yml up -d
   - run: npm test
   - name: Cleanup
-    if: always()  # テスト失敗時も必ず実行
+    if: always()  # Always runs even when tests fail
     run: docker compose -f docker-compose.ci.yml down -v --remove-orphans
 ```
 
-**問題点**: CI 環境でコンテナを停止し忘れると、次の CI 実行時にポート競合やボリュームのゴミが残り、テストが不安定になる。`if: always()` で必ずクリーンアップを実行する。
+**Problem**: If containers are not stopped in the CI environment, the next CI run will encounter port conflicts and leftover volumes, causing tests to become unstable. Use `if: always()` to ensure cleanup always runs.
 
-### アンチパターン 3: デバッガポートを本番に残す
+### Anti-Pattern 3: Leaving Debugger Ports Open in Production
 
 ```yaml
-# NG: デバッガポートが本番で公開されたまま
+# NG: Debugger port exposed in production
 services:
   app:
     ports:
       - "3000:3000"
-      - "9229:9229"    # デバッガポート → 本番では絶対に不可
+      - "9229:9229"    # Debugger port → absolutely not for production
     command: node --inspect=0.0.0.0:9229 dist/index.js
 
-# OK: デバッガポートは開発 override のみ
-# docker-compose.yml (ベース)
+# OK: Debugger port only in development override
+# docker-compose.yml (base)
 services:
   app:
     ports:
       - "3000:3000"
     command: node dist/index.js
 
-# docker-compose.override.yml (開発)
+# docker-compose.override.yml (development)
 services:
   app:
     ports:
@@ -1598,46 +1598,46 @@ services:
     command: node --inspect=0.0.0.0:9229 node_modules/.bin/tsx watch src/index.ts
 ```
 
-**問題点**: `--inspect` オプションを有効にしたまま本番にデプロイすると、任意のコードが実行可能なデバッグインターフェースが外部に公開される。これは最も深刻なセキュリティ脆弱性の一つである。
+**Problem**: Deploying to production with the `--inspect` option enabled exposes a debug interface that allows arbitrary code execution externally. This is one of the most critical security vulnerabilities.
 
-### アンチパターン 4: バインドマウントで node_modules を共有
+### Anti-Pattern 4: Sharing node_modules via Bind Mount
 
 ```yaml
-# NG: ホストの node_modules がコンテナ内を上書き
+# NG: Host node_modules overwrite the container's
 services:
   app:
     volumes:
-      - .:/app        # node_modules も含まれてしまう
-    # → ホスト(macOS)のバイナリがLinuxコンテナで動かない
+      - .:/app        # node_modules is included
+    # → Host (macOS) binaries won't work in a Linux container
 
-# OK: node_modules はボリュームで分離
+# OK: Isolate node_modules using a volume
 services:
   app:
     volumes:
       - .:/app
-      - node_modules:/app/node_modules   # コンテナ専用
+      - node_modules:/app/node_modules   # Container-specific
 volumes:
   node_modules:
 ```
 
-**問題点**: ホスト（macOS/Windows）でインストールされたネイティブバイナリ（`bcrypt`, `sharp` 等）はLinuxコンテナ内では動作しない。`node_modules` をボリュームで分離することで、コンテナ内で正しいプラットフォーム用のバイナリが使用される。
+**Problem**: Native binaries installed on the host (macOS/Windows), such as `bcrypt` and `sharp`, do not work inside a Linux container. Isolating `node_modules` in a volume ensures that the correct platform-specific binaries are used inside the container.
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
     """基本的な実装パターンの演習"""
 
@@ -1681,12 +1681,12 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
@@ -1750,12 +1750,12 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
@@ -1801,67 +1801,67 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm time complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## FAQ
 
-### Q1: バインドマウントと Compose Watch のどちらを使うべきですか？
+### Q1: Should I use bind mounts or Compose Watch?
 
-**A**: Linux ではバインドマウントが最も高速で設定も単純なため、そのまま使えばよい。macOS / Windows ではバインドマウントの I/O が遅いため、Compose Watch (V2.22+) を推奨する。Watch は変更を検知してコンテナ内に同期する方式で、ファイルシステムのオーバーヘッドを回避できる。ただし双方向同期ではないため、コンテナ内で生成されるファイル（ビルド成果物等）はホスト側に反映されない点に注意。
+**A**: On Linux, bind mounts are the fastest and simplest to configure, so you can use them as-is. On macOS / Windows, bind mount I/O is slow, so Compose Watch (V2.22+) is recommended. Watch detects changes and syncs them into the container, avoiding file system overhead. Note that it is not bidirectional, so files generated inside the container (build artifacts, etc.) will not be reflected on the host side.
 
-### Q2: コンテナ内でデバッガを使うとブレークポイントの行番号がずれるのですが？
+### Q2: Breakpoint line numbers are off when using a debugger inside a container. Why?
 
-**A**: ソースマップとパスマッピングの設定が原因であることが多い。VS Code の `launch.json` で `localRoot` (ホスト側パス) と `remoteRoot` (コンテナ内パス) が正しく対応していることを確認する。TypeScript の場合は `tsconfig.json` で `"sourceMap": true` を設定し、トランスパイル後のファイルではなくソースファイルにブレークポイントを設定する。
+**A**: The cause is often incorrect source map and path mapping configuration. Verify that `localRoot` (host-side path) and `remoteRoot` (path inside the container) in VS Code's `launch.json` correspond correctly. For TypeScript, set `"sourceMap": true` in `tsconfig.json` and set breakpoints on the source files, not the transpiled files.
 
-### Q3: CI で Compose のビルドが毎回遅いのですが、キャッシュを効かせる方法はありますか？
+### Q3: Compose builds are slow every time in CI. How can I enable caching?
 
-**A**: (1) GitHub Actions の `actions/cache` で Docker レイヤーキャッシュを保存する。(2) `docker compose build --build-arg BUILDKIT_INLINE_CACHE=1` でインラインキャッシュを有効化し、前回のイメージを `cache_from` に指定する。(3) Dockerfile で `RUN --mount=type=cache` を使い、npm/pip のキャッシュをビルド間で共有する。(4) GitHub Actions の場合は `setup-buildx-action` + `build-push-action` で GHCR にキャッシュを保存するのが最も効果的。
+**A**: (1) Save Docker layer cache using `actions/cache` in GitHub Actions. (2) Enable inline cache with `docker compose build --build-arg BUILDKIT_INLINE_CACHE=1` and specify the previous image in `cache_from`. (3) Use `RUN --mount=type=cache` in the Dockerfile to share npm/pip caches between builds. (4) For GitHub Actions, the most effective approach is to use `setup-buildx-action` + `build-push-action` to store the cache in GHCR.
 
-### Q4: 開発環境と本番環境で Dockerfile を分けるべきですか？
+### Q4: Should I separate Dockerfiles for development and production environments?
 
-**A**: 分けるべきではない。マルチステージビルドを使い、1つの Dockerfile 内で `development`、`test`、`production` のステージを定義する。`docker compose` 側で `build.target` を指定してステージを切り替える。これにより、Dockerfile のメンテナンスコストが下がり、環境間の差異を最小限に抑えられる。
+**A**: You should not. Use multi-stage builds to define `development`, `test`, and `production` stages within a single Dockerfile. Specify the stage to use with `build.target` on the `docker compose` side. This reduces Dockerfile maintenance cost and minimizes differences between environments.
 
-### Q5: Docker Desktop の VirtioFS と gRPC FUSE の違いは？
+### Q5: What is the difference between Docker Desktop VirtioFS and gRPC FUSE?
 
-**A**: VirtioFS は macOS の Virtualization.framework を使った高速なファイル共有方式で、gRPC FUSE（旧方式）と比較して 2〜5 倍のパフォーマンス向上が期待できる。Docker Desktop 4.15+ でデフォルトで有効。Settings → General → "Use VirtioFS" で確認・設定できる。大規模プロジェクトでは VirtioFS + node_modules のボリューム分離が最も効果的な組み合わせである。
+**A**: VirtioFS is a high-speed file sharing method using macOS's Virtualization.framework, offering 2 to 5 times the performance improvement compared to gRPC FUSE (the older method). It is enabled by default in Docker Desktop 4.15+. You can verify and configure it at Settings → General → "Use VirtioFS". For large-scale projects, the most effective combination is VirtioFS combined with node_modules volume isolation.
 
-### Q6: Dev Containers と通常の Docker Compose 開発のどちらが良いですか？
+### Q6: Which is better, Dev Containers or standard Docker Compose development?
 
-**A**: チーム全員が VS Code を使うなら Dev Containers が統一された開発体験を提供できる。エディタが混在するチームではバインドマウント方式が柔軟。Dev Containers のメリットは、エディタの拡張機能やターミナルがコンテナ内で動作するため、ホスト環境に依存しない完全に同一の開発環境が実現できること。デメリットは VS Code 必須であること、コンテナ再構築時の待ち時間が発生すること。
+**A**: If everyone on the team uses VS Code, Dev Containers can provide a unified development experience. For teams with mixed editors, the bind mount approach is more flexible. The advantage of Dev Containers is that editor extensions and terminals run inside the container, delivering a completely identical development environment without dependence on the host. The disadvantages are that VS Code is required and there is waiting time when rebuilding the container.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| ホットリロード | バインドマウント + Volume 分離(node_modules)が基本 |
-| Compose Watch | V2.22+ の公式同期機能。macOS/Windows で推奨 |
-| デバッグ | `--inspect=0.0.0.0:9229` + VS Code Attach で実現 |
-| テスト | profiles + tmpfs で高速なテスト専用 DB を構築 |
-| E2E テスト | Playwright/Cypress をコンテナ化して安定実行 |
-| CI 統合 | 専用 Compose ファイル + `if: always()` クリーンアップ |
-| パフォーマンス | VirtioFS + Volume 分離 + BuildKit キャッシュで最適化 |
-| マルチステージ | development / test / production ステージを分離 |
-| Makefile | 日常タスクを make コマンドに集約 |
-| Dev Containers | VS Code + コンテナで完全統一された開発環境 |
+| Item | Key Points |
+|------|------------|
+| Hot Reload | Bind mount + Volume isolation (node_modules) is the foundation |
+| Compose Watch | Official sync feature in V2.22+. Recommended for macOS/Windows |
+| Debugging | Achieved with `--inspect=0.0.0.0:9229` + VS Code Attach |
+| Testing | Build a fast dedicated test DB with profiles + tmpfs |
+| E2E Testing | Containerize Playwright/Cypress for stable execution |
+| CI Integration | Dedicated Compose file + `if: always()` cleanup |
+| Performance | Optimize with VirtioFS + Volume isolation + BuildKit cache |
+| Multi-stage | Separate development / test / production stages |
+| Makefile | Consolidate daily tasks into make commands |
+| Dev Containers | VS Code + container for a fully unified development environment |
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [Compose 応用](./01-compose-advanced.md) -- プロファイル、healthcheck、環境変数の高度な設定
-- [Docker Compose 基礎](./00-compose-basics.md) -- Compose の基本構文
-- [コンテナセキュリティ](../06-security/00-container-security.md) -- 開発環境でも意識すべきセキュリティ
+- [Compose Advanced](./01-compose-advanced.md) -- Advanced configuration of profiles, healthcheck, and environment variables
+- [Docker Compose Basics](./00-compose-basics.md) -- Basic Compose syntax
+- [Container Security](../06-security/00-container-security.md) -- Security practices to be aware of even in development environments
 
-## 参考文献
+## References
 
-1. **Docker Compose Watch** -- https://docs.docker.com/compose/file-watch/ -- Compose Watch 機能の公式ドキュメント
-2. **VS Code Remote Debugging** -- https://code.visualstudio.com/docs/nodejs/nodejs-debugging -- VS Code からのリモートデバッグ設定
-3. **Docker Build Cache** -- https://docs.docker.com/build/cache/ -- BuildKit のキャッシュ機構と最適化
-4. **Docker Compose in CI** -- https://docs.docker.com/compose/ci-cd/ -- CI/CD 環境での Compose の使い方
-5. **Dev Containers** -- https://containers.dev/ -- Development Containers の公式仕様
-6. **Playwright Docker** -- https://playwright.dev/docs/docker -- Playwright のコンテナ実行ガイド
-7. **Docker Desktop VirtioFS** -- https://docs.docker.com/desktop/settings/mac/ -- VirtioFS の設定と最適化
+1. **Docker Compose Watch** -- https://docs.docker.com/compose/file-watch/ -- Official documentation for the Compose Watch feature
+2. **VS Code Remote Debugging** -- https://code.visualstudio.com/docs/nodejs/nodejs-debugging -- Remote debugging configuration from VS Code
+3. **Docker Build Cache** -- https://docs.docker.com/build/cache/ -- BuildKit cache mechanism and optimization
+4. **Docker Compose in CI** -- https://docs.docker.com/compose/ci-cd/ -- How to use Compose in CI/CD environments
+5. **Dev Containers** -- https://containers.dev/ -- Official Dev Containers specification
+6. **Playwright Docker** -- https://playwright.dev/docs/docker -- Guide for running Playwright in containers
+7. **Docker Desktop VirtioFS** -- https://docs.docker.com/desktop/settings/mac/ -- VirtioFS configuration and optimization
