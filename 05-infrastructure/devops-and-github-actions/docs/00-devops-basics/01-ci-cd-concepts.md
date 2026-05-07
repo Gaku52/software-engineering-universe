@@ -1,56 +1,56 @@
-# CI/CD概念
+# CI/CD Concepts
 
-> 継続的インテグレーション(CI)、継続的デリバリー(CD)、継続的デプロイメントの3段階を理解し、信頼性の高いパイプラインを設計する
+> Understand the three stages of Continuous Integration (CI), Continuous Delivery (CD), and Continuous Deployment, and design reliable pipelines
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. CI/CD/CDeploy の違いと段階的な導入アプローチを理解する
-2. パイプライン設計の原則とステージ構成を習得する
-3. ブランチ戦略とCI/CDの統合パターンを把握する
-4. テスト戦略とCI/CDの連携方法を実践できる
-5. モノレポ・マイクロサービスにおけるCI/CD設計パターンを理解する
+1. Understand the differences between CI/CD/CDeploy and a phased adoption approach
+2. Master pipeline design principles and stage composition
+3. Understand branch strategy and CI/CD integration patterns
+4. Learn how to connect test strategies with CI/CD in practice
+5. Understand CI/CD design patterns for monorepos and microservices
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [DevOps概要](./00-devops-overview.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [DevOps Overview](./00-devops-overview.md)
 
 ---
 
-## 1. CI/CD の3段階
+## 1. The Three Stages of CI/CD
 
-### 1.1 全体像
+### 1.1 Overview
 
 ```
-コード変更 → CI → CD (デリバリー) → CD (デプロイメント)
+Code Change → CI → CD (Delivery) → CD (Deployment)
 
 +--------+    +------------------+    +-------------------+    +------------------+
-| 開発者  | → | CI               | → | CD (デリバリー)     | → | CD (デプロイ)     |
-| コード  |    | ビルド・テスト    |    | ステージング反映    |    | 本番自動反映      |
-| 変更    |    | 自動実行          |    | 承認待ち           |    | 自動実行          |
+| Dev    | → | CI               | → | CD (Delivery)      | → | CD (Deploy)      |
+| Code   |    | Build & Test     |    | Staging Deploy     |    | Prod Auto Deploy  |
+| Change |    | Auto Execute     |    | Awaiting Approval  |    | Auto Execute      |
 +--------+    +------------------+    +-------------------+    +------------------+
                                                   ^
-                                            手動承認ゲート
-                                           (デリバリーの場合)
+                                        Manual Approval Gate
+                                           (for Delivery)
 ```
 
-### 1.2 継続的インテグレーション (CI)
+### 1.2 Continuous Integration (CI)
 
-開発者がコードを頻繁に(1日数回)メインブランチに統合し、その都度自動でビルドとテストを実行するプラクティス。Martin Fowler が2006年に体系化した概念で、「統合の地獄(Integration Hell)」を回避することが最大の目的である。
+A practice where developers integrate code into the main branch frequently (multiple times a day), automatically running builds and tests each time. A concept systematized by Martin Fowler in 2006, with the primary goal of avoiding "Integration Hell."
 
-**CIの核心原則:**
+**Core Principles of CI:**
 
-- コードは1日に1回以上メインブランチに統合する
-- 全てのコミットに対してビルドとテストが自動実行される
-- ビルドが壊れたら最優先で修復する(10分ルール)
-- テストは高速で信頼性が高くなければならない
+- Code is integrated into the main branch at least once a day
+- Builds and tests are automatically executed for every commit
+- A broken build is the top priority to fix (the 10-minute rule)
+- Tests must be fast and reliable
 
 ```yaml
-# CI パイプラインの基本例 (GitHub Actions)
+# Basic CI pipeline example (GitHub Actions)
 name: CI
 on:
   push:
@@ -86,32 +86,32 @@ jobs:
         run: npm run build
 ```
 
-**CIの導入チェックリスト:**
+**CI Adoption Checklist:**
 
 ```
-□ ソースコードが単一のリポジトリで管理されている
-□ ビルドが自動化されている(1コマンドでビルド可能)
-□ テストスイートが存在し、自動実行される
-□ コミットごとにCIが実行される設定がある
-□ CIの結果が開発者に即座に通知される
-□ ビルド失敗時の修復フローが確立されている
-□ 10分以内にCIが完了する
-□ メインブランチは常にグリーン(ビルド成功)状態を維持する
+□ Source code is managed in a single repository
+□ Build is automated (buildable with a single command)
+□ A test suite exists and runs automatically
+□ CI is configured to run on every commit
+□ CI results are immediately notified to developers
+□ A remediation flow for build failures is established
+□ CI completes within 10 minutes
+□ The main branch always maintains a green (build passing) state
 ```
 
-### 1.3 継続的デリバリー (Continuous Delivery)
+### 1.3 Continuous Delivery
 
-CIに加え、リリース可能なアーティファクトを自動生成し、ステージング環境にデプロイする。本番デプロイは手動承認を経て実行。Jez Humble と David Farley が2010年に著書で定義した概念で、「いつでも安全にリリースできる状態」を常に維持することが目標である。
+In addition to CI, automatically generates releasable artifacts and deploys to a staging environment. Production deployment is executed after manual approval. A concept defined by Jez Humble and David Farley in their 2010 book, with the goal of always maintaining a state where software "can be safely released at any time."
 
-**継続的デリバリーの原則:**
+**Principles of Continuous Delivery:**
 
-- ソフトウェアは常にリリース可能な状態を維持する
-- リリースはビジネス判断であり、技術的判断ではない
-- デプロイプロセスは完全に自動化されている
-- 本番デプロイと同一のプロセスが全環境で使用される
+- Software always maintains a releasable state
+- Releasing is a business decision, not a technical one
+- The deployment process is fully automated
+- The same process used for production deployment is used across all environments
 
 ```yaml
-# 継続的デリバリーの例
+# Continuous Delivery example
 name: Continuous Delivery
 on:
   push:
@@ -138,7 +138,7 @@ jobs:
           name: build-output
       - run: ./scripts/deploy.sh staging
 
-  # ステージング環境でのスモークテスト
+  # Smoke tests against staging environment
   smoke-test-staging:
     needs: deploy-staging
     runs-on: ubuntu-latest
@@ -156,7 +156,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      # 手動承認が必要（GitHub の Environment Protection Rules）
+      # Manual approval required (GitHub Environment Protection Rules)
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -164,32 +164,32 @@ jobs:
       - run: ./scripts/deploy.sh production
 ```
 
-### 1.4 継続的デプロイメント (Continuous Deployment)
+### 1.4 Continuous Deployment
 
-全てのテストに通過した変更が、人間の介入なしに本番環境へ自動デプロイされる。これは継続的デリバリーの延長であり、最も成熟したCI/CDの形態である。Facebook、Netflix、Etsy、GitHub自身がこの手法を採用している。
+Every change that passes all tests is automatically deployed to production without human intervention. This is an extension of Continuous Delivery and is the most mature form of CI/CD. Facebook, Netflix, Etsy, and GitHub itself have adopted this approach.
 
-**継続的デプロイメントの前提条件:**
+**Prerequisites for Continuous Deployment:**
 
-- 高いテストカバレッジ(ライン・ブランチともに80%以上)
-- 包括的な自動テスト(ユニット、統合、E2E、パフォーマンス)
-- 自動化されたロールバック機構
-- カナリーデプロイまたはBlue-Greenデプロイの導入
-- Feature Flag による機能の段階的公開
-- 充実した監視・アラート(SLO/SLI ベース)
-- 組織全体のリスク許容度と文化的成熟度
+- High test coverage (80%+ for both line and branch)
+- Comprehensive automated testing (unit, integration, E2E, performance)
+- Automated rollback mechanism
+- Canary deployment or Blue-Green deployment
+- Feature Flags for gradual feature rollout
+- Robust monitoring and alerting (SLO/SLI based)
+- Organization-wide risk tolerance and cultural maturity
 
 ```
-継続的デプロイメントのフロー:
+Continuous Deployment flow:
 
 Push → Build → Unit Test → Integration Test → E2E Test
   → Security Scan → Stage Deploy → Smoke Test
-  → Canary Deploy (5%) → メトリクス監視 (15分)
+  → Canary Deploy (5%) → Metrics monitoring (15 min)
   → Progressive Rollout (25% → 50% → 100%)
-  → 異常検知時は自動ロールバック
+  → Auto rollback on anomaly detection
 ```
 
 ```yaml
-# 継続的デプロイメントの実装例 (Kubernetes + ArgoCD 連携)
+# Continuous Deployment implementation example (Kubernetes + ArgoCD integration)
 name: Continuous Deployment
 on:
   push:
@@ -256,107 +256,107 @@ jobs:
           git add .
           git commit -m "chore: update my-app to ${{ github.sha }}"
           git push
-      # ArgoCD が変更を検知して自動同期 → カナリーデプロイ
+      # ArgoCD detects the change and auto-syncs → canary deploy
 ```
 
-### 1.5 3段階の段階的導入戦略
+### 1.5 Phased Adoption Strategy for the Three Stages
 
-多くの組織は一足飛びに継続的デプロイメントに到達できない。以下の段階的アプローチが現実的である。
+Most organizations cannot jump straight to Continuous Deployment. The following phased approach is realistic.
 
 ```
-Phase 1: CI の確立 (1-3ヶ月)
-  ├── 自動ビルドの設定
-  ├── ユニットテストの整備 (カバレッジ 60% 目標)
-  ├── Lint / 静的解析の導入
-  └── PR レビュープロセスの確立
+Phase 1: Establish CI (1-3 months)
+  ├── Set up automated builds
+  ├── Prepare unit tests (target coverage: 60%)
+  ├── Introduce Lint / static analysis
+  └── Establish PR review process
 
-Phase 2: 継続的デリバリーの確立 (3-6ヶ月)
-  ├── ステージング環境の自動デプロイ
-  ├── 統合テスト・E2Eテストの整備 (カバレッジ 80% 目標)
-  ├── Environment Protection Rules の設定
-  ├── デプロイ手順の自動化
-  └── ロールバック手順の確立
+Phase 2: Establish Continuous Delivery (3-6 months)
+  ├── Automated deployment to staging environment
+  ├── Prepare integration tests and E2E tests (target coverage: 80%)
+  ├── Configure Environment Protection Rules
+  ├── Automate deployment procedures
+  └── Establish rollback procedures
 
-Phase 3: 継続的デプロイメントの確立 (6-12ヶ月)
-  ├── カナリーデプロイの導入
-  ├── 自動ロールバック機構の実装
-  ├── SLO/SLI ベースの監視
-  ├── Feature Flag の導入
-  └── 文化的な変革 (失敗を許容する文化)
+Phase 3: Establish Continuous Deployment (6-12 months)
+  ├── Introduce canary deployment
+  ├── Implement automated rollback mechanism
+  ├── SLO/SLI-based monitoring
+  ├── Introduce Feature Flags
+  └── Cultural transformation (culture of tolerating failure)
 ```
 
 ---
 
-## 2. CI/CDの違い比較
+## 2. Comparison of CI/CD Stages
 
-### 2.1 3段階の比較表
+### 2.1 Comparison Table of Three Stages
 
-| 項目 | CI | CD (デリバリー) | CD (デプロイメント) |
+| Item | CI | CD (Delivery) | CD (Deployment) |
 |---|---|---|---|
-| 自動ビルド | はい | はい | はい |
-| 自動テスト | はい | はい | はい |
-| ステージングデプロイ | 任意 | 自動 | 自動 |
-| 本番デプロイ | 手動 | 手動承認後自動 | 完全自動 |
-| リスク | 低 | 中 | 高(要成熟度) |
-| 前提条件 | テスト基盤 | CI + 環境管理 | CD + 高いテストカバレッジ |
-| 適するチーム | 全チーム | CI成熟チーム | CD成熟チーム |
-| リリース頻度 | - | 週1-2回 | 日に数回〜数十回 |
-| フィードバック速度 | 分 | 時間 | 分 |
-| 導入期間 | 1-3ヶ月 | 3-6ヶ月 | 6-12ヶ月 |
+| Automated Build | Yes | Yes | Yes |
+| Automated Test | Yes | Yes | Yes |
+| Staging Deploy | Optional | Automatic | Automatic |
+| Production Deploy | Manual | Automatic after manual approval | Fully automatic |
+| Risk | Low | Medium | High (requires maturity) |
+| Prerequisites | Test infrastructure | CI + environment management | CD + high test coverage |
+| Suitable Team | All teams | CI-mature teams | CD-mature teams |
+| Release Frequency | - | 1-2 times/week | Multiple to tens of times/day |
+| Feedback Speed | Minutes | Hours | Minutes |
+| Adoption Period | 1-3 months | 3-6 months | 6-12 months |
 
-### 2.2 パイプラインツール比較
+### 2.2 Pipeline Tool Comparison
 
-| ツール | ホスティング | 設定形式 | 特徴 | 適用場面 |
+| Tool | Hosting | Config Format | Features | Use Case |
 |---|---|---|---|---|
-| GitHub Actions | SaaS (GitHub) | YAML | GitHub統合、マーケットプレイス | GitHub利用プロジェクト |
-| GitLab CI | SaaS / Self-hosted | YAML | GitLab統合、Auto DevOps | GitLab利用プロジェクト |
-| CircleCI | SaaS | YAML | 高速、Docker最適化 | パフォーマンス重視 |
-| Jenkins | Self-hosted | Groovy/YAML | 高い拡張性、プラグイン | エンタープライズ |
-| Dagger | ローカル / CI | CUE/Go/Python | ポータブル、ローカル再現 | マルチCI環境 |
-| AWS CodePipeline | SaaS (AWS) | JSON/YAML | AWS統合、CodeBuild連携 | AWS中心のプロジェクト |
-| Azure DevOps | SaaS / Self-hosted | YAML | Azure統合、Boards連携 | Microsoft エコシステム |
-| Buildkite | SaaS + Self-hosted | YAML | 高スケーラビリティ | 大規模組織 |
+| GitHub Actions | SaaS (GitHub) | YAML | GitHub integration, marketplace | GitHub projects |
+| GitLab CI | SaaS / Self-hosted | YAML | GitLab integration, Auto DevOps | GitLab projects |
+| CircleCI | SaaS | YAML | Fast, Docker-optimized | Performance-focused |
+| Jenkins | Self-hosted | Groovy/YAML | High extensibility, plugins | Enterprise |
+| Dagger | Local / CI | CUE/Go/Python | Portable, local reproducibility | Multi-CI environments |
+| AWS CodePipeline | SaaS (AWS) | JSON/YAML | AWS integration, CodeBuild support | AWS-centric projects |
+| Azure DevOps | SaaS / Self-hosted | YAML | Azure integration, Boards integration | Microsoft ecosystem |
+| Buildkite | SaaS + Self-hosted | YAML | High scalability | Large organizations |
 
-### 2.3 ツール選定のディシジョンツリー
+### 2.3 Tool Selection Decision Tree
 
 ```
-CI/CD ツール選定:
+CI/CD Tool Selection:
 
-GitHub を使っている？
-├── Yes → GitHub Actions (第一選択)
-│         ├── セルフホステッドランナーが必要？ → Actions + Self-hosted Runner
-│         └── AWS デプロイが中心？ → Actions + aws-actions/*
-└── No → GitLab を使っている？
+Using GitHub?
+├── Yes → GitHub Actions (first choice)
+│         ├── Need self-hosted runners? → Actions + Self-hosted Runner
+│         └── AWS deployment focus? → Actions + aws-actions/*
+└── No → Using GitLab?
           ├── Yes → GitLab CI/CD
-          └── No → エンタープライズ要件？
+          └── No → Enterprise requirements?
                     ├── Yes → Jenkins / Azure DevOps
-                    └── No → マルチCI環境が必要？
+                    └── No → Multi-CI environment needed?
                               ├── Yes → Dagger
                               └── No → CircleCI / Buildkite
 ```
 
 ---
 
-## 3. パイプライン設計原則
+## 3. Pipeline Design Principles
 
-### 3.1 パイプラインステージの標準構成
+### 3.1 Standard Stage Composition for Pipelines
 
 ```
 +-------+    +------+    +------+    +--------+    +--------+    +--------+
 | Lint  | → | Build | → | Test  | → | Scan   | → | Stage  | → | Prod   |
-| 静的  |    | 構築  |    | 検証  |    | 脆弱性 |    | 環境   |    | 環境   |
-| 解析  |    |       |    |       |    | 検査   |    | デプロイ|    | デプロイ|
+| Static|    | Build |    | Verify|    | Vuln.  |    | Env    |    | Env    |
+| Anal. |    |       |    |       |    | Scan   |    | Deploy |    | Deploy |
 +-------+    +------+    +------+    +--------+    +--------+    +--------+
   ~10s        ~30s        ~2min       ~1min         ~3min         ~3min
 
-                    ← 高速フィードバック →        ← 信頼性確保 →
-              (失敗は早く検知して即座に修正)    (段階的に本番に近づける)
+                    ← Fast Feedback →            ← Reliability →
+              (Detect failures early, fix fast)   (Gradually approach production)
 ```
 
-### 3.2 フィードバック速度の原則
+### 3.2 Feedback Speed Principle
 
 ```python
-# パイプライン最適化: 高速フィードバックファースト
+# Pipeline optimization: fast feedback first
 pipeline_stages = {
     "lint":           {"time": "10s",  "fail_rate": "20%", "order": 1},
     "type_check":     {"time": "15s",  "fail_rate": "10%", "order": 2},
@@ -367,29 +367,29 @@ pipeline_stages = {
     "security_scan":  {"time": "60s",  "fail_rate": "3%",  "order": 7},
 }
 
-# 原則: 失敗率の高いステージを先に実行
-# 原則: 実行時間の短いステージを先に実行
-# 原則: 独立したステージは並列実行
+# Principle: Run stages with higher failure rates first
+# Principle: Run shorter stages first
+# Principle: Run independent stages in parallel
 ```
 
-**フィードバック速度の目標値:**
+**Feedback Speed Targets:**
 
-| フェーズ | 目標時間 | 含まれる処理 |
+| Phase | Target Time | Included Processes |
 |---|---|---|
-| ローカルチェック | 30秒以内 | Lint、フォーマット |
-| PR CI | 10分以内 | ビルド、テスト、静的解析 |
-| ステージングデプロイ | 15分以内 | ビルド、テスト、デプロイ |
-| 本番デプロイ | 30分以内 | 全テスト、承認、デプロイ、検証 |
+| Local Check | Within 30 seconds | Lint, formatting |
+| PR CI | Within 10 minutes | Build, tests, static analysis |
+| Staging Deploy | Within 15 minutes | Build, tests, deploy |
+| Production Deploy | Within 30 minutes | All tests, approval, deploy, verification |
 
-### 3.3 並列化とキャッシュ
+### 3.3 Parallelism and Caching
 
 ```yaml
-# 並列化によるパイプライン高速化
+# Pipeline acceleration through parallelism
 name: Optimized CI
 on: [push]
 
 jobs:
-  # Phase 1: 独立したジョブを並列実行
+  # Phase 1: Run independent jobs in parallel
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -428,7 +428,7 @@ jobs:
           name: coverage
           path: coverage/
 
-  # Phase 2: Phase 1 全てが成功したら実行
+  # Phase 2: Run after all Phase 1 jobs succeed
   build:
     needs: [lint, type-check, unit-test]
     runs-on: ubuntu-latest
@@ -444,7 +444,7 @@ jobs:
           name: build-output
           path: dist/
 
-  # Phase 3: E2E テスト (マトリクスで並列化)
+  # Phase 3: E2E tests (parallelized via matrix)
   e2e-test:
     needs: build
     runs-on: ubuntu-latest
@@ -466,7 +466,7 @@ jobs:
           name: playwright-report-${{ matrix.shard }}
           path: playwright-report/
 
-  # Phase 4: セキュリティスキャン (Phase 2 と並列実行可能)
+  # Phase 4: Security scan (can run in parallel with Phase 2)
   security-scan:
     needs: [lint, type-check, unit-test]
     runs-on: ubuntu-latest
@@ -478,40 +478,40 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 ```
 
-### 3.4 パイプラインのメトリクス
+### 3.4 Pipeline Metrics
 
-パイプラインの健全性を測定するために以下のメトリクスを追跡する。
+Track the following metrics to measure pipeline health.
 
 ```
-CI/CD メトリクス (DORA メトリクス):
+CI/CD Metrics (DORA Metrics):
 
-1. デプロイ頻度 (Deployment Frequency)
-   エリート: オンデマンド(1日複数回)
-   高: 1日1回〜週1回
-   中: 週1回〜月1回
-   低: 月1回未満
+1. Deployment Frequency
+   Elite: On-demand (multiple times per day)
+   High: Once per day to once per week
+   Medium: Once per week to once per month
+   Low: Less than once per month
 
-2. リードタイム (Lead Time for Changes)
-   エリート: 1時間未満
-   高: 1日〜1週間
-   中: 1週間〜1ヶ月
-   低: 1ヶ月超
+2. Lead Time for Changes
+   Elite: Less than 1 hour
+   High: 1 day to 1 week
+   Medium: 1 week to 1 month
+   Low: More than 1 month
 
-3. 変更失敗率 (Change Failure Rate)
-   エリート: 0-15%
-   高: 16-30%
-   中: 16-30%
-   低: 46-60%
+3. Change Failure Rate
+   Elite: 0-15%
+   High: 16-30%
+   Medium: 16-30%
+   Low: 46-60%
 
-4. 復旧時間 (Time to Restore Service)
-   エリート: 1時間未満
-   高: 1日未満
-   中: 1日〜1週間
-   低: 1週間超
+4. Time to Restore Service
+   Elite: Less than 1 hour
+   High: Less than 1 day
+   Medium: 1 day to 1 week
+   Low: More than 1 week
 ```
 
 ```yaml
-# CI メトリクスの収集例
+# CI metrics collection example
 name: CI Metrics
 on:
   workflow_run:
@@ -530,7 +530,7 @@ jobs:
             const duration = (new Date(run.updated_at) - new Date(run.created_at)) / 1000;
             const status = run.conclusion;
 
-            // メトリクスをDatadog等に送信
+            // Send metrics to Datadog, etc.
             console.log(`CI Duration: ${duration}s, Status: ${status}`);
             console.log(`Branch: ${run.head_branch}`);
             console.log(`Commit: ${run.head_sha}`);
@@ -538,28 +538,29 @@ jobs:
 
 ---
 
-## 4. ブランチ戦略とCI/CD
+## 4. Branch Strategies and CI/CD
 
-### 4.1 トランクベース開発
+### 4.1 Trunk-Based Development
 
 ```
-main ─────●────●────●────●────●────●── (常にデプロイ可能)
+main ─────●────●────●────●────●────●── (always deployable)
           │    │    │    │    │    │
           └─●──┘    └─●──┘    └─●──┘
-         短命ブランチ  短命ブランチ  短命ブランチ
-         (数時間〜1日) (数時間〜1日) (数時間〜1日)
+         short-lived  short-lived  short-lived
+         branch       branch       branch
+         (hours~1day) (hours~1day) (hours~1day)
 
-特徴:
-- main ブランチが常にデプロイ可能
-- フィーチャーブランチは短命(最大1-2日)
-- Feature Flag で未完成機能を隠す
-- 継続的デプロイメントと相性が良い
+Characteristics:
+- main branch is always deployable
+- Feature branches are short-lived (max 1-2 days)
+- Feature Flags hide incomplete features
+- Works well with Continuous Deployment
 ```
 
-**トランクベース開発のCI/CD設定:**
+**CI/CD Configuration for Trunk-Based Development:**
 
 ```yaml
-# トランクベース開発向けCI/CD
+# CI/CD for trunk-based development
 name: Trunk-Based CD
 on:
   push:
@@ -582,7 +583,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Deploy with feature flags
         run: |
-          # Feature Flag の状態を反映してデプロイ
+          # Deploy reflecting Feature Flag state
           ./scripts/deploy.sh \
             --image ghcr.io/myorg/app:${{ github.sha }} \
             --feature-flags-config flags.json
@@ -593,25 +594,25 @@ jobs:
 ### 4.2 GitHub Flow
 
 ```
-main ─────●─────────●─────────●──────── (保護ブランチ)
+main ─────●─────────●─────────●──────── (protected branch)
           │         ↑         │
           └──●──●──PR──merge──┘
           feature/xxx
-          (PR レビュー必須)
+          (PR review required)
 
-特徴:
-- シンプルなブランチモデル
-- PR ベースのコードレビュー
-- CI が PR 上で実行される
-- main マージ後にデプロイ
+Characteristics:
+- Simple branch model
+- PR-based code review
+- CI runs on PRs
+- Deploy after merging to main
 ```
 
 ### 4.3 Git Flow
 
 ```
-main ───────────────●──────────────●──── (リリースタグ)
+main ───────────────●──────────────●──── (release tags)
                     ↑              ↑
-develop ──●──●──●───┤──●──●──●────┤──── (統合ブランチ)
+develop ──●──●──●───┤──●──●──●────┤──── (integration branch)
           │  │  │   │  │  │  │    │
           └──┘  │   │  └──┘  │    │
         feature │   │  feature│    │
@@ -620,15 +621,15 @@ develop ──●──●──●───┤──●──●──●──
               │      │         │   │
               └──→───┘         └──→┘
 
-特徴:
-- 複雑だがリリース管理に厳密
-- main, develop, feature, release, hotfix ブランチ
-- 長期メンテナンスのソフトウェアに適する
-- CI/CD との統合は複雑になりがち
+Characteristics:
+- Complex but strict release management
+- main, develop, feature, release, hotfix branches
+- Suited for long-term maintenance software
+- Integration with CI/CD tends to be complex
 ```
 
 ```yaml
-# Git Flow 向けCI/CD
+# CI/CD for Git Flow
 name: Git Flow CI/CD
 on:
   push:
@@ -668,54 +669,54 @@ jobs:
       - run: ./deploy.sh production
 ```
 
-### 4.4 ブランチ戦略の比較
+### 4.4 Branch Strategy Comparison
 
-| 項目 | トランクベース | GitHub Flow | Git Flow |
+| Item | Trunk-Based | GitHub Flow | Git Flow |
 |---|---|---|---|
-| 複雑さ | 低 | 低 | 高 |
-| ブランチ数 | 最小 | 少 | 多 |
-| リリース頻度 | 非常に高い | 高い | 中〜低 |
-| Feature Flag 必要度 | 高 | 中 | 低 |
-| CI/CD との相性 | 最高 | 良好 | 複雑 |
-| 適用場面 | SaaS、Web | 一般的なプロジェクト | パッケージ、ライブラリ |
-| チーム規模 | 小〜大 | 小〜中 | 中〜大 |
+| Complexity | Low | Low | High |
+| Number of Branches | Minimum | Few | Many |
+| Release Frequency | Very high | High | Medium to low |
+| Feature Flag Need | High | Medium | Low |
+| CI/CD Compatibility | Best | Good | Complex |
+| Use Cases | SaaS, Web | General projects | Packages, libraries |
+| Team Size | Small to large | Small to medium | Medium to large |
 
 ---
 
-## 5. テスト戦略
+## 5. Test Strategies
 
-### 5.1 テストピラミッド
+### 5.1 Test Pyramid
 
 ```
             /\
            /  \
-          / E2E \          少数・高コスト・遅い
+          / E2E \          Few, high cost, slow
          /------\
-        /  統合   \        中程度
-       /テスト     \
+        /Integration\      Moderate
+       /   Tests    \
       /------------\
-     /   ユニット    \     多数・低コスト・速い
-    / テスト          \
+     /  Unit Tests   \     Many, low cost, fast
+    /                 \
    /------------------\
 
-推奨比率:
+Recommended ratio:
   Unit     : Integration : E2E = 70 : 20 : 10
 ```
 
-### 5.2 各テストレベルの特徴
+### 5.2 Characteristics of Each Test Level
 
-| テストレベル | 実行時間 | カバレッジ目標 | テスト対象 | ツール例 |
+| Test Level | Execution Time | Coverage Target | Test Target | Tool Examples |
 |---|---|---|---|---|
-| Unit | ミリ秒〜秒 | 80%+ | 関数、クラス | Jest, Vitest, pytest |
-| Integration | 秒〜分 | 60%+ | API、DB連携 | Supertest, TestContainers |
-| E2E | 分〜十分 | 主要フロー | ユーザーシナリオ | Playwright, Cypress |
-| Performance | 分〜時間 | SLO目標 | レスポンスタイム | k6, Artillery |
-| Security | 分 | 脆弱性ゼロ | 依存関係、コード | Snyk, Trivy, tfsec |
+| Unit | Milliseconds to seconds | 80%+ | Functions, classes | Jest, Vitest, pytest |
+| Integration | Seconds to minutes | 60%+ | APIs, DB integration | Supertest, TestContainers |
+| E2E | Minutes to tens of minutes | Key flows | User scenarios | Playwright, Cypress |
+| Performance | Minutes to hours | SLO targets | Response time | k6, Artillery |
+| Security | Minutes | Zero vulnerabilities | Dependencies, code | Snyk, Trivy, tfsec |
 
-### 5.3 CI でのテスト実行例
+### 5.3 Test Execution Example in CI
 
 ```yaml
-# テストピラミッドに基づくCI設定
+# CI configuration based on the test pyramid
 name: Test Pipeline
 on: [push]
 
@@ -796,14 +797,14 @@ jobs:
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
 ```
 
-### 5.4 テスト品質の指標
+### 5.4 Test Quality Metrics
 
 ```yaml
-# Mutation Testing でテストの品質を測定
+# Measure test quality with Mutation Testing
 name: Mutation Testing
 on:
   schedule:
-    - cron: '0 3 * * 1'  # 毎週月曜 AM3時
+    - cron: '0 3 * * 1'  # Every Monday at 3:00 AM
 
 jobs:
   mutation:
@@ -817,36 +818,36 @@ jobs:
         run: |
           SCORE=$(cat reports/mutation/mutation.json | jq '.schemaVersion' )
           echo "Mutation Score: $SCORE%"
-          # 70% 以上を要求
+          # Require 70% or above
 ```
 
 ---
 
-## 6. モノレポにおけるCI/CD
+## 6. CI/CD in Monorepos
 
-### 6.1 モノレポのCI/CD課題
+### 6.1 CI/CD Challenges in Monorepos
 
 ```
-モノレポの構成例:
+Example monorepo structure:
 monorepo/
 ├── packages/
-│   ├── web/          # フロントエンド
-│   ├── api/          # バックエンド
-│   ├── shared/       # 共通ライブラリ
-│   └── mobile/       # モバイルアプリ
+│   ├── web/          # Frontend
+│   ├── api/          # Backend
+│   ├── shared/       # Shared library
+│   └── mobile/       # Mobile app
 ├── package.json
 └── turbo.json
 
-課題:
-- 全パッケージのCI実行は時間がかかりすぎる
-- 変更されていないパッケージのテストは無駄
-- パッケージ間の依存関係を考慮する必要がある
+Challenges:
+- Running CI for all packages takes too long
+- Testing packages that haven't changed is wasteful
+- Need to account for inter-package dependencies
 ```
 
-### 6.2 Affected 戦略
+### 6.2 Affected Strategy
 
 ```yaml
-# Turborepo を使った affected ビルド
+# Affected build using Turborepo
 name: Monorepo CI
 on: [push, pull_request]
 
@@ -892,7 +893,7 @@ jobs:
       - run: npm ci
       - run: npx turbo test --filter=api...
 
-  # Turborepo を使った一括実行(affected のみ)
+  # Batch execution using Turborepo (affected only)
   turbo-ci:
     runs-on: ubuntu-latest
     steps:
@@ -907,10 +908,10 @@ jobs:
           TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 ```
 
-### 6.3 Nx を使ったモノレポCI
+### 6.3 Monorepo CI with Nx
 
 ```yaml
-# Nx の affected コマンドを使用
+# Using Nx affected commands
 name: Nx Monorepo CI
 on: [push, pull_request]
 
@@ -941,12 +942,12 @@ jobs:
 
 ---
 
-## 7. マイクロサービスのCI/CD
+## 7. CI/CD for Microservices
 
-### 7.1 サービスごとの独立パイプライン
+### 7.1 Independent Pipelines per Service
 
 ```yaml
-# サービスごとのCI/CDパイプライン
+# CI/CD pipeline per service
 name: User Service CI/CD
 on:
   push:
@@ -991,12 +992,12 @@ jobs:
             app=ghcr.io/myorg/user-service:${{ github.sha }}
 ```
 
-### 7.2 契約テスト (Contract Testing)
+### 7.2 Contract Testing
 
-マイクロサービス間のAPI互換性を保証するため、契約テストをCIに組み込む。
+Incorporate contract tests into CI to ensure API compatibility between microservices.
 
 ```yaml
-# Pact による契約テスト
+# Contract tests with Pact
 name: Contract Tests
 on: [push]
 
@@ -1029,12 +1030,12 @@ jobs:
 
 ---
 
-## 8. デプロイ戦略との連携
+## 8. Integration with Deployment Strategies
 
-### 8.1 Blue-Green デプロイ
+### 8.1 Blue-Green Deployment
 
 ```yaml
-# Blue-Green デプロイの CI/CD 連携
+# CI/CD integration for Blue-Green deployment
 name: Blue-Green Deploy
 on:
   push:
@@ -1071,10 +1072,10 @@ jobs:
             --default-actions Type=forward,TargetGroupArn=${{ steps.current.outputs.deploy_to }}-tg-arn
 ```
 
-### 8.2 カナリーデプロイ
+### 8.2 Canary Deployment
 
 ```yaml
-# カナリーデプロイの CI/CD 連携
+# CI/CD integration for canary deployment
 name: Canary Deploy
 on:
   push:
@@ -1112,110 +1113,110 @@ jobs:
             echo "Rolling out to ${WEIGHT}%"
             kubectl patch deployment/app-production \
               -p "{\"spec\":{\"replicas\":$((WEIGHT * TOTAL_REPLICAS / 100))}}"
-            sleep 300  # 5分間監視
+            sleep 300  # Monitor for 5 minutes
           done
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン1: CI シアター
-
-```
-問題:
-  CI パイプラインは存在するが、形骸化している。
-  - テストカバレッジが低く、テストが通っても品質が保証されない
-  - 失敗したテストを skip や ignore で無視
-  - "CI が通った = 安全" という誤った安心感
-
-症状:
-  ✗ テストカバレッジ 20% で "CI 通りました"
-  ✗ @skip アノテーションが 50 個以上
-  ✗ CI は通るが本番障害が頻発
-  ✗ フレーキーテスト(不安定なテスト)を放置
-
-改善:
-  1. カバレッジ閾値を設定(最低80%)
-  2. @skip テストの定期棚卸し
-  3. 本番障害ごとに回帰テスト追加
-  4. Mutation Testing の導入
-  5. フレーキーテストの専用トラッカーで管理
-```
-
-### アンチパターン2: 巨大モノリシックパイプライン
+### Anti-Pattern 1: CI Theater
 
 ```
-問題:
-  1つのパイプラインに全てを詰め込み、実行時間が30分〜1時間超。
-  フィードバックが遅く、開発者がCIを無視するようになる。
+Problem:
+  A CI pipeline exists but is a mere formality.
+  - Low test coverage means passing tests don't guarantee quality
+  - Failed tests are ignored with skip or ignore
+  - False sense of security: "CI passed = safe"
+
+Symptoms:
+  ✗ "CI passed" with 20% test coverage
+  ✗ More than 50 @skip annotations
+  ✗ CI passes but production outages are frequent
+  ✗ Flaky tests (unstable tests) are left unaddressed
+
+Improvements:
+  1. Set coverage thresholds (minimum 80%)
+  2. Periodically review @skip tests
+  3. Add regression tests for every production incident
+  4. Introduce Mutation Testing
+  5. Manage flaky tests with a dedicated tracker
+```
+
+### Anti-Pattern 2: Massive Monolithic Pipeline
+
+```
+Problem:
+  Everything is crammed into one pipeline, taking 30 minutes to over an hour.
+  Feedback is slow, and developers start ignoring CI.
 
   Push → Lint → Build → Unit → Integration → E2E → Deploy
-  |                    30分〜1時間                        |
+  |                  30 minutes to 1 hour                   |
 
-改善:
-  1. ステージの並列化
-  2. 変更されたパッケージのみテスト (affected)
-  3. テストの分割実行 (sharding)
-  4. キャッシュの活用
-  5. 差分ビルド
+Improvements:
+  1. Parallelize stages
+  2. Test only changed packages (affected)
+  3. Split test execution (sharding)
+  4. Use caching
+  5. Incremental builds
 
-  目標: PR の CI は 10 分以内に完了
+  Goal: PR CI completes within 10 minutes
 ```
 
-### アンチパターン3: 環境差異の放置
+### Anti-Pattern 3: Ignoring Environment Differences
 
 ```
-問題:
-  ローカル、CI、ステージング、本番で環境が異なる。
-  "ローカルでは通るのにCIでは失敗する" が頻発。
+Problem:
+  Local, CI, staging, and production environments differ.
+  "It works locally but fails in CI" happens frequently.
 
-症状:
-  ✗ ローカルは Node 18、CI は Node 20
-  ✗ CI にはデータベースがなく、統合テストをスキップ
-  ✗ ステージングと本番でインフラ構成が異なる
+Symptoms:
+  ✗ Local uses Node 18, CI uses Node 20
+  ✗ CI has no database, so integration tests are skipped
+  ✗ Staging and production have different infrastructure configurations
 
-改善:
-  1. Docker / Dev Containers で開発環境を統一
-  2. .node-version, .tool-versions で言語バージョンを固定
-  3. CI に services: でデータベース等を起動
-  4. IaC で全環境のインフラを管理
-  5. 環境変数の管理を一元化
+Improvements:
+  1. Unify development environment with Docker / Dev Containers
+  2. Pin language versions with .node-version, .tool-versions
+  3. Start databases etc. in CI with services:
+  4. Manage infrastructure for all environments with IaC
+  5. Centralize environment variable management
 ```
 
-### アンチパターン4: 手動リリースプロセス
+### Anti-Pattern 4: Manual Release Process
 
 ```
-問題:
-  CI は自動化されているが、リリースは手動。
-  "リリース手順書" が存在し、手順を間違えるリスクがある。
+Problem:
+  CI is automated, but releases are manual.
+  A "release runbook" exists with risk of following steps incorrectly.
 
-症状:
-  ✗ 30ステップのリリースチェックリスト
-  ✗ リリースのたびに "今回のリリース担当" を決める
-  ✗ リリース日は残業確定
+Symptoms:
+  ✗ 30-step release checklist
+  ✗ Designating a "release person" for every release
+  ✗ Overtime is a given on release days
 
-改善:
-  1. リリースプロセスをワークフローに定義
-  2. semantic-release / Release Please で自動バージョニング
-  3. Environment Protection Rules で承認フローを自動化
-  4. ロールバック手順もワークフローで定義
+Improvements:
+  1. Define the release process as a workflow
+  2. Automate versioning with semantic-release / Release Please
+  3. Automate approval flows with Environment Protection Rules
+  4. Define rollback procedures as a workflow too
 ```
 
 ---
 
-## 10. セキュリティとCI/CD
+## 10. Security and CI/CD
 
-### 10.1 サプライチェーンセキュリティ
+### 10.1 Supply Chain Security
 
 ```yaml
-# 依存関係の脆弱性スキャン
+# Dependency vulnerability scanning
 name: Security Scan
 on:
   push:
     branches: [main]
   schedule:
-    - cron: '0 9 * * 1'  # 毎週月曜
+    - cron: '0 9 * * 1'  # Every Monday
 
 jobs:
   dependency-scan:
@@ -1223,7 +1224,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Dependency Review (PR のみ)
+      - name: Dependency Review (PR only)
         if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@v4
         with:
@@ -1266,74 +1267,74 @@ jobs:
           exit-code: '1'
 ```
 
-### 10.2 CI/CDパイプラインのセキュリティベストプラクティス
+### 10.2 Security Best Practices for CI/CD Pipelines
 
 ```
-1. 最小権限の原則
-   - GITHUB_TOKEN の permissions を明示的に設定
-   - 各ジョブに必要最小限の権限のみ付与
-   - サードパーティアクションはSHAでピン留め
+1. Principle of Least Privilege
+   - Explicitly set permissions for GITHUB_TOKEN
+   - Grant only the minimum required permissions to each job
+   - Pin third-party actions to a SHA
 
-2. シークレット管理
-   - Environment Secrets で環境ごとに分離
-   - OIDC でクラウドプロバイダーに認証(長期キー不要)
-   - シークレットのローテーションを自動化
+2. Secret Management
+   - Use Environment Secrets to isolate per environment
+   - Authenticate to cloud providers with OIDC (no long-lived keys needed)
+   - Automate secret rotation
 
-3. サプライチェーン保護
-   - Dependabot / Renovate で依存関係を自動更新
-   - ロックファイル(package-lock.json)をコミット
-   - npm audit / pip audit をCIに組み込み
-   - SLSA / Sigstore でビルドの証明
+3. Supply Chain Protection
+   - Use Dependabot / Renovate to auto-update dependencies
+   - Commit lockfiles (package-lock.json)
+   - Integrate npm audit / pip audit into CI
+   - Prove builds with SLSA / Sigstore
 
-4. ブランチ保護
-   - main ブランチへの直接プッシュを禁止
-   - PR レビュー必須(最低2名)
-   - CI 成功必須でマージ
-   - 署名付きコミット推奨
+4. Branch Protection
+   - Prohibit direct pushes to main branch
+   - Require PR reviews (minimum 2 reviewers)
+   - Require CI passing before merge
+   - Encourage signed commits
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1342,26 +1343,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Should raise an exception"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1369,7 +1370,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1380,14 +1381,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1395,7 +1396,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1403,44 +1404,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1449,7 +1450,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1464,47 +1465,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure results with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Check the path and format of the config file |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review configuration |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify the source of the error
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Stepwise validation**: Validate hypotheses using log output or a debugger
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debug utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1512,102 +1513,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose performance issues when they occur:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check for I/O wait**: Review disk and network I/O status
+4. **Check concurrent connections**: Review connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Issue Type | Diagnostic Tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the decision criteria when making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Decision Criteria | Prioritize When | Can Compromise When |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development Speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Selecting Architecture Patterns
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① Team size?                                   │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to ②             │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② Deployment frequency?                        │
+│    ├─ Weekly or less → Monolith + module split  │
+│    └─ Daily / multiple times → Go to ③         │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ Team independence?                           │
+│    ├─ High → Microservices                      │
+│    └─ Medium → Modular Monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Tradeoff Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve tradeoffs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Costs**
+- A quick short-term approach can become long-term technical debt
+- Conversely, over-engineering incurs high short-term costs and causes project delays
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows best-fit choices, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Architecture decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1617,17 +1618,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1635,7 +1636,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1643,15 +1644,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1660,76 +1661,76 @@ class ArchitectureDecisionRecord:
 
 ## 11. FAQ
 
-### Q1: CI/CD パイプラインの理想的な実行時間は？
+### Q1: What is the ideal execution time for a CI/CD pipeline?
 
-PR 上の CI は 10 分以内が目標。開発者の集中力が途切れる前にフィードバックを返す必要がある。10分を超える場合は並列化、キャッシュ、テスト分割、差分ビルドを検討する。デプロイパイプラインは 15 分以内が目安。Google の研究(DORA)によると、エリートチームのリードタイムは1時間未満である。
+The target for CI on a PR is within 10 minutes. Feedback must be returned before a developer loses their focus. If it exceeds 10 minutes, consider parallelism, caching, test splitting, and incremental builds. For deployment pipelines, 15 minutes is the guideline. According to Google's research (DORA), elite teams have a lead time of under 1 hour.
 
-### Q2: 継続的デプロイメントを導入する前提条件は？
+### Q2: What are the prerequisites for introducing Continuous Deployment?
 
-(1) 高いテストカバレッジ(80%以上)、(2) 自動化されたロールバック機構、(3) カナリーデプロイ/Feature Flag、(4) 充実した監視・アラート、(5) 組織の信頼とリスク許容度。これら全てが揃わないまま導入するとインシデントが頻発する。段階的に導入し、まず継続的デリバリーを確立することを推奨する。
+(1) High test coverage (80%+), (2) automated rollback mechanism, (3) canary deployment / Feature Flags, (4) robust monitoring and alerting, (5) organizational trust and risk tolerance. Introducing it without all of these in place will lead to frequent incidents. It is recommended to introduce it gradually, first establishing Continuous Delivery.
 
-### Q3: モノレポの CI/CD はどう設計するか？
+### Q3: How do you design CI/CD for a monorepo?
 
-変更されたパッケージのみを対象にテスト・ビルドする「affected」戦略が基本。Nx、Turborepo、Bazel などのモノレポツールが差分検知を提供する。加えて、パッケージ間の依存関係グラフに基づいて、影響を受ける下流パッケージも含めてテストする。Remote Cache(Turborepo Cloud, Nx Cloud)を活用するとCIの高速化に大きく貢献する。
+The foundational strategy is "affected" — targeting only the changed packages for testing and building. Monorepo tools like Nx, Turborepo, and Bazel provide change detection. In addition, downstream packages affected by inter-package dependency graphs should also be included in testing. Utilizing Remote Cache (Turborepo Cloud, Nx Cloud) contributes greatly to accelerating CI.
 
-### Q4: フレーキーテスト(不安定なテスト)にどう対処するか？
+### Q4: How do you handle flaky tests (unstable tests)?
 
-まず不安定なテストを特定し、専用のトラッカー(Issue, スプレッドシート等)で管理する。根本原因は多くの場合、(1) テスト間の依存関係、(2) 非同期処理の待機不足、(3) 外部サービスへの依存、(4) 時間依存のロジックである。短期的には `retry` オプションでリトライし、中長期的には根本原因を修正する。GitHub Actions では `retry-on-error` アクションを使用できる。
+First, identify unstable tests and manage them with a dedicated tracker (issues, spreadsheet, etc.). Root causes are often: (1) dependencies between tests, (2) insufficient waiting for async operations, (3) dependencies on external services, (4) time-dependent logic. In the short term, use the `retry` option to retry; in the medium to long term, fix the root cause. In GitHub Actions, the `retry-on-error` action can be used.
 
-### Q5: CI/CD のコストを最適化するには？
+### Q5: How do you optimize CI/CD costs?
 
-(1) キャッシュの活用(依存関係、ビルド成果物)、(2) 差分テスト(affected のみ)、(3) テストのシャーディング(並列化)、(4) 不要なワークフローの paths フィルタ、(5) スケジュール実行の見直し、(6) セルフホステッドランナーの検討(大量実行時)。GitHub Actions の場合、パブリックリポジトリは無料、プライベートは月間2,000分(Free)から50,000分(Enterprise)。
+(1) Use caching (dependencies, build artifacts), (2) differential testing (affected only), (3) test sharding (parallelism), (4) path filters for unnecessary workflows, (5) review scheduled runs, (6) consider self-hosted runners (for high-volume runs). For GitHub Actions, public repositories are free; private repositories range from 2,000 minutes/month (Free) to 50,000 minutes/month (Enterprise).
 
-### Q6: Feature Flag とCI/CDの関係は？
+### Q6: What is the relationship between Feature Flags and CI/CD?
 
-Feature Flag はトランクベース開発と継続的デプロイメントの実現に不可欠な技術。未完成の機能をフラグで隠しながらメインブランチにマージし、本番にデプロイできる。これにより長寿命フィーチャーブランチを避け、マージコンフリクトのリスクを大幅に削減する。LaunchDarkly、Unleash、Flagsmith、AWS AppConfig 等のサービスが利用可能。
+Feature Flags are an essential technology for enabling trunk-based development and Continuous Deployment. You can merge incomplete features into the main branch while hiding them behind a flag, then deploy to production. This avoids long-lived feature branches and greatly reduces the risk of merge conflicts. Services such as LaunchDarkly, Unleash, Flagsmith, and AWS AppConfig are available.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. It is recommended to thoroughly understand the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| CI | 頻繁な統合 + 自動ビルド・テスト |
-| CD (デリバリー) | リリース可能状態を常に維持 + 手動承認デプロイ |
-| CD (デプロイメント) | 全自動本番デプロイ(高成熟度が前提) |
-| パイプライン設計 | 高速フィードバック、並列化、キャッシュ |
-| テスト戦略 | テストピラミッド(Unit 70 : Integration 20 : E2E 10) |
-| ブランチ戦略 | トランクベース(推奨)、GitHub Flow、Git Flow |
-| モノレポ | affected 戦略 + Remote Cache |
-| セキュリティ | 依存関係スキャン、SAST、最小権限 |
-| メトリクス | DORA メトリクスで改善を定量化 |
-| 目標時間 | CI 10分以内、デプロイ15分以内 |
+| CI | Frequent integration + automated build and testing |
+| CD (Delivery) | Always maintain a releasable state + deploy after manual approval |
+| CD (Deployment) | Fully automated production deployment (requires high maturity) |
+| Pipeline Design | Fast feedback, parallelism, caching |
+| Test Strategy | Test pyramid (Unit 70 : Integration 20 : E2E 10) |
+| Branch Strategy | Trunk-based (recommended), GitHub Flow, Git Flow |
+| Monorepo | Affected strategy + Remote Cache |
+| Security | Dependency scanning, SAST, least privilege |
+| Metrics | Quantify improvements with DORA metrics |
+| Target Times | CI within 10 minutes, deploy within 15 minutes |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [GitHub Actions 基礎](../01-github-actions/00-actions-basics.md) -- CI/CD を実現する具体的ツール
-- [デプロイ戦略](../02-deployment/00-deployment-strategies.md) -- Blue-Green、Canary 等の戦略
-- [Infrastructure as Code](./02-infrastructure-as-code.md) -- インフラ自動化の基礎
-- [GitOps](./03-gitops.md) -- Gitを中心としたデプロイモデル
+- [GitHub Actions Basics](../01-github-actions/00-actions-basics.md) -- The concrete tool for implementing CI/CD
+- [Deployment Strategies](../02-deployment/00-deployment-strategies.md) -- Strategies such as Blue-Green, Canary
+- [Infrastructure as Code](./02-infrastructure-as-code.md) -- Fundamentals of infrastructure automation
+- [GitOps](./03-gitops.md) -- A Git-centric deployment model
 
 ---
 
-## 参考文献
+## References
 
 1. Jez Humble, David Farley. *Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation*. Addison-Wesley, 2010.
 2. Martin Fowler. "Continuous Integration." https://martinfowler.com/articles/continuousIntegration.html
