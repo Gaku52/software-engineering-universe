@@ -1,63 +1,63 @@
-# Docker Compose 応用 (Compose Advanced)
+# Docker Compose Advanced
 
-> プロファイル、depends_on の高度な制御、healthcheck、環境変数の管理パターンなど、Docker Compose の応用機能を活用してプロダクション品質の構成を構築する。
+> Leverage advanced Docker Compose features — profiles, fine-grained depends_on control, healthchecks, and environment variable management patterns — to build production-quality configurations.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **プロファイルによるサービスの選択的起動** -- 開発・テスト・監視など、用途に応じたサービスのグルーピングと選択的起動を実装する
-2. **depends_on と healthcheck の高度な制御** -- サービス間の依存関係を精密に管理し、確実な起動順序を保証する
-3. **環境変数と設定の管理パターン** -- 複数環境での設定切り替え、シークレット管理、ファイルのオーバーライドを実践する
-4. **YAML アンカーと Extension Fields の活用** -- 設定の DRY 化と保守性の向上を実現する
-5. **リソース制限・ロギング・セキュリティ設定** -- プロダクション品質の Compose 構成を構築する
+1. **Selective service startup with profiles** -- Group services by purpose (development, testing, monitoring, etc.) and start only what you need
+2. **Advanced depends_on and healthcheck control** -- Precisely manage inter-service dependencies and guarantee a reliable startup order
+3. **Environment variable and configuration management patterns** -- Switch settings across multiple environments, manage secrets, and layer file overrides
+4. **YAML anchors and Extension Fields** -- Keep configuration DRY and improve maintainability
+5. **Resource limits, logging, and security settings** -- Build production-quality Compose configurations
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+The following knowledge will help you get the most out of this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Docker Compose 基礎 (Compose Basics)](./00-compose-basics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Docker Compose Basics](./00-compose-basics.md)
 
 ---
 
-## 1. プロファイル (Profiles)
+## 1. Profiles
 
-### 1.1 プロファイルの概要
+### 1.1 Overview of Profiles
 
-Docker Compose のプロファイル機能は、サービスを論理的にグルーピングし、必要に応じて選択的に起動する仕組みである。開発ツール、テストランナー、監視スタック、デバッグ用ツールなど、常時稼働が不要なサービスを管理するのに最適である。
+The Docker Compose profiles feature lets you group services logically and start only the ones you need on demand. It is ideal for managing services that do not need to run all the time — development tools, test runners, monitoring stacks, and debugging utilities.
 
-プロファイルが指定されていないサービスは「デフォルト」として常に起動される。プロファイルが指定されたサービスは、明示的にそのプロファイルを有効化しない限り起動されない。
+Services without a profile assigned are treated as "default" and are always started. Services assigned to a profile are only started when that profile is explicitly enabled.
 
 ```
 +------------------------------------------------------------------+
-|              プロファイルによるサービスのグルーピング                  |
+|              Service grouping by profile                         |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [デフォルト] (プロファイルなし → 常に起動)                         |
+|  [Default] (no profile → always started)                        |
 |    app, db, redis                                                |
 |                                                                  |
-|  [debug プロファイル] (--profile debug で起動)                    |
+|  [debug profile] (started with --profile debug)                 |
 |    pgadmin, redis-commander                                      |
 |                                                                  |
-|  [monitoring プロファイル] (--profile monitoring で起動)           |
-|    prometheus, grafana, alertmanager                              |
+|  [monitoring profile] (started with --profile monitoring)       |
+|    prometheus, grafana, alertmanager                             |
 |                                                                  |
-|  [test プロファイル] (--profile test で起動)                      |
-|    test-runner, db-test, test-mail                                |
+|  [test profile] (started with --profile test)                   |
+|    test-runner, db-test, test-mail                               |
 |                                                                  |
-|  [seed プロファイル] (--profile seed で起動)                      |
+|  [seed profile] (started with --profile seed)                   |
 |    db-seeder, sample-data-loader                                 |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 1.2 プロファイルの設定
+### 1.2 Configuring Profiles
 
 ```yaml
 # docker-compose.yml
 services:
-  # プロファイルなし → 常に起動
+  # No profile → always started
   app:
     build: .
     ports:
@@ -79,7 +79,7 @@ services:
   redis:
     image: redis:7-alpine
 
-  # debug プロファイル
+  # debug profile
   pgadmin:
     image: dpage/pgadmin4:latest
     profiles: ["debug"]
@@ -97,7 +97,7 @@ services:
     ports:
       - "8081:8081"
 
-  # monitoring プロファイル
+  # monitoring profile
   prometheus:
     image: prom/prometheus:latest
     profiles: ["monitoring"]
@@ -122,7 +122,7 @@ services:
     ports:
       - "9093:9093"
 
-  # test プロファイル
+  # test profile
   test-runner:
     build:
       context: .
@@ -133,7 +133,7 @@ services:
         condition: service_healthy
     command: npm test
 
-  # seed プロファイル (初期データ投入)
+  # seed profile (initial data loading)
   db-seeder:
     build:
       context: .
@@ -150,37 +150,37 @@ volumes:
   grafana_data:
 ```
 
-### 1.3 プロファイルの起動コマンド
+### 1.3 Profile Startup Commands
 
 ```bash
-# デフォルトサービスのみ起動
+# Start default services only
 docker compose up -d
 
-# デバッグツールを追加起動
+# Add debug tools
 docker compose --profile debug up -d
 
-# 複数プロファイル同時
+# Multiple profiles at once
 docker compose --profile debug --profile monitoring up -d
 
-# テスト実行
+# Run tests
 docker compose --profile test run --rm test-runner
 
-# 環境変数で指定
+# Specify profiles via environment variable
 COMPOSE_PROFILES=debug,monitoring docker compose up -d
 
-# プロファイル指定のサービスのみ停止
+# Stop only services belonging to a specific profile
 docker compose --profile debug stop
 
-# 特定プロファイルのサービス一覧を確認
+# List services for a specific profile
 docker compose --profile test ps
 
-# 全プロファイルを含む全サービスの状態確認
+# Check state of all services including all profiles
 docker compose --profile "*" ps
 ```
 
-### 1.4 プロファイルの実践的な活用パターン
+### 1.4 Practical Profile Patterns
 
-#### パターン A: 開発/ステージング/本番の切り替え
+#### Pattern A: Switching Between Development / Staging / Production
 
 ```yaml
 services:
@@ -189,7 +189,7 @@ services:
     ports:
       - "3000:3000"
 
-  # 開発専用のメールキャッチャー
+  # Mail catcher for development only
   mailhog:
     image: mailhog/mailhog:latest
     profiles: ["dev"]
@@ -197,7 +197,7 @@ services:
       - "1025:1025"
       - "8025:8025"    # Web UI
 
-  # ステージング用の負荷テストツール
+  # Load testing tool for staging
   k6:
     image: grafana/k6:latest
     profiles: ["staging"]
@@ -205,7 +205,7 @@ services:
       - ./tests/load:/scripts
     command: run /scripts/load-test.js
 
-  # 本番用のログ収集
+  # Log collector for production
   fluentd:
     image: fluent/fluentd:v1.16
     profiles: ["production"]
@@ -215,7 +215,7 @@ services:
       - "24224:24224"
 ```
 
-#### パターン B: データベースマイグレーション管理
+#### Pattern B: Database Migration Management
 
 ```yaml
 services:
@@ -227,7 +227,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # マイグレーション実行
+  # Run migrations
   migrate:
     build: .
     profiles: ["migrate"]
@@ -238,7 +238,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/myapp
 
-  # マイグレーション生成（開発時のみ）
+  # Generate migrations (development only)
   migrate-dev:
     build: .
     profiles: ["migrate-dev"]
@@ -251,7 +251,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/myapp
 
-  # DB スキーマのリセット（危険操作）
+  # Reset DB schema (destructive operation)
   db-reset:
     build: .
     profiles: ["db-reset"]
@@ -265,36 +265,36 @@ services:
 
 ---
 
-## 2. depends_on と healthcheck
+## 2. depends_on and healthcheck
 
-### 2.1 depends_on の 3 つの条件
+### 2.1 Three Conditions for depends_on
 
-Docker Compose では、サービス間の依存関係を 3 つの条件で制御できる。これにより、単純な起動順序の制御から、ヘルスチェックの通過やワンショットタスクの完了待ちまで、柔軟な制御が可能になる。
+Docker Compose lets you control inter-service dependencies with three conditions. This enables everything from simple startup-order control to waiting for a healthcheck to pass or a one-shot task to complete.
 
 ```yaml
 services:
   app:
     depends_on:
       db:
-        condition: service_healthy    # ヘルスチェックが通るまで待機
+        condition: service_healthy    # Wait until healthcheck passes
       redis:
-        condition: service_started    # コンテナが起動したら OK
+        condition: service_started    # OK as soon as the container starts
       migration:
-        condition: service_completed_successfully  # 正常終了まで待機
-        restart: true                 # 再起動時も待機
+        condition: service_completed_successfully  # Wait for clean exit
+        restart: true                 # Also wait on restarts
 ```
 
-各条件の詳細な動作は以下の通りである。
+The detailed behavior of each condition is as follows.
 
-| 条件 | 動作 | 典型的な用途 |
-|------|------|-------------|
-| `service_started` | コンテナのプロセスが起動したら即座に次へ進む | 起動が速いサービス（Redis 等） |
-| `service_healthy` | healthcheck が passing になるまで待機する | DB、Elasticsearch 等の初期化に時間がかかるサービス |
-| `service_completed_successfully` | コンテナが終了コード 0 で完了するまで待機する | マイグレーション、シード、初期化スクリプト |
+| Condition | Behavior | Typical use case |
+|-----------|----------|-----------------|
+| `service_started` | Proceeds immediately once the container process has started | Fast-starting services (Redis, etc.) |
+| `service_healthy` | Waits until the healthcheck reports passing | Services with slow initialization such as databases or Elasticsearch |
+| `service_completed_successfully` | Waits until the container exits with code 0 | Migrations, seed scripts, initialization tasks |
 
-### 2.2 healthcheck の詳細設定
+### 2.2 Detailed healthcheck Configuration
 
-各種データストア・サービスに対する healthcheck の実装例を示す。ヘルスチェックは、サービスが「起動した」だけでなく「リクエストを受け付けられる状態になった」ことを確認するために不可欠である。
+The following examples show healthcheck implementations for various datastores and services. Healthchecks are essential not just to confirm that a service has "started" but to verify that it is "ready to accept requests."
 
 ```yaml
 services:
@@ -303,10 +303,10 @@ services:
     image: postgres:16-alpine
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d myapp"]
-      interval: 5s        # チェック間隔
-      timeout: 5s          # タイムアウト
-      retries: 5           # 失敗許容回数
-      start_period: 30s    # 起動猶予時間 (この間の失敗はカウントしない)
+      interval: 5s        # Check interval
+      timeout: 5s          # Timeout
+      retries: 5           # Allowed failure count
+      start_period: 30s    # Grace period on startup (failures during this window are not counted)
 
   # MySQL
   mysql:
@@ -337,7 +337,7 @@ services:
       timeout: 3s
       retries: 5
 
-  # Redis (パスワード付き)
+  # Redis (with password)
   redis-auth:
     image: redis:7-alpine
     command: redis-server --requirepass mypassword
@@ -357,7 +357,7 @@ services:
       retries: 5
       start_period: 30s
 
-  # HTTP サービス
+  # HTTP service
   api:
     build: .
     healthcheck:
@@ -367,7 +367,7 @@ services:
       retries: 3
       start_period: 15s
 
-  # HTTP サービス (wget を使う場合 - curl がないイメージ向け)
+  # HTTP service (using wget — for images without curl)
   api-alpine:
     build: .
     healthcheck:
@@ -407,7 +407,7 @@ services:
       retries: 10
       start_period: 60s
 
-  # MinIO (S3互換ストレージ)
+  # MinIO (S3-compatible storage)
   minio:
     image: minio/minio:latest
     healthcheck:
@@ -418,11 +418,11 @@ services:
       start_period: 15s
 ```
 
-### 2.3 依存関係の可視化
+### 2.3 Dependency Graph Visualization
 
 ```
 +------------------------------------------------------------------+
-|              サービス依存関係グラフ                                  |
+|              Service dependency graph                            |
 +------------------------------------------------------------------+
 |                                                                  |
 |  migration ──(completed)──> db ──(healthy)──+                    |
@@ -437,9 +437,9 @@ services:
 +------------------------------------------------------------------+
 ```
 
-### 2.4 複雑な依存関係チェーンの実装
+### 2.4 Implementing a Complex Dependency Chain
 
-実際のアプリケーションでは、DB 起動 → マイグレーション → シードデータ投入 → アプリ起動という一連の流れが必要になる。以下はその完全な実装例である。
+Real-world applications often require a sequence such as: start DB → run migrations → seed data → start app. The following is a complete implementation example.
 
 ```yaml
 services:
@@ -457,7 +457,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  # ステップ 1: マイグレーション実行
+  # Step 1: Run migrations
   migration:
     build:
       context: .
@@ -469,7 +469,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/myapp
 
-  # ステップ 2: シードデータ投入 (マイグレーション完了後)
+  # Step 2: Seed data (after migrations complete)
   seed:
     build:
       context: .
@@ -481,7 +481,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/myapp
 
-  # ステップ 3: アプリ起動 (シード完了後)
+  # Step 3: Start the app (after seeding completes)
   app:
     build:
       context: .
@@ -505,7 +505,7 @@ services:
       timeout: 3s
       retries: 5
 
-  # ワーカープロセス (アプリと同じ依存関係)
+  # Worker process (same dependencies as app)
   worker:
     build:
       context: .
@@ -524,21 +524,21 @@ volumes:
   pgdata:
 ```
 
-### 2.5 ヘルスチェックのカスタムスクリプト
+### 2.5 Custom Healthcheck Scripts
 
-複雑なヘルスチェックが必要な場合は、専用のスクリプトを用意してコンテナにコピーする。
+When a complex healthcheck is needed, prepare a dedicated script and copy it into the container.
 
 ```bash
 #!/bin/bash
-# healthcheck.sh - 複合的なヘルスチェック
+# healthcheck.sh - Composite health check
 
-# 1. HTTP エンドポイントの確認
+# 1. Check HTTP endpoint
 if ! curl -sf http://localhost:3000/health > /dev/null 2>&1; then
     echo "HTTP health check failed"
     exit 1
 fi
 
-# 2. DB 接続の確認
+# 2. Check DB connection
 if ! node -e "
   const { PrismaClient } = require('@prisma/client');
   const prisma = new PrismaClient();
@@ -548,7 +548,7 @@ if ! node -e "
     exit 1
 fi
 
-# 3. Redis 接続の確認
+# 3. Check Redis connection
 if ! node -e "
   const Redis = require('ioredis');
   const redis = new Redis(process.env.REDIS_URL);
@@ -576,37 +576,37 @@ HEALTHCHECK --interval=15s --timeout=10s --retries=3 --start-period=30s \
 
 ---
 
-## 3. 環境変数の管理
+## 3. Environment Variable Management
 
-### 3.1 環境変数の優先順位
+### 3.1 Environment Variable Priority
 
-Docker Compose では、環境変数の値が複数のソースから供給される場合、明確な優先順位が定められている。
+When environment variable values are supplied from multiple sources, Docker Compose applies a well-defined priority order.
 
 ```
 +------------------------------------------------------------------+
-|           環境変数の優先順位 (上が最優先)                            |
+|           Environment variable priority (highest first)          |
 +------------------------------------------------------------------+
 |                                                                  |
-|  1. docker compose run -e VAR=value  (CLI 直接指定)              |
-|  2. environment: セクション                                      |
-|  3. --env-file で指定したファイル                                  |
-|  4. env_file: セクション                                         |
-|  5. Dockerfile の ENV                                            |
-|  6. シェルの環境変数 (.env ファイル経由)                           |
+|  1. docker compose run -e VAR=value  (direct CLI flag)           |
+|  2. environment: section                                         |
+|  3. File specified with --env-file                               |
+|  4. env_file: section                                            |
+|  5. Dockerfile ENV                                               |
+|  6. Shell environment variables (via .env file)                  |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 3.2 .env ファイルの使い分け
+### 3.2 Using Multiple .env Files
 
 ```bash
-# .env (Compose 変数の展開用。docker compose が自動読み込み)
+# .env (For Compose variable expansion — loaded automatically by docker compose)
 COMPOSE_PROJECT_NAME=myapp
 POSTGRES_VERSION=16
 NODE_VERSION=20
 APP_PORT=3000
 
-# .env.development (アプリ用。env_file で明示的に読み込む)
+# .env.development (For the application — loaded explicitly via env_file)
 NODE_ENV=development
 DATABASE_URL=postgresql://postgres:postgres@db:5432/myapp_dev
 REDIS_URL=redis://redis:6379
@@ -616,14 +616,14 @@ SESSION_SECRET=dev-secret-key-not-for-production
 SMTP_HOST=mailhog
 SMTP_PORT=1025
 
-# .env.staging (ステージング用)
+# .env.staging (For staging)
 NODE_ENV=staging
 DATABASE_URL=postgresql://staging_user:staging_pass@db:5432/myapp_staging
 REDIS_URL=redis://redis:6379
 LOG_LEVEL=info
 CORS_ORIGIN=https://staging.example.com
 
-# .env.production (本番用)
+# .env.production (For production)
 NODE_ENV=production
 DATABASE_URL=postgresql://user:password@db-prod:5432/myapp
 LOG_LEVEL=warn
@@ -634,45 +634,45 @@ CORS_ORIGIN=https://www.example.com
 # docker-compose.yml
 services:
   app:
-    image: node:${NODE_VERSION}-alpine  # .env の変数を使用
+    image: node:${NODE_VERSION}-alpine  # Use variable from .env
     env_file:
-      - .env.development                # アプリ用環境変数
+      - .env.development                # Application environment variables
     environment:
-      # env_file の値を上書き
-      LOG_LEVEL: ${LOG_LEVEL:-info}     # デフォルト値付き
+      # Override values from env_file
+      LOG_LEVEL: ${LOG_LEVEL:-info}     # With default value
 
   db:
     image: postgres:${POSTGRES_VERSION}-alpine
 ```
 
-### 3.3 環境変数の展開構文
+### 3.3 Variable Expansion Syntax
 
 ```yaml
 services:
   app:
     environment:
-      # 基本形
+      # Basic form
       DB_HOST: ${DB_HOST}
 
-      # デフォルト値 (未設定 or 空文字の場合)
+      # Default value (when unset or empty)
       DB_PORT: ${DB_PORT:-5432}
 
-      # デフォルト値 (未定義の場合のみ)
+      # Default value (when undefined only)
       DB_NAME: ${DB_NAME-myapp}
 
-      # 未設定時にエラー
+      # Error when unset
       DB_PASSWORD: ${DB_PASSWORD:?Database password must be set}
 
-      # 設定済みの場合に代替値を使用
+      # Use alternate value when set
       DB_SSL: ${DB_HOST:+true}
 
-      # ネストした変数展開（Compose V2.24+）
+      # Nested variable expansion (Compose V2.24+)
       FULL_DB_URL: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-myapp}"
 ```
 
-### 3.4 シークレット管理
+### 3.4 Secret Management
 
-Docker Compose のシークレット機能は、パスワードや API キーなどの機密情報を環境変数に直接書かずに管理する方法を提供する。
+Docker Compose's secrets feature provides a way to manage sensitive information such as passwords and API keys without writing them directly into environment variables.
 
 ```yaml
 # docker-compose.yml
@@ -691,21 +691,21 @@ services:
       - api_key
       - jwt_secret
     environment:
-      # アプリケーション側でシークレットファイルを読む
+      # Application reads the secret files
       DB_PASSWORD_FILE: /run/secrets/db_password
       API_KEY_FILE: /run/secrets/api_key
       JWT_SECRET_FILE: /run/secrets/jwt_secret
 
 secrets:
   db_password:
-    file: ./secrets/db_password.txt     # ファイルから読み込み
+    file: ./secrets/db_password.txt     # Read from file
   api_key:
-    environment: API_KEY                 # 環境変数から (Compose V2.22+)
+    environment: API_KEY                 # From environment variable (Compose V2.22+)
   jwt_secret:
     file: ./secrets/jwt_secret.txt
 ```
 
-アプリケーション側でシークレットファイルを読む実装例（Node.js）:
+Application-side implementation for reading secret files (Node.js):
 
 ```javascript
 // config/secrets.js
@@ -717,7 +717,7 @@ function readSecret(name) {
   if (filePath && fs.existsSync(filePath)) {
     return fs.readFileSync(filePath, 'utf8').trim();
   }
-  // フォールバック: 環境変数から直接取得
+  // Fallback: read directly from environment variable
   return process.env[name];
 }
 
@@ -728,7 +728,7 @@ module.exports = {
 };
 ```
 
-### 3.5 .env ファイルの .gitignore 設定
+### 3.5 .gitignore Configuration for .env Files
 
 ```gitignore
 # .gitignore
@@ -739,13 +739,13 @@ module.exports = {
 .env.staging
 secrets/
 
-# テンプレートはコミットする
+# Templates should be committed
 !.env.example
 !.env.development.example
 ```
 
 ```bash
-# .env.example (テンプレートとしてコミット)
+# .env.example (committed as a template)
 COMPOSE_PROJECT_NAME=myapp
 POSTGRES_VERSION=16
 NODE_VERSION=20
@@ -755,14 +755,14 @@ API_KEY=<SET_YOUR_API_KEY>
 
 ---
 
-## 4. 複数 Compose ファイルのマージ
+## 4. Merging Multiple Compose Files
 
-### 4.1 オーバーライドパターン
+### 4.1 Override Pattern
 
-Docker Compose は複数の設定ファイルをマージして一つの構成を作成できる。これにより、ベース設定と環境固有の設定を分離し、DRY な構成管理を実現できる。
+Docker Compose can merge multiple configuration files into a single configuration. This allows you to separate base settings from environment-specific settings, achieving DRY configuration management.
 
 ```yaml
-# docker-compose.yml (ベース設定)
+# docker-compose.yml (base configuration)
 services:
   app:
     build: .
@@ -784,7 +784,7 @@ volumes:
 ```
 
 ```yaml
-# docker-compose.override.yml (開発用オーバーライド。自動マージ)
+# docker-compose.override.yml (development overrides — merged automatically)
 services:
   app:
     build:
@@ -797,11 +797,11 @@ services:
       - node_modules:/app/node_modules
     ports:
       - "3000:3000"
-      - "9229:9229"   # デバッガポート
+      - "9229:9229"   # Debugger port
 
   db:
     ports:
-      - "5432:5432"   # 開発時のみ外部公開
+      - "5432:5432"   # Exposed externally in development only
     environment:
       POSTGRES_PASSWORD: postgres
 
@@ -810,7 +810,7 @@ volumes:
 ```
 
 ```yaml
-# docker-compose.prod.yml (本番用)
+# docker-compose.prod.yml (production)
 services:
   app:
     restart: always
@@ -843,7 +843,7 @@ services:
 ```
 
 ```yaml
-# docker-compose.ci.yml (CI 専用)
+# docker-compose.ci.yml (CI only)
 services:
   app:
     build:
@@ -857,66 +857,66 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: myapp_test
     tmpfs:
-      - /var/lib/postgresql/data    # CI ではメモリ上で高速化
+      - /var/lib/postgresql/data    # Use in-memory for speed in CI
 ```
 
-### 4.2 マージのコマンド
+### 4.2 Merge Commands
 
 ```bash
-# 開発 (compose.yml + compose.override.yml を自動マージ)
+# Development (compose.yml + compose.override.yml are merged automatically)
 docker compose up -d
 
-# 本番 (override を除外し、prod を適用)
+# Production (exclude override, apply prod)
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
-# CI (override を除外し、ci を適用)
+# CI (exclude override, apply ci)
 docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
 
-# 設定のマージ結果を確認
+# Inspect the merged configuration
 docker compose -f docker-compose.yml -f docker-compose.prod.yml config
 
-# 特定のサービスのみマージ結果を確認
+# Inspect merged result for specific services
 docker compose -f docker-compose.yml -f docker-compose.prod.yml config --services
 
-# マージ結果をファイルに出力
+# Output merged result to a file
 docker compose -f docker-compose.yml -f docker-compose.prod.yml config > docker-compose.resolved.yml
 ```
 
-### 4.3 マージの規則詳細
+### 4.3 Merge Rules in Detail
 
-| 設定項目 | マージ動作 |
-|----------|-----------|
-| `image`, `command`, `entrypoint` | 後のファイルで上書き |
-| `environment` | マージ（キー単位で上書き） |
-| `volumes` | マージ（追加される） |
-| `ports` | マージ（追加される） |
-| `networks` | マージ（追加される） |
-| `labels` | マージ（キー単位で上書き） |
-| `deploy` | ディープマージ |
-| `build.args` | マージ（キー単位で上書き） |
-| `healthcheck` | 後のファイルで完全上書き |
+| Configuration key | Merge behavior |
+|-------------------|----------------|
+| `image`, `command`, `entrypoint` | Overwritten by the later file |
+| `environment` | Merged (overwritten per key) |
+| `volumes` | Merged (entries are added) |
+| `ports` | Merged (entries are added) |
+| `networks` | Merged (entries are added) |
+| `labels` | Merged (overwritten per key) |
+| `deploy` | Deep merged |
+| `build.args` | Merged (overwritten per key) |
+| `healthcheck` | Completely overwritten by the later file |
 
-### 4.4 COMPOSE_FILE 環境変数による自動選択
+### 4.4 Automatic File Selection via COMPOSE_FILE
 
 ```bash
-# .env ファイルで読み込むファイルを指定
-# 開発環境
+# Specify files to load in the .env file
+# Development environment
 COMPOSE_FILE=docker-compose.yml:docker-compose.override.yml
 
-# ステージング環境
+# Staging environment
 COMPOSE_FILE=docker-compose.yml:docker-compose.staging.yml
 
-# 本番環境
+# Production environment
 COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
 
-# 区切り文字はデフォルトで「:」(Linux/macOS) または「;」(Windows)
+# The separator is ":" by default (Linux/macOS) or ";" (Windows)
 ```
 
 ---
 
-## 5. リソース制限とロギング
+## 5. Resource Limits and Logging
 
-### 5.1 リソース制限
+### 5.1 Resource Limits
 
 ```yaml
 services:
@@ -924,18 +924,18 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'        # CPU 0.5 コア
-          memory: 256M        # メモリ 256MB
-          pids: 100           # プロセス数上限
+          cpus: '0.5'        # 0.5 CPU cores
+          memory: 256M        # 256 MB of memory
+          pids: 100           # Maximum number of processes
         reservations:
-          cpus: '0.25'       # 最低保証 CPU
-          memory: 128M        # 最低保証メモリ
+          cpus: '0.25'       # Guaranteed minimum CPU
+          memory: 128M        # Guaranteed minimum memory
 
-    # OOM 時の動作
+    # Behavior on OOM
     oom_kill_disable: false
-    oom_score_adj: 100         # OOM スコア調整 (-1000 to 1000)
+    oom_score_adj: 100         # OOM score adjustment (-1000 to 1000)
 
-    # ファイルディスクリプタ制限
+    # File descriptor limits
     ulimits:
       nofile:
         soft: 65536
@@ -944,19 +944,19 @@ services:
         soft: 4096
         hard: 4096
 
-    # SHM サイズ制限 (共有メモリ)
+    # SHM size limit (shared memory)
     shm_size: '256m'
 
-    # ストップシグナルとタイムアウト
+    # Stop signal and timeout
     stop_signal: SIGTERM
     stop_grace_period: 30s
 ```
 
-### 5.2 各サービスの推奨リソース設定
+### 5.2 Recommended Resource Settings for Each Service
 
 ```yaml
 services:
-  # Node.js アプリ
+  # Node.js app
   app:
     deploy:
       resources:
@@ -977,7 +977,7 @@ services:
         reservations:
           cpus: '0.5'
           memory: 256M
-    shm_size: '256m'    # PostgreSQL は共有メモリを多用
+    shm_size: '256m'    # PostgreSQL makes heavy use of shared memory
 
   # Redis
   redis:
@@ -1001,10 +1001,10 @@ services:
           cpus: '0.5'
           memory: 1G
     environment:
-      ES_JAVA_OPTS: "-Xms512m -Xmx1g"   # JVM ヒープもメモリ制限に合わせる
+      ES_JAVA_OPTS: "-Xms512m -Xmx1g"   # Align JVM heap with memory limits
 ```
 
-### 5.3 ロギング設定
+### 5.3 Logging Configuration
 
 ```yaml
 services:
@@ -1012,13 +1012,13 @@ services:
     logging:
       driver: json-file
       options:
-        max-size: "10m"      # ログファイル最大サイズ
-        max-file: "3"        # ローテーション数
-        compress: "true"     # 圧縮
+        max-size: "10m"      # Maximum log file size
+        max-file: "3"        # Number of rotations
+        compress: "true"     # Compression
         labels: "service"
-        tag: "{{.Name}}/{{.ID}}"  # ログタグのカスタマイズ
+        tag: "{{.Name}}/{{.ID}}"  # Custom log tag
 
-  # 全サービス共通のログ設定 (YAML アンカー)
+  # Shared log configuration for all services (YAML anchor)
   db:
     logging: &default-logging
       driver: json-file
@@ -1027,14 +1027,14 @@ services:
         max-file: "3"
 
   redis:
-    logging: *default-logging  # アンカーを参照
+    logging: *default-logging  # Reference the anchor
 ```
 
-### 5.4 外部ロギングドライバーの設定
+### 5.4 External Logging Driver Configuration
 
 ```yaml
 services:
-  # Fluentd ドライバー
+  # Fluentd driver
   app:
     logging:
       driver: fluentd
@@ -1045,7 +1045,7 @@ services:
         fluentd-retry-wait: "1s"
         fluentd-max-retries: "10"
 
-  # syslog ドライバー
+  # syslog driver
   api:
     logging:
       driver: syslog
@@ -1054,7 +1054,7 @@ services:
         syslog-facility: "daemon"
         tag: "{{.Name}}"
 
-  # ログを無効化 (出力が多すぎるサービス)
+  # Disable logging (for very noisy services)
   noisy-service:
     logging:
       driver: none
@@ -1062,12 +1062,12 @@ services:
 
 ---
 
-## 6. YAML アンカーとエイリアス
+## 6. YAML Anchors and Aliases
 
-### 6.1 基本的なアンカーとエイリアス
+### 6.1 Basic Anchors and Aliases
 
 ```yaml
-# 共通設定をアンカーで定義
+# Define common settings with anchors
 x-common-env: &common-env
   TZ: Asia/Tokyo
   LANG: ja_JP.UTF-8
@@ -1087,7 +1087,7 @@ x-logging: &default-logging
 services:
   app:
     environment:
-      <<: *common-env          # マージ (アンカー展開)
+      <<: *common-env          # Merge (expand anchor)
       NODE_ENV: production
     healthcheck:
       <<: *healthcheck-defaults
@@ -1104,12 +1104,12 @@ services:
     logging: *default-logging
 ```
 
-### 6.2 Extension Fields (x- プレフィックス) の高度な活用
+### 6.2 Advanced Use of Extension Fields (x- prefix)
 
-Extension Fields は Compose が解釈しないカスタムフィールドで、アンカーの定義場所として使用する。サービス定義全体を共通化する場合に特に効果的である。
+Extension Fields are custom fields ignored by Compose that serve as anchor definition points. They are particularly effective for sharing entire service definitions.
 
 ```yaml
-# サービスのテンプレート
+# Service template
 x-app-base: &app-base
   build:
     context: .
@@ -1145,7 +1145,7 @@ x-db-healthcheck: &db-healthcheck
   start_period: 30s
 
 services:
-  # テンプレートを継承してカスタマイズ
+  # Inherit and customize the template
   web:
     <<: *app-base
     ports:
@@ -1179,7 +1179,7 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: 1G  # ワーカーはメモリを多く使う
+          memory: 1G  # Workers use more memory
 
   scheduler:
     <<: *app-base
@@ -1206,7 +1206,7 @@ volumes:
   pgdata:
 ```
 
-### 6.3 条件分岐的な設定（アンカーとオーバーライドの組み合わせ）
+### 6.3 Conditional Configuration (Combining Anchors and Overrides)
 
 ```yaml
 # docker-compose.yml
@@ -1221,23 +1221,23 @@ services:
 ```
 
 ```yaml
-# docker-compose.override.yml (開発環境で上書き)
+# docker-compose.override.yml (overrides for development environment)
 services:
   app:
     volumes:
       - .:/app
-      - app-data:/data    # 元の Volume も維持
+      - app-data:/data    # Keep the original volume as well
 ```
 
 ---
 
-## 7. ネットワーク分離の高度な設定
+## 7. Advanced Network Isolation
 
-### 7.1 マルチネットワーク構成
+### 7.1 Multi-Network Configuration
 
 ```yaml
 services:
-  # フロントエンド (public + app-tier のみ)
+  # Frontend (public + app-tier only)
   nginx:
     image: nginx:alpine
     networks:
@@ -1247,7 +1247,7 @@ services:
       - "80:80"
       - "443:443"
 
-  # アプリケーション (app-tier + data-tier)
+  # Application (app-tier + data-tier)
   app:
     build: .
     networks:
@@ -1255,13 +1255,13 @@ services:
       - data-tier
       - cache-tier
 
-  # データベース (data-tier のみ / 外部アクセス不可)
+  # Database (data-tier only / no external access)
   db:
     image: postgres:16-alpine
     networks:
       - data-tier
 
-  # Redis (cache-tier のみ)
+  # Redis (cache-tier only)
   redis:
     image: redis:7-alpine
     networks:
@@ -1274,13 +1274,13 @@ networks:
     driver: bridge
   data-tier:
     driver: bridge
-    internal: true     # 外部アクセスを完全遮断
+    internal: true     # Block all external access
   cache-tier:
     driver: bridge
     internal: true
 ```
 
-### 7.2 IP アドレスの固定
+### 7.2 Fixed IP Addresses
 
 ```yaml
 services:
@@ -1305,90 +1305,90 @@ networks:
 
 ---
 
-## 8. 高度な設定比較
+## 8. Advanced Configuration Comparison
 
-| 機能 | 基本設定 | 応用設定 |
-|------|---------|---------|
-| サービス起動 | `depends_on: [db]` | `depends_on: { db: { condition: service_healthy } }` |
-| 環境変数 | `environment: {KEY: val}` | `env_file` + `secrets` + 優先順位管理 |
-| ネットワーク | デフォルト | `internal: true` + 複数ネットワーク分離 |
-| ログ | デフォルト (無制限) | `json-file` + `max-size` + `max-file` |
-| リソース | 無制限 | `deploy.resources.limits` で CPU/メモリ制限 |
-| プロファイル | 全サービス起動 | `profiles` で用途別グルーピング |
-| 設定管理 | 単一ファイル | `override.yml` + `prod.yml` でレイヤー化 |
-| ヘルスチェック | なし | サービスごとの専用チェック + カスタムスクリプト |
-| シークレット | 環境変数に直接記載 | `secrets` + `*_FILE` パターン |
-| YAML 再利用 | コピー&ペースト | `x-` Extension Fields + アンカー |
+| Feature | Basic | Advanced |
+|---------|-------|----------|
+| Service startup | `depends_on: [db]` | `depends_on: { db: { condition: service_healthy } }` |
+| Environment variables | `environment: {KEY: val}` | `env_file` + `secrets` + priority management |
+| Networking | Default | `internal: true` + multiple network isolation |
+| Logging | Default (unlimited) | `json-file` + `max-size` + `max-file` |
+| Resources | Unlimited | `deploy.resources.limits` for CPU/memory limits |
+| Profiles | All services started | `profiles` for purpose-based grouping |
+| Configuration management | Single file | `override.yml` + `prod.yml` layering |
+| Healthcheck | None | Dedicated check per service + custom scripts |
+| Secrets | Written directly in environment variables | `secrets` + `*_FILE` pattern |
+| YAML reuse | Copy & paste | `x-` Extension Fields + anchors |
 
 ---
 
-## 9. Compose の便利なコマンド集
+## 9. Useful Compose Command Reference
 
-### 9.1 日常操作
+### 9.1 Daily Operations
 
 ```bash
-# サービスの状態確認
+# Check service status
 docker compose ps
-docker compose ps -a    # 停止中のコンテナも表示
+docker compose ps -a    # Include stopped containers
 
-# ログの確認
-docker compose logs -f              # 全サービスのログをフォロー
-docker compose logs -f app worker   # 特定サービスのみ
-docker compose logs --tail=50 app   # 最新50行
-docker compose logs --since=1h      # 直近1時間のログ
+# View logs
+docker compose logs -f              # Follow logs for all services
+docker compose logs -f app worker   # Specific services only
+docker compose logs --tail=50 app   # Last 50 lines
+docker compose logs --since=1h      # Logs from the past 1 hour
 
-# サービスの再起動
-docker compose restart app          # app のみ再起動
-docker compose up -d --force-recreate app   # 強制再作成
+# Restart services
+docker compose restart app          # Restart app only
+docker compose up -d --force-recreate app   # Force recreate
 
-# 設定の確認
-docker compose config               # マージ結果を表示
-docker compose config --services    # サービス一覧
-docker compose config --volumes     # ボリューム一覧
+# Inspect configuration
+docker compose config               # Show merged result
+docker compose config --services    # List services
+docker compose config --volumes     # List volumes
 
-# イメージのビルド
-docker compose build                # 全サービスビルド
-docker compose build --no-cache     # キャッシュなしでビルド
-docker compose build --parallel     # 並列ビルド
-docker compose build app worker     # 特定サービスのみ
+# Build images
+docker compose build                # Build all services
+docker compose build --no-cache     # Build without cache
+docker compose build --parallel     # Build in parallel
+docker compose build app worker     # Specific services only
 
-# コンテナ内でコマンド実行
-docker compose exec app sh                  # シェルに入る
-docker compose exec -T app npm run migrate  # TTY なし（スクリプト向け）
-docker compose run --rm app npm test         # ワンショット実行
+# Execute commands in containers
+docker compose exec app sh                  # Open a shell
+docker compose exec -T app npm run migrate  # No TTY (for scripts)
+docker compose run --rm app npm test         # One-shot execution
 ```
 
-### 9.2 クリーンアップ
+### 9.2 Cleanup
 
 ```bash
-# サービス停止
-docker compose stop                 # 停止のみ
-docker compose down                 # 停止 + コンテナ削除
-docker compose down -v              # 停止 + コンテナ + ボリューム削除
-docker compose down --remove-orphans # 孤立コンテナも削除
-docker compose down --rmi local     # ローカルイメージも削除
-docker compose down -v --rmi all    # 全て削除
+# Stop services
+docker compose stop                 # Stop only
+docker compose down                 # Stop + remove containers
+docker compose down -v              # Stop + remove containers + volumes
+docker compose down --remove-orphans # Remove orphaned containers as well
+docker compose down --rmi local     # Remove local images as well
+docker compose down -v --rmi all    # Remove everything
 
-# 特定サービスのみ停止
+# Stop specific services only
 docker compose stop app
 docker compose rm -f app
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: ヘルスチェックなしの depends_on
+### Anti-Pattern 1: depends_on Without a Healthcheck
 
 ```yaml
-# NG: condition 未指定 → コンテナ起動 = サービス利用可能 と誤解
+# BAD: no condition specified → mistakenly assumes container started = service ready
 services:
   app:
     depends_on:
-      - db         # DB コンテナが起動した瞬間に app も起動する
-                   # → DB がまだ接続受付前でアプリがクラッシュ
+      - db         # app starts the instant the DB container starts
+                   # → DB is not yet accepting connections, app crashes
 
-# OK: healthcheck + condition で確実に待機
+# GOOD: use healthcheck + condition to wait reliably
 services:
   app:
     depends_on:
@@ -1402,18 +1402,18 @@ services:
       retries: 5
 ```
 
-**問題点**: PostgreSQL コンテナが起動してから実際に接続を受け付けるまでに数秒〜十数秒かかる。ヘルスチェックなしでは、アプリが接続エラーでクラッシュし、手動で再起動が必要になる。
+**Problem**: It takes several seconds to tens of seconds after a PostgreSQL container starts before it actually begins accepting connections. Without a healthcheck, the app crashes with a connection error and requires a manual restart.
 
-### アンチパターン 2: ログのローテーション未設定
+### Anti-Pattern 2: No Log Rotation
 
 ```yaml
-# NG: ログ設定なし → ディスクが枯渇する
+# BAD: no logging config → disk exhaustion
 services:
   app:
     image: myapp:latest
-    # logging 未設定 → json-file ドライバ、サイズ無制限
+    # logging not set → json-file driver with unlimited size
 
-# OK: ログサイズとローテーションを設定
+# GOOD: configure log size and rotation
 services:
   app:
     image: myapp:latest
@@ -1424,39 +1424,39 @@ services:
         max-file: "3"
 ```
 
-**問題点**: Docker のデフォルトログドライバ (json-file) はサイズ無制限でログを蓄積する。長時間稼働するサービスではログファイルがディスクを圧迫し、最終的にホストマシンのディスクが枯渇してシステム全体が停止する。
+**Problem**: Docker's default log driver (json-file) accumulates logs without a size limit. For long-running services, log files will fill the disk, eventually exhausting the host machine's storage and bringing down the entire system.
 
-### アンチパターン 3: シークレットを環境変数に直接記載
+### Anti-Pattern 3: Writing Secrets Directly in Environment Variables
 
 ```yaml
-# NG: パスワードをファイルに直接記載
+# BAD: password written directly in the file
 services:
   db:
     environment:
-      POSTGRES_PASSWORD: my_super_secret_password  # Git にコミットされる
+      POSTGRES_PASSWORD: my_super_secret_password  # Gets committed to Git
 
-# OK: .env ファイルまたは secrets を使用
+# GOOD: use .env file or secrets
 services:
   db:
     environment:
-      POSTGRES_PASSWORD: ${DB_PASSWORD}  # .env から取得
-    # または secrets を使用
+      POSTGRES_PASSWORD: ${DB_PASSWORD}  # Read from .env
+    # or use secrets
     secrets:
       - db_password
 ```
 
-**問題点**: `docker-compose.yml` にハードコードされたパスワードは Git リポジトリにコミットされ、漏洩リスクが極めて高い。`.env` ファイルを `.gitignore` に追加するか、Docker の `secrets` 機能を使用する。
+**Problem**: Passwords hardcoded in `docker-compose.yml` will be committed to the Git repository, creating an extremely high risk of leakage. Add `.env` files to `.gitignore`, or use Docker's `secrets` feature.
 
-### アンチパターン 4: リソース制限なしの本番運用
+### Anti-Pattern 4: Running Production Without Resource Limits
 
 ```yaml
-# NG: リソース制限なし → 1つのサービスがホストのリソースを食い尽くす
+# BAD: no resource limits → one service can exhaust all host resources
 services:
   app:
     image: myapp:latest
-    # deploy.resources 未設定
+    # deploy.resources not set
 
-# OK: 適切なリソース制限を設定
+# GOOD: configure appropriate resource limits
 services:
   app:
     image: myapp:latest
@@ -1470,50 +1470,50 @@ services:
           memory: 128M
 ```
 
-**問題点**: メモリリークやCPU 暴走が発生した場合、制限がないとホスト全体のリソースが枯渇し、他のサービスや SSH 接続すらも影響を受ける。特に本番環境では必ず制限を設定する。
+**Problem**: If a memory leak or CPU runaway occurs, the lack of limits allows the entire host's resources to be exhausted, affecting other services and even SSH connectivity. Always set limits in production environments.
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
             raise ValueError("入力値がNoneです")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1531,17 +1531,17 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1549,7 +1549,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1560,14 +1560,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1575,7 +1575,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1583,13 +1583,13 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
@@ -1600,27 +1600,27 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1629,7 +1629,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1651,40 +1651,40 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured configuration file | Check the configuration file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check the executing user's permissions, review configuration |
+| Data inconsistency | Concurrent processing conflict | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form a hypothesis**: List possible causes
+4. **Incremental verification**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, run tests for related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1692,7 +1692,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
         logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
@@ -1708,46 +1708,46 @@ def debug_decorator(func):
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
         raise ValueError("空のデータ")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Diagnosis steps when a performance issue occurs:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O wait**: Examine disk and network I/O status
+4. **Check concurrent connections**: Inspect the connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem type | Diagnostic tool | Countermeasure |
+|--------------|-----------------|----------------|
+| High CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Asynchronous I/O, caching |
+| DB slowness | EXPLAIN, slow query log | Indexing, query optimization |
 ---
 
 ## FAQ
 
-### Q1: YAML アンカーと Extension Fields (x- プレフィックス) の違いは何ですか？
+### Q1: What is the difference between YAML anchors and Extension Fields (x- prefix)?
 
-**A**: YAML アンカー (`&` / `*`) は YAML 標準の参照機構で、同じ値を複数箇所で再利用する。Extension Fields (`x-` プレフィックス) は Compose 仕様の機能で、Compose が無視するカスタムフィールドを定義できる。両者を組み合わせ、`x-common: &common` でトップレベルに共通設定を定義し、各サービスで `<<: *common` で展開するのが一般的なパターン。
+**A**: YAML anchors (`&` / `*`) are a YAML-standard reference mechanism for reusing the same value in multiple places. Extension Fields (`x-` prefix) are a Compose spec feature that lets you define custom fields which Compose ignores. The common pattern is to combine both: define shared configuration at the top level with `x-common: &common`, then expand it in each service with `<<: *common`.
 
-### Q2: プロファイルと複数 Compose ファイルのどちらを使うべきですか？
+### Q2: Should I use profiles or multiple Compose files?
 
-**A**: 同じ `docker-compose.yml` 内で用途別にサービスをグルーピングしたい場合はプロファイルが適切（例: debug ツール、監視ツール）。環境全体の設定を切り替えたい場合（開発 vs 本番、ポート公開の有無、リソース制限など）は複数ファイルのオーバーライドが適切。両方を併用することもできる。
+**A**: Use profiles when you want to group services by purpose within the same `docker-compose.yml` (e.g., debug tools, monitoring tools). Use multiple file overrides when you want to switch the entire environment configuration (development vs. production, whether ports are exposed, resource limits, etc.). You can also combine both approaches.
 
-### Q3: Compose で使える Interpolation (変数展開) の構文は？
+### Q3: What interpolation (variable expansion) syntax can be used in Compose?
 
-**A**: `${VARIABLE}` が基本形。デフォルト値は `${VARIABLE:-default}` (未設定時) と `${VARIABLE-default}` (未定義時のみ)。エラーにする場合は `${VARIABLE:?error message}`。これらは `.env` ファイルまたはシェルの環境変数から値を取得する。Compose ファイル内の `environment:` セクションの値は展開されるが、コンテナ内での展開とは異なる点に注意。
+**A**: `${VARIABLE}` is the basic form. For default values, use `${VARIABLE:-default}` (when unset or empty) or `${VARIABLE-default}` (when undefined only). To raise an error use `${VARIABLE:?error message}`. Values are taken from the `.env` file or shell environment variables. Note that values in the `environment:` section of the Compose file are expanded, but this is distinct from expansion inside the container.
 
-### Q4: depends_on の restart: true オプションは何ですか？
+### Q4: What is the `restart: true` option in depends_on?
 
-**A**: Compose V2.20+ で追加された機能で、依存先のサービスが再起動された場合に、依存元のサービスも自動的に再起動させる。例えば、DB コンテナが再起動された場合に、自動的にアプリコンテナも再起動させたい場合に使用する。
+**A**: Added in Compose V2.20+, this option causes the dependent service to automatically restart whenever the service it depends on is restarted. For example, use it when you want the app container to restart automatically whenever the DB container restarts.
 
 ```yaml
 services:
@@ -1755,46 +1755,46 @@ services:
     depends_on:
       db:
         condition: service_healthy
-        restart: true    # db が再起動されたら app も再起動
+        restart: true    # Restart app when db restarts
 ```
 
-### Q5: healthcheck の start_period はどう設定すべきですか？
+### Q5: How should I set the healthcheck start_period?
 
-**A**: `start_period` はサービスの初期化に必要な時間を見積もって設定する。この期間中のヘルスチェック失敗はリトライ回数にカウントされない。PostgreSQL なら 30 秒、Elasticsearch なら 60 秒程度が目安。テスト環境で `docker compose up` してから実際にサービスが応答するまでの時間を計測し、その値の 1.5〜2 倍を設定するのが安全である。
+**A**: Set `start_period` based on an estimate of the time needed for the service to initialize. Healthcheck failures during this window are not counted toward the retry limit. A rough guide is 30 seconds for PostgreSQL and 60 seconds for Elasticsearch. Measure how long it takes from `docker compose up` until the service actually responds in a test environment, then set the value to 1.5–2x that measured time for safety.
 
-### Q6: Compose V2 と V1 (docker-compose コマンド) の違いは？
+### Q6: What is the difference between Compose V2 and V1 (docker-compose command)?
 
-**A**: Compose V2 は `docker compose`（ハイフンなし）で呼び出す Go 言語で実装されたプラグインである。V1 は `docker-compose`（ハイフンあり）で呼び出す Python 実装で、2023 年に EOL となった。V2 では `version:` フィールドが不要になり、`profiles`、`watch`、`include` など多くの新機能が追加されている。新規プロジェクトでは必ず V2 を使用すべきである。
+**A**: Compose V2 is a Go-based plugin invoked as `docker compose` (no hyphen). V1 was a Python implementation invoked as `docker-compose` (with a hyphen) and reached EOL in 2023. In V2, the `version:` field is no longer needed, and many new features have been added including `profiles`, `watch`, and `include`. All new projects should use V2.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| プロファイル | `profiles:` でサービスをグルーピングし、`--profile` で選択起動 |
-| depends_on | `condition: service_healthy` で確実な起動順序を保証 |
-| healthcheck | DB/Redis/HTTP それぞれに適切なチェックコマンドを設定 |
-| 環境変数 | `.env` (Compose変数) + `env_file` (アプリ変数) + `secrets` の使い分け |
-| ファイルマージ | `override.yml` (開発) + `prod.yml` (本番) でレイヤー化 |
-| YAML アンカー | `x-` Extension Fields + アンカーで設定の DRY 化 |
-| リソース制限 | `deploy.resources.limits` で CPU/メモリを制限 |
-| ログ管理 | `max-size` + `max-file` でディスク枯渇を防止 |
-| ネットワーク分離 | `internal: true` + 複数ネットワークでセキュリティ強化 |
-| シークレット管理 | `secrets` + `*_FILE` パターンで安全に機密情報を管理 |
+| Topic | Key points |
+|-------|-----------|
+| Profiles | Group services with `profiles:` and start selectively with `--profile` |
+| depends_on | Use `condition: service_healthy` to guarantee a reliable startup order |
+| healthcheck | Configure appropriate check commands for each type: DB / Redis / HTTP |
+| Environment variables | Use `.env` (Compose vars) + `env_file` (app vars) + `secrets` appropriately |
+| File merging | Layer configuration with `override.yml` (development) + `prod.yml` (production) |
+| YAML anchors | Use `x-` Extension Fields + anchors to keep configuration DRY |
+| Resource limits | Use `deploy.resources.limits` to cap CPU and memory |
+| Log management | Prevent disk exhaustion with `max-size` + `max-file` |
+| Network isolation | Strengthen security with `internal: true` + multiple networks |
+| Secret management | Manage sensitive information safely with `secrets` + `*_FILE` pattern |
 
-## 次に読むべきガイド
+## Further Reading
 
-- [Compose 開発ワークフロー](./02-development-workflow.md) -- ホットリロード、デバッグ、CI 統合
-- [Docker Compose 基礎](./00-compose-basics.md) -- 基本構文の復習
-- [コンテナセキュリティ](../06-security/00-container-security.md) -- セキュリティのベストプラクティス
+- [Compose Development Workflow](./02-development-workflow.md) -- Hot reload, debugging, CI integration
+- [Docker Compose Basics](./00-compose-basics.md) -- Review of basic syntax
+- [Container Security](../06-security/00-container-security.md) -- Security best practices
 
-## 参考文献
+## References
 
-1. **Compose Specification - Profiles** -- https://docs.docker.com/compose/profiles/ -- プロファイル機能の公式ドキュメント
-2. **Compose Specification - Healthcheck** -- https://docs.docker.com/compose/compose-file/05-services/#healthcheck -- ヘルスチェック設定の詳細
-3. **Environment variables in Compose** -- https://docs.docker.com/compose/environment-variables/ -- 環境変数の優先順位と管理方法
-4. **Compose file merge** -- https://docs.docker.com/compose/multiple-compose-files/ -- 複数ファイルのマージ規則
-5. **Compose Specification - Extension Fields** -- https://docs.docker.com/compose/compose-file/11-extension/ -- Extension Fields の仕様
-6. **Compose Specification - Secrets** -- https://docs.docker.com/compose/use-secrets/ -- シークレット管理の公式ドキュメント
-7. **Docker Compose V2 Release Notes** -- https://docs.docker.com/compose/release-notes/ -- V2 の新機能と変更点
+1. **Compose Specification - Profiles** -- https://docs.docker.com/compose/profiles/ -- Official documentation for the profiles feature
+2. **Compose Specification - Healthcheck** -- https://docs.docker.com/compose/compose-file/05-services/#healthcheck -- Detailed healthcheck configuration
+3. **Environment variables in Compose** -- https://docs.docker.com/compose/environment-variables/ -- Environment variable priority and management
+4. **Compose file merge** -- https://docs.docker.com/compose/multiple-compose-files/ -- Rules for merging multiple files
+5. **Compose Specification - Extension Fields** -- https://docs.docker.com/compose/compose-file/11-extension/ -- Extension Fields specification
+6. **Compose Specification - Secrets** -- https://docs.docker.com/compose/use-secrets/ -- Official documentation for secret management
+7. **Docker Compose V2 Release Notes** -- https://docs.docker.com/compose/release-notes/ -- New features and changes in V2
