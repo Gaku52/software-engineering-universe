@@ -1,95 +1,95 @@
-# Dockerfile 最適化
+# Dockerfile Optimization
 
-> レイヤーキャッシュの活用、.dockerignore の設計、セキュリティスキャン、ベストプラクティスを網羅し、本番品質のコンテナイメージを構築する。
-
----
-
-## この章で学ぶこと
-
-1. **レイヤーキャッシュの仕組み**を深く理解し、ビルド時間を最小化する戦略を実装できる
-2. **セキュリティスキャンとハードニング**を実施し、脆弱性の少ないイメージを構築できる
-3. **Dockerfile のベストプラクティス**を体系的に適用し、保守性・効率性の高いイメージを作成できる
-4. **マルチプラットフォームビルド**の設計と実行を理解し、AMD64/ARM64 両対応のイメージを配布できる
-5. **CI/CD パイプライン**でのビルド最適化手法を理解し、実践に活かせる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [マルチステージビルド](./01-multi-stage-build.md) の内容を理解していること
+> A comprehensive guide covering layer cache utilization, .dockerignore design, security scanning, and best practices for building production-quality container images.
 
 ---
 
-## 1. レイヤーキャッシュ戦略
+## What You Will Learn
 
-### 1.1 キャッシュの動作原理
+1. Deeply understand **how layer caching works** and implement strategies to minimize build times
+2. Perform **security scanning and hardening** to build images with fewer vulnerabilities
+3. Systematically apply **Dockerfile best practices** to create maintainable and efficient images
+4. Understand the design and execution of **multi-platform builds** to distribute images supporting both AMD64 and ARM64
+5. Understand build optimization techniques in **CI/CD pipelines** and apply them in practice
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding the content of [Multi-Stage Builds](./01-multi-stage-build.md)
+
+---
+
+## 1. Layer Cache Strategy
+
+### 1.1 How Caching Works
 
 ```
 +------------------------------------------------------+
-|              キャッシュ判定フロー                        |
+|              Cache Decision Flow                      |
 |                                                      |
-|  各命令に対して:                                       |
+|  For each instruction:                               |
 |                                                      |
-|  1. FROM: ベースイメージが同じか？                      |
-|     -> 異なれば全レイヤー再ビルド                       |
+|  1. FROM: Is the base image the same?                |
+|     -> If different, rebuild all layers              |
 |                                                      |
-|  2. RUN: コマンド文字列が同じか？                       |
-|     -> 文字列が1文字でも異なれば再ビルド                 |
-|     -> コマンドの実行結果は比較しない                    |
+|  2. RUN: Is the command string the same?             |
+|     -> Rebuild if even one character differs         |
+|     -> Does not compare the execution result         |
 |                                                      |
-|  3. COPY/ADD: ファイルのチェックサムが同じか？           |
-|     -> ファイル内容が変わればキャッシュ無効              |
-|     -> タイムスタンプは無視（内容のみ比較）              |
+|  3. COPY/ADD: Is the file checksum the same?         |
+|     -> Cache invalidated if file content changes     |
+|     -> Timestamps are ignored (content only)         |
 |                                                      |
-|  重要: あるレイヤーのキャッシュが無効になると             |
-|        それ以降の全レイヤーが再ビルドされる              |
+|  Important: Once a layer's cache is invalidated,     |
+|             all subsequent layers are rebuilt        |
 |                                                      |
-|  [キャッシュヒット] -> [キャッシュヒット] -> [ミス!]     |
-|  -> [再ビルド] -> [再ビルド] -> [再ビルド]              |
+|  [Cache Hit] -> [Cache Hit] -> [Miss!]               |
+|  -> [Rebuild] -> [Rebuild] -> [Rebuild]              |
 +------------------------------------------------------+
 ```
 
-Docker のビルドキャッシュは各レイヤー（Dockerfile の各命令）単位で判定される。ビルドエンジンは上から順にレイヤーを処理し、各レイヤーのキャッシュが有効かどうかを判定する。FROM 命令ではベースイメージのダイジェストが一致するかを確認し、RUN 命令ではコマンド文字列の完全一致を確認する。COPY や ADD ではコピー対象ファイルのメタデータ（サイズ、パーミッション、内容のハッシュ）を比較する。
+Docker's build cache is evaluated per layer (per instruction in the Dockerfile). The build engine processes layers from top to bottom, determining whether the cache for each layer is valid. For FROM instructions, it checks whether the base image digest matches. For RUN instructions, it checks for an exact match of the command string. For COPY and ADD, it compares the metadata (size, permissions, content hash) of the copied files.
 
-キャッシュの最も重要な特性は「カスケード無効化」である。あるレイヤーでキャッシュが無効になると、そのレイヤー以降のすべてのレイヤーが再ビルドされる。これは、各レイヤーが前のレイヤーの結果に依存しているためである。この性質を理解することが、キャッシュ最適化の基盤となる。
+The most important characteristic of the cache is "cascade invalidation." When a cache miss occurs at a layer, all subsequent layers are rebuilt. This is because each layer depends on the result of the previous one. Understanding this behavior is the foundation of cache optimization.
 
-### 1.2 最適なレイヤー順序
+### 1.2 Optimal Layer Ordering
 
 ```dockerfile
-# === 最適化された Dockerfile ===
+# === Optimized Dockerfile ===
 
-# 1. ベースイメージ（変更頻度: 最低）
+# 1. Base image (change frequency: lowest)
 FROM node:20-alpine
 
 WORKDIR /app
 
-# 2. システム依存関係（変更頻度: 低）
+# 2. System dependencies (change frequency: low)
 RUN apk add --no-cache curl
 
-# 3. 言語依存関係の定義ファイル（変更頻度: 中低）
+# 3. Language dependency definition files (change frequency: medium-low)
 COPY package.json package-lock.json ./
 
-# 4. 依存関係のインストール（変更頻度: 中低）
+# 4. Dependency installation (change frequency: medium-low)
 RUN npm ci --only=production
 
-# 5. 設定ファイル（変更頻度: 中）
+# 5. Configuration files (change frequency: medium)
 COPY tsconfig.json ./
 
-# 6. ソースコード（変更頻度: 最高）
+# 6. Source code (change frequency: highest)
 COPY src/ ./src/
 
-# 7. ビルド
+# 7. Build
 RUN npm run build
 
 CMD ["node", "dist/server.js"]
 ```
 
-レイヤー順序の最適化原則は「変更頻度の低いものを上に、高いものを下に」配置することである。ソースコードは最も頻繁に変更されるため、Dockerfile の最下部に配置する。依存関係の定義ファイル（package.json 等）は比較的安定しているため、ソースコードよりも上に配置する。
+The optimization principle for layer ordering is to place less frequently changed items at the top and more frequently changed items at the bottom. Source code changes most often, so it goes at the very bottom of the Dockerfile. Dependency definition files (such as package.json) are relatively stable, so they are placed above the source code.
 
-### 1.3 BuildKit マウントキャッシュ
+### 1.3 BuildKit Mount Cache
 
 ```dockerfile
 # syntax=docker/dockerfile:1
@@ -99,8 +99,8 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 
-# npm キャッシュディレクトリをマウント
-# ビルド間で再利用される（レイヤーには含まれない）
+# Mount the npm cache directory
+# Reused across builds (not included in the layer)
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --only=production
 
@@ -111,7 +111,7 @@ CMD ["node", "dist/server.js"]
 ```
 
 ```dockerfile
-# Python の pip キャッシュ
+# Python pip cache
 FROM python:3.12-slim
 WORKDIR /app
 COPY requirements.txt .
@@ -122,7 +122,7 @@ CMD ["python", "app.py"]
 ```
 
 ```dockerfile
-# Go のモジュール + ビルドキャッシュ
+# Go module + build cache
 FROM golang:1.22-alpine
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -134,73 +134,73 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 go build -o /server .
 ```
 
-BuildKit のマウントキャッシュは、レイヤーキャッシュとは異なる仕組みである。`--mount=type=cache` で指定されたディレクトリは、ビルド間で永続化されるがイメージには含まれない。これにより、パッケージマネージャーのキャッシュを効率的に再利用できる。
+BuildKit's mount cache works differently from layer caching. The directory specified with `--mount=type=cache` is persisted across builds but is not included in the image. This allows package manager caches to be efficiently reused.
 
-### 1.4 マウントキャッシュの詳細オプション
+### 1.4 Mount Cache Detailed Options
 
 ```dockerfile
-# キャッシュ ID を指定（同じ ID のキャッシュを共有）
+# Specify a cache ID (shares cache with the same ID)
 RUN --mount=type=cache,id=npm-cache,target=/root/.npm \
     npm ci
 
-# キャッシュのシェアリングモード
-# shared: 複数のビルドが同時にアクセス可能（デフォルト）
-# private: 1つのビルドのみアクセス可能
-# locked: 同時アクセスを排他制御
+# Cache sharing modes
+# shared: multiple builds can access simultaneously (default)
+# private: only one build can access at a time
+# locked: exclusive access control for simultaneous access
 RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     npm ci
 
-# 読み取り専用マウント
+# Read-only mount
 RUN --mount=type=cache,target=/root/.npm,readonly \
     npm ls
 
-# キャッシュの初期値をディレクトリから設定
+# Set initial cache value from a directory
 RUN --mount=type=cache,target=/root/.npm,from=base-deps \
     npm ci
 ```
 
-### 1.5 キャッシュ無効化の回避テクニック
+### 1.5 Techniques to Avoid Cache Invalidation
 
 ```dockerfile
-# NG: 日時を含むコマンドはキャッシュが常に無効
+# NG: Commands containing timestamps always invalidate the cache
 RUN echo "Build date: $(date)" > /app/build-info.txt
 
-# OK: ARG で制御（同じ値ならキャッシュ有効）
+# OK: Control with ARG (cache is valid for the same value)
 ARG BUILD_DATE=unknown
 RUN echo "Build date: $BUILD_DATE" > /app/build-info.txt
 
-# NG: apt-get update を単独で実行
+# NG: Running apt-get update alone
 RUN apt-get update
-RUN apt-get install -y curl  # update のキャッシュが古くなる
+RUN apt-get install -y curl  # the update cache becomes stale
 
-# OK: update と install を1つの RUN にまとめる
+# OK: Combine update and install into a single RUN
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
-# テクニック: git リビジョンをビルド引数に
+# Technique: Pass git revision as a build argument
 ARG GIT_REVISION
 LABEL git.revision=$GIT_REVISION
-# build 時: docker build --build-arg GIT_REVISION=$(git rev-parse HEAD) .
+# At build time: docker build --build-arg GIT_REVISION=$(git rev-parse HEAD) .
 ```
 
-### 1.6 条件付きキャッシュ破棄
+### 1.6 Conditional Cache Busting
 
 ```dockerfile
-# 特定の条件でのみキャッシュを無効化する
-# 例: 依存関係ファイルが変更された場合のみ再インストール
+# Invalidate the cache only under specific conditions
+# Example: reinstall only when the dependency file changes
 
 FROM node:20-alpine
 WORKDIR /app
 
-# package.json のみ先にコピー（変更がなければキャッシュが効く）
+# Copy package.json first (cache is effective if unchanged)
 COPY package.json package-lock.json ./
 
-# チェックサムで変更を検出
+# Detect changes via checksum
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
-# tsconfig.json が変わっても依存関係の再インストールは不要
+# Changing tsconfig.json does not require reinstalling dependencies
 COPY tsconfig.json ./
 COPY src/ ./src/
 RUN npm run build
@@ -208,28 +208,28 @@ RUN npm run build
 
 ---
 
-## 2. .dockerignore 設計
+## 2. .dockerignore Design
 
-### 2.1 包括的な .dockerignore
+### 2.1 Comprehensive .dockerignore
 
 ```bash
 # ==========================================
 # .dockerignore
 # ==========================================
 
-# --- バージョン管理 ---
+# --- Version control ---
 .git
 .gitignore
 .gitattributes
 
-# --- 依存関係（コンテナ内で再インストール） ---
+# --- Dependencies (reinstalled inside the container) ---
 node_modules
 vendor
 .venv
 __pycache__
 *.pyc
 
-# --- ビルド成果物（コンテナ内で再ビルド） ---
+# --- Build artifacts (rebuilt inside the container) ---
 dist
 build
 out
@@ -237,25 +237,25 @@ target
 *.o
 *.a
 
-# --- IDE / エディタ ---
+# --- IDE / Editor ---
 .vscode
 .idea
 *.swp
 *.swo
 *~
 
-# --- Docker 関連 ---
+# --- Docker-related ---
 Dockerfile*
 docker-compose*.yml
 .dockerignore
 
-# --- ドキュメント ---
+# --- Documentation ---
 README.md
 LICENSE
 CHANGELOG.md
 docs/
 
-# --- テスト ---
+# --- Tests ---
 coverage
 .nyc_output
 *.test.js
@@ -263,7 +263,7 @@ coverage
 __tests__
 tests
 
-# --- 環境変数・シークレット ---
+# --- Environment variables / Secrets ---
 .env
 .env.*
 !.env.example
@@ -271,7 +271,7 @@ tests
 *.key
 credentials.json
 
-# --- OS ファイル ---
+# --- OS files ---
 .DS_Store
 Thumbs.db
 
@@ -281,34 +281,34 @@ Thumbs.db
 Jenkinsfile
 ```
 
-### 2.2 .dockerignore の効果
+### 2.2 Effect of .dockerignore
 
 ```
 +------------------------------------------------------+
-|          .dockerignore 適用前後の比較                   |
+|       Comparison Before and After .dockerignore       |
 |                                                      |
-|  適用前:                                              |
-|  $ docker build . 2>&1 | grep "Sending"             |
-|  Sending build context to Docker daemon  500MB       |
+|  Before:                                             |
+|  $ docker build . 2>&1 | grep "Sending"              |
+|  Sending build context to Docker daemon  500MB        |
 |                                                      |
-|  内訳:                                               |
-|  +-- .git/          200 MB  ← 不要                  |
-|  +-- node_modules/  280 MB  ← コンテナ内で再インストール|
-|  +-- src/            10 MB  ← 必要                  |
-|  +-- その他           10 MB                          |
+|  Breakdown:                                          |
+|  +-- .git/          200 MB  <- not needed            |
+|  +-- node_modules/  280 MB  <- reinstalled in container|
+|  +-- src/            10 MB  <- needed                |
+|  +-- other           10 MB                           |
 |                                                      |
-|  適用後:                                              |
-|  $ docker build . 2>&1 | grep "Sending"             |
-|  Sending build context to Docker daemon  15MB        |
+|  After:                                              |
+|  $ docker build . 2>&1 | grep "Sending"              |
+|  Sending build context to Docker daemon  15MB         |
 |                                                      |
-|  効果: 97% 削減、ビルド時間も大幅短縮                   |
+|  Effect: 97% reduction, build time also significantly reduced|
 +------------------------------------------------------+
 ```
 
-### 2.3 言語別 .dockerignore テンプレート
+### 2.3 Language-Specific .dockerignore Templates
 
 ```bash
-# === Node.js プロジェクト用 ===
+# === For Node.js projects ===
 node_modules
 npm-debug.log*
 yarn-debug.log*
@@ -332,7 +332,7 @@ tsconfig.tsbuildinfo
 ```
 
 ```bash
-# === Python プロジェクト用 ===
+# === For Python projects ===
 __pycache__
 *.pyc
 *.pyo
@@ -355,7 +355,7 @@ htmlcov
 ```
 
 ```bash
-# === Go プロジェクト用 ===
+# === For Go projects ===
 vendor/
 *.test
 *.out
@@ -368,7 +368,7 @@ profile.out
 ```
 
 ```bash
-# === Java プロジェクト用 ===
+# === For Java projects ===
 target/
 build/
 *.class
@@ -382,133 +382,133 @@ build/
 out/
 ```
 
-### 2.4 .dockerignore のデバッグ
+### 2.4 Debugging .dockerignore
 
 ```bash
-# ビルドコンテキストに含まれるファイルを確認する方法
+# Methods to verify files included in the build context
 
-# 1. コンテキストサイズを確認
+# 1. Check context size
 docker build --no-cache -t test . 2>&1 | head -5
 
-# 2. BuildKit でコンテキスト転送量を確認
+# 2. Check context transfer size with BuildKit
 DOCKER_BUILDKIT=1 docker build --progress=plain -t test . 2>&1 | grep "transferring"
 
-# 3. .dockerignore の効果をテスト（空の Dockerfile で）
+# 3. Test .dockerignore effect (with an empty Dockerfile)
 echo "FROM scratch" > Dockerfile.test
 docker build -f Dockerfile.test . 2>&1 | grep "Sending"
 rm Dockerfile.test
 
-# 4. rsync --dry-run で除外ファイルを確認
+# 4. Use rsync --dry-run to check excluded files
 rsync -avz --dry-run --exclude-from=.dockerignore . /dev/null
 ```
 
 ---
 
-## 3. イメージサイズ最適化
+## 3. Image Size Optimization
 
-### 3.1 ベースイメージの選択
+### 3.1 Choosing a Base Image
 
 ```dockerfile
-# サイズ比較用ビルド
-# === ubuntu ベース (~77MB) ===
+# Builds for size comparison
+# === ubuntu base (~77MB) ===
 FROM ubuntu:22.04
 RUN apt-get update && apt-get install -y nodejs npm
 
-# === slim ベース (~74MB) ===
+# === slim base (~74MB) ===
 FROM node:20-slim
 
-# === alpine ベース (~7MB) ===
+# === alpine base (~7MB) ===
 FROM node:20-alpine
 
-# === distroless (~120MB Node.js含む) ===
+# === distroless (~120MB including Node.js) ===
 FROM gcr.io/distroless/nodejs20-debian12
 ```
 
 ```bash
-# サイズの確認
+# Check sizes
 docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
 ```
 
-### 3.2 ベースイメージ詳細比較
+### 3.2 Detailed Base Image Comparison
 
-| ベースイメージ | サイズ | C ライブラリ | パッケージマネージャ | シェル | セキュリティ | 用途 |
+| Base Image | Size | C Library | Package Manager | Shell | Security | Use Case |
 |---|---|---|---|---|---|---|
-| ubuntu:22.04 | ~77MB | glibc | apt | bash | 低 | 汎用開発 |
-| debian:bookworm-slim | ~74MB | glibc | apt | bash | 中 | 汎用サーバー |
-| alpine:3.19 | ~7MB | musl | apk | ash | 高 | 軽量コンテナ |
-| distroless | ~数MB | glibc | なし | なし | 最高 | 本番実行のみ |
-| scratch | 0MB | なし | なし | なし | 最高 | 静的バイナリ |
-| chainguard/static | ~数MB | なし | なし | なし | 最高 | Distroless 代替 |
-| wolfi-base | ~12MB | glibc | apk | ash | 高 | Chainguard 推奨 |
+| ubuntu:22.04 | ~77MB | glibc | apt | bash | Low | General development |
+| debian:bookworm-slim | ~74MB | glibc | apt | bash | Medium | General server |
+| alpine:3.19 | ~7MB | musl | apk | ash | High | Lightweight container |
+| distroless | ~few MB | glibc | None | None | Highest | Production runtime only |
+| scratch | 0MB | None | None | None | Highest | Static binaries |
+| chainguard/static | ~few MB | None | None | None | Highest | Distroless alternative |
+| wolfi-base | ~12MB | glibc | apk | ash | High | Chainguard recommended |
 
-### 3.3 パッケージのクリーンアップ
+### 3.3 Package Cleanup
 
 ```dockerfile
-# Debian/Ubuntu: キャッシュの削除
+# Debian/Ubuntu: delete cache
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
         ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Alpine: --no-cache で キャッシュを残さない
+# Alpine: use --no-cache to avoid leaving cache
 RUN apk add --no-cache curl ca-certificates
 
-# pip: キャッシュを無効化
+# pip: disable cache
 RUN pip install --no-cache-dir -r requirements.txt
 
-# npm: キャッシュをクリア
+# npm: clear cache
 RUN npm ci --only=production && npm cache clean --force
 
-# 不要なファイルの削除
+# Remove unnecessary files
 RUN rm -rf /tmp/* /var/tmp/* /usr/share/doc /usr/share/man
 ```
 
-### 3.4 レイヤー数の最適化
+### 3.4 Optimizing the Number of Layers
 
 ```dockerfile
-# NG: レイヤーが多い
+# NG: too many layers
 FROM alpine:3.19
 RUN apk add --no-cache curl
 RUN apk add --no-cache git
 RUN apk add --no-cache bash
 RUN mkdir /app
 RUN chmod 755 /app
-# -> 5 レイヤー
+# -> 5 layers
 
-# OK: まとめる
+# OK: combine them
 FROM alpine:3.19
 RUN apk add --no-cache curl git bash && \
     mkdir /app && \
     chmod 755 /app
-# -> 1 レイヤー
+# -> 1 layer
 ```
 
-### 3.5 マルチステージビルドによるサイズ削減
+### 3.5 Size Reduction with Multi-Stage Builds
 
 ```dockerfile
-# === マルチステージビルドの典型的パターン ===
+# === Typical multi-stage build pattern ===
 
-# ステージ 1: 依存関係インストール
+# Stage 1: Install dependencies
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# ステージ 2: ビルド
+# Stage 2: Build
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-# ステージ 3: 本番用（最小イメージ）
+# Stage 3: Production (minimal image)
 FROM node:20-alpine AS production
 WORKDIR /app
 
-# 本番依存関係のみ
+# Production dependencies only
 COPY --from=deps /app/node_modules ./node_modules
-# ビルド成果物のみ
+# Build artifacts only
 COPY --from=builder /app/dist ./dist
 COPY package.json ./
 
@@ -517,16 +517,16 @@ USER app
 
 CMD ["node", "dist/server.js"]
 
-# 結果:
-# deps ステージ:    devDependencies 含む (~500MB)
-# builder ステージ: ソースコード + ビルドツール含む (~600MB)
-# 最終イメージ:     本番依存 + dist のみ (~150MB)
+# Result:
+# deps stage:       includes devDependencies (~500MB)
+# builder stage:    includes source code + build tools (~600MB)
+# final image:      production deps + dist only (~150MB)
 ```
 
-### 3.6 UPX によるバイナリ圧縮
+### 3.6 Binary Compression with UPX
 
 ```dockerfile
-# Go バイナリを UPX で圧縮する例
+# Example of compressing a Go binary with UPX
 FROM golang:1.22-alpine AS builder
 RUN apk add --no-cache upx
 
@@ -534,26 +534,26 @@ WORKDIR /app
 COPY . .
 RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /server .
 
-# UPX で圧縮（50-70% のサイズ削減）
+# Compress with UPX (50-70% size reduction)
 RUN upx --best --lzma /server
 
 FROM scratch
 COPY --from=builder /server /server
 ENTRYPOINT ["/server"]
 
-# 圧縮前: 15MB → 圧縮後: 5MB（起動時間は微増）
+# Before compression: 15MB -> After compression: 5MB (startup time increases slightly)
 ```
 
-### 3.7 不要ファイルの特定と削除
+### 3.7 Identifying and Removing Unnecessary Files
 
 ```bash
-# イメージ内の大きなファイルを確認
+# Check large files inside the image
 docker run --rm myapp:latest find / -type f -size +1M -exec ls -lh {} \; 2>/dev/null
 
-# レイヤーごとのサイズを確認
+# Check size per layer
 docker history myapp:latest --format "table {{.ID}}\t{{.CreatedBy}}\t{{.Size}}"
 
-# dive ツールでレイヤーを視覚的に分析
+# Visually analyze layers with the dive tool
 docker run --rm -it \
     -v /var/run/docker.sock:/var/run/docker.sock \
     wagoodman/dive:latest myapp:latest
@@ -561,12 +561,12 @@ docker run --rm -it \
 
 ---
 
-## 4. セキュリティハードニング
+## 4. Security Hardening
 
-### 4.1 non-root ユーザー
+### 4.1 Non-Root User
 
 ```dockerfile
-# Alpine の場合
+# For Alpine
 FROM node:20-alpine
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
@@ -575,7 +575,7 @@ RUN npm ci --only=production
 USER app
 CMD ["node", "server.js"]
 
-# Debian の場合
+# For Debian
 FROM node:20-slim
 RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app
 WORKDIR /app
@@ -583,16 +583,16 @@ COPY --chown=app:app . .
 USER app
 ```
 
-### 4.2 読み取り専用ファイルシステム
+### 4.2 Read-Only Filesystem
 
 ```bash
-# 読み取り専用で実行
+# Run with read-only filesystem
 docker run --read-only \
     --tmpfs /tmp:rw,size=100m \
     --tmpfs /var/run:rw \
     my-app
 
-# docker-compose.yml での設定
+# Configuration in docker-compose.yml
 # services:
 #   app:
 #     read_only: true
@@ -601,76 +601,76 @@ docker run --read-only \
 #       - /var/run
 ```
 
-### 4.3 脆弱性スキャンの組み込み
+### 4.3 Integrating Vulnerability Scanning
 
 ```
 +------------------------------------------------------+
-|         CI/CD パイプラインでのスキャンフロー             |
+|         Scan Flow in CI/CD Pipeline                   |
 |                                                      |
-|  [コード変更] --> [ビルド] --> [スキャン] --> [プッシュ] |
+|  [Code Change] --> [Build] --> [Scan] --> [Push]      |
 |                                  |                   |
 |                            +-----+-----+             |
 |                            |           |             |
 |                         [Pass]      [Fail]           |
 |                            |           |             |
-|                         [Push]    [ブロック]          |
-|                                   [通知]             |
+|                         [Push]     [Block]           |
+|                                   [Notify]           |
 +------------------------------------------------------+
 ```
 
 ```bash
-# Trivy でスキャン
+# Scan with Trivy
 trivy image --severity HIGH,CRITICAL my-app:v1.0.0
 
-# 脆弱性があればビルドを失敗させる
+# Fail the build if vulnerabilities are found
 trivy image --exit-code 1 --severity CRITICAL my-app:v1.0.0
 
 # Docker Scout
 docker scout cves my-app:v1.0.0
 docker scout recommendations my-app:v1.0.0
 
-# Dockerfile 自体のリント
+# Lint the Dockerfile itself
 docker run --rm -i hadolint/hadolint < Dockerfile
 ```
 
-### 4.4 シークレット管理
+### 4.4 Secret Management
 
 ```dockerfile
-# NG: 環境変数にシークレットを埋め込む（イメージに残る）
+# NG: Embed secrets in environment variables (persisted in the image)
 ENV DATABASE_URL=postgres://user:password@host/db
-# -> docker history で見える
+# -> visible with docker history
 
-# NG: ARG でシークレットを渡す（ビルドキャッシュに残る可能性）
+# NG: Pass secrets via ARG (may persist in build cache)
 ARG SECRET_KEY
 RUN echo $SECRET_KEY > /app/.secret
 
-# OK: BuildKit シークレットマウント（イメージに残らない）
+# OK: BuildKit secret mount (does not persist in the image)
 RUN --mount=type=secret,id=db_url \
     cat /run/secrets/db_url > /dev/null && \
     ./setup-database.sh
 
-# OK: 実行時に環境変数で渡す
+# OK: Pass via environment variable at runtime
 # docker run -e DATABASE_URL=postgres://... my-app
 ```
 
 ```bash
-# シークレットを使ったビルド
+# Build using secrets
 docker build \
     --secret id=db_url,src=./db_url.txt \
     --secret id=api_key,src=./api_key.txt \
     -t my-app .
 ```
 
-### 4.5 コンテナの権限制限
+### 4.5 Restricting Container Privileges
 
 ```dockerfile
-# セキュリティ強化された Dockerfile
+# Security-hardened Dockerfile
 FROM node:20-alpine
 
-# 不要な setuid/setgid ビットを削除
+# Remove unnecessary setuid/setgid bits
 RUN find / -perm /6000 -type f -exec chmod a-s {} \; 2>/dev/null || true
 
-# non-root ユーザー作成
+# Create a non-root user
 RUN addgroup -S app && adduser -S app -G app
 
 WORKDIR /app
@@ -679,7 +679,7 @@ RUN npm ci --only=production
 
 USER app
 
-# ヘルスチェック（non-root でも動作するコマンド）
+# Health check (command that works even as non-root)
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
@@ -687,7 +687,7 @@ CMD ["node", "server.js"]
 ```
 
 ```bash
-# 実行時のセキュリティオプション
+# Security options at runtime
 docker run \
     --read-only \
     --cap-drop ALL \
@@ -700,87 +700,87 @@ docker run \
     my-app:latest
 ```
 
-### 4.6 SBOM（Software Bill of Materials）の生成
+### 4.6 Generating SBOM (Software Bill of Materials)
 
 ```bash
-# Docker BuildKit による SBOM 生成
+# Generate SBOM with Docker BuildKit
 docker buildx build --sbom=true -t my-app:v1.0.0 .
 
-# Syft で SBOM 生成
+# Generate SBOM with Syft
 syft my-app:v1.0.0 -o spdx-json > sbom.json
 
-# SBOM から脆弱性チェック
+# Check for vulnerabilities from SBOM
 grype sbom:sbom.json
 
-# Trivy で SBOM を生成
+# Generate SBOM with Trivy
 trivy image --format spdx-json --output sbom.json my-app:v1.0.0
 ```
 
-### 4.7 イメージ署名と検証
+### 4.7 Image Signing and Verification
 
 ```bash
-# cosign でイメージに署名
+# Sign an image with cosign
 cosign sign --key cosign.key myregistry/my-app:v1.0.0
 
-# 署名の検証
+# Verify the signature
 cosign verify --key cosign.pub myregistry/my-app:v1.0.0
 
-# Keyless 署名（Sigstore/Fulcio）
+# Keyless signing (Sigstore/Fulcio)
 cosign sign myregistry/my-app:v1.0.0
-# → OIDCプロバイダーで認証
+# -> Authenticate with an OIDC provider
 
 # Docker Content Trust
 export DOCKER_CONTENT_TRUST=1
-docker push myregistry/my-app:v1.0.0  # 自動的に署名
-docker pull myregistry/my-app:v1.0.0  # 署名を検証
+docker push myregistry/my-app:v1.0.0  # automatically signed
+docker pull myregistry/my-app:v1.0.0  # signature verified
 ```
 
 ---
 
-## 5. ビルドパフォーマンス
+## 5. Build Performance
 
-### 5.1 BuildKit の活用
+### 5.1 Leveraging BuildKit
 
 ```bash
-# BuildKit を有効化（Docker 23.0+ ではデフォルト）
+# Enable BuildKit (default in Docker 23.0+)
 export DOCKER_BUILDKIT=1
 
-# 並列ビルドの確認
+# Verify parallel builds
 docker build --progress=plain -t my-app .
 
-# ビルドキャッシュのエクスポート/インポート
+# Export/import build cache
 docker build \
     --cache-from type=registry,ref=myregistry/my-app:cache \
     --cache-to type=registry,ref=myregistry/my-app:cache,mode=max \
     -t my-app .
 
-# ローカルキャッシュ
+# Local cache
 docker build \
     --cache-from type=local,src=/tmp/docker-cache \
     --cache-to type=local,dest=/tmp/docker-cache \
     -t my-app .
 ```
 
-### 5.2 マルチプラットフォームビルド
+### 5.2 Multi-Platform Builds
 
 ```bash
-# buildx ビルダーの作成
+# Create a buildx builder
 docker buildx create --name multiarch --use
 docker buildx inspect --bootstrap
 
-# マルチプラットフォームビルド
+# Multi-platform build
 docker buildx build \
     --platform linux/amd64,linux/arm64 \
     -t myregistry/my-app:v1.0.0 \
     --push .
 ```
 
-### 5.3 並列ステージビルド
+### 5.3 Parallel Stage Builds
 
 ```dockerfile
 # syntax=docker/dockerfile:1
 
-# 並列実行可能なステージ
+# Stages that can run in parallel
 FROM node:20-alpine AS frontend-deps
 WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
@@ -797,7 +797,7 @@ COPY --from=frontend-deps /frontend/node_modules ./node_modules
 COPY frontend/ .
 RUN npm run build
 
-# 最終ステージで統合
+# Integrate in the final stage
 FROM python:3.12-slim AS production
 WORKDIR /app
 COPY --from=backend-deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
@@ -805,13 +805,13 @@ COPY --from=frontend-build /frontend/dist ./static
 COPY backend/ .
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "app:app"]
 
-# frontend-deps と backend-deps は並列でビルドされる（BuildKit）
+# frontend-deps and backend-deps are built in parallel (BuildKit)
 ```
 
-### 5.4 CI でのビルドキャッシュ戦略
+### 5.4 Build Cache Strategy in CI
 
 ```yaml
-# GitHub Actions でのキャッシュ設定
+# Cache configuration in GitHub Actions
 name: Build
 on: push
 
@@ -842,7 +842,7 @@ jobs:
 ```
 
 ```yaml
-# GitLab CI でのキャッシュ設定
+# Cache configuration in GitLab CI
 build:
   stage: build
   image: docker:24
@@ -858,46 +858,46 @@ build:
       --push .
 ```
 
-### 5.5 ビルド時間の計測と分析
+### 5.5 Measuring and Analyzing Build Times
 
 ```bash
-# ビルド時間を詳細表示
+# Display build time in detail
 DOCKER_BUILDKIT=1 docker build --progress=plain -t my-app . 2>&1 | tee build.log
 
-# 各ステージの時間を抽出
+# Extract time per stage
 grep -E "^#[0-9]+ (DONE|CACHED)" build.log
 
-# BuildKit のステータスを確認
+# Check BuildKit status
 docker buildx du
-docker buildx prune  # 不要なキャッシュを削除
+docker buildx prune  # delete unnecessary cache
 
-# ビルドキャッシュの使用量確認
+# Check build cache usage
 docker system df
-docker builder prune --all --force  # 全キャッシュ削除
+docker builder prune --all --force  # delete all cache
 ```
 
 ---
 
-## 6. Dockerfile リント
+## 6. Dockerfile Linting
 
 ### 6.1 Hadolint
 
 ```bash
-# Hadolint の実行
+# Run Hadolint
 docker run --rm -i hadolint/hadolint < Dockerfile
 
-# 出力例:
+# Example output:
 # DL3008 warning: Pin versions in apt get install
 # DL3009 info: Delete the apt-get lists after installing
 # DL3018 warning: Pin versions in apk add
 # DL4006 warning: Set the SHELL option -o pipefail
 # SC2086 info: Double quote to prevent globbing
 
-# 特定のルールを無視
+# Ignore specific rules
 docker run --rm -i hadolint/hadolint \
     --ignore DL3008 --ignore DL3018 < Dockerfile
 
-# .hadolint.yaml で設定
+# Configure with .hadolint.yaml
 # ignored:
 #   - DL3008
 # trustedRegistries:
@@ -905,10 +905,10 @@ docker run --rm -i hadolint/hadolint \
 #   - ghcr.io
 ```
 
-### 6.2 Hadolint の CI 統合
+### 6.2 Hadolint CI Integration
 
 ```yaml
-# GitHub Actions での Hadolint
+# Hadolint in GitHub Actions
 name: Lint Dockerfile
 on: pull_request
 
@@ -924,10 +924,10 @@ jobs:
 ```
 
 ```yaml
-# .hadolint.yaml の詳細設定
+# Detailed settings in .hadolint.yaml
 ignored:
-  - DL3008  # apt パッケージのバージョン未固定
-  - DL3018  # apk パッケージのバージョン未固定
+  - DL3008  # apt package version not pinned
+  - DL3018  # apk package version not pinned
 
 trustedRegistries:
   - docker.io
@@ -936,90 +936,90 @@ trustedRegistries:
 
 override:
   error:
-    - DL3001  # 不正なコマンド
-    - DL3002  # root ユーザー
+    - DL3001  # invalid command
+    - DL3002  # root user
   warning:
-    - DL3006  # FROM タグなし
+    - DL3006  # FROM without tag
   info:
-    - DL3009  # apt lists 未削除
+    - DL3009  # apt lists not deleted
   style:
-    - DL3015  # apt --no-install-recommends 未使用
+    - DL3015  # apt --no-install-recommends not used
 ```
 
-### 比較表 1: Hadolint 主要ルール
+### Comparison Table 1: Key Hadolint Rules
 
-| ルールID | 重要度 | 内容 | 対処法 |
+| Rule ID | Severity | Description | Fix |
 |---|---|---|---|
-| DL3006 | warning | FROM でタグ指定なし | `FROM image:tag` を使用 |
-| DL3008 | warning | apt パッケージのバージョン未固定 | `apt-get install pkg=version` |
-| DL3009 | info | apt-get lists 未削除 | `rm -rf /var/lib/apt/lists/*` |
-| DL3018 | warning | apk パッケージのバージョン未固定 | `apk add pkg=version` |
-| DL3025 | warning | CMD がシェル形式 | exec 形式 `CMD ["cmd"]` |
-| DL4006 | warning | pipefail 未設定 | `SHELL ["/bin/bash", "-o", "pipefail", "-c"]` |
-| DL3002 | warning | USER が root のまま | `USER nonroot` を追加 |
-| DL3003 | error | sudo の使用 | non-root ユーザーに切り替え前に必要な操作を実行 |
-| DL3007 | warning | FROM で latest タグ使用 | 明示的なバージョンタグを指定 |
-| DL3013 | warning | pip --no-cache-dir 未使用 | `pip install --no-cache-dir` |
-| DL3015 | info | apt --no-install-recommends 未使用 | `--no-install-recommends` を追加 |
-| DL3020 | error | ADD の代わりに COPY を使用 | URL や tar 展開以外は COPY を使う |
-| DL3028 | warning | gem --no-document 未使用 | `gem install --no-document` |
+| DL3006 | warning | No tag specified in FROM | Use `FROM image:tag` |
+| DL3008 | warning | apt package version not pinned | `apt-get install pkg=version` |
+| DL3009 | info | apt-get lists not deleted | `rm -rf /var/lib/apt/lists/*` |
+| DL3018 | warning | apk package version not pinned | `apk add pkg=version` |
+| DL3025 | warning | CMD in shell form | Use exec form `CMD ["cmd"]` |
+| DL4006 | warning | pipefail not set | `SHELL ["/bin/bash", "-o", "pipefail", "-c"]` |
+| DL3002 | warning | USER is still root | Add `USER nonroot` |
+| DL3003 | error | Use of sudo | Perform required operations before switching to non-root user |
+| DL3007 | warning | Using latest tag in FROM | Specify an explicit version tag |
+| DL3013 | warning | pip --no-cache-dir not used | `pip install --no-cache-dir` |
+| DL3015 | info | apt --no-install-recommends not used | Add `--no-install-recommends` |
+| DL3020 | error | Use COPY instead of ADD | Use COPY for anything other than URLs or tar extraction |
+| DL3028 | warning | gem --no-document not used | `gem install --no-document` |
 
-### 比較表 2: セキュリティスキャンツール比較
+### Comparison Table 2: Security Scanning Tool Comparison
 
-| ツール | 種類 | 対象 | CI統合 | 特徴 |
+| Tool | Type | Target | CI Integration | Features |
 |---|---|---|---|---|
-| Hadolint | リンター | Dockerfile | GitHub Actions, GitLab CI | Dockerfile の書き方をチェック |
-| Trivy | スキャナー | イメージ, FS, リポ | 全主要CI | OSS, 高速, 包括的 |
-| Docker Scout | スキャナー | イメージ | Docker Desktop | Docker 統合, SBOM |
-| Snyk | スキャナー | イメージ, コード | 全主要CI | 修正提案が充実 |
-| Grype | スキャナー | イメージ, FS | GitHub Actions | Anchore 製, 高速 |
-| Dockle | リンター | イメージ | GitHub Actions | CIS Benchmark 準拠 |
-| cosign | 署名 | イメージ | GitHub Actions | Sigstore エコシステム |
-| syft | SBOM | イメージ, FS | GitHub Actions | SBOM 生成ツール |
+| Hadolint | Linter | Dockerfile | GitHub Actions, GitLab CI | Checks Dockerfile writing style |
+| Trivy | Scanner | Image, FS, Repo | All major CI | OSS, fast, comprehensive |
+| Docker Scout | Scanner | Image | Docker Desktop | Docker integration, SBOM |
+| Snyk | Scanner | Image, Code | All major CI | Rich fix suggestions |
+| Grype | Scanner | Image, FS | GitHub Actions | By Anchore, fast |
+| Dockle | Linter | Image | GitHub Actions | CIS Benchmark compliant |
+| cosign | Signing | Image | GitHub Actions | Sigstore ecosystem |
+| syft | SBOM | Image, FS | GitHub Actions | SBOM generation tool |
 
 ---
 
-## 7. ベストプラクティスチェックリスト
+## 7. Best Practices Checklist
 
 ```
 +------------------------------------------------------+
-|         Dockerfile ベストプラクティス                   |
+|         Dockerfile Best Practices                     |
 |                                                      |
-|  基本                                                |
-|  [x] FROM でバージョンタグを固定                       |
-|  [x] .dockerignore を設定                            |
-|  [x] マルチステージビルドを使用                        |
-|  [x] 変更頻度の低い命令を上に配置                      |
+|  Basics                                              |
+|  [x] Pin version tags in FROM                        |
+|  [x] Configure .dockerignore                         |
+|  [x] Use multi-stage builds                          |
+|  [x] Place less frequently changed instructions at top|
 |                                                      |
-|  セキュリティ                                         |
-|  [x] non-root ユーザーで実行                          |
-|  [x] 最小ベースイメージを使用 (alpine/distroless)      |
-|  [x] 脆弱性スキャンを CI に組み込み                    |
-|  [x] シークレットをイメージに含めない                   |
-|  [x] HEALTHCHECK を定義                              |
-|  [x] setuid/setgid ビットを削除                       |
-|  [x] --cap-drop ALL で実行                           |
+|  Security                                            |
+|  [x] Run as non-root user                            |
+|  [x] Use minimal base image (alpine/distroless)      |
+|  [x] Integrate vulnerability scanning into CI        |
+|  [x] Do not include secrets in the image             |
+|  [x] Define HEALTHCHECK                              |
+|  [x] Remove setuid/setgid bits                       |
+|  [x] Run with --cap-drop ALL                         |
 |                                                      |
-|  効率                                                |
-|  [x] RUN 命令をまとめてレイヤー数を削減                |
-|  [x] パッケージキャッシュを削除                        |
-|  [x] --no-install-recommends / --no-cache を使用     |
-|  [x] BuildKit マウントキャッシュを活用                 |
-|  [x] 並列ステージビルドを設計                          |
+|  Efficiency                                          |
+|  [x] Consolidate RUN instructions to reduce layers   |
+|  [x] Delete package cache                            |
+|  [x] Use --no-install-recommends / --no-cache        |
+|  [x] Leverage BuildKit mount cache                   |
+|  [x] Design parallel stage builds                    |
 |                                                      |
-|  保守性                                               |
-|  [x] LABEL でメタデータを付与                          |
-|  [x] CMD/ENTRYPOINT は exec 形式                     |
-|  [x] Hadolint でリントを実施                          |
-|  [x] EXPOSE でポートをドキュメント                     |
-|  [x] 環境変数にデフォルト値を設定                      |
+|  Maintainability                                     |
+|  [x] Add metadata with LABEL                         |
+|  [x] Use exec form for CMD/ENTRYPOINT                |
+|  [x] Lint with Hadolint                              |
+|  [x] Document ports with EXPOSE                      |
+|  [x] Set default values for environment variables    |
 +------------------------------------------------------+
 ```
 
-### 7.1 LABEL のベストプラクティス
+### 7.1 LABEL Best Practices
 
 ```dockerfile
-# OCI 標準ラベル
+# OCI standard labels
 LABEL org.opencontainers.image.title="My Application" \
       org.opencontainers.image.description="Production-ready API server" \
       org.opencontainers.image.version="1.0.0" \
@@ -1029,7 +1029,7 @@ LABEL org.opencontainers.image.title="My Application" \
       org.opencontainers.image.created="2024-01-15T10:30:00Z" \
       org.opencontainers.image.revision="abc123"
 
-# ビルド情報を動的に設定
+# Set build information dynamically
 ARG BUILD_DATE
 ARG GIT_REVISION
 ARG VERSION
@@ -1038,42 +1038,42 @@ LABEL org.opencontainers.image.created=$BUILD_DATE \
       org.opencontainers.image.version=$VERSION
 ```
 
-### 7.2 HEALTHCHECK の設計パターン
+### 7.2 HEALTHCHECK Design Patterns
 
 ```dockerfile
-# HTTP エンドポイントへのヘルスチェック
+# Health check against an HTTP endpoint
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-# TCP ポートの確認
+# Check a TCP port
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 \
     CMD nc -z localhost 8080 || exit 1
 
-# カスタムスクリプト
+# Custom script
 COPY healthcheck.sh /usr/local/bin/
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD ["healthcheck.sh"]
 
-# gRPC サービスのヘルスチェック
+# Health check for gRPC services
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
     CMD ["grpc_health_probe", "-addr=:50051"]
 ```
 
-### 7.3 ENTRYPOINT と CMD の使い分け
+### 7.3 Choosing Between ENTRYPOINT and CMD
 
 ```dockerfile
-# パターン 1: CMD のみ（最もシンプル）
+# Pattern 1: CMD only (simplest)
 CMD ["node", "server.js"]
-# -> docker run myapp (デフォルト実行)
-# -> docker run myapp node repl (コマンド上書き)
+# -> docker run myapp (default execution)
+# -> docker run myapp node repl (override command)
 
-# パターン 2: ENTRYPOINT + CMD（推奨）
+# Pattern 2: ENTRYPOINT + CMD (recommended)
 ENTRYPOINT ["node"]
 CMD ["server.js"]
-# -> docker run myapp (node server.js を実行)
-# -> docker run myapp repl (node repl を実行)
+# -> docker run myapp (executes node server.js)
+# -> docker run myapp repl (executes node repl)
 
-# パターン 3: entrypoint スクリプト
+# Pattern 3: entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "server.js"]
@@ -1085,45 +1085,45 @@ CMD ["node", "server.js"]
 
 set -e
 
-# 環境変数に基づく初期化処理
+# Initialization based on environment variables
 if [ "$RUN_MIGRATIONS" = "true" ]; then
     echo "Running database migrations..."
     npx prisma migrate deploy
 fi
 
-# シグナル転送のために exec を使用
+# Use exec to forward signals
 exec "$@"
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: apt-get update と install を別レイヤーにする
+### Anti-Pattern 1: Separating apt-get update and install into different layers
 
 ```dockerfile
-# NG: update と install が別レイヤー
+# NG: update and install in separate layers
 RUN apt-get update
 RUN apt-get install -y curl
-# -> update のキャッシュが残り、古いパッケージリストで install される可能性
+# -> The update cache persists and packages may be installed from a stale package list
 
-# OK: 同じ RUN にまとめる
+# OK: Combine into the same RUN
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 ```
 
-### アンチパターン 2: ビルドツールを最終イメージに残す
+### Anti-Pattern 2: Leaving build tools in the final image
 
 ```dockerfile
-# NG: ビルドツールが残る
+# NG: build tools remain
 FROM python:3.12-slim
 RUN apt-get update && \
     apt-get install -y gcc python3-dev && \
     pip install numpy pandas
-# -> gcc, python3-dev が最終イメージに残る（数百MB）
+# -> gcc, python3-dev remain in the final image (hundreds of MB)
 
-# OK: マルチステージでビルドツールを分離
+# OK: Isolate build tools with multi-stage builds
 FROM python:3.12-slim AS builder
 RUN apt-get update && apt-get install -y gcc python3-dev
 COPY requirements.txt .
@@ -1135,18 +1135,18 @@ COPY . /app
 CMD ["python", "/app/main.py"]
 ```
 
-### アンチパターン 3: COPY . . を複数回実行
+### Anti-Pattern 3: Running COPY . . multiple times
 
 ```dockerfile
-# NG: 同じファイルを何度もコピー
+# NG: copying the same files multiple times
 FROM node:20-alpine
 WORKDIR /app
 COPY . .
 RUN npm ci
-COPY . .  # <- 無意味な2回目のコピー（キャッシュも壊す）
+COPY . .  # <- pointless second copy (also busts the cache)
 RUN npm run build
 
-# OK: 必要なファイルを段階的にコピー
+# OK: copy files incrementally as needed
 FROM node:20-alpine
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -1155,33 +1155,33 @@ COPY . .
 RUN npm run build
 ```
 
-### アンチパターン 4: ADD を COPY の代わりに使う
+### Anti-Pattern 4: Using ADD instead of COPY
 
 ```dockerfile
-# NG: ADD を不必要に使う
-ADD ./src /app/src          # COPY で十分
-ADD https://example.com/file.txt /app/  # レイヤーキャッシュが効かない
+# NG: using ADD unnecessarily
+ADD ./src /app/src          # COPY is sufficient
+ADD https://example.com/file.txt /app/  # layer cache does not work
 
-# OK: COPY を使い、URL は RUN で取得
+# OK: use COPY, fetch URLs with RUN
 COPY ./src /app/src
 RUN curl -L -o /app/file.txt https://example.com/file.txt
 
-# ADD が適切な場面: tar アーカイブの自動展開
-ADD archive.tar.gz /app/    # 自動的に展開される
+# Appropriate use of ADD: automatic tar archive extraction
+ADD archive.tar.gz /app/    # automatically extracted
 ```
 
-### アンチパターン 5: ENV で変更頻度の高い値を設定
+### Anti-Pattern 5: Setting frequently changing values with ENV
 
 ```dockerfile
-# NG: バージョン情報を ENV で設定（キャッシュが壊れる）
+# NG: setting version info with ENV (busts the cache)
 FROM node:20-alpine
-ENV APP_VERSION=1.0.0      # 毎リリースで変更 → 以降全レイヤー再ビルド
+ENV APP_VERSION=1.0.0      # changes every release -> all subsequent layers rebuilt
 WORKDIR /app
 COPY package.json .
 RUN npm ci
 COPY . .
 
-# OK: ENV は最下部に配置、または LABEL を使用
+# OK: place ENV at the bottom, or use LABEL
 FROM node:20-alpine
 WORKDIR /app
 COPY package.json .
@@ -1192,17 +1192,17 @@ LABEL version=$APP_VERSION
 ENV APP_VERSION=$APP_VERSION
 ```
 
-### アンチパターン 6: 大きなコンテキストを無視しない
+### Anti-Pattern 6: Not ignoring a large context
 
 ```dockerfile
-# NG: .dockerignore なしで node_modules を含めてしまう
+# NG: including node_modules without .dockerignore
 FROM node:20-alpine
 WORKDIR /app
-COPY . .           # node_modules (300MB+) もコピーされる
-RUN npm ci         # 再インストールするので完全に無駄
+COPY . .           # node_modules (300MB+) is also copied
+RUN npm ci         # completely wasteful since it reinstalls
 
-# OK: .dockerignore で除外 + 段階的コピー
-# .dockerignore に node_modules を追加
+# OK: exclude with .dockerignore + incremental copy
+# add node_modules to .dockerignore
 FROM node:20-alpine
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -1212,23 +1212,23 @@ COPY . .
 
 ---
 
-## 9. 高度な最適化テクニック
+## 9. Advanced Optimization Techniques
 
-### 9.1 Heredoc 構文（BuildKit）
+### 9.1 Heredoc Syntax (BuildKit)
 
 ```dockerfile
 # syntax=docker/dockerfile:1
 
 FROM debian:bookworm-slim
 
-# Heredoc で複数行スクリプトを記述
+# Write multi-line scripts with Heredoc
 RUN <<EOF
 apt-get update
 apt-get install -y --no-install-recommends curl ca-certificates
 rm -rf /var/lib/apt/lists/*
 EOF
 
-# ファイル生成にも使える
+# Can also be used to generate files
 COPY <<EOF /etc/nginx/conf.d/default.conf
 server {
     listen 80;
@@ -1240,7 +1240,7 @@ server {
 EOF
 ```
 
-### 9.2 条件付きビルド
+### 9.2 Conditional Builds
 
 ```dockerfile
 # syntax=docker/dockerfile:1
@@ -1248,7 +1248,7 @@ EOF
 FROM node:20-alpine AS base
 WORKDIR /app
 
-# 環境に応じて異なるビルドを実行
+# Run different builds depending on the environment
 ARG NODE_ENV=production
 
 FROM base AS development
@@ -1259,31 +1259,31 @@ FROM base AS production
 RUN npm ci --only=production
 CMD ["node", "dist/server.js"]
 
-# ビルド時にターゲットを指定
+# Specify the target at build time
 # docker build --target development -t my-app:dev .
 # docker build --target production -t my-app:prod .
 ```
 
-### 9.3 外部イメージからのファイルコピー
+### 9.3 Copying Files from External Images
 
 ```dockerfile
 FROM node:20-alpine
 
-# 外部イメージから直接ファイルをコピー
+# Copy files directly from external images
 COPY --from=busybox:latest /bin/wget /usr/local/bin/wget
 COPY --from=ghcr.io/grpc-ecosystem/grpc-health-probe:v0.4.25 \
     /ko-app/grpc-health-probe /usr/local/bin/grpc_health_probe
 
-# 別のイメージからバイナリを取得するパターン
+# Pattern for obtaining binaries from another image
 COPY --from=minio/mc:latest /usr/bin/mc /usr/local/bin/mc
 ```
 
-### 9.4 ビルド引数による柔軟な Dockerfile
+### 9.4 Flexible Dockerfile with Build Arguments
 
 ```dockerfile
 # syntax=docker/dockerfile:1
 
-# ベースイメージを引数で切り替え
+# Switch base image with an argument
 ARG BASE_IMAGE=node:20-alpine
 FROM ${BASE_IMAGE}
 
@@ -1293,7 +1293,7 @@ ARG LOG_LEVEL=info
 
 WORKDIR /app
 
-# 条件に応じたインストール
+# Conditional installation
 COPY package.json package-lock.json ./
 RUN if [ "$NODE_ENV" = "development" ]; then \
         npm install; \
@@ -1313,17 +1313,17 @@ CMD ["node", "server.js"]
 
 ---
 
-## 10. イメージの継続的最適化
+## 10. Continuous Image Optimization
 
-### 10.1 定期的なベースイメージ更新
+### 10.1 Regular Base Image Updates
 
 ```bash
-# ベースイメージの更新確認
+# Check for base image updates
 docker pull node:20-alpine
 docker images --digests node:20-alpine
 
-# Dependabot / Renovate Bot で自動化
-# renovate.json の例:
+# Automate with Dependabot / Renovate Bot
+# Example renovate.json:
 # {
 #   "docker": {
 #     "fileMatch": ["Dockerfile$"],
@@ -1333,17 +1333,17 @@ docker images --digests node:20-alpine
 ```
 
 ```dockerfile
-# ダイジェスト固定でベースイメージを指定（最高の再現性）
+# Specify the base image with a pinned digest (maximum reproducibility)
 FROM node:20-alpine@sha256:abc123def456...
 ```
 
-### 10.2 イメージサイズの監視
+### 10.2 Monitoring Image Size
 
 ```bash
-# イメージサイズの推移を記録
+# Record image size history
 docker images myapp --format "{{.Tag}}\t{{.Size}}" | sort -V
 
-# CI でサイズチェック
+# Size check in CI
 MAX_SIZE_MB=200
 SIZE=$(docker image inspect myapp:latest --format '{{.Size}}')
 SIZE_MB=$((SIZE / 1024 / 1024))
@@ -1353,61 +1353,61 @@ if [ $SIZE_MB -gt $MAX_SIZE_MB ]; then
 fi
 ```
 
-### 10.3 レイヤー分析ツール
+### 10.3 Layer Analysis Tools
 
 ```bash
-# dive でレイヤーを分析
+# Analyze layers with dive
 dive myapp:latest
 
-# docker history で各レイヤーのサイズを確認
+# Check the size of each layer with docker history
 docker history --no-trunc --format "table {{.Size}}\t{{.CreatedBy}}" myapp:latest
 
-# buildctl で詳細なビルド情報を取得
+# Get detailed build information with buildctl
 docker buildx build --progress=plain --metadata-file build-metadata.json -t myapp .
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
             raise ValueError("入力値がNoneです")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1425,17 +1425,17 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1443,7 +1443,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1454,14 +1454,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1469,7 +1469,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1477,13 +1477,13 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
@@ -1494,27 +1494,27 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1523,7 +1523,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1545,40 +1545,40 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be conscious of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured configuration file | Check the path and format of the configuration file |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Verify the executing user's permissions, review settings |
+| Data inconsistency | Concurrent process contention | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Stepwise verification**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1586,7 +1586,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
         logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
@@ -1602,86 +1602,86 @@ def debug_decorator(func):
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
         raise ValueError("空のデータ")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check for I/O waits**: Check disk and network I/O status
+4. **Check concurrent connection count**: Check the state of connection pools
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology selections.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to prioritize | When it can be deprioritized |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│              Architecture Selection Flow          │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                       │
+│    ├─ Small (1-5 people) -> Monolith             │
+│    └─ Large (10+ people) -> Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How often do you deploy?                     │
+│    ├─ Once a week or less -> Monolith + modules  │
+│    └─ Daily / multiple times -> Go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?               │
+│    ├─ High -> Microservices                      │
+│    └─ Medium -> Modular Monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term costs**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction increases reusability, but can make debugging difficult
+- Low abstraction is intuitive, but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1691,17 +1691,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and challenge"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision content"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1709,7 +1709,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1717,7 +1717,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
         md += f"## 背景\n{self.context}\n\n"
         md += f"## 決定\n{self.decision}\n\n"
@@ -1734,98 +1734,98 @@ class ArchitectureDecisionRecord:
 
 ## 11. FAQ
 
-### Q1: Alpine と Debian slim のどちらを選ぶべきですか？
+### Q1: Which should I choose, Alpine or Debian slim?
 
-**A:** Alpine（musl libc）はサイズが非常に小さい（~7MB）が、glibc ベースのバイナリとの互換性問題が起きることがある。特に Python のネイティブ拡張（numpy 等）や Node.js のネイティブモジュールでビルドに時間がかかったり失敗することがある。互換性問題がなければ Alpine、問題がある場合は Debian slim を選ぶ。Go や Rust のように静的リンクするバイナリには Alpine が最適。
+**A:** Alpine (musl libc) is very small (~7MB), but compatibility issues with glibc-based binaries can occur. In particular, building Python native extensions (such as numpy) or Node.js native modules can take longer or fail. Choose Alpine if there are no compatibility issues; choose Debian slim if there are. Alpine is ideal for binaries that link statically, such as Go or Rust.
 
-### Q2: レイヤーキャッシュがCIで効かないのですが？
+### Q2: Why doesn't layer caching work in CI?
 
-**A:** CI 環境は通常ステートレスなため、ビルドごとにキャッシュが失われる。対策として以下がある:
-- **レジストリキャッシュ**: `--cache-from type=registry` で前回のイメージをキャッシュとして利用
-- **GitHub Actions Cache**: `docker/build-push-action` の cache 機能を利用
-- **BuildKit のリモートキャッシュ**: `--cache-to` / `--cache-from` でキャッシュを永続化
-これらを設定することで CI でも 50-80% 程度のキャッシュヒット率を達成できる。
+**A:** CI environments are typically stateless, so the cache is lost on each build. The following countermeasures are available:
+- **Registry cache**: Use `--cache-from type=registry` to reuse the previous image as cache
+- **GitHub Actions Cache**: Use the cache feature of `docker/build-push-action`
+- **BuildKit remote cache**: Persist cache with `--cache-to` / `--cache-from`
+Configuring these can achieve a cache hit rate of around 50-80% in CI as well.
 
-### Q3: HEALTHCHECK はどのように設定すべきですか？
+### Q3: How should I configure HEALTHCHECK?
 
-**A:** アプリケーションの `/health` エンドポイントに対してチェックを行うのが一般的。設定のポイントは:
-- **interval**: 30秒程度（頻繁すぎるとオーバーヘッド）
-- **timeout**: 5秒（レスポンスが返らない場合のタイムアウト）
-- **retries**: 3回（一時的な障害を許容）
-- **start-period**: アプリの起動時間（Java なら 60 秒等）
-curl が使えない場合は wget や専用のヘルスチェックバイナリを使う。
+**A:** It is common to check against the application's `/health` endpoint. Key configuration points are:
+- **interval**: About 30 seconds (too frequent causes overhead)
+- **timeout**: 5 seconds (timeout when no response is returned)
+- **retries**: 3 times (tolerate temporary failures)
+- **start-period**: Application startup time (e.g., 60 seconds for Java)
+If curl is not available, use wget or a dedicated health check binary.
 
-### Q4: distroless イメージのデバッグはどうすればよいですか？
+### Q4: How do I debug a distroless image?
 
-**A:** distroless にはシェルがないためデバッグが困難である。以下のアプローチがある:
-- **debug バリアント**: `gcr.io/distroless/base:debug` には busybox シェルが含まれる
-- **ephemeral コンテナ**: `kubectl debug` で一時的なデバッグコンテナをアタッチする（Kubernetes）
-- **docker exec の代替**: `docker cp` でファイルをコピーして確認する
-- **マルチステージの活用**: 開発用ステージでは Alpine を使い、本番のみ distroless にする
+**A:** Distroless has no shell, making debugging difficult. The following approaches are available:
+- **debug variant**: `gcr.io/distroless/base:debug` includes a busybox shell
+- **ephemeral container**: Attach a temporary debug container with `kubectl debug` (Kubernetes)
+- **docker exec alternative**: Copy files with `docker cp` to inspect them
+- **Leverage multi-stage**: Use Alpine for the development stage, and distroless only for production
 
-### Q5: Docker イメージのダイジェスト固定は必要ですか？
+### Q5: Is it necessary to pin Docker image digests?
 
-**A:** セキュリティとレプロダクタビリティの観点では推奨される。`node:20-alpine` のようなタグは上書き可能で、同じタグで異なるイメージが配布される可能性がある。`node:20-alpine@sha256:...` のようにダイジェストを固定すると、完全に同一のイメージが保証される。ただし、セキュリティパッチの自動適用が阻害されるため、Renovate / Dependabot による自動更新と組み合わせるのが実務的なベストプラクティスである。
+**A:** It is recommended from the perspectives of security and reproducibility. Tags such as `node:20-alpine` can be overwritten, and different images may be distributed under the same tag. Pinning the digest like `node:20-alpine@sha256:...` guarantees a completely identical image. However, since automatic application of security patches is impeded, the practical best practice is to combine this with automatic updates via Renovate / Dependabot.
 
-### Q6: マルチステージビルドのステージ数に制限はありますか？
+### Q6: Is there a limit on the number of stages in a multi-stage build?
 
-**A:** Dockerfile の仕様上、ステージ数に上限はない。ただし実務的には 3-5 ステージが一般的である（依存関係、ビルド、テスト、本番）。ステージが多すぎると Dockerfile の可読性が下がるため、複雑な場合は別の Dockerfile に分割するか、ビルドスクリプトで管理することを検討する。
+**A:** There is no upper limit on the number of stages per the Dockerfile specification. In practice, however, 3-5 stages is common (dependencies, build, test, production). Too many stages reduce Dockerfile readability, so for complex cases, consider splitting into separate Dockerfiles or managing with build scripts.
 
-### Q7: BuildKit のシークレットマウントと環境変数の使い分けは？
+### Q7: How do I choose between BuildKit secret mounts and environment variables?
 
-**A:** ビルド時にのみ必要なシークレット（プライベートレジストリの認証トークンなど）は `--mount=type=secret` で渡すべきである。これはイメージのレイヤーに残らないため安全である。実行時に必要なシークレット（DB パスワードなど）は `docker run -e` や Docker Secrets、Kubernetes Secrets で実行時に注入する。`ARG` や `ENV` でシークレットを渡すと `docker history` で確認できてしまうため、絶対に使用しない。
+**A:** Secrets needed only at build time (such as authentication tokens for private registries) should be passed with `--mount=type=secret`. This is safe because it does not persist in image layers. Secrets needed at runtime (such as DB passwords) should be injected at runtime via `docker run -e`, Docker Secrets, or Kubernetes Secrets. Never use `ARG` or `ENV` to pass secrets, as they can be seen with `docker history`.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 12. まとめ
+## 12. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |---|---|
-| キャッシュ戦略 | 変更頻度の低い命令を上に、高い命令を下に配置 |
-| .dockerignore | node_modules, .git, .env 等を除外してコンテキストを最小化 |
-| ベースイメージ | Alpine/slim/distroless を用途に応じて選択 |
-| セキュリティ | non-root, 脆弱性スキャン, シークレットマウント, SBOM |
-| リント | Hadolint でベストプラクティス違反を自動検出 |
-| BuildKit | マウントキャッシュ、シークレット、並列ビルドを活用 |
-| CI/CD | レジストリキャッシュで CI のビルド時間を短縮 |
-| マルチプラットフォーム | buildx で AMD64/ARM64 対応イメージを構築 |
-| 署名と検証 | cosign/Docker Content Trust でイメージの信頼性を保証 |
-| 継続的最適化 | イメージサイズの監視、ベースイメージの自動更新 |
+| Cache strategy | Place less frequently changed instructions at the top, more frequently changed ones at the bottom |
+| .dockerignore | Minimize context by excluding node_modules, .git, .env, etc. |
+| Base image | Choose Alpine/slim/distroless based on the use case |
+| Security | non-root, vulnerability scanning, secret mounts, SBOM |
+| Linting | Automatically detect best practice violations with Hadolint |
+| BuildKit | Leverage mount cache, secrets, and parallel builds |
+| CI/CD | Reduce CI build times with registry cache |
+| Multi-platform | Build AMD64/ARM64 compatible images with buildx |
+| Signing and verification | Ensure image trustworthiness with cosign/Docker Content Trust |
+| Continuous optimization | Monitor image size, automate base image updates |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [03-language-specific.md](./03-language-specific.md) -- 言語別 Dockerfile テンプレート集
-- [../02-compose/00-compose-basics.md](../02-compose/00-compose-basics.md) -- Docker Compose の基礎
-- [../02-compose/02-development-workflow.md](../02-compose/02-development-workflow.md) -- Compose 開発ワークフロー
+- [03-language-specific.md](./03-language-specific.md) -- Language-specific Dockerfile template collection
+- [../02-compose/00-compose-basics.md](../02-compose/00-compose-basics.md) -- Docker Compose basics
+- [../02-compose/02-development-workflow.md](../02-compose/02-development-workflow.md) -- Compose development workflow
 
 ---
 
-## 参考文献
+## References
 
-1. **Docker Documentation - Build best practices** https://docs.docker.com/build/building/best-practices/ -- Docker 公式のビルドベストプラクティス。
-2. **Hadolint** https://github.com/hadolint/hadolint -- Dockerfile リンターの公式リポジトリ。全ルールの説明と設定方法。
-3. **Aqua Security - Trivy** https://aquasecurity.github.io/trivy/ -- 脆弱性スキャナーの公式ドキュメント。CI 統合の設定例も充実。
-4. **Sysdig - Dockerfile Best Practices** https://sysdig.com/blog/dockerfile-best-practices/ -- セキュリティ観点からの Dockerfile ベストプラクティス。
-5. **Docker BuildKit** https://docs.docker.com/build/buildkit/ -- BuildKit の機能と設定の公式ドキュメント。
-6. **Sigstore - cosign** https://docs.sigstore.dev/cosign/overview/ -- コンテナイメージの署名と検証ツール。
-7. **dive** https://github.com/wagoodman/dive -- Docker イメージのレイヤー分析ツール。
-8. **Chainguard Images** https://www.chainguard.dev/chainguard-images -- セキュリティに特化した最小コンテナイメージ。
+1. **Docker Documentation - Build best practices** https://docs.docker.com/build/building/best-practices/ -- Docker's official build best practices.
+2. **Hadolint** https://github.com/hadolint/hadolint -- Official repository for the Dockerfile linter. Explains all rules and configuration methods.
+3. **Aqua Security - Trivy** https://aquasecurity.github.io/trivy/ -- Official documentation for the vulnerability scanner. Rich with CI integration configuration examples.
+4. **Sysdig - Dockerfile Best Practices** https://sysdig.com/blog/dockerfile-best-practices/ -- Dockerfile best practices from a security perspective.
+5. **Docker BuildKit** https://docs.docker.com/build/buildkit/ -- Official documentation for BuildKit features and configuration.
+6. **Sigstore - cosign** https://docs.sigstore.dev/cosign/overview/ -- Tool for signing and verifying container images.
+7. **dive** https://github.com/wagoodman/dive -- Tool for analyzing Docker image layers.
+8. **Chainguard Images** https://www.chainguard.dev/chainguard-images -- Minimal container images focused on security.
