@@ -1,26 +1,26 @@
-# オブザーバビリティ
+# Observability
 
-> ログ、メトリクス、トレースの3本柱を理解し、OpenTelemetry を活用してシステムの内部状態を可視化・診断できる力を身につける
+> Master the three pillars of observability — logs, metrics, and traces — and develop the ability to visualize and diagnose the internal state of systems using OpenTelemetry
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **オブザーバビリティの3本柱** — ログ、メトリクス、分散トレースの役割と相互関係
-2. **OpenTelemetry による計装** — ベンダー非依存の統一的なテレメトリ収集の実装方法
-3. **構造化ログとコンテキスト伝播** — 分散システムでのデバッグを可能にするログ設計と Trace Context の伝播
-4. **SLI/SLO/SLA の設計と運用** — ユーザー視点の信頼性指標の定義とエラーバジェットの管理
-5. **OpenTelemetry Collector の構成と運用** — テレメトリデータの収集・加工・転送パイプラインの設計
+1. **The Three Pillars of Observability** — The roles of logs, metrics, and distributed traces, and how they relate to each other
+2. **Instrumentation with OpenTelemetry** — How to implement vendor-agnostic, unified telemetry collection
+3. **Structured Logging and Context Propagation** — Log design and Trace Context propagation that enables debugging in distributed systems
+4. **Designing and Operating SLI/SLO/SLA** — Defining user-centric reliability indicators and managing error budgets
+5. **Configuring and Operating the OpenTelemetry Collector** — Designing pipelines for collecting, processing, and forwarding telemetry data
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. オブザーバビリティの全体像
+## 1. Overview of Observability
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -49,9 +49,9 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
-### モニタリングとオブザーバビリティの違い
+### The Difference Between Monitoring and Observability
 
-オブザーバビリティは「既知の問題を検知する」モニタリングを包含しつつ、「未知の問題を診断する」能力を加えた概念である。
+Observability is a concept that encompasses monitoring — which "detects known problems" — and adds the ability to "diagnose unknown problems."
 
 ```
 モニタリング vs オブザーバビリティ:
@@ -83,7 +83,7 @@
   └──────────────────────────────────────────┘
 ```
 
-### オブザーバビリティの成熟度モデル
+### Observability Maturity Model
 
 ```
 成熟度レベル:
@@ -122,9 +122,9 @@
 
 ---
 
-## 2. 構造化ログ
+## 2. Structured Logging
 
-### 2.1 構造化ログの基本実装
+### 2.1 Basic Implementation of Structured Logging
 
 ```typescript
 // structured-logger.ts — 構造化ログの実装
@@ -195,39 +195,46 @@ reqLogger.error(
 );
 ```
 
-### 2.2 ログレベルの設計指針
+### 2.2 Log Level Design Guidelines
 
 ```
-ログレベルの使い分け:
+Log Level Usage Guide:
 
   ┌─────────┬──────────────────────────────────────────┐
-  │ FATAL   │ プロセスが継続不能。即座に終了する障害     │
-  │         │ 例: DB接続不能で起動失敗                   │
+  │ FATAL   │ Process cannot continue. Fatal failure    │
+  │         │ that causes immediate shutdown.           │
+  │         │ Example: Startup failure due to DB        │
+  │         │ connection error                          │
   ├─────────┼──────────────────────────────────────────┤
-  │ ERROR   │ 処理が失敗。人間の介入が必要               │
-  │         │ 例: 決済API障害、データ不整合               │
+  │ ERROR   │ Processing failed. Human intervention     │
+  │         │ required.                                 │
+  │         │ Example: Payment API failure, data        │
+  │         │ inconsistency                             │
   ├─────────┼──────────────────────────────────────────┤
-  │ WARN    │ 予期しない状態だが処理は継続可能           │
-  │         │ 例: リトライ成功、フォールバック使用         │
+  │ WARN    │ Unexpected state but processing can       │
+  │         │ continue.                                 │
+  │         │ Example: Retry succeeded, fallback used   │
   ├─────────┼──────────────────────────────────────────┤
-  │ INFO    │ 正常なビジネスイベント                     │
-  │         │ 例: 注文作成、ユーザー登録、デプロイ完了    │
+  │ INFO    │ Normal business events.                   │
+  │         │ Example: Order created, user registered,  │
+  │         │ deploy completed                          │
   ├─────────┼──────────────────────────────────────────┤
-  │ DEBUG   │ 開発時の詳細情報                           │
-  │         │ 例: 関数呼び出し、変数値、SQL クエリ        │
+  │ DEBUG   │ Detailed information for development.     │
+  │         │ Example: Function calls, variable values, │
+  │         │ SQL queries                               │
   ├─────────┼──────────────────────────────────────────┤
-  │ TRACE   │ 最も詳細なデバッグ情報                     │
-  │         │ 例: ループ内の各イテレーション               │
+  │ TRACE   │ Most detailed debug information.          │
+  │         │ Example: Each iteration within a loop     │
   └─────────┴──────────────────────────────────────────┘
 
-  本番環境: INFO 以上
-  ステージング: DEBUG 以上
-  開発環境: TRACE 以上
+  Production: INFO and above
+  Staging: DEBUG and above
+  Development: TRACE and above
 
-  障害調査時: 一時的に DEBUG に下げて詳細ログを収集
+  During incident investigation: Temporarily lower to DEBUG to collect detailed logs
 ```
 
-### 2.3 Express/Fastify でのリクエストログ
+### 2.3 Request Logging for Express/Fastify
 
 ```typescript
 // request-logging-middleware.ts — リクエスト/レスポンスログ
@@ -301,7 +308,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 }
 ```
 
-### 2.4 Python (FastAPI) での構造化ログ
+### 2.4 Structured Logging in Python (FastAPI)
 
 ```python
 # structured_logger.py — Python での構造化ログ
@@ -399,9 +406,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
 ---
 
-## 3. OpenTelemetry 計装
+## 3. OpenTelemetry Instrumentation
 
-### 3.1 Node.js での初期化
+### 3.1 Initialization in Node.js
 
 ```typescript
 // otel-setup.ts — OpenTelemetry の初期化
@@ -472,7 +479,7 @@ process.on('SIGTERM', async () => {
 });
 ```
 
-### 3.2 カスタムスパンとメトリクスの作成
+### 3.2 Creating Custom Spans and Metrics
 
 ```typescript
 // custom-spans.ts — カスタムスパンの作成
@@ -579,7 +586,7 @@ async function createOrder(input: OrderInput): Promise<Order> {
 }
 ```
 
-### 3.3 コンテキスト伝播 (W3C Trace Context)
+### 3.3 Context Propagation (W3C Trace Context)
 
 ```typescript
 // context-propagation.ts — サービス間のコンテキスト伝播
@@ -641,9 +648,9 @@ W3C Trace Context によるサービス間のトレース伝播:
 
 ---
 
-## 4. OpenTelemetry Collector 構成
+## 4. OpenTelemetry Collector Configuration
 
-### 4.1 基本構成
+### 4.1 Basic Configuration
 
 ```yaml
 # otel-collector-config.yaml
@@ -756,7 +763,7 @@ service:
       address: 0.0.0.0:8888
 ```
 
-### 4.2 Docker Compose でのオブザーバビリティスタック
+### 4.2 Observability Stack with Docker Compose
 
 ```yaml
 # docker-compose.observability.yml
@@ -817,17 +824,17 @@ services:
 ```
 
 ```
-OpenTelemetry データフロー:
+OpenTelemetry Data Flow:
 
-  アプリケーション群                OTel Collector         バックエンド
+  Application Group               OTel Collector         Backends
   ┌──────────────┐                ┌─────────────┐
-  │ Service A    │── traces ────► │             │───► Jaeger (トレース)
+  │ Service A    │── traces ────► │             │───► Jaeger (Traces)
   │ (Node.js)    │── metrics ───► │  Receiver   │
-  └──────────────┘── logs ──────► │      │      │───► Prometheus (メトリクス)
+  └──────────────┘── logs ──────► │      │      │───► Prometheus (Metrics)
   ┌──────────────┐                │  Processor  │
-  │ Service B    │── traces ────► │      │      │───► Loki (ログ)
+  │ Service B    │── traces ────► │      │      │───► Loki (Logs)
   │ (Python)     │── metrics ───► │  Exporter   │
-  └──────────────┘── logs ──────► │             │───► Grafana (可視化)
+  └──────────────┘── logs ──────► │             │───► Grafana (Visualization)
   ┌──────────────┐                └─────────────┘
   │ Service C    │── traces ────►
   │ (Go)         │── metrics ───►
@@ -836,42 +843,46 @@ OpenTelemetry データフロー:
 
 ---
 
-## 5. SLI/SLO の定義
+## 5. Defining SLI/SLO
 
-### 5.1 SLI/SLO/SLA の関係
+### 5.1 The Relationship Between SLI/SLO/SLA
 
 ```
-SLI/SLO/SLA の階層:
+SLI/SLO/SLA Hierarchy:
 
   ┌─────────────────────────────────────────┐
   │  SLA (Service Level Agreement)           │
-  │  ビジネス契約。違反時にペナルティ          │
-  │  例: 月間可用性 99.95% を保証             │
-  │      違反時はサービス料金を返金            │
+  │  Business contract. Penalties apply      │
+  │  on violation.                           │
+  │  Example: Guarantee 99.95% monthly       │
+  │  availability; refund on violation       │
   ├─────────────────────────────────────────┤
   │  SLO (Service Level Objective)           │
-  │  内部目標。SLA より厳しく設定             │
-  │  例: 月間可用性 99.99% を目標             │
-  │      (SLA より厳しいので余裕がある)        │
+  │  Internal target. Set stricter than SLA. │
+  │  Example: Target 99.99% monthly          │
+  │  availability (stricter than SLA,        │
+  │  providing a buffer)                     │
   ├─────────────────────────────────────────┤
   │  SLI (Service Level Indicator)           │
-  │  測定指標。SLO の達成度を計測             │
-  │  例: 成功リクエスト数 / 全リクエスト数     │
+  │  Measurement metric. Tracks SLO          │
+  │  achievement.                            │
+  │  Example: Successful requests /          │
+  │  total requests                          │
   └─────────────────────────────────────────┘
 
-  ダウンタイム許容量 (30日間):
-  ┌──────────┬───────────────┬──────────────┐
-  │ SLO      │ エラーバジェット │ ダウンタイム │
-  ├──────────┼───────────────┼──────────────┤
-  │ 99%      │ 1%            │ 7時間12分    │
-  │ 99.9%    │ 0.1%          │ 43分12秒     │
-  │ 99.95%   │ 0.05%         │ 21分36秒     │
-  │ 99.99%   │ 0.01%         │ 4分19秒      │
-  │ 99.999%  │ 0.001%        │ 26秒         │
-  └──────────┴───────────────┴──────────────┘
+  Allowable Downtime (30-day period):
+  ┌──────────┬─────────────────┬──────────────────┐
+  │ SLO      │ Error Budget    │ Downtime         │
+  ├──────────┼─────────────────┼──────────────────┤
+  │ 99%      │ 1%              │ 7h 12m           │
+  │ 99.9%    │ 0.1%            │ 43m 12s          │
+  │ 99.95%   │ 0.05%           │ 21m 36s          │
+  │ 99.99%   │ 0.01%           │ 4m 19s           │
+  │ 99.999%  │ 0.001%          │ 26s              │
+  └──────────┴─────────────────┴──────────────────┘
 ```
 
-### 5.2 SLI/SLO の定義例
+### 5.2 SLI/SLO Definition Examples
 
 ```typescript
 // slo-definitions.ts — SLI/SLO の定義例
@@ -954,43 +965,43 @@ const apiLatencySLO: SLO = {
 };
 ```
 
-### 5.3 エラーバジェットの運用
+### 5.3 Operating with Error Budgets
 
 ```
-エラーバジェットの考え方:
+Error Budget Concept:
 
-  SLO: 99.9% (30日間)
-  エラーバジェット: 0.1% = 43.2分のダウンタイム
+  SLO: 99.9% (30-day period)
+  Error Budget: 0.1% = 43.2 minutes of downtime
 
-  月初:
+  Start of Month:
   ┌──────────────────────────────────────────┐
   │ ████████████████████████████████ 100%     │
-  │ エラーバジェット残: 43.2分                  │
+  │ Error budget remaining: 43.2 min          │
   └──────────────────────────────────────────┘
 
-  15日目 (インシデント発生: 20分のダウンタイム):
+  Day 15 (Incident: 20 minutes of downtime):
   ┌──────────────────────────────────────────┐
   │ █████████████████░░░░░░░░░░░░░░ 54%      │
-  │ エラーバジェット残: 23.2分                  │
+  │ Error budget remaining: 23.2 min          │
   └──────────────────────────────────────────┘
 
-  20日目 (バジェット枯渇):
+  Day 20 (Budget exhausted):
   ┌──────────────────────────────────────────┐
   │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0%       │
-  │ エラーバジェット残: 0分                     │
+  │ Error budget remaining: 0 min             │
   └──────────────────────────────────────────┘
-  → 機能開発を一時停止し、信頼性改善に注力
+  → Pause feature development and focus on reliability improvements
 
-  エラーバジェットポリシー:
+  Error Budget Policy:
   ┌──────────────────────────────────────────┐
-  │ バジェット > 50%: 通常の開発を継続         │
-  │ バジェット 25-50%: リスクの高い変更を制限   │
-  │ バジェット < 25%: 信頼性改善に優先投資      │
-  │ バジェット = 0%: 機能開発を凍結             │
+  │ Budget > 50%: Continue normal development │
+  │ Budget 25-50%: Restrict high-risk changes │
+  │ Budget < 25%: Prioritize reliability work │
+  │ Budget = 0%: Freeze feature development   │
   └──────────────────────────────────────────┘
 ```
 
-### 5.4 Grafana での SLO ダッシュボード
+### 5.4 SLO Dashboard in Grafana
 
 ```yaml
 # grafana/dashboards/slo-dashboard.json (概要)
@@ -1048,42 +1059,42 @@ histogram_quantile(0.99,
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-| 柱 | ログ | メトリクス | トレース |
+| Pillar | Logs | Metrics | Traces |
 |----|------|----------|---------|
-| データ形式 | テキスト/JSON イベント | 数値の時系列 | スパンのツリー構造 |
-| カーディナリティ | 高い | 低い | 中 |
-| ストレージコスト | 高い | 低い | 中 |
-| リアルタイム性 | 高い | 中 (集計間隔) | 高い |
-| 用途 | デバッグ、監査 | アラート、ダッシュボード | パフォーマンス分析 |
-| クエリ速度 | 遅い (全文検索) | 速い (時系列DB) | 中 |
-| 保持期間 | 短い (7-30日) | 長い (1-2年) | 中 (7-30日) |
-| サンプリング | 通常なし | 常に全量 | 推奨 (1-10%) |
+| Data Format | Text/JSON events | Numeric time series | Tree structure of spans |
+| Cardinality | High | Low | Medium |
+| Storage Cost | High | Low | Medium |
+| Real-time | High | Medium (aggregation interval) | High |
+| Use Cases | Debugging, auditing | Alerting, dashboards | Performance analysis |
+| Query Speed | Slow (full-text search) | Fast (time-series DB) | Medium |
+| Retention Period | Short (7-30 days) | Long (1-2 years) | Medium (7-30 days) |
+| Sampling | Usually none | Always 100% | Recommended (1-10%) |
 
-| OTel バックエンド | Jaeger | Zipkin | Tempo | Datadog |
+| OTel Backend | Jaeger | Zipkin | Tempo | Datadog |
 |-------------------|--------|--------|-------|---------|
-| トレース | 対応 | 対応 | 対応 | 対応 |
-| メトリクス | 非対応 | 非対応 | 非対応 | 対応 |
-| ログ | 非対応 | 非対応 | 非対応 | 対応 |
-| ストレージ | Elasticsearch/Cassandra | MySQL/Elasticsearch | オブジェクトストレージ | SaaS |
-| 運用負荷 | 中 | 低い | 低い | 最低 (SaaS) |
-| コスト | 無料 (OSS) | 無料 (OSS) | 無料 (OSS) | 有料 |
+| Traces | Supported | Supported | Supported | Supported |
+| Metrics | Not supported | Not supported | Not supported | Supported |
+| Logs | Not supported | Not supported | Not supported | Supported |
+| Storage | Elasticsearch/Cassandra | MySQL/Elasticsearch | Object storage | SaaS |
+| Operational Burden | Medium | Low | Low | Lowest (SaaS) |
+| Cost | Free (OSS) | Free (OSS) | Free (OSS) | Paid |
 
-| ログ集約ツール | Loki | Elasticsearch | CloudWatch Logs | Datadog Logs |
+| Log Aggregation Tool | Loki | Elasticsearch | CloudWatch Logs | Datadog Logs |
 |---------------|------|--------------|-----------------|-------------|
-| インデックス方式 | ラベルのみ | 全文検索 | 全文検索 | 全文検索 |
-| ストレージ効率 | 高い | 低い | 中 | 中 |
-| クエリ速度 | 中 | 高い | 中 | 高い |
-| 運用負荷 | 低い | 高い | 最低 | 最低 |
-| コスト | 低い | 高い | 従量課金 | 従量課金 |
-| Grafana 連携 | ネイティブ | 対応 | 非対応 | 非対応 |
+| Indexing Method | Labels only | Full-text search | Full-text search | Full-text search |
+| Storage Efficiency | High | Low | Medium | Medium |
+| Query Speed | Medium | High | Medium | High |
+| Operational Burden | Low | High | Lowest | Lowest |
+| Cost | Low | High | Pay-as-you-go | Pay-as-you-go |
+| Grafana Integration | Native | Supported | Not supported | Not supported |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン 1: 非構造化ログの乱用
+### Anti-Pattern 1: Overuse of Unstructured Logging
 
 ```typescript
 // 悪い例: 非構造化ログ
@@ -1110,69 +1121,69 @@ logger.error({
 // → JSON で構造化、フィールドで検索・フィルタ可能
 ```
 
-### アンチパターン 2: 計装なしの本番運用
+### Anti-Pattern 2: Running in Production Without Instrumentation
 
 ```
-[悪い例]
-- ログだけで障害対応
-- 「どのサービスが遅い？」→ 各サーバーに SSH してログを grep
-- 「リクエスト数は？」→ access.log を wc -l
-- 障害の根本原因特定に数時間〜数日
+[Bad Practice]
+- Responding to incidents using only logs
+- "Which service is slow?" → SSH into each server and grep logs
+- "What is the request count?" → wc -l on access.log
+- Hours or days to identify root cause of incidents
 
-[良い例]
-- OpenTelemetry で3本柱を統一的に収集
-- ダッシュボードでリアルタイムに状況把握
-- トレースでリクエストフローを可視化
-- メトリクスで SLO 違反を自動検知
-- 障害の根本原因を数分で特定
+[Good Practice]
+- Collect all three pillars uniformly with OpenTelemetry
+- Understand the situation in real time via dashboards
+- Visualize request flows with traces
+- Automatically detect SLO violations with metrics
+- Identify root cause of incidents within minutes
 ```
 
-### アンチパターン 3: 過剰なログ出力
+### Anti-Pattern 3: Excessive Log Output
 
 ```
-[悪い例]
-- 全リクエストの全パラメータをログに記録
-- DEBUG レベルのログを本番で有効化
-- ログストレージコストが月10万円超
-- ログが多すぎて重要な情報が埋もれる
+[Bad Practice]
+- Log all parameters for every request
+- Enable DEBUG level logging in production
+- Log storage costs exceed 100,000 JPY/month
+- Too many logs make important information hard to find
 
-[良い例]
-- 本番は INFO 以上のみ
-- サンプリングで重要なリクエストのみ詳細ログ
-- ログの保持期間を適切に設定 (7-30日)
-- コスト監視とログ量のアラートを設定
-- 機密情報 (パスワード、トークン) のマスキング
+[Good Practice]
+- Production: INFO and above only
+- Use sampling to capture detailed logs only for important requests
+- Set appropriate log retention periods (7-30 days)
+- Monitor costs and set alerts on log volume
+- Mask sensitive information (passwords, tokens)
 ```
 
-### アンチパターン 4: SLO を設定しない
+### Anti-Pattern 4: Not Defining SLOs
 
 ```
-[悪い例]
-- 「可用性100%を目指す」→ 非現実的でチームが疲弊
-- アラートが多すぎて対応しきれない
-- 障害対応と機能開発の優先度が曖昧
-- 「どこまで信頼性に投資すべきか」が決まらない
+[Bad Practice]
+- "Aim for 100% availability" → Unrealistic, leads to team burnout
+- Too many alerts to act on
+- Unclear prioritization between incident response and feature development
+- No clear answer to "how much should we invest in reliability?"
 
-[良い例]
-- SLO を明確に定義 (例: 可用性 99.9%)
-- エラーバジェットで開発と信頼性のバランスを取る
-- バジェット消費に応じてリリース速度を調整
-- 四半期ごとに SLO を見直し・調整
+[Good Practice]
+- Define SLOs clearly (e.g., 99.9% availability)
+- Balance development and reliability using error budgets
+- Adjust release pace based on budget consumption
+- Review and adjust SLOs quarterly
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
 # 演習1: 基本実装のテンプレート
@@ -1219,9 +1230,9 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
 # 演習2: 応用パターン
@@ -1288,9 +1299,9 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
 # 演習3: パフォーマンス最適化
@@ -1339,32 +1350,32 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Check the path and format of the config file |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check the execution user's permissions and review settings |
+| Data inconsistency | Concurrency conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Validate incrementally**: Use log output or a debugger to verify hypotheses
+5. **Fix and run regression tests**: After fixing, also run tests for related areas
 
 ```python
 # デバッグ用ユーティリティ
@@ -1402,75 +1413,76 @@ def process_data(items):
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues when they occur:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Review disk and network I/O status
+4. **Check concurrent connections**: Review connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| High CPU load | cProfile, py-spy | Algorithm improvements, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB slowness | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to prioritize | When to deprioritize |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin UIs, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│         Architecture Selection Flowchart          │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How frequently do you deploy?                │
+│    ├─ Once a week or less → Monolith +          │
+│    │  modular decomposition                     │
+│    └─ Daily/multiple times → Go to ③            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are teams?                   │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies allows the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but can lead to code duplication
 
 ```python
 # 設計判断の記録テンプレート
@@ -1528,88 +1540,88 @@ class ArchitectureDecisionRecord:
 
 ## 8. FAQ
 
-### Q1: OpenTelemetry の自動計装と手動計装、どちらを使うべきですか？
+### Q1: Should I use OpenTelemetry auto-instrumentation or manual instrumentation?
 
-まず自動計装（auto-instrumentation）から始めてください。HTTP リクエスト、データベースクエリ、外部 API 呼び出しなどの基本的なスパンが自動生成されます。その上で、ビジネスロジック固有の情報（注文処理、決済処理など）は手動でカスタムスパンを追加します。自動計装だけでは「何を処理しているか」が分からないため、両方を組み合わせるのが最善です。具体的には、自動計装で全体のリクエストフローを把握し、手動計装でビジネスに関連するアトリビュート（注文ID、顧客ID、金額など）を付加します。
+Start with auto-instrumentation. It automatically generates basic spans for HTTP requests, database queries, and external API calls. On top of that, add custom spans manually for business logic-specific information (order processing, payment processing, etc.). Since auto-instrumentation alone doesn't capture "what is being processed," combining both approaches is the best practice. Specifically, use auto-instrumentation to understand the overall request flow, and manual instrumentation to attach business-relevant attributes (order ID, customer ID, amount, etc.).
 
-### Q2: ログレベルの使い分けはどうすべきですか？
+### Q2: How should I choose which log level to use?
 
-**ERROR**: システムが処理を続行できない障害（DB接続失敗、外部API障害）。**WARN**: 予期しない状態だが処理は継続可能（リトライ成功、フォールバック使用）。**INFO**: 正常なビジネスイベント（注文作成、ユーザー登録）。**DEBUG**: 開発時の詳細情報（関数呼び出し、変数値）。本番では INFO 以上を推奨し、障害調査時に一時的に DEBUG に下げます。ログレベルを動的に変更できる仕組み（環境変数や API エンドポイント）を用意しておくと便利です。
+**ERROR**: Failures where the system cannot continue processing (DB connection failure, external API failure). **WARN**: Unexpected state but processing can continue (retry succeeded, fallback used). **INFO**: Normal business events (order created, user registered). **DEBUG**: Detailed information for development (function calls, variable values). INFO and above is recommended for production; temporarily lower to DEBUG during incident investigation. It is convenient to have a mechanism to dynamically change log levels (via environment variables or an API endpoint).
 
-### Q3: SLO のターゲットはどう決めるべきですか？
+### Q3: How should I determine SLO targets?
 
-まず現状のメトリクスを2〜4週間収集し、ベースラインを把握します。その上で「ユーザーにとって許容できるレベル」と「達成可能なレベル」のバランスで設定します。一般的な Web API なら 99.9%（月間ダウンタイム約43分）が出発点です。100% を目指すとコストが指数関数的に増加するため、エラーバジェット（許容できるエラー量）の考え方を導入してください。SLO は固定ではなく、四半期ごとに見直して調整するのが良い実践です。
+First, collect current metrics for 2-4 weeks to understand the baseline. Then set targets balancing "what is acceptable to users" with "what is achievable." For a typical web API, 99.9% (approximately 43 minutes of downtime per month) is a good starting point. Aiming for 100% causes costs to increase exponentially, so introduce the concept of error budgets (the amount of error you can tolerate). SLOs are not fixed — it is good practice to review and adjust them quarterly.
 
-### Q4: トレースのサンプリング率はどのくらいが適切ですか？
+### Q4: What is an appropriate trace sampling rate?
 
-トラフィック量によりますが、一般的には以下が目安です:
-- **低トラフィック** (< 100 req/s): 100% (全リクエスト)
-- **中トラフィック** (100-1000 req/s): 10-50%
-- **高トラフィック** (> 1000 req/s): 1-10%
+It depends on traffic volume, but the following are general guidelines:
+- **Low traffic** (< 100 req/s): 100% (all requests)
+- **Medium traffic** (100-1000 req/s): 10-50%
+- **High traffic** (> 1000 req/s): 1-10%
 
-ただし、エラーのあるリクエストは常に100%キャプチャする「テールサンプリング」を推奨します。OpenTelemetry Collector の `tail_sampling` プロセッサを使うと、エラー・遅延リクエストを優先的に保持しつつ、正常リクエストのサンプリング率を下げることができます。
+However, "tail sampling" — where requests with errors are always captured at 100% — is recommended. Using the `tail_sampling` processor in the OpenTelemetry Collector, you can retain error and slow requests preferentially while lowering the sampling rate for normal requests.
 
-### Q5: OpenTelemetry Collector は必須ですか？
+### Q5: Is the OpenTelemetry Collector required?
 
-必須ではありませんが、本番環境では強く推奨します。Collector を介すメリット:
-1. **デカップリング**: アプリケーションはバックエンドを意識しない
-2. **バッチ処理**: ネットワーク効率の向上
-3. **加工・フィルタリング**: センシティブデータの除去、サンプリング
-4. **リトライ**: バックエンド障害時のバッファリング
-5. **マルチバックエンド**: 同じデータを複数の宛先に送信
+It is not required, but it is strongly recommended for production environments. Benefits of using the Collector:
+1. **Decoupling**: Applications are unaware of the backend
+2. **Batching**: Improved network efficiency
+3. **Processing and filtering**: Remove sensitive data, perform sampling
+4. **Retry**: Buffering during backend failures
+5. **Multi-backend**: Send the same data to multiple destinations
 
-開発環境では Collector なしで直接バックエンドに送信しても問題ありません。
+In development environments, it is fine to send data directly to a backend without the Collector.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Point |
 |------|------|
-| ログ | 構造化 JSON 形式。requestId でリクエストを追跡可能に |
-| メトリクス | 数値の時系列データ。SLI/SLO の基盤 |
-| トレース | 分散システムのリクエストフローを可視化 |
-| OpenTelemetry | ベンダー非依存の計装標準。自動+手動計装を併用 |
-| OTel Collector | テレメトリデータの収集・加工・転送の中央ハブ |
-| SLI/SLO | ユーザー視点の信頼性指標。エラーバジェットで管理 |
-| コンテキスト伝播 | W3C Trace Context で分散トレースを実現 |
-| サンプリング | テールサンプリングでコストと品質のバランスを取る |
-| ログレベル | 本番は INFO 以上。動的変更の仕組みを用意 |
-| エラーバジェット | SLO 違反の許容量。開発速度と信頼性のバランス指標 |
+| Logs | Structured JSON format. Make requests trackable with requestId |
+| Metrics | Numeric time-series data. Foundation of SLI/SLO |
+| Traces | Visualize request flows in distributed systems |
+| OpenTelemetry | Vendor-agnostic instrumentation standard. Combine auto + manual instrumentation |
+| OTel Collector | Central hub for collecting, processing, and forwarding telemetry data |
+| SLI/SLO | User-centric reliability indicators. Managed with error budgets |
+| Context Propagation | Achieve distributed tracing with W3C Trace Context |
+| Sampling | Balance cost and quality with tail sampling |
+| Log Levels | INFO and above in production. Prepare a mechanism for dynamic changes |
+| Error Budget | Allowable amount of SLO violation. A balance indicator between development speed and reliability |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [01-monitoring-tools.md](./01-monitoring-tools.md) — Datadog、Grafana、CloudWatch の活用
-- [02-alerting.md](./02-alerting.md) — アラート設計とエスカレーション
-- [03-performance-monitoring.md](./03-performance-monitoring.md) — APM、RUM、Core Web Vitals
+- [01-monitoring-tools.md](./01-monitoring-tools.md) — Using Datadog, Grafana, and CloudWatch
+- [02-alerting.md](./02-alerting.md) — Alert design and escalation
+- [03-performance-monitoring.md](./03-performance-monitoring.md) — APM, RUM, Core Web Vitals
 
 ---
 
-## 参考文献
+## References
 
-1. **Observability Engineering** — Charity Majors, Liz Fong-Jones, George Miranda (O'Reilly, 2022) — オブザーバビリティの実践ガイド
-2. **OpenTelemetry Documentation** — https://opentelemetry.io/docs/ — OTel 公式ドキュメント
-3. **Google SRE Book - Monitoring Distributed Systems** — https://sre.google/sre-book/monitoring-distributed-systems/ — Google の監視手法
-4. **Site Reliability Engineering** — Betsy Beyer et al. (O'Reilly, 2016) — SRE の原典
-5. **Implementing Service Level Objectives** — Alex Hidalgo (O'Reilly, 2020) — SLO の実装ガイド
-6. **W3C Trace Context** — https://www.w3.org/TR/trace-context/ — 分散トレースの標準仕様
-7. **OpenTelemetry Collector Documentation** — https://opentelemetry.io/docs/collector/ — Collector の公式ドキュメント
+1. **Observability Engineering** — Charity Majors, Liz Fong-Jones, George Miranda (O'Reilly, 2022) — A practical guide to observability
+2. **OpenTelemetry Documentation** — https://opentelemetry.io/docs/ — Official OTel documentation
+3. **Google SRE Book - Monitoring Distributed Systems** — https://sre.google/sre-book/monitoring-distributed-systems/ — Google's monitoring approach
+4. **Site Reliability Engineering** — Betsy Beyer et al. (O'Reilly, 2016) — The foundational SRE text
+5. **Implementing Service Level Objectives** — Alex Hidalgo (O'Reilly, 2020) — A guide to implementing SLOs
+6. **W3C Trace Context** — https://www.w3.org/TR/trace-context/ — The distributed tracing standard specification
+7. **OpenTelemetry Collector Documentation** — https://opentelemetry.io/docs/collector/ — Official Collector documentation
