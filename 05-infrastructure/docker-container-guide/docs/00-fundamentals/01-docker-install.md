@@ -1,31 +1,31 @@
-# Docker インストールガイド
+# Docker Installation Guide
 
-> Docker Desktop と Docker Engine のインストール方法、初期設定、動作確認までを網羅する実践的セットアップガイド。
+> A practical setup guide covering how to install Docker Desktop and Docker Engine, initial configuration, and verification steps.
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **各 OS に最適な Docker のインストール方法**を選択し、確実にセットアップできる
-2. **Docker Desktop と Docker Engine の違い**を理解し、用途に応じて使い分けられる
-3. **インストール後の初期設定と動作確認**を完了し、開発を開始できる状態にする
-4. **Docker のアーキテクチャ**を理解し、トラブル発生時に適切に対処できる
-5. **ネットワークとストレージの初期設定**を最適化し、安定した開発環境を構築できる
+1. **Select the optimal Docker installation method for each OS** and complete the setup reliably
+2. **Understand the differences between Docker Desktop and Docker Engine** and use each appropriately for your needs
+3. **Complete post-installation initial configuration and verification** so you are ready to start development
+4. **Understand Docker's architecture** so you can handle issues appropriately when problems arise
+5. **Optimize network and storage initial settings** to build a stable development environment
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [コンテナ技術概要](./00-container-overview.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Having read [Container Technology Overview](./00-container-overview.md)
 
 ---
 
 ## 1. Docker Desktop vs Docker Engine
 
-### 1.1 製品比較
+### 1.1 Product Comparison
 
 ```
 +------------------------------------------------------------+
@@ -47,23 +47,23 @@
 +------------------------------------------------------------+
 ```
 
-### 比較表 1: Docker Desktop vs Docker Engine
+### Comparison Table 1: Docker Desktop vs Docker Engine
 
-| 項目 | Docker Desktop | Docker Engine |
+| Item | Docker Desktop | Docker Engine |
 |---|---|---|
-| 対応 OS | macOS, Windows, Linux | Linux のみ |
-| ライセンス | 大企業は有料（250人以上/年商$10M以上） | 無料 (Apache 2.0) |
-| GUI | あり（ダッシュボード） | なし |
-| Compose | 同梱 | 別途インストール（plugin） |
-| Kubernetes | 同梱（ワンクリック有効化） | 別途インストール |
-| VM | 内蔵（macOS/Windows） | 不要 |
-| リソース消費 | 高い（VM分） | 低い |
-| 用途 | ローカル開発 | 本番サーバー、CI/CD |
-| Extensions | マーケットプレイスから追加可能 | なし |
-| Dev Environments | サポート | なし |
-| Volume Management | GUI で管理可能 | CLI のみ |
+| Supported OS | macOS, Windows, Linux | Linux only |
+| License | Paid for large enterprises (250+ employees / $10M+ revenue) | Free (Apache 2.0) |
+| GUI | Yes (dashboard) | No |
+| Compose | Bundled | Separate install required (plugin) |
+| Kubernetes | Bundled (one-click enable) | Separate install required |
+| VM | Built-in (macOS/Windows) | Not needed |
+| Resource usage | High (VM overhead) | Low |
+| Use case | Local development | Production servers, CI/CD |
+| Extensions | Available from marketplace | None |
+| Dev Environments | Supported | None |
+| Volume Management | Manageable via GUI | CLI only |
 
-### 1.2 Docker のアーキテクチャ
+### 1.2 Docker Architecture
 
 ```
 +--------------------------------------------------------------------+
@@ -93,98 +93,98 @@
 +--------------------------------------------------------------------+
 ```
 
-Docker は **クライアント-サーバーアーキテクチャ** を採用している。Docker Client（CLI）が Docker Daemon（dockerd）に REST API 経由でコマンドを送信し、Daemon がコンテナの作成・実行・管理を行う。この仕組みを理解しておくと、接続エラーやパーミッション問題のトラブルシューティングに役立つ。
+Docker uses a **client-server architecture**. The Docker Client (CLI) sends commands to the Docker Daemon (dockerd) via REST API, and the daemon handles creating, running, and managing containers. Understanding this mechanism is useful for troubleshooting connection errors and permission issues.
 
-### 1.3 コンテナランタイムの選択肢
+### 1.3 Container Runtime Options
 
-Docker 以外にもコンテナランタイムは存在する。プロジェクトの要件に応じて適切なツールを選択する。
+Container runtimes other than Docker also exist. Select the appropriate tool based on your project requirements.
 
-| ランタイム | 特徴 | 用途 |
+| Runtime | Features | Use Case |
 |---|---|---|
-| Docker Engine | 最も広く使われている | 開発・本番全般 |
-| Podman | デーモンレス、rootless | RHEL/Fedora 環境 |
-| containerd | 軽量ランタイム | Kubernetes CRI |
-| CRI-O | Kubernetes 専用 | Kubernetes ノード |
-| nerdctl | containerd の CLI | Docker CLI 互換 |
-| Colima | macOS 用軽量 VM | Docker Desktop 代替 |
-| Rancher Desktop | GUI 付き代替ツール | Docker Desktop 代替 |
-| OrbStack | macOS 専用高速 VM | Docker Desktop 代替（高速） |
+| Docker Engine | Most widely used | Development and production in general |
+| Podman | Daemonless, rootless | RHEL/Fedora environments |
+| containerd | Lightweight runtime | Kubernetes CRI |
+| CRI-O | Kubernetes-specific | Kubernetes nodes |
+| nerdctl | containerd CLI | Docker CLI compatible |
+| Colima | Lightweight VM for macOS | Docker Desktop alternative |
+| Rancher Desktop | GUI-based alternative | Docker Desktop alternative |
+| OrbStack | High-speed VM for macOS only | Docker Desktop alternative (fast) |
 
 ---
 
-## 2. macOS へのインストール
+## 2. Installation on macOS
 
-### 2.1 Docker Desktop (推奨)
+### 2.1 Docker Desktop (Recommended)
 
 ```bash
-# 方法1: 公式サイトからダウンロード
+# Method 1: Download from the official website
 # https://www.docker.com/products/docker-desktop/
-# Apple Silicon (M1/M2/M3/M4) と Intel 版を選択
+# Choose between Apple Silicon (M1/M2/M3/M4) and Intel versions
 
-# 方法2: Homebrew でインストール
+# Method 2: Install via Homebrew
 brew install --cask docker
 
-# インストール後、アプリケーションから Docker.app を起動
+# After installation, launch Docker.app from Applications
 open /Applications/Docker.app
 
-# 初回起動時にヘルパーツールのインストール許可を求められる
-# パスワードを入力して許可する
+# On first launch, you will be prompted to allow installation of helper tools
+# Enter your password to allow
 ```
 
-### 2.2 Colima (Docker Desktop の代替)
+### 2.2 Colima (Docker Desktop Alternative)
 
-Docker Desktop のライセンスが問題になる場合や、より軽量な環境が必要な場合は Colima を利用できる。
+If Docker Desktop licensing is a concern, or if you need a lighter-weight environment, Colima is available.
 
 ```bash
-# Colima のインストール
+# Install Colima
 brew install colima docker docker-compose docker-credential-helper
 
-# Colima の起動（デフォルト設定: 2 CPU, 2 GB メモリ）
+# Start Colima (default settings: 2 CPU, 2 GB memory)
 colima start
 
-# カスタム設定で起動
+# Start with custom settings
 colima start --cpu 4 --memory 8 --disk 60
 
-# Apple Silicon で x86_64 エミュレーション
+# x86_64 emulation on Apple Silicon
 colima start --arch x86_64
 
-# Kubernetes 付きで起動
+# Start with Kubernetes
 colima start --kubernetes
 
-# 状態確認
+# Check status
 colima status
 
-# 停止
+# Stop
 colima stop
 
-# 削除
+# Delete
 colima delete
 ```
 
-### 2.3 OrbStack (高速な代替)
+### 2.3 OrbStack (Fast Alternative)
 
-OrbStack は macOS 専用の Docker Desktop 代替ツールで、起動速度とリソース効率に優れている。
+OrbStack is a macOS-only Docker Desktop alternative that excels in startup speed and resource efficiency.
 
 ```bash
-# OrbStack のインストール
+# Install OrbStack
 brew install --cask orbstack
 
-# インストール後、docker コマンドが自動的に OrbStack に接続される
+# After installation, the docker command automatically connects to OrbStack
 docker version
 # Client: OrbStack
 # Server: Docker Engine via OrbStack
 
-# Docker Desktop との切り替え
-# OrbStack の設定から Docker Desktop との共存設定が可能
+# Switching between Docker Desktop
+# Co-existence settings with Docker Desktop are available in OrbStack's settings
 ```
 
-### 2.4 動作確認
+### 2.4 Verification
 
 ```bash
-# Docker デーモンが起動しているか確認
+# Check that the Docker daemon is running
 docker version
 
-# 期待される出力:
+# Expected output:
 # Client:
 #  Cloud integration: v1.0.35
 #  Version:           24.0.7
@@ -192,86 +192,86 @@ docker version
 #  Engine:
 #   Version:          24.0.7
 
-# Hello World コンテナを実行
+# Run the Hello World container
 docker run --rm hello-world
 
-# 期待される出力:
+# Expected output:
 # Hello from Docker!
 # This message shows that your installation appears to be working correctly.
 
-# Docker Compose のバージョン確認
+# Check Docker Compose version
 docker compose version
 # Docker Compose version v2.x.x
 
-# Docker の詳細情報を確認
+# Check detailed Docker information
 docker info
-# Server Version, Storage Driver, OS/Arch 等が表示される
+# Server Version, Storage Driver, OS/Arch, etc. are displayed
 
-# BuildKit が有効か確認
+# Check if BuildKit is enabled
 docker buildx version
 # github.com/docker/buildx v0.x.x
 ```
 
-### 2.5 Apple Silicon (ARM64) の注意点
+### 2.5 Notes for Apple Silicon (ARM64)
 
 ```bash
-# ARM64 イメージが存在するか確認
+# Check if an ARM64 image exists
 docker manifest inspect --verbose nginx:alpine | grep architecture
 # "architecture": "arm64"
 
-# AMD64 イメージを強制的に使う場合（互換性問題時）
+# Force use of AMD64 image (when there are compatibility issues)
 docker run --platform linux/amd64 --rm nginx:alpine nginx -v
 
-# マルチプラットフォームビルドの準備
+# Prepare for multi-platform builds
 docker buildx create --name mybuilder --use
 docker buildx inspect --bootstrap
 
-# マルチプラットフォームビルドの実行
+# Run a multi-platform build
 docker buildx build --platform linux/amd64,linux/arm64 \
     -t my-app:v1.0.0 --push .
 
-# Rosetta 2 エミュレーションの確認
+# Check Rosetta 2 emulation
 # Docker Desktop > Settings > General > Use Rosetta for x86_64/amd64 emulation
-# Rosetta を有効にすると amd64 イメージの実行が高速化される
+# Enabling Rosetta speeds up execution of amd64 images
 
-# QEMU ベースのエミュレーションを使用する場合
+# When using QEMU-based emulation
 docker run --platform linux/amd64 --rm alpine uname -m
 # x86_64
 
-# プラットフォーム情報の確認
+# Check platform information
 docker run --rm alpine uname -m
-# aarch64 (ARM64 ネイティブの場合)
+# aarch64 (when running ARM64 natively)
 ```
 
-### 2.6 macOS での VirtioFS 設定
+### 2.6 VirtioFS Settings on macOS
 
-macOS では Docker がVM 上で動作するため、ファイルシステムのパフォーマンスが重要になる。
+On macOS, Docker runs inside a VM, so file system performance is important.
 
 ```bash
-# VirtioFS の確認（Docker Desktop > Settings > General）
+# Check VirtioFS (Docker Desktop > Settings > General)
 # "Choose file sharing implementation for your containers"
-# -> VirtioFS を選択（推奨）
+# -> Select VirtioFS (recommended)
 
-# VirtioFS vs gRPC FUSE vs osxfs のパフォーマンス比較
-# ベンチマーク例: Node.js プロジェクトの npm install
-# osxfs:    120秒
-# gRPC FUSE: 80秒
-# VirtioFS:  45秒
+# Performance comparison: VirtioFS vs gRPC FUSE vs osxfs
+# Benchmark example: npm install for a Node.js project
+# osxfs:    120 seconds
+# gRPC FUSE: 80 seconds
+# VirtioFS:  45 seconds
 
-# ファイル同期の最適化設定
-# docker-compose.yml で consistency オプションを指定
+# Optimized file sync settings
+# Specify the consistency option in docker-compose.yml
 # services:
 #   app:
 #     volumes:
-#       - ./src:/app/src:cached    # ホスト -> コンテナの同期は遅延OK
-#       - ./logs:/app/logs:delegated  # コンテナ -> ホストの同期は遅延OK
+#       - ./src:/app/src:cached    # Delayed sync host -> container is OK
+#       - ./logs:/app/logs:delegated  # Delayed sync container -> host is OK
 ```
 
 ---
 
-## 3. Windows へのインストール
+## 3. Installation on Windows
 
-### 3.1 前提条件: WSL2
+### 3.1 Prerequisite: WSL2
 
 ```
 +----------------------------------------------------+
@@ -298,25 +298,25 @@ macOS では Docker がVM 上で動作するため、ファイルシステムの
 ```
 
 ```powershell
-# PowerShell (管理者) で WSL2 を有効化
+# Enable WSL2 in PowerShell (Administrator)
 wsl --install
 
-# 特定のディストリビューションを指定してインストール
+# Install a specific distribution
 wsl --install -d Ubuntu-22.04
 
-# WSL2 がデフォルトか確認
+# Confirm WSL2 is the default
 wsl --set-default-version 2
 
-# WSL のバージョン確認
+# Check WSL version
 wsl --list --verbose
 # NAME                   STATE           VERSION
 # * Ubuntu               Running         2
 
-# 利用可能なディストリビューション一覧
+# List available distributions
 wsl --list --online
 
-# WSL2 のメモリ制限設定（推奨）
-# %USERPROFILE%\.wslconfig を作成
+# Configure WSL2 memory limits (recommended)
+# Create %USERPROFILE%\.wslconfig
 # [wsl2]
 # memory=8GB
 # processors=4
@@ -324,111 +324,111 @@ wsl --list --online
 # localhostForwarding=true
 ```
 
-### 3.2 Docker Desktop インストール
+### 3.2 Docker Desktop Installation
 
 ```powershell
-# 方法1: 公式サイトからダウンロード
+# Method 1: Download from the official website
 # https://www.docker.com/products/docker-desktop/
 
-# 方法2: winget でインストール
+# Method 2: Install via winget
 winget install Docker.DockerDesktop
 
-# 方法3: Chocolatey でインストール
+# Method 3: Install via Chocolatey
 choco install docker-desktop
 
-# インストール後、再起動が必要な場合がある
-# Settings > General > "Use the WSL 2 based engine" にチェック
+# A restart may be required after installation
+# Check Settings > General > "Use the WSL 2 based engine"
 ```
 
-### 3.3 Windows 固有の設定
+### 3.3 Windows-Specific Settings
 
 ```powershell
-# WSL2 統合の設定
+# Configure WSL2 integration
 # Docker Desktop > Settings > Resources > WSL integration
-# 使用する WSL ディストリビューションを選択
+# Select the WSL distribution to use
 
-# Windows ファイアウォールの設定
-# Docker Desktop はインストール時に自動でファイアウォールルールを追加する
-# 問題がある場合は手動で Docker Desktop Backend を許可
+# Windows Firewall settings
+# Docker Desktop automatically adds firewall rules during installation
+# If there are issues, manually allow Docker Desktop Backend
 
-# Windows Defender の除外設定（パフォーマンス改善）
-# 以下のパスを除外に追加:
+# Windows Defender exclusion settings (performance improvement)
+# Add the following paths to exclusions:
 # - C:\ProgramData\Docker
 # - C:\Users\<username>\AppData\Local\Docker
-# - WSL2 のファイルシステム（\\wsl$）
+# - WSL2 file system (\\wsl$)
 
-# PowerShell で除外を追加
+# Add exclusions via PowerShell
 Add-MpPreference -ExclusionPath "C:\ProgramData\Docker"
 Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\Docker"
 ```
 
-### 3.4 動作確認
+### 3.4 Verification
 
 ```powershell
-# PowerShell で確認
+# Check via PowerShell
 docker version
 docker run --rm hello-world
 
-# WSL2 ディストリビューション内からも使えることを確認
+# Confirm you can also use it from within the WSL2 distribution
 wsl -d Ubuntu -e docker version
 
-# Docker Compose の確認
+# Check Docker Compose
 docker compose version
 
-# ボリュームのパス変換確認
-# Windows パスと Linux パスの変換
+# Check volume path conversion
+# Conversion between Windows paths and Linux paths
 docker run --rm -v "C:\Users\user\project:/app" alpine ls /app
-# または WSL2 内から
+# Or from within WSL2
 docker run --rm -v "/mnt/c/Users/user/project:/app" alpine ls /app
 
-# Windows コンテナの切り替え（必要な場合）
-# Docker Desktop のトレイアイコンから "Switch to Windows containers" を選択
-# ※通常は Linux コンテナを使用する
+# Switching to Windows containers (if needed)
+# Select "Switch to Windows containers" from the Docker Desktop tray icon
+# * Linux containers are normally used
 ```
 
-### 3.5 WSL2 のトラブルシューティング
+### 3.5 WSL2 Troubleshooting
 
 ```powershell
-# WSL2 が起動しない場合
-# 1. 仮想化機能が有効か確認（BIOS/UEFI で設定）
+# If WSL2 does not start
+# 1. Check if virtualization is enabled (configure in BIOS/UEFI)
 systeminfo | findstr /i "Hyper-V"
 
-# 2. WSL2 カーネルの更新
+# 2. Update WSL2 kernel
 wsl --update
 
-# 3. WSL2 のリセット
+# 3. Reset WSL2
 wsl --shutdown
 wsl
 
-# 4. Docker デーモンが起動しない場合
-# Docker Desktop のログを確認
+# 4. If the Docker daemon does not start
+# Check Docker Desktop logs
 # %LOCALAPPDATA%\Docker\log\
 
-# 5. DNS 解決の問題
-# WSL2 内で /etc/resolv.conf を確認
+# 5. DNS resolution issues
+# Check /etc/resolv.conf inside WSL2
 wsl -d Ubuntu -e cat /etc/resolv.conf
-# nameserver が設定されていることを確認
+# Confirm nameserver is configured
 
-# 6. メモリ消費が大きい場合
-# .wslconfig でメモリ上限を設定
+# 6. If memory consumption is high
+# Set memory limit in .wslconfig
 # [wsl2]
 # memory=4GB
 
-# 設定反映
+# Apply settings
 wsl --shutdown
 ```
 
 ---
 
-## 4. Linux (Ubuntu/Debian) へのインストール
+## 4. Installation on Linux (Ubuntu/Debian)
 
-### 4.1 Docker Engine インストール
+### 4.1 Docker Engine Installation
 
 ```bash
-# 古いバージョンの削除
+# Remove old versions
 sudo apt-get remove docker docker-engine docker.io containerd runc
 
-# 必要なパッケージのインストール
+# Install required packages
 sudo apt-get update
 sudo apt-get install -y \
     ca-certificates \
@@ -436,13 +436,13 @@ sudo apt-get install -y \
     gnupg \
     lsb-release
 
-# Docker 公式 GPG キーの追加
+# Add Docker's official GPG key
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
     sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
-# リポジトリの追加
+# Add the repository
 echo \
   "deb [arch=$(dpkg --print-architecture) \
   signed-by=/etc/apt/keyrings/docker.gpg] \
@@ -450,7 +450,7 @@ echo \
   $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Docker Engine のインストール
+# Install Docker Engine
 sudo apt-get update
 sudo apt-get install -y \
     docker-ce \
@@ -460,20 +460,20 @@ sudo apt-get install -y \
     docker-compose-plugin
 ```
 
-### 4.2 Linux (RHEL/Fedora) へのインストール
+### 4.2 Installation on Linux (RHEL/Fedora)
 
 ```bash
-# 古いバージョンの削除
+# Remove old versions
 sudo dnf remove docker docker-client docker-client-latest \
     docker-common docker-latest docker-latest-logrotate \
     docker-logrotate docker-engine
 
-# リポジトリの追加
+# Add the repository
 sudo dnf -y install dnf-plugins-core
 sudo dnf config-manager --add-repo \
     https://download.docker.com/linux/fedora/docker-ce.repo
 
-# Docker Engine のインストール
+# Install Docker Engine
 sudo dnf install -y \
     docker-ce \
     docker-ce-cli \
@@ -481,70 +481,70 @@ sudo dnf install -y \
     docker-buildx-plugin \
     docker-compose-plugin
 
-# サービスの起動と有効化
+# Start and enable the service
 sudo systemctl start docker
 sudo systemctl enable docker
 ```
 
-### 4.3 Linux (Arch Linux) へのインストール
+### 4.3 Installation on Linux (Arch Linux)
 
 ```bash
-# Docker のインストール
+# Install Docker
 sudo pacman -S docker docker-compose docker-buildx
 
-# サービスの起動と有効化
+# Start and enable the service
 sudo systemctl start docker
 sudo systemctl enable docker
 
-# ユーザーを docker グループに追加
+# Add user to the docker group
 sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-### 4.4 Linux (Alpine) へのインストール
+### 4.4 Installation on Linux (Alpine)
 
 ```bash
-# Docker のインストール
+# Install Docker
 sudo apk add docker docker-compose docker-cli-buildx
 
-# サービスの起動と有効化
+# Start and enable the service
 sudo rc-update add docker boot
 sudo service docker start
 
-# ユーザーを docker グループに追加
+# Add user to the docker group
 sudo addgroup $USER docker
 ```
 
-### 4.5 インストール後の設定
+### 4.5 Post-Installation Configuration
 
 ```bash
-# docker グループにユーザーを追加（sudo なしで実行可能にする）
+# Add user to the docker group (allows running without sudo)
 sudo usermod -aG docker $USER
 
-# グループ変更を反映（再ログインまたは以下を実行）
+# Apply group change (re-login or run the following)
 newgrp docker
 
-# 確認
+# Verify
 docker run --rm hello-world
-# sudo なしで実行できれば成功
+# Success if it runs without sudo
 
-# Docker サービスのステータス確認
+# Check Docker service status
 sudo systemctl status docker
 
-# Docker サービスの自動起動設定
+# Configure Docker service to start automatically
 sudo systemctl enable docker.service
 sudo systemctl enable containerd.service
 ```
 
-### 4.6 特定バージョンのインストール
+### 4.6 Installing a Specific Version
 
 ```bash
-# 利用可能なバージョンの一覧
+# List available versions
 apt-cache madison docker-ce
 # docker-ce | 5:24.0.7-1~ubuntu.22.04~jammy | ...
 # docker-ce | 5:24.0.6-1~ubuntu.22.04~jammy | ...
 
-# 特定バージョンのインストール
+# Install a specific version
 VERSION_STRING=5:24.0.7-1~ubuntu.22.04~jammy
 sudo apt-get install -y \
     docker-ce=$VERSION_STRING \
@@ -553,38 +553,38 @@ sudo apt-get install -y \
     docker-buildx-plugin \
     docker-compose-plugin
 
-# バージョン固定（自動アップデートを防止）
+# Pin the version (prevent automatic updates)
 sudo apt-mark hold docker-ce docker-ce-cli
 
-# 固定を解除
+# Unpin
 sudo apt-mark unhold docker-ce docker-ce-cli
 ```
 
-### 4.7 便利スクリプト（非推奨だが便利）
+### 4.7 Convenience Script (Not Recommended but Useful)
 
 ```bash
-# Docker 公式の convenience script（テスト・開発環境向け）
-# 本番環境では上記の手動インストールを推奨
+# Docker's official convenience script (for test/development environments)
+# For production, use the manual installation above
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 
-# DRY RUN（実際にはインストールしない）
+# DRY RUN (does not actually install)
 DRY_RUN=1 sh ./get-docker.sh
 
-# 注意: convenience script は以下の理由で本番非推奨
-# - 既存の Docker 設定を上書きする可能性
-# - セキュリティレビューなしで root 権限で実行
-# - バージョンの細かい制御ができない
+# Note: the convenience script is not recommended for production for these reasons:
+# - May overwrite existing Docker configuration
+# - Runs with root privileges without a security review
+# - Cannot control version precisely
 ```
 
 ---
 
-## 5. 初期設定
+## 5. Initial Configuration
 
-### 5.1 Docker デーモン設定
+### 5.1 Docker Daemon Configuration
 
 ```bash
-# /etc/docker/daemon.json を作成・編集
+# Create/edit /etc/docker/daemon.json
 sudo tee /etc/docker/daemon.json <<'EOF'
 {
   "log-driver": "json-file",
@@ -606,14 +606,14 @@ sudo tee /etc/docker/daemon.json <<'EOF'
 }
 EOF
 
-# 設定の反映
+# Apply settings
 sudo systemctl restart docker
 ```
 
-### 5.2 daemon.json の詳細設定
+### 5.2 Detailed daemon.json Configuration
 
 ```bash
-# 本番環境向けの詳細設定例
+# Detailed configuration example for production environments
 sudo tee /etc/docker/daemon.json <<'EOF'
 {
   "log-driver": "json-file",
@@ -665,35 +665,35 @@ sudo tee /etc/docker/daemon.json <<'EOF'
 }
 EOF
 
-# 設定の検証（デーモンを再起動する前に）
+# Validate configuration (before restarting the daemon)
 sudo dockerd --validate --config-file /etc/docker/daemon.json
 
-# 設定の反映
+# Apply settings
 sudo systemctl daemon-reload
 sudo systemctl restart docker
 
-# 設定が反映されたか確認
+# Verify settings were applied
 docker info
 ```
 
-### 5.3 daemon.json 設定項目リファレンス
+### 5.3 daemon.json Settings Reference
 
-| 設定項目 | 説明 | 推奨値 |
+| Setting | Description | Recommended Value |
 |---|---|---|
-| `log-driver` | ログドライバ | `json-file` (デフォルト) |
-| `log-opts.max-size` | ログファイルの最大サイズ | `10m` - `50m` |
-| `log-opts.max-file` | ログファイルのローテーション数 | `3` - `5` |
-| `storage-driver` | ストレージドライバ | `overlay2` |
-| `live-restore` | デーモン停止時にコンテナを維持 | `true` (本番) |
-| `userland-proxy` | ユーザーランドプロキシ | `false` (パフォーマンス) |
-| `no-new-privileges` | 特権エスカレーション防止 | `true` (セキュリティ) |
-| `default-ulimits` | コンテナのデフォルト ulimit | プロジェクトに依存 |
-| `max-concurrent-downloads` | 同時ダウンロード数 | `10` |
-| `insecure-registries` | 非 HTTPS レジストリ | 本番では空 |
-| `registry-mirrors` | レジストリミラー | Rate Limit 対策に設定 |
-| `debug` | デバッグモード | `false` (本番) |
+| `log-driver` | Log driver | `json-file` (default) |
+| `log-opts.max-size` | Maximum log file size | `10m` - `50m` |
+| `log-opts.max-file` | Number of log file rotations | `3` - `5` |
+| `storage-driver` | Storage driver | `overlay2` |
+| `live-restore` | Keep containers running when daemon stops | `true` (production) |
+| `userland-proxy` | Userland proxy | `false` (performance) |
+| `no-new-privileges` | Prevent privilege escalation | `true` (security) |
+| `default-ulimits` | Default ulimit for containers | Depends on project |
+| `max-concurrent-downloads` | Number of concurrent downloads | `10` |
+| `insecure-registries` | Non-HTTPS registries | Empty in production |
+| `registry-mirrors` | Registry mirrors | Configure as rate limit countermeasure |
+| `debug` | Debug mode | `false` (production) |
 
-### 5.4 Docker Desktop の設定 (GUI)
+### 5.4 Docker Desktop Settings (GUI)
 
 ```
 +------------------------------------------------------------+
@@ -703,7 +703,7 @@ docker info
 |  [x] Start Docker Desktop when you sign in                |
 |  [x] Use the WSL 2 based engine (Windows)                 |
 |  [x] Use Virtualization framework (macOS)                 |
-|  [x] VirtioFS (macOS, 推奨)                               |
+|  [x] VirtioFS (macOS, recommended)                        |
 |                                                            |
 |  Resources                                                 |
 |  +------------------------------------------------------+ |
@@ -713,7 +713,7 @@ docker info
 |  |  Disk:    [========--]  64 GB                        | |
 |  +------------------------------------------------------+ |
 |                                                            |
-|  Docker Engine (daemon.json を直接編集可能)                 |
+|  Docker Engine (daemon.json can be edited directly)        |
 |  Kubernetes                                                |
 |  [x] Enable Kubernetes                                    |
 |                                                            |
@@ -723,12 +723,12 @@ docker info
 +------------------------------------------------------------+
 ```
 
-### 5.5 プロキシ環境での設定
+### 5.5 Configuration for Proxy Environments
 
-企業ネットワーク等でプロキシを使用する場合の設定。
+Configuration for when a proxy is used in a corporate network or similar environment.
 
 ```bash
-# Docker デーモンのプロキシ設定
+# Docker daemon proxy settings
 sudo mkdir -p /etc/systemd/system/docker.service.d/
 sudo tee /etc/systemd/system/docker.service.d/http-proxy.conf <<'EOF'
 [Service]
@@ -737,14 +737,14 @@ Environment="HTTPS_PROXY=http://proxy.example.com:8080"
 Environment="NO_PROXY=localhost,127.0.0.1,docker-registry.example.com,.corp"
 EOF
 
-# 設定の反映
+# Apply settings
 sudo systemctl daemon-reload
 sudo systemctl restart docker
 
-# 設定の確認
+# Verify settings
 sudo systemctl show --property=Environment docker
 
-# Docker クライアント側のプロキシ設定
+# Docker client-side proxy settings
 mkdir -p ~/.docker
 cat > ~/.docker/config.json <<'EOF'
 {
@@ -758,7 +758,7 @@ cat > ~/.docker/config.json <<'EOF'
 }
 EOF
 
-# ビルド時のプロキシ設定
+# Proxy settings at build time
 docker build \
     --build-arg HTTP_PROXY=http://proxy.example.com:8080 \
     --build-arg HTTPS_PROXY=http://proxy.example.com:8080 \
@@ -766,32 +766,32 @@ docker build \
     -t my-app .
 ```
 
-### 5.6 Docker のストレージ設定
+### 5.6 Docker Storage Settings
 
 ```bash
-# Docker のデータディレクトリを変更する場合
-# デフォルト: /var/lib/docker
-# 大容量ストレージに変更したい場合等
+# When changing the Docker data directory
+# Default: /var/lib/docker
+# For example, when you want to change to a high-capacity storage
 
-# 方法1: daemon.json で指定
+# Method 1: Specify in daemon.json
 sudo tee /etc/docker/daemon.json <<'EOF'
 {
   "data-root": "/mnt/docker-data"
 }
 EOF
 
-# 方法2: 既存データを移行
+# Method 2: Migrate existing data
 sudo systemctl stop docker
 sudo rsync -aP /var/lib/docker/ /mnt/docker-data/
 sudo mv /var/lib/docker /var/lib/docker.bak
 sudo ln -s /mnt/docker-data /var/lib/docker
 sudo systemctl start docker
 
-# ストレージドライバの確認
+# Check storage driver
 docker info | grep "Storage Driver"
 # Storage Driver: overlay2
 
-# ディスク使用量の確認
+# Check disk usage
 docker system df
 # TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
 # Images          15        5         4.2GB     2.8GB (66%)
@@ -800,80 +800,80 @@ docker system df
 # Build Cache     50        0         2.1GB     2.1GB
 ```
 
-### 比較表 2: Linux ディストリビューション別インストール方法
+### Comparison Table 2: Installation Methods by Linux Distribution
 
-| ディストリビューション | パッケージマネージャ | リポジトリ設定 | 備考 |
+| Distribution | Package Manager | Repository Setup | Notes |
 |---|---|---|---|
-| Ubuntu 22.04/24.04 | apt | docker.list | 最も安定 |
-| Debian 12 (Bookworm) | apt | docker.list | Ubuntu と同様 |
-| Fedora 38/39/40 | dnf | docker-ce.repo | SELinux 注意 |
-| RHEL 9 / Rocky 9 | dnf | docker-ce.repo | Podman がデフォルト |
-| Arch Linux | pacman | 公式リポジトリ | `pacman -S docker` |
-| Alpine | apk | community リポジトリ | `apk add docker` |
-| openSUSE | zypper | Docker 公式リポ | `zypper install docker` |
-| Amazon Linux 2023 | dnf | extras リポジトリ | `dnf install docker` |
+| Ubuntu 22.04/24.04 | apt | docker.list | Most stable |
+| Debian 12 (Bookworm) | apt | docker.list | Same as Ubuntu |
+| Fedora 38/39/40 | dnf | docker-ce.repo | Note SELinux |
+| RHEL 9 / Rocky 9 | dnf | docker-ce.repo | Podman is default |
+| Arch Linux | pacman | Official repository | `pacman -S docker` |
+| Alpine | apk | community repository | `apk add docker` |
+| openSUSE | zypper | Docker official repo | `zypper install docker` |
+| Amazon Linux 2023 | dnf | extras repository | `dnf install docker` |
 
 ---
 
-## 6. 動作確認チェックリスト
+## 6. Verification Checklist
 
-### 6.1 基本チェック
+### 6.1 Basic Checks
 
 ```bash
-# 1. Docker バージョン確認
+# 1. Check Docker version
 docker version
-# Client と Server 両方のバージョンが表示されること
+# Both Client and Server versions should be displayed
 
-# 2. Docker 情報確認
+# 2. Check Docker information
 docker info
-# Server Version, Storage Driver, OS/Arch が正しいこと
+# Confirm Server Version, Storage Driver, OS/Arch are correct
 
-# 3. Hello World 実行
+# 3. Run Hello World
 docker run --rm hello-world
-# "Hello from Docker!" メッセージが表示されること
+# "Hello from Docker!" message should be displayed
 
-# 4. コンテナのライフサイクル確認
+# 4. Verify container lifecycle
 docker run -d --name test-nginx -p 8080:80 nginx:alpine
-curl http://localhost:8080  # nginx のデフォルトページ
+curl http://localhost:8080  # nginx default page
 docker stop test-nginx
 docker rm test-nginx
 
-# 5. ボリュームの動作確認
+# 5. Verify volume behavior
 docker volume create test-vol
 docker run --rm -v test-vol:/data alpine sh -c "echo 'test' > /data/test.txt"
 docker run --rm -v test-vol:/data alpine cat /data/test.txt
-# "test" と表示されること
+# "test" should be displayed
 docker volume rm test-vol
 
-# 6. Docker Compose の確認
+# 6. Verify Docker Compose
 docker compose version
 # Docker Compose version v2.x.x
 
-# 7. BuildKit の確認
+# 7. Verify BuildKit
 docker buildx version
 # github.com/docker/buildx v0.x.x
 ```
 
-### 6.2 詳細チェック
+### 6.2 Detailed Checks
 
 ```bash
-# 8. ネットワーク確認
+# 8. Check networks
 docker network ls
 # NETWORK ID     NAME      DRIVER    SCOPE
 # abc123         bridge    bridge    local
 # def456         host      host      local
 # ghi789         none      null      local
 
-# 9. DNS 解決確認
+# 9. Check DNS resolution
 docker run --rm alpine nslookup google.com
 # Name:      google.com
 # Address 1: xxx.xxx.xxx.xxx
 
-# 10. イメージのプル確認
+# 10. Check image pull
 docker pull alpine:latest
 docker pull nginx:alpine
 
-# 11. コンテナ間通信確認
+# 11. Check inter-container communication
 docker network create test-net
 docker run -d --name server --network test-net nginx:alpine
 docker run --rm --network test-net alpine \
@@ -881,11 +881,11 @@ docker run --rm --network test-net alpine \
 docker stop server && docker rm server
 docker network rm test-net
 
-# 12. リソース制限の動作確認
+# 12. Check resource limit behavior
 docker run --rm --memory=128m --cpus=0.5 alpine \
     sh -c "cat /sys/fs/cgroup/memory.max 2>/dev/null || echo 'cgroup v1'"
 
-# 13. Docker Compose の統合テスト
+# 13. Docker Compose integration test
 cat > /tmp/docker-compose-test.yml <<'EOF'
 services:
   web:
@@ -904,23 +904,23 @@ docker compose -f /tmp/docker-compose-test.yml down
 rm /tmp/docker-compose-test.yml
 ```
 
-### 6.3 パフォーマンスベンチマーク
+### 6.3 Performance Benchmark
 
 ```bash
-# ディスク I/O テスト
+# Disk I/O test
 docker run --rm alpine sh -c "
     dd if=/dev/zero of=/tmp/testfile bs=1M count=100 conv=fsync 2>&1 | tail -1
     rm /tmp/testfile
 "
 
-# ネットワークスループットテスト
+# Network throughput test
 docker run --rm alpine sh -c "
     apk add --no-cache curl > /dev/null 2>&1
     curl -o /dev/null -s -w '%{speed_download}' https://speed.cloudflare.com/__down?bytes=10000000
     echo ' bytes/sec'
 "
 
-# ビルド速度テスト
+# Build speed test
 time docker build --no-cache -t test-build - <<'EOF'
 FROM alpine:latest
 RUN apk add --no-cache curl wget git
@@ -931,37 +931,37 @@ docker rmi test-build
 
 ---
 
-## 7. セキュリティ設定
+## 7. Security Settings
 
-### 7.1 Docker ソケットの保護
+### 7.1 Protecting the Docker Socket
 
 ```bash
-# Docker ソケットのパーミッション確認
+# Check Docker socket permissions
 ls -la /var/run/docker.sock
 # srw-rw---- 1 root docker 0 ... /var/run/docker.sock
 
-# Docker グループのメンバー確認
+# Check docker group members
 getent group docker
 # docker:x:999:user1,user2
 
-# 注意: docker グループのメンバーは実質的に root 権限を持つ
-# 信頼できるユーザーのみ追加すること
+# Note: members of the docker group effectively have root privileges
+# Only add trusted users
 
-# TCP ソケットでのリモートアクセス（TLS 必須）
-# 本番環境では TLS 証明書を使用すること
+# Remote access via TCP socket (TLS required)
+# Use TLS certificates in production environments
 
-# CA 証明書の生成
+# Generate CA certificate
 openssl genrsa -aes256 -out ca-key.pem 4096
 openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -out ca.pem
 
-# サーバー証明書の生成
+# Generate server certificate
 openssl genrsa -out server-key.pem 4096
 openssl req -subj "/CN=docker-host" -sha256 -new -key server-key.pem -out server.csr
 echo subjectAltName = DNS:docker-host,IP:192.168.1.100 > extfile.cnf
 openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem \
     -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -extfile extfile.cnf
 
-# daemon.json に TLS 設定を追加
+# Add TLS settings to daemon.json
 sudo tee /etc/docker/daemon.json <<'EOF'
 {
   "tls": true,
@@ -976,33 +976,33 @@ EOF
 ### 7.2 Rootless Docker
 
 ```bash
-# Rootless Docker のインストール（root 権限不要で Docker を実行）
-# Ubuntu/Debian の場合
+# Install Rootless Docker (run Docker without root privileges)
+# For Ubuntu/Debian
 sudo apt-get install -y uidmap dbus-user-session
 
-# Rootless Docker のセットアップ
+# Set up Rootless Docker
 dockerd-rootless-setuptool.sh install
 
-# 環境変数の設定
+# Configure environment variables
 export PATH=/usr/bin:$PATH
 export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
 
-# ~/.bashrc に追加
+# Add to ~/.bashrc
 echo 'export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock' >> ~/.bashrc
 
-# Rootless Docker の起動
+# Start Rootless Docker
 systemctl --user start docker
 systemctl --user enable docker
 
-# 確認
+# Verify
 docker info | grep "rootless"
 # rootless: true
 ```
 
-### 7.3 セキュリティベストプラクティス
+### 7.3 Security Best Practices
 
 ```bash
-# Docker Bench for Security の実行
+# Run Docker Bench for Security
 docker run --rm --net host --pid host \
     --cap-add audit_control \
     -v /var/lib:/var/lib:ro \
@@ -1011,243 +1011,243 @@ docker run --rm --net host --pid host \
     -v /etc:/etc:ro \
     docker/docker-bench-security
 
-# Content Trust の有効化（署名付きイメージのみ許可）
+# Enable Content Trust (allow only signed images)
 export DOCKER_CONTENT_TRUST=1
 
-# AppArmor プロファイルの確認（Ubuntu）
+# Check AppArmor profile (Ubuntu)
 docker info | grep "Security Options"
 # Security Options: apparmor, seccomp, cgroupns
 
-# seccomp プロファイルの確認
+# Check seccomp profile
 docker info --format '{{ .SecurityOptions }}'
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: 公式リポジトリを使わずに OS 標準パッケージでインストール
+### Anti-Pattern 1: Installing from OS Default Packages Instead of Official Repository
 
 ```bash
-# NG: OS のデフォルトリポジトリの Docker は古い場合が多い
+# NG: The Docker in OS default repositories is often outdated
 sudo apt install docker.io
-# -> バージョンが古く、BuildKit や Compose V2 が使えない場合がある
+# -> Version may be old, and BuildKit and Compose V2 may not be available
 
-# OK: Docker 公式リポジトリからインストール
-# (上記セクション4の手順に従う)
+# OK: Install from Docker's official repository
+# (Follow the steps in Section 4 above)
 sudo apt-get install docker-ce docker-ce-cli containerd.io \
     docker-buildx-plugin docker-compose-plugin
-# -> 最新の機能とセキュリティパッチが適用される
+# -> Latest features and security patches are applied
 ```
 
-### アンチパターン 2: root で Docker を直接実行
+### Anti-Pattern 2: Running Docker Directly as Root
 
 ```bash
-# NG: 常に sudo で Docker を使う
+# NG: Always using sudo with Docker
 sudo docker run ...
 sudo docker build ...
-# -> 作成されるファイルが root 所有になり権限問題が発生
+# -> Files created become root-owned, causing permission issues
 
-# OK: docker グループにユーザーを追加
+# OK: Add user to the docker group
 sudo usermod -aG docker $USER
 newgrp docker
 docker run ...
-# -> ユーザー権限で実行。ただしdockerグループはroot相当の
-#    権限を持つことに注意（信頼できるユーザーのみ追加）
+# -> Runs with user privileges. However, note that the docker group
+#    has root-equivalent permissions (only add trusted users)
 ```
 
-### アンチパターン 3: Docker Desktop のリソースをデフォルトのまま使う
+### Anti-Pattern 3: Using Docker Desktop with Default Resource Settings
 
 ```bash
-# NG: デフォルト設定のまま開発
-# -> メモリ不足でビルドが遅い、コンテナが OOM で停止
+# NG: Developing with default settings
+# -> Builds are slow due to insufficient memory, containers stop with OOM
 
-# OK: プロジェクトに応じてリソースを調整
+# OK: Adjust resources according to the project
 # Docker Desktop > Settings > Resources
-# - 開発用: CPU 4コア / Memory 8GB
-# - ビルド重視: CPU 6コア / Memory 12GB
-# - 本番テスト: CPU 8コア / Memory 16GB
+# - For development: CPU 4 cores / Memory 8GB
+# - Build-focused: CPU 6 cores / Memory 12GB
+# - Production testing: CPU 8 cores / Memory 16GB
 ```
 
-### アンチパターン 4: ログ設定をしない
+### Anti-Pattern 4: Not Configuring Logging
 
 ```bash
-# NG: ログ制限なしでコンテナを長期稼働
+# NG: Running containers long-term without log limits
 docker run -d --name app my-app
-# -> ログファイルが無限に肥大化し、ディスクを圧迫
+# -> Log files grow infinitely and consume disk space
 
-# OK: daemon.json でデフォルトのログ制限を設定
+# OK: Set default log limits in daemon.json
 # "log-opts": { "max-size": "10m", "max-file": "3" }
-# または個別コンテナで指定
+# Or specify per container
 docker run -d --name app \
     --log-opt max-size=10m \
     --log-opt max-file=3 \
     my-app
 ```
 
-### アンチパターン 5: Docker ソケットをコンテナにマウントする
+### Anti-Pattern 5: Mounting the Docker Socket into a Container
 
 ```bash
-# NG: Docker ソケットを無制限にマウント
+# NG: Mounting the Docker socket without restrictions
 docker run -v /var/run/docker.sock:/var/run/docker.sock my-tool
-# -> コンテナがホストの全 Docker リソースにアクセス可能
-# -> コンテナ脱出の攻撃ベクトルになる
+# -> Container can access all Docker resources on the host
+# -> Becomes an attack vector for container escape
 
-# OK: 必要な場合は読み取り専用 + 最小権限のユーザー
+# OK: If necessary, use read-only + least-privilege user
 docker run \
     -v /var/run/docker.sock:/var/run/docker.sock:ro \
     --user $(id -u):$(getent group docker | cut -d: -f3) \
     my-tool
-# または Docker API プロキシ（Tecnativa/docker-socket-proxy）を使用
+# Or use a Docker API proxy (Tecnativa/docker-socket-proxy)
 ```
 
 ---
 
-## 8. トラブルシューティング
+## 8. Troubleshooting
 
-### 8.1 よくあるエラーと解決策
+### 8.1 Common Errors and Solutions
 
 ```bash
-# エラー: "Cannot connect to the Docker daemon"
-# 原因: Docker デーモンが起動していない
-# 解決:
+# Error: "Cannot connect to the Docker daemon"
+# Cause: Docker daemon is not running
+# Solution:
 sudo systemctl start docker
-# Docker Desktop の場合はアプリケーションを起動
+# For Docker Desktop, launch the application
 
-# エラー: "Got permission denied while trying to connect to the Docker daemon socket"
-# 原因: ユーザーが docker グループに属していない
-# 解決:
+# Error: "Got permission denied while trying to connect to the Docker daemon socket"
+# Cause: User does not belong to the docker group
+# Solution:
 sudo usermod -aG docker $USER
-# ログアウト → ログイン（または newgrp docker）
+# Log out -> Log in (or newgrp docker)
 
-# エラー: "no space left on device"
-# 原因: Docker のディスク領域が枯渇
-# 解決:
+# Error: "no space left on device"
+# Cause: Docker disk space is exhausted
+# Solution:
 docker system prune -a --volumes
-docker system df  # 使用量確認
+docker system df  # Check usage
 
-# エラー: "port is already allocated"
-# 原因: ポートが他のプロセスに使用されている
-# 解決:
+# Error: "port is already allocated"
+# Cause: Port is being used by another process
+# Solution:
 # Linux
 sudo lsof -i :8080
 sudo ss -tlnp | grep 8080
 # macOS
 lsof -i :8080
 
-# エラー: "image platform does not match"
-# 原因: アーキテクチャの不一致（ARM vs x86）
-# 解決:
+# Error: "image platform does not match"
+# Cause: Architecture mismatch (ARM vs x86)
+# Solution:
 docker run --platform linux/amd64 my-image
-# または適切なプラットフォームのイメージを使用
+# Or use an image for the appropriate platform
 
-# エラー: "OCI runtime create failed"
-# 原因: コンテナランタイムの問題
-# 解決:
+# Error: "OCI runtime create failed"
+# Cause: Container runtime issue
+# Solution:
 sudo systemctl restart docker
-# または containerd を再起動
+# Or restart containerd
 sudo systemctl restart containerd
 ```
 
-### 8.2 ログの確認方法
+### 8.2 How to Check Logs
 
 ```bash
-# Docker デーモンのログ確認
-# systemd の場合
+# Check Docker daemon logs
+# For systemd
 sudo journalctl -u docker.service -f
 sudo journalctl -u docker.service --since "1 hour ago"
 
-# Docker Desktop のログ
+# Docker Desktop logs
 # macOS: ~/Library/Containers/com.docker.docker/Data/log/
 # Windows: %LOCALAPPDATA%\Docker\log\
 
-# コンテナのログ確認
+# Check container logs
 docker logs <container-name>
 docker logs -f --tail 100 <container-name>
 
-# Docker events のモニタリング
+# Monitor Docker events
 docker events
 docker events --since "30m"
 docker events --filter 'type=container' --filter 'event=die'
 ```
 
-### 8.3 Docker のリセット
+### 8.3 Resetting Docker
 
 ```bash
-# 全コンテナの停止と削除
+# Stop and remove all containers
 docker stop $(docker ps -aq) 2>/dev/null
 docker rm $(docker ps -aq) 2>/dev/null
 
-# 全イメージの削除
+# Remove all images
 docker rmi $(docker images -aq) 2>/dev/null
 
-# 全ボリュームの削除
+# Remove all volumes
 docker volume prune -f
 
-# 全ネットワークの削除
+# Remove all networks
 docker network prune -f
 
-# ビルドキャッシュの削除
+# Remove build cache
 docker builder prune -af
 
-# 完全リセット（全リソース削除）
+# Full reset (remove all resources)
 docker system prune -af --volumes
 
-# Docker Desktop の完全リセット
+# Full reset of Docker Desktop
 # Docker Desktop > Troubleshoot > Reset to factory defaults
 
-# Linux での Docker Engine の完全アンインストールと再インストール
+# Complete uninstall and reinstall of Docker Engine on Linux
 sudo systemctl stop docker
 sudo apt-get purge docker-ce docker-ce-cli containerd.io \
     docker-buildx-plugin docker-compose-plugin
 sudo rm -rf /var/lib/docker
 sudo rm -rf /var/lib/containerd
 sudo rm -f /etc/docker/daemon.json
-# 再インストール手順を実行
+# Run the reinstall procedure
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement error handling appropriately
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
             raise ValueError("入力値がNoneです")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1265,17 +1265,17 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1283,7 +1283,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1294,14 +1294,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1309,7 +1309,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1317,13 +1317,13 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
@@ -1334,27 +1334,27 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1363,7 +1363,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1385,28 +1385,28 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm complexity
+- Select appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the decision criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criteria | When to Prioritize | When to Compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -1428,26 +1428,26 @@ benchmark()
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A faster approach in the short term can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction has high reusability but can make debugging difficult
+- Low abstraction is intuitive but tends to cause code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1457,17 +1457,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and issues"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1475,7 +1475,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1483,7 +1483,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
         md += f"## 背景\n{self.context}\n\n"
         md += f"## 決定\n{self.decision}\n\n"
@@ -1500,64 +1500,64 @@ class ArchitectureDecisionRecord:
 
 ## 9. FAQ
 
-### Q1: Docker Desktop の有料ライセンスはどの範囲に適用されますか？
+### Q1: What scope does the Docker Desktop paid license apply to?
 
-**A:** Docker Desktop は、従業員 250 人以上 かつ 年間売上 $10M 以上の企業で商用利用する場合に有料サブスクリプションが必要である（2024 年時点）。個人開発者、オープンソースプロジェクト、小規模企業、教育目的での利用は無料である。Docker Engine（CLI のみ）は完全にオープンソースであり、企業規模に関わらず無料で利用できる。大企業で Docker Desktop を使う場合は、Docker Business プラン（ユーザーあたり月額 $24）を検討する。代替として Colima、Rancher Desktop、OrbStack 等のオープンソースツールを使う方法もある。
+**A:** Docker Desktop requires a paid subscription for commercial use in companies with 250 or more employees AND annual revenue of $10M or more (as of 2024). Individual developers, open source projects, small businesses, and educational use are free. Docker Engine (CLI only) is fully open source and free regardless of company size. For large enterprises using Docker Desktop, consider the Docker Business plan ($24 per user per month). Alternatives include open source tools such as Colima, Rancher Desktop, and OrbStack.
 
-### Q2: macOS で Docker が遅いのですが改善方法はありますか？
+### Q2: Docker is slow on macOS. How can I improve this?
 
-**A:** macOS では Docker は VM 内で動作するため、ネイティブ Linux に比べて I/O が遅くなる。改善策として以下がある:
-- **VirtioFS** を有効化する（Docker Desktop > Settings > General > VirtioFS）
-- **不要なバインドマウントを減らす**（node_modules 等は名前付きボリュームに）
-- **リソース割り当てを増やす**（CPU / Memory）
-- **.dockerignore** で不要ファイルをビルドコンテキストから除外する
-- **Rosetta 2 エミュレーション** を有効化する（Apple Silicon で amd64 イメージ使用時）
-- **OrbStack** に切り替える（Docker Desktop より高速な場合が多い）
-- **開発用の docker-compose.yml** で `cached` / `delegated` マウントオプションを使う
+**A:** On macOS, Docker runs inside a VM, so I/O is slower than native Linux. Improvement options include:
+- Enable **VirtioFS** (Docker Desktop > Settings > General > VirtioFS)
+- **Reduce unnecessary bind mounts** (use named volumes for node_modules, etc.)
+- **Increase resource allocation** (CPU / Memory)
+- Exclude unnecessary files from the build context with **.dockerignore**
+- Enable **Rosetta 2 emulation** (when using amd64 images on Apple Silicon)
+- Switch to **OrbStack** (often faster than Docker Desktop)
+- Use `cached` / `delegated` mount options in **development docker-compose.yml**
 
-### Q3: WSL2 と Hyper-V バックエンドはどちらがよいですか？
+### Q3: Which is better, WSL2 or Hyper-V backend?
 
-**A:** WSL2 バックエンドが推奨される。WSL2 は Hyper-V に比べてメモリ消費が少なく、起動が高速で、Linux ファイルシステムとの互換性が高い。また、WSL2 ディストリビューション内から直接 Docker CLI を使えるため、Linux ネイティブに近い開発体験が得られる。Hyper-V バックエンドは Windows Home Edition では使用できない点も考慮すべきである。
+**A:** The WSL2 backend is recommended. Compared to Hyper-V, WSL2 uses less memory, starts faster, and has better compatibility with the Linux file system. You can also use Docker CLI directly from within WSL2 distributions, providing a development experience close to Linux native. Another consideration is that the Hyper-V backend cannot be used on Windows Home Edition.
 
-### Q4: Docker のバージョンアップはどうすればよいですか？
+### Q4: How do I upgrade Docker?
 
-**A:** Docker Desktop の場合は GUI から自動アップデートが可能である。Docker Engine の場合は以下の手順で行う:
+**A:** For Docker Desktop, automatic updates are available from the GUI. For Docker Engine, follow these steps:
 
 ```bash
-# 現在のバージョン確認
+# Check current version
 docker version
 
-# パッケージの更新
+# Update packages
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io
 
-# 更新後の確認
+# Check after update
 docker version
 ```
 
-アップデート前にコンテナの停止とバックアップを推奨する。`live-restore: true` を設定していれば、デーモンの再起動時にコンテナが維持される。
+It is recommended to stop containers and take backups before updating. If `live-restore: true` is configured, containers will be preserved when the daemon restarts.
 
-### Q5: Docker と Podman はどちらを使うべきですか？
+### Q5: Should I use Docker or Podman?
 
-**A:** Docker は最も広く使われており、エコシステムが豊富で、ドキュメントも充実している。Podman は RHEL/Fedora 環境でデフォルトツールとして提供されており、デーモンレス・rootless で動作するためセキュリティ面で優位性がある。Docker CLI との互換性も高いため、`alias docker=podman` で移行可能な場合が多い。企業ポリシーや OS 環境に応じて選択する。
+**A:** Docker is the most widely used with a rich ecosystem and extensive documentation. Podman is provided as the default tool in RHEL/Fedora environments and has security advantages due to being daemonless and rootless. It has high compatibility with the Docker CLI, so migration is often possible with `alias docker=podman`. Choose based on your company's policies and OS environment.
 
-### Q6: CI/CD 環境での Docker のインストール方法は？
+### Q6: How do I install Docker in a CI/CD environment?
 
-**A:** CI/CD 環境では Docker-in-Docker (DinD) または Docker ソケットのマウントが一般的である:
+**A:** In CI/CD environments, Docker-in-Docker (DinD) or mounting the Docker socket are common approaches:
 
 ```yaml
-# GitHub Actions での Docker セットアップ
-# docker はプリインストールされているため追加設定不要
+# Docker setup in GitHub Actions
+# Docker is pre-installed, so no additional setup is needed
 
-# GitLab CI での DinD
+# DinD in GitLab CI
 services:
   - docker:dind
 variables:
   DOCKER_HOST: tcp://docker:2375
 
-# Jenkins での Docker
-# Jenkins エージェントに Docker をインストール
-# または Docker Pipeline プラグインを使用
+# Docker in Jenkins
+# Install Docker on the Jenkins agent
+# Or use the Docker Pipeline plugin
 ```
 
 ---
@@ -1565,51 +1565,51 @@ variables:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and moving on to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 10. まとめ
+## 10. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |---|---|
-| macOS | Docker Desktop を Homebrew または公式サイトからインストール。代替: Colima, OrbStack |
-| Windows | WSL2 を有効化し、Docker Desktop をインストール。.wslconfig でリソース制限 |
-| Linux | Docker 公式リポジトリから Docker Engine をインストール。OS 標準パッケージは避ける |
-| 初期設定 | daemon.json でログ、ストレージ、DNS を設定。本番では live-restore を有効化 |
-| ユーザー権限 | docker グループにユーザーを追加。本番では Rootless Docker を検討 |
-| 動作確認 | `docker run --rm hello-world` で検証。ネットワークとボリュームも確認 |
-| リソース | プロジェクトに応じて CPU/Memory を調整。VirtioFS で I/O パフォーマンス改善 |
-| セキュリティ | Docker Bench で監査。TLS 設定、Content Trust、seccomp を活用 |
-| プロキシ | 企業環境ではデーモンとクライアント両方にプロキシ設定が必要 |
+| macOS | Install Docker Desktop via Homebrew or the official website. Alternatives: Colima, OrbStack |
+| Windows | Enable WSL2 and install Docker Desktop. Limit resources via .wslconfig |
+| Linux | Install Docker Engine from Docker's official repository. Avoid OS default packages |
+| Initial Setup | Configure logging, storage, and DNS in daemon.json. Enable live-restore in production |
+| User Permissions | Add user to the docker group. Consider Rootless Docker for production |
+| Verification | Verify with `docker run --rm hello-world`. Also check network and volumes |
+| Resources | Adjust CPU/Memory according to the project. Improve I/O performance with VirtioFS |
+| Security | Audit with Docker Bench. Use TLS settings, Content Trust, and seccomp |
+| Proxy | In corporate environments, proxy settings are required for both daemon and client |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [02-docker-basics.md](./02-docker-basics.md) -- Docker の基本操作（run, stop, rm, logs, exec）
-- [03-image-management.md](./03-image-management.md) -- イメージの管理とレジストリ
-- [../01-dockerfile/00-dockerfile-basics.md](../01-dockerfile/00-dockerfile-basics.md) -- Dockerfile の基礎
+- [02-docker-basics.md](./02-docker-basics.md) -- Basic Docker operations (run, stop, rm, logs, exec)
+- [03-image-management.md](./03-image-management.md) -- Image management and registries
+- [../01-dockerfile/00-dockerfile-basics.md](../01-dockerfile/00-dockerfile-basics.md) -- Dockerfile basics
 
 ---
 
-## 参考文献
+## References
 
-1. **Docker Documentation - Install Docker Engine** https://docs.docker.com/engine/install/ -- 各 OS 向けの公式インストール手順。最新の手順は常にここを参照。
-2. **Docker Desktop Release Notes** https://docs.docker.com/desktop/release-notes/ -- Docker Desktop の変更履歴。新機能やバグ修正の確認に利用。
-3. **Microsoft - WSL2 Documentation** https://learn.microsoft.com/en-us/windows/wsl/ -- WSL2 の公式ドキュメント。Windows での Docker 利用に不可欠。
-4. **Docker Documentation - Post-installation steps for Linux** https://docs.docker.com/engine/install/linux-postinstall/ -- Linux インストール後の推奨設定。
-5. **Docker Documentation - Docker daemon configuration** https://docs.docker.com/reference/cli/dockerd/#daemon-configuration-file -- daemon.json の全設定項目リファレンス。
-6. **Docker Security Best Practices** https://docs.docker.com/develop/security-best-practices/ -- Docker のセキュリティベストプラクティスガイド。
-7. **Colima - Container runtimes on macOS** https://github.com/abiosoft/colima -- macOS 向けの Docker Desktop 代替ツール。
-8. **OrbStack - Fast, light, simple Docker** https://orbstack.dev/ -- macOS 専用の高速 Docker 環境。
+1. **Docker Documentation - Install Docker Engine** https://docs.docker.com/engine/install/ -- Official installation instructions for each OS. Always refer here for the latest procedures.
+2. **Docker Desktop Release Notes** https://docs.docker.com/desktop/release-notes/ -- Docker Desktop changelog. Used to check new features and bug fixes.
+3. **Microsoft - WSL2 Documentation** https://learn.microsoft.com/en-us/windows/wsl/ -- Official WSL2 documentation. Essential for using Docker on Windows.
+4. **Docker Documentation - Post-installation steps for Linux** https://docs.docker.com/engine/install/linux-postinstall/ -- Recommended settings after Linux installation.
+5. **Docker Documentation - Docker daemon configuration** https://docs.docker.com/reference/cli/dockerd/#daemon-configuration-file -- Reference for all daemon.json settings.
+6. **Docker Security Best Practices** https://docs.docker.com/develop/security-best-practices/ -- Docker security best practices guide.
+7. **Colima - Container runtimes on macOS** https://github.com/abiosoft/colima -- Docker Desktop alternative for macOS.
+8. **OrbStack - Fast, light, simple Docker** https://orbstack.dev/ -- High-speed Docker environment for macOS.
