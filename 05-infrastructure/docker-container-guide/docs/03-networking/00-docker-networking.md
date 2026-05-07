@@ -1,32 +1,32 @@
-# Dockerネットワーク
+# Docker Networking
 
-> コンテナ間通信とホスト・外部ネットワークとの接続を制御するDockerネットワーキングの全体像を理解する。
-
----
-
-## この章で学ぶこと
-
-1. **bridge / host / overlay の3大ネットワークドライバーの違いと使い分け**を理解する
-2. **ポートマッピングと内蔵DNSによるサービスディスカバリ**の仕組みを習得する
-3. **マルチホスト環境でのオーバーレイネットワーク**の構築手順を把握する
-4. **ネットワーク分離によるセキュリティ設計**の実践パターンを学ぶ
-5. **トラブルシューティング手法**を身につけ、ネットワーク問題を迅速に解決できるようになる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> Understand the full picture of Docker networking, which controls communication between containers and connectivity to the host and external networks.
 
 ---
 
-## 1. Dockerネットワークの基本概念
+## What You Will Learn
 
-Dockerはコンテナごとに独立したネットワーク名前空間（Network Namespace）を割り当てる。これにより各コンテナは固有のIPアドレス、ルーティングテーブル、iptablesルールを持つ。
+1. Understand **the differences and use cases of the three major network drivers: bridge, host, and overlay**
+2. Learn **the mechanisms of port mapping and service discovery via the built-in DNS**
+3. Grasp **the steps to build overlay networks in multi-host environments**
+4. Study **practical patterns for security design through network isolation**
+5. Acquire **troubleshooting techniques** to quickly resolve network issues
 
-### ネットワークドライバーの全体像
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. Basic Concepts of Docker Networking
+
+Docker assigns an independent network namespace (Network Namespace) to each container. This gives each container its own IP address, routing table, and iptables rules.
+
+### Overview of Network Drivers
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -43,90 +43,90 @@ Dockerはコンテナごとに独立したネットワーク名前空間（Netwo
 │  └────────────────┬───────────────────────┘        │
 │                   │                                 │
 │              ┌────▼────┐                           │
-│              │  eth0   │  ← ホストNIC              │
+│              │  eth0   │  ← Host NIC               │
 │              └────┬────┘                           │
 └───────────────────┼─────────────────────────────────┘
                     │
-               外部ネットワーク
+               External Network
 ```
 
-### ネットワーク名前空間の仕組み
+### How Network Namespaces Work
 
-Linux のネットワーク名前空間は、各コンテナに独立したネットワークスタックを提供する。これは以下の要素を含む。
+Linux network namespaces provide each container with an independent network stack. This includes the following elements.
 
 ```
 ┌───────────── Container Network Namespace ──────────────┐
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐  │
 │  │  eth0 (veth pair)     172.17.0.2/16              │  │
-│  │  ルーティングテーブル                              │  │
+│  │  Routing Table                                    │  │
 │  │    default via 172.17.0.1 dev eth0               │  │
 │  │  DNS resolver                                     │  │
 │  │    nameserver 127.0.0.11                          │  │
-│  │  iptables ルール                                  │  │
-│  │  ループバック (lo: 127.0.0.1)                     │  │
+│  │  iptables rules                                   │  │
+│  │  Loopback (lo: 127.0.0.1)                        │  │
 │  └─────────────────────────────────────────────────┘  │
 │                                                         │
-│      ↕ veth pair (仮想イーサネットペア)                   │
+│      ↕ veth pair (virtual Ethernet pair)               │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐  │
-│  │  Host側: vethXXXXXX → docker0 bridge に接続      │  │
+│  │  Host side: vethXXXXXX → connected to docker0 bridge │
 │  └─────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### ネットワークドライバー比較表
+### Network Driver Comparison Table
 
-| ドライバー | スコープ | 用途 | IPアドレス | パフォーマンス |
-|-----------|---------|------|-----------|--------------|
-| bridge | 単一ホスト | デフォルト、開発環境 | 自動割当(172.17.x.x) | 良好 |
-| host | 単一ホスト | 最大パフォーマンス | ホストと共有 | 最高 |
-| overlay | マルチホスト | Swarm/本番クラスタ | 自動割当(10.0.x.x) | VXLANオーバーヘッド |
-| macvlan | 単一ホスト | 物理NIC直結が必要 | 物理ネットワーク | 良好 |
-| ipvlan | 単一ホスト | macvlanの代替 | 物理ネットワーク | 良好 |
-| none | - | ネットワーク無効化 | なし | - |
+| Driver | Scope | Use Case | IP Address | Performance |
+|--------|-------|----------|------------|-------------|
+| bridge | Single host | Default, development environments | Auto-assigned (172.17.x.x) | Good |
+| host | Single host | Maximum performance | Shared with host | Best |
+| overlay | Multi-host | Swarm/production clusters | Auto-assigned (10.0.x.x) | VXLAN overhead |
+| macvlan | Single host | Requires direct physical NIC connection | Physical network | Good |
+| ipvlan | Single host | Alternative to macvlan | Physical network | Good |
+| none | - | Disable networking | None | - |
 
-### ドライバー選択のフローチャート
+### Driver Selection Flowchart
 
 ```
-コンテナにネットワークが必要か？
+Does the container need networking?
     │
-    ├── No ──► none ドライバー
+    ├── No ──► none driver
     │
-    └── Yes ──► マルチホスト通信が必要か？
+    └── Yes ──► Is multi-host communication required?
                    │
-                   ├── Yes ──► overlay ドライバー (Swarm/K8s)
+                   ├── Yes ──► overlay driver (Swarm/K8s)
                    │
-                   └── No ──► 最大パフォーマンスが必要か？
+                   └── No ──► Is maximum performance required?
                                 │
-                                ├── Yes ──► host ドライバー (Linux のみ)
+                                ├── Yes ──► host driver (Linux only)
                                 │
-                                └── No ──► 物理ネットワークに直接参加が必要か？
+                                └── No ──► Does it need to join the physical network directly?
                                              │
                                              ├── Yes ──► macvlan / ipvlan
                                              │
-                                             └── No ──► bridge ドライバー (推奨)
+                                             └── No ──► bridge driver (recommended)
 ```
 
 ---
 
-## 2. Bridgeネットワーク
+## 2. Bridge Network
 
-### デフォルトbridge vs ユーザー定義bridge
+### Default Bridge vs User-Defined Bridge
 
-Dockerインストール時に作成される `docker0` ブリッジ（デフォルトbridge）と、ユーザーが明示的に作成するカスタムbridgeには重要な差がある。
+There are important differences between the `docker0` bridge created at Docker installation (default bridge) and a custom bridge that users create explicitly.
 
-| 特性 | デフォルトbridge | ユーザー定義bridge |
-|-----|-----------------|------------------|
-| DNS解決 | 不可（IPのみ） | コンテナ名で解決可能 |
-| 自動接続 | 全コンテナが接続 | 明示的に指定 |
-| ネットワーク分離 | 分離なし | ネットワーク単位で分離 |
-| ライブ接続/切断 | 不可 | 可能 |
-| 環境変数共有 | `--link`（非推奨） | 不要 |
-| カスタムサブネット | 不可 | 可能 |
-| MTU設定 | 不可 | 可能 |
+| Property | Default Bridge | User-Defined Bridge |
+|----------|---------------|---------------------|
+| DNS resolution | Not available (IP only) | Resolvable by container name |
+| Auto-connect | All containers connect | Specified explicitly |
+| Network isolation | No isolation | Isolated per network |
+| Live connect/disconnect | Not available | Available |
+| Environment variable sharing | `--link` (deprecated) | Not needed |
+| Custom subnet | Not available | Available |
+| MTU setting | Not available | Available |
 
-### コード例1: ユーザー定義bridgeネットワークの作成
+### Code Example 1: Creating a User-Defined Bridge Network
 
 ```bash
 # ユーザー定義bridgeネットワークを作成
@@ -161,7 +161,7 @@ docker network connect my-app-network existing-container
 docker network disconnect my-app-network existing-container
 ```
 
-### コード例2: Docker Composeでのネットワーク定義
+### Code Example 2: Network Definition in Docker Compose
 
 ```yaml
 # docker-compose.yml
@@ -202,10 +202,10 @@ networks:
         - subnet: 172.21.0.0/24
 ```
 
-ネットワーク分離の構造:
+Network isolation structure:
 
 ```
-      外部 (インターネット)
+      External (Internet)
           │
           │ :80
     ┌─────▼─────┐
@@ -217,10 +217,10 @@ networks:
                                   ┌─────▼─────┐
                                   │  database  │
                                   └───────────┘
-                                  (外部アクセス不可)
+                                  (No external access)
 ```
 
-### コード例2b: 高度なネットワーク設定オプション
+### Code Example 2b: Advanced Network Configuration Options
 
 ```yaml
 # docker-compose.yml - 高度なネットワーク設定
@@ -253,7 +253,7 @@ networks:
       team: platform
 ```
 
-### コード例2c: 複数コンテナをネットワークに参加させる場合のIP固定
+### Code Example 2c: Fixing IP Addresses for Multiple Containers Joining a Network
 
 ```yaml
 services:
@@ -295,9 +295,9 @@ networks:
 
 ---
 
-## 3. ポートマッピング
+## 3. Port Mapping
 
-### コード例3: 各種ポートマッピング
+### Code Example 3: Various Port Mapping Patterns
 
 ```bash
 # 基本: ホストの8080番をコンテナの80番にマッピング
@@ -330,15 +330,15 @@ docker run -d -p 53:53/tcp -p 53:53/udp dns-server
 docker run -d -P nginx:alpine
 ```
 
-### ポートマッピングの仕組み（iptables）
+### How Port Mapping Works (iptables)
 
 ```
-外部クライアント
+External Client
     │
     │ :8080
     ▼
 ┌──────────────────────────────────────┐
-│  iptables NAT テーブル               │
+│  iptables NAT Table                  │
 │  DNAT: 0.0.0.0:8080 → 172.17.0.2:80│
 │                                      │
 │  ┌────────────────────────────┐     │
@@ -353,7 +353,7 @@ docker run -d -P nginx:alpine
 └──────────────────────────────────────┘
 ```
 
-### Docker Compose でのポートマッピング
+### Port Mapping in Docker Compose
 
 ```yaml
 services:
@@ -382,7 +382,7 @@ services:
       - "5432"
 ```
 
-### ポートの競合を防ぐパターン
+### Pattern to Prevent Port Conflicts
 
 ```yaml
 # .env ファイルでポートを変数化
@@ -405,11 +405,11 @@ services:
 
 ---
 
-## 4. Hostネットワーク
+## 4. Host Network
 
-hostドライバーではコンテナがホストのネットワーク名前空間を直接共有する。ネットワーク変換が不要なため、最もパフォーマンスが高い。
+With the host driver, containers directly share the host's network namespace. Since no network translation is needed, it offers the highest performance.
 
-### コード例4: hostネットワークの使用
+### Code Example 4: Using the Host Network
 
 ```bash
 # hostネットワークでNginxを起動
@@ -426,18 +426,18 @@ curl http://localhost:80
 docker inspect web --format '{{.NetworkSettings.Networks}}'
 ```
 
-> **注意**: hostネットワークはLinuxでのみフルサポートされる。macOS/Windowsでは Docker Desktop の仮想マシン内でのhost共有となるため、ホストOSから直接アクセスできない。
+> **Note**: The host network is fully supported only on Linux. On macOS/Windows, it shares the host inside Docker Desktop's virtual machine, so direct access from the host OS is not available.
 
-### hostネットワークの使い分け
+### When to Use the Host Network
 
-| ユースケース | 理由 |
-|-------------|------|
-| 高頻度の小パケット通信 | NATオーバーヘッドを排除 |
-| ネットワーク監視ツール | ホストのネットワークスタックに直接アクセス |
-| パフォーマンスベンチマーク | ネットワーク変換の影響を排除 |
-| レガシーアプリの移行 | ポートマッピングの変更が困難な場合 |
+| Use Case | Reason |
+|----------|--------|
+| High-frequency small packet communication | Eliminates NAT overhead |
+| Network monitoring tools | Direct access to the host's network stack |
+| Performance benchmarking | Eliminates the impact of network translation |
+| Legacy application migration | When port mapping changes are difficult |
 
-### Docker Compose でのhostネットワーク
+### Host Network in Docker Compose
 
 ```yaml
 services:
@@ -459,9 +459,9 @@ services:
 
 ---
 
-## 5. Overlayネットワーク
+## 5. Overlay Network
 
-### マルチホスト通信の仕組み
+### How Multi-Host Communication Works
 
 ```
 ┌─────────── Host A ───────────┐   ┌─────────── Host B ───────────┐
@@ -481,13 +481,13 @@ services:
             └────────────────────────────┘
 ```
 
-### VXLANの詳細な仕組み
+### How VXLAN Works in Detail
 
-VXLAN (Virtual Extensible LAN) は、レイヤー2フレームをレイヤー3パケットにカプセル化する技術である。これにより、物理ネットワークを超えて仮想的なレイヤー2ネットワークを構築できる。
+VXLAN (Virtual Extensible LAN) is a technology that encapsulates Layer 2 frames into Layer 3 packets. This allows you to build a virtual Layer 2 network that spans physical networks.
 
 ```
 ┌──────────────────────────────────────────────┐
-│          VXLANカプセル化パケット                │
+│          VXLAN Encapsulated Packet             │
 │                                               │
 │  ┌──────────────────────────────────────┐    │
 │  │ Outer Ethernet Header                │    │
@@ -503,7 +503,7 @@ VXLAN (Virtual Extensible LAN) は、レイヤー2フレームをレイヤー3�
 └──────────────────────────────────────────────┘
 ```
 
-### コード例5: Overlay ネットワークの構築（Docker Swarm）
+### Code Example 5: Building an Overlay Network (Docker Swarm)
 
 ```bash
 # Swarmを初期化（マネージャーノード）
@@ -535,7 +535,7 @@ docker network inspect my-overlay
 docker network inspect my-overlay --format '{{.Options}}'
 ```
 
-### Overlay ネットワークの Docker Compose (Swarm mode)
+### Overlay Network in Docker Compose (Swarm mode)
 
 ```yaml
 # docker-compose.yml (Swarm mode)
@@ -585,11 +585,11 @@ volumes:
 
 ---
 
-## 6. Macvlanネットワーク
+## 6. Macvlan Network
 
-macvlanドライバーは、コンテナに物理ネットワーク上のMACアドレスを割り当て、物理ネットワークに直接接続されているかのように見せる。レガシーアプリケーションやネットワーク機器との直接通信が必要な場合に使用する。
+The macvlan driver assigns a MAC address on the physical network to a container, making it appear as if it is directly connected to the physical network. Use this when direct communication with legacy applications or network devices is required.
 
-### コード例5b: Macvlanネットワークの構築
+### Code Example 5b: Building a Macvlan Network
 
 ```bash
 # macvlan ネットワークの作成
@@ -616,58 +616,58 @@ docker network create \
   macvlan-vlan10
 ```
 
-> **注意**: macvlanを使用する場合、ホストマシンからコンテナへの直接通信はデフォルトではできない。これはmacvlanの仕様による制限で、ホストとコンテナ間の通信が必要な場合はIPvlanを検討する。
+> **Note**: When using macvlan, direct communication from the host machine to the container is not available by default. This is a limitation of the macvlan specification. If communication between the host and containers is required, consider using IPvlan instead.
 
 ---
 
-## 7. DNS とサービスディスカバリ
+## 7. DNS and Service Discovery
 
-Docker内蔵DNSサーバー（127.0.0.11）がユーザー定義ネットワーク内で自動的にコンテナ名を解決する。
+Docker's built-in DNS server (127.0.0.11) automatically resolves container names within user-defined networks.
 
-### DNS解決フロー
+### DNS Resolution Flow
 
 ```
-Container A が "api-server" を名前解決
+Container A resolves "api-server"
     │
     ▼
 ┌──────────────────────┐
-│ コンテナ内 resolver   │
+│ Resolver in container │
 │ /etc/resolv.conf     │
 │ nameserver 127.0.0.11│
 └──────────┬───────────┘
            │
            ▼
-┌──────────────────────┐     見つかった
-│ Docker 内蔵 DNS       │────────────►  172.20.0.3 (api-server)
+┌──────────────────────┐     Found
+│ Docker built-in DNS  │────────────►  172.20.0.3 (api-server)
 │ (127.0.0.11)         │
 └──────────┬───────────┘
-           │ 見つからない
+           │ Not found
            ▼
 ┌──────────────────────┐
-│ ホストの DNS resolver │────────────►  外部DNS応答
-│ (8.8.8.8 等)         │
+│ Host DNS resolver    │────────────►  External DNS response
+│ (8.8.8.8, etc.)      │
 └──────────────────────┘
 ```
 
-### DNS解決の対象と優先順位
+### DNS Resolution Targets and Priority
 
-Docker内蔵DNSは以下の順序で名前を解決する。
+Docker's built-in DNS resolves names in the following order.
 
 ```
-1. コンテナ名 (--name で指定した名前)
-   例: "api-server" → 172.20.0.3
+1. Container name (name specified with --name)
+   Example: "api-server" → 172.20.0.3
 
-2. ネットワークエイリアス (--network-alias / networks.aliases)
-   例: "api" → 172.20.0.3 (複数コンテナの場合はラウンドロビン)
+2. Network alias (--network-alias / networks.aliases)
+   Example: "api" → 172.20.0.3 (round-robin if multiple containers)
 
-3. Compose のサービス名
-   例: "api" → サービスに属するコンテナのIP
+3. Compose service name
+   Example: "api" → IP of containers belonging to the service
 
-4. 外部DNS (ホストのresolv.confを使用)
-   例: "google.com" → 142.250.xxx.xxx
+4. External DNS (uses host's resolv.conf)
+   Example: "google.com" → 142.250.xxx.xxx
 ```
 
-### コード例6: エイリアスとサービスディスカバリ
+### Code Example 6: Aliases and Service Discovery
 
 ```yaml
 # docker-compose.yml
@@ -717,7 +717,7 @@ docker run --rm --network app-net tutum/dnsutils dig redis
 docker run --rm --network app-net busybox nslookup 172.20.0.3
 ```
 
-### カスタムDNS設定
+### Custom DNS Configuration
 
 ```yaml
 services:
@@ -739,14 +739,14 @@ services:
 
 ---
 
-## 8. 実践的なネットワーク構成例
+## 8. Practical Network Configuration Examples
 
-### コード例7: マイクロサービス構成
+### Code Example 7: Microservices Configuration
 
 ```yaml
 # docker-compose.yml - マイクロサービス構成
 services:
-  # --- フロントエンド層 ---
+  # --- Frontend Layer ---
   nginx:
     image: nginx:alpine
     ports:
@@ -763,7 +763,7 @@ services:
     networks:
       - app-tier
 
-  # --- アプリケーション層 ---
+  # --- Application Layer ---
   user-service:
     build: ./services/user
     networks:
@@ -783,13 +783,13 @@ services:
       - app-tier
       - message-tier
 
-  # --- メッセージング層 ---
+  # --- Messaging Layer ---
   rabbitmq:
     image: rabbitmq:3-management-alpine
     networks:
       - message-tier
 
-  # --- データ層 ---
+  # --- Data Layer ---
   postgres:
     image: postgres:16-alpine
     networks:
@@ -814,11 +814,11 @@ networks:
     internal: true
 ```
 
-### ネットワークアクセスマトリクス
+### Network Access Matrix
 
-上記構成における各サービスのネットワークアクセスを整理する。
+The following summarizes the network access for each service in the above configuration.
 
-| サービス | public | app-tier | data-tier | message-tier |
+| Service | public | app-tier | data-tier | message-tier |
 |---------|--------|----------|-----------|-------------|
 | nginx | ✅ | ✅ | - | - |
 | frontend | - | ✅ | - | - |
@@ -829,7 +829,7 @@ networks:
 | postgres | - | - | ✅ | - |
 | redis | - | - | ✅ | - |
 
-### コード例7b: セキュアなマルチテナント構成
+### Code Example 7b: Secure Multi-Tenant Configuration
 
 ```yaml
 # docker-compose.yml - マルチテナント構成
@@ -884,9 +884,9 @@ networks:
 
 ---
 
-## 9. ネットワークのトラブルシューティング
+## 9. Network Troubleshooting
 
-### コード例8: デバッグコマンド集
+### Code Example 8: Collection of Debug Commands
 
 ```bash
 # ネットワーク一覧を確認
@@ -929,18 +929,18 @@ docker events --filter type=network
 docker network prune
 ```
 
-### よくあるネットワーク問題と解決策
+### Common Network Issues and Solutions
 
-| 問題 | 原因 | 解決策 |
-|------|------|--------|
-| コンテナ間で名前解決できない | デフォルトbridgeを使用 | ユーザー定義ネットワークに変更 |
-| ポートが既に使用中 | ホスト側でポート競合 | `docker ps` で確認し、停止 or ポート変更 |
-| コンテナから外部に通信できない | DNS設定の問題 | `dns:` オプションで外部DNSを指定 |
-| 通信が遅い | macOS のBind Mount I/O | VirtioFS に切り替え |
-| ポートフォワードが動かない | iptables ルールの問題 | `sudo iptables -t nat -L -n` で確認 |
-| コンテナ起動時にIP競合 | サブネットの重複 | カスタムサブネットを指定 |
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Cannot resolve container names | Using default bridge | Switch to user-defined network |
+| Port already in use | Port conflict on host side | Check with `docker ps`, stop or change port |
+| Cannot communicate from container to outside | DNS configuration issue | Specify external DNS with `dns:` option |
+| Slow communication | macOS Bind Mount I/O | Switch to VirtioFS |
+| Port forwarding not working | iptables rule issue | Check with `sudo iptables -t nat -L -n` |
+| IP conflict on container startup | Overlapping subnets | Specify a custom subnet |
 
-### netshoot を使った詳細診断
+### Detailed Diagnosis with netshoot
 
 ```bash
 # netshoot コンテナで対象ネットワークに接続して診断
@@ -962,7 +962,7 @@ docker run --rm --network my-app-network nicolaka/netshoot iperf3 -c iperf-serve
 
 ---
 
-## 10. IPv6 対応
+## 10. IPv6 Support
 
 ```yaml
 # docker-compose.yml - IPv6 有効化
@@ -993,9 +993,9 @@ networks:
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: デフォルトbridgeネットワークへの依存
+### Anti-Pattern 1: Relying on the Default Bridge Network
 
 ```bash
 # NG: デフォルトbridgeではDNS解決が機能しない
@@ -1010,9 +1010,9 @@ docker run -d --name app2 --network my-net my-app
 docker exec app1 ping app2  # 成功
 ```
 
-**なぜ問題か**: デフォルトbridgeではコンテナ名によるDNS解決が無効。非推奨の `--link` を使わないと名前で通信できず、IPアドレスのハードコーディングが必要になる。
+**Why it's a problem**: DNS resolution by container name is disabled on the default bridge. Without the deprecated `--link`, you cannot communicate by name and must hardcode IP addresses.
 
-### アンチパターン2: 全コンテナを同一ネットワークに配置
+### Anti-Pattern 2: Placing All Containers in the Same Network
 
 ```yaml
 # NG: 全サービスがフラットに通信可能
@@ -1034,9 +1034,9 @@ services:
     networks: [backend]  # backendからのみアクセス可能
 ```
 
-**なぜ問題か**: 攻撃者がフロントエンドコンテナに侵入した場合、同一ネットワーク上のDBに直接アクセスできてしまう。ネットワーク分離はセキュリティの基本防御策。
+**Why it's a problem**: If an attacker compromises a frontend container, they can directly access the DB on the same network. Network isolation is a fundamental security defense.
 
-### アンチパターン3: ポートの過剰公開
+### Anti-Pattern 3: Exposing Too Many Ports
 
 ```bash
 # NG: 0.0.0.0 にバインド（全インターフェースに公開）
@@ -1046,9 +1046,9 @@ docker run -d -p 5432:5432 postgres:16
 docker run -d -p 127.0.0.1:5432:5432 postgres:16
 ```
 
-**なぜ問題か**: 外部から直接データベースポートにアクセス可能になり、セキュリティリスクが極めて高い。
+**Why it's a problem**: The database port becomes directly accessible from outside, posing an extremely high security risk.
 
-### アンチパターン4: ハードコードされたIPアドレスへの依存
+### Anti-Pattern 4: Relying on Hardcoded IP Addresses
 
 ```yaml
 # NG: IPアドレスをハードコード
@@ -1064,21 +1064,21 @@ services:
       DB_HOST: database    # Composeのサービス名はDNSで解決される
 ```
 
-**なぜ問題か**: コンテナのIPアドレスは起動順序やネットワーク状態によって変わる。DNS名を使用することで、IPアドレスの変更に影響されない安定した通信が実現できる。
+**Why it's a problem**: Container IP addresses can change depending on startup order and network conditions. Using DNS names enables stable communication that is unaffected by IP address changes.
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
 # 演習1: 基本実装のテンプレート
@@ -1125,9 +1125,9 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
 # 演習2: 応用パターン
@@ -1194,9 +1194,9 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
 # 演習3: パフォーマンス最適化
@@ -1245,32 +1245,32 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured configuration file | Check the path and format of the configuration file |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflict | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form a hypothesis**: List possible causes
+4. **Verify step by step**: Use log output and debuggers to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
 # デバッグ用ユーティリティ
@@ -1308,75 +1308,75 @@ def process_data(items):
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues when they arise:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Check the state of disk and network I/O
+4. **Check concurrent connections**: Check the state of connection pools
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|-------------|-----------------|----------|
+| High CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Asynchronous I/O, caching |
+| DB latency | EXPLAIN, slow query log | Index, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology selections.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When it can be compromised |
+|-----------|-------------------|---------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│         Architecture Selection Flow              │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How often do you deploy?                     │
+│    ├─ Once a week or less → Monolith + module split │
+│    └─ Daily / multiple times → Go to ③          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are teams?                   │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A faster approach in the short term can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can cause project delays
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction increases reusability but can make debugging more difficult
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
 # 設計判断の記録テンプレート
@@ -1433,50 +1433,50 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring from an early stage
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't aim for perfection (YAGNI principle)
+- Obtain user feedback early
+- Manage technical debt intentionally
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renovating a system that has been in operation for more than 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If existing tests are absent, create Characterization Tests first
+- Coexist old and new systems with an API gateway
+- Perform data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work Content | Estimated Duration | Risk |
+|-------|-------------|-------------------|------|
+| 1. Investigation | Current state analysis, understanding dependencies | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Start migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core functionality | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with domain-driven design
+- Assign ownership per team
+- Manage shared libraries using Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
 # チーム間のAPI契約定義
@@ -1535,84 +1535,84 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system where millisecond-level responses are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Technique | Effect | Implementation Cost | Applicable Situation |
+|------------------------|--------|--------------------|--------------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Asynchronous processing | Medium | Medium | Processing with heavy I/O waits |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 
 ---
 
-## チーム開発での活用
+## Team Development Practices
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any impact on performance?
+- [ ] Are there any security issues?
+- [ ] Has documentation been updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Method | Frequency | Target | Effect |
+|--------|-----------|--------|--------|
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talk | Weekly | Entire team | Horizontal knowledge transfer |
+| ADR (design record) | As needed | Future members | Transparency of decisions |
+| Retrospective | Every 2 weeks | Entire team | Continuous improvement |
+| Mob programming | Monthly | Important designs | Building consensus |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan│ Act │
+    │ ned │ Im- │
+    │     │ med │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Doc │ Next│
+    │ ume │ Spr-│
+    │ nt  │ int │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Frequency  High Frequency
 ```
 ---
 
 ## FAQ
 
-### Q1: コンテナ間通信でlocalhostを使えないのはなぜ？
+### Q1: Why can't I use localhost for communication between containers?
 
-各コンテナは独立したネットワーク名前空間を持つため、`localhost` は常に自分自身を指す。他のコンテナと通信するにはコンテナ名（DNS名）またはIPアドレスを使用する。Docker Composeではサービス名がそのままDNS名になる。
+Each container has an independent network namespace, so `localhost` always refers to itself. To communicate with other containers, use the container name (DNS name) or IP address. In Docker Compose, the service name becomes the DNS name directly.
 
-### Q2: overlayネットワークのパフォーマンスオーバーヘッドはどの程度？
+### Q2: How much performance overhead does the overlay network have?
 
-VXLANカプセル化のオーバーヘッドは通常5-10%程度。`--opt encrypted` を有効にするとIPsec暗号化が加わり、CPU負荷が増加する。高スループットが必要な場合はホストネットワークまたはmacvlanを検討する。
+The overhead of VXLAN encapsulation is typically around 5-10%. Enabling `--opt encrypted` adds IPsec encryption, which increases CPU load. For high-throughput requirements, consider host networking or macvlan.
 
-### Q3: docker-compose up でネットワークが自動作成されるが、名前はどうなる？
+### Q3: When docker-compose up creates a network automatically, what is the name?
 
-`<プロジェクトディレクトリ名>_<networks名>` の形式で作成される。例えばディレクトリが `myapp` でネットワーク名が `backend` なら `myapp_backend` となる。`name:` フィールドで明示的に指定することも可能。
+It is created in the format `<project directory name>_<network name>`. For example, if the directory is `myapp` and the network name is `backend`, it becomes `myapp_backend`. You can also specify a name explicitly with the `name:` field.
 
 ```yaml
 networks:
@@ -1620,9 +1620,9 @@ networks:
     name: my-custom-backend  # 明示的な名前指定
 ```
 
-### Q4: コンテナからホストマシンにアクセスするには？
+### Q4: How do I access the host machine from a container?
 
-Docker Desktop (macOS/Windows) では `host.docker.internal` という特別なDNS名を使う。Linux では `--add-host=host.docker.internal:host-gateway` を指定する。
+On Docker Desktop (macOS/Windows), use the special DNS name `host.docker.internal`. On Linux, specify `--add-host=host.docker.internal:host-gateway`.
 
 ```yaml
 services:
@@ -1633,22 +1633,22 @@ services:
       HOST_API: http://host.docker.internal:4000
 ```
 
-### Q5: ネットワーク間の通信を制限するにはどうすればよい？
+### Q5: How do I restrict communication between networks?
 
-`internal: true` を設定すると、そのネットワークから外部（インターネット）への通信が遮断される。ネットワーク間の通信制限は、サービスが参加するネットワークの設計で制御する。異なるネットワークに属するコンテナは直接通信できない。
+Setting `internal: true` blocks communication from that network to the outside (internet). Restricting communication between networks is controlled by the design of which networks each service joins. Containers belonging to different networks cannot communicate directly.
 
-### Q6: Docker Composeで外部ネットワーク（既存ネットワーク）に接続するには？
+### Q6: How do I connect to an external network (existing network) in Docker Compose?
 
-`external: true` を指定することで、Composeプロジェクト外で作成済みのネットワークに接続できる。複数のComposeプロジェクト間で通信が必要な場合に活用する。
+By specifying `external: true`, you can connect to a network already created outside the Compose project. This is useful when communication between multiple Compose projects is required.
 
 ```yaml
-# プロジェクトA (共有ネットワークを作成)
+# Project A (creates shared network)
 networks:
   shared:
     name: shared-network
     driver: bridge
 
-# プロジェクトB (既存ネットワークに参加)
+# Project B (joins existing network)
 networks:
   shared:
     external: true
@@ -1663,9 +1663,9 @@ docker network create shared-network
 docker compose up -d
 ```
 
-### Q7: Docker Composeでネットワークの優先度やデフォルトネットワークを設定するには？
+### Q7: How do I set network priority or default network in Docker Compose?
 
-Composeはサービスの最初に定義されたネットワークをデフォルトのルーティング先として使用する。`priority` オプションで明示的に優先度を設定できる。
+Compose uses the first defined network in the service as the default routing destination. You can explicitly set priority with the `priority` option.
 
 ```yaml
 services:
@@ -1686,9 +1686,9 @@ networks:
     internal: true
 ```
 
-### Q8: ネットワーク帯域幅の制限はどう設定する？
+### Q8: How do I configure network bandwidth limits?
 
-Docker単体ではネットワーク帯域幅制限のネイティブサポートは限定的だが、`tc`（Traffic Control）コマンドやDockerの `--network-bandwidth` オプション（Docker Swarmモード）で制御可能。
+Docker alone has limited native support for network bandwidth limiting, but you can control it with the `tc` (Traffic Control) command or Docker's `--network-bandwidth` option (Docker Swarm mode).
 
 ```bash
 # tc（Traffic Control）によるコンテナの帯域幅制限
@@ -1714,9 +1714,9 @@ services:
           memory: 256M
 ```
 
-### Q9: IPv6ネットワークの設定方法は？
+### Q9: How do I configure IPv6 networking?
 
-Docker daemon でIPv6を有効化し、固定サブネットを割り当てる。
+Enable IPv6 in the Docker daemon and assign a fixed subnet.
 
 ```json
 {
@@ -1743,53 +1743,53 @@ services:
         ipv6_address: "2001:db8:2::10"
 ```
 
-### Q10: Docker Desktop for Mac/Windowsでのネットワーク制限事項は？
+### Q10: What are the networking limitations on Docker Desktop for Mac/Windows?
 
-Docker Desktop はLinux VMの中でDockerを実行するため、いくつかの制限がある。
+Docker Desktop runs Docker inside a Linux VM, so there are some limitations.
 
-| 機能 | Linux | macOS | Windows |
-|------|-------|-------|---------|
-| host ネットワーク | 完全サポート | 部分的（VM内のhost） | 部分的 |
-| macvlan | 完全サポート | 非サポート | 非サポート |
-| ホストからコンテナIP直接アクセス | 可能 | 不可（ポートマッピング必須） | 不可 |
-| `host.docker.internal` | 要設定 | デフォルト有効 | デフォルト有効 |
-| ネットワークパフォーマンス | ネイティブ | VMオーバーヘッドあり | VMオーバーヘッドあり |
+| Feature | Linux | macOS | Windows |
+|---------|-------|-------|---------|
+| host network | Full support | Partial (host inside VM) | Partial |
+| macvlan | Full support | Not supported | Not supported |
+| Direct container IP access from host | Available | Not available (port mapping required) | Not available |
+| `host.docker.internal` | Requires setup | Enabled by default | Enabled by default |
+| Network performance | Native | VM overhead present | VM overhead present |
 
-macOS/Windowsでは `host.docker.internal` を使ってホストマシンにアクセスし、ポートマッピングでコンテナに外部からアクセスする。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| bridge | 単一ホストのデフォルトドライバー。ユーザー定義bridgeを推奨 |
-| host | ポートマッピング不要で最高性能。Linuxのみフルサポート |
-| overlay | マルチホスト通信。Swarm/Kubernetesで使用 |
-| macvlan | 物理ネットワーク直結。レガシーアプリ統合に使用 |
-| ポートマッピング | `-p host:container` でホストに公開。`127.0.0.1` バインド推奨 |
-| DNS | ユーザー定義ネットワーク内で自動名前解決。127.0.0.11 |
-| サービスディスカバリ | エイリアスでラウンドロビンDNS。Compose連携で簡便 |
-| ネットワーク分離 | `internal: true` で外部遮断。層ごとに分離が鉄則 |
-| トラブルシューティング | netshoot コンテナで診断。`docker network inspect` で確認 |
+On macOS/Windows, use `host.docker.internal` to access the host machine, and use port mapping to access containers from outside.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [ボリュームとストレージ](./01-volume-and-storage.md) -- データ永続化とストレージドライバー
-- [リバースプロキシ](./02-reverse-proxy.md) -- Nginx/TraefikによるHTTPルーティング
-- [コンテナセキュリティ](../06-security/00-container-security.md) -- ネットワーク分離を含む包括的セキュリティ
+| Item | Key Points |
+|------|------------|
+| bridge | Default driver for single host. User-defined bridge is recommended |
+| host | Best performance without port mapping. Full support on Linux only |
+| overlay | Multi-host communication. Used with Swarm/Kubernetes |
+| macvlan | Direct physical network connection. Used for legacy app integration |
+| Port mapping | Expose to host with `-p host:container`. Binding to `127.0.0.1` recommended |
+| DNS | Automatic name resolution within user-defined networks. 127.0.0.11 |
+| Service discovery | Round-robin DNS with aliases. Simplified with Compose integration |
+| Network isolation | Block external access with `internal: true`. Isolating by layer is the golden rule |
+| Troubleshooting | Diagnose with the netshoot container. Check with `docker network inspect` |
 
 ---
 
-## 参考文献
+## Guides to Read Next
 
-1. Docker公式ドキュメント "Networking overview" -- https://docs.docker.com/network/
+- [Volumes and Storage](./01-volume-and-storage.md) -- Data persistence and storage drivers
+- [Reverse Proxy](./02-reverse-proxy.md) -- HTTP routing with Nginx/Traefik
+- [Container Security](../06-security/00-container-security.md) -- Comprehensive security including network isolation
+
+---
+
+## References
+
+1. Docker official documentation "Networking overview" -- https://docs.docker.com/network/
 2. Nigel Poulton (2023) *Docker Deep Dive*, Chapter 11: Docker Networking
 3. Adrian Mouat (2023) *Using Docker*, Chapter 10: Networking and Service Discovery
-4. Docker公式ドキュメント "Use bridge networks" -- https://docs.docker.com/network/bridge/
-5. Docker公式ドキュメント "Use overlay networks" -- https://docs.docker.com/network/overlay/
-6. Docker公式ドキュメント "Use macvlan networks" -- https://docs.docker.com/network/macvlan/
+4. Docker official documentation "Use bridge networks" -- https://docs.docker.com/network/bridge/
+5. Docker official documentation "Use overlay networks" -- https://docs.docker.com/network/overlay/
+6. Docker official documentation "Use macvlan networks" -- https://docs.docker.com/network/macvlan/
 7. Linux Foundation "Container Networking From Scratch" -- https://www.youtube.com/watch?v=6v_BDHIgOY8
-8. Docker公式ドキュメント "Networking with standalone containers" -- https://docs.docker.com/network/network-tutorial-standalone/
+8. Docker official documentation "Networking with standalone containers" -- https://docs.docker.com/network/network-tutorial-standalone/
