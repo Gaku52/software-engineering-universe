@@ -1,117 +1,118 @@
-# モニタリング
+# Monitoring
 
-> Prometheus / Grafana / cAdvisor / Lokiを組み合わせて、Dockerコンテナ環境の包括的な監視・ログ集約・アラート基盤を構築する。
-
----
-
-## この章で学ぶこと
-
-1. **Prometheus + cAdvisorによるメトリクス収集**のアーキテクチャと設定を理解する
-2. **Grafanaダッシュボード**の構築とアラートルールの設定を習得する
-3. **Loki / ELKによるログ集約**と相関分析の手法を把握する
-4. **アプリケーションメトリクスの計装**（Node.js / Python / Go）の実装パターンを習得する
-5. **SLI/SLO に基づくアラート設計**と運用のベストプラクティスを理解する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [本番ベストプラクティス](./00-production-best-practices.md) の内容を理解していること
+> Build a comprehensive monitoring, log aggregation, and alerting foundation for Docker container environments by combining Prometheus, Grafana, cAdvisor, and Loki.
 
 ---
 
-## 1. コンテナモニタリングの全体像
+## What You Will Learn
 
-### 監視スタックのアーキテクチャ
+1. Understand the architecture and configuration of **metrics collection with Prometheus + cAdvisor**
+2. Master **Grafana dashboard** construction and alert rule configuration
+3. Learn **log aggregation and correlation analysis** techniques with Loki / ELK
+4. Master implementation patterns for **application metrics instrumentation** (Node.js / Python / Go)
+5. Understand **alert design based on SLI/SLO** and operational best practices
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Production Best Practices](./00-production-best-practices.md)
+
+---
+
+## 1. Overview of Container Monitoring
+
+### Monitoring Stack Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Docker Host                             │
 │                                                             │
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐                     │
-│  │  App A  │ │  App B  │ │  App C  │  ← 監視対象          │
+│  │  App A  │ │  App B  │ │  App C  │  ← Monitoring targets │
 │  └────┬────┘ └────┬────┘ └────┬────┘                     │
 │       │           │           │                             │
 │  ┌────▼───────────▼───────────▼────┐                      │
-│  │          cAdvisor                │  ← コンテナメトリクス │
-│  │  CPU, Memory, Network, Disk I/O │     収集              │
+│  │          cAdvisor                │  ← Container metrics  │
+│  │  CPU, Memory, Network, Disk I/O │     collection        │
 │  └──────────────┬──────────────────┘                      │
 │                 │ :8080/metrics                             │
 │  ┌──────────────▼──────────────────┐                      │
-│  │          Prometheus             │  ← メトリクス保存     │
-│  │  Pull型メトリクス収集            │     クエリエンジン    │
-│  │  PromQL クエリ                  │                      │
+│  │          Prometheus             │  ← Metrics storage    │
+│  │  Pull-based metrics collection  │     query engine      │
+│  │  PromQL queries                 │                      │
 │  └──────┬───────────┬──────────────┘                      │
 │         │           │                                      │
 │  ┌──────▼──────┐ ┌──▼──────────────┐                     │
 │  │  Grafana    │ │  Alertmanager   │                     │
-│  │ ダッシュボード│ │  Slack/Email    │                     │
+│  │  Dashboard  │ │  Slack/Email    │                     │
 │  │  :3000      │ │  PagerDuty      │                     │
 │  └─────────────┘ └─────────────────┘                     │
 │                                                             │
 │  ┌─────────────────────────────────┐                      │
-│  │          Loki                   │  ← ログ集約          │
-│  │  ログのインデックス・検索        │                      │
+│  │          Loki                   │  ← Log aggregation   │
+│  │  Log indexing and search        │                      │
 │  └──────────────┬──────────────────┘                      │
 │                 │                                          │
 │  ┌──────────────▼──────────────────┐                      │
-│  │        Promtail / Alloy         │  ← ログ収集エージェント│
+│  │        Promtail / Alloy         │  ← Log collection agent│
 │  └─────────────────────────────────┘                      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 監視の3本柱（Observability）
+### The Three Pillars of Observability
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   Observability（可観測性）                   │
+│                        Observability                        │
 │                                                             │
 │  ┌─────────────────┐ ┌─────────────┐ ┌─────────────────┐ │
 │  │    Metrics      │ │    Logs     │ │    Traces       │ │
-│  │   メトリクス     │ │   ログ      │ │   トレース      │ │
 │  │                 │ │             │ │                 │ │
-│  │ ・CPU/Memory    │ │ ・構造化ログ │ │ ・リクエスト追跡│ │
-│  │ ・リクエスト数  │ │ ・エラーログ │ │ ・レイテンシ分析│ │
-│  │ ・レスポンス時間│ │ ・監査ログ  │ │ ・依存関係マップ│ │
-│  │                 │ │             │ │                 │ │
+│  │ ・CPU/Memory    │ │ ・Structured│ │ ・Request       │ │
+│  │ ・Request count │ │   logs      │ │   tracking      │ │
+│  │ ・Response time │ │ ・Error logs│ │ ・Latency       │ │
+│  │                 │ │ ・Audit logs│ │   analysis      │ │
+│  │                 │ │             │ │ ・Dependency    │ │
+│  │                 │ │             │ │   maps          │ │
 │  │ Prometheus      │ │ Loki/ELK   │ │ Jaeger/Tempo   │ │
 │  │ cAdvisor        │ │ Promtail   │ │ OpenTelemetry  │ │
 │  └─────────────────┘ └─────────────┘ └─────────────────┘ │
 │                                                             │
-│  全てを Grafana で統合的に可視化・相関分析                    │
+│  Unified visualization and correlation analysis via Grafana  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 監視ツール比較表
+### Monitoring Tool Comparison
 
-| ツール | 種類 | 役割 | データ型 | 特徴 |
+| Tool | Type | Role | Data Type | Features |
 |--------|------|------|---------|------|
-| Prometheus | メトリクス | 時系列データ収集・保存 | 数値 | Pull型、PromQL |
-| cAdvisor | エクスポーター | コンテナリソースメトリクス | 数値 | Googleが開発 |
-| Grafana | 可視化 | ダッシュボード・アラート | - | 多データソース対応 |
-| Alertmanager | アラート | 通知ルーティング・抑制 | - | グルーピング、サイレンス |
-| Loki | ログ | ログ集約・検索 | テキスト | Prometheusライクなラベル |
-| Promtail | ログ収集 | ログ転送エージェント | テキスト | Loki専用 |
-| Grafana Alloy | 統合エージェント | メトリクス/ログ/トレース収集 | 全種 | Promtail後継、OpenTelemetry対応 |
-| ELK Stack | ログ | ログ集約・全文検索 | テキスト | 高機能、リソース消費大 |
-| Jaeger | トレース | 分散トレーシング | トレース | CNCF卒業プロジェクト |
-| Grafana Tempo | トレース | 分散トレーシング | トレース | 大量トレースに最適化 |
+| Prometheus | Metrics | Time-series data collection and storage | Numeric | Pull-based, PromQL |
+| cAdvisor | Exporter | Container resource metrics | Numeric | Developed by Google |
+| Grafana | Visualization | Dashboards and alerts | - | Multi-datasource support |
+| Alertmanager | Alerting | Notification routing and suppression | - | Grouping, silences |
+| Loki | Logs | Log aggregation and search | Text | Prometheus-like labels |
+| Promtail | Log collection | Log forwarding agent | Text | Loki-specific |
+| Grafana Alloy | Unified agent | Metrics/logs/traces collection | All types | Promtail successor, OpenTelemetry support |
+| ELK Stack | Logs | Log aggregation and full-text search | Text | Feature-rich, high resource consumption |
+| Jaeger | Traces | Distributed tracing | Traces | CNCF graduated project |
+| Grafana Tempo | Traces | Distributed tracing | Traces | Optimized for high-volume traces |
 
 ---
 
-## 2. Prometheus + cAdvisor によるメトリクス収集
+## 2. Metrics Collection with Prometheus + cAdvisor
 
-### コード例1: 監視スタックの Docker Compose 構成
+### Code Example 1: Docker Compose Configuration for the Monitoring Stack
 
 ```yaml
 # docker-compose.monitoring.yml
 version: "3.9"
 
 services:
-  # === メトリクス収集 ===
+  # === Metrics collection ===
   prometheus:
     image: prom/prometheus:v2.51.0
     container_name: prometheus
@@ -137,7 +138,7 @@ services:
           memory: 2G
           cpus: "1.0"
 
-  # === コンテナメトリクス ===
+  # === Container metrics ===
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: cadvisor
@@ -159,7 +160,7 @@ services:
           memory: 512M
           cpus: "0.5"
 
-  # === Node Exporter（ホストメトリクス） ===
+  # === Node Exporter (host metrics) ===
   node-exporter:
     image: prom/node-exporter:v1.8.0
     container_name: node-exporter
@@ -178,7 +179,7 @@ services:
           memory: 128M
           cpus: "0.25"
 
-  # === ダッシュボード ===
+  # === Dashboard ===
   grafana:
     image: grafana/grafana:10.4.0
     container_name: grafana
@@ -204,7 +205,7 @@ services:
           memory: 512M
           cpus: "0.5"
 
-  # === アラートマネージャー ===
+  # === Alert Manager ===
   alertmanager:
     image: prom/alertmanager:v0.27.0
     container_name: alertmanager
@@ -231,7 +232,7 @@ volumes:
   alertmanager-data:
 ```
 
-### コード例2: Prometheus設定ファイル
+### Code Example 2: Prometheus Configuration File
 
 ```yaml
 # prometheus/prometheus.yml
@@ -311,7 +312,7 @@ scrape_configs:
         target_label: job
 ```
 
-### Docker Engine メトリクスの有効化
+### Enabling Docker Engine Metrics
 
 ```json
 // /etc/docker/daemon.json
@@ -333,9 +334,9 @@ curl http://localhost:9323/metrics | head -20
 
 ---
 
-## 3. アラートルール
+## 3. Alert Rules
 
-### コード例3: Prometheus アラートルール
+### Code Example 3: Prometheus Alert Rules
 
 ```yaml
 # prometheus/alert-rules.yml
@@ -501,7 +502,7 @@ groups:
           summary: "ネットワークエラーが検出されました"
 ```
 
-### Alertmanager設定
+### Alertmanager Configuration
 
 ```yaml
 # alertmanager/alertmanager.yml
@@ -603,7 +604,7 @@ receivers:
         send_resolved: true
 ```
 
-### アラートのサイレンス（一時抑制）
+### Alert Silencing (Temporary Suppression)
 
 ```bash
 # メンテナンス中にアラートを一時的に抑制
@@ -626,9 +627,9 @@ curl http://localhost:9093/api/v2/silences?silenced=false
 
 ---
 
-## 4. Grafana ダッシュボード
+## 4. Grafana Dashboard
 
-### コード例4: Grafana プロビジョニング設定
+### Code Example 4: Grafana Provisioning Configuration
 
 ```yaml
 # grafana/provisioning/datasources/datasources.yml
@@ -677,7 +678,7 @@ providers:
       foldersFromFilesStructure: true
 ```
 
-### Grafana ダッシュボード JSON（プロビジョニング用）
+### Grafana Dashboard JSON (for Provisioning)
 
 ```json
 {
@@ -735,71 +736,71 @@ providers:
 }
 ```
 
-### 重要なPromQLクエリ集
+### Key PromQL Query Reference
 
 ```promql
-# === CPU メトリクス ===
-# コンテナ別CPU使用率（%）
+# === CPU Metrics ===
+# CPU usage per container (%)
 sum(rate(container_cpu_usage_seconds_total{name=~".+"}[5m])) by (name) * 100
 
-# コンテナCPU使用率（リミット比）
+# Container CPU usage (relative to limit)
 sum(rate(container_cpu_usage_seconds_total{name=~".+"}[5m])) by (name)
 / (container_spec_cpu_quota{name=~".+"} / container_spec_cpu_period{name=~".+"}) * 100
 
-# ホスト全体のCPU使用率
+# Overall host CPU usage
 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
 
-# === メモリメトリクス ===
-# コンテナ別メモリ使用量
+# === Memory Metrics ===
+# Memory usage per container
 container_memory_usage_bytes{name=~".+"} / 1024 / 1024  # MB単位
 
-# メモリ使用率（%）
+# Memory usage (%)
 container_memory_usage_bytes{name=~".+"} / container_spec_memory_limit_bytes{name=~".+"} * 100
 
-# メモリのワーキングセット（キャッシュ除外）
+# Memory working set (cache excluded)
 container_memory_working_set_bytes{name=~".+"} / 1024 / 1024
 
-# ホスト利用可能メモリ
+# Host available memory
 node_memory_MemAvailable_bytes / 1024 / 1024 / 1024  # GB単位
 
-# === ネットワークメトリクス ===
-# 受信バイト数（毎秒）
+# === Network Metrics ===
+# Bytes received per second
 sum(rate(container_network_receive_bytes_total{name=~".+"}[5m])) by (name)
 
-# 送信バイト数（毎秒）
+# Bytes transmitted per second
 sum(rate(container_network_transmit_bytes_total{name=~".+"}[5m])) by (name)
 
-# ネットワークエラー率
+# Network error rate
 sum(rate(container_network_receive_errors_total{name=~".+"}[5m])) by (name)
 
-# === ディスク I/O ===
-# 読み取りバイト数（毎秒）
+# === Disk I/O ===
+# Read bytes per second
 sum(rate(container_fs_reads_bytes_total{name=~".+"}[5m])) by (name)
 
-# 書き込みバイト数（毎秒）
+# Write bytes per second
 sum(rate(container_fs_writes_bytes_total{name=~".+"}[5m])) by (name)
 
-# === アプリケーションメトリクス ===
-# リクエストレート（RPS）
+# === Application Metrics ===
+# Request rate (RPS)
 sum(rate(http_requests_total[5m])) by (service)
 
-# エラーレート（5xx %）
+# Error rate (5xx %)
 sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (service)
 / sum(rate(http_requests_total[5m])) by (service) * 100
 
-# レスポンスタイム（P50, P95, P99）
+# Response time (P50, P95, P99)
 histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))
 histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
 histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))
 
-# Apdex スコア（満足: <0.5s, 許容: <2s）
+# Apdex score (satisfied: <0.5s, tolerating: <2s)
 (
   sum(rate(http_request_duration_seconds_bucket{le="0.5"}[5m])) +
   sum(rate(http_request_duration_seconds_bucket{le="2.0"}[5m]))
 ) / 2 / sum(rate(http_request_duration_seconds_count[5m]))
 ```
 
-### ダッシュボードレイアウト
+### Dashboard Layout
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -844,24 +845,24 @@ histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))
 
 ---
 
-## 5. ログ集約
+## 5. Log Aggregation
 
-### Loki vs ELK 比較表
+### Loki vs ELK Comparison
 
-| 特性 | Grafana Loki | ELK Stack |
+| Characteristic | Grafana Loki | ELK Stack |
 |------|-------------|-----------|
-| アーキテクチャ | 軽量（ラベルのみインデックス） | 全文インデックス |
-| リソース消費 | 低い | 高い（Elasticsearch） |
-| クエリ言語 | LogQL | KQL / Lucene |
-| スケーラビリティ | 水平スケーリング容易 | 管理が複雑 |
-| Grafana連携 | ネイティブ | プラグイン |
-| セットアップ | 簡単 | 複雑 |
-| 検索速度 | ラベルベース高速 | 全文検索高速 |
-| 適用規模 | 中小〜中規模 | 大規模 |
-| ストレージコスト | 低い（圧縮効率良好） | 高い（インデックス+データ） |
-| マルチテナント | 対応 | 対応（X-Pack） |
+| Architecture | Lightweight (labels-only index) | Full-text index |
+| Resource consumption | Low | High (Elasticsearch) |
+| Query language | LogQL | KQL / Lucene |
+| Scalability | Easy horizontal scaling | Complex management |
+| Grafana integration | Native | Plugin |
+| Setup | Simple | Complex |
+| Search speed | Fast label-based | Fast full-text search |
+| Scale | Small to medium | Large |
+| Storage cost | Low (good compression) | High (index + data) |
+| Multi-tenancy | Supported | Supported (X-Pack) |
 
-### コード例5: Loki + Promtail構成
+### Code Example 5: Loki + Promtail Configuration
 
 ```yaml
 # docker-compose.logging.yml
@@ -1020,59 +1021,59 @@ scrape_configs:
           replace: '${1}:"***REDACTED***"'
 ```
 
-### LogQLクエリ例
+### LogQL Query Examples
 
 ```logql
-# === 基本的なフィルタリング ===
-# 特定コンテナのログを表示
+# === Basic Filtering ===
+# Display logs for a specific container
 {container="api"} |= "error"
 
-# 正規表現による検索
+# Regex-based search
 {service="api"} |~ "status=(4|5)[0-9]{2}"
 
-# 複数条件のAND
+# Multiple AND conditions
 {service="api"} |= "error" != "health_check"
 
-# === JSON構造化ログ ===
-# JSONフィールドでフィルタリング
+# === JSON Structured Logs ===
+# Filter by JSON field
 {service="api"} | json | level="error" | status >= 500
 
-# 特定フィールドの抽出
+# Extract specific fields
 {service="api"} | json | line_format "{{.method}} {{.path}} {{.status}} {{.duration_ms}}ms"
 
-# === 集計クエリ（メトリクスクエリ） ===
-# エラーログの発生率
+# === Aggregation Queries (Metric Queries) ===
+# Error log occurrence rate
 rate({service="api"} |= "error" [5m])
 
-# ログレベル別の件数
+# Count by log level
 sum by (level) (count_over_time({service="api"} | json [5m]))
 
-# レスポンスタイムの統計
+# Response time statistics
 {service="api"} | json | unwrap duration_ms | quantile_over_time(0.95, [5m])
 
-# HTTPステータスコード別の集計
+# Aggregation by HTTP status code
 sum by (status) (count_over_time({service="api"} | json | status != "" [1h]))
 
-# サービス別のエラー率
+# Error rate by service
 sum(rate({service=~".+"} | json | level="error" [5m])) by (service)
 / sum(rate({service=~".+"} [5m])) by (service) * 100
 
-# === トラブルシューティング ===
-# 特定リクエストIDのログを追跡
+# === Troubleshooting ===
+# Track logs by specific request ID
 {project="myapp"} | json | request_id="abc-123"
 
-# 直近のOOMエラー
+# Recent OOM errors
 {container=~".+"} |= "OOM" or {container=~".+"} |= "out of memory"
 
-# スロークエリの検出
+# Detect slow queries
 {service="api"} | json | duration_ms > 5000
 ```
 
 ---
 
-## 6. アプリケーションメトリクスの計装
+## 6. Application Metrics Instrumentation
 
-### コード例6: Prometheusクライアントライブラリ（Node.js）
+### Code Example 6: Prometheus Client Library (Node.js)
 
 ```javascript
 // metrics.js - Prometheus メトリクスの計装
@@ -1135,7 +1136,7 @@ async function metricsHandler(req, res) {
 module.exports = { metricsMiddleware, metricsHandler, dbQueryDuration };
 ```
 
-### コード例7: Python（FastAPI）の計装
+### Code Example 7: Python (FastAPI) Instrumentation
 
 ```python
 # metrics.py - FastAPI + Prometheus
@@ -1219,7 +1220,7 @@ async def metrics_endpoint(request: Request):
     )
 ```
 
-### コード例8: Go の計装
+### Code Example 8: Go Instrumentation
 
 ```go
 // metrics.go - Go + Prometheus
@@ -1261,7 +1262,7 @@ var (
     )
 )
 
-// MetricsMiddleware は HTTP ハンドラーをラップしてメトリクスを記録する
+// MetricsMiddleware wraps an HTTP handler to record metrics
 func MetricsMiddleware(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         activeConnections.Inc()
@@ -1280,7 +1281,7 @@ func MetricsMiddleware(next http.Handler) http.Handler {
     })
 }
 
-// MetricsHandler は /metrics エンドポイントのハンドラー
+// MetricsHandler is the handler for the /metrics endpoint
 func MetricsHandler() http.Handler {
     return promhttp.Handler()
 }
@@ -1298,9 +1299,9 @@ func (rw *responseWriter) WriteHeader(code int) {
 
 ---
 
-## 7. 分散トレーシング（OpenTelemetry）
+## 7. Distributed Tracing (OpenTelemetry)
 
-### Docker環境でのトレーシング構成
+### Tracing Configuration in a Docker Environment
 
 ```yaml
 # docker-compose.tracing.yml
@@ -1321,7 +1322,7 @@ services:
     networks:
       - monitoring
 
-  # Grafana Tempo（トレースバックエンド）
+  # Grafana Tempo (trace backend)
   tempo:
     image: grafana/tempo:2.4.0
     container_name: tempo
@@ -1376,9 +1377,9 @@ service:
 
 ---
 
-## 8. SLI/SLO に基づくアラート設計
+## 8. Alert Design Based on SLI/SLO
 
-### SLI（Service Level Indicator）の定義
+### Defining SLIs (Service Level Indicators)
 
 ```yaml
 # prometheus/slo-rules.yml
@@ -1414,7 +1415,7 @@ groups:
           avg_over_time(sli:availability:ratio[30d])
 ```
 
-### SLI/SLOダッシュボードの設計
+### SLI/SLO Dashboard Design
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -1425,7 +1426,7 @@ groups:
 │  │ SLO     │ │ Current  │ │ Error    │ │ Remaining│  │
 │  │ Target  │ │ Status   │ │ Budget   │ │ Budget   │  │
 │  │ 99.9%   │ │ 99.95%   │ │ 43.2min  │ │ 31.2min  │  │
-│  │         │ │ (達成中)  │ │ /月      │ │ 残り     │  │
+│  │         │ │(Achieved)│ │ /month   │ │remaining │  │
 │  └─────────┘ └──────────┘ └──────────┘ └──────────┘  │
 │                                                         │
 │  Availability over Time (30d)                           │
@@ -1444,9 +1445,9 @@ groups:
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: モニタリングなしの本番運用
+### Anti-Pattern 1: Running Production Without Monitoring
 
 ```yaml
 # NG: アプリケーションだけデプロイ
@@ -1469,9 +1470,9 @@ services:
     image: gcr.io/cadvisor/cadvisor:latest
 ```
 
-**なぜ問題か**: 「観測できないものは管理できない」。障害検知が遅延し、MTTR（平均修復時間）が増大する。
+**Why it is a problem**: "You cannot manage what you cannot observe." Incident detection is delayed, which increases MTTR (Mean Time to Repair).
 
-### アンチパターン2: アラートの設定不足または過剰
+### Anti-Pattern 2: Insufficient or Excessive Alert Configuration
 
 ```yaml
 # NG: 閾値が低すぎてアラート疲れ
@@ -1487,9 +1488,9 @@ services:
     severity: warning              # 重要度を適切に設定
 ```
 
-**なぜ問題か**: アラート過多は「アラート疲れ」を引き起こし、本当に重要なアラートが見過ごされる。逆に設定不足では障害を検知できない。
+**Why it is a problem**: Too many alerts cause "alert fatigue," causing truly important alerts to be overlooked. Conversely, insufficient configuration means failures go undetected.
 
-### アンチパターン3: カーディナリティの爆発
+### Anti-Pattern 3: Cardinality Explosion
 
 ```yaml
 # NG: 高カーディナリティラベル
@@ -1503,77 +1504,77 @@ services:
   # → 有限の組み合わせに制限
 ```
 
-**なぜ問題か**: Prometheusは各ラベル組み合わせごとに時系列データを作成する。ユーザーIDのような高カーディナリティラベルを使うと、メモリとストレージが爆発的に増加する。
+**Why it is a problem**: Prometheus creates a time series for each label combination. Using high-cardinality labels such as user IDs causes memory and storage to increase explosively.
 
 ---
 
 ## FAQ
 
-### Q1: PrometheusのPull型とPush型の違いは？
+### Q1: What is the difference between Prometheus Pull-based and Push-based approaches?
 
-Prometheusはデフォルトで**Pull型**（サーバーがターゲットからメトリクスを取得する）を採用。一方、短命なバッチジョブ等には**Pushgateway**を使ってPush型も可能。Pull型の利点はターゲットの死活監視が自動的にできること、Pushgatewayが単一障害点にならないよう注意が必要。
+Prometheus uses a **pull-based** model by default (the server fetches metrics from targets). For short-lived batch jobs and similar use cases, **Pushgateway** enables a push-based approach as well. The advantage of pull-based is that target health checks work automatically. Care must be taken to avoid Pushgateway becoming a single point of failure.
 
-### Q2: メトリクスの保持期間はどの程度が適切か？
+### Q2: How long should metrics be retained?
 
-一般的な指針:
-- **高解像度（15秒間隔）**: 7-15日
-- **中解像度（1分間隔にダウンサンプリング）**: 30-90日
-- **低解像度（5分間隔）**: 1年以上
+General guidelines:
+- **High resolution (15-second intervals)**: 7-15 days
+- **Medium resolution (downsampled to 1-minute intervals)**: 30-90 days
+- **Low resolution (5-minute intervals)**: 1 year or more
 
-ストレージコストと分析需要のバランスで決定する。長期保存にはThanosやCortexなどのリモートストレージを検討。
+Determine based on the balance between storage cost and analytical demand. For long-term storage, consider remote storage options such as Thanos or Cortex.
 
-### Q3: cAdvisorとDocker Engine Metricsの違いは？
+### Q3: What is the difference between cAdvisor and Docker Engine Metrics?
 
-cAdvisorはGoogleが開発したコンテナ特化のメトリクス収集ツールで、CPU/メモリ/ネットワーク/ファイルシステムの詳細なメトリクスを提供する。Docker Engine Metricsは実験的機能で、よりシンプルなメトリクスのみ。本番環境ではcAdvisorを推奨。
+cAdvisor is a container-specific metrics collection tool developed by Google that provides detailed metrics for CPU, memory, network, and filesystem. Docker Engine Metrics is an experimental feature offering only simpler metrics. cAdvisor is recommended for production environments.
 
-### Q4: Grafana Alloy と Promtail の違いは？
+### Q4: What is the difference between Grafana Alloy and Promtail?
 
-Grafana Alloyは Promtailの後継で、メトリクス・ログ・トレースを統一的に収集できる。OpenTelemetry Protocol (OTLP) にネイティブ対応しており、新規構築ではAlloyを推奨。Promtailはログ収集専用のため、既存環境で安定稼働しているならそのまま使い続けても問題ない。
+Grafana Alloy is the successor to Promtail and can collect metrics, logs, and traces in a unified manner. It has native support for the OpenTelemetry Protocol (OTLP), so Alloy is recommended for new setups. Promtail is dedicated to log collection, so if it is running stably in an existing environment, there is no problem continuing to use it.
 
-### Q5: モニタリングスタック自体のリソース消費はどの程度か？
+### Q5: How much resource does the monitoring stack itself consume?
 
-目安（中規模環境: コンテナ20-50台）:
-- Prometheus: 1-2GB RAM, 1 CPU, 10-50GB ストレージ/月
-- Grafana: 256-512MB RAM, 0.5 CPU
-- cAdvisor: 256-512MB RAM, 0.5 CPU
-- Loki: 512MB-1GB RAM, 1 CPU
-- Promtail: 128-256MB RAM, 0.25 CPU
+Estimates (medium-sized environment: 20-50 containers):
+- Prometheus: 1-2 GB RAM, 1 CPU, 10-50 GB storage/month
+- Grafana: 256-512 MB RAM, 0.5 CPU
+- cAdvisor: 256-512 MB RAM, 0.5 CPU
+- Loki: 512 MB-1 GB RAM, 1 CPU
+- Promtail: 128-256 MB RAM, 0.25 CPU
 
-合計: 約2.5-4.5GB RAM。監視対象の5-10%程度のリソースが目安。
+Total: approximately 2.5-4.5 GB RAM. A rough guide is 5-10% of the monitored workload's resources.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| Prometheus | Pull型メトリクス収集。PromQLで柔軟なクエリ |
-| cAdvisor | コンテナリソースメトリクスの収集。必須コンポーネント |
-| Grafana | 統一ダッシュボード。Prometheus/Lokiと連携 |
-| Alertmanager | アラートルーティング。重要度別に通知先を分離 |
-| Loki | 軽量ログ集約。ラベルベースのインデックス |
-| 計装 | アプリにPrometheusクライアントを組み込み。/metricsエンドポイント |
-| アラート設計 | 適切な閾値と持続時間。アラート疲れを防ぐ |
-| SLI/SLO | エラーバジェットに基づくアラート。ビジネス指標と連動 |
-| 分散トレーシング | OpenTelemetry + Tempo/Jaeger でリクエスト追跡 |
+| Prometheus | Pull-based metrics collection. Flexible queries with PromQL |
+| cAdvisor | Container resource metrics collection. An essential component |
+| Grafana | Unified dashboard. Integrates with Prometheus/Loki |
+| Alertmanager | Alert routing. Separate notification destinations by severity |
+| Loki | Lightweight log aggregation. Label-based indexing |
+| Instrumentation | Embed Prometheus client in the application. /metrics endpoint |
+| Alert design | Appropriate thresholds and durations. Prevent alert fatigue |
+| SLI/SLO | Error budget-based alerting. Tied to business metrics |
+| Distributed tracing | Request tracking with OpenTelemetry + Tempo/Jaeger |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [Docker CI/CD](./02-ci-cd-docker.md) -- デプロイパイプラインへの監視統合
-- [Kubernetes基礎](../05-orchestration/01-kubernetes-basics.md) -- K8s環境のモニタリング
-- [本番ベストプラクティス](./00-production-best-practices.md) -- ヘルスチェックとログ戦略
+- [Docker CI/CD](./02-ci-cd-docker.md) -- Monitoring integration into deployment pipelines
+- [Kubernetes Basics](../05-orchestration/01-kubernetes-basics.md) -- Monitoring in Kubernetes environments
+- [Production Best Practices](./00-production-best-practices.md) -- Health checks and logging strategy
 
 ---
 
-## 参考文献
+## References
 
-1. Prometheus公式ドキュメント -- https://prometheus.io/docs/
-2. Grafana Loki公式ドキュメント -- https://grafana.com/docs/loki/latest/
+1. Prometheus Official Documentation -- https://prometheus.io/docs/
+2. Grafana Loki Official Documentation -- https://grafana.com/docs/loki/latest/
 3. Google cAdvisor GitHub -- https://github.com/google/cadvisor
 4. Brian Brazil (2018) *Prometheus: Up & Running*, O'Reilly
 5. Grafana Labs "Docker monitoring with Grafana" -- https://grafana.com/docs/grafana-cloud/monitor-infrastructure/integrations/integration-reference/integration-docker/
-6. OpenTelemetry公式ドキュメント -- https://opentelemetry.io/docs/
+6. OpenTelemetry Official Documentation -- https://opentelemetry.io/docs/
 7. Google SRE Book "Monitoring Distributed Systems" -- https://sre.google/sre-book/monitoring-distributed-systems/
-8. Grafana Alloy公式ドキュメント -- https://grafana.com/docs/alloy/latest/
+8. Grafana Alloy Official Documentation -- https://grafana.com/docs/alloy/latest/
