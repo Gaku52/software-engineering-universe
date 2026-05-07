@@ -1,36 +1,36 @@
-# Docker 基本操作
+# Docker Basic Operations
 
-> イメージの取得からコンテナの起動・停止・削除、ログ確認、コンテナ内操作まで、Docker の日常的な操作を体系的に学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **イメージとコンテナの関係**を理解し、ライフサイクル全体を把握する
-2. **docker run の主要オプション**を使いこなし、目的に応じたコンテナ起動ができる
-3. **ログ確認・コンテナ内操作・リソース管理**の実践的なスキルを身につける
-4. **ネットワーク接続とボリュームマウント**の仕組みを理解し、実務で活用できる
-5. **リソース制限と監視**によりコンテナの安定運用ができる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Docker インストールガイド](./01-docker-install.md) の内容を理解していること
+> A systematic guide covering Docker's everyday operations: pulling images, starting/stopping/deleting containers, viewing logs, and working inside containers.
 
 ---
 
-## 1. イメージとコンテナの関係
+## What You Will Learn
 
-### 1.1 概念モデル
+1. Understand the **relationship between images and containers** and grasp the full lifecycle
+2. Master the **major options of docker run** and launch containers according to your needs
+3. Build practical skills in **log inspection, in-container operations, and resource management**
+4. Understand **network connectivity and volume mounting** and apply them in real-world scenarios
+5. Achieve stable container operation through **resource limits and monitoring**
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Docker Installation Guide](./01-docker-install.md)
+
+---
+
+## 1. Relationship Between Images and Containers
+
+### 1.1 Conceptual Model
 
 ```
 +--------------------------------------------------+
-|                  レジストリ                         |
-|              (Docker Hub 等)                      |
+|                   Registry                        |
+|              (Docker Hub, etc.)                   |
 |  +----------+  +----------+  +----------+        |
 |  | nginx    |  | postgres |  | node     |        |
 |  | :1.25    |  | :16      |  | :20      |        |
@@ -39,43 +39,43 @@
          | docker pull
          v
 +--------------------------------------------------+
-|              ローカルイメージ                       |
+|              Local Images                         |
 |  +--------------------------------------------+  |
-|  |  イメージ = 読み取り専用テンプレート            |  |
-|  |  (レイヤーの積み重ね)                         |  |
+|  |  Image = Read-only template                 |  |
+|  |  (stack of layers)                         |  |
 |  |                                            |  |
-|  |  Layer 3: アプリケーションコード              |  |
-|  |  Layer 2: 依存パッケージ                     |  |
-|  |  Layer 1: ベースOS (alpine等)               |  |
+|  |  Layer 3: Application code                 |  |
+|  |  Layer 2: Dependency packages              |  |
+|  |  Layer 1: Base OS (alpine, etc.)           |  |
 |  +--------------------------------------------+  |
 +--------|-----------------------------------------+
-         | docker run (イメージ + 書き込み可能レイヤー)
+         | docker run (image + writable layer)
          v
 +--------------------------------------------------+
-|              コンテナ (実行中インスタンス)            |
+|              Container (running instance)         |
 |  +--------------------------------------------+  |
-|  |  書き込み可能レイヤー (コンテナ固有)           |  |
+|  |  Writable layer (container-specific)        |  |
 |  |  --------------------------------          |  |
-|  |  イメージレイヤー (読み取り専用・共有)         |  |
+|  |  Image layers (read-only, shared)          |  |
 |  +--------------------------------------------+  |
-|  1つのイメージから複数のコンテナを作成可能          |
+|  Multiple containers can be created from one image|
 +--------------------------------------------------+
 ```
 
-### 1.2 コンテナのライフサイクル
+### 1.2 Container Lifecycle
 
 ```
                 docker create
                      |
                      v
   +--------+    +---------+    docker start    +---------+
-  | 不存在  |--->| Created |------------------>| Running |
+  | None   |--->| Created |------------------>| Running |
   +--------+    +---------+                    +---------+
        ^             |                          |   |   |
        |             |  docker rm               |   |   |
        +-------------+                         |   |   |
        |                                       |   |   |
-       |        docker stop / コンテナ終了       |   |   |
+       |        docker stop / container exit   |   |   |
        |             +-------------------------+   |   |
        |             v                             |   |
        |        +---------+    docker restart      |   |
@@ -91,22 +91,22 @@
                             +----------+  docker unpause
 ```
 
-### 1.3 コンテナの状態一覧
+### 1.3 Container State Reference
 
-| 状態 | 説明 | 遷移元 | 遷移コマンド |
+| State | Description | Transitioned From | Command |
 |---|---|---|---|
-| Created | コンテナが作成されたが未起動 | - | `docker create` |
-| Running | コンテナが実行中 | Created, Stopped, Paused | `docker start`, `docker restart`, `docker unpause` |
-| Paused | プロセスが一時停止中 | Running | `docker pause` |
-| Stopped (Exited) | メインプロセスが終了 | Running | `docker stop`, プロセス終了 |
-| Removing | 削除処理中 | Created, Stopped | `docker rm` |
-| Dead | 異常終了（リソース解放失敗） | Running | 異常発生時 |
+| Created | Container created but not yet started | - | `docker create` |
+| Running | Container is executing | Created, Stopped, Paused | `docker start`, `docker restart`, `docker unpause` |
+| Paused | Process is suspended | Running | `docker pause` |
+| Stopped (Exited) | Main process has exited | Running | `docker stop`, process exit |
+| Removing | Deletion in progress | Created, Stopped | `docker rm` |
+| Dead | Abnormal exit (resource release failed) | Running | On abnormal event |
 
-### 1.4 コンテナ vs 仮想マシン
+### 1.4 Containers vs Virtual Machines
 
 ```
 +-----------------------------------------------+
-|  仮想マシン (VM)          |  コンテナ            |
+|  Virtual Machine (VM)     |  Container         |
 |                          |                     |
 |  +---+ +---+ +---+      |  +---+ +---+ +---+ |
 |  |App| |App| |App|      |  |App| |App| |App| |
@@ -116,96 +116,96 @@
 |  |OS | |OS | |OS |      |  +-----------------+|
 |  +---+ +---+ +---+      |  |   Docker Engine ||
 |  +-------------------+   |  +-----------------+|
-|  |   Hypervisor      |   |  |    ホスト OS     ||
+|  |   Hypervisor      |   |  |    Host OS      ||
 |  +-------------------+   |  +-----------------+|
-|  |    ホスト OS       |   |                     |
+|  |    Host OS        |   |                     |
 |  +-------------------+   |                     |
 |                          |                     |
-|  起動: 数分              |  起動: 数秒           |
-|  サイズ: 数GB            |  サイズ: 数十MB       |
-|  オーバーヘッド: 大       |  オーバーヘッド: 小    |
-|  分離レベル: 高           |  分離レベル: 中       |
+|  Boot: minutes           |  Boot: seconds      |
+|  Size: several GB        |  Size: tens of MB   |
+|  Overhead: high          |  Overhead: low      |
+|  Isolation: high         |  Isolation: medium  |
 +-----------------------------------------------+
 ```
 
 ---
 
-## 2. docker run の基本
+## 2. Basics of docker run
 
-### 2.1 基本構文
+### 2.1 Basic Syntax
 
 ```bash
-docker run [オプション] イメージ名[:タグ] [コマンド] [引数...]
+docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 ```
 
-### 2.2 最もシンプルな実行
+### 2.2 Simplest Execution
 
 ```bash
-# 実行して結果を表示（フォアグラウンド）
+# Run and display result (foreground)
 docker run --rm alpine echo "Hello, Docker!"
 # Hello, Docker!
 
-# --rm: コンテナ終了時に自動削除
-# alpine: 軽量Linuxイメージ（約5MB）
-# echo "Hello, Docker!": コンテナ内で実行するコマンド
+# --rm: automatically remove the container on exit
+# alpine: lightweight Linux image (approx. 5MB)
+# echo "Hello, Docker!": command to run inside the container
 ```
 
-### 2.3 インタラクティブモード
+### 2.3 Interactive Mode
 
 ```bash
-# コンテナ内でシェルを起動
+# Start a shell inside the container
 docker run -it --rm alpine /bin/sh
 
-# -i: 標準入力を開いたままにする (interactive)
-# -t: 疑似TTYを割り当てる (tty)
-# 組み合わせて -it でインタラクティブなシェルになる
+# -i: keep stdin open (interactive)
+# -t: allocate a pseudo-TTY (tty)
+# combined as -it for an interactive shell
 
-# コンテナ内で操作
+# Operations inside the container
 / # ls
 / # cat /etc/os-release
 / # exit
 
-# Ubuntu ベースでインタラクティブ操作
+# Interactive operation on Ubuntu base
 docker run -it --rm ubuntu:22.04 /bin/bash
 root@abc123:/# apt-get update
 root@abc123:/# apt-get install -y curl
 root@abc123:/# curl -s https://httpbin.org/ip
 root@abc123:/# exit
 
-# Python のインタラクティブシェル
+# Python interactive shell
 docker run -it --rm python:3.12-slim python
 >>> print("Hello from Docker!")
 >>> import sys; print(sys.version)
 >>> exit()
 ```
 
-### 2.4 バックグラウンド実行
+### 2.4 Background Execution
 
 ```bash
-# デタッチモードで実行
+# Run in detached mode
 docker run -d --name my-nginx -p 8080:80 nginx:alpine
 
-# -d: バックグラウンドで実行 (detach)
-# --name my-nginx: コンテナに名前を付ける
-# -p 8080:80: ホストのポート8080をコンテナのポート80にマッピング
+# -d: run in the background (detach)
+# --name my-nginx: assign a name to the container
+# -p 8080:80: map host port 8080 to container port 80
 
-# 動作確認
+# Verify operation
 curl http://localhost:8080
 
-# フォアグラウンドに戻す（ログをストリーミング）
+# Return to foreground (stream logs)
 docker attach my-nginx
-# Ctrl+C で停止、Ctrl+P Ctrl+Q でデタッチ
+# Ctrl+C to stop, Ctrl+P Ctrl+Q to detach
 
-# コンテナIDの確認
+# Check container ID
 docker ps
 # CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS          PORTS                  NAMES
 # a1b2c3d4e5f6   nginx:alpine   "/docker-entrypoint.…"   10 seconds ago   Up 9 seconds    0.0.0.0:8080->80/tcp   my-nginx
 ```
 
-### 2.5 環境変数の設定
+### 2.5 Setting Environment Variables
 
 ```bash
-# 環境変数を指定して実行
+# Run with environment variables specified
 docker run -d --name my-db \
     -e POSTGRES_USER=admin \
     -e POSTGRES_PASSWORD=secret123 \
@@ -213,8 +213,8 @@ docker run -d --name my-db \
     -p 5432:5432 \
     postgres:16-alpine
 
-# .env ファイルから読み込み
-# .env ファイル内容:
+# Load from .env file
+# .env file contents:
 # POSTGRES_USER=admin
 # POSTGRES_PASSWORD=secret123
 # POSTGRES_DB=myapp
@@ -223,74 +223,74 @@ docker run -d --name my-db \
     -p 5432:5432 \
     postgres:16-alpine
 
-# 環境変数の確認
+# Confirm environment variables
 docker exec my-db env | grep POSTGRES
 
-# ホストの環境変数を引き継ぐ
+# Inherit environment variables from the host
 export MY_VAR=hello
 docker run --rm -e MY_VAR alpine env | grep MY_VAR
 # MY_VAR=hello
 ```
 
-### 2.6 再起動ポリシー
+### 2.6 Restart Policy
 
 ```bash
-# 常に再起動（手動停止以外）
+# Always restart (except manual stop)
 docker run -d --name always-up \
     --restart unless-stopped \
     nginx:alpine
 
-# 再起動ポリシーの種類
-# no:            再起動しない（デフォルト）
-# on-failure:    異常終了時のみ再起動
-# on-failure:5:  最大5回まで再起動
-# always:        常に再起動（手動停止しても Docker 起動時に再開）
-# unless-stopped: 常に再起動（手動停止時は Docker 起動時に再開しない）
+# Restart policy types
+# no:            do not restart (default)
+# on-failure:    restart only on abnormal exit
+# on-failure:5:  restart up to 5 times
+# always:        always restart (resumes on Docker startup even after manual stop)
+# unless-stopped: always restart (does not resume on Docker startup if manually stopped)
 
-# 再起動ポリシーの変更（実行中のコンテナ）
+# Change restart policy (for a running container)
 docker update --restart unless-stopped my-nginx
 
-# 再起動回数の確認
+# Check restart count
 docker inspect --format '{{.RestartCount}}' my-container
 docker inspect --format '{{.State.StartedAt}}' my-container
 ```
 
-### 2.7 ラベルの活用
+### 2.7 Using Labels
 
 ```bash
-# コンテナにラベルを付与
+# Assign labels to a container
 docker run -d --name web \
     --label env=production \
     --label team=backend \
     --label version=1.2.3 \
     nginx:alpine
 
-# ラベルでフィルタリング
+# Filter by label
 docker ps --filter "label=env=production"
 docker ps --filter "label=team=backend"
 
-# ラベルの確認
+# Inspect labels
 docker inspect --format '{{.Config.Labels}}' web
 # map[env:production team:backend version:1.2.3]
 ```
 
 ---
 
-## 3. ポートマッピング
+## 3. Port Mapping
 
-### 3.1 ポートマッピングの仕組み
+### 3.1 How Port Mapping Works
 
 ```
 +-----------------------------------------------------+
-|                    ホストマシン                        |
+|                    Host Machine                      |
 |                                                     |
-|  ブラウザ ----> localhost:8080 ---+                  |
+|  Browser ----> localhost:8080 ---+                  |
 |                                  |                  |
 |  +-------------------------------|---------+        |
-|  |        Docker ネットワーク      |         |        |
+|  |        Docker Network         |         |        |
 |  |                               v         |        |
 |  |  +----------+  +-----------+           |        |
-|  |  | コンテナA |  | コンテナB  |           |        |
+|  |  | Container A|  | Container B|          |        |
 |  |  | :80      |  | :3000     |           |        |
 |  |  +----------+  +-----------+           |        |
 |  |   8080:80       3000:3000              |        |
@@ -299,178 +299,178 @@ docker inspect --format '{{.Config.Labels}}' web
 ```
 
 ```bash
-# 基本的なポートマッピング
+# Basic port mapping
 docker run -d -p 8080:80 nginx:alpine
-# ホスト:8080 -> コンテナ:80
+# host:8080 -> container:80
 
-# 複数ポートのマッピング
+# Mapping multiple ports
 docker run -d -p 8080:80 -p 8443:443 nginx:alpine
 
-# ランダムポートの割り当て
+# Random port assignment
 docker run -d -P nginx:alpine
 docker port $(docker ps -q -l)
 # 0.0.0.0:32768->80/tcp
 
-# 特定のIPにバインド
+# Bind to a specific IP
 docker run -d -p 127.0.0.1:8080:80 nginx:alpine
-# localhost からのみアクセス可能
+# Accessible from localhost only
 
-# UDPポートのマッピング
+# UDP port mapping
 docker run -d -p 5353:53/udp dns-server
 
-# 全インターフェースにバインド（デフォルト）
+# Bind to all interfaces (default)
 docker run -d -p 0.0.0.0:8080:80 nginx:alpine
 
-# IPv6 でバインド
+# Bind with IPv6
 docker run -d -p "[::1]:8080:80" nginx:alpine
 ```
 
-### 3.2 ポートマッピングの確認
+### 3.2 Checking Port Mappings
 
 ```bash
-# コンテナのポートマッピング確認
+# Check container port mappings
 docker port my-nginx
 # 80/tcp -> 0.0.0.0:8080
 
-# 特定のポートの確認
+# Check a specific port
 docker port my-nginx 80
 # 0.0.0.0:8080
 
-# docker ps でポートマッピングを確認
+# Check port mappings with docker ps
 docker ps --format "table {{.Names}}\t{{.Ports}}"
 # NAMES       PORTS
 # my-nginx    0.0.0.0:8080->80/tcp
 
-# ホスト側で使用中のポートを確認
+# Check ports in use on the host
 # macOS
 lsof -i :8080
 # Linux
 ss -tlnp | grep 8080
 ```
 
-### 3.3 ネットワークモード
+### 3.3 Network Modes
 
 ```bash
-# bridge（デフォルト）: 独立したネットワーク名前空間
+# bridge (default): isolated network namespace
 docker run -d --network bridge nginx:alpine
 
-# host: ホストのネットワークを直接使用（Linux のみ）
+# host: use the host's network directly (Linux only)
 docker run -d --network host nginx:alpine
-# ポートマッピング不要、直接 80 番ポートでアクセス
+# No port mapping needed; access directly on port 80
 
-# none: ネットワーク無効
+# none: disable networking
 docker run -d --network none alpine sleep infinity
 
-# ネットワークモードの比較
-# bridge: 分離性あり、ポートマッピング必要、デフォルト
-# host:   分離なし、ポートマッピング不要、高パフォーマンス
-# none:   完全に分離、外部通信不可、セキュリティ重視
+# Network mode comparison
+# bridge: isolated, requires port mapping, default
+# host:   no isolation, no port mapping needed, high performance
+# none:   completely isolated, no external communication, security-focused
 ```
 
 ---
 
-## 4. ボリュームマウント
+## 4. Volume Mounting
 
-### 4.1 マウントの種類
+### 4.1 Types of Mounts
 
 ```
 +------------------------------------------------------+
-|                   マウントの種類                        |
+|                   Types of Mounts                    |
 |                                                      |
-|  1. バインドマウント (Bind Mount)                     |
+|  1. Bind Mount                                       |
 |  +------------------+     +-------------------+      |
-|  | ホストのディレクトリ | --> | コンテナ内パス     |      |
-|  | ./src             |     | /app/src          |      |
-|  +------------------+     +-------------------+      |
-|                                                      |
-|  2. 名前付きボリューム (Named Volume)                  |
-|  +------------------+     +-------------------+      |
-|  | Docker管理領域    | --> | コンテナ内パス     |      |
-|  | my-data          |     | /var/lib/data      |      |
+|  | Host directory   | --> | Path in container |      |
+|  | ./src            |     | /app/src          |      |
 |  +------------------+     +-------------------+      |
 |                                                      |
-|  3. tmpfs マウント                                    |
+|  2. Named Volume                                     |
 |  +------------------+     +-------------------+      |
-|  | メモリ上           | --> | コンテナ内パス     |      |
-|  | (揮発性)          |     | /tmp               |      |
+|  | Docker-managed   | --> | Path in container |      |
+|  | my-data          |     | /var/lib/data     |      |
+|  +------------------+     +-------------------+      |
+|                                                      |
+|  3. tmpfs Mount                                      |
+|  +------------------+     +-------------------+      |
+|  | In memory        | --> | Path in container |      |
+|  | (volatile)       |     | /tmp              |      |
 |  +------------------+     +-------------------+      |
 +------------------------------------------------------+
 ```
 
 ```bash
-# バインドマウント（開発時に最適）
+# Bind mount (best for development)
 docker run -d --name dev-app \
     -v $(pwd)/src:/app/src \
     -p 3000:3000 \
     node:20-alpine
 
-# 名前付きボリューム（データ永続化に最適）
+# Named volume (best for data persistence)
 docker volume create db-data
 docker run -d --name my-db \
     -v db-data:/var/lib/postgresql/data \
     postgres:16-alpine
 
-# 読み取り専用マウント
+# Read-only mount
 docker run -d --name web \
     -v $(pwd)/nginx.conf:/etc/nginx/nginx.conf:ro \
     nginx:alpine
 
-# tmpfs マウント（一時データ・機密データ）
+# tmpfs mount (for temporary/sensitive data)
 docker run -d --name app \
     --tmpfs /tmp:rw,size=100m \
     my-app
 
-# ボリュームの一覧と詳細
+# List and inspect volumes
 docker volume ls
 docker volume inspect db-data
 ```
 
-### 4.2 --mount オプション（推奨構文）
+### 4.2 --mount Option (Recommended Syntax)
 
 ```bash
-# -v 構文（短縮形）
+# -v syntax (shorthand)
 docker run -d -v db-data:/var/lib/postgresql/data postgres:16-alpine
 
-# --mount 構文（推奨、より明確）
+# --mount syntax (recommended, more explicit)
 docker run -d \
     --mount type=volume,source=db-data,target=/var/lib/postgresql/data \
     postgres:16-alpine
 
-# バインドマウントの --mount 構文
+# Bind mount with --mount syntax
 docker run -d \
     --mount type=bind,source=$(pwd)/src,target=/app/src \
     node:20-alpine
 
-# 読み取り専用マウント
+# Read-only mount
 docker run -d \
     --mount type=bind,source=$(pwd)/config.yml,target=/app/config.yml,readonly \
     my-app
 
-# tmpfs の --mount 構文
+# tmpfs with --mount syntax
 docker run -d \
     --mount type=tmpfs,target=/tmp,tmpfs-size=100m \
     my-app
 ```
 
-### 4.3 ボリュームの管理
+### 4.3 Managing Volumes
 
 ```bash
-# ボリュームの作成
+# Create a volume
 docker volume create my-data
 
-# ドライバを指定したボリューム作成
+# Create a volume with a specific driver
 docker volume create --driver local \
     --opt type=nfs \
     --opt o=addr=192.168.1.100,rw \
     --opt device=:/export/data \
     nfs-data
 
-# ボリュームの一覧
+# List volumes
 docker volume ls
 docker volume ls --filter "name=my-"
 docker volume ls --filter "dangling=true"
 
-# ボリュームの詳細
+# Volume details
 docker volume inspect my-data
 # [
 #     {
@@ -484,211 +484,211 @@ docker volume inspect my-data
 #     }
 # ]
 
-# ボリュームの削除
+# Remove a volume
 docker volume rm my-data
 
-# 未使用ボリュームの一括削除
+# Remove all unused volumes
 docker volume prune
 
-# ボリューム間のデータコピー
+# Copy data between volumes
 docker run --rm \
     -v source-vol:/from \
     -v dest-vol:/to \
     alpine sh -c "cp -a /from/. /to/"
 
-# ボリュームのバックアップ
+# Back up a volume
 docker run --rm \
     -v my-data:/data:ro \
     -v $(pwd):/backup \
     alpine tar czf /backup/my-data-backup.tar.gz -C /data .
 
-# バックアップからの復元
+# Restore from backup
 docker run --rm \
     -v my-data:/data \
     -v $(pwd):/backup:ro \
     alpine tar xzf /backup/my-data-backup.tar.gz -C /data
 ```
 
-### 比較表: マウントの種類
+### Comparison: Types of Mounts
 
-| 種類 | データ永続性 | ホストからアクセス | パフォーマンス | 用途 |
+| Type | Data Persistence | Host Access | Performance | Use Case |
 |---|---|---|---|---|
-| バインドマウント | ホストに依存 | 直接可能 | OS依存 | 開発時のソースコード共有 |
-| 名前付きボリューム | Docker管理で永続 | Docker経由 | 高い | データベース、永続データ |
-| 匿名ボリューム | コンテナ削除で孤立 | Docker経由 | 高い | 一時的なデータ |
-| tmpfs | メモリ上（揮発性） | 不可 | 最高 | 機密情報、一時ファイル |
+| Bind Mount | Depends on host | Direct | OS-dependent | Source code sharing during development |
+| Named Volume | Persistent (Docker-managed) | Via Docker | High | Databases, persistent data |
+| Anonymous Volume | Orphaned on container removal | Via Docker | High | Temporary data |
+| tmpfs | In memory (volatile) | Not possible | Highest | Sensitive info, temporary files |
 
 ---
 
-## 5. コンテナ管理
+## 5. Container Management
 
-### 5.1 一覧表示
+### 5.1 Listing Containers
 
 ```bash
-# 実行中のコンテナ一覧
+# List running containers
 docker ps
 
-# 全コンテナ一覧（停止中も含む）
+# List all containers (including stopped)
 docker ps -a
 
-# コンテナIDのみ表示
+# Show container IDs only
 docker ps -q
 
-# フォーマット指定
+# Specify output format
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-# JSON 形式で出力
+# Output in JSON format
 docker ps --format json
 
-# カスタムフォーマット
+# Custom format
 docker ps --format "{{.ID}}: {{.Names}} ({{.Status}}) - {{.Image}}"
 
-# フィルタリング
+# Filter containers
 docker ps --filter "status=exited"
 docker ps --filter "name=my-"
 docker ps --filter "label=env=production"
 docker ps --filter "ancestor=nginx:alpine"
 docker ps --filter "health=healthy"
 
-# 最後に作成されたコンテナ
+# Most recently created container
 docker ps -l
 
-# コンテナの数をカウント
+# Count containers
 docker ps -q | wc -l
 ```
 
-### 5.2 停止と削除
+### 5.2 Stopping and Removing
 
 ```bash
-# コンテナの停止（SIGTERM -> 10秒後 SIGKILL）
+# Stop a container (SIGTERM -> SIGKILL after 10 seconds)
 docker stop my-nginx
 
-# タイムアウトを指定して停止
+# Stop with a specified timeout
 docker stop -t 30 my-nginx
 
-# 複数コンテナの一括停止
+# Stop multiple containers at once
 docker stop my-nginx my-db my-redis
 
-# 強制停止（SIGKILL）
+# Force stop (SIGKILL)
 docker kill my-nginx
 
-# 特定のシグナルを送信
+# Send a specific signal
 docker kill --signal=SIGHUP my-nginx
 
-# コンテナの削除
+# Remove a container
 docker rm my-nginx
 
-# 停止と削除を一度に
+# Stop and remove in one step
 docker rm -f my-nginx
 
-# 停止中の全コンテナを削除
+# Remove all stopped containers
 docker container prune
 
-# 確認なしで削除
+# Remove without confirmation
 docker container prune -f
 
-# 特定条件のコンテナを一括削除
+# Bulk remove containers matching a condition
 docker rm $(docker ps -aq --filter "status=exited")
 docker rm $(docker ps -aq --filter "label=env=test")
 ```
 
-### 5.3 その他の管理操作
+### 5.3 Other Management Operations
 
 ```bash
-# コンテナの再起動
+# Restart a container
 docker restart my-nginx
 
-# コンテナの一時停止と再開
+# Pause and unpause a container
 docker pause my-nginx
 docker unpause my-nginx
 
-# コンテナ名の変更
+# Rename a container
 docker rename my-nginx web-server
 
-# コンテナの詳細情報
+# Detailed container information
 docker inspect my-nginx
 
-# 特定の情報を抽出
+# Extract specific information
 docker inspect --format '{{.NetworkSettings.IPAddress}}' my-nginx
 docker inspect --format '{{.State.Status}}' my-nginx
 docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' my-nginx
 docker inspect --format '{{.HostConfig.Memory}}' my-nginx
 
-# コンテナのプロセス一覧
+# List processes in a container
 docker top my-nginx
 # UID     PID     PPID    C    STIME   TTY   TIME     CMD
 # root    12345   12330   0    10:00   ?     00:00:00 nginx: master process
 # nobody  12346   12345   0    10:00   ?     00:00:00 nginx: worker process
 
-# コンテナの変更差分
+# Show filesystem changes in a container
 docker diff my-nginx
 # A /var/log/nginx/access.log
 # C /run
 # A /run/nginx.pid
 
-# コンテナからホストへファイルコピー
+# Copy file from container to host
 docker cp my-nginx:/etc/nginx/nginx.conf ./nginx.conf
 
-# ホストからコンテナへファイルコピー
+# Copy file from host to container
 docker cp ./custom.conf my-nginx:/etc/nginx/conf.d/
 
-# コンテナを一時停止してファイルコピー
+# Pause container before copying files
 docker pause my-nginx
 docker cp my-nginx:/var/log/nginx/ ./logs/
 docker unpause my-nginx
 
-# コンテナの待機（終了を待つ）
+# Wait for a container to exit
 docker wait my-container
-# 終了コード（0, 1 等）が返る
+# Returns the exit code (0, 1, etc.)
 ```
 
 ---
 
-## 6. ログ管理
+## 6. Log Management
 
-### 6.1 ログの表示
+### 6.1 Displaying Logs
 
 ```bash
-# ログの表示
+# Display logs
 docker logs my-nginx
 
-# リアルタイムでログを追跡（tail -f 相当）
+# Follow logs in real time (equivalent to tail -f)
 docker logs -f my-nginx
 
-# 最新N行のみ表示
+# Show only the last N lines
 docker logs --tail 100 my-nginx
 
-# タイムスタンプ付きで表示
+# Display with timestamps
 docker logs -t my-nginx
 
-# 特定時刻以降のログ
+# Logs since a specific time
 docker logs --since "2024-01-15T10:00:00" my-nginx
-docker logs --since 30m my-nginx  # 30分前から
-docker logs --since 2h my-nginx   # 2時間前から
+docker logs --since 30m my-nginx  # from 30 minutes ago
+docker logs --since 2h my-nginx   # from 2 hours ago
 
-# 特定時刻までのログ
+# Logs until a specific time
 docker logs --until "2024-01-15T12:00:00" my-nginx
 
-# 組み合わせ
+# Combined options
 docker logs -f --tail 50 -t my-nginx
 
-# ログをファイルに出力
+# Output logs to a file
 docker logs my-nginx > nginx.log 2>&1
 docker logs my-nginx 2>/dev/null > stdout.log
 docker logs my-nginx 2>stderr.log >/dev/null
 ```
 
-### 6.2 ログドライバ
+### 6.2 Log Drivers
 
 ```
 +-----------------------------------------------------+
-|              Docker ログドライバ                       |
+|              Docker Log Drivers                      |
 |                                                     |
-|  コンテナ stdout/stderr                               |
+|  Container stdout/stderr                             |
 |       |                                             |
 |       v                                             |
 |  +------------------+                               |
-|  | ログドライバ       |                               |
+|  | Log Driver       |                               |
 |  +-----|------------+                               |
 |        |                                            |
 |  +-----+------+--------+--------+-------+          |
@@ -696,28 +696,28 @@ docker logs my-nginx 2>stderr.log >/dev/null
 |  v     v      v        v        v       v          |
 | json  syslog fluentd  awslogs  gcplogs local       |
 | -file                                              |
-|  (デフォルト)                                        |
+|  (default)                                         |
 +-----------------------------------------------------+
 ```
 
-### 6.3 ログドライバの設定
+### 6.3 Configuring Log Drivers
 
 ```bash
-# コンテナ起動時にログドライバを指定
+# Specify a log driver at container startup
 docker run -d --name app \
     --log-driver json-file \
     --log-opt max-size=10m \
     --log-opt max-file=5 \
     my-app
 
-# fluentd ログドライバ
+# fluentd log driver
 docker run -d --name app \
     --log-driver fluentd \
     --log-opt fluentd-address=localhost:24224 \
     --log-opt tag=docker.app \
     my-app
 
-# syslog ログドライバ
+# syslog log driver
 docker run -d --name app \
     --log-driver syslog \
     --log-opt syslog-address=udp://logs.example.com:514 \
@@ -732,153 +732,153 @@ docker run -d --name app \
     --log-opt awslogs-stream=production \
     my-app
 
-# ログドライバの比較
+# Log driver comparison
 ```
 
-| ログドライバ | 用途 | ログ確認方法 | docker logs 対応 |
+| Log Driver | Use Case | How to View Logs | docker logs Support |
 |---|---|---|---|
-| `json-file` | デフォルト、ローカル開発 | `docker logs` | 対応 |
-| `local` | ローカル（効率的） | `docker logs` | 対応 |
-| `syslog` | syslog サーバー転送 | syslog | 非対応 |
-| `fluentd` | Fluentd 転送 | Fluentd | 非対応 |
-| `awslogs` | AWS CloudWatch | CloudWatch | 非対応 |
-| `gcplogs` | GCP Cloud Logging | Cloud Logging | 非対応 |
-| `journald` | systemd journal | `journalctl` | 対応 |
-| `none` | ログ無効 | なし | 非対応 |
+| `json-file` | Default, local development | `docker logs` | Supported |
+| `local` | Local (efficient) | `docker logs` | Supported |
+| `syslog` | Forward to syslog server | syslog | Not supported |
+| `fluentd` | Forward to Fluentd | Fluentd | Not supported |
+| `awslogs` | AWS CloudWatch | CloudWatch | Not supported |
+| `gcplogs` | GCP Cloud Logging | Cloud Logging | Not supported |
+| `journald` | systemd journal | `journalctl` | Supported |
+| `none` | Disable logging | None | Not supported |
 
 ---
 
-## 7. コンテナ内操作 (exec)
+## 7. In-Container Operations (exec)
 
-### 7.1 基本操作
+### 7.1 Basic Operations
 
 ```bash
-# 実行中のコンテナでコマンドを実行
+# Run a command in a running container
 docker exec my-nginx ls /etc/nginx
 
-# インタラクティブシェルで接続
+# Connect with an interactive shell
 docker exec -it my-nginx /bin/sh
 
-# bash が使えるコンテナの場合
+# For containers where bash is available
 docker exec -it my-nginx /bin/bash
 
-# 特定のユーザーで実行
+# Run as a specific user
 docker exec -u root my-nginx whoami
 docker exec -u 1000:1000 my-nginx id
 
-# 環境変数を設定して実行
+# Run with environment variables set
 docker exec -e MY_VAR=hello my-nginx env
 
-# 作業ディレクトリを指定
+# Specify working directory
 docker exec -w /etc/nginx my-nginx ls
 
-# バックグラウンドでコマンドを実行
+# Run a command in the background
 docker exec -d my-nginx touch /tmp/marker
 ```
 
-### 7.2 実践的な exec の活用
+### 7.2 Practical Uses of exec
 
 ```bash
-# データベースへの接続
+# Connect to a database
 docker exec -it my-db psql -U admin -d myapp
 docker exec -it my-mysql mysql -u root -p
 
-# Redis CLI への接続
+# Connect to Redis CLI
 docker exec -it my-redis redis-cli
 127.0.0.1:6379> PING
 PONG
 
-# ファイルの内容確認
+# Check file contents
 docker exec my-nginx cat /etc/nginx/nginx.conf
 
-# プロセスの確認
+# Check running processes
 docker exec my-nginx ps aux
 
-# ネットワークの確認
+# Check network
 docker exec my-nginx ping -c 3 google.com
 docker exec my-nginx nslookup my-db
 docker exec my-nginx wget -qO- http://localhost:80
 
-# ディスク使用量の確認
+# Check disk usage
 docker exec my-nginx df -h
 docker exec my-nginx du -sh /var/log/
 
-# 環境変数の確認
+# Check environment variables
 docker exec my-nginx env | sort
 
-# パッケージのインストール（デバッグ用、非推奨）
+# Install packages (for debugging only, not recommended)
 docker exec -it my-nginx sh -c "apk add --no-cache curl && curl localhost"
 ```
 
-### 7.3 exec vs run の違い
+### 7.3 Difference Between exec and run
 
 ```bash
-# docker exec: 既存の実行中コンテナ内でコマンド実行
+# docker exec: run a command inside an existing running container
 docker exec my-nginx cat /etc/nginx/nginx.conf
-# -> my-nginx コンテナ内でファイルを表示
+# -> displays the file inside the my-nginx container
 
-# docker run: 新しいコンテナを作成して実行
+# docker run: create and run a new container
 docker run --rm nginx:alpine cat /etc/nginx/nginx.conf
-# -> 新しいコンテナを作成し、表示後に削除
+# -> creates a new container, displays the output, then removes it
 ```
 
-| 観点 | docker exec | docker run |
+| Aspect | docker exec | docker run |
 |---|---|---|
-| コンテナ | 既存の実行中コンテナ | 新規コンテナを作成 |
-| 状態 | コンテナの状態を共有 | 独立した状態 |
-| ネットワーク | コンテナのネットワークを使用 | 新しいネットワーク設定 |
-| ボリューム | コンテナのボリュームを使用 | 新たに指定が必要 |
-| 用途 | デバッグ、管理タスク | 一時的なコマンド実行 |
-| 前提条件 | コンテナが実行中であること | イメージがあること |
+| Container | Existing running container | Creates a new container |
+| State | Shares the container's state | Independent state |
+| Network | Uses the container's network | New network configuration |
+| Volumes | Uses the container's volumes | Must be specified anew |
+| Use Case | Debugging, management tasks | Running temporary commands |
+| Prerequisite | Container must be running | Image must exist |
 
 ---
 
-## 8. リソース監視
+## 8. Resource Monitoring
 
 ### 8.1 docker stats
 
 ```bash
-# リアルタイムのリソース使用状況
+# Real-time resource usage
 docker stats
 
-# 出力例:
+# Example output:
 # CONTAINER ID   NAME       CPU %   MEM USAGE / LIMIT   MEM %   NET I/O         BLOCK I/O
 # a1b2c3d4e5f6   my-nginx   0.05%   5.2MiB / 7.67GiB    0.07%   1.45kB / 0B    0B / 0B
 
-# 特定のコンテナのみ
+# Monitor specific containers only
 docker stats my-nginx my-db
 
-# ワンショット（ストリーミングなし）
+# One-shot (no streaming)
 docker stats --no-stream
 
-# フォーマット指定
+# Specify output format
 docker stats --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
 
-# JSON 形式で出力
+# Output in JSON format
 docker stats --no-stream --format json
 ```
 
-### 8.2 リソース制限の設定
+### 8.2 Setting Resource Limits
 
 ```bash
-# メモリ制限
+# Memory limit
 docker run -d --name limited-app \
     --memory=256m \
     --memory-swap=512m \
     nginx:alpine
 
-# メモリ予約（ソフトリミット）
+# Memory reservation (soft limit)
 docker run -d --name app \
     --memory=512m \
     --memory-reservation=256m \
     my-app
 
-# CPU制限
+# CPU limit
 docker run -d --name cpu-limited \
     --cpus=1.5 \
     nginx:alpine
 
-# CPU シェア（相対的な重み）
+# CPU shares (relative weight)
 docker run -d --name high-priority \
     --cpu-shares=1024 \
     my-app
@@ -886,33 +886,33 @@ docker run -d --name low-priority \
     --cpu-shares=256 \
     my-app
 
-# CPU ピンニング（特定のCPUに固定）
+# CPU pinning (bind to specific CPUs)
 docker run -d --name pinned-app \
     --cpuset-cpus="0,1" \
     my-app
 
-# I/O 制限
+# I/O limits
 docker run -d --name io-limited \
     --device-read-bps /dev/sda:10mb \
     --device-write-bps /dev/sda:10mb \
     my-app
 
-# PID 制限
+# PID limit
 docker run -d --name pid-limited \
     --pids-limit=100 \
     my-app
 
-# 実行中のコンテナのリソース制限を変更
+# Change resource limits of a running container
 docker update --memory=512m --cpus=2.0 limited-app
 
-# 全コンテナのリソース制限を確認
+# Check resource limits for all containers
 docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}"
 ```
 
-### 8.3 ヘルスチェック
+### 8.3 Health Checks
 
 ```bash
-# ヘルスチェック付きでコンテナを起動
+# Start a container with a health check
 docker run -d --name web \
     --health-cmd="wget --no-verbose --tries=1 --spider http://localhost/ || exit 1" \
     --health-interval=30s \
@@ -921,56 +921,56 @@ docker run -d --name web \
     --health-start-period=10s \
     nginx:alpine
 
-# ヘルスチェックの状態確認
+# Check health check status
 docker inspect --format '{{.State.Health.Status}}' web
 # healthy / unhealthy / starting
 
-# ヘルスチェックのログ確認
+# View health check logs
 docker inspect --format '{{json .State.Health}}' web | python3 -m json.tool
 
-# ヘルスチェックでフィルタリング
+# Filter by health check status
 docker ps --filter "health=healthy"
 docker ps --filter "health=unhealthy"
 ```
 
 ---
 
-## 9. Docker ネットワーク
+## 9. Docker Networking
 
-### 9.1 ネットワークの基本
+### 9.1 Network Basics
 
 ```bash
-# ネットワーク一覧
+# List networks
 docker network ls
 # NETWORK ID     NAME      DRIVER    SCOPE
 # abc123         bridge    bridge    local
 # def456         host      host      local
 # ghi789         none      null      local
 
-# カスタムネットワークの作成
+# Create a custom network
 docker network create my-network
 docker network create --driver bridge --subnet 172.20.0.0/16 my-custom-net
 
-# ネットワークの詳細
+# Network details
 docker network inspect my-network
 
-# コンテナをネットワークに接続
+# Connect a container to a network
 docker network connect my-network my-nginx
 
-# コンテナをネットワークから切断
+# Disconnect a container from a network
 docker network disconnect my-network my-nginx
 
-# ネットワークの削除
+# Remove a network
 docker network rm my-network
 
-# 未使用ネットワークの一括削除
+# Remove all unused networks
 docker network prune
 ```
 
-### 9.2 コンテナ間通信
+### 9.2 Container-to-Container Communication
 
 ```bash
-# カスタムネットワークで DNS による名前解決
+# DNS-based name resolution on a custom network
 docker network create app-network
 
 docker run -d --name db \
@@ -983,105 +983,105 @@ docker run -d --name app \
     -e DATABASE_URL=postgresql://postgres:secret@db:5432/postgres \
     my-app
 
-# app コンテナから db コンテナに「db」という名前でアクセス可能
+# The app container can reach the db container by the name "db"
 docker exec app ping -c 3 db
 # PING db (172.20.0.2): 56 data bytes
 # 64 bytes from 172.20.0.2: seq=0 ttl=64 time=0.085 ms
 
-# ネットワークエイリアス
+# Network alias
 docker run -d --name db-primary \
     --network app-network \
     --network-alias database \
     postgres:16-alpine
-# 「database」という名前でもアクセス可能
+# Also accessible by the name "database"
 ```
 
-### 9.3 ネットワークドライバの比較
+### 9.3 Comparison of Network Drivers
 
-| ドライバ | 説明 | 用途 | DNS解決 |
+| Driver | Description | Use Case | DNS Resolution |
 |---|---|---|---|
-| bridge | デフォルト、独立ネットワーク | 単一ホスト上のコンテナ通信 | カスタムネットワークのみ |
-| host | ホストネットワークを共有 | パフォーマンス重視 | ホストのDNS |
-| overlay | 複数ホスト間のネットワーク | Docker Swarm / 分散システム | あり |
-| macvlan | 物理ネットワークに直接接続 | レガシーアプリ統合 | なし |
-| none | ネットワーク無効 | セキュリティ重視の分離 | なし |
+| bridge | Default, isolated network | Container communication on a single host | Custom networks only |
+| host | Shares the host's network | Performance-critical workloads | Host DNS |
+| overlay | Network spanning multiple hosts | Docker Swarm / distributed systems | Yes |
+| macvlan | Direct connection to physical network | Legacy app integration | No |
+| none | Networking disabled | Security-focused isolation | No |
 
 ---
 
-## 10. クリーンアップ
+## 10. Cleanup
 
-### 比較表 1: クリーンアップコマンド
+### Comparison Table 1: Cleanup Commands
 
-| コマンド | 対象 | 説明 |
+| Command | Target | Description |
 |---|---|---|
-| `docker container prune` | 停止済みコンテナ | 停止中の全コンテナを削除 |
-| `docker image prune` | 未使用イメージ | タグなし（dangling）イメージを削除 |
-| `docker image prune -a` | 全未使用イメージ | コンテナが使用していない全イメージを削除 |
-| `docker volume prune` | 未使用ボリューム | どのコンテナにもマウントされていないボリュームを削除 |
-| `docker network prune` | 未使用ネットワーク | コンテナが接続していないネットワークを削除 |
-| `docker system prune` | 上記全て | 一括クリーンアップ |
-| `docker system prune -a` | 上記全て + 全未使用イメージ | 完全クリーンアップ |
-| `docker builder prune` | ビルドキャッシュ | BuildKit のキャッシュを削除 |
+| `docker container prune` | Stopped containers | Remove all stopped containers |
+| `docker image prune` | Unused images | Remove dangling (untagged) images |
+| `docker image prune -a` | All unused images | Remove all images not used by any container |
+| `docker volume prune` | Unused volumes | Remove volumes not mounted by any container |
+| `docker network prune` | Unused networks | Remove networks not connected to any container |
+| `docker system prune` | All of the above | Bulk cleanup |
+| `docker system prune -a` | All of the above + all unused images | Full cleanup |
+| `docker builder prune` | Build cache | Remove BuildKit cache |
 
-### 比較表 2: docker run 主要オプション
+### Comparison Table 2: Key docker run Options
 
-| オプション | 短縮形 | 説明 | 例 |
+| Option | Short | Description | Example |
 |---|---|---|---|
-| `--detach` | `-d` | バックグラウンド実行 | `-d` |
-| `--interactive` | `-i` | 標準入力を開く | `-i` |
-| `--tty` | `-t` | 疑似TTY割り当て | `-t` |
-| `--rm` | | 終了時に自動削除 | `--rm` |
-| `--name` | | コンテナ名を指定 | `--name web` |
-| `--publish` | `-p` | ポートマッピング | `-p 8080:80` |
-| `--volume` | `-v` | ボリュームマウント | `-v data:/app` |
-| `--mount` | | マウント（推奨構文） | `--mount type=volume,...` |
-| `--env` | `-e` | 環境変数設定 | `-e KEY=val` |
-| `--env-file` | | envファイル読み込み | `--env-file .env` |
-| `--network` | | ネットワーク指定 | `--network my-net` |
-| `--memory` | `-m` | メモリ制限 | `-m 256m` |
-| `--cpus` | | CPU制限 | `--cpus 1.5` |
-| `--restart` | | 再起動ポリシー | `--restart unless-stopped` |
-| `--platform` | | プラットフォーム指定 | `--platform linux/amd64` |
-| `--label` | `-l` | ラベル付与 | `-l env=prod` |
-| `--health-cmd` | | ヘルスチェック | `--health-cmd "curl ..."` |
-| `--user` | `-u` | 実行ユーザー | `-u 1000:1000` |
-| `--workdir` | `-w` | 作業ディレクトリ | `-w /app` |
-| `--hostname` | `-h` | ホスト名設定 | `-h myhost` |
-| `--add-host` | | hosts エントリ追加 | `--add-host db:10.0.0.1` |
-| `--dns` | | DNS サーバー | `--dns 8.8.8.8` |
-| `--cap-add` | | Linux capability 追加 | `--cap-add SYS_PTRACE` |
-| `--cap-drop` | | Linux capability 削除 | `--cap-drop ALL` |
-| `--read-only` | | ルートFS読み取り専用 | `--read-only` |
-| `--tmpfs` | | tmpfs マウント | `--tmpfs /tmp` |
-| `--init` | | PID 1 に tini を使用 | `--init` |
-| `--pid` | | PID 名前空間 | `--pid host` |
+| `--detach` | `-d` | Run in background | `-d` |
+| `--interactive` | `-i` | Keep stdin open | `-i` |
+| `--tty` | `-t` | Allocate pseudo-TTY | `-t` |
+| `--rm` | | Auto-remove on exit | `--rm` |
+| `--name` | | Specify container name | `--name web` |
+| `--publish` | `-p` | Port mapping | `-p 8080:80` |
+| `--volume` | `-v` | Volume mount | `-v data:/app` |
+| `--mount` | | Mount (recommended syntax) | `--mount type=volume,...` |
+| `--env` | `-e` | Set environment variable | `-e KEY=val` |
+| `--env-file` | | Load env file | `--env-file .env` |
+| `--network` | | Specify network | `--network my-net` |
+| `--memory` | `-m` | Memory limit | `-m 256m` |
+| `--cpus` | | CPU limit | `--cpus 1.5` |
+| `--restart` | | Restart policy | `--restart unless-stopped` |
+| `--platform` | | Specify platform | `--platform linux/amd64` |
+| `--label` | `-l` | Assign label | `-l env=prod` |
+| `--health-cmd` | | Health check | `--health-cmd "curl ..."` |
+| `--user` | `-u` | Run as user | `-u 1000:1000` |
+| `--workdir` | `-w` | Working directory | `-w /app` |
+| `--hostname` | `-h` | Set hostname | `-h myhost` |
+| `--add-host` | | Add hosts entry | `--add-host db:10.0.0.1` |
+| `--dns` | | DNS server | `--dns 8.8.8.8` |
+| `--cap-add` | | Add Linux capability | `--cap-add SYS_PTRACE` |
+| `--cap-drop` | | Drop Linux capability | `--cap-drop ALL` |
+| `--read-only` | | Root FS read-only | `--read-only` |
+| `--tmpfs` | | tmpfs mount | `--tmpfs /tmp` |
+| `--init` | | Use tini as PID 1 | `--init` |
+| `--pid` | | PID namespace | `--pid host` |
 
 ```bash
-# ディスク使用量の確認
+# Check disk usage
 docker system df
 
-# 出力例:
+# Example output:
 # TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
 # Images          15        5         4.2GB     2.8GB (66%)
 # Containers      8         3         120MB     80MB (66%)
 # Local Volumes   12        4         1.5GB     800MB (53%)
 # Build Cache     50        0         2.1GB     2.1GB
 
-# 詳細表示
+# Verbose output
 docker system df -v
 
-# 一括クリーンアップ（確認付き）
+# Bulk cleanup (with confirmation)
 docker system prune
 
-# ボリュームも含めて完全クリーンアップ
+# Full cleanup including volumes
 docker system prune -a --volumes
 
-# フィルタ付きクリーンアップ
+# Cleanup with filter
 docker system prune --filter "until=24h"
-docker image prune -a --filter "until=168h"  # 1週間以上前
+docker image prune -a --filter "until=168h"  # older than 1 week
 
-# 定期的なクリーンアップスクリプト
-# cron に登録: 0 3 * * 0 /usr/local/bin/docker-cleanup.sh
+# Periodic cleanup script
+# Register with cron: 0 3 * * 0 /usr/local/bin/docker-cleanup.sh
 #!/bin/bash
 # docker-cleanup.sh
 echo "=== Docker Cleanup Start ==="
@@ -1099,12 +1099,12 @@ echo "=== Docker Cleanup Complete ==="
 
 ---
 
-## 11. 実践的なワークフロー例
+## 11. Practical Workflow Examples
 
-### 11.1 Web アプリケーション開発環境
+### 11.1 Web Application Development Environment
 
 ```bash
-# データベースの起動
+# Start the database
 docker run -d --name dev-db \
     --network dev-net \
     -e POSTGRES_USER=dev \
@@ -1114,13 +1114,13 @@ docker run -d --name dev-db \
     -p 5432:5432 \
     postgres:16-alpine
 
-# Redis の起動
+# Start Redis
 docker run -d --name dev-redis \
     --network dev-net \
     -p 6379:6379 \
     redis:7-alpine
 
-# アプリケーションの起動（ソースコードをマウント）
+# Start the application (mount source code)
 docker run -d --name dev-app \
     --network dev-net \
     -v $(pwd):/app \
@@ -1129,159 +1129,159 @@ docker run -d --name dev-app \
     -e REDIS_URL=redis://dev-redis:6379 \
     node:20-alpine sh -c "cd /app && npm install && npm run dev"
 
-# ログの確認
+# View logs
 docker logs -f dev-app
 
-# データベースに接続してデバッグ
+# Connect to the database for debugging
 docker exec -it dev-db psql -U dev -d myapp_dev
 
-# 環境の停止
+# Stop the environment
 docker stop dev-app dev-redis dev-db
 
-# 環境の削除（データは保持）
+# Remove the environment (data retained)
 docker rm dev-app dev-redis dev-db
 
-# データも含めて完全削除
+# Full removal including data
 docker rm -f dev-app dev-redis dev-db
 docker volume rm db-data
 docker network rm dev-net
 ```
 
-### 11.2 マルチサービスのデバッグ
+### 11.2 Debugging Multi-Service Systems
 
 ```bash
-# ネットワーク作成
+# Create a network
 docker network create debug-net
 
-# 問題のあるコンテナのネットワークデバッグ
+# Debug network issues for a problematic container
 docker run -it --rm \
     --network debug-net \
     nicolaka/netshoot \
     bash
 
-# netshoot コンテナ内で:
-# dig db    # DNS 解決確認
-# ping db   # 疎通確認
-# curl app:3000/health  # HTTP 確認
-# tcpdump -i eth0 port 5432  # パケットキャプチャ
-# nmap -sT db  # ポートスキャン
+# Inside the netshoot container:
+# dig db    # Check DNS resolution
+# ping db   # Check connectivity
+# curl app:3000/health  # Check HTTP
+# tcpdump -i eth0 port 5432  # Packet capture
+# nmap -sT db  # Port scan
 ```
 
 ---
 
-## 12. アンチパターン
+## 12. Anti-Patterns
 
-### アンチパターン 1: --rm を付けずにテスト用コンテナを量産
+### Anti-Pattern 1: Creating disposable containers without --rm
 
 ```bash
-# NG: 使い捨てコンテナが溜まる
+# Bad: discarded containers accumulate
 docker run alpine echo "test1"
 docker run alpine echo "test2"
 docker run alpine echo "test3"
-# docker ps -a で大量の Exited コンテナが表示される
+# docker ps -a shows a large number of Exited containers
 
-# OK: テスト・一時実行には --rm を付ける
+# Good: use --rm for tests and temporary runs
 docker run --rm alpine echo "test1"
 docker run --rm alpine echo "test2"
 docker run --rm alpine echo "test3"
-# 実行後にコンテナが自動削除される
+# Container is automatically removed after execution
 ```
 
-### アンチパターン 2: docker exec で本番コンテナを変更する
+### Anti-Pattern 2: Modifying production containers with docker exec
 
 ```bash
-# NG: 実行中のコンテナ内でファイルを変更
+# Bad: changing files inside a running container
 docker exec -it production-app bash
 root@abc123:/# apt-get install vim
 root@abc123:/# vim /app/config.json
-# -> コンテナ再起動で変更が消失
-# -> 変更の追跡ができない
-# -> 他の環境で再現できない
+# -> changes are lost on container restart
+# -> changes cannot be tracked
+# -> cannot be reproduced in other environments
 
-# OK: Dockerfile やConfigMapで設定を管理
-# 設定変更 -> イメージ再ビルド -> 再デプロイ
+# Good: manage configuration via Dockerfile or ConfigMap
+# Modify config -> rebuild image -> redeploy
 docker build -t my-app:v2 .
 docker stop production-app
 docker run -d --name production-app my-app:v2
 ```
 
-### アンチパターン 3: ホストネットワークを安易に使う
+### Anti-Pattern 3: Casually using the host network
 
 ```bash
-# NG: 全コンテナを host ネットワークで起動
+# Bad: starting all containers with host network
 docker run -d --network host my-app
 docker run -d --network host my-db
-# -> ポート衝突のリスク
-# -> ネットワーク分離がない
-# -> セキュリティリスク
+# -> risk of port conflicts
+# -> no network isolation
+# -> security risk
 
-# OK: カスタムネットワークを使用
+# Good: use a custom network
 docker network create app-net
 docker run -d --network app-net --name app my-app
 docker run -d --network app-net --name db my-db
-# -> DNS による名前解決
-# -> ネットワーク分離
-# -> ポート衝突なし
+# -> DNS-based name resolution
+# -> network isolation
+# -> no port conflicts
 ```
 
-### アンチパターン 4: コンテナにデータを直接保存する
+### Anti-Pattern 4: Storing data directly inside a container
 
 ```bash
-# NG: コンテナ内にデータを保存
+# Bad: storing data inside the container
 docker run -d --name db postgres:16-alpine
-# -> コンテナ削除でデータ消失
-# -> コンテナ更新でデータ消失
+# -> data is lost when the container is removed
+# -> data is lost when the container is updated
 
-# OK: ボリュームを使用してデータを永続化
+# Good: use volumes for data persistence
 docker run -d --name db \
     -v db-data:/var/lib/postgresql/data \
     postgres:16-alpine
-# -> コンテナを削除してもデータは保持
-# -> コンテナ更新時もデータは維持
+# -> data is retained even after the container is removed
+# -> data is preserved when the container is updated
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1290,26 +1290,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1317,7 +1317,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1328,14 +1328,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1343,7 +1343,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1351,44 +1351,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1397,7 +1397,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1412,47 +1412,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be conscious of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Check the config file path and format |
+| Timeout | Network delay / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check the executing user's permissions, review settings |
+| Data inconsistency | Concurrent processing conflict | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form a hypothesis**: List possible causes
+4. **Verify step by step**: Use log output and debuggers to validate hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1460,102 +1460,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator to log function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB slowness | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to prioritize | When to compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│              Architecture Selection Flow          │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. Team size?                                  │
+│    ├─ Small (1-5 people) -> Monolith            │
+│    └─ Large (10+ people) -> Go to 2             │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. Deployment frequency?                       │
+│    ├─ Weekly or less -> Monolith + modules      │
+│    └─ Daily / multiple times -> Go to 3         │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. Independence between teams?                 │
+│    ├─ High -> Microservices                     │
+│    └─ Moderate -> Modular monolith              │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Analyzing Trade-offs
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1565,17 +1565,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1583,7 +1583,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1591,15 +1591,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1608,96 +1608,96 @@ class ArchitectureDecisionRecord:
 
 ## 13. FAQ
 
-### Q1: `docker run` と `docker create` + `docker start` の違いは何ですか？
+### Q1: What is the difference between `docker run` and `docker create` + `docker start`?
 
-**A:** `docker run` は `docker create`（コンテナ作成）と `docker start`（コンテナ起動）を一度に実行する。分離する利点は、起動前にコンテナの設定を確認したり、ネットワーク接続を変更したりできること。実際の開発では `docker run` を使うことがほとんどであり、`create` + `start` は自動化スクリプトで使われることが多い。
+**A:** `docker run` executes both `docker create` (create the container) and `docker start` (start the container) in one step. The advantage of separating them is that you can inspect container settings or change network connections before starting. In practice, `docker run` is used most of the time; `create` + `start` is often used in automation scripts.
 
-### Q2: コンテナが即座に停止してしまうのはなぜですか？
+### Q2: Why does my container stop immediately?
 
-**A:** コンテナはメインプロセス（PID 1）が終了すると自動的に停止する。よくある原因は以下の通り:
-- フォアグラウンドプロセスがない（例: デーモンがバックグラウンドで起動しようとする）
-- コマンドが即座に完了する（例: `echo` だけ実行）
-- アプリケーションがエラーで終了する
-`docker logs <container>` でログを確認し、原因を特定する。
+**A:** A container automatically stops when its main process (PID 1) exits. Common causes include:
+- No foreground process (e.g., a daemon tries to start in the background)
+- The command completes immediately (e.g., only `echo` is run)
+- The application exits due to an error
+Use `docker logs <container>` to check logs and identify the cause.
 
-### Q3: `-p 8080:80` のどちらがホスト側でどちらがコンテナ側ですか？
+### Q3: In `-p 8080:80`, which side is the host and which is the container?
 
-**A:** `ホスト:コンテナ` の順番である。`-p 8080:80` の場合、ホストの 8080 番ポートにアクセスすると、コンテナの 80 番ポートに転送される。覚え方は「外から内へ」（左がホスト=外側、右がコンテナ=内側）。ボリュームマウント `-v` も同じ順番で `ホスト:コンテナ` である。
+**A:** The order is `host:container`. With `-p 8080:80`, accessing port 8080 on the host forwards to port 80 inside the container. A helpful mnemonic is "outside to inside" (left = host = outside, right = container = inside). Volume mounts with `-v` follow the same `host:container` order.
 
-### Q4: コンテナの IP アドレスを調べるには？
+### Q4: How do I find a container's IP address?
 
-**A:** 以下のコマンドで確認できる:
+**A:** Use the following commands:
 
 ```bash
-# IPアドレスの取得
+# Get IP address
 docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' my-nginx
 
-# カスタムネットワークの場合
+# For a custom network
 docker inspect --format '{{.NetworkSettings.Networks.my_network.IPAddress}}' my-nginx
 
-# 全ネットワーク情報
+# All network information
 docker inspect --format '{{json .NetworkSettings.Networks}}' my-nginx | python3 -m json.tool
 ```
 
-ただし、コンテナの IP アドレスは動的に変わるため、固定 IP に依存するのは避け、Docker ネットワークの DNS 名前解決（コンテナ名やネットワークエイリアス）を使用することを推奨する。
+Note that a container's IP address changes dynamically, so avoid relying on fixed IPs. It is recommended to use Docker network DNS name resolution (container names or network aliases) instead.
 
-### Q5: docker run 時に「--init」オプションを使うべきですか？
+### Q5: Should I use the `--init` option when running docker run?
 
-**A:** `--init` はコンテナ内で `tini` を PID 1 として起動し、シグナルの適切な伝播とゾンビプロセスの回収を行う。アプリケーションが子プロセスを生成する場合や、シグナルハンドリングを正しく実装していない場合に有用である。Node.js や Python のアプリケーションでは `--init` を付けることを推奨する。
+**A:** `--init` starts `tini` as PID 1 inside the container, which properly propagates signals and reaps zombie processes. It is useful when an application spawns child processes or does not correctly implement signal handling. Using `--init` is recommended for Node.js and Python applications.
 
-### Q6: bridge ネットワークでコンテナ間通信ができないのはなぜですか？
+### Q6: Why can't containers communicate on the default bridge network?
 
-**A:** デフォルトの bridge ネットワークでは DNS による名前解決ができない。コンテナ間通信には、カスタムネットワークを作成して使用する必要がある。カスタムネットワークでは、コンテナ名による DNS 解決が自動的に有効になる。
+**A:** DNS-based name resolution is not available on the default bridge network. For container-to-container communication, you must create and use a custom network. On a custom network, DNS resolution by container name is automatically enabled.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work, especially during code reviews and architecture design.
 
 ---
 
-## 14. まとめ
+## 14. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |---|---|
-| イメージとコンテナ | イメージは読み取り専用テンプレート、コンテナは実行インスタンス |
-| docker run | `-d`(デタッチ), `-it`(インタラクティブ), `--rm`(自動削除) |
-| ポートマッピング | `-p ホスト:コンテナ` でネットワークを接続 |
-| ボリューム | バインドマウント(開発用)、名前付きボリューム(永続化) |
-| ネットワーク | カスタムネットワークで DNS 名前解決、コンテナ間通信 |
-| ログ | `docker logs -f` でリアルタイム追跡、ログドライバで転送 |
-| exec | `docker exec -it` で実行中コンテナに接続 |
-| リソース制限 | `--memory`, `--cpus` で制限、`docker stats` で監視 |
-| ヘルスチェック | `--health-cmd` でコンテナの健全性を監視 |
-| クリーンアップ | `docker system prune` で一括削除 |
+| Images and Containers | An image is a read-only template; a container is a running instance |
+| docker run | `-d` (detach), `-it` (interactive), `--rm` (auto-remove) |
+| Port Mapping | Connect networks with `-p host:container` |
+| Volumes | Bind mounts (for development), named volumes (for persistence) |
+| Networking | Custom networks for DNS resolution and container-to-container communication |
+| Logs | Real-time tracking with `docker logs -f`, forward via log drivers |
+| exec | Connect to a running container with `docker exec -it` |
+| Resource Limits | Limit with `--memory`, `--cpus`; monitor with `docker stats` |
+| Health Checks | Monitor container health with `--health-cmd` |
+| Cleanup | Bulk removal with `docker system prune` |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [03-image-management.md](./03-image-management.md) -- イメージの管理とレジストリ
-- [../01-dockerfile/00-dockerfile-basics.md](../01-dockerfile/00-dockerfile-basics.md) -- Dockerfile の基礎
-- [../02-compose/00-compose-basics.md](../02-compose/00-compose-basics.md) -- Docker Compose の基礎
+- [03-image-management.md](./03-image-management.md) -- Image management and registries
+- [../01-dockerfile/00-dockerfile-basics.md](../01-dockerfile/00-dockerfile-basics.md) -- Dockerfile basics
+- [../02-compose/00-compose-basics.md](../02-compose/00-compose-basics.md) -- Docker Compose basics
 
 ---
 
-## 参考文献
+## References
 
-1. **Docker Documentation - docker run** https://docs.docker.com/reference/cli/docker/container/run/ -- `docker run` の全オプションリファレンス。
-2. **Docker Documentation - Manage data in Docker** https://docs.docker.com/storage/ -- ボリューム、バインドマウント、tmpfs の詳細な解説。
-3. **Docker Documentation - Configure logging drivers** https://docs.docker.com/config/containers/logging/ -- ログドライバの設定と各ドライバの特徴。
-4. **Docker Documentation - Networking overview** https://docs.docker.com/network/ -- Docker ネットワークの仕組みとドライバの解説。
-5. **Docker Documentation - Resource constraints** https://docs.docker.com/config/containers/resource_constraints/ -- メモリ、CPU 等のリソース制限の詳細。
-6. **Docker Documentation - Healthcheck** https://docs.docker.com/reference/dockerfile/#healthcheck -- ヘルスチェックの設定方法と活用パターン。
+1. **Docker Documentation - docker run** https://docs.docker.com/reference/cli/docker/container/run/ -- Full options reference for `docker run`.
+2. **Docker Documentation - Manage data in Docker** https://docs.docker.com/storage/ -- Detailed explanation of volumes, bind mounts, and tmpfs.
+3. **Docker Documentation - Configure logging drivers** https://docs.docker.com/config/containers/logging/ -- Log driver configuration and characteristics of each driver.
+4. **Docker Documentation - Networking overview** https://docs.docker.com/network/ -- Explanation of Docker networking and drivers.
+5. **Docker Documentation - Resource constraints** https://docs.docker.com/config/containers/resource_constraints/ -- Details on memory, CPU, and other resource limits.
+6. **Docker Documentation - Healthcheck** https://docs.docker.com/reference/dockerfile/#healthcheck -- How to configure health checks and usage patterns.
