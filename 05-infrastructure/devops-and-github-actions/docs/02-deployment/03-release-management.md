@@ -1,43 +1,43 @@
-# リリース管理
+# Release Management
 
-> セマンティックバージョニング、CHANGELOG の自動生成、リリースプロセスの自動化により、予測可能で安全なリリースサイクルを確立する
+> Establish a predictable and safe release cycle through semantic versioning, automated CHANGELOG generation, and release process automation
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **セマンティックバージョニングの原則と実践** — MAJOR.MINOR.PATCH の判断基準と自動バージョニング
-2. **CHANGELOG とリリースノートの自動生成** — Conventional Commits から自動的にドキュメントを生成する仕組み
-3. **リリースプロセスの自動化** — GitHub Releases、npm publish、タグ管理の CI/CD パイプライン
-4. **Feature Flag によるリリース制御** — 機能のデプロイとリリースを分離し、安全なロールアウトを実現する
-5. **モノレポにおけるリリース管理** — Changesets を活用したパッケージ間の依存関係を考慮したバージョン管理
+1. **Principles and practice of semantic versioning** — Criteria for MAJOR.MINOR.PATCH decisions and automated versioning
+2. **Automated CHANGELOG and release note generation** — How to automatically generate documentation from Conventional Commits
+3. **Release process automation** — CI/CD pipelines for GitHub Releases, npm publish, and tag management
+4. **Release control with Feature Flags** — Separating feature deployment from release to achieve safe rollouts
+5. **Release management in monorepos** — Version management that accounts for inter-package dependencies using Changesets
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [コンテナデプロイ](./02-container-deployment.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Container Deployment](./02-container-deployment.md)
 
 ---
 
-## 1. リリース管理の全体像
+## 1. Overview of Release Management
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│              リリース管理パイプライン                      │
+│              Release Management Pipeline                 │
 ├────────────────────────────────────────────────────────┤
 │                                                        │
-│  Conventional    セマンティック     CHANGELOG    GitHub   │
-│  Commits         バージョニング     自動生成     Release  │
+│  Conventional    Semantic        CHANGELOG    GitHub   │
+│  Commits         Versioning      Auto-gen     Release  │
 │  ┌──────┐       ┌──────────┐     ┌────────┐  ┌──────┐│
-│  │feat: │──────►│ v1.2.0   │────►│ 変更   │─►│ Tag  ││
-│  │fix:  │       │ → v1.3.0 │     │ 履歴   │  │ +    ││
-│  │BREAK│       │ or v2.0.0│     │ 生成   │  │ Note ││
+│  │feat: │──────►│ v1.2.0   │────►│ Change │─►│ Tag  ││
+│  │fix:  │       │ → v1.3.0 │     │ History│  │ +    ││
+│  │BREAK│       │ or v2.0.0│     │ Gen    │  │ Note ││
 │  └──────┘       └──────────┘     └────────┘  └──────┘│
 │                                                        │
 │  ┌──────────────────────────────────────────────┐     │
-│  │ ツールチェーン                                 │     │
+│  │ Toolchain                                      │     │
 │  │ commitlint → semantic-release → GitHub CLI   │     │
 │  │ or                                            │     │
 │  │ commitlint → changesets → npm publish         │     │
@@ -45,179 +45,179 @@
 └────────────────────────────────────────────────────────┘
 ```
 
-### リリース管理の基本原則
+### Core Principles of Release Management
 
-リリース管理で最も重要なのは**予測可能性**と**再現性**である。以下の原則を基礎に設計する。
+The most important aspects of release management are **predictability** and **reproducibility**. Design around the following principles.
 
-1. **バージョンの一意性**: 同じバージョン番号は一度しか使わない。リリースされたバージョンの内容を変更しない
-2. **自動化の徹底**: バージョン決定、CHANGELOG 生成、タグ作成、公開を全自動化する
-3. **トレーサビリティ**: どのコミットがどのバージョンに含まれるかを常に追跡可能にする
-4. **ロールバック可能性**: 問題発生時に前のバージョンへ即座に戻せる仕組みを維持する
+1. **Version uniqueness**: Never reuse a version number. Do not change the contents of a released version
+2. **Full automation**: Automate version determination, CHANGELOG generation, tag creation, and publishing entirely
+3. **Traceability**: Always be able to track which commits are included in which version
+4. **Rollback capability**: Maintain the ability to immediately revert to a previous version when problems occur
 
 ```
-リリースプロセスの成熟度モデル:
+Release Process Maturity Model:
 
-  Level 0: 完全手動
+  Level 0: Fully Manual
   ┌──────────────────────────────────────────────┐
-  │ - package.json を手動で変更                     │
-  │ - CHANGELOG を手動で記述                        │
-  │ - Git タグを手動で作成                          │
-  │ - デプロイを手動で実行                          │
-  │ リスク: 高い (人為的ミス多発)                    │
+  │ - Manually update package.json               │
+  │ - Manually write CHANGELOG                   │
+  │ - Manually create Git tags                   │
+  │ - Manually execute deployments               │
+  │ Risk: High (frequent human errors)           │
   └──────────────────────────────────────────────┘
 
-  Level 1: 半自動
+  Level 1: Semi-Automated
   ┌──────────────────────────────────────────────┐
-  │ - Conventional Commits で変更種別を明示         │
-  │ - CHANGELOG は自動生成                         │
-  │ - Git タグは手動で作成                          │
-  │ - デプロイスクリプトで自動化                     │
-  │ リスク: 中 (タグ付け忘れ、バージョン不整合)      │
+  │ - Use Conventional Commits to clarify type   │
+  │ - CHANGELOG is auto-generated                │
+  │ - Git tags are created manually              │
+  │ - Automated via deployment scripts           │
+  │ Risk: Medium (forgotten tags, version mismatch)│
   └──────────────────────────────────────────────┘
 
-  Level 2: 完全自動 (目指すべき姿)
+  Level 2: Fully Automated (target state)
   ┌──────────────────────────────────────────────┐
-  │ - Conventional Commits で変更種別を明示         │
-  │ - semantic-release でバージョン自動決定         │
-  │ - CHANGELOG, タグ, GitHub Release を自動生成   │
-  │ - CI/CD でデプロイまで自動化                    │
-  │ リスク: 低い (プロセスが標準化・自動化)          │
+  │ - Use Conventional Commits to clarify type   │
+  │ - semantic-release auto-determines version   │
+  │ - CHANGELOG, tags, GitHub Release auto-gen  │
+  │ - CI/CD automates all the way to deployment  │
+  │ Risk: Low (process standardized & automated) │
   └──────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. セマンティックバージョニング (SemVer)
+## 2. Semantic Versioning (SemVer)
 
 ```
-セマンティックバージョニングの構造:
+Semantic Versioning Structure:
 
   v 2 . 1 . 3 - beta.1 + build.456
     │   │   │     │          │
-    │   │   │     │          └── ビルドメタデータ (比較に使わない)
-    │   │   │     └───────────── プレリリース識別子
-    │   │   └──────────────────── PATCH: 後方互換性のあるバグ修正
-    │   └─────────────────────── MINOR: 後方互換性のある機能追加
-    └──────────────────────────── MAJOR: 破壊的変更
+    │   │   │     │          └── Build metadata (not used in comparison)
+    │   │   │     └───────────── Pre-release identifier
+    │   │   └──────────────────── PATCH: backward-compatible bug fixes
+    │   └─────────────────────── MINOR: backward-compatible feature additions
+    └──────────────────────────── MAJOR: breaking changes
 
-バージョン判定フローチャート:
+Version Decision Flowchart:
 
-  変更内容は？
+  What type of change is it?
      │
-     ├─ API の削除/変更 (破壊的) ──► MAJOR++  (1.2.3 → 2.0.0)
+     ├─ API deletion/change (breaking) ──► MAJOR++  (1.2.3 → 2.0.0)
      │
-     ├─ 新機能追加 (後方互換) ────► MINOR++  (1.2.3 → 1.3.0)
+     ├─ New feature (backward-compat) ───► MINOR++  (1.2.3 → 1.3.0)
      │
-     └─ バグ修正 (後方互換) ─────► PATCH++  (1.2.3 → 1.2.4)
+     └─ Bug fix (backward-compat) ──────► PATCH++  (1.2.3 → 1.2.4)
 ```
 
-### 2.1 SemVer の詳細ルール
+### 2.1 Detailed SemVer Rules
 
-| ルール | 説明 | 例 |
+| Rule | Description | Example |
 |--------|------|-----|
-| 初期開発 | 0.x.y は不安定 API を示す。いつでも破壊的変更が可能 | 0.1.0, 0.2.0 |
-| MAJOR 0 | 0.y.z では MINOR が破壊的変更、PATCH がバグ修正 | 0.1.0 → 0.2.0 |
-| PATCH | バグ修正のみ。内部実装の変更で API 契約は不変 | 1.2.3 → 1.2.4 |
-| MINOR | 後方互換の新機能。既存機能の非推奨化もここ | 1.2.3 → 1.3.0 |
-| MAJOR | 後方互換性を壊す変更。MINOR と PATCH は 0 にリセット | 1.2.3 → 2.0.0 |
-| プレリリース | ハイフン区切りで識別子を付与。正式版より優先度が低い | 2.0.0-alpha.1 |
-| ビルドメタデータ | プラス記号で付与。バージョン比較では無視される | 2.0.0+build.123 |
+| Initial development | 0.x.y indicates an unstable API. Breaking changes allowed at any time | 0.1.0, 0.2.0 |
+| MAJOR 0 | Under 0.y.z, MINOR is for breaking changes and PATCH is for bug fixes | 0.1.0 → 0.2.0 |
+| PATCH | Bug fixes only. Internal implementation changes with no change to API contract | 1.2.3 → 1.2.4 |
+| MINOR | Backward-compatible new features. Deprecating existing features also goes here | 1.2.3 → 1.3.0 |
+| MAJOR | Changes that break backward compatibility. MINOR and PATCH reset to 0 | 1.2.3 → 2.0.0 |
+| Pre-release | Append identifier with a hyphen. Lower precedence than the release version | 2.0.0-alpha.1 |
+| Build metadata | Appended with a plus sign. Ignored in version comparisons | 2.0.0+build.123 |
 
-### 2.2 破壊的変更の判断基準
+### 2.2 Criteria for Identifying Breaking Changes
 
 ```typescript
-// 破壊的変更の具体例
+// Concrete examples of breaking changes
 
-// ケース 1: 関数シグネチャの変更 → MAJOR
+// Case 1: Function signature change → MAJOR
 // Before:
 function getUser(id: string): User { ... }
 // After:
 function getUser(id: string, options: GetUserOptions): User { ... }
-// 既存の呼び出しコードが壊れる → MAJOR
+// Existing calling code breaks → MAJOR
 
-// ケース 2: 任意パラメータの追加 → MINOR
+// Case 2: Adding an optional parameter → MINOR
 // Before:
 function getUser(id: string): User { ... }
 // After:
 function getUser(id: string, options?: GetUserOptions): User { ... }
-// 既存の呼び出しコードは影響なし → MINOR
+// No impact on existing calling code → MINOR
 
-// ケース 3: レスポンス形式の変更 → MAJOR
+// Case 3: Response format change → MAJOR
 // Before:
 // { "name": "Alice", "email": "alice@example.com" }
 // After:
 // { "data": { "name": "Alice", "email": "alice@example.com" } }
-// 既存のパーサーが壊れる → MAJOR
+// Existing parsers break → MAJOR
 
-// ケース 4: レスポンスへのフィールド追加 → MINOR
+// Case 4: Adding a field to a response → MINOR
 // Before:
 // { "name": "Alice", "email": "alice@example.com" }
 // After:
 // { "name": "Alice", "email": "alice@example.com", "avatar": "url" }
-// 既存のパーサーは影響なし (未知のフィールドを無視する前提) → MINOR
+// No impact on existing parsers (assuming unknown fields are ignored) → MINOR
 
-// ケース 5: デフォルト値の変更 → ケースバイケース
-// 動作が変わるがシグネチャは同じ → 通常 MAJOR（ユーザーの期待を裏切る場合）
+// Case 5: Default value change → case-by-case
+// Behavior changes but signature stays the same → usually MAJOR (violates user expectations)
 ```
 
 ---
 
 ## 3. Conventional Commits
 
-### 3.1 基本フォーマット
+### 3.1 Basic Format
 
 ```bash
-# Conventional Commits のフォーマット
+# Conventional Commits format
 # <type>[optional scope]: <description>
 #
 # [optional body]
 #
 # [optional footer(s)]
 
-# 例: 新機能
-git commit -m "feat(auth): ソーシャルログインを追加
+# Example: new feature
+git commit -m "feat(auth): add social login
 
-Google と GitHub による OAuth2 認証を実装。
-既存のメール/パスワード認証に影響なし。
+Implemented OAuth2 authentication via Google and GitHub.
+No impact on existing email/password authentication.
 
 Closes #123"
 
-# 例: バグ修正
-git commit -m "fix(api): ページネーションのオフセット計算を修正
+# Example: bug fix
+git commit -m "fix(api): fix pagination offset calculation
 
-0始まりのインデックスが1始まりとして計算されていた問題を修正。
+Fixed an issue where 0-based indexes were being calculated as 1-based.
 
 Fixes #456"
 
-# 例: 破壊的変更
-git commit -m "feat(api)!: レスポンス形式をJSON:API仕様に変更
+# Example: breaking change
+git commit -m "feat(api)!: change response format to JSON:API spec
 
-BREAKING CHANGE: API レスポンスの構造が変更されました。
-data プロパティでラップされるようになります。
-移行ガイド: docs/migration-v3.md"
+BREAKING CHANGE: API response structure has changed.
+Responses are now wrapped in a data property.
+Migration guide: docs/migration-v3.md"
 ```
 
-### 3.2 コミットタイプの一覧と使い分け
+### 3.2 Commit Type Reference and Usage
 
-| タイプ | バージョン影響 | 説明 | 使用例 |
+| Type | Version Impact | Description | Usage Examples |
 |--------|--------------|------|--------|
-| `feat` | MINOR | 新機能の追加 | 新しい API エンドポイント、UI コンポーネント |
-| `fix` | PATCH | バグ修正 | 計算ロジックの修正、クラッシュの修正 |
-| `docs` | なし | ドキュメントのみの変更 | README 更新、JSDoc 追加 |
-| `style` | なし | コードの意味に影響しないスタイル変更 | フォーマット、セミコロン追加 |
-| `refactor` | なし | バグ修正でも新機能でもないコード変更 | 内部構造の改善、変数名変更 |
-| `perf` | PATCH | パフォーマンス改善 | クエリ最適化、キャッシュ導入 |
-| `test` | なし | テストの追加・修正 | ユニットテスト、E2E テスト |
-| `build` | なし | ビルドシステムや外部依存の変更 | webpack 設定、npm パッケージ更新 |
-| `ci` | なし | CI 設定の変更 | GitHub Actions、CircleCI |
-| `chore` | なし | その他の変更 | .gitignore、設定ファイル |
-| `revert` | 元の変更に依存 | コミットの取り消し | `revert: feat(auth): ...` |
+| `feat` | MINOR | Adding a new feature | New API endpoint, UI component |
+| `fix` | PATCH | Bug fix | Fix calculation logic, fix crash |
+| `docs` | None | Documentation-only changes | README update, add JSDoc |
+| `style` | None | Style changes with no effect on code meaning | Formatting, add semicolons |
+| `refactor` | None | Code changes that are not a bug fix or new feature | Improve internal structure, rename variables |
+| `perf` | PATCH | Performance improvements | Query optimization, introduce caching |
+| `test` | None | Adding or modifying tests | Unit tests, E2E tests |
+| `build` | None | Changes to build system or external dependencies | webpack config, npm package update |
+| `ci` | None | CI configuration changes | GitHub Actions, CircleCI |
+| `chore` | None | Other changes | .gitignore, config files |
+| `revert` | Depends on original change | Reverting a commit | `revert: feat(auth): ...` |
 
-### 3.3 commitlint の設定
+### 3.3 commitlint Configuration
 
 ```json
-// commitlint.config.js に相当する設定
-// package.json 内
+// commitlint.config.js equivalent configuration
+// inside package.json
 {
   "commitlint": {
     "extends": ["@commitlint/config-conventional"],
@@ -234,7 +234,7 @@ data プロパティでラップされるようになります。
 ```
 
 ```yaml
-# .github/workflows/commitlint.yml — PR のコミットメッセージを検証
+# .github/workflows/commitlint.yml — validate commit messages on PRs
 name: Commitlint
 
 on:
@@ -260,7 +260,7 @@ jobs:
         run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
 ```
 
-### 3.4 Husky + commitlint でローカル検証
+### 3.4 Local Validation with Husky + commitlint
 
 ```json
 // package.json
@@ -282,32 +282,32 @@ npx --no -- commitlint --edit ${1}
 ```
 
 ```bash
-# コミットメッセージのインタラクティブ作成 (commitizen)
-# インストール
+# Interactive commit message creation (commitizen)
+# Installation
 npm install --save-dev commitizen cz-conventional-changelog
 
-# package.json に追加
+# Add to package.json
 # "config": {
 #   "commitizen": {
 #     "path": "cz-conventional-changelog"
 #   }
 # }
 
-# 使用
+# Usage
 npx cz
 # ? Select the type of change: feat
 # ? What is the scope: auth
-# ? Short description: ソーシャルログインを追加
-# ? Longer description: Google と GitHub による OAuth2 認証を実装
+# ? Short description: add social login
+# ? Longer description: Implemented OAuth2 authentication via Google and GitHub
 # ? Breaking changes? No
 # ? Issues closed: #123
 ```
 
 ---
 
-## 4. semantic-release による自動リリース
+## 4. Automated Releases with semantic-release
 
-### 4.1 基本ワークフロー
+### 4.1 Basic Workflow
 
 ```yaml
 # .github/workflows/release.yml
@@ -349,10 +349,10 @@ jobs:
         run: npx semantic-release
 ```
 
-### 4.2 semantic-release 設定
+### 4.2 semantic-release Configuration
 
 ```json
-// .releaserc.json — semantic-release 設定
+// .releaserc.json — semantic-release configuration
 {
   "branches": [
     "main",
@@ -389,10 +389,10 @@ jobs:
 }
 ```
 
-### 4.3 カスタムリリースルールの設定
+### 4.3 Configuring Custom Release Rules
 
 ```json
-// .releaserc.json — カスタム commit-analyzer 設定
+// .releaserc.json — custom commit-analyzer configuration
 {
   "plugins": [
     [
@@ -435,7 +435,7 @@ jobs:
 }
 ```
 
-### 4.4 Docker イメージのリリース連携
+### 4.4 Docker Image Release Integration
 
 ```yaml
 # .github/workflows/release-with-docker.yml
@@ -510,9 +510,9 @@ jobs:
 
 ---
 
-## 5. Changesets によるモノレポ対応リリース
+## 5. Monorepo Release Management with Changesets
 
-### 5.1 基本設定
+### 5.1 Basic Configuration
 
 ```json
 // .changeset/config.json
@@ -527,43 +527,43 @@ jobs:
 }
 ```
 
-### 5.2 Changeset ファイルの例
+### 5.2 Example Changeset File
 
 ```markdown
-<!-- .changeset/happy-dogs-dance.md (自動生成されるテンプレート) -->
+<!-- .changeset/happy-dogs-dance.md (auto-generated template) -->
 ---
 "@myorg/core": minor
 "@myorg/utils": patch
 ---
 
-ユーザープロフィール API にアバター画像アップロード機能を追加。
-utils パッケージに画像リサイズヘルパーを追加。
+Added avatar image upload feature to the user profile API.
+Added image resize helper to the utils package.
 ```
 
-### 5.3 Changesets ワークフロー
+### 5.3 Changesets Workflow
 
 ```
-Changesets のワークフロー:
+Changesets Workflow:
 
-  開発者                 CI                     npm
+  Developer              CI                     npm
     │                    │                       │
     │── npx changeset    │                       │
-    │   (変更内容を記述)  │                       │
+    │   (describe change)│                       │
     │                    │                       │
     │── git push ──────► │                       │
     │                    │── Changeset Bot       │
-    │                    │   PR 作成             │
+    │                    │   creates PR          │
     │                    │   (Version Packages)  │
     │                    │                       │
-    │── PR マージ ──────►│                       │
+    │── Merge PR ──────► │                       │
     │                    │── changeset version   │
-    │                    │   (バージョン更新)     │
+    │                    │   (update versions)   │
     │                    │── changeset publish ──►│
     │                    │   (npm publish)        │
-    │                    │── GitHub Release 作成  │
+    │                    │── Create GitHub Release│
 ```
 
-### 5.4 Changesets の GitHub Actions ワークフロー
+### 5.4 Changesets GitHub Actions Workflow
 
 ```yaml
 # .github/workflows/changesets.yml
@@ -622,10 +622,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### 5.5 モノレポでのパッケージ連携設定
+### 5.5 Inter-Package Configuration in Monorepos
 
 ```json
-// .changeset/config.json — 高度な設定
+// .changeset/config.json — advanced configuration
 {
   "$schema": "https://unpkg.com/@changesets/config/schema.json",
   "changelog": [
@@ -651,32 +651,32 @@ jobs:
 ```
 
 ```
-linked と fixed の違い:
+Difference between linked and fixed:
 
-  linked (連動):
-  - パッケージ A が minor → パッケージ B も minor にバンプ
-  - 個別に changeset を作成可能
-  - バージョン番号は常に同じ
+  linked (synchronized):
+  - If package A is minor → package B is also bumped to minor
+  - Can create individual changesets
+  - Version numbers are always the same
 
-  fixed (固定):
-  - パッケージ群が常に同じバージョン番号を持つ
-  - 1つの changeset で全パッケージが更新
-  - React のようなパッケージ群に適する
+  fixed (locked):
+  - Package group always has the same version number
+  - A single changeset updates all packages
+  - Suitable for package groups like React
 
-  linked の例:
-  @myorg/core: 1.2.0  ←── 同じ minor バージョン
-  @myorg/utils: 1.2.0 ←── 同じ minor バージョン
+  Example of linked:
+  @myorg/core: 1.2.0  ←── same minor version
+  @myorg/utils: 1.2.0 ←── same minor version
 
-  fixed の例:
-  @myorg/react-components: 3.5.0 ←── 完全に同じバージョン
-  @myorg/react-icons: 3.5.0      ←── 完全に同じバージョン
+  Example of fixed:
+  @myorg/react-components: 3.5.0 ←── exactly the same version
+  @myorg/react-icons: 3.5.0      ←── exactly the same version
 ```
 
 ---
 
-## 6. release-please による Google スタイルのリリース管理
+## 6. Google-Style Release Management with release-please
 
-### 6.1 release-please の基本設定
+### 6.1 Basic release-please Configuration
 
 ```yaml
 # .github/workflows/release-please.yml
@@ -706,7 +706,7 @@ jobs:
 ```
 
 ```json
-// release-please-config.json — モノレポ対応設定
+// release-please-config.json — monorepo configuration
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "packages": {
@@ -742,63 +742,63 @@ jobs:
 
 ---
 
-## 7. CHANGELOG 自動生成
+## 7. Automated CHANGELOG Generation
 
-### 7.1 自動生成例
+### 7.1 Auto-Generated Example
 
 ```markdown
-<!-- CHANGELOG.md (自動生成例) -->
+<!-- CHANGELOG.md (auto-generated example) -->
 # Changelog
 
 ## [2.1.0](https://github.com/myorg/myapp/compare/v2.0.0...v2.1.0) (2025-03-15)
 
 ### Features
 
-* **auth:** ソーシャルログインを追加 ([#123](https://github.com/myorg/myapp/issues/123)) ([a1b2c3d](https://github.com/myorg/myapp/commit/a1b2c3d))
-* **dashboard:** リアルタイム通知を実装 ([#130](https://github.com/myorg/myapp/issues/130)) ([e4f5g6h](https://github.com/myorg/myapp/commit/e4f5g6h))
+* **auth:** add social login ([#123](https://github.com/myorg/myapp/issues/123)) ([a1b2c3d](https://github.com/myorg/myapp/commit/a1b2c3d))
+* **dashboard:** implement real-time notifications ([#130](https://github.com/myorg/myapp/issues/130)) ([e4f5g6h](https://github.com/myorg/myapp/commit/e4f5g6h))
 
 ### Bug Fixes
 
-* **api:** ページネーションのオフセット計算を修正 ([#456](https://github.com/myorg/myapp/issues/456)) ([i7j8k9l](https://github.com/myorg/myapp/commit/i7j8k9l))
+* **api:** fix pagination offset calculation ([#456](https://github.com/myorg/myapp/issues/456)) ([i7j8k9l](https://github.com/myorg/myapp/commit/i7j8k9l))
 
 ### Performance Improvements
 
-* **query:** N+1 クエリを解消しレスポンス時間を 40% 改善 ([#140](https://github.com/myorg/myapp/issues/140)) ([m0n1o2p](https://github.com/myorg/myapp/commit/m0n1o2p))
+* **query:** resolve N+1 queries and improve response time by 40% ([#140](https://github.com/myorg/myapp/issues/140)) ([m0n1o2p](https://github.com/myorg/myapp/commit/m0n1o2p))
 
 ## [2.0.0](https://github.com/myorg/myapp/compare/v1.5.0...v2.0.0) (2025-02-01)
 
 ### BREAKING CHANGES
 
-* **api:** レスポンス形式を JSON:API 仕様に変更 ([#100](https://github.com/myorg/myapp/issues/100))
+* **api:** change response format to JSON:API spec ([#100](https://github.com/myorg/myapp/issues/100))
 ```
 
-### 7.2 カスタム CHANGELOG テンプレート
+### 7.2 Custom CHANGELOG Template
 
 ```javascript
-// changelog-template.js — カスタム CHANGELOG テンプレート
+// changelog-template.js — custom CHANGELOG template
 const changelogConfig = {
   writerOpts: {
     transform: (commit, context) => {
-      // commit type の日本語マッピング
+      // commit type mapping
       const typeMap = {
-        feat: '新機能',
-        fix: 'バグ修正',
-        perf: 'パフォーマンス改善',
-        refactor: 'リファクタリング',
-        docs: 'ドキュメント',
-        build: 'ビルド',
+        feat: 'Features',
+        fix: 'Bug Fixes',
+        perf: 'Performance Improvements',
+        refactor: 'Refactoring',
+        docs: 'Documentation',
+        build: 'Build',
         ci: 'CI/CD',
       };
 
       if (typeMap[commit.type]) {
         commit.type = typeMap[commit.type];
       } else {
-        return null; // 表示しない
+        return null; // do not display
       }
 
-      // scope の日本語化 (任意)
+      // scope translation (optional)
       if (commit.scope) {
-        commit.scope = commit.scope.replace(/auth/g, '認証')
+        commit.scope = commit.scope.replace(/auth/g, 'auth')
                                     .replace(/api/g, 'API')
                                     .replace(/ui/g, 'UI');
       }
@@ -807,7 +807,7 @@ const changelogConfig = {
     },
     groupBy: 'type',
     commitGroupsSort: (a, b) => {
-      const order = ['新機能', 'バグ修正', 'パフォーマンス改善', 'リファクタリング'];
+      const order = ['Features', 'Bug Fixes', 'Performance Improvements', 'Refactoring'];
       return order.indexOf(a.title) - order.indexOf(b.title);
     },
   },
@@ -818,12 +818,12 @@ module.exports = changelogConfig;
 
 ---
 
-## 8. Feature Flag によるリリース制御
+## 8. Release Control with Feature Flags
 
-### 8.1 Feature Flag の基本実装
+### 8.1 Basic Feature Flag Implementation
 
 ```typescript
-// feature-flags.ts — Feature Flag の実装
+// feature-flags.ts — Feature Flag implementation
 interface FeatureFlag {
   name: string;
   enabled: boolean;
@@ -851,29 +851,29 @@ class FeatureFlagService {
     const flag = this.flags.get(flagName);
     if (!flag) return false;
 
-    // グローバルに無効
+    // globally disabled
     if (!flag.enabled) return false;
 
-    // 有効期限チェック
+    // expiry check
     if (flag.expiresAt && new Date(flag.expiresAt) < new Date()) {
       return false;
     }
 
-    // 環境チェック
+    // environment check
     if (flag.enabledEnvironments && context?.environment) {
       if (!flag.enabledEnvironments.includes(context.environment)) {
         return false;
       }
     }
 
-    // ユーザー固有のアクセス
+    // user-specific access
     if (flag.allowedUsers && context?.userId) {
       if (flag.allowedUsers.includes(context.userId)) {
         return true;
       }
     }
 
-    // ロールアウト率による制御
+    // rollout percentage control
     if (flag.rolloutPercentage !== undefined && context?.userId) {
       const hash = this.hashUserId(context.userId);
       return hash < flag.rolloutPercentage;
@@ -893,27 +893,27 @@ class FeatureFlagService {
   }
 }
 
-// 使用例
+// Usage example
 const featureFlags = new FeatureFlagService([
   {
     name: 'new-checkout-flow',
     enabled: true,
-    rolloutPercentage: 10,  // 10% のユーザーに展開
+    rolloutPercentage: 10,  // roll out to 10% of users
     enabledEnvironments: ['production', 'staging'],
-    description: '新しいチェックアウトフロー',
+    description: 'New checkout flow',
     createdAt: '2025-03-01',
     expiresAt: '2025-06-01',
   },
   {
     name: 'dark-mode',
     enabled: true,
-    allowedUsers: ['user-001', 'user-002'],  // 特定ユーザーのみ
-    description: 'ダークモード対応',
+    allowedUsers: ['user-001', 'user-002'],  // specific users only
+    description: 'Dark mode support',
     createdAt: '2025-02-15',
   },
 ]);
 
-// API エンドポイントでの使用
+// Usage in an API endpoint
 app.get('/checkout', (req, res) => {
   if (featureFlags.isEnabled('new-checkout-flow', {
     userId: req.user.id,
@@ -925,91 +925,91 @@ app.get('/checkout', (req, res) => {
 });
 ```
 
-### 8.2 Feature Flag ツールの比較
+### 8.2 Feature Flag Tool Comparison
 
-| ツール | 形態 | 料金 | 特徴 |
+| Tool | Type | Pricing | Features |
 |--------|------|------|------|
-| LaunchDarkly | SaaS | 有料 | エンタープライズ向け、SDK が豊富 |
-| Unleash | OSS/SaaS | 無料枠あり | セルフホスト可能、API ベース |
-| Flagsmith | OSS/SaaS | 無料枠あり | セルフホスト可能、セグメント機能 |
-| ConfigCat | SaaS | 無料枠あり | シンプル、設定ファイルベース |
-| 環境変数 | 自前 | 無料 | 最もシンプルだが動的変更不可 |
-| リモートConfig | Firebase | 無料枠あり | モバイルアプリ向け |
+| LaunchDarkly | SaaS | Paid | Enterprise-grade, rich SDK support |
+| Unleash | OSS/SaaS | Free tier available | Self-hostable, API-based |
+| Flagsmith | OSS/SaaS | Free tier available | Self-hostable, segmentation features |
+| ConfigCat | SaaS | Free tier available | Simple, config file-based |
+| Environment Variables | Self-built | Free | Simplest option but no dynamic changes |
+| Remote Config | Firebase | Free tier available | Suited for mobile apps |
 
-### 8.3 Feature Flag を使ったリリース戦略
+### 8.3 Release Strategy Using Feature Flags
 
 ```
-Feature Flag によるデプロイとリリースの分離:
+Separating Deployment and Release with Feature Flags:
 
-  従来のアプローチ:
+  Traditional approach:
   ┌──────────────────────────────────────┐
-  │ デプロイ = リリース                     │
-  │ コードをデプロイ → 全ユーザーに公開     │
-  │ 問題発生 → ロールバック (ダウンタイム)   │
+  │ Deploy = Release                     │
+  │ Deploy code → expose to all users    │
+  │ Problem occurs → rollback (downtime) │
   └──────────────────────────────────────┘
 
-  Feature Flag アプローチ:
+  Feature Flag approach:
   ┌──────────────────────────────────────┐
-  │ デプロイ ≠ リリース                    │
+  │ Deploy ≠ Release                     │
   │                                      │
-  │ 1. コードをデプロイ (Flag OFF)         │
-  │    → ユーザーには影響なし              │
+  │ 1. Deploy code (Flag OFF)            │
+  │    → No impact on users              │
   │                                      │
-  │ 2. 内部テスター向けに Flag ON          │
-  │    → 内部検証                         │
+  │ 2. Flag ON for internal testers      │
+  │    → Internal validation             │
   │                                      │
-  │ 3. 10% ロールアウト                    │
-  │    → メトリクス監視                    │
+  │ 3. 10% rollout                       │
+  │    → Monitor metrics                 │
   │                                      │
-  │ 4. 50% → 100% ロールアウト             │
-  │    → 段階的に全ユーザーに公開          │
+  │ 4. 50% → 100% rollout                │
+  │    → Gradually expose to all users   │
   │                                      │
-  │ 問題発生 → Flag OFF (即座に無効化)      │
-  │    → ダウンタイムなし                   │
+  │ Problem occurs → Flag OFF (instant)  │
+  │    → No downtime                     │
   └──────────────────────────────────────┘
 ```
 
 ---
 
-## 9. ホットフィックスとロールバック
+## 9. Hotfixes and Rollbacks
 
-### 9.1 ホットフィックスプロセス
+### 9.1 Hotfix Process
 
 ```bash
-# ホットフィックスの手順
+# Hotfix procedure
 
-# 1. main から hotfix ブランチを作成
+# 1. Create a hotfix branch from main
 git checkout main
 git pull origin main
 git checkout -b hotfix/fix-payment-timeout
 
-# 2. 修正をコミット
-git commit -m "fix(payment): タイムアウト値を30秒に延長
+# 2. Commit the fix
+git commit -m "fix(payment): extend timeout value to 30 seconds
 
-決済API のタイムアウトが10秒で、ネットワーク遅延時に
-タイムアウトエラーが頻発していた問題を修正。
+Fixed an issue where the payment API timed out at 10 seconds,
+causing frequent timeout errors under network delays.
 
 Fixes #789"
 
-# 3. テスト実行
+# 3. Run tests
 npm test
 
-# 4. main にマージ (PR 経由)
-gh pr create --base main --title "fix(payment): タイムアウト値を修正" --body "..."
+# 4. Merge into main (via PR)
+gh pr create --base main --title "fix(payment): fix timeout value" --body "..."
 
-# 5. semantic-release が自動で PATCH バージョンアップ
-# 例: v1.2.3 → v1.2.4
+# 5. semantic-release automatically bumps PATCH version
+# e.g.: v1.2.3 → v1.2.4
 
-# 6. develop ブランチにもマージ (Git Flow の場合)
+# 6. Also merge into develop branch (for Git Flow)
 git checkout develop
 git merge main
 git push origin develop
 ```
 
-### 9.2 ロールバック戦略
+### 9.2 Rollback Strategy
 
 ```yaml
-# .github/workflows/rollback.yml — 緊急ロールバック
+# .github/workflows/rollback.yml — emergency rollback
 name: Emergency Rollback
 
 on:
@@ -1050,7 +1050,7 @@ jobs:
         run: |
           echo "Rolling back to ${{ inputs.target-version }}"
           echo "Reason: ${{ inputs.reason }}"
-          # デプロイコマンド (環境に応じて変更)
+          # Deploy command (adjust for your environment)
           # aws ecs update-service ...
           # argocd app set myapp --revision ...
 
@@ -1087,12 +1087,12 @@ jobs:
 
 ---
 
-## 10. リリースの品質ゲート
+## 10. Release Quality Gates
 
-### 10.1 リリース前の自動チェック
+### 10.1 Automated Pre-Release Checks
 
 ```yaml
-# .github/workflows/release-gate.yml — リリース品質ゲート
+# .github/workflows/release-gate.yml — release quality gate
 name: Release Quality Gate
 
 on:
@@ -1112,13 +1112,13 @@ jobs:
 
       - run: npm ci
 
-      # 1. ユニットテスト
+      # 1. Unit tests
       - name: Unit Tests
         run: npm test -- --coverage
         env:
           CI: true
 
-      # 2. カバレッジチェック
+      # 2. Coverage check
       - name: Coverage Check
         run: |
           COVERAGE=$(npx c8 check-coverage --lines 80 --functions 80 --branches 70 2>&1) || {
@@ -1126,23 +1126,23 @@ jobs:
             exit 1
           }
 
-      # 3. リンティング
+      # 3. Linting
       - name: Lint
         run: npm run lint
 
-      # 4. 型チェック
+      # 4. Type check
       - name: Type Check
         run: npx tsc --noEmit
 
-      # 5. セキュリティ監査
+      # 5. Security audit
       - name: Security Audit
         run: npm audit --audit-level=high
 
-      # 6. ライセンスチェック
+      # 6. License check
       - name: License Check
         run: npx license-checker --failOn "GPL-3.0;AGPL-3.0"
 
-      # 7. バンドルサイズチェック
+      # 7. Bundle size check
       - name: Bundle Size Check
         run: |
           npm run build
@@ -1153,7 +1153,7 @@ jobs:
             exit 1
           fi
 
-      # 8. Changeset チェック (変更がある場合)
+      # 8. Changeset check (when changes exist)
       - name: Check for changeset
         run: |
           if git diff --name-only ${{ github.event.pull_request.base.sha }} | grep -qE '\.(ts|tsx|js|jsx)$'; then
@@ -1166,158 +1166,158 @@ jobs:
 
 ---
 
-## 11. 比較表
+## 11. Comparison Tables
 
-| 特性 | semantic-release | Changesets | release-please |
+| Property | semantic-release | Changesets | release-please |
 |------|-----------------|------------|----------------|
-| バージョン決定 | コミットメッセージから自動 | 開発者が明示的に記述 | コミットメッセージから自動 |
-| モノレポ対応 | 限定的 | 優れている | 対応 |
-| CHANGELOG 生成 | 自動 | 自動 | 自動 |
-| npm publish | 対応 | 対応 | 対応 |
-| GitHub Release | 対応 | 要追加設定 | 対応 |
-| 学習コスト | 中 | 低い | 低い |
-| カスタマイズ性 | プラグインで高い | 中 | 中 |
-| Release PR | なし (直接リリース) | あり | あり |
-| プレリリース | ブランチベース | コマンドベース | ブランチベース |
-| メンテナー | semantic-release org | Changesets org | Google |
+| Version determination | Automatic from commit messages | Explicitly written by developer | Automatic from commit messages |
+| Monorepo support | Limited | Excellent | Supported |
+| CHANGELOG generation | Automatic | Automatic | Automatic |
+| npm publish | Supported | Supported | Supported |
+| GitHub Release | Supported | Requires additional config | Supported |
+| Learning curve | Medium | Low | Low |
+| Customizability | High via plugins | Medium | Medium |
+| Release PR | No (direct release) | Yes | Yes |
+| Pre-release | Branch-based | Command-based | Branch-based |
+| Maintainer | semantic-release org | Changesets org | Google |
 
-| ブランチ戦略 | Git Flow | GitHub Flow | Trunk-Based |
+| Branch Strategy | Git Flow | GitHub Flow | Trunk-Based |
 |-------------|----------|-------------|-------------|
-| ブランチ数 | 多い | 少ない | 最少 |
-| リリース頻度 | 低い | 中 | 高い |
-| 複雑さ | 高い | 低い | 中 |
-| 適用規模 | 大規模 | 中規模 | 全規模 |
-| Feature Flag 必要性 | 低い | 中 | 高い |
-| リリースブランチ | あり | なし | なし |
-| ホットフィックス | 専用ブランチ | main から直接 | main から直接 |
+| Number of branches | Many | Few | Minimal |
+| Release frequency | Low | Medium | High |
+| Complexity | High | Low | Medium |
+| Scale | Large | Medium | All scales |
+| Need for Feature Flags | Low | Medium | High |
+| Release branch | Yes | No | No |
+| Hotfix | Dedicated branch | Directly from main | Directly from main |
 
-| Feature Flag ツール | LaunchDarkly | Unleash | Flagsmith | 環境変数 |
+| Feature Flag Tool | LaunchDarkly | Unleash | Flagsmith | Env Variables |
 |---------------------|-------------|---------|-----------|----------|
-| 動的変更 | 対応 | 対応 | 対応 | 要再デプロイ |
-| ターゲティング | 高度 | 中 | 中 | なし |
-| A/B テスト | 対応 | 対応 | 対応 | 不可 |
-| 監査ログ | あり | あり | あり | なし |
-| セルフホスト | 不可 | 可能 | 可能 | - |
-| SDK 対応言語 | 多数 | 多数 | 多数 | - |
-| 無料枠 | なし | あり | あり | 無料 |
+| Dynamic changes | Supported | Supported | Supported | Requires redeploy |
+| Targeting | Advanced | Medium | Medium | None |
+| A/B testing | Supported | Supported | Supported | Not possible |
+| Audit log | Yes | Yes | Yes | No |
+| Self-host | No | Yes | Yes | - |
+| SDK languages | Many | Many | Many | - |
+| Free tier | No | Yes | Yes | Free |
 
 ---
 
-## 12. アンチパターン
+## 12. Anti-Patterns
 
-### アンチパターン 1: 手動バージョン管理
-
-```
-[悪い例]
-- package.json のバージョンを手動で変更
-- CHANGELOG を手動で記述 (漏れや誤記が頻発)
-- リリースタグを手動で作成 (付け忘れ)
-- 「次のバージョン番号は何？」という議論に時間を浪費
-
-[良い例]
-- Conventional Commits + semantic-release で全自動化
-- コミットメッセージの型 (feat/fix/BREAKING) でバージョンが自動決定
-- CHANGELOG、タグ、GitHub Release が CI で自動生成
-- 開発者はコミットメッセージに集中するだけ
-```
-
-### アンチパターン 2: リリースとホットフィックスの混在
+### Anti-Pattern 1: Manual Version Management
 
 ```
-[悪い例]
-- 本番障害発生 → main ブランチに直接修正をプッシュ
-- 開発中の未完成機能が一緒にリリースされてしまう
-- ホットフィックスの手順が定まっておらず毎回混乱
+[Bad example]
+- Manually editing the version in package.json
+- Manually writing CHANGELOG (frequent omissions and mistakes)
+- Manually creating release tags (easy to forget)
+- Wasting time debating "what should the next version number be?"
 
-[良い例]
-- ホットフィックスブランチの手順を明文化:
-  1. main から hotfix/xxx ブランチを作成
-  2. 修正をコミット (fix: ...)
-  3. テスト通過を確認
-  4. main にマージ → 自動リリース (PATCH バージョンアップ)
-  5. develop ブランチにもマージ (Git Flow の場合)
-- Feature Flag で未完成機能を隠蔽しておけば、main からの修正が安全
+[Good example]
+- Fully automated with Conventional Commits + semantic-release
+- Version is determined automatically by commit type (feat/fix/BREAKING)
+- CHANGELOG, tags, and GitHub Releases are auto-generated by CI
+- Developers only need to focus on writing good commit messages
 ```
 
-### アンチパターン 3: Feature Flag の放置
+### Anti-Pattern 2: Mixing Releases and Hotfixes
 
 ```
-[悪い例]
-- Feature Flag を作成したが、全ユーザーに展開後も残し続ける
-- 古い Flag が数十個残り、コードが条件分岐だらけに
-- どの Flag が有効でどれが無効か把握できない
-- Flag 同士の組み合わせで予期しない動作が発生
+[Bad example]
+- Production incident occurs → push fix directly to main branch
+- Unfinished features under development get released together
+- No defined hotfix process, causing confusion each time
 
-[良い例]
-- Flag の有効期限を必ず設定 (最大90日)
-- 全ユーザー展開後は次のスプリントで Flag を削除
-- Flag 棚卸しを月次で実施 (未使用 Flag の削除)
-- Flag のライフサイクルを Jira/GitHub Issues で追跡
-- Flag 削除の PR テンプレートを用意:
-  1. Flag のコードパスを削除
-  2. テストを更新
-  3. 設定ファイルから Flag 定義を削除
+[Good example]
+- Document the hotfix process explicitly:
+  1. Create hotfix/xxx branch from main
+  2. Commit the fix (fix: ...)
+  3. Verify tests pass
+  4. Merge into main → automatic release (PATCH version bump)
+  5. Also merge into develop branch (for Git Flow)
+- Using Feature Flags to hide unfinished features makes direct main fixes safe
 ```
 
-### アンチパターン 4: CHANGELOG の軽視
+### Anti-Pattern 3: Abandoning Feature Flags
 
 ```
-[悪い例]
-- CHANGELOG が存在しない、または更新されていない
-- 利用者が「何が変わったか」を把握できない
-- 破壊的変更に気づかずアップデートして障害発生
-- サポートへの問い合わせが増加
+[Bad example]
+- Feature Flag is created but left in place even after 100% rollout
+- Dozens of stale flags accumulate, code full of conditionals
+- Unable to track which flags are enabled and which are disabled
+- Unexpected behavior from combinations of flags
 
-[良い例]
-- CHANGELOG を自動生成し、リリースと同時に公開
-- BREAKING CHANGES セクションを目立たせる
-- 移行ガイドへのリンクを含める
-- GitHub Release のボディに CHANGELOG を含める
-- RSS/Atom フィードでリリース通知を配信
+[Good example]
+- Always set an expiry on flags (maximum 90 days)
+- Remove flags in the next sprint after full rollout
+- Conduct monthly flag audits (delete unused flags)
+- Track flag lifecycle in Jira/GitHub Issues
+- Prepare a PR template for flag removal:
+  1. Remove the flag's code paths
+  2. Update tests
+  3. Remove the flag definition from config files
+```
+
+### Anti-Pattern 4: Neglecting the CHANGELOG
+
+```
+[Bad example]
+- CHANGELOG does not exist or is not being updated
+- Users cannot understand "what changed"
+- User encounters a breaking change unknowingly, causing an incident
+- Increase in support inquiries
+
+[Good example]
+- Auto-generate CHANGELOG and publish it with each release
+- Make the BREAKING CHANGES section prominent
+- Include links to migration guides
+- Include CHANGELOG in GitHub Release body
+- Deliver release notifications via RSS/Atom feed
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
             raise ValueError("入力値がNoneです")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1335,17 +1335,17 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1353,7 +1353,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1364,14 +1364,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1379,7 +1379,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1387,13 +1387,13 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
@@ -1404,27 +1404,27 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1433,7 +1433,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1455,40 +1455,40 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose the appropriate data structure
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Check config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Increase in data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Check execution user permissions, review settings |
+| Data inconsistency | Concurrent process conflicts | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Read the error message**: Read the stack trace to identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Incremental verification**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1496,7 +1496,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
         logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
@@ -1512,116 +1512,116 @@ def debug_decorator(func):
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
         raise ValueError("空のデータ")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose when performance issues occur:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with a profiling tool
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| High CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 ---
 
 ## 13. FAQ
 
-### Q1: semantic-release と Changesets、どちらを選ぶべきですか？
+### Q1: Which should I choose: semantic-release or Changesets?
 
-**単一パッケージ**なら semantic-release が楽です。コミットメッセージから全自動でバージョンが決まります。**モノレポ**（複数パッケージ）なら Changesets が適しています。パッケージごとに変更内容を明示できるため、連動するバージョン管理が容易です。チームメンバーが Conventional Commits に慣れていない場合も、Changesets の方が学習コストが低いです。release-please は Google が開発・メンテしており、モノレポ対応も良好で、Release PR というワークフローが特徴です。3つとも成熟したツールなので、チームの好みとプロジェクト構成で選択してください。
+For a **single package**, semantic-release is simpler — the version is determined automatically from commit messages. For a **monorepo** (multiple packages), Changesets is more suitable. It lets you describe changes per package, making coordinated version management easier. If team members are not familiar with Conventional Commits, Changesets also has a lower learning curve. release-please is developed and maintained by Google, has good monorepo support, and features a Release PR workflow. All three are mature tools, so choose based on your team's preferences and project structure.
 
-### Q2: プレリリースバージョン（alpha/beta/rc）はどう管理しますか？
+### Q2: How do I manage pre-release versions (alpha/beta/rc)?
 
-semantic-release では `branches` 設定で `next` や `beta` ブランチを定義します。これらのブランチへのマージで `v2.0.0-beta.1` のようなプレリリースバージョンが自動生成されます。Changesets では `npx changeset pre enter beta` コマンドでプレリリースモードに入り、`npx changeset pre exit` で通常モードに戻します。release-please ではブランチ名にプレリリースタイプを含めることで制御します。
+With semantic-release, define `next` or `beta` branches in the `branches` configuration. Merging into these branches automatically generates pre-release versions like `v2.0.0-beta.1`. With Changesets, enter pre-release mode with `npx changeset pre enter beta` and exit with `npx changeset pre exit`. With release-please, you control it by including the pre-release type in the branch name.
 
-### Q3: CHANGELOG はどのくらい遡って維持すべきですか？
+### Q3: How far back should I maintain the CHANGELOG?
 
-全履歴を維持するのが理想ですが、現実的にはメジャーバージョン単位で分割することを推奨します。v1.x の CHANGELOG は `CHANGELOG-v1.md` としてアーカイブし、`CHANGELOG.md` には現行メジャーバージョンの履歴のみを記載します。Git タグとGitHub Releases が存在するため、古い変更履歴はそちらから参照できます。
+Ideally maintain the entire history, but in practice it is recommended to split it by major version. Archive the v1.x CHANGELOG as `CHANGELOG-v1.md`, and include only the current major version history in `CHANGELOG.md`. Since Git tags and GitHub Releases exist, older change history can be referenced from there.
 
-### Q4: Conventional Commits のルールをチームに浸透させるには？
+### Q4: How do I get the team to adopt Conventional Commits?
 
-以下の段階的なアプローチを推奨します:
+The following stepwise approach is recommended:
 
-1. **まず commitlint + Husky を導入**: ローカルでコミット時にバリデーションする
-2. **commitizen (cz) を導入**: 対話的にコミットメッセージを作成できるようにする
-3. **PR テンプレートにルールを記載**: コミットメッセージの書き方をリマインドする
-4. **CI でも検証**: PR のコミットメッセージを CI でチェックする
-5. **チーム勉強会**: 実例を交えて30分程度の勉強会を実施する
+1. **First, introduce commitlint + Husky**: Validate at commit time locally
+2. **Introduce commitizen (cz)**: Enable interactive commit message creation
+3. **Include rules in PR templates**: Remind developers how to write commit messages
+4. **Also validate in CI**: Check PR commit messages in CI
+5. **Team study session**: Hold a ~30-minute session with practical examples
 
-### Q5: リリース頻度はどのくらいが適切ですか？
+### Q5: What is an appropriate release frequency?
 
-プロジェクトの成熟度とリスク許容度によります。一般的な目安:
+It depends on the project maturity and risk tolerance. General guidelines:
 
-- **SaaS (B2C)**: 日次〜週次。Trunk-Based + Feature Flag が適する
-- **SaaS (B2B)**: 週次〜隔週。顧客通知のリードタイムを確保
-- **ライブラリ (npm)**: 変更があれば随時。semantic-release で自動化
-- **モバイルアプリ**: 隔週〜月次。アプリストアの審査時間を考慮
-- **オンプレミス**: 月次〜四半期。顧客のアップデート作業を考慮
+- **SaaS (B2C)**: Daily to weekly. Trunk-Based + Feature Flags are suitable
+- **SaaS (B2B)**: Weekly to bi-weekly. Ensure sufficient lead time for customer notification
+- **Library (npm)**: As needed when changes occur. Automate with semantic-release
+- **Mobile app**: Bi-weekly to monthly. Account for app store review time
+- **On-premises**: Monthly to quarterly. Account for customer update effort
 
-リリース頻度を上げるほど各リリースのリスクが下がり（変更が小さいため）、問題発生時の原因特定も容易になります。
+The more frequently you release, the lower the risk per release (since changes are smaller), and it also becomes easier to identify the cause when problems occur.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| SemVer | MAJOR(破壊的変更).MINOR(新機能).PATCH(バグ修正) |
-| Conventional Commits | feat:/fix:/BREAKING CHANGE で変更種別を明示 |
-| semantic-release | コミットメッセージから自動バージョニング・リリース |
-| Changesets | モノレポ対応。開発者が変更内容を明示的に記述 |
-| release-please | Google 製。Release PR ベースのワークフロー |
-| CHANGELOG | 自動生成。手動管理は漏れと労力の無駄 |
-| Feature Flag | デプロイとリリースを分離。段階的ロールアウトを実現 |
-| ホットフィックス | 専用ブランチと明文化された手順で対応 |
-| プレリリース | alpha/beta/rc をブランチ戦略で管理 |
-| 品質ゲート | テスト・カバレッジ・セキュリティ監査をリリース前に自動チェック |
+| SemVer | MAJOR(breaking changes).MINOR(new features).PATCH(bug fixes) |
+| Conventional Commits | Use feat:/fix:/BREAKING CHANGE to explicitly state the type of change |
+| semantic-release | Automatic versioning and release from commit messages |
+| Changesets | Monorepo support. Developers explicitly describe change contents |
+| release-please | By Google. Release PR-based workflow |
+| CHANGELOG | Auto-generated. Manual management leads to omissions and wasted effort |
+| Feature Flag | Separate deployment from release. Achieve phased rollouts |
+| Hotfix | Handle with a dedicated branch and documented procedure |
+| Pre-release | Manage alpha/beta/rc with branch strategy |
+| Quality Gate | Auto-check tests, coverage, and security audits before release |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [00-deployment-strategies.md](./00-deployment-strategies.md) — デプロイ戦略の基本
-- [01-cloud-deployment.md](./01-cloud-deployment.md) — クラウドデプロイの実践
-- [02-container-deployment.md](./02-container-deployment.md) — コンテナデプロイとレジストリ管理
-- [../03-monitoring/00-observability.md](../03-monitoring/00-observability.md) — オブザーバビリティの基礎
+- [00-deployment-strategies.md](./00-deployment-strategies.md) — Basics of deployment strategies
+- [01-cloud-deployment.md](./01-cloud-deployment.md) — Practical cloud deployment
+- [02-container-deployment.md](./02-container-deployment.md) — Container deployment and registry management
+- [../03-monitoring/00-observability.md](../03-monitoring/00-observability.md) — Foundations of observability
 
 ---
 
-## 参考文献
+## References
 
-1. **Semantic Versioning 2.0.0** — https://semver.org/ — SemVer の公式仕様
-2. **Conventional Commits** — https://www.conventionalcommits.org/ — コミットメッセージ規約の公式サイト
-3. **semantic-release Documentation** — https://semantic-release.gitbook.io/ — 自動リリースツールの公式ドキュメント
-4. **Changesets Documentation** — https://github.com/changesets/changesets — モノレポ対応リリース管理ツール
-5. **release-please Documentation** — https://github.com/googleapis/release-please — Google 製リリース管理ツール
-6. **Martin Fowler - Feature Toggles** — https://martinfowler.com/articles/feature-toggles.html — Feature Flag の設計パターン
-7. **Trunk Based Development** — https://trunkbaseddevelopment.com/ — Trunk-Based 開発の解説サイト
+1. **Semantic Versioning 2.0.0** — https://semver.org/ — Official SemVer specification
+2. **Conventional Commits** — https://www.conventionalcommits.org/ — Official site for commit message conventions
+3. **semantic-release Documentation** — https://semantic-release.gitbook.io/ — Official documentation for the automated release tool
+4. **Changesets Documentation** — https://github.com/changesets/changesets — Monorepo-compatible release management tool
+5. **release-please Documentation** — https://github.com/googleapis/release-please — Google's release management tool
+6. **Martin Fowler - Feature Toggles** — https://martinfowler.com/articles/feature-toggles.html — Design patterns for Feature Flags
+7. **Trunk Based Development** — https://trunkbaseddevelopment.com/ — Guide to Trunk-Based development
