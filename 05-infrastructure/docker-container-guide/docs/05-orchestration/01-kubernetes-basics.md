@@ -1,31 +1,31 @@
-# Kubernetes基礎
+# Kubernetes Basics
 
-> Pod / Service / Deployment の3大リソースとkubectlの基本操作を通じて、Kubernetesの宣言的なコンテナ管理を習得する。
-
----
-
-## この章で学ぶこと
-
-1. **Pod / Service / Deployment の役割と関係性**を理解する
-2. **kubectl を使った基本的なクラスタ操作**を習得する
-3. **マニフェストファイル（YAML）の記述方法**とminikubeでの実践ができるようになる
-4. **ConfigMap / Secret / PersistentVolume** などの関連リソースを理解する
-5. **Ingress / HPA / RBAC** の基礎概念を把握する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [オーケストレーション概要](./00-orchestration-overview.md) の内容を理解していること
+> Learn declarative container management with Kubernetes through the three core resources — Pod, Service, and Deployment — and basic kubectl operations.
 
 ---
 
-## 1. Kubernetesアーキテクチャ
+## What You Will Learn
 
-### クラスタの構成
+1. Understand the **roles and relationships of Pod, Service, and Deployment**
+2. Master **basic cluster operations with kubectl**
+3. Be able to **write manifest files (YAML)** and practice with minikube
+4. Understand related resources such as **ConfigMap, Secret, and PersistentVolume**
+5. Grasp the foundational concepts of **Ingress, HPA, and RBAC**
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Orchestration Overview](./00-orchestration-overview.md)
+
+---
+
+## 1. Kubernetes Architecture
+
+### Cluster Composition
 
 ```
 ┌─────────────────── Control Plane ───────────────────────┐
@@ -62,59 +62,59 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Control Planeの各コンポーネント詳細
+### Control Plane Component Details
 
-| コンポーネント | 役割 | 障害時の影響 |
+| Component | Role | Impact When Failed |
 |---|---|---|
-| API Server | 全リクエストの認証・認可・受付 | kubectlやコントローラーが操作不能 |
-| etcd | クラスタ状態の唯一の永続ストア | 全状態が失われる（最重要） |
-| Controller Manager | Desired State維持のコントロールループ群 | 自動復旧・スケーリングが停止 |
-| Scheduler | Podのノード配置決定 | 新規Podが配置されない |
+| API Server | Authentication, authorization, and acceptance of all requests | kubectl and controllers become inoperable |
+| etcd | The sole persistent store for cluster state | All state is lost (most critical) |
+| Controller Manager | Control loops that maintain Desired State | Automatic recovery and scaling stop |
+| Scheduler | Determines which node to place Pods on | New Pods are not scheduled |
 
-### Worker Nodeの各コンポーネント詳細
+### Worker Node Component Details
 
-| コンポーネント | 役割 | 障害時の影響 |
+| Component | Role | Impact When Failed |
 |---|---|---|
-| kubelet | Pod の作成・監視・レポート | ノード上のPodが管理不能 |
-| kube-proxy | Service のネットワークルール管理 | Service 経由のルーティング不能 |
-| Container Runtime | コンテナの実行（containerd, CRI-O） | コンテナの起動・停止不能 |
+| kubelet | Creates, monitors, and reports on Pods | Pods on the node become unmanageable |
+| kube-proxy | Manages network rules for Services | Routing via Services becomes impossible |
+| Container Runtime | Runs containers (containerd, CRI-O) | Containers cannot be started or stopped |
 
-### Kubernetesの宣言的管理モデル
+### Kubernetes Declarative Management Model
 
-Kubernetesの最も重要な設計思想は**宣言的管理（Declarative Management）**である。命令的（Imperative）な「コンテナを3つ起動せよ」ではなく、宣言的（Declarative）な「コンテナは3つあるべき」と記述する。
+The most important design principle of Kubernetes is **Declarative Management**. Instead of the imperative "start 3 containers," you declaratively state "there should be 3 containers."
 
 ```
-宣言的管理の流れ:
+Declarative management flow:
 
-ユーザー                    API Server                Controller
+User                       API Server                Controller
   │                           │                         │
-  │ "replicas: 3" を apply    │                         │
+  │ apply "replicas: 3"       │                         │
   │──────────────────────────►│                         │
-  │                           │ etcdに保存              │
+  │                           │ Save to etcd            │
   │                           │────────►                │
   │                           │                         │
-  │                           │  現在の状態を監視       │
+  │                           │  Monitor current state  │
   │                           │◄────────────────────────│
   │                           │                         │
-  │                           │  「2つしかない」検知    │
+  │                           │  Detect "only 2 exist"  │
   │                           │────────────────────────►│
   │                           │                         │
-  │                           │  Pod 1つ追加            │
+  │                           │  Add 1 Pod              │
   │                           │◄────────────────────────│
   │                           │                         │
   │                           │  Desired = Current      │
-  │                           │  → Reconciliation完了   │
+  │                           │  → Reconciliation done  │
 ```
 
-この Reconciliation Loop（調整ループ）が常に動作しているため、障害やノードダウンが発生しても自動的に desired state に戻る。
+Because this Reconciliation Loop runs continuously, the system automatically returns to the desired state even when failures or node outages occur.
 
 ---
 
 ## 2. Pod
 
-Kubernetesの最小デプロイ単位。1つ以上のコンテナを含み、同一Podのコンテナはネットワークとストレージを共有する。
+The smallest deployable unit in Kubernetes. Contains one or more containers, and containers within the same Pod share network and storage.
 
-### コード例1: Pod マニフェスト
+### Code Example 1: Pod Manifest
 
 ```yaml
 # pod.yaml
@@ -173,63 +173,63 @@ spec:
 ```
 
 ```bash
-# Podの作成
+# Create a Pod
 kubectl apply -f pod.yaml
 
-# Podの一覧
+# List Pods
 kubectl get pods
-kubectl get pods -o wide  # ノード情報も表示
+kubectl get pods -o wide  # Also shows node information
 
-# Podの詳細
+# Pod details
 kubectl describe pod my-app
 
-# Podのログ
+# Pod logs
 kubectl logs my-app
-kubectl logs my-app -f  # リアルタイム追従
+kubectl logs my-app -f  # Follow in real time
 
-# Pod内でコマンド実行
+# Execute a command inside a Pod
 kubectl exec -it my-app -- /bin/sh
 
-# Podの削除
+# Delete a Pod
 kubectl delete pod my-app
 ```
 
-### Pod のライフサイクル
+### Pod Lifecycle
 
 ```
 ┌──────────────────────────────────────────────┐
-│                Pod ライフサイクル              │
+│                Pod Lifecycle                  │
 │                                              │
 │  Pending ──► Running ──► Succeeded           │
 │     │           │                            │
 │     │           └──► Failed                  │
 │     │                                        │
-│     └──► (スケジューリング不可)               │
+│     └──► (Cannot be scheduled)               │
 │                                              │
-│  Running 中:                                 │
+│  While Running:                              │
 │  ┌─────────────────────────────────┐        │
-│  │  Liveness Probe  → 失敗 → 再起動│        │
-│  │  Readiness Probe → 失敗 → Service│        │
-│  │                     から除外     │        │
-│  │  Startup Probe   → 起動完了判定 │        │
+│  │  Liveness Probe  → fail → restart│        │
+│  │  Readiness Probe → fail → removed│        │
+│  │                     from Service │        │
+│  │  Startup Probe   → startup check │        │
 │  └─────────────────────────────────┘        │
 └──────────────────────────────────────────────┘
 ```
 
-### マルチコンテナパターン
+### Multi-Container Patterns
 
-1つのPodに複数のコンテナを配置するユースケースには、代表的な3つのパターンがある。
+There are three representative patterns for placing multiple containers in a single Pod.
 
 ```yaml
 # sidecar-pattern.yaml
-# サイドカーパターン: ログ収集エージェントを同居
+# Sidecar pattern: co-locate a log collection agent
 apiVersion: v1
 kind: Pod
 metadata:
   name: app-with-sidecar
 spec:
   containers:
-    # メインアプリケーション
+    # Main application
     - name: app
       image: my-app:latest
       ports:
@@ -238,7 +238,7 @@ spec:
         - name: log-volume
           mountPath: /var/log/app
 
-    # サイドカー: ログを収集して外部に転送
+    # Sidecar: collect logs and forward externally
     - name: log-collector
       image: fluent/fluent-bit:latest
       volumeMounts:
@@ -258,14 +258,14 @@ spec:
 
 ```yaml
 # init-container.yaml
-# Init Container: メインコンテナ起動前に前処理を実行
+# Init Container: run pre-processing before the main container starts
 apiVersion: v1
 kind: Pod
 metadata:
   name: app-with-init
 spec:
   initContainers:
-    # DBマイグレーションを実行してから起動
+    # Run DB migration before starting
     - name: db-migration
       image: my-app:latest
       command: ["npm", "run", "migrate"]
@@ -276,7 +276,7 @@ spec:
               name: db-secret
               key: url
 
-    # 外部サービスの起動を待つ
+    # Wait for external service to start
     - name: wait-for-redis
       image: busybox:latest
       command: ['sh', '-c', 'until nc -z redis-service 6379; do echo waiting for redis; sleep 2; done']
@@ -288,19 +288,19 @@ spec:
         - containerPort: 8080
 ```
 
-| パターン | 用途 | 例 |
+| Pattern | Use Case | Example |
 |---|---|---|
-| Sidecar | メインコンテナの補助 | ログ収集、プロキシ、モニタリング |
-| Ambassador | 外部通信のプロキシ | DBプロキシ、APIゲートウェイ |
-| Adapter | 出力の変換 | ログフォーマット変換、メトリクス変換 |
+| Sidecar | Assist the main container | Log collection, proxy, monitoring |
+| Ambassador | Proxy for external communication | DB proxy, API gateway |
+| Adapter | Transform output | Log format conversion, metrics conversion |
 
 ---
 
 ## 3. Deployment
 
-Podのレプリカ管理、ローリングアップデート、ロールバックを担うコントローラー。本番環境では直接Podを作らず、Deploymentを使う。
+A controller that handles Pod replica management, rolling updates, and rollbacks. In production, always use Deployments rather than creating Pods directly.
 
-### コード例2: Deployment マニフェスト
+### Code Example 2: Deployment Manifest
 
 ```yaml
 # deployment.yaml
@@ -318,8 +318,8 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1        # 更新時に追加で作成するPod数
-      maxUnavailable: 0  # 更新時に停止を許容するPod数
+      maxSurge: 1        # Number of additional Pods created during update
+      maxUnavailable: 0  # Number of Pods allowed to be unavailable during update
   template:
     metadata:
       labels:
@@ -354,41 +354,41 @@ spec:
 ```
 
 ```bash
-# Deploymentの作成
+# Create a Deployment
 kubectl apply -f deployment.yaml
 
-# Deploymentの一覧
+# List Deployments
 kubectl get deployments
 
-# ローリングアップデート（イメージ変更）
+# Rolling update (change image)
 kubectl set image deployment/web-app web=my-app:2.0.0
 
-# アップデートの進捗確認
+# Check update progress
 kubectl rollout status deployment/web-app
 
-# 更新履歴の確認
+# Check update history
 kubectl rollout history deployment/web-app
 
-# ロールバック（前のバージョンに戻す）
+# Rollback (revert to previous version)
 kubectl rollout undo deployment/web-app
 
-# 特定リビジョンにロールバック
+# Rollback to a specific revision
 kubectl rollout undo deployment/web-app --to-revision=2
 
-# スケーリング
+# Scaling
 kubectl scale deployment/web-app --replicas=5
 ```
 
-### Deployment / ReplicaSet / Pod の関係
+### Relationship between Deployment, ReplicaSet, and Pod
 
 ```
 ┌─────────────────────────────────────────────────┐
 │  Deployment: web-app                            │
-│  (ローリングアップデート、ロールバック管理)        │
+│  (Manages rolling updates and rollbacks)        │
 │                                                 │
 │  ┌───────────────────────────────────────────┐ │
 │  │  ReplicaSet: web-app-7d9b8c6f5            │ │
-│  │  (現在のバージョンのPodレプリカを管理)      │ │
+│  │  (Manages Pod replicas for current ver.)  │ │
 │  │                                           │ │
 │  │  ┌────────┐  ┌────────┐  ┌────────┐     │ │
 │  │  │ Pod 1  │  │ Pod 2  │  │ Pod 3  │     │ │
@@ -397,83 +397,83 @@ kubectl scale deployment/web-app --replicas=5
 │  └───────────────────────────────────────────┘ │
 │                                                 │
 │  ┌───────────────────────────────────────────┐ │
-│  │  ReplicaSet: web-app-5f4d3e2a1 (旧)      │ │
-│  │  replicas: 0 (ロールバック用に保持)        │ │
+│  │  ReplicaSet: web-app-5f4d3e2a1 (old)     │ │
+│  │  replicas: 0 (retained for rollback)      │ │
 │  └───────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────┘
 ```
 
-### ローリングアップデートの流れ
+### Rolling Update Flow
 
 ```
-maxSurge: 1, maxUnavailable: 0 の場合:
+With maxSurge: 1, maxUnavailable: 0:
 
-Step 1: 新Pod 1つ追加
-  旧v1: [●] [●] [●]    replicas=3
-  新v2: [○]             追加中...
+Step 1: Add 1 new Pod
+  old v1: [●] [●] [●]    replicas=3
+  new v2: [○]             Adding...
 
-Step 2: 新Pod Ready → 旧Pod 1つ削除
-  旧v1: [●] [●]         replicas=2
-  新v2: [●]             Ready!
+Step 2: New Pod Ready → Remove 1 old Pod
+  old v1: [●] [●]         replicas=2
+  new v2: [●]             Ready!
 
-Step 3: 新Pod 追加 → 旧Pod 削除（繰り返し）
-  旧v1: [●]             replicas=1
-  新v2: [●] [●]
+Step 3: Add new Pod → Remove old Pod (repeat)
+  old v1: [●]             replicas=1
+  new v2: [●] [●]
 
-Step 4: 完了
-  旧v1:                  replicas=0
-  新v2: [●] [●] [●]    全Pod更新完了
+Step 4: Complete
+  old v1:                  replicas=0
+  new v2: [●] [●] [●]    All Pods updated
 ```
 
-### デプロイ戦略の比較
+### Comparison of Deployment Strategies
 
 ```yaml
-# Recreate戦略: 全Pod停止 → 全Pod起動（ダウンタイムあり）
+# Recreate strategy: stop all Pods → start all Pods (with downtime)
 spec:
   strategy:
     type: Recreate
 
-# RollingUpdate戦略: 段階的に更新（ダウンタイムなし）
+# RollingUpdate strategy: update incrementally (no downtime)
 spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 25%         # replicas の 25% まで追加Pod許容
-      maxUnavailable: 25%   # replicas の 25% まで停止許容
+      maxSurge: 25%         # Allow up to 25% of replicas as additional Pods
+      maxUnavailable: 25%   # Allow up to 25% of replicas to be stopped
 ```
 
-| 戦略 | ダウンタイム | リソース消費 | 用途 |
+| Strategy | Downtime | Resource Usage | Use Case |
 |---|---|---|---|
-| RollingUpdate | なし | 一時的に増加 | 本番環境（デフォルト） |
-| Recreate | あり | 一定 | DBスキーマ変更など同時稼働不可の場合 |
-| Blue/Green（手動） | なし | 2倍 | 完全なバージョン切替が必要な場合 |
-| Canary（手動） | なし | 微増 | 段階的リリースで影響を最小化 |
+| RollingUpdate | None | Temporarily increases | Production (default) |
+| Recreate | Yes | Constant | When simultaneous operation is impossible, e.g. DB schema changes |
+| Blue/Green (manual) | None | 2x | When a complete version switch is needed |
+| Canary (manual) | None | Slight increase | Staged release to minimize impact |
 
 ---
 
 ## 4. Service
 
-Podの集合に対して安定したネットワークエンドポイント（IPアドレス、DNS名）を提供する抽象化レイヤー。Podは一時的でIPが変わるが、Serviceは不変。
+An abstraction layer that provides a stable network endpoint (IP address, DNS name) for a set of Pods. Pods are ephemeral and their IPs change, but Services remain constant.
 
-### コード例3: Service マニフェスト
+### Code Example 3: Service Manifest
 
 ```yaml
-# === ClusterIP (クラスタ内部からのみアクセス) ===
+# === ClusterIP (accessible only from within the cluster) ===
 apiVersion: v1
 kind: Service
 metadata:
   name: api-service
 spec:
-  type: ClusterIP          # デフォルト
+  type: ClusterIP          # Default
   selector:
-    app: web-app           # このラベルを持つPodにルーティング
+    app: web-app           # Route to Pods with this label
   ports:
-    - port: 80             # Serviceが受けるポート
-      targetPort: 8080     # Podのポート
+    - port: 80             # Port the Service listens on
+      targetPort: 8080     # Pod's port
       protocol: TCP
 
 ---
-# === NodePort (各ノードのIPでアクセス) ===
+# === NodePort (accessible via each node's IP) ===
 apiVersion: v1
 kind: Service
 metadata:
@@ -485,10 +485,10 @@ spec:
   ports:
     - port: 80
       targetPort: 8080
-      nodePort: 30080      # 30000-32767 の範囲
+      nodePort: 30080      # Range: 30000-32767
 
 ---
-# === LoadBalancer (クラウドLBを自動プロビジョニング) ===
+# === LoadBalancer (automatically provisions a cloud LB) ===
 apiVersion: v1
 kind: Service
 metadata:
@@ -502,19 +502,19 @@ spec:
       targetPort: 8080
 ```
 
-### Service タイプの比較表
+### Service Type Comparison
 
-| タイプ | アクセス範囲 | IP | 用途 |
+| Type | Access Scope | IP | Use Case |
 |--------|------------|-----|------|
-| ClusterIP | クラスタ内部のみ | 仮想IP (10.x.x.x) | 内部通信（デフォルト） |
-| NodePort | 外部 + 内部 | ノードIP:30000-32767 | 開発、オンプレ |
-| LoadBalancer | 外部 + 内部 | クラウドLBのIP | 本番（クラウド） |
-| ExternalName | DNS CNAME | 外部DNS名 | 外部サービスへのエイリアス |
+| ClusterIP | Cluster-internal only | Virtual IP (10.x.x.x) | Internal communication (default) |
+| NodePort | External + Internal | Node IP:30000-32767 | Development, on-premises |
+| LoadBalancer | External + Internal | Cloud LB IP | Production (cloud) |
+| ExternalName | DNS CNAME | External DNS name | Alias to external service |
 
-### Serviceのルーティング
+### Service Routing
 
 ```
-外部クライアント
+External Client
     │
     │  LoadBalancer IP: 203.0.113.50:80
     ▼
@@ -538,33 +538,33 @@ spec:
 
 ### Service DNS
 
-Kubernetesクラスタ内ではCoreDNSにより、Serviceに自動でDNS名が割り当てられる。
+Inside a Kubernetes cluster, CoreDNS automatically assigns DNS names to Services.
 
 ```
-# Service DNS命名規則
+# Service DNS naming convention
 <service-name>.<namespace>.svc.cluster.local
 
-# 例
+# Examples
 api-service.myapp.svc.cluster.local
 postgres-service.myapp.svc.cluster.local
 
-# 同一Namespace内では省略可能
-api-service        # 同一Namespace
-api-service.myapp  # 異なるNamespaceから
+# Can be shortened within the same Namespace
+api-service        # Same Namespace
+api-service.myapp  # From a different Namespace
 ```
 
 ```yaml
-# DNS名を使ったアプリケーション設定例
+# Example application configuration using DNS names
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: app-config
   namespace: myapp
 data:
-  # 同一Namespace内のService名をそのまま使用
+  # Use Service name directly within the same Namespace
   DATABASE_HOST: "postgres-service"
   REDIS_HOST: "redis-service"
-  # 異なるNamespaceのServiceにはFQDNで指定
+  # Use FQDN for Services in a different Namespace
   AUTH_SERVICE: "auth-service.auth-system.svc.cluster.local"
 ```
 
@@ -572,9 +572,9 @@ data:
 
 ## 5. Namespace
 
-リソースの論理的な分離単位。チーム別、環境別にリソースを分割する。
+A logical isolation unit for resources. Splits resources by team or environment.
 
-### コード例4: Namespace の管理
+### Code Example 4: Namespace Management
 
 ```yaml
 # namespace.yaml
@@ -594,24 +594,24 @@ metadata:
 ```
 
 ```bash
-# Namespaceの作成
+# Create a Namespace
 kubectl apply -f namespace.yaml
 
-# 特定Namespaceにリソースをデプロイ
+# Deploy resources to a specific Namespace
 kubectl apply -f deployment.yaml -n staging
 
-# Namespace内のリソース一覧
+# List resources in a Namespace
 kubectl get all -n staging
 
-# デフォルトNamespaceの変更
+# Change the default Namespace
 kubectl config set-context --current --namespace=staging
 
-# 全Namespaceのリソース一覧
+# List resources in all Namespaces
 kubectl get pods --all-namespaces
-kubectl get pods -A  # 短縮形
+kubectl get pods -A  # Short form
 ```
 
-### ResourceQuota でNamespace単位のリソース制限
+### Resource Limits per Namespace with ResourceQuota
 
 ```yaml
 # resource-quota.yaml
@@ -622,12 +622,12 @@ metadata:
   namespace: staging
 spec:
   hard:
-    # コンピューティングリソース
+    # Compute resources
     requests.cpu: "4"
     requests.memory: 8Gi
     limits.cpu: "8"
     limits.memory: 16Gi
-    # オブジェクト数
+    # Object counts
     pods: "20"
     services: "10"
     persistentvolumeclaims: "5"
@@ -637,7 +637,7 @@ spec:
 
 ```yaml
 # limit-range.yaml
-# Namespace内の個別Pod/コンテナのデフォルト値と上限を設定
+# Sets default values and upper limits for individual Pods/containers in a Namespace
 apiVersion: v1
 kind: LimitRange
 metadata:
@@ -646,25 +646,25 @@ metadata:
 spec:
   limits:
     - type: Container
-      default:           # limits のデフォルト値
+      default:           # Default values for limits
         cpu: "500m"
         memory: "256Mi"
-      defaultRequest:    # requests のデフォルト値
+      defaultRequest:    # Default values for requests
         cpu: "100m"
         memory: "128Mi"
-      max:               # 上限
+      max:               # Upper bound
         cpu: "2"
         memory: "2Gi"
-      min:               # 下限
+      min:               # Lower bound
         cpu: "50m"
         memory: "64Mi"
 ```
 
 ---
 
-## 6. ConfigMap と Secret
+## 6. ConfigMap and Secret
 
-### ConfigMap: 非機密設定データの管理
+### ConfigMap: Managing Non-Sensitive Configuration Data
 
 ```yaml
 # configmap.yaml
@@ -674,13 +674,13 @@ metadata:
   name: app-config
   namespace: myapp
 data:
-  # 単純なKey-Value
+  # Simple key-value pairs
   DATABASE_HOST: "postgres-service"
   DATABASE_PORT: "5432"
   LOG_LEVEL: "info"
   CACHE_TTL: "3600"
 
-  # ファイルとしてマウント可能な設定
+  # Configuration that can be mounted as a file
   nginx.conf: |
     server {
       listen 80;
@@ -701,19 +701,19 @@ data:
 ```
 
 ```bash
-# ファイルからConfigMap作成
+# Create ConfigMap from a file
 kubectl create configmap nginx-config --from-file=nginx.conf
 
-# リテラルからConfigMap作成
+# Create ConfigMap from literal values
 kubectl create configmap app-config \
   --from-literal=DATABASE_HOST=postgres-service \
   --from-literal=LOG_LEVEL=info
 
-# ConfigMapの内容確認
+# View ConfigMap contents
 kubectl get configmap app-config -o yaml
 ```
 
-### Secret: 機密データの管理
+### Secret: Managing Sensitive Data
 
 ```yaml
 # secret.yaml
@@ -724,13 +724,13 @@ metadata:
   namespace: myapp
 type: Opaque
 data:
-  # base64エンコード済み（echo -n 'value' | base64）
+  # base64-encoded (echo -n 'value' | base64)
   DB_PASSWORD: c2VjcmV0MTIz
   API_KEY: bXktYXBpLWtleS0xMjM0NQ==
   JWT_SECRET: c3VwZXItc2VjcmV0LWtleQ==
 
 ---
-# stringData を使えばプレーンテキストで記述可能（適用時に自動でbase64変換）
+# Using stringData allows plain text (automatically base64-encoded on apply)
 apiVersion: v1
 kind: Secret
 metadata:
@@ -743,30 +743,30 @@ stringData:
 ```
 
 ```bash
-# コマンドラインからSecret作成
+# Create a Secret from the command line
 kubectl create secret generic db-secret \
   --from-literal=password=secret123 \
   --from-literal=username=admin
 
-# TLS Secret作成
+# Create a TLS Secret
 kubectl create secret tls tls-secret \
   --cert=tls.crt \
   --key=tls.key
 
-# Docker Registry Secret
+# Create a Docker Registry Secret
 kubectl create secret docker-registry regcred \
   --docker-server=ghcr.io \
   --docker-username=myuser \
   --docker-password=mytoken
 
-# Secret の内容確認（base64デコード）
+# View Secret contents (base64-decoded)
 kubectl get secret app-secret -o jsonpath='{.data.DB_PASSWORD}' | base64 -d
 ```
 
-### ConfigMap / Secret の利用パターン
+### ConfigMap / Secret Usage Patterns
 
 ```yaml
-# 環境変数として注入
+# Inject as environment variables
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -778,26 +778,26 @@ spec:
         - name: api
           image: my-api:latest
           env:
-            # ConfigMap から個別Key
+            # Individual key from ConfigMap
             - name: DB_HOST
               valueFrom:
                 configMapKeyRef:
                   name: app-config
                   key: DATABASE_HOST
-            # Secret から個別Key
+            # Individual key from Secret
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: app-secret
                   key: DB_PASSWORD
-          # ConfigMap の全Keyを一括で環境変数に
+          # Load all keys from ConfigMap as environment variables at once
           envFrom:
             - configMapRef:
                 name: app-config
             - secretRef:
                 name: app-secret
 
-          # ファイルとしてマウント
+          # Mount as files
           volumeMounts:
             - name: config-volume
               mountPath: /etc/nginx/conf.d
@@ -816,49 +816,49 @@ spec:
         - name: secret-volume
           secret:
             secretName: app-secret
-            defaultMode: 0400  # 読み取り専用パーミッション
+            defaultMode: 0400  # Read-only permission
 ```
 
 ---
 
-## 7. PersistentVolume と PersistentVolumeClaim
+## 7. PersistentVolume and PersistentVolumeClaim
 
-### 永続ストレージの概念
+### Persistent Storage Concepts
 
 ```
 ┌────────────────────────────────────────────────┐
-│                Storageの3層構造                  │
+│            Three-Layer Storage Structure        │
 │                                                │
 │  ┌──────────────────────────────────────────┐ │
 │  │  PersistentVolumeClaim (PVC)             │ │
-│  │  「10Gi の ReadWriteOnce が必要」         │ │
-│  │  → Podが要求するストレージの仕様          │ │
+│  │  "I need 10Gi ReadWriteOnce"             │ │
+│  │  → Storage specification requested by Pod│ │
 │  └─────────────────┬────────────────────────┘ │
-│                    │ バインド                   │
+│                    │ Bind                      │
 │  ┌─────────────────▼────────────────────────┐ │
 │  │  PersistentVolume (PV)                   │ │
-│  │  「AWS EBS 10Gi がある」                  │ │
-│  │  → 管理者がプロビジョニングした実体        │ │
+│  │  "There is an AWS EBS 10Gi"              │ │
+│  │  → Actual storage provisioned by admin   │ │
 │  └─────────────────┬────────────────────────┘ │
 │                    │                           │
 │  ┌─────────────────▼────────────────────────┐ │
 │  │  StorageClass                            │ │
-│  │  「gp3タイプのEBSを自動作成」             │ │
-│  │  → 動的プロビジョニングのテンプレート      │ │
+│  │  "Auto-create gp3 type EBS"              │ │
+│  │  → Template for dynamic provisioning     │ │
 │  └──────────────────────────────────────────┘ │
 └────────────────────────────────────────────────┘
 ```
 
-### コード例: PersistentVolume / PVC
+### Code Example: PersistentVolume / PVC
 
 ```yaml
 # storage-class.yaml
-# 動的プロビジョニング用のStorageClass
+# StorageClass for dynamic provisioning
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: fast-storage
-provisioner: kubernetes.io/aws-ebs   # クラウドプロバイダに応じて変更
+provisioner: kubernetes.io/aws-ebs   # Change according to cloud provider
 parameters:
   type: gp3
   fsType: ext4
@@ -868,7 +868,7 @@ allowVolumeExpansion: true
 
 ---
 # pvc.yaml
-# アプリケーションが要求するストレージ
+# Storage requested by the application
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -876,14 +876,14 @@ metadata:
   namespace: myapp
 spec:
   accessModes:
-    - ReadWriteOnce     # 単一ノードからRead/Write
+    - ReadWriteOnce     # Read/Write from a single node
   storageClassName: fast-storage
   resources:
     requests:
       storage: 10Gi
 
 ---
-# PVCをPodで使用
+# Use PVC in a Pod
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -907,7 +907,7 @@ spec:
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data
-              subPath: pgdata    # サブディレクトリにマウント
+              subPath: pgdata    # Mount to subdirectory
           env:
             - name: POSTGRES_PASSWORD
               valueFrom:
@@ -920,22 +920,22 @@ spec:
             claimName: postgres-data
 ```
 
-### AccessMode の種類
+### AccessMode Types
 
-| AccessMode | 略称 | 説明 |
+| AccessMode | Short | Description |
 |---|---|---|
-| ReadWriteOnce | RWO | 単一ノードからRead/Write |
-| ReadOnlyMany | ROX | 複数ノードからReadOnly |
-| ReadWriteMany | RWX | 複数ノードからRead/Write |
-| ReadWriteOncePod | RWOP | 単一PodからRead/Write（K8s 1.27+） |
+| ReadWriteOnce | RWO | Read/Write from a single node |
+| ReadOnlyMany | ROX | ReadOnly from multiple nodes |
+| ReadWriteMany | RWX | Read/Write from multiple nodes |
+| ReadWriteOncePod | RWOP | Read/Write from a single Pod (K8s 1.27+) |
 
 ```bash
-# PVCの状態確認
+# Check PVC status
 kubectl get pvc -n myapp
 # NAME            STATUS   VOLUME         CAPACITY   ACCESS MODES
 # postgres-data   Bound    pvc-abc123     10Gi       RWO
 
-# PVの一覧
+# List PVs
 kubectl get pv
 # NAME         CAPACITY   RECLAIM POLICY   STATUS
 # pvc-abc123   10Gi       Retain           Bound
@@ -945,18 +945,18 @@ kubectl get pv
 
 ## 8. Ingress
 
-### L7ロードバランシング
+### L7 Load Balancing
 
-IngressはHTTP/HTTPSレイヤーでのルーティングを提供し、1つのIPアドレスで複数のServiceにルーティングする。
+Ingress provides routing at the HTTP/HTTPS layer, routing to multiple Services from a single IP address.
 
 ```
-インターネット
+Internet
     │
     ▼
 ┌─────────────────────────────────────────┐
-│  Ingress Controller (nginx, traefik等)   │
+│  Ingress Controller (nginx, traefik, etc.)│
 │                                          │
-│  ルール:                                 │
+│  Rules:                                  │
 │  api.example.com  → api-service:80      │
 │  web.example.com  → web-service:80      │
 │  example.com/docs → docs-service:80     │
@@ -977,11 +977,11 @@ metadata:
   name: app-ingress
   namespace: myapp
   annotations:
-    # nginx Ingress Controller用の設定
+    # Settings for nginx Ingress Controller
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    # cert-manager でTLS証明書を自動取得
+    # Automatically obtain TLS certificate with cert-manager
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
   ingressClassName: nginx
@@ -991,7 +991,7 @@ spec:
         - web.example.com
       secretName: app-tls
   rules:
-    # ホストベースのルーティング
+    # Host-based routing
     - host: api.example.com
       http:
         paths:
@@ -1012,7 +1012,7 @@ spec:
                 name: web-service
                 port:
                   number: 80
-    # パスベースのルーティング
+    # Path-based routing
     - host: example.com
       http:
         paths:
@@ -1033,23 +1033,23 @@ spec:
 ```
 
 ```bash
-# minikube で Ingress を有効化
+# Enable Ingress in minikube
 minikube addons enable ingress
 
-# Ingress の状態確認
+# Check Ingress status
 kubectl get ingress -n myapp
 # NAME          CLASS   HOSTS                              ADDRESS        PORTS
 # app-ingress   nginx   api.example.com,web.example.com    192.168.49.2   80, 443
 
-# Ingress の詳細
+# Ingress details
 kubectl describe ingress app-ingress -n myapp
 ```
 
 ---
 
-## 9. HPA（Horizontal Pod Autoscaler）
+## 9. HPA (Horizontal Pod Autoscaler)
 
-### 負荷に応じた自動スケーリング
+### Automatic Scaling Based on Load
 
 ```yaml
 # hpa.yaml
@@ -1066,14 +1066,14 @@ spec:
   minReplicas: 2
   maxReplicas: 10
   metrics:
-    # CPU使用率ベース
+    # CPU utilization-based
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 70   # CPU使用率70%を超えたらスケールアウト
-    # メモリ使用率ベース
+          averageUtilization: 70   # Scale out when CPU usage exceeds 70%
+    # Memory utilization-based
     - type: Resource
       resource:
         name: memory
@@ -1082,51 +1082,51 @@ spec:
           averageUtilization: 80
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 60   # スケールアップの安定化期間
+      stabilizationWindowSeconds: 60   # Stabilization window for scale-up
       policies:
         - type: Pods
           value: 2
-          periodSeconds: 60            # 60秒ごとに最大2Pod追加
+          periodSeconds: 60            # Add up to 2 Pods every 60 seconds
     scaleDown:
-      stabilizationWindowSeconds: 300  # スケールダウンの安定化期間（5分）
+      stabilizationWindowSeconds: 300  # Stabilization window for scale-down (5 minutes)
       policies:
         - type: Percent
           value: 10
-          periodSeconds: 60            # 60秒ごとに最大10%削減
+          periodSeconds: 60            # Reduce by up to 10% every 60 seconds
 ```
 
 ```bash
-# HPAの状態確認
+# Check HPA status
 kubectl get hpa -n myapp
 # NAME      REFERENCE        TARGETS         MINPODS   MAXPODS   REPLICAS
 # api-hpa   Deployment/api   45%/70%,60%/80%   2         10        3
 
-# HPAの詳細
+# HPA details
 kubectl describe hpa api-hpa -n myapp
 
-# metrics-server のインストール（minikube）
+# Install metrics-server (minikube)
 minikube addons enable metrics-server
 
-# リアルタイムのリソース使用量確認
+# Check real-time resource usage
 kubectl top pods -n myapp
 kubectl top nodes
 ```
 
-### HPA の動作フロー
+### HPA Operation Flow
 
 ```
                     metrics-server
                          │
-                         │ メトリクス収集
+                         │ Collect metrics
                          ▼
 ┌────────────────────────────────────────┐
 │  HPA Controller                        │
 │                                        │
-│  現在CPU: 85%  目標: 70%               │
-│  現在Replicas: 3                       │
+│  Current CPU: 85%  Target: 70%         │
+│  Current Replicas: 3                   │
 │                                        │
-│  必要Replicas = ceil(3 × 85/70) = 4   │
-│  → スケールアウト: 3 → 4 Pod          │
+│  Required Replicas = ceil(3 × 85/70) = 4│
+│  → Scale out: 3 → 4 Pods              │
 └────────────────────────────────────────┘
          │
          ▼
@@ -1138,39 +1138,39 @@ kubectl top nodes
 
 ---
 
-## 10. RBAC（Role-Based Access Control）
+## 10. RBAC (Role-Based Access Control)
 
-### アクセス制御の基本
+### Access Control Basics
 
 ```yaml
 # role.yaml
-# Namespace スコープの権限定義
+# Permission definition scoped to a Namespace
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: developer-role
   namespace: staging
 rules:
-  # Pod の閲覧・ログ確認
+  # View Pods and logs
   - apiGroups: [""]
     resources: ["pods", "pods/log"]
     verbs: ["get", "list", "watch"]
-  # Deployment の管理
+  # Manage Deployments
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["get", "list", "watch", "create", "update", "patch"]
-  # Service の管理
+  # Manage Services
   - apiGroups: [""]
     resources: ["services"]
     verbs: ["get", "list", "watch", "create", "update"]
-  # ConfigMap の閲覧
+  # View ConfigMaps
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list"]
 
 ---
 # rolebinding.yaml
-# ユーザーに Role を割り当て
+# Assign a Role to a user
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -1194,7 +1194,7 @@ roleRef:
 
 ```yaml
 # cluster-role.yaml
-# クラスタ全体スコープの権限定義
+# Permission definition scoped to the entire cluster
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -1223,94 +1223,94 @@ roleRef:
 ```
 
 ```bash
-# 権限の確認
+# Check permissions
 kubectl auth can-i create deployments --namespace staging
 # yes
 
 kubectl auth can-i delete pods --namespace production
 # no
 
-# 特定ユーザーの権限確認
+# Check permissions for a specific user
 kubectl auth can-i list pods --namespace staging --as developer@example.com
 ```
 
 ---
 
-## 11. minikubeでの実践
+## 11. Hands-on with minikube
 
-### コード例5: minikubeクラスタの構築と操作
+### Code Example 5: Building and Operating a minikube Cluster
 
 ```bash
-# minikubeのインストール（macOS）
+# Install minikube (macOS)
 brew install minikube
 
-# クラスタの起動
+# Start the cluster
 minikube start --driver=docker --memory=4096 --cpus=2
 
-# クラスタの状態確認
+# Check cluster status
 minikube status
 kubectl cluster-info
 kubectl get nodes
 
-# ダッシュボードの起動
+# Launch the dashboard
 minikube dashboard
 
-# === 実践: Webアプリケーションのデプロイ ===
+# === Practice: Deploying a Web Application ===
 
-# 1. Deploymentの作成
+# 1. Create a Deployment
 kubectl create deployment hello-web --image=nginx:alpine --replicas=3
 
-# 2. Serviceの作成（NodePort）
+# 2. Create a Service (NodePort)
 kubectl expose deployment hello-web --type=NodePort --port=80
 
-# 3. minikubeでServiceにアクセス
+# 3. Access the Service via minikube
 minikube service hello-web --url
-# → http://192.168.49.2:30123 のようなURLが表示される
+# → A URL like http://192.168.49.2:30123 will be displayed
 
-# 4. スケーリング
+# 4. Scaling
 kubectl scale deployment hello-web --replicas=5
-kubectl get pods -w  # リアルタイムで監視
+kubectl get pods -w  # Monitor in real time
 
-# 5. ローリングアップデート
+# 5. Rolling update
 kubectl set image deployment/hello-web nginx=nginx:1.25-alpine
 kubectl rollout status deployment/hello-web
 
-# 6. ロールバック
+# 6. Rollback
 kubectl rollout undo deployment/hello-web
 
-# 7. クリーンアップ
+# 7. Cleanup
 kubectl delete service hello-web
 kubectl delete deployment hello-web
 
-# minikubeの停止・削除
+# Stop and delete minikube
 minikube stop
 minikube delete
 ```
 
-### minikube アドオン
+### minikube Addons
 
 ```bash
-# 利用可能なアドオン一覧
+# List available addons
 minikube addons list
 
-# よく使うアドオンの有効化
+# Enable commonly used addons
 minikube addons enable ingress          # Ingress Controller
-minikube addons enable metrics-server   # HPAに必要
+minikube addons enable metrics-server   # Required for HPA
 minikube addons enable dashboard        # Web UI
-minikube addons enable registry         # ローカルレジストリ
-minikube addons enable storage-provisioner  # 動的PV
+minikube addons enable registry         # Local registry
+minikube addons enable storage-provisioner  # Dynamic PV
 
-# minikube 内のDockerデーモンを使用（ローカルイメージを使う）
+# Use the Docker daemon inside minikube (to use local images)
 eval $(minikube docker-env)
 docker build -t my-app:latest .
-# → imagePullPolicy: Never でローカルイメージを使用可能
+# → Use local images with imagePullPolicy: Never
 ```
 
 ---
 
-## 12. 完全なアプリケーション例
+## 12. Complete Application Example
 
-### コード例6: フロントエンド + API + DB の構成
+### Code Example 6: Frontend + API + DB Configuration
 
 ```yaml
 # complete-app.yaml
@@ -1341,7 +1341,7 @@ metadata:
   namespace: myapp
 type: Opaque
 data:
-  POSTGRES_PASSWORD: c2VjcmV0MTIz  # base64エンコード
+  POSTGRES_PASSWORD: c2VjcmV0MTIz  # base64-encoded
 
 ---
 
@@ -1470,13 +1470,13 @@ spec:
 ```
 
 ```bash
-# 一括デプロイ
+# Deploy all at once
 kubectl apply -f complete-app.yaml
 
-# 状態確認
+# Check status
 kubectl get all -n myapp
 
-# 出力例:
+# Example output:
 # NAME                           READY   STATUS    RESTARTS   AGE
 # pod/postgres-6d4f5c7b8-x2k9p  1/1     Running   0          2m
 # pod/api-7f8d9e6a5-abc12       1/1     Running   0          2m
@@ -1489,83 +1489,83 @@ kubectl get all -n myapp
 
 ---
 
-## 13. kubectl コマンドチートシート
+## 13. kubectl Command Cheat Sheet
 
-### コード例7: よく使うkubectlコマンド
+### Code Example 7: Commonly Used kubectl Commands
 
 ```bash
-# === リソース確認 ===
-kubectl get pods                      # Pod一覧
-kubectl get pods -o wide              # 詳細一覧（ノード、IP含む）
-kubectl get pods -o yaml              # YAML形式で出力
-kubectl get all                       # 全リソース一覧
-kubectl get events --sort-by='.lastTimestamp'  # イベント（トラブルシュート用）
+# === Check Resources ===
+kubectl get pods                      # List Pods
+kubectl get pods -o wide              # Detailed list (including node, IP)
+kubectl get pods -o yaml              # Output in YAML format
+kubectl get all                       # List all resources
+kubectl get events --sort-by='.lastTimestamp'  # Events (for troubleshooting)
 
-# === デバッグ ===
-kubectl describe pod <pod-name>       # Pod詳細（イベント含む）
-kubectl logs <pod-name>               # ログ出力
-kubectl logs <pod-name> -c <container># マルチコンテナPodの特定コンテナ
-kubectl logs <pod-name> --previous    # 前回クラッシュ時のログ
-kubectl exec -it <pod-name> -- sh    # Pod内シェル
+# === Debugging ===
+kubectl describe pod <pod-name>       # Pod details (including events)
+kubectl logs <pod-name>               # Log output
+kubectl logs <pod-name> -c <container># Specific container in a multi-container Pod
+kubectl logs <pod-name> --previous    # Logs from previous crash
+kubectl exec -it <pod-name> -- sh    # Shell inside a Pod
 
-# === リソース管理 ===
-kubectl apply -f manifest.yaml        # 作成/更新
-kubectl delete -f manifest.yaml       # 削除
-kubectl diff -f manifest.yaml         # 差分確認
+# === Resource Management ===
+kubectl apply -f manifest.yaml        # Create/update
+kubectl delete -f manifest.yaml       # Delete
+kubectl diff -f manifest.yaml         # Check diff
 
-# === ポートフォワード（ローカルからPodに直接アクセス） ===
+# === Port Forward (direct access from local to Pod) ===
 kubectl port-forward pod/my-pod 8080:80
 kubectl port-forward svc/my-service 8080:80
 ```
 
-### 高度なデバッグコマンド
+### Advanced Debugging Commands
 
 ```bash
-# === トラブルシューティングフロー ===
+# === Troubleshooting Flow ===
 
-# 1. Pod が起動しない場合
-kubectl get pods -n myapp                     # STATUS確認
-kubectl describe pod <pod-name> -n myapp      # Events欄を確認
+# 1. When a Pod fails to start
+kubectl get pods -n myapp                     # Check STATUS
+kubectl describe pod <pod-name> -n myapp      # Check Events section
 kubectl get events -n myapp --sort-by='.lastTimestamp'
 
-# 2. CrashLoopBackOff の場合
-kubectl logs <pod-name> -n myapp --previous   # 前回のクラッシュログ
-kubectl describe pod <pod-name> -n myapp      # Exit Code確認
+# 2. For CrashLoopBackOff
+kubectl logs <pod-name> -n myapp --previous   # Logs from previous crash
+kubectl describe pod <pod-name> -n myapp      # Check Exit Code
 
-# 3. ImagePullBackOff の場合
-kubectl describe pod <pod-name> -n myapp      # イメージ名とタグを確認
-# → イメージ名のtypo、タグの不存在、レジストリ認証の問題
+# 3. For ImagePullBackOff
+kubectl describe pod <pod-name> -n myapp      # Check image name and tag
+# → Typo in image name, non-existent tag, registry authentication issues
 
-# 4. Pending の場合
-kubectl describe pod <pod-name> -n myapp      # Schedulerのメッセージ確認
-kubectl get nodes                             # ノードの状態確認
-kubectl describe node <node-name>             # ノードのリソース使用状況
+# 4. For Pending
+kubectl describe pod <pod-name> -n myapp      # Check Scheduler message
+kubectl get nodes                             # Check node status
+kubectl describe node <node-name>             # Check node resource usage
 
-# 5. ネットワーク問題のデバッグ
+# 5. Debugging network issues
 kubectl run debug --rm -it --image=busybox -- sh
-# Pod内で:
+# Inside the Pod:
 nslookup api-service.myapp.svc.cluster.local
 wget -qO- http://api-service.myapp:80/health
 
-# 6. 一時的なデバッグコンテナ（ephemeral container）
+# 6. Temporary debug container (ephemeral container)
 kubectl debug -it <pod-name> --image=busybox --target=app
 
-# === リソース使用量の確認 ===
+# === Check Resource Usage ===
 kubectl top pods -n myapp
 kubectl top pods -n myapp --sort-by=memory
 kubectl top nodes
 
-# === JSONPath でフィルタリング ===
-# 全PodのIPアドレスを取得
+# === Filter with JSONPath ===
+# Get IP addresses of all Pods
 kubectl get pods -o jsonpath='{.items[*].status.podIP}'
 
-# Running状態のPod名を取得
+# Get names of Running Pods
 kubectl get pods --field-selector=status.phase=Running -o name
 
-# 特定ラベルのPodだけ取得
+# Get only Pods with a specific label
 kubectl get pods -l app=api,version=v2
 
-# カスタムカラム出力
+# Custom column output
 kubectl get pods -o custom-columns=\
 NAME:.metadata.name,\
 STATUS:.status.phase,\
@@ -1573,72 +1573,72 @@ NODE:.spec.nodeName,\
 IP:.status.podIP
 ```
 
-### kubectl コンテキスト管理
+### kubectl Context Management
 
 ```bash
-# コンテキスト一覧
+# List contexts
 kubectl config get-contexts
 
-# 現在のコンテキスト確認
+# Check current context
 kubectl config current-context
 
-# コンテキスト切り替え
+# Switch context
 kubectl config use-context minikube
 kubectl config use-context production-cluster
 
-# デフォルトNamespace変更
+# Change default Namespace
 kubectl config set-context --current --namespace=myapp
 
-# kubectx / kubens（便利ツール）
+# kubectx / kubens (convenience tools)
 brew install kubectx
-kubectx minikube           # コンテキスト切り替え
-kubens myapp               # Namespace切り替え
+kubectx minikube           # Switch context
+kubens myapp               # Switch Namespace
 ```
 
 ---
 
-## 14. Helm入門
+## 14. Helm Introduction
 
-### パッケージマネージャの基本
+### Package Manager Basics
 
-Helmは Kubernetes のパッケージマネージャで、複雑なアプリケーションのデプロイをテンプレート化する。
+Helm is the package manager for Kubernetes and templatizes the deployment of complex applications.
 
 ```bash
-# Helmのインストール
+# Install Helm
 brew install helm
 
-# リポジトリの追加
+# Add repositories
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
 
-# Chart の検索
+# Search for a Chart
 helm search repo nginx
-helm search hub prometheus   # Artifact Hub を検索
+helm search hub prometheus   # Search Artifact Hub
 
-# Chart のインストール
+# Install a Chart
 helm install my-nginx bitnami/nginx -n myapp --create-namespace
 
-# values.yaml でカスタマイズ
+# Customize with values.yaml
 helm install my-nginx bitnami/nginx -n myapp \
   -f custom-values.yaml
 
-# リリース一覧
+# List releases
 helm list -n myapp
 
-# リリースのアップグレード
+# Upgrade a release
 helm upgrade my-nginx bitnami/nginx -n myapp \
   --set replicaCount=3
 
-# ロールバック
+# Rollback
 helm rollback my-nginx 1 -n myapp
 
-# アンインストール
+# Uninstall
 helm uninstall my-nginx -n myapp
 ```
 
 ```yaml
-# custom-values.yaml の例（bitnami/nginx）
+# Example custom-values.yaml (bitnami/nginx)
 replicaCount: 3
 
 resources:
@@ -1668,9 +1668,9 @@ autoscaling:
 
 ---
 
-## 15. 本番運用のベストプラクティス
+## 15. Production Best Practices
 
-### リソース設定のガイドライン
+### Resource Configuration Guidelines
 
 ```yaml
 # production-deployment.yaml
@@ -1698,12 +1698,12 @@ spec:
         app: api
         version: v2.1.0
       annotations:
-        # Prometheus メトリクス収集
+        # Prometheus metrics collection
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
         prometheus.io/path: "/metrics"
     spec:
-      # 同一ノードに集中しないよう分散
+      # Spread across nodes to avoid concentration on a single node
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
@@ -1712,14 +1712,14 @@ spec:
             matchLabels:
               app: api
 
-      # Pod の優先度
+      # Pod priority
       priorityClassName: high-priority
 
-      # サービスアカウント
+      # Service account
       serviceAccountName: api-sa
       automountServiceAccountToken: false
 
-      # セキュリティコンテキスト
+      # Security context
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -1728,7 +1728,7 @@ spec:
 
       containers:
         - name: api
-          image: ghcr.io/myorg/api:v2.1.0   # latest禁止、バージョン固定
+          image: ghcr.io/myorg/api:v2.1.0   # No latest tag; pin to version
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -1741,14 +1741,14 @@ spec:
               memory: "512Mi"
               cpu: "1000m"
 
-          # セキュリティ設定
+          # Security settings
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
 
-          # ヘルスチェック
+          # Health checks
           startupProbe:
             httpGet:
               path: /health
@@ -1768,7 +1768,7 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 3
 
-          # 一時ファイル用
+          # For temporary files
           volumeMounts:
             - name: tmp
               mountPath: /tmp
@@ -1781,36 +1781,36 @@ spec:
       terminationGracePeriodSeconds: 60
 ```
 
-### 本番チェックリスト
+### Production Checklist
 
-| カテゴリ | チェック項目 | 重要度 |
+| Category | Check Item | Priority |
 |---|---|---|
-| イメージ | `latest` タグを使わずバージョン固定 | 必須 |
-| イメージ | プライベートレジストリからの pull | 必須 |
-| リソース | requests / limits 両方設定 | 必須 |
-| Probe | liveness / readiness / startup 全設定 | 必須 |
-| セキュリティ | runAsNonRoot: true | 必須 |
-| セキュリティ | readOnlyRootFilesystem: true | 推奨 |
-| セキュリティ | capabilities drop ALL | 推奨 |
-| 可用性 | replicas 2以上 | 必須 |
-| 可用性 | topologySpreadConstraints 設定 | 推奨 |
-| 可用性 | PodDisruptionBudget 設定 | 推奨 |
-| ネットワーク | NetworkPolicy で通信制限 | 推奨 |
-| 監視 | Prometheus メトリクス公開 | 推奨 |
+| Image | Pin to a version instead of using `latest` tag | Required |
+| Image | Pull from a private registry | Required |
+| Resources | Set both requests and limits | Required |
+| Probe | Configure all three: liveness, readiness, and startup | Required |
+| Security | runAsNonRoot: true | Required |
+| Security | readOnlyRootFilesystem: true | Recommended |
+| Security | capabilities drop ALL | Recommended |
+| Availability | 2 or more replicas | Required |
+| Availability | Configure topologySpreadConstraints | Recommended |
+| Availability | Configure PodDisruptionBudget | Recommended |
+| Network | Restrict communication with NetworkPolicy | Recommended |
+| Monitoring | Expose Prometheus metrics | Recommended |
 
 ### PodDisruptionBudget
 
 ```yaml
 # pdb.yaml
-# ノードメンテナンス時にも最低限のPod数を維持
+# Maintain a minimum number of Pods even during node maintenance
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: api-pdb
   namespace: production
 spec:
-  minAvailable: 2      # 最低2Podは常に稼働
-  # または maxUnavailable: 1  # 最大1Podまで停止許容
+  minAvailable: 2      # At least 2 Pods always running
+  # Or maxUnavailable: 1  # Allow at most 1 Pod to be stopped
   selector:
     matchLabels:
       app: api
@@ -1820,7 +1820,7 @@ spec:
 
 ```yaml
 # network-policy.yaml
-# API Pod への通信を制限
+# Restrict traffic to API Pods
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -1834,7 +1834,7 @@ spec:
     - Ingress
     - Egress
   ingress:
-    # Ingress Controller からのHTTPのみ許可
+    # Allow only HTTP from Ingress Controller
     - from:
         - namespaceSelector:
             matchLabels:
@@ -1843,7 +1843,7 @@ spec:
         - protocol: TCP
           port: 8080
   egress:
-    # PostgreSQL への通信のみ許可
+    # Allow only communication to PostgreSQL
     - to:
         - podSelector:
             matchLabels:
@@ -1851,7 +1851,7 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
-    # DNS解決を許可
+    # Allow DNS resolution
     - to:
         - namespaceSelector: {}
       ports:
@@ -1863,12 +1863,12 @@ spec:
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン1: 直接Podを作成する
+### Anti-pattern 1: Creating Pods Directly
 
 ```yaml
-# NG: Podを直接作成（障害時に自動復旧されない）
+# NG: Create Pod directly (not automatically recovered on failure)
 apiVersion: v1
 kind: Pod
 metadata:
@@ -1878,7 +1878,7 @@ spec:
     - name: web
       image: nginx:alpine
 
-# OK: Deploymentで管理（自動復旧、ローリングアップデート）
+# OK: Managed with Deployment (auto-recovery, rolling updates)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1892,18 +1892,18 @@ spec:
     # ...
 ```
 
-**なぜ問題か**: 直接作成したPodは、ノード障害やPodクラッシュ時に自動で再作成されない。Deploymentはレプリカ数を維持し、障害時も宣言された状態に自動復旧する。
+**Why it's a problem**: Pods created directly are not automatically recreated on node failure or Pod crash. A Deployment maintains the replica count and automatically recovers to the declared state on failure.
 
-### アンチパターン2: リソース制限の未設定
+### Anti-pattern 2: Not Setting Resource Limits
 
 ```yaml
-# NG: リソース制限なし
+# NG: No resource limits
 containers:
   - name: app
     image: my-app:latest
-    # resources 未設定 → ノードの全リソースを消費しうる
+    # resources not set → may consume all node resources
 
-# OK: requests と limits を必ず設定
+# OK: Always set both requests and limits
 containers:
   - name: app
     image: my-app:latest
@@ -1916,37 +1916,37 @@ containers:
         cpu: "500m"
 ```
 
-**なぜ問題か**: リソース制限のないPodは、同一ノード上の他のPodのリソースを奪い、クラスタ全体の不安定化を引き起こす。Schedulerも適切な配置判断ができない。
+**Why it's a problem**: Pods without resource limits can steal resources from other Pods on the same node, destabilizing the entire cluster. The Scheduler also cannot make appropriate placement decisions.
 
-### アンチパターン3: latest タグの使用
+### Anti-pattern 3: Using the latest Tag
 
 ```yaml
-# NG: latest タグ（どのバージョンかわからない）
+# NG: latest tag (it's unclear which version is running)
 containers:
   - name: app
     image: my-app:latest
 
-# OK: セマンティックバージョニングで固定
+# OK: Pin with semantic versioning
 containers:
   - name: app
     image: my-app:2.1.0
-    # または image digest で完全固定
+    # Or pin completely with image digest
     # image: my-app@sha256:abc123...
 ```
 
-**なぜ問題か**: `latest` タグはどのバージョンが動いているか追跡できず、ロールバックも不可能。デプロイの再現性が失われ、同じマニフェストでも異なるイメージが動く可能性がある。
+**Why it's a problem**: The `latest` tag makes it impossible to track which version is running, and rollback is not possible. Reproducibility of deployments is lost, and different images may run with the same manifest.
 
-### アンチパターン4: Secretをマニフェストにハードコード
+### Anti-pattern 4: Hardcoding Secrets in Manifests
 
 ```yaml
-# NG: パスワードを平文でマニフェストに記載
+# NG: Plain text password in manifest
 containers:
   - name: app
     env:
       - name: DB_PASSWORD
-        value: "my-secret-password"   # Gitに残る!
+        value: "my-secret-password"   # Stays in Git!
 
-# OK: Secret リソースを使用
+# OK: Use Secret resource
 containers:
   - name: app
     env:
@@ -1957,122 +1957,122 @@ containers:
             key: password
 ```
 
-**なぜ問題か**: マニフェストはGitで管理されるため、パスワードがリポジトリの履歴に残る。External Secrets Operator や Sealed Secrets を使い、暗号化された状態でGit管理するのがベストプラクティス。
+**Why it's a problem**: Since manifests are managed in Git, passwords remain in the repository history. Best practice is to use External Secrets Operator or Sealed Secrets to manage secrets in an encrypted state in Git.
 
-### アンチパターン5: ヘルスチェック未設定
+### Anti-pattern 5: Not Setting Health Checks
 
 ```yaml
-# NG: Probe未設定（異常検知不能）
+# NG: No Probes (cannot detect abnormalities)
 containers:
   - name: app
     image: my-app:1.0.0
     ports:
       - containerPort: 8080
 
-# OK: 3種類のProbeを適切に設定
+# OK: Configure all three Probe types appropriately
 containers:
   - name: app
     image: my-app:1.0.0
     ports:
       - containerPort: 8080
-    startupProbe:           # 起動完了判定
+    startupProbe:           # Startup completion check
       httpGet:
         path: /health
         port: 8080
       failureThreshold: 30
       periodSeconds: 2
-    livenessProbe:          # 生存確認
+    livenessProbe:          # Liveness check
       httpGet:
         path: /health
         port: 8080
       periodSeconds: 15
-    readinessProbe:         # リクエスト受付可否
+    readinessProbe:         # Request acceptance check
       httpGet:
         path: /ready
         port: 8080
       periodSeconds: 5
 ```
 
-**なぜ問題か**: Probeがないと、アプリケーションがデッドロックや無限ループに陥っても検知できず、異常なPodにリクエストが送り続けられる。startupProbeがないと、起動が遅いアプリケーションがlivenessProbeで誤って再起動される。
+**Why it's a problem**: Without Probes, deadlocked or infinite-looping applications cannot be detected, and requests continue to be sent to abnormal Pods. Without startupProbe, slow-starting applications may be erroneously restarted by the livenessProbe.
 
 ---
 
 ## FAQ
 
-### Q1: requests と limits の違いは？
+### Q1: What is the difference between requests and limits?
 
-- **requests**: Schedulerがノード選択時に使用する最低保証値。この分のリソースは必ず確保される。
-- **limits**: 上限値。超過するとCPUはスロットリング、メモリはOOM Killが発生する。
+- **requests**: The minimum guaranteed value used by the Scheduler when selecting a node. This amount of resources is always reserved.
+- **limits**: The upper bound. Exceeding it causes CPU throttling; for memory, OOM Kill occurs.
 
-一般的な指針: `requests` は平常時の使用量、`limits` はピーク時の1.5-2倍に設定。
+General guideline: set `requests` to normal usage and `limits` to 1.5-2x the peak usage.
 
-### Q2: livenessProbe と readinessProbe の違いは？
+### Q2: What is the difference between livenessProbe and readinessProbe?
 
-- **livenessProbe**: コンテナが「生きている」か確認。失敗するとコンテナが再起動される。デッドロック検知に有用。
-- **readinessProbe**: コンテナが「リクエストを受けられる状態」か確認。失敗するとServiceのエンドポイントから除外される（再起動はしない）。起動時のウォームアップに有用。
+- **livenessProbe**: Checks whether the container is "alive." Failure causes the container to be restarted. Useful for detecting deadlocks.
+- **readinessProbe**: Checks whether the container is "ready to accept requests." Failure removes it from the Service endpoints (does not restart). Useful for warmup at startup.
 
-### Q3: `kubectl apply` と `kubectl create` の違いは？
+### Q3: What is the difference between `kubectl apply` and `kubectl create`?
 
-`create` は新規作成のみ（既存リソースがあるとエラー）。`apply` は宣言的管理で、リソースが存在しなければ作成、存在すれば更新する。本番運用では常に `apply` を使用する。
+`create` only creates new resources (error if the resource already exists). `apply` uses declarative management: it creates the resource if it doesn't exist, or updates it if it does. Always use `apply` in production.
 
-### Q4: ConfigMap と Secret はどう使い分ける？
+### Q4: How do you choose between ConfigMap and Secret?
 
-- **ConfigMap**: 非機密の設定データ（DB_HOST、LOG_LEVEL、設定ファイル等）
-- **Secret**: 機密データ（パスワード、APIキー、TLS証明書等）
+- **ConfigMap**: Non-sensitive configuration data (DB_HOST, LOG_LEVEL, config files, etc.)
+- **Secret**: Sensitive data (passwords, API keys, TLS certificates, etc.)
 
-SecretはデフォルトではBase64エンコードのみで暗号化されていない点に注意。本番環境ではEtcd暗号化（EncryptionConfiguration）やExternal Secrets Operatorの使用を推奨する。
+Note that Secrets are only Base64-encoded by default and are not encrypted. For production, it is recommended to use etcd encryption (EncryptionConfiguration) or External Secrets Operator.
 
-### Q5: Namespace はどう設計すべき？
+### Q5: How should Namespaces be designed?
 
-一般的なパターン:
+Common patterns:
 
 ```
-# 環境別
-default        # 使わない（リソースを置かない）
-development    # 開発環境
-staging        # ステージング環境
-production     # 本番環境
+# By environment
+default        # Do not use (place no resources here)
+development    # Development environment
+staging        # Staging environment
+production     # Production environment
 
-# チーム × 環境
-team-a-dev     # チームAの開発
-team-a-prod    # チームAの本番
-team-b-dev     # チームBの開発
+# By team × environment
+team-a-dev     # Team A development
+team-a-prod    # Team A production
+team-b-dev     # Team B development
 
-# マイクロサービス別
-auth-system    # 認証サービス群
-payment        # 決済サービス群
-notification   # 通知サービス群
+# By microservice
+auth-system    # Authentication services
+payment        # Payment services
+notification   # Notification services
 ```
 
-ResourceQuota と LimitRange を組み合わせて、Namespace単位でリソースの公平な配分を実現する。
+Combine ResourceQuota and LimitRange to achieve fair resource allocation per Namespace.
 
-### Q6: minikube と kind の違いは？
+### Q6: What is the difference between minikube and kind?
 
-| 項目 | minikube | kind |
+| Item | minikube | kind |
 |---|---|---|
-| 用途 | ローカル開発・学習 | CI/CD・テスト向き |
-| マルチノード | 可能（v1.10+） | 容易に可能 |
-| 起動速度 | やや遅い | 高速 |
-| アドオン | 豊富 | 最小限 |
-| ドライバ | Docker, VirtualBox等 | Docker専用 |
+| Use case | Local development and learning | CI/CD and testing |
+| Multi-node | Possible (v1.10+) | Easily possible |
+| Startup speed | Somewhat slow | Fast |
+| Addons | Rich | Minimal |
+| Drivers | Docker, VirtualBox, etc. | Docker only |
 
-学習にはminikube、CI/CDにはkindが適している。
+minikube is suitable for learning; kind is suitable for CI/CD.
 
-### Q7: StatefulSet はいつ使う？
+### Q7: When should I use StatefulSet?
 
-StatefulSetは順序付きの安定したPod管理が必要な場合に使用する。
+Use StatefulSet when you need ordered, stable Pod management.
 
 ```yaml
-# Deployment との違い
-# - Pod名が固定（postgres-0, postgres-1, postgres-2）
-# - 起動・停止の順序が保証される
-# - 各Podに固定のPersistentVolumeが紐づく
+# Differences from Deployment
+# - Pod names are fixed (postgres-0, postgres-1, postgres-2)
+# - Start and stop order is guaranteed
+# - Each Pod has a fixed PersistentVolume attached
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: postgres
 spec:
-  serviceName: postgres-headless  # Headless Service必須
+  serviceName: postgres-headless  # Headless Service required
   replicas: 3
   selector:
     matchLabels:
@@ -2090,76 +2090,78 @@ spec:
             storage: 10Gi
 ```
 
-主な用途: データベース、メッセージキュー（Kafka）、分散ストレージ（Elasticsearch）
+Primary use cases: databases, message queues (Kafka), distributed storage (Elasticsearch)
 
-### Q8: Kubernetes上でのログ管理はどうする？
+### Q8: How do you manage logs on Kubernetes?
 
 ```
-アプリケーション
+Application
   │ stdout/stderr
   ▼
-kubelet (ノード上のログファイル)
+kubelet (log files on the node)
   │
   ▼
 ┌──────────────────────────────────────┐
-│  ログ収集パターン                      │
+│  Log Collection Patterns              │
 │                                      │
-│  1. サイドカー: Fluent Bit/Fluentd   │
-│     → 各Podにログ転送コンテナを配置   │
+│  1. Sidecar: Fluent Bit/Fluentd      │
+│     → Deploy a log-forwarding        │
+│       container in each Pod          │
 │                                      │
 │  2. DaemonSet: Fluent Bit/Fluentd    │
-│     → 各ノードに1つのログ収集Pod     │
-│     → ノード上のログファイルを収集     │
+│     → One log collection Pod per node│
+│     → Collects log files on the node │
 │                                      │
-│  3. 直接転送: アプリから直接送信      │
-│     → 集中ログサービスに直接出力      │
+│  3. Direct forwarding: send from app │
+│     → Output directly to centralized │
+│       log service                    │
 └──────────────────────────────────────┘
   │
   ▼
-Elasticsearch / Loki / CloudWatch 等
+Elasticsearch / Loki / CloudWatch, etc.
   │
   ▼
-Kibana / Grafana 等で可視化
+Visualized with Kibana / Grafana, etc.
 ```
 
-推奨は DaemonSet パターン。アプリケーションはstdout/stderrにJSON形式でログを出力し、ノード単位のDaemonSetが収集・転送する。
+The recommended approach is the DaemonSet pattern. Applications output logs in JSON format to stdout/stderr, and a per-node DaemonSet collects and forwards them.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| Pod | 最小デプロイ単位。直接作成せずDeploymentで管理 |
-| Deployment | レプリカ管理、ローリングアップデート、ロールバック |
-| Service | 安定したネットワークエンドポイント。ClusterIP/NodePort/LoadBalancer |
-| Namespace | リソースの論理的分離。環境・チーム別に使用 |
-| ConfigMap/Secret | 設定と機密情報を分離管理。環境変数またはファイルマウント |
-| PersistentVolume | Pod再起動後もデータ保持。StorageClassで動的プロビジョニング |
-| Ingress | L7ルーティング。ホスト/パスベースで複数Serviceへ振り分け |
-| HPA | CPU/メモリベースの自動水平スケーリング |
-| RBAC | Role/ClusterRoleでアクセス制御。最小権限の原則 |
-| Helm | パッケージマネージャ。複雑なデプロイをテンプレート化 |
-| kubectl | `apply` で宣言的管理。`describe` と `logs` でデバッグ |
-| リソース制限 | requests/limits 必須。Scheduler配置とOOM防止 |
-| Probe | startup=起動判定、liveness=再起動、readiness=Service除外 |
+| Pod | Smallest deployable unit. Manage with Deployment rather than creating directly |
+| Deployment | Replica management, rolling updates, rollback |
+| Service | Stable network endpoint. ClusterIP/NodePort/LoadBalancer |
+| Namespace | Logical isolation of resources. Use per environment and team |
+| ConfigMap/Secret | Separately manage configuration and sensitive data. Inject as env vars or file mounts |
+| PersistentVolume | Retain data after Pod restarts. Dynamic provisioning with StorageClass |
+| Ingress | L7 routing. Distribute to multiple Services by host/path |
+| HPA | Automatic horizontal scaling based on CPU/memory |
+| RBAC | Access control with Role/ClusterRole. Principle of least privilege |
+| Helm | Package manager. Templatize complex deployments |
+| kubectl | Declarative management with `apply`. Debug with `describe` and `logs` |
+| Resource limits | requests/limits are mandatory. Enables Scheduler placement and OOM prevention |
+| Probe | startup=startup check, liveness=restart, readiness=Service exclusion |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [Kubernetes応用](./02-kubernetes-advanced.md) -- Helm、Ingress、HPA、永続ボリューム
-- [オーケストレーション概要](./00-orchestration-overview.md) -- Swarmとの比較と選定基準
-- [コンテナセキュリティ](../06-security/00-container-security.md) -- K8sのセキュリティ設定
+- [Kubernetes Advanced](./02-kubernetes-advanced.md) -- Helm, Ingress, HPA, persistent volumes
+- [Orchestration Overview](./00-orchestration-overview.md) -- Comparison with Swarm and selection criteria
+- [Container Security](../06-security/00-container-security.md) -- Kubernetes security configuration
 
 ---
 
-## 参考文献
+## References
 
-1. Kubernetes公式ドキュメント "Concepts" -- https://kubernetes.io/docs/concepts/
-2. Kubernetes公式チュートリアル -- https://kubernetes.io/docs/tutorials/
+1. Kubernetes Official Documentation "Concepts" -- https://kubernetes.io/docs/concepts/
+2. Kubernetes Official Tutorial -- https://kubernetes.io/docs/tutorials/
 3. Nigel Poulton (2023) *The Kubernetes Book*, Independently Published
 4. Brendan Burns, Joe Beda, Kelsey Hightower (2022) *Kubernetes: Up and Running*, 3rd Edition, O'Reilly
-5. minikube公式ドキュメント -- https://minikube.sigs.k8s.io/docs/
-6. Helm公式ドキュメント -- https://helm.sh/docs/
+5. minikube Official Documentation -- https://minikube.sigs.k8s.io/docs/
+6. Helm Official Documentation -- https://helm.sh/docs/
 7. Kubernetes Best Practices -- https://kubernetes.io/docs/concepts/configuration/overview/
