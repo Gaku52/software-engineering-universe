@@ -1,30 +1,30 @@
-# GitHub Actions 応用
+# GitHub Actions Advanced
 
-> マトリクスビルド、キャッシュ戦略、アーティファクト管理、シークレット管理、環境(Environments)を駆使して高度なCI/CDパイプラインを構築する
+> Build advanced CI/CD pipelines using matrix builds, cache strategies, artifact management, secret management, and Environments
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. マトリクス戦略によるクロスプラットフォーム・マルチバージョンテストを設計できる
-2. キャッシュとアーティファクトを適切に使い分けてパイプラインを高速化できる
-3. シークレットと環境(Environments)による安全なデプロイ制御を実装できる
-4. 再利用可能なワークフローとComposite Actionsでパイプラインを構造化できる
-5. OIDC認証によるシークレットレスなクラウド連携を実装できる
-6. Self-hosted runnerの構築・運用・セキュリティ対策を理解できる
+1. Design cross-platform and multi-version tests using matrix strategies
+2. Use caches and artifacts appropriately to speed up pipelines
+3. Implement secure deployment control with secrets and Environments
+4. Structure pipelines with reusable workflows and Composite Actions
+5. Implement secretless cloud integration using OIDC authentication
+6. Understand how to set up, operate, and secure Self-hosted runners
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+The following knowledge will help you understand this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [GitHub Actions 基礎](./00-actions-basics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [GitHub Actions Basics](./00-actions-basics.md)
 
 ---
 
-## 1. マトリクス戦略
+## 1. Matrix Strategy
 
-### 1.1 基本的なマトリクス
+### 1.1 Basic Matrix
 
 ```yaml
 name: Matrix CI
@@ -50,17 +50,17 @@ jobs:
 ```
 
 ```
-マトリクス展開の視覚化:
+Matrix expansion visualization:
 
              node-18    node-20    node-22
 ubuntu     [  Job 1  ] [  Job 2  ] [  Job 3  ]
 macos      [  Job 4  ] [  Job 5  ] [  Job 6  ]
 windows    [  Job 7  ] [  Job 8  ] [  Job 9  ]
 
-合計: 3 x 3 = 9 ジョブが並列実行
+Total: 3 x 3 = 9 jobs run in parallel
 ```
 
-### 1.2 高度なマトリクス: include / exclude
+### 1.2 Advanced Matrix: include / exclude
 
 ```yaml
 jobs:
@@ -93,7 +93,7 @@ jobs:
       - run: npm test
 ```
 
-### 1.3 動的マトリクス
+### 1.3 Dynamic Matrix
 
 ```yaml
 jobs:
@@ -120,9 +120,9 @@ jobs:
       - run: cd ${{ matrix.package }} && npm test
 ```
 
-### 1.4 変更検知ベースの動的マトリクス
+### 1.4 Change-Detection-Based Dynamic Matrix
 
-モノレポ環境では変更されたパッケージのみをテスト対象にすることでCI時間を大幅に短縮できる。
+In monorepo environments, targeting only changed packages for testing can significantly reduce CI time.
 
 ```yaml
 name: Monorepo Dynamic Matrix
@@ -188,7 +188,7 @@ jobs:
       - run: npm run test --workspace=packages/${{ matrix.package }}
 ```
 
-### 1.5 マトリクスの条件分岐パターン
+### 1.5 Matrix Conditional Branching Patterns
 
 ```yaml
 jobs:
@@ -236,34 +236,34 @@ jobs:
         shell: pwsh
 ```
 
-### 1.6 マトリクスの最大ジョブ数と制限
+### 1.6 Matrix Job Limits and Constraints
 
 ```
-マトリクス制限:
+Matrix limits:
 ┌─────────────────────────────────────────────────────┐
-│ 最大ジョブ数: 256ジョブ/ワークフロー                      │
-│ 最大マトリクスサイズ: 256組み合わせ                       │
-│ 同時実行ランナー(Free): 20 (ubuntu) / 5 (macOS)       │
-│ 同時実行ランナー(Team): 60 (ubuntu) / 5 (macOS)       │
-│ 同時実行ランナー(Ent): 500 (ubuntu) / 50 (macOS)      │
+│ Max jobs: 256 jobs/workflow                          │
+│ Max matrix size: 256 combinations                    │
+│ Concurrent runners (Free): 20 (ubuntu) / 5 (macOS)  │
+│ Concurrent runners (Team): 60 (ubuntu) / 5 (macOS)  │
+│ Concurrent runners (Ent): 500 (ubuntu) / 50 (macOS) │
 │                                                       │
-│ max-parallel の推奨値:                                 │
-│   Free   → 3-5 (他のワークフローとの共有を考慮)          │
+│ Recommended max-parallel values:                      │
+│   Free   → 3-5 (accounting for shared runners)       │
 │   Team   → 10-20                                      │
 │   Ent    → 50-100                                     │
 └─────────────────────────────────────────────────────┘
 
-コスト計算:
-  マトリクス 3 OS x 3 Node x 10分/job = 90分の消費
-  macOS は Linux の 10倍コスト
-  → macOS のマトリクスを最小限に抑えることが重要
+Cost calculation:
+  Matrix 3 OS x 3 Node x 10 min/job = 90 minutes consumed
+  macOS costs 10x more than Linux
+  → Keep macOS matrix to a minimum
 ```
 
 ---
 
-## 2. キャッシュ戦略
+## 2. Cache Strategy
 
-### 2.1 依存関係のキャッシュ
+### 2.1 Caching Dependencies
 
 ```yaml
 jobs:
@@ -287,39 +287,40 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Install (キャッシュミス時のみ)
+      - name: Install (cache miss only)
         if: steps.npm-cache.outputs.cache-hit != 'true'
         run: npm ci
 
       - run: npm test
 ```
 
-### 2.2 キャッシュの仕組み
+### 2.2 How Caching Works
 
 ```
-キャッシュのライフサイクル:
+Cache lifecycle:
 
-  1回目の実行 (キャッシュミス):
+  First run (cache miss):
   ┌─────────┐    ┌──────────────┐    ┌──────────┐
-  │ npm ci   │ →  │ node_modules │ →  │ キャッシュ │
-  │ (90秒)   │    │  生成        │    │ に保存    │
+  │ npm ci   │ →  │ node_modules │ →  │  Save to │
+  │ (90s)    │    │  generated   │    │  cache   │
   └─────────┘    └──────────────┘    └──────────┘
 
-  2回目以降 (キャッシュヒット):
+  Subsequent runs (cache hit):
   ┌──────────┐    ┌──────────────┐
-  │ キャッシュ │ →  │ node_modules │    npm ci スキップ!
-  │ から復元  │    │ (3秒)        │    87秒の短縮
-  └──────────┘    └──────────────┘
+  │ Restore  │ →  │ node_modules │    npm ci skipped!
+  │ from     │    │ (3s)         │    87 seconds saved
+  │ cache    │    └──────────────┘
+  └──────────┘
 
-キーの仕組み:
+How keys work:
   key: Linux-node-abc123def456
                    └── hashFiles('package-lock.json')
 
-  package-lock.json が変わらない限り同じキーでヒット
-  変わった場合は restore-keys で部分マッチ → npm ci 実行
+  Cache hits as long as package-lock.json does not change.
+  If it changes, restore-keys provides a partial match → npm ci runs.
 ```
 
-### 2.3 言語別キャッシュ設定
+### 2.3 Language-Specific Cache Configuration
 
 ```yaml
 # Python (pip)
@@ -351,7 +352,7 @@ jobs:
     cache-to: type=gha,mode=max
 ```
 
-### 2.4 高度なキャッシュパターン
+### 2.4 Advanced Cache Patterns
 
 ```yaml
 # パターン1: 複合キーによる段階的フォールバック
@@ -386,38 +387,38 @@ jobs:
       ${{ runner.os }}-gradle-
 ```
 
-### 2.5 キャッシュのスコープとライフサイクル
+### 2.5 Cache Scope and Lifecycle
 
 ```
-キャッシュスコープの階層:
+Cache scope hierarchy:
 
-  ブランチ feature/xyz
-       ↓ 検索
+  Branch feature/xyz
+       ↓ search
   ┌──────────────────────┐
-  │ feature/xyz のキャッシュ │ ← まずここを検索
+  │ Cache for feature/xyz │ ← searched first
   └──────────┬───────────┘
-             │ ミス
+             │ miss
              ↓
   ┌──────────────────────┐
-  │ main のキャッシュ       │ ← デフォルトブランチにフォールバック
+  │ Cache for main        │ ← fallback to default branch
   └──────────┬───────────┘
-             │ ミス
+             │ miss
              ↓
   ┌──────────────────────┐
-  │ キャッシュなし → npm ci │ ← フル実行
+  │ No cache → npm ci     │ ← full run
   └──────────────────────┘
 
-キャッシュのライフサイクル管理:
-  - 最大サイズ: 10GB/リポジトリ
-  - 未アクセス 7日で自動削除
-  - FIFO (古いキャッシュから削除)
-  - 手動クリア: GitHub UI または gh CLI
+Cache lifecycle management:
+  - Max size: 10GB/repository
+  - Auto-deleted after 7 days of no access
+  - FIFO (oldest caches deleted first)
+  - Manual clear: GitHub UI or gh CLI
     gh cache list
     gh cache delete <key>
-    gh actions-cache delete --all  # 全キャッシュ削除
+    gh actions-cache delete --all  # delete all caches
 ```
 
-### 2.6 キャッシュ効率の計測と最適化
+### 2.6 Measuring and Optimizing Cache Efficiency
 
 ```yaml
 name: Cache Efficiency Report
@@ -459,31 +460,34 @@ jobs:
 
 ---
 
-## 3. アーティファクト管理
+## 3. Artifact Management
 
-### 3.1 アーティファクトの用途
+### 3.1 Use Cases for Artifacts
 
 ```
-キャッシュ vs アーティファクト:
+Cache vs Artifact:
 
-  キャッシュ (actions/cache):
+  Cache (actions/cache):
   ┌──────────────────────────────────┐
-  │ 用途: ビルド高速化 (依存関係等)    │
-  │ 保持: ブランチスコープ、7日で削除   │
-  │ 共有: 同一ワークフローの別ジョブ間  │
-  │ 例: node_modules, .cache         │
+  │ Purpose: Speed up builds         │
+  │ Retention: Branch-scoped, 7 days │
+  │ Sharing: Between jobs in same    │
+  │          workflow                │
+  │ Examples: node_modules, .cache   │
   └──────────────────────────────────┘
 
-  アーティファクト (actions/upload-artifact):
+  Artifact (actions/upload-artifact):
   ┌──────────────────────────────────┐
-  │ 用途: ビルド成果物の保存・受渡し   │
-  │ 保持: 設定可能 (1-90日)           │
-  │ 共有: ジョブ間 + UIからダウンロード │
-  │ 例: dist/, coverage/, logs/      │
+  │ Purpose: Save and pass build     │
+  │          outputs                 │
+  │ Retention: Configurable (1-90d)  │
+  │ Sharing: Between jobs + UI       │
+  │          download                │
+  │ Examples: dist/, coverage/, logs/│
   └──────────────────────────────────┘
 ```
 
-### 3.2 ジョブ間でのアーティファクト受け渡し
+### 3.2 Passing Artifacts Between Jobs
 
 ```yaml
 jobs:
@@ -523,7 +527,7 @@ jobs:
           path: dist/
 ```
 
-### 3.3 複数アーティファクトの統合
+### 3.3 Merging Multiple Artifacts
 
 ```yaml
 jobs:
@@ -575,7 +579,7 @@ jobs:
           retention-days: 30
 ```
 
-### 3.4 アーティファクトのサイズ最適化
+### 3.4 Optimizing Artifact Size
 
 ```yaml
 steps:
@@ -618,21 +622,21 @@ steps:
 
 ---
 
-## 4. シークレット管理
+## 4. Secret Management
 
-### 4.1 シークレットの種類
+### 4.1 Types of Secrets
 
 ```yaml
-# Repository Secrets: リポジトリ単位
-# Organization Secrets: 組織内の複数リポジトリで共有
-# Environment Secrets: 環境(staging/prod)ごとに異なる値
+# Repository Secrets: per repository
+# Organization Secrets: shared across multiple repos in an org
+# Environment Secrets: different values per environment (staging/prod)
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production  # Environment Secrets を使用
+    environment: production  # Use Environment Secrets
     steps:
-      # シークレットの参照
+      # Referencing secrets
       - name: Deploy
         run: ./deploy.sh
         env:
@@ -640,9 +644,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           API_KEY: ${{ secrets.API_KEY }}
 
-      # 注意: シークレットはログにマスクされる
+      # Note: secrets are masked in logs
       - run: echo "${{ secrets.API_KEY }}"
-        # 出力: ***
+        # Output: ***
 ```
 
 ### 4.2 GITHUB_TOKEN
@@ -666,25 +670,25 @@ jobs:
             })
 ```
 
-### 4.3 GITHUB_TOKEN の権限モデル
+### 4.3 GITHUB_TOKEN Permission Model
 
 ```yaml
 # GITHUB_TOKEN のデフォルト権限 (リポジトリ設定で制御)
 # "Read repository contents and packages permissions" (推奨)
 # または "Read and write permissions" (レガシー)
 
-# ワークフローレベルで明示的に権限を指定
+# Explicitly specify permissions at the workflow level
 permissions:
-  contents: read          # リポジトリのコンテンツ読み取り
-  pull-requests: write    # PRへのコメント
-  issues: write           # Issue操作
-  packages: write         # パッケージ公開
-  deployments: write      # デプロイメントステータス更新
-  statuses: write         # コミットステータス更新
-  checks: write           # チェック作成・更新
-  id-token: write         # OIDC トークン取得
+  contents: read          # Read repository contents
+  pull-requests: write    # Comment on PRs
+  issues: write           # Manage issues
+  packages: write         # Publish packages
+  deployments: write      # Update deployment status
+  statuses: write         # Update commit statuses
+  checks: write           # Create/update checks
+  id-token: write         # Obtain OIDC token
 
-# ジョブレベルの権限指定（ワークフローレベルより優先）
+# Job-level permissions (take precedence over workflow-level)
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -697,7 +701,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write     # AWS OIDC 認証に必要
+      id-token: write     # Required for AWS OIDC authentication
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -705,11 +709,11 @@ jobs:
           aws-region: ap-northeast-1
 ```
 
-### 4.4 OIDC (OpenID Connect) によるシークレットレス認証
+### 4.4 Secretless Authentication with OIDC (OpenID Connect)
 
 ```yaml
-# 従来: 長期間有効なアクセスキーをシークレットに保存
-# OIDC: 短期トークンを動的に取得（キーの管理不要）
+# Traditional: long-lived access keys stored as secrets
+# OIDC: dynamically obtain short-lived tokens (no key management required)
 
 name: Deploy with OIDC
 on:
@@ -717,7 +721,7 @@ on:
     branches: [main]
 
 permissions:
-  id-token: write   # OIDC トークンの取得に必須
+  id-token: write   # Required to obtain OIDC token
   contents: read
 
 jobs:
@@ -771,37 +775,37 @@ jobs:
 ```
 
 ```
-OIDC 認証のフロー:
+OIDC authentication flow:
 
   GitHub Actions Runner        GitHub OIDC Provider        Cloud Provider (AWS/GCP/Azure)
        │                              │                              │
-       │  1. OIDC トークン要求          │                              │
+       │  1. Request OIDC token       │                              │
        │─────────────────────────────→│                              │
        │                              │                              │
-       │  2. JWT トークン発行           │                              │
-       │  (sub: repo, ref等の情報)     │                              │
+       │  2. Issue JWT token          │                              │
+       │  (sub: repo, ref, etc.)      │                              │
        │←─────────────────────────────│                              │
        │                              │                              │
-       │  3. JWT で一時認証情報を要求                                    │
+       │  3. Request temp credentials using JWT                       │
        │──────────────────────────────────────────────────────────────→│
        │                              │                              │
-       │                              │  4. JWT を検証                │
+       │                              │  4. Validate JWT             │
        │                              │←─────────────────────────────│
        │                              │                              │
-       │  5. 一時的なアクセストークンを返却                               │
+       │  5. Return temporary access token                            │
        │←──────────────────────────────────────────────────────────────│
        │                              │                              │
-       │  6. 一時トークンでAPIを呼び出し                                 │
+       │  6. Call API with temp token                                  │
        │──────────────────────────────────────────────────────────────→│
 
-メリット:
-  - 長期間有効なシークレットが不要
-  - トークンは短時間（デフォルト1時間）で失効
-  - ブランチやタグで認証範囲を制限可能
-  - シークレットのローテーション不要
+Benefits:
+  - No long-lived secrets required
+  - Tokens expire quickly (default 1 hour)
+  - Authentication scope can be limited by branch or tag
+  - No secret rotation needed
 ```
 
-### 4.5 外部シークレットマネージャーとの連携
+### 4.5 Integration with External Secret Managers
 
 ```yaml
 jobs:
@@ -842,46 +846,50 @@ jobs:
           echo "DB_PASSWORD=$(echo $SECRET_JSON | jq -r .db_password)" >> "$GITHUB_ENV"
 ```
 
-### 4.6 シークレットのセキュリティベストプラクティス
+### 4.6 Security Best Practices for Secrets
 
 ```
-シークレット管理のベストプラクティス:
+Secret management best practices:
 
-  1. 最小権限の原則
+  1. Principle of Least Privilege
      ┌───────────────────────────────────┐
-     │ - Repository > Organization の優先  │
-     │ - Environment で環境ごとに分離       │
-     │ - GITHUB_TOKEN は permissions で制限 │
+     │ - Prefer Repository over Org      │
+     │ - Isolate per env with Environments│
+     │ - Restrict GITHUB_TOKEN with      │
+     │   permissions                     │
      └───────────────────────────────────┘
 
-  2. ローテーション
+  2. Rotation
      ┌───────────────────────────────────┐
-     │ - 90日以内のローテーションを推奨      │
-     │ - OIDC で長期キーを排除              │
-     │ - Vault/SecretsManager で自動化     │
+     │ - Rotate within 90 days           │
+     │ - Eliminate long-lived keys with  │
+     │   OIDC                            │
+     │ - Automate with Vault/SecretsManager│
      └───────────────────────────────────┘
 
-  3. 監査
+  3. Auditing
      ┌───────────────────────────────────┐
-     │ - Audit log でシークレットアクセス確認│
-     │ - GitHub Secret scanning を有効化   │
-     │ - PRでシークレットが漏れないか確認    │
+     │ - Check secret access in audit log│
+     │ - Enable GitHub Secret scanning   │
+     │ - Verify secrets don't leak in PRs│
      └───────────────────────────────────┘
 
-  4. フォーク対策
+  4. Fork protection
      ┌───────────────────────────────────┐
-     │ - フォークからのPRにはシークレット    │
-     │   が渡されない（pull_request）       │
-     │ - pull_request_target は慎重に使用  │
-     │ - approved フォークのみビルド許可     │
+     │ - Secrets are not passed to PRs   │
+     │   from forks (pull_request)       │
+     │ - Use pull_request_target with    │
+     │   caution                         │
+     │ - Only allow approved forks to    │
+     │   build                           │
      └───────────────────────────────────┘
 ```
 
 ---
 
-## 5. 環境 (Environments)
+## 5. Environments
 
-### 5.1 環境の設定
+### 5.1 Configuring Environments
 
 ```yaml
 jobs:
@@ -899,16 +907,16 @@ jobs:
     environment:
       name: production
       url: https://example.com
-    # production 環境に以下を設定:
-    # - Required reviewers: 2人の承認が必要
-    # - Wait timer: 5分の待機時間
-    # - Deployment branches: main のみ
+    # Configure the production environment with:
+    # - Required reviewers: 2 approvals required
+    # - Wait timer: 5-minute wait time
+    # - Deployment branches: main only
     steps:
       - run: ./deploy.sh production
 ```
 
 ```
-環境のデプロイフロー:
+Environment deployment flow:
 
   PR merge to main
        │
@@ -920,28 +928,28 @@ jobs:
        ↓
   ┌──────────────────────┐
   │ Deploy to Staging     │ ← environment: staging
-  │ (自動)                │
+  │ (automatic)           │
   └────┬─────────────────┘
        │
        ↓
   ┌──────────────────────┐
-  │ 手動承認待ち           │ ← Required reviewers
-  │ (Slack 通知)          │
+  │ Waiting for approval  │ ← Required reviewers
+  │ (Slack notification)  │
   └────┬─────────────────┘
-       │ 承認
+       │ approved
        ↓
   ┌──────────────────────┐
-  │ Wait Timer (5分)      │ ← 最終確認の猶予
+  │ Wait Timer (5 min)    │ ← Final confirmation window
   └────┬─────────────────┘
        │
        ↓
   ┌──────────────────────┐
   │ Deploy to Production  │ ← environment: production
-  │ (承認後自動)           │
+  │ (auto after approval) │
   └──────────────────────┘
 ```
 
-### 5.2 マルチステージデプロイパイプライン
+### 5.2 Multi-Stage Deploy Pipeline
 
 ```yaml
 name: Multi-stage Deploy
@@ -1056,7 +1064,7 @@ jobs:
         env:
           BASE_URL: https://example.com
 
-      # デプロイ通知
+      # Deploy notification
       - uses: slackapi/slack-github-action@v1
         with:
           payload: |
@@ -1067,7 +1075,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
 ```
 
-### 5.3 環境変数と環境ごとの設定
+### 5.3 Environment Variables and Per-Environment Configuration
 
 ```yaml
 jobs:
@@ -1077,7 +1085,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 環境ごとの設定ファイルを使用
+      # Load per-environment config file
       - name: Load environment config
         run: |
           ENV_NAME=${{ github.event.inputs.environment || 'staging' }}
@@ -1098,41 +1106,41 @@ jobs:
           ./deploy.sh
 ```
 
-### 5.4 カスタムデプロイ保護ルール
+### 5.4 Custom Deployment Protection Rules
 
 ```
-環境保護ルール一覧:
+List of environment protection rules:
 
   ┌────────────────────────────────────────────────────┐
-  │ Required reviewers (必須承認者)                      │
-  │ - 最大6人まで指定                                    │
-  │ - 1人以上の承認で続行                                 │
-  │ - Teams の指定も可能                                 │
+  │ Required reviewers                                   │
+  │ - Up to 6 people specified                          │
+  │ - Proceed with at least 1 approval                  │
+  │ - Teams can be specified                            │
   ├────────────────────────────────────────────────────┤
-  │ Wait timer (待機タイマー)                             │
-  │ - 0-43200分（最大30日）                               │
-  │ - 承認後に追加の待機時間                               │
-  │ - キャンセル可能                                      │
+  │ Wait timer                                           │
+  │ - 0-43200 minutes (up to 30 days)                   │
+  │ - Additional wait time after approval               │
+  │ - Can be cancelled                                  │
   ├────────────────────────────────────────────────────┤
-  │ Deployment branches (デプロイブランチ)                 │
-  │ - All branches: 制限なし                              │
-  │ - Protected branches: 保護ブランチのみ                │
-  │ - Selected branches: パターンで指定                   │
-  │   例: main, release/*                               │
+  │ Deployment branches                                  │
+  │ - All branches: no restriction                      │
+  │ - Protected branches: protected branches only       │
+  │ - Selected branches: specify by pattern             │
+  │   Example: main, release/*                         │
   ├────────────────────────────────────────────────────┤
-  │ Custom deployment protection rules (カスタムルール)    │
-  │ - GitHub App による外部チェック                        │
-  │ - 例: Datadog モニタリング確認                         │
-  │ - 例: PagerDuty インシデント状態確認                   │
-  │ - 例: 承認ワークフロー (ServiceNow等)                  │
+  │ Custom deployment protection rules                   │
+  │ - External checks via GitHub App                    │
+  │ - Example: Datadog monitoring check                 │
+  │ - Example: PagerDuty incident status check          │
+  │ - Example: approval workflow (ServiceNow, etc.)     │
   └────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. 再利用可能なワークフロー
+## 6. Reusable Workflows
 
-### 6.1 Reusable Workflow の定義
+### 6.1 Defining a Reusable Workflow
 
 ```yaml
 # .github/workflows/reusable-build.yml
@@ -1202,7 +1210,7 @@ jobs:
           DEPLOY_KEY: ${{ secrets.deploy-key }}
 ```
 
-### 6.2 Reusable Workflow の呼び出し
+### 6.2 Calling a Reusable Workflow
 
 ```yaml
 # .github/workflows/ci.yml
@@ -1213,7 +1221,7 @@ on:
   pull_request:
 
 jobs:
-  # PR時はビルドのみ
+  # Build only on PRs
   build-pr:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/reusable-build.yml
@@ -1223,7 +1231,7 @@ jobs:
     secrets:
       npm-token: ${{ secrets.NPM_TOKEN }}
 
-  # main マージ時はステージングにデプロイ
+  # Deploy to staging on merge to main
   build-staging:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/reusable-build.yml
@@ -1234,7 +1242,7 @@ jobs:
       npm-token: ${{ secrets.NPM_TOKEN }}
       deploy-key: ${{ secrets.STAGING_DEPLOY_KEY }}
 
-  # ステージング成功後、本番デプロイ
+  # Deploy to production after staging succeeds
   build-production:
     needs: build-staging
     if: github.ref == 'refs/heads/main'
@@ -1246,12 +1254,12 @@ jobs:
       npm-token: ${{ secrets.NPM_TOKEN }}
       deploy-key: ${{ secrets.PRODUCTION_DEPLOY_KEY }}
 
-  # 他のリポジトリのワークフローを呼び出し
+  # Call a workflow from another repository
   shared-security-scan:
     uses: my-org/shared-workflows/.github/workflows/security-scan.yml@v2
     with:
       scan-level: full
-    secrets: inherit  # 全シークレットを継承
+    secrets: inherit  # Inherit all secrets
 ```
 
 ### 6.3 Composite Actions
@@ -1295,7 +1303,7 @@ runs:
 ```
 
 ```yaml
-# 使用例
+# Usage example
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -1308,57 +1316,58 @@ jobs:
       - run: npx playwright test
 ```
 
-### 6.4 Reusable Workflow vs Composite Actions 比較
+### 6.4 Reusable Workflow vs Composite Actions Comparison
 
 ```
 Reusable Workflow vs Composite Actions:
 
 ┌─────────────────┬────────────────────────┬────────────────────────┐
-│ 項目             │ Reusable Workflow      │ Composite Action       │
+│ Item            │ Reusable Workflow       │ Composite Action       │
 ├─────────────────┼────────────────────────┼────────────────────────┤
-│ 再利用の単位     │ ワークフロー全体         │ ステップの集合           │
-│ ジョブの定義     │ 可能（複数ジョブ可）     │ 不可（ステップのみ）     │
-│ シークレット     │ 明示的に渡す/inherit    │ 呼び出し元から自動継承   │
-│ 環境の指定       │ ワークフロー内で指定     │ 呼び出し元ジョブで指定   │
-│ ネスト           │ 最大4レベル             │ 最大10レベル            │
-│ 条件分岐         │ ジョブ/ステップレベル    │ ステップレベル           │
-│ 呼び出し構文     │ uses: org/repo/...@ref │ uses: ./.github/actions │
-│ 典型的な用途     │ CI/CDパイプライン全体   │ セットアップ、共通処理   │
+│ Reuse unit      │ Entire workflow         │ Collection of steps    │
+│ Job definition  │ Possible (multi-job)   │ Not possible           │
+│ Secrets         │ Explicit / inherit      │ Auto-inherited         │
+│ Env spec        │ Inside workflow         │ In calling job         │
+│ Nesting         │ Max 4 levels            │ Max 10 levels          │
+│ Conditions      │ Job/step level          │ Step level             │
+│ Call syntax     │ uses: org/repo/...@ref │ uses: ./.github/actions│
+│ Typical use     │ Full CI/CD pipelines    │ Setup, common tasks    │
 └─────────────────┴────────────────────────┴────────────────────────┘
 
-使い分けの指針:
-  - 共通のセットアップ手順 → Composite Action
-  - 共通のCI/CDパイプライン → Reusable Workflow
-  - 複数リポジトリで共有 → Reusable Workflow (別リポジトリ参照)
-  - ローカルの繰り返し → Composite Action
+When to use which:
+  - Common setup steps → Composite Action
+  - Common CI/CD pipeline → Reusable Workflow
+  - Shared across multiple repositories → Reusable Workflow (external ref)
+  - Local repetition → Composite Action
 ```
 
 ---
 
 ## 7. Self-hosted Runner
 
-### 7.1 Self-hosted Runner の構成
+### 7.1 Self-hosted Runner Architecture
 
 ```
-Runner アーキテクチャ:
+Runner architecture:
 
-  GitHub.com                           組織のインフラ
+  GitHub.com                           Organization infrastructure
   ┌────────────┐                      ┌─────────────────────┐
-  │ ワークフロー  │ ← Long Poll →      │ Self-hosted Runner  │
-  │ キュー       │                      │                     │
-  │             │  ジョブ割り当て         │ ┌─────────────────┐ │
+  │ Workflow    │ ← Long Poll →       │ Self-hosted Runner  │
+  │ queue       │                      │                     │
+  │             │  Job assignment       │ ┌─────────────────┐ │
   │             │─────────────────────→│ │ Runner Agent     │ │
-  │             │                      │ │ (常時稼働)        │ │
-  │             │  結果レポート          │ └────────┬────────┘ │
+  │             │                      │ │ (always running) │ │
+  │             │  Result report        │ └────────┬────────┘ │
   │             │←─────────────────────│          │           │
   └────────────┘                      │ ┌────────↓────────┐ │
-                                      │ │ ジョブ実行環境    │ │
+                                      │ │ Job execution    │ │
+                                      │ │ environment      │ │
                                       │ │ (Docker/VM)      │ │
                                       │ └─────────────────┘ │
                                       └─────────────────────┘
 ```
 
-### 7.2 Kubernetes 上の Self-hosted Runner (ARC)
+### 7.2 Self-hosted Runner on Kubernetes (ARC)
 
 ```yaml
 # Actions Runner Controller (ARC) のデプロイ
@@ -1404,87 +1413,88 @@ spec:
 ```
 
 ```yaml
-# ワークフローで Self-hosted Runner を使用
+# Using Self-hosted Runner in a workflow
 jobs:
   build:
-    runs-on: arc-runner-set  # ARC で定義したランナーセット名
+    runs-on: arc-runner-set  # Runner set name defined in ARC
     steps:
       - uses: actions/checkout@v4
       - run: npm ci && npm run build
 
-  # ラベルで特定のランナーを指定
+  # Specify a particular runner using labels
   gpu-test:
     runs-on: [self-hosted, linux, gpu, a100]
     steps:
       - uses: actions/checkout@v4
       - run: python train.py --test
 
-  # GitHub-hosted と Self-hosted の使い分け
+  # Choosing between GitHub-hosted and Self-hosted
   lint:
-    runs-on: ubuntu-latest  # 軽量タスクは GitHub-hosted
+    runs-on: ubuntu-latest  # Lightweight tasks on GitHub-hosted
     steps:
       - uses: actions/checkout@v4
       - run: npm run lint
 
   heavy-build:
-    runs-on: [self-hosted, linux, x64, large]  # 重いタスクは Self-hosted
+    runs-on: [self-hosted, linux, x64, large]  # Heavy tasks on Self-hosted
     steps:
       - uses: actions/checkout@v4
       - run: npm run build:all
 ```
 
-### 7.3 Self-hosted Runner のセキュリティ
+### 7.3 Self-hosted Runner Security
 
 ```
-Self-hosted Runner のセキュリティ考慮事項:
+Self-hosted runner security considerations:
 
-  1. ランナーの分離
+  1. Runner isolation
      ┌──────────────────────────────────────────┐
-     │ - パブリックリポジトリでは使用しない         │
-     │ - 一時的な環境（Ephemeral）を推奨           │
-     │ - Docker-in-Docker で実行環境を分離         │
-     │ - ジョブごとにクリーンな環境を保証            │
+     │ - Do not use with public repositories    │
+     │ - Use ephemeral environments             │
+     │ - Isolate execution with Docker-in-Docker│
+     │ - Ensure a clean environment per job     │
      └──────────────────────────────────────────┘
 
-  2. エフェメラルランナー
+  2. Ephemeral runners
      ┌──────────────────────────────────────────┐
-     │ - --ephemeral フラグで1ジョブ後に終了      │
-     │ - 前のジョブの残留物がない                   │
-     │ - ARC の場合はデフォルトでエフェメラル        │
+     │ - Use --ephemeral flag to exit after 1   │
+     │   job                                    │
+     │ - No leftover artifacts from prior jobs  │
+     │ - ARC uses ephemeral mode by default     │
      └──────────────────────────────────────────┘
 
-  3. ネットワーク分離
+  3. Network isolation
      ┌──────────────────────────────────────────┐
-     │ - ランナーからの外部アクセスを制限            │
-     │ - 必要なエンドポイントのみホワイトリスト       │
-     │   - github.com                             │
-     │   - api.github.com                         │
-     │   - *.actions.githubusercontent.com         │
-     │   - ghcr.io (コンテナレジストリ)             │
-     │ - 内部ネットワークへのアクセスはVPCで制御     │
+     │ - Restrict outbound access from runners  │
+     │ - Whitelist only required endpoints:     │
+     │   - github.com                           │
+     │   - api.github.com                       │
+     │   - *.actions.githubusercontent.com      │
+     │   - ghcr.io (container registry)         │
+     │ - Control internal network access via VPC│
      └──────────────────────────────────────────┘
 
-  4. 権限管理
+  4. Permission management
      ┌──────────────────────────────────────────┐
-     │ - ランナーは非root ユーザーで実行            │
-     │ - sudo 権限は最小限に                       │
-     │ - ファイルシステムの書き込み権限を制限         │
-     │ - ネットワーク名前空間で分離                  │
+     │ - Run runners as non-root user           │
+     │ - Minimize sudo privileges               │
+     │ - Restrict write access to filesystem    │
+     │ - Isolate with network namespaces        │
      └──────────────────────────────────────────┘
 ```
 
 ---
 
-## 8. ワークフローのデバッグとトラブルシューティング
+## 8. Debugging and Troubleshooting Workflows
 
-### 8.1 デバッグログの有効化
+### 8.1 Enabling Debug Logs
 
 ```yaml
-# 方法1: リポジトリのシークレットで設定
+# Method 1: Set via repository secrets
 # ACTIONS_RUNNER_DEBUG = true
 # ACTIONS_STEP_DEBUG = true
 
-# 方法2: ワークフロー内でデバッグ情報を出力
+# Method 2: Output debug info within the workflow
 steps:
   - name: Debug context
     run: |
@@ -1514,75 +1524,75 @@ steps:
       echo "::endgroup::"
 ```
 
-### 8.2 よくあるエラーと解決策
+### 8.2 Common Errors and Solutions
 
 ```yaml
-# エラー1: "Resource not accessible by integration"
-# 原因: GITHUB_TOKEN の権限不足
-# 解決:
+# Error 1: "Resource not accessible by integration"
+# Cause: Insufficient GITHUB_TOKEN permissions
+# Solution:
 permissions:
   contents: read
-  pull-requests: write  # PR操作に必要な権限を追加
+  pull-requests: write  # Add required permission for PR operations
 
-# エラー2: "No space left on device"
-# 原因: ランナーのディスク容量不足
-# 解決:
+# Error 2: "No space left on device"
+# Cause: Runner disk space exhausted
+# Solution:
 steps:
   - name: Free disk space
     run: |
-      # 不要なプリインストールソフトウェアを削除
+      # Remove unnecessary pre-installed software
       sudo rm -rf /usr/share/dotnet
       sudo rm -rf /opt/ghc
       sudo rm -rf /usr/local/share/boost
       sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       df -h
 
-# エラー3: "The job was not started because recent account payments have failed"
-# 原因: GitHub Actions の利用料金未払い
-# 解決: 支払い情報を更新
+# Error 3: "The job was not started because recent account payments have failed"
+# Cause: GitHub Actions billing issue
+# Solution: Update payment information
 
-# エラー4: キャッシュが復元されない
-# 原因: キーの不一致、ブランチスコープの問題
-# 解決:
+# Error 4: Cache is not restored
+# Cause: Key mismatch or branch scope issue
+# Solution:
 steps:
   - name: Debug cache
     run: |
       echo "Expected key: ${{ runner.os }}-node-$(sha256sum package-lock.json | cut -d ' ' -f1)"
-      # キャッシュの一覧を確認
+      # Check cache list
       gh cache list --limit 20
     env:
       GH_TOKEN: ${{ github.token }}
 
-# エラー5: "Error: Process completed with exit code 1"
-# 原因: スクリプトの実行エラー
-# 解決: set -euo pipefail とエラーハンドリング
+# Error 5: "Error: Process completed with exit code 1"
+# Cause: Script execution error
+# Solution: Use set -euo pipefail with error handling
 steps:
   - name: Run with error handling
     run: |
       set -euo pipefail
-      # エラー時の情報を出力
+      # Output info on error
       trap 'echo "Error on line $LINENO. Exit code: $?"' ERR
-      # 実際のコマンド
+      # Actual command
       npm run build 2>&1 | tee build.log
     shell: bash
 
-# エラー6: タイムアウト
-# 原因: ジョブの実行時間超過（デフォルト6時間）
-# 解決:
+# Error 6: Timeout
+# Cause: Job exceeded runtime limit (default 6 hours)
+# Solution:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # ジョブレベルのタイムアウト
+    timeout-minutes: 30  # Job-level timeout
     steps:
       - name: Long running task
-        timeout-minutes: 10  # ステップレベルのタイムアウト
+        timeout-minutes: 10  # Step-level timeout
         run: npm run build
 ```
 
-### 8.3 ワークフローの再実行とリトライ
+### 8.3 Workflow Re-runs and Retries
 
 ```yaml
-# 自動リトライの実装
+# Implementing automatic retry
 jobs:
   flaky-test:
     runs-on: ubuntu-latest
@@ -1593,7 +1603,7 @@ jobs:
           node-version: '20'
       - run: npm ci
 
-      # リトライ付きテスト実行
+      # Run tests with retry
       - name: Run tests with retry
         uses: nick-fields/retry@v3
         with:
@@ -1602,7 +1612,7 @@ jobs:
           retry_wait_seconds: 30
           command: npm test
 
-      # シェルスクリプトでリトライ
+      # Retry using shell script
       - name: Deploy with retry
         run: |
           MAX_RETRIES=3
@@ -1616,7 +1626,7 @@ jobs:
             if [ $i -lt $MAX_RETRIES ]; then
               echo "Retrying in ${RETRY_DELAY}s..."
               sleep $RETRY_DELAY
-              RETRY_DELAY=$((RETRY_DELAY * 2))  # 指数バックオフ
+              RETRY_DELAY=$((RETRY_DELAY * 2))  # Exponential backoff
             fi
           done
           echo "All retries failed"
@@ -1625,44 +1635,46 @@ jobs:
 
 ---
 
-## 9. パフォーマンス最適化
+## 9. Performance Optimization
 
-### 9.1 ワークフロー実行時間の分析
+### 9.1 Analyzing Workflow Run Times
 
 ```
-パフォーマンス最適化のチェックリスト:
+Performance optimization checklist:
 
-  1. ボトルネック分析
+  1. Bottleneck analysis
      ┌─────────────────────────────────────────┐
-     │ - Actions タブで各ステップの実行時間確認   │
-     │ - 最も遅いステップを特定                   │
-     │ - キャッシュヒット率を監視                  │
+     │ - Check step durations in Actions tab   │
+     │ - Identify the slowest steps            │
+     │ - Monitor cache hit rates               │
      └─────────────────────────────────────────┘
 
-  2. 並列化
+  2. Parallelization
      ┌─────────────────────────────────────────┐
-     │ - 独立したジョブを並列実行                  │
-     │ - マトリクスで複数環境を並列テスト           │
-     │ - ビルドとリントを並列化                    │
+     │ - Run independent jobs in parallel      │
+     │ - Test multiple environments in parallel│
+     │   using matrix                          │
+     │ - Parallelize builds and linting        │
      └─────────────────────────────────────────┘
 
-  3. キャッシュ活用
+  3. Cache utilization
      ┌─────────────────────────────────────────┐
-     │ - 依存関係キャッシュ                       │
-     │ - ビルドキャッシュ (Next.js, Webpack等)   │
-     │ - Docker レイヤーキャッシュ                │
-     │ - テストのスナップショットキャッシュ          │
+     │ - Dependency cache                      │
+     │ - Build cache (Next.js, Webpack, etc.)  │
+     │ - Docker layer cache                    │
+     │ - Test snapshot cache                   │
      └─────────────────────────────────────────┘
 
-  4. 不要な処理の削減
+  4. Reducing unnecessary work
      ┌─────────────────────────────────────────┐
-     │ - パスフィルターで変更ファイルに基づき実行   │
-     │ - 変更検知でスキップ判定                    │
-     │ - 早期失敗 (lint → build → test)          │
+     │ - Use path filters to run only on       │
+     │   changed files                         │
+     │ - Skip via change detection             │
+     │ - Fail fast (lint → build → test)       │
      └─────────────────────────────────────────┘
 ```
 
-### 9.2 効率的なパイプライン設計
+### 9.2 Efficient Pipeline Design
 
 ```yaml
 name: Optimized Pipeline
@@ -1674,13 +1686,13 @@ on:
       - 'docs/**'
       - '.github/ISSUE_TEMPLATE/**'
 
-# 同一PRの同時実行を防止
+# Prevent concurrent runs on the same PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # 最初にリント（最速で失敗を検知）
+  # Lint first (fastest to detect failures)
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -1693,7 +1705,7 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
 
-  # リント通過後にビルド
+  # Build after lint passes
   build:
     needs: lint
     runs-on: ubuntu-latest
@@ -1711,7 +1723,7 @@ jobs:
           path: dist/
           retention-days: 1
 
-  # ビルド成果物を使ってテスト（並列）
+  # Run tests in parallel using build artifact
   unit-test:
     needs: build
     runs-on: ubuntu-latest
@@ -1754,7 +1766,7 @@ jobs:
       - run: npm run test:e2e
 ```
 
-### 9.3 テストの並列分割(Sharding)
+### 9.3 Test Sharding
 
 ```yaml
 jobs:
@@ -1771,10 +1783,10 @@ jobs:
           cache: 'npm'
       - run: npm ci
 
-      # Jest のシャーディング
+      # Jest sharding
       - run: npx jest --shard=${{ matrix.shard }}/4
 
-      # Playwright のシャーディング
+      # Playwright sharding
       - run: npx playwright test --shard=${{ matrix.shard }}/4
 
       - uses: actions/upload-artifact@v4
@@ -1796,15 +1808,15 @@ jobs:
 
       - name: Generate report
         run: |
-          # テスト結果を統合してレポート生成
+          # Merge test results and generate report
           npx jest-html-reporter --input all-results/ --output report.html
 ```
 
 ---
 
-## 10. リリース自動化
+## 10. Release Automation
 
-### 10.1 セマンティックバージョニングとリリース
+### 10.1 Semantic Versioning and Releases
 
 ```yaml
 name: Release
@@ -1833,7 +1845,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-          # 前のタグを取得（リリースノート生成用）
+          # Get previous tag (for release notes generation)
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           echo "prev_tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
 
@@ -1847,7 +1859,7 @@ jobs:
             CHANGES=$(git log --pretty=format:"- %s (%h)" --no-merges)
           fi
 
-          # カテゴリ分け
+          # Categorize changes
           FEATURES=$(echo "$CHANGES" | grep -i "^- feat" || true)
           FIXES=$(echo "$CHANGES" | grep -i "^- fix" || true)
           OTHERS=$(echo "$CHANGES" | grep -iv "^- feat\|^- fix" || true)
@@ -1867,7 +1879,7 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      # GitHub Release を作成
+      # Create GitHub Release
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
@@ -1879,12 +1891,12 @@ jobs:
             dist/*.tar.gz
             dist/*.zip
 
-      # npm パッケージの公開
+      # Publish npm package
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # Docker イメージの公開
+      # Publish Docker image
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -1899,7 +1911,7 @@ jobs:
             ghcr.io/${{ github.repository }}:latest
 ```
 
-### 10.2 自動バージョンバンプとリリース
+### 10.2 Automated Version Bump and Release
 
 ```yaml
 name: Auto Release
@@ -1918,15 +1930,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Conventional Commits からバージョンを自動決定
+      # Automatically determine version from Conventional Commits
       - uses: googleapis/release-please-action@v4
         id: release
         with:
           release-type: node
           # package-name: my-package
-          # changelog-types を指定してカスタマイズ
+          # Customize with changelog-types
 
-      # リリースが作成された場合のみ後続処理
+      # Only proceed if a release was created
       - name: Build and publish
         if: steps.release.outputs.release_created
         run: |
@@ -1940,9 +1952,9 @@ jobs:
 
 ---
 
-## 11. 高度なワークフローパターン
+## 11. Advanced Workflow Patterns
 
-### 11.1 承認フロー付きデプロイ
+### 11.1 Deploy with Approval Flow
 
 ```yaml
 name: Deploy with Approval
@@ -1975,7 +1987,7 @@ jobs:
       - name: Validate version
         id: check
         run: |
-          # イメージの存在確認
+          # Check if image exists
           if docker manifest inspect ghcr.io/${{ github.repository }}:${{ inputs.version }} > /dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
@@ -2022,7 +2034,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
 ```
 
-### 11.2 条件付きワークフロー実行
+### 11.2 Conditional Workflow Execution
 
 ```yaml
 name: Conditional Workflow
@@ -2031,7 +2043,7 @@ on:
     branches: [main]
 
 jobs:
-  # 変更されたファイルを検出
+  # Detect changed files
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -2083,7 +2095,7 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
       - run: cd terraform && terraform init && terraform plan
 
-  # 全ジョブの結果を集約（required status check 用）
+  # Aggregate all job results (for required status checks)
   ci-status:
     needs: [frontend-ci, backend-ci, infra-plan]
     if: always()
@@ -2091,7 +2103,7 @@ jobs:
     steps:
       - name: Check results
         run: |
-          # スキップされたジョブは成功扱い
+          # Skipped jobs are treated as success
           RESULTS=("${{ needs.frontend-ci.result }}" "${{ needs.backend-ci.result }}" "${{ needs.infra-plan.result }}")
           for result in "${RESULTS[@]}"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
@@ -2102,10 +2114,10 @@ jobs:
           echo "All checks passed or were skipped"
 ```
 
-### 11.3 ワークフロー間のトリガー連携
+### 11.3 Cross-Workflow Trigger Chaining
 
 ```yaml
-# workflow_run: 他のワークフロー完了時にトリガー
+# workflow_run: triggered when another workflow completes
 name: Post-CI Actions
 on:
   workflow_run:
@@ -2143,15 +2155,15 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
 ```
 
-### 11.4 スケジュール実行とメンテナンスジョブ
+### 11.4 Scheduled Runs and Maintenance Jobs
 
 ```yaml
 name: Scheduled Maintenance
 on:
   schedule:
-    # 毎日 AM 3:00 JST (UTC 18:00)
+    # Every day at 3:00 AM JST (UTC 18:00)
     - cron: '0 18 * * *'
-  workflow_dispatch:  # 手動実行も可能
+  workflow_dispatch:  # Also supports manual runs
 
 jobs:
   stale-cache-cleanup:
@@ -2162,7 +2174,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "Cleaning up stale caches..."
-          # マージ済みブランチのキャッシュを削除
+          # Delete caches for merged branches
           gh cache list --json key,ref | jq -r '.[] |
             select(.ref != "refs/heads/main") | .key' | while read key; do
             echo "Deleting cache: $key"
@@ -2208,93 +2220,93 @@ jobs:
 
 ---
 
-## 12. 比較表
+## 12. Comparison Tables
 
-### 12.1 キャッシュ vs アーティファクト
+### 12.1 Cache vs Artifact
 
-| 項目 | キャッシュ | アーティファクト |
+| Item | Cache | Artifact |
 |---|---|---|
-| 主な用途 | ビルド高速化 | 成果物の保存・受渡し |
-| 保持期間 | 7日(アクセスなし) | 1-90日(設定可能) |
-| スコープ | ブランチ(フォールバックあり) | ワークフロー実行単位 |
-| UIダウンロード | 不可 | 可能 |
-| 最大サイズ | 10GB/リポジトリ | 500MB/アーティファクト |
-| 典型例 | node_modules, pip cache | dist/, coverage/, logs |
+| Primary use | Speed up builds | Save and pass build outputs |
+| Retention | 7 days (no access) | 1-90 days (configurable) |
+| Scope | Branch (with fallback) | Per workflow run |
+| UI download | Not available | Available |
+| Max size | 10GB/repository | 500MB/artifact |
+| Typical examples | node_modules, pip cache | dist/, coverage/, logs |
 
-### 12.2 シークレットスコープ比較
+### 12.2 Secret Scope Comparison
 
-| スコープ | 設定場所 | 共有範囲 | 用途 |
+| Scope | Where set | Sharing range | Use case |
 |---|---|---|---|
-| Repository | リポジトリ設定 | 1リポジトリ | API キー、トークン |
-| Environment | 環境設定 | 環境指定ジョブ | 環境別の認証情報 |
-| Organization | 組織設定 | 指定リポジトリ群 | 共通認証情報 |
-| GITHUB_TOKEN | 自動生成 | 当該ワークフロー | GitHub API 操作 |
+| Repository | Repository settings | 1 repository | API keys, tokens |
+| Environment | Environment settings | Environment-specific jobs | Per-environment credentials |
+| Organization | Organization settings | Specified repositories | Shared credentials |
+| GITHUB_TOKEN | Auto-generated | Current workflow | GitHub API operations |
 
-### 12.3 認証方式比較
+### 12.3 Authentication Method Comparison
 
-| 方式 | セキュリティ | 管理コスト | 適用場面 |
+| Method | Security | Management cost | Use case |
 |---|---|---|---|
-| Static Secrets | 低 | 高（ローテーション必要） | レガシーシステム |
-| OIDC | 高 | 低 | AWS/GCP/Azure連携 |
-| Vault連携 | 最高 | 中 | マルチクラウド・厳格な環境 |
-| GITHUB_TOKEN | 中 | 最低 | GitHub API操作 |
+| Static Secrets | Low | High (rotation required) | Legacy systems |
+| OIDC | High | Low | AWS/GCP/Azure integration |
+| Vault integration | Highest | Medium | Multi-cloud, strict environments |
+| GITHUB_TOKEN | Medium | Lowest | GitHub API operations |
 
 ### 12.4 GitHub-hosted vs Self-hosted Runner
 
-| 項目 | GitHub-hosted | Self-hosted |
+| Item | GitHub-hosted | Self-hosted |
 |---|---|---|
-| セットアップ | 不要 | 必要 |
-| メンテナンス | GitHub管理 | 自己管理 |
-| コスト | 従量課金 | インフラ費用 |
-| カスタマイズ | 限定的 | 自由 |
-| セキュリティ | 分離済み | 自己管理 |
-| パフォーマンス | 標準 | ハードウェア依存 |
-| GPU対応 | なし(Larger Runnersで一部) | あり |
-| 内部ネットワーク | 不可 | 可能 |
-| 典型的用途 | 一般的なCI/CD | 特殊要件、大規模ビルド |
+| Setup | Not required | Required |
+| Maintenance | Managed by GitHub | Self-managed |
+| Cost | Pay-per-use | Infrastructure cost |
+| Customization | Limited | Unrestricted |
+| Security | Pre-isolated | Self-managed |
+| Performance | Standard | Hardware-dependent |
+| GPU support | None (some via Larger Runners) | Available |
+| Internal network | Not available | Available |
+| Typical use | General CI/CD | Special requirements, large builds |
 
 ---
 
-## 13. アンチパターン
+## 13. Anti-patterns
 
-### アンチパターン1: シークレットの間接的な漏洩
+### Anti-pattern 1: Indirect Secret Leakage
 
 ```yaml
-# 悪い例: シークレットを環境変数経由でログに出力
+# Bad: Printing secrets to logs via environment variables
 steps:
   - run: |
       echo "Deploying with config:"
-      env  # 全環境変数を出力 → シークレット漏洩!
+      env  # Prints all env vars → secret leakage!
     env:
       API_KEY: ${{ secrets.API_KEY }}
 
   - run: |
-      curl -v https://api.example.com/deploy  # -v で認証ヘッダーが出力
+      curl -v https://api.example.com/deploy  # -v prints auth headers
     env:
       AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
 
-# 改善: ログへの出力を最小限に
+# Better: Minimize what is printed to logs
 steps:
   - run: |
-      # シークレットは直接参照、ログには出さない
-      ./deploy.sh  # スクリプト内でシークレットを使用
+      # Reference secrets directly, do not log them
+      ./deploy.sh  # Secrets used inside the script
     env:
       API_KEY: ${{ secrets.API_KEY }}
 ```
 
-### アンチパターン2: キャッシュの過信
+### Anti-pattern 2: Over-trusting the Cache
 
 ```yaml
-# 悪い例: キャッシュが壊れている可能性を考慮しない
+# Bad: Not accounting for a corrupt cache
 steps:
   - uses: actions/cache@v4
     with:
       path: node_modules
       key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-  # キャッシュヒットでも npm ci をスキップ
-  # → 壊れたキャッシュで意味不明なエラー
+  # Skips npm ci on cache hit
+  # → Inexplicable errors from a corrupted cache
 
-# 改善: キャッシュミス時のフォールバックを用意
+# Better: Provide a fallback for cache misses
 steps:
   - uses: actions/cache@v4
     id: cache
@@ -2303,13 +2315,13 @@ steps:
       key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
   - if: steps.cache.outputs.cache-hit != 'true'
     run: npm ci
-  # さらに、定期的にキャッシュをクリアする仕組みを用意
+  # Also set up a mechanism to periodically clear the cache
 ```
 
-### アンチパターン3: ワークフローのモノリス化
+### Anti-pattern 3: Monolithic Workflow
 
 ```yaml
-# 悪い例: 1つのワークフローに全てを詰め込む
+# Bad: Cramming everything into one workflow
 name: Everything
 on: [push]
 jobs:
@@ -2322,11 +2334,11 @@ jobs:
       - run: npm run e2e
       - run: ./deploy.sh staging
       - run: ./deploy.sh production
-      # → 1ステップの失敗で全体が止まる
-      # → 並列化できない
-      # → 再実行は全体をやり直し
+      # → One step failure stops everything
+      # → Cannot parallelize
+      # → Re-runs require redoing everything
 
-# 改善: ジョブを分割して並列化・依存関係を明確化
+# Better: Split jobs to parallelize and clarify dependencies
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -2353,15 +2365,15 @@ jobs:
       - run: ./deploy.sh staging
 ```
 
-### アンチパターン4: 不必要な全体テスト
+### Anti-pattern 4: Running All Tests Unnecessarily
 
 ```yaml
-# 悪い例: 全変更で全テストを実行
+# Bad: Running full test suite on every change
 on:
   push:
-    # READMEの変更でもCIが走る
+    # CI runs even on README changes
 
-# 改善: パスフィルターで不要な実行を防ぐ
+# Better: Use path filters to prevent unnecessary runs
 on:
   push:
     paths-ignore:
@@ -2372,15 +2384,15 @@ on:
       - '.gitignore'
 ```
 
-### アンチパターン5: 長時間ジョブのタイムアウト未設定
+### Anti-pattern 5: No Timeout on Long-Running Jobs
 
 ```yaml
-# 悪い例: タイムアウトなし（デフォルト6時間）
+# Bad: No timeout (default 6 hours)
 jobs:
   build:
-    runs-on: ubuntu-latest  # 6時間分の料金が発生する可能性
+    runs-on: ubuntu-latest  # Could consume up to 6 hours of billing
 
-# 改善: 適切なタイムアウトを設定
+# Better: Set appropriate timeouts
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -2394,93 +2406,93 @@ jobs:
 
 ## 14. FAQ
 
-### Q1: マトリクスで特定の組み合わせだけ異なる設定をするには？
+### Q1: How do I apply different settings to specific matrix combinations?
 
-`include` を使って特定の組み合わせに追加プロパティを設定する。例えば `include: [{os: ubuntu-latest, node-version: 22, coverage: true}]` とすれば、その組み合わせでのみ `matrix.coverage` が `true` になり、条件分岐に使える。
+Use `include` to add extra properties to specific combinations. For example, `include: [{os: ubuntu-latest, node-version: 22, coverage: true}]` makes `matrix.coverage` equal to `true` only for that combination, which you can then use in conditionals.
 
-### Q2: キャッシュのキーが衝突したらどうなるか？
+### Q2: What happens when cache keys collide?
 
-同じキーのキャッシュは上書きされない(イミュータブル)。異なるブランチのキャッシュは `restore-keys` のプレフィックスマッチでフォールバックする。デフォルトブランチのキャッシュは全ブランチからアクセス可能。キャッシュを強制更新したい場合はキーにランダム値やバージョン番号を含める。
+Caches with the same key are not overwritten (they are immutable). Caches from different branches fall back via prefix matching in `restore-keys`. Caches from the default branch are accessible from all branches. To force a cache update, include a random value or version number in the key.
 
-### Q3: Environment の承認を自動化できるか？
+### Q3: Can Environment approvals be automated?
 
-GitHub API 経由でデプロイレビューを承認できるが、セキュリティ上の理由から完全自動化は推奨されない。代替手段として、ステージング環境でのスモークテスト成功を条件にした自動デプロイ(カナリー)を設計し、問題なければ承認者が1クリックで本番デプロイを承認するフローが現実的。
+You can approve deployment reviews via the GitHub API, but full automation is not recommended for security reasons. A practical alternative is to design an automatic deploy (canary) contingent on smoke test success in the staging environment, then have an approver click once to approve the production deploy.
 
-### Q4: OIDC とシークレットベースの認証、どちらを使うべきか？
+### Q4: Should I use OIDC or secret-based authentication?
 
-可能な限り OIDC を推奨する。OIDC は長期間有効なシークレットを保存する必要がなく、短命トークンで認証するためセキュリティリスクが大幅に低減する。ただし、対応していないサービス(一部のSaaSプロバイダーなど)に対しては従来のシークレット方式を使う必要がある。OIDC に対応しているクラウドプロバイダー: AWS、GCP、Azure、HashiCorp Vault、Terraform Cloud。
+Use OIDC whenever possible. OIDC eliminates the need to store long-lived secrets and significantly reduces security risk by using short-lived tokens. However, you still need the traditional secrets approach for services that do not support OIDC (e.g., some SaaS providers). Cloud providers that support OIDC: AWS, GCP, Azure, HashiCorp Vault, Terraform Cloud.
 
-### Q5: Self-hosted Runner をパブリックリポジトリで使っても安全か？
+### Q5: Is it safe to use Self-hosted Runners with public repositories?
 
-基本的に推奨されない。パブリックリポジトリではフォークからのPRが自由に作成でき、悪意あるコードがランナー上で実行される可能性がある。どうしても使用する場合は、エフェメラルランナー(ジョブ終了後に破棄)を使い、ランナーを完全に分離された環境で実行し、`pull_request` イベントでは自動実行しない設定にする。
+Generally not recommended. In public repositories, anyone can create a PR from a fork, and malicious code could run on your runner. If you must use them, use ephemeral runners (destroyed after a job), run them in a fully isolated environment, and do not auto-run on `pull_request` events.
 
-### Q6: ワークフローの実行時間を効果的に短縮するには？
+### Q6: What is the most effective way to reduce workflow run time?
 
-最も効果的な方法を優先度順に: (1) パスフィルターで不要な実行を防ぐ、(2) 依存関係のキャッシュを設定する、(3) ジョブを並列化する、(4) テストをシャーディングで分割する、(5) Larger Runner を使う、(6) ビルドキャッシュ(Next.js、Docker レイヤー等)を活用する。実際のワークフロー実行時間は Actions タブで確認でき、各ステップの時間を分析してボトルネックを特定する。
+In order of effectiveness: (1) Use path filters to prevent unnecessary runs, (2) Configure dependency caching, (3) Parallelize jobs, (4) Shard tests, (5) Use Larger Runners, (6) Use build caches (Next.js, Docker layers, etc.). Actual run times are visible in the Actions tab; analyze each step's duration to identify bottlenecks.
 
-### Q7: Reusable Workflow の制限事項は？
+### Q7: What are the limitations of Reusable Workflows?
 
-主な制限: (1) ネストは最大4レベル、(2) 呼び出し元のワークフローから env コンテキストが継承されない、(3) strategy.matrix と reusable workflow は同じジョブで使えない(呼び出し元で matrix を定義する)、(4) `secrets: inherit` を使わない場合、シークレットは明示的に渡す必要がある、(5) 同一ワークフローファイルから複数回呼び出す場合は異なるジョブ名が必要。
+Key limitations: (1) Nesting is limited to 4 levels, (2) The `env` context from the calling workflow is not inherited, (3) `strategy.matrix` and a reusable workflow call cannot be in the same job (define the matrix in the caller), (4) Without `secrets: inherit`, secrets must be passed explicitly, (5) When calling the same workflow file multiple times, each call must use a different job name.
 
-### Q8: workflow_run と workflow_dispatch の違いは？
+### Q8: What is the difference between `workflow_run` and `workflow_dispatch`?
 
-`workflow_run` は別のワークフローの完了を検知して自動的にトリガーされるイベント。`workflow_dispatch` はUI/API/gh CLIからの手動トリガー。`workflow_run` は CI 成功後のデプロイなどチェーン実行に使い、`workflow_dispatch` はオンデマンドのデプロイやメンテナンスタスクに使う。
+`workflow_run` is an event that triggers automatically when another workflow completes. `workflow_dispatch` is a manual trigger from the UI, API, or gh CLI. Use `workflow_run` for chained execution such as deploying after CI succeeds, and `workflow_dispatch` for on-demand deployments or maintenance tasks.
 
-### Q9: 大規模モノレポでの CI 最適化の定石は？
+### Q9: What is the standard approach for CI optimization in large monorepos?
 
-(1) `dorny/paths-filter` で変更検知し影響範囲のみテスト、(2) 動的マトリクスで変更されたパッケージだけをビルド対象にする、(3) Turborepo/Nx のリモートキャッシュを活用、(4) ビルド成果物をアーティファクトとしてジョブ間で共有、(5) `concurrency` で同一PRの重複実行を防止。これらを組み合わせることで CI 時間を 70-90% 削減した事例がある。
+(1) Use `dorny/paths-filter` to detect changes and test only affected packages, (2) Use dynamic matrix to build only changed packages, (3) Leverage Turborepo/Nx remote cache, (4) Share build artifacts between jobs as artifacts, (5) Use `concurrency` to prevent duplicate runs on the same PR. Combining these approaches has resulted in 70-90% reductions in CI time.
 
-### Q10: GitHub Actions のコストを抑えるには？
+### Q10: How can I reduce GitHub Actions costs?
 
-(1) `concurrency` + `cancel-in-progress` で同一PRの古い実行をキャンセル、(2) パスフィルターで不要な実行を排除、(3) macOS ランナーの使用を最小限にする(Linuxの10倍のコスト)、(4) Self-hosted Runner で大量のビルドを処理、(5) キャッシュを効果的に使いビルド時間を短縮、(6) `timeout-minutes` を適切に設定してハングしたジョブの料金を防ぐ。GitHub Free プランは月2,000分(Linux)が無料で、これを超えるとPay-as-you-goになる。
+(1) Use `concurrency` + `cancel-in-progress` to cancel old runs on the same PR, (2) Use path filters to eliminate unnecessary runs, (3) Minimize macOS runner usage (10x the cost of Linux), (4) Handle large volume builds on Self-hosted Runners, (5) Use caching effectively to reduce build time, (6) Set `timeout-minutes` appropriately to prevent billing from hung jobs. The GitHub Free plan includes 2,000 minutes/month (Linux) at no cost; beyond that it becomes pay-as-you-go.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Jumping to advanced topics without mastering the basics. It is recommended to thoroughly understand the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and when making architecture decisions.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| マトリクス | クロスプラットフォーム・マルチバージョンの並列テスト |
-| キャッシュ | 依存関係を保存してビルド高速化(node_modules等) |
-| アーティファクト | ビルド成果物のジョブ間受渡しとUI公開 |
-| シークレット | 暗号化された機密情報、スコープで管理 |
-| 環境 | デプロイ先の承認ルール・保護設定 |
-| GITHUB_TOKEN | 自動生成、最小権限で permissions 指定 |
-| OIDC | シークレットレス認証、短命トークンで安全 |
-| Reusable Workflow | DRY原則のワークフロー再利用 |
-| Composite Actions | 共通ステップのパッケージ化 |
-| Self-hosted Runner | カスタムハードウェア、内部ネットワーク接続 |
-| パフォーマンス | 並列化、キャッシュ、シャーディング、パスフィルター |
-| リリース自動化 | タグベース、Conventional Commits、release-please |
+| Matrix | Parallel testing across platforms and versions |
+| Cache | Store dependencies to speed up builds (node_modules, etc.) |
+| Artifact | Pass build outputs between jobs and make them available in the UI |
+| Secrets | Encrypted sensitive information managed by scope |
+| Environments | Approval rules and protection settings for deployment targets |
+| GITHUB_TOKEN | Auto-generated; specify minimum permissions with `permissions` |
+| OIDC | Secretless authentication using short-lived tokens |
+| Reusable Workflow | DRY-principle workflow reuse |
+| Composite Actions | Package common steps |
+| Self-hosted Runner | Custom hardware, internal network access |
+| Performance | Parallelization, caching, sharding, path filters |
+| Release automation | Tag-based, Conventional Commits, release-please |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [再利用ワークフロー](./02-reusable-workflows.md) -- DRY原則に基づくワークフロー設計
-- [CIレシピ集](./03-ci-recipes.md) -- 言語別の実践的CI設定
-- [Actions セキュリティ](./04-security-actions.md) -- OIDC、依存ピン留め
+- [Reusable Workflows](./02-reusable-workflows.md) -- DRY-principle workflow design
+- [CI Recipe Collection](./03-ci-recipes.md) -- Practical CI configurations by language
+- [Actions Security](./04-security-actions.md) -- OIDC, dependency pinning
 
 ---
 
-## 参考文献
+## References
 
 1. GitHub. "Using a matrix for your jobs." https://docs.github.com/en/actions/using-jobs/using-a-matrix-for-your-jobs
 2. GitHub. "Caching dependencies to speed up workflows." https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows
