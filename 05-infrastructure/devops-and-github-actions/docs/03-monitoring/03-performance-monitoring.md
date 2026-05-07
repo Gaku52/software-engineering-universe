@@ -1,134 +1,134 @@
-# パフォーマンス監視
+# Performance Monitoring
 
-> APM、RUM、Core Web Vitals を活用してバックエンドとフロントエンドの両面からパフォーマンスを計測し、ユーザー体験を継続的に改善する
+> Measure performance from both backend and frontend perspectives using APM, RUM, and Core Web Vitals to continuously improve the user experience
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **APM (Application Performance Monitoring)** — バックエンドのレイテンシ、スループット、エラー率のリアルタイム監視
-2. **RUM (Real User Monitoring)** — 実際のユーザーが体験するフロントエンドパフォーマンスの計測
-3. **Core Web Vitals** — Google が定義する UX 指標（LCP、INP、CLS）の計測と改善
-4. **Synthetic Monitoring (合成監視)** — 定期的なシナリオ実行による継続的なパフォーマンス計測
-5. **パフォーマンス最適化** — ボトルネック特定から改善実施までの体系的アプローチ
+1. **APM (Application Performance Monitoring)** — Real-time monitoring of backend latency, throughput, and error rates
+2. **RUM (Real User Monitoring)** — Measuring frontend performance as experienced by actual users
+3. **Core Web Vitals** — Measuring and improving Google-defined UX metrics (LCP, INP, CLS)
+4. **Synthetic Monitoring** — Continuous performance measurement through periodic scenario execution
+5. **Performance Optimization** — A systematic approach from bottleneck identification to improvement
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [アラート戦略](./02-alerting.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Alerting Strategy](./02-alerting.md)
 
 ---
 
-## 1. パフォーマンス監視の全体像
+## 1. Overview of Performance Monitoring
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│             パフォーマンス監視の全体像                       │
+│             Performance Monitoring Overview               │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  ユーザー側 (フロントエンド)       サーバー側 (バックエンド) │
+│  Client Side (Frontend)            Server Side (Backend) │
 │  ┌─────────────────────┐        ┌─────────────────────┐ │
 │  │  RUM                │        │  APM                │ │
 │  │  ┌───────────────┐  │        │  ┌───────────────┐  │ │
-│  │  │ Core Web      │  │        │  │ レイテンシ     │  │ │
+│  │  │ Core Web      │  │        │  │ Latency       │  │ │
 │  │  │ Vitals        │  │        │  │ (p50/p95/p99) │  │ │
 │  │  │ - LCP         │  │  HTTP  │  │               │  │ │
-│  │  │ - INP         │  │◄──────►│  │ スループット   │  │ │
+│  │  │ - INP         │  │◄──────►│  │ Throughput    │  │ │
 │  │  │ - CLS         │  │        │  │ (req/sec)     │  │ │
 │  │  └───────────────┘  │        │  │               │  │ │
-│  │  ┌───────────────┐  │        │  │ エラー率      │  │ │
+│  │  ┌───────────────┐  │        │  │ Error Rate    │  │ │
 │  │  │ Navigation    │  │        │  │ (5xx/total)   │  │ │
 │  │  │ Timing        │  │        │  └───────────────┘  │ │
 │  │  │ Resource      │  │        │  ┌───────────────┐  │ │
-│  │  │ Timing        │  │        │  │ DB クエリ     │  │ │
-│  │  └───────────────┘  │        │  │ 外部API呼出   │  │ │
-│  └─────────────────────┘        │  │ キャッシュHit率│  │ │
+│  │  │ Timing        │  │        │  │ DB Queries    │  │ │
+│  │  └───────────────┘  │        │  │ External API  │  │ │
+│  └─────────────────────┘        │  │ Cache Hit Rate│  │ │
 │                                  │  └───────────────┘  │ │
 │                                  └─────────────────────┘ │
-│  Synthetic Monitoring (合成監視)                          │
+│  Synthetic Monitoring                                     │
 │  ┌──────────────────────────────────────────┐           │
-│  │ 定期的にシナリオを実行してパフォーマンスを計測  │           │
+│  │ Periodically execute scenarios to measure performance │
 │  │ (Lighthouse CI, Checkly, Datadog Synthetics)│           │
 │  └──────────────────────────────────────────┘           │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 RED メソッドと USE メソッド
+### 1.1 The RED Method and USE Method
 
 ```
-パフォーマンス監視の2つのフレームワーク:
+Two frameworks for performance monitoring:
 
-RED メソッド (サービス指向 — マイクロサービスに最適):
+RED Method (service-oriented — ideal for microservices):
 ┌──────────────────────────────────────────┐
-│ R — Rate (リクエストレート)               │
-│     1秒あたりのリクエスト数               │
+│ R — Rate (request rate)                  │
+│     Number of requests per second        │
 │                                          │
-│ E — Errors (エラーレート)                │
-│     失敗したリクエストの割合              │
+│ E — Errors (error rate)                  │
+│     Percentage of failed requests        │
 │                                          │
-│ D — Duration (レイテンシ)                │
-│     リクエストの処理時間 (p50/p95/p99)    │
+│ D — Duration (latency)                   │
+│     Request processing time (p50/p95/p99)│
 └──────────────────────────────────────────┘
 
-USE メソッド (リソース指向 — インフラ監視に最適):
+USE Method (resource-oriented — ideal for infrastructure monitoring):
 ┌──────────────────────────────────────────┐
-│ U — Utilization (使用率)                 │
-│     リソースがビジー状態の割合            │
+│ U — Utilization                          │
+│     Percentage of time a resource is busy│
 │                                          │
-│ S — Saturation (飽和度)                  │
-│     リソースの待ちキュー長                │
+│ S — Saturation                           │
+│     Length of the resource's wait queue  │
 │                                          │
-│ E — Errors (エラー)                      │
-│     エラーイベントの数                    │
+│ E — Errors                               │
+│     Number of error events               │
 └──────────────────────────────────────────┘
 
-USE メソッドの適用例:
+USE Method example application:
 ┌──────────┬──────────────┬──────────────┬──────────────┐
-│ リソース │ Utilization  │ Saturation   │ Errors       │
+│ Resource │ Utilization  │ Saturation   │ Errors       │
 ├──────────┼──────────────┼──────────────┼──────────────┤
-│ CPU      │ CPU 使用率   │ Run Queue    │ Machine Check│
-│ メモリ   │ メモリ使用率 │ Swap 使用量  │ OOM Kill     │
-│ ディスク │ ディスクI/O  │ I/O Wait     │ I/O Errors   │
-│ ネットワーク│ 帯域使用率│ Drop/Overflow│ CRC Errors   │
+│ CPU      │ CPU Usage    │ Run Queue    │ Machine Check│
+│ Memory   │ Memory Usage │ Swap Usage   │ OOM Kill     │
+│ Disk     │ Disk I/O     │ I/O Wait     │ I/O Errors   │
+│ Network  │ Bandwidth    │ Drop/Overflow│ CRC Errors   │
 └──────────┴──────────────┴──────────────┴──────────────┘
 ```
 
-### 1.2 パフォーマンスバジェットの設計
+### 1.2 Designing a Performance Budget
 
 ```
-パフォーマンスバジェットの階層:
+Performance budget hierarchy:
 
   ┌─────────────────────────────────────────────┐
-  │ ビジネス目標                                 │
-  │ 「ページ読み込み1秒遅延で売上7%減少」        │
+  │ Business Goal                                │
+  │ "1 second delay in page load = 7% revenue loss" │
   └────────────────────┬────────────────────────┘
                        │
   ┌────────────────────▼────────────────────────┐
-  │ ユーザー体験目標                             │
+  │ User Experience Goal                         │
   │ LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1        │
   └────────────────────┬────────────────────────┘
                        │
   ┌────────────────────▼────────────────────────┐
-  │ 技術バジェット                               │
+  │ Technical Budget                             │
   │ JS Bundle ≤ 300KB, Total ≤ 500KB           │
   │ API Latency p95 ≤ 200ms                    │
-  │ 画像合計 ≤ 200KB                            │
-  │ フォント ≤ 100KB                            │
+  │ Total Images ≤ 200KB                        │
+  │ Fonts ≤ 100KB                               │
   └────────────────────┬────────────────────────┘
                        │
   ┌────────────────────▼────────────────────────┐
-  │ CI/CD 強制                                   │
-  │ バジェット超過で PR ブロック or 警告          │
+  │ CI/CD Enforcement                            │
+  │ Block or warn on PR when budget is exceeded  │
   └─────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. APM — バックエンドパフォーマンス監視
+## 2. APM — Backend Performance Monitoring
 
-### 2.1 Express APM ミドルウェア
+### 2.1 Express APM Middleware
 
 ```typescript
 // apm-middleware.ts — Express 用 APM ミドルウェア
@@ -204,7 +204,7 @@ export function slowQueryDetector(thresholdMs: number = 1000) {
 }
 ```
 
-### 2.2 データベースクエリの監視
+### 2.2 Database Query Monitoring
 
 ```typescript
 // db-query-monitor.ts — データベースクエリの監視
@@ -280,7 +280,7 @@ class QueryMonitor {
 export const queryMonitor = new QueryMonitor();
 ```
 
-### 2.3 外部 API 呼び出しの監視
+### 2.3 External API Call Monitoring
 
 ```typescript
 // external-api-monitor.ts — 外部 API 呼び出しの監視
@@ -434,7 +434,7 @@ class CircuitBreaker {
 }
 ```
 
-### 2.4 キャッシュパフォーマンスの監視
+### 2.4 Cache Performance Monitoring
 
 ```typescript
 // cache-monitor.ts — キャッシュパフォーマンスの監視
@@ -520,21 +520,21 @@ cache_size
 */
 ```
 
-### 2.5 Grafana ダッシュボード用 PromQL (APM)
+### 2.5 PromQL for Grafana Dashboard (APM)
 
 ```promql
-# --- RED メトリクス (サービス別) ---
+# --- RED Metrics (per service) ---
 
-# Rate: リクエストレート
+# Rate: request rate
 sum(rate(http_server_requests_total[5m])) by (service)
 
-# Errors: エラーレート (%)
+# Errors: error rate (%)
 sum(rate(http_server_requests_total{status_class="5xx"}[5m])) by (service)
 /
 sum(rate(http_server_requests_total[5m])) by (service)
 * 100
 
-# Duration: p50/p95/p99 レイテンシ
+# Duration: p50/p95/p99 latency
 histogram_quantile(0.5,
   sum(rate(http_server_duration_bucket[5m])) by (service, le)
 )
@@ -547,59 +547,59 @@ histogram_quantile(0.99,
   sum(rate(http_server_duration_bucket[5m])) by (service, le)
 )
 
-# --- エンドポイント別の詳細 ---
+# --- Per-endpoint details ---
 
-# 最も遅いエンドポイント Top 10
+# Top 10 slowest endpoints
 topk(10,
   histogram_quantile(0.95,
     sum(rate(http_server_duration_bucket[5m])) by (route, le)
   )
 )
 
-# 最もリクエスト数が多いエンドポイント Top 10
+# Top 10 endpoints by request count
 topk(10,
   sum(rate(http_server_requests_total[5m])) by (route)
 )
 
-# エラーが多いエンドポイント Top 10
+# Top 10 endpoints by error count
 topk(10,
   sum(rate(http_server_requests_total{status_class="5xx"}[5m])) by (route)
 )
 
-# --- DB クエリパフォーマンス ---
+# --- DB query performance ---
 
-# スロークエリの発生率
+# Slow query occurrence rate
 sum(rate(db_query_slow_total[5m])) by (query_pattern)
 
-# クエリレイテンシ p95
+# Query latency p95
 histogram_quantile(0.95,
   sum(rate(db_query_duration_bucket[5m])) by (le, query_pattern)
 )
 
-# N+1 クエリの検出回数
+# N+1 query detection count
 sum(increase(n_plus_one_detected_total[1h])) by (query_pattern)
 
-# --- 外部 API パフォーマンス ---
+# --- External API performance ---
 
-# 外部 API 呼び出しのレイテンシ (プロバイダ別)
+# External API call latency (per provider)
 histogram_quantile(0.95,
   sum(rate(external_api_duration_bucket[5m])) by (le, provider)
 )
 
-# 外部 API のエラーレート
+# External API error rate
 sum(rate(external_api_errors_total[5m])) by (provider)
 /
 sum(rate(external_api_duration_count[5m])) by (provider)
 * 100
 
-# --- キャッシュパフォーマンス ---
+# --- Cache performance ---
 
-# キャッシュヒット率
+# Cache hit rate
 sum(rate(cache_hits_total[5m])) by (cache)
 / (sum(rate(cache_hits_total[5m])) by (cache) + sum(rate(cache_misses_total[5m])) by (cache))
 * 100
 
-# キャッシュ操作のレイテンシ
+# Cache operation latency
 histogram_quantile(0.95,
   sum(rate(cache_operation_duration_bucket[5m])) by (le, cache, operation)
 )
@@ -607,9 +607,9 @@ histogram_quantile(0.95,
 
 ---
 
-## 3. RUM — フロントエンドパフォーマンス監視
+## 3. RUM — Frontend Performance Monitoring
 
-### 3.1 RUM データ収集の実装
+### 3.1 Implementing RUM Data Collection
 
 ```typescript
 // rum-collector.ts — Real User Monitoring の実装
@@ -719,7 +719,7 @@ class RUMCollector {
 new RUMCollector('/api/rum/collect');
 ```
 
-### 3.2 web-vitals ライブラリの活用
+### 3.2 Using the web-vitals Library
 
 ```typescript
 // web-vitals-reporter.ts — web-vitals ライブラリを使った計測
@@ -815,7 +815,7 @@ class WebVitalsReporter {
 new WebVitalsReporter('/api/vitals/report');
 ```
 
-### 3.3 RUM データの集約 API
+### 3.3 RUM Data Aggregation API
 
 ```typescript
 // rum-api.ts — RUM データの受信と集約
@@ -924,100 +924,100 @@ app.post('/api/rum/collect', express.json(), (req, res) => {
 
 ---
 
-## 4. Core Web Vitals の基準と改善
+## 4. Core Web Vitals: Thresholds and Improvement
 
-### 4.1 基準値
+### 4.1 Thresholds
 
 ```
-Core Web Vitals の評価基準 (2024年更新):
+Core Web Vitals evaluation criteria (updated 2024):
 
-  LCP (Largest Contentful Paint) — 読み込み速度
+  LCP (Largest Contentful Paint) — Loading speed
   ┌─────────────┬──────────────┬──────────────┐
   │  Good       │ Needs Work   │  Poor        │
-  │  ≤ 2.5秒    │ ≤ 4.0秒      │ > 4.0秒      │
+  │  ≤ 2.5s     │ ≤ 4.0s       │ > 4.0s       │
   │  ████████   │ ████████     │ ████████     │
-  │  (緑)       │ (黄)         │ (赤)         │
+  │  (green)    │ (yellow)     │ (red)        │
   └─────────────┴──────────────┴──────────────┘
 
-  INP (Interaction to Next Paint) — 応答性
+  INP (Interaction to Next Paint) — Responsiveness
   ┌─────────────┬──────────────┬──────────────┐
   │  Good       │ Needs Work   │  Poor        │
   │  ≤ 200ms    │ ≤ 500ms      │ > 500ms      │
   │  ████████   │ ████████     │ ████████     │
-  │  (緑)       │ (黄)         │ (赤)         │
+  │  (green)    │ (yellow)     │ (red)        │
   └─────────────┴──────────────┴──────────────┘
 
-  CLS (Cumulative Layout Shift) — 視覚的安定性
+  CLS (Cumulative Layout Shift) — Visual stability
   ┌─────────────┬──────────────┬──────────────┐
   │  Good       │ Needs Work   │  Poor        │
   │  ≤ 0.1      │ ≤ 0.25       │ > 0.25       │
   │  ████████   │ ████████     │ ████████     │
-  │  (緑)       │ (黄)         │ (赤)         │
+  │  (green)    │ (yellow)     │ (red)        │
   └─────────────┴──────────────┴──────────────┘
 ```
 
-### 4.2 改善ガイド
+### 4.2 Improvement Guide
 
 ```
-各指標の改善チェックリスト:
+Improvement checklist for each metric:
 
-LCP 改善:
+LCP Improvements:
 ┌────────────────────────────────────────────────────────┐
-│ □ LCP 要素の特定 (通常は hero 画像 or 大きなテキスト)   │
-│ □ サーバーレスポンスタイムの改善 (TTFB < 800ms)         │
-│ □ レンダリングブロッキングリソースの排除                │
-│   - CSS: critical CSS のインライン化                    │
-│   - JS: defer / async 属性                             │
-│ □ 画像の最適化                                         │
-│   - 適切なフォーマット (WebP/AVIF)                      │
-│   - srcset による適切なサイズの提供                     │
-│   - fetchpriority="high" で LCP 画像を優先              │
-│   - プリロード: <link rel="preload" as="image">        │
-│ □ CDN の活用                                           │
-│ □ SSR / SSG によるサーバーサイドレンダリング             │
+│ □ Identify the LCP element (usually hero image or large text) │
+│ □ Improve server response time (TTFB < 800ms)           │
+│ □ Eliminate render-blocking resources                   │
+│   - CSS: inline critical CSS                            │
+│   - JS: defer / async attributes                        │
+│ □ Optimize images                                       │
+│   - Use appropriate formats (WebP/AVIF)                 │
+│   - Serve appropriate sizes with srcset                 │
+│   - Prioritize LCP image with fetchpriority="high"      │
+│   - Preload: <link rel="preload" as="image">            │
+│ □ Use a CDN                                             │
+│ □ Server-side rendering with SSR / SSG                  │
 └────────────────────────────────────────────────────────┘
 
-INP 改善:
+INP Improvements:
 ┌────────────────────────────────────────────────────────┐
-│ □ 重い JavaScript 処理の分割                           │
-│   - Long Task (50ms+) の特定と分割                     │
-│   - requestIdleCallback / scheduler.yield()            │
-│ □ メインスレッドのブロック回避                          │
-│   - Web Worker への処理移譲                             │
-│   - requestAnimationFrame の活用                        │
-│ □ イベントハンドラの最適化                             │
-│   - デバウンス / スロットル                              │
-│   - パッシブイベントリスナー                            │
-│ □ 不要な re-render の防止 (React)                      │
-│   - React.memo, useMemo, useCallback                   │
-│   - 仮想化 (react-window, react-virtuoso)              │
-│ □ Third-party スクリプトの影響評価                     │
+│ □ Break up heavy JavaScript processing                  │
+│   - Identify and split Long Tasks (50ms+)               │
+│   - requestIdleCallback / scheduler.yield()             │
+│ □ Avoid blocking the main thread                        │
+│   - Offload processing to Web Workers                   │
+│   - Use requestAnimationFrame                           │
+│ □ Optimize event handlers                               │
+│   - Debounce / throttle                                 │
+│   - Passive event listeners                             │
+│ □ Prevent unnecessary re-renders (React)                │
+│   - React.memo, useMemo, useCallback                    │
+│   - Virtualization (react-window, react-virtuoso)       │
+│ □ Evaluate the impact of third-party scripts            │
 └────────────────────────────────────────────────────────┘
 
-CLS 改善:
+CLS Improvements:
 ┌────────────────────────────────────────────────────────┐
-│ □ 画像・動画に明示的なサイズ指定                       │
-│   - width/height 属性 or aspect-ratio CSS              │
-│ □ Web フォントのフラッシュ防止                         │
-│   - font-display: swap + preload                       │
-│   - size-adjust でフォールバック調整                    │
-│ □ 動的コンテンツの挿入位置                             │
-│   - 広告やバナーのスペースを事前確保                   │
-│   - contain-intrinsic-size の活用                       │
-│ □ アニメーションの transform 使用                      │
-│   - width/height アニメーション → transform: scale()    │
-│   - top/left アニメーション → transform: translate()    │
-│ □ レイアウトシフトの原因特定                           │
-│   - DevTools Performance パネル                        │
-│   - Layout Shift デバッガー                             │
+│ □ Specify explicit sizes for images and videos          │
+│   - width/height attributes or aspect-ratio CSS         │
+│ □ Prevent web font flash                                │
+│   - font-display: swap + preload                        │
+│   - Adjust fallback with size-adjust                    │
+│ □ Placement of dynamic content                          │
+│   - Pre-reserve space for ads and banners               │
+│   - Use contain-intrinsic-size                          │
+│ □ Use transform for animations                          │
+│   - width/height animation → transform: scale()         │
+│   - top/left animation → transform: translate()         │
+│ □ Identify layout shift sources                         │
+│   - DevTools Performance panel                          │
+│   - Layout Shift debugger                               │
 └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. Lighthouse CI による継続的計測
+## 5. Continuous Measurement with Lighthouse CI
 
-### 5.1 GitHub Actions ワークフロー
+### 5.1 GitHub Actions Workflow
 
 ```yaml
 # .github/workflows/lighthouse-ci.yml
@@ -1092,7 +1092,7 @@ jobs:
             });
 ```
 
-### 5.2 パフォーマンスバジェット
+### 5.2 Performance Budget
 
 ```json
 [
@@ -1121,7 +1121,7 @@ jobs:
 ]
 ```
 
-### 5.3 Lighthouse CI 設定ファイル
+### 5.3 Lighthouse CI Configuration File
 
 ```javascript
 // lighthouserc.js — Lighthouse CI の詳細設定
@@ -1181,9 +1181,9 @@ module.exports = {
 
 ---
 
-## 6. Synthetic Monitoring (合成監視)
+## 6. Synthetic Monitoring
 
-### 6.1 Checkly による合成監視
+### 6.1 Synthetic Monitoring with Checkly
 
 ```typescript
 // checkly.config.ts — Checkly の設定
@@ -1275,7 +1275,7 @@ resource "datadog_synthetics_test" "api_health" {
   type      = "api"
   subtype   = "http"
   status    = "live"
-  message   = "API ヘルスチェックが失敗しました @pagerduty-critical"
+  message   = "API health check failed @pagerduty-critical"
   tags      = ["env:production", "service:api"]
 
   locations = ["aws:ap-northeast-1"]
@@ -1312,7 +1312,7 @@ resource "datadog_synthetics_test" "api_health" {
   }
 
   options_list {
-    tick_every = 60  # 1分ごと
+    tick_every = 60  # every 1 minute
     retry {
       count    = 2
       interval = 300
@@ -1327,7 +1327,7 @@ resource "datadog_synthetics_test" "browser_checkout" {
   name      = "Checkout Flow Browser Test"
   type      = "browser"
   status    = "live"
-  message   = "チェックアウトフローのテストが失敗しました @slack-alerts-warning"
+  message   = "Checkout flow test failed @slack-alerts-warning"
   tags      = ["env:production", "service:frontend"]
 
   locations = ["aws:ap-northeast-1"]
@@ -1338,11 +1338,11 @@ resource "datadog_synthetics_test" "browser_checkout" {
   }
 
   options_list {
-    tick_every = 600  # 10分ごと
+    tick_every = 600  # every 10 minutes
   }
 
   browser_step {
-    name = "商品をクリック"
+    name = "Click product"
     type = "click"
     params {
       element = ".product-card:first-child"
@@ -1350,7 +1350,7 @@ resource "datadog_synthetics_test" "browser_checkout" {
   }
 
   browser_step {
-    name = "カートに追加"
+    name = "Add to cart"
     type = "click"
     params {
       element = "[data-testid='add-to-cart']"
@@ -1358,7 +1358,7 @@ resource "datadog_synthetics_test" "browser_checkout" {
   }
 
   browser_step {
-    name = "カート数を確認"
+    name = "Verify cart count"
     type = "assertElementContent"
     params {
       element = "[data-testid='cart-count']"
@@ -1370,7 +1370,7 @@ resource "datadog_synthetics_test" "browser_checkout" {
 
 ---
 
-## 7. バンドルサイズの監視
+## 7. Bundle Size Monitoring
 
 ### 7.1 webpack-bundle-analyzer + CI
 
@@ -1437,7 +1437,7 @@ module.exports = [
 ];
 ```
 
-### 7.2 Import Cost の可視化
+### 7.2 Visualizing Import Cost
 
 ```typescript
 // scripts/analyze-imports.ts — インポートコストの分析
@@ -1508,131 +1508,131 @@ main();
 
 ---
 
-## 8. 比較表
+## 8. Comparison Tables
 
-| 指標 | APM (バックエンド) | RUM (フロントエンド) | Synthetic (合成) |
-|------|-------------------|---------------------|-----------------|
-| 計測対象 | サーバー処理 | 実ユーザー体験 | スクリプト実行 |
-| データ量 | 中 | 多い | 少ない |
-| リアルタイム性 | 高い | 中 (集計後) | 定期実行 |
-| 環境差異 | なし | デバイス/ネットワーク依存 | 統制環境 |
-| コスト | 中 | トラフィック比例 | 実行回数比例 |
-| ユースケース | API遅延/DB問題 | UX劣化検知 | リグレッション検知 |
+| Metric | APM (Backend) | RUM (Frontend) | Synthetic |
+|--------|---------------|----------------|-----------|
+| What is measured | Server processing | Real user experience | Script execution |
+| Data volume | Medium | High | Low |
+| Real-time capability | High | Medium (after aggregation) | Periodic execution |
+| Environment variability | None | Depends on device/network | Controlled environment |
+| Cost | Medium | Proportional to traffic | Proportional to executions |
+| Use case | API latency / DB issues | UX degradation detection | Regression detection |
 
-| RUM ツール比較 | web-vitals (OSS) | Datadog RUM | New Relic Browser | Sentry |
-|---------------|-----------------|-------------|-------------------|--------|
-| Core Web Vitals | 対応 | 対応 | 対応 | 対応 |
-| セッションリプレイ | なし | あり | あり | あり |
-| エラー追跡 | なし | あり | あり | 充実 |
-| 料金 | 無料 | 有料 | 有料 | 無料枠あり |
-| バンドルサイズ | 極小 (1.5KB) | 中 (~30KB) | 中 (~30KB) | 中 (~20KB) |
+| RUM Tool Comparison | web-vitals (OSS) | Datadog RUM | New Relic Browser | Sentry |
+|---------------------|-----------------|-------------|-------------------|--------|
+| Core Web Vitals | Supported | Supported | Supported | Supported |
+| Session Replay | No | Yes | Yes | Yes |
+| Error Tracking | No | Yes | Yes | Rich |
+| Pricing | Free | Paid | Paid | Free tier available |
+| Bundle Size | Very small (1.5KB) | Medium (~30KB) | Medium (~30KB) | Medium (~20KB) |
 
-| Synthetic ツール比較 | Checkly | Datadog Synthetics | Grafana k6 | Playwright Test |
-|--------------------|---------|-------------------|-----------|----------------|
-| API テスト | 対応 | 対応 | 対応 | 限定的 |
-| ブラウザテスト | 対応 (Playwright) | 対応 | 限定的 | 対応 |
-| 負荷テスト | 限定的 | 限定的 | 充実 | なし |
-| マルチリージョン | 対応 | 対応 | Cloud のみ | なし |
-| CI/CD 統合 | 充実 | 対応 | 充実 | ネイティブ |
-| 料金 | $30/月〜 | 含む | OSS (Cloud有料) | 無料 |
+| Synthetic Tool Comparison | Checkly | Datadog Synthetics | Grafana k6 | Playwright Test |
+|--------------------------|---------|-------------------|-----------|----------------|
+| API Testing | Supported | Supported | Supported | Limited |
+| Browser Testing | Supported (Playwright) | Supported | Limited | Supported |
+| Load Testing | Limited | Limited | Rich | No |
+| Multi-region | Supported | Supported | Cloud only | No |
+| CI/CD Integration | Rich | Supported | Rich | Native |
+| Pricing | From $30/mo | Included | OSS (Cloud paid) | Free |
 
-| バンドル分析ツール | size-limit | bundlesize | webpack-bundle-analyzer | source-map-explorer |
-|------------------|-----------|------------|------------------------|-------------------|
-| CI 統合 | GitHub Action | GitHub Action | レポート生成 | レポート生成 |
-| 差分表示 | あり | あり | なし | なし |
-| 可視化 | なし | なし | Treemap | Treemap |
-| 設定の柔軟性 | 高い | 中 | 高い | 低い |
+| Bundle Analysis Tool | size-limit | bundlesize | webpack-bundle-analyzer | source-map-explorer |
+|---------------------|-----------|------------|------------------------|-------------------|
+| CI Integration | GitHub Action | GitHub Action | Report generation | Report generation |
+| Diff display | Yes | Yes | No | No |
+| Visualization | No | No | Treemap | Treemap |
+| Configuration flexibility | High | Medium | High | Low |
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン 1: 平均値だけを見る
+### Anti-Pattern 1: Looking Only at Averages
 
 ```
-[悪い例]
-- 「平均レスポンスタイム 200ms で問題なし」
-- しかし p99 は 5秒を超えている (100リクエストに1回は5秒待ち)
-- 上位顧客ほどリクエスト数が多く、遅いレスポンスに当たりやすい
+[Bad Example]
+- "Average response time is 200ms, no problem"
+- But p99 exceeds 5 seconds (1 in 100 requests takes 5 seconds)
+- High-value customers tend to make more requests and are more likely to experience slow responses
 
-[良い例]
-- パーセンタイルで監視:
-  p50 (中央値):  通常のユーザー体験
-  p95:           多くのユーザーが体験する最悪ケース
-  p99:           テールレイテンシ (SLO の対象に)
-  p99.9:         極端なケース (デバッグ用)
+[Good Example]
+- Monitor with percentiles:
+  p50 (median):  Typical user experience
+  p95:           Worst case for most users
+  p99:           Tail latency (target for SLOs)
+  p99.9:         Extreme cases (for debugging)
 
-- PromQL でパーセンタイル計算:
+- Calculate percentiles with PromQL:
   histogram_quantile(0.99,
     sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
   )
 ```
 
-### アンチパターン 2: パフォーマンスバジェットなしの開発
+### Anti-Pattern 2: Developing Without a Performance Budget
 
 ```
-[悪い例]
-- 「リリースしてから計測すればいい」
-- バンドルサイズが 2MB を超えてから気づく
-- LCP が 5秒超でも誰も検知しない
-- 「このライブラリ追加したらバンドルが 500KB 増えた」を PR で指摘できない
+[Bad Example]
+- "We can measure after release"
+- Not noticing until the bundle size exceeds 2MB
+- Nobody detects when LCP exceeds 5 seconds
+- Cannot flag in PRs that "adding this library increased bundle size by 500KB"
 
-[良い例]
-- CI にパフォーマンスバジェットを組み込む:
-  - JS バンドル: 300KB 以下
-  - 画像合計: 200KB 以下
-  - LCP: 2.5秒以下
-  - INP: 200ms 以下
-- バジェット超過で PR をブロック (またはコメント警告)
-- Lighthouse CI で継続的にスコアを追跡
+[Good Example]
+- Incorporate performance budgets into CI:
+  - JS bundle: 300KB or less
+  - Total images: 200KB or less
+  - LCP: 2.5 seconds or less
+  - INP: 200ms or less
+- Block PRs (or add warning comments) when budget is exceeded
+- Track scores continuously with Lighthouse CI
 ```
 
-### アンチパターン 3: 本番環境でのみ計測
+### Anti-Pattern 3: Measuring Only in Production
 
 ```
-[悪い例]
-- 開発環境では DevTools を手動で見るだけ
-- ステージング環境でのパフォーマンステストがない
-- 本番リリース後に初めて問題に気づく
-- ロールバックを繰り返す
+[Bad Example]
+- In development, only manually check DevTools
+- No performance testing in staging environment
+- First notice of issues after production release
+- Repeated rollbacks
 
-[良い例]
-- 計測の3段階:
-  1. 開発時: Lighthouse DevTools + web-vitals ログ
-  2. CI/CD: Lighthouse CI + バンドルサイズチェック
-  3. 本番: RUM + Synthetic Monitoring + APM
-- ステージング環境での負荷テスト (k6, Artillery)
-- パフォーマンスリグレッションの早期検知
+[Good Example]
+- Three stages of measurement:
+  1. Development: Lighthouse DevTools + web-vitals logs
+  2. CI/CD: Lighthouse CI + bundle size checks
+  3. Production: RUM + Synthetic Monitoring + APM
+- Load testing on staging environment (k6, Artillery)
+- Early detection of performance regressions
 ```
 
-### アンチパターン 4: サードパーティスクリプトの無計画な追加
+### Anti-Pattern 4: Adding Third-Party Scripts Without a Plan
 
 ```
-[悪い例]
-- Google Analytics, GTM, Intercom, Hotjar, Facebook Pixel...
-  を全ページに読み込み
-- 各スクリプトが 50-200KB、合計で 1MB 以上
-- メインスレッドをブロックして INP が悪化
-- 「マーケティングチームが追加した」で管理不在
+[Bad Example]
+- Loading Google Analytics, GTM, Intercom, Hotjar, Facebook Pixel...
+  on every page
+- Each script is 50-200KB, totaling over 1MB
+- Blocking the main thread and worsening INP
+- "The marketing team added it" — no ownership
 
-[良い例]
-- サードパーティスクリプトの棚卸し (四半期ごと)
-- 各スクリプトの影響を計測:
-  - バンドルサイズへの影響
-  - メインスレッドブロック時間
-  - LCP/INP への影響
-- 遅延読み込みの活用:
-  - Partytown (Web Worker で実行)
-  - IntersectionObserver による遅延初期化
-  - requestIdleCallback での非同期読み込み
-- パフォーマンスバジェットにサードパーティ枠を設定
+[Good Example]
+- Audit third-party scripts (quarterly)
+- Measure the impact of each script:
+  - Effect on bundle size
+  - Main thread blocking time
+  - Impact on LCP/INP
+- Use lazy loading:
+  - Partytown (run in Web Worker)
+  - Lazy initialization with IntersectionObserver
+  - Async loading with requestIdleCallback
+- Set a third-party allocation within your performance budget
 ```
 
 ---
 
-## 10. パフォーマンステスト (負荷テスト)
+## 10. Performance Testing (Load Testing)
 
-### 10.1 k6 による負荷テスト
+### 10.1 Load Testing with k6
 
 ```javascript
 // k6-load-test.js — k6 負荷テストスクリプト
@@ -1740,7 +1740,7 @@ export function handleSummary(data) {
 }
 ```
 
-### 10.2 k6 CI 統合
+### 10.2 k6 CI Integration
 
 ```yaml
 # .github/workflows/load-test.yml
@@ -1748,7 +1748,7 @@ name: Load Test
 
 on:
   schedule:
-    - cron: '0 3 * * 1'  # 毎週月曜 AM3:00 (JST 12:00)
+    - cron: '0 3 * * 1'  # Every Monday at 3:00 AM (12:00 JST)
   workflow_dispatch:
 
 jobs:
@@ -1776,7 +1776,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "負荷テストが失敗しました: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              "text": "Load test failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -1786,80 +1786,80 @@ jobs:
 
 ## 11. FAQ
 
-### Q1: APM と RUM の両方が必要ですか？
+### Q1: Do I need both APM and RUM?
 
-はい、両方を導入することを強く推奨します。APM はサーバー側の問題（遅いクエリ、外部 API のタイムアウト）を特定し、RUM はクライアント側の問題（遅いネットワーク、重い JS 実行）を特定します。ユーザーが「遅い」と感じる原因は両方にあるため、片方だけでは根本原因の特定が困難です。
+Yes, it is strongly recommended to implement both. APM identifies server-side problems (slow queries, external API timeouts), while RUM identifies client-side problems (slow networks, heavy JS execution). Because the reasons users perceive slowness exist on both sides, identifying the root cause is difficult with only one of them.
 
-### Q2: Core Web Vitals は SEO にどの程度影響しますか？
+### Q2: How much do Core Web Vitals impact SEO?
 
-Google は Core Web Vitals をランキングシグナルの一つとして使用しています。ただし、コンテンツの関連性ほど重要ではありません。同程度の関連性を持つページ間で差がつく「タイブレーカー」的な役割です。とはいえ、UX の観点から CWV を改善すること自体がコンバージョン率やエンゲージメントの向上に直結するため、SEO 関係なく取り組む価値があります。
+Google uses Core Web Vitals as one of its ranking signals. However, they are not as important as content relevance. They play a "tiebreaker" role when competing pages have similar relevance. That said, improving CWV from a UX perspective directly leads to higher conversion rates and engagement, making it worth pursuing regardless of SEO.
 
-### Q3: Synthetic Monitoring（合成監視）は RUM があれば不要ですか？
+### Q3: Is Synthetic Monitoring unnecessary if I already have RUM?
 
-不要ではありません。合成監視は「統制された環境で定期的に計測する」ため、リグレッション検知に優れています。RUM はトラフィックがないページ（新規ページ、低アクセスページ）のデータが集まりません。また、合成監視は「ベースライン」を提供し、RUM のデータと比較することで、ネットワークやデバイスの影響を分離して分析できます。
+It is not unnecessary. Synthetic monitoring is excellent for detecting regressions because it "measures periodically in a controlled environment." RUM does not accumulate data for pages with little or no traffic (new pages, low-traffic pages). Synthetic monitoring also provides a "baseline" that can be compared against RUM data to isolate the effects of network and device differences in your analysis.
 
-### Q4: パフォーマンスバジェットの適切な設定値は？
+### Q4: What are appropriate values for a performance budget?
 
-業界やサービスの特性によりますが、一般的な指針として、(1) LCP: 2.5秒以下（Google 推奨の "Good" 基準）、(2) INP: 200ms 以下、(3) CLS: 0.1 以下、(4) JS バンドル: 300KB 以下 (gzip)、(5) 総転送量: 500KB 以下、があります。まず現状を計測し、そこから 10-20% 改善した値をバジェットに設定するのが現実的です。
+This depends on the industry and service characteristics, but general guidelines are: (1) LCP: 2.5 seconds or less (Google-recommended "Good" threshold), (2) INP: 200ms or less, (3) CLS: 0.1 or less, (4) JS bundle: 300KB or less (gzip), (5) total transfer size: 500KB or less. A practical approach is to first measure the current state and then set the budget to a value that is 10-20% better than the baseline.
 
-### Q5: 負荷テストはどの頻度で実施すべきですか？
+### Q5: How often should load testing be performed?
 
-定期的な負荷テストは週次または隔週で実施することを推奨します。CI/CD に組み込む場合は、本番相当のステージング環境で実施してください。大規模なリリース前、インフラ変更前、予想されるトラフィック増加（セール、キャンペーン）前には必ず追加テストを実施します。結果は前回との比較で見ることが重要です。
+It is recommended to perform regular load tests weekly or biweekly. When integrating into CI/CD, run tests on a staging environment that closely mirrors production. Always run additional tests before major releases, infrastructure changes, or anticipated traffic surges (sales, campaigns). It is important to compare results against the previous run.
 
-### Q6: フロントエンドのパフォーマンス改善で最も効果が高い施策は？
+### Q6: What is the most effective measure for improving frontend performance?
 
-多くのケースで最も効果が高いのは「不要なリソースの削減」です。具体的には、(1) 未使用の JavaScript の削除（Tree Shaking、コード分割）、(2) 画像の最適化（WebP/AVIF、適切なサイズ）、(3) サードパーティスクリプトの削減、(4) レンダリングブロッキングリソースの排除、の順に取り組むと効果的です。計測→改善→計測のサイクルを回すことが重要です。
+In most cases, the most effective approach is "eliminating unnecessary resources." Specifically, tackle these in order: (1) remove unused JavaScript (tree shaking, code splitting), (2) optimize images (WebP/AVIF, appropriate sizes), (3) reduce third-party scripts, (4) eliminate render-blocking resources. The key is to iterate through the measure → improve → measure cycle.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping straight to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| APM | バックエンドの p50/p95/p99 レイテンシ、スループット、エラー率を監視 |
-| RUM | 実ユーザーの Core Web Vitals、Navigation Timing を収集 |
-| Core Web Vitals | LCP ≤ 2.5s、INP ≤ 200ms、CLS ≤ 0.1 を目標に |
-| Lighthouse CI | PR ごとにパフォーマンススコアを自動計測 |
-| Synthetic Monitoring | 定期的な外形監視でリグレッションを検知 |
-| パフォーマンスバジェット | CI でバジェット超過を検知。リグレッションを防止 |
-| パーセンタイル | 平均ではなく p95/p99 を監視。テールレイテンシに注目 |
-| 負荷テスト | k6 等で定期的にスケーラビリティを検証 |
-| バンドルサイズ | size-limit で CI に組み込み。300KB (gzip) を目標に |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [00-observability.md](./00-observability.md) — オブザーバビリティの3本柱
-- [01-monitoring-tools.md](./01-monitoring-tools.md) — 監視ツールの選定と構築
-- [02-alerting.md](./02-alerting.md) — アラート戦略とポストモーテム
+| Item | Key Point |
+|------|-----------|
+| APM | Monitor backend p50/p95/p99 latency, throughput, and error rates |
+| RUM | Collect Core Web Vitals and Navigation Timing from real users |
+| Core Web Vitals | Target LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1 |
+| Lighthouse CI | Automatically measure performance scores per PR |
+| Synthetic Monitoring | Detect regressions through periodic external monitoring |
+| Performance Budget | Detect budget overruns in CI. Prevent regressions |
+| Percentiles | Monitor p95/p99, not averages. Focus on tail latency |
+| Load Testing | Regularly verify scalability with tools like k6 |
+| Bundle Size | Integrate size-limit into CI. Target 300KB (gzip) |
 
 ---
 
-## 参考文献
+## Further Reading
 
-1. **Web Vitals** — https://web.dev/vitals/ — Google による Core Web Vitals の公式ガイド
-2. **High Performance Browser Networking** — Ilya Grigorik (O'Reilly, 2013) — ブラウザネットワーキングの原理
-3. **web-vitals JavaScript Library** — https://github.com/GoogleChrome/web-vitals — CWV 計測ライブラリ
-4. **Lighthouse CI** — https://github.com/GoogleChrome/lighthouse-ci — CI/CD でのパフォーマンス計測ツール
-5. **k6 Documentation** — https://k6.io/docs/ — 負荷テストツール k6 の公式ガイド
-6. **Checkly** — https://www.checklyhq.com/ — Synthetic Monitoring プラットフォーム
-7. **size-limit** — https://github.com/ai/size-limit — バンドルサイズ制限ツール
-8. **The RED Method** — https://www.weave.works/blog/the-red-method-key-metrics-for-microservices-architecture/ — マイクロサービス監視の RED メソッド
+- [00-observability.md](./00-observability.md) — The three pillars of observability
+- [01-monitoring-tools.md](./01-monitoring-tools.md) — Selecting and setting up monitoring tools
+- [02-alerting.md](./02-alerting.md) — Alerting strategy and postmortems
+
+---
+
+## References
+
+1. **Web Vitals** — https://web.dev/vitals/ — Google's official guide to Core Web Vitals
+2. **High Performance Browser Networking** — Ilya Grigorik (O'Reilly, 2013) — Principles of browser networking
+3. **web-vitals JavaScript Library** — https://github.com/GoogleChrome/web-vitals — CWV measurement library
+4. **Lighthouse CI** — https://github.com/GoogleChrome/lighthouse-ci — Performance measurement tool for CI/CD
+5. **k6 Documentation** — https://k6.io/docs/ — Official guide to the k6 load testing tool
+6. **Checkly** — https://www.checklyhq.com/ — Synthetic Monitoring platform
+7. **size-limit** — https://github.com/ai/size-limit — Bundle size limiting tool
+8. **The RED Method** — https://www.weave.works/blog/the-red-method-key-metrics-for-microservices-architecture/ — The RED method for microservices monitoring
