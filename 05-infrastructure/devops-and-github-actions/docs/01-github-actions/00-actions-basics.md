@@ -1,28 +1,28 @@
-# GitHub Actions 基礎
+# GitHub Actions Basics
 
-> GitHub に統合された CI/CD プラットフォームで、ワークフロー・ジョブ・ステップの階層構造とYAML構文を理解する
+> A CI/CD platform integrated into GitHub — understand the hierarchical structure of workflows, jobs, and steps, along with YAML syntax
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. ワークフロー、ジョブ、ステップの関係と実行モデルを理解する
-2. トリガー(イベント)の種類と使い分けを習得する
-3. 基本的なワークフローYAMLの読み書きができるようになる
-4. 式・関数・コンテキストを使った動的な制御ができる
-5. 基本的なアクションの使い方とベストプラクティスを理解する
+1. Understand the relationship between workflows, jobs, and steps, and their execution model
+2. Learn the types of triggers (events) and when to use each
+3. Be able to read and write basic workflow YAML
+4. Use expressions, functions, and contexts for dynamic control
+5. Understand how to use common actions and follow best practices
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. GitHub Actions の構造
+## 1. GitHub Actions Structure
 
-### 1.1 階層構造
+### 1.1 Hierarchical Structure
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -49,27 +49,27 @@
 │  └──────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────┘
 
-重要な関係:
-- Workflow: 1つの YAML ファイル = 1つのワークフロー
-- Job: 1つのランナー(仮想マシン)で実行される単位
-- Step: Job 内で順次実行される個々のタスク
-- Jobs はデフォルトで並列実行、needs で依存関係を定義
+Key relationships:
+- Workflow: one YAML file = one workflow
+- Job: the unit executed on a single runner (virtual machine)
+- Step: individual tasks executed sequentially within a job
+- Jobs run in parallel by default; use needs to define dependencies
 ```
 
-### 1.2 実行環境
+### 1.2 Execution Environment
 
 ```
-ランナー (Runner):
-  GitHub が提供するホステッドランナー:
+Runner:
+  GitHub-hosted runners:
   ┌──────────────────────────────────┐
-  │ ubuntu-latest (Ubuntu 22.04)      │ ← 最も一般的
+  │ ubuntu-latest (Ubuntu 22.04)      │ ← most common
   │ ubuntu-24.04                      │
   │ windows-latest                    │
   │ macos-latest                      │
   │ macos-14 (Apple Silicon)          │
   └──────────────────────────────────┘
 
-  Larger Runner (有料):
+  Larger Runners (paid):
   ┌──────────────────────────────────┐
   │ ubuntu-latest-4-cores            │
   │ ubuntu-latest-8-cores            │
@@ -78,67 +78,67 @@
   │ macos-latest-xlarge (M1)         │
   └──────────────────────────────────┘
 
-  セルフホステッドランナー:
+  Self-hosted runners:
   ┌──────────────────────────────────┐
-  │ runs-on: self-hosted             │ ← 自前のマシン
-  │ runs-on: [self-hosted, gpu]      │ ← ラベルで選択
-  │ runs-on: [self-hosted, linux, x64]│ ← 複数ラベル
+  │ runs-on: self-hosted             │ ← your own machine
+  │ runs-on: [self-hosted, gpu]      │ ← select by label
+  │ runs-on: [self-hosted, linux, x64]│ ← multiple labels
   └──────────────────────────────────┘
 ```
 
-### 1.3 ランナーの仕様
+### 1.3 Runner Specifications
 
-| ランナー | CPU | メモリ | ストレージ | 消費レート |
+| Runner | CPU | Memory | Storage | Consumption Rate |
 |---|---|---|---|---|
 | ubuntu-latest | 2 vCPU | 7 GB | 14 GB SSD | 1x |
 | windows-latest | 2 vCPU | 7 GB | 14 GB SSD | 2x |
 | macos-latest | 3 vCPU | 14 GB | 14 GB SSD | 10x |
 | macos-14 (M1) | 3 vCPU | 7 GB | 14 GB SSD | 10x |
-| ubuntu-latest-4-cores | 4 vCPU | 16 GB | 150 GB SSD | 有料 |
-| ubuntu-latest-16-cores | 16 vCPU | 64 GB | 150 GB SSD | 有料 |
+| ubuntu-latest-4-cores | 4 vCPU | 16 GB | 150 GB SSD | paid |
+| ubuntu-latest-16-cores | 16 vCPU | 64 GB | 150 GB SSD | paid |
 
-### 1.4 プリインストールソフトウェア
+### 1.4 Pre-installed Software
 
 ```
-ubuntu-latest にプリインストールされているもの:
-  ├── 言語: Node.js, Python, Go, Java, Ruby, .NET, Rust
-  ├── パッケージマネージャ: npm, pip, Maven, Gradle
-  ├── コンテナ: Docker, Docker Compose
-  ├── CLI: AWS CLI, Azure CLI, gcloud, gh (GitHub CLI)
-  ├── ビルドツール: Make, CMake, gcc, g++
-  ├── データベース: PostgreSQL, MySQL (サービスとして利用可能)
-  └── その他: Git, curl, wget, jq, zip, unzip
+Pre-installed on ubuntu-latest:
+  ├── Languages: Node.js, Python, Go, Java, Ruby, .NET, Rust
+  ├── Package managers: npm, pip, Maven, Gradle
+  ├── Containers: Docker, Docker Compose
+  ├── CLIs: AWS CLI, Azure CLI, gcloud, gh (GitHub CLI)
+  ├── Build tools: Make, CMake, gcc, g++
+  ├── Databases: PostgreSQL, MySQL (available as services)
+  └── Other: Git, curl, wget, jq, zip, unzip
 
-確認方法:
+Reference:
   https://github.com/actions/runner-images
 ```
 
 ---
 
-## 2. 基本構文
+## 2. Basic Syntax
 
-### 2.1 最小限のワークフロー
+### 2.1 Minimal Workflow
 
 ```yaml
 # .github/workflows/ci.yml
-name: CI                           # ワークフロー名
-                                   # (GitHub UI の Actions タブに表示)
+name: CI                           # workflow name
+                                   # (shown in the Actions tab of GitHub UI)
 
-on:                                # トリガー
+on:                                # trigger
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
-jobs:                              # ジョブ定義
-  test:                            # ジョブ ID (英数字とハイフン)
-    runs-on: ubuntu-latest         # 実行環境
-    steps:                         # ステップ
-      - uses: actions/checkout@v4  # アクション呼び出し
-      - run: echo "Hello, World!" # シェルコマンド実行
+jobs:                              # job definitions
+  test:                            # job ID (alphanumeric and hyphens)
+    runs-on: ubuntu-latest         # execution environment
+    steps:                         # steps
+      - uses: actions/checkout@v4  # call an action
+      - run: echo "Hello, World!" # run a shell command
 ```
 
-### 2.2 完全な CI ワークフロー
+### 2.2 Full CI Workflow
 
 ```yaml
 name: CI Pipeline
@@ -152,12 +152,12 @@ on:
   pull_request:
     branches: [main]
 
-# ワークフローレベルの権限設定
+# Workflow-level permission settings
 permissions:
   contents: read
   pull-requests: write
 
-# 同じブランチの並行実行を制御
+# Control concurrent runs on the same branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -209,7 +209,7 @@ jobs:
 
   build:
     name: Build
-    needs: [lint-and-typecheck, test]   # 両ジョブ成功後に実行
+    needs: [lint-and-typecheck, test]   # runs after both jobs succeed
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -229,66 +229,66 @@ jobs:
           retention-days: 7
 ```
 
-### 2.3 ワークフロー YAML の構造解説
+### 2.3 Workflow YAML Structure Explained
 
 ```yaml
-# YAML の基本構造
-name: string          # ワークフロー名 (必須ではないが推奨)
+# Basic YAML structure
+name: string          # workflow name (not required but recommended)
 
-on:                   # トリガー定義 (必須)
+on:                   # trigger definition (required)
   event: ...
 
-permissions:          # GITHUB_TOKEN の権限 (推奨: 最小権限)
+permissions:          # GITHUB_TOKEN permissions (recommended: least privilege)
   contents: read
   pull-requests: write
 
-concurrency:          # 並行実行制御 (推奨: PR の重複実行を防ぐ)
+concurrency:          # concurrent run control (recommended: prevents duplicate PR runs)
   group: string
   cancel-in-progress: boolean
 
-env:                  # ワークフローレベルの環境変数
+env:                  # workflow-level environment variables
   KEY: value
 
-defaults:             # ジョブ/ステップのデフォルト設定
+defaults:             # default settings for jobs/steps
   run:
     shell: bash
     working-directory: ./app
 
-jobs:                 # ジョブ定義 (必須)
+jobs:                 # job definitions (required)
   job-id:
-    name: string              # 表示名
-    runs-on: string           # ランナー (必須)
-    needs: [job-id, ...]      # 依存ジョブ
-    if: expression            # 実行条件
-    timeout-minutes: number   # タイムアウト (デフォルト: 360分)
-    continue-on-error: bool   # 失敗しても次のジョブに進む
-    strategy:                 # マトリクス等
+    name: string              # display name
+    runs-on: string           # runner (required)
+    needs: [job-id, ...]      # dependent jobs
+    if: expression            # execution condition
+    timeout-minutes: number   # timeout (default: 360 minutes)
+    continue-on-error: bool   # proceed to next job even if this one fails
+    strategy:                 # matrix, etc.
       matrix: ...
-    env:                      # ジョブレベルの環境変数
+    env:                      # job-level environment variables
       KEY: value
-    outputs:                  # ジョブの出力
+    outputs:                  # job outputs
       key: value
-    services:                 # サービスコンテナ
+    services:                 # service containers
       name:
         image: ...
-    steps:                    # ステップ (必須)
-      - uses: action@version  # アクション
-        with:                 # アクションの入力
+    steps:                    # steps (required)
+      - uses: action@version  # action call
+        with:                 # action inputs
           key: value
-      - run: command          # シェルコマンド
-        env:                  # ステップレベルの環境変数
+      - run: command          # shell command
+        env:                  # step-level environment variables
           KEY: value
 ```
 
 ---
 
-## 3. トリガー (Events)
+## 3. Triggers (Events)
 
-### 3.1 主要トリガー一覧
+### 3.1 Common Triggers Overview
 
 ```yaml
 on:
-  # Git イベント
+  # Git events
   push:
     branches: [main, 'release/**']
     tags: ['v*']
@@ -301,14 +301,14 @@ on:
 
   pull_request_target:
     types: [opened, synchronize]
-    # Fork からの PR でも secrets にアクセス可能 (注意: セキュリティリスク)
+    # Can access secrets even from fork PRs (caution: security risk)
 
-  # スケジュール (cron)
+  # Schedule (cron)
   schedule:
-    - cron: '0 9 * * 1'  # 毎週月曜 9:00 UTC
-    - cron: '0 0 1 * *'  # 毎月1日 0:00 UTC
+    - cron: '0 9 * * 1'  # every Monday at 9:00 UTC
+    - cron: '0 0 1 * *'  # first of every month at 0:00 UTC
 
-  # 手動実行
+  # Manual execution
   workflow_dispatch:
     inputs:
       environment:
@@ -325,7 +325,7 @@ on:
         type: string
         required: false
 
-  # 他のワークフローから呼び出し
+  # Called from other workflows
   workflow_call:
     inputs:
       node-version:
@@ -335,76 +335,76 @@ on:
       npm-token:
         required: true
 
-  # リリースイベント
+  # Release events
   release:
     types: [published]
 
-  # Issue / PR コメント
+  # Issue / PR comments
   issue_comment:
     types: [created]
 
-  # デプロイステータス
+  # Deployment status
   deployment_status:
 
-  # ラベル操作
+  # Label operations
   label:
     types: [created, edited, deleted]
 
-  # ワークフロー完了
+  # Workflow completion
   workflow_run:
     workflows: ["CI"]
     types: [completed]
     branches: [main]
 ```
 
-### 3.2 トリガー比較表
+### 3.2 Trigger Comparison Table
 
-| トリガー | 用途 | コンテキスト | 注意点 |
+| Trigger | Use Case | Context | Notes |
 |---|---|---|---|
-| push | メインブランチCI、デプロイ | github.sha = push先コミット | paths フィルタ活用 |
-| pull_request | PRのCI、レビュー支援 | github.sha = マージコミット | Fork PRは権限制限 |
-| pull_request_target | Fork PRのCI | base ブランチの文脈 | セキュリティ注意 |
-| schedule | 定期バッチ、依存更新 | デフォルトブランチ | 遅延あり(保証なし) |
-| workflow_dispatch | 手動デプロイ、操作 | inputs で引数受取 | GitHub UIから実行 |
-| workflow_call | 再利用ワークフロー | 呼び出し元の文脈 | inputs/secrets を定義 |
-| release | リリース自動化 | tag 情報を取得可能 | published を推奨 |
-| workflow_run | 後続処理、通知 | 前のワークフローの結果 | ブランチフィルタ必須 |
+| push | Main branch CI, deployments | github.sha = pushed commit | Use paths filter |
+| pull_request | PR CI, review assistance | github.sha = merge commit | Fork PRs have restricted permissions |
+| pull_request_target | CI for fork PRs | base branch context | Be cautious of security risks |
+| schedule | Periodic batches, dependency updates | Default branch | Delays possible (not guaranteed) |
+| workflow_dispatch | Manual deployments, operations | Receive args via inputs | Run from GitHub UI |
+| workflow_call | Reusable workflows | Caller's context | Define inputs/secrets |
+| release | Release automation | Tag info available | Use published type |
+| workflow_run | Post-processing, notifications | Result of previous workflow | Branch filter required |
 
-### 3.3 フィルタリングの詳細
+### 3.3 Filtering Details
 
 ```yaml
-# push イベントのフィルタリング
+# Filtering for push events
 on:
   push:
-    # ブランチフィルタ (glob パターン対応)
+    # Branch filter (glob patterns supported)
     branches:
       - main
-      - 'release/**'        # release/1.0, release/2.0 等
-      - '!release/**-beta'  # release/1.0-beta を除外
+      - 'release/**'        # release/1.0, release/2.0, etc.
+      - '!release/**-beta'  # exclude release/1.0-beta
     branches-ignore:
       - 'feature/**'
 
-    # タグフィルタ
+    # Tag filter
     tags:
-      - 'v*'                # v1.0.0, v2.0.0 等
+      - 'v*'                # v1.0.0, v2.0.0, etc.
     tags-ignore:
-      - 'v*-rc*'            # v1.0.0-rc1 を除外
+      - 'v*-rc*'            # exclude v1.0.0-rc1
 
-    # パスフィルタ (変更されたファイルで絞り込み)
+    # Path filter (narrow down by changed files)
     paths:
       - 'src/**'
       - 'package.json'
-      - '!src/**/*.test.ts'  # テストファイルの変更は除外
+      - '!src/**/*.test.ts'  # exclude changes to test files
     paths-ignore:
       - '**.md'
       - 'docs/**'
       - '.github/**'
 ```
 
-### 3.4 workflow_dispatch の実践例
+### 3.4 workflow_dispatch Practical Example
 
 ```yaml
-# 手動デプロイワークフロー
+# Manual deployment workflow
 name: Manual Deploy
 on:
   workflow_dispatch:
@@ -448,16 +448,16 @@ jobs:
 
 ---
 
-## 4. 式と関数
+## 4. Expressions and Functions
 
-### 4.1 コンテキストと式
+### 4.1 Contexts and Expressions
 
 ```yaml
 jobs:
   example:
     runs-on: ubuntu-latest
     steps:
-      # 式の基本構文: ${{ expression }}
+      # Basic expression syntax: ${{ expression }}
       - run: echo "Branch: ${{ github.ref_name }}"
       - run: echo "Actor: ${{ github.actor }}"
       - run: echo "SHA: ${{ github.sha }}"
@@ -466,22 +466,22 @@ jobs:
       - run: echo "Run ID: ${{ github.run_id }}"
       - run: echo "Run Number: ${{ github.run_number }}"
 
-      # 条件分岐
-      - name: Deploy (main のみ)
+      # Conditional branching
+      - name: Deploy (main only)
         if: github.ref == 'refs/heads/main'
         run: ./deploy.sh
 
-      # 前のステップの結果で条件分岐
+      # Conditional on previous step result
       - name: On failure
         if: failure()
-        run: echo "前のステップが失敗しました"
+        run: echo "The previous step failed"
 
-      # 常に実行 (クリーンアップ等)
+      # Always run (e.g., cleanup)
       - name: Cleanup
         if: always()
         run: rm -rf tmp/
 
-      # 式の中の関数
+      # Functions within expressions
       - name: Contains check
         if: contains(github.event.head_commit.message, '[skip ci]')
         run: echo "CI skipped"
@@ -490,34 +490,34 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: echo "Tag push detected"
 
-      # 複合条件
+      # Compound conditions
       - name: Deploy on main push only
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: ./deploy.sh
 
-      # PR からの実行かどうか
+      # Check if running from a PR
       - name: PR only
         if: github.event_name == 'pull_request'
         run: echo "Running on PR #${{ github.event.pull_request.number }}"
 ```
 
-### 4.2 主要コンテキスト一覧
+### 4.2 Main Contexts Overview
 
-| コンテキスト | 説明 | 例 |
+| Context | Description | Example |
 |---|---|---|
-| github | イベント情報 | github.sha, github.ref, github.actor |
-| env | 環境変数 | env.NODE_VERSION |
-| vars | リポジトリ/組織の変数 | vars.DEPLOY_URL |
-| secrets | シークレット | secrets.API_KEY |
-| job | 現在のジョブ情報 | job.status |
-| steps | ステップの出力 | steps.step-id.outputs.key |
-| matrix | マトリクスの値 | matrix.node-version |
-| needs | 依存ジョブの出力 | needs.build.outputs.version |
-| runner | ランナー情報 | runner.os, runner.arch |
-| strategy | マトリクス戦略 | strategy.fail-fast |
-| inputs | workflow_dispatch の入力 | inputs.environment |
+| github | Event information | github.sha, github.ref, github.actor |
+| env | Environment variables | env.NODE_VERSION |
+| vars | Repository/organization variables | vars.DEPLOY_URL |
+| secrets | Secrets | secrets.API_KEY |
+| job | Current job information | job.status |
+| steps | Step outputs | steps.step-id.outputs.key |
+| matrix | Matrix values | matrix.node-version |
+| needs | Dependent job outputs | needs.build.outputs.version |
+| runner | Runner information | runner.os, runner.arch |
+| strategy | Matrix strategy | strategy.fail-fast |
+| inputs | workflow_dispatch inputs | inputs.environment |
 
-### 4.3 ジョブ間のデータ受け渡し
+### 4.3 Passing Data Between Jobs
 
 ```yaml
 jobs:
@@ -548,76 +548,76 @@ jobs:
       - run: echo "Deploying version ${{ needs.build.outputs.version }}"
 ```
 
-### 4.4 主要関数一覧
+### 4.4 Main Functions Overview
 
 ```yaml
-# 文字列関数
+# String functions
 contains('Hello World', 'World')     # true
 startsWith('Hello', 'He')            # true
 endsWith('Hello', 'lo')              # true
 format('Hello {0}', 'World')         # 'Hello World'
-join(github.event.commits.*.message, ', ')  # コミットメッセージを結合
+join(github.event.commits.*.message, ', ')  # join commit messages
 
-# 比較関数
-success()                             # 前のステップが成功
-failure()                             # 前のステップが失敗
-always()                              # 常に実行
-cancelled()                           # キャンセルされた
+# Status check functions
+success()                             # previous step succeeded
+failure()                             # previous step failed
+always()                              # always runs
+cancelled()                           # was cancelled
 
-# JSON 関数
-toJSON(github.event)                  # JSON に変換
-fromJSON('{"key": "value"}')          # JSON をパース
+# JSON functions
+toJSON(github.event)                  # convert to JSON
+fromJSON('{"key": "value"}')          # parse JSON
 
-# ハッシュ関数
-hashFiles('**/package-lock.json')     # ファイルの SHA-256 ハッシュ
-hashFiles('**/*.go', 'go.sum')        # 複数ファイルのハッシュ
+# Hash functions
+hashFiles('**/package-lock.json')     # SHA-256 hash of files
+hashFiles('**/*.go', 'go.sum')        # hash of multiple files
 ```
 
 ---
 
-## 5. 基本的なアクション
+## 5. Common Actions
 
-### 5.1 よく使うアクション
+### 5.1 Frequently Used Actions
 
 ```yaml
 steps:
-  # リポジトリのチェックアウト
+  # Checkout repository
   - uses: actions/checkout@v4
     with:
-      fetch-depth: 0  # 全履歴 (タグ取得等に必要)
-      ref: ${{ github.head_ref }}  # PR のソースブランチ
-      token: ${{ secrets.PAT }}    # プライベートサブモジュール用
+      fetch-depth: 0  # full history (needed for tags, etc.)
+      ref: ${{ github.head_ref }}  # PR source branch
+      token: ${{ secrets.PAT }}    # for private submodules
 
-  # Node.js セットアップ
+  # Set up Node.js
   - uses: actions/setup-node@v4
     with:
       node-version: '20'
-      node-version-file: '.node-version'  # ファイルからバージョン取得
+      node-version-file: '.node-version'  # read version from file
       cache: 'npm'
       registry-url: 'https://npm.pkg.github.com'
 
-  # Python セットアップ
+  # Set up Python
   - uses: actions/setup-python@v5
     with:
       python-version: '3.12'
       cache: 'pip'
       cache-dependency-path: 'requirements*.txt'
 
-  # Go セットアップ
+  # Set up Go
   - uses: actions/setup-go@v5
     with:
       go-version: '1.22'
-      go-version-file: 'go.mod'  # go.mod からバージョン取得
+      go-version-file: 'go.mod'  # read version from go.mod
       cache: true
 
-  # Java セットアップ
+  # Set up Java
   - uses: actions/setup-java@v4
     with:
       distribution: 'temurin'
       java-version: '21'
       cache: 'maven'
 
-  # キャッシュ
+  # Cache
   - uses: actions/cache@v4
     with:
       path: ~/.npm
@@ -625,7 +625,7 @@ steps:
       restore-keys: |
         ${{ runner.os }}-npm-
 
-  # アーティファクトのアップロード
+  # Upload artifact
   - uses: actions/upload-artifact@v4
     with:
       name: my-artifact
@@ -635,22 +635,22 @@ steps:
       retention-days: 7
       if-no-files-found: error
 
-  # アーティファクトのダウンロード
+  # Download artifact
   - uses: actions/download-artifact@v4
     with:
       name: my-artifact
       path: dist/
 ```
 
-### 5.2 GitHub Script アクション
+### 5.2 GitHub Script Action
 
 ```yaml
-# actions/github-script: JavaScript で GitHub API を操作
+# actions/github-script: interact with the GitHub API using JavaScript
 steps:
   - uses: actions/github-script@v7
     with:
       script: |
-        // PR にコメントを追加
+        // Add a comment to a PR
         await github.rest.issues.createComment({
           owner: context.repo.owner,
           repo: context.repo.repo,
@@ -663,7 +663,7 @@ steps:
     with:
       result-encoding: string
       script: |
-        // PR のラベルを取得
+        // Get PR labels
         const { data: labels } = await github.rest.issues.listLabelsOnIssue({
           owner: context.repo.owner,
           repo: context.repo.repo,
@@ -674,24 +674,24 @@ steps:
   - run: echo "Labels: ${{ steps.get-pr.outputs.result }}"
 ```
 
-### 5.3 Docker アクション
+### 5.3 Docker Actions
 
 ```yaml
-# Docker イメージのビルド&プッシュ
+# Build & push Docker image
 steps:
   - uses: actions/checkout@v4
 
-  # Docker Buildx のセットアップ
+  # Set up Docker Buildx
   - uses: docker/setup-buildx-action@v3
 
-  # コンテナレジストリへのログイン
+  # Log in to container registry
   - uses: docker/login-action@v3
     with:
       registry: ghcr.io
       username: ${{ github.actor }}
       password: ${{ secrets.GITHUB_TOKEN }}
 
-  # メタデータの生成 (タグ、ラベル)
+  # Generate metadata (tags, labels)
   - uses: docker/metadata-action@v5
     id: meta
     with:
@@ -701,7 +701,7 @@ steps:
         type=semver,pattern={{version}}
         type=semver,pattern={{major}}.{{minor}}
 
-  # ビルド&プッシュ
+  # Build & push
   - uses: docker/build-push-action@v5
     with:
       context: .
@@ -715,9 +715,9 @@ steps:
 
 ---
 
-## 6. Services (サービスコンテナ)
+## 6. Services (Service Containers)
 
-### 6.1 データベースサービス
+### 6.1 Database Services
 
 ```yaml
 jobs:
@@ -773,33 +773,34 @@ jobs:
 
 ---
 
-## 7. 実行フロー図
+## 7. Execution Flow Diagram
 
 ```
-ワークフロー実行の流れ:
+Workflow execution flow:
 
-  イベント発生 (push, PR, etc.)
+  Event occurs (push, PR, etc.)
        │
        ↓
   ┌──────────────────┐
-  │ トリガー条件評価   │ ← branches, paths フィルタ
-  │ マッチするか？     │
+  │ Evaluate trigger  │ ← branches, paths filters
+  │ Does it match?    │
   └────────┬─────────┘
            │ Yes
            ↓
   ┌──────────────────┐
-  │ concurrency 評価  │ ← 同じグループの実行をキャンセル？
+  │ Evaluate          │ ← cancel runs in the same group?
+  │ concurrency       │
   └────────┬─────────┘
            │
            ↓
   ┌──────────────────┐
-  │ ジョブグラフ構築   │ ← needs による依存関係解決
+  │ Build job graph   │ ← resolve dependencies via needs
   └────────┬─────────┘
            │
      ┌─────┼─────┐
      ↓     ↓     ↓
   ┌─────┐┌─────┐┌─────┐
-  │Job A ││Job B ││Job C │  ← 並列実行 (依存なし)
+  │Job A ││Job B ││Job C │  ← parallel execution (no dependencies)
   └──┬──┘└──┬──┘└─────┘
      │      │
      ↓      ↓
@@ -809,32 +810,32 @@ jobs:
        │
        ↓
   ┌──────────┐
-  │  完了     │
+  │ Complete  │
   └──────────┘
 
-各ジョブ内のステップは順次実行:
+Steps within each job run sequentially:
   Step 1 → Step 2 → Step 3 → ... → Step N
-  (1つ失敗するとジョブは停止、if: always() を除く)
+  (if one fails, the job stops, except for steps with if: always())
 ```
 
 ---
 
-## 8. 権限管理 (Permissions)
+## 8. Permissions
 
-### 8.1 最小権限の原則
+### 8.1 Principle of Least Privilege
 
 ```yaml
-# ワークフローレベルで権限を制限 (推奨)
+# Restrict permissions at the workflow level (recommended)
 permissions:
-  contents: read        # リポジトリの読み取り
-  pull-requests: write  # PR へのコメント
-  issues: write         # Issue の操作
+  contents: read        # read repository
+  pull-requests: write  # comment on PRs
+  issues: write         # operate on issues
 
-# ジョブレベルで上書き
+# Override at the job level
 jobs:
   deploy:
     permissions:
-      id-token: write   # OIDC 認証用
+      id-token: write   # for OIDC authentication
       contents: read
     steps: ...
 
@@ -844,87 +845,87 @@ jobs:
     steps: ...
 ```
 
-### 8.2 利用可能な権限一覧
+### 8.2 Available Permissions
 
-| 権限 | 用途 | 典型的なケース |
+| Permission | Purpose | Typical Use Case |
 |---|---|---|
-| contents | リポジトリのコード | checkout, リリース作成 |
-| pull-requests | PR の操作 | コメント、レビュー |
-| issues | Issue の操作 | Issue 作成、ラベル付け |
-| actions | Actions の操作 | ワークフロー操作 |
-| checks | チェック実行 | ステータスチェック |
-| deployments | デプロイ管理 | デプロイステータス |
-| id-token | OIDC トークン | AWS/GCP の OIDC 認証 |
-| packages | パッケージ管理 | GHCR へのプッシュ |
-| security-events | セキュリティ | SARIF のアップロード |
-| statuses | コミットステータス | ステータス更新 |
+| contents | Repository code | checkout, creating releases |
+| pull-requests | PR operations | comments, reviews |
+| issues | Issue operations | creating issues, adding labels |
+| actions | Actions operations | workflow management |
+| checks | Check runs | status checks |
+| deployments | Deployment management | deployment status |
+| id-token | OIDC token | OIDC authentication for AWS/GCP |
+| packages | Package management | pushing to GHCR |
+| security-events | Security | uploading SARIF |
+| statuses | Commit statuses | status updates |
 
 ---
 
-## 9. Concurrency (並行実行制御)
+## 9. Concurrency
 
 ```yaml
-# PR ごとに最新の実行のみを保持 (古い実行をキャンセル)
+# Keep only the latest run per PR (cancel older runs)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# 例: 同じ PR に対して push が連続した場合
-# Push 1 → CI 開始
-# Push 2 → Push 1 の CI をキャンセル → Push 2 の CI 開始
-# Push 3 → Push 2 の CI をキャンセル → Push 3 の CI 開始
+# Example: consecutive pushes to the same PR
+# Push 1 → CI starts
+# Push 2 → cancels Push 1's CI → Push 2's CI starts
+# Push 3 → cancels Push 2's CI → Push 3's CI starts
 
-# デプロイは並行実行を禁止 (キャンセルはしない)
+# Prevent concurrent deployments (without cancelling)
 concurrency:
   group: deploy-${{ github.event.inputs.environment }}
   cancel-in-progress: false
-# → 前のデプロイ完了を待ってから次のデプロイを開始
+# → waits for the previous deployment to complete before starting the next
 ```
 
 ---
 
-## 10. 環境変数と GITHUB_OUTPUT
+## 10. Environment Variables and GITHUB_OUTPUT
 
-### 10.1 環境変数のスコープ
+### 10.1 Environment Variable Scopes
 
 ```yaml
-# ワークフローレベル
+# Workflow level
 env:
   NODE_VERSION: '20'
   CI: true
 
 jobs:
   build:
-    # ジョブレベル
+    # Job level
     env:
       BUILD_MODE: production
     steps:
-      # ステップレベル
+      # Step level
       - run: npm run build
         env:
           VITE_API_URL: https://api.example.com
 
-      # 動的に環境変数を設定 (後続ステップで使用可能)
+      # Set environment variables dynamically (available in subsequent steps)
       - run: echo "VERSION=1.2.3" >> "$GITHUB_ENV"
       - run: echo "Version is $VERSION"  # 1.2.3
 ```
 
-### 10.2 GITHUB_OUTPUT (ステップ間のデータ受け渡し)
+### 10.2 GITHUB_OUTPUT (Passing Data Between Steps)
 
 ```yaml
 steps:
-  # 出力の設定
+  # Set output
   - id: extract
     run: |
       echo "version=$(cat package.json | jq -r .version)" >> "$GITHUB_OUTPUT"
       echo "commit_count=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
 
-      # 複数行の出力
+      # Multi-line output
       echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
       git log --oneline -5 >> "$GITHUB_OUTPUT"
       echo "EOF" >> "$GITHUB_OUTPUT"
 
-  # 出力の参照
+  # Reference output
   - run: |
       echo "Version: ${{ steps.extract.outputs.version }}"
       echo "Commits: ${{ steps.extract.outputs.commit_count }}"
@@ -934,12 +935,12 @@ steps:
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### アンチパターン1: ワークフローの肥大化
+### Anti-Pattern 1: Bloated Workflows
 
 ```yaml
-# 悪い例: 1つのワークフローに全てを詰め込む
+# Bad: stuffing everything into one workflow
 name: Everything
 on: [push]
 jobs:
@@ -952,9 +953,9 @@ jobs:
       - run: npm run e2e         # 300s
       - run: docker build .      # 120s
       - run: ./deploy.sh         # 60s
-      # 合計 ~10分、1つ失敗すると全てやり直し
+      # total ~10 minutes; if one step fails, everything must be retried
 
-# 改善: ジョブを分割して並列実行
+# Improved: split into jobs for parallel execution
 name: CI
 on: [push]
 jobs:
@@ -979,10 +980,10 @@ jobs:
       - run: npm run build
 ```
 
-### アンチパターン2: ハードコードされたバージョン
+### Anti-Pattern 2: Hardcoded Versions
 
 ```yaml
-# 悪い例: バージョンが散在
+# Bad: version definitions scattered across files
 steps:
   - uses: actions/checkout@v4
   - uses: actions/setup-node@v4
@@ -991,9 +992,9 @@ steps:
   - run: npm ci
   - run: npm test
 
-# 別のワークフローでも同じ定義を繰り返す...
+# The same definition is repeated in other workflows...
 
-# 改善: 環境変数やReusable Workflowで一元管理
+# Improved: centralize with environment variables or Reusable Workflows
 env:
   NODE_VERSION: '20'
 
@@ -1004,10 +1005,10 @@ jobs:
       node-version: '20'
 ```
 
-### アンチパターン3: secrets の不適切な利用
+### Anti-Pattern 3: Improper Use of Secrets
 
 ```yaml
-# 悪い例: Fork PR で secrets を使用
+# Bad: using secrets in fork PRs
 on:
   pull_request_target:
     types: [opened, synchronize]
@@ -1018,80 +1019,80 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          # Fork の信頼できないコードをチェックアウト
+          # Checking out untrusted code from a fork
       - run: npm ci && npm test
         env:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          # → Fork PR からシークレットが漏洩するリスク!
+          # → Risk of secrets leaking from fork PRs!
 
-# 改善: pull_request_target では信頼できないコードを実行しない
-# または、ラベルベースの承認フローを導入
+# Improved: do not run untrusted code in pull_request_target
+# Or introduce a label-based approval flow
 ```
 
-### アンチパターン4: キャッシュの未使用
+### Anti-Pattern 4: Not Using Cache
 
 ```yaml
-# 悪い例: 毎回依存関係をインストール
+# Bad: installing dependencies every time
 steps:
   - uses: actions/checkout@v4
   - uses: actions/setup-node@v4
     with:
       node-version: '20'
-      # cache: 'npm'  ← これがない!
-  - run: npm ci  # 毎回 90 秒
+      # cache: 'npm'  ← missing!
+  - run: npm ci  # 90 seconds every time
 
-# 改善: キャッシュを活用
+# Improved: leverage caching
 steps:
   - uses: actions/checkout@v4
   - uses: actions/setup-node@v4
     with:
       node-version: '20'
-      cache: 'npm'  # ← キャッシュ有効化
-  - run: npm ci  # キャッシュヒット時は 3 秒
+      cache: 'npm'  # ← enable cache
+  - run: npm ci  # 3 seconds on cache hit
 ```
 
 
 ---
 
-## 実践演習
+## Hands-on Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1100,26 +1101,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1127,7 +1128,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1138,14 +1139,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1153,7 +1154,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1161,44 +1162,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1207,7 +1208,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1222,47 +1223,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup:      {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose the appropriate data structure
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured settings file | Check the settings file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check the executing user's permissions, review settings |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify the location of the error
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Validate incrementally**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1270,102 +1271,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Examine disk and network I/O status
+4. **Check concurrent connections**: Monitor the connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Improve algorithm, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Here is a summary of the criteria for making technology decisions.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | Prioritize When | Can Compromise When |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → go to 2             │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How often do you deploy?                    │
+│    ├─ Weekly or less → Monolith + modules       │
+│    └─ Daily / multiple times → go to 3         │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?              │
+│    ├─ High → Microservices                      │
+│    └─ Medium → Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay a project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows for the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1375,17 +1376,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1393,7 +1394,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1401,15 +1402,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1418,77 +1419,77 @@ class ArchitectureDecisionRecord:
 
 ## 12. FAQ
 
-### Q1: GitHub Actions の無料枠はどのくらいか？
+### Q1: How much free tier does GitHub Actions provide?
 
-パブリックリポジトリは無制限無料。プライベートリポジトリは GitHub Free で月 2,000 分、Team で月 3,000 分、Enterprise で月 50,000 分。macOS ランナーは Linux の 10倍、Windows ランナーは 2倍の消費レートが適用される。ストレージは 500 MB (Free) から 50 GB (Enterprise) まで。
+Public repositories are unlimited and free. Private repositories get 2,000 minutes/month on GitHub Free, 3,000 minutes/month on Team, and 50,000 minutes/month on Enterprise. macOS runners consume at 10x the rate of Linux, and Windows runners at 2x. Storage ranges from 500 MB (Free) to 50 GB (Enterprise).
 
-### Q2: `actions/checkout@v4` は何をしているのか？
+### Q2: What does `actions/checkout@v4` do?
 
-ランナーの仮想マシンにリポジトリのコードをクローンする。ステップの最初に必ず実行する必要がある。`fetch-depth: 0` で全履歴を取得(デフォルトは shallow clone で depth=1)。PR の場合はマージコミットをチェックアウトする。サブモジュールの取得は `submodules: true` で有効化する。
+It clones the repository code onto the runner's virtual machine. It must be run at the beginning of the steps. Use `fetch-depth: 0` to fetch full history (the default is a shallow clone with depth=1). For PRs, it checks out the merge commit. Submodule fetching is enabled with `submodules: true`.
 
-### Q3: ジョブ間でファイルを共有するには？
+### Q3: How do I share files between jobs?
 
-ジョブは別々のランナー(VM)で実行されるため、ファイルシステムは共有されない。`actions/upload-artifact` と `actions/download-artifact` を使ってアーティファクト経由で受け渡す。小さな値は `outputs` で受け渡す。大量のファイルの場合はアーティファクトのアップロード・ダウンロードに時間がかかるため、可能であれば1つのジョブ内で処理を完結させることを検討する。
+Since jobs run on separate runners (VMs), the filesystem is not shared. Use `actions/upload-artifact` and `actions/download-artifact` to pass files via artifacts. For small values, use `outputs`. For large numbers of files, uploading and downloading artifacts takes time, so consider completing the processing within a single job if possible.
 
-### Q4: サードパーティアクションは安全か？
+### Q4: Are third-party actions safe?
 
-サードパーティアクションはリポジトリのコードとシークレットにアクセスできるため、信頼性の確認が重要。対策として、(1) SHA でピン留め(タグではなく)、(2) GitHub が公式に管理するアクション(actions/*)を優先、(3) 人気度・メンテナンス状況を確認、(4) ソースコードをレビュー。Dependabot でアクションのバージョンを自動更新することも推奨。
+Third-party actions can access repository code and secrets, so verifying their trustworthiness is important. Mitigations include: (1) pin by SHA (not tag), (2) prefer actions officially managed by GitHub (actions/*), (3) check popularity and maintenance status, (4) review the source code. Using Dependabot to automatically update action versions is also recommended.
 
-### Q5: ローカルでワークフローをテストするには？
+### Q5: How can I test workflows locally?
 
-`act` (https://github.com/nektos/act) を使うとローカルで GitHub Actions を実行できる。`act -j test` でジョブを指定して実行可能。ただし、services や一部のアクションはサポートされていない。完全なテストにはプライベートリポジトリでのテスト実行が確実。
+Using `act` (https://github.com/nektos/act) allows you to run GitHub Actions locally. You can specify a job with `act -j test`. However, services and some actions are not supported. For complete testing, running in a private repository is the most reliable approach.
 
-### Q6: `pull_request` と `pull_request_target` の違いは？
+### Q6: What is the difference between `pull_request` and `pull_request_target`?
 
-`pull_request` はPRのヘッドブランチのコンテキストで実行され、フォークからのPRではシークレットにアクセスできない(安全)。`pull_request_target` はベースブランチ(main等)のコンテキストで実行され、シークレットにアクセスできる。フォークPRで `pull_request_target` + `actions/checkout@v4 ref: head.sha` を組み合わせると、信頼されないコードがシークレットにアクセスできてしまうため危険。フォークPRからのコードを実行する場合は必ず `pull_request` を使用する。
+`pull_request` runs in the context of the PR's head branch and cannot access secrets from fork PRs (safe). `pull_request_target` runs in the context of the base branch (e.g., main) and can access secrets. Combining `pull_request_target` with `actions/checkout@v4 ref: head.sha` is dangerous because it allows untrusted code from fork PRs to access secrets. Always use `pull_request` when running code from fork PRs.
 
-### Q7: ワークフロー内でジョブの結果に基づいて通知するには？
+### Q7: How can I send notifications based on job results within a workflow?
 
-`if: always()` を使えば先行ジョブが失敗しても後続ジョブを実行できる。`needs.xxx.result` で先行ジョブの結果(`success`、`failure`、`cancelled`、`skipped`)を参照できるため、これを使って条件分岐し、Slack通知やメール送信を行う。例: `if: always() && needs.test.result == 'failure'`。
+Using `if: always()` allows subsequent jobs to run even if a preceding job fails. You can reference preceding job results (`success`, `failure`, `cancelled`, `skipped`) via `needs.xxx.result` and use them for conditional branching to send Slack notifications or emails. Example: `if: always() && needs.test.result == 'failure'`.
 
-### Q8: 同じワークフロー内で別のワークフローをトリガーできるか？
+### Q8: Can you trigger another workflow from within the same workflow?
 
-デフォルトの `GITHUB_TOKEN` を使ったイベント(push、tag作成等)は、再帰的なワークフロー実行を防ぐために別のワークフローをトリガーしない。これを回避するには、(1) Personal Access Token (PAT)を使用する、(2) GitHub App のインストールトークンを使用する、(3) `workflow_dispatch` でAPI経由で明示的にトリガーする。セキュリティの観点からは GitHub App トークンの使用が推奨される。
+Events triggered by the default `GITHUB_TOKEN` (push, tag creation, etc.) will not trigger other workflows, to prevent recursive workflow execution. Workarounds include: (1) use a Personal Access Token (PAT), (2) use a GitHub App installation token, (3) explicitly trigger via the API using `workflow_dispatch`. From a security perspective, using a GitHub App token is recommended.
 
-### Q9: ランナーのディスク容量が不足する場合の対処法は？
+### Q9: What should I do if the runner runs out of disk space?
 
-GitHub-hosted ランナーのディスク容量は約14GB(usable)。不足する場合は、(1) 不要なプリインストールソフトウェアを削除(`sudo rm -rf /usr/share/dotnet /opt/ghc`)、(2) Docker イメージのプルーニング、(3) ビルド中間成果物の削除。根本的な解決としては、Self-hosted Runner でディスク容量の大きいマシンを用意するか、Larger Runner (GitHub が提供する高スペックランナー)を使用する。
+GitHub-hosted runners have approximately 14 GB of usable disk space. If it runs out, you can: (1) delete unnecessary pre-installed software (`sudo rm -rf /usr/share/dotnet /opt/ghc`), (2) prune Docker images, (3) delete intermediate build artifacts. As a fundamental solution, set up a self-hosted runner with a larger disk, or use a Larger Runner (a high-spec runner provided by GitHub).
 
-### Q10: `continue-on-error` と `if: failure()` の使い分けは？
+### Q10: What is the difference between `continue-on-error` and `if: failure()`?
 
-`continue-on-error: true` はそのステップが失敗してもジョブ全体を成功とみなす。非必須のチェック(例: 実験的なリント、オプショナルなテスト)に使用する。`if: failure()` は前のステップが失敗した場合にのみ実行する条件で、エラーレポートの収集やクリーンアップ処理に使用する。`if: always()` は成功・失敗に関わらず常に実行される。
+`continue-on-error: true` treats a failed step as a success for the overall job. Use it for non-critical checks (e.g., experimental linting, optional tests). `if: failure()` is a condition that runs only when the previous step fails, and is used for collecting error reports or cleanup. `if: always()` always runs regardless of success or failure.
 
 ---
 
-## 13. ワークフローコマンド
+## 13. Workflow Commands
 
-### 13.1 ログ出力の制御
+### 13.1 Controlling Log Output
 
 ```yaml
 steps:
   - name: Workflow commands demo
     run: |
-      # グループ化 (折りたたみ可能なログセクション)
+      # Grouping (collapsible log section)
       echo "::group::Dependencies Installation"
       npm ci
       echo "::endgroup::"
 
-      # 警告メッセージ
+      # Warning message
       echo "::warning file=src/app.js,line=10,col=5::Deprecated API usage"
 
-      # エラーメッセージ
+      # Error message
       echo "::error file=src/app.js,line=20::Missing required import"
 
-      # デバッグメッセージ (ACTIONS_STEP_DEBUG=true の場合のみ表示)
+      # Debug message (only shown when ACTIONS_STEP_DEBUG=true)
       echo "::debug::Current working directory: $(pwd)"
 
-      # 通知メッセージ
+      # Notice message
       echo "::notice::Build completed successfully"
 
-      # 値のマスク (ログから隠す)
+      # Mask a value (hide from logs)
       DYNAMIC_SECRET=$(some-command)
       echo "::add-mask::$DYNAMIC_SECRET"
-      echo "Using secret: $DYNAMIC_SECRET"  # *** と表示される
+      echo "Using secret: $DYNAMIC_SECRET"  # displayed as ***
 ```
 
 ### 13.2 Job Summary
@@ -1497,7 +1498,7 @@ steps:
 steps:
   - name: Generate job summary
     run: |
-      # Job Summary にMarkdownで情報を追加
+      # Add Markdown information to Job Summary
       echo "## Build Report" >> $GITHUB_STEP_SUMMARY
       echo "" >> $GITHUB_STEP_SUMMARY
       echo "| Item | Status |" >> $GITHUB_STEP_SUMMARY
@@ -1509,7 +1510,7 @@ steps:
       echo "**Duration**: 3m 42s" >> $GITHUB_STEP_SUMMARY
       echo "" >> $GITHUB_STEP_SUMMARY
 
-      # コードブロック
+      # Code block
       echo '```' >> $GITHUB_STEP_SUMMARY
       echo "Node: $(node --version)" >> $GITHUB_STEP_SUMMARY
       echo "npm: $(npm --version)" >> $GITHUB_STEP_SUMMARY
@@ -1517,7 +1518,7 @@ steps:
 
   - name: Coverage summary
     run: |
-      # テストカバレッジの要約
+      # Test coverage summary
       COVERAGE=$(npx jest --coverage --coverageReporters=text-summary 2>/dev/null | tail -5)
       echo "### Test Coverage" >> $GITHUB_STEP_SUMMARY
       echo '```' >> $GITHUB_STEP_SUMMARY
@@ -1527,10 +1528,10 @@ steps:
 
 ---
 
-## 14. デフォルトシェルとシェル設定
+## 14. Default Shell and Shell Settings
 
 ```yaml
-# ワークフローレベルでデフォルトシェルを設定
+# Set default shell at the workflow level
 defaults:
   run:
     shell: bash
@@ -1539,26 +1540,26 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # ジョブレベルで上書き可能
+    # Can be overridden at the job level
     defaults:
       run:
         working-directory: ./app/frontend
     steps:
       - uses: actions/checkout@v4
 
-      # デフォルト: bash + ./app/frontend
+      # Default: bash + ./app/frontend
       - run: npm ci
 
-      # ステップレベルで上書き
+      # Override at the step level
       - run: pip install -r requirements.txt
         shell: bash
         working-directory: ./app/backend
 
-      # Windows ランナーでの PowerShell
+      # PowerShell on Windows runner
       # - run: Get-ChildItem
       #   shell: pwsh
 
-      # Python スクリプトとして実行
+      # Run as a Python script
       - run: |
           import json
           with open('package.json') as f:
@@ -1568,24 +1569,24 @@ jobs:
 ```
 
 ```
-利用可能なシェル:
+Available shells:
 
 ┌─────────┬──────────────────────────────────────────────┐
-│ shell   │ 説明                                          │
+│ shell   │ Description                                   │
 ├─────────┼──────────────────────────────────────────────┤
-│ bash    │ デフォルト (Linux/macOS)。set -eo pipefail    │
-│ sh      │ POSIX互換シェル                                │
-│ pwsh    │ PowerShell Core (全OS)                        │
-│ python  │ Python スクリプトとして実行                      │
+│ bash    │ Default (Linux/macOS). set -eo pipefail       │
+│ sh      │ POSIX-compatible shell                        │
+│ pwsh    │ PowerShell Core (all OS)                      │
+│ python  │ Run as a Python script                        │
 │ cmd     │ Windows cmd.exe                               │
-│ powershell │ Windows PowerShell (レガシー)               │
+│ powershell │ Windows PowerShell (legacy)               │
 └─────────┴──────────────────────────────────────────────┘
 
-bash のデフォルト動作:
-  set -e       → エラーで即座に停止
-  set -o pipefail → パイプ中のエラーも検出
-  ※ set -u (未定義変数エラー) は含まれないため、
-    厳密にしたい場合は明示的に設定する
+Default bash behavior:
+  set -e         → stop immediately on error
+  set -o pipefail → also detect errors in pipes
+  Note: set -u (error on undefined variables) is NOT included;
+    set it explicitly if you want strict behavior
 ```
 
 ---
@@ -1593,46 +1594,46 @@ bash のデフォルト動作:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Point |
 |---|---|
-| 階層構造 | Workflow > Job > Step |
-| ジョブ実行 | デフォルト並列、needs で依存関係定義 |
-| ステップ実行 | 順次実行、uses(アクション)と run(コマンド) |
-| トリガー | push, pull_request, schedule, workflow_dispatch 等 |
-| 式 | ${{ expression }} でコンテキスト参照・条件分岐 |
-| 権限 | permissions で最小権限を設定 |
-| 並行制御 | concurrency で重複実行を管理 |
-| データ受渡 | GITHUB_OUTPUT(ステップ間)、outputs(ジョブ間)、artifact(ファイル) |
-| ランナー | ubuntu-latest が最も一般的、セルフホストも可能 |
+| Hierarchy | Workflow > Job > Step |
+| Job execution | Parallel by default; use needs to define dependencies |
+| Step execution | Sequential; uses (action) and run (command) |
+| Triggers | push, pull_request, schedule, workflow_dispatch, etc. |
+| Expressions | Reference contexts and branch conditionally with ${{ expression }} |
+| Permissions | Set least privilege with permissions |
+| Concurrency | Manage duplicate runs with concurrency |
+| Data passing | GITHUB_OUTPUT (between steps), outputs (between jobs), artifact (files) |
+| Runner | ubuntu-latest is most common; self-hosted is also possible |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [Actions 応用](./01-actions-advanced.md) -- マトリクス、キャッシュ、シークレット
-- [再利用ワークフロー](./02-reusable-workflows.md) -- DRY なワークフロー設計
-- [CI レシピ集](./03-ci-recipes.md) -- 言語別の実践的 CI 設定
-- [Actions セキュリティ](./04-security-actions.md) -- OIDC、依存ピン留め
+- [Actions Advanced](./01-actions-advanced.md) -- matrix, caching, secrets
+- [Reusable Workflows](./02-reusable-workflows.md) -- DRY workflow design
+- [CI Recipe Collection](./03-ci-recipes.md) -- practical CI configurations by language
+- [Actions Security](./04-security-actions.md) -- OIDC, dependency pinning
 
 ---
 
-## 参考文献
+## References
 
 1. GitHub. "GitHub Actions Documentation." https://docs.github.com/en/actions
 2. GitHub. "Workflow syntax for GitHub Actions." https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
