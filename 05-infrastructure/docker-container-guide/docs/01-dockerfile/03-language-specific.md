@@ -1,42 +1,42 @@
-# 言語別 Dockerfile
+# Language-Specific Dockerfiles
 
-> Node.js、Python、Go、Rust、Java それぞれの最適な Dockerfile パターンを、開発環境と本番環境の両方で示す実践リファレンス。
+> A practical reference showing optimal Dockerfile patterns for Node.js, Python, Go, Rust, and Java in both development and production environments.
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **各言語固有のビルド特性**を理解し、言語に最適化された Dockerfile を書ける
-2. **開発環境と本番環境で異なるステージ**を設計し、用途に応じたイメージを構築できる
-3. **各言語のベストプラクティス**（依存関係管理、キャッシュ、セキュリティ）を適用できる
-4. **パッケージマネージャ別のキャッシュ戦略**を理解し、ビルド時間を最小化できる
+1. Understand the **build characteristics specific to each language** and write language-optimized Dockerfiles
+2. **Design separate stages for development and production** and build images suited to each use case
+3. Apply **best practices for each language** (dependency management, caching, security)
+4. Understand **cache strategies per package manager** and minimize build time
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Dockerfile 最適化](./02-optimization.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Dockerfile Optimization](./02-optimization.md)
 
 ---
 
 ## 1. Node.js
 
-### 1.1 Express / Fastify (API サーバー)
+### 1.1 Express / Fastify (API Server)
 
 ```dockerfile
 # syntax=docker/dockerfile:1
 
-# === 依存関係インストール ===
+# === Install dependencies ===
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --only=production
 
-# === ビルド（TypeScript） ===
+# === Build (TypeScript) ===
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json tsconfig.json ./
@@ -45,11 +45,11 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY src/ ./src/
 RUN npm run build
 
-# === 本番 ===
+# === Production ===
 FROM node:20-alpine
 RUN addgroup -S app && adduser -S app -G app
 
-# セキュリティ: 不要なツールを削除
+# Security: remove unnecessary tools
 RUN apk add --no-cache dumb-init
 
 WORKDIR /app
@@ -64,7 +64,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-# dumb-init: PID 1 問題の解決（シグナル転送）
+# dumb-init: resolves PID 1 problem (signal forwarding)
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/server.js"]
 ```
@@ -83,7 +83,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# 環境変数をビルド時に注入
+# Inject environment variables at build time
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -94,7 +94,7 @@ FROM node:20-alpine
 WORKDIR /app
 RUN addgroup -S app && adduser -S app -G app
 
-# Next.js standalone 出力
+# Next.js standalone output
 COPY --from=builder --chown=app:app /app/.next/standalone ./
 COPY --from=builder --chown=app:app /app/.next/static ./.next/static
 COPY --from=builder --chown=app:app /app/public ./public
@@ -148,71 +148,71 @@ ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/main.js"]
 ```
 
-### 1.4 Node.js 開発環境
+### 1.4 Node.js Development Environment
 
 ```dockerfile
-# === 開発環境用 Dockerfile ===
+# === Dockerfile for development environment ===
 FROM node:20-alpine AS development
 
-# 開発ツールのインストール
+# Install development tools
 RUN apk add --no-cache git curl
 
 WORKDIR /app
 
-# 依存関係のインストール（devDependencies を含む）
+# Install dependencies (including devDependencies)
 COPY package.json package-lock.json ./
 RUN npm install
 
-# ソースコードはバインドマウントで共有するため COPY 不要
-# docker-compose.yml で volumes: [".:/app"] を設定
+# No COPY needed for source code — share via bind mount
+# Set volumes: [".:/app"] in docker-compose.yml
 
 EXPOSE 3000
 
-# ホットリロード対応
+# Hot reload support
 CMD ["npm", "run", "dev"]
 ```
 
-### 1.5 Node.js 固有のポイント
+### 1.5 Node.js-Specific Points
 
 ```
 +------------------------------------------------------+
-|          Node.js Dockerfile のポイント                  |
+|          Node.js Dockerfile Key Points               |
 |                                                      |
 |  1. npm ci vs npm install                            |
-|     npm ci: lockfile に完全一致、CI向け、高速          |
-|     npm install: lockfile を更新する可能性あり         |
+|     npm ci: exact match to lockfile, for CI, fast    |
+|     npm install: may update the lockfile             |
 |                                                      |
-|  2. PID 1 問題                                        |
-|     node プロセスが PID 1 で動くとシグナル処理が不正確   |
-|     -> dumb-init または tini を使う                    |
-|     -> または --init フラグ: docker run --init ...    |
+|  2. PID 1 Problem                                    |
+|     node running as PID 1 handles signals poorly     |
+|     -> use dumb-init or tini                         |
+|     -> or --init flag: docker run --init ...         |
 |                                                      |
-|  3. NODE_ENV                                          |
-|     production: devDependencies をスキップ             |
-|     npm ci --only=production と併用                   |
+|  3. NODE_ENV                                         |
+|     production: skip devDependencies                 |
+|     use with npm ci --only=production                |
 |                                                      |
-|  4. .npmrc の扱い                                     |
-|     プライベートレジストリ認証は --mount=type=secret    |
+|  4. Handling .npmrc                                  |
+|     use --mount=type=secret for private registry auth|
 |                                                      |
-|  5. Alpine の互換性問題                                |
-|     ネイティブバイナリ (sharp, bcrypt等) は             |
-|     Alpine (musl) で問題が出る場合がある               |
-|     -> npm rebuild で解決する場合あり                  |
-|     -> 解決しない場合は node:20-slim を使用            |
+|  5. Alpine compatibility issues                      |
+|     Native binaries (sharp, bcrypt, etc.) may fail   |
+|     on Alpine (musl)                                 |
+|     -> npm rebuild may resolve the issue             |
+|     -> if not, switch to node:20-slim                |
 +------------------------------------------------------+
 ```
 
-#### npm vs yarn vs pnpm の比較
+#### npm vs yarn vs pnpm Comparison
 
-| 項目 | npm | yarn (v3+) | pnpm |
+| Item | npm | yarn (v3+) | pnpm |
 |---|---|---|---|
-| ロックファイル | package-lock.json | yarn.lock | pnpm-lock.yaml |
-| CI インストール | `npm ci` | `yarn install --immutable` | `pnpm install --frozen-lockfile` |
-| キャッシュパス | `/root/.npm` | `/root/.yarn/cache` | `/root/.local/share/pnpm/store` |
-| ワークスペース | npm workspaces | yarn workspaces | pnpm workspaces |
-| ディスク効率 | 通常 | PnP で改善 | ハードリンクで最良 |
+| Lock file | package-lock.json | yarn.lock | pnpm-lock.yaml |
+| CI install | `npm ci` | `yarn install --immutable` | `pnpm install --frozen-lockfile` |
+| Cache path | `/root/.npm` | `/root/.yarn/cache` | `/root/.local/share/pnpm/store` |
+| Workspaces | npm workspaces | yarn workspaces | pnpm workspaces |
+| Disk efficiency | Normal | Improved with PnP | Best with hard links |
 
-#### pnpm を使った Dockerfile
+#### Dockerfile Using pnpm
 
 ```dockerfile
 FROM node:20-alpine AS builder
@@ -259,7 +259,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# ビルド依存関係（ネイティブ拡張コンパイル用）
+# Build dependencies (for compiling native extensions)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc libpq-dev && \
     rm -rf /var/lib/apt/lists/*
@@ -267,7 +267,7 @@ RUN apt-get update && \
 COPY requirements.txt .
 RUN pip install --prefix=/install -r requirements.txt
 
-# === 本番 ===
+# === Production ===
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -275,7 +275,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# ランタイム依存関係のみ（gcc は不要）
+# Runtime dependencies only (gcc not needed)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends libpq5 curl && \
     rm -rf /var/lib/apt/lists/*
@@ -330,11 +330,11 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-# uvicorn で非同期サーバーを起動
+# Start async server with uvicorn
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
 ```
 
-### 2.3 Poetry を使う場合
+### 2.3 Using Poetry
 
 ```dockerfile
 FROM python:3.12-slim AS builder
@@ -349,7 +349,7 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock ./
 RUN poetry install --no-dev --no-interaction --no-ansi
 
-# === 本番 ===
+# === Production ===
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
@@ -365,12 +365,12 @@ EXPOSE 8000
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "app:app"]
 ```
 
-### 2.4 uv を使う場合（高速パッケージマネージャ）
+### 2.4 Using uv (Fast Package Manager)
 
 ```dockerfile
 FROM python:3.12-slim AS builder
 
-# uv のインストール
+# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 ENV UV_COMPILE_BYTECODE=1 \
@@ -378,12 +378,12 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
-# 依存関係のインストール
+# Install dependencies
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
-# アプリケーションコード
+# Application code
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
@@ -436,7 +436,7 @@ RUN apt-get update && \
 COPY --from=builder /install /usr/local
 COPY . .
 
-# 静的ファイルの収集
+# Collect static files
 RUN python manage.py collectstatic --noinput
 
 RUN useradd --create-home appuser && \
@@ -451,33 +451,33 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "config.wsgi:application"]
 ```
 
-### 2.6 Python 固有のポイント
+### 2.6 Python-Specific Points
 
 ```
 +------------------------------------------------------+
-|          Python Dockerfile のポイント                   |
+|          Python Dockerfile Key Points                |
 |                                                      |
-|  重要な環境変数                                        |
+|  Important environment variables                     |
 |  +------------------------------------------------+ |
-|  | PYTHONDONTWRITEBYTECODE=1 | .pyc 生成を抑制     | |
-|  | PYTHONUNBUFFERED=1        | バッファリングなし    | |
-|  | PIP_NO_CACHE_DIR=1        | pip キャッシュ無効   | |
-|  | PIP_DISABLE_PIP_VERSION_CHECK=1 | 更新チェック省略| |
-|  +------------------------------------------------+ |
-|                                                      |
-|  パッケージマネージャの選択                             |
-|  +------------------------------------------------+ |
-|  | pip        | 標準、最もシンプル                   | |
-|  | poetry     | pyproject.toml、依存関係管理が優秀   | |
-|  | uv         | Rust製、非常に高速（pip の10-100倍）  | |
-|  | pipenv     | Pipfile、仮想環境統合               | |
-|  | pdm        | PEP 582準拠、モダン                  | |
+|  | PYTHONDONTWRITEBYTECODE=1 | Suppress .pyc gen  | |
+|  | PYTHONUNBUFFERED=1        | No buffering        | |
+|  | PIP_NO_CACHE_DIR=1        | Disable pip cache   | |
+|  | PIP_DISABLE_PIP_VERSION_CHECK=1 | Skip update  | |
 |  +------------------------------------------------+ |
 |                                                      |
-|  マルチステージのポイント                               |
-|  - pip install --prefix=/install で分離              |
-|  - ビルドステージでのみ gcc をインストール              |
-|  - ランタイムステージでは共有ライブラリのみ (.so)       |
+|  Choosing a package manager                          |
+|  +------------------------------------------------+ |
+|  | pip        | Standard, simplest                 | |
+|  | poetry     | pyproject.toml, excellent dep mgmt | |
+|  | uv         | Rust-based, very fast (10-100x pip) | |
+|  | pipenv     | Pipfile, integrated virtualenv      | |
+|  | pdm        | PEP 582 compliant, modern           | |
+|  +------------------------------------------------+ |
+|                                                      |
+|  Multi-stage tips                                    |
+|  - Use pip install --prefix=/install to isolate      |
+|  - Install gcc only in the build stage               |
+|  - Runtime stage needs only shared libraries (.so)   |
 +------------------------------------------------------+
 ```
 
@@ -485,27 +485,27 @@ CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "config.wsgi:applic
 
 ## 3. Go
 
-### 3.1 Web API サーバー
+### 3.1 Web API Server
 
 ```dockerfile
 # syntax=docker/dockerfile:1
 
 FROM golang:1.22-alpine AS builder
 
-# CA証明書とタイムゾーンデータを取得
+# Fetch CA certificates and timezone data
 RUN apk add --no-cache ca-certificates tzdata
 
-# 非rootユーザーの事前作成
+# Pre-create non-root user
 RUN adduser -D -g '' appuser
 
 WORKDIR /app
 
-# 依存関係を先にダウンロード
+# Download dependencies first
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download && go mod verify
 
-# ソースコードのコピーとビルド
+# Copy source code and build
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
@@ -515,10 +515,10 @@ RUN --mount=type=cache,target=/go/pkg/mod \
         -o /server \
         ./cmd/server
 
-# === 本番（scratch）===
+# === Production (scratch) ===
 FROM scratch
 
-# 必要なファイルのみコピー
+# Copy only required files
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /etc/passwd /etc/passwd
@@ -529,7 +529,7 @@ EXPOSE 8080
 ENTRYPOINT ["/server"]
 ```
 
-### 3.2 CGO が必要な場合
+### 3.2 When CGO Is Required
 
 ```dockerfile
 FROM golang:1.22-alpine AS builder
@@ -540,7 +540,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-# CGO_ENABLED=1 (デフォルト) で静的リンク
+# Static linking with CGO_ENABLED=1 (default)
 RUN go build -ldflags="-w -s -linkmode external -extldflags '-static'" \
     -o /server ./cmd/server
 
@@ -553,7 +553,7 @@ EXPOSE 8080
 ENTRYPOINT ["/server"]
 ```
 
-### 3.3 マルチプラットフォーム対応
+### 3.3 Multi-Platform Support
 
 ```dockerfile
 FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS builder
@@ -585,35 +585,35 @@ EXPOSE 8080
 ENTRYPOINT ["/server"]
 ```
 
-### 3.4 Go 固有のポイント
+### 3.4 Go-Specific Points
 
 ```
 +------------------------------------------------------+
-|              Go Dockerfile のポイント                   |
+|              Go Dockerfile Key Points                |
 |                                                      |
-|  ビルドフラグ                                         |
+|  Build flags                                         |
 |  +------------------------------------------------+ |
-|  | CGO_ENABLED=0  | Cライブラリ依存なし             | |
-|  |                | -> scratch が使える             | |
-|  | -ldflags="-w"  | DWARF デバッグ情報を除去        | |
-|  | -ldflags="-s"  | シンボルテーブルを除去           | |
-|  | GOOS=linux     | Linux 向けバイナリ              | |
-|  | GOARCH=amd64   | x86_64 アーキテクチャ           | |
-|  +------------------------------------------------+ |
-|                                                      |
-|  ベースイメージ選択                                    |
-|  +------------------------------------------------+ |
-|  | scratch        | 最小 (バイナリのみ)             | |
-|  | alpine         | シェルが使える (デバッグ用)      | |
-|  | distroless     | 中間 (glibc あり)              | |
+|  | CGO_ENABLED=0  | No C library dependency        | |
+|  |                | -> enables use of scratch       | |
+|  | -ldflags="-w"  | Strip DWARF debug info          | |
+|  | -ldflags="-s"  | Strip symbol table              | |
+|  | GOOS=linux     | Binary for Linux                | |
+|  | GOARCH=amd64   | x86_64 architecture             | |
 |  +------------------------------------------------+ |
 |                                                      |
-|  scratch で必要な追加ファイル                           |
+|  Base image selection                                |
 |  +------------------------------------------------+ |
-|  | /etc/ssl/certs/ | HTTPS 通信用 CA 証明書         | |
-|  | /usr/share/zoneinfo | タイムゾーン情報            | |
-|  | /etc/passwd    | non-root ユーザー情報           | |
-|  | /tmp           | 一時ファイル用 (必要な場合)     | |
+|  | scratch        | Minimal (binary only)           | |
+|  | alpine         | Shell available (for debugging) | |
+|  | distroless     | Middle ground (with glibc)      | |
+|  +------------------------------------------------+ |
+|                                                      |
+|  Additional files needed for scratch                 |
+|  +------------------------------------------------+ |
+|  | /etc/ssl/certs/    | CA certs for HTTPS          | |
+|  | /usr/share/zoneinfo| Timezone data               | |
+|  | /etc/passwd        | Non-root user info          | |
+|  | /tmp               | Temp files (if needed)      | |
 |  +------------------------------------------------+ |
 +------------------------------------------------------+
 ```
@@ -627,7 +627,7 @@ ENTRYPOINT ["/server"]
 ```dockerfile
 # syntax=docker/dockerfile:1
 
-# === 依存関係プランニング ===
+# === Dependency planning ===
 FROM rust:1.75-alpine AS chef
 RUN apk add --no-cache musl-dev
 RUN cargo install cargo-chef --locked
@@ -637,22 +637,22 @@ FROM chef AS planner
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
-# === 依存関係ビルド（キャッシュ用） ===
+# === Dependency build (for caching) ===
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 
-# 依存関係のみビルド（ソースコード変更時にキャッシュが効く）
+# Build only dependencies (cache is effective on source code changes)
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo chef cook --release --recipe-path recipe.json
 
-# アプリケーションビルド
+# Application build
 COPY . .
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
     cargo build --release && \
     cp target/release/myapp /usr/local/bin/
 
-# === 本番 ===
+# === Production ===
 FROM alpine:3.19
 RUN apk add --no-cache ca-certificates
 RUN addgroup -S app && adduser -S app -G app
@@ -664,7 +664,7 @@ EXPOSE 8080
 CMD ["myapp"]
 ```
 
-### 4.2 静的リンク（musl）で scratch を使う
+### 4.2 Using scratch with Static Linking (musl)
 
 ```dockerfile
 FROM rust:1.75-alpine AS builder
@@ -673,7 +673,7 @@ RUN apk add --no-cache musl-dev
 WORKDIR /app
 COPY . .
 
-# musl ターゲットで静的リンク
+# Static linking with musl target
 RUN rustup target add x86_64-unknown-linux-musl
 RUN RUSTFLAGS="-C target-feature=+crt-static" \
     cargo build --release --target x86_64-unknown-linux-musl
@@ -686,13 +686,13 @@ EXPOSE 8080
 ENTRYPOINT ["/myapp"]
 ```
 
-### 4.3 sccache を使ったコンパイルキャッシュ
+### 4.3 Compile Cache with sccache
 
 ```dockerfile
 FROM rust:1.75-alpine AS builder
 RUN apk add --no-cache musl-dev
 
-# sccache のインストール
+# Install sccache
 RUN cargo install sccache --locked
 ENV RUSTC_WRAPPER=sccache
 ENV SCCACHE_DIR=/sccache
@@ -712,30 +712,30 @@ EXPOSE 8080
 CMD ["myapp"]
 ```
 
-### 4.4 Rust 固有のポイント
+### 4.4 Rust-Specific Points
 
 ```
 +------------------------------------------------------+
-|           Rust Dockerfile のポイント                    |
+|           Rust Dockerfile Key Points                 |
 |                                                      |
-|  課題: Rust のビルドは非常に遅い                        |
-|  (フルビルドで数分〜数十分)                             |
+|  Challenge: Rust builds are very slow                |
+|  (full build takes minutes to tens of minutes)       |
 |                                                      |
-|  解決策:                                              |
-|  1. cargo-chef で依存関係のみを先にビルド              |
-|     -> ソースコード変更時に依存関係キャッシュが効く      |
+|  Solutions:                                          |
+|  1. cargo-chef: build only dependencies first        |
+|     -> dependency cache is effective on src changes  |
 |                                                      |
-|  2. BuildKit マウントキャッシュ                        |
-|     -> cargo registry と target のキャッシュ           |
+|  2. BuildKit mount cache                             |
+|     -> cache cargo registry and target               |
 |                                                      |
-|  3. sccache (共有コンパイルキャッシュ)                  |
-|     -> CI環境で複数ビルド間のキャッシュ共有             |
+|  3. sccache (shared compile cache)                   |
+|     -> share cache across multiple builds in CI      |
 |                                                      |
-|  4. ダミー main.rs パターン                            |
-|     -> cargo-chef なしでも依存関係キャッシュ可能        |
+|  4. Dummy main.rs pattern                            |
+|     -> dependency caching without cargo-chef         |
 |                                                      |
-|  静的リンク: musl libc でコンパイル                     |
-|  -> scratch ベースで 5-15MB のイメージが可能           |
+|  Static linking: compile with musl libc              |
+|  -> scratch-based image possible at 5-15MB           |
 +------------------------------------------------------+
 ```
 
@@ -748,34 +748,34 @@ CMD ["myapp"]
 ```dockerfile
 # syntax=docker/dockerfile:1
 
-# === ビルド ===
+# === Build ===
 FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /app
 
-# Gradle Wrapper と設定ファイル
+# Gradle Wrapper and config files
 COPY gradlew build.gradle.kts settings.gradle.kts ./
 COPY gradle ./gradle
 
-# 依存関係のダウンロード（キャッシュ用）
+# Download dependencies (for caching)
 RUN --mount=type=cache,target=/root/.gradle \
     ./gradlew dependencies --no-daemon
 
-# ソースコードのコピーとビルド
+# Copy source code and build
 COPY src ./src
 RUN --mount=type=cache,target=/root/.gradle \
     ./gradlew bootJar --no-daemon
 
-# JAR のレイヤー展開
+# Extract JAR layers
 RUN java -Djarmode=layertools \
     -jar build/libs/*.jar extract --destination extracted
 
-# === 本番 ===
+# === Production ===
 FROM eclipse-temurin:21-jre-alpine
 
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 
-# Spring Boot レイヤー（変更頻度: 低 -> 高）
+# Spring Boot layers (change frequency: low -> high)
 COPY --from=builder --chown=app:app /app/extracted/dependencies/ ./
 COPY --from=builder --chown=app:app /app/extracted/spring-boot-loader/ ./
 COPY --from=builder --chown=app:app /app/extracted/snapshot-dependencies/ ./
@@ -787,12 +787,12 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
 
-# JVM チューニング
+# JVM tuning
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS org.springframework.boot.loader.launch.JarLauncher"]
 ```
 
-### 5.2 Maven の場合
+### 5.2 Using Maven
 
 ```dockerfile
 FROM eclipse-temurin:21-jdk-alpine AS builder
@@ -820,7 +820,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 ### 5.3 GraalVM Native Image
 
 ```dockerfile
-# === ステージ 1: ネイティブイメージビルド ===
+# === Stage 1: Native image build ===
 FROM ghcr.io/graalvm/native-image-community:21 AS builder
 WORKDIR /app
 
@@ -828,10 +828,10 @@ COPY gradlew build.gradle.kts settings.gradle.kts ./
 COPY gradle ./gradle
 COPY src ./src
 
-# ネイティブイメージのビルド（時間がかかる）
+# Build native image (takes a long time)
 RUN ./gradlew nativeCompile --no-daemon
 
-# === ステージ 2: 実行 ===
+# === Stage 2: Runtime ===
 FROM debian:bookworm-slim
 RUN addgroup --system app && adduser --system --ingroup app app
 
@@ -842,41 +842,41 @@ EXPOSE 8080
 ENTRYPOINT ["myapp"]
 ```
 
-### 5.4 Java 固有のポイント
+### 5.4 Java-Specific Points
 
 ```
 +------------------------------------------------------+
-|            Java Dockerfile のポイント                   |
+|            Java Dockerfile Key Points                |
 |                                                      |
 |  JDK vs JRE                                          |
 |  +------------------------------------------------+ |
-|  | ビルド: eclipse-temurin:21-jdk-alpine           | |
-|  | 実行:   eclipse-temurin:21-jre-alpine           | |
-|  |   JRE はコンパイラを含まない -> 軽量              | |
+|  | Build:   eclipse-temurin:21-jdk-alpine          | |
+|  | Runtime: eclipse-temurin:21-jre-alpine          | |
+|  |   JRE excludes the compiler -> lighter           | |
 |  +------------------------------------------------+ |
 |                                                      |
-|  JVM コンテナサポート (Java 10+)                       |
+|  JVM container support (Java 10+)                    |
 |  +------------------------------------------------+ |
-|  | -XX:+UseContainerSupport  | コンテナ認識         | |
-|  | -XX:MaxRAMPercentage=75.0 | メモリの75%使用      | |
-|  | -XX:InitialRAMPercentage  | 初期ヒープ           | |
-|  +------------------------------------------------+ |
-|                                                      |
-|  起動時間の改善                                        |
-|  +------------------------------------------------+ |
-|  | Spring Boot レイヤードJAR | レイヤーキャッシュ     | |
-|  | CDS (Class Data Sharing)  | クラスロード高速化   | |
-|  | GraalVM Native Image      | ネイティブコンパイル  | |
-|  | Spring AOT                | ビルド時最適化       | |
+|  | -XX:+UseContainerSupport  | Container-aware     | |
+|  | -XX:MaxRAMPercentage=75.0 | Use 75% of memory   | |
+|  | -XX:InitialRAMPercentage  | Initial heap         | |
 |  +------------------------------------------------+ |
 |                                                      |
-|  GraalVM Native Image の特徴                          |
+|  Startup time improvements                           |
 |  +------------------------------------------------+ |
-|  | 起動時間: 数十ミリ秒（JVM: 数秒〜数十秒）         | |
-|  | メモリ使用量: 大幅に削減                          | |
-|  | ビルド時間: 非常に長い（数分〜数十分）              | |
-|  | リフレクション: 設定が必要                        | |
-|  | 対応ライブラリ: 一部制約あり                      | |
+|  | Spring Boot Layered JAR | Layer caching          | |
+|  | CDS (Class Data Sharing)| Faster class loading   | |
+|  | GraalVM Native Image    | Native compilation     | |
+|  | Spring AOT              | Build-time optimization| |
+|  +------------------------------------------------+ |
+|                                                      |
+|  GraalVM Native Image characteristics               |
+|  +------------------------------------------------+ |
+|  | Startup: tens of ms (JVM: seconds to tens of s) | |
+|  | Memory usage: significantly reduced             | |
+|  | Build time: very long (minutes to tens of min)  | |
+|  | Reflection: requires configuration              | |
+|  | Library support: some restrictions              | |
 |  +------------------------------------------------+ |
 +------------------------------------------------------+
 ```
@@ -896,7 +896,7 @@ ENV RAILS_ENV=production \
 
 WORKDIR /app
 
-# システム依存関係
+# System dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
@@ -904,18 +904,18 @@ RUN apt-get update && \
         git && \
     rm -rf /var/lib/apt/lists/*
 
-# Gem のインストール
+# Install Gems
 COPY Gemfile Gemfile.lock ./
 RUN --mount=type=cache,target=/usr/local/bundle/cache \
     bundle install --jobs 4 --retry 3
 
-# アプリケーションコード
+# Application code
 COPY . .
 
-# アセットプリコンパイル
+# Asset precompilation
 RUN SECRET_KEY_BASE=dummy bundle exec rails assets:precompile
 
-# === 本番 ===
+# === Production ===
 FROM ruby:3.3-slim
 
 ENV RAILS_ENV=production \
@@ -969,22 +969,22 @@ RUN npm run build
 
 FROM php:8.3-fpm-alpine
 
-# PHP 拡張のインストール
+# Install PHP extensions
 RUN docker-php-ext-install pdo pdo_mysql opcache bcmath
 
-# Composer からの vendor
+# vendor from Composer
 COPY --from=vendor /app/vendor ./vendor
 
-# フロントエンドアセット
+# Frontend assets
 COPY --from=frontend /app/public/build ./public/build
 
-# アプリケーションコード
+# Application code
 COPY . .
 
-# パーミッション設定
+# Set permissions
 RUN chown -R www-data:www-data storage bootstrap/cache
 
-# PHP 設定
+# PHP configuration
 COPY docker/php/php.ini /usr/local/etc/php/php.ini
 COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
@@ -995,23 +995,23 @@ CMD ["php-fpm"]
 
 ---
 
-## 8. 比較表
+## 8. Comparison Tables
 
-### 比較表 1: 言語別 Dockerfile 特性
+### Comparison Table 1: Language-Specific Dockerfile Characteristics
 
-| 言語 | ベースイメージ (本番) | 典型的サイズ | ビルド時間 | 特殊考慮事項 |
+| Language | Base Image (Production) | Typical Size | Build Time | Special Considerations |
 |---|---|---|---|---|
-| Node.js | node:20-alpine | 100-200MB | 中 | PID 1 問題, standalone出力 |
-| Python | python:3.12-slim | 100-300MB | 中 | venv不要, ネイティブ拡張 |
-| Go | scratch | 5-20MB | 速い | 静的バイナリ, CA証明書 |
-| Rust | scratch / alpine | 5-20MB | 遅い | cargo-chef, 長いコンパイル |
-| Java | temurin:21-jre-alpine | 150-300MB | 中〜遅い | JVM チューニング, レイヤードJAR |
-| Ruby | ruby:3.3-slim | 200-400MB | 中 | native gem, アセットコンパイル |
-| PHP | php:8.3-fpm-alpine | 100-250MB | 速い | 拡張インストール, composer |
+| Node.js | node:20-alpine | 100-200MB | Medium | PID 1 problem, standalone output |
+| Python | python:3.12-slim | 100-300MB | Medium | No venv needed, native extensions |
+| Go | scratch | 5-20MB | Fast | Static binary, CA certificates |
+| Rust | scratch / alpine | 5-20MB | Slow | cargo-chef, long compile times |
+| Java | temurin:21-jre-alpine | 150-300MB | Medium-Slow | JVM tuning, Layered JAR |
+| Ruby | ruby:3.3-slim | 200-400MB | Medium | native gems, asset compilation |
+| PHP | php:8.3-fpm-alpine | 100-250MB | Fast | Extension installation, composer |
 
-### 比較表 2: 依存関係管理のキャッシュ戦略
+### Comparison Table 2: Dependency Management Cache Strategies
 
-| 言語 | ロックファイル | キャッシュ対象 | マウントキャッシュパス |
+| Language | Lock File | Cache Target | Mount Cache Path |
 |---|---|---|---|
 | Node.js (npm) | package-lock.json | node_modules | `/root/.npm` |
 | Node.js (pnpm) | pnpm-lock.yaml | pnpm store | `/root/.local/share/pnpm/store` |
@@ -1026,13 +1026,13 @@ CMD ["php-fpm"]
 | Ruby | Gemfile.lock | bundle | `/usr/local/bundle/cache` |
 | PHP | composer.lock | vendor | `/tmp/composer-cache` |
 
-### 比較表 3: .dockerignore テンプレート（言語別）
+### Comparison Table 3: .dockerignore Templates (Per Language)
 
-| 言語 | 除外すべきファイル |
+| Language | Files to Exclude |
 |---|---|
 | Node.js | `node_modules`, `dist`, `.next`, `coverage`, `.env` |
 | Python | `__pycache__`, `*.pyc`, `.venv`, `*.egg-info`, `.mypy_cache` |
-| Go | `vendor/` (go mod 使用時), `*.test`, `coverage.out` |
+| Go | `vendor/` (when using go mod), `*.test`, `coverage.out` |
 | Rust | `target/`, `*.pdb` |
 | Java | `build/`, `target/`, `.gradle/`, `*.class`, `*.jar` |
 | Ruby | `vendor/bundle`, `node_modules`, `tmp/`, `log/` |
@@ -1040,20 +1040,20 @@ CMD ["php-fpm"]
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン 1: 開発用依存関係を本番イメージに含める
+### Anti-Pattern 1: Including Development Dependencies in the Production Image
 
 ```dockerfile
-# NG: devDependencies が含まれる
+# NG: devDependencies are included
 FROM node:20-alpine
 WORKDIR /app
 COPY . .
-RUN npm install  # <- devDependencies も入る
+RUN npm install  # <- devDependencies are also installed
 CMD ["node", "server.js"]
-# -> eslint, jest, typescript 等がイメージに含まれる
+# -> eslint, jest, typescript, etc. end up in the image
 
-# OK: 本番用依存関係のみ
+# OK: Only production dependencies
 FROM node:20-alpine
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -1062,18 +1062,18 @@ COPY dist/ ./dist/
 CMD ["node", "dist/server.js"]
 ```
 
-### アンチパターン 2: 全言語で同じベースイメージを使う
+### Anti-Pattern 2: Using the Same Base Image for All Languages
 
 ```dockerfile
-# NG: Go なのに ubuntu を使う
+# NG: Using ubuntu for a Go app
 FROM ubuntu:22.04
 RUN apt-get update && apt-get install -y golang
 COPY . /app
 RUN cd /app && go build -o /server
 CMD ["/server"]
-# -> 不要な OS パッケージで 800MB+
+# -> 800MB+ from unnecessary OS packages
 
-# OK: scratch で最小イメージ
+# OK: Minimal image with scratch
 FROM golang:1.22-alpine AS builder
 WORKDIR /app
 COPY . .
@@ -1082,40 +1082,40 @@ RUN CGO_ENABLED=0 go build -o /server .
 FROM scratch
 COPY --from=builder /server /server
 ENTRYPOINT ["/server"]
-# -> 12MB 程度
+# -> ~12MB
 ```
 
-### アンチパターン 3: 依存関係のロックファイルを使わない
+### Anti-Pattern 3: Not Using a Dependency Lock File
 
 ```dockerfile
-# NG: バージョンが固定されない
+# NG: Versions are not pinned
 FROM python:3.12-slim
 COPY requirements.txt .
-# requirements.txt に numpy>=1.0 のような範囲指定
+# requirements.txt uses range specs like numpy>=1.0
 RUN pip install -r requirements.txt
-# -> ビルドのたびに異なるバージョンがインストールされる可能性
+# -> Different versions may be installed on each build
 
-# OK: 厳密なバージョン固定
+# OK: Strict version pinning
 FROM python:3.12-slim
 COPY requirements.txt .
-# requirements.txt に numpy==1.26.4 のような完全固定
-# または pip-compile で生成
+# requirements.txt uses exact pins like numpy==1.26.4
+# or generated by pip-compile
 RUN pip install --no-cache-dir -r requirements.txt
 ```
 
-### アンチパターン 4: ビルドツールを本番イメージに残す
+### Anti-Pattern 4: Leaving Build Tools in the Production Image
 
 ```dockerfile
-# NG: gcc がイメージに残る
+# NG: gcc remains in the image
 FROM python:3.12-slim
 RUN apt-get update && apt-get install -y gcc libpq-dev
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
 CMD ["gunicorn", "app:app"]
-# -> gcc (~200MB) が不要なのにイメージに含まれる
+# -> gcc (~200MB) is included in the image even though it is unnecessary
 
-# OK: マルチステージでビルドツールを分離
+# OK: Separate build tools with multi-stage
 FROM python:3.12-slim AS builder
 RUN apt-get update && apt-get install -y gcc libpq-dev && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
@@ -1128,18 +1128,18 @@ COPY . .
 CMD ["gunicorn", "app:app"]
 ```
 
-### アンチパターン 5: HEALTHCHECK を省略する
+### Anti-Pattern 5: Omitting HEALTHCHECK
 
 ```dockerfile
-# NG: ヘルスチェックなし
+# NG: No health check
 FROM node:20-alpine
 WORKDIR /app
 COPY . .
 RUN npm ci --only=production
 CMD ["node", "server.js"]
-# -> コンテナは起動しているがアプリがクラッシュしていても検知できない
+# -> Cannot detect if the container is running but the app has crashed
 
-# OK: 言語ごとの適切なヘルスチェック
+# OK: Appropriate health check per language
 FROM node:20-alpine
 WORKDIR /app
 COPY . .
@@ -1149,67 +1149,67 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 CMD ["node", "server.js"]
 ```
 
-**問題点**: HEALTHCHECK がないと、プロセスは生きているがアプリケーションがデッドロックやメモリリークで応答不能になった場合に検知できない。特に Java や Node.js のようなランタイムでは、プロセスが終了せずに応答不能になるケースが多い。言語ごとに適切なヘルスチェックコマンドを設定すべきである。
+**Problem**: Without HEALTHCHECK, if a process is alive but the application has become unresponsive due to a deadlock or memory leak, it cannot be detected. Especially with runtimes like Java or Node.js, it is common for the process to remain alive while becoming unresponsive. An appropriate health check command should be configured per language.
 
-### アンチパターン 6: マルチプラットフォーム非対応の構成
+### Anti-Pattern 6: Non-Multi-Platform Configuration
 
 ```dockerfile
-# NG: amd64 固有のバイナリをハードコード
+# NG: Hardcode an amd64-specific binary
 FROM node:20-alpine
 RUN wget https://example.com/tool-linux-amd64 -O /usr/local/bin/tool
-# -> ARM (Apple Silicon M1/M2/M3, Graviton) で動かない
+# -> Does not work on ARM (Apple Silicon M1/M2/M3, Graviton)
 
-# OK: プラットフォームに応じたバイナリを選択
+# OK: Select binary based on platform
 FROM node:20-alpine
 ARG TARGETARCH
 RUN wget "https://example.com/tool-linux-${TARGETARCH}" -O /usr/local/bin/tool && \
     chmod +x /usr/local/bin/tool
 ```
 
-**問題点**: Apple Silicon Mac や AWS Graviton の普及により、ARM64 対応は必須となりつつある。ベースイメージ自体はマルチプラットフォーム対応でも、追加でダウンロードするバイナリやネイティブ拡張がアーキテクチャ固有の場合がある。`TARGETARCH` ビルド引数を活用してプラットフォームに依存しない Dockerfile を書くべきである。
+**Problem**: With the growing adoption of Apple Silicon Macs and AWS Graviton, ARM64 support is becoming essential. Even if the base image itself supports multiple platforms, additionally downloaded binaries or native extensions may be architecture-specific. Use the `TARGETARCH` build argument to write platform-independent Dockerfiles.
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
             raise ValueError("入力値がNoneです")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1227,17 +1227,17 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1245,7 +1245,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1256,14 +1256,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1271,7 +1271,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1279,13 +1279,13 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
@@ -1296,27 +1296,27 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1325,7 +1325,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1347,40 +1347,40 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Missing or invalid config file | Check config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review configuration |
+| Data inconsistency | Concurrent access conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify step by step**: Validate hypotheses using log output or a debugger
+5. **Fix and run regression tests**: After fixing, run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1388,7 +1388,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator to log function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
         logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
@@ -1404,86 +1404,86 @@ def debug_decorator(func):
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
         raise ValueError("空のデータ")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O wait**: Inspect disk and network I/O status
+4. **Check concurrent connections**: Check the state of connection pools
 
-| 問題の種類 | 診断ツール | 対策 |
+| Issue Type | Diagnostic Tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvements, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criteria | When to Prioritize | When to Compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│              Architecture Selection Flow         │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5 people) -> Monolith            │
+│    └─ Large (10+ people) -> Go to 2             │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How often do you deploy?                    │
+│    ├─ Once a week or less -> Monolith + modules │
+│    └─ Daily / multiple times -> Go to 3         │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?              │
+│    ├─ High -> Microservices                     │
+│    └─ Moderate -> Modular monolith              │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A short-term fast approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction increases reusability but can make debugging harder
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1493,17 +1493,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1511,7 +1511,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1519,7 +1519,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
         md += f"## 背景\n{self.context}\n\n"
         md += f"## 決定\n{self.decision}\n\n"
@@ -1536,81 +1536,81 @@ class ArchitectureDecisionRecord:
 
 ## 10. FAQ
 
-### Q1: Node.js でバイナリを含む npm パッケージ（sharp 等）を使う場合はどうしますか？
+### Q1: What do you do when using npm packages with binaries (such as sharp) in Node.js?
 
-**A:** Alpine の場合、ネイティブバイナリの互換性問題が起きることがある。対策は以下の通り:
-- `npm ci --only=production` を Alpine 上で実行する（ネイティブバイナリが Alpine 向けにビルドされる）
-- `sharp` の場合は `--platform=linuxmusl` を指定する
-- どうしても解決しない場合は `node:20-slim`（Debian ベース）に切り替える
-- `npm rebuild` を実行してネイティブモジュールを再コンパイルする
+**A:** On Alpine, native binary compatibility issues may arise. The countermeasures are as follows:
+- Run `npm ci --only=production` on Alpine (native binaries will be built for Alpine)
+- For `sharp`, specify `--platform=linuxmusl`
+- If the issue cannot be resolved, switch to `node:20-slim` (Debian-based)
+- Run `npm rebuild` to recompile native modules
 
-### Q2: Python で仮想環境（venv）はコンテナ内でも必要ですか？
+### Q2: Is a virtual environment (venv) needed inside a container for Python?
 
-**A:** 基本的に不要である。コンテナ自体が隔離環境なので、venv による二重の隔離は通常不要。ただし、マルチステージビルドで `pip install --prefix=/install` を使って依存関係を特定のディレクトリにインストールし、実行ステージにコピーするパターンが推奨される。Poetry を使う場合は `virtualenvs.create false` で venv を無効化する。uv を使う場合は `.venv` ディレクトリごとコピーするパターンが標準的。
+**A:** Basically, no. Since the container itself is an isolated environment, double isolation with venv is normally unnecessary. However, it is recommended to use a pattern where dependencies are installed to a specific directory with `pip install --prefix=/install` in a multi-stage build and then copied to the runtime stage. When using Poetry, disable venv with `virtualenvs.create false`. When using uv, copying the entire `.venv` directory is the standard pattern.
 
-### Q3: Java の GraalVM Native Image はコンテナで有効ですか？
+### Q3: Is GraalVM Native Image effective in containers for Java?
 
-**A:** 非常に有効である。通常の JVM モードでは起動に数秒〜数十秒かかるが、Native Image では数十ミリ秒で起動し、メモリ使用量も大幅に削減される。ただし、ビルド時間が非常に長い（数分〜数十分）、リフレクションの設定が必要、一部ライブラリが非対応という制約がある。サーバーレスやスケールアウトが頻繁な環境で特に効果的。
+**A:** It is extremely effective. While the normal JVM mode takes several seconds to tens of seconds to start, Native Image starts in tens of milliseconds and significantly reduces memory usage. However, there are constraints: build time is very long (minutes to tens of minutes), reflection configuration is required, and some libraries are not supported. It is especially effective in serverless environments or where scale-out is frequent.
 
-### Q4: Go の scratch イメージでデバッグするにはどうすればよいですか？
+### Q4: How do you debug a Go scratch image?
 
-**A:** scratch にはシェルがないため、以下の方法でデバッグする:
-- **alpine ベースのデバッグイメージ**: `FROM alpine:3.19` をベースとした別のステージを用意し、`--target debug` でビルドする
-- **distroless debug バリアント**: `FROM gcr.io/distroless/static-debian12:debug` を使えば busybox シェルが利用可能
-- **kubectl debug** (Kubernetes): エフェメラルコンテナでデバッグ用コンテナをアタッチする
-- **docker cp**: コンテナからファイルをホストにコピーして確認する
+**A:** Since scratch has no shell, use the following methods to debug:
+- **Alpine-based debug image**: Prepare a separate stage based on `FROM alpine:3.19` and build with `--target debug`
+- **distroless debug variant**: Use `FROM gcr.io/distroless/static-debian12:debug` to access a busybox shell
+- **kubectl debug** (Kubernetes): Attach a debug container with an ephemeral container
+- **docker cp**: Copy files from the container to the host for inspection
 
-### Q5: 開発環境と本番環境で同じ Dockerfile を使うべきですか？
+### Q5: Should I use the same Dockerfile for development and production?
 
-**A:** マルチステージビルドの `--target` を活用して同じ Dockerfile 内で開発環境と本番環境を分岐させるのが推奨される。開発環境ステージには devDependencies やデバッグツール、ホットリロード設定を含め、本番環境ステージでは最小構成にする。`docker-compose.yml` で `build.target` を指定することで、同一 Dockerfile から異なるイメージをビルドできる。
+**A:** It is recommended to use the `--target` option of multi-stage builds to branch development and production environments within the same Dockerfile. Include devDependencies, debug tools, and hot reload settings in the development stage, and keep the production stage minimal. By specifying `build.target` in `docker-compose.yml`, different images can be built from the same Dockerfile.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 11. まとめ
+## 11. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |---|---|
-| Node.js | npm ci + Alpine + standalone出力。PID 1 問題に注意。pnpm/yarn も対応可 |
-| Python | slim ベース + マルチステージでビルドツール分離。uv で高速化 |
-| Go | scratch ベースで最小イメージ。CA証明書を忘れずにコピー |
-| Rust | cargo-chef + マウントキャッシュで長いビルド時間を緩和 |
-| Java | JRE + レイヤードJAR。JVM コンテナサポートのチューニング |
-| Ruby | slim + bundle cache。native gem のビルド依存を分離 |
-| PHP | fpm-alpine + composer + node (フロントエンド)。拡張管理が重要 |
-| 共通 | non-root ユーザー、HEALTHCHECK、.dockerignore、マルチステージ |
+| Node.js | npm ci + Alpine + standalone output. Watch out for PID 1 problem. pnpm/yarn also supported |
+| Python | slim base + multi-stage to separate build tools. Speed up with uv |
+| Go | scratch base for minimal image. Don't forget to copy CA certificates |
+| Rust | cargo-chef + mount cache to ease long build times |
+| Java | JRE + Layered JAR. Tune JVM container support |
+| Ruby | slim + bundle cache. Separate build dependencies for native gems |
+| PHP | fpm-alpine + composer + node (frontend). Extension management is important |
+| Common | Non-root user, HEALTHCHECK, .dockerignore, multi-stage |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [../02-compose/00-compose-basics.md](../02-compose/00-compose-basics.md) -- Docker Compose の基礎
-- [../02-compose/02-development-workflow.md](../02-compose/02-development-workflow.md) -- Compose 開発ワークフロー
-- [02-optimization.md](./02-optimization.md) -- Dockerfile の最適化
+- [../02-compose/00-compose-basics.md](../02-compose/00-compose-basics.md) -- Docker Compose Basics
+- [../02-compose/02-development-workflow.md](../02-compose/02-development-workflow.md) -- Compose Development Workflow
+- [02-optimization.md](./02-optimization.md) -- Dockerfile Optimization
 
 ---
 
-## 参考文献
+## References
 
-1. **Node.js Docker Best Practices** https://github.com/nodejs/docker-node/blob/main/docs/BestPractices.md -- Node.js 公式の Docker ベストプラクティス。
-2. **Python Speed - Docker packaging guide** https://pythonspeed.com/docker/ -- Python コンテナの最適化に関する包括的なガイド。
-3. **Google - Distroless Images** https://github.com/GoogleContainerTools/distroless -- 各言語の Distroless イメージの説明と使い方。
-4. **cargo-chef documentation** https://github.com/LukeMathWalker/cargo-chef -- Rust Docker ビルドキャッシュ最適化ツール。
-5. **GraalVM Native Image** https://www.graalvm.org/latest/reference-manual/native-image/ -- GraalVM ネイティブイメージの公式ドキュメント。
-6. **uv - Python package manager** https://docs.astral.sh/uv/ -- Rust 製の高速 Python パッケージマネージャ。
+1. **Node.js Docker Best Practices** https://github.com/nodejs/docker-node/blob/main/docs/BestPractices.md -- Official Node.js Docker best practices.
+2. **Python Speed - Docker packaging guide** https://pythonspeed.com/docker/ -- A comprehensive guide to optimizing Python containers.
+3. **Google - Distroless Images** https://github.com/GoogleContainerTools/distroless -- Description and usage of Distroless images for each language.
+4. **cargo-chef documentation** https://github.com/LukeMathWalker/cargo-chef -- Rust Docker build cache optimization tool.
+5. **GraalVM Native Image** https://www.graalvm.org/latest/reference-manual/native-image/ -- Official documentation for GraalVM Native Image.
+6. **uv - Python package manager** https://docs.astral.sh/uv/ -- A fast Python package manager written in Rust.
