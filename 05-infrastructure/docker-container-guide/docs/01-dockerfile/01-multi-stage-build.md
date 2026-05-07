@@ -1,72 +1,73 @@
-# マルチステージビルド
+# Multi-Stage Builds
 
-> ビルダーパターンを活用してイメージサイズを大幅に削減し、セキュリティと効率を両立させる実践ガイド。Node.js、Go、Rust の言語別例を含む。
-
----
-
-## この章で学ぶこと
-
-1. **マルチステージビルドの仕組み**を理解し、ビルド環境と実行環境を分離できる
-2. **言語別の最適なビルダーパターン**を実装し、最小サイズのイメージを構築できる
-3. **キャッシュ戦略と中間ステージの活用**で、ビルド速度とイメージ品質を最適化できる
-4. **CI/CD パイプラインとの統合**でテスト・リント・セキュリティスキャンをビルドに組み込める
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Dockerfile 基礎](./00-dockerfile-basics.md) の内容を理解していること
+> A practical guide to leveraging the builder pattern to dramatically reduce image size while balancing security and efficiency. Includes language-specific examples for Node.js, Go, and Rust.
 
 ---
 
-## 1. マルチステージビルドとは
+## What You Will Learn
 
-### 1.1 問題: シングルステージビルドの課題
+1. **Understand how multi-stage builds work** and separate build environments from runtime environments
+2. **Implement language-specific optimal builder patterns** to produce minimal-size images
+3. **Leverage cache strategies and intermediate stages** to optimize build speed and image quality
+4. **Integrate with CI/CD pipelines** to embed tests, linting, and security scans into the build process
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Dockerfile Basics](./00-dockerfile-basics.md)
+
+---
+
+## 1. What Are Multi-Stage Builds?
+
+### 1.1 The Problem: Challenges of Single-Stage Builds
 
 ```
 +------------------------------------------------------+
-|         シングルステージビルド（従来型）                  |
+|         Single-Stage Build (Traditional)              |
 |                                                      |
 |  FROM node:20                                        |
 |  +------------------------------------------------+ |
-|  |  Node.js ランタイム         ~300 MB             | |
+|  |  Node.js runtime            ~300 MB             | |
 |  |  npm / yarn                 ~50 MB              | |
-|  |  ビルドツール (gcc等)        ~200 MB             | |
-|  |  node_modules (dev含む)     ~400 MB             | |
-|  |  ソースコード                ~10 MB              | |
-|  |  ビルド成果物               ~5 MB               | |
+|  |  Build tools (gcc, etc.)    ~200 MB             | |
+|  |  node_modules (incl. dev)   ~400 MB             | |
+|  |  Source code                ~10 MB              | |
+|  |  Build artifacts            ~5 MB               | |
 |  +------------------------------------------------+ |
-|  合計: ~965 MB  <- ビルドツールが実行時に不要           |
+|  Total: ~965 MB  <- Build tools are unnecessary at runtime |
 |                                                      |
-|         マルチステージビルド                            |
+|         Multi-Stage Build                            |
 |                                                      |
-|  Stage 1: ビルド             Stage 2: 実行            |
+|  Stage 1: Build              Stage 2: Run            |
 |  +--------------------+     +--------------------+  |
 |  | Node.js + npm      |     | Node.js (Alpine)   |  |
-|  | ビルドツール        |     | 本番 node_modules  |  |
-|  | 全 node_modules    | --> | ビルド成果物        |  |
-|  | ソースコード        |COPY | (必要なものだけ)    |  |
-|  +--------------------+     +--------------------+  |
-|  ~965 MB (破棄)              ~150 MB (最終イメージ)  |
+|  | Build tools        |     | Production         |  |
+|  | All node_modules   | --> | node_modules       |  |
+|  | Source code        |COPY | Build artifacts    |  |
+|  +--------------------+     | (only what's needed)|  |
+|  ~965 MB (discarded)        +--------------------+  |
+|                              ~150 MB (final image)  |
 +------------------------------------------------------+
 ```
 
-シングルステージビルドでは、ビルドに必要なコンパイラ、リンカ、開発用ライブラリ、テストフレームワークがすべて最終イメージに含まれてしまう。これにより以下の問題が発生する:
+In a single-stage build, all compilers, linkers, development libraries, and test frameworks required to build the application end up in the final image. This causes the following problems:
 
-- **イメージサイズの肥大化**: 不要なツールが数百MBを占有する
-- **セキュリティリスクの増大**: 攻撃対象面（アタックサーフェス）が広がる。ビルドツールに脆弱性があれば本番環境にも影響する
-- **ダウンロード時間の増加**: デプロイ時のイメージプル時間が長くなる
-- **ストレージコストの増大**: レジストリの保存容量とデータ転送量が増える
+- **Image size bloat**: Unnecessary tools occupy hundreds of MB
+- **Increased security risk**: The attack surface expands. Vulnerabilities in build tools affect the production environment as well
+- **Longer download times**: Image pull time during deployment increases
+- **Higher storage costs**: Registry storage capacity and data transfer volume increase
 
-マルチステージビルドはこれらの問題を、1つの Dockerfile 内で複数のビルドステージを定義し、最終ステージに必要なファイルだけをコピーすることで解決する。
+Multi-stage builds solve these problems by defining multiple build stages within a single Dockerfile and copying only the necessary files into the final stage.
 
-### 1.2 基本構文
+### 1.2 Basic Syntax
 
 ```dockerfile
-# ステージ 1: ビルド
+# Stage 1: Build
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -74,7 +75,7 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# ステージ 2: 実行（最終イメージ）
+# Stage 2: Run (final image)
 FROM node:20-alpine
 WORKDIR /app
 COPY --from=builder /app/dist ./dist
@@ -85,67 +86,69 @@ CMD ["node", "dist/server.js"]
 ```
 
 ```bash
-# ビルド（最終ステージのみがイメージに含まれる）
+# Build (only the final stage is included in the image)
 docker build -t my-app:v1.0.0 .
 
-# 特定のステージまでビルド
+# Build up to a specific stage
 docker build --target builder -t my-app-builder .
 
-# ビルド進捗の詳細表示
+# Show detailed build progress
 DOCKER_BUILDKIT=1 docker build --progress=plain -t my-app:v1.0.0 .
 ```
 
-### 1.3 COPY --from の仕組み
+### 1.3 How COPY --from Works
 
 ```
 +------------------------------------------------------+
-|          COPY --from の動作原理                        |
+|          How COPY --from operates                    |
 |                                                      |
 |  COPY --from=builder /app/dist ./dist                |
 |                |          |          |               |
-|                |          |          +-- 現在のステージの|
-|                |          |              コピー先       |
-|                |          +-- ソースステージのコピー元   |
-|                +-- ステージ名（AS で指定した名前）       |
+|                |          |          +-- Destination |
+|                |          |              in current  |
+|                |          |              stage       |
+|                |          +-- Source path in the     |
+|                |              source stage           |
+|                +-- Stage name (as specified by AS)   |
 |                                                      |
-|  他の指定方法:                                        |
-|  COPY --from=0 ...    # ステージ番号（0始まり）        |
-|  COPY --from=nginx:alpine ...  # 外部イメージ         |
+|  Other ways to specify:                              |
+|  COPY --from=0 ...    # Stage number (0-indexed)     |
+|  COPY --from=nginx:alpine ...  # External image      |
 +------------------------------------------------------+
 ```
 
 ---
 
-## 2. 言語別マルチステージビルド
+## 2. Multi-Stage Builds by Language
 
 ### 2.1 Node.js (Express + TypeScript)
 
 ```dockerfile
-# === ステージ 1: 依存関係インストール ===
+# === Stage 1: Install dependencies ===
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# === ステージ 2: ビルド ===
+# === Stage 2: Build ===
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
-# dist/ ディレクトリにコンパイル済みJSが生成される
+# Compiled JS is generated in the dist/ directory
 
-# === ステージ 3: 本番用依存関係 ===
+# === Stage 3: Production dependencies ===
 FROM node:20-alpine AS prod-deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --only=production && npm cache clean --force
 
-# === ステージ 4: 実行 ===
+# === Stage 4: Run ===
 FROM node:20-alpine
 RUN addgroup -S app && adduser -S app -G app
 
-# PID 1 問題の解決
+# Resolve PID 1 issue
 RUN apk add --no-cache dumb-init
 
 WORKDIR /app
@@ -164,57 +167,58 @@ ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/server.js"]
 ```
 
-#### Node.js における依存関係分離の詳細
+#### Details on Dependency Separation in Node.js
 
 ```
 +------------------------------------------------------+
-|     Node.js の4ステージ構成の理由                      |
+|     Why the 4-stage Node.js configuration?           |
 |                                                      |
-|  deps (全依存関係)                                    |
-|  └── devDependencies を含む（TypeScript コンパイラ等）  |
+|  deps (all dependencies)                             |
+|  └── Includes devDependencies (TypeScript compiler,  |
+|      etc.)                                           |
 |      ↓                                               |
-|  builder (ビルド)                                     |
-|  └── deps の node_modules を使って TypeScript を       |
-|      JavaScript にコンパイル                           |
+|  builder (build)                                     |
+|  └── Uses deps' node_modules to compile TypeScript   |
+|      to JavaScript                                   |
 |      ↓                                               |
-|  prod-deps (本番依存関係)                              |
-|  └── devDependencies を除外した node_modules を作成    |
+|  prod-deps (production dependencies)                 |
+|  └── Creates node_modules excluding devDependencies  |
 |      ↓                                               |
-|  runner (実行)                                        |
-|  └── prod-deps の node_modules + builder の dist のみ |
+|  runner (run)                                        |
+|  └── Only prod-deps' node_modules + builder's dist   |
 |                                                      |
-|  なぜ deps と prod-deps を分けるか:                    |
-|  npm ci --only=production を builder でやると          |
-|  ソースコード変更のたびに再実行されてしまう。              |
-|  別ステージにすることでキャッシュが効く。                  |
+|  Why separate deps and prod-deps:                    |
+|  Running npm ci --only=production in the builder     |
+|  stage would re-execute on every source code change. |
+|  Separating into its own stage enables caching.      |
 +------------------------------------------------------+
 ```
 
 ### 2.2 Go
 
 ```dockerfile
-# === ステージ 1: ビルド ===
+# === Stage 1: Build ===
 FROM golang:1.22-alpine AS builder
 
-# セキュリティ: 証明書と非rootユーザーを事前準備
+# Security: prepare certificates and non-root user in advance
 RUN apk add --no-cache ca-certificates tzdata
 RUN adduser -D -g '' appuser
 
 WORKDIR /app
 
-# 依存関係を先にダウンロード（キャッシュ効率化）
+# Download dependencies first (for cache efficiency)
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
-# ソースコードをコピーしてビルド
+# Copy source code and build
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-w -s" -o /server ./cmd/server
 
-# === ステージ 2: 実行（scratch = 空のベースイメージ） ===
+# === Stage 2: Run (scratch = empty base image) ===
 FROM scratch
 
-# ビルドステージから必要なファイルのみコピー
+# Copy only required files from the build stage
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /etc/passwd /etc/passwd
@@ -226,18 +230,18 @@ ENTRYPOINT ["/server"]
 ```
 
 ```bash
-# ビルドとサイズ確認
+# Build and check size
 docker build -t go-app .
 docker images go-app
 # REPOSITORY   TAG       IMAGE ID       CREATED          SIZE
 # go-app       latest    abc123         10 seconds ago   12.3MB
-# <- Go バイナリ + 証明書のみ。OS すらない。
+# <- Go binary + certificates only. No OS at all.
 ```
 
-#### Go のクロスコンパイル対応
+#### Cross-Compilation Support for Go
 
 ```dockerfile
-# マルチプラットフォーム対応の Go ビルド
+# Multi-platform Go build
 FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS builder
 
 ARG TARGETOS
@@ -251,7 +255,7 @@ RUN go mod download
 
 COPY . .
 
-# クロスコンパイル（ビルドマシンのアーキテクチャに依存しない）
+# Cross-compile (independent of the build machine's architecture)
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build \
         -ldflags="-w -s -X main.version=$(git describe --tags 2>/dev/null || echo dev)" \
@@ -266,7 +270,7 @@ ENTRYPOINT ["/server"]
 ```
 
 ```bash
-# マルチプラットフォームビルド
+# Multi-platform build
 docker buildx build \
     --platform linux/amd64,linux/arm64 \
     -t ghcr.io/myorg/go-app:v1.0.0 \
@@ -276,28 +280,28 @@ docker buildx build \
 ### 2.3 Rust
 
 ```dockerfile
-# === ステージ 1: 依存関係ビルド（キャッシュ用） ===
+# === Stage 1: Dependency build (for caching) ===
 FROM rust:1.75-alpine AS chef
 RUN apk add --no-cache musl-dev
 RUN cargo install cargo-chef
 WORKDIR /app
 
-# === ステージ 2: レシピ生成 ===
+# === Stage 2: Generate recipe ===
 FROM chef AS planner
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
-# === ステージ 3: 依存関係ビルド ===
+# === Stage 3: Build dependencies ===
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
-# 依存関係のみビルド（ソースコード変更時にキャッシュが効く）
+# Build dependencies only (cache is effective on source code changes)
 RUN cargo chef cook --release --recipe-path recipe.json
 
-# アプリケーションビルド
+# Build application
 COPY . .
 RUN cargo build --release
 
-# === ステージ 4: 実行 ===
+# === Stage 4: Run ===
 FROM alpine:3.19
 RUN apk add --no-cache ca-certificates
 RUN addgroup -S app && adduser -S app -G app
@@ -309,7 +313,7 @@ EXPOSE 8080
 CMD ["myapp"]
 ```
 
-#### Rust の静的リンクで scratch を使う
+#### Using scratch with Static Linking in Rust
 
 ```dockerfile
 FROM rust:1.75-alpine AS builder
@@ -317,16 +321,16 @@ RUN apk add --no-cache musl-dev
 
 WORKDIR /app
 
-# ターゲットの追加
+# Add target
 RUN rustup target add x86_64-unknown-linux-musl
 
 COPY Cargo.toml Cargo.lock ./
-# ダミービルドで依存関係のみコンパイル
+# Compile only dependencies with a dummy build
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release --target x86_64-unknown-linux-musl
 RUN rm -rf src
 
-# 実際のソースでビルド
+# Build with actual source
 COPY src ./src
 RUN touch src/main.rs
 RUN RUSTFLAGS="-C target-feature=+crt-static" \
@@ -340,33 +344,33 @@ EXPOSE 8080
 ENTRYPOINT ["/myapp"]
 ```
 
-### 2.4 Next.js (スタンドアロン出力)
+### 2.4 Next.js (Standalone Output)
 
 ```dockerfile
-# === ステージ 1: 依存関係 ===
+# === Stage 1: Dependencies ===
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# === ステージ 2: ビルド ===
+# === Stage 2: Build ===
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Next.js のスタンドアロン出力を有効化
-# next.config.js に output: 'standalone' が必要
+# Enable Next.js standalone output
+# Requires output: 'standalone' in next.config.js
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# === ステージ 3: 実行 ===
+# === Stage 3: Run ===
 FROM node:20-alpine
 WORKDIR /app
 
 RUN addgroup -S app && adduser -S app -G app
 
-# スタンドアロン出力のみコピー（node_modules の最小サブセット含む）
+# Copy only the standalone output (includes a minimal subset of node_modules)
 COPY --from=builder --chown=app:app /app/.next/standalone ./
 COPY --from=builder --chown=app:app /app/.next/static ./.next/static
 COPY --from=builder --chown=app:app /app/public ./public
@@ -379,14 +383,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 CMD ["node", "server.js"]
 ```
 
-#### next.config.js の設定
+#### next.config.js Configuration
 
 ```javascript
 // next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',  // スタンドアロン出力を有効化
-  // 必要に応じて追加設定
+  output: 'standalone',  // Enable standalone output
+  // Additional settings as needed
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**.example.com' },
@@ -400,7 +404,7 @@ module.exports = nextConfig
 ### 2.5 Java (Spring Boot)
 
 ```dockerfile
-# === ステージ 1: ビルド ===
+# === Stage 1: Build ===
 FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /app
 
@@ -411,15 +415,15 @@ RUN ./gradlew dependencies --no-daemon
 COPY src ./src
 RUN ./gradlew bootJar --no-daemon
 
-# レイヤードJAR展開（Spring Boot 3.x）
+# Extract layered JAR (Spring Boot 3.x)
 RUN java -Djarmode=layertools -jar build/libs/*.jar extract --destination extracted
 
-# === ステージ 2: 実行 ===
+# === Stage 2: Run ===
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 
-# レイヤー順にコピー（変更頻度: 低 -> 高）
+# Copy in order of layer (change frequency: low -> high)
 COPY --from=builder /app/extracted/dependencies/ ./
 COPY --from=builder /app/extracted/spring-boot-loader/ ./
 COPY --from=builder /app/extracted/snapshot-dependencies/ ./
@@ -434,34 +438,35 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
 ```
 
-#### Spring Boot のレイヤード JAR
+#### Spring Boot Layered JAR
 
 ```
 +------------------------------------------------------+
-|     Spring Boot レイヤード JAR の構造                   |
+|     Spring Boot Layered JAR Structure                |
 |                                                      |
-|  dependencies/                変更頻度: 最低           |
-|  └── BOOT-INF/lib/*.jar     (サードパーティ依存)       |
+|  dependencies/                Change frequency: lowest|
+|  └── BOOT-INF/lib/*.jar     (third-party deps)      |
 |                                                      |
-|  spring-boot-loader/          変更頻度: 低             |
-|  └── org/springframework/    (Boot ローダー)          |
+|  spring-boot-loader/          Change frequency: low  |
+|  └── org/springframework/    (Boot loader)           |
 |                                                      |
-|  snapshot-dependencies/       変更頻度: 中             |
+|  snapshot-dependencies/       Change frequency: medium|
 |  └── BOOT-INF/lib/*-SNAPSHOT.jar                     |
 |                                                      |
-|  application/                 変更頻度: 高             |
-|  └── BOOT-INF/classes/       (アプリケーションコード)   |
+|  application/                 Change frequency: high  |
+|  └── BOOT-INF/classes/       (application code)      |
 |      META-INF/                                       |
 |                                                      |
-|  Docker のレイヤーキャッシュにより、依存関係が            |
-|  変わらなければ再ダウンロード不要で高速ビルド              |
+|  With Docker layer caching, if dependencies haven't  |
+|  changed, no re-download is needed, enabling fast    |
+|  builds.                                             |
 +------------------------------------------------------+
 ```
 
 ### 2.6 Python (FastAPI / Django)
 
 ```dockerfile
-# === ステージ 1: ビルド ===
+# === Stage 1: Build ===
 FROM python:3.12-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -470,16 +475,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# ビルド依存関係
+# Build dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Python パッケージのインストール（prefix で分離）
+# Install Python packages (isolated with prefix)
 COPY requirements.txt .
 RUN pip install --prefix=/install -r requirements.txt
 
-# === ステージ 2: 実行 ===
+# === Stage 2: Run ===
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -487,12 +492,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# ランタイム依存関係のみ（gcc は不要）
+# Runtime dependencies only (gcc is not needed)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends libpq5 curl && \
     rm -rf /var/lib/apt/lists/*
 
-# ビルドステージからインストール済みパッケージをコピー
+# Copy installed packages from the build stage
 COPY --from=builder /install /usr/local
 
 RUN useradd --create-home --shell /bin/bash appuser
@@ -510,7 +515,7 @@ CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--worker-class", "
 ### 2.7 PHP (Laravel)
 
 ```dockerfile
-# === ステージ 1: Composer 依存関係 ===
+# === Stage 1: Composer dependencies ===
 FROM composer:2 AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
@@ -521,7 +526,7 @@ RUN composer install \
     --ignore-platform-reqs \
     --prefer-dist
 
-# === ステージ 2: フロントエンドビルド ===
+# === Stage 2: Frontend build ===
 FROM node:20-alpine AS frontend
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -530,22 +535,22 @@ COPY resources ./resources
 COPY vite.config.js ./
 RUN npm run build
 
-# === ステージ 3: 実行 ===
+# === Stage 3: Run ===
 FROM php:8.3-fpm-alpine
 
-# PHP 拡張
+# PHP extensions
 RUN docker-php-ext-install pdo pdo_mysql opcache
 
-# Composer の vendor ディレクトリをコピー
+# Copy Composer vendor directory
 COPY --from=vendor /app/vendor ./vendor
 
-# フロントエンドビルド成果物をコピー
+# Copy frontend build artifacts
 COPY --from=frontend /app/public/build ./public/build
 
-# アプリケーションコード
+# Application code
 COPY . .
 
-# PHP-FPM 設定
+# PHP-FPM configuration
 COPY docker/php/php.ini /usr/local/etc/php/php.ini
 
 RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache
@@ -557,11 +562,11 @@ CMD ["php-fpm"]
 
 ---
 
-## 3. イメージサイズの比較
+## 3. Image Size Comparison
 
-### 比較表 1: シングル vs マルチステージ
+### Comparison Table 1: Single-Stage vs Multi-Stage
 
-| アプリ | シングルステージ | マルチステージ | 削減率 |
+| Application | Single-Stage | Multi-Stage | Reduction |
 |---|---|---|---|
 | Node.js (Express) | ~950 MB | ~150 MB | 84% |
 | Go (Web API) | ~800 MB | ~12 MB | 98% |
@@ -571,117 +576,117 @@ CMD ["php-fpm"]
 | Python (FastAPI) | ~900 MB | ~180 MB | 80% |
 | PHP (Laravel) | ~700 MB | ~250 MB | 64% |
 
-### 比較表 2: ベースイメージ別サイズ
+### Comparison Table 2: Size by Base Image
 
-| ベースイメージ | サイズ | 用途 | パッケージマネージャ |
+| Base Image | Size | Use Case | Package Manager |
 |---|---|---|---|
-| `ubuntu:22.04` | ~77 MB | 汎用開発 | apt |
-| `debian:bookworm-slim` | ~74 MB | 汎用（slim版） | apt |
-| `alpine:3.19` | ~7 MB | 最小Linux | apk |
-| `node:20` | ~1.1 GB | Node.js 開発 | apt |
-| `node:20-slim` | ~200 MB | Node.js 本番 | apt |
-| `node:20-alpine` | ~130 MB | Node.js 最小 | apk |
-| `gcr.io/distroless/nodejs20` | ~120 MB | Node.js 最小(Distroless) | なし |
-| `python:3.12` | ~1.0 GB | Python 開発 | apt |
-| `python:3.12-slim` | ~130 MB | Python 本番 | apt |
-| `scratch` | 0 B | 静的バイナリ専用 | なし |
+| `ubuntu:22.04` | ~77 MB | General development | apt |
+| `debian:bookworm-slim` | ~74 MB | General (slim version) | apt |
+| `alpine:3.19` | ~7 MB | Minimal Linux | apk |
+| `node:20` | ~1.1 GB | Node.js development | apt |
+| `node:20-slim` | ~200 MB | Node.js production | apt |
+| `node:20-alpine` | ~130 MB | Node.js minimal | apk |
+| `gcr.io/distroless/nodejs20` | ~120 MB | Node.js minimal (Distroless) | none |
+| `python:3.12` | ~1.0 GB | Python development | apt |
+| `python:3.12-slim` | ~130 MB | Python production | apt |
+| `scratch` | 0 B | Static binaries only | none |
 
-### 比較表 3: ベースイメージの特性比較
+### Comparison Table 3: Base Image Characteristics
 
-| 特性 | scratch | distroless | alpine | slim | full |
+| Characteristic | scratch | distroless | alpine | slim | full |
 |---|---|---|---|---|---|
-| シェル | なし | なし* | ash | bash | bash |
-| パッケージMgr | なし | なし | apk | apt | apt |
-| libc | なし | glibc | musl | glibc | glibc |
-| デバッグ | 不可 | :debug タグ | 可能 | 可能 | 可能 |
-| 攻撃面 | 最小 | 極小 | 小 | 中 | 大 |
-| サイズ | 0 MB | 20-120 MB | 7 MB | 70-130 MB | 300+ MB |
+| Shell | none | none* | ash | bash | bash |
+| Package Mgr | none | none | apk | apt | apt |
+| libc | none | glibc | musl | glibc | glibc |
+| Debugging | not possible | :debug tag | possible | possible | possible |
+| Attack surface | minimal | very small | small | medium | large |
+| Size | 0 MB | 20-120 MB | 7 MB | 70-130 MB | 300+ MB |
 
-\* distroless の `:debug` バリアントには busybox シェルが含まれる
+\* The distroless `:debug` variant includes a busybox shell
 
 ---
 
-## 4. 高度なテクニック
+## 4. Advanced Techniques
 
-### 4.1 外部イメージからのコピー
+### 4.1 Copying from External Images
 
 ```dockerfile
-# 他のイメージからファイルをコピー
+# Copy files from other images
 FROM alpine:3.19
 COPY --from=nginx:alpine /etc/nginx/nginx.conf /etc/nginx/
 COPY --from=busybox:uclibc /bin/wget /usr/local/bin/
 
-# 特定のバイナリツールだけを持ってくる
+# Bring in only specific binary tools
 FROM alpine:3.19
 COPY --from=docker:24-cli /usr/local/bin/docker /usr/local/bin/
 COPY --from=docker/compose:v2.24.0 /usr/local/bin/docker-compose /usr/local/bin/
 ```
 
-### 4.2 テストステージの組み込み
+### 4.2 Embedding Test Stages
 
 ```dockerfile
-# === ビルドステージ ===
+# === Build stage ===
 FROM golang:1.22-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN go build -o /server ./cmd/server
 
-# === テストステージ ===
+# === Test stage ===
 FROM builder AS tester
 RUN go test -v ./...
 RUN go vet ./...
 
-# === リントステージ ===
+# === Lint stage ===
 FROM builder AS linter
 RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 RUN golangci-lint run
 
-# === 実行ステージ ===
+# === Run stage ===
 FROM scratch
 COPY --from=builder /server /server
 ENTRYPOINT ["/server"]
 ```
 
 ```bash
-# テストのみ実行
+# Run tests only
 docker build --target tester .
 
-# リントのみ実行
+# Run linting only
 docker build --target linter .
 
-# 全ステージを実行（テスト -> リント -> ビルド -> 最終イメージ）
+# Run all stages (test -> lint -> build -> final image)
 docker build .
 
-# テストが通らないと最終ステージもビルドされない
-# （CI/CD で活用）
+# If tests fail, the final stage will not be built
+# (useful in CI/CD)
 ```
 
-#### Node.js でのテスト統合
+#### Test Integration for Node.js
 
 ```dockerfile
-# === 依存関係 ===
+# === Dependencies ===
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# === リント ===
+# === Lint ===
 FROM deps AS linter
 COPY . .
 RUN npm run lint
 RUN npm run type-check
 
-# === テスト ===
+# === Test ===
 FROM deps AS tester
 COPY . .
 RUN npm run test -- --coverage
 
-# === ビルド ===
+# === Build ===
 FROM deps AS builder
 COPY . .
 RUN npm run build
 
-# === 本番 ===
+# === Production ===
 FROM node:20-alpine AS production
 WORKDIR /app
 RUN addgroup -S app && adduser -S app -G app
@@ -695,20 +700,20 @@ CMD ["node", "dist/server.js"]
 ```
 
 ```bash
-# CI/CD での段階的実行
-docker build --target linter -t lint-check .     # リントのみ
-docker build --target tester -t test-check .     # テストのみ
-docker build --target production -t my-app .      # 本番ビルド
+# Staged execution in CI/CD
+docker build --target linter -t lint-check .     # Lint only
+docker build --target tester -t test-check .     # Test only
+docker build --target production -t my-app .      # Production build
 ```
 
-### 4.3 BuildKit のマウントキャッシュ
+### 4.3 BuildKit Mount Cache
 
 ```dockerfile
 FROM golang:1.22-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 
-# パッケージキャッシュをマウント（ビルド間で再利用）
+# Mount package cache (reused across builds)
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
@@ -723,7 +728,7 @@ ENTRYPOINT ["/server"]
 ```
 
 ```dockerfile
-# Node.js の npm キャッシュ
+# Node.js npm cache
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -734,7 +739,7 @@ RUN npm run build
 ```
 
 ```dockerfile
-# Python の pip キャッシュ
+# Python pip cache
 FROM python:3.12-slim AS builder
 WORKDIR /app
 COPY requirements.txt .
@@ -748,7 +753,7 @@ CMD ["python", "app.py"]
 ```
 
 ```dockerfile
-# Rust の cargo キャッシュ
+# Rust cargo cache
 FROM rust:1.75-alpine AS builder
 RUN apk add --no-cache musl-dev
 WORKDIR /app
@@ -763,15 +768,15 @@ COPY --from=builder /usr/local/bin/myapp /usr/local/bin/
 CMD ["myapp"]
 ```
 
-### 4.4 シークレットのマウント
+### 4.4 Secret Mounts
 
 ```dockerfile
-# ビルド時のシークレット（イメージに残らない）
+# Build-time secrets (will not remain in the image)
 FROM node:20-alpine
 WORKDIR /app
 COPY package.json package-lock.json ./
 
-# プライベートレジストリの認証情報をマウント
+# Mount private registry credentials
 RUN --mount=type=secret,id=npmrc,target=/root/.npmrc \
     npm ci
 
@@ -780,24 +785,24 @@ CMD ["node", "server.js"]
 ```
 
 ```bash
-# シークレットを指定してビルド
+# Build with a secret specified
 docker build --secret id=npmrc,src=.npmrc -t my-app .
 
-# 複数のシークレット
+# Multiple secrets
 docker build \
     --secret id=npmrc,src=.npmrc \
     --secret id=aws,src=$HOME/.aws/credentials \
     -t my-app .
 ```
 
-### 4.5 SSH マウント
+### 4.5 SSH Mounts
 
 ```dockerfile
-# SSH 鍵を使ったプライベートリポジトリのクローン
+# Clone a private repository using an SSH key
 FROM golang:1.22-alpine AS builder
 RUN apk add --no-cache git openssh-client
 
-# SSH known_hosts の設定
+# Configure SSH known_hosts
 RUN mkdir -p -m 0700 ~/.ssh && \
     ssh-keyscan github.com >> ~/.ssh/known_hosts
 
@@ -814,68 +819,68 @@ ENTRYPOINT ["/server"]
 ```
 
 ```bash
-# SSH エージェントを使ってビルド
+# Build using the SSH agent
 docker build --ssh default -t my-app .
 
-# 特定の SSH 鍵を指定
+# Specify a particular SSH key
 docker build --ssh default=$HOME/.ssh/id_rsa -t my-app .
 ```
 
 ---
 
-## 5. ステージ構成パターン
+## 5. Stage Configuration Patterns
 
 ```
 +------------------------------------------------------+
-|          マルチステージ構成パターン                      |
+|          Multi-Stage Configuration Patterns          |
 |                                                      |
-|  パターン 1: シンプル（2ステージ）                      |
+|  Pattern 1: Simple (2 stages)                        |
 |  [builder] --COPY--> [runner]                        |
 |                                                      |
-|  パターン 2: 依存関係分離（3ステージ）                   |
+|  Pattern 2: Dependency separation (3 stages)         |
 |  [deps] --COPY--> [builder] --COPY--> [runner]       |
 |                                                      |
-|  パターン 3: テスト統合（4ステージ）                     |
+|  Pattern 3: Test integration (4 stages)              |
 |  [deps] --> [builder] --> [tester]                   |
 |                 |                                    |
 |                 +--COPY--> [runner]                   |
 |                                                      |
-|  パターン 4: 開発/本番分岐                              |
-|  [base] --> [dev]  (ホットリロード、デバッグツール)      |
-|         --> [builder] --> [prod] (最小構成)            |
+|  Pattern 4: Development/production branching         |
+|  [base] --> [dev]  (hot reload, debug tools)         |
+|         --> [builder] --> [prod] (minimal config)    |
 |                                                      |
-|  パターン 5: 並列ビルド                                |
+|  Pattern 5: Parallel build                           |
 |  [api-builder]   --+                                 |
 |  [worker-builder] -+--COPY--> [runner]               |
 |  [frontend]      --+                                 |
 +------------------------------------------------------+
 ```
 
-### 開発/本番分岐の例
+### Development/Production Branching Example
 
 ```dockerfile
-# === 共通ベース ===
+# === Common base ===
 FROM node:20-alpine AS base
 WORKDIR /app
 COPY package.json package-lock.json ./
 
-# === 開発環境 ===
+# === Development environment ===
 FROM base AS development
-RUN npm install  # devDependencies も含む
+RUN npm install  # Includes devDependencies
 COPY . .
-# 開発ツール
+# Development tools
 RUN apk add --no-cache git curl
 EXPOSE 3000
 CMD ["npm", "run", "dev"]
 
-# === ビルド ===
+# === Build ===
 FROM base AS builder
 RUN npm ci
 COPY . .
 RUN npm run build
 RUN npm run test
 
-# === 本番環境 ===
+# === Production environment ===
 FROM node:20-alpine AS production
 WORKDIR /app
 RUN addgroup -S app && adduser -S app -G app
@@ -896,17 +901,17 @@ CMD ["node", "dist/server.js"]
 ```
 
 ```bash
-# 開発環境でビルド
+# Build for development
 docker build --target development -t my-app:dev .
 
-# 本番環境でビルド
+# Build for production
 docker build --target production -t my-app:prod .
 
-# docker-compose.yml での使い分け
+# Usage differentiation in docker-compose.yml
 ```
 
 ```yaml
-# docker-compose.yml (開発用)
+# docker-compose.yml (for development)
 services:
   app:
     build:
@@ -921,7 +926,7 @@ services:
 ```
 
 ```yaml
-# docker-compose.prod.yml (本番用)
+# docker-compose.prod.yml (for production)
 services:
   app:
     build:
@@ -932,24 +937,24 @@ services:
     restart: unless-stopped
 ```
 
-### 並列ビルドパターン
+### Parallel Build Pattern
 
 ```dockerfile
-# BuildKit は依存関係のないステージを自動的に並列ビルドする
+# BuildKit automatically builds stages with no dependencies in parallel
 
-# === API ビルド ===
+# === API build ===
 FROM golang:1.22-alpine AS api-builder
 WORKDIR /app/api
 COPY api/ .
 RUN go build -o /api-server .
 
-# === ワーカービルド（API と並列で実行される） ===
+# === Worker build (runs in parallel with API) ===
 FROM golang:1.22-alpine AS worker-builder
 WORKDIR /app/worker
 COPY worker/ .
 RUN go build -o /worker .
 
-# === フロントエンドビルド（上記と並列で実行される） ===
+# === Frontend build (runs in parallel with the above) ===
 FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
@@ -957,7 +962,7 @@ RUN npm ci
 COPY frontend/ .
 RUN npm run build
 
-# === 最終イメージ ===
+# === Final image ===
 FROM alpine:3.19
 RUN apk add --no-cache ca-certificates
 
@@ -971,9 +976,9 @@ CMD ["api-server"]
 
 ---
 
-## 6. CI/CD との統合
+## 6. CI/CD Integration
 
-### 6.1 GitHub Actions でのマルチステージ活用
+### 6.1 Using Multi-Stage Builds in GitHub Actions
 
 ```yaml
 # .github/workflows/docker.yml
@@ -1031,44 +1036,45 @@ jobs:
           cache-to: type=gha,mode=max
 ```
 
-### 6.2 キャッシュ戦略
+### 6.2 Cache Strategies
 
 ```
 +------------------------------------------------------+
-|          CI/CD でのキャッシュ戦略                       |
+|          Cache Strategies in CI/CD                   |
 |                                                      |
 |  1. GitHub Actions Cache (GHA)                       |
 |     cache-from: type=gha                             |
 |     cache-to: type=gha,mode=max                      |
-|     -> GitHub の Cache API を利用                     |
-|     -> 同一ブランチ + デフォルトブランチのキャッシュ共有  |
+|     -> Uses GitHub's Cache API                       |
+|     -> Shares cache across same branch + default     |
+|        branch                                        |
 |                                                      |
-|  2. レジストリキャッシュ                               |
+|  2. Registry cache                                   |
 |     cache-from: type=registry,ref=img:cache           |
 |     cache-to: type=registry,ref=img:cache,mode=max    |
-|     -> レジストリにキャッシュレイヤーを保存              |
-|     -> 異なる CI ランナー間でキャッシュ共有              |
+|     -> Stores cache layers in the registry           |
+|     -> Cache shared across different CI runners      |
 |                                                      |
-|  3. ローカルキャッシュ                                 |
+|  3. Local cache                                      |
 |     cache-from: type=local,src=/tmp/.buildx-cache     |
 |     cache-to: type=local,dest=/tmp/.buildx-cache-new  |
-|     -> 自前の CI サーバーで利用                        |
+|     -> Used on self-hosted CI servers                |
 |                                                      |
-|  4. インラインキャッシュ                               |
+|  4. Inline cache                                     |
 |     --build-arg BUILDKIT_INLINE_CACHE=1               |
-|     -> イメージ自体にキャッシュメタデータを埋め込む      |
-|     -> 最もシンプルだがキャッシュ効率は最低             |
+|     -> Embeds cache metadata directly in the image   |
+|     -> Simplest option but lowest cache efficiency   |
 +------------------------------------------------------+
 ```
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン 1: ビルドステージの成果物を丸ごとコピー
+### Anti-Pattern 1: Copying the Entire Build Stage Artifacts
 
 ```dockerfile
-# NG: ビルドステージの全ファイルをコピー
+# NG: Copy all files from the build stage
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY . .
@@ -1076,11 +1082,11 @@ RUN npm ci && npm run build
 
 FROM node:20-alpine
 WORKDIR /app
-COPY --from=builder /app .  # <- 全てコピー（ソース、devDependencies含む）
+COPY --from=builder /app .  # <- Copies everything (source, devDependencies)
 CMD ["node", "dist/server.js"]
-# -> マルチステージの意味がない
+# -> Defeats the purpose of multi-stage builds
 
-# OK: 必要なファイルだけをコピー
+# OK: Copy only required files
 FROM node:20-alpine
 WORKDIR /app
 COPY --from=builder /app/dist ./dist
@@ -1089,10 +1095,10 @@ COPY --from=builder /app/package.json ./
 CMD ["node", "dist/server.js"]
 ```
 
-### アンチパターン 2: Go で scratch を使うのに証明書を忘れる
+### Anti-Pattern 2: Forgetting Certificates When Using scratch for Go
 
 ```dockerfile
-# NG: HTTPS通信ができない
+# NG: Cannot make HTTPS connections
 FROM golang:1.22 AS builder
 WORKDIR /app
 COPY . .
@@ -1101,9 +1107,9 @@ RUN CGO_ENABLED=0 go build -o /server .
 FROM scratch
 COPY --from=builder /server /server
 ENTRYPOINT ["/server"]
-# -> 外部APIへのHTTPS通信で証明書エラー
+# -> Certificate error when making HTTPS calls to external APIs
 
-# OK: CA証明書をコピー
+# OK: Copy CA certificates
 FROM golang:1.22-alpine AS builder
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
@@ -1116,36 +1122,36 @@ COPY --from=builder /server /server
 ENTRYPOINT ["/server"]
 ```
 
-### アンチパターン 3: ビルドステージでキャッシュ効率を無視
+### Anti-Pattern 3: Ignoring Cache Efficiency in the Build Stage
 
 ```dockerfile
-# NG: 毎回全依存関係を再インストール
+# NG: Reinstall all dependencies every time
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY . .                    # ソースコード変更 → 全キャッシュ無効
-RUN npm ci                  # 毎回再実行
+COPY . .                    # Source code change -> invalidates all cache
+RUN npm ci                  # Re-executes every time
 RUN npm run build
 
-# OK: 依存関係ファイルを先にコピー
+# OK: Copy dependency files first
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package.json package-lock.json ./  # 依存関係変更時のみキャッシュ無効
-RUN npm ci                               # キャッシュが効く
-COPY . .                                 # ソースコードのみ再コピー
+COPY package.json package-lock.json ./  # Cache invalidated only on dependency changes
+RUN npm ci                               # Cache is effective
+COPY . .                                 # Only source code re-copied
 RUN npm run build
 ```
 
-### アンチパターン 4: scratch でデバッグ不能なイメージ
+### Anti-Pattern 4: Undebuggable Images with scratch
 
 ```dockerfile
-# 問題: scratch にはシェルがないためデバッグ困難
+# Problem: scratch has no shell, making debugging difficult
 FROM scratch
 COPY --from=builder /server /server
 ENTRYPOINT ["/server"]
-# -> docker exec でシェルに入れない
-# -> ファイルシステムの確認ができない
+# -> Cannot enter a shell with docker exec
+# -> Cannot inspect the filesystem
 
-# 解決策 1: デバッグ用タグを用意
+# Solution 1: Provide a debug tag
 FROM alpine:3.19 AS debug
 COPY --from=builder /server /server
 ENTRYPOINT ["/server"]
@@ -1154,55 +1160,55 @@ FROM scratch AS production
 COPY --from=builder /server /server
 ENTRYPOINT ["/server"]
 
-# 解決策 2: distroless の debug バリアント
+# Solution 2: distroless debug variant
 FROM gcr.io/distroless/static-debian12:debug
 COPY --from=builder /server /server
 ENTRYPOINT ["/server"]
-# -> busybox シェルでデバッグ可能
+# -> Can debug with busybox shell
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1211,26 +1217,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1238,7 +1244,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1249,14 +1255,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1264,7 +1270,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1272,44 +1278,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1318,7 +1324,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1333,47 +1339,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured configuration file | Check configuration file path and format |
+| Timeout | Network delay / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Check executing user permissions, review settings |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking mechanism, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Incremental validation**: Use log output or a debugger to validate hypotheses
+5. **Fix and regression testing**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1381,102 +1387,103 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator to log function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Diagnostic steps when a performance issue occurs:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Check the status of disk and network I/O
+4. **Check concurrent connections**: Check the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Index, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes decision criteria when making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to prioritize | When it can be compromised |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│              Architecture Selection Flow          │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                       │
+│    ├─ Small (1-5 people) -> Monolith             │
+│    └─ Large (10+ people) -> go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How often do you deploy?                     │
+│    ├─ Once a week or less -> Monolith +          │
+│    │  modular separation                         │
+│    └─ Daily / multiple times -> go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?               │
+│    ├─ High -> Microservices                      │
+│    └─ Moderate -> Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering has a high short-term cost and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has a lower learning cost
+- Adopting diverse technologies enables the right tool for the right job, but increases operational cost
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction has high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1486,17 +1493,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1504,7 +1511,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1512,15 +1519,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1529,83 +1536,83 @@ class ArchitectureDecisionRecord:
 
 ## 8. FAQ
 
-### Q1: マルチステージビルドはビルド時間が長くなりますか？
+### Q1: Does multi-stage build increase build time?
 
-**A:** ステージ数が増えるため初回ビルドは若干長くなるが、キャッシュが効く2回目以降はむしろ高速になることが多い。依存関係のインストールとソースコードのコピーを分離することで、ソースコード変更時に依存関係の再インストールをスキップできる。BuildKit の `--mount=type=cache` を使えばさらにキャッシュ効率が向上する。また、BuildKit は依存関係のないステージを自動的に並列でビルドするため、ステージを適切に分割することでビルド時間を短縮できる。
+**A:** Since the number of stages increases, the initial build takes slightly longer, but subsequent builds with a warm cache are often faster. By separating dependency installation from source code copying, re-installation of dependencies can be skipped on source code changes. Using BuildKit's `--mount=type=cache` further improves cache efficiency. Also, BuildKit automatically builds stages with no dependencies in parallel, so properly splitting stages can reduce build time.
 
-### Q2: scratch と distroless はどう違いますか？
+### Q2: What is the difference between scratch and distroless?
 
-**A:** `scratch` は完全に空のベースイメージで、シェルもファイルシステムユーティリティもない。静的にリンクされたバイナリ（Go, Rust）向け。`distroless`（Google提供）は最小限のランタイム（glibc, CA証明書等）を含み、動的リンクが必要な言語（Node.js, Java, Python）で使える。デバッグ用に `:debug` タグで busybox シェルが入ったバリアントも提供されている。
+**A:** `scratch` is a completely empty base image with no shell or filesystem utilities. It is intended for statically linked binaries (Go, Rust). `distroless` (provided by Google) includes a minimal runtime (glibc, CA certificates, etc.) and can be used with languages that require dynamic linking (Node.js, Java, Python). A `:debug` tag variant with a busybox shell is also provided for debugging purposes.
 
-### Q3: CI/CD でのキャッシュ戦略はどうすべきですか？
+### Q3: What should the cache strategy be in CI/CD?
 
-**A:** 以下の方法がある:
-- **GitHub Actions Cache**: `type=gha` で GitHub の Cache API を利用。設定が最もシンプル。
-- **レジストリキャッシュ**: `type=registry` でレジストリにキャッシュレイヤーを保存。異なる CI ランナー間で共有可能。
-- **BuildKit インラインキャッシュ**: `BUILDKIT_INLINE_CACHE=1` でキャッシュメタデータをイメージに埋め込む。追加インフラ不要だがキャッシュ効率は低い。
-- **ローカルキャッシュ**: `type=local` で CI サーバーのローカルディスクにキャッシュ。自前のCI環境向け。
+**A:** The following options are available:
+- **GitHub Actions Cache**: Use GitHub's Cache API with `type=gha`. The simplest to configure.
+- **Registry cache**: Store cache layers in a registry with `type=registry`. Can be shared across different CI runners.
+- **BuildKit inline cache**: Embed cache metadata in the image with `BUILDKIT_INLINE_CACHE=1`. No additional infrastructure required but cache efficiency is low.
+- **Local cache**: Cache on the CI server's local disk with `type=local`. For self-hosted CI environments.
 
-### Q4: マルチステージで中間ステージのイメージは削除されますか？
+### Q4: Are intermediate stage images deleted after a multi-stage build?
 
-**A:** ビルド完了後、中間ステージのレイヤーはビルドキャッシュとして保持されるが、最終イメージには含まれない。`docker system prune` や `docker builder prune` でビルドキャッシュを手動で削除できる。`--target` で特定のステージを指定してビルドした場合は、そのステージが最終イメージとなる。
+**A:** After the build completes, intermediate stage layers are retained as build cache but are not included in the final image. Build cache can be manually deleted with `docker system prune` or `docker builder prune`. When a specific stage is targeted with `--target`, that stage becomes the final image.
 
-### Q5: ステージ間でファイルを共有する方法は COPY --from だけですか？
+### Q5: Is COPY --from the only way to share files between stages?
 
-**A:** `COPY --from` が主要な方法だが、BuildKit のマウントオプションも利用できる:
-- `RUN --mount=type=bind,from=builder,source=/app/dist,target=/tmp/dist ...` で一時的にマウントして参照（COPY とは異なりレイヤーを生成しない）
-- ボリュームマウント（docker compose で開発時）
+**A:** `COPY --from` is the primary method, but BuildKit mount options can also be used:
+- `RUN --mount=type=bind,from=builder,source=/app/dist,target=/tmp/dist ...` mounts temporarily for reference (unlike COPY, this does not create a layer)
+- Volume mounts (with docker compose during development)
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Rather than theory alone, writing actual code and verifying its behavior deepens understanding.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 9. まとめ
+## 9. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |---|---|
-| 基本概念 | ビルド環境と実行環境を分離し、最終イメージを最小化 |
-| COPY --from | ビルドステージから必要なファイルだけを実行ステージにコピー |
-| Go / Rust | scratch ベースで 10-15MB のイメージが可能 |
-| Node.js | Alpine + スタンドアロン出力で 100-150MB に削減 |
-| Java | JRE + レイヤードJAR で 200MB 程度に削減 |
-| Python | slim + prefix インストールでビルドツール分離 |
-| キャッシュ | 依存関係とソースコードを分離してキャッシュ効率を最大化 |
-| テスト統合 | テストステージを挟んでビルドパイプラインに組み込む |
-| 開発/本番 | --target で開発・テスト・本番を切り替え |
-| CI/CD | BuildKit キャッシュ（gha, registry, local）で高速化 |
+| Core concept | Separate build and runtime environments to minimize the final image |
+| COPY --from | Copy only necessary files from build stages to the run stage |
+| Go / Rust | scratch-based images as small as 10-15 MB are possible |
+| Node.js | Reduce to 100-150 MB with Alpine + standalone output |
+| Java | Reduce to around 200 MB with JRE + layered JAR |
+| Python | Isolate build tools with slim + prefix install |
+| Caching | Maximize cache efficiency by separating dependencies and source code |
+| Test integration | Embed test stages into the build pipeline |
+| Dev/Prod | Switch between development, test, and production with --target |
+| CI/CD | Accelerate with BuildKit cache (gha, registry, local) |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [02-optimization.md](./02-optimization.md) -- Dockerfile の最適化とセキュリティ
-- [03-language-specific.md](./03-language-specific.md) -- 言語別 Dockerfile テンプレート集
-- [../02-compose/00-compose-basics.md](../02-compose/00-compose-basics.md) -- Docker Compose の基礎
+- [02-optimization.md](./02-optimization.md) -- Dockerfile optimization and security
+- [03-language-specific.md](./03-language-specific.md) -- Language-specific Dockerfile template collection
+- [../02-compose/00-compose-basics.md](../02-compose/00-compose-basics.md) -- Docker Compose basics
 
 ---
 
-## 参考文献
+## References
 
-1. **Docker Documentation - Multi-stage builds** https://docs.docker.com/build/building/multi-stage/ -- マルチステージビルドの公式ガイド。
-2. **Google - Distroless Container Images** https://github.com/GoogleContainerTools/distroless -- Distroless イメージの公式リポジトリ。対応言語と使い方の説明。
-3. **BuildKit - Dockerfile frontend** https://github.com/moby/buildkit/blob/master/frontend/dockerfile/docs/reference.md -- `--mount=type=cache`, `--mount=type=secret` 等の高度な機能のリファレンス。
-4. **cargo-chef** https://github.com/LukeMathWalker/cargo-chef -- Rust プロジェクトの Docker ビルドキャッシュを最適化するツール。
-5. **Next.js - Docker Deployment** https://nextjs.org/docs/app/building-your-application/deploying#docker-image -- Next.js 公式の Docker デプロイガイド。
-6. **Spring Boot - Container Images** https://docs.spring.io/spring-boot/docs/current/reference/html/container-images.html -- Spring Boot のコンテナイメージ最適化ガイド。
-7. **Docker Build Cache** https://docs.docker.com/build/cache/ -- ビルドキャッシュの仕組みと最適化手法の公式ガイド。
-8. **Python Speed - Multi-stage Docker builds** https://pythonspeed.com/articles/multi-stage-docker-python/ -- Python におけるマルチステージビルドの実践パターン。
+1. **Docker Documentation - Multi-stage builds** https://docs.docker.com/build/building/multi-stage/ -- Official guide to multi-stage builds.
+2. **Google - Distroless Container Images** https://github.com/GoogleContainerTools/distroless -- Official repository for Distroless images. Supported languages and usage.
+3. **BuildKit - Dockerfile frontend** https://github.com/moby/buildkit/blob/master/frontend/dockerfile/docs/reference.md -- Reference for advanced features such as `--mount=type=cache` and `--mount=type=secret`.
+4. **cargo-chef** https://github.com/LukeMathWalker/cargo-chef -- A tool that optimizes Docker build caching for Rust projects.
+5. **Next.js - Docker Deployment** https://nextjs.org/docs/app/building-your-application/deploying#docker-image -- Official Next.js Docker deployment guide.
+6. **Spring Boot - Container Images** https://docs.spring.io/spring-boot/docs/current/reference/html/container-images.html -- Container image optimization guide for Spring Boot.
+7. **Docker Build Cache** https://docs.docker.com/build/cache/ -- Official guide to build cache mechanisms and optimization techniques.
+8. **Python Speed - Multi-stage Docker builds** https://pythonspeed.com/articles/multi-stage-docker-python/ -- Practical patterns for multi-stage builds in Python.
