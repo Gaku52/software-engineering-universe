@@ -1,59 +1,59 @@
-# GitHub Actions セキュリティ
+# GitHub Actions Security
 
-> OIDC によるシークレットレス認証、権限最小化、依存ピン留め、サプライチェーン保護で安全なCI/CDを実現する
+> Achieve secure CI/CD through secretless authentication with OIDC, least-privilege permissions, dependency pinning, and supply chain protection
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. OIDC (OpenID Connect) を使ったクラウドプロバイダーとのシークレットレス認証を実装できる
-2. 権限最小化の原則とサードパーティアクションのリスク管理を理解する
-3. ソフトウェアサプライチェーン保護のベストプラクティスを習得する
-4. CI 環境のハードニングとセキュリティ監査の方法を実践できる
-5. セキュリティインシデント発生時の対応手順を把握する
+1. Implement secretless authentication with cloud providers using OIDC (OpenID Connect)
+2. Understand the principle of least privilege and risk management for third-party actions
+3. Master best practices for software supply chain protection
+4. Practice CI environment hardening and security auditing techniques
+5. Learn the response procedures for security incidents
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [CI レシピ集](./03-ci-recipes.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [CI Recipes](./03-ci-recipes.md)
 
 ---
 
-## 1. OIDC によるシークレットレス認証
+## 1. Secretless Authentication with OIDC
 
-### 1.1 従来方式 vs OIDC
+### 1.1 Traditional Method vs. OIDC
 
 ```
-従来方式 (長期認証情報):
+Traditional method (long-lived credentials):
   ┌──────────┐   AWS_ACCESS_KEY_ID    ┌──────┐
   │ GitHub   │ ──────────────────── → │ AWS  │
   │ Actions  │   AWS_SECRET_KEY       │      │
-  │          │   (Secretsに保存)      │      │
+  │          │   (stored in Secrets)  │      │
   └──────────┘                        └──────┘
-  問題: 長期キーの漏洩リスク、ローテーション負荷
+  Problem: Risk of long-lived key leakage, rotation overhead
 
-OIDC 方式 (短期トークン):
-  ┌──────────┐  1. JWT発行   ┌──────────┐
-  │ GitHub   │ ───────────→ │ GitHub   │
-  │ Actions  │              │ OIDC     │
-  │          │ ←─────────── │ Provider │
-  │          │  2. JWT受取   └──────────┘
+OIDC method (short-lived tokens):
+  ┌──────────┐  1. Issue JWT   ┌──────────┐
+  │ GitHub   │ ─────────────→ │ GitHub   │
+  │ Actions  │                │ OIDC     │
+  │          │ ←───────────── │ Provider │
+  │          │  2. Receive JWT └──────────┘
   │          │
-  │          │  3. JWT提示   ┌──────────┐
-  │          │ ───────────→ │ AWS STS  │
-  │          │              │          │
-  │          │ ←─────────── │          │
-  │          │  4. 一時認証  └──────────┘
-  └──────────┘   情報受取
-                (15分〜1時間で失効)
+  │          │  3. Present JWT ┌──────────┐
+  │          │ ─────────────→ │ AWS STS  │
+  │          │                │          │
+  │          │ ←───────────── │          │
+  │          │  4. Receive     └──────────┘
+  └──────────┘   temporary credentials
+                (expires in 15 min ~ 1 hour)
 ```
 
-### 1.2 OIDC トークンの構造
+### 1.2 OIDC Token Structure
 
 ```json
-// GitHub OIDC トークンのペイロード例
+// Example payload of a GitHub OIDC token
 {
   "jti": "example-id",
   "sub": "repo:myorg/myrepo:ref:refs/heads/main",
@@ -75,19 +75,19 @@ OIDC 方式 (短期トークン):
 }
 ```
 
-このトークンの `sub` (Subject) クレームが重要で、IAM ロールの信頼ポリシーでどのリポジトリ・ブランチからのアクセスを許可するかを制御する。
+The `sub` (Subject) claim in this token is critical — it controls which repositories and branches are allowed access via the trust policy of the IAM role.
 
-### 1.3 AWS OIDC 設定
+### 1.3 AWS OIDC Configuration
 
 ```yaml
-# OIDC を使った AWS 認証
+# AWS authentication using OIDC
 name: Deploy to AWS
 on:
   push:
     branches: [main]
 
 permissions:
-  id-token: write   # OIDC トークン発行に必須
+  id-token: write   # Required for issuing OIDC tokens
   contents: read
 
 jobs:
@@ -100,13 +100,13 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::123456789012:role/github-actions-role
           aws-region: ap-northeast-1
-          # シークレット不要! OIDC で一時認証情報を取得
+          # No secrets needed! Temporary credentials obtained via OIDC
 
-      - run: aws s3 ls  # 一時認証情報で AWS API を利用
+      - run: aws s3 ls  # Use AWS API with temporary credentials
 ```
 
 ```hcl
-# AWS 側の IAM ロール設定 (Terraform)
+# AWS IAM role configuration (Terraform)
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
@@ -129,7 +129,7 @@ resource "aws_iam_role" "github_actions" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          # リポジトリとブランチを制限
+          # Restrict to specific repository and branch
           "token.actions.githubusercontent.com:sub" = "repo:myorg/myrepo:ref:refs/heads/main"
         }
       }
@@ -137,7 +137,7 @@ resource "aws_iam_role" "github_actions" {
   })
 }
 
-# 必要最小限の権限をポリシーで付与
+# Grant only the minimum required permissions via policy
 resource "aws_iam_role_policy" "github_actions_deploy" {
   name = "github-actions-deploy"
   role = aws_iam_role.github_actions.id
@@ -172,7 +172,7 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
 }
 ```
 
-### 1.4 GCP OIDC 設定
+### 1.4 GCP OIDC Configuration
 
 ```yaml
 # GCP Workload Identity Federation
@@ -183,7 +183,7 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
 ```
 
 ```hcl
-# GCP 側の設定 (Terraform)
+# GCP configuration (Terraform)
 resource "google_iam_workload_identity_pool" "github" {
   workload_identity_pool_id = "github"
   display_name              = "GitHub Actions"
@@ -217,20 +217,20 @@ resource "google_service_account_iam_binding" "github_actions" {
 }
 ```
 
-### 1.5 Azure OIDC 設定
+### 1.5 Azure OIDC Configuration
 
 ```yaml
-# Azure OIDC 認証
+# Azure OIDC authentication
 - uses: azure/login@v2
   with:
     client-id: ${{ secrets.AZURE_CLIENT_ID }}
     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-    # client-secret は不要! Federated Credential で認証
+    # No client-secret needed! Authenticated via Federated Credential
 ```
 
 ```bash
-# Azure CLI でフェデレーテッド認証情報を設定
+# Configure federated credentials with Azure CLI
 az ad app federated-credential create \
   --id <application-object-id> \
   --parameters '{
@@ -241,59 +241,59 @@ az ad app federated-credential create \
   }'
 ```
 
-### 1.6 OIDC のトラブルシューティング
+### 1.6 OIDC Troubleshooting
 
 ```yaml
-# OIDC トークンのデバッグ
+# Debugging OIDC tokens
 - name: Debug OIDC token
   run: |
-    # トークンを取得
+    # Retrieve the token
     TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
       "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
 
-    # ペイロードを確認（トークン自体はログに出さない）
+    # Inspect the payload (do not print the token itself to logs)
     echo "$TOKEN" | cut -d '.' -f 2 | base64 -d 2>/dev/null | jq .
 
-    # sub クレームの確認
+    # Check the sub claim
     SUB=$(echo "$TOKEN" | cut -d '.' -f 2 | base64 -d 2>/dev/null | jq -r '.sub')
     echo "Subject claim: $SUB"
 ```
 
 ```
-よくあるエラーと対処法:
+Common errors and remediation:
 
 1. "Not authorized to perform sts:AssumeRoleWithWebIdentity"
-   原因: IAM ロールの信頼ポリシーの sub 条件が一致しない
-   対処: OIDC トークンの sub クレームと IAM ポリシーの条件を照合する
+   Cause: The sub condition in the IAM role trust policy does not match
+   Fix: Compare the sub claim of the OIDC token against the IAM policy condition
 
 2. "id-token: write permission is required"
-   原因: permissions に id-token: write がない
-   対処: ワークフローまたはジョブレベルで permissions を設定
+   Cause: id-token: write is missing from permissions
+   Fix: Set permissions at the workflow or job level
 
 3. "The audience is not valid"
-   原因: OIDC プロバイダーの client_id_list が不一致
-   対処: AWS は "sts.amazonaws.com"、GCP は設定した audience を確認
+   Cause: The client_id_list of the OIDC provider does not match
+   Fix: Verify "sts.amazonaws.com" for AWS, or the configured audience for GCP
 
 4. "Token is expired"
-   原因: OIDC トークンの有効期限切れ
-   対処: トークン取得直後にクラウド認証を行う
+   Cause: The OIDC token has expired
+   Fix: Perform cloud authentication immediately after obtaining the token
 ```
 
 ---
 
-## 2. 権限最小化
+## 2. Least-Privilege Permissions
 
-### 2.1 permissions の設定
+### 2.1 Configuring permissions
 
 ```yaml
-# ワークフローレベルで全権限を無効化し、ジョブレベルで必要最小限を付与
-permissions: {}  # デフォルト全無効
+# Disable all permissions at the workflow level, grant minimum required at the job level
+permissions: {}  # All disabled by default
 
 jobs:
   test:
     runs-on: ubuntu-latest
     permissions:
-      contents: read  # チェックアウトに必要
+      contents: read  # Required for checkout
     steps:
       - uses: actions/checkout@v4
       - run: npm test
@@ -303,49 +303,49 @@ jobs:
     permissions:
       contents: read
       id-token: write     # OIDC
-      packages: write     # コンテナレジストリ
+      packages: write     # Container registry
     steps:
       - uses: actions/checkout@v4
       # ...
 ```
 
-### 2.2 権限一覧と用途
+### 2.2 Permission Reference and Usage
 
 ```
-permissions マトリクス:
+permissions matrix:
 
-  権限名            read         write         用途
+  Permission        read              write             Purpose
   ─────────────────────────────────────────────────────
-  contents          checkout     commit/push
-  pull-requests     PR情報読取    コメント投稿
-  issues            Issue読取     Issue操作
-  packages          パッケージ読取 パッケージ公開
-  id-token          -            OIDC トークン
-  actions           実行状態読取  キャッシュ操作
-  security-events   -            CodeQL結果投稿
-  deployments       状態読取      デプロイ状態更新
-  statuses          状態読取      コミットステータス
-  checks            チェック読取   チェック作成/更新
-  attestations      -            アテステーション作成
-  pages             -            Pages デプロイ
+  contents          checkout          commit/push
+  pull-requests     read PR info      post comments
+  issues            read issues       manage issues
+  packages          read packages     publish packages
+  id-token          -                 OIDC token
+  actions           read run status   cache operations
+  security-events   -                 post CodeQL results
+  deployments       read status       update deploy status
+  statuses          read status       commit status
+  checks            read checks       create/update checks
+  attestations      -                 create attestations
+  pages             -                 Pages deployment
 ```
 
-### 2.3 GITHUB_TOKEN の権限制御
+### 2.3 GITHUB_TOKEN Permission Control
 
 ```yaml
-# リポジトリ全体のデフォルト設定
+# Repository-wide default settings
 # Settings → Actions → General → Workflow permissions
-# → "Read repository contents and packages permissions" を選択
+# → Select "Read repository contents and packages permissions"
 
-# ワークフローごとのオーバーライド
+# Per-workflow override
 name: Minimal Permissions Example
 on: [push]
 
-# ワークフローレベルで全無効化
+# Disable all at workflow level
 permissions: {}
 
 jobs:
-  # ジョブごとに必要な権限のみ付与
+  # Grant only the required permissions per job
   lint-and-test:
     permissions:
       contents: read
@@ -378,11 +378,11 @@ jobs:
       # ...
 ```
 
-### 2.4 GitHub App トークンの活用
+### 2.4 Using GitHub App Tokens
 
 ```yaml
-# GITHUB_TOKEN の代わりに GitHub App トークンを使用
-# → より細かい権限制御と、他リポジトリへのアクセスが可能
+# Use a GitHub App token instead of GITHUB_TOKEN
+# → Enables finer-grained permission control and cross-repository access
 
 name: Cross-repo operations
 on: [push]
@@ -414,19 +414,19 @@ jobs:
 
 ---
 
-## 3. 依存ピン留め
+## 3. Dependency Pinning
 
-### 3.1 コミットSHAによるアクション固定
+### 3.1 Pinning Actions to Commit SHAs
 
 ```yaml
-# 悪い例: タグ参照 → タグが上書きされるリスク
-- uses: actions/checkout@v4          # v4 タグが悪意あるコードに書き換え可能
+# Bad: Tag reference → risk of tag being overwritten with malicious code
+- uses: actions/checkout@v4          # The v4 tag can be replaced with malicious code
 
-# 良い例: コミットSHAで完全固定
+# Good: Fully pinned to a commit SHA
 - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
-  # SHA は改ざん不可能
+  # SHA cannot be tampered with
 
-# Dependabot でSHA参照も自動更新可能
+# Dependabot can auto-update SHA references too
 # .github/dependabot.yml
 version: 2
 updates:
@@ -434,17 +434,17 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    # SHA 参照の場合もバージョンコメントがあれば自動更新される
+    # SHA references with version comments are auto-updated
 ```
 
-### 3.2 アクション許可リスト
+### 3.2 Action Allowlist
 
 ```yaml
-# 組織レベルで許可するアクションを制限
+# Restrict allowed actions at the organization level
 # GitHub Organization Settings → Actions → General
 
-# allowed-actions.txt (ドキュメントとして管理)
-# 公式アクション:
+# allowed-actions.txt (managed as documentation)
+# Official actions:
 #   actions/checkout
 #   actions/setup-node
 #   actions/cache
@@ -452,7 +452,7 @@ updates:
 #   actions/download-artifact
 #   actions/create-github-app-token
 #
-# 信頼済みサードパーティ:
+# Trusted third-party:
 #   docker/build-push-action
 #   docker/login-action
 #   docker/metadata-action
@@ -464,13 +464,13 @@ updates:
 #   peter-evans/create-or-update-comment
 ```
 
-### 3.3 Dependabot 設定の詳細
+### 3.3 Detailed Dependabot Configuration
 
 ```yaml
 # .github/dependabot.yml
 version: 2
 updates:
-  # GitHub Actions の依存関係
+  # GitHub Actions dependencies
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -478,7 +478,7 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Asia/Tokyo"
-    # セキュリティアップデートは即座に
+    # Security updates applied immediately
     open-pull-requests-limit: 10
     reviewers:
       - "devops-team"
@@ -486,13 +486,13 @@ updates:
       - "dependencies"
       - "github-actions"
 
-  # npm の依存関係
+  # npm dependencies
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
     groups:
-      # マイナー/パッチ更新をグループ化
+      # Group minor/patch updates together
       minor-and-patch:
         patterns:
           - "*"
@@ -500,18 +500,18 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # メジャーバージョンアップは手動対応
+      # Major version upgrades handled manually
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # Docker イメージの依存関係
+  # Docker image dependencies
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
 ```
 
-### 3.4 Renovate による高度な依存管理
+### 3.4 Advanced Dependency Management with Renovate
 
 ```json
 // renovate.json
@@ -546,45 +546,47 @@ updates:
 
 ---
 
-## 4. サプライチェーン保護
+## 4. Supply Chain Protection
 
-### 4.1 脅威モデル
+### 4.1 Threat Model
 
 ```
-ソフトウェアサプライチェーンの脅威:
+Software supply chain threats:
 
   ┌─────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-  │ ソース   │ →  │ ビルド    │ →  │ パッケージ │ →  │ デプロイ  │
-  │ コード   │    │ システム  │    │ レジストリ │    │ 環境     │
+  │ Source  │ →  │  Build   │ →  │ Package  │ →  │  Deploy  │
+  │  Code   │    │  System  │    │ Registry │    │   Env    │
   └────┬────┘    └────┬─────┘    └────┬─────┘    └────┬─────┘
        │              │               │               │
   ┌────┴────┐    ┌────┴─────┐    ┌────┴─────┐    ┌────┴─────┐
-  │脅威:     │    │脅威:      │    │脅威:      │    │脅威:      │
-  │依存汚染  │    │ビルド改竄  │    │パッケージ  │    │設定ミス   │
-  │コード注入 │    │CI侵害    │    │すり替え    │    │権限過剰   │
+  │Threats: │    │Threats:  │    │Threats:  │    │Threats:  │
+  │Dep.     │    │Build     │    │Package   │    │Misconfig │
+  │poisoning│    │tampering │    │swap      │    │Excessive │
+  │Code     │    │CI        │    │          │    │perms     │
+  │injection│    │compromise│    │          │    │          │
   └─────────┘    └──────────┘    └──────────┘    └──────────┘
 
-  対策:
-  1. 依存関係のロック・監査
-  2. ビルドの再現性・署名
-  3. イメージの署名・検証
-  4. 最小権限・ネットワーク制限
+  Countermeasures:
+  1. Lock and audit dependencies
+  2. Reproducible builds and signing
+  3. Image signing and verification
+  4. Least privilege and network restrictions
 ```
 
-### 4.2 SLSA フレームワーク
+### 4.2 SLSA Framework
 
 ```
-SLSA (Supply-chain Levels for Software Artifacts) レベル:
+SLSA (Supply-chain Levels for Software Artifacts) levels:
 
-Level 0: 保護なし
-Level 1: ビルドプロセスの文書化、来歴情報の生成
-Level 2: ホスティングされたビルドサービスの使用、来歴情報の署名
-Level 3: 隔離されたビルド環境、改ざん防止された来歴情報
-Level 4: 2者レビュー、再現可能なビルド（将来）
+Level 0: No protection
+Level 1: Documented build process, provenance generation
+Level 2: Use of hosted build service, signed provenance
+Level 3: Isolated build environment, tamper-resistant provenance
+Level 4: Two-party review, reproducible builds (future)
 ```
 
 ```yaml
-# SLSA Level 3 準拠の例
+# Example SLSA Level 3 compliant workflow
 name: Build with Provenance
 on:
   push:
@@ -608,17 +610,17 @@ jobs:
           push: true
           tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
 
-      # ビルドのアテステーション(証明書)を生成
+      # Generate build attestation (certificate)
       - uses: actions/attest-build-provenance@v1
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}
 ```
 
-### 4.3 SBOM (Software Bill of Materials) の生成
+### 4.3 SBOM (Software Bill of Materials) Generation
 
 ```yaml
-# SBOM を生成してアテステーションとして添付
+# Generate SBOM and attach as attestation
 name: SBOM Generation
 on:
   push:
@@ -639,7 +641,7 @@ jobs:
       - name: Build Docker image
         run: docker build -t myapp:latest .
 
-      # Syft で SBOM を生成
+      # Generate SBOM with Syft
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
@@ -653,7 +655,7 @@ jobs:
           name: sbom
           path: sbom.spdx.json
 
-      # SBOM をアテステーションとして添付
+      # Attach SBOM as attestation
       - uses: actions/attest-sbom@v1
         with:
           subject-name: ghcr.io/${{ github.repository }}
@@ -661,7 +663,7 @@ jobs:
           sbom-path: sbom.spdx.json
 ```
 
-### 4.4 CodeQL セキュリティスキャン
+### 4.4 CodeQL Security Scanning
 
 ```yaml
 name: CodeQL Analysis
@@ -670,7 +672,7 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: '0 6 * * 1'  # 週次スキャン
+    - cron: '0 6 * * 1'  # Weekly scan
 
 permissions:
   security-events: write
@@ -688,7 +690,7 @@ jobs:
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          # カスタムクエリパックの使用
+          # Use custom query packs
           queries: +security-and-quality
 
       - uses: github/codeql-action/analyze@v3
@@ -696,10 +698,10 @@ jobs:
           category: "/language:${{ matrix.language }}"
 ```
 
-### 4.5 コンテナイメージの署名と検証
+### 4.5 Container Image Signing and Verification
 
 ```yaml
-# cosign を使ったイメージ署名
+# Signing images with cosign
 name: Sign Container Image
 on:
   push:
@@ -738,7 +740,7 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: 1
 
-      # 検証コマンド（デプロイ時に実行）
+      # Verification command (run at deploy time)
       # cosign verify ghcr.io/myorg/myapp@sha256:... \
       #   --certificate-identity-regexp='https://github.com/myorg/myrepo/' \
       #   --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
@@ -746,46 +748,46 @@ jobs:
 
 ---
 
-## 5. CI 環境のハードニング
+## 5. CI Environment Hardening
 
-### 5.1 ネットワーク制限
+### 5.1 Network Restrictions
 
 ```yaml
-# セルフホステッドランナーのネットワーク制限
+# Network restrictions for self-hosted runners
 jobs:
   build:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 
-      # ネットワークアクセスを必要最小限に
-      - name: Build (ネットワーク不要)
+      # Minimize network access
+      - name: Build (no network required)
         run: |
-          # キャッシュ済み依存関係でオフラインビルド
+          # Offline build using cached dependencies
           npm ci --prefer-offline
           npm run build
 ```
 
-### 5.2 Immutable ランナー
+### 5.2 Immutable Runners
 
 ```yaml
-# エフェメラル(使い捨て)ランナーの使用
-# 各ジョブ実行後にランナーをクリーンアップ
+# Use ephemeral (disposable) runners
+# Runners are cleaned up after each job
 jobs:
   build:
-    runs-on: ubuntu-latest  # GitHub ホステッド = 毎回クリーンなVM
-    # セルフホステッドの場合:
+    runs-on: ubuntu-latest  # GitHub-hosted = fresh VM every time
+    # For self-hosted:
     # runs-on: [self-hosted, ephemeral]
     steps:
       - uses: actions/checkout@v4
       - run: npm ci && npm test
-      # ジョブ終了後、VMは破棄される → 残留データのリスクなし
+      # After the job, the VM is discarded → no risk of residual data
 ```
 
 ### 5.3 StepSecurity Harden Runner
 
 ```yaml
-# StepSecurity の Harden Runner でランナーの活動を監視・制限
+# Monitor and restrict runner activity with StepSecurity Harden Runner
 name: Hardened Build
 on: [push]
 
@@ -799,7 +801,7 @@ jobs:
       - uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
-          # 本番運用時は block に切り替え
+          # Switch to block in production
           # egress-policy: block
           allowed-endpoints: >
             github.com:443
@@ -812,14 +814,14 @@ jobs:
       - run: npm test
 ```
 
-### 5.4 セキュリティ監査ワークフロー
+### 5.4 Security Audit Workflow
 
 ```yaml
-# 定期的なセキュリティ監査
+# Periodic security audit
 name: Security Audit
 on:
   schedule:
-    - cron: '0 9 * * 1'  # 毎週月曜 9:00 UTC
+    - cron: '0 9 * * 1'  # Every Monday at 9:00 UTC
   workflow_dispatch:
 
 permissions:
@@ -842,7 +844,7 @@ jobs:
           npm ci
           npm audit --json > audit-report.json || true
 
-          # Critical/High の脆弱性があれば Issue を作成
+          # Create an issue if Critical/High vulnerabilities are found
           CRITICAL=$(jq '.metadata.vulnerabilities.critical' audit-report.json)
           HIGH=$(jq '.metadata.vulnerabilities.high' audit-report.json)
 
@@ -863,18 +865,18 @@ jobs:
 
       - name: Audit GitHub Actions versions
         run: |
-          echo "## GitHub Actions バージョン監査" > actions-audit.md
+          echo "## GitHub Actions Version Audit" > actions-audit.md
           echo "" >> actions-audit.md
-          echo "| ファイル | アクション | 参照方法 | 状態 |" >> actions-audit.md
+          echo "| File | Action | Reference | Status |" >> actions-audit.md
           echo "|---------|---------|---------|------|" >> actions-audit.md
 
-          # SHA 参照でないアクションを検出
+          # Detect actions not pinned to SHA
           for file in .github/workflows/*.yml; do
             grep -n 'uses:' "$file" | while read -r line; do
               if echo "$line" | grep -qP '@[a-f0-9]{40}'; then
                 echo "| $file | $(echo $line | grep -oP 'uses: \K[^@]+') | SHA | OK |" >> actions-audit.md
               elif echo "$line" | grep -qP '@v\d+'; then
-                echo "| $file | $(echo $line | grep -oP 'uses: \K[^@]+') | Tag | 要改善 |" >> actions-audit.md
+                echo "| $file | $(echo $line | grep -oP 'uses: \K[^@]+') | Tag | Needs improvement |" >> actions-audit.md
               fi
             done
           done
@@ -890,38 +892,38 @@ jobs:
 
 ---
 
-## 6. セキュリティインシデント対応
+## 6. Security Incident Response
 
-### 6.1 シークレット漏洩時の対応手順
+### 6.1 Response Procedures for Secret Leakage
 
 ```
-シークレット漏洩時の即時対応:
+Immediate response to secret leakage:
 
-1. 漏洩したシークレットの即時無効化
-   - AWS: IAM コンソールでアクセスキーを無効化
-   - GitHub: Settings → Secrets → 対象シークレットを更新
-   - npm: トークンを revoke
+1. Immediately revoke the leaked secret
+   - AWS: Disable the access key in the IAM console
+   - GitHub: Settings → Secrets → Update the affected secret
+   - npm: Revoke the token
 
-2. 影響範囲の調査
-   - CloudTrail / 監査ログで不正アクセスを確認
-   - Git ログで漏洩箇所と期間を特定
-   - 漏洩したキーでアクセス可能だったリソースを列挙
+2. Investigate the scope of impact
+   - Check for unauthorized access in CloudTrail / audit logs
+   - Identify the leak location and timeframe in Git logs
+   - List resources accessible with the leaked key
 
-3. 新しいシークレットの発行と設定
-   - OIDC への移行を検討（長期キーの場合）
-   - 新しいシークレットを生成して GitHub Secrets に設定
-   - 全ワークフローの動作確認
+3. Issue and configure new secrets
+   - Consider migrating to OIDC (for long-lived keys)
+   - Generate new secrets and set them in GitHub Secrets
+   - Verify all workflows function correctly
 
-4. 再発防止策
-   - git-secrets / gitleaks の pre-commit フック導入
-   - Secret scanning alerts の有効化
-   - シークレットの定期ローテーション設定
+4. Preventive measures
+   - Introduce git-secrets / gitleaks pre-commit hooks
+   - Enable Secret scanning alerts
+   - Configure regular secret rotation
 ```
 
-### 6.2 アクションの侵害検知
+### 6.2 Detecting Compromised Actions
 
 ```yaml
-# サードパーティアクションの改ざん検知
+# Detect tampering with third-party actions
 name: Action Integrity Check
 on:
   pull_request:
@@ -952,26 +954,26 @@ jobs:
           fi
 ```
 
-### 6.3 Secret Scanning の設定
+### 6.3 Secret Scanning Configuration
 
 ```yaml
-# リポジトリ設定で Secret Scanning を有効化
+# Enable Secret Scanning in repository settings
 # Settings → Code security and analysis → Secret scanning → Enable
 
-# カスタムパターンの追加例
+# Adding custom patterns
 # Settings → Code security → Secret scanning → Custom patterns
 
 # .github/secret_scanning.yml
-# シークレットスキャンの除外設定
+# Exclusion settings for secret scanning
 paths-ignore:
   - "tests/fixtures/**"
   - "docs/examples/**"
 ```
 
-### 6.4 gitleaks による pre-commit チェック
+### 6.4 Pre-commit Check with gitleaks
 
 ```yaml
-# CI での gitleaks チェック
+# gitleaks check in CI
 name: Secret Detection
 on:
   pull_request:
@@ -990,22 +992,22 @@ jobs:
 ```
 
 ```toml
-# .gitleaks.toml — gitleaks 設定
+# .gitleaks.toml — gitleaks configuration
 title = "Custom Gitleaks Configuration"
 
-# カスタムルール
+# Custom rules
 description = "Internal API Key"
 regex = '''INTERNAL_API_KEY_[A-Za-z0-9]{32}'''
 tags = ["key", "internal"]
 
-# 除外パス
+# Excluded paths
 [allowlist]
 paths = [
   '''tests/fixtures/''',
   '''\.github/workflows/''',
 ]
 
-# 除外パターン
+# Excluded patterns
 regexes = [
   '''EXAMPLE_KEY_[A-Za-z0-9]+''',
 ]
@@ -1013,107 +1015,107 @@ regexes = [
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 7.1 認証方式比較
+### 7.1 Authentication Method Comparison
 
-| 方式 | セキュリティ | 運用負荷 | 対応クラウド | 推奨度 |
+| Method | Security | Operational Overhead | Supported Clouds | Recommendation |
 |---|---|---|---|---|
-| 長期アクセスキー | 低(漏洩リスク大) | 高(ローテーション) | 全て | 非推奨 |
-| OIDC | 高(短期トークン) | 低(自動) | AWS/GCP/Azure | 強く推奨 |
-| GitHub App | 高(スコープ制限) | 中 | GitHub API | API操作時推奨 |
-| GITHUB_TOKEN | 中(自動生成) | なし | GitHub API | デフォルト |
+| Long-lived access keys | Low (high leakage risk) | High (rotation required) | All | Not recommended |
+| OIDC | High (short-lived tokens) | Low (automatic) | AWS/GCP/Azure | Strongly recommended |
+| GitHub App | High (scoped) | Medium | GitHub API | Recommended for API operations |
+| GITHUB_TOKEN | Medium (auto-generated) | None | GitHub API | Default |
 
-### 7.2 アクション参照方式比較
+### 7.2 Action Reference Method Comparison
 
-| 方式 | 例 | セキュリティ | 運用性 |
+| Method | Example | Security | Operability |
 |---|---|---|---|
-| ブランチ参照 | `@main` | 最低(常に変化) | 高(常に最新) |
-| タグ参照 | `@v4` | 低(上書き可能) | 高 |
-| マイナータグ | `@v4.1.1` | 中 | 中 |
-| コミットSHA | `@b4ffde...` | 最高(不変) | 低(手動更新) |
-| SHA + Dependabot | SHA + 自動PR | 最高 | 高 |
+| Branch reference | `@main` | Lowest (always changing) | High (always latest) |
+| Tag reference | `@v4` | Low (can be overwritten) | High |
+| Minor tag | `@v4.1.1` | Medium | Medium |
+| Commit SHA | `@b4ffde...` | Highest (immutable) | Low (manual updates) |
+| SHA + Dependabot | SHA + auto PR | Highest | High |
 
-### 7.3 セキュリティツール比較
+### 7.3 Security Tool Comparison
 
-| ツール | 対象 | 方式 | CI 統合 | コスト |
+| Tool | Target | Method | CI Integration | Cost |
 |---|---|---|---|---|
-| CodeQL | ソースコード | SAST | actions/codeql | 無料(公開リポ) |
-| Trivy | コンテナ/IaC | SCA/SAST | aquasecurity/trivy-action | 無料 |
-| Grype | コンテナ | SCA | anchore/scan-action | 無料 |
-| gitleaks | Git 履歴 | シークレット検出 | gitleaks/gitleaks-action | 無料 |
-| Snyk | 依存関係 | SCA | snyk/actions | Freemium |
-| Harden Runner | CI 環境 | ランタイム保護 | step-security/harden-runner | Freemium |
+| CodeQL | Source code | SAST | actions/codeql | Free (public repos) |
+| Trivy | Containers/IaC | SCA/SAST | aquasecurity/trivy-action | Free |
+| Grype | Containers | SCA | anchore/scan-action | Free |
+| gitleaks | Git history | Secret detection | gitleaks/gitleaks-action | Free |
+| Snyk | Dependencies | SCA | snyk/actions | Freemium |
+| Harden Runner | CI environment | Runtime protection | step-security/harden-runner | Freemium |
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン1: Fork PR での secrets 露出
+### Anti-Pattern 1: Secrets Exposure in Fork PRs
 
 ```yaml
-# 悪い例: Fork PR で secrets が利用可能
+# Bad: secrets available in Fork PRs
 on:
-  pull_request_target:  # ← 危険! Fork PR でも secrets が利用可能
+  pull_request_target:  # ← Dangerous! Secrets are available even in fork PRs
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}  # Fork のコードを実行
-      - run: echo "${{ secrets.DEPLOY_KEY }}"  # 漏洩!
+          ref: ${{ github.event.pull_request.head.sha }}  # Executes fork code
+      - run: echo "${{ secrets.DEPLOY_KEY }}"  # Leaked!
 
-# 改善: pull_request イベントを使い、Fork PR では secrets を使わない
+# Improved: use pull_request event where secrets are empty for fork PRs
 on:
-  pull_request:  # Fork PR では secrets は空になる(安全)
+  pull_request:  # Secrets are empty for fork PRs (safe)
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm test  # secrets 不要の処理のみ
+      - run: npm test  # Only operations that don't need secrets
 ```
 
-### アンチパターン2: スクリプトインジェクション
+### Anti-Pattern 2: Script Injection
 
 ```yaml
-# 悪い例: ユーザー入力を直接実行
+# Bad: directly executing user input
 steps:
   - run: echo "PR title: ${{ github.event.pull_request.title }}"
-    # PRタイトルに "; rm -rf /" を含めるとコマンド注入
+    # If the PR title contains "; rm -rf /", command injection occurs
 
-# 改善: 環境変数経由で渡す
+# Improved: pass through environment variables
 steps:
   - run: echo "PR title: $PR_TITLE"
     env:
       PR_TITLE: ${{ github.event.pull_request.title }}
-    # 環境変数として渡せばシェルインジェクションを防止
+    # Passing via environment variable prevents shell injection
 ```
 
-### アンチパターン3: 過剰な permissions
+### Anti-Pattern 3: Excessive permissions
 
 ```yaml
-# 悪い例: 全権限を付与
+# Bad: grant all permissions
 permissions: write-all
-# → 不要な権限まで付与され、侵害時の影響範囲が最大化
+# → Unnecessary permissions are granted, maximizing blast radius if compromised
 
-# 改善: 必要最小限の権限のみ
+# Improved: grant only minimum required permissions
 permissions:
   contents: read
   packages: write
 ```
 
-### アンチパターン4: シークレットのログ出力
+### Anti-Pattern 4: Logging Secrets
 
 ```yaml
-# 悪い例: デバッグ時にシークレットを出力
+# Bad: printing secrets in debug output
 - run: |
     echo "Debug: ${{ secrets.API_KEY }}"
     curl -v -H "Authorization: Bearer ${{ secrets.API_KEY }}" $URL
-    # -v オプションでヘッダーが表示される → シークレット露出
+    # The -v option displays headers → secrets exposed
 
-# 改善: 環境変数を使い、デバッグ出力を制限
+# Improved: use environment variables and limit debug output
 - run: |
     curl -s -o response.json -w "%{http_code}" \
       -H "Authorization: Bearer $API_KEY" "$URL"
@@ -1123,62 +1125,62 @@ permissions:
     URL: ${{ vars.API_URL }}
 ```
 
-### アンチパターン5: Dependabot の無効化
+### Anti-Pattern 5: Disabling Dependabot
 
 ```
-悪い例:
-  「Dependabot の PR が多すぎて邪魔だから無効化した」
-  → セキュリティパッチの適用が遅れ、脆弱性が放置される
+Bad practice:
+  "Dependabot creates too many PRs so I disabled it"
+  → Security patches are delayed, leaving vulnerabilities unaddressed
 
-改善:
-  1. グループ化設定で PR 数を削減
-  2. セキュリティアップデートは必ず有効に
-  3. 自動マージ設定で patch/minor は自動適用
-  4. 週次でまとめて確認するルーティンを設定
+Improved approach:
+  1. Reduce PR count with grouping configuration
+  2. Always keep security updates enabled
+  3. Configure auto-merge to apply patch/minor updates automatically
+  4. Set up a weekly routine to review updates in batch
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1187,26 +1189,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1214,7 +1216,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1225,14 +1227,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1240,7 +1242,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1248,44 +1250,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1294,7 +1296,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1309,47 +1311,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm time complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Verify the config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review configuration |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Validate incrementally**: Use log output and debuggers to verify hypotheses
+5. **Fix and regression test**: After fixing, run tests for related areas too
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1357,102 +1359,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Verify presence of memory leaks
+3. **Check I/O wait**: Review disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem type | Diagnostic tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| High CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criteria | Prioritize when | Can compromise when |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. Team size?                                  │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → Go to 2                     │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. Deployment frequency?                       │
+│    ├─ Weekly or less → Monolith + modular split │
+│    └─ Daily / multiple times → Go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. Team independence?                          │
+│    ├─ High → Microservices                      │
+│    └─ Medium → Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term cost**
+- A faster short-term approach may become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction improves reusability but can make debugging more difficult
+- Low abstraction is intuitive but tends to cause code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1462,17 +1464,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1480,7 +1482,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1488,15 +1490,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1505,68 +1507,68 @@ class ArchitectureDecisionRecord:
 
 ## 9. FAQ
 
-### Q1: OIDC と長期アクセスキー、どちらを使うべきか？
+### Q1: Should I use OIDC or long-lived access keys?
 
-可能な限り OIDC を使うべきである。長期アクセスキーは漏洩リスクがあり、ローテーションの運用負荷もある。AWS、GCP、Azure は全て GitHub Actions の OIDC に対応している。既存のキーは段階的に OIDC に移行し、移行後は Secrets から削除する。
+Use OIDC whenever possible. Long-lived access keys carry a leakage risk and impose a rotation overhead. AWS, GCP, and Azure all support GitHub Actions OIDC. Gradually migrate existing keys to OIDC and delete them from Secrets after migration.
 
-### Q2: Dependabot とRenovate のどちらを使うべきか？
+### Q2: Should I use Dependabot or Renovate?
 
-GitHub エコシステムに統合されている Dependabot が手軽。Renovate はより柔軟な設定(自動マージ、グループ化、スケジュール)が可能で、大規模プロジェクトや Monorepo に向く。github-actions のエコシステム更新は Dependabot で十分。
+Dependabot is easier since it is integrated into the GitHub ecosystem. Renovate offers more flexible configuration (auto-merge, grouping, scheduling) and is better suited for large projects or monorepos. Dependabot is sufficient for keeping GitHub Actions ecosystem updates current.
 
-### Q3: GITHUB_TOKEN の権限はどう決めるか？
+### Q3: How do I decide GITHUB_TOKEN permissions?
 
-デフォルトでは read-all。ワークフローレベルで `permissions: {}` として全無効化し、ジョブごとに必要な権限のみを明示的に付与する。`contents: read` は checkout に、`pull-requests: write` は PR コメントに、`id-token: write` は OIDC に必要。
+The default is read-all. Set `permissions: {}` at the workflow level to disable everything, then explicitly grant only the required permissions per job. `contents: read` is needed for checkout, `pull-requests: write` for PR comments, and `id-token: write` for OIDC.
 
-### Q4: pull_request_target はいつ使うべきか？
+### Q4: When should pull_request_target be used?
 
-Fork PR からのコード実行が不要で、かつ PR のメタデータ（ラベル付け、コメント投稿など）のみを操作する場合に使用する。Fork PR のコードを checkout して実行するのは絶対に避けるべき。コードの検証が必要な場合は `pull_request` イベントを使い、secrets 不要の処理のみ実行する。
+Use it when you do not need to execute code from fork PRs and only need to operate on PR metadata (labeling, posting comments, etc.). Never checkout and execute code from a fork PR. If code validation is required, use the `pull_request` event and only run operations that do not need secrets.
 
-### Q5: セルフホステッドランナーと GitHub ホステッドランナーのセキュリティ差は？
+### Q5: What is the security difference between self-hosted and GitHub-hosted runners?
 
-GitHub ホステッドランナーは毎回クリーンな VM で実行されるため、前回のジョブの残留データがない。セルフホステッドランナーは永続的なため、環境変数やファイルシステムにデータが残留するリスクがある。セルフホステッドを使う場合は、エフェメラル（使い捨て）モードの設定を強く推奨する。
+GitHub-hosted runners use a clean VM every time, so there is no residual data from previous jobs. Self-hosted runners are persistent, meaning environment variables and filesystem data can linger. If using self-hosted runners, configuring ephemeral (disposable) mode is strongly recommended.
 
-### Q6: コンテナイメージの署名は必須か？
+### Q6: Is container image signing mandatory?
 
-パブリックに公開するイメージや本番環境にデプロイするイメージでは強く推奨する。cosign の Keyless Signing（Sigstore/Fulcio による OIDC ベースの署名）を使えば、鍵管理が不要でシンプルに実装できる。デプロイパイプラインで署名の検証を行えば、改ざんされたイメージの実行を防止できる。
+It is strongly recommended for images published publicly or deployed to production environments. Using cosign's Keyless Signing (OIDC-based signing via Sigstore/Fulcio) requires no key management and is simple to implement. Verifying signatures in the deployment pipeline prevents tampered images from running.
 
-### Q7: Secret Scanning は有料プランでないと使えないか？
+### Q7: Is Secret Scanning only available on paid plans?
 
-パブリックリポジトリでは無料で利用可能。プライベートリポジトリでは GitHub Advanced Security (GHAS) ライセンスが必要。GHAS が使えない場合は、gitleaks を CI に組み込むことで同等の機能を実現できる。
+It is available for free on public repositories. Private repositories require a GitHub Advanced Security (GHAS) license. If GHAS is not available, integrating gitleaks into CI provides equivalent functionality.
 
 ---
 
-## 10. セキュリティチェックリストとコンプライアンス
+## 10. Security Checklist and Compliance
 
-### 10.1 CI/CD セキュリティ成熟度チェックリスト
+### 10.1 CI/CD Security Maturity Checklist
 
 ```
-Level 1: 基本的なセキュリティ
-  [  ] permissions を全ワークフローで明示的に設定している
-  [  ] サードパーティアクションをコミット SHA でピン留めしている
-  [  ] GITHUB_TOKEN のデフォルト権限を read-only に設定している
-  [  ] シークレットをログに出力するステップがない
+Level 1: Basic Security
+  [  ] permissions explicitly set in all workflows
+  [  ] Third-party actions pinned to commit SHA
+  [  ] Default GITHUB_TOKEN permissions set to read-only
+  [  ] No steps that output secrets to logs
 
-Level 2: 認証と依存管理
-  [  ] OIDC でクラウド認証を行っている（長期キー未使用）
-  [  ] Dependabot/Renovate で依存関係を自動更新している
-  [  ] npm audit / pip-audit / govulncheck を CI に組み込んでいる
-  [  ] gitleaks または Secret Scanning が有効になっている
+Level 2: Authentication and Dependency Management
+  [  ] Using OIDC for cloud authentication (no long-lived keys)
+  [  ] Dependencies automatically updated with Dependabot/Renovate
+  [  ] npm audit / pip-audit / govulncheck integrated into CI
+  [  ] gitleaks or Secret Scanning is enabled
 
-Level 3: サプライチェーン保護
-  [  ] SBOM を生成してアーティファクトに含めている
-  [  ] コンテナイメージに cosign で署名している
-  [  ] CodeQL または Semgrep でコードスキャンを実施している
-  [  ] SLSA Provenance を生成している
+Level 3: Supply Chain Protection
+  [  ] SBOM generated and included in artifacts
+  [  ] Container images signed with cosign
+  [  ] Code scanning performed with CodeQL or Semgrep
+  [  ] SLSA Provenance generated
 
-Level 4: 高度なハードニング
-  [  ] Harden Runner でネットワーク制限を適用している
-  [  ] エフェメラルランナーを使用している
-  [  ] branch protection で CI 必須 + レビュー必須を設定している
-  [  ] デプロイ環境に approval ゲートを設定している
-  [  ] セキュリティインシデント対応手順が文書化されている
+Level 4: Advanced Hardening
+  [  ] Network restrictions applied with Harden Runner
+  [  ] Ephemeral runners in use
+  [  ] Branch protection configured with required CI + required review
+  [  ] Approval gates configured for deployment environments
+  [  ] Security incident response procedures documented
 ```
 
-### 10.2 コンプライアンス対応ワークフロー
+### 10.2 Compliance Workflow
 
 ```yaml
 # .github/workflows/compliance-check.yml
@@ -1576,7 +1578,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: '0 0 * * 1'  # 毎週月曜日
+    - cron: '0 0 * * 1'  # Every Monday
 
 jobs:
   license-check:
@@ -1625,12 +1627,12 @@ jobs:
           path: audit-report.json
 ```
 
-### 10.3 Workflow の権限監査スクリプト
+### 10.3 Workflow Permission Audit Script
 
 ```bash
 #!/bin/bash
 # scripts/audit-workflow-permissions.sh
-# ワークフローファイルの権限設定を監査する
+# Audit permission settings in workflow files
 
 echo "=== GitHub Actions Workflow Permission Audit ==="
 echo ""
@@ -1642,19 +1644,19 @@ for workflow in "$WORKFLOWS_DIR"/*.yml "$WORKFLOWS_DIR"/*.yaml; do
   [ -f "$workflow" ] || continue
   echo "Checking: $workflow"
 
-  # トップレベル permissions の確認
+  # Check for top-level permissions
   if ! grep -q "^permissions:" "$workflow"; then
     echo "  WARNING: No top-level permissions block"
     ISSUES_FOUND=$((ISSUES_FOUND + 1))
   fi
 
-  # write-all の検出
+  # Detect write-all
   if grep -q "permissions: write-all" "$workflow"; then
     echo "  CRITICAL: write-all permissions detected"
     ISSUES_FOUND=$((ISSUES_FOUND + 1))
   fi
 
-  # ピン留めされていないアクションの検出
+  # Detect unpinned actions
   if grep -E "uses: [a-zA-Z].*@v[0-9]" "$workflow" | grep -v "@[0-9a-f]\{40\}" > /dev/null; then
     echo "  WARNING: Actions not pinned to commit SHA"
     grep -n -E "uses: [a-zA-Z].*@v[0-9]" "$workflow" | while read -r line; do
@@ -1676,47 +1678,47 @@ exit $ISSUES_FOUND
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Rather than theory alone, actually writing code and verifying its behavior deepens understanding.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Topic | Key Points |
 |---|---|
-| OIDC | 短期トークンでシークレットレス認証、強く推奨 |
-| 権限最小化 | permissions: {} で全無効化 → ジョブごとに最小付与 |
-| 依存ピン留め | コミットSHA + Dependabot が最良 |
-| サプライチェーン | SLSA、CodeQL、SBOM、アテステーション |
-| イメージ署名 | cosign の Keyless Signing で改ざん防止 |
-| スクリプトインジェクション | ユーザー入力は環境変数経由で渡す |
-| Fork PR | pull_request_target は極力避ける |
-| CI ハードニング | Harden Runner、エフェメラルランナー |
-| シークレット管理 | Secret Scanning + gitleaks の二重防御 |
-| インシデント対応 | 漏洩時の即時無効化 → 影響調査 → 再発防止 |
-| コンプライアンス | ライセンス監査・脆弱性監査を定期実行 |
+| OIDC | Secretless authentication with short-lived tokens, strongly recommended |
+| Least privilege | Disable all with permissions: {} → grant minimum per job |
+| Dependency pinning | Commit SHA + Dependabot is the best approach |
+| Supply chain | SLSA, CodeQL, SBOM, attestations |
+| Image signing | Tamper prevention with cosign Keyless Signing |
+| Script injection | Pass user input through environment variables |
+| Fork PRs | Avoid pull_request_target as much as possible |
+| CI hardening | Harden Runner, ephemeral runners |
+| Secret management | Dual defense with Secret Scanning + gitleaks |
+| Incident response | Immediate revocation → impact investigation → prevention |
+| Compliance | Run license and vulnerability audits periodically |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [GitHub Actions 基礎](./00-actions-basics.md) -- 基本に立ち返る
-- [デプロイ戦略](../02-deployment/00-deployment-strategies.md) -- 安全なデプロイ手法
-- [リリース管理](../02-deployment/03-release-management.md) -- 署名付きリリース
+- [GitHub Actions Basics](./00-actions-basics.md) -- Return to the basics
+- [Deployment Strategies](../02-deployment/00-deployment-strategies.md) -- Secure deployment methods
+- [Release Management](../02-deployment/03-release-management.md) -- Signed releases
 
 ---
 
-## 参考文献
+## References
 
 1. GitHub. "Security hardening for GitHub Actions." https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions
 2. GitHub. "About security hardening with OpenID Connect." https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect
