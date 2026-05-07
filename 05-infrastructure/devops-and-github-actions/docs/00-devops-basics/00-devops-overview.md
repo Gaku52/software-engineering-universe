@@ -1,88 +1,88 @@
-# DevOps概要
+# DevOps Overview
 
-> ソフトウェアの開発(Dev)と運用(Ops)を統合し、価値提供の速度と信頼性を最大化する文化・プラクティス体系
+> A culture and practice system that integrates software Development (Dev) and Operations (Ops) to maximize the speed and reliability of value delivery
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. DevOpsの文化的背景と5つの原則(CALMS)を理解する
-2. DORA メトリクスによるパフォーマンス計測手法を習得する
-3. DevOps導入のロードマップとアンチパターンを把握する
-4. Three Ways の原則を実務に適用する方法を理解する
-5. プラットフォームエンジニアリングとの関連を把握する
+1. Understand the cultural background of DevOps and its five principles (CALMS)
+2. Learn how to measure performance using DORA metrics
+3. Understand the DevOps adoption roadmap and anti-patterns
+4. Learn how to apply the Three Ways principles in practice
+5. Understand the relationship with Platform Engineering
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. DevOpsとは何か
+## 1. What is DevOps?
 
-### 1.1 歴史的背景
+### 1.1 Historical Background
 
-従来のソフトウェア開発では、開発チームと運用チームが分断された組織構造(サイロ)で働いていた。開発チームは「新機能を早く出す」ことを、運用チームは「システムを安定させる」ことを目標とし、両者の間に構造的な対立が生まれていた。
-
-```
-従来のウォーターフォール型リリースサイクル:
-
-企画 → 要件定義 → 設計 → 実装 → テスト → リリース → 運用
- |                                              |
- +--- 開発チームの責任範囲 ---+--- 運用チームの責任範囲 ---+
-                              ^
-                           "壁越し"
-                        (Wall of Confusion)
-```
-
-2008年のAgile Conference、2009年のDevOpsdays Ghent で Patrick Debois が「DevOps」という用語を普及させ、開発と運用の壁を壊す運動が始まった。
-
-### 1.2 DevOps の年表
-
-DevOps の進化を年表で整理すると、技術と文化の両面で段階的に成熟してきたことがわかる。
+In traditional software development, development teams and operations teams worked in a siloed organizational structure. Development teams aimed to "ship new features quickly" while operations teams aimed to "keep systems stable," creating a structural conflict between the two.
 
 ```
-年代          出来事                                        意義
+Traditional waterfall release cycle:
+
+Planning → Requirements → Design → Implementation → Testing → Release → Operations
+ |                                                                |
+ +--- Development team's scope ---+--- Operations team's scope ---+
+                                  ^
+                               "Over the wall"
+                            (Wall of Confusion)
+```
+
+At the 2008 Agile Conference and 2009 DevOpsDays Ghent, Patrick Debois popularized the term "DevOps," sparking a movement to tear down the wall between development and operations.
+
+### 1.2 DevOps Timeline
+
+Organizing the evolution of DevOps into a timeline reveals that it has matured gradually in both technology and culture.
+
+```
+Year          Event                                              Significance
 ────────────────────────────────────────────────────────────────────
-2001         Agile Manifesto 発表                         反復型開発の基盤
-2006         Amazon "You build it, you run it"            開発者責任の拡大
-2008         Agile Conference (Agile Infrastructure)      インフラ自動化の議論開始
-2009         DevOpsDays Ghent (Patrick Debois)            DevOps 誕生
-2010         "Continuous Delivery" 出版 (Humble & Farley) CI/CD の体系化
-2011         "The Phoenix Project" 執筆開始               DevOps 小説による普及
-2012         State of DevOps Report 初回                  定量的研究の開始
-2013         Docker 1.0 リリース                          コンテナ革命
-2014         Kubernetes 発表 (Google)                      コンテナオーケストレーション
-2015         SRE 本出版 (Google)                          SRE の体系化
-2016         "DevOps Handbook" 出版                       実践ガイドの決定版
-2018         "Accelerate" 出版                            DORA メトリクスの学術的根拠
-2019         GitOps 概念の普及 (Weaveworks)               宣言的運用の新パラダイム
-2020         Platform Engineering の台頭                   内部開発者プラットフォーム
-2021         DevOps Handbook 2nd Edition                  最新プラクティスの統合
-2022-        AI-Assisted DevOps / AIOps                   機械学習による運用最適化
-2024-        Platform as a Product                        プラットフォームの製品化
+2001         Agile Manifesto published                          Foundation for iterative development
+2006         Amazon "You build it, you run it"                  Expansion of developer responsibility
+2008         Agile Conference (Agile Infrastructure)            Start of infrastructure automation discussion
+2009         DevOpsDays Ghent (Patrick Debois)                  Birth of DevOps
+2010         "Continuous Delivery" published (Humble & Farley)  Systematization of CI/CD
+2011         "The Phoenix Project" writing begins               DevOps spread through fiction
+2012         First State of DevOps Report                       Start of quantitative research
+2013         Docker 1.0 released                                Container revolution
+2014         Kubernetes announced (Google)                       Container orchestration
+2015         SRE book published (Google)                        Systematization of SRE
+2016         "DevOps Handbook" published                        Definitive practical guide
+2018         "Accelerate" published                             Academic foundation for DORA metrics
+2019         GitOps concept popularized (Weaveworks)            New paradigm of declarative operations
+2020         Rise of Platform Engineering                        Internal developer platforms
+2021         DevOps Handbook 2nd Edition                        Integration of latest practices
+2022-        AI-Assisted DevOps / AIOps                         Operations optimization via machine learning
+2024-        Platform as a Product                              Productization of platforms
 ```
 
-### 1.3 DevOpsの定義
+### 1.3 Definition of DevOps
 
-DevOpsは単一のツールや役職ではなく、以下の要素を統合した**文化・運動・プラクティス**である。
+DevOps is not a single tool or job title, but a **culture, movement, and set of practices** that integrates the following elements.
 
 ```
 +-----------------------------------------------------------+
-|                     DevOps の全体像                         |
+|                   DevOps Overview                          |
 +-----------------------------------------------------------+
 |                                                           |
-|   文化 (Culture)                                          |
+|   Culture                                                 |
 |   +---------------------------------------------------+  |
-|   | 自動化 (Automation)                                |  |
+|   | Automation                                         |  |
 |   |   +---------------------------------------------+ |  |
-|   |   | 計測 (Measurement)                           | |  |
+|   |   | Measurement                                  | |  |
 |   |   |   +---------------------------------------+ | |  |
-|   |   |   | 共有 (Sharing)                         | | |  |
+|   |   |   | Sharing                                | | |  |
 |   |   |   |   +-------------------------------+   | | |  |
-|   |   |   |   | リーン (Lean)                  |   | | |  |
+|   |   |   |   | Lean                          |   | | |  |
 |   |   |   |   +-------------------------------+   | | |  |
 |   |   |   +---------------------------------------+ | |  |
 |   |   +---------------------------------------------+ |  |
@@ -90,55 +90,56 @@ DevOpsは単一のツールや役職ではなく、以下の要素を統合し�
 +-----------------------------------------------------------+
 ```
 
-### 1.4 DevOps と関連する概念の関係性
+### 1.4 Relationship Between DevOps and Related Concepts
 
-DevOps は単独で存在するのではなく、複数の思想・手法と密接に関連している。
+DevOps does not exist in isolation — it is closely related to multiple philosophies and methodologies.
 
 ```
                     ┌──────────────────┐
                     │   Lean Thinking  │
-                    │  (ムダの排除)     │
+                    │  (Waste Elimination) │
                     └────────┬─────────┘
-                             │ 影響
+                             │ Influence
                     ┌────────▼─────────┐
                     │   Agile          │
-                    │  (反復型開発)     │
+                    │  (Iterative Dev) │
                     └────────┬─────────┘
-                             │ 拡張
+                             │ Extension
               ┌──────────────▼──────────────┐
               │         DevOps              │
-              │  (開発+運用の統合文化)        │
+              │  (Dev+Ops Integrated Culture)│
               └──┬──────────┬───────────┬───┘
                  │          │           │
          ┌───────▼──┐ ┌────▼─────┐ ┌───▼──────────┐
          │  SRE     │ │ GitOps   │ │ Platform     │
-         │ (信頼性  │ │ (宣言的  │ │ Engineering  │
-         │  工学)   │ │  運用)   │ │ (開発者基盤) │
-         └──────────┘ └──────────┘ └──────────────┘
+         │(Reliability│ │(Declarative│ │ Engineering  │
+         │Engineering)│ │Operations) │ │(Developer    │
+         └──────────┘ └──────────┘ │ Platform)    │
+                                   └──────────────┘
 ```
 
-**Lean Thinking**: トヨタ生産方式に由来。ムダの排除、フロー最適化、継続的改善（カイゼン）の概念を提供。
+**Lean Thinking**: Originates from the Toyota Production System. Provides concepts of waste elimination, flow optimization, and continuous improvement (Kaizen).
 
-**Agile**: 反復型開発、顧客フィードバック、変化への適応。DevOps は Agile の原則を運用領域まで拡張したもの。
+**Agile**: Iterative development, customer feedback, and adaptation to change. DevOps extends Agile principles into the operations domain.
 
-**SRE (Site Reliability Engineering)**: Google が提唱。DevOps の原則を具体的なプラクティス（エラーバジェット、SLI/SLO/SLA、トイル削減）として実装。
+**SRE (Site Reliability Engineering)**: Pioneered by Google. Implements DevOps principles as concrete practices (error budgets, SLI/SLO/SLA, toil reduction).
 
-**GitOps**: Git リポジトリを Single Source of Truth として、宣言的にインフラとアプリケーションを管理する手法。
+**GitOps**: A methodology that uses a Git repository as the Single Source of Truth to declaratively manage infrastructure and applications.
 
-**Platform Engineering**: 内部開発者プラットフォーム（IDP）を構築し、開発者のセルフサービスを実現する組織的アプローチ。
+**Platform Engineering**: An organizational approach that builds an Internal Developer Platform (IDP) to enable developer self-service.
 
 ---
 
-## 2. CALMS フレームワーク
+## 2. The CALMS Framework
 
-DevOpsの成熟度を評価する5つの柱が CALMS である。
+CALMS is the five pillars used to assess DevOps maturity.
 
-### 2.1 Culture（文化）
+### 2.1 Culture
 
-チーム間の信頼、責任共有、失敗から学ぶ姿勢。
+Trust between teams, shared responsibility, and a willingness to learn from failure.
 
 ```yaml
-# 文化の具体例: Blameless Postmortem テンプレート
+# Culture example: Blameless Postmortem template
 postmortem:
   title: "2024-01-15 API サーバーダウン"
   severity: SEV-1
@@ -161,7 +162,7 @@ postmortem:
   blame: "個人を責めない。プロセスを改善する。"
 ```
 
-#### Blameless Postmortem の実践的テンプレート
+#### Practical Blameless Postmortem Template
 
 ```markdown
 # インシデント振り返り: [タイトル]
@@ -214,9 +215,9 @@ postmortem:
 - ステージング環境のデータ量が本番と乖離
 ```
 
-#### 心理的安全性の構築
+#### Building Psychological Safety
 
-DevOps 文化で最も重要なのは心理的安全性（Psychological Safety）である。Google のProject Aristotle の研究で、チームパフォーマンスの最大の予測因子として特定された。
+The most important element in DevOps culture is Psychological Safety. Google's Project Aristotle research identified it as the top predictor of team performance.
 
 ```yaml
 # 心理的安全性チェックリスト
@@ -250,9 +251,9 @@ psychological_safety:
       - "DevOps 成熟度アセスメント"
 ```
 
-### 2.2 Automation（自動化）
+### 2.2 Automation
 
-手作業を排除し、再現性と速度を確保する。
+Eliminate manual work to ensure reproducibility and speed.
 
 ```bash
 #!/bin/bash
@@ -273,29 +274,29 @@ pm2 restart app
 # 全てコードで定義され、バージョン管理される
 ```
 
-#### 自動化の優先度マトリクス
+#### Automation Priority Matrix
 
-何から自動化すべきかを判断するフレームワークを示す。
+A framework for deciding what to automate first.
 
 ```
-自動化の優先度 = (実行頻度 × 手動所要時間 × エラーリスク) / 自動化コスト
+Automation Priority = (Frequency × Manual Time × Error Risk) / Automation Cost
 
-          高頻度
+          High Frequency
             │
     ┌───────┼───────┐
-    │ 優先度 │ 最優先 │  ← ここから着手
-    │  中   │  高   │
+    │Medium │ Highest│  ← Start here
+    │Priority│Priority│
     ├───────┼───────┤
-    │ 優先度 │ 優先度 │
-    │  低   │  中   │
+    │ Low   │Medium │
+    │Priority│Priority│
     └───────┼───────┘
             │
-          低頻度
-     短時間    長時間
-        手動所要時間
+          Low Frequency
+     Short Time    Long Time
+        Manual Time Required
 ```
 
-#### 自動化すべき領域のチェックリスト
+#### Automation Checklist by Domain
 
 ```yaml
 automation_checklist:
@@ -344,7 +345,7 @@ automation_checklist:
       tools: ["Infracost", "AWS Cost Explorer API"]
 ```
 
-#### 自動化パイプラインの全体像
+#### Full Automation Pipeline Overview
 
 ```yaml
 # .github/workflows/full-pipeline.yml
@@ -481,14 +482,14 @@ jobs:
           # 10% のトラフィックを新バージョンに振り分け
 ```
 
-### 2.3 Lean（リーン）
+### 2.3 Lean
 
-ムダの排除、小さなバッチ、フロー最適化。
+Eliminate waste, reduce batch size, and optimize flow.
 
 ```
-バッチサイズとリスクの関係:
+Relationship between batch size and risk:
 
-リスク
+Risk
   ^
   |        *
   |       *
@@ -496,64 +497,64 @@ jobs:
   |    *
   |  *
   | *
-  +*-----------> バッチサイズ
-  小              大
+  +*-----------> Batch Size
+  Small          Large
 
-小さなバッチ = 小さなリスク = 速いフィードバック
+Small batch = Small risk = Fast feedback
 ```
 
-#### リーンの7つのムダ（ソフトウェア開発版）
+#### The Seven Wastes of Lean (Software Development Edition)
 
-トヨタ生産方式の7つのムダをソフトウェア開発に適用する。
+Applying the seven wastes from the Toyota Production System to software development.
 
 ```
-製造業のムダ              ソフトウェア開発のムダ           対策
+Manufacturing Waste          Software Development Waste         Solution
 ─────────────────────────────────────────────────────────────
-1. 作りすぎ         →  不要な機能開発               → MVP、フィーチャーフラグ
-2. 手持ち(待ち)     →  承認待ち、レビュー待ち       → 自動承認、非同期レビュー
-3. 運搬             →  チーム間のハンドオフ         → クロスファンクショナルチーム
-4. 加工のムダ       →  過剰なプロセス・文書化       → 必要十分なドキュメント
-5. 在庫             →  未リリースのコード           → 継続的デプロイ、小バッチ
-6. 動作のムダ       →  ツール切り替え、環境構築     → 統合開発環境、IDP
-7. 不良品           →  バグ、手戻り                 → TDD、CI、自動テスト
+1. Overproduction      →  Unnecessary feature development  → MVP, feature flags
+2. Waiting             →  Approval wait, review wait       → Auto-approval, async review
+3. Transportation      →  Team handoffs                    → Cross-functional teams
+4. Over-processing     →  Excessive process/documentation  → Just-enough documentation
+5. Inventory           →  Unreleased code                  → Continuous deploy, small batches
+6. Motion              →  Tool switching, env setup        → Integrated dev environment, IDP
+7. Defects             →  Bugs, rework                     → TDD, CI, automated testing
 ```
 
-#### バリューストリームマッピング
+#### Value Stream Mapping
 
-開発プロセスのボトルネックを可視化する手法。
+A technique for visualizing bottlenecks in the development process.
 
 ```
-バリューストリームマップ例: フィーチャーリクエストからリリースまで
+Value Stream Map Example: From Feature Request to Release
 
-                プロセス時間    待ち時間
+                Process Time    Wait Time
                 ──────────    ──────
-要件定義         2日          3日待ち（承認待ち）
+Requirements    2 days          3 days wait (approval wait)
     ↓
-設計             1日          2日待ち（レビュー待ち）
+Design          1 day           2 days wait (review wait)
     ↓
-実装             3日          0.5日待ち（PR レビュー待ち）
+Implementation  3 days          0.5 days wait (PR review wait)
     ↓
-コードレビュー   0.5日        1日待ち（修正待ち）
+Code Review     0.5 days        1 day wait (fix wait)
     ↓
-テスト           0.5日        2日待ち（テスト環境待ち）
+Testing         0.5 days        2 days wait (test env wait)
     ↓
-デプロイ         0.1日        5日待ち（リリースウィンドウ待ち）
+Deploy          0.1 days        5 days wait (release window wait)
     ↓
-リリース確認     0.2日
+Release confirm 0.2 days
 ────────────────────────────────
-合計: プロセス時間 7.3日 / 待ち時間 13.5日
-リードタイム: 20.8日
-プロセス効率: 7.3 / 20.8 = 35%
+Total: Process time 7.3 days / Wait time 13.5 days
+Lead time: 20.8 days
+Process efficiency: 7.3 / 20.8 = 35%
 
-改善後の目標:
-プロセス時間 5日 / 待ち時間 2日
-リードタイム: 7日
-プロセス効率: 5 / 7 = 71%
+Target after improvement:
+Process time 5 days / Wait time 2 days
+Lead time: 7 days
+Process efficiency: 5 / 7 = 71%
 ```
 
-### 2.4 Measurement（計測）
+### 2.4 Measurement
 
-改善にはデータが必要。計測しないものは改善できない。
+Improvement requires data. You cannot improve what you don't measure.
 
 ```python
 # DORA メトリクス計測の実装例
@@ -757,7 +758,7 @@ class DORAMetrics:
             return "Low"
 ```
 
-#### DORA メトリクスダッシュボードの構築例
+#### Example DORA Metrics Dashboard Setup
 
 ```python
 # Grafana ダッシュボード用の Prometheus メトリクス
@@ -802,9 +803,9 @@ dora_level_gauge = Gauge(
 )
 ```
 
-### 2.5 Sharing（共有）
+### 2.5 Sharing
 
-知識、責任、ツールの共有。
+Sharing knowledge, responsibility, and tools.
 
 ```yaml
 # 共有のプラクティス例
@@ -827,7 +828,7 @@ sharing_practices:
     - "内部開発者ポータル (Backstage)"
 ```
 
-#### ADR (Architecture Decision Record) テンプレート
+#### ADR (Architecture Decision Record) Template
 
 ```markdown
 # ADR-0012: API ゲートウェイに Kong を採用
@@ -866,7 +867,7 @@ Kong を採用する。
 - カスタムプラグインの開発ガイドラインを策定
 ```
 
-#### Runbook テンプレート
+#### Runbook Template
 
 ```markdown
 # Runbook: API レスポンスタイム劣化
@@ -922,22 +923,22 @@ kubectl top pods -n production --sort-by=memory
 
 ---
 
-## 3. DORA メトリクス詳解
+## 3. DORA Metrics in Depth
 
-DORA (DevOps Research and Assessment) は Google Cloud が支援する研究プログラムで、ソフトウェアデリバリーのパフォーマンスを4つのメトリクスで定量化する。
+DORA (DevOps Research and Assessment) is a research program supported by Google Cloud that quantifies software delivery performance using four metrics.
 
-### 3.1 四大メトリクス比較表
+### 3.1 Four Key Metrics Comparison
 
-| メトリクス | Elite | High | Medium | Low |
+| Metric | Elite | High | Medium | Low |
 |---|---|---|---|---|
-| デプロイ頻度 | オンデマンド(1日複数回) | 週1〜月1回 | 月1〜半年に1回 | 半年に1回未満 |
-| 変更リードタイム | 1時間未満 | 1日〜1週間 | 1週間〜1ヶ月 | 1ヶ月〜半年 |
-| 変更障害率 | 0〜5% | 5〜15% | 15〜30% | 30%超 |
-| サービス復旧時間 | 1時間未満 | 1日未満 | 1日〜1週間 | 1週間超 |
+| Deployment Frequency | On-demand (multiple times/day) | Weekly to monthly | Monthly to every 6 months | Less than every 6 months |
+| Lead Time for Changes | Less than 1 hour | 1 day to 1 week | 1 week to 1 month | 1 month to 6 months |
+| Change Failure Rate | 0–5% | 5–15% | 15–30% | Over 30% |
+| Time to Restore Service | Less than 1 hour | Less than 1 day | 1 day to 1 week | Over 1 week |
 
-### 3.2 DORA メトリクスの5つ目: 信頼性
+### 3.2 The Fifth DORA Metric: Reliability
 
-2022年の State of DevOps Report から、5つ目のメトリクスとして「信頼性（Reliability）」が追加された。
+From the 2022 State of DevOps Report, "Reliability" was added as the fifth metric.
 
 ```yaml
 reliability_metric:
@@ -964,19 +965,19 @@ reliability_metric:
       - "可用性が不安定"
 ```
 
-### 3.3 DevOps 成熟度モデル比較
+### 3.3 DevOps Maturity Model Comparison
 
-| 段階 | プラクティス | ツール例 | 組織の特徴 |
+| Level | Practices | Example Tools | Organizational Characteristics |
 |---|---|---|---|
-| Level 0: 手動 | 手動デプロイ、手動テスト | FTP、手作業SSH | サイロ化した組織 |
-| Level 1: 部分自動化 | CI導入、自動テスト一部 | Jenkins、基本的なスクリプト | 開発チーム内で自動化 |
-| Level 2: CI/CD | 完全CI/CD、IaC導入 | GitHub Actions、Terraform | クロスファンクショナルチーム |
-| Level 3: 継続的改善 | カナリーデプロイ、SLO | ArgoCD、Datadog | プラットフォームチーム |
-| Level 4: 最適化 | カオスエンジニアリング、ML-Ops | Chaos Monkey、Feature Flags | 学習する組織 |
+| Level 0: Manual | Manual deploy, manual testing | FTP, manual SSH | Siloed organization |
+| Level 1: Partial Automation | CI adopted, some automated tests | Jenkins, basic scripts | Automation within dev team |
+| Level 2: CI/CD | Full CI/CD, IaC adopted | GitHub Actions, Terraform | Cross-functional teams |
+| Level 3: Continuous Improvement | Canary deploy, SLO | ArgoCD, Datadog | Platform teams |
+| Level 4: Optimized | Chaos engineering, ML-Ops | Chaos Monkey, Feature Flags | Learning organization |
 
-### 3.4 メトリクス計測の自動化
+### 3.4 Automating Metric Collection
 
-DORA メトリクスを GitHub Actions で自動計測する実装例を示す。
+An example implementation of automatically collecting DORA metrics with GitHub Actions.
 
 ```yaml
 # .github/workflows/dora-metrics.yml
@@ -1054,7 +1055,7 @@ jobs:
 
 ---
 
-## 4. DevOps の無限ループ
+## 4. The DevOps Infinite Loop
 
 ```
           Plan → Code → Build → Test
@@ -1064,7 +1065,7 @@ jobs:
           Operate ← Deploy ← Stage
 
 +--------------------------------------------------+
-|              DevOps ∞ ループ                       |
+|              DevOps ∞ Loop                         |
 |                                                    |
 |   ┌─────────── Dev ──────────┐                    |
 |   │  Plan → Code → Build → Test                  |
@@ -1079,12 +1080,12 @@ jobs:
 +--------------------------------------------------+
 ```
 
-### 4.1 各フェーズの詳細と推奨ツール
+### 4.1 Each Phase in Detail with Recommended Tools
 
 ```yaml
 devops_loop_phases:
   plan:
-    description: "要件定義、バックログ管理、スプリント計画"
+    description: "Requirements definition, backlog management, sprint planning"
     tools:
       - name: "Jira"
         use_case: "大規模プロジェクトのバックログ管理"
@@ -1098,7 +1099,7 @@ devops_loop_phases:
       - "技術的負債のバックログ化"
 
   code:
-    description: "開発、コードレビュー、ブランチ管理"
+    description: "Development, code review, branch management"
     tools:
       - name: "GitHub"
         use_case: "ソースコード管理、PR レビュー"
@@ -1112,7 +1113,7 @@ devops_loop_phases:
       - "Feature Flags による開発"
 
   build:
-    description: "コンパイル、パッケージング、コンテナイメージ作成"
+    description: "Compilation, packaging, container image creation"
     tools:
       - name: "Docker"
         use_case: "コンテナイメージのビルド"
@@ -1126,7 +1127,7 @@ devops_loop_phases:
       - "再現可能なビルド"
 
   test:
-    description: "自動テスト、品質ゲート、セキュリティスキャン"
+    description: "Automated testing, quality gates, security scanning"
     tools:
       - name: "Jest / Vitest"
         use_case: "ユニットテスト"
@@ -1140,7 +1141,7 @@ devops_loop_phases:
       - "Shift-Left テスティング"
 
   release:
-    description: "バージョニング、リリースノート、アーティファクト管理"
+    description: "Versioning, release notes, artifact management"
     tools:
       - name: "semantic-release"
         use_case: "自動バージョニング"
@@ -1154,7 +1155,7 @@ devops_loop_phases:
       - "リリースブランチ戦略"
 
   deploy:
-    description: "本番デプロイ、カナリー、ブルーグリーン"
+    description: "Production deploy, canary, blue-green"
     tools:
       - name: "ArgoCD"
         use_case: "Kubernetes GitOps デプロイ"
@@ -1168,7 +1169,7 @@ devops_loop_phases:
       - "ローリングアップデート"
 
   operate:
-    description: "インシデント管理、スケーリング、設定管理"
+    description: "Incident management, scaling, configuration management"
     tools:
       - name: "PagerDuty"
         use_case: "オンコール管理、インシデント対応"
@@ -1182,7 +1183,7 @@ devops_loop_phases:
       - "カオスエンジニアリング"
 
   monitor:
-    description: "メトリクス収集、ログ分析、トレーシング"
+    description: "Metrics collection, log analysis, tracing"
     tools:
       - name: "Datadog / Grafana"
         use_case: "メトリクスダッシュボード"
@@ -1198,42 +1199,42 @@ devops_loop_phases:
 
 ---
 
-## 5. Three Ways（3つの道）
+## 5. The Three Ways
 
-Gene Kim の「The Phoenix Project」で提唱された DevOps の基本原則。
+The foundational DevOps principles proposed by Gene Kim in "The Phoenix Project."
 
 ```
-第1の道: フロー (Systems Thinking)
+First Way: Flow (Systems Thinking)
   Dev → Ops → Customer
-  左から右へのフローを最大化
+  Maximize flow from left to right
 
-第2の道: フィードバック
+Second Way: Feedback
   Dev ← Ops ← Customer
-  右から左へのフィードバックを最大化
+  Maximize feedback from right to left
 
-第3の道: 継続的学習
-  +---→ 実験 → 失敗 → 学習 ---+
-  |                             |
-  +-------- 繰り返し ←---------+
-  リスクを取り、反復し、習熟する
+Third Way: Continuous Learning
+  +---→ Experiment → Fail → Learn ---+
+  |                                   |
+  +---------- Repeat ←---------------+
+  Take risks, iterate, and build mastery
 ```
 
-### 5.1 第1の道: フローの原則
+### 5.1 First Way: The Principle of Flow
 
-システム全体のパフォーマンスを最適化し、局所最適化を避ける。
+Optimize the performance of the entire system; avoid local optimizations.
 
 ```yaml
 first_way_practices:
   principles:
-    - "WIP（仕掛品）の制限"
-    - "バッチサイズの縮小"
-    - "ハンドオフの削減"
-    - "制約の特定と解消"
-    - "ムダの排除"
+    - "Limit WIP (Work in Progress)"
+    - "Reduce batch size"
+    - "Reduce handoffs"
+    - "Identify and eliminate constraints"
+    - "Eliminate waste"
 
   implementation:
     wip_limits:
-      description: "同時進行タスク数の制限"
+      description: "Limit the number of simultaneous in-progress tasks"
       example:
         development: 3  # 開発中の機能は最大3つ
         code_review: 5  # レビュー待ちは最大5つ
@@ -1243,363 +1244,364 @@ first_way_practices:
     batch_size_reduction:
       before: "3ヶ月分の機能を一度にリリース"
       after: "毎日小さな変更をリリース"
-      benefit: "リスク低減、フィードバック速度向上"
+      benefit: "Risk reduction, faster feedback"
 
     constraint_identification:
-      tool: "バリューストリームマッピング"
+      tool: "Value Stream Mapping"
       steps:
-        - "現状のプロセスを可視化"
-        - "待ち時間・ボトルネックを特定"
-        - "制約を解消する施策を実行"
-        - "改善効果を計測"
+        - "Visualize the current process"
+        - "Identify wait times and bottlenecks"
+        - "Execute measures to resolve constraints"
+        - "Measure the effect of improvements"
 ```
 
-### 5.2 第2の道: フィードバックの原則
+### 5.2 Second Way: The Principle of Feedback
 
-右から左への迅速なフィードバックループを構築する。
+Build rapid feedback loops from right to left.
 
 ```yaml
 second_way_practices:
   feedback_loops:
-    immediate:  # 秒〜分
-      - "IDE のリアルタイムエラー表示"
-      - "pre-commit フック"
-      - "ユニットテスト"
-    short:  # 分〜時間
-      - "CI パイプラインの結果"
-      - "コードレビューのコメント"
-      - "セキュリティスキャン結果"
-    medium:  # 時間〜日
-      - "ステージング環境でのテスト結果"
-      - "パフォーマンステスト結果"
-      - "ユーザーフィードバック（ベータ）"
-    long:  # 日〜週
-      - "本番環境のメトリクス"
-      - "ユーザーの行動分析"
-      - "A/B テスト結果"
+    immediate:  # Seconds to minutes
+      - "Real-time error display in IDE"
+      - "pre-commit hooks"
+      - "Unit tests"
+    short:  # Minutes to hours
+      - "CI pipeline results"
+      - "Code review comments"
+      - "Security scan results"
+    medium:  # Hours to days
+      - "Test results in staging environment"
+      - "Performance test results"
+      - "User feedback (beta)"
+    long:  # Days to weeks
+      - "Production environment metrics"
+      - "User behavior analytics"
+      - "A/B test results"
 
   implementation:
     telemetry:
-      - "全レイヤーにメトリクス・ログ・トレースを埋め込む"
-      - "異常検知による自動アラート"
+      - "Embed metrics, logs, and traces at all layers"
+      - "Automatic alerting via anomaly detection"
     peer_review:
-      - "全変更に対するコードレビュー"
-      - "ペアプログラミングの導入"
+      - "Code review for all changes"
+      - "Adopt pair programming"
     swarm:
-      - "問題発生時にチーム全体で対応"
-      - "知識の属人化を防ぐ"
+      - "Whole team responds when problems arise"
+      - "Prevent knowledge siloing"
 ```
 
-### 5.3 第3の道: 継続的学習と実験の原則
+### 5.3 Third Way: The Principle of Continuous Learning and Experimentation
 
-組織全体で学習し、改善し続ける文化を構築する。
+Build a culture of learning and continuous improvement across the entire organization.
 
 ```yaml
 third_way_practices:
   experimentation:
-    - "20% タイムの確保（Google 方式）"
-    - "ハッカソンの定期開催"
-    - "新技術の PoC を推奨"
-    - "失敗を許容する文化"
+    - "Allocate 20% time (Google style)"
+    - "Hold regular hackathons"
+    - "Encourage PoC of new technologies"
+    - "Foster a culture that tolerates failure"
 
   learning_from_failure:
-    - "Blameless Postmortem の徹底"
-    - "Game Day（障害訓練）の実施"
-    - "カオスエンジニアリング"
+    - "Rigorously practice Blameless Postmortems"
+    - "Conduct Game Days (failure drills)"
+    - "Chaos engineering"
 
   knowledge_sharing:
-    - "社内テックトーク"
-    - "ドキュメンテーション文化"
-    - "メンタリング制度"
-    - "カンファレンス参加の奨励"
+    - "Internal tech talks"
+    - "Documentation culture"
+    - "Mentoring programs"
+    - "Encourage conference attendance"
 
   mastery:
-    - "反復による習熟"
-    - "日々の改善（カイゼン）"
-    - "技術ブログの執筆"
+    - "Build mastery through repetition"
+    - "Daily improvement (Kaizen)"
+    - "Write technical blog posts"
 ```
 
 ---
 
-## 6. プラットフォームエンジニアリング
+## 6. Platform Engineering
 
-DevOps の進化形として、プラットフォームエンジニアリングが注目されている。
+Platform Engineering is gaining attention as an evolution of DevOps.
 
-### 6.1 背景
+### 6.1 Background
 
-DevOps の「You build it, you run it」原則により、開発者の認知負荷が増大した。インフラ、CI/CD、モニタリング、セキュリティなど、開発者が管理すべき領域が広がりすぎた結果、本来の開発業務に集中できなくなった。
+The DevOps principle of "You build it, you run it" has increased cognitive load on developers. As the domains developers need to manage — infrastructure, CI/CD, monitoring, security, and more — expanded too broadly, developers could no longer focus on their core development work.
 
 ```
-DevOps の課題（認知負荷の増大）:
+DevOps Challenge (Increased Cognitive Load):
 
-開発者が管理すべきもの:
+Things developers must manage:
 ┌──────────────────────────────────────────────┐
-│ アプリケーションコード                          │
-│ テスト                                         │
-│ CI/CD パイプライン                              │
-│ コンテナ (Dockerfile, Kubernetes manifests)     │
-│ インフラ (Terraform, CloudFormation)            │
-│ モニタリング (Datadog, Grafana)                 │
-│ セキュリティ (脆弱性スキャン, シークレット管理) │
-│ コスト管理                                      │
-│ コンプライアンス                                │
+│ Application code                              │
+│ Tests                                         │
+│ CI/CD pipelines                               │
+│ Containers (Dockerfile, Kubernetes manifests) │
+│ Infrastructure (Terraform, CloudFormation)    │
+│ Monitoring (Datadog, Grafana)                 │
+│ Security (vulnerability scanning, secret mgmt)│
+│ Cost management                               │
+│ Compliance                                    │
 └──────────────────────────────────────────────┘
-         ↓ 認知負荷が過大
+         ↓ Cognitive load becomes excessive
          ↓
-プラットフォームエンジニアリングで解決
+Solved by Platform Engineering
 ```
 
-### 6.2 内部開発者プラットフォーム（IDP）
+### 6.2 Internal Developer Platform (IDP)
 
 ```yaml
 internal_developer_platform:
   definition: >
-    開発者がセルフサービスでインフラやツールを利用できる
-    統合プラットフォーム。開発者体験（DX）の向上が目的。
+    An integrated platform that enables developers to use
+    infrastructure and tools via self-service.
+    The goal is to improve the developer experience (DX).
 
   components:
     developer_portal:
       tool: "Backstage (Spotify OSS)"
       features:
-        - "サービスカタログ"
-        - "テンプレートからの新規サービス作成"
-        - "API ドキュメント集約"
-        - "チーム情報・オーナーシップ管理"
+        - "Service catalog"
+        - "Create new services from templates"
+        - "Aggregated API documentation"
+        - "Team information and ownership management"
 
     infrastructure_abstraction:
       tools: ["Crossplane", "Terraform Cloud", "Pulumi"]
       features:
-        - "セルフサービスのインフラプロビジョニング"
-        - "ガードレール付きの環境構築"
-        - "コスト可視化"
+        - "Self-service infrastructure provisioning"
+        - "Guardrail-equipped environment creation"
+        - "Cost visibility"
 
     ci_cd_platform:
       tools: ["GitHub Actions", "Dagger", "Tekton"]
       features:
-        - "標準化されたパイプラインテンプレート"
-        - "自動セキュリティスキャン"
-        - "デプロイ承認フロー"
+        - "Standardized pipeline templates"
+        - "Automatic security scanning"
+        - "Deploy approval flow"
 
     observability_platform:
       tools: ["Grafana Stack", "Datadog", "OpenTelemetry"]
       features:
-        - "自動インストルメンテーション"
-        - "標準ダッシュボード"
-        - "アラートルーティング"
+        - "Automatic instrumentation"
+        - "Standard dashboards"
+        - "Alert routing"
 
   golden_paths:
     description: >
-      開発者が推奨されるパスに沿って効率的に作業できるテンプレート。
-      強制ではなく推奨であることが重要。
+      Templates that let developers work efficiently along recommended paths.
+      It is important that these are recommendations, not mandates.
     examples:
-      - "新規 API サービスのテンプレート"
-      - "フロントエンドアプリのテンプレート"
-      - "データパイプラインのテンプレート"
+      - "Template for a new API service"
+      - "Template for a frontend application"
+      - "Template for a data pipeline"
 ```
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン1: ツール先行型 DevOps
-
-```
-悪い例:
-  "Kubernetes を導入したから DevOps できている"
-  "CI/CD ツールを入れたから DevOps 完了"
-
-問題:
-  - 文化の変革なしにツールだけ導入
-  - チーム間のサイロが残ったまま
-  - ツールが複雑になり逆に生産性低下
-
-改善:
-  1. まず文化・プロセスの改善に着手
-  2. 小さな自動化から始める
-  3. ツールは問題解決の手段として選定
-```
-
-### アンチパターン2: DevOps チーム症候群
+### Anti-Pattern 1: Tool-First DevOps
 
 ```
-悪い例:
-  組織図に「DevOps チーム」を新設し、
-  開発チームと運用チームの間に第3のサイロを作る
+Bad example:
+  "We adopted Kubernetes, so we're doing DevOps"
+  "We installed a CI/CD tool, so DevOps is done"
+
+Problems:
+  - Introducing tools without cultural transformation
+  - Team silos remain intact
+  - Tools become complex and reduce productivity instead
+
+Improvement:
+  1. Start with improving culture and processes first
+  2. Begin with small automations
+  3. Select tools as a means to solve specific problems
+```
+
+### Anti-Pattern 2: The DevOps Team Syndrome
+
+```
+Bad example:
+  Creating a new "DevOps team" in the org chart,
+  adding a third silo between the dev and ops teams
 
   Dev Team  →  DevOps Team  →  Ops Team
-              (新たな壁)      (依然として壁)
+                (new wall)      (wall still exists)
 
-改善:
-  - DevOps はチーム名ではなく文化
-  - プラットフォームエンジニアリングチームとして
-    開発者体験(DX)を向上させるツール・基盤を提供
-  - "You build it, you run it" の原則
+Improvement:
+  - DevOps is a culture, not a team name
+  - Provide tools and foundations that improve
+    developer experience (DX) as a Platform Engineering team
+  - Follow the "You build it, you run it" principle
 ```
 
-### アンチパターン3: 計測なき改善
+### Anti-Pattern 3: Improvement Without Measurement
 
 ```
-悪い例:
-  "感覚的に速くなった気がする"
-  "たぶんデプロイ頻度が上がった"
+Bad example:
+  "It feels like it got faster somehow"
+  "I think our deploy frequency went up"
 
-問題:
-  - 改善の根拠がない
-  - 投資対効果を説明できない
-  - 後退しても気づけない
+Problems:
+  - No basis for improvement
+  - Cannot explain ROI
+  - Cannot detect regression
 
-改善:
-  1. DORA メトリクスのベースラインを計測
-  2. 改善施策ごとに効果を定量評価
-  3. ダッシュボードで可視化・共有
+Improvement:
+  1. Measure a baseline with DORA metrics
+  2. Quantitatively evaluate the effect of each improvement
+  3. Visualize and share via dashboards
 ```
 
-### アンチパターン4: 自動化の罠
+### Anti-Pattern 4: The Automation Trap
 
 ```
-悪い例:
-  - 全てを一度に自動化しようとする
-  - テストなしでデプロイを自動化
-  - 自動化スクリプトのメンテナンス不足
+Bad example:
+  - Trying to automate everything at once
+  - Automating deployments without tests
+  - Neglecting maintenance of automation scripts
 
-問題:
-  - 自動化されたプロセスが壊れても気づかない
-  - 「自動化されている＝安全」という誤解
-  - メンテナンスコストが手動コストを上回る
+Problems:
+  - Breakage in automated processes goes undetected
+  - Misconception that "automated = safe"
+  - Maintenance cost exceeds the cost of doing it manually
 
-改善:
-  1. 段階的に自動化（まずテスト → ビルド → デプロイ）
-  2. 自動化コード自体もテスト・レビュー対象
-  3. 定期的な自動化パイプラインの健全性チェック
+Improvement:
+  1. Automate incrementally (tests → build → deploy)
+  2. Automation code itself is subject to testing and review
+  3. Regularly check the health of the automation pipeline
 ```
 
-### アンチパターン5: モノリシックなCI/CDパイプライン
+### Anti-Pattern 5: Monolithic CI/CD Pipeline
 
 ```
-悪い例:
-  全サービスが1つの巨大な CI/CD パイプラインを共有
-  1つのサービスの変更で全サービスのテスト・デプロイが実行
+Bad example:
+  All services share one giant CI/CD pipeline
+  A change to one service triggers tests and deploy for all services
 
-問題:
-  - パイプライン実行時間が膨大
-  - 他チームの変更で自チームのデプロイがブロック
-  - 障害の影響範囲が全サービスに波及
+Problems:
+  - Pipeline execution time becomes massive
+  - Another team's changes block your own team's deployments
+  - Failures impact all services
 
-改善:
-  - サービスごとに独立したパイプライン
-  - 共通部分はReusable Workflowsで共有
-  - 変更検知による選択的実行
+Improvement:
+  - Independent pipeline per service
+  - Share common parts via Reusable Workflows
+  - Selective execution based on change detection
 ```
 
 ---
 
-## 8. DevOps 導入ロードマップ
+## 8. DevOps Adoption Roadmap
 
-### 8.1 フェーズ別導入計画
+### 8.1 Phase-Based Adoption Plan
 
 ```
-Phase 0: 現状把握（2週間）
-├── バリューストリームマッピング
-├── DORA メトリクスのベースライン計測
-├── チームアンケート（文化・課題の把握）
-└── ツール棚卸し
+Phase 0: Assess Current State (2 weeks)
+├── Value Stream Mapping
+├── Baseline measurement of DORA metrics
+├── Team survey (understand culture and challenges)
+└── Tool inventory
 
-Phase 1: Quick Wins（1-3ヶ月）
-├── バージョン管理の統一（Git）
-├── 基本的な CI の導入（lint + unit test）
-├── 自動ビルドの構築
-├── チャットツールの統一（Slack/Teams）
-└── 目標: 開発者が「便利になった」と実感
+Phase 1: Quick Wins (1–3 months)
+├── Unify version control (Git)
+├── Introduce basic CI (lint + unit test)
+├── Build automated builds
+├── Unify chat tools (Slack/Teams)
+└── Goal: Developers feel "this is more convenient"
 
-Phase 2: CI/CD 確立（3-6ヶ月）
-├── テスト自動化の拡充（integration, E2E）
-├── CD パイプラインの構築
-├── Infrastructure as Code の導入
-├── 監視・アラートの基盤構築
-└── 目標: 手動作業を50%削減
+Phase 2: Establish CI/CD (3–6 months)
+├── Expand test automation (integration, E2E)
+├── Build CD pipeline
+├── Adopt Infrastructure as Code
+├── Build monitoring and alerting foundation
+└── Goal: Reduce manual work by 50%
 
-Phase 3: 継続的改善（6-12ヶ月）
-├── カナリーデプロイの導入
-├── SLI/SLO の定義
-├── Blameless Postmortem の制度化
-├── プラットフォームチームの発足
-└── 目標: DORA メトリクスの High レベル達成
+Phase 3: Continuous Improvement (6–12 months)
+├── Introduce canary deployments
+├── Define SLI/SLO
+├── Institutionalize Blameless Postmortems
+├── Launch a platform team
+└── Goal: Reach DORA metrics High level
 
-Phase 4: 最適化（12ヶ月〜）
-├── カオスエンジニアリングの導入
-├── フィーチャーフラグの活用
-├── 内部開発者プラットフォーム構築
-├── AIOps の検討
-└── 目標: DORA メトリクスの Elite レベル
+Phase 4: Optimization (12+ months)
+├── Introduce chaos engineering
+├── Leverage feature flags
+├── Build Internal Developer Platform
+├── Explore AIOps
+└── Goal: DORA metrics Elite level
 ```
 
-### 8.2 組織変革のための実践的アドバイス
+### 8.2 Practical Advice for Organizational Transformation
 
 ```yaml
 organizational_transformation:
   executive_support:
-    why: "トップダウンのサポートなしに文化変革は不可能"
+    why: "Cultural transformation is impossible without top-down support"
     how:
-      - "経営層への DORA レポートの定期報告"
-      - "DevOps による事業貢献の定量化"
-      - "先行事例（Netflix, Amazon）の共有"
+      - "Regular DORA report presentations to leadership"
+      - "Quantify business contributions from DevOps"
+      - "Share case studies from leading companies (Netflix, Amazon)"
 
   start_small:
-    why: "大規模な変革は失敗しやすい"
+    why: "Large-scale transformations tend to fail"
     how:
-      - "パイロットチームを選定（意欲の高いチーム）"
-      - "小さな成功を積み重ねる"
-      - "成功事例を社内に展開"
+      - "Select a pilot team (a highly motivated team)"
+      - "Accumulate small successes"
+      - "Roll out success stories across the organization"
 
   measure_and_share:
-    why: "計測なくして改善なし"
+    why: "No measurement, no improvement"
     how:
-      - "DORA メトリクスの定期計測"
-      - "改善施策の Before/After を可視化"
-      - "ダッシュボードを全員に公開"
+      - "Regularly measure DORA metrics"
+      - "Visualize Before/After for each improvement initiative"
+      - "Make dashboards publicly available to everyone"
 
   invest_in_people:
-    why: "ツールよりも人材への投資が重要"
+    why: "Investing in people matters more than investing in tools"
     how:
-      - "トレーニング・学習時間の確保"
-      - "カンファレンス参加の支援"
-      - "社内勉強会の開催"
-      - "外部コミュニティとの交流"
+      - "Secure time for training and learning"
+      - "Support conference attendance"
+      - "Hold internal study sessions"
+      - "Engage with external communities"
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1: DevOps エンジニアという職種は正しいのか？
+### Q1: Is the job title "DevOps Engineer" correct?
 
-DevOps は本来文化・プラクティスであり職種名ではない。しかし市場では「DevOps エンジニア」という職種が定着している。実態としてはインフラ自動化、CI/CD 構築、クラウド運用を担当するエンジニアを指すことが多い。最近では「Platform Engineer」「SRE (Site Reliability Engineer)」というより正確な名称が普及しつつある。
+DevOps is fundamentally a culture and set of practices, not a job title. However, the title "DevOps Engineer" has become established in the market. In practice, it often refers to engineers who handle infrastructure automation, CI/CD setup, and cloud operations. More accurate titles such as "Platform Engineer" and "SRE (Site Reliability Engineer)" are increasingly gaining traction.
 
-### Q2: DevOps と SRE の違いは何か？
+### Q2: What is the difference between DevOps and SRE?
 
-DevOps は文化・原則のフレームワークであり、SRE は Google が生み出した DevOps の具体的実装の1つ。SRE はエラーバジェット、SLI/SLO/SLA、トイル削減など、より体系化されたプラクティスを持つ。DevOps が「何を(What)」すべきかを示し、SRE が「どのように(How)」実現するかを示すと理解できる。
+DevOps is a framework of culture and principles, while SRE is one concrete implementation of DevOps created by Google. SRE has more systematized practices including error budgets, SLI/SLO/SLA, and toil reduction. You can think of DevOps as describing "What" to do, and SRE as describing "How" to achieve it.
 
 ```
-DevOps vs SRE の比較:
+DevOps vs SRE Comparison:
 
-観点           DevOps                     SRE
+Aspect         DevOps                     SRE
 ──────────────────────────────────────────────────
-起源           コミュニティ               Google (2003年〜)
-性質           文化・原則                 具体的プラクティス
-焦点           開発と運用の統合           信頼性の工学的アプローチ
-失敗への対応   Blameless Culture          エラーバジェット
-作業の分類     自動化推進                 トイル削減 (50%ルール)
-サービス品質   なんとなく良くする         SLI/SLO/SLA で定量管理
-オンコール     共同責任                   エンジニアが担当
-スケーリング   チームごとに異なる         50%ルールで持続可能に
+Origin         Community                  Google (from 2003)
+Nature         Culture & principles       Concrete practices
+Focus          Integration of Dev & Ops   Engineering approach to reliability
+Failure        Blameless Culture          Error budgets
+Work type      Drive automation           Toil reduction (50% rule)
+Service quality Improve generally         Quantitatively managed via SLI/SLO/SLA
+On-call        Shared responsibility      Engineers on rotation
+Scaling        Varies by team             Sustainable via the 50% rule
 ```
 
-### Q3: 小さなチームでも DevOps は必要か？
+### Q3: Is DevOps necessary for small teams?
 
-必要である。むしろ小さなチームこそ自動化の恩恵が大きい。5人のチームで週2時間の手動デプロイ作業があれば、年間520人時の損失になる。CI/CD を1日で構築すれば、その投資は1週間で回収できる。小さく始めて段階的に成熟度を上げるアプローチが推奨される。
+Yes. In fact, small teams benefit most from automation. If a 5-person team spends 2 hours per week on manual deployments, that is a loss of 520 person-hours per year. If you can build CI/CD in a single day, that investment pays for itself within a week. The recommended approach is to start small and gradually increase maturity.
 
 ```yaml
-# 小規模チーム向け DevOps スターターキット
+# Small team DevOps starter kit
 small_team_devops:
   day_1:
     - "GitHub リポジトリ作成"
@@ -1624,11 +1626,11 @@ small_team_devops:
     infrastructure: "Terraform Cloud (Free tier)"
 ```
 
-### Q4: DevOps導入にどのくらいの期間がかかるか？
+### Q4: How long does DevOps adoption take?
 
-組織の規模と現状の成熟度による。基本的なCI/CDパイプラインは数日で構築できるが、文化の変革には6ヶ月〜2年を要する。DORA メトリクスの「Elite」レベルに到達するには、継続的な改善の積み重ねが必要。まずは3ヶ月で「Quick Win」を出し、組織の信頼を得ることが重要。
+It depends on the size of the organization and its current maturity. A basic CI/CD pipeline can be built in a few days, but cultural transformation takes 6 months to 2 years. Reaching the DORA "Elite" level requires continuous, accumulated improvement. The key is to produce "Quick Wins" within 3 months to earn organizational trust.
 
-### Q5: DevOps の ROI をどう説明するか？
+### Q5: How do you explain DevOps ROI?
 
 ```python
 # DevOps ROI 計算の例
@@ -1696,14 +1698,14 @@ def calculate_devops_roi():
     }
 ```
 
-### Q6: DevOps とアジャイルの関係は？
+### Q6: What is the relationship between DevOps and Agile?
 
-アジャイルは開発プロセスの改善に焦点を当て、DevOps はその原則をデリバリーと運用まで拡張したもの。アジャイルなしに DevOps は成立しないが、アジャイルだけでは不十分。両者は補完関係にある。
+Agile focuses on improving the development process, while DevOps extends those principles through delivery and operations. DevOps cannot work without Agile, but Agile alone is not sufficient. The two are complementary.
 
 ```
-Agile:  要件 → 設計 → 実装 → テスト  [反復]
-                 ↓ 拡張
-DevOps: 要件 → 設計 → 実装 → テスト → デプロイ → 運用 → 監視  [反復]
+Agile:  Requirements → Design → Implementation → Test  [Iterate]
+                 ↓ Extends into
+DevOps: Requirements → Design → Implementation → Test → Deploy → Operate → Monitor  [Iterate]
 ```
 
 ---
@@ -1711,44 +1713,44 @@ DevOps: 要件 → 設計 → 実装 → テスト → デプロイ → 運用 �
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| DevOps の本質 | 文化・プラクティス・ツールの統合体 |
+| Essence of DevOps | An integrated system of culture, practices, and tools |
 | CALMS | Culture, Automation, Lean, Measurement, Sharing |
-| DORA メトリクス | デプロイ頻度、変更リードタイム、変更障害率、復旧時間（+信頼性） |
-| Three Ways | フロー、フィードバック、継続的学習 |
-| プラットフォームエンジニアリング | 認知負荷を軽減し開発者体験を向上させる進化形 |
-| 最重要原則 | ツールより文化、計測して改善、小さく始める |
-| アンチパターン | ツール先行、DevOpsチーム症候群、計測なき改善、自動化の罠 |
+| DORA Metrics | Deployment frequency, lead time for changes, change failure rate, time to restore service (+ reliability) |
+| Three Ways | Flow, Feedback, Continuous Learning |
+| Platform Engineering | An evolved form that reduces cognitive load and improves developer experience |
+| Most Important Principle | Culture over tools, measure and improve, start small |
+| Anti-Patterns | Tool-first, DevOps team syndrome, improvement without measurement, automation trap |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [CI/CD概念](./01-ci-cd-concepts.md) -- DevOps の中核プラクティスであるCI/CDを深掘り
-- [Infrastructure as Code](./02-infrastructure-as-code.md) -- インフラ自動化の具体的手法
-- [GitOps](./03-gitops.md) -- 宣言的なインフラ・アプリケーション管理
-- [オブザーバビリティ](../03-monitoring/00-observability.md) -- 計測・監視の実践
+- [CI/CD Concepts](./01-ci-cd-concepts.md) -- Deep dive into CI/CD, the core DevOps practice
+- [Infrastructure as Code](./02-infrastructure-as-code.md) -- Concrete methods for infrastructure automation
+- [GitOps](./03-gitops.md) -- Declarative management of infrastructure and applications
+- [Observability](../03-monitoring/00-observability.md) -- Measurement and monitoring in practice
 
 ---
 
-## 参考文献
+## References
 
 1. Gene Kim, Jez Humble, Patrick Debois, John Willis. *The DevOps Handbook*, 2nd Edition. IT Revolution Press, 2021.
 2. Nicole Forsgren, Jez Humble, Gene Kim. *Accelerate: The Science of Lean Software and DevOps*. IT Revolution Press, 2018.
