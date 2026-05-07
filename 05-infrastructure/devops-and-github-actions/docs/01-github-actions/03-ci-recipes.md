@@ -1,29 +1,29 @@
-# CI レシピ集
+# CI Recipe Collection
 
-> Node.js、Python、Go、Rust、Docker の実践的なCI設定を網羅し、テスト・リント・ビルドの定番パターンを提供する
+> A comprehensive collection of practical CI configurations for Node.js, Python, Go, Rust, and Docker, providing standard patterns for testing, linting, and building
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. 主要言語・フレームワーク別のCI設定パターンを把握する
-2. テスト、リント、型チェック、セキュリティスキャンの統合方法を習得する
-3. Docker イメージのビルド・プッシュの自動化を実装できる
-4. モノレポ環境での効率的なCI構成を理解する
-5. CI パイプラインの高速化テクニックを実践できる
+1. Understand CI configuration patterns for major languages and frameworks
+2. Learn how to integrate testing, linting, type checking, and security scanning
+3. Implement automated Docker image builds and pushes
+4. Understand efficient CI configuration for monorepo environments
+5. Apply techniques to speed up CI pipelines
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [再利用ワークフロー](./02-reusable-workflows.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Reusable Workflows](./02-reusable-workflows.md)
 
 ---
 
 ## 1. Node.js / TypeScript CI
 
-### 1.1 フルスタック Node.js CI
+### 1.1 Full-Stack Node.js CI
 
 ```yaml
 name: Node.js CI
@@ -74,7 +74,7 @@ jobs:
           npm run test:e2e
 ```
 
-### 1.2 モノレポ (Turborepo) CI
+### 1.2 Monorepo (Turborepo) CI
 
 ```yaml
 name: Monorepo CI
@@ -86,7 +86,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # 差分検知に必要
+          fetch-depth: 2  # Required for diff detection
 
       - uses: actions/setup-node@v4
         with:
@@ -95,7 +95,7 @@ jobs:
 
       - run: npm ci
 
-      # Turborepo のリモートキャッシュ
+      # Turborepo remote cache
       - name: Run affected checks
         run: npx turbo run lint typecheck test build --filter='...[HEAD~1]'
         env:
@@ -103,7 +103,7 @@ jobs:
           TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 ```
 
-### 1.3 pnpm を使ったモノレポ CI
+### 1.3 Monorepo CI with pnpm
 
 ```yaml
 name: pnpm Monorepo CI
@@ -145,7 +145,7 @@ jobs:
         run: pnpm run -r build
 ```
 
-### 1.4 Next.js 専用 CI
+### 1.4 Next.js-Specific CI
 
 ```yaml
 name: Next.js CI
@@ -178,7 +178,7 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
-      # Next.js のビルドキャッシュ
+      # Next.js build cache
       - uses: actions/cache@v4
         with:
           path: .next/cache
@@ -230,7 +230,7 @@ jobs:
         uses: davelosert/vitest-coverage-report-action@v2
 ```
 
-### 1.6 Playwright E2E テスト CI
+### 1.6 Playwright E2E Test CI
 
 ```yaml
 name: E2E Tests
@@ -281,7 +281,7 @@ jobs:
           path: test-results/
           retention-days: 7
 
-  # テストのシャーディング（大規模プロジェクト向け）
+  # Test sharding (for large-scale projects)
   e2e-sharded:
     runs-on: ubuntu-latest
     strategy:
@@ -301,7 +301,7 @@ jobs:
         run: npx playwright test --shard=${{ matrix.shard }}
 ```
 
-### 1.7 npm パッケージ公開 CI
+### 1.7 npm Package Publishing CI
 
 ```yaml
 name: Publish Package
@@ -311,7 +311,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # npm provenance に必要
+  id-token: write  # Required for npm provenance
 
 jobs:
   publish:
@@ -338,7 +338,7 @@ jobs:
 
 ## 2. Python CI
 
-### 2.1 Python プロジェクト CI
+### 2.1 Python Project CI
 
 ```yaml
 name: Python CI
@@ -380,7 +380,7 @@ jobs:
         run: bandit -r src/ -c pyproject.toml
 ```
 
-### 2.2 Poetry を使った Python CI
+### 2.2 Python CI with Poetry
 
 ```yaml
 name: Python CI (Poetry)
@@ -413,7 +413,7 @@ jobs:
       - run: poetry run pytest --cov
 ```
 
-### 2.3 uv を使った高速 Python CI
+### 2.3 Fast Python CI with uv
 
 ```yaml
 name: Python CI (uv)
@@ -451,7 +451,7 @@ jobs:
         run: uv run bandit -r src/ -c pyproject.toml
 ```
 
-### 2.4 Django プロジェクト CI
+### 2.4 Django Project CI
 
 ```yaml
 name: Django CI
@@ -511,7 +511,7 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
 ```
 
-### 2.5 FastAPI プロジェクト CI
+### 2.5 FastAPI Project CI
 
 ```yaml
 name: FastAPI CI
@@ -572,7 +572,7 @@ jobs:
           "
 ```
 
-### 2.6 PyPI パッケージ公開 CI
+### 2.6 PyPI Package Publishing CI
 
 ```yaml
 name: Publish to PyPI
@@ -582,7 +582,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # Trusted Publisher に必要
+  id-token: write  # Required for Trusted Publisher
 
 jobs:
   publish:
@@ -605,14 +605,14 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        # OIDC (Trusted Publisher) なのでトークン不要
+        # No token needed — uses OIDC (Trusted Publisher)
 ```
 
 ---
 
 ## 3. Go CI
 
-### 3.1 Go プロジェクト CI
+### 3.1 Go Project CI
 
 ```yaml
 name: Go CI
@@ -645,7 +645,7 @@ jobs:
           govulncheck ./...
 ```
 
-### 3.2 Go マルチプラットフォームビルド
+### 3.2 Go Multi-Platform Build
 
 ```yaml
 name: Go Release
@@ -742,7 +742,7 @@ jobs:
 
 ## 4. Rust CI
 
-### 4.1 Rust プロジェクト CI
+### 4.1 Rust Project CI
 
 ```yaml
 name: Rust CI
@@ -788,7 +788,7 @@ jobs:
           cargo audit
 ```
 
-### 4.2 Rust マルチプラットフォームリリース
+### 4.2 Rust Multi-Platform Release
 
 ```yaml
 name: Rust Release
@@ -897,7 +897,7 @@ jobs:
 
 ## 5. Docker CI
 
-### 5.1 Docker ビルド・プッシュ
+### 5.1 Docker Build and Push
 
 ```yaml
 name: Docker Build
@@ -948,10 +948,10 @@ jobs:
           platforms: linux/amd64,linux/arm64
 ```
 
-### 5.2 マルチステージ Dockerfile
+### 5.2 Multi-Stage Dockerfile
 
 ```dockerfile
-# ビルドステージ
+# Build stage
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
@@ -959,7 +959,7 @@ RUN npm ci --production=false
 COPY . .
 RUN npm run build
 
-# 実行ステージ
+# Runtime stage
 FROM node:20-alpine AS runner
 WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
@@ -971,7 +971,7 @@ EXPOSE 3000
 CMD ["node", "dist/index.js"]
 ```
 
-### 5.3 Dockerfile Lint + セキュリティスキャン
+### 5.3 Dockerfile Lint + Security Scan
 
 ```yaml
 name: Docker Security
@@ -1011,7 +1011,7 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      # Grype によるセカンドオピニオン
+      # Second opinion via Grype
       - name: Grype vulnerability scanner
         uses: anchore/scan-action@v4
         with:
@@ -1020,7 +1020,7 @@ jobs:
           fail-build: true
 ```
 
-### 5.4 Docker Compose を使った統合テスト
+### 5.4 Integration Testing with Docker Compose
 
 ```yaml
 name: Integration Tests
@@ -1058,7 +1058,7 @@ jobs:
 
 ---
 
-## 6. 追加言語・フレームワーク CI
+## 6. Additional Languages and Frameworks CI
 
 ### 6.1 Java (Gradle) CI
 
@@ -1159,7 +1159,7 @@ jobs:
         if: steps.plan.outcome == 'failure'
         run: exit 1
 
-      # tfsec セキュリティスキャン
+      # tfsec security scan
       - name: tfsec security scan
         uses: aquasecurity/tfsec-action@v1.0.0
         with:
@@ -1215,94 +1215,94 @@ jobs:
 
 ---
 
-## 7. CI パイプラインの構成比較
+## 7. CI Pipeline Configuration Comparison
 
 ```
-言語別パイプラインステージ:
+Pipeline stages by language:
 
-Node.js:  Lint → TypeCheck → UnitTest → Build → E2E
-Python:   Lint → TypeCheck → UnitTest → Security
-Go:       Lint → Test(race) → Build → Vulncheck
-Rust:     Fmt → Clippy → Test → Build → Audit
-Docker:   Lint(hadolint) → Build → Scan(trivy) → Push
-Java:     Lint → Test → Build → Publish
+Node.js:   Lint → TypeCheck → UnitTest → Build → E2E
+Python:    Lint → TypeCheck → UnitTest → Security
+Go:        Lint → Test(race) → Build → Vulncheck
+Rust:      Fmt → Clippy → Test → Build → Audit
+Docker:    Lint(hadolint) → Build → Scan(trivy) → Push
+Java:      Lint → Test → Build → Publish
 Terraform: Fmt → Validate → Plan → tfsec
 ```
 
-### 7.1 言語別ツール比較
+### 7.1 Tool Comparison by Language
 
-| 目的 | Node.js | Python | Go | Rust | Java |
+| Purpose | Node.js | Python | Go | Rust | Java |
 |---|---|---|---|---|---|
-| リンター | ESLint | Ruff | golangci-lint | Clippy | Checkstyle |
-| フォーマッタ | Prettier | Ruff/Black | gofmt | rustfmt | Spotless |
-| 型チェック | TypeScript | mypy/pyright | (組込み) | (組込み) | (組込み) |
-| テスト | Jest/Vitest | pytest | go test | cargo test | JUnit |
-| カバレッジ | c8/istanbul | coverage.py | go test -cover | cargo-tarpaulin | JaCoCo |
-| セキュリティ | npm audit | bandit/safety | govulncheck | cargo-audit | SpotBugs |
-| パッケージ管理 | npm/pnpm | pip/uv/poetry | go mod | cargo | Gradle/Maven |
+| Linter | ESLint | Ruff | golangci-lint | Clippy | Checkstyle |
+| Formatter | Prettier | Ruff/Black | gofmt | rustfmt | Spotless |
+| Type check | TypeScript | mypy/pyright | (built-in) | (built-in) | (built-in) |
+| Testing | Jest/Vitest | pytest | go test | cargo test | JUnit |
+| Coverage | c8/istanbul | coverage.py | go test -cover | cargo-tarpaulin | JaCoCo |
+| Security | npm audit | bandit/safety | govulncheck | cargo-audit | SpotBugs |
+| Package mgmt | npm/pnpm | pip/uv/poetry | go mod | cargo | Gradle/Maven |
 
-### 7.2 CI 速度の目安
+### 7.2 CI Speed Benchmarks
 
-| 言語 | Lint | テスト | ビルド | 合計目標 |
+| Language | Lint | Test | Build | Total Target |
 |---|---|---|---|---|
-| Node.js (中規模) | ~15s | ~60s | ~30s | < 3分 |
-| Python (中規模) | ~10s | ~45s | N/A | < 2分 |
-| Go (中規模) | ~20s | ~30s | ~15s | < 2分 |
-| Rust (中規模) | ~30s | ~120s | ~180s | < 6分 |
-| Docker ビルド | ~5s | N/A | ~120s | < 3分 |
-| Java (中規模) | ~15s | ~60s | ~30s | < 3分 |
+| Node.js (medium) | ~15s | ~60s | ~30s | < 3 min |
+| Python (medium) | ~10s | ~45s | N/A | < 2 min |
+| Go (medium) | ~20s | ~30s | ~15s | < 2 min |
+| Rust (medium) | ~30s | ~120s | ~180s | < 6 min |
+| Docker build | ~5s | N/A | ~120s | < 3 min |
+| Java (medium) | ~15s | ~60s | ~30s | < 3 min |
 
-### 7.3 CI 高速化テクニック一覧
+### 7.3 CI Speed Optimization Techniques
 
 ```
-1. 依存関係キャッシュ
-   - actions/cache または各セットアップアクションの cache オプション
-   - キーには lockfile のハッシュを使用
+1. Dependency caching
+   - Use actions/cache or the cache option in each setup action
+   - Use lockfile hash as the cache key
 
-2. 並列実行
-   - ジョブを分割して並列実行（lint / test / build を別ジョブに）
-   - テストのシャーディング（--shard オプション）
-   - matrix strategy でマルチバージョンテスト
+2. Parallel execution
+   - Split jobs for parallel execution (lint / test / build as separate jobs)
+   - Test sharding (--shard option)
+   - Multi-version testing with matrix strategy
 
-3. 差分検知
-   - dorny/paths-filter で変更ファイルを検知
-   - Turborepo / Nx の affected 機能
-   - git diff による変更パッケージの特定
+3. Diff detection
+   - Detect changed files with dorny/paths-filter
+   - Turborepo / Nx affected feature
+   - Identify changed packages with git diff
 
-4. 早期失敗
-   - Lint と型チェックを最初に実行（高速かつ問題を早期検出）
-   - fail-fast: true（デフォルト）でマトリクスの早期打ち切り
+4. Fail fast
+   - Run lint and type checks first (fast and catches issues early)
+   - fail-fast: true (default) to short-circuit matrix early
 
-5. ビルドキャッシュ
-   - Docker: GHA キャッシュ（type=gha）
-   - Next.js: .next/cache のキャッシュ
-   - Rust: target/ ディレクトリのキャッシュ
-   - Go: GOMODCACHE と GOCACHE のキャッシュ
+5. Build caching
+   - Docker: GHA cache (type=gha)
+   - Next.js: Cache .next/cache
+   - Rust: Cache target/ directory
+   - Go: Cache GOMODCACHE and GOCACHE
 
-6. concurrency 制御
-   - 同一ブランチの古い実行をキャンセル
+6. Concurrency control
+   - Cancel outdated runs for the same branch
    - cancel-in-progress: true
 
-7. 条件分岐
-   - PR では E2E テストをスキップ
-   - main push でのみ Docker ビルド・デプロイ
+7. Conditional branching
+   - Skip E2E tests on PRs
+   - Docker build and deploy only on main push
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン1: テストなしのCI
+### Anti-Pattern 1: CI Without Tests
 
 ```yaml
-# 悪い例: ビルドだけで "CI通りました"
+# Bad example: "CI passed" with only a build
 jobs:
   ci:
     steps:
       - run: npm run build
-      # テストなし → ビルドが通れば OK ではない
+      # No tests → passing the build is not enough
 
-# 改善: テストピラミッドに基づくステージ構成
+# Improvement: stage configuration based on test pyramid
 jobs:
   ci:
     steps:
@@ -1310,41 +1310,41 @@ jobs:
       - run: npm run type-check
       - run: npm test -- --coverage
       - run: npm run build
-      # lint → type → test → build の順で高速フェイル
+      # fail fast order: lint → type → test → build
 ```
 
-### アンチパターン2: 遅いCIの放置
+### Anti-Pattern 2: Ignoring Slow CI
 
 ```
-問題:
-  CI が 15分以上かかり、開発者が CI の結果を待たずにマージしてしまう。
+Problem:
+  CI takes more than 15 minutes, causing developers to merge without waiting for results.
 
-改善チェックリスト:
-  [ ] 依存関係のキャッシュを設定しているか
-  [ ] テストを並列実行しているか (--shard, -j)
-  [ ] 不要なステップを削除したか
-  [ ] lint / type-check を最初に実行しているか
-  [ ] Docker レイヤーキャッシュを使っているか
-  [ ] 変更されたファイルのみテストしているか (affected)
-  [ ] concurrency で古い実行をキャンセルしているか
+Improvement checklist:
+  [ ] Is dependency caching configured?
+  [ ] Are tests running in parallel? (--shard, -j)
+  [ ] Have unnecessary steps been removed?
+  [ ] Is lint / type-check running first?
+  [ ] Is Docker layer caching being used?
+  [ ] Are only changed files being tested? (affected)
+  [ ] Is concurrency canceling old runs?
 ```
 
-### アンチパターン3: キャッシュキーの設計ミス
+### Anti-Pattern 3: Poor Cache Key Design
 
 ```yaml
-# 悪い例: キャッシュキーが固定でヒットしない
+# Bad example: Fixed cache key that never updates
 - uses: actions/cache@v4
   with:
     path: node_modules
-    key: node-modules-cache  # 常に同じキーなので更新されない
+    key: node-modules-cache  # Same key always, so never updated
 
-# 悪い例: キャッシュキーが細かすぎて再利用されない
+# Bad example: Cache key too granular to be reused
 - uses: actions/cache@v4
   with:
     path: node_modules
-    key: ${{ runner.os }}-node-${{ github.sha }}  # コミットごとに新規キャッシュ
+    key: ${{ runner.os }}-node-${{ github.sha }}  # New cache every commit
 
-# 良い例: lockfile ベースのキャッシュキー
+# Good example: Lockfile-based cache key
 - uses: actions/cache@v4
   with:
     path: node_modules
@@ -1353,62 +1353,62 @@ jobs:
       ${{ runner.os }}-node-
 ```
 
-### アンチパターン4: 秘密情報のCIログ露出
+### Anti-Pattern 4: Exposing Secrets in CI Logs
 
 ```yaml
-# 悪い例: 環境変数の全出力
-- run: env | sort  # シークレットがログに表示される可能性
+# Bad example: Dumping all environment variables
+- run: env | sort  # Secrets may appear in logs
 
-# 悪い例: デバッグ出力
-- run: echo "Token is ${{ secrets.API_TOKEN }}"  # マスクされるが避けるべき
+# Bad example: Debug output
+- run: echo "Token is ${{ secrets.API_TOKEN }}"  # Masked, but still avoid
 
-# 良い例: 必要な情報のみ出力
+# Good example: Output only necessary information
 - run: echo "Using API endpoint: ${{ vars.API_URL }}"
-  # シークレットではなく Variables を使用
+  # Use Variables instead of Secrets
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Template for basic implementation
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1417,26 +1417,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Should have raised an exception"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1444,7 +1444,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1455,14 +1455,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1470,7 +1470,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1478,44 +1478,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit reached
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1524,7 +1524,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1539,48 +1539,48 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup:      {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## 9. FAQ
 
-### Q1: PR の CI と main ブランチの CI で異なる処理を実行するには？
+### Q1: How do I run different steps for PR CI versus main branch CI?
 
-`github.event_name` で分岐する。PR では `lint + test + build` まで、main push では追加で `e2e + docker build + deploy` を実行する。環境 (environment) を使って main ブランチのみデプロイを許可する設定も有効。
+Branch using `github.event_name`. For PRs, run `lint + test + build`; for main pushes, additionally run `e2e + docker build + deploy`. Using environments to restrict deployments to the main branch only is also effective.
 
-### Q2: テストの並列実行はどう設定するか？
+### Q2: How do I configure parallel test execution?
 
-Jest は `--shard` オプション、Playwright は `--shard` オプション、pytest は `pytest-xdist` の `-n auto` で並列化できる。CI ではマトリクス戦略と組み合わせて複数ジョブに分散させるのが効果的。
+Jest supports the `--shard` option, Playwright supports the `--shard` option, and pytest supports parallelization via `pytest-xdist` with `-n auto`. Combining this with matrix strategy to distribute across multiple jobs is effective in CI.
 
-### Q3: セキュリティスキャンはCIに組み込むべきか？
+### Q3: Should security scanning be integrated into CI?
 
-はい。`npm audit`、`govulncheck`、`cargo audit`、`trivy` (Docker)、`Dependabot` は最低限導入すべき。ただし全てをブロッキングにすると開発速度が落ちるため、Critical/High のみブロック、Medium 以下は警告とする段階的アプローチを推奨する。
+Yes. `npm audit`, `govulncheck`, `cargo audit`, `trivy` (Docker), and `Dependabot` are the minimum to incorporate. However, making everything blocking slows development, so a staged approach is recommended: block only Critical/High, and warn for Medium and below.
 
-### Q4: CI の実行時間が10分を超える場合の対処法は？
+### Q4: What should I do when CI takes more than 10 minutes?
 
-まず最も時間がかかっているステップを特定する。一般的な対処法は、(1) 依存関係のキャッシュ見直し、(2) テストの並列化（シャーディング）、(3) 不要なステップの削除、(4) lint/type-check の先行実行による早期失敗、(5) Docker ビルドのレイヤーキャッシュ最適化。それでも改善しない場合は Larger Runner の利用も検討する。
+First identify which step takes the longest. Common remedies are: (1) review dependency caching, (2) parallelize tests (sharding), (3) remove unnecessary steps, (4) run lint/type-check first for early failure, (5) optimize Docker build layer caching. If still not improved, consider using Larger Runners.
 
-### Q5: 複数の言語を使うプロジェクトのCIはどう構成するか？
+### Q5: How should I configure CI for a project using multiple languages?
 
-言語ごとにジョブを分割し、paths フィルターで変更があった部分のみ実行する。共通のセットアップ処理は Composite Action に切り出す。全体の依存関係（フロントエンドのビルドがバックエンドのテストに必要、など）がある場合は `needs` で制御する。
+Split into jobs per language and use paths filters to run only for changed areas. Extract common setup steps into Composite Actions. If there are overall dependencies (e.g., frontend build required for backend tests), control with `needs`.
 
-### Q6: CI でデータベースを使うテストの実行方法は？
+### Q6: How do I run tests that use a database in CI?
 
-GitHub Actions の `services` 機能を使って、PostgreSQL、MySQL、Redis などのコンテナをサイドカーとして起動する。`options` で `--health-cmd` を設定し、データベースが起動完了してからテストを実行するようにする。Django の CI レシピ（セクション 2.4）を参照。
+Use GitHub Actions' `services` feature to launch containers for PostgreSQL, MySQL, Redis, etc. as sidecars. Configure `--health-cmd` in `options` to ensure the database is fully started before running tests. See the Django CI recipe (section 2.4).
 
-### Q7: Dependabot / Renovate の更新 PR に対するCIはどう設定するか？
+### Q7: How should CI be configured for Dependabot / Renovate update PRs?
 
-通常のPR と同じ CI を実行するのが基本。加えて、`dependabot` ラベルが付いた PR に対して自動マージを設定すると運用が楽になる。
+Running the same CI as regular PRs is the baseline. Additionally, configuring auto-merge for PRs labeled `dependabot` makes operations easier.
 
 ```yaml
 name: Auto-merge Dependabot
@@ -1599,7 +1599,7 @@ jobs:
       - uses: dependabot/fetch-metadata@v2
         id: metadata
 
-      # patch/minor のみ自動マージ
+      # Auto-merge only patch/minor updates
       - if: steps.metadata.outputs.update-type != 'version-update:semver-major'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
@@ -1609,12 +1609,12 @@ jobs:
 
 ---
 
-## 10. CI メトリクスと可視化
+## 10. CI Metrics and Visualization
 
-### 10.1 CI パフォーマンスのトラッキング
+### 10.1 Tracking CI Performance
 
 ```yaml
-# .github/workflows/ci-metrics.yml — CI メトリクス収集
+# .github/workflows/ci-metrics.yml — CI metrics collection
 name: CI Metrics Collection
 
 on:
@@ -1668,17 +1668,17 @@ jobs:
 
             console.log(JSON.stringify(metrics, null, 2));
 
-            // CloudWatch / Datadog / Grafana などに送信
+            // Send to CloudWatch / Datadog / Grafana, etc.
             // await fetch('https://metrics.example.com/ci', {
             //   method: 'POST',
             //   body: JSON.stringify(metrics),
             // });
 ```
 
-### 10.2 テストカバレッジの PR コメント
+### 10.2 Test Coverage PR Comment
 
 ```yaml
-# テストカバレッジをPRコメントに投稿
+# Post test coverage as a PR comment
 - name: Run Tests with Coverage
   run: npx vitest run --coverage --reporter=json --outputFile=coverage.json
 
@@ -1728,10 +1728,10 @@ jobs:
       }
 ```
 
-### 10.3 CI 失敗時の自動通知
+### 10.3 Automatic Notification on CI Failure
 
 ```yaml
-# CI 失敗時に Slack 通知
+# Slack notification on CI failure
 - name: Notify CI Failure
   if: failure() && github.ref == 'refs/heads/main'
   uses: slackapi/slack-github-action@v2.0.0
@@ -1758,47 +1758,47 @@ jobs:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Jumping to advanced topics without mastering the basics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional settings?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
 | Node.js | ESLint + Prettier + TypeScript + Jest/Vitest |
 | Python | Ruff + mypy + pytest + bandit |
 | Go | golangci-lint + go test -race + govulncheck |
 | Rust | clippy + rustfmt + cargo test + cargo audit |
-| Docker | Buildx + GHA キャッシュ + マルチプラットフォーム |
+| Docker | Buildx + GHA cache + multi-platform |
 | Java | Checkstyle + JUnit + Gradle |
 | Terraform | fmt + validate + plan + tfsec |
-| 共通原則 | Lint先行、キャッシュ活用、10分以内完了 |
-| 高速化 | キャッシュ + 並列化 + 差分検知 + 早期失敗 |
-| セキュリティ | Critical/High のみブロック、Medium 以下は警告 |
-| メトリクス | CI の実行時間・成功率をトラッキングし改善を継続 |
+| Common Principles | Lint first, leverage caching, complete within 10 minutes |
+| Speed Optimization | Caching + parallelization + diff detection + fail fast |
+| Security | Block Critical/High only, warn for Medium and below |
+| Metrics | Track CI run time and success rate to drive continuous improvement |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [Actions セキュリティ](./04-security-actions.md) -- サプライチェーン保護
-- [デプロイ戦略](../02-deployment/00-deployment-strategies.md) -- CIの次はCD
-- [Actions 応用](./01-actions-advanced.md) -- マトリクス、キャッシュの詳細
+- [Actions Security](./04-security-actions.md) -- Supply chain protection
+- [Deployment Strategies](../02-deployment/00-deployment-strategies.md) -- CD comes after CI
+- [Actions Advanced](./01-actions-advanced.md) -- Details on matrix and caching
 
 ---
 
-## 参考文献
+## References
 
 1. GitHub. "Building and testing Node.js." https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
 2. GitHub. "Building and testing Python." https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
