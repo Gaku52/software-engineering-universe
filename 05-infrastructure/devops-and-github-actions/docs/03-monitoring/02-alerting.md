@@ -1,151 +1,154 @@
-# アラート戦略
+# Alerting Strategy
 
-> アラート設計の原則、エスカレーションポリシー、ポストモーテムの運用を習得し、アラート疲れのない持続可能なオンコール体制を構築する
+> Master alert design principles, escalation policies, and postmortem operations to build a sustainable on-call system free from alert fatigue
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **効果的なアラート設計** — アラート疲れを防ぎ、本当に対応が必要なアラートだけを発報する設計原則
-2. **エスカレーションとオンコール体制** — 段階的なエスカレーションポリシーとオンコールローテーションの構築
-3. **ポストモーテムと継続的改善** — 障害から学び、再発防止を組織的に推進するプロセス
-4. **自動修復 (Auto-remediation)** — 人間の介入なしに障害を自動復旧する仕組みの構築
-5. **インシデント管理プロセス** — SEV レベルの定義、コミュニケーション、ステータスページの運用
+1. **Effective Alert Design** — Design principles to prevent alert fatigue and fire only alerts that truly require action
+2. **Escalation and On-Call Structure** — Building tiered escalation policies and on-call rotations
+3. **Postmortems and Continuous Improvement** — Organizational processes to learn from incidents and prevent recurrence
+4. **Auto-Remediation** — Building systems that automatically recover from failures without human intervention
+5. **Incident Management Process** — Defining SEV levels, communication protocols, and status page operations
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [監視ツール](./01-monitoring-tools.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Monitoring Tools](./01-monitoring-tools.md)
 
 ---
 
-## 1. アラート設計の全体像
+## 1. Overview of Alert Design
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                  アラート設計のピラミッド                    │
+│                  Alert Design Pyramid                    │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │                    ┌──────────┐                          │
-│                    │ PAGE     │  即座に対応が必要           │
-│                    │ (緊急)   │  SLO 違反、サービス停止     │
+│                    │ PAGE     │  Requires immediate action│
+│                    │(Critical)│  SLO violation, outage   │
 │                    └────┬─────┘                          │
 │                   ┌─────▼──────┐                         │
-│                   │  TICKET    │  営業時間内に対応          │
-│                   │ (重要)     │  パフォーマンス劣化        │
+│                   │  TICKET    │  Handle during business  │
+│                   │(Important) │  hours. Perf degradation │
 │                   └─────┬──────┘                         │
 │              ┌──────────▼───────────┐                    │
-│              │     NOTIFICATION     │  情報として通知       │
-│              │     (参考)           │  容量警告、証明書期限  │
+│              │     NOTIFICATION     │  Informational only │
+│              │   (Reference)        │  Capacity, cert expiry│
 │              └──────────┬───────────┘                    │
 │         ┌───────────────▼────────────────┐               │
-│         │        DASHBOARD ONLY          │  ダッシュボード │
-│         │        (記録のみ)               │  で確認可能     │
+│         │        DASHBOARD ONLY          │  Dashboard     │
+│         │        (Record only)           │  visible only  │
 │         └────────────────────────────────┘               │
 │                                                          │
-│  原則: 上に行くほど数を絞る。PAGE は月に数回が理想。       │
+│  Principle: Fewer alerts toward the top. Aim for PAGE    │
+│  only a few times per month.                             │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 アラート設計の原則
+### 1.1 Alert Design Principles
 
 ```
-アラートの品質を決める5つの原則:
+5 principles that determine alert quality:
 
-1. アクショナブル (Actionable)
-   ─ アラートを受けたら「今すぐやるべきこと」が明確
-   ─ 対応不要なアラートは存在すべきではない
+1. Actionable
+   ─ When an alert fires, "what to do right now" must be clear
+   ─ Alerts that require no action should not exist
 
-2. コンテキスト付き (Contextual)
-   ─ アラートメッセージに十分な情報を含める
-   ─ Runbook URL、ダッシュボードリンク、影響範囲
+2. Contextual
+   ─ Alert messages must include sufficient information
+   ─ Runbook URL, dashboard link, scope of impact
 
-3. SLO ベース (SLO-based)
-   ─ 静的な閾値ではなく、SLO 違反の予測に基づく
-   ─ バーンレートアラートでビジネスインパクトを反映
+3. SLO-based
+   ─ Based on predicted SLO violations, not static thresholds
+   ─ Burn-rate alerts that reflect business impact
 
-4. 適切な粒度 (Right Granularity)
-   ─ 症状 (symptom) でアラート、原因 (cause) はデバッグ時
-   ─ 「CPU 80%」ではなく「レスポンスタイムがSLO違反」
+4. Right Granularity
+   ─ Alert on symptoms, debug for causes
+   ─ Not "CPU 80%" but "Response time violates SLO"
 
-5. 継続的に改善 (Continuously Improved)
-   ─ 月次でアラートを棚卸し
-   ─ False positive / False negative を追跡
+5. Continuously Improved
+   ─ Review alerts monthly
+   ─ Track false positives / false negatives
 ```
 
-### 1.2 アラート品質メトリクス
+### 1.2 Alert Quality Metrics
 
 ```
-アラートの品質を定量的に計測する指標:
+Quantitative indicators to measure alert quality:
 
 ┌─────────────────────────────────────────────────┐
-│ 指標                     │ 目標値              │
+│ Metric                   │ Target              │
 ├──────────────────────────┼─────────────────────┤
-│ PAGE 数/月               │ < 10                │
-│ False positive 率        │ < 10%               │
-│ MTTA (平均応答時間)       │ < 5分               │
-│ MTTR (平均復旧時間)       │ < 30分              │
-│ アラート → アクション率   │ > 90%               │
-│ Runbook カバレッジ        │ 100%                │
-│ 自動修復率               │ > 30%               │
-│ オンコール満足度          │ > 4/5               │
+│ PAGE count/month         │ < 10                │
+│ False positive rate      │ < 10%               │
+│ MTTA (mean time to ack)  │ < 5 min             │
+│ MTTR (mean time to       │ < 30 min            │
+│   resolve)               │                     │
+│ Alert → Action rate      │ > 90%               │
+│ Runbook coverage         │ 100%                │
+│ Auto-remediation rate    │ > 30%               │
+│ On-call satisfaction     │ > 4/5               │
 └──────────────────────────┴─────────────────────┘
 
-計測方法:
-- PagerDuty / Opsgenie のレポート機能
-- カスタムダッシュボードでアラート統計を可視化
-- 月次のアラートレビューミーティングで振り返り
+Measurement methods:
+- Use reporting features in PagerDuty / Opsgenie
+- Visualize alert statistics on custom dashboards
+- Review in monthly alert review meetings
 ```
 
-### 1.3 症状ベース vs 原因ベースのアラート
+### 1.3 Symptom-Based vs. Cause-Based Alerts
 
 ```
-症状ベースアラート (推奨):
+Symptom-based alerts (recommended):
 ┌────────────────────────────────────────────────────┐
-│ ユーザーが体験する問題に直接紐づく                    │
+│ Directly tied to problems experienced by users     │
 │                                                    │
-│ 例:                                                │
-│ ・エラーレートが SLO を超えている                    │
-│ ・レスポンスタイムの p99 が 2秒を超えている           │
-│ ・注文処理の成功率が 99% を下回っている              │
+│ Examples:                                          │
+│ · Error rate exceeds SLO                           │
+│ · p99 response time exceeds 2 seconds              │
+│ · Order processing success rate falls below 99%    │
 │                                                    │
-│ 利点:                                              │
-│ ・ビジネスインパクトが明確                          │
-│ ・原因が複合的でも検知できる                        │
-│ ・False positive が少ない                          │
+│ Advantages:                                        │
+│ · Business impact is clear                         │
+│ · Can detect multi-cause failures                  │
+│ · Fewer false positives                            │
 └────────────────────────────────────────────────────┘
 
-原因ベースアラート (補助的に使用):
+Cause-based alerts (use as supplementary):
 ┌────────────────────────────────────────────────────┐
-│ インフラの状態に基づく                               │
+│ Based on infrastructure state                      │
 │                                                    │
-│ 例:                                                │
-│ ・CPU 使用率 > 90%                                 │
-│ ・ディスク使用率 > 85%                              │
-│ ・メモリ使用率 > 90%                                │
+│ Examples:                                          │
+│ · CPU usage > 90%                                  │
+│ · Disk usage > 85%                                 │
+│ · Memory usage > 90%                               │
 │                                                    │
-│ 注意:                                              │
-│ ・症状に影響しない場合がある (CPU 90% でも正常動作)  │
-│ ・予防的な TICKET/NOTIFICATION レベルで使用          │
-│ ・PAGE には使わない                                 │
+│ Caution:                                           │
+│ · May not affect symptoms (CPU 90% but functioning │
+│   normally)                                        │
+│ · Use at TICKET/NOTIFICATION level preventively    │
+│ · Do not use for PAGE                              │
 └────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. アラートルールの設計
+## 2. Alert Rule Design
 
-### 2.1 SLO バーンレートアラート
+### 2.1 SLO Burn-Rate Alerts
 
 ```yaml
-# prometheus-alerts.yml — Prometheus アラートルール
+# prometheus-alerts.yml — Prometheus alert rules
 groups:
   - name: slo-alerts
     rules:
-      # SLO バーンレートアラート (Multi-window, Multi-burn-rate)
-      # 99.9% SLO: 30日で許容エラー = 0.1% = 43.2分のダウンタイム
+      # SLO burn-rate alerts (Multi-window, Multi-burn-rate)
+      # 99.9% SLO: allowed errors over 30 days = 0.1% = 43.2 minutes of downtime
       - alert: HighErrorBurnRate_Critical
         expr: |
           (
@@ -163,13 +166,13 @@ groups:
           team: backend
           slo: availability
         annotations:
-          summary: "エラーバーンレートが危険水準 (Critical)"
+          summary: "Error burn rate at critical level (Critical)"
           description: >
-            直近5分と1時間のエラー率がSLOバーンレートの14.4倍を超えています。
-            このペースでは2日以内に月間エラーバジェットを使い切ります。
+            Error rate over the last 5 minutes and 1 hour exceeds 14.4x the SLO burn rate.
+            At this pace, the monthly error budget will be exhausted within 2 days.
           runbook: "https://wiki.example.com/runbooks/high-error-rate"
           dashboard: "https://grafana.example.com/d/slo-overview"
-          impact: "全ユーザーに影響の可能性"
+          impact: "Potential impact on all users"
 
       - alert: HighErrorBurnRate_Warning
         expr: |
@@ -188,12 +191,12 @@ groups:
           team: backend
           slo: availability
         annotations:
-          summary: "エラーバーンレートが警告水準 (Warning)"
+          summary: "Error burn rate at warning level (Warning)"
           description: >
-            直近30分と6時間のエラー率がSLOバーンレートの6倍を超えています。
+            Error rate over the last 30 minutes and 6 hours exceeds 6x the SLO burn rate.
           runbook: "https://wiki.example.com/runbooks/high-error-rate"
 
-      # レイテンシ SLO (p99 < 500ms を 99.5% のリクエストで達成)
+      # Latency SLO (achieve p99 < 500ms for 99.5% of requests)
       - alert: HighLatencyBurnRate_Critical
         expr: |
           (
@@ -215,50 +218,50 @@ groups:
           team: backend
           slo: latency
         annotations:
-          summary: "レイテンシバーンレートが危険水準"
+          summary: "Latency burn rate at critical level"
           description: >
-            p99レイテンシが500msを超えるリクエストの割合が急増しています。
+            The proportion of requests exceeding 500ms p99 latency is rapidly increasing.
           runbook: "https://wiki.example.com/runbooks/high-latency"
 ```
 
-### 2.2 バーンレート計算の詳細
+### 2.2 Burn-Rate Calculation Details
 
 ```
-バーンレートアラートの設計理論:
+Burn-rate alert design theory:
 
-SLO: 99.9% (30日間)
-エラーバジェット: 0.1% = 30日 × 24時間 × 60分 × 0.001 = 43.2分
+SLO: 99.9% (30 days)
+Error budget: 0.1% = 30 days × 24 hours × 60 minutes × 0.001 = 43.2 minutes
 
-バーンレート = 実際のエラー率 / 許容エラー率
+Burn rate = Actual error rate / Allowed error rate
 
-  バーンレート × ウィンドウ → バジェット消費
+  Burn rate × Window → Budget consumption
   ┌─────────┬──────────┬────────────────────────┐
-  │ バーン   │ ウィンドウ │ バジェット全消費までの    │
-  │ レート   │          │ 時間                    │
+  │ Burn    │ Window   │ Time until full         │
+  │ Rate    │          │ budget consumed         │
   ├─────────┼──────────┼────────────────────────┤
-  │ 14.4x   │ 5m + 1h  │ 2日 (PAGE)             │
-  │ 6x      │ 30m + 6h │ 5日 (TICKET)           │
-  │ 3x      │ 2h + 1d  │ 10日 (NOTIFICATION)    │
-  │ 1x      │ 6h + 3d  │ 30日 (ちょうどSLO消費)  │
+  │ 14.4x   │ 5m + 1h  │ 2 days (PAGE)          │
+  │ 6x      │ 30m + 6h │ 5 days (TICKET)        │
+  │ 3x      │ 2h + 1d  │ 10 days (NOTIFICATION) │
+  │ 1x      │ 6h + 3d  │ 30 days (exact SLO)    │
   └─────────┴──────────┴────────────────────────┘
 
-  Multi-window の意味:
+  Meaning of Multi-window:
   ┌───────────────────────────────────────────────┐
-  │ 短いウィンドウ (5m)                            │
-  │   → 瞬間的なスパイクを検知                     │
-  │   → 単独だと false positive が多い             │
+  │ Short window (5m)                             │
+  │   → Detects instantaneous spikes              │
+  │   → High false positives on its own           │
   │                                               │
-  │ 長いウィンドウ (1h)                            │
-  │   → 持続的な問題を確認                         │
-  │   → 単独だと検知が遅い                         │
+  │ Long window (1h)                              │
+  │   → Confirms persistent issues                │
+  │   → Slow to detect on its own                 │
   │                                               │
-  │ 両方の AND 条件                                │
-  │   → 瞬間スパイクを除外しつつ                   │
-  │     持続的な問題を素早く検知                    │
+  │ AND condition on both                         │
+  │   → Excludes momentary spikes while           │
+  │     quickly detecting persistent issues       │
   └───────────────────────────────────────────────┘
 ```
 
-### 2.3 インフラストラクチャアラート
+### 2.3 Infrastructure Alerts
 
 ```yaml
   - name: infrastructure-alerts
@@ -270,8 +273,8 @@ SLO: 99.9% (30日間)
         labels:
           severity: warning
         annotations:
-          summary: "メモリ使用率が90%を超過"
-          description: "{{ $labels.instance }} のメモリ使用率が {{ $value | humanizePercentage }} です"
+          summary: "Memory usage exceeds 90%"
+          description: "Memory usage on {{ $labels.instance }} is {{ $value | humanizePercentage }}"
           runbook: "https://wiki.example.com/runbooks/high-memory"
 
       - alert: DiskSpaceRunningOut
@@ -281,8 +284,8 @@ SLO: 99.9% (30日間)
         labels:
           severity: warning
         annotations:
-          summary: "24時間以内にディスク容量が枯渇する予測"
-          description: "{{ $labels.instance }} のディスクが24時間以内に満杯になります"
+          summary: "Disk space predicted to run out within 24 hours"
+          description: "Disk on {{ $labels.instance }} will be full within 24 hours"
           runbook: "https://wiki.example.com/runbooks/disk-space"
 
       - alert: DiskSpaceCritical
@@ -292,8 +295,8 @@ SLO: 99.9% (30日間)
         labels:
           severity: critical
         annotations:
-          summary: "ディスク使用率が95%を超過"
-          description: "{{ $labels.instance }} のディスク使用率が {{ $value | humanizePercentage }} です。即時対応が必要です。"
+          summary: "Disk usage exceeds 95%"
+          description: "Disk usage on {{ $labels.instance }} is {{ $value | humanizePercentage }}. Immediate action required."
           runbook: "https://wiki.example.com/runbooks/disk-space-critical"
 
       - alert: HighCPUUsage
@@ -303,10 +306,10 @@ SLO: 99.9% (30日間)
         labels:
           severity: warning
         annotations:
-          summary: "CPU使用率が90%を超過 (15分間持続)"
-          description: "{{ $labels.instance }} のCPU使用率が {{ $value }}% です"
+          summary: "CPU usage exceeds 90% (sustained for 15 minutes)"
+          description: "CPU usage on {{ $labels.instance }} is {{ $value }}%"
 
-      # SSL 証明書の有効期限チェック
+      # SSL certificate expiry check
       - alert: SSLCertExpiringSoon
         expr: |
           (probe_ssl_earliest_cert_expiry - time()) / 86400 < 30
@@ -314,8 +317,8 @@ SLO: 99.9% (30日間)
         labels:
           severity: warning
         annotations:
-          summary: "SSL証明書の有効期限が30日以内"
-          description: "{{ $labels.instance }} の証明書が {{ $value | humanize }}日後に期限切れ"
+          summary: "SSL certificate expires within 30 days"
+          description: "Certificate on {{ $labels.instance }} expires in {{ $value | humanize }} days"
 
       - alert: SSLCertExpiringSoon_Critical
         expr: |
@@ -324,12 +327,12 @@ SLO: 99.9% (30日間)
         labels:
           severity: critical
         annotations:
-          summary: "SSL証明書の有効期限が7日以内"
-          description: "{{ $labels.instance }} の証明書が {{ $value | humanize }}日後に期限切れです。即時更新してください。"
+          summary: "SSL certificate expires within 7 days"
+          description: "Certificate on {{ $labels.instance }} expires in {{ $value | humanize }} days. Renew immediately."
 
   - name: kubernetes-alerts
     rules:
-      # Pod が CrashLoopBackOff
+      # Pod in CrashLoopBackOff
       - alert: PodCrashLooping
         expr: |
           rate(kube_pod_container_status_restarts_total[15m]) * 60 * 15 > 3
@@ -337,12 +340,12 @@ SLO: 99.9% (30日間)
         labels:
           severity: critical
         annotations:
-          summary: "Pod が CrashLoopBackOff 状態"
+          summary: "Pod is in CrashLoopBackOff state"
           description: >
-            {{ $labels.namespace }}/{{ $labels.pod }} が15分間に3回以上再起動しています。
+            {{ $labels.namespace }}/{{ $labels.pod }} has restarted 3 or more times in 15 minutes.
           runbook: "https://wiki.example.com/runbooks/pod-crashloop"
 
-      # Deployment のレプリカ不足
+      # Deployment replica mismatch
       - alert: DeploymentReplicasMismatch
         expr: |
           kube_deployment_spec_replicas != kube_deployment_status_available_replicas
@@ -350,13 +353,13 @@ SLO: 99.9% (30日間)
         labels:
           severity: warning
         annotations:
-          summary: "Deployment のレプリカ数が不一致"
+          summary: "Deployment replica count mismatch"
           description: >
-            {{ $labels.namespace }}/{{ $labels.deployment }} の
-            期待レプリカ数: {{ $labels.spec_replicas }},
-            実際のレプリカ数: {{ $value }}
+            {{ $labels.namespace }}/{{ $labels.deployment }}
+            Expected replicas: {{ $labels.spec_replicas }},
+            Actual replicas: {{ $value }}
 
-      # Node の NotReady 状態
+      # Node NotReady state
       - alert: KubeNodeNotReady
         expr: |
           kube_node_status_condition{condition="Ready", status="true"} == 0
@@ -364,10 +367,10 @@ SLO: 99.9% (30日間)
         labels:
           severity: critical
         annotations:
-          summary: "Kubernetes Node が NotReady"
-          description: "{{ $labels.node }} が5分以上 NotReady 状態です"
+          summary: "Kubernetes Node is NotReady"
+          description: "{{ $labels.node }} has been in NotReady state for more than 5 minutes"
 
-      # PersistentVolume の容量
+      # PersistentVolume capacity
       - alert: PersistentVolumeRunningOut
         expr: |
           kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes < 0.15
@@ -375,10 +378,10 @@ SLO: 99.9% (30日間)
         labels:
           severity: warning
         annotations:
-          summary: "PersistentVolume の空き容量が15%未満"
-          description: "{{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} の残り容量: {{ $value | humanizePercentage }}"
+          summary: "PersistentVolume free space is below 15%"
+          description: "Remaining capacity for {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}: {{ $value | humanizePercentage }}"
 
-      # HPA のスケーリング限界
+      # HPA scaling limit reached
       - alert: HPAMaxedOut
         expr: |
           kube_horizontalpodautoscaler_status_current_replicas == kube_horizontalpodautoscaler_spec_max_replicas
@@ -386,19 +389,19 @@ SLO: 99.9% (30日間)
         labels:
           severity: warning
         annotations:
-          summary: "HPA が最大レプリカ数に達しています"
+          summary: "HPA has reached the maximum replica count"
           description: >
-            {{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} が
-            最大レプリカ数 ({{ $value }}) で15分以上動作しています。
-            スケーリング上限の引き上げを検討してください。
+            {{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} has been running
+            at the maximum replica count ({{ $value }}) for over 15 minutes.
+            Consider increasing the scaling limit.
 ```
 
-### 2.4 ビジネスアラート
+### 2.4 Business Alerts
 
 ```yaml
   - name: business-alerts
     rules:
-      # 注文数の急激な減少
+      # Sudden drop in order count
       - alert: OrderRateDropped
         expr: |
           sum(rate(orders_created_total[30m]))
@@ -408,13 +411,14 @@ SLO: 99.9% (30日間)
           severity: critical
           team: business
         annotations:
-          summary: "注文数が前日比50%以下に急減"
+          summary: "Order count dropped to 50% or below compared to previous day"
           description: >
-            直近30分の注文レートが前日同時刻と比較して50%以下に低下しています。
-            決済システム障害またはフロントエンド障害の可能性があります。
+            The order rate over the last 30 minutes has dropped to 50% or below
+            compared to the same time yesterday.
+            Possible payment system failure or frontend failure.
           runbook: "https://wiki.example.com/runbooks/order-rate-drop"
 
-      # 決済成功率の低下
+      # Low payment success rate
       - alert: PaymentSuccessRateLow
         expr: |
           sum(rate(payment_transactions_total{status="success"}[10m]))
@@ -425,12 +429,12 @@ SLO: 99.9% (30日間)
           severity: critical
           team: payments
         annotations:
-          summary: "決済成功率が95%を下回っています"
+          summary: "Payment success rate has fallen below 95%"
           description: >
-            直近10分の決済成功率: {{ $value | humanizePercentage }}
-            決済プロバイダの障害またはアプリケーションバグの可能性があります。
+            Payment success rate over the last 10 minutes: {{ $value | humanizePercentage }}
+            Possible payment provider failure or application bug.
 
-      # ユーザー登録の異常
+      # Anomaly in user registrations
       - alert: UserRegistrationAnomaly
         expr: |
           abs(
@@ -443,10 +447,10 @@ SLO: 99.9% (30日間)
           severity: warning
           team: growth
         annotations:
-          summary: "ユーザー登録数に異常検知"
-          description: "前週同時刻と比較して200%以上の変動があります"
+          summary: "Anomaly detected in user registration count"
+          description: "There is a variation of 200% or more compared to the same time last week"
 
-      # キューの滞留
+      # Queue backlog
       - alert: QueueBacklogHigh
         expr: |
           sum(queue_messages_pending) by (queue_name) > 10000
@@ -454,51 +458,51 @@ SLO: 99.9% (30日間)
         labels:
           severity: warning
         annotations:
-          summary: "メッセージキューの滞留が10,000件を超過"
+          summary: "Message queue backlog exceeds 10,000"
           description: >
-            キュー {{ $labels.queue_name }} に {{ $value }} 件のメッセージが滞留しています。
-            コンシューマのスケールアウトまたは処理遅延の調査が必要です。
+            Queue {{ $labels.queue_name }} has {{ $value }} messages pending.
+            Consumer scale-out or processing delay investigation is required.
 ```
 
 ---
 
-## 3. Alertmanager 設定
+## 3. Alertmanager Configuration
 
-### 3.1 ルーティングと通知設定
+### 3.1 Routing and Notification Settings
 
 ```yaml
-# alertmanager.yml — エスカレーション設定
+# alertmanager.yml — Escalation configuration
 global:
   resolve_timeout: 5m
   slack_api_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
   pagerduty_url: "https://events.pagerduty.com/v2/enqueue"
 
-# ルーティングツリー
+# Routing tree
 route:
   receiver: default-notification
   group_by: ['alertname', 'team', 'service']
-  group_wait: 30s       # 同じグループのアラートを30秒待って集約
-  group_interval: 5m    # 同じグループの再通知間隔
-  repeat_interval: 4h   # 同じアラートの繰り返し通知間隔
+  group_wait: 30s       # Wait 30 seconds to aggregate alerts in the same group
+  group_interval: 5m    # Re-notification interval for the same group
+  repeat_interval: 4h   # Repeat notification interval for the same alert
 
   routes:
     # Critical → PagerDuty + Slack
     - match:
         severity: critical
       receiver: pagerduty-critical
-      continue: true  # 次のルートも評価
+      continue: true  # Also evaluate the next route
     - match:
         severity: critical
       receiver: slack-critical
-      group_wait: 0s  # 即座に通知
+      group_wait: 0s  # Notify immediately
 
-    # Warning → Slack のみ
+    # Warning → Slack only
     - match:
         severity: warning
       receiver: slack-warning
       repeat_interval: 12h
 
-    # チーム別ルーティング
+    # Team-based routing
     - match:
         team: backend
       receiver: slack-backend
@@ -509,18 +513,18 @@ route:
         team: payments
       receiver: slack-payments
       routes:
-        # 決済チームの Critical は専用 PagerDuty へ
+        # Payments team Critical goes to dedicated PagerDuty
         - match:
             severity: critical
           receiver: pagerduty-payments
 
-    # ビジネスアラート → ビジネスチャンネル
+    # Business alerts → Business channel
     - match:
         team: business
       receiver: slack-business
       group_wait: 5m
 
-# 通知先の定義
+# Receiver definitions
 receivers:
   - name: default-notification
     slack_configs:
@@ -602,35 +606,35 @@ receivers:
       - channel: '#business-alerts'
         send_resolved: true
 
-# 抑制ルール
+# Inhibition rules
 inhibit_rules:
-  # Critical 発報中は Warning を抑制
+  # Suppress Warning while Critical is firing
   - source_match:
       severity: critical
     target_match:
       severity: warning
     equal: ['alertname', 'team']
 
-  # サービス全体が停止中は個別エンドポイントのアラートを抑制
+  # Suppress individual endpoint alerts while the entire service is down
   - source_match:
       alertname: ServiceDown
     target_match_re:
       alertname: 'High.*BurnRate.*'
     equal: ['service']
 
-  # Node が NotReady なら、その Node 上の Pod アラートを抑制
+  # If a Node is NotReady, suppress Pod alerts on that Node
   - source_match:
       alertname: KubeNodeNotReady
     target_match_re:
       alertname: 'Pod.*'
     equal: ['node']
 
-# テンプレート
+# Templates
 templates:
   - '/etc/alertmanager/templates/*.tmpl'
 ```
 
-### 3.2 Alertmanager テンプレートのカスタマイズ
+### 3.2 Customizing Alertmanager Templates
 
 ```go
 {{/* /etc/alertmanager/templates/slack.tmpl */}}
@@ -661,15 +665,15 @@ Alertmanager | {{ .ExternalURL }}
 {{ end }}
 ```
 
-### 3.3 Silence (一時的なアラート抑制) の管理
+### 3.3 Managing Silences (Temporary Alert Suppression)
 
 ```bash
 #!/bin/bash
-# silence-management.sh — Alertmanager Silence の管理スクリプト
+# silence-management.sh — Alertmanager Silence management script
 
 ALERTMANAGER_URL="http://alertmanager:9093"
 
-# Silence の作成 (メンテナンスウィンドウ用)
+# Create a Silence (for maintenance windows)
 create_maintenance_silence() {
   local duration="${1:-2h}"
   local comment="${2:-Scheduled maintenance}"
@@ -693,7 +697,7 @@ create_maintenance_silence() {
     }"
 }
 
-# 特定のアラートを Silence
+# Silence a specific alert
 silence_alert() {
   local alertname="$1"
   local duration="${2:-1h}"
@@ -717,13 +721,13 @@ silence_alert() {
     }"
 }
 
-# アクティブな Silence の一覧
+# List active Silences
 list_silences() {
   curl -s "${ALERTMANAGER_URL}/api/v2/silences" | \
     jq '.[] | select(.status.state == "active") | {id: .id, createdBy: .createdBy, comment: .comment, endsAt: .endsAt}'
 }
 
-# Silence の削除
+# Delete a Silence
 expire_silence() {
   local silence_id="$1"
   curl -X DELETE "${ALERTMANAGER_URL}/api/v2/silence/${silence_id}"
@@ -732,19 +736,19 @@ expire_silence() {
 
 ---
 
-## 4. エスカレーションフローとオンコール
+## 4. Escalation Flow and On-Call
 
-### 4.1 エスカレーションフロー詳細
+### 4.1 Escalation Flow Details
 
 ```
-エスカレーションフロー:
+Escalation flow:
 
-  アラート発報
+  Alert fires
       │
       ▼
   ┌──────────────┐
-  │ 自動対応可能？ │──── Yes ──► 自動修復 (Auto-remediation)
-  └──────┬───────┘              例: Pod 再起動、スケールアウト
+  │ Auto-fixable?│──── Yes ──► Auto-remediation
+  └──────┬───────┘              e.g., Pod restart, scale-out
          │ No
          ▼
   ┌──────────────┐
@@ -757,72 +761,73 @@ expire_silence() {
     │       │             │
     ▼       ▼             ▼
   PagerDuty  Slack       Slack
-  + Slack    チャンネル   チャンネル
-    │        (営業時間)   (記録のみ)
+  + Slack    channel     channel
+    │       (biz hours)  (record only)
     ▼
-  5分以内に
-  応答なし？
+  No response
+  within 5 min?
     │
     ▼
-  2次オンコール
-  へエスカレート
+  Escalate to
+  secondary on-call
     │
     ▼
-  15分以内に
-  応答なし？
+  No response
+  within 15 min?
     │
     ▼
-  マネージャー
-  へエスカレート
+  Escalate to
+  manager
     │
     ▼
-  30分以内に
-  応答なし？
+  No response
+  within 30 min?
     │
     ▼
+  Escalate to
   VP/CTO
-  へエスカレート
 ```
 
-### 4.2 インシデント重大度 (SEV) の定義
+### 4.2 Incident Severity (SEV) Definitions
 
 ```
-インシデント SEV レベル:
+Incident SEV levels:
 
 ┌──────┬────────────────┬──────────────┬──────────────┬──────────────┐
-│ SEV  │ 定義           │ 例            │ 対応時間     │ 通知先        │
+│ SEV  │ Definition     │ Example      │ Response     │ Notify       │
 ├──────┼────────────────┼──────────────┼──────────────┼──────────────┤
-│ SEV-1│ サービス全停止  │ 全API 500    │ 即時         │ 全エンジニア  │
-│      │ 全ユーザー影響  │ データ消失    │ (24/7)       │ + 経営層      │
+│ SEV-1│ Full service   │ All API 500  │ Immediate    │ All engineers│
+│      │ outage         │ Data loss    │ (24/7)       │ + leadership │
 ├──────┼────────────────┼──────────────┼──────────────┼──────────────┤
-│ SEV-2│ 主要機能停止   │ 決済不可     │ 15分以内     │ オンコール    │
-│      │ 一部ユーザー   │ 検索不可      │ (24/7)       │ + チームリード│
+│ SEV-2│ Major feature  │ Payment down │ Within       │ On-call      │
+│      │ down, partial  │ Search down  │ 15 min (24/7)│ + team lead  │
 ├──────┼────────────────┼──────────────┼──────────────┼──────────────┤
-│ SEV-3│ 機能劣化       │ レスポンス遅延│ 営業時間内   │ チーム        │
-│      │ 回避策あり     │ UI バグ       │ 4時間以内    │              │
+│ SEV-3│ Feature        │ Slow         │ Within 4 hrs │ Team         │
+│      │ degraded,      │ responses    │ (biz hours)  │              │
+│      │ workaround     │ UI bug       │              │              │
 ├──────┼────────────────┼──────────────┼──────────────┼──────────────┤
-│ SEV-4│ 軽微な問題     │ ログ警告     │ 営業時間内   │ チケット作成  │
-│      │ ユーザー影響なし│ 非本番環境    │ 次スプリント │              │
+│ SEV-4│ Minor issue    │ Log warning  │ Next sprint  │ Create ticket│
+│      │ No user impact │ Non-prod env │ (biz hours)  │              │
 └──────┴────────────────┴──────────────┴──────────────┴──────────────┘
 ```
 
-### 4.3 PagerDuty / Opsgenie 連携
+### 4.3 PagerDuty / Opsgenie Integration
 
 ```typescript
-// oncall-rotation.ts — オンコールローテーション設計
+// oncall-rotation.ts — On-call rotation design
 interface OncallSchedule {
   team: string;
   rotationType: 'weekly' | 'daily';
   members: string[];
   escalationPolicy: EscalationLevel[];
   overrides: Override[];
-  handoffTime: string; // "09:00" (月曜朝に交代)
+  handoffTime: string; // "09:00" (handoff Monday morning)
 }
 
 interface EscalationLevel {
   level: number;
   targets: string[];
-  timeout: number;  // 分
+  timeout: number;  // minutes
   notificationChannels: ('phone' | 'sms' | 'push' | 'email')[];
 }
 
@@ -842,7 +847,7 @@ const backendOncall: OncallSchedule = {
     'engineer-b@example.com',
     'engineer-c@example.com',
     'engineer-d@example.com',
-    'engineer-e@example.com', // 最低5名のローテーション
+    'engineer-e@example.com', // Minimum rotation of 5 people
   ],
   escalationPolicy: [
     {
@@ -874,10 +879,10 @@ const backendOncall: OncallSchedule = {
 };
 ```
 
-### 4.4 PagerDuty Terraform 設定
+### 4.4 PagerDuty Terraform Configuration
 
 ```hcl
-# pagerduty.tf — PagerDuty リソース管理
+# pagerduty.tf — PagerDuty resource management
 terraform {
   required_providers {
     pagerduty = {
@@ -891,13 +896,13 @@ provider "pagerduty" {
   token = var.pagerduty_token
 }
 
-# チーム
+# Team
 resource "pagerduty_team" "backend" {
   name        = "Backend Team"
   description = "Backend engineering team"
 }
 
-# ユーザー
+# Users
 resource "pagerduty_user" "engineers" {
   for_each = toset([
     "engineer-a@example.com",
@@ -912,7 +917,7 @@ resource "pagerduty_user" "engineers" {
   role  = "user"
 }
 
-# オンコールスケジュール
+# On-call schedule
 resource "pagerduty_schedule" "backend_primary" {
   name      = "Backend Primary On-Call"
   time_zone = "Asia/Tokyo"
@@ -921,7 +926,7 @@ resource "pagerduty_schedule" "backend_primary" {
     name                         = "Primary"
     start                        = "2025-01-06T09:00:00+09:00"
     rotation_virtual_start       = "2025-01-06T09:00:00+09:00"
-    rotation_turn_length_seconds = 604800  # 1週間
+    rotation_turn_length_seconds = 604800  # 1 week
 
     users = [for u in pagerduty_user.engineers : u.id]
   }
@@ -941,10 +946,10 @@ resource "pagerduty_schedule" "backend_secondary" {
   }
 }
 
-# エスカレーションポリシー
+# Escalation policy
 resource "pagerduty_escalation_policy" "backend" {
   name      = "Backend Escalation Policy"
-  num_loops = 2  # 全レベル2回繰り返し
+  num_loops = 2  # Repeat all levels 2 times
 
   rule {
     escalation_delay_in_minutes = 5
@@ -971,13 +976,13 @@ resource "pagerduty_escalation_policy" "backend" {
   }
 }
 
-# サービス
+# Service
 resource "pagerduty_service" "order_service" {
   name                    = "Order Service"
   description             = "Order processing service"
   escalation_policy       = pagerduty_escalation_policy.backend.id
-  auto_resolve_timeout    = 14400  # 4時間で自動解決
-  acknowledgement_timeout = 600    # 10分でエスカレート
+  auto_resolve_timeout    = 14400  # Auto-resolve after 4 hours
+  acknowledgement_timeout = 600    # Escalate after 10 minutes
 
   alert_creation = "create_alerts_and_incidents"
 
@@ -988,11 +993,11 @@ resource "pagerduty_service" "order_service" {
 
   auto_pause_notifications_parameters {
     enabled = true
-    timeout = 300  # 5分間のフラッピング防止
+    timeout = 300  # 5-minute flapping prevention
   }
 }
 
-# サービス統合 (Prometheus Alertmanager → PagerDuty)
+# Service integration (Prometheus Alertmanager → PagerDuty)
 resource "pagerduty_service_integration" "prometheus" {
   name    = "Prometheus Alertmanager"
   service = pagerduty_service.order_service.id
@@ -1006,19 +1011,19 @@ data "pagerduty_vendor" "prometheus" {
 
 ---
 
-## 5. 自動修復 (Auto-remediation)
+## 5. Auto-Remediation
 
-### 5.1 Kubernetes CronJob による自動修復
+### 5.1 Kubernetes CronJob for Auto-Remediation
 
 ```yaml
-# auto-remediation.yml — 自動修復ジョブ
+# auto-remediation.yml — Auto-remediation job
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: cleanup-stuck-pods
   namespace: monitoring
 spec:
-  schedule: "*/5 * * * *"  # 5分ごと
+  schedule: "*/5 * * * *"  # Every 5 minutes
   jobTemplate:
     spec:
       template:
@@ -1031,7 +1036,7 @@ spec:
                 - /bin/bash
                 - -c
                 - |
-                  # CrashLoopBackOff の Pod を検出して削除
+                  # Detect and delete CrashLoopBackOff pods
                   kubectl get pods --all-namespaces -o json | \
                     jq -r '.items[] |
                       select(.status.containerStatuses[]?.state.waiting.reason == "CrashLoopBackOff") |
@@ -1042,7 +1047,7 @@ spec:
                     kubectl delete pod -n "${namespace}" "${pod}" --grace-period=0
                   done
 
-                  # Evicted Pod のクリーンアップ
+                  # Clean up evicted pods
                   kubectl get pods --all-namespaces --field-selector=status.phase=Failed -o json | \
                     jq -r '.items[] | select(.status.reason == "Evicted") | "\(.metadata.namespace) \(.metadata.name)"' | \
                   while read namespace pod; do
@@ -1052,10 +1057,10 @@ spec:
           restartPolicy: OnFailure
 ```
 
-### 5.2 Alertmanager Webhook による自動修復
+### 5.2 Alertmanager Webhook for Auto-Remediation
 
 ```typescript
-// auto-remediation-webhook.ts — アラートに基づく自動修復
+// auto-remediation-webhook.ts — Alert-based auto-remediation
 import express from 'express';
 import { KubernetesObjectApi, KubeConfig } from '@kubernetes/client-node';
 
@@ -1071,9 +1076,9 @@ interface AlertmanagerWebhook {
   }[];
 }
 
-// 自動修復アクションの定義
+// Define auto-remediation actions
 const remediationActions: Record<string, (alert: any) => Promise<void>> = {
-  // Pod の再起動
+  // Pod restart
   PodCrashLooping: async (alert) => {
     const namespace = alert.labels.namespace;
     const pod = alert.labels.pod;
@@ -1089,11 +1094,11 @@ const remediationActions: Record<string, (alert: any) => Promise<void>> = {
       metadata: { name: pod, namespace: namespace },
     });
 
-    // Slack 通知
-    await notifySlack(`自動修復: Pod ${namespace}/${pod} を再起動しました`);
+    // Slack notification
+    await notifySlack(`Auto-remediation: Restarted pod ${namespace}/${pod}`);
   },
 
-  // HPA のスケールアウト
+  // HPA scale-out
   HPAMaxedOut: async (alert) => {
     const namespace = alert.labels.namespace;
     const hpaName = alert.labels.horizontalpodautoscaler;
@@ -1103,7 +1108,7 @@ const remediationActions: Record<string, (alert: any) => Promise<void>> = {
     kc.loadFromDefault();
     const k8sApi = kc.makeApiClient(KubernetesObjectApi);
 
-    // 最大レプリカ数を 50% 増加
+    // Increase max replicas by 50%
     const hpa = await k8sApi.read({
       apiVersion: 'autoscaling/v2',
       kind: 'HorizontalPodAutoscaler',
@@ -1122,25 +1127,25 @@ const remediationActions: Record<string, (alert: any) => Promise<void>> = {
     ]);
 
     await notifySlack(
-      `自動修復: HPA ${namespace}/${hpaName} の最大レプリカ数を ${currentMax} → ${newMax} に変更しました`
+      `Auto-remediation: Changed max replicas for HPA ${namespace}/${hpaName} from ${currentMax} to ${newMax}`
     );
   },
 
-  // ディスク容量のクリーンアップ
+  // Disk space cleanup
   DiskSpaceCritical: async (alert) => {
     const instance = alert.labels.instance;
     console.log(`Auto-remediation: Cleaning disk on ${instance}`);
 
-    // SSH 経由でクリーンアップ (実際は Ansible / SSM 経由)
-    // 古いログファイルの削除
-    // Docker の未使用イメージの削除
+    // Cleanup via SSH (in practice, use Ansible / SSM)
+    // Delete old log files
+    // Remove unused Docker images
     await notifySlack(
-      `自動修復: ${instance} のディスククリーンアップを実行しました`
+      `Auto-remediation: Executed disk cleanup on ${instance}`
     );
   },
 };
 
-// Webhook エンドポイント
+// Webhook endpoint
 app.post('/webhook/alertmanager', async (req, res) => {
   const payload: AlertmanagerWebhook = req.body;
 
@@ -1157,7 +1162,7 @@ app.post('/webhook/alertmanager', async (req, res) => {
       } catch (error) {
         console.error(`Remediation failed for ${alertName}:`, error);
         await notifySlack(
-          `自動修復失敗: ${alertName} — ${(error as Error).message}`
+          `Auto-remediation failed: ${alertName} — ${(error as Error).message}`
         );
       }
     }
@@ -1184,115 +1189,116 @@ app.listen(8080, () => {
 
 ---
 
-## 6. ポストモーテムテンプレート
+## 6. Postmortem Template
 
-### 6.1 ポストモーテムドキュメント
+### 6.1 Postmortem Document
 
 ```markdown
 <!-- postmortem-template.md -->
-# ポストモーテム: [インシデントタイトル]
+# Postmortem: [Incident Title]
 
-## 概要
-- **日時**: 2025-03-15 14:30 〜 15:45 JST (75分間)
-- **影響範囲**: 全ユーザーの決済処理が不可
-- **影響度**: SEV-1 (サービス全体の重大障害)
-- **検知方法**: SLO バーンレートアラート (自動検知)
-- **対応者**: @engineer-a (1次), @engineer-b (支援)
-- **インシデントコマンダー**: @engineer-a
+## Summary
+- **Date/Time**: 2025-03-15 14:30 – 15:45 JST (75 minutes)
+- **Impact**: Payment processing unavailable for all users
+- **Severity**: SEV-1 (Critical service-wide outage)
+- **Detection method**: SLO burn-rate alert (automatic detection)
+- **Responders**: @engineer-a (primary), @engineer-b (support)
+- **Incident Commander**: @engineer-a
 
-## タイムライン
-| 時刻 | イベント |
-|------|---------|
-| 14:30 | デプロイ完了 (v2.5.0) |
-| 14:32 | エラーレート急上昇、アラート発報 |
-| 14:35 | オンコール担当がアクノレッジ |
-| 14:38 | Slack の #incident-20250315 チャンネル作成 |
-| 14:40 | 決済 API の 500 エラーを確認 |
-| 14:45 | ステータスページを「Degraded」に更新 |
-| 14:50 | 原因特定: DB マイグレーションで決済テーブルのカラム名変更 |
-| 15:00 | ロールバック開始 (v2.4.3 へ) |
-| 15:15 | ロールバック完了、エラーレート正常化 |
-| 15:30 | ステータスページを「Operational」に更新 |
-| 15:45 | 全メトリクス正常を確認、インシデントクローズ |
+## Timeline
+| Time  | Event |
+|-------|-------|
+| 14:30 | Deployment completed (v2.5.0) |
+| 14:32 | Error rate spike, alert fired |
+| 14:35 | On-call engineer acknowledged |
+| 14:38 | #incident-20250315 Slack channel created |
+| 14:40 | Confirmed 500 errors on payment API |
+| 14:45 | Status page updated to "Degraded" |
+| 14:50 | Root cause identified: DB migration renamed payment table column |
+| 15:00 | Rollback started (to v2.4.3) |
+| 15:15 | Rollback completed, error rate normalized |
+| 15:30 | Status page updated to "Operational" |
+| 15:45 | All metrics confirmed normal, incident closed |
 
-## 根本原因
-DB マイグレーションで `payment_status` カラムを `status` にリネームしたが、
-旧バージョンのコードが `payment_status` を参照していた。
-Rolling Update 中に新旧バージョンが混在し、旧コードがカラム未検出エラーを起こした。
+## Root Cause
+The DB migration renamed the `payment_status` column to `status`, but
+the old version of the code still referenced `payment_status`.
+During rolling update, old and new versions coexisted, causing the old code
+to throw a column-not-found error.
 
-## 影響の定量化
-- 影響を受けたユーザー数: 約 3,200 名
-- 失敗したトランザクション: 847 件
-- 推定売上損失: ¥4,235,000
-- SLO エラーバジェット消費: 月間バジェットの 12.3%
+## Impact Quantification
+- Users affected: approximately 3,200
+- Failed transactions: 847
+- Estimated revenue loss: ¥4,235,000
+- SLO error budget consumed: 12.3% of monthly budget
 
-## 5 Whys 分析
-1. **Why** 決済が失敗した？ → カラム名の不一致
-2. **Why** カラム名が不一致？ → 破壊的変更のマイグレーション
-3. **Why** 破壊的変更が本番適用された？ → Expand-Contract パターン未使用
-4. **Why** パターン未使用？ → DBマイグレーションガイドラインがない
-5. **Why** ガイドラインがない？ → マイグレーション戦略の文書化が未実施
+## 5 Whys Analysis
+1. **Why** did payments fail? → Column name mismatch
+2. **Why** was there a column name mismatch? → Breaking migration change
+3. **Why** was the breaking change applied to production? → Expand-Contract pattern not used
+4. **Why** was the pattern not used? → No DB migration guidelines
+5. **Why** are there no guidelines? → Migration strategy not documented
 
-## 再発防止策
-| アクション | 担当 | 期限 | 優先度 | ステータス |
-|-----------|------|------|--------|-----------|
-| DBマイグレーションのExpand-Contractパターン必須化 | @engineer-a | 2025-03-22 | P0 | 完了 |
-| デプロイ後の自動 Smoke Test を追加 | @engineer-b | 2025-03-29 | P1 | 進行中 |
-| ロールバック手順を自動化 | @engineer-c | 2025-04-05 | P1 | 未着手 |
-| DBマイグレーションガイドラインの文書化 | @engineer-a | 2025-04-12 | P1 | 未着手 |
-| マイグレーションの自動互換性チェック (CI) | @engineer-d | 2025-04-19 | P2 | 未着手 |
+## Prevention Actions
+| Action | Owner | Due | Priority | Status |
+|--------|-------|-----|----------|--------|
+| Make Expand-Contract pattern mandatory for DB migrations | @engineer-a | 2025-03-22 | P0 | Done |
+| Add automated smoke tests after deployment | @engineer-b | 2025-03-29 | P1 | In progress |
+| Automate rollback procedure | @engineer-c | 2025-04-05 | P1 | Not started |
+| Document DB migration guidelines | @engineer-a | 2025-04-12 | P1 | Not started |
+| Automated migration compatibility check (CI) | @engineer-d | 2025-04-19 | P2 | Not started |
 
-## 教訓
-- 破壊的な DB 変更は Expand-Contract パターンで段階的に行う
-- デプロイ直後のメトリクス監視期間を設ける (最低10分)
-- ロールバック判断の基準を事前に定義しておく
-- ステータスページの更新を迅速に行い、ユーザーへの影響を透明化する
+## Lessons Learned
+- Perform breaking DB changes incrementally using the Expand-Contract pattern
+- Allow a monitoring period immediately after deployment (at least 10 minutes)
+- Pre-define rollback decision criteria
+- Update the status page promptly to be transparent with users about impact
 
-## うまくいったこと
-- SLO バーンレートアラートが2分以内に検知した
-- オンコール担当が3分以内にアクノレッジした
-- ロールバック自体は15分で完了した (手順が整備されていた)
+## What Went Well
+- SLO burn-rate alert detected the issue within 2 minutes
+- On-call engineer acknowledged within 3 minutes
+- Rollback itself was completed in 15 minutes (procedure was well prepared)
 ```
 
-### 6.2 ポストモーテムプロセス
+### 6.2 Postmortem Process
 
 ```
-ポストモーテムの運用プロセス:
+Postmortem operational process:
 
-  インシデント発生
+  Incident occurs
       │
       ▼
   ┌──────────────────┐
-  │ インシデント対応   │  ← 今は対応に集中。記録は後で。
-  │ (復旧最優先)      │
+  │ Incident response │  ← Focus on response now. Document later.
+  │ (Recovery first)  │
   └──────┬───────────┘
-         │ 復旧完了
+         │ Recovery complete
          ▼
   ┌──────────────────┐
-  │ 48時間以内に       │
-  │ ポストモーテム作成 │  ← 記憶が新しいうちに
-  └──────┬───────────┘
-         │
-         ▼
-  ┌──────────────────┐
-  │ ポストモーテム     │  ← 関係者全員参加
-  │ レビューミーティング│     blame-free の原則
-  └──────┬───────────┘     30-60分
-         │
-         ▼
-  ┌──────────────────┐
-  │ アクションアイテム │  ← Jira / Linear チケット化
-  │ のトラッキング     │     期限と担当者を明確に
+  │ Create postmortem │
+  │ within 48 hours   │  ← While the memory is fresh
   └──────┬───────────┘
          │
          ▼
   ┌──────────────────┐
-  │ 月次アラート       │  ← アクション完了の確認
-  │ レビュー           │     新たなアラートの評価
+  │ Postmortem        │  ← All stakeholders attend
+  │ review meeting    │     Blame-free principle
+  └──────┬───────────┘     30–60 minutes
+         │
+         ▼
+  ┌──────────────────┐
+  │ Action item       │  ← Convert to Jira / Linear tickets
+  │ tracking          │     Set deadlines and owners clearly
+  └──────┬───────────┘
+         │
+         ▼
+  ┌──────────────────┐
+  │ Monthly alert     │  ← Confirm action item completion
+  │ review            │     Evaluate new alerts
   └──────────────────┘
 ```
 
-### 6.3 ポストモーテムの GitHub Issue 自動生成
+### 6.3 Automated Postmortem GitHub Issue Creation
 
 ```yaml
 # .github/workflows/create-postmortem.yml
@@ -1302,21 +1308,21 @@ on:
   workflow_dispatch:
     inputs:
       incident_title:
-        description: 'インシデントのタイトル'
+        description: 'Incident title'
         required: true
       severity:
-        description: 'SEV レベル'
+        description: 'SEV level'
         required: true
         type: choice
         options: ['SEV-1', 'SEV-2', 'SEV-3']
       start_time:
-        description: '開始時刻 (JST)'
+        description: 'Start time (JST)'
         required: true
       end_time:
-        description: '終了時刻 (JST)'
+        description: 'End time (JST)'
         required: true
       incident_commander:
-        description: 'インシデントコマンダー (GitHub username)'
+        description: 'Incident commander (GitHub username)'
         required: true
 
 jobs:
@@ -1327,46 +1333,46 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const body = `# ポストモーテム: ${{ inputs.incident_title }}
+            const body = `# Postmortem: ${{ inputs.incident_title }}
 
-            ## 概要
-            - **日時**: ${{ inputs.start_time }} 〜 ${{ inputs.end_time }} JST
-            - **影響度**: ${{ inputs.severity }}
-            - **インシデントコマンダー**: @${{ inputs.incident_commander }}
+            ## Summary
+            - **Date/Time**: ${{ inputs.start_time }} – ${{ inputs.end_time }} JST
+            - **Severity**: ${{ inputs.severity }}
+            - **Incident Commander**: @${{ inputs.incident_commander }}
 
-            ## タイムライン
-            | 時刻 | イベント |
-            |------|---------|
+            ## Timeline
+            | Time | Event |
+            |------|-------|
             | | |
 
-            ## 根本原因
-            _（記入してください）_
+            ## Root Cause
+            _(Please fill in)_
 
-            ## 影響の定量化
-            - 影響を受けたユーザー数:
-            - 失敗したリクエスト数:
-            - SLO エラーバジェット消費:
+            ## Impact Quantification
+            - Users affected:
+            - Failed requests:
+            - SLO error budget consumed:
 
-            ## 5 Whys 分析
+            ## 5 Whys Analysis
             1. **Why**
             2. **Why**
             3. **Why**
             4. **Why**
             5. **Why**
 
-            ## 再発防止策
-            | アクション | 担当 | 期限 | 優先度 |
-            |-----------|------|------|--------|
+            ## Prevention Actions
+            | Action | Owner | Due | Priority |
+            |--------|-------|-----|----------|
             | | | | |
 
-            ## 教訓
+            ## Lessons Learned
             -
 
-            ## うまくいったこと
+            ## What Went Well
             -
 
             ---
-            **期限: ${new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0]} (48時間以内に完成)**
+            **Due: ${new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0]} (complete within 48 hours)**
             `;
 
             const issue = await github.rest.issues.create({
@@ -1383,88 +1389,89 @@ jobs:
 
 ---
 
-## 7. インシデント対応プロセス
+## 7. Incident Response Process
 
-### 7.1 インシデントコマンダー (IC) の役割
+### 7.1 Incident Commander (IC) Role
 
 ```
-インシデントコマンダーの責務:
+Incident Commander responsibilities:
 
 ┌────────────────────────────────────────────────────┐
 │                                                    │
-│  1. 状況把握 (Assess)                              │
-│     ・影響範囲の確認                               │
-│     ・SEV レベルの判定                             │
-│     ・対応チームの招集                             │
+│  1. Assess                                         │
+│     · Confirm scope of impact                      │
+│     · Determine SEV level                          │
+│     · Assemble the response team                   │
 │                                                    │
-│  2. コミュニケーション (Communicate)               │
-│     ・#incident チャンネルの作成                    │
-│     ・定期的なステータス更新 (15分ごと)             │
-│     ・ステータスページの更新                       │
-│     ・ステークホルダーへの報告                     │
+│  2. Communicate                                    │
+│     · Create #incident channel                     │
+│     · Regular status updates (every 15 minutes)    │
+│     · Update status page                           │
+│     · Report to stakeholders                       │
 │                                                    │
-│  3. 委任 (Delegate)                                │
-│     ・調査担当の指名                               │
-│     ・対外コミュニケーション担当の指名             │
-│     ・自身は調査に没頭しない (指揮に専念)          │
+│  3. Delegate                                       │
+│     · Assign investigation owners                  │
+│     · Assign external communication owner          │
+│     · Do not get drawn into investigation          │
+│       (focus on command)                           │
 │                                                    │
-│  4. 意思決定 (Decide)                              │
-│     ・ロールバックの判断                           │
-│     ・エスカレーションの判断                       │
-│     ・インシデントクローズの判断                   │
+│  4. Decide                                         │
+│     · Rollback decision                            │
+│     · Escalation decision                          │
+│     · Incident close decision                      │
 │                                                    │
-│  5. 記録 (Record)                                  │
-│     ・タイムラインの記録                           │
-│     ・ポストモーテムの手配                         │
+│  5. Record                                         │
+│     · Document the timeline                        │
+│     · Arrange postmortem                           │
 │                                                    │
 └────────────────────────────────────────────────────┘
 ```
 
-### 7.2 インシデント対応チェックリスト
+### 7.2 Incident Response Checklist
 
 ```
-□ アラートの確認とアクノレッジ
-  └─ PagerDuty/Opsgenie でアクノレッジ
-  └─ アラートの内容を確認
+□ Confirm and acknowledge the alert
+  └─ Acknowledge in PagerDuty/Opsgenie
+  └─ Review alert content
 
-□ 初期評価 (最初の5分)
-  └─ 影響範囲を確認
-  └─ SEV レベルを判定
-  └─ Runbook を確認
+□ Initial assessment (first 5 minutes)
+  └─ Confirm scope of impact
+  └─ Determine SEV level
+  └─ Review Runbook
 
-□ コミュニケーション開始
-  └─ #incident-YYYYMMDD チャンネルを作成
-  └─ IC (インシデントコマンダー) を宣言
-  └─ 初期ステータスを投稿
+□ Begin communication
+  └─ Create #incident-YYYYMMDD channel
+  └─ Declare IC (Incident Commander)
+  └─ Post initial status
 
-□ 調査と対応
-  └─ ダッシュボード/ログ/トレースを確認
-  └─ 直近の変更 (デプロイ、設定変更) を確認
-  └─ 原因の仮説を立てて検証
+□ Investigate and respond
+  └─ Check dashboards / logs / traces
+  └─ Review recent changes (deployments, config changes)
+  └─ Form hypotheses about the cause and verify
 
-□ 緩和策の実行
-  └─ ロールバック / スケールアウト / フェイルオーバー
-  └─ 影響の軽減策を実行
+□ Execute mitigation
+  └─ Rollback / scale-out / failover
+  └─ Execute measures to reduce impact
 
-□ ステータスページの更新
-  └─ SEV-1/2: 15分ごとに更新
-  └─ SEV-3: 1時間ごとに更新
+□ Update status page
+  └─ SEV-1/2: Update every 15 minutes
+  └─ SEV-3: Update every hour
 
-□ 復旧確認
-  └─ メトリクスが正常範囲に戻ったことを確認
-  └─ ユーザー影響がなくなったことを確認
-  └─ ステータスページを「Operational」に更新
+□ Confirm recovery
+  └─ Confirm metrics have returned to normal range
+  └─ Confirm no further user impact
+  └─ Update status page to "Operational"
 
-□ インシデントクローズ
-  └─ #incident チャンネルにクローズを宣言
-  └─ ポストモーテム作成の手配 (48時間以内)
-  └─ 関係者への最終報告
+□ Close incident
+  └─ Announce closure in #incident channel
+  └─ Arrange postmortem creation (within 48 hours)
+  └─ Final report to stakeholders
 ```
 
-### 7.3 ステータスページの運用
+### 7.3 Status Page Operations
 
 ```typescript
-// statuspage-updater.ts — ステータスページの自動更新
+// statuspage-updater.ts — Automated status page updates
 import fetch from 'node-fetch';
 
 interface StatusPageConfig {
@@ -1476,7 +1483,7 @@ interface StatusPageConfig {
 class StatusPageUpdater {
   constructor(private config: StatusPageConfig) {}
 
-  // コンポーネントのステータスを更新
+  // Update component status
   async updateComponentStatus(
     serviceName: string,
     status: 'operational' | 'degraded_performance' | 'partial_outage' | 'major_outage'
@@ -1499,7 +1506,7 @@ class StatusPageUpdater {
     );
   }
 
-  // インシデントの作成
+  // Create an incident
   async createIncident(
     name: string,
     body: string,
@@ -1534,7 +1541,7 @@ class StatusPageUpdater {
     return data.id;
   }
 
-  // インシデントの更新
+  // Update an incident
   async updateIncident(
     incidentId: string,
     status: 'investigating' | 'identified' | 'monitoring' | 'resolved',
@@ -1559,7 +1566,7 @@ class StatusPageUpdater {
   }
 }
 
-// 使用例
+// Usage example
 const statusPage = new StatusPageUpdater({
   apiKey: process.env.STATUSPAGE_API_KEY!,
   pageId: 'your-page-id',
@@ -1570,195 +1577,195 @@ const statusPage = new StatusPageUpdater({
   },
 });
 
-// インシデント発生時
+// When an incident occurs
 const incidentId = await statusPage.createIncident(
-  '決済処理の遅延',
-  '決済処理に通常より時間がかかっています。調査中です。',
+  'Payment Processing Delay',
+  'Payment processing is taking longer than usual. Under investigation.',
   'major',
   ['component-id-2'],
   'degraded_performance'
 );
 
-// 原因特定後
+// After root cause is identified
 await statusPage.updateIncident(
   incidentId,
   'identified',
-  '決済プロバイダ側の一時的な障害を確認しました。復旧を待っています。'
+  'We have confirmed a temporary failure on the payment provider side. Awaiting recovery.'
 );
 
-// 復旧後
+// After recovery
 await statusPage.updateIncident(
   incidentId,
   'resolved',
-  '決済プロバイダの障害が復旧し、全サービスが正常に動作しています。'
+  'The payment provider failure has been resolved and all services are operating normally.'
 );
 ```
 
 ---
 
-## 8. 比較表
+## 8. Comparison Tables
 
-| アラートツール | Alertmanager | PagerDuty | Opsgenie | Datadog Monitors |
-|--------------|-------------|-----------|----------|-----------------|
-| 運用形態 | OSS | SaaS | SaaS | SaaS |
-| エスカレーション | 基本的 | 高度 | 高度 | 基本的 |
-| オンコール管理 | なし (外部連携) | 充実 | 充実 | なし (外部連携) |
-| モバイルアプリ | なし | あり | あり | あり |
-| インシデント管理 | なし | あり | あり | あり |
-| 自動修復 | Webhook | Event Orchestration | Webhook | Workflow Automation |
-| 料金 | 無料 | $21/user/月〜 | $9/user/月〜 | 含む |
-| Terraform | 対応 | 対応 | 対応 | 対応 |
+| Alert Tool | Alertmanager | PagerDuty | Opsgenie | Datadog Monitors |
+|------------|-------------|-----------|----------|-----------------|
+| Deployment | OSS | SaaS | SaaS | SaaS |
+| Escalation | Basic | Advanced | Advanced | Basic |
+| On-call management | None (external integration) | Full-featured | Full-featured | None (external integration) |
+| Mobile app | None | Available | Available | Available |
+| Incident management | None | Available | Available | Available |
+| Auto-remediation | Webhook | Event Orchestration | Webhook | Workflow Automation |
+| Pricing | Free | $21/user/month+ | $9/user/month+ | Included |
+| Terraform | Supported | Supported | Supported | Supported |
 
-| ポストモーテムツール | Google Docs | Jeli | incident.io | Notion | GitHub Issues |
-|--------------------|------------|------|-------------|--------|---------------|
-| テンプレート管理 | 手動 | 自動 | 自動 | 手動 | 自動 (Actions) |
-| タイムライン自動生成 | 不可 | 対応 | 対応 | 不可 | 不可 |
-| メトリクス埋め込み | 不可 | 対応 | 対応 | 不可 | 不可 |
-| アクション追跡 | 不可 | 対応 | 対応 | 手動 | Issue 連携 |
-| Slack 統合 | 不可 | 対応 | 対応 | 対応 | 対応 |
-| コスト | 無料 | 有料 | 有料 | 無料/有料 | 無料 |
+| Postmortem Tool | Google Docs | Jeli | incident.io | Notion | GitHub Issues |
+|----------------|------------|------|-------------|--------|---------------|
+| Template management | Manual | Automatic | Automatic | Manual | Automatic (Actions) |
+| Auto timeline generation | No | Supported | Supported | No | No |
+| Metrics embedding | No | Supported | Supported | No | No |
+| Action tracking | No | Supported | Supported | Manual | Issue integration |
+| Slack integration | No | Supported | Supported | Supported | Supported |
+| Cost | Free | Paid | Paid | Free/Paid | Free |
 
-| ステータスページ | Statuspage | Instatus | Cachet | Better Uptime |
-|----------------|-----------|----------|--------|--------------|
-| 運用形態 | SaaS | SaaS | OSS | SaaS |
-| API 対応 | 充実 | 対応 | 対応 | 対応 |
-| 自動ステータス更新 | 対応 | 対応 | 限定的 | 対応 |
-| カスタムドメイン | 対応 | 対応 | 対応 | 対応 |
-| 料金 | $29/月〜 | $20/月〜 | 無料 | $20/月〜 |
-
----
-
-## 9. アンチパターン
-
-### アンチパターン 1: アラート疲れ (Alert Fatigue)
-
-```
-[悪い例]
-- 1日に50件以上のアラートが発報
-- 大半が「対応不要」で無視される
-- 本当に重要なアラートも見逃される
-- オンコール担当が疲弊し離職
-
-[良い例]
-- アラートは「今すぐ人間が対応すべきもの」に限定
-- 月次でアラートを棚卸し:
-  - 対応不要で無視したアラート → 削除またはしきい値調整
-  - 自動復旧できるアラート → 自動修復に変更
-  - 頻発するアラート → 根本原因を修正
-- 目標: PAGE は月に数回、1アラートにつき必ずアクションが伴う
-```
-
-### アンチパターン 2: Runbook なしのアラート
-
-```
-[悪い例]
-- アラートが来たが対応方法が不明
-- 「前回どう対応した？」を Slack で検索
-- 深夜のオンコールで経験者に電話して確認
-- 同じ障害に毎回異なる対応をしてしまう
-
-[良い例]
-- 全アラートに Runbook URL を紐付け
-- Runbook の内容:
-  1. アラートの意味と影響範囲
-  2. 確認すべきダッシュボード/ログ
-  3. ステップバイステップの対応手順
-  4. エスカレーション判断基準
-  5. 過去のインシデントリンク
-- Runbook は障害対応後に更新する習慣をつける
-```
-
-### アンチパターン 3: ポストモーテムの形骸化
-
-```
-[悪い例]
-- ポストモーテムを書くが、アクションアイテムが放置される
-- 同じ原因のインシデントが繰り返し発生
-- 「個人の注意不足」が根本原因に挙がる
-- ポストモーテムが blame (非難) の場になる
-
-[良い例]
-- アクションアイテムは必ずチケット化し、期限と担当者を設定
-- 月次でアクションアイテムの進捗を確認
-- 根本原因は「システムの改善余地」として記述
-  ×「Aさんがテストを忘れた」
-  ○「テスト自動化の仕組みがなく、手動テストに依存していた」
-- ポストモーテムの目的を繰り返し周知:
-  「Who failed?」ではなく「What failed?」
-```
-
-### アンチパターン 4: エスカレーション不足
-
-```
-[悪い例]
-- オンコール担当が一人で2時間以上格闘
-- 「もう少しで解決できそう」と思ってエスカレートしない
-- 結果的にダウンタイムが長引く
-- 事後に「なぜもっと早くエスカレートしなかった？」
-
-[良い例]
-- エスカレーション判断の明文化:
-  ・15分以内に原因が特定できない → エスカレート
-  ・SEV-1/2 のインシデント → 即時エスカレート
-  ・自分の専門外の領域 → 即時エスカレート
-- エスカレーションは「弱さ」ではなく「判断力」
-- IC はエスカレーションを促す役割を持つ
-```
+| Status Page | Statuspage | Instatus | Cachet | Better Uptime |
+|-------------|-----------|----------|--------|--------------|
+| Deployment | SaaS | SaaS | OSS | SaaS |
+| API support | Full-featured | Supported | Supported | Supported |
+| Automated status update | Supported | Supported | Limited | Supported |
+| Custom domain | Supported | Supported | Supported | Supported |
+| Pricing | $29/month+ | $20/month+ | Free | $20/month+ |
 
 ---
 
-## 10. 月次アラートレビュー
+## 9. Anti-Patterns
 
-### 10.1 レビューミーティングのアジェンダ
+### Anti-Pattern 1: Alert Fatigue
 
 ```
-月次アラートレビュー (60分):
+[Bad example]
+- More than 50 alerts firing per day
+- Most are ignored as "no action needed"
+- Truly important alerts are also missed
+- On-call engineers burn out and resign
 
-  1. 先月のアラート統計 (10分)
-     ・PAGE 数 / TICKET 数 / NOTIFICATION 数
-     ・MTTA (平均応答時間) / MTTR (平均復旧時間)
-     ・False positive 率
-     ・最も発報回数が多いアラート Top 5
-
-  2. アラートの棚卸し (20分)
-     ・False positive が多いアラート → 閾値調整 or 削除
-     ・対応不要だったアラート → レベル変更 or 削除
-     ・新しく追加すべきアラート → 作成
-     ・自動修復に移行できるアラート → 自動化
-
-  3. Runbook の更新 (10分)
-     ・新しいアラートの Runbook 作成
-     ・既存 Runbook の更新 (最新の対応手順)
-     ・Runbook カバレッジの確認 (100% 目標)
-
-  4. ポストモーテムのアクション確認 (10分)
-     ・未完了のアクションアイテムの進捗
-     ・完了したアクションの効果確認
-
-  5. オンコール体験の振り返り (10分)
-     ・オンコール担当からのフィードバック
-     ・改善提案
-     ・次月のスケジュール確認
+[Good example]
+- Alerts are limited to "things requiring immediate human action"
+- Monthly alert review:
+  - Alerts ignored as no action needed → delete or adjust threshold
+  - Alerts that can be auto-recovered → convert to auto-remediation
+  - Frequently firing alerts → fix the root cause
+- Goal: PAGE fires only a few times a month; every alert must result in an action
 ```
 
-### 10.2 アラートレビュー用 PromQL
+### Anti-Pattern 2: Alerts Without Runbooks
+
+```
+[Bad example]
+- Alert fires but the response method is unclear
+- Search Slack for "how did we handle this last time?"
+- Call an experienced engineer in the middle of the night to check
+- Same incident gets handled differently each time
+
+[Good example]
+- All alerts linked to a Runbook URL
+- Runbook contents:
+  1. Meaning of the alert and scope of impact
+  2. Dashboards/logs to check
+  3. Step-by-step response procedure
+  4. Escalation decision criteria
+  5. Links to past incidents
+- Make a habit of updating Runbooks after an incident
+```
+
+### Anti-Pattern 3: Postmortems Becoming Formalities
+
+```
+[Bad example]
+- Postmortems are written but action items are left unattended
+- Incidents with the same root cause keep recurring
+- "Individual carelessness" is listed as the root cause
+- Postmortems turn into blame sessions
+
+[Good example]
+- Action items are always converted to tickets with deadlines and owners
+- Monthly check on action item progress
+- Root causes described as "areas for system improvement"
+  x "Person A forgot to test"
+  o "No automated testing mechanism; dependent on manual testing"
+- Repeatedly communicate the purpose of postmortems:
+  "What failed?" not "Who failed?"
+```
+
+### Anti-Pattern 4: Insufficient Escalation
+
+```
+[Bad example]
+- On-call engineer struggles alone for over 2 hours
+- Thinks "almost solved it" and hesitates to escalate
+- Downtime ends up being prolonged
+- Afterwards: "Why didn't you escalate sooner?"
+
+[Good example]
+- Formalize escalation decision criteria:
+  · Root cause not identified within 15 minutes → escalate
+  · SEV-1/2 incidents → escalate immediately
+  · Outside your area of expertise → escalate immediately
+- Escalation is "good judgment," not "weakness"
+- IC has a role in encouraging escalation
+```
+
+---
+
+## 10. Monthly Alert Review
+
+### 10.1 Review Meeting Agenda
+
+```
+Monthly alert review (60 minutes):
+
+  1. Last month's alert statistics (10 min)
+     · PAGE / TICKET / NOTIFICATION counts
+     · MTTA (mean time to acknowledge) / MTTR (mean time to resolve)
+     · False positive rate
+     · Top 5 most frequently fired alerts
+
+  2. Alert inventory (20 min)
+     · Alerts with many false positives → adjust threshold or delete
+     · Alerts that required no action → change level or delete
+     · Alerts that should be newly added → create
+     · Alerts that can be moved to auto-remediation → automate
+
+  3. Runbook updates (10 min)
+     · Create Runbooks for new alerts
+     · Update existing Runbooks (latest response procedures)
+     · Check Runbook coverage (target: 100%)
+
+  4. Postmortem action item review (10 min)
+     · Progress on incomplete action items
+     · Confirm effectiveness of completed actions
+
+  5. On-call experience retrospective (10 min)
+     · Feedback from on-call engineers
+     · Improvement suggestions
+     · Confirm next month's schedule
+```
+
+### 10.2 PromQL for Alert Review
 
 ```promql
-# 先月の PAGE 数
+# PAGE count last month
 count(ALERTS{severity="critical", alertstate="firing"})
 
-# アラート別の発報回数 (Top 10)
+# Alert firing count by alert (Top 10)
 topk(10,
   count(ALERTS{alertstate="firing"}) by (alertname)
 )
 
-# アラートの平均 firing 時間
+# Average firing duration by alert
 avg(
   time() - ALERTS_FOR_STATE{alertstate="firing"}
 ) by (alertname)
 
-# False positive 率の推定
-# (5分以内に resolve されたアラートの割合)
+# Estimated false positive rate
+# (proportion of alerts resolved within 5 minutes)
 count(ALERTS{alertstate="firing"} < 300) by (alertname)
 /
 count(ALERTS{alertstate="firing"}) by (alertname)
@@ -1768,78 +1775,78 @@ count(ALERTS{alertstate="firing"}) by (alertname)
 
 ## 11. FAQ
 
-### Q1: アラートのしきい値はどう決めるべきですか？
+### Q1: How should I determine alert thresholds?
 
-SLO ベースのバーンレートアラートを基本とし、静的なしきい値（CPU > 80% など）は補助的に使います。バーンレートアラートは「このペースでエラーが続くとSLOを割る」という予測的なアラートで、ビジネスインパクトに直結します。しきい値は最初はゆるめに設定し、運用しながら誤検知（false positive）と見逃し（false negative）のバランスで調整してください。
+Use SLO-based burn-rate alerts as the foundation, with static thresholds (e.g., CPU > 80%) as supplementary. Burn-rate alerts predict "if errors continue at this rate, the SLO will be violated," and are directly tied to business impact. Start with loose thresholds and adjust the balance between false positives and false negatives (missed detections) as you operate.
 
-### Q2: オンコールローテーションの適切な人数は？
+### Q2: What is the appropriate number of people for an on-call rotation?
 
-最低 4〜5 名のローテーションが推奨です。週次ローテーションで月に1回程度の当番が理想です。2〜3 名では頻度が高すぎて燃え尽きのリスクがあります。また、1次担当と 2次担当を分け、1次が対応不可の場合に自動エスカレートする仕組みを構築してください。
+A minimum rotation of 4–5 people is recommended. Weekly rotation with each person on duty roughly once a month is ideal. With 2–3 people, the frequency is too high and there is a risk of burnout. Additionally, set up a primary and secondary on-call, with automatic escalation to the secondary if the primary is unable to respond.
 
-### Q3: ポストモーテムで最も重要なことは何ですか？
+### Q3: What is the most important thing about postmortems?
 
-**blame-free（非難しない）文化**の徹底です。ポストモーテムの目的は「誰が悪かったか」ではなく「システムのどこに改善余地があるか」を見つけることです。個人を責めると情報が隠蔽され、組織の学習能力が低下します。再発防止策は「人が気をつける」ではなく「システムで防止する」方向で設計してください。
+Thoroughly enforcing a **blame-free culture**. The purpose of a postmortem is not "who was at fault" but "where are the areas for improvement in the system." Blaming individuals causes information to be hidden and reduces the organization's learning capacity. Design prevention actions in the direction of "prevent through the system" rather than "people be more careful."
 
-### Q4: Alertmanager の高可用性をどう実現しますか？
+### Q4: How do I achieve high availability for Alertmanager?
 
-Alertmanager はネイティブでクラスタリングをサポートしています。複数のインスタンスを `--cluster.peer` フラグで相互接続し、アラートの重複排除（deduplication）と自動フェイルオーバーを実現します。最低 2 台、推奨 3 台の構成で、全 Prometheus インスタンスから全 Alertmanager インスタンスに通知を送信する設定にしてください。
+Alertmanager natively supports clustering. Connect multiple instances to each other with the `--cluster.peer` flag to achieve alert deduplication and automatic failover. Use a configuration of at least 2 instances, with 3 recommended, where all Prometheus instances send notifications to all Alertmanager instances.
 
-### Q5: ビジネスメトリクスのアラートは誰が管理すべきですか？
+### Q5: Who should manage business metric alerts?
 
-ビジネスメトリクスのアラートは、エンジニアリングチームとビジネスチームの協業で管理すべきです。エンジニアがアラートの技術的な実装（PromQL / Datadog クエリ）を担当し、ビジネスチームが閾値とビジネスインパクトの定義を担当します。ビジネスアラートは通常 TICKET レベルで、営業時間内に対応する設計にします。
+Business metric alerts should be managed collaboratively between the engineering team and the business team. Engineers handle the technical implementation of alerts (PromQL / Datadog queries), while the business team is responsible for defining thresholds and business impact. Business alerts are typically at the TICKET level and designed to be handled during business hours.
 
-### Q6: アラートの Silence (抑制) を使う際の注意点は？
+### Q6: What are the precautions when using alert Silences?
 
-Silence は計画メンテナンス時や、既知の問題で繰り返しアラートが発報される場合に使用します。注意点として、(1) Silence には必ず期限を設定する（永続的な Silence は禁止）、(2) Silence の理由をコメントに記載する、(3) Silence の作成/削除を Slack に通知する、(4) 週次で不要な Silence がないか確認する、があります。
+Silences are used during planned maintenance or when alerts repeatedly fire due to known issues. Precautions: (1) always set an expiry on Silences (permanent Silences are prohibited), (2) record the reason for the Silence in a comment, (3) notify Slack when a Silence is created/deleted, (4) check weekly for any unnecessary Silences.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| アラート設計 | PAGE/TICKET/NOTIFICATION の階層化。PAGE は最小限に |
-| バーンレートアラート | SLO ベースの予測的アラート。Multi-window で誤検知を低減 |
-| エスカレーション | 段階的な通知先。タイムアウトで自動エスカレート |
-| オンコール | 4〜5名ローテーション。Runbook を必ず整備 |
-| 自動修復 | 定型的な障害は Webhook/CronJob で自動復旧 |
-| ポストモーテム | blame-free で実施。アクションアイテムは必ずチケット化 |
-| アラート疲れ | 月次棚卸しで不要アラートを削除。自動修復を推進 |
-| インシデント管理 | SEV レベル定義、IC の役割、ステータスページの運用 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [00-observability.md](./00-observability.md) — オブザーバビリティの基礎
-- [01-monitoring-tools.md](./01-monitoring-tools.md) — 監視ツールの選定と構築
-- [03-performance-monitoring.md](./03-performance-monitoring.md) — パフォーマンス監視
+| Item | Key Points |
+|------|------------|
+| Alert design | Tier alerts into PAGE/TICKET/NOTIFICATION. Minimize PAGE |
+| Burn-rate alerts | Predictive SLO-based alerts. Multi-window reduces false positives |
+| Escalation | Tiered notification targets. Auto-escalate on timeout |
+| On-call | 4–5 person rotation. Always prepare Runbooks |
+| Auto-remediation | Automatically recover from routine failures via Webhook/CronJob |
+| Postmortem | Conduct blame-free. Always convert action items to tickets |
+| Alert fatigue | Monthly review to remove unnecessary alerts. Promote auto-remediation |
+| Incident management | Define SEV levels, IC role, and status page operations |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
 
-1. **Google SRE Book - Alerting on SLOs** — https://sre.google/workbook/alerting-on-slos/ — SLO ベースのアラート設計
-2. **PagerDuty Incident Response Guide** — https://response.pagerduty.com/ — インシデント対応のベストプラクティス
-3. **Alertmanager Documentation** — https://prometheus.io/docs/alerting/latest/alertmanager/ — Alertmanager 公式ドキュメント
-4. **Etsy Debriefing Facilitation Guide** — https://github.com/etsy/DebriefingFacilitationGuide — ポストモーテムのファシリテーション手法
-5. **incident.io** — https://incident.io/ — インシデント管理プラットフォーム
-6. **Jeli** — https://www.jeli.io/ — ポストモーテム管理ツール
-7. **Learning from Incidents in Software** — https://www.learningfromincidents.io/ — インシデントからの学習
+- [00-observability.md](./00-observability.md) — Fundamentals of observability
+- [01-monitoring-tools.md](./01-monitoring-tools.md) — Selecting and building monitoring tools
+- [03-performance-monitoring.md](./03-performance-monitoring.md) — Performance monitoring
+
+---
+
+## References
+
+1. **Google SRE Book - Alerting on SLOs** — https://sre.google/workbook/alerting-on-slos/ — SLO-based alert design
+2. **PagerDuty Incident Response Guide** — https://response.pagerduty.com/ — Best practices for incident response
+3. **Alertmanager Documentation** — https://prometheus.io/docs/alerting/latest/alertmanager/ — Official Alertmanager documentation
+4. **Etsy Debriefing Facilitation Guide** — https://github.com/etsy/DebriefingFacilitationGuide — Postmortem facilitation techniques
+5. **incident.io** — https://incident.io/ — Incident management platform
+6. **Jeli** — https://www.jeli.io/ — Postmortem management tool
+7. **Learning from Incidents in Software** — https://www.learningfromincidents.io/ — Learning from incidents
