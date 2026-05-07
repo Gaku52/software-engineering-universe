@@ -1,201 +1,202 @@
-# Docker Compose 基礎 (Compose Basics)
+# Docker Compose Basics
 
-> docker-compose.yml の構文と概念を体系的に理解し、services / volumes / networks を組み合わせたマルチコンテナアプリケーション環境を構築する基礎力を身につける。
+> Systematically understand the syntax and concepts of docker-compose.yml, and build a foundation for constructing multi-container application environments by combining services, volumes, and networks.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **docker-compose.yml の構文と基本構造** -- YAML 記法に基づく Compose ファイルの各セクション（services, volumes, networks）の役割と記法を理解する
-2. **サービス定義とコンテナのライフサイクル管理** -- イメージ指定、ビルド設定、ポート公開、環境変数など、サービス定義の主要オプションを習得する
-3. **ボリュームとネットワークによるデータ・通信の管理** -- コンテナ間のデータ永続化と内部通信の設計パターンを学ぶ
+1. **Syntax and basic structure of docker-compose.yml** -- Understand the role and notation of each section (services, volumes, networks) in a Compose file based on YAML syntax
+2. **Service definitions and container lifecycle management** -- Master the main service definition options including image specification, build configuration, port exposure, and environment variables
+3. **Data and communication management with volumes and networks** -- Learn design patterns for data persistence and internal communication between containers
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. Docker Compose とは
+## 1. What is Docker Compose
 
-### 1.1 単一コンテナ vs Compose
+### 1.1 Single Container vs Compose
 
 ```
 +------------------------------------------------------------------+
-|          単一コンテナ vs Docker Compose                            |
+|          Single Container vs Docker Compose                       |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [単一コンテナ (docker run)]                                      |
+|  [Single Container (docker run)]                                 |
 |  $ docker run -d --name web -p 3000:3000 \                       |
 |      -e DATABASE_URL=... \                                       |
 |      --network mynet myapp:latest                                |
 |  $ docker run -d --name db -p 5432:5432 \                        |
 |      -v pgdata:/var/lib/postgresql/data \                        |
 |      --network mynet postgres:16                                 |
-|  → コマンドが長い、管理が煩雑、再現性が低い                        |
+|  → Long commands, complex management, low reproducibility        |
 |                                                                  |
 |  [Docker Compose]                                                |
 |  $ docker compose up -d                                          |
-|  → 1コマンドで全サービス起動。設定は YAML ファイルで管理            |
+|  → Launch all services with one command. Config managed in YAML  |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 1.2 Docker Compose のアーキテクチャ
+### 1.2 Docker Compose Architecture
 
 ```
 +------------------------------------------------------------------+
-|              Docker Compose の内部アーキテクチャ                     |
+|              Docker Compose Internal Architecture                 |
 +------------------------------------------------------------------+
 |                                                                  |
 |  docker compose up                                               |
 |    |                                                             |
-|    +-- compose.yml のパース & バリデーション                       |
+|    +-- Parse & validate compose.yml                              |
 |    |     |                                                       |
-|    |     +-- YAML → 内部モデルへの変換                            |
-|    |     +-- 環境変数の展開 (.env ファイル含む)                     |
-|    |     +-- 複数 Compose ファイルのマージ                         |
-|    |     +-- プロファイルのフィルタリング                           |
+|    |     +-- YAML → conversion to internal model                 |
+|    |     +-- Environment variable expansion (including .env)     |
+|    |     +-- Merge multiple Compose files                        |
+|    |     +-- Profile filtering                                   |
 |    |                                                             |
-|    +-- 依存関係グラフの構築                                       |
+|    +-- Build dependency graph                                    |
 |    |     |                                                       |
-|    |     +-- depends_on の解析                                   |
-|    |     +-- 循環依存の検出                                       |
-|    |     +-- 起動順序の決定                                       |
+|    |     +-- Parse depends_on                                    |
+|    |     +-- Detect circular dependencies                        |
+|    |     +-- Determine startup order                             |
 |    |                                                             |
-|    +-- リソースの作成                                             |
+|    +-- Create resources                                          |
 |    |     |                                                       |
-|    |     +-- ネットワーク作成 (docker network create)             |
-|    |     +-- ボリューム作成 (docker volume create)                |
-|    |     +-- シークレット/コンフィグの準備                          |
+|    |     +-- Create networks (docker network create)             |
+|    |     +-- Create volumes (docker volume create)               |
+|    |     +-- Prepare secrets/configs                             |
 |    |                                                             |
-|    +-- サービスの起動                                             |
+|    +-- Start services                                            |
 |          |                                                       |
-|          +-- イメージの pull または build                          |
-|          +-- コンテナ作成 (docker create)                         |
-|          +-- コンテナ起動 (docker start)                          |
-|          +-- ヘルスチェック待機                                    |
-|          +-- 依存サービスの起動                                    |
+|          +-- Pull or build images                                |
+|          +-- Create containers (docker create)                   |
+|          +-- Start containers (docker start)                     |
+|          +-- Wait for health checks                              |
+|          +-- Start dependent services                            |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 1.3 プロジェクト名とコンテナ名の仕組み
+### 1.3 Project Names and Container Naming
 
-Docker Compose はプロジェクト名をベースにリソースの名前を決定する。プロジェクト名は以下の優先順位で決まる:
+Docker Compose determines resource names based on the project name. The project name is determined by the following priority order:
 
 ```bash
-# 1. -p / --project-name フラグ（最高優先度）
+# 1. -p / --project-name flag (highest priority)
 docker compose -p myproject up -d
 
-# 2. COMPOSE_PROJECT_NAME 環境変数
+# 2. COMPOSE_PROJECT_NAME environment variable
 export COMPOSE_PROJECT_NAME=myproject
 docker compose up -d
 
-# 3. compose.yml 内の name フィールド
+# 3. name field in compose.yml
 # compose.yml
 # name: myproject
 
-# 4. compose.yml があるディレクトリ名（デフォルト）
-# /home/user/my-app/ → プロジェクト名: my-app
+# 4. Directory name where compose.yml is located (default)
+# /home/user/my-app/ → project name: my-app
 ```
 
-リソースの命名規則:
+Resource naming conventions:
 
 ```
 +------------------------------------------------------------------+
-|              プロジェクト名によるリソース命名                        |
+|              Resource Naming by Project Name                      |
 +------------------------------------------------------------------+
 |                                                                  |
-|  プロジェクト名: myproject                                        |
+|  Project name: myproject                                         |
 |                                                                  |
-|  コンテナ名:    myproject-web-1, myproject-db-1                   |
-|  ネットワーク名: myproject_default                                |
-|  ボリューム名:   myproject_pgdata                                 |
+|  Container names: myproject-web-1, myproject-db-1                |
+|  Network name:    myproject_default                              |
+|  Volume name:     myproject_pgdata                               |
 |                                                                  |
-|  container_name で明示的に指定も可能:                              |
+|  Can also be specified explicitly with container_name:           |
 |  services:                                                       |
 |    web:                                                          |
-|      container_name: my-web-server  # 固定名                     |
-|      # ※ container_name を指定すると                              |
-|      #   スケール (--scale) が使えなくなる                         |
+|      container_name: my-web-server  # fixed name                 |
+|      # ※ Specifying container_name disables                      |
+|      #   scaling (--scale)                                       |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 1.4 Compose ファイルのバージョン
+### 1.4 Compose File Versions
 
 ```
 +------------------------------------------------------------------+
-|              Compose ファイル仕様の歴史                             |
+|              History of Compose File Specification               |
 +------------------------------------------------------------------+
-| バージョン        | 特徴                      | 推奨度           |
-|------------------|--------------------------|-----------------|
-| version: "2"     | Docker Engine 統合前      | 非推奨           |
-| version: "3"     | Swarm 対応                | 非推奨           |
-| version: "3.8"   | 最終明示バージョン         | 互換性用途のみ    |
-| (バージョン省略)  | Compose Spec 準拠         | 推奨 (現在の標準) |
+| Version          | Features                  | Recommendation    |
+|------------------|--------------------------|------------------|
+| version: "2"     | Before Docker Engine integration | Deprecated  |
+| version: "3"     | Swarm support             | Deprecated        |
+| version: "3.8"   | Last explicit version     | Compatibility only|
+| (version omitted)| Compose Spec compliant    | Recommended (current standard) |
 +------------------------------------------------------------------+
 |                                                                  |
-|  現在は version キーを省略し、Compose Specification に              |
-|  準拠するのが推奨。Docker Compose V2 が自動判定する。              |
+|  Currently, omitting the version key and complying with the      |
+|  Compose Specification is recommended. Docker Compose V2         |
+|  automatically determines this.                                  |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. docker-compose.yml の基本構造
+## 2. Basic Structure of docker-compose.yml
 
-### 2.1 全体構造
+### 2.1 Overall Structure
 
 ```yaml
 # docker-compose.yml
 
-# (version は省略推奨)
+# (version is recommended to be omitted)
 
-# サービス定義 (コンテナの設定)
+# Service definitions (container configuration)
 services:
   web:
     image: node:20-alpine
-    # ... 設定
+    # ... configuration
   db:
     image: postgres:16-alpine
-    # ... 設定
+    # ... configuration
 
-# ボリューム定義 (データ永続化)
+# Volume definitions (data persistence)
 volumes:
   pgdata:
     driver: local
 
-# ネットワーク定義 (コンテナ間通信)
+# Network definitions (inter-container communication)
 networks:
   backend:
     driver: bridge
 
-# シークレット定義 (機密情報)
+# Secret definitions (sensitive information)
 secrets:
   db_password:
     file: ./secrets/db_password.txt
 
-# 設定定義 (設定ファイル)
+# Config definitions (configuration files)
 configs:
   nginx_conf:
     file: ./nginx/nginx.conf
 ```
 
-### 2.2 Compose ファイルの階層図
+### 2.2 Compose File Hierarchy
 
 ```
 +------------------------------------------------------------------+
-|              docker-compose.yml の構造                             |
+|              Structure of docker-compose.yml                      |
 +------------------------------------------------------------------+
 |                                                                  |
 |  docker-compose.yml                                              |
 |    |                                                             |
-|    +-- services:          ← コンテナ定義 (必須)                   |
+|    +-- services:          ← Container definitions (required)     |
 |    |     +-- web:                                                |
 |    |     |    +-- image / build                                  |
 |    |     |    +-- ports                                          |
@@ -207,130 +208,130 @@ configs:
 |    |     +-- db:                                                 |
 |    |          +-- ...                                            |
 |    |                                                             |
-|    +-- volumes:           ← ボリューム定義 (任意)                  |
+|    +-- volumes:           ← Volume definitions (optional)        |
 |    |     +-- pgdata:                                             |
 |    |                                                             |
-|    +-- networks:          ← ネットワーク定義 (任意)                |
+|    +-- networks:          ← Network definitions (optional)       |
 |    |     +-- backend:                                            |
 |    |                                                             |
-|    +-- secrets:           ← シークレット定義 (任意)                |
-|    +-- configs:           ← 設定ファイル定義 (任意)                |
+|    +-- secrets:           ← Secret definitions (optional)        |
+|    +-- configs:           ← Config file definitions (optional)   |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 3. services の詳細
+## 3. Details of services
 
-### 3.1 イメージ指定 vs ビルド
+### 3.1 Image Specification vs Build
 
 ```yaml
 services:
-  # パターン 1: 既存イメージを使用
+  # Pattern 1: Use an existing image
   db:
     image: postgres:16-alpine
 
-  # パターン 2: Dockerfile からビルド
+  # Pattern 2: Build from Dockerfile
   web:
     build:
-      context: .               # ビルドコンテキスト
-      dockerfile: Dockerfile   # Dockerfile パス (デフォルト: Dockerfile)
-      args:                    # ビルド引数
+      context: .               # Build context
+      dockerfile: Dockerfile   # Dockerfile path (default: Dockerfile)
+      args:                    # Build arguments
         NODE_ENV: production
-      target: runner           # マルチステージの対象ステージ
+      target: runner           # Target stage for multi-stage builds
       cache_from:
         - myapp:latest
-    image: myapp:latest        # ビルド後のタグ名
+    image: myapp:latest        # Tag name after build
 
-  # パターン 3: 簡易ビルド
+  # Pattern 3: Simple build
   api:
-    build: ./api               # context のみ指定 (Dockerfile は自動検出)
+    build: ./api               # Specify context only (Dockerfile auto-detected)
 ```
 
-### 3.2 ポート公開
+### 3.2 Port Exposure
 
 ```yaml
 services:
   web:
     ports:
-      # ホスト:コンテナ
-      - "3000:3000"            # localhost:3000 → コンテナ:3000
+      # host:container
+      - "3000:3000"            # localhost:3000 → container:3000
       - "443:443"
 
-      # ホスト IP 指定
-      - "127.0.0.1:3000:3000"  # localhost のみ (外部からアクセス不可)
+      # Specify host IP
+      - "127.0.0.1:3000:3000"  # localhost only (not accessible from outside)
 
-      # ホストポートをランダムに割り当て
-      - "3000"                 # ランダムポート → コンテナ:3000
+      # Randomly assign host port
+      - "3000"                 # random port → container:3000
 
-      # プロトコル指定
+      # Specify protocol
       - "6379:6379/tcp"
 
-    # コンテナ間のみ公開 (ホストからはアクセス不可)
+    # Expose only between containers (not accessible from host)
     expose:
       - "3000"
 ```
 
-### 3.3 環境変数
+### 3.3 Environment Variables
 
 ```yaml
 services:
   web:
     environment:
-      # キー=値 形式
+      # key=value format
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:postgres@db:5432/myapp
-      # 値なし = ホストの環境変数を引き継ぐ
+      # No value = inherit host environment variable
       API_KEY:
 
-    # .env ファイルから読み込み
+    # Load from .env file
     env_file:
       - .env
-      - .env.local             # 後のファイルが優先
+      - .env.local             # Later files take precedence
 ```
 
-### 3.4 ボリュームマウント
+### 3.4 Volume Mounts
 
 ```yaml
 services:
   web:
     volumes:
-      # 名前付きボリューム
+      # Named volume
       - node_modules:/app/node_modules
 
-      # バインドマウント (ホストディレクトリ)
+      # Bind mount (host directory)
       - ./src:/app/src
 
-      # 読み取り専用
+      # Read-only
       - ./config:/app/config:ro
 
-      # tmpfs (メモリ上)
+      # tmpfs (in memory)
       - type: tmpfs
         target: /tmp
         tmpfs:
           size: 100000000  # 100MB
 
-      # 詳細構文
+      # Long syntax
       - type: bind
         source: ./data
         target: /app/data
-        consistency: cached   # macOS パフォーマンス改善
+        consistency: cached   # macOS performance improvement
 ```
 
-### 3.5 再起動ポリシー
+### 3.5 Restart Policy
 
 ```yaml
 services:
   web:
     restart: unless-stopped
-    # no           : 再起動しない (デフォルト)
-    # always       : 常に再起動
-    # on-failure   : 異常終了時のみ再起動
-    # unless-stopped: 手動停止以外は再起動
+    # no           : Do not restart (default)
+    # always       : Always restart
+    # on-failure   : Restart only on abnormal exit
+    # unless-stopped: Restart unless manually stopped
 ```
 
-### 3.6 depends_on と起動順序制御
+### 3.6 depends_on and Startup Order Control
 
 ```yaml
 services:
@@ -338,12 +339,12 @@ services:
     build: .
     depends_on:
       db:
-        condition: service_healthy     # ヘルスチェック通過後に起動
-        restart: true                  # db 再起動時に web も再起動
+        condition: service_healthy     # Start after health check passes
+        restart: true                  # Restart web when db restarts
       redis:
-        condition: service_started     # コンテナ起動のみ確認
+        condition: service_started     # Only check that container has started
       migrations:
-        condition: service_completed_successfully  # 正常終了後に起動
+        condition: service_completed_successfully  # Start after successful exit
 
   migrations:
     build: .
@@ -372,27 +373,27 @@ services:
 
 ```
 +------------------------------------------------------------------+
-|              depends_on の condition 一覧                          |
+|              depends_on condition Reference                       |
 +------------------------------------------------------------------+
 |                                                                  |
-|  condition               | 説明                                  |
+|  condition               | Description                           |
 |  ----------------------- | ------------------------------------- |
-|  service_started         | コンテナが起動したら (デフォルト)       |
-|  service_healthy         | ヘルスチェックが healthy になったら     |
-|  service_completed_      | コンテナが正常終了 (exit 0) したら      |
+|  service_started         | When container has started (default)  |
+|  service_healthy         | When health check becomes healthy     |
+|  service_completed_      | When container exits normally (exit 0)|
 |    successfully          |                                       |
 |                                                                  |
-|  起動順序の例:                                                    |
+|  Startup order example:                                          |
 |  db (healthy) → migrations (completed) → web (start)             |
 |                                                                  |
-|  ※ service_healthy には healthcheck の定義が必須                  |
-|  ※ service_completed_successfully は                              |
-|    マイグレーションやシード処理で活用                               |
+|  ※ service_healthy requires a healthcheck definition             |
+|  ※ service_completed_successfully is useful for migrations       |
+|    and seed operations                                           |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 3.7 リソース制限
+### 3.7 Resource Limits
 
 ```yaml
 services:
@@ -400,11 +401,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"           # CPU コア数の上限
-          memory: 512M          # メモリ上限
+          cpus: "1.0"           # CPU core limit
+          memory: 512M          # Memory limit
         reservations:
-          cpus: "0.25"          # 予約 CPU
-          memory: 128M          # 予約メモリ
+          cpus: "0.25"          # Reserved CPU
+          memory: 128M          # Reserved memory
 
   db:
     deploy:
@@ -416,25 +417,25 @@ services:
           cpus: "0.5"
           memory: 256M
 
-    # OOM Killer の調整
-    oom_kill_disable: false     # OOM Killer を無効にしない（推奨）
-    oom_score_adj: -500         # OOM スコアの調整（低い = kill されにくい）
+    # OOM Killer adjustment
+    oom_kill_disable: false     # Do not disable OOM Killer (recommended)
+    oom_score_adj: -500         # OOM score adjustment (lower = less likely to be killed)
 ```
 
-### 3.8 ログ設定
+### 3.8 Logging Configuration
 
 ```yaml
 services:
   web:
     logging:
-      driver: json-file        # デフォルトのログドライバー
+      driver: json-file        # Default log driver
       options:
-        max-size: "10m"        # ログファイルの最大サイズ
-        max-file: "3"          # ローテーション数
-        compress: "true"       # 圧縮の有効化
-        tag: "{{.Name}}"       # ログタグ
+        max-size: "10m"        # Maximum log file size
+        max-file: "3"          # Number of rotations
+        compress: "true"       # Enable compression
+        tag: "{{.Name}}"       # Log tag
 
-  # syslog に送信
+  # Send to syslog
   api:
     logging:
       driver: syslog
@@ -443,26 +444,26 @@ services:
         syslog-facility: daemon
         tag: "api-service"
 
-  # ログを無効化（大量ログを出すサービス向け）
+  # Disable logging (for services that produce large amounts of logs)
   load-test:
     logging:
       driver: none
 ```
 
-### 3.9 ヘルスチェック
+### 3.9 Health Checks
 
 ```yaml
 services:
   web:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s            # チェック間隔
-      timeout: 10s             # タイムアウト
-      retries: 3               # リトライ回数
-      start_period: 40s        # 起動猶予期間（この間の失敗はカウントしない）
-      start_interval: 5s       # 起動中のチェック間隔 (Compose v2.20+)
+      interval: 30s            # Check interval
+      timeout: 10s             # Timeout
+      retries: 3               # Number of retries
+      start_period: 40s        # Startup grace period (failures during this time are not counted)
+      start_interval: 5s       # Check interval during startup (Compose v2.20+)
 
-  # シェルコマンドを使ったヘルスチェック
+  # Health check using shell command
   db:
     image: postgres:16-alpine
     healthcheck:
@@ -472,7 +473,7 @@ services:
       retries: 5
       start_period: 10s
 
-  # ヘルスチェックを無効化（デフォルトのヘルスチェックがあるイメージ）
+  # Disable health check (for images with a default health check)
   custom-service:
     healthcheck:
       disable: true
@@ -480,79 +481,79 @@ services:
 
 ```
 +------------------------------------------------------------------+
-|              ヘルスチェックのステートマシン                          |
+|              Health Check State Machine                           |
 +------------------------------------------------------------------+
 |                                                                  |
-|  コンテナ起動                                                     |
+|  Container starts                                                |
 |    |                                                             |
 |    v                                                             |
-|  [starting]  ← start_period の間はここに留まる                    |
+|  [starting]  ← Stays here during start_period                   |
 |    |                                                             |
-|    +-- チェック成功 → [healthy]                                   |
+|    +-- Check success → [healthy]                                 |
 |    |                    |                                        |
-|    |                    +-- チェック失敗 (retries 回) → [unhealthy]|
+|    |                    +-- Check fails (retries times) → [unhealthy]|
 |    |                    |                                        |
-|    |                    +-- チェック成功 → [healthy] (ループ)      |
+|    |                    +-- Check success → [healthy] (loop)     |
 |    |                                                             |
-|    +-- start_period 経過後もチェック失敗 → [unhealthy]             |
+|    +-- Check still failing after start_period → [unhealthy]      |
 |                                                                  |
-|  ※ unhealthy になっても restart ポリシーがないと再起動しない       |
-|  ※ depends_on + service_healthy で他サービスの起動をブロック       |
+|  ※ Even when unhealthy, container won't restart without a restart policy|
+|  ※ Use depends_on + service_healthy to block other service startups|
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 4. volumes (ボリューム)
+## 4. volumes
 
-### 4.1 ボリュームの種類
+### 4.1 Types of Volumes
 
 ```
 +------------------------------------------------------------------+
-|              ボリュームの種類と特徴                                  |
+|              Volume Types and Characteristics                     |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [名前付きボリューム] (Named Volume)                               |
+|  [Named Volume]                                                  |
 |  volumes:                                                        |
 |    pgdata:                                                       |
 |      driver: local                                               |
-|  → Docker が管理。docker volume ls で確認可能                     |
-|  → コンテナ間で共有可能。永続化が保証される                        |
-|  → macOS/Windows でも高速 (Docker VM 内)                          |
+|  → Managed by Docker. Viewable with docker volume ls             |
+|  → Shareable between containers. Persistence is guaranteed       |
+|  → Fast on macOS/Windows too (inside Docker VM)                  |
 |                                                                  |
-|  [バインドマウント] (Bind Mount)                                   |
+|  [Bind Mount]                                                    |
 |  volumes:                                                        |
 |    - ./src:/app/src                                              |
-|  → ホストのディレクトリをそのままマウント                           |
-|  → 開発中のソースコード共有に最適                                  |
-|  → macOS/Windows では I/O が遅い場合がある                        |
+|  → Mounts host directory directly                                |
+|  → Ideal for sharing source code during development              |
+|  → I/O may be slow on macOS/Windows                              |
 |                                                                  |
 |  [tmpfs]                                                         |
 |  tmpfs:                                                          |
 |    - /tmp                                                        |
-|  → メモリ上に作成。コンテナ停止で消失                              |
-|  → 一時ファイルやキャッシュに最適                                  |
+|  → Created in memory. Lost when container stops                  |
+|  → Ideal for temporary files and caches                          |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 4.2 ボリュームの定義
+### 4.2 Volume Definitions
 
 ```yaml
 volumes:
-  # シンプルな定義
+  # Simple definition
   pgdata:
 
-  # ドライバー指定
+  # Specify driver
   mysql_data:
     driver: local
 
-  # 外部ボリューム (docker volume create で事前作成)
+  # External volume (pre-created with docker volume create)
   shared_data:
     external: true
 
-  # ドライバーオプション
+  # Driver options
   nfs_data:
     driver: local
     driver_opts:
@@ -563,21 +564,21 @@ volumes:
 
 ---
 
-## 5. networks (ネットワーク)
+## 5. networks
 
-### 5.1 ネットワークの仕組み
+### 5.1 How Networks Work
 
 ```
 +------------------------------------------------------------------+
-|              Compose ネットワークの仕組み                           |
+|              How Compose Networks Work                            |
 +------------------------------------------------------------------+
 |                                                                  |
-|  docker compose up 実行時:                                       |
-|  → デフォルトで {プロジェクト名}_default ネットワークが作成される   |
-|  → 全サービスがこのネットワークに接続                              |
-|  → サービス名で DNS 解決が可能                                    |
+|  When docker compose up runs:                                    |
+|  → {project_name}_default network is created by default          |
+|  → All services connect to this network                          |
+|  → DNS resolution by service name is possible                    |
 |                                                                  |
-|  +--- default ネットワーク -------------------------+              |
+|  +--- default network ----------------------------+              |
 |  |                                                 |              |
 |  |  [web]                        [db]              |              |
 |  |  curl http://db:5432    <---> PostgreSQL         |              |
@@ -585,12 +586,12 @@ volumes:
 |  |                                                 |              |
 |  +-------------------------------------------------+              |
 |                                                                  |
-|  ※ サービス名 = DNS ホスト名 として自動解決される                  |
+|  ※ Service name = DNS hostname, automatically resolved           |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 5.2 ネットワークの使い分け
+### 5.2 Network Usage Patterns
 
 ```yaml
 services:
@@ -605,32 +606,32 @@ services:
 
   db:
     networks:
-      - backend    # web からは直接アクセスできない
+      - backend    # Not directly accessible from web
 
 networks:
   frontend:
     driver: bridge
   backend:
     driver: bridge
-    internal: true  # 外部からのアクセスを遮断
+    internal: true  # Block external access
 ```
 
-### 5.3 ネットワーク比較
+### 5.3 Network Comparison
 
-| 項目 | デフォルト | カスタム bridge | internal | host |
+| Item | Default | Custom bridge | internal | host |
 |------|----------|---------------|----------|------|
-| 自動作成 | あり | なし | なし | N/A |
-| コンテナ間通信 | 全サービス | 指定サービスのみ | 指定サービスのみ | ホストネットワーク |
-| 外部アクセス | ports で公開 | ports で公開 | 不可 | ポート直接 |
-| DNS 解決 | サービス名 | サービス名 | サービス名 | ホスト名 |
-| セキュリティ | 低 | 中 | 高 | 低 |
-| 用途 | 小規模 | 一般 | DB/内部API | パフォーマンス |
+| Auto-created | Yes | No | No | N/A |
+| Inter-container communication | All services | Specified services only | Specified services only | Host network |
+| External access | Expose with ports | Expose with ports | Not allowed | Direct port |
+| DNS resolution | Service name | Service name | Service name | Hostname |
+| Security | Low | Medium | High | Low |
+| Use case | Small scale | General | DB/internal API | Performance |
 
-### 5.4 ネットワークの詳細設定
+### 5.4 Advanced Network Configuration
 
 ```yaml
 networks:
-  # カスタムサブネット指定
+  # Custom subnet specification
   backend:
     driver: bridge
     ipam:
@@ -638,7 +639,7 @@ networks:
         - subnet: 172.28.0.0/16
           gateway: 172.28.0.1
 
-  # DNS 設定
+  # DNS configuration
   custom_dns:
     driver: bridge
     driver_opts:
@@ -648,9 +649,9 @@ services:
   web:
     networks:
       backend:
-        ipv4_address: 172.28.0.10   # 固定 IP アドレス
+        ipv4_address: 172.28.0.10   # Fixed IP address
         aliases:
-          - web.local               # 追加の DNS エイリアス
+          - web.local               # Additional DNS aliases
           - frontend.local
 
   api:
@@ -660,41 +661,41 @@ services:
         aliases:
           - api.local
 
-    # DNS 設定
+    # DNS configuration
     dns:
       - 8.8.8.8
       - 8.8.4.4
     dns_search:
       - example.com
 
-    # /etc/hosts に追加
+    # Add to /etc/hosts
     extra_hosts:
-      - "host.docker.internal:host-gateway"  # ホストマシンへのアクセス
-      - "api.external.com:192.168.1.100"     # 外部サービスの解決
+      - "host.docker.internal:host-gateway"  # Access to host machine
+      - "api.external.com:192.168.1.100"     # Resolution of external services
 ```
 
-### 5.5 ネットワーク分離パターン
+### 5.5 Network Isolation Patterns
 
 ```
 +------------------------------------------------------------------+
-|              マイクロサービスのネットワーク分離設計                    |
+|              Microservices Network Isolation Design               |
 +------------------------------------------------------------------+
 |                                                                  |
 |  [Internet]                                                      |
 |      |                                                           |
 |      v                                                           |
-|  +--- public ネットワーク ---+                                    |
+|  +--- public network ------+                                     |
 |  |  [nginx/traefik]         |                                    |
-|  |    (リバースプロキシ)     |                                    |
+|  |    (reverse proxy)       |                                    |
 |  +-----|-------|-------------+                                    |
 |        |       |                                                 |
 |        v       v                                                 |
-|  +--- frontend ネットワーク ---+                                  |
+|  +--- frontend network --------+                                 |
 |  |  [web-app]    [admin-app]  |                                  |
 |  +-----|-------|-----|--------+                                   |
 |        |       |     |                                           |
 |        v       v     v                                           |
-|  +--- api ネットワーク ------+                                    |
+|  +--- api network -----------+                                   |
 |  |  [api-gateway]           |                                    |
 |  |    |         |           |                                    |
 |  |    v         v           |                                    |
@@ -702,9 +703,9 @@ services:
 |  +----|---------|------------+                                    |
 |       |         |                                                |
 |       v         v                                                |
-|  +--- data ネットワーク (internal) ---+                           |
+|  +--- data network (internal) -------+                           |
 |  |  [postgres]  [redis]  [rabbitmq]  |                           |
-|  |  ※ 外部から直接アクセス不可       |                            |
+|  |  ※ Not directly accessible from outside |                     |
 |  +-----------------------------------+                           |
 |                                                                  |
 +------------------------------------------------------------------+
@@ -712,9 +713,9 @@ services:
 
 ---
 
-## 6. secrets と configs
+## 6. secrets and configs
 
-### 6.1 シークレットの定義と利用
+### 6.1 Secret Definitions and Usage
 
 ```yaml
 # docker-compose.yml
@@ -731,42 +732,42 @@ services:
   web:
     build: .
     secrets:
-      - source: db_password        # シークレット名
-        target: database_password   # コンテナ内のファイル名
-        uid: "1000"                 # ファイルの所有者 UID
-        gid: "1000"                 # ファイルの所有者 GID
-        mode: 0440                  # ファイルのパーミッション
+      - source: db_password        # Secret name
+        target: database_password   # Filename inside container
+        uid: "1000"                 # File owner UID
+        gid: "1000"                 # File owner GID
+        mode: 0440                  # File permissions
 
 secrets:
-  # ファイルベースのシークレット
+  # File-based secret
   db_password:
     file: ./secrets/db_password.txt
 
-  # 環境変数ベースのシークレット
+  # Environment variable-based secret
   db_user:
-    environment: POSTGRES_USER      # ホストの環境変数から取得
+    environment: POSTGRES_USER      # Retrieved from host environment variable
 ```
 
 ```
 +------------------------------------------------------------------+
-|              シークレットの仕組み                                   |
+|              How Secrets Work                                     |
 +------------------------------------------------------------------+
 |                                                                  |
-|  ホスト                          コンテナ                         |
+|  Host                            Container                       |
 |  ./secrets/db_password.txt  -->  /run/secrets/db_password        |
 |                                                                  |
-|  ※ シークレットは tmpfs にマウントされる                          |
-|  ※ 環境変数と異なり docker inspect で値が見えない                 |
-|  ※ ファイルとしてアクセスするためアプリ側の対応が必要              |
+|  ※ Secrets are mounted as tmpfs                                  |
+|  ※ Unlike environment variables, values are not visible with docker inspect|
+|  ※ Application-side support is needed since access is via file   |
 |                                                                  |
-|  PostgreSQL の _FILE サフィックス対応:                             |
+|  PostgreSQL _FILE suffix support:                                |
 |    POSTGRES_PASSWORD_FILE=/run/secrets/db_password               |
-|    → ファイルの内容を POSTGRES_PASSWORD として認識                 |
+|    → File contents are recognized as POSTGRES_PASSWORD           |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 6.2 configs の定義と利用
+### 6.2 Config Definitions and Usage
 
 ```yaml
 services:
@@ -774,7 +775,7 @@ services:
     image: nginx:alpine
     configs:
       - source: nginx_conf
-        target: /etc/nginx/nginx.conf    # コンテナ内のパス
+        target: /etc/nginx/nginx.conf    # Path inside container
         uid: "0"
         gid: "0"
         mode: 0444
@@ -795,91 +796,91 @@ configs:
 
 ---
 
-## 7. 基本コマンド
+## 7. Basic Commands
 
-### 7.1 よく使うコマンド
+### 7.1 Commonly Used Commands
 
 ```bash
-# 起動
-docker compose up -d          # バックグラウンドで全サービス起動
-docker compose up web db      # 指定サービスのみ起動
-docker compose up --build     # ビルドしてから起動
+# Start
+docker compose up -d          # Start all services in background
+docker compose up web db      # Start only specified services
+docker compose up --build     # Build then start
 
-# 停止
-docker compose stop           # サービス停止 (コンテナ保持)
-docker compose down           # サービス停止 + コンテナ削除
-docker compose down -v        # + ボリュームも削除
-docker compose down --rmi all # + イメージも削除
+# Stop
+docker compose stop           # Stop services (keep containers)
+docker compose down           # Stop services + remove containers
+docker compose down -v        # + also remove volumes
+docker compose down --rmi all # + also remove images
 
-# 状態確認
-docker compose ps             # サービス一覧
-docker compose logs           # ログ表示
-docker compose logs -f web    # 特定サービスのログをフォロー
-docker compose top            # プロセス一覧
+# Check status
+docker compose ps             # List services
+docker compose logs           # Show logs
+docker compose logs -f web    # Follow logs of specific service
+docker compose top            # List processes
 
-# 実行
-docker compose exec web bash  # 起動中コンテナでコマンド実行
-docker compose run web npm test # 新しいコンテナでコマンド実行
+# Execute
+docker compose exec web bash  # Run command in running container
+docker compose run web npm test # Run command in a new container
 
-# その他
-docker compose config         # 設定の検証 & 展開結果表示
-docker compose pull           # イメージを最新に更新
-docker compose build          # サービスのビルドのみ
+# Other
+docker compose config         # Validate settings & show expanded result
+docker compose pull           # Update images to latest
+docker compose build          # Build services only
 ```
 
-### 7.2 コマンドフロー図
+### 7.2 Command Flow Diagram
 
 ```
 +------------------------------------------------------------------+
-|              docker compose コマンドフロー                          |
+|              docker compose Command Flow                          |
 +------------------------------------------------------------------+
 |                                                                  |
 |  docker compose up -d                                            |
 |    |                                                             |
-|    +-- ネットワーク作成 (なければ)                                 |
-|    +-- ボリューム作成 (なければ)                                   |
-|    +-- イメージ pull/build (なければ)                              |
-|    +-- コンテナ作成 & 起動                                        |
-|    +-- ヘルスチェック待機 (設定されていれば)                        |
+|    +-- Create networks (if not exist)                            |
+|    +-- Create volumes (if not exist)                             |
+|    +-- Pull/build images (if not exist)                          |
+|    +-- Create & start containers                                 |
+|    +-- Wait for health checks (if configured)                    |
 |                                                                  |
 |  docker compose down                                             |
 |    |                                                             |
-|    +-- コンテナ停止                                               |
-|    +-- コンテナ削除                                               |
-|    +-- ネットワーク削除                                           |
-|    +-- (ボリュームは保持。-v で削除)                               |
+|    +-- Stop containers                                           |
+|    +-- Remove containers                                         |
+|    +-- Remove networks                                           |
+|    +-- (Volumes are retained. Use -v to remove)                  |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 7.3 コマンドの実行パターン比較
+### 7.3 Command Execution Pattern Comparison
 
 ```
 +------------------------------------------------------------------+
-|              exec vs run の違い                                    |
+|              Difference between exec and run                      |
 +------------------------------------------------------------------+
 |                                                                  |
 |  docker compose exec web bash                                    |
-|  → 起動中のコンテナに接続                                         |
-|  → コンテナの環境変数・ネットワークをそのまま使用                  |
-|  → コンテナが停止すると使えない                                   |
-|  → ファイル変更は永続（コンテナ再作成まで）                       |
+|  → Connect to a running container                                |
+|  → Uses the container's environment variables and network as-is  |
+|  → Cannot be used when the container is stopped                  |
+|  → File changes persist (until container is recreated)           |
 |                                                                  |
 |  docker compose run web npm test                                 |
-|  → 新しいコンテナを作成して実行                                   |
-|  → ポートマッピングはデフォルトで無効 (--service-ports で有効化)   |
-|  → depends_on のサービスも起動される                              |
-|  → 終了後にコンテナが残る (--rm で自動削除)                       |
+|  → Create and run a new container                                |
+|  → Port mapping is disabled by default (enable with --service-ports)|
+|  → Services in depends_on are also started                       |
+|  → Container remains after exit (use --rm for auto-removal)      |
 |                                                                  |
-|  使い分けガイド:                                                  |
+|  Usage guide:                                                    |
 |  +---------------------------+-----------------------------------+|
-|  | ユースケース              | コマンド                          ||
+|  | Use case                  | Command                          ||
 |  +---------------------------+-----------------------------------+|
-|  | デバッグ (シェル接続)     | exec web bash                     ||
-|  | テスト実行                | run --rm web npm test             ||
-|  | マイグレーション          | run --rm web npm run migrate      ||
-|  | 一回限りのスクリプト      | run --rm web node script.js       ||
-|  | データベースクライアント  | exec db psql -U postgres          ||
+|  | Debug (shell access)      | exec web bash                    ||
+|  | Run tests                 | run --rm web npm test            ||
+|  | Migration                 | run --rm web npm run migrate     ||
+|  | One-off scripts           | run --rm web node script.js      ||
+|  | Database client           | exec db psql -U postgres         ||
 |  +---------------------------+-----------------------------------+|
 |                                                                  |
 +------------------------------------------------------------------+
@@ -887,9 +888,9 @@ docker compose build          # サービスのビルドのみ
 
 ---
 
-## 8. 実践的な構成例
+## 8. Practical Configuration Examples
 
-### 8.1 Web アプリケーション + DB + Redis
+### 8.1 Web Application + DB + Redis
 
 ```yaml
 # docker-compose.yml
@@ -996,7 +997,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # マイグレーション（起動時に一度だけ実行）
+  # Migration (run once at startup)
   migrate:
     build:
       context: .
@@ -1008,7 +1009,7 @@ services:
       db:
         condition: service_healthy
 
-  # 静的ファイル収集（起動時に一度だけ実行）
+  # Static file collection (run once at startup)
   collectstatic:
     build:
       context: .
@@ -1026,12 +1027,12 @@ volumes:
   media_volume:
 ```
 
-### 8.3 マイクロサービス構成
+### 8.3 Microservices Configuration
 
 ```yaml
 # docker-compose.yml
 services:
-  # API ゲートウェイ
+  # API gateway
   gateway:
     build: ./gateway
     ports:
@@ -1052,7 +1053,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # ユーザーサービス
+  # User service
   user-service:
     build: ./services/user
     expose:
@@ -1073,7 +1074,7 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # 注文サービス
+  # Order service
   order-service:
     build: ./services/order
     expose:
@@ -1096,7 +1097,7 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # 商品サービス
+  # Product service
   product-service:
     build: ./services/product
     expose:
@@ -1116,7 +1117,7 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # データベース群
+  # Databases
   user-db:
     image: postgres:16-alpine
     volumes:
@@ -1165,11 +1166,11 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # メッセージキュー
+  # Message queue
   rabbitmq:
     image: rabbitmq:3-management-alpine
     ports:
-      - "15672:15672"       # 管理画面（開発用）
+      - "15672:15672"       # Management UI (for development)
     expose:
       - "5672"
     volumes:
@@ -1183,7 +1184,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # キャッシュ
+  # Cache
   redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
@@ -1205,7 +1206,7 @@ networks:
     driver: bridge
   data:
     driver: bridge
-    internal: true          # 外部アクセス不可
+    internal: true          # No external access
 
 volumes:
   user_pgdata:
@@ -1215,10 +1216,10 @@ volumes:
   redis_data:
 ```
 
-### 8.4 環境変数と .env ファイルの管理
+### 8.4 Environment Variables and .env File Management
 
 ```bash
-# .env (docker compose が自動読み込み)
+# .env (auto-loaded by docker compose)
 COMPOSE_PROJECT_NAME=myapp
 DB_PASSWORD=secure_password_here
 DJANGO_SECRET_KEY=your-secret-key
@@ -1227,93 +1228,93 @@ NODE_ENV=production
 ```
 
 ```yaml
-# docker-compose.yml での環境変数の展開
+# Environment variable expansion in docker-compose.yml
 services:
   web:
-    image: myapp:${APP_VERSION:-latest}     # デフォルト値付き
+    image: myapp:${APP_VERSION:-latest}     # With default value
     environment:
-      DB_HOST: ${DB_HOST:?DB_HOST is required}  # 未設定ならエラー
-      DB_PORT: ${DB_PORT:-5432}                 # 未設定ならデフォルト
-      NODE_ENV: ${NODE_ENV}                     # .env から読み込み
+      DB_HOST: ${DB_HOST:?DB_HOST is required}  # Error if not set
+      DB_PORT: ${DB_PORT:-5432}                 # Default if not set
+      NODE_ENV: ${NODE_ENV}                     # Load from .env
 ```
 
 ```
 +------------------------------------------------------------------+
-|              環境変数の優先順位 (高 → 低)                           |
+|              Environment Variable Priority (high → low)           |
 +------------------------------------------------------------------+
 |                                                                  |
-|  1. docker compose run -e で渡した値                              |
-|  2. シェルの環境変数 (export した値)                               |
-|  3. compose.yml の environment セクション                          |
-|  4. --env-file で指定したファイル                                  |
-|  5. compose.yml の env_file で指定したファイル                      |
-|  6. Dockerfile の ENV 命令                                        |
+|  1. Value passed with docker compose run -e                      |
+|  2. Shell environment variables (exported values)                |
+|  3. environment section in compose.yml                           |
+|  4. File specified with --env-file                               |
+|  5. File specified with env_file in compose.yml                  |
+|  6. ENV instruction in Dockerfile                                |
 |                                                                  |
-|  ※ .env ファイルは compose.yml 内の変数展開 (${VAR}) に使用       |
-|  ※ env_file はコンテナの環境変数に直接設定                        |
-|  ※ .env と env_file は別物であることに注意                        |
+|  ※ .env file is used for variable expansion (${VAR}) in compose.yml|
+|  ※ env_file sets environment variables directly in the container |
+|  ※ Note that .env and env_file are different things              |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン 1: latest タグの使用
+### Anti-pattern 1: Using the latest Tag
 
 ```yaml
-# NG: バージョン未固定
+# NG: Version not pinned
 services:
   db:
-    image: postgres:latest     # どのバージョンが来るかわからない
+    image: postgres:latest     # Unknown which version will be pulled
   redis:
-    image: redis               # タグ省略 = latest
+    image: redis               # Omitting tag = latest
 
-# OK: バージョンを明示的に固定
+# OK: Explicitly pin versions
 services:
   db:
-    image: postgres:16-alpine  # メジャーバージョン + バリアント
+    image: postgres:16-alpine  # Major version + variant
   redis:
     image: redis:7-alpine
 ```
 
-**問題点**: `latest` はイメージ更新のたびに異なるバージョンが pull される可能性があり、チームメンバー間や CI/CD と環境差異が生じる。PostgreSQL のメジャーバージョンアップは破壊的変更を含むことが多く、意図しないアップグレードでデータ破損のリスクもある。
+**Problem**: `latest` may pull a different version each time the image is updated, causing environment differences between team members and CI/CD. PostgreSQL major version upgrades often include breaking changes, and there is a risk of data corruption from unintended upgrades.
 
-### アンチパターン 2: ホストネットワークモードの乱用
+### Anti-pattern 2: Overusing Host Network Mode
 
 ```yaml
-# NG: ホストネットワークで全ポートを露出
+# NG: Expose all ports with host network
 services:
   db:
     image: postgres:16
-    network_mode: host         # 全ポートがホストに直接公開
+    network_mode: host         # All ports exposed directly to host
 
-# OK: 必要なポートだけを公開
+# OK: Expose only necessary ports
 services:
   db:
     image: postgres:16
     ports:
-      - "127.0.0.1:5432:5432" # localhost のみに公開
+      - "127.0.0.1:5432:5432" # Expose to localhost only
 ```
 
-**問題点**: `network_mode: host` はコンテナのネットワーク分離を完全に無効化する。DB やキャッシュサーバーが外部ネットワークから直接アクセス可能になり、セキュリティリスクが増大する。
+**Problem**: `network_mode: host` completely disables the container's network isolation. DBs and cache servers become directly accessible from external networks, increasing security risk.
 
-### アンチパターン 3: depends_on を condition なしで使う
+### Anti-pattern 3: Using depends_on Without a condition
 
 ```yaml
-# NG: コンテナ起動のみ確認（サービス準備完了を待たない）
+# NG: Only checks container startup (does not wait for service readiness)
 services:
   web:
     build: .
     depends_on:
-      - db              # db コンテナが起動したら即 web を起動
+      - db              # Start web immediately when db container starts
   db:
     image: postgres:16-alpine
-    # ヘルスチェックなし
-# -> PostgreSQL が接続受付前に web が起動し、接続エラーが発生
+    # No health check
+# -> web starts before PostgreSQL is ready to accept connections, causing connection errors
 
-# OK: ヘルスチェック + condition で準備完了を待つ
+# OK: Wait for readiness with health check + condition
 services:
   web:
     build: .
@@ -1329,12 +1330,12 @@ services:
       retries: 5
 ```
 
-**問題点**: `depends_on` のデフォルト (`service_started`) はコンテナの起動のみを確認する。データベースが実際にクエリを受け付けられる状態になるまでには数秒かかるため、アプリケーションが起動直後に接続エラーを起こす。アプリ側のリトライロジックだけに頼るのではなく、Compose のヘルスチェック連携を活用すべきである。
+**Problem**: The default `depends_on` (`service_started`) only checks that the container has started. It takes a few seconds for the database to actually be able to accept queries, so the application will encounter connection errors immediately after startup. Rather than relying solely on retry logic in the application, leverage Compose's health check integration.
 
-### アンチパターン 4: ボリュームのバックアップを考慮しない
+### Anti-pattern 4: Not Considering Volume Backups
 
 ```yaml
-# NG: バックアップ手段のない名前付きボリューム
+# NG: Named volume with no backup mechanism
 services:
   db:
     image: postgres:16-alpine
@@ -1342,13 +1343,13 @@ services:
       - pgdata:/var/lib/postgresql/data
 volumes:
   pgdata:
-# -> docker compose down -v でデータ完全消失
+# -> docker compose down -v completely deletes data
 
-# OK: バックアップスクリプトを用意
+# OK: Prepare a backup script
 # backup.sh
 # docker compose exec db pg_dump -U postgres myapp > backup_$(date +%Y%m%d).sql
 
-# より安全な構成: バックアップ用のサービスを追加
+# Safer configuration: add a backup service
 services:
   db:
     image: postgres:16-alpine
@@ -1365,28 +1366,28 @@ services:
       db:
         condition: service_healthy
     profiles:
-      - backup              # docker compose --profile backup run backup で手動実行
+      - backup              # Run manually with: docker compose --profile backup run backup
 volumes:
   pgdata:
 ```
 
-**問題点**: 名前付きボリュームはコンテナのライフサイクルとは独立して存在するが、`docker compose down -v` や `docker volume prune` で削除される。本番データや重要なデータを扱う場合は、定期的なバックアップの仕組みを必ず用意する。
+**Problem**: Named volumes exist independently of the container lifecycle, but are deleted by `docker compose down -v` or `docker volume prune`. When handling production data or important data, always set up a regular backup mechanism.
 
-### アンチパターン 5: 環境変数でシークレットを管理する
+### Anti-pattern 5: Managing Secrets via Environment Variables
 
 ```yaml
-# NG: パスワードが compose ファイルにハードコード
+# NG: Password hardcoded in compose file
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_PASSWORD: my_secret_password  # Git にコミットされる
+      POSTGRES_PASSWORD: my_secret_password  # Gets committed to Git
   web:
     build: .
     environment:
-      DB_PASSWORD: my_secret_password        # docker inspect で見える
+      DB_PASSWORD: my_secret_password        # Visible with docker inspect
 
-# OK: .env ファイル + secrets を活用
+# OK: Use .env files + secrets
 services:
   db:
     image: postgres:16-alpine
@@ -1401,52 +1402,52 @@ services:
 
 secrets:
   db_password:
-    file: ./secrets/db_password.txt   # .gitignore に追加
+    file: ./secrets/db_password.txt   # Add to .gitignore
 ```
 
-**問題点**: 環境変数にシークレットをハードコードすると Git リポジトリにコミットされ、`docker inspect` でも値が見える。`.env` ファイルを使う場合は `.gitignore` に追加し、シークレットが必要な場合は Docker の secrets 機能を使うべきである。
+**Problem**: Hardcoding secrets in environment variables means they get committed to the Git repository and are visible with `docker inspect`. When using `.env` files, add them to `.gitignore`, and when secrets are needed, use Docker's secrets feature.
 
 ---
 
 ## FAQ
 
-### Q1: docker-compose と docker compose (ハイフンなし) の違いは何ですか？
+### Q1: What is the difference between docker-compose and docker compose (without hyphen)?
 
-**A**: `docker-compose` は Python 製の Compose V1 (スタンドアロンバイナリ)、`docker compose` は Go 製の Compose V2 (Docker CLI プラグイン)。V1 は 2023 年 6 月に EOL を迎えており、現在は V2 の `docker compose` を使うべき。機能的にはほぼ互換だが、V2 の方が高速で、`docker compose` サブコマンドとして Docker CLI に統合されている。
+**A**: `docker-compose` is Compose V1 (standalone binary) written in Python; `docker compose` is Compose V2 (Docker CLI plugin) written in Go. V1 reached EOL in June 2023, and `docker compose` V2 should be used now. They are functionally mostly compatible, but V2 is faster and integrated into the Docker CLI as a `docker compose` subcommand.
 
-### Q2: depends_on を設定すればサービスの起動順序は保証されますか？
+### Q2: Does setting depends_on guarantee the service startup order?
 
-**A**: `depends_on` はコンテナの起動順序のみを制御し、サービスが「準備完了」になったことは保証しない。例えば PostgreSQL コンテナが起動してから実際に接続を受け付けるまでには数秒かかる。`depends_on` に `condition: service_healthy` を指定し、ヘルスチェックと組み合わせることで、サービスが実際に利用可能になるまで待機できる。
+**A**: `depends_on` only controls the order containers start, not that services are "ready." For example, it takes a few seconds after a PostgreSQL container starts before it can actually accept connections. By specifying `condition: service_healthy` in `depends_on` and combining it with a health check, you can wait until the service is actually available.
 
-### Q3: 開発用と本番用で Compose ファイルを分けるべきですか？
+### Q3: Should I separate Compose files for development and production?
 
-**A**: はい。`docker-compose.yml` (共通/開発用) と `docker-compose.prod.yml` (本番用オーバーライド) に分けるのが一般的。`docker compose -f docker-compose.yml -f docker-compose.prod.yml up` のように複数ファイルを指定すると、後のファイルで前のファイルの設定を上書きできる。Compose V2 では `compose.yml` と `compose.override.yml` を自動的にマージする機能もある。
+**A**: Yes. It is common to separate into `docker-compose.yml` (shared/development) and `docker-compose.prod.yml` (production overrides). By specifying multiple files like `docker compose -f docker-compose.yml -f docker-compose.prod.yml up`, the later file can override settings from the earlier file. Compose V2 also has a feature to automatically merge `compose.yml` and `compose.override.yml`.
 
-### Q4: Compose で特定のサービスだけを再ビルドして更新するには？
+### Q4: How do I rebuild and update only a specific service with Compose?
 
-**A**: `docker compose up -d --build web` のようにサービス名を指定する。`--build` フラグを付けると、起動前にイメージを再ビルドする。`--no-deps` を追加すると、依存サービスの再起動を防げる: `docker compose up -d --build --no-deps web`。イメージの再ビルドだけを行いたい場合は `docker compose build web` を使う。
+**A**: Specify the service name like `docker compose up -d --build web`. The `--build` flag rebuilds the image before starting. Adding `--no-deps` prevents restarting dependent services: `docker compose up -d --build --no-deps web`. If you only want to rebuild the image, use `docker compose build web`.
 
-### Q5: macOS で Compose のバインドマウントが遅いのですが、対策はありますか？
+### Q5: Bind mounts in Compose are slow on macOS. Are there any workarounds?
 
-**A**: macOS (Docker Desktop for Mac) ではバインドマウントの I/O パフォーマンスがネイティブに比べて遅い。以下の対策がある:
-- **VirtioFS** を使う: Docker Desktop の設定で `VirtioFS` を有効化する（デフォルトで有効な場合が多い）。gRPC FUSE より大幅に高速
-- **ボリュームの分離**: `node_modules` や `vendor` などの依存関係ディレクトリは名前付きボリュームに分離する
-- **Synchronized file shares** (Docker Desktop 4.27+): ファイル同期を最適化する機能
+**A**: On macOS (Docker Desktop for Mac), bind mount I/O performance is slower compared to native. The following workarounds are available:
+- **Use VirtioFS**: Enable `VirtioFS` in Docker Desktop settings (often enabled by default). Significantly faster than gRPC FUSE
+- **Volume separation**: Separate dependency directories like `node_modules` or `vendor` into named volumes
+- **Synchronized file shares** (Docker Desktop 4.27+): A feature that optimizes file synchronization
 
 ```yaml
-# macOS パフォーマンス改善例
+# macOS performance improvement example
 services:
   web:
     volumes:
-      - .:/app                               # ソースコード
-      - node_modules:/app/node_modules       # 名前付きボリュームで分離
+      - .:/app                               # Source code
+      - node_modules:/app/node_modules       # Separated into named volume
 volumes:
   node_modules:
 ```
 
-### Q6: docker compose watch とは何ですか？
+### Q6: What is docker compose watch?
 
-**A**: Docker Compose v2.22+ で導入された機能で、ファイル変更を検知して自動的にアクションを実行する。ホットリロードやオートリビルドを Compose レベルで管理できる。
+**A**: A feature introduced in Docker Compose v2.22+ that detects file changes and automatically executes actions. Hot reload and auto-rebuild can be managed at the Compose level.
 
 ```yaml
 services:
@@ -1454,31 +1455,31 @@ services:
     build: .
     develop:
       watch:
-        - action: sync           # ファイルをコンテナに同期
+        - action: sync           # Sync files to container
           path: ./src
           target: /app/src
-        - action: rebuild         # イメージを再ビルド
+        - action: rebuild         # Rebuild image
           path: package.json
-        - action: sync+restart    # 同期してコンテナ再起動
+        - action: sync+restart    # Sync and restart container
           path: ./config
           target: /app/config
 ```
 
-`docker compose watch` で起動すると、ファイル変更に応じて `sync`（ファイル同期）、`rebuild`（イメージ再ビルド + コンテナ再作成）、`sync+restart`（ファイル同期 + コンテナ再起動）が自動的に実行される。
+When started with `docker compose watch`, `sync` (file sync), `rebuild` (image rebuild + container recreation), and `sync+restart` (file sync + container restart) are automatically executed in response to file changes.
 
-### Q7: 複数の Compose ファイルを使い分けるにはどうすればよいですか？
+### Q7: How do I use multiple Compose files?
 
-**A**: 複数の Compose ファイルをマージする方法がいくつかある:
+**A**: There are several ways to merge multiple Compose files:
 
 ```bash
-# 1. -f フラグで明示的にファイルを指定（後のファイルで上書き）
+# 1. Explicitly specify files with -f flag (later files override)
 docker compose -f compose.yml -f compose.prod.yml up -d
 
-# 2. compose.override.yml は自動的にマージされる
-# compose.yml         ← ベース設定
-# compose.override.yml ← 開発用の上書き設定（自動マージ）
+# 2. compose.override.yml is automatically merged
+# compose.yml         ← base configuration
+# compose.override.yml ← development overrides (auto-merged)
 
-# 3. COMPOSE_FILE 環境変数
+# 3. COMPOSE_FILE environment variable
 export COMPOSE_FILE=compose.yml:compose.prod.yml
 docker compose up -d
 
@@ -1490,14 +1491,14 @@ docker compose up -d
 ```
 
 ```yaml
-# compose.yml (ベース)
+# compose.yml (base)
 services:
   web:
     build: .
     ports:
       - "3000:3000"
 
-# compose.override.yml (開発用 - 自動マージ)
+# compose.override.yml (development - auto-merged)
 services:
   web:
     volumes:
@@ -1505,7 +1506,7 @@ services:
     environment:
       NODE_ENV: development
 
-# compose.prod.yml (本番用 - 明示指定)
+# compose.prod.yml (production - explicit specification)
 services:
   web:
     restart: always
@@ -1519,38 +1520,38 @@ services:
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| Compose ファイル | version キーは省略。Compose Specification 準拠が現在の標準 |
-| services | コンテナの定義。image / build / ports / environment / volumes が基本 |
-| volumes | 名前付き Volume を推奨。DB データの永続化に必須 |
-| networks | デフォルトでサービス名による DNS 解決。分離が必要なら明示定義 |
-| secrets | 機密情報はシークレットで管理。環境変数よりも安全 |
-| configs | 設定ファイルのマウント。nginx.conf や prometheus.yml 等 |
-| depends_on | `condition: service_healthy` でヘルスチェック連携が重要 |
-| healthcheck | サービス準備完了の検知に必須。DB は pg_isready、HTTP は curl |
-| リソース制限 | deploy.resources で CPU/メモリの上限と予約を設定 |
-| ログ管理 | logging で max-size/max-file を設定してディスク枯渇を防止 |
-| コマンド | `up -d` / `down` / `logs -f` / `exec` が日常の基本操作 |
-| イメージタグ | `latest` を避け、メジャーバージョン + バリアントを明示 |
-| V1 vs V2 | `docker compose` (V2, CLI プラグイン) を使用。V1 は EOL |
-| 環境変数 | .env ファイルで管理。シークレットのハードコードは避ける |
-| ファイル分割 | compose.override.yml で開発/本番の設定を分離 |
+| Compose file | Omit version key. Compose Specification compliant is the current standard |
+| services | Container definitions. image / build / ports / environment / volumes are the basics |
+| volumes | Named volumes recommended. Essential for DB data persistence |
+| networks | DNS resolution by service name by default. Define explicitly when isolation is needed |
+| secrets | Manage sensitive information with secrets. Safer than environment variables |
+| configs | Mount configuration files. nginx.conf, prometheus.yml, etc. |
+| depends_on | `condition: service_healthy` integration with health checks is important |
+| healthcheck | Essential for detecting service readiness. DB uses pg_isready, HTTP uses curl |
+| Resource limits | Set CPU/memory limits and reservations with deploy.resources |
+| Log management | Set max-size/max-file with logging to prevent disk exhaustion |
+| Commands | `up -d` / `down` / `logs -f` / `exec` are the daily basics |
+| Image tags | Avoid `latest`, explicitly specify major version + variant |
+| V1 vs V2 | Use `docker compose` (V2, CLI plugin). V1 is EOL |
+| Environment variables | Manage with .env files. Avoid hardcoding secrets |
+| File splitting | Separate development/production settings with compose.override.yml |
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [Compose 応用](./01-compose-advanced.md) -- プロファイル、depends_on、healthcheck、環境変数の高度な使い方
-- [Compose 開発ワークフロー](./02-development-workflow.md) -- ホットリロード、デバッグ、CI 統合
-- ローカルサービスの Docker 化 -- DB / Redis / MailHog の実践的な Compose 構成
+- [Compose Advanced](./01-compose-advanced.md) -- Profiles, depends_on, healthcheck, advanced usage of environment variables
+- [Compose Development Workflow](./02-development-workflow.md) -- Hot reload, debugging, CI integration
+- Dockerizing local services -- Practical Compose configuration for DB / Redis / MailHog
 
-## 参考文献
+## References
 
-1. **Docker Compose 公式リファレンス** -- https://docs.docker.com/compose/compose-file/ -- Compose ファイル仕様の完全なリファレンス
-2. **Compose Specification** -- https://compose-spec.io/ -- Docker Compose の公式仕様 (GitHub)
-3. **Docker 公式チュートリアル** -- https://docs.docker.com/compose/gettingstarted/ -- Compose のクイックスタートガイド
-4. **Docker Compose Networking** -- https://docs.docker.com/compose/networking/ -- Compose のネットワーク設定の詳細ガイド
-5. **Docker Compose Environment Variables** -- https://docs.docker.com/compose/environment-variables/ -- 環境変数の設定方法と優先順位
-6. **Docker Compose Watch** -- https://docs.docker.com/compose/file-watch/ -- ファイル監視による自動同期・リビルド機能のドキュメント
-7. **Awesome Docker Compose** -- https://github.com/docker/awesome-compose -- Docker 公式の Compose サンプル集
+1. **Docker Compose Official Reference** -- https://docs.docker.com/compose/compose-file/ -- Complete reference for the Compose file specification
+2. **Compose Specification** -- https://compose-spec.io/ -- Official Docker Compose specification (GitHub)
+3. **Docker Official Tutorial** -- https://docs.docker.com/compose/gettingstarted/ -- Quick start guide for Compose
+4. **Docker Compose Networking** -- https://docs.docker.com/compose/networking/ -- Detailed guide for Compose network configuration
+5. **Docker Compose Environment Variables** -- https://docs.docker.com/compose/environment-variables/ -- How to configure environment variables and priority
+6. **Docker Compose Watch** -- https://docs.docker.com/compose/file-watch/ -- Documentation for automatic sync/rebuild via file watching
+7. **Awesome Docker Compose** -- https://github.com/docker/awesome-compose -- Docker official Compose sample collection
