@@ -1,115 +1,115 @@
 # Infrastructure as Code (IaC)
 
-> インフラの構成をコードとして管理し、バージョン管理・レビュー・自動適用を可能にする手法
+> A methodology for managing infrastructure configuration as code, enabling version control, review, and automated application
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. IaCの基本概念と宣言的/命令的アプローチの違いを理解する
-2. Terraform、CloudFormation、CDK、Pulumiの特徴と使い分けを習得する
-3. IaCのベストプラクティスとGitOps連携パターンを把握する
-4. IaCのテスト戦略とCI/CDパイプラインへの統合方法を理解する
-5. 実運用におけるモジュール設計とマルチ環境管理を実践できる
+1. Understand the basic concepts of IaC and the difference between declarative and imperative approaches
+2. Learn the characteristics and use cases of Terraform, CloudFormation, CDK, and Pulumi
+3. Understand IaC best practices and GitOps integration patterns
+4. Understand IaC testing strategies and how to integrate them into CI/CD pipelines
+5. Practice module design and multi-environment management in production environments
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [CI/CD概念](./01-ci-cd-concepts.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [CI/CD Concepts](./01-ci-cd-concepts.md)
 
 ---
 
-## 1. IaC とは何か
+## 1. What is IaC?
 
-### 1.1 従来のインフラ管理 vs IaC
+### 1.1 Traditional Infrastructure Management vs IaC
 
 ```
-従来のインフラ管理:
-  管理者がGUIコンソールで手動設定
-  → ドキュメントと実態が乖離
-  → 再現性がない
-  → 変更履歴が追えない
-  → 複数人の作業で設定が衝突
-  → 障害時の復旧に時間がかかる
+Traditional Infrastructure Management:
+  Administrators manually configure via GUI console
+  → Documentation diverges from reality
+  → No reproducibility
+  → Cannot track change history
+  → Configuration conflicts from multiple people working simultaneously
+  → Recovery takes time during failures
 
 IaC:
-  コードでインフラを定義
-  → Git でバージョン管理
-  → PR でレビュー
-  → CI/CD で自動適用
-  → 環境の完全な再現が可能
-  → 障害時はコードから即座に復元
+  Define infrastructure as code
+  → Version control with Git
+  → Review via PR
+  → Automated application with CI/CD
+  → Complete environment reproduction is possible
+  → Instant restoration from code during failures
 ```
 
-### 1.2 IaC の利点
+### 1.2 Benefits of IaC
 
 ```
 +----------------------------------------------------------+
-|                    IaC の価値                               |
+|                    Value of IaC                            |
 +----------------------------------------------------------+
 |                                                            |
-|  再現性          同じコードで同じ環境を何度でも構築          |
-|  ┌──────────────────────────────────────────┐              |
-|  │ code → dev環境 / staging環境 / prod環境   │              |
+|  Reproducibility    Build the same environment any        |
+|  ┌──────────────────────────────────────────┐    number  |
+|  │ code → dev environment / staging / prod  │  of times  |
 |  └──────────────────────────────────────────┘              |
 |                                                            |
-|  追跡可能性      Git の履歴 = インフラの変更履歴             |
+|  Traceability    Git history = infrastructure change log   |
 |  ┌──────────────────────────────────────────┐              |
-|  │ commit log = "いつ誰が何を変更したか"      │              |
+|  │ commit log = "who changed what and when"  │              |
 |  └──────────────────────────────────────────┘              |
 |                                                            |
-|  レビュー可能性  PR でインフラ変更をレビュー                 |
+|  Reviewability   Review infrastructure changes via PR      |
 |  ┌──────────────────────────────────────────┐              |
-|  │ terraform plan の差分を PR コメントに表示  │              |
+|  │ Display terraform plan diff in PR comment │              |
 |  └──────────────────────────────────────────┘              |
 |                                                            |
-|  一貫性          全環境が同じコードから生成                  |
+|  Consistency     All environments generated from same code |
 |  ┌──────────────────────────────────────────┐              |
-|  │ 環境間の差分 = 変数の違いのみ              │              |
+|  │ Differences between environments = only variables │      |
 |  └──────────────────────────────────────────┘              |
 |                                                            |
-|  速度            新環境を数分で構築可能                      |
+|  Speed           Build a new environment in minutes        |
 |  ┌──────────────────────────────────────────┐              |
-|  │ terraform apply → 5分で完全な環境が完成    │              |
+|  │ terraform apply → complete environment in 5 min │        |
 |  └──────────────────────────────────────────┘              |
 |                                                            |
 +----------------------------------------------------------+
 ```
 
-### 1.3 IaC の適用範囲
+### 1.3 Scope of IaC
 
-IaCはクラウドインフラだけでなく、幅広い領域に適用される。
+IaC is applied not only to cloud infrastructure but to a wide range of domains.
 
-| 対象 | ツール例 | 管理対象 |
+| Target | Example Tools | What Is Managed |
 |---|---|---|
-| クラウドインフラ | Terraform, CDK, Pulumi | VPC, EC2, RDS, S3 等 |
-| コンテナオーケストレーション | Kubernetes マニフェスト, Helm | Pod, Service, Deployment 等 |
-| 構成管理 | Ansible, Chef, Puppet | OS設定, パッケージ, ユーザー |
-| ネットワーク | Terraform, Ansible | ファイアウォール, DNS, CDN |
-| モニタリング | Terraform (Datadog/PagerDuty provider) | ダッシュボード, アラート |
-| CI/CD | GitHub Actions YAML, GitLab CI | パイプライン, ワークフロー |
-| アクセス制御 | Terraform (IAM), Vault | ポリシー, ロール, シークレット |
+| Cloud Infrastructure | Terraform, CDK, Pulumi | VPC, EC2, RDS, S3, etc. |
+| Container Orchestration | Kubernetes manifests, Helm | Pod, Service, Deployment, etc. |
+| Configuration Management | Ansible, Chef, Puppet | OS settings, packages, users |
+| Networking | Terraform, Ansible | Firewalls, DNS, CDN |
+| Monitoring | Terraform (Datadog/PagerDuty provider) | Dashboards, alerts |
+| CI/CD | GitHub Actions YAML, GitLab CI | Pipelines, workflows |
+| Access Control | Terraform (IAM), Vault | Policies, roles, secrets |
 
 ---
 
-## 2. 宣言的 vs 命令的アプローチ
+## 2. Declarative vs Imperative Approaches
 
-### 2.1 比較表
+### 2.1 Comparison Table
 
-| 項目 | 宣言的 (Declarative) | 命令的 (Imperative) |
+| Item | Declarative | Imperative |
 |---|---|---|
-| 定義方法 | 「あるべき状態」を記述 | 「手順」を記述 |
-| 冪等性 | 組み込み | 自分で担保 |
-| 代表ツール | Terraform, CloudFormation | Ansible (一部), シェルスクリプト |
-| 差分検知 | 自動 (plan) | 困難 |
-| 学習コスト | DSL の習得が必要 | プログラミングスキルで対応可能 |
-| 適用場面 | インフラ構築 | 構成管理、プロビジョニング |
-| ドリフト検知 | 容易 | 困難 |
-| 並行実行 | ツールが依存関係を解決 | 手動で順序を制御 |
+| Definition method | Describes "desired state" | Describes "procedure" |
+| Idempotency | Built-in | Must be ensured manually |
+| Representative tools | Terraform, CloudFormation | Ansible (partial), shell scripts |
+| Diff detection | Automatic (plan) | Difficult |
+| Learning cost | Requires learning a DSL | Can leverage programming skills |
+| Use case | Infrastructure provisioning | Configuration management, provisioning |
+| Drift detection | Easy | Difficult |
+| Concurrent execution | Tool resolves dependencies | Order must be controlled manually |
 
-### 2.2 宣言的の例（Terraform）
+### 2.2 Declarative Example (Terraform)
 
 ```hcl
 # 「こうあるべき」を記述 → Terraform が差分を検出して適用
@@ -154,7 +154,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "data" {
 }
 ```
 
-### 2.3 命令的の例（シェルスクリプト）
+### 2.3 Imperative Example (Shell Script)
 
 ```bash
 #!/bin/bash
@@ -190,32 +190,32 @@ aws s3api put-bucket-lifecycle-configuration \
   }'
 ```
 
-### 2.4 ハイブリッドアプローチ
+### 2.4 Hybrid Approach
 
-実際のプロジェクトでは、宣言的と命令的を組み合わせることが多い。
+In real projects, declarative and imperative approaches are often combined.
 
 ```
-典型的な組み合わせ:
+Typical Combinations:
 
-1. Terraform (宣言的) + Ansible (命令的)
-   Terraform: VPC, EC2 インスタンスを構築
-   Ansible: EC2 内のOS設定、パッケージインストール
+1. Terraform (declarative) + Ansible (imperative)
+   Terraform: Build VPC and EC2 instances
+   Ansible: OS configuration and package installation inside EC2
 
-2. Terraform (宣言的) + User Data スクリプト (命令的)
-   Terraform: インフラ構築 + User Data で初期化スクリプト実行
+2. Terraform (declarative) + User Data script (imperative)
+   Terraform: Build infrastructure + run initialization script via User Data
 
-3. CDK (宣言的/プログラマティック) + Custom Resource (命令的)
-   CDK: 標準リソース定義
-   Custom Resource: CDKが対応していないリソースをLambdaで管理
+3. CDK (declarative/programmatic) + Custom Resource (imperative)
+   CDK: Define standard resources
+   Custom Resource: Manage resources not supported by CDK via Lambda
 ```
 
 ---
 
-## 3. 主要 IaC ツール
+## 3. Major IaC Tools
 
 ### 3.1 Terraform
 
-HashiCorp が開発した、マルチクラウド対応の IaC ツール。HCL (HashiCorp Configuration Language) で記述する。最も広く使われているIaCツールであり、1,000以上のプロバイダーが利用可能。
+An IaC tool developed by HashiCorp that supports multiple clouds. Written in HCL (HashiCorp Configuration Language). The most widely used IaC tool, with over 1,000 providers available.
 
 ```hcl
 # Terraform の基本構成
@@ -312,27 +312,27 @@ resource "aws_ecs_service" "app" {
 ```
 
 ```
-Terraform ワークフロー:
+Terraform Workflow:
 
-  terraform init    → プロバイダー・モジュールのダウンロード
+  terraform init    → Download providers and modules
        ↓
-  terraform plan    → 現在の状態と定義の差分を表示
+  terraform plan    → Show diff between current state and definition
        ↓
-  terraform apply   → 変更を適用
+  terraform apply   → Apply changes
        ↓
-  terraform destroy → リソースを削除 (開発環境のクリーンアップ)
+  terraform destroy → Delete resources (clean up dev environments)
 
-状態管理:
+State Management:
   +-----------+     +----------------+     +-----------+
-  | .tf ファイル | ←→ | terraform.tfstate | ←→ | 実インフラ  |
-  | (あるべき姿) |     | (現在の状態)      |     | (AWS等)    |
+  | .tf files | ←→ | terraform.tfstate | ←→ | Real infra |
+  | (desired) |     | (current state)   |     | (AWS etc.) |
   +-----------+     +----------------+     +-----------+
 
-OpenTofu (Terraformのオープンソースフォーク):
-  - HashiCorp のライセンス変更(BSL)を受けて2023年に誕生
-  - Terraform 1.5.x からフォーク
-  - Linux Foundation 管轄
-  - 既存の Terraform コードとほぼ互換
+OpenTofu (Open Source Fork of Terraform):
+  - Born in 2023 in response to HashiCorp's license change (BSL)
+  - Forked from Terraform 1.5.x
+  - Under Linux Foundation governance
+  - Nearly compatible with existing Terraform code
 ```
 
 ### 3.2 AWS CloudFormation
@@ -588,7 +588,7 @@ export const serviceUrl = pulumi.interpolate`http://${service.service.name}`;
 
 ### 3.5 Crossplane
 
-Kubernetes CRD としてクラウドリソースを管理するIaCツール。
+An IaC tool that manages cloud resources as Kubernetes CRDs.
 
 ```yaml
 # Crossplane: Kubernetes マニフェストでAWSリソースを管理
@@ -621,45 +621,45 @@ spec:
 
 ---
 
-## 4. IaC ツール比較
+## 4. IaC Tool Comparison
 
-| 項目 | Terraform | CloudFormation | CDK | Pulumi | Crossplane |
+| Item | Terraform | CloudFormation | CDK | Pulumi | Crossplane |
 |---|---|---|---|---|---|
-| 言語 | HCL | YAML/JSON | TypeScript等 | TypeScript/Python/Go等 | YAML (K8s CRD) |
-| マルチクラウド | はい | AWS のみ | AWS のみ | はい | はい |
-| 状態管理 | tfstate (S3等) | AWS管理 | CloudFormation経由 | Pulumi Cloud / S3 | Kubernetes etcd |
-| 学習コスト | 中 | 中 | 低(開発者向き) | 低(開発者向き) | 中(K8s知識必要) |
-| エコシステム | 最大 | AWS限定 | AWS限定 | 成長中 | 成長中 |
-| ドリフト検知 | plan で検知 | drift detection | CloudFormation経由 | preview で検知 | 継続的リコンサイル |
-| 推奨場面 | マルチクラウド | AWS専用 | AWS + TypeScript | マルチクラウド + 開発者 | K8s中心の組織 |
-| ライセンス | BSL 1.1 | AWS サービス | Apache 2.0 | Apache 2.0 | Apache 2.0 |
-| OSS代替 | OpenTofu | - | - | - | - |
+| Language | HCL | YAML/JSON | TypeScript, etc. | TypeScript/Python/Go, etc. | YAML (K8s CRD) |
+| Multi-cloud | Yes | AWS only | AWS only | Yes | Yes |
+| State management | tfstate (S3, etc.) | AWS-managed | Via CloudFormation | Pulumi Cloud / S3 | Kubernetes etcd |
+| Learning cost | Medium | Medium | Low (developer-friendly) | Low (developer-friendly) | Medium (requires K8s knowledge) |
+| Ecosystem | Largest | AWS-only | AWS-only | Growing | Growing |
+| Drift detection | Detected via plan | drift detection | Via CloudFormation | Detected via preview | Continuous reconciliation |
+| Recommended for | Multi-cloud | AWS-dedicated | AWS + TypeScript | Multi-cloud + developers | K8s-centric organizations |
+| License | BSL 1.1 | AWS service | Apache 2.0 | Apache 2.0 | Apache 2.0 |
+| OSS alternative | OpenTofu | - | - | - | - |
 
-### 4.1 ツール選定ディシジョンツリー
+### 4.1 Tool Selection Decision Tree
 
 ```
-IaC ツール選定:
+IaC Tool Selection:
 
-Kubernetes 中心の組織？
-├── Yes → Crossplane を検討
-│         ├── クラウドリソースもK8sで管理したい → Crossplane
-│         └── K8sマニフェストのみ管理 → Kustomize / Helm
-└── No → マルチクラウド要件がある？
+Is your organization Kubernetes-centric?
+├── Yes → Consider Crossplane
+│         ├── Want to manage cloud resources via K8s too → Crossplane
+│         └── Managing K8s manifests only → Kustomize / Helm
+└── No → Do you have multi-cloud requirements?
           ├── Yes → Terraform or Pulumi
-          │         ├── DSLが好み / 大きなコミュニティ → Terraform
-          │         └── プログラミング言語で書きたい → Pulumi
-          └── No → AWS のみ？
+          │         ├── Prefer DSL / large community → Terraform
+          │         └── Want to write in a programming language → Pulumi
+          └── No → AWS only?
                     ├── Yes → CDK or CloudFormation
-                    │         ├── TypeScript/Python チーム → CDK
-                    │         └── YAML シンプルに → CloudFormation
-                    └── No → 他クラウド → Terraform / Pulumi
+                    │         ├── TypeScript/Python team → CDK
+                    │         └── Simple YAML → CloudFormation
+                    └── No → Other cloud → Terraform / Pulumi
 ```
 
 ---
 
-## 5. IaC のベストプラクティス
+## 5. IaC Best Practices
 
-### 5.1 モジュール化
+### 5.1 Modularization
 
 ```hcl
 # modules/ecs-service/main.tf - 再利用可能なモジュール
@@ -810,11 +810,11 @@ module "worker_service" {
 }
 ```
 
-### 5.2 ディレクトリ構成
+### 5.2 Directory Structure
 
 ```
 terraform/
-├── modules/                   # 再利用可能モジュール
+├── modules/                   # Reusable modules
 │   ├── networking/
 │   │   ├── main.tf
 │   │   ├── variables.tf
@@ -832,13 +832,13 @@ terraform/
 │       ├── main.tf
 │       ├── variables.tf
 │       └── dashboards.tf
-├── environments/              # 環境別設定
+├── environments/              # Per-environment configuration
 │   ├── dev/
-│   │   ├── main.tf           # モジュール呼び出し
-│   │   ├── variables.tf      # 変数定義
-│   │   ├── terraform.tfvars  # 環境固有の値
-│   │   ├── backend.tf        # 状態ファイルの保存先
-│   │   └── providers.tf      # プロバイダー設定
+│   │   ├── main.tf           # Module calls
+│   │   ├── variables.tf      # Variable definitions
+│   │   ├── terraform.tfvars  # Environment-specific values
+│   │   ├── backend.tf        # State file storage location
+│   │   └── providers.tf      # Provider configuration
 │   ├── staging/
 │   │   ├── main.tf
 │   │   ├── terraform.tfvars
@@ -847,19 +847,19 @@ terraform/
 │       ├── main.tf
 │       ├── terraform.tfvars
 │       └── backend.tf
-├── global/                    # 環境共通リソース
+├── global/                    # Shared resources across environments
 │   ├── iam/
 │   │   └── main.tf
 │   ├── dns/
 │   │   └── main.tf
 │   └── ecr/
 │       └── main.tf
-└── scripts/                   # ヘルパースクリプト
+└── scripts/                   # Helper scripts
     ├── init.sh
     └── plan.sh
 ```
 
-### 5.3 変数管理のベストプラクティス
+### 5.3 Variable Management Best Practices
 
 ```hcl
 # variables.tf - 型・説明・バリデーション付き変数定義
@@ -913,24 +913,24 @@ alert_email   = "ops@example.com"
 
 ---
 
-## 6. IaC のテスト戦略
+## 6. IaC Testing Strategy
 
-### 6.1 テストピラミッド
+### 6.1 Testing Pyramid
 
 ```
              /\
             /  \
-           /E2E \         terraform apply + 検証 + destroy
+           /E2E \         terraform apply + validation + destroy
           /------\        (terratest, kitchen-terraform)
-         / 統合   \       terraform plan の検証
-        /テスト    \      (tfplan JSON 解析)
+         / Integ  \       Validation of terraform plan
+        / Tests   \      (tfplan JSON analysis)
        /----------\
-      / 静的解析   \      lint, validate, security scan
-     / ユニット    \      (tflint, checkov, tfsec, OPA)
+      / Static    \      lint, validate, security scan
+     / Analysis   \      (tflint, checkov, tfsec, OPA)
     /--------------\
 ```
 
-### 6.2 静的解析
+### 6.2 Static Analysis
 
 ```yaml
 # CI での IaC 静的解析
@@ -991,7 +991,7 @@ jobs:
           opa eval --data policies/ --input tfplan.json "data.terraform.deny[msg]"
 ```
 
-### 6.3 Plan テスト
+### 6.3 Plan Testing
 
 ```yaml
 # terraform plan を PR にコメント
@@ -1044,7 +1044,7 @@ jobs:
             });
 ```
 
-### 6.4 E2E テスト (Terratest)
+### 6.4 E2E Testing (Terratest)
 
 ```go
 // test/ecs_service_test.go
@@ -1099,9 +1099,9 @@ func TestEcsService(t *testing.T) {
 
 ---
 
-## 7. CI/CD との統合
+## 7. CI/CD Integration
 
-### 7.1 Terraform CI/CD パイプライン
+### 7.1 Terraform CI/CD Pipeline
 
 ```yaml
 # 完全な Terraform CI/CD パイプライン
@@ -1191,7 +1191,7 @@ jobs:
           terraform apply -auto-approve
 ```
 
-### 7.2 Atlantis (Terraform PR 自動化)
+### 7.2 Atlantis (Terraform PR Automation)
 
 ```yaml
 # atlantis.yaml - リポジトリ設定
@@ -1235,9 +1235,9 @@ workflows:
 
 ---
 
-## 8. 状態管理
+## 8. State Management
 
-### 8.1 リモートバックエンドの設定
+### 8.1 Configuring a Remote Backend
 
 ```hcl
 # S3 + DynamoDB バックエンド (推奨)
@@ -1300,32 +1300,32 @@ resource "aws_dynamodb_table" "terraform_locks" {
 }
 ```
 
-### 8.2 状態ファイルの分割
+### 8.2 Splitting State Files
 
 ```
-状態ファイル分割戦略:
+State File Splitting Strategy:
 
-1. 環境別分割 (最低限)
+1. Split by environment (minimum)
    terraform/environments/dev/   → dev.tfstate
    terraform/environments/prod/  → prod.tfstate
 
-2. レイヤー別分割 (推奨)
+2. Split by layer (recommended)
    terraform/layers/networking/  → networking.tfstate
    terraform/layers/database/    → database.tfstate
    terraform/layers/application/ → application.tfstate
 
-3. サービス別分割 (マイクロサービス)
+3. Split by service (microservices)
    terraform/services/user/      → user-service.tfstate
    terraform/services/order/     → order-service.tfstate
 
-利点:
-- blast radius (影響範囲) の最小化
-- plan/apply の高速化
-- チーム間の並行作業が可能
-- ロック競合の削減
+Benefits:
+- Minimize blast radius
+- Faster plan/apply
+- Enables parallel work across teams
+- Reduces lock contention
 
-注意:
-- 分割間のデータ共有は data source / remote state で行う
+Note:
+- Share data between splits using data sources / remote state
 ```
 
 ```hcl
@@ -1350,21 +1350,21 @@ resource "aws_ecs_service" "app" {
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン1: 状態ファイルのローカル管理
+### Anti-Pattern 1: Managing State Files Locally
 
 ```
-悪い例:
-  terraform.tfstate をローカルに保存し、
-  Git にコミットしてしまう。
+Bad example:
+  Saving terraform.tfstate locally
+  and committing it to Git.
 
-問題:
-  - 機密情報(パスワード等)が Git に入る
-  - 複数人での並行作業で状態が衝突
-  - 状態ファイルの紛失 = インフラ管理不能
+Problems:
+  - Sensitive data (passwords, etc.) ends up in Git
+  - State conflicts when multiple people work in parallel
+  - Losing the state file = unable to manage infrastructure
 
-改善:
+Fix:
   terraform {
     backend "s3" {
       bucket         = "my-terraform-state"
@@ -1374,10 +1374,10 @@ resource "aws_ecs_service" "app" {
       encrypt        = true
     }
   }
-  # .gitignore に *.tfstate を追加
+  # Add *.tfstate to .gitignore
 ```
 
-### アンチパターン2: ハードコードされた値
+### Anti-Pattern 2: Hardcoded Values
 
 ```hcl
 # 悪い例: 値をハードコード
@@ -1404,41 +1404,41 @@ resource "aws_instance" "web" {
 }
 ```
 
-### アンチパターン3: 巨大な単一状態ファイル
+### Anti-Pattern 3: A Single Massive State File
 
 ```
-悪い例:
-  1つの terraform.tfstate に全リソース(VPC, RDS, ECS, S3, IAM, ...)を管理
-  → plan に5分以上かかる
-  → 1つの変更が全リソースに影響するリスク
-  → チーム間でロック競合が頻発
+Bad example:
+  Managing all resources (VPC, RDS, ECS, S3, IAM, ...) in one terraform.tfstate
+  → plan takes more than 5 minutes
+  → A single change risks affecting all resources
+  → Lock contention occurs frequently across teams
 
-改善:
-  レイヤー別 or サービス別に状態ファイルを分割
-  → 各 plan は30秒以内
-  → blast radius が限定される
-  → チームが並行作業可能
+Fix:
+  Split state files by layer or by service
+  → Each plan completes within 30 seconds
+  → Blast radius is limited
+  → Teams can work in parallel
 ```
 
-### アンチパターン4: ドリフトの放置
+### Anti-Pattern 4: Ignoring Drift
 
 ```
-問題:
-  手動でAWSコンソールから変更を行い、
-  コードと実態が乖離(ドリフト)する。
+Problem:
+  Making changes manually from the AWS console,
+  causing code and reality to diverge (drift).
 
-  コード:     instance_type = "t3.medium"
-  実インフラ:  instance_type = "t3.large" (コンソールで変更)
+  Code:          instance_type = "t3.medium"
+  Real infra:    instance_type = "t3.large" (changed in console)
 
-  → terraform plan で "変更あり" と表示され続ける
-  → plan の結果が信頼できなくなる
-  → 次の terraform apply で意図しない変更が入る
+  → terraform plan keeps showing "changes detected"
+  → plan results become unreliable
+  → Next terraform apply introduces unintended changes
 
-改善:
-  1. 全変更を PR 経由で行うルールを徹底
-  2. AWS Config / CloudTrail でコンソール操作を検知
-  3. 定期的に terraform plan を実行してドリフトを検出
-  4. CI でドリフト検出を自動化
+Fix:
+  1. Enforce a rule that all changes go through PRs
+  2. Use AWS Config / CloudTrail to detect console operations
+  3. Run terraform plan periodically to detect drift
+  4. Automate drift detection in CI
 ```
 
 ```yaml
@@ -1478,16 +1478,16 @@ jobs:
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
 # 演習1: 基本実装のテンプレート
@@ -1534,9 +1534,9 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
 # 演習2: 応用パターン
@@ -1603,9 +1603,9 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
 # 演習3: パフォーマンス最適化
@@ -1654,84 +1654,84 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## 10. FAQ
 
-### Q1: Terraform と Pulumi のどちらを選ぶべきか？
+### Q1: Should I choose Terraform or Pulumi?
 
-チームのスキルセットと要件による。インフラ専任チームがいる場合はTerraformのエコシステムの広さが有利。アプリケーション開発者がインフラも管理する場合は、Pulumi/CDKのプログラミング言語アプローチが学習コストを下げる。マルチクラウドが要件ならTerraformかPulumiを選ぶ。2023年のHashiCorpライセンス変更により、OSSライセンスを重視する場合はOpenTofuも選択肢に入る。
+It depends on the team's skill set and requirements. If there is a dedicated infrastructure team, Terraform's broad ecosystem is an advantage. If application developers also manage infrastructure, Pulumi/CDK's programming language approach reduces the learning cost. If multi-cloud is a requirement, choose Terraform or Pulumi. Due to HashiCorp's license change in 2023, OpenTofu is also an option if OSS licensing is a priority.
 
-### Q2: IaC のテストはどうするか？
+### Q2: How should I test IaC?
 
-Terraformの場合、`terraform plan` による差分確認が基本。加えて、`terraform validate` で構文チェック、`tflint` でベストプラクティスチェック、`checkov` / `tfsec` でセキュリティスキャンを行う。統合テストには `terratest` (Go) を使い、実際にリソースを作成・検証・破棄するE2Eテストが可能。OPA (Open Policy Agent) でカスタムポリシーを定義し、組織のガバナンスルールを自動チェックすることもできる。
+For Terraform, the basic approach is verifying diffs with `terraform plan`. Additionally, perform syntax checks with `terraform validate`, best-practice checks with `tflint`, and security scans with `checkov` / `tfsec`. For integration testing, use `terratest` (Go) to create, validate, and destroy real resources in E2E tests. You can also define custom policies with OPA (Open Policy Agent) to automatically check your organization's governance rules.
 
-### Q3: 既存のインフラを IaC に移行するには？
+### Q3: How do I migrate existing infrastructure to IaC?
 
-Terraform の場合、`terraform import` コマンドで既存リソースを状態ファイルに取り込む。`terraformer` や `former2` (CloudFormation) といった逆生成ツールも活用できる。段階的に移行し、新規リソースは必ずIaCで作成するルールを設けるのが現実的。AWS の場合、AWS Application Composer や IaC Generator も利用できる。
+For Terraform, use the `terraform import` command to bring existing resources into the state file. Reverse-generation tools such as `terraformer` or `former2` (CloudFormation) can also be useful. Migrating incrementally and enforcing a rule that all new resources must be created with IaC is the practical approach. For AWS, AWS Application Composer and IaC Generator are also available.
 
-### Q4: Terraform の状態ファイルが壊れた場合の対処法は？
+### Q4: What should I do if the Terraform state file gets corrupted?
 
-まず `terraform state list` で現在の状態を確認する。S3 バックエンドの場合、バージョニングが有効なら過去の状態ファイルを復元できる。最悪の場合、`terraform import` で全リソースを再インポートする必要がある。状態ファイルのバックアップは必ずバージョニング付きS3で管理し、DynamoDBでロックをかけることが重要。
+First, check the current state with `terraform state list`. If using an S3 backend with versioning enabled, you can restore a previous state file. In the worst case, you may need to re-import all resources with `terraform import`. It is essential to always manage state file backups in S3 with versioning enabled and to apply locking with DynamoDB.
 
-### Q5: IaCで管理すべきでないリソースは？
+### Q5: What resources should not be managed with IaC?
 
-一時的なリソース(デバッグ用EC2など)、データベースの中身(テーブル・レコード)、アプリケーション設定(Feature Flag等)はIaCの対象外とすることが多い。また、頻繁に変更されるリソース(Auto Scalingの desired_count 等)は `lifecycle { ignore_changes }` で除外するか、別の仕組みで管理する。
+Temporary resources (e.g., EC2 for debugging), database contents (tables and records), and application settings (feature flags, etc.) are often excluded from IaC. Also, resources that change frequently (e.g., Auto Scaling `desired_count`) should either be excluded with `lifecycle { ignore_changes }` or managed through a separate mechanism.
 
-### Q6: マルチアカウント環境でのIaCはどう設計するか？
+### Q6: How should IaC be designed for a multi-account environment?
 
-AWS Organizations を使ったマルチアカウント環境では、(1) 管理アカウントでOrganization/OU/SCPを管理、(2) 共有サービスアカウントでRoute53/Transit Gatewayを管理、(3) 各環境アカウントでアプリケーションインフラを管理、という3層構成が一般的。Terraform の `provider` エイリアスや `assume_role` でクロスアカウント操作を行う。
+In a multi-account environment using AWS Organizations, a three-tier structure is common: (1) manage Organizations/OUs/SCPs in the management account, (2) manage Route53/Transit Gateway in a shared services account, and (3) manage application infrastructure in each environment account. Use Terraform `provider` aliases and `assume_role` for cross-account operations.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It is especially important during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| IaC の本質 | インフラをコードで定義し、バージョン管理する |
-| 宣言的 vs 命令的 | 宣言的(Terraform等)が主流、冪等性が組み込み |
-| 主要ツール | Terraform(マルチクラウド)、CDK(AWS+TS)、Pulumi(マルチ+言語) |
-| 状態管理 | リモートバックエンド必須(S3+DynamoDB等) |
-| モジュール化 | 再利用可能なモジュールで DRY 原則を実現 |
-| テスト | 静的解析 + plan テスト + E2E テスト (terratest) |
-| CI/CD 統合 | PR で plan、マージで apply、OIDC 認証 |
-| ドリフト検出 | 定期的な plan 実行で乖離を自動検知 |
-| ベストプラクティス | 変数化、環境分離、テスト、最小権限 |
-| 必須スキル | plan の読み方、モジュール設計、セキュリティ |
+| Essence of IaC | Define infrastructure as code and manage it with version control |
+| Declarative vs Imperative | Declarative (Terraform, etc.) is mainstream; idempotency is built-in |
+| Major tools | Terraform (multi-cloud), CDK (AWS + TS), Pulumi (multi + language) |
+| State management | Remote backend is mandatory (S3 + DynamoDB, etc.) |
+| Modularization | Achieve the DRY principle with reusable modules |
+| Testing | Static analysis + plan testing + E2E testing (terratest) |
+| CI/CD integration | plan on PR, apply on merge, OIDC authentication |
+| Drift detection | Automatically detect divergence with periodic plan execution |
+| Best practices | Variables, environment separation, testing, least privilege |
+| Essential skills | Reading plan output, module design, security |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [GitOps](./03-gitops.md) -- IaCとGitを組み合わせた運用手法
-- [クラウドデプロイ](../02-deployment/01-cloud-deployment.md) -- IaCで構築したインフラへのデプロイ
-- [GitHub Actions基礎](../01-github-actions/00-actions-basics.md) -- IaCをCIで自動適用
-- [CI/CD概念](./01-ci-cd-concepts.md) -- パイプライン設計の基礎
+- [GitOps](./03-gitops.md) -- An operational method combining IaC and Git
+- [Cloud Deployment](../02-deployment/01-cloud-deployment.md) -- Deploying to infrastructure built with IaC
+- [GitHub Actions Basics](../01-github-actions/00-actions-basics.md) -- Automatically applying IaC in CI
+- [CI/CD Concepts](./01-ci-cd-concepts.md) -- Fundamentals of pipeline design
 
 ---
 
-## 参考文献
+## References
 
 1. Kief Morris. *Infrastructure as Code*, 2nd Edition. O'Reilly Media, 2020.
 2. HashiCorp. "Terraform Documentation." https://developer.hashicorp.com/terraform/docs
