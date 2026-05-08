@@ -1,49 +1,49 @@
-# Electron セットアップ
+# Electron Setup
 
-> Vite + React + TypeScript 構成で Electron デスクトップアプリケーションの開発環境を構築し、ホットリロード・DevTools 統合まで完了させる。
-
----
-
-## この章で学ぶこと
-
-1. **Electron のアーキテクチャ**（Main / Renderer / Preload）を理解し、プロジェクトを正しく構成できるようになる
-2. **Vite + React + TypeScript** を使った現代的な開発環境をゼロから構築できるようになる
-3. **ホットリロードと DevTools** を活用した効率的な開発ワークフローを確立する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> Set up an Electron desktop application development environment using Vite + React + TypeScript, and complete hot reload and DevTools integration.
 
 ---
 
-## 1. Electron のアーキテクチャ
+## What You Will Learn in This Chapter
 
-### 1.1 プロセスモデル
+1. Understand the **Electron architecture** (Main / Renderer / Preload) and correctly structure your project
+2. Build a modern development environment from scratch using **Vite + React + TypeScript**
+3. Establish an efficient development workflow leveraging **hot reload and DevTools**
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. Electron Architecture
+
+### 1.1 Process Model
 
 ```
 +----------------------------------------------------------+
-|                    Electron アプリ                         |
+|                    Electron App                           |
 +----------------------------------------------------------+
 |                                                          |
 |  +------------------------+                              |
-|  |    Main Process        |  ← Node.js ランタイム        |
+|  |    Main Process        |  ← Node.js Runtime           |
 |  |    (main.ts)           |                              |
 |  |                        |                              |
-|  |  - BrowserWindow 管理  |                              |
-|  |  - システム API        |                              |
-|  |  - メニュー/トレイ     |                              |
-|  |  - IPC ハンドラ        |                              |
+|  |  - BrowserWindow Mgmt  |                              |
+|  |  - System APIs         |                              |
+|  |  - Menu/Tray           |                              |
+|  |  - IPC Handlers        |                              |
 |  +--------+---+-----------+                              |
 |           |   |                                          |
 |     IPC   |   |  IPC                                     |
 |           |   |                                          |
 |  +--------v---+--------+   +-------------------------+   |
 |  |  Renderer Process   |   |  Renderer Process       |   |
-|  |  (ウィンドウ 1)     |   |  (ウィンドウ 2)         |   |
+|  |  (Window 1)         |   |  (Window 2)             |   |
 |  |                     |   |                         |   |
 |  |  +---------------+  |   |  +------------------+   |   |
 |  |  | Preload       |  |   |  | Preload          |   |   |
@@ -51,123 +51,123 @@
 |  |  +-------+-------+  |   |  +--------+---------+   |   |
 |  |          |           |   |           |             |   |
 |  |  +-------v-------+  |   |  +--------v---------+   |   |
-|  |  | Web ページ     |  |   |  | Web ページ        |   |   |
+|  |  | Web Page      |  |   |  | Web Page          |   |   |
 |  |  | (React App)   |  |   |  | (React App)      |   |   |
 |  |  +---------------+  |   |  +------------------+   |   |
 |  +---------------------+   +-------------------------+   |
 +----------------------------------------------------------+
 ```
 
-### 1.2 各プロセスの役割
+### 1.2 Role of Each Process
 
-| プロセス | 実行環境 | 役割 | セキュリティ |
+| Process | Runtime | Role | Security |
 |---|---|---|---|
-| Main | Node.js | ウィンドウ管理、OS API、ファイル操作 | フルアクセス |
-| Preload | Node.js (制限付き) | Main ↔ Renderer の橋渡し | contextBridge で制御 |
-| Renderer | Chromium | UI レンダリング（React/Vue 等） | サンドボックス（Web と同等） |
+| Main | Node.js | Window management, OS APIs, file operations | Full access |
+| Preload | Node.js (restricted) | Bridge between Main and Renderer | Controlled via contextBridge |
+| Renderer | Chromium | UI rendering (React/Vue, etc.) | Sandboxed (equivalent to web) |
 
 ---
 
-## 2. プロジェクト作成
+## 2. Creating a Project
 
-### 2.1 electron-vite による構築（推奨）
+### 2.1 Building with electron-vite (Recommended)
 
-### コード例 1: プロジェクトの初期化
+### Code Example 1: Project Initialization
 
 ```bash
-# electron-vite のスキャフォールディング（React + TypeScript テンプレート）
+# Scaffold with electron-vite (React + TypeScript template)
 npm create @quick-start/electron@latest my-electron-app -- \
   --template react-ts
 
-# ディレクトリに移動して依存関係をインストール
+# Move to directory and install dependencies
 cd my-electron-app
 npm install
 
-# 開発サーバー起動（ホットリロード有効）
+# Start dev server (hot reload enabled)
 npm run dev
 ```
 
-### 2.2 ディレクトリ構成
+### 2.2 Directory Structure
 
 ```
 my-electron-app/
 ├── package.json
-├── electron.vite.config.ts       ← Vite 設定（Main/Preload/Renderer 共通）
-├── tsconfig.json                 ← TypeScript 設定（ルート）
-├── tsconfig.node.json            ← TypeScript 設定（Main/Preload 用）
-├── tsconfig.web.json             ← TypeScript 設定（Renderer 用）
+├── electron.vite.config.ts       ← Vite config (shared for Main/Preload/Renderer)
+├── tsconfig.json                 ← TypeScript config (root)
+├── tsconfig.node.json            ← TypeScript config (for Main/Preload)
+├── tsconfig.web.json             ← TypeScript config (for Renderer)
 │
 ├── src/
-│   ├── main/                     ← Main プロセス
-│   │   ├── index.ts              ← エントリポイント
-│   │   └── ipc-handlers.ts       ← IPC ハンドラ定義
+│   ├── main/                     ← Main process
+│   │   ├── index.ts              ← Entry point
+│   │   └── ipc-handlers.ts       ← IPC handler definitions
 │   │
-│   ├── preload/                  ← Preload スクリプト
-│   │   ├── index.ts              ← contextBridge 定義
-│   │   └── index.d.ts            ← 型定義
+│   ├── preload/                  ← Preload scripts
+│   │   ├── index.ts              ← contextBridge definitions
+│   │   └── index.d.ts            ← Type definitions
 │   │
-│   └── renderer/                 ← Renderer プロセス (React アプリ)
-│       ├── index.html            ← HTML エントリポイント
+│   └── renderer/                 ← Renderer process (React app)
+│       ├── index.html            ← HTML entry point
 │       ├── src/
-│       │   ├── main.tsx          ← React エントリポイント
-│       │   ├── App.tsx           ← ルートコンポーネント
-│       │   ├── components/       ← UI コンポーネント
-│       │   ├── hooks/            ← カスタムフック
-│       │   └── assets/           ← 静的リソース
-│       └── env.d.ts              ← Vite 環境型定義
+│       │   ├── main.tsx          ← React entry point
+│       │   ├── App.tsx           ← Root component
+│       │   ├── components/       ← UI components
+│       │   ├── hooks/            ← Custom hooks
+│       │   └── assets/           ← Static resources
+│       └── env.d.ts              ← Vite environment type definitions
 │
-├── resources/                    ← アイコン、ネイティブリソース
+├── resources/                    ← Icons, native resources
 │   └── icon.png
-├── build/                        ← ビルド設定
+├── build/                        ← Build configuration
 │   └── entitlements.mac.plist
-└── out/                          ← ビルド出力
+└── out/                          ← Build output
 ```
 
-### コード例 2: Main プロセス（index.ts）
+### Code Example 2: Main Process (index.ts)
 
 ```typescript
-// src/main/index.ts — Electron Main プロセスのエントリポイント
+// src/main/index.ts — Electron Main process entry point
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
-// メインウィンドウの参照をモジュールスコープで保持
+// Hold a reference to the main window at module scope
 let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
-  // ブラウザウィンドウを作成
+  // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    // macOS 用: ネイティブタブ対応
+    // macOS: native tab support
     tabbingIdentifier: 'my-app',
-    show: false, // 準備完了まで非表示にしてちらつきを防止
+    show: false, // Hide until ready to prevent flickering
     webPreferences: {
-      // Preload スクリプトのパス
+      // Path to the Preload script
       preload: join(__dirname, '../preload/index.js'),
-      // サンドボックスを有効化（セキュリティ推奨）
+      // Enable sandbox (recommended for security)
       sandbox: true,
-      // コンテキスト分離（必須: Renderer から Node.js を直接使えなくする）
+      // Context isolation (required: prevents Renderer from directly using Node.js)
       contextIsolation: true,
-      // Node.js 統合を無効化（セキュリティ推奨）
+      // Disable Node.js integration (recommended for security)
       nodeIntegration: false,
     },
   })
 
-  // ウィンドウの準備が完了したら表示
+  // Show the window once it is ready
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
   })
 
-  // 外部リンクはデフォルトブラウザで開く
+  // Open external links in the default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
   })
 
-  // 開発時は Vite Dev Server、本番時はビルド済み HTML を読み込む
+  // In development load the Vite Dev Server, in production load the built HTML
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -175,19 +175,19 @@ function createWindow(): void {
   }
 }
 
-// Electron の初期化完了後にウィンドウを作成
+// Create the window after Electron initialization is complete
 app.whenReady().then(() => {
-  // アプリ ID を設定（Windows の通知やタスクバーで使用）
+  // Set app user model ID (used for Windows notifications and taskbar)
   electronApp.setAppUserModelId('com.example.my-app')
 
-  // 開発時: F12 で DevTools を開く、Ctrl+R でリロード
+  // Dev: open DevTools with F12, reload with Ctrl+R
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
   createWindow()
 
-  // macOS: Dock アイコンクリック時にウィンドウを再作成
+  // macOS: re-create window when Dock icon is clicked
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
@@ -195,7 +195,7 @@ app.whenReady().then(() => {
   })
 })
 
-// macOS 以外: 全ウィンドウ閉鎖でアプリ終了
+// Non-macOS: quit the app when all windows are closed
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
@@ -203,33 +203,33 @@ app.on('window-all-closed', () => {
 })
 ```
 
-### コード例 3: Preload スクリプト
+### Code Example 3: Preload Script
 
 ```typescript
-// src/preload/index.ts — Renderer に公開する API を定義
+// src/preload/index.ts — Define the API exposed to the Renderer
 import { contextBridge, ipcRenderer } from 'electron'
 
-// contextBridge で安全に API を公開
-// Renderer から window.electronAPI でアクセス可能になる
+// Safely expose API via contextBridge
+// Accessible from the Renderer as window.electronAPI
 contextBridge.exposeInMainWorld('electronAPI', {
-  // プラットフォーム情報
+  // Platform information
   platform: process.platform,
 
-  // ファイル操作: Main プロセスに委譲
+  // File operations: delegated to Main process
   openFile: (): Promise<string | null> =>
     ipcRenderer.invoke('dialog:openFile'),
 
   saveFile: (content: string): Promise<boolean> =>
     ipcRenderer.invoke('dialog:saveFile', content),
 
-  // ストア操作
+  // Store operations
   getStoreValue: (key: string): Promise<unknown> =>
     ipcRenderer.invoke('store:get', key),
 
   setStoreValue: (key: string, value: unknown): Promise<void> =>
     ipcRenderer.invoke('store:set', key, value),
 
-  // Main → Renderer のイベント受信
+  // Receive events from Main → Renderer
   onUpdateAvailable: (callback: (version: string) => void): void => {
     ipcRenderer.on('update-available', (_event, version) => {
       callback(version)
@@ -239,7 +239,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 ```
 
 ```typescript
-// src/preload/index.d.ts — Renderer 側で使う型定義
+// src/preload/index.d.ts — Type definitions used on the Renderer side
 export interface ElectronAPI {
   platform: string
   openFile: () => Promise<string | null>
@@ -256,10 +256,10 @@ declare global {
 }
 ```
 
-### コード例 4: Renderer（React アプリ）
+### Code Example 4: Renderer (React App)
 
 ```tsx
-// src/renderer/src/App.tsx — React ルートコンポーネント
+// src/renderer/src/App.tsx — React root component
 import { useState } from 'react'
 import './assets/main.css'
 
@@ -267,9 +267,9 @@ function App(): JSX.Element {
   const [fileContent, setFileContent] = useState<string | null>(null)
   const [platform] = useState(window.electronAPI.platform)
 
-  // ファイルを開くボタンのハンドラ
+  // Handler for the open file button
   const handleOpenFile = async () => {
-    // Preload で定義した API を呼び出す（型安全）
+    // Call the API defined in Preload (type-safe)
     const content = await window.electronAPI.openFile()
     if (content) {
       setFileContent(content)
@@ -280,12 +280,12 @@ function App(): JSX.Element {
     <div className="app">
       <header className="app-header">
         <h1>Electron + React + TypeScript</h1>
-        <p>プラットフォーム: {platform}</p>
+        <p>Platform: {platform}</p>
       </header>
 
       <main className="app-main">
         <button onClick={handleOpenFile} className="btn-primary">
-          ファイルを開く
+          Open File
         </button>
 
         {fileContent && (
@@ -303,21 +303,21 @@ export default App
 
 ---
 
-## 3. Vite 設定
+## 3. Vite Configuration
 
-### コード例 5: electron.vite.config.ts
+### Code Example 5: electron.vite.config.ts
 
 ```typescript
-// electron.vite.config.ts — Main/Preload/Renderer 統合 Vite 設定
+// electron.vite.config.ts — Unified Vite configuration for Main/Preload/Renderer
 import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  // Main プロセス用設定
+  // Main process configuration
   main: {
     plugins: [
-      // Node.js モジュールを外部化（バンドルに含めない）
+      // Externalize Node.js modules (exclude from bundle)
       externalizeDepsPlugin()
     ],
     build: {
@@ -329,7 +329,7 @@ export default defineConfig({
     }
   },
 
-  // Preload スクリプト用設定
+  // Preload script configuration
   preload: {
     plugins: [externalizeDepsPlugin()],
     build: {
@@ -341,12 +341,12 @@ export default defineConfig({
     }
   },
 
-  // Renderer プロセス用設定（通常の Vite + React）
+  // Renderer process configuration (standard Vite + React)
   renderer: {
     plugins: [react()],
     resolve: {
       alias: {
-        // パスエイリアスの設定
+        // Path alias configuration
         '@': resolve(__dirname, 'src/renderer/src')
       }
     },
@@ -363,53 +363,53 @@ export default defineConfig({
 
 ---
 
-## 4. ホットリロードと DevTools
+## 4. Hot Reload and DevTools
 
-### 4.1 開発時の動作フロー
+### 4.1 Development Workflow
 
 ```
-npm run dev 実行時:
+When running npm run dev:
 
   electron-vite dev
        |
-       ├─→ Vite Dev Server 起動 (Renderer)
+       ├─→ Start Vite Dev Server (Renderer)
        |     localhost:5173
-       |     HMR WebSocket 接続
+       |     HMR WebSocket connection
        |
-       ├─→ Main プロセスをビルド & 起動
-       |     ファイル変更検知 → 自動再起動
+       ├─→ Build & launch Main process
+       |     File change detected → auto restart
        |
-       └─→ Preload をビルド
-             ファイル変更検知 → Renderer リロード
+       └─→ Build Preload
+             File change detected → Renderer reload
 
-  変更の反映速度:
+  Change propagation speed:
   ┌──────────────┬──────────────────────┐
   │ Renderer     │ ~50ms (HMR)          │
-  │ Main         │ ~1s (プロセス再起動)  │
-  │ Preload      │ ~500ms (リロード)     │
+  │ Main         │ ~1s (process restart) │
+  │ Preload      │ ~500ms (reload)      │
   └──────────────┴──────────────────────┘
 ```
 
-### 4.2 DevTools の活用
+### 4.2 Using DevTools
 
 ```typescript
-// 開発時のみ DevTools を自動で開く
+// Automatically open DevTools in development only
 if (is.dev) {
   mainWindow.webContents.openDevTools({ mode: 'right' })
 }
 
-// React DevTools の追加（開発時のみ）
+// Add React DevTools (development only)
 // npm install --save-dev electron-devtools-installer
 import installExtension, { REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer'
 
 app.whenReady().then(async () => {
   if (is.dev) {
     try {
-      // React DevTools 拡張をインストール
+      // Install React DevTools extension
       await installExtension(REACT_DEVELOPER_TOOLS)
-      console.log('React DevTools をインストールしました')
+      console.log('React DevTools installed')
     } catch (err) {
-      console.error('DevTools インストールエラー:', err)
+      console.error('DevTools installation error:', err)
     }
   }
   createWindow()
@@ -418,42 +418,42 @@ app.whenReady().then(async () => {
 
 ---
 
-## 5. IPC 通信のベストプラクティス
+## 5. IPC Communication Best Practices
 
-### 5.1 通信パターン
+### 5.1 Communication Patterns
 
-| パターン | API | 方向 | 用途 |
+| Pattern | API | Direction | Use Case |
 |---|---|---|---|
-| invoke/handle | `ipcRenderer.invoke` → `ipcMain.handle` | Renderer → Main → 応答 | データ取得・ダイアログ |
-| send/on | `ipcRenderer.send` → `ipcMain.on` | Renderer → Main (片方向) | ログ送信・イベント通知 |
-| send/on | `webContents.send` → `ipcRenderer.on` | Main → Renderer (片方向) | 更新通知・状態変更 |
+| invoke/handle | `ipcRenderer.invoke` → `ipcMain.handle` | Renderer → Main → Response | Data retrieval, dialogs |
+| send/on | `ipcRenderer.send` → `ipcMain.on` | Renderer → Main (one-way) | Log sending, event notification |
+| send/on | `webContents.send` → `ipcRenderer.on` | Main → Renderer (one-way) | Update notifications, state changes |
 
-### IPC ハンドラの定義
+### Defining IPC Handlers
 
 ```typescript
-// src/main/ipc-handlers.ts — IPC ハンドラの集約定義
+// src/main/ipc-handlers.ts — Centralized IPC handler definitions
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
 
 export function registerIpcHandlers(): void {
-  // ファイルを開くダイアログ → ファイル内容を返す
+  // Open file dialog → return file content
   ipcMain.handle('dialog:openFile', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [
-        { name: 'テキストファイル', extensions: ['txt', 'md', 'json'] },
-        { name: 'すべてのファイル', extensions: ['*'] },
+        { name: 'Text Files', extensions: ['txt', 'md', 'json'] },
+        { name: 'All Files', extensions: ['*'] },
       ],
     })
 
     if (canceled || filePaths.length === 0) return null
 
-    // ファイルの内容を読み取って返す
+    // Read and return the file content
     const content = await readFile(filePaths[0], 'utf-8')
     return content
   })
 
-  // ファイルを保存
+  // Save file
   ipcMain.handle('dialog:saveFile', async (_event, content: string) => {
     const { canceled, filePath } = await dialog.showSaveDialog({
       defaultPath: 'untitled.txt',
@@ -469,20 +469,20 @@ export function registerIpcHandlers(): void {
 
 ---
 
-## 6. electron-store による設定管理
+## 6. Settings Management with electron-store
 
-### 6.1 electron-store のセットアップ
+### 6.1 Setting Up electron-store
 
 ```bash
-# electron-store のインストール
+# Install electron-store
 npm install electron-store
 ```
 
 ```typescript
-// src/main/store.ts — アプリケーション設定の永続化
+// src/main/store.ts — Persisting application settings
 import Store from 'electron-store'
 
-// 設定のスキーマ定義（型安全）
+// Schema definition for settings (type-safe)
 interface AppConfig {
   window: {
     width: number
@@ -510,7 +510,7 @@ interface AppConfig {
   }
 }
 
-// デフォルト値の定義
+// Define default values
 const defaults: AppConfig = {
   window: {
     width: 1200,
@@ -518,7 +518,7 @@ const defaults: AppConfig = {
     isMaximized: false,
   },
   theme: 'system',
-  language: 'ja',
+  language: 'en',
   recentFiles: [],
   editor: {
     fontSize: 14,
@@ -536,10 +536,10 @@ const defaults: AppConfig = {
   },
 }
 
-// 型安全なストアの作成
+// Create a type-safe store
 export const store = new Store<AppConfig>({
   defaults,
-  // スキーマバリデーション（オプション）
+  // Schema validation (optional)
   schema: {
     theme: {
       type: 'string',
@@ -555,54 +555,54 @@ export const store = new Store<AppConfig>({
       enum: [2, 4, 8],
     },
   },
-  // 暗号化（機密情報を保存する場合）
+  // Encryption (when storing sensitive data)
   // encryptionKey: 'your-encryption-key',
-  // マイグレーション（バージョン間のスキーマ変更対応）
+  // Migrations (handle schema changes between versions)
   migrations: {
     '1.0.0': (store) => {
-      // v1.0.0 へのマイグレーション
+      // Migration to v1.0.0
       store.set('editor.minimap', true)
     },
     '2.0.0': (store) => {
-      // v2.0.0 へのマイグレーション
+      // Migration to v2.0.0
       store.set('updates', { autoCheck: true, channel: 'stable' })
     },
   },
 })
 ```
 
-### 6.2 IPC 経由での設定アクセス
+### 6.2 Accessing Settings via IPC
 
 ```typescript
-// src/main/ipc-handlers.ts — 設定用 IPC ハンドラ
+// src/main/ipc-handlers.ts — IPC handlers for settings
 import { ipcMain } from 'electron'
 import { store } from './store'
 
 export function registerStoreHandlers(): void {
-  // 設定値の取得
+  // Get a setting value
   ipcMain.handle('store:get', (_event, key: string) => {
     return store.get(key)
   })
 
-  // 設定値の更新
+  // Update a setting value
   ipcMain.handle('store:set', (_event, key: string, value: unknown) => {
     store.set(key, value)
   })
 
-  // 全設定の取得
+  // Get all settings
   ipcMain.handle('store:getAll', () => {
     return store.store
   })
 
-  // 設定のリセット
+  // Reset settings
   ipcMain.handle('store:reset', () => {
     store.clear()
   })
 
-  // 最近のファイル一覧に追加
+  // Add to recent files list
   ipcMain.handle('store:addRecentFile', (_event, filePath: string) => {
     const recent = store.get('recentFiles', [])
-    // 重複を除去し、先頭に追加、最大10件
+    // Remove duplicates, prepend, keep max 10 entries
     const updated = [filePath, ...recent.filter(f => f !== filePath)].slice(0, 10)
     store.set('recentFiles', updated)
     return updated
@@ -611,11 +611,11 @@ export function registerStoreHandlers(): void {
 ```
 
 ```typescript
-// src/preload/index.ts — Renderer に設定 API を公開（追加分）
+// src/preload/index.ts — Expose settings API to Renderer (additions)
 contextBridge.exposeInMainWorld('electronAPI', {
-  // ... 既存の API ...
+  // ... existing APIs ...
 
-  // 設定 API
+  // Settings API
   store: {
     get: (key: string) => ipcRenderer.invoke('store:get', key),
     set: (key: string, value: unknown) => ipcRenderer.invoke('store:set', key, value),
@@ -627,7 +627,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 ```
 
 ```tsx
-// src/renderer/src/hooks/useSettings.ts — React Hook で設定を管理
+// src/renderer/src/hooks/useSettings.ts — Manage settings with a React Hook
 import { useState, useEffect, useCallback } from 'react'
 
 interface EditorSettings {
@@ -645,7 +645,7 @@ export function useSettings() {
   const [settings, setSettings] = useState<EditorSettings | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // 初期読み込み
+  // Initial load
   useEffect(() => {
     async function loadSettings() {
       const editor = await window.electronAPI.store.get('editor')
@@ -655,7 +655,7 @@ export function useSettings() {
     loadSettings()
   }, [])
 
-  // 設定の更新
+  // Update a setting
   const updateSetting = useCallback(async <K extends keyof EditorSettings>(
     key: K,
     value: EditorSettings[K]
@@ -670,19 +670,19 @@ export function useSettings() {
 
 ---
 
-## 7. テスト環境の構築
+## 7. Setting Up the Test Environment
 
-### 7.1 テストツールの設定
+### 7.1 Configuring Test Tools
 
 ```bash
-# テストツールのインストール
+# Install test tools
 npm install --save-dev vitest @testing-library/react @testing-library/jest-dom
 npm install --save-dev @testing-library/user-event jsdom
 npm install --save-dev @vitest/coverage-v8
 ```
 
 ```typescript
-// vitest.config.ts — テスト設定
+// vitest.config.ts — Test configuration
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
@@ -699,8 +699,8 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/',
-        'src/main/',      // Main プロセスは別途テスト
-        'src/preload/',   // Preload は E2E テスト
+        'src/main/',      // Main process tested separately
+        'src/preload/',   // Preload covered by E2E tests
       ],
     },
   },
@@ -713,10 +713,10 @@ export default defineConfig({
 ```
 
 ```typescript
-// src/renderer/src/test/setup.ts — テストセットアップ
+// src/renderer/src/test/setup.ts — Test setup
 import '@testing-library/jest-dom'
 
-// window.electronAPI のモック
+// Mock window.electronAPI
 const mockElectronAPI = {
   platform: 'win32',
   openFile: vi.fn().mockResolvedValue(null),
@@ -739,7 +739,7 @@ Object.defineProperty(window, 'electronAPI', {
 })
 ```
 
-### 7.2 コンポーネントテストの例
+### 7.2 Component Test Example
 
 ```tsx
 // src/renderer/src/components/__tests__/FileExplorer.test.tsx
@@ -752,42 +752,42 @@ describe('FileExplorer', () => {
     vi.clearAllMocks()
   })
 
-  it('ファイルを開くボタンを表示する', () => {
+  it('displays the open file button', () => {
     render(<FileExplorer />)
-    expect(screen.getByText('ファイルを開く')).toBeInTheDocument()
+    expect(screen.getByText('Open File')).toBeInTheDocument()
   })
 
-  it('ファイルを開くダイアログを呼び出す', async () => {
+  it('invokes the open file dialog', async () => {
     const user = userEvent.setup()
 
-    window.electronAPI.openFile = vi.fn().mockResolvedValue('テストコンテンツ')
+    window.electronAPI.openFile = vi.fn().mockResolvedValue('test content')
 
     render(<FileExplorer />)
-    await user.click(screen.getByText('ファイルを開く'))
+    await user.click(screen.getByText('Open File'))
 
     expect(window.electronAPI.openFile).toHaveBeenCalledTimes(1)
     await waitFor(() => {
-      expect(screen.getByText('テストコンテンツ')).toBeInTheDocument()
+      expect(screen.getByText('test content')).toBeInTheDocument()
     })
   })
 
-  it('ファイル選択をキャンセルした場合は何も表示しない', async () => {
+  it('displays nothing when file selection is cancelled', async () => {
     const user = userEvent.setup()
 
     window.electronAPI.openFile = vi.fn().mockResolvedValue(null)
 
     render(<FileExplorer />)
-    await user.click(screen.getByText('ファイルを開く'))
+    await user.click(screen.getByText('Open File'))
 
     expect(screen.queryByTestId('file-content')).not.toBeInTheDocument()
   })
 })
 ```
 
-### 7.3 E2E テスト（Playwright）
+### 7.3 E2E Testing (Playwright)
 
 ```typescript
-// e2e/app.spec.ts — Electron E2E テスト
+// e2e/app.spec.ts — Electron E2E tests
 import { test, expect, _electron as electron } from '@playwright/test'
 import { ElectronApplication, Page } from 'playwright'
 
@@ -795,7 +795,7 @@ let electronApp: ElectronApplication
 let page: Page
 
 test.beforeAll(async () => {
-  // Electron アプリを起動
+  // Launch the Electron app
   electronApp = await electron.launch({
     args: ['.'],
     env: {
@@ -804,10 +804,10 @@ test.beforeAll(async () => {
     },
   })
 
-  // メインウィンドウを取得
+  // Get the main window
   page = await electronApp.firstWindow()
 
-  // ウィンドウの準備完了を待機
+  // Wait for the window to be ready
   await page.waitForLoadState('domcontentloaded')
 })
 
@@ -815,12 +815,12 @@ test.afterAll(async () => {
   await electronApp.close()
 })
 
-test('アプリケーションが正常に起動する', async () => {
+test('application starts successfully', async () => {
   const title = await page.title()
   expect(title).toBe('Electron + React + TypeScript')
 })
 
-test('ウィンドウのサイズが正しい', async () => {
+test('window size is correct', async () => {
   const windowState = await electronApp.evaluate(({ BrowserWindow }) => {
     const mainWindow = BrowserWindow.getAllWindows()[0]
     const { width, height } = mainWindow.getBounds()
@@ -831,46 +831,46 @@ test('ウィンドウのサイズが正しい', async () => {
   expect(windowState.height).toBeGreaterThanOrEqual(600)
 })
 
-test('ファイルを開くボタンが機能する', async () => {
-  await page.click('button:has-text("ファイルを開く")')
+test('open file button works', async () => {
+  await page.click('button:has-text("Open File")')
 
-  // ダイアログはメインプロセスで処理されるため、
-  // モックを使用するか、実際のファイルパスを注入する
+  // The dialog is handled by the main process,
+  // so use a mock or inject an actual file path
 })
 ```
 
 ---
 
-## 8. ログ管理
+## 8. Log Management
 
 ```typescript
-// src/main/logger.ts — 構造化ログ管理
+// src/main/logger.ts — Structured log management
 import log from 'electron-log'
 import { app } from 'electron'
 import path from 'path'
 
-// ログファイルのパス設定
+// Configure log file path
 log.transports.file.resolvePathFn = () =>
   path.join(app.getPath('logs'), 'main.log')
 
-// ログのフォーマット設定
+// Configure log format
 log.transports.file.format = '{y}-{m}-{d} {h}:{i}:{s}.{ms} [{level}] {text}'
 
-// ファイルサイズの制限（5MB でローテーション）
+// Limit file size (rotate at 5MB)
 log.transports.file.maxSize = 5 * 1024 * 1024
 
-// ログレベルの設定
+// Configure log levels
 if (app.isPackaged) {
-  // 本番環境: warn 以上のみ
+  // Production: warn and above only
   log.transports.console.level = 'warn'
   log.transports.file.level = 'info'
 } else {
-  // 開発環境: 全てのログ
+  // Development: all logs
   log.transports.console.level = 'debug'
   log.transports.file.level = 'debug'
 }
 
-// カスタムログ関数
+// Custom log functions
 export const logger = {
   info: (message: string, data?: Record<string, unknown>) => {
     log.info(message, data ? JSON.stringify(data) : '')
@@ -886,13 +886,13 @@ export const logger = {
   },
 }
 
-// 未捕捉エラーのハンドリング
+// Handle uncaught errors
 process.on('uncaughtException', (error) => {
-  logger.error('未捕捉の例外', error)
+  logger.error('Uncaught exception', error)
 })
 
 process.on('unhandledRejection', (reason) => {
-  logger.error('未処理のPromise拒否', reason instanceof Error ? reason : new Error(String(reason)))
+  logger.error('Unhandled promise rejection', reason instanceof Error ? reason : new Error(String(reason)))
 })
 
 export default log
@@ -900,13 +900,13 @@ export default log
 
 ---
 
-## 9. package.json の詳細設定
+## 9. Detailed package.json Configuration
 
 ```json
 {
   "name": "my-electron-app",
   "version": "1.0.0",
-  "description": "Electron + React + TypeScript デスクトップアプリ",
+  "description": "Electron + React + TypeScript Desktop App",
   "main": "./out/main/index.js",
   "author": "Your Name <your@email.com>",
   "license": "MIT",
@@ -992,37 +992,37 @@ export default log
 
 ---
 
-## 10. セキュリティチェックリスト
+## 10. Security Checklist
 
 ```typescript
-// セキュリティ設定の検証ユーティリティ
+// Security configuration validation utility
 import { BrowserWindow } from 'electron'
 
 function validateSecurityConfig(win: BrowserWindow): void {
   const webPreferences = win.webContents.getWebPreferences()
 
-  // 必須: コンテキスト分離が有効であること
+  // Required: context isolation must be enabled
   if (!webPreferences.contextIsolation) {
-    console.error('[セキュリティ] contextIsolation が無効です!')
+    console.error('[Security] contextIsolation is disabled!')
   }
 
-  // 必須: Node.js 統合が無効であること
+  // Required: Node.js integration must be disabled
   if (webPreferences.nodeIntegration) {
-    console.error('[セキュリティ] nodeIntegration が有効です!')
+    console.error('[Security] nodeIntegration is enabled!')
   }
 
-  // 推奨: サンドボックスが有効であること
+  // Recommended: sandbox should be enabled
   if (!webPreferences.sandbox) {
-    console.warn('[セキュリティ] sandbox が無効です')
+    console.warn('[Security] sandbox is disabled')
   }
 
-  // 推奨: webSecurity が有効であること
+  // Recommended: webSecurity should be enabled
   if (webPreferences.webSecurity === false) {
-    console.error('[セキュリティ] webSecurity が無効です!')
+    console.error('[Security] webSecurity is disabled!')
   }
 }
 
-// CSP (Content Security Policy) の設定
+// Configure CSP (Content Security Policy)
 function setupCSP(win: BrowserWindow): void {
   win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     callback({
@@ -1041,22 +1041,22 @@ function setupCSP(win: BrowserWindow): void {
   })
 }
 
-// 外部リンクのナビゲーションを防止
+// Prevent navigation to external URLs
 function preventNavigation(win: BrowserWindow): void {
-  // ウィンドウ内でのナビゲーションを制限
+  // Restrict navigation within the window
   win.webContents.on('will-navigate', (event, url) => {
     const appUrl = new URL(win.webContents.getURL())
     const targetUrl = new URL(url)
 
-    // 異なるオリジンへのナビゲーションを防止
+    // Prevent navigation to a different origin
     if (targetUrl.origin !== appUrl.origin) {
       event.preventDefault()
-      // 外部ブラウザで開く
+      // Open in external browser
       require('electron').shell.openExternal(url)
     }
   })
 
-  // 新しいウィンドウの作成を制限
+  // Restrict creation of new windows
   win.webContents.setWindowOpenHandler(({ url }) => {
     require('electron').shell.openExternal(url)
     return { action: 'deny' }
@@ -1066,44 +1066,44 @@ function preventNavigation(win: BrowserWindow): void {
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### アンチパターン 1: nodeIntegration を有効にする
+### Anti-Pattern 1: Enabling nodeIntegration
 
 ```typescript
-// NG: Renderer で Node.js API に直接アクセス可能にする
+// BAD: Allow direct access to Node.js APIs from the Renderer
 const win = new BrowserWindow({
   webPreferences: {
-    nodeIntegration: true,       // 危険: Renderer から fs, child_process 等が使える
-    contextIsolation: false,     // 危険: Preload と Renderer のコンテキストが共有
+    nodeIntegration: true,       // Dangerous: Renderer can use fs, child_process, etc.
+    contextIsolation: false,     // Dangerous: Preload and Renderer share the same context
   }
 })
 ```
 
 ```typescript
-// OK: contextIsolation + Preload で安全に API を公開
+// GOOD: Safely expose APIs via contextIsolation + Preload
 const win = new BrowserWindow({
   webPreferences: {
-    nodeIntegration: false,      // Node.js 統合を無効化
-    contextIsolation: true,      // コンテキスト分離を有効化
-    sandbox: true,               // サンドボックスを有効化
+    nodeIntegration: false,      // Disable Node.js integration
+    contextIsolation: true,      // Enable context isolation
+    sandbox: true,               // Enable sandbox
     preload: join(__dirname, 'preload.js'),
   }
 })
 ```
 
-### アンチパターン 2: IPC チャネル名をハードコードで散在させる
+### Anti-Pattern 2: Scattering Hard-coded IPC Channel Names
 
 ```typescript
-// NG: 文字列リテラルが Main/Preload/Renderer に散在 → タイポの温床
+// BAD: String literals scattered across Main/Preload/Renderer → breeding ground for typos
 // main.ts
 ipcMain.handle('get-user-data', ...)
 // preload.ts
-ipcRenderer.invoke('get-userData')  // タイポに気づけない
+ipcRenderer.invoke('get-userData')  // Typo goes unnoticed
 ```
 
 ```typescript
-// OK: チャネル名を定数として一元管理
+// GOOD: Centrally manage channel names as constants
 // src/shared/ipc-channels.ts
 export const IPC_CHANNELS = {
   GET_USER_DATA: 'user:getData',
@@ -1112,7 +1112,7 @@ export const IPC_CHANNELS = {
   SAVE_FILE: 'dialog:saveFile',
 } as const
 
-// 型安全に使用
+// Use in a type-safe manner
 import { IPC_CHANNELS } from '../shared/ipc-channels'
 ipcMain.handle(IPC_CHANNELS.GET_USER_DATA, ...)
 ipcRenderer.invoke(IPC_CHANNELS.GET_USER_DATA)
@@ -1120,12 +1120,12 @@ ipcRenderer.invoke(IPC_CHANNELS.GET_USER_DATA)
 
 ---
 
-## 12. デバッグとトラブルシューティング
+## 12. Debugging and Troubleshooting
 
-### 12.1 Main プロセスのデバッグ
+### 12.1 Debugging the Main Process
 
 ```typescript
-// launch.json — VS Code でのデバッグ設定
+// launch.json — VS Code debug configuration
 {
   "version": "0.2.0",
   "configurations": [
@@ -1163,12 +1163,12 @@ ipcRenderer.invoke(IPC_CHANNELS.GET_USER_DATA)
 }
 ```
 
-### 12.2 よくあるエラーと解決策
+### 12.2 Common Errors and Solutions
 
 ```typescript
-// エラー 1: "Cannot use import statement outside a module"
-// 原因: Main プロセスの ESM/CJS 設定の不整合
-// 解決: electron.vite.config.ts で正しい設定を行う
+// Error 1: "Cannot use import statement outside a module"
+// Cause: ESM/CJS configuration mismatch in the Main process
+// Solution: Configure correctly in electron.vite.config.ts
 
 // electron.vite.config.ts
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
@@ -1179,7 +1179,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         output: {
-          format: 'cjs', // Main プロセスは CJS を使用
+          format: 'cjs', // Main process uses CJS
         },
       },
     },
@@ -1189,56 +1189,56 @@ export default defineConfig({
     build: {
       rollupOptions: {
         output: {
-          format: 'cjs', // Preload も CJS
+          format: 'cjs', // Preload also uses CJS
         },
       },
     },
   },
   renderer: {
-    // Renderer は ESM で問題なし
+    // Renderer works fine with ESM
   },
 })
 ```
 
 ```typescript
-// エラー 2: "contextBridge API can only be used when contextIsolation is enabled"
-// 原因: BrowserWindow の webPreferences で contextIsolation が false
-// 解決: 必ず contextIsolation: true を設定する
+// Error 2: "contextBridge API can only be used when contextIsolation is enabled"
+// Cause: contextIsolation is false in BrowserWindow webPreferences
+// Solution: Always set contextIsolation: true
 
-// エラー 3: "Electron Security Warning (Insecure Content-Security-Policy)"
-// 原因: CSP が設定されていない
-// 解決: セクション10の CSP 設定を適用する
+// Error 3: "Electron Security Warning (Insecure Content-Security-Policy)"
+// Cause: CSP is not configured
+// Solution: Apply the CSP configuration from Section 10
 
-// エラー 4: IPC ハンドラが undefined を返す
-// 原因: handle の登録前に invoke が呼ばれている
-// 解決: app.whenReady() の中でハンドラを登録する
+// Error 4: IPC handler returns undefined
+// Cause: invoke is called before handle is registered
+// Solution: Register handlers inside app.whenReady()
 import { app, ipcMain } from 'electron'
 
 app.whenReady().then(() => {
-  // IPC ハンドラは app.whenReady() 内で登録する
+  // Register IPC handlers inside app.whenReady()
   ipcMain.handle('channel', async (_event, ...args) => {
-    // ハンドラの処理
+    // Handler logic
     return result
   })
 
-  // ウィンドウの作成もここで行う
+  // Also create windows here
   createWindow()
 })
 ```
 
-### 12.3 パフォーマンスプロファイリング
+### 12.3 Performance Profiling
 
 ```typescript
-// src/main/performance.ts — パフォーマンス計測ユーティリティ
+// src/main/performance.ts — Performance measurement utility
 import { performance, PerformanceObserver } from 'perf_hooks'
 import { logger } from './logger'
 
-// パフォーマンス計測の開始
+// Start a performance measurement
 export function startMeasure(name: string): void {
   performance.mark(`${name}-start`)
 }
 
-// パフォーマンス計測の終了とログ出力
+// End a performance measurement and log the result
 export function endMeasure(name: string): number {
   performance.mark(`${name}-end`)
   performance.measure(name, `${name}-start`, `${name}-end`)
@@ -1248,7 +1248,7 @@ export function endMeasure(name: string): number {
 
   logger.info(`[Performance] ${name}: ${duration.toFixed(2)}ms`)
 
-  // マークをクリーンアップ
+  // Clean up marks
   performance.clearMarks(`${name}-start`)
   performance.clearMarks(`${name}-end`)
   performance.clearMeasures(name)
@@ -1256,7 +1256,7 @@ export function endMeasure(name: string): number {
   return duration
 }
 
-// 起動時間の計測例
+// Example: measuring startup time
 export function measureStartupTime(): void {
   const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
@@ -1277,10 +1277,10 @@ export function measureStartupTime(): void {
 
 ---
 
-## 13. 環境変数と設定の管理
+## 13. Managing Environment Variables and Configuration
 
 ```typescript
-// src/main/env.ts — 環境変数の型安全な管理
+// src/main/env.ts — Type-safe management of environment variables
 import { app } from 'electron'
 import path from 'path'
 
@@ -1310,7 +1310,7 @@ export function getAppEnvironment(): AppEnvironment {
   }
 }
 
-// .env ファイルの読み込み（開発環境用）
+// Load .env file (for development environment)
 import { config } from 'dotenv'
 
 if (!app.isPackaged) {
@@ -1319,13 +1319,13 @@ if (!app.isPackaged) {
   })
 }
 
-// 環境変数のバリデーション
+// Validate environment variables
 function validateEnv(): void {
   const required = ['API_BASE_URL'] as const
 
   for (const key of required) {
     if (!process.env[key]) {
-      throw new Error(`環境変数 ${key} が設定されていません`)
+      throw new Error(`Environment variable ${key} is not set`)
     }
   }
 }
@@ -1334,45 +1334,45 @@ function validateEnv(): void {
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1381,26 +1381,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1408,7 +1408,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1419,14 +1419,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1434,7 +1434,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1442,44 +1442,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit reached
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1488,7 +1488,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1503,76 +1503,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be conscious of algorithm complexity
+- Choose the appropriate data structure
+- Measure the effect with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | Prioritize when | Can compromise when |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin dashboards, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How often do you deploy?                    │
+│    ├─ Weekly or less → Monolith + modules       │
+│    └─ Daily / multiple times → Go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are teams?                  │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Costs**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering incurs high short-term costs and can delay a project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has low learning costs
+- Adopting diverse technologies allows for the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers greater reusability, but can make debugging harder
+- Low abstraction is intuitive, but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1582,17 +1582,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1600,7 +1600,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1608,15 +1608,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1625,75 +1625,75 @@ class ArchitectureDecisionRecord:
 
 ## 14. FAQ
 
-### Q1: electron-vite と electron-forge + Vite の違いは何か？
+### Q1: What is the difference between electron-vite and electron-forge + Vite?
 
-**A:** `electron-vite` は Vite を Electron 向けに最適化した統合ツールであり、Main/Preload/Renderer の3プロセスを1つの設定ファイルで管理できる。`electron-forge` は Electron 公式のビルドツールチェーンであり、パッケージング・署名・配布まで含むフルスタックツールである。新規プロジェクトでは開発体験の良い `electron-vite` で開発し、ビルド・配布には `electron-forge` または `electron-builder` を併用する構成が多い。
+**A:** `electron-vite` is an integrated tool that optimizes Vite for Electron, allowing you to manage all three processes (Main/Preload/Renderer) in a single configuration file. `electron-forge` is the official Electron build toolchain that covers packaging, signing, and distribution. A common setup is to develop with `electron-vite` for the great developer experience, and then use `electron-forge` or `electron-builder` for building and distribution.
 
-### Q2: Electron アプリのメモリ使用量が大きいのはなぜか？
+### Q2: Why does an Electron app use so much memory?
 
-**A:** Electron は Chromium を同梱しているため、最低でも約 80-100MB のメモリを消費する。各ウィンドウが独立した Renderer プロセスを持つことも要因の一つである。対策としては、(1) 不要なウィンドウの遅延生成、(2) バックグラウンドウィンドウの `backgroundThrottling` 有効化、(3) V8 スナップショットの活用が挙げられる。
+**A:** Electron bundles Chromium, so it consumes at least around 80-100MB of memory. Each window having its own independent Renderer process is also a contributing factor. Countermeasures include: (1) lazy creation of unnecessary windows, (2) enabling `backgroundThrottling` for background windows, and (3) utilizing V8 snapshots.
 
-### Q3: Electron で React 以外のフレームワーク（Vue, Svelte）は使えるか？
+### Q3: Can I use frameworks other than React (Vue, Svelte) with Electron?
 
-**A:** はい。Renderer プロセスは通常の Web アプリと同じであるため、任意のフレームワークが使用可能である。`electron-vite` は React / Vue / Svelte / Solid のテンプレートを公式に提供している。
+**A:** Yes. Since the Renderer process is the same as a regular web application, any framework can be used. `electron-vite` officially provides templates for React, Vue, Svelte, and Solid.
 
-### Q4: Electron アプリの起動速度を改善するにはどうすればよいか？
+### Q4: How can I improve Electron app startup speed?
 
-**A:** 主な対策として以下が挙げられる。(1) Preload スクリプトの最小化 -- 不要なモジュールの読み込みを避ける。(2) メインウィンドウの `show: false` 設定と `ready-to-show` イベントでの表示 -- 白い画面のちらつきを防ぐ。(3) ネイティブモジュールの遅延読み込み -- 起動時に全モジュールをロードしない。(4) V8 コードキャッシュの活用 -- `v8-compile-cache` パッケージの使用。(5) スプラッシュスクリーンの活用 -- 体感速度の向上。
+**A:** Key measures include: (1) Minimizing the Preload script — avoid loading unnecessary modules. (2) Using `show: false` and displaying the window on the `ready-to-show` event — prevents white screen flickering. (3) Lazy-loading native modules — do not load all modules at startup. (4) Using V8 code caching — use the `v8-compile-cache` package. (5) Using a splash screen — improves perceived speed.
 
-### Q5: Electron アプリのバイナリサイズを削減するには？
+### Q5: How can I reduce the binary size of an Electron app?
 
-**A:** Electron アプリは Chromium を同梱するため、最低でも 50-80MB 程度のサイズになる。削減策としては、(1) `electron-builder` の asar アーカイブを有効化する、(2) 不要な `node_modules` を除外する（`files` オプションで制御）、(3) `devDependencies` がバンドルに含まれないことを確認する、(4) プラットフォーム固有のビルドで不要な OS のコードを排除する、(5) サイズが気になる場合は Tauri への移行を検討する（バイナリサイズが 2-10MB 程度）。
+**A:** Since Electron bundles Chromium, the minimum size is around 50-80MB. Reduction strategies include: (1) enabling asar archiving in `electron-builder`, (2) excluding unnecessary `node_modules` (controlled via the `files` option), (3) ensuring `devDependencies` are not included in the bundle, (4) eliminating unnecessary OS-specific code with platform-specific builds, (5) if size is a concern, consider migrating to Tauri (binary size is around 2-10MB).
 
-### Q6: 自動更新の仕組みはどうなっているか？
+### Q6: How does the auto-update mechanism work?
 
-**A:** `electron-updater` パッケージを使用する。更新ファイルを GitHub Releases、S3、またはプライベートサーバーにホストし、アプリ起動時に更新チェックを行う。Windows では NSIS インストーラ、macOS では DMG/ZIP の差分更新に対応している。コード署名が正しく設定されていれば、ユーザーにセキュリティ警告を表示せずに更新が可能である。
+**A:** Use the `electron-updater` package. Host update files on GitHub Releases, S3, or a private server, and check for updates when the app launches. It supports delta updates for NSIS installers on Windows and DMG/ZIP on macOS. If code signing is correctly configured, updates can be delivered without showing a security warning to the user.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 15. まとめ
+## 15. Summary
 
-| トピック | キーポイント |
+| Topic | Key Points |
 |---|---|
-| アーキテクチャ | Main（Node.js）+ Renderer（Chromium）+ Preload（橋渡し） |
-| プロジェクト作成 | `create @quick-start/electron` で React+TS テンプレートを生成 |
-| Vite 統合 | `electron-vite` が Main/Preload/Renderer を一括管理 |
-| ホットリロード | Renderer は HMR（~50ms）、Main は自動再起動（~1s） |
-| IPC 通信 | invoke/handle パターンが推奨。チャネル名は定数化 |
-| 設定管理 | electron-store でスキーマバリデーション付き永続化 |
-| テスト | Vitest（Unit）+ Playwright（E2E）の二層構成 |
-| ログ管理 | electron-log でファイルローテーション付きログ出力 |
-| セキュリティ | contextIsolation: true + sandbox: true + CSP 設定が必須 |
-| デバッグ | VS Code 統合デバッガで Main/Renderer 両プロセスをデバッグ |
-| DevTools | 開発時は自動オープン + React DevTools 拡張 |
+| Architecture | Main (Node.js) + Renderer (Chromium) + Preload (bridge) |
+| Project creation | Generate a React+TS template with `create @quick-start/electron` |
+| Vite integration | `electron-vite` manages Main/Preload/Renderer in one place |
+| Hot reload | Renderer uses HMR (~50ms), Main auto-restarts (~1s) |
+| IPC communication | invoke/handle pattern is recommended; centralize channel names as constants |
+| Settings management | Persist with electron-store including schema validation |
+| Testing | Two-layer approach: Vitest (Unit) + Playwright (E2E) |
+| Log management | File rotation logging with electron-log |
+| Security | contextIsolation: true + sandbox: true + CSP configuration are mandatory |
+| Debugging | Debug both Main and Renderer processes with the VS Code integrated debugger |
+| DevTools | Auto-open in development + React DevTools extension |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- **[01-electron-advanced.md](./01-electron-advanced.md)** — マルチウィンドウ、ネイティブモジュール、パフォーマンス最適化
-- **[02-tauri-setup.md](./02-tauri-setup.md)** — 軽量代替フレームワーク Tauri の入門
+- **[01-electron-advanced.md](./01-electron-advanced.md)** — Multi-window, native modules, performance optimization
+- **[02-tauri-setup.md](./02-tauri-setup.md)** — Introduction to Tauri, a lightweight alternative framework
 
 ---
 
-## 参考文献
+## References
 
 1. Electron, "Official Documentation", https://www.electronjs.org/docs/latest/
 2. electron-vite, "Getting Started", https://electron-vite.org/guide/
