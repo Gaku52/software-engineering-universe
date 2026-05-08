@@ -1,110 +1,110 @@
-# 自動更新 (Auto Update)
+# Auto Update
 
-> デスクトップアプリケーションの自動更新メカニズムを設計・実装し、ユーザーに透過的かつ安全にアップデートを届ける技術を体系的に学ぶ。
+> Learn systematically the techniques for designing and implementing auto-update mechanisms for desktop applications, delivering updates to users transparently and securely.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **electron-updater / Tauri updater の設計思想と実装パターン** -- 主要フレームワークの更新機構を比較しながら、プロダクション品質の自動更新を構築する
-2. **更新サーバーの構築と差分更新の最適化** -- 帯域を節約しつつ高速にパッチを配信するためのサーバーアーキテクチャとデルタ更新を理解する
-3. **ロールバック戦略と障害復旧** -- 更新失敗時のフォールバック設計により、ユーザー体験を損なわない堅牢な更新パイプラインを構築する
-4. **CI/CD パイプラインとの統合** -- GitHub Actions を活用し、ビルドから署名、配信までを完全自動化するワークフローを構築する
+1. **Design philosophy and implementation patterns of electron-updater / Tauri updater** -- Build production-quality auto-updates by comparing the update mechanisms of major frameworks
+2. **Building an update server and optimizing delta updates** -- Understand server architecture and delta updates for fast patch delivery while saving bandwidth
+3. **Rollback strategies and disaster recovery** -- Build a robust update pipeline that preserves user experience through fallback design when updates fail
+4. **Integration with CI/CD pipelines** -- Use GitHub Actions to build a fully automated workflow from build to signing and delivery
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [パッケージングと署名](./00-packaging-and-signing.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of [Packaging and Signing](./00-packaging-and-signing.md)
 
 ---
 
-## 1. 自動更新の全体アーキテクチャ
+## 1. Overall Auto-Update Architecture
 
-### 1.1 更新フローの概要
+### 1.1 Overview of the Update Flow
 
 ```
-+------------------+     (1) チェック要求      +------------------+
++------------------+     (1) Check request      +------------------+
 |                  | -----------------------> |                  |
-|   デスクトップ    |     (2) マニフェスト応答   |   更新サーバー    |
-|   アプリ         | <----------------------- |   (S3/GitHub等)  |
-|                  |     (3) バイナリDL        |                  |
+|   Desktop        |     (2) Manifest response  |   Update server  |
+|   App            | <----------------------- |   (S3/GitHub etc)|
+|                  |     (3) Binary DL          |                  |
 |                  | -----------------------> |                  |
 +------------------+                          +------------------+
         |
-        v  (4) 検証 & インストール
+        v  (4) Verify & Install
 +------------------+
-|  ローカル展開     |
-|  再起動 or       |
-|  バックグラウンド  |
+|  Local deploy    |
+|  Restart or      |
+|  Background      |
 +------------------+
 ```
 
-### 1.2 更新チェックの戦略
+### 1.2 Update Check Strategies
 
 ```
 +-------------------------------------------------------------+
-|                  更新チェック戦略の選択                         |
+|                  Update Check Strategy Selection             |
 +-------------------------------------------------------------+
-| 戦略            | トリガー         | 適用場面               |
-|-----------------|-----------------|------------------------|
-| 起動時チェック    | アプリ起動        | 一般的なデスクトップアプリ |
-| 定期ポーリング   | タイマー(1h等)   | 長時間起動アプリ        |
-| プッシュ通知     | WebSocket/SSE   | リアルタイム性が必要     |
-| 手動チェック     | ユーザー操作      | 開発者向けツール        |
+| Strategy         | Trigger          | Use Case               |
+|------------------|-----------------|------------------------|
+| On-launch check  | App launch       | General desktop apps   |
+| Periodic polling | Timer (1h, etc.) | Long-running apps      |
+| Push notification| WebSocket/SSE    | When real-time needed  |
+| Manual check     | User action      | Developer tools        |
 +-------------------------------------------------------------+
 ```
 
-### 1.3 更新方式の詳細比較
+### 1.3 Detailed Comparison of Update Methods
 
-| 方式 | メリット | デメリット | 適用場面 |
-|------|---------|-----------|---------|
-| フル置換 | シンプル、確実 | ダウンロード量が大きい | 小規模アプリ |
-| 差分パッチ | ダウンロード量が少ない | パッチ生成が複雑 | 大規模アプリ |
-| asar 置換 (Electron) | JS 部分のみ更新 | ネイティブ変更不可 | フロントエンド中心 |
-| サイドバイサイド | ロールバック容易 | ディスク使用量が増加 | エンタープライズ |
-| バックグラウンド DL | UX が良い | メモリ・ディスク使用 | 一般消費者向け |
+| Method | Advantages | Disadvantages | Use Case |
+|--------|-----------|---------------|---------|
+| Full replacement | Simple, reliable | Large download size | Small apps |
+| Delta patch | Small download size | Complex patch generation | Large apps |
+| asar replacement (Electron) | Updates only JS parts | Cannot change native | Frontend-centric |
+| Side-by-side | Easy rollback | Increased disk usage | Enterprise |
+| Background DL | Good UX | Memory/disk usage | General consumers |
 
 ---
 
 ## 2. Electron + electron-updater
 
-### 2.1 基本セットアップ
+### 2.1 Basic Setup
 
 ```typescript
-// electron-builder.yml (抜粋)
+// electron-builder.yml (excerpt)
 // publish:
 //   provider: github
 //   owner: your-org
 //   repo: your-app
 
-// main.ts -- メインプロセス
+// main.ts -- main process
 import { autoUpdater } from 'electron-updater';
 import { app, BrowserWindow, ipcMain } from 'electron';
 import log from 'electron-log';
 
-// ログ設定
+// Log configuration
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 
-// 自動ダウンロードを無効化（ユーザーに確認させたい場合）
+// Disable auto-download (when you want the user to confirm)
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
 
 function setupAutoUpdater(mainWindow: BrowserWindow): void {
-  // 更新チェック（起動後 3 秒遅延）
+  // Check for updates (3-second delay after launch)
   setTimeout(() => {
     autoUpdater.checkForUpdates();
   }, 3000);
 
-  // イベントハンドラ
+  // Event handlers
   autoUpdater.on('checking-for-update', () => {
-    log.info('更新を確認中...');
+    log.info('Checking for updates...');
   });
 
   autoUpdater.on('update-available', (info) => {
-    log.info('更新あり:', info.version);
+    log.info('Update available:', info.version);
     mainWindow.webContents.send('update-available', {
       version: info.version,
       releaseDate: info.releaseDate,
@@ -113,7 +113,7 @@ function setupAutoUpdater(mainWindow: BrowserWindow): void {
   });
 
   autoUpdater.on('update-not-available', () => {
-    log.info('最新版です');
+    log.info('Already up to date');
   });
 
   autoUpdater.on('download-progress', (progress) => {
@@ -129,17 +129,17 @@ function setupAutoUpdater(mainWindow: BrowserWindow): void {
   });
 
   autoUpdater.on('error', (err) => {
-    log.error('更新エラー:', err);
+    log.error('Update error:', err);
     mainWindow.webContents.send('update-error', err.message);
   });
 
-  // レンダラーからの要求
+  // Requests from renderer
   ipcMain.handle('start-download', () => autoUpdater.downloadUpdate());
   ipcMain.handle('install-update', () => autoUpdater.quitAndInstall());
 }
 ```
 
-### 2.2 レンダラー側の UI 実装
+### 2.2 Renderer-Side UI Implementation
 
 ```typescript
 // renderer/update-manager.ts
@@ -156,8 +156,8 @@ class UpdateUI {
   private setupListeners(): void {
     ipcRenderer.on('update-available', (_e, info) => {
       this.showBanner(
-        `v${info.version} が利用可能です`,
-        'ダウンロード',
+        `v${info.version} is available`,
+        'Download',
         () => ipcRenderer.invoke('start-download')
       );
     });
@@ -168,15 +168,15 @@ class UpdateUI {
 
     ipcRenderer.on('update-downloaded', (_e, version) => {
       this.showBanner(
-        `v${version} の準備完了`,
-        '再起動して更新',
+        `v${version} is ready`,
+        'Restart and Update',
         () => ipcRenderer.invoke('install-update')
       );
     });
 
     ipcRenderer.on('update-error', (_e, message) => {
-      console.error('更新エラー:', message);
-      // 次回起動時に再試行するため、ここではユーザー通知のみ
+      console.error('Update error:', message);
+      // Only notify the user here; retry will happen on next launch
     });
   }
 
@@ -196,22 +196,22 @@ class UpdateUI {
 }
 ```
 
-### 2.3 electron-builder の公開設定比較
+### 2.3 Comparison of electron-builder Publish Configurations
 
-| 設定項目 | GitHub Releases | S3 / R2 | 自前サーバー |
-|---------|----------------|---------|------------|
+| Setting | GitHub Releases | S3 / R2 | Self-hosted Server |
+|---------|----------------|---------|-------------------|
 | `provider` | `github` | `s3` / `generic` | `generic` |
-| コスト | 無料(Public) | 従量課金 | サーバー維持費 |
-| プライベートリポ | トークン必要 | IAMロール | 任意の認証 |
-| CDN | GitHub CDN | CloudFront等 | 自前構築 |
-| 帯域制限 | 1GB/月(Free) | 無制限(課金) | 無制限 |
-| 差分更新 | 非対応 | 対応可 | 対応可 |
-| 設定難易度 | 低 | 中 | 高 |
+| Cost | Free (Public) | Pay-as-you-go | Server maintenance cost |
+| Private repo | Token required | IAM role | Any auth |
+| CDN | GitHub CDN | CloudFront, etc. | Self-built |
+| Bandwidth limit | 1GB/month (Free) | Unlimited (paid) | Unlimited |
+| Delta update | Not supported | Supported | Supported |
+| Setup difficulty | Low | Medium | High |
 
-### 2.4 S3 / CloudFront を使った配信設定
+### 2.4 Delivery Configuration with S3 / CloudFront
 
 ```yaml
-# electron-builder.yml — S3 配信設定
+# electron-builder.yml — S3 delivery configuration
 publish:
   - provider: s3
     bucket: my-app-releases
@@ -219,16 +219,16 @@ publish:
     acl: public-read
     path: /releases/${os}/${arch}
 
-# 環境変数で認証情報を設定
+# Set credentials via environment variables
 # AWS_ACCESS_KEY_ID
 # AWS_SECRET_ACCESS_KEY
 ```
 
 ```typescript
-// main/auto-updater-s3.ts — S3 からの更新チェック
+// main/auto-updater-s3.ts — Update check from S3
 import { autoUpdater } from 'electron-updater';
 
-// S3 からの更新を設定
+// Configure updates from S3
 autoUpdater.setFeedURL({
   provider: 's3',
   bucket: 'my-app-releases',
@@ -236,19 +236,19 @@ autoUpdater.setFeedURL({
   path: `/releases/${process.platform}/${process.arch}`,
 });
 
-// Generic サーバーからの更新（自前サーバー）
+// Updates from a generic server (self-hosted)
 autoUpdater.setFeedURL({
   provider: 'generic',
   url: 'https://updates.example.com/releases',
   channel: 'latest',
-  useMultipleRangeRequest: true, // 差分ダウンロード対応
+  useMultipleRangeRequest: true, // Enable delta download
 });
 ```
 
-### 2.5 定期ポーリングの実装
+### 2.5 Implementing Periodic Polling
 
 ```typescript
-// main/update-scheduler.ts — 定期的な更新チェック
+// main/update-scheduler.ts — Periodic update checks
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 
@@ -261,53 +261,53 @@ class UpdateScheduler {
   }
 
   start(): void {
-    // 起動後 10 秒で初回チェック
+    // First check 10 seconds after launch
     setTimeout(() => this.check(), 10_000);
 
-    // 以降は定期チェック
+    // Periodic checks thereafter
     this.intervalId = setInterval(() => this.check(), this.checkIntervalMs);
-    log.info(`更新チェックスケジューラ開始: ${this.checkIntervalMs / 3600000}時間間隔`);
+    log.info(`Update check scheduler started: every ${this.checkIntervalMs / 3600000} hours`);
   }
 
   stop(): void {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      log.info('更新チェックスケジューラ停止');
+      log.info('Update check scheduler stopped');
     }
   }
 
   private async check(): Promise<void> {
     try {
-      log.info('定期更新チェック実行');
+      log.info('Running periodic update check');
       const result = await autoUpdater.checkForUpdates();
       if (result?.updateInfo) {
-        log.info(`利用可能な更新: v${result.updateInfo.version}`);
+        log.info(`Update available: v${result.updateInfo.version}`);
       }
     } catch (error) {
-      log.warn('更新チェック失敗（次回リトライ）:', error);
-      // エラーが連続する場合はチェック間隔を延長
+      log.warn('Update check failed (will retry next time):', error);
+      // If errors are consecutive, consider extending the check interval
     }
   }
 }
 
-export const updateScheduler = new UpdateScheduler(4); // 4時間間隔
+export const updateScheduler = new UpdateScheduler(4); // every 4 hours
 ```
 
 ---
 
 ## 3. Tauri Updater
 
-### 3.1 Tauri v2 updater プラグインの設定
+### 3.1 Configuring the Tauri v2 Updater Plugin
 
 ```bash
-# Tauri v2 では updater はプラグインとして提供される
+# In Tauri v2, the updater is provided as a plugin
 cargo add tauri-plugin-updater
 npm install @tauri-apps/plugin-updater
 ```
 
 ```json
-// src-tauri/tauri.conf.json — Tauri v2 の updater 設定
+// src-tauri/tauri.conf.json — Tauri v2 updater configuration
 {
   "plugins": {
     "updater": {
@@ -322,7 +322,7 @@ npm install @tauri-apps/plugin-updater
 ```
 
 ```json
-// src-tauri/capabilities/default.json — updater プラグインの権限
+// src-tauri/capabilities/default.json — updater plugin permissions
 {
   "identifier": "main-capability",
   "windows": ["main"],
@@ -333,57 +333,57 @@ npm install @tauri-apps/plugin-updater
 }
 ```
 
-### 3.2 minisign 鍵ペアの生成
+### 3.2 Generating a minisign Key Pair
 
 ```bash
-# minisign のインストール
+# Install minisign
 cargo install minisign
 
-# 鍵ペアの生成（パスワードを設定）
+# Generate key pair (set a password)
 minisign -G -p minisign.pub -s minisign.key
 
-# 公開鍵の内容を tauri.conf.json の pubkey に設定
+# Set the contents of the public key in pubkey in tauri.conf.json
 cat minisign.pub
 
-# 秘密鍵は CI/CD の Secrets に保存
-# TAURI_SIGNING_PRIVATE_KEY = (minisign.key の内容)
-# TAURI_SIGNING_PRIVATE_KEY_PASSWORD = (生成時に設定したパスワード)
+# Store the private key in CI/CD Secrets
+# TAURI_SIGNING_PRIVATE_KEY = (contents of minisign.key)
+# TAURI_SIGNING_PRIVATE_KEY_PASSWORD = (password set during generation)
 ```
 
-### 3.3 Rust 側の更新ロジック（v2 プラグイン版）
+### 3.3 Rust-Side Update Logic (v2 Plugin Version)
 
 ```rust
-// src-tauri/src/main.rs — Tauri v2 updater プラグインの登録
+// src-tauri/src/main.rs — Registering the Tauri v2 updater plugin
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
-            // バックグラウンドで更新チェックを開始
+            // Start update check in background
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = check_for_updates(handle).await {
-                    log::error!("更新チェックエラー: {}", e);
+                    log::error!("Update check error: {}", e);
                 }
             });
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("Tauri アプリの起動に失敗しました");
+        .expect("Failed to launch Tauri app");
 }
 
 async fn check_for_updates(app: tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     use tauri_plugin_updater::UpdaterExt;
 
-    // 5 秒待ってから更新チェック（起動直後を避ける）
+    // Wait 5 seconds before checking (avoid immediately after launch)
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
     let updater = app.updater()?;
     let response = updater.check().await?;
 
     if let Some(update) = response {
-        log::info!("更新が利用可能: v{}", update.version);
+        log::info!("Update available: v{}", update.version);
 
-        // フロントエンドに通知
+        // Notify frontend
         use tauri::Emitter;
         app.emit("update-available", serde_json::json!({
             "version": update.version,
@@ -391,7 +391,7 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<(), Box<dyn std::err
             "date": update.date,
         }))?;
     } else {
-        log::info!("アプリは最新版です");
+        log::info!("App is up to date");
     }
 
     Ok(())
@@ -399,11 +399,11 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<(), Box<dyn std::err
 ```
 
 ```rust
-// src-tauri/src/commands/updater.rs — 更新コマンド
+// src-tauri/src/commands/updater.rs — Update commands
 use tauri::AppHandle;
 use tauri_plugin_updater::UpdaterExt;
 
-/// 更新を確認するコマンド
+/// Command to check for updates
 #[tauri::command]
 pub async fn check_update(app: AppHandle) -> Result<Option<UpdateInfo>, String> {
     let updater = app.updater().map_err(|e| e.to_string())?;
@@ -419,7 +419,7 @@ pub async fn check_update(app: AppHandle) -> Result<Option<UpdateInfo>, String> 
     }
 }
 
-/// 更新をダウンロードしてインストールするコマンド
+/// Command to download and install an update
 #[tauri::command]
 pub async fn install_update(app: AppHandle) -> Result<(), String> {
     use tauri::Emitter;
@@ -428,7 +428,7 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
     let response = updater.check().await.map_err(|e| e.to_string())?;
 
     if let Some(update) = response {
-        // ダウンロードの進捗をフロントエンドに送信
+        // Send download progress to frontend
         let app_clone = app.clone();
         let mut downloaded: u64 = 0;
 
@@ -447,13 +447,13 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
                     }));
                 },
                 || {
-                    log::info!("ダウンロード完了、インストールを準備中...");
+                    log::info!("Download complete, preparing installation...");
                 },
             )
             .await
-            .map_err(|e| format!("インストール失敗: {}", e))?;
+            .map_err(|e| format!("Installation failed: {}", e))?;
 
-        log::info!("更新インストール完了。再起動が必要です。");
+        log::info!("Update installed. Restart required.");
         app.emit("update-installed", serde_json::json!({
             "version": update.version,
         })).map_err(|e| e.to_string())?;
@@ -470,10 +470,10 @@ pub struct UpdateInfo {
 }
 ```
 
-### 3.4 フロントエンド (TypeScript) 側
+### 3.4 Frontend (TypeScript) Side
 
 ```typescript
-// src/lib/updater.ts — Tauri v2 updater プラグインの使用
+// src/lib/updater.ts — Using the Tauri v2 updater plugin
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { listen } from '@tauri-apps/api/event'
@@ -485,7 +485,7 @@ interface UpdateStatus {
   date?: string
 }
 
-// 更新チェックと状態管理
+// Update check and state management
 export class UpdateManager {
   private onStatusChange?: (status: UpdateStatus) => void
   private onProgressChange?: (percent: number) => void
@@ -517,7 +517,7 @@ export class UpdateManager {
       this.onStatusChange?.(status)
       return status
     } catch (error) {
-      console.error('更新チェックエラー:', error)
+      console.error('Update check error:', error)
       return { available: false }
     }
   }
@@ -526,7 +526,7 @@ export class UpdateManager {
     try {
       const update = await check()
       if (!update) {
-        throw new Error('更新が見つかりません')
+        throw new Error('No update found')
       }
 
       let downloaded = 0
@@ -536,7 +536,7 @@ export class UpdateManager {
         switch (event.event) {
           case 'Started':
             contentLength = event.data.contentLength ?? undefined
-            console.log(`ダウンロード開始: ${contentLength} bytes`)
+            console.log(`Download started: ${contentLength} bytes`)
             break
           case 'Progress':
             downloaded += event.data.chunkLength
@@ -546,16 +546,16 @@ export class UpdateManager {
             }
             break
           case 'Finished':
-            console.log('ダウンロード完了')
+            console.log('Download complete')
             this.onProgressChange?.(100)
             break
         }
       })
 
-      // インストール後に再起動
+      // Restart after installation
       await relaunch()
     } catch (error) {
-      console.error('更新インストールエラー:', error)
+      console.error('Update installation error:', error)
       throw error
     }
   }
@@ -563,7 +563,7 @@ export class UpdateManager {
 ```
 
 ```tsx
-// src/components/UpdateNotification.tsx — 更新通知コンポーネント
+// src/components/UpdateNotification.tsx — Update notification component
 import { useState, useEffect, useCallback } from 'react'
 import { UpdateManager } from '../lib/updater'
 
@@ -588,7 +588,7 @@ export function UpdateNotification() {
 
   useEffect(() => {
     const mgr = manager()
-    // 起動後 5 秒で更新チェック
+    // Check for updates 5 seconds after launch
     const timer = setTimeout(() => mgr.checkForUpdate(), 5000)
     return () => clearTimeout(timer)
   }, [manager])
@@ -609,7 +609,7 @@ export function UpdateNotification() {
   return (
     <div className="update-notification">
       <div className="update-info">
-        <h3>新しいバージョン v{version} が利用可能です</h3>
+        <h3>New version v{version} is available</h3>
         {releaseNotes && (
           <div className="release-notes" dangerouslySetInnerHTML={{ __html: releaseNotes }} />
         )}
@@ -621,25 +621,25 @@ export function UpdateNotification() {
           <span>{progress.toFixed(1)}%</span>
         </div>
       ) : isInstalled ? (
-        <p>インストール完了。アプリを再起動します...</p>
+        <p>Installation complete. Restarting the app...</p>
       ) : (
-        <button onClick={handleDownload}>今すぐ更新</button>
+        <button onClick={handleDownload}>Update Now</button>
       )}
     </div>
   )
 }
 ```
 
-### 3.5 Tauri 更新マニフェスト (JSON) のフォーマット
+### 3.5 Tauri Update Manifest (JSON) Format
 
-更新サーバーが返す JSON マニフェストの仕様を理解することが重要である。
+Understanding the specification of the JSON manifest returned by the update server is important.
 
 ```json
-// 更新サーバーが返す JSON レスポンスの例
+// Example JSON response returned by the update server
 // GET https://releases.example.com/windows-x86_64/1.0.0
 {
   "version": "1.1.0",
-  "notes": "バグ修正と新機能の追加\n- ファイル検索の高速化\n- ダークモード対応",
+  "notes": "Bug fixes and new features\n- Faster file search\n- Dark mode support",
   "pub_date": "2025-12-15T10:00:00Z",
   "platforms": {
     "windows-x86_64": {
@@ -664,26 +664,26 @@ export function UpdateNotification() {
 
 ---
 
-## 4. 更新サーバーの構築
+## 4. Building an Update Server
 
-### 4.1 アーキテクチャ
+### 4.1 Architecture
 
 ```
 +------------------+      +-------------------+      +-----------+
-|  CI/CD           |      |  更新サーバー       |      |  CDN      |
+|  CI/CD           |      |  Update server    |      |  CDN      |
 |  (GitHub Actions)|----->|  (API + DB)       |----->|  (CF/S3)  |
-|  ビルド & 署名    |      |  /update/check    |      |  バイナリ  |
+|  Build & Sign    |      |  /update/check    |      |  Binaries |
 +------------------+      |  /update/download  |      +-----------+
                           +-------------------+            |
                                    ^                       |
-                                   |  (1) チェック           |  (3) DL
+                                   |  (1) Check            |  (3) DL
                                    |                       v
                           +-------------------+
-                          |  デスクトップアプリ  |
+                          |  Desktop App      |
                           +-------------------+
 ```
 
-### 4.2 更新サーバー API の実装例
+### 4.2 Example Update Server API Implementation
 
 ```typescript
 // server/routes/update.ts (Express)
@@ -702,7 +702,7 @@ interface Release {
   sha256: string;
   releaseDate: string;
   critical: boolean;
-  minVersion?: string; // この版未満は強制更新
+  minVersion?: string; // Force update for versions below this
 }
 
 // GET /update/check?platform=win32&arch=x64&version=1.2.0
@@ -714,10 +714,10 @@ router.get('/check', async (req, res) => {
   });
 
   if (!latest || !semver.gt(latest.version, version as string)) {
-    return res.status(204).end(); // 更新なし
+    return res.status(204).end(); // No update
   }
 
-  // 強制更新チェック
+  // Force update check
   const forceUpdate =
     latest.critical ||
     (latest.minVersion && semver.lt(version as string, latest.minVersion));
@@ -734,7 +734,7 @@ router.get('/check', async (req, res) => {
   });
 });
 
-// 段階的ロールアウト (カナリア)
+// Phased rollout (canary)
 router.get('/check/canary', async (req, res) => {
   const { platform, arch, version, userId } = req.query;
   const latest = await db.releases.findOne({
@@ -743,12 +743,12 @@ router.get('/check/canary', async (req, res) => {
 
   if (!latest) return res.status(204).end();
 
-  // ユーザーIDのハッシュで段階的に配信 (0-100%)
+  // Deliver in phases based on hash of user ID (0-100%)
   const rolloutPercent = latest.rolloutPercent || 100;
   const hash = hashCode(userId as string) % 100;
 
   if (hash >= rolloutPercent) {
-    return res.status(204).end(); // まだこのユーザーには配信しない
+    return res.status(204).end(); // Not yet delivering to this user
   }
 
   res.json({ version: latest.version, url: latest.url });
@@ -757,21 +757,21 @@ router.get('/check/canary', async (req, res) => {
 export default router;
 ```
 
-### 4.3 Tauri 用の更新サーバー実装例
+### 4.3 Example Update Server Implementation for Tauri
 
 ```typescript
-// server/routes/tauri-update.ts — Tauri マニフェスト形式の更新 API
+// server/routes/tauri-update.ts — Update API in Tauri manifest format
 import express from 'express';
 import semver from 'semver';
 
 const router = express.Router();
 
-// Tauri updater のエンドポイント
+// Tauri updater endpoint
 // GET /update/:target/:arch/:current_version
 router.get('/:target/:arch/:current_version', async (req, res) => {
   const { target, arch, current_version } = req.params;
 
-  // プラットフォーム名のマッピング
+  // Platform name mapping
   const platform = `${target}-${arch}`;
 
   const latest = await db.releases.findOne({
@@ -779,13 +779,13 @@ router.get('/:target/:arch/:current_version', async (req, res) => {
   });
 
   if (!latest || !semver.gt(latest.version, current_version)) {
-    return res.status(204).end(); // 更新なし
+    return res.status(204).end(); // No update
   }
 
-  // Tauri マニフェスト形式で返す
+  // Return in Tauri manifest format
   const platformRelease = latest.platforms[platform];
   if (!platformRelease) {
-    return res.status(204).end(); // このプラットフォーム向けのリリースなし
+    return res.status(204).end(); // No release for this platform
   }
 
   res.json({
@@ -804,10 +804,10 @@ router.get('/:target/:arch/:current_version', async (req, res) => {
 export default router;
 ```
 
-### 4.4 GitHub Releases をバックエンドとする更新サーバー
+### 4.4 Update Server Using GitHub Releases as a Backend
 
 ```typescript
-// server/routes/github-proxy.ts — GitHub Releases をプロキシする更新サーバー
+// server/routes/github-proxy.ts — Update server that proxies GitHub Releases
 import express from 'express';
 import { Octokit } from '@octokit/rest';
 
@@ -822,7 +822,7 @@ router.get('/:target/:arch/:current_version', async (req, res) => {
   const platform = `${target}-${arch}`;
 
   try {
-    // 最新リリースを取得
+    // Get the latest release
     const { data: release } = await octokit.repos.getLatestRelease({
       owner: OWNER,
       repo: REPO,
@@ -834,7 +834,7 @@ router.get('/:target/:arch/:current_version', async (req, res) => {
       return res.status(204).end();
     }
 
-    // プラットフォーム別のアセットを検索
+    // Find platform-specific assets
     const signatureAsset = release.assets.find(
       (a) => a.name.endsWith('.sig') && a.name.includes(platform)
     );
@@ -846,7 +846,7 @@ router.get('/:target/:arch/:current_version', async (req, res) => {
       return res.status(204).end();
     }
 
-    // 署名ファイルの内容を取得
+    // Get the contents of the signature file
     const signatureResponse = await fetch(signatureAsset.browser_download_url);
     const signature = await signatureResponse.text();
 
@@ -862,8 +862,8 @@ router.get('/:target/:arch/:current_version', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('GitHub API エラー:', error);
-    res.status(500).json({ error: '更新チェックに失敗しました' });
+    console.error('GitHub API error:', error);
+    res.status(500).json({ error: 'Failed to check for updates' });
   }
 });
 
@@ -872,44 +872,44 @@ export default router;
 
 ---
 
-## 5. 差分更新 (Delta Update)
+## 5. Delta Update
 
-### 5.1 差分更新の仕組み
+### 5.1 How Delta Updates Work
 
 ```
 +-----------------------------------------------------------+
-|              差分更新のフロー                                |
+|              Delta Update Flow                             |
 +-----------------------------------------------------------+
 |                                                           |
-|  v1.0.0 バイナリ (80MB)                                   |
+|  v1.0.0 binary (80MB)                                    |
 |     |                                                     |
 |     v  bsdiff / zstd-delta                                |
-|  差分パッチ (2MB)  ← v1.0.0 → v1.1.0 のデルタ             |
+|  Delta patch (2MB)  <- delta from v1.0.0 to v1.1.0       |
 |     |                                                     |
-|     v  bspatch (クライアント側)                             |
-|  v1.1.0 バイナリ (81MB)                                   |
+|     v  bspatch (client side)                              |
+|  v1.1.0 binary (81MB)                                    |
 |     |                                                     |
-|     v  SHA-256 検証                                       |
-|  検証OK → 置換 & 再起動                                    |
-|  検証NG → フルダウンロードにフォールバック                    |
+|     v  SHA-256 verification                               |
+|  Verified OK -> Replace & Restart                         |
+|  Verified NG -> Fall back to full download                |
 |                                                           |
 +-----------------------------------------------------------+
 ```
 
-### 5.2 差分更新の比較
+### 5.2 Comparison of Delta Update Methods
 
-| 方式 | ツール | 圧縮率 | 生成速度 | 適用速度 | 適用場面 |
-|------|-------|--------|---------|---------|---------|
-| bsdiff/bspatch | bsdiff | 高(95%↑) | 遅い | 中 | Electron |
-| courgette | Google製 | 最高(97%↑) | 遅い | 中 | Chrome系 |
-| zstd-delta | zstd | 中(80%↑) | 速い | 速い | Tauri / Rust |
-| VCDIFF (xdelta3) | xdelta | 中(85%↑) | 中 | 速い | 汎用 |
-| Windows Delta | msdelta | 高(90%↑) | 中 | 速い | MSIX専用 |
+| Method | Tool | Compression | Generation Speed | Apply Speed | Use Case |
+|--------|------|-------------|-----------------|-------------|---------|
+| bsdiff/bspatch | bsdiff | High (95%+) | Slow | Medium | Electron |
+| courgette | Google-made | Best (97%+) | Slow | Medium | Chrome-based |
+| zstd-delta | zstd | Medium (80%+) | Fast | Fast | Tauri / Rust |
+| VCDIFF (xdelta3) | xdelta | Medium (85%+) | Medium | Fast | General |
+| Windows Delta | msdelta | High (90%+) | Medium | Fast | MSIX only |
 
-### 5.3 差分パッチの生成パイプライン
+### 5.3 Delta Patch Generation Pipeline
 
 ```yaml
-# .github/workflows/delta-update.yml — 差分パッチの生成
+# .github/workflows/delta-update.yml — Delta patch generation
 name: Generate Delta Patches
 
 on:
@@ -922,7 +922,7 @@ jobs:
     steps:
       - name: Download previous release
         run: |
-          # 1つ前のリリースを取得
+          # Get the previous release
           PREV_TAG=$(gh release list -L 2 --json tagName -q '.[1].tagName')
           gh release download "$PREV_TAG" -D previous/
         env:
@@ -940,7 +940,7 @@ jobs:
             base=$(basename "$file")
             if [ -f "previous/$base" ]; then
               bsdiff "previous/$base" "current/$base" "patches/${base}.patch"
-              echo "パッチ生成: $base ($(stat -f%z "patches/${base}.patch") bytes)"
+              echo "Patch generated: $base ($(stat -f%z "patches/${base}.patch") bytes)"
             fi
           done
 
@@ -955,38 +955,38 @@ jobs:
 
 ---
 
-## 6. ロールバック戦略
+## 6. Rollback Strategy
 
-### 6.1 ロールバックのフロー
+### 6.1 Rollback Decision Flow
 
 ```
 +------------------------------------------------------------------+
-|                   ロールバック判定フロー                             |
+|                   Rollback Decision Flow                          |
 +------------------------------------------------------------------+
 |                                                                  |
-|  更新インストール完了                                              |
+|  Update installation complete                                    |
 |      |                                                           |
 |      v                                                           |
-|  アプリ起動 → 起動成功?                                           |
+|  App launch -> Launch succeeded?                                 |
 |      |            |                                              |
-|     YES          NO (クラッシュ or タイムアウト)                    |
+|     YES          NO (crash or timeout)                           |
 |      |            |                                              |
 |      v            v                                              |
-|  ヘルスチェック   カウンター++                                     |
-|  (API応答等)      |                                              |
+|  Health check   Counter++                                        |
+|  (API response, etc.)  |                                         |
 |      |            v                                              |
-|     OK?       3回連続失敗?                                        |
+|     OK?       3 consecutive failures?                            |
 |    / \          /     \                                          |
 |  YES  NO      YES     NO                                        |
 |   |    |       |       |                                         |
 |   v    v       v       v                                         |
-| 正常  ロール   ロール   再試行                                     |
-| 運用  バック   バック                                              |
+| Normal Roll-  Roll-  Retry                                       |
+| ops   back    back                                               |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 6.2 ロールバック実装 (Electron)
+### 6.2 Rollback Implementation (Electron)
 
 ```typescript
 // main/rollback-manager.ts
@@ -1012,20 +1012,20 @@ export class RollbackManager {
     this.state = this.loadState();
   }
 
-  /** アプリ起動時に呼び出す */
+  /** Call on app launch */
   async onAppStart(): Promise<void> {
     if (!this.state.healthCheckPassed) {
       this.state.crashCount++;
       this.saveState();
 
       if (this.state.crashCount >= MAX_CRASH_COUNT) {
-        console.error(`${MAX_CRASH_COUNT}回連続で起動失敗。ロールバックを実行`);
+        console.error(`Failed to launch ${MAX_CRASH_COUNT} times in a row. Performing rollback`);
         await this.rollback();
         return;
       }
     }
 
-    // ヘルスチェック (5秒以内に完了しなければ失敗とみなす)
+    // Health check (treated as failure if not completed within 5 seconds)
     const healthy = await Promise.race([
       this.performHealthCheck(),
       new Promise<boolean>((resolve) =>
@@ -1042,8 +1042,8 @@ export class RollbackManager {
 
   private async performHealthCheck(): Promise<boolean> {
     try {
-      // アプリ固有のヘルスチェック
-      // 例: DB接続、設定ファイル読み込み、プラグインロード
+      // App-specific health check
+      // e.g., DB connection, config file loading, plugin load
       return true;
     } catch {
       return false;
@@ -1053,9 +1053,9 @@ export class RollbackManager {
   private async rollback(): Promise<void> {
     const backupDir = path.join(app.getPath('userData'), 'backup');
     if (fs.existsSync(backupDir)) {
-      // バックアップからの復元ロジック
-      // 実際にはインストーラーの仕組みに依存
-      console.log(`v${this.state.previousVersion} にロールバック中...`);
+      // Restore from backup logic
+      // In practice, depends on the installer mechanism
+      console.log(`Rolling back to v${this.state.previousVersion}...`);
     }
   }
 
@@ -1079,10 +1079,10 @@ export class RollbackManager {
 }
 ```
 
-### 6.3 Tauri でのロールバック実装
+### 6.3 Rollback Implementation for Tauri
 
 ```rust
-// src-tauri/src/rollback.rs — Tauri アプリのロールバック管理
+// src-tauri/src/rollback.rs — Rollback management for Tauri apps
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::fs;
@@ -1116,12 +1116,12 @@ impl RollbackManager {
             self.save_state()?;
 
             if self.state.crash_count >= MAX_CRASH_COUNT {
-                log::error!("{}回連続で起動失敗。ロールバックを推奨", MAX_CRASH_COUNT);
-                return Err("ロールバックが必要です".to_string());
+                log::error!("Failed to launch {} times in a row. Rollback recommended", MAX_CRASH_COUNT);
+                return Err("Rollback required".to_string());
             }
         }
 
-        // ヘルスチェック
+        // Health check
         if self.perform_health_check() {
             self.state.health_check_passed = true;
             self.state.crash_count = 0;
@@ -1141,8 +1141,8 @@ impl RollbackManager {
     }
 
     fn perform_health_check(&self) -> bool {
-        // アプリ固有のヘルスチェック
-        // DB 接続テスト、設定ファイル読み込みなど
+        // App-specific health check
+        // DB connection test, config file loading, etc.
         true
     }
 
@@ -1155,9 +1155,9 @@ impl RollbackManager {
 
     fn save_state(&self) -> Result<(), String> {
         let content = serde_json::to_string_pretty(&self.state)
-            .map_err(|e| format!("シリアライズエラー: {}", e))?;
+            .map_err(|e| format!("Serialization error: {}", e))?;
         fs::write(&self.state_file, content)
-            .map_err(|e| format!("ファイル書き込みエラー: {}", e))?;
+            .map_err(|e| format!("File write error: {}", e))?;
         Ok(())
     }
 }
@@ -1165,23 +1165,23 @@ impl RollbackManager {
 
 ---
 
-## 7. コード署名と検証
+## 7. Code Signing and Verification
 
-### 7.1 プラットフォーム別の署名
+### 7.1 Platform-Specific Signing
 
-| 項目 | Windows (Authenticode) | macOS (codesign) | Tauri (minisign) |
+| Item | Windows (Authenticode) | macOS (codesign) | Tauri (minisign) |
 |------|----------------------|-----------------|-----------------|
-| ツール | signtool.exe | codesign | minisign |
-| 証明書 | EV/OV コード署名証明書 | Developer ID | Ed25519 鍵ペア |
-| コスト | 年額$200-500 | Apple Developer $99/年 | 無料 |
-| SmartScreen | EV: 即時信頼 | Gatekeeper対応 | 独自検証 |
-| タイムスタンプ | RFC 3161 | Apple TS | 手動管理 |
-| CI/CD統合 | Azure Key Vault | Keychain | 環境変数 |
+| Tool | signtool.exe | codesign | minisign |
+| Certificate | EV/OV code signing certificate | Developer ID | Ed25519 key pair |
+| Cost | $200-500/year | Apple Developer $99/year | Free |
+| SmartScreen | EV: instant trust | Gatekeeper compatible | Custom verification |
+| Timestamp | RFC 3161 | Apple TS | Manual management |
+| CI/CD integration | Azure Key Vault | Keychain | Environment variables |
 
-### 7.2 GitHub Actions での署名自動化
+### 7.2 Automated Signing with GitHub Actions
 
 ```yaml
-# .github/workflows/sign-and-release.yml — 署名付きリリース
+# .github/workflows/sign-and-release.yml — Signed release
 name: Sign and Release
 
 on:
@@ -1223,12 +1223,12 @@ jobs:
 
 ---
 
-## 8. CI/CD パイプライン統合
+## 8. CI/CD Pipeline Integration
 
-### 8.1 Tauri アプリの完全なリリースワークフロー
+### 8.1 Complete Release Workflow for Tauri Apps
 
 ```yaml
-# .github/workflows/tauri-release.yml — 完全なリリースパイプライン
+# .github/workflows/tauri-release.yml — Complete release pipeline
 name: Release
 
 on:
@@ -1329,7 +1329,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // 最新リリースのアセットから更新マニフェストを生成
+            // Generate update manifest from assets of the latest release
             const { data: release } = await github.rest.repos.getLatestRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -1342,11 +1342,11 @@ jobs:
               platforms: {},
             };
 
-            // 署名ファイルとバイナリをペアリング
+            // Pair signature files and binaries
             for (const asset of release.assets) {
               if (asset.name.endsWith('.sig')) {
-                // 署名ファイルの内容を取得
-                // プラットフォーム名を抽出してマニフェストに追加
+                // Get contents of the signature file
+                // Extract platform name and add to manifest
               }
             }
 
@@ -1355,127 +1355,127 @@ jobs:
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: 強制即時再起動
+### Anti-Pattern 1: Forced Immediate Restart
 
 ```typescript
-// NG: ユーザーの作業を中断して強制再起動
+// NG: Force restart interrupting user's work
 autoUpdater.on('update-downloaded', () => {
-  autoUpdater.quitAndInstall(); // ユーザーの確認なしに即座に再起動
+  autoUpdater.quitAndInstall(); // Restarts immediately without user confirmation
 });
 
-// OK: ユーザーに選択権を与え、適切なタイミングで更新
+// OK: Give the user a choice and update at an appropriate time
 autoUpdater.on('update-downloaded', (info) => {
   const notification = new Notification({
-    title: `v${info.version} の準備完了`,
-    body: '次回起動時に自動適用されます。今すぐ再起動することもできます。',
+    title: `v${info.version} is ready`,
+    body: 'Will be applied automatically on next launch. You can also restart now.',
   });
   notification.on('click', () => {
-    // ユーザーが明示的にクリックした場合のみ再起動
+    // Restart only when user explicitly clicks
     autoUpdater.quitAndInstall();
   });
   notification.show();
 });
 ```
 
-**問題点**: ユーザーが未保存の作業中に強制再起動されるとデータ喪失のリスクがある。特にドキュメント編集系アプリでは致命的。
+**Problem**: If the user is force-restarted while they have unsaved work, there is a risk of data loss. This is especially critical for document editing apps.
 
-### アンチパターン 2: 署名検証の省略
+### Anti-Pattern 2: Skipping Signature Verification
 
 ```typescript
-// NG: 開発が面倒だからと署名検証をスキップ
+// NG: Skipping signature verification because it's too much trouble to implement
 autoUpdater.allowDowngrade = true;
 autoUpdater.channel = 'latest';
-// 署名なしのバイナリを配布
+// Distributing unsigned binaries
 
-// OK: 必ず署名を検証し、HTTPS + ピン留めを使用
+// OK: Always verify signatures and use HTTPS + pinning
 autoUpdater.allowDowngrade = false;
 autoUpdater.autoRunAppAfterInstall = true;
-// electron-builder の publish 設定で署名済みバイナリのみ配布
-// Tauri: pubkey によるminisign検証を有効化
+// electron-builder publish settings distribute only signed binaries
+// Tauri: Enable minisign verification via pubkey
 ```
 
-**問題点**: 署名検証なしでは中間者攻撃によりマルウェア入りバイナリに差し替えられるリスクがある。HTTPS だけでは不十分で、バイナリ自体の署名が必要。
+**Problem**: Without signature verification, there is a risk that a man-in-the-middle attack could replace binaries with malware-infected ones. HTTPS alone is insufficient; the binary itself must be signed.
 
-### アンチパターン 3: エラーハンドリングの欠如
+### Anti-Pattern 3: Missing Error Handling
 
 ```typescript
-// NG: 更新エラーを無視する
-autoUpdater.checkForUpdates(); // エラーハンドリングなし
+// NG: Ignoring update errors
+autoUpdater.checkForUpdates(); // No error handling
 
-// OK: 全てのエラーケースを適切にハンドリング
+// OK: Properly handle all error cases
 try {
   const result = await autoUpdater.checkForUpdates();
   if (result) {
-    log.info(`更新チェック完了: v${result.updateInfo.version}`);
+    log.info(`Update check complete: v${result.updateInfo.version}`);
   }
 } catch (error) {
   if (error.message.includes('net::ERR_INTERNET_DISCONNECTED')) {
-    log.warn('ネットワーク未接続のため更新チェックをスキップ');
+    log.warn('Skipping update check due to no network connection');
   } else if (error.message.includes('ECONNREFUSED')) {
-    log.warn('更新サーバーに接続できません。後で再試行します');
+    log.warn('Cannot connect to update server. Will retry later');
   } else {
-    log.error('更新チェックで予期しないエラー:', error);
-    // Sentry 等のエラー監視サービスに報告
+    log.error('Unexpected error during update check:', error);
+    // Report to error monitoring service such as Sentry
   }
 }
 ```
 
-**問題点**: ネットワークエラー、サーバーダウン、DNS 障害など様々な理由で更新チェックは失敗しうる。エラーを握りつぶすとユーザーが永遠に古いバージョンを使い続ける。
+**Problem**: Update checks can fail for many reasons including network errors, server downtime, and DNS failures. Swallowing errors means users may continue using an outdated version indefinitely.
 
 ---
 
 ## FAQ
 
-### Q1: 更新チェックの頻度はどのくらいが適切ですか？
+### Q1: How frequently should update checks run?
 
-**A**: 一般的なデスクトップアプリでは「起動時 + 4〜6時間ごと」が推奨される。起動時チェックだけでは長時間起動しっぱなしのアプリで更新が遅れる。ただし、セキュリティ修正を含む緊急更新の場合は、プッシュ通知（WebSocket等）で即時通知する仕組みを別途用意すべき。チェック頻度が高すぎるとサーバー負荷とユーザーの通信量が増加するため、バランスが重要。
+**A**: For general desktop apps, "on launch + every 4-6 hours" is recommended. Checking only on launch causes delays for apps that run continuously for long periods. However, for urgent updates containing security fixes, a separate mechanism using push notifications (WebSocket, etc.) for immediate notification should be prepared. Since too-frequent checks increase server load and user bandwidth consumption, balance is important.
 
-### Q2: Electron と Tauri で自動更新の実装難易度はどう違いますか？
+### Q2: How does the implementation difficulty of auto-update differ between Electron and Tauri?
 
-**A**: Electron (electron-updater) は成熟しており、GitHub Releases との統合がほぼゼロ設定で動作する。一方 Tauri は minisign による署名が必須で初期設定がやや煩雑だが、セキュリティ面ではデフォルトで強固。Tauri v2 では updater プラグインとして分離され、より柔軟な設定が可能になった。どちらも CI/CD パイプラインの構築が本質的な工数の大半を占める。
+**A**: Electron (electron-updater) is mature, and integration with GitHub Releases works with almost zero configuration. Tauri, on the other hand, requires minisign signing and the initial setup is somewhat more involved, but security is robust by default. In Tauri v2, the updater was separated as a plugin, enabling more flexible configuration. In both cases, building the CI/CD pipeline constitutes the majority of the actual workload.
 
-### Q3: 段階的ロールアウト（カナリアリリース）はどう実装すればよいですか？
+### Q3: How should I implement phased rollout (canary release)?
 
-**A**: 更新サーバー側でユーザー ID のハッシュ値を使い、ロールアウト率に基づいて更新を配信する方式が一般的。例えば最初の24時間は 5% のユーザーに配信し、クラッシュレートが閾値以下であれば 25% → 50% → 100% と拡大する。Sentry や Crashlytics と連携してクラッシュレートを自動監視し、異常検知時に自動で配信を停止する仕組みも重要。
+**A**: The common approach is to use a hash of the user ID on the update server side to deliver updates based on the rollout rate. For example, deliver to 5% of users in the first 24 hours, then expand to 25% -> 50% -> 100% if the crash rate stays below the threshold. It is also important to integrate with Sentry or Crashlytics to automatically monitor crash rates and automatically stop delivery when anomalies are detected.
 
-### Q4: オフライン環境のユーザーにはどう対応すべきですか？
+### Q4: How should I handle users in offline environments?
 
-**A**: オフライン環境では自動更新が機能しないため、以下の対策を講じる。(1) 更新チェック失敗時にサイレントにリトライするスケジューリング、(2) USB メモリ等でのオフラインアップデートパッケージの提供、(3) 企業向けには WSUS や SCCM 等のソフトウェア配布ツールとの連携、(4) 古いバージョンでも最低限の機能が動作するようにバックエンド API のバージョン互換性を維持する。
+**A**: Since auto-updates do not function in offline environments, take the following measures: (1) Scheduling silent retries when an update check fails, (2) Providing offline update packages via USB drives etc., (3) For enterprise customers, integration with software distribution tools such as WSUS or SCCM, (4) Maintaining backend API version compatibility so that basic functionality works even with older versions.
 
-### Q5: 更新中にアプリがクラッシュした場合はどうなりますか？
+### Q5: What happens if the app crashes during an update?
 
-**A**: フレームワークによって挙動が異なる。Electron の electron-updater はダウンロード完了後にバックアップを作成し、インストール失敗時は古いバージョンが残る。Tauri は更新バイナリのダウンロードと署名検証が完了してからインストールを実行するため、途中クラッシュしても元のバイナリが破損することはない。ただし、いずれの場合もアプリ側でロールバック機構を実装し、3回連続起動失敗した場合に前バージョンに戻す仕組みを設けることが推奨される。
+**A**: Behavior differs by framework. Electron's electron-updater creates a backup after download completes, and the old version remains if installation fails. Tauri executes installation only after the update binary download and signature verification are complete, so even a crash midway will not corrupt the original binary. However, in either case it is recommended to implement a rollback mechanism on the app side that reverts to the previous version if the app fails to launch 3 consecutive times.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| フレームワーク選択 | Electron は electron-updater、Tauri は updater プラグインが標準 |
-| 更新サーバー | GitHub Releases（小規模）、S3+CloudFront（中〜大規模）、自前（完全制御） |
-| 差分更新 | bsdiff（Electron）、zstd-delta（Tauri/Rust）で帯域90%以上削減可能 |
-| 署名検証 | Windows=Authenticode、macOS=codesign、Tauri=minisign を必ず実施 |
-| ロールバック | クラッシュカウンター方式で自動ロールバック、バックアップ保持必須 |
-| 段階的配信 | ユーザーIDハッシュによるカナリアリリースでリスク最小化 |
-| ユーザー体験 | 強制再起動を避け、バックグラウンドDL + 次回起動時適用が理想 |
-| CI/CD | 署名・ビルド・公開を完全自動化し、手動リリースを排除する |
-| エラーハンドリング | ネットワークエラー、サーバーダウンに備えたリトライとフォールバック |
-| Tauri v2 updater | プラグインベースで柔軟な設定。minisign 署名が必須 |
+| Item | Key Points |
+|------|-----------|
+| Framework selection | Electron uses electron-updater, Tauri uses the updater plugin as standard |
+| Update server | GitHub Releases (small scale), S3+CloudFront (medium to large), self-hosted (full control) |
+| Delta update | bsdiff (Electron), zstd-delta (Tauri/Rust) can reduce bandwidth by over 90% |
+| Signature verification | Always perform: Windows=Authenticode, macOS=codesign, Tauri=minisign |
+| Rollback | Automatic rollback via crash counter method; backup retention is mandatory |
+| Phased delivery | Minimize risk with canary releases using user ID hash |
+| User experience | Avoid forced restart; background DL + apply on next launch is ideal |
+| CI/CD | Fully automate signing, building, and publishing; eliminate manual releases |
+| Error handling | Retry and fallback for network errors and server downtime |
+| Tauri v2 updater | Plugin-based with flexible configuration. minisign signing is required |
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [ストア配布 (Microsoft Store / Mac App Store)](./02-store-distribution.md) -- MSIX パッケージングとストア審査の実践
-- コード署名の詳細 -- EV 証明書の取得と CI/CD での安全な鍵管理
-- CI/CD パイプライン構築 -- GitHub Actions / Azure Pipelines でのビルド自動化
+- [Store Distribution (Microsoft Store / Mac App Store)](./02-store-distribution.md) -- Practical MSIX packaging and store review process
+- Code Signing Details -- EV certificate acquisition and secure key management in CI/CD
+- CI/CD Pipeline Setup -- Build automation with GitHub Actions / Azure Pipelines
 
-## 参考文献
+## References
 
-1. **electron-updater 公式ドキュメント** -- https://www.electron.build/auto-update -- electron-builder の自動更新モジュールの包括的なリファレンス
-2. **Tauri Updater Plugin** -- https://tauri.app/plugin/updater/ -- Tauri v2 の updater プラグイン設定と署名ガイド
-3. **Squirrel.Windows** -- https://github.com/Squirrel/Squirrel.Windows -- .NET ベースの Windows 自動更新フレームワーク（electron-updater の内部で使用）
-4. **bsdiff / bspatch** -- https://www.daemonology.net/bsdiff/ -- Colin Percival によるバイナリ差分アルゴリズムの原論文とツール
-5. **minisign** -- https://jedisct1.github.io/minisign/ -- 最小限の署名ツール（Tauri が使用）
-6. **tauri-apps/tauri-action** -- https://github.com/tauri-apps/tauri-action -- Tauri の GitHub Actions アクション
+1. **electron-updater Official Documentation** -- https://www.electron.build/auto-update -- Comprehensive reference for electron-builder's auto-update module
+2. **Tauri Updater Plugin** -- https://tauri.app/plugin/updater/ -- Tauri v2 updater plugin configuration and signing guide
+3. **Squirrel.Windows** -- https://github.com/Squirrel/Squirrel.Windows -- .NET-based Windows auto-update framework (used internally by electron-updater)
+4. **bsdiff / bspatch** -- https://www.daemonology.net/bsdiff/ -- Original paper and tools for the binary diff algorithm by Colin Percival
+5. **minisign** -- https://jedisct1.github.io/minisign/ -- Minimal signing tool (used by Tauri)
+6. **tauri-apps/tauri-action** -- https://github.com/tauri-apps/tauri-action -- GitHub Actions action for Tauri
