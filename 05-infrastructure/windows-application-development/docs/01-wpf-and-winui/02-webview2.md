@@ -1,97 +1,97 @@
-# WebView2 統合
+# WebView2 Integration
 
-> Microsoft Edge (Chromium) ベースの WebView2 コントロールを使い、ネイティブアプリに Web コンテンツを埋め込むハイブリッドアプリケーション設計を学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **WebView2 コントロールの導入と基本設定**を理解し、WinUI 3 / WPF アプリに組み込めるようになる
-2. **Web とネイティブ間の双方向通信**（JavaScript ↔ C#）を実装できるようになる
-3. **セキュリティモデル**を理解し、安全なハイブリッドアプリを設計できるようになる
-4. **パフォーマンス最適化**と**デバッグ手法**を習得し、本番品質のハイブリッドアプリを構築できるようになる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [WinUI 3 の基本](./01-winui3-basics.md) の内容を理解していること
+> Learn hybrid application design by embedding web content in native apps using the WebView2 control, which is based on Microsoft Edge (Chromium).
 
 ---
 
-## 1. WebView2 とは何か
+## What You Will Learn
 
-### 1.1 アーキテクチャ
+1. Understand **how to set up the WebView2 control** and integrate it into WinUI 3 / WPF applications
+2. Implement **bidirectional communication between Web and Native** (JavaScript ↔ C#)
+3. Understand the **security model** and design safe hybrid applications
+4. Master **performance optimization** and **debugging techniques** to build production-quality hybrid applications
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [WinUI 3 Basics](./01-winui3-basics.md)
+
+---
+
+## 1. What Is WebView2?
+
+### 1.1 Architecture
 
 ```
 +----------------------------------------------+
-|            ホストアプリケーション               |
+|            Host Application                   |
 |  (WinUI 3 / WPF / WinForms / Win32)         |
 |                                              |
 |  +-----------------------------------------+ |
-|  |           WebView2 コントロール           | |
+|  |           WebView2 Control               | |
 |  |  +-----------------------------------+  | |
-|  |  |   Chromium レンダリングエンジン     |  | |
+|  |  |   Chromium Rendering Engine       |  | |
 |  |  |   (Edge WebView2 Runtime)         |  | |
 |  |  +-----------------------------------+  | |
 |  |       ↕ IPC (COM/JSON)                  | |
 |  |  +-----------------------------------+  | |
-|  |  |   ネイティブホスト (C# / C++)      |  | |
+|  |  |   Native Host (C# / C++)          |  | |
 |  |  +-----------------------------------+  | |
 |  +-----------------------------------------+ |
 +----------------------------------------------+
 ```
 
-WebView2 は Microsoft Edge と同じ Chromium エンジンを使用するが、アプリケーション内に**独立したブラウザプロセス**として動作する。これにより、最新の Web 標準をサポートしながらもネイティブアプリとの密な連携が可能になる。
+WebView2 uses the same Chromium engine as Microsoft Edge, but runs as an **independent browser process** inside the application. This enables tight integration with native apps while supporting modern web standards.
 
-### 1.2 プロセスモデルの詳細
+### 1.2 Process Model Details
 
-WebView2 は複数のプロセスで構成されている。ホストアプリケーションは1つの Main プロセスで動作し、WebView2 はブラウザプロセス、GPU プロセス、ユーティリティプロセス、そしてレンダラープロセスを別途起動する。
+WebView2 consists of multiple processes. The host application runs in a single Main process, and WebView2 separately launches a browser process, GPU process, utility processes, and renderer processes.
 
 ```
 +----------------------------------------------------------+
-|  ホストアプリ (Main Process)                               |
+|  Host App (Main Process)                                  |
 |    └── CoreWebView2Environment                            |
 |         └── CoreWebView2Controller                        |
 |              └── CoreWebView2                             |
-|                   ├── Browser Process (共有)              |
+|                   ├── Browser Process (shared)            |
 |                   │   ├── GPU Process                     |
 |                   │   └── Utility Processes               |
-|                   └── Renderer Process (WebView2 毎)      |
+|                   └── Renderer Process (per WebView2)     |
 |                        └── V8 JavaScript Engine           |
 +----------------------------------------------------------+
 ```
 
-この分離モデルにより、Web コンテンツのクラッシュがホストアプリに影響を与えることなく、またセキュリティ境界が明確に維持される。
+This isolation model ensures that a crash in the web content does not affect the host app and that security boundaries are clearly maintained.
 
-### 1.3 WebView2 と CEF / Electron の比較
+### 1.3 Comparison: WebView2 vs. CEF / Electron
 
-| 項目 | WebView2 | CEF (CefSharp) | Electron |
+| Item | WebView2 | CEF (CefSharp) | Electron |
 |---|---|---|---|
-| エンジン | Edge Chromium | Chromium (独自ビルド) | Chromium (同梱) |
-| ランタイムサイズ | 共有 (0 MB追加*) | ~200 MB | ~150 MB |
-| 更新方式 | OS/ランタイム更新 | アプリに同梱 | アプリに同梱 |
-| ホスト言語 | C# / C++ / Win32 | C# | JavaScript/TypeScript |
-| プロセスモデル | 分離プロセス | 分離プロセス | Main + Renderer |
-| ライセンス | 無料 | BSD | MIT |
-| 通信方式 | PostMessage / HostObject | CefSharp API | IPC (contextBridge) |
-| マルチプラットフォーム | Windows のみ | Windows / macOS / Linux | Windows / macOS / Linux |
-| メモリ使用量 | 低〜中（共有ランタイム） | 中〜高 | 高 |
-| 起動速度 | 高速（ランタイム事前読込） | 中程度 | 低速 |
+| Engine | Edge Chromium | Chromium (custom build) | Chromium (bundled) |
+| Runtime Size | Shared (0 MB added*) | ~200 MB | ~150 MB |
+| Update Method | OS/runtime update | Bundled with app | Bundled with app |
+| Host Language | C# / C++ / Win32 | C# | JavaScript/TypeScript |
+| Process Model | Isolated processes | Isolated processes | Main + Renderer |
+| License | Free | BSD | MIT |
+| Communication | PostMessage / HostObject | CefSharp API | IPC (contextBridge) |
+| Cross-platform | Windows only | Windows / macOS / Linux | Windows / macOS / Linux |
+| Memory Usage | Low–medium (shared runtime) | Medium–high | High |
+| Startup Speed | Fast (runtime pre-loaded) | Moderate | Slow |
 
-*Windows 11 には WebView2 Runtime がプリインストールされている。Windows 10 では別途インストールが必要。
+*Windows 11 has the WebView2 Runtime pre-installed. Windows 10 requires a separate installation.
 
 ---
 
-## 2. セットアップ
+## 2. Setup
 
-### コード例 1: NuGet パッケージの追加
+### Code Example 1: Adding the NuGet Package
 
 ```xml
-<!-- プロジェクトファイル (.csproj) に WebView2 パッケージを追加 -->
+<!-- Add the WebView2 package to the project file (.csproj) -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
@@ -107,10 +107,10 @@ WebView2 は複数のプロセスで構成されている。ホストアプリ�
 </Project>
 ```
 
-### コード例 2: 基本的な WebView2 配置（WinUI 3）
+### Code Example 2: Basic WebView2 Layout (WinUI 3)
 
 ```xml
-<!-- WebView2Page.xaml — WebView2 を配置する XAML -->
+<!-- WebView2Page.xaml — XAML for placing the WebView2 control -->
 <Page
     x:Class="HybridApp.WebView2Page"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -119,13 +119,13 @@ WebView2 は複数のプロセスで構成されている。ホストアプリ�
 
     <Grid>
         <Grid.RowDefinitions>
-            <!-- ナビゲーションバー -->
+            <!-- Navigation bar -->
             <RowDefinition Height="Auto" />
-            <!-- WebView2 コンテンツ -->
+            <!-- WebView2 content -->
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- アドレスバー風の UI -->
+        <!-- Address bar UI -->
         <StackPanel Grid.Row="0" Orientation="Horizontal"
                     Spacing="8" Padding="8">
             <Button Content="←" Click="GoBack_Click" />
@@ -135,7 +135,7 @@ WebView2 は複数のプロセスで構成されている。ホストアプリ�
                      KeyDown="AddressBar_KeyDown" />
         </StackPanel>
 
-        <!-- WebView2 コントロール -->
+        <!-- WebView2 control -->
         <WebView2 x:Name="WebView" Grid.Row="1"
                   NavigationCompleted="WebView_NavigationCompleted" />
     </Grid>
@@ -143,7 +143,7 @@ WebView2 は複数のプロセスで構成されている。ホストアプリ�
 ```
 
 ```csharp
-// WebView2Page.xaml.cs — WebView2 の初期化と基本操作
+// WebView2Page.xaml.cs — WebView2 initialization and basic operations
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -156,26 +156,26 @@ public sealed partial class WebView2Page : Page
     public WebView2Page()
     {
         this.InitializeComponent();
-        // ページ読み込み完了後に WebView2 を初期化
+        // Initialize WebView2 after the page has loaded
         this.Loaded += async (s, e) => await InitializeWebView();
     }
 
     private async Task InitializeWebView()
     {
-        // WebView2 環境を初期化（ランタイムの検出と接続）
+        // Initialize the WebView2 environment (detect and connect to the runtime)
         await WebView.EnsureCoreWebView2Async();
 
-        // 初期ページを表示
+        // Navigate to the initial page
         WebView.CoreWebView2.Navigate("https://example.com");
 
-        // 設定: 開発者ツールを有効化（デバッグ時のみ推奨）
+        // Setting: enable developer tools (recommended only during debugging)
         WebView.CoreWebView2.Settings.AreDevToolsEnabled = true;
 
-        // 設定: コンテキストメニューを無効化（プロダクション向け）
+        // Setting: disable context menu (for production)
         WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
     }
 
-    // ナビゲーション完了時にアドレスバーを更新
+    // Update the address bar when navigation completes
     private void WebView_NavigationCompleted(
         WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
     {
@@ -191,7 +191,7 @@ public sealed partial class WebView2Page : Page
     private void Reload_Click(object s, RoutedEventArgs e)
         => WebView.CoreWebView2?.Reload();
 
-    // Enter キーで URL に移動
+    // Navigate to the URL when Enter is pressed
     private void AddressBar_KeyDown(object s, KeyRoutedEventArgs e)
     {
         if (e.Key == Windows.System.VirtualKey.Enter)
@@ -202,10 +202,10 @@ public sealed partial class WebView2Page : Page
 }
 ```
 
-### コード例 2b: WPF での WebView2 配置
+### Code Example 2b: WebView2 Layout in WPF
 
 ```xml
-<!-- MainWindow.xaml — WPF での WebView2 配置 -->
+<!-- MainWindow.xaml — WebView2 layout in WPF -->
 <Window x:Class="HybridApp.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -219,27 +219,27 @@ public sealed partial class WebView2Page : Page
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- ツールバー -->
+        <!-- Toolbar -->
         <ToolBar Grid.Row="0">
-            <Button Content="戻る" Click="GoBack_Click"/>
-            <Button Content="進む" Click="GoForward_Click"/>
-            <Button Content="更新" Click="Reload_Click"/>
+            <Button Content="Back" Click="GoBack_Click"/>
+            <Button Content="Forward" Click="GoForward_Click"/>
+            <Button Content="Refresh" Click="Reload_Click"/>
             <Separator/>
             <TextBox x:Name="UrlTextBox" Width="500"
                      KeyDown="UrlTextBox_KeyDown"/>
-            <Button Content="移動" Click="Navigate_Click"/>
+            <Button Content="Go" Click="Navigate_Click"/>
         </ToolBar>
 
-        <!-- WebView2 コントロール (WPF 版) -->
+        <!-- WebView2 control (WPF version) -->
         <wv2:WebView2 x:Name="WebView" Grid.Row="1"
                       Source="https://example.com"
                       NavigationCompleted="WebView_NavigationCompleted"
                       CoreWebView2InitializationCompleted="WebView_CoreWebView2InitializationCompleted"/>
 
-        <!-- ステータスバー -->
+        <!-- Status bar -->
         <StatusBar Grid.Row="2">
             <StatusBarItem>
-                <TextBlock x:Name="StatusText" Text="準備完了"/>
+                <TextBlock x:Name="StatusText" Text="Ready"/>
             </StatusBarItem>
         </StatusBar>
     </Grid>
@@ -247,7 +247,7 @@ public sealed partial class WebView2Page : Page
 ```
 
 ```csharp
-// MainWindow.xaml.cs — WPF 版の初期化コード
+// MainWindow.xaml.cs — WPF initialization code
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Web.WebView2.Core;
@@ -262,13 +262,13 @@ public partial class MainWindow : Window
         InitializeComponent();
     }
 
-    // CoreWebView2 の初期化完了イベント
+    // CoreWebView2 initialization completed event
     private void WebView_CoreWebView2InitializationCompleted(
         object? sender, CoreWebView2InitializationCompletedEventArgs e)
     {
         if (!e.IsSuccess)
         {
-            StatusText.Text = $"WebView2 初期化エラー: {e.InitializationException?.Message}";
+            StatusText.Text = $"WebView2 initialization error: {e.InitializationException?.Message}";
             return;
         }
 
@@ -277,30 +277,30 @@ public partial class MainWindow : Window
         settings.IsStatusBarEnabled = false;
         settings.AreDefaultContextMenusEnabled = false;
 
-        // ナビゲーション開始イベントの購読
+        // Subscribe to navigation started event
         WebView.CoreWebView2.NavigationStarting += (s, args) =>
         {
-            StatusText.Text = $"読み込み中: {args.Uri}";
+            StatusText.Text = $"Loading: {args.Uri}";
         };
 
-        // ダウンロード開始イベントの購読
+        // Subscribe to download started event
         WebView.CoreWebView2.DownloadStarting += (s, args) =>
         {
-            // ダウンロード先をカスタマイズ
+            // Customize the download destination
             args.ResultFilePath = System.IO.Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "HybridApp", "Downloads",
                 System.IO.Path.GetFileName(args.ResultFilePath));
         };
 
-        StatusText.Text = "WebView2 初期化完了";
+        StatusText.Text = "WebView2 initialization complete";
     }
 
     private void WebView_NavigationCompleted(
         object? sender, CoreWebView2NavigationCompletedEventArgs e)
     {
         UrlTextBox.Text = WebView.CoreWebView2.Source;
-        StatusText.Text = e.IsSuccess ? "読み込み完了" : $"エラー: {e.WebErrorStatus}";
+        StatusText.Text = e.IsSuccess ? "Load complete" : $"Error: {e.WebErrorStatus}";
     }
 
     private void GoBack_Click(object sender, RoutedEventArgs e)
@@ -330,40 +330,40 @@ public partial class MainWindow : Window
 }
 ```
 
-### コード例 2c: WebView2 環境のカスタム設定
+### Code Example 2c: Custom WebView2 Environment Configuration
 
 ```csharp
-// カスタム環境設定での WebView2 初期化
+// Initialize WebView2 with custom environment settings
 private async Task InitializeWithCustomEnvironment()
 {
-    // ユーザーデータフォルダのカスタマイズ
-    // （複数のWebView2 インスタンスを独立させる場合などに使用）
+    // Customize the user data folder
+    // (useful when isolating multiple WebView2 instances from each other)
     var userDataFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "HybridApp", "WebView2Data");
 
-    // 環境オプションの設定
+    // Configure environment options
     var options = new CoreWebView2EnvironmentOptions
     {
-        // 追加のブラウザ引数
+        // Additional browser arguments
         AdditionalBrowserArguments = "--disable-web-security=false --enable-features=msWebView2EnableDraggableRegions",
-        // 言語設定
+        // Language setting
         Language = "ja",
-        // プロキシ設定
+        // Proxy settings
         // AdditionalBrowserArguments = "--proxy-server=\"socks5://proxy.example.com:1080\"",
     };
 
-    // カスタム環境で WebView2 を初期化
+    // Initialize WebView2 with the custom environment
     var environment = await CoreWebView2Environment.CreateAsync(
-        browserExecutableFolder: null,  // null = システムのEdgeを使用
+        browserExecutableFolder: null,  // null = use the system Edge
         userDataFolder: userDataFolder,
         options: options);
 
     await WebView.EnsureCoreWebView2Async(environment);
 
-    // クッキーマネージャーの設定
+    // Configure the cookie manager
     var cookieManager = WebView.CoreWebView2.CookieManager;
-    // 特定のクッキーを設定
+    // Set a specific cookie
     var cookie = cookieManager.CreateCookie(
         name: "session",
         value: "abc123",
@@ -378,9 +378,9 @@ private async Task InitializeWithCustomEnvironment()
 
 ---
 
-## 3. Web ↔ Native 通信
+## 3. Web ↔ Native Communication
 
-### 3.1 通信アーキテクチャ
+### 3.1 Communication Architecture
 
 ```
 +----------------------------+     +----------------------------+
@@ -393,89 +393,89 @@ private async Task InitializeWithCustomEnvironment()
 |    .addEventListener() ←────────  .PostWebMessageAsJson()    |
 |                            |     |                            |
 |  window.nativeApi          |     |  AddHostObjectToScript()   |
-|    .methodCall() ────────────────→  [ComVisible] クラス       |
+|    .methodCall() ────────────────→  [ComVisible] class        |
 +----------------------------+     +----------------------------+
         ↕ PostMessage                     ↕ HostObject
-   (非同期・JSON文字列)             (同期/非同期・直接呼出)
+   (async, JSON string)           (sync/async, direct call)
 ```
 
-### コード例 3: PostMessage による双方向通信
+### Code Example 3: Bidirectional Communication via PostMessage
 
 ```csharp
-// Native 側: メッセージの送受信セットアップ
+// Native side: message send/receive setup
 private async Task SetupMessaging()
 {
     await WebView.EnsureCoreWebView2Async();
 
-    // Web → Native: メッセージ受信ハンドラ
+    // Web → Native: message receive handler
     WebView.CoreWebView2.WebMessageReceived += (sender, args) =>
     {
-        // JSON 文字列としてメッセージを受信
+        // Receive the message as a JSON string
         string message = args.WebMessageAsJson;
         var data = JsonSerializer.Deserialize<MessagePayload>(message);
 
         switch (data?.Type)
         {
             case "saveFile":
-                // ネイティブのファイル保存ダイアログを使用
+                // Use the native file save dialog
                 HandleSaveFile(data.Content);
                 break;
             case "getSystemInfo":
-                // システム情報を Web 側に返送
+                // Return system information to the web side
                 var info = new { os = Environment.OSVersion.ToString(),
                                  memory = GC.GetTotalMemory(false) };
                 string response = JsonSerializer.Serialize(info);
-                // Native → Web: メッセージ送信
+                // Native → Web: send message
                 WebView.CoreWebView2.PostWebMessageAsJson(response);
                 break;
         }
     };
 }
 
-// メッセージペイロードの型定義
+// Message payload type definition
 record MessagePayload(string Type, string Content);
 ```
 
 ```javascript
-// Web 側 (JavaScript): メッセージの送受信
+// Web side (JavaScript): message send/receive
 
-// Native にメッセージを送信する関数
+// Function to send a message to Native
 function sendToNative(type, content) {
-  // chrome.webview.postMessage で Native 側にデータを送る
+  // Send data to the Native side via chrome.webview.postMessage
   window.chrome.webview.postMessage(
     JSON.stringify({ type, content })
   );
 }
 
-// Native からのメッセージを受信するリスナー
+// Listener to receive messages from Native
 window.chrome.webview.addEventListener('message', (event) => {
-  // event.data に Native から送られた JSON が入る
+  // event.data contains the JSON sent from Native
   const data = JSON.parse(event.data);
-  console.log('ネイティブからの応答:', data);
+  console.log('Response from native:', data);
   document.getElementById('result').textContent = JSON.stringify(data);
 });
 
-// 使用例: ファイル保存をリクエスト
+// Usage: request a file save
 document.getElementById('saveBtn').addEventListener('click', () => {
-  sendToNative('saveFile', 'ここに保存する内容');
+  sendToNative('saveFile', 'Content to save here');
 });
 
-// 使用例: システム情報を取得
+// Usage: get system information
 document.getElementById('infoBtn').addEventListener('click', () => {
   sendToNative('getSystemInfo', '');
 });
 ```
 
-### コード例 3b: 型安全な通信レイヤーの構築
+### Code Example 3b: Building a Type-Safe Communication Layer
 
 ```csharp
-// Native 側: 構造化されたメッセージルーターの実装
+// Native side: implementing a structured message router
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace HybridApp.Communication;
 
-// メッセージのベースクラス
+// Base class for messages
 public record BridgeMessage
 {
     [JsonPropertyName("id")]
@@ -488,7 +488,7 @@ public record BridgeMessage
     public JsonElement? Payload { get; init; }
 }
 
-// レスポンスメッセージ
+// Response message
 public record BridgeResponse
 {
     [JsonPropertyName("id")]
@@ -504,18 +504,18 @@ public record BridgeResponse
     public string? Error { get; init; }
 }
 
-// メッセージルーター: メッセージタイプに基づいてハンドラに振り分ける
+// Message router: dispatches messages to handlers based on message type
 public class MessageRouter
 {
     private readonly Dictionary<string, Func<JsonElement?, Task<object?>>> _handlers = new();
 
-    // ハンドラの登録
+    // Register a handler
     public void Register(string messageType, Func<JsonElement?, Task<object?>> handler)
     {
         _handlers[messageType] = handler;
     }
 
-    // 型安全なハンドラの登録
+    // Register a type-safe handler
     public void Register<TPayload, TResult>(
         string messageType,
         Func<TPayload, Task<TResult>> handler) where TPayload : class
@@ -527,13 +527,13 @@ public class MessageRouter
                 : null;
 
             if (typedPayload == null)
-                throw new ArgumentException($"ペイロードのデシリアライズに失敗: {messageType}");
+                throw new ArgumentException($"Failed to deserialize payload: {messageType}");
 
             return await handler(typedPayload);
         };
     }
 
-    // メッセージのルーティング
+    // Route a message
     public async Task<BridgeResponse> Route(BridgeMessage message)
     {
         if (!_handlers.TryGetValue(message.Type, out var handler))
@@ -542,7 +542,7 @@ public class MessageRouter
             {
                 Id = message.Id,
                 Success = false,
-                Error = $"未知のメッセージタイプ: {message.Type}"
+                Error = $"Unknown message type: {message.Type}"
             };
         }
 
@@ -568,7 +568,7 @@ public class MessageRouter
     }
 }
 
-// 使用例: メッセージルーターのセットアップ
+// Usage example: setting up the message router
 public class HybridBridge
 {
     private readonly MessageRouter _router = new();
@@ -578,14 +578,14 @@ public class HybridBridge
     {
         _webView = webView;
 
-        // ハンドラの登録
+        // Register handlers
         _router.Register<SaveFileRequest, SaveFileResult>(
             "saveFile", HandleSaveFile);
 
         _router.Register<SearchRequest, SearchResult>(
             "search", HandleSearch);
 
-        // WebView2 メッセージ受信の設定
+        // Configure WebView2 message reception
         _webView.WebMessageReceived += OnWebMessageReceived;
     }
 
@@ -602,24 +602,24 @@ public class HybridBridge
 
     private async Task<SaveFileResult> HandleSaveFile(SaveFileRequest request)
     {
-        // ファイル保存の実装
+        // File save implementation
         await File.WriteAllTextAsync(request.Path, request.Content);
         return new SaveFileResult { BytesWritten = request.Content.Length };
     }
 
     private async Task<SearchResult> HandleSearch(SearchRequest request)
     {
-        // 検索の実装
-        await Task.Delay(100); // シミュレーション
+        // Search implementation
+        await Task.Delay(100); // Simulation
         return new SearchResult
         {
-            Results = new[] { "結果1", "結果2", "結果3" },
+            Results = new[] { "Result 1", "Result 2", "Result 3" },
             TotalCount = 3
         };
     }
 }
 
-// リクエスト・レスポンスの型定義
+// Request/response type definitions
 public record SaveFileRequest(string Path, string Content);
 public record SaveFileResult { public int BytesWritten { get; init; } }
 public record SearchRequest(string Query, int MaxResults);
@@ -631,14 +631,14 @@ public record SearchResult
 ```
 
 ```javascript
-// Web 側: 型安全な通信ラッパー（TypeScript 形式で記述）
+// Web side: type-safe communication wrapper (written in TypeScript style)
 
-// ブリッジクラス: Promise ベースのリクエスト/レスポンス管理
+// Bridge class: Promise-based request/response management
 class NativeBridge {
   constructor() {
     this.pendingRequests = new Map();
 
-    // Native からのレスポンスを受信
+    // Receive responses from Native
     window.chrome.webview.addEventListener('message', (event) => {
       const response = JSON.parse(event.data);
       const pending = this.pendingRequests.get(response.id);
@@ -653,7 +653,7 @@ class NativeBridge {
     });
   }
 
-  // Native にリクエストを送り、レスポンスを Promise で返す
+  // Send a request to Native and return the response as a Promise
   invoke(type, payload) {
     return new Promise((resolve, reject) => {
       const id = crypto.randomUUID();
@@ -665,30 +665,30 @@ class NativeBridge {
         payload
       }));
 
-      // タイムアウト設定（30秒）
+      // Set timeout (30 seconds)
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);
-          reject(new Error(`リクエストタイムアウト: ${type}`));
+          reject(new Error(`Request timed out: ${type}`));
         }
       }, 30000);
     });
   }
 }
 
-// グローバルインスタンス
+// Global instance
 const bridge = new NativeBridge();
 
-// 使用例
+// Usage examples
 async function saveDocument(content) {
   try {
     const result = await bridge.invoke('saveFile', {
       path: 'document.txt',
       content: content
     });
-    console.log(`保存完了: ${result.bytesWritten} バイト`);
+    console.log(`Save complete: ${result.bytesWritten} bytes`);
   } catch (error) {
-    console.error('保存エラー:', error.message);
+    console.error('Save error:', error.message);
   }
 }
 
@@ -701,39 +701,39 @@ async function searchDocuments(query) {
 }
 ```
 
-### コード例 4: HostObject による直接メソッド呼び出し
+### Code Example 4: Direct Method Calls via HostObject
 
 ```csharp
-// Native 側: COM 可視のホストオブジェクトを定義
+// Native side: define a COM-visible host object
 using System.Runtime.InteropServices;
 
 namespace HybridApp;
 
-// COM 経由で JavaScript から直接呼び出せるクラス
+// A class that can be called directly from JavaScript via COM
 [ClassInterface(ClassInterfaceType.AutoDual)]
 [ComVisible(true)]
 public class NativeApi
 {
-    // ファイルの読み込み
+    // Read a file
     public string ReadFile(string path)
     {
         if (!IsPathAllowed(path))
-            throw new UnauthorizedAccessException("許可されていないパスです");
+            throw new UnauthorizedAccessException("Access to this path is not permitted");
 
         return File.ReadAllText(path);
     }
 
-    // 通知の表示
+    // Show a notification
     public void ShowNotification(string title, string message)
     {
-        // Windows 通知 API を呼び出す
+        // Call the Windows notification API
         new ToastContentBuilder()
             .AddText(title)
             .AddText(message)
             .Show();
     }
 
-    // パスの許可チェック（セキュリティ）
+    // Path allowance check (security)
     private bool IsPathAllowed(string path)
     {
         var allowedBase = Path.Combine(
@@ -743,103 +743,103 @@ public class NativeApi
     }
 }
 
-// WebView2 に HostObject を登録
+// Register the HostObject with WebView2
 private async Task RegisterHostObject()
 {
     await WebView.EnsureCoreWebView2Async();
 
-    // "nativeApi" という名前で JavaScript からアクセス可能にする
+    // Make it accessible from JavaScript under the name "nativeApi"
     WebView.CoreWebView2.AddHostObjectToScript("nativeApi", new NativeApi());
 }
 ```
 
 ```javascript
-// Web 側: HostObject を使ったネイティブ API 呼び出し
+// Web side: calling native APIs using HostObject
 
-// HostObject へのプロキシを取得（非同期）
+// Get a proxy to the HostObject (asynchronous)
 const nativeApi = window.chrome.webview.hostObjects.nativeApi;
 
-// ネイティブメソッドを呼び出す（非同期で結果が返る）
+// Call a native method (result is returned asynchronously)
 async function readNativeFile() {
   try {
     const content = await nativeApi.ReadFile('C:\\Users\\docs\\data.txt');
     document.getElementById('fileContent').textContent = content;
   } catch (error) {
-    console.error('ファイル読み込みエラー:', error);
+    console.error('File read error:', error);
   }
 }
 
-// 通知を表示（戻り値なし）
+// Show a notification (no return value)
 async function showNotification() {
   await nativeApi.ShowNotification(
-    'タスク完了',
-    'データの同期が完了しました'
+    'Task Complete',
+    'Data synchronization has finished'
   );
 }
 ```
 
 ---
 
-## 4. ハイブリッドアプリ設計パターン
+## 4. Hybrid App Design Patterns
 
-### 4.1 設計パターンの比較
+### 4.1 Comparison of Design Patterns
 
-| パターン | 説明 | 適用場面 |
+| Pattern | Description | Use Case |
 |---|---|---|
-| Web Primary | UI の大部分を Web で構築し、ネイティブは薄いシェル | 既存 Web アプリのデスクトップ化 |
-| Native Primary | ネイティブ UI が主体で、一部を WebView2 で表示 | ダッシュボード、レポート表示 |
-| Hybrid Split | 画面ごとに Web / ネイティブを使い分け | 複雑なアプリで段階的移行中 |
-| Micro Frontend | 複数の WebView2 で異なる Web アプリを統合 | マイクロサービス的 UI 統合 |
+| Web Primary | Most of the UI is built with web; native is a thin shell | Turning an existing web app into a desktop app |
+| Native Primary | Native UI is the main interface, with some parts displayed in WebView2 | Dashboards, report display |
+| Hybrid Split | Use web or native on a per-screen basis | Complex apps undergoing incremental migration |
+| Micro Frontend | Integrate different web apps using multiple WebView2 instances | Microservice-style UI integration |
 
-### コード例 5: ローカルコンテンツの配信
+### Code Example 5: Serving Local Content
 
 ```csharp
-// ローカルの HTML/JS/CSS をセキュアに配信する設定
+// Configuration to securely serve local HTML/JS/CSS
 private async Task SetupLocalContent()
 {
     await WebView.EnsureCoreWebView2Async();
 
-    // 仮想ホスト名とローカルフォルダのマッピングを設定
-    // "app.local" というホスト名でアクセスするとローカルファイルが返される
+    // Map a virtual host name to a local folder
+    // Accessing the host name "app.local" returns local files
     WebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
         hostName: "app.local",
         folderPath: Path.Combine(AppContext.BaseDirectory, "WebContent"),
         accessKind: CoreWebView2HostResourceAccessKind.Allow
     );
 
-    // ローカルコンテンツに仮想 URL でアクセス
+    // Access local content via the virtual URL
     WebView.CoreWebView2.Navigate("https://app.local/index.html");
 }
 ```
 
 ```
-プロジェクトディレクトリ構成:
+Project directory structure:
 
 HybridApp/
 ├── HybridApp.csproj
 ├── App.xaml / App.xaml.cs
 ├── MainWindow.xaml / MainWindow.xaml.cs
-├── NativeApi.cs                  ← HostObject 定義
-├── WebContent/                   ← Web コンテンツ（ビルド成果物）
+├── NativeApi.cs                  ← HostObject definition
+├── WebContent/                   ← Web content (build artifacts)
 │   ├── index.html
 │   ├── assets/
 │   │   ├── app.js
 │   │   └── style.css
 │   └── images/
 └── Services/
-    ├── FileService.cs            ← ファイル操作サービス
-    └── NotificationService.cs    ← 通知サービス
+    ├── FileService.cs            ← File operation service
+    └── NotificationService.cs    ← Notification service
 ```
 
-### コード例 5b: React SPA をローカルコンテンツとして統合
+### Code Example 5b: Integrating a React SPA as Local Content
 
 ```csharp
-// React ビルド成果物を WebView2 で表示する設定
+// Configuration to display React build artifacts in WebView2
 private async Task SetupReactApp()
 {
     await WebView.EnsureCoreWebView2Async();
 
-    // React ビルド出力をマッピング
+    // Map the React build output
     var webContentPath = Path.Combine(AppContext.BaseDirectory, "wwwroot");
 
     WebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
@@ -848,7 +848,7 @@ private async Task SetupReactApp()
         accessKind: CoreWebView2HostResourceAccessKind.Allow
     );
 
-    // API サーバーへのリクエストをインターセプト
+    // Intercept requests to the API server
     WebView.CoreWebView2.AddWebResourceRequestedFilter(
         "https://api.local/*",
         CoreWebView2WebResourceContext.All);
@@ -861,7 +861,7 @@ private async Task SetupReactApp()
             var uri = new Uri(args.Request.Uri);
             var apiPath = uri.PathAndQuery.TrimStart('/');
 
-            // ローカルの API ハンドラにルーティング
+            // Route to the local API handler
             var (statusCode, responseBody) = await HandleApiRequest(
                 args.Request.Method, apiPath, args.Request.Content);
 
@@ -881,11 +881,11 @@ private async Task SetupReactApp()
     WebView.CoreWebView2.Navigate("https://app.local/index.html");
 }
 
-// ローカル API リクエストの処理
+// Handle local API requests
 private async Task<(int statusCode, string body)> HandleApiRequest(
     string method, string path, Stream? requestBody)
 {
-    // REST API スタイルのルーティング
+    // REST API-style routing
     return path switch
     {
         "api/tasks" when method == "GET" =>
@@ -897,10 +897,10 @@ private async Task<(int statusCode, string body)> HandleApiRequest(
 }
 ```
 
-### コード例 5c: 複数 WebView2 インスタンスの管理
+### Code Example 5c: Managing Multiple WebView2 Instances
 
 ```csharp
-// 複数の WebView2 パネルを管理するマネージャー
+// Manager for handling multiple WebView2 panels
 public class WebViewPanelManager
 {
     private readonly Dictionary<string, WebView2> _panels = new();
@@ -911,7 +911,7 @@ public class WebViewPanelManager
         _sharedEnvironment = environment;
     }
 
-    // 新しい WebView2 パネルを作成
+    // Create a new WebView2 panel
     public async Task<WebView2> CreatePanel(
         string panelId, Panel container, string initialUrl)
     {
@@ -923,10 +923,10 @@ public class WebViewPanelManager
         var webView = new WebView2();
         container.Children.Add(webView);
 
-        // 共有環境を使用して初期化（メモリ効率が良い）
+        // Initialize using the shared environment (better memory efficiency)
         await webView.EnsureCoreWebView2Async(_sharedEnvironment);
 
-        // パネル間通信用のスクリプトを注入
+        // Inject a script for inter-panel communication
         await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(@"
             window.panelId = '" + panelId + @"';
             window.sendToPanel = function(targetPanelId, message) {
@@ -939,7 +939,7 @@ public class WebViewPanelManager
             };
         ");
 
-        // パネル間メッセージのルーティング
+        // Route inter-panel messages
         webView.CoreWebView2.WebMessageReceived += (sender, args) =>
         {
             var message = JsonSerializer.Deserialize<PanelMessage>(args.WebMessageAsJson);
@@ -956,7 +956,7 @@ public class WebViewPanelManager
         return webView;
     }
 
-    // パネルを破棄
+    // Destroy a panel
     public void DestroyPanel(string panelId)
     {
         if (_panels.TryGetValue(panelId, out var webView))
@@ -967,7 +967,7 @@ public class WebViewPanelManager
         }
     }
 
-    // 全パネルにブロードキャスト
+    // Broadcast to all panels
     public void Broadcast(string message)
     {
         foreach (var (_, panel) in _panels)
@@ -982,60 +982,60 @@ record PanelMessage(string Type, string Source, string Target, JsonElement Data)
 
 ---
 
-## 5. セキュリティ
+## 5. Security
 
-### 5.1 セキュリティ設定の一覧
+### 5.1 Overview of Security Settings
 
 ```
 +------------------------------------------+
-|         WebView2 セキュリティ層           |
+|         WebView2 Security Layers          |
 +------------------------------------------+
 |                                          |
-|  1. ナビゲーション制御                    |
-|     → 許可 URL のホワイトリスト           |
+|  1. Navigation Control                   |
+|     → Whitelist of allowed URLs          |
 |                                          |
-|  2. スクリプト実行制御                    |
-|     → 信頼されたスクリプトのみ許可        |
+|  2. Script Execution Control             |
+|     → Only trusted scripts allowed       |
 |                                          |
-|  3. HostObject アクセス制御              |
-|     → 最小限の API のみ公開              |
+|  3. HostObject Access Control            |
+|     → Expose only minimal APIs           |
 |                                          |
-|  4. コンテンツセキュリティポリシー        |
-|     → CSP ヘッダーで XSS 防止           |
+|  4. Content Security Policy              |
+|     → CSP headers to prevent XSS         |
 |                                          |
-|  5. プロセス分離                          |
-|     → WebView2 は別プロセスで実行        |
+|  5. Process Isolation                    |
+|     → WebView2 runs in a separate process|
 |                                          |
-|  6. ダウンロード制御                      |
-|     → 許可されたファイル種別のみ          |
+|  6. Download Control                     |
+|     → Only permitted file types          |
 |                                          |
-|  7. 証明書検証                            |
-|     → カスタム証明書の検証ロジック        |
+|  7. Certificate Validation               |
+|     → Custom certificate validation logic|
 +------------------------------------------+
 ```
 
-### セキュリティ設定コード
+### Security Configuration Code
 
 ```csharp
-// WebView2 のセキュリティ設定を強化する
+// Strengthen WebView2 security settings
 private async Task ConfigureSecurity()
 {
     await WebView.EnsureCoreWebView2Async();
     var settings = WebView.CoreWebView2.Settings;
 
-    // 本番環境では開発者ツールを無効化
+    // Disable developer tools in production
     settings.AreDevToolsEnabled = false;
 
-    // 右クリックメニューを無効化
+    // Disable right-click menu
     settings.AreDefaultContextMenusEnabled = false;
 
-    // 組み込み PDF ビューアを無効化（不要な場合）
+    // Disable the built-in PDF viewer (if not needed)
     settings.IsBuiltInErrorPageEnabled = false;
 
-    // ステータスバーを無効化
+    // Disable the status bar
     settings.IsStatusBarEnabled = false;
 
-    // ナビゲーション制御: 許可ドメイン以外への遷移をブロック
+    // Navigation control: block navigation to non-allowed domains
     WebView.CoreWebView2.NavigationStarting += (sender, args) =>
     {
         var uri = new Uri(args.Uri);
@@ -1043,50 +1043,50 @@ private async Task ConfigureSecurity()
 
         if (!allowedHosts.Contains(uri.Host))
         {
-            // 許可されていないドメインへの遷移をキャンセル
+            // Cancel navigation to domains not on the allowlist
             args.Cancel = true;
             System.Diagnostics.Debug.WriteLine(
-                $"ブロック: {args.Uri} は許可リストに含まれていません");
+                $"Blocked: {args.Uri} is not in the allowlist");
         }
     };
 
-    // 新しいウィンドウのオープンをブロック
+    // Block opening new windows
     WebView.CoreWebView2.NewWindowRequested += (sender, args) =>
     {
-        // ポップアップを防止し、現在のウィンドウでナビゲーション
+        // Prevent popups and navigate within the current window
         args.Handled = true;
         WebView.CoreWebView2.Navigate(args.Uri);
     };
 }
 ```
 
-### コード例 5d: 高度なセキュリティ設定
+### Code Example 5d: Advanced Security Configuration
 
 ```csharp
-// コンテンツセキュリティポリシーの動的注入
+// Dynamically inject a Content Security Policy
 private async Task SetupCSP()
 {
     await WebView.EnsureCoreWebView2Async();
 
-    // WebResourceResponseReceived でレスポンスヘッダーを監視
+    // Monitor response headers via WebResourceResponseReceived
     WebView.CoreWebView2.WebResourceResponseReceived += (sender, args) =>
     {
         var headers = args.Response.Headers;
-        // CSP ヘッダーの確認（デバッグ用）
+        // Check for CSP header (for debugging)
         if (headers.Contains("Content-Security-Policy"))
         {
             var enumerator = headers.GetEnumerator();
             while (enumerator.MoveNext())
             {
                 System.Diagnostics.Debug.WriteLine(
-                    $"ヘッダー: {enumerator.Current.Key} = {enumerator.Current.Value}");
+                    $"Header: {enumerator.Current.Key} = {enumerator.Current.Value}");
             }
         }
     };
 
-    // ページ読み込み時に CSP を注入するスクリプト
+    // Script to inject CSP on page load
     await WebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(@"
-        // CSP のメタタグを追加
+        // Add a CSP meta tag
         const meta = document.createElement('meta');
         meta.httpEquiv = 'Content-Security-Policy';
         meta.content = ""default-src 'self' https://app.local; "" +
@@ -1098,7 +1098,7 @@ private async Task SetupCSP()
     ");
 }
 
-// ダウンロード制御の実装
+// Implement download control
 private void SetupDownloadControl()
 {
     var allowedExtensions = new HashSet<string>
@@ -1112,14 +1112,14 @@ private void SetupDownloadControl()
 
         if (!allowedExtensions.Contains(ext))
         {
-            // 許可されていないファイル種別のダウンロードをキャンセル
+            // Cancel downloads of non-permitted file types
             args.Cancel = true;
             System.Diagnostics.Debug.WriteLine(
-                $"ダウンロードブロック: {args.ResultFilePath} (拡張子: {ext})");
+                $"Download blocked: {args.ResultFilePath} (extension: {ext})");
             return;
         }
 
-        // ダウンロード先をアプリのダウンロードフォルダに限定
+        // Restrict the download destination to the app's download folder
         var safeDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
             "HybridApp", "Downloads");
@@ -1128,12 +1128,12 @@ private void SetupDownloadControl()
     };
 }
 
-// 証明書エラーの処理
+// Handle certificate errors
 private void SetupCertificateHandling()
 {
     WebView.CoreWebView2.ServerCertificateErrorDetected += (sender, args) =>
     {
-        // 開発環境では自己署名証明書を許可（本番では禁止）
+        // Allow self-signed certificates in development (prohibited in production)
 #if DEBUG
         if (args.RequestUri.StartsWith("https://localhost"))
         {
@@ -1141,28 +1141,28 @@ private void SetupCertificateHandling()
             return;
         }
 #endif
-        // 本番環境では証明書エラーを拒否
+        // Reject certificate errors in production
         args.Action = CoreWebView2ServerCertificateErrorAction.Cancel;
         System.Diagnostics.Debug.WriteLine(
-            $"証明書エラー: {args.RequestUri} - {args.ErrorStatus}");
+            $"Certificate error: {args.RequestUri} - {args.ErrorStatus}");
     };
 }
 ```
 
 ---
 
-## 6. パフォーマンス最適化
+## 6. Performance Optimization
 
-### 6.1 WebView2 の起動時間最適化
+### 6.1 Optimizing WebView2 Startup Time
 
 ```csharp
-// パフォーマンス最適化: 環境の事前作成
+// Performance optimization: pre-create the environment
 public class WebView2EnvironmentPool
 {
     private static CoreWebView2Environment? _sharedEnvironment;
     private static readonly SemaphoreSlim _lock = new(1);
 
-    // 環境をシングルトンとして事前作成
+    // Pre-create the environment as a singleton
     public static async Task<CoreWebView2Environment> GetOrCreateAsync()
     {
         if (_sharedEnvironment != null) return _sharedEnvironment;
@@ -1193,43 +1193,43 @@ public class WebView2EnvironmentPool
     }
 }
 
-// アプリ起動時に環境を事前ウォームアップ
+// Pre-warm the environment at app startup
 public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        // バックグラウンドで WebView2 環境を事前に作成
+        // Pre-create the WebView2 environment in the background
         _ = WebView2EnvironmentPool.GetOrCreateAsync();
     }
 }
 ```
 
-### 6.2 JavaScript 実行の最適化
+### 6.2 Optimizing JavaScript Execution
 
 ```csharp
-// スクリプト実行の最適化テクニック
+// Optimized script execution techniques
 private async Task OptimizedScriptExecution()
 {
     await WebView.EnsureCoreWebView2Async();
 
-    // 最適化1: ページ作成時に一度だけスクリプトを注入
-    // （毎回 ExecuteScriptAsync するより効率的）
+    // Optimization 1: inject scripts only once at document creation
+    // (more efficient than calling ExecuteScriptAsync each time)
     var scriptId = await WebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(@"
-        // ヘルパー関数を事前定義
+        // Pre-define helper functions
         window.__appBridge = {
             cache: new Map(),
             batchQueue: [],
             flushInterval: null,
 
-            // バッチ処理: 複数のメッセージをまとめて送信
+            // Batch processing: send multiple messages together
             queueMessage(msg) {
                 this.batchQueue.push(msg);
                 if (!this.flushInterval) {
                     this.flushInterval = setTimeout(() => {
                         this.flush();
-                    }, 16); // 60fps に合わせたバッチ間隔
+                    }, 16); // Batch interval aligned to 60fps
                 }
             },
 
@@ -1246,9 +1246,9 @@ private async Task OptimizedScriptExecution()
         };
     ");
 
-    // 最適化2: DOM 要素の参照をキャッシュして繰り返しクエリを避ける
+    // Optimization 2: cache DOM element references to avoid repeated queries
     await WebView.CoreWebView2.ExecuteScriptAsync(@"
-        // よく使う DOM 参照をキャッシュ
+        // Cache frequently used DOM references
         const elements = {
             output: document.getElementById('output'),
             status: document.getElementById('status'),
@@ -1258,7 +1258,7 @@ private async Task OptimizedScriptExecution()
     ");
 }
 
-// バッチメッセージの受信処理
+// Handle batch messages
 private void HandleBatchMessages(string jsonMessage)
 {
     var batch = JsonSerializer.Deserialize<BatchMessage>(jsonMessage);
@@ -1274,10 +1274,10 @@ private void HandleBatchMessages(string jsonMessage)
 record BatchMessage(string Type, JsonElement[]? Messages);
 ```
 
-### 6.3 メモリ管理
+### 6.3 Memory Management
 
 ```csharp
-// メモリ使用量の監視と管理
+// Monitor and manage memory usage
 public class WebView2MemoryMonitor
 {
     private readonly WebView2 _webView;
@@ -1294,7 +1294,7 @@ public class WebView2MemoryMonitor
     {
         try
         {
-            // JavaScript ヒープのメモリ使用量を取得
+            // Get JavaScript heap memory usage
             var result = await _webView.CoreWebView2.ExecuteScriptAsync(@"
                 JSON.stringify({
                     jsHeapSizeLimit: performance.memory?.jsHeapSizeLimit || 0,
@@ -1307,15 +1307,15 @@ public class WebView2MemoryMonitor
             if (memory != null && memory.UsedJSHeapSize > MemoryWarningThreshold)
             {
                 System.Diagnostics.Debug.WriteLine(
-                    $"メモリ警告: JS ヒープ使用量 {memory.UsedJSHeapSize / 1024 / 1024}MB");
+                    $"Memory warning: JS heap usage {memory.UsedJSHeapSize / 1024 / 1024}MB");
 
-                // ガベージコレクションを促す
+                // Encourage garbage collection
                 await _webView.CoreWebView2.ExecuteScriptAsync("window.gc?.()");
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"メモリ監視エラー: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Memory monitoring error: {ex.Message}");
         }
     }
 
@@ -1330,21 +1330,21 @@ record MemoryInfo(long JsHeapSizeLimit, long TotalJSHeapSize, long UsedJSHeapSiz
 
 ---
 
-## 7. デバッグとトラブルシューティング
+## 7. Debugging and Troubleshooting
 
-### 7.1 デバッグツール
+### 7.1 Debugging Tools
 
 ```csharp
-// デバッグ用のヘルパー設定
+// Helper configuration for debugging
 private async Task SetupDebugging()
 {
     await WebView.EnsureCoreWebView2Async();
 
 #if DEBUG
-    // DevTools を有効化
+    // Enable DevTools
     WebView.CoreWebView2.Settings.AreDevToolsEnabled = true;
 
-    // コンソールメッセージを C# 側でもキャプチャ
+    // Also capture console messages on the C# side
     WebView.CoreWebView2.ConsoleMessageReceived += (sender, args) =>
     {
         var level = args.Level switch
@@ -1359,27 +1359,27 @@ private async Task SetupDebugging()
             $"[WebView2 {level}] {args.Message} ({args.Source}:{args.LineNumber})");
     };
 
-    // プロセスエラーの監視
+    // Monitor process errors
     WebView.CoreWebView2.ProcessFailed += (sender, args) =>
     {
         System.Diagnostics.Debug.WriteLine(
-            $"WebView2 プロセスエラー: {args.ProcessFailedKind} - {args.Reason}");
+            $"WebView2 process error: {args.ProcessFailedKind} - {args.Reason}");
 
         switch (args.ProcessFailedKind)
         {
             case CoreWebView2ProcessFailedKind.BrowserProcessExited:
-                // ブラウザプロセスが異常終了した場合はアプリを再起動
-                System.Diagnostics.Debug.WriteLine("ブラウザプロセスが終了しました。再起動が必要です。");
+                // If the browser process exits unexpectedly, restart the app
+                System.Diagnostics.Debug.WriteLine("Browser process exited. A restart is required.");
                 break;
             case CoreWebView2ProcessFailedKind.RenderProcessExited:
             case CoreWebView2ProcessFailedKind.RenderProcessUnresponsive:
-                // レンダラープロセスが異常終了した場合はリロード
+                // If the renderer process exits unexpectedly, reload
                 WebView.CoreWebView2.Reload();
                 break;
         }
     };
 
-    // パフォーマンスログの有効化
+    // Enable performance logging
     WebView.CoreWebView2.NavigationStarting += (s, args) =>
     {
         _navigationStartTime = DateTime.UtcNow;
@@ -1389,7 +1389,7 @@ private async Task SetupDebugging()
     {
         var duration = DateTime.UtcNow - _navigationStartTime;
         System.Diagnostics.Debug.WriteLine(
-            $"ナビゲーション完了: {duration.TotalMilliseconds}ms (成功: {args.IsSuccess})");
+            $"Navigation complete: {duration.TotalMilliseconds}ms (success: {args.IsSuccess})");
     };
 #endif
 }
@@ -1397,38 +1397,38 @@ private async Task SetupDebugging()
 private DateTime _navigationStartTime;
 ```
 
-### 7.2 一般的な問題と解決策
+### 7.2 Common Issues and Solutions
 
 ```
 +----------------------------------------------------------+
-| 問題                        | 原因             | 解決策    |
+| Problem                     | Cause             | Solution  |
 +----------------------------------------------------------+
-| WebView2 が表示されない      | ランタイム未インストール | ランタイム検出 + フォールバック |
-| PostMessage が届かない       | タイミング問題    | NavigationCompleted 後に送信 |
-| HostObject メソッドがない     | COM 登録漏れ     | ComVisible + ClassInterface |
-| JavaScript エラーが見えない   | コンソール未購読  | ConsoleMessageReceived |
-| メモリリーク                  | イベント未解除    | Dispose で明示解除 |
-| 画面がちらつく               | 初期化の表示タイミング | show: false + ready-to-show |
-| ナビゲーションが遅い         | キャッシュ無効    | CacheControl 設定 |
+| WebView2 not displayed       | Runtime not installed | Detect runtime + fallback |
+| PostMessage not received     | Timing issue      | Send after NavigationCompleted |
+| HostObject method missing    | COM not registered | ComVisible + ClassInterface |
+| JavaScript errors not visible| Console not subscribed | ConsoleMessageReceived |
+| Memory leak                  | Event not unsubscribed | Explicitly unsubscribe in Dispose |
+| Screen flickering            | Initialization display timing | show: false + ready-to-show |
+| Slow navigation              | Cache disabled    | Set CacheControl |
 +----------------------------------------------------------+
 ```
 
 ---
 
-## 8. WebView2 ランタイムの配布戦略
+## 8. WebView2 Runtime Distribution Strategy
 
-### 8.1 配布モデルの比較
+### 8.1 Comparison of Distribution Models
 
-| モデル | 説明 | アプリサイズ | 更新 |
+| Model | Description | App Size | Updates |
 |---|---|---|---|
-| Evergreen (推奨) | OS のランタイムを使用 | +0 MB | 自動 |
-| Fixed Version | 特定バージョンを同梱 | +150 MB | 手動 |
-| Bootstrapper | 初回起動時にダウンロード | +2 MB | 自動 |
+| Evergreen (recommended) | Use the OS runtime | +0 MB | Automatic |
+| Fixed Version | Bundle a specific version | +150 MB | Manual |
+| Bootstrapper | Download on first launch | +2 MB | Automatic |
 
-### コード例 8a: ランタイム検出とブートストラッパー
+### Code Example 8a: Runtime Detection and Bootstrapper
 
 ```csharp
-// WebView2 ランタイムの検出と自動インストール
+// Detect and automatically install the WebView2 runtime
 public static class WebView2RuntimeChecker
 {
     public static bool IsRuntimeInstalled()
@@ -1449,9 +1449,9 @@ public static class WebView2RuntimeChecker
         if (IsRuntimeInstalled()) return;
 
         var result = MessageBox.Show(
-            "このアプリケーションには WebView2 ランタイムが必要です。\n" +
-            "今すぐダウンロードしてインストールしますか？",
-            "WebView2 ランタイムが必要です",
+            "This application requires the WebView2 Runtime.\n" +
+            "Would you like to download and install it now?",
+            "WebView2 Runtime Required",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
 
@@ -1479,7 +1479,7 @@ public static class WebView2RuntimeChecker
             FileName = tempPath,
             Arguments = "/silent /install",
             UseShellExecute = true,
-            Verb = "runas" // 管理者権限で実行
+            Verb = "runas" // Run with administrator privileges
         });
 
         await process!.WaitForExitAsync();
@@ -1487,9 +1487,9 @@ public static class WebView2RuntimeChecker
         if (!IsRuntimeInstalled())
         {
             MessageBox.Show(
-                "WebView2 ランタイムのインストールに失敗しました。\n" +
-                "手動でインストールしてください。",
-                "エラー",
+                "Failed to install the WebView2 Runtime.\n" +
+                "Please install it manually.",
+                "Error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
@@ -1499,25 +1499,25 @@ public static class WebView2RuntimeChecker
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン 1: HostObject で全 API を無制限に公開する
+### Anti-Pattern 1: Exposing All APIs Through HostObject Without Restrictions
 
 ```csharp
-// NG: ファイルシステム全体にアクセス可能な API を公開
+// Bad: expose an API that allows access to the entire file system
 [ComVisible(true)]
 public class UnsafeApi
 {
-    // 任意のパスのファイルを読み書きできてしまう
+    // Allows reading and writing files at any path
     public string ReadAnyFile(string path) => File.ReadAllText(path);
     public void WriteAnyFile(string path, string content) => File.WriteAllText(path, content);
-    // レジストリや環境変数まで公開 → セキュリティリスク大
+    // Even exposes the registry and environment variables → high security risk
     public string GetEnvVar(string name) => Environment.GetEnvironmentVariable(name) ?? "";
 }
 ```
 
 ```csharp
-// OK: 最小権限原則に基づき、必要な API のみを安全に公開
+// Good: expose only necessary APIs safely, based on the principle of least privilege
 [ComVisible(true)]
 public class SafeApi
 {
@@ -1528,34 +1528,34 @@ public class SafeApi
         _sandboxDir = sandboxDir;
     }
 
-    // サンドボックスディレクトリ内のみ読み取り可能
+    // Read-only access within the sandbox directory
     public string ReadFile(string relativePath)
     {
         var fullPath = Path.GetFullPath(
             Path.Combine(_sandboxDir, relativePath));
 
-        // パストラバーサル攻撃を防止
+        // Prevent path traversal attacks
         if (!fullPath.StartsWith(_sandboxDir))
-            throw new UnauthorizedAccessException("サンドボックス外のアクセスは禁止");
+            throw new UnauthorizedAccessException("Access outside the sandbox is prohibited");
 
         return File.ReadAllText(fullPath);
     }
 }
 ```
 
-### アンチパターン 2: WebView2 Runtime の存在を確認しない
+### Anti-Pattern 2: Not Checking for the WebView2 Runtime
 
 ```csharp
-// NG: ランタイムがインストールされていない環境でクラッシュ
+// Bad: crashes in environments where the runtime is not installed
 public MainWindow()
 {
     InitializeComponent();
-    WebView.Source = new Uri("https://example.com"); // ← ランタイム未検出でクラッシュ
+    WebView.Source = new Uri("https://example.com"); // ← crashes if runtime not found
 }
 ```
 
 ```csharp
-// OK: ランタイムの存在をチェックしてフォールバック
+// Good: check for the runtime and provide a fallback
 public MainWindow()
 {
     InitializeComponent();
@@ -1566,34 +1566,34 @@ private async void CheckWebView2Runtime()
 {
     try
     {
-        // ランタイムのバージョンを取得して存在を確認
+        // Get the runtime version to confirm it exists
         var version = CoreWebView2Environment.GetAvailableBrowserVersionString();
         await WebView.EnsureCoreWebView2Async();
         WebView.CoreWebView2.Navigate("https://example.com");
     }
     catch (WebView2RuntimeNotFoundException)
     {
-        // ランタイム未インストール時のフォールバック
-        ShowFallbackUI("WebView2 ランタイムがインストールされていません。"
-            + "ダウンロードページを開きますか？");
+        // Fallback when runtime is not installed
+        ShowFallbackUI("The WebView2 Runtime is not installed. "
+            + "Would you like to open the download page?");
     }
 }
 ```
 
-### アンチパターン 3: ナビゲーション完了前に通信を開始する
+### Anti-Pattern 3: Starting Communication Before Navigation Completes
 
 ```csharp
-// NG: WebView2 の初期化完了前にメッセージを送信
+// Bad: send a message before WebView2 has finished initializing
 public MainWindow()
 {
     InitializeComponent();
-    // この時点ではまだ CoreWebView2 が null
+    // CoreWebView2 is still null at this point
     WebView.CoreWebView2.PostWebMessageAsJson("{}"); // NullReferenceException
 }
 ```
 
 ```csharp
-// OK: 初期化完了を待ってから通信を開始
+// Good: wait for initialization to complete before starting communication
 public MainWindow()
 {
     InitializeComponent();
@@ -1604,7 +1604,7 @@ public MainWindow()
         {
             if (args.IsSuccess)
             {
-                // ナビゲーション完了後にメッセージを送信
+                // Send message after navigation completes
                 WebView.CoreWebView2.PostWebMessageAsJson(
                     JsonSerializer.Serialize(new { type = "init", version = "1.0" }));
             }
@@ -1614,26 +1614,26 @@ public MainWindow()
 }
 ```
 
-### アンチパターン 4: イベントハンドラを解除しない
+### Anti-Pattern 4: Not Unsubscribing Event Handlers
 
 ```csharp
-// NG: ページ遷移のたびにイベントハンドラが蓄積する
+// Bad: event handlers accumulate on each page navigation
 private void SetupPage()
 {
-    // この関数が呼ばれるたびにハンドラが追加される → メモリリーク
+    // A new handler is added each time this function is called → memory leak
     WebView.CoreWebView2.WebMessageReceived += OnMessageReceived;
     WebView.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
 }
 ```
 
 ```csharp
-// OK: イベントハンドラを適切に管理する
+// Good: manage event handlers properly
 private EventHandler<CoreWebView2WebMessageReceivedEventArgs>? _messageHandler;
 private EventHandler<CoreWebView2NavigationCompletedEventArgs>? _navigationHandler;
 
 private void SetupPage()
 {
-    // 既存のハンドラを解除してから登録
+    // Unsubscribe existing handlers before registering new ones
     CleanupHandlers();
 
     _messageHandler = OnMessageReceived;
@@ -1651,7 +1651,7 @@ private void CleanupHandlers()
         WebView.CoreWebView2.NavigationCompleted -= _navigationHandler;
 }
 
-// ウィンドウ破棄時にクリーンアップ
+// Clean up when the window is closed
 protected override void OnClosed(EventArgs e)
 {
     CleanupHandlers();
@@ -1664,32 +1664,32 @@ protected override void OnClosed(EventArgs e)
 
 ## 10. FAQ
 
-### Q1: WebView2 Runtime はアプリに同梱できるか？
+### Q1: Can the WebView2 Runtime be bundled with the app?
 
-**A:** はい。「固定バージョン配布」モードを使うと、特定バージョンの WebView2 Runtime をアプリに同梱できる。ただしサイズが約 150MB 増加し、セキュリティ更新を自分で管理する必要がある。通常は「Evergreen 配布」（OS 側で自動更新）が推奨される。
+**A:** Yes. Using "Fixed Version Distribution" mode, you can bundle a specific version of the WebView2 Runtime with your app. However, this increases the app size by approximately 150 MB and requires you to manage security updates yourself. In general, "Evergreen Distribution" (automatic updates via the OS) is recommended.
 
-### Q2: WebView2 でローカルファイルに直接アクセスできるか？
+### Q2: Can WebView2 directly access local files?
 
-**A:** `file://` プロトコルは既定で制限されている。ローカルコンテンツを配信するには `SetVirtualHostNameToFolderMapping()` を使って仮想ホスト名を割り当てるのが安全かつ推奨される方法である。これにより CORS 問題も回避できる。
+**A:** The `file://` protocol is restricted by default. The recommended and safe approach for serving local content is to use `SetVirtualHostNameToFolderMapping()` to assign a virtual host name. This also avoids CORS issues.
 
-### Q3: WebView2 のパフォーマンスは Electron と比べてどうか？
+### Q3: How does WebView2 performance compare to Electron?
 
-**A:** WebView2 は OS にインストール済みの共有ランタイムを使うため、アプリサイズが大幅に小さくなる。メモリ使用量も Electron より少ない傾向にある（Electron は各アプリに Chromium を同梱するため）。レンダリング性能自体は同じ Chromium エンジンのためほぼ同等である。
+**A:** Because WebView2 uses a shared runtime already installed on the OS, the app size is significantly smaller. Memory usage also tends to be lower than Electron (since Electron bundles Chromium with each app). Rendering performance itself is essentially the same, as both use the same Chromium engine.
 
-### Q4: WebView2 で React / Vue / Angular などのフレームワークを使えるか？
+### Q4: Can React / Vue / Angular and other frameworks be used with WebView2?
 
-**A:** はい。WebView2 は Chromium ベースのため、React、Vue、Angular、Svelte など任意の Web フレームワークが問題なく動作する。開発時は Vite や Webpack の DevServer で Hot Module Replacement を使い、本番では `SetVirtualHostNameToFolderMapping` でビルド成果物を配信するのが一般的なワークフローである。
+**A:** Yes. Because WebView2 is Chromium-based, any web framework such as React, Vue, Angular, or Svelte works without issues. A typical workflow is to use Vite or Webpack's DevServer with Hot Module Replacement during development, and to serve build artifacts via `SetVirtualHostNameToFolderMapping` in production.
 
-### Q5: 複数の WebView2 インスタンスを同時に使えるか？
+### Q5: Can multiple WebView2 instances be used simultaneously?
 
-**A:** はい。同一のアプリケーション内で複数の WebView2 コントロールを配置できる。`CoreWebView2Environment` を共有することで、ブラウザプロセスを共有しメモリ効率が向上する。ただし、各 WebView2 は独立したレンダラープロセスを持つため、インスタンス数が増えるとメモリ使用量も増加する点に注意が必要である。
+**A:** Yes. Multiple WebView2 controls can be placed within the same application. Sharing a `CoreWebView2Environment` allows the browser process to be shared, improving memory efficiency. Note, however, that each WebView2 has its own renderer process, so memory usage increases as the number of instances grows.
 
-### Q6: WebView2 で印刷機能を実装するにはどうすべきか？
+### Q6: How should printing be implemented in WebView2?
 
-**A:** `CoreWebView2.PrintAsync()` メソッドを使用する。`CoreWebView2PrintSettings` でページサイズ、余白、向き、ヘッダー/フッターなどをカスタマイズできる。`PrintToPdfAsync()` を使えば PDF としてエクスポートすることも可能である。
+**A:** Use the `CoreWebView2.PrintAsync()` method. `CoreWebView2PrintSettings` allows you to customize page size, margins, orientation, headers/footers, and more. You can also export to PDF using `PrintToPdfAsync()`.
 
 ```csharp
-// 印刷の実装例
+// Example printing implementation
 private async Task PrintDocument()
 {
     var printSettings = WebView.CoreWebView2.Environment.CreatePrintSettings();
@@ -1698,10 +1698,10 @@ private async Task PrintDocument()
     printSettings.ShouldPrintBackgrounds = true;
     printSettings.ShouldPrintHeaderAndFooter = false;
 
-    // プリンターダイアログを表示して印刷
+    // Show the printer dialog and print
     var result = await WebView.CoreWebView2.PrintAsync(printSettings);
 
-    // または PDF に出力
+    // Or export to PDF
     await WebView.CoreWebView2.PrintToPdfAsync(
         Path.Combine(Environment.GetFolderPath(
             Environment.SpecialFolder.MyDocuments), "output.pdf"),
@@ -1714,45 +1714,45 @@ private async Task PrintDocument()
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping into advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## 11. まとめ
+## 11. Summary
 
-| トピック | キーポイント |
+| Topic | Key Points |
 |---|---|
-| WebView2 の役割 | Edge Chromium エンジンをアプリに埋め込む公式コントロール |
-| セットアップ | NuGet パッケージ追加 + EnsureCoreWebView2Async() |
-| PostMessage 通信 | JSON 文字列の非同期メッセージング。疎結合で推奨 |
-| HostObject | COM 経由の直接メソッド呼び出し。高機能だが要セキュリティ対策 |
-| ローカルコンテンツ | SetVirtualHostNameToFolderMapping で安全に配信 |
-| セキュリティ | ナビゲーション制限 + API 最小公開 + CSP が三本柱 |
-| ランタイム | Evergreen（自動更新）推奨。固定バージョンも選択可 |
-| パフォーマンス | 環境共有、バッチメッセージング、スクリプト事前注入 |
-| デバッグ | ConsoleMessageReceived + ProcessFailed でエラー検出 |
-| WPF 対応 | Microsoft.Web.WebView2.Wpf パッケージで WPF アプリにも統合可 |
+| Role of WebView2 | Official control for embedding the Edge Chromium engine in applications |
+| Setup | Add NuGet package + EnsureCoreWebView2Async() |
+| PostMessage Communication | Asynchronous JSON string messaging. Loosely coupled and recommended |
+| HostObject | Direct method calls via COM. Powerful but requires security measures |
+| Local Content | Serve securely using SetVirtualHostNameToFolderMapping |
+| Security | Navigation restrictions + minimal API exposure + CSP are the three pillars |
+| Runtime | Evergreen (auto-update) recommended. Fixed version is also an option |
+| Performance | Share environment, batch messaging, pre-inject scripts |
+| Debugging | Detect errors with ConsoleMessageReceived + ProcessFailed |
+| WPF Support | Integrate into WPF apps with the Microsoft.Web.WebView2.Wpf package |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- **[00-electron-setup.md](../02-electron-and-tauri/00-electron-setup.md)** — Web 技術でデスクトップアプリを構築する Electron の入門
-- **[02-tauri-setup.md](../02-electron-and-tauri/02-tauri-setup.md)** — 軽量な Rust ベースの代替フレームワーク Tauri
+- **[00-electron-setup.md](../02-electron-and-tauri/00-electron-setup.md)** — Introduction to Electron for building desktop apps with web technologies
+- **[02-tauri-setup.md](../02-electron-and-tauri/02-tauri-setup.md)** — Tauri, a lightweight Rust-based alternative framework
 
 ---
 
-## 参考文献
+## References
 
 1. Microsoft, "WebView2 — Introduction", https://learn.microsoft.com/microsoft-edge/webview2/
 2. Microsoft, "WebView2 API Reference", https://learn.microsoft.com/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/
