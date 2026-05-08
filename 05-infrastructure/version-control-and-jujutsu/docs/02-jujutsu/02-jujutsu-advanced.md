@@ -1,59 +1,59 @@
-# Jujutsu応用
+# Jujutsu Advanced
 
-> Jujutsuのrevset（リビジョンセット式）、テンプレート言語、Git連携の高度な設定を習得し、複雑なリポジトリ操作と効率的なワークフローを実現する。
+> Master Jujutsu's revset (revision set expressions), template language, and advanced Git integration settings to handle complex repository operations and efficient workflows.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **revsetクエリ言語** — リビジョンの柔軟な選択・フィルタリング構文
-2. **テンプレート言語** — ログ出力やコミット表示のカスタマイズ
-3. **Git連携の高度な設定** — fetch, push, colocated repoの詳細な運用
-4. **高度なワークフロー** — スタックドPR、absorb、split、parallelizeの実践活用
-5. **Operation Log** — 操作履歴の追跡とundo/redo
-6. **設定の高度なカスタマイズ** — revset-aliases、テンプレート、difftoolの詳細設定
+1. **revset query language** — Flexible syntax for selecting and filtering revisions
+2. **Template language** — Customizing log output and commit display
+3. **Advanced Git integration** — Detailed operation of fetch, push, and colocated repos
+4. **Advanced workflows** — Practical use of stacked PRs, absorb, split, and parallelize
+5. **Operation Log** — Tracking operation history with undo/redo
+6. **Advanced configuration** — Detailed settings for revset-aliases, templates, and difftool
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Jujutsuワークフロー](./01-jujutsu-workflow.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Understanding of the content in [Jujutsu Workflow](./01-jujutsu-workflow.md)
 
 ---
 
-## 1. revset — リビジョン選択クエリ
+## 1. revset — Revision Selection Queries
 
-### 1.1 基本構文
+### 1.1 Basic Syntax
 
-revsetはコミット（リビジョン）の集合を表現するクエリ言語で、`jj log -r`、`jj rebase`、`jj diff`等のほぼ全てのコマンドで使用できる。
+revset is a query language for expressing sets of commits (revisions), and can be used with almost all commands such as `jj log -r`, `jj rebase`, `jj diff`, etc.
 
 ```bash
-# 単一revision
+# Single revision
 $ jj log -r @                    # working copy
-$ jj log -r @-                   # working copyの親
-$ jj log -r @--                  # working copyの祖父
-$ jj log -r @---                 # 3世代前
-$ jj log -r rlvkpntz             # change IDで指定
-$ jj log -r abc12345             # commit IDで指定
-$ jj log -r main                 # ブックマーク名で指定
-$ jj log -r main@origin          # リモートブックマーク
-$ jj log -r 'v1.0.0'             # タグで指定
+$ jj log -r @-                   # parent of working copy
+$ jj log -r @--                  # grandparent of working copy
+$ jj log -r @---                 # 3 generations back
+$ jj log -r rlvkpntz             # specify by change ID
+$ jj log -r abc12345             # specify by commit ID
+$ jj log -r main                 # specify by bookmark name
+$ jj log -r main@origin          # remote bookmark
+$ jj log -r 'v1.0.0'             # specify by tag
 
-# 範囲指定
-$ jj log -r 'main..@'            # mainから@までの間のcommit
-$ jj log -r 'main..'             # mainの子孫（main自身は含まない）
-$ jj log -r '..main'             # mainの祖先（main自身を含む）
-$ jj log -r 'root()..main'       # ルートからmainまでの全commit
+# Range specification
+$ jj log -r 'main..@'            # commits between main and @
+$ jj log -r 'main..'             # descendants of main (not including main itself)
+$ jj log -r '..main'             # ancestors of main (including main itself)
+$ jj log -r 'root()..main'       # all commits from root to main
 
-# 親・子の参照
-$ jj log -r '@-'                 # @の第1の親
-$ jj log -r '@+'                 # @の子（複数ある場合はエラー）
+# Parent/child references
+$ jj log -r '@-'                 # first parent of @
+$ jj log -r '@+'                 # child of @ (error if multiple)
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  revset 基本構文の図解                               │
+│  revset basic syntax diagram                        │
 │                                                     │
 │     root()                                          │
 │       │                                             │
@@ -71,120 +71,120 @@ $ jj log -r '@+'                 # @の子（複数ある場合はエラー）
 │                                                     │
 │  @     = H                                         │
 │  @-    = G                                         │
-│  @--   = E, F（複数の場合あり）                    │
-│  main..@ = C, D, E, F, G, H（mainの子孫で@の祖先） │
-│  ..main  = root(), A, B（mainの祖先）              │
+│  @--   = E, F (may be multiple)                    │
+│  main..@ = C, D, E, F, G, H (descendants of main that are ancestors of @) │
+│  ..main  = root(), A, B (ancestors of main)        │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.2 集合演算
+### 1.2 Set Operations
 
 ```bash
-# 和集合（union）
+# Union
 $ jj log -r 'branch-a | branch-b'
 
-# 積集合（intersection）
+# Intersection
 $ jj log -r 'mine() & main..'
 
-# 差集合（difference）
+# Difference
 $ jj log -r 'all() ~ merges()'
-# → 全commitからマージcommitを除いたもの
+# → all commits excluding merge commits
 
-# 否定（complement）
+# Complement (negation)
 $ jj log -r '~empty()'
-# → 空でないcommit
+# → non-empty commits
 
-# 括弧で優先順位を制御
+# Control precedence with parentheses
 $ jj log -r '(mine() | author("bob")) & (main..)'
-# → 自分またはBobのcommitで、mainの子孫であるもの
+# → commits by me or Bob that are descendants of main
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  revset 集合演算の図解                               │
+│  revset set operations diagram                      │
 │                                                     │
 │   A = {1, 2, 3, 4, 5}     B = {3, 4, 5, 6, 7}     │
 │                                                     │
-│   A | B  = {1, 2, 3, 4, 5, 6, 7}  (和集合)         │
-│   A & B  = {3, 4, 5}              (積集合)          │
-│   A ~ B  = {1, 2}                 (差集合)          │
-│   ~A     = 全体 ~ A               (否定)            │
+│   A | B  = {1, 2, 3, 4, 5, 6, 7}  (union)          │
+│   A & B  = {3, 4, 5}              (intersection)   │
+│   A ~ B  = {1, 2}                 (difference)     │
+│   ~A     = everything ~ A         (complement)     │
 │                                                     │
-│  例: 自分のcommitのうちmainにない変更               │
+│  Example: my commits not in main                   │
 │  mine() & (main..)                                  │
-│  = {自分のcommit} ∩ {mainの子孫}                    │
+│  = {my commits} ∩ {descendants of main}             │
 │                                                     │
-│  優先順位（高い順）:                                 │
-│  1. () — 括弧                                      │
-│  2. :: — DAG範囲                                   │
-│  3. ~ — 否定（単項）                               │
-│  4. & — 積集合                                     │
-│  5. | — 和集合                                     │
-│  6. ~ — 差集合（二項）                             │
+│  Precedence (highest first):                        │
+│  1. () — parentheses                               │
+│  2. :: — DAG range                                 │
+│  3. ~ — complement (unary)                         │
+│  4. & — intersection                               │
+│  5. | — union                                      │
+│  6. ~ — difference (binary)                        │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.3 関数型revset
+### 1.3 Functional revset
 
 ```bash
-# 祖先・子孫
-$ jj log -r 'ancestors(main, 5)'     # mainから5世代前まで
-$ jj log -r 'ancestors(main)'        # mainの全祖先
-$ jj log -r 'descendants(@)'         # @の全子孫
-$ jj log -r 'parents(@)'             # @の親
-$ jj log -r 'children(main)'         # mainの直接の子
-$ jj log -r 'roots(visible_heads()..@)' # 範囲のルートcommit
-$ jj log -r 'heads(all())'           # 全ヘッド（末端commit）
-$ jj log -r 'root()'                 # ルートcommit
+# Ancestors / descendants
+$ jj log -r 'ancestors(main, 5)'     # up to 5 generations before main
+$ jj log -r 'ancestors(main)'        # all ancestors of main
+$ jj log -r 'descendants(@)'         # all descendants of @
+$ jj log -r 'parents(@)'             # parents of @
+$ jj log -r 'children(main)'         # direct children of main
+$ jj log -r 'roots(visible_heads()..@)' # root commits of the range
+$ jj log -r 'heads(all())'           # all heads (leaf commits)
+$ jj log -r 'root()'                 # root commit
 
-# フィルタリング
-$ jj log -r 'author("gaku")'        # 著者でフィルタ
-$ jj log -r 'author_date(after:"2024-01-01")' # 日付でフィルタ
-$ jj log -r 'committer_date(before:"2024-06-01")' # コミッター日付
-$ jj log -r 'description("feat:")'  # メッセージでフィルタ
-$ jj log -r 'description(regex:"^(feat|fix):")'  # 正規表現
-$ jj log -r 'empty()'               # 空のcommit
-$ jj log -r 'merges()'              # マージcommit
-$ jj log -r 'mine()'                # 自分のcommit
-$ jj log -r 'conflict()'            # コンフリクトのあるcommit
-$ jj log -r 'file("src/auth.js")'   # 特定ファイルを変更したcommit
-$ jj log -r 'file("src/")'          # ディレクトリ内のファイル変更
-$ jj log -r 'file(glob:"*.rs")'     # globパターンでファイル指定
-$ jj log -r 'present(feature-x)'    # 存在する場合のみ（エラー回避）
-$ jj log -r 'latest(mine(), 5)'     # 自分の最新5件
+# Filtering
+$ jj log -r 'author("gaku")'        # filter by author
+$ jj log -r 'author_date(after:"2024-01-01")' # filter by date
+$ jj log -r 'committer_date(before:"2024-06-01")' # committer date
+$ jj log -r 'description("feat:")'  # filter by message
+$ jj log -r 'description(regex:"^(feat|fix):")'  # regex
+$ jj log -r 'empty()'               # empty commits
+$ jj log -r 'merges()'              # merge commits
+$ jj log -r 'mine()'                # my commits
+$ jj log -r 'conflict()'            # commits with conflicts
+$ jj log -r 'file("src/auth.js")'   # commits that modified a specific file
+$ jj log -r 'file("src/")'          # file changes within a directory
+$ jj log -r 'file(glob:"*.rs")'     # specify files with glob pattern
+$ jj log -r 'present(feature-x)'    # only if exists (avoids error)
+$ jj log -r 'latest(mine(), 5)'     # latest 5 of my commits
 
-# ブランチ関連
-$ jj log -r 'bookmarks()'           # ブックマーク付きcommit
-$ jj log -r 'bookmarks("feature-")' # パターンマッチ
-$ jj log -r 'remote_bookmarks()'    # リモートブックマーク
-$ jj log -r 'remote_bookmarks(remote="origin")' # 特定リモート
-$ jj log -r 'tags()'                # タグ付きcommit
-$ jj log -r 'trunk()'               # trunk（main/master）
-$ jj log -r 'visible_heads()'       # 可視ヘッド
+# Bookmark-related
+$ jj log -r 'bookmarks()'           # commits with bookmarks
+$ jj log -r 'bookmarks("feature-")' # pattern matching
+$ jj log -r 'remote_bookmarks()'    # remote bookmarks
+$ jj log -r 'remote_bookmarks(remote="origin")' # specific remote
+$ jj log -r 'tags()'                # tagged commits
+$ jj log -r 'trunk()'               # trunk (main/master)
+$ jj log -r 'visible_heads()'       # visible heads
 ```
 
-### 1.4 DAG操作関数
+### 1.4 DAG Operation Functions
 
 ```bash
-# connected(): 接続されたrevisionセットを取得
+# connected(): get the connected set of revisions
 $ jj log -r 'connected(bookmarks())'
-# → ブックマーク間の全commitを含む
+# → includes all commits between bookmarks
 
-# reachable(): 到達可能なcommit
+# reachable(): reachable commits
 $ jj log -r 'reachable(@, all())'
 
-# fork_point(): 分岐点
+# fork_point(): divergence point
 $ jj log -r 'fork_point(feature-a, feature-b)'
-# → 2つのブランチの分岐点
+# → the divergence point of two branches
 
-# shortest_common_ancestors(): 最短共通祖先
+# shortest_common_ancestors(): shortest common ancestors
 $ jj log -r 'heads(::feature-a & ::feature-b)'
-# → feature-aとfeature-bの最近共通祖先
+# → most recent common ancestors of feature-a and feature-b
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  DAG操作の図解                                       │
+│  DAG operations diagram                             │
 │                                                     │
 │          ○ feature-a                               │
 │         /                                           │
@@ -193,106 +193,106 @@ $ jj log -r 'heads(::feature-a & ::feature-b)'
 │          ○───○ feature-b                           │
 │                                                     │
 │  fork_point(feature-a, feature-b)                   │
-│  = mainの分岐元のcommit                             │
+│  = the commit where main diverges                   │
 │                                                     │
 │  connected(feature-a | feature-b)                   │
-│  = feature-aとfeature-b間の全commit                 │
-│    （main上のcommitも含む）                          │
+│  = all commits between feature-a and feature-b      │
+│    (including commits on main)                      │
 │                                                     │
 │  ancestors(feature-a) & ancestors(feature-b)        │
-│  = 共通祖先のcommit集合                             │
+│  = set of common ancestor commits                   │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.5 実用的なrevsetクエリ例
+### 1.5 Practical revset Query Examples
 
 ```bash
-# PR候補の変更一覧（mainにない自分のcommit）
+# List of changes for PR candidates (my commits not in main)
 $ jj log -r 'mine() & (main..)'
 
-# コンフリクト解決が必要なcommit
+# Commits that need conflict resolution
 $ jj log -r 'conflict() & descendants(@)'
 
-# 空でないcommitのみ表示
+# Show only non-empty commits
 $ jj log -r '(main..) ~ empty()'
 
-# 最新5件のcommit
+# Latest 5 commits
 $ jj log -r 'ancestors(@, 5)'
 
-# 特定ファイルに関連する変更
+# Changes related to a specific file
 $ jj log -r 'file("src/auth/")'
 
-# 今週の自分のcommit
+# My commits from this week
 $ jj log -r 'mine() & committer_date(after:"1 week ago")'
 
-# ブックマーク付きで空でないcommit
+# Bookmarked non-empty commits
 $ jj log -r 'bookmarks() ~ empty()'
 
-# 特定のauthorの最近10件
+# Latest 10 commits by a specific author
 $ jj log -r 'latest(author("alice"), 10)'
 
-# マージコンフリクトがあるcommitの親を表示
+# Show parents of commits with merge conflicts
 $ jj log -r 'parents(conflict())'
 
-# リモートにpushされていないcommit
+# Commits not yet pushed to remote
 $ jj log -r 'mine() ~ ::remote_bookmarks()'
 
-# 特定のファイルを削除したcommit
+# Commits that deleted a specific file
 $ jj log -r 'file("deleted-file.txt") & (main..)'
 
-# 複数の条件を組み合わせた複雑なクエリ
+# Complex query combining multiple conditions
 $ jj log -r '(mine() | author("bob")) & (main..) & ~empty() & ~merges()'
-# → 自分またはBobの、mainにない、空でない、マージでないcommit
+# → commits by me or Bob, not in main, non-empty, non-merge
 
-# 分岐している全ブランチのhead
+# Heads of all diverging branches
 $ jj log -r 'heads(all()) ~ trunk()'
 
-# trunkから分岐した各ブランチのルート
+# Root of each branch diverging from trunk
 $ jj log -r 'roots(trunk()..heads(all()))'
 ```
 
-### 1.6 revsetのパフォーマンス
+### 1.6 revset Performance
 
 ```bash
-# revsetの評価は遅延的（lazy）
-# → 全commitを列挙せずに必要な部分だけ計算
+# revset evaluation is lazy
+# → computes only the needed parts without enumerating all commits
 
-# 効率的なrevset
+# Efficient revset
 $ jj log -r 'ancestors(@, 20)'
-# → @から20世代だけ遡る（高速）
+# → traverses only 20 generations back from @ (fast)
 
-# 非効率なrevset（大規模リポジトリで遅い可能性）
+# Inefficient revset (may be slow on large repos)
 $ jj log -r 'all()'
-# → 全commitを列挙（巨大リポジトリでは遅い）
+# → enumerates all commits (slow on huge repos)
 
-# 効率化のテクニック
-# 1. 範囲を限定する
+# Optimization techniques
+# 1. Limit the range
 $ jj log -r 'trunk()..@ & file("src/")'
 # vs
-$ jj log -r 'file("src/")'  # 全履歴を検索
+$ jj log -r 'file("src/")'  # searches all history
 
-# 2. present()で存在チェック
+# 2. Existence check with present()
 $ jj log -r 'present(old-bookmark)'
-# → 存在しない場合にエラーにならない
+# → does not error if it does not exist
 
-# 3. latest()で件数を制限
+# 3. Limit count with latest()
 $ jj log -r 'latest(mine(), 10)'
-# → 最新10件だけ取得
+# → retrieves only the latest 10
 ```
 
 ---
 
-## 2. テンプレート言語
+## 2. Template Language
 
-### 2.1 基本構文
+### 2.1 Basic Syntax
 
 ```bash
-# カスタムフォーマットでログを表示
+# Display log with custom format
 $ jj log -T 'change_id.short() ++ " " ++ description.first_line() ++ "\n"'
-rlvkpntz feat: 認証機能
-qpvuntsm feat: 初期設定
+rlvkpntz feat: authentication feature
+qpvuntsm feat: initial setup
 
-# 条件分岐
+# Conditional branching
 $ jj log -T '
   if(conflict, "CONFLICT: ", "")
   ++ change_id.short()
@@ -301,7 +301,7 @@ $ jj log -T '
   ++ "\n"
 '
 
-# 色付き出力
+# Colored output
 $ jj log -T '
   label("change_id", change_id.short())
   ++ " "
@@ -309,7 +309,7 @@ $ jj log -T '
   ++ "\n"
 '
 
-# separate()で区切り文字を指定
+# Specify separator with separate()
 $ jj log -T '
   separate(" ",
     change_id.short(),
@@ -317,51 +317,51 @@ $ jj log -T '
     description.first_line(),
   ) ++ "\n"
 '
-# → 空の要素は自動的にスキップされる
+# → empty elements are automatically skipped
 ```
 
-### 2.2 利用可能なプロパティ
+### 2.2 Available Properties
 
-| プロパティ           | 説明                                    | 例                         |
+| Property             | Description                             | Example                    |
 |----------------------|-----------------------------------------|----------------------------|
 | `change_id`          | change ID                               | `change_id.short()`        |
-| `commit_id`          | commit ID（SHA-1）                      | `commit_id.short(8)`       |
-| `description`        | コミットメッセージ                      | `description.first_line()` |
-| `author`             | 著者情報                                | `author.name()`            |
-| `committer`          | コミッター情報                          | `committer.email()`        |
-| `author.timestamp()` | 著者のタイムスタンプ                    | `author.timestamp()`       |
-| `working_copies`     | working copyかどうか                    | `self.working_copies()`    |
-| `conflict`           | コンフリクトがあるか                    | `if(conflict, "C", "")`    |
-| `empty`              | 空のcommitか                            | `if(empty, "(empty)", "")` |
-| `bookmarks`          | ブックマーク                            | `bookmarks`                |
-| `tags`               | タグ                                    | `tags`                     |
-| `branches`           | ブランチ（Git互換表示）                 | `branches`                 |
-| `parents`            | 親commit                               | `parents`                  |
-| `diff`               | 変更内容                                | `diff.summary()`           |
-| `root`               | ルートcommitか                          | `if(root, "ROOT", "")`     |
-| `current_working_copy` | 現在のworking copyか                  | `current_working_copy`     |
-| `divergent`          | divergentか                             | `if(divergent, "D", "")`   |
-| `hidden`             | 隠されたcommitか                        | `hidden`                   |
-| `immutable`          | immutableか                             | `if(immutable, "I", "")`   |
+| `commit_id`          | commit ID (SHA-1)                       | `commit_id.short(8)`       |
+| `description`        | commit message                          | `description.first_line()` |
+| `author`             | author information                      | `author.name()`            |
+| `committer`          | committer information                   | `committer.email()`        |
+| `author.timestamp()` | author timestamp                        | `author.timestamp()`       |
+| `working_copies`     | whether it is a working copy            | `self.working_copies()`    |
+| `conflict`           | whether there are conflicts             | `if(conflict, "C", "")`    |
+| `empty`              | whether it is an empty commit           | `if(empty, "(empty)", "")` |
+| `bookmarks`          | bookmarks                               | `bookmarks`                |
+| `tags`               | tags                                    | `tags`                     |
+| `branches`           | branches (Git-compatible display)       | `branches`                 |
+| `parents`            | parent commits                         | `parents`                  |
+| `diff`               | change content                          | `diff.summary()`           |
+| `root`               | whether it is the root commit           | `if(root, "ROOT", "")`     |
+| `current_working_copy` | whether it is the current working copy | `current_working_copy`     |
+| `divergent`          | whether it is divergent                 | `if(divergent, "D", "")`   |
+| `hidden`             | whether the commit is hidden            | `hidden`                   |
+| `immutable`          | whether it is immutable                 | `if(immutable, "I", "")`   |
 
-### 2.3 メソッドチェーン
+### 2.3 Method Chaining
 
 ```bash
-# 文字列メソッド
-$ jj log -T 'change_id.short(8) ++ "\n"'   # 8文字に短縮
-$ jj log -T 'change_id.shortest() ++ "\n"'  # 最短のユニークプレフィックス
-$ jj log -T 'description.first_line() ++ "\n"' # 最初の行のみ
-$ jj log -T 'description.lines() ++ "\n"'      # 全行（リスト）
+# String methods
+$ jj log -T 'change_id.short(8) ++ "\n"'   # shorten to 8 characters
+$ jj log -T 'change_id.shortest() ++ "\n"'  # shortest unique prefix
+$ jj log -T 'description.first_line() ++ "\n"' # first line only
+$ jj log -T 'description.lines() ++ "\n"'      # all lines (list)
 
-# タイムスタンプメソッド
-$ jj log -T 'author.timestamp().ago() ++ "\n"'  # 相対時間（3 hours ago）
-$ jj log -T 'author.timestamp().format("%Y-%m-%d %H:%M") ++ "\n"' # フォーマット
+# Timestamp methods
+$ jj log -T 'author.timestamp().ago() ++ "\n"'  # relative time (3 hours ago)
+$ jj log -T 'author.timestamp().format("%Y-%m-%d %H:%M") ++ "\n"' # formatted
 
-# ID メソッド
-$ jj log -T 'change_id.short() ++ "\n"'     # 短縮ID
-$ jj log -T 'change_id.shortest(4) ++ "\n"' # 最低4文字のユニークID
+# ID methods
+$ jj log -T 'change_id.short() ++ "\n"'     # short ID
+$ jj log -T 'change_id.shortest(4) ++ "\n"' # unique ID of at least 4 characters
 
-# 条件付きメソッド
+# Conditional methods
 $ jj log -T '
   change_id.short()
   ++ " "
@@ -374,21 +374,21 @@ $ jj log -T '
 '
 ```
 
-### 2.4 テンプレートの高度な使い方
+### 2.4 Advanced Template Usage
 
 ```bash
-# diff.summary() — 変更ファイル一覧
+# diff.summary() — list of changed files
 $ jj log -r @ -T 'diff.summary() ++ "\n"'
 # M src/auth.ts
 # A src/types.ts
 # D src/old.ts
 
-# diff.stat() — 変更統計
+# diff.stat() — change statistics
 $ jj log -r @ -T 'diff.stat(80) ++ "\n"'
 # src/auth.ts  | 10 +++++-----
 # src/types.ts |  5 +++++
 
-# separate() — 区切り文字で結合（空要素はスキップ）
+# separate() — join with separator (empty elements are skipped)
 $ jj log -T '
   separate(" | ",
     change_id.short(),
@@ -399,10 +399,10 @@ $ jj log -T '
     description.first_line(),
   ) ++ "\n"
 '
-# rlvk | gaku | feature-auth | feat: 認証機能
-# qpvu | gaku | empty | main | 初期設定
+# rlvk | gaku | feature-auth | feat: authentication feature
+# qpvu | gaku | empty | main | initial setup
 
-# concat() — 単純な結合
+# concat() — simple concatenation
 $ jj log -T '
   concat(
     change_id.short(),
@@ -412,14 +412,14 @@ $ jj log -T '
   )
 '
 
-# indent() — インデント付きの複数行
+# indent() — multiple lines with indentation
 $ jj log -T '
   change_id.short() ++ "\n"
   ++ indent("  ", description)
   ++ "\n"
 '
 
-# label() — 色付け用ラベル
+# label() — labels for colorization
 $ jj log -T '
   label("change_id prefix", change_id.shortest())
   ++ label("change_id rest", change_id.short())
@@ -429,18 +429,18 @@ $ jj log -T '
 '
 ```
 
-### 2.5 設定ファイルでのテンプレート定義
+### 2.5 Defining Templates in Configuration Files
 
 ```toml
 # ~/.jjconfig.toml
 
 [template-aliases]
-# ログ表示のカスタマイズ
+# Customize log display
 'format_short_change_id(id)' = 'id.shortest(4)'
 'format_timestamp(ts)' = 'ts.ago()'
 'format_author(author)' = 'author.name()'
 
-# ファイル変更のサマリー
+# File change summary
 'format_diff_summary()' = '''
   if(diff.summary(),
     "\n" ++ indent("  ", diff.summary()),
@@ -449,7 +449,7 @@ $ jj log -T '
 '''
 
 [templates]
-# デフォルトのlog表示をカスタマイズ
+# Customize default log display
 log = '''
   label(if(current_working_copy, "wc"),
     separate(" ",
@@ -465,7 +465,7 @@ log = '''
   ) ++ "\n"
 '''
 
-# show コマンドのテンプレート
+# Template for show command
 show = '''
   "Change ID: " ++ change_id ++ "\n"
   ++ "Commit ID: " ++ commit_id ++ "\n"
@@ -480,7 +480,7 @@ show = '''
   ++ "\n"
 '''
 
-# op log のテンプレート
+# Template for op log
 op_log = '''
   separate(" ",
     self.id().short(),
@@ -490,76 +490,76 @@ op_log = '''
 '''
 ```
 
-### 2.6 組み込みテンプレートスタイル
+### 2.6 Built-in Template Styles
 
 ```bash
-# 組み込みのテンプレートスタイル
+# Built-in template styles
 $ jj log --template builtin_log_oneline
-# → 1行表示
+# → single-line display
 
 $ jj log --template builtin_log_compact
-# → コンパクト表示（デフォルト）
+# → compact display (default)
 
 $ jj log --template builtin_log_detailed
-# → 詳細表示
+# → detailed display
 
-# スタイルの確認
+# Check styles
 $ jj config list templates
-# → 現在設定されているテンプレートを表示
+# → display currently configured templates
 ```
 
 ---
 
-## 3. Git連携
+## 3. Git Integration
 
 ### 3.1 fetch / push
 
 ```bash
-# リモートからfetch
+# Fetch from remote
 $ jj git fetch
-# → origin の全ブランチを取得
+# → retrieves all branches from origin
 
-# 特定のリモートからfetch
+# Fetch from a specific remote
 $ jj git fetch --remote upstream
 
-# 特定のブランチのみfetch
+# Fetch only specific branches
 $ jj git fetch --branch main
-$ jj git fetch --branch 'feature-*'  # globパターン
+$ jj git fetch --branch 'feature-*'  # glob pattern
 
-# リモートにpush
+# Push to remote
 $ jj git push
-# → ローカルブックマークに対応するリモートブランチを更新
+# → updates remote branches corresponding to local bookmarks
 
-# 特定のブックマークのみpush
+# Push only a specific bookmark
 $ jj git push --bookmark feature-auth
 
-# 新しいブックマークをpush（ブランチを作成）
+# Push a new bookmark (creates a branch)
 $ jj git push --bookmark feature-auth --allow-new
-# → リモートに新しいブランチが作成される
+# → a new branch is created on the remote
 
-# 変更されたブックマークのみpush
+# Push only changed bookmarks
 $ jj git push --change @
-# → @のchange IDを含むブックマーク名を自動生成してpush
+# → auto-generates a bookmark name containing @'s change ID and pushes
 
-# dry-run（実際にはpushしない）
+# Dry run (does not actually push)
 $ jj git push --dry-run
-# → 何がpushされるか確認
+# → confirms what would be pushed
 
-# 全ブックマークをpush
+# Push all bookmarks
 $ jj git push --all
-# → ローカルの全ブックマークをpush
+# → pushes all local bookmarks
 
-# 削除されたブックマークをリモートからも削除
+# Delete bookmarks from remote that were deleted locally
 $ jj git push --deleted
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  jj git push/fetch のフロー                          │
+│  jj git push/fetch flow                             │
 │                                                     │
 │  jj git fetch:                                      │
 │  ┌────────────┐      ┌────────────┐                │
-│  │ リモート    │ ---> │ ローカル    │                │
+│  │ Remote      │ ---> │ Local       │                │
 │  │ refs/heads/ │      │ bookmarks   │                │
 │  │ main        │      │ main@origin │                │
 │  │ feature-x   │      │ feature-x   │                │
@@ -568,99 +568,99 @@ $ jj git push --deleted
 │                                                     │
 │  jj git push:                                       │
 │  ┌────────────┐      ┌────────────┐                │
-│  │ ローカル    │ ---> │ リモート    │                │
+│  │ Local       │ ---> │ Remote      │                │
 │  │ bookmarks   │      │ refs/heads/ │                │
 │  │ feature-auth│      │ feature-auth│                │
 │  └────────────┘      └────────────┘                │
 │                                                     │
 │  jj git push --change @:                            │
-│  1. @のchange IDからブックマーク名を自動生成         │
-│  2. push-rlvkpntz... というブランチをリモートに作成  │
-│  3. GitHub上でPRを作成可能に                         │
+│  1. Auto-generates bookmark name from @'s change ID │
+│  2. Creates a branch like push-rlvkpntz... on remote│
+│  3. Enables PR creation on GitHub                   │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 3.2 co-located リポジトリの運用
+### 3.2 Operating co-located Repositories
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  co-located リポジトリの構造                         │
+│  co-located repository structure                    │
 │                                                     │
 │  project/                                           │
-│  ├── .git/          ← Git のオブジェクトストア       │
-│  ├── .jj/           ← Jujutsu のメタデータ          │
+│  ├── .git/          ← Git object store              │
+│  ├── .jj/           ← Jujutsu metadata              │
 │  │   ├── repo/                                      │
 │  │   │   ├── store/                                 │
-│  │   │   │   └── git_target  ← .git/ へのパス      │
-│  │   │   ├── op_store/       ← Operation Log       │
+│  │   │   │   └── git_target  ← path to .git/       │
+│  │   │   ├── op_store/       ← Operation Log        │
 │  │   │   └── op_heads/                              │
 │  │   └── working_copy/                              │
 │  └── src/                                           │
 │                                                     │
-│  → jj と git の両方のコマンドが使用可能             │
-│  → git コマンドの結果は jj が自動的に取り込む      │
-│  → jj の変更は .git/ にも反映される                 │
+│  → both jj and git commands can be used             │
+│  → jj automatically picks up git command results   │
+│  → jj changes are also reflected in .git/           │
 └─────────────────────────────────────────────────────┘
 ```
 
 ```bash
-# co-located repoの作成
+# Creating a co-located repo
 $ git clone https://github.com/user/repo.git
 $ cd repo
 $ jj git init --colocate
-# → .git/ はそのまま、.jj/ が追加される
+# → .git/ remains as-is, .jj/ is added
 
-# または既存のgitリポジトリをco-locate
+# Or co-locate an existing git repository
 $ cd existing-git-repo
 $ jj git init --colocate
 
-# co-located repoでのgitコマンド使用
-$ git status       # git コマンドも使える
-$ jj git import    # git側の変更をjjに取り込む（通常は自動）
-$ jj git export    # jjの変更をgit refに反映（通常は自動）
+# Using git commands in a co-located repo
+$ git status       # git commands still work
+$ jj git import    # import git-side changes into jj (usually automatic)
+$ jj git export    # reflect jj changes into git refs (usually automatic)
 
-# gitでの変更後にjjに反映
+# After changes with git, reflecting in jj
 $ git checkout -b new-branch
 $ git commit -m "change from git"
-$ jj git import    # gitの変更をjjに取り込む
-$ jj log           # jjからも見える
+$ jj git import    # import git changes into jj
+$ jj log           # visible from jj as well
 
-# co-locatedの注意点
-# - git stashはjjからは見えない
-# - git rebase -iはjjのopログと不整合を起こす可能性
-# - jj側の操作を推奨（jj rebase, jj squash等）
+# Notes on co-located repos
+# - git stash is not visible from jj
+# - git rebase -i may cause inconsistency with jj's op log
+# - Prefer jj-side operations (jj rebase, jj squash, etc.)
 ```
 
-### 3.3 リモート管理
+### 3.3 Remote Management
 
 ```bash
-# リモートの追加
+# Add a remote
 $ jj git remote add upstream https://github.com/upstream/repo.git
 
-# リモートの一覧
+# List remotes
 $ jj git remote list
 origin  https://github.com/user/repo.git
 upstream https://github.com/upstream/repo.git
 
-# リモートの削除
+# Remove a remote
 $ jj git remote remove upstream
 
-# リモートの名前変更
+# Rename a remote
 $ jj git remote rename origin github
 
-# リモートURLの変更
+# Change remote URL
 $ jj git remote set-url origin git@github.com:user/repo.git
 ```
 
-### 3.4 Git互換性の詳細
+### 3.4 Git Compatibility Details
 
 ```bash
-# Gitブランチ ↔ Jujutsuブックマーク の対応
-# Git: refs/heads/main → jj: main (ローカルブックマーク)
-# Git: refs/remotes/origin/main → jj: main@origin (リモートブックマーク)
-# Git: refs/tags/v1.0 → jj: v1.0 (タグ)
+# Correspondence between Git branches ↔ Jujutsu bookmarks
+# Git: refs/heads/main → jj: main (local bookmark)
+# Git: refs/remotes/origin/main → jj: main@origin (remote bookmark)
+# Git: refs/tags/v1.0 → jj: v1.0 (tag)
 
-# ブックマークの追跡状態を確認
+# Check bookmark tracking status
 $ jj bookmark list --all
 feature-auth: rlvkpntz abc12345
   @origin: rlvkpntz abc12345 (tracked)
@@ -669,79 +669,79 @@ main: qpvuntsm def67890
 old-branch (deleted)
   @origin: xxxxxxxx xxxxxxxx (tracked)
 
-# リモートブックマークの追跡開始
+# Start tracking a remote bookmark
 $ jj bookmark track feature-x@origin
 
-# リモートブックマークの追跡解除
+# Stop tracking a remote bookmark
 $ jj bookmark untrack feature-x@origin
 
-# GIT_HEAD の管理
-# jjではHEADの概念がGitと異なる
-# working copyの親がGitのHEADに相当
+# GIT_HEAD management
+# In jj, the concept of HEAD differs from Git
+# The parent of the working copy corresponds to Git's HEAD
 $ jj log -r @-
-# → これがGitのHEADに対応するcommit
+# → this is the commit corresponding to Git's HEAD
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Git概念とJujutsu概念の対応                          │
+│  Correspondence between Git and Jujutsu concepts    │
 │                                                     │
 │  Git                    Jujutsu                     │
 │  ────────────────────   ────────────────────        │
-│  HEAD                   @（working copy）           │
+│  HEAD                   @ (working copy)            │
 │  branch                 bookmark                    │
 │  refs/remotes/origin/*  *@origin                    │
-│  staging area (index)   なし（自動追跡）            │
-│  stash                  新しいcommitを作成          │
-│  detached HEAD          通常状態（常にdetached的）   │
+│  staging area (index)   none (auto-tracked)         │
+│  stash                  create a new commit         │
+│  detached HEAD          normal state (always detached-like) │
 │  commit SHA             commit ID / change ID       │
-│  なし                   change ID（不変の識別子）    │
-│  なし                   Operation Log               │
-│  merge commit           merge commit（同じ）        │
-│  なし                   conflict materialization    │
-│  なし                   divergent changes           │
+│  none                   change ID (immutable identifier) │
+│  none                   Operation Log               │
+│  merge commit           merge commit (same)         │
+│  none                   conflict materialization    │
+│  none                   divergent changes           │
 │                                                     │
-│  重要な違い:                                        │
-│  - change IDはrebase後も不変                        │
-│  - commit IDはrebase後に変わる                      │
-│  - jjにはstagingの概念がない                        │
-│  - 全ファイル変更が自動的にworking copyに含まれる   │
+│  Key differences:                                   │
+│  - change ID is immutable after rebase              │
+│  - commit ID changes after rebase                   │
+│  - jj has no concept of staging                     │
+│  - all file changes are automatically included in working copy │
 └─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. 高度なワークフロー
+## 4. Advanced Workflows
 
-### 4.1 スタックドPR（積み上げPR）
+### 4.1 Stacked PRs
 
 ```bash
-# スタックされた変更の作成
+# Creating stacked changes
 $ jj new main
 $ vim src/types.ts
-$ jj describe -m "feat: 型定義の追加"
+$ jj describe -m "feat: add type definitions"
 $ jj bookmark create pr/types -r @
 
 $ jj new
 $ vim src/auth.ts
-$ jj describe -m "feat: 認証ロジック"
+$ jj describe -m "feat: authentication logic"
 $ jj bookmark create pr/auth -r @
 
 $ jj new
 $ vim src/api.ts
-$ jj describe -m "feat: APIエンドポイント"
+$ jj describe -m "feat: API endpoints"
 $ jj bookmark create pr/api -r @
 
-# 各ブックマークを個別にpush
+# Push each bookmark individually
 $ jj git push --bookmark pr/types --allow-new
 $ jj git push --bookmark pr/auth --allow-new
 $ jj git push --bookmark pr/api --allow-new
 
-# ベースの変更を修正（型定義を更新）
+# Fix a base change (update type definitions)
 $ jj edit pr/types
 $ vim src/types.ts
-# → pr/auth と pr/api が自動リベース！
-# → 各PRを再pushするだけ
+# → pr/auth and pr/api are automatically rebased!
+# → just re-push each PR
 $ jj git push --bookmark pr/types
 $ jj git push --bookmark pr/auth
 $ jj git push --bookmark pr/api
@@ -749,151 +749,151 @@ $ jj git push --bookmark pr/api
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  スタックドPRの構造                                  │
+│  Stacked PR structure                               │
 │                                                    │
-│  ○  pr/api   feat: APIエンドポイント               │
-│  ○  pr/auth  feat: 認証ロジック                    │
-│  ○  pr/types feat: 型定義の追加                    │
+│  ○  pr/api   feat: API endpoints                   │
+│  ○  pr/auth  feat: authentication logic            │
+│  ○  pr/types feat: add type definitions            │
 │  ◆  main                                          │
 │                                                    │
-│  GitHub上:                                         │
+│  On GitHub:                                        │
 │  PR #3: api   (base: pr/auth)                      │
 │  PR #2: auth  (base: pr/types)                     │
 │  PR #1: types (base: main)                         │
 │                                                    │
-│  pr/typesを修正 → pr/auth, pr/api が自動リベース   │
-│  → 3つのPRを全て jj git push で更新                │
+│  Modify pr/types → pr/auth, pr/api auto-rebased    │
+│  → update all 3 PRs with jj git push               │
 │                                                    │
-│  PR #1がマージされた場合:                           │
+│  When PR #1 is merged:                             │
 │  $ jj git fetch                                    │
 │  $ jj rebase -s pr/auth -d main                    │
-│  # → PR #2のbaseをmainに変更                       │
+│  # → change base of PR #2 to main                 │
 │  $ jj git push --bookmark pr/auth                  │
 │  $ jj git push --bookmark pr/api                   │
 └────────────────────────────────────────────────────┘
 ```
 
-### 4.2 `jj git push --change` による自動ブックマーク
+### 4.2 Automatic Bookmarks with `jj git push --change`
 
 ```bash
-# change IDからブックマークを自動生成してpush
+# Auto-generate bookmark from change ID and push
 $ jj git push --change rlvkpntz
-# → "push-rlvkpntzqwop" のようなブックマークが自動作成される
-# → GitHub上にブランチが作成され、PRが作れる
+# → a bookmark like "push-rlvkpntzqwop" is automatically created
+# → a branch is created on GitHub, enabling PR creation
 
-# ブックマーク名のプレフィックスをカスタマイズ
+# Customize the bookmark name prefix
 $ jj config set --user git.push-bookmark-prefix "gaku/push-"
 $ jj git push --change rlvkpntz
-# → "gaku/push-rlvkpntzqwop" ブランチが作成される
+# → branch "gaku/push-rlvkpntzqwop" is created
 
-# 複数のchangeを同時にpush
+# Push multiple changes at once
 $ jj git push --change aaa --change bbb --change ccc
 ```
 
-### 4.3 並列開発ワークフロー
+### 4.3 Parallel Development Workflow
 
 ```bash
-# 複数の独立した変更を並列に進める
-$ jj new main -m "feat: ログイン画面"
-$ jj new main -m "fix: パフォーマンス改善"
-$ jj new main -m "docs: READMEの更新"
+# Develop multiple independent changes in parallel
+$ jj new main -m "feat: login screen"
+$ jj new main -m "fix: performance improvement"
+$ jj new main -m "docs: update README"
 
-# 各作業はmainから独立して分岐
-# ○ feat: ログイン画面
+# Each task branches independently from main
+# ○ feat: login screen
 # │
-# │ ○ fix: パフォーマンス改善
+# │ ○ fix: performance improvement
 # │/
-# │ ○ docs: READMEの更新
+# │ ○ docs: update README
 # │/
 # ◆ main
 
-# 作業を切り替え
-$ jj edit rlvkpntz  # ログイン画面のcommitに切り替え
+# Switch between tasks
+$ jj edit rlvkpntz  # switch to login screen commit
 
-# ファイルを編集（自動的にworking copyに反映）
+# Edit files (automatically reflected in working copy)
 $ vim src/login.tsx
-# → 保存するだけ、staging不要
+# → just save, no staging needed
 
-# 別の作業に切り替え
-$ jj edit qpvuntsm  # パフォーマンス改善に切り替え
+# Switch to another task
+$ jj edit qpvuntsm  # switch to performance improvement
 $ vim src/core.ts
 ```
 
-### 4.4 `jj split` — commitの分割
+### 4.4 `jj split` — Splitting a Commit
 
 ```bash
-# 対話的にcommitを分割
+# Split a commit interactively
 $ jj split
-# → エディタが開き、最初のcommitに含めるファイルを選択
-# → 残りは新しいcommitに
+# → editor opens, select files to include in the first commit
+# → the rest goes into a new commit
 
-# 特定のファイルだけ分離
+# Separate only specific files
 $ jj split --path src/auth.ts
-# → src/auth.tsの変更だけ最初のcommitに
-# → 残りのファイルは新しいcommitに
+# → only changes to src/auth.ts go into the first commit
+# → remaining files go into a new commit
 
-# -rで対象commitを指定
+# Specify target commit with -r
 $ jj split -r rlvkpntz
-# → working copy以外のcommitも分割可能
+# → can split commits other than working copy
 
-# 対話的分割の詳細
+# Interactive split details
 $ jj split -i
-# → diffの各hunks を対話的に選択
-# → git add -p 相当の操作をcommitの分割で実行
+# → interactively select each hunk of the diff
+# → equivalent to git add -p but as a commit split
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  jj split の動作                                    │
+│  jj split behavior                                  │
 │                                                    │
 │  Before:                                           │
-│  @  commit-A: auth.ts, api.ts, types.ts を変更     │
+│  @  commit-A: changes to auth.ts, api.ts, types.ts │
 │  ○  main                                          │
 │                                                    │
 │  $ jj split --path types.ts                        │
 │                                                    │
 │  After:                                            │
-│  @  commit-B: auth.ts, api.ts を変更               │
-│  ○  commit-A': types.ts のみ変更                  │
+│  @  commit-B: changes to auth.ts, api.ts           │
+│  ○  commit-A': changes to types.ts only            │
 │  ○  main                                          │
 │                                                    │
-│  → commit-Aがtypes.tsだけのcommitに分割            │
-│  → 残りの変更がcommit-Bに                          │
+│  → commit-A is split into a commit with only types.ts │
+│  → remaining changes go into commit-B              │
 └────────────────────────────────────────────────────┘
 ```
 
-### 4.5 `jj parallelize` — 直列commitの並列化
+### 4.5 `jj parallelize` — Parallelizing Sequential Commits
 
 ```bash
-# 直列のcommitを並列に変換
+# Convert sequential commits into parallel
 $ jj parallelize rlvkpntz::@
-# → 依存関係のないcommitを並列のブランチに変換
+# → converts commits without dependencies into parallel branches
 
 # Before:
-# @  commit-C: docs変更
-# ○  commit-B: テスト追加
-# ○  commit-A: 機能追加
+# @  commit-C: docs changes
+# ○  commit-B: add tests
+# ○  commit-A: add feature
 # ○  main
 
 # After:
-# ○  commit-C: docs変更
-# │ ○  commit-B: テスト追加
+# ○  commit-C: docs changes
+# │ ○  commit-B: add tests
 # │/
-# │ ○  commit-A: 機能追加
+# │ ○  commit-A: add feature
 # │/
 # ○  main
-# → 各commitが独立してmainから分岐
-# → 個別にPRを作成可能
+# → each commit branches independently from main
+# → can create individual PRs
 ```
 
 ---
 
-## 5. Operation Log — 操作履歴
+## 5. Operation Log — Operation History
 
-### 5.1 Operation Logの基本
+### 5.1 Operation Log Basics
 
 ```bash
-# 操作履歴の表示
+# Display operation history
 $ jj op log
 @  abc123 gaku@host 2024-01-15 10:30 (1 minute ago)
 │  describe commit rlvkpntzqwop
@@ -904,91 +904,91 @@ $ jj op log
 ○  jkl012 gaku@host 2024-01-15 10:25 (6 minutes ago)
 │  fetch from git remote(s) origin
 
-# 操作の詳細表示
+# Show details of an operation
 $ jj op show abc123
-# → 操作で変更されたcommitの一覧
+# → list of commits changed by the operation
 
-# 操作間の差分
+# Diff between operations
 $ jj op diff --from def456 --to abc123
-# → 2つの操作間で何が変わったか
+# → what changed between the two operations
 ```
 
 ### 5.2 undo / restore
 
 ```bash
-# 直前の操作を取り消す
+# Undo the previous operation
 $ jj undo
-# → 1つ前の状態に戻る
+# → returns to the previous state
 
-# 特定の操作まで戻る
+# Return to a specific operation
 $ jj op restore abc123
-# → abc123の操作時の状態に復元
+# → restores to the state at operation abc123
 
-# operation logの状態を確認してからundo
+# Check operation log state before undoing
 $ jj op log
-# → 戻りたい操作を確認
+# → identify the operation to return to
 $ jj op restore jkl012
-# → jkl012の時点の状態に完全復元
+# → fully restore to the state at jkl012
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Operation Log の概念                                │
+│  Operation Log concept                              │
 │                                                     │
-│  Gitとの違い:                                       │
-│  Git:  reflog は ref の変更のみ記録                  │
-│  jj:   Operation Log は全操作を記録                  │
+│  Differences from Git:                              │
+│  Git:  reflog records only ref changes              │
+│  jj:   Operation Log records all operations         │
 │                                                     │
-│  記録される操作の例:                                 │
+│  Examples of recorded operations:                   │
 │  - new, commit, describe                            │
 │  - rebase, squash, split                            │
 │  - git fetch, git push                              │
 │  - working copy snapshot                            │
 │  - bookmark create, move, delete                    │
 │                                                     │
-│  利点:                                              │
-│  - 全操作がundo可能                                 │
-│  - rebaseの取り消しも一発                           │
-│  - git fetchの取り消しも可能                        │
-│  - 操作間の差分を確認可能                           │
-│  - 並行操作のマージ（concurrent operations）        │
+│  Advantages:                                        │
+│  - all operations can be undone                     │
+│  - rebase can be undone in one step                 │
+│  - git fetch can also be undone                     │
+│  - can inspect diffs between operations             │
+│  - merge concurrent operations                      │
 │                                                     │
 │  op1 ─── op2 ─── op3 ─── op4 (current)             │
 │                   ↑                                 │
 │            jj op restore op2                        │
-│            → op4が作られ、op2の状態に復元           │
+│            → op4 is created, restored to op2 state │
 │                                                     │
-│  op1 ─ op2 ─ op3 ─ op4 ─ op5 (current = op2の状態) │
+│  op1 ─ op2 ─ op3 ─ op4 ─ op5 (current = op2 state) │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 5.3 並行操作（Concurrent Operations）
+### 5.3 Concurrent Operations
 
 ```bash
-# 2つのターミナルで同時に作業した場合
+# When working simultaneously in two terminals
 # Terminal 1: jj describe -m "feat: login"
 # Terminal 2: jj new main
 
-# jjは並行操作を自動的にマージ
-# → Operation Logに分岐と合流が記録される
+# jj automatically merges concurrent operations
+# → branches and merges are recorded in the Operation Log
 
-# op logで確認
+# Check with op log
 $ jj op log
 @    merge123 (merge of 2 operations)
 ├─ ○ describe commit
 └─ ○ new empty commit
    ○ previous state
 
-# 競合が発生した場合
-# → jjが自動解決を試みる
-# → 解決できない場合はエラーメッセージ
+# When a conflict occurs
+# → jj attempts automatic resolution
+# → error message if unable to resolve
 ```
 
 ---
 
-## 6. 設定のカスタマイズ
+## 6. Configuration Customization
 
-### 6.1 ~/.jjconfig.toml 完全ガイド
+### 6.1 Complete Guide to ~/.jjconfig.toml
 
 ```toml
 [user]
@@ -996,33 +996,33 @@ name = "Gaku"
 email = "gaku@example.com"
 
 [ui]
-# エディタの設定
+# Editor settings
 editor = "vim"
-# diff用エディタ（jj diff --tool で使用）
+# Diff editor (used with jj diff --tool)
 diff-editor = "meld"
-# マージ用エディタ
+# Merge editor
 merge-editor = "meld"
-# ページャ
+# Pager
 pager = "less -FRX"
-# デフォルトコマンド（引数なしでjjを実行した時）
+# Default command (when jj is run without arguments)
 default-command = "log"
-# デフォルトのログ表示リビジョン
+# Default log display revision
 default-revset = 'ancestors(heads(all()), 10)'
-# 色の有効化
+# Enable color
 color = "auto"  # auto, always, never
-# diff の形式
+# Diff format
 diff.format = "git"  # git, color-words, summary
 
 [git]
-# push時のブックマーク名プレフィックス
+# Bookmark name prefix when pushing
 push-bookmark-prefix = "gaku/push-"
-# autotracking（新しいリモートブックマークを自動追跡）
+# Autotracking (automatically track new remote bookmarks)
 auto-local-bookmark = false
 
-# immutable なcommitの定義（rebase/edit を禁止）
+# Define immutable commits (prohibit rebase/edit)
 [revset-aliases]
 'immutable_heads()' = 'trunk() | tags()'
-# カスタムrevset
+# Custom revsets
 'unpushed()' = 'mine() ~ ::remote_bookmarks()'
 'pending_review()' = 'bookmarks() & mine() ~ empty()'
 'stack()' = 'trunk()..@'
@@ -1031,7 +1031,7 @@ auto-local-bookmark = false
 'recent()' = 'latest(mine(), 20)'
 
 [aliases]
-# よく使うコマンドのエイリアス
+# Aliases for commonly used commands
 l = ["log", "-r", "ancestors(heads(all()), 10)"]
 ll = ["log", "-r", "all()"]
 d = ["diff"]
@@ -1042,13 +1042,13 @@ e = ["edit"]
 desc = ["describe"]
 sq = ["squash"]
 rb = ["rebase"]
-# カスタムエイリアス
+# Custom aliases
 push-all = ["git", "push", "--all"]
 sync = ["git", "fetch", "--all-remotes"]
 wip-list = ["log", "-r", "description(regex:\"^wip\")"]
 
 [colors]
-# カスタムカラー設定
+# Custom color settings
 "change_id" = "magenta"
 "commit_id" = "blue"
 "bookmarks" = "green bold"
@@ -1061,7 +1061,7 @@ wip-list = ["log", "-r", "description(regex:\"^wip\")"]
 "description placeholder" = "yellow dim"
 
 [merge-tools]
-# マージツールの設定
+# Merge tool settings
 
 # VS Code
 [merge-tools.code]
@@ -1080,196 +1080,196 @@ diff-args = ["diff", "$left", "$right"]
 program = "vim"
 merge-args = ["-d", "$left", "$right", "$base", "-c", "wincmd J"]
 
-# difftastic（構文対応diff）
+# difftastic (syntax-aware diff)
 [merge-tools.difft]
 program = "difft"
 diff-args = ["--color=always", "$left", "$right"]
 
 [diff]
-# diffのデフォルトツール
-tool = "difft"  # difftasticを使用
+# Default diff tool
+tool = "difft"  # use difftastic
 ```
 
-### 6.2 revset-aliasesの高度な活用
+### 6.2 Advanced Use of revset-aliases
 
 ```toml
 [revset-aliases]
-# 基本的なフィルタ
+# Basic filters
 'unpushed()' = 'mine() ~ ::remote_bookmarks()'
 'pending_review()' = 'bookmarks() & mine() ~ empty()'
 'stack()' = 'trunk()..@'
 'needs_fix()' = 'conflict() & descendants(@)'
 
-# チーム開発用
+# For team development
 'team_changes()' = 'trunk().. ~ empty()'
 'alice_changes()' = 'author("alice") & trunk()..'
 'recent_merges()' = 'merges() & ancestors(@, 50)'
 
-# コードレビュー用
+# For code review
 'review_ready()' = 'bookmarks() ~ empty() ~ conflict() & mine()'
 'stale_branches()' = 'bookmarks() & committer_date(before:"30 days ago")'
 
-# デバッグ用
+# For debugging
 'touches_auth()' = 'file("src/auth/") & trunk()..'
-'large_changes()' = 'file("**") & trunk()..'  # ファイル変更あり
+'large_changes()' = 'file("**") & trunk()..'  # has file changes
 'wip_commits()' = 'description(regex:"^(wip|WIP|fixup!|squash!)")'
 
-# immutableの拡張
+# Extended immutable
 'immutable_heads()' = 'trunk() | tags() | remote_bookmarks(remote="production")'
 ```
 
 ```bash
-# revset-aliasesの使用例
+# Examples of using revset-aliases
 $ jj log -r 'unpushed()'
-# → まだpushしていない自分のcommit
+# → my commits not yet pushed
 
 $ jj log -r 'review_ready()'
-# → レビュー準備完了のcommit
+# → commits ready for review
 
 $ jj log -r 'stale_branches()'
-# → 30日以上更新されていないブランチ
+# → branches not updated for 30 days or more
 
 $ jj log -r 'wip_commits()'
-# → WIPコミットの一覧
+# → list of WIP commits
 ```
 
-### 6.3 プロジェクトローカル設定
+### 6.3 Project-Local Configuration
 
 ```bash
-# プロジェクト固有の設定（.jj/repo/config.toml に保存）
+# Project-specific settings (saved in .jj/repo/config.toml)
 $ jj config set --repo revset-aliases.'immutable_heads()' 'trunk() | tags() | bookmarks("release-")'
 
-# プロジェクト固有のエイリアス
+# Project-specific aliases
 $ jj config set --repo aliases.deploy '["git", "push", "--bookmark", "production"]'
 
-# 設定の確認
+# Check settings
 $ jj config list --repo
-# → プロジェクトローカルの設定のみ表示
+# → show only project-local settings
 
 $ jj config list
-# → 全設定（user + repo）を表示
+# → show all settings (user + repo)
 
-# 設定のソースを確認
+# Check configuration source
 $ jj config list --include-defaults
-# → デフォルト値も含めて表示
+# → show including default values
 ```
 
 ---
 
-## 7. 高度な操作
+## 7. Advanced Operations
 
-### 7.1 `jj absorb` — 変更の自動振り分け
+### 7.1 `jj absorb` — Automatic Change Distribution
 
 ```bash
-# working copyの変更を、変更した行の元のcommitに自動振り分け
+# Automatically distribute working copy changes to the original commit where each line was changed
 $ jj absorb
-# → 各行がどのcommitで最後に変更されたかを分析
-# → 適切なcommitに変更を自動的に振り分け
-# → 影響を受けたcommit以降は自動リベース
+# → analyzes which commit each line was last changed in
+# → automatically distributes changes to the appropriate commit
+# → commits affected and their descendants are automatically rebased
 
-# 特定のファイルのみabsorb
+# Absorb only specific files
 $ jj absorb --paths src/auth.ts
 
-# dry-runで確認
+# Check with dry-run
 $ jj absorb --dry-run
-# → 実際には変更せず、どこに振り分けられるかを表示
+# → shows where changes would be distributed without actually making changes
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  jj absorb の動作                                   │
+│  jj absorb behavior                                 │
 │                                                    │
 │  Before:                                           │
-│  @  working copy (auth.js L10修正, api.js L25修正) │
-│  ○  commit-B  feat: API (api.js L25を作成)         │
-│  ○  commit-A  feat: 認証 (auth.js L10を作成)       │
+│  @  working copy (fix auth.js L10, fix api.js L25) │
+│  ○  commit-B  feat: API (created api.js L25)       │
+│  ○  commit-A  feat: auth (created auth.js L10)     │
 │                                                    │
 │  $ jj absorb                                       │
 │                                                    │
 │  After:                                            │
 │  @  working copy (empty)                           │
-│  ○  commit-B' feat: API (api.js L25修正を吸収)     │
-│  ○  commit-A' feat: 認証 (auth.js L10修正を吸収)   │
+│  ○  commit-B' feat: API (absorbed api.js L25 fix)  │
+│  ○  commit-A' feat: auth (absorbed auth.js L10 fix)│
 │                                                    │
-│  → 各行の修正が "元のcommit" に自動的に振り分け    │
-│  → git absorb / hg absorb と同等の機能             │
+│  → each line's fix is automatically distributed to "the original commit" │
+│  → equivalent functionality to git absorb / hg absorb │
 │                                                    │
-│  absorb の判定ロジック:                             │
-│  1. working copyの各変更行を特定                   │
-│  2. 各行が最後に変更されたcommitを特定（blame相当）│
-│  3. そのcommitに変更を吸収                         │
-│  4. 判定できない行はworking copyに残る             │
+│  absorb determination logic:                       │
+│  1. identify each changed line in working copy     │
+│  2. identify which commit last changed each line (equivalent to blame) │
+│  3. absorb the change into that commit             │
+│  4. lines that cannot be determined remain in working copy │
 └────────────────────────────────────────────────────┘
 ```
 
-### 7.2 `jj duplicate` — commitの複製
+### 7.2 `jj duplicate` — Copying a Commit
 
 ```bash
-# commitを複製（別のchange IDで同じ内容）
+# Duplicate a commit (same content with a different change ID)
 $ jj duplicate rlvkpntz
-# → 同じ変更内容で新しいchange IDを持つcommitが作成される
+# → a commit with the same changes but a new change ID is created
 
-# 範囲の複製
+# Duplicate a range
 $ jj duplicate main..feature-auth
-# → main..feature-auth の全commitを複製
+# → duplicates all commits in main..feature-auth
 
-# 複製してから別のブランチにrebase
+# Duplicate then rebase onto another branch
 $ jj duplicate rlvkpntz
 $ jj rebase -r <new-change-id> -d another-branch
 
-# cherry-pick相当の操作
+# Equivalent to cherry-pick
 $ jj duplicate rlvkpntz -d main
-# → rlvkpntzの変更をmainの上に複製
+# → duplicates the changes of rlvkpntz on top of main
 ```
 
-### 7.3 `jj squash` — commitの統合
+### 7.3 `jj squash` — Merging Commits
 
 ```bash
-# @を@-に統合
+# Merge @ into @-
 $ jj squash
-# → @の変更が@-に吸収される
-# → @は空になり、新しい空commitとなる
+# → changes from @ are absorbed into @-
+# → @ becomes empty and a new empty commit
 
-# 特定のcommitを親に統合
+# Merge a specific commit into its parent
 $ jj squash -r rlvkpntz
-# → rlvkpntzの変更がその親に吸収される
+# → changes from rlvkpntz are absorbed into its parent
 
-# メッセージを指定して統合
-$ jj squash -m "feat: 完全な認証機能"
+# Merge with a specified message
+$ jj squash -m "feat: complete authentication feature"
 
-# 特定のファイルのみ統合（部分squash）
+# Merge only specific files (partial squash)
 $ jj squash --paths src/auth.ts
-# → src/auth.ts の変更だけ親に統合
-# → 他のファイルの変更はそのまま
+# → only changes to src/auth.ts are merged into parent
+# → changes to other files remain as-is
 
-# interactive squash
+# Interactive squash
 $ jj squash -i
-# → 統合する変更を対話的に選択
+# → interactively select changes to merge
 ```
 
-### 7.4 `jj move` — 変更の移動
+### 7.4 `jj move` — Moving Changes
 
 ```bash
-# @の変更を別のcommitに移動
+# Move changes from @ to another commit
 $ jj move --to rlvkpntz
-# → @の変更をrlvkpntzに移動
+# → moves changes from @ to rlvkpntz
 
-# 特定のファイルの変更だけ移動
+# Move only changes to specific files
 $ jj move --to rlvkpntz --paths src/types.ts
 
-# 2つのcommit間で変更を移動
+# Move changes between two commits
 $ jj move --from aaa --to bbb
-# → aaaの変更をbbbに移動
+# → moves changes from aaa to bbb
 
-# interactive move
+# Interactive move
 $ jj move --to rlvkpntz -i
-# → 移動する変更を対話的に選択
+# → interactively select changes to move
 ```
 
-### 7.5 `jj fix` — 自動フォーマット
+### 7.5 `jj fix` — Automatic Formatting
 
 ```bash
-# 設定（~/.jjconfig.toml）
+# Configuration (~/.jjconfig.toml)
 # [fix.tools.rustfmt]
 # command = ["rustfmt", "--edition", "2021"]
 # patterns = ["glob:*.rs"]
@@ -1278,50 +1278,50 @@ $ jj move --to rlvkpntz -i
 # command = ["npx", "prettier", "--write"]
 # patterns = ["glob:*.{js,ts,jsx,tsx}"]
 
-# 現在のcommitのファイルをフォーマット
+# Format files in the current commit
 $ jj fix
 
-# 範囲のcommitをフォーマット
+# Format commits in a range
 $ jj fix -r 'trunk()..@'
 
-# 特定のファイルのみ
+# Only specific files
 $ jj fix --paths src/
 ```
 
 ---
 
-## 8. コンフリクト管理
+## 8. Conflict Management
 
-### 8.1 コンフリクトの表現
+### 8.1 Representing Conflicts
 
 ```bash
-# jjではコンフリクトはcommitの一部として記録される
-# → 解決せずにcommitを続行できる
+# In jj, conflicts are recorded as part of a commit
+# → you can continue committing without resolving them
 
-# コンフリクトのあるcommitを確認
+# Check commits with conflicts
 $ jj log -r 'conflict()'
 
-# コンフリクトの内容を表示
+# Display conflict contents
 $ jj diff -r <conflict-commit>
 
-# コンフリクトを含むファイルの一覧
+# List files containing conflicts
 $ jj resolve --list
-# → コンフリクトのあるファイルが表示される
+# → displays files with conflicts
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Jujutsuのコンフリクト管理                           │
+│  Jujutsu conflict management                        │
 │                                                     │
-│  Gitとの違い:                                       │
-│  Git: コンフリクト → 解決するまでcommit不可          │
-│  jj:  コンフリクト → commitに記録、後で解決可能     │
+│  Differences from Git:                              │
+│  Git: conflict → cannot commit until resolved       │
+│  jj:  conflict → recorded in commit, resolve later │
 │                                                     │
-│  ○  commit-C (conflict) ← コンフリクトあり         │
-│  ○  commit-B             でもcommitできる           │
+│  ○  commit-C (conflict) ← has conflict              │
+│  ○  commit-B             but can commit             │
 │  ○  commit-A                                       │
 │                                                     │
-│  ファイル内のコンフリクトマーカー:                   │
+│  Conflict markers in files:                         │
 │  <<<<<<< Conflict 1 of 1                            │
 │  %%%%%%% Changes from base to side #1               │
 │  -old line                                          │
@@ -1330,307 +1330,307 @@ $ jj resolve --list
 │  side 2 change                                      │
 │  >>>>>>>                                            │
 │                                                     │
-│  解決方法:                                          │
-│  1. ファイルを直接編集してマーカーを削除            │
-│  2. jj resolve でマージツールを使用                  │
-│  3. 保存するだけで自動的にコンフリクト解決          │
+│  Resolution methods:                                │
+│  1. Directly edit the file and remove markers       │
+│  2. Use a merge tool with jj resolve                │
+│  3. Conflict resolved automatically upon saving     │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 8.2 コンフリクト解決
+### 8.2 Resolving Conflicts
 
 ```bash
-# マージツールで解決
+# Resolve with a merge tool
 $ jj resolve
-# → 設定されたmerge-editorが起動
+# → configured merge-editor is launched
 
-# 特定のファイルだけ解決
+# Resolve only specific files
 $ jj resolve src/auth.ts
 
-# 手動解決（ファイルを直接編集）
+# Manual resolution (edit file directly)
 $ vim src/auth.ts
-# → コンフリクトマーカーを削除
-# → 保存するだけで自動的にコンフリクトが解消される
-# → jj status で確認
+# → remove conflict markers
+# → conflict is automatically resolved upon saving
+# → verify with jj status
 
-# 片方の変更を採用
+# Accept one side's changes
 $ jj resolve --tool ':builtin'
-# → 組み込みのマージツールを使用
+# → use the built-in merge tool
 
-# コンフリクトをリセット
+# Reset a conflict
 $ jj restore --from @- --paths src/auth.ts
-# → 親commitの状態に戻す
+# → restore to parent commit's state
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-patterns
 
-### アンチパターン1: revsetを使わずに手動でcommitを一つずつ操作
+### Anti-pattern 1: Operating on commits one by one without using revsets
 
 ```bash
-# NG: 複数のcommitを個別に操作
+# NG: operating on multiple commits individually
 $ jj rebase -r aaa -d main
 $ jj rebase -r bbb -d main
 $ jj rebase -r ccc -d main
 
-# OK: revsetで一括操作
+# OK: batch operation with revset
 $ jj rebase -s aaa -d main
-# → aaa以降の全子孫がmainの上にリベースされる
+# → all descendants of aaa are rebased on top of main
 
-# または
+# Or
 $ jj rebase -r 'author("gaku") & (trunk()..@)' -d main
-# → 条件に合うcommitを一括リベース
+# → batch rebase commits matching the condition
 ```
 
-**理由**: revsetはJujutsuの最大の強みの一つ。複雑な条件でcommitを選択し、一括操作できる。
+**Reason**: revsets are one of Jujutsu's greatest strengths. You can select commits with complex conditions and operate on them in bulk.
 
-### アンチパターン2: co-located repoでgit rebaseを直接使う
+### Anti-pattern 2: Using git rebase directly in a co-located repo
 
 ```bash
-# NG: co-located repoでgitのrebaseを直接使う
+# NG: using git's rebase directly in a co-located repo
 $ git rebase -i main
-# → jjの操作ログと不整合が生じる可能性
-# → jjのchange IDとの対応が崩れる
+# → may cause inconsistency with jj's operation log
+# → may break the correspondence with jj's change IDs
 
-# OK: jjのrebaseを使う
+# OK: use jj's rebase
 $ jj rebase -s @ -d main
-# → 操作ログに記録され、undoも可能
+# → recorded in operation log, also undoable
 ```
 
-**理由**: co-located repoではjjとgitの両方のメタデータを整合的に保つ必要がある。git側の破壊的操作はjjのOperation Logと矛盾する。
+**Reason**: In a co-located repo, both jj and git metadata must be kept consistent. Destructive operations on the git side contradict jj's Operation Log.
 
-### アンチパターン3: jj editの代わりにjj checkout + 修正 + squash
+### Anti-pattern 3: Using jj checkout + fix + squash instead of jj edit
 
 ```bash
-# NG: 古いcommitを修正するために複雑な手順
+# NG: complex steps to modify an old commit
 $ jj new rlvkpntz
-$ vim src/auth.ts  # 修正
-$ jj squash        # 親に統合
-$ jj new @--       # 元の位置に戻る
+$ vim src/auth.ts  # fix
+$ jj squash        # merge into parent
+$ jj new @--       # return to original position
 
-# OK: jj editで直接修正
+# OK: directly modify with jj edit
 $ jj edit rlvkpntz
-$ vim src/auth.ts  # 修正
-# → 自動的にworking copyに反映
-# → 子孫commitは自動リベース
+$ vim src/auth.ts  # fix
+# → automatically reflected in working copy
+# → descendant commits are automatically rebased
 ```
 
-**理由**: `jj edit`はworking copyを指定のcommitに切り替え、直接修正できる。修正後の自動リベースにより、下流のcommitも自動更新される。
+**Reason**: `jj edit` switches the working copy to the specified commit, allowing direct modification. Automatic rebasing after modification also updates downstream commits automatically.
 
-### アンチパターン4: absorb を知らずに手動で変更を振り分ける
+### Anti-pattern 4: Manually distributing changes without knowing absorb
 
 ```bash
-# NG: 各行の修正を手動で元のcommitに振り分け
-$ jj split -i      # 対話的に分割
-# → どの行がどのcommitに対応するか手動で判断
+# NG: manually distributing line fixes to original commits
+$ jj split -i      # split interactively
+# → manually determine which line corresponds to which commit
 $ jj squash -r <split-commit> --to <target-commit>
-# → 手動で移動
+# → move manually
 
-# OK: jj absorb で自動振り分け
+# OK: auto-distribute with jj absorb
 $ jj absorb
-# → 各行がどのcommitで最後に変更されたか自動判定
-# → 適切なcommitに自動振り分け
+# → automatically determines which commit each line was last changed in
+# → automatically distributes to the appropriate commit
 ```
 
-**理由**: `jj absorb`は行単位でblame情報を分析し、各修正を適切なcommitに自動的に振り分ける。手動操作のエラーリスクを排除し、圧倒的に高速。
+**Reason**: `jj absorb` analyzes blame information at the line level and automatically distributes each fix to the appropriate commit. Eliminates the risk of error in manual operations and is dramatically faster.
 
-### アンチパターン5: Operation Logを活用せずにバックアップを取る
+### Anti-pattern 5: Taking backups instead of using the Operation Log
 
 ```bash
-# NG: 手動でバックアップ
+# NG: manually backing up
 $ jj git push --bookmark backup-before-rebase
 $ jj rebase -s @ -d main
-# → 失敗したらbackupブランチから復元...
+# → if it fails, restore from backup branch...
 
-# OK: Operation Logでundo
+# OK: undo with Operation Log
 $ jj rebase -s @ -d main
-# → 問題があったら
+# → if there is a problem
 $ jj undo
-# → 完全に元の状態に復元
-# → op logで任意の時点に戻ることも可能
+# → fully restored to original state
+# → can also return to any point in op log
 ```
 
-**理由**: JujutsuのOperation Logは全操作を記録し、任意の時点に戻せる。手動バックアップは不要。
+**Reason**: Jujutsu's Operation Log records all operations and allows returning to any point in time. Manual backups are unnecessary.
 
 ---
 
 ## 10. FAQ
 
-### Q1. revsetの構文を忘れた場合、どこで確認できるか？
+### Q1. Where can I check revset syntax if I forget it?
 
-**A1.** `jj help revsets`で完全なドキュメントが表示されます。
+**A1.** Full documentation is displayed with `jj help revsets`.
 
 ```bash
 $ jj help revsets
-# → 全revset関数と演算子の説明が表示される
+# → descriptions of all revset functions and operators are displayed
 
-# 特定のrevsetをテスト（実行前に確認）
+# Test a specific revset (check before running)
 $ jj log -r 'mine() & (main..)' --no-graph -T 'change_id.short() ++ "\n"'
-# → マッチするrevisionのchange IDのみ表示
+# → displays only the change IDs of matching revisions
 
-# revsetの評価結果を確認
+# Check revset evaluation results
 $ jj log -r 'trunk()..@' --no-graph -T 'change_id.short(8) ++ " " ++ description.first_line() ++ "\n"'
 ```
 
-### Q2. テンプレート言語のデバッグ方法は？
+### Q2. How do I debug the template language?
 
-**A2.** テンプレートのエラーメッセージは比較的わかりやすく、利用可能なプロパティとメソッドが表示されます。
+**A2.** Template error messages are relatively clear and display available properties and methods.
 
 ```bash
-# エラーメッセージの例
+# Example error message
 $ jj log -T 'invalid_property'
 # Error: Failed to parse template
 # Caused by: "invalid_property" is not defined
 # Hint: Available keywords: ...
 
-# 段階的に構築するのが安全
-$ jj log -T 'change_id.short() ++ "\n"'    # まず基本
+# Building incrementally is safer
+$ jj log -T 'change_id.short() ++ "\n"'    # start with basics
 $ jj log -T 'change_id.short() ++ " " ++ description.first_line() ++ "\n"'
 
-# ヘルプで利用可能なキーワードとメソッドを確認
+# Check available keywords and methods with help
 $ jj help templates
 ```
 
-### Q3. `jj git push`時にGitHubの認証エラーが出る場合の対処法は？
+### Q3. What should I do if I get a GitHub authentication error when running `jj git push`?
 
-**A3.** Jujutsuは内部的にlibgit2を使用しているため、GitのHTTPS認証情報が必要です。
+**A3.** Jujutsu uses libgit2 internally, so Git HTTPS credentials are required.
 
 ```bash
-# SSH鍵を使う場合（推奨）
+# Using SSH key (recommended)
 $ jj git remote set-url origin git@github.com:user/repo.git
 
-# HTTPS + credential helperの場合
+# HTTPS + credential helper
 $ git config --global credential.helper osxkeychain  # macOS
 $ git config --global credential.helper store         # Linux
 
-# GitHub CLIのトークンを使う場合
+# Using GitHub CLI token
 $ gh auth setup-git
 $ jj git push
 
-# SSH鍵のパスフレーズ問題
-# → ssh-agentを使用
+# SSH key passphrase issues
+# → use ssh-agent
 $ eval "$(ssh-agent -s)"
 $ ssh-add ~/.ssh/id_ed25519
 $ jj git push
 ```
 
-### Q4. divergent changeとは何か？どう対処するか？
+### Q4. What is a divergent change? How do I deal with it?
 
-**A4.** 同じchange IDを持つcommitが複数存在する状態です。
+**A4.** It is a state where multiple commits with the same change ID exist.
 
 ```bash
-# divergentが発生する原因
-# - jj duplicateでchange IDが重複
-# - 並行作業で同じcommitを異なる方法で修正
+# Causes of divergence
+# - change IDs duplicated by jj duplicate
+# - same commit modified in different ways during concurrent work
 
-# divergentの検出
+# Detect divergence
 $ jj log -r 'divergent()'
 
-# 解決方法: 片方を破棄
-$ jj abandon <不要な方のchange-id>
+# Resolution: discard one
+$ jj abandon <change-id of the one to discard>
 
-# 解決方法: マージ
+# Resolution: merge
 $ jj new <divergent-1> <divergent-2>
-# → 両方の変更をマージした新しいcommitを作成
+# → create a new commit merging both changes
 $ jj squash
-# → 親の片方に統合
+# → merge into one of the parents
 ```
 
-### Q5. immutable_headsの設定で何ができるか？
+### Q5. What can I do with the immutable_heads setting?
 
-**A5.** 保護したいcommitを定義し、誤った操作を防げます。
+**A5.** You can define commits you want to protect and prevent accidental operations.
 
 ```toml
 # ~/.jjconfig.toml
 [revset-aliases]
-# trunk（main/master）とタグを保護
+# Protect trunk (main/master) and tags
 'immutable_heads()' = 'trunk() | tags()'
 
-# リリースブランチも保護
+# Also protect release branches
 'immutable_heads()' = 'trunk() | tags() | bookmarks("release-")'
 
-# リモートにpush済みのcommitを保護
+# Protect commits already pushed to remote
 'immutable_heads()' = 'trunk() | tags() | remote_bookmarks()'
 ```
 
 ```bash
-# immutableなcommitを操作しようとするとエラー
+# Trying to operate on an immutable commit results in an error
 $ jj edit main
 # Error: Commit abc123 is immutable
 
-# immutable設定を確認
+# Check immutable settings
 $ jj log -r 'immutable()'
 ```
 
-### Q6. jjのパフォーマンスを改善するには？
+### Q6. How can I improve jj performance?
 
-**A6.** 以下のポイントを確認してください。
+**A6.** Please check the following points.
 
 ```bash
-# 1. watchmanの有効化（ファイル変更の高速検出）
+# 1. Enable watchman (fast file change detection)
 $ jj config set --user core.watchman.register-snapshot-trigger true
 
-# 2. fsmonitor の設定
+# 2. fsmonitor configuration
 $ jj config set --user core.fsmonitor "watchman"
 
-# 3. 不要なcommitの整理
+# 3. Clean up unnecessary commits
 $ jj log -r 'empty() & mine()'
-# → 空のcommitを確認
+# → check empty commits
 $ jj abandon 'empty() & mine() & ~@'
-# → 不要な空commitを削除
+# → delete unnecessary empty commits
 
-# 4. Operation Logの整理（大量の操作履歴がある場合）
-# → 自動的にガベージコレクションされるが、
-#    手動で古い操作を整理することも可能
+# 4. Clean up Operation Log (if there is a large amount of operation history)
+# → automatically garbage collected, but
+#    manually cleaning up old operations is also possible
 
-# 5. 大規模リポジトリでのrevset最適化
-# → ancestors(@, N) で深さを制限
-# → file() の範囲を限定
+# 5. revset optimization for large repos
+# → limit depth with ancestors(@, N)
+# → limit scope of file()
 $ jj log -r 'ancestors(@, 50) & file("src/auth/")'
 ```
 
-### Q7. jjでcherry-pickに相当する操作は？
+### Q7. What is the equivalent of cherry-pick in jj?
 
-**A7.** `jj duplicate`を使います。
+**A7.** Use `jj duplicate`.
 
 ```bash
-# Gitのcherry-pick相当
+# Equivalent to Git's cherry-pick
 # git cherry-pick abc123
 
-# Jujutsuでは:
+# In Jujutsu:
 $ jj duplicate abc123
-# → 新しいchange IDで同じ内容のcommitが作成される
+# → a commit with the same content but a new change ID is created
 
-# 特定のブランチの上にcherry-pick
+# Cherry-pick onto a specific branch
 $ jj new main
 $ jj restore --from abc123
 $ jj describe -m "cherry-picked: original message"
 
-# または、duplicateしてrebase
+# Or, duplicate then rebase
 $ jj duplicate abc123
 $ jj rebase -r <new-change-id> -d main
 ```
 
-### Q8. jjでgit stash相当の操作は？
+### Q8. What is the equivalent of git stash in jj?
 
-**A8.** jjにはstashの概念はありませんが、新しいcommitを作成することで同等の操作ができます。
+**A8.** jj has no concept of stash, but equivalent operations can be done by creating a new commit.
 
 ```bash
 # Git: git stash
-# jj: working copyの変更は常にcommitに含まれるため、
-#     新しいcommitを作成するだけ
+# jj: since working copy changes are always included in commits,
+#     just create a new commit
 
-# 作業を一時退避
-$ jj describe -m "wip: 作業中の変更"
-$ jj new main  # mainの上で別の作業を開始
+# Temporarily stash work
+$ jj describe -m "wip: work in progress"
+$ jj new main  # start different work on top of main
 
-# 退避した作業に戻る
+# Return to stashed work
 $ jj edit <wip-commit-change-id>
 
-# 複数の「stash」を同時に保持可能
-# → 各作業が独立したcommitとして存在
-# → jj log で一覧表示
+# Can hold multiple "stashes" simultaneously
+# → each task exists as an independent commit
+# → list with jj log
 $ jj log -r 'description(regex:"^wip:")'
 ```
 
@@ -1639,55 +1639,55 @@ $ jj log -r 'description(regex:"^wip:")'
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and moving on to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional settings?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 概念             | 要点                                                          |
-|------------------|---------------------------------------------------------------|
-| revset           | リビジョン集合のクエリ言語、集合演算と関数で柔軟に選択        |
-| テンプレート     | ログ出力のカスタマイズ言語、プロパティとメソッドチェーン       |
-| jj git fetch     | リモートからブックマークとcommitを取得                        |
-| jj git push      | ローカルブックマークをリモートブランチに反映                  |
-| co-located repo  | .git/と.jj/が共存、jjとgit両方使用可能                       |
-| jj absorb        | working copyの変更を元のcommitに自動振り分け                 |
-| jj split         | commitを対話的にファイルやhunk単位で分割                     |
-| jj parallelize   | 直列commitを並列ブランチに変換                               |
-| jj fix           | 設定されたフォーマッタを自動適用                             |
-| Operation Log    | 全操作の履歴、undo/restore が常に可能                        |
-| revset-aliases   | よく使うrevsetクエリに名前を付けて再利用                     |
-| immutable_heads  | rebase/edit を禁止するcommitの定義                           |
-| divergent        | 同じchange IDを持つ複数commitの状態                          |
-| conflict         | コンフリクトをcommitに記録可能、後から解決可能               |
+Knowledge of this topic is frequently applied in everyday development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [Git→Jujutsu移行](./03-git-to-jujutsu.md) — 操作対応表と実践的な移行手順
-- [Jujutsuワークフロー](./01-jujutsu-workflow.md) — 基本ワークフローの復習
-- [インタラクティブRebase](../01-advanced-git/00-interactive-rebase.md) — Git側のrebase操作との比較
+| Concept          | Key Points                                                           |
+|------------------|----------------------------------------------------------------------|
+| revset           | Query language for revision sets, flexible selection with set operations and functions |
+| template         | Customization language for log output, property and method chaining  |
+| jj git fetch     | Retrieve bookmarks and commits from remote                          |
+| jj git push      | Reflect local bookmarks to remote branches                          |
+| co-located repo  | .git/ and .jj/ coexist, both jj and git usable                     |
+| jj absorb        | Automatically distribute working copy changes to original commits   |
+| jj split         | Interactively split a commit by file or hunk                        |
+| jj parallelize   | Convert sequential commits into parallel branches                   |
+| jj fix           | Automatically apply configured formatters                           |
+| Operation Log    | History of all operations, undo/restore always possible             |
+| revset-aliases   | Name and reuse frequently used revset queries                       |
+| immutable_heads  | Define commits where rebase/edit is prohibited                      |
+| divergent        | State where multiple commits share the same change ID               |
+| conflict         | Conflicts can be recorded in commits and resolved later             |
 
 ---
 
-## 参考文献
+## Guides to Read Next
 
-1. **Jujutsu公式ドキュメント** — "Revsets" https://martinvonz.github.io/jj/latest/revsets/
-2. **Jujutsu公式ドキュメント** — "Templates" https://martinvonz.github.io/jj/latest/templates/
-3. **Jujutsu公式ドキュメント** — "Git compatibility" https://martinvonz.github.io/jj/latest/git-compatibility/
-4. **Jujutsu公式ドキュメント** — "Config" https://martinvonz.github.io/jj/latest/config/
-5. **Jujutsu公式ドキュメント** — "Operation Log" https://martinvonz.github.io/jj/latest/operation-log/
+- [Git→Jujutsu Migration](./03-git-to-jujutsu.md) — Command mapping table and practical migration steps
+- [Jujutsu Workflow](./01-jujutsu-workflow.md) — Review of basic workflow
+- [Interactive Rebase](../01-advanced-git/00-interactive-rebase.md) — Comparison with Git-side rebase operations
+
+---
+
+## References
+
+1. **Jujutsu Official Documentation** — "Revsets" https://martinvonz.github.io/jj/latest/revsets/
+2. **Jujutsu Official Documentation** — "Templates" https://martinvonz.github.io/jj/latest/templates/
+3. **Jujutsu Official Documentation** — "Git compatibility" https://martinvonz.github.io/jj/latest/git-compatibility/
+4. **Jujutsu Official Documentation** — "Config" https://martinvonz.github.io/jj/latest/config/
+5. **Jujutsu Official Documentation** — "Operation Log" https://martinvonz.github.io/jj/latest/operation-log/
 6. **Austin Seipp** — "jujutsu: A new VCS" https://austinseipp.com/posts/2024-07-10-jj-hierarchies
 7. **Steve Klabnik** — "jj init" https://steveklabnik.com/writing/jj-init/
