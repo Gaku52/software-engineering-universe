@@ -11,4 +11,8 @@ paths = [
   '''ja/05-infrastructure/development-environment-setup/docs/02-docker-dev/01-devcontainer\.md''',
   '''05-infrastructure/docker-container-guide/docs/04-production/00-production-best-practices\.md''',
   '''05-infrastructure/docker-container-guide/docs/05-orchestration/02-kubernetes-advanced\.md''',
+  '''05-infrastructure/linux-cli-mastery/docs/00-introduction/01-shell-config\.md''',
+  '''ja/05-infrastructure/linux-cli-mastery/docs/00-introduction/01-shell-config\.md''',
+  '''05-infrastructure/linux-cli-mastery/docs/04-networking/00-curl-wget\.md''',
+  '''ja/05-infrastructure/linux-cli-mastery/docs/04-networking/00-curl-wget\.md''',
 ]
