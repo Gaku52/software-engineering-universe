@@ -1,673 +1,672 @@
-# ソート・集計（sort, uniq, cut, wc）
+# Sorting and Aggregation (sort, uniq, cut, wc)
 
-> これらのコマンドはパイプラインの「部品」として組み合わせて使う。
-> テキスト処理の基盤であり、ログ分析・データ集計・レポート生成に不可欠な道具立てである。
+> These commands are used as "building blocks" combined in pipelines.
+> They form the foundation of text processing and are indispensable tools for log analysis, data aggregation, and report generation.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] sort の全オプションを使いこなしてテキストをソートできる
-- [ ] uniq で重複排除・カウント・フィルタリングができる
-- [ ] cut で列切り出し・フィールド抽出ができる
-- [ ] wc で行数・単語数・バイト数・文字数をカウントできる
-- [ ] tr で文字変換・削除・圧縮ができる
-- [ ] paste, join, comm で複数ファイルの結合・比較ができる
-- [ ] これらを組み合わせた実務パイプラインを構築できる
+- [ ] Master all sort options to sort text
+- [ ] Use uniq for deduplication, counting, and filtering
+- [ ] Use cut to extract columns and fields
+- [ ] Use wc to count lines, words, bytes, and characters
+- [ ] Use tr to convert, delete, and squeeze characters
+- [ ] Use paste, join, and comm to merge and compare multiple files
+- [ ] Build practical pipelines that combine these tools
 
+## Prerequisites
 
-## 前提知識
+Having the following knowledge before reading this guide will deepen your understanding:
 
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [テキスト処理言語（awk）](./03-awk.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Text Processing Languages (awk)](./03-awk.md)
 
 ---
 
-## 1. sort — テキストのソート
+## 1. sort — Sorting Text
 
-### 1.1 基本的なソート
+### 1.1 Basic Sorting
 
 ```bash
-# アルファベット順（辞書順）ソート
+# Alphabetical (lexicographic) sort
 sort file.txt
 
-# 数値順ソート（-n）
+# Numeric sort (-n)
 sort -n numbers.txt
-# 例: "1", "2", "10" が正しく 1, 2, 10 の順になる
-# -n がないと "1", "10", "2" になる（辞書順）
+# Example: "1", "2", "10" are correctly ordered as 1, 2, 10
+# Without -n, the result is "1", "10", "2" (lexicographic order)
 
-# 逆順ソート（-r）
-sort -r file.txt                 # アルファベット逆順
-sort -rn numbers.txt             # 数値の大きい順
+# Reverse sort (-r)
+sort -r file.txt                 # Reverse alphabetical
+sort -rn numbers.txt             # Largest numbers first
 
-# 重複排除付きソート（-u）
-sort -u file.txt                 # ソート + 重複行を削除
+# Sort with deduplication (-u)
+sort -u file.txt                 # Sort + remove duplicate lines
 
-# 安定ソート（--stable）
+# Stable sort (--stable)
 sort --stable file.txt
-# 同じキーを持つ行の元の順序を保持する
+# Preserves the original order of lines with the same key
 
-# 大文字小文字を区別しないソート（-f / --ignore-case）
+# Case-insensitive sort (-f / --ignore-case)
 sort -f file.txt
 
-# 先頭の空白を無視してソート（-b）
+# Sort ignoring leading blanks (-b)
 sort -b file.txt
 ```
 
-### 1.2 キー指定ソート（-k オプション）
+### 1.2 Key-Based Sorting (-k option)
 
 ```bash
-# 基本構文: -k FIELD[.CHAR][,FIELD[.CHAR]][OPTS]
+# Basic syntax: -k FIELD[.CHAR][,FIELD[.CHAR]][OPTS]
 
-# 2列目でソート（スペース/タブ区切り）
+# Sort by column 2 (space/tab delimited)
 sort -k2 file.txt
 
-# 2列目を数値ソート
+# Numeric sort by column 2
 sort -k2,2n file.txt
-# -k2,2n の意味: 2列目から2列目の範囲を、数値として比較
+# Meaning of -k2,2n: compare the range from column 2 to column 2 numerically
 
-# 3列目を逆順で数値ソート
+# Reverse numeric sort by column 3
 sort -k3,3rn file.txt
 
-# 複数キー指定（第1キー: 2列目の数値順、第2キー: 1列目の辞書順）
+# Multiple keys (primary: column 2 numerically, secondary: column 1 lexicographically)
 sort -k2,2n -k1,1 file.txt
 
-# 2列目の3文字目からソート
+# Sort starting at the 3rd character of column 2
 sort -k2.3 file.txt
 
-# 実例: /etc/passwd をUID順でソート
+# Example: sort /etc/passwd by UID
 sort -t':' -k3,3n /etc/passwd
 
-# 実例: ls -l の出力をファイルサイズ順でソート
+# Example: sort ls -l output by file size
 ls -l | sort -k5,5n
 
-# 実例: CSV を2列目でソートし、同値なら3列目の降順
+# Example: sort CSV by column 2, then column 3 descending on ties
 sort -t',' -k2,2 -k3,3rn data.csv
 ```
 
-### 1.3 区切り文字の指定（-t オプション）
+### 1.3 Specifying a Delimiter (-t option)
 
 ```bash
-# デフォルト区切り: 空白文字（スペースまたはタブ）
+# Default delimiter: whitespace (space or tab)
 
-# CSV（カンマ区切り）
-sort -t',' -k3 data.csv           # 3列目でソート
-sort -t',' -k2,2n data.csv        # 2列目を数値ソート
+# CSV (comma-delimited)
+sort -t',' -k3 data.csv           # Sort by column 3
+sort -t',' -k2,2n data.csv        # Numeric sort by column 2
 
-# TSV（タブ区切り）
+# TSV (tab-delimited)
 sort -t$'\t' -k2 data.tsv
 
-# コロン区切り（/etc/passwd 形式）
-sort -t':' -k3,3n /etc/passwd     # UID順
+# Colon-delimited (/etc/passwd format)
+sort -t':' -k3,3n /etc/passwd     # Sort by UID
 
-# パイプ区切り
+# Pipe-delimited
 sort -t'|' -k2 data.txt
 
-# セミコロン区切り
+# Semicolon-delimited
 sort -t';' -k3 log.csv
 ```
 
-### 1.4 特殊なソート
+### 1.4 Special Sorting
 
 ```bash
-# 人間可読サイズ順（-h）
-# 1K, 5M, 2G のような表記をソート
+# Sort by human-readable size (-h)
+# Sorts notations like 1K, 5M, 2G
 du -sh /* 2>/dev/null | sort -h
 du -sh /var/log/* 2>/dev/null | sort -rh | head -10
 
-# バージョン番号順（-V）
+# Version number sort (-V)
 echo -e "1.2.3\n1.10.1\n1.2.10\n1.1.0" | sort -V
-# 結果: 1.1.0, 1.2.3, 1.2.10, 1.10.1
+# Result: 1.1.0, 1.2.3, 1.2.10, 1.10.1
 
-# 月名でソート（-M）
+# Sort by month name (-M)
 echo -e "Mar\nJan\nDec\nFeb" | sort -M
-# 結果: Jan, Feb, Mar, Dec
+# Result: Jan, Feb, Mar, Dec
 
-# ランダム順（-R）
-sort -R file.txt                  # ランダムシャッフル
-shuf file.txt                     # こちらも同等（GNU coreutils）
+# Random order (-R)
+sort -R file.txt                  # Random shuffle
+shuf file.txt                     # Equivalent (GNU coreutils)
 
-# ゼロ区切り（-z / --zero-terminated）
+# Null-terminated (-z / --zero-terminated)
 find . -name "*.txt" -print0 | sort -z | xargs -0 ls -la
 ```
 
-### 1.5 パフォーマンスと大規模ファイル
+### 1.5 Performance and Large Files
 
 ```bash
-# テンポラリディレクトリの指定（-T）
+# Specify temporary directory (-T)
 sort -T /tmp/sort_workspace large_file.txt
-# デフォルトの /tmp に十分な空きがない場合に有用
+# Useful when the default /tmp does not have enough free space
 
-# 並列ソート（--parallel=N）
+# Parallel sort (--parallel=N)
 sort --parallel=4 large_file.txt
-# CPUコアを活用して高速化
+# Leverage CPU cores for faster sorting
 
-# メモリバッファサイズの指定（-S）
+# Specify memory buffer size (-S)
 sort -S 2G large_file.txt
-# 2GBまでメモリを使用（大規模ファイルで高速化）
+# Use up to 2GB of memory (speeds up large files)
 
-# ソート済みファイルのマージ（-m）
+# Merge already-sorted files (-m)
 sort -m sorted1.txt sorted2.txt sorted3.txt
-# 既にソート済みのファイルを効率的にマージ
+# Efficiently merges files that are already sorted
 
-# ソート済みか確認（-c / -C）
-sort -c file.txt                  # ソート済みでなければエラー出力
-sort -C file.txt                  # ソート済みでなければ終了コード1（出力なし）
+# Check if sorted (-c / -C)
+sort -c file.txt                  # Print error if not sorted
+sort -C file.txt                  # Exit code 1 if not sorted (no output)
 if sort -C file.txt; then
-    echo "ファイルはソート済み"
+    echo "File is sorted"
 else
-    echo "ファイルはソートされていない"
+    echo "File is not sorted"
 fi
 
-# 出力ファイル指定（-o）
-sort -o sorted.txt file.txt       # 入力と同じファイル名でも安全
-# sort file.txt > file.txt は内容が消えるので注意！
+# Specify output file (-o)
+sort -o sorted.txt file.txt       # Safe even if input and output share the same name
+# Note: sort file.txt > file.txt will erase the content!
 ```
 
-### 1.6 sort の実践的なオプション組み合わせ
+### 1.6 Practical Option Combinations for sort
 
 ```bash
-# du の結果を人間可読サイズの大きい順に並べて上位10件
+# Show top 10 directories by human-readable size in descending order
 du -sh /var/log/* 2>/dev/null | sort -rh | head -10
 
-# アクセスログのレスポンスコード別集計（ソート部分）
+# Count by response code in access log (sorting part)
 awk '{print $9}' access.log | sort | uniq -c | sort -rn
 
-# /etc/passwd のシェル別ユーザー数
+# Count users per shell in /etc/passwd
 awk -F: '{print $7}' /etc/passwd | sort | uniq -c | sort -rn
 
-# プロセスのメモリ使用量上位（ps + sort）
+# Top processes by memory usage (ps + sort)
 ps aux --sort=-%mem | head -20
 
-# CSV の複数キーソート（第1キー: 部門、第2キー: 売上降順）
+# Multi-key sort for CSV (primary: department, secondary: revenue descending)
 sort -t',' -k1,1 -k3,3rn sales.csv
 
-# IP アドレスのソート（バージョンソートを活用）
+# Sort IP addresses (using version sort)
 sort -t. -k1,1n -k2,2n -k3,3n -k4,4n ip_list.txt
-# または
+# Or
 sort -V ip_list.txt
 
-# 日付でソート（YYYY-MM-DD 形式が先頭の場合）
+# Sort by date (when YYYY-MM-DD format is at the start)
 sort -k1,1 dated_log.txt
 
-# タイムスタンプ付きログのソート
+# Sort timestamped logs
 sort -t' ' -k1,1 -k2,2 timestamped.log
 ```
 
 ---
 
-## 2. uniq — 重複行の処理
+## 2. uniq — Processing Duplicate Lines
 
-### 2.1 基本操作
+### 2.1 Basic Operations
 
 ```bash
-# 重要: uniq は「連続する」重複行のみ処理する
-# → 必ず sort と組み合わせて使う
+# Important: uniq only processes "consecutive" duplicate lines
+# → Always use together with sort
 
-# 基本的な重複排除
+# Basic deduplication
 sort file.txt | uniq
 
-# 重複のカウント（-c）
+# Count duplicates (-c)
 sort file.txt | uniq -c
-# 出力例:
+# Example output:
 #       3 apple
 #       1 banana
 #       5 cherry
 
-# 重複行のみ表示（-d）
+# Show only duplicate lines (-d)
 sort file.txt | uniq -d
 
-# 重複のない行（ユニークな行）のみ表示（-u）
+# Show only unique lines (-u)
 sort file.txt | uniq -u
 
-# すべての重複行を表示（-D）
+# Show all duplicate lines (-D)
 sort file.txt | uniq -D
-# -d は重複行の代表1行、-D は重複行すべてを表示
+# -d shows one representative line per duplicate group; -D shows all duplicate lines
 ```
 
-### 2.2 比較対象のカスタマイズ
+### 2.2 Customizing Comparison
 
 ```bash
-# 先頭N個のフィールドを無視（-f N）
-sort file.txt | uniq -f 1        # 最初の1フィールドを無視して比較
-# フィールドはスペース/タブで区切られる
+# Ignore the first N fields (-f N)
+sort file.txt | uniq -f 1        # Compare ignoring the first field
+# Fields are delimited by spaces/tabs
 
-# 先頭N文字を無視（-s N）
-sort file.txt | uniq -s 5        # 最初の5文字を無視して比較
+# Ignore the first N characters (-s N)
+sort file.txt | uniq -s 5        # Compare ignoring the first 5 characters
 
-# 先頭N文字のみで比較（-w N）
-sort file.txt | uniq -w 10       # 最初の10文字のみで比較
+# Compare only the first N characters (-w N)
+sort file.txt | uniq -w 10       # Compare only the first 10 characters
 
-# 大文字小文字を区別しない（-i）
+# Case-insensitive comparison (-i)
 sort -f file.txt | uniq -i
 
-# 組み合わせ例: 先頭のタイムスタンプを無視して重複行を検出
+# Combination example: detect duplicate lines ignoring leading timestamps
 sort -k2 log.txt | uniq -f 1 -c | sort -rn
 ```
 
-### 2.3 定番パターン: 出現頻度ランキング
+### 2.3 Classic Pattern: Frequency Ranking
 
 ```bash
-# 出現頻度の高い順に並べる（最も使用頻度の高いパターン）
+# Sort by frequency, highest first (most commonly used pattern)
 sort file.txt | uniq -c | sort -rn
 
-# 実用例: アクセスログのIPアドレス頻度ランキング
+# Practical example: IP address frequency ranking in access log
 awk '{print $1}' access.log | sort | uniq -c | sort -rn | head -20
 
-# 実用例: エラーメッセージの頻度ランキング
+# Practical example: error message frequency ranking
 grep "ERROR" app.log | awk -F'ERROR' '{print $2}' | sort | uniq -c | sort -rn | head -10
 
-# 実用例: コマンド履歴の使用頻度
+# Practical example: command history usage frequency
 history | awk '{print $2}' | sort | uniq -c | sort -rn | head -20
 
-# 実用例: HTTP ステータスコードの集計
+# Practical example: HTTP status code aggregation
 awk '{print $9}' access.log | sort | uniq -c | sort -rn
-# 出力例:
+# Example output:
 #   45231 200
 #    3421 301
 #    1205 404
 #     342 500
 
-# 実用例: ファイル拡張子の集計
+# Practical example: file extension aggregation
 find . -type f -name "*.*" | sed 's/.*\.//' | sort | uniq -c | sort -rn | head -15
 
-# 実用例: /etc/passwd のシェル種類と利用者数
+# Practical example: shell types and user counts in /etc/passwd
 awk -F: '{print $7}' /etc/passwd | sort | uniq -c | sort -rn
 
-# 実用例: Git コミットの著者別集計
+# Practical example: Git commit author aggregation
 git log --format='%an' | sort | uniq -c | sort -rn
 
-# 実用例: 接続元ポート番号の重複チェック
+# Practical example: check for duplicate source port numbers
 ss -tn | awk '{print $4}' | rev | cut -d: -f1 | rev | sort | uniq -c | sort -rn | head -10
 ```
 
 ---
 
-## 3. cut — 列の切り出し
+## 3. cut — Extracting Columns
 
-### 3.1 フィールド単位の切り出し（-f / -d）
+### 3.1 Field-Based Extraction (-f / -d)
 
 ```bash
-# 基本構文: cut -d'区切り文字' -f'フィールド番号' ファイル
+# Basic syntax: cut -d'delimiter' -f'field number' file
 
-# CSV の2列目を取得
+# Get column 2 of a CSV
 cut -d',' -f2 data.csv
 
-# コロン区切りの1列目と3列目
+# Columns 1 and 3 of colon-delimited data
 cut -d':' -f1,3 /etc/passwd
 
-# タブ区切り（デフォルト）の1-3列目
+# Columns 1-3 of tab-delimited data (default)
 cut -f1-3 data.tsv
 
-# 3列目以降をすべて取得
+# Get all columns from column 3 onward
 cut -d',' -f3- data.csv
 
-# 4列目までを取得
+# Get up to column 4
 cut -d',' -f-4 data.csv
 
-# 2列目を除外して取得（--complement）
+# Get all columns except column 2 (--complement)
 cut -d',' -f2 --complement data.csv
 
-# パイプ区切り
+# Pipe-delimited
 echo "a|b|c|d" | cut -d'|' -f2,4
-# 出力: b|d
+# Output: b|d
 
-# スペース区切り
+# Space-delimited
 echo "hello world foo bar" | cut -d' ' -f2
-# 出力: world
+# Output: world
 
-# 出力区切り文字を変更（--output-delimiter）
+# Change output delimiter (--output-delimiter)
 cut -d':' -f1,3,7 /etc/passwd --output-delimiter=','
-# 出力例: root,0,/bin/bash
+# Example output: root,0,/bin/bash
 ```
 
-### 3.2 文字単位の切り出し（-c）
+### 3.2 Character-Based Extraction (-c)
 
 ```bash
-# 1〜10文字目を取得
+# Get characters 1-10
 cut -c1-10 file.txt
 
-# 5文字目のみ
+# Only character 5
 cut -c5 file.txt
 
-# 1文字目と5文字目と10文字目
+# Characters 1, 5, and 10
 cut -c1,5,10 file.txt
 
-# 20文字目以降
+# From character 20 onward
 cut -c20- file.txt
 
-# 最初の50文字（長い行を切り詰め）
+# First 50 characters (truncate long lines)
 cut -c-50 file.txt
 
-# 実用例: 固定長フォーマットの解析
-# 銀行の全銀データ形式など
-cut -c1-2 fixedwidth.dat       # レコード区分
-cut -c3-6 fixedwidth.dat       # 銀行コード
-cut -c7-9 fixedwidth.dat       # 支店コード
+# Practical example: parsing fixed-width format
+# Such as the Japanese bank data format (Zengin)
+cut -c1-2 fixedwidth.dat       # Record type
+cut -c3-6 fixedwidth.dat       # Bank code
+cut -c7-9 fixedwidth.dat       # Branch code
 ```
 
-### 3.3 バイト単位の切り出し（-b）
+### 3.3 Byte-Based Extraction (-b)
 
 ```bash
-# バイト単位（マルチバイト文字環境で注意が必要）
+# Byte-based (caution needed in multibyte character environments)
 cut -b1-10 file.txt
 
-# 文字単位とバイト単位の違い
-echo "日本語テスト" | cut -c1-3   # 「日本語」（文字単位）
-echo "日本語テスト" | cut -b1-9   # 「日本語」（UTF-8で1文字3バイト）
+# Difference between character-based and byte-based
+echo "日本語テスト" | cut -c1-3   # "日本語" (character-based)
+echo "日本語テスト" | cut -b1-9   # "日本語" (3 bytes per character in UTF-8)
 ```
 
-### 3.4 cut の限界と代替手段
+### 3.4 Limitations of cut and Alternatives
 
 ```bash
-# cut の限界:
-# 1. 連続する区切り文字を1つとして扱えない
-# 2. 正規表現が使えない
-# 3. 複雑なフィールド処理ができない
+# Limitations of cut:
+# 1. Cannot treat consecutive delimiters as one
+# 2. Regular expressions are not supported
+# 3. Cannot handle complex field processing
 
-# 連続スペースの問題
+# Problem with consecutive spaces
 echo "a  b  c" | cut -d' ' -f2
-# 出力: ""（空文字）← 2つ目のスペースまでを1フィールドと見なすため
+# Output: "" (empty string) ← treats up to the second space as one field
 
-# 解決策1: tr -s で連続スペースを圧縮
+# Solution 1: compress consecutive spaces with tr -s
 echo "a  b  c" | tr -s ' ' | cut -d' ' -f2
-# 出力: b
+# Output: b
 
-# 解決策2: awk を使う（推奨）
+# Solution 2: use awk (recommended)
 echo "a  b  c" | awk '{print $2}'
-# 出力: b
+# Output: b
 
-# 解決策3: read を使う
+# Solution 3: use read
 echo "a  b  c" | while read a b c; do echo "$b"; done
-# 出力: b
+# Output: b
 
-# 複雑なフィールド処理が必要な場合は awk を使う
-# 例: 最終フィールドの取得
+# Use awk for complex field processing
+# Example: get the last field
 echo "a,b,c,d" | awk -F',' '{print $NF}'
-# 出力: d（cut では事前にフィールド数を知る必要がある）
+# Output: d (with cut, you need to know the number of fields in advance)
 ```
 
 ---
 
-## 4. wc — カウント
+## 4. wc — Counting
 
-### 4.1 基本カウント
+### 4.1 Basic Counting
 
 ```bash
-# 行数（-l）
+# Line count (-l)
 wc -l file.txt
-# 出力例: 42 file.txt
+# Example output: 42 file.txt
 
-# 単語数（-w）
+# Word count (-w)
 wc -w file.txt
-# 出力例: 350 file.txt
+# Example output: 350 file.txt
 
-# バイト数（-c）
+# Byte count (-c)
 wc -c file.txt
-# 出力例: 2048 file.txt
+# Example output: 2048 file.txt
 
-# 文字数（-m）
+# Character count (-m)
 wc -m file.txt
-# マルチバイト文字環境では -c と -m の結果が異なる
+# -c and -m may differ in multibyte character environments
 
-# 最長行の長さ（-L）
+# Length of longest line (-L)
 wc -L file.txt
-# 出力例: 120 file.txt
+# Example output: 120 file.txt
 
-# 全部表示
+# Show all
 wc file.txt
-# 出力例:  42  350 2048 file.txt
-#          行   語  バイト ファイル名
+# Example output:  42  350 2048 file.txt
+#                 lines words bytes filename
 
-# 複数ファイル
+# Multiple files
 wc -l *.txt
-# 各ファイルの行数 + 合計行が表示される
+# Shows line count per file + total
 ```
 
-### 4.2 パイプとの組み合わせ
+### 4.2 Combining with Pipes
 
 ```bash
-# ファイル数のカウント
+# Count files
 find . -name "*.py" | wc -l
 find . -type f | wc -l
 
-# プロセス数のカウント
+# Count processes
 ps aux | grep nginx | grep -v grep | wc -l
-# pgrep の方がスマート
+# pgrep is smarter
 pgrep -c nginx
 
-# Git の変更ファイル数
+# Count changed files in Git
 git diff --name-only | wc -l
 git status --porcelain | wc -l
 
-# ログのエラー行数
-grep -c "ERROR" app.log            # grep -c でも同じ
-grep "ERROR" app.log | wc -l      # パイプ経由でも同じ結果
+# Count error lines in log
+grep -c "ERROR" app.log            # grep -c gives the same result
+grep "ERROR" app.log | wc -l      # Same result via pipe
 
-# ディレクトリ内のファイル数
+# Count files in a directory
 ls -1 /var/log/ | wc -l
 
-# 空行のカウント
+# Count empty lines
 grep -c "^$" file.txt
 
-# 非空行のカウント
+# Count non-empty lines
 grep -c "." file.txt
 
-# コードの行数（空行とコメントを除く）
+# Count code lines (excluding blank lines and comments)
 grep -v "^$" code.py | grep -v "^#" | wc -l
 
-# 実用例: ソースコードの行数統計
+# Practical example: line count statistics for source code
 find . -name "*.py" -exec wc -l {} + | tail -1
-# 合計行数のみ表示
+# Show total line count only
 
-# 実用例: 各ファイルの行数を大きい順に
+# Practical example: files sorted by line count in descending order
 find . -name "*.py" -exec wc -l {} + | sort -rn | head -20
 ```
 
-### 4.3 高度なカウントパターン
+### 4.3 Advanced Counting Patterns
 
 ```bash
-# 特定文字の出現回数
+# Count occurrences of a specific character
 tr -cd ',' < data.csv | wc -c
-# CSV のカンマの数を数える
+# Count the number of commas in a CSV
 
-# 各行のフィールド数チェック（CSV の整合性確認）
+# Check field count per line (CSV integrity check)
 awk -F',' '{print NF}' data.csv | sort | uniq -c
-# 全行のフィールド数が同じなら正常
+# Normal if all lines have the same field count
 
-# 単語出現回数のカウント
+# Count word occurrences
 tr -s '[:space:]' '\n' < file.txt | grep -cw "error"
-# "error" という単語の出現回数
+# Number of occurrences of the word "error"
 
-# ユニークな行の数
+# Count unique lines
 sort -u file.txt | wc -l
 
-# 重複している行の数
+# Count duplicate lines
 sort file.txt | uniq -d | wc -l
 
-# バイナリファイル内のNULLバイト数
+# Count NULL bytes in a binary file
 tr -cd '\0' < binary_file | wc -c
 ```
 
 ---
 
-## 5. tr — 文字変換・削除
+## 5. tr — Character Conversion and Deletion
 
-### 5.1 文字の変換
+### 5.1 Character Conversion
 
 ```bash
-# 小文字 → 大文字
+# Lowercase → uppercase
 echo "hello world" | tr 'a-z' 'A-Z'
-# 出力: HELLO WORLD
+# Output: HELLO WORLD
 
-# 大文字 → 小文字
+# Uppercase → lowercase
 echo "HELLO WORLD" | tr 'A-Z' 'a-z'
-# 出力: hello world
+# Output: hello world
 
-# POSIX 文字クラスを使用
+# Using POSIX character classes
 echo "Hello World" | tr '[:upper:]' '[:lower:]'
 echo "hello world" | tr '[:lower:]' '[:upper:]'
 
-# 特定文字の置換
+# Replace specific characters
 echo "2024-01-15" | tr '-' '/'
-# 出力: 2024/01/15
+# Output: 2024/01/15
 
 echo "a:b:c" | tr ':' '\n'
-# 出力:
+# Output:
 # a
 # b
 # c
 
-# タブをスペースに変換
+# Convert tabs to spaces
 tr '\t' ' ' < file.txt
 
-# 数字をアスタリスクに置換
+# Replace digits with asterisks
 echo "Password: 12345" | tr '0-9' '*'
-# 出力: Password: *****
+# Output: Password: *****
 
-# ROT13 暗号化（簡易）
+# ROT13 encoding (simple)
 echo "Hello World" | tr 'A-Za-z' 'N-ZA-Mn-za-m'
-# 出力: Uryyb Jbeyq（もう一度同じ変換で元に戻る）
+# Output: Uryyb Jbeyq (applying the same transformation again restores the original)
 ```
 
-### 5.2 文字の削除（-d）
+### 5.2 Character Deletion (-d)
 
 ```bash
-# 改行コード（CR）の削除（Windows → Unix 変換）
+# Delete carriage returns (CR) (Windows → Unix conversion)
 tr -d '\r' < windows.txt > unix.txt
 
-# 数字の削除
+# Delete digits
 echo "abc123def456" | tr -d '0-9'
-# 出力: abcdef
+# Output: abcdef
 
-# 空白の削除
+# Delete spaces
 echo "  h e l l o  " | tr -d ' '
-# 出力: hello
+# Output: hello
 
-# 特定文字の削除
+# Delete specific characters
 echo "Hello, World!" | tr -d ',!'
-# 出力: Hello World
+# Output: Hello World
 
-# 英字以外を削除
+# Delete alphabetic characters
 echo "abc123!@#def" | tr -d '[:alpha:]'
-# 出力: 123!@#
+# Output: 123!@#
 
-# 補集合で削除（-cd）: 指定文字「以外」を削除
+# Delete using complement (-cd): delete everything EXCEPT the specified characters
 echo "abc123!@#def" | tr -cd '[:alpha:]'
-# 出力: abcdef
+# Output: abcdef
 
 echo "phone: 03-1234-5678" | tr -cd '0-9'
-# 出力: 0312345678
+# Output: 0312345678
 
-# 印刷可能文字以外を削除
+# Delete non-printable characters
 tr -cd '[:print:]' < binary_mixed.txt
 ```
 
-### 5.3 文字の圧縮（-s / --squeeze-repeats）
+### 5.3 Character Squeezing (-s / --squeeze-repeats)
 
 ```bash
-# 連続するスペースを1つに
+# Squeeze consecutive spaces into one
 echo "a   b    c" | tr -s ' '
-# 出力: a b c
+# Output: a b c
 
-# 連続する改行を1つに（空行を削除）
+# Squeeze consecutive newlines into one (remove blank lines)
 tr -s '\n' < file.txt
 
-# 連続するスペースとタブを1つのスペースに
+# Squeeze consecutive spaces and tabs into a single space
 tr -s '[:blank:]' ' ' < file.txt
 
-# 変換 + 圧縮の組み合わせ
+# Combine conversion and squeezing
 echo "  hello    world  " | tr -s ' '
-# 出力: " hello world "
+# Output: " hello world "
 
-# 実用例: 空白で区切られたテーブルを正規化
+# Practical example: normalize a whitespace-separated table
 ps aux | tr -s ' ' | cut -d' ' -f1-5
 ```
 
-### 5.4 tr の実践パターン
+### 5.4 Practical tr Patterns
 
 ```bash
-# CSV を TSV に変換
+# Convert CSV to TSV
 tr ',' '\t' < data.csv > data.tsv
 
-# TSV を CSV に変換
+# Convert TSV to CSV
 tr '\t' ',' < data.tsv > data.csv
 
-# パスワード生成（ランダム文字列）
+# Password generation (random string)
 tr -dc 'A-Za-z0-9!@#$%' < /dev/urandom | head -c 20
-echo  # 改行追加
+echo  # add newline
 
-# 英数字のみのランダム文字列
+# Alphanumeric-only random string
 tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32
 echo
 
-# ファイルの各行をカンマ区切りの1行に変換
+# Convert each line of a file into a comma-separated single line
 tr '\n' ',' < file.txt | sed 's/,$/\n/'
 
-# テキストの正規化（前処理に便利）
+# Text normalization (useful for preprocessing)
 cat raw_text.txt | tr 'A-Z' 'a-z' | tr -s '[:space:]' '\n' | tr -d '[:punct:]' | sort | uniq -c | sort -rn
 
-# 制御文字の可視化
-cat -v file.txt                   # ^M（CR）などが見える
-# 制御文字の除去
+# Visualize control characters
+cat -v file.txt                   # Shows ^M (CR) etc.
+# Remove control characters
 tr -d '[:cntrl:]' < file.txt | tr -cd '[:print:]\n'
 ```
 
 ---
 
-## 6. paste — ファイルの水平結合
+## 6. paste — Horizontal File Merging
 
-### 6.1 基本操作
+### 6.1 Basic Operations
 
 ```bash
-# 2つのファイルを横に結合（タブ区切り）
+# Merge two files side by side (tab-delimited)
 paste file1.txt file2.txt
-# file1 の各行と file2 の各行がタブで結合される
+# Each line of file1 and each line of file2 are joined with a tab
 
-# 区切り文字を指定
-paste -d',' file1.txt file2.txt  # カンマ区切り
-paste -d':' file1.txt file2.txt  # コロン区切り
+# Specify a delimiter
+paste -d',' file1.txt file2.txt  # Comma-delimited
+paste -d':' file1.txt file2.txt  # Colon-delimited
 
-# 3つ以上のファイルを結合
+# Merge three or more files
 paste names.txt ages.txt cities.txt
 
-# 入力を横に並べる（-s / --serial）
+# Arrange input horizontally (-s / --serial)
 paste -s file.txt
-# ファイルの全行をタブ区切りの1行にする
+# Converts all lines of a file into a single tab-delimited line
 
-# 区切り文字を指定して1行に
+# Specify delimiter and join into one line
 paste -sd',' file.txt
-# 出力例: line1,line2,line3,line4
+# Example output: line1,line2,line3,line4
 ```
 
-### 6.2 paste の活用パターン
+### 6.2 paste Usage Patterns
 
 ```bash
-# 数値ファイルの合計（bc と組み合わせ）
+# Sum a numeric file (combined with bc)
 paste -sd+ numbers.txt | bc
-# 1+2+3+4+5 のように結合してから bc で計算
+# Joins as 1+2+3+4+5, then calculates with bc
 
-# CSV の特定列の合計
+# Sum a specific column in CSV
 cut -d',' -f3 data.csv | tail -n +2 | paste -sd+ | bc
 
-# 標準入力を N 列に整形
+# Format standard input into N columns
 seq 12 | paste - - -
-# 出力:
+# Output:
 # 1     2     3
 # 4     5     6
 # 7     8     9
 # 10    11    12
 
 seq 12 | paste -d',' - - - -
-# 出力:
+# Output:
 # 1,2,3,4
 # 5,6,7,8
 # 9,10,11,12
 
-# 2つのコマンドの出力を横に結合
+# Merge output of two commands side by side
 paste <(seq 5) <(seq 5 | awk '{print $1*$1}')
-# 出力:
+# Output:
 # 1     1
 # 2     4
 # 3     9
@@ -677,12 +676,12 @@ paste <(seq 5) <(seq 5 | awk '{print $1*$1}')
 
 ---
 
-## 7. join — ファイルのリレーショナル結合
+## 7. join — Relational File Joining
 
-### 7.1 基本操作
+### 7.1 Basic Operations
 
 ```bash
-# 前提: 両ファイルは結合キーでソート済みであること
+# Prerequisite: both files must be sorted on the join key
 
 # file1.txt:
 # 001 Alice
@@ -694,217 +693,217 @@ paste <(seq 5) <(seq 5 | awk '{print $1*$1}')
 # 002 Marketing
 # 003 Design
 
-# デフォルト結合（第1フィールドで結合）
+# Default join (join on the first field)
 join file1.txt file2.txt
-# 出力:
+# Output:
 # 001 Alice Engineering
 # 002 Bob Marketing
 # 003 Charlie Design
 
-# 結合フィールドを指定
+# Specify join fields
 join -1 2 -2 1 file_a.txt file_b.txt
-# -1 2: file_a の2列目をキーに
-# -2 1: file_b の1列目をキーに
+# -1 2: use column 2 of file_a as the key
+# -2 1: use column 1 of file_b as the key
 
-# 区切り文字を指定
+# Specify delimiter
 join -t',' file1.csv file2.csv
 
-# 出力フォーマットを指定
+# Specify output format
 join -o 1.1,1.2,2.2 file1.txt file2.txt
-# file1 の1列目, file1 の2列目, file2 の2列目を出力
+# Output column 1 of file1, column 2 of file1, column 2 of file2
 
-# マッチしない行も表示（外部結合）
-join -a 1 file1.txt file2.txt    # file1 の非マッチ行も表示（LEFT JOIN）
-join -a 2 file1.txt file2.txt    # file2 の非マッチ行も表示（RIGHT JOIN）
-join -a 1 -a 2 file1.txt file2.txt  # 両方表示（FULL OUTER JOIN）
+# Include non-matching lines (outer join)
+join -a 1 file1.txt file2.txt    # Include non-matching lines from file1 (LEFT JOIN)
+join -a 2 file1.txt file2.txt    # Include non-matching lines from file2 (RIGHT JOIN)
+join -a 1 -a 2 file1.txt file2.txt  # Include both (FULL OUTER JOIN)
 
-# マッチしないフィールドの値を指定
+# Specify a value for missing fields
 join -a 1 -e "N/A" -o auto file1.txt file2.txt
 ```
 
 ---
 
-## 8. comm — ソート済みファイルの比較
+## 8. comm — Comparing Sorted Files
 
-### 8.1 基本操作
+### 8.1 Basic Operations
 
 ```bash
-# 2つのソート済みファイルを比較して3列出力
+# Compare two sorted files and output 3 columns
 comm file1_sorted.txt file2_sorted.txt
-# 列1: file1 にのみ存在する行
-# 列2: file2 にのみ存在する行
-# 列3: 両方に存在する行
+# Column 1: lines only in file1
+# Column 2: lines only in file2
+# Column 3: lines in both files
 
-# 特定の列を非表示にする
-comm -12 file1.txt file2.txt     # 共通行のみ（列3のみ表示）
-comm -23 file1.txt file2.txt     # file1 にのみ存在する行
-comm -13 file1.txt file2.txt     # file2 にのみ存在する行
+# Hide specific columns
+comm -12 file1.txt file2.txt     # Common lines only (show only column 3)
+comm -23 file1.txt file2.txt     # Lines only in file1
+comm -13 file1.txt file2.txt     # Lines only in file2
 
-# 実用例: 2つのサーバーのインストール済みパッケージの差分
+# Practical example: differences in installed packages between two servers
 comm -23 <(ssh server1 "dpkg -l | awk '{print \$2}'" | sort) \
          <(ssh server2 "dpkg -l | awk '{print \$2}'" | sort)
-# server1 にだけインストールされているパッケージ
+# Packages installed only on server1
 
-# 実用例: 2つのディレクトリのファイルリスト比較
+# Practical example: compare file lists of two directories
 comm -3 <(ls dir1/ | sort) <(ls dir2/ | sort)
 
-# 実用例: 昨日と今日のプロセス一覧の差分
+# Practical example: differences in process lists between yesterday and today
 comm -13 <(sort yesterday_processes.txt) <(sort today_processes.txt)
-# 今日新たに現れたプロセス
+# Processes that appeared today for the first time
 ```
 
 ---
 
-## 9. 組み合わせパターン（実務レシピ集）
+## 9. Combination Patterns (Practical Recipe Collection)
 
-### 9.1 ログ分析
+### 9.1 Log Analysis
 
 ```bash
-# アクセスログのIPアドレスTop10
+# Top 10 IP addresses in access log
 awk '{print $1}' access.log | sort | uniq -c | sort -rn | head -10
 
-# 時間帯別アクセス数
+# Access count by hour
 awk '{print $4}' access.log | cut -c2-14 | cut -d: -f1-2 | sort | uniq -c | sort -rn
-# [15/Jan/2024:10:30:00 → 15/Jan/2024:10 → 時間帯でグルーピング
+# [15/Jan/2024:10:30:00 → 15/Jan/2024:10 → group by hour
 
-# HTTPステータスコード集計
+# HTTP status code aggregation
 awk '{print $9}' access.log | sort | uniq -c | sort -rn
-# 出力例:
+# Example output:
 #   45231 200
 #    3421 301
 #    1205 404
 #     342 500
 
-# エラーレスポンスのURL Top10
+# Top 10 error response URLs
 awk '$9 >= 400 {print $7}' access.log | sort | uniq -c | sort -rn | head -10
 
-# User-Agent 集計
+# User-Agent aggregation
 awk -F'"' '{print $6}' access.log | sort | uniq -c | sort -rn | head -10
 
-# 特定時間帯のリクエスト数
+# Number of requests in a specific time range
 grep "15/Jan/2024:1[0-2]:" access.log | wc -l
 
-# レスポンスサイズの合計
+# Total response size
 awk '{sum += $10} END {print sum}' access.log
-# awk のみでも可能だが、cut + paste + bc でも:
+# Can also be done with awk alone, but also possible with cut + paste + bc:
 awk '{print $10}' access.log | paste -sd+ | bc
 
-# 1分あたりのリクエスト数（分単位の集計）
+# Requests per minute (aggregation by minute)
 awk '{print $4}' access.log | cut -c2-18 | sort | uniq -c | sort -rn | head -20
 ```
 
-### 9.2 システム管理
+### 9.2 System Administration
 
 ```bash
-# ディスク使用量の大きいディレクトリ Top20
+# Top 20 directories by disk usage
 du -sh /var/* 2>/dev/null | sort -rh | head -20
 
-# 拡張子別のファイル数・合計サイズ
+# File count and total size by extension
 find . -type f -name "*.*" | sed 's/.*\.//' | sort | uniq -c | sort -rn
 
-# 最近更新されたファイル Top10
+# Top 10 recently updated files
 find /var/log -type f -mmin -60 -exec ls -lt {} + 2>/dev/null | head -10
 
-# ポート別接続数
+# Connection count by port
 ss -tn state established | awk '{print $4}' | rev | cut -d: -f1 | rev | sort | uniq -c | sort -rn
 
-# ユーザー別プロセス数
+# Process count by user
 ps aux | awk 'NR>1 {print $1}' | sort | uniq -c | sort -rn
 
-# メモリ使用量の多いプロセス Top10（RSSベース）
+# Top 10 processes by memory usage (RSS-based)
 ps aux --sort=-rss | head -11 | awk 'NR==1 || NR>1 {printf "%-10s %8s %8s %s\n", $1, $4, $6, $11}'
 
-# 開いているファイル数（プロセス別）
+# Number of open files (by process)
 lsof 2>/dev/null | awk '{print $1}' | sort | uniq -c | sort -rn | head -20
 
-# TCP接続状態の集計
+# TCP connection state aggregation
 ss -tan | awk 'NR>1 {print $1}' | sort | uniq -c | sort -rn
-# 出力例:
+# Example output:
 #   45 ESTABLISHED
 #   12 TIME-WAIT
 #    5 CLOSE-WAIT
 #    3 LISTEN
 
-# /etc/passwd のシェル種類別ユーザー数
+# Count users per shell type in /etc/passwd
 awk -F: '{print $7}' /etc/passwd | sort | uniq -c | sort -rn
 
-# crontab のジョブ数（全ユーザー）
+# Number of crontab jobs (all users)
 for user in $(cut -d: -f1 /etc/passwd); do
     count=$(sudo crontab -u "$user" -l 2>/dev/null | grep -v "^#" | grep -v "^$" | wc -l)
     [ "$count" -gt 0 ] && echo "$count $user"
 done | sort -rn
 ```
 
-### 9.3 テキスト分析
+### 9.3 Text Analysis
 
 ```bash
-# 単語頻度分析
+# Word frequency analysis
 cat file.txt | tr -s '[:space:]' '\n' | tr 'A-Z' 'a-z' | tr -d '[:punct:]' | sort | uniq -c | sort -rn | head -20
 
-# 行の長さの分布
+# Distribution of line lengths
 awk '{print length}' file.txt | sort -n | uniq -c
-# 出力例:
-#    15 0    ← 空行が15行
-#    42 20   ← 20文字の行が42行
+# Example output:
+#    15 0    ← 15 blank lines
+#    42 20   ← 42 lines with 20 characters
 #   ...
 
-# 特定パターンの行の集計
+# Aggregation of lines matching a specific pattern
 grep -o '[A-Z][A-Z]*' file.txt | sort | uniq -c | sort -rn | head -10
-# 大文字のみの単語の頻度
+# Frequency of all-uppercase words
 
-# CSV のフィールド数チェック（データ品質確認）
+# Check field count in CSV (data quality check)
 awk -F',' '{print NF}' data.csv | sort | uniq -c
-# 全行同じ数ならデータは整合的
+# Data is consistent if all lines have the same count
 
-# 重複行の検出とレポート
+# Detect and report duplicate lines
 sort data.txt | uniq -c | awk '$1 > 1 {print}'
 
-# 2つのファイルの共通行
+# Common lines in two files
 comm -12 <(sort file1.txt) <(sort file2.txt)
 
-# 2つのファイルの差分行
+# Lines that differ between two files
 comm -3 <(sort file1.txt) <(sort file2.txt)
 
-# ファイル内の空行数 vs 非空行数
-echo "空行: $(grep -c '^$' file.txt)"
-echo "非空行: $(grep -c '.' file.txt)"
-echo "総行数: $(wc -l < file.txt)"
+# Blank lines vs. non-blank lines in a file
+echo "Blank lines: $(grep -c '^$' file.txt)"
+echo "Non-blank lines: $(grep -c '.' file.txt)"
+echo "Total lines: $(wc -l < file.txt)"
 ```
 
-### 9.4 開発・コード分析
+### 9.4 Development and Code Analysis
 
 ```bash
-# ソースコードの行数統計
+# Line count statistics for source code
 find . -name "*.py" -exec wc -l {} + | sort -rn | head -20
 
-# 言語別コード行数
+# Code line count by language
 for ext in py js ts go rb java; do
     count=$(find . -name "*.${ext}" -exec cat {} + 2>/dev/null | wc -l)
     [ "$count" -gt 0 ] && echo "$count $ext"
 done | sort -rn
 
-# TODO/FIXME/HACK コメントの集計
+# Aggregation of TODO/FIXME/HACK comments
 grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.py" . | awk -F: '{print $3}' | tr -s ' ' | sort | uniq -c | sort -rn
 
-# import文の頻度（Python）
+# Import frequency (Python)
 grep "^import\|^from" *.py | awk '{print $2}' | sort | uniq -c | sort -rn
 
-# 関数定義の数（Python）
+# Number of function definitions (Python)
 grep -c "^def " *.py | sort -t: -k2,2rn
 
-# Git のコミットメッセージでよく使われる単語
+# Most common words in Git commit messages
 git log --oneline | tr -s '[:space:]' '\n' | tr 'A-Z' 'a-z' | sort | uniq -c | sort -rn | head -20
 
-# 各ファイルの変更頻度（Git）
+# Change frequency per file (Git)
 git log --name-only --format="" | sort | uniq -c | sort -rn | head -20
 
-# 著者別コード行数
-git log --author="Gaku" --numstat --format="" | awk '{add+=$1; del+=$2} END {print "追加:", add, "削除:", del}'
+# Lines of code by author
+git log --author="Gaku" --numstat --format="" | awk '{add+=$1; del+=$2} END {print "Added:", add, "Deleted:", del}'
 
-# Makefile のターゲット一覧
+# List of targets in Makefile
 grep "^[a-zA-Z_-]*:" Makefile | cut -d: -f1 | sort
 
-# package.json の依存パッケージ数
+# Number of dependency packages in package.json
 cat package.json | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
@@ -916,23 +915,23 @@ print(f'total: {deps + dev_deps}')
 "
 ```
 
-### 9.5 CSV/データ処理
+### 9.5 CSV / Data Processing
 
 ```bash
-# CSV のヘッダー確認
+# Check CSV headers
 head -1 data.csv | tr ',' '\n' | nl
-# 各列に番号をつけて表示
+# Display each column with a number
 
-# CSV の特定列の合計
+# Sum a specific column in CSV
 cut -d',' -f3 data.csv | tail -n +2 | paste -sd+ | bc
 
-# CSV の特定列の平均
+# Average of a specific column in CSV
 cut -d',' -f3 data.csv | tail -n +2 | awk '{sum+=$1; count++} END {print sum/count}'
 
-# CSV の特定列のユニーク値一覧
+# Unique values in a specific column of CSV
 cut -d',' -f2 data.csv | tail -n +2 | sort -u
 
-# CSV の特定列でグルーピング・集計
+# Group and aggregate a specific column in CSV
 cut -d',' -f2,5 data.csv | tail -n +2 | sort -t',' -k1,1 | awk -F',' '{
     if (prev != $1 && prev != "") {
         print prev, sum
@@ -942,20 +941,20 @@ cut -d',' -f2,5 data.csv | tail -n +2 | sort -t',' -k1,1 | awk -F',' '{
     sum += $2
 } END {print prev, sum}'
 
-# CSV の行数（ヘッダー除外）
+# Row count in CSV (excluding header)
 tail -n +2 data.csv | wc -l
 
-# CSV のカラム数
+# Number of columns in CSV
 head -1 data.csv | tr ',' '\n' | wc -l
 
-# CSV の特定列の最大値・最小値
-cut -d',' -f3 data.csv | tail -n +2 | sort -n | head -1  # 最小値
-cut -d',' -f3 data.csv | tail -n +2 | sort -rn | head -1 # 最大値
+# Maximum and minimum values of a specific column in CSV
+cut -d',' -f3 data.csv | tail -n +2 | sort -n | head -1  # Minimum
+cut -d',' -f3 data.csv | tail -n +2 | sort -rn | head -1 # Maximum
 
-# 2つの CSV をキーで結合
+# Join two CSVs by key
 join -t',' <(sort -t',' -k1,1 users.csv) <(sort -t',' -k1,1 orders.csv)
 
-# CSV から SQL INSERT 文を生成
+# Generate SQL INSERT statements from CSV
 tail -n +2 data.csv | awk -F',' '{
     printf "INSERT INTO table_name VALUES ('\''%s'\'', '\''%s'\'', %s);\n", $1, $2, $3
 }'
@@ -963,64 +962,64 @@ tail -n +2 data.csv | awk -F',' '{
 
 ---
 
-## 10. スクリプト実例
+## 10. Script Examples
 
-### 10.1 アクセスログ分析スクリプト
+### 10.1 Access Log Analysis Script
 
 ```bash
 #!/bin/bash
-# access_log_analyzer.sh - アクセスログの包括的分析
-# 使い方: ./access_log_analyzer.sh /var/log/nginx/access.log
+# access_log_analyzer.sh - Comprehensive access log analysis
+# Usage: ./access_log_analyzer.sh /var/log/nginx/access.log
 
-LOG_FILE="${1:?使い方: $0 <logfile>}"
+LOG_FILE="${1:?Usage: $0 <logfile>}"
 
 if [ ! -f "$LOG_FILE" ]; then
-    echo "エラー: ファイルが見つかりません: $LOG_FILE" >&2
+    echo "Error: File not found: $LOG_FILE" >&2
     exit 1
 fi
 
 TOTAL_REQUESTS=$(wc -l < "$LOG_FILE")
 
 echo "================================================"
-echo "アクセスログ分析レポート"
-echo "対象ファイル: $LOG_FILE"
-echo "総リクエスト数: $TOTAL_REQUESTS"
+echo "Access Log Analysis Report"
+echo "Target file: $LOG_FILE"
+echo "Total requests: $TOTAL_REQUESTS"
 echo "================================================"
 
 echo ""
-echo "--- IPアドレス Top10 ---"
+echo "--- Top 10 IP Addresses ---"
 awk '{print $1}' "$LOG_FILE" | sort | uniq -c | sort -rn | head -10
 
 echo ""
-echo "--- HTTPステータスコード集計 ---"
+echo "--- HTTP Status Code Summary ---"
 awk '{print $9}' "$LOG_FILE" | sort | uniq -c | sort -rn
 
 echo ""
-echo "--- リクエストメソッド集計 ---"
+echo "--- Request Method Summary ---"
 awk '{print $6}' "$LOG_FILE" | tr -d '"' | sort | uniq -c | sort -rn
 
 echo ""
-echo "--- リクエストURL Top20 ---"
+echo "--- Top 20 Request URLs ---"
 awk '{print $7}' "$LOG_FILE" | sort | uniq -c | sort -rn | head -20
 
 echo ""
-echo "--- 時間帯別アクセス数 ---"
+echo "--- Access Count by Hour ---"
 awk '{print $4}' "$LOG_FILE" | cut -c14-15 | sort | uniq -c | sort -k2,2n
 
 echo ""
-echo "--- 404 エラー URL Top10 ---"
+echo "--- Top 10 404 Error URLs ---"
 awk '$9 == 404 {print $7}' "$LOG_FILE" | sort | uniq -c | sort -rn | head -10
 
 echo ""
-echo "--- 500 エラー URL Top10 ---"
+echo "--- Top 10 500 Error URLs ---"
 awk '$9 >= 500 {print $7}' "$LOG_FILE" | sort | uniq -c | sort -rn | head -10
 
 echo ""
-echo "--- User-Agent Top10 ---"
+echo "--- Top 10 User-Agents ---"
 awk -F'"' '{print $6}' "$LOG_FILE" | sort | uniq -c | sort -rn | head -10
 
 echo ""
-echo "--- レスポンスサイズ統計 ---"
+echo "--- Response Size Statistics ---"
 awk '{print $10}' "$LOG_FILE" | grep -E '^[0-9]+$' | sort -n | awk '
     BEGIN { count=0; sum=0 }
     {
@@ -1029,34 +1028,34 @@ awk '{print $10}' "$LOG_FILE" | grep -E '^[0-9]+$' | sort -n | awk '
     }
     END {
         if (count > 0) {
-            printf "件数: %d\n", count
-            printf "合計: %d bytes (%.2f MB)\n", sum, sum/1048576
-            printf "平均: %.0f bytes\n", sum/count
-            printf "最小: %d bytes\n", a[0]
-            printf "最大: %d bytes\n", a[count-1]
-            printf "中央値: %d bytes\n", a[int(count/2)]
+            printf "Count: %d\n", count
+            printf "Total: %d bytes (%.2f MB)\n", sum, sum/1048576
+            printf "Average: %.0f bytes\n", sum/count
+            printf "Min: %d bytes\n", a[0]
+            printf "Max: %d bytes\n", a[count-1]
+            printf "Median: %d bytes\n", a[int(count/2)]
         }
     }
 '
 
 echo ""
 echo "================================================"
-echo "分析完了"
+echo "Analysis complete"
 echo "================================================"
 ```
 
-### 10.2 CSV データ品質チェックスクリプト
+### 10.2 CSV Data Quality Check Script
 
 ```bash
 #!/bin/bash
-# csv_quality_check.sh - CSV ファイルのデータ品質チェック
-# 使い方: ./csv_quality_check.sh data.csv
+# csv_quality_check.sh - CSV file data quality check
+# Usage: ./csv_quality_check.sh data.csv
 
-CSV_FILE="${1:?使い方: $0 <csv_file>}"
+CSV_FILE="${1:?Usage: $0 <csv_file>}"
 DELIMITER="${2:-,}"
 
 if [ ! -f "$CSV_FILE" ]; then
-    echo "エラー: ファイルが見つかりません: $CSV_FILE" >&2
+    echo "Error: File not found: $CSV_FILE" >&2
     exit 1
 fi
 
@@ -1066,101 +1065,101 @@ HEADER=$(head -1 "$CSV_FILE")
 EXPECTED_FIELDS=$(echo "$HEADER" | tr "$DELIMITER" '\n' | wc -l)
 
 echo "================================================"
-echo "CSV データ品質チェックレポート"
-echo "ファイル: $CSV_FILE"
+echo "CSV Data Quality Check Report"
+echo "File: $CSV_FILE"
 echo "================================================"
 
 echo ""
-echo "--- 基本情報 ---"
-echo "総行数: $TOTAL_LINES（ヘッダー含む）"
-echo "データ行数: $DATA_LINES"
-echo "フィールド数（期待値）: $EXPECTED_FIELDS"
-echo "ファイルサイズ: $(wc -c < "$CSV_FILE") bytes"
+echo "--- Basic Information ---"
+echo "Total lines: $TOTAL_LINES (including header)"
+echo "Data lines: $DATA_LINES"
+echo "Field count (expected): $EXPECTED_FIELDS"
+echo "File size: $(wc -c < "$CSV_FILE") bytes"
 
 echo ""
-echo "--- ヘッダー ---"
+echo "--- Header ---"
 echo "$HEADER" | tr "$DELIMITER" '\n' | nl
 
 echo ""
-echo "--- フィールド数チェック ---"
+echo "--- Field Count Check ---"
 FIELD_CHECK=$(awk -F"$DELIMITER" '{print NF}' "$CSV_FILE" | sort | uniq -c | sort -rn)
 echo "$FIELD_CHECK"
 INCONSISTENT=$(echo "$FIELD_CHECK" | wc -l)
 if [ "$INCONSISTENT" -eq 1 ]; then
-    echo "結果: OK（全行のフィールド数が一致）"
+    echo "Result: OK (field count matches across all lines)"
 else
-    echo "警告: フィールド数が一致しない行があります"
-    echo "不整合な行（先頭5件）:"
+    echo "Warning: Some lines have inconsistent field counts"
+    echo "Inconsistent lines (first 5):"
     awk -F"$DELIMITER" -v expected="$EXPECTED_FIELDS" 'NF != expected {print NR": "NF" fields - "$0}' "$CSV_FILE" | head -5
 fi
 
 echo ""
-echo "--- 空行チェック ---"
+echo "--- Blank Line Check ---"
 EMPTY_LINES=$(grep -c "^$" "$CSV_FILE")
-echo "空行数: $EMPTY_LINES"
+echo "Blank lines: $EMPTY_LINES"
 
 echo ""
-echo "--- 重複行チェック ---"
+echo "--- Duplicate Row Check ---"
 DUPES=$(tail -n +2 "$CSV_FILE" | sort | uniq -d | wc -l)
-echo "重複行数: $DUPES"
+echo "Duplicate rows: $DUPES"
 if [ "$DUPES" -gt 0 ]; then
-    echo "重複行の例（先頭5件）:"
+    echo "Sample duplicate rows (first 5):"
     tail -n +2 "$CSV_FILE" | sort | uniq -d | head -5
 fi
 
 echo ""
-echo "--- 各フィールドの統計 ---"
+echo "--- Statistics per Field ---"
 col_num=1
 echo "$HEADER" | tr "$DELIMITER" '\n' | while read -r col_name; do
     echo ""
-    echo "  フィールド $col_num: $col_name"
+    echo "  Field $col_num: $col_name"
     VALUES=$(cut -d"$DELIMITER" -f"$col_num" "$CSV_FILE" | tail -n +2)
     TOTAL=$(echo "$VALUES" | wc -l)
     EMPTY=$(echo "$VALUES" | grep -c "^$")
     UNIQUE=$(echo "$VALUES" | sort -u | wc -l)
-    echo "    総数: $TOTAL  空欄: $EMPTY  ユニーク: $UNIQUE"
-    echo "    上位5値:"
+    echo "    Total: $TOTAL  Empty: $EMPTY  Unique: $UNIQUE"
+    echo "    Top 5 values:"
     echo "$VALUES" | sort | uniq -c | sort -rn | head -5 | sed 's/^/      /'
     col_num=$((col_num + 1))
 done
 
 echo ""
 echo "================================================"
-echo "チェック完了"
+echo "Check complete"
 echo "================================================"
 ```
 
-### 10.3 テキスト統計レポートスクリプト
+### 10.3 Text Statistics Report Script
 
 ```bash
 #!/bin/bash
-# text_stats.sh - テキストファイルの統計情報レポート
-# 使い方: ./text_stats.sh document.txt
+# text_stats.sh - Text file statistics report
+# Usage: ./text_stats.sh document.txt
 
-FILE="${1:?使い方: $0 <text_file>}"
+FILE="${1:?Usage: $0 <text_file>}"
 
 if [ ! -f "$FILE" ]; then
-    echo "エラー: ファイルが見つかりません: $FILE" >&2
+    echo "Error: File not found: $FILE" >&2
     exit 1
 fi
 
 echo "================================================"
-echo "テキスト統計レポート: $FILE"
+echo "Text Statistics Report: $FILE"
 echo "================================================"
 
 echo ""
-echo "--- 基本カウント ---"
-echo "行数:     $(wc -l < "$FILE")"
-echo "単語数:   $(wc -w < "$FILE")"
-echo "文字数:   $(wc -m < "$FILE")"
-echo "バイト数: $(wc -c < "$FILE")"
-echo "最長行:   $(wc -L < "$FILE") 文字"
+echo "--- Basic Counts ---"
+echo "Lines:      $(wc -l < "$FILE")"
+echo "Words:      $(wc -w < "$FILE")"
+echo "Characters: $(wc -m < "$FILE")"
+echo "Bytes:      $(wc -c < "$FILE")"
+echo "Longest line: $(wc -L < "$FILE") characters"
 
 echo ""
-echo "--- 行の統計 ---"
-echo "空行数:   $(grep -c '^$' "$FILE")"
-echo "非空行数: $(grep -c '.' "$FILE")"
-echo "行の長さ分布:"
+echo "--- Line Statistics ---"
+echo "Blank lines:     $(grep -c '^$' "$FILE")"
+echo "Non-blank lines: $(grep -c '.' "$FILE")"
+echo "Line length distribution:"
 awk '{print length}' "$FILE" | sort -n | awk '
     BEGIN { min=999999; max=0; sum=0; count=0 }
     {
@@ -1171,161 +1170,161 @@ awk '{print length}' "$FILE" | sort -n | awk '
     }
     END {
         if (count > 0) {
-            printf "  最短: %d文字\n", min
-            printf "  最長: %d文字\n", max
-            printf "  平均: %.1f文字\n", sum/count
+            printf "  Shortest: %d characters\n", min
+            printf "  Longest:  %d characters\n", max
+            printf "  Average:  %.1f characters\n", sum/count
         }
     }
 '
 
 echo ""
-echo "--- 単語頻度 Top20 ---"
+echo "--- Top 20 Word Frequency ---"
 tr -s '[:space:]' '\n' < "$FILE" | tr 'A-Z' 'a-z' | tr -d '[:punct:]' | sort | uniq -c | sort -rn | head -20
 
 echo ""
-echo "--- 文字種別統計 ---"
-echo "英大文字: $(tr -cd 'A-Z' < "$FILE" | wc -c)"
-echo "英小文字: $(tr -cd 'a-z' < "$FILE" | wc -c)"
-echo "数字:     $(tr -cd '0-9' < "$FILE" | wc -c)"
-echo "空白:     $(tr -cd ' \t' < "$FILE" | wc -c)"
-echo "記号:     $(tr -cd '[:punct:]' < "$FILE" | wc -c)"
+echo "--- Character Type Statistics ---"
+echo "Uppercase letters: $(tr -cd 'A-Z' < "$FILE" | wc -c)"
+echo "Lowercase letters: $(tr -cd 'a-z' < "$FILE" | wc -c)"
+echo "Digits:            $(tr -cd '0-9' < "$FILE" | wc -c)"
+echo "Whitespace:        $(tr -cd ' \t' < "$FILE" | wc -c)"
+echo "Punctuation:       $(tr -cd '[:punct:]' < "$FILE" | wc -c)"
 
 echo ""
 echo "================================================"
-echo "レポート完了"
+echo "Report complete"
 echo "================================================"
 ```
 
 ---
 
-## 11. パフォーマンスのヒント
+## 11. Performance Tips
 
 ```bash
-# 大規模ファイルでの注意点
+# Notes for large files
 
-# 1. sort は大量のメモリを消費する可能性がある
-# テンポラリ領域とメモリを明示指定
+# 1. sort may consume a large amount of memory
+# Specify temporary directory and memory explicitly
 sort -T /tmp/sort_work -S 4G huge_file.txt
 
-# 2. LC_ALL=C でロケール処理をスキップ → ソート高速化
+# 2. Skip locale processing with LC_ALL=C → faster sorting
 LC_ALL=C sort file.txt
-# 日本語の文字コード順は変わるが、圧倒的に高速
+# Character sort order for non-ASCII changes, but it is dramatically faster
 
-# 3. パイプチェーンの最適化
-# 悪い例（全行を処理してから head）
+# 3. Optimizing pipeline chains
+# Bad example (process all lines before head)
 sort huge.log | uniq -c | sort -rn | head -10
-# 良い例（先に必要な列だけ抽出）
+# Good example (extract only the needed column first)
 awk '{print $1}' huge.log | sort | uniq -c | sort -rn | head -10
 
-# 4. wc -l は非常に高速（行末文字のカウントのみ）
-# 巨大ファイルの行数確認に最適
+# 4. wc -l is very fast (only counts newline characters)
+# Best for checking line counts of huge files
 wc -l huge_file.txt
 
-# 5. cut は awk より高速（単純なフィールド抽出の場合）
-cut -d',' -f2 data.csv              # 高速
-awk -F',' '{print $2}' data.csv     # やや遅い（awk の起動コスト）
+# 5. cut is faster than awk (for simple field extraction)
+cut -d',' -f2 data.csv              # Fast
+awk -F',' '{print $2}' data.csv     # Slightly slower (awk startup cost)
 
-# 6. sort -u は sort | uniq より効率的
-sort -u file.txt                    # 高速（1パス）
-sort file.txt | uniq                # やや遅い（2プロセス）
+# 6. sort -u is more efficient than sort | uniq
+sort -u file.txt                    # Fast (1 pass)
+sort file.txt | uniq                # Slightly slower (2 processes)
 
-# 7. grep -c は grep | wc -l より効率的
-grep -c "pattern" file.txt          # 高速（カウントのみ）
-grep "pattern" file.txt | wc -l     # やや遅い（パイプのオーバーヘッド）
+# 7. grep -c is more efficient than grep | wc -l
+grep -c "pattern" file.txt          # Fast (counting only)
+grep "pattern" file.txt | wc -l     # Slightly slower (pipe overhead)
 
-# 8. 並列処理の活用
-# GNU parallel がインストールされている場合
+# 8. Leveraging parallel processing
+# If GNU parallel is installed
 find /var/log -name "*.log" | parallel "grep -c ERROR {} | xargs -I{c} echo {} {c}"
 ```
 
 ---
 
-## 12. トラブルシューティング
+## 12. Troubleshooting
 
 ```bash
-# 問題1: sort の結果が期待通りにならない
-# 原因: ロケール設定
-# 解決策:
+# Problem 1: sort results are not as expected
+# Cause: locale settings
+# Solution:
 export LC_ALL=C
 sort file.txt
-# C ロケールでは ASCII コード順でソートされる
+# With C locale, sorting follows ASCII code order
 
-# 問題2: uniq が重複を検出しない
-# 原因: uniq は「連続する」重複行のみ処理する
-# 解決策: 必ず sort を前に置く
+# Problem 2: uniq does not detect duplicates
+# Cause: uniq only processes "consecutive" duplicate lines
+# Solution: always place sort before it
 sort file.txt | uniq -c
 
-# 問題3: cut が正しく列を抽出しない
-# 原因: 連続する区切り文字
-# 解決策: tr -s で連続区切り文字を圧縮、または awk を使う
+# Problem 3: cut does not extract columns correctly
+# Cause: consecutive delimiters
+# Solution: compress consecutive delimiters with tr -s, or use awk
 ps aux | tr -s ' ' | cut -d' ' -f4
 
-# 問題4: wc -l が0を返す（ファイルが空でないのに）
-# 原因: ファイルの最終行に改行がない
-# 確認:
+# Problem 4: wc -l returns 0 (even though the file is not empty)
+# Cause: the last line of the file has no newline
+# Check:
 tail -c 1 file.txt | xxd
-# 解決策: awk を使う
+# Solution: use awk
 awk 'END {print NR}' file.txt
 
-# 問題5: sort -n で数値がうまくソートされない
-# 原因: 数値の前に空白や不可視文字がある
-# 解決策: tr で前処理
+# Problem 5: numbers do not sort correctly with sort -n
+# Cause: spaces or invisible characters before numbers
+# Solution: preprocess with tr
 tr -d '[:blank:]' < file.txt | sort -n
 
-# 問題6: マルチバイト文字で cut -c が正しく動作しない
-# 原因: ロケール設定
-# 解決策:
+# Problem 6: cut -c does not work correctly with multibyte characters
+# Cause: locale settings
+# Solution:
 export LC_ALL=ja_JP.UTF-8
 cut -c1-5 japanese_text.txt
 
-# 問題7: sort が "write failed: /tmp/sort...: No space left on device"
-# 原因: /tmp の空き容量不足
-# 解決策: テンポラリディレクトリを変更
+# Problem 7: sort gives "write failed: /tmp/sort...: No space left on device"
+# Cause: insufficient free space in /tmp
+# Solution: change the temporary directory
 sort -T /home/user/tmp large_file.txt
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1334,26 +1333,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1361,7 +1360,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1372,14 +1371,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1387,7 +1386,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics information"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1395,44 +1394,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1441,7 +1440,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1456,76 +1455,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to Prioritize | When to Compromise |
+|-----------|-------------------|-------------------|
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. Team size?                                  │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. Deployment frequency?                       │
+│    ├─ Weekly or less → Monolith + modules       │
+│    └─ Daily / multiple times → Go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. Team independence?                          │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering increases short-term costs and causes project delays
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack lowers learning costs
+- Adopting diverse technologies enables best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- Higher abstraction improves reusability but can make debugging difficult
+- Lower abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1535,17 +1534,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1553,7 +1552,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1561,15 +1560,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1577,53 +1576,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Practical Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum required features
+- Automated tests only for critical paths
+- Introduce monitoring from early on
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't over-optimize (YAGNI principle)
+- Collect user feedback early
+- Manage technical debt intentionally
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renovate a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If no existing tests, create Characterization Tests first
+- Coexist old and new systems with an API gateway
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work Content | Estimated Duration | Risk |
+|-------|-------------|-------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environments | 4-6 weeks | Low |
+| 3. Migration start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission the old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with domain-driven design
+- Assign ownership per team
+- Manage shared libraries using Inner Source model
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# Define API contracts between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1636,20 +1635,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1658,7 +1657,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1679,104 +1678,105 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Effect | Implementation Cost | Use Case |
+|--------------------|--------|---------------------|----------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 
 ---
 
-## チーム開発での活用
+## Team Development Practices
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to verify in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any performance impact?
+- [ ] Are there any security issues?
+- [ ] Is the documentation updated?
 
-### ナレッジ共有のベストプラクティス
+### Knowledge Sharing Best Practices
 
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Method | Frequency | Target | Effect |
+|--------|-----------|--------|--------|
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Entire team | Horizontal knowledge sharing |
+| ADR (design records) | As needed | Future members | Decision transparency |
+| Retrospectives | Every 2 weeks | Entire team | Continuous improvement |
+| Mob programming | Monthly | Key designs | Building consensus |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │Plan │Act  │
+    │and  │imme-│
+    │addr │diat-│
+    │ess  │ely  │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Log  │Next │
+    │only │Sprint│
+    │     │     │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Frequency  High Frequency
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
-|--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
+|--------------|------------|----------------|-----------------|
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication flaws | High | Multi-factor authentication, session management hardening | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Security misconfiguration | Medium | Security headers, principle of least privilege | Configuration scanning |
+| Insufficient logging | Medium | Structured logging, audit trail | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1789,157 +1789,157 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is properly configured
+- [ ] Vulnerability scanning of dependency packages is performed
+- [ ] Error messages do not contain internal information
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just from theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend fully understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| コマンド | 用途 | よく使うオプション |
-|---------|------|-------------------|
-| sort | テキストのソート | -n（数値）, -r（逆順）, -k（キー）, -t（区切り）, -u（重複排除）, -h（人間可読） |
-| uniq | 重複行の処理 | -c（カウント）, -d（重複のみ）, -u（ユニークのみ）, -f（フィールド無視） |
-| cut | 列の切り出し | -d（区切り）, -f（フィールド）, -c（文字位置）, --complement（補集合） |
-| wc | カウント | -l（行）, -w（単語）, -c（バイト）, -m（文字）, -L（最長行） |
-| tr | 文字変換・削除 | -d（削除）, -s（圧縮）, -c（補集合） |
-| paste | 水平結合 | -d（区切り）, -s（直列化） |
-| join | リレーショナル結合 | -t（区切り）, -1/-2（キー列）, -a（外部結合） |
-| comm | ソート済み比較 | -1/-2/-3（列非表示） |
+| Command | Purpose | Commonly Used Options |
+|---------|---------|----------------------|
+| sort | Sort text | -n (numeric), -r (reverse), -k (key), -t (delimiter), -u (deduplicate), -h (human-readable) |
+| uniq | Process duplicate lines | -c (count), -d (duplicates only), -u (unique only), -f (ignore fields) |
+| cut | Extract columns | -d (delimiter), -f (fields), -c (character position), --complement (complement set) |
+| wc | Count | -l (lines), -w (words), -c (bytes), -m (characters), -L (longest line) |
+| tr | Convert/delete characters | -d (delete), -s (squeeze), -c (complement) |
+| paste | Horizontal merge | -d (delimiter), -s (serialize) |
+| join | Relational join | -t (delimiter), -1/-2 (key columns), -a (outer join) |
+| comm | Compare sorted files | -1/-2/-3 (hide columns) |
 
-### 定番パイプラインパターン
+### Standard Pipeline Patterns
 
 ```bash
-# 頻度ランキング
+# Frequency ranking
 ... | sort | uniq -c | sort -rn | head -N
 
-# 列の抽出 → ソート → 集計
+# Extract column → sort → aggregate
 cut -d',' -fN file.csv | sort | uniq -c | sort -rn
 
-# テキストの正規化 → 単語分析
+# Normalize text → word analysis
 cat file.txt | tr 'A-Z' 'a-z' | tr -s '[:space:]' '\n' | sort | uniq -c | sort -rn
 
-# CSV のフィールド合計
+# Sum a CSV field
 cut -d',' -fN file.csv | tail -n +2 | paste -sd+ | bc
 ```
 
 ---
 
-## 13. よくある質問（FAQ）
+## 13. Frequently Asked Questions (FAQ)
 
-### Q1: sort と sort -u、sort | uniq の違いは？
+### Q1: What is the difference between sort, sort -u, and sort | uniq?
 
 ```bash
-# sort -u: ソートと同時に重複排除（1パス、高速）
+# sort -u: deduplicate while sorting (1 pass, fast)
 sort -u file.txt
 
-# sort | uniq: ソート後に別プロセスで重複排除（2パス）
+# sort | uniq: deduplicate in a separate process after sorting (2 passes)
 sort file.txt | uniq
 
-# 機能差: uniq -c のようなカウント機能は sort -u にはない
-# → カウントが必要な場合は sort | uniq -c を使う
+# Functional difference: counting features like uniq -c are not available with sort -u
+# → Use sort | uniq -c when counting is needed
 ```
 
-### Q2: 大文字小文字を無視してソート・重複排除するには？
+### Q2: How do I sort and deduplicate while ignoring case?
 
 ```bash
-# sort -f と uniq -i を組み合わせる
+# Combine sort -f and uniq -i
 sort -f file.txt | uniq -i -c | sort -rn
 
-# awk で前処理する方法
+# Method using awk for preprocessing
 awk '{print tolower($0)}' file.txt | sort | uniq -c | sort -rn
 ```
 
-### Q3: CSV の特定列に空白が含まれる場合の対処法は？
+### Q3: How do I handle CSV columns that contain spaces?
 
 ```bash
-# cut はクォーテーションを認識しない
-# → Python の csv モジュールや csvkit を使う
+# cut does not recognize quotation marks
+# → Use Python's csv module or csvkit
 pip install csvkit
 
-# csvkit の例
-csvcut -c 2 data.csv              # 2列目を正しく抽出
-csvsort -c 3 data.csv             # 3列目でソート
-csvgrep -c 2 -m "Tokyo" data.csv  # 2列目が "Tokyo" の行
-csvstat data.csv                   # 全列の統計情報
+# csvkit examples
+csvcut -c 2 data.csv              # Correctly extract column 2
+csvsort -c 3 data.csv             # Sort by column 3
+csvgrep -c 2 -m "Tokyo" data.csv  # Rows where column 2 is "Tokyo"
+csvstat data.csv                   # Statistics for all columns
 ```
 
-### Q4: sort でロケールの影響を完全に排除するには？
+### Q4: How do I completely eliminate locale influence in sort?
 
 ```bash
-# 環境変数 LC_ALL を C に設定
+# Set the LC_ALL environment variable to C
 LC_ALL=C sort file.txt
 
-# スクリプト内で永続的に設定
+# Set persistently in a script
 export LC_ALL=C
 sort file.txt
 
-# 特定のコマンドだけ一時的に変更
+# Change temporarily for a specific command only
 LC_ALL=C sort file.txt
-# 後続コマンドには影響しない
+# Does not affect subsequent commands
 ```
 
-### Q5: 複数ファイルのソート結果をマージするには？
+### Q5: How do I merge sorted results from multiple files?
 
 ```bash
-# 各ファイルが既にソート済みの場合
+# If each file is already sorted
 sort -m file1.txt file2.txt file3.txt > merged.txt
 
-# ソートされていない場合は通常の sort
+# If files are not sorted, use regular sort
 sort file1.txt file2.txt file3.txt > merged.txt
 
-# 大量のファイルの場合
+# For a large number of files
 find /var/log -name "*.log" -exec sort -m {} + > all_sorted.txt
 ```
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
 ---
 
-## 参考文献
+## References
 1. Barrett, D. "Efficient Linux at the Command Line." Ch.5, O'Reilly, 2022.
 2. Shotts, W. "The Linux Command Line." 2nd Ed, No Starch Press, 2019.
 3. GNU Coreutils Manual. "sort, uniq, cut, wc, tr, paste, join, comm." gnu.org.
