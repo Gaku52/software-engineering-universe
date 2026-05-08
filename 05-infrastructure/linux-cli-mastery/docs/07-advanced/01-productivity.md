@@ -1,89 +1,89 @@
-# CLI 生産性向上
+# CLI Productivity
 
-> ツールと設定を最適化し、CLI での作業速度を最大化する。
+> Optimize tools and configuration to maximize working speed in the CLI.
 
-## この章で学ぶこと
+## What You'll Learn
 
-- [ ] fzf, zoxide 等のモダンツールで操作を高速化できる
-- [ ] エイリアス・関数でコマンドを短縮できる
-- [ ] CLI ワークフローを最適化できる
-- [ ] シェル補完を設定して入力を最小化できる
-- [ ] CLI でのテキスト処理を高速に行える
-- [ ] ターミナルエミュレータの選択と設定ができる
+- [ ] Speed up operations with modern tools like fzf and zoxide
+- [ ] Shorten commands with aliases and functions
+- [ ] Optimize CLI workflows
+- [ ] Configure shell completion to minimize typing
+- [ ] Process text quickly at the CLI
+- [ ] Choose and configure a terminal emulator
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will help you understand it better:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ターミナルマルチプレクサ（tmux, screen）](./00-tmux-screen.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Terminal Multiplexers (tmux, screen)](./00-tmux-screen.md)
 
 ---
 
-## 1. モダン CLI ツール
+## 1. Modern CLI Tools
 
-### 1.1 fzf（ファジーファインダー）
+### 1.1 fzf (Fuzzy Finder)
 
 ```bash
-# ── インストール ──
+# ── Installation ──
 # macOS
 brew install fzf
-$(brew --prefix)/opt/fzf/install      # キーバインドと補完を設定
+$(brew --prefix)/opt/fzf/install      # Set up key bindings and completion
 
 # Ubuntu/Debian
 sudo apt install fzf
-# または最新版を Git から
+# Or install the latest version from Git
 git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
 ~/.fzf/install
 
-# ── 基本的な使い方 ──
-fzf                              # カレントディレクトリのファイルを検索
-vim $(fzf)                       # 選択したファイルをvimで開く
-cat $(fzf)                       # 選択したファイルの内容を表示
+# ── Basic Usage ──
+fzf                              # Search files in the current directory
+vim $(fzf)                       # Open selected file in vim
+cat $(fzf)                       # Display contents of selected file
 
-# ── キーバインド（シェル統合後） ──
-# Ctrl+R    — コマンド履歴をファジー検索
-# Ctrl+T    — ファイルパスをファジー検索して挿入
-# Alt+C     — ディレクトリをファジー検索して cd
+# ── Key Bindings (after shell integration) ──
+# Ctrl+R    — Fuzzy search command history
+# Ctrl+T    — Fuzzy search file paths and insert
+# Alt+C     — Fuzzy search directories and cd
 
-# ── パイプと組み合わせ ──
-ps aux | fzf                     # プロセスを検索
-git log --oneline | fzf          # コミットを検索
-docker ps | fzf                  # コンテナを検索
-kubectl get pods | fzf           # Pod を検索
-env | fzf                        # 環境変数を検索
-history | fzf                    # 履歴を検索
+# ── Combine with pipes ──
+ps aux | fzf                     # Search processes
+git log --oneline | fzf          # Search commits
+docker ps | fzf                  # Search containers
+kubectl get pods | fzf           # Search pods
+env | fzf                        # Search environment variables
+history | fzf                    # Search history
 
-# ── プレビュー機能 ──
-# ファイル内容をプレビュー（bat使用）
+# ── Preview feature ──
+# Preview file contents (using bat)
 fzf --preview 'bat --color=always --line-range :100 {}'
 
-# ファイル内容をプレビュー（head使用）
+# Preview file contents (using head)
 fzf --preview 'head -50 {}'
 
-# ディレクトリの中身をプレビュー
+# Preview directory contents
 fd -t d | fzf --preview 'eza -la --git {}'
 
-# Git ログのプレビュー
+# Preview Git log
 git log --oneline | fzf --preview 'git show --color=always {1}'
 
-# ── 複数選択 ──
-# Tab で複数選択、Enter で確定
-fzf --multi                      # 複数選択モード（-m でも可）
-vim $(fzf -m)                    # 複数ファイルを選択して vim で開く
-rm $(fzf -m)                     # 複数ファイルを選択して削除
+# ── Multiple selection ──
+# Tab to select multiple, Enter to confirm
+fzf --multi                      # Multi-select mode (also -m)
+vim $(fzf -m)                    # Select multiple files and open in vim
+rm $(fzf -m)                     # Select multiple files and delete
 
-# ── レイアウトとオプション ──
-fzf --height 40%                 # 画面の40%で表示
-fzf --layout=reverse             # 上から下へ表示
-fzf --border                     # ボーダー表示
-fzf --header "Select a file"     # ヘッダーテキスト
-fzf --prompt ">> "               # プロンプトカスタマイズ
+# ── Layout and options ──
+fzf --height 40%                 # Display at 40% of screen
+fzf --layout=reverse             # Display top to bottom
+fzf --border                     # Show border
+fzf --header "Select a file"     # Header text
+fzf --prompt ">> "               # Customize prompt
 
-# ── fzf のデフォルト設定 ──
-# ~/.zshrc に追加:
+# ── fzf default settings ──
+# Add to ~/.zshrc:
 export FZF_DEFAULT_OPTS="
   --height 60%
   --layout=reverse
@@ -97,15 +97,15 @@ export FZF_DEFAULT_OPTS="
   --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8
 "
 
-# Ctrl+T で fd を使用（高速）
+# Use fd for Ctrl+T (faster)
 export FZF_CTRL_T_COMMAND="fd --type f --hidden --follow --exclude .git"
 export FZF_CTRL_T_OPTS="--preview 'bat --color=always --line-range :100 {}'"
 
-# Alt+C で fd を使用
+# Use fd for Alt+C
 export FZF_ALT_C_COMMAND="fd --type d --hidden --follow --exclude .git"
 export FZF_ALT_C_OPTS="--preview 'eza -la --git {}'"
 
-# Ctrl+R のオプション
+# Options for Ctrl+R
 export FZF_CTRL_R_OPTS="
   --preview 'echo {}'
   --preview-window up:3:hidden:wrap
@@ -113,12 +113,12 @@ export FZF_CTRL_R_OPTS="
 "
 ```
 
-### 1.2 fzf の実践的な活用パターン
+### 1.2 Practical fzf Usage Patterns
 
 ```bash
-# ── Git 連携関数 ──
+# ── Git integration functions ──
 
-# ブランチ選択して checkout
+# Select branch and checkout
 fco() {
     local branch
     branch=$(git branch -a | sed 's/^..//' | sed 's#remotes/origin/##' | sort -u |
@@ -126,7 +126,7 @@ fco() {
     [ -n "$branch" ] && git checkout "$branch"
 }
 
-# コミットハッシュを選択（git show / cherry-pick 等に）
+# Select commit hash (for git show / cherry-pick etc.)
 fcommit() {
     local commit
     commit=$(git log --oneline --all --graph --decorate |
@@ -135,7 +135,7 @@ fcommit() {
     [ -n "$commit" ] && echo "$commit"
 }
 
-# ステージング対象をインタラクティブに選択
+# Interactively select files to stage
 fga() {
     local files
     files=$(git diff --name-only |
@@ -143,7 +143,7 @@ fga() {
     [ -n "$files" ] && echo "$files" | xargs git add
 }
 
-# stash をインタラクティブに選択して適用
+# Interactively select a stash and apply it
 fstash() {
     local stash
     stash=$(git stash list |
@@ -152,9 +152,9 @@ fstash() {
     [ -n "$stash" ] && git stash apply "$stash"
 }
 
-# ── Docker 連携 ──
+# ── Docker integration ──
 
-# コンテナを選択してシェルに入る
+# Select a container and enter its shell
 dexec() {
     local container
     container=$(docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}' |
@@ -162,7 +162,7 @@ dexec() {
     [ -n "$container" ] && docker exec -it "$container" "${1:-bash}"
 }
 
-# コンテナを選択してログを表示
+# Select a container and display its logs
 dlogs() {
     local container
     container=$(docker ps -a --format '{{.Names}}\t{{.Image}}\t{{.Status}}' |
@@ -170,7 +170,7 @@ dlogs() {
     [ -n "$container" ] && docker logs -f "$container"
 }
 
-# イメージを選択して削除
+# Select an image and remove it
 drmi() {
     local images
     images=$(docker images --format '{{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedSince}}' |
@@ -178,18 +178,18 @@ drmi() {
     [ -n "$images" ] && echo "$images" | xargs docker rmi
 }
 
-# ── プロセス管理 ──
+# ── Process management ──
 
-# プロセスを選択して kill
+# Select a process and kill it
 fkill() {
     local pid
     pid=$(ps aux | fzf --header-lines=1 --height 40% | awk '{print $2}')
     [ -n "$pid" ] && echo "Killing PID $pid" && kill "${1:--9}" "$pid"
 }
 
-# ── SSH 接続 ──
+# ── SSH connections ──
 
-# SSH先をインタラクティブに選択
+# Interactively select an SSH host
 fssh() {
     local host
     host=$(awk '/^Host / && !/\*/ {print $2}' ~/.ssh/config |
@@ -197,9 +197,9 @@ fssh() {
     [ -n "$host" ] && ssh "$host"
 }
 
-# ── ファイルブラウザ ──
+# ── File browser ──
 
-# インタラクティブなファイルブラウジング（ディレクトリ移動 + プレビュー）
+# Interactive file browsing (directory navigation + preview)
 fbrowse() {
     while true; do
         local selection
@@ -221,41 +221,41 @@ fbrowse() {
 }
 ```
 
-### 1.3 zoxide（スマートディレクトリ移動）
+### 1.3 zoxide (Smart Directory Navigation)
 
 ```bash
-# ── インストール ──
+# ── Installation ──
 brew install zoxide              # macOS
 curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
 
-# シェル初期化に追加
+# Add to shell initialization
 eval "$(zoxide init zsh)"        # .zshrc
 eval "$(zoxide init bash)"       # .bashrc
 eval "$(zoxide init fish)"       # config.fish
 
-# ── 基本操作 ──
-z project                        # "project" を含むよく行くディレクトリへ
-z doc                            # "doc" を含むディレクトリへ
-z foo bar                        # "foo" と "bar" 両方を含むパスへ
-zi                               # fzf連携でインタラクティブ選択
+# ── Basic usage ──
+z project                        # Jump to a frequently visited directory containing "project"
+z doc                            # Jump to a directory containing "doc"
+z foo bar                        # Jump to a path containing both "foo" and "bar"
+zi                               # Interactive selection with fzf integration
 
-# ── 仕組み ──
-# zoxide は cd コマンドをフックして訪問したディレクトリを記録
-# 訪問頻度と最後のアクセス時刻に基づいてスコアを計算
-# z で移動する際にスコアが最も高いディレクトリを選択
+# ── How it works ──
+# zoxide hooks the cd command and records visited directories
+# Calculates a score based on visit frequency and last access time
+# When using z, selects the directory with the highest score
 
-# ── データ管理 ──
-zoxide query                     # 記録されたディレクトリ一覧
-zoxide query --list              # スコア付き一覧
-zoxide query -s project          # "project" を含むエントリのスコア
-zoxide add /path/to/dir          # 手動でパスを追加
-zoxide remove /path/to/dir       # パスを削除
+# ── Data management ──
+zoxide query                     # List recorded directories
+zoxide query --list              # List with scores
+zoxide query -s project          # Score of entries containing "project"
+zoxide add /path/to/dir          # Manually add a path
+zoxide remove /path/to/dir       # Remove a path
 
-# ── cd の完全な置き換え ──
-# .zshrc に追加して cd を zoxide に完全置換:
+# ── Full replacement for cd ──
+# Add to .zshrc to fully replace cd with zoxide:
 alias cd='z'
 
-# ── __zoxide_zi のカスタマイズ ──
+# ── Customizing __zoxide_zi ──
 export _ZO_FZF_OPTS="
   --height 40%
   --layout=reverse
@@ -264,29 +264,29 @@ export _ZO_FZF_OPTS="
 "
 ```
 
-### 1.4 bat（cat の代替）
+### 1.4 bat (cat replacement)
 
 ```bash
-# ── インストール ──
+# ── Installation ──
 brew install bat                 # macOS
-sudo apt install bat             # Ubuntu (batcat という名前になることがある)
+sudo apt install bat             # Ubuntu (may be named batcat)
 
-# ── 基本操作 ──
-bat file.py                      # シンタックスハイライト + 行番号
-bat -l json data.txt             # 言語を明示的に指定
-bat --diff file1 file2           # 差分表示
-bat -A file.txt                  # 制御文字を表示
-bat --line-range 10:20 file.py   # 10-20行目のみ表示
-bat -p file.py                   # プレーンモード（行番号なし）
+# ── Basic usage ──
+bat file.py                      # Syntax highlighting + line numbers
+bat -l json data.txt             # Explicitly specify language
+bat --diff file1 file2           # Show diff
+bat -A file.txt                  # Show control characters
+bat --line-range 10:20 file.py   # Show only lines 10-20
+bat -p file.py                   # Plain mode (no line numbers)
 
-# ── テーマ ──
-bat --list-themes                # 利用可能テーマ一覧
-export BAT_THEME="Catppuccin Mocha"   # テーマ設定
+# ── Themes ──
+bat --list-themes                # List available themes
+export BAT_THEME="Catppuccin Mocha"   # Set theme
 
-# テーマのプレビュー
+# Preview themes
 bat --list-themes | fzf --preview="bat --theme={} --color=always /path/to/sample.py"
 
-# ── 設定ファイル ──
+# ── Configuration file ──
 # ~/.config/bat/config
 # --theme="Catppuccin Mocha"
 # --style="numbers,changes,header,grid"
@@ -294,50 +294,50 @@ bat --list-themes | fzf --preview="bat --theme={} --color=always /path/to/sample
 # --map-syntax "*.conf:INI"
 # --map-syntax ".ignore:Git Ignore"
 
-# ── 他ツールとの連携 ──
-# man ページのカラー表示
+# ── Integration with other tools ──
+# Colorized man pages
 export MANPAGER="sh -c 'col -bx | bat -l man -p'"
 export MANROFFOPT="-c"
 
-# help の出力をカラー表示
+# Colorize help output
 alias bathelp='bat --plain --language=help'
 help() {
     "$@" --help 2>&1 | bathelp
 }
 
-# git diff を bat で表示（delta 推奨だが bat でも可能）
+# Display git diff with bat (delta is recommended, but bat works too)
 git diff | bat -l diff
 ```
 
-### 1.5 eza（ls の代替）
+### 1.5 eza (ls replacement)
 
 ```bash
-# ── インストール ──
+# ── Installation ──
 brew install eza                 # macOS
-cargo install eza                # Rust から
+cargo install eza                # From Rust
 
-# ── 基本操作 ──
-eza                              # カラー表示
-eza -la                          # 詳細表示（隠しファイル含む）
-eza -la --git                    # Git状態表示
-eza --tree --level=2             # ツリー表示（2階層）
-eza --tree --level=3 --git-ignore # ツリー（.gitignore尊重）
-eza --icons                      # アイコン表示
-eza -la --group                  # グループ表示
-eza -la --header                 # ヘッダー行付き
-eza -la --time-style=long-iso    # ISO形式の日時
-eza -la --sort=modified          # 更新日時順
-eza -la --sort=size              # サイズ順
-eza -la --sort=extension         # 拡張子順
-eza -la --reverse                # 逆順
-eza --only-dirs                  # ディレクトリのみ
-eza --only-files                 # ファイルのみ
+# ── Basic usage ──
+eza                              # Color output
+eza -la                          # Detailed view (including hidden files)
+eza -la --git                    # Show Git status
+eza --tree --level=2             # Tree view (2 levels)
+eza --tree --level=3 --git-ignore # Tree view (respecting .gitignore)
+eza --icons                      # Show icons
+eza -la --group                  # Show group
+eza -la --header                 # With header row
+eza -la --time-style=long-iso    # ISO format timestamps
+eza -la --sort=modified          # Sort by modification time
+eza -la --sort=size              # Sort by size
+eza -la --sort=extension         # Sort by extension
+eza -la --reverse                # Reverse order
+eza --only-dirs                  # Directories only
+eza --only-files                 # Files only
 
-# ── フィルタリング ──
+# ── Filtering ──
 eza -la --ignore-glob="*.pyc|__pycache__|node_modules"
-eza -la --git-ignore             # .gitignore に基づくフィルタ
+eza -la --git-ignore             # Filter based on .gitignore
 
-# ── エイリアス推奨設定 ──
+# ── Recommended alias settings ──
 alias ls='eza --icons'
 alias ll='eza -la --icons --git --header'
 alias lt='eza --tree --level=2 --icons'
@@ -346,91 +346,91 @@ alias lm='eza -la --sort=modified --icons'
 alias lS='eza -la --sort=size --icons --reverse'
 ```
 
-### 1.6 fd（find の代替）
+### 1.6 fd (find replacement)
 
 ```bash
-# ── インストール ──
+# ── Installation ──
 brew install fd                  # macOS
-sudo apt install fd-find         # Ubuntu (fdfind という名前)
+sudo apt install fd-find         # Ubuntu (named fdfind)
 
-# ── 基本操作 ──
-fd pattern                       # ファイル名でパターン検索
-fd -e py                         # .py ファイルのみ
-fd -e py -e js                   # .py と .js ファイル
-fd -t d                          # ディレクトリのみ
-fd -t f                          # ファイルのみ
-fd -t l                          # シンボリックリンクのみ
-fd -t x                          # 実行可能ファイルのみ
-fd -H pattern                    # 隠しファイル含む
-fd -I pattern                    # .gitignore 無視
-fd -g '*.py'                     # glob パターン（正規表現ではなく）
-fd -F 'exact_name'               # 完全一致
-fd --max-depth 2 pattern         # 深さ制限
+# ── Basic usage ──
+fd pattern                       # Pattern search by filename
+fd -e py                         # Only .py files
+fd -e py -e js                   # .py and .js files
+fd -t d                          # Directories only
+fd -t f                          # Files only
+fd -t l                          # Symbolic links only
+fd -t x                          # Executables only
+fd -H pattern                    # Include hidden files
+fd -I pattern                    # Ignore .gitignore
+fd -g '*.py'                     # Glob pattern (not regex)
+fd -F 'exact_name'               # Exact match
+fd --max-depth 2 pattern         # Depth limit
 
-# ── コマンド実行 ──
-fd pattern --exec wc -l          # 見つけたファイルの行数
+# ── Execute commands ──
+fd pattern --exec wc -l          # Count lines of found files
 fd -e py --exec python -c "import py_compile; py_compile.compile('{}')"
-fd -e py --exec-batch wc -l      # まとめて実行（高速）
-fd -e log --changed-within 1d    # 過去1日以内に変更されたログ
-fd -e tmp --changed-before 7d --exec rm  # 7日以上前の tmp を削除
+fd -e py --exec-batch wc -l      # Batch execution (faster)
+fd -e log --changed-within 1d    # Logs changed within the last 1 day
+fd -e tmp --changed-before 7d --exec rm  # Delete tmp files older than 7 days
 
-# ── 除外パターン ──
+# ── Exclusion patterns ──
 fd -E node_modules -E .git pattern
-fd --ignore-file .fdignore pattern  # .fdignore ファイルを使用
+fd --ignore-file .fdignore pattern  # Use .fdignore file
 
-# ── 実践例 ──
-# 大きなファイルを探す
+# ── Practical examples ──
+# Find large files
 fd -t f --exec-batch ls -lhS | sort -rh -k5 | head -20
 
-# TODO コメントがあるファイルを探す
+# Find files with TODO comments
 fd -e py --exec grep -l "TODO" {}
 
-# 空ディレクトリを探す
+# Find empty directories
 fd -t d --exec sh -c '[ -z "$(ls -A {})" ] && echo {}'
 ```
 
-### 1.7 ripgrep（grep の代替）
+### 1.7 ripgrep (grep replacement)
 
 ```bash
-# ── インストール ──
+# ── Installation ──
 brew install ripgrep             # macOS
 sudo apt install ripgrep         # Ubuntu
 
-# ── 基本操作 ──
-rg pattern                       # 再帰検索（.gitignore尊重）
-rg -i pattern                    # 大文字小文字を無視
-rg -w pattern                    # 単語境界マッチ
-rg -F 'literal string'           # 正規表現ではなくリテラル検索
-rg -v pattern                    # パターンに一致しない行
-rg -c pattern                    # マッチ数のカウント
-rg -l pattern                    # ファイル名のみ表示
-rg -n pattern                    # 行番号表示（デフォルト）
+# ── Basic usage ──
+rg pattern                       # Recursive search (respects .gitignore)
+rg -i pattern                    # Case-insensitive
+rg -w pattern                    # Word boundary match
+rg -F 'literal string'           # Literal search, not regex
+rg -v pattern                    # Lines not matching pattern
+rg -c pattern                    # Count matches
+rg -l pattern                    # Show filenames only
+rg -n pattern                    # Show line numbers (default)
 
-# ── ファイルタイプ指定 ──
-rg -t py pattern                 # Pythonファイルのみ
+# ── File type filtering ──
+rg -t py pattern                 # Python files only
 rg -t js -t ts pattern           # JavaScript + TypeScript
-rg -T html pattern               # HTMLファイルを除外
-rg --type-list                   # 利用可能なタイプ一覧
+rg -T html pattern               # Exclude HTML files
+rg --type-list                   # List available types
 
-# ── コンテキスト表示 ──
-rg -A 3 pattern                  # マッチ後3行
-rg -B 3 pattern                  # マッチ前3行
-rg -C 3 pattern                  # マッチ前後3行
+# ── Context display ──
+rg -A 3 pattern                  # 3 lines after match
+rg -B 3 pattern                  # 3 lines before match
+rg -C 3 pattern                  # 3 lines before and after match
 
-# ── 高度な検索 ──
-rg 'fn\s+\w+\(' -t rust         # Rust の関数定義
-rg 'class\s+\w+' -t py          # Python のクラス定義
-rg 'TODO|FIXME|HACK' -t py -t js # 複数パターン
-rg -U 'def\s+\w+.*\n\s+"""'     # マルチラインマッチ
-rg --json pattern | jq           # JSON出力
+# ── Advanced search ──
+rg 'fn\s+\w+\(' -t rust         # Rust function definitions
+rg 'class\s+\w+' -t py          # Python class definitions
+rg 'TODO|FIXME|HACK' -t py -t js # Multiple patterns
+rg -U 'def\s+\w+.*\n\s+"""'     # Multiline match
+rg --json pattern | jq           # JSON output
 
-# ── 置換（プレビュー） ──
-rg 'old_name' --replace 'new_name'  # 置換結果をプレビュー（ファイルは変更しない）
-# 実際の置換は sed や sd と組み合わせる
+# ── Replacement (preview) ──
+rg 'old_name' --replace 'new_name'  # Preview replacement (does not modify files)
+# For actual replacement, combine with sed or sd
 rg -l 'old_name' | xargs sed -i 's/old_name/new_name/g'
 
-# ── 設定ファイル ──
-# ~/.config/ripgrep/config (RIPGREP_CONFIG_PATH で指定)
+# ── Configuration file ──
+# ~/.config/ripgrep/config (specify with RIPGREP_CONFIG_PATH)
 export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"
 # --smart-case
 # --hidden
@@ -441,12 +441,12 @@ export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"
 # --colors=match:style:bold
 ```
 
-### 1.8 その他のモダンツール
+### 1.8 Other Modern Tools
 
 ```bash
-# ── delta — git diff のシンタックスハイライト ──
+# ── delta — syntax highlighting for git diff ──
 brew install git-delta
-# ~/.gitconfig に追加:
+# Add to ~/.gitconfig:
 # [core]
 #     pager = delta
 # [interactive]
@@ -457,84 +457,84 @@ brew install git-delta
 #     line-numbers = true
 #     syntax-theme = Catppuccin Mocha
 
-# ── sd — sed の代替（より直感的な置換） ──
+# ── sd — sed replacement (more intuitive substitution) ──
 brew install sd
-sd 'old_pattern' 'new_pattern' file.txt     # ファイル内置換
-sd -F 'literal' 'replacement' file.txt      # リテラル置換
-fd -e py | xargs sd 'old_func' 'new_func'   # 複数ファイルで置換
+sd 'old_pattern' 'new_pattern' file.txt     # Replace in file
+sd -F 'literal' 'replacement' file.txt      # Literal replacement
+fd -e py | xargs sd 'old_func' 'new_func'   # Replace across multiple files
 
-# ── dust — du の代替（ディスク使用量の可視化） ──
+# ── dust — du replacement (disk usage visualization) ──
 brew install dust
-dust                             # カレントディレクトリのディスク使用量
-dust -d 2                        # 深さ2まで
-dust -r                          # 逆順（小さい順）
+dust                             # Disk usage of current directory
+dust -d 2                        # Up to depth 2
+dust -r                          # Reverse order (smallest first)
 
-# ── procs — ps の代替 ──
+# ── procs — ps replacement ──
 brew install procs
-procs                            # カラー表示のプロセス一覧
-procs --tree                     # ツリー表示
-procs --watch                    # リアルタイム更新
-procs nginx                      # nginx 関連プロセスのみ
+procs                            # Colorized process list
+procs --tree                     # Tree view
+procs --watch                    # Real-time updates
+procs nginx                      # Show only nginx-related processes
 
-# ── bottom (btm) — top の代替 ──
+# ── bottom (btm) — top replacement ──
 brew install bottom
-btm                              # インタラクティブなシステムモニタ
+btm                              # Interactive system monitor
 
-# ── hyperfine — ベンチマークツール ──
+# ── hyperfine — benchmarking tool ──
 brew install hyperfine
-hyperfine 'fd -e py'             # コマンドのベンチマーク
-hyperfine 'fd -e py' 'find . -name "*.py"'  # 2つのコマンドを比較
-hyperfine --warmup 3 'npm run build'  # ウォームアップ3回
+hyperfine 'fd -e py'             # Benchmark a command
+hyperfine 'fd -e py' 'find . -name "*.py"'  # Compare two commands
+hyperfine --warmup 3 'npm run build'  # 3 warmup runs
 
-# ── tokei — コード行数カウント ──
+# ── tokei — code line counter ──
 brew install tokei
-tokei                            # リポジトリのコード統計
-tokei -t Python,Rust             # 言語を指定
+tokei                            # Code statistics for a repository
+tokei -t Python,Rust             # Specify languages
 
-# ── jq — JSON プロセッサ ──
+# ── jq — JSON processor ──
 brew install jq
-echo '{"name":"Alice","age":30}' | jq '.'        # 整形
-echo '{"name":"Alice","age":30}' | jq '.name'     # フィールド抽出
-curl -s api.example.com/data | jq '.items[] | {id, name}'  # 配列の各要素から抽出
+echo '{"name":"Alice","age":30}' | jq '.'        # Pretty print
+echo '{"name":"Alice","age":30}' | jq '.name'     # Extract field
+curl -s api.example.com/data | jq '.items[] | {id, name}'  # Extract from array elements
 
-# ── yq — YAML プロセッサ（jq のYAML版） ──
+# ── yq — YAML processor (jq for YAML) ──
 brew install yq
-yq '.services' docker-compose.yml     # YAML からフィールド抽出
-yq -i '.version = "3"' config.yml     # YAML をインプレース編集
+yq '.services' docker-compose.yml     # Extract field from YAML
+yq -i '.version = "3"' config.yml     # Edit YAML in-place
 
-# ── tldr — man の簡易版 ──
+# ── tldr — simplified man pages ──
 brew install tldr
-tldr tar                         # tar の使用例
-tldr curl                        # curl の使用例
+tldr tar                         # Examples for tar
+tldr curl                        # Examples for curl
 
-# ── glow — ターミナルでMarkdownレンダリング ──
+# ── glow — Markdown rendering in terminal ──
 brew install glow
-glow README.md                   # Markdownを整形表示
-glow -p README.md                # ページャーで表示
+glow README.md                   # Render Markdown with formatting
+glow -p README.md                # Display with pager
 
-# ── difftastic — 構造的な diff ──
+# ── difftastic — structural diff ──
 brew install difftastic
-difft file1.py file2.py          # AST ベースの差分
-# git と統合:
+difft file1.py file2.py          # AST-based diff
+# Integrate with git:
 # [diff]
 #     external = difft
 ```
 
 ---
 
-## 2. シェル設定の最適化
+## 2. Shell Configuration Optimization
 
-### 2.1 エイリアス
+### 2.1 Aliases
 
 ```bash
-# ~/.zshrc（または ~/.bashrc）
+# ~/.zshrc (or ~/.bashrc)
 
-# ── ナビゲーション ──
+# ── Navigation ──
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 alias .....='cd ../../../..'
-alias -- -='cd -'                # 前のディレクトリに戻る
+alias -- -='cd -'                # Return to previous directory
 
 # ── ls → eza ──
 alias ls='eza --icons'
@@ -546,18 +546,18 @@ alias lm='eza -la --sort=modified --icons'
 
 # ── cat → bat ──
 alias cat='bat --paging=never'
-alias catp='bat --plain'         # プレーンモード
+alias catp='bat --plain'         # Plain mode
 
 # ── grep → ripgrep ──
 alias grep='rg'
 
-# ── 安全な操作 ──
+# ── Safe operations ──
 alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
 alias mkdir='mkdir -p'
 
-# ── Git ショートカット ──
+# ── Git shortcuts ──
 alias g='git'
 alias gs='git status -sb'
 alias ga='git add'
@@ -605,19 +605,19 @@ alias kexec='kubectl exec -it'
 alias kctx='kubectl config use-context'
 alias kns='kubectl config set-context --current --namespace'
 
-# ── ネットワーク ──
+# ── Network ──
 alias myip='curl -s ifconfig.me'
 alias localip="ipconfig getifaddr en0"
 alias ports='netstat -tulanp'
 alias listen='lsof -i -P | grep LISTEN'
 
-# ── システム ──
+# ── System ──
 alias df='df -h'
 alias du='du -h'
 alias free='free -h 2>/dev/null || vm_stat'
 alias top='btm 2>/dev/null || htop 2>/dev/null || top'
 
-# ── その他 ──
+# ── Miscellaneous ──
 alias path='echo $PATH | tr ":" "\n" | nl'
 alias now='date +"%Y-%m-%d %H:%M:%S"'
 alias week='date +%V'
@@ -626,32 +626,32 @@ alias h='history'
 alias j='jobs -l'
 ```
 
-### 2.2 便利な関数
+### 2.2 Useful Functions
 
 ```bash
-# ── ディレクトリ作成 + 移動 ──
+# ── Create directory + move into it ──
 mkcd() {
     mkdir -p "$1" && cd "$1"
 }
 
-# ── ファイル/ディレクトリのサイズ表示 ──
+# ── Show size of file/directory ──
 sizeof() {
     du -sh "$@" 2>/dev/null | sort -rh
 }
 
-# ── ポートを使っているプロセスを表示 ──
+# ── Show the process using a port ──
 port() {
     lsof -i :"$1"
 }
 
-# ── 指定秒後にアラーム ──
+# ── Alarm after a specified number of seconds ──
 timer() {
     local seconds="${1:-60}"
     echo "Timer: ${seconds}s"
     sleep "$seconds" && printf '\a' && echo "Time's up!"
 }
 
-# ── JSON整形 ──
+# ── Pretty-print JSON ──
 json() {
     if [ -t 0 ]; then
         cat "$@" | jq '.'
@@ -660,12 +660,12 @@ json() {
     fi
 }
 
-# ── 天気 ──
+# ── Weather ──
 weather() {
     curl -s "wttr.in/${1:-Tokyo}?format=3"
 }
 
-# ── extract: アーカイブを自動判別して展開 ──
+# ── extract: auto-detect and extract archives ──
 extract() {
     if [ -f "$1" ]; then
         case "$1" in
@@ -689,12 +689,12 @@ extract() {
     fi
 }
 
-# ── backup: ファイルのバックアップを作成 ──
+# ── backup: create a backup of a file ──
 backup() {
     cp -a "$1" "$1.bak.$(date +%Y%m%d_%H%M%S)"
 }
 
-# ── retry: コマンドを指定回数リトライ ──
+# ── retry: retry a command a specified number of times ──
 retry() {
     local max_attempts="${1:-3}"
     local delay="${2:-5}"
@@ -714,7 +714,7 @@ retry() {
     return 1
 }
 
-# ── note: クイックメモ ──
+# ── note: quick note ──
 note() {
     local note_dir="$HOME/notes"
     mkdir -p "$note_dir"
@@ -726,24 +726,24 @@ note() {
     fi
 }
 
-# ── serve: カレントディレクトリをHTTPサーバーで公開 ──
+# ── serve: serve current directory via HTTP server ──
 serve() {
     local port="${1:-8000}"
     echo "Serving on http://localhost:$port"
     python3 -m http.server "$port"
 }
 
-# ── cheat: コマンドのチートシート表示 ──
+# ── cheat: display a command cheat sheet ──
 cheat() {
     curl -s "cheat.sh/$1"
 }
 
-# ── calc: コマンドラインの電卓 ──
+# ── calc: command-line calculator ──
 calc() {
     python3 -c "from math import *; print($*)"
 }
 
-# ── colors: 256色の表示テスト ──
+# ── colors: test 256-color display ──
 colors() {
     for i in {0..255}; do
         printf "\x1b[38;5;${i}m%3d " "$i"
@@ -754,7 +754,7 @@ colors() {
     printf "\x1b[0m\n"
 }
 
-# ── up: N階層上に移動 ──
+# ── up: move up N levels ──
 up() {
     local count="${1:-1}"
     local path=""
@@ -764,7 +764,7 @@ up() {
     cd "$path" || return
 }
 
-# ── tre: eza --tree の省略形（Git対応・深さ指定） ──
+# ── tre: shorthand for eza --tree (Git-aware, with depth) ──
 tre() {
     eza --tree --level="${1:-2}" --icons --git-ignore --git
 }
@@ -777,65 +777,65 @@ urldecode() {
     python3 -c "import urllib.parse; print(urllib.parse.unquote('$*'))"
 }
 
-# ── base64 エンコード/デコード ──
+# ── base64 encode/decode ──
 b64e() { echo -n "$*" | base64; }
 b64d() { echo "$*" | base64 --decode; }
 
-# ── whatismyip: 詳細なIP情報 ──
+# ── whatismyip: detailed IP information ──
 whatismyip() {
     curl -s "https://ipinfo.io" | jq '.'
 }
 ```
 
-### 2.3 Zsh 固有の設定
+### 2.3 Zsh-Specific Configuration
 
 ```bash
-# ── Zsh のオプション設定 ──
-setopt AUTO_CD               # ディレクトリ名だけで cd
-setopt AUTO_PUSHD            # cd 時に自動で pushd
-setopt PUSHD_IGNORE_DUPS     # pushd で重複を無視
-setopt PUSHD_MINUS           # + と - の意味を入れ替え
-setopt CORRECT               # コマンドのスペルチェック
-setopt CORRECT_ALL           # 引数のスペルチェックも
-setopt NO_BEEP               # ビープ音を無効化
-setopt INTERACTIVE_COMMENTS  # コメントを許可
-setopt EXTENDED_GLOB         # 拡張グロブ (#, ~, ^ 等)
-setopt NULL_GLOB             # グロブがマッチしなくてもエラーにしない
+# ── Zsh option settings ──
+setopt AUTO_CD               # cd by directory name alone
+setopt AUTO_PUSHD            # Automatically pushd on cd
+setopt PUSHD_IGNORE_DUPS     # Ignore duplicates in pushd
+setopt PUSHD_MINUS           # Swap the meaning of + and -
+setopt CORRECT               # Spell check commands
+setopt CORRECT_ALL           # Spell check arguments too
+setopt NO_BEEP               # Disable beep
+setopt INTERACTIVE_COMMENTS  # Allow comments
+setopt EXTENDED_GLOB         # Extended glob (#, ~, ^ etc.)
+setopt NULL_GLOB             # No error when glob has no matches
 
-# ── 履歴設定 ──
+# ── History settings ──
 HISTFILE=~/.zsh_history
 HISTSIZE=100000
 SAVEHIST=100000
-setopt HIST_IGNORE_ALL_DUPS  # 重複を無視
-setopt HIST_IGNORE_SPACE     # スペースで始まるコマンドを記録しない
-setopt HIST_REDUCE_BLANKS    # 余分な空白を削除
-setopt SHARE_HISTORY         # 複数のセッション間で履歴を共有
-setopt APPEND_HISTORY        # 履歴を追記
-setopt INC_APPEND_HISTORY    # コマンド実行直後に追記
-setopt HIST_VERIFY           # !! で直前のコマンドをすぐ実行せず展開
+setopt HIST_IGNORE_ALL_DUPS  # Ignore duplicates
+setopt HIST_IGNORE_SPACE     # Don't record commands starting with a space
+setopt HIST_REDUCE_BLANKS    # Remove excess whitespace
+setopt SHARE_HISTORY         # Share history across multiple sessions
+setopt APPEND_HISTORY        # Append to history
+setopt INC_APPEND_HISTORY    # Append immediately after command execution
+setopt HIST_VERIFY           # Expand !! instead of immediately executing
 
-# ── 補完設定 ──
+# ── Completion settings ──
 autoload -Uz compinit
 compinit
 
-# 補完の表示を改善
-zstyle ':completion:*' menu select                   # メニュー選択
-zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'  # 小文字で大文字もマッチ
-zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}" # カラー表示
+# Improve completion display
+zstyle ':completion:*' menu select                   # Menu selection
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'  # Match uppercase with lowercase
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}" # Color display
 zstyle ':completion:*:descriptions' format '%F{yellow}-- %d --%f'
 zstyle ':completion:*:warnings' format '%F{red}-- no matches found --%f'
-zstyle ':completion:*' group-name ''                 # グループ化
-zstyle ':completion:*' squeeze-slashes true           # // を / に
+zstyle ':completion:*' group-name ''                 # Grouping
+zstyle ':completion:*' squeeze-slashes true           # Collapse // to /
 
-# 補完のキャッシュ
+# Completion cache
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path "$HOME/.zcompcache"
 
-# ── キーバインド（vi モード推奨） ──
-bindkey -v                       # vi モードに設定
-export KEYTIMEOUT=1              # モード切替を高速化
+# ── Key bindings (vi mode recommended) ──
+bindkey -v                       # Set to vi mode
+export KEYTIMEOUT=1              # Speed up mode switching
 
-# vi モードでも便利なキーバインドを維持
+# Keep useful key bindings even in vi mode
 bindkey '^R' history-incremental-search-backward
 bindkey '^A' beginning-of-line
 bindkey '^E' end-of-line
@@ -843,12 +843,12 @@ bindkey '^W' backward-kill-word
 bindkey '^K' kill-line
 bindkey '^U' kill-whole-line
 
-# ── Zsh プラグインマネージャー ──
-# zinit（推奨）
+# ── Zsh plugin manager ──
+# zinit (recommended)
 # bash -c "$(curl --fail --show-error --silent --location \
 #   https://raw.githubusercontent.com/zdharma-continuum/zinit/HEAD/scripts/install.sh)"
 
-# zinit でプラグインをロード
+# Load plugins with zinit
 # zinit light zsh-users/zsh-autosuggestions
 # zinit light zsh-users/zsh-syntax-highlighting
 # zinit light zsh-users/zsh-completions
@@ -856,29 +856,29 @@ bindkey '^U' kill-whole-line
 
 ---
 
-## 3. Starship プロンプト
+## 3. Starship Prompt
 
-### 3.1 基本設定
+### 3.1 Basic Configuration
 
 ```bash
-# ── インストール ──
+# ── Installation ──
 brew install starship            # macOS
 curl -sS https://starship.rs/install.sh | sh   # Linux
 
-# .zshrc に追加
+# Add to .zshrc
 eval "$(starship init zsh)"
 
-# .bashrc に追加
+# Add to .bashrc
 eval "$(starship init bash)"
 ```
 
-### 3.2 設定ファイル（~/.config/starship.toml）
+### 3.2 Configuration File (~/.config/starship.toml)
 
 ```toml
 # ~/.config/starship.toml
 
-# ── プロンプト全体 ──
-# プロンプトの表示フォーマット
+# ── Overall prompt ──
+# Prompt display format
 format = """
 $username\
 $hostname\
@@ -896,16 +896,16 @@ $cmd_duration\
 $line_break\
 $character"""
 
-# 右プロンプト
+# Right prompt
 right_format = "$time"
 
-# ── キャラクター（プロンプト記号） ──
+# ── Character (prompt symbol) ──
 [character]
 success_symbol = ">"
 error_symbol = ">"
 vimcmd_symbol = "<"
 
-# ── ディレクトリ ──
+# ── Directory ──
 [directory]
 truncation_length = 3
 truncate_to_repo = true
@@ -913,13 +913,13 @@ style = "bold cyan"
 format = "$path$read_only "
 read_only = " (RO)"
 
-# ── Git ブランチ ──
+# ── Git branch ──
 [git_branch]
 format = "$symbol$branch(:$remote_branch) "
 symbol = " "
 style = "bold purple"
 
-# ── Git ステータス ──
+# ── Git status ──
 [git_status]
 format = '([\[$all_status$ahead_behind\]]($style) )'
 conflicted = "="
@@ -934,7 +934,7 @@ renamed = "~${count}"
 deleted = "-${count}"
 style = "bold red"
 
-# ── 言語・ランタイム ──
+# ── Languages and runtimes ──
 [nodejs]
 format = "$symbol($version) "
 symbol = " "
@@ -971,125 +971,125 @@ format = "$symbol($profile)(\\($region\\)) "
 symbol = " "
 style = "bold yellow"
 
-# ── コマンド実行時間 ──
+# ── Command execution time ──
 [cmd_duration]
 min_time = 3000
 format = "took $duration "
 style = "bold yellow"
 
-# ── 時刻（右プロンプト） ──
+# ── Time (right prompt) ──
 [time]
 disabled = false
 format = "$time"
 time_format = "%H:%M"
 style = "dimmed white"
 
-# ── ホスト名（SSH接続時のみ表示） ──
+# ── Hostname (show only when connected via SSH) ──
 [hostname]
 ssh_only = true
 format = "@$hostname "
 style = "bold green"
 
-# ── ユーザー名（root時のみ表示） ──
+# ── Username (show only as root) ──
 [username]
 show_always = false
 format = "$user "
 style_root = "bold red"
 ```
 
-### 3.3 プリセットとカスタマイズ
+### 3.3 Presets and Customization
 
 ```bash
-# ── プリセットの適用 ──
+# ── Apply presets ──
 # Nerd Font Symbols
 starship preset nerd-font-symbols -o ~/.config/starship.toml
 
-# Bracketed Segments（角括弧スタイル）
+# Bracketed Segments (bracket style)
 starship preset bracketed-segments -o ~/.config/starship.toml
 
-# Plain Text Symbols（Nerd Font なしでも使える）
+# Plain Text Symbols (works without Nerd Fonts)
 starship preset plain-text-symbols -o ~/.config/starship.toml
 
 # Tokyo Night
 starship preset tokyo-night -o ~/.config/starship.toml
 
-# ── 環境ごとの設定切替 ──
-# STARSHIP_CONFIG 環境変数で設定ファイルを切り替え
-export STARSHIP_CONFIG=~/.config/starship/work.toml    # 仕事用
-export STARSHIP_CONFIG=~/.config/starship/personal.toml # 個人用
+# ── Switch configuration per environment ──
+# Switch config file with the STARSHIP_CONFIG environment variable
+export STARSHIP_CONFIG=~/.config/starship/work.toml    # Work
+export STARSHIP_CONFIG=~/.config/starship/personal.toml # Personal
 ```
 
 ---
 
-## 4. キーボードショートカット
+## 4. Keyboard Shortcuts
 
-### 4.1 Readline / Zsh のキーバインド
+### 4.1 Readline / Zsh Key Bindings
 
 ```bash
-# ── カーソル移動 ──
-# Ctrl+A    → 行頭
-# Ctrl+E    → 行末
-# Ctrl+F    → 1文字前進（→と同じ）
-# Ctrl+B    → 1文字後退（←と同じ）
-# Alt+F     → 1単語前進
-# Alt+B     → 1単語後退
+# ── Cursor movement ──
+# Ctrl+A    → Beginning of line
+# Ctrl+E    → End of line
+# Ctrl+F    → Forward one character (same as →)
+# Ctrl+B    → Backward one character (same as ←)
+# Alt+F     → Forward one word
+# Alt+B     → Backward one word
 
-# ── 編集 ──
-# Ctrl+U    → カーソルから行頭まで削除
-# Ctrl+K    → カーソルから行末まで削除
-# Ctrl+W    → 直前の単語を削除
-# Alt+D     → 次の単語を削除
-# Ctrl+Y    → 削除した内容をペースト（yank）
-# Ctrl+T    → カーソル前後の文字を入れ替え
-# Alt+T     → カーソル前後の単語を入れ替え
-# Alt+U     → 単語を大文字に変換
-# Alt+L     → 単語を小文字に変換
-# Alt+C     → 単語の先頭を大文字に
-# Ctrl+_    → Undo（直前の編集を取り消し）
+# ── Editing ──
+# Ctrl+U    → Delete from cursor to beginning of line
+# Ctrl+K    → Delete from cursor to end of line
+# Ctrl+W    → Delete previous word
+# Alt+D     → Delete next word
+# Ctrl+Y    → Paste deleted content (yank)
+# Ctrl+T    → Swap characters before and after cursor
+# Alt+T     → Swap words before and after cursor
+# Alt+U     → Convert word to uppercase
+# Alt+L     → Convert word to lowercase
+# Alt+C     → Capitalize first letter of word
+# Ctrl+_    → Undo (revert last edit)
 
-# ── 履歴 ──
-# Ctrl+R    → 履歴の逆方向検索（fzf連携推奨）
-# Ctrl+S    → 履歴の順方向検索
-# Ctrl+P    → 前のコマンド（↑と同じ）
-# Ctrl+N    → 次のコマンド（↓と同じ）
-# !!        → 直前のコマンドを再実行
-# !$        → 直前のコマンドの最後の引数
-# !^        → 直前のコマンドの最初の引数
-# !:n       → 直前のコマンドのn番目の引数
-# !:n-m     → 直前のコマンドのn〜m番目の引数
-# !*        → 直前のコマンドの全引数
-# !cmd      → "cmd" で始まる直近のコマンドを実行
-# !?str     → "str" を含む直近のコマンドを実行
-# ^old^new  → 直前コマンドの "old" を "new" に置換して実行
+# ── History ──
+# Ctrl+R    → Reverse history search (fzf integration recommended)
+# Ctrl+S    → Forward history search
+# Ctrl+P    → Previous command (same as ↑)
+# Ctrl+N    → Next command (same as ↓)
+# !!        → Re-run previous command
+# !$        → Last argument of previous command
+# !^        → First argument of previous command
+# !:n       → Nth argument of previous command
+# !:n-m     → Arguments n through m of previous command
+# !*        → All arguments of previous command
+# !cmd      → Run most recent command starting with "cmd"
+# !?str     → Run most recent command containing "str"
+# ^old^new  → Replace "old" with "new" in previous command and run
 
-# ── 制御 ──
-# Ctrl+C    → 現在のコマンドを中断
-# Ctrl+Z    → 現在のコマンドを一時停止（bg/fgで再開）
-# Ctrl+D    → EOFを送信（シェル終了 / 入力終了）
-# Ctrl+L    → 画面クリア
-# Ctrl+S    → 画面出力の一時停止
-# Ctrl+Q    → 画面出力の再開
-# Ctrl+\\   → SIGQUIT送信（コアダンプ付き終了）
+# ── Control ──
+# Ctrl+C    → Interrupt current command
+# Ctrl+Z    → Suspend current command (resume with bg/fg)
+# Ctrl+D    → Send EOF (exit shell / end input)
+# Ctrl+L    → Clear screen
+# Ctrl+S    → Pause screen output
+# Ctrl+Q    → Resume screen output
+# Ctrl+\\   → Send SIGQUIT (exit with core dump)
 
-# ── Zsh 固有 ──
-# Tab Tab   → 補完候補一覧
-# Ctrl+X Ctrl+E → エディタでコマンド編集（$EDITOR）
-# Alt+H     → man ページを表示
-# Alt+?     → which コマンドを実行
-# Esc .     → 直前のコマンドの最後の引数を挿入
+# ── Zsh specific ──
+# Tab Tab   → Show list of completion candidates
+# Ctrl+X Ctrl+E → Edit command in editor ($EDITOR)
+# Alt+H     → Show man page
+# Alt+?     → Run which command
+# Esc .     → Insert last argument of previous command
 ```
 
-### 4.2 カスタムキーバインド
+### 4.2 Custom Key Bindings
 
 ```bash
-# ~/.zshrc に追加
+# Add to ~/.zshrc
 
-# ── fzf 連携のカスタムバインド ──
+# ── Custom bindings for fzf integration ──
 
-# Ctrl+G でファジー Git ブランチ切替
+# Ctrl+G for fuzzy Git branch switching
 bindkey -s '^g' 'fco\n'
 
-# Ctrl+O で fzf でファイルを開く
+# Ctrl+O to open a file with fzf
 fzf-open-file() {
     local file
     file=$(fzf --preview 'bat --color=always {}')
@@ -1102,7 +1102,7 @@ fzf-open-file() {
 zle -N fzf-open-file
 bindkey '^o' fzf-open-file
 
-# Alt+C でディレクトリに移動（zoxide + fzf）
+# Alt+C to navigate to a directory (zoxide + fzf)
 fzf-cd() {
     local dir
     dir=$(zoxide query -l | fzf --height 40% --preview 'eza -la {}')
@@ -1115,36 +1115,36 @@ fzf-cd() {
 zle -N fzf-cd
 bindkey '\ec' fzf-cd
 
-# ── vi モードのカスタマイズ ──
-# vi モードの表示をカスタマイズ（カーソル形状を変更）
+# ── Customize vi mode ──
+# Customize vi mode display (change cursor shape)
 function zle-keymap-select {
     case $KEYMAP in
-        vicmd)      echo -ne '\e[1 q' ;;  # ブロックカーソル（ノーマルモード）
-        viins|main) echo -ne '\e[5 q' ;;  # ライン状カーソル（インサートモード）
+        vicmd)      echo -ne '\e[1 q' ;;  # Block cursor (normal mode)
+        viins|main) echo -ne '\e[5 q' ;;  # Line cursor (insert mode)
     esac
 }
 zle -N zle-keymap-select
 
 function zle-line-init {
-    echo -ne '\e[5 q'  # 初期状態はインサートモード
+    echo -ne '\e[5 q'  # Initial state is insert mode
 }
 zle -N zle-line-init
 ```
 
 ---
 
-## 5. 効率的なワークフローパターン
+## 5. Efficient Workflow Patterns
 
-### 5.1 プロジェクト作業環境の構築
+### 5.1 Setting Up a Project Work Environment
 
 ```bash
-# ── パターン1: tmux + fzf によるプロジェクト切替 ──
+# ── Pattern 1: Project switching with tmux + fzf ──
 # ~/.local/bin/dev-start
 #!/bin/bash
 SESSION="dev"
 PROJECT="${1:-$(pwd)}"
 
-# 既存セッションがあればアタッチ
+# Attach to existing session if it exists
 tmux has-session -t "$SESSION" 2>/dev/null && {
     tmux attach -t "$SESSION"
     exit 0
@@ -1158,9 +1158,9 @@ tmux split-window -h -c "$PROJECT"
 tmux select-pane -t 0
 tmux attach -t "$SESSION"
 
-# ── パターン2: 言語別の開発環境 ──
+# ── Pattern 2: Language-specific development environments ──
 
-# Node.js プロジェクト
+# Node.js project
 dev-node() {
     local project="${1:-.}"
     tmux new-session -d -s "node" -c "$project" -n "code"
@@ -1174,7 +1174,7 @@ dev-node() {
     tmux attach -t "node"
 }
 
-# Python プロジェクト
+# Python project
 dev-python() {
     local project="${1:-.}"
     tmux new-session -d -s "python" -c "$project" -n "code"
@@ -1190,29 +1190,29 @@ dev-python() {
 }
 ```
 
-### 5.2 監視と自動化
+### 5.2 Monitoring and Automation
 
 ```bash
-# ── パターン3: 監視ダッシュボード ──
+# ── Pattern 3: Monitoring dashboard ──
 watch -n 5 'echo "=== Docker ===" && docker ps --format "table {{.Names}}\t{{.Status}}" && echo && echo "=== Disk ===" && df -h / && echo && echo "=== Memory ===" && free -h 2>/dev/null || vm_stat'
 
-# ── パターン4: ファイル変更監視 + 自動実行 ──
-# entr を使用（brew install entr）
-# ファイル変更時にテストを自動実行
+# ── Pattern 4: Watch file changes + auto-run ──
+# Using entr (brew install entr)
+# Auto-run tests when files change
 fd -e py | entr -c pytest
 
-# ファイル変更時にビルドを自動実行
+# Auto-run build when files change
 fd -e ts | entr -c npm run build
 
-# 特定ファイル変更時にコマンド実行
+# Run command when specific files change
 ls *.go | entr -r go run main.go
 
-# watchexec を使用（brew install watchexec）
+# Using watchexec (brew install watchexec)
 watchexec -e py -- pytest
 watchexec -e rs -- cargo test
 watchexec -w src/ -- npm run build
 
-# ── パターン5: 複数サーバーの一括操作 ──
+# ── Pattern 5: Batch operation on multiple servers ──
 servers=("web1" "web2" "web3")
 for s in "${servers[@]}"; do
     echo "=== $s ==="
@@ -1220,49 +1220,49 @@ for s in "${servers[@]}"; do
 done
 wait
 
-# ── パターン6: ログの統合監視 ──
-# multitail — 複数ログを同時監視
+# ── Pattern 6: Consolidated log monitoring ──
+# multitail — monitor multiple logs simultaneously
 multitail /var/log/nginx/access.log /var/log/nginx/error.log
 
-# tail + awk でリアルタイムフィルタ
+# Real-time filtering with tail + awk
 tail -f /var/log/app.log | awk '/ERROR/{print "\033[31m" $0 "\033[0m"} /WARN/{print "\033[33m" $0 "\033[0m"}'
 ```
 
-### 5.3 作業記録と計測
+### 5.3 Work Logging and Measurement
 
 ```bash
-# ── パターン7: 作業ログの自動記録 ──
-# script コマンドで端末操作を全記録
+# ── Pattern 7: Automatic work logging ──
+# Record all terminal activity with the script command
 script -q ~/logs/session_$(date +%Y%m%d_%H%M%S).log
 
-# asciinema — より高機能な記録
+# asciinema — more feature-rich recording
 brew install asciinema
 asciinema rec ~/recordings/demo.cast
 asciinema play ~/recordings/demo.cast
-# asciinema.org にアップロード
+# Upload to asciinema.org
 asciinema upload ~/recordings/demo.cast
 
-# ── パターン8: コマンド実行時間の計測 ──
-time npm run build               # 組み込み time
-/usr/bin/time -l npm run build   # macOS: 詳細（メモリ使用量等）
-/usr/bin/time -v npm run build   # Linux: 詳細
+# ── Pattern 8: Measure command execution time ──
+time npm run build               # Built-in time
+/usr/bin/time -l npm run build   # macOS: detailed (memory usage etc.)
+/usr/bin/time -v npm run build   # Linux: detailed
 
-# hyperfine — 統計的ベンチマーク
+# hyperfine — statistical benchmarking
 hyperfine 'npm run build'
 hyperfine --warmup 3 --min-runs 10 'npm run build'
-hyperfine 'fd -e py' 'find . -name "*.py"'  # 比較ベンチマーク
-hyperfine --export-markdown bench.md 'cmd1' 'cmd2'  # Markdown で出力
+hyperfine 'fd -e py' 'find . -name "*.py"'  # Comparative benchmark
+hyperfine --export-markdown bench.md 'cmd1' 'cmd2'  # Export as Markdown
 
-# ── パターン9: コマンドの通知 ──
-# 長時間コマンドの完了を通知
+# ── Pattern 9: Command completion notifications ──
+# Notify on completion of long-running commands
 
-# macOS の通知
+# macOS notification
 long_command; osascript -e 'display notification "Done!" with title "Terminal"'
 
-# Linux の通知（notify-send）
+# Linux notification (notify-send)
 long_command; notify-send "Terminal" "Command completed"
 
-# 汎用関数
+# General-purpose function
 notify() {
     "$@"
     local status=$?
@@ -1273,28 +1273,28 @@ notify() {
     fi
     return $status
 }
-# 使用例: notify npm run build
+# Usage: notify npm run build
 ```
 
 ---
 
-## 6. dotfiles 管理
+## 6. dotfiles Management
 
-### 6.1 ベアリポジトリ方式
+### 6.1 Bare Repository Method
 
 ```bash
-# Git ベアリポジトリで dotfiles を管理する方法
-# シンボリックリンク不要で直接 $HOME の設定ファイルを管理
+# Manage dotfiles with a Git bare repository
+# Directly manages configuration files in $HOME without symbolic links
 
-# ── セットアップ ──
+# ── Setup ──
 git init --bare "$HOME/.dotfiles"
 alias dot='git --git-dir=$HOME/.dotfiles --work-tree=$HOME'
 dot config --local status.showUntrackedFiles no
 
-# .zshrc にエイリアスを追加
+# Add alias to .zshrc
 echo "alias dot='git --git-dir=\$HOME/.dotfiles --work-tree=\$HOME'" >> ~/.zshrc
 
-# ── ファイルの追加 ──
+# ── Adding files ──
 dot add ~/.zshrc
 dot add ~/.tmux.conf
 dot add ~/.config/starship.toml
@@ -1302,52 +1302,52 @@ dot add ~/.config/bat/config
 dot add ~/.config/git/config
 dot commit -m "Add dotfiles"
 
-# ── リモートリポジトリに push ──
+# ── Push to remote repository ──
 dot remote add origin git@github.com:username/dotfiles.git
 dot push -u origin main
 
-# ── 新しいマシンでの復元 ──
+# ── Restore on a new machine ──
 git clone --bare git@github.com:username/dotfiles.git "$HOME/.dotfiles"
 alias dot='git --git-dir=$HOME/.dotfiles --work-tree=$HOME'
 dot checkout
 dot config --local status.showUntrackedFiles no
 
-# checkout でコンフリクトが出る場合（既存ファイルがある場合）:
+# If checkout causes conflicts (existing files):
 dot checkout 2>&1 | grep "already exists" | awk '{print $NF}' | xargs -I{} mv {} {}.bak
 dot checkout
 ```
 
-### 6.2 chezmoi（推奨）
+### 6.2 chezmoi (Recommended)
 
 ```bash
-# chezmoi は dotfiles 管理の専用ツール
-# テンプレート、暗号化、マシン固有設定をサポート
+# chezmoi is a dedicated dotfiles management tool
+# Supports templates, encryption, and machine-specific settings
 
-# ── インストール ──
+# ── Installation ──
 brew install chezmoi              # macOS
 sh -c "$(curl -fsLS get.chezmoi.io)"  # Linux
 
-# ── 初期化 ──
+# ── Initialization ──
 chezmoi init
-chezmoi init --apply git@github.com:username/dotfiles.git  # 既存リポジトリから
+chezmoi init --apply git@github.com:username/dotfiles.git  # From existing repository
 
-# ── 基本操作 ──
-chezmoi add ~/.zshrc             # ファイルを管理下に追加
+# ── Basic operations ──
+chezmoi add ~/.zshrc             # Add file to managed set
 chezmoi add ~/.tmux.conf
 chezmoi add ~/.config/starship.toml
-chezmoi add --encrypt ~/.ssh/config  # 暗号化して追加
+chezmoi add --encrypt ~/.ssh/config  # Add with encryption
 
-chezmoi edit ~/.zshrc            # 管理下のファイルを編集
-chezmoi diff                     # 差分を確認
-chezmoi apply                    # 変更を $HOME に適用
-chezmoi update                   # リモートから取得 + 適用
+chezmoi edit ~/.zshrc            # Edit a managed file
+chezmoi diff                     # Check differences
+chezmoi apply                    # Apply changes to $HOME
+chezmoi update                   # Fetch from remote + apply
 
-chezmoi cd                       # dotfiles リポジトリに移動
-chezmoi data                     # テンプレートデータを表示
-chezmoi doctor                   # 設定の問題をチェック
+chezmoi cd                       # Move to dotfiles repository
+chezmoi data                     # Show template data
+chezmoi doctor                   # Check for configuration issues
 
-# ── テンプレート機能 ──
-# マシンごとに異なる設定を生成
+# ── Template feature ──
+# Generate different configurations per machine
 # ~/.local/share/chezmoi/dot_zshrc.tmpl
 # {{ if eq .chezmoi.os "darwin" }}
 # export HOMEBREW_PREFIX="/opt/homebrew"
@@ -1359,8 +1359,8 @@ chezmoi doctor                   # 設定の問題をチェック
 # export HTTP_PROXY="http://proxy.corp.example.com:8080"
 # {{ end }}
 
-# ── 暗号化 ──
-# age で暗号化（GPGより簡単）
+# ── Encryption ──
+# Encrypt with age (simpler than GPG)
 # ~/.config/chezmoi/chezmoi.toml
 # [age]
 #     identity = "~/.config/chezmoi/key.txt"
@@ -1369,7 +1369,7 @@ chezmoi doctor                   # 設定の問題をチェック
 chezmoi add --encrypt ~/.ssh/config
 chezmoi add --encrypt ~/.aws/credentials
 
-# ── Git 操作 ──
+# ── Git operations ──
 chezmoi git add .
 chezmoi git commit -- -m "Update dotfiles"
 chezmoi git push
@@ -1378,14 +1378,14 @@ chezmoi git push
 ### 6.3 GNU Stow
 
 ```bash
-# GNU Stow はシンボリックリンクファームマネージャー
-# dotfiles ディレクトリ構造をそのまま $HOME にシンボリックリンク
+# GNU Stow is a symlink farm manager
+# Creates symbolic links from your dotfiles directory structure to $HOME
 
-# ── インストール ──
+# ── Installation ──
 brew install stow                # macOS
 sudo apt install stow            # Ubuntu
 
-# ── ディレクトリ構成 ──
+# ── Directory structure ──
 # ~/dotfiles/
 # ├── zsh/
 # │   └── .zshrc
@@ -1403,59 +1403,59 @@ sudo apt install stow            # Ubuntu
 #         └── nvim/
 #             └── init.lua
 
-# ── 使用方法 ──
+# ── Usage ──
 cd ~/dotfiles
 
-# パッケージごとにシンボリックリンクを作成
+# Create symbolic links per package
 stow zsh                         # ~/.zshrc → ~/dotfiles/zsh/.zshrc
 stow tmux                        # ~/.tmux.conf → ~/dotfiles/tmux/.tmux.conf
 stow git
 stow starship
 stow nvim
 
-# 全パッケージを一括
+# Apply all packages at once
 stow */
 
-# シンボリックリンクを削除
+# Remove symbolic links
 stow -D zsh
 
-# 再ストウ（更新）
+# Re-stow (update)
 stow -R zsh
 
-# ドライラン（実行せずに確認）
+# Dry run (verify without executing)
 stow -n zsh
 ```
 
 ---
 
-## 7. ターミナルエミュレータの選択と設定
+## 7. Terminal Emulator Selection and Configuration
 
-### 7.1 モダンターミナルエミュレータ
+### 7.1 Modern Terminal Emulators
 
 ```bash
-# ── iTerm2（macOS） ──
-# 最も人気のある macOS ターミナル
+# ── iTerm2 (macOS) ──
+# The most popular macOS terminal
 # https://iterm2.com/
-# 特徴:
-# - 分割ペイン
-# - ホットキーウィンドウ（いつでも呼び出し）
-# - シェル統合（コマンド状態の表示）
-# - オートコンプリート
-# - トリガー（パターンマッチでアクション実行）
-# - プロファイル切替
+# Features:
+# - Split panes
+# - Hotkey window (call up anytime)
+# - Shell integration (display command status)
+# - Autocomplete
+# - Triggers (execute actions on pattern match)
+# - Profile switching
 
-# iTerm2 のおすすめ設定:
+# Recommended iTerm2 settings:
 # Preferences > General > Closing
 #   → "Confirm closing multiple sessions" ON
 # Preferences > Profiles > Keys
-#   → "Natural Text Editing" プリセット（Option+矢印で単語移動）
+#   → "Natural Text Editing" preset (Option+arrow for word navigation)
 # Preferences > Profiles > Terminal
 #   → Scrollback lines: 10000
 # Preferences > Profiles > Session
-#   → "Status bar enabled" ON（CPU、メモリ等を表示）
+#   → "Status bar enabled" ON (displays CPU, memory, etc.)
 
 # ── WezTerm ──
-# GPU アクセラレーション、Lua 設定、マルチプレクサ内蔵
+# GPU acceleration, Lua configuration, built-in multiplexer
 # https://wezfurlong.org/wezterm/
 # brew install --cask wezterm
 
@@ -1474,7 +1474,7 @@ stow -n zsh
 # }
 
 # ── Alacritty ──
-# GPU アクセラレーション、高速、最小限の機能
+# GPU acceleration, fast, minimal features
 # https://alacritty.org/
 # brew install --cask alacritty
 
@@ -1486,10 +1486,10 @@ stow -n zsh
 # [window]
 # opacity = 0.95
 # [colors]
-# # Catppuccin Mocha テーマ
+# # Catppuccin Mocha theme
 
 # ── kitty ──
-# GPU アクセラレーション、画像表示対応、タイリング
+# GPU acceleration, image display support, tiling
 # https://sw.kovidgoyal.net/kitty/
 # brew install --cask kitty
 
@@ -1502,153 +1502,153 @@ stow -n zsh
 # map cmd+d new_window_with_cwd
 ```
 
-### 7.2 フォント
+### 7.2 Fonts
 
 ```bash
-# ── Nerd Fonts（プログラミングフォント + アイコン） ──
+# ── Nerd Fonts (programming fonts + icons) ──
 # https://www.nerdfonts.com/
 
-# Homebrew でインストール
+# Install via Homebrew
 brew install --cask font-jetbrains-mono-nerd-font
 brew install --cask font-fira-code-nerd-font
 brew install --cask font-hack-nerd-font
 brew install --cask font-meslo-lg-nerd-font
 brew install --cask font-cascadia-code-nerd-font
 
-# 人気フォント:
-# - JetBrains Mono Nerd Font — バランスの良いプログラミングフォント
-# - Fira Code Nerd Font — リガチャ（合字）対応
-# - Hack Nerd Font — 視認性重視
-# - MesloLGS NF — Powerlevel10k 推奨
-# - CaskaydiaCove Nerd Font — Windows Terminal で人気
+# Popular fonts:
+# - JetBrains Mono Nerd Font — well-balanced programming font
+# - Fira Code Nerd Font — supports ligatures
+# - Hack Nerd Font — prioritizes readability
+# - MesloLGS NF — recommended for Powerlevel10k
+# - CaskaydiaCove Nerd Font — popular in Windows Terminal
 
-# ターミナルのフォント設定でこれらを選択する
-# アイコン表示に必要（eza --icons, Starship 等）
+# Select these in the terminal font settings
+# Required for icon display (eza --icons, Starship, etc.)
 ```
 
 ---
 
-## 8. テキスト処理の高速化
+## 8. Speeding Up Text Processing
 
-### 8.1 パイプラインパターン
+### 8.1 Pipeline Patterns
 
 ```bash
-# ── 頻出パイプラインパターン ──
+# ── Common pipeline patterns ──
 
-# ログからエラー行を抽出して件数カウント
+# Extract error lines from log and count occurrences
 rg "ERROR" /var/log/app.log | awk '{print $4}' | sort | uniq -c | sort -rn
 
-# CSVの特定カラムを集計
+# Aggregate a specific column in CSV
 awk -F',' '{sum += $3} END {print sum}' data.csv
 
-# JSON配列から特定フィールドを抽出
+# Extract specific fields from a JSON array
 jq '.[] | .name' data.json
 
-# 重複行の削除（順序維持）
+# Remove duplicate lines (preserving order)
 awk '!seen[$0]++' file.txt
 
-# 特定パターンの前後N行を表示
+# Show N lines before and after a pattern
 rg -C 3 "pattern" file.txt
 
-# ファイルの差分を見やすく表示
+# Display file diff in a readable way
 diff <(sort file1.txt) <(sort file2.txt) | bat -l diff
 
-# ── xargs の活用 ──
-# ファイルを並列処理
+# ── Using xargs ──
+# Process files in parallel
 fd -e py | xargs -P 4 -I{} python -m py_compile {}
 
-# NULL区切り（ファイル名にスペースがある場合に安全）
+# NULL-delimited (safe when filenames contain spaces)
 fd -0 -e py | xargs -0 wc -l
 
-# 確認付き実行
+# Run with confirmation
 fd -e tmp | xargs -p rm
 
-# ── プロセス置換 ──
-# 2つのコマンドの出力を比較
+# ── Process substitution ──
+# Compare output of two commands
 diff <(curl -s url1) <(curl -s url2)
 
-# 複数のログをマージしてソート
+# Merge and sort multiple logs
 sort -m <(sort log1.txt) <(sort log2.txt) <(sort log3.txt)
 
-# ── tee の活用 ──
-# 出力をファイルに保存しつつ画面にも表示
+# ── Using tee ──
+# Save output to file while also displaying on screen
 npm run build 2>&1 | tee build.log
 
-# 複数ファイルに同時出力
+# Output to multiple files simultaneously
 echo "test" | tee file1.txt file2.txt file3.txt
 ```
 
-### 8.2 ワンライナー集
+### 8.2 One-Liner Collection
 
 ```bash
-# ── ファイル操作 ──
-# 空ファイルを見つける
+# ── File operations ──
+# Find empty files
 fd -t f --exec sh -c '[ ! -s {} ] && echo {}'
 
-# 最近変更されたファイル（過去1時間）
+# Recently modified files (last 1 hour)
 fd --changed-within 1h
 
-# ファイル名の一括リネーム
-# file_001.txt → file-001.txt（rename コマンド）
+# Bulk rename files
+# file_001.txt → file-001.txt (rename command)
 rename 's/_/-/g' *.txt
 
-# 拡張子の一括変更
+# Bulk change extensions
 fd -e txt --exec mv {} {.}.md
 
-# ── テキスト処理 ──
-# 行番号を追加
+# ── Text processing ──
+# Add line numbers
 nl -ba file.txt
 
-# 特定行を抽出（10〜20行目）
+# Extract specific lines (lines 10-20)
 sed -n '10,20p' file.txt
 
-# 行を逆順に
+# Reverse line order
 tac file.txt
 
-# ランダムに1行表示
+# Display a random line
 shuf -n 1 file.txt
 
-# カラム入れ替え
+# Swap columns
 awk '{print $2, $1}' file.txt
 
-# タブ区切りをカンマ区切りに
+# Convert tab-delimited to comma-delimited
 tr '\t' ',' < input.tsv > output.csv
 
-# ── ネットワーク ──
-# 特定ポートのプロセスを kill
+# ── Network ──
+# Kill process on a specific port
 lsof -ti :3000 | xargs kill -9
 
-# 全てのリスニングポートを表示
+# Show all listening ports
 lsof -iTCP -sTCP:LISTEN -n -P
 
-# DNS のルックアップ
+# DNS lookup
 dig +short example.com
 
-# HTTP レスポンスヘッダーのみ表示
+# Show HTTP response headers only
 curl -sI https://example.com
 
-# ── Git ワンライナー ──
-# 各著者のコミット数
+# ── Git one-liners ──
+# Commit count per author
 git shortlog -sn --all
 
-# 変更が多いファイルランキング
+# Ranking of most-changed files
 git log --pretty=format: --name-only | sort | uniq -c | sort -rn | head -20
 
-# 今日のコミット
+# Today's commits
 git log --since="midnight" --oneline
 
-# ブランチ一覧（最終コミット日時付き）
+# Branch list with last commit date
 git branch -a --sort=-committerdate --format='%(committerdate:short) %(refname:short)'
 ```
 
 ---
 
-## 9. シェルスクリプトのスニペット集
+## 9. Shell Script Snippet Collection
 
-### 9.1 日常タスクの自動化
+### 9.1 Automating Daily Tasks
 
 ```bash
-# ── プロジェクトの初期設定 ──
+# ── Project initialization ──
 init-project() {
     local name="$1"
     local type="${2:-node}"
@@ -1689,7 +1689,7 @@ REQS
     echo "Project '$name' ($type) initialized!"
 }
 
-# ── ディスク使用量レポート ──
+# ── Disk usage report ──
 disk-report() {
     echo "=== Disk Usage Report ==="
     echo "Date: $(date)"
@@ -1704,7 +1704,7 @@ disk-report() {
     df -h "${1:-.}"
 }
 
-# ── 定期バックアップ ──
+# ── Periodic backup ──
 backup-dir() {
     local src="${1:?Source directory required}"
     local dst="${2:-$HOME/backups}"
@@ -1716,12 +1716,12 @@ backup-dir() {
     tar czf "$archive" -C "$(dirname "$src")" "$name"
     echo "Backup created: $archive ($(du -h "$archive" | cut -f1))"
 
-    # 30日以上前のバックアップを削除
+    # Delete backups older than 30 days
     find "$dst" -name "${name}_*.tar.gz" -mtime +30 -delete
     echo "Old backups cleaned up."
 }
 
-# ── 開発環境のヘルスチェック ──
+# ── Development environment health check ──
 dev-check() {
     echo "=== Development Environment Check ==="
     echo ""
@@ -1753,31 +1753,31 @@ dev-check() {
 }
 ```
 
-### 9.2 データ処理ユーティリティ
+### 9.2 Data Processing Utilities
 
 ```bash
-# ── CSV 処理 ──
+# ── CSV processing ──
 
-# CSV のカラム名を表示（ヘッダー行）
+# Show CSV column names (header row)
 csv-header() {
     head -1 "$1" | tr ',' '\n' | nl
 }
 
-# CSV の特定カラムを抽出
+# Extract a specific CSV column
 csv-col() {
     local file="$1"
     local col="$2"
     awk -F',' -v c="$col" '{print $c}' "$file"
 }
 
-# CSV を整形表示
+# Display CSV in formatted view
 csv-view() {
     column -s',' -t < "$1" | less -S
 }
 
-# ── JSON 処理 ──
+# ── JSON processing ──
 
-# JSON を整形して bat で表示
+# Pretty-print JSON and display with bat
 json-view() {
     if [ -f "$1" ]; then
         jq '.' "$1" | bat -l json
@@ -1786,24 +1786,24 @@ json-view() {
     fi
 }
 
-# JSON のキーパスを一覧表示
+# List key paths in JSON
 json-paths() {
     jq -r 'paths(scalars) | map(tostring) | join(".")' "$1"
 }
 
-# ── ログ分析 ──
+# ── Log analysis ──
 
-# アクセスログのステータスコード集計
+# Count status codes in access log
 log-status() {
     awk '{print $9}' "$1" | sort | uniq -c | sort -rn
 }
 
-# アクセスログのトップIP
+# Top IPs in access log
 log-top-ip() {
     awk '{print $1}' "$1" | sort | uniq -c | sort -rn | head -${2:-10}
 }
 
-# エラーログのパターン分析
+# Pattern analysis of error logs
 log-errors() {
     rg -c "ERROR|FATAL|CRITICAL" "$1"
     echo "---"
@@ -1813,64 +1813,64 @@ log-errors() {
 
 ---
 
-## 10. 環境ごとの生産性設定
+## 10. Productivity Settings per Environment
 
-### 10.1 macOS 固有の設定
+### 10.1 macOS-Specific Settings
 
 ```bash
-# ── macOS デフォルト設定（CLI から変更） ──
+# ── macOS default settings (change from CLI) ──
 
-# Finder で隠しファイルを表示
+# Show hidden files in Finder
 defaults write com.apple.finder AppleShowAllFiles -bool true
 
-# Dock の自動非表示
+# Auto-hide Dock
 defaults write com.apple.dock autohide -bool true
 
-# キーリピートの高速化
+# Speed up key repeat
 defaults write NSGlobalDomain KeyRepeat -int 1
 defaults write NSGlobalDomain InitialKeyRepeat -int 10
 
-# スクリーンショットの保存先
+# Screenshot save location
 defaults write com.apple.screencapture location "$HOME/Screenshots"
 
-# .DS_Store をネットワークドライブに作成しない
+# Don't create .DS_Store on network drives
 defaults write com.apple.desktopservices DSDontWriteNetworkStores true
 
-# ── macOS 固有のコマンド ──
-# クリップボード
-echo "text" | pbcopy              # クリップボードにコピー
-pbpaste                           # クリップボードからペースト
-pbpaste | wc -l                   # クリップボードの行数
+# ── macOS-specific commands ──
+# Clipboard
+echo "text" | pbcopy              # Copy to clipboard
+pbpaste                           # Paste from clipboard
+pbpaste | wc -l                   # Count lines in clipboard
 
-# 通知
+# Notifications
 osascript -e 'display notification "Hello" with title "Terminal"'
 
-# ファイルを開く
-open .                            # Finder で現在ディレクトリを開く
-open -a "Visual Studio Code" .    # VSCode で開く
-open https://example.com          # ブラウザで URL を開く
+# Open files
+open .                            # Open current directory in Finder
+open -a "Visual Studio Code" .    # Open in VSCode
+open https://example.com          # Open URL in browser
 
-# Spotlight の検索
-mdfind "query"                    # Spotlight 検索
-mdfind -name "filename"           # ファイル名で検索
-mdfind -onlyin ~/projects "TODO"  # 特定ディレクトリで検索
+# Spotlight search
+mdfind "query"                    # Spotlight search
+mdfind -name "filename"           # Search by filename
+mdfind -onlyin ~/projects "TODO"  # Search in specific directory
 
-# ディスクの取り出し
+# Eject disk
 diskutil eject /dev/disk2
 
 # Wi-Fi
-networksetup -getairportnetwork en0        # 接続中のWi-Fi
+networksetup -getairportnetwork en0        # Connected Wi-Fi
 networksetup -setairportpower en0 off      # Wi-Fi OFF
 networksetup -setairportpower en0 on       # Wi-Fi ON
 ```
 
-### 10.2 リモートサーバーでの作業効率化
+### 10.2 Improving Efficiency on Remote Servers
 
 ```bash
-# ── SSH 設定の最適化 ──
+# ── SSH configuration optimization ──
 # ~/.ssh/config
 
-# 全ホスト共通設定
+# Settings for all hosts
 # Host *
 #     ServerAliveInterval 60
 #     ServerAliveCountMax 3
@@ -1878,7 +1878,7 @@ networksetup -setairportpower en0 on       # Wi-Fi ON
 #     IdentityFile ~/.ssh/id_ed25519
 #     Compression yes
 
-# ── よく使うサーバーのエイリアス ──
+# ── Aliases for frequently used servers ──
 # Host web
 #     HostName web.example.com
 #     User deploy
@@ -1890,7 +1890,7 @@ networksetup -setairportpower en0 on       # Wi-Fi ON
 #     User admin
 #     LocalForward 5432 localhost:5432
 
-# ── SSH 接続の高速化 ──
+# ── Speeding up SSH connections ──
 # Host *
 #     ControlMaster auto
 #     ControlPath ~/.ssh/sockets/%r@%h-%p
@@ -1898,9 +1898,9 @@ networksetup -setairportpower en0 on       # Wi-Fi ON
 
 mkdir -p ~/.ssh/sockets
 
-# ── リモート作業の便利スクリプト ──
+# ── Useful scripts for remote work ──
 
-# リモートサーバーの状態チェック
+# Check remote server status
 server-check() {
     local host="$1"
     echo "=== $host ==="
@@ -1914,7 +1914,7 @@ server-check() {
     '
 }
 
-# ファイルのリモート編集（ローカルエディタで）
+# Edit a remote file with a local editor
 remote-edit() {
     local host="$1"
     local file="$2"
@@ -1925,7 +1925,7 @@ remote-edit() {
     rm -f "$tmp"
 }
 
-# リモートコマンドを全サーバーで並列実行
+# Run a remote command on all servers in parallel
 parallel-ssh() {
     local cmd="$1"
     shift
@@ -1942,48 +1942,48 @@ parallel-ssh() {
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend fully understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| ツール | 代替対象 | 改善点 |
-|-------|---------|--------|
-| fzf | 手動検索 | ファジー検索でインタラクティブ |
-| zoxide | cd | 訪問履歴でスマート移動 |
-| bat | cat | シンタックスハイライト |
-| eza | ls | カラー・Git・アイコン |
-| fd | find | 高速・直感的 |
-| ripgrep | grep | 高速・.gitignore尊重 |
-| starship | PS1 | 情報豊富なプロンプト |
-| delta | diff | シンタックスハイライト付き差分 |
-| sd | sed | 直感的な文字列置換 |
-| dust | du | ディスク使用量の可視化 |
-| procs | ps | カラー表示・ツリー表示 |
-| bottom | top | インタラクティブモニタ |
-| hyperfine | time | 統計的ベンチマーク |
-| tokei | cloc | 高速なコード行数カウント |
-| glow | - | ターミナルMarkdownレンダリング |
-| difftastic | diff | AST ベースの構造的差分 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Tool | Replaces | Improvements |
+|------|----------|--------------|
+| fzf | Manual search | Interactive fuzzy search |
+| zoxide | cd | Smart navigation using visit history |
+| bat | cat | Syntax highlighting |
+| eza | ls | Color, Git, icons |
+| fd | find | Fast and intuitive |
+| ripgrep | grep | Fast, respects .gitignore |
+| starship | PS1 | Information-rich prompt |
+| delta | diff | Diff with syntax highlighting |
+| sd | sed | Intuitive string substitution |
+| dust | du | Disk usage visualization |
+| procs | ps | Color display, tree view |
+| bottom | top | Interactive monitor |
+| hyperfine | time | Statistical benchmarking |
+| tokei | cloc | Fast code line counting |
+| glow | - | Terminal Markdown rendering |
+| difftastic | diff | AST-based structural diff |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+---
+
+## References
 1. Barrett, D. "Efficient Linux at the Command Line." O'Reilly, 2022.
 2. "Modern Unix." github.com/ibraheemdev/modern-unix.
 3. "The Art of Command Line." github.com/jlevy/the-art-of-command-line.
