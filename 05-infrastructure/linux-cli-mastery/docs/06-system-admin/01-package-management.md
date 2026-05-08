@@ -1,74 +1,74 @@
-# パッケージ管理
+# Package Management
 
-> パッケージマネージャはソフトウェアのインストール・更新・削除を安全に行う仕組み。
+> Package managers provide a safe mechanism for installing, updating, and removing software.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] 主要パッケージマネージャの使い方を理解する
-- [ ] パッケージの検索・インストール・更新・削除ができる
-- [ ] macOS と Linux のパッケージ管理の違いを理解する
-- [ ] リポジトリの追加・管理ができる
-- [ ] パッケージのセキュリティ対策を理解する
-- [ ] 環境の自動セットアップスクリプトが書ける
+- [ ] Understand how to use major package managers
+- [ ] Search for, install, update, and remove packages
+- [ ] Understand the differences between macOS and Linux package management
+- [ ] Add and manage repositories
+- [ ] Understand package security practices
+- [ ] Write automated environment setup scripts
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [systemd とサービス管理](./00-systemd.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of [systemd and Service Management](./00-systemd.md)
 
 ---
 
-## 1. apt（Debian / Ubuntu）
+## 1. apt (Debian / Ubuntu)
 
-### 1.1 基本操作
+### 1.1 Basic Operations
 
 ```bash
-# パッケージリストの更新
-sudo apt update                  # リポジトリ情報を最新化
+# Update package list
+sudo apt update                  # Refresh repository information
 
-# インストール
-sudo apt install nginx           # インストール
-sudo apt install -y nginx        # 確認なしでインストール
-sudo apt install nginx=1.24.0-1  # バージョン指定
-sudo apt install nginx curl wget # 複数パッケージ
+# Install
+sudo apt install nginx           # Install
+sudo apt install -y nginx        # Install without confirmation
+sudo apt install nginx=1.24.0-1  # Specify version
+sudo apt install nginx curl wget # Multiple packages
 
-# 更新
-sudo apt upgrade                 # 全パッケージを更新
-sudo apt full-upgrade            # 依存関係の変更含む更新
-sudo apt update && sudo apt upgrade -y  # 定番パターン
+# Update
+sudo apt upgrade                 # Update all packages
+sudo apt full-upgrade            # Update including dependency changes
+sudo apt update && sudo apt upgrade -y  # Standard pattern
 
-# 削除
-sudo apt remove nginx            # パッケージ削除（設定残す）
-sudo apt purge nginx             # 設定ファイルごと削除
-sudo apt autoremove              # 不要な依存パッケージを削除
-sudo apt autoremove --purge      # 不要パッケージを設定ごと削除
+# Remove
+sudo apt remove nginx            # Remove package (keep config)
+sudo apt purge nginx             # Remove including config files
+sudo apt autoremove              # Remove unnecessary dependency packages
+sudo apt autoremove --purge      # Remove unnecessary packages including config
 ```
 
-### 1.2 検索・情報表示
+### 1.2 Search and Information Display
 
 ```bash
-# 検索・情報
-apt search nginx                 # パッケージ検索
-apt show nginx                   # 詳細情報
-apt list --installed             # インストール済み一覧
-apt list --upgradable            # 更新可能な一覧
-dpkg -l | grep nginx             # インストール済みを検索
-dpkg -L nginx                    # パッケージのファイル一覧
-dpkg -S /usr/bin/curl            # ファイルを含むパッケージ
-apt-cache depends nginx          # 依存関係
-apt-cache rdepends nginx         # 逆依存関係
+# Search and information
+apt search nginx                 # Search packages
+apt show nginx                   # Show detailed information
+apt list --installed             # List installed packages
+apt list --upgradable            # List upgradable packages
+dpkg -l | grep nginx             # Search installed packages
+dpkg -L nginx                    # List package files
+dpkg -S /usr/bin/curl            # Package containing the file
+apt-cache depends nginx          # Dependencies
+apt-cache rdepends nginx         # Reverse dependencies
 
-# パッケージの変更履歴
+# Package changelog
 apt changelog nginx
 
-# パッケージポリシー（バージョンと優先度）
+# Package policy (version and priority)
 apt-cache policy nginx
 
-# 出力例:
+# Example output:
 # nginx:
 #   Installed: 1.24.0-1ubuntu1
 #   Candidate: 1.24.0-1ubuntu1
@@ -78,54 +78,54 @@ apt-cache policy nginx
 #         100 /var/lib/dpkg/status
 ```
 
-### 1.3 deb パッケージの直接操作
+### 1.3 Direct Operations with deb Packages
 
 ```bash
-# .deb ファイルから直接インストール
+# Install directly from .deb file
 sudo dpkg -i package.deb
-sudo apt install -f              # 依存関係を解決
+sudo apt install -f              # Resolve dependencies
 
-# より安全な方法（依存関係も自動解決）
+# Safer method (also resolves dependencies automatically)
 sudo apt install ./package.deb
 
-# deb パッケージの中身を確認
-dpkg-deb -c package.deb         # ファイル一覧
-dpkg-deb -I package.deb         # パッケージ情報
-dpkg-deb -x package.deb /tmp/extract  # 展開
+# Inspect deb package contents
+dpkg-deb -c package.deb         # List files
+dpkg-deb -I package.deb         # Package information
+dpkg-deb -x package.deb /tmp/extract  # Extract
 
-# パッケージの再構成
-sudo dpkg --configure -a         # 未構成パッケージの構成
-sudo dpkg --reconfigure tzdata   # パッケージの再構成
+# Package reconfiguration
+sudo dpkg --configure -a         # Configure unconfigured packages
+sudo dpkg --reconfigure tzdata   # Reconfigure a package
 ```
 
-### 1.4 リポジトリの管理
+### 1.4 Repository Management
 
 ```bash
-# リポジトリの確認
+# Check repositories
 cat /etc/apt/sources.list
 ls /etc/apt/sources.list.d/
 
-# PPA の追加（Ubuntu）
+# Add PPA (Ubuntu)
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
 
-# PPA の削除
+# Remove PPA
 sudo add-apt-repository --remove ppa:deadsnakes/ppa
 
-# サードパーティリポジトリの追加（新しい方法、Ubuntu 22.04+）
-# 1. GPGキーのダウンロード
+# Add third-party repository (new method, Ubuntu 22.04+)
+# 1. Download GPG key
 curl -fsSL https://packages.example.com/gpg.key | \
     sudo gpg --dearmor -o /usr/share/keyrings/example-archive-keyring.gpg
 
-# 2. リポジトリの追加
+# 2. Add repository
 echo "deb [signed-by=/usr/share/keyrings/example-archive-keyring.gpg] \
     https://packages.example.com/apt stable main" | \
     sudo tee /etc/apt/sources.list.d/example.list
 
-# 3. 更新
+# 3. Update
 sudo apt update
 
-# Docker リポジトリの追加例
+# Example: Add Docker repository
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
     sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] \
@@ -134,39 +134,39 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docke
 sudo apt update
 sudo apt install docker-ce docker-ce-cli containerd.io
 
-# Node.js リポジトリの追加例（NodeSource）
+# Example: Add Node.js repository (NodeSource)
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install nodejs
 ```
 
-### 1.5 パッケージの固定（ホールド）
+### 1.5 Package Pinning (Hold)
 
 ```bash
-# 特定パッケージのバージョンを固定（更新を防止）
+# Pin a specific package version (prevent updates)
 sudo apt-mark hold nginx
-sudo apt-mark hold linux-image-generic  # カーネル更新を防止
+sudo apt-mark hold linux-image-generic  # Prevent kernel updates
 
-# 固定を解除
+# Release the pin
 sudo apt-mark unhold nginx
 
-# 固定されたパッケージの確認
+# Check pinned packages
 apt-mark showhold
 
-# dpkg を使った固定
+# Pin using dpkg
 echo "nginx hold" | sudo dpkg --set-selections
 
-# 固定状態の確認
+# Check pin status
 dpkg --get-selections | grep hold
 ```
 
-### 1.6 apt の自動更新設定
+### 1.6 Automatic Update Configuration for apt
 
 ```bash
-# unattended-upgrades: セキュリティ更新の自動適用
+# unattended-upgrades: Automatically apply security updates
 sudo apt install unattended-upgrades
 sudo dpkg-reconfigure unattended-upgrades
 
-# 設定ファイル: /etc/apt/apt.conf.d/50unattended-upgrades
+# Config file: /etc/apt/apt.conf.d/50unattended-upgrades
 # Unattended-Upgrade::Allowed-Origins {
 #     "${distro_id}:${distro_codename}";
 #     "${distro_id}:${distro_codename}-security";
@@ -175,137 +175,137 @@ sudo dpkg-reconfigure unattended-upgrades
 # Unattended-Upgrade::Automatic-Reboot "false";
 # Unattended-Upgrade::Automatic-Reboot-Time "02:00";
 
-# 自動更新のテスト
+# Test automatic updates
 sudo unattended-upgrade --dry-run --debug
 
-# 自動更新ログの確認
+# Check automatic update log
 cat /var/log/unattended-upgrades/unattended-upgrades.log
 ```
 
-### 1.7 キャッシュ管理
+### 1.7 Cache Management
 
 ```bash
-# apt キャッシュの管理
-sudo apt clean                   # ダウンロード済みパッケージを全削除
-sudo apt autoclean               # 古いバージョンのキャッシュのみ削除
+# Manage apt cache
+sudo apt clean                   # Remove all downloaded packages
+sudo apt autoclean               # Remove only old version cache
 
-# キャッシュの場所
+# Cache location
 ls /var/cache/apt/archives/
 
-# キャッシュサイズの確認
+# Check cache size
 du -sh /var/cache/apt/archives/
 
-# パッケージリストの再構築
+# Rebuild package list
 sudo apt update --fix-missing
 ```
 
 ---
 
-## 2. dnf / yum（RHEL / Fedora / Rocky）
+## 2. dnf / yum (RHEL / Fedora / Rocky)
 
-### 2.1 基本操作
+### 2.1 Basic Operations
 
 ```bash
-# dnf（yum の後継）
-sudo dnf install nginx           # インストール
-sudo dnf install -y nginx        # 確認なし
-sudo dnf remove nginx            # 削除
-sudo dnf update                  # 全パッケージ更新
-sudo dnf upgrade                 # update と同義（dnf では）
-sudo dnf check-update            # 更新可能なパッケージの確認
+# dnf (successor to yum)
+sudo dnf install nginx           # Install
+sudo dnf install -y nginx        # Install without confirmation
+sudo dnf remove nginx            # Remove
+sudo dnf update                  # Update all packages
+sudo dnf upgrade                 # Same as update (in dnf)
+sudo dnf check-update            # Check for updatable packages
 
-# 検索・情報
-sudo dnf search nginx            # 検索
-sudo dnf info nginx              # 詳細情報
-sudo dnf list installed          # インストール済み一覧
-sudo dnf list available          # 利用可能なパッケージ
-sudo dnf provides /usr/bin/curl  # ファイルを含むパッケージ
-sudo dnf repoquery --whatrequires nginx  # 逆依存関係
+# Search and information
+sudo dnf search nginx            # Search
+sudo dnf info nginx              # Detailed information
+sudo dnf list installed          # List installed packages
+sudo dnf list available          # List available packages
+sudo dnf provides /usr/bin/curl  # Package containing the file
+sudo dnf repoquery --whatrequires nginx  # Reverse dependencies
 ```
 
-### 2.2 グループとモジュール管理
+### 2.2 Group and Module Management
 
 ```bash
-# グループ管理
-sudo dnf group list              # グループ一覧
-sudo dnf group info "Development Tools"  # グループの詳細
-sudo dnf group install "Development Tools"  # 開発ツール一括
-sudo dnf group remove "Development Tools"   # グループ削除
+# Group management
+sudo dnf group list              # List groups
+sudo dnf group info "Development Tools"  # Group details
+sudo dnf group install "Development Tools"  # Install development tools at once
+sudo dnf group remove "Development Tools"   # Remove group
 
-# モジュール（RHEL 8+ / Fedora）
-sudo dnf module list             # 利用可能なモジュール
-sudo dnf module list nodejs      # 特定モジュールのストリーム一覧
-sudo dnf module enable nodejs:20 # Node.js 20 を有効化
+# Modules (RHEL 8+ / Fedora)
+sudo dnf module list             # List available modules
+sudo dnf module list nodejs      # List streams for a specific module
+sudo dnf module enable nodejs:20 # Enable Node.js 20
 sudo dnf module install nodejs:20
-sudo dnf module disable nodejs   # モジュール無効化
-sudo dnf module reset nodejs     # モジュールのリセット
+sudo dnf module disable nodejs   # Disable module
+sudo dnf module reset nodejs     # Reset module
 
-# モジュールストリームの切り替え
+# Switching module streams
 sudo dnf module reset nodejs
 sudo dnf module enable nodejs:22
 sudo dnf module install nodejs:22
 ```
 
-### 2.3 リポジトリの管理
+### 2.3 Repository Management
 
 ```bash
-# リポジトリの確認
-dnf repolist                     # 有効なリポジトリ
-dnf repolist all                 # 全リポジトリ
-dnf repoinfo                     # リポジトリ詳細
+# Check repositories
+dnf repolist                     # Enabled repositories
+dnf repolist all                 # All repositories
+dnf repoinfo                     # Repository details
 
-# リポジトリの有効化/無効化
+# Enable/disable repositories
 sudo dnf config-manager --set-enabled powertools
 sudo dnf config-manager --set-disabled powertools
 
-# サードパーティリポジトリの追加
+# Add third-party repository
 sudo dnf config-manager --add-repo https://packages.example.com/repo
 
-# EPEL リポジトリの追加（RHEL/Rocky/AlmaLinux）
+# Add EPEL repository (RHEL/Rocky/AlmaLinux)
 sudo dnf install epel-release
 
-# RPM Fusion リポジトリの追加（Fedora）
+# Add RPM Fusion repository (Fedora)
 sudo dnf install \
     https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
     https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 ```
 
-### 2.4 rpm の直接操作
+### 2.4 Direct rpm Operations
 
 ```bash
-# .rpm ファイル
-sudo dnf install package.rpm     # 推奨（依存関係自動解決）
-sudo rpm -ivh package.rpm        # rpm 直接（依存関係手動）
+# .rpm files
+sudo dnf install package.rpm     # Recommended (auto-resolves dependencies)
+sudo rpm -ivh package.rpm        # Direct rpm (manual dependencies)
 
-# rpm での情報表示
-rpm -qa | grep nginx             # インストール済み検索
-rpm -ql nginx                    # ファイル一覧
-rpm -qi nginx                    # パッケージ情報
-rpm -qf /usr/bin/curl            # ファイルの所有パッケージ
-rpm -qp package.rpm              # 未インストールパッケージの情報
+# Display information with rpm
+rpm -qa | grep nginx             # Search installed packages
+rpm -ql nginx                    # List files
+rpm -qi nginx                    # Package information
+rpm -qf /usr/bin/curl            # Package owning the file
+rpm -qp package.rpm              # Information for uninstalled package
 
-# GPGキーの管理
+# GPG key management
 rpm --import https://packages.example.com/gpg.key
-rpm -qa gpg-pubkey*              # インポート済みキー一覧
+rpm -qa gpg-pubkey*              # List imported keys
 ```
 
-### 2.5 dnf の履歴管理
+### 2.5 dnf History Management
 
 ```bash
-# dnf のトランザクション履歴
-dnf history                      # 履歴一覧
-dnf history info 15              # 特定トランザクションの詳細
-dnf history undo 15              # 特定トランザクションの取り消し
-dnf history rollback 15          # 特定時点まで巻き戻し
+# dnf transaction history
+dnf history                      # List history
+dnf history info 15              # Details of a specific transaction
+dnf history undo 15              # Undo a specific transaction
+dnf history rollback 15          # Roll back to a specific point
 
-# 最近の操作のログ
+# Recent operation log
 cat /var/log/dnf.log
 ```
 
-### 2.6 パッケージの固定
+### 2.6 Package Pinning
 
 ```bash
-# dnf でのバージョン固定
+# Version pinning with dnf
 sudo dnf install dnf-plugin-versionlock
 sudo dnf versionlock add nginx
 sudo dnf versionlock list
@@ -314,112 +314,112 @@ sudo dnf versionlock delete nginx
 
 ---
 
-## 3. Homebrew（macOS / Linux）
+## 3. Homebrew (macOS / Linux)
 
-### 3.1 基本操作
+### 3.1 Basic Operations
 
 ```bash
-# インストール
+# Install
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# 基本操作
-brew install wget                # CLI ツールのインストール
-brew install --cask firefox      # GUI アプリのインストール
-brew uninstall wget              # 削除
-brew upgrade                     # 全パッケージ更新
-brew upgrade wget                # 特定パッケージ更新
-brew update                      # Homebrew 自体の更新
+# Basic operations
+brew install wget                # Install CLI tool
+brew install --cask firefox      # Install GUI application
+brew uninstall wget              # Remove
+brew upgrade                     # Update all packages
+brew upgrade wget                # Update specific package
+brew update                      # Update Homebrew itself
 
-# 検索・情報
-brew search nginx                # 検索
-brew info nginx                  # 詳細情報
-brew list                        # インストール済み一覧
-brew list --cask                 # GUI アプリ一覧
-brew deps nginx                  # 依存関係
-brew deps --tree nginx           # 依存ツリー
-brew uses --installed nginx      # 逆依存関係
-brew outdated                    # 更新可能な一覧
+# Search and information
+brew search nginx                # Search
+brew info nginx                  # Detailed information
+brew list                        # List installed packages
+brew list --cask                 # List GUI applications
+brew deps nginx                  # Dependencies
+brew deps --tree nginx           # Dependency tree
+brew uses --installed nginx      # Reverse dependencies
+brew outdated                    # List updatable packages
 
-# メンテナンス
-brew cleanup                     # 古いバージョンを削除
-brew cleanup -n                  # 削除対象の確認（dry-run）
-brew cleanup --prune=30          # 30日以上前のキャッシュを削除
-brew doctor                      # 問題の診断
-brew autoremove                  # 不要な依存を削除
-brew missing                     # 不足している依存
+# Maintenance
+brew cleanup                     # Remove old versions
+brew cleanup -n                  # Check what would be removed (dry-run)
+brew cleanup --prune=30          # Remove cache older than 30 days
+brew doctor                      # Diagnose issues
+brew autoremove                  # Remove unnecessary dependencies
+brew missing                     # Missing dependencies
 ```
 
-### 3.2 Homebrew の高度な操作
+### 3.2 Advanced Homebrew Operations
 
 ```bash
-# バージョン管理
-brew list --versions nginx       # インストール済みバージョン
-brew pin nginx                   # バージョン固定
-brew unpin nginx                 # 固定解除
-brew list --pinned               # 固定されたパッケージ
+# Version management
+brew list --versions nginx       # Installed versions
+brew pin nginx                   # Pin version
+brew unpin nginx                 # Unpin
+brew list --pinned               # Pinned packages
 
-# 特定バージョンのインストール
-brew install nginx@1.24          # 特定バージョン（利用可能な場合）
-brew install --HEAD nginx        # 開発版（HEAD）
+# Install a specific version
+brew install nginx@1.24          # Specific version (if available)
+brew install --HEAD nginx        # Development version (HEAD)
 
-# パッケージの詳細操作
-brew link nginx                  # シンボリックリンク作成
-brew unlink nginx                # シンボリックリンク削除
-brew link --overwrite nginx      # 強制リンク
-brew --prefix nginx              # インストール先の確認
+# Detailed package operations
+brew link nginx                  # Create symbolic links
+brew unlink nginx                # Remove symbolic links
+brew link --overwrite nginx      # Force link
+brew --prefix nginx              # Check installation location
 
-# 構成情報
-brew config                      # Homebrew の設定情報
-brew --prefix                    # Homebrew のインストール先
-brew --cellar                    # Cellar の場所
-brew --cache                     # キャッシュの場所
+# Configuration information
+brew config                      # Homebrew configuration information
+brew --prefix                    # Homebrew installation location
+brew --cellar                    # Cellar location
+brew --cache                     # Cache location
 ```
 
-### 3.3 サービス管理（macOS の launchd と統合）
+### 3.3 Service Management (Integrated with macOS launchd)
 
 ```bash
-# サービス管理
-brew services list               # サービス一覧
-brew services start nginx        # 起動（自動起動も設定）
-brew services stop nginx         # 停止
-brew services restart nginx      # 再起動
-brew services run nginx          # 起動のみ（自動起動なし）
-brew services info nginx         # サービス情報
+# Service management
+brew services list               # List services
+brew services start nginx        # Start (also configure autostart)
+brew services stop nginx         # Stop
+brew services restart nginx      # Restart
+brew services run nginx          # Start only (no autostart)
+brew services info nginx         # Service information
 
-# plist ファイルの場所
-ls ~/Library/LaunchAgents/       # ユーザーサービス
-ls /Library/LaunchDaemons/       # システムサービス
+# plist file locations
+ls ~/Library/LaunchAgents/       # User services
+ls /Library/LaunchDaemons/       # System services
 ```
 
-### 3.4 Tap（サードパーティリポジトリ）
+### 3.4 Tap (Third-Party Repositories)
 
 ```bash
-# Tap の管理
-brew tap                         # 追加済みTap一覧
-brew tap homebrew/cask-fonts     # フォント用Tap追加
-brew tap homebrew/cask-versions  # 旧バージョンのcask
-brew tap user/repo               # カスタムTap
-brew untap homebrew/cask-fonts   # Tap削除
+# Tap management
+brew tap                         # List added taps
+brew tap homebrew/cask-fonts     # Add tap for fonts
+brew tap homebrew/cask-versions  # Old versions cask
+brew tap user/repo               # Custom tap
+brew untap homebrew/cask-fonts   # Remove tap
 
-# 特定のTapからインストール
+# Install from a specific tap
 brew install homebrew/cask-fonts/font-fira-code
 ```
 
-### 3.5 Bundle（一括管理）
+### 3.5 Bundle (Batch Management)
 
 ```bash
-# Bundle（一括管理）
-# Brewfile に記述してまとめてインストール
-brew bundle dump                 # 現在の状態をBrewfileに出力
-brew bundle dump --force         # 上書き
-brew bundle install              # Brewfileからインストール
-brew bundle check                # 全てインストール済みか確認
-brew bundle cleanup              # Brewfileにないパッケージを削除
-brew bundle cleanup --force      # 確認なしで削除
-brew bundle list                 # Brewfileの内容を表示
+# Bundle (batch management)
+# Describe in Brewfile and install all at once
+brew bundle dump                 # Output current state to Brewfile
+brew bundle dump --force         # Overwrite
+brew bundle install              # Install from Brewfile
+brew bundle check                # Check if all are installed
+brew bundle cleanup              # Remove packages not in Brewfile
+brew bundle cleanup --force      # Remove without confirmation
+brew bundle list                 # Show Brewfile contents
 ```
 
-### 3.6 Brewfile の例
+### 3.6 Brewfile Example
 
 ```ruby
 # Brewfile
@@ -428,47 +428,47 @@ brew bundle list                 # Brewfileの内容を表示
 tap "homebrew/cask"
 tap "homebrew/cask-fonts"
 
-# CLI tools - 基本
+# CLI tools - basic
 brew "git"
 brew "gh"
 brew "curl"
 brew "wget"
 
-# CLI tools - モダン代替
-brew "ripgrep"                  # grep の代替
-brew "fd"                       # find の代替
-brew "bat"                      # cat の代替
-brew "eza"                      # ls の代替
-brew "fzf"                      # ファジーファインダー
-brew "zoxide"                   # cd の代替
-brew "delta"                    # diff の代替
-brew "dust"                     # du の代替
-brew "duf"                      # df の代替
-brew "procs"                    # ps の代替
-brew "bottom"                   # top の代替
-brew "hyperfine"                # ベンチマーク
+# CLI tools - modern alternatives
+brew "ripgrep"                  # grep alternative
+brew "fd"                       # find alternative
+brew "bat"                      # cat alternative
+brew "eza"                      # ls alternative
+brew "fzf"                      # fuzzy finder
+brew "zoxide"                   # cd alternative
+brew "delta"                    # diff alternative
+brew "dust"                     # du alternative
+brew "duf"                      # df alternative
+brew "procs"                    # ps alternative
+brew "bottom"                   # top alternative
+brew "hyperfine"                # benchmarking
 
-# CLI tools - 開発
-brew "jq"                       # JSON処理
-brew "yq"                       # YAML処理
-brew "starship"                 # プロンプト
-brew "tmux"                     # ターミナルマルチプレクサ
-brew "shellcheck"               # シェルスクリプトリンター
+# CLI tools - development
+brew "jq"                       # JSON processing
+brew "yq"                       # YAML processing
+brew "starship"                 # prompt
+brew "tmux"                     # terminal multiplexer
+brew "shellcheck"               # shell script linter
 
-# CLI tools - インフラ
+# CLI tools - infrastructure
 brew "awscli"
 brew "terraform"
 brew "ansible"
 brew "kubectl"
 brew "helm"
 
-# 言語・ランタイム
+# Languages and runtimes
 brew "node"
 brew "python@3.12"
 brew "go"
 brew "rust"
 
-# Applications（GUI）
+# Applications (GUI)
 cask "visual-studio-code"
 cask "iterm2"
 cask "docker"
@@ -476,13 +476,13 @@ cask "firefox"
 cask "google-chrome"
 cask "slack"
 cask "1password"
-cask "rectangle"                # ウィンドウ管理
+cask "rectangle"                # window management
 
 # Fonts
 cask "font-fira-code-nerd-font"
 cask "font-jetbrains-mono-nerd-font"
 
-# Mac App Store（mas コマンドが必要）
+# Mac App Store (requires mas command)
 # mas "Xcode", id: 497799835
 # mas "Keynote", id: 409183694
 ```
@@ -490,234 +490,234 @@ cask "font-jetbrains-mono-nerd-font"
 ### 3.7 Homebrew on Linux
 
 ```bash
-# Linux での Homebrew（Linuxbrew）
-# インストール
+# Homebrew on Linux (Linuxbrew)
+# Install
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# パスの設定（~/.bashrc または ~/.zshrc に追加）
+# Path configuration (add to ~/.bashrc or ~/.zshrc)
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
-# Linux での利点:
-# - 最新バージョンのツールを root なしでインストール可能
-# - ディストリビューションに依存しない
-# - macOS と同じ Brewfile を共有可能
+# Advantages on Linux:
+# - Install latest tool versions without root
+# - Distribution-independent
+# - Share the same Brewfile as macOS
 
-# 注意点:
-# - /home/linuxbrew/.linuxbrew/ にインストールされる
-# - glibc 2.13+ が必要
-# - ビルドツール（gcc, make）が事前に必要
+# Notes:
+# - Installed to /home/linuxbrew/.linuxbrew/
+# - Requires glibc 2.13+
+# - Build tools (gcc, make) must be installed first
 sudo apt install build-essential curl file git
 ```
 
 ---
 
-## 4. pacman（Arch Linux）
+## 4. pacman (Arch Linux)
 
-### 4.1 基本操作
+### 4.1 Basic Operations
 
 ```bash
-# pacman（Arch Linux / Manjaro）
-sudo pacman -S nginx             # インストール
-sudo pacman -R nginx             # 削除
-sudo pacman -Rs nginx            # 依存関係ごと削除
-sudo pacman -Rns nginx           # 設定ファイルも含めて完全削除
-sudo pacman -Syu                 # 全更新（同期 + 更新）
-sudo pacman -Syy                 # データベース強制更新
-sudo pacman -Ss nginx            # 検索
-sudo pacman -Si nginx            # リポジトリのパッケージ情報
-sudo pacman -Qi nginx            # インストール済みパッケージ情報
-sudo pacman -Ql nginx            # ファイル一覧
-sudo pacman -Qo /usr/bin/curl    # ファイルの所有パッケージ
-sudo pacman -Qe                  # 明示的にインストールしたパッケージ
-sudo pacman -Qd                  # 依存関係でインストールされたパッケージ
-sudo pacman -Qdt                 # 孤立パッケージ（不要な依存）
+# pacman (Arch Linux / Manjaro)
+sudo pacman -S nginx             # Install
+sudo pacman -R nginx             # Remove
+sudo pacman -Rs nginx            # Remove including dependencies
+sudo pacman -Rns nginx           # Complete removal including config files
+sudo pacman -Syu                 # Full update (sync + upgrade)
+sudo pacman -Syy                 # Force database update
+sudo pacman -Ss nginx            # Search
+sudo pacman -Si nginx            # Repository package information
+sudo pacman -Qi nginx            # Installed package information
+sudo pacman -Ql nginx            # List files
+sudo pacman -Qo /usr/bin/curl    # Package owning the file
+sudo pacman -Qe                  # Explicitly installed packages
+sudo pacman -Qd                  # Packages installed as dependencies
+sudo pacman -Qdt                 # Orphaned packages (unnecessary dependencies)
 
-# キャッシュの管理
-sudo pacman -Sc                  # 古いキャッシュを削除
-sudo pacman -Scc                 # 全キャッシュを削除
+# Cache management
+sudo pacman -Sc                  # Remove old cache
+sudo pacman -Scc                 # Remove all cache
 
-# AUR（Arch User Repository）ヘルパー
-# yay のインストール
+# AUR (Arch User Repository) helper
+# Install yay
 git clone https://aur.archlinux.org/yay.git
 cd yay && makepkg -si
 
-# yay の使い方（pacman と同じ構文）
-yay -S google-chrome             # AUR からインストール
-yay -Syu                         # 全更新（公式 + AUR）
-yay -Ss keyword                  # 検索（公式 + AUR）
+# Using yay (same syntax as pacman)
+yay -S google-chrome             # Install from AUR
+yay -Syu                         # Full update (official + AUR)
+yay -Ss keyword                  # Search (official + AUR)
 ```
 
-### 4.2 pacman のフラグ早見表
+### 4.2 pacman Flag Quick Reference
 
 ```bash
-# pacman のフラグ体系:
-# -S: Sync（リポジトリ操作）
-#   -S pkg    → インストール
-#   -Ss       → 検索
-#   -Si       → 情報表示
-#   -Sy       → データベース更新
-#   -Su       → アップグレード
-#   -Syu      → 更新 + アップグレード
-#   -Sc       → キャッシュ削除
+# pacman flag system:
+# -S: Sync (repository operations)
+#   -S pkg    → install
+#   -Ss       → search
+#   -Si       → show information
+#   -Sy       → update database
+#   -Su       → upgrade
+#   -Syu      → update + upgrade
+#   -Sc       → remove cache
 
-# -R: Remove（削除操作）
-#   -R pkg    → 削除
-#   -Rs       → 依存関係も削除
-#   -Rn       → 設定ファイルも削除
-#   -Rns      → 完全削除
+# -R: Remove (removal operations)
+#   -R pkg    → remove
+#   -Rs       → remove with dependencies
+#   -Rn       → remove config files too
+#   -Rns      → complete removal
 
-# -Q: Query（クエリ操作）
-#   -Q        → インストール済み一覧
-#   -Qs       → 検索
-#   -Qi       → 情報表示
-#   -Ql       → ファイル一覧
-#   -Qo file  → 所有パッケージ
-#   -Qe       → 明示インストール
-#   -Qd       → 依存インストール
-#   -Qdt      → 孤立パッケージ
+# -Q: Query (query operations)
+#   -Q        → list installed
+#   -Qs       → search
+#   -Qi       → show information
+#   -Ql       → list files
+#   -Qo file  → owning package
+#   -Qe       → explicitly installed
+#   -Qd       → installed as dependency
+#   -Qdt      → orphaned packages
 
-# -F: File（ファイル検索）
-#   -Fy       → ファイルデータベース更新
-#   -Fs file  → ファイルを含むパッケージ検索
+# -F: File (file search)
+#   -Fy       → update file database
+#   -Fs file  → search package containing file
 ```
 
 ---
 
-## 5. その他のパッケージマネージャ
+## 5. Other Package Managers
 
-### 5.1 snap（Ubuntu）
+### 5.1 snap (Ubuntu)
 
 ```bash
-# snap: サンドボックス化されたパッケージ
-sudo snap install code --classic # インストール（--classic: サンドボックスなし）
-sudo snap install firefox        # サンドボックス付き
-snap list                        # 一覧
-snap info firefox                # 詳細情報
-sudo snap refresh                # 全更新
-sudo snap refresh firefox        # 特定パッケージ更新
-sudo snap remove firefox         # 削除
-sudo snap revert firefox         # 前バージョンに戻す
+# snap: sandboxed packages
+sudo snap install code --classic # Install (--classic: no sandbox)
+sudo snap install firefox        # Install with sandbox
+snap list                        # List
+snap info firefox                # Detailed information
+sudo snap refresh                # Update all
+sudo snap refresh firefox        # Update specific package
+sudo snap remove firefox         # Remove
+sudo snap revert firefox         # Revert to previous version
 
-# チャンネル管理
-snap info --verbose firefox      # 利用可能なチャンネル
-sudo snap install firefox --channel=esr/stable  # ESR版
+# Channel management
+snap info --verbose firefox      # Available channels
+sudo snap install firefox --channel=esr/stable  # ESR version
 
-# snap のメンテナンス
-snap changes                     # 変更履歴
-snap connections firefox         # インターフェース接続
-sudo snap connect firefox:camera # カメラアクセスを許可
+# snap maintenance
+snap changes                     # Change history
+snap connections firefox         # Interface connections
+sudo snap connect firefox:camera # Allow camera access
 
-# snap の自動更新を制御
-sudo snap set system refresh.timer=sat,04:00  # 土曜4時に更新
+# Control snap auto-updates
+sudo snap set system refresh.timer=sat,04:00  # Update Saturday at 4:00
 ```
 
 ### 5.2 flatpak
 
 ```bash
-# flatpak: クロスディストリビューションパッケージ
-sudo apt install flatpak         # flatpak のインストール
+# flatpak: cross-distribution packages
+sudo apt install flatpak         # Install flatpak
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-# 基本操作
+# Basic operations
 flatpak install flathub org.gimp.GIMP
-flatpak list                     # 一覧
-flatpak update                   # 更新
-flatpak uninstall org.gimp.GIMP  # 削除
-flatpak search gimp              # 検索
-flatpak info org.gimp.GIMP       # 情報
+flatpak list                     # List
+flatpak update                   # Update
+flatpak uninstall org.gimp.GIMP  # Remove
+flatpak search gimp              # Search
+flatpak info org.gimp.GIMP       # Information
 
-# ランタイムの管理
-flatpak list --runtime           # インストール済みランタイム
-flatpak uninstall --unused       # 未使用のランタイムを削除
+# Runtime management
+flatpak list --runtime           # List installed runtimes
+flatpak uninstall --unused       # Remove unused runtimes
 ```
 
-### 5.3 nix（宣言的パッケージ管理）
+### 5.3 nix (Declarative Package Management)
 
 ```bash
-# nix: 宣言的・再現可能なパッケージ管理
-# インストール
+# nix: declarative and reproducible package management
+# Install
 sh <(curl -L https://nixos.org/nix/install) --daemon
 
-# 基本操作（従来のコマンド）
-nix-env -iA nixpkgs.nginx       # インストール
-nix-env -q                      # 一覧
-nix-env -u                      # 更新
-nix-env -e nginx                # 削除
+# Basic operations (traditional commands)
+nix-env -iA nixpkgs.nginx       # Install
+nix-env -q                      # List
+nix-env -u                      # Update
+nix-env -e nginx                # Remove
 
-# 新しいコマンド（Nix 2.4+、experimental）
+# New commands (Nix 2.4+, experimental)
 nix profile install nixpkgs#nginx
 nix profile list
 nix profile upgrade
 nix profile remove nginx
 
-# 一時的に使用（インストールせずに実行）
-nix-shell -p nginx               # 一時的な環境
-nix run nixpkgs#cowsay -- "Hello" # 一時実行
+# Temporary use (run without installing)
+nix-shell -p nginx               # Temporary environment
+nix run nixpkgs#cowsay -- "Hello" # Temporary execution
 
-# nix の利点:
-# - 宣言的な設定で再現可能
-# - 複数バージョンの共存が可能
-# - ロールバックが容易
-# - 全ディストリビューションで同じ
+# Advantages of nix:
+# - Reproducible with declarative configuration
+# - Multiple versions can coexist
+# - Easy rollback
+# - Same across all distributions
 ```
 
 ### 5.4 AppImage
 
 ```bash
-# AppImage: ポータブルなLinuxアプリケーション
-# ダウンロードして実行権限を付けるだけ
+# AppImage: portable Linux applications
+# Just download and set execute permission
 chmod +x MyApp.AppImage
 ./MyApp.AppImage
 
-# AppImageLauncher でシステム統合
-# - デスクトップエントリの自動作成
-# - アップデートの管理
+# System integration with AppImageLauncher
+# - Automatic desktop entry creation
+# - Update management
 sudo apt install appimagelauncher
 
-# 管理のベストプラクティス
+# Management best practices
 mkdir -p ~/Applications
 mv MyApp.AppImage ~/Applications/
 ```
 
 ---
 
-## 6. 言語別パッケージマネージャ
+## 6. Language-Specific Package Managers
 
 ### 6.1 Node.js / JavaScript
 
 ```bash
-# npm（Node.js 同梱）
-npm install -g typescript        # グローバル
-npm install express              # ローカル（プロジェクト内）
-npm install -D jest              # 開発依存
-npx create-react-app myapp       # 一時実行
+# npm (bundled with Node.js)
+npm install -g typescript        # Global
+npm install express              # Local (within project)
+npm install -D jest              # Development dependency
+npx create-react-app myapp       # Temporary execution
 
-npm list -g --depth=0            # グローバルインストール済み
-npm outdated                     # 更新可能なパッケージ
-npm update                       # 更新
-npm audit                        # セキュリティ監査
-npm audit fix                    # 自動修正
+npm list -g --depth=0            # Globally installed packages
+npm outdated                     # Updatable packages
+npm update                       # Update
+npm audit                        # Security audit
+npm audit fix                    # Auto-fix
 
-# pnpm（高速・ディスク効率的）
+# pnpm (fast and disk-efficient)
 npm install -g pnpm
-pnpm install                     # package.json からインストール
-pnpm add express                 # パッケージ追加
-pnpm add -D jest                 # 開発依存
-pnpm remove express              # 削除
+pnpm install                     # Install from package.json
+pnpm add express                 # Add package
+pnpm add -D jest                 # Development dependency
+pnpm remove express              # Remove
 
-# Bun（高速なJavaScriptランタイム + パッケージマネージャ）
+# Bun (fast JavaScript runtime + package manager)
 curl -fsSL https://bun.sh/install | bash
-bun install                      # package.json からインストール
-bun add express                  # パッケージ追加
-bun run dev                      # スクリプト実行
+bun install                      # Install from package.json
+bun add express                  # Add package
+bun run dev                      # Run script
 
-# バージョン管理（Node.js自体）
-# fnm（推奨）
+# Version management (Node.js itself)
+# fnm (recommended)
 curl -fsSL https://fnm.vercel.app/install | bash
-fnm install 20                   # Node.js 20 をインストール
-fnm use 20                       # バージョン切り替え
-fnm list                         # インストール済みバージョン
-fnm default 20                   # デフォルトバージョン
+fnm install 20                   # Install Node.js 20
+fnm use 20                       # Switch version
+fnm list                         # List installed versions
+fnm default 20                   # Default version
 
 # nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
@@ -730,70 +730,70 @@ nvm alias default 20
 
 ```bash
 # pip
-pip install requests             # インストール
-pip install requests==2.31.0     # バージョン指定
-pip install -r requirements.txt  # 一括インストール
-pip list                         # 一覧
-pip show requests                # 情報表示
-pip freeze > requirements.txt    # 依存を書き出し
-pip install --upgrade requests   # 更新
+pip install requests             # Install
+pip install requests==2.31.0     # Specify version
+pip install -r requirements.txt  # Batch install
+pip list                         # List
+pip show requests                # Show information
+pip freeze > requirements.txt    # Export dependencies
+pip install --upgrade requests   # Update
 
-# pipx: CLIツールのインストールに推奨（隔離環境）
+# pipx: recommended for installing CLI tools (isolated environment)
 pip install pipx
 pipx install black
 pipx install ruff
 pipx install poetry
-pipx list                        # インストール済み
-pipx upgrade-all                 # 全更新
+pipx list                        # Installed packages
+pipx upgrade-all                 # Update all
 
-# uv: 高速なPythonパッケージマネージャ
+# uv: fast Python package manager
 curl -LsSf https://astral.sh/uv/install.sh | sh
-uv pip install requests          # pip互換
-uv pip compile requirements.in -o requirements.txt  # ロック
-uv venv                          # 仮想環境作成
-uv run script.py                 # スクリプト実行
+uv pip install requests          # pip-compatible
+uv pip compile requirements.in -o requirements.txt  # Lock
+uv venv                          # Create virtual environment
+uv run script.py                 # Run script
 
-# uvx: pipx の代替（uv内蔵）
-uvx black file.py                # 一時実行
-uvx ruff check .                 # リンター実行
+# uvx: alternative to pipx (built into uv)
+uvx black file.py                # Temporary execution
+uvx ruff check .                 # Run linter
 
-# 仮想環境
-python -m venv .venv             # 仮想環境作成
-source .venv/bin/activate        # 有効化
-deactivate                       # 無効化
+# Virtual environments
+python -m venv .venv             # Create virtual environment
+source .venv/bin/activate        # Activate
+deactivate                       # Deactivate
 
-# バージョン管理（Python自体）
+# Version management (Python itself)
 # pyenv
 curl https://pyenv.run | bash
 pyenv install 3.12.0
 pyenv global 3.12.0
-pyenv local 3.12.0               # ディレクトリ単位で設定
-pyenv versions                   # インストール済み
+pyenv local 3.12.0               # Set per directory
+pyenv versions                   # List installed versions
 ```
 
 ### 6.3 Rust
 
 ```bash
-# rustup（Rust ツールチェーン管理）
+# rustup (Rust toolchain management)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-rustup update                    # ツールチェーン更新
-rustup component add clippy      # コンポーネント追加
-rustup target add wasm32-unknown-unknown  # ターゲット追加
+rustup update                    # Update toolchain
+rustup component add clippy      # Add component
+rustup target add wasm32-unknown-unknown  # Add target
 
-# cargo（Rust パッケージマネージャ）
-cargo install ripgrep            # バイナリインストール
-cargo install --locked bat       # Cargo.lock を尊重
-cargo install-update -a          # インストール済みバイナリ更新（要 cargo-update）
+# cargo (Rust package manager)
+cargo install ripgrep            # Install binary
+cargo install --locked bat       # Respect Cargo.lock
+cargo install-update -a          # Update installed binaries (requires cargo-update)
 ```
 
 ### 6.4 Go
 
 ```bash
-# Go ツールのインストール
+# Install Go tools
 go install golang.org/x/tools/gopls@latest
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-# Go バージョン管理
+# Go version management
 go install golang.org/dl/go1.22.0@latest
 go1.22.0 download
 ```
@@ -804,16 +804,16 @@ go1.22.0 download
 # gem
 gem install bundler
 gem install rails
-gem list                         # インストール済み
-gem update                       # 全更新
+gem list                         # List installed
+gem update                       # Update all
 
-# bundle（Bundler）
-bundle init                      # Gemfile 作成
-bundle install                   # Gemfile から一括
-bundle update                    # 依存更新
-bundle exec rails server         # 環境内で実行
+# bundle (Bundler)
+bundle init                      # Create Gemfile
+bundle install                   # Install from Gemfile
+bundle update                    # Update dependencies
+bundle exec rails server         # Run within environment
 
-# rbenv（バージョン管理）
+# rbenv (version management)
 brew install rbenv ruby-build
 rbenv install 3.3.0
 rbenv global 3.3.0
@@ -822,13 +822,13 @@ rbenv versions
 
 ---
 
-## 7. コンテナ内のパッケージ管理
+## 7. Package Management Inside Containers
 
 ```bash
-# Dockerfile でのベストプラクティス
+# Dockerfile best practices
 
-# Debian/Ubuntu ベース
-# --- 推奨パターン ---
+# Debian/Ubuntu base
+# --- Recommended pattern ---
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
@@ -837,24 +837,24 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# ポイント:
-# - apt ではなく apt-get を使う（非対話的に適している）
-# - --no-install-recommends で推奨パッケージを省略
-# - 1つの RUN でまとめてキャッシュ削除（レイヤーサイズ削減）
-# - /var/lib/apt/lists/* を削除
+# Key points:
+# - Use apt-get instead of apt (better suited for non-interactive use)
+# - --no-install-recommends to skip recommended packages
+# - Clean cache in a single RUN to reduce layer size
+# - Remove /var/lib/apt/lists/*
 
-# Alpine Linux ベース（軽量コンテナ）
+# Alpine Linux base (lightweight containers)
 RUN apk add --no-cache \
     curl \
     nginx
 
-# RHEL/Fedora ベース
+# RHEL/Fedora base
 RUN dnf install -y --setopt=install_weak_deps=False \
         curl \
         nginx && \
     dnf clean all
 
-# マルチステージビルドでのパッケージ管理
+# Package management with multi-stage builds
 FROM golang:1.22 AS builder
 RUN go build -o /app .
 
@@ -866,90 +866,90 @@ CMD ["/app"]
 
 ---
 
-## 8. セキュリティとベストプラクティス
+## 8. Security and Best Practices
 
-### 8.1 パッケージのセキュリティ確認
+### 8.1 Package Security Verification
 
 ```bash
-# Ubuntu: セキュリティ更新の確認
+# Ubuntu: Check for security updates
 sudo apt list --upgradable 2>/dev/null | grep -i security
 
-# セキュリティ更新のみ適用
+# Apply only security updates
 sudo apt-get -s dist-upgrade | grep "^Inst" | grep -i securi
 sudo unattended-upgrade --dry-run
 
-# RHEL/Fedora: セキュリティアドバイザリ
+# RHEL/Fedora: Security advisories
 sudo dnf updateinfo list security
-sudo dnf update --security       # セキュリティ更新のみ
-sudo dnf updateinfo info RHSA-2025:0001  # 特定アドバイザリの詳細
+sudo dnf update --security       # Apply only security updates
+sudo dnf updateinfo info RHSA-2025:0001  # Details of a specific advisory
 
-# パッケージの整合性チェック
+# Package integrity check
 # Debian/Ubuntu
-debsums -c                       # 変更されたファイルを検出
-sudo debsums -a nginx            # 特定パッケージ
+debsums -c                       # Detect modified files
+sudo debsums -a nginx            # Specific package
 
 # RHEL/Fedora
-rpm -Va                          # 全パッケージの検証
-rpm -V nginx                     # 特定パッケージの検証
+rpm -Va                          # Verify all packages
+rpm -V nginx                     # Verify specific package
 ```
 
-### 8.2 GPGキーの管理
+### 8.2 GPG Key Management
 
 ```bash
-# apt のGPGキー管理（新しい方法）
-# キーリングディレクトリ
+# apt GPG key management (new method)
+# Keyring directory
 ls /usr/share/keyrings/
 ls /etc/apt/trusted.gpg.d/
 
-# キーのダウンロードと変換
+# Download and convert key
 curl -fsSL https://example.com/gpg.key | \
     sudo gpg --dearmor -o /usr/share/keyrings/example.gpg
 
-# sources.list での指定
+# Specify in sources.list
 # deb [signed-by=/usr/share/keyrings/example.gpg] https://packages.example.com/apt stable main
 
-# rpm のGPGキー管理
+# rpm GPG key management
 sudo rpm --import https://packages.example.com/gpg.key
-rpm -qa gpg-pubkey*              # インポート済みキー
+rpm -qa gpg-pubkey*              # Imported keys
 ```
 
-### 8.3 パッケージ管理のベストプラクティス
+### 8.3 Package Management Best Practices
 
 ```bash
-# 1. 常にリポジトリを最新にしてからインストール
+# 1. Always update the repository before installing
 sudo apt update && sudo apt install package
 
-# 2. 本番環境ではバージョンを固定
+# 2. Pin versions in production environments
 sudo apt install nginx=1.24.0-1ubuntu1
-# または
+# or
 sudo apt-mark hold nginx
 
-# 3. 定期的にセキュリティ更新を適用
-# 自動更新の設定
+# 3. Regularly apply security updates
+# Configure automatic updates
 sudo apt install unattended-upgrades
 
-# 4. 不要なパッケージを削除してアタックサーフェスを減らす
+# 4. Remove unnecessary packages to reduce attack surface
 sudo apt autoremove --purge
 dpkg -l | grep '^rc' | awk '{print $2}' | xargs sudo dpkg --purge
 
-# 5. 信頼できるリポジトリのみ使用
-# GPG署名を検証してからインストール
+# 5. Use only trusted repositories
+# Verify GPG signature before installing
 
-# 6. パッケージの出所を確認
-apt-cache policy nginx           # どのリポジトリからか
+# 6. Verify package origin
+apt-cache policy nginx           # Which repository it comes from
 ```
 
 ---
 
-## 9. 実践パターン
+## 9. Practical Patterns
 
-### 9.1 サーバーの初期セットアップ
+### 9.1 Initial Server Setup
 
 ```bash
 #!/bin/bash
 set -euo pipefail
 
-# Ubuntu サーバーの初期セットアップスクリプト
+# Ubuntu server initial setup script
 echo "=== System Update ==="
 sudo apt update && sudo apt upgrade -y
 
@@ -1000,13 +1000,13 @@ sudo apt clean
 echo "=== Setup Complete ==="
 ```
 
-### 9.2 開発マシンのセットアップ自動化（macOS）
+### 9.2 Automated Development Machine Setup (macOS)
 
 ```bash
 #!/bin/bash
 set -euo pipefail
 
-# macOS 開発環境セットアップスクリプト
+# macOS development environment setup script
 
 echo "=== Installing Xcode Command Line Tools ==="
 xcode-select --install 2>/dev/null || true
@@ -1020,7 +1020,7 @@ echo "=== Installing from Brewfile ==="
 brew bundle install --file=Brewfile
 
 echo "=== Setting up Shell ==="
-# zsh プラグイン
+# zsh plugins
 if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
     sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 fi
@@ -1060,13 +1060,13 @@ echo "=== Setup Complete ==="
 echo "Please restart your terminal."
 ```
 
-### 9.3 パッケージの一括アップデートスクリプト
+### 9.3 Batch Package Update Script
 
 ```bash
 #!/bin/bash
 set -euo pipefail
 
-# 全パッケージマネージャの一括更新スクリプト
+# Batch update script for all package managers
 LOG_FILE="/tmp/update-all-$(date +%Y%m%d).log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
@@ -1108,13 +1108,13 @@ if command -v flatpak &>/dev/null; then
     flatpak update -y
 fi
 
-# npm (グローバルパッケージ)
+# npm (global packages)
 if command -v npm &>/dev/null; then
     echo "--- npm (global) ---"
     npm update -g
 fi
 
-# pip (pipx 管理のツール)
+# pip (pipx-managed tools)
 if command -v pipx &>/dev/null; then
     echo "--- pipx ---"
     pipx upgrade-all
@@ -1130,225 +1130,225 @@ echo "=== Update Complete: $(date) ==="
 echo "Log saved to: $LOG_FILE"
 ```
 
-### 9.4 パッケージの比較・移行
+### 9.4 Package Comparison and Migration
 
 ```bash
-# サーバー間でのパッケージ比較
-# サーバーAのパッケージリスト
+# Compare packages between servers
+# Package list from server A
 ssh server-a "dpkg --get-selections" > /tmp/server-a-packages.txt
 
-# サーバーBのパッケージリスト
+# Package list from server B
 ssh server-b "dpkg --get-selections" > /tmp/server-b-packages.txt
 
-# 差分の確認
+# Check differences
 diff /tmp/server-a-packages.txt /tmp/server-b-packages.txt
 
-# パッケージリストの移行
-# エクスポート
+# Migrate package list
+# Export
 dpkg --get-selections > packages.txt
 
-# インポート（別サーバー）
+# Import (on another server)
 sudo dpkg --set-selections < packages.txt
 sudo apt-get dselect-upgrade
 
-# macOS のパッケージ移行
-# エクスポート
+# macOS package migration
+# Export
 brew bundle dump --force --file=Brewfile
 
-# インポート（別マシン）
+# Import (on another machine)
 brew bundle install --file=Brewfile
 ```
 
 ---
 
-## 10. Alpine Linux のパッケージ管理（apk）
+## 10. Alpine Linux Package Management (apk)
 
 ```bash
-# apk（Alpine Package Keeper）
-# Docker コンテナで最も使われる軽量ディストリビューション
+# apk (Alpine Package Keeper)
+# Lightweight distribution most commonly used in Docker containers
 
-# 基本操作
-apk update                       # パッケージリストの更新
-apk upgrade                      # 全パッケージ更新
-apk add nginx                    # インストール
-apk add --no-cache nginx         # キャッシュを残さずインストール
-apk del nginx                    # 削除
+# Basic operations
+apk update                       # Update package list
+apk upgrade                      # Update all packages
+apk add nginx                    # Install
+apk add --no-cache nginx         # Install without keeping cache
+apk del nginx                    # Remove
 
-# 検索・情報
-apk search nginx                 # パッケージ検索
-apk info nginx                   # パッケージ情報
-apk info -L nginx                # ファイル一覧
-apk list --installed             # インストール済み一覧
+# Search and information
+apk search nginx                 # Search packages
+apk info nginx                   # Package information
+apk info -L nginx                # List files
+apk list --installed             # List installed packages
 
-# 仮想パッケージ（ビルド時のみ必要なパッケージ管理）
+# Virtual packages (manage packages needed only during build)
 apk add --virtual .build-deps gcc musl-dev python3-dev
-# ビルド後に一括削除
+# Remove all at once after build
 apk del .build-deps
 
-# Dockerfile での典型的パターン
+# Typical pattern in Dockerfile
 # RUN apk add --no-cache --virtual .build-deps \
 #         gcc musl-dev python3-dev && \
 #     pip install --no-cache-dir -r requirements.txt && \
 #     apk del .build-deps
 
-# リポジトリの管理
+# Repository management
 cat /etc/apk/repositories
-# コミュニティリポジトリの有効化
+# Enable community repository
 # echo "http://dl-cdn.alpinelinux.org/alpine/v3.19/community" >> /etc/apk/repositories
 
-# エッジ（テスト）リポジトリからのインストール
+# Install from edge (testing) repository
 apk add --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing package-name
 ```
 
 ---
 
-## 11. パッケージマネージャの比較と選択指針
+## 11. Package Manager Comparison and Selection Guide
 
-### 11.1 システムパッケージマネージャの比較
+### 11.1 System Package Manager Comparison
 
 ```bash
-# === パッケージフォーマットの比較 ===
+# === Package format comparison ===
 # deb (Debian/Ubuntu):
-#   - 最も広いエコシステム
-#   - PPAによる簡単なサードパーティリポジトリ
-#   - aptが依存関係を自動解決
-#   - パッケージ数が最も多い
+#   - Widest ecosystem
+#   - Easy third-party repositories via PPA
+#   - apt automatically resolves dependencies
+#   - Largest number of packages
 
 # rpm (RHEL/Fedora):
-#   - エンタープライズ向けの安定性
-#   - SELinux との統合
-#   - モジュールストリームによるバージョン管理
-#   - 商用サポートあり（Red Hat）
+#   - Enterprise-grade stability
+#   - SELinux integration
+#   - Version management via module streams
+#   - Commercial support available (Red Hat)
 
 # PKGBUILD (Arch):
-#   - 最新のパッケージが最速で利用可能
-#   - AURによる膨大なコミュニティパッケージ
-#   - シンプルなパッケージビルドシステム
-#   - ローリングリリース
+#   - Latest packages available fastest
+#   - Vast community packages via AUR
+#   - Simple package build system
+#   - Rolling release
 
 # Homebrew (macOS/Linux):
-#   - macOS のデファクトスタンダード
-#   - 開発者向けツールが充実
-#   - Brewfileによる宣言的管理
-#   - root権限不要
+#   - De facto standard for macOS
+#   - Rich developer tooling
+#   - Declarative management via Brewfile
+#   - No root privileges required
 ```
 
-### 11.2 ユニバーサルパッケージの比較
+### 11.2 Universal Package Comparison
 
 ```bash
 # === snap vs flatpak vs AppImage ===
 
 # snap:
-#   - Canonical（Ubuntu）が開発
-#   - サーバーサイドアプリにも対応
-#   - 自動更新
-#   - 中央集権的（Snap Store）
-#   - 起動がやや遅い
+#   - Developed by Canonical (Ubuntu)
+#   - Supports server-side apps as well
+#   - Automatic updates
+#   - Centralized (Snap Store)
+#   - Slightly slower startup
 
 # flatpak:
-#   - コミュニティ主導
-#   - デスクトップアプリに特化
-#   - 複数のリモートリポジトリ
-#   - サンドボックスが強力
-#   - ランタイム共有でディスク効率的
+#   - Community-driven
+#   - Focused on desktop applications
+#   - Multiple remote repositories
+#   - Strong sandboxing
+#   - Runtime sharing for disk efficiency
 
 # AppImage:
-#   - パッケージマネージャ不要
-#   - 1ファイル = 1アプリ
-#   - ポータブル（USBメモリで持ち運び可能）
-#   - 自動更新の仕組みが弱い
-#   - サンドボックスなし
+#   - No package manager required
+#   - 1 file = 1 application
+#   - Portable (can be carried on USB drive)
+#   - Weak auto-update mechanism
+#   - No sandbox
 
-# 選択指針:
-# サーバー → snap（または従来のパッケージ）
-# デスクトップ → flatpak（ディストリ非依存）
-# ポータブル → AppImage
+# Selection guide:
+# Server → snap (or traditional packages)
+# Desktop → flatpak (distribution-independent)
+# Portable → AppImage
 ```
 
-### 11.3 パッケージ管理のトラブルシューティング
+### 11.3 Package Management Troubleshooting
 
 ```bash
-# === apt のトラブルシューティング ===
-# ロックファイルの問題
+# === apt troubleshooting ===
+# Lock file issues
 sudo rm /var/lib/dpkg/lock-frontend
 sudo rm /var/lib/apt/lists/lock
 sudo dpkg --configure -a
 
-# 壊れたパッケージの修復
+# Repair broken packages
 sudo apt --fix-broken install
 sudo dpkg --configure -a
 sudo apt update --fix-missing
 
-# sources.list のエラー
+# sources.list errors
 sudo apt update 2>&1 | grep "NO_PUBKEY" | awk '{print $NF}' | \
     xargs -I {} sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys {}
 
-# === dnf のトラブルシューティング ===
-# キャッシュの破損
+# === dnf troubleshooting ===
+# Corrupted cache
 sudo dnf clean all
 sudo dnf makecache
 
-# 壊れたRPMデータベース
+# Broken RPM database
 sudo rpm --rebuilddb
 
-# === Homebrew のトラブルシューティング ===
-# 問題の診断
+# === Homebrew troubleshooting ===
+# Diagnose issues
 brew doctor
 
-# Homebrew の再インストール
+# Reinstall Homebrew
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# リンクの問題
+# Link issues
 brew link --overwrite package
-brew link --overwrite --dry-run package  # 確認のみ
+brew link --overwrite --dry-run package  # Check only
 
-# 権限の問題
+# Permission issues
 sudo chown -R $(whoami) $(brew --prefix)/*
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1357,26 +1357,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1384,7 +1384,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1395,14 +1395,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1410,7 +1410,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1418,44 +1418,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1464,7 +1464,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1479,47 +1479,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Missing or invalid config file | Check config file path and format |
+| Timeout | Network delay / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace to identify where the error occurs
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Stepwise verification**: Verify hypotheses using log output or a debugger
+5. **Fix and regression test**: After fixing, run tests for related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1527,102 +1527,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator to log function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Verify presence of memory leaks
+3. **Check for I/O waits**: Review disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Issue Type | Diagnostic Tool | Solution |
+|-----------|----------------|---------|
+| High CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB slowness | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize when | Can compromise when |
+|----------|----------------|-------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → Go to 2                     │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How often do you deploy?                    │
+│    ├─ Weekly or less → Monolith + modules       │
+│    └─ Daily / multiple times → Go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?              │
+│    ├─ High → Microservices                      │
+│    └─ Medium → Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A fast short-term approach can become long-term technical debt
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified tech stack reduces learning costs
+- Adopting diverse technologies enables best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1632,17 +1632,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and issues"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1650,7 +1650,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1658,15 +1658,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1676,24 +1676,24 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| ディストリビューション | マネージャ | インストール | 更新 | 検索 |
-|----------------------|-----------|------------|------|------|
+| Distribution | Manager | Install | Update | Search |
+|-------------|---------|---------|--------|--------|
 | Ubuntu/Debian | apt | apt install pkg | apt upgrade | apt search pkg |
 | RHEL/Fedora | dnf | dnf install pkg | dnf update | dnf search pkg |
 | Arch Linux | pacman | pacman -S pkg | pacman -Syu | pacman -Ss pkg |
@@ -1704,11 +1704,11 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
 ---
 
-## 参考文献
+## References
 1. "APT User's Guide." Debian Documentation.
 2. "Homebrew Documentation." brew.sh.
 3. "DNF Documentation." dnf.readthedocs.io.
