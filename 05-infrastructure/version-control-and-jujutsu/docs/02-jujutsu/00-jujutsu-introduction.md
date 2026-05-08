@@ -1,119 +1,119 @@
-# Jujutsu入門
+# Introduction to Jujutsu
 
-> 次世代バージョン管理システムJujutsu（jj）の設計思想とGitとの根本的な違いを理解し、基本操作をマスターする。
+> Understand the design philosophy of Jujutsu (jj), the next-generation version control system, its fundamental differences from Git, and master the basic operations.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Jujutsuの設計思想** — Gitの課題を解決するために何が再設計されたか
-2. **Gitとの根本的な違い** — working copy = commit、自動リベース、コンフリクトのファーストクラスサポート
-3. **基本操作の習得** — jj init, jj new, jj describe, jj log, jj diff
-4. **初期設定とカスタマイズ** — インストールから日常的に快適に使うための設定まで
-5. **Jujutsuの内部構造** — Operation Log、ストレージバックエンド、スナップショッティングの仕組み
+1. **Jujutsu's Design Philosophy** — What was redesigned to solve Git's shortcomings
+2. **Fundamental Differences from Git** — working copy = commit, automatic rebasing, first-class conflict support
+3. **Basic Operations** — jj init, jj new, jj describe, jj log, jj diff
+4. **Initial Setup and Customization** — From installation to configuration for comfortable daily use
+5. **Jujutsu's Internal Architecture** — Operation Log, storage backend, and the snapshotting mechanism
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. Jujutsuとは何か
+## 1. What Is Jujutsu?
 
-Jujutsu（jj）はGoogleのMartin von Zweigbergk氏が開発したバージョン管理システムで、**Gitのオブジェクトストレージを内部的に利用しつつ、UIと操作モデルを根本から再設計**したツールである。
+Jujutsu (jj) is a version control system developed by Martin von Zweigbergk at Google. It **uses Git's object storage internally while fundamentally redesigning the UI and operation model**.
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Jujutsuのアーキテクチャ                             │
+│  Jujutsu Architecture                               │
 │                                                     │
 │  ┌───────────────────────┐                          │
-│  │  ユーザーインターフェース  │  ← jj コマンド       │
-│  │  (Jujutsu独自モデル)      │                      │
+│  │  User Interface       │  ← jj commands           │
+│  │  (Jujutsu model)      │                          │
 │  └───────────┬───────────┘                          │
 │              │                                      │
 │  ┌───────────▼───────────┐                          │
-│  │  操作ログ (Operation Log)│  ← 全操作の記録       │
-│  │  (undo/redo サポート)    │                        │
+│  │  Operation Log        │  ← Records all operations│
+│  │  (undo/redo support)  │                          │
 │  └───────────┬───────────┘                          │
 │              │                                      │
 │  ┌───────────▼───────────┐                          │
-│  │  バックエンドストレージ    │  ← Git互換           │
-│  │  (Git objects/refs)      │                       │
+│  │  Backend Storage      │  ← Git-compatible        │
+│  │  (Git objects/refs)   │                          │
 │  └───────────────────────┘                          │
 │                                                     │
-│  → git clone したリポジトリでそのまま jj を使える   │
-│  → jj で作った変更を git push できる                │
+│  → Use jj directly in a git clone repository        │
+│  → Changes made with jj can be git pushed           │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.1 Jujutsuが解決する課題
+### 1.1 Problems Jujutsu Solves
 
-| Gitの課題                          | Jujutsuの解決策                        |
-|------------------------------------|----------------------------------------|
-| ステージングエリアが複雑           | working copy自体がcommit               |
-| detached HEADで変更を失う          | 全changeは自動追跡、失われない          |
-| rebase時のコンフリクト地獄         | コンフリクトをcommitに記録、後で解決可  |
-| ブランチ管理が煩雑                 | 匿名ブランチ（ブランチレス開発）        |
-| undoが難しい（reflog頼み）          | Operation Logで全操作のundo/redo        |
-| インデックスの理解が必要           | インデックス（ステージング）が不要      |
-| rebase -iの複雑な操作              | squash, split, edit等の直感的な操作     |
-| stashの管理が面倒                  | 全てがcommitなのでstash不要             |
-| ブランチ切替時のworking tree汚染   | working copy = commitで状態が常に明確   |
+| Git Problem                                 | Jujutsu Solution                              |
+|---------------------------------------------|-----------------------------------------------|
+| Staging area is complex                     | The working copy itself is a commit           |
+| Losing changes in detached HEAD             | All changes are auto-tracked, never lost      |
+| Conflict hell during rebase                 | Conflicts are recorded in commits, resolvable later |
+| Branch management is cumbersome             | Anonymous branches (branchless development)   |
+| Hard to undo (relying on reflog)            | Operation Log for undo/redo of all operations |
+| Must understand the index                   | No index (staging) required                   |
+| Complex rebase -i operations                | Intuitive operations like squash, split, edit |
+| Managing stashes is tedious                 | Everything is a commit, no stash needed       |
+| Working tree pollution when switching branches | working copy = commit keeps state always clear |
 
-### 1.2 Jujutsuの開発背景
+### 1.2 Background of Jujutsu's Development
 
-Jujutsuは以下の背景から生まれた。
+Jujutsu emerged from the following background.
 
-1. **Googleの内部VCS経験**: Google社内ではPiperやCitCといった独自のVCSが使われており、Gitとは異なるワークフローが培われてきた。Martin von Zweigbergk氏はMercurialの開発にも携わり、Gitの操作モデルの改善可能性を探っていた。
+1. **Google's Internal VCS Experience**: Google uses proprietary VCS systems like Piper and CitC internally, which cultivated workflows different from Git. Martin von Zweigbergk was also involved in Mercurial development and was exploring ways to improve Git's operation model.
 
-2. **Mercurialからの教訓**: Mercurialのchangeset概念、revset言語、evolve拡張などの優れた機能をGit互換の形で提供する。特にrevsetクエリ言語はMercurialの最も先進的な機能の一つだった。
+2. **Lessons from Mercurial**: Provides Mercurial's excellent features — such as the changeset concept, revset language, and evolve extension — in a Git-compatible form. The revset query language was one of Mercurial's most advanced features.
 
-3. **Git互換性の重要性**: 新しいVCSを普及させるには既存のGitエコシステムとの互換性が不可欠。JujutsuはGitのオブジェクトストレージをそのまま使用することで、GitHubやGitLabなどとのシームレスな連携を実現している。
+3. **Importance of Git Compatibility**: For a new VCS to gain adoption, compatibility with the existing Git ecosystem is essential. Jujutsu achieves seamless integration with GitHub, GitLab, and others by using Git's object storage directly.
 
-4. **モダンなCLI設計**: Gitは2005年の設計思想に基づいており、コマンド体系が一貫していない部分がある（`git checkout`の多義性など）。Jujutsuは現代のCLI設計のベストプラクティスに従い、各コマンドが単一の責務を持つよう設計されている。
+4. **Modern CLI Design**: Git is based on 2005-era design thinking, and its command set has inconsistencies (e.g., the overloaded meaning of `git checkout`). Jujutsu follows modern CLI design best practices, with each command having a single responsibility.
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Jujutsuの影響を受けたVCS・ツール                    │
+│  VCS and Tools That Influenced Jujutsu              │
 │                                                     │
 │  Mercurial (hg)                                     │
-│  ├── revset クエリ言語                              │
-│  ├── changeset の概念                               │
-│  ├── evolve 拡張（obsmarkers）                      │
-│  └── テンプレート言語                               │
+│  ├── revset query language                          │
+│  ├── changeset concept                              │
+│  ├── evolve extension (obsmarkers)                  │
+│  └── template language                              │
 │                                                     │
 │  Google Piper / CitC                                │
 │  ├── working copy = pending change                  │
-│  ├── code review 統合                               │
-│  └── 大規模モノレポの運用経験                       │
+│  ├── code review integration                        │
+│  └── experience operating large-scale monorepos     │
 │                                                     │
 │  Git                                                │
-│  ├── オブジェクトストレージ (blob, tree, commit)    │
-│  ├── DAG (有向非巡回グラフ) によるコミット管理      │
-│  └── リモート連携 (fetch, push)                     │
+│  ├── object storage (blob, tree, commit)            │
+│  ├── commit management via DAG (directed acyclic graph) │
+│  └── remote integration (fetch, push)               │
 │                                                     │
-│  → これらの長所を統合した次世代VCS = Jujutsu        │
+│  → Next-generation VCS integrating these strengths = Jujutsu │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.3 Jujutsuの設計原則
+### 1.3 Jujutsu's Design Principles
 
-Jujutsuは以下の設計原則に基づいている。
+Jujutsu is based on the following design principles.
 
-1. **ファーストクラスのコンフリクト**: コンフリクトはエラーではなく、commitに記録できる通常の状態として扱う
-2. **自動リベース**: 親commitの変更は子commitに自動的に伝播する
-3. **不変のchange ID**: rebaseしてもcommitの論理的なアイデンティティが保持される
-4. **操作のundo**: 全ての操作が記録され、安全に取り消し可能
-5. **ステージング不要**: working copyの状態が直接commitに反映される
-6. **匿名ブランチ**: ブランチ名なしでも開発できる柔軟な設計
+1. **First-class conflicts**: Conflicts are treated not as errors but as a normal state that can be recorded in a commit
+2. **Automatic rebasing**: Changes to a parent commit automatically propagate to child commits
+3. **Immutable change IDs**: The logical identity of a commit is preserved even after rebasing
+4. **Operation undo**: All operations are recorded and can be safely undone
+5. **No staging required**: The state of the working copy is directly reflected in commits
+6. **Anonymous branches**: A flexible design that allows development without branch names
 
 ---
 
-## 2. インストールと初期設定
+## 2. Installation and Initial Setup
 
-### 2.1 各プラットフォームでのインストール
+### 2.1 Installation on Each Platform
 
 ```bash
 # macOS (Homebrew)
@@ -143,57 +143,57 @@ $ choco install jujutsu
 # Windows (winget)
 $ winget install martinvonz.jj
 
-# ソースからビルド
+# Build from source
 $ git clone https://github.com/martinvonz/jj.git
 $ cd jj
 $ cargo build --release
 $ cp target/release/jj ~/.local/bin/
 
-# バージョン確認
+# Verify version
 $ jj version
 jj 0.25.0
 ```
 
-### 2.2 初期設定
+### 2.2 Initial Setup
 
 ```bash
-# ユーザー名とメールアドレス（必須）
+# Username and email address (required)
 $ jj config set --user user.name "Gaku"
 $ jj config set --user user.email "gaku@example.com"
 
-# エディタの設定
+# Editor configuration
 $ jj config set --user ui.editor "vim"
-# VS Code を使う場合
+# For VS Code
 $ jj config set --user ui.editor "code --wait"
-# Emacs を使う場合
+# For Emacs
 $ jj config set --user ui.editor "emacs -nw"
 
-# diff エディタの設定（split, squash で使用）
+# Diff editor configuration (used with split, squash)
 $ jj config set --user ui.diff-editor "meld"
-# difftastic を使う場合
+# For difftastic
 $ jj config set --user ui.diff.tool "difft"
 
-# ページャーの設定
+# Pager configuration
 $ jj config set --user ui.pager "less -FRX"
-# delta を使う場合
+# For delta
 $ jj config set --user ui.pager "delta"
 
-# デフォルトコマンドの設定（引数なしで jj を実行した時のコマンド）
+# Default command (command run when jj is executed without arguments)
 $ jj config set --user ui.default-command "log"
 
-# 設定の確認
+# Check configuration
 $ jj config list
-$ jj config list --user    # ユーザーレベルの設定のみ
+$ jj config list --user    # User-level settings only
 
-# 設定ファイルのパスを確認
+# Check configuration file path
 $ jj config path --user
 # → ~/.jjconfig.toml
 ```
 
-### 2.3 設定ファイルの直接編集
+### 2.3 Editing the Configuration File Directly
 
 ```toml
-# ~/.jjconfig.toml の全体像
+# Full overview of ~/.jjconfig.toml
 
 [user]
 name = "Gaku"
@@ -205,19 +205,19 @@ diff-editor = "meld"
 merge-editor = "meld"
 pager = "less -FRX"
 default-command = "log"
-# カラー出力の制御
+# Control color output
 color = "auto"  # "always", "never", "auto"
-# ページャーを使うかどうか
+# Whether to use a pager
 paginate = "auto"  # "auto", "never"
 
 [git]
-# push時のブックマーク名プレフィックス
+# Bookmark name prefix when pushing
 push-bookmark-prefix = "gaku/push-"
-# fetch時に自動的にGitのタグをインポート
+# Automatically import Git tags when fetching
 auto-local-bookmark = false
 
 [aliases]
-# よく使うコマンドのエイリアス
+# Aliases for frequently used commands
 l = ["log", "-r", "ancestors(heads(all()), 10)"]
 ll = ["log", "--no-graph"]
 d = ["diff"]
@@ -228,17 +228,17 @@ c = ["commit"]
 desc = ["describe"]
 ```
 
-### 2.4 シェル補完の設定
+### 2.4 Shell Completion Setup
 
 ```bash
 # Bash
 $ jj util completion bash > ~/.local/share/bash-completion/completions/jj
-# または
+# Or
 $ echo 'source <(jj util completion bash)' >> ~/.bashrc
 
 # Zsh
 $ jj util completion zsh > ~/.zfunc/_jj
-# .zshrc に以下を追加:
+# Add the following to .zshrc:
 # fpath=(~/.zfunc $fpath)
 # autoload -Uz compinit && compinit
 
@@ -249,427 +249,427 @@ $ jj util completion fish > ~/.config/fish/completions/jj.fish
 $ jj util completion powershell | Out-File -FilePath $PROFILE -Append
 ```
 
-### 2.5 difftasticとの統合
+### 2.5 Integration with difftastic
 
-difftasticは構文ベースのdiffツールで、Jujutsuとの統合が公式にサポートされている。
+difftastic is a syntax-aware diff tool with official Jujutsu integration support.
 
 ```bash
-# difftasticのインストール
+# Install difftastic
 $ brew install difftastic   # macOS
 $ cargo install difftastic  # cargo
 
-# jjconfig.toml での設定
+# Configuration in jjconfig.toml
 # [ui]
 # diff.tool = ["difft", "--color=always", "$left", "$right"]
 
-# コマンドラインでの一時的な使用
+# Temporary use from the command line
 $ jj diff --tool difft
 $ jj log -p --tool difft
 ```
 
 ---
 
-## 3. 基本概念: working copy = commit
+## 3. Core Concept: working copy = commit
 
-### 3.1 Gitとの最大の違い
+### 3.1 The Biggest Difference from Git
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Git のメンタルモデル                                │
+│  Git Mental Model                                   │
 │                                                     │
-│  Working Directory → Staging Area → Repository      │
-│    (未追跡)          (git add)      (git commit)    │
+│  Working Directory → Staging Area → Repository     │
+│    (untracked)       (git add)      (git commit)    │
 │                                                     │
-│  3つの領域を意識する必要がある                       │
+│  You need to be aware of 3 areas                    │
 │                                                     │
-│  よくあるミス:                                      │
-│  - git add を忘れてcommitが空になる                 │
-│  - 部分的にaddしてcommitの内容が不完全になる        │
-│  - git add -A で不要なファイルまで追加してしまう    │
+│  Common mistakes:                                   │
+│  - Forgetting git add leads to an empty commit      │
+│  - Partial adds lead to incomplete commit contents  │
+│  - git add -A accidentally includes unwanted files  │
 │                                                     │
 ├─────────────────────────────────────────────────────┤
-│  Jujutsu のメンタルモデル                            │
+│  Jujutsu Mental Model                               │
 │                                                     │
-│  Working Copy = 最新のCommit（常に自動記録）        │
+│  Working Copy = Latest Commit (always auto-recorded)│
 │                                                     │
-│  ファイルを編集 → 自動的にworking copy commitに反映 │
-│  "jj new" → 新しい空のcommitを開始                  │
+│  Edit a file → automatically reflected in working copy commit │
+│  "jj new" → start a new empty commit               │
 │                                                     │
-│  ステージングエリアは存在しない                      │
+│  No staging area exists                             │
 │                                                     │
-│  利点:                                              │
-│  - git add を忘れる心配がない                       │
-│  - 常に変更がcommitに記録されている                 │
-│  - stash が不要（全てがcommit）                     │
-│  - 部分的な変更の選択は jj split で後からでも可能   │
+│  Benefits:                                          │
+│  - No need to worry about forgetting git add        │
+│  - Changes are always recorded in a commit          │
+│  - No stash needed (everything is a commit)         │
+│  - Partial change selection is possible later with jj split │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 3.2 changeとcommitの違い
+### 3.2 The Difference Between a Change and a Commit
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  Jujutsuの用語                                      │
+│  Jujutsu Terminology                               │
 │                                                    │
-│  change:  論理的な変更単位（change IDで識別）       │
-│           change ID は rebase しても変わらない      │
-│           8文字の英小文字で表示（例: rlvkpntz）     │
+│  change:  A logical unit of change (identified by change ID) │
+│           The change ID does not change after rebase │
+│           Displayed as 8 lowercase letters (e.g.: rlvkpntz) │
 │                                                    │
-│  commit:  特定時点のスナップショット                 │
-│           commit ID (SHA-1) は内容変更で変わる      │
-│           16進数で表示（例: abc12345）              │
+│  commit:  A snapshot at a specific point in time  │
+│           The commit ID (SHA-1) changes when content changes │
+│           Displayed in hexadecimal (e.g.: abc12345) │
 │                                                    │
-│  例:                                               │
-│  change "rlvkpntz" の commit が abc12345 だった場合│
-│  rebase すると commit は def67890 に変わるが        │
-│  change ID は "rlvkpntz" のまま                    │
+│  Example:                                          │
+│  If change "rlvkpntz" has commit abc12345          │
+│  After rebasing, the commit becomes def67890 but   │
+│  the change ID remains "rlvkpntz"                  │
 │                                                    │
-│  → change ID で追跡すれば rebase しても参照可能    │
+│  → Tracking by change ID keeps the reference stable after rebase │
 │                                                    │
-│  重要な違い:                                       │
+│  Key Differences:                                  │
 │  ┌──────────────┬──────────────┬──────────────┐    │
 │  │              │ change ID    │ commit ID    │    │
 │  ├──────────────┼──────────────┼──────────────┤    │
-│  │ rebase時     │ 変わらない   │ 変わる       │    │
-│  │ amend時      │ 変わらない   │ 変わる       │    │
-│  │ 形式         │ 英小文字     │ 16進数       │    │
-│  │ 用途         │ 追跡用       │ Git互換      │    │
-│  │ ユニーク性   │ リポジトリ内 │ グローバル   │    │
+│  │ After rebase │ Unchanged    │ Changes      │    │
+│  │ After amend  │ Unchanged    │ Changes      │    │
+│  │ Format       │ lowercase    │ hexadecimal  │    │
+│  │ Purpose      │ Tracking     │ Git-compat   │    │
+│  │ Uniqueness   │ Within repo  │ Global       │    │
 │  └──────────────┴──────────────┴──────────────┘    │
 └────────────────────────────────────────────────────┘
 ```
 
-### 3.3 スナップショッティングの仕組み
+### 3.3 How Snapshotting Works
 
-Jujutsuの「working copy = commit」は、スナップショッティングという仕組みで実現されている。
+Jujutsu's "working copy = commit" is realized through a mechanism called snapshotting.
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  スナップショッティングの動作フロー                   │
+│  Snapshotting Operation Flow                        │
 │                                                     │
-│  1. ユーザーがファイルを編集                         │
-│     → この時点ではcommitに反映されていない           │
+│  1. User edits a file                               │
+│     → Not yet reflected in the commit at this point │
 │                                                     │
-│  2. jjコマンドを実行（jj status, jj log, jj diff等）│
-│     → コマンド実行前にworking copyのスナップショット │
-│       が自動的に取得される                           │
-│     → ファイルシステムの変更がcommitに反映される     │
+│  2. A jj command is executed (jj status, jj log, jj diff, etc.) │
+│     → Before the command runs, a snapshot of the   │
+│       working copy is automatically taken           │
+│     → File system changes are reflected in the commit │
 │                                                     │
-│  3. スナップショットの最適化                          │
-│     → watchman連携で変更ファイルのみをチェック       │
-│     → 大規模リポジトリでも高速に動作                 │
+│  3. Snapshot optimization                           │
+│     → Watchman integration checks only changed files │
+│     → Operates quickly even in large repositories  │
 │                                                     │
-│  つまり:                                             │
-│  - Ctrl+S でファイル保存するたびにcommitが           │
-│    作られるわけではない                              │
-│  - jjコマンド実行時に「まとめて」反映される          │
-│  - パフォーマンスへの影響は最小限                    │
+│  In other words:                                    │
+│  - A new commit is NOT created every time you       │
+│    save a file with Ctrl+S                          │
+│  - Changes are reflected "in bulk" when a jj command runs │
+│  - Performance impact is minimal                   │
 └─────────────────────────────────────────────────────┘
 ```
 
 ```bash
-# スナップショッティングの確認
+# Observing snapshotting
 $ echo "Hello" > hello.txt
 $ echo "World" > world.txt
 
-# この時点ではまだcommitに反映されていない（ファイルシステム上のみ）
+# At this point, not yet reflected in the commit (filesystem only)
 
-# jj status を実行するとスナップショットが取得される
+# Running jj status triggers a snapshot
 $ jj status
 Working copy changes:
 A hello.txt
 A world.txt
 
-# 以降、jjコマンドの出力には常に最新のファイル状態が反映される
+# From this point, all jj command output reflects the latest file state
 ```
 
-### 3.4 watchman連携による高速化
+### 3.4 Speed Improvement with watchman Integration
 
 ```bash
-# watchmanのインストール
+# Install watchman
 $ brew install watchman   # macOS
 $ sudo apt install watchman  # Ubuntu
 
-# jjの設定でwatchmanを有効化
+# Enable watchman in jj configuration
 $ jj config set --user core.fsmonitor "watchman"
 
-# watchmanが有効な場合の動作:
-# - ファイルシステムの変更を常時監視
-# - スナップショット時に変更されたファイルのみチェック
-# - 大規模リポジトリ（10万ファイル超）でも数百msで完了
+# When watchman is enabled:
+# - Continuously monitors file system changes
+# - Only checks changed files during snapshotting
+# - Completes in hundreds of milliseconds even for large repos (100k+ files)
 ```
 
 ---
 
-## 4. 基本操作
+## 4. Basic Operations
 
-### 4.1 リポジトリの初期化
+### 4.1 Initializing a Repository
 
 ```bash
-# 新規リポジトリの作成
+# Create a new repository
 $ jj git init my-project
 $ cd my-project
 
-# 既存のGitリポジトリをjjで使う（co-located）
+# Use jj with an existing Git repository (co-located)
 $ cd existing-git-repo
 $ jj git init --colocate
-# → .jj/ ディレクトリが作成され、既存の .git/ と共存
+# → A .jj/ directory is created and coexists with the existing .git/
 
-# リモートリポジトリのクローン
+# Clone a remote repository
 $ jj git clone https://github.com/user/repo.git
 $ jj git clone git@github.com:user/repo.git  # SSH
 
-# 特定のブランチのみクローン
+# Clone a specific branch only
 $ jj git clone --branch main https://github.com/user/repo.git
 
-# co-located でクローン（推奨）
+# Clone co-located (recommended)
 $ jj git clone --colocate https://github.com/user/repo.git
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  初期化パターンの選択指針                            │
+│  Guidelines for Choosing an Initialization Pattern  │
 │                                                     │
-│  1. 新規プロジェクト:                                │
+│  1. New project:                                    │
 │     $ jj git init my-project                        │
-│     → .jj/ と .git/ の両方が作成される              │
+│     → Both .jj/ and .git/ are created              │
 │                                                     │
-│  2. 既存Gitリポジトリに追加:                         │
+│  2. Add to existing Git repository:                 │
 │     $ jj git init --colocate                        │
-│     → .jj/ のみ追加、.git/ はそのまま              │
-│     → git コマンドもそのまま使える                  │
+│     → Only .jj/ is added, .git/ remains as-is      │
+│     → git commands can still be used               │
 │                                                     │
-│  3. リモートからクローン:                            │
+│  3. Clone from remote:                              │
 │     $ jj git clone --colocate URL                   │
-│     → co-located で開始（git も使える）             │
+│     → Start co-located (git can also be used)      │
 │                                                     │
-│  推奨: 常に co-located で始める                     │
-│  → git コマンドが必要になった時に困らない           │
-│  → チームメンバーが git を使っていても問題ない      │
+│  Recommendation: Always start co-located            │
+│  → No trouble if you need git commands later       │
+│  → No issues even if team members use git          │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 4.2 変更の作成と記録
+### 4.2 Creating and Recording Changes
 
 ```bash
-# ファイルを作成・編集（自動的にworking copy commitに反映）
+# Create/edit files (automatically reflected in the working copy commit)
 $ echo "Hello" > hello.txt
 
-# 現在の状態を確認
+# Check the current state
 $ jj status
 Working copy changes:
 A hello.txt
 
-# working copy commitに説明を追加
-$ jj describe -m "feat: hello.txtを作成"
+# Add a description to the working copy commit
+$ jj describe -m "feat: create hello.txt"
 
-# 複数行のメッセージを設定
-$ jj describe -m "feat: hello.txtを作成
+# Set a multi-line message
+$ jj describe -m "feat: create hello.txt
 
-初期のHelloメッセージファイルを追加した。
-このファイルはプロジェクトの基盤となる。"
+Added the initial Hello message file.
+This file will be the foundation of the project."
 
-# エディタで説明を編集（-m を省略）
+# Edit the description in an editor (omit -m)
 $ jj describe
-# → 設定されたエディタが開き、コミットメッセージを編集
+# → The configured editor opens to edit the commit message
 
-# 新しいcommitを開始（現在の変更を確定し、新しい空commitへ移動）
+# Start a new commit (finalize current changes and move to a new empty commit)
 $ jj new
-# → 今の変更が確定され、その上に新しい空のworking copy commitが作成される
+# → Current changes are finalized, and a new empty working copy commit is created on top
 
-# describeとnewを同時に行うショートカット
-$ jj commit -m "feat: hello.txtを作成"
-# → jj describe -m "..." && jj new と同等
+# Shortcut that does both describe and new at once
+$ jj commit -m "feat: create hello.txt"
+# → Equivalent to jj describe -m "..." && jj new
 
-# ログの確認
+# Check the log
 $ jj log
 @  rlvkpntz gaku@example.com 2025-02-11 15:30:00 abc12345
 │  (empty) (no description set)
 ○  qpvuntsm gaku@example.com 2025-02-11 15:25:00 def67890
-│  feat: hello.txtを作成
+│  feat: create hello.txt
 ○  zzzzzzzz root() 00000000
 ```
 
-### 4.3 `jj log`の読み方
+### 4.3 How to Read `jj log`
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  jj log の出力フォーマット                           │
+│  jj log Output Format                              │
 │                                                     │
 │  @  rlvkpntz gaku@... 2025-02-11 abc12345          │
 │  ^  ^^^^^^^^ ^^^^^^   ^^^^^^^^^^  ^^^^^^^^          │
 │  │  │        │        │           │                 │
 │  │  │        │        │           └── commit ID     │
-│  │  │        │        └── タイムスタンプ             │
-│  │  │        └── 作成者                             │
-│  │  └── change ID（短縮形）                         │
-│  └── @ = working copy（現在位置）                   │
+│  │  │        │        └── timestamp                 │
+│  │  │        └── author                             │
+│  │  └── change ID (short form)                      │
+│  └── @ = working copy (current position)            │
 │                                                     │
-│  記号の意味:                                         │
-│  @  = working copy（現在編集中のcommit）            │
-│  ○  = 通常のcommit                                  │
-│  ◆  = 不変（immutable）のcommit                     │
-│  ×  = コンフリクトあり                              │
+│  Symbol meanings:                                   │
+│  @  = working copy (currently being edited commit) │
+│  ○  = regular commit                               │
+│  ◆  = immutable commit                             │
+│  ×  = has conflicts                                │
 │                                                     │
-│  グラフの線:                                        │
-│  │  = 直線的な親子関係                              │
-│  ├─┘ = ブランチの合流                               │
-│  ├─┐ = ブランチの分岐                               │
+│  Graph lines:                                       │
+│  │  = linear parent-child relationship             │
+│  ├─┘ = branch merge                                │
+│  ├─┐ = branch split                               │
 └─────────────────────────────────────────────────────┘
 ```
 
 ```bash
-# ログの表示オプション
+# Log display options
 
-# グラフなしで表示
+# Display without graph
 $ jj log --no-graph
 
-# 特定のrevision範囲を表示
+# Display a specific revision range
 $ jj log -r 'main..'
 
-# パッチ（差分）付きで表示
+# Display with patch (diff)
 $ jj log -p
 
-# stat（変更ファイル統計）付きで表示
+# Display with stat (changed file statistics)
 $ jj log -s
 
-# カスタムテンプレートで表示
+# Display with a custom template
 $ jj log -T 'change_id.short() ++ " " ++ description.first_line() ++ "\n"'
 
-# 特定のファイルに関連するログのみ表示
+# Show only log related to a specific file
 $ jj log -r 'file("src/auth.js")'
 
-# 直近N件のみ表示
+# Show only the last N entries
 $ jj log -n 10
-# または revset で
+# Or using a revset
 $ jj log -r 'ancestors(@, 10)'
 ```
 
-### 4.4 差分の確認
+### 4.4 Checking Diffs
 
 ```bash
-# working copyの変更を確認
+# Check working copy changes
 $ jj diff
 
-# 特定のchangeの変更を確認
+# Check changes in a specific change
 $ jj diff -r qpvuntsm
 
-# 2つのrevision間の差分
+# Diff between two revisions
 $ jj diff --from main --to @
 
-# stat形式で概要を確認
+# Check a summary in stat format
 $ jj diff --stat
 
-# 特定のファイルのみ
+# Only a specific file
 $ jj diff src/auth.js
 
-# サマリー形式（追加/変更/削除のファイル一覧）
+# Summary format (list of added/modified/deleted files)
 $ jj diff --summary
 
-# difftasticを使った差分表示
+# Show diff using difftastic
 $ jj diff --tool difft
 
-# 特定のrevisionの内容を詳細に表示
+# Show the contents of a specific revision in detail
 $ jj show qpvuntsm
 $ jj show @-
 $ jj show main
 ```
 
-### 4.5 ファイルの追跡制御
+### 4.5 Controlling File Tracking
 
 ```bash
-# .gitignore と同じ仕組み（Jujutsuは.gitignoreを読む）
+# Same mechanism as .gitignore (Jujutsu reads .gitignore)
 $ echo "node_modules/" >> .gitignore
 $ echo "*.log" >> .gitignore
 $ echo ".env" >> .gitignore
 
-# 特定ファイルを復元（working copyの変更を取り消す）
+# Restore a specific file (undo working copy changes)
 $ jj restore --from @- src/auth.js
-# @- = working copyの親commit
+# @- = parent commit of working copy
 
-# 特定のrevisionからファイルを復元
+# Restore a file from a specific revision
 $ jj restore --from main src/config.js
 
-# 全変更を取り消す
+# Undo all changes
 $ jj restore
 
-# 特定のファイルパターンのみ復元
+# Restore only specific file patterns
 $ jj restore "src/**/*.js"
 
-# ファイル一覧の確認
+# Check the file list
 $ jj file list
-$ jj file list -r main  # 特定revisionのファイル一覧
+$ jj file list -r main  # File list of a specific revision
 ```
 
-### 4.6 ファイル操作のユーティリティ
+### 4.6 File Operation Utilities
 
 ```bash
-# ファイルの内容を特定のrevisionから表示
+# Show the contents of a file from a specific revision
 $ jj file show src/auth.js
 $ jj file show -r main src/auth.js
 
-# 特定のファイルの変更履歴を追跡
+# Track the change history of a specific file
 $ jj log -r 'file("src/auth.js")'
 
-# ファイルのコピー・リネームの扱い
-# Jujutsuはコピー/リネームを自動検出する
+# Handling file copy/rename
+# Jujutsu automatically detects copies/renames
 $ mv src/old.js src/new.js
 $ jj status
 # Working copy changes:
 # R {src/old.js => src/new.js}
 
-# 複数ファイルの一括操作
+# Batch operations on multiple files
 $ jj restore --from @- "src/*.js" "test/*.js"
 ```
 
 ---
 
-## 5. コンフリクトのファーストクラスサポート
+## 5. First-Class Conflict Support
 
-Gitではコンフリクトが発生するとrebase/mergeが中断されるが、Jujutsuでは**コンフリクト状態がcommitに記録され、後から解決できる**。
+In Git, a rebase/merge is interrupted when a conflict occurs. In Jujutsu, **conflict state is recorded in the commit and can be resolved later**.
 
-### 5.1 コンフリクトの基本的な扱い
+### 5.1 Basic Conflict Handling
 
 ```bash
-# コンフリクトが発生してもrebaseは完了する
+# Rebase completes even when conflicts occur
 $ jj rebase -d main
 # Rebased 3 commits
 # New conflicts in:
 #   rlvkpntz abc12345
 
-# コンフリクト状態のログ
+# Log with conflict state
 $ jj log
 @  rlvkpntz gaku@... 2025-02-11 abc12345 conflict
-│  feat: 認証機能                         ^^^^^^^^
-│                                         コンフリクトマーク
+│  feat: auth feature                     ^^^^^^^^
+│                                         conflict marker
 ○  ...
 
-# コンフリクトを確認
+# Check for conflicts
 $ jj status
 Working copy changes:
 C src/auth.js    ← C = conflict
 
-# ファイルを編集してコンフリクトを解決
+# Edit the file to resolve the conflict
 $ vim src/auth.js
-# → 通常のファイル編集でコンフリクトマーカーを解消
-# → 自動的にworking copy commitに反映
-# → コンフリクトが解消されると conflict マークが消える
+# → Remove conflict markers through normal file editing
+# → Automatically reflected in the working copy commit
+# → The conflict marker disappears once the conflict is resolved
 ```
 
-### 5.2 コンフリクトマーカーの形式
+### 5.2 Conflict Marker Format
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Jujutsuのコンフリクトマーカー                       │
+│  Jujutsu Conflict Markers                           │
 │                                                     │
-│  Gitの場合:                                         │
+│  Git format:                                        │
 │  <<<<<<< HEAD                                       │
 │  current changes                                    │
 │  =======                                            │
 │  incoming changes                                   │
 │  >>>>>>> branch-name                                │
 │                                                     │
-│  Jujutsuの場合:                                     │
+│  Jujutsu format:                                    │
 │  <<<<<<< Conflict 1 of 1                            │
 │  %%%%%%% Changes from base to side #1               │
 │  -old line from base                                │
@@ -678,17 +678,17 @@ $ vim src/auth.js
 │  new line from side 2                               │
 │  >>>>>>> Conflict 1 of 1 ends                       │
 │                                                     │
-│  Jujutsuのマーカーは3-way情報を含むため、           │
-│  何が変更されたかがより明確にわかる                  │
+│  Jujutsu markers include 3-way information,         │
+│  making it clearer what was changed                 │
 └─────────────────────────────────────────────────────┘
 ```
 
 ```bash
-# コンフリクトの確認と解決の流れ
+# Conflict checking and resolution flow
 $ jj status
 # C src/auth.js
 
-# コンフリクトファイルの中身を確認
+# Check the content of the conflicted file
 $ cat src/auth.js
 # <<<<<<< Conflict 1 of 1
 # %%%%%%% Changes from base to side #1
@@ -698,69 +698,69 @@ $ cat src/auth.js
 # const AUTH_KEY = "new-key-from-branch-b";
 # >>>>>>> Conflict 1 of 1 ends
 
-# エディタでコンフリクトマーカーを削除して解決
+# Edit in the editor to remove the conflict markers
 $ vim src/auth.js
-# const AUTH_KEY = "new-key-from-branch-b"; と書き換え
+# Rewrite as: const AUTH_KEY = "new-key-from-branch-b";
 
-# 解決されたか確認
+# Confirm resolution
 $ jj status
 # Working copy changes:
-# M src/auth.js    ← C(conflict) から M(modified) に変わった
+# M src/auth.js    ← Changed from C(conflict) to M(modified)
 ```
 
-### 5.3 コンフリクトの遅延解決
+### 5.3 Deferred Conflict Resolution
 
 ```bash
-# コンフリクトがあるcommitの上で作業を続行できる
+# You can continue working on top of a commit that has conflicts
 $ jj log
 @  rlvkpntz ... conflict
-│  feat: 認証機能
+│  feat: auth feature
 ○  ...
 
-# コンフリクトを今は無視して、新しい作業を開始
+# Ignore the conflict for now and start new work
 $ jj new main
 $ vim src/other-feature.js
-$ jj describe -m "feat: 別の機能"
+$ jj describe -m "feat: another feature"
 
-# 後からコンフリクトを解決
+# Resolve the conflict later
 $ jj edit rlvkpntz
-$ vim src/auth.js   # コンフリクトを解決
-$ jj new            # 解決を確定
+$ vim src/auth.js   # Resolve the conflict
+$ jj new            # Finalize the resolution
 
-# コンフリクトのあるcommitを一覧
+# List commits with conflicts
 $ jj log -r 'conflict()'
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  Git vs Jujutsu: コンフリクトの扱い                 │
+│  Git vs Jujutsu: Conflict Handling                 │
 │                                                    │
 │  Git:                                              │
-│  rebase中にコンフリクト                             │
-│    → rebaseが中断                                  │
-│    → 即座に解決が必要                               │
-│    → --abort で全てやり直し or --continue           │
-│    → 複数commitでコンフリクトがあると辛い           │
+│  Conflict during rebase                            │
+│    → rebase is interrupted                         │
+│    → Must resolve immediately                      │
+│    → --abort to redo everything, or --continue     │
+│    → Painful when multiple commits have conflicts  │
 │                                                    │
 │  Jujutsu:                                          │
-│  rebase中にコンフリクト                             │
-│    → rebaseは完了する                               │
-│    → コンフリクト状態がcommitに記録される           │
-│    → 好きなタイミングで解決できる                   │
-│    → 他の作業を先にすることも可能                   │
-│    → 複数commitのコンフリクトも個別に解決可         │
-│    → コンフリクト状態のcommitをpushしない限り安全   │
+│  Conflict during rebase                            │
+│    → rebase completes                              │
+│    → Conflict state is recorded in the commit      │
+│    → Can be resolved at any convenient time        │
+│    → Other work can be done first                  │
+│    → Conflicts across multiple commits can be resolved individually │
+│    → Safe as long as you don't push conflicting commits │
 └────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. Operation Log — 全操作のundo/redo
+## 6. Operation Log — undo/redo for All Operations
 
-### 6.1 Operation Logの基本
+### 6.1 Operation Log Basics
 
 ```bash
-# 操作ログの確認
+# Check the operation log
 $ jj op log
 @  abc12345 gaku@... 2025-02-11 15:30:00
 │  new empty commit
@@ -771,338 +771,338 @@ $ jj op log
 ○  fedcba98 gaku@... 2025-02-11 15:15:00
 │  add workspace 'default'
 
-# 直前の操作を取り消す
+# Undo the previous operation
 $ jj undo
-# → 直前のjjコマンドの効果が完全に取り消される
+# → The effect of the previous jj command is completely undone
 
-# 特定の操作時点に戻る
+# Restore to a specific operation point
 $ jj op restore def67890
 ```
 
-### 6.2 Operation Logの活用パターン
+### 6.2 Operation Log Usage Patterns
 
 ```bash
-# 間違ったrebaseを取り消す
+# Undo an incorrect rebase
 $ jj rebase -d wrong-branch
-# → しまった、間違ったブランチにrebaseしてしまった！
+# → Oops, rebased onto the wrong branch!
 $ jj undo
-# → rebase前の状態に完全に戻る
+# → Completely reverts to the state before the rebase
 
-# abandonしたcommitを復活させる
+# Revive an abandoned commit
 $ jj abandon rlvkpntz
-# → しまった、間違ったcommitをabandonしてしまった！
+# → Oops, abandoned the wrong commit!
 $ jj undo
-# → commitが復活する
+# → The commit is revived
 
-# 特定の操作時点のログを確認
+# Check the log at a specific operation point
 $ jj op log --no-graph
-# → 全操作の一覧が表示される
+# → A list of all operations is displayed
 
-# 操作ログの差分を確認
+# Check the diff between operations
 $ jj op diff --from abc12345 --to def67890
-# → 2つの操作間でどのcommitが変更されたかを表示
+# → Shows which commits changed between the two operations
 
-# 操作ログの詳細表示
+# Detailed view of an operation
 $ jj op show abc12345
 ```
 
-### 6.3 Operation LogとGit reflogの比較
+### 6.3 Comparing Operation Log and Git reflog
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Operation Log vs Git reflog                         │
+│  Operation Log vs Git reflog                        │
 │                                                     │
 │  Git reflog:                                        │
-│  - HEADの移動履歴のみ記録                           │
-│  - ブランチごとに個別のreflog                       │
-│  - 表示: git reflog                                 │
-│  - 復元: git reset --hard HEAD@{n}                  │
-│  - 期限切れ: デフォルト90日で消える                 │
+│  - Records only HEAD movement history               │
+│  - Separate reflog per branch                       │
+│  - Display: git reflog                              │
+│  - Restore: git reset --hard HEAD@{n}               │
+│  - Expiry: Deleted after 90 days by default         │
 │                                                     │
 │  Jujutsu Operation Log:                             │
-│  - 全てのjj操作を記録                               │
-│  - リポジトリ全体の状態を記録                       │
-│  - 表示: jj op log                                  │
-│  - 復元: jj op restore <op-id>                      │
-│  - 期限切れ: なし（明示的にgcするまで保持）         │
-│  - undo: jj undo で直前の操作を取り消し             │
+│  - Records all jj operations                        │
+│  - Records the entire state of the repository       │
+│  - Display: jj op log                               │
+│  - Restore: jj op restore <op-id>                   │
+│  - Expiry: None (retained until explicitly gc'd)    │
+│  - Undo: jj undo to cancel the previous operation  │
 │                                                     │
-│  → Operation Logはreflogの上位互換                  │
-│  → 全操作が記録されるため、安全に実験できる         │
+│  → Operation Log is a superset of reflog            │
+│  → All operations are recorded, enabling safe experimentation │
 └─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 7. Jujutsuの内部構造
+## 7. Jujutsu's Internal Architecture
 
-### 7.1 ストレージバックエンド
+### 7.1 Storage Backend
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Jujutsu のストレージ構造                            │
+│  Jujutsu Storage Structure                          │
 │                                                     │
 │  .jj/                                               │
 │  ├── repo/                                          │
 │  │   ├── store/                                     │
-│  │   │   ├── git_target          ← Gitストアへのパス│
-│  │   │   ├── type                ← "git" (ストア種別)│
-│  │   │   └── extra/              ← Jujutsu固有データ│
-│  │   │       ├── change_id_index ← change ID索引    │
+│  │   │   ├── git_target          ← Path to Git store│
+│  │   │   ├── type                ← "git" (store type)│
+│  │   │   └── extra/              ← Jujutsu-specific data │
+│  │   │       ├── change_id_index ← change ID index  │
 │  │   │       └── ...                                │
 │  │   ├── op_store/               ← Operation Log    │
-│  │   │   ├── operations/         ← 各操作のデータ  │
-│  │   │   └── views/              ← 各操作時点の状態│
-│  │   └── op_heads/               ← 最新操作のID    │
-│  └── working_copy/               ← working copyの  │
-│      └── ...                        状態管理        │
+│  │   │   ├── operations/         ← Data for each operation │
+│  │   │   └── views/              ← State at each operation point │
+│  │   └── op_heads/               ← ID of the latest operation │
+│  └── working_copy/               ← working copy     │
+│      └── ...                        state management │
 │                                                     │
-│  .git/  (co-located の場合)                         │
+│  .git/  (if co-located)                             │
 │  ├── objects/                    ← blob, tree, commit│
-│  ├── refs/                       ← ブランチ、タグ   │
+│  ├── refs/                       ← branches, tags   │
 │  └── ...                                            │
 │                                                     │
-│  → Jujutsuは .git/objects/ にGitオブジェクトを保存  │
-│  → .jj/ にはJujutsu固有のメタデータのみ            │
-│  → そのためGitツール（gitk, git log等）も使える    │
+│  → Jujutsu saves Git objects in .git/objects/       │
+│  → .jj/ contains only Jujutsu-specific metadata    │
+│  → So Git tools (gitk, git log, etc.) still work   │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 7.2 change IDの生成と管理
+### 7.2 Change ID Generation and Management
 
 ```bash
-# change IDの形式
-# - 英小文字のみ（a-z）で構成
-# - 内部的には128ビットのランダム値
-# - 表示時に短縮形を使用（ユニークな最短プレフィックス）
+# change ID format
+# - Composed of lowercase letters only (a-z)
+# - Internally a 128-bit random value
+# - Uses a short form when displayed (shortest unique prefix)
 
-# change IDの確認
+# Check change IDs
 $ jj log -T 'change_id ++ "\n"'
 # → rlvkpntzsqkxyrmpqvlwxpsmkowkzmkqtlqnovpv
-# 表示上は rlvkpntz のように短縮される
+# Displayed in short form as: rlvkpntz
 
-# change IDでの参照
+# Referencing by change ID
 $ jj show rlvkpntz
-$ jj show rlvk       # 十分にユニークなら短いプレフィックスでもOK
-$ jj diff -r rl      # さらに短くても、ユニークなら動作する
+$ jj show rlvk       # A shorter prefix works if it's unique enough
+$ jj diff -r rl      # Even shorter works if it's unique
 ```
 
-### 7.3 immutable commitsの仕組み
+### 7.3 How Immutable Commits Work
 
 ```bash
-# immutableなcommit = rebase, edit, squash等の対象にならないcommit
-# デフォルトでは trunk()（main/master）以前のcommitがimmutable
+# Immutable commits = commits that cannot be targets of rebase, edit, squash, etc.
+# By default, commits before trunk() (main/master) are immutable
 
-# immutableの定義を確認
+# Check the immutable definition
 $ jj config get revset-aliases.'immutable_heads()'
 # → "trunk() | tags()"
 
-# immutableを変更（例: main と release タグ）
-# ~/.jjconfig.toml に追加:
+# Change what is immutable (e.g.: main and release tags)
+# Add to ~/.jjconfig.toml:
 # [revset-aliases]
 # 'immutable_heads()' = 'trunk() | tags() | remote_bookmarks()'
 
-# immutableなcommitを編集しようとするとエラー
+# Attempting to edit an immutable commit results in an error
 $ jj edit main
 # Error: Commit abc12345 is immutable
 # Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`
 
-# 一時的にimmutableを無視（非推奨だが緊急時に使用）
+# Temporarily ignore immutable (not recommended, for emergencies only)
 $ jj rebase -r main --ignore-immutable -d @
 ```
 
 ---
 
-## 8. 日常的な操作パターン
+## 8. Everyday Operation Patterns
 
-### 8.1 典型的な開発サイクル
+### 8.1 A Typical Development Cycle
 
 ```bash
-# 1. 最新のmainから作業開始
+# 1. Start work from the latest main
 $ jj git fetch
 $ jj new main@origin
 
-# 2. ファイルを編集
+# 2. Edit files
 $ vim src/feature.js
 
-# 3. コミットメッセージを設定
-$ jj describe -m "feat: ユーザープロフィール機能を追加"
+# 3. Set a commit message
+$ jj describe -m "feat: add user profile feature"
 
-# 4. さらに編集を続ける（自動的にcommitに反映）
+# 4. Continue editing (automatically reflected in the commit)
 $ vim src/feature.test.js
 $ vim src/types.ts
 
-# 5. 区切りがついたら新しいcommitを開始
+# 5. Start a new commit at a logical stopping point
 $ jj new
 
-# 6. 次の機能の実装
+# 6. Implement the next feature
 $ vim src/another-feature.js
-$ jj describe -m "feat: 通知機能を追加"
+$ jj describe -m "feat: add notification feature"
 
-# 7. pushする前にブックマークを設定
-$ jj bookmark create feature-profile -r @-  # プロフィール機能のcommit
-$ jj bookmark create feature-notify -r @    # 通知機能のcommit
+# 7. Set bookmarks before pushing
+$ jj bookmark create feature-profile -r @-  # Commit for profile feature
+$ jj bookmark create feature-notify -r @    # Commit for notification feature
 
-# 8. pushしてPRを作成
+# 8. Push and create PRs
 $ jj git push --bookmark feature-profile --allow-new
 $ jj git push --bookmark feature-notify --allow-new
 ```
 
-### 8.2 過去のcommitの修正
+### 8.2 Amending Past Commits
 
 ```bash
-# 2つ前のcommitにタイポを見つけた場合
+# You found a typo in the commit two steps back
 
-# 方法1: jj edit で直接編集
-$ jj edit rlvkpntz           # 修正したいcommitに移動
-$ vim src/feature.js          # ファイルを修正
-$ jj new                     # 新しいworking copyに戻る
-# → 間のcommitは自動リベース
+# Method 1: Edit directly with jj edit
+$ jj edit rlvkpntz           # Move to the commit you want to fix
+$ vim src/feature.js          # Fix the file
+$ jj new                     # Return to a new working copy
+# → Commits in between are automatically rebased
 
-# 方法2: working copyで修正してabsorbで振り分け
-$ vim src/feature.js          # working copyで修正
-$ jj absorb                  # 修正を元のcommitに自動振り分け
+# Method 2: Fix in working copy and use absorb to distribute
+$ vim src/feature.js          # Fix in working copy
+$ jj absorb                  # Automatically distribute fix to the original commit
 
-# 方法3: working copyで修正してsquashで統合
-$ vim src/feature.js          # working copyで修正
-$ jj squash --into rlvkpntz  # 特定のcommitに統合
+# Method 3: Fix in working copy and use squash to merge
+$ vim src/feature.js          # Fix in working copy
+$ jj squash --into rlvkpntz  # Merge into a specific commit
 ```
 
-### 8.3 複数の作業の同時進行
+### 8.3 Progressing Multiple Tasks Simultaneously
 
 ```bash
-# 認証機能の開発中に緊急バグ修正が入った場合
+# An urgent bug fix comes in while developing the auth feature
 
-# 現在の作業状態
+# Current work state
 $ jj log
-@  xxx  feat: 認証機能の実装中
+@  xxx  feat: implementing auth feature
 ○  main ...
 
-# 緊急バグ修正のために新しいcommitを作成（mainから分岐）
+# Create a new commit for the urgent bugfix (branch off main)
 $ jj new main
 $ vim src/bugfix.js
-$ jj describe -m "fix: ログインエラーの修正"
+$ jj describe -m "fix: fix login error"
 $ jj bookmark create hotfix -r @
 $ jj git push --bookmark hotfix --allow-new
 
-# 元の作業に戻る
-$ jj edit xxx    # 認証機能のcommitに戻る
-# → stash不要！全てがcommitとして保存されている
+# Return to the original work
+$ jj edit xxx    # Return to the auth feature commit
+# → No stash needed! Everything is saved as a commit
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン1: Gitの癖でgit addしてからjj describe
+### Anti-Pattern 1: Running git add before jj describe out of Git habit
 
 ```bash
-# NG: Jujutsuでgit addは不要
+# Bad: git add is not needed in Jujutsu
 $ vim src/auth.js
-$ git add src/auth.js        # ← 不要！
+$ git add src/auth.js        # ← Not needed!
 $ jj describe -m "fix: auth"
 
-# OK: ファイルを編集するだけで自動反映
+# Good: Just editing the file reflects it automatically
 $ vim src/auth.js
 $ jj describe -m "fix: auth"
-# → working copy commitに自動的に反映されている
+# → Automatically reflected in the working copy commit
 ```
 
-**理由**: Jujutsuにはステージングエリアが存在しない。ファイルの変更は自動的にworking copy commitに記録される。co-locatedリポジトリでgit addを使うと、Gitのインデックスに変更が登録されるが、Jujutsu側では無意味であり、混乱の原因になる。
+**Reason**: Jujutsu has no staging area. File changes are automatically recorded in the working copy commit. Using `git add` in a co-located repository registers changes in Git's index, which is meaningless on the Jujutsu side and can cause confusion.
 
-### アンチパターン2: jj newを忘れて前のcommitに追記し続ける
+### Anti-Pattern 2: Forgetting jj new and continuing to append to the previous commit
 
 ```bash
-# NG: describe後にnewせず作業を続ける
-$ jj describe -m "feat: ユーザー認証"
-$ vim src/api.js       # ← この変更も "feat: ユーザー認証" に入ってしまう
+# Bad: Continue working after describe without new
+$ jj describe -m "feat: user auth"
+$ vim src/api.js       # ← This change also goes into "feat: user auth"
 
-# OK: 新しい論理的変更の前にjj newする
-$ jj describe -m "feat: ユーザー認証"
-$ jj new               # ← 新しいcommitを開始
-$ vim src/api.js       # → 新しいcommitに記録される
-$ jj describe -m "feat: APIエンドポイント"
+# Good: Run jj new before a new logical change
+$ jj describe -m "feat: user auth"
+$ jj new               # ← Start a new commit
+$ vim src/api.js       # → Recorded in the new commit
+$ jj describe -m "feat: API endpoint"
 ```
 
-**理由**: Jujutsuではworking copyが常に最新commitと同一視される。`jj new`を実行しないと、全ての変更が1つのcommitに蓄積されてしまう。ただし後から`jj split`で分割することも可能なので、致命的ではない。
+**Reason**: In Jujutsu, the working copy is always equated with the latest commit. Without running `jj new`, all changes accumulate in a single commit. However, you can split it later with `jj split`, so it is not fatal.
 
-### アンチパターン3: commit IDをchange IDの代わりに使い続ける
+### Anti-Pattern 3: Continuing to use commit IDs instead of change IDs
 
 ```bash
-# NG: commit ID（SHA-1）で参照し続ける
+# Bad: Keep referencing by commit ID (SHA-1)
 $ jj edit abc12345
 $ vim src/fix.js
 $ jj new
-# → abc12345 はもう存在しない（rebaseでSHAが変わった）
+# → abc12345 no longer exists (the SHA changed after rebase)
 
-# OK: change IDで参照する
+# Good: Reference by change ID
 $ jj edit rlvkpntz
 $ vim src/fix.js
 $ jj new
-# → rlvkpntz は rebase 後も変わらない
+# → rlvkpntz remains unchanged even after rebase
 ```
 
-**理由**: commit IDはGitのSHA-1ハッシュであり、commitの内容（ツリー、親、メッセージ等）から計算される。rebaseやamendで内容が変わるとcommit IDも変わる。一方、change IDはJujutsu独自の識別子で、commitの内容に依存しないため、安定した参照が可能。
+**Reason**: A commit ID is Git's SHA-1 hash, calculated from the commit's content (tree, parents, message, etc.). When content changes due to rebase or amend, the commit ID also changes. In contrast, a change ID is Jujutsu's own identifier that does not depend on the commit content, enabling stable references.
 
-### アンチパターン4: jj undo を万能だと思い込む
+### Anti-Pattern 4: Thinking jj undo is a silver bullet
 
 ```bash
-# 注意: jj undoは直前の「1つの」jj操作のみ取り消す
+# Note: jj undo only undoes the immediately previous "one" jj operation
 $ jj rebase -d main
 $ jj describe -m "new message"
 $ jj undo
-# → describe のみが取り消される（rebaseは取り消されない）
+# → Only describe is undone (rebase is NOT undone)
 
-# 複数操作を戻したい場合は jj op restore を使う
+# Use jj op restore to go back multiple operations
 $ jj op log
-# → 戻りたい時点のoperation IDを確認
+# → Find the operation ID of the point you want to return to
 $ jj op restore <op-id>
 ```
 
-**理由**: `jj undo`は直前の1操作のみを取り消す。複数の操作を取り消す場合は、`jj op log`で目的の操作時点を探し、`jj op restore`で復元する。
+**Reason**: `jj undo` only undoes the one immediately previous operation. To undo multiple operations, use `jj op log` to find the desired operation point and restore it with `jj op restore`.
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1111,26 +1111,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1138,7 +1138,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1149,14 +1149,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1164,7 +1164,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1172,44 +1172,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1218,7 +1218,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1233,47 +1233,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup factor: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Malformed configuration file | Check configuration file path and format |
+| Timeout | Network delay / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check executing user permissions, review settings |
+| Data inconsistency | Concurrent processing contention | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify step by step**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1281,102 +1281,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with a profiling tool
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Check the status of disk or network I/O
+4. **Check concurrent connection count**: Check the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Countermeasure |
+|-------------|-----------------|----------------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB slowness | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Below is a summary of decision criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Decision Criteria | Prioritize When | Can Compromise When |
+|------------------|-----------------|---------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
-┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
-│                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
-│                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
-│                                                 │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│              Architecture Selection Flow             │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  1. What is the team size?                          │
+│    ├─ Small (1-5 people) → Monolith                 │
+│    └─ Large (10+ people) → go to 2                  │
+│                                                     │
+│  2. What is the deployment frequency?               │
+│    ├─ Weekly or less → Monolith + module split      │
+│    └─ Daily / multiple times → go to 3              │
+│                                                     │
+│  3. How independent are the teams?                  │
+│    ├─ High → Microservices                          │
+│    └─ Moderate → Modular monolith                   │
+│                                                     │
+└─────────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction has high reusability, but can make debugging difficult
+- Low abstraction is intuitive, but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Architecture decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1386,17 +1386,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1404,7 +1404,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1412,15 +1412,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1429,106 +1429,106 @@ class ArchitectureDecisionRecord:
 
 ## 10. FAQ
 
-### Q1. JujutsuはGitを完全に置き換えるのか？
+### Q1. Does Jujutsu completely replace Git?
 
-**A1.** いいえ、JujutsuはGitの**上位レイヤー**として動作します。内部的にはGitのオブジェクトストレージを使用しており、`jj git push`/`jj git fetch`で通常のGitリモートと完全に互換性があります。チームの他のメンバーがGitを使い続けていても問題ありません。
+**A1.** No. Jujutsu operates as an **upper layer on top of Git**. It uses Git's object storage internally, and is fully compatible with normal Git remotes via `jj git push` / `jj git fetch`. It is perfectly fine if other team members continue to use Git.
 
-### Q2. 既存のGitリポジトリでJujutsuを試すには？
+### Q2. How do I try Jujutsu in an existing Git repository?
 
-**A2.** `jj git init --colocate`で即座に使い始められます。
+**A2.** You can get started immediately with `jj git init --colocate`.
 
 ```bash
 $ cd existing-git-repo
 $ jj git init --colocate
-# → .jj/ が作成され、既存の .git/ と共存
-# → jj log で既存の全コミット履歴が表示される
-# → git コマンドもそのまま使える
+# → .jj/ is created and coexists with the existing .git/
+# → jj log displays the entire existing commit history
+# → git commands can still be used as-is
 
-# 気に入らなければ .jj/ を削除するだけで元に戻せる
+# If you don't like it, just delete .jj/ to revert
 $ rm -rf .jj
-# → 完全にGitのみの状態に戻る
+# → Returns completely to a Git-only state
 ```
 
-### Q3. Jujutsuのworking copy commitは毎回コミットされるのか？パフォーマンスは大丈夫か？
+### Q3. Is the Jujutsu working copy commit recorded on every save? Is the performance okay?
 
-**A3.** Jujutsuは「スナップショッティング」という仕組みで、jjコマンドの実行時にworking copyの状態をcommitに反映します。ファイル保存のたびにcommitが作られるわけではなく、`jj status`、`jj log`、`jj diff`などのコマンド実行時にスナップショットが取得されます。watchman連携で高速化も可能です。
+**A3.** Jujutsu uses a mechanism called "snapshotting" to reflect the state of the working copy into a commit when a jj command runs. A new commit is not created every time a file is saved. Snapshots are taken when commands like `jj status`, `jj log`, and `jj diff` are executed. Speed can also be improved with watchman integration.
 
-### Q4. Jujutsuはモノレポ（monorepo）でも使えるか？
+### Q4. Can Jujutsu be used with a monorepo?
 
-**A4.** はい、使えます。Jujutsuはwatchman連携による高速なスナップショッティングを提供しており、大規模なモノレポでも実用的な速度で動作します。Google社内でのテストでも大規模リポジトリでの利用が検証されています。
+**A4.** Yes. Jujutsu provides fast snapshotting via watchman integration and operates at practical speeds even in large monorepos. Its use in large-scale repositories has also been validated through internal testing at Google.
 
-### Q5. Jujutsuにはどのようなエディタ/IDE統合があるか？
+### Q5. What editor/IDE integrations are available for Jujutsu?
 
-**A5.** 2025年時点での統合状況は以下の通りです。
+**A5.** The integration status as of 2025 is as follows.
 
-| エディタ/IDE     | 統合状況                                        |
+| Editor/IDE       | Integration Status                              |
 |------------------|-------------------------------------------------|
-| VS Code          | co-locatedでGit拡張を使用可能                   |
-| IntelliJ IDEA    | co-locatedでGit統合を使用可能                   |
-| Vim/Neovim       | fugitive.vimがco-locatedで動作                  |
-| Emacs            | magitがco-locatedで動作                         |
-| lazyjj           | Jujutsu専用のTUIツール                          |
-| jj-fzf           | fzfベースのインタラクティブツール               |
+| VS Code          | Git extension can be used with co-located       |
+| IntelliJ IDEA    | Git integration can be used with co-located     |
+| Vim/Neovim       | fugitive.vim works with co-located              |
+| Emacs            | magit works with co-located                     |
+| lazyjj           | Dedicated TUI tool for Jujutsu                  |
+| jj-fzf           | fzf-based interactive tool                      |
 
-co-locatedリポジトリを使用することで、既存のGit統合を持つエディタ/IDEをそのまま活用できます。
+By using a co-located repository, you can continue to leverage existing Git integrations in your editor/IDE.
 
-### Q6. Jujutsuのバージョンアップで互換性が壊れることはあるか？
+### Q6. Can compatibility break between Jujutsu version upgrades?
 
-**A6.** Jujutsuはまだ1.0に達しておらず、マイナーバージョン間でCLIの変更が入ることがあります。ただし、ストレージフォーマットの互換性は維持されており、`jj` をアップグレードしても既存のリポジトリは引き続き使用できます。重要な変更はCHANGELOGとマイグレーションガイドで通知されます。
+**A6.** Jujutsu has not yet reached 1.0, and CLI changes can occur between minor versions. However, storage format compatibility is maintained, so existing repositories can continue to be used after upgrading `jj`. Important changes are announced in the CHANGELOG and migration guide.
 
-### Q7. Jujutsuでサブモジュールは使えるか？
+### Q7. Can Jujutsu use submodules?
 
-**A7.** Jujutsuは現在、Gitサブモジュールの部分的なサポートを提供しています。co-locatedリポジトリではGitのサブモジュールコマンドをそのまま使用できますが、Jujutsu固有のサブモジュール管理機能はまだ開発中です。
+**A7.** Jujutsu currently provides partial support for Git submodules. In a co-located repository, you can use Git's submodule commands directly, but Jujutsu-native submodule management features are still under development.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend firmly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 概念                   | 要点                                                          |
-|------------------------|---------------------------------------------------------------|
-| working copy = commit  | ステージングなし、編集が即座にcommitに反映                    |
-| change ID              | rebaseで変わらない安定した識別子                              |
-| commit ID              | Git互換のSHA-1、内容変更で変化する                           |
-| jj new                 | 新しいcommitを開始、前の変更を確定                           |
-| jj describe            | working copy commitにメッセージを設定                         |
-| jj commit              | describe + new のショートカット                               |
-| コンフリクト記録       | rebase/merge中断なし、commitにコンフリクト状態を保存         |
-| Operation Log          | 全操作の記録、undo/redoが可能                                |
-| co-located repo        | .git/と.jj/が共存、Git/Jujutsu両方使用可能                   |
-| スナップショッティング | jjコマンド実行時にworking copyの状態を自動反映               |
-| immutable commits      | trunk()やtags()のcommitはrebase/edit不可                     |
+Knowledge of this topic is frequently used in day-to-day development work. It becomes particularly important during code reviews and architectural design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [Jujutsuワークフロー](./01-jujutsu-workflow.md) — 変更セットと自動リベースの実践
-- [Jujutsu応用](./02-jujutsu-advanced.md) — revset、テンプレート、Git連携
-- [Git→Jujutsu移行](./03-git-to-jujutsu.md) — 操作対応表と移行手順
+| Concept                | Key Points                                                        |
+|------------------------|-------------------------------------------------------------------|
+| working copy = commit  | No staging; edits are immediately reflected in the commit         |
+| change ID              | Stable identifier that does not change after rebase               |
+| commit ID              | Git-compatible SHA-1; changes when content changes                |
+| jj new                 | Start a new commit, finalizing previous changes                   |
+| jj describe            | Set a message on the working copy commit                          |
+| jj commit              | Shortcut for describe + new                                       |
+| Conflict recording     | No rebase/merge interruption; conflict state saved in commit      |
+| Operation Log          | Records all operations; undo/redo available                       |
+| co-located repo        | .git/ and .jj/ coexist; both Git and Jujutsu can be used         |
+| Snapshotting           | Working copy state is automatically reflected when a jj command runs |
+| immutable commits      | Commits in trunk() or tags() cannot be rebased/edited            |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. **Jujutsu公式ドキュメント** — https://martinvonz.github.io/jj/
-2. **Jujutsu GitHubリポジトリ** — https://github.com/martinvonz/jj
+- [Jujutsu Workflow](./01-jujutsu-workflow.md) — Practicing changesets and automatic rebasing
+- [Jujutsu Advanced](./02-jujutsu-advanced.md) — revsets, templates, and Git integration
+- [Git to Jujutsu Migration](./03-git-to-jujutsu.md) — Operation mapping and migration steps
+
+---
+
+## References
+
+1. **Jujutsu Official Documentation** — https://martinvonz.github.io/jj/
+2. **Jujutsu GitHub Repository** — https://github.com/martinvonz/jj
 3. **Martin von Zweigbergk** — "Jujutsu: A Git-compatible VCS" Google Tech Talk https://www.youtube.com/watch?v=bx_LGilOuE4
 4. **Steve Klabnik** — "jj init" (Jujutsu introduction blog) https://steveklabnik.com/writing/jj-init
 5. **Austin Seipp** — "jujutsu: A new VCS" https://austinseipp.com/posts/2024-07-10-jj-hierarchies
