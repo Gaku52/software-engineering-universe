@@ -1,48 +1,48 @@
-# Tauri 応用
+# Tauri Advanced
 
-> Tauri v2 のプラグインシステム、カスタムプロトコル、サイドカーバイナリ、マルチウィンドウ管理、そして capabilities によるセキュリティモデルを深く理解し、本格的なデスクトップアプリを構築する。
-
----
-
-## この章で学ぶこと
-
-1. **プラグインシステム**を活用し、再利用可能な機能モジュールを設計・実装できるようになる
-2. **カスタムプロトコルとサイドカー**を使い、高度なネイティブ統合を実現できるようになる
-3. **capabilities（権限モデル）**を正しく設定し、セキュアなアプリケーションを構築できるようになる
-4. **システムトレイとメニュー**を実装し、OS ネイティブな操作体験を提供できるようになる
-5. **データベース統合と永続化**パターンを習得し、堅牢なデータ管理を実装できるようになる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Tauri セットアップ](./02-tauri-setup.md) の内容を理解していること
+> Gain a deep understanding of Tauri v2's plugin system, custom protocols, sidecar binaries, multi-window management, and the capabilities-based security model to build production-grade desktop applications.
 
 ---
 
-## 1. プラグインシステム
+## What You Will Learn
 
-### 1.1 プラグインのアーキテクチャ
+1. Leverage the **plugin system** to design and implement reusable feature modules
+2. Use **custom protocols and sidecars** to achieve advanced native integration
+3. Configure **capabilities (permission model)** correctly to build secure applications
+4. Implement **system tray and menus** to deliver an OS-native user experience
+5. Master **database integration and persistence** patterns to implement robust data management
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of relevant foundational concepts
+- Familiarity with the content in [Tauri Setup](./02-tauri-setup.md)
+
+---
+
+## 1. Plugin System
+
+### 1.1 Plugin Architecture
 
 ```
 +----------------------------------------------------------+
-|                   Tauri アプリケーション                    |
+|                   Tauri Application                       |
 +----------------------------------------------------------+
 |                                                          |
 |  tauri::Builder::default()                               |
-|    .plugin(tauri_plugin_store::init())     ← 公式        |
-|    .plugin(tauri_plugin_sql::init())       ← 公式        |
-|    .plugin(my_custom_plugin::init())       ← カスタム    |
+|    .plugin(tauri_plugin_store::init())     ← Official    |
+|    .plugin(tauri_plugin_sql::init())       ← Official    |
+|    .plugin(my_custom_plugin::init())       ← Custom      |
 |                                                          |
 |  +---------------------------------------------------+   |
-|  |  プラグインの内部構造                                |   |
+|  |  Plugin Internal Structure                        |   |
 |  |                                                   |   |
 |  |  ┌──────────┐  ┌──────────┐  ┌──────────────┐   |   |
 |  |  │ Rust     │  │ JS API   │  │ Capabilities │   |   |
-|  |  │ Backend  │  │ Bindings │  │ (権限定義)    │   |   |
+|  |  │ Backend  │  │ Bindings │  │ (permissions)│   |   |
 |  |  │          │  │          │  │              │   |   |
 |  |  │ commands │  │ invoke() │  │ permissions  │   |   |
 |  |  │ state    │  │ listen() │  │ scopes       │   |   |
@@ -52,44 +52,44 @@
 +----------------------------------------------------------+
 ```
 
-### 1.2 主要公式プラグイン一覧
+### 1.2 Official Plugin List
 
-| プラグイン | 機能 | Cargo パッケージ |
+| Plugin | Functionality | Cargo Package |
 |---|---|---|
-| store | Key-Value ストレージ | `tauri-plugin-store` |
+| store | Key-Value storage | `tauri-plugin-store` |
 | sql | SQLite / MySQL / PostgreSQL | `tauri-plugin-sql` |
-| fs | ファイルシステム操作 | `tauri-plugin-fs` |
-| dialog | ファイルダイアログ、メッセージボックス | `tauri-plugin-dialog` |
-| notification | OS 通知 | `tauri-plugin-notification` |
-| clipboard-manager | クリップボード操作 | `tauri-plugin-clipboard-manager` |
-| shell | 外部コマンド実行 | `tauri-plugin-shell` |
-| http | HTTP クライアント | `tauri-plugin-http` |
-| updater | 自動更新 | `tauri-plugin-updater` |
-| log | ログ出力 | `tauri-plugin-log` |
-| window-state | ウィンドウ位置・サイズの保存 | `tauri-plugin-window-state` |
-| global-shortcut | グローバルキーボードショートカット | `tauri-plugin-global-shortcut` |
-| process | プロセス管理（終了・再起動） | `tauri-plugin-process` |
-| os | OS 情報の取得 | `tauri-plugin-os` |
-| deep-link | ディープリンク（カスタム URL スキーム） | `tauri-plugin-deep-link` |
-| autostart | OS 起動時の自動起動 | `tauri-plugin-autostart` |
+| fs | File system operations | `tauri-plugin-fs` |
+| dialog | File dialogs, message boxes | `tauri-plugin-dialog` |
+| notification | OS notifications | `tauri-plugin-notification` |
+| clipboard-manager | Clipboard operations | `tauri-plugin-clipboard-manager` |
+| shell | External command execution | `tauri-plugin-shell` |
+| http | HTTP client | `tauri-plugin-http` |
+| updater | Auto-update | `tauri-plugin-updater` |
+| log | Log output | `tauri-plugin-log` |
+| window-state | Save window position and size | `tauri-plugin-window-state` |
+| global-shortcut | Global keyboard shortcuts | `tauri-plugin-global-shortcut` |
+| process | Process management (exit/restart) | `tauri-plugin-process` |
+| os | Retrieve OS information | `tauri-plugin-os` |
+| deep-link | Deep links (custom URL schemes) | `tauri-plugin-deep-link` |
+| autostart | Auto-start on OS boot | `tauri-plugin-autostart` |
 
-### コード例 1: 公式プラグインの導入
+### Code Example 1: Adding Official Plugins
 
 ```bash
-# Rust 側のプラグイン追加
+# Rust side: add plugins
 cargo add tauri-plugin-store tauri-plugin-sql tauri-plugin-dialog
 
-# フロントエンド側の API パッケージ追加
+# Frontend side: add API packages
 npm install @tauri-apps/plugin-store @tauri-apps/plugin-sql @tauri-apps/plugin-dialog
 ```
 
 ```rust
-// src-tauri/src/main.rs — プラグインの登録
+// src-tauri/src/main.rs — Register plugins
 fn main() {
     tauri::Builder::default()
-        // Key-Value ストアプラグイン
+        // Key-Value store plugin
         .plugin(tauri_plugin_store::Builder::new().build())
-        // SQLite データベースプラグイン
+        // SQLite database plugin
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations(
@@ -107,7 +107,7 @@ fn main() {
                 )
                 .build(),
         )
-        // ファイルダイアログプラグイン
+        // File dialog plugin
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![])
         .run(tauri::generate_context!())
@@ -116,39 +116,39 @@ fn main() {
 ```
 
 ```typescript
-// src/lib/store.ts — Key-Value ストアの使用
+// src/lib/store.ts — Using the Key-Value store
 import { Store } from '@tauri-apps/plugin-store'
 
-// ストアの初期化（ファイルパスはアプリデータディレクトリ相対）
+// Initialize the store (file path is relative to the app data directory)
 const store = await Store.load('settings.json')
 
-// 値の保存
+// Save values
 await store.set('theme', 'dark')
 await store.set('language', 'ja')
 await store.set('windowSize', { width: 1200, height: 800 })
 
-// 値の取得（型パラメータで型安全に）
+// Retrieve values (type-safe via type parameter)
 const theme = await store.get<string>('theme')
 const size = await store.get<{ width: number; height: number }>('windowSize')
 
-// 値の削除
+// Delete a value
 await store.delete('obsoleteKey')
 
-// ディスクに保存（明示的な保存が必要）
+// Persist to disk (explicit save required)
 await store.save()
 ```
 
-### 1.3 公式プラグインの実践的な活用例
+### 1.3 Practical Usage Examples with Official Plugins
 
-#### ファイルダイアログ + ファイルシステムの組み合わせ
+#### Combining File Dialog and File System
 
 ```typescript
-// src/lib/file-manager.ts — ファイルダイアログとファイル操作の統合
+// src/lib/file-manager.ts — Integrating file dialog and file operations
 import { open, save, message, confirm } from '@tauri-apps/plugin-dialog'
 import { readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs'
 import { appDataDir, join } from '@tauri-apps/api/path'
 
-// ファイルを開くダイアログ + ファイル読み込み
+// Open file dialog + read file
 export async function openTextFile(): Promise<{ path: string; content: string } | null> {
   const selected = await open({
     multiple: false,
@@ -166,7 +166,7 @@ export async function openTextFile(): Promise<{ path: string; content: string } 
   return { path, content }
 }
 
-// 名前を付けて保存ダイアログ + ファイル書き込み
+// Save As dialog + write file
 export async function saveTextFileAs(content: string): Promise<string | null> {
   const filePath = await save({
     filters: [
@@ -183,12 +183,12 @@ export async function saveTextFileAs(content: string): Promise<string | null> {
   return filePath
 }
 
-// アプリ固有のデータディレクトリにファイルを保存
+// Save a file to the app-specific data directory
 export async function saveAppData(filename: string, data: string): Promise<void> {
   const dataDir = await appDataDir()
   const filePath = await join(dataDir, filename)
 
-  // ディレクトリが存在しない場合は作成
+  // Create the directory if it does not exist
   const dirExists = await exists(dataDir)
   if (!dirExists) {
     await mkdir(dataDir, { recursive: true })
@@ -197,7 +197,7 @@ export async function saveAppData(filename: string, data: string): Promise<void>
   await writeTextFile(filePath, data)
 }
 
-// 確認ダイアログ付きの上書き保存
+// Save with an overwrite confirmation dialog
 export async function saveWithConfirmation(path: string, content: string): Promise<boolean> {
   const fileExists = await exists(path)
   if (fileExists) {
@@ -214,32 +214,32 @@ export async function saveWithConfirmation(path: string, content: string): Promi
 }
 ```
 
-#### グローバルショートカットの登録
+#### Registering Global Shortcuts
 
 ```typescript
-// src/lib/shortcuts.ts — グローバルショートカットの管理
+// src/lib/shortcuts.ts — Managing global shortcuts
 import { register, unregisterAll, isRegistered } from '@tauri-apps/plugin-global-shortcut'
 
 export async function setupGlobalShortcuts(): Promise<void> {
-  // 既存のショートカットを全てクリア
+  // Clear all existing shortcuts
   await unregisterAll()
 
-  // Ctrl+Shift+S でクイック保存
+  // Ctrl+Shift+S for quick save
   await register('CmdOrCtrl+Shift+S', (event) => {
     if (event.state === 'Pressed') {
       console.log('クイック保存が実行されました')
-      // 保存処理を実行
+      // Execute save logic
     }
   })
 
-  // Ctrl+Shift+N で新しいウィンドウ
+  // Ctrl+Shift+N for new window
   await register('CmdOrCtrl+Shift+N', (event) => {
     if (event.state === 'Pressed') {
       console.log('新しいウィンドウを開きます')
     }
   })
 
-  // F5 でリフレッシュ
+  // F5 to refresh
   await register('F5', (event) => {
     if (event.state === 'Pressed') {
       console.log('データをリフレッシュします')
@@ -248,10 +248,10 @@ export async function setupGlobalShortcuts(): Promise<void> {
 }
 ```
 
-### コード例 2: カスタムプラグインの作成
+### Code Example 2: Creating a Custom Plugin
 
 ```rust
-// src-tauri/src/plugins/analytics.rs — カスタム分析プラグイン
+// src-tauri/src/plugins/analytics.rs — Custom analytics plugin
 use tauri::{
     plugin::{Builder, TauriPlugin},
     AppHandle, Manager, Runtime, Emitter,
@@ -259,7 +259,7 @@ use tauri::{
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 
-/// 分析イベントの型定義
+/// Type definition for analytics events
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalyticsEvent {
     pub name: String,
@@ -267,13 +267,13 @@ pub struct AnalyticsEvent {
     pub timestamp: u64,
 }
 
-/// プラグインの内部状態
+/// Internal state of the plugin
 pub struct AnalyticsState {
     events: Vec<AnalyticsEvent>,
     enabled: bool,
 }
 
-/// イベントを記録するコマンド
+/// Command to record an event
 #[tauri::command]
 async fn track_event<R: Runtime>(
     app: AppHandle<R>,
@@ -298,7 +298,7 @@ async fn track_event<R: Runtime>(
 
     state.events.push(event);
 
-    // 100 件溜まったらフラッシュ
+    // Flush when 100 events have accumulated
     if state.events.len() >= 100 {
         flush_events(&mut state.events)?;
     }
@@ -306,20 +306,20 @@ async fn track_event<R: Runtime>(
     Ok(())
 }
 
-/// 蓄積されたイベントを送信
+/// Send accumulated events
 fn flush_events(events: &mut Vec<AnalyticsEvent>) -> Result<(), String> {
-    // バッチ送信のロジック（省略）
+    // Batch send logic (omitted)
     println!("分析イベント {} 件を送信", events.len());
     events.clear();
     Ok(())
 }
 
-/// プラグインの初期化関数
+/// Plugin initialization function
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("analytics")
-        // プラグイン内部のコマンドを登録
+        // Register commands within the plugin
         .invoke_handler(tauri::generate_handler![track_event])
-        // プラグインの状態を管理
+        // Manage plugin state
         .setup(|app, _api| {
             app.manage(Mutex::new(AnalyticsState {
                 events: Vec::new(),
@@ -332,27 +332,27 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 ```
 
 ```typescript
-// src/lib/analytics.ts — カスタムプラグインのフロントエンド API
+// src/lib/analytics.ts — Frontend API for the custom plugin
 import { invoke } from '@tauri-apps/api/core'
 
-// 分析イベントを記録する関数
+// Function to record an analytics event
 export async function trackEvent(
   name: string,
   properties: Record<string, unknown> = {}
 ): Promise<void> {
-  // プラグインコマンドは "plugin:プラグイン名|コマンド名" 形式で呼び出す
+  // Plugin commands are called in the format "plugin:plugin-name|command-name"
   await invoke('plugin:analytics|track_event', { name, properties })
 }
 
-// 使用例
+// Usage examples
 trackEvent('page_view', { page: '/dashboard' })
 trackEvent('button_click', { button: 'save', section: 'editor' })
 ```
 
-### コード例 2b: より高度なカスタムプラグイン — 暗号化ストレージ
+### Code Example 2b: More Advanced Custom Plugin — Encrypted Storage
 
 ```rust
-// src-tauri/src/plugins/encrypted_store.rs — 暗号化ストレージプラグイン
+// src-tauri/src/plugins/encrypted_store.rs — Encrypted storage plugin
 use tauri::{
     plugin::{Builder, TauriPlugin},
     AppHandle, Manager, Runtime,
@@ -362,7 +362,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::path::PathBuf;
 
-/// 暗号化ストレージの内部状態
+/// Internal state of the encrypted storage
 pub struct EncryptedStoreState {
     data: HashMap<String, serde_json::Value>,
     file_path: PathBuf,
@@ -380,7 +380,7 @@ impl EncryptedStoreState {
         }
     }
 
-    /// ディスクからデータを読み込み（復号化）
+    /// Load data from disk (decrypt)
     fn load(&mut self) -> Result<(), String> {
         if !self.file_path.exists() {
             return Ok(());
@@ -389,7 +389,7 @@ impl EncryptedStoreState {
         let encrypted = std::fs::read(&self.file_path)
             .map_err(|e| format!("ファイル読み込みエラー: {}", e))?;
 
-        // 簡易的な XOR 暗号化（本番では AES-256-GCM 等を使用すべき）
+        // Simple XOR encryption (use AES-256-GCM or similar in production)
         let decrypted = self.xor_cipher(&encrypted);
         let json_str = String::from_utf8(decrypted)
             .map_err(|e| format!("UTF-8 デコードエラー: {}", e))?;
@@ -400,7 +400,7 @@ impl EncryptedStoreState {
         Ok(())
     }
 
-    /// ディスクにデータを保存（暗号化）
+    /// Save data to disk (encrypt)
     fn save(&mut self) -> Result<(), String> {
         if !self.dirty {
             return Ok(());
@@ -411,7 +411,7 @@ impl EncryptedStoreState {
 
         let encrypted = self.xor_cipher(json_str.as_bytes());
 
-        // 親ディレクトリを作成
+        // Create parent directory
         if let Some(parent) = self.file_path.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| format!("ディレクトリ作成エラー: {}", e))?;
@@ -432,7 +432,7 @@ impl EncryptedStoreState {
     }
 }
 
-/// 値を取得するコマンド
+/// Command to retrieve a value
 #[tauri::command]
 async fn encrypted_get<R: Runtime>(
     app: AppHandle<R>,
@@ -443,7 +443,7 @@ async fn encrypted_get<R: Runtime>(
     Ok(state.data.get(&key).cloned())
 }
 
-/// 値を設定するコマンド
+/// Command to set a value
 #[tauri::command]
 async fn encrypted_set<R: Runtime>(
     app: AppHandle<R>,
@@ -458,7 +458,7 @@ async fn encrypted_set<R: Runtime>(
     Ok(())
 }
 
-/// 値を削除するコマンド
+/// Command to delete a value
 #[tauri::command]
 async fn encrypted_delete<R: Runtime>(
     app: AppHandle<R>,
@@ -474,7 +474,7 @@ async fn encrypted_delete<R: Runtime>(
     Ok(removed)
 }
 
-/// プラグインの初期化
+/// Plugin initialization
 pub fn init<R: Runtime>(encryption_key: &str) -> TauriPlugin<R> {
     let key = encryption_key.as_bytes().to_vec();
 
@@ -503,7 +503,7 @@ pub fn init<R: Runtime>(encryption_key: &str) -> TauriPlugin<R> {
 ```
 
 ```typescript
-// src/lib/encrypted-store.ts — 暗号化ストレージのフロントエンド API
+// src/lib/encrypted-store.ts — Frontend API for encrypted storage
 import { invoke } from '@tauri-apps/api/core'
 
 export class EncryptedStore {
@@ -520,7 +520,7 @@ export class EncryptedStore {
   }
 }
 
-// 使用例
+// Usage example
 const secureStore = new EncryptedStore()
 await secureStore.set('api_token', 'sk-xxxxxxxxxxxxx')
 const token = await secureStore.get<string>('api_token')
@@ -528,33 +528,33 @@ const token = await secureStore.get<string>('api_token')
 
 ---
 
-## 2. カスタムプロトコル
+## 2. Custom Protocols
 
-### 2.1 プロトコルの動作フロー
+### 2.1 Protocol Request Flow
 
 ```
-フロントエンド                    Rust バックエンド
+Frontend                         Rust Backend
 +------------------+             +---------------------------+
 |                  |             |                           |
-| <img src=        |   HTTP風    | register_assetprotocol    |
-|  "asset://       | ──リクエスト→ |   _protocol("asset",     |
+| <img src=        |  HTTP-like  | register_assetprotocol    |
+|  "asset://       | ──request──→ |   _protocol("asset",     |
 |   images/        |             |     |path| {              |
-|   photo.jpg">   |             |       ファイルを読み込み    |
-|                  |  ←レスポンス── |       バイト列を返す      |
-|  [画像が表示]     |   (バイト列) |     })                    |
+|   photo.jpg">   |             |       Read file            |
+|                  |  ←response── |       Return bytes        |
+|  [Image shown]   |   (bytes)   |     })                    |
 +------------------+             +---------------------------+
 ```
 
-### コード例 3: カスタムプロトコルの実装
+### Code Example 3: Implementing a Custom Protocol
 
 ```rust
-// src-tauri/src/main.rs — カスタムプロトコルでローカルファイルを安全に配信
+// src-tauri/src/main.rs — Serve local files safely via a custom protocol
 use tauri::http::{Request, Response};
 use std::path::PathBuf;
 
 fn main() {
     tauri::Builder::default()
-        // "asset://" プロトコルを登録
+        // Register the "asset://" protocol
         .register_assetprotocol_handler("asset", |_ctx, request| {
             handle_asset_request(request)
         })
@@ -567,19 +567,19 @@ fn handle_asset_request(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
     // "asset://localhost/images/photo.jpg" → "images/photo.jpg"
     let path = uri.replace("asset://localhost/", "");
 
-    // 許可ディレクトリの基準パス
+    // Base path for the allowed directory
     let base_dir = dirs::document_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("my-app-assets");
 
     let file_path = base_dir.join(&path);
 
-    // パストラバーサル攻撃の防止
+    // Prevent path traversal attacks
     match file_path.canonicalize() {
         Ok(canonical) if canonical.starts_with(&base_dir) => {
             match std::fs::read(&canonical) {
                 Ok(data) => {
-                    // MIME タイプの推定
+                    // Guess MIME type
                     let mime = mime_guess::from_path(&canonical)
                         .first_or_octet_stream()
                         .to_string();
@@ -604,20 +604,20 @@ fn handle_asset_request(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
 }
 ```
 
-### 2.2 カスタムプロトコルの応用例 — ストリーミング配信
+### 2.2 Custom Protocol Application — Streaming Delivery
 
 ```rust
-// src-tauri/src/protocols/media.rs — メディアファイルのストリーミング配信
+// src-tauri/src/protocols/media.rs — Streaming delivery for media files
 use tauri::http::{Request, Response};
 use std::io::Read;
 
-/// Range ヘッダーをパースして部分コンテンツを返す（動画ストリーミング対応）
+/// Parse Range header and return partial content (for video streaming)
 pub fn handle_media_request(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
     let uri = request.uri().to_string();
     let path = uri.replace("media://localhost/", "");
     let file_path = std::path::PathBuf::from(&path);
 
-    // ファイルのメタデータを取得
+    // Retrieve file metadata
     let metadata = match std::fs::metadata(&file_path) {
         Ok(m) => m,
         Err(_) => {
@@ -633,26 +633,26 @@ pub fn handle_media_request(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
         .first_or_octet_stream()
         .to_string();
 
-    // Range ヘッダーの確認
+    // Check Range header
     let range_header = request.headers().get("Range")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
 
     if range_header.starts_with("bytes=") {
-        // Range リクエストの処理
+        // Handle Range request
         let range = &range_header[6..];
         let parts: Vec<&str> = range.split('-').collect();
         let start: u64 = parts[0].parse().unwrap_or(0);
         let end: u64 = if parts.len() > 1 && !parts[1].is_empty() {
             parts[1].parse().unwrap_or(file_size - 1)
         } else {
-            // チャンクサイズ: 1MB
+            // Chunk size: 1MB
             std::cmp::min(start + 1_048_576, file_size - 1)
         };
 
         let length = end - start + 1;
 
-        // ファイルの一部を読み取り
+        // Read a portion of the file
         let mut file = std::fs::File::open(&file_path).unwrap();
         std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(start)).unwrap();
         let mut buffer = vec![0u8; length as usize];
@@ -667,7 +667,7 @@ pub fn handle_media_request(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
             .body(buffer)
             .unwrap()
     } else {
-        // 通常のリクエスト（全体を返す）
+        // Regular request (return the entire file)
         let data = std::fs::read(&file_path).unwrap_or_default();
 
         Response::builder()
@@ -682,7 +682,7 @@ pub fn handle_media_request(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
 ```
 
 ```typescript
-// src/components/MediaPlayer.tsx — カスタムプロトコルを使った動画プレイヤー
+// src/components/MediaPlayer.tsx — Video player using a custom protocol
 import { useState } from 'react'
 
 interface MediaPlayerProps {
@@ -692,7 +692,7 @@ interface MediaPlayerProps {
 export function MediaPlayer({ filePath }: MediaPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false)
 
-  // media:// プロトコルでローカルファイルを参照
+  // Reference a local file via the media:// protocol
   const mediaUrl = `media://localhost/${encodeURIComponent(filePath)}`
 
   return (
@@ -712,16 +712,16 @@ export function MediaPlayer({ filePath }: MediaPlayerProps) {
 
 ---
 
-## 3. サイドカー（外部バイナリ）
+## 3. Sidecar (External Binaries)
 
-### 3.1 サイドカーの仕組み
+### 3.1 How Sidecars Work
 
 ```
 +----------------------------------------------------------+
-|                   Tauri アプリ                             |
+|                   Tauri Application                       |
 +----------------------------------------------------------+
 |                                                          |
-|  Rust バックエンド                                        |
+|  Rust Backend                                            |
 |  ┌────────────────────────┐                              |
 |  │  Command::new_sidecar  │                              |
 |  │    ("ffmpeg")          │                              |
@@ -730,19 +730,19 @@ export function MediaPlayer({ filePath }: MediaPlayerProps) {
 |            ↓                                             |
 |  +---------------------+                                 |
 |  | binaries/           |                                 |
-|  |   ffmpeg-x86_64-    |  ← OS/アーキテクチャ別バイナリ  |
-|  |   pc-windows-msvc   |                                 |
+|  |   ffmpeg-x86_64-    |  ← OS/architecture-specific    |
+|  |   pc-windows-msvc   |    binary                       |
 |  +---------------------+                                 |
 |            ↓                                             |
-|  [別プロセスとして実行]                                    |
-|  stdin/stdout/stderr で通信                               |
+|  [Run as a separate process]                             |
+|  Communicate via stdin/stdout/stderr                     |
 +----------------------------------------------------------+
 ```
 
-### コード例 4: サイドカーの設定と使用
+### Code Example 4: Configuring and Using a Sidecar
 
 ```json
-// tauri.conf.json — サイドカーバイナリの登録
+// tauri.conf.json — Register sidecar binaries
 {
   "bundle": {
     "externalBin": [
@@ -753,7 +753,7 @@ export function MediaPlayer({ filePath }: MediaPlayerProps) {
 ```
 
 ```
-バイナリの配置（OS/アーキテクチャ別の命名規則）:
+Binary placement (naming convention by OS/architecture):
 
 src-tauri/binaries/
 ├── ffmpeg-x86_64-pc-windows-msvc.exe    ← Windows (x64)
@@ -765,11 +765,11 @@ src-tauri/binaries/
 ```
 
 ```rust
-// src-tauri/src/commands/media.rs — サイドカーを使った動画変換
+// src-tauri/src/commands/media.rs — Video conversion using a sidecar
 use tauri_plugin_shell::ShellExt;
 use tauri::AppHandle;
 
-/// 動画を変換するコマンド
+/// Command to convert a video
 #[tauri::command]
 async fn convert_video(
     app: AppHandle,
@@ -777,19 +777,19 @@ async fn convert_video(
     output: String,
     format: String,
 ) -> Result<String, String> {
-    // サイドカーバイナリをコマンドとして取得
+    // Get the sidecar binary as a command
     let shell = app.shell();
 
     let output_result = shell
         .sidecar("ffmpeg")
         .map_err(|e| format!("サイドカーの起動に失敗: {}", e))?
         .args([
-            "-i", &input,        // 入力ファイル
-            "-c:v", "libx264",   // ビデオコーデック
-            "-c:a", "aac",       // オーディオコーデック
-            "-f", &format,       // 出力フォーマット
-            "-y",                // 上書き許可
-            &output,             // 出力ファイル
+            "-i", &input,        // Input file
+            "-c:v", "libx264",   // Video codec
+            "-c:a", "aac",       // Audio codec
+            "-f", &format,       // Output format
+            "-y",                // Allow overwrite
+            &output,             // Output file
         ])
         .output()
         .await
@@ -803,7 +803,7 @@ async fn convert_video(
     }
 }
 
-/// サイドカーの出力をリアルタイムでストリーミング
+/// Stream sidecar output in real time
 #[tauri::command]
 async fn convert_video_with_progress(
     app: AppHandle,
@@ -821,11 +821,11 @@ async fn convert_video_with_progress(
         .spawn()
         .map_err(|e| e.to_string())?;
 
-    // 子プロセスの出力を非同期で読み取り
+    // Read child process output asynchronously
     while let Some(event) = rx.recv().await {
         match event {
             tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
-                // 進捗情報をフロントエンドにイベントとして送信
+                // Send progress info to frontend as an event
                 let line_str = String::from_utf8_lossy(&line);
                 let _ = app.emit("conversion-progress", line_str.to_string());
             }
@@ -841,10 +841,10 @@ async fn convert_video_with_progress(
 }
 ```
 
-### 3.2 サイドカーの高度な使用パターン — Python スクリプトの実行
+### 3.2 Advanced Sidecar Usage Pattern — Running Python Scripts
 
 ```rust
-// src-tauri/src/commands/python_bridge.rs — Python スクリプトをサイドカーとして実行
+// src-tauri/src/commands/python_bridge.rs — Run Python scripts as a sidecar
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use serde::{Deserialize, Serialize};
@@ -856,7 +856,7 @@ pub struct PythonResult {
     pub error: String,
 }
 
-/// Python スクリプトを実行するコマンド
+/// Command to execute a Python script
 #[tauri::command]
 pub async fn run_python_script(
     app: AppHandle,
@@ -865,7 +865,7 @@ pub async fn run_python_script(
 ) -> Result<PythonResult, String> {
     let shell = app.shell();
 
-    // Python バイナリをサイドカーとして実行
+    // Run the Python binary as a sidecar
     let mut command_args = vec![
         format!("scripts/{}", script_name),
     ];
@@ -886,7 +886,7 @@ pub async fn run_python_script(
     })
 }
 
-/// 長時間実行 Python プロセスの管理
+/// Manage a long-running Python process
 #[tauri::command]
 pub async fn start_python_server(
     app: AppHandle,
@@ -905,7 +905,7 @@ pub async fn start_python_server(
 
     let pid = child.pid();
 
-    // バックグラウンドで出力を監視
+    // Monitor output in the background
     let app_clone = app.clone();
     tokio::spawn(async move {
         while let Some(event) = rx.recv().await {
@@ -933,15 +933,15 @@ pub async fn start_python_server(
 
 ---
 
-## 4. マルチウィンドウ
+## 4. Multi-Window
 
-### コード例 5: マルチウィンドウの管理
+### Code Example 5: Managing Multiple Windows
 
 ```rust
-// src-tauri/src/commands/window.rs — ウィンドウ管理コマンド
+// src-tauri/src/commands/window.rs — Window management commands
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
-/// 新しいウィンドウを開くコマンド
+/// Command to open a new window
 #[tauri::command]
 async fn open_window(
     app: AppHandle,
@@ -951,13 +951,13 @@ async fn open_window(
     width: f64,
     height: f64,
 ) -> Result<(), String> {
-    // 既存ウィンドウがあればフォーカスして返す
+    // If the window already exists, focus it and return
     if let Some(window) = app.get_webview_window(&label) {
         window.set_focus().map_err(|e| e.to_string())?;
         return Ok(());
     }
 
-    // 新しいウィンドウを作成
+    // Create a new window
     WebviewWindowBuilder::new(
         &app,
         &label,
@@ -972,7 +972,7 @@ async fn open_window(
     Ok(())
 }
 
-/// ウィンドウ間でメッセージを送信するコマンド
+/// Command to send a message between windows
 #[tauri::command]
 async fn send_to_window(
     app: AppHandle,
@@ -992,7 +992,7 @@ async fn send_to_window(
     Ok(())
 }
 
-/// 全ウィンドウの一覧を取得するコマンド
+/// Command to list all windows
 #[tauri::command]
 fn list_windows(app: AppHandle) -> Vec<String> {
     app.webview_windows()
@@ -1003,20 +1003,20 @@ fn list_windows(app: AppHandle) -> Vec<String> {
 ```
 
 ```typescript
-// src/lib/windows.ts — フロントエンドからのウィンドウ操作
+// src/lib/windows.ts — Window operations from the frontend
 import { invoke } from '@tauri-apps/api/core'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 
-// 設定ウィンドウを開く
+// Open the settings window
 export async function openSettings(): Promise<void> {
-  // 既存のウィンドウがあれば取得
+  // Get the existing window if it exists
   const existing = await WebviewWindow.getByLabel('settings')
   if (existing) {
     await existing.setFocus()
     return
   }
 
-  // 新しいウィンドウを作成
+  // Create a new window
   const settingsWindow = new WebviewWindow('settings', {
     url: '/settings',
     title: '設定',
@@ -1026,7 +1026,7 @@ export async function openSettings(): Promise<void> {
     center: true,
   })
 
-  // ウィンドウの作成完了を待つ
+  // Wait for window creation to complete
   settingsWindow.once('tauri://created', () => {
     console.log('設定ウィンドウを作成しました')
   })
@@ -1037,10 +1037,10 @@ export async function openSettings(): Promise<void> {
 }
 ```
 
-### 4.1 ウィンドウ間の高度な通信パターン
+### 4.1 Advanced Inter-Window Communication Patterns
 
 ```typescript
-// src/lib/window-communication.ts — ウィンドウ間通信マネージャー
+// src/lib/window-communication.ts — Inter-window communication manager
 import { emit, listen, UnlistenFn } from '@tauri-apps/api/event'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 
@@ -1060,7 +1060,7 @@ export class WindowCommunicator {
     this.windowLabel = getCurrentWebviewWindow().label
   }
 
-  // 特定のウィンドウにメッセージを送信
+  // Send a message to a specific window
   async sendTo(targetLabel: string, type: string, payload: unknown): Promise<void> {
     const message: WindowMessage = {
       from: this.windowLabel,
@@ -1072,7 +1072,7 @@ export class WindowCommunicator {
     await emit(`window-msg:${targetLabel}`, message)
   }
 
-  // ブロードキャスト（全ウィンドウに送信）
+  // Broadcast (send to all windows)
   async broadcast(type: string, payload: unknown): Promise<void> {
     const message: WindowMessage = {
       from: this.windowLabel,
@@ -1084,20 +1084,20 @@ export class WindowCommunicator {
     await emit('window-broadcast', message)
   }
 
-  // メッセージの受信リスナーを登録
+  // Register a message receive listener
   async onMessage(handler: (message: WindowMessage) => void): Promise<void> {
-    // 自分宛てのメッセージ
+    // Messages addressed directly to this window
     const directUnlisten = await listen<WindowMessage>(
       `window-msg:${this.windowLabel}`,
       (event) => handler(event.payload)
     )
     this.listeners.set('direct', directUnlisten)
 
-    // ブロードキャストメッセージ
+    // Broadcast messages
     const broadcastUnlisten = await listen<WindowMessage>(
       'window-broadcast',
       (event) => {
-        // 送信元が自分の場合はスキップ
+        // Skip if the sender is this window
         if (event.payload.from !== this.windowLabel) {
           handler(event.payload)
         }
@@ -1106,7 +1106,7 @@ export class WindowCommunicator {
     this.listeners.set('broadcast', broadcastUnlisten)
   }
 
-  // 全リスナーを解除
+  // Remove all listeners
   destroy(): void {
     for (const unlisten of this.listeners.values()) {
       unlisten()
@@ -1118,22 +1118,22 @@ export class WindowCommunicator {
 
 ---
 
-## 5. セキュリティ（Capabilities）
+## 5. Security (Capabilities)
 
-### 5.1 Capabilities モデルの概念
+### 5.1 The Capabilities Model Concept
 
 ```
 +----------------------------------------------------------+
-|               Tauri v2 セキュリティモデル                   |
+|               Tauri v2 Security Model                     |
 +----------------------------------------------------------+
 |                                                          |
-|  Capability (権限セット)                                  |
+|  Capability (permission set)                             |
 |  ┌────────────────────────────────────────────────────┐  |
 |  │  "main-capability"                                 │  |
 |  │                                                    │  |
-|  │  適用対象: windows: ["main"]                       │  |
+|  │  Applies to: windows: ["main"]                     │  |
 |  │                                                    │  |
-|  │  Permissions (個別権限):                            │  |
+|  │  Permissions (individual):                         │  |
 |  │  ┌──────────────────┐  ┌──────────────────┐       │  |
 |  │  │ fs:read          │  │ dialog:open      │       │  |
 |  │  │ scope: ["$HOME"] │  │                  │       │  |
@@ -1144,17 +1144,18 @@ export class WindowCommunicator {
 |  │  └──────────────────┘  └──────────────────┘       │  |
 |  └────────────────────────────────────────────────────┘  |
 |                                                          |
-|  原則: 最小権限 — 必要な権限のみ明示的に付与              |
+|  Principle of least privilege — grant only what is       |
+|  explicitly needed                                       |
 +----------------------------------------------------------+
 ```
 
-### 5.2 Capabilities の設定
+### 5.2 Configuring Capabilities
 
 ```json
-// src-tauri/capabilities/default.json — メインウィンドウの権限定義
+// src-tauri/capabilities/default.json — Permission definition for the main window
 {
   "identifier": "main-capability",
-  "description": "メインウィンドウに付与する権限",
+  "description": "Permissions granted to the main window",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -1193,10 +1194,10 @@ export class WindowCommunicator {
 ```
 
 ```json
-// src-tauri/capabilities/settings.json — 設定ウィンドウの権限（制限付き）
+// src-tauri/capabilities/settings.json — Restricted permissions for the settings window
 {
   "identifier": "settings-capability",
-  "description": "設定ウィンドウ用の制限された権限",
+  "description": "Restricted permissions for the settings window",
   "windows": ["settings"],
   "permissions": [
     "core:default",
@@ -1205,23 +1206,23 @@ export class WindowCommunicator {
 }
 ```
 
-### 5.3 権限パスの変数一覧
+### 5.3 Permission Path Variables
 
-| 変数 | Windows | macOS | 説明 |
+| Variable | Windows | macOS | Description |
 |---|---|---|---|
-| `$HOME` | `C:\Users\{user}` | `/Users/{user}` | ホームディレクトリ |
-| `$APPDATA` | `%APPDATA%\{bundle}` | `~/Library/Application Support/{bundle}` | アプリデータ |
-| `$DESKTOP` | `{HOME}\Desktop` | `~/Desktop` | デスクトップ |
-| `$DOCUMENT` | `{HOME}\Documents` | `~/Documents` | ドキュメント |
-| `$DOWNLOAD` | `{HOME}\Downloads` | `~/Downloads` | ダウンロード |
-| `$TEMP` | `%TEMP%` | `/tmp` | 一時ディレクトリ |
+| `$HOME` | `C:\Users\{user}` | `/Users/{user}` | Home directory |
+| `$APPDATA` | `%APPDATA%\{bundle}` | `~/Library/Application Support/{bundle}` | App data |
+| `$DESKTOP` | `{HOME}\Desktop` | `~/Desktop` | Desktop |
+| `$DOCUMENT` | `{HOME}\Documents` | `~/Documents` | Documents |
+| `$DOWNLOAD` | `{HOME}\Downloads` | `~/Downloads` | Downloads |
+| `$TEMP` | `%TEMP%` | `/tmp` | Temporary directory |
 
-### 5.4 カスタムコマンドの権限定義
+### 5.4 Defining Permissions for Custom Commands
 
-プラグインだけでなく、アプリ固有のコマンドにも権限を設定できる。
+Permissions can be set not only for plugins, but also for app-specific commands.
 
 ```json
-// src-tauri/capabilities/default.json — カスタムコマンドの権限
+// src-tauri/capabilities/default.json — Permissions for custom commands
 {
   "identifier": "main-capability",
   "windows": ["main"],
@@ -1243,12 +1244,12 @@ export class WindowCommunicator {
 
 ---
 
-## 6. システムトレイとメニュー
+## 6. System Tray and Menus
 
-### 6.1 システムトレイの実装
+### 6.1 Implementing the System Tray
 
 ```rust
-// src-tauri/src/tray.rs — システムトレイの設定
+// src-tauri/src/tray.rs — System tray configuration
 use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem},
@@ -1256,17 +1257,17 @@ use tauri::{
 };
 
 pub fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    // メニュー項目の作成
-    let show_item = MenuItemBuilder::with_id("show", "ウィンドウを表示")
+    // Create menu items
+    let show_item = MenuItemBuilder::with_id("show", "Show Window")
         .build(app)?;
-    let hide_item = MenuItemBuilder::with_id("hide", "ウィンドウを隠す")
+    let hide_item = MenuItemBuilder::with_id("hide", "Hide Window")
         .build(app)?;
     let separator = PredefinedMenuItem::separator(app)?;
-    let quit_item = MenuItemBuilder::with_id("quit", "終了")
+    let quit_item = MenuItemBuilder::with_id("quit", "Quit")
         .accelerator("CmdOrCtrl+Q")
         .build(app)?;
 
-    // メニューの構築
+    // Build the menu
     let menu = MenuBuilder::new(app)
         .item(&show_item)
         .item(&hide_item)
@@ -1274,7 +1275,7 @@ pub fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .item(&quit_item)
         .build()?;
 
-    // トレイアイコンの構築
+    // Build the tray icon
     let _tray = TrayIconBuilder::new()
         .icon(app.default_window_icon().unwrap().clone())
         .tooltip("My Tauri App")
@@ -1336,31 +1337,31 @@ pub fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### 6.2 アプリケーションメニューの設定
+### 6.2 Configuring the Application Menu
 
 ```rust
-// src-tauri/src/menu.rs — アプリケーションメニューバーの構築
+// src-tauri/src/menu.rs — Building the application menu bar
 use tauri::{
     menu::{MenuBuilder, SubmenuBuilder, MenuItemBuilder, PredefinedMenuItem, CheckMenuItemBuilder},
     Manager, Emitter,
 };
 
 pub fn setup_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    // ファイルメニュー
-    let new_item = MenuItemBuilder::with_id("file-new", "新規作成")
+    // File menu
+    let new_item = MenuItemBuilder::with_id("file-new", "New")
         .accelerator("CmdOrCtrl+N")
         .build(app)?;
-    let open_item = MenuItemBuilder::with_id("file-open", "開く...")
+    let open_item = MenuItemBuilder::with_id("file-open", "Open...")
         .accelerator("CmdOrCtrl+O")
         .build(app)?;
-    let save_item = MenuItemBuilder::with_id("file-save", "保存")
+    let save_item = MenuItemBuilder::with_id("file-save", "Save")
         .accelerator("CmdOrCtrl+S")
         .build(app)?;
-    let save_as_item = MenuItemBuilder::with_id("file-save-as", "名前を付けて保存...")
+    let save_as_item = MenuItemBuilder::with_id("file-save-as", "Save As...")
         .accelerator("CmdOrCtrl+Shift+S")
         .build(app)?;
 
-    let file_menu = SubmenuBuilder::new(app, "ファイル")
+    let file_menu = SubmenuBuilder::new(app, "File")
         .item(&new_item)
         .item(&open_item)
         .separator()
@@ -1370,8 +1371,8 @@ pub fn setup_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .quit()
         .build()?;
 
-    // 編集メニュー
-    let edit_menu = SubmenuBuilder::new(app, "編集")
+    // Edit menu
+    let edit_menu = SubmenuBuilder::new(app, "Edit")
         .undo()
         .redo()
         .separator()
@@ -1381,18 +1382,18 @@ pub fn setup_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .select_all()
         .build()?;
 
-    // 表示メニュー
-    let dark_mode = CheckMenuItemBuilder::with_id("view-dark-mode", "ダークモード")
+    // View menu
+    let dark_mode = CheckMenuItemBuilder::with_id("view-dark-mode", "Dark Mode")
         .checked(false)
         .build(app)?;
 
-    let view_menu = SubmenuBuilder::new(app, "表示")
+    let view_menu = SubmenuBuilder::new(app, "View")
         .item(&dark_mode)
         .separator()
         .fullscreen()
         .build()?;
 
-    // メニューバーの構築
+    // Build the menu bar
     let menu = MenuBuilder::new(app)
         .item(&file_menu)
         .item(&edit_menu)
@@ -1401,7 +1402,7 @@ pub fn setup_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     app.set_menu(menu)?;
 
-    // メニューイベントのハンドリング
+    // Handle menu events
     app.on_menu_event(move |app, event| {
         match event.id().as_ref() {
             "file-new" => {
@@ -1428,7 +1429,7 @@ pub fn setup_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ```typescript
-// src/hooks/useMenuActions.ts — メニューアクションのリスナー
+// src/hooks/useMenuActions.ts — Listener for menu actions
 import { useEffect } from 'react'
 import { listen } from '@tauri-apps/api/event'
 
@@ -1469,15 +1470,15 @@ export function useMenuActions(handlers: {
 
 ---
 
-## 7. データベース統合
+## 7. Database Integration
 
-### 7.1 SQLite を使った CRUD 操作
+### 7.1 CRUD Operations with SQLite
 
 ```typescript
-// src/lib/database.ts — SQLite データベースの操作
+// src/lib/database.ts — SQLite database operations
 import Database from '@tauri-apps/plugin-sql'
 
-// データベース接続（アプリデータディレクトリに保存）
+// Database connection (stored in the app data directory)
 let db: Database | null = null
 
 export async function getDb(): Promise<Database> {
@@ -1487,7 +1488,7 @@ export async function getDb(): Promise<Database> {
   return db
 }
 
-// タスク型の定義
+// Task type definition
 interface Task {
   id: number
   title: string
@@ -1497,22 +1498,22 @@ interface Task {
   updated_at: string
 }
 
-// CRUD 操作
+// CRUD operations
 export const taskRepository = {
-  // 全タスクの取得
+  // Retrieve all tasks
   async findAll(): Promise<Task[]> {
     const db = await getDb()
     return db.select<Task[]>('SELECT * FROM tasks ORDER BY created_at DESC')
   },
 
-  // ID によるタスク取得
+  // Retrieve a task by ID
   async findById(id: number): Promise<Task | null> {
     const db = await getDb()
     const results = await db.select<Task[]>('SELECT * FROM tasks WHERE id = $1', [id])
     return results[0] || null
   },
 
-  // タスクの作成
+  // Create a task
   async create(title: string, description: string): Promise<number> {
     const db = await getDb()
     const result = await db.execute(
@@ -1522,7 +1523,7 @@ export const taskRepository = {
     return result.lastInsertId
   },
 
-  // タスクの更新
+  // Update a task
   async update(id: number, updates: Partial<Task>): Promise<void> {
     const db = await getDb()
     const fields: string[] = []
@@ -1551,13 +1552,13 @@ export const taskRepository = {
     )
   },
 
-  // タスクの削除
+  // Delete a task
   async delete(id: number): Promise<void> {
     const db = await getDb()
     await db.execute('DELETE FROM tasks WHERE id = $1', [id])
   },
 
-  // 検索
+  // Search tasks
   async search(keyword: string): Promise<Task[]> {
     const db = await getDb()
     return db.select<Task[]>(
@@ -1568,10 +1569,10 @@ export const taskRepository = {
 }
 ```
 
-### 7.2 Rust 側での高度なデータベース操作
+### 7.2 Advanced Database Operations on the Rust Side
 
 ```rust
-// src-tauri/src/database.rs — Rust 側での SQLite 操作（rusqlite 使用）
+// src-tauri/src/database.rs — SQLite operations on the Rust side (using rusqlite)
 use rusqlite::{Connection, params};
 use serde::Serialize;
 use std::sync::Mutex;
@@ -1592,14 +1593,14 @@ impl Database {
     pub fn new(path: &str) -> Result<Self, rusqlite::Error> {
         let conn = Connection::open(path)?;
 
-        // WAL モードを有効化（パフォーマンス向上）
+        // Enable WAL mode (improves performance)
         conn.execute_batch("
             PRAGMA journal_mode=WAL;
             PRAGMA synchronous=NORMAL;
             PRAGMA foreign_keys=ON;
         ")?;
 
-        // テーブル作成
+        // Create tables
         conn.execute_batch("
             CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1647,7 +1648,7 @@ impl Database {
     }
 }
 
-/// データベースのコマンド
+/// Database command
 #[tauri::command]
 pub fn get_task_stats(
     db: tauri::State<'_, Mutex<Database>>,
@@ -1659,12 +1660,12 @@ pub fn get_task_stats(
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: Capabilities で全権限を許可する
+### Anti-Pattern 1: Granting All Permissions in Capabilities
 
 ```json
-// NG: 全てのプラグインにデフォルト全権限を付与
+// Bad: Grant all default permissions to every plugin for all windows
 {
   "identifier": "everything",
   "windows": ["*"],
@@ -1677,7 +1678,7 @@ pub fn get_task_stats(
 ```
 
 ```json
-// OK: ウィンドウごとに必要最小限の権限のみ付与
+// Good: Grant only the minimum required permissions per window
 {
   "identifier": "main-restricted",
   "windows": ["main"],
@@ -1694,45 +1695,45 @@ pub fn get_task_stats(
 }
 ```
 
-### アンチパターン 2: プラグインの状態管理で Mutex を長時間ロックする
+### Anti-Pattern 2: Holding a Mutex Lock During I/O in Plugin State Management
 
 ```rust
-// NG: Mutex のロックを保持したまま I/O を実行
+// Bad: Holding the Mutex lock while performing I/O
 #[tauri::command]
 async fn sync_data(state: tauri::State<'_, Mutex<AppState>>) -> Result<(), String> {
-    let mut state = state.lock().unwrap(); // ロック取得
-    // ロックを保持したまま HTTP リクエスト → 他のコマンドがブロックされる
+    let mut state = state.lock().unwrap(); // Acquire lock
+    // HTTP request while holding the lock → blocks other commands
     let data = reqwest::get("https://api.example.com/data")
         .await.map_err(|e| e.to_string())?
         .json::<Data>().await.map_err(|e| e.to_string())?;
     state.data = data;
     Ok(())
-} // ここでロック解放
+} // Lock released here
 ```
 
 ```rust
-// OK: ロックの保持時間を最小限にする
+// Good: Minimize the duration the lock is held
 #[tauri::command]
 async fn sync_data(state: tauri::State<'_, Mutex<AppState>>) -> Result<(), String> {
-    // 先にデータを取得（ロック不要）
+    // Fetch data first (no lock needed)
     let data = reqwest::get("https://api.example.com/data")
         .await.map_err(|e| e.to_string())?
         .json::<Data>().await.map_err(|e| e.to_string())?;
 
-    // 状態の更新時のみ短期間ロック
+    // Hold the lock only briefly to update state
     {
         let mut state = state.lock().unwrap();
         state.data = data;
-    } // すぐにロック解放
+    } // Lock released immediately
 
     Ok(())
 }
 ```
 
-### アンチパターン 3: サイドカーのプロセスをリークさせる
+### Anti-Pattern 3: Leaking Sidecar Processes
 
 ```rust
-// NG: サイドカープロセスを起動して放置（ゾンビプロセス化）
+// Bad: Launch a sidecar process and leave it unmanaged (becomes a zombie process)
 #[tauri::command]
 async fn run_background_process(app: AppHandle) -> Result<(), String> {
     let shell = app.shell();
@@ -1742,13 +1743,13 @@ async fn run_background_process(app: AppHandle) -> Result<(), String> {
         .spawn()
         .map_err(|e| e.to_string())?;
 
-    // child を保持せず、rx も読み取らない → プロセスがリーク
+    // child is not retained and rx is not read → process leaks
     Ok(())
 }
 ```
 
 ```rust
-// OK: プロセスのライフサイクルを適切に管理
+// Good: Properly manage the process lifecycle
 #[tauri::command]
 async fn run_background_process(
     app: AppHandle,
@@ -1763,13 +1764,13 @@ async fn run_background_process(
 
     let pid = child.pid();
 
-    // プロセスを状態管理に登録
+    // Register the process in state management
     {
         let mut manager = state.lock().map_err(|e| e.to_string())?;
         manager.register(pid, child);
     }
 
-    // 出力を監視し、終了時にクリーンアップ
+    // Monitor output and clean up on termination
     let state_clone = state.inner().clone();
     tokio::spawn(async move {
         while let Some(event) = rx.recv().await {
@@ -1790,69 +1791,69 @@ async fn run_background_process(
 
 ## 9. FAQ
 
-### Q1: Tauri のプラグインを自作する場合、crate として公開すべきか？
+### Q1: Should I publish a custom Tauri plugin as a crate?
 
-**A:** アプリ固有のロジックであればプロジェクト内にモジュールとして配置すれば十分である。複数のプロジェクトで再利用する場合は、`tauri-plugin-*` の命名規則で crate.io に公開するか、社内の Git リポジトリで Cargo のパス依存またはGit依存として管理するのが良い。公式のプラグインテンプレート（`cargo tauri plugin init`）を使うとスキャフォールディングが容易である。
+**A:** If the logic is app-specific, placing it as a module within the project is sufficient. For reuse across multiple projects, the recommended approach is to publish it to crates.io using the `tauri-plugin-*` naming convention, or manage it as a path or Git dependency in Cargo within an internal Git repository. The official plugin template (`cargo tauri plugin init`) makes scaffolding straightforward.
 
-### Q2: サイドカーバイナリのサイズが大きい場合、どう対処すべきか？
+### Q2: What should I do when a sidecar binary is large?
 
-**A:** 以下の方法がある。(1) 初回起動時にサーバーからダウンロードし、アプリデータディレクトリにキャッシュする、(2) UPX 等の圧縮ツールでバイナリサイズを削減する、(3) サイドカーの代わりに Rust のライブラリクレートとして直接リンクする（可能な場合）。FFmpeg のように巨大なバイナリの場合は (1) のアプローチが現実的である。
+**A:** There are several options: (1) Download it from a server on first launch and cache it in the app data directory; (2) Reduce binary size with a compression tool such as UPX; (3) Link it directly as a Rust library crate instead of a sidecar (where possible). For large binaries like FFmpeg, approach (1) is the most practical.
 
-### Q3: Tauri v2 の capabilities で、動的に権限を追加できるか？
+### Q3: Can capabilities in Tauri v2 be added dynamically at runtime?
 
-**A:** capabilities はビルド時に静的に定義されるものであり、実行時に動的に変更することはできない。ただし、ウィンドウ単位で異なる capabilities を割り当てることは可能であるため、権限の異なるウィンドウを必要に応じて開くことで実質的な動的制御が可能である。より細かい実行時制御が必要な場合は、Rust のコマンド側でアクセス制御のロジックを実装する。
+**A:** Capabilities are defined statically at build time and cannot be changed dynamically at runtime. However, since different capabilities can be assigned per window, practical dynamic control is possible by opening windows with different permission sets as needed. If finer-grained runtime control is required, implement access control logic on the Rust command side.
 
-### Q4: マルチウィンドウアプリで状態を同期するにはどうすればよいか？
+### Q4: How do I synchronize state in a multi-window app?
 
-**A:** Tauri のイベントシステムを使うのが最も簡単である。状態が変更されたら全ウィンドウにブロードキャストイベントを送信し、各ウィンドウのフロントエンドが自身の表示を更新する。また、Rust バックエンドの `Mutex<AppState>` を中央の単一ソースとして使い、全ウィンドウからコマンド経由でアクセスする方法も有効である。大規模アプリでは、Redux のような一方向データフローパターンを採用し、バックエンドをストアとして利用することを推奨する。
+**A:** Using Tauri's event system is the simplest approach. When state changes, broadcast an event to all windows, and each window's frontend updates its own display. Using `Mutex<AppState>` on the Rust backend as a central single source of truth, accessed by all windows via commands, is also effective. For large-scale apps, it is recommended to adopt a unidirectional data flow pattern like Redux and use the backend as the store.
 
-### Q5: Tauri アプリで OS のネイティブ通知を表示するには？
+### Q5: How do I display OS native notifications in a Tauri app?
 
-**A:** `tauri-plugin-notification` を使用する。`npm install @tauri-apps/plugin-notification` でインストールし、capabilities に `notification:default` を追加する。フロントエンドでは `sendNotification({ title: 'タイトル', body: '本文' })` で簡単に通知を送信できる。Windows ではトースト通知、macOS では通知センター、Linux では libnotify を使用する。権限の要求はプラグインが自動的に処理する。
+**A:** Use `tauri-plugin-notification`. Install it with `npm install @tauri-apps/plugin-notification` and add `notification:default` to your capabilities. On the frontend, you can easily send a notification with `sendNotification({ title: 'Title', body: 'Body' })`. It uses toast notifications on Windows, Notification Center on macOS, and libnotify on Linux. The plugin handles permission requests automatically.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Rather than theory alone, understanding deepens by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work, particularly during code reviews and architectural design discussions.
 
 ---
 
-## 10. まとめ
+## 10. Summary
 
-| トピック | キーポイント |
+| Topic | Key Points |
 |---|---|
-| プラグインシステム | 公式プラグイン豊富。カスタムプラグインは `Builder::new()` で作成 |
-| カスタムプロトコル | `register_assetprotocol_handler` でローカルファイルを安全配信 |
-| サイドカー | 外部バイナリを OS/アーキテクチャ別に同梱。stdin/stdout で通信 |
-| マルチウィンドウ | `WebviewWindowBuilder` で作成。ラベルで識別・管理 |
-| Capabilities | 最小権限原則。ウィンドウ単位で権限を JSON 定義 |
-| 状態管理 | `Mutex` + `app.manage()` でスレッドセーフに管理。ロック時間は最小に |
-| システムトレイ | `TrayIconBuilder` でトレイアイコンとメニューを構築 |
-| メニュー | `MenuBuilder` でネイティブメニューバーを構築 |
-| データベース | `tauri-plugin-sql` で SQLite 統合。Rust 側では rusqlite も選択肢 |
+| Plugin system | Rich set of official plugins. Custom plugins are created with `Builder::new()` |
+| Custom protocols | Use `register_assetprotocol_handler` to serve local files safely |
+| Sidecar | Bundle external binaries per OS/architecture. Communicate via stdin/stdout |
+| Multi-window | Create with `WebviewWindowBuilder`. Identify and manage by label |
+| Capabilities | Principle of least privilege. Define permissions per window in JSON |
+| State management | Use `Mutex` + `app.manage()` for thread-safe management. Minimize lock duration |
+| System tray | Build tray icon and menu with `TrayIconBuilder` |
+| Menu | Build native menu bar with `MenuBuilder` |
+| Database | SQLite integration with `tauri-plugin-sql`. `rusqlite` is also an option on the Rust side |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- **[00-packaging-and-signing.md](../03-distribution/00-packaging-and-signing.md)** — Tauri アプリのパッケージングと署名
-- **[01-auto-update.md](../03-distribution/01-auto-update.md)** — Tauri updater を使った自動更新
+- **[00-packaging-and-signing.md](../03-distribution/00-packaging-and-signing.md)** — Packaging and signing Tauri apps
+- **[01-auto-update.md](../03-distribution/01-auto-update.md)** — Auto-update using the Tauri updater
 
 ---
 
-## 参考文献
+## References
 
 1. Tauri, "Plugins", https://v2.tauri.app/develop/plugins/
 2. Tauri, "Security — Capabilities", https://v2.tauri.app/security/capabilities/
