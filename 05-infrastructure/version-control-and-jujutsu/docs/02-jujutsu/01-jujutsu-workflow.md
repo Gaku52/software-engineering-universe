@@ -1,1091 +1,1099 @@
-# Jujutsuワークフロー
+# Jujutsu Workflow
 
-> Jujutsuの変更セット（changeset）管理と自動リベース機能を活用した実践的な開発ワークフローを習得し、Gitでは困難だった柔軟なコミット操作を実現する。
+> Master practical development workflows leveraging Jujutsu's changeset management and automatic rebase capabilities, enabling flexible commit operations that are difficult to achieve with Git.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **変更セットの操作** — jj squash, jj split, jj move による柔軟なcommit編集
-2. **自動リベースの仕組み** — 親commitの変更時に子commitが自動的にリベースされる動作
-3. **実践的なブランチレス開発** — ブックマーク（旧branch）を使った効率的な開発フロー
-4. **並行作業の管理** — 複数の作業を同時に進行するためのテクニック
-5. **コミットの整理と最適化** — レビュー前のcommit履歴を整理するワークフロー
+1. **Changeset operations** — Flexible commit editing with jj squash, jj split, and jj move
+2. **How automatic rebase works** — Child commits are automatically rebased when a parent commit changes
+3. **Practical branchless development** — Efficient development flow using bookmarks (formerly branches)
+4. **Managing concurrent work** — Techniques for advancing multiple tasks simultaneously
+5. **Commit cleanup and optimization** — Workflows for tidying commit history before review
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Jujutsu入門](./00-jujutsu-introduction.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Jujutsu Introduction](./00-jujutsu-introduction.md)
 
 ---
 
-## 1. 変更セットの基本操作
+## 1. Basic Changeset Operations
 
-### 1.1 jj new — 新しいcommitの作成
+### 1.1 jj new — Creating a New Commit
 
 ```bash
-# 現在のworking copyの上に新しいcommitを作成
+# Create a new commit on top of the current working copy
 $ jj new
-# → 現在の変更が確定し、新しい空のworking copy commitが作成される
+# → The current changes are finalized and a new empty working copy commit is created
 
-# 特定のcommitの上に新しいcommitを作成
+# Create a new commit on top of a specific commit
 $ jj new qpvuntsm
-# → qpvuntsm の子として新しいworking copy commitを作成
-# → 元のworking copyの位置にあったcommitは自動的に上に移動
+# → Creates a new working copy commit as a child of qpvuntsm
+# → The commit that was previously at the working copy position is automatically moved up
 
-# マージcommitの作成（複数の親を指定）
+# Create a merge commit (specify multiple parents)
 $ jj new commit-a commit-b
-# → commit-a と commit-b の両方を親に持つmerge commitを作成
+# → Creates a merge commit with both commit-a and commit-b as parents
 
-# メッセージ付きで新しいcommitを作成
-$ jj new -m "feat: 新機能の基盤"
-# → 新しいcommitを作成し、同時にメッセージを設定
+# Create a new commit with a message
+$ jj new -m "feat: foundation for new feature"
+# → Creates a new commit and sets the message at the same time
 
-# 特定のrevisionの後に挿入
+# Insert after a specific revision
 $ jj new --after aaa --before bbb
-# → aaa と bbb の間に新しいcommitを挿入
+# → Inserts a new commit between aaa and bbb
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  jj new の動作                                       │
+│  How jj new works                                    │
 │                                                     │
 │  Before:                                            │
-│  @  rlvkpntz  feat: 認証機能  ← working copy       │
-│  ○  qpvuntsm  feat: 初期設定                        │
+│  @  rlvkpntz  feat: auth feature  ← working copy   │
+│  ○  qpvuntsm  feat: initial setup                   │
 │  ◆  zzzzzzzz  root()                                │
 │                                                     │
 │  $ jj new                                           │
 │                                                     │
 │  After:                                             │
-│  @  xtkvpqwm  (empty) (no description)  ← 新working│
-│  ○  rlvkpntz  feat: 認証機能  ← 確定済み            │
-│  ○  qpvuntsm  feat: 初期設定                        │
+│  @  xtkvpqwm  (empty) (no description)  ← new wc   │
+│  ○  rlvkpntz  feat: auth feature  ← finalized       │
+│  ○  qpvuntsm  feat: initial setup                   │
 │  ◆  zzzzzzzz  root()                                │
 │                                                     │
 │  $ jj new qpvuntsm                                  │
 │                                                     │
 │  After:                                             │
-│  ○  rlvkpntz  feat: 認証機能  ← 自動リベース        │
-│  @  newcommit (empty)         ← 挿入されたcommit    │
-│  ○  qpvuntsm  feat: 初期設定                        │
+│  ○  rlvkpntz  feat: auth feature  ← auto-rebased   │
+│  @  newcommit (empty)         ← inserted commit     │
+│  ○  qpvuntsm  feat: initial setup                   │
 │  ◆  zzzzzzzz  root()                                │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.2 jj edit — 過去のcommitを編集位置にする
+### 1.2 jj edit — Set a Past Commit as the Editing Position
 
 ```bash
-# 過去のcommitをworking copyにする
+# Make a past commit the working copy
 $ jj edit qpvuntsm
-# → qpvuntsm がworking copyになり、直接編集可能に
-# → その上にあるcommitは自動的にリベースされる
+# → qpvuntsm becomes the working copy and can be directly edited
+# → Commits above it are automatically rebased
 
-$ vim src/config.js  # qpvuntsmのcommitを直接編集
-# → 子commitが自動リベースされる
+$ vim src/config.js  # Directly edit the qpvuntsm commit
+# → Child commits are automatically rebased
 
-# change IDで指定（推奨）
+# Specify by change ID (recommended)
 $ jj edit rlvkpntz
-# → commit IDではなくchange IDを使うことで、rebase後も追跡可能
+# → Use change ID rather than commit ID so it remains trackable after rebase
 
-# ブックマーク名で指定
+# Specify by bookmark name
 $ jj edit feature-auth
-# → ブックマークが指すcommitをworking copyにする
+# → Make the commit pointed to by the bookmark the working copy
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  jj edit の動作                                     │
+│  How jj edit works                                  │
 │                                                    │
 │  Before:                                           │
-│  @  rlvkpntz  feat: 認証機能                       │
-│  ○  qpvuntsm  feat: 初期設定                       │
+│  @  rlvkpntz  feat: auth feature                   │
+│  ○  qpvuntsm  feat: initial setup                  │
 │                                                    │
 │  $ jj edit qpvuntsm                                │
 │                                                    │
 │  After:                                            │
-│  ○  rlvkpntz  feat: 認証機能  ← 自動リベース対象  │
-│  @  qpvuntsm  feat: 初期設定  ← 直接編集可能       │
+│  ○  rlvkpntz  feat: auth feature  ← auto-rebase   │
+│  @  qpvuntsm  feat: initial setup  ← directly editable │
 │                                                    │
-│  ファイルを編集すると:                              │
-│  ○  rlvkpntz' feat: 認証機能  ← 自動リベース!     │
-│  @  qpvuntsm' feat: 初期設定  ← 変更された         │
+│  When you edit a file:                             │
+│  ○  rlvkpntz' feat: auth feature  ← auto-rebased! │
+│  @  qpvuntsm' feat: initial setup  ← modified      │
 │                                                    │
-│  重要: editはjj newとは異なり、新しいcommitを       │
-│  作成しない。既存のcommitを直接編集する。           │
+│  Important: edit does not create a new commit       │
+│  unlike jj new. It directly edits the existing     │
+│  commit.                                           │
 └────────────────────────────────────────────────────┘
 ```
 
-### 1.3 jj squash — 変更の統合
+### 1.3 jj squash — Merging Changes
 
 ```bash
-# working copyの変更を親commitに統合
+# Merge working copy changes into the parent commit
 $ jj squash
-# → working copyの全変更が親commitに移動
-# → working copyは空になる
+# → All working copy changes are moved to the parent commit
+# → The working copy becomes empty
 
-# メッセージを同時に設定
-$ jj squash -m "feat: 認証機能の完成版"
-# → 統合後のcommitにメッセージを設定
+# Set a message at the same time
+$ jj squash -m "feat: completed auth feature"
+# → Sets a message on the merged commit
 
-# 特定のファイルだけ親commitに統合
+# Merge only specific files into the parent commit
 $ jj squash --keep src/auth.js
-# → src/auth.js の変更だけ親に移動、他はworking copyに残る
+# → Only src/auth.js changes are moved to the parent; others remain in the working copy
 
-# 特定のcommitに対してsquash
+# Squash into a specific commit
 $ jj squash --from rlvkpntz --into qpvuntsm
-# → rlvkpntzの変更をqpvuntsmに統合
+# → Merges changes from rlvkpntz into qpvuntsm
 
-# パスを指定して部分的にsquash
+# Partial squash by specifying paths
 $ jj squash src/auth.js src/middleware.js
-# → 指定ファイルの変更のみ親に移動
+# → Only the specified files' changes are moved to the parent
 
-# インタラクティブにsquashする内容を選択
+# Interactively select what to squash
 $ jj squash -i
-# → diff-editorが開き、squashする変更を選択できる
+# → Opens the diff-editor to select which changes to squash
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  jj squash の動作パターン                           │
+│  jj squash operation patterns                       │
 │                                                    │
-│  パターン1: 全変更を親に統合                        │
+│  Pattern 1: Merge all changes into parent           │
 │  Before:              After:                       │
 │  @  B (changes)       @  B (empty)                 │
 │  ○  A                 ○  A' (A + B's changes)      │
 │                                                    │
-│  パターン2: 特定ファイルのみ統合                    │
+│  Pattern 2: Merge only specific files               │
 │  Before:              After:                       │
 │  @  B (a.js, b.js)    @  B' (b.js only)            │
 │  ○  A                 ○  A' (A + a.js changes)     │
 │                                                    │
-│  パターン3: 任意のcommit間での統合                  │
+│  Pattern 3: Merge between arbitrary commits         │
 │  Before:              After:                       │
-│  ○  C                 ○  C' (自動リベース)          │
-│  ○  B (target)        ○  B' (empty, abandonされる)  │
+│  ○  C                 ○  C' (auto-rebased)          │
+│  ○  B (target)        ○  B' (empty, abandoned)      │
 │  ○  A (dest)          ○  A' (A + B's changes)      │
 │                                                    │
 │  $ jj squash --from B --into A                     │
 └────────────────────────────────────────────────────┘
 ```
 
-### 1.4 jj split — commitの分割
+### 1.4 jj split — Splitting a Commit
 
 ```bash
-# working copyの変更をインタラクティブに分割
+# Interactively split working copy changes
 $ jj split
-# → エディタが開き、最初のcommitに含める変更を選択
-# → 残りは新しいcommitになる
+# → Editor opens to select changes for the first commit
+# → The remainder becomes a new commit
 
-# ファイル単位で分割
+# Split by file
 $ jj split src/auth.js src/middleware.js
-# → 指定ファイルの変更が最初のcommitに
-# → 残りのファイルの変更が次のcommitに
+# → Changes to the specified files go into the first commit
+# → Changes to the remaining files go into the next commit
 
-# 過去のcommitを分割
+# Split a past commit
 $ jj split -r rlvkpntz
-# → rlvkpntz をインタラクティブに分割
-# → 子commitは自動リベース
+# → Interactively splits rlvkpntz
+# → Child commits are automatically rebased
 
-# パスパターンで分割
+# Split using a path pattern
 $ jj split "src/**/*.test.js"
-# → テストファイルの変更を最初のcommitに
-# → それ以外を次のcommitに
+# → Test file changes go into the first commit
+# → Everything else goes into the next commit
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  jj split の動作                                    │
+│  How jj split works                                 │
 │                                                    │
 │  Before:                                           │
-│  @  rlvkpntz  feat: 認証+UI                       │
-│  │  (auth.js, middleware.js, Login.jsx を変更)      │
+│  @  rlvkpntz  feat: auth+UI                        │
+│  │  (changes to auth.js, middleware.js, Login.jsx)  │
 │  ○  qpvuntsm  ...                                  │
 │                                                    │
 │  $ jj split src/auth.js src/middleware.js           │
 │                                                    │
 │  After:                                            │
-│  @  nwmqklop  (working copy, Login.jsx の変更)     │
-│  ○  rlvkpntz  feat: 認証+UI                       │
-│  │  (auth.js, middleware.js の変更のみ)             │
+│  @  nwmqklop  (working copy, Login.jsx changes)    │
+│  ○  rlvkpntz  feat: auth+UI                        │
+│  │  (auth.js, middleware.js changes only)           │
 │  ○  qpvuntsm  ...                                  │
 │                                                    │
-│  splitの後は各commitのメッセージを修正する:         │
-│  $ jj describe -r rlvkpntz -m "feat: 認証ロジック" │
-│  $ jj describe -m "feat: ログインUI"               │
+│  After splitting, update each commit's message:    │
+│  $ jj describe -r rlvkpntz -m "feat: auth logic"  │
+│  $ jj describe -m "feat: login UI"                 │
 └────────────────────────────────────────────────────┘
 ```
 
-### 1.5 jj move — 変更の移動（非推奨、squash推奨）
+### 1.5 jj move — Moving Changes (Deprecated, Use squash Instead)
 
 ```bash
-# 注意: jj move は古いコマンドで、jj squash --from --into に置き換えられた
-# 互換性のために残っているが、squashの使用を推奨
+# Note: jj move is an older command replaced by jj squash --from --into
+# Kept for compatibility, but using squash is recommended
 
-# 旧: jj move --from A --to B
-# 新: jj squash --from A --into B
+# Old: jj move --from A --to B
+# New: jj squash --from A --into B
 
-# 使用例（squashで代替）
+# Example (replaced with squash)
 $ jj squash --from rlvkpntz --into qpvuntsm
-# → rlvkpntz の変更を qpvuntsm に移動
+# → Moves changes from rlvkpntz to qpvuntsm
 ```
 
-### 1.6 jj diffedit — commitの内容をdiffエディタで直接編集
+### 1.6 jj diffedit — Directly Edit Commit Contents with a Diff Editor
 
 ```bash
-# working copyの変更をdiffエディタで編集
+# Edit working copy changes with the diff editor
 $ jj diffedit
-# → diff-editorが開き、変更を追加・削除できる
+# → Opens the diff-editor to add or remove changes
 
-# 過去のcommitをdiffエディタで編集
+# Edit a past commit with the diff editor
 $ jj diffedit -r rlvkpntz
-# → rlvkpntz の変更内容をdiffエディタで直接編集
-# → 子commitは自動リベース
+# → Directly edit the contents of rlvkpntz in the diff editor
+# → Child commits are automatically rebased
 
-# 特定のファイルのみ編集
+# Edit only specific files
 $ jj diffedit -r rlvkpntz src/auth.js
 ```
 
 ---
 
-## 2. 自動リベース
+## 2. Automatic Rebase
 
-### 2.1 自動リベースの仕組み
+### 2.1 How Automatic Rebase Works
 
-Jujutsuの最も強力な機能の一つ。**親commitが変更されると、子commit以降が自動的にリベースされる**。
+One of Jujutsu's most powerful features. **When a parent commit changes, child commits and beyond are automatically rebased**.
 
 ```bash
-# 3つのcommitが積まれた状態
+# Three commits stacked
 $ jj log
-@  ccc  feat: UI実装
-○  bbb  feat: APIエンドポイント
-○  aaa  feat: 初期設定
+@  ccc  feat: UI implementation
+○  bbb  feat: API endpoint
+○  aaa  feat: initial setup
 ◆  root()
 
-# 中間のcommitを直接編集
+# Directly edit an intermediate commit
 $ jj edit bbb
 $ vim src/api.js
-$ jj new  # 編集を確定して新しいworking copyへ
+$ jj new  # Finalize the edit and move to a new working copy
 
-# → ccc が自動的にリベースされる！
+# → ccc is automatically rebased!
 $ jj log
 @  ddd  (empty)
-○  ccc' feat: UI実装           ← 自動リベース済み（SHA変更）
-○  bbb' feat: APIエンドポイント ← 編集された
-○  aaa  feat: 初期設定
+○  ccc' feat: UI implementation    ← auto-rebased (SHA changed)
+○  bbb' feat: API endpoint         ← edited
+○  aaa  feat: initial setup
 ◆  root()
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  自動リベースの図解                                  │
+│  Automatic rebase diagram                            │
 │                                                     │
-│  Git で同じことをする場合:                           │
-│  1. git rebase -i で対象commitをeditに設定          │
-│  2. 修正を加える                                    │
+│  Doing the same thing in Git:                        │
+│  1. Use git rebase -i to set the target commit to edit │
+│  2. Make the modification                            │
 │  3. git commit --amend                              │
 │  4. git rebase --continue                           │
-│  5. コンフリクトがあれば各commitで解決              │
-│  → 5ステップ + コンフリクト解決                     │
+│  5. Resolve conflicts at each commit if any         │
+│  → 5 steps + conflict resolution                    │
 │                                                     │
-│  Jujutsu で同じことをする場合:                      │
+│  Doing the same thing in Jujutsu:                   │
 │  1. jj edit bbb                                     │
-│  2. 修正を加える                                    │
-│  → 2ステップ、自動リベース                          │
-│  → コンフリクトは commit に記録（後で解決可）       │
+│  2. Make the modification                            │
+│  → 2 steps, automatic rebase                        │
+│  → Conflicts are recorded in commits (can resolve later) │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 2.2 自動リベースの連鎖
+### 2.2 Cascading Automatic Rebase
 
 ```bash
-# 複数の子commitがある場合も全て自動リベース
+# All child commits are also automatically rebased when there are multiple
 $ jj log --no-graph
-aaa  feat: 基盤
-├── bbb  feat: 認証
-│   └── ccc  feat: 認証テスト
+aaa  feat: foundation
+├── bbb  feat: auth
+│   └── ccc  feat: auth tests
 └── ddd  feat: UI
-    └── eee  feat: UIテスト
+    └── eee  feat: UI tests
 
-# aaa を編集すると、bbb, ccc, ddd, eee の全てが自動リベース
+# Editing aaa automatically rebases bbb, ccc, ddd, and eee
 $ jj edit aaa
 $ vim src/base.js
-# → 5つの子commit全てが新しいaaa'の上にリベースされる
+# → All 5 child commits are rebased on top of the new aaa'
 ```
 
-### 2.3 自動リベースとコンフリクトの関係
+### 2.3 Automatic Rebase and Conflicts
 
 ```bash
-# 自動リベース時にコンフリクトが発生した場合
+# When a conflict occurs during automatic rebase
 $ jj edit aaa
-$ vim src/shared.js   # bbb でも変更しているファイルを編集
+$ vim src/shared.js   # Edit a file that is also changed in bbb
 
 $ jj log
-○  ccc' feat: 認証テスト
-○  bbb' feat: 認証          conflict    ← コンフリクト発生
-○  aaa' feat: 基盤          ← 編集された
+○  ccc' feat: auth tests
+○  bbb' feat: auth          conflict    ← conflict occurred
+○  aaa' feat: foundation    ← edited
 
-# コンフリクトは記録されるが、リベースは完了している
-# bbb' に移動してコンフリクトを解決
+# The conflict is recorded, but the rebase is complete
+# Move to bbb' and resolve the conflict
 $ jj edit bbb'
-$ vim src/shared.js   # コンフリクトマーカーを解決
+$ vim src/shared.js   # Resolve the conflict markers
 
-# コンフリクト解決後、ccc' も自動的にリベースされる
+# After resolving the conflict, ccc' is also automatically rebased
 $ jj log
-○  ccc'' feat: 認証テスト    ← 再リベース
-○  bbb'' feat: 認証           ← コンフリクト解決済み
-○  aaa'  feat: 基盤
+○  ccc'' feat: auth tests    ← re-rebased
+○  bbb'' feat: auth           ← conflict resolved
+○  aaa'  feat: foundation
 ```
 
-### 2.4 自動リベースが発生しないケース
+### 2.4 Cases Where Automatic Rebase Does Not Occur
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  自動リベースが発生しないケース                      │
+│  Cases where automatic rebase does not occur        │
 │                                                    │
-│  1. immutableなcommitの子は自動リベースされない     │
-│     → trunk() や tags() 以前のcommit               │
+│  1. Children of immutable commits are not          │
+│     automatically rebased                          │
+│     → Commits before trunk() or tags()             │
 │                                                    │
-│  2. abandonしたcommitの子は親の親に接続される       │
-│     → リベースではなく「再接続」                    │
+│  2. Children of abandoned commits are connected    │
+│     to the parent's parent                         │
+│     → "Reconnection" rather than rebase            │
 │                                                    │
-│  3. 別のworkspaceのworking copyは影響を受けない     │
-│     → ワークスペース間は独立                        │
+│  3. Working copies of other workspaces are not     │
+│     affected                                       │
+│     → Workspaces are independent                   │
 │                                                    │
-│  4. jj rebase -r（単一commit）の場合                │
-│     → 指定commitのみ移動、子は元の位置に残る        │
-│     → -s（subtree）とは異なる動作                   │
+│  4. With jj rebase -r (single commit)              │
+│     → Only the specified commit is moved;          │
+│       children remain at their original position   │
+│     → Different behavior from -s (subtree)         │
 └────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. ブックマーク（旧branch）
+## 3. Bookmarks (Formerly Branches)
 
-### 3.1 ブックマークの基本
+### 3.1 Bookmark Basics
 
 ```bash
-# ブックマークの作成（Git branchに相当）
+# Create a bookmark (equivalent to Git branch)
 $ jj bookmark create feature-auth -r @
-# → 現在のworking copy commitに "feature-auth" ブックマークを設定
+# → Sets the "feature-auth" bookmark on the current working copy commit
 
-# ブックマークの一覧
+# List bookmarks
 $ jj bookmark list
 feature-auth: rlvkpntz abc12345
 main: qpvuntsm def67890
 
-# 全てのブックマーク（リモート含む）を表示
+# Show all bookmarks (including remote)
 $ jj bookmark list --all
 feature-auth: rlvkpntz abc12345
 main: qpvuntsm def67890
 main@origin: qpvuntsm def67890
 
-# ブックマークの移動
+# Move a bookmark
 $ jj bookmark set feature-auth -r @
 
-# ブックマークの削除
+# Delete a bookmark
 $ jj bookmark delete feature-auth
 
-# リモートブックマークの追跡
+# Track a remote bookmark
 $ jj bookmark track main@origin
 
-# ブックマークの名前変更
+# Rename a bookmark
 $ jj bookmark rename old-name new-name
 
-# ブックマークの追跡解除
+# Stop tracking a bookmark
 $ jj bookmark untrack feature@origin
 ```
 
-### 3.2 ブランチレス開発のワークフロー
+### 3.2 Branchless Development Workflow
 
 ```bash
-# Jujutsuではブランチ名をつけなくても開発できる
-$ jj new main          # mainの上に新しいcommitを作成
+# In Jujutsu, you can develop without naming branches
+$ jj new main          # Create a new commit on top of main
 $ vim src/feature.js
-$ jj describe -m "feat: 新機能のプロトタイプ"
+$ jj describe -m "feat: prototype of new feature"
 
-# 別の作業をしたくなったら
-$ jj new main          # mainの上にもう1つcommitを作成
+# When you want to work on something else
+$ jj new main          # Create another commit on top of main
 $ vim src/hotfix.js
-$ jj describe -m "fix: 緊急バグ修正"
+$ jj describe -m "fix: urgent bug fix"
 
-# ログで確認
+# Check the log
 $ jj log
-○  xxx  fix: 緊急バグ修正
-│ ○  yyy  feat: 新機能のプロトタイプ
+○  xxx  fix: urgent bug fix
+│ ○  yyy  feat: prototype of new feature
 ├─┘
 ◆  main  ...
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  ブランチレス開発の利点                              │
+│  Advantages of branchless development               │
 │                                                    │
 │  Git:                                              │
-│  $ git checkout -b feature/auth   # ブランチ作成   │
-│  $ ... 作業 ...                                    │
-│  $ git checkout -b hotfix/bug     # 別ブランチ作成 │
-│  $ ... 作業 ...                                    │
-│  $ git checkout feature/auth      # 戻る           │
-│  → ブランチの切り替えが煩雑                        │
-│  → 未コミットの変更があるとstashが必要              │
+│  $ git checkout -b feature/auth   # create branch  │
+│  $ ... work ...                                    │
+│  $ git checkout -b hotfix/bug     # another branch │
+│  $ ... work ...                                    │
+│  $ git checkout feature/auth      # switch back    │
+│  → Branch switching is cumbersome                  │
+│  → stash required if there are uncommitted changes │
 │                                                    │
 │  Jujutsu:                                          │
-│  $ jj new main                    # 新commit       │
-│  $ ... 作業 ...                                    │
-│  $ jj new main                    # 別のcommit     │
-│  $ ... 作業 ...                                    │
-│  $ jj edit <change-id>            # 任意に移動     │
-│  → 全てがcommitなのでstash不要                     │
-│  → ブランチ名の管理が不要                          │
-│  → push時にだけブックマークを設定                  │
+│  $ jj new main                    # new commit     │
+│  $ ... work ...                                    │
+│  $ jj new main                    # another commit │
+│  $ ... work ...                                    │
+│  $ jj edit <change-id>            # move anywhere  │
+│  → No stash needed since everything is a commit    │
+│  → No branch name management required              │
+│  → Only set bookmarks when pushing                 │
 └────────────────────────────────────────────────────┘
 ```
 
-### 3.3 ブックマークとpushの関係
+### 3.3 Bookmarks and Push
 
 ```bash
-# ブックマークなしではpushできない
+# Cannot push without a bookmark
 $ jj git push
 # Nothing to push
 
-# pushするにはブックマークが必要
-# 方法1: 明示的にブックマークを作成してpush
+# A bookmark is required to push
+# Method 1: Explicitly create a bookmark and push
 $ jj bookmark create feature-auth -r @
 $ jj git push --bookmark feature-auth --allow-new
 
-# 方法2: --change オプションで自動ブックマーク
+# Method 2: Auto-bookmark with the --change option
 $ jj git push --change @
-# → change IDからブックマーク名が自動生成される
-# → 例: "push-rlvkpntzqwop" のようなブランチ名
+# → A bookmark name is automatically generated from the change ID
+# → e.g., a branch name like "push-rlvkpntzqwop"
 
-# 方法3: 複数のブックマークを一度にpush
+# Method 3: Push multiple bookmarks at once
 $ jj git push --bookmark feature-auth --bookmark feature-ui
 
-# ブックマークのpush状態を確認
+# Check push status of bookmarks
 $ jj bookmark list --all
 feature-auth: rlvkpntz abc12345
-  @origin: rlvkpntz abc12345    ← リモートと同期済み
+  @origin: rlvkpntz abc12345    ← synced with remote
 feature-ui: qpvuntsm def67890
-  @origin (behind): rlvkpntz old12345  ← ローカルが先行
+  @origin (behind): rlvkpntz old12345  ← local is ahead
 ```
 
-### 3.4 ブックマークの自動更新
+### 3.4 Automatic Bookmark Updates
 
 ```bash
-# ブックマークが設定されたcommitを編集すると
-# ブックマークは自動的に新しいcommit IDを追跡する
+# When you edit a commit that has a bookmark set,
+# the bookmark automatically tracks the new commit ID
 
 $ jj log
-@  rlvkpntz  feature-auth  feat: 認証機能
+@  rlvkpntz  feature-auth  feat: auth feature
 ○  main ...
 
-$ jj edit rlvkpntz    # feature-auth のcommitを編集
-$ vim src/auth.js     # ファイルを修正
+$ jj edit rlvkpntz    # Edit the feature-auth commit
+$ vim src/auth.js     # Modify the file
 
-# ブックマークは自動的に新しいcommitを追跡
+# The bookmark automatically tracks the new commit
 $ jj bookmark list
-feature-auth: rlvkpntz abc12345   ← change IDは同じ
-# → commit IDは変わるが、change IDは変わらない
-# → ブックマークはchange IDを介して追跡される
+feature-auth: rlvkpntz abc12345   ← change ID is the same
+# → The commit ID changes, but the change ID does not
+# → Bookmarks are tracked via the change ID
 ```
 
 ---
 
-## 4. コミットの並べ替えと挿入
+## 4. Reordering and Inserting Commits
 
-### 4.1 jj rebase — コミットの移動
+### 4.1 jj rebase — Moving Commits
 
 ```bash
-# 単一commitの親を変更（子commitは元の位置に残る）
+# Change the parent of a single commit (child commits remain at their original position)
 $ jj rebase -r rlvkpntz -d main
-# → rlvkpntz のみが main の子に移動
-# → rlvkpntz の元の子commitは rlvkpntz の親に接続される
+# → Only rlvkpntz is moved to be a child of main
+# → The original child commits of rlvkpntz are connected to rlvkpntz's parent
 
-# commitとその子孫全体を移動
+# Move a commit and all its descendants
 $ jj rebase -s rlvkpntz -d main
-# → rlvkpntz以降の全commitをmainの上に移動
+# → Moves all commits from rlvkpntz onward to be on top of main
 
-# 範囲指定でのリベース（ブランチの先端まで）
+# Rebase using a range (up to the branch tip)
 $ jj rebase -b feature-auth -d main
-# → feature-authブックマークまでのcommitをmainの上に移動
+# → Moves commits up to the feature-auth bookmark on top of main
 
-# 複数の親を指定（マージcommitの作成を伴うリベース）
+# Specify multiple parents (rebase involving merge commit creation)
 $ jj rebase -r rlvkpntz -d main -d feature-other
-# → rlvkpntz がmainとfeature-otherの両方を親に持つようになる
+# → rlvkpntz will have both main and feature-other as parents
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  jj rebase の3つのモード                            │
+│  Three modes of jj rebase                           │
 │                                                    │
-│  -r (revision): 単一commitのみ移動                 │
+│  -r (revision): Move only a single commit          │
 │  Before:          After:                           │
-│  ○  C             ○  C' (Aの子に接続)              │
-│  ○  B             │ ○  B' (mainの子に移動)         │
+│  ○  C             ○  C' (connected to A)           │
+│  ○  B             │ ○  B' (moved to child of main) │
 │  ○  A             ○  A                             │
 │  ◆  main          ◆  main                          │
 │  $ jj rebase -r B -d main                          │
 │                                                    │
-│  -s (source): commitとその子孫を移動               │
+│  -s (source): Move commit and its descendants      │
 │  Before:          After:                           │
-│  ○  C             ○  C' (B'の子)                   │
-│  ○  B             ○  B' (mainの子に移動)           │
+│  ○  C             ○  C' (child of B')              │
+│  ○  B             ○  B' (moved to child of main)   │
 │  ○  A             ○  A                             │
 │  ◆  main          ◆  main                          │
 │  $ jj rebase -s B -d main                          │
 │                                                    │
-│  -b (branch): ブランチのルートから先端まで移動      │
+│  -b (branch): Move from branch root to tip         │
 │  Before:          After:                           │
 │  ○  C             ○  C'                            │
 │  ○  B             ○  B'                            │
-│  ○  A             ○  A' (mainの子に移動)           │
+│  ○  A             ○  A' (moved to child of main)   │
 │  ◆  main          ◆  main                          │
 │  $ jj rebase -b C -d main                          │
 └────────────────────────────────────────────────────┘
 ```
 
-### 4.2 コミット間への挿入
+### 4.2 Inserting Between Commits
 
 ```bash
-# 既存の2つのcommitの間に新しいcommitを挿入
+# Insert a new commit between two existing commits
 $ jj new --after aaa --before bbb
-# → aaa と bbb の間に新しいcommitが挿入される
-# → bbb以降は自動リベース
+# → A new commit is inserted between aaa and bbb
+# → bbb and beyond are automatically rebased
 
-# 結果:
-# ○  bbb'  feat: API      ← 自動リベースされた
-# ○  new   (working copy)  ← 挿入された新commit
-# ○  aaa   feat: 初期設定
+# Result:
+# ○  bbb'  feat: API      ← auto-rebased
+# ○  new   (working copy)  ← inserted new commit
+# ○  aaa   feat: initial setup
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  commit挿入の図解                                   │
+│  Commit insertion diagram                           │
 │                                                    │
 │  Before:             After:                        │
-│  ○  bbb             ○  bbb' (自動リベース)         │
-│  ○  aaa             @  new  (挿入された)           │
+│  ○  bbb             ○  bbb' (auto-rebased)         │
+│  ○  aaa             @  new  (inserted)             │
 │                      ○  aaa                        │
 │                                                    │
-│  Git で同じことをする場合:                          │
-│  1. git rebase -i でaaa以降をedit                  │
-│  2. aaaの後で停止                                  │
-│  3. 新しいcommitを作成                             │
+│  Doing the same thing in Git:                      │
+│  1. git rebase -i to set commits after aaa to edit │
+│  2. Stop after aaa                                 │
+│  3. Create a new commit                            │
 │  4. git rebase --continue                          │
-│  → 非常に手間がかかる                              │
+│  → Very tedious                                    │
 └────────────────────────────────────────────────────┘
 ```
 
-### 4.3 コミットの順序入れ替え
+### 4.3 Reordering Commits
 
 ```bash
-# 2つのcommitの順序を入れ替える
+# Swap the order of two commits
 # Before:
 # ○  B  feat: UI
-# ○  A  feat: 認証
+# ○  A  feat: auth
 
-# Aを B の上に移動
+# Move A on top of B
 $ jj rebase -r A -d B
-# → A が B の上に移動
+# → A is moved on top of B
 
 # After:
-# ○  A' feat: 認証
+# ○  A' feat: auth
 # ○  B  feat: UI
 
-# より複雑な入れ替え（3つのcommitの順序変更）
+# More complex reordering (change order of 3 commits)
 # Before: C → B → A → main
 # Goal:   A → C → B → main
 
-$ jj rebase -r A -d main     # まずAをmainの直上に
-$ jj rebase -s B -d A        # B以降をAの上に
-# → A → B → C → main になる
-# さらに
-$ jj rebase -r C -d A        # CをAの直上に（Bの前に挿入）
-# → A → C' → B' → main になる
+$ jj rebase -r A -d main     # First, move A directly above main
+$ jj rebase -s B -d A        # Move B and onwards on top of A
+# → Results in A → B → C → main
+# Then
+$ jj rebase -r C -d A        # Move C directly above A (insert before B)
+# → Results in A → C' → B' → main
 ```
 
 ---
 
-## 5. 並行作業の管理
+## 5. Managing Concurrent Work
 
-### 5.1 複数の作業を同時進行
+### 5.1 Advancing Multiple Tasks Simultaneously
 
 ```bash
-# 作業1: 認証機能
+# Task 1: Auth feature
 $ jj new main
-$ jj describe -m "feat: 認証機能"
+$ jj describe -m "feat: auth feature"
 $ vim src/auth.js
 
-# 作業2: 認証機能の上にUI
+# Task 2: UI on top of auth feature
 $ jj new
-$ jj describe -m "feat: ログインUI"
+$ jj describe -m "feat: login UI"
 $ vim src/Login.jsx
 
-# 作業3: mainから別の作業を開始（認証とは独立）
+# Task 3: Start separate work from main (independent of auth)
 $ jj new main
-$ jj describe -m "fix: パフォーマンス改善"
+$ jj describe -m "fix: performance improvement"
 $ vim src/perf.js
 
-# 全ての作業を一覧
+# List all tasks
 $ jj log -r 'heads(all())'
 
-# 作業の切り替え
-$ jj edit rlvkpntz    # 認証機能の作業に戻る
-$ jj edit qpvuntsm    # パフォーマンス改善の作業に切り替え
+# Switch between tasks
+$ jj edit rlvkpntz    # Go back to auth feature work
+$ jj edit qpvuntsm    # Switch to performance improvement work
 ```
 
-### 5.2 作業の合流（マージ）
+### 5.2 Converging Work (Merge)
 
 ```bash
-# 2つの作業をマージ
+# Merge two tasks
 $ jj new feature-auth perf-fix
-$ jj describe -m "merge: 認証とパフォーマンス改善を統合"
+$ jj describe -m "merge: integrate auth and performance improvement"
 
-# あるいは特定のcommitをrebaseで合流
+# Or converge by rebasing a specific commit
 $ jj rebase -r perf-fix -d feature-auth
 ```
 
-### 5.3 ワークスペースを使った並行作業
+### 5.3 Parallel Work Using Workspaces
 
 ```bash
-# ワークスペースは同一リポジトリを複数のディレクトリで扱う機能
-# 各ワークスペースは独立したworking copyを持つ
+# Workspaces allow handling a single repository in multiple directories
+# Each workspace has an independent working copy
 
-# 新しいワークスペースの作成
+# Create a new workspace
 $ jj workspace add ../my-project-hotfix
-# → ../my-project-hotfix/ に新しいワークスペースが作成される
-# → 同じリポジトリを共有しつつ、独立したworking copyを持つ
+# → A new workspace is created at ../my-project-hotfix/
+# → Shares the same repository but has an independent working copy
 
-# ワークスペースの一覧
+# List workspaces
 $ jj workspace list
 default: rlvkpntz abc12345
 hotfix: qpvuntsm def67890
 
-# hotfixワークスペースで作業
+# Work in the hotfix workspace
 $ cd ../my-project-hotfix
 $ jj new main
 $ vim src/fix.js
-$ jj describe -m "fix: 緊急修正"
+$ jj describe -m "fix: emergency fix"
 
-# 元のワークスペースに戻る
+# Return to the original workspace
 $ cd ../my-project
-$ jj log  # hotfixの変更も見える
+$ jj log  # Changes from hotfix are also visible
 
-# ワークスペースの削除
+# Delete a workspace
 $ jj workspace forget hotfix
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  ワークスペースの利点                               │
+│  Advantages of workspaces                           │
 │                                                    │
-│  Git worktreeと類似しているが、以下が異なる:        │
+│  Similar to Git worktree, but differs in:          │
 │                                                    │
-│  1. ワークスペース間でcommitが自動的に共有される    │
-│  2. あるワークスペースでのrebaseが他にも反映される  │
-│  3. Operation Logがリポジトリ全体で共有される       │
+│  1. Commits are automatically shared between       │
+│     workspaces                                     │
+│  2. Rebases in one workspace are reflected in      │
+│     others                                         │
+│  3. The Operation Log is shared across the entire  │
+│     repository                                     │
 │                                                    │
-│  典型的なユースケース:                              │
-│  - メインの開発作業 + hotfix作業                   │
-│  - ビルド確認用の別ディレクトリ                    │
-│  - CI/CD用の隔離された環境                         │
+│  Typical use cases:                                │
+│  - Main development work + hotfix work             │
+│  - Separate directory for build verification       │
+│  - Isolated environment for CI/CD                  │
 └────────────────────────────────────────────────────┘
 ```
 
-### 5.4 独立した変更の管理パターン
+### 5.4 Patterns for Managing Independent Changes
 
 ```bash
-# パターン1: フィーチャーフラグを使った段階的開発
+# Pattern 1: Incremental development using feature flags
 $ jj new main
-$ jj describe -m "feat: フィーチャーフラグ基盤"
+$ jj describe -m "feat: feature flag foundation"
 $ vim src/feature-flags.js
 $ jj new
-$ jj describe -m "feat: ダークモード（フラグ付き）"
+$ jj describe -m "feat: dark mode (with flag)"
 $ vim src/dark-mode.js
 
-# パターン2: レビュー待ちの間に次の作業を開始
+# Pattern 2: Start next task while waiting for review
 $ jj log
-○  review-1  feat: 認証機能  ← レビュー中
+○  review-1  feat: auth feature  ← under review
 ◆  main
 
-$ jj new review-1    # レビュー中のcommitの上に積む
-$ jj describe -m "feat: 認証に基づくAPI"
+$ jj new review-1    # Stack on top of the commit under review
+$ jj describe -m "feat: API based on auth"
 $ vim src/api.js
-# → review-1 がマージされてmainが更新されたら
-# → jj git fetch && jj rebase -d main@origin で更新
+# → When review-1 is merged and main is updated:
+# → jj git fetch && jj rebase -d main@origin to update
 
-# パターン3: 複数の独立した修正
-$ jj new main -m "fix: ヘッダーのレイアウト修正"
+# Pattern 3: Multiple independent fixes
+$ jj new main -m "fix: header layout fix"
 $ vim src/header.css
 
-$ jj new main -m "fix: フッターのリンク修正"
+$ jj new main -m "fix: footer link fix"
 $ vim src/footer.html
 
-$ jj new main -m "docs: READMEの更新"
+$ jj new main -m "docs: update README"
 $ vim README.md
 
-# 各修正を個別にpush
-$ jj git push --change rlvkpntz   # ヘッダー修正
-$ jj git push --change qpvuntsm   # フッター修正
-$ jj git push --change xtkvpqwm   # README更新
+# Push each fix individually
+$ jj git push --change rlvkpntz   # header fix
+$ jj git push --change qpvuntsm   # footer fix
+$ jj git push --change xtkvpqwm   # README update
 ```
 
 ---
 
-## 6. abandon と restore
+## 6. abandon and restore
 
-### 6.1 jj abandon — commitの破棄
+### 6.1 jj abandon — Discarding a Commit
 
 ```bash
-# commitの破棄（内容は削除、子commitは親に接続）
+# Discard a commit (content is deleted, child commits connect to parent)
 $ jj abandon rlvkpntz
-# → rlvkpntz が削除され、子commitの親がrlvkpntzの親に変更される
+# → rlvkpntz is deleted, and child commits' parent is changed to rlvkpntz's parent
 
-# 複数のcommitを一度にabandon
+# Abandon multiple commits at once
 $ jj abandon rlvkpntz qpvuntsm
-# → 2つのcommitを同時に破棄
+# → Discard two commits simultaneously
 
-# revsetで条件指定してabandon
+# Abandon with a revset condition
 $ jj abandon 'empty() & mine()'
-# → 自分の空のcommitを全て破棄
+# → Abandon all of your empty commits
 
-# working copyをabandon（変更の破棄）
+# Abandon the working copy (discard changes)
 $ jj abandon @
-# → 現在のworking copyの変更を全て破棄
-# → 新しい空のworking copyが親の上に作成される
+# → Discard all current working copy changes
+# → A new empty working copy is created on top of the parent
 ```
 
-### 6.2 jj restore — ファイルの復元
+### 6.2 jj restore — Restoring Files
 
 ```bash
-# 操作の取り消し
+# Undo an operation
 $ jj undo
-# → 直前のjjコマンドを完全に取り消す
+# → Completely undoes the previous jj command
 
-# 特定ファイルの復元
+# Restore a specific file
 $ jj restore --from main src/config.js
-# → mainのsrc/config.jsの内容をworking copyに復元
+# → Restores the contents of src/config.js from main to the working copy
 
-# 特定のrevisionから複数ファイルを復元
+# Restore multiple files from a specific revision
 $ jj restore --from @- src/auth.js src/api.js
-# → 親commitから2つのファイルを復元
+# → Restore two files from the parent commit
 
-# 全ファイルを特定のrevisionから復元
+# Restore all files from a specific revision
 $ jj restore --from main
-# → working copyの全ファイルをmainの状態に復元
+# → Restores all working copy files to the state of main
 
-# パスパターンで復元
+# Restore using a path pattern
 $ jj restore --from @- "src/**/*.test.js"
-# → テストファイルのみを親commitの状態に復元
+# → Restore only test files to the state of the parent commit
 ```
 
-### 6.3 jj backout — 変更の打ち消し
+### 6.3 jj backout — Reversing Changes
 
 ```bash
-# 特定のcommitの変更を打ち消す新しいcommitを作成
+# Create a new commit that reverses the changes of a specific commit
 $ jj backout -r rlvkpntz
-# → rlvkpntz の変更を逆にした新しいcommitが作成される
-# → Git の git revert に相当
+# → Creates a new commit that reverses the changes of rlvkpntz
+# → Equivalent to Git's git revert
 
-# 打ち消しcommitの配置先を指定
+# Specify where to place the reversal commit
 $ jj backout -r rlvkpntz -d @
-# → working copyの子として打ち消しcommitを作成
+# → Creates the reversal commit as a child of the working copy
 ```
 
-| 操作           | 説明                                                  |
-|----------------|-------------------------------------------------------|
-| `jj abandon`   | commitを削除、子commitは親に再接続                    |
-| `jj undo`      | 直前のjjコマンドを完全に取り消し                      |
-| `jj restore`   | 特定revision/ファイルの内容をworking copyに復元       |
-| `jj op restore`| 特定の操作時点にリポジトリ全体を復元                  |
-| `jj backout`   | commitの変更を打ち消す新しいcommitを作成（git revert） |
+| Operation       | Description                                                       |
+|-----------------|-------------------------------------------------------------------|
+| `jj abandon`    | Delete a commit; child commits reconnect to the parent            |
+| `jj undo`       | Completely undo the previous jj command                           |
+| `jj restore`    | Restore specific revision/file contents to the working copy       |
+| `jj op restore` | Restore the entire repository to a specific operation point       |
+| `jj backout`    | Create a new commit that reverses a commit's changes (git revert) |
 
 ---
 
-## 7. 実践的なワークフローパターン
+## 7. Practical Workflow Patterns
 
-### 7.1 スタックドPR（積み上げPR）ワークフロー
+### 7.1 Stacked PR Workflow
 
 ```bash
-# PRを積み上げて段階的にレビュー・マージする
+# Review and merge PRs incrementally by stacking them
 
-# Step 1: 基盤となる型定義
+# Step 1: Foundational type definitions
 $ jj new main
 $ vim src/types.ts
-$ jj describe -m "feat: 型定義の追加"
+$ jj describe -m "feat: add type definitions"
 $ jj bookmark create pr/types -r @
 
-# Step 2: 型定義を使った認証ロジック
+# Step 2: Auth logic using the type definitions
 $ jj new
 $ vim src/auth.ts
-$ jj describe -m "feat: 認証ロジック"
+$ jj describe -m "feat: auth logic"
 $ jj bookmark create pr/auth -r @
 
-# Step 3: 認証を使ったAPIエンドポイント
+# Step 3: API endpoint using auth
 $ jj new
 $ vim src/api.ts
-$ jj describe -m "feat: APIエンドポイント"
+$ jj describe -m "feat: API endpoint"
 $ jj bookmark create pr/api -r @
 
-# 各ブックマークをpush
+# Push each bookmark
 $ jj git push --bookmark pr/types --allow-new
 $ jj git push --bookmark pr/auth --allow-new
 $ jj git push --bookmark pr/api --allow-new
 
-# ベースの変更を修正（型定義を更新）→ 全てが自動リベース
+# Update the base change (update type definitions) → everything auto-rebases
 $ jj edit pr/types
 $ vim src/types.ts
-$ jj new    # 修正を確定
-# → pr/auth と pr/api が自動リベース！
-# → 各PRを再pushするだけ
+$ jj new    # Finalize the modification
+# → pr/auth and pr/api are automatically rebased!
+# → Just re-push each PR
 $ jj git push --bookmark pr/types
 $ jj git push --bookmark pr/auth
 $ jj git push --bookmark pr/api
 ```
 
-### 7.2 レビュー対応ワークフロー
+### 7.2 Review Response Workflow
 
 ```bash
-# レビューコメントに対応する
+# Respond to review comments
 
-# レビュー対象のcommitを直接編集
+# Directly edit the commit under review
 $ jj edit pr/auth
-$ vim src/auth.ts    # レビューコメントに対応した修正
-$ jj new             # 修正を確定
+$ vim src/auth.ts    # Make changes responding to review comments
+$ jj new             # Finalize the modification
 
-# あるいは新しいcommitとして修正を追加し、後でsquash
+# Or add modifications as a new commit and squash later
 $ jj new pr/auth
 $ vim src/auth.ts
-$ jj describe -m "fix: レビュー対応 - エラーハンドリング追加"
-$ jj squash          # 修正を pr/auth に統合
+$ jj describe -m "fix: review response - add error handling"
+$ jj squash          # Merge the fix into pr/auth
 
-# 再push
+# Re-push
 $ jj git push --bookmark pr/auth
 ```
 
-### 7.3 mainへの追従ワークフロー
+### 7.3 Keeping Up with main
 
 ```bash
-# mainが更新された場合のリベース
+# Rebase when main is updated
 
-# リモートの最新を取得
+# Fetch the latest from remote
 $ jj git fetch
 
-# 現在の作業をmainの最新にリベース
+# Rebase current work onto the latest main
 $ jj rebase -d main@origin
 
-# スタック全体をリベース
+# Rebase the entire stack
 $ jj rebase -s <stack-root> -d main@origin
 
-# コンフリクトが発生した場合
+# When a conflict occurs
 $ jj log -r 'conflict()'
-# → コンフリクトのあるcommitを確認
+# → Check which commits have conflicts
 $ jj edit <conflict-commit>
 $ vim <conflicting-file>
-$ jj new    # 解決を確定
+$ jj new    # Finalize the resolution
 ```
 
-### 7.4 緊急hotfixワークフロー
+### 7.4 Emergency Hotfix Workflow
 
 ```bash
-# 開発中に緊急のhotfixが必要になった場合
+# When an emergency hotfix is needed during development
 
-# 現在の作業の状態を記録（不要、全てcommit済み）
-$ jj log  # 現在の作業を確認
+# Record the current state of work (not needed; everything is already committed)
+$ jj log  # Check current work
 
-# mainからhotfixを作成
+# Create a hotfix from main
 $ jj new main@origin
 $ vim src/critical-fix.js
-$ jj describe -m "fix: セキュリティ脆弱性の修正"
+$ jj describe -m "fix: fix security vulnerability"
 
-# 即座にpush
+# Push immediately
 $ jj bookmark create hotfix -r @
 $ jj git push --bookmark hotfix --allow-new
 
-# 元の作業に戻る
-$ jj edit <元のchange-id>
-# → stash不要、コンテキスト切り替えが瞬時
+# Return to the original work
+$ jj edit <original-change-id>
+# → No stash needed; context switching is instant
 
-# hotfixがマージされた後、自分の作業をリベース
+# After the hotfix is merged, rebase your work
 $ jj git fetch
 $ jj rebase -d main@origin
 ```
 
-### 7.5 リファクタリングとフィーチャーの分離
+### 7.5 Separating Refactoring from Features
 
 ```bash
-# 開発中にリファクタリングの必要性に気づいた場合
+# When you notice the need for refactoring during development
 
-# 現在の作業にリファクタリングとフィーチャーが混在
+# Refactoring and features are mixed in the current work
 $ jj log
-@  feature-commit  feat: 新機能（リファクタリング含む）
+@  feature-commit  feat: new feature (includes refactoring)
 ○  main
 
-# splitでリファクタリングとフィーチャーを分離
+# Use split to separate refactoring from feature
 $ jj split src/refactored-file.js
-# → 1つ目のcommit: リファクタリング部分
-# → 2つ目のcommit: フィーチャー部分
+# → 1st commit: refactoring part
+# → 2nd commit: feature part
 
-# メッセージを修正
-$ jj describe -r @- -m "refactor: コード構造の改善"
-$ jj describe -m "feat: 新機能の実装"
+# Update messages
+$ jj describe -r @- -m "refactor: improve code structure"
+$ jj describe -m "feat: implement new feature"
 
-# リファクタリングを先にmainにマージすることも可能
+# You can also merge refactoring into main first
 $ jj bookmark create pr/refactor -r @-
 $ jj git push --bookmark pr/refactor --allow-new
 ```
 
-### 7.6 大規模な変更を小さなcommitに分割
+### 7.6 Splitting Large Changes into Small Commits
 
 ```bash
-# 大きな変更を段階的にcommitに分割するワークフロー
+# Workflow for progressively splitting a large change into commits
 
-# まず全ての変更を1つのcommitに入れる
-$ jj describe -m "feat: 大規模な機能追加（WIP）"
+# First put all changes in one commit
+$ jj describe -m "feat: large feature addition (WIP)"
 
-# ファイル単位で分割
+# Split by file
 $ jj split src/types.ts
-# → types.ts の変更が1つ目のcommit
-$ jj describe -r @- -m "feat: 型定義の追加"
+# → Changes to types.ts go into the 1st commit
+$ jj describe -r @- -m "feat: add type definitions"
 
 $ jj split src/auth.ts src/auth.test.ts
-# → auth関連の変更が1つ目のcommit
-$ jj describe -r @- -m "feat: 認証ロジックの実装"
+# → Auth-related changes go into the 1st commit
+$ jj describe -r @- -m "feat: implement auth logic"
 
-# 残りの変更に最終的なメッセージを設定
-$ jj describe -m "feat: UIコンポーネントの実装"
+# Set the final message for the remaining changes
+$ jj describe -m "feat: implement UI components"
 
-# 結果:
+# Result:
 $ jj log
-@  xxx  feat: UIコンポーネントの実装
-○  yyy  feat: 認証ロジックの実装
-○  zzz  feat: 型定義の追加
+@  xxx  feat: implement UI components
+○  yyy  feat: implement auth logic
+○  zzz  feat: add type definitions
 ◆  main
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-patterns
 
-### アンチパターン1: 全ての変更を1つのcommitに入れ続ける
+### Anti-pattern 1: Continuously Putting All Changes in One Commit
 
 ```bash
-# NG: jj newを使わずに全変更を1つのcommitに蓄積
+# NG: Accumulate all changes in one commit without using jj new
 $ vim src/auth.js
 $ vim src/ui.js
 $ vim src/api.js
-$ jj describe -m "feat: 全部入り"
-# → 巨大な1つのcommitになり、レビューしづらい
+$ jj describe -m "feat: everything included"
+# → Becomes a huge single commit that is difficult to review
 
-# OK: 論理的な単位でcommitを分ける
+# OK: Separate commits by logical unit
 $ vim src/auth.js
-$ jj describe -m "feat: 認証ロジック"
+$ jj describe -m "feat: auth logic"
 $ jj new
 $ vim src/api.js
-$ jj describe -m "feat: APIエンドポイント"
+$ jj describe -m "feat: API endpoint"
 $ jj new
 $ vim src/ui.js
-$ jj describe -m "feat: UI実装"
+$ jj describe -m "feat: UI implementation"
 ```
 
-**理由**: Jujutsuのworking copy = commitモデルでは、`jj new`を意識的に使って変更を分割する必要がある。Gitの`git add -p`に相当する部分選択は`jj split`で後からでも可能。
+**Reason**: In Jujutsu's working copy = commit model, you need to consciously use `jj new` to split changes. Partial selection equivalent to Git's `git add -p` is possible later with `jj split`.
 
-### アンチパターン2: change IDとcommit IDを混同する
+### Anti-pattern 2: Confusing change IDs with commit IDs
 
 ```bash
-# NG: commit ID（SHA-1）でrevisionを参照し続ける
+# NG: Continue referencing revisions by commit ID (SHA-1)
 $ jj rebase -r abc12345 -d main
-# → rebase後にSHA-1が変わり、以前のIDが無効になる可能性
+# → After rebase, the SHA-1 changes and the previous ID may become invalid
 
-# OK: change IDで参照する
+# OK: Reference by change ID
 $ jj rebase -r rlvkpntz -d main
-# → change IDはrebase後も変わらない
+# → The change ID does not change after rebase
 ```
 
-**理由**: commit IDはGitのSHA-1ハッシュでありcommitの内容に依存するため、rebaseで変化する。change IDはJujutsu独自の識別子で、内容が変わっても追跡可能。
+**Reason**: The commit ID is a Git SHA-1 hash that depends on commit content, so it changes with rebase. The change ID is a Jujutsu-specific identifier that can be tracked even when content changes.
 
-### アンチパターン3: ブックマークを頻繁に手動で移動する
+### Anti-pattern 3: Frequently Manually Moving Bookmarks
 
 ```bash
-# NG: commitを編集するたびにブックマークを手動で移動
+# NG: Manually move the bookmark every time you edit a commit
 $ jj edit feature-auth
 $ vim src/auth.js
 $ jj new
-$ jj bookmark set feature-auth -r ???  # どこに設定すべきか混乱
+$ jj bookmark set feature-auth -r ???  # Confused about where to set it
 
-# OK: ブックマークは push 直前に設定する
-$ jj edit rlvkpntz     # change IDで参照
+# OK: Set bookmarks just before push
+$ jj edit rlvkpntz     # Reference by change ID
 $ vim src/auth.js
 $ jj new
-$ jj bookmark set feature-auth -r rlvkpntz  # push直前に設定
+$ jj bookmark set feature-auth -r rlvkpntz  # Set just before push
 $ jj git push --bookmark feature-auth
 ```
 
-**理由**: ブックマークはGitのブランチに相当するもので、主にpush/fetch時のリモートとの対応付けに使用する。日常の開発中はchange IDで参照し、pushが必要な時にだけブックマークを操作する。
+**Reason**: Bookmarks are equivalent to Git branches and are mainly used for correspondence with remotes during push/fetch. Reference by change ID during daily development, and only manipulate bookmarks when a push is needed.
 
-### アンチパターン4: jj edit と jj new の使い分けを誤る
+### Anti-pattern 4: Misusing jj edit and jj new
 
 ```bash
-# NG: 新しい作業を始めるのに jj edit を使う
-$ jj edit main    # ← immutableで編集できない上、意図と異なる
+# NG: Using jj edit to start new work
+$ jj edit main    # ← Immutable and cannot be edited; also not the intended action
 
-# OK: 新しい作業は jj new で始める
-$ jj new main     # mainの上に新しいcommitを作成
+# OK: Start new work with jj new
+$ jj new main     # Create a new commit on top of main
 
-# NG: 過去のcommitを修正するのに jj new を使う
-$ jj new rlvkpntz   # ← 新しいcommitが作成されてしまう
+# NG: Using jj new to modify a past commit
+$ jj new rlvkpntz   # ← A new commit is created instead
 
-# OK: 過去のcommitの修正は jj edit を使う
-$ jj edit rlvkpntz   # そのcommitを直接編集
+# OK: Use jj edit to modify a past commit
+$ jj edit rlvkpntz   # Directly edit that commit
 ```
 
-**理由**: `jj new`は新しいcommitを作成し、`jj edit`は既存のcommitをworking copyにして直接編集する。目的に応じて正しく使い分ける必要がある。
+**Reason**: `jj new` creates a new commit, and `jj edit` makes an existing commit the working copy for direct editing. You need to use them correctly according to your purpose.
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Perform validation of input data
+- Implement error handling appropriately
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Input value validation"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1094,26 +1102,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1121,7 +1129,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1132,14 +1140,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1147,7 +1155,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1155,44 +1163,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All applied tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1201,7 +1209,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1216,47 +1224,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithmic complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured config file | Check the path and format of the config file |
+| Timeout | Network delay / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check executing user's permissions, review settings |
+| Data inconsistency | Concurrent processing conflict | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Incremental verification**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debug utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1264,102 +1272,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check for I/O waits**: Check the status of disk and network I/O
+4. **Check concurrent connections**: Check the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem type | Diagnostic tool | Solution |
+|-------------|-----------------|---------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Asynchronous I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Here is a summary of criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When to compromise |
+|-----------|-------------------|-------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed users |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow              │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① Team size?                                    │
+│    ├─ Small (1-5 people) → Monolith              │
+│    └─ Large (10+ people) → Go to ②               │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② Deployment frequency?                         │
+│    ├─ Weekly or less → Monolith + module split   │
+│    └─ Daily/multiple times → Go to ③             │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ Independence between teams?                   │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term cost**
+- A method that is fast in the short term can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies allows best-fit solutions but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction has high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1369,17 +1377,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and issue"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1387,7 +1395,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1395,15 +1403,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1411,53 +1419,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-world Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests for the critical path only
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually revamp a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If there are no existing tests, write Characterization Tests first
+- Use an API gateway to coexist old and new systems
+- Perform data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Tasks | Estimated duration | Risk |
+|-------|-------|--------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Retire the old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** More than 50 engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with domain-driven design
+- Set ownership per team
+- Manage shared libraries using Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1470,20 +1478,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1492,7 +1500,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1513,114 +1521,114 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization method | Effect | Implementation cost | Application |
+|--------------------|--------|---------------------|-------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Asynchronous processing | Medium | Medium | Processing with many I/O waits |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 ---
 
 ## 9. FAQ
 
-### Q1. `jj new`と`jj commit`の違いは何か？
+### Q1. What is the difference between `jj new` and `jj commit`?
 
-**A1.** `jj commit`は`jj new`とほぼ同じですが、**コミットメッセージの入力を同時に行う**ショートカットです。
+**A1.** `jj commit` is almost the same as `jj new`, but is a shortcut that **simultaneously inputs the commit message**.
 
 ```bash
-# 以下は同等の操作
-$ jj describe -m "feat: 新機能" && jj new
-$ jj commit -m "feat: 新機能"
+# The following are equivalent operations
+$ jj describe -m "feat: new feature" && jj new
+$ jj commit -m "feat: new feature"
 ```
 
-`jj commit`はGitからの移行者向けの利便性コマンドで、内部的には「describeしてからnew」と同じ動作をします。
+`jj commit` is a convenience command for those migrating from Git, and internally performs the same action as "describe then new".
 
-### Q2. 自動リベースでコンフリクトが発生した場合はどうなるか？
+### Q2. What happens when a conflict occurs during automatic rebase?
 
-**A2.** コンフリクトはcommitに記録されます。**リベースは中断されません**。コンフリクトのあるcommitは`jj log`で`conflict`マークが表示されます。`jj edit`でそのcommitに移動し、ファイルを編集してコンフリクトを解決できます。急ぎでなければ後回しにすることも可能です。
+**A2.** Conflicts are recorded in the commit. **The rebase is not interrupted**. Commits with conflicts are shown with a `conflict` mark in `jj log`. You can move to that commit with `jj edit` and resolve the conflict by editing the file. You can also defer resolution if it's not urgent.
 
-### Q3. Jujutsuでstashに相当する操作は何か？
+### Q3. What is the equivalent of stash in Jujutsu?
 
-**A3.** Jujutsuではstashは**不要**です。全ての変更はcommitとして保存されるため、別の作業に移りたい場合は以下のようにします。
+**A3.** Stash is **unnecessary** in Jujutsu. Since all changes are saved as commits, if you want to move to another task, do the following:
 
 ```bash
-# Gitでのstash相当の操作（Jujutsu）
-$ jj new main       # mainの上に新しいcommitを作成して作業開始
-# → 前のworking copyの変更はそのまま確定済みcommitとして残る
-# → 戻りたくなったら jj edit <change-id> で即座に戻れる
+# Stash-equivalent operation in Jujutsu
+$ jj new main       # Create a new commit on top of main and start working
+# → Changes in the previous working copy remain as a finalized commit
+# → When you want to go back, use jj edit <change-id> to return instantly
 ```
 
-### Q4. jj squash と jj edit はどう使い分けるか？
+### Q4. How do you use jj squash and jj edit differently?
 
-**A4.** 以下のように使い分けます。
+**A4.** Use them as follows:
 
 ```bash
-# jj edit: 過去のcommitを直接修正したい時
-# → commitの内容を直接変更する
-# → ファイルを編集してそのcommit自体を変更
+# jj edit: When you want to directly modify a past commit
+# → Directly changes the commit's content
+# → Edit files to change that commit itself
 $ jj edit rlvkpntz
-$ vim src/auth.js    # commitの内容を修正
+$ vim src/auth.js    # Modify the commit's content
 $ jj new
 
-# jj squash: working copyの変更を親commitに統合したい時
-# → 現在の作業を直前のcommitにまとめる
-$ vim src/auth.js    # working copyで作業
-$ jj squash          # 変更を親commitに統合
+# jj squash: When you want to merge working copy changes into the parent commit
+# → Consolidates current work into the immediately preceding commit
+$ vim src/auth.js    # Work in the working copy
+$ jj squash          # Merge changes into the parent commit
 
-# jj squash --from --into: 任意の2つのcommit間で統合
+# jj squash --from --into: Merge between any two commits
 $ jj squash --from bbb --into aaa
 ```
 
-### Q5. ワークスペースとは何か？Gitのworktreeと同じか？
+### Q5. What are workspaces? Are they the same as Git worktree?
 
-**A5.** ワークスペースはGitのworktreeに類似していますが、Jujutsuのモデルに基づいて設計されています。
+**A5.** Workspaces are similar to Git worktree but are designed based on Jujutsu's model.
 
 ```bash
-# ワークスペースの主な違い
-# - Git worktree: 各worktreeが独立したブランチを持つ
-# - jj workspace: リポジトリ全体の状態を共有、各workspaceは独立したworking copyを持つ
+# Key differences with workspaces
+# - Git worktree: each worktree has an independent branch
+# - jj workspace: shares the entire repository state; each workspace has an independent working copy
 
-# ワークスペースの作成
+# Creating a workspace
 $ jj workspace add ../my-project-test
-# → 同じリポジトリを参照する新しいディレクトリが作成される
+# → A new directory referencing the same repository is created
 
-# ワークスペース間の操作
-# workspace-1 で行った変更は、workspace-2 の jj log でも見える
+# Operations between workspaces
+# Changes made in workspace-1 are also visible in jj log from workspace-2
 ```
 
-### Q6. jj rebase -r と -s と -b の違いは？
+### Q6. What is the difference between jj rebase -r, -s, and -b?
 
 **A6.**
 
-| オプション | 移動対象            | 子commitの扱い                |
-|------------|---------------------|-------------------------------|
-| `-r`       | 指定commitのみ      | 子は指定commitの親に接続      |
-| `-s`       | 指定commit+全子孫   | 子孫も一緒に移動              |
-| `-b`       | ルートから指定commit | 範囲全体が移動                |
+| Option | Target to move       | How child commits are handled             |
+|--------|----------------------|-------------------------------------------|
+| `-r`   | Specified commit only | Children connect to the specified commit's parent |
+| `-s`   | Specified commit + all descendants | Descendants move together  |
+| `-b`   | From root to specified commit | The entire range moves             |
 
 ```bash
-# -r: 単一commitのみ移動
+# -r: Move only a single commit
 $ jj rebase -r B -d main
-# B のみが main の子に。B の元の子は B の親に接続される
+# Only B moves to be a child of main. B's original children connect to B's parent
 
-# -s: サブツリー全体を移動
+# -s: Move the entire subtree
 $ jj rebase -s B -d main
-# B とその全ての子孫が main の下に移動
+# B and all its descendants move under main
 
-# -b: ブランチのルートから先端まで
+# -b: From branch root to tip
 $ jj rebase -b tip -d main
-# tip までの全commitが main の下に移動
+# All commits up to tip move under main
 ```
 
 ---
@@ -1628,50 +1636,50 @@ $ jj rebase -b tip -d main
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and moving on to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 概念             | 要点                                                          |
-|------------------|---------------------------------------------------------------|
-| jj new           | 新しいcommitを開始、前の変更を確定                            |
-| jj edit          | 過去のcommitを直接編集、子は自動リベース                      |
-| jj squash        | working copyの変更を親commitに統合                            |
-| jj split         | 1つのcommitを複数に分割                                       |
-| jj rebase        | commitの親を変更、子は自動リベース                            |
-| jj diffedit      | diffエディタでcommitの内容を直接編集                          |
-| 自動リベース     | 親commit変更時に子commit以降が自動的にリベースされる           |
-| ブックマーク     | Gitブランチに相当、push時に必要                                |
-| jj abandon       | commitを破棄、子commitは親に再接続                            |
-| jj backout       | commitの変更を打ち消す（git revert相当）                      |
-| ワークスペース   | 同一リポジトリの複数のworking copy                            |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [Jujutsu応用](./02-jujutsu-advanced.md) — revset、テンプレート、Git連携の高度な使い方
-- [Git→Jujutsu移行](./03-git-to-jujutsu.md) — 操作対応表と移行ガイド
-- [Jujutsu入門](./00-jujutsu-introduction.md) — 基本概念の復習
+| Concept          | Key Point                                                        |
+|------------------|------------------------------------------------------------------|
+| jj new           | Start a new commit, finalize previous changes                    |
+| jj edit          | Directly edit a past commit; children are auto-rebased           |
+| jj squash        | Merge working copy changes into the parent commit                |
+| jj split         | Split one commit into multiple                                   |
+| jj rebase        | Change a commit's parent; children are auto-rebased              |
+| jj diffedit      | Directly edit commit contents with a diff editor                 |
+| Auto-rebase      | When a parent commit changes, child commits are automatically rebased |
+| Bookmarks        | Equivalent to Git branches; required for push                    |
+| jj abandon       | Discard a commit; child commits reconnect to the parent          |
+| jj backout       | Reverse a commit's changes (equivalent to git revert)            |
+| Workspaces       | Multiple working copies of the same repository                   |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. **Jujutsu公式ドキュメント** — "Tutorial" https://martinvonz.github.io/jj/latest/tutorial/
-2. **Jujutsu GitHubリポジトリ** — "Working Copy" https://github.com/martinvonz/jj/blob/main/docs/working-copy.md
+- [Jujutsu Advanced](./02-jujutsu-advanced.md) — Advanced usage of revsets, templates, and Git integration
+- [Git→Jujutsu Migration](./03-git-to-jujutsu.md) — Operation mapping table and migration guide
+- [Jujutsu Introduction](./00-jujutsu-introduction.md) — Review of basic concepts
+
+---
+
+## References
+
+1. **Jujutsu Official Documentation** — "Tutorial" https://martinvonz.github.io/jj/latest/tutorial/
+2. **Jujutsu GitHub Repository** — "Working Copy" https://github.com/martinvonz/jj/blob/main/docs/working-copy.md
 3. **Chris Krycho** — "jj init: Jujutsu tips and tricks" https://v5.chriskrycho.com/essays/jj-init/
 4. **Austin Seipp** — "Stacked PRs with Jujutsu" https://austinseipp.com/posts/2024-07-10-jj-hierarchies
-5. **Jujutsu公式ドキュメント** — "Workspaces" https://martinvonz.github.io/jj/latest/working-copy/#workspaces
+5. **Jujutsu Official Documentation** — "Workspaces" https://martinvonz.github.io/jj/latest/working-copy/#workspaces
