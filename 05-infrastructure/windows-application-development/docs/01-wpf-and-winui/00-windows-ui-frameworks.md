@@ -1,125 +1,125 @@
-# Windows UI フレームワーク比較
+# Windows UI Frameworks Comparison
 
-> Windows ネイティブ UI フレームワークは WPF から WinUI 3 へ進化した。WPF、WinUI 3、UWP、MAUI の歴史的経緯と使い分け、XAML の基礎、データバインディング、MVVM パターンまで解説する。
+> Windows native UI frameworks have evolved from WPF to WinUI 3. This guide covers the history and selection criteria for WPF, WinUI 3, UWP, and MAUI, as well as XAML fundamentals, data binding, and the MVVM pattern.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] Windows UI フレームワークの歴史と選定基準を理解する
-- [ ] XAML の基礎構文を把握する
-- [ ] MVVM パターンとデータバインディングを理解する
-- [ ] 各フレームワークの具体的なコード例を通じて実装差異を理解する
-- [ ] プロジェクトの要件に応じた適切なフレームワーク選定ができる
+- [ ] Understand the history and selection criteria for Windows UI frameworks
+- [ ] Grasp the basic XAML syntax
+- [ ] Understand the MVVM pattern and data binding
+- [ ] Understand implementation differences through concrete code examples for each framework
+- [ ] Select the appropriate framework based on project requirements
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. フレームワークの歴史と比較
+## 1. Framework History and Comparison
 
-### 1.1 Windows UI フレームワークの進化
+### 1.1 Evolution of Windows UI Frameworks
 
 ```
-Windows UI フレームワークの進化:
+Evolution of Windows UI Frameworks:
 
   2002 ─── Windows Forms (.NET Framework 1.0)
-            │  GDI+ ベースの UI
-            │  イベント駆動プログラミング
-            │  ドラッグ&ドロップ設計
+            │  GDI+-based UI
+            │  Event-driven programming
+            │  Drag-and-drop design
             │
   2006 ─── WPF (.NET Framework 3.0)
-            │  XAML + データバインディング
-            │  DirectX ベースのベクターレンダリング
-            │  デスクトップアプリの新標準
+            │  XAML + data binding
+            │  DirectX-based vector rendering
+            │  New standard for desktop apps
             │
-  2012 ─── WinRT / Windows 8 アプリ
-            │  サンドボックス、タッチ対応
+  2012 ─── WinRT / Windows 8 Apps
+            │  Sandboxed, touch-enabled
             │  Modern UI (Metro)
             │
   2015 ─── UWP (Universal Windows Platform)
-            │  Windows 10 統一プラットフォーム
+            │  Windows 10 unified platform
             │  Fluent Design System
-            │  Microsoft Store 配布
-            │  XAML Islands（WPF からの段階移行）
+            │  Microsoft Store distribution
+            │  XAML Islands (gradual migration from WPF)
             │
   2021 ─── WinUI 3 (Windows App SDK)
-            │  UWP の UI を Win32 アプリで使用可能
-            │  最新の Fluent Design
-            │  .NET 8+ / C++ 対応
-            │  Win32 API フルアクセス
+            │  Use UWP UI in Win32 apps
+            │  Latest Fluent Design
+            │  .NET 8+ / C++ support
+            │  Full Win32 API access
             │
   2022 ─── .NET MAUI
-               クロスプラットフォーム
+               Cross-platform
                Windows + macOS + iOS + Android
-               Xamarin.Forms の後継
+               Successor to Xamarin.Forms
 ```
 
-### 1.2 詳細な比較表
+### 1.2 Detailed Comparison Table
 
 ```
-フレームワーク比較:
+Framework Comparison:
 
-  項目       │ WPF        │ WinUI 3    │ UWP        │ MAUI
+  Item       │ WPF        │ WinUI 3    │ UWP        │ MAUI
   ──────────┼───────────┼───────────┼───────────┼──────────
-  対応 OS    │ Windows    │ Windows    │ Windows    │ マルチ
-  .NET      │ Framework/8│ 8+         │ 制限あり   │ 8+
-  UI 技術   │ XAML       │ XAML       │ XAML       │ XAML
-  デザイン   │ 従来       │ Fluent     │ Fluent     │ ネイティブ
-  Win32 API │ 完全       │ 完全       │ 制限       │ 制限
-  配布      │ 自由       │ 自由       │ Store 推奨 │ 自由
-  状態      │ 保守       │ 推奨       │ 非推奨     │ 活発
+  OS Support │ Windows    │ Windows    │ Windows    │ Multi
+  .NET       │ Framework/8│ 8+         │ Limited    │ 8+
+  UI Tech    │ XAML       │ XAML       │ XAML       │ XAML
+  Design     │ Classic    │ Fluent     │ Fluent     │ Native
+  Win32 API  │ Full       │ Full       │ Limited    │ Limited
+  Distribution│ Free      │ Free       │ Store rec. │ Free
+  Status     │ Maintained │ Recommended│ Deprecated │ Active
 
-  選定ガイド:
-    新規 Windows アプリ → WinUI 3
-    既存 WPF 資産あり → WPF 継続（段階的 WinUI 3 移行）
-    クロスプラットフォーム → MAUI
-    UWP アプリ → WinUI 3 へ移行推奨
+  Selection Guide:
+    New Windows app → WinUI 3
+    Existing WPF codebase → Continue WPF (gradual migration to WinUI 3)
+    Cross-platform → MAUI
+    UWP app → Recommended to migrate to WinUI 3
 ```
 
-### 1.3 レンダリングエンジンの違い
+### 1.3 Rendering Engine Differences
 
 ```
-レンダリングアーキテクチャ:
+Rendering Architecture:
 
   Windows Forms:
-    GDI/GDI+ → CPU レンダリング → ラスタライズ
-    ・ピクセルベース描画
-    ・高DPIでぼやける場合あり
-    ・シンプルだが表現力に限界
+    GDI/GDI+ → CPU rendering → Rasterization
+    · Pixel-based drawing
+    · May appear blurry at high DPI
+    · Simple but limited expressiveness
 
   WPF:
-    XAML → MIL (Media Integration Layer) → DirectX 9/11 → GPU レンダリング
-    ・ベクターベース描画
-    ・高DPI対応
-    ・3D、アニメーション、エフェクト
+    XAML → MIL (Media Integration Layer) → DirectX 9/11 → GPU rendering
+    · Vector-based drawing
+    · High DPI support
+    · 3D, animations, effects
 
   WinUI 3:
-    XAML → Windows.UI.Composition → DirectX 12 → GPU レンダリング
-    ・コンポジションベース描画
-    ・Mica/Acrylic エフェクト
-    ・最高のパフォーマンス
-    ・DirectComposition による滑らかなアニメーション
+    XAML → Windows.UI.Composition → DirectX 12 → GPU rendering
+    · Composition-based drawing
+    · Mica/Acrylic effects
+    · Best performance
+    · Smooth animations via DirectComposition
 
   MAUI:
-    XAML → ハンドラー → 各プラットフォームネイティブ UI
-    ・Windows では WinUI 3 にマッピング
-    ・macOS では Catalyst
-    ・抽象化レイヤーによるオーバーヘッドあり
+    XAML → Handlers → Platform-native UI
+    · Maps to WinUI 3 on Windows
+    · Maps to Catalyst on macOS
+    · Overhead from abstraction layer
 ```
 
 ---
 
-## 2. XAML の基礎
+## 2. XAML Fundamentals
 
-### 2.1 XAML の基本構文
+### 2.1 Basic XAML Syntax
 
 ```xml
-<!-- XAML の基本構文 -->
+<!-- Basic XAML syntax -->
 <Window
     x:Class="MyApp.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -127,24 +127,24 @@ Windows UI フレームワークの進化:
     Title="My Application" Height="600" Width="800">
 
     <Grid>
-        <!-- 行と列の定義 -->
+        <!-- Row and column definitions -->
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- ヘッダー -->
-        <TextBlock Grid.Row="0" Text="ヘッダー"
+        <!-- Header -->
+        <TextBlock Grid.Row="0" Text="Header"
                    FontSize="24" Margin="16" />
 
-        <!-- コンテンツ -->
+        <!-- Content -->
         <StackPanel Grid.Row="1" Margin="16">
             <TextBox x:Name="NameInput"
-                     PlaceholderText="名前を入力"
+                     PlaceholderText="Enter your name"
                      Text="{x:Bind ViewModel.Name, Mode=TwoWay}" />
 
-            <Button Content="挨拶"
+            <Button Content="Greet"
                     Click="OnGreetClick"
                     Margin="0,8,0,0" />
 
@@ -152,74 +152,74 @@ Windows UI フレームワークの進化:
                        Margin="0,16,0,0" />
         </StackPanel>
 
-        <!-- フッター -->
+        <!-- Footer -->
         <TextBlock Grid.Row="2" Text="(C) 2024" Margin="16" />
     </Grid>
 </Window>
 ```
 
-### 2.2 名前空間と xmlns 宣言
+### 2.2 Namespaces and xmlns Declarations
 
 ```xml
-<!-- 名前空間の詳細 -->
+<!-- Namespace details -->
 <Page
-    <!-- デフォルトの XAML 名前空間（UI コントロール） -->
+    <!-- Default XAML namespace (UI controls) -->
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 
-    <!-- x: 名前空間（XAML 組み込み機能: x:Name, x:Class, x:Bind） -->
+    <!-- x: namespace (XAML built-in features: x:Name, x:Class, x:Bind) -->
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 
-    <!-- ローカルの名前空間（自作クラスの参照） -->
+    <!-- Local namespace (reference your own classes) -->
     xmlns:local="using:MyApp"
 
-    <!-- ViewModel 名前空間 -->
+    <!-- ViewModel namespace -->
     xmlns:vm="using:MyApp.ViewModels"
 
-    <!-- CommunityToolkit のコントロール -->
+    <!-- CommunityToolkit controls -->
     xmlns:toolkit="using:CommunityToolkit.WinUI.UI.Controls"
 
-    <!-- デザイン時データ（実行時は無視される） -->
+    <!-- Design-time data (ignored at runtime) -->
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     d:DesignHeight="600"
     d:DesignWidth="800">
 
-    <!-- ページ内容 -->
+    <!-- Page content -->
 </Page>
 ```
 
-### 2.3 レイアウトパネルの詳細
+### 2.3 Layout Panels in Detail
 
 ```xml
-<!-- StackPanel: 水平または垂直の直列配置 -->
+<!-- StackPanel: Sequential horizontal or vertical arrangement -->
 <StackPanel Orientation="Vertical" Spacing="8">
-    <TextBlock Text="項目1" />
-    <TextBlock Text="項目2" />
-    <TextBlock Text="項目3" />
+    <TextBlock Text="Item 1" />
+    <TextBlock Text="Item 2" />
+    <TextBlock Text="Item 3" />
 </StackPanel>
 
-<!-- Grid: 行と列のマトリックス配置 -->
+<!-- Grid: Matrix arrangement of rows and columns -->
 <Grid ColumnSpacing="16" RowSpacing="8" Padding="24">
     <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="Auto" />   <!-- コンテンツに合わせる -->
-        <ColumnDefinition Width="*" />      <!-- 残りのスペースを占有 -->
-        <ColumnDefinition Width="2*" />     <!-- 残りの2倍 -->
-        <ColumnDefinition Width="200" />    <!-- 固定幅 -->
+        <ColumnDefinition Width="Auto" />   <!-- Fit to content -->
+        <ColumnDefinition Width="*" />      <!-- Take remaining space -->
+        <ColumnDefinition Width="2*" />     <!-- Twice the remaining space -->
+        <ColumnDefinition Width="200" />    <!-- Fixed width -->
     </Grid.ColumnDefinitions>
     <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <TextBlock Grid.Row="0" Grid.Column="0" Text="左上" />
-    <TextBlock Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Text="2列にまたがる" />
-    <TextBlock Grid.Row="1" Grid.Column="0" Grid.RowSpan="1" Text="左下" />
+    <TextBlock Grid.Row="0" Grid.Column="0" Text="Top Left" />
+    <TextBlock Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Text="Spans 2 columns" />
+    <TextBlock Grid.Row="1" Grid.Column="0" Grid.RowSpan="1" Text="Bottom Left" />
 </Grid>
 
-<!-- RelativePanel: 相対位置指定 -->
+<!-- RelativePanel: Relative positioning -->
 <RelativePanel>
-    <TextBlock x:Name="Header" Text="ヘッダー"
+    <TextBlock x:Name="Header" Text="Header"
                RelativePanel.AlignTopWithPanel="True"
                RelativePanel.AlignLeftWithPanel="True"
                RelativePanel.AlignRightWithPanel="True" />
@@ -229,13 +229,13 @@ Windows UI フレームワークの進化:
              RelativePanel.AlignLeftWithPanel="True"
              Width="300" Margin="0,8,0,0" />
 
-    <Button Content="検索"
+    <Button Content="Search"
             RelativePanel.Below="Header"
             RelativePanel.RightOf="SearchBox"
             Margin="8,8,0,0" />
 </RelativePanel>
 
-<!-- Canvas: 絶対座標指定 -->
+<!-- Canvas: Absolute coordinate positioning -->
 <Canvas Width="400" Height="300">
     <Rectangle Canvas.Left="10" Canvas.Top="10"
                Width="100" Height="80"
@@ -246,22 +246,22 @@ Windows UI フレームワークの進化:
 </Canvas>
 ```
 
-### 2.4 リソースとスタイル
+### 2.4 Resources and Styles
 
 ```xml
-<!-- リソースの定義と使用 -->
+<!-- Defining and using resources -->
 <Page.Resources>
-    <!-- 色の定義 -->
+    <!-- Color definition -->
     <Color x:Key="PrimaryColor">#6366F1</Color>
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}" />
 
-    <!-- マージンの共通定義 -->
+    <!-- Common margin definition -->
     <Thickness x:Key="StandardMargin">16,8,16,8</Thickness>
 
-    <!-- 文字列リソース -->
-    <x:String x:Key="AppTitle">マイアプリケーション</x:String>
+    <!-- String resource -->
+    <x:String x:Key="AppTitle">My Application</x:String>
 
-    <!-- ボタンのスタイル定義 -->
+    <!-- Button style definition -->
     <Style x:Key="PrimaryButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
         <Setter Property="Foreground" Value="White" />
@@ -270,88 +270,88 @@ Windows UI フレームワークの進化:
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
-    <!-- 暗黙的スタイル（x:Key なし → 全ての TextBlock に適用） -->
+    <!-- Implicit style (no x:Key → applied to all TextBlocks) -->
     <Style TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe UI" />
         <Setter Property="FontSize" Value="14" />
     </Style>
 
-    <!-- スタイルの継承 -->
+    <!-- Style inheritance -->
     <Style x:Key="DangerButtonStyle" TargetType="Button"
            BasedOn="{StaticResource PrimaryButtonStyle}">
         <Setter Property="Background" Value="#EF4444" />
     </Style>
 </Page.Resources>
 
-<!-- リソースの使用 -->
+<!-- Using resources -->
 <StackPanel>
     <TextBlock Text="{StaticResource AppTitle}" />
-    <Button Style="{StaticResource PrimaryButtonStyle}" Content="保存" />
-    <Button Style="{StaticResource DangerButtonStyle}" Content="削除" />
+    <Button Style="{StaticResource PrimaryButtonStyle}" Content="Save" />
+    <Button Style="{StaticResource DangerButtonStyle}" Content="Delete" />
 </StackPanel>
 ```
 
 ---
 
-## 3. データバインディング
+## 3. Data Binding
 
-### 3.1 バインディングモードの詳細
+### 3.1 Binding Modes in Detail
 
 ```
-バインディングモード:
+Binding Modes:
 
-  OneWay:     ViewModel → View（表示のみ）
-              プロパティ変更 → UI 自動更新
-              例: テキスト表示、リスト表示
+  OneWay:     ViewModel → View (display only)
+              Property change → UI auto-updates
+              Example: text display, list display
 
-  TwoWay:     ViewModel <-> View（双方向）
-              UI 入力 → プロパティ自動更新
-              例: テキスト入力、チェックボックス、スライダー
+  TwoWay:     ViewModel <-> View (bidirectional)
+              UI input → property auto-updates
+              Example: text input, checkbox, slider
 
-  OneTime:    初期値のみ設定（変更追跡なし）
-              パフォーマンス最適
-              例: 定数表示、設定値の初期読み込み
+  OneTime:    Set initial value only (no change tracking)
+              Best performance
+              Example: constant display, initial load of settings
 
-  OneWayToSource: View → ViewModel（逆方向のみ）
-              UI の値を ViewModel に反映するが、逆は行わない
-              例: パスワード入力の値取得
+  OneWayToSource: View → ViewModel (reverse direction only)
+              Reflects UI value to ViewModel but not the reverse
+              Example: retrieving password input value
 ```
 
-### 3.2 x:Bind と Binding の違い
+### 3.2 Differences Between x:Bind and Binding
 
 ```xml
-<!-- x:Bind（コンパイル時バインディング） — WinUI 3 推奨 -->
-<!-- 利点: 型安全、コンパイル時エラー検出、高速 -->
+<!-- x:Bind (compile-time binding) — recommended for WinUI 3 -->
+<!-- Advantages: type-safe, compile-time error detection, fast -->
 <TextBlock Text="{x:Bind ViewModel.Name, Mode=OneWay}" />
 <TextBox Text="{x:Bind ViewModel.Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 <Button Command="{x:Bind ViewModel.SaveCommand}" />
 
-<!-- Binding（ランタイムバインディング） — WPF 互換 -->
-<!-- 利点: DataContext を経由した柔軟なバインディング -->
+<!-- Binding (runtime binding) — WPF compatible -->
+<!-- Advantages: flexible binding via DataContext -->
 <TextBlock Text="{Binding Name}" />
 <TextBox Text="{Binding Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 <Button Command="{Binding SaveCommand}" />
 
 <!--
-x:Bind vs Binding の比較:
+x:Bind vs Binding comparison:
 ┌─────────────┬────────────────────┬────────────────────┐
-│ 項目        │ x:Bind             │ Binding            │
+│ Item        │ x:Bind             │ Binding            │
 ├─────────────┼────────────────────┼────────────────────┤
-│ 解決時期    │ コンパイル時       │ ランタイム         │
-│ 型安全      │ あり               │ なし               │
-│ パフォーマンス│ 高速             │ やや遅い           │
-│ デフォルトモード│ OneTime         │ OneWay             │
-│ DataContext │ 不要（コード直接）│ 必要               │
-│ 対応FW      │ WinUI 3 / UWP    │ WPF / WinUI 3     │
-│ 式の記法    │ 関数呼び出し可   │ コンバーター必要  │
+│ Resolution  │ Compile time       │ Runtime            │
+│ Type safety │ Yes                │ No                 │
+│ Performance │ Fast               │ Slightly slower    │
+│ Default mode│ OneTime            │ OneWay             │
+│ DataContext │ Not needed (direct)│ Required           │
+│ Frameworks  │ WinUI 3 / UWP     │ WPF / WinUI 3     │
+│ Expressions │ Function calls OK  │ Converter required │
 └─────────────┴────────────────────┴────────────────────┘
 -->
 ```
 
-### 3.3 ViewModel の基本実装（INotifyPropertyChanged）
+### 3.3 Basic ViewModel Implementation (INotifyPropertyChanged)
 
 ```csharp
-// ViewModel — INotifyPropertyChanged 実装（手動）
+// ViewModel — INotifyPropertyChanged implementation (manual)
 public class MainViewModel : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -401,17 +401,17 @@ public class MainViewModel : INotifyPropertyChanged
 }
 ```
 
-### 3.4 コレクションバインディング
+### 3.4 Collection Binding
 
 ```csharp
-// ObservableCollection を使ったリストバインディング
+// List binding using ObservableCollection
 using System.Collections.ObjectModel;
 
 public class TaskListViewModel : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    // ObservableCollection: 追加・削除が自動で UI に反映される
+    // ObservableCollection: additions and deletions are automatically reflected in the UI
     public ObservableCollection<TaskItem> Tasks { get; } = new();
 
     private TaskItem? _selectedTask;
@@ -468,7 +468,7 @@ public class TaskItem : INotifyPropertyChanged
 ```
 
 ```xml
-<!-- リストのバインディング -->
+<!-- List binding -->
 <ListView ItemsSource="{x:Bind ViewModel.Tasks}"
           SelectedItem="{x:Bind ViewModel.SelectedTask, Mode=TwoWay}">
     <ListView.ItemTemplate>
@@ -483,16 +483,16 @@ public class TaskItem : INotifyPropertyChanged
     </ListView.ItemTemplate>
 </ListView>
 
-<!-- 選択状態に応じた UI 表示制御 -->
-<Button Content="削除"
+<!-- UI display control based on selection state -->
+<Button Content="Delete"
         IsEnabled="{x:Bind ViewModel.HasSelection, Mode=OneWay}"
         Click="OnDeleteClick" />
 ```
 
-### 3.5 値コンバーター
+### 3.5 Value Converters
 
 ```csharp
-// 値コンバーター: bool → Visibility 変換
+// Value converter: bool → Visibility conversion
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 
@@ -502,7 +502,7 @@ public class BoolToVisibilityConverter : IValueConverter
     {
         if (value is bool boolValue)
         {
-            // parameter が "Invert" なら反転
+            // Invert if parameter is "Invert"
             bool invert = parameter?.ToString() == "Invert";
             bool isVisible = invert ? !boolValue : boolValue;
             return isVisible ? Visibility.Visible : Visibility.Collapsed;
@@ -522,7 +522,7 @@ public class BoolToVisibilityConverter : IValueConverter
     }
 }
 
-// 日付フォーマットコンバーター
+// Date format converter
 public class DateFormatConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
@@ -545,7 +545,7 @@ public class DateFormatConverter : IValueConverter
     }
 }
 
-// 数値 → 色の変換（例: 優先度に応じた色）
+// Number → color conversion (e.g., color based on priority)
 public class PriorityToColorConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
@@ -554,10 +554,10 @@ public class PriorityToColorConverter : IValueConverter
         {
             return priority switch
             {
-                "high" => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 239, 68, 68)),   // 赤
-                "medium" => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 158, 11)), // 黄
-                "low" => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 197, 94)),     // 緑
-                _ => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 156, 163, 175)),       // グレー
+                "high" => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 239, 68, 68)),   // Red
+                "medium" => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 158, 11)), // Yellow
+                "low" => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 197, 94)),     // Green
+                _ => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 156, 163, 175)),       // Gray
             };
         }
         return new SolidColorBrush(Windows.UI.Color.FromArgb(255, 156, 163, 175));
@@ -571,27 +571,27 @@ public class PriorityToColorConverter : IValueConverter
 ```
 
 ```xml
-<!-- コンバーターの使用 -->
+<!-- Using converters -->
 <Page.Resources>
     <local:BoolToVisibilityConverter x:Key="BoolToVisibility" />
     <local:DateFormatConverter x:Key="DateFormat" />
     <local:PriorityToColorConverter x:Key="PriorityColor" />
 </Page.Resources>
 
-<!-- Visibility の制御 -->
+<!-- Visibility control -->
 <ProgressRing Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay,
               Converter={StaticResource BoolToVisibility}}" />
 
-<!-- 非表示にする場合は parameter に Invert を指定 -->
-<TextBlock Text="データなし"
+<!-- To hide, specify Invert in parameter -->
+<TextBlock Text="No data"
            Visibility="{x:Bind ViewModel.HasData, Mode=OneWay,
            Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
 
-<!-- 日付のフォーマット -->
+<!-- Date formatting -->
 <TextBlock Text="{x:Bind ViewModel.CreatedAt, Mode=OneWay,
-           Converter={StaticResource DateFormat}, ConverterParameter='yyyy年MM月dd日'}" />
+           Converter={StaticResource DateFormat}, ConverterParameter='MM/dd/yyyy'}" />
 
-<!-- 優先度に応じた色表示 -->
+<!-- Color display based on priority -->
 <Border Background="{x:Bind Priority, Converter={StaticResource PriorityColor}}"
         CornerRadius="4" Padding="8,4">
     <TextBlock Text="{x:Bind Priority}" Foreground="White" />
@@ -600,41 +600,41 @@ public class PriorityToColorConverter : IValueConverter
 
 ---
 
-## 4. MVVM パターン
+## 4. MVVM Pattern
 
-### 4.1 MVVM のアーキテクチャ
+### 4.1 MVVM Architecture
 
 ```
-MVVM（Model-View-ViewModel）:
+MVVM (Model-View-ViewModel):
 
   ┌──────────┐
-  │   View   │  XAML + コードビハインド
-  │  (XAML)  │  UI の表示とユーザー入力
+  │   View   │  XAML + code-behind
+  │  (XAML)  │  UI display and user input
   └────┬─────┘
-       │ データバインディング
-       │ コマンドバインディング
+       │ Data binding
+       │ Command binding
   ┌────▼─────┐
-  │ViewModel │  プレゼンテーションロジック
+  │ViewModel │  Presentation logic
   │          │  INotifyPropertyChanged
   │          │  ICommand
   └────┬─────┘
-       │ 依存性注入
+       │ Dependency injection
   ┌────▼─────┐
-  │  Model   │  ビジネスロジック
-  │          │  データアクセス
+  │  Model   │  Business logic
+  │          │  Data access
   └──────────┘
 
-  利点:
-    - UI とロジックの分離
-    - テスタビリティ向上
-    - デザイナーと開発者の分業
-    - 再利用性の向上
+  Benefits:
+    - Separation of UI and logic
+    - Improved testability
+    - Division of work between designer and developer
+    - Improved reusability
 ```
 
-### 4.2 CommunityToolkit.Mvvm を使った簡潔な ViewModel
+### 4.2 Concise ViewModel Using CommunityToolkit.Mvvm
 
 ```csharp
-// CommunityToolkit.Mvvm を使った簡潔な ViewModel
+// Concise ViewModel using CommunityToolkit.Mvvm
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -655,10 +655,10 @@ public partial class MainViewModel : ObservableObject
 }
 ```
 
-### 4.3 依存性注入との組み合わせ
+### 4.3 Combining with Dependency Injection
 
 ```csharp
-// サービスの定義
+// Service definition
 public interface ITaskService
 {
     Task<IReadOnlyList<TaskItem>> GetAllAsync();
@@ -667,7 +667,7 @@ public interface ITaskService
     Task DeleteAsync(int id);
 }
 
-// サービスの実装
+// Service implementation
 public class TaskService : ITaskService
 {
     private readonly HttpClient _httpClient;
@@ -690,7 +690,7 @@ public class TaskService : ITaskService
         var response = await _httpClient.PostAsJsonAsync("/api/tasks", new { title });
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<TaskItem>()
-            ?? throw new InvalidOperationException("タスクの作成に失敗しました");
+            ?? throw new InvalidOperationException("Failed to create task");
     }
 
     public async Task UpdateAsync(TaskItem task)
@@ -706,7 +706,7 @@ public class TaskService : ITaskService
     }
 }
 
-// ViewModel: サービスを依存性注入で受け取る
+// ViewModel: receives services via dependency injection
 public partial class TaskListViewModel : ObservableObject
 {
     private readonly ITaskService _taskService;
@@ -740,8 +740,8 @@ public partial class TaskListViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            // エラーハンドリング
-            Debug.WriteLine($"タスク読み込みエラー: {ex.Message}");
+            // Error handling
+            Debug.WriteLine($"Task load error: {ex.Message}");
         }
         finally
         {
@@ -773,10 +773,10 @@ public partial class TaskListViewModel : ObservableObject
 }
 ```
 
-### 4.4 DI コンテナの設定（WinUI 3）
+### 4.4 DI Container Configuration (WinUI 3)
 
 ```csharp
-// App.xaml.cs — DI コンテナの設定
+// App.xaml.cs — DI container configuration
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 
@@ -789,21 +789,21 @@ public partial class App : Application
     {
         this.InitializeComponent();
 
-        // DI コンテナの構築
+        // Build the DI container
         var services = new ServiceCollection();
 
-        // サービスの登録
+        // Register services
         services.AddHttpClient<ITaskService, TaskService>(client =>
         {
             client.BaseAddress = new Uri("https://api.example.com");
         });
 
-        // ViewModel の登録
+        // Register ViewModels
         services.AddTransient<MainViewModel>();
         services.AddTransient<TaskListViewModel>();
         services.AddTransient<SettingsViewModel>();
 
-        // ナビゲーションサービスの登録
+        // Register navigation service
         services.AddSingleton<INavigationService, NavigationService>();
 
         Services = services.BuildServiceProvider();
@@ -816,7 +816,7 @@ public partial class App : Application
     }
 }
 
-// ページでの ViewModel 取得
+// Obtaining ViewModel in a page
 public sealed partial class TaskListPage : Page
 {
     public TaskListViewModel ViewModel { get; }
@@ -826,7 +826,7 @@ public sealed partial class TaskListPage : Page
         ViewModel = App.Current.Services.GetRequiredService<TaskListViewModel>();
         this.InitializeComponent();
 
-        // ページ読み込み時にデータを取得
+        // Load data when page loads
         Loaded += async (_, _) => await ViewModel.LoadTasksCommand.ExecuteAsync(null);
     }
 }
@@ -834,9 +834,9 @@ public sealed partial class TaskListPage : Page
 
 ---
 
-## 5. 各フレームワークのコード比較
+## 5. Code Comparison Across Frameworks
 
-### 5.1 WPF での実装例
+### 5.1 Implementation Example in WPF
 
 ```csharp
 // WPF: MainWindow.xaml.cs
@@ -864,17 +864,17 @@ public partial class MainWindow : Window
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="WPF App" Height="400" Width="600">
     <StackPanel Margin="16">
-        <!-- WPF では Binding（ランタイム）を使用 -->
+        <!-- WPF uses Binding (runtime) -->
         <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
                  Margin="0,0,0,8" />
-        <Button Content="挨拶" Command="{Binding GreetCommand}"
+        <Button Content="Greet" Command="{Binding GreetCommand}"
                 Margin="0,0,0,8" />
         <TextBlock Text="{Binding Greeting}" FontSize="18" />
     </StackPanel>
 </Window>
 ```
 
-### 5.2 WinUI 3 での実装例
+### 5.2 Implementation Example in WinUI 3
 
 ```csharp
 // WinUI 3: MainWindow.xaml.cs
@@ -900,16 +900,16 @@ public sealed partial class MainWindow : Window
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="WinUI 3 App">
     <StackPanel Margin="16" Spacing="8">
-        <!-- WinUI 3 では x:Bind（コンパイル時）を推奨 -->
+        <!-- WinUI 3 recommends x:Bind (compile-time) -->
         <TextBox Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-        <Button Content="挨拶" Command="{x:Bind ViewModel.GreetCommand}" />
+        <Button Content="Greet" Command="{x:Bind ViewModel.GreetCommand}" />
         <TextBlock Text="{x:Bind ViewModel.Greeting, Mode=OneWay}"
                    Style="{StaticResource SubtitleTextBlockStyle}" />
     </StackPanel>
 </Window>
 ```
 
-### 5.3 .NET MAUI での実装例
+### 5.3 Implementation Example in .NET MAUI
 
 ```csharp
 // MAUI: MainPage.xaml.cs
@@ -933,75 +933,75 @@ public partial class MainPage : ContentPage
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="MauiApp.MainPage">
     <VerticalStackLayout Spacing="8" Padding="16">
-        <!-- MAUI では Binding を使用 -->
-        <Entry Text="{Binding Name}" Placeholder="名前を入力" />
-        <Button Text="挨拶" Command="{Binding GreetCommand}" />
+        <!-- MAUI uses Binding -->
+        <Entry Text="{Binding Name}" Placeholder="Enter your name" />
+        <Button Text="Greet" Command="{Binding GreetCommand}" />
         <Label Text="{Binding Greeting}" FontSize="18" />
     </VerticalStackLayout>
 </ContentPage>
 ```
 
-### 5.4 フレームワーク間の API 対応表
+### 5.4 API Correspondence Table Between Frameworks
 
 ```
-主要コントロールの名前の違い:
+Differences in control names across frameworks:
 
-  概念         │ WPF           │ WinUI 3       │ MAUI
-  ─────────────┼──────────────┼──────────────┼──────────────
-  テキスト表示 │ TextBlock     │ TextBlock     │ Label
-  テキスト入力 │ TextBox       │ TextBox       │ Entry
-  複数行入力   │ TextBox       │ TextBox       │ Editor
-  ボタン       │ Button        │ Button        │ Button
-  チェック     │ CheckBox      │ CheckBox      │ CheckBox
-  ドロップダウン│ ComboBox      │ ComboBox      │ Picker
-  リスト       │ ListView      │ ListView      │ CollectionView
-  スクロール   │ ScrollViewer  │ ScrollViewer  │ ScrollView
-  垂直並べ     │ StackPanel    │ StackPanel    │ VerticalStackLayout
-  水平並べ     │ StackPanel    │ StackPanel    │ HorizontalStackLayout
-  グリッド     │ Grid          │ Grid          │ Grid
-  画像         │ Image         │ Image         │ Image
-  スライダー   │ Slider        │ Slider        │ Slider
-  トグル       │ ToggleButton  │ ToggleSwitch  │ Switch
-  ナビゲーション│ Frame         │ NavigationView│ Shell
-  ダイアログ   │ MessageBox    │ ContentDialog │ DisplayAlert
+  Concept         │ WPF           │ WinUI 3       │ MAUI
+  ─────────────────┼──────────────┼──────────────┼──────────────
+  Text display    │ TextBlock     │ TextBlock     │ Label
+  Text input      │ TextBox       │ TextBox       │ Entry
+  Multi-line input│ TextBox       │ TextBox       │ Editor
+  Button          │ Button        │ Button        │ Button
+  Checkbox        │ CheckBox      │ CheckBox      │ CheckBox
+  Dropdown        │ ComboBox      │ ComboBox      │ Picker
+  List            │ ListView      │ ListView      │ CollectionView
+  Scroll          │ ScrollViewer  │ ScrollViewer  │ ScrollView
+  Vertical stack  │ StackPanel    │ StackPanel    │ VerticalStackLayout
+  Horizontal stack│ StackPanel    │ StackPanel    │ HorizontalStackLayout
+  Grid            │ Grid          │ Grid          │ Grid
+  Image           │ Image         │ Image         │ Image
+  Slider          │ Slider        │ Slider        │ Slider
+  Toggle          │ ToggleButton  │ ToggleSwitch  │ Switch
+  Navigation      │ Frame         │ NavigationView│ Shell
+  Dialog          │ MessageBox    │ ContentDialog │ DisplayAlert
 ```
 
 ---
 
-## 6. Windows Forms からの移行ガイド
+## 6. Migration Guide from Windows Forms
 
-### 6.1 移行パスの選択
+### 6.1 Choosing a Migration Path
 
 ```
-Windows Forms → WPF / WinUI 3 移行の判断基準:
+Windows Forms → WPF / WinUI 3 Migration Decision Criteria:
 
   WForms → WPF:
-    ・.NET Framework からの段階的移行
-    ・既存の WinForms コントロールを WPF にホスティング可能
-    ・WindowsFormsHost コントロールで共存
+    · Gradual migration from .NET Framework
+    · Existing WinForms controls can be hosted in WPF
+    · Coexistence via WindowsFormsHost control
 
   WForms → WinUI 3:
-    ・モダンな UI が必要
-    ・新しい .NET（.NET 8+）に移行済み
-    ・Fluent Design が必要
+    · Modern UI required
+    · Already migrated to newer .NET (.NET 8+)
+    · Fluent Design required
 
-  移行の優先順位:
-    1. ビジネスロジックの分離（UI から独立させる）
-    2. イベントハンドラ → MVVM パターンへの変換
-    3. UI の段階的な書き換え
-    4. テストの追加
+  Migration Priority:
+    1. Separate business logic (decouple from UI)
+    2. Convert event handlers to MVVM pattern
+    3. Incrementally rewrite the UI
+    4. Add tests
 ```
 
-### 6.2 イベント駆動から MVVM への変換
+### 6.2 Converting from Event-Driven to MVVM
 
 ```csharp
-// Before: Windows Forms のイベント駆動スタイル
-// ボタンクリック → 直接 DB 操作 → UI 更新
+// Before: Windows Forms event-driven style
+// Button click → direct DB operation → UI update
 public partial class OrderForm : Form
 {
     private void btnSubmit_Click(object sender, EventArgs e)
     {
-        // ビジネスロジックが UI に密結合
+        // Business logic tightly coupled to UI
         var order = new Order
         {
             CustomerName = txtCustomerName.Text,
@@ -1010,9 +1010,9 @@ public partial class OrderForm : Form
 
         using var conn = new SqlConnection(connectionString);
         conn.Open();
-        // ... SQL 実行
+        // ... SQL execution
 
-        lblStatus.Text = "注文が完了しました";
+        lblStatus.Text = "Order completed";
         txtCustomerName.Text = "";
         txtAmount.Text = "";
     }
@@ -1020,8 +1020,8 @@ public partial class OrderForm : Form
 ```
 
 ```csharp
-// After: MVVM パターン（WPF / WinUI 3）
-// ViewModel: UI から完全に独立したロジック
+// After: MVVM pattern (WPF / WinUI 3)
+// ViewModel: logic completely independent from UI
 public partial class OrderViewModel : ObservableObject
 {
     private readonly IOrderService _orderService;
@@ -1045,7 +1045,7 @@ public partial class OrderViewModel : ObservableObject
     {
         if (!decimal.TryParse(Amount, out var amountValue))
         {
-            StatusMessage = "金額が不正です";
+            StatusMessage = "Invalid amount";
             return;
         }
 
@@ -1056,7 +1056,7 @@ public partial class OrderViewModel : ObservableObject
         };
 
         await _orderService.CreateAsync(order);
-        StatusMessage = "注文が完了しました";
+        StatusMessage = "Order completed";
         CustomerName = "";
         Amount = "";
     }
@@ -1065,75 +1065,75 @@ public partial class OrderViewModel : ObservableObject
 
 ---
 
-## 7. パフォーマンス比較
+## 7. Performance Comparison
 
 ```
-フレームワーク別パフォーマンス特性:
+Performance characteristics by framework:
 
   ┌────────────┬──────────┬──────────┬──────────┬──────────┐
-  │ 指標       │ WForms   │ WPF      │ WinUI 3  │ MAUI     │
+  │ Metric     │ WForms   │ WPF      │ WinUI 3  │ MAUI     │
   ├────────────┼──────────┼──────────┼──────────┼──────────┤
-  │ 起動時間   │ 最速     │ やや遅い │ やや遅い │ 遅い     │
-  │ メモリ使用 │ 最小     │ 中       │ 中       │ やや多い │
-  │ GPU活用    │ なし     │ あり     │ 最適     │ OS依存   │
-  │ 大量データ │ 良好     │ 仮想化   │ 仮想化   │ 仮想化   │
-  │ アニメーション│ 限定的 │ 良好     │ 最良     │ OS依存   │
-  │ 高DPI対応  │ 要設定   │ 良好     │ 最良     │ 自動     │
+  │ Startup    │ Fastest  │ Slower   │ Slower   │ Slow     │
+  │ Memory     │ Minimal  │ Medium   │ Medium   │ Slightly more│
+  │ GPU use    │ None     │ Yes      │ Optimal  │ OS-dependent│
+  │ Large data │ Good     │ Virtual  │ Virtual  │ Virtual  │
+  │ Animation  │ Limited  │ Good     │ Best     │ OS-dependent│
+  │ High DPI   │ Manual   │ Good     │ Best     │ Automatic│
   └────────────┴──────────┴──────────┴──────────┴──────────┘
 
-  パフォーマンス最適化のポイント:
+  Performance optimization tips:
 
   WPF:
-    ・VirtualizingStackPanel で大量リストの仮想化
-    ・Freezable オブジェクトの凍結（ブラシ、ジオメトリ等）
-    ・BindingMode=OneTime の積極活用
-    ・非同期データ読み込み（async/await）
+    · Virtualize large lists with VirtualizingStackPanel
+    · Freeze Freezable objects (brushes, geometries, etc.)
+    · Actively use BindingMode=OneTime
+    · Async data loading (async/await)
 
   WinUI 3:
-    ・x:Bind によるコンパイル時バインディング
-    ・x:Load / x:DeferLoadStrategy で遅延読み込み
-    ・ListView の ItemsRepeater への置き換え（大量データ時）
-    ・Composition API によるアニメーション最適化
+    · Compile-time binding with x:Bind
+    · Lazy loading with x:Load / x:DeferLoadStrategy
+    · Replace ListView with ItemsRepeater for large data
+    · Animation optimization with Composition API
 ```
 
 ---
 
-## 8. アクセシビリティ対応
+## 8. Accessibility Support
 
 ```csharp
-// WinUI 3 でのアクセシビリティ実装例
-// AutomationProperties で支援技術に情報を提供
+// Accessibility implementation example in WinUI 3
+// Provide information to assistive technologies via AutomationProperties
 ```
 
 ```xml
-<!-- アクセシビリティ対応の XAML -->
+<!-- Accessibility-aware XAML -->
 <StackPanel>
-    <!-- スクリーンリーダー向けの名前設定 -->
+    <!-- Setting name for screen readers -->
     <TextBox
-        AutomationProperties.Name="ユーザー名入力欄"
-        AutomationProperties.HelpText="ログインに使用するユーザー名を入力してください"
-        PlaceholderText="ユーザー名" />
+        AutomationProperties.Name="Username input field"
+        AutomationProperties.HelpText="Enter the username used to log in"
+        PlaceholderText="Username" />
 
-    <!-- ランドマークの設定 -->
+    <!-- Setting landmarks -->
     <NavigationView
         AutomationProperties.LandmarkType="Navigation"
-        AutomationProperties.Name="メインナビゲーション">
+        AutomationProperties.Name="Main navigation">
         <!-- ... -->
     </NavigationView>
 
-    <!-- ライブリージョン（動的に変化するテキスト） -->
+    <!-- Live region (dynamically changing text) -->
     <TextBlock
         x:Name="StatusText"
         AutomationProperties.LiveSetting="Polite"
-        AutomationProperties.Name="ステータスメッセージ" />
+        AutomationProperties.Name="Status message" />
 
-    <!-- 高コントラストモード対応 -->
-    <Button Content="保存"
+    <!-- High contrast mode support -->
+    <Button Content="Save"
             Style="{ThemeResource AccentButtonStyle}">
-        <!-- ThemeResource を使用すれば高コントラストモードに自動対応 -->
+        <!-- Using ThemeResource automatically supports high contrast mode -->
     </Button>
 
-    <!-- キーボードナビゲーション -->
+    <!-- Keyboard navigation -->
     <Grid KeyboardAcceleratorPlacementMode="Hidden">
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="S" Modifiers="Control"
@@ -1144,20 +1144,20 @@ public partial class OrderViewModel : ObservableObject
 ```
 
 ```csharp
-// タブオーダーの制御
+// Tab order control
 public sealed partial class LoginPage : Page
 {
     public LoginPage()
     {
         InitializeComponent();
 
-        // タブオーダーの明示的な設定
+        // Explicitly set tab order
         UsernameBox.TabIndex = 1;
         PasswordBox.TabIndex = 2;
         LoginButton.TabIndex = 3;
         ForgotPasswordLink.TabIndex = 4;
 
-        // フォーカスの初期設定
+        // Set initial focus
         Loaded += (_, _) => UsernameBox.Focus(FocusState.Programmatic);
     }
 }
@@ -1166,45 +1166,45 @@ public sealed partial class LoginPage : Page
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1213,26 +1213,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1240,7 +1240,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1251,14 +1251,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1266,7 +1266,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1274,44 +1274,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1320,7 +1320,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1335,47 +1335,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Missing or malformed config file | Verify config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions and review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace to identify the location of the error
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Stepwise verification**: Verify hypotheses using log output or a debugger
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1383,102 +1383,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator to log function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O waits**: Review disk and network I/O status
+4. **Check concurrent connections**: Verify connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology selections.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criteria | When to prioritize | When to compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time to market | Quality-first, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → Go to 2                     │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. What is the deployment frequency?           │
+│    ├─ Weekly or less → Monolith + modular split  │
+│    └─ Daily / multiple times → Go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are teams?                  │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A faster short-term approach can become technical debt in the long term
+- Conversely, over-engineering incurs high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows the right tool for the job but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging difficult
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1488,17 +1488,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1506,7 +1506,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1514,15 +1514,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1531,40 +1531,40 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: WPF から WinUI 3 に移行すべきか？
-新規開発なら WinUI 3 推奨。既存 WPF アプリは安定稼働中なら急ぐ必要なし。XAML Islands で段階的に WinUI 3 コントロールを導入可能。ただし、WPF は .NET 8 以降も引き続きサポートされるため、移行の緊急性は低い。WinUI 3 への移行が特に有効なのは、Fluent Design への対応が必要な場合や、Windows 11 固有の機能（Mica、Snap Layout など）を活用したい場合である。
+### Q1: Should I migrate from WPF to WinUI 3?
+WinUI 3 is recommended for new development. There is no rush to migrate existing WPF apps that are running stably. XAML Islands allows gradual introduction of WinUI 3 controls. However, since WPF continues to be supported in .NET 8 and beyond, migration urgency is low. Migration to WinUI 3 is particularly worthwhile when Fluent Design support is needed or when you want to leverage Windows 11-specific features (Mica, Snap Layouts, etc.).
 
-### Q2: MAUI は実用段階か？
-Windows + macOS では実用可能。iOS/Android も対応するがネイティブの洗練さには劣る。Windows 専用なら WinUI 3 の方が良い。MAUI は Xamarin.Forms の後継であり、クロスプラットフォーム展開が必要な業務アプリケーションには適している。ただし、プラットフォーム固有の高度な UI カスタマイズが必要な場合は、各 OS のネイティブフレームワークを直接使用する方が効率的である。
+### Q2: Is MAUI production-ready?
+It is viable for Windows + macOS. iOS/Android are supported but fall short of native polish. For Windows-only applications, WinUI 3 is better. MAUI is the successor to Xamarin.Forms and is suitable for business applications that need cross-platform deployment. However, when highly customized platform-specific UI is required, it is more efficient to use each OS's native framework directly.
 
-### Q3: CommunityToolkit.Mvvm を使うべきか？
-推奨。INotifyPropertyChanged のボイラープレートを Source Generator で自動生成。RelayCommand も簡潔に書ける。手動で実装した場合と比較して、コード量を50-70%削減できる。WPF、WinUI 3、MAUI のいずれでも使用可能であり、フレームワーク間での ViewModel の共有も容易になる。NuGet パッケージとして `CommunityToolkit.Mvvm` をインストールするだけで利用できる。
+### Q3: Should I use CommunityToolkit.Mvvm?
+Recommended. INotifyPropertyChanged boilerplate is auto-generated by the Source Generator. RelayCommand can also be written concisely. Compared to manual implementation, code volume can be reduced by 50-70%. It can be used with WPF, WinUI 3, and MAUI, and makes sharing ViewModels across frameworks easy. Simply install the `CommunityToolkit.Mvvm` NuGet package to get started.
 
-### Q4: Windows Forms はまだ使えるか？
-使える。.NET 8 以降でもサポートが継続されており、新機能も追加されている。既存の Windows Forms アプリケーションを急いで移行する必要はない。ただし、新規開発で Windows Forms を選択する積極的な理由は少ない。高DPI 対応やモダンな UI デザインが必要な場合は、WPF または WinUI 3 を選択すべきである。
+### Q4: Can Windows Forms still be used?
+Yes. Support continues in .NET 8 and beyond, and new features are being added. There is no need to hurry to migrate existing Windows Forms applications. However, there are few compelling reasons to choose Windows Forms for new development. When high DPI support or modern UI design is required, WPF or WinUI 3 should be chosen.
 
-### Q5: WinUI 3 でまだサポートされていない WPF の機能は？
-WinUI 3 には WPF の一部機能がまだ移植されていない。主なものとして、FlowDocument（リッチテキスト表示）、XPS 印刷サポート、一部の 3D レンダリング機能、RibbonControl などがある。これらの機能が必要な場合は WPF を継続使用するか、サードパーティライブラリで代替する必要がある。
+### Q5: What WPF features are not yet supported in WinUI 3?
+Some WPF features have not yet been ported to WinUI 3. Notable examples include FlowDocument (rich text display), XPS print support, some 3D rendering capabilities, and RibbonControl. If these features are needed, you must continue using WPF or substitute with third-party libraries.
 
 ---
 
-## まとめ
+## Summary
 
-| フレームワーク | 推奨用途 | 状態 |
+| Framework | Recommended Use Case | Status |
 |-------------|---------|------|
-| WinUI 3 | Windows ネイティブ新規開発 | 推奨 |
-| WPF | 既存アプリの保守・拡張 | 保守モード |
-| MAUI | クロスプラットフォーム | 活発 |
-| UWP | なし（WinUI 3 へ移行推奨） | 非推奨 |
-| Windows Forms | レガシーアプリの保守 | サポート継続 |
+| WinUI 3 | New Windows native development | Recommended |
+| WPF | Maintenance and extension of existing apps | Maintenance mode |
+| MAUI | Cross-platform | Active |
+| UWP | None (recommend migrating to WinUI 3) | Deprecated |
+| Windows Forms | Maintenance of legacy apps | Supported |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
 ---
 
-## 参考文献
+## References
 1. Microsoft. "WinUI 3." learn.microsoft.com/windows/apps/winui, 2024.
 2. Microsoft. "WPF Documentation." learn.microsoft.com/dotnet/desktop/wpf, 2024.
 3. Microsoft. ".NET MAUI." learn.microsoft.com/dotnet/maui, 2024.
