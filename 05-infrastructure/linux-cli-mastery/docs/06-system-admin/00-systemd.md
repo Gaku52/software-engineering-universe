@@ -1,57 +1,57 @@
-# systemd とサービス管理
+# systemd and Service Management
 
-> systemd は現代の Linux システムの中核。サービスの起動・停止・監視を統一的に管理する。
+> systemd is the core of modern Linux systems. It provides unified management for starting, stopping, and monitoring services.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] systemctl でサービスを管理できる
-- [ ] journalctl でログを確認できる
-- [ ] カスタムサービスユニットを作成できる
-- [ ] タイマーユニットで定期実行を設定できる
-- [ ] systemd のセキュリティ・リソース制限を設定できる
-- [ ] トラブルシューティングの手法を理解する
+- [ ] Manage services with systemctl
+- [ ] Check logs with journalctl
+- [ ] Create custom service unit files
+- [ ] Set up periodic execution with timer units
+- [ ] Configure systemd security and resource limits
+- [ ] Understand troubleshooting techniques
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. systemctl — サービス管理
+## 1. systemctl — Service Management
 
-### 1.1 基本操作
+### 1.1 Basic Operations
 
 ```bash
-# サービスの操作
-sudo systemctl start nginx       # 起動
-sudo systemctl stop nginx        # 停止
-sudo systemctl restart nginx     # 再起動
-sudo systemctl reload nginx      # 設定再読み込み（プロセス維持）
-sudo systemctl status nginx      # 状態確認
+# Service operations
+sudo systemctl start nginx       # Start
+sudo systemctl stop nginx        # Stop
+sudo systemctl restart nginx     # Restart
+sudo systemctl reload nginx      # Reload configuration (keep process running)
+sudo systemctl status nginx      # Check status
 
-# 自動起動の管理
-sudo systemctl enable nginx      # OS起動時に自動起動
-sudo systemctl disable nginx     # 自動起動を無効化
-sudo systemctl enable --now nginx  # 有効化 + 即起動
-sudo systemctl is-enabled nginx  # 自動起動の確認
-sudo systemctl is-active nginx   # 稼働中か確認
+# Auto-start management
+sudo systemctl enable nginx      # Enable auto-start at OS boot
+sudo systemctl disable nginx     # Disable auto-start
+sudo systemctl enable --now nginx  # Enable + start immediately
+sudo systemctl is-enabled nginx  # Check auto-start status
+sudo systemctl is-active nginx   # Check if running
 
-# サービス一覧
-systemctl list-units --type=service              # 稼働中のサービス
-systemctl list-units --type=service --all         # 全サービス
-systemctl list-units --type=service --failed      # 失敗したサービス
-systemctl list-unit-files --type=service          # 全ユニットファイル
+# Service listing
+systemctl list-units --type=service              # Running services
+systemctl list-units --type=service --all         # All services
+systemctl list-units --type=service --failed      # Failed services
+systemctl list-unit-files --type=service          # All unit files
 
-# 依存関係
+# Dependencies
 systemctl list-dependencies nginx
-systemctl list-dependencies --reverse nginx       # 逆方向（誰がnginxに依存しているか）
+systemctl list-dependencies --reverse nginx       # Reverse (who depends on nginx)
 ```
 
-### 1.2 status の読み方
+### 1.2 Reading the status Output
 
 ```
 ● nginx.service - A high performance web server
@@ -66,110 +66,110 @@ systemctl list-dependencies --reverse nginx       # 逆方向（誰がnginxに�
              ├─1234 "nginx: master process /usr/sbin/nginx"
              ├─1235 "nginx: worker process"
 
-# Active の状態:
-# active (running)  → 正常稼働中
-# active (exited)   → 実行完了（ワンショット型）
-# inactive (dead)   → 停止中
-# failed            → 起動失敗
-# activating        → 起動中
+# Active states:
+# active (running)  → Running normally
+# active (exited)   → Execution complete (one-shot type)
+# inactive (dead)   → Stopped
+# failed            → Failed to start
+# activating        → Starting up
 ```
 
-### 1.3 status の各フィールドの詳細解説
+### 1.3 Detailed Explanation of status Fields
 
 ```bash
-# Loaded 行の読み方
+# Reading the Loaded line
 # loaded (/lib/systemd/system/nginx.service; enabled; preset: enabled)
-#   ↑ ユニットファイルのパス              ↑ 有効/無効  ↑ プリセット
+#   ↑ Path to unit file                    ↑ enabled/disabled  ↑ preset
 
-# ユニットファイルのパスからどこに設定があるかわかる:
-# /lib/systemd/system/   → パッケージが提供（デフォルト）
-# /etc/systemd/system/   → 管理者がカスタマイズ（優先される）
-# /run/systemd/system/   → ランタイム生成（再起動で消える）
+# The unit file path tells you where the configuration lives:
+# /lib/systemd/system/   → Provided by package (default)
+# /etc/systemd/system/   → Customized by administrator (takes priority)
+# /run/systemd/system/   → Runtime-generated (deleted on reboot)
 
-# Active 行の読み方
+# Reading the Active line
 # active (running) since Mon 2025-01-01 00:00:00 JST; 30 days ago
-# ↑ 状態           ↑ 起動日時                          ↑ 経過時間
+# ↑ State           ↑ Start date/time                  ↑ Elapsed time
 
-# Tasks: プロセス（スレッド）の数
-# Memory: 使用メモリ量
-# CPU: 累積CPU使用時間
-# CGroup: コントロールグループ内のプロセスツリー
+# Tasks: Number of processes (threads)
+# Memory: Memory usage
+# CPU: Cumulative CPU time used
+# CGroup: Process tree within the control group
 ```
 
-### 1.4 サービスのマスク・アンマスク
+### 1.4 Masking and Unmasking Services
 
 ```bash
-# マスク: サービスの起動を完全に禁止する（enable も start もできなくなる）
+# Mask: Completely prohibit service startup (cannot be enabled or started)
 sudo systemctl mask nginx
-# /dev/null へのシンボリックリンクが作られる
+# A symbolic link to /dev/null is created
 
-# マスクの状態確認
-systemctl is-enabled nginx       # "masked" と表示される
+# Check mask status
+systemctl is-enabled nginx       # Displays "masked"
 
-# アンマスク: マスクを解除する
+# Unmask: Remove the mask
 sudo systemctl unmask nginx
 
-# マスクされたサービスの一覧
+# List masked services
 systemctl list-unit-files --state=masked
 
-# マスクの用途:
-# - 別のサービスと競合する場合（例: iptables と firewalld）
-# - 誤って起動されるのを防ぎたい場合
-# - 一時的にサービスを完全無効化したい場合
+# Use cases for masking:
+# - When conflicting with another service (e.g., iptables and firewalld)
+# - When you want to prevent accidental startup
+# - When you want to completely disable a service temporarily
 ```
 
-### 1.5 サービスの詳細情報
+### 1.5 Detailed Service Information
 
 ```bash
-# ユニットファイルの内容を表示
-systemctl cat nginx              # ユニットファイルの内容を表示
-systemctl show nginx             # 全プロパティを表示
-systemctl show nginx --property=MainPID   # 特定プロパティ
+# Display unit file contents
+systemctl cat nginx              # Show unit file contents
+systemctl show nginx             # Show all properties
+systemctl show nginx --property=MainPID   # Specific property
 systemctl show nginx --property=ActiveState,SubState
 
-# ユニットファイルの場所を確認
+# Check unit file location
 systemctl show nginx --property=FragmentPath
 # FragmentPath=/lib/systemd/system/nginx.service
 
-# ユニットファイルの編集
-sudo systemctl edit nginx        # オーバーライドファイルを作成
-# /etc/systemd/system/nginx.service.d/override.conf が作成される
+# Edit unit file
+sudo systemctl edit nginx        # Create an override file
+# /etc/systemd/system/nginx.service.d/override.conf is created
 
-sudo systemctl edit --full nginx # ユニットファイル全体を編集
-# /etc/systemd/system/nginx.service にコピーが作られる
+sudo systemctl edit --full nginx # Edit the entire unit file
+# A copy is created at /etc/systemd/system/nginx.service
 
-# 変更の確認
-systemd-delta                    # オーバーライドされたユニットの一覧
-systemd-delta --type=overridden  # オーバーライドのみ表示
+# Review changes
+systemd-delta                    # List overridden units
+systemd-delta --type=overridden  # Show only overrides
 ```
 
 ---
 
-## 2. journalctl — ログ管理
+## 2. journalctl — Log Management
 
-### 2.1 基本的なログ表示
+### 2.1 Basic Log Display
 
 ```bash
-# 全ログ
-journalctl                       # 全システムログ
-journalctl -f                    # リアルタイム監視（tail -f 相当）
-journalctl -n 50                 # 最新50行
-journalctl --no-pager            # ページャーなしで表示
+# All logs
+journalctl                       # All system logs
+journalctl -f                    # Real-time monitoring (equivalent to tail -f)
+journalctl -n 50                 # Latest 50 lines
+journalctl --no-pager            # Display without pager
 
-# サービス別
-journalctl -u nginx              # nginx のログ
-journalctl -u nginx -f           # nginx のリアルタイムログ
-journalctl -u nginx --since today  # 今日のログ
-journalctl -u nginx -n 100      # nginx の最新100行
+# By service
+journalctl -u nginx              # nginx logs
+journalctl -u nginx -f           # nginx real-time logs
+journalctl -u nginx --since today  # Today's logs
+journalctl -u nginx -n 100      # Latest 100 lines from nginx
 
-# 複数サービス
-journalctl -u nginx -u php-fpm   # nginx と php-fpm のログ
+# Multiple services
+journalctl -u nginx -u php-fpm   # nginx and php-fpm logs
 ```
 
-### 2.2 時間指定によるフィルタ
+### 2.2 Filtering by Time
 
 ```bash
-# 時間指定
+# Time specification
 journalctl --since "2025-01-01"
 journalctl --since "2025-01-01" --until "2025-01-02"
 journalctl --since "1 hour ago"
@@ -177,167 +177,167 @@ journalctl --since "30 minutes ago"
 journalctl --since "yesterday"
 journalctl --since "2025-01-01 09:00:00" --until "2025-01-01 18:00:00"
 
-# 相対時間の書式
-journalctl --since "-2h"         # 2時間前から
-journalctl --since "-7d"         # 7日前から
-journalctl --since "today"       # 今日の0時から
-journalctl --since "yesterday" --until "today"  # 昨日のログ
+# Relative time formats
+journalctl --since "-2h"         # From 2 hours ago
+journalctl --since "-7d"         # From 7 days ago
+journalctl --since "today"       # From midnight today
+journalctl --since "yesterday" --until "today"  # Yesterday's logs
 ```
 
-### 2.3 優先度（重要度）フィルタ
+### 2.3 Priority (Severity) Filter
 
 ```bash
-# 優先度フィルタ
-journalctl -p err                # エラー以上
-journalctl -p warning            # 警告以上
-journalctl -p crit               # クリティカル以上
-journalctl -p info               # info以上
+# Priority filter
+journalctl -p err                # Error and above
+journalctl -p warning            # Warning and above
+journalctl -p crit               # Critical and above
+journalctl -p info               # Info and above
 
-# 優先度の一覧（番号順）:
-# 0: emerg   → システムが使用不能
-# 1: alert   → 即座に対処が必要
-# 2: crit    → 致命的な状態
-# 3: err     → エラー状態
-# 4: warning → 警告状態
-# 5: notice  → 正常だが注意すべき
-# 6: info    → 情報メッセージ
-# 7: debug   → デバッグメッセージ
+# Priority levels (in order):
+# 0: emerg   → System is unusable
+# 1: alert   → Action must be taken immediately
+# 2: crit    → Critical condition
+# 3: err     → Error condition
+# 4: warning → Warning condition
+# 5: notice  → Normal but significant condition
+# 6: info    → Informational message
+# 7: debug   → Debug message
 
-# 範囲指定
-journalctl -p err..crit          # エラーからクリティカルまで
+# Range specification
+journalctl -p err..crit          # From error to critical
 
-# 特定サービスのエラーのみ
+# Only errors from a specific service
 journalctl -u nginx -p err --since "1 hour ago"
 ```
 
-### 2.4 ブート別ログ
+### 2.4 Logs by Boot
 
 ```bash
-# ブート別
-journalctl -b                    # 現在のブート
-journalctl -b -1                 # 前回のブート
-journalctl -b -2                 # 2回前のブート
-journalctl --list-boots          # ブート一覧
+# By boot
+journalctl -b                    # Current boot
+journalctl -b -1                 # Previous boot
+journalctl -b -2                 # Two boots ago
+journalctl --list-boots          # List of boots
 
-# 特定のブートIDを指定
-journalctl -b abc123def          # ブートID指定
+# Specify a boot ID
+journalctl -b abc123def          # Specify boot ID
 
-# 前回のブートでのエラーを確認（障害調査に便利）
+# Check errors from the previous boot (useful for failure investigation)
 journalctl -b -1 -p err
-journalctl -b -1 -u nginx       # 前回のブートでのnginxログ
+journalctl -b -1 -u nginx       # nginx logs from the previous boot
 ```
 
-### 2.5 出力形式
+### 2.5 Output Formats
 
 ```bash
-# 出力形式
-journalctl -o json               # JSON形式
-journalctl -o json-pretty        # 整形JSON
-journalctl -o short-iso          # ISO時刻形式
-journalctl -o short-precise      # マイクロ秒精度
-journalctl -o verbose            # 全フィールド表示
-journalctl -o cat                # メッセージのみ（タイムスタンプなし）
-journalctl -o export             # バイナリエクスポート形式
+# Output formats
+journalctl -o json               # JSON format
+journalctl -o json-pretty        # Formatted JSON
+journalctl -o short-iso          # ISO timestamp format
+journalctl -o short-precise      # Microsecond precision
+journalctl -o verbose            # Show all fields
+journalctl -o cat                # Message only (no timestamp)
+journalctl -o export             # Binary export format
 
-# JSON出力をjqで処理
+# Process JSON output with jq
 journalctl -u nginx -o json --since "1 hour ago" | \
     jq -r 'select(.PRIORITY == "3") | .MESSAGE'
 
-# フィールド指定
+# Field specification
 journalctl -u nginx --output-fields=MESSAGE,PRIORITY
 
-# 特定フィールドの値一覧
-journalctl -F _SYSTEMD_UNIT     # ユニット名一覧
-journalctl -F _COMM              # コマンド名一覧
-journalctl -F PRIORITY           # 使用されている優先度一覧
+# List distinct values for a field
+journalctl -F _SYSTEMD_UNIT     # List of unit names
+journalctl -F _COMM              # List of command names
+journalctl -F PRIORITY           # List of priorities used
 ```
 
-### 2.6 ディスク使用量とログ管理
+### 2.6 Disk Usage and Log Management
 
 ```bash
-# ディスク使用量
-journalctl --disk-usage          # ログのディスク使用量
+# Disk usage
+journalctl --disk-usage          # Log disk usage
 
-# ログの圧縮・削減
-sudo journalctl --vacuum-size=500M  # 500MBまで削減
-sudo journalctl --vacuum-time=30d   # 30日より古いログを削除
-sudo journalctl --vacuum-files=5    # 5ファイルまで削減
+# Compress/reduce logs
+sudo journalctl --vacuum-size=500M  # Reduce to 500MB
+sudo journalctl --vacuum-time=30d   # Delete logs older than 30 days
+sudo journalctl --vacuum-files=5    # Reduce to 5 files
 
-# ログの永続設定（/etc/systemd/journald.conf）
+# Persistent log configuration (/etc/systemd/journald.conf)
 # [Journal]
-# Storage=persistent            # 永続化（/var/log/journal/に保存）
-# SystemMaxUse=1G               # 最大1GB
-# SystemMaxFileSize=100M        # 1ファイル最大100MB
-# MaxRetentionSec=1month        # 最大保持期間
-# MaxFileSec=1week              # ファイルのローテーション間隔
-# Compress=yes                  # 圧縮有効
-# RateLimitIntervalSec=30s      # レート制限の間隔
-# RateLimitBurst=10000          # レート制限のバースト
+# Storage=persistent            # Persist logs (saved in /var/log/journal/)
+# SystemMaxUse=1G               # Max 1GB
+# SystemMaxFileSize=100M        # Max 100MB per file
+# MaxRetentionSec=1month        # Maximum retention period
+# MaxFileSec=1week              # File rotation interval
+# Compress=yes                  # Enable compression
+# RateLimitIntervalSec=30s      # Rate limiting interval
+# RateLimitBurst=10000          # Rate limiting burst
 
-# 設定変更の反映
+# Apply configuration changes
 sudo systemctl restart systemd-journald
 
-# ログの転送設定
-# ForwardToSyslog=yes           # syslogへ転送
-# ForwardToConsole=no           # コンソールへの転送
-# ForwardToWall=yes             # wall メッセージの転送
+# Log forwarding configuration
+# ForwardToSyslog=yes           # Forward to syslog
+# ForwardToConsole=no           # Forward to console
+# ForwardToWall=yes             # Forward wall messages
 ```
 
-### 2.7 カーネルログとその他のフィルタ
+### 2.7 Kernel Logs and Other Filters
 
 ```bash
-# カーネルログ
-journalctl -k                    # カーネルメッセージ（dmesg相当）
-journalctl -k -p err             # カーネルのエラーメッセージ
+# Kernel logs
+journalctl -k                    # Kernel messages (equivalent to dmesg)
+journalctl -k -p err             # Kernel error messages
 journalctl -k --since "1 hour ago"
 
-# PIDでフィルタ
+# Filter by PID
 journalctl _PID=1234
 
-# UIDでフィルタ
+# Filter by UID
 journalctl _UID=1000
 
-# 実行ファイルでフィルタ
-journalctl _COMM=sshd            # sshdのログ
-journalctl _EXE=/usr/sbin/sshd   # パス指定
+# Filter by executable
+journalctl _COMM=sshd            # sshd logs
+journalctl _EXE=/usr/sbin/sshd   # Specify by path
 
-# ホスト名でフィルタ（ネットワークログ受信時）
+# Filter by hostname (when receiving network logs)
 journalctl _HOSTNAME=webserver01
 
-# 複合フィルタ
+# Combined filter
 journalctl _SYSTEMD_UNIT=sshd.service _PID=1234
 
-# ログの除外パターン（grepと組み合わせ）
+# Exclusion patterns (combine with grep)
 journalctl -u nginx --no-pager | grep -v "GET /health"
 ```
 
 ---
 
-## 3. ユニットファイルの作成
+## 3. Creating Unit Files
 
-### 3.1 ユニットファイルの配置場所と優先度
+### 3.1 Unit File Locations and Priority
 
 ```bash
-# ユニットファイルの配置場所（優先度順）
-# /etc/systemd/system/          ← カスタムサービス（最優先）
-# /run/systemd/system/          ← ランタイム生成（再起動で消える）
-# /lib/systemd/system/          ← パッケージインストール（デフォルト）
-# /usr/lib/systemd/system/      ← ディストリビューション提供
+# Unit file locations (in order of priority)
+# /etc/systemd/system/          ← Custom services (highest priority)
+# /run/systemd/system/          ← Runtime-generated (deleted on reboot)
+# /lib/systemd/system/          ← Package-installed (default)
+# /usr/lib/systemd/system/      ← Distribution-provided
 
-# ユニットファイルの種類
-# .service   → サービス（最も一般的）
-# .timer     → タイマー（cron代替）
-# .socket    → ソケットアクティベーション
-# .mount     → マウントポイント
-# .target    → ターゲット（グループ化）
-# .path      → パス監視
-# .device    → デバイス
-# .swap      → スワップ
-# .slice     → リソース管理グループ
-# .scope     → 外部プロセスのグループ化
+# Unit file types
+# .service   → Service (most common)
+# .timer     → Timer (cron alternative)
+# .socket    → Socket activation
+# .mount     → Mount point
+# .target    → Target (grouping)
+# .path      → Path monitoring
+# .device    → Device
+# .swap      → Swap
+# .slice     → Resource management group
+# .scope     → Grouping of external processes
 ```
 
-### 3.2 基本的なサービスユニット
+### 3.2 Basic Service Unit
 
 ```ini
 # /etc/systemd/system/myapp.service
@@ -361,7 +361,7 @@ RestartSec=5
 StandardOutput=journal
 StandardError=journal
 
-# セキュリティ設定
+# Security settings
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
@@ -371,77 +371,77 @@ ReadWritePaths=/opt/myapp/data
 WantedBy=multi-user.target
 ```
 
-### 3.3 Type の種類と詳細
+### 3.3 Type Values and Details
 
 ```bash
-# Type の種類と使い分け:
+# Type values and when to use each:
 
-# simple（デフォルト）:
-#   ExecStart のプロセスがメインプロセス
-#   プロセスが開始した時点で「起動完了」とみなす
-#   用途: Node.js, Python, Go などのサーバー
+# simple (default):
+#   The ExecStart process is the main process
+#   Considered "started" as soon as the process begins
+#   Use for: Node.js, Python, Go servers, etc.
 
-# exec（systemd 240+）:
-#   simple と似ているが、ExecStart のバイナリが実行された時点で起動完了
-#   simple より正確なタイミング判定
+# exec (systemd 240+):
+#   Similar to simple, but startup is complete when the ExecStart binary executes
+#   More precise timing than simple
 
 # forking:
-#   デーモン化するプロセス（フォークして親が終了するタイプ）
-#   PIDFile と組み合わせて使用
-#   用途: Apache httpd, 伝統的なUNIXデーモン
+#   Processes that daemonize (fork and parent exits)
+#   Use with PIDFile
+#   Use for: Apache httpd, traditional UNIX daemons
 
 # oneshot:
-#   1回実行して終了するタスク
-#   RemainAfterExit=yes と組み合わせると、終了後も active 状態を維持
-#   用途: セットアップスクリプト、ファイアウォール設定
+#   Runs once and exits
+#   Combine with RemainAfterExit=yes to stay active after exit
+#   Use for: Setup scripts, firewall configuration
 
 # notify:
-#   sd_notify() で準備完了を通知するプロセス
-#   NotifyAccess=main と組み合わせ
-#   用途: systemd対応のアプリケーション
+#   Process signals readiness via sd_notify()
+#   Use with NotifyAccess=main
+#   Use for: systemd-aware applications
 
 # dbus:
-#   D-Busバス名を取得した時点で起動完了
-#   BusName= と組み合わせ
-#   用途: D-Bus対応サービス
+#   Startup complete when the D-Bus bus name is acquired
+#   Use with BusName=
+#   Use for: D-Bus-enabled services
 
 # idle:
-#   simple と同じだが、全ジョブが完了するまで実行を遅延
-#   用途: ログイン後のセットアップ処理
+#   Same as simple, but delays execution until all jobs complete
+#   Use for: Post-login setup tasks
 ```
 
-### 3.4 Restart の種類と詳細
+### 3.4 Restart Values and Details
 
 ```bash
-# Restart の種類:
-# no:          再起動しない（デフォルト）
-# on-success:  正常終了時（exit code 0）のみ再起動
-# on-failure:  異常終了時のみ再起動（最も一般的）
-# on-abnormal: シグナル/タイムアウト/ウォッチドッグ時に再起動
-# on-watchdog: ウォッチドッグタイムアウト時のみ再起動
-# on-abort:    シグナルによる異常終了時のみ再起動
-# always:      常に再起動（停止されても再起動する）
+# Restart values:
+# no:          Do not restart (default)
+# on-success:  Restart only on clean exit (exit code 0)
+# on-failure:  Restart only on abnormal exit (most common)
+# on-abnormal: Restart on signal/timeout/watchdog
+# on-watchdog: Restart only on watchdog timeout
+# on-abort:    Restart only on abnormal exit via signal
+# always:      Always restart (even if stopped manually)
 
-# Restart 関連の設定
-# RestartSec=5            → 再起動までの待機時間（秒）
-# RestartSteps=5          → 段階的に待機時間を増加（systemd 254+）
-# RestartMaxDelaySec=120  → 最大待機時間
-# StartLimitIntervalSec=300  → この期間内での起動回数を制限
-# StartLimitBurst=5       → 上記期間内の最大起動回数
+# Restart-related settings
+# RestartSec=5            → Wait time before restart (seconds)
+# RestartSteps=5          → Gradually increase wait time (systemd 254+)
+# RestartMaxDelaySec=120  → Maximum wait time
+# StartLimitIntervalSec=300  → Limit number of starts within this period
+# StartLimitBurst=5       → Maximum start count within the above period
 
-# 実用的な再起動設定例
+# Practical restart configuration example
 # [Service]
 # Restart=on-failure
 # RestartSec=5
 # StartLimitIntervalSec=300
 # StartLimitBurst=5
-# → 5分間に5回まで再起動を試みる。超えると failed 状態になる
+# → Attempts to restart up to 5 times in 5 minutes. Enters failed state if exceeded.
 ```
 
-### 3.5 各種サービスの実例
+### 3.5 Real-World Service Examples
 
 ```ini
-# === Python (Gunicorn) Webアプリケーション ===
+# === Python (Gunicorn) Web Application ===
 # /etc/systemd/system/gunicorn.service
 [Unit]
 Description=Gunicorn WSGI Server
@@ -468,7 +468,7 @@ TimeoutStopSec=30
 [Install]
 WantedBy=multi-user.target
 
-# === Java (Spring Boot) アプリケーション ===
+# === Java (Spring Boot) Application ===
 # /etc/systemd/system/spring-app.service
 [Unit]
 Description=Spring Boot Application
@@ -490,7 +490,7 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 
-# === Go バイナリ ===
+# === Go Binary ===
 # /etc/systemd/system/goapp.service
 [Unit]
 Description=Go Application
@@ -507,7 +507,7 @@ RestartSec=3
 LimitNOFILE=65536
 Environment=GOMAXPROCS=4
 
-# セキュリティ強化
+# Security hardening
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
@@ -519,7 +519,7 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 [Install]
 WantedBy=multi-user.target
 
-# === フォーク型デーモン（Apache httpd） ===
+# === Forking Daemon (Apache httpd) ===
 # /etc/systemd/system/httpd-custom.service
 [Unit]
 Description=Custom Apache HTTP Server
@@ -537,7 +537,7 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 
-# === ワンショット型（初期化スクリプト） ===
+# === One-Shot Type (Initialization Script) ===
 # /etc/systemd/system/app-init.service
 [Unit]
 Description=Application Initialization
@@ -555,27 +555,27 @@ RemainAfterExit=yes
 WantedBy=multi-user.target
 ```
 
-### 3.6 ユニットファイルの反映
+### 3.6 Applying Unit File Changes
 
 ```bash
-# 変更後の反映手順
-sudo systemctl daemon-reload     # ユニットファイル再読み込み
-sudo systemctl restart myapp     # サービス再起動
-sudo systemctl status myapp      # 状態確認
-journalctl -u myapp -f           # ログ確認
+# Steps to apply changes
+sudo systemctl daemon-reload     # Reload unit files
+sudo systemctl restart myapp     # Restart service
+sudo systemctl status myapp      # Check status
+journalctl -u myapp -f           # Check logs
 
-# ユニットファイルの構文チェック
+# Syntax check for unit files
 systemd-analyze verify /etc/systemd/system/myapp.service
 
-# ユニットファイルの依存関係を可視化
+# Visualize unit file dependencies
 systemd-analyze dot nginx.service | dot -Tsvg > nginx-deps.svg
 ```
 
 ---
 
-## 4. タイマーユニット（cron の代替）
+## 4. Timer Units (cron Alternative)
 
-### 4.1 基本的なタイマー
+### 4.1 Basic Timer
 
 ```ini
 # /etc/systemd/system/backup.timer
@@ -584,9 +584,9 @@ Description=Daily backup timer
 
 [Timer]
 OnCalendar=daily
-# OnCalendar=*-*-* 03:00:00     # 毎日3時
-# OnCalendar=Mon *-*-* 09:00:00 # 毎週月曜9時
-Persistent=true                  # 見逃した実行を起動後に実行
+# OnCalendar=*-*-* 03:00:00     # Every day at 3am
+# OnCalendar=Mon *-*-* 09:00:00 # Every Monday at 9am
+Persistent=true                  # Run missed executions after boot
 
 [Install]
 WantedBy=timers.target
@@ -600,66 +600,66 @@ Type=oneshot
 ExecStart=/opt/scripts/backup.sh
 ```
 
-### 4.2 OnCalendar の書式
+### 4.2 OnCalendar Format
 
 ```bash
-# OnCalendar の書式パターン
-# 曜日 年-月-日 時:分:秒
+# OnCalendar format patterns
+# DayOfWeek Year-Month-Day Hour:Minute:Second
 
-# 具体例
-OnCalendar=daily                     # 毎日 0:00
-OnCalendar=weekly                    # 毎週月曜 0:00
-OnCalendar=monthly                   # 毎月1日 0:00
-OnCalendar=yearly                    # 毎年1月1日 0:00
-OnCalendar=hourly                    # 毎時 0分
+# Examples
+OnCalendar=daily                     # Every day at 0:00
+OnCalendar=weekly                    # Every Monday at 0:00
+OnCalendar=monthly                   # First day of every month at 0:00
+OnCalendar=yearly                    # January 1st every year at 0:00
+OnCalendar=hourly                    # Every hour at minute 0
 
-OnCalendar=*-*-* 03:00:00           # 毎日3時
-OnCalendar=Mon *-*-* 09:00:00       # 毎週月曜9時
-OnCalendar=*-*-01 00:00:00          # 毎月1日
-OnCalendar=Mon,Fri *-*-* 08:30:00   # 月曜と金曜の8:30
-OnCalendar=*-*-* *:00/15:00         # 15分ごと
-OnCalendar=*-*-* 09..17:00:00       # 9時から17時の毎正時
-OnCalendar=Sat,Sun *-*-* 10:00:00   # 土日の10時
+OnCalendar=*-*-* 03:00:00           # Every day at 3am
+OnCalendar=Mon *-*-* 09:00:00       # Every Monday at 9am
+OnCalendar=*-*-01 00:00:00          # First day of every month
+OnCalendar=Mon,Fri *-*-* 08:30:00   # Monday and Friday at 8:30
+OnCalendar=*-*-* *:00/15:00         # Every 15 minutes
+OnCalendar=*-*-* 09..17:00:00       # Every hour from 9am to 5pm
+OnCalendar=Sat,Sun *-*-* 10:00:00   # Saturday and Sunday at 10am
 
-# 書式の検証
+# Validate the format
 systemd-analyze calendar "Mon *-*-* 09:00:00"
-# 次の実行日時が表示される
+# Displays the next execution date/time
 
 systemd-analyze calendar "*-*-* *:00/30:00"
-# 30分ごとの実行日時が表示される
+# Displays execution times every 30 minutes
 
-# 相対時間でのタイマー
+# Relative time timers
 # [Timer]
-# OnBootSec=5min                    # 起動5分後
-# OnUnitActiveSec=1h                # 前回実行の1時間後
-# OnActiveSec=30s                   # タイマー有効化の30秒後
-# RandomizedDelaySec=5min           # ランダムな遅延（負荷分散用）
-# AccuracySec=1min                  # 精度（デフォルト1分）
+# OnBootSec=5min                    # 5 minutes after boot
+# OnUnitActiveSec=1h                # 1 hour after last run
+# OnActiveSec=30s                   # 30 seconds after timer activation
+# RandomizedDelaySec=5min           # Random delay (for load distribution)
+# AccuracySec=1min                  # Accuracy (default 1 minute)
 ```
 
-### 4.3 タイマーの管理
+### 4.3 Managing Timers
 
 ```bash
-# タイマーの管理
+# Timer management
 sudo systemctl enable --now backup.timer
-systemctl list-timers            # タイマー一覧
-systemctl list-timers --all      # 非アクティブ含む
+systemctl list-timers            # List timers
+systemctl list-timers --all      # Include inactive timers
 
-# タイマーの状態確認
-systemctl status backup.timer    # タイマーの状態
-systemctl status backup.service  # 対応サービスの状態
+# Check timer status
+systemctl status backup.timer    # Timer status
+systemctl status backup.service  # Corresponding service status
 
-# 手動実行（テスト用）
-sudo systemctl start backup.service  # タイマー経由ではなく直接実行
+# Manual execution (for testing)
+sudo systemctl start backup.service  # Run directly, not via timer
 
-# 次の実行日時を確認
+# Check next execution time
 systemctl list-timers backup.timer
 ```
 
-### 4.4 タイマーの実践例
+### 4.4 Practical Timer Examples
 
 ```ini
-# === ログローテーション（毎日2時） ===
+# === Log Rotation (Every day at 2am) ===
 # /etc/systemd/system/log-rotate.timer
 [Unit]
 Description=Daily log rotation
@@ -682,7 +682,7 @@ ExecStart=/opt/scripts/rotate-logs.sh
 Nice=19
 IOSchedulingClass=idle
 
-# === SSL証明書更新チェック（毎日2回） ===
+# === SSL Certificate Renewal Check (Twice a day) ===
 # /etc/systemd/system/certbot-renew.timer
 [Unit]
 Description=Certbot renewal timer
@@ -705,7 +705,7 @@ Type=oneshot
 ExecStart=/usr/bin/certbot renew --quiet
 ExecStartPost=/bin/systemctl reload nginx
 
-# === データベースバックアップ（平日の深夜） ===
+# === Database Backup (Weekday nights) ===
 # /etc/systemd/system/db-backup.timer
 [Unit]
 Description=Weekday database backup
@@ -717,7 +717,7 @@ Persistent=true
 [Install]
 WantedBy=timers.target
 
-# === ディスク使用量チェック（5分ごと） ===
+# === Disk Usage Check (Every 5 minutes) ===
 # /etc/systemd/system/disk-check.timer
 [Unit]
 Description=Periodic disk usage check
@@ -732,11 +732,11 @@ WantedBy=timers.target
 
 ---
 
-## 5. ソケットアクティベーション
+## 5. Socket Activation
 
 ```ini
-# ソケットアクティベーション: リクエストが来た時だけサービスを起動
-# リソースの節約に有効
+# Socket activation: Start the service only when a request arrives
+# Effective for conserving resources
 
 # /etc/systemd/system/myapp.socket
 [Unit]
@@ -744,9 +744,9 @@ Description=My Application Socket
 
 [Socket]
 ListenStream=8080
-# ListenStream=/run/myapp.sock   # UNIXソケットの場合
+# ListenStream=/run/myapp.sock   # For UNIX sockets
 Accept=no
-# Accept=yes の場合、接続ごとにサービスインスタンスを起動
+# Accept=yes: starts a service instance per connection
 
 [Install]
 WantedBy=sockets.target
@@ -759,32 +759,32 @@ Requires=myapp.socket
 [Service]
 Type=simple
 ExecStart=/opt/myapp/server
-# ソケットはファイルディスクリプタ 3 で渡される
+# Socket is passed as file descriptor 3
 
 [Install]
 WantedBy=multi-user.target
 
-# ソケットの管理
+# Socket management
 sudo systemctl enable --now myapp.socket
-systemctl list-sockets           # ソケット一覧
+systemctl list-sockets           # List sockets
 ```
 
 ---
 
-## 6. パスユニット（ファイル監視）
+## 6. Path Units (File Monitoring)
 
 ```ini
-# パスユニット: ファイルやディレクトリの変更を監視してサービスを起動
+# Path units: Monitor files or directories and start a service on changes
 
 # /etc/systemd/system/deploy-watch.path
 [Unit]
 Description=Watch for deployment files
 
 [Path]
-PathExists=/var/deploy/trigger    # ファイルが存在したら起動
-# PathModified=/var/deploy/       # ディレクトリが変更されたら起動
-# PathChanged=/var/deploy/        # ファイルが変更されたら起動（閉じた時）
-# DirectoryNotEmpty=/var/deploy/  # ディレクトリが空でなくなったら起動
+PathExists=/var/deploy/trigger    # Start when file exists
+# PathModified=/var/deploy/       # Start when directory is modified
+# PathChanged=/var/deploy/        # Start when file changes (on close)
+# DirectoryNotEmpty=/var/deploy/  # Start when directory is no longer empty
 MakeDirectory=yes
 Unit=deploy.service
 
@@ -800,78 +800,78 @@ Type=oneshot
 ExecStart=/opt/scripts/deploy.sh
 ExecStartPost=/bin/rm -f /var/deploy/trigger
 
-# パスユニットの管理
+# Path unit management
 sudo systemctl enable --now deploy-watch.path
-systemctl list-paths              # パスユニット一覧
+systemctl list-paths              # List path units
 ```
 
 ---
 
-## 7. systemd のセキュリティ設定
+## 7. systemd Security Settings
 
-### 7.1 セキュリティディレクティブ
+### 7.1 Security Directives
 
 ```ini
-# サービスのセキュリティ強化設定
+# Security hardening settings for services
 
 [Service]
-# === ファイルシステム保護 ===
-ProtectSystem=strict           # / を読み取り専用にマウント
-# ProtectSystem=full           # /usr, /boot を読み取り専用
-# ProtectSystem=true           # /usr を読み取り専用
-ProtectHome=true               # /home, /root, /run/user を空にする
-# ProtectHome=read-only        # 読み取り専用にする
-# ProtectHome=tmpfs            # tmpfsで覆い隠す
-PrivateTmp=true                # 専用の /tmp を使用
-ReadWritePaths=/opt/myapp/data  # 書き込み可能なパス
-ReadOnlyPaths=/opt/myapp/config # 読み取り専用のパス
-InaccessiblePaths=/var/secret   # アクセス不可能にするパス
-TemporaryFileSystem=/var:ro     # tmpfsでオーバーレイ
-BindPaths=/src:/dest            # バインドマウント
+# === Filesystem Protection ===
+ProtectSystem=strict           # Mount / as read-only
+# ProtectSystem=full           # Mount /usr, /boot as read-only
+# ProtectSystem=true           # Mount /usr as read-only
+ProtectHome=true               # Make /home, /root, /run/user empty
+# ProtectHome=read-only        # Make them read-only
+# ProtectHome=tmpfs            # Overlay with tmpfs
+PrivateTmp=true                # Use a dedicated /tmp
+ReadWritePaths=/opt/myapp/data  # Writable paths
+ReadOnlyPaths=/opt/myapp/config # Read-only paths
+InaccessiblePaths=/var/secret   # Paths to make inaccessible
+TemporaryFileSystem=/var:ro     # Overlay with tmpfs
+BindPaths=/src:/dest            # Bind mount
 
-# === ネットワーク保護 ===
-PrivateNetwork=true            # 専用ネットワーク名前空間（loのみ）
-# RestrictAddressFamilies=AF_INET AF_INET6  # 使用可能なアドレスファミリ
-# IPAddressDeny=any             # 全IPアドレスを拒否
-# IPAddressAllow=192.168.0.0/16 # 許可するIPアドレス
+# === Network Protection ===
+PrivateNetwork=true            # Dedicated network namespace (loopback only)
+# RestrictAddressFamilies=AF_INET AF_INET6  # Allowed address families
+# IPAddressDeny=any             # Deny all IP addresses
+# IPAddressAllow=192.168.0.0/16 # Allowed IP addresses
 
-# === プロセス保護 ===
-NoNewPrivileges=true           # 権限昇格を禁止
-PrivateUsers=true              # 専用ユーザー名前空間
-ProtectKernelTunables=true     # /proc, /sys の書き込み禁止
-ProtectKernelModules=true      # カーネルモジュールのロード禁止
-ProtectKernelLogs=true         # カーネルログへのアクセス禁止
-ProtectControlGroups=true      # cgroupの変更禁止
-ProtectClock=true              # システムクロックの変更禁止
-ProtectHostname=true           # ホスト名の変更禁止
-LockPersonality=true           # 実行ドメインの変更禁止
-RestrictRealtime=true          # リアルタイムスケジューリング禁止
-RestrictSUIDSGID=true          # SUID/SGIDビットの設定禁止
-RestrictNamespaces=true        # 名前空間の作成禁止
+# === Process Protection ===
+NoNewPrivileges=true           # Prohibit privilege escalation
+PrivateUsers=true              # Dedicated user namespace
+ProtectKernelTunables=true     # Prohibit writes to /proc, /sys
+ProtectKernelModules=true      # Prohibit loading kernel modules
+ProtectKernelLogs=true         # Prohibit access to kernel logs
+ProtectControlGroups=true      # Prohibit cgroup changes
+ProtectClock=true              # Prohibit system clock changes
+ProtectHostname=true           # Prohibit hostname changes
+LockPersonality=true           # Prohibit execution domain changes
+RestrictRealtime=true          # Prohibit real-time scheduling
+RestrictSUIDSGID=true          # Prohibit setting SUID/SGID bits
+RestrictNamespaces=true        # Prohibit namespace creation
 
-# === ケイパビリティ制限 ===
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE  # 1024未満のポートにバインド可能
-AmbientCapabilities=CAP_NET_BIND_SERVICE    # root以外でも低ポート使用可能
-# CapabilityBoundingSet=         # 全ケイパビリティを無効化
+# === Capability Restrictions ===
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE  # Allow binding to ports below 1024
+AmbientCapabilities=CAP_NET_BIND_SERVICE    # Allow low-port usage without root
+# CapabilityBoundingSet=         # Disable all capabilities
 
-# === システムコール制限 ===
-SystemCallFilter=@system-service  # システムサービス用のシスコール
-# SystemCallFilter=~@debug @mount @privileged  # 危険なシスコールを禁止
-SystemCallArchitectures=native    # ネイティブアーキテクチャのみ
-SystemCallErrorNumber=EPERM       # 拒否時のエラー番号
+# === System Call Restrictions ===
+SystemCallFilter=@system-service  # System calls for system services
+# SystemCallFilter=~@debug @mount @privileged  # Prohibit dangerous syscalls
+SystemCallArchitectures=native    # Native architecture only
+SystemCallErrorNumber=EPERM       # Error number when denied
 
-# === その他 ===
-UMask=0077                     # ファイル作成時のumask
-MemoryDenyWriteExecute=true    # W^X（書き込みと実行の排他）
+# === Miscellaneous ===
+UMask=0077                     # umask for file creation
+MemoryDenyWriteExecute=true    # W^X (exclusive write and execute)
 ```
 
-### 7.2 セキュリティスコアの確認
+### 7.2 Checking the Security Score
 
 ```bash
-# サービスのセキュリティスコアを確認
+# Check security score for a service
 systemd-analyze security nginx.service
 
-# 出力例:
+# Example output:
 # → Overall exposure level for nginx.service: 6.5 MEDIUM
 #   NAME                          DESCRIPTION                     EXPOSURE
 # ✗ PrivateNetwork=               Service has access to host's network  0.5
@@ -879,73 +879,73 @@ systemd-analyze security nginx.service
 # ✓ NoNewPrivileges=              Service process may not gain new privileges 0.0
 # ...
 
-# 全サービスのセキュリティスコア
+# Security scores for all services
 systemd-analyze security
 
-# スコアの目安:
-# 0.0-2.0: SAFE（十分なセキュリティ）
-# 2.0-4.0: OK（概ね安全）
-# 4.0-7.0: MEDIUM（改善余地あり）
-# 7.0-10.0: UNSAFE（セキュリティリスクあり）
+# Score guidelines:
+# 0.0-2.0: SAFE (sufficient security)
+# 2.0-4.0: OK (generally safe)
+# 4.0-7.0: MEDIUM (room for improvement)
+# 7.0-10.0: UNSAFE (security risk)
 ```
 
 ---
 
-## 8. リソース制限
+## 8. Resource Limits
 
-### 8.1 リソース制限ディレクティブ
+### 8.1 Resource Limit Directives
 
 ```ini
-# サービスのリソース制限設定
+# Resource limit settings for services
 
 [Service]
-# === メモリ制限 ===
-MemoryMax=512M                   # メモリ使用量の上限（超えるとOOM kill）
-MemoryHigh=384M                  # メモリ使用量のソフトリミット（超えると回収圧力）
-MemorySwapMax=0                  # スワップの使用を禁止
-MemoryLow=128M                   # メモリ保護（最低保証）
+# === Memory Limits ===
+MemoryMax=512M                   # Memory usage ceiling (OOM kill if exceeded)
+MemoryHigh=384M                  # Soft memory limit (reclaim pressure if exceeded)
+MemorySwapMax=0                  # Prohibit swap usage
+MemoryLow=128M                   # Memory protection (guaranteed minimum)
 
-# === CPU制限 ===
-CPUQuota=50%                     # CPU使用率の上限（100% = 1コア分）
-CPUQuota=200%                    # 2コア分
-CPUWeight=100                    # CPU配分の重み（デフォルト100）
-CPUAffinity=0 1                  # 使用するCPUコアを指定
-AllowedCPUs=0-3                  # 使用可能なCPU範囲
+# === CPU Limits ===
+CPUQuota=50%                     # CPU usage ceiling (100% = 1 core)
+CPUQuota=200%                    # 2 cores worth
+CPUWeight=100                    # CPU share weight (default 100)
+CPUAffinity=0 1                  # Specify CPU cores to use
+AllowedCPUs=0-3                  # Allowed CPU range
 
-# === IO制限 ===
-IOWeight=100                     # IO配分の重み（1-10000）
-IOReadBandwidthMax=/dev/sda 50M  # 読み取り帯域制限
-IOWriteBandwidthMax=/dev/sda 20M # 書き込み帯域制限
-IOReadIOPSMax=/dev/sda 3000      # 読み取りIOPS制限
-IOWriteIOPSMax=/dev/sda 1000     # 書き込みIOPS制限
+# === IO Limits ===
+IOWeight=100                     # IO share weight (1-10000)
+IOReadBandwidthMax=/dev/sda 50M  # Read bandwidth limit
+IOWriteBandwidthMax=/dev/sda 20M # Write bandwidth limit
+IOReadIOPSMax=/dev/sda 3000      # Read IOPS limit
+IOWriteIOPSMax=/dev/sda 1000     # Write IOPS limit
 
-# === プロセス・タスク制限 ===
-TasksMax=100                     # 最大タスク（プロセス/スレッド）数
-LimitNPROC=100                   # プロセス数制限
-LimitNOFILE=65536                # ファイルディスクリプタ数制限
-LimitFSIZE=infinity              # ファイルサイズ制限
-LimitCORE=0                      # コアダンプ無効
-# LimitCORE=infinity             # コアダンプ有効
+# === Process/Task Limits ===
+TasksMax=100                     # Maximum number of tasks (processes/threads)
+LimitNPROC=100                   # Process count limit
+LimitNOFILE=65536                # File descriptor limit
+LimitFSIZE=infinity              # File size limit
+LimitCORE=0                      # Disable core dumps
+# LimitCORE=infinity             # Enable core dumps
 
-# === タイムアウト ===
-TimeoutStartSec=30               # 起動タイムアウト
-TimeoutStopSec=30                # 停止タイムアウト
-TimeoutAbortSec=30               # アボートタイムアウト
-RuntimeMaxSec=3600               # 最大実行時間（1時間）
-WatchdogSec=30                   # ウォッチドッグ間隔
+# === Timeouts ===
+TimeoutStartSec=30               # Startup timeout
+TimeoutStopSec=30                # Stop timeout
+TimeoutAbortSec=30               # Abort timeout
+RuntimeMaxSec=3600               # Maximum run time (1 hour)
+WatchdogSec=30                   # Watchdog interval
 ```
 
-### 8.2 ドロップインによるリソース制限の追加
+### 8.2 Adding Resource Limits via Drop-ins
 
 ```bash
-# ドロップインファイルで既存サービスにリソース制限を追加
+# Add resource limits to an existing service via a drop-in file
 # /etc/systemd/system/nginx.service.d/limits.conf
 [Service]
 MemoryMax=512M
 CPUQuota=50%
 TasksMax=100
 
-# 作成手順
+# Creation steps
 sudo mkdir -p /etc/systemd/system/nginx.service.d/
 sudo tee /etc/systemd/system/nginx.service.d/limits.conf <<'EOF'
 [Service]
@@ -958,75 +958,75 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl restart nginx
 
-# 適用されたか確認
+# Verify the settings were applied
 systemctl show nginx --property=MemoryMax,CPUQuota,TasksMax
 ```
 
-### 8.3 cgroup によるリソース使用量の監視
+### 8.3 Monitoring Resource Usage via cgroup
 
 ```bash
-# リソース使用量の確認
-systemctl status nginx           # Memory, CPU, Tasks が表示される
+# Check resource usage
+systemctl status nginx           # Shows Memory, CPU, Tasks
 
-# 詳細なリソース情報
-systemd-cgtop                    # cgroup別のリソース使用量（topライク）
-systemd-cgtop -m                 # メモリ順でソート
-systemd-cgtop -c                 # CPU順でソート
+# Detailed resource information
+systemd-cgtop                    # Resource usage by cgroup (top-like)
+systemd-cgtop -m                 # Sort by memory
+systemd-cgtop -c                 # Sort by CPU
 
-# 特定サービスの cgroup 情報
+# cgroup information for a specific service
 cat /sys/fs/cgroup/system.slice/nginx.service/memory.current
 cat /sys/fs/cgroup/system.slice/nginx.service/memory.max
 cat /sys/fs/cgroup/system.slice/nginx.service/cpu.stat
 
-# systemctl でのリソース表示
+# Resource display via systemctl
 systemctl show nginx.service --property=MemoryCurrent
 systemctl show nginx.service --property=CPUUsageNSec
 ```
 
 ---
 
-## 9. systemd の実践パターン
+## 9. Practical systemd Patterns
 
-### 9.1 サービスの起動失敗を調査
+### 9.1 Investigating Service Startup Failures
 
 ```bash
-# パターン1: サービスの起動失敗を調査
-sudo systemctl status myapp      # まず状態確認
-journalctl -u myapp --since "10 minutes ago" --no-pager  # 直近ログ
-journalctl -u myapp -p err       # エラーのみ
+# Pattern 1: Investigate a service startup failure
+sudo systemctl status myapp      # First check status
+journalctl -u myapp --since "10 minutes ago" --no-pager  # Recent logs
+journalctl -u myapp -p err       # Errors only
 
-# 起動失敗の一般的な原因と対処:
-# 1. 権限エラー → User/Group の確認、ファイル権限の確認
-# 2. ポート競合 → ss -tlnp でポート使用状況確認
-# 3. 依存サービス未起動 → After/Requires の確認
-# 4. 設定ファイルエラー → ExecStartPre でconfigtestを実行
-# 5. バイナリが見つからない → ExecStart のパスを確認
-# 6. SELinux/AppArmor → ausearch -m AVC -ts recent で確認
+# Common causes of startup failure and remedies:
+# 1. Permission error → Check User/Group, verify file permissions
+# 2. Port conflict → Check port usage with ss -tlnp
+# 3. Dependency service not started → Check After/Requires
+# 4. Configuration file error → Run configtest in ExecStartPre
+# 5. Binary not found → Check path in ExecStart
+# 6. SELinux/AppArmor → Check with ausearch -m AVC -ts recent
 ```
 
-### 9.2 複数サービスの一括管理
+### 9.2 Bulk Management of Multiple Services
 
 ```bash
-# パターン2: 複数サービスの一括管理
+# Pattern 2: Bulk management of multiple services
 for svc in nginx postgresql redis; do
     echo "=== $svc ==="
     systemctl is-active "$svc"
 done
 
-# 一括再起動
+# Bulk restart
 for svc in nginx postgresql redis; do
     sudo systemctl restart "$svc"
     echo "$svc: $(systemctl is-active "$svc")"
 done
 
-# ワンライナーでの状態確認
+# One-liner status check
 systemctl is-active nginx postgresql redis
 ```
 
-### 9.3 ターゲットによるサービスグループ化
+### 9.3 Grouping Services with Targets
 
 ```ini
-# カスタムターゲットでサービスをグループ化
+# Group services with a custom target
 # /etc/systemd/system/webapp.target
 [Unit]
 Description=Web Application Stack
@@ -1036,38 +1036,38 @@ After=nginx.service postgresql.service redis.service myapp.service
 [Install]
 WantedBy=multi-user.target
 
-# 使い方
+# Usage
 sudo systemctl enable webapp.target
-sudo systemctl start webapp.target   # 全サービスを起動
-sudo systemctl stop webapp.target    # 全サービスを停止
+sudo systemctl start webapp.target   # Start all services
+sudo systemctl stop webapp.target    # Stop all services
 ```
 
-### 9.4 起動分析
+### 9.4 Boot Analysis
 
 ```bash
-# パターン4: 起動順序の確認
-systemd-analyze                  # 起動時間
-systemd-analyze blame            # サービス別起動時間
-systemd-analyze critical-chain   # クリティカルパス
-systemd-analyze critical-chain nginx.service  # 特定サービスのクリティカルパス
+# Pattern 4: Checking boot order
+systemd-analyze                  # Boot time
+systemd-analyze blame            # Boot time per service
+systemd-analyze critical-chain   # Critical path
+systemd-analyze critical-chain nginx.service  # Critical path for a specific service
 
-# 起動時間の可視化
-systemd-analyze plot > boot.svg  # SVGファイルとして出力
+# Visualize boot time
+systemd-analyze plot > boot.svg  # Output as SVG file
 
-# 起動が遅いサービスの特定
+# Identify slow-starting services
 systemd-analyze blame | head -20
 
-# 起動時のデバッグ
-# カーネルパラメータに systemd.log_level=debug を追加
+# Debug boot
+# Add systemd.log_level=debug to kernel parameters
 ```
 
-### 9.5 ユーザーサービス（root不要）
+### 9.5 User Services (No root Required)
 
 ```bash
-# パターン5: ユーザーサービス（root不要）
+# Pattern 5: User services (no root required)
 mkdir -p ~/.config/systemd/user/
 
-# ~/.config/systemd/user/myapp.service を作成
+# Create ~/.config/systemd/user/myapp.service
 cat > ~/.config/systemd/user/myapp.service <<'EOF'
 [Unit]
 Description=My User Application
@@ -1082,191 +1082,191 @@ RestartSec=5
 WantedBy=default.target
 EOF
 
-# ユーザーサービスの管理
+# Managing user services
 systemctl --user daemon-reload
 systemctl --user start myapp
 systemctl --user enable myapp
 systemctl --user status myapp
 journalctl --user -u myapp
 
-# ログアウト後もサービスを継続（重要）
+# Keep service running after logout (important)
 sudo loginctl enable-linger $USER
 
-# ユーザーサービスの一覧
+# List user services
 systemctl --user list-units --type=service
 ```
 
-### 9.6 一時的なサービス実行
+### 9.6 Running Temporary Services
 
 ```bash
-# systemd-run: 一時的なサービスとして実行
-# リソース制限やログ管理を即座に適用できる
+# systemd-run: Run as a temporary service
+# Instantly apply resource limits and log management
 
-# 基本的な使い方
+# Basic usage
 sudo systemd-run --unit=temp-backup /opt/scripts/backup.sh
 
-# リソース制限付き
+# With resource limits
 sudo systemd-run --unit=temp-task \
     --property=MemoryMax=256M \
     --property=CPUQuota=50% \
     /opt/scripts/heavy-task.sh
 
-# タイマーとして
+# As a timer
 sudo systemd-run --on-calendar="*-*-* 03:00:00" \
     --unit=temp-cleanup \
     /opt/scripts/cleanup.sh
 
-# 指定時間後に実行
+# Run after a specified delay
 sudo systemd-run --on-active="5m" \
     --unit=delayed-task \
     /opt/scripts/task.sh
 
-# ユーザースコープで実行
+# Run in user scope
 systemd-run --user --scope --unit=my-build make -j4
 
-# 実行中の一時サービスの確認
+# Check running temporary services
 systemctl list-units --type=service 'run-*'
 ```
 
-### 9.7 サービスの依存関係の条件設定
+### 9.7 Conditional Service Dependencies
 
 ```ini
-# 条件付き起動の設定
+# Conditional startup settings
 [Unit]
 Description=My Conditional Service
 
-# 条件（falseの場合、サービスをスキップ）
-ConditionPathExists=/opt/myapp/config.yml     # ファイルが存在すること
-ConditionPathExists=!/opt/myapp/.disabled     # ファイルが存在しないこと
-ConditionPathIsDirectory=/opt/myapp/data      # ディレクトリが存在すること
-ConditionFileIsExecutable=/opt/myapp/bin/app  # 実行可能であること
-ConditionDirectoryNotEmpty=/opt/myapp/queue   # ディレクトリが空でないこと
+# Conditions (service is skipped if false)
+ConditionPathExists=/opt/myapp/config.yml     # File must exist
+ConditionPathExists=!/opt/myapp/.disabled     # File must not exist
+ConditionPathIsDirectory=/opt/myapp/data      # Directory must exist
+ConditionFileIsExecutable=/opt/myapp/bin/app  # Must be executable
+ConditionDirectoryNotEmpty=/opt/myapp/queue   # Directory must not be empty
 
-# 環境条件
-ConditionVirtualization=!container            # コンテナ内でないこと
-ConditionKernelVersion=>=5.10                 # カーネルバージョン条件
-ConditionMemory=>=1G                          # メモリ条件
-ConditionCPUs=>=2                             # CPU数条件
-ConditionEnvironment=ENABLE_MYAPP=true        # 環境変数条件
+# Environment conditions
+ConditionVirtualization=!container            # Must not be in a container
+ConditionKernelVersion=>=5.10                 # Kernel version condition
+ConditionMemory=>=1G                          # Memory condition
+ConditionCPUs=>=2                             # CPU count condition
+ConditionEnvironment=ENABLE_MYAPP=true        # Environment variable condition
 
-# アサート（falseの場合、エラー）
-AssertPathExists=/opt/myapp/config.yml        # 存在しないとエラー
+# Assertions (error if false)
+AssertPathExists=/opt/myapp/config.yml        # Error if not present
 ```
 
 ---
 
-## 10. トラブルシューティング
+## 10. Troubleshooting
 
-### 10.1 よくある問題と対処法
+### 10.1 Common Issues and Solutions
 
 ```bash
-# === 問題1: サービスが起動しない ===
-# 手順:
-sudo systemctl status myapp          # 1. 状態確認
-journalctl -u myapp -n 50 --no-pager # 2. ログ確認
-systemd-analyze verify /etc/systemd/system/myapp.service  # 3. 構文チェック
-sudo -u myapp /opt/myapp/bin/app     # 4. 手動実行テスト
+# === Issue 1: Service fails to start ===
+# Steps:
+sudo systemctl status myapp          # 1. Check status
+journalctl -u myapp -n 50 --no-pager # 2. Check logs
+systemd-analyze verify /etc/systemd/system/myapp.service  # 3. Syntax check
+sudo -u myapp /opt/myapp/bin/app     # 4. Manual run test
 
-# === 問題2: サービスが頻繁に再起動する ===
+# === Issue 2: Service restarts frequently ===
 journalctl -u myapp --since "1 hour ago" | grep -E "Started|Stopped|Failed"
-systemctl show myapp --property=NRestarts  # 再起動回数
-# StartLimitBurst/StartLimitIntervalSec を確認
+systemctl show myapp --property=NRestarts  # Restart count
+# Check StartLimitBurst/StartLimitIntervalSec
 
-# === 問題3: サービスの停止に時間がかかる ===
-# TimeoutStopSec を確認
+# === Issue 3: Service takes too long to stop ===
+# Check TimeoutStopSec
 systemctl show myapp --property=TimeoutStopUSec
-# KillMode を確認（control-group, mixed, process, none）
-# KillSignal を確認（デフォルト SIGTERM）
+# Check KillMode (control-group, mixed, process, none)
+# Check KillSignal (default SIGTERM)
 
-# === 問題4: 依存サービスが起動していない ===
-systemctl list-dependencies myapp    # 依存関係確認
-systemctl list-dependencies --reverse myapp  # 逆依存確認
+# === Issue 4: Dependency service not started ===
+systemctl list-dependencies myapp    # Check dependencies
+systemctl list-dependencies --reverse myapp  # Check reverse dependencies
 
-# === 問題5: ユニットファイルの変更が反映されない ===
-sudo systemctl daemon-reload         # 必ず実行
-systemctl cat myapp                  # 現在のユニットファイルを確認
-systemd-delta                        # オーバーライドの確認
+# === Issue 5: Unit file changes not reflected ===
+sudo systemctl daemon-reload         # Always run this
+systemctl cat myapp                  # Check current unit file
+systemd-delta                        # Check overrides
 
-# === 問題6: ログが多すぎてディスクが逼迫 ===
-journalctl --disk-usage              # ログのサイズ確認
-sudo journalctl --vacuum-size=500M   # 削減
-# /etc/systemd/journald.conf で SystemMaxUse を設定
+# === Issue 6: Disk becoming full due to excessive logs ===
+journalctl --disk-usage              # Check log size
+sudo journalctl --vacuum-size=500M   # Reduce
+# Set SystemMaxUse in /etc/systemd/journald.conf
 ```
 
-### 10.2 デバッグモードでの実行
+### 10.2 Running in Debug Mode
 
 ```bash
-# サービスをデバッグモードで実行
+# Run service in debug mode
 sudo systemctl stop myapp
 
-# 環境変数を確認
+# Check environment variables
 systemctl show myapp --property=Environment
 systemctl show myapp --property=EnvironmentFiles
 
-# ExecStart のコマンドを手動で実行
+# Run ExecStart command manually
 sudo -u myapp bash -c 'source /opt/myapp/.env && /opt/myapp/bin/app'
 
-# strace でシステムコールをトレース
+# Trace system calls with strace
 sudo strace -f -p $(systemctl show myapp --property=MainPID --value)
 
-# デバッグログを有効化
+# Enable debug logging
 sudo systemctl set-environment SYSTEMD_LOG_LEVEL=debug
 sudo systemctl restart myapp
 journalctl -u myapp -f
-# 終了後:
+# When done:
 sudo systemctl unset-environment SYSTEMD_LOG_LEVEL
 ```
 
-### 10.3 systemd 関連の便利コマンド
+### 10.3 Useful systemd-Related Commands
 
 ```bash
-# システム全体の状態確認
-systemctl is-system-running      # running, degraded, maintenance 等
-systemctl --failed               # 失敗したユニットの一覧
+# Check overall system state
+systemctl is-system-running      # running, degraded, maintenance, etc.
+systemctl --failed               # List failed units
 
-# ブートターゲットの管理
-systemctl get-default            # 現在のデフォルトターゲット
-sudo systemctl set-default multi-user.target    # CUI起動
-sudo systemctl set-default graphical.target     # GUI起動
+# Boot target management
+systemctl get-default            # Current default target
+sudo systemctl set-default multi-user.target    # Boot to CLI
+sudo systemctl set-default graphical.target     # Boot to GUI
 
-# 電源管理
-sudo systemctl poweroff          # シャットダウン
-sudo systemctl reboot            # 再起動
-sudo systemctl suspend           # サスペンド
-sudo systemctl hibernate         # ハイバネート
+# Power management
+sudo systemctl poweroff          # Shutdown
+sudo systemctl reboot            # Reboot
+sudo systemctl suspend           # Suspend
+sudo systemctl hibernate         # Hibernate
 
-# ランレベル互換
-# 旧ランレベル → systemd ターゲット
+# Runlevel compatibility
+# Old runlevel → systemd target
 # 0 → poweroff.target
 # 1 → rescue.target
 # 3 → multi-user.target
 # 5 → graphical.target
 # 6 → reboot.target
 
-sudo systemctl isolate rescue.target  # レスキューモード
-sudo systemctl isolate multi-user.target  # マルチユーザーモード
+sudo systemctl isolate rescue.target  # Rescue mode
+sudo systemctl isolate multi-user.target  # Multi-user mode
 
-# ホスト名の管理
-hostnamectl                      # ホスト名情報
+# Hostname management
+hostnamectl                      # Hostname information
 sudo hostnamectl set-hostname myserver
 
-# 日時の管理
-timedatectl                      # 日時情報
+# Date/time management
+timedatectl                      # Date/time information
 sudo timedatectl set-timezone Asia/Tokyo
-timedatectl list-timezones       # タイムゾーン一覧
-sudo timedatectl set-ntp true    # NTP同期有効化
+timedatectl list-timezones       # List timezones
+sudo timedatectl set-ntp true    # Enable NTP sync
 
-# ロケールの管理
-localectl                        # ロケール情報
+# Locale management
+localectl                        # Locale information
 sudo localectl set-locale LANG=ja_JP.UTF-8
 ```
 
 ---
 
-## 11. systemd と Docker / コンテナの連携
+## 11. systemd and Docker / Container Integration
 
 ```ini
-# Docker コンテナをsystemdで管理する例
+# Example of managing a Docker container with systemd
 # /etc/systemd/system/docker-myapp.service
 [Unit]
 Description=MyApp Docker Container
@@ -1278,7 +1278,7 @@ Type=simple
 Restart=always
 RestartSec=10
 
-# 既存コンテナを削除してから起動
+# Remove existing container before starting
 ExecStartPre=-/usr/bin/docker rm -f myapp
 ExecStart=/usr/bin/docker run \
     --name myapp \
@@ -1293,7 +1293,7 @@ ExecStop=/usr/bin/docker stop myapp
 [Install]
 WantedBy=multi-user.target
 
-# docker compose との連携
+# Integration with docker compose
 # /etc/systemd/system/docker-compose-myapp.service
 [Unit]
 Description=MyApp Docker Compose Stack
@@ -1314,10 +1314,10 @@ WantedBy=multi-user.target
 
 ---
 
-## 12. systemd ネットワーク管理（networkd）
+## 12. systemd Network Management (networkd)
 
 ```bash
-# systemd-networkd: ネットワーク設定の管理
+# systemd-networkd: Network configuration management
 # /etc/systemd/network/20-wired.network
 # [Match]
 # Name=eth0
@@ -1330,7 +1330,7 @@ WantedBy=multi-user.target
 # [DHCPv4]
 # RouteMetric=100
 
-# 静的IPの設定
+# Static IP configuration
 # /etc/systemd/network/20-static.network
 # [Match]
 # Name=eth0
@@ -1340,60 +1340,60 @@ WantedBy=multi-user.target
 # Gateway=192.168.1.1
 # DNS=8.8.8.8
 
-# networkd の管理
+# networkd management
 sudo systemctl enable --now systemd-networkd
-networkctl list                  # ネットワークインターフェース一覧
-networkctl status                # 詳細状態
-networkctl status eth0           # 特定インターフェースの状態
+networkctl list                  # List network interfaces
+networkctl status                # Detailed status
+networkctl status eth0           # Status of a specific interface
 
-# systemd-resolved: DNS解決
+# systemd-resolved: DNS resolution
 sudo systemctl enable --now systemd-resolved
-resolvectl status                # DNS設定の確認
-resolvectl query example.com     # DNS問い合わせ
+resolvectl status                # Check DNS configuration
+resolvectl query example.com     # DNS query
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1402,26 +1402,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1429,7 +1429,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1440,14 +1440,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1455,7 +1455,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1463,44 +1463,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1509,7 +1509,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1524,76 +1524,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes decision criteria for technology selection.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize when | Can compromise when |
+|-----------|----------------|---------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. Team size?                                  │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. Deployment frequency?                       │
+│    ├─ Weekly or less → Monolith + modular split │
+│    └─ Daily/multiple times → Go to 3            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. Inter-team independence?                    │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A fast short-term solution may become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has low learning costs
+- Adopting diverse technologies allows best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- Higher abstraction increases reusability but can make debugging difficult
+- Lower abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1603,17 +1603,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1621,7 +1621,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1629,15 +1629,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1645,53 +1645,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring from an early stage
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't pursue perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally overhaul a system that has been running for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Create Characterization Tests first if existing tests are absent
+- Coexist old and new systems via an API gateway
+- Migrate data incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work | Estimated Duration | Risk |
+|-------|------|--------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Start migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use domain-driven design to clarify boundaries
+- Assign ownership to each team
+- Manage shared libraries with Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1704,20 +1704,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1726,7 +1726,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1747,68 +1747,68 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Technique | Effect | Implementation Cost | Use Case |
+|------------------------|--------|---------------------|----------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just from theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and moving on to advanced topics. We recommend fully understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| コマンド | 用途 |
-|---------|------|
-| systemctl start/stop/restart | サービス操作 |
-| systemctl enable/disable | 自動起動管理 |
-| systemctl status | 状態確認 |
-| systemctl mask/unmask | サービスの完全無効化 |
-| systemctl edit | ドロップインによるカスタマイズ |
-| journalctl -u service | サービスログ |
-| journalctl -f | リアルタイムログ |
-| journalctl -p err | 優先度フィルタ |
-| journalctl -b -1 | 前回ブートのログ |
-| systemctl daemon-reload | ユニット再読み込み |
-| systemd-analyze security | セキュリティ監査 |
-| systemd-analyze blame | 起動時間分析 |
-| systemd-cgtop | リソース使用量モニタ |
-| systemd-run | 一時的なサービス実行 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Command | Purpose |
+|---------|---------|
+| systemctl start/stop/restart | Service operations |
+| systemctl enable/disable | Auto-start management |
+| systemctl status | Check status |
+| systemctl mask/unmask | Completely disable a service |
+| systemctl edit | Customize via drop-in |
+| journalctl -u service | Service logs |
+| journalctl -f | Real-time logs |
+| journalctl -p err | Priority filter |
+| journalctl -b -1 | Logs from previous boot |
+| systemctl daemon-reload | Reload units |
+| systemd-analyze security | Security audit |
+| systemd-analyze blame | Boot time analysis |
+| systemd-cgtop | Resource usage monitor |
+| systemd-run | Run a temporary service |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+---
+
+## References
 1. "systemd System and Service Manager." systemd.io.
 2. Barrett, D. "Efficient Linux at the Command Line." Ch.10, O'Reilly, 2022.
 3. "systemd.exec — Execution environment configuration." freedesktop.org/software/systemd/man.
