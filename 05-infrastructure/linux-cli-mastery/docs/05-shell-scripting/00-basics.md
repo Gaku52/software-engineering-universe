@@ -1,166 +1,166 @@
-# シェルスクリプト基礎
+# Shell Scripting Basics
 
-> シェルスクリプトは CLI の操作を自動化する最も直接的な方法。日常の繰り返し作業から本格的なシステム管理まで、あらゆるレベルで活用できる。
+> Shell scripting is the most direct way to automate CLI operations. It can be applied at every level, from everyday repetitive tasks to full-scale system administration.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] シェルスクリプトの基本構文を理解する
-- [ ] 変数・条件分岐・ループを使える
-- [ ] 関数とスクリプトの引数処理ができる
-- [ ] 入出力・リダイレクト・ヒアドキュメントを使いこなす
-- [ ] デバッグ手法を身につける
-- [ ] 実務で使えるスクリプトテンプレートを持つ
+- [ ] Understand the basic syntax of shell scripts
+- [ ] Use variables, conditionals, and loops
+- [ ] Handle functions and script argument processing
+- [ ] Master input/output, redirection, and heredocs
+- [ ] Acquire debugging techniques
+- [ ] Have script templates ready for practical use
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. スクリプトの基本
+## 1. Script Basics
 
-### 1.1 シバン（Shebang）
+### 1.1 Shebang
 
-スクリプトの1行目に記述する `#!` で始まる行をシバン（shebang）と呼ぶ。OS がこの行を読み取り、指定されたインタプリタでスクリプトを実行する。
+The line beginning with `#!` written on the first line of a script is called the shebang. The OS reads this line and executes the script using the specified interpreter.
 
 ```bash
 #!/bin/bash
-# ↑ シバン（shebang）: このスクリプトを実行するインタプリタを指定
+# ↑ Shebang: specifies the interpreter to run this script
 
-# スクリプトの実行方法
-chmod +x script.sh               # 実行権限を付与
-./script.sh                      # 直接実行
-bash script.sh                   # bash で明示的に実行
-source script.sh                 # 現在のシェルで実行（. script.sh と同じ）
+# How to run the script
+chmod +x script.sh               # Grant execute permission
+./script.sh                      # Run directly
+bash script.sh                   # Run explicitly with bash
+source script.sh                 # Run in the current shell (same as . script.sh)
 
-# シバンの種類
+# Types of shebangs
 #!/bin/bash                      # bash
 #!/bin/zsh                       # zsh
-#!/usr/bin/env bash              # PATH から bash を探す（推奨）
-#!/usr/bin/env python3           # Python スクリプト
-#!/usr/bin/env perl               # Perl スクリプト
-#!/bin/sh                        # POSIX sh（移植性最優先の場合）
+#!/usr/bin/env bash              # Find bash from PATH (recommended)
+#!/usr/bin/env python3           # Python script
+#!/usr/bin/env perl               # Perl script
+#!/bin/sh                        # POSIX sh (when portability is top priority)
 ```
 
-### 1.2 `#!/bin/bash` と `#!/usr/bin/env bash` の違い
+### 1.2 Difference Between `#!/bin/bash` and `#!/usr/bin/env bash`
 
 ```bash
 # #!/bin/bash
-#   → /bin/bash を直接指定
-#   → bash が /bin/ にない環境（一部の BSD、NixOS 等）では動かない
-#   → パスが確定しているため起動が微妙に速い
+#   → Directly specifies /bin/bash
+#   → Does not work in environments where bash is not in /bin/ (some BSDs, NixOS, etc.)
+#   → Slightly faster startup because the path is fixed
 
 # #!/usr/bin/env bash
-#   → $PATH を検索して bash を見つける
-#   → 異なる環境間での移植性が高い（推奨）
-#   → pyenv, rbenv 等のバージョン管理ツールとも相性が良い
+#   → Searches $PATH to find bash
+#   → Higher portability across different environments (recommended)
+#   → Works well with version managers like pyenv and rbenv
 
-# 確認方法
-which bash                       # bash のパスを表示
-type bash                        # bash の種類を表示
-bash --version                   # バージョン確認
+# How to check
+which bash                       # Display the path to bash
+type bash                        # Display the type of bash
+bash --version                   # Check version
 ```
 
-### 1.3 スクリプトの実行方法の違い
+### 1.3 Differences Between Script Execution Methods
 
 ```bash
-# 方法1: 直接実行（サブシェルで実行）
+# Method 1: Direct execution (runs in a subshell)
 chmod +x script.sh
 ./script.sh
-# → 新しいプロセスが起動する
-# → スクリプト内の cd, export は呼び出し元に影響しない
+# → A new process is launched
+# → cd and export inside the script do not affect the calling shell
 
-# 方法2: bash コマンドで実行（サブシェル）
+# Method 2: Run with bash command (subshell)
 bash script.sh
-# → 実行権限不要
-# → シバン行は無視される
+# → No execute permission required
+# → The shebang line is ignored
 
-# 方法3: source で実行（現在のシェルで実行）
+# Method 3: Run with source (runs in the current shell)
 source script.sh
-# または
+# or
 . script.sh
-# → 現在のシェルで直接実行
-# → スクリプト内の cd, export, alias が現在のシェルに影響する
-# → .bashrc, .zshrc の読み込みに使われる
+# → Executed directly in the current shell
+# → cd, export, and alias inside the script affect the current shell
+# → Used for loading .bashrc and .zshrc
 
-# 実践例: 環境変数を設定するスクリプト
+# Practical example: Script that sets environment variables
 # --- env.sh ---
 #!/bin/bash
 export APP_ENV="production"
 export APP_PORT="8080"
-# --- ここまで ---
+# --- end ---
 
-# NG: サブシェルで実行しても現在のシェルに反映されない
+# NG: Running in a subshell does not reflect changes in the current shell
 ./env.sh
-echo $APP_ENV    # → （空）
+echo $APP_ENV    # → (empty)
 
-# OK: source で実行すれば反映される
+# OK: Running with source reflects changes
 source env.sh
 echo $APP_ENV    # → production
 ```
 
-### 1.4 スクリプトファイルの慣例
+### 1.4 Script File Conventions
 
 ```bash
-# ファイル名の慣例
-# - 拡張子 .sh を付ける（必須ではないが推奨）
-# - 実行可能スクリプトは拡張子なしも一般的（/usr/local/bin/mycommand）
-# - ハイフン区切り: deploy-app.sh, run-tests.sh
-# - アンダースコアも可: deploy_app.sh
+# File naming conventions
+# - Add the .sh extension (not mandatory but recommended)
+# - Executable scripts without extensions are also common (/usr/local/bin/mycommand)
+# - Hyphen-separated: deploy-app.sh, run-tests.sh
+# - Underscores are also acceptable: deploy_app.sh
 
-# ファイルの構成（推奨テンプレート）
+# File structure (recommended template)
 #!/usr/bin/env bash
 #
-# スクリプト名: deploy.sh
-# 説明: アプリケーションのデプロイを実行する
-# 作成者: Gaku
-# 作成日: 2025-01-01
-# 使い方: ./deploy.sh [--env production|staging] [--branch main]
+# Script name: deploy.sh
+# Description: Executes application deployment
+# Author: Gaku
+# Created: 2025-01-01
+# Usage: ./deploy.sh [--env production|staging] [--branch main]
 #
 
 set -euo pipefail
 
-# 定数
+# Constants
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# メイン処理
+# Main processing
 main() {
     echo "Starting $SCRIPT_NAME..."
-    # ここに処理を書く
+    # Write processing here
 }
 
 main "$@"
 ```
 
-### 1.5 コメントの書き方
+### 1.5 How to Write Comments
 
 ```bash
-# 行コメント（# から行末まで）
-echo "Hello"  # インラインコメント
+# Line comment (from # to end of line)
+echo "Hello"  # Inline comment
 
-# 複数行コメント（ヒアドキュメントを利用したテクニック）
+# Multi-line comment (technique using heredoc)
 : <<'COMMENT'
-この部分は実行されない
-複数行のコメントとして使える
-ただしインデントの制約がある
+This part is not executed
+Can be used as a multi-line comment
+However, there are indentation constraints
 COMMENT
 
-# ドキュメンテーションコメントの慣例
+# Documentation comment convention
 #######################################
-# データベースのバックアップを実行する
+# Executes a database backup
 # Globals:
 #   DB_HOST
 #   DB_NAME
 # Arguments:
-#   $1 - 出力ディレクトリ
+#   $1 - Output directory
 # Returns:
-#   0 - 成功
-#   1 - 失敗
+#   0 - Success
+#   1 - Failure
 #######################################
 backup_database() {
     local output_dir="$1"
@@ -170,61 +170,61 @@ backup_database() {
 
 ---
 
-## 2. 変数
+## 2. Variables
 
-### 2.1 変数の基本
+### 2.1 Variable Basics
 
 ```bash
-# 変数の代入（= の前後にスペースを入れない）
-name="Gaku"                      # 文字列
-count=42                         # 数値
-path="/var/log"                  # パス
-empty=""                         # 空文字列
+# Variable assignment (no spaces before or after =)
+name="Gaku"                      # String
+count=42                         # Number
+path="/var/log"                  # Path
+empty=""                         # Empty string
 
-# よくあるミス
-# name = "Gaku"                  # NG: スペースがあるとコマンドと解釈される
-# name ="Gaku"                   # NG: 同上
-# name= "Gaku"                   # NG: 同上
+# Common mistakes
+# name = "Gaku"                  # NG: Space causes it to be interpreted as a command
+# name ="Gaku"                   # NG: Same as above
+# name= "Gaku"                   # NG: Same as above
 
-# 変数の参照
+# Variable reference
 echo "$name"                     # Gaku
-echo "${name}_suffix"            # Gaku_suffix（区切りが必要な場合）
+echo "${name}_suffix"            # Gaku_suffix (when a delimiter is needed)
 echo "Hello, $name!"             # Hello, Gaku!
-echo "${name}san"                # Gakusan（直後に文字が続く場合は {} が必要）
+echo "${name}san"                # Gakusan (use {} when characters follow immediately)
 
-# クォートの違い
-echo "Hello, $name"              # → Hello, Gaku（変数展開される）
-echo 'Hello, $name'              # → Hello, $name（リテラル）
-echo Hello, $name                # → Hello, Gaku（クォートなし: ワード分割が起こる）
+# Quote differences
+echo "Hello, $name"              # → Hello, Gaku (variable expansion occurs)
+echo 'Hello, $name'              # → Hello, $name (literal)
+echo Hello, $name                # → Hello, Gaku (no quotes: word splitting occurs)
 
-# クォートの重要性
+# Importance of quotes
 file="my file.txt"
-# cat $file                      # NG: "my" と "file.txt" の2引数として解釈
-cat "$file"                      # OK: "my file.txt" として1引数
-# ルール: 変数は常にダブルクォートで囲む
+# cat $file                      # NG: Interpreted as 2 arguments "my" and "file.txt"
+cat "$file"                      # OK: Treated as 1 argument "my file.txt"
+# Rule: Always enclose variables in double quotes
 
-# コマンド置換
-today=$(date +%Y-%m-%d)          # 推奨: $() 形式
-files=`ls`                       # 旧形式: バッククォート（非推奨）
-# $() はネストできる
+# Command substitution
+today=$(date +%Y-%m-%d)          # Recommended: $() form
+files=`ls`                       # Old form: backticks (not recommended)
+# $() can be nested
 backup_name="backup_$(date +%Y%m%d)_$(hostname).tar.gz"
 
-# ネストの例
+# Nesting example
 inner_result=$(echo "The date is $(date +%Y-%m-%d)")
-# バッククォートではネストが困難: `echo "The date is \`date +%Y-%m-%d\`"`
+# Nesting with backticks is difficult: `echo "The date is \`date +%Y-%m-%d\`"`
 ```
 
-### 2.2 算術演算
+### 2.2 Arithmetic Operations
 
 ```bash
-# 算術演算
+# Arithmetic operations
 result=$((3 + 5))                # → 8
-count=$((count + 1))             # インクリメント
-echo $((10 / 3))                 # → 3（整数除算）
-echo $((10 % 3))                 # → 1（剰余）
-echo $((2 ** 10))                # → 1024（べき乗）
+count=$((count + 1))             # Increment
+echo $((10 / 3))                 # → 3 (integer division)
+echo $((10 % 3))                 # → 1 (remainder)
+echo $((2 ** 10))                # → 1024 (exponentiation)
 
-# 複合代入演算子
+# Compound assignment operators
 (( count += 5 ))                 # count = count + 5
 (( count -= 3 ))                 # count = count - 3
 (( count *= 2 ))                 # count = count * 2
@@ -232,208 +232,208 @@ echo $((2 ** 10))                # → 1024（べき乗）
 (( count ++ ))                   # count = count + 1
 (( count -- ))                   # count = count - 1
 
-# 複雑な計算
+# Complex calculations
 width=640
 height=480
 area=$(( width * height ))
 echo "Area: $area pixels"       # → Area: 307200 pixels
 
-# 16進数・8進数
-echo $(( 0xFF ))                 # → 255（16進数）
-echo $(( 077 ))                  # → 63（8進数）
-echo $(( 2#1010 ))               # → 10（2進数）
+# Hexadecimal and octal
+echo $(( 0xFF ))                 # → 255 (hexadecimal)
+echo $(( 077 ))                  # → 63 (octal)
+echo $(( 2#1010 ))               # → 10 (binary)
 
-# 小数点計算（bc を使用）
+# Decimal calculations (using bc)
 echo "scale=2; 10 / 3" | bc      # → 3.33
 pi=$(echo "scale=10; 4*a(1)" | bc -l)  # → 3.1415926535
 result=$(echo "1.5 + 2.3" | bc)  # → 3.8
 
-# awk での計算（より高機能）
+# Calculations with awk (more powerful)
 awk 'BEGIN { printf "%.2f\n", 10/3 }'  # → 3.33
 awk 'BEGIN { printf "%.4f\n", sqrt(2) }'  # → 1.4142
 ```
 
-### 2.3 特殊変数
+### 2.3 Special Variables
 
 ```bash
-# スクリプト引数関連
-echo $0                          # スクリプト名
-echo $1                          # 第1引数
-echo $2                          # 第2引数
-echo ${10}                       # 第10引数（2桁以上は {} が必要）
-echo $#                          # 引数の数
-echo $@                          # 全引数（個別に展開）
-echo $*                          # 全引数（1つの文字列）
+# Script argument related
+echo $0                          # Script name
+echo $1                          # First argument
+echo $2                          # Second argument
+echo ${10}                       # Tenth argument (two or more digits require {})
+echo $#                          # Number of arguments
+echo $@                          # All arguments (expanded individually)
+echo $*                          # All arguments (as one string)
 
-# $@ と $* の違い（重要）
-# スクリプトを ./test.sh "hello world" foo bar で実行した場合:
-# "$@" → "hello world" "foo" "bar"（3つの引数として展開）
-# "$*" → "hello world foo bar"（1つの文字列として展開）
+# Difference between $@ and $* (important)
+# When the script is run as ./test.sh "hello world" foo bar:
+# "$@" → "hello world" "foo" "bar" (expanded as 3 arguments)
+# "$*" → "hello world foo bar" (expanded as one string)
 
-# 実践: 引数を他のコマンドに渡す場合は "$@" を使う
+# Practical: Use "$@" when passing arguments to other commands
 wrapper() {
     echo "Calling command with args: $@"
-    some_command "$@"  # 引数を正しく渡す
+    some_command "$@"  # Pass arguments correctly
 }
 
-# ステータス・プロセス関連
-echo $?                          # 直前のコマンドの終了ステータス（0=成功）
-echo $$                          # 現在のプロセスID
-echo $!                          # 直前のバックグラウンドプロセスのPID
-echo $-                          # 現在のシェルオプション
-echo $_                          # 直前のコマンドの最後の引数
+# Status and process related
+echo $?                          # Exit status of the last command (0=success)
+echo $$                          # Current process ID
+echo $!                          # PID of the last background process
+echo $-                          # Current shell options
+echo $_                          # Last argument of the previous command
 
-# 終了ステータスの活用
+# Using exit status
 ls /nonexistent 2>/dev/null
 if [[ $? -ne 0 ]]; then
-    echo "ディレクトリが存在しません"
+    echo "Directory does not exist"
 fi
 
-# より簡潔な書き方
+# More concise way
 if ls /nonexistent 2>/dev/null; then
-    echo "存在する"
+    echo "Exists"
 else
-    echo "存在しない"
+    echo "Does not exist"
 fi
 
-# PIDの活用
+# Using PID
 long_process &
 bg_pid=$!
-echo "バックグラウンドプロセス: PID=$bg_pid"
+echo "Background process: PID=$bg_pid"
 wait $bg_pid
-echo "プロセス完了: 終了ステータス=$?"
+echo "Process completed: exit status=$?"
 ```
 
-### 2.4 環境変数
+### 2.4 Environment Variables
 
 ```bash
-# 環境変数の設定
-export MY_VAR="value"            # 子プロセスに引き継ぐ
-MY_VAR="value"                   # 現在のシェルのみ（子プロセスに渡されない）
+# Setting environment variables
+export MY_VAR="value"            # Passed to child processes
+MY_VAR="value"                   # Current shell only (not passed to child processes)
 
-# よく使う環境変数
-echo "$HOME"                     # ホームディレクトリ（/home/gaku）
-echo "$USER"                     # ユーザー名（gaku）
-echo "$PATH"                     # コマンド検索パス
-echo "$PWD"                      # カレントディレクトリ
-echo "$OLDPWD"                   # 前のディレクトリ（cd - で使われる）
-echo "$SHELL"                    # ログインシェル（/bin/bash 等）
-echo "$HOSTNAME"                 # ホスト名
-echo "$LANG"                     # ロケール（ja_JP.UTF-8 等）
-echo "$TERM"                     # ターミナルの種類
-echo "$EDITOR"                   # デフォルトエディタ
-echo "$RANDOM"                   # 0-32767 のランダムな整数
-echo "$SECONDS"                  # シェルの起動からの秒数
-echo "$LINENO"                   # 現在の行番号
-echo "$BASH_VERSION"             # Bash のバージョン
+# Commonly used environment variables
+echo "$HOME"                     # Home directory (/home/gaku)
+echo "$USER"                     # Username (gaku)
+echo "$PATH"                     # Command search path
+echo "$PWD"                      # Current directory
+echo "$OLDPWD"                   # Previous directory (used by cd -)
+echo "$SHELL"                    # Login shell (/bin/bash, etc.)
+echo "$HOSTNAME"                 # Hostname
+echo "$LANG"                     # Locale (ja_JP.UTF-8, etc.)
+echo "$TERM"                     # Terminal type
+echo "$EDITOR"                   # Default editor
+echo "$RANDOM"                   # Random integer from 0-32767
+echo "$SECONDS"                  # Seconds since shell started
+echo "$LINENO"                   # Current line number
+echo "$BASH_VERSION"             # Bash version
 
-# 環境変数の一覧
-env                              # 全環境変数を表示
-printenv                         # 同上
-printenv PATH                    # 特定の環境変数を表示
+# List all environment variables
+env                              # Display all environment variables
+printenv                         # Same
+printenv PATH                    # Display a specific environment variable
 
-# 1回限りの環境変数設定
-MY_VAR=value command             # command 実行時のみ MY_VAR を設定
-LANG=C sort file.txt             # sort を C ロケールで実行
-DEBUG=1 ./myapp.sh               # デバッグモードで実行
+# One-time environment variable setting
+MY_VAR=value command             # Set MY_VAR only during command execution
+LANG=C sort file.txt             # Run sort with C locale
+DEBUG=1 ./myapp.sh               # Run in debug mode
 
-# 環境変数の削除
-unset MY_VAR                     # 変数を削除
+# Deleting environment variables
+unset MY_VAR                     # Delete variable
 ```
 
-### 2.5 文字列操作
+### 2.5 String Operations
 
 ```bash
 str="Hello, World!"
 
-# 長さ
+# Length
 echo ${#str}                     # → 13
 
-# 部分文字列
-echo ${str:0:5}                  # → Hello（位置0から5文字）
-echo ${str:7}                    # → World!（位置7から末尾）
-echo ${str: -6}                  # → orld!（末尾から6文字。スペース必要）
-echo ${str:(-6):3}               # → orl（末尾から6文字目から3文字）
+# Substring
+echo ${str:0:5}                  # → Hello (5 characters from position 0)
+echo ${str:7}                    # → World! (from position 7 to end)
+echo ${str: -6}                  # → orld! (6 characters from end; space required)
+echo ${str:(-6):3}               # → orl (3 characters from 6th character from end)
 
-# 置換
-echo ${str/World/Bash}           # → Hello, Bash!（最初の1つ）
-echo ${str//l/L}                 # → HeLLo, WorLd!（全て置換）
-echo ${str/#Hello/Hi}            # → Hi, World!（先頭マッチのみ置換）
-echo ${str/%\!/\?}               # → Hello, World?（末尾マッチのみ置換）
+# Replacement
+echo ${str/World/Bash}           # → Hello, Bash! (first one)
+echo ${str//l/L}                 # → HeLLo, WorLd! (replace all)
+echo ${str/#Hello/Hi}            # → Hi, World! (replace prefix match only)
+echo ${str/%\!/\?}               # → Hello, World? (replace suffix match only)
 
-# 削除（パターン除去）
+# Deletion (pattern removal)
 filename="archive.tar.gz"
-echo ${filename%.gz}             # → archive.tar（末尾から最短一致）
-echo ${filename%%.*}             # → archive（末尾から最長一致）
-echo ${filename#*.}              # → tar.gz（先頭から最短一致）
-echo ${filename##*.}             # → gz（先頭から最長一致）
+echo ${filename%.gz}             # → archive.tar (shortest match from end)
+echo ${filename%%.*}             # → archive (longest match from end)
+echo ${filename#*.}              # → tar.gz (shortest match from start)
+echo ${filename##*.}             # → gz (longest match from start)
 
-# 実践: ファイル名とディレクトリの分離
+# Practical: Separating filename and directory
 filepath="/home/user/documents/report.pdf"
-echo ${filepath##*/}             # → report.pdf（basename 相当）
-echo ${filepath%/*}              # → /home/user/documents（dirname 相当）
+echo ${filepath##*/}             # → report.pdf (equivalent to basename)
+echo ${filepath%/*}              # → /home/user/documents (equivalent to dirname)
 
-# 拡張子の取得と変更
+# Getting and changing extension
 file="photo.jpg"
 ext="${file##*.}"                 # → jpg
 name="${file%.*}"                 # → photo
 new_file="${name}.png"            # → photo.png
 
-# 大文字・小文字変換（Bash 4+）
+# Uppercase/lowercase conversion (Bash 4+)
 str="Hello World"
-echo "${str^^}"                  # → HELLO WORLD（全て大文字）
-echo "${str,,}"                  # → hello world（全て小文字）
-echo "${str^}"                   # → Hello World（先頭のみ大文字）
-echo "${str,}"                   # → hello World（先頭のみ小文字）
+echo "${str^^}"                  # → HELLO WORLD (all uppercase)
+echo "${str,,}"                  # → hello world (all lowercase)
+echo "${str^}"                   # → Hello World (first character uppercase only)
+echo "${str,}"                   # → hello World (first character lowercase only)
 
-# デフォルト値
-echo ${undefined:-"default"}     # 未定義なら "default" を表示（代入はしない）
-echo ${undefined:="default"}     # 未定義なら "default" を代入して表示
-echo ${undefined:+"set"}         # 定義済みなら "set" を表示、未定義なら空
-echo ${undefined:?"error msg"}   # 未定義ならエラーメッセージを表示して終了
+# Default values
+echo ${undefined:-"default"}     # Display "default" if undefined (does not assign)
+echo ${undefined:="default"}     # Assign and display "default" if undefined
+echo ${undefined:+"set"}         # Display "set" if defined, empty if undefined
+echo ${undefined:?"error msg"}   # Display error message and exit if undefined
 
-# 実践: デフォルト値の利用
+# Practical: Using default values
 LOG_DIR="${LOG_DIR:-/var/log/myapp}"
 PORT="${PORT:-8080}"
 ENV="${ENV:-development}"
 echo "Starting on port $PORT in $ENV mode"
 
-# 変数の間接参照
+# Indirect variable reference
 var_name="PATH"
-echo "${!var_name}"              # → $PATH の内容を表示
-# env | grep "^${var_name}="    # 同等の処理
+echo "${!var_name}"              # → Display the contents of $PATH
+# env | grep "^${var_name}="    # Equivalent processing
 ```
 
-### 2.6 配列の基本（概要）
+### 2.6 Array Basics (Overview)
 
 ```bash
-# インデックス配列の基本（詳細は 01-advanced-scripting.md）
+# Indexed array basics (details in 01-advanced-scripting.md)
 fruits=("apple" "banana" "cherry")
 echo "${fruits[0]}"              # → apple
-echo "${fruits[@]}"              # → 全要素
-echo "${#fruits[@]}"             # → 3（要素数）
+echo "${fruits[@]}"              # → all elements
+echo "${#fruits[@]}"             # → 3 (number of elements)
 
-# 追加
+# Append
 fruits+=("date")
 
-# ループ
+# Loop
 for fruit in "${fruits[@]}"; do
     echo "$fruit"
 done
 
-# コマンドの出力を配列に格納
-mapfile -t lines < /etc/hosts    # ファイルの各行を配列に
-IFS=$'\n' read -d '' -ra output <<< "$(ls -1)"  # コマンド出力を配列に
+# Store command output in an array
+mapfile -t lines < /etc/hosts    # Each line of a file into an array
+IFS=$'\n' read -d '' -ra output <<< "$(ls -1)"  # Command output into an array
 ```
 
 ---
 
-## 3. 条件分岐
+## 3. Conditionals
 
-### 3.1 if 文の基本
+### 3.1 Basics of if Statements
 
 ```bash
-# if文の基本構文
+# Basic if statement syntax
 if [ "$name" = "Gaku" ]; then
     echo "Welcome, Gaku!"
 elif [ "$name" = "admin" ]; then
@@ -442,57 +442,57 @@ else
     echo "Who are you?"
 fi
 
-# [[ ]] 形式（bash拡張、推奨）
+# [[ ]] form (bash extension, recommended)
 if [[ "$name" == "Gaku" ]]; then
     echo "Match!"
 fi
 
-# [ ] と [[ ]] の違い
-# [ ] (test コマンド)
-#   - POSIX 準拠（sh でも使える）
-#   - 文字列比較は = を使用
-#   - 論理演算は -a, -o を使用
-#   - ワード分割が起こるため変数はクォート必須
+# Difference between [ ] and [[ ]]
+# [ ] (test command)
+#   - POSIX compliant (usable in sh)
+#   - Use = for string comparison
+#   - Use -a, -o for logical operations
+#   - Variables must be quoted because word splitting occurs
 #
-# [[ ]] (bash 拡張)
-#   - bash/zsh で使える（sh では不可）
-#   - 文字列比較は == を使用
-#   - 論理演算は &&, || を使用
-#   - ワード分割が起こらない（安全）
-#   - パターンマッチ・正規表現が使える
-#   - 推奨: 特にこだわりがなければ [[ ]] を使う
+# [[ ]] (bash extension)
+#   - Usable in bash/zsh (not in sh)
+#   - Use == for string comparison
+#   - Use &&, || for logical operations
+#   - No word splitting (safe)
+#   - Supports pattern matching and regular expressions
+#   - Recommended: Use [[ ]] unless you have a specific reason not to
 
-# 1行の条件分岐（短い場合に便利）
+# One-line conditionals (useful for short cases)
 [[ -f "$file" ]] && echo "File exists"
 [[ -f "$file" ]] || echo "File not found"
 [[ -d "$dir" ]] && cd "$dir" || echo "Directory not found"
 ```
 
-### 3.2 文字列の比較
+### 3.2 String Comparison
 
 ```bash
-# 文字列比較演算子
-[[ "$a" == "$b" ]]               # 等しい
-[[ "$a" != "$b" ]]               # 等しくない
-[[ -z "$str" ]]                  # 空文字列（zero length）
-[[ -n "$str" ]]                  # 空でない（non-zero length）
-[[ "$str" =~ ^[0-9]+$ ]]        # 正規表現マッチ
-[[ "$str" == pattern* ]]         # グロブパターンマッチ（* はワイルドカード）
+# String comparison operators
+[[ "$a" == "$b" ]]               # Equal
+[[ "$a" != "$b" ]]               # Not equal
+[[ -z "$str" ]]                  # Empty string (zero length)
+[[ -n "$str" ]]                  # Not empty (non-zero length)
+[[ "$str" =~ ^[0-9]+$ ]]        # Regular expression match
+[[ "$str" == pattern* ]]         # Glob pattern match (* is a wildcard)
 
-# 文字列の比較（辞書順）
-[[ "$a" < "$b" ]]                # a が辞書順で先
-[[ "$a" > "$b" ]]                # a が辞書順で後
+# String comparison (lexicographic order)
+[[ "$a" < "$b" ]]                # a comes first lexicographically
+[[ "$a" > "$b" ]]                # a comes after lexicographically
 
-# 正規表現マッチの詳細
+# Details of regular expression matching
 input="2025-01-15"
 if [[ "$input" =~ ^([0-9]{4})-([0-9]{2})-([0-9]{2})$ ]]; then
-    echo "Year:  ${BASH_REMATCH[0]}"   # → 2025-01-15（全体）
+    echo "Year:  ${BASH_REMATCH[0]}"   # → 2025-01-15 (whole match)
     echo "Year:  ${BASH_REMATCH[1]}"   # → 2025
     echo "Month: ${BASH_REMATCH[2]}"   # → 01
     echo "Day:   ${BASH_REMATCH[3]}"   # → 15
 fi
 
-# パターンマッチの例
+# Pattern matching examples
 filename="report_2025.csv"
 if [[ "$filename" == *.csv ]]; then
     echo "CSV file"
@@ -501,7 +501,7 @@ if [[ "$filename" == report_* ]]; then
     echo "Report file"
 fi
 
-# 空文字列チェックの実践
+# Practical: Empty string check
 validate_input() {
     local input="$1"
     if [[ -z "$input" ]]; then
@@ -512,18 +512,18 @@ validate_input() {
 }
 ```
 
-### 3.3 数値の比較
+### 3.3 Numeric Comparison
 
 ```bash
-# 数値比較演算子（[[ ]] 内で使用）
-[[ $a -eq $b ]]                  # 等しい（equal）
-[[ $a -ne $b ]]                  # 等しくない（not equal）
-[[ $a -lt $b ]]                  # より小さい（less than）
-[[ $a -gt $b ]]                  # より大きい（greater than）
-[[ $a -le $b ]]                  # 以下（less or equal）
-[[ $a -ge $b ]]                  # 以上（greater or equal）
+# Numeric comparison operators (used inside [[ ]])
+[[ $a -eq $b ]]                  # Equal
+[[ $a -ne $b ]]                  # Not equal
+[[ $a -lt $b ]]                  # Less than
+[[ $a -gt $b ]]                  # Greater than
+[[ $a -le $b ]]                  # Less than or equal
+[[ $a -ge $b ]]                  # Greater than or equal
 
-# (( )) 形式（数値演算専用。より直感的）
+# (( )) form (dedicated to numeric operations; more intuitive)
 if (( count > 10 )); then
     echo "Too many"
 fi
@@ -534,40 +534,40 @@ if (( score == 100 )); then
     echo "Perfect!"
 fi
 
-# (( )) の注意点
-# - 文字列比較はできない
-# - 変数名の $ は省略可能: (( count > 10 )) と (( $count > 10 )) は同じ
-# - 0 は偽、非0 は真: (( 0 )) → false, (( 1 )) → true
-# - 未定義変数は 0 として扱われる
+# Notes on (( ))
+# - Cannot be used for string comparison
+# - $ before variable name can be omitted: (( count > 10 )) and (( $count > 10 )) are the same
+# - 0 is false, non-zero is true: (( 0 )) → false, (( 1 )) → true
+# - Undefined variables are treated as 0
 ```
 
-### 3.4 ファイルの判定
+### 3.4 File Tests
 
 ```bash
-# ファイルの存在・種類
-[[ -f "$file" ]]                 # 通常ファイルが存在
-[[ -d "$dir" ]]                  # ディレクトリが存在
-[[ -e "$path" ]]                 # 存在する（種類問わず）
-[[ -L "$path" ]]                 # シンボリックリンク
-[[ -p "$path" ]]                 # 名前付きパイプ（FIFO）
-[[ -S "$path" ]]                 # ソケット
-[[ -b "$path" ]]                 # ブロックデバイス
-[[ -c "$path" ]]                 # キャラクタデバイス
+# File existence and type
+[[ -f "$file" ]]                 # Regular file exists
+[[ -d "$dir" ]]                  # Directory exists
+[[ -e "$path" ]]                 # Exists (any type)
+[[ -L "$path" ]]                 # Symbolic link
+[[ -p "$path" ]]                 # Named pipe (FIFO)
+[[ -S "$path" ]]                 # Socket
+[[ -b "$path" ]]                 # Block device
+[[ -c "$path" ]]                 # Character device
 
-# ファイルの属性
-[[ -r "$file" ]]                 # 読み取り可能
-[[ -w "$file" ]]                 # 書き込み可能
-[[ -x "$file" ]]                 # 実行可能
-[[ -s "$file" ]]                 # サイズが0でない
-[[ -O "$file" ]]                 # 現在のユーザーが所有者
-[[ -G "$file" ]]                 # 現在のグループが所有グループ
+# File attributes
+[[ -r "$file" ]]                 # Readable
+[[ -w "$file" ]]                 # Writable
+[[ -x "$file" ]]                 # Executable
+[[ -s "$file" ]]                 # Size is not 0
+[[ -O "$file" ]]                 # Current user is the owner
+[[ -G "$file" ]]                 # Current group is the owning group
 
-# ファイルの比較
-[[ "$file1" -nt "$file2" ]]     # file1 が新しい（newer than）
-[[ "$file1" -ot "$file2" ]]     # file1 が古い（older than）
-[[ "$file1" -ef "$file2" ]]     # 同じinode（同一ファイルかハードリンク）
+# File comparison
+[[ "$file1" -nt "$file2" ]]     # file1 is newer than file2
+[[ "$file1" -ot "$file2" ]]     # file1 is older than file2
+[[ "$file1" -ef "$file2" ]]     # Same inode (same file or hard link)
 
-# 実践: ファイル存在チェック付きの処理
+# Practical: Processing with file existence check
 config_file="/etc/myapp/config.yml"
 if [[ ! -f "$config_file" ]]; then
     echo "Error: Config file not found: $config_file" >&2
@@ -579,7 +579,7 @@ if [[ ! -r "$config_file" ]]; then
 fi
 echo "Loading config from $config_file..."
 
-# ディレクトリの作成（存在しない場合のみ）
+# Create directory (only if it does not exist)
 log_dir="/var/log/myapp"
 if [[ ! -d "$log_dir" ]]; then
     mkdir -p "$log_dir"
@@ -587,38 +587,38 @@ if [[ ! -d "$log_dir" ]]; then
 fi
 ```
 
-### 3.5 論理演算
+### 3.5 Logical Operations
 
 ```bash
-# [[ ]] 内の論理演算
+# Logical operations inside [[ ]]
 [[ $a -gt 0 && $a -lt 100 ]]    # AND
 [[ $a -eq 0 || $a -eq 1 ]]      # OR
 [[ ! -f "$file" ]]               # NOT
 
-# 複数条件の組み合わせ
+# Combining multiple conditions
 if [[ -f "$file" && -r "$file" && -s "$file" ]]; then
     echo "File exists, is readable, and is not empty"
 fi
 
-# 条件の優先順位（グルーピング）
+# Condition priority (grouping)
 if [[ ( $a -gt 0 && $a -lt 10 ) || $a -eq 100 ]]; then
     echo "a is 1-9 or 100"
 fi
 
-# コマンドの論理演算
-command1 && command2             # command1 が成功したら command2 を実行
-command1 || command2             # command1 が失敗したら command2 を実行
-command1 && command2 || command3 # 成功なら command2、失敗なら command3
+# Logical operations on commands
+command1 && command2             # Run command2 if command1 succeeds
+command1 || command2             # Run command2 if command1 fails
+command1 && command2 || command3 # command2 on success, command3 on failure
 
-# 実践パターン
+# Practical patterns
 cd "$dir" && echo "Moved to $dir" || echo "Failed to move to $dir"
 grep -q "pattern" "$file" && echo "Found" || echo "Not found"
 ```
 
-### 3.6 case 文
+### 3.6 case Statements
 
 ```bash
-# case文の基本
+# Basic case statement
 case "$1" in
     start)
         echo "Starting..."
@@ -635,7 +635,7 @@ case "$1" in
         ;;
 esac
 
-# パターンマッチの活用
+# Using pattern matching
 case "$filename" in
     *.tar.gz|*.tgz)
         tar xzf "$filename"
@@ -657,7 +657,7 @@ case "$filename" in
         ;;
 esac
 
-# case の高度なパターン
+# Advanced patterns in case
 case "$input" in
     [0-9])
         echo "Single digit"
@@ -676,7 +676,7 @@ case "$input" in
         ;;
 esac
 
-# yes/no の確認プロンプト
+# yes/no confirmation prompt
 read -p "Continue? [y/N] " response
 case "$response" in
     [yY]|[yY][eE][sS])
@@ -688,10 +688,10 @@ case "$response" in
         ;;
 esac
 
-# Bash 4+ の case: ;& と ;;&
-# ;; → マッチしたら case を終了（通常の動作）
-# ;& → 次のパターンも無条件で実行（C の fall-through）
-# ;;& → 次のパターンもチェックして実行（続行チェック）
+# Bash 4+ case: ;& and ;;&
+# ;; → Exit case when matched (normal behavior)
+# ;& → Also execute the next pattern unconditionally (C-style fall-through)
+# ;;& → Also check the next pattern and execute (continue checking)
 case "$level" in
     critical)
         echo "Paging on-call"
@@ -705,10 +705,10 @@ case "$level" in
 esac
 ```
 
-### 3.7 条件分岐の実践パターン
+### 3.7 Practical Conditional Patterns
 
 ```bash
-# パターン1: コマンドの存在チェック
+# Pattern 1: Check if a command exists
 if command -v docker &>/dev/null; then
     echo "Docker is installed"
 else
@@ -716,7 +716,7 @@ else
     exit 1
 fi
 
-# パターン2: OS判定
+# Pattern 2: OS detection
 case "$(uname -s)" in
     Linux)
         echo "Running on Linux"
@@ -734,7 +734,7 @@ case "$(uname -s)" in
         ;;
 esac
 
-# パターン3: 数値の範囲判定
+# Pattern 3: Numeric range validation
 validate_port() {
     local port="$1"
     if ! [[ "$port" =~ ^[0-9]+$ ]]; then
@@ -751,7 +751,7 @@ validate_port() {
     return 0
 }
 
-# パターン4: 複数条件のバリデーション
+# Pattern 4: Multi-condition validation
 validate_config() {
     local errors=0
 
@@ -778,148 +778,148 @@ validate_config() {
 
 ---
 
-## 4. ループ
+## 4. Loops
 
-### 4.1 for ループ
+### 4.1 for Loops
 
 ```bash
-# 基本的な for ループ
+# Basic for loop
 for i in 1 2 3 4 5; do
     echo "Number: $i"
 done
 
-# C言語風 for
+# C-style for
 for ((i = 0; i < 10; i++)); do
     echo "Index: $i"
 done
 
-# 範囲指定（brace expansion）
-for i in {1..10}; do             # 1〜10
+# Range specification (brace expansion)
+for i in {1..10}; do             # 1 to 10
     echo "$i"
 done
-for i in {0..100..5}; do         # 0〜100, 5刻み
+for i in {0..100..5}; do         # 0 to 100 in steps of 5
     echo "$i"
 done
-for letter in {a..z}; do         # a〜z
+for letter in {a..z}; do         # a to z
     echo "$letter"
 done
 
-# seq コマンド（変数で範囲指定が必要な場合）
+# seq command (when you need to specify a range with a variable)
 max=10
 for i in $(seq 1 "$max"); do
     echo "$i"
 done
-for i in $(seq 0 5 100); do     # 0から100まで5刻み
+for i in $(seq 0 5 100); do     # 0 to 100 in steps of 5
     echo "$i"
 done
 
-# ファイルに対するループ
+# Loop over files
 for file in *.txt; do
     echo "Processing: $file"
 done
 
-# 複数のパターン
+# Multiple patterns
 for file in *.txt *.csv *.json; do
     echo "File: $file"
 done
 
-# パターンにマッチするファイルがない場合の対策
-shopt -s nullglob               # マッチしない場合は空に展開
+# Handling the case where no files match the pattern
+shopt -s nullglob               # Expand to empty if no match
 for file in *.txt; do
     echo "Processing: $file"
 done
-shopt -u nullglob               # 元に戻す
+shopt -u nullglob               # Restore to default
 
-# コマンド出力に対するループ
+# Loop over command output
 for user in $(cut -d: -f1 /etc/passwd); do
     echo "User: $user"
 done
 
-# 配列のループ
+# Array loop
 servers=("web1" "web2" "web3" "db1")
 for server in "${servers[@]}"; do
     echo "Checking: $server"
 done
 
-# 引数のループ
+# Loop over arguments
 for arg in "$@"; do
     echo "Argument: $arg"
 done
 
-# インデックス付きのループ
+# Loop with index
 items=("apple" "banana" "cherry")
 for i in "${!items[@]}"; do
     echo "$i: ${items[$i]}"
 done
 ```
 
-### 4.2 while ループ
+### 4.2 while Loops
 
 ```bash
-# 基本的な while ループ
+# Basic while loop
 count=0
 while [[ $count -lt 5 ]]; do
     echo "Count: $count"
     ((count++))
 done
 
-# 無限ループ
+# Infinite loop
 while true; do
     echo "Running..."
     sleep 1
-    # break で脱出
+    # Exit with break
 done
 
-# (( )) を使った while
+# while using (( ))
 n=1
 while (( n <= 100 )); do
     echo "$n"
     (( n++ ))
 done
 
-# ファイルを1行ずつ読む（重要パターン）
+# Read a file line by line (important pattern)
 while IFS= read -r line; do
     echo "Line: $line"
 done < input.txt
 
-# IFS= と -r の意味
-# IFS=  → 先頭と末尾の空白を保持する
-# -r    → バックスラッシュを特殊文字として扱わない
-# この組み合わせで行を正確に読み取る
+# Meaning of IFS= and -r
+# IFS=  → Preserve leading and trailing whitespace
+# -r    → Do not treat backslash as a special character
+# This combination reads lines accurately
 
-# パイプからの読み取り（サブシェルに注意）
-# NG: パイプの右側はサブシェルなので変数が残らない
+# Reading from a pipe (beware of subshells)
+# NG: The right side of a pipe is a subshell, so variables are not preserved
 count=0
 cat file.txt | while read -r line; do
     ((count++))
 done
-echo "Count: $count"  # → 0（サブシェル内の変数は失われる）
+echo "Count: $count"  # → 0 (variables inside the subshell are lost)
 
-# OK: リダイレクトを使う
+# OK: Use redirection
 count=0
 while read -r line; do
     ((count++))
 done < file.txt
-echo "Count: $count"  # → 正しい値
+echo "Count: $count"  # → correct value
 
-# OK: プロセス置換を使う
+# OK: Use process substitution
 count=0
 while read -r line; do
     ((count++))
 done < <(cat file.txt)
-echo "Count: $count"  # → 正しい値
+echo "Count: $count"  # → correct value
 
-# CSVファイルの処理
+# Processing a CSV file
 while IFS=',' read -r name age city; do
     echo "Name: $name, Age: $age, City: $city"
 done < data.csv
 
-# /etc/passwd の処理
+# Processing /etc/passwd
 while IFS=':' read -r user _ uid gid _ home shell; do
     echo "User: $user (UID: $uid, Home: $home)"
 done < /etc/passwd
 
-# コマンド出力を行単位で処理
+# Process command output line by line
 while read -r pid user cpu mem command; do
     if (( $(echo "$cpu > 50" | bc -l) )); then
         echo "High CPU: $command ($cpu%)"
@@ -927,24 +927,24 @@ while read -r pid user cpu mem command; do
 done < <(ps aux --no-headers)
 ```
 
-### 4.3 until ループ
+### 4.3 until Loops
 
 ```bash
-# until ループ（条件が真になるまで繰り返す）
+# until loop (repeats until condition becomes true)
 until ping -c1 server.com &>/dev/null; do
     echo "Waiting for server..."
     sleep 5
 done
 echo "Server is up!"
 
-# サービスの起動待ち
+# Wait for service to start
 until curl -s http://localhost:8080/health > /dev/null 2>&1; do
     echo "Waiting for application to start..."
     sleep 2
 done
 echo "Application is ready!"
 
-# タイムアウト付き待機
+# Wait with timeout
 timeout=60
 elapsed=0
 until docker ps | grep -q "my-container"; do
@@ -959,42 +959,42 @@ done
 echo "Container is running!"
 ```
 
-### 4.4 ループ制御
+### 4.4 Loop Control
 
 ```bash
 # break / continue
 for i in {1..10}; do
-    [[ $i -eq 3 ]] && continue   # 3をスキップ
-    [[ $i -eq 8 ]] && break      # 8で終了
+    [[ $i -eq 3 ]] && continue   # Skip 3
+    [[ $i -eq 8 ]] && break      # Exit at 8
     echo "$i"
 done
-# 出力: 1 2 4 5 6 7
+# Output: 1 2 4 5 6 7
 
-# ネストされたループでの break/continue
+# break/continue in nested loops
 for i in {1..3}; do
     for j in {1..3}; do
         if (( i == 2 && j == 2 )); then
-            break 2              # 外側のループも break（数字で深さ指定）
+            break 2              # Also break the outer loop (specify depth with a number)
         fi
         echo "$i,$j"
     done
 done
 
-# continue でもネストの深さを指定可能
+# Specifying nesting depth with continue is also possible
 for i in {1..3}; do
     for j in {1..3}; do
         if (( j == 2 )); then
-            continue 2           # 外側のループの次のイテレーションへ
+            continue 2           # Go to the next iteration of the outer loop
         fi
         echo "$i,$j"
     done
 done
 ```
 
-### 4.5 ループの実践パターン
+### 4.5 Practical Loop Patterns
 
 ```bash
-# パターン1: リトライ処理
+# Pattern 1: Retry processing
 max_retries=5
 retry_count=0
 until some_command; do
@@ -1004,17 +1004,17 @@ until some_command; do
         exit 1
     fi
     echo "Retry $retry_count/$max_retries..."
-    sleep $(( retry_count * 2 ))  # 指数バックオフ
+    sleep $(( retry_count * 2 ))  # Exponential backoff
 done
 
-# パターン2: ファイルの一括処理（find + while）
+# Pattern 2: Bulk file processing (find + while)
 find /var/log -name "*.log" -mtime +30 -print0 | while IFS= read -r -d '' file; do
     echo "Compressing: $file"
     gzip "$file"
 done
-# -print0 と -d '' でファイル名のスペース・改行に対応
+# -print0 and -d '' handle spaces and newlines in filenames
 
-# パターン3: プログレスバー
+# Pattern 3: Progress bar
 total=100
 for ((i = 1; i <= total; i++)); do
     percent=$(( i * 100 / total ))
@@ -1024,7 +1024,7 @@ for ((i = 1; i <= total; i++)); do
 done
 echo ""
 
-# パターン4: メニューの表示（select）
+# Pattern 4: Menu display (select)
 PS3="Select an option: "
 select opt in "Start" "Stop" "Status" "Quit"; do
     case "$opt" in
@@ -1036,12 +1036,12 @@ select opt in "Start" "Stop" "Status" "Quit"; do
     esac
 done
 
-# パターン5: ディレクトリの再帰処理
+# Pattern 5: Recursive directory processing
 process_dir() {
     local dir="$1"
     for item in "$dir"/*; do
         if [[ -d "$item" ]]; then
-            process_dir "$item"     # 再帰呼び出し
+            process_dir "$item"     # Recursive call
         elif [[ -f "$item" ]]; then
             echo "File: $item"
         fi
@@ -1052,14 +1052,14 @@ process_dir "/path/to/start"
 
 ---
 
-## 5. 関数
+## 5. Functions
 
-### 5.1 関数の定義と呼び出し
+### 5.1 Defining and Calling Functions
 
 ```bash
-# 関数定義（2つの書き方）
+# Function definition (two ways)
 greet() {
-    local name="$1"              # local: 関数内変数
+    local name="$1"              # local: function-local variable
     echo "Hello, $name!"
 }
 
@@ -1068,11 +1068,11 @@ function greet2 {
     echo "Hi, $name!"
 }
 
-# 呼び出し
+# Calling
 greet "Gaku"                     # → Hello, Gaku!
 greet2 "World"                   # → Hi, World!
 
-# 関数の引数
+# Function arguments
 show_args() {
     echo "Function name: $FUNCNAME"
     echo "Argument count: $#"
@@ -1083,15 +1083,15 @@ show_args() {
 show_args "hello" "world" "foo"
 ```
 
-### 5.2 戻り値
+### 5.2 Return Values
 
 ```bash
-# return で終了ステータスを返す（0=成功、1-255=失敗）
+# return sends an exit status (0=success, 1-255=failure)
 is_even() {
     if (( $1 % 2 == 0 )); then
-        return 0                 # 成功（真）
+        return 0                 # Success (true)
     else
-        return 1                 # 失敗（偽）
+        return 1                 # Failure (false)
     fi
 }
 
@@ -1099,56 +1099,56 @@ if is_even 4; then
     echo "4 is even"
 fi
 
-# 値を返す（stdout 経由）
+# Returning a value (via stdout)
 get_timestamp() {
     date +%Y%m%d_%H%M%S
 }
 ts=$(get_timestamp)
 echo "Timestamp: $ts"
 
-# 複数の値を返す
+# Returning multiple values
 get_dimensions() {
     local file="$1"
     local width=$(identify -format "%w" "$file" 2>/dev/null)
     local height=$(identify -format "%h" "$file" 2>/dev/null)
-    echo "$width $height"        # スペース区切りで出力
+    echo "$width $height"        # Output space-separated
 }
 read -r width height <<< "$(get_dimensions photo.jpg)"
 echo "Width: $width, Height: $height"
 
-# 配列を返す（改行区切り）
+# Returning an array (newline-separated)
 list_users() {
     cut -d: -f1 /etc/passwd | sort
 }
 mapfile -t users < <(list_users)
 echo "Total users: ${#users[@]}"
 
-# グローバル変数で結果を返す（非推奨だが知っておくべき）
+# Returning results via global variable (not recommended, but good to know)
 calculate() {
-    RESULT=$(( $1 + $2 ))        # グローバル変数
+    RESULT=$(( $1 + $2 ))        # Global variable
 }
 calculate 3 5
 echo "Result: $RESULT"           # → 8
 ```
 
-### 5.3 local 変数とスコープ
+### 5.3 Local Variables and Scope
 
 ```bash
-# local を使わないと全てグローバル
+# Without local, everything is global
 bad_function() {
-    x=100                        # グローバル！
+    x=100                        # Global!
 }
 bad_function
-echo "$x"                        # → 100（関数外でもアクセス可能）
+echo "$x"                        # → 100 (accessible outside the function)
 
-# local で関数内に閉じ込める
+# Confined to the function with local
 good_function() {
-    local x=100                  # 関数内のみ
+    local x=100                  # Inside function only
 }
 good_function
-echo "$x"                        # → （空。アクセスできない）
+echo "$x"                        # → (empty; not accessible)
 
-# 実践: 常に local を使う
+# Practical: Always use local
 process_file() {
     local file="$1"
     local content
@@ -1160,9 +1160,9 @@ process_file() {
     echo "File: $file ($line_count lines)"
 }
 
-# nameref（Bash 4.3+）— 参照渡し
+# nameref (Bash 4.3+) — pass by reference
 set_value() {
-    local -n ref=$1              # nameref: 呼び出し元の変数を参照
+    local -n ref=$1              # nameref: references the caller's variable
     ref="new value"
 }
 my_var="old value"
@@ -1170,10 +1170,10 @@ set_value my_var
 echo "$my_var"                   # → new value
 ```
 
-### 5.4 エラーハンドリング付き関数
+### 5.4 Functions with Error Handling
 
 ```bash
-# エラーハンドリング付き関数
+# Function with error handling
 safe_cd() {
     local dir="$1"
     if [[ ! -d "$dir" ]]; then
@@ -1183,16 +1183,16 @@ safe_cd() {
     cd "$dir" || return 1
 }
 
-# die 関数（スクリプト全体を終了する場合）
+# die function (when terminating the entire script)
 die() {
     echo "FATAL: $*" >&2
     exit 1
 }
 
-# 使用例
+# Usage example
 safe_cd "/opt/myapp" || die "Cannot access application directory"
 
-# バリデーション関数
+# Validation function
 require_command() {
     local cmd="$1"
     if ! command -v "$cmd" &>/dev/null; then
@@ -1203,10 +1203,10 @@ require_command "docker"
 require_command "git"
 require_command "jq"
 
-# ファイル操作の安全なラッパー
+# Safe wrapper for file operations
 safe_rm() {
     local target="$1"
-    # 危険なパスを拒否
+    # Reject dangerous paths
     case "$target" in
         /|/home|/usr|/var|/etc|/tmp)
             die "Refusing to delete critical directory: $target"
@@ -1221,10 +1221,10 @@ safe_rm() {
 }
 ```
 
-### 5.5 関数の実践パターン
+### 5.5 Practical Function Patterns
 
 ```bash
-# パターン1: ログ出力関数群
+# Pattern 1: Logging function group
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[0;33m'
@@ -1236,7 +1236,7 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $(date '+%H:%M:%S') $*" >&2; }
 log_error() { echo -e "${RED}[ERROR]${NC} $(date '+%H:%M:%S') $*" >&2; }
 log_debug() { [[ "${DEBUG:-0}" == "1" ]] && echo -e "${BLUE}[DEBUG]${NC} $(date '+%H:%M:%S') $*"; }
 
-# パターン2: 確認プロンプト
+# Pattern 2: Confirmation prompt
 confirm() {
     local message="${1:-Continue?}"
     local default="${2:-n}"
@@ -1254,12 +1254,12 @@ confirm() {
     [[ "$response" =~ ^[yY] ]]
 }
 
-# 使用例
+# Usage example
 if confirm "Delete all logs?"; then
     rm -rf /var/log/myapp/*
 fi
 
-# パターン3: スピナー表示
+# Pattern 3: Spinner display
 spinner() {
     local pid=$1
     local spin='|/-\'
@@ -1271,12 +1271,12 @@ spinner() {
     printf "\r"
 }
 
-# 使用例
+# Usage example
 long_process &
 spinner $!
 wait $!
 
-# パターン4: タイムアウト付きの関数
+# Pattern 4: Function with timeout
 wait_for_port() {
     local host="$1"
     local port="$2"
@@ -1300,37 +1300,37 @@ wait_for_port "localhost" 5432 60 || die "Database not available"
 
 ---
 
-## 6. 入出力
+## 6. Input/Output
 
-### 6.1 標準入力の読み取り
+### 6.1 Reading Standard Input
 
 ```bash
-# 基本的な読み取り
+# Basic reading
 read -p "Enter your name: " name
-read -sp "Enter password: " password    # -s: 非表示
-echo ""                                  # 改行（-s は改行を出力しない）
-read -t 10 -p "Quick! " answer          # -t: タイムアウト（秒）
-read -r line                             # -r: バックスラッシュを特殊扱いしない
-read -n 1 -p "Press any key..." key     # -n: 指定文字数で自動確定
+read -sp "Enter password: " password    # -s: hidden input
+echo ""                                  # Newline (-s does not output a newline)
+read -t 10 -p "Quick! " answer          # -t: timeout (seconds)
+read -r line                             # -r: do not treat backslash as special
+read -n 1 -p "Press any key..." key     # -n: automatically confirm after specified characters
 
-# 複数の変数に分割して読む
+# Read multiple variables by splitting
 echo "John 25 Tokyo" | read -r name age city
-# ↑ パイプだとサブシェルになるので注意
+# ↑ Note: pipe creates a subshell
 
-# 正しいやり方
+# Correct way
 read -r name age city <<< "John 25 Tokyo"
 echo "$name is $age years old from $city"
 
-# 配列として読み取り
+# Read as an array
 read -ra words <<< "hello world foo bar"
 echo "${words[0]}"               # → hello
 echo "${words[2]}"               # → foo
 
-# デフォルト値付きの入力
+# Input with default value
 read -p "Port [8080]: " port
 port="${port:-8080}"
 
-# 入力のバリデーション
+# Input validation
 while true; do
     read -p "Enter a number (1-100): " num
     if [[ "$num" =~ ^[0-9]+$ ]] && (( num >= 1 && num <= 100 )); then
@@ -1341,71 +1341,71 @@ done
 echo "You entered: $num"
 ```
 
-### 6.2 リダイレクト
+### 6.2 Redirection
 
 ```bash
-# 基本的なリダイレクト
-echo "hello" > file.txt          # 上書き（ファイルが存在すれば消去して書き込み）
-echo "world" >> file.txt         # 追記
-command 2> error.log             # 標準エラーをファイルへ
-command > out.log 2>&1           # 標準出力と標準エラーの両方をファイルへ
-command &> both.log              # 同上（bash省略形）
-command > /dev/null 2>&1         # 全出力を捨てる
-command &>/dev/null              # 同上（bash省略形）
+# Basic redirection
+echo "hello" > file.txt          # Overwrite (clears and writes if file exists)
+echo "world" >> file.txt         # Append
+command 2> error.log             # Standard error to file
+command > out.log 2>&1           # Both stdout and stderr to file
+command &> both.log              # Same (bash shorthand)
+command > /dev/null 2>&1         # Discard all output
+command &>/dev/null              # Same (bash shorthand)
 
-# ファイルディスクリプタ
-# 0 = stdin（標準入力）
-# 1 = stdout（標準出力）
-# 2 = stderr（標準エラー）
+# File descriptors
+# 0 = stdin (standard input)
+# 1 = stdout (standard output)
+# 2 = stderr (standard error)
 
-# 標準エラーのみ表示（標準出力は捨てる）
-command > /dev/null              # stdout だけ捨てる
-command 2>/dev/null              # stderr だけ捨てる
+# Show only standard error (discard standard output)
+command > /dev/null              # Discard only stdout
+command 2>/dev/null              # Discard only stderr
 
-# 標準出力と標準エラーを別ファイルに
+# Send stdout and stderr to separate files
 command > stdout.log 2> stderr.log
 
-# 標準出力と標準エラーを入れ替え
-command 3>&1 1>&2 2>&3           # stdout ↔ stderr を入れ替え
+# Swap stdout and stderr
+command 3>&1 1>&2 2>&3           # Swap stdout ↔ stderr
 
-# 追加のファイルディスクリプタ
-exec 3> output.log               # FD3 を output.log に割り当て
-echo "Log message" >&3           # FD3 に書き込み
-exec 3>&-                        # FD3 を閉じる
+# Additional file descriptors
+exec 3> output.log               # Assign FD3 to output.log
+echo "Log message" >&3           # Write to FD3
+exec 3>&-                        # Close FD3
 
-# 入力リダイレクト
-command < input.txt              # ファイルからの入力
-sort < unsorted.txt > sorted.txt # 入力と出力のリダイレクト
+# Input redirection
+command < input.txt              # Input from file
+sort < unsorted.txt > sorted.txt # Redirect both input and output
 
-# noclobber（上書き防止）
-set -o noclobber                 # > での上書きを禁止
-echo "test" > existing_file      # → エラー
-echo "test" >| existing_file     # >| で強制上書き
-set +o noclobber                 # 解除
+# noclobber (prevent overwriting)
+set -o noclobber                 # Prohibit overwriting with >
+echo "test" > existing_file      # → Error
+echo "test" >| existing_file     # >| forces overwrite
+set +o noclobber                 # Disable
 
-# tee コマンド（画面とファイルの両方に出力）
-command | tee output.log         # stdout に表示しつつファイルにも保存
-command | tee -a output.log      # 追記モード
-command 2>&1 | tee output.log    # stderr も含めて
+# tee command (output to both screen and file)
+command | tee output.log         # Display on stdout and save to file
+command | tee -a output.log      # Append mode
+command 2>&1 | tee output.log    # Including stderr
 ```
 
-### 6.3 ヒアドキュメント
+### 6.3 Heredocs
 
 ```bash
-# ヒアドキュメント（変数展開あり）
+# Heredoc (with variable expansion)
 cat <<EOF
 Hello, $name!
 Today is $(date).
 Your home directory is $HOME
 EOF
 
-# ヒアドキュメント（変数展開なし）
+# Heredoc (without variable expansion)
 cat <<'EOF'
-$name は展開されない
-$(date) も展開されない
+$name is not expanded
+$(date) is not expanded either
 EOF
 
-# ヒアドキュメントでファイルを作成
+# Create a file with a heredoc
 cat > /tmp/config.ini <<EOF
 [database]
 host=$DB_HOST
@@ -1413,16 +1413,16 @@ port=$DB_PORT
 name=$DB_NAME
 EOF
 
-# インデント付きヒアドキュメント（<<- でタブを除去）
+# Heredoc with indentation (<<- removes tabs)
 if true; then
     cat <<-EOF
 	Hello, $name!
 	This is indented with tabs.
 	EOF
 fi
-# 注意: <<- はタブのみ除去。スペースは除去されない
+# Note: <<- only removes tabs; spaces are not removed
 
-# ヒアストリング（1行の入力）
+# Here string (single-line input)
 grep "pattern" <<< "$variable"
 read -r first rest <<< "hello world foo"
 echo "$first"                    # → hello
@@ -1430,7 +1430,7 @@ echo "$rest"                     # → world foo
 
 bc <<< "10 * 20 + 5"            # → 205
 
-# 実践: SSH でリモートコマンド実行
+# Practical: Execute remote commands via SSH
 ssh user@server <<'REMOTE'
 cd /opt/myapp
 git pull
@@ -1438,135 +1438,135 @@ npm install
 pm2 restart all
 REMOTE
 
-# 実践: SQL の実行
+# Practical: Execute SQL
 mysql -u root -p"$DB_PASS" <<EOF
 USE mydb;
 SELECT COUNT(*) FROM users WHERE active = 1;
 EOF
 ```
 
-### 6.4 パイプとプロセス置換
+### 6.4 Pipes and Process Substitution
 
 ```bash
-# パイプ（コマンドの出力を次のコマンドの入力に）
-ls -la | sort -k5 -n            # ファイルサイズ順にソート
-cat access.log | grep "404" | wc -l  # 404 エラーの数
+# Pipe (output of one command becomes input of the next)
+ls -la | sort -k5 -n            # Sort by file size
+cat access.log | grep "404" | wc -l  # Count 404 errors
 
-# 名前付きパイプ（FIFO）
+# Named pipes (FIFO)
 mkfifo /tmp/mypipe
 command1 > /tmp/mypipe &
 command2 < /tmp/mypipe
 rm /tmp/mypipe
 
-# プロセス置換（一時ファイルの代わり）
-diff <(ls dir1) <(ls dir2)       # 2つのディレクトリの内容を比較
-diff <(sort file1) <(sort file2) # ソートしながら比較
+# Process substitution (replaces temporary files)
+diff <(ls dir1) <(ls dir2)       # Compare contents of two directories
+diff <(sort file1) <(sort file2) # Compare while sorting
 
-# 実践: 2つのコマンドの出力を比較
+# Practical: Compare output of two commands
 diff <(ssh server1 "cat /etc/nginx/nginx.conf") \
      <(ssh server2 "cat /etc/nginx/nginx.conf")
 
-# プロセス置換で複数の出力先
+# Multiple output destinations with process substitution
 tee >(gzip > output.gz) >(wc -l > count.txt) < input.txt
 
-# パイプのステータス（PIPESTATUS 配列）
+# Pipe status (PIPESTATUS array)
 false | true | false
-echo "${PIPESTATUS[@]}"          # → 1 0 1（各コマンドの終了ステータス）
+echo "${PIPESTATUS[@]}"          # → 1 0 1 (exit status of each command)
 ```
 
 ---
 
-## 7. デバッグ
+## 7. Debugging
 
-### 7.1 デバッグオプション
+### 7.1 Debug Options
 
 ```bash
-# set -x: 実行コマンドを表示（最も重要なデバッグツール）
+# set -x: Display executed commands (the most important debugging tool)
 set -x
-echo "hello"                     # + echo hello が表示される
-set +x                          # デバッグ表示を終了
+echo "hello"                     # + echo hello is displayed
+set +x                          # End debug output
 
-# スクリプト全体をデバッグモードで実行
+# Run the entire script in debug mode
 bash -x script.sh
 
-# 部分的なデバッグ
+# Partial debugging
 set -x
-# デバッグしたい処理
+# Processing you want to debug
 problematic_function
 set +x
 
-# set -v: コマンドを読み取り時に表示（展開前の状態）
+# set -v: Display commands when read (before expansion)
 set -v
-echo "$HOME"                     # echo "$HOME" が表示される（展開前）
+echo "$HOME"                     # echo "$HOME" is displayed (before expansion)
 set +v
 
-# PS4 でデバッグ出力をカスタマイズ
+# Customize debug output with PS4
 export PS4='+ ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -x
-# 出力例: + script.sh:25: main(): echo hello
+# Example output: + script.sh:25: main(): echo hello
 
-# BASH_XTRACEFD でデバッグ出力を別ファイルに
+# Write debug output to a separate file with BASH_XTRACEFD
 exec 4> /tmp/debug.log
 export BASH_XTRACEFD=4
 set -x
-# デバッグ出力は /tmp/debug.log に書き込まれる
-# stdout/stderr は通常通り画面に表示
+# Debug output is written to /tmp/debug.log
+# stdout/stderr are displayed on screen as usual
 ```
 
-### 7.2 エラーのトラブルシューティング
+### 7.2 Error Troubleshooting
 
 ```bash
-# よくあるエラーと対処法
+# Common errors and how to handle them
 
 # 1. "unexpected end of file"
-#    → if, while, for, case の閉じ忘れ
-#    → クォートの閉じ忘れ
+#    → Forgot to close if, while, for, case
+#    → Forgot to close a quote
 
 # 2. "command not found"
-#    → PATH の確認: echo $PATH
-#    → 実行権限の確認: ls -la script.sh
-#    → シバンの確認
+#    → Check PATH: echo $PATH
+#    → Check execute permission: ls -la script.sh
+#    → Check shebang
 
 # 3. "unbound variable"
-#    → set -u を使用中に未定義変数を参照
-#    → デフォルト値を設定: ${var:-default}
+#    → Referenced an undefined variable while using set -u
+#    → Set a default value: ${var:-default}
 
 # 4. "ambiguous redirect"
-#    → 変数が空の場合: > $file → > "" になる
-#    → クォート: > "$file"
+#    → When the variable is empty: > $file → > "" occurs
+#    → Use quotes: > "$file"
 
 # 5. "too many arguments"
-#    → [ ] 内でクォートなしの変数
-#    → [[ ]] を使う
+#    → Unquoted variable inside [ ]
+#    → Use [[ ]]
 
-# シンタックスチェック（実行せずに文法確認）
-bash -n script.sh                # 文法エラーのみ検出
+# Syntax check (check grammar without executing)
+bash -n script.sh                # Detect only syntax errors
 
-# ShellCheck（静的解析ツール。強力に推奨）
+# ShellCheck (static analysis tool; highly recommended)
 # brew install shellcheck
-shellcheck script.sh             # 潜在的な問題を検出
-shellcheck -s bash script.sh     # bash 方言を指定
-shellcheck -e SC2086 script.sh   # 特定の警告を除外
+shellcheck script.sh             # Detect potential issues
+shellcheck -s bash script.sh     # Specify bash dialect
+shellcheck -e SC2086 script.sh   # Exclude specific warnings
 
-# ShellCheck が検出する典型的な問題
+# Typical issues detected by ShellCheck
 # SC2086: Double quote to prevent globbing and word splitting
 # SC2034: Variable appears unused
 # SC2046: Quote this to prevent word splitting
 # SC2016: Expressions don't expand in single quotes
 ```
 
-### 7.3 デバッグの実践テクニック
+### 7.3 Practical Debugging Techniques
 
 ```bash
-# トラップで実行行を表示
+# Show executing line with a trap
 trap 'echo "DEBUG: Line $LINENO: $BASH_COMMAND"' DEBUG
 
-# 関数のトレース
+# Function trace
 func_trace() {
     echo "TRACE: ${FUNCNAME[1]}() called from line ${BASH_LINENO[0]}"
 }
 
-# 変数の状態を確認するヘルパー
+# Helper to check variable state
 dump_vars() {
     echo "=== Variable Dump ==="
     echo "PWD=$PWD"
@@ -1575,58 +1575,58 @@ dump_vars() {
     echo "===================="
 }
 
-# タイミング情報付きデバッグ
+# Debug with timing information
 debug_time() {
     echo "[$(date '+%H:%M:%S.%N')] $*" >&2
 }
 
-# 実践: 問題の切り分け
-# 1. まず bash -n で文法チェック
-# 2. bash -x で実行トレース
-# 3. shellcheck で静的解析
-# 4. 問題箇所の前後に echo を入れて変数値を確認
-# 5. set -x / set +x で部分的にデバッグ
+# Practical: Isolating the problem
+# 1. First, syntax check with bash -n
+# 2. Execution trace with bash -x
+# 3. Static analysis with shellcheck
+# 4. Add echo before and after the problematic part to check variable values
+# 5. Partial debug with set -x / set +x
 ```
 
 ---
 
-## 8. 実践的なスクリプトテンプレート
+## 8. Practical Script Templates
 
-### 8.1 堅牢なスクリプトのテンプレート
+### 8.1 Robust Script Template
 
 ```bash
 #!/usr/bin/env bash
 #
-# スクリプト名: template.sh
-# 説明: 堅牢なスクリプトのテンプレート
-# 使い方: ./template.sh [OPTIONS] ARG
+# Script name: template.sh
+# Description: Template for a robust script
+# Usage: ./template.sh [OPTIONS] ARG
 #
 
 set -euo pipefail
 
-# 定数
+# Constants
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 readonly VERSION="1.0.0"
 
-# デフォルト値
+# Default values
 VERBOSE=false
 DRY_RUN=false
 OUTPUT_DIR="."
 
-# 色定義
+# Color definitions
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[0;33m'
 readonly NC='\033[0m'
 
-# ── ログ関数 ──
+# ── Logging functions ──
 log_info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
 log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*" >&2; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 die()       { log_error "$@"; exit 1; }
 
-# ── クリーンアップ ──
+# ── Cleanup ──
 TMPDIR=""
 cleanup() {
     local exit_code=$?
@@ -1637,20 +1637,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# ── ヘルプ ──
+# ── Help ──
 usage() {
     cat <<EOF
 Usage: $SCRIPT_NAME [OPTIONS] FILE...
 
 Description:
-  このスクリプトの説明を書く
+  Write a description of this script here
 
 Options:
-  -h, --help         このヘルプを表示
-  -V, --version      バージョンを表示
-  -v, --verbose      詳細出力
-  -n, --dry-run      実際には実行しない
-  -o, --output DIR   出力ディレクトリ (default: .)
+  -h, --help         Show this help
+  -V, --version      Show version
+  -v, --verbose      Verbose output
+  -n, --dry-run      Do not actually execute
+  -o, --output DIR   Output directory (default: .)
 
 Examples:
   $SCRIPT_NAME -v input.txt
@@ -1658,7 +1658,7 @@ Examples:
 EOF
 }
 
-# ── 引数パース ──
+# ── Argument parsing ──
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -1673,20 +1673,20 @@ parse_args() {
         esac
     done
 
-    # 残りの引数
+    # Remaining arguments
     FILES=("$@")
 
-    # バリデーション
+    # Validation
     if [[ ${#FILES[@]} -eq 0 ]]; then
         die "No input files specified. Use -h for help."
     fi
 }
 
-# ── メイン処理 ──
+# ── Main processing ──
 main() {
     parse_args "$@"
 
-    # 一時ディレクトリ
+    # Temporary directory
     TMPDIR=$(mktemp -d)
 
     log_info "Processing ${#FILES[@]} file(s)..."
@@ -1706,7 +1706,7 @@ main() {
             continue
         fi
 
-        # ここに実際の処理を書く
+        # Write actual processing here
         process_file "$file"
     done
 
@@ -1715,20 +1715,20 @@ main() {
 
 process_file() {
     local file="$1"
-    # 処理の実装
+    # Processing implementation
     echo "Processing: $file"
 }
 
 main "$@"
 ```
 
-### 8.2 バックアップスクリプトの例
+### 8.2 Backup Script Example
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 設定
+# Configuration
 readonly BACKUP_SOURCE="/home/user/data"
 readonly BACKUP_DEST="/mnt/backup"
 readonly MAX_BACKUPS=7
@@ -1740,7 +1740,7 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
 }
 
-# バックアップ先の空き容量チェック
+# Check available disk space at backup destination
 check_disk_space() {
     local available
     available=$(df -BM "$BACKUP_DEST" | awk 'NR==2 {print $4}' | tr -d 'M')
@@ -1753,7 +1753,7 @@ check_disk_space() {
     fi
 }
 
-# 古いバックアップの削除
+# Delete old backups
 cleanup_old_backups() {
     local count
     count=$(ls -1 "$BACKUP_DEST"/backup_*.tar.gz 2>/dev/null | wc -l)
@@ -1767,7 +1767,7 @@ cleanup_old_backups() {
     fi
 }
 
-# メイン
+# Main
 main() {
     log "=== Backup started ==="
 
@@ -1788,13 +1788,13 @@ main() {
 main "$@"
 ```
 
-### 8.3 ファイル監視スクリプトの例
+### 8.3 File Watch Script Example
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ファイルの変更を検知して処理を実行する
+# Detect file changes and execute processing
 readonly WATCH_DIR="${1:-.}"
 readonly INTERVAL="${2:-5}"
 
@@ -1826,7 +1826,7 @@ scan_files() {
 
     if [[ "$changed" == true ]]; then
         echo "[$(date '+%H:%M:%S')] Changes detected. Running build..."
-        # ここにビルドコマンドなどを入れる
+        # Insert build commands here
     fi
 }
 
@@ -1842,46 +1842,46 @@ done
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 構文 | 用途 | 例 |
-|------|------|----|
-| `$var` / `${var}` | 変数参照 | `echo "$name"` |
-| `$(command)` | コマンド置換 | `today=$(date)` |
-| `$((expr))` | 算術演算 | `$((count + 1))` |
-| `[[ cond ]]` | 条件判定 | `[[ -f "$file" ]]` |
-| `(( expr ))` | 数値条件 | `(( count > 10 ))` |
-| `for / while / until` | ループ | `for i in {1..10}; do` |
-| `case` | パターンマッチ分岐 | `case "$1" in ...` |
-| `func() { ... }` | 関数定義 | `greet() { echo "Hi"; }` |
-| `local var` | 関数内ローカル変数 | `local name="$1"` |
-| `set -euo pipefail` | 堅牢性設定 | スクリプト冒頭に |
-| `trap '...' SIGNAL` | シグナルハンドラ | `trap cleanup EXIT` |
-| `> / >> / 2>` | リダイレクト | `cmd > file 2>&1` |
-| `<<EOF` | ヒアドキュメント | 複数行入力 |
-| `<<<` | ヒアストリング | 1行入力 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Syntax | Purpose | Example |
+|--------|---------|---------|
+| `$var` / `${var}` | Variable reference | `echo "$name"` |
+| `$(command)` | Command substitution | `today=$(date)` |
+| `$((expr))` | Arithmetic operation | `$((count + 1))` |
+| `[[ cond ]]` | Condition test | `[[ -f "$file" ]]` |
+| `(( expr ))` | Numeric condition | `(( count > 10 ))` |
+| `for / while / until` | Loops | `for i in {1..10}; do` |
+| `case` | Pattern-match branching | `case "$1" in ...` |
+| `func() { ... }` | Function definition | `greet() { echo "Hi"; }` |
+| `local var` | Function-local variable | `local name="$1"` |
+| `set -euo pipefail` | Robustness settings | At the top of the script |
+| `trap '...' SIGNAL` | Signal handler | `trap cleanup EXIT` |
+| `> / >> / 2>` | Redirection | `cmd > file 2>&1` |
+| `<<EOF` | Heredoc | Multi-line input |
+| `<<<` | Here string | Single-line input |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+---
+
+## References
 1. Shotts, W. "The Linux Command Line." 2nd Ed, Ch.24-36, 2019.
 2. "Bash Reference Manual." GNU, 2024.
 3. "Google Shell Style Guide." google.github.io/styleguide.
