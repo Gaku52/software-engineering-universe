@@ -1,305 +1,305 @@
-# デスクトップアプリの全体像
+# Desktop Application Overview
 
-> デスクトップアプリ開発は Web 技術の進化により大きく変化した。ネイティブ、ハイブリッド、Web ベースの各アプローチの特徴を理解し、プロジェクトに最適な技術を選定する基準を解説する。
+> Desktop app development has changed significantly with the evolution of web technologies. This guide explains the characteristics of native, hybrid, and web-based approaches, and the criteria for selecting the best technology for your project.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] デスクトップアプリの種類と技術スタックを理解する
-- [ ] Web 技術ベースとネイティブの違いを把握する
-- [ ] プロジェクト要件に基づく技術選定ができるようになる
-- [ ] 各技術のアーキテクチャとプロセスモデルを理解する
-- [ ] デスクトップアプリのセキュリティモデルを把握する
-- [ ] 実務レベルでの技術比較評価ができるようになる
+- [ ] Understand the types and technology stacks of desktop applications
+- [ ] Understand the differences between web-based and native approaches
+- [ ] Be able to select technology based on project requirements
+- [ ] Understand the architecture and process models of each technology
+- [ ] Understand the security model of desktop applications
+- [ ] Be able to perform practical technology comparison and evaluation
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. デスクトップアプリの種類
+## 1. Types of Desktop Applications
 
-### 1.1 分類の全体像
+### 1.1 Overall Classification
 
 ```
-デスクトップアプリの分類:
+Desktop Application Categories:
 
   +------------------------------------------+
-  |           デスクトップアプリ                 |
+  |           Desktop Applications             |
   +------------------------------------------+
   |                                          |
-  |  ① ネイティブ          ② クロスプラットフォーム |
+  |  ① Native              ② Cross-Platform  |
   |  ├─ WPF / WinUI 3     ├─ .NET MAUI      |
   |  ├─ Win32 / MFC       ├─ Qt             |
   |  ├─ SwiftUI / AppKit  ├─ Flutter Desktop |
   |  └─ GTK               └─ Avalonia UI    |
   |                                          |
-  |  ③ Web 技術ベース       ④ PWA            |
-  |  ├─ Electron          └─ ブラウザ内       |
-  |  ├─ Tauri                インストール     |
+  |  ③ Web-Based            ④ PWA            |
+  |  ├─ Electron          └─ Browser-based  |
+  |  ├─ Tauri                installable    |
   |  ├─ Neutralinojs                         |
   |  └─ Wails                                |
   |                                          |
   +------------------------------------------+
 ```
 
-### 1.2 ネイティブアプリケーション
+### 1.2 Native Applications
 
-OS のネイティブ API を直接使用するアプリケーション。最高のパフォーマンスと OS 統合を実現するが、OS ごとに別実装が必要になる。
+Applications that use the OS's native APIs directly. They achieve the best performance and OS integration, but require a separate implementation for each OS.
 
 ```
-ネイティブアプリの特徴:
+Characteristics of Native Apps:
 
-  Windows ネイティブ:
+  Windows Native:
     ┌─────────────────────────────────────────────────┐
     │ WPF (Windows Presentation Foundation)            │
-    │ ├─ .NET Framework / .NET 8+ 上で動作             │
-    │ ├─ XAML ベースの宣言的 UI                         │
-    │ ├─ データバインディング / MVVM パターン             │
-    │ ├─ DirectX ベースのレンダリング                    │
-    │ └─ 業務アプリのデファクトスタンダード               │
+    │ ├─ Runs on .NET Framework / .NET 8+              │
+    │ ├─ Declarative UI based on XAML                  │
+    │ ├─ Data binding / MVVM pattern                   │
+    │ ├─ DirectX-based rendering                       │
+    │ └─ De facto standard for business applications   │
     ├─────────────────────────────────────────────────┤
     │ WinUI 3 (Windows App SDK)                        │
-    │ ├─ WPF の後継となるモダン UI フレームワーク         │
-    │ ├─ Fluent Design System 完全対応                  │
-    │ ├─ Win32 / UWP 両方の API にアクセス可能           │
-    │ ├─ MSIX パッケージングによる安全な配布              │
-    │ └─ Windows 10 1809+ / Windows 11 対応            │
+    │ ├─ Modern UI framework succeeding WPF            │
+    │ ├─ Full Fluent Design System support             │
+    │ ├─ Access to both Win32 / UWP APIs               │
+    │ ├─ Secure distribution via MSIX packaging        │
+    │ └─ Supports Windows 10 1809+ / Windows 11        │
     ├─────────────────────────────────────────────────┤
     │ Win32 / MFC / ATL                                │
-    │ ├─ C/C++ で記述する最もローレベルな API            │
-    │ ├─ 最小のメモリフットプリント                      │
-    │ ├─ 完全な OS API アクセス                         │
-    │ ├─ レガシーシステムとの互換性                      │
-    │ └─ 開発生産性は低い                               │
+    │ ├─ Lowest-level API written in C/C++             │
+    │ ├─ Minimal memory footprint                      │
+    │ ├─ Full OS API access                            │
+    │ ├─ Compatibility with legacy systems             │
+    │ └─ Low development productivity                  │
     └─────────────────────────────────────────────────┘
 
-  macOS ネイティブ:
+  macOS Native:
     ┌─────────────────────────────────────────────────┐
     │ SwiftUI                                          │
-    │ ├─ Apple の最新 UI フレームワーク                  │
-    │ ├─ 宣言的構文、プレビュー機能                     │
-    │ └─ macOS 11+ / iOS 15+ 対応                     │
+    │ ├─ Apple's latest UI framework                   │
+    │ ├─ Declarative syntax, preview support           │
+    │ └─ Supports macOS 11+ / iOS 15+                 │
     ├─────────────────────────────────────────────────┤
     │ AppKit (Cocoa)                                   │
-    │ ├─ macOS 向けの成熟した UI フレームワーク           │
-    │ ├─ Objective-C / Swift で記述                     │
-    │ └─ 最も細かい macOS UI カスタマイズが可能           │
+    │ ├─ Mature UI framework for macOS                 │
+    │ ├─ Written in Objective-C / Swift                │
+    │ └─ Most fine-grained macOS UI customization      │
     └─────────────────────────────────────────────────┘
 
-  Linux ネイティブ:
+  Linux Native:
     ┌─────────────────────────────────────────────────┐
     │ GTK (GIMP Toolkit)                               │
-    │ ├─ GNOME デスクトップ環境の標準                    │
-    │ ├─ C / Python / Vala / Rust で記述可能            │
-    │ └─ GTK 4 で大幅なパフォーマンス改善               │
+    │ ├─ Standard for the GNOME desktop environment    │
+    │ ├─ Can be written in C / Python / Vala / Rust    │
+    │ └─ Significant performance improvements in GTK 4 │
     ├─────────────────────────────────────────────────┤
     │ Qt                                               │
-    │ ├─ C++ / QML でクロスプラットフォーム対応           │
-    │ ├─ KDE デスクトップ環境の標準                      │
-    │ └─ 商用ライセンスと LGPL デュアルライセンス         │
+    │ ├─ Cross-platform support with C++ / QML         │
+    │ ├─ Standard for the KDE desktop environment      │
+    │ └─ Dual license: commercial and LGPL             │
     └─────────────────────────────────────────────────┘
 ```
 
-### 1.3 クロスプラットフォームネイティブ
+### 1.3 Cross-Platform Native
 
-1つのコードベースで複数の OS に対応するアプローチ。OS 固有の UI レンダリングエンジンを使うため、ネイティブに近いパフォーマンスを実現する。
+An approach that supports multiple OSes from a single codebase. It uses OS-specific UI rendering engines to achieve near-native performance.
 
 ```
-クロスプラットフォームネイティブの比較:
+Cross-Platform Native Comparison:
 
   .NET MAUI:
-    言語: C# / XAML
-    対応OS: Windows, macOS, iOS, Android
-    レンダリング: 各OS のネイティブコントロール
-    特徴:
-      → Xamarin.Forms の後継
-      → .NET エコシステムとの統合
-      → Hot Reload 対応
-      → Visual Studio での統合開発環境
-    適用例:
-      → 社内業務アプリのマルチプラットフォーム対応
-      → .NET 資産を持つ企業のモバイル展開
+    Language: C# / XAML
+    Supported OS: Windows, macOS, iOS, Android
+    Rendering: Native controls of each OS
+    Features:
+      → Successor to Xamarin.Forms
+      → Integration with .NET ecosystem
+      → Hot Reload support
+      → Integrated development environment in Visual Studio
+    Use cases:
+      → Multi-platform support for internal business apps
+      → Mobile deployment for companies with .NET assets
 
   Qt:
-    言語: C++ / QML
-    対応OS: Windows, macOS, Linux, iOS, Android, 組み込み
-    レンダリング: 独自レンダリングエンジン
-    特徴:
-      → 20年以上の実績
-      → 最も幅広い OS サポート
-      → 高パフォーマンス
-      → シグナル/スロットによるイベントシステム
-    適用例:
-      → CAD / 3D モデリングソフト
-      → 産業用制御システム
-      → メディアプレイヤー
+    Language: C++ / QML
+    Supported OS: Windows, macOS, Linux, iOS, Android, embedded
+    Rendering: Proprietary rendering engine
+    Features:
+      → Over 20 years of proven track record
+      → Widest OS support
+      → High performance
+      → Signal/slot event system
+    Use cases:
+      → CAD / 3D modeling software
+      → Industrial control systems
+      → Media players
 
   Flutter Desktop:
-    言語: Dart
-    対応OS: Windows, macOS, Linux, iOS, Android, Web
-    レンダリング: Impeller（独自レンダリングエンジン）
-    特徴:
-      → Google 開発
-      → 完全にカスタム描画（OS ネイティブ UI を使わない）
-      → Hot Reload で高速開発
-      → 統一された UI / UX
-    適用例:
-      → 統一 UI が重要なマルチプラットフォームアプリ
-      → モバイルファーストのデスクトップ拡張
+    Language: Dart
+    Supported OS: Windows, macOS, Linux, iOS, Android, Web
+    Rendering: Impeller (proprietary rendering engine)
+    Features:
+      → Developed by Google
+      → Fully custom rendering (does not use OS native UI)
+      → Fast development with Hot Reload
+      → Unified UI / UX
+    Use cases:
+      → Multi-platform apps where unified UI is important
+      → Desktop extensions of mobile-first apps
 
   Avalonia UI:
-    言語: C# / AXAML
-    対応OS: Windows, macOS, Linux, iOS, Android, Web
-    レンダリング: Skia ベースの独自レンダリング
-    特徴:
-      → WPF ライクな API
-      → MVVM パターン対応
-      → .NET エコシステム活用
-      → Linux でも安定した UI
-    適用例:
-      → WPF アプリの Linux / macOS 移植
-      → .NET ベースのクロスプラットフォームアプリ
+    Language: C# / AXAML
+    Supported OS: Windows, macOS, Linux, iOS, Android, Web
+    Rendering: Skia-based proprietary rendering
+    Features:
+      → WPF-like API
+      → MVVM pattern support
+      → Utilizes the .NET ecosystem
+      → Stable UI on Linux
+    Use cases:
+      → Porting WPF apps to Linux / macOS
+      → Cross-platform apps based on .NET
 ```
 
-### 1.4 Web 技術ベースアプリケーション
+### 1.4 Web Technology-Based Applications
 
-HTML/CSS/JavaScript で UI を構築するアプリケーション。Web 開発者のスキルをそのまま活用でき、豊富なエコシステムが利用可能。
+Applications that build UI using HTML/CSS/JavaScript. Web developer skills can be applied directly, and a rich ecosystem is available.
 
 ```
-Web 技術ベースの比較:
+Web Technology-Based Comparison:
 
   Electron:
-    アーキテクチャ:
+    Architecture:
       ┌──────────────────────────────┐
-      │  メインプロセス (Node.js)      │
-      │  ├─ アプリのライフサイクル管理   │
-      │  ├─ ネイティブ API アクセス     │
-      │  ├─ ファイルシステム操作        │
-      │  └─ IPC 通信                  │
+      │  Main Process (Node.js)       │
+      │  ├─ App lifecycle management  │
+      │  ├─ Native API access         │
+      │  ├─ File system operations    │
+      │  └─ IPC communication         │
       ├──────────────────────────────┤
-      │  レンダラープロセス (Chromium)  │
-      │  ├─ HTML/CSS/JS でUI描画      │
-      │  ├─ React/Vue/Svelte 等      │
-      │  └─ 各ウィンドウに1プロセス    │
+      │  Renderer Process (Chromium)  │
+      │  ├─ UI rendered with HTML/CSS/JS│
+      │  ├─ React/Vue/Svelte, etc.   │
+      │  └─ 1 process per window     │
       └──────────────────────────────┘
-    特徴:
-      → Chromium 同梱で一貫したレンダリング
-      → Node.js のフルパワー
-      → 最大のコミュニティとエコシステム
-    課題:
-      → バンドルサイズが ~150MB
-      → メモリ使用量が多い（~200MB+）
-      → Chromium のバージョン管理
+    Features:
+      → Consistent rendering with bundled Chromium
+      → Full power of Node.js
+      → Largest community and ecosystem
+    Challenges:
+      → Bundle size ~150MB
+      → High memory usage (~200MB+)
+      → Chromium version management
 
   Tauri v2:
-    アーキテクチャ:
+    Architecture:
       ┌──────────────────────────────┐
-      │  バックエンド (Rust)           │
-      │  ├─ コマンドハンドラ           │
-      │  ├─ プラグインシステム         │
-      │  ├─ ネイティブ API アクセス     │
-      │  └─ セキュリティ制御           │
+      │  Backend (Rust)               │
+      │  ├─ Command handlers          │
+      │  ├─ Plugin system             │
+      │  ├─ Native API access         │
+      │  └─ Security controls         │
       ├──────────────────────────────┤
-      │  フロントエンド (OS WebView)    │
-      │  ├─ HTML/CSS/JS でUI描画      │
-      │  ├─ React/Vue/Svelte 等      │
-      │  └─ OS の WebView を使用      │
+      │  Frontend (OS WebView)        │
+      │  ├─ UI rendered with HTML/CSS/JS│
+      │  ├─ React/Vue/Svelte, etc.   │
+      │  └─ Uses the OS WebView      │
       └──────────────────────────────┘
-    特徴:
-      → OS の WebView を使用（Chromium 同梱不要）
-      → Rust の安全性とパフォーマンス
-      → バンドルサイズ ~5MB
-      → セキュリティファーストの設計
-    課題:
-      → OS の WebView バージョン差異
-      → Rust の学習コスト
-      → Electron より小さいエコシステム
+    Features:
+      → Uses OS WebView (no bundled Chromium required)
+      → Rust safety and performance
+      → Bundle size ~5MB
+      → Security-first design
+    Challenges:
+      → WebView version differences across OSes
+      → Rust learning curve
+      → Smaller ecosystem than Electron
 
   Neutralinojs:
-    アーキテクチャ:
-      → 軽量な C++ バックエンド + OS WebView
-      → Electron の 1/10 以下のサイズ
-      → Node.js 不要
-    特徴:
-      → シンプルな API
-      → 低学習コスト
-      → 小規模アプリに最適
+    Architecture:
+      → Lightweight C++ backend + OS WebView
+      → Less than 1/10 the size of Electron
+      → No Node.js required
+    Features:
+      → Simple API
+      → Low learning curve
+      → Best for small-scale apps
 
   Wails:
-    アーキテクチャ:
-      → Go バックエンド + OS WebView
-      → Go のエコシステムを活用
-    特徴:
-      → Go 開発者向け
-      → 高いパフォーマンス
-      → シンプルなビルドプロセス
+    Architecture:
+      → Go backend + OS WebView
+      → Leverages the Go ecosystem
+    Features:
+      → For Go developers
+      → High performance
+      → Simple build process
 ```
 
 ### 1.5 PWA (Progressive Web App)
 
 ```
-PWA の位置づけ:
+PWA Positioning:
 
-  ブラウザベースのインストール可能アプリ:
+  Browser-based installable app:
     ┌──────────────────────────────────────────────┐
     │  Service Worker                               │
-    │  ├─ オフラインキャッシュ                        │
-    │  ├─ バックグラウンド同期                        │
-    │  └─ プッシュ通知                               │
+    │  ├─ Offline caching                           │
+    │  ├─ Background sync                           │
+    │  └─ Push notifications                        │
     ├──────────────────────────────────────────────┤
     │  Web App Manifest                             │
-    │  ├─ アプリ名、アイコン、テーマカラー              │
-    │  ├─ スタンドアロン表示モード                     │
-    │  └─ OS 統合（ショートカット等）                  │
+    │  ├─ App name, icon, theme color               │
+    │  ├─ Standalone display mode                   │
+    │  └─ OS integration (shortcuts, etc.)          │
     ├──────────────────────────────────────────────┤
-    │  利用可能な API                                │
+    │  Available APIs                               │
     │  ├─ File System Access API                    │
     │  ├─ Web Bluetooth / Web USB                   │
     │  ├─ Web Share API                             │
     │  ├─ Notifications API                         │
-    │  └─ ※ ネイティブ機能はブラウザ対応に依存         │
+    │  └─ * Native features depend on browser support│
     └──────────────────────────────────────────────┘
 
-  PWA の利点:
-    → 配布が最も容易（URL だけで利用開始）
-    → 自動更新（Service Worker の仕組み）
-    → 最小のストレージ消費
-    → インストール不要でも利用可能
+  PWA advantages:
+    → Easiest distribution (just a URL to get started)
+    → Automatic updates (via Service Worker)
+    → Minimal storage consumption
+    → Can be used without installation
 
-  PWA の制限:
-    → ネイティブ API アクセスが限定的
-    → ファイルシステムアクセスに制限
-    → ブラウザエンジンに依存
-    → OS 統合が不完全（特に macOS / Linux）
+  PWA limitations:
+    → Limited native API access
+    → Restricted file system access
+    → Dependent on browser engine
+    → Incomplete OS integration (especially on macOS / Linux)
 ```
 
 ---
 
-## 2. 技術スタックの詳細比較
+## 2. Detailed Technology Stack Comparison
 
-### 2.1 基本スペック比較
+### 2.1 Basic Specification Comparison
 
 ```
-主要技術の比較:
+Comparison of Major Technologies:
 
-  技術       │ 言語      │ サイズ  │ メモリ │ OS対応         │ 用途
-  ──────────┼──────────┼───────┼──────┼──────────────┼──────
-  Electron  │ JS/TS    │ ~150MB│ 200MB│ Win/Mac/Linux│ 汎用
-  Tauri v2  │ Rust+JS  │ ~5MB  │ 50MB │ Win/Mac/Linux│ 軽量
-  WPF       │ C#/XAML  │ ~20MB │ 100MB│ Windows のみ  │ 業務
-  WinUI 3   │ C#/XAML  │ ~20MB │ 100MB│ Windows のみ  │ モダンUI
-  MAUI      │ C#/XAML  │ ~30MB │ 120MB│ Win/Mac/and  │ クロス
-  Flutter   │ Dart     │ ~20MB │ 80MB │ Win/Mac/Linux│ クロス
-  Qt        │ C++      │ ~30MB │ 60MB │ Win/Mac/Linux│ 高性能
-  Avalonia  │ C#/AXAML │ ~25MB │ 90MB │ Win/Mac/Linux│ クロス
-  Wails     │ Go+JS    │ ~8MB  │ 50MB │ Win/Mac/Linux│ 軽量
+  Technology  │ Language  │ Size   │ Memory │ OS Support      │ Use Case
+  ────────────┼───────────┼────────┼────────┼─────────────────┼──────────
+  Electron    │ JS/TS     │ ~150MB │ 200MB  │ Win/Mac/Linux   │ General
+  Tauri v2    │ Rust+JS   │ ~5MB   │ 50MB   │ Win/Mac/Linux   │ Lightweight
+  WPF         │ C#/XAML   │ ~20MB  │ 100MB  │ Windows only    │ Business
+  WinUI 3     │ C#/XAML   │ ~20MB  │ 100MB  │ Windows only    │ Modern UI
+  MAUI        │ C#/XAML   │ ~30MB  │ 120MB  │ Win/Mac/and     │ Cross
+  Flutter     │ Dart      │ ~20MB  │ 80MB   │ Win/Mac/Linux   │ Cross
+  Qt          │ C++       │ ~30MB  │ 60MB   │ Win/Mac/Linux   │ High perf
+  Avalonia    │ C#/AXAML  │ ~25MB  │ 90MB   │ Win/Mac/Linux   │ Cross
+  Wails       │ Go+JS     │ ~8MB   │ 50MB   │ Win/Mac/Linux   │ Lightweight
 
-有名アプリの技術スタック:
+Technology stacks of well-known apps:
 
   Electron:
     → VS Code, Slack, Discord, Notion, Figma Desktop
@@ -309,12 +309,12 @@ PWA の位置づけ:
 
   Tauri:
     → Cody (Sourcegraph), Crabnebula
-    → 新規プロジェクトでの採用が増加中
-    → DevTools 系ツールでの採用が増加
+    → Increasing adoption in new projects
+    → Growing adoption in DevTools
 
   WPF/WinUI:
     → Visual Studio, Windows Terminal
-    → Windows 標準アプリ群
+    → Windows standard apps
     → Paint.NET, LINQPad
 
   Qt:
@@ -324,255 +324,255 @@ PWA の位置づけ:
 
   Flutter Desktop:
     → Google Earth, Superlist
-    → Ente (写真管理), AppFlowy
+    → Ente (photo management), AppFlowy
 ```
 
-### 2.2 パフォーマンス詳細比較
+### 2.2 Detailed Performance Comparison
 
 ```
-起動時間の比較（典型的な中規模アプリ）:
+Startup time comparison (typical medium-sized app):
 
-  技術          │ コールドスタート │ ウォームスタート │ 初回描画
-  ─────────────┼──────────────┼──────────────┼─────────
-  Win32/MFC    │    100ms     │     30ms     │   50ms
-  WPF          │    500ms     │    200ms     │  300ms
-  WinUI 3      │    600ms     │    250ms     │  350ms
-  Qt           │    300ms     │    100ms     │  150ms
-  Flutter      │    400ms     │    150ms     │  200ms
-  Tauri v2     │    800ms     │    300ms     │  500ms
-  Electron     │   1500ms     │    500ms     │  800ms
+  Technology    │ Cold Start   │ Warm Start   │ First Paint
+  ──────────────┼──────────────┼──────────────┼─────────────
+  Win32/MFC     │    100ms     │     30ms     │   50ms
+  WPF           │    500ms     │    200ms     │  300ms
+  WinUI 3       │    600ms     │    250ms     │  350ms
+  Qt            │    300ms     │    100ms     │  150ms
+  Flutter       │    400ms     │    150ms     │  200ms
+  Tauri v2      │    800ms     │    300ms     │  500ms
+  Electron      │   1500ms     │    500ms     │  800ms
 
-  ※ コールドスタート = OS 起動後の最初の起動
-  ※ ウォームスタート = 2回目以降の起動（キャッシュあり）
+  * Cold start = first launch after OS boot
+  * Warm start = second and subsequent launches (cached)
 
-メモリ使用量の比較（空のウィンドウ表示時）:
+Memory usage comparison (empty window displayed):
 
-  技術          │ 初期メモリ │ 安定時メモリ │ プロセス数
-  ─────────────┼─────────┼──────────┼─────────
-  Win32/MFC    │   5MB   │   8MB    │    1
-  WPF          │  30MB   │  50MB    │    1
-  WinUI 3      │  35MB   │  55MB    │    1
-  Qt           │  20MB   │  35MB    │    1
-  Flutter      │  25MB   │  45MB    │    1
-  Tauri v2     │  15MB   │  30MB    │    2
-  Electron     │  80MB   │ 120MB    │    3+
+  Technology    │ Initial Mem │ Stable Mem  │ Process Count
+  ──────────────┼─────────────┼─────────────┼───────────────
+  Win32/MFC     │   5MB       │   8MB       │    1
+  WPF           │  30MB       │  50MB       │    1
+  WinUI 3       │  35MB       │  55MB       │    1
+  Qt            │  20MB       │  35MB       │    1
+  Flutter       │  25MB       │  45MB       │    1
+  Tauri v2      │  15MB       │  30MB       │    2
+  Electron      │  80MB       │ 120MB       │    3+
 
-CPU 使用率の比較（アイドル時）:
+CPU usage comparison (idle):
 
-  技術          │ アイドル CPU │ アニメーション時
-  ─────────────┼────────────┼──────────────
-  Win32/MFC    │    0.0%    │     2-5%
-  WPF          │    0.1%    │     3-8%
-  WinUI 3      │    0.1%    │     2-6%
-  Qt           │    0.0%    │     2-5%
-  Flutter      │    0.1%    │     3-7%
-  Tauri v2     │    0.2%    │     5-10%
-  Electron     │    0.5%    │     8-15%
+  Technology    │ Idle CPU    │ During Animation
+  ──────────────┼─────────────┼──────────────────
+  Win32/MFC     │    0.0%     │     2-5%
+  WPF           │    0.1%     │     3-8%
+  WinUI 3       │    0.1%     │     2-6%
+  Qt            │    0.0%     │     2-5%
+  Flutter       │    0.1%     │     3-7%
+  Tauri v2      │    0.2%     │     5-10%
+  Electron      │    0.5%     │     8-15%
 ```
 
-### 2.3 開発生産性の比較
+### 2.3 Development Productivity Comparison
 
 ```
-開発生産性の評価:
+Development Productivity Evaluation:
 
-  技術      │ 学習曲線 │ Hot Reload │ デバッグ │ テスト │ CI/CD
-  ─────────┼────────┼──────────┼───────┼──────┼──────
-  Electron │  低    │    ○     │  優秀  │  豊富 │ 容易
-  Tauri v2 │  中    │    ○     │  良好  │  豊富 │ 容易
-  WPF      │  中    │    △     │  優秀  │  良好 │ 中程度
-  WinUI 3  │  中    │    △     │  良好  │  良好 │ 中程度
-  MAUI     │  中    │    ○     │  良好  │  良好 │ 複雑
-  Flutter  │  中    │    ◎     │  優秀  │  豊富 │ 容易
-  Qt       │  高    │    △     │  良好  │  良好 │ 複雑
+  Technology  │ Learning Curve │ Hot Reload │ Debugging │ Testing │ CI/CD
+  ────────────┼────────────────┼────────────┼───────────┼─────────┼───────
+  Electron    │  Low           │    ○       │  Excellent│  Rich   │ Easy
+  Tauri v2    │  Medium        │    ○       │  Good     │  Rich   │ Easy
+  WPF         │  Medium        │    △       │  Excellent│  Good   │ Medium
+  WinUI 3     │  Medium        │    △       │  Good     │  Good   │ Medium
+  MAUI        │  Medium        │    ○       │  Good     │  Good   │ Complex
+  Flutter     │  Medium        │    ◎       │  Excellent│  Rich   │ Easy
+  Qt          │  High          │    △       │  Good     │  Good   │ Complex
 
-  ※ ◎=非常に優れている ○=良い △=制限あり
+  * ◎=Excellent ○=Good △=Limited
 
-開発者エコシステムの規模:
+Developer ecosystem size:
 
-  技術      │ npm/パッケージ │ Stack Overflow │ GitHub Stars
-  ─────────┼─────────────┼──────────────┼────────────
-  Electron │  npm 全体    │    50,000+   │   115,000+
-  Tauri v2 │  npm + crates│    10,000+   │    85,000+
-  WPF      │  NuGet      │    80,000+   │    N/A
-  WinUI 3  │  NuGet      │     5,000+   │     4,000+
-  Flutter  │  pub.dev    │    60,000+   │   165,000+
-  Qt       │  独自        │    70,000+   │    N/A
+  Technology  │ npm/packages   │ Stack Overflow │ GitHub Stars
+  ────────────┼────────────────┼────────────────┼─────────────
+  Electron    │  All of npm    │    50,000+     │   115,000+
+  Tauri v2    │  npm + crates  │    10,000+     │    85,000+
+  WPF         │  NuGet         │    80,000+     │    N/A
+  WinUI 3     │  NuGet         │     5,000+     │     4,000+
+  Flutter     │  pub.dev       │    60,000+     │   165,000+
+  Qt          │  Proprietary   │    70,000+     │    N/A
 ```
 
 ---
 
-## 3. 技術選定ガイド
+## 3. Technology Selection Guide
 
-### 3.1 選定フローチャート
+### 3.1 Selection Flowchart
 
 ```
-選定フローチャート:
+Selection Flowchart:
 
-  プロジェクト要件の確認
+  Confirm project requirements
   │
-  ├─ Q1: ターゲット OS は？
-  │   ├─ Windows のみ → Q2a
+  ├─ Q1: What is the target OS?
+  │   ├─ Windows only → Q2a
   │   ├─ Windows + macOS → Q3
-  │   └─ 全 OS 対応 → Q3
+  │   └─ All OS support → Q3
   │
-  ├─ Q2a: Windows ネイティブの外観が必要？
-  │   ├─ はい → Q2b
-  │   └─ いいえ → Q3
+  ├─ Q2a: Is a Windows native look required?
+  │   ├─ Yes → Q2b
+  │   └─ No → Q3
   │
-  ├─ Q2b: .NET / C# の既存資産がある？
-  │   ├─ はい → WinUI 3 または WPF
-  │   └─ いいえ → Q3
+  ├─ Q2b: Do you have existing .NET / C# assets?
+  │   ├─ Yes → WinUI 3 or WPF
+  │   └─ No → Q3
   │
-  ├─ Q3: Web 技術チームのスキル？
-  │   ├─ Web 技術メイン → Q4
-  │   ├─ .NET / C# メイン → MAUI / Avalonia
-  │   ├─ C++ メイン → Qt
-  │   └─ Dart / Flutter 経験 → Flutter Desktop
+  ├─ Q3: What are the team's skills?
+  │   ├─ Mainly web technologies → Q4
+  │   ├─ Mainly .NET / C# → MAUI / Avalonia
+  │   ├─ Mainly C++ → Qt
+  │   └─ Dart / Flutter experience → Flutter Desktop
   │
-  ├─ Q4: バンドルサイズとメモリの制約は？
-  │   ├─ 厳しい（10MB以下） → Tauri v2
-  │   ├─ 中程度（50MB以下） → Tauri v2
-  │   └─ 制約なし → Q5
+  ├─ Q4: How strict are bundle size and memory constraints?
+  │   ├─ Strict (under 10MB) → Tauri v2
+  │   ├─ Moderate (under 50MB) → Tauri v2
+  │   └─ No constraints → Q5
   │
-  └─ Q5: Node.js エコシステムへの依存度は？
-      ├─ 高い（既存 npm パッケージ多数） → Electron
-      ├─ 中程度 → Tauri v2 または Electron
-      └─ 低い → Tauri v2
+  └─ Q5: How dependent are you on the Node.js ecosystem?
+      ├─ High (many existing npm packages) → Electron
+      ├─ Moderate → Tauri v2 or Electron
+      └─ Low → Tauri v2
 ```
 
-### 3.2 ユースケース別の推奨技術
+### 3.2 Recommended Technology by Use Case
 
 ```
-ユースケース別推奨:
+Recommended Technology by Use Case:
 
-  ① 社内業務アプリ（Windows 限定）:
-     推奨: WinUI 3 / WPF
-     理由:
-       → Active Directory / LDAP 統合が容易
-       → .NET の業務ライブラリが豊富
-       → MSIX パッケージで社内配布管理
-       → グループポリシーでの制御が可能
-     代替: Electron + electron-edge-js
+  ① Internal business app (Windows only):
+     Recommended: WinUI 3 / WPF
+     Reasons:
+       → Easy integration with Active Directory / LDAP
+       → Rich .NET business libraries
+       → Internal distribution management with MSIX packages
+       → Controllable via Group Policy
+     Alternative: Electron + electron-edge-js
 
-  ② 既存 Web アプリのデスクトップ化:
-     推奨: Electron
-     理由:
-       → 既存コードの最大限の再利用
-       → Node.js バックエンドとの統合
-       → 実績のあるフレームワーク
-     代替: Tauri v2（新規部分が多い場合）
+  ② Desktopifying an existing web app:
+     Recommended: Electron
+     Reasons:
+       → Maximum reuse of existing code
+       → Integration with Node.js backend
+       → Proven framework
+     Alternative: Tauri v2 (if much of it is new)
 
-  ③ 開発者向けツール:
-     推奨: Electron または Tauri v2
-     理由:
-       → VS Code 拡張のようなエコシステム
-       → カスタマイズ性の高い UI
-       → コマンドパレット / ターミナル統合
-     実例: VS Code, Postman, Insomnia
+  ③ Developer tools:
+     Recommended: Electron or Tauri v2
+     Reasons:
+       → Ecosystem like VS Code extensions
+       → Highly customizable UI
+       → Command palette / terminal integration
+     Examples: VS Code, Postman, Insomnia
 
-  ④ メディア / クリエイティブツール:
-     推奨: Qt または WinUI 3
-     理由:
-       → GPU レンダリングが容易
-       → カスタム描画パフォーマンス
-       → リアルタイム処理
-     実例: OBS Studio, VLC, Blender
+  ④ Media / Creative tools:
+     Recommended: Qt or WinUI 3
+     Reasons:
+       → Easy GPU rendering
+       → Custom drawing performance
+       → Real-time processing
+     Examples: OBS Studio, VLC, Blender
 
-  ⑤ IoT / エッジデバイス向け:
-     推奨: Qt または Tauri v2
-     理由:
-       → 低リソース消費
-       → クロスプラットフォーム
-       → 組み込みLinux 対応
-     代替: Flutter（タッチ UI が中心の場合）
+  ⑤ IoT / Edge devices:
+     Recommended: Qt or Tauri v2
+     Reasons:
+       → Low resource consumption
+       → Cross-platform
+       → Embedded Linux support
+     Alternative: Flutter (when touch UI is central)
 
-  ⑥ エンタープライズ マルチプラットフォーム:
-     推奨: Electron または Flutter
-     理由:
-       → 統一された UI / UX
-       → 大規模チーム開発に適した構造
-       → CI/CD パイプラインの豊富なサポート
-     代替: .NET MAUI（.NET エコシステムの場合）
+  ⑥ Enterprise multi-platform:
+     Recommended: Electron or Flutter
+     Reasons:
+       → Unified UI / UX
+       → Structure suited for large-team development
+       → Rich CI/CD pipeline support
+     Alternative: .NET MAUI (for .NET ecosystem)
 ```
 
-### 3.3 非機能要件による選定
+### 3.3 Selection by Non-Functional Requirements
 
 ```
-非機能要件マトリクス:
+Non-Functional Requirements Matrix:
 
-  要件           │ 最適な技術          │ 理由
-  ──────────────┼──────────────────┼────────────────────
-  起動速度       │ Win32, Qt          │ ネイティブ描画
-  メモリ効率     │ Tauri, Win32       │ 軽量ランタイム
-  バンドルサイズ  │ Tauri, PWA         │ WebView 再利用 / Web ベース
-  セキュリティ    │ Tauri, WinUI 3     │ サンドボックス / MSIX
-  アクセシビリティ│ WPF, WinUI 3       │ UI Automation 完全対応
-  オフライン動作  │ 全ネイティブ技術     │ ローカル実行
-  自動更新       │ Electron, Tauri    │ 組み込みアップデーター
-  マルチモニター  │ WPF, Electron      │ 高度なウィンドウ管理
-  タッチ対応     │ WinUI 3, Flutter   │ タッチ最適化済み
-  GPU 活用      │ Qt, Flutter, WPF   │ ハードウェアアクセラレーション
+  Requirement       │ Best Technology     │ Reason
+  ──────────────────┼─────────────────────┼──────────────────────
+  Startup speed     │ Win32, Qt           │ Native rendering
+  Memory efficiency │ Tauri, Win32        │ Lightweight runtime
+  Bundle size       │ Tauri, PWA          │ WebView reuse / web-based
+  Security          │ Tauri, WinUI 3      │ Sandbox / MSIX
+  Accessibility     │ WPF, WinUI 3        │ Full UI Automation support
+  Offline operation │ All native tech     │ Local execution
+  Auto-update       │ Electron, Tauri     │ Built-in updater
+  Multi-monitor     │ WPF, Electron       │ Advanced window management
+  Touch support     │ WinUI 3, Flutter    │ Touch-optimized
+  GPU utilization   │ Qt, Flutter, WPF    │ Hardware acceleration
 
-パフォーマンス要件による選定:
-  高パフォーマンス必須: Qt > Win32 > WPF > Tauri > Electron
-  開発速度重視:        Electron > Flutter > Tauri > WinUI 3 > Qt
-  メモリ効率重視:      Win32 > Tauri > Qt > Flutter > Electron
-  セキュリティ重視:    Tauri > WinUI 3 > Electron > Qt > Win32
+Selection by performance requirements:
+  High performance required:  Qt > Win32 > WPF > Tauri > Electron
+  Development speed priority: Electron > Flutter > Tauri > WinUI 3 > Qt
+  Memory efficiency priority: Win32 > Tauri > Qt > Flutter > Electron
+  Security priority:          Tauri > WinUI 3 > Electron > Qt > Win32
 ```
 
 ---
 
-## 4. Web 技術ベースの利点と課題
+## 4. Advantages and Challenges of Web Technology-Based Approaches
 
-### 4.1 Web 技術ベースの利点
-
-```
-Web 技術ベースの利点（詳細）:
-
-  ① 開発者プールの広さ:
-     → Web 開発者は世界で最も多い技術者層
-     → JavaScript/TypeScript の熟練者が多い
-     → 採用が容易でチーム構築が速い
-     → フロントエンドとデスクトップの両方に対応できる人材
-
-  ② エコシステムの豊富さ:
-     → npm レジストリの 200万以上のパッケージ
-     → React/Vue/Svelte/Angular 等の成熟した UI フレームワーク
-     → UI コンポーネントライブラリ（shadcn/ui, Radix, MUI 等）
-     → テストツール（Vitest, Playwright, Cypress）
-     → ビルドツール（Vite, webpack, esbuild）
-
-  ③ 高速な開発サイクル:
-     → ホットリロード / HMR で即座にプレビュー
-     → ブラウザの DevTools でデバッグ
-     → CSS でピクセルパーフェクトな UI 制御
-     → 宣言的 UI の生産性
-
-  ④ コード共有:
-     → Web 版とデスクトップ版でコード共有
-     → 共通のビジネスロジック
-     → 共通の UI コンポーネント
-     → モノレポで管理可能
-```
-
-### 4.2 Web 技術ベースの課題と対策
+### 4.1 Advantages of Web Technology-Based Approaches
 
 ```
-課題と対策:
+Advantages of Web Technology-Based Approaches (Detailed):
 
-  ① メモリ消費:
-     課題:
-       → Electron: Chromium 同梱で最低 ~80MB
-       → 複数ウィンドウで各プロセスにメモリ割当
-       → メモリリークが発生しやすい
+  ① Large developer pool:
+     → Web developers are the most numerous technical workforce in the world
+     → Many professionals skilled in JavaScript/TypeScript
+     → Easy to hire and build teams quickly
+     → Personnel capable of both frontend and desktop development
 
-     対策:
-       → Tauri に移行して OS WebView を使用
-       → Electron の場合: 不要なウィンドウの適切な破棄
-       → メモリプロファイリングの定期実施
-       → Web Worker でメモリ集約処理を分離
+  ② Rich ecosystem:
+     → Over 2 million packages in the npm registry
+     → Mature UI frameworks such as React/Vue/Svelte/Angular
+     → UI component libraries (shadcn/ui, Radix, MUI, etc.)
+     → Testing tools (Vitest, Playwright, Cypress)
+     → Build tools (Vite, webpack, esbuild)
 
-     実装例（Electron のメモリ最適化）:
+  ③ Fast development cycle:
+     → Instant preview with hot reload / HMR
+     → Debugging with browser DevTools
+     → Pixel-perfect UI control with CSS
+     → Declarative UI productivity
+
+  ④ Code sharing:
+     → Share code between web and desktop versions
+     → Common business logic
+     → Common UI components
+     → Manageable in a monorepo
+```
+
+### 4.2 Challenges and Solutions for Web Technology-Based Approaches
+
+```
+Challenges and Solutions:
+
+  ① Memory consumption:
+     Challenges:
+       → Electron: minimum ~80MB with bundled Chromium
+       → Each process gets memory allocation for multiple windows
+       → Memory leaks are prone to occur
+
+     Solutions:
+       → Migrate to Tauri to use OS WebView
+       → For Electron: properly dispose of unused windows
+       → Perform memory profiling regularly
+       → Isolate memory-intensive processing with Web Workers
+
+     Implementation example (Electron memory optimization):
 ```
 
 ```javascript
@@ -619,79 +619,79 @@ function createOptimizedWindow() {
 ```
 
 ```
-  ② 起動時間:
-     課題:
-       → Chromium の初期化に時間がかかる
-       → JavaScript のパース・コンパイル時間
-       → 大量の npm 依存関係の読み込み
+  ② Startup time:
+     Challenges:
+       → Chromium initialization takes time
+       → JavaScript parsing and compilation time
+       → Loading a large number of npm dependencies
 
-     対策:
-       → スプラッシュスクリーンで体感速度を改善
-       → コードスプリッティングで初回読み込みを最小化
-       → V8 スナップショットでスタートアップを高速化
-       → 遅延インポートで必要時にモジュールをロード
+     Solutions:
+       → Improve perceived speed with a splash screen
+       → Minimize initial load with code splitting
+       → Speed up startup with V8 snapshots
+       → Load modules on demand with lazy imports
 
-  ③ OS API アクセスの制限:
-     課題:
-       → ネイティブ機能へのアクセスに制限
-       → OS 固有の UI コンポーネントが使えない
-       → システムトレイ等の統合が不完全な場合がある
+  ③ Limited OS API access:
+     Challenges:
+       → Restricted access to native features
+       → Cannot use OS-specific UI components
+       → System tray and similar integrations may be incomplete
 
-     対策:
-       → Electron: Native Node Modules で C++ アドオン
-       → Tauri: Rust プラグインで任意のネイティブ API
-       → FFI (Foreign Function Interface) の活用
-       → WebView + ネイティブのハイブリッド構成
+     Solutions:
+       → Electron: C++ addons via Native Node Modules
+       → Tauri: Any native API via Rust plugins
+       → Utilize FFI (Foreign Function Interface)
+       → Hybrid configuration of WebView + native
 ```
 
-### 4.3 セキュリティモデルの比較
+### 4.3 Security Model Comparison
 
 ```
-セキュリティモデル:
+Security Models:
 
-  Electron のセキュリティ:
+  Electron Security:
     ┌──────────────────────────────────────┐
-    │  メインプロセス                        │
-    │  ├─ フル Node.js アクセス              │
-    │  ├─ ファイルシステム操作               │
-    │  └─ OS API アクセス                   │
+    │  Main Process                         │
+    │  ├─ Full Node.js access               │
+    │  ├─ File system operations            │
+    │  └─ OS API access                     │
     ├──────────────────────────────────────┤
-    │  preload スクリプト（ブリッジ）         │
-    │  ├─ contextBridge で安全な API 公開    │
-    │  └─ IPC 通信の仲介                    │
+    │  preload script (bridge)              │
+    │  ├─ Safe API exposure via contextBridge│
+    │  └─ IPC communication intermediary    │
     ├──────────────────────────────────────┤
-    │  レンダラープロセス（サンドボックス）    │
+    │  Renderer Process (sandboxed)         │
     │  ├─ contextIsolation: true            │
     │  ├─ nodeIntegration: false            │
     │  └─ sandbox: true                     │
     └──────────────────────────────────────┘
 
-    注意点:
-      → nodeIntegration: true は危険（XSS でフル OS アクセス）
-      → remote モジュールは非推奨（セキュリティリスク）
-      → CSP (Content Security Policy) の設定が重要
+    Notes:
+      → nodeIntegration: true is dangerous (XSS gives full OS access)
+      → The remote module is deprecated (security risk)
+      → CSP (Content Security Policy) configuration is important
 
-  Tauri のセキュリティ:
+  Tauri Security:
     ┌──────────────────────────────────────┐
-    │  Rust バックエンド                     │
-    │  ├─ コマンドの明示的な許可リスト        │
-    │  ├─ ファイルシステムのスコープ制限       │
-    │  └─ API のきめ細かい権限制御            │
+    │  Rust Backend                         │
+    │  ├─ Explicit allowlist of commands    │
+    │  ├─ File system scope restrictions    │
+    │  └─ Fine-grained API permission control│
     ├──────────────────────────────────────┤
-    │  OS WebView（サンドボックス）           │
-    │  ├─ OS レベルのセキュリティ             │
-    │  ├─ プロセス分離                       │
-    │  └─ Node.js なし（攻撃面が小さい）      │
+    │  OS WebView (sandboxed)               │
+    │  ├─ OS-level security                 │
+    │  ├─ Process isolation                 │
+    │  └─ No Node.js (smaller attack surface)│
     └──────────────────────────────────────┘
 
-    利点:
-      → デフォルトで安全（許可リスト方式）
-      → Rust のメモリ安全性
-      → Node.js を含まないため攻撃面が小さい
-      → CSP がデフォルトで厳格
+    Advantages:
+      → Secure by default (allowlist approach)
+      → Rust memory safety
+      → Smaller attack surface without Node.js
+      → Strict CSP by default
 ```
 
-セキュリティ設定の実装例:
+Security configuration implementation example:
 
 ```javascript
 // Electron: セキュアな BrowserWindow 設定
@@ -773,12 +773,12 @@ function createSecureWindow() {
 
 ---
 
-## 5. プロセスモデルとアーキテクチャ
+## 5. Process Models and Architecture
 
-### 5.1 プロセスモデルの詳細
+### 5.1 Process Model Details
 
 ```
-各技術のプロセスモデル:
+Process Models for Each Technology:
 
   Electron:
     ┌─────────────┐   IPC    ┌─────────────────┐
@@ -788,14 +788,14 @@ function createSecureWindow() {
     │ ・ app      │◄────────►│ Renderer Process │ (Window 2)
     │ ・ ipcMain  │          └─────────────────┘
     │ ・ dialog   │   IPC    ┌─────────────────┐
-    │ ・ Menu     │◄────────►│ Utility Process  │ (重い処理)
+    │ ・ Menu     │◄────────►│ Utility Process  │ (heavy tasks)
     └─────────────┘          └─────────────────┘
 
-    特徴:
-      → マルチプロセスで安定性確保
-      → 1ウィンドウ = 1レンダラープロセス
-      → Utility Process で重い処理を分離可能
-      → SharedArrayBuffer でプロセス間メモリ共有
+    Features:
+      → Stability ensured with multi-process model
+      → 1 window = 1 renderer process
+      → Can isolate heavy tasks in Utility Process
+      → Inter-process memory sharing via SharedArrayBuffer
 
   Tauri:
     ┌─────────────┐  invoke  ┌─────────────────┐
@@ -806,33 +806,33 @@ function createSecureWindow() {
     │ ・ state    │          │ ・ React/Vue/etc  │
     └─────────────┘          └─────────────────┘
 
-    特徴:
-      → 2プロセスモデル（Core + WebView）
-      → invoke/events で双方向通信
-      → Rust 側で状態管理
-      → プラグインシステムで機能拡張
+    Features:
+      → 2-process model (Core + WebView)
+      → Bidirectional communication via invoke/events
+      → State management on the Rust side
+      → Feature extension via plugin system
 
   WPF / WinUI 3:
     ┌──────────────────────────────────┐
-    │ 単一プロセス                       │
-    │ ├─ UI スレッド（メインスレッド）     │
-    │ │   ├─ XAML レンダリング           │
-    │ │   ├─ イベントハンドリング         │
-    │ │   └─ データバインディング更新      │
-    │ ├─ コンポジションスレッド           │
-    │ │   └─ DirectX レンダリング        │
-    │ └─ バックグラウンドスレッド          │
+    │ Single Process                    │
+    │ ├─ UI Thread (main thread)        │
+    │ │   ├─ XAML rendering             │
+    │ │   ├─ Event handling             │
+    │ │   └─ Data binding update        │
+    │ ├─ Composition Thread             │
+    │ │   └─ DirectX rendering          │
+    │ └─ Background Thread              │
     │     └─ Task.Run / ThreadPool      │
     └──────────────────────────────────┘
 
-    特徴:
-      → 単一プロセスで効率的
-      → UI スレッドとバックグラウンドの分離
-      → Dispatcher でスレッド間通信
-      → async/await で非同期処理
+    Features:
+      → Efficient with a single process
+      → Separation of UI thread and background
+      → Inter-thread communication via Dispatcher
+      → Asynchronous processing with async/await
 ```
 
-### 5.2 IPC (Inter-Process Communication) パターン
+### 5.2 IPC (Inter-Process Communication) Patterns
 
 ```typescript
 // Electron IPC パターン
@@ -981,49 +981,49 @@ onDestroy(() => {
 
 ---
 
-## 6. 開発環境のセットアップ
+## 6. Development Environment Setup
 
-### 6.1 共通の開発ツール
+### 6.1 Common Development Tools
 
 ```
-共通の開発環境:
+Common Development Environment:
 
-  エディタ / IDE:
+  Editor / IDE:
     ┌─────────────────────────────────────────────┐
-    │ VS Code（推奨）                               │
-    │ ├─ 拡張: ESLint, Prettier, TypeScript         │
-    │ ├─ 拡張: Tauri (tauri-apps.tauri-vscode)      │
-    │ ├─ 拡張: rust-analyzer（Tauri 開発時）          │
-    │ ├─ 拡張: C# Dev Kit（WPF/WinUI 開発時）        │
-    │ └─ 拡張: XAML Styler                          │
+    │ VS Code (recommended)                         │
+    │ ├─ Extensions: ESLint, Prettier, TypeScript   │
+    │ ├─ Extension: Tauri (tauri-apps.tauri-vscode) │
+    │ ├─ Extension: rust-analyzer (for Tauri dev)   │
+    │ ├─ Extension: C# Dev Kit (for WPF/WinUI dev)  │
+    │ └─ Extension: XAML Styler                     │
     ├─────────────────────────────────────────────┤
-    │ Visual Studio 2022（WPF/WinUI 開発時）         │
-    │ ├─ .NET Desktop 開発ワークロード               │
+    │ Visual Studio 2022 (for WPF/WinUI development)│
+    │ ├─ .NET Desktop Development workload          │
     │ ├─ Windows App SDK                            │
-    │ ├─ XAML デザイナー                             │
-    │ └─ Hot Reload 対応                            │
+    │ ├─ XAML Designer                              │
+    │ └─ Hot Reload support                         │
     ├─────────────────────────────────────────────┤
-    │ JetBrains Rider（.NET 全般）                   │
-    │ └─ WPF / MAUI / Avalonia 対応                 │
+    │ JetBrains Rider (for .NET in general)         │
+    │ └─ Supports WPF / MAUI / Avalonia             │
     └─────────────────────────────────────────────┘
 
-  パッケージマネージャー:
-    → pnpm（推奨: 高速・ディスク効率）
-    → npm / yarn（代替）
-    → NuGet（.NET プロジェクト）
-    → Cargo（Rust / Tauri）
+  Package managers:
+    → pnpm (recommended: fast, disk-efficient)
+    → npm / yarn (alternatives)
+    → NuGet (.NET projects)
+    → Cargo (Rust / Tauri)
 
-  バージョン管理:
+  Version control:
     → Git + GitHub / GitLab / Azure DevOps
-    → 大きなバイナリ: Git LFS
+    → Large binaries: Git LFS
 
   CI/CD:
-    → GitHub Actions（最も一般的）
-    → Azure Pipelines（Windows 特化）
+    → GitHub Actions (most common)
+    → Azure Pipelines (Windows-focused)
     → GitLab CI/CD
 ```
 
-### 6.2 Electron 開発環境
+### 6.2 Electron Development Environment
 
 ```bash
 # Electron 開発環境のセットアップ
@@ -1071,7 +1071,7 @@ npm start
 npm run make
 ```
 
-### 6.3 Tauri 開発環境
+### 6.3 Tauri Development Environment
 
 ```bash
 # Tauri v2 開発環境のセットアップ
@@ -1132,7 +1132,7 @@ npm run tauri dev
 npm run tauri build
 ```
 
-### 6.4 WinUI 3 開発環境
+### 6.4 WinUI 3 Development Environment
 
 ```powershell
 # WinUI 3 開発環境のセットアップ（Windows のみ）
@@ -1181,45 +1181,45 @@ dotnet run
 
 ---
 
-## 7. デスクトップアプリのライフサイクル
+## 7. Desktop Application Lifecycle
 
-### 7.1 アプリケーションライフサイクル
+### 7.1 Application Lifecycle
 
 ```
-デスクトップアプリのライフサイクル:
+Desktop Application Lifecycle:
 
   ┌──────────────────────────────────────────────────────┐
-  │                    起動フェーズ                        │
+  │                    Startup Phase                       │
   ├──────────────────────────────────────────────────────┤
-  │ 1. プロセス起動                                       │
-  │ 2. ランタイム初期化（.NET CLR / V8 / Rust Runtime）    │
-  │ 3. アプリケーション設定の読み込み                       │
-  │ 4. DI コンテナのセットアップ                            │
-  │ 5. メインウィンドウの作成                               │
-  │ 6. UI の初期レンダリング                               │
-  │ 7. バックグラウンドサービスの起動                       │
+  │ 1. Process launch                                     │
+  │ 2. Runtime initialization (.NET CLR / V8 / Rust Runtime)│
+  │ 3. Load application configuration                     │
+  │ 4. Set up DI container                                │
+  │ 5. Create main window                                 │
+  │ 6. Initial UI rendering                               │
+  │ 7. Start background services                          │
   ├──────────────────────────────────────────────────────┤
-  │                    実行フェーズ                        │
+  │                    Running Phase                       │
   ├──────────────────────────────────────────────────────┤
-  │ ・ イベントループ（メッセージポンプ）                    │
-  │ ・ ユーザー入力の処理                                  │
-  │ ・ UI の更新                                          │
-  │ ・ バックグラウンド処理                                │
-  │ ・ ファイル I/O / ネットワーク通信                      │
-  │ ・ 状態の永続化                                       │
+  │ ・ Event loop (message pump)                          │
+  │ ・ Process user input                                 │
+  │ ・ Update UI                                          │
+  │ ・ Background processing                              │
+  │ ・ File I/O / network communication                   │
+  │ ・ State persistence                                  │
   ├──────────────────────────────────────────────────────┤
-  │                   終了フェーズ                         │
+  │                   Shutdown Phase                       │
   ├──────────────────────────────────────────────────────┤
-  │ 1. 終了リクエスト（ユーザー操作 / OS シャットダウン）    │
-  │ 2. 未保存データの確認ダイアログ                         │
-  │ 3. バックグラウンドサービスの停止                       │
-  │ 4. リソースの解放                                     │
-  │ 5. 設定の保存                                        │
-  │ 6. プロセス終了                                      │
+  │ 1. Shutdown request (user action / OS shutdown)       │
+  │ 2. Unsaved data confirmation dialog                   │
+  │ 3. Stop background services                           │
+  │ 4. Release resources                                  │
+  │ 5. Save settings                                      │
+  │ 6. Terminate process                                  │
   └──────────────────────────────────────────────────────┘
 ```
 
-### 7.2 各技術でのライフサイクル管理
+### 7.2 Lifecycle Management in Each Technology
 
 ```typescript
 // Electron のライフサイクル管理
@@ -1371,38 +1371,38 @@ public partial class App : Application
 
 ---
 
-## 8. データ永続化パターン
+## 8. Data Persistence Patterns
 
-### 8.1 デスクトップアプリのデータ保存
+### 8.1 Data Storage in Desktop Applications
 
 ```
-データ永続化の選択肢:
+Data Persistence Options:
 
-  ① ファイルベース:
-     ├─ JSON / YAML: 設定ファイル、小規模データ
-     ├─ SQLite: 構造化データ、クエリが必要な場合
-     ├─ LevelDB / RocksDB: キーバリューストア
-     └─ Protocol Buffers: バイナリシリアライゼーション
+  ① File-based:
+     ├─ JSON / YAML: Configuration files, small-scale data
+     ├─ SQLite: Structured data, when queries are needed
+     ├─ LevelDB / RocksDB: Key-value store
+     └─ Protocol Buffers: Binary serialization
 
-  ② OS 提供のストレージ:
-     ├─ Windows: レジストリ、Credential Manager
+  ② OS-provided storage:
+     ├─ Windows: Registry, Credential Manager
      ├─ macOS: UserDefaults, Keychain
      └─ Linux: GSettings, Secret Service API
 
-  ③ 暗号化ストレージ:
+  ③ Encrypted storage:
      ├─ electron-store + safeStorage
      ├─ tauri-plugin-store
      └─ DPAPI (Windows) / Keychain (macOS)
 
-  保存先のベストプラクティス:
+  Best practices for storage locations:
     ┌─────────────────────────────────────────────────┐
-    │ データの種類       │ 保存先                       │
-    │ ─────────────────┼───────────────────────────── │
-    │ アプリ設定         │ %APPDATA% / ~/Library/...    │
-    │ ユーザーデータ     │ ドキュメントフォルダ            │
-    │ キャッシュ         │ %TEMP% / ~/Library/Caches    │
-    │ ログ             │ %APPDATA%/logs               │
-    │ 認証情報          │ OS の資格情報マネージャー       │
+    │ Data type          │ Storage location             │
+    │ ───────────────────┼─────────────────────────────│
+    │ App settings       │ %APPDATA% / ~/Library/...    │
+    │ User data          │ Documents folder             │
+    │ Cache              │ %TEMP% / ~/Library/Caches    │
+    │ Logs               │ %APPDATA%/logs               │
+    │ Credentials        │ OS credential manager        │
     └─────────────────────────────────────────────────┘
 ```
 
@@ -1553,51 +1553,51 @@ fn load_settings(app: tauri::AppHandle) -> Result<AppSettings, String> {
 
 ---
 
-## 9. テスト戦略
+## 9. Testing Strategy
 
-### 9.1 デスクトップアプリのテストピラミッド
+### 9.1 Testing Pyramid for Desktop Applications
 
 ```
-テストピラミッド:
+Testing Pyramid:
 
                     ┌─────────────┐
-                    │   E2E テスト  │  ← 少数・低速・高コスト
+                    │   E2E Tests  │  ← Few, slow, high cost
                     │  (Playwright) │
                   ┌─┴─────────────┴─┐
-                  │  統合テスト       │  ← 中程度
-                  │  (コンポーネント)  │
+                  │  Integration Tests│  ← Moderate
+                  │  (Components)    │
                 ┌─┴─────────────────┴─┐
-                │  ユニットテスト       │  ← 多数・高速・低コスト
+                │  Unit Tests          │  ← Many, fast, low cost
                 │  (Vitest / xUnit)   │
                 └─────────────────────┘
 
-  Electron のテスト戦略:
-    ユニットテスト:
-      → Vitest でビジネスロジックをテスト
-      → メインプロセスのモック
-      → IPC ハンドラの個別テスト
+  Electron testing strategy:
+    Unit tests:
+      → Test business logic with Vitest
+      → Mock the main process
+      → Individual tests for IPC handlers
 
-    統合テスト:
-      → React Testing Library で UI コンポーネント
-      → Electron API のモック
+    Integration tests:
+      → UI components with React Testing Library
+      → Mock Electron APIs
 
-    E2E テスト:
+    E2E tests:
       → Playwright + @playwright/test
-      → electron アプリの起動・操作・検証
+      → Launch, operate, and verify Electron app
 
-  Tauri のテスト戦略:
-    ユニットテスト:
-      → Vitest でフロントエンドのテスト
-      → cargo test で Rust バックエンドのテスト
-      → Tauri コマンドの個別テスト
+  Tauri testing strategy:
+    Unit tests:
+      → Test frontend with Vitest
+      → Test Rust backend with cargo test
+      → Individual tests for Tauri commands
 
-    統合テスト:
-      → コンポーネントテスト
+    Integration tests:
+      → Component tests
       → Tauri mock IPC
 
-    E2E テスト:
+    E2E tests:
       → WebDriver (tauri-driver)
-      → Playwright（実験的サポート）
+      → Playwright (experimental support)
 ```
 
 ```typescript
@@ -1650,97 +1650,97 @@ test.describe('メインウィンドウ', () => {
 
 ---
 
-## 10. 実務的な技術選定ケーススタディ
+## 10. Practical Technology Selection Case Studies
 
-### 10.1 ケーススタディ: 社内文書管理システム
-
-```
-要件:
-  ・Windows 10/11 の社内 PC で動作
-  ・Active Directory 認証
-  ・ローカルファイルの暗号化保存
-  ・PDF プレビュー
-  ・オフライン動作必須
-  ・社内ネットワーク経由で配布
-
-技術選定の検討:
-
-  候補 ①: WinUI 3
-    利点:
-      → Windows ネイティブの外観
-      → AD 認証が .NET ライブラリで容易
-      → DPAPI でファイル暗号化
-      → MSIX パッケージでグループポリシー配布
-    欠点:
-      → Windows のみ（将来の macOS 対応が不可）
-      → XAML の学習コスト
-
-  候補 ②: Electron
-    利点:
-      → Web チームのスキル活用
-      → PDF.js でプレビュー実装が容易
-      → 将来の macOS 対応が可能
-    欠点:
-      → バンドルサイズが大きい
-      → AD 認証の実装が複雑
-      → メモリ消費が多い
-
-  候補 ③: Tauri v2
-    利点:
-      → 軽量で社内 PC の負荷が小さい
-      → Rust でセキュアな暗号化処理
-      → 将来のクロスプラットフォーム対応
-    欠点:
-      → AD 認証の Rust ライブラリが限定的
-      → 社内の Rust 人材が少ない
-
-  最終選定: WinUI 3
-  理由:
-    → Windows 限定の要件に最適
-    → .NET の業務ライブラリ資産
-    → AD 統合の容易さが決定要因
-    → IT 部門の MSIX 配布要件との親和性
-```
-
-### 10.2 ケーススタディ: クロスプラットフォーム チャットアプリ
+### 10.1 Case Study: Internal Document Management System
 
 ```
-要件:
-  ・Windows / macOS / Linux 対応
-  ・リアルタイムメッセージング（WebSocket）
-  ・ファイル共有 / 画像プレビュー
-  ・通知（システムトレイ常駐）
-  ・自動更新
-  ・スクリーンショット撮影
+Requirements:
+  ・ Runs on Windows 10/11 company PCs
+  ・ Active Directory authentication
+  ・ Encrypted local file storage
+  ・ PDF preview
+  ・ Offline operation required
+  ・ Distributed via internal network
 
-技術選定の検討:
+Technology selection considerations:
 
-  候補 ①: Electron
-    利点:
-      → Slack / Discord の実績
-      → WebSocket は Web 標準で容易
-      → 通知 API が成熟
-      → electron-updater で自動更新
-      → desktopCapturer でスクリーンショット
-    欠点:
-      → メモリ消費が大きい（常駐アプリとして負担）
-      → バンドルサイズ
+  Candidate ①: WinUI 3
+    Advantages:
+      → Windows native appearance
+      → Easy AD authentication with .NET libraries
+      → File encryption with DPAPI
+      → Internal distribution management with MSIX packages via Group Policy
+    Disadvantages:
+      → Windows only (future macOS support not possible)
+      → XAML learning curve
 
-  候補 ②: Tauri v2
-    利点:
-      → 常駐アプリとして低メモリ消費
-      → tray icon プラグインで簡単実装
-      → tauri-plugin-updater で自動更新
-    欠点:
-      → スクリーンショット機能の実装が複雑
-      → WebSocket はフロントエンド側で処理
+  Candidate ②: Electron
+    Advantages:
+      → Leverages web team's skills
+      → Easy PDF preview with PDF.js
+      → Future macOS support possible
+    Disadvantages:
+      → Large bundle size
+      → Complex AD authentication implementation
+      → High memory consumption
 
-  最終選定: Electron
-  理由:
-    → リッチなメディア機能（スクリーンショット、ビデオ通話拡張）
-    → WebRTC 統合の容易さ
-    → チャットアプリの実績（Slack, Discord, Signal）
-    → メモリ消費はトレードオフとして許容
+  Candidate ③: Tauri v2
+    Advantages:
+      → Lightweight with low load on company PCs
+      → Secure encryption processing with Rust
+      → Future cross-platform support
+    Disadvantages:
+      → Limited Rust libraries for AD authentication
+      → Few Rust personnel in-house
+
+  Final selection: WinUI 3
+  Reasons:
+    → Best fit for Windows-only requirements
+    → .NET business library assets
+    → Ease of AD integration was the deciding factor
+    → Compatibility with IT department's MSIX distribution requirements
+```
+
+### 10.2 Case Study: Cross-Platform Chat Application
+
+```
+Requirements:
+  ・ Supports Windows / macOS / Linux
+  ・ Real-time messaging (WebSocket)
+  ・ File sharing / image preview
+  ・ Notifications (system tray resident)
+  ・ Auto-update
+  ・ Screenshot capture
+
+Technology selection considerations:
+
+  Candidate ①: Electron
+    Advantages:
+      → Proven by Slack / Discord
+      → WebSocket is easy with web standards
+      → Mature notification API
+      → Auto-update with electron-updater
+      → Screenshots with desktopCapturer
+    Disadvantages:
+      → High memory consumption (burden as a resident app)
+      → Bundle size
+
+  Candidate ②: Tauri v2
+    Advantages:
+      → Low memory consumption as a resident app
+      → Easy implementation with tray icon plugin
+      → Auto-update with tauri-plugin-updater
+    Disadvantages:
+      → Complex implementation of screenshot feature
+      → WebSocket handled on the frontend side
+
+  Final selection: Electron
+  Reasons:
+    → Rich media features (screenshots, video call extension)
+    → Easy WebRTC integration
+    → Proven track record in chat apps (Slack, Discord, Signal)
+    → Memory consumption accepted as a trade-off
 ```
 
 ---
@@ -1748,40 +1748,40 @@ test.describe('メインウィンドウ', () => {
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 技術 | 最適な用途 | バンドルサイズ | メモリ | 学習コスト |
-|------|----------|-------------|--------|----------|
-| Electron | 既存 Web アプリのデスクトップ化 | ~150MB | ~200MB | 低 |
-| Tauri v2 | 新規の軽量デスクトップアプリ | ~5MB | ~50MB | 中 |
-| WinUI 3 | Windows ネイティブ業務アプリ | ~20MB | ~100MB | 中 |
-| WPF | Windows 業務アプリ（レガシー含む） | ~20MB | ~100MB | 中 |
-| MAUI | .NET マルチプラットフォーム | ~30MB | ~120MB | 中 |
-| Flutter | 統一UI のマルチプラットフォーム | ~20MB | ~80MB | 中 |
-| Qt | 高性能・産業用途 | ~30MB | ~60MB | 高 |
-| PWA | 軽量なWebベースアプリ | 0MB | ブラウザ依存 | 低 |
+Knowledge of this topic is frequently applied in daily development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Technology | Best Use Case | Bundle Size | Memory | Learning Cost |
+|------------|--------------|-------------|--------|---------------|
+| Electron | Desktopifying existing web apps | ~150MB | ~200MB | Low |
+| Tauri v2 | New lightweight desktop apps | ~5MB | ~50MB | Medium |
+| WinUI 3 | Windows native business apps | ~20MB | ~100MB | Medium |
+| WPF | Windows business apps (including legacy) | ~20MB | ~100MB | Medium |
+| MAUI | .NET multi-platform | ~30MB | ~120MB | Medium |
+| Flutter | Multi-platform with unified UI | ~20MB | ~80MB | Medium |
+| Qt | High performance / industrial use | ~30MB | ~60MB | High |
+| PWA | Lightweight web-based apps | 0MB | Browser dependent | Low |
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+---
+
+## References
 1. Electron. "Quick Start." electronjs.org/docs, 2024.
 2. Tauri. "Prerequisites." tauri.app/start, 2024.
 3. Microsoft. "Windows App SDK." learn.microsoft.com, 2024.
