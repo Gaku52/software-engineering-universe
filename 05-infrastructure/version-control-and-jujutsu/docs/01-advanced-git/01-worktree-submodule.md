@@ -1,47 +1,47 @@
 # Worktree/Submodule
 
-> `git worktree`による複数作業ディレクトリの管理と、`git submodule`による外部リポジトリの統合手法を解説し、大規模プロジェクトでの効率的な運用方法を習得する。
+> Learn how to manage multiple working directories with `git worktree` and integrate external repositories with `git submodule`, mastering efficient workflows for large-scale projects.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **git worktreeの仕組みと活用法** -- 1つのリポジトリで複数のブランチを同時にチェックアウトする手法
-2. **git submoduleの内部構造と運用** -- 外部リポジトリの依存管理とバージョン固定の仕組み
-3. **代替手段との比較** -- subtree merge、モノレポ、パッケージマネージャーとの使い分け
-4. **大規模プロジェクトでのベストプラクティス** -- CI/CD連携、チーム運用、トラブルシューティング
+1. **How git worktree works and how to use it** -- Techniques for checking out multiple branches simultaneously from a single repository
+2. **git submodule internals and operation** -- Managing external repository dependencies and pinning versions
+3. **Comparison with alternatives** -- When to use subtree merge, monorepos, and package managers
+4. **Best practices for large-scale projects** -- CI/CD integration, team workflows, and troubleshooting
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [インタラクティブRebase](./00-interactive-rebase.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Interactive Rebase](./00-interactive-rebase.md)
 
 ---
 
 ## 1. git worktree
 
-### 1.1 worktreeとは
+### 1.1 What is a worktree?
 
-1つの`.git`ディレクトリを共有しながら、**複数のブランチを別々のディレクトリに同時チェックアウト**できる機能。
+A feature that allows you to **check out multiple branches into separate directories simultaneously** while sharing a single `.git` directory.
 
 ```bash
-# worktreeの追加
+# Adding a worktree
 $ git worktree add ../hotfix-v1 hotfix/v1.0.1
-# → ../hotfix-v1 ディレクトリに hotfix/v1.0.1 をチェックアウト
+# → Checks out hotfix/v1.0.1 into the ../hotfix-v1 directory
 
-# 新しいブランチを作成しつつworktreeを追加
+# Add a worktree while creating a new branch
 $ git worktree add -b feature/new-ui ../new-ui main
-# → main から feature/new-ui を作成し、../new-ui にチェックアウト
+# → Creates feature/new-ui from main and checks it out into ../new-ui
 
-# worktreeの一覧
+# List worktrees
 $ git worktree list
 /home/user/project          abc1234 [main]
 /home/user/hotfix-v1        def5678 [hotfix/v1.0.1]
 /home/user/new-ui           789abcd [feature/new-ui]
 
-# 詳細表示（porcelain形式）
+# Verbose output (porcelain format)
 $ git worktree list --porcelain
 worktree /home/user/project
 HEAD abc1234567890abcdef1234567890abcdef123456
@@ -54,206 +54,206 @@ branch refs/heads/hotfix/v1.0.1
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  worktree のディレクトリ構造                          │
+│  worktree directory structure                         │
 │                                                      │
 │  /home/user/                                         │
-│  ├── project/              ← メインworktree          │
-│  │   ├── .git/             ← 共有オブジェクトDB      │
+│  ├── project/              ← main worktree           │
+│  │   ├── .git/             ← shared object DB        │
 │  │   │   ├── objects/                                │
 │  │   │   ├── refs/                                   │
 │  │   │   ├── worktrees/                              │
-│  │   │   │   ├── hotfix-v1/   ← worktree固有情報    │
+│  │   │   │   ├── hotfix-v1/   ← worktree-specific   │
 │  │   │   │   │   ├── HEAD                            │
 │  │   │   │   │   ├── index                           │
 │  │   │   │   │   └── gitdir                          │
-│  │   │   │   └── new-ui/      ← worktree固有情報    │
+│  │   │   │   └── new-ui/      ← worktree-specific   │
 │  │   │   │       ├── HEAD                            │
 │  │   │   │       ├── index                           │
 │  │   │   │       └── gitdir                          │
 │  │   │   └── ...                                     │
-│  │   └── src/              ← mainの作業ファイル      │
+│  │   └── src/              ← working files for main  │
 │  │                                                   │
 │  ├── hotfix-v1/            ← linked worktree         │
-│  │   ├── .git              ← テキストファイル(パス)  │
-│  │   └── src/              ← hotfixの作業ファイル    │
+│  │   ├── .git              ← text file (path)        │
+│  │   └── src/              ← working files for hotfix│
 │  │                                                   │
 │  └── new-ui/               ← linked worktree         │
-│      ├── .git              ← テキストファイル(パス)  │
-│      └── src/              ← new-uiの作業ファイル    │
+│      ├── .git              ← text file (path)        │
+│      └── src/              ← working files for new-ui│
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.2 worktreeの管理
+### 1.2 Managing worktrees
 
 ```bash
-# worktreeの削除
+# Removing a worktree
 $ git worktree remove ../hotfix-v1
-# → ディレクトリを削除し、.git/worktrees/ からも削除
+# → Deletes the directory and removes it from .git/worktrees/
 
-# 未コミットの変更がある場合は強制削除
+# Force removal when there are uncommitted changes
 $ git worktree remove --force ../hotfix-v1
 
-# 手動でディレクトリを削除した場合のクリーンアップ
+# Clean up after manually deleting a directory
 $ rm -rf ../hotfix-v1
 $ git worktree prune
-# → 存在しないworktreeの参照を削除
+# → Removes references to worktrees that no longer exist
 
-# worktreeをロック（自動pruneの防止）
-$ git worktree lock ../new-ui --reason "長期作業中"
+# Lock a worktree (prevents automatic pruning)
+$ git worktree lock ../new-ui --reason "long-term work in progress"
 $ git worktree unlock ../new-ui
 
-# worktreeの移動
+# Move a worktree
 $ git worktree move ../new-ui ../new-ui-v2
-# → ディレクトリ名を変更（Git 2.17+）
+# → Renames the directory (Git 2.17+)
 ```
 
-### 1.3 worktreeの内部構造
+### 1.3 Internal structure of worktrees
 
 ```bash
-# linked worktreeの .git ファイルの中身
+# Contents of the .git file in a linked worktree
 $ cat ../hotfix-v1/.git
 gitdir: /home/user/project/.git/worktrees/hotfix-v1
 
-# メインリポジトリ側のworktree情報
+# Worktree info on the main repository side
 $ cat /home/user/project/.git/worktrees/hotfix-v1/gitdir
 /home/user/hotfix-v1/.git
 
-# worktree固有のHEAD
+# Worktree-specific HEAD
 $ cat /home/user/project/.git/worktrees/hotfix-v1/HEAD
 ref: refs/heads/hotfix/v1.0.1
 
-# worktree固有のindex（ステージング情報）
+# Worktree-specific index (staging info)
 $ ls -la /home/user/project/.git/worktrees/hotfix-v1/index
 ```
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  worktree間で共有されるもの / 共有されないもの         │
+│  What is shared between worktrees / what is not      │
 │                                                      │
-│  共有される:                                         │
-│  ├── .git/objects/     ← 全オブジェクト              │
-│  ├── .git/refs/        ← 全ブランチ・タグ            │
-│  ├── .git/config       ← リポジトリ設定              │
-│  ├── .git/hooks/       ← フックスクリプト            │
-│  └── .git/info/        ← exclude等                   │
+│  Shared:                                             │
+│  ├── .git/objects/     ← all objects                 │
+│  ├── .git/refs/        ← all branches and tags       │
+│  ├── .git/config       ← repository config           │
+│  ├── .git/hooks/       ← hook scripts                │
+│  └── .git/info/        ← excludes, etc.              │
 │                                                      │
-│  共有されない（worktree固有）:                       │
-│  ├── HEAD              ← 現在のブランチ              │
-│  ├── index             ← ステージング状態            │
-│  ├── MERGE_HEAD        ← マージ中の状態              │
-│  ├── REBASE_HEAD       ← rebase中の状態              │
-│  └── 作業ディレクトリ  ← 実際のファイル              │
+│  Not shared (worktree-specific):                     │
+│  ├── HEAD              ← current branch              │
+│  ├── index             ← staging state               │
+│  ├── MERGE_HEAD        ← in-progress merge state     │
+│  ├── REBASE_HEAD       ← in-progress rebase state    │
+│  └── working directory ← actual files                │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.4 worktreeの活用パターン
+### 1.4 Worktree usage patterns
 
 ```bash
-# パターン1: PRレビュー中に別の作業をする
+# Pattern 1: Work on something else while reviewing a PR
 $ git worktree add ../review-pr-42 origin/feature/pr-42
 $ cd ../review-pr-42
 $ npm install && npm test
 $ cd ../project
-# → メインの作業ディレクトリを汚さずにレビュー
+# → Review without dirtying the main working directory
 
-# パターン2: ビルドの同時実行
+# Pattern 2: Run builds in parallel
 $ git worktree add ../build-release release/v2.0
 $ cd ../build-release && npm run build &
 $ cd ../project && npm run dev
-# → リリースビルドと開発サーバーを同時実行
+# → Run a release build and dev server simultaneously
 
-# パターン3: 複数バージョンの動作比較
+# Pattern 3: Compare behavior across multiple versions
 $ git worktree add ../v1 v1.0.0
 $ git worktree add ../v2 v2.0.0
-# → 2つのバージョンを並べて動作確認
+# → Verify behavior side by side for two versions
 
-# パターン4: 緊急のhotfix対応
+# Pattern 4: Urgent hotfix
 $ git worktree add -b hotfix/critical ../hotfix main
 $ cd ../hotfix
-# ... 修正作業 ...
+# ... fix work ...
 $ git commit -m "fix: critical security issue"
 $ git push origin hotfix/critical
 $ cd ../project
 $ git worktree remove ../hotfix
-# → メインの開発作業を中断せずにhotfixを完了
+# → Complete the hotfix without interrupting main development
 
-# パターン5: ドキュメントの同時編集
+# Pattern 5: Edit documentation simultaneously
 $ git worktree add ../docs-edit docs/main
 $ cd ../docs-edit
-# → ドキュメント専用のworktreeで作業
-# → メインの開発worktreeのnpm install等の影響を受けない
+# → Work in a dedicated documentation worktree
+# → Unaffected by npm install, etc. in the main development worktree
 
-# パターン6: CI用のクリーンビルド
+# Pattern 6: Clean build for CI
 $ git worktree add --detach ../ci-build HEAD
 $ cd ../ci-build
 $ npm ci && npm run build && npm test
 $ cd ../project
 $ git worktree remove ../ci-build
-# → クリーンな状態でビルド・テストを実行
+# → Run build and tests in a clean state
 ```
 
-### 1.5 worktreeとブランチ操作
+### 1.5 Branch operations within a worktree
 
 ```bash
-# worktree内でのブランチ操作
+# Branch operations inside a worktree
 $ cd ../hotfix-v1
-$ git branch                    # 全ブランチを表示（全worktreeで共通）
-$ git fetch origin              # フェッチ（全worktreeに反映）
-$ git stash                     # このworktreeの変更をstash
+$ git branch                    # Show all branches (shared across all worktrees)
+$ git fetch origin              # Fetch (reflected in all worktrees)
+$ git stash                     # Stash changes in this worktree
 
-# worktreeでチェックアウトできないケース
+# Cases where checkout is not allowed in a worktree
 $ git worktree add ../test main
 # fatal: 'main' is already checked out at '/home/user/project'
-# → 同じブランチを複数worktreeでチェックアウトすることは不可
+# → The same branch cannot be checked out in multiple worktrees
 
-# 回避策: detached HEADで同じコミットを参照
+# Workaround: Reference the same commit using a detached HEAD
 $ git worktree add --detach ../test HEAD
-# → ブランチではなくコミットを直接チェックアウト
+# → Check out the commit directly rather than a branch
 ```
 
-### 1.6 worktreeの制約と注意点
+### 1.6 Worktree constraints and caveats
 
-| 制約                           | 説明                                          |
-|-------------------------------|-----------------------------------------------|
-| 同一ブランチの重複チェックアウト | 同じブランチを複数worktreeでチェックアウト不可 |
-| ベアリポジトリ                 | worktreeの追加は可能だがメインworktreeがない    |
-| サブモジュール                 | worktreeごとにサブモジュールの初期化が必要      |
-| GC                            | メインworktreeの.git/objectsを共有              |
-| node_modules                  | worktreeごとにnpm installが必要                |
-| IDE設定                        | worktreeごとに.ideaや.vscode設定が必要         |
+| Constraint | Description |
+|---|---|
+| Duplicate checkout of the same branch | The same branch cannot be checked out in multiple worktrees |
+| Bare repositories | Worktrees can be added but there is no main worktree |
+| Submodules | Submodules must be initialized per worktree |
+| GC | Shares .git/objects with the main worktree |
+| node_modules | npm install is required per worktree |
+| IDE settings | .idea and .vscode settings are required per worktree |
 
 ```bash
-# worktreeでサブモジュールを初期化する例
+# Example: Initializing submodules in a worktree
 $ git worktree add ../review origin/feature/review
 $ cd ../review
 $ git submodule update --init --recursive
-# → worktreeごとにサブモジュールの初期化が必要
+# → Submodule initialization is required per worktree
 
-# worktreeで依存関係をインストールする例
+# Example: Installing dependencies in a worktree
 $ git worktree add ../test-branch test-branch
 $ cd ../test-branch
 $ npm install
-# → node_modulesはworktreeごとに独立
+# → node_modules are independent per worktree
 ```
 
-### 1.7 worktreeを使ったスクリプト自動化
+### 1.7 Automating worktree workflows with scripts
 
 ```bash
 #!/bin/bash
-# review-pr.sh - PRレビュー用worktreeを自動作成
+# review-pr.sh - Automatically create a worktree for PR review
 set -euo pipefail
 
 PR_NUMBER=$1
 BRANCH="origin/pr/${PR_NUMBER}"
 WORKTREE_DIR="../review-pr-${PR_NUMBER}"
 
-# リモートの最新を取得
+# Fetch latest from remote
 git fetch origin
 
-# worktreeを作成
+# Create the worktree
 git worktree add "$WORKTREE_DIR" "$BRANCH"
 
-# 依存関係のインストールとテスト
+# Install dependencies and run tests
 cd "$WORKTREE_DIR"
 if [ -f package.json ]; then
     npm install
@@ -266,13 +266,13 @@ echo "To clean up: git worktree remove $WORKTREE_DIR"
 
 ```bash
 #!/bin/bash
-# cleanup-worktrees.sh - 不要なworktreeを一括削除
+# cleanup-worktrees.sh - Bulk-delete unnecessary worktrees
 set -euo pipefail
 
 echo "Current worktrees:"
 git worktree list
 
-# マージ済みブランチのworktreeを検出
+# Detect worktrees for merged branches
 git worktree list --porcelain | while read -r line; do
     if [[ "$line" == "branch refs/heads/"* ]]; then
         branch="${line#branch refs/heads/}"
@@ -284,7 +284,7 @@ git worktree list --porcelain | while read -r line; do
     fi
 done
 
-# 存在しないworktreeのクリーンアップ
+# Clean up references to non-existent worktrees
 git worktree prune
 echo "Cleanup complete."
 ```
@@ -293,16 +293,16 @@ echo "Cleanup complete."
 
 ## 2. git submodule
 
-### 2.1 submoduleの基本
+### 2.1 Submodule basics
 
 ```bash
-# サブモジュールの追加
+# Adding a submodule
 $ git submodule add https://github.com/lib/utils.git vendor/utils
-# → .gitmodules ファイルが作成される
-# → vendor/utils/ にリポジトリがクローンされる
-# → 特定のcommit SHA-1がインデックスに記録される
+# → A .gitmodules file is created
+# → The repository is cloned into vendor/utils/
+# → A specific commit SHA-1 is recorded in the index
 
-# .gitmodulesの内容
+# Contents of .gitmodules
 $ cat .gitmodules
 [submodule "vendor/utils"]
     path = vendor/utils
@@ -311,117 +311,117 @@ $ cat .gitmodules
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  submodule の仕組み                                  │
+│  How submodules work                                 │
 │                                                     │
-│  親リポジトリのtreeオブジェクト:                     │
+│  Parent repository tree object:                     │
 │  100644 blob abc123  .gitmodules                    │
 │  100644 blob def456  README.md                      │
-│  160000 commit 789abc vendor/utils  ← commitを参照! │
+│  160000 commit 789abc vendor/utils  ← references a commit! │
 │         ^^^^^^                                      │
 │         mode 160000 = submodule                     │
 │                                                     │
-│  → 親リポジトリは vendor/utils の特定commitを記録   │
-│  → vendor/utils/ 内部は独立したリポジトリ           │
-│  → .gitmodules にURLとパスのマッピングを保持        │
+│  → The parent repo records a specific commit of vendor/utils│
+│  → The vendor/utils/ directory is an independent repository │
+│  → .gitmodules holds the URL-to-path mapping        │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 2.2 submoduleの初期化とクローン
+### 2.2 Initializing and cloning submodules
 
 ```bash
-# クローン時にサブモジュールも取得
+# Clone and also fetch submodules
 $ git clone --recurse-submodules https://github.com/user/project.git
 
-# クローン後にサブモジュールを初期化
+# Initialize submodules after cloning
 $ git submodule init
 $ git submodule update
-# または一括で
+# Or all at once
 $ git submodule update --init --recursive
 
-# 全サブモジュールの状態確認
+# Check the status of all submodules
 $ git submodule status
  789abcdef1234567890abcdef1234567890abcdef vendor/utils (v2.3.0)
 +fedcba9876543210fedcba9876543210fedcba98 vendor/auth (heads/main)
 -0123456789abcdef0123456789abcdef01234567 vendor/ui
 ```
 
-**ステータスマーカーの意味**:
+**Meaning of status markers**:
 
-| マーカー | 意味                                              |
-|----------|---------------------------------------------------|
-| (空白)   | 記録されたcommitにチェックアウト済み               |
-| `+`      | 記録と異なるcommitにチェックアウトされている       |
-| `-`      | 未初期化                                           |
-| `U`      | マージコンフリクト中                               |
+| Marker | Meaning |
+|---|---|
+| (space) | Checked out at the recorded commit |
+| `+` | Checked out at a different commit than recorded |
+| `-` | Not initialized |
+| `U` | Merge conflict in progress |
 
-### 2.3 submoduleの更新
+### 2.3 Updating submodules
 
 ```bash
-# 親リポジトリが記録しているcommitに合わせる
+# Align to the commit recorded in the parent repository
 $ git submodule update
-# → detached HEAD状態になる
+# → Results in a detached HEAD state
 
-# リモートの最新を取得してサブモジュールを更新
+# Fetch latest from remote and update submodules
 $ git submodule update --remote
-# → .gitmodulesのbranch設定（デフォルトmain）の最新commitに更新
-# → 親リポジトリのインデックスも更新される
+# → Updates to the latest commit of the branch set in .gitmodules (default: main)
+# → Also updates the parent repository's index
 
-# 特定のサブモジュールだけ更新
+# Update only a specific submodule
 $ git submodule update --remote vendor/utils
 $ git add vendor/utils
 $ git commit -m "chore: update vendor/utils to latest"
 
-# マージ戦略を指定して更新
+# Update with a specified merge strategy
 $ git submodule update --remote --merge
-# → 現在のブランチにリモートの変更をmerge
+# → Merges remote changes into the current branch
 
 $ git submodule update --remote --rebase
-# → 現在の作業をリモートの最新に対してrebase
+# → Rebases current work on top of the latest remote
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  submodule update のフロー                          │
+│  submodule update flow                              │
 │                                                    │
-│  git submodule update (--remote なし):             │
-│  1. 親リポジトリの記録commitを読む                 │
-│  2. サブモジュールをそのcommitにcheckout           │
-│  → 常に "固定されたバージョン" になる              │
+│  git submodule update (without --remote):          │
+│  1. Read the recorded commit from the parent repo  │
+│  2. Check out the submodule at that commit         │
+│  → Always results in the "pinned version"          │
 │                                                    │
 │  git submodule update --remote:                    │
-│  1. サブモジュールのリモートからfetch              │
-│  2. 設定されたブランチの最新commitを取得           │
-│  3. サブモジュールをそのcommitにcheckout           │
-│  4. 親リポジトリのインデックスを更新               │
-│  → "最新バージョン" に追従する                     │
+│  1. Fetch from the submodule's remote              │
+│  2. Get the latest commit of the configured branch │
+│  3. Check out the submodule at that commit         │
+│  4. Update the parent repository's index          │
+│  → Follows the "latest version"                    │
 │                                                    │
 │  git submodule update --remote --merge:            │
-│  1. リモートからfetch                              │
-│  2. 現在のブランチにmerge                          │
-│  → サブモジュール内でブランチ作業中に有効          │
+│  1. Fetch from remote                              │
+│  2. Merge into the current branch                  │
+│  → Useful when doing branch work inside a submodule│
 └────────────────────────────────────────────────────┘
 ```
 
-### 2.4 submodule内での開発
+### 2.4 Developing inside a submodule
 
 ```bash
-# サブモジュール内で作業する場合
+# Working inside a submodule
 $ cd vendor/utils
-$ git checkout main               # detached HEADからブランチに切替
-$ vim src/index.js                # 修正
+$ git checkout main               # Switch from detached HEAD to a branch
+$ vim src/index.js                # Make changes
 $ git add . && git commit -m "fix: bug in utils"
-$ git push origin main            # サブモジュールのリモートにpush
+$ git push origin main            # Push to the submodule's remote
 
-# 親リポジトリに戻って記録を更新
+# Go back to the parent repository and update the recorded commit
 $ cd ../..
 $ git add vendor/utils
 $ git commit -m "chore: update vendor/utils submodule"
 ```
 
-### 2.5 submoduleの特定バージョンへの固定
+### 2.5 Pinning a submodule to a specific version
 
 ```bash
-# 特定のタグにサブモジュールを固定
+# Pin a submodule to a specific tag
 $ cd vendor/utils
 $ git fetch --tags
 $ git checkout v2.3.0
@@ -429,186 +429,186 @@ $ cd ../..
 $ git add vendor/utils
 $ git commit -m "chore: pin vendor/utils to v2.3.0"
 
-# 特定のコミットに固定
+# Pin to a specific commit
 $ cd vendor/utils
 $ git checkout abc123def456
 $ cd ../..
 $ git add vendor/utils
 $ git commit -m "chore: pin vendor/utils to known-good commit"
 
-# ブランチのHEADに追従する設定
+# Configure to follow the HEAD of a branch
 $ git config -f .gitmodules submodule.vendor/utils.branch develop
 $ git submodule update --remote vendor/utils
 ```
 
-### 2.6 submoduleの削除
+### 2.6 Removing a submodule
 
 ```bash
-# サブモジュールの完全な削除（3段階必要）
-$ git submodule deinit -f vendor/utils   # 1. 設定の無効化
-$ git rm -f vendor/utils                  # 2. ファイルとインデックスから削除
-$ rm -rf .git/modules/vendor/utils        # 3. キャッシュの削除
+# Completely remove a submodule (3 steps required)
+$ git submodule deinit -f vendor/utils   # 1. Deactivate configuration
+$ git rm -f vendor/utils                  # 2. Remove from files and index
+$ rm -rf .git/modules/vendor/utils        # 3. Delete the cache
 $ git commit -m "chore: remove vendor/utils submodule"
 ```
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  submodule削除時に影響を受けるファイル/ディレクトリ   │
+│  Files/directories affected when removing a submodule│
 │                                                      │
-│  1. .gitmodules             ← サブモジュールの設定   │
-│  2. .git/config             ← ローカル設定           │
-│  3. .git/modules/<path>/   ← キャッシュされたリポジトリ│
-│  4. <path>/                ← 実際のファイル           │
-│  5. インデックス            ← mode 160000 のエントリ │
+│  1. .gitmodules             ← submodule configuration│
+│  2. .git/config             ← local configuration    │
+│  3. .git/modules/<path>/   ← cached repository       │
+│  4. <path>/                ← actual files            │
+│  5. index                  ← mode 160000 entry       │
 │                                                      │
-│  git submodule deinit: 2を削除                       │
-│  git rm:              1, 4, 5を削除                  │
-│  rm -rf:              3を削除（手動）                 │
+│  git submodule deinit: removes 2                     │
+│  git rm:              removes 1, 4, 5                │
+│  rm -rf:              removes 3 (manual)             │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 2.7 submoduleのURLとパスの変更
+### 2.7 Changing submodule URL and path
 
 ```bash
-# URLの変更
+# Changing the URL
 $ git config -f .gitmodules submodule.vendor/utils.url git@github.com:org/utils.git
 $ git submodule sync
 $ git submodule update --init
 
-# パスの変更（サブモジュールの移動）
+# Changing the path (moving a submodule)
 $ git mv vendor/utils lib/utils
-# → .gitmodulesのパスも自動更新（Git 2.17+）
+# → The path in .gitmodules is also updated automatically (Git 2.17+)
 $ git commit -m "chore: move vendor/utils to lib/utils"
 
-# URLの一括書き換え（HTTPS → SSH）
+# Bulk URL rewrite (HTTPS → SSH)
 $ git config --global url."git@github.com:".insteadOf "https://github.com/"
-# → 全てのHTTPS URLがSSHに変換される
+# → All HTTPS URLs are converted to SSH
 ```
 
 ---
 
-## 3. subtree mergeとの比較
+## 3. Comparison with subtree merge
 
 ```bash
-# subtree addでの外部リポジトリ統合
+# Integrating an external repository with subtree add
 $ git subtree add --prefix=vendor/utils \
     https://github.com/lib/utils.git main --squash
 
-# subtreeの更新
+# Updating a subtree
 $ git subtree pull --prefix=vendor/utils \
     https://github.com/lib/utils.git main --squash
 
-# subtreeからの変更を上流にpush
+# Pushing changes from the subtree back upstream
 $ git subtree push --prefix=vendor/utils \
     https://github.com/lib/utils.git develop
 ```
 
-| 項目               | submodule                    | subtree                      |
-|--------------------|------------------------------|------------------------------|
-| リポジトリ構造     | 親とは別の独立リポジトリ     | 親リポジトリに統合           |
-| クローン           | `--recurse-submodules`必要   | 通常のcloneで完結            |
-| バージョン管理     | commit SHA-1で厳密に固定     | マージコミットで管理         |
-| 更新の容易さ       | `submodule update`           | `subtree pull`               |
-| .gitmodulesの管理  | 必要                         | 不要                         |
-| 履歴の独立性       | 完全に分離                   | 親の履歴に混在               |
-| CIでの扱い         | 追加ステップが必要           | 特別な処理不要               |
-| 推奨用途           | 大きな外部ライブラリ         | 小さな共有コード             |
-| 上流への貢献       | サブモジュール内で直接push   | `subtree push`で抽出         |
-| ディスク使用量     | 独立クローン分               | 親リポジトリに含まれる       |
+| Item | submodule | subtree |
+|---|---|---|
+| Repository structure | Independent repository separate from the parent | Integrated into the parent repository |
+| Cloning | Requires `--recurse-submodules` | Completes with a normal clone |
+| Version management | Strictly pinned by commit SHA-1 | Managed by merge commits |
+| Ease of updates | `submodule update` | `subtree pull` |
+| .gitmodules management | Required | Not required |
+| History independence | Completely isolated | Mixed into parent history |
+| CI handling | Requires additional steps | No special handling needed |
+| Recommended use | Large external libraries | Small shared code |
+| Contributing upstream | Push directly inside the submodule | Extract with `subtree push` |
+| Disk usage | Separate clone | Included in the parent repository |
 
-### 3.1 subtreeの詳細な使い方
+### 3.1 Detailed usage of subtree
 
 ```bash
-# subtree add（初回追加）
+# subtree add (initial addition)
 $ git subtree add --prefix=lib/shared \
     git@github.com:org/shared-lib.git main --squash
-# → lib/shared/ に外部リポジトリの内容を配置
-# → --squash で外部リポジトリの履歴を1つのコミットにまとめる
+# → Places external repository content under lib/shared/
+# → --squash condenses the external repository history into a single commit
 
-# subtree pull（更新）
+# subtree pull (update)
 $ git subtree pull --prefix=lib/shared \
     git@github.com:org/shared-lib.git main --squash
-# → 最新の変更を取り込む
+# → Pull in the latest changes
 
-# subtree push（上流への貢献）
+# subtree push (contribute upstream)
 $ git subtree push --prefix=lib/shared \
     git@github.com:org/shared-lib.git feature/my-fix
-# → lib/shared/ への変更を外部リポジトリのブランチにpush
+# → Push changes to lib/shared/ to a branch in the external repository
 
-# subtree split（履歴の抽出）
+# subtree split (extract history)
 $ git subtree split --prefix=lib/shared --branch=shared-only
-# → lib/shared/ に関する履歴だけを抽出してブランチを作成
+# → Extract only the history related to lib/shared/ and create a branch
 ```
 
-### 3.2 モノレポとの比較
+### 3.2 Comparison with monorepos
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  依存管理の4つのアプローチ                            │
+│  Four approaches to dependency management            │
 │                                                      │
 │  1. submodule                                        │
-│     独立リポジトリを参照。バージョン固定が容易        │
-│     適用: 外部ライブラリ、大きな依存                  │
+│     References independent repositories. Easy to pin versions. │
+│     Use case: external libraries, large dependencies │
 │                                                      │
 │  2. subtree                                          │
-│     コードを直接統合。クローンが容易                  │
-│     適用: 小さな共有ライブラリ                        │
+│     Integrates code directly. Easy to clone.        │
+│     Use case: small shared libraries                 │
 │                                                      │
-│  3. モノレポ                                         │
-│     全てのコードを1つのリポジトリに配置               │
-│     適用: 組織内の密結合プロジェクト                  │
-│     ツール: Nx, Turborepo, Bazel                     │
+│  3. Monorepo                                         │
+│     All code in a single repository.                │
+│     Use case: tightly coupled projects within an org │
+│     Tools: Nx, Turborepo, Bazel                     │
 │                                                      │
-│  4. パッケージマネージャー                           │
-│     npm, pip, gem 等でバージョン管理                  │
-│     適用: 公開ライブラリ、明確なAPI境界               │
+│  4. Package manager                                  │
+│     Version management with npm, pip, gem, etc.     │
+│     Use case: public libraries, clear API boundaries │
 │                                                      │
-│  判断基準:                                           │
-│  - 変更頻度が高い → モノレポ or submodule             │
-│  - 安定したAPI → パッケージマネージャー              │
-│  - クローン簡易性が重要 → subtree                    │
-│  - 厳密なバージョン管理 → submodule                  │
+│  Decision criteria:                                  │
+│  - High change frequency → monorepo or submodule    │
+│  - Stable API → package manager                     │
+│  - Cloning simplicity matters → subtree             │
+│  - Strict version control → submodule               │
 └──────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. foreach -- 一括操作
+## 4. foreach -- Bulk operations
 
 ```bash
-# 全サブモジュールで同じコマンドを実行
+# Run the same command in all submodules
 $ git submodule foreach 'git fetch origin && git checkout main && git pull'
 
-# ネストされたサブモジュールも含む
+# Include nested submodules
 $ git submodule foreach --recursive 'git clean -fdx'
 
-# 条件付き実行
+# Conditional execution
 $ git submodule foreach '
   if [ -f package.json ]; then
     npm install
   fi
 '
 
-# サブモジュールの名前やパスを使用
+# Use submodule name or path
 $ git submodule foreach 'echo "Processing: $name at $sm_path (toplevel: $toplevel)"'
-# $name:     サブモジュール名（.gitmodulesのセクション名）
-# $sm_path:  サブモジュールのパス
-# $toplevel: 親リポジトリのトップレベルディレクトリ
-# $sha1:     サブモジュールの現在のcommit SHA-1
-# $displaypath: 表示用パス
+# $name:     submodule name (section name in .gitmodules)
+# $sm_path:  submodule path
+# $toplevel: top-level directory of the parent repository
+# $sha1:     current commit SHA-1 of the submodule
+# $displaypath: display path
 
-# 全サブモジュールのステータスサマリー
+# Status summary of all submodules
 $ git submodule foreach 'echo "$sm_path: $(git describe --always --dirty)"'
 
-# 全サブモジュールで未コミットの変更があるか確認
+# Check if any submodule has uncommitted changes
 $ git submodule foreach 'git status --porcelain | grep -q . && echo "$sm_path has changes" || echo "$sm_path is clean"'
 ```
 
-### 4.1 foreachの実践的なスクリプト
+### 4.1 Practical foreach scripts
 
 ```bash
 #!/bin/bash
-# update-all-submodules.sh - 全サブモジュールを安全に更新
+# update-all-submodules.sh - Safely update all submodules
 set -euo pipefail
 
 echo "=== Fetching all submodules ==="
@@ -626,7 +626,7 @@ echo ""
 echo "=== Status after update ==="
 git submodule status
 
-# 変更があればコミット
+# Commit if there are changes
 if ! git diff --cached --quiet; then
     echo ""
     echo "=== Committing submodule updates ==="
@@ -640,26 +640,26 @@ fi
 
 ---
 
-## 5. 実用的な.gitmodules設定
+## 5. Practical .gitmodules configuration
 
 ```bash
-# ブランチの指定（update --remote 時に使用）
+# Specify a branch (used with update --remote)
 $ git config -f .gitmodules submodule.vendor/utils.branch develop
 
-# shallow clone（高速化）
+# Shallow clone (for faster operations)
 $ git config -f .gitmodules submodule.vendor/utils.shallow true
 
-# URLの書き換え（プライベートリポジトリ対応）
+# URL rewrite (for private repositories)
 $ git config url."git@github.com:".insteadOf "https://github.com/"
 
-# 特定のサブモジュールのfetch設定
+# Fetch configuration for a specific submodule
 $ git config -f .gitmodules submodule.vendor/utils.fetchRecurseSubmodules false
 
-# update戦略の設定
+# Set the update strategy
 $ git config -f .gitmodules submodule.vendor/utils.update merge
-# → update時にmergeを使用（デフォルトはcheckout）
+# → Use merge on update (default is checkout)
 
-# .gitmodulesの最終形
+# Final form of .gitmodules
 $ cat .gitmodules
 [submodule "vendor/utils"]
     path = vendor/utils
@@ -679,21 +679,21 @@ $ cat .gitmodules
     fetchRecurseSubmodules = false
 ```
 
-### 5.1 .gitmodules設定項目の一覧
+### 5.1 List of .gitmodules configuration options
 
-| 設定項目                    | 説明                                         | デフォルト  |
-|----------------------------|----------------------------------------------|-------------|
-| `path`                     | サブモジュールの配置パス                      | (必須)      |
-| `url`                      | リポジトリのURL                               | (必須)      |
-| `branch`                   | `--remote`更新時に追従するブランチ           | (リモートHEAD) |
-| `update`                   | 更新戦略 (checkout/merge/rebase/none)        | checkout    |
-| `shallow`                  | shallow cloneを使用                          | false       |
-| `fetchRecurseSubmodules`   | fetch時にサブモジュールも再帰的にfetch       | (設定依存)  |
-| `ignore`                   | status/diffでの無視レベル (dirty/untracked/all/none) | none  |
+| Option | Description | Default |
+|---|---|---|
+| `path` | Path where the submodule is placed | (required) |
+| `url` | Repository URL | (required) |
+| `branch` | Branch to follow on `--remote` updates | (remote HEAD) |
+| `update` | Update strategy (checkout/merge/rebase/none) | checkout |
+| `shallow` | Use shallow clone | false |
+| `fetchRecurseSubmodules` | Recursively fetch submodules on fetch | (depends on config) |
+| `ignore` | Ignore level in status/diff (dirty/untracked/all/none) | none |
 
 ---
 
-## 6. CI/CD環境でのsubmodule運用
+## 6. Operating submodules in CI/CD environments
 
 ### 6.1 GitHub Actions
 
@@ -709,10 +709,10 @@ jobs:
       - name: Checkout with submodules
         uses: actions/checkout@v4
         with:
-          submodules: recursive    # サブモジュールを再帰的にclone
-          token: ${{ secrets.PAT_TOKEN }}  # プライベートサブモジュール用
+          submodules: recursive    # Recursively clone submodules
+          token: ${{ secrets.PAT_TOKEN }}  # For private submodules
 
-      # shallow submodule（高速化）
+      # shallow submodule (for faster operations)
       # - name: Checkout with shallow submodules
       #   uses: actions/checkout@v4
       #   with:
@@ -731,7 +731,7 @@ jobs:
 ```yaml
 # .gitlab-ci.yml
 variables:
-  GIT_SUBMODULE_STRATEGY: recursive   # サブモジュールを再帰的に取得
+  GIT_SUBMODULE_STRATEGY: recursive   # Recursively fetch submodules
   GIT_SUBMODULE_DEPTH: 1              # shallow clone
 
 build:
@@ -739,9 +739,9 @@ build:
     - npm install
     - npm run build
 
-# プライベートサブモジュールの場合
-# Settings > CI/CD > Variables に CI_JOB_TOKEN を設定
-# .gitmodulesのURLを相対パスに変更:
+# For private submodules:
+# Set CI_JOB_TOKEN in Settings > CI/CD > Variables
+# Change URLs in .gitmodules to relative paths:
 # [submodule "lib/shared"]
 #     path = lib/shared
 #     url = ../../group/shared-lib.git
@@ -784,239 +784,239 @@ pipeline {
 
 ---
 
-## 7. トラブルシューティング
+## 7. Troubleshooting
 
-### 7.1 よくあるsubmoduleのエラーと対処
+### 7.1 Common submodule errors and solutions
 
 ```bash
-# エラー1: "fatal: reference is not a tree: <sha1>"
-# 原因: 親リポジトリが参照するcommitがサブモジュールのリモートに存在しない
+# Error 1: "fatal: reference is not a tree: <sha1>"
+# Cause: The commit referenced by the parent repository does not exist on the submodule's remote
 $ cd vendor/utils
 $ git fetch origin
 $ git log --oneline --all | head -5
-# → 参照先のcommitが存在するか確認
-# 対処: サブモジュールの開発者がpushし忘れている可能性がある
+# → Verify whether the referenced commit exists
+# Solution: The submodule developer may have forgotten to push
 
-# エラー2: "fatal: No url found for submodule path 'vendor/utils'"
-# 原因: .gitmodulesに設定があるがgit submodule initされていない
+# Error 2: "fatal: No url found for submodule path 'vendor/utils'"
+# Cause: .gitmodules has an entry but git submodule init has not been run
 $ git submodule init
 $ git submodule update
 
-# エラー3: サブモジュールがdetached HEADになる
-# 原因: git submodule updateはデフォルトでcheckout（detached HEAD）
+# Error 3: Submodule ends up in detached HEAD state
+# Cause: git submodule update defaults to checkout (detached HEAD)
 $ cd vendor/utils
-$ git checkout main   # ブランチに切り替え
-# または、update戦略をmergeに変更
+$ git checkout main   # Switch to a branch
+# Or change the update strategy to merge
 $ git config -f .gitmodules submodule.vendor/utils.update merge
 
-# エラー4: "Submodule path 'vendor/utils' already exists in the index"
-# 原因: 不完全な削除後に再追加しようとしている
+# Error 4: "Submodule path 'vendor/utils' already exists in the index"
+# Cause: Attempting to re-add after an incomplete removal
 $ git rm -f vendor/utils
 $ rm -rf .git/modules/vendor/utils
 $ git submodule add <url> vendor/utils
 
-# エラー5: ネストされたサブモジュールが初期化されない
+# Error 5: Nested submodules are not initialized
 $ git submodule update --init --recursive
-# --recursive を忘れるとネストされたサブモジュールは初期化されない
+# Forgetting --recursive leaves nested submodules uninitialized
 ```
 
-### 7.2 worktreeのトラブルシューティング
+### 7.2 Worktree troubleshooting
 
 ```bash
-# エラー1: "fatal: '<branch>' is already checked out"
-# 対処: 別のworktreeで使用中のブランチは使えない
-$ git worktree list  # どのworktreeがそのブランチを使っているか確認
-# → そのworktreeを削除するか、別のブランチ名を使う
+# Error 1: "fatal: '<branch>' is already checked out"
+# Solution: A branch in use by another worktree cannot be used
+$ git worktree list  # Check which worktree is using that branch
+# → Either remove that worktree or use a different branch name
 
-# エラー2: worktreeが壊れた（参照先が見つからない）
+# Error 2: A worktree is broken (referenced path not found)
 $ git worktree repair
-# → 壊れたworktreeのリンクを修復（Git 2.30+）
+# → Repairs broken worktree links (Git 2.30+)
 
-# エラー3: worktreeの.gitファイルが破損
+# Error 3: The worktree's .git file is corrupted
 $ cat ../hotfix-v1/.git
-# → "gitdir: ..." の内容を確認
-# → パスが正しくない場合は手動で修正
+# → Verify the "gitdir: ..." contents
+# → Manually fix the path if it is incorrect
 
-# エラー4: worktreeを移動した後にリンクが壊れた
+# Error 4: Links broke after moving a worktree
 $ git worktree repair ../new-location
-# → 移動先のパスでリンクを修復
+# → Repair the link with the new location path
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-patterns
 
-### アンチパターン1: submoduleの更新忘れ
+### Anti-pattern 1: Forgetting to push submodule updates
 
 ```bash
-# NG: サブモジュールの変更をpushせずに親リポジトリをpush
+# BAD: Pushing the parent repository without pushing the submodule change
 $ cd vendor/utils
 $ git commit -m "fix: critical bug"
-# vendor/utilsのリモートにpushし忘れ
+# Forgot to push vendor/utils to its remote
 $ cd ../..
 $ git add vendor/utils
 $ git commit -m "update submodule"
 $ git push origin main
-# → 他のメンバーが submodule update すると、存在しないcommitを参照してエラー
+# → Other members will get an error when running submodule update because the commit does not exist
 
-# OK: 常にサブモジュール側を先にpush
+# GOOD: Always push the submodule side first
 $ cd vendor/utils && git push origin main
 $ cd ../.. && git add vendor/utils && git commit && git push
-# または push時に自動チェック
+# Or automatically check before pushing
 $ git push --recurse-submodules=check origin main
-$ git push --recurse-submodules=on-demand origin main  # 自動push
+$ git push --recurse-submodules=on-demand origin main  # auto-push
 ```
 
-**理由**: 親リポジトリはサブモジュールのcommit SHA-1を記録するだけ。そのcommitがリモートに存在しなければ、他の開発者はcheckoutできない。
+**Why**: The parent repository only records the submodule's commit SHA-1. If that commit does not exist on the remote, other developers cannot check it out.
 
-### アンチパターン2: worktreeのパスを絶対パスでスクリプトに埋め込む
+### Anti-pattern 2: Hard-coding absolute worktree paths in scripts
 
 ```bash
-# NG: 絶対パスをハードコード
+# BAD: Hard-coded absolute path
 BUILD_DIR="/home/user/build-release"
 git worktree add "$BUILD_DIR" release/v2.0
 
-# OK: 相対パスや変数を使用
+# GOOD: Use relative paths or variables
 PROJECT_ROOT=$(git rev-parse --show-toplevel)
 BUILD_DIR="${PROJECT_ROOT}/../build-release"
 git worktree add "$BUILD_DIR" release/v2.0
 ```
 
-**理由**: 開発者ごとにディレクトリ構造が異なる。相対パスやgitコマンドで動的に解決すべき。
+**Why**: Directory structures differ between developers. Resolve paths dynamically using relative paths or git commands.
 
-### アンチパターン3: サブモジュールをブランチ追従モードで無管理に運用
+### Anti-pattern 3: Running submodules in unmanaged branch-following mode
 
 ```bash
-# NG: --remote で常に最新を追従、テストなしで統合
+# BAD: Always following the latest with --remote and integrating without tests
 $ git submodule update --remote
 $ git add -A && git commit -m "update submodules" && git push
-# → 破壊的変更が自動的に取り込まれる可能性
+# → Breaking changes may be automatically pulled in
 
-# OK: バージョンを明示的に管理
+# GOOD: Manage versions explicitly
 $ cd vendor/utils
 $ git fetch origin
-$ git log --oneline origin/main..HEAD  # 差分を確認
-$ git checkout v2.4.0                   # 特定バージョンに固定
+$ git log --oneline origin/main..HEAD  # Review the diff
+$ git checkout v2.4.0                   # Pin to a specific version
 $ cd ../..
 $ git add vendor/utils
 $ git commit -m "chore: update vendor/utils to v2.4.0"
 ```
 
-**理由**: サブモジュールは依存関係。無制御な自動更新は本番環境のバグにつながる。Dependabotなどのツールを使って管理するのが望ましい。
+**Why**: Submodules are dependencies. Uncontrolled automatic updates can lead to bugs in production. It is preferable to manage them with tools such as Dependabot.
 
-### アンチパターン4: worktreeを大量に放置する
+### Anti-pattern 4: Leaving a large number of worktrees abandoned
 
 ```bash
-# NG: worktreeを作成するだけで放置
+# BAD: Creating worktrees and leaving them untouched
 $ git worktree add ../review-1 feature/a
 $ git worktree add ../review-2 feature/b
 $ git worktree add ../review-3 feature/c
-# ... 数週間放置 ...
-# → ディスク容量を圧迫、ブランチの削除もできなくなる
+# ... abandoned for several weeks ...
+# → Disk space is consumed; branches can no longer be deleted
 
-# OK: 定期的にクリーンアップ
+# GOOD: Clean up regularly
 $ git worktree list
 $ git worktree remove ../review-1
 $ git worktree prune
 ```
 
-**理由**: worktreeが存在する限り、そのブランチは削除できず、作業ファイル分のディスクを占有し続ける。
+**Why**: As long as a worktree exists, its branch cannot be deleted and working files continue to occupy disk space.
 
 ---
 
-## 9. 高度なサブモジュール運用
+## 9. Advanced submodule operations
 
-### 9.1 サブモジュールの差分表示
+### 9.1 Displaying submodule diffs
 
 ```bash
-# サブモジュールの変更をサマリーで表示
+# Show submodule changes as a summary
 $ git diff --submodule=short
-# → サブモジュールのcommit変更を表示
+# → Shows commit changes in submodules
 
 $ git diff --submodule=log
-# → サブモジュールの変更されたcommitのlog一覧を表示
+# → Shows a log list of changed commits in submodules
 
 $ git diff --submodule=diff
-# → サブモジュール内の実際のdiffを表示
+# → Shows the actual diff inside submodules
 
-# デフォルトの差分表示形式を設定
+# Set the default diff display format
 $ git config --global diff.submodule log
 ```
 
-### 9.2 サブモジュールのブランチ管理
+### 9.2 Branch management for submodules
 
 ```bash
-# 全サブモジュールで特定のブランチに切り替え
+# Switch all submodules to a specific branch
 $ git submodule foreach 'git checkout develop || true'
 
-# 全サブモジュールの状態をdetached HEADからブランチに変更
+# Change all submodules from detached HEAD to a branch
 $ git submodule foreach '
   branch=$(git config -f $toplevel/.gitmodules submodule.$name.branch || echo main)
   git checkout $branch 2>/dev/null || git checkout -b $branch
 '
 
-# サブモジュール内のブランチを一括表示
+# Show branches for all submodules in bulk
 $ git submodule foreach 'echo "$sm_path: $(git branch --show-current || echo DETACHED)"'
 ```
 
-### 9.3 サブモジュールのセキュリティ
+### 9.3 Submodule security
 
 ```bash
-# fsck でサブモジュールのURLが安全か検証
+# Verify that submodule URLs are safe with fsck
 $ git config --global protocol.file.allow always
-# → fileプロトコルを明示的に許可（Git 2.38.1+のセキュリティ修正以降）
+# → Explicitly allow the file protocol (since the security fix in Git 2.38.1+)
 
-# サブモジュールのURLに対する制限
+# Restrict submodule URL behavior
 $ git config --global submodule.fetchJobs 4
-# → 並列fetchのジョブ数を制限
+# → Limit the number of parallel fetch jobs
 
-# URLの検証
+# Validate URLs
 $ git submodule foreach 'echo "$name: $(git remote get-url origin)"'
-# → 全サブモジュールのURLを一括確認
+# → Bulk-check all submodule URLs
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1025,26 +1025,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1052,7 +1052,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1063,14 +1063,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1078,7 +1078,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1086,44 +1086,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1132,7 +1132,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1147,76 +1147,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup:      {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When to compromise |
+|---|---|---|
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture selection flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How often do you deploy?                    │
+│    ├─ Once a week or less → Monolith + modular split │
+│    └─ Daily/multiple times → Go to 3            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?              │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Analyzing Trade-offs
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term cost**
+- A fast approach in the short term can become technical debt in the long term
+- Conversely, over-engineering has a high short-term cost and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified technology stack has low learning costs
+- Adopting diverse technologies allows fitting tools to jobs but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1226,17 +1226,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1244,7 +1244,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1252,15 +1252,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1268,53 +1268,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-world Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP development at a startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Do not over-optimize (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a legacy system
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renovating a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If there are no existing tests, write Characterization Tests first
+- Keep old and new systems coexisting via an API gateway
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work | Estimated duration | Risk |
+|---|---|---|---|
+| 1. Investigation | Current state analysis, understanding dependencies | 2-4 weeks | Low |
+| 2. Foundation | Build CI/CD, test environment | 4-6 weeks | Low |
+| 3. Start migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a large team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50 or more engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use domain-driven design to clarify boundaries
+- Assign ownership per team
+- Manage shared libraries using the Inner Source model
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1327,20 +1327,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1349,7 +1349,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1370,153 +1370,153 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-critical systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system that requires millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization technique | Effect | Implementation cost | Use case |
+|---|---|---|---|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy operations |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 ---
 
 ## 10. FAQ
 
-### Q1. worktreeとgit cloneの違いは何か？
+### Q1. What is the difference between a worktree and git clone?
 
-**A1.** worktreeは**オブジェクトデータベースを共有**します。cloneは全てを複製するため、ディスク使用量が倍増します。worktreeは同一リポジトリの別ブランチを並行作業する場合に最適で、cloneは完全に独立した作業環境が必要な場合に使います。
+**A1.** A worktree **shares the object database**. A clone duplicates everything, so disk usage doubles. A worktree is ideal when you want to work on multiple branches of the same repository in parallel; a clone is appropriate when you need a completely independent working environment.
 
-| 項目               | worktree            | clone               |
-|--------------------|---------------------|----------------------|
-| .git/objects       | 共有（リンク）      | 独立したコピー       |
-| ディスク使用量     | 作業ファイルのみ追加| 全データの複製       |
-| ブランチの制約     | 同一ブランチ不可    | 制約なし             |
-| fetchの反映        | 即座に全worktreeに  | 各cloneで個別に必要  |
-| hooks              | 共有                | 独立                 |
-| config             | 共有                | 独立                 |
+| Item | worktree | clone |
+|---|---|---|
+| .git/objects | Shared (linked) | Independent copy |
+| Disk usage | Only adds working files | Full data duplication |
+| Branch constraints | Same branch not allowed | No constraints |
+| Fetch propagation | Immediately reflected in all worktrees | Required individually per clone |
+| hooks | Shared | Independent |
+| config | Shared | Independent |
 
-### Q2. サブモジュールのURLを変更するにはどうすればよいか？
+### Q2. How do I change a submodule's URL?
 
-**A2.** 以下の手順で変更します。
+**A2.** Follow these steps.
 
 ```bash
-# 1. .gitmodulesを編集
+# 1. Edit .gitmodules
 $ git config -f .gitmodules submodule.vendor/utils.url git@github.com:org/utils.git
 
-# 2. ローカル設定を同期
+# 2. Sync local configuration
 $ git submodule sync
 
-# 3. サブモジュールを再初期化
+# 3. Re-initialize the submodule
 $ git submodule update --init
 
-# 4. 変更をコミット
+# 4. Commit the changes
 $ git add .gitmodules
 $ git commit -m "chore: update submodule URL for vendor/utils"
 ```
 
-### Q3. サブモジュールを含むリポジトリでCIを設定する際のポイントは？
+### Q3. What are the key points when setting up CI for a repository that contains submodules?
 
-**A3.** 以下の3点が重要です。
+**A3.** The following three points are important.
 
-1. **クローン時に`--recurse-submodules`を指定**するか、`git submodule update --init --recursive`を実行する
-2. **shallow cloneとの組み合わせ**: `git clone --depth=1 --recurse-submodules --shallow-submodules`で最小限のデータ取得
-3. **SSH鍵またはトークンの設定**: プライベートサブモジュールへのアクセスに認証が必要。GitHub Actionsでは`persist-credentials: true`と適切なトークンスコープを設定する
+1. **Specify `--recurse-submodules` at clone time**, or run `git submodule update --init --recursive`
+2. **Combining with shallow clone**: Get the minimum data with `git clone --depth=1 --recurse-submodules --shallow-submodules`
+3. **Configure SSH keys or tokens**: Authentication is required to access private submodules. In GitHub Actions, set `persist-credentials: true` and appropriate token scopes
 
-### Q4. worktreeを使用中にgit gcを実行するとどうなるか？
+### Q4. What happens when git gc is run while worktrees are in use?
 
-**A4.** GCはメインworktreeの`.git/objects/`に対して実行されます。linked worktreeのオブジェクトも同じデータベースに格納されているため、**全worktreeで参照されているオブジェクトは保護されます**。ただし、worktreeを手動で削除した（`git worktree remove`を使わずに`rm -rf`で消した）場合、そのworktreeが参照していたオブジェクトがGCで回収される可能性があります。
+**A4.** GC runs against the main worktree's `.git/objects/`. Since linked worktree objects are stored in the same database, **objects referenced by all worktrees are protected**. However, if a worktree was manually deleted (with `rm -rf` instead of `git worktree remove`), objects referenced by that worktree may be collected by GC.
 
 ```bash
-# 安全なクリーンアップ手順
-$ git worktree prune          # 壊れたworktree参照を削除
-$ git gc --prune=now          # 不要オブジェクトを削除
+# Safe cleanup procedure
+$ git worktree prune          # Delete broken worktree references
+$ git gc --prune=now          # Delete unnecessary objects
 ```
 
-### Q5. サブモジュールの代わりにGitのsparse-checkoutを使う方法は？
+### Q5. How do you use Git's sparse-checkout instead of submodules?
 
-**A5.** sparse-checkoutはモノレポの一部だけをチェックアウトする機能で、サブモジュールとは異なるアプローチです。
+**A5.** Sparse-checkout is a feature for checking out only part of a monorepo, which is a different approach from submodules.
 
 ```bash
-# sparse-checkout（Git 2.25+）
+# sparse-checkout (Git 2.25+)
 $ git clone --filter=blob:none --sparse https://github.com/org/monorepo.git
 $ cd monorepo
 $ git sparse-checkout set lib/utils lib/auth
-# → lib/utils/ と lib/auth/ だけがチェックアウトされる
-# → 他のディレクトリのファイルはダウンロードされない
+# → Only lib/utils/ and lib/auth/ are checked out
+# → Files in other directories are not downloaded
 
-# サブモジュールとの違い:
-# - sparse-checkout: 1つのリポジトリの一部を取得
-# - submodule: 別のリポジトリを参照
+# Differences from submodules:
+# - sparse-checkout: Get part of a single repository
+# - submodule: Reference a separate repository
 ```
 
-### Q6. ネストされたサブモジュール（サブモジュールの中にサブモジュール）は推奨されるか？
+### Q6. Are nested submodules (submodules within submodules) recommended?
 
-**A6.** 技術的には可能ですが、**一般的には推奨されません**。ネストが深くなるほど以下の問題が増大します。
+**A6.** It is technically possible, but **generally not recommended**. The following problems grow as nesting deepens.
 
-- `--recursive`を忘れると部分的にしか初期化されない
-- 更新の順序が複雑になる
-- CI/CDの設定が煩雑になる
-- トラブルシューティングが困難
+- Forgetting `--recursive` results in only partial initialization
+- The order of updates becomes complex
+- CI/CD configuration becomes cumbersome
+- Troubleshooting becomes difficult
 
-代替案として、全てのサブモジュールを親リポジトリの直下にフラットに配置することを検討してください。
+As an alternative, consider placing all submodules flat directly under the parent repository.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Rather than theory alone, actually writing code and confirming its behavior deepens understanding.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. It is recommended to thoroughly understand the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 概念                   | 要点                                                          |
-|------------------------|---------------------------------------------------------------|
-| worktree               | .gitを共有して複数ブランチを同時チェックアウト                |
-| linked worktree        | `.git`テキストファイルでメインリポジトリを参照                |
-| worktree repair        | 壊れたworktreeのリンクを修復（Git 2.30+）                    |
-| submodule              | 外部リポジトリのcommit SHA-1を親リポジトリのtreeに記録       |
-| .gitmodules            | サブモジュールのURL・パス・ブランチのマッピング              |
-| submodule update       | 親が記録したcommitにサブモジュールをcheckout                 |
-| submodule sync         | .gitmodulesの変更をローカル設定に反映                        |
-| subtree                | 外部コードを親リポジトリの履歴に統合する代替手法             |
-| --recurse-submodules   | clone/push/pull時にサブモジュールも自動処理                  |
-| sparse-checkout        | モノレポの一部だけをチェックアウトする機能                    |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [Packfile/GC](../00-git-internals/03-packfile-gc.md) -- worktreeとGCの関係
-- [Git Hooks](./03-hooks-automation.md) -- サブモジュール更新の自動化
-- [Jujutsu入門](../02-jujutsu/00-jujutsu-introduction.md) -- サブモジュールの代替アプローチ
+| Concept | Key point |
+|---|---|
+| worktree | Share .git to check out multiple branches simultaneously |
+| linked worktree | References the main repository via a `.git` text file |
+| worktree repair | Repair broken worktree links (Git 2.30+) |
+| submodule | Records an external repository's commit SHA-1 in the parent repository's tree |
+| .gitmodules | Mapping of submodule URL, path, and branch |
+| submodule update | Check out the submodule at the commit recorded by the parent |
+| submodule sync | Apply .gitmodules changes to local configuration |
+| subtree | Alternative approach to integrate external code into the parent repository's history |
+| --recurse-submodules | Automatically process submodules during clone/push/pull |
+| sparse-checkout | Feature to check out only part of a monorepo |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [Packfile/GC](../00-git-internals/03-packfile-gc.md) -- Relationship between worktrees and GC
+- [Git Hooks](./03-hooks-automation.md) -- Automating submodule updates
+- [Introduction to Jujutsu](../02-jujutsu/00-jujutsu-introduction.md) -- An alternative approach to submodules
+
+---
+
+## References
 
 1. **Pro Git Book** -- "Git Tools - Submodules" https://git-scm.com/book/en/v2/Git-Tools-Submodules
-2. **Git公式ドキュメント** -- `git-worktree`, `git-submodule` https://git-scm.com/docs
+2. **Git official documentation** -- `git-worktree`, `git-submodule` https://git-scm.com/docs
 3. **GitHub Blog** -- "Working with submodules" https://github.blog/2016-02-01-working-with-submodules/
 4. **Atlassian Git Tutorial** -- "Git subtree" https://www.atlassian.com/git/tutorials/git-subtree
 5. **GitHub Docs** -- "About Git sparse-checkout" https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-git-sparse-checkout
