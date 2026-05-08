@@ -1,67 +1,67 @@
-# シェル設定
+# Shell Configuration
 
-> シェルの設定をカスタマイズすることで、生産性は劇的に向上する。設定ファイルを育てることは、自分だけの最強の開発環境を構築することに等しい。
+> Customizing your shell configuration can dramatically improve productivity. Growing your configuration files is equivalent to building the ultimate development environment tailored specifically for you.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] .bashrc / .zshrc の役割を理解する
-- [ ] 設定ファイルの読み込み順序を把握する
-- [ ] エイリアスと環境変数を設定できる
-- [ ] シェル関数で複雑な処理を自動化できる
-- [ ] プロンプトのカスタマイズ方法を知る
-- [ ] 補完機能を最大限に活用できる
-- [ ] 履歴管理を最適化できる
-- [ ] モダンなシェルツールを導入・設定できる
-- [ ] 複数マシン間で設定を同期する方法を知る
-- [ ] トラブルシューティングの手法を習得する
+- [ ] Understand the role of .bashrc / .zshrc
+- [ ] Know the loading order of configuration files
+- [ ] Configure aliases and environment variables
+- [ ] Automate complex tasks with shell functions
+- [ ] Know how to customize the prompt
+- [ ] Make full use of completion features
+- [ ] Optimize history management
+- [ ] Install and configure modern shell tools
+- [ ] Know how to sync configuration across multiple machines
+- [ ] Learn troubleshooting techniques
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ターミナルとシェルの基礎](./00-terminal-basics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Terminal and Shell Basics](./00-terminal-basics.md)
 
 ---
 
-## 1. 設定ファイルの読み込み順序
+## 1. Configuration File Loading Order
 
-シェル設定を正しく管理するためには、設定ファイルがいつ・どの順序で読み込まれるかを理解することが不可欠である。
+To properly manage shell configuration, it is essential to understand when and in what order configuration files are loaded.
 
-### 1.1 bash の設定ファイル
+### 1.1 bash Configuration Files
 
 ```
-bash の読み込み順序:
+bash loading order:
 
-■ ログインシェル（ターミナル起動時、SSH接続時）:
+■ Login shell (when terminal starts, SSH connection):
   /etc/profile
-  → ~/.bash_profile  （存在する場合）
-  → ~/.bash_login    （.bash_profile が無い場合）
-  → ~/.profile       （上の2つが無い場合）
+  → ~/.bash_profile  (if it exists)
+  → ~/.bash_login    (if .bash_profile does not exist)
+  → ~/.profile       (if neither of the above exist)
 
-■ 非ログインシェル（新しいターミナルタブ、bash コマンド実行時）:
+■ Non-login shell (new terminal tab, when running bash command):
   ~/.bashrc
 
-■ ログアウト時:
+■ On logout:
   ~/.bash_logout
 
-重要なポイント:
-  - ログインシェルでは .bashrc は自動的に読まれない
-  - よくある対策: .bash_profile の中で .bashrc を source する
+Important points:
+  - .bashrc is not automatically read in a login shell
+  - Common workaround: source .bashrc from within .bash_profile
 ```
 
 ```bash
-# ~/.bash_profile の推奨構成
-# ログインシェルでも .bashrc の設定を使えるようにする
+# ~/.bash_profile recommended configuration
+# Allows login shells to use .bashrc settings too
 
-# .bashrc があれば読み込む
+# Load .bashrc if it exists
 if [ -f ~/.bashrc ]; then
     source ~/.bashrc
 fi
 
-# ログインシェル固有の設定（環境変数など）
+# Login shell-specific settings (environment variables, etc.)
 export PATH="$HOME/.local/bin:$PATH"
 export EDITOR="vim"
 export VISUAL="vim"
@@ -69,49 +69,49 @@ export LANG="ja_JP.UTF-8"
 export LC_ALL="ja_JP.UTF-8"
 ```
 
-### 1.2 zsh の設定ファイル
+### 1.2 zsh Configuration Files
 
 ```
-zsh の読み込み順序（番号順に実行される）:
+zsh loading order (executed in numbered order):
 
-■ 常に読まれる:
+■ Always read:
   1. /etc/zshenv
   2. ~/.zshenv
 
-■ ログインシェルの場合（追加で読まれる）:
+■ For login shells (additionally read):
   3. /etc/zprofile
   4. ~/.zprofile
 
-■ インタラクティブシェルの場合（追加で読まれる）:
+■ For interactive shells (additionally read):
   5. /etc/zshrc
   6. ~/.zshrc
 
-■ ログインシェルの場合（さらに追加で読まれる）:
+■ For login shells (additionally read):
   7. /etc/zlogin
   8. ~/.zlogin
 
-■ ログアウト時:
+■ On logout:
   ~/.zlogout
   /etc/zlogout
 
-実務的な使い分け:
-  ~/.zshenv    → 環境変数（PATH, EDITOR）
-                 ※非インタラクティブでも読まれるため注意
-  ~/.zprofile  → ログインシェル固有の処理
-  ~/.zshrc     → エイリアス、関数、補完設定、プロンプト設定
-                 ※最も多くの設定を書く場所
-  ~/.zlogin    → ログイン時の表示メッセージなど
-  ~/.zlogout   → ログアウト時のクリーンアップ
+Practical usage guide:
+  ~/.zshenv    → Environment variables (PATH, EDITOR)
+                 * Note: read even in non-interactive shells
+  ~/.zprofile  → Login shell-specific processing
+  ~/.zshrc     → Aliases, functions, completion settings, prompt settings
+                 * The place where most settings are written
+  ~/.zlogin    → Login-time display messages, etc.
+  ~/.zlogout   → Cleanup on logout
 ```
 
-### 1.3 設定ファイルの使い分けガイド
+### 1.3 Configuration File Usage Guide
 
 ```bash
 # ============================================
-# ~/.zshenv — 環境変数（常に読まれる）
+# ~/.zshenv — Environment variables (always read)
 # ============================================
-# 注意: このファイルは全てのzshプロセスで読まれるため、
-#       出力を伴うコマンドは書かないこと
+# Note: This file is read by all zsh processes,
+#       so do not write commands that produce output
 
 export EDITOR="vim"
 export VISUAL="vim"
@@ -124,8 +124,8 @@ export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_STATE_HOME="$HOME/.local/state"
 
-# PATH設定
-typeset -U path  # 重複を自動排除（zsh固有の機能）
+# PATH configuration
+typeset -U path  # Automatically remove duplicates (zsh-specific feature)
 path=(
     "$HOME/.local/bin"
     "$HOME/.cargo/bin"
@@ -138,122 +138,122 @@ export PATH
 
 ```bash
 # ============================================
-# ~/.zshrc — インタラクティブシェル設定
+# ~/.zshrc — Interactive shell settings
 # ============================================
-# エイリアス、関数、補完、プロンプト等をここに書く
+# Write aliases, functions, completion, prompt, etc. here
 
-# === エイリアス ===
+# === Aliases ===
 alias ll='ls -lah'
 alias la='ls -A'
-# ... (後述の詳細セクション参照)
+# ... (see detailed sections below)
 
-# === 補完設定 ===
+# === Completion settings ===
 autoload -Uz compinit && compinit
-# ... (後述)
+# ... (see below)
 
-# === 履歴設定 ===
+# === History settings ===
 HISTSIZE=100000
 SAVEHIST=100000
-# ... (後述)
+# ... (see below)
 ```
 
-### 1.4 読み込み順序のデバッグ
+### 1.4 Debugging the Loading Order
 
 ```bash
-# どのファイルが読まれているか確認する方法
+# How to check which files are being read
 
-# 方法1: 各設定ファイルの先頭に echo を追加
-# ~/.zshenv に追加:
+# Method 1: Add echo to the top of each config file
+# Add to ~/.zshenv:
 echo "Loading .zshenv"
 
-# ~/.zshrc に追加:
+# Add to ~/.zshrc:
 echo "Loading .zshrc"
 
-# 方法2: zsh の起動時トレース
+# Method 2: zsh startup trace
 zsh -x 2>&1 | head -50
 
-# 方法3: zsh のファイル読み込みトレース
-# SOURCE_TRACE を有効にする
+# Method 3: zsh file loading trace
+# Enable SOURCE_TRACE
 zsh -o SOURCE_TRACE
 
-# 方法4: bash のデバッグモード
+# Method 4: bash debug mode
 bash -x --login 2>&1 | head -50
 
-# 設定変更を反映する方法
-source ~/.zshrc            # 現在のシェルに反映（再読み込み）
-exec zsh                   # シェルを再起動（よりクリーン）
-exec bash                  # bashの場合
+# How to apply configuration changes
+source ~/.zshrc            # Apply to current shell (reload)
+exec zsh                   # Restart shell (cleaner)
+exec bash                  # For bash
 
-# 設定ファイルの読み込みにかかる時間を計測
-time zsh -i -c exit        # zshの起動時間
-time bash -i -c exit       # bashの起動時間
+# Measure time taken to load configuration files
+time zsh -i -c exit        # zsh startup time
+time bash -i -c exit       # bash startup time
 
-# 設定ファイルのプロファイリング（zsh）
-# ~/.zshrc の先頭に追加:
+# Profiling configuration files (zsh)
+# Add to the top of ~/.zshrc:
 zmodload zsh/zprof
-# ~/.zshrc の末尾に追加:
+# Add to the bottom of ~/.zshrc:
 zprof
 
-# これにより、どの処理に時間がかかっているか可視化できる
+# This allows you to visualize which processes take the most time
 ```
 
 ---
 
-## 2. 環境変数
+## 2. Environment Variables
 
-### 2.1 基本的な環境変数
+### 2.1 Basic Environment Variables
 
 ```bash
 # ============================================
-# 基本的な環境変数の設定
+# Basic environment variable settings
 # ============================================
 
-# デフォルトエディタ
-export EDITOR="vim"                    # CUIエディタ
-export VISUAL="code"                   # GUIエディタ（git commit等で使用）
+# Default editor
+export EDITOR="vim"                    # CUI editor
+export VISUAL="code"                   # GUI editor (used for git commit, etc.)
 
-# ロケール設定
-export LANG="ja_JP.UTF-8"            # 日本語UTF-8
-export LC_ALL="ja_JP.UTF-8"          # 全カテゴリのロケール
-export LC_COLLATE="C"                 # ソート順をASCII準拠に（ls等に影響）
+# Locale settings
+export LANG="ja_JP.UTF-8"            # Japanese UTF-8
+export LC_ALL="ja_JP.UTF-8"          # Locale for all categories
+export LC_COLLATE="C"                 # Sort order follows ASCII (affects ls, etc.)
 
-# ページャ設定
+# Pager settings
 export PAGER="less"
 export LESS="-iMRSX"
-# -i: 小文字検索で大文字小文字無視
-# -M: 詳細なプロンプト表示
-# -R: ANSIカラーコードを解釈
-# -S: 長い行を折り返さない
-# -X: 終了時に画面をクリアしない
+# -i: Case-insensitive search with lowercase
+# -M: Detailed prompt display
+# -R: Interpret ANSI color codes
+# -S: Do not wrap long lines
+# -X: Do not clear screen on exit
 
-# manページのカラー表示
-export LESS_TERMCAP_mb=$'\e[1;31m'     # 点滅開始
-export LESS_TERMCAP_md=$'\e[1;36m'     # 太字開始（シアン）
-export LESS_TERMCAP_me=$'\e[0m'        # 点滅/太字終了
-export LESS_TERMCAP_so=$'\e[01;33m'    # ステータスライン開始（黄色）
-export LESS_TERMCAP_se=$'\e[0m'        # ステータスライン終了
-export LESS_TERMCAP_us=$'\e[1;32m'     # 下線開始（緑）
-export LESS_TERMCAP_ue=$'\e[0m'        # 下線終了
+# Colored display for man pages
+export LESS_TERMCAP_mb=$'\e[1;31m'     # Blink start
+export LESS_TERMCAP_md=$'\e[1;36m'     # Bold start (cyan)
+export LESS_TERMCAP_me=$'\e[0m'        # Blink/bold end
+export LESS_TERMCAP_so=$'\e[01;33m'    # Status line start (yellow)
+export LESS_TERMCAP_se=$'\e[0m'        # Status line end
+export LESS_TERMCAP_us=$'\e[1;32m'     # Underline start (green)
+export LESS_TERMCAP_ue=$'\e[0m'        # Underline end
 
-# ヒストリ関連
-export HISTTIMEFORMAT="%F %T "         # 履歴にタイムスタンプを追加（bash）
+# History related
+export HISTTIMEFORMAT="%F %T "         # Add timestamps to history (bash)
 
-# GPG設定（git署名等で使用）
+# GPG settings (used for git signing, etc.)
 export GPG_TTY=$(tty)
 ```
 
-### 2.2 PATH の管理
+### 2.2 Managing PATH
 
 ```bash
 # ============================================
-# PATH の管理
+# Managing PATH
 # ============================================
 
-# 基本的なPATH追加
+# Basic PATH addition
 export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/bin:$PATH"
 
-# 言語・フレームワーク固有のPATH
+# Language/framework-specific PATH
 
 # Homebrew (macOS)
 eval "$(/opt/homebrew/bin/brew shellenv)"  # Apple Silicon Mac
@@ -264,7 +264,7 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
 
-# Node.js (fnm) — nvmより高速な代替
+# Node.js (fnm) — faster alternative to nvm
 eval "$(fnm env --use-on-cd)"
 
 # Python (pyenv)
@@ -290,78 +290,78 @@ eval "$(jenv init -)"
 export DENO_INSTALL="$HOME/.deno"
 export PATH="$DENO_INSTALL/bin:$PATH"
 
-# PATHの重複排除（zsh固有）
+# Deduplication of PATH (zsh-specific)
 typeset -U path
 
-# PATHの内容確認
-echo $PATH | tr ':' '\n'              # PATHを1行ずつ表示
-echo $PATH | tr ':' '\n' | nl        # 番号付きで表示
+# Check PATH contents
+echo $PATH | tr ':' '\n'              # Display PATH one line at a time
+echo $PATH | tr ':' '\n' | nl        # Display with numbers
 
-# 特定のコマンドの場所を確認
-which python3                          # コマンドのパス
-type python3                           # より詳細な情報
-where python3                          # 全候補（zsh）
+# Check location of a specific command
+which python3                          # Path to command
+type python3                           # More detailed information
+where python3                          # All candidates (zsh)
 ```
 
-### 2.3 プロジェクト固有の環境変数
+### 2.3 Project-Specific Environment Variables
 
 ```bash
 # ============================================
-# プロジェクト固有の環境変数管理
+# Managing project-specific environment variables
 # ============================================
 
-# direnv を使ったディレクトリ単位の環境変数管理
+# Directory-level environment variable management using direnv
 # brew install direnv
-eval "$(direnv hook zsh)"    # ~/.zshrc に追加
+eval "$(direnv hook zsh)"    # Add to ~/.zshrc
 
-# プロジェクトルートに .envrc を作成
-# .envrc の例:
+# Create .envrc in project root
+# Example .envrc:
 export DATABASE_URL="postgresql://localhost/myapp_dev"
 export REDIS_URL="redis://localhost:6379"
 export API_KEY="dev-api-key-12345"
 export NODE_ENV="development"
 export AWS_PROFILE="myproject-dev"
 
-# layout機能で言語バージョンを自動切り替え
-layout python3              # Python venv を自動作成・有効化
-layout ruby                 # Ruby バージョンを自動切り替え
-layout node                 # Node.js バージョンを自動切り替え
+# Automatic language version switching with layout feature
+layout python3              # Automatically create and activate Python venv
+layout ruby                 # Automatically switch Ruby version
+layout node                 # Automatically switch Node.js version
 
-# direnv の使い方
-direnv allow                # .envrc を信頼する（初回・変更時に必要）
-direnv deny                 # .envrc を拒否する
-direnv edit                 # .envrc を編集（保存時に自動 allow）
+# How to use direnv
+direnv allow                # Trust .envrc (required on first use or after changes)
+direnv deny                 # Deny .envrc
+direnv edit                 # Edit .envrc (auto allow on save)
 
-# ディレクトリに入ると自動的に環境変数がセットされ、
-# 出ると自動的に解除される
+# Environment variables are automatically set when entering a directory,
+# and automatically unset when leaving
 
-# .envrc のセキュリティ
-# - .envrc は direnv allow するまで実行されない
-# - git管理する場合、機密情報は .env.local に分離
-# - .envrc 内で .env.local を読み込む:
+# Security for .envrc
+# - .envrc is not executed until direnv allow is run
+# - When managing with git, separate sensitive information into .env.local
+# - Load .env.local inside .envrc:
 dotenv_if_exists .env.local
 ```
 
 ---
 
-## 3. エイリアス
+## 3. Aliases
 
-### 3.1 基本的なエイリアス
+### 3.1 Basic Aliases
 
 ```bash
 # ============================================
-# 基本コマンドの改善
+# Improving basic commands
 # ============================================
 
-# ls 系
-alias ls='ls --color=auto'         # カラー表示（Linux）
-alias ls='ls -G'                   # カラー表示（macOS）
-alias ll='ls -lah'                 # 詳細表示
-alias la='ls -A'                   # 隠しファイル含む
-alias lt='ls -lahtr'               # 更新日時の新しい順
-alias lS='ls -lahS'                # サイズ順
+# ls variants
+alias ls='ls --color=auto'         # Color display (Linux)
+alias ls='ls -G'                   # Color display (macOS)
+alias ll='ls -lah'                 # Detailed display
+alias la='ls -A'                   # Including hidden files
+alias lt='ls -lahtr'               # Newest modification time first
+alias lS='ls -lahS'                # Sort by size
 
-# モダンな代替ツールがある場合
+# When modern alternative tools are available
 if command -v eza &>/dev/null; then
     alias ls='eza --color=auto --icons'
     alias ll='eza -lah --icons --git'
@@ -372,47 +372,47 @@ fi
 
 if command -v bat &>/dev/null; then
     alias cat='bat --paging=never'
-    alias catp='bat --plain'        # プレーンモード
+    alias catp='bat --plain'        # Plain mode
 fi
 
 if command -v fd &>/dev/null; then
     alias find='fd'
 fi
 
-# ディレクトリ移動
+# Directory navigation
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 alias .....='cd ../../../..'
-alias -- -='cd -'                   # 前のディレクトリに戻る
+alias -- -='cd -'                   # Go back to previous directory
 
-# mkdir は常にネスト作成
+# mkdir always creates nested directories
 alias mkdir='mkdir -pv'
 
-# grep にカラー表示
+# grep with color display
 alias grep='grep --color=auto'
 alias egrep='egrep --color=auto'
 alias fgrep='fgrep --color=auto'
 
-# 危険なコマンドの安全化
-alias rm='rm -i'                   # 確認付き削除
-alias cp='cp -i'                   # 確認付きコピー
-alias mv='mv -i'                   # 確認付き移動
-alias ln='ln -i'                   # 確認付きリンク
+# Safety guards for dangerous commands
+alias rm='rm -i'                   # Delete with confirmation
+alias cp='cp -i'                   # Copy with confirmation
+alias mv='mv -i'                   # Move with confirmation
+alias ln='ln -i'                   # Link with confirmation
 
-# 安全化を無効にしたい場合
-# \rm file.txt                     # バックスラッシュでエイリアス無視
-# command rm file.txt              # command で直接実行
+# To disable safety guards
+# \rm file.txt                     # Backslash ignores alias
+# command rm file.txt              # Execute directly with command
 ```
 
-### 3.2 Git エイリアス
+### 3.2 Git Aliases
 
 ```bash
 # ============================================
-# Git エイリアス
+# Git aliases
 # ============================================
 
-# 基本操作
+# Basic operations
 alias g='git'
 alias gs='git status'
 alias ga='git add'
@@ -422,11 +422,11 @@ alias gcm='git commit -m'
 alias gca='git commit --amend'
 alias gcan='git commit --amend --no-edit'
 alias gp='git push'
-alias gpf='git push --force-with-lease'   # 安全なforce push
+alias gpf='git push --force-with-lease'   # Safe force push
 alias gpl='git pull'
 alias gplr='git pull --rebase'
 
-# ブランチ操作
+# Branch operations
 alias gb='git branch'
 alias gba='git branch -a'
 alias gbd='git branch -d'
@@ -436,7 +436,7 @@ alias gcb='git checkout -b'
 alias gsw='git switch'
 alias gswc='git switch -c'
 
-# 差分・ログ
+# Diffs and logs
 alias gd='git diff'
 alias gds='git diff --staged'
 alias gdn='git diff --name-only'
@@ -444,38 +444,38 @@ alias gl='git log --oneline --graph --decorate -20'
 alias gla='git log --oneline --graph --decorate --all'
 alias glp='git log --pretty=format:"%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset) %s %C(blue)<%an>%C(reset)" --abbrev-commit'
 
-# スタッシュ
+# Stash
 alias gst='git stash'
 alias gstl='git stash list'
 alias gstp='git stash pop'
 alias gsta='git stash apply'
 alias gstd='git stash drop'
 
-# リモート
+# Remote
 alias gf='git fetch --all --prune'
 alias grb='git rebase'
 alias grbc='git rebase --continue'
 alias grba='git rebase --abort'
 
-# リセット
-alias grs='git reset --soft HEAD~1'      # 直前のコミットを取り消し（変更は保持）
-alias grh='git reset --hard HEAD~1'       # 直前のコミットを完全に取り消し
+# Reset
+alias grs='git reset --soft HEAD~1'      # Undo last commit (keep changes)
+alias grh='git reset --hard HEAD~1'       # Completely undo last commit
 
 # cherry-pick
 alias gcp='git cherry-pick'
 alias gcpc='git cherry-pick --continue'
 alias gcpa='git cherry-pick --abort'
 
-# クリーンアップ
+# Cleanup
 alias gclean='git clean -fd'
 alias gprune='git remote prune origin'
 ```
 
-### 3.3 Docker エイリアス
+### 3.3 Docker Aliases
 
 ```bash
 # ============================================
-# Docker エイリアス
+# Docker aliases
 # ============================================
 
 alias d='docker'
@@ -495,17 +495,17 @@ alias drmi='docker rmi'
 alias dex='docker exec -it'
 alias dlogs='docker logs -f'
 
-# Docker クリーンアップ
+# Docker cleanup
 alias dprune='docker system prune -af'
 alias dvprune='docker volume prune -f'
 alias diprune='docker image prune -af'
 ```
 
-### 3.4 Kubernetes エイリアス
+### 3.4 Kubernetes Aliases
 
 ```bash
 # ============================================
-# Kubernetes エイリアス
+# Kubernetes aliases
 # ============================================
 
 alias k='kubectl'
@@ -524,49 +524,49 @@ alias kex='kubectl exec -it'
 alias kctx='kubectl config use-context'
 alias kns='kubectl config set-context --current --namespace'
 
-# kubectx / kubens がインストール済みの場合
+# If kubectx / kubens are installed
 # alias kctx='kubectx'
 # alias kns='kubens'
 ```
 
-### 3.5 その他の実用的なエイリアス
+### 3.5 Other Practical Aliases
 
 ```bash
 # ============================================
-# ネットワーク
+# Network
 # ============================================
 alias myip='curl -s ifconfig.me'
 alias localip='ipconfig getifaddr en0'    # macOS
-alias ports='netstat -tulanp'              # 使用中のポート
+alias ports='netstat -tulanp'              # Ports in use
 alias ports='lsof -i -P -n | grep LISTEN' # macOS
 
 # ============================================
-# システム情報
+# System information
 # ============================================
-alias df='df -h'                     # ディスク使用量（人間可読）
-alias du='du -h'                     # ディレクトリサイズ
-alias free='free -h'                 # メモリ使用量（Linux）
-alias top='htop'                     # htopがあれば使う
-alias psg='ps aux | grep -v grep | grep'  # プロセス検索
+alias df='df -h'                     # Disk usage (human-readable)
+alias du='du -h'                     # Directory size
+alias free='free -h'                 # Memory usage (Linux)
+alias top='htop'                     # Use htop if available
+alias psg='ps aux | grep -v grep | grep'  # Process search
 
 # ============================================
-# ファイル操作
+# File operations
 # ============================================
-alias tarx='tar -xvf'               # 展開
-alias tarc='tar -czvf'              # 圧縮
-alias dush='du -sh * | sort -rh'    # サイズ順でディレクトリ表示
-alias count='find . -type f | wc -l'  # ファイル数カウント
+alias tarx='tar -xvf'               # Extract
+alias tarc='tar -czvf'              # Compress
+alias dush='du -sh * | sort -rh'    # Display directories sorted by size
+alias count='find . -type f | wc -l'  # Count files
 
 # ============================================
-# 開発
+# Development
 # ============================================
 alias py='python3'
 alias pip='pip3'
-alias serve='python3 -m http.server 8000'  # 簡易HTTPサーバー
-alias json='python3 -m json.tool'          # JSONフォーマット
+alias serve='python3 -m http.server 8000'  # Simple HTTP server
+alias json='python3 -m json.tool'          # JSON formatting
 
 # ============================================
-# クリップボード（macOS）
+# Clipboard (macOS)
 # ============================================
 alias pbp='pbpaste'
 alias pbc='pbcopy'
@@ -574,21 +574,21 @@ alias copy='pbcopy'
 alias paste='pbpaste'
 
 # ============================================
-# タイムスタンプ
+# Timestamps
 # ============================================
 alias now='date +"%Y-%m-%d %H:%M:%S"'
 alias timestamp='date +%s'
 alias week='date +%V'
 ```
 
-### 3.6 グローバルエイリアス（zsh限定）
+### 3.6 Global Aliases (zsh only)
 
 ```bash
 # ============================================
-# グローバルエイリアス（コマンドの途中でも展開される）
+# Global aliases (expanded even in the middle of a command)
 # ============================================
 
-# パイプの省略形
+# Pipe abbreviations
 alias -g G='| grep'
 alias -g L='| less'
 alias -g H='| head'
@@ -596,45 +596,45 @@ alias -g T='| tail'
 alias -g S='| sort'
 alias -g U='| uniq'
 alias -g W='| wc -l'
-alias -g C='| pbcopy'          # macOS クリップボード
-alias -g J='| jq .'           # JSON整形
-alias -g N='> /dev/null 2>&1' # 出力破棄
+alias -g C='| pbcopy'          # macOS clipboard
+alias -g J='| jq .'           # JSON formatting
+alias -g N='> /dev/null 2>&1' # Discard output
 
-# 使用例:
+# Usage examples:
 # ps aux G nginx           → ps aux | grep nginx
 # cat file.txt L           → cat file.txt | less
 # ls -la S                 → ls -la | sort
 # curl api.example.com J   → curl api.example.com | jq .
 
-# サフィックスエイリアス（拡張子でコマンドを自動選択）
-alias -s md='code'             # .md ファイルを code で開く
-alias -s json='code'           # .json ファイルを code で開く
-alias -s py='python3'          # .py ファイルを python3 で実行
-alias -s sh='bash'             # .sh ファイルを bash で実行
-alias -s txt='less'            # .txt ファイルを less で表示
-alias -s log='less'            # .log ファイルを less で表示
+# Suffix aliases (automatically select command by file extension)
+alias -s md='code'             # Open .md files with code
+alias -s json='code'           # Open .json files with code
+alias -s py='python3'          # Execute .py files with python3
+alias -s sh='bash'             # Execute .sh files with bash
+alias -s txt='less'            # Display .txt files with less
+alias -s log='less'            # Display .log files with less
 
-# 使用例:
+# Usage examples:
 # README.md                → code README.md
 # script.py                → python3 script.py
 ```
 
 ---
 
-## 4. シェル関数
+## 4. Shell Functions
 
-### 4.1 基本的なシェル関数
+### 4.1 Basic Shell Functions
 
 ```bash
 # ============================================
-# ディレクトリ作成して移動
+# Create directory and move into it
 # ============================================
 mkcd() {
     mkdir -p "$1" && cd "$1"
 }
 
 # ============================================
-# ファイルのバックアップを作成
+# Create a backup of a file
 # ============================================
 bak() {
     local file="$1"
@@ -647,7 +647,7 @@ bak() {
 }
 
 # ============================================
-# アーカイブの展開（形式を自動判別）
+# Extract archives (auto-detect format)
 # ============================================
 extract() {
     if [ -f "$1" ]; then
@@ -675,14 +675,14 @@ extract() {
 }
 
 # ============================================
-# 指定したポートで何が動いているか確認
+# Check what is running on a specified port
 # ============================================
 port() {
     lsof -i :"$1"
 }
 
 # ============================================
-# 特定のポートのプロセスをkill
+# Kill the process on a specific port
 # ============================================
 killport() {
     local port="$1"
@@ -700,34 +700,34 @@ killport() {
 }
 
 # ============================================
-# ディレクトリのサイズを見やすく表示
+# Display directory size in a readable format
 # ============================================
 dirsize() {
     du -sh "${1:-.}"/* 2>/dev/null | sort -rh | head -20
 }
 
 # ============================================
-# Git関連の便利関数
+# Useful Git-related functions
 # ============================================
 
-# 新しいブランチを作ってpush
+# Create a new branch and push it
 gnew() {
     git checkout -b "$1" && git push -u origin "$1"
 }
 
-# コミットメッセージ付きで一括add&commit
+# Add all and commit with a message
 gac() {
     git add --all && git commit -m "$*"
 }
 
-# 直近のコミットログをfzfで検索してcheckout
+# Search recent commit log with fzf and checkout
 gshow() {
     local commit
     commit=$(git log --oneline --graph --decorate --all | fzf --preview 'git show {2}' | awk '{print $2}')
     [ -n "$commit" ] && git show "$commit"
 }
 
-# ブランチをfzfで選択して切り替え
+# Select a branch with fzf and switch to it
 fbr() {
     local branch
     branch=$(git branch -a | sed 's/^\*//' | sed 's/^ *//' | fzf --preview 'git log --oneline --graph -20 {}')
@@ -735,31 +735,31 @@ fbr() {
 }
 
 # ============================================
-# fzf を使った検索関数
+# Search functions using fzf
 # ============================================
 
-# ファイルをfzfで検索してエディタで開く
+# Search for files with fzf and open in editor
 fe() {
     local file
     file=$(fzf --preview 'bat --color=always --line-range :100 {}' --preview-window=right:60%)
     [ -n "$file" ] && ${EDITOR:-vim} "$file"
 }
 
-# ディレクトリをfzfで検索してcd
+# Search for directories with fzf and cd
 fcd() {
     local dir
     dir=$(find . -type d -not -path '*/\.*' 2>/dev/null | fzf --preview 'ls -la {}')
     [ -n "$dir" ] && cd "$dir"
 }
 
-# コマンド履歴をfzfで検索
+# Search command history with fzf
 fh() {
     local cmd
     cmd=$(history | sort -rn | awk '{$1=""; print $0}' | sed 's/^ //' | sort -u | fzf)
     [ -n "$cmd" ] && eval "$cmd"
 }
 
-# プロセスをfzfで検索してkill
+# Search processes with fzf and kill
 fkill() {
     local pid
     pid=$(ps aux | sed 1d | fzf -m --header='Select process to kill' | awk '{print $2}')
@@ -767,20 +767,20 @@ fkill() {
 }
 
 # ============================================
-# ネットワーク関連
+# Network-related
 # ============================================
 
-# HTTP ステータスコードを確認
+# Check HTTP status code
 httpstatus() {
     curl -o /dev/null -s -w "%{http_code}\n" "$1"
 }
 
-# SSL証明書の有効期限確認
+# Check SSL certificate expiry
 sslexpiry() {
     echo | openssl s_client -connect "$1":443 -servername "$1" 2>/dev/null | openssl x509 -noout -enddate
 }
 
-# DNS情報を見やすく表示
+# Display DNS information in a readable format
 dns() {
     echo "--- A Record ---"
     dig +short "$1" A
@@ -795,13 +795,13 @@ dns() {
 }
 
 # ============================================
-# 計算関数
+# Calculation functions
 # ============================================
 calc() {
     echo "scale=4; $*" | bc -l
 }
 
-# ファイルサイズを人間可読で表示
+# Display file size in human-readable format
 fsize() {
     if [ -f "$1" ]; then
         ls -lh "$1" | awk '{print $5, $9}'
@@ -811,10 +811,10 @@ fsize() {
 }
 
 # ============================================
-# 開発関連
+# Development-related
 # ============================================
 
-# Node.jsプロジェクトの初期化
+# Initialize a Node.js project
 node-init() {
     mkdir -p "$1" && cd "$1"
     npm init -y
@@ -825,27 +825,27 @@ node-init() {
     echo "Project '$1' initialized"
 }
 
-# Docker コンテナに入る
+# Enter a Docker container
 denter() {
     docker exec -it "$1" /bin/sh -c "if command -v bash > /dev/null; then bash; else sh; fi"
 }
 
 # ============================================
-# テキスト処理
+# Text processing
 # ============================================
 
-# 文字列のBase64エンコード/デコード
+# Base64 encode/decode a string
 b64e() { echo -n "$1" | base64; }
 b64d() { echo -n "$1" | base64 --decode; echo; }
 
-# URLエンコード/デコード
+# URL encode/decode
 urlencode() { python3 -c "import urllib.parse; print(urllib.parse.quote('$1'))"; }
 urldecode() { python3 -c "import urllib.parse; print(urllib.parse.unquote('$1'))"; }
 
-# UUIDを生成
+# Generate a UUID
 uuid() { python3 -c "import uuid; print(uuid.uuid4())"; }
 
-# ランダムパスワード生成
+# Generate a random password
 genpass() {
     local length="${1:-32}"
     openssl rand -base64 "$length" | tr -d '/+=' | cut -c1-"$length"
@@ -854,39 +854,39 @@ genpass() {
 
 ---
 
-## 5. プロンプトのカスタマイズ
+## 5. Prompt Customization
 
-### 5.1 bash のプロンプト
+### 5.1 bash Prompt
 
 ```bash
 # ============================================
-# bash プロンプトの基本
+# bash prompt basics
 # ============================================
 
-# PS1 の特殊文字
-# \u: ユーザー名
-# \h: ホスト名（短縮）
-# \H: ホスト名（完全）
-# \w: カレントディレクトリ（フルパス）
-# \W: カレントディレクトリ（ベース名のみ）
-# \d: 日付
-# \t: 時刻（24時間制 HH:MM:SS）
-# \T: 時刻（12時間制 HH:MM:SS）
-# \@: 時刻（12時間制 AM/PM）
-# \n: 改行
-# \$: root なら #, 一般ユーザーなら $
-# \!: 履歴番号
-# \#: コマンド番号
-# \[...\]: 非表示文字の囲み（プロンプト長の計算から除外）
+# PS1 special characters
+# \u: Username
+# \h: Hostname (short)
+# \H: Hostname (full)
+# \w: Current directory (full path)
+# \W: Current directory (basename only)
+# \d: Date
+# \t: Time (24-hour HH:MM:SS)
+# \T: Time (12-hour HH:MM:SS)
+# \@: Time (12-hour AM/PM)
+# \n: Newline
+# \$: # for root, $ for regular user
+# \!: History number
+# \#: Command number
+# \[...\]: Wraps non-printing characters (excluded from prompt length calculation)
 
-# シンプルなプロンプト
+# Simple prompt
 export PS1='\u@\h:\w\$ '
 
-# カラー付きプロンプト
+# Prompt with color
 export PS1='\[\e[1;32m\]\u@\h\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '
-# 緑のユーザー名@ホスト名、青のディレクトリ
+# Green username@hostname, blue directory
 
-# Git ブランチ表示付きプロンプト
+# Prompt with Git branch display
 parse_git_branch() {
     git branch 2>/dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
 }
@@ -894,51 +894,51 @@ parse_git_branch() {
 parse_git_status() {
     local status=$(git status --porcelain 2>/dev/null)
     if [ -n "$status" ]; then
-        echo "*"  # 未コミットの変更あり
+        echo "*"  # Uncommitted changes exist
     fi
 }
 
 export PS1='\[\e[1;32m\]\u\[\e[0m\]:\[\e[1;34m\]\w\[\e[0;33m\]$(parse_git_branch)$(parse_git_status)\[\e[0m\]\$ '
 
-# 複数行のプロンプト（情報量が多い場合）
+# Multi-line prompt (when there is a lot of information)
 export PS1='\n\[\e[1;32m\]\u@\h\[\e[0m\] \[\e[1;34m\]\w\[\e[0;33m\]$(parse_git_branch)\[\e[0m\]\n\$ '
 
-# PS2: 継続行のプロンプト
+# PS2: Continuation line prompt
 export PS2='> '
 
-# PS4: デバッグ用プロンプト（set -x 時）
+# PS4: Debug prompt (when using set -x)
 export PS4='+ ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 ```
 
-### 5.2 zsh のプロンプト
+### 5.2 zsh Prompt
 
 ```bash
 # ============================================
-# zsh プロンプトの基本
+# zsh prompt basics
 # ============================================
 
-# zsh のプロンプト変数
-# %n: ユーザー名
-# %m: ホスト名（短縮）
-# %M: ホスト名（完全）
-# %~: カレントディレクトリ（~省略）
-# %/: カレントディレクトリ（フルパス）
-# %d: 日付
-# %T: 時刻（HH:MM）
-# %*: 時刻（HH:MM:SS）
-# %#: root なら #, 一般ユーザーなら %
-# %?: 直前のコマンドの終了コード
-# %F{color}...%f: フォアグラウンドカラー
-# %B...%b: 太字
-# %U...%u: 下線
+# zsh prompt variables
+# %n: Username
+# %m: Hostname (short)
+# %M: Hostname (full)
+# %~: Current directory (~ abbreviated)
+# %/: Current directory (full path)
+# %d: Date
+# %T: Time (HH:MM)
+# %*: Time (HH:MM:SS)
+# %#: # for root, % for regular user
+# %?: Exit code of the previous command
+# %F{color}...%f: Foreground color
+# %B...%b: Bold
+# %U...%u: Underline
 
-# シンプルなプロンプト
+# Simple prompt
 PROMPT='%n@%m:%~%# '
 
-# カラー付きプロンプト
+# Prompt with color
 PROMPT='%F{green}%n%f@%F{blue}%m%f:%F{yellow}%~%f %# '
 
-# Git情報を表示（vcs_info）
+# Display Git information (vcs_info)
 autoload -Uz vcs_info
 precmd_vcs_info() { vcs_info }
 precmd_functions+=( precmd_vcs_info )
@@ -954,39 +954,39 @@ zstyle ':vcs_info:git:*' formats ' %F{magenta}(%b%c%u)%f'
 
 PROMPT='%F{green}%n%f:%F{blue}%~%f${vcs_info_msg_0_} %# '
 
-# 右側プロンプト（RPROMPT）
-RPROMPT='%F{gray}%*%f'                   # 時刻を右側に表示
-RPROMPT='%(?..%F{red}[%?]%f) %F{gray}%*%f'  # エラー時に終了コードも表示
+# Right-side prompt (RPROMPT)
+RPROMPT='%F{gray}%*%f'                   # Display time on the right
+RPROMPT='%(?..%F{red}[%?]%f) %F{gray}%*%f'  # Also display exit code on error
 
-# コマンド実行時にRPROMPTを消す
+# Hide RPROMPT when command is executed
 setopt TRANSIENT_RPROMPT
 ```
 
-### 5.3 Starship（モダンなプロンプト）
+### 5.3 Starship (Modern Prompt)
 
 ```bash
 # ============================================
-# Starship のインストールと設定
+# Starship installation and configuration
 # ============================================
 
-# インストール
+# Installation
 brew install starship            # macOS
 # curl -sS https://starship.rs/install.sh | sh   # Linux
 
-# シェルに設定を追加
-# ~/.zshrc に追加:
+# Add settings to shell
+# Add to ~/.zshrc:
 eval "$(starship init zsh)"
 
-# ~/.bashrc に追加:
+# Add to ~/.bashrc:
 eval "$(starship init bash)"
 
-# Starship の設定ファイル: ~/.config/starship.toml
+# Starship configuration file: ~/.config/starship.toml
 ```
 
 ```toml
 # ~/.config/starship.toml
 
-# プロンプトの全体フォーマット
+# Overall prompt format
 format = """
 $username\
 $hostname\
@@ -1003,20 +1003,20 @@ $aws\
 $line_break\
 $character"""
 
-# ディレクトリ設定
+# Directory settings
 [directory]
 truncation_length = 5
 truncate_to_repo = true
 style = "bold blue"
 format = "$path$read_only "
 
-# Git ブランチ
+# Git branch
 [git_branch]
 symbol = " "
 style = "bold purple"
 format = "on $symbol$branch "
 
-# Git ステータス
+# Git status
 [git_status]
 conflicted = "="
 ahead = "⇡${count}"
@@ -1030,7 +1030,7 @@ renamed = "»${count}"
 deleted = "✘${count}"
 format = '($all_status$ahead_behind )'
 
-# プロンプトのキャラクター
+# Prompt character
 [character]
 success_symbol = "❯"
 error_symbol = "❯"
@@ -1061,9 +1061,9 @@ format = '$symbol$context( \($namespace\)) '
 symbol = " "
 format = '$symbol($profile )(\($region\) )'
 
-# 実行時間
+# Execution time
 [cmd_duration]
-min_time = 2_000          # 2秒以上のコマンドで表示
+min_time = 2_000          # Display for commands taking 2 seconds or more
 format = "took $duration "
 ```
 
@@ -1071,279 +1071,279 @@ format = "took $duration "
 
 ```bash
 # ============================================
-# Oh My Zsh のインストールと設定
+# Oh My Zsh installation and configuration
 # ============================================
 
-# インストール
+# Installation
 sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 
-# ~/.zshrc での設定
+# Configuration in ~/.zshrc
 export ZSH="$HOME/.oh-my-zsh"
 
-# テーマ設定
-ZSH_THEME="robbyrussell"          # デフォルト
-# ZSH_THEME="agnoster"            # 人気テーマ
-# ZSH_THEME="powerlevel10k/powerlevel10k"  # 高機能テーマ
+# Theme settings
+ZSH_THEME="robbyrussell"          # Default
+# ZSH_THEME="agnoster"            # Popular theme
+# ZSH_THEME="powerlevel10k/powerlevel10k"  # Feature-rich theme
 
-# プラグイン設定
+# Plugin settings
 plugins=(
-    git                           # Git エイリアスと補完
-    zsh-autosuggestions           # コマンド入力時にサジェスト
-    zsh-syntax-highlighting       # コマンドのシンタックスハイライト
-    docker                        # Docker 補完
-    docker-compose                # docker compose 補完
-    kubectl                       # kubectl 補完
-    aws                           # AWS CLI 補完
-    node                          # Node.js 関連
-    npm                           # npm 補完
-    python                        # Python 関連
-    pip                           # pip 補完
-    brew                          # Homebrew 補完
-    macos                         # macOS ユーティリティ
-    fzf                           # fzf 連携
-    z                             # ディレクトリ高速移動
-    history-substring-search      # 履歴のサブストリング検索
-    colored-man-pages             # manページのカラー表示
-    extract                       # 各種アーカイブの展開
-    web-search                    # ターミナルからWeb検索
-    copypath                      # 現在のパスをコピー
-    copybuffer                    # 現在のコマンドラインをコピー
-    direnv                        # direnv 連携
+    git                           # Git aliases and completion
+    zsh-autosuggestions           # Suggestions while typing commands
+    zsh-syntax-highlighting       # Syntax highlighting for commands
+    docker                        # Docker completion
+    docker-compose                # docker compose completion
+    kubectl                       # kubectl completion
+    aws                           # AWS CLI completion
+    node                          # Node.js related
+    npm                           # npm completion
+    python                        # Python related
+    pip                           # pip completion
+    brew                          # Homebrew completion
+    macos                         # macOS utilities
+    fzf                           # fzf integration
+    z                             # Fast directory navigation
+    history-substring-search      # History substring search
+    colored-man-pages             # Colored man pages
+    extract                       # Extract various archives
+    web-search                    # Web search from terminal
+    copypath                      # Copy current path
+    copybuffer                    # Copy current command line
+    direnv                        # direnv integration
 )
 
 source $ZSH/oh-my-zsh.sh
 
-# 追加プラグインのインストール（Oh My Zsh のカスタムプラグイン）
+# Installing additional plugins (Oh My Zsh custom plugins)
 # git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM}/plugins/zsh-autosuggestions
 # git clone https://github.com/zsh-users/zsh-syntax-highlighting ${ZSH_CUSTOM}/plugins/zsh-syntax-highlighting
 ```
 
 ---
 
-## 6. 履歴管理
+## 6. History Management
 
-### 6.1 履歴の設定
+### 6.1 History Settings
 
 ```bash
 # ============================================
-# bash の履歴設定
+# bash history settings
 # ============================================
-export HISTSIZE=100000               # メモリ上の履歴数
-export HISTFILESIZE=200000           # ファイルに保存する履歴数
-export HISTFILE=~/.bash_history      # 履歴ファイルのパス
-export HISTCONTROL=ignoreboth        # 重複と空白開始を無視
-# ignoredups:   連続する重複を無視
-# ignorespace:  スペース開始のコマンドを無視
-# ignoreboth:   上記両方
-# erasedups:    全履歴から重複を削除
+export HISTSIZE=100000               # Number of history entries in memory
+export HISTFILESIZE=200000           # Number of history entries saved to file
+export HISTFILE=~/.bash_history      # Path to history file
+export HISTCONTROL=ignoreboth        # Ignore duplicates and lines starting with space
+# ignoredups:   Ignore consecutive duplicates
+# ignorespace:  Ignore commands starting with space
+# ignoreboth:   Both of the above
+# erasedups:    Remove duplicates from entire history
 
-export HISTTIMEFORMAT="%F %T "       # タイムスタンプ付き
-export HISTIGNORE="ls:cd:pwd:exit:clear:history"  # 記録しないコマンド
+export HISTTIMEFORMAT="%F %T "       # With timestamps
+export HISTIGNORE="ls:cd:pwd:exit:clear:history"  # Commands not recorded
 
-shopt -s histappend                  # 追記モード（上書きしない）
-shopt -s cmdhist                     # 複数行コマンドを1行で保存
+shopt -s histappend                  # Append mode (do not overwrite)
+shopt -s cmdhist                     # Save multi-line commands as one line
 
-# プロンプト表示ごとに履歴を保存（複数ターミナル対応）
+# Save history on each prompt display (supports multiple terminals)
 PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"
 ```
 
 ```bash
 # ============================================
-# zsh の履歴設定
+# zsh history settings
 # ============================================
-HISTSIZE=100000                      # メモリ上の履歴数
-SAVEHIST=200000                      # ファイルに保存する履歴数
-HISTFILE=~/.zsh_history              # 履歴ファイルのパス
+HISTSIZE=100000                      # Number of history entries in memory
+SAVEHIST=200000                      # Number of history entries saved to file
+HISTFILE=~/.zsh_history              # Path to history file
 
-# 履歴のオプション
-setopt SHARE_HISTORY                 # 複数ターミナルで履歴を共有
-setopt HIST_IGNORE_DUPS              # 連続する重複を無視
-setopt HIST_IGNORE_ALL_DUPS          # 全履歴から重複を削除
-setopt HIST_IGNORE_SPACE             # スペース開始のコマンドを無視
-setopt HIST_FIND_NO_DUPS             # 検索時に重複を表示しない
-setopt HIST_REDUCE_BLANKS            # 余分な空白を削除
-setopt HIST_VERIFY                   # 履歴展開を即実行せず確認
-setopt HIST_SAVE_NO_DUPS             # 保存時に重複を除去
-setopt HIST_EXPIRE_DUPS_FIRST        # 容量超過時に重複を先に削除
-setopt INC_APPEND_HISTORY            # コマンド実行ごとに即時保存
-setopt EXTENDED_HISTORY              # タイムスタンプを記録
+# History options
+setopt SHARE_HISTORY                 # Share history across multiple terminals
+setopt HIST_IGNORE_DUPS              # Ignore consecutive duplicates
+setopt HIST_IGNORE_ALL_DUPS          # Remove duplicates from entire history
+setopt HIST_IGNORE_SPACE             # Ignore commands starting with space
+setopt HIST_FIND_NO_DUPS             # Do not show duplicates when searching
+setopt HIST_REDUCE_BLANKS            # Remove extra spaces
+setopt HIST_VERIFY                   # Confirm before executing history expansion
+setopt HIST_SAVE_NO_DUPS             # Remove duplicates when saving
+setopt HIST_EXPIRE_DUPS_FIRST        # Delete duplicates first when over capacity
+setopt INC_APPEND_HISTORY            # Save immediately after each command
+setopt EXTENDED_HISTORY              # Record timestamps
 
-# 履歴から除外するコマンドのパターン
+# Pattern for commands to exclude from history
 HISTORY_IGNORE="(ls|cd|pwd|exit|clear|history|bg|fg)"
 ```
 
-### 6.2 履歴の活用テクニック
+### 6.2 History Usage Techniques
 
 ```bash
 # ============================================
-# 履歴の検索と再利用
+# Searching and reusing history
 # ============================================
 
-# Ctrl+R: インタラクティブ逆方向検索（最も頻繁に使う）
-# 入力開始 → 候補表示 → Ctrl+R で次の候補 → Enter で実行
+# Ctrl+R: Interactive reverse search (most frequently used)
+# Start typing → show candidate → Ctrl+R for next candidate → Enter to execute
 
-# 履歴展開
-!!                    # 直前のコマンドを再実行
-!$                    # 直前のコマンドの最後の引数
-!^                    # 直前のコマンドの最初の引数
-!*                    # 直前のコマンドの全引数
-!n                    # 履歴番号nのコマンド
-!-n                   # n個前のコマンド
-!string               # stringで始まる最新のコマンド
-!?string?             # stringを含む最新のコマンド
+# History expansion
+!!                    # Re-execute the previous command
+!$                    # Last argument of the previous command
+!^                    # First argument of the previous command
+!*                    # All arguments of the previous command
+!n                    # Command with history number n
+!-n                   # Command n entries ago
+!string               # Most recent command starting with string
+!?string?             # Most recent command containing string
 
-# 修飾子
-!!:s/old/new          # 直前のコマンドのold→new置換
-^old^new              # 上記の短縮形
+# Modifiers
+!!:s/old/new          # Replace old→new in the previous command
+^old^new              # Shorthand for the above
 
-# Alt+. （Option+.）: 直前のコマンドの最後の引数を挿入
-# 繰り返し押すと、さらに前のコマンドの最後の引数
+# Alt+. (Option+.): Insert the last argument of the previous command
+# Press again to get the last argument of even earlier commands
 
-# 履歴の管理コマンド
-history               # 履歴一覧
-history 20            # 直近20件
-history -c            # 履歴クリア（メモリ上）
-history -w            # 履歴をファイルに書き込み
-fc -l 1               # 全履歴表示（zsh）
-fc -l -20             # 直近20件（zsh）
+# History management commands
+history               # List history
+history 20            # Last 20 entries
+history -c            # Clear history (in memory)
+history -w            # Write history to file
+fc -l 1               # Show all history (zsh)
+fc -l -20             # Last 20 entries (zsh)
 
-# fzf を使った高度な履歴検索
-# Ctrl+R が fzf のインターフェースに置き換わる（fzf インストール時）
+# Advanced history search using fzf
+# Ctrl+R is replaced by the fzf interface (when fzf is installed)
 ```
 
-### 6.3 機密情報の履歴への記録を防ぐ
+### 6.3 Preventing Sensitive Information from Being Recorded in History
 
 ```bash
 # ============================================
-# セキュリティ: 機密情報の履歴記録防止
+# Security: Preventing sensitive information from being recorded in history
 # ============================================
 
-# 方法1: コマンドの先頭にスペースを付ける（HIST_IGNORE_SPACE が有効な場合）
- export API_KEY="secret-key-12345"   # 先頭にスペース → 履歴に残らない
+# Method 1: Add a space at the beginning of the command (when HIST_IGNORE_SPACE is enabled)
+ export API_KEY="secret-key-12345"   # Leading space → not recorded in history
 
-# 方法2: 環境変数ファイルから読み込む
+# Method 2: Load from an environment variable file
 source ~/.env.secret
 
-# 方法3: キーチェーン/シークレットマネージャを使う
-# macOS の場合:
-security find-generic-password -s "myapp" -w  # キーチェーンから取得
+# Method 3: Use keychain/secret manager
+# For macOS:
+security find-generic-password -s "myapp" -w  # Retrieve from keychain
 
-# 方法4: 特定のコマンドを履歴から除外
+# Method 4: Exclude specific commands from history
 HISTIGNORE="*secret*:*password*:*token*:*API_KEY*"
 
-# 履歴ファイルのパーミッション
+# History file permissions
 chmod 600 ~/.zsh_history
 chmod 600 ~/.bash_history
 ```
 
 ---
 
-## 7. 補完機能の設定
+## 7. Completion Feature Configuration
 
-### 7.1 zsh の補完設定
+### 7.1 zsh Completion Settings
 
 ```bash
 # ============================================
-# zsh 補完の詳細設定
+# Detailed zsh completion settings
 # ============================================
 
-# 補完システムの初期化
+# Initialize the completion system
 autoload -Uz compinit
 compinit
 
-# 補完のキャッシュ（起動時間短縮）
+# Completion cache (reduces startup time)
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path "$XDG_CACHE_HOME/zsh/zcompcache"
 
-# 大文字小文字を無視した補完
+# Case-insensitive completion
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'
 
-# 補完メニューの有効化
+# Enable completion menu
 zstyle ':completion:*' menu select
 
-# 補完候補のグループ化
+# Group completion candidates
 zstyle ':completion:*' group-name ''
 zstyle ':completion:*:descriptions' format '%F{yellow}-- %d --%f'
 zstyle ':completion:*:corrections' format '%F{green}-- %d (errors: %e) --%f'
 zstyle ':completion:*:messages' format '%F{purple}-- %d --%f'
 zstyle ':completion:*:warnings' format '%F{red}-- no matches found --%f'
 
-# 補完候補のカラー表示
+# Colored display of completion candidates
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 
-# ディレクトリの補完時にスラッシュを自動追加
+# Automatically add slash when completing directories
 zstyle ':completion:*' squeeze-slashes true
 
-# killコマンドの補完でプロセス名を表示
+# Show process names in kill command completion
 zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*:*:kill:*' menu yes select
 zstyle ':completion:*:kill:*' force-list always
 
-# SSH/SCP のホスト名補完
+# Hostname completion for SSH/SCP
 zstyle ':completion:*:ssh:*' hosts $(awk '/^Host / && !/\*/{print $2}' ~/.ssh/config 2>/dev/null)
 zstyle ':completion:*:scp:*' hosts $(awk '/^Host / && !/\*/{print $2}' ~/.ssh/config 2>/dev/null)
 
-# man ページのセクション補完
+# man page section completion
 zstyle ':completion:*:manuals' separate-sections true
 zstyle ':completion:*:manuals.(^1*)' insert-sections true
 
-# 補完時のキーバインド
-bindkey '^[[Z' reverse-menu-complete   # Shift+Tab で逆方向の補完
+# Key bindings for completion
+bindkey '^[[Z' reverse-menu-complete   # Shift+Tab for reverse completion
 ```
 
-### 7.2 bash の補完設定
+### 7.2 bash Completion Settings
 
 ```bash
 # ============================================
-# bash 補完の設定
+# bash completion settings
 # ============================================
 
-# bash-completion パッケージの読み込み
+# Load bash-completion package
 if [ -f /etc/bash_completion ]; then
     source /etc/bash_completion
 elif [ -f /usr/share/bash-completion/bash_completion ]; then
     source /usr/share/bash-completion/bash_completion
 fi
 
-# macOS (Homebrew) の場合
+# For macOS (Homebrew)
 if [ -f "$(brew --prefix)/etc/bash_completion" ]; then
     source "$(brew --prefix)/etc/bash_completion"
 fi
 
-# 大文字小文字を無視した補完
+# Case-insensitive completion
 bind "set completion-ignore-case on"
 
-# 部分一致で補完候補を表示
+# Show completion candidates on partial match
 bind "set show-all-if-ambiguous on"
 
-# Tab1回で候補表示
+# Show candidates with one Tab press
 bind "set show-all-if-unmodified on"
 
-# カラー表示
+# Color display
 bind "set colored-stats on"
 
-# 補完時にファイルタイプを表示
+# Show file types during completion
 bind "set visible-stats on"
 
-# 補完候補をページングせず一度に表示
+# Display all completion candidates without paging
 bind "set page-completions off"
 
-# シンボリックリンクの補完時にスラッシュを追加
+# Add slash when completing symbolic links
 bind "set mark-symlinked-directories on"
 ```
 
-### 7.3 各種ツールの補完設定
+### 7.3 Completion Settings for Various Tools
 
 ```bash
 # ============================================
-# ツール固有の補完設定
+# Tool-specific completion settings
 # ============================================
 
 # Docker
 if command -v docker &>/dev/null; then
-    # Docker の補完（zsh）
-    # docker completion は通常自動で有効
-    # 手動設定が必要な場合:
+    # Docker completion (zsh)
+    # docker completion is usually enabled automatically
+    # For manual setup:
     # mkdir -p ~/.zsh/completions
     # docker completion zsh > ~/.zsh/completions/_docker
     fpath=(~/.zsh/completions $fpath)
@@ -1363,7 +1363,7 @@ fi
 # AWS CLI
 if command -v aws_completer &>/dev/null; then
     complete -C aws_completer aws         # bash
-    # autoload bashcompinit; bashcompinit # zsh で bash 補完を使う場合
+    # autoload bashcompinit; bashcompinit # To use bash completion in zsh
     # complete -C aws_completer aws
 fi
 
@@ -1379,18 +1379,18 @@ if command -v gh &>/dev/null; then
     eval "$(gh completion -s zsh)"
 fi
 
-# npm の補完
+# npm completion
 if command -v npm &>/dev/null; then
     eval "$(npm completion)"
 fi
 
-# pip の補完
+# pip completion
 if command -v pip3 &>/dev/null; then
     eval "$(pip3 completion --zsh)"       # zsh
     # eval "$(pip3 completion --bash)"    # bash
 fi
 
-# rustup と cargo の補完
+# rustup and cargo completion
 if command -v rustup &>/dev/null; then
     eval "$(rustup completions zsh)"
     eval "$(rustup completions zsh cargo)"
@@ -1399,49 +1399,49 @@ fi
 
 ---
 
-## 8. モダンなシェルツールの導入
+## 8. Introducing Modern Shell Tools
 
-### 8.1 必須ツール一覧
+### 8.1 List of Essential Tools
 
 ```bash
 # ============================================
-# モダンなCLIツールのインストール（macOS）
+# Installing modern CLI tools (macOS)
 # ============================================
 
-# パッケージマネージャ
+# Package manager
 brew install \
-    fzf              # ファジー検索（最重要）
-    zoxide           # スマートcd（z コマンド）
-    bat              # cat の改良版（シンタックスハイライト）
-    eza              # ls の改良版（アイコン、Git連携）
-    ripgrep          # grep の高速版（rg）
-    fd               # find の高速版
-    delta            # diff の改良版（Git diff用）
-    jq               # JSON処理
-    yq               # YAML処理
-    tldr             # manの簡易版（使用例中心）
-    htop             # top の改良版
-    ncdu             # ディスク使用量の可視化
-    starship         # モダンなプロンプト
-    direnv           # ディレクトリ単位の環境変数
+    fzf              # Fuzzy search (most important)
+    zoxide           # Smart cd (z command)
+    bat              # Improved cat (syntax highlighting)
+    eza              # Improved ls (icons, Git integration)
+    ripgrep          # Fast grep (rg)
+    fd               # Fast find
+    delta            # Improved diff (for Git diff)
+    jq               # JSON processing
+    yq               # YAML processing
+    tldr             # Simplified man (example-focused)
+    htop             # Improved top
+    ncdu             # Disk usage visualization
+    starship         # Modern prompt
+    direnv           # Directory-level environment variables
 
-# Linuxの場合（Ubuntu/Debian）
+# For Linux (Ubuntu/Debian)
 sudo apt install -y \
     fzf zoxide bat exa ripgrep fd-find \
     jq delta htop ncdu direnv
 ```
 
-### 8.2 fzf の設定
+### 8.2 fzf Configuration
 
 ```bash
 # ============================================
-# fzf の詳細設定
+# Detailed fzf configuration
 # ============================================
 
-# fzf のインストール後の設定
-# $(brew --prefix)/opt/fzf/install   # インストールスクリプト実行
+# Configuration after installing fzf
+# $(brew --prefix)/opt/fzf/install   # Run installation script
 
-# デフォルトオプション
+# Default options
 export FZF_DEFAULT_OPTS='
     --height 60%
     --layout=reverse
@@ -1459,64 +1459,64 @@ export FZF_DEFAULT_OPTS='
     --color=marker:#9ece6a,spinner:#9ece6a,header:#9ece6a
 '
 
-# デフォルトの検索コマンド
+# Default search command
 export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
 
-# Ctrl+T: ファイル検索
+# Ctrl+T: File search
 export FZF_CTRL_T_COMMAND='fd --type f --hidden --follow --exclude .git'
 export FZF_CTRL_T_OPTS='
     --preview "bat --color=always --line-range :100 {}"
     --bind "enter:become(${EDITOR:-vim} {+})"
 '
 
-# Alt+C: ディレクトリ検索してcd
+# Alt+C: Search directories and cd
 export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
 export FZF_ALT_C_OPTS='
     --preview "eza --tree --level=2 --icons {}"
 '
 
-# Ctrl+R: コマンド履歴検索
+# Ctrl+R: Command history search
 export FZF_CTRL_R_OPTS='
     --preview "echo {}"
     --preview-window=down:3:hidden:wrap
     --bind "ctrl-/:toggle-preview"
 '
 
-# fzf の読み込み
+# Load fzf
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 ```
 
-### 8.3 zoxide の設定
+### 8.3 zoxide Configuration
 
 ```bash
 # ============================================
-# zoxide の設定
+# zoxide configuration
 # ============================================
 
-# 初期化（~/.zshrc に追加）
+# Initialization (add to ~/.zshrc)
 eval "$(zoxide init zsh)"
 
-# bash の場合
+# For bash
 # eval "$(zoxide init bash)"
 
-# 使い方
-z projects             # 過去の訪問履歴から最適な "projects" ディレクトリに移動
-z proj                 # 部分一致でも移動可能
-zi                     # インタラクティブ選択（fzf連携）
-z -                    # 前のディレクトリに戻る
+# Usage
+z projects             # Navigate to the best-matching "projects" directory from visit history
+z proj                 # Partial match also works
+zi                     # Interactive selection (fzf integration)
+z -                    # Go back to previous directory
 
-# zoxide のデータベース操作
-zoxide query           # データベースの内容を表示
-zoxide query -l        # スコア付きで表示
-zoxide add /path       # パスを手動追加
-zoxide remove /path    # パスを手動削除
+# zoxide database operations
+zoxide query           # Display database contents
+zoxide query -l        # Display with scores
+zoxide add /path       # Manually add a path
+zoxide remove /path    # Manually remove a path
 ```
 
-### 8.4 Git diff の改善（delta）
+### 8.4 Improving Git Diff (delta)
 
 ```bash
 # ============================================
-# delta の設定（~/.gitconfig に追加）
+# delta configuration (add to ~/.gitconfig)
 # ============================================
 ```
 
@@ -1547,16 +1547,16 @@ zoxide remove /path    # パスを手動削除
 
 ---
 
-## 9. 設定の同期とバージョン管理
+## 9. Syncing and Version-Controlling Configuration
 
-### 9.1 dotfiles リポジトリの構成
+### 9.1 dotfiles Repository Structure
 
 ```bash
 # ============================================
-# dotfiles の管理
+# Managing dotfiles
 # ============================================
 
-# dotfiles リポジトリの構成例
+# Example dotfiles repository structure
 # ~/.dotfiles/
 # ├── zsh/
 # │   ├── .zshrc
@@ -1577,18 +1577,18 @@ zoxide remove /path    # パスを手動削除
 # ├── Makefile
 # └── README.md
 
-# シンボリックリンクでセットアップ
+# Set up with symbolic links
 ln -sf ~/.dotfiles/zsh/.zshrc ~/.zshrc
 ln -sf ~/.dotfiles/zsh/.zshenv ~/.zshenv
 ln -sf ~/.dotfiles/git/.gitconfig ~/.gitconfig
 ln -sf ~/.dotfiles/config/starship.toml ~/.config/starship.toml
 ```
 
-### 9.2 自動セットアップスクリプト
+### 9.2 Automated Setup Script
 
 ```bash
 #!/bin/bash
-# install.sh — dotfiles の自動セットアップ
+# install.sh — Automated setup for dotfiles
 
 set -euo pipefail
 
@@ -1596,7 +1596,7 @@ DOTFILES_DIR="$HOME/.dotfiles"
 
 echo "=== Setting up dotfiles ==="
 
-# シンボリックリンクの作成
+# Create symbolic links
 create_symlink() {
     local src="$1"
     local dst="$2"
@@ -1622,7 +1622,7 @@ create_symlink "$DOTFILES_DIR/git/.gitignore_global" "$HOME/.gitignore_global"
 mkdir -p "$HOME/.config"
 create_symlink "$DOTFILES_DIR/config/starship.toml" "$HOME/.config/starship.toml"
 
-# macOS の場合: Homebrew パッケージのインストール
+# For macOS: Install Homebrew packages
 if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "=== Installing Homebrew packages ==="
     if ! command -v brew &>/dev/null; then
@@ -1634,16 +1634,16 @@ fi
 echo "=== Setup complete ==="
 ```
 
-### 9.3 Brewfile での依存管理
+### 9.3 Dependency Management with Brewfile
 
 ```ruby
-# Brewfile — Homebrew のパッケージ管理
-# 使い方: brew bundle --file=Brewfile
+# Brewfile — Homebrew package management
+# Usage: brew bundle --file=Brewfile
 
-# タップ
+# Taps
 tap "homebrew/cask-fonts"
 
-# CLI ツール
+# CLI tools
 brew "zsh"
 brew "fzf"
 brew "zoxide"
@@ -1666,19 +1666,19 @@ brew "tree"
 brew "watch"
 brew "tmux"
 
-# 開発ツール
+# Development tools
 brew "node"
 brew "python@3"
 brew "go"
 brew "rustup"
 
-# GUI アプリ（Cask）
+# GUI apps (Cask)
 cask "visual-studio-code"
 cask "iterm2"
 cask "docker"
 cask "rectangle"
 
-# フォント（Nerd Fonts）
+# Fonts (Nerd Fonts)
 cask "font-hack-nerd-font"
 cask "font-fira-code-nerd-font"
 cask "font-jetbrains-mono-nerd-font"
@@ -1686,65 +1686,65 @@ cask "font-jetbrains-mono-nerd-font"
 
 ---
 
-## 10. トラブルシューティング
+## 10. Troubleshooting
 
-### 10.1 よくある問題と解決策
+### 10.1 Common Problems and Solutions
 
 ```bash
 # ============================================
-# シェル設定のトラブルシューティング
+# Shell configuration troubleshooting
 # ============================================
 
-# 問題1: 設定が反映されない
-# 原因: 設定ファイルを読み込んでいない、または誤ったファイルに書いている
-source ~/.zshrc                    # 手動で再読み込み
-exec zsh                           # シェルを完全に再起動
-echo $SHELL                        # 現在のデフォルトシェルを確認
-cat /etc/shells                    # 利用可能なシェル一覧
-chsh -s $(which zsh)               # デフォルトシェルを変更
+# Problem 1: Changes are not reflected
+# Cause: Configuration file not loaded, or written to the wrong file
+source ~/.zshrc                    # Manually reload
+exec zsh                           # Fully restart the shell
+echo $SHELL                        # Check current default shell
+cat /etc/shells                    # List available shells
+chsh -s $(which zsh)               # Change default shell
 
-# 問題2: コマンドが見つからない（command not found）
-which command_name                 # コマンドの場所を確認
-echo $PATH                        # PATHの内容確認
-type command_name                  # コマンドの種類確認
-hash -r                            # コマンドのハッシュテーブルをリセット（bash）
-rehash                             # コマンドのハッシュテーブルをリセット（zsh）
+# Problem 2: Command not found
+which command_name                 # Check command location
+echo $PATH                        # Check PATH contents
+type command_name                  # Check command type
+hash -r                            # Reset command hash table (bash)
+rehash                             # Reset command hash table (zsh)
 
-# 問題3: エイリアスが効かない
-alias                              # 定義済みエイリアスの一覧
-type command_name                  # そのコマンドがエイリアスか確認
-unalias command_name               # エイリアスを解除
+# Problem 3: Alias not working
+alias                              # List defined aliases
+type command_name                  # Check if command is an alias
+unalias command_name               # Remove alias
 
-# 問題4: シェルの起動が遅い
-time zsh -i -c exit                # 起動時間を計測
-# zshrc の先頭に zmodload zsh/zprof、末尾に zprof を追加
-# → どの処理が遅いか特定
+# Problem 4: Shell startup is slow
+time zsh -i -c exit                # Measure startup time
+# Add zmodload zsh/zprof to the top of zshrc, and zprof to the bottom
+# → Identify which processes are slow
 
-# 一般的な遅延原因:
-# - nvm の読み込み（遅い場合は fnm に乗り換え）
-# - compinit の重複実行
-# - 大量のプラグイン読み込み
-# - ネットワークアクセスを伴う処理
+# Common causes of slowness:
+# - Loading nvm (switch to fnm if slow)
+# - Duplicate compinit execution
+# - Loading a large number of plugins
+# - Processes that require network access
 
-# 問題5: 文字化け
-locale                             # ロケール設定確認
-echo $LANG                        # LANG確認
-# 対策: export LANG="ja_JP.UTF-8" を .zshrc に追加
+# Problem 5: Garbled characters
+locale                             # Check locale settings
+echo $LANG                        # Check LANG
+# Solution: Add export LANG="ja_JP.UTF-8" to .zshrc
 
-# 問題6: 補完が効かない
-rm -f ~/.zcompdump*                # 補完キャッシュを削除
-autoload -Uz compinit && compinit  # 補完システムを再初期化
+# Problem 6: Completion not working
+rm -f ~/.zcompdump*                # Delete completion cache
+autoload -Uz compinit && compinit  # Re-initialize completion system
 ```
 
-### 10.2 設定ファイルのベストプラクティス
+### 10.2 Configuration File Best Practices
 
 ```bash
 # ============================================
-# 設定ファイル管理のベストプラクティス
+# Best practices for managing configuration files
 # ============================================
 
-# 1. 設定をモジュール化する
-# ~/.zshrc から個別ファイルを読み込む構成
+# 1. Modularize configuration
+# Load individual files from ~/.zshrc
 
 # ~/.zshrc
 for config_file in ~/.zsh/conf.d/*.zsh(N); do
@@ -1752,100 +1752,100 @@ for config_file in ~/.zsh/conf.d/*.zsh(N); do
 done
 
 # ~/.zsh/conf.d/
-# ├── 01-env.zsh          # 環境変数
-# ├── 02-history.zsh       # 履歴設定
-# ├── 03-completion.zsh    # 補完設定
-# ├── 04-aliases.zsh       # エイリアス
-# ├── 05-functions.zsh     # 関数
-# ├── 06-keybindings.zsh   # キーバインド
-# ├── 07-prompt.zsh        # プロンプト
-# ├── 08-tools.zsh         # ツール設定
-# └── 99-local.zsh         # マシン固有設定
+# ├── 01-env.zsh          # Environment variables
+# ├── 02-history.zsh       # History settings
+# ├── 03-completion.zsh    # Completion settings
+# ├── 04-aliases.zsh       # Aliases
+# ├── 05-functions.zsh     # Functions
+# ├── 06-keybindings.zsh   # Key bindings
+# ├── 07-prompt.zsh        # Prompt
+# ├── 08-tools.zsh         # Tool settings
+# └── 99-local.zsh         # Machine-specific settings
 
-# 2. マシン固有の設定を分離する
+# 2. Separate machine-specific settings
 if [ -f ~/.zshrc.local ]; then
     source ~/.zshrc.local
 fi
 
-# 3. OS判定を入れる
+# 3. Add OS detection
 case "$OSTYPE" in
     darwin*)
-        # macOS固有の設定
+        # macOS-specific settings
         alias ls='ls -G'
         ;;
     linux*)
-        # Linux固有の設定
+        # Linux-specific settings
         alias ls='ls --color=auto'
         ;;
 esac
 
-# 4. コマンドの存在チェックを入れる
+# 4. Add command existence checks
 if command -v eza &>/dev/null; then
     alias ls='eza --icons'
 fi
 
-# 5. 設定変更前にバックアップを取る
+# 5. Back up before changing configuration
 cp ~/.zshrc ~/.zshrc.bak.$(date +%Y%m%d)
 ```
 
 ---
 
-## 11. キーバインドの設定
+## 11. Key Binding Configuration
 
-### 11.1 zsh のキーバインド
+### 11.1 zsh Key Bindings
 
 ```bash
 # ============================================
-# zsh キーバインド設定
+# zsh key binding settings
 # ============================================
 
-# Emacs モード（デフォルト）
+# Emacs mode (default)
 bindkey -e
 
-# Vi モードを使いたい場合
+# To use Vi mode
 # bindkey -v
 # export KEYTIMEOUT=1
 
-# 基本的なキーバインド
-bindkey '^A' beginning-of-line       # Ctrl+A: 行頭
-bindkey '^E' end-of-line             # Ctrl+E: 行末
-bindkey '^K' kill-line               # Ctrl+K: カーソルから行末まで削除
-bindkey '^U' backward-kill-line      # Ctrl+U: カーソルから行頭まで削除
-bindkey '^W' backward-kill-word      # Ctrl+W: 単語を後方削除
-bindkey '^Y' yank                    # Ctrl+Y: ペースト（killリングから）
-bindkey '^L' clear-screen            # Ctrl+L: 画面クリア
-bindkey '^R' history-incremental-search-backward  # Ctrl+R: 履歴逆検索
+# Basic key bindings
+bindkey '^A' beginning-of-line       # Ctrl+A: Beginning of line
+bindkey '^E' end-of-line             # Ctrl+E: End of line
+bindkey '^K' kill-line               # Ctrl+K: Delete from cursor to end of line
+bindkey '^U' backward-kill-line      # Ctrl+U: Delete from cursor to beginning of line
+bindkey '^W' backward-kill-word      # Ctrl+W: Delete word backward
+bindkey '^Y' yank                    # Ctrl+Y: Paste (from kill ring)
+bindkey '^L' clear-screen            # Ctrl+L: Clear screen
+bindkey '^R' history-incremental-search-backward  # Ctrl+R: Reverse history search
 
-# 単語移動
-bindkey '^[b' backward-word          # Alt+B: 前の単語へ
-bindkey '^[f' forward-word           # Alt+F: 次の単語へ
-bindkey '^[d' kill-word              # Alt+D: 単語を前方削除
+# Word movement
+bindkey '^[b' backward-word          # Alt+B: Go to previous word
+bindkey '^[f' forward-word           # Alt+F: Go to next word
+bindkey '^[d' kill-word              # Alt+D: Delete word forward
 
-# macOS の Option キー対応
+# macOS Option key support
 bindkey '\e[1;3D' backward-word      # Option+Left
 bindkey '\e[1;3C' forward-word       # Option+Right
 
-# ホーム/エンドキー
+# Home/End keys
 bindkey '^[[H' beginning-of-line     # Home
 bindkey '^[[F' end-of-line           # End
 
-# Delete キー
+# Delete key
 bindkey '^[[3~' delete-char          # Delete
 
-# 履歴検索の改善
-bindkey '^P' up-line-or-search       # Ctrl+P: 上方向の履歴検索
-bindkey '^N' down-line-or-search     # Ctrl+N: 下方向の履歴検索
-bindkey '^[[A' up-line-or-search     # 上矢印
-bindkey '^[[B' down-line-or-search   # 下矢印
+# Improved history search
+bindkey '^P' up-line-or-search       # Ctrl+P: Upward history search
+bindkey '^N' down-line-or-search     # Ctrl+N: Downward history search
+bindkey '^[[A' up-line-or-search     # Up arrow
+bindkey '^[[B' down-line-or-search   # Down arrow
 
-# 部分一致履歴検索（入力中の文字列で検索）
+# Partial match history search (search by string being typed)
 autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
 zle -N up-line-or-beginning-search
 zle -N down-line-or-beginning-search
-bindkey '^[[A' up-line-or-beginning-search    # 上矢印
-bindkey '^[[B' down-line-or-beginning-search  # 下矢印
+bindkey '^[[A' up-line-or-beginning-search    # Up arrow
+bindkey '^[[B' down-line-or-beginning-search  # Down arrow
 
-# カスタムウィジェット: sudo を先頭に付ける
+# Custom widget: Add sudo to the beginning
 sudo-command-line() {
     [[ -z $BUFFER ]] && zle up-history
     if [[ $BUFFER == sudo\ * ]]; then
@@ -1855,35 +1855,35 @@ sudo-command-line() {
     fi
 }
 zle -N sudo-command-line
-bindkey '^[s' sudo-command-line      # Alt+S: sudo をトグル
+bindkey '^[s' sudo-command-line      # Alt+S: Toggle sudo
 
-# 現在のコマンドラインをエディタで編集
+# Edit current command line in editor
 autoload -Uz edit-command-line
 zle -N edit-command-line
-bindkey '^X^E' edit-command-line     # Ctrl+X Ctrl+E: エディタで編集
+bindkey '^X^E' edit-command-line     # Ctrl+X Ctrl+E: Edit in editor
 ```
 
 ---
 
-## 12. 実践演習
+## 12. Practical Exercises
 
-### 演習1: [基礎] ── 最小限の .zshrc を作成する
+### Exercise 1: [Beginner] — Create a Minimal .zshrc
 
 ```bash
-# 要件:
-# 1. 基本的な環境変数（EDITOR, LANG, PATH）を設定
-# 2. 便利なエイリアスを5つ以上定義
-# 3. 履歴設定を適切に設定
-# 4. 補完を有効化
+# Requirements:
+# 1. Set basic environment variables (EDITOR, LANG, PATH)
+# 2. Define 5 or more useful aliases
+# 3. Configure history settings appropriately
+# 4. Enable completion
 
-# 解答例:
+# Sample solution:
 cat > ~/.zshrc.exercise1 << 'EOF'
-# ========== 環境変数 ==========
+# ========== Environment variables ==========
 export EDITOR="vim"
 export LANG="ja_JP.UTF-8"
 export PATH="$HOME/.local/bin:$PATH"
 
-# ========== エイリアス ==========
+# ========== Aliases ==========
 alias ll='ls -lah'
 alias la='ls -A'
 alias ..='cd ..'
@@ -1892,7 +1892,7 @@ alias gs='git status'
 alias gc='git commit'
 alias gp='git push'
 
-# ========== 履歴設定 ==========
+# ========== History settings ==========
 HISTSIZE=50000
 SAVEHIST=50000
 HISTFILE=~/.zsh_history
@@ -1900,24 +1900,24 @@ setopt SHARE_HISTORY
 setopt HIST_IGNORE_DUPS
 setopt HIST_IGNORE_SPACE
 
-# ========== 補完 ==========
+# ========== Completion ==========
 autoload -Uz compinit && compinit
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 zstyle ':completion:*' menu select
 EOF
 ```
 
-### 演習2: [中級] ── fzf を活用した関数を作成する
+### Exercise 2: [Intermediate] — Create Functions Using fzf
 
 ```bash
-# 要件:
-# 1. fzf でファイルを検索してエディタで開く関数
-# 2. fzf で Git ブランチを切り替える関数
-# 3. fzf でプロセスを選択して kill する関数
+# Requirements:
+# 1. A function to search for files with fzf and open them in an editor
+# 2. A function to switch Git branches with fzf
+# 3. A function to select a process with fzf and kill it
 
-# 解答例:
+# Sample solution:
 cat > ~/.zshrc.exercise2 << 'FUNC_EOF'
-# fzf でファイルを検索してエディタで開く
+# Search for files with fzf and open in editor
 fopen() {
     local file
     file=$(fd --type f --hidden --exclude .git | fzf \
@@ -1926,7 +1926,7 @@ fopen() {
     [ -n "$file" ] && ${EDITOR:-vim} "$file"
 }
 
-# fzf で Git ブランチを切り替える
+# Switch Git branches with fzf
 fbranch() {
     local branch
     branch=$(git branch -a | sed 's/^\* //' | sed 's/^ *//' | \
@@ -1937,7 +1937,7 @@ fbranch() {
     fi
 }
 
-# fzf でプロセスを選択して kill
+# Select a process with fzf and kill it
 fkill() {
     local pids
     pids=$(ps aux | sed 1d | fzf -m --header='Select process to kill' | awk '{print $2}')
@@ -1949,21 +1949,21 @@ fkill() {
 FUNC_EOF
 ```
 
-### 演習3: [上級] ── 完全なシェル環境セットアップスクリプト
+### Exercise 3: [Advanced] — Complete Shell Environment Setup Script
 
 ```bash
-# 要件:
-# 1. OS判定（macOS/Linux）を行い適切なパッケージマネージャでツールをインストール
-# 2. dotfiles をシンボリックリンクで配置
-# 3. zsh プラグインをインストール
-# 4. セットアップ完了後にテストを実行
+# Requirements:
+# 1. Detect OS (macOS/Linux) and install tools with appropriate package manager
+# 2. Place dotfiles with symbolic links
+# 3. Install zsh plugins
+# 4. Run tests after setup is complete
 
-# 解答例のフレームワーク:
+# Framework for sample solution:
 cat > ~/setup.sh << 'SETUP_EOF'
 #!/bin/bash
 set -euo pipefail
 
-# OS判定
+# OS detection
 detect_os() {
     case "$OSTYPE" in
         darwin*) echo "macos" ;;
@@ -1975,7 +1975,7 @@ detect_os() {
 OS=$(detect_os)
 echo "Detected OS: $OS"
 
-# パッケージインストール
+# Package installation
 install_packages() {
     local packages=(fzf zoxide bat ripgrep fd jq starship direnv)
 
@@ -1990,7 +1990,7 @@ install_packages() {
     fi
 }
 
-# zsh プラグイン
+# zsh plugins
 install_zsh_plugins() {
     local ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 
@@ -2012,7 +2012,7 @@ install_zsh_plugins() {
     done
 }
 
-# テスト
+# Tests
 run_tests() {
     echo "=== Running tests ==="
     local failed=0
@@ -2046,56 +2046,56 @@ chmod +x ~/setup.sh
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 設定 | ファイル | 用途 |
-|------|---------|------|
-| 環境変数 | .zshenv / .bash_profile | PATH, EDITOR, LANG等 |
-| エイリアス | .zshrc / .bashrc | コマンドの短縮 |
-| 関数 | .zshrc / .bashrc | 複雑なコマンドの自動化 |
-| プロンプト | .zshrc / .bashrc | 表示のカスタマイズ |
-| 履歴 | .zshrc / .bashrc | 履歴の保存・共有設定 |
-| 補完 | .zshrc / .bashrc | Tab補完の強化 |
-| キーバインド | .zshrc / .bashrc | ショートカットキーの設定 |
-| ツール設定 | 各ツールの設定ファイル | fzf, starship, delta等 |
-| dotfiles管理 | ~/.dotfiles/ | バージョン管理と同期 |
-
-### ベストプラクティスのまとめ
-
-1. **設定をモジュール化する** -- 1つの巨大な .zshrc ではなく、機能ごとにファイルを分割する
-2. **dotfiles をGit管理する** -- 設定の変更履歴を追跡し、複数マシンで同期する
-3. **OS判定とコマンド存在チェックを入れる** -- 移植性の高い設定を書く
-4. **危険なコマンドにはセーフガードを設ける** -- rm -i, cp -i 等のエイリアス
-5. **起動時間を定期的に計測する** -- プラグインの追加で遅くなりすぎないよう注意
-6. **機密情報は設定ファイルに直接書かない** -- direnv, キーチェーン, シークレットマネージャを活用
-7. **モダンなツールを積極的に導入する** -- fzf, zoxide, bat, eza, ripgrep, fd で生産性向上
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Setting | File | Purpose |
+|---------|------|---------|
+| Environment variables | .zshenv / .bash_profile | PATH, EDITOR, LANG, etc. |
+| Aliases | .zshrc / .bashrc | Shorthand for commands |
+| Functions | .zshrc / .bashrc | Automating complex commands |
+| Prompt | .zshrc / .bashrc | Customizing display |
+| History | .zshrc / .bashrc | History save/share settings |
+| Completion | .zshrc / .bashrc | Enhancing Tab completion |
+| Key bindings | .zshrc / .bashrc | Setting keyboard shortcuts |
+| Tool settings | Each tool's config file | fzf, starship, delta, etc. |
+| dotfiles management | ~/.dotfiles/ | Version control and sync |
+
+### Best Practices Summary
+
+1. **Modularize your configuration** -- Split into files by feature rather than one giant .zshrc
+2. **Manage dotfiles with Git** -- Track configuration change history and sync across multiple machines
+3. **Add OS detection and command existence checks** -- Write highly portable configurations
+4. **Apply safeguards to dangerous commands** -- Aliases like rm -i, cp -i, etc.
+5. **Periodically measure startup time** -- Be careful not to slow things down too much by adding plugins
+6. **Do not write sensitive information directly in configuration files** -- Use direnv, keychain, and secret managers
+7. **Actively adopt modern tools** -- Improve productivity with fzf, zoxide, bat, eza, ripgrep, fd
 
 ---
 
-## 参考文献
+## What to Read Next
+
+---
+
+## References
 1. Robbins, A. "bash Pocket Reference." 2nd Ed, O'Reilly, 2016.
 2. Kiddle, O., Peek, J., Stephenson, P. "From Bash to Z Shell: Conquering the Command Line." Apress, 2004.
 3. Janssens, J. "Data Science at the Command Line." 2nd Ed, O'Reilly, 2021.
 4. Neil, D. "Practical Vim." 2nd Ed, Pragmatic Bookshelf, 2015.
-5. Starship 公式ドキュメント: https://starship.rs/
-6. Oh My Zsh 公式リポジトリ: https://github.com/ohmyzsh/ohmyzsh
-7. fzf 公式リポジトリ: https://github.com/junegunn/fzf
-8. zoxide 公式リポジトリ: https://github.com/ajeetdsouza/zoxide
+5. Starship official documentation: https://starship.rs/
+6. Oh My Zsh official repository: https://github.com/ohmyzsh/ohmyzsh
+7. fzf official repository: https://github.com/junegunn/fzf
+8. zoxide official repository: https://github.com/ajeetdsouza/zoxide
