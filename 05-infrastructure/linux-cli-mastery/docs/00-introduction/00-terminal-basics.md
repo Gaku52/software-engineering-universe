@@ -1,162 +1,162 @@
-# ターミナルとシェルの基礎
+# Terminal and Shell Basics
 
-> ターミナルは「テキストでコンピュータと対話する窓口」であり、シェルは「コマンドを解釈して実行する通訳者」である。この2つの概念を正確に理解することが、Linux/Unix のコマンドライン操作を効率的に習得するための第一歩となる。
+> A terminal is "a window for interacting with your computer via text," while a shell is "an interpreter that parses and executes commands." Accurately understanding these two concepts is the first step toward efficiently mastering Linux/Unix command-line operations.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] ターミナル、シェル、コンソールの違いを正確に説明できる
-- [ ] シェルの歴史と各種シェルの特徴を理解する
-- [ ] コマンドの基本構造と実行の仕組みを理解する
-- [ ] 入出力とリダイレクト・パイプを使いこなせる
-- [ ] キーボードショートカットで効率的にシェル操作ができる
-- [ ] 環境変数とシェルの内部動作を理解する
-- [ ] ターミナルエミュレータの選定と設定ができる
+- [ ] Accurately explain the differences between terminal, shell, and console
+- [ ] Understand the history of shells and the characteristics of various shell types
+- [ ] Understand the basic structure of commands and how they are executed
+- [ ] Use input/output, redirects, and pipes effectively
+- [ ] Operate the shell efficiently using keyboard shortcuts
+- [ ] Understand environment variables and the internal workings of the shell
+- [ ] Select and configure a terminal emulator
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. 基本概念 — ターミナル・シェル・コンソールの正確な理解
+## 1. Core Concepts — Understanding Terminal, Shell, and Console Accurately
 
-### 1.1 ターミナル（端末エミュレータ）
+### 1.1 Terminal (Terminal Emulator)
 
 ```
-ターミナルとは:
-  テキストの入出力を行うプログラム（GUI アプリケーション）
-  物理端末（VT100, VT220等）をソフトウェアで再現したもの
+What is a terminal:
+  A program (GUI application) that handles text input and output
+  A software recreation of physical terminals (VT100, VT220, etc.)
 
-  歴史的背景:
-  1960s-70s: メインフレームに接続する物理端末（テレタイプ, TTY）
-  1980s:     ビデオ端末（VT100等）が登場
-  1990s-:    GUI上で動作する「端末エミュレータ」が主流に
+  Historical background:
+  1960s-70s: Physical terminals connected to mainframes (teletype, TTY)
+  1980s:     Video terminals (VT100, etc.) emerged
+  1990s-:    "Terminal emulators" running on GUIs became mainstream
 
-  代表的な端末エミュレータ:
+  Representative terminal emulators:
   ┌────────────────────┬────────────────────────────────────┐
-  │ エミュレータ       │ 特徴                               │
+  │ Emulator           │ Features                           │
   ├────────────────────┼────────────────────────────────────┤
-  │ iTerm2             │ macOS向け。分割・検索・自動補完     │
-  │ Alacritty          │ GPU描画。高速。Rust製               │
-  │ Warp               │ AI統合。モダンUI。macOS/Linux       │
-  │ Windows Terminal   │ Windows公式。タブ・分割対応         │
-  │ GNOME Terminal     │ GNOME標準。安定                     │
-  │ Konsole            │ KDE標準。高機能                     │
-  │ kitty              │ GPU描画。画像表示対応               │
-  │ WezTerm            │ Rust製。クロスプラットフォーム      │
-  │ Hyper              │ Electron製。Web技術で拡張可能       │
-  │ Terminator         │ 画面分割特化。Python製              │
+  │ iTerm2             │ macOS. Split panes, search, autocomplete │
+  │ Alacritty          │ GPU rendering. Fast. Written in Rust │
+  │ Warp               │ AI integration. Modern UI. macOS/Linux │
+  │ Windows Terminal   │ Official Windows. Tabs, split panes │
+  │ GNOME Terminal     │ GNOME default. Stable              │
+  │ Konsole            │ KDE default. Feature-rich          │
+  │ kitty              │ GPU rendering. Image display support │
+  │ WezTerm            │ Written in Rust. Cross-platform    │
+  │ Hyper              │ Electron-based. Extensible via web tech │
+  │ Terminator         │ Focused on split panes. Written in Python │
   └────────────────────┴────────────────────────────────────┘
 
-  TTY（Teletypewriter）の名残:
-  $ tty                    # 現在の端末デバイスを表示
-  /dev/pts/0               # 仮想端末（pseudo-terminal slave）
-  /dev/tty1                # 仮想コンソール
+  Legacy of TTY (Teletypewriter):
+  $ tty                    # Display the current terminal device
+  /dev/pts/0               # Virtual terminal (pseudo-terminal slave)
+  /dev/tty1                # Virtual console
 
-  $ who                    # ログイン中のユーザーと端末
+  $ who                    # Logged-in users and their terminals
   gaku     pts/0        2026-02-15 10:00 (192.168.1.100)
   gaku     tty1         2026-02-15 09:00
 
-  pts = pseudo-terminal slave（SSH, ターミナルエミュレータ経由）
-  tty = 仮想コンソール（物理端末相当）
+  pts = pseudo-terminal slave (via SSH, terminal emulator)
+  tty = virtual console (equivalent to physical terminal)
 ```
 
-### 1.2 シェル
+### 1.2 Shell
 
 ```
-シェルとは:
-  コマンドを解釈・実行するプログラム（コマンドラインインタプリタ）
-  ユーザーとカーネルの間に位置する「殻（shell）」
+What is a shell:
+  A program that interprets and executes commands (command-line interpreter)
+  The "shell" sitting between the user and the kernel
 
-  シェルの役割:
-  1. コマンドラインの解析（パース）
-  2. 変数展開・コマンド置換
-  3. リダイレクトとパイプの設定
-  4. プログラムの実行（fork + exec）
-  5. ジョブ制御
-  6. スクリプト実行（プログラミング言語としての機能）
+  Roles of the shell:
+  1. Parsing the command line
+  2. Variable expansion and command substitution
+  3. Setting up redirects and pipes
+  4. Executing programs (fork + exec)
+  5. Job control
+  6. Script execution (functionality as a programming language)
 
-  シェルの歴史:
+  Shell history:
   ┌──────┬───────────────────────┬──────────────────────────────────┐
-  │ 年   │ シェル                │ 特徴                             │
+  │ Year │ Shell                 │ Features                         │
   ├──────┼───────────────────────┼──────────────────────────────────┤
-  │ 1971 │ Thompson Shell        │ 最初のUnixシェル                 │
-  │ 1977 │ Bourne Shell (sh)     │ スクリプト言語機能。POSIX基盤    │
-  │ 1978 │ C Shell (csh)         │ C言語風構文。BSD系               │
-  │ 1983 │ Korn Shell (ksh)      │ sh互換 + cshの便利機能           │
-  │ 1989 │ Bash                  │ GNU版sh。Linux標準               │
-  │ 1990 │ Zsh                   │ 最強の対話シェル                 │
-  │ 2005 │ Fish                  │ ユーザーフレンドリー設計         │
-  │ 2019 │ Nushell               │ 構造化データ処理。Rust製         │
-  │ 2021 │ Oil Shell             │ bash互換 + モダン構文            │
+  │ 1971 │ Thompson Shell        │ The first Unix shell             │
+  │ 1977 │ Bourne Shell (sh)     │ Scripting language features. POSIX foundation │
+  │ 1978 │ C Shell (csh)         │ C-like syntax. BSD lineage       │
+  │ 1983 │ Korn Shell (ksh)      │ sh-compatible + csh conveniences │
+  │ 1989 │ Bash                  │ GNU version of sh. Linux standard │
+  │ 1990 │ Zsh                   │ The most powerful interactive shell │
+  │ 2005 │ Fish                  │ User-friendly design             │
+  │ 2019 │ Nushell               │ Structured data processing. Written in Rust │
+  │ 2021 │ Oil Shell             │ bash-compatible + modern syntax  │
   └──────┴───────────────────────┴──────────────────────────────────┘
 
-  現在のシェル確認:
-  $ echo $SHELL             # ログインシェル（/etc/passwd で設定）
+  Check the current shell:
+  $ echo $SHELL             # Login shell (set in /etc/passwd)
   /bin/zsh
 
-  $ echo $0                 # 現在実行中のシェル
+  $ echo $0                 # Currently running shell
   -zsh
 
-  $ cat /etc/shells         # 利用可能なシェル一覧
+  $ cat /etc/shells         # List of available shells
   /bin/sh
   /bin/bash
   /bin/zsh
   /usr/bin/fish
 
-  シェルの変更:
-  $ chsh -s /bin/zsh        # ログインシェルをzshに変更
-  $ exec bash               # 現在のセッションのみ別シェルに切替
+  Changing the shell:
+  $ chsh -s /bin/zsh        # Change login shell to zsh
+  $ exec bash               # Switch to another shell for the current session only
 ```
 
-### 1.3 コンソール
+### 1.3 Console
 
 ```
-コンソールとは:
-  物理的なキーボード＋画面の組み合わせ、またはその仮想版
-  サーバールームで直接操作する端末
+What is a console:
+  A combination of a physical keyboard and screen, or its virtual equivalent
+  A terminal for directly operating a server in a server room
 
-  仮想コンソール（Linux）:
-  Ctrl+Alt+F1   → tty1（多くのディストリでGUIが動作）
-  Ctrl+Alt+F2   → tty2（テキストコンソール）
+  Virtual consoles (Linux):
+  Ctrl+Alt+F1   → tty1 (GUI runs here on many distributions)
+  Ctrl+Alt+F2   → tty2 (text console)
   ...
-  Ctrl+Alt+F6   → tty6（テキストコンソール）
+  Ctrl+Alt+F6   → tty6 (text console)
 
-  用途:
-  - GUIがフリーズした時の緊急操作
-  - サーバーの直接操作（データセンター）
-  - インストーラ操作
-  - カーネルパニック時のデバッグ
+  Use cases:
+  - Emergency operations when the GUI is frozen
+  - Direct server access (data center)
+  - Installer operations
+  - Debugging during kernel panic
 
-  シリアルコンソール:
-  - 物理シリアルポート（RS-232）経由の接続
-  - ネットワーク不通時のサーバー管理に不可欠
-  - BMC/IPMI/iLO/iDRAC のリモートコンソールも同様の概念
+  Serial console:
+  - Connection via physical serial port (RS-232)
+  - Essential for server management when the network is down
+  - Remote consoles via BMC/IPMI/iLO/iDRAC follow the same concept
 ```
 
-### 1.4 三者の関係
+### 1.4 Relationship Between the Three
 
 ```
-関係図:
+Relationship diagram:
 
   ┌─────────────────────────────────────────────────┐
-  │            ターミナルエミュレータ                │
+  │            Terminal Emulator                     │
   │  (iTerm2 / Alacritty / Windows Terminal)        │
   │                                                 │
   │  ┌─────────────────────────────────────────┐    │
-  │  │              シェル (zsh/bash)           │    │
+  │  │              Shell (zsh/bash)           │    │
   │  │                                         │    │
   │  │  $ ls -la /home/user                    │    │
   │  │  total 48                               │    │
   │  │  drwxr-xr-x 12 user user 4096 ...      │    │
   │  │                                         │    │
   │  │  ┌─────────────────────────────────┐    │    │
-  │  │  │    外部コマンド / プログラム    │    │    │
-  │  │  │    (ls, grep, git, python...)   │    │    │
+  │  │  │  External Commands / Programs   │    │    │
+  │  │  │  (ls, grep, git, python...)     │    │    │
   │  │  └─────────────────────────────────┘    │    │
   │  │                                         │    │
   │  └─────────────────────────────────────────┘    │
@@ -165,62 +165,62 @@
                          │
                          ↓
   ┌─────────────────────────────────────────────────┐
-  │              カーネル (Linux Kernel)             │
-  │     システムコール → ハードウェア制御            │
+  │              Kernel (Linux Kernel)               │
+  │     System calls → Hardware control             │
   └─────────────────────────────────────────────────┘
 
-  処理フロー:
-  1. ユーザーがターミナルにキー入力
-  2. ターミナルが入力をシェルに渡す
-  3. シェルがコマンドを解析
-  4. シェルがfork()でプロセスを生成
-  5. 子プロセスでexec()によりコマンドを実行
-  6. コマンドの出力がシェル経由でターミナルに返る
-  7. ターミナルが画面に出力を描画
+  Processing flow:
+  1. User inputs keystrokes into the terminal
+  2. The terminal passes input to the shell
+  3. The shell parses the command
+  4. The shell creates a process with fork()
+  5. The child process runs the command via exec()
+  6. The command's output is returned through the shell to the terminal
+  7. The terminal renders the output on screen
 ```
 
 ---
 
-## 2. コマンドの基本構造
+## 2. Basic Command Structure
 
-### 2.1 コマンドの一般的な構文
+### 2.1 General Command Syntax
 
 ```bash
-# コマンドの基本構造
+# Basic command structure
 $ command [options] [arguments]
 
-# 具体例
+# Concrete example
 $ ls -la /home/user
-#  │   │   └── 引数（対象ディレクトリ）
-#  │   └── オプション（-l: 詳細表示, -a: 隠しファイル含む）
-#  └── コマンド
+#  │   │   └── argument (target directory)
+#  │   └── options (-l: long format, -a: include hidden files)
+#  └── command
 
-# オプションの形式
-# 短い形式（1文字）: ハイフン1つ
+# Option formats
+# Short form (single character): one hyphen
 $ ls -l
 $ ls -a
-$ ls -la                    # 短いオプションは結合可能
-$ ls -l -a                  # 分けても同じ
+$ ls -la                    # Short options can be combined
+$ ls -l -a                  # Same as above, separated
 
-# 長い形式（単語）: ハイフン2つ
+# Long form (word): two hyphens
 $ ls --long
 $ ls --all
-$ ls --all --long           # 長いオプションは結合不可
+$ ls --all --long           # Long options cannot be combined
 
-# 値を取るオプション
-$ grep -n "pattern" file    # 短い形式（スペース区切り）
-$ grep -n"pattern" file     # 短い形式（スペースなし、一部コマンドで可能）
-$ grep --line-number=5 file # 長い形式（=で接続）
+# Options that take a value
+$ grep -n "pattern" file    # Short form (space-separated)
+$ grep -n"pattern" file     # Short form (no space, possible with some commands)
+$ grep --line-number=5 file # Long form (connected with =)
 
-# -- の意味（オプション終端マーカー）
-$ rm -- -dangerous-file     # ハイフンで始まるファイル名を引数として扱う
-$ grep -- "-pattern" file   # ハイフンで始まるパターンを検索
+# Meaning of -- (end-of-options marker)
+$ rm -- -dangerous-file     # Treat a hyphen-prefixed filename as an argument
+$ grep -- "-pattern" file   # Search for a pattern starting with a hyphen
 ```
 
-### 2.2 コマンドの種類と優先順位
+### 2.2 Types of Commands and Precedence
 
 ```bash
-# type コマンドでコマンドの種類を確認
+# Use the type command to check the kind of a command
 $ type cd
 cd is a shell builtin
 
@@ -230,69 +230,69 @@ ls is aliased to 'ls --color=auto'
 $ type grep
 grep is /usr/bin/grep
 
-$ type -a echo              # 同名の全てのコマンドを表示
+$ type -a echo              # Show all commands with the same name
 echo is a shell builtin
 echo is /usr/bin/echo
 echo is /bin/echo
 
-# コマンドの実行優先順位（高い順）:
-# 1. エイリアス (alias)
-# 2. 関数 (function)
-# 3. ビルトインコマンド (builtin)
-# 4. ハッシュテーブルのキャッシュ
-# 5. PATH上の外部コマンド
+# Command execution precedence (highest to lowest):
+# 1. Aliases (alias)
+# 2. Functions (function)
+# 3. Built-in commands (builtin)
+# 4. Hash table cache
+# 5. External commands on PATH
 
-# 特定の種類を強制的に実行
-$ \ls                       # エイリアスを無視して外部コマンド ls を実行
-$ command ls                # エイリアスと関数を無視
-$ builtin echo "hello"     # ビルトイン版を強制使用
-$ /usr/bin/echo "hello"    # フルパスで外部コマンドを直接指定
+# Force a specific type to run
+$ \ls                       # Run the external ls command, ignoring aliases
+$ command ls                # Ignore aliases and functions
+$ builtin echo "hello"     # Force use of the built-in version
+$ /usr/bin/echo "hello"    # Specify the external command directly by full path
 
-# which / whereis でパスを確認
-$ which python3             # 最初に見つかるパス
+# Check paths with which / whereis
+$ which python3             # First matching path
 /usr/bin/python3
 
-$ which -a python3          # 全てのパス
+$ which -a python3          # All matching paths
 /usr/bin/python3
 /usr/local/bin/python3
 
-$ whereis python3           # バイナリ + マニュアル + ソース
+$ whereis python3           # Binary + manual + source
 python3: /usr/bin/python3 /usr/lib/python3 /usr/share/man/man1/python3.1.gz
 ```
 
-### 2.3 コマンドの結合と制御演算子
+### 2.3 Command Chaining and Control Operators
 
 ```bash
-# セミコロン: 順次実行（前のコマンドの成否に関係なく実行）
+# Semicolon: sequential execution (runs regardless of the previous command's success)
 $ mkdir test; cd test; touch file.txt
 
-# && (AND): 前のコマンドが成功した場合のみ次を実行
+# && (AND): run the next command only if the previous succeeded
 $ mkdir project && cd project && git init
-# mkdir が失敗したら cd は実行されない
+# If mkdir fails, cd is not executed
 
-# || (OR): 前のコマンドが失敗した場合のみ次を実行
-$ cd /nonexistent || echo "ディレクトリが見つかりません"
+# || (OR): run the next command only if the previous failed
+$ cd /nonexistent || echo "Directory not found"
 
-# 組み合わせパターン
-$ make && make test || echo "ビルドまたはテスト失敗"
+# Combined pattern
+$ make && make test || echo "Build or test failed"
 
-# グループ化
-$ { command1; command2; }         # 現在のシェルで実行
-$ (command1; command2)            # サブシェルで実行
+# Grouping
+$ { command1; command2; }         # Run in the current shell
+$ (command1; command2)            # Run in a subshell
 
-# 実務での使い分け例
-# デプロイスクリプト的な連続コマンド
-$ git pull && npm install && npm run build && echo "デプロイ準備完了" || echo "エラー発生"
+# Practical usage examples
+# Sequential commands like a deploy script
+$ git pull && npm install && npm run build && echo "Deploy ready" || echo "Error occurred"
 
-# サブシェルで一時的にディレクトリ変更
+# Temporarily change directory in a subshell
 $ (cd /tmp && wget https://example.com/file.tar.gz && tar xzf file.tar.gz)
-# 元のディレクトリに自動的に戻る
+# Automatically returns to the original directory
 
-# 複数コマンドの終了ステータス
-$ echo $?                    # 直前のコマンドの終了ステータス
-0                            # 0 = 成功, 1-255 = 失敗
+# Exit status of multiple commands
+$ echo $?                    # Exit status of the previous command
+0                            # 0 = success, 1-255 = failure
 
-# PIPESTATUS（bash）/ pipestatus（zsh）でパイプライン各段のステータス
+# PIPESTATUS (bash) / pipestatus (zsh) for pipeline stage statuses
 $ false | true | false
 $ echo ${PIPESTATUS[@]}      # bash
 1 0 1
@@ -300,163 +300,163 @@ $ echo ${pipestatus[@]}      # zsh
 1 0 1
 ```
 
-### 2.4 基本コマンド一覧
+### 2.4 Basic Command Reference
 
 ```bash
-# === 情報取得系 ===
-$ pwd                         # 現在のディレクトリ（Print Working Directory）
+# === Information ===
+$ pwd                         # Current directory (Print Working Directory)
 /home/gaku/projects
 
-$ ls                          # ファイル一覧
-$ ls -la                      # 詳細 + 隠しファイル
-$ ls -lah                     # 人間が読みやすいサイズ表示
-$ ls -lt                      # 更新日時順
-$ ls -lS                      # サイズ順
-$ ls -R                       # 再帰的に表示
+$ ls                          # List files
+$ ls -la                      # Long format + hidden files
+$ ls -lah                     # Human-readable sizes
+$ ls -lt                      # Sorted by modification time
+$ ls -lS                      # Sorted by size
+$ ls -R                       # Recursive listing
 
-$ echo "Hello, World!"        # 文字列出力
-$ echo -e "Line1\nLine2"      # エスケープシーケンス解釈
-$ echo -n "no newline"        # 改行なし
+$ echo "Hello, World!"        # Print a string
+$ echo -e "Line1\nLine2"      # Interpret escape sequences
+$ echo -n "no newline"        # No trailing newline
 
-$ date                        # 日時表示
+$ date                        # Display date and time
 Sun Feb 15 10:30:00 JST 2026
-$ date +"%Y-%m-%d %H:%M:%S"   # フォーマット指定
+$ date +"%Y-%m-%d %H:%M:%S"   # Formatted output
 2026-02-15 10:30:00
-$ date -u                     # UTC表示
-$ date -d "2 days ago"        # 相対日時（GNU date）
+$ date -u                     # Display in UTC
+$ date -d "2 days ago"        # Relative date (GNU date)
 
-$ whoami                      # 現在のユーザー名
+$ whoami                      # Current username
 gaku
 
-$ id                          # UID, GID, 所属グループ
+$ id                          # UID, GID, group memberships
 uid=1000(gaku) gid=1000(gaku) groups=1000(gaku),27(sudo),998(docker)
 
-$ hostname                    # ホスト名
+$ hostname                    # Hostname
 dev-server
 
-$ uname -a                    # カーネル情報
+$ uname -a                    # Kernel information
 Linux dev-server 5.15.0-91-generic #101-Ubuntu SMP x86_64 GNU/Linux
 
-$ uptime                      # 稼働時間とロードアベレージ
+$ uptime                      # Uptime and load average
 10:30:00 up 45 days, 3:22, 2 users, load average: 0.15, 0.10, 0.05
 
-$ cat /etc/os-release         # ディストリビューション情報
+$ cat /etc/os-release         # Distribution information
 NAME="Ubuntu"
 VERSION="22.04.3 LTS (Jammy Jellyfish)"
 
-# === ファイル操作系（基本） ===
-$ cd /path/to/dir             # ディレクトリ移動
-$ cd ~                        # ホームに戻る（cd だけでも同じ）
-$ cd -                        # 前のディレクトリに戻る
-$ cd ..                       # 親ディレクトリに移動
-$ cd ../..                    # 2つ上の親ディレクトリ
+# === File Operations (Basic) ===
+$ cd /path/to/dir             # Change directory
+$ cd ~                        # Return to home (same as cd alone)
+$ cd -                        # Return to the previous directory
+$ cd ..                       # Move to the parent directory
+$ cd ../..                    # Move two levels up
 
-$ touch newfile.txt           # 空ファイル作成 / タイムスタンプ更新
-$ mkdir newdir                # ディレクトリ作成
-$ mkdir -p a/b/c              # 中間ディレクトリも含めて作成
+$ touch newfile.txt           # Create an empty file / update timestamp
+$ mkdir newdir                # Create a directory
+$ mkdir -p a/b/c              # Create intermediate directories as needed
 
-$ cp file1 file2              # ファイルコピー
-$ cp -r dir1 dir2             # ディレクトリコピー
-$ mv file1 file2              # 移動 / リネーム
-$ rm file                     # ファイル削除
-$ rm -r dir                   # ディレクトリ削除（再帰的）
-$ rm -rf dir                  # 強制的に再帰削除（※慎重に）
+$ cp file1 file2              # Copy a file
+$ cp -r dir1 dir2             # Copy a directory
+$ mv file1 file2              # Move / rename
+$ rm file                     # Delete a file
+$ rm -r dir                   # Delete a directory (recursive)
+$ rm -rf dir                  # Force recursive deletion (use with caution)
 
-# === ヘルプ系 ===
-$ command --help              # 簡易ヘルプ
-$ man command                 # マニュアルページ
-$ info command                # GNU infoドキュメント
-$ apropos keyword             # キーワードからコマンドを検索
-$ whatis command              # コマンドの1行説明
+# === Help ===
+$ command --help              # Brief help
+$ man command                 # Manual page
+$ info command                # GNU info documentation
+$ apropos keyword             # Search for commands by keyword
+$ whatis command              # One-line description of a command
 ```
 
 ---
 
-## 3. 入出力とリダイレクト
+## 3. Input/Output and Redirects
 
-### 3.1 ファイルディスクリプタと標準ストリーム
+### 3.1 File Descriptors and Standard Streams
 
 ```
-Unix/Linux の I/O モデル:
-  全てのI/Oは「ファイルディスクリプタ（fd）」を通じて行われる
+Unix/Linux I/O model:
+  All I/O is performed through "file descriptors (fd)"
 
-  標準ストリーム:
+  Standard streams:
   ┌────────┬──────┬────────────────┬─────────────────────┐
-  │ 名前   │ fd   │ デフォルト     │ 用途                │
+  │ Name   │ fd   │ Default        │ Purpose             │
   ├────────┼──────┼────────────────┼─────────────────────┤
-  │ stdin  │ 0    │ キーボード     │ プログラムへの入力  │
-  │ stdout │ 1    │ 画面           │ 通常の出力          │
-  │ stderr │ 2    │ 画面           │ エラーメッセージ    │
+  │ stdin  │ 0    │ Keyboard       │ Input to programs   │
+  │ stdout │ 1    │ Screen         │ Normal output       │
+  │ stderr │ 2    │ Screen         │ Error messages      │
   └────────┴──────┴────────────────┴─────────────────────┘
 
-  fd 3以降はプログラムが任意に使用可能
+  fd 3 and above can be used freely by programs
 
-  ┌─────────┐     stdin(0)     ┌──────────┐     stdout(1)    ┌─────────┐
-  │キーボード├────────────────→│  プロセス  ├────────────────→│  画面   │
-  └─────────┘                  │  (bash)   ├────────────────→│         │
+  ┌──────────┐     stdin(0)     ┌──────────┐     stdout(1)    ┌─────────┐
+  │ Keyboard ├────────────────→│  Process  ├────────────────→│ Screen  │
+  └──────────┘                  │  (bash)   ├────────────────→│         │
                                └──────────┘     stderr(2)    └─────────┘
 ```
 
-### 3.2 出力リダイレクト
+### 3.2 Output Redirection
 
 ```bash
-# stdout をファイルに書き込み（上書き）
+# Write stdout to a file (overwrite)
 $ echo "Hello" > output.txt
 $ ls -la > filelist.txt
 
-# stdout をファイルに追記
+# Append stdout to a file
 $ echo "World" >> output.txt
 $ date >> logfile.txt
 
-# stderr をファイルに書き込み
+# Write stderr to a file
 $ ls /nonexistent 2> error.log
 
-# stdout と stderr を別々のファイルに
+# Write stdout and stderr to separate files
 $ command > stdout.log 2> stderr.log
 
-# stdout と stderr を同じファイルに
+# Write stdout and stderr to the same file
 $ command &> combined.log          # bash 4+
-$ command > combined.log 2>&1      # POSIX互換（順序重要！）
-# 注意: 2>&1 > file は意図通りに動かない
+$ command > combined.log 2>&1      # POSIX-compatible (order matters!)
+# Note: 2>&1 > file does not work as intended
 
-# stderr を stdout にマージ（パイプに流す時に便利）
+# Merge stderr into stdout (useful for piping)
 $ command 2>&1 | grep "Error"
 
-# 出力を捨てる
-$ command > /dev/null              # stdout を捨てる
-$ command 2> /dev/null             # stderr を捨てる
-$ command &> /dev/null             # 両方捨てる
+# Discard output
+$ command > /dev/null              # Discard stdout
+$ command 2> /dev/null             # Discard stderr
+$ command &> /dev/null             # Discard both
 
-# 実務例: cronジョブでの出力制御
-# 成功ログのみファイルに、エラーはメール通知
+# Practical example: output control in a cron job
+# Successful logs to file, errors trigger email notification
 $ /usr/local/bin/backup.sh > /var/log/backup.log 2> /var/log/backup-error.log
 
-# 実務例: ノイズの多いコマンドからエラーのみ確認
-$ find / -name "*.conf" 2>/dev/null          # Permission denied を非表示
-$ docker build . 2>&1 | tee build.log        # 画面表示 + ログ保存
+# Practical example: show only errors from a noisy command
+$ find / -name "*.conf" 2>/dev/null          # Hide "Permission denied"
+$ docker build . 2>&1 | tee build.log        # Display on screen + save log
 ```
 
-### 3.3 入力リダイレクト
+### 3.3 Input Redirection
 
 ```bash
-# stdin をファイルから読み込み
-$ wc -l < /etc/passwd                # ファイルの行数をカウント
-$ sort < unsorted.txt > sorted.txt   # ソートして別ファイルに
+# Read stdin from a file
+$ wc -l < /etc/passwd                # Count lines in a file
+$ sort < unsorted.txt > sorted.txt   # Sort and write to another file
 
-# ヒアドキュメント（複数行テキストをstdinとして渡す）
+# Here document (pass multiple lines of text as stdin)
 $ cat <<EOF
 Hello, $(whoami)!
 Today is $(date +%Y-%m-%d).
 Current directory: $(pwd)
 EOF
 
-# ヒアドキュメントで変数展開を抑制
+# Here document with variable expansion suppressed
 $ cat <<'EOF'
-変数は展開されない: $HOME
-コマンド置換も無効: $(whoami)
+Variables are not expanded: $HOME
+Command substitution is also disabled: $(whoami)
 EOF
 
-# ヒアドキュメントでファイル作成（実務で頻出）
+# Creating a file with a here document (common in practice)
 $ cat <<'EOF' > /etc/nginx/conf.d/app.conf
 server {
     listen 80;
@@ -467,17 +467,17 @@ server {
 }
 EOF
 
-# ヒアストリング（1行のテキストをstdinとして渡す）
-$ wc -w <<< "Hello World"           # 単語数カウント → 2
-$ grep "pattern" <<< "$variable"     # 変数の内容を検索
+# Here string (pass a single line as stdin)
+$ wc -w <<< "Hello World"           # Word count → 2
+$ grep "pattern" <<< "$variable"     # Search the contents of a variable
 
-# 実務例: SQLクエリの実行
+# Practical example: running SQL queries
 $ mysql -u root -p database <<EOF
 SELECT COUNT(*) FROM users WHERE created_at > '2026-01-01';
 SELECT name, email FROM users ORDER BY created_at DESC LIMIT 10;
 EOF
 
-# 実務例: SSH先でのコマンド実行
+# Practical example: running commands on a remote server via SSH
 $ ssh webserver <<'EOF'
 cd /var/log
 tail -100 nginx/error.log
@@ -486,422 +486,422 @@ free -h
 EOF
 ```
 
-### 3.4 パイプ
+### 3.4 Pipes
 
 ```bash
-# パイプの基本: | で左のstdoutを右のstdinに接続
-$ ls -la | less                      # 長い出力をページャで表示
+# Basic pipe: connect the stdout of the left command to the stdin of the right
+$ ls -la | less                      # View long output in a pager
 
-# パイプラインの構築（段階的に処理）
+# Building a pipeline (process step by step)
 $ cat access.log | cut -d' ' -f1 | sort | uniq -c | sort -rn | head -10
 #                  │                 │       │           │        │
-#                  IPアドレス抽出    ソート  重複カウント 降順ソート 上位10
+#                  Extract IP        Sort    Count dups  Sort desc  Top 10
 
-# 実務例: ログ解析パイプライン
-# Apacheアクセスログから404エラーのURLトップ10
+# Practical example: log analysis pipeline
+# Top 10 URLs with 404 errors from an Apache access log
 $ grep " 404 " access.log | awk '{print $7}' | sort | uniq -c | sort -rn | head -10
 
-# 実務例: プロセス監視
+# Practical example: process monitoring
 $ ps aux | grep "[n]ginx" | awk '{print $2, $11}'
 
-# 実務例: ディスク使用量の大きいディレクトリ
+# Practical example: directories with the most disk usage
 $ du -sh /var/* 2>/dev/null | sort -rh | head -10
 
-# tee コマンド: 出力を画面とファイルの両方に
-$ ls -la | tee filelist.txt              # 画面にも表示、ファイルにも保存
-$ make 2>&1 | tee build.log             # ビルドログの保存
-$ command | tee -a logfile.txt           # 追記モード
+# tee command: send output to both screen and file
+$ ls -la | tee filelist.txt              # Display on screen and save to file
+$ make 2>&1 | tee build.log             # Save build logs
+$ command | tee -a logfile.txt           # Append mode
 
-# 名前付きパイプ（FIFO）
+# Named pipes (FIFO)
 $ mkfifo /tmp/mypipe
-# ターミナル1:
+# Terminal 1:
 $ cat /tmp/mypipe
-# ターミナル2:
+# Terminal 2:
 $ echo "Hello via pipe" > /tmp/mypipe
 
-# xargs: パイプからの入力を引数として渡す
-$ find . -name "*.log" | xargs rm        # 見つかったファイルを削除
-$ find . -name "*.log" -print0 | xargs -0 rm   # スペース入りファイル名対応
-$ cat urls.txt | xargs -n1 curl -O       # URLリストからファイルをダウンロード
-$ cat servers.txt | xargs -I{} ssh {} "uptime"  # 複数サーバーで実行
+# xargs: pass pipeline input as arguments
+$ find . -name "*.log" | xargs rm        # Delete found files
+$ find . -name "*.log" -print0 | xargs -0 rm   # Handle filenames with spaces
+$ cat urls.txt | xargs -n1 curl -O       # Download files from a URL list
+$ cat servers.txt | xargs -I{} ssh {} "uptime"  # Run on multiple servers
 ```
 
-### 3.5 コマンド置換
+### 3.5 Command Substitution
 
 ```bash
-# $() 形式（推奨）
+# $() form (recommended)
 $ echo "Today is $(date +%Y-%m-%d)"
 Today is 2026-02-15
 
 $ echo "There are $(ls | wc -l) files here"
 There are 42 files here
 
-# バッククォート形式（レガシー、非推奨）
-$ echo "Today is `date`"       # ネストが困難なため非推奨
+# Backtick form (legacy, not recommended)
+$ echo "Today is `date`"       # Hard to nest, so not recommended
 
-# ネストした例
+# Nested example
 $ echo "Kernel: $(uname -r), Uptime: $(uptime | awk '{print $3}')"
 
-# 変数に格納
+# Storing in a variable
 $ current_branch=$(git branch --show-current)
 $ file_count=$(find . -name "*.py" | wc -l)
 $ latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "no tags")
 
-# 実務例: 日付入りバックアップ
+# Practical example: date-stamped backup
 $ tar czf "backup-$(date +%Y%m%d-%H%M%S).tar.gz" /var/www/html
 
-# 実務例: 動的なファイル名
+# Practical example: dynamic filename
 $ mv report.csv "report-$(hostname)-$(date +%Y%m%d).csv"
 
-# プロセス置換（bash, zsh）
-# <() で一時ファイルのように扱う
-$ diff <(sort file1.txt) <(sort file2.txt)    # ソート済みで比較
-$ comm <(sort list1.txt) <(sort list2.txt)     # 共通・差分を表示
+# Process substitution (bash, zsh)
+# Treat <() as a temporary file
+$ diff <(sort file1.txt) <(sort file2.txt)    # Compare after sorting
+$ comm <(sort list1.txt) <(sort list2.txt)     # Show common/different entries
 
-# 実務例: 2つのサーバーの設定比較
+# Practical example: compare configuration on two servers
 $ diff <(ssh server1 "cat /etc/nginx/nginx.conf") \
        <(ssh server2 "cat /etc/nginx/nginx.conf")
 
-# 実務例: 複数ソースのマージ
+# Practical example: merge from multiple sources
 $ sort -m <(sort file1.txt) <(sort file2.txt) <(sort file3.txt) > merged.txt
 ```
 
 ---
 
-## 4. キーボードショートカット
+## 4. Keyboard Shortcuts
 
-### 4.1 Readline ライブラリ
-
-```
-シェルのキーボードショートカットは GNU Readline ライブラリが提供
-bash と zsh で共通のものが多い（zsh は ZLE: Zsh Line Editor）
-
-Readline の設定: ~/.inputrc
-Zsh のキーバインド確認: bindkey
-
-2つのモード:
-  Emacs モード（デフォルト）: Ctrl/Alt キーベース
-  Vi モード: vi のモーダル操作
-
-モードの確認・切替:
-  $ set -o                   # 現在のオプション一覧
-  $ set -o emacs             # Emacs モードに設定
-  $ set -o vi                # Vi モードに設定
-```
-
-### 4.2 カーソル移動
+### 4.1 The Readline Library
 
 ```
-Emacs モード（デフォルト）のカーソル移動:
+Shell keyboard shortcuts are provided by the GNU Readline library
+Many shortcuts are common between bash and zsh (zsh uses ZLE: Zsh Line Editor)
+
+Readline configuration: ~/.inputrc
+Check zsh key bindings: bindkey
+
+Two modes:
+  Emacs mode (default): Ctrl/Alt key-based
+  Vi mode: vi modal operations
+
+Checking/switching modes:
+  $ set -o                   # List current options
+  $ set -o emacs             # Switch to Emacs mode
+  $ set -o vi                # Switch to Vi mode
+```
+
+### 4.2 Cursor Movement
+
+```
+Cursor movement in Emacs mode (default):
 
   ┌───────────────┬────────────────────────────────────┐
-  │ ショートカット│ 動作                               │
+  │ Shortcut      │ Action                             │
   ├───────────────┼────────────────────────────────────┤
-  │ Ctrl + A      │ 行頭へ移動                         │
-  │ Ctrl + E      │ 行末へ移動                         │
-  │ Ctrl + F      │ 1文字進む（→キーと同じ）           │
-  │ Ctrl + B      │ 1文字戻る（←キーと同じ）           │
-  │ Alt + F       │ 1単語進む                          │
-  │ Alt + B       │ 1単語戻る                          │
-  │ Ctrl + XX     │ 行頭とカーソル位置を交互に移動     │
+  │ Ctrl + A      │ Move to beginning of line          │
+  │ Ctrl + E      │ Move to end of line                │
+  │ Ctrl + F      │ Move forward one character (like →) │
+  │ Ctrl + B      │ Move backward one character (like ←) │
+  │ Alt + F       │ Move forward one word              │
+  │ Alt + B       │ Move backward one word             │
+  │ Ctrl + XX     │ Toggle between beginning of line and cursor │
   └───────────────┴────────────────────────────────────┘
 
-  実用テクニック:
-  長いコマンドを入力中に先頭のコマンド名を修正したい時:
-  → Ctrl+A で行頭に移動 → 修正 → Ctrl+E で行末に戻る
+  Practical tips:
+  When you want to fix the command name at the beginning of a long command:
+  → Press Ctrl+A to go to the beginning → fix it → press Ctrl+E to return to the end
 
-  パス名の途中を修正したい時:
-  → Alt+B で単語単位で戻る方が効率的
+  When you want to fix something in the middle of a path:
+  → Alt+B to move back word by word is more efficient
 ```
 
-### 4.3 テキスト編集
+### 4.3 Text Editing
 
 ```
-編集ショートカット:
+Editing shortcuts:
 
   ┌───────────────┬────────────────────────────────────────┐
-  │ ショートカット│ 動作                                   │
+  │ Shortcut      │ Action                                 │
   ├───────────────┼────────────────────────────────────────┤
-  │ Ctrl + U      │ カーソルから行頭まで削除（カットリング）│
-  │ Ctrl + K      │ カーソルから行末まで削除               │
-  │ Ctrl + W      │ カーソル前の1単語を削除                │
-  │ Alt + D       │ カーソル後の1単語を削除                │
-  │ Ctrl + D      │ カーソル位置の1文字を削除（DELキー）   │
-  │ Ctrl + H      │ カーソル前の1文字を削除（BSキー）      │
-  │ Ctrl + Y      │ 最後にカットしたテキストを貼り付け     │
-  │ Alt + Y       │ カットリングの前のアイテムを貼り付け   │
-  │ Ctrl + T      │ カーソル前後の2文字を入れ替え          │
-  │ Alt + T       │ カーソル前後の2単語を入れ替え          │
-  │ Alt + U       │ カーソル位置から単語末まで大文字に     │
-  │ Alt + L       │ カーソル位置から単語末まで小文字に     │
-  │ Alt + C       │ カーソル位置の文字を大文字に           │
-  │ Ctrl + _      │ Undo（直前の編集を取り消し）           │
+  │ Ctrl + U      │ Delete from cursor to beginning of line (kill ring) │
+  │ Ctrl + K      │ Delete from cursor to end of line      │
+  │ Ctrl + W      │ Delete one word before the cursor      │
+  │ Alt + D       │ Delete one word after the cursor       │
+  │ Ctrl + D      │ Delete character at cursor (like DEL)  │
+  │ Ctrl + H      │ Delete character before cursor (like BS) │
+  │ Ctrl + Y      │ Paste the most recently cut text       │
+  │ Alt + Y       │ Paste the previous item from the kill ring │
+  │ Ctrl + T      │ Swap the two characters before/after cursor │
+  │ Alt + T       │ Swap the two words before/after cursor │
+  │ Alt + U       │ Uppercase from cursor to end of word   │
+  │ Alt + L       │ Lowercase from cursor to end of word   │
+  │ Alt + C       │ Capitalize the character at cursor     │
+  │ Ctrl + _      │ Undo (revert the last edit)            │
   └───────────────┴────────────────────────────────────────┘
 
-  カットリングの概念:
-  Ctrl+U, Ctrl+K, Ctrl+W 等で削除したテキストは
-  「カットリング」に保存される
-  Ctrl+Y で最新のカット内容をペースト
-  Alt+Y でカットリング内を順にサイクル
+  The kill ring concept:
+  Text deleted with Ctrl+U, Ctrl+K, Ctrl+W, etc. is stored
+  in the "kill ring"
+  Ctrl+Y pastes the most recently cut content
+  Alt+Y cycles through the kill ring
 
-  実用パターン:
-  # 長いコマンドの一部を別のコマンドに使い回す
+  Practical pattern:
+  # Reusing part of a long command in a new command
   $ scp user@server:/path/to/long/filename.tar.gz .
-  # ↑ Ctrl+W でファイル名を削除、新しいコマンドを打ってCtrl+Y で貼り付け
+  # ↑ Use Ctrl+W to delete the filename, type the new command, then Ctrl+Y to paste it back
 ```
 
-### 4.4 履歴操作
+### 4.4 History Operations
 
 ```
-履歴ショートカット:
+History shortcuts:
 
   ┌────────────────┬─────────────────────────────────────────┐
-  │ ショートカット │ 動作                                    │
+  │ Shortcut       │ Action                                  │
   ├────────────────┼─────────────────────────────────────────┤
-  │ Ctrl + R       │ 履歴を逆方向検索（インクリメンタル）    │
-  │ Ctrl + S       │ 履歴を順方向検索（stty -ixon が必要）   │
-  │ Ctrl + P       │ 前のコマンド（↑キーと同じ）            │
-  │ Ctrl + N       │ 次のコマンド（↓キーと同じ）            │
-  │ Alt + .        │ 前のコマンドの最後の引数を挿入          │
-  │ Ctrl + G       │ 検索をキャンセル                        │
+  │ Ctrl + R       │ Reverse incremental history search      │
+  │ Ctrl + S       │ Forward history search (requires stty -ixon) │
+  │ Ctrl + P       │ Previous command (like ↑)               │
+  │ Ctrl + N       │ Next command (like ↓)                   │
+  │ Alt + .        │ Insert the last argument of the previous command │
+  │ Ctrl + G       │ Cancel search                           │
   └────────────────┴─────────────────────────────────────────┘
 
-  履歴展開（イベントデジグネータ）:
-  !!               直前のコマンド全体を再実行
-  !$               直前のコマンドの最後の引数
-  !^               直前のコマンドの最初の引数
-  !*               直前のコマンドの全引数
-  !n               履歴番号nのコマンド
-  !-n              n個前のコマンド
-  !string          stringで始まる最新のコマンド
-  !?string         stringを含む最新のコマンド
-  ^old^new         直前のコマンドのoldをnewに置換して実行
+  History expansion (event designators):
+  !!               Re-run the entire previous command
+  !$               Last argument of the previous command
+  !^               First argument of the previous command
+  !*               All arguments of the previous command
+  !n               Command with history number n
+  !-n              The command n entries back
+  !string          The most recent command starting with string
+  !?string         The most recent command containing string
+  ^old^new         Replace old with new in the previous command and run it
 
-  実務でよく使うパターン:
-  $ cat /etc/nginx/nginx.conf       # ファイルを確認
-  $ sudo !!                          # 権限不足だったので sudo で再実行
+  Commonly used patterns in practice:
+  $ cat /etc/nginx/nginx.conf       # View a file
+  $ sudo !!                          # Re-run with sudo after a permission error
   → sudo cat /etc/nginx/nginx.conf
 
   $ mkdir /var/www/newsite
-  $ cd !$                            # 作成したディレクトリに移動
+  $ cd !$                            # Move into the created directory
   → cd /var/www/newsite
 
   $ vim /etc/nginx/sites-available/default
-  $ cp !$ !$:r.bak                   # 同じファイルを .bak でコピー
+  $ cp !$ !$:r.bak                   # Copy the same file with a .bak extension
   → cp /etc/nginx/sites-available/default /etc/nginx/sites-available/default.bak
 
   $ ls file1.txt file2.txt file3.txt
-  $ chmod 644 !*                     # 全引数を再利用
+  $ chmod 644 !*                     # Reuse all arguments
   → chmod 644 file1.txt file2.txt file3.txt
 
-  履歴の設定（.bashrc）:
-  export HISTSIZE=100000              # メモリ上の履歴数
-  export HISTFILESIZE=200000          # ファイルの履歴数
-  export HISTCONTROL=ignoreboth       # 重複と空白開始を無視
-  export HISTTIMEFORMAT="%F %T "      # タイムスタンプ付き
-  shopt -s histappend                 # 上書きでなく追記
+  History settings (.bashrc):
+  export HISTSIZE=100000              # Number of history entries in memory
+  export HISTFILESIZE=200000          # Number of history entries in file
+  export HISTCONTROL=ignoreboth       # Ignore duplicates and lines starting with space
+  export HISTTIMEFORMAT="%F %T "      # Add timestamps
+  shopt -s histappend                 # Append instead of overwriting
 
-  履歴コマンド:
-  $ history                           # 全履歴表示
-  $ history 20                        # 直近20件
-  $ history | grep "docker"           # docker関連のコマンドを検索
-  $ fc -l -20                         # 直近20件（番号付き）
-  $ fc -e vim 100 110                 # 履歴100-110をvimで編集・実行
+  History commands:
+  $ history                           # Show all history
+  $ history 20                        # Show last 20 entries
+  $ history | grep "docker"           # Search history for docker commands
+  $ fc -l -20                         # Last 20 entries (numbered)
+  $ fc -e vim 100 110                 # Edit and run history entries 100-110 in vim
 ```
 
-### 4.5 プロセス制御
+### 4.5 Process Control
 
 ```
-プロセス制御ショートカット:
+Process control shortcuts:
 
   ┌───────────────┬──────────────────────────────────────────┐
-  │ ショートカット│ 動作                                     │
+  │ Shortcut      │ Action                                   │
   ├───────────────┼──────────────────────────────────────────┤
-  │ Ctrl + C      │ SIGINT送信（フォアグラウンドプロセス中断）│
-  │ Ctrl + Z      │ SIGTSTP送信（一時停止 → bg/fg で制御）   │
-  │ Ctrl + D      │ EOF送信（入力終了 / シェル終了）          │
-  │ Ctrl + \      │ SIGQUIT送信（コアダンプ付き強制終了）     │
-  │ Ctrl + S      │ 画面出力を一時停止（XOFF）               │
-  │ Ctrl + Q      │ 画面出力を再開（XON）                    │
+  │ Ctrl + C      │ Send SIGINT (interrupt foreground process) │
+  │ Ctrl + Z      │ Send SIGTSTP (suspend → control with bg/fg) │
+  │ Ctrl + D      │ Send EOF (end of input / exit shell)     │
+  │ Ctrl + \      │ Send SIGQUIT (force quit with core dump) │
+  │ Ctrl + S      │ Pause screen output (XOFF)               │
+  │ Ctrl + Q      │ Resume screen output (XON)               │
   └───────────────┴──────────────────────────────────────────┘
 
-  使い分けの指針:
-  Ctrl+C: 通常の中断。ほとんどの場合これで十分
-  Ctrl+Z: 一時停止して後でbg/fgで再開したい時
-  Ctrl+\: Ctrl+Cが効かない場合の最終手段
-  Ctrl+D: catなどの入力待ちを終了する時
+  Usage guidelines:
+  Ctrl+C: Normal interruption. Sufficient in most cases
+  Ctrl+Z: Suspend and resume later with bg/fg
+  Ctrl+\: Last resort when Ctrl+C doesn't work
+  Ctrl+D: End input for commands like cat
 
-  実務パターン:
-  # 長時間コマンドをバックグラウンドに回す
+  Practical patterns:
+  # Move a long-running command to the background
   $ python train_model.py
-  # (Ctrl+Z で一時停止)
+  # (Press Ctrl+Z to suspend)
   [1]+  Stopped     python train_model.py
-  $ bg                                # バックグラウンドで再開
-  $ disown                            # シェル終了後も継続
+  $ bg                                # Resume in the background
+  $ disown                            # Continue after the shell exits
 
-  # 画面がフリーズした場合（Ctrl+Sを誤って押した時）
-  # → Ctrl+Q で復帰
+  # When the screen is frozen (accidentally pressed Ctrl+S)
+  # → Press Ctrl+Q to recover
 ```
 
-### 4.6 その他の便利なショートカット
+### 4.6 Other Useful Shortcuts
 
 ```
-画面制御:
-  Ctrl + L          画面クリア（clear コマンドと同じ）
+Screen control:
+  Ctrl + L          Clear screen (same as the clear command)
 
-Tab補完:
-  Tab               コマンド/ファイル名の補完
-  Tab Tab           候補一覧を表示
-  Alt + ?           補完候補の一覧表示
+Tab completion:
+  Tab               Complete command/filename
+  Tab Tab           Show list of candidates
+  Alt + ?           Show list of completion candidates
 
-zsh 固有の便利機能:
-  Tab               メニュー補完（候補をTabで順に選択）
-  Ctrl + X Ctrl + E コマンドラインをエディタで編集
-                    （$EDITOR で開き、保存して閉じると実行）
+zsh-specific conveniences:
+  Tab               Menu completion (cycle through candidates with Tab)
+  Ctrl + X Ctrl + E Edit the command line in an editor
+                    (opens $EDITOR; saves and closes to execute)
 
-便利なバインド設定例（.zshrc）:
-  # Ctrl+X Ctrl+E でコマンドラインをエディタで編集
+Example useful bindings (.zshrc):
+  # Edit command line in editor with Ctrl+X Ctrl+E
   autoload -z edit-command-line
   zle -N edit-command-line
   bindkey "^X^E" edit-command-line
 
-  # Alt+. の代替（macOS Terminal で Alt が使えない場合）
+  # Alternative for Alt+. (when Alt is unavailable in macOS Terminal)
   bindkey '\e.' insert-last-word
 ```
 
 ---
 
-## 5. 環境変数とシェル変数
+## 5. Environment Variables and Shell Variables
 
-### 5.1 変数の基本
+### 5.1 Variable Basics
 
 ```bash
-# シェル変数: 現在のシェルプロセスのみで有効
+# Shell variables: valid only in the current shell process
 $ myvar="Hello"
 $ echo $myvar
 Hello
 
-# 環境変数: 子プロセスにも引き継がれる
+# Environment variables: inherited by child processes
 $ export MY_ENV_VAR="World"
-$ bash -c 'echo $MY_ENV_VAR'   # 子プロセスからアクセス可能
+$ bash -c 'echo $MY_ENV_VAR'   # Accessible from child processes
 World
 
-# 変数の定義と参照
+# Defining and referencing variables
 $ name="gaku"
-$ echo "Hello, $name"           # ダブルクォートの中で展開される
+$ echo "Hello, $name"           # Expanded inside double quotes
 Hello, gaku
-$ echo 'Hello, $name'           # シングルクォートの中では展開されない
+$ echo 'Hello, $name'           # Not expanded inside single quotes
 Hello, $name
 
-# 変数名の境界を明示
+# Explicitly marking variable name boundaries
 $ echo "File: ${name}_report.txt"
 File: gaku_report.txt
 
-# デフォルト値の設定
-$ echo ${UNDEFINED_VAR:-"default value"}   # 未定義時にデフォルト値
+# Setting default values
+$ echo ${UNDEFINED_VAR:-"default value"}   # Use default if undefined
 default value
-$ echo ${UNDEFINED_VAR:="default value"}   # 未定義時にデフォルト値を代入
+$ echo ${UNDEFINED_VAR:="default value"}   # Assign default if undefined
 default value
-$ echo ${REQUIRED_VAR:?"エラー: 必須変数が未定義"}  # 未定義時にエラー
+$ echo ${REQUIRED_VAR:?"Error: required variable is undefined"}  # Error if undefined
 
-# 文字列操作
+# String operations
 $ path="/home/gaku/documents/report.txt"
-$ echo ${path##*/}              # 最長前方一致削除（ファイル名取得）
+$ echo ${path##*/}              # Remove longest prefix match (get filename)
 report.txt
-$ echo ${path%/*}               # 最短後方一致削除（ディレクトリ取得）
+$ echo ${path%/*}               # Remove shortest suffix match (get directory)
 /home/gaku/documents
-$ echo ${path%.txt}.pdf         # 拡張子変更
+$ echo ${path%.txt}.pdf         # Change extension
 /home/gaku/documents/report.pdf
-$ echo ${path/gaku/user}        # 最初の一致を置換
+$ echo ${path/gaku/user}        # Replace the first match
 /home/user/documents/report.txt
-$ echo ${path//\//|}            # 全一致を置換
+$ echo ${path//\//|}            # Replace all matches
 |home|gaku|documents|report.txt
-$ echo ${#path}                 # 文字数
+$ echo ${#path}                 # String length
 38
 ```
 
-### 5.2 重要な環境変数
+### 5.2 Important Environment Variables
 
 ```bash
-# PATH: コマンドの検索パス（: 区切り）
+# PATH: command search path (colon-separated)
 $ echo $PATH
 /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 
-# PATHに追加（.bashrc / .zshrc に記載）
-$ export PATH="$HOME/.local/bin:$PATH"     # 先頭に追加（優先）
-$ export PATH="$PATH:/opt/tools/bin"       # 末尾に追加
+# Adding to PATH (.bashrc / .zshrc)
+$ export PATH="$HOME/.local/bin:$PATH"     # Prepend (higher priority)
+$ export PATH="$PATH:/opt/tools/bin"       # Append
 
-# HOME: ホームディレクトリ
+# HOME: home directory
 $ echo $HOME
 /home/gaku
 
-# USER: ユーザー名
+# USER: username
 $ echo $USER
 gaku
 
-# SHELL: ログインシェル
+# SHELL: login shell
 $ echo $SHELL
 /bin/zsh
 
-# EDITOR / VISUAL: デフォルトエディタ
+# EDITOR / VISUAL: default editor
 $ export EDITOR=vim
 $ export VISUAL=vim
 
-# LANG / LC_*: ロケール設定
+# LANG / LC_*: locale settings
 $ echo $LANG
 ja_JP.UTF-8
-$ locale                        # 全ロケール設定を表示
+$ locale                        # Show all locale settings
 
-# TERM: ターミナルの種類
+# TERM: terminal type
 $ echo $TERM
 xterm-256color
 
-# PS1: プロンプト文字列
+# PS1: prompt string
 # bash
-$ export PS1="\u@\h:\w\$ "     # ユーザー@ホスト:ディレクトリ$
+$ export PS1="\u@\h:\w\$ "     # user@host:directory$
 # zsh
 $ export PROMPT='%n@%m:%~%# '
 
-# 全環境変数を表示
-$ env                           # 環境変数のみ
-$ set                           # シェル変数 + 環境変数
-$ printenv                      # env と同様
-$ export -p                     # export されている変数
-$ printenv PATH                 # 特定の環境変数
+# Display all environment variables
+$ env                           # Environment variables only
+$ set                           # Shell variables + environment variables
+$ printenv                      # Same as env
+$ export -p                     # Exported variables
+$ printenv PATH                 # A specific environment variable
 
-# 環境変数の削除
-$ unset MY_VAR                  # 変数を削除
+# Remove an environment variable
+$ unset MY_VAR                  # Delete the variable
 ```
 
-### 5.3 特殊変数
+### 5.3 Special Variables
 
 ```bash
-# シェルの特殊変数（スクリプトで頻出）
-$ echo $?                # 直前のコマンドの終了ステータス（0=成功）
-$ echo $$                # 現在のシェルのPID
-$ echo $!                # 最後にバックグラウンドで実行したプロセスのPID
-$ echo $-                # 現在のシェルオプションフラグ
-$ echo $0                # シェル名またはスクリプト名
+# Special shell variables (frequently used in scripts)
+$ echo $?                # Exit status of the previous command (0 = success)
+$ echo $$                # PID of the current shell
+$ echo $!                # PID of the last backgrounded process
+$ echo $-                # Current shell option flags
+$ echo $0                # Shell name or script name
 
-# スクリプト内で使用
-$ echo $#                # 引数の数
-$ echo $@                # 全引数（個別にクォート）
-$ echo $*                # 全引数（一括でクォート）
-$ echo $1 $2 $3          # 位置パラメータ（1番目、2番目、3番目の引数）
+# Used inside scripts
+$ echo $#                # Number of arguments
+$ echo $@                # All arguments (individually quoted)
+$ echo $*                # All arguments (quoted as one)
+$ echo $1 $2 $3          # Positional parameters (1st, 2nd, 3rd argument)
 
-# $@ と $* の違い（重要）
-# "$@" → "$1" "$2" "$3" （個別の文字列として展開）
-# "$*" → "$1 $2 $3"     （1つの文字列として展開）
+# Difference between $@ and $* (important)
+# "$@" → "$1" "$2" "$3" (expanded as individual strings)
+# "$*" → "$1 $2 $3"     (expanded as a single string)
 
-# RANDOM: ランダムな整数（0-32767）
+# RANDOM: a random integer (0-32767)
 $ echo $RANDOM
 16384
 
-# SECONDS: シェル起動からの経過秒数
+# SECONDS: seconds elapsed since the shell started
 $ echo $SECONDS
 3600
 
-# LINENO: 現在の行番号（スクリプト内）
+# LINENO: current line number (inside a script)
 $ echo $LINENO
 42
 
@@ -914,174 +914,174 @@ $ echo $ZSH_VERSION
 
 ---
 
-## 6. グロブ（ワイルドカード）パターン
+## 6. Glob (Wildcard) Patterns
 
-### 6.1 基本パターン
+### 6.1 Basic Patterns
 
 ```bash
-# * : 任意の文字列（0文字以上）
-$ ls *.txt                  # .txt で終わるファイル
-$ ls test*                  # test で始まるファイル
-$ ls *report*               # report を含むファイル
+# * : any string (zero or more characters)
+$ ls *.txt                  # Files ending in .txt
+$ ls test*                  # Files starting with test
+$ ls *report*               # Files containing report
 
-# ? : 任意の1文字
-$ ls file?.txt              # file1.txt, fileA.txt 等
-$ ls ???.md                 # 3文字のファイル名.md
+# ? : any single character
+$ ls file?.txt              # file1.txt, fileA.txt, etc.
+$ ls ???.md                 # Filenames of exactly 3 characters + .md
 
-# [] : 文字クラス（括弧内のいずれか1文字）
+# [] : character class (any one character in brackets)
 $ ls file[123].txt          # file1.txt, file2.txt, file3.txt
 $ ls file[a-z].txt          # filea.txt, fileb.txt, ...
-$ ls file[!0-9].txt         # 数字以外の1文字（否定）
-$ ls file[^0-9].txt         # 同上（bash）
+$ ls file[!0-9].txt         # One non-digit character (negation)
+$ ls file[^0-9].txt         # Same (bash)
 
-# {} : ブレース展開（グロブではなくシェルの展開機能）
+# {} : brace expansion (shell expansion, not glob)
 $ echo file{1,2,3}.txt      # file1.txt file2.txt file3.txt
 $ echo {a..z}               # a b c ... z
 $ echo {1..10}              # 1 2 3 ... 10
-$ echo {01..10}             # 01 02 03 ... 10（ゼロパディング）
-$ echo {a..z..2}            # a c e g ... （ステップ2）
-$ mkdir -p project/{src,test,docs}/{main,utils}  # ディレクトリツリー作成
+$ echo {01..10}             # 01 02 03 ... 10 (zero-padded)
+$ echo {a..z..2}            # a c e g ... (step 2)
+$ mkdir -p project/{src,test,docs}/{main,utils}  # Create directory tree
 
-# 組み合わせ例
+# Combined examples
 $ cp *.{jpg,png,gif} /backup/images/
 $ mv report-{2024,2025,2026}-*.csv archive/
 ```
 
-### 6.2 拡張グロブ（bash: shopt -s extglob / zsh: デフォルト有効）
+### 6.2 Extended Glob (bash: shopt -s extglob / zsh: enabled by default)
 
 ```bash
-# bash で拡張グロブを有効化
+# Enable extended glob in bash
 $ shopt -s extglob
 
-# ?(pattern) : 0回または1回の一致
+# ?(pattern) : match zero or one time
 $ ls file?(s).txt            # file.txt, files.txt
 
-# *(pattern) : 0回以上の一致
+# *(pattern) : match zero or more times
 $ ls file*(s).txt            # file.txt, files.txt, filess.txt, ...
 
-# +(pattern) : 1回以上の一致
+# +(pattern) : match one or more times
 $ ls file+(s).txt            # files.txt, filess.txt, ...
 
-# @(pattern1|pattern2) : いずれか1つに一致
-$ ls *.@(jpg|png|gif)        # .jpg, .png, .gif のいずれか
-$ rm !(important)*.log       # important以外の.logファイルを削除
+# @(pattern1|pattern2) : match exactly one of
+$ ls *.@(jpg|png|gif)        # .jpg, .png, or .gif
+$ rm !(important)*.log       # Delete .log files not named important
 
-# !(pattern) : パターンに一致しない
-$ ls !(*.txt)                # .txt 以外のファイル
-$ rm !(README.md|LICENSE)    # README.md と LICENSE 以外を削除
+# !(pattern) : match anything not matching the pattern
+$ ls !(*.txt)                # Files other than .txt
+$ rm !(README.md|LICENSE)    # Delete everything except README.md and LICENSE
 
-# zsh の拡張グロブ（setopt EXTENDED_GLOB）
-$ ls **/*.py                 # 再帰的にPythonファイルを検索
-$ ls **/*(.)                 # 通常ファイルのみ（再帰的）
-$ ls **/*(/)                 # ディレクトリのみ（再帰的）
-$ ls *(om[1,10])             # 更新日時の新しい順で10件
-$ ls *(Lk+100)               # 100KB以上のファイル
+# zsh extended glob (setopt EXTENDED_GLOB)
+$ ls **/*.py                 # Recursively find Python files
+$ ls **/*(.)                 # Regular files only (recursive)
+$ ls **/*(/)                 # Directories only (recursive)
+$ ls *(om[1,10])             # 10 most recently modified files
+$ ls *(Lk+100)               # Files larger than 100KB
 ```
 
-### 6.3 dotglob とnullglob
+### 6.3 dotglob and nullglob
 
 ```bash
-# デフォルトでは * は隠しファイル（.で始まる）にマッチしない
-$ ls *                       # .bashrc 等は表示されない
+# By default, * does not match hidden files (starting with .)
+$ ls *                       # .bashrc etc. are not shown
 
-# bash: dotglob を有効化
+# bash: enable dotglob
 $ shopt -s dotglob
-$ ls *                       # 隠しファイルも含む
+$ ls *                       # Includes hidden files
 
-# zsh: GLOB_DOTS を有効化
+# zsh: enable GLOB_DOTS
 $ setopt GLOB_DOTS
 
-# nullglob: マッチしない場合に空文字列にする
+# nullglob: return an empty string when there are no matches
 # bash
 $ shopt -s nullglob
-$ files=(*.xyz)              # マッチなしの場合、配列は空
+$ files=(*.xyz)              # Array is empty if there are no matches
 $ echo ${#files[@]}          # 0
 
-# zsh（デフォルトでエラー。NULL_GLOB で空に）
+# zsh (errors by default; use NULL_GLOB to return empty)
 $ setopt NULL_GLOB
 
-# failglob（bash）: マッチしない場合にエラー
+# failglob (bash): error when there are no matches
 $ shopt -s failglob
 $ ls *.xyz                   # bash: no match: *.xyz
 ```
 
 ---
 
-## 7. ターミナルエミュレータの選定と設定
+## 7. Selecting and Configuring a Terminal Emulator
 
-### 7.1 主要ターミナルエミュレータの比較
+### 7.1 Comparing Major Terminal Emulators
 
 ```
-詳細比較表:
+Detailed comparison:
 
 ┌────────────┬────────┬──────────┬───────────┬────────────────────────┐
-│ 名前       │ OS     │ 描画方式 │ 設定形式  │ 主な特徴               │
+│ Name       │ OS     │ Renderer │ Config    │ Key Features           │
 ├────────────┼────────┼──────────┼───────────┼────────────────────────┤
-│ iTerm2     │ macOS  │ Metal    │ GUI/JSON  │ 分割/プロファイル/検索 │
-│ Alacritty  │ 全OS   │ OpenGL   │ TOML      │ 超高速/軽量/シンプル   │
-│ kitty      │ Lin/mac│ OpenGL   │ conf      │ 画像表示/リガチャ      │
-│ WezTerm    │ 全OS   │ OpenGL   │ Lua       │ Lua設定/マルチプレクサ │
-│ Warp       │ mac/Lin│ GPU      │ YAML      │ AI統合/ブロック編集    │
-│ Win Term   │ Win    │ DirectX  │ JSON      │ MS公式/タブ/分割       │
-│ GNOME Term │ Linux  │ VTE      │ dconf     │ 安定/GNOME統合         │
-│ Konsole    │ Linux  │ Qt       │ rc file   │ KDE統合/高機能         │
-│ Terminator │ Linux  │ VTE      │ conf      │ 画面分割特化           │
-│ foot       │ Linux  │ Wayland  │ ini       │ Wayland専用/超軽量     │
-│ Hyper      │ 全OS   │ Electron │ JS        │ Web技術で拡張可能      │
-│ Rio        │ 全OS   │ WGPU     │ TOML      │ Rust製/WebGPU描画      │
+│ iTerm2     │ macOS  │ Metal    │ GUI/JSON  │ Split/profiles/search  │
+│ Alacritty  │ All    │ OpenGL   │ TOML      │ Very fast/light/simple │
+│ kitty      │ Lin/mac│ OpenGL   │ conf      │ Images/ligatures       │
+│ WezTerm    │ All    │ OpenGL   │ Lua       │ Lua config/multiplexer │
+│ Warp       │ mac/Lin│ GPU      │ YAML      │ AI integration/blocks  │
+│ Win Term   │ Win    │ DirectX  │ JSON      │ MS official/tabs/split │
+│ GNOME Term │ Linux  │ VTE      │ dconf     │ Stable/GNOME integrated│
+│ Konsole    │ Linux  │ Qt       │ rc file   │ KDE/feature-rich       │
+│ Terminator │ Linux  │ VTE      │ conf      │ Split pane specialist  │
+│ foot       │ Linux  │ Wayland  │ ini       │ Wayland-only/ultralight│
+│ Hyper      │ All    │ Electron │ JS        │ Extensible via web tech│
+│ Rio        │ All    │ WGPU     │ TOML      │ Rust/WebGPU rendering  │
 └────────────┴────────┴──────────┴───────────┴────────────────────────┘
 
-選定の指針:
-  開発者（macOS）     → iTerm2 or Warp or Alacritty
-  開発者（Linux）     → Alacritty or kitty or WezTerm
-  Windows             → Windows Terminal + WSL2
-  軽量・高速重視      → Alacritty or foot
-  カスタマイズ重視    → WezTerm（Lua） or kitty
-  初心者              → Warp（AI支援付き）
-  サーバー管理者      → tmux/screen + 好みのターミナル
+Selection guidelines:
+  Developer (macOS)       → iTerm2 or Warp or Alacritty
+  Developer (Linux)       → Alacritty or kitty or WezTerm
+  Windows                 → Windows Terminal + WSL2
+  Lightweight/fast        → Alacritty or foot
+  Heavy customization     → WezTerm (Lua) or kitty
+  Beginners               → Warp (with AI assistance)
+  Server administrators   → tmux/screen + preferred terminal
 ```
 
-### 7.2 iTerm2 の設定（macOS）
+### 7.2 iTerm2 Configuration (macOS)
 
 ```
-iTerm2 の主要設定:
+Key iTerm2 settings:
 
-  プロファイル設定:
+  Profile settings:
   Preferences > Profiles > General
   - Working Directory: Reuse previous session's directory
 
   Preferences > Profiles > Colors
-  - Color Presets: Solarized Dark / Dracula / Tokyo Night 等
+  - Color Presets: Solarized Dark / Dracula / Tokyo Night, etc.
 
   Preferences > Profiles > Text
   - Font: JetBrains Mono Nerd Font / Hack Nerd Font
   - Font Size: 14
   - Use ligatures: ✓
 
-  キーマッピング:
+  Key mappings:
   Preferences > Keys > Key Bindings
-  - Alt+← → Send Escape Sequence: b（1単語戻る）
-  - Alt+→ → Send Escape Sequence: f（1単語進む）
-  - Alt+Delete → Send Hex Codes: 0x17（1単語削除）
+  - Alt+← → Send Escape Sequence: b (move one word back)
+  - Alt+→ → Send Escape Sequence: f (move one word forward)
+  - Alt+Delete → Send Hex Codes: 0x17 (delete one word)
 
-  便利な機能:
-  Cmd+D              垂直分割
-  Cmd+Shift+D        水平分割
-  Cmd+T              新しいタブ
-  Cmd+Enter          フルスクリーン
-  Cmd+Shift+H        ペースト履歴
-  Cmd+;              オートコンプリート（過去の入力から）
-  Cmd+F              検索（正規表現対応）
-  Cmd+Opt+B          タイムスタンプ表示
+  Useful features:
+  Cmd+D              Vertical split
+  Cmd+Shift+D        Horizontal split
+  Cmd+T              New tab
+  Cmd+Enter          Full screen
+  Cmd+Shift+H        Paste history
+  Cmd+;              Autocomplete (from past input)
+  Cmd+F              Search (regex supported)
+  Cmd+Opt+B          Show timestamps
 
   Shell Integration:
   iTerm2 > Install Shell Integration
-  → コマンドの開始/終了マーカー
-  → 前のコマンドの出力にジャンプ（Cmd+Shift+↑/↓）
-  → 失敗コマンドのマーカー
+  → Command start/end markers
+  → Jump to output of previous commands (Cmd+Shift+↑/↓)
+  → Markers for failed commands
 ```
 
-### 7.3 Alacritty の設定
+### 7.3 Alacritty Configuration
 
 ```toml
 # ~/.config/alacritty/alacritty.toml
@@ -1124,10 +1124,10 @@ bindings = [
 ]
 ```
 
-### 7.4 Windows Terminal の設定
+### 7.4 Windows Terminal Configuration
 
 ```json
-// Windows Terminal settings.json の主要設定
+// Key settings in Windows Terminal settings.json
 {
     "defaultProfile": "{GUID-of-WSL}",
     "copyOnSelect": true,
@@ -1161,204 +1161,204 @@ bindings = [
 
 ---
 
-## 8. シェルの内部動作 — コマンド実行の仕組み
+## 8. Shell Internals — How Commands Are Executed
 
-### 8.1 コマンド解析のステップ
+### 8.1 Command Parsing Steps
 
 ```
-シェルがコマンドラインを処理する順序:
+The order in which the shell processes a command line:
 
-  1. トークン分割（Tokenization）
-     入力行をワード（トークン）に分割
+  1. Tokenization
+     Split the input line into words (tokens)
      → "ls -la /home" → ["ls", "-la", "/home"]
 
-  2. コマンド識別
-     最初のトークンがコマンドかどうかを判定
-     → エイリアス展開 → 関数 → ビルトイン → 外部コマンド
+  2. Command identification
+     Determine whether the first token is a command
+     → Alias expansion → Function → Built-in → External command
 
-  3. 展開（Expansion）
-     以下の順序で展開を実行:
-     a. ブレース展開:    {a,b,c} → a b c
-     b. チルダ展開:      ~ → /home/gaku
-     c. パラメータ展開:  $HOME → /home/gaku
-     d. コマンド置換:    $(date) → 2026-02-15
-     e. 算術展開:        $((1+2)) → 3
-     f. プロセス置換:    <(sort file) → /dev/fd/63
-     g. 単語分割:        展開結果をIFS（デフォルト: スペース/タブ/改行）で分割
-     h. パス名展開:      *.txt → file1.txt file2.txt
-     i. クォート除去:    残ったクォートを除去
+  3. Expansion
+     Perform expansions in the following order:
+     a. Brace expansion:      {a,b,c} → a b c
+     b. Tilde expansion:      ~ → /home/gaku
+     c. Parameter expansion:  $HOME → /home/gaku
+     d. Command substitution: $(date) → 2026-02-15
+     e. Arithmetic expansion: $((1+2)) → 3
+     f. Process substitution: <(sort file) → /dev/fd/63
+     g. Word splitting:       Split expansion results by IFS (default: space/tab/newline)
+     h. Pathname expansion:   *.txt → file1.txt file2.txt
+     i. Quote removal:        Remove remaining quotes
 
-  4. リダイレクト設定
-     >, <, |, 2>&1 等のリダイレクトをセットアップ
+  4. Redirect setup
+     Set up redirects: >, <, |, 2>&1, etc.
 
-  5. コマンド実行
-     fork() → exec() で子プロセスとしてコマンドを実行
-     ビルトインコマンドの場合は fork() なしで直接実行
+  5. Command execution
+     fork() → exec() to run the command as a child process
+     Built-in commands are executed directly without fork()
 
-展開の確認方法:
-  $ set -x                  # デバッグモード（展開結果を表示）
+How to inspect expansions:
+  $ set -x                  # Debug mode (show expansion results)
   $ ls *.txt
-  + ls file1.txt file2.txt  # 展開後の実際のコマンド
-  $ set +x                  # デバッグモード解除
+  + ls file1.txt file2.txt  # The actual command after expansion
+  $ set +x                  # Disable debug mode
 ```
 
-### 8.2 fork-exec モデル
+### 8.2 The fork-exec Model
 
 ```
-外部コマンドの実行フロー:
+External command execution flow:
 
-  親プロセス（シェル）          子プロセス
+  Parent process (shell)          Child process
   ┌──────────────┐
   │ $ ls -la     │
   │              │
   │ fork() ──────┼──────→ ┌──────────────┐
-  │              │         │ シェルの複製  │
+  │              │         │ Shell copy    │
   │ wait()       │         │              │
   │  :           │         │ exec("ls")   │
-  │  :           │         │ → ls に変身  │
+  │  :           │         │ → becomes ls │
   │  :           │         │              │
-  │  :           │         │ 実行・出力   │
+  │  :           │         │ Execute/output │
   │  :           │         │              │
   │  :           │←─────── │ exit(0)      │
   │              │  status └──────────────┘
   │ $? = 0       │
   └──────────────┘
 
-  ビルトインコマンド（cd, echo, export等）:
-  → fork() せずにシェル自身が直接実行
-  → cd がビルトインである理由: 親プロセスのカレントディレクトリを変更する必要がある
+  Built-in commands (cd, echo, export, etc.):
+  → Executed directly by the shell without fork()
+  → Why cd is a built-in: it needs to change the parent process's working directory
 
-  サブシェル:
-  $ (cd /tmp && ls)         # サブシェルで実行
-  # 元のシェルのカレントディレクトリは変わらない
+  Subshell:
+  $ (cd /tmp && ls)         # Executed in a subshell
+  # The original shell's working directory is not changed
 
   $ var=hello
-  $ echo "$var" | read response   # パイプの右辺はサブシェル（bash）
-  $ echo "$response"              # 空になる（bashの場合）
-  # zshではlastpipeが有効で、最後のコマンドが現在のシェルで実行される
+  $ echo "$var" | read response   # The right side of a pipe is a subshell (bash)
+  $ echo "$response"              # Empty in bash
+  # In zsh, lastpipe is enabled and the last command runs in the current shell
 ```
 
-### 8.3 終了ステータス
+### 8.3 Exit Status
 
 ```bash
-# 終了ステータスの規約
-# 0:     成功
-# 1:     一般的なエラー
-# 2:     シェルビルトインの不正使用
-# 126:   コマンドは存在するが実行権限がない
-# 127:   コマンドが見つからない
-# 128+N: シグナルNで終了（例: 128+9=137 → SIGKILL）
-# 130:   Ctrl+C (SIGINT) で終了
-# 255:   終了ステータスが範囲外
+# Exit status conventions
+# 0:     Success
+# 1:     General error
+# 2:     Misuse of shell built-in
+# 126:   Command exists but is not executable
+# 127:   Command not found
+# 128+N: Terminated by signal N (e.g., 128+9=137 → SIGKILL)
+# 130:   Terminated by Ctrl+C (SIGINT)
+# 255:   Exit status out of range
 
-# 実務での活用
+# Practical use
 $ grep -q "pattern" file
-$ echo $?                    # 0: パターンが見つかった, 1: 見つからない
+$ echo $?                    # 0: pattern found, 1: not found
 
-# 条件分岐
+# Conditional branching
 $ if grep -q "error" /var/log/syslog; then
-    echo "エラーが見つかりました"
+    echo "Errors were found"
     grep "error" /var/log/syslog | tail -5
   fi
 
-# テストコマンド
-$ test -f /etc/passwd && echo "ファイルが存在します"
-$ [ -d /var/log ] && echo "ディレクトリが存在します"
-$ [[ -n "$variable" ]] && echo "変数は空ではありません"
+# Test command
+$ test -f /etc/passwd && echo "File exists"
+$ [ -d /var/log ] && echo "Directory exists"
+$ [[ -n "$variable" ]] && echo "Variable is not empty"
 
-# 複合条件
-$ [[ -f config.yml && -r config.yml ]] && echo "設定ファイルは読み取り可能"
-$ [[ "$status" == "running" || "$status" == "started" ]] && echo "動作中"
+# Compound conditions
+$ [[ -f config.yml && -r config.yml ]] && echo "Config file is readable"
+$ [[ "$status" == "running" || "$status" == "started" ]] && echo "Running"
 ```
 
 ---
 
-## 9. クォートの使い分け
+## 9. Quoting Rules
 
-### 9.1 シングルクォート・ダブルクォート・バッククォート
+### 9.1 Single Quotes, Double Quotes, and Backticks
 
 ```bash
-# シングルクォート: 全ての展開を抑制（リテラル文字列）
+# Single quotes: suppress all expansion (literal string)
 $ echo 'Hello, $USER! $(date)'
 Hello, $USER! $(date)
 
-# ダブルクォート: 変数展開とコマンド置換は実行、ワード分割とグロブは抑制
+# Double quotes: allow variable expansion and command substitution, suppress word splitting and glob
 $ echo "Hello, $USER! $(date +%Y)"
 Hello, gaku! 2026
 
-# ダブルクォート内で抑制されるもの:
-# - ワード分割（スペースによるトークン分割）
-# - パス名展開（* ? [] のグロブ）
-# ダブルクォート内で展開されるもの:
-# - 変数展開 $var ${var}
-# - コマンド置換 $(command)
-# - 算術展開 $((expression))
-# - エスケープシーケンス（一部）
+# What is suppressed inside double quotes:
+# - Word splitting (tokenizing by spaces)
+# - Pathname expansion (* ? [] globs)
+# What is expanded inside double quotes:
+# - Variable expansion $var ${var}
+# - Command substitution $(command)
+# - Arithmetic expansion $((expression))
+# - Some escape sequences
 
-# バッククォート（非推奨、$() を使用すべき）
-$ echo "Today is `date`"     # ネストが困難
+# Backticks (deprecated, use $() instead)
+$ echo "Today is `date`"     # Hard to nest
 
-# クォートなし: 全展開 + ワード分割 + グロブ展開
+# No quotes: all expansions + word splitting + glob expansion
 $ echo Hello, $USER! *.txt
 Hello, gaku! file1.txt file2.txt
 
-# エスケープ文字
-$ echo "She said \"Hello\""   # ダブルクォート内でダブルクォート
-$ echo 'It'\''s a test'       # シングルクォート内でシングルクォート
-$ echo "Path: \$HOME"         # $ をリテラルとして
-$ echo "Backslash: \\"        # バックスラッシュ自体
+# Escape characters
+$ echo "She said \"Hello\""   # Double quote inside double quotes
+$ echo 'It'\''s a test'       # Single quote inside single quotes
+$ echo "Path: \$HOME"         # $ as a literal character
+$ echo "Backslash: \\"        # The backslash itself
 
-# $'...' 形式（ANSI-C Quoting）
+# $'...' form (ANSI-C Quoting)
 $ echo $'Line1\nLine2\tTabbed'
 Line1
 Line2	Tabbed
 
-# 実務でのクォート選択指針:
-# リテラル文字列         → シングルクォート
-# 変数展開が必要         → ダブルクォート
-# エスケープシーケンス   → $'...'
-# 何も囲まない           → 原則避ける（意図しない展開の危険）
+# Practical quoting guidelines:
+# Literal string              → single quotes
+# Variable expansion needed   → double quotes
+# Escape sequences needed     → $'...'
+# No quotes                   → avoid in principle (risk of unintended expansion)
 
-# よくあるミス
+# Common mistakes
 $ file="my document.txt"
-$ cat $file                  # 「my」と「document.txt」に分割される！
-$ cat "$file"                # 正しい: 1つの引数として渡される
+$ cat $file                  # Split into "my" and "document.txt"!
+$ cat "$file"                # Correct: passed as a single argument
 
-# find での注意点
-$ find . -name *.log         # シェルが先に *.log を展開してしまう
-$ find . -name "*.log"       # 正しい: find にパターンを渡す
-$ find . -name '*.log'       # これも正しい
+# Notes on find
+$ find . -name *.log         # The shell expands *.log first
+$ find . -name "*.log"       # Correct: pass the pattern to find
+$ find . -name '*.log'       # Also correct
 ```
 
-### 9.2 ヒアドキュメントとヒアストリングの詳細
+### 9.2 Here Documents and Here Strings in Detail
 
 ```bash
-# ヒアドキュメントのバリエーション
+# Here document variations
 
-# 1. 通常（変数展開あり）
+# 1. Normal (with variable expansion)
 $ cat <<EOF
 User: $USER
 Home: $HOME
 Date: $(date)
 EOF
 
-# 2. クォート付きデリミタ（変数展開なし）
+# 2. Quoted delimiter (no variable expansion)
 $ cat <<'EOF'
-User: $USER    ← そのまま表示
-Home: $HOME    ← そのまま表示
+User: $USER    ← displayed as-is
+Home: $HOME    ← displayed as-is
 EOF
 
-# 3. ハイフン付き（先頭のタブを無視）
+# 3. With hyphen (strips leading tabs)
 $ cat <<-EOF
 	This line has a leading tab
 	It will be stripped
 	EOF
 
-# 4. ヒアストリング（1行のみ）
+# 4. Here string (single line only)
 $ grep "pattern" <<< "search in this string"
 $ bc <<< "3.14 * 2"
 
-# 実務パターン: 設定ファイルの動的生成
+# Practical pattern: dynamically generating config files
 $ cat <<EOF > /tmp/config.ini
 [database]
 host=${DB_HOST:-localhost}
@@ -1367,7 +1367,7 @@ name=${DB_NAME:-myapp}
 user=${DB_USER:-admin}
 EOF
 
-# 実務パターン: 複数行のコマンド実行（リモート）
+# Practical pattern: running multiple commands on a remote server
 $ ssh production-server <<'REMOTE'
 cd /var/www/app
 git pull origin main
@@ -1376,7 +1376,7 @@ docker compose up -d
 docker compose logs --tail=20
 REMOTE
 
-# 実務パターン: テスト用データの投入
+# Practical pattern: inserting test data
 $ psql -U postgres testdb <<SQL
 INSERT INTO users (name, email) VALUES
   ('Alice', 'alice@example.com'),
@@ -1387,26 +1387,26 @@ SQL
 
 ---
 
-## 10. エイリアスとシェル関数
+## 10. Aliases and Shell Functions
 
-### 10.1 エイリアス
+### 10.1 Aliases
 
 ```bash
-# エイリアスの定義
+# Defining aliases
 $ alias ll='ls -lah'
 $ alias la='ls -A'
 $ alias ..='cd ..'
 $ alias ...='cd ../..'
 
-# エイリアスの確認
-$ alias              # 全エイリアスを表示
-$ alias ll           # 特定のエイリアスを確認
+# Checking aliases
+$ alias              # Show all aliases
+$ alias ll           # Check a specific alias
 $ type ll            # ll is aliased to 'ls -lah'
 
-# エイリアスの削除
+# Removing an alias
 $ unalias ll
 
-# 実務で便利なエイリアス集
+# Useful aliases for daily work
 # --- Git ---
 alias gs='git status'
 alias ga='git add'
@@ -1430,19 +1430,19 @@ alias dlogs='docker logs -f'
 alias dprune='docker system prune -af'
 
 # --- Safety ---
-alias rm='rm -i'               # 削除前に確認
-alias cp='cp -i'               # 上書き前に確認
-alias mv='mv -i'               # 上書き前に確認
+alias rm='rm -i'               # Confirm before deletion
+alias cp='cp -i'               # Confirm before overwriting
+alias mv='mv -i'               # Confirm before overwriting
 
 # --- Navigation ---
 alias projects='cd ~/projects'
 alias downloads='cd ~/Downloads'
 
 # --- System ---
-alias ports='ss -tlnp'         # 使用中のポート
-alias meminfo='free -h'        # メモリ情報
-alias diskinfo='df -h'         # ディスク情報
-alias myip='curl -s ifconfig.me'  # グローバルIP
+alias ports='ss -tlnp'         # Ports in use
+alias meminfo='free -h'        # Memory information
+alias diskinfo='df -h'         # Disk information
+alias myip='curl -s ifconfig.me'  # Global IP address
 
 # --- Misc ---
 alias h='history'
@@ -1453,19 +1453,19 @@ alias path='echo $PATH | tr ":" "\n"'
 alias now='date +"%Y-%m-%d %H:%M:%S"'
 ```
 
-### 10.2 シェル関数
+### 10.2 Shell Functions
 
 ```bash
-# 関数の定義（エイリアスより柔軟）
-# 引数を取れる、複数行の処理が可能
+# Defining functions (more flexible than aliases)
+# Can take arguments, can span multiple lines
 
-# ディレクトリ作成と移動を同時に
+# Create a directory and cd into it simultaneously
 mkcd() {
     mkdir -p "$1" && cd "$1"
 }
-$ mkcd new-project   # ディレクトリ作成 + cd
+$ mkcd new-project   # Create directory + cd
 
-# ファイルのバックアップ
+# Back up a file
 backup() {
     local file="$1"
     if [[ -f "$file" ]]; then
@@ -1477,31 +1477,31 @@ backup() {
     fi
 }
 
-# ポートを使用しているプロセスを確認
+# Check which process is using a port
 port() {
     lsof -i :"$1" 2>/dev/null || ss -tlnp | grep ":$1"
 }
 $ port 8080
 
-# Git ブランチの作成と切替
+# Create and switch to a Git branch
 gcb() {
     git checkout -b "$1" && echo "Created and switched to branch: $1"
 }
 
-# Docker コンテナに入る
+# Enter a Docker container
 dsh() {
     docker exec -it "$1" /bin/sh -c 'if [ -x /bin/bash ]; then exec /bin/bash; else exec /bin/sh; fi'
 }
 
-# 特定のディレクトリのファイルサイズ上位
+# Top files by size in a directory
 big() {
     local dir="${1:-.}"
     local count="${2:-10}"
     du -ah "$dir" 2>/dev/null | sort -rh | head -"$count"
 }
-$ big /var/log 20    # /var/log 以下のサイズ上位20件
+$ big /var/log 20    # Top 20 largest files under /var/log
 
-# JSONの整形表示
+# Pretty-print JSON
 jsonpp() {
     if [[ -f "$1" ]]; then
         python3 -m json.tool "$1"
@@ -1510,12 +1510,12 @@ jsonpp() {
     fi
 }
 
-# 天気情報
+# Weather information
 weather() {
     curl -s "wttr.in/${1:-Tokyo}?format=3"
 }
 
-# extract: 圧縮ファイルの自動展開
+# extract: auto-extract compressed files
 extract() {
     if [[ -f "$1" ]]; then
         case "$1" in
@@ -1544,14 +1544,14 @@ extract() {
 
 ---
 
-## 11. 実践演習
+## 11. Practical Exercises
 
-### 演習1: [基礎] — 基本コマンドとリダイレクト
+### Exercise 1: [Basic] — Basic Commands and Redirects
 
 ```bash
-# 課題: 以下のコマンドを順に実行し、結果を確認する
+# Task: Run the following commands in order and verify the results
 
-# 1. システム情報の収集
+# 1. Collect system information
 $ {
     echo "=== System Information ==="
     echo "Date: $(date)"
@@ -1568,395 +1568,395 @@ $ {
     free -h 2>/dev/null || vm_stat 2>/dev/null
 } > /tmp/sysinfo.txt
 
-# 2. 結果の確認
+# 2. Verify the results
 $ cat /tmp/sysinfo.txt
 
-# 3. ファイル操作
+# 3. File operations
 $ mkdir -p /tmp/exercise/{src,build,docs}
 $ touch /tmp/exercise/src/main.{c,h}
 $ touch /tmp/exercise/docs/README.md
 $ ls -R /tmp/exercise/
 
-# 4. リダイレクトとパイプの組み合わせ
+# 4. Combining redirects and pipes
 $ echo "Hello, World!" > /tmp/test.txt
 $ echo "Second line" >> /tmp/test.txt
 $ echo "Third line" >> /tmp/test.txt
-$ cat /tmp/test.txt | wc -l                # 行数
-$ cat /tmp/test.txt | wc -w                # 単語数
-$ cat /tmp/test.txt | tee /tmp/copy.txt    # 画面にも表示、コピーも作成
+$ cat /tmp/test.txt | wc -l                # Line count
+$ cat /tmp/test.txt | wc -w                # Word count
+$ cat /tmp/test.txt | tee /tmp/copy.txt    # Display on screen and create a copy
 ```
 
-### 演習2: [応用] — パイプラインの構築
+### Exercise 2: [Intermediate] — Building Pipelines
 
 ```bash
-# 課題: 複数のパイプラインを構築する
+# Task: Build multiple pipelines
 
-# 1. /etc/passwd からユーザー情報を抽出
+# 1. Extract user information from /etc/passwd
 $ cat /etc/passwd | cut -d: -f1,3,7 | sort -t: -k2 -n | tail -10
-# ユーザー名:UID:シェル をUID降順で10件
+# username:UID:shell sorted by UID descending, 10 entries
 
-# 2. プロセス情報の整形
+# 2. Format process information
 $ ps aux | awk 'NR>1 {printf "%-15s %5s %5s %s\n", $1, $2, $3, $11}' | sort -k3 -rn | head -10
-# CPU使用率トップ10のプロセス
+# Top 10 processes by CPU usage
 
-# 3. ファイルシステムの分析
+# 3. File system analysis
 $ find /tmp -type f -name "*.txt" 2>/dev/null | while read -r file; do
     size=$(wc -c < "$file")
     echo "$size $file"
   done | sort -rn | head -5
-# /tmp 以下の .txt ファイルをサイズ順で5件
+# Top 5 .txt files under /tmp by size
 
-# 4. コマンド置換の活用
+# 4. Using command substitution
 $ echo "Branch: $(git branch --show-current 2>/dev/null || echo 'not a git repo')"
 $ echo "Python: $(python3 --version 2>/dev/null || echo 'not installed')"
 $ echo "Node: $(node --version 2>/dev/null || echo 'not installed')"
 ```
 
-### 演習3: [発展] — ショートカットとヒストリの活用
+### Exercise 3: [Advanced] — Using Shortcuts and History
 
 ```
-以下の操作をキーボードのみで実行する:
+Perform the following operations using only the keyboard:
 
-1. カーソル移動
-   a. 長いコマンドを入力: echo "This is a very long command with many arguments"
-   b. Ctrl+A で行頭に移動
-   c. Ctrl+E で行末に移動
-   d. Alt+B で1単語ずつ戻る
-   e. Alt+F で1単語ずつ進む
+1. Cursor movement
+   a. Type a long command: echo "This is a very long command with many arguments"
+   b. Press Ctrl+A to move to the beginning of the line
+   c. Press Ctrl+E to move to the end of the line
+   d. Press Alt+B to move back one word at a time
+   e. Press Alt+F to move forward one word at a time
 
-2. テキスト編集
-   a. 長いコマンドを入力
-   b. Ctrl+U で行頭まで削除
-   c. 新しいコマンドを入力
-   d. Ctrl+Y で削除した内容を復元
+2. Text editing
+   a. Type a long command
+   b. Press Ctrl+U to delete to the beginning of the line
+   c. Type a new command
+   d. Press Ctrl+Y to restore the deleted content
 
-3. 履歴操作
-   a. Ctrl+R で "ssh" を検索
-   b. !! で直前のコマンドを再実行
-   c. !$ で直前の最後の引数を利用
-   d. ^old^new で直前のコマンドの文字列を置換
+3. History operations
+   a. Press Ctrl+R to search for "ssh"
+   b. Use !! to re-run the previous command
+   c. Use !$ to reuse the last argument of the previous command
+   d. Use ^old^new to replace a string in the previous command
 
-4. プロセス制御
-   a. sleep 60 を実行
-   b. Ctrl+Z で一時停止
-   c. bg でバックグラウンドに移動
-   d. jobs で確認
-   e. fg でフォアグラウンドに戻す
-   f. Ctrl+C で中断
+4. Process control
+   a. Run sleep 60
+   b. Press Ctrl+Z to suspend it
+   c. Use bg to move it to the background
+   d. Use jobs to verify
+   e. Use fg to bring it back to the foreground
+   f. Press Ctrl+C to interrupt it
 ```
 
-### 演習4: [実務] — トラブルシューティング演習
+### Exercise 4: [Practical] — Troubleshooting Exercise
 
 ```bash
-# 課題: 実務的なトラブルシューティングシナリオ
+# Task: Practical troubleshooting scenarios
 
-# シナリオ1: コマンドが見つからない
+# Scenario 1: Command not found
 $ mycommand
 # bash: mycommand: command not found
 
-# 調査手順:
-$ which mycommand                    # パスを確認
-$ type mycommand                     # コマンドの種類を確認
-$ echo $PATH | tr ':' '\n'           # PATHの確認
-$ find / -name "mycommand" 2>/dev/null  # ファイルの場所を検索
-$ apt list --installed 2>/dev/null | grep mycommand  # パッケージ確認
+# Investigation steps:
+$ which mycommand                    # Check the path
+$ type mycommand                     # Check the command type
+$ echo $PATH | tr ':' '\n'           # Inspect PATH
+$ find / -name "mycommand" 2>/dev/null  # Search for the file
+$ apt list --installed 2>/dev/null | grep mycommand  # Check packages
 
-# シナリオ2: Permission denied
+# Scenario 2: Permission denied
 $ cat /var/log/syslog
 # cat: /var/log/syslog: Permission denied
 
-# 調査手順:
-$ ls -la /var/log/syslog             # パーミッション確認
-$ id                                  # 自分のUID/GIDを確認
-$ groups                              # 所属グループを確認
-$ sudo cat /var/log/syslog           # sudo で再試行
+# Investigation steps:
+$ ls -la /var/log/syslog             # Check permissions
+$ id                                  # Check your own UID/GID
+$ groups                              # Check group memberships
+$ sudo cat /var/log/syslog           # Retry with sudo
 
-# シナリオ3: ディスクが満杯
-$ df -h                               # ディスク使用率確認
-$ du -sh /var/* 2>/dev/null | sort -rh | head -10  # 大きなディレクトリ
-$ find /var/log -name "*.log" -size +100M          # 大きなログファイル
-$ journalctl --disk-usage             # journald のサイズ確認
-$ docker system df                     # Dockerのディスク使用量
+# Scenario 3: Disk is full
+$ df -h                               # Check disk usage
+$ du -sh /var/* 2>/dev/null | sort -rh | head -10  # Largest directories
+$ find /var/log -name "*.log" -size +100M          # Large log files
+$ journalctl --disk-usage             # journald size
+$ docker system df                     # Docker disk usage
 
-# シナリオ4: 高負荷調査
-$ uptime                              # ロードアベレージ確認
-$ top -bn1 | head -20                # CPU/メモリ使用率
-$ ps aux --sort=-%cpu | head -10     # CPU使用率トップ
-$ ps aux --sort=-%mem | head -10     # メモリ使用率トップ
-$ iostat -x 1 3                       # I/O統計
-$ vmstat 1 5                          # システム統計
+# Scenario 4: High load investigation
+$ uptime                              # Check load average
+$ top -bn1 | head -20                # CPU/memory usage
+$ ps aux --sort=-%cpu | head -10     # Top CPU consumers
+$ ps aux --sort=-%mem | head -10     # Top memory consumers
+$ iostat -x 1 3                       # I/O statistics
+$ vmstat 1 5                          # System statistics
 ```
 
 ---
 
-## 12. ベストプラクティスとTips
+## 12. Best Practices and Tips
 
-### 12.1 安全なコマンド操作
+### 12.1 Safe Command Operations
 
 ```bash
-# 1. 破壊的コマンドの前に確認
-$ rm -rf /path/to/dir               # 危険！
-$ rm -ri /path/to/dir               # -i で確認しながら削除
-$ ls /path/to/dir                    # まず ls で確認
+# 1. Confirm before destructive commands
+$ rm -rf /path/to/dir               # Dangerous!
+$ rm -ri /path/to/dir               # Use -i to confirm each deletion
+$ ls /path/to/dir                    # First verify with ls
 
-# 2. 変数を使う時は必ずダブルクォートで囲む
-$ rm "$file"                         # 正しい
-$ rm $file                           # スペース入りのファイル名で問題発生
+# 2. Always use double quotes around variables
+$ rm "$file"                         # Correct
+$ rm $file                           # Problems with filenames containing spaces
 
-# 3. rm -rf でワイルドカードを使う時の注意
+# 3. Caution with wildcards in rm -rf
 $ rm -rf /tmp/test/*                 # OK
-$ rm -rf /tmp/test/ *                # 危険！ スペースで「/ *」になる
-$ rm -rf "$dir"/*                    # OK（変数はクォート）
+$ rm -rf /tmp/test/ *                # Dangerous! Space turns it into "/ *"
+$ rm -rf "$dir"/*                    # OK (variable is quoted)
 
-# 4. sudo の慎重な使用
-$ sudo !!                            # 直前のコマンドを sudo で再実行（確認後）
-$ sudo -k                            # sudo のキャッシュをクリア
+# 4. Careful use of sudo
+$ sudo !!                            # Re-run previous command with sudo (after confirming)
+$ sudo -k                            # Clear sudo credentials cache
 
-# 5. 実行前にエコーで確認（dry run パターン）
-$ for f in *.log; do echo "rm $f"; done    # まず echo で確認
-$ for f in *.log; do rm "$f"; done         # 問題なければ実行
+# 5. Verify with echo before executing (dry run pattern)
+$ for f in *.log; do echo "rm $f"; done    # First check with echo
+$ for f in *.log; do rm "$f"; done         # Execute when satisfied
 
-# 6. 重要な操作の前にバックアップ
+# 6. Back up before important operations
 $ cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak.$(date +%Y%m%d)
 $ tar czf backup-before-change.tar.gz /path/to/dir
 ```
 
-### 12.2 効率的なコマンドライン作業
+### 12.2 Efficient Command-Line Work
 
 ```bash
-# 1. Tab 補完を最大限活用
+# 1. Make full use of Tab completion
 $ cd /e<Tab>/ng<Tab>/si<Tab>        # /etc/nginx/sites-available
 
-# 2. ブレース展開でファイル操作を効率化
+# 2. Use brace expansion to streamline file operations
 $ cp config.{yml,yml.bak}           # cp config.yml config.yml.bak
 $ mv file.{txt,md}                  # mv file.txt file.md
 $ touch test_{1..5}.txt             # test_1.txt ... test_5.txt
 
-# 3. Ctrl+R の活用（インクリメンタル検索）
-# → Ctrl+R を押して "docker" と入力すると
-#   最近の docker コマンドが表示される
-# → 複数回 Ctrl+R でさらに古い履歴を検索
+# 3. Make use of Ctrl+R (incremental search)
+# → Press Ctrl+R, type "docker" to see
+#   recent docker commands
+# → Press Ctrl+R multiple times to search further back
 
-# 4. Alt+. で前のコマンドの引数を繰り返し使う
+# 4. Use Alt+. to reuse the previous command's argument repeatedly
 $ ls /var/log/nginx/access.log
 $ less <Alt+.>                      # less /var/log/nginx/access.log
 
-# 5. xargs で繰り返し処理
+# 5. Use xargs for repetitive processing
 $ find . -name "*.tmp" -print0 | xargs -0 rm
-$ cat urls.txt | xargs -P4 -I{} curl -sO {}    # 4並列でダウンロード
+$ cat urls.txt | xargs -P4 -I{} curl -sO {}    # Download 4 in parallel
 
-# 6. watch でコマンドを定期実行
-$ watch -n 2 'docker ps'            # 2秒ごとにコンテナ状態を確認
-$ watch -d 'df -h'                  # 差分をハイライト表示
+# 6. Use watch to run a command periodically
+$ watch -n 2 'docker ps'            # Check container status every 2 seconds
+$ watch -d 'df -h'                  # Highlight differences
 
-# 7. script でセッションを記録
+# 7. Record a session with script
 $ script /tmp/session-$(date +%Y%m%d).log
-$ # ... 作業 ...
-$ exit                               # 記録終了
+$ # ... work ...
+$ exit                               # Stop recording
 ```
 
-### 12.3 よくある落とし穴
+### 12.3 Common Pitfalls
 
 ```bash
-# 1. ファイル名のスペース問題
+# 1. Filenames with spaces
 $ file="my document.txt"
-$ cat $file              # → "my" と "document.txt" に分割される
-$ cat "$file"            # → 正しく1つのファイルとして扱われる
+$ cat $file              # → Split into "my" and "document.txt"
+$ cat "$file"            # → Correctly treated as a single file
 
-# 2. 変数の未定義
-$ echo $UNDEFINED        # 空文字列（エラーにならない）
-$ set -u                  # 未定義変数の参照をエラーにする（推奨）
-$ echo ${var:?"undefined"}  # 未定義時にエラーメッセージ
+# 2. Undefined variables
+$ echo $UNDEFINED        # Empty string (no error)
+$ set -u                  # Treat undefined variable references as errors (recommended)
+$ echo ${var:?"undefined"}  # Error message when undefined
 
-# 3. パイプとサブシェル（bashの罠）
+# 3. Pipes and subshells (bash gotcha)
 $ count=0
 $ echo -e "a\nb\nc" | while read line; do
     count=$((count + 1))
   done
-$ echo $count            # bash: 0（パイプの右辺はサブシェル）
-# 解決策1: プロセス置換
+$ echo $count            # bash: 0 (right side of pipe is a subshell)
+# Solution 1: process substitution
 $ while read line; do
     count=$((count + 1))
   done < <(echo -e "a\nb\nc")
-# 解決策2: lastpipe（bash 4.2+）
+# Solution 2: lastpipe (bash 4.2+)
 $ shopt -s lastpipe
 
-# 4. for ループとIFS
-$ for f in $(ls); do echo "$f"; done   # スペース入りファイル名で問題
-$ for f in *; do echo "$f"; done       # 正しいイディオム
+# 4. for loops and IFS
+$ for f in $(ls); do echo "$f"; done   # Problems with filenames containing spaces
+$ for f in *; do echo "$f"; done       # Correct idiom
 
-# 5. test と [[ ]] の違い
-$ [ "$a" == "$b" ]       # POSIX sh では = を使う
-$ [[ "$a" == "$b" ]]     # bash/zsh では == が使える
-$ [[ "hello" =~ ^he ]]   # 正規表現マッチ（[[ ]] のみ）
-$ [[ -f file && -r file ]]  # &&/|| が使える（[ ] では -a/-o）
+# 5. Difference between test and [[ ]]
+$ [ "$a" == "$b" ]       # POSIX sh uses =
+$ [[ "$a" == "$b" ]]     # bash/zsh can use ==
+$ [[ "hello" =~ ^he ]]   # Regex match ([[ ]] only)
+$ [[ -f file && -r file ]]  # Can use &&/|| ([ ] uses -a/-o)
 
-# 6. 算術評価
-$ echo $((10 / 3))       # 3（整数演算のみ）
-$ echo "scale=2; 10/3" | bc   # 3.33（浮動小数点が必要な場合）
-$ awk 'BEGIN {printf "%.2f\n", 10/3}'  # 3.33（awkでも可能）
+# 6. Arithmetic evaluation
+$ echo $((10 / 3))       # 3 (integer arithmetic only)
+$ echo "scale=2; 10/3" | bc   # 3.33 (when floating point is needed)
+$ awk 'BEGIN {printf "%.2f\n", 10/3}'  # 3.33 (also possible with awk)
 
-# 7. コマンド置換と改行
-$ files=$(ls)            # 末尾の改行は削除される
-$ echo "$files"          # 改行が保持される（ダブルクォート）
-$ echo $files            # 改行がスペースに変換される（クォートなし）
+# 7. Command substitution and newlines
+$ files=$(ls)            # Trailing newlines are stripped
+$ echo "$files"          # Newlines are preserved (double quotes)
+$ echo $files            # Newlines are converted to spaces (no quotes)
 ```
 
 ---
 
-## 13. FAQ（よくある質問）
+## 13. FAQ
 
-### Q1: bash と zsh のどちらを使うべき？
+### Q1: Which should I use, bash or zsh?
 
-macOS ユーザーは zsh（デフォルト）を推奨。Linux サーバーでは bash が確実。zsh は bash のほぼ上位互換であり、以下の追加機能がある:
-
-```
-zsh の bash に対する優位点:
-  - 強力な Tab 補完（コマンドオプション、引数の補完）
-  - 右プロンプト（RPROMPT）
-  - 再帰グロブ（**/*.txt）がデフォルトで使用可能
-  - スペル修正提案
-  - グロブ修飾子（*(om) で更新日時順等）
-  - 配列のインデックスが1始まり（直感的）
-  - Oh My Zsh / Prezto 等のフレームワーク
-  - 浮動小数点演算のサポート
-
-bash の強み:
-  - ほぼ全てのLinuxディストリビューションに標準搭載
-  - POSIX sh に近い動作
-  - サーバー環境での互換性が高い
-  - 情報量（ドキュメント、Stack Overflow等）が多い
-
-推奨:
-  対話シェル       → zsh + Oh My Zsh
-  シェルスクリプト → #!/usr/bin/env bash（bash 4+）
-  移植性重視       → #!/bin/sh（POSIX sh互換）
-```
-
-### Q2: なぜCLIを学ぶべきか？GUIで十分では？
+macOS users are recommended to use zsh (the default). On Linux servers, bash is the reliable choice. zsh is largely a superset of bash and offers the following additional features:
 
 ```
-CLIの優位性:
+Advantages of zsh over bash:
+  - Powerful Tab completion (command options, argument completion)
+  - Right prompt (RPROMPT)
+  - Recursive glob (**/*.txt) usable by default
+  - Spell correction suggestions
+  - Glob qualifiers (*(om) for modification time order, etc.)
+  - Arrays indexed from 1 (more intuitive)
+  - Frameworks such as Oh My Zsh / Prezto
+  - Floating-point arithmetic support
 
-  1. 自動化
-     スクリプトで繰り返し作業を自動化できる
-     cron/systemd timer で定期実行
-     CI/CDパイプラインの構成要素
+Strengths of bash:
+  - Installed by default on almost all Linux distributions
+  - Closer to POSIX sh behavior
+  - Higher compatibility in server environments
+  - More documentation (manuals, Stack Overflow, etc.)
 
-  2. リモート操作
-     SSH経由でサーバーを管理（GUIは不要）
-     帯域が限られた環境でも操作可能
-     複数サーバーの一括操作
-
-  3. 効率性
-     マウス操作より速い（慣れれば）
-     パイプラインで複雑な処理を簡潔に記述
-     バッチ処理で大量のファイルを一括操作
-
-  4. 再現性
-     コマンド履歴が残る
-     手順をスクリプト化して共有可能
-     ドキュメント化が容易
-
-  5. サーバー環境
-     多くのサーバーにはGUIがない
-     コンテナ環境（Docker）はCLIが基本
-     クラウドインスタンスはSSH接続が標準
-
-  6. デバッグ
-     ログの検索・分析はCLIが圧倒的に高速
-     プロセスの監視・制御
-     ネットワークの診断
-
-  7. 組み合わせの力
-     Unix哲学: 「一つのことをうまくやるプログラム」の組み合わせ
-     パイプで既存コマンドを自由に連結
-     新しいツールもすぐにパイプラインに組み込める
+Recommendations:
+  Interactive shell      → zsh + Oh My Zsh
+  Shell scripting        → #!/usr/bin/env bash (bash 4+)
+  Portability focus      → #!/bin/sh (POSIX sh compatible)
 ```
 
-### Q3: ターミナルのフォント設定はどうすべき？
+### Q2: Why learn the CLI? Isn't a GUI sufficient?
 
 ```
-プログラミング用フォントの推奨:
+Advantages of the CLI:
 
-  Nerd Font系（アイコン付き）:
-  - JetBrains Mono Nerd Font     ← 開発者に最も人気
-  - Hack Nerd Font               ← 読みやすさ重視
-  - FiraCode Nerd Font           ← リガチャ（合字）対応
-  - CaskaydiaCove Nerd Font      ← Microsoft製
-  - MesloLGS NF                  ← Oh My Zsh の Powerlevel10k 推奨
+  1. Automation
+     Automate repetitive tasks with scripts
+     Schedule with cron/systemd timers
+     A building block of CI/CD pipelines
 
-  日本語対応:
-  - HackGen (白源)               ← Hack + 源ノ角ゴシック
+  2. Remote operations
+     Manage servers via SSH (no GUI needed)
+     Usable even in bandwidth-constrained environments
+     Batch operations across multiple servers
+
+  3. Efficiency
+     Faster than mouse operations (once you are accustomed)
+     Express complex processing concisely with pipelines
+     Batch-process large numbers of files at once
+
+  4. Reproducibility
+     Command history is preserved
+     Procedures can be scripted and shared
+     Easy to document
+
+  5. Server environments
+     Many servers have no GUI
+     Container environments (Docker) are CLI-first
+     Cloud instances default to SSH connections
+
+  6. Debugging
+     Searching and analyzing logs is overwhelmingly faster with the CLI
+     Monitoring and controlling processes
+     Network diagnostics
+
+  7. The power of composition
+     Unix philosophy: compose programs that "do one thing well"
+     Freely chain existing commands with pipes
+     New tools can be immediately incorporated into pipelines
+```
+
+### Q3: How should I configure fonts for my terminal?
+
+```
+Recommended fonts for programming:
+
+  Nerd Font variants (with icons):
+  - JetBrains Mono Nerd Font     ← Most popular among developers
+  - Hack Nerd Font               ← Focused on readability
+  - FiraCode Nerd Font           ← Supports ligatures
+  - CaskaydiaCove Nerd Font      ← Made by Microsoft
+  - MesloLGS NF                  ← Recommended for Oh My Zsh Powerlevel10k
+
+  Japanese-compatible:
+  - HackGen (Shiraigen)          ← Hack + Source Han Gothic
   - PlemolJP                     ← IBM Plex Mono + IBM Plex Sans JP
   - UDEV Gothic                  ← Monaspace + BIZ UDGothic
-  - Cica                         ← Hack + Miguフォント
+  - Cica                         ← Hack + Migu font
 
-  設定のポイント:
-  - フォントサイズ: 12-16pt（画面サイズに応じて）
-  - 行間: 1.2-1.5
-  - リガチャ: 有効化すると != → ≠, => → ⇒ 等が見やすい
-  - Nerd Font: Starship, Powerlevel10k 等のプロンプトに必要
+  Configuration tips:
+  - Font size: 12-16pt (depending on screen size)
+  - Line spacing: 1.2-1.5
+  - Ligatures: enabling them makes != → ≠ and => → ⇒ more readable
+  - Nerd Font: required for prompts like Starship and Powerlevel10k
 ```
 
-### Q4: シェルの起動ファイルの読み込み順序は？
+### Q4: In what order are shell startup files loaded?
 
 ```
-bash の起動ファイル:
+bash startup files:
 
-  ログインシェル:
+  Login shell:
   1. /etc/profile
-  2. ~/.bash_profile (存在しなければ ~/.bash_login → ~/.profile)
+  2. ~/.bash_profile (if absent, ~/.bash_login → ~/.profile)
 
-  非ログインシェル（ターミナルエミュレータ起動時）:
+  Non-login shell (when a terminal emulator starts):
   1. ~/.bashrc
 
-  推奨: ~/.bash_profile に以下を記述
+  Recommendation: put the following in ~/.bash_profile
   if [ -f ~/.bashrc ]; then source ~/.bashrc; fi
 
-zsh の起動ファイル:
+zsh startup files:
 
-  全ユーザー共通 → 個人設定の順で、以下のファイルが読まれる:
+  Files are read in order from system-wide to personal:
 
   ┌──────────────┬─────────┬────────────┬──────────┐
-  │ ファイル     │ ログイン│ 対話的     │ スクリプト│
+  │ File         │ Login   │ Interactive│ Script   │
   ├──────────────┼─────────┼────────────┼──────────┤
   │ .zshenv      │ ✓       │ ✓          │ ✓        │
   │ .zprofile    │ ✓       │            │          │
   │ .zshrc       │ ✓       │ ✓          │          │
   │ .zlogin      │ ✓       │            │          │
-  │ .zlogout     │ ✓（終了）│           │          │
+  │ .zlogout     │ ✓ (exit)│            │          │
   └──────────────┴─────────┴────────────┴──────────┘
 
-  推奨設定場所:
-  .zshenv   → PATH 等の環境変数（全場面で必要）
-  .zshrc    → エイリアス、関数、プロンプト、補完設定
-  .zprofile → ログイン時のみ必要な設定
+  Recommended placement:
+  .zshenv   → Environment variables like PATH (needed in all contexts)
+  .zshrc    → Aliases, functions, prompt, completion settings
+  .zprofile → Settings needed only at login
 ```
 
-### Q5: WSL2 と ネイティブ Linux の違いは？
+### Q5: What is the difference between WSL2 and native Linux?
 
 ```
 WSL2 (Windows Subsystem for Linux 2):
-  Windows上で本物のLinuxカーネルを仮想マシンで動作
+  Runs a real Linux kernel in a virtual machine on Windows
 
-  利点:
-  - Windows と Linux を同時に使える
-  - ファイルシステムの相互アクセス（/mnt/c/）
-  - Docker Desktop との統合
-  - VS Code Remote - WSL で透過的な開発
+  Advantages:
+  - Use Windows and Linux simultaneously
+  - Mutual filesystem access (/mnt/c/)
+  - Integration with Docker Desktop
+  - Transparent development with VS Code Remote - WSL
 
-  制限:
-  - I/O パフォーマンス（Windows ↔ Linux 間のファイル操作）
-  - systemd の制限（WSL2 では設定で有効化可能）
-  - ネットワーク設定の複雑さ
-  - USB デバイスのアクセス制限
+  Limitations:
+  - I/O performance (file operations between Windows and Linux)
+  - systemd restrictions (can be enabled in WSL2 settings)
+  - Network configuration complexity
+  - USB device access restrictions
 
-  推奨設定:
-  - プロジェクトファイルは Linux ファイルシステム側に置く
-  - /mnt/c/ は避ける（遅い）
-  - Windows Terminal + WSL2 の組み合わせ
-  - wsl.conf で automount とnetwork を適切に設定
+  Recommended settings:
+  - Keep project files on the Linux filesystem
+  - Avoid /mnt/c/ (slow)
+  - Use Windows Terminal + WSL2 combination
+  - Configure automount and network appropriately in wsl.conf
 ```
 
 ---
@@ -1964,43 +1964,43 @@ WSL2 (Windows Subsystem for Linux 2):
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend firmly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
+| Concept | Key Points |
 |------|---------|
-| ターミナル | テキストI/Oのウィンドウ。iTerm2, Alacritty, Windows Terminal等 |
-| シェル | コマンドの解釈・実行。bash（Linux標準）/ zsh（macOS標準） |
-| コマンド構造 | `command [options] [arguments]`。短い/長いオプション |
-| リダイレクト | `>` `>>` `2>` `<` `&>` でI/Oの入出力先を変更 |
-| パイプ | `\|` でコマンドを連結。Unix哲学の核心 |
-| ショートカット | Ctrl+R(検索), Ctrl+A/E(移動), Ctrl+C(中断), Ctrl+Z(停止) |
-| 環境変数 | PATH, HOME, SHELL等。`export` で子プロセスに継承 |
-| グロブ | `*` `?` `[]` `{}` でファイルパターンマッチ |
-| クォート | シングル（リテラル）、ダブル（展開あり）の使い分け |
-| fork-exec | シェルのコマンド実行モデル。子プロセスでexec |
-| エイリアス/関数 | よく使うコマンドの省略形。関数はより柔軟 |
+| Terminal | Window for text I/O. iTerm2, Alacritty, Windows Terminal, etc. |
+| Shell | Interprets and executes commands. bash (Linux default) / zsh (macOS default) |
+| Command structure | `command [options] [arguments]`. Short/long options |
+| Redirect | `>` `>>` `2>` `<` `&>` to change I/O destinations |
+| Pipe | `\|` to chain commands. The heart of the Unix philosophy |
+| Shortcuts | Ctrl+R (search), Ctrl+A/E (move), Ctrl+C (interrupt), Ctrl+Z (suspend) |
+| Environment variables | PATH, HOME, SHELL, etc. Inherited by child processes via `export` |
+| Glob | `*` `?` `[]` `{}` for file pattern matching |
+| Quoting | Single (literal), double (with expansion) — know the difference |
+| fork-exec | Shell command execution model. Commands run as child processes via exec |
+| Aliases/Functions | Shorthand for frequently used commands. Functions are more flexible |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
 ---
 
-## 参考文献
+## References
 1. Shotts, W. "The Linux Command Line." 2nd Ed, No Starch Press, 2019.
 2. Robbins, A. & Beebe, N. "Classic Shell Scripting." O'Reilly Media, 2005.
 3. Ramey, C. & Fox, B. "Bash Reference Manual." GNU Project, 2022.
