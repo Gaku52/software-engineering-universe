@@ -1,29 +1,29 @@
-# Gitオブジェクトモデル
+# Git Object Model
 
-> Gitの内部構造を支える4種類のオブジェクト（blob, tree, commit, tag）とSHA-1ハッシュによるコンテンツアドレッシングの仕組みを徹底解説する。
+> A thorough explanation of the four object types that underpin Git's internal structure (blob, tree, commit, tag) and the content-addressing mechanism based on SHA-1 hashes.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **Gitの4つのオブジェクト型**（blob, tree, commit, tag）の役割と相互関係
-2. **SHA-1ハッシュによるコンテンツアドレッシング**の仕組みと不変性の保証
-3. **オブジェクトデータベース**（`.git/objects`）の内部構造と操作方法
-4. **低レベルplumbingコマンド**を使ったオブジェクト操作の実践
-5. **大規模リポジトリ**におけるオブジェクトモデルの挙動と最適化
-6. **SHA-256移行**の背景と実務への影響
+1. The roles and relationships of **Git's four object types** (blob, tree, commit, tag)
+2. How **content addressing via SHA-1 hashes** works and how immutability is guaranteed
+3. The internal structure and operations of the **object database** (`.git/objects`)
+4. Hands-on object manipulation using **low-level plumbing commands**
+5. Object model behavior and optimization in **large repositories**
+6. The background of the **SHA-256 migration** and its practical impact
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. Gitはスナップショットベースである
+## 1. Git Is Snapshot-Based
 
-多くのVCSは「差分（delta）」を保存するが、Gitは**各時点のファイルツリー全体のスナップショット**を保存する。この設計が高速なブランチ切り替えとマージを可能にしている。
+While many VCSs store "deltas," Git stores **a full snapshot of the entire file tree at each point in time**. This design enables fast branch switching and merging.
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -43,11 +43,11 @@
 └─────────────────────────────────────────────────────┘
 ```
 
-ただし、Gitも内部的にはpackfileで差分圧縮を行う（後述の「Packfile/GC」を参照）。
+Note: Git also internally performs delta compression via packfiles (see "Packfile/GC" described later).
 
-### 1.1 スナップショット方式の詳細な動作原理
+### 1.1 Detailed Operating Principle of the Snapshot Approach
 
-Gitがスナップショットを効率的に保存できる理由を理解するために、具体的なシナリオを考えてみよう。
+Let's consider a concrete scenario to understand why Git can store snapshots efficiently.
 
 ```
 プロジェクト構造:
@@ -59,7 +59,7 @@ Gitがスナップショットを効率的に保存できる理由を理解す�
 └── package.json     (1KB)
 ```
 
-ここで `src/main.js` だけを変更してコミットした場合:
+If only `src/main.js` is changed and committed:
 
 ```
 コミット1のtree:
@@ -79,14 +79,14 @@ Gitがスナップショットを効率的に保存できる理由を理解す�
   package.json → blob:fff666 (1KB)  ← 同じblob再利用
 ```
 
-新しく作成されたオブジェクトは**2つだけ**:
-- 変更された `main.js` の新しいblob
-- `src/` ディレクトリの新しいtree（main.jsへの参照が変わったため）
-- ルートtree（src/への参照が変わったため）
+Only **two** new objects are created:
+- A new blob for the modified `main.js`
+- A new tree for the `src/` directory (because the reference to main.js changed)
+- The root tree (because the reference to src/ changed)
 
-変更されていないファイルのblobは完全に再利用される。これがGitのスナップショット方式が効率的な理由である。
+Blobs for unchanged files are fully reused. This is why Git's snapshot approach is efficient.
 
-### 1.2 差分ベースVCSとの性能比較
+### 1.2 Performance Comparison with Delta-Based VCS
 
 ```
 操作                    | 差分ベースVCS  | Git（スナップショット）
@@ -99,11 +99,11 @@ Gitがスナップショットを効率的に保存できる理由を理解す�
 リポジトリサイズ（実際） | 同程度        | 同程度（packfile圧縮後）
 ```
 
-※ nはバージョン数。差分ベースはv1からの再構築が必要なため。
+※ n is the number of versions. Delta-based VCSs require reconstruction from v1.
 
-### 1.3 変更されていないファイルの扱い
+### 1.3 Handling Unchanged Files
 
-よくある誤解として「Gitはコミットごとに全ファイルのコピーを作る」というものがあるが、これは正確ではない。
+A common misconception is that "Git makes a full copy of every file per commit," but this is not accurate.
 
 ```bash
 # 実験: 同一内容のblob共有を確認する
@@ -130,11 +130,11 @@ $ git ls-tree HEAD stable.txt
 
 ---
 
-## 2. 4つのオブジェクト型
+## 2. The Four Object Types
 
-### 2.1 blob（Binary Large Object）
+### 2.1 blob (Binary Large Object)
 
-ファイルの**中身そのもの**を保存する。ファイル名やパーミッションは含まない。
+Stores **the file content itself**. Does not include the filename or permissions.
 
 ```bash
 # ファイルの内容からblobオブジェクトを作成
@@ -150,7 +150,7 @@ $ git cat-file -t 557db03
 blob
 ```
 
-**重要な特性**: 同じ内容のファイルは、ファイル名が異なっても**同一のblobオブジェクト**として共有される。
+**Key property**: Files with the same content share the **same blob object**, even if their filenames differ.
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -162,9 +162,9 @@ blob
 └──────────────────────────────────────────────┘
 ```
 
-#### blobの内部バイナリ構造
+#### Internal Binary Structure of a blob
 
-blobオブジェクトがディスク上でどのように保存されているかを詳しく見てみよう。
+Let's look closely at how blob objects are stored on disk.
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -196,9 +196,9 @@ with open('.git/objects/55/7db03de997c86a4a028e1ebd3a1ceb225be238', 'rb') as f:
 # b'blob 12\x00Hello, Git!\n'
 ```
 
-#### blobとファイルモードの分離
+#### Separation of blob and File Mode
 
-blobにはファイルの実行権限やファイル名が含まれない。この設計の重要性を示す例:
+The blob does not include file permissions or the filename. An example illustrating the importance of this design:
 
 ```bash
 # 同じ内容のファイルに異なる権限を設定
@@ -221,7 +221,7 @@ $ git ls-tree HEAD
 # 同じblobオブジェクトが異なるモードで参照されている
 ```
 
-#### 空ファイルのblob
+#### Empty File blob
 
 ```bash
 # 空ファイルにもblobは作られる
@@ -235,9 +235,9 @@ $ git cat-file -s e69de29
 0
 ```
 
-### 2.2 tree（ツリー）
+### 2.2 tree
 
-ディレクトリ構造を表現する。各エントリは**モード、型、SHA-1、ファイル名**を持つ。
+Represents the directory structure. Each entry has a **mode, type, SHA-1, and filename**.
 
 ```bash
 # 最新コミットのtreeを確認
@@ -247,19 +247,19 @@ $ git cat-file -p HEAD^{tree}
 100755 blob a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0    run.sh
 ```
 
-**モードの意味**:
+**Mode meanings**:
 
-| モード   | 意味                          | 用途                          |
-|----------|-------------------------------|-------------------------------|
-| `100644` | 通常のファイル                | テキスト、設定ファイル等      |
-| `100755` | 実行可能ファイル              | スクリプト、バイナリ          |
-| `120000` | シンボリックリンク            | リンクファイル                |
-| `040000` | サブディレクトリ（tree）      | フォルダ構造                  |
-| `160000` | サブモジュール（commit参照）  | 外部リポジトリ参照            |
+| Mode     | Meaning                        | Usage                          |
+|----------|--------------------------------|--------------------------------|
+| `100644` | Regular file                   | Text files, config files, etc. |
+| `100755` | Executable file                | Scripts, binaries              |
+| `120000` | Symbolic link                  | Link files                     |
+| `040000` | Subdirectory (tree)            | Folder structure               |
+| `160000` | Submodule (commit reference)   | External repository reference  |
 
-#### treeオブジェクトのバイナリ形式
+#### Binary Format of a tree Object
 
-treeオブジェクトは `git cat-file -p` で人間が読める形式で表示されるが、内部的にはバイナリ形式で保存されている。
+While `git cat-file -p` displays a tree object in human-readable form, it is stored internally in binary format.
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -303,9 +303,9 @@ with open('.git/objects/8f/94139338f9404f26296befa88755fc2598c289', 'rb') as f:
 "
 ```
 
-#### ネストしたtreeの構造
+#### Structure of Nested trees
 
-実際のプロジェクトでは、treeは再帰的にネストする:
+In a real project, trees nest recursively:
 
 ```
 プロジェクト構造:
@@ -359,9 +359,9 @@ $ git ls-tree -r -t HEAD
 # ... (以下略)
 ```
 
-#### 空ディレクトリとGit
+#### Empty Directories and Git
 
-Gitのtreeオブジェクトは**空のtreeを参照できない**わけではないが、`git add`コマンドが空ディレクトリを追跡しない設計になっている。
+Git tree objects are not unable to reference an empty tree, but the `git add` command is designed not to track empty directories.
 
 ```bash
 # 空ディレクトリはgit addできない
@@ -380,9 +380,9 @@ $ echo "!.gitignore" >> logs/.gitignore
 $ git add logs/.gitignore
 ```
 
-### 2.3 commit（コミット）
+### 2.3 commit
 
-スナップショットとメタデータを結びつける。
+Links a snapshot to metadata.
 
 ```bash
 $ git cat-file -p HEAD
@@ -394,24 +394,24 @@ committer Gaku <gaku@example.com> 1707600000 +0900
 feat: ユーザー認証機能を追加
 ```
 
-commitオブジェクトの構成要素:
+Components of a commit object:
 
 ```
 ┌─────────────────────────────────────┐
 │         commit object               │
 │                                     │
-│  tree     → ルートtreeのSHA-1       │
-│  parent   → 親commitのSHA-1        │
+│  tree     → SHA-1 of root tree      │
+│  parent   → SHA-1 of parent commit  │
 │            （マージなら複数parent）   │
-│  author   → 作成者 + タイムスタンプ  │
-│  committer→ 適用者 + タイムスタンプ  │
-│  message  → コミットメッセージ      │
+│  author   → creator + timestamp     │
+│  committer→ applier + timestamp     │
+│  message  → commit message          │
 └─────────────────────────────────────┘
 ```
 
-#### authorとcommitterの違い
+#### Difference Between author and committer
 
-多くの場合authorとcommitterは同一人物だが、`git am`や`git cherry-pick`では異なることがある:
+In most cases author and committer are the same person, but they can differ when using `git am` or `git cherry-pick`:
 
 ```bash
 # パッチを適用した場合のcommitオブジェクト
@@ -441,9 +441,9 @@ $ git rebase main
 #   committer = rebaseを実行した人 + 現在の時刻
 ```
 
-#### タイムスタンプの詳細
+#### Timestamp Details
 
-Gitのタイムスタンプには2種類の形式がある:
+Git timestamps come in two formats:
 
 ```bash
 # author date: 元のコードが書かれた日時
@@ -466,35 +466,35 @@ $ GIT_AUTHOR_DATE="2024-01-01T00:00:00+0900" \
   git commit -m "New Year commit"
 ```
 
-#### 親コミットの種類
+#### Types of Parent Commits
 
 ```
-初回コミット（parentなし）:
+Initial commit (no parent):
 ┌──────────────┐
 │ commit: aaa  │
 │ tree: xxx    │
-│ parent: なし │  ← ルートコミット
+│ parent: none │  ← root commit
 │ msg: "init"  │
 └──────────────┘
 
-通常コミット（parent 1つ）:
+Regular commit (one parent):
 ┌──────────────┐     ┌──────────────┐
 │ commit: bbb  │────→│ commit: aaa  │
 │ tree: yyy    │     │ tree: xxx    │
-│ parent: aaa  │     │ parent: なし │
+│ parent: aaa  │     │ parent: none │
 │ msg: "feat"  │     │ msg: "init"  │
 └──────────────┘     └──────────────┘
 
-マージコミット（parent 2つ）:
+Merge commit (two parents):
 ┌──────────────┐
 │ commit: ddd  │
 │ tree: zzz    │
-│ parent: bbb  │────→ 1st parent（マージ先）
-│ parent: ccc  │────→ 2nd parent（マージ元）
+│ parent: bbb  │────→ 1st parent (merge target)
+│ parent: ccc  │────→ 2nd parent (merge source)
 │ msg: "Merge" │
 └──────────────┘
 
-オクトパスマージ（parent 3つ以上）:
+Octopus merge (three or more parents):
 ┌──────────────┐
 │ commit: fff  │
 │ tree: www    │
@@ -522,7 +522,7 @@ $ git merge feature/a feature/b feature/c
 # → parentが3つのcommitが作成される
 ```
 
-#### GPG署名付きコミット
+#### GPG-Signed Commits
 
 ```bash
 # 署名付きコミットの作成
@@ -549,9 +549,9 @@ gpg:                using RSA key ABC123...
 gpg: Good signature from "Gaku <gaku@example.com>" [ultimate]
 ```
 
-### 2.4 tag（タグ / 注釈付きタグ）
+### 2.4 tag (Annotated Tag)
 
-特定のオブジェクト（通常はcommit）に名前とメタデータを付与する。
+Assigns a name and metadata to a specific object (typically a commit).
 
 ```bash
 # 注釈付きタグの作成
@@ -567,20 +567,20 @@ tagger Gaku <gaku@example.com> 1707600000 +0900
 Release version 1.0.0
 ```
 
-**軽量タグ vs 注釈付きタグ**:
+**Lightweight tag vs. annotated tag**:
 
-| 特性             | 軽量タグ (lightweight) | 注釈付きタグ (annotated) |
-|------------------|------------------------|--------------------------|
-| オブジェクト作成 | なし（refのみ）        | tagオブジェクトを作成    |
-| メッセージ       | なし                   | あり                     |
-| 署名             | 不可                   | GPG署名可能              |
-| 推奨用途         | 一時的なマーキング     | リリースタグ             |
-| `git describe`   | デフォルトで無視       | 認識される               |
-| `git push`       | 明示的に指定が必要     | 同様                     |
+| Property          | Lightweight tag           | Annotated tag                 |
+|-------------------|---------------------------|-------------------------------|
+| Object creation   | None (ref only)           | Creates a tag object          |
+| Message           | None                      | Yes                           |
+| Signing           | Not possible              | GPG signing possible          |
+| Recommended use   | Temporary marking         | Release tags                  |
+| `git describe`    | Ignored by default        | Recognized                    |
+| `git push`        | Must be specified explicitly | Same                       |
 
-#### タグが参照できるオブジェクト
+#### Objects That a tag Can Reference
 
-tagオブジェクトは通常commitを参照するが、任意のオブジェクト型を参照できる:
+A tag object normally references a commit, but it can reference any object type:
 
 ```bash
 # commitを参照するタグ（最も一般的）
@@ -597,17 +597,17 @@ $ git tag -a readme-v1 -m "README v1" $BLOB_HASH
 $ git tag -a meta-tag -m "Meta tag" v1.0.0
 ```
 
-#### タグの内部表現の詳細
+#### Detailed Internal Representation of Tags
 
 ```
-軽量タグ:
-  .git/refs/tags/v1.0.0-light → "abc123def456..."（commitのSHA-1が直接書かれる）
+Lightweight tag:
+  .git/refs/tags/v1.0.0-light → "abc123def456..."（SHA-1 of the commit is written directly）
 
-注釈付きタグ:
-  .git/refs/tags/v1.0.0 → "xyz789..."（tagオブジェクトのSHA-1）
+Annotated tag:
+  .git/refs/tags/v1.0.0 → "xyz789..."（SHA-1 of the tag object）
 
-  tagオブジェクト (xyz789...):
-    object abc123def456...    ← 参照先commit
+  tag object (xyz789...):
+    object abc123def456...    ← referenced commit
     type commit
     tag v1.0.0
     tagger Gaku <gaku@example.com> 1707600000 +0900
@@ -640,7 +640,7 @@ v1.0.0        tag    xyz789
 v1.0.0-light  commit abc123
 ```
 
-#### GPG署名付きタグ
+#### GPG-Signed Tags
 
 ```bash
 # GPG署名付きタグの作成
@@ -659,14 +659,14 @@ $ git tag -s v2.0.0 -m "SSH-signed release"
 
 ---
 
-## 3. SHA-1ハッシュとコンテンツアドレッシング
+## 3. SHA-1 Hashes and Content Addressing
 
-### 3.1 ハッシュの計算方法
+### 3.1 How Hashes Are Calculated
 
-Gitオブジェクトのハッシュは以下の形式で計算される:
+Git object hashes are computed in the following format:
 
 ```
-SHA-1( "<型> <サイズ>\0<内容>" )
+SHA-1( "<type> <size>\0<content>" )
 ```
 
 ```bash
@@ -684,7 +684,7 @@ $ echo -n "Hello, Git!" | git hash-object --stdin
 557db03de997c86a4a028e1ebd3a1ceb225be238
 ```
 
-#### 各オブジェクト型のハッシュ計算
+#### Hash Calculation for Each Object Type
 
 ```bash
 # blobのハッシュ計算
@@ -717,33 +717,35 @@ print(sha1)
 "
 ```
 
-### 3.2 コンテンツアドレッシングの利点
+### 3.2 Advantages of Content Addressing
 
-コンテンツアドレッシングがもたらす具体的なメリットを整理する:
+Here is an organized summary of the concrete benefits that content addressing provides:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│         コンテンツアドレッシングの5つの利点               │
+│         Five Benefits of Content Addressing             │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│ 1. 自動重複排除                                         │
-│    同じ内容 → 同じハッシュ → 1つのオブジェクトで済む      │
+│ 1. Automatic deduplication                              │
+│    Same content → same hash → only one object needed    │
 │                                                         │
-│ 2. データ完全性の保証                                    │
-│    ハッシュが内容から導出されるため、改竄検知が自動的      │
-│    ストレージ障害やネットワークエラーも検出可能            │
+│ 2. Guaranteed data integrity                            │
+│    Hashes are derived from content, so tampering is     │
+│    detected automatically; storage and network errors   │
+│    are also detectable                                  │
 │                                                         │
-│ 3. 効率的な比較                                          │
-│    2つのtreeの差分 = ハッシュの比較だけで判定可能          │
-│    ハッシュが同じ → 中身も同じ（比較不要）                │
+│ 3. Efficient comparison                                 │
+│    Diff of two trees = determined by hash comparison    │
+│    Same hash → same content (no comparison needed)      │
 │                                                         │
-│ 4. 不変性（Immutability）                                │
-│    オブジェクトは一度作成されたら変更不可能                │
-│    「変更」= 新しいオブジェクトの作成                     │
+│ 4. Immutability                                         │
+│    Objects cannot be changed once created               │
+│    "Modification" = creating a new object               │
 │                                                         │
-│ 5. 分散処理との親和性                                    │
-│    同じ内容は誰が計算しても同じハッシュ                   │
-│    → リポジトリ間のデータ交換が効率的                     │
+│ 5. Affinity with distributed processing                 │
+│    The same content yields the same hash regardless of  │
+│    who calculates it                                    │
+│    → Data exchange between repositories is efficient    │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -762,24 +764,24 @@ missing blob 557db03de997c86a4a028e1ebd3a1ceb225be238
 # → 即座に検出される
 ```
 
-### 3.3 SHA-256への移行
+### 3.3 Migration to SHA-256
 
-Git 2.42以降、SHA-256がオプションとして利用可能になっている。
+Since Git 2.42, SHA-256 has been available as an option.
 
 ```bash
 # SHA-256を使用するリポジトリの作成
 $ git init --object-format=sha256 my-repo
 ```
 
-| 項目         | SHA-1                  | SHA-256                |
-|--------------|------------------------|------------------------|
-| ハッシュ長   | 40文字（160bit）       | 64文字（256bit）       |
-| 衝突耐性     | 理論的に破られている   | 安全                   |
-| 互換性       | 全Gitツール対応        | 一部未対応             |
-| デフォルト   | Yes                    | No（オプトイン）       |
-| パフォーマンス| 高速                  | やや遅い（約10-20%）   |
+| Item            | SHA-1                          | SHA-256                    |
+|-----------------|--------------------------------|----------------------------|
+| Hash length     | 40 characters (160 bits)       | 64 characters (256 bits)   |
+| Collision resistance | Theoretically broken      | Secure                     |
+| Compatibility   | Supported by all Git tools     | Some tools not yet supported |
+| Default         | Yes                            | No (opt-in)                |
+| Performance     | Fast                           | Slightly slower (~10-20%)  |
 
-#### SHA-256移行の詳細
+#### SHA-256 Migration Details
 
 ```bash
 # SHA-256リポジトリの作成と確認
@@ -801,7 +803,7 @@ $ git rev-parse --show-object-format
 sha256
 ```
 
-#### SHA-1衝突検出（sha1dc）
+#### SHA-1 Collision Detection (sha1dc)
 
 ```bash
 # Gitが使用しているSHA-1実装を確認
@@ -817,7 +819,7 @@ git version 2.44.0
 # 検出した場合はハッシュ値を意図的に変更して衝突を回避する
 ```
 
-### 3.4 ハッシュの短縮表現と曖昧性
+### 3.4 Abbreviated Hashes and Ambiguity
 
 ```bash
 # 短縮ハッシュの解決
@@ -834,12 +836,12 @@ abc1234def567890...
 abc1235678901234...
 # → 複数のオブジェクトがマッチする場合がある
 
-# リポジトリ内のオブジェクト数と推奨短縮長の関係
-# オブジェクト数     推奨短縮長
-# 1,000              7文字
-# 100,000            8-9文字
-# 1,000,000          10文字
-# 10,000,000         11-12文字
+# Relationship between number of objects in a repository and recommended abbreviated length
+# Number of objects     Recommended length
+# 1,000                 7 characters
+# 100,000               8-9 characters
+# 1,000,000             10 characters
+# 10,000,000            11-12 characters
 
 # Linuxカーネルリポジトリの場合
 $ git -C /path/to/linux log --format='%h' -1
@@ -848,9 +850,9 @@ $ git -C /path/to/linux log --format='%h' -1
 
 ---
 
-## 4. オブジェクトの格納構造
+## 4. Object Storage Structure
 
-### 4.1 .git/objects ディレクトリ
+### 4.1 The .git/objects Directory
 
 ```
 .git/objects/
@@ -859,15 +861,15 @@ $ git -C /path/to/linux log --format='%h' -1
 ├── 8f/
 │   └── 94139338f9404f26296befa88755fc2598c289
 ├── info/
-│   └── packs                                      ← packfile一覧
+│   └── packs                                      ← list of packfiles
 └── pack/
-    ├── pack-abc123...def456.idx    ← packfileインデックス
-    └── pack-abc123...def456.pack   ← packfile本体
+    ├── pack-abc123...def456.idx    ← packfile index
+    └── pack-abc123...def456.pack   ← packfile body
 ```
 
-**loose object**はzlib圧縮されて個別ファイルとして保存される。`git gc`実行後にpackfileへまとめられる。
+**Loose objects** are stored as individual files compressed with zlib. They are consolidated into packfiles after running `git gc`.
 
-#### loose objectの詳細な保存プロセス
+#### Detailed Storage Process for Loose Objects
 
 ```bash
 # 1. 内容をzlib圧縮
@@ -891,28 +893,28 @@ print(f'圧縮後サイズ: {len(compressed)} bytes')
 print(f'圧縮率: {len(compressed)/len(store)*100:.1f}%')
 "
 
-# 2. .git/objects/<先頭2文字>/<残り38文字> に保存
-# 先頭2文字をディレクトリ名にする理由:
-# - ファイルシステムの性能（1ディレクトリに大量のファイルがあると遅い）
-# - 256個のサブディレクトリに分散される
+# 2. .git/objects/<first 2 chars>/<remaining 38 chars> に保存
+# Reason for using the first 2 characters as the directory name:
+# - File system performance (many files in one directory is slow)
+# - Distributed across 256 subdirectories
 ```
 
-#### infoディレクトリとalternates
+#### The info Directory and alternates
 
 ```bash
 # alternatesファイル: 他のリポジトリのオブジェクトを参照する
 $ cat .git/objects/info/alternates
 /path/to/other/repo/.git/objects
 
-# 使用例: CIでの共有オブジェクトストア
-# 同じプロジェクトの複数ブランチをビルドする場合、
-# 共通のオブジェクトを共有してディスク使用量を削減
+# Usage example: shared object store in CI
+# When building multiple branches of the same project,
+# share common objects to reduce disk usage
 
 $ git clone --reference /path/to/cached-repo https://github.com/org/repo.git
-# → cachedリポジトリのオブジェクトを参照し、ネットワーク転送を削減
+# → References objects from the cached repo, reducing network transfer
 ```
 
-### 4.2 オブジェクト間の参照関係
+### 4.2 Reference Relationships Between Objects
 
 ```
                     ┌──────────┐
@@ -936,35 +938,35 @@ $ git clone --reference /path/to/cached-repo https://github.com/org/repo.git
 └──────────┘  │   └──────────┘  │   └──────────┘
               │                 │
               ▼                 ▼
-           blob(同一内容なら共有される)
+           blob (shared if content is identical)
 ```
 
-### 4.3 オブジェクトの到達可能性（Reachability）
+### 4.3 Object Reachability
 
-ガベージコレクションにおいて、オブジェクトの「到達可能性」は重要な概念:
+In garbage collection, the "reachability" of objects is an important concept:
 
 ```
-到達可能なオブジェクト（GCで保持される）:
+Reachable objects (retained by GC):
   refs/heads/main → commit → tree → blob
   refs/tags/v1.0  → tag → commit → tree → blob
   refs/remotes/origin/main → commit → ...
   refs/stash → commit → ...
 
-到達不可能なオブジェクト（GCで削除される可能性）:
-  - amend前の古いcommit（reflogの期限切れ後）
-  - resetで捨てられたcommit
-  - filter-branchで書き換えられた古いオブジェクト
-  - abortされたmergeの中間オブジェクト
+Unreachable objects (may be deleted by GC):
+  - Old commits before amend (after reflog expiry)
+  - Commits discarded by reset
+  - Old objects rewritten by filter-branch
+  - Intermediate objects from aborted merges
 
-到達可能性の確認:
+Checking reachability:
 $ git fsck --unreachable
 unreachable blob abc123...
 unreachable commit def456...
 unreachable tree ghi789...
 
-# 到達不可能なオブジェクトの詳細
+# Details of unreachable objects
 $ git fsck --unreachable --no-reflogs
-# → reflogからも参照されないオブジェクトのみ表示
+# → Shows only objects not referenced by reflog either
 ```
 
 ```bash
@@ -999,19 +1001,19 @@ $ git cat-file -t $OLD_COMMIT
 fatal: Not a valid object name  # → 削除された
 ```
 
-### 4.4 オブジェクトの圧縮効率
+### 4.4 Object Compression Efficiency
 
 ```bash
 # リポジトリのオブジェクト統計を確認
 $ git count-objects -v
-count: 43          ← loose objectの数
-size: 128          ← loose objectの合計サイズ（KB）
-in-pack: 12345     ← packfile内のオブジェクト数
-packs: 1           ← packfileの数
-size-pack: 4567    ← packfileの合計サイズ（KB）
-prune-packable: 0  ← packfileに含まれているloose objectの数
-garbage: 0         ← 不正なファイルの数
-size-garbage: 0    ← 不正なファイルのサイズ（KB）
+count: 43          ← number of loose objects
+size: 128          ← total size of loose objects (KB)
+in-pack: 12345     ← number of objects in packfiles
+packs: 1           ← number of packfiles
+size-pack: 4567    ← total size of packfiles (KB)
+prune-packable: 0  ← number of loose objects also in packfiles
+garbage: 0         ← number of invalid files
+size-garbage: 0    ← size of invalid files (KB)
 
 # 大きなオブジェクトを特定する
 $ git rev-list --objects --all |
@@ -1025,9 +1027,9 @@ blob def456... 2097152 data/sample.csv
 
 ---
 
-## 5. 実践: 低レベルコマンドでオブジェクトを操作する
+## 5. Practice: Manipulating Objects with Low-Level Commands
 
-### 5.1 blobからcommitまで手動で構築
+### 5.1 Manually Building from blob to commit
 
 ```bash
 # 1. 空のリポジトリを作成
@@ -1062,7 +1064,7 @@ $ git show HEAD:main.js
 console.log('hello');
 ```
 
-### 5.2 複数ファイル・ディレクトリ構造の手動構築
+### 5.2 Manually Building Multi-File Directory Structures
 
 ```bash
 # より複雑な構造を手動で構築する
@@ -1109,7 +1111,7 @@ $ git cat-file -p src_tree_hash
 100644 blob utils_hash     utils.js
 ```
 
-### 5.3 treeの差分を手動で解析する
+### 5.3 Manually Parsing tree Diffs
 
 ```bash
 # 2つのtreeの差分を確認（git diff-treeの内部動作を理解する）
@@ -1118,37 +1120,37 @@ $ git diff-tree tree_hash_1 tree_hash_2
 :000000 100644 0000000 new_blob A  src/config.js
 :100644 000000 old_blob 0000000 D  src/legacy.js
 
-# 出力形式の解説:
-# :旧モード 新モード 旧ハッシュ 新ハッシュ ステータス パス
-# ステータス:
-#   A = Added（追加）
-#   M = Modified（変更）
-#   D = Deleted（削除）
-#   R = Renamed（リネーム）
-#   C = Copied（コピー）
-#   T = Type changed（型変更、例: ファイル→シンボリックリンク）
+# Output format explanation:
+# :old-mode new-mode old-hash new-hash status path
+# Status:
+#   A = Added
+#   M = Modified
+#   D = Deleted
+#   R = Renamed
+#   C = Copied
+#   T = Type changed (e.g., file → symbolic link)
 
 # リネーム検出付き
 $ git diff-tree -M tree_hash_1 tree_hash_2
 :100644 100644 abc123 abc123 R100  old-name.js  new-name.js
-# R100 = 100%一致のリネーム（内容が完全に同じ）
-# R075 = 75%一致のリネーム（内容が75%同じ）
+# R100 = 100% match rename (content is completely identical)
+# R075 = 75% match rename (content is 75% identical)
 ```
 
-### 5.4 オブジェクトの検査
+### 5.4 Inspecting Objects
 
 ```bash
 # 全オブジェクトの一覧（loose + packed）
 $ git rev-list --all --objects
 
 # 特定オブジェクトのサイズと型
-$ git cat-file -s abc123    # サイズ（バイト）
-$ git cat-file -t abc123    # 型
+$ git cat-file -s abc123    # size (bytes)
+$ git cat-file -t abc123    # type
 
 # オブジェクトのダンプ（デバッグ用）
 $ git cat-file --batch-check --batch-all-objects
 
-# 全オブジェクトの型別カウント
+# Count objects by type
 $ git cat-file --batch-check --batch-all-objects | \
     awk '{print $2}' | sort | uniq -c | sort -rn
   12345 blob
@@ -1157,7 +1159,7 @@ $ git cat-file --batch-check --batch-all-objects | \
       5 tag
 ```
 
-### 5.5 オブジェクトの存在確認と整合性チェック
+### 5.5 Verifying Object Existence and Integrity
 
 ```bash
 # 特定のオブジェクトが存在するか確認
@@ -1169,28 +1171,28 @@ Checking object directories: 100%
 Checking objects: 100%
 Checking connectivity: 12345 objects reachable
 
-# 厳密なチェック（より多くの問題を検出）
+# Strict check (detects more problems)
 $ git fsck --strict
-# 通常はwarningとなる問題もerrorとして報告
+# Problems that would normally be warnings are reported as errors
 
-# dangling objectの確認
+# Check for dangling objects
 $ git fsck --no-reflogs
 dangling commit abc123...
 dangling blob def456...
-# dangling = どの参照からも到達できないオブジェクト
+# dangling = objects not reachable from any reference
 
-# 修復手順（破損したリポジトリ）
+# Repair procedure (corrupted repository)
 $ git fsck --full 2>&1 | grep "missing"
 missing blob abc123...
-# → 他のクローンからオブジェクトをコピーして修復
+# → Copy the object from another clone to repair
 $ cp /path/to/backup/.git/objects/ab/c123... .git/objects/ab/c123...
 ```
 
 ---
 
-## 6. 実務シナリオ: オブジェクトモデルの応用
+## 6. Practical Scenarios: Applying the Object Model
 
-### 6.1 リポジトリの容量分析
+### 6.1 Repository Size Analysis
 
 ```bash
 # リポジトリサイズの詳細分析スクリプト
@@ -1234,7 +1236,7 @@ echo "Merge commits: $(git rev-list --all --merges --count)"
 echo "Authors: $(git shortlog -sn --all | wc -l)"
 ```
 
-### 6.2 特定ファイルの全履歴をオブジェクトレベルで追跡
+### 6.2 Tracking All History of a Specific File at the Object Level
 
 ```bash
 # ファイルの各バージョンのblobハッシュを一覧表示
@@ -1256,18 +1258,18 @@ done
 $ git diff blob_hash_1 blob_hash_2
 ```
 
-### 6.3 サブモジュールとオブジェクトモデル
+### 6.3 Submodules and the Object Model
 
 ```bash
 # サブモジュールはtree内でモード160000として記録される
 $ git ls-tree HEAD
 100644 blob abc123... .gitmodules
-160000 commit def456... libs/external-lib    ← サブモジュール
+160000 commit def456... libs/external-lib    ← submodule
 
 # サブモジュールのcommitハッシュを確認
 $ git ls-tree HEAD libs/external-lib
 160000 commit def456... libs/external-lib
-# → def456... はサブモジュールリポジトリのcommitハッシュ
+# → def456... is the commit hash of the submodule repository
 
 # .gitmodulesファイルの内容
 $ git cat-file -p HEAD:.gitmodules
@@ -1276,312 +1278,312 @@ $ git cat-file -p HEAD:.gitmodules
     url = https://github.com/org/external-lib.git
 ```
 
-### 6.4 shallow cloneとオブジェクトモデル
+### 6.4 Shallow Clone and the Object Model
 
 ```bash
 # shallow clone: 履歴を制限してクローン
 $ git clone --depth=1 https://github.com/org/repo.git
-# → 最新のcommitとそのtree/blobのみ取得
+# → Only the latest commit and its tree/blobs are fetched
 
 # shallow cloneのオブジェクト状態
 $ git cat-file -p HEAD
 tree abc123...
-parent def456...     ← 存在するが、このcommitオブジェクトは取得されていない
+parent def456...     ← exists, but this commit object was not fetched
 author ...
 
-# shallow boundary（浅いクローンの境界）を確認
+# Check the shallow boundary
 $ cat .git/shallow
-def456789...    ← この先の履歴は持っていない
+def456789...    ← history beyond this point is not available
 
-# 深さを追加で取得
+# Fetch additional depth
 $ git fetch --deepen=10
-# → 10コミット分追加で取得
+# → Fetches 10 more commits
 
-# 完全な履歴を取得
+# Fetch full history
 $ git fetch --unshallow
-# → 全コミットを取得（.git/shallowファイルが削除される）
+# → Fetches all commits (the .git/shallow file is removed)
 ```
 
-### 6.5 replace objectによるオブジェクトの差し替え
+### 6.5 Replacing Objects with replace objects
 
 ```bash
 # git replaceを使ってオブジェクトを「差し替え」る
-# （元のオブジェクトは変更せず、参照時に別のオブジェクトを返す）
+# (The original object is not modified; a different object is returned on access)
 
-# ユースケース1: コミットメッセージの修正（歴史を書き換えずに）
+# Use case 1: Fixing a commit message (without rewriting history)
 $ git replace --edit HEAD
-# → エディタが開き、commitオブジェクトの内容を編集できる
-# → .git/refs/replace/<original-hash> に新しいハッシュが記録される
+# → An editor opens, allowing you to edit the contents of the commit object
+# → The new hash is recorded in .git/refs/replace/<original-hash>
 
-# ユースケース2: 大きな歴史の接合（graft point）
-# 別々のリポジトリの歴史を接合する
+# Use case 2: Grafting histories (graft point)
+# Joining the histories of separate repositories
 $ git replace --graft <commit> <new-parent>
 
-# replaceオブジェクトの一覧
+# List replace objects
 $ git replace -l
 
-# replaceを無視してオリジナルを参照
+# Access the original, ignoring replacements
 $ git --no-replace-objects cat-file -p HEAD
 
-# replaceの削除
+# Delete a replacement
 $ git replace -d <original-hash>
 ```
 
 ---
 
-## 7. 大規模リポジトリとオブジェクトモデル
+## 7. Large Repositories and the Object Model
 
-### 7.1 モノレポにおけるオブジェクト数の爆発
+### 7.1 Object Count Explosion in Monorepos
 
 ```
-大規模モノレポの典型的なオブジェクト数:
+Typical object counts for large monorepos:
 
-リポジトリ例           | オブジェクト数  | サイズ
+Repository example        | Object count       | Size
 ─────────────────────────────────────────────────
-小規模OSS             | 1,000 - 10,000     | 1-10 MB
-中規模Webアプリ        | 10,000 - 100,000   | 10-100 MB
-大規模モノレポ         | 1,000,000+         | 1-10 GB
-Linuxカーネル          | 8,000,000+         | 3+ GB
-Chromium               | 15,000,000+        | 10+ GB
+Small OSS                 | 1,000 - 10,000     | 1-10 MB
+Medium-scale web app      | 10,000 - 100,000   | 10-100 MB
+Large monorepo            | 1,000,000+         | 1-10 GB
+Linux kernel              | 8,000,000+         | 3+ GB
+Chromium                  | 15,000,000+        | 10+ GB
 ```
 
 ```bash
 # 大規模リポジトリの最適化設定
-$ git config core.commitGraph true        # commit-graphを有効化
-$ git config gc.writeCommitGraph true      # GC時にcommit-graphを更新
-$ git config feature.manyFiles true        # 大量ファイル向け最適化
-$ git config core.untrackedCache true      # untracked fileのキャッシュ
-$ git config core.fsmonitor true           # ファイルシステム監視
+$ git config core.commitGraph true        # enable commit-graph
+$ git config gc.writeCommitGraph true      # update commit-graph on GC
+$ git config feature.manyFiles true        # optimizations for many files
+$ git config core.untrackedCache true      # cache untracked files
+$ git config core.fsmonitor true           # file system monitoring
 
-# commit-graphの生成
+# Generate commit-graph
 $ git commit-graph write --reachable
-# → .git/objects/info/commit-graphs/ にバイナリファイルが作成
-# → git logの高速化に大きく寄与する
+# → A binary file is created in .git/objects/info/commit-graphs/
+# → Greatly contributes to speeding up git log
 
-# commit-graphの内容確認
+# Verify commit-graph
 $ git commit-graph verify
 ```
 
-### 7.2 partial cloneとオブジェクトの遅延取得
+### 7.2 Partial Clone and Lazy Fetching of Objects
 
 ```bash
 # blobless clone: blobを取得しない
 $ git clone --filter=blob:none https://github.com/org/large-repo.git
-# → commit + treeのみ取得、blobはcheckout時にオンデマンド取得
+# → Only commits + trees are fetched; blobs are fetched on-demand at checkout
 
 # treeless clone: tree + blobを取得しない
 $ git clone --filter=tree:0 https://github.com/org/large-repo.git
-# → commitのみ取得、tree/blobは必要時に取得
+# → Only commits are fetched; trees/blobs are fetched when needed
 
-# サイズ制限付きclone: 指定サイズ以上のblobを除外
+# Size-limited clone: exclude blobs above a specified size
 $ git clone --filter=blob:limit=1m https://github.com/org/large-repo.git
-# → 1MB以上のblobは取得しない
+# → Blobs larger than 1MB are not fetched
 
-# 遅延取得されたオブジェクトの確認
+# Check lazily-fetched objects
 $ git rev-list --objects --all --missing=print | grep "^?"
-?abc123...    ← 未取得のオブジェクト
+?abc123...    ← unfetched objects
 ?def456...
 
-# 明示的にオブジェクトを取得
+# Explicitly fetch objects
 $ git fetch origin --filter=blob:none
 ```
 
-### 7.3 sparse-checkout とオブジェクトの関係
+### 7.3 sparse-checkout and Its Relationship to Objects
 
 ```bash
 # sparse-checkoutの設定
 $ git sparse-checkout init --cone
 $ git sparse-checkout set src/frontend
 
-# sparse-checkout時のオブジェクト取得
-# → treeオブジェクトは全て取得されるが、
-#   blobはsparse-checkoutのパターンに一致するファイルのみcheckoutされる
-# → partial cloneと組み合わせると、不要なblobは全く取得されない
+# Object fetching with sparse-checkout:
+# → All tree objects are fetched, but
+#   only blobs matching the sparse-checkout pattern are checked out
+# → Combined with partial clone, unnecessary blobs are never fetched at all
 
 $ git clone --filter=blob:none https://github.com/org/large-repo.git
 $ cd large-repo
 $ git sparse-checkout init --cone
 $ git sparse-checkout set src/frontend
-# → src/frontend/ 配下のblobのみオンデマンド取得される
+# → Only blobs under src/frontend/ are fetched on-demand
 ```
 
 ---
 
-## 8. アンチパターンと解決策
+## 8. Anti-Patterns and Solutions
 
-### アンチパターン1: 巨大バイナリファイルのコミット
+### Anti-Pattern 1: Committing Large Binary Files
 
 ```bash
 # NG: 巨大ファイルを直接コミット
 $ git add dataset-5gb.csv
 $ git commit -m "Add dataset"
-# → blobが5GB消費、gc後もpackfileが肥大化
-# → clone時に全履歴をダウンロードする必要がある
+# → A 5GB blob is consumed; the packfile becomes bloated even after gc
+# → The full history must be downloaded on every clone
 
-# OK: Git LFS を使用する
+# OK: Use Git LFS
 $ git lfs install
 $ git lfs track "*.csv"
 $ git add .gitattributes dataset-5gb.csv
 $ git commit -m "Add dataset via LFS"
 ```
 
-**理由**: Gitのオブジェクトモデルはテキストファイルに最適化されている。バイナリの差分圧縮効率が悪く、リポジトリサイズが指数的に増大する。
+**Reason**: Git's object model is optimized for text files. Delta compression efficiency for binaries is poor, causing repository size to grow exponentially.
 
 ```bash
-# 既にコミットされた巨大ファイルの影響を確認
+# Check the impact of large files already committed
 $ git rev-list --objects --all | \
     git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | \
     grep '^blob' | sort -k3 -n -r | head -5
 
-# 巨大ファイルを履歴から完全に除去する
+# Completely remove a large file from history
 $ git filter-repo --path dataset-5gb.csv --invert-paths
-# ※ git filter-branchは非推奨、git filter-repoを使う
+# ※ git filter-branch is deprecated; use git filter-repo
 
-# LFS移行ツール
+# LFS migration tool
 $ git lfs migrate import --include="*.csv" --everything
-# → 全ブランチの全履歴でCSVファイルをLFSに移行
+# → Migrates CSV files to LFS across all branches and all history
 ```
 
-### アンチパターン2: SHA-1の短縮形を固定値として使用
+### Anti-Pattern 2: Using Abbreviated SHA-1 as a Fixed Value
 
 ```bash
-# NG: スクリプトに短縮ハッシュをハードコード
+# NG: Hard-coding abbreviated hashes in scripts
 DEPLOY_COMMIT="abc123"
 git checkout $DEPLOY_COMMIT
 
-# OK: タグやブランチ名を使う、または十分な長さのハッシュを使用
+# OK: Use tag or branch names, or a hash of sufficient length
 DEPLOY_TAG="v1.0.0"
 git checkout $DEPLOY_TAG
 
-# OK: フルハッシュを使う（自動化スクリプト）
+# OK: Use the full hash (for automation scripts)
 DEPLOY_COMMIT=$(git rev-parse v1.0.0)
 git checkout $DEPLOY_COMMIT
 ```
 
-**理由**: リポジトリが大きくなると短縮ハッシュが衝突する可能性がある。Git 2.11以降ではデフォルトの短縮長が7から動的に調整されるようになったが、固定値としての使用は危険。
+**Reason**: As a repository grows, abbreviated hashes can collide. Since Git 2.11, the default abbreviation length is dynamically adjusted rather than fixed at 7, but using it as a fixed value is dangerous.
 
-### アンチパターン3: オブジェクトデータベースの直接操作
+### Anti-Pattern 3: Directly Manipulating the Object Database
 
 ```bash
-# NG: .git/objects/ を手動で操作
+# NG: Manually operating on .git/objects/
 $ rm .git/objects/ab/c123def456...
-# → リポジトリが破損する
+# → The repository becomes corrupted
 
-# NG: .git/objects/ をコピーしてバックアップ
+# NG: Backing up by copying .git/objects/
 $ cp -r .git/objects/ /backup/
-# → packfileのロック状態が不整合になる可能性
+# → The lock state of packfiles can become inconsistent
 
-# OK: Gitコマンドを使う
-$ git gc                    # オブジェクトの整理
-$ git prune                 # 到達不可能なオブジェクトの削除
-$ git bundle create backup.bundle --all  # バックアップ
+# OK: Use Git commands
+$ git gc                    # clean up objects
+$ git prune                 # delete unreachable objects
+$ git bundle create backup.bundle --all  # backup
 ```
 
-### アンチパターン4: 機密情報のコミット
+### Anti-Pattern 4: Committing Sensitive Information
 
 ```bash
-# NG: 機密情報をコミット
+# NG: Committing sensitive information
 $ echo "API_KEY=sk-abc123" > .env
 $ git add .env && git commit -m "Add config"
-# → blobオブジェクトとして永続的に保存される
-# → git rmしても過去のcommitからアクセス可能
+# → Permanently stored as a blob object
+# → Accessible from past commits even after git rm
 
-# 機密情報を履歴から完全に除去する
+# Completely remove sensitive information from history
 $ git filter-repo --path .env --invert-paths --force
-# → 全commitが書き換えられ、新しいSHA-1が割り当てられる
-# → すべてのフォーク・クローンに影響するため注意
+# → All commits are rewritten and assigned new SHA-1 hashes
+# → Affects all forks and clones, so proceed with caution
 
-# OK: .gitignoreで最初から除外
+# OK: Exclude from the start with .gitignore
 $ echo ".env" >> .gitignore
 $ git add .gitignore && git commit -m "Ignore .env"
 ```
 
-### アンチパターン5: 頻繁なforce pushによるオブジェクトの散乱
+### Anti-Pattern 5: Object Accumulation from Frequent Force Pushes
 
 ```bash
-# NG: 頻繁にrebase + force push
+# NG: Frequent rebase + force push
 $ git rebase -i HEAD~10
 $ git push --force
-# → リモートリポジトリに到達不可能なオブジェクトが蓄積
-# → 他の開発者のローカルリポジトリとの整合性が崩れる
+# → Unreachable objects accumulate in the remote repository
+# → Consistency with other developers' local repositories is broken
 
-# OK: force-with-leaseを使用し、影響を最小限に
+# OK: Use force-with-lease to minimize impact
 $ git push --force-with-lease
-# → リモートの状態が想定と異なる場合は拒否される
+# → Rejected if the remote state differs from what is expected
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1. 同じ内容のファイルを10個コミットすると、blobは10個作られるのか？
+### Q1. If you commit 10 files with the same content, are 10 blobs created?
 
-**A1.** いいえ、**1つだけ**です。Gitはコンテンツアドレッシングを採用しているため、同じ内容は同じSHA-1ハッシュを持ち、1つのblobオブジェクトが共有されます。treeオブジェクトが異なるファイル名で同じblobのSHA-1を参照します。
+**A1.** No, only **one**. Because Git uses content addressing, identical content has the same SHA-1 hash, so a single blob object is shared. Tree objects reference the same blob SHA-1 under different filenames.
 
 ```bash
 # 検証
 $ for i in $(seq 1 10); do cp template.txt "file_$i.txt"; done
 $ git add -A && git commit -m "Add 10 identical files"
 $ git ls-tree HEAD | awk '{print $3}' | sort -u | wc -l
-# → 1（blobは1つだけ）
+# → 1 (only one blob)
 ```
 
-### Q2. コミットを`git commit --amend`で修正すると、元のコミットはどうなるのか？
+### Q2. What happens to the original commit when you amend it with `git commit --amend`?
 
-**A2.** 元のコミットオブジェクトは**削除されずにオブジェクトデータベースに残り続けます**。新しいコミットオブジェクトが作成され、ブランチのrefが新しいコミットを指すように更新されます。元のコミットは`reflog`から参照可能で、`git gc`が実行されるまで（デフォルト90日間）保持されます。
+**A2.** The original commit object **remains in the object database without being deleted**. A new commit object is created and the branch ref is updated to point to the new commit. The original commit can still be referenced from `reflog` and is retained until `git gc` is run (default: 90 days).
 
 ```bash
-# amend前のcommitを復元する
+# Restore the pre-amend commit
 $ git reflog
 abc123 HEAD@{0}: commit (amend): fixed message
 def456 HEAD@{1}: commit: original message
 
 $ git checkout def456
-# → amend前の状態を確認できる
+# → You can inspect the pre-amend state
 
 $ git branch recover-amend def456
-# → amend前のcommitをブランチとして保存
+# → Save the pre-amend commit as a branch
 ```
 
-### Q3. SHA-1の衝突が発生したらどうなるのか？
+### Q3. What happens if a SHA-1 collision occurs?
 
-**A3.** 理論的には異なる内容が同じハッシュを持つ可能性がありますが、実用上の確率は天文学的に低い（2^80回の試行で50%）。2017年にGoogleがSHA-1衝突を実証しましたが、Gitは`sha1dc`（衝突検出付きSHA-1）を採用しており、既知の攻撃パターンを検出・拒否します。将来的にはSHA-256への完全移行が計画されています。
+**A3.** In theory, different content could have the same hash, but the practical probability is astronomically low (50% chance after 2^80 attempts). In 2017, Google demonstrated a SHA-1 collision, but Git uses `sha1dc` (SHA-1 with collision detection), which detects and rejects known attack patterns. A complete migration to SHA-256 is planned for the future.
 
 ```
-衝突の確率（バースデーパラドックス）:
-  オブジェクト数    衝突確率
-  10^6             約 10^-36（事実上ゼロ）
-  10^9             約 10^-30
-  10^12            約 10^-24
-  10^15            約 10^-18
+Collision probability (birthday paradox):
+  Number of objects    Collision probability
+  10^6                 ~10^-36 (virtually zero)
+  10^9                 ~10^-30
+  10^12                ~10^-24
+  10^15                ~10^-18
 
-  参考: Linuxカーネルのオブジェクト数は約 10^7
-  → 衝突確率は宇宙的にゼロ
+  Reference: The Linux kernel has about 10^7 objects
+  → Collision probability is cosmically zero
 ```
 
-### Q4. git gcはいつ自動的に実行されるのか？
+### Q4. When does `git gc` run automatically?
 
-**A4.** 以下の条件で自動的に実行されます:
+**A4.** It runs automatically under the following conditions:
 
 ```bash
-# 自動GCのトリガー条件
+# Trigger conditions for automatic GC
 $ git config gc.auto
-6700    # loose objectがこの数を超えると自動GC（デフォルト: 6700）
+6700    # Auto GC when loose objects exceed this count (default: 6700)
 
 $ git config gc.autoPackLimit
-50      # packfileがこの数を超えると自動GC（デフォルト: 50）
+50      # Auto GC when packfiles exceed this count (default: 50)
 
-# 自動GCを無効化
+# Disable automatic GC
 $ git config gc.auto 0
 
-# 手動GC
+# Manual GC
 $ git gc
-$ git gc --aggressive    # より積極的な圧縮（時間がかかる）
+$ git gc --aggressive    # More aggressive compression (takes longer)
 ```
 
-### Q5. blobの内容が1バイトだけ変わった場合、新しいblobが作られるのか？
+### Q5. If a blob's content changes by just one byte, is a new blob created?
 
-**A5.** はい、**完全に新しいblobオブジェクト**が作成されます。loose objectの時点ではそれぞれ独立したzlib圧縮ファイルです。しかし、`git gc`でpackfileにまとめられる際に**delta圧縮**が適用され、類似したblobは差分のみが保存されます。
+**A5.** Yes, a **completely new blob object** is created. As loose objects, they are separate zlib-compressed files. However, when consolidated into a packfile by `git gc`, **delta compression** is applied and similar blobs are stored as only their differences.
 
 ```bash
 # 実験
@@ -1593,135 +1595,135 @@ $ echo "version 2" > test.txt
 $ git add test.txt && git commit -m "v2"
 $ BLOB_V2=$(git rev-parse HEAD:test.txt)
 
-# 異なるハッシュ = 異なるオブジェクト
+# Different hashes = different objects
 $ echo "$BLOB_V1"
 $ echo "$BLOB_V2"
-# → 全く異なるハッシュ
+# → Completely different hashes
 
-# packfile内ではdelta圧縮される
+# Delta compression is applied inside the packfile
 $ git gc
 $ git verify-pack -v .git/objects/pack/*.idx | grep "$BLOB_V2"
-# → deltaとして表示される（基準blobからの差分のみ保存）
+# → Shown as a delta (only the diff from the base blob is stored)
 ```
 
-### Q6. commitオブジェクトのtreeが同じになることはあるのか？
+### Q6. Can two commit objects have the same tree?
 
-**A6.** はい、あり得ます。例えば、ある変更をcommitした後にrevertすると、revertコミットのtreeは元のcommitのtreeと同じになります。
+**A6.** Yes, it is possible. For example, if you commit a change and then revert it, the revert commit's tree will be the same as the original commit's tree.
 
 ```bash
 # 実験
 $ git log --format="%H %T" -5
-commit1 tree_A    ← 現在
-commit2 tree_B    ← revertされる変更
-commit3 tree_A    ← revert後（tree_Aと同じ！）
+commit1 tree_A    ← current
+commit2 tree_B    ← the change being reverted
+commit3 tree_A    ← after revert (same as tree_A!)
 
-# treeが同じでもcommitは別オブジェクト
-# （parent, author, committer, messageが異なるため）
+# Even if trees are the same, commits are separate objects
+# (because parent, author, committer, and message differ)
 ```
 
-### Q7. Gitオブジェクトは暗号化されているのか？
+### Q7. Are Git objects encrypted?
 
-**A7.** いいえ、**暗号化されていません**。zlib圧縮はされていますが、これはサイズ削減のためであり、暗号化ではありません。リポジトリにアクセスできる人は全てのオブジェクトの内容を読めます。
+**A7.** No, they are **not encrypted**. They are compressed with zlib, but this is for size reduction, not encryption. Anyone with access to the repository can read the content of all objects.
 
 ```bash
-# リポジトリの暗号化が必要な場合のオプション
-# 1. git-crypt: 特定ファイルを暗号化
+# Options when repository encryption is needed
+# 1. git-crypt: encrypt specific files
 $ git-crypt init
 $ echo "secrets/** filter=git-crypt diff=git-crypt" >> .gitattributes
 
-# 2. ファイルシステムレベルの暗号化
-# → LUKS, FileVault, BitLockerなどを使用
+# 2. File system-level encryption
+# → Use LUKS, FileVault, BitLocker, etc.
 
-# 3. リポジトリホスティングのアクセス制御
-# → GitHub Private Repository, GitLab Privateなど
+# 3. Repository hosting access control
+# → GitHub Private Repository, GitLab Private, etc.
 ```
 
 ---
 
-## 10. デバッグとトラブルシューティング
+## 10. Debugging and Troubleshooting
 
-### 10.1 壊れたリポジトリの診断
+### 10.1 Diagnosing a Corrupted Repository
 
 ```bash
 # 1. 整合性チェック
 $ git fsck --full --strict 2>&1 | tee fsck-report.txt
 
-# 典型的なエラーと対処法:
+# Typical errors and remediation:
 
-# エラー: missing object
-# → オブジェクトファイルが削除された or 破損した
+# Error: missing object
+# → Object file was deleted or corrupted
 $ git fsck 2>&1 | grep "missing"
 missing blob abc123...
-# 対処: バックアップまたは他のクローンからオブジェクトを取得
-$ git fetch origin  # リモートから不足オブジェクトを取得
+# Remedy: Fetch the object from a backup or another clone
+$ git fetch origin  # Fetch missing objects from remote
 
-# エラー: corrupt object
-# → zlib圧縮データが破損している
+# Error: corrupt object
+# → zlib compressed data is corrupted
 $ git fsck 2>&1 | grep "corrupt"
 error: corrupt loose object 'abc123...'
-# 対処: 破損ファイルを削除し、リモートから再取得
+# Remedy: Delete the corrupted file and re-fetch from remote
 $ rm .git/objects/ab/c123...
 $ git fetch origin
 
-# エラー: broken link
-# → commitやtreeが参照するオブジェクトが存在しない
+# Error: broken link
+# → An object referenced by a commit or tree does not exist
 $ git fsck 2>&1 | grep "broken"
 broken link from commit abc123...
-# 対処: git reflogから正常な状態に復帰
+# Remedy: Restore to a valid state using git reflog
 $ git reflog
 $ git reset --hard HEAD@{n}
 ```
 
-### 10.2 オブジェクトの手動復元
+### 10.2 Manually Restoring Objects
 
 ```bash
-# シナリオ: 誤ってgit reset --hardした後のファイル復元
+# Scenario: Restoring files after an accidental git reset --hard
 
-# 1. reflogから元のcommitを特定
+# 1. Identify the original commit in reflog
 $ git reflog
 abc123 HEAD@{0}: reset: moving to HEAD~5
 def456 HEAD@{1}: commit: important work
 
-# 2. danglingオブジェクトを確認
+# 2. Check for dangling objects
 $ git fsck --lost-found
 dangling commit def456...
 dangling blob ghi789...
 
-# 3. danglingオブジェクトの内容を確認
+# 3. Check the content of dangling objects
 $ git show def456
-# → commitの内容が表示される
+# → The content of the commit is displayed
 
-# 4. 復元
+# 4. Restore
 $ git checkout -b recovery def456
 
-# 5. .git/lost-found/ に復元されたオブジェクト
+# 5. Restored objects in .git/lost-found/
 $ ls .git/lost-found/
-other/    ← blob, treeなど
-commit/   ← danglingなcommit
+other/    ← blobs, trees, etc.
+commit/   ← dangling commits
 ```
 
-### 10.3 パフォーマンスデバッグ
+### 10.3 Performance Debugging
 
 ```bash
-# Git操作のトレース（何が遅いか特定する）
+# Trace Git operations (identify what is slow)
 $ GIT_TRACE=1 git status
 $ GIT_TRACE_PERFORMANCE=1 git log --oneline -100
 
-# オブジェクトアクセスのトレース
+# Trace object access
 $ GIT_TRACE_PACK_ACCESS=1 git log --oneline -10
 
-# packfileのインデックス再構築（破損時）
+# Rebuild packfile index (when corrupted)
 $ git index-pack .git/objects/pack/pack-abc123.pack
 
-# loose objectの最適化
+# Optimize loose objects
 $ git repack -a -d
-# -a: 全オブジェクトを1つのpackfileにまとめる
-# -d: 不要なloose objectを削除
+# -a: consolidate all objects into one packfile
+# -d: delete unnecessary loose objects
 
-# より積極的な最適化
+# More aggressive optimization
 $ git repack -a -d --depth=250 --window=250
-# depth: deltaチェーンの最大深度
-# window: delta計算時の比較ウィンドウサイズ
+# depth: maximum depth of the delta chain
+# window: comparison window size for delta calculation
 ```
 
 ---
@@ -1729,50 +1731,50 @@ $ git repack -a -d --depth=250 --window=250
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 概念                     | 要点                                                        |
-|--------------------------|-------------------------------------------------------------|
-| blob                     | ファイル内容のみ保存、名前やパーミッションは含まない        |
-| tree                     | ディレクトリ構造を表現、blob/treeへの参照を保持             |
-| commit                   | tree + parent + author/committer + message                  |
-| tag                      | オブジェクトへの名前付き参照（注釈付きならオブジェクト作成）|
-| SHA-1                    | コンテンツアドレッシングの基盤、衝突検出付き実装を使用      |
-| SHA-256                  | SHA-1の後継、Git 2.42以降でオプション利用可能               |
-| コンテンツアドレッシング | 同一内容 → 同一ハッシュ → 自動重複排除                      |
-| .git/objects             | loose objectとpackfileの2つの格納形式                       |
-| 到達可能性               | GCでの削除判定の基準、refs + reflogから辿れるか             |
-| partial clone            | オブジェクトの遅延取得で大規模リポジトリに対応              |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [Ref・ブランチ](./01-refs-and-branches.md) -- HEAD、reflog、detached HEADの仕組み
-- [Packfile/GC](./03-packfile-gc.md) -- delta圧縮とリポジトリ最適化
-- [マージアルゴリズム](./02-merge-algorithms.md) -- 3-way mergeとortの内部動作
+| Concept                | Key Points                                                                 |
+|------------------------|----------------------------------------------------------------------------|
+| blob                   | Stores only file content; does not include name or permissions             |
+| tree                   | Represents directory structure; holds references to blobs/trees            |
+| commit                 | tree + parent + author/committer + message                                 |
+| tag                    | Named reference to an object (creates a tag object if annotated)           |
+| SHA-1                  | Foundation of content addressing; implementation includes collision detection |
+| SHA-256                | Successor to SHA-1; available as an option since Git 2.42                  |
+| Content addressing     | Same content → same hash → automatic deduplication                         |
+| .git/objects           | Two storage formats: loose objects and packfiles                            |
+| Reachability           | Basis for GC deletion decisions; whether it can be traced from refs + reflog |
+| Partial clone          | Handles large repositories via lazy object fetching                        |
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- [Refs and Branches](./01-refs-and-branches.md) -- How HEAD, reflog, and detached HEAD work
+- [Packfile/GC](./03-packfile-gc.md) -- Delta compression and repository optimization
+- [Merge Algorithms](./02-merge-algorithms.md) -- Internal workings of 3-way merge and ort
+
+---
+
+## References
 
 1. **Pro Git Book** -- Scott Chacon, Ben Straub "Git Internals - Git Objects" https://git-scm.com/book/en/v2/Git-Internals-Git-Objects
-2. **Git公式ドキュメント** -- `git-cat-file`, `git-hash-object` manpage https://git-scm.com/docs
-3. **SHA-1衝突問題とGitの対応** -- "How does Git handle SHA-1 collisions on blobs?" https://git-scm.com/docs/hash-function-transition
+2. **Git Official Documentation** -- `git-cat-file`, `git-hash-object` manpage https://git-scm.com/docs
+3. **SHA-1 Collision Issue and Git's Response** -- "How does Git handle SHA-1 collisions on blobs?" https://git-scm.com/docs/hash-function-transition
 4. **Git Source Code** -- `sha1dc` (SHA-1 collision detection) https://github.com/git/git
 5. **Git Internals - Plumbing and Porcelain** -- https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain
 6. **Technical FAQ** -- https://git-scm.com/docs/technical
