@@ -1,29 +1,29 @@
-# 高度なシェルスクリプト
+# Advanced Shell Scripting
 
-> 実務で使えるスクリプトには、エラー処理・ログ・並列処理が不可欠。
+> Error handling, logging, and parallel processing are essential for production-ready scripts.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] 堅牢なエラーハンドリングができる
-- [ ] 配列・連想配列を活用できる
-- [ ] 並列処理・テンプレート処理ができる
-- [ ] 実務で即座に使えるデプロイ・監視・バックアップスクリプトが書ける
-- [ ] シェルスクリプトのテスト・デバッグ・最適化ができる
+- [ ] Write robust error handling
+- [ ] Use arrays and associative arrays effectively
+- [ ] Implement parallel processing and template processing
+- [ ] Write deploy, monitoring, and backup scripts ready for immediate production use
+- [ ] Test, debug, and optimize shell scripts
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [シェルスクリプト基礎](./00-basics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding the content in [Shell Scripting Basics](./00-basics.md)
 
 ---
 
-## 1. 堅牢なスクリプトの書き方
+## 1. Writing Robust Scripts
 
-### 1.1 防御的設定
+### 1.1 Defensive Settings
 
 ```bash
 #!/usr/bin/env bash
@@ -56,7 +56,7 @@ die() {
 [[ -f "$1" ]] || die "File not found: $1"
 ```
 
-### 1.2 複数のtrapを組み合わせる
+### 1.2 Combining Multiple Traps
 
 ```bash
 #!/usr/bin/env bash
@@ -113,7 +113,7 @@ echo $$ > "$PID_FILE"
 # メイン処理...
 ```
 
-### 1.3 ロックファイルによる排他制御
+### 1.3 Mutual Exclusion with Lock Files
 
 ```bash
 #!/usr/bin/env bash
@@ -169,7 +169,7 @@ release_lock() {
 }
 ```
 
-### 1.4 ログ出力
+### 1.4 Log Output
 
 ```bash
 # カラー付きログ関数
@@ -236,7 +236,7 @@ log ERROR "Failed to connect to database"
 log FATAL "Unrecoverable error, shutting down"
 ```
 
-### 1.5 設定ファイルの読み込み
+### 1.5 Loading Configuration Files
 
 ```bash
 #!/usr/bin/env bash
@@ -307,9 +307,9 @@ APP_HOST="${MYAPP_HOST:-$APP_HOST}"
 
 ---
 
-## 2. 引数処理
+## 2. Argument Handling
 
-### 2.1 基本的な引数処理
+### 2.1 Basic Argument Handling
 
 ```bash
 # 位置パラメータ
@@ -325,7 +325,7 @@ while [[ $# -gt 0 ]]; do
 done
 ```
 
-### 2.2 getopts（短いオプション）
+### 2.2 getopts (Short Options)
 
 ```bash
 # getopts は POSIX 互換の引数パーサー
@@ -348,7 +348,7 @@ shift $((OPTIND - 1))  # オプション以外の引数にアクセス
 echo "Remaining args: $@"
 ```
 
-### 2.3 長いオプション（手動パース）
+### 2.3 Long Options (Manual Parsing)
 
 ```bash
 # 長いオプション対応の完全なパーサー
@@ -396,7 +396,7 @@ if [[ ${#files[@]} -eq 0 ]]; then
 fi
 ```
 
-### 2.4 usage 関数のテンプレート
+### 2.4 Usage Function Template
 
 ```bash
 # usage 関数のプロフェッショナルなテンプレート
@@ -405,26 +405,26 @@ readonly SCRIPT_VERSION="1.0.0"
 
 usage() {
     cat <<EOF
-$SCRIPT_NAME v$SCRIPT_VERSION - ファイル変換ツール
+$SCRIPT_NAME v$SCRIPT_VERSION - File Conversion Tool
 
 Usage: $SCRIPT_NAME [OPTIONS] FILE...
 
 Description:
-  指定されたファイルを処理し、変換結果を出力します。
-  複数ファイルの一括処理に対応しています。
+  Processes specified files and outputs conversion results.
+  Supports batch processing of multiple files.
 
 Options:
-  -h, --help          このヘルプを表示
-  -V, --version       バージョンを表示
-  -o, --output DIR    出力ディレクトリ（デフォルト: ./output）
-  -v, --verbose       詳細な出力を表示
-  -n, --dry-run       実際の処理を行わずに内容を表示
-  -c, --count N       処理する最大ファイル数（デフォルト: 無制限）
-  -f, --format FMT    出力形式（json, csv, yaml）
+  -h, --help          Show this help
+  -V, --version       Show version
+  -o, --output DIR    Output directory (default: ./output)
+  -v, --verbose       Show verbose output
+  -n, --dry-run       Show what would be done without executing
+  -c, --count N       Maximum number of files to process (default: unlimited)
+  -f, --format FMT    Output format (json, csv, yaml)
 
 Environment Variables:
-  MYAPP_OUTPUT        出力ディレクトリ（--output と同等）
-  MYAPP_DEBUG         デバッグモード（true/false）
+  MYAPP_OUTPUT        Output directory (equivalent to --output)
+  MYAPP_DEBUG         Debug mode (true/false)
 
 Examples:
   $SCRIPT_NAME input.txt
@@ -433,10 +433,10 @@ Examples:
   $SCRIPT_NAME -n --dry-run *.log
 
 Exit Codes:
-  0    正常終了
-  1    一般的なエラー
-  2    引数エラー
-  130  中断（Ctrl+C）
+  0    Success
+  1    General error
+  2    Argument error
+  130  Interrupted (Ctrl+C)
 
 Report bugs to: https://github.com/example/myapp/issues
 EOF
@@ -447,7 +447,7 @@ version() {
 }
 ```
 
-### 2.5 サブコマンドパターン
+### 2.5 Subcommand Pattern
 
 ```bash
 #!/usr/bin/env bash
@@ -487,16 +487,16 @@ cmd_help() {
 Usage: $SCRIPT_NAME <command> [options]
 
 Commands:
-  init              初期化
-  build [target]    ビルド（デフォルト: all）
-  deploy [env]      デプロイ（デフォルト: staging）
-  help              このヘルプを表示
+  init              Initialize
+  build [target]    Build (default: all)
+  deploy [env]      Deploy (default: staging)
+  help              Show this help
 
 Run '$SCRIPT_NAME <command> --help' for more information on a command.
 EOF
 }
 
-# メインディスパッチ
+# Main dispatch
 main() {
     local command="${1:-help}"
     shift || true
@@ -515,9 +515,9 @@ main "$@"
 
 ---
 
-## 3. 配列
+## 3. Arrays
 
-### 3.1 インデックス配列
+### 3.1 Indexed Arrays
 
 ```bash
 # 通常の配列（インデックス配列）
@@ -561,7 +561,7 @@ readarray -t lines < file.txt   # 同じ
 mapfile -t -d '' files < <(find . -name "*.txt" -print0)
 ```
 
-### 3.2 配列の高度な操作
+### 3.2 Advanced Array Operations
 
 ```bash
 # 配列のフィルタリング
@@ -623,7 +623,7 @@ for (( i=${#fruits[@]}-1; i>=0; i-- )); do
 done
 ```
 
-### 3.3 連想配列（Bash 4+）
+### 3.3 Associative Arrays (Bash 4+)
 
 ```bash
 declare -A colors
@@ -691,7 +691,7 @@ unset 'config[debug]'
 
 ---
 
-## 4. 文字列操作の高度なテクニック
+## 4. Advanced String Manipulation Techniques
 
 ```bash
 # パラメータ展開による文字列操作
@@ -754,9 +754,9 @@ echo
 
 ---
 
-## 5. 並列処理
+## 5. Parallel Processing
 
-### 5.1 バックグラウンドジョブ + wait
+### 5.1 Background Jobs + wait
 
 ```bash
 # 基本的な並列処理
@@ -785,7 +785,7 @@ done
 wait
 ```
 
-### 5.2 並列処理と結果収集
+### 5.2 Parallel Processing with Result Collection
 
 ```bash
 #!/usr/bin/env bash
@@ -838,7 +838,7 @@ done
 echo "Success: $success, Failed: $fail"
 ```
 
-### 5.3 名前付きパイプ（FIFO）による並列制御
+### 5.3 Parallel Control with Named Pipes (FIFO)
 
 ```bash
 #!/usr/bin/env bash
@@ -877,7 +877,7 @@ wait
 exec 3>&-   # FIFOを閉じる
 ```
 
-### 5.4 xargs と GNU parallel
+### 5.4 xargs and GNU parallel
 
 ```bash
 # xargs による並列処理
@@ -920,9 +920,9 @@ parallel echo {1} {2} ::: A B C ::: 1 2 3
 
 ---
 
-## 6. テキスト処理のパターン
+## 6. Text Processing Patterns
 
-### 6.1 CSV処理
+### 6.1 CSV Processing
 
 ```bash
 # 基本的なCSV読み込み
@@ -965,7 +965,7 @@ awk -F',' '{print $1, $3}' data.csv
 awk -F',' 'NR>1 {sum+=$2; count++} END {print "Average:", sum/count}' data.csv
 ```
 
-### 6.2 INI ファイルの処理
+### 6.2 INI File Processing
 
 ```bash
 # INI ファイル風の設定読み込み
@@ -1016,7 +1016,7 @@ parse_ini() {
 # echo "$INI_database_port"
 ```
 
-### 6.3 テンプレート処理
+### 6.3 Template Processing
 
 ```bash
 # テンプレート処理（envsubst）
@@ -1063,7 +1063,7 @@ EOF
 generate_nginx_config "example.com" "3000" "/var/www/example" > /etc/nginx/sites-available/example
 ```
 
-### 6.4 JSON処理（jq）
+### 6.4 JSON Processing (jq)
 
 ```bash
 # jq を使ったJSON処理
@@ -1101,7 +1101,7 @@ printf '%s\n' "${files[@]}" | jq -R . | jq -s .
 
 ---
 
-## 7. プロセス置換とリダイレクトの高度なテクニック
+## 7. Advanced Process Substitution and Redirection Techniques
 
 ```bash
 # プロセス置換
@@ -1156,9 +1156,9 @@ EOF
 
 ---
 
-## 8. シェルスクリプトのテストとデバッグ
+## 8. Shell Script Testing and Debugging
 
-### 8.1 デバッグテクニック
+### 8.1 Debugging Techniques
 
 ```bash
 # set -x によるトレース
@@ -1214,7 +1214,7 @@ assert '[[ -f "/etc/hosts" ]]' "hosts file must exist"
 assert '[[ $count -gt 0 ]]' "count must be positive"
 ```
 
-### 8.2 シェルスクリプトのユニットテスト
+### 8.2 Unit Testing for Shell Scripts
 
 ```bash
 #!/usr/bin/env bash
@@ -1295,7 +1295,7 @@ if (( TESTS_FAILED > 0 )); then
 fi
 ```
 
-### 8.3 ShellCheck による静的解析
+### 8.3 Static Analysis with ShellCheck
 
 ```bash
 # ShellCheck のインストール
@@ -1341,9 +1341,9 @@ echo $unquoted_var
 
 ---
 
-## 9. 実践的なスクリプト例
+## 9. Practical Script Examples
 
-### 9.1 デプロイスクリプト
+### 9.1 Deploy Script
 
 ```bash
 #!/usr/bin/env bash
@@ -1405,7 +1405,7 @@ main() {
 main "$@"
 ```
 
-### 9.2 監視スクリプト
+### 9.2 Monitoring Script
 
 ```bash
 #!/usr/bin/env bash
@@ -1497,7 +1497,7 @@ check_connectivity() {
     done
 }
 
-# メインループ
+# Main loop
 main() {
     log "=== Monitor started ==="
     while true; do
@@ -1514,7 +1514,7 @@ main() {
 main "$@"
 ```
 
-### 9.3 バックアップスクリプト
+### 9.3 Backup Script
 
 ```bash
 #!/usr/bin/env bash
@@ -1684,7 +1684,7 @@ main() {
 main "$@"
 ```
 
-### 9.4 ログ分析スクリプト
+### 9.4 Log Analysis Script
 
 ```bash
 #!/usr/bin/env bash
@@ -1703,37 +1703,37 @@ echo "File: $LOG_FILE"
 echo "Lines: $(wc -l < "$LOG_FILE")"
 echo
 
-# ステータスコード分布
+# Status code distribution
 echo "--- Status Code Distribution ---"
 awk '{print $9}' "$LOG_FILE" | sort | uniq -c | sort -rn | head -20
 
 echo
 
-# 最もアクセスの多いURL
+# Top accessed URLs
 echo "--- Top 20 URLs ---"
 awk '{print $7}' "$LOG_FILE" | sort | uniq -c | sort -rn | head -20
 
 echo
 
-# 最もアクセスの多いIP
+# Top accessing IPs
 echo "--- Top 20 IPs ---"
 awk '{print $1}' "$LOG_FILE" | sort | uniq -c | sort -rn | head -20
 
 echo
 
-# 時間帯別アクセス数
+# Access count by hour
 echo "--- Hourly Access Count ---"
 awk '{print substr($4, 14, 2)}' "$LOG_FILE" | sort | uniq -c | awk '{printf "%s:00  %s requests\n", $2, $1}'
 
 echo
 
-# エラーレスポンス（4xx, 5xx）
+# Error responses (4xx, 5xx)
 echo "--- Error Responses ---"
 awk '$9 >= 400 {print $9, $7}' "$LOG_FILE" | sort | uniq -c | sort -rn | head -20
 
 echo
 
-# レスポンスサイズの統計
+# Response size statistics
 echo "--- Response Size Statistics ---"
 awk '{sum+=$10; count++} END {
     printf "Total: %.2f MB\n", sum/1024/1024
@@ -1743,7 +1743,7 @@ awk '{sum+=$10; count++} END {
 
 echo
 
-# スローリクエスト（レスポンスタイムがログに含まれる場合）
+# Slow requests (if response time is included in log)
 echo "--- Slow Requests (if available) ---"
 awk -F'"' '{
     split($3, a, " ")
@@ -1752,7 +1752,7 @@ awk -F'"' '{
     }
 }' "$LOG_FILE" 2>/dev/null | sort -rn | head -10
 
-# CSV 出力
+# CSV output
 echo "Generating CSV reports..."
 awk '{print $1}' "$LOG_FILE" | sort | uniq -c | sort -rn | \
     awk '{printf "%s,%s\n", $2, $1}' > "$OUTPUT_DIR/ip_counts.csv"
@@ -1763,7 +1763,7 @@ awk '{print $7}' "$LOG_FILE" | sort | uniq -c | sort -rn | \
 echo "Reports saved to: $OUTPUT_DIR/"
 ```
 
-### 9.5 対話型メニューシステム
+### 9.5 Interactive Menu System
 
 ```bash
 #!/usr/bin/env bash
@@ -1828,7 +1828,7 @@ select_menu() {
     done
 }
 
-# メインループ
+# Main loop
 main() {
     while true; do
         print_header
@@ -1856,9 +1856,9 @@ main
 
 ---
 
-## 10. シェルスクリプトのベストプラクティス
+## 10. Shell Script Best Practices
 
-### 10.1 コーディング規約
+### 10.1 Coding Conventions
 
 ```bash
 # Google Shell Style Guide に基づくベストプラクティス
@@ -1897,9 +1897,9 @@ main() {
 }
 main "$@"
 
-# 8. コメントは「なぜ」を書く（「何を」ではなく）
-# Bad: ファイルを削除する
-# Good: 一時ファイルが残ると次回起動時にコンフリクトするため削除
+# 8. Comments explain "why", not "what"
+# Bad: Delete the file
+# Good: Remove temp file to avoid conflicts on next startup
 rm -f "$TMPFILE"
 
 # 9. エラーメッセージは stderr に出力
@@ -1911,53 +1911,53 @@ echo "Error: file not found" >&2
 # 128+n: シグナル n で終了
 ```
 
-### 10.2 パフォーマンス最適化
+### 10.2 Performance Optimization
 
 ```bash
-# 1. 外部コマンドの呼び出しを最小化
-# Bad: 各行で外部コマンドを呼ぶ
+# 1. Minimize external command calls
+# Bad: invoke external command for each line
 while read -r line; do
-    echo "$line" | grep "pattern"     # 毎行 grep を起動
+    echo "$line" | grep "pattern"     # launches grep for every line
 done < file.txt
 
-# Good: パイプで一括処理
+# Good: process in bulk via pipe
 grep "pattern" file.txt
 
-# 2. サブシェルの回避
-# Bad: サブシェルで変数が失われる
+# 2. Avoid subshells
+# Bad: variable changes lost in subshell
 cat file.txt | while read -r line; do
-    count=$((count + 1))              # サブシェル内の変更は外に伝わらない
+    count=$((count + 1))              # changes inside subshell don't propagate
 done
 
-# Good: リダイレクトを使用
+# Good: use redirection instead
 while read -r line; do
     count=$((count + 1))
 done < file.txt
 
-# 3. 組み込みコマンドを活用
-# Bad: 外部コマンド
+# 3. Use built-in commands
+# Bad: external command
 result=$(echo "$str" | tr '[:lower:]' '[:upper:]')
 
-# Good: Bash 組み込み
+# Good: Bash built-in
 result="${str^^}"
 
-# 4. awk/sed の一括処理
-# Bad: 複数回のパイプ
+# 4. Batch processing with awk/sed
+# Bad: multiple pipes
 cat file | grep "error" | awk '{print $3}' | sort | uniq -c
 
-# Good: awk で一括処理
+# Good: single awk pass
 awk '/error/ {count[$3]++} END {for (k in count) print count[k], k}' file | sort -rn
 
-# 5. 大量ファイルの処理には find + xargs
-# Bad: for ループ
+# 5. Use find + xargs for large numbers of files
+# Bad: for loop
 for f in $(find . -name "*.log"); do
     gzip "$f"
 done
 
-# Good: xargs で並列処理
+# Good: parallel processing with xargs
 find . -name "*.log" -print0 | xargs -0 -P 4 gzip
 
-# 6. 不要な cat を避ける（UUOC: Useless Use of Cat）
+# 6. Avoid unnecessary cat (UUOC: Useless Use of Cat)
 # Bad:
 cat file.txt | grep "pattern"
 
@@ -1970,43 +1970,43 @@ grep "pattern" file.txt
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| テクニック | 用途 |
-|-----------|------|
-| set -euo pipefail | 堅牢なエラー処理 |
-| trap '...' EXIT | クリーンアップ保証 |
-| getopts / while case | 引数パース |
-| declare -A | 連想配列 |
-| xargs -P N | 並列処理 |
-| mapfile -t | ファイルから配列変換 |
-| envsubst | テンプレート展開 |
-| flock | 排他制御（ロック） |
-| jq | JSON処理 |
-| ShellCheck | 静的解析 |
-| プロセス置換 <() | コマンド出力をファイルとして扱う |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Technique | Use Case |
+|-----------|----------|
+| set -euo pipefail | Robust error handling |
+| trap '...' EXIT | Guaranteed cleanup |
+| getopts / while case | Argument parsing |
+| declare -A | Associative arrays |
+| xargs -P N | Parallel processing |
+| mapfile -t | Convert file to array |
+| envsubst | Template expansion |
+| flock | Mutual exclusion (locking) |
+| jq | JSON processing |
+| ShellCheck | Static analysis |
+| Process substitution <() | Treat command output as a file |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
+
+---
+
+## References
 1. Shotts, W. "The Linux Command Line." 2nd Ed, Ch.24-36, 2019.
 2. "Google Shell Style Guide." google.github.io/styleguide.
 3. "ShellCheck Wiki." github.com/koalaman/shellcheck/wiki.
