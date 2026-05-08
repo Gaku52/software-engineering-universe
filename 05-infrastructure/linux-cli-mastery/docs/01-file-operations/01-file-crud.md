@@ -1,32 +1,32 @@
-# ファイルの作成・コピー・移動・削除
+# Creating, Copying, Moving, and Deleting Files
 
-> ファイル操作は CLI の最も頻繁に使うスキル。安全な操作習慣を身につけ、事故を未然に防ぐことが何よりも重要である。
+> File operations are the most frequently used CLI skills. Building safe operation habits and preventing accidents before they happen is of utmost importance.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] ファイルとディレクトリの基本操作ができる
-- [ ] ワイルドカード（グロブ）を使いこなせる
-- [ ] 安全なファイル操作の習慣を身につける
-- [ ] rsync による高度なファイル同期を理解する
-- [ ] リンク（ハードリンク・シンボリックリンク）を理解する
-- [ ] ファイルの内容確認・比較ができる
-- [ ] 一括リネームやバッチ処理ができる
-- [ ] トラブルシューティングの方法を知る
+- [ ] Perform basic file and directory operations
+- [ ] Master wildcards (globs)
+- [ ] Develop safe file operation habits
+- [ ] Understand advanced file synchronization with rsync
+- [ ] Understand links (hard links and symbolic links)
+- [ ] View and compare file contents
+- [ ] Perform batch renaming and batch processing
+- [ ] Know how to troubleshoot common issues
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ディレクトリ移動と一覧](./00-navigation.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Having completed [Directory Navigation and Listing](./00-navigation.md)
 
 ---
 
-## 1. ファイルの作成
+## 1. Creating Files
 
-### 1.1 touch コマンド
+### 1.1 The touch Command
 
 ```bash
 # ============================================
@@ -71,7 +71,7 @@ touch .env .env.example .gitignore README.md
 touch -r src/main.c build/output  # ソースと同じ日時にする
 ```
 
-### 1.2 テキストファイルの作成
+### 1.2 Creating Text Files
 
 ```bash
 # ============================================
@@ -118,7 +118,7 @@ echo "secret" | sudo tee /etc/config     # sudo でのファイル書き込み
 command > /dev/null 2>&1                  # 標準出力と標準エラーを破棄
 ```
 
-### 1.3 ディレクトリの作成
+### 1.3 Creating Directories
 
 ```bash
 # ============================================
@@ -158,9 +158,9 @@ rm -rf "$TMPDIR"
 
 ---
 
-## 2. ファイルのコピー
+## 2. Copying Files
 
-### 2.1 cp コマンド
+### 2.1 The cp Command
 
 ```bash
 # ============================================
@@ -219,7 +219,7 @@ cp -av /etc/nginx/ /backup/nginx-$(date +%Y%m%d)/  # 日付付きバックアッ
 cp -rp /home/user/project/ /backup/project/          # プロジェクトの完全バックアップ
 ```
 
-### 2.2 cp の注意点
+### 2.2 cp Caveats
 
 ```bash
 # ============================================
@@ -259,9 +259,9 @@ cp --backup=numbered important.conf /etc/
 
 ---
 
-## 3. ファイルの移動・リネーム
+## 3. Moving and Renaming Files
 
-### 3.1 mv コマンド
+### 3.1 The mv Command
 
 ```bash
 # ============================================
@@ -303,7 +303,7 @@ mv -t /dest/dir/ file1 file2    # -t でターゲットを先に指定
 alias mv='mv -i'               # 上書き確認をデフォルトに
 ```
 
-### 3.2 一括リネーム
+### 3.2 Batch Renaming
 
 ```bash
 # ============================================
@@ -365,9 +365,9 @@ done
 
 ---
 
-## 4. ファイルの削除
+## 4. Deleting Files
 
-### 4.1 rm コマンド
+### 4.1 The rm Command
 
 ```bash
 # ============================================
@@ -442,7 +442,7 @@ rm -rf --no-preserve-root /     # 保護を無効化（絶対に使わない）
 # apt install safe-rm
 ```
 
-### 4.2 find を使った条件付き削除
+### 4.2 Conditional Deletion with find
 
 ```bash
 # ============================================
@@ -484,9 +484,9 @@ xargs rm -v < /tmp/delete_list.txt                        # 確認後に削除
 
 ---
 
-## 5. ワイルドカード（グロブ）
+## 5. Wildcards (Globs)
 
-### 5.1 基本的なワイルドカード
+### 5.1 Basic Wildcards
 
 ```bash
 # ============================================
@@ -527,7 +527,7 @@ ls src/**/*.{js,ts,jsx,tsx}     # src 以下の全JS/TSファイル
 cp config/*.{yml,yaml,json} /backup/  # 設定ファイルをバックアップ
 ```
 
-### 5.2 高度なグロブパターン
+### 5.2 Advanced Glob Patterns
 
 ```bash
 # ============================================
@@ -590,9 +590,9 @@ shopt -s dotglob                # bash: .* もマッチ
 
 ---
 
-## 6. rsync による高度なファイル同期
+## 6. Advanced File Synchronization with rsync
 
-### 6.1 rsync の基本
+### 6.1 rsync Basics
 
 ```bash
 # ============================================
@@ -636,7 +636,7 @@ rsync -avh --delete-after source/ dest/       # 転送後に削除
 rsync -avh --delete-excluded source/ dest/    # 除外されたファイルも削除
 ```
 
-### 6.2 rsync の除外パターン
+### 6.2 rsync Exclude Patterns
 
 ```bash
 # ============================================
@@ -671,7 +671,7 @@ rsync -avh --filter='- *.log' --filter='- node_modules/' source/ dest/
 rsync -avh -f '- *.log' -f '- .git/' source/ dest/
 ```
 
-### 6.3 rsync のリモート同期
+### 6.3 rsync Remote Synchronization
 
 ```bash
 # ============================================
@@ -730,9 +730,9 @@ ln -sfn /backup/$(date +%Y%m%d) /backup/latest
 
 ---
 
-## 7. リンク（ハードリンクとシンボリックリンク）
+## 7. Links (Hard Links and Symbolic Links)
 
-### 7.1 リンクの基本
+### 7.1 Link Basics
 
 ```bash
 # ============================================
@@ -794,9 +794,9 @@ ln -sf libfoo.so.1 libfoo.so
 
 ---
 
-## 8. ファイルの内容確認
+## 8. Viewing File Contents
 
-### 8.1 ファイル閲覧コマンド
+### 8.1 File Viewing Commands
 
 ```bash
 # ============================================
@@ -860,7 +860,7 @@ bat -l python file              # 言語指定
 bat --diff file.py              # Git差分のハイライト
 ```
 
-### 8.2 ファイルの比較
+### 8.2 Comparing Files
 
 ```bash
 # ============================================
@@ -908,17 +908,17 @@ vimdiff file1.txt file2.txt     # Vimのdiffモード
 
 ---
 
-## 9. 実践演習
+## 9. Practice Exercises
 
-### 演習1: [基礎] ── ファイル操作の基本
+### Exercise 1: [Beginner] — File Operation Basics
 
 ```bash
-# 課題: 以下の操作を実行してください
+# Task: Perform the following operations
 
-# 1. 作業ディレクトリを作成
+# 1. Create a working directory
 mkdir -p /tmp/file-exercise && cd /tmp/file-exercise
 
-# 2. テストファイルを作成
+# 2. Create test files
 touch file{1..5}.txt
 echo "Hello World" > hello.txt
 cat > config.ini << 'EOF'
@@ -927,58 +927,58 @@ host=localhost
 port=5432
 EOF
 
-# 3. ファイルの確認
+# 3. Verify files
 ls -la
 cat config.ini
 wc -l *.txt
 
-# 4. コピーと移動
+# 4. Copy and move
 cp hello.txt hello_backup.txt
 mv file5.txt renamed.txt
 mkdir -p backup && cp *.txt backup/
 
-# 5. 削除
+# 5. Delete
 rm file3.txt
 rm -r backup/
 
-# 6. クリーンアップ
+# 6. Clean up
 cd ~ && rm -rf /tmp/file-exercise
 ```
 
-### 演習2: [中級] ── ワイルドカードとバッチ操作
+### Exercise 2: [Intermediate] — Wildcards and Batch Operations
 
 ```bash
-# 課題: ワイルドカードを使って効率的にファイルを操作する
+# Task: Use wildcards to efficiently manipulate files
 
-# 1. テスト環境の作成
+# 1. Create test environment
 mkdir -p /tmp/glob-exercise && cd /tmp/glob-exercise
 touch report_{2024,2025,2026}_{Q1,Q2,Q3,Q4}.csv
 touch image_{001..020}.jpg
 touch document_{draft,final,review}.docx
 mkdir -p archive
 
-# 2. グロブパターンで操作
+# 2. Operate using glob patterns
 ls report_2025_*.csv             # 2025年のレポートのみ
 ls image_{001..010}.jpg          # 最初の10枚
 cp report_2024_*.csv archive/    # 2024年をアーカイブ
 mv *.docx archive/               # 全ドキュメントをアーカイブ
 
-# 3. ブレース展開の活用
+# 3. Use brace expansion
 mkdir -p project/{src/{main,test},docs,config}
 touch project/src/main/{app,utils,config}.py
 touch project/src/test/test_{app,utils,config}.py
 
-# 4. tree で構造確認
+# 4. Verify structure with tree
 tree project/
 
-# クリーンアップ
+# Clean up
 cd ~ && rm -rf /tmp/glob-exercise
 ```
 
-### 演習3: [中級] ── rsync でバックアップ
+### Exercise 3: [Intermediate] — Backup with rsync
 
 ```bash
-# 課題: rsync を使ったバックアップスクリプトを作成する
+# Task: Create a backup script using rsync
 
 #!/bin/bash
 # backup.sh — rsync バックアップスクリプト
@@ -1018,10 +1018,10 @@ fi
 rm -f "$EXCLUDE_FILE"
 ```
 
-### 演習4: [上級] ── 一括リネームスクリプト
+### Exercise 4: [Advanced] — Batch Rename Script
 
 ```bash
-# 課題: 柔軟な一括リネームスクリプトを作成する
+# Task: Create a flexible batch rename script
 
 #!/bin/bash
 # batch-rename.sh — 一括リネームスクリプト
@@ -1032,19 +1032,19 @@ usage() {
     cat << EOF
 Usage: $(basename "$0") [OPTIONS] PATTERN REPLACEMENT [DIRECTORY]
 
-ファイル名の一括リネームを行います。
+Batch rename files.
 
 Options:
-  -n, --dry-run    ドライラン（リネームを実行しない）
-  -r, --recursive  再帰的にリネーム
-  -i, --ignore-case 大文字小文字を無視
-  -v, --verbose    詳細表示
-  -h, --help       ヘルプ表示
+  -n, --dry-run    Dry run (do not execute rename)
+  -r, --recursive  Rename recursively
+  -i, --ignore-case Ignore case
+  -v, --verbose    Verbose output
+  -h, --help       Show help
 
 Examples:
   $(basename "$0") .txt .md                     # .txt → .md
-  $(basename "$0") -n "old" "new"               # ドライラン
-  $(basename "$0") -r "draft_" "" ~/documents   # プレフィックス削除
+  $(basename "$0") -n "old" "new"               # Dry run
+  $(basename "$0") -r "draft_" "" ~/documents   # Remove prefix
 EOF
 }
 
@@ -1098,10 +1098,10 @@ done < <(find "$DIRECTORY" "${find_opts[@]}" -print0)
 echo "Total: $count file(s) processed"
 ```
 
-### 演習5: [上級] ── プロジェクトクリーナー
+### Exercise 5: [Advanced] — Project Cleaner
 
 ```bash
-# 課題: 開発プロジェクトの不要ファイルを安全にクリーンアップするスクリプト
+# Task: Create a script to safely clean up unnecessary files from a development project
 
 #!/bin/bash
 # project-cleaner.sh — プロジェクトクリーナー
@@ -1157,25 +1157,25 @@ echo "=== Cleanup Complete ==="
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured settings file | Check the settings file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check the executing user's permissions, review configuration |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking mechanisms, use transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify incrementally**: Use log output or a debugger to test each hypothesis
+5. **Fix and run regression tests**: After fixing, also run tests for related areas
 
 ```python
 # デバッグ用ユーティリティ
@@ -1213,39 +1213,39 @@ def process_data(items):
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems when they occur:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Verify the presence or absence of memory leaks
+3. **Check for I/O waits**: Examine the state of disk and network I/O
+4. **Check concurrent connections**: Inspect the connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|-------------|----------------|---------|
+| High CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB slowness | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When it can be deprioritized |
+|----------|-------------------|------------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -1267,21 +1267,21 @@ def process_data(items):
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Analyzing Trade-offs
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A quick short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has a lower learning curve
+- Adopting diverse technologies enables the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction increases reusability but can make debugging more difficult
+- Low abstraction is more intuitive but prone to code duplication
 
 ```python
 # 設計判断の記録テンプレート
@@ -1338,50 +1338,50 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't seek perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally replacing a system that has been running for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate gradually using the Strangler Fig pattern
+- If there are no existing tests, write Characterization Tests first
+- Use an API gateway to coexist old and new systems
+- Execute data migration in phases
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work | Estimated Duration | Risk |
+|-------|------|--------------------|------|
+| 1. Analysis | Current state analysis, mapping dependencies | 2–4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4–6 weeks | Low |
+| 3. Migration Start | Migrate peripheral features incrementally | 3–6 months | Medium |
+| 4. Core Migration | Migrate core functionality | 6–12 months | High |
+| 5. Completion | Decommission the old system | 2–4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development in a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries using Domain-Driven Design
+- Assign ownership per team
+- Manage shared libraries using an Inner Source model
+- Design API-first to minimize inter-team dependencies
 
 ```python
 # チーム間のAPI契約定義
@@ -1440,85 +1440,85 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system where millisecond-level response times are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Effect | Implementation Cost | Use Case |
+|--------------------|--------|--------------------|---------  |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low–Medium | High | CPU-bound cases |
 
 ---
 
-## チーム開発での活用
+## Applying These Skills in Team Development
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to verify during code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any performance impact?
+- [ ] Are there any security concerns?
+- [ ] Has documentation been updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Method | Frequency | Audience | Effect |
+|--------|-----------|----------|--------|
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Whole team | Horizontal knowledge sharing |
+| ADR (design records) | As needed | Future members | Transparency in decision-making |
+| Retrospectives | Every 2 weeks | Whole team | Continuous improvement |
+| Mob programming | Monthly | Key design sessions | Building consensus |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan│ Fix │
+    │ it  │ now │
+    │     │     │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Log │ Next│
+    │ only│Sprint│
+    │     │     │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Frequency  High Frequency
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Mitigations
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
-|--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Vulnerability | Risk Level | Mitigation | Detection Method |
+|--------------|------------|-----------|-----------------|
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication flaws | High | Multi-factor authentication, session management hardening | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Misconfiguration | Medium | Security headers, principle of least privilege | Configuration scanning |
+| Insufficient logging | Medium | Structured logging, audit trails | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
 # セキュアコーディング例
@@ -1569,67 +1569,67 @@ hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All inputs are validated
+- [ ] Sensitive information is not written to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policies are properly configured
+- [ ] Vulnerability scanning of dependency packages is performed
+- [ ] Error messages do not expose internal information
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Accumulating hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 操作 | コマンド | 主要オプション |
-|------|---------|---------------|
-| ファイル作成 | touch | -t(時刻指定), -r(参照) |
-| テキスト作成 | echo >, cat << EOF | >(上書き), >>(追記) |
-| ディレクトリ作成 | mkdir | -p(ネスト), -m(パーミッション) |
-| コピー | cp | -r(再帰), -a(アーカイブ), -i(確認) |
-| 移動/リネーム | mv | -i(確認), -n(上書き禁止) |
-| 削除 | rm | -r(再帰), -i(確認), trash推奨 |
-| ワイルドカード | *, ?, [], {} | extglob, globstar |
-| 同期 | rsync | -avh(基本), --delete, --exclude |
-| リンク | ln | -s(シンボリック), -f(上書き) |
-| 比較 | diff | -u(unified), -r(再帰) |
-
-### 安全なファイル操作の鉄則
-
-1. **rm -i をデフォルトにする** -- エイリアスで常に確認付きに
-2. **rm の代わりに trash を使う** -- 復元可能な削除
-3. **変数展開前に空チェックする** -- `rm -rf "$UNDEFINED"` の事故防止
-4. **rsync は -n でドライランしてから実行** -- 予期しない削除を防ぐ
-5. **ワイルドカードは ls で確認してから rm に使う** -- 対象の事前確認
-6. **重要なファイルは cp --backup でバックアップ** -- 上書き事故の防止
-7. **一括操作の前にバージョン管理（git）を活用** -- いつでも元に戻せるように
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architectural design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Operation | Command | Key Options |
+|-----------|---------|-------------|
+| Create file | touch | -t (specify time), -r (reference) |
+| Create text | echo >, cat << EOF | > (overwrite), >> (append) |
+| Create directory | mkdir | -p (nested), -m (permissions) |
+| Copy | cp | -r (recursive), -a (archive), -i (confirm) |
+| Move/Rename | mv | -i (confirm), -n (no overwrite) |
+| Delete | rm | -r (recursive), -i (confirm), trash recommended |
+| Wildcards | *, ?, [], {} | extglob, globstar |
+| Sync | rsync | -avh (basic), --delete, --exclude |
+| Link | ln | -s (symbolic), -f (overwrite) |
+| Compare | diff | -u (unified), -r (recursive) |
+
+### Golden Rules for Safe File Operations
+
+1. **Make rm -i the default** — always set it as an alias to prompt for confirmation
+2. **Use trash instead of rm** — deletions that can be recovered
+3. **Check for empty values before variable expansion** — prevent accidents like `rm -rf "$UNDEFINED"`
+4. **Always do a dry run with rsync -n before executing** — prevent unexpected deletions
+5. **Confirm wildcard targets with ls before using rm** — verify targets in advance
+6. **Back up important files with cp --backup** — prevent overwrite accidents
+7. **Use version control (git) before bulk operations** — always have a way to revert
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+---
+
+## References
 1. Shotts, W. "The Linux Command Line." 2nd Ed, Ch.4, No Starch Press, 2019.
 2. Ward, B. "How Linux Works." 3rd Ed, Ch.2, No Starch Press, 2021.
-3. rsync 公式マニュアル: https://rsync.samba.org/documentation.html
-4. GNU Coreutils マニュアル: https://www.gnu.org/software/coreutils/manual/
+3. rsync Official Manual: https://rsync.samba.org/documentation.html
+4. GNU Coreutils Manual: https://www.gnu.org/software/coreutils/manual/
 5. Powers, S. "Unix Power Tools." 3rd Ed, O'Reilly, 2002.
