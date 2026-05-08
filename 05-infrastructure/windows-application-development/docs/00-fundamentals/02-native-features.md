@@ -1,57 +1,57 @@
-# ネイティブ機能の活用
+# Leveraging Native Features
 
-> デスクトップアプリの真価はネイティブ機能にある。ファイルシステムアクセス、システム通知、トレイアイコン、自動起動、グローバルショートカット、クリップボード、ドラッグ&ドロップまで、OS との深い統合を解説する。さらに .NET デスクトップ（WPF/WinUI 3）における Win32 API 呼び出し、レジストリ操作、Windows サービス連携、タスクスケジューラ登録、シェル統合まで包括的にカバーする。
+> The true value of desktop applications lies in native features. This guide covers deep OS integration including file system access, system notifications, tray icons, auto-start, global shortcuts, clipboard, and drag & drop. It also comprehensively covers Win32 API calls via P/Invoke, registry operations, Windows service integration, Task Scheduler registration, and shell integration in .NET desktop (WPF/WinUI 3).
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] ファイルダイアログとファイルシステム操作を実装できる
-- [ ] システム通知・トレイアイコンを活用できる
-- [ ] グローバルショートカット・自動起動を設定できる
-- [ ] Win32 API を P/Invoke で呼び出す方法を理解する
-- [ ] レジストリ操作・環境変数管理ができる
-- [ ] シェル統合（コンテキストメニュー・ファイル関連付け）を実装できる
-- [ ] Windows サービスとの連携パターンを理解する
+- [ ] Implement file dialogs and file system operations
+- [ ] Utilize system notifications and tray icons
+- [ ] Configure global shortcuts and auto-start
+- [ ] Understand how to call Win32 APIs via P/Invoke
+- [ ] Perform registry operations and environment variable management
+- [ ] Implement shell integration (context menus and file associations)
+- [ ] Understand patterns for integrating with Windows services
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [アーキテクチャパターン](./01-architecture-patterns.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Architecture Patterns](./01-architecture-patterns.md)
 
 ---
 
-## 1. ファイルシステムアクセス
+## 1. File System Access
 
 ```
-ファイル操作フロー:
+File Operation Flow:
 
-  ユーザー操作          メインプロセス          OS
+  User Action           Main Process            OS
   ┌──────┐  IPC      ┌──────────┐  API    ┌────┐
-  │開くボタン│ ──────→ │dialog.   │ ─────→ │FS  │
-  │クリック │         │showOpen  │        │    │
-  └──────┘          │Dialog()  │        │    │
-                    └─────┬────┘        └──┬─┘
-                          │ パス            │ データ
+  │Open  │ ──────→ │dialog.   │ ─────→ │FS  │
+  │Button│         │showOpen  │        │    │
+  │Click │         │Dialog()  │        │    │
+  └──────┘          └─────┬────┘        └──┬─┘
+                          │ Path            │ Data
                           ▼                │
                     ┌──────────┐           │
                     │fs.read   │ ←─────────┘
                     │File()    │
                     └─────┬────┘
-                          │ 内容
+                          │ Content
                     IPC   ▼
   ┌──────┐        ┌──────────┐
-  │エディタ│ ←───── │レスポンス  │
-  │表示   │        │返却      │
+  │Editor│ ←───── │Response  │
+  │View  │        │Return    │
   └──────┘        └──────────┘
 ```
 
-### 1.1 Electron 実装
+### 1.1 Electron Implementation
 
 ```typescript
-// main.ts — ファイルダイアログ
+// main.ts — File dialog
 import { dialog, ipcMain } from 'electron';
 import fs from 'fs/promises';
 
@@ -89,7 +89,7 @@ ipcMain.handle('file:saveAs', async (_event, content: string) => {
   return result.filePath;
 });
 
-// 複数ファイルの一括選択
+// Batch selection of multiple files
 ipcMain.handle('file:openMultiple', async () => {
   const result = await dialog.showOpenDialog({
     title: '複数ファイルを開く',
@@ -116,7 +116,7 @@ ipcMain.handle('file:openMultiple', async () => {
   return files;
 });
 
-// ディレクトリ選択
+// Directory selection
 ipcMain.handle('file:selectDirectory', async () => {
   const result = await dialog.showOpenDialog({
     title: 'フォルダを選択',
@@ -128,10 +128,10 @@ ipcMain.handle('file:selectDirectory', async () => {
 });
 ```
 
-### 1.2 Tauri 実装
+### 1.2 Tauri Implementation
 
 ```typescript
-// フロントエンド — Tauri ファイル操作
+// Frontend — Tauri file operations
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 
@@ -151,10 +151,10 @@ async function saveFile(path: string, content: string) {
 }
 ```
 
-### 1.3 WPF/WinUI 3 でのファイルダイアログ
+### 1.3 File Dialogs in WPF/WinUI 3
 
 ```csharp
-// WPF — Microsoft.Win32 のファイルダイアログ
+// WPF — File dialog using Microsoft.Win32
 using Microsoft.Win32;
 
 public class FileDialogService : IFileDialogService
@@ -165,7 +165,7 @@ public class FileDialogService : IFileDialogService
         {
             Title = title,
             Filter = filter,
-            // 例: "テキストファイル (*.txt)|*.txt|すべてのファイル (*.*)|*.*"
+            // Example: "テキストファイル (*.txt)|*.txt|すべてのファイル (*.*)|*.*"
             CheckFileExists = true,
             Multiselect = false,
             InitialDirectory = Environment.GetFolderPath(
@@ -202,7 +202,7 @@ public class FileDialogService : IFileDialogService
 
     public string? SelectFolder(string title)
     {
-        // .NET 8 以降は FolderBrowserDialog が改良されている
+        // FolderBrowserDialog has been improved in .NET 8 and later
         var dialog = new OpenFolderDialog
         {
             Title = title,
@@ -235,7 +235,7 @@ public class WinUIFileDialogService : IFileDialogService
         picker.FileTypeFilter.Add(".md");
         picker.FileTypeFilter.Add(".json");
 
-        // WinUI 3 では HWND の設定が必要
+        // WinUI 3 requires setting the HWND
         var hwnd = WindowNative.GetWindowHandle(_window);
         InitializeWithWindow.Initialize(picker, hwnd);
 
@@ -268,10 +268,10 @@ public class WinUIFileDialogService : IFileDialogService
 }
 ```
 
-### 1.4 ファイル監視（FileSystemWatcher）
+### 1.4 File Monitoring (FileSystemWatcher)
 
 ```csharp
-// ファイルシステムの変更をリアルタイム監視
+// Real-time monitoring of file system changes
 using System.IO;
 
 public class FileWatcherService : IDisposable
@@ -322,7 +322,7 @@ public enum FileChangeType { Created, Modified, Deleted, Renamed }
 ```
 
 ```csharp
-// Electron — ファイル監視
+// Electron — File monitoring
 // main.ts
 import { watch } from 'chokidar';
 
@@ -348,10 +348,10 @@ watcher.on('unlink', (path) => {
 
 ---
 
-## 2. システム通知
+## 2. System Notifications
 
 ```typescript
-// Electron — 通知
+// Electron — Notifications
 import { Notification } from 'electron';
 
 function showNotification(title: string, body: string) {
@@ -370,7 +370,7 @@ function showNotification(title: string, body: string) {
   notification.show();
 }
 
-// Tauri — 通知
+// Tauri — Notifications
 import { sendNotification, requestPermission, isPermissionGranted }
   from '@tauri-apps/plugin-notification';
 
@@ -386,10 +386,10 @@ async function notify(title: string, body: string) {
 }
 ```
 
-### 2.1 .NET デスクトップ通知
+### 2.1 .NET Desktop Notifications
 
 ```csharp
-// WinUI 3 — AppNotificationManager を使ったトースト通知
+// WinUI 3 — Toast notifications using AppNotificationManager
 using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
 
@@ -397,13 +397,13 @@ public class NotificationService
 {
     public void Initialize()
     {
-        // 通知マネージャーの初期化
+        // Initialize the notification manager
         AppNotificationManager.Default.NotificationInvoked += OnNotificationInvoked;
         AppNotificationManager.Default.Register();
     }
 
     /// <summary>
-    /// シンプルなトースト通知を表示
+    /// Show a simple toast notification
     /// </summary>
     public void ShowSimple(string title, string message)
     {
@@ -416,7 +416,7 @@ public class NotificationService
     }
 
     /// <summary>
-    /// アクションボタン付きトースト通知
+    /// Toast notification with action buttons
     /// </summary>
     public void ShowWithActions(string title, string message,
         params (string Label, string ActionId)[] actions)
@@ -436,7 +436,7 @@ public class NotificationService
     }
 
     /// <summary>
-    /// 進捗バー付き通知
+    /// Notification with progress bar
     /// </summary>
     public void ShowProgress(string title, double progress, string status)
     {
@@ -457,7 +457,7 @@ public class NotificationService
     }
 
     /// <summary>
-    /// 画像付き通知
+    /// Notification with image
     /// </summary>
     public void ShowWithImage(string title, string message, string imagePath)
     {
@@ -474,12 +474,12 @@ public class NotificationService
         AppNotificationManager sender,
         AppNotificationActivatedEventArgs args)
     {
-        // 通知クリック時またはアクションボタン押下時の処理
+        // Handles notification click or action button press
         var actionId = args.Arguments.ContainsKey("action")
             ? args.Arguments["action"]
             : "default";
 
-        // UI スレッドで処理
+        // Process on UI thread
         App.MainWindow.DispatcherQueue.TryEnqueue(() =>
         {
             HandleNotificationAction(actionId);
@@ -491,13 +491,13 @@ public class NotificationService
         switch (actionId)
         {
             case "open-file":
-                // ファイルを開く処理
+                // Handle file open
                 break;
             case "dismiss":
-                // 通知を閉じる
+                // Dismiss the notification
                 break;
             default:
-                // アプリをフォアグラウンドに
+                // Bring app to foreground
                 App.MainWindow.Activate();
                 break;
         }
@@ -511,7 +511,7 @@ public class NotificationService
 ```
 
 ```xml
-<!-- XML ベースのトースト通知テンプレート（高度なカスタマイズ） -->
+<!-- XML-based toast notification template (advanced customization) -->
 <!--
 <toast launch="action=viewConversation&amp;conversationId=9813">
   <visual>
@@ -540,10 +540,10 @@ public class NotificationService
 
 ---
 
-## 3. システムトレイ
+## 3. System Tray
 
 ```typescript
-// Electron — トレイアイコン
+// Electron — Tray icon
 import { Tray, Menu, nativeImage } from 'electron';
 
 let tray: Tray | null = null;
@@ -552,7 +552,7 @@ function createTray() {
   const icon = nativeImage.createFromPath(
     path.join(__dirname, 'assets/tray-icon.png')
   );
-  // macOS: 16x16 or 22x22、Windows: 16x16
+  // macOS: 16x16 or 22x22, Windows: 16x16
   tray = new Tray(icon.resize({ width: 16, height: 16 }));
 
   const contextMenu = Menu.buildFromTemplate([
@@ -565,17 +565,17 @@ function createTray() {
   tray.setToolTip('My App');
   tray.setContextMenu(contextMenu);
 
-  // クリックでウィンドウ表示
+  // Show window on click
   tray.on('click', () => {
     mainWindow?.isVisible() ? mainWindow.hide() : mainWindow?.show();
   });
 }
 ```
 
-### 3.1 .NET WPF のシステムトレイ
+### 3.1 .NET WPF System Tray
 
 ```csharp
-// WPF — NotifyIcon を使ったシステムトレイ
+// WPF — System tray using NotifyIcon
 // NuGet: Hardcodet.NotifyIcon.Wpf
 using Hardcodet.Wpf.TaskbarNotification;
 using System.Windows;
@@ -595,7 +595,7 @@ public partial class App : Application
             ToolTipText = "My Application",
         };
 
-        // コンテキストメニューの作成
+        // Create the context menu
         var contextMenu = new ContextMenu();
         contextMenu.Items.Add(new MenuItem
         {
@@ -616,14 +616,14 @@ public partial class App : Application
 
         _trayIcon.ContextMenu = contextMenu;
 
-        // ダブルクリックでウィンドウ表示
+        // Show window on double-click
         _trayIcon.TrayMouseDoubleClick += (s, _) =>
         {
             MainWindow?.Show();
             MainWindow?.Activate();
         };
 
-        // バルーン通知の表示
+        // Show balloon notification
         _trayIcon.ShowBalloonTip(
             "アプリ起動",
             "バックグラウンドで実行中です",
@@ -637,22 +637,22 @@ public partial class App : Application
     }
 }
 
-// ウィンドウの最小化をトレイに隠す動作に変更
+// Change window minimize behavior to hide in tray
 public partial class MainWindow : Window
 {
     protected override void OnClosing(CancelEventArgs e)
     {
-        // 閉じるボタンでウィンドウを隠す（終了しない）
+        // Hide the window on close button (do not exit)
         e.Cancel = true;
         this.Hide();
     }
 }
 ```
 
-### 3.2 WinUI 3 のシステムトレイ
+### 3.2 WinUI 3 System Tray
 
 ```csharp
-// WinUI 3 — H.NotifyIcon を使ったシステムトレイ
+// WinUI 3 — System tray using H.NotifyIcon
 // NuGet: H.NotifyIcon.WinUI
 using H.NotifyIcon;
 
@@ -670,19 +670,19 @@ public sealed partial class MainWindow : Window
     {
         _trayIcon = new TaskbarIcon
         {
-            // アイコンの設定
+            // Set icon
             Icon = new System.Drawing.Icon("Assets/tray-icon.ico"),
             ToolTipText = "My WinUI App",
         };
 
-        // メニューフライアウト（WinUI 3 スタイル）
+        // Menu flyout (WinUI 3 style)
         var flyout = new MenuFlyout();
 
         var showItem = new MenuFlyoutItem { Text = "表示" };
         showItem.Click += (_, _) =>
         {
             this.Activate();
-            // ウィンドウを前面に持ってくる
+            // Bring window to the front
             var hwnd = WindowNative.GetWindowHandle(this);
             SetForegroundWindow(hwnd);
         };
@@ -700,7 +700,7 @@ public sealed partial class MainWindow : Window
 
         _trayIcon.ContextFlyout = flyout;
 
-        // ダブルクリック
+        // Double-click
         _trayIcon.TrayMouseDoubleClick += (_, _) => this.Activate();
     }
 
@@ -711,14 +711,14 @@ public sealed partial class MainWindow : Window
 
 ---
 
-## 4. グローバルショートカット
+## 4. Global Shortcuts
 
 ```typescript
-// Electron — グローバルショートカット
+// Electron — Global shortcuts
 import { globalShortcut } from 'electron';
 
 app.whenReady().then(() => {
-  // Ctrl+Shift+Space でアプリを表示/非表示
+  // Show/hide app with Ctrl+Shift+Space
   globalShortcut.register('CommandOrControl+Shift+Space', () => {
     if (mainWindow?.isVisible()) {
       mainWindow.hide();
@@ -734,10 +734,10 @@ app.on('will-quit', () => {
 });
 ```
 
-### 4.1 .NET のグローバルホットキー
+### 4.1 .NET Global Hotkeys
 
 ```csharp
-// Win32 API を使ったグローバルホットキー登録
+// Global hotkey registration using Win32 API
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
 
@@ -752,7 +752,7 @@ public class GlobalHotKey : IDisposable
 
     private const int WM_HOTKEY = 0x0312;
 
-    // 修飾キー定数
+    // Modifier key constants
     public const uint MOD_ALT = 0x0001;
     public const uint MOD_CONTROL = 0x0002;
     public const uint MOD_SHIFT = 0x0004;
@@ -769,13 +769,13 @@ public class GlobalHotKey : IDisposable
         var interopHelper = new WindowInteropHelper(window);
         _hwnd = interopHelper.Handle;
 
-        // メッセージフックを設定
+        // Set up message hook
         _source = HwndSource.FromHwnd(_hwnd);
         _source?.AddHook(WndProc);
     }
 
     /// <summary>
-    /// グローバルホットキーを登録する
+    /// Register a global hotkey
     /// </summary>
     public int Register(uint modifiers, uint key, Action callback)
     {
@@ -790,7 +790,7 @@ public class GlobalHotKey : IDisposable
     }
 
     /// <summary>
-    /// 特定のホットキーを解除する
+    /// Unregister a specific hotkey
     /// </summary>
     public void Unregister(int id)
     {
@@ -824,7 +824,7 @@ public class GlobalHotKey : IDisposable
     }
 }
 
-// 使用例
+// Usage example
 public partial class MainWindow : Window
 {
     private GlobalHotKey? _hotkey;
@@ -835,7 +835,7 @@ public partial class MainWindow : Window
 
         _hotkey = new GlobalHotKey(this);
 
-        // Ctrl+Shift+Space で表示/非表示を切り替え
+        // Toggle show/hide with Ctrl+Shift+Space
         _hotkey.Register(
             GlobalHotKey.MOD_CONTROL | GlobalHotKey.MOD_SHIFT,
             0x20, // VK_SPACE
@@ -852,7 +852,7 @@ public partial class MainWindow : Window
                 }
             });
 
-        // Ctrl+Alt+N で新規作成
+        // Create new with Ctrl+Alt+N
         _hotkey.Register(
             GlobalHotKey.MOD_CONTROL | GlobalHotKey.MOD_ALT,
             0x4E, // VK_N
@@ -874,17 +874,17 @@ public partial class MainWindow : Window
 
 ---
 
-## 5. 自動起動
+## 5. Auto-Start
 
 ```typescript
-// Electron — ログイン時自動起動
+// Electron — Auto-start at login
 import { app } from 'electron';
 
 function setAutoLaunch(enabled: boolean) {
   app.setLoginItemSettings({
     openAtLogin: enabled,
-    openAsHidden: true, // macOS: 非表示で起動
-    args: ['--hidden'],  // Windows: 引数
+    openAsHidden: true, // macOS: launch hidden
+    args: ['--hidden'],  // Windows: arguments
   });
 }
 
@@ -893,10 +893,10 @@ function getAutoLaunchStatus(): boolean {
 }
 ```
 
-### 5.1 .NET の自動起動設定
+### 5.1 .NET Auto-Start Configuration
 
 ```csharp
-// レジストリを使った自動起動設定（Windows）
+// Auto-start configuration using registry (Windows)
 using Microsoft.Win32;
 
 public class AutoStartService
@@ -913,7 +913,7 @@ public class AutoStartService
     }
 
     /// <summary>
-    /// 自動起動を有効/無効にする
+    /// Enable or disable auto-start
     /// </summary>
     public void SetAutoStart(bool enabled)
     {
@@ -931,7 +931,7 @@ public class AutoStartService
     }
 
     /// <summary>
-    /// 自動起動が有効かどうかを取得
+    /// Get whether auto-start is enabled
     /// </summary>
     public bool IsAutoStartEnabled()
     {
@@ -940,7 +940,7 @@ public class AutoStartService
     }
 }
 
-// タスクスケジューラを使った自動起動（管理者権限不要、より高度な制御）
+// Auto-start using Task Scheduler (no admin rights required, more advanced control)
 using System.Diagnostics;
 
 public class TaskSchedulerAutoStart
@@ -955,11 +955,11 @@ public class TaskSchedulerAutoStart
     }
 
     /// <summary>
-    /// ログオン時に実行するタスクを登録
+    /// Register a task to run at logon
     /// </summary>
     public void Register()
     {
-        // schtasks コマンドでタスクを作成
+        // Create task using schtasks command
         var args = $"/create /tn \"{_taskName}\" " +
                    $"/tr \"\\\"{_appPath}\\\" --minimized\" " +
                    "/sc onlogon /rl limited /f";
@@ -978,7 +978,7 @@ public class TaskSchedulerAutoStart
     }
 
     /// <summary>
-    /// タスクを削除
+    /// Delete the task
     /// </summary>
     public void Unregister()
     {
@@ -993,7 +993,7 @@ public class TaskSchedulerAutoStart
     }
 
     /// <summary>
-    /// タスクが登録されているかチェック
+    /// Check if the task is registered
     /// </summary>
     public bool IsRegistered()
     {
@@ -1015,10 +1015,10 @@ public class TaskSchedulerAutoStart
 
 ---
 
-## 6. クリップボード・ドラッグ&ドロップ
+## 6. Clipboard and Drag & Drop
 
 ```typescript
-// Electron — クリップボード
+// Electron — Clipboard
 import { clipboard } from 'electron';
 
 ipcMain.handle('clipboard:read', () => clipboard.readText());
@@ -1028,8 +1028,8 @@ ipcMain.handle('clipboard:readImage', () => {
   return image.isEmpty() ? null : image.toDataURL();
 });
 
-// レンダラー — ドラッグ&ドロップ
-// React コンポーネント
+// Renderer — Drag & Drop
+// React component
 function DropZone() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -1051,16 +1051,16 @@ function DropZone() {
 }
 ```
 
-### 6.1 .NET のクリップボード操作
+### 6.1 .NET Clipboard Operations
 
 ```csharp
-// WPF — クリップボード操作
+// WPF — Clipboard operations
 using System.Windows;
 
 public class ClipboardService : IClipboardService
 {
     /// <summary>
-    /// テキストをクリップボードにコピー
+    /// Copy text to clipboard
     /// </summary>
     public void CopyText(string text)
     {
@@ -1068,7 +1068,7 @@ public class ClipboardService : IClipboardService
     }
 
     /// <summary>
-    /// クリップボードからテキストを取得
+    /// Get text from clipboard
     /// </summary>
     public string? PasteText()
     {
@@ -1076,7 +1076,7 @@ public class ClipboardService : IClipboardService
     }
 
     /// <summary>
-    /// 画像をクリップボードにコピー
+    /// Copy image to clipboard
     /// </summary>
     public void CopyImage(BitmapSource image)
     {
@@ -1084,7 +1084,7 @@ public class ClipboardService : IClipboardService
     }
 
     /// <summary>
-    /// クリップボードから画像を取得
+    /// Get image from clipboard
     /// </summary>
     public BitmapSource? PasteImage()
     {
@@ -1092,7 +1092,7 @@ public class ClipboardService : IClipboardService
     }
 
     /// <summary>
-    /// ファイルパスをクリップボードにコピー（エクスプローラのコピーと同等）
+    /// Copy file paths to clipboard (equivalent to Explorer copy)
     /// </summary>
     public void CopyFiles(IEnumerable<string> filePaths)
     {
@@ -1105,7 +1105,7 @@ public class ClipboardService : IClipboardService
     }
 
     /// <summary>
-    /// 複数形式のデータをクリップボードに設定
+    /// Set multiple format data to clipboard
     /// </summary>
     public void CopyRichContent(string plainText, string htmlText)
     {
@@ -1116,21 +1116,21 @@ public class ClipboardService : IClipboardService
     }
 
     /// <summary>
-    /// クリップボードの変更を監視
+    /// Monitor clipboard changes
     /// </summary>
     public void StartMonitoring(Action onClipboardChanged)
     {
-        // Win32 API でクリップボードの変更を監視
-        // AddClipboardFormatListener を使用
+        // Monitor clipboard changes using Win32 API
+        // Uses AddClipboardFormatListener
         ClipboardMonitor.Start(onClipboardChanged);
     }
 }
 ```
 
-### 6.2 .NET のドラッグ&ドロップ
+### 6.2 .NET Drag & Drop
 
 ```xml
-<!-- WPF — ドラッグ&ドロップ対応の XAML -->
+<!-- WPF — Drag & drop XAML -->
 <Border
     AllowDrop="True"
     Drop="OnDrop"
@@ -1147,7 +1147,7 @@ public class ClipboardService : IClipboardService
 ```
 
 ```csharp
-// WPF — ドラッグ&ドロップのコードビハインド
+// WPF — Drag & drop code-behind
 public partial class DropZoneControl : UserControl
 {
     public DropZoneControl()
@@ -1161,7 +1161,7 @@ public partial class DropZoneControl : UserControl
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             e.Effects = DragDropEffects.Copy;
-            // ドロップゾーンのハイライト
+            // Highlight the drop zone
             DropBorder.BorderBrush = Brushes.DodgerBlue;
             DropBorder.Background = new SolidColorBrush(
                 Color.FromArgb(30, 30, 144, 255));
@@ -1192,13 +1192,13 @@ public partial class DropZoneControl : UserControl
                 var fileInfo = new FileInfo(filePath);
                 StatusText.Text = $"受信: {fileInfo.Name} ({fileInfo.Length:N0} bytes)";
 
-                // ファイルの処理
+                // Process the file
                 await ProcessDroppedFileAsync(filePath);
             }
         }
     }
 
-    // ドラッグ元の実装（リストからアイテムをドラッグ）
+    // Drag source implementation (dragging items from a list)
     private void ListItem_MouseMove(object sender, MouseEventArgs e)
     {
         if (e.LeftButton == MouseButtonState.Pressed)
@@ -1217,10 +1217,10 @@ public partial class DropZoneControl : UserControl
 
 ---
 
-## 7. レジストリ操作
+## 7. Registry Operations
 
 ```csharp
-// Windows レジストリの読み書き
+// Reading and writing the Windows registry
 using Microsoft.Win32;
 
 public class RegistryService
@@ -1233,7 +1233,7 @@ public class RegistryService
     }
 
     /// <summary>
-    /// アプリ設定をレジストリに保存
+    /// Save application settings to registry
     /// </summary>
     public void SaveSetting(string name, object value)
     {
@@ -1242,7 +1242,7 @@ public class RegistryService
     }
 
     /// <summary>
-    /// アプリ設定をレジストリから読み取り
+    /// Read application settings from registry
     /// </summary>
     public T? ReadSetting<T>(string name, T? defaultValue = default)
     {
@@ -1255,7 +1255,7 @@ public class RegistryService
     }
 
     /// <summary>
-    /// アプリのレジストリキーを全削除
+    /// Delete all registry keys for the application
     /// </summary>
     public void DeleteAllSettings()
     {
@@ -1263,7 +1263,7 @@ public class RegistryService
     }
 
     /// <summary>
-    /// ファイル関連付けを登録する
+    /// Register a file association
     /// </summary>
     public void RegisterFileAssociation(
         string extension,
@@ -1272,14 +1272,14 @@ public class RegistryService
         string appPath,
         string iconPath)
     {
-        // 拡張子の登録
+        // Register the extension
         using (var extKey = Registry.CurrentUser.CreateSubKey(
             $@"SOFTWARE\Classes\{extension}"))
         {
             extKey.SetValue("", progId);
         }
 
-        // ProgID の登録
+        // Register the ProgID
         using (var progKey = Registry.CurrentUser.CreateSubKey(
             $@"SOFTWARE\Classes\{progId}"))
         {
@@ -1296,7 +1296,7 @@ public class RegistryService
             }
         }
 
-        // シェルに通知
+        // Notify the shell
         SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
     }
 
@@ -1308,14 +1308,14 @@ public class RegistryService
 
 ---
 
-## 8. シェル統合
+## 8. Shell Integration
 
 ```csharp
-// エクスプローラのコンテキストメニューに項目を追加
+// Add an entry to Explorer's context menu
 public class ContextMenuRegistration
 {
     /// <summary>
-    /// 右クリックメニューにアプリのエントリを追加
+    /// Add app entry to right-click menu
     /// </summary>
     public static void Register(
         string appName,
@@ -1338,7 +1338,7 @@ public class ContextMenuRegistration
     }
 
     /// <summary>
-    /// ディレクトリの右クリックメニューに追加
+    /// Add to directory right-click menu
     /// </summary>
     public static void RegisterForDirectories(
         string appName,
@@ -1352,7 +1352,7 @@ public class ContextMenuRegistration
         using var commandKey = key.CreateSubKey("command");
         commandKey.SetValue("", $"\"{appPath}\" \"%V\"");
 
-        // 背景の右クリックにも追加
+        // Also add to background right-click menu
         var bgKeyPath = $@"SOFTWARE\Classes\Directory\Background\shell\{appName}";
         using var bgKey = Registry.CurrentUser.CreateSubKey(bgKeyPath);
         bgKey.SetValue("", menuText);
@@ -1362,7 +1362,7 @@ public class ContextMenuRegistration
     }
 
     /// <summary>
-    /// コンテキストメニューのエントリを削除
+    /// Remove context menu entries
     /// </summary>
     public static void Unregister(string appName, string[] extensions)
     {
@@ -1384,8 +1384,8 @@ public class ContextMenuRegistration
 ```
 
 ```csharp
-// Windows ジャンプリスト（タスクバーの右クリックメニュー）
-// WPF での実装
+// Windows Jump List (taskbar right-click menu)
+// WPF implementation
 using System.Windows.Shell;
 
 public class JumpListService
@@ -1394,10 +1394,10 @@ public class JumpListService
     {
         var jumpList = new JumpList();
 
-        // 最近使ったファイルのカテゴリ
+        // Recent files category
         jumpList.ShowRecentCategory = true;
 
-        // カスタムタスク
+        // Custom tasks
         jumpList.JumpItems.Add(new JumpTask
         {
             Title = "新規ドキュメント",
@@ -1416,7 +1416,7 @@ public class JumpListService
             Arguments = "--settings",
         });
 
-        // カスタムカテゴリ
+        // Custom category
         jumpList.JumpItems.Add(new JumpTask
         {
             Title = "テンプレート A",
@@ -1429,7 +1429,7 @@ public class JumpListService
     }
 
     /// <summary>
-    /// 最近使ったファイルをジャンプリストに追加
+    /// Add a recently used file to the jump list
     /// </summary>
     public void AddRecentFile(string filePath)
     {
@@ -1440,52 +1440,52 @@ public class JumpListService
 
 ---
 
-## 9. Win32 API の P/Invoke
+## 9. P/Invoke for Win32 APIs
 
 ```csharp
-// よく使う Win32 API の P/Invoke 定義集
+// Collection of common Win32 API P/Invoke definitions
 using System.Runtime.InteropServices;
 
 public static partial class NativeMethods
 {
-    // ウィンドウを前面に持ってくる
+    // Bring window to foreground
     [DllImport("user32.dll")]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
 
-    // ウィンドウの表示状態を変更
+    // Change window visibility state
     [DllImport("user32.dll")]
     public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
-    // ウィンドウが最小化されているか
+    // Check if window is minimized
     [DllImport("user32.dll")]
     public static extern bool IsIconic(IntPtr hWnd);
 
-    // フラッシュ（タスクバーでの点滅）
+    // Flash (blink in taskbar)
     [DllImport("user32.dll")]
     public static extern bool FlashWindowEx(ref FLASHWINFO pwfi);
 
-    // モニター情報の取得
+    // Get monitor information
     [DllImport("user32.dll")]
     public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
     [DllImport("user32.dll")]
     public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
 
-    // DPI の取得
+    // Get DPI
     [DllImport("shcore.dll")]
     public static extern int GetDpiForMonitor(
         IntPtr hMonitor, int dpiType, out uint dpiX, out uint dpiY);
 
-    // 電源状態の取得
+    // Get power status
     [DllImport("kernel32.dll")]
     public static extern bool GetSystemPowerStatus(
         out SYSTEM_POWER_STATUS lpSystemPowerStatus);
 
-    // プロセスの優先度設定
+    // Set process priority
     [DllImport("kernel32.dll")]
     public static extern bool SetPriorityClass(IntPtr hProcess, uint dwPriorityClass);
 
-    // ファイルロック状態チェック
+    // Check file lock state
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern IntPtr CreateFile(
         string lpFileName, uint dwDesiredAccess,
@@ -1493,7 +1493,7 @@ public static partial class NativeMethods
         uint dwCreationDisposition, uint dwFlagsAndAttributes,
         IntPtr hTemplateFile);
 
-    // 定数
+    // Constants
     public const int SW_SHOW = 5;
     public const int SW_MINIMIZE = 6;
     public const int SW_RESTORE = 9;
@@ -1538,7 +1538,7 @@ public struct SYSTEM_POWER_STATUS
 ```
 
 ```csharp
-// P/Invoke の活用例 — ウィンドウの点滅通知
+// P/Invoke usage example — Window flash notification
 public static class WindowFlasher
 {
     private const uint FLASHW_STOP = 0;
@@ -1549,7 +1549,7 @@ public static class WindowFlasher
     private const uint FLASHW_TIMERNOFG = 12;
 
     /// <summary>
-    /// タスクバーでウィンドウを点滅させて注意を引く
+    /// Flash the window in the taskbar to get attention
     /// </summary>
     public static void Flash(IntPtr hwnd, uint count = 5)
     {
@@ -1566,7 +1566,7 @@ public static class WindowFlasher
     }
 
     /// <summary>
-    /// 点滅を停止する
+    /// Stop flashing
     /// </summary>
     public static void StopFlash(IntPtr hwnd)
     {
@@ -1581,11 +1581,11 @@ public static class WindowFlasher
     }
 }
 
-// 電源状態の監視
+// Power status monitoring
 public class PowerMonitor
 {
     /// <summary>
-    /// バッテリー残量を取得
+    /// Get battery percentage
     /// </summary>
     public static int GetBatteryPercentage()
     {
@@ -1594,7 +1594,7 @@ public class PowerMonitor
     }
 
     /// <summary>
-    /// AC 電源に接続されているか
+    /// Check if connected to AC power
     /// </summary>
     public static bool IsOnAcPower()
     {
@@ -1606,10 +1606,10 @@ public class PowerMonitor
 
 ---
 
-## 10. 単一インスタンス制御
+## 10. Single Instance Control
 
 ```csharp
-// アプリの多重起動を防止する
+// Prevent multiple instances of the app
 using System.Threading;
 
 public class SingleInstanceGuard : IDisposable
@@ -1623,7 +1623,7 @@ public class SingleInstanceGuard : IDisposable
     }
 
     /// <summary>
-    /// 他のインスタンスが実行中でないか確認
+    /// Check that no other instance is running
     /// </summary>
     public bool TryAcquire()
     {
@@ -1649,7 +1649,7 @@ public class SingleInstanceGuard : IDisposable
     }
 }
 
-// App.xaml.cs での使用
+// Usage in App.xaml.cs
 public partial class App : Application
 {
     private SingleInstanceGuard? _guard;
@@ -1660,7 +1660,7 @@ public partial class App : Application
 
         if (!_guard.TryAcquire())
         {
-            // 既存インスタンスをアクティブにする
+            // Activate the existing instance
             ActivateExistingInstance();
             Shutdown();
             return;
@@ -1671,7 +1671,7 @@ public partial class App : Application
 
     private void ActivateExistingInstance()
     {
-        // 名前付きパイプで既存インスタンスに通知
+        // Notify the existing instance via named pipe
         using var client = new NamedPipeClientStream(".", "MyApp-IPC",
             PipeDirection.Out);
         try
@@ -1679,7 +1679,7 @@ public partial class App : Application
             client.Connect(1000);
             using var writer = new StreamWriter(client);
             writer.WriteLine("ACTIVATE");
-            // コマンドライン引数も転送
+            // Forward command-line arguments as well
             writer.WriteLine(string.Join("|", Environment.GetCommandLineArgs()));
         }
         catch (TimeoutException)
@@ -1689,7 +1689,7 @@ public partial class App : Application
     }
 }
 
-// 既存インスタンスのリスナー
+// Listener for the existing instance
 public class SingleInstanceListener : IDisposable
 {
     private readonly CancellationTokenSource _cts = new();
@@ -1729,10 +1729,10 @@ public class SingleInstanceListener : IDisposable
 
 ---
 
-## 11. 印刷機能
+## 11. Print Functionality
 
 ```csharp
-// WPF — 印刷機能の実装
+// WPF — Implementing print functionality
 using System.Printing;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -1740,7 +1740,7 @@ using System.Windows.Documents;
 public class PrintService
 {
     /// <summary>
-    /// 印刷ダイアログを表示してドキュメントを印刷
+    /// Show a print dialog and print the document
     /// </summary>
     public bool PrintDocument(FlowDocument document, string title)
     {
@@ -1749,11 +1749,11 @@ public class PrintService
         if (printDialog.ShowDialog() != true)
             return false;
 
-        // FlowDocument を DocumentPaginator に変換
+        // Convert FlowDocument to DocumentPaginator
         var paginator = ((IDocumentPaginatorSource)document)
             .DocumentPaginator;
 
-        // ページサイズを設定
+        // Set page size
         paginator.PageSize = new Size(
             printDialog.PrintableAreaWidth,
             printDialog.PrintableAreaHeight);
@@ -1763,7 +1763,7 @@ public class PrintService
     }
 
     /// <summary>
-    /// ビジュアル要素をそのまま印刷
+    /// Print a visual element directly
     /// </summary>
     public bool PrintVisual(Visual visual, string title)
     {
@@ -1777,7 +1777,7 @@ public class PrintService
     }
 
     /// <summary>
-    /// 利用可能なプリンター一覧を取得
+    /// Get a list of available printers
     /// </summary>
     public IReadOnlyList<string> GetAvailablePrinters()
     {
@@ -1793,52 +1793,52 @@ public class PrintService
 
 ## FAQ
 
-### Q1: ファイルアクセスのセキュリティは？
-メインプロセスでパス検証を必ず行う。ユーザーが選択したパス以外へのアクセスは拒否する。Tauri は capabilities で制御。.NET アプリでは Environment.SpecialFolder を使って安全なパスを取得する。
+### Q1: What about file access security?
+Always validate paths in the main process. Deny access to any paths other than those selected by the user. Tauri uses capabilities for control. In .NET apps, use Environment.SpecialFolder to obtain safe paths.
 
-### Q2: macOS と Windows で通知の動作は違う？
-macOS は Notification Center 経由、Windows は Action Center 経由。アイコンサイズやアクションボタンの仕様が異なる。WinUI 3 の AppNotificationManager は Windows 10/11 のトースト通知をフルサポートする。
+### Q2: Do notifications behave differently on macOS and Windows?
+macOS goes through Notification Center, Windows through Action Center. Icon sizes and action button specifications differ. WinUI 3's AppNotificationManager fully supports Windows 10/11 toast notifications.
 
-### Q3: トレイアイコンの推奨サイズは？
-macOS: 16x16〜22x22（@2x 対応）、Windows: 16x16〜32x32。Template Image（macOS）を使うとダークモード対応。WPF/WinUI 3 では .ico ファイルを使用する。
+### Q3: What is the recommended tray icon size?
+macOS: 16x16 to 22x22 (@2x support), Windows: 16x16 to 32x32. Using Template Image (macOS) enables dark mode support. WPF/WinUI 3 uses .ico files.
 
-### Q4: P/Invoke は .NET 8 以降でも使えるか？
-使える。さらに LibraryImport 属性（Source Generator ベース）が推奨されている。DllImport より型安全で高速。
+### Q4: Can P/Invoke still be used in .NET 8 and later?
+Yes. Furthermore, the LibraryImport attribute (Source Generator based) is recommended. It is more type-safe and faster than DllImport.
 
-### Q5: Windows サービスとデスクトップアプリを連携させるには？
-名前付きパイプ、TCP/IP ソケット、またはメモリマップドファイルで通信する。Windows サービスは Session 0 で動作するため、UI を直接操作できない点に注意。
+### Q5: How do you integrate a Windows service with a desktop app?
+Communicate via named pipes, TCP/IP sockets, or memory-mapped files. Note that Windows services run in Session 0 and cannot directly manipulate the UI.
 
-### Q6: ファイル関連付けは MSIX パッケージでも設定できるか？
-はい。Package.appxmanifest の uap:FileTypeAssociation 要素で宣言的に設定できる。レジストリ操作は不要で、アンインストール時に自動的にクリーンアップされる。
+### Q6: Can file associations be configured in an MSIX package?
+Yes. They can be declared using the uap:FileTypeAssociation element in Package.appxmanifest. No registry operations are needed, and they are automatically cleaned up on uninstall.
 
-### Q7: 多重起動防止は Mutex 以外の方法はあるか？
-名前付きパイプ、ファイルロック、またはローカル TCP ポートのバインドでも実現できる。Mutex が最も軽量でシンプル。MSIX パッケージの場合は AppInstance.FindOrRegisterForKey() を使用できる。
-
----
-
-## まとめ
-
-| 機能 | Electron | Tauri | WPF/WinUI 3 |
-|------|----------|-------|-------------|
-| ファイルダイアログ | dialog.showOpenDialog | @tauri-apps/plugin-dialog | OpenFileDialog / FileOpenPicker |
-| 通知 | Notification | @tauri-apps/plugin-notification | AppNotificationManager |
-| トレイ | Tray | TrayIcon | NotifyIcon / H.NotifyIcon |
-| ショートカット | globalShortcut | @tauri-apps/plugin-global-shortcut | RegisterHotKey (P/Invoke) |
-| 自動起動 | app.setLoginItemSettings | @tauri-apps/plugin-autostart | レジストリ / タスクスケジューラ |
-| クリップボード | clipboard | @tauri-apps/plugin-clipboard | System.Windows.Clipboard |
-| ドラッグ&ドロップ | HTML5 DnD API | HTML5 DnD API | WPF DragDrop |
-| ファイル監視 | chokidar | notify (Rust) | FileSystemWatcher |
-| レジストリ | N/A | N/A | Microsoft.Win32.Registry |
-| 印刷 | webContents.print() | N/A | PrintDialog |
-| 単一インスタンス | app.requestSingleInstanceLock() | N/A | Mutex / NamedPipe |
+### Q7: Are there alternatives to Mutex for preventing multiple instances?
+Named pipes, file locks, or binding a local TCP port can also achieve this. Mutex is the lightest and simplest. For MSIX packages, AppInstance.FindOrRegisterForKey() can be used.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Feature | Electron | Tauri | WPF/WinUI 3 |
+|---------|----------|-------|-------------|
+| File dialog | dialog.showOpenDialog | @tauri-apps/plugin-dialog | OpenFileDialog / FileOpenPicker |
+| Notifications | Notification | @tauri-apps/plugin-notification | AppNotificationManager |
+| Tray | Tray | TrayIcon | NotifyIcon / H.NotifyIcon |
+| Shortcuts | globalShortcut | @tauri-apps/plugin-global-shortcut | RegisterHotKey (P/Invoke) |
+| Auto-start | app.setLoginItemSettings | @tauri-apps/plugin-autostart | Registry / Task Scheduler |
+| Clipboard | clipboard | @tauri-apps/plugin-clipboard | System.Windows.Clipboard |
+| Drag & Drop | HTML5 DnD API | HTML5 DnD API | WPF DragDrop |
+| File monitoring | chokidar | notify (Rust) | FileSystemWatcher |
+| Registry | N/A | N/A | Microsoft.Win32.Registry |
+| Printing | webContents.print() | N/A | PrintDialog |
+| Single instance | app.requestSingleInstanceLock() | N/A | Mutex / NamedPipe |
 
 ---
 
-## 参考文献
+## Further Reading
+
+---
+
+## References
 1. Electron. "Native File Dialogs." electronjs.org/docs, 2024.
 2. Electron. "Tray." electronjs.org/docs/api/tray, 2024.
 3. Tauri. "Plugins." tauri.app/plugin, 2024.
