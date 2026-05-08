@@ -1,31 +1,31 @@
-# WinUI 3 の基本
+# WinUI 3 Basics
 
-> Windows App SDK に含まれる最新の UI フレームワーク WinUI 3 を使い、Fluent Design に準拠したデスクトップアプリケーションを構築する方法を体系的に学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **WinUI 3 プロジェクトの作成**からビルド・実行までの一連のワークフローを理解する
-2. **XAML の基礎構文**とデータバインディング、主要コントロールの使い方を習得する
-3. **Fluent Design System** のスタイル・テーマ・ナビゲーションパターンを実装できるようになる
-4. **依存性注入**と **MVVM パターン**を活用した保守性の高いアプリ設計を習得する
-5. **ContentDialog** や **TeachingTip** など WinUI 3 固有のコントロールを使いこなせるようになる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Windows UI フレームワーク比較](./00-windows-ui-frameworks.md) の内容を理解していること
+> A systematic guide to building Fluent Design-compliant desktop applications using WinUI 3, the latest UI framework included in the Windows App SDK.
 
 ---
 
-## 1. WinUI 3 とは何か
+## What You Will Learn
 
-### 1.1 位置づけ
+1. Understand the complete workflow from **WinUI 3 project creation** through building and running
+2. Master **XAML basic syntax**, data binding, and the usage of key controls
+3. Learn to implement **Fluent Design System** styles, themes, and navigation patterns
+4. Acquire maintainable app design skills using **dependency injection** and the **MVVM pattern**
+5. Become proficient with WinUI 3-specific controls such as **ContentDialog** and **TeachingTip**
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Windows UI Framework Comparison](./00-windows-ui-frameworks.md)
+
+---
+
+## 1. What Is WinUI 3
+
+### 1.1 Positioning
 
 ```
 +--------------------------------------------------+
@@ -39,114 +39,114 @@
 |  +--------------------------------------------+  |
 |  +------------+  +-------------+  +-----------+  |
 |  | App        |  | Windowing   |  | MRT       |  |
-|  | Lifecycle  |  | (AppWindow) |  | (リソース)|  |
+|  | Lifecycle  |  | (AppWindow) |  | (Resource)|  |
 |  +------------+  +-------------+  +-----------+  |
 +--------------------------------------------------+
 ```
 
-WinUI 3 は **Windows App SDK** の一部であり、UWP の XAML 技術を Win32 デスクトップアプリから利用可能にしたものである。WPF とは異なるレンダリングエンジンを持ち、DirectX ベースの高速描画を実現する。
+WinUI 3 is part of the **Windows App SDK** and makes UWP's XAML technology available to Win32 desktop apps. It uses a different rendering engine from WPF and achieves high-speed drawing based on DirectX.
 
-### 1.2 WPF / UWP / WinUI 3 の比較
+### 1.2 Comparison: WPF / UWP / WinUI 3
 
-| 項目 | WPF | UWP | WinUI 3 |
+| Item | WPF | UWP | WinUI 3 |
 |---|---|---|---|
-| 対象フレームワーク | .NET Framework / .NET | UWP (.NET Native) | .NET 6+ |
-| XAML バージョン | WPF XAML | UWP XAML | WinUI XAML |
-| 配布方式 | exe / MSI / MSIX | MSIX のみ | exe / MSIX |
-| サンドボックス | なし | あり（厳格） | なし（任意で MSIX） |
-| 最新 UI コントロール | 手動追加が必要 | 一部のみ | 完全サポート |
-| Win32 API 呼び出し | 自由 | 制限あり | 自由 |
-| 推奨用途 | レガシー保守 | ストアアプリ | 新規開発全般 |
+| Target framework | .NET Framework / .NET | UWP (.NET Native) | .NET 6+ |
+| XAML version | WPF XAML | UWP XAML | WinUI XAML |
+| Distribution | exe / MSI / MSIX | MSIX only | exe / MSIX |
+| Sandbox | None | Yes (strict) | None (optional MSIX) |
+| Latest UI controls | Manual addition required | Partial support | Full support |
+| Win32 API calls | Unrestricted | Restricted | Unrestricted |
+| Recommended use | Legacy maintenance | Store apps | New development in general |
 
-### 1.3 Windows App SDK のバージョンと機能
+### 1.3 Windows App SDK Versions and Features
 
 ```
-Windows App SDK バージョン履歴:
+Windows App SDK version history:
 
-  1.0 (2021-11) ─── 初回安定版リリース
-                    ・WinUI 3 コントロール基本セット
-                    ・AppWindow API
-                    ・MRT (リソース管理)
+  1.0 (2021-11) ─── Initial stable release
+                    · WinUI 3 basic control set
+                    · AppWindow API
+                    · MRT (resource management)
 
-  1.1 (2022-03) ─── 機能強化
-                    ・Mica 背景サポート
-                    ・Self-contained デプロイ
-                    ・環境マネージャ
+  1.1 (2022-03) ─── Feature enhancements
+                    · Mica background support
+                    · Self-contained deployment
+                    · Environment manager
 
-  1.2 (2022-08) ─── パフォーマンス改善
-                    ・AppNotification API
-                    ・ウィジェットサポート
-                    ・改善された AppWindow
+  1.2 (2022-08) ─── Performance improvements
+                    · AppNotification API
+                    · Widget support
+                    · Improved AppWindow
 
-  1.3 (2023-02) ─── 安定性向上
-                    ・MSIX 不要のデプロイ改善
-                    ・新しい MapControl
+  1.3 (2023-02) ─── Stability improvements
+                    · Improved non-MSIX deployment
+                    · New MapControl
 
-  1.4 (2023-08) ─── 最新
-                    ・改善された ItemsView
-                    ・WebView2 の改善
-                    ・新しい AnnotatedScrollBar
+  1.4 (2023-08) ─── Latest
+                    · Improved ItemsView
+                    · WebView2 improvements
+                    · New AnnotatedScrollBar
 
-  1.5+ (2024)  ─── 継続的改善
-                    ・パフォーマンス最適化
-                    ・.NET 8 対応の強化
+  1.5+ (2024)  ─── Continuous improvements
+                    · Performance optimization
+                    · Enhanced .NET 8 support
 ```
 
 ---
 
-## 2. プロジェクトの作成
+## 2. Creating a Project
 
-### 2.1 前提条件
+### 2.1 Prerequisites
 
-- Visual Studio 2022 17.8 以降
-- Windows App SDK 拡張機能（NuGet: `Microsoft.WindowsAppSDK`）
-- .NET 8 SDK 以降
-- Windows 10 バージョン 1809 (ビルド 17763) 以降
+- Visual Studio 2022 17.8 or later
+- Windows App SDK extension (NuGet: `Microsoft.WindowsAppSDK`)
+- .NET 8 SDK or later
+- Windows 10 version 1809 (build 17763) or later
 
-### 2.2 テンプレートからの作成
+### 2.2 Creating from a Template
 
 ```
-Visual Studio → 新しいプロジェクトの作成
-  → "Blank App, Packaged (WinUI 3 in Desktop)" を選択
-  → プロジェクト名: MyFirstWinUI
-  → ターゲットフレームワーク: net8.0-windows10.0.19041.0
+Visual Studio → Create a new project
+  → Select "Blank App, Packaged (WinUI 3 in Desktop)"
+  → Project name: MyFirstWinUI
+  → Target framework: net8.0-windows10.0.19041.0
 ```
 
-### 2.3 プロジェクト構成
+### 2.3 Project Structure
 
 ```
 MyFirstWinUI/
-├── MyFirstWinUI.csproj           ← プロジェクト設定
-├── app.manifest                  ← アプリマニフェスト（DPI 対応等）
-├── Package.appxmanifest          ← MSIX パッケージ設定
-├── App.xaml                      ← アプリ共通リソース定義
-├── App.xaml.cs                   ← アプリエントリポイント
-├── MainWindow.xaml               ← メインウィンドウの XAML
-├── MainWindow.xaml.cs            ← メインウィンドウのコードビハインド
-├── Assets/                       ← アイコン・スプラッシュ画像
+├── MyFirstWinUI.csproj           ← Project settings
+├── app.manifest                  ← App manifest (DPI settings, etc.)
+├── Package.appxmanifest          ← MSIX package settings
+├── App.xaml                      ← App-wide resource definitions
+├── App.xaml.cs                   ← App entry point
+├── MainWindow.xaml               ← Main window XAML
+├── MainWindow.xaml.cs            ← Main window code-behind
+├── Assets/                       ← Icons and splash images
 │   ├── LockScreenLogo.png
 │   ├── SplashScreen.png
 │   ├── Square44x44Logo.png
 │   ├── Square150x150Logo.png
 │   ├── StoreLogo.png
 │   └── Wide310x150Logo.png
-├── ViewModels/                   ← ViewModel 層
+├── ViewModels/                   ← ViewModel layer
 │   └── MainViewModel.cs
-├── Views/                        ← ページ（View）層
+├── Views/                        ← Page (View) layer
 │   ├── HomePage.xaml
 │   ├── HomePage.xaml.cs
 │   ├── SettingsPage.xaml
 │   └── SettingsPage.xaml.cs
-├── Models/                       ← モデル層
+├── Models/                       ← Model layer
 │   └── AppConfig.cs
-├── Services/                     ← サービス層
+├── Services/                     ← Service layer
 │   ├── INavigationService.cs
 │   └── NavigationService.cs
-└── Helpers/                      ← ユーティリティ
+└── Helpers/                      ← Utilities
     └── WindowHelper.cs
 ```
 
-### 2.4 csproj の設定
+### 2.4 csproj Configuration
 
 ```xml
 <!-- MyFirstWinUI.csproj -->
@@ -161,9 +161,9 @@ MyFirstWinUI/
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
     <WindowsSdkPackageVersion>10.0.19041.38</WindowsSdkPackageVersion>
-    <!-- Nullable 参照型を有効化 -->
+    <!-- Enable nullable reference types -->
     <Nullable>enable</Nullable>
-    <!-- トリミング対応（Self-contained デプロイ時） -->
+    <!-- Trimming support (for self-contained deployment) -->
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>partial</TrimMode>
   </PropertyGroup>
@@ -173,7 +173,7 @@ MyFirstWinUI/
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240607001" />
     <!-- CommunityToolkit.Mvvm -->
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
-    <!-- DI コンテナ -->
+    <!-- DI container -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <!-- WinUI Community Toolkit -->
     <PackageReference Include="CommunityToolkit.WinUI.UI.Controls" Version="7.1.2" />
@@ -181,7 +181,7 @@ MyFirstWinUI/
 </Project>
 ```
 
-### コード例 1: App.xaml.cs ― アプリケーションエントリポイント
+### Code Example 1: App.xaml.cs — Application Entry Point
 
 ```csharp
 // App.xaml.cs — アプリケーションのエントリポイント
@@ -228,7 +228,7 @@ public partial class App : Application
 }
 ```
 
-### コード例 2: MainWindow.xaml ― 最初の XAML ページ
+### Code Example 2: MainWindow.xaml — First XAML Page
 
 ```xml
 <!-- MainWindow.xaml — メインウィンドウの XAML 定義 -->
@@ -295,34 +295,34 @@ public sealed partial class MainWindow : Window
 
 ---
 
-## 3. XAML の基礎
+## 3. XAML Basics
 
-### 3.1 XAML の構造
+### 3.1 XAML Structure
 
 ```
-<Window>                          -- ルート要素
-  +-- <StackPanel>                -- レイアウトパネル
-  |   +-- <TextBlock Text="..." />  -- コンテンツ要素
-  |   +-- <Button Content="..." />  -- インタラクティブ要素
-  |   +-- <Image Source="..." />    -- メディア要素
-  +-- <Window.Resources>           -- リソース定義
-      +-- <Style TargetType="..." /> -- スタイル
+<Window>                          -- Root element
+  +-- <StackPanel>                -- Layout panel
+  |   +-- <TextBlock Text="..." />  -- Content element
+  |   +-- <Button Content="..." />  -- Interactive element
+  |   +-- <Image Source="..." />    -- Media element
+  +-- <Window.Resources>           -- Resource definitions
+      +-- <Style TargetType="..." /> -- Style
 ```
 
-### 3.2 レイアウトパネルの比較
+### 3.2 Layout Panel Comparison
 
-| パネル | 配置方式 | 主な用途 |
+| Panel | Arrangement | Primary Use |
 |---|---|---|
-| `StackPanel` | 水平 or 垂直に直列配置 | 単純なフォーム、ツールバー |
-| `Grid` | 行と列のセル配置 | 複雑なレイアウト全般 |
-| `RelativePanel` | 相対位置指定 | レスポンシブ配置 |
-| `Canvas` | 絶対座標指定 | 描画系、ドラッグ操作 |
-| `WrapPanel`* | 折り返し配置 | タグ一覧、サムネイル |
-| `UniformGrid`* | 均等配置 | カレンダー、ボタングリッド |
+| `StackPanel` | Serial horizontal or vertical | Simple forms, toolbars |
+| `Grid` | Row and column cell layout | Complex layouts in general |
+| `RelativePanel` | Relative positioning | Responsive layouts |
+| `Canvas` | Absolute coordinate positioning | Drawing, drag operations |
+| `WrapPanel`* | Wrapping layout | Tag lists, thumbnails |
+| `UniformGrid`* | Uniform layout | Calendars, button grids |
 
-*WinUI 3 Community Toolkit で提供
+*Provided by the WinUI 3 Community Toolkit
 
-### コード例 3: Grid レイアウト
+### Code Example 3: Grid Layout
 
 ```xml
 <!-- Grid を使った 2 列レイアウト -->
@@ -357,7 +357,7 @@ public sealed partial class MainWindow : Window
 </Grid>
 ```
 
-### 3.3 マージンとパディングの設定
+### 3.3 Margin and Padding Configuration
 
 ```xml
 <!-- マージン・パディングの記法 -->
@@ -382,76 +382,76 @@ public sealed partial class MainWindow : Window
 
 ---
 
-## 4. 主要コントロール一覧
+## 4. Key Controls Overview
 
-### 4.1 入力系コントロール
+### 4.1 Input Controls
 
 ```
 +-------------------+------------------------------------------+
-| コントロール       | 用途                                      |
+| Control           | Purpose                                   |
 +-------------------+------------------------------------------+
-| TextBox           | 単一行テキスト入力                        |
-| PasswordBox       | パスワード入力（マスク表示）              |
-| NumberBox         | 数値入力（増減ボタン付き）                |
-| ComboBox          | ドロップダウン選択                        |
-| RadioButtons      | 排他選択（グループ化対応）                |
-| CheckBox          | 真偽値の切り替え                          |
-| ToggleSwitch      | ON/OFF 切り替え                           |
-| Slider            | 範囲内の数値選択                          |
-| DatePicker        | 日付選択                                  |
-| TimePicker        | 時刻選択                                  |
-| CalendarDatePicker| カレンダー付き日付選択                    |
-| ColorPicker       | 色の選択                                  |
-| RatingControl     | 星による評価入力                          |
-| AutoSuggestBox    | オートコンプリート付きテキスト入力         |
+| TextBox           | Single-line text input                    |
+| PasswordBox       | Password input (masked display)           |
+| NumberBox         | Numeric input (with increment buttons)    |
+| ComboBox          | Dropdown selection                        |
+| RadioButtons      | Exclusive selection (group support)       |
+| CheckBox          | Boolean toggle                            |
+| ToggleSwitch      | ON/OFF toggle                             |
+| Slider            | Numeric value selection within a range    |
+| DatePicker        | Date selection                            |
+| TimePicker        | Time selection                            |
+| CalendarDatePicker| Date selection with calendar              |
+| ColorPicker       | Color selection                           |
+| RatingControl     | Star rating input                         |
+| AutoSuggestBox    | Text input with autocomplete              |
 +-------------------+------------------------------------------+
 ```
 
-### 4.2 表示系コントロール
+### 4.2 Display Controls
 
 ```xml
-<!-- InfoBar: 情報バー（成功・警告・エラーメッセージの表示） -->
+<!-- InfoBar: Information bar (displays success/warning/error messages) -->
 <InfoBar
-    Title="保存完了"
-    Message="設定が正常に保存されました。"
+    Title="Save Complete"
+    Message="Settings have been saved successfully."
     Severity="Success"
     IsOpen="{x:Bind ViewModel.ShowSuccessBar, Mode=OneWay}" />
 
 <InfoBar
-    Title="エラー"
-    Message="ネットワーク接続を確認してください。"
+    Title="Error"
+    Message="Please check your network connection."
     Severity="Error"
     IsOpen="True"
     IsClosable="True" />
 
-<!-- ProgressBar: 進捗バー -->
+<!-- ProgressBar: Progress bar -->
 <ProgressBar Value="{x:Bind ViewModel.Progress, Mode=OneWay}"
              Maximum="100" />
 
-<!-- 不確定な進捗（ロード中） -->
+<!-- Indeterminate progress (loading) -->
 <ProgressBar IsIndeterminate="True" />
 
-<!-- ProgressRing: ローディングスピナー -->
+<!-- ProgressRing: Loading spinner -->
 <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
 
-<!-- Expander: 展開可能なパネル -->
-<Expander Header="詳細設定" IsExpanded="False">
+<!-- Expander: Expandable panel -->
+<Expander Header="Advanced Settings" IsExpanded="False">
     <StackPanel Spacing="8">
-        <TextBox Header="API キー" />
-        <NumberBox Header="タイムアウト (秒)" Value="30" />
+        <TextBox Header="API Key" />
+        <NumberBox Header="Timeout (seconds)" Value="30" />
     </StackPanel>
 </Expander>
 
-<!-- TeachingTip: ツールチップ型のガイダンス -->
+<!-- TeachingTip: Tooltip-style guidance -->
 <TeachingTip
     x:Name="SaveTip"
     Target="{x:Bind SaveButton}"
-    Title="自動保存が有効です"
-    Subtitle="変更は自動的に保存されます。手動で保存する必要はありません。"
+    Title="Auto-save is enabled"
+    Subtitle="Changes are saved automatically. You do not need to save manually."
     PreferredPlacement="Bottom"
     IsLightDismissEnabled="True" />
 
-<!-- Breadcrumb: パンくずリスト -->
+<!-- Breadcrumb: Breadcrumb navigation -->
 <BreadcrumbBar ItemsSource="{x:Bind ViewModel.BreadcrumbItems}">
     <BreadcrumbBar.ItemTemplate>
         <DataTemplate x:DataType="x:String">
@@ -461,10 +461,10 @@ public sealed partial class MainWindow : Window
 </BreadcrumbBar>
 ```
 
-### 4.3 コレクション表示コントロール
+### 4.3 Collection Display Controls
 
 ```xml
-<!-- ListView: 垂直リスト -->
+<!-- ListView: Vertical list -->
 <ListView ItemsSource="{x:Bind ViewModel.Tasks, Mode=OneWay}"
           SelectionMode="Single"
           SelectedItem="{x:Bind ViewModel.SelectedTask, Mode=TwoWay}">
@@ -494,7 +494,7 @@ public sealed partial class MainWindow : Window
     </ListView.ItemTemplate>
 </ListView>
 
-<!-- GridView: グリッド表示 -->
+<!-- GridView: Grid display -->
 <GridView ItemsSource="{x:Bind ViewModel.Images, Mode=OneWay}"
           SelectionMode="Multiple"
           IsItemClickEnabled="True"
@@ -515,7 +515,7 @@ public sealed partial class MainWindow : Window
 </GridView>
 ```
 
-### コード例 4: データバインディングと MVVM
+### Code Example 4: Data Binding and MVVM
 
 ```csharp
 // ViewModels/MainViewModel.cs — MVVM パターンの ViewModel
@@ -632,11 +632,11 @@ public class TaskItem
 
 ---
 
-## 5. スタイルとテーマ
+## 5. Styles and Themes
 
-### 5.1 テーマシステム
+### 5.1 Theme System
 
-WinUI 3 は Light / Dark / HighContrast の 3 テーマをネイティブサポートする。
+WinUI 3 natively supports three themes: Light, Dark, and HighContrast.
 
 ```xml
 <!-- App.xaml — テーマリソースの定義 -->
@@ -665,7 +665,7 @@ WinUI 3 は Light / Dark / HighContrast の 3 テーマをネイティブサポ�
 </Application.Resources>
 ```
 
-### 5.2 テーマ切り替えの実装
+### 5.2 Implementing Theme Switching
 
 ```csharp
 // テーマサービスの実装
@@ -712,7 +712,7 @@ public class ThemeService : IThemeService
 }
 ```
 
-### 5.3 カスタムスタイルの詳細
+### 5.3 Custom Style Details
 
 ```xml
 <!-- Styles/CustomStyles.xaml — カスタムスタイル集 -->
@@ -758,25 +758,25 @@ public class ThemeService : IThemeService
 
 ---
 
-## 6. ナビゲーション
+## 6. Navigation
 
-### 6.1 NavigationView パターン
+### 6.1 NavigationView Pattern
 
 ```
 +-------+----------------------------------+
-| =     |  ページタイトル            [ _ # X ] |
+| =     |  Page Title                [ _ # X ] |
 +-------+----------------------------------+
 | Home  |                                |
-| 分析   |     <-- ページコンテンツ -->       |
-| 設定   |                                |
+| Analytics |     <-- Page Content -->       |
+| Settings  |                                |
 |         |                                |
 |         |                                |
 +-------+----------------------------------+
      ^                    ^
-  NavigationView      Frame (ページ切替)
+  NavigationView      Frame (page switching)
 ```
 
-### コード例 5: NavigationView によるページナビゲーション
+### Code Example 5: Page Navigation with NavigationView
 
 ```xml
 <!-- ShellPage.xaml — ナビゲーションシェル -->
@@ -928,7 +928,7 @@ public sealed partial class ShellPage : Page
 
 ## 7. Fluent Design System
 
-### 7.1 Fluent Design の 5 原則
+### 7.1 The 5 Principles of Fluent Design
 
 ```
 +----------------------------------------------------------+
@@ -936,22 +936,22 @@ public sealed partial class ShellPage : Page
 +----------------------------------------------------------+
 |                                                          |
 |  Light        Material       Depth                       |
-|  (光)         (素材)        (奥行き)                      |
+|               (Material)     (Depth)                     |
 |  +-----+     +-----+      +-----+                       |
 |  | ### |     | ### |      |  *  |                       |
-|  | 照明 |     | Mica |      | 影  |                       |
+|  | Light|    | Mica |      |Shadow|                      |
 |  +-----+     +-----+      +-----+                       |
 |                                                          |
 |  Motion                    Scale                         |
-|  (動き)                   (適応)                          |
+|  (Motion)                 (Scale)                        |
 |  +-----+                  +-----+                        |
 |  | --> |                  | [ ] |                        |
-|  |アニメ|                  | 応答 |                        |
+|  | Anim|                  | Resp|                        |
 |  +-----+                  +-----+                        |
 +----------------------------------------------------------+
 ```
 
-### 7.2 Mica / Acrylic の適用
+### 7.2 Applying Mica / Acrylic
 
 ```xml
 <!-- ウィンドウ背景に Mica を適用 -->
@@ -976,7 +976,7 @@ public sealed partial class ShellPage : Page
 </Window>
 ```
 
-### 7.3 アニメーションの実装
+### 7.3 Implementing Animations
 
 ```csharp
 // Composition API を使ったアニメーション
@@ -1072,7 +1072,7 @@ public static class AnimationHelper
 
 ---
 
-## 8. ContentDialog の実装
+## 8. Implementing ContentDialog
 
 ```csharp
 // ContentDialog: モーダルダイアログの実装
@@ -1150,7 +1150,7 @@ public static class DialogHelper
 
 ---
 
-## 9. ウィンドウ管理（AppWindow API）
+## 9. Window Management (AppWindow API)
 
 ```csharp
 // AppWindow を使ったウィンドウの高度な制御
@@ -1221,9 +1221,9 @@ public sealed partial class MainWindow : Window
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: コードビハインドに全ロジックを記述する
+### Anti-Pattern 1: Writing All Logic in Code-Behind
 
 ```csharp
 // NG: コードビハインドにビジネスロジックを直接記述
@@ -1265,7 +1265,7 @@ public partial class OrderViewModel : ObservableObject
 }
 ```
 
-### アンチパターン 2: UWP 用 API を WinUI 3 でそのまま使う
+### Anti-Pattern 2: Using UWP APIs Directly in WinUI 3
 
 ```csharp
 // NG: UWP の名前空間を直接使用（WinUI 3 では動作しない場合がある）
@@ -1275,9 +1275,9 @@ using Windows.UI.Xaml; // UWP 用名前空間
 using Microsoft.UI.Xaml; // WinUI 3 用名前空間
 ```
 
-UWP から移行する際は、名前空間のプレフィックスが `Windows.UI` から `Microsoft.UI` に変更されている点に特に注意が必要である。
+When migrating from UWP, pay particular attention to the fact that namespace prefixes have changed from `Windows.UI` to `Microsoft.UI`.
 
-### アンチパターン 3: UI スレッドのブロック
+### Anti-Pattern 3: Blocking the UI Thread
 
 ```csharp
 // NG: UI スレッドで同期的に重い処理を実行
@@ -1324,7 +1324,7 @@ private async void LoadData_Click(object sender, RoutedEventArgs e)
 
 ---
 
-## 11. テストの実装
+## 11. Implementing Tests
 
 ```csharp
 // ViewModel のユニットテスト
@@ -1404,71 +1404,71 @@ public class MainViewModelTests
 
 ## 12. FAQ
 
-### Q1: WinUI 3 は .NET MAUI とどう違うのか？
+### Q1: How does WinUI 3 differ from .NET MAUI?
 
-**A:** WinUI 3 は Windows 専用の UI フレームワークであり、Windows のネイティブ機能を最大限に活用できる。一方 .NET MAUI はクロスプラットフォーム（Windows / macOS / iOS / Android）を対象とし、各 OS のネイティブ UI に変換される。Windows のみを対象とし、高品質な UI が必要なら WinUI 3、マルチプラットフォーム展開が必要なら MAUI を選ぶべきである。
+**A:** WinUI 3 is a Windows-only UI framework that makes maximum use of Windows native features. .NET MAUI, on the other hand, targets cross-platform development (Windows / macOS / iOS / Android) and converts to each OS's native UI. If you are targeting Windows only and need high-quality UI, choose WinUI 3; if you need multi-platform deployment, choose MAUI.
 
-### Q2: WinUI 3 アプリは Windows 10 でも動作するか？
+### Q2: Does a WinUI 3 app run on Windows 10?
 
-**A:** はい。Windows App SDK は Windows 10 バージョン 1809（ビルド 17763）以降をサポートしている。ただし、Mica や SnapLayout など一部の機能は Windows 11 でのみ利用可能である。`ApiInformation.IsApiContractPresent()` を使って機能の存在を確認するのが推奨される。
+**A:** Yes. The Windows App SDK supports Windows 10 version 1809 (build 17763) or later. However, some features such as Mica and SnapLayout are only available on Windows 11. It is recommended to use `ApiInformation.IsApiContractPresent()` to check for feature availability.
 
-### Q3: WPF の既存アプリを WinUI 3 に移行するには？
+### Q3: How do I migrate an existing WPF app to WinUI 3?
 
-**A:** 完全な自動移行ツールは提供されていない。段階的な移行戦略として、(1) まず MVVM パターンに整理し ViewModel をフレームワーク非依存にする、(2) XAML Islands を使って WPF アプリ内に WinUI 3 コントロールを埋め込む、(3) 最終的にアプリ全体を WinUI 3 で再構築する、というアプローチが推奨される。
+**A:** No fully automatic migration tool is provided. The recommended gradual migration strategy is: (1) first reorganize into the MVVM pattern so that ViewModels are framework-independent, (2) use XAML Islands to embed WinUI 3 controls inside the WPF app, and (3) finally rebuild the entire app in WinUI 3.
 
-### Q4: WinUI 3 で WebView2 を使うには？
+### Q4: How do I use WebView2 in WinUI 3?
 
-**A:** NuGet パッケージ `Microsoft.Web.WebView2` をインストールし、XAML に `<WebView2 Source="https://example.com" />` を配置する。WebView2 は Chromium ベースのブラウザコントロールであり、Edge (Chromium) の Evergreen ランタイムを使用する。JavaScript との双方向通信も可能で、ハイブリッドアプリの構築に適している。
+**A:** Install the NuGet package `Microsoft.Web.WebView2` and place `<WebView2 Source="https://example.com" />` in your XAML. WebView2 is a Chromium-based browser control that uses the Edge (Chromium) Evergreen runtime. Two-way communication with JavaScript is also possible, making it well-suited for building hybrid apps.
 
-### Q5: WinUI 3 の MSIX パッケージと非パッケージの違いは？
+### Q5: What is the difference between MSIX-packaged and unpackaged WinUI 3?
 
-**A:** MSIX パッケージではクリーンなインストール/アンインストール、自動更新、Windows Store 配布が可能である。非パッケージ（Unpackaged）では従来の exe 配布と同様に自由な配布が可能で、レジストリやファイルシステムへのフルアクセスが得られる。新規プロジェクトでは MSIX パッケージが推奨されるが、既存の配布インフラとの互換性が必要な場合は非パッケージを選択する。
+**A:** With MSIX packaging, you get clean install/uninstall, automatic updates, and Windows Store distribution. With unpackaged (Unpackaged) mode, you can distribute freely like a traditional exe and get full access to the registry and file system. MSIX packaging is recommended for new projects, but choose unpackaged when compatibility with existing distribution infrastructure is required.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying how it behaves.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend fully understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and when designing architecture.
 
 ---
 
-## 13. まとめ
+## 13. Summary
 
-| トピック | キーポイント |
+| Topic | Key Points |
 |---|---|
-| WinUI 3 の位置づけ | Windows App SDK の UI 層。WPF の後継として新規開発に推奨 |
-| プロジェクト作成 | Visual Studio テンプレート + Windows App SDK NuGet |
-| XAML | 宣言的 UI 記述。Grid / StackPanel でレイアウト構築 |
-| データバインディング | `x:Bind` による型安全なバインディングが推奨 |
-| MVVM | CommunityToolkit.Mvvm でボイラープレートを削減 |
-| スタイル・テーマ | Light / Dark テーマ標準対応。リソースディクショナリで管理 |
-| ナビゲーション | NavigationView + Frame パターンが標準 |
-| Fluent Design | Mica / Acrylic / アニメーション で現代的な外観を実現 |
-| ダイアログ | ContentDialog でモーダル UI を実装 |
-| ウィンドウ管理 | AppWindow API でサイズ・位置・プレゼンターを制御 |
-| テスト | ViewModel のユニットテストで品質を確保 |
+| WinUI 3 positioning | UI layer of Windows App SDK. Recommended for new development as the successor to WPF |
+| Project creation | Visual Studio template + Windows App SDK NuGet |
+| XAML | Declarative UI description. Build layouts with Grid / StackPanel |
+| Data binding | Type-safe binding via `x:Bind` is recommended |
+| MVVM | Reduce boilerplate with CommunityToolkit.Mvvm |
+| Styles and themes | Standard Light / Dark theme support. Managed with resource dictionaries |
+| Navigation | NavigationView + Frame pattern is standard |
+| Fluent Design | Achieve a modern appearance with Mica / Acrylic / animations |
+| Dialogs | Implement modal UI with ContentDialog |
+| Window management | Control size, position, and presenter with AppWindow API |
+| Testing | Ensure quality with ViewModel unit tests |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- **[02-webview2.md](./02-webview2.md)** -- WebView2 を統合してハイブリッドアプリを構築する方法
-- **パッケージングと署名** -- MSIX パッケージによる配布方法
+- **[02-webview2.md](./02-webview2.md)** -- How to build hybrid apps by integrating WebView2
+- **Packaging and signing** -- How to distribute using MSIX packages
 
 ---
 
-## 参考文献
+## References
 
 1. Microsoft, "Windows App SDK -- WinUI 3", https://learn.microsoft.com/windows/apps/winui/winui3/
 2. Microsoft, "XAML Controls Gallery", https://github.com/microsoft/Xaml-Controls-Gallery
