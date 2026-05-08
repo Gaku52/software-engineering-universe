@@ -1,56 +1,56 @@
-# ターミナルマルチプレクサ（tmux, screen）
+# Terminal Multiplexers (tmux, screen)
 
-> tmux は1つのターミナルで複数のセッション・ウィンドウ・ペインを管理する。SSH切断後も作業が継続する。
+> tmux manages multiple sessions, windows, and panes within a single terminal. Work continues even after an SSH disconnection.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] tmux のセッション・ウィンドウ・ペインを操作できる
-- [ ] SSH 切断後もプロセスを継続できる
-- [ ] tmux をカスタマイズして生産性を上げる
-- [ ] tmux スクリプトで作業環境を自動構築できる
-- [ ] tmux プラグインを活用できる
-- [ ] screen の基本操作を理解する（レガシー環境対応）
+- [ ] Operate tmux sessions, windows, and panes
+- [ ] Keep processes running after SSH disconnection
+- [ ] Customize tmux to boost productivity
+- [ ] Auto-build work environments with tmux scripts
+- [ ] Use tmux plugins
+- [ ] Understand basic screen operations (for legacy environments)
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. tmux の基本概念
+## 1. Core Concepts of tmux
 
-### 1.1 構造の理解
+### 1.1 Understanding the Structure
 
 ```
-tmux の構造:
+tmux structure:
 
-  Server（バックグラウンドプロセス）
-  └── Session（作業の単位。SSH切断後も維持）
-      ├── Window 0（タブのようなもの）
-      │   ├── Pane 0（画面分割の各領域）
+  Server (background process)
+  └── Session (unit of work; persists after SSH disconnection)
+      ├── Window 0 (like a tab)
+      │   ├── Pane 0 (each region of a split screen)
       │   └── Pane 1
       └── Window 1
           └── Pane 0
 
-プレフィックスキー: Ctrl+b（デフォルト）
-  → 全ての tmux コマンドは Ctrl+b の後にキーを押す
+Prefix key: Ctrl+b (default)
+  → All tmux commands are entered after pressing Ctrl+b
 ```
 
-### 1.2 tmux が必要な場面
+### 1.2 When tmux Is Needed
 
 ```bash
-# tmux が必要な場面:
-# 1. SSH接続でサーバー作業 → 切断してもプロセスが継続
-# 2. 複数のターミナルを1画面で管理 → 画面分割
-# 3. ペアプログラミング → セッション共有
-# 4. 長時間実行するジョブの管理 → デタッチ/アタッチ
-# 5. 開発環境の一括構築 → スクリプト化
+# Situations where tmux is useful:
+# 1. Server work over SSH → processes continue even after disconnection
+# 2. Managing multiple terminals on one screen → split view
+# 3. Pair programming → session sharing
+# 4. Managing long-running jobs → detach/attach
+# 5. Bulk setup of development environments → scripting
 
-# tmux のインストール
+# Installing tmux
 # macOS
 brew install tmux
 
@@ -60,506 +60,506 @@ sudo apt install tmux
 # RHEL/Fedora
 sudo dnf install tmux
 
-# バージョン確認
+# Check version
 tmux -V
 ```
 
 ---
 
-## 2. セッション管理
+## 2. Session Management
 
-### 2.1 セッションの基本操作
+### 2.1 Basic Session Operations
 
 ```bash
-# セッション操作
-tmux                             # 新規セッション作成
-tmux new -s work                 # 名前付きセッション
-tmux new -s work -d              # バックグラウンドで作成
-tmux new -s work -n editor       # 最初のウィンドウ名を指定
-tmux ls                          # セッション一覧
-tmux list-sessions               # 同上（フルコマンド）
-tmux attach -t work              # セッションにアタッチ
-tmux attach -t 0                 # 番号でアタッチ
-tmux attach                      # 最後のセッションにアタッチ
-tmux kill-session -t work        # セッション削除
-tmux kill-session -a             # 現在以外の全セッション削除
-tmux kill-session -a -t work     # work以外の全セッション削除
-tmux kill-server                 # 全セッション削除
+# Session operations
+tmux                             # Create a new session
+tmux new -s work                 # Named session
+tmux new -s work -d              # Create in the background
+tmux new -s work -n editor       # Specify the first window name
+tmux ls                          # List sessions
+tmux list-sessions               # Same (full command)
+tmux attach -t work              # Attach to a session
+tmux attach -t 0                 # Attach by number
+tmux attach                      # Attach to the last session
+tmux kill-session -t work        # Delete a session
+tmux kill-session -a             # Delete all sessions except the current one
+tmux kill-session -a -t work     # Delete all sessions except work
+tmux kill-server                 # Delete all sessions
 
-# セッションの存在確認
+# Check if a session exists
 tmux has-session -t work 2>/dev/null && echo "exists" || echo "not found"
 ```
 
-### 2.2 セッション内のキーバインド
+### 2.2 Key Bindings Within a Session
 
 ```bash
-# セッション内操作（Ctrl+b + キー）
-# Ctrl+b d    → デタッチ（セッションから離脱。プロセスは継続）
-# Ctrl+b s    → セッション一覧・切り替え（ツリー表示）
-# Ctrl+b $    → セッション名変更
-# Ctrl+b (    → 前のセッション
-# Ctrl+b )    → 次のセッション
-# Ctrl+b L    → 最後にアクティブだったセッションに切り替え
+# Operations inside a session (Ctrl+b + key)
+# Ctrl+b d    → Detach (leave the session; processes continue)
+# Ctrl+b s    → Session list / switch (tree view)
+# Ctrl+b $    → Rename session
+# Ctrl+b (    → Previous session
+# Ctrl+b )    → Next session
+# Ctrl+b L    → Switch to the last active session
 ```
 
-### 2.3 セッション管理のベストプラクティス
+### 2.3 Session Management Best Practices
 
 ```bash
-# プロジェクトごとにセッションを作成
+# Create a session per project
 tmux new -s frontend -d
 tmux new -s backend -d
 tmux new -s database -d
 
-# セッション間の移動
-# Ctrl+b s でセッション一覧を表示してから選択
-# または Ctrl+b ( / ) で順次切り替え
+# Moving between sessions
+# Press Ctrl+b s to display the session list, then select
+# Or switch sequentially with Ctrl+b ( / )
 
-# SSH先でのセッション管理パターン
-# 接続時: 既存セッションがあればアタッチ、なければ新規作成
+# Session management pattern on an SSH server
+# On connect: attach to an existing session, or create a new one
 tmux attach -t main 2>/dev/null || tmux new -s main
 
-# エイリアスとして設定
+# Set as an alias
 alias ta='tmux attach -t main 2>/dev/null || tmux new -s main'
 ```
 
 ---
 
-## 3. ウィンドウ操作
+## 3. Window Operations
 
-### 3.1 基本操作
+### 3.1 Basic Operations
 
 ```bash
-# ウィンドウ（タブ相当）
-# Ctrl+b c    → 新規ウィンドウ作成
-# Ctrl+b ,    → ウィンドウ名変更
-# Ctrl+b w    → ウィンドウ一覧（プレビュー付き）
-# Ctrl+b n    → 次のウィンドウ
-# Ctrl+b p    → 前のウィンドウ
-# Ctrl+b 0-9  → 番号でウィンドウ切り替え
-# Ctrl+b &    → ウィンドウを閉じる（確認あり）
-# Ctrl+b f    → ウィンドウ検索
-# Ctrl+b l    → 最後にアクティブだったウィンドウに切り替え
+# Windows (equivalent to tabs)
+# Ctrl+b c    → Create a new window
+# Ctrl+b ,    → Rename window
+# Ctrl+b w    → Window list (with preview)
+# Ctrl+b n    → Next window
+# Ctrl+b p    → Previous window
+# Ctrl+b 0-9  → Switch window by number
+# Ctrl+b &    → Close window (with confirmation)
+# Ctrl+b f    → Search windows
+# Ctrl+b l    → Switch to the last active window
 ```
 
-### 3.2 コマンドラインからのウィンドウ操作
+### 3.2 Window Operations from the Command Line
 
 ```bash
-# コマンドラインからの操作
-tmux new-window                  # 新しいウィンドウ
-tmux new-window -n logs          # 名前付きウィンドウ
-tmux new-window -t work:         # 特定セッションにウィンドウ追加
-tmux select-window -t 2          # ウィンドウ2に移動
-tmux select-window -t work:logs  # セッション:ウィンドウ名で指定
-tmux rename-window editor        # ウィンドウ名変更
+# Operations from the command line
+tmux new-window                  # New window
+tmux new-window -n logs          # Named window
+tmux new-window -t work:         # Add a window to a specific session
+tmux select-window -t 2          # Go to window 2
+tmux select-window -t work:logs  # Specify by session:window name
+tmux rename-window editor        # Rename window
 
-# ウィンドウの入れ替え
-tmux swap-window -s 0 -t 1       # ウィンドウ0と1を入れ替え
-tmux move-window -s work:1 -t dev:  # セッション間でウィンドウ移動
+# Swap windows
+tmux swap-window -s 0 -t 1       # Swap windows 0 and 1
+tmux move-window -s work:1 -t dev:  # Move window between sessions
 
-# ウィンドウでコマンドを実行
+# Run a command in a window
 tmux new-window -n editor "vim ."
 tmux new-window -n server "npm run dev"
 ```
 
-### 3.3 ウィンドウのレイアウト管理
+### 3.3 Window Layout Management
 
 ```bash
-# ステータスバーでのウィンドウ表示
+# Window display in the status bar
 # [0] editor* [1] server [2] logs
-# * が付いているのが現在のウィンドウ
-# - が付いているのが直前のウィンドウ
+# * marks the current window
+# - marks the previous window
 
-# ウィンドウの自動リネーム
-# デフォルトでは実行中のコマンド名がウィンドウ名になる
-# 無効にする場合:
+# Auto-renaming windows
+# By default, the running command name becomes the window name
+# To disable:
 # set-option -g allow-rename off
 ```
 
 ---
 
-## 4. ペイン操作（画面分割）
+## 4. Pane Operations (Split Screen)
 
-### 4.1 基本的なペイン操作
+### 4.1 Basic Pane Operations
 
 ```bash
-# ペインの分割
-# Ctrl+b %    → 左右に分割（垂直分割）
-# Ctrl+b "    → 上下に分割（水平分割）
+# Splitting panes
+# Ctrl+b %    → Split left/right (vertical split)
+# Ctrl+b "    → Split top/bottom (horizontal split)
 
-# ペインの移動
-# Ctrl+b ←↑→↓  → 矢印キーでペイン移動
-# Ctrl+b o      → 次のペインへ
-# Ctrl+b ;      → 直前のペインへ
-# Ctrl+b q      → ペイン番号表示（番号を押して移動）
+# Moving between panes
+# Ctrl+b ←↑→↓  → Move to pane with arrow keys
+# Ctrl+b o      → Next pane
+# Ctrl+b ;      → Previous pane
+# Ctrl+b q      → Show pane numbers (press a number to navigate)
 
-# ペインのサイズ変更
-# Ctrl+b Ctrl+←↑→↓  → 矢印方向にリサイズ
-# Ctrl+b z            → ペインをズーム（全画面切替）
+# Resizing panes
+# Ctrl+b Ctrl+←↑→↓  → Resize in the arrow direction
+# Ctrl+b z            → Zoom pane (toggle fullscreen)
 
-# ペインのレイアウト
-# Ctrl+b Space        → レイアウト切り替え（均等分割等）
-# Ctrl+b {            → ペインを前に移動
-# Ctrl+b }            → ペインを後ろに移動
+# Pane layouts
+# Ctrl+b Space        → Cycle layouts (even split, etc.)
+# Ctrl+b {            → Move pane forward
+# Ctrl+b }            → Move pane backward
 
-# ペインを閉じる
-# Ctrl+b x            → 現在のペインを閉じる（確認あり）
-# exit または Ctrl+d   → シェルを終了してペインを閉じる
+# Closing a pane
+# Ctrl+b x            → Close the current pane (with confirmation)
+# exit or Ctrl+d       → Exit the shell and close the pane
 
-# ペインをウィンドウに昇格
-# Ctrl+b !            → 現在のペインを新しいウィンドウに
+# Promote pane to a window
+# Ctrl+b !            → Move the current pane to a new window
 ```
 
-### 4.2 コマンドラインからのペイン操作
+### 4.2 Pane Operations from the Command Line
 
 ```bash
-# コマンドラインでの分割
-tmux split-window -h             # 水平（左右）分割
-tmux split-window -v             # 垂直（上下）分割
-tmux split-window -h -p 30       # 右側30%で分割
-tmux split-window -v -p 20       # 下側20%で分割
-tmux split-window -h -l 40       # 右側40カラムで分割
+# Splitting from the command line
+tmux split-window -h             # Horizontal (left/right) split
+tmux split-window -v             # Vertical (top/bottom) split
+tmux split-window -h -p 30       # Split with 30% on the right
+tmux split-window -v -p 20       # Split with 20% on the bottom
+tmux split-window -h -l 40       # Split with 40 columns on the right
 
-# 分割してコマンド実行
+# Split and run a command
 tmux split-window -h "tail -f /var/log/syslog"
 tmux split-window -v -p 30 "htop"
 
-# ペインの選択
-tmux select-pane -t 0            # ペイン0を選択
-tmux select-pane -L              # 左のペインに移動
-tmux select-pane -R              # 右のペインに移動
-tmux select-pane -U              # 上のペインに移動
-tmux select-pane -D              # 下のペインに移動
+# Selecting a pane
+tmux select-pane -t 0            # Select pane 0
+tmux select-pane -L              # Move to left pane
+tmux select-pane -R              # Move to right pane
+tmux select-pane -U              # Move to pane above
+tmux select-pane -D              # Move to pane below
 
-# ペインのリサイズ
-tmux resize-pane -L 5            # 左に5カラム
-tmux resize-pane -R 5            # 右に5カラム
-tmux resize-pane -U 5            # 上に5行
-tmux resize-pane -D 5            # 下に5行
-tmux resize-pane -Z              # ズームトグル
+# Resizing panes
+tmux resize-pane -L 5            # 5 columns to the left
+tmux resize-pane -R 5            # 5 columns to the right
+tmux resize-pane -U 5            # 5 rows up
+tmux resize-pane -D 5            # 5 rows down
+tmux resize-pane -Z              # Toggle zoom
 
-# ペインの入れ替え
-tmux swap-pane -s 0 -t 1         # ペイン0と1を入れ替え
-tmux swap-pane -U                # 上のペインと入れ替え
-tmux swap-pane -D                # 下のペインと入れ替え
+# Swapping panes
+tmux swap-pane -s 0 -t 1         # Swap panes 0 and 1
+tmux swap-pane -U                # Swap with the pane above
+tmux swap-pane -D                # Swap with the pane below
 
-# ペインをウィンドウ間で移動
-tmux join-pane -s work:1 -t work:0   # ウィンドウ1のペインをウィンドウ0に結合
-tmux break-pane                       # 現在のペインを新しいウィンドウに
+# Moving panes between windows
+tmux join-pane -s work:1 -t work:0   # Join pane from window 1 into window 0
+tmux break-pane                       # Move current pane to a new window
 
-# レイアウトの指定
-tmux select-layout even-horizontal   # 均等水平分割
-tmux select-layout even-vertical     # 均等垂直分割
-tmux select-layout main-horizontal   # メイン（上）+ サブ（下段横並び）
-tmux select-layout main-vertical     # メイン（左）+ サブ（右段縦並び）
-tmux select-layout tiled             # タイル状（均等グリッド）
+# Specifying a layout
+tmux select-layout even-horizontal   # Even horizontal split
+tmux select-layout even-vertical     # Even vertical split
+tmux select-layout main-horizontal   # Main (top) + sub (bottom row)
+tmux select-layout main-vertical     # Main (left) + sub (right column)
+tmux select-layout tiled             # Tiled (even grid)
 ```
 
-### 4.3 ペインの同期（全ペインに同時入力）
+### 4.3 Pane Synchronization (Simultaneous Input to All Panes)
 
 ```bash
-# 全ペインへの同時入力（同じコマンドを複数サーバーで実行）
+# Simultaneous input to all panes (run the same command on multiple servers)
 # Ctrl+b : → setw synchronize-panes on
 # Ctrl+b : → setw synchronize-panes off
 
-# トグルで切り替え
-# .tmux.conf に以下を追加:
+# Toggle with a key binding
+# Add the following to .tmux.conf:
 # bind S setw synchronize-panes
 
-# 使い方:
-# 1. 複数ペインでそれぞれSSH接続
-# 2. Ctrl+b S で同期ON
-# 3. コマンド入力（全ペインに反映）
-# 4. Ctrl+b S で同期OFF
+# Usage:
+# 1. Connect via SSH in each pane
+# 2. Turn sync ON with Ctrl+b S
+# 3. Type a command (it applies to all panes)
+# 4. Turn sync OFF with Ctrl+b S
 ```
 
 ---
 
-## 5. コピーモード
+## 5. Copy Mode
 
-### 5.1 基本操作
+### 5.1 Basic Operations
 
 ```bash
-# コピーモード（スクロール・テキスト選択）
-# Ctrl+b [    → コピーモード開始
+# Copy mode (scrolling and text selection)
+# Ctrl+b [    → Enter copy mode
 
-# コピーモード内の操作（vi風）:
-# q           → コピーモード終了
-# ↑↓←→ / hjkl → カーソル移動
-# Ctrl+u/d    → ページアップ/ダウン
-# Ctrl+b/f    → ページアップ/ダウン（emacs風）
-# g / G       → 先頭/末尾
-# /pattern    → 前方検索
-# ?pattern    → 後方検索
-# n / N       → 次/前の検索結果
-# Space       → 選択開始
-# Enter       → コピー（選択終了）
-# w / b       → 単語単位で移動
-# 0 / $       → 行頭 / 行末
+# Operations in copy mode (vi-style):
+# q           → Exit copy mode
+# ↑↓←→ / hjkl → Move cursor
+# Ctrl+u/d    → Page up/down
+# Ctrl+b/f    → Page up/down (emacs-style)
+# g / G       → Go to top / bottom
+# /pattern    → Forward search
+# ?pattern    → Backward search
+# n / N       → Next / previous search result
+# Space       → Start selection
+# Enter       → Copy (end selection)
+# w / b       → Move word by word
+# 0 / $       → Beginning / end of line
 
-# Ctrl+b ]    → ペースト
+# Ctrl+b ]    → Paste
 ```
 
-### 5.2 vi モードの設定と高度な操作
+### 5.2 vi Mode Settings and Advanced Operations
 
 ```bash
-# vi モードを有効にする（~/.tmux.conf）:
+# Enable vi mode (~/.tmux.conf):
 setw -g mode-keys vi
 
-# vi モードでのコピー操作
-# Ctrl+b [     → コピーモード開始
-# v            → 選択開始（vi風、設定が必要）
-# y            → ヤンク（コピー）
-# Ctrl+b ]     → ペースト
+# Copy operations in vi mode
+# Ctrl+b [     → Enter copy mode
+# v            → Start selection (vi-style, requires configuration)
+# y            → Yank (copy)
+# Ctrl+b ]     → Paste
 
-# tmux.conf に追加する設定（vi風コピー）
+# Settings to add to tmux.conf (vi-style copy)
 # bind-key -T copy-mode-vi v send-keys -X begin-selection
 # bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel
 # bind-key -T copy-mode-vi r send-keys -X rectangle-toggle
 
-# システムクリップボードとの連携（macOS）
+# Integration with system clipboard (macOS)
 # bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "pbcopy"
 # bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy"
 
-# システムクリップボードとの連携（Linux / X11）
+# Integration with system clipboard (Linux / X11)
 # bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "xclip -selection clipboard"
 
-# システムクリップボードとの連携（Linux / Wayland）
+# Integration with system clipboard (Linux / Wayland)
 # bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "wl-copy"
 ```
 
-### 5.3 マウスによるコピー
+### 5.3 Copying with the Mouse
 
 ```bash
-# マウスモードを有効にすると:
-# - マウスでペインを選択
-# - マウスでペインをリサイズ
-# - マウスドラッグでテキスト選択
-# - マウスホイールでスクロール
+# When mouse mode is enabled:
+# - Select a pane with the mouse
+# - Resize panes with the mouse
+# - Select text by mouse drag
+# - Scroll with the mouse wheel
 
-# set -g mouse on  # ~/.tmux.conf に追加
+# set -g mouse on  # Add to ~/.tmux.conf
 
-# マウスで選択したテキストのコピー設定
-# macOS + iTerm2 の場合:
-# Option キーを押しながらドラッグで従来の選択
+# Copy setting for text selected with the mouse
+# macOS + iTerm2:
+# Hold Option and drag for conventional selection
 
-# tmux 内でのマウスコピーの改善設定
+# Improved mouse copy setting inside tmux
 # bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy"
 ```
 
 ---
 
-## 6. tmux の設定（~/.tmux.conf）
+## 6. tmux Configuration (~/.tmux.conf)
 
-### 6.1 基本設定
+### 6.1 Basic Configuration
 
 ```bash
 # ~/.tmux.conf
 
-# プレフィックスキーの変更（Ctrl+a が人気）
+# Change prefix key (Ctrl+a is popular)
 unbind C-b
 set -g prefix C-a
 bind C-a send-prefix
 
-# マウスサポート
+# Mouse support
 set -g mouse on
 
-# vi風キーバインド
+# vi-style key bindings
 setw -g mode-keys vi
 
-# ペイン分割のキーバインド改善
+# Improved key bindings for pane splitting
 bind | split-window -h -c "#{pane_current_path}"
 bind - split-window -v -c "#{pane_current_path}"
 unbind '"'
 unbind %
 
-# ペイン移動（vim風）
+# Pane navigation (vim-style)
 bind h select-pane -L
 bind j select-pane -D
 bind k select-pane -U
 bind l select-pane -R
 
-# ペインリサイズ
+# Pane resizing
 bind -r H resize-pane -L 5
 bind -r J resize-pane -D 5
 bind -r K resize-pane -U 5
 bind -r L resize-pane -R 5
 
-# ウィンドウ番号を1から開始
+# Start window numbering at 1
 set -g base-index 1
 setw -g pane-base-index 1
 
-# ウィンドウ番号の自動リナンバリング
+# Automatic window renumbering
 set -g renumber-windows on
 
-# 256色対応
+# 256-color support
 set -g default-terminal "tmux-256color"
 set -ag terminal-overrides ",xterm-256color:RGB"
 
-# ステータスバー
+# Status bar
 set -g status-style 'bg=#333333 fg=#ffffff'
 set -g status-left '#[fg=green]#S '
 set -g status-right '#[fg=yellow]%Y-%m-%d %H:%M'
 set -g status-left-length 30
 
-# 設定の再読み込み
+# Reload configuration
 bind r source-file ~/.tmux.conf \; display "Config reloaded!"
 
-# 履歴バッファサイズ
+# History buffer size
 set -g history-limit 50000
 
-# エスケープ時間の短縮（vim用）
+# Reduce escape time (for vim)
 set -sg escape-time 0
 
-# キーリピート時間
+# Key repeat time
 set -g repeat-time 500
 
-# 新しいウィンドウは現在のパスで開く
+# Open new windows in the current path
 bind c new-window -c "#{pane_current_path}"
 
-# ウィンドウのアクティビティ通知
+# Window activity notifications
 setw -g monitor-activity on
 set -g visual-activity off
 ```
 
-### 6.2 外観のカスタマイズ
+### 6.2 Appearance Customization
 
 ```bash
-# ステータスバーの詳細カスタマイズ
+# Detailed status bar customization
 set -g status-position bottom
 set -g status-justify left
 set -g status-interval 5
 
-# 左側: セッション名
+# Left side: session name
 set -g status-left '#[fg=green,bold]#S #[fg=white]| '
 set -g status-left-length 30
 
-# 右側: 日時、ホスト名
+# Right side: date/time, hostname
 set -g status-right '#[fg=cyan]#H #[fg=white]| #[fg=yellow]%Y-%m-%d #[fg=white]%H:%M '
 set -g status-right-length 50
 
-# ウィンドウリストのスタイル
+# Window list style
 setw -g window-status-format '#[fg=white] #I:#W '
 setw -g window-status-current-format '#[fg=black,bg=green,bold] #I:#W '
 
-# ペインボーダーのスタイル
+# Pane border style
 set -g pane-border-style 'fg=#444444'
 set -g pane-active-border-style 'fg=green'
 
-# メッセージのスタイル
+# Message style
 set -g message-style 'fg=white bg=black bold'
 
-# コピーモードのスタイル
+# Copy mode style
 setw -g mode-style 'fg=black bg=yellow'
 
-# クロックモードの色
+# Clock mode color
 setw -g clock-mode-colour green
 ```
 
-### 6.3 高度なキーバインド設定
+### 6.3 Advanced Key Binding Configuration
 
 ```bash
-# Alt + 矢印キーでペイン移動（プレフィックス不要）
+# Move panes with Alt + arrow keys (no prefix required)
 bind -n M-Left select-pane -L
 bind -n M-Right select-pane -R
 bind -n M-Up select-pane -U
 bind -n M-Down select-pane -D
 
-# Shift + 矢印キーでウィンドウ切り替え（プレフィックス不要）
+# Switch windows with Shift + arrow keys (no prefix required)
 bind -n S-Left previous-window
 bind -n S-Right next-window
 
-# ペインの同期トグル
+# Toggle pane synchronization
 bind S setw synchronize-panes
 
-# ペインの結合と分離
-bind j join-pane -s !           # 直前のウィンドウのペインを結合
-bind J break-pane               # ペインを新しいウィンドウに分離
+# Join and break panes
+bind j join-pane -s !           # Join pane from the previous window
+bind J break-pane               # Break pane into a new window
 
-# ウィンドウの入れ替え
+# Swap windows
 bind -r < swap-window -t -1\; select-window -t -1
 bind -r > swap-window -t +1\; select-window -t +1
 
-# コマンドプロンプト
-# Ctrl+b :    → tmux コマンドを直接入力
-# 例: :new-window -n logs "tail -f /var/log/syslog"
-# 例: :setw synchronize-panes on
-# 例: :resize-pane -D 10
+# Command prompt
+# Ctrl+b :    → Enter tmux commands directly
+# Example: :new-window -n logs "tail -f /var/log/syslog"
+# Example: :setw synchronize-panes on
+# Example: :resize-pane -D 10
 
-# セッション内でのウィンドウ検索
-# Ctrl+b f    → ウィンドウ名で検索
+# Search windows within a session
+# Ctrl+b f    → Search by window name
 ```
 
 ---
 
-## 7. tmux プラグインマネージャ（TPM）
+## 7. tmux Plugin Manager (TPM)
 
-### 7.1 TPM のインストールと使い方
+### 7.1 Installing and Using TPM
 
 ```bash
-# TPM（Tmux Plugin Manager）のインストール
+# Install TPM (Tmux Plugin Manager)
 git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 
-# ~/.tmux.conf に追加
-# プラグインリスト
+# Add to ~/.tmux.conf
+# Plugin list
 set -g @plugin 'tmux-plugins/tpm'
 set -g @plugin 'tmux-plugins/tmux-sensible'
 
-# TPMの初期化（.tmux.conf の最後に配置）
+# TPM initialization (place at the end of .tmux.conf)
 run '~/.tmux/plugins/tpm/tpm'
 
-# プラグインのインストール
-# Ctrl+b I     → プラグインをインストール
-# Ctrl+b U     → プラグインを更新
-# Ctrl+b alt+u → プラグインを削除（リストから削除後に実行）
+# Plugin operations
+# Ctrl+b I     → Install plugins
+# Ctrl+b U     → Update plugins
+# Ctrl+b alt+u → Remove plugins (run after removing from the list)
 ```
 
-### 7.2 おすすめプラグイン
+### 7.2 Recommended Plugins
 
 ```bash
-# tmux-resurrect: セッションの保存・復元
+# tmux-resurrect: Save and restore sessions
 set -g @plugin 'tmux-plugins/tmux-resurrect'
-# Ctrl+b Ctrl+s → セッションを保存
-# Ctrl+b Ctrl+r → セッションを復元
+# Ctrl+b Ctrl+s → Save session
+# Ctrl+b Ctrl+r → Restore session
 
-# tmux-continuum: 自動保存・自動復元
+# tmux-continuum: Auto-save and auto-restore
 set -g @plugin 'tmux-plugins/tmux-continuum'
 set -g @continuum-restore 'on'
-set -g @continuum-save-interval '15'  # 15分ごとに自動保存
+set -g @continuum-save-interval '15'  # Auto-save every 15 minutes
 
-# tmux-yank: システムクリップボードとの連携
+# tmux-yank: System clipboard integration
 set -g @plugin 'tmux-plugins/tmux-yank'
 
-# tmux-open: コピーモードでURLやファイルを開く
+# tmux-open: Open URLs and files in copy mode
 set -g @plugin 'tmux-plugins/tmux-open'
-# コピーモードで選択後:
-# o → デフォルトプログラムで開く
-# Ctrl+o → エディタで開く
-# S → 検索エンジンで検索
+# After selecting in copy mode:
+# o → Open with the default program
+# Ctrl+o → Open in editor
+# S → Search with a search engine
 
-# tmux-fzf: fzf でセッション/ウィンドウ/ペインを選択
+# tmux-fzf: Select sessions/windows/panes with fzf
 set -g @plugin 'sainnhe/tmux-fzf'
-# Ctrl+b F → fzf メニュー
+# Ctrl+b F → fzf menu
 
-# tmux-fingers: 画面上のURLやパスを選択してコピー
+# tmux-fingers: Select and copy URLs or paths on screen
 set -g @plugin 'Morantron/tmux-fingers'
-# Ctrl+b F → ハイライトモード
+# Ctrl+b F → Highlight mode
 
-# dracula テーマ
+# dracula theme
 set -g @plugin 'dracula/tmux'
 set -g @dracula-plugins "cpu-usage ram-usage time"
 set -g @dracula-show-left-icon session
 
-# catppuccin テーマ
+# catppuccin theme
 set -g @plugin 'catppuccin/tmux'
 set -g @catppuccin_flavour 'mocha'
 ```
 
-### 7.3 完全な .tmux.conf の例
+### 7.3 Example of a Complete .tmux.conf
 
 ```bash
-# ~/.tmux.conf - 完全な設定例
+# ~/.tmux.conf - complete configuration example
 
-# === 基本設定 ===
+# === Basic Settings ===
 set -g prefix C-a
 unbind C-b
 bind C-a send-prefix
@@ -576,54 +576,54 @@ set -g focus-events on
 set -g default-terminal "tmux-256color"
 set -ag terminal-overrides ",xterm-256color:RGB"
 
-# === キーバインド ===
-# ペイン分割
+# === Key Bindings ===
+# Pane splitting
 bind | split-window -h -c "#{pane_current_path}"
 bind - split-window -v -c "#{pane_current_path}"
 unbind '"'
 unbind %
 
-# ペイン移動（vim風）
+# Pane navigation (vim-style)
 bind h select-pane -L
 bind j select-pane -D
 bind k select-pane -U
 bind l select-pane -R
 
-# ペインリサイズ
+# Pane resizing
 bind -r H resize-pane -L 5
 bind -r J resize-pane -D 5
 bind -r K resize-pane -U 5
 bind -r L resize-pane -R 5
 
-# Alt + 矢印でペイン移動
+# Move panes with Alt + arrow keys
 bind -n M-Left select-pane -L
 bind -n M-Right select-pane -R
 bind -n M-Up select-pane -U
 bind -n M-Down select-pane -D
 
-# Shift + 矢印でウィンドウ切り替え
+# Switch windows with Shift + arrow keys
 bind -n S-Left previous-window
 bind -n S-Right next-window
 
-# 新しいウィンドウは現在のパスで開く
+# Open new windows in the current path
 bind c new-window -c "#{pane_current_path}"
 
-# 設定再読み込み
+# Reload configuration
 bind r source-file ~/.tmux.conf \; display "Reloaded!"
 
-# ペイン同期トグル
+# Toggle pane synchronization
 bind S setw synchronize-panes
 
-# ウィンドウ入れ替え
+# Swap windows
 bind -r < swap-window -t -1\; select-window -t -1
 bind -r > swap-window -t +1\; select-window -t +1
 
-# === コピーモード ===
+# === Copy Mode ===
 bind-key -T copy-mode-vi v send-keys -X begin-selection
 bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "pbcopy"
 bind-key -T copy-mode-vi r send-keys -X rectangle-toggle
 
-# === 外観 ===
+# === Appearance ===
 set -g status-position bottom
 set -g status-style 'bg=#1e1e2e fg=#cdd6f4'
 set -g status-left '#[fg=#a6e3a1,bold] #S #[fg=#cdd6f4]| '
@@ -636,7 +636,7 @@ set -g pane-border-style 'fg=#313244'
 set -g pane-active-border-style 'fg=#a6e3a1'
 set -g message-style 'fg=#cdd6f4 bg=#1e1e2e bold'
 
-# === プラグイン ===
+# === Plugins ===
 set -g @plugin 'tmux-plugins/tpm'
 set -g @plugin 'tmux-plugins/tmux-sensible'
 set -g @plugin 'tmux-plugins/tmux-resurrect'
@@ -646,118 +646,118 @@ set -g @plugin 'tmux-plugins/tmux-yank'
 set -g @continuum-restore 'on'
 set -g @continuum-save-interval '15'
 
-# TPM初期化（最後に配置）
+# TPM initialization (place last)
 run '~/.tmux/plugins/tpm/tpm'
 ```
 
 ---
 
-## 8. tmux の実践パターン
+## 8. Practical tmux Patterns
 
-### 8.1 開発用レイアウト
+### 8.1 Development Layout
 
 ```bash
-# パターン1: 開発用レイアウト
+# Pattern 1: Development layout
 tmux new -s dev
-# ペイン分割: エディタ（上大） + ターミナル（下左） + ログ（下右）
-# Ctrl+b "    → 上下分割
-# 下ペインで Ctrl+b % → 左右分割
+# Pane split: editor (top, large) + terminal (bottom left) + logs (bottom right)
+# Ctrl+b "    → Top/bottom split
+# In the bottom pane: Ctrl+b % → Left/right split
 
-# 手動での操作手順:
+# Manual steps:
 # 1. tmux new -s dev
-# 2. Ctrl+b " (上下分割)
-# 3. Ctrl+b ↓ (下ペインに移動)
-# 4. Ctrl+b % (左右分割)
-# 5. Ctrl+b ↑ (上ペインに移動)
-# 6. vim .  (エディタを開く)
+# 2. Ctrl+b " (top/bottom split)
+# 3. Ctrl+b ↓ (move to bottom pane)
+# 4. Ctrl+b % (left/right split)
+# 5. Ctrl+b ↑ (move to top pane)
+# 6. vim .  (open editor)
 ```
 
-### 8.2 スクリプトでレイアウト自動構築
+### 8.2 Auto-Building Layouts with Scripts
 
 ```bash
 #!/bin/bash
-# dev-session.sh - 開発用セッションの自動構築
+# dev-session.sh - Auto-build a development session
 
 SESSION="dev"
 PROJECT_DIR="${1:-$(pwd)}"
 
-# 既存セッションがあればアタッチ
+# Attach if session already exists
 tmux has-session -t "$SESSION" 2>/dev/null && {
     tmux attach -t "$SESSION"
     exit 0
 }
 
-# 新規セッション作成
+# Create new session
 tmux new-session -d -s "$SESSION" -n "editor" -c "$PROJECT_DIR"
 tmux send-keys -t "$SESSION:editor" "vim ." Enter
 
-# サーバーウィンドウ
+# Server window
 tmux new-window -t "$SESSION" -n "server" -c "$PROJECT_DIR"
 tmux send-keys -t "$SESSION:server" "npm run dev" Enter
 
-# ログウィンドウ
+# Log window
 tmux new-window -t "$SESSION" -n "logs" -c "$PROJECT_DIR"
 tmux send-keys -t "$SESSION:logs" "tail -f /var/log/app.log" Enter
 
-# ターミナルウィンドウ（git操作等）
+# Terminal window (for git operations, etc.)
 tmux new-window -t "$SESSION" -n "terminal" -c "$PROJECT_DIR"
 tmux send-keys -t "$SESSION:terminal" "git status" Enter
 
-# 最初のウィンドウを選択
+# Select the first window
 tmux select-window -t "$SESSION:editor"
 
-# アタッチ
+# Attach
 tmux attach -t "$SESSION"
 ```
 
-### 8.3 分割レイアウト付きセッション
+### 8.3 Session with Split Layout
 
 ```bash
 #!/bin/bash
-# monitor-session.sh - サーバー監視用セッション
+# monitor-session.sh - Session for server monitoring
 
 SESSION="monitor"
 
 tmux new-session -d -s "$SESSION" -n "dashboard"
 
-# メインペイン（上半分）: htop
+# Main pane (top half): htop
 tmux send-keys -t "$SESSION:dashboard" "htop" Enter
 
-# 下半分を左右に分割
+# Split the bottom half left/right
 tmux split-window -v -p 40 -t "$SESSION:dashboard"
 tmux send-keys "watch -n 5 'df -h'" Enter
 
 tmux split-window -h -t "$SESSION:dashboard"
 tmux send-keys "watch -n 5 'free -h'" Enter
 
-# ネットワーク監視ウィンドウ
+# Network monitoring window
 tmux new-window -t "$SESSION" -n "network"
 tmux send-keys -t "$SESSION:network" "sudo iftop" Enter
 
-# ログ監視ウィンドウ
+# Log monitoring window
 tmux new-window -t "$SESSION" -n "logs"
 tmux split-window -h -t "$SESSION:logs"
 tmux send-keys -t "$SESSION:logs.0" "journalctl -u nginx -f" Enter
 tmux send-keys -t "$SESSION:logs.1" "journalctl -u postgresql -f" Enter
 
-# ダッシュボードに戻る
+# Return to dashboard
 tmux select-window -t "$SESSION:dashboard"
 tmux select-pane -t 0
 
 tmux attach -t "$SESSION"
 ```
 
-### 8.4 SSH先での長時間ジョブ
+### 8.4 Long-Running Jobs on an SSH Server
 
 ```bash
-# パターン3: SSH先での長時間ジョブ
+# Pattern 3: Long-running jobs on an SSH server
 ssh server
 tmux new -s backup
 ./run_backup.sh
-# Ctrl+b d でデタッチ → SSH切断しても安全
-# 後日: ssh server → tmux attach -t backup
+# Ctrl+b d to detach → safe to disconnect SSH
+# Later: ssh server → tmux attach -t backup
 
-# 複数サーバーへの同時接続
+# Connecting to multiple servers simultaneously
 #!/bin/bash
 # multi-server.sh
 
@@ -780,48 +780,48 @@ tmux select-window -t "$SESSION:0"
 tmux attach -t "$SESSION"
 ```
 
-### 8.5 ペアプログラミング
+### 8.5 Pair Programming
 
 ```bash
-# パターン4: ペアプログラミング
-# ユーザーA（セッション作成者）:
+# Pattern 4: Pair programming
+# User A (session creator):
 tmux new -s pair
 
-# ユーザーB（参加者）:
+# User B (participant):
 tmux attach -t pair
-# 同じセッションを共有して画面を見ながら作業
+# Share the same session to work while viewing the same screen
 
-# 読み取り専用で参加する場合:
+# To join in read-only mode:
 tmux attach -t pair -r
 
-# 別々のウィンドウサイズで共有する場合:
-# ユーザーA:
+# To share with independent window sizes:
+# User A:
 tmux new -s pair
-# ユーザーB:
+# User B:
 tmux new -s pair-b -t pair
-# これにより各ユーザーが独立したウィンドウサイズを持てる
+# This allows each user to have an independent window size
 ```
 
-### 8.6 tmux コマンドのスクリプティング
+### 8.6 tmux Command Scripting
 
 ```bash
-# tmux にコマンドを送信
+# Send a command to tmux
 tmux send-keys -t dev:editor "echo hello" Enter
 
-# 現在のセッション情報を取得
-tmux display-message -p '#S'          # セッション名
-tmux display-message -p '#W'          # ウィンドウ名
-tmux display-message -p '#P'          # ペイン番号
-tmux display-message -p '#{pane_current_path}'  # 現在のパス
+# Get information about the current session
+tmux display-message -p '#S'          # Session name
+tmux display-message -p '#W'          # Window name
+tmux display-message -p '#P'          # Pane number
+tmux display-message -p '#{pane_current_path}'  # Current path
 
-# ペインの内容をキャプチャ
-tmux capture-pane -t 0 -p             # ペイン0の内容を表示
-tmux capture-pane -t 0 -p -S -100     # 過去100行分
+# Capture the content of a pane
+tmux capture-pane -t 0 -p             # Display content of pane 0
+tmux capture-pane -t 0 -p -S -100     # Last 100 lines
 
-# ペインの内容をファイルに保存
+# Save pane content to a file
 tmux capture-pane -t 0 -p -S -1000 > /tmp/pane-output.txt
 
-# 条件付きのコマンド実行
+# Conditional command execution
 if tmux has-session -t dev 2>/dev/null; then
     tmux send-keys -t dev:server "npm restart" Enter
 fi
@@ -829,216 +829,216 @@ fi
 
 ---
 
-## 9. tmux のトラブルシューティング
+## 9. tmux Troubleshooting
 
 ```bash
-# === 問題: 256色が表示されない ===
-# .tmux.conf に追加:
+# === Problem: 256 colors not displayed ===
+# Add to .tmux.conf:
 # set -g default-terminal "tmux-256color"
 # set -ag terminal-overrides ",xterm-256color:RGB"
-# ターミナルエミュレータの設定も確認
+# Also check the terminal emulator settings
 
-# === 問題: コピーモードでシステムクリップボードに入らない ===
-# macOS: reattach-to-user-namespace が必要（古いtmux）
+# === Problem: Copy mode does not copy to system clipboard ===
+# macOS: reattach-to-user-namespace required (old tmux)
 # brew install reattach-to-user-namespace
-# 新しい tmux (2.6+) では不要、tmux-yank プラグインを使用
+# Not needed for newer tmux (2.6+); use the tmux-yank plugin
 
-# === 問題: Neovim/Vim で色がおかしい ===
+# === Problem: Colors look wrong in Neovim/Vim ===
 # .tmux.conf:
 # set -g default-terminal "tmux-256color"
 # set -ag terminal-overrides ",xterm-256color:Tc"
 # .vimrc:
 # set termguicolors
 
-# === 問題: マウスモードで選択できない ===
-# マウスモード有効時は Shift を押しながらドラッグ
-# iTerm2: Option を押しながらドラッグ
+# === Problem: Cannot select text with mouse mode ===
+# When mouse mode is enabled, hold Shift while dragging
+# iTerm2: hold Option while dragging
 
-# === 問題: tmux が起動しない ===
-tmux kill-server                 # サーバーを強制終了
-rm -f /tmp/tmux-*/default        # ソケットファイルを削除
+# === Problem: tmux does not start ===
+tmux kill-server                 # Force-kill the server
+rm -f /tmp/tmux-*/default        # Delete the socket file
 tmux
 
-# === 問題: 設定が反映されない ===
-tmux source-file ~/.tmux.conf    # 設定を再読み込み
-# または
+# === Problem: Configuration changes are not applied ===
+tmux source-file ~/.tmux.conf    # Reload configuration
+# Or:
 # Ctrl+b : → source-file ~/.tmux.conf
 
-# === デバッグ ===
-tmux show-options -g             # グローバルオプション一覧
-tmux show-options -w             # ウィンドウオプション一覧
-tmux list-keys                   # 全キーバインド一覧
-tmux list-commands               # 全コマンド一覧
-tmux info                        # tmux の詳細情報
+# === Debugging ===
+tmux show-options -g             # List global options
+tmux show-options -w             # List window options
+tmux list-keys                   # List all key bindings
+tmux list-commands               # List all commands
+tmux info                        # Detailed tmux information
 ```
 
 ---
 
-## 10. screen（レガシー環境用）
+## 10. screen (For Legacy Environments)
 
-### 10.1 基本操作
+### 10.1 Basic Operations
 
 ```bash
-# screen は tmux の前身。最低限の操作だけ覚えておく
+# screen is the predecessor to tmux. Just learn the minimum operations.
 
-screen                           # 新規セッション
-screen -S work                   # 名前付き
-screen -ls                       # セッション一覧
-screen -r work                   # リアタッチ
-screen -d -r work                # デタッチしてからリアタッチ
-screen -x work                   # マルチアタッチ（複数ユーザーで共有）
-screen -X quit                   # セッション終了
+screen                           # New session
+screen -S work                   # Named session
+screen -ls                       # List sessions
+screen -r work                   # Reattach
+screen -d -r work                # Detach then reattach
+screen -x work                   # Multi-attach (share with multiple users)
+screen -X quit                   # End session
 
-# screen 内操作（Ctrl+a がプレフィックス）
-# Ctrl+a d    → デタッチ
-# Ctrl+a c    → 新ウィンドウ
-# Ctrl+a n    → 次のウィンドウ
-# Ctrl+a p    → 前のウィンドウ
-# Ctrl+a "    → ウィンドウ一覧
-# Ctrl+a A    → ウィンドウ名変更
-# Ctrl+a 0-9  → ウィンドウ番号で切り替え
-# Ctrl+a |    → 垂直分割
-# Ctrl+a S    → 水平分割
-# Ctrl+a Tab  → ペイン切り替え
-# Ctrl+a X    → 現在のペインを閉じる
-# Ctrl+a k    → ウィンドウ閉じる
-# Ctrl+a [    → コピーモード
-# Ctrl+a ]    → ペースト
-# Ctrl+a ?    → ヘルプ
+# Operations inside screen (Ctrl+a is the prefix)
+# Ctrl+a d    → Detach
+# Ctrl+a c    → New window
+# Ctrl+a n    → Next window
+# Ctrl+a p    → Previous window
+# Ctrl+a "    → Window list
+# Ctrl+a A    → Rename window
+# Ctrl+a 0-9  → Switch window by number
+# Ctrl+a |    → Vertical split
+# Ctrl+a S    → Horizontal split
+# Ctrl+a Tab  → Switch pane
+# Ctrl+a X    → Close current pane
+# Ctrl+a k    → Close window
+# Ctrl+a [    → Copy mode
+# Ctrl+a ]    → Paste
+# Ctrl+a ?    → Help
 ```
 
-### 10.2 screen の設定（~/.screenrc）
+### 10.2 screen Configuration (~/.screenrc)
 
 ```bash
 # ~/.screenrc
 
-# スクロールバッファ
+# Scroll buffer
 defscrollback 10000
 
-# ステータスバーの設定
+# Status bar configuration
 hardstatus alwayslastline
 hardstatus string '%{= kG}[ %{G}%H %{g}][%{= kw}%?%-Lw%?%{r}(%{W}%n*%f%t%?(%u)%?%{r})%{w}%?%+Lw%?%?%= %{g}][%{B} %Y-%m-%d %{W}%c %{g}]'
 
-# ビジュアルベル
+# Visual bell
 vbell on
 
-# エンコーディング
+# Encoding
 defencoding utf-8
 encoding utf-8
 
-# 起動メッセージを表示しない
+# Do not show startup message
 startup_message off
 ```
 
-### 10.3 screen より tmux を使うべき理由
+### 10.3 Reasons to Use tmux Instead of screen
 
 ```bash
-# screen より tmux を使うべき理由:
-# - ペイン操作が直感的
-# - 設定が簡単で読みやすい
-# - アクティブに開発されている
-# - プラグインエコシステム（TPM）がある
-# - ステータスバーのカスタマイズが容易
-# - セッション管理が柔軟
-# - コピーモードが強力
-# - スクリプティングが容易
+# Reasons to use tmux instead of screen:
+# - Pane operations are more intuitive
+# - Configuration is simpler and more readable
+# - Actively developed
+# - Plugin ecosystem (TPM)
+# - Easier status bar customization
+# - More flexible session management
+# - Powerful copy mode
+# - Easier scripting
 
-# screen が必要な場面:
-# - tmux がインストールされていない古いサーバー
-# - シリアルコンソール接続（screen /dev/ttyUSB0 115200）
-# - 最小限の機能で十分な場合
+# When screen is needed:
+# - Old servers where tmux is not installed
+# - Serial console connections (screen /dev/ttyUSB0 115200)
+# - When minimal features are sufficient
 ```
 
 ---
 
-## 11. tmux の代替ツール
+## 11. Alternatives to tmux
 
 ```bash
 # === Zellij ===
-# Rust製のモダンなターミナルマルチプレクサ
+# A modern terminal multiplexer written in Rust
 # https://zellij.dev/
 # brew install zellij
-# 特徴:
-# - デフォルトで直感的なUI
-# - 画面下部にキーバインドのヒントが表示
-# - WebAssembly プラグインシステム
-# - レイアウトファイルによる設定
+# Features:
+# - Intuitive UI by default
+# - Key binding hints displayed at the bottom of the screen
+# - WebAssembly plugin system
+# - Configuration via layout files
 
 # === byobu ===
-# screen/tmux のラッパー
+# A wrapper for screen/tmux
 # sudo apt install byobu
-# 特徴:
-# - ファンクションキーで操作
-# - 自動的にtmuxまたはscreenをバックエンドとして使用
-# - ステータスバーにシステム情報を自動表示
+# Features:
+# - Operate with function keys
+# - Automatically uses tmux or screen as the backend
+# - Automatically displays system information in the status bar
 
 # === Wezterm ===
-# ターミナルエミュレータ自体にマルチプレクサ機能がある
+# A terminal emulator with built-in multiplexer functionality
 # https://wezfurlong.org/wezterm/
-# - GPU アクセラレーション
-# - Lua で設定
-# - マルチプレクサ機能内蔵
-# - SSH統合
+# - GPU acceleration
+# - Configure with Lua
+# - Built-in multiplexer functionality
+# - SSH integration
 
 # === kitty ===
-# GPU アクセラレーションターミナル
+# GPU-accelerated terminal
 # https://sw.kovidgoyal.net/kitty/
-# - タブとウィンドウ分割機能
-# - tmux なしでも画面分割が可能
-# - 高速なレンダリング
+# - Tab and window split functionality
+# - Screen splitting possible without tmux
+# - Fast rendering
 ```
 
 ---
 
-## 12. tmux Hooks とイベント駆動
+## 12. tmux Hooks and Event-Driven Automation
 
-### 12.1 Hook の基本
+### 12.1 Hook Basics
 
 ```bash
-# tmux hooks はイベント発生時にコマンドを自動実行する仕組み
-# 設定は set-hook コマンドで行う
+# tmux hooks automatically run commands when events occur
+# Configured with the set-hook command
 
-# ── 利用可能な主要 Hooks ──
-# after-new-session      — セッション作成後
-# after-new-window       — ウィンドウ作成後
-# after-split-window     — ペイン分割後
-# after-kill-pane        — ペイン終了後
-# after-select-window    — ウィンドウ切り替え後
-# after-select-pane      — ペイン切り替え後
-# after-resize-pane      — ペインリサイズ後
-# after-copy-mode        — コピーモード終了後
-# client-attached        — クライアント接続時
-# client-detached        — クライアント切断時
-# client-resized         — クライアントリサイズ時
-# session-closed         — セッション終了時
-# window-linked          — ウィンドウがセッションにリンク
-# window-renamed         — ウィンドウ名変更時
-# pane-exited            — ペイン内プロセス終了時
-# pane-focus-in          — ペインにフォーカス時
-# pane-focus-out         — ペインからフォーカス離脱時
+# ── Available Main Hooks ──
+# after-new-session      — After session creation
+# after-new-window       — After window creation
+# after-split-window     — After pane split
+# after-kill-pane        — After pane closes
+# after-select-window    — After window switch
+# after-select-pane      — After pane switch
+# after-resize-pane      — After pane resize
+# after-copy-mode        — After copy mode ends
+# client-attached        — When a client connects
+# client-detached        — When a client disconnects
+# client-resized         — When a client is resized
+# session-closed         — When a session ends
+# window-linked          — When a window is linked to a session
+# window-renamed         — When a window is renamed
+# pane-exited            — When the process in a pane exits
+# pane-focus-in          — When a pane gains focus
+# pane-focus-out         — When a pane loses focus
 
-# ── Hook の設定例 ──
+# ── Hook Configuration Examples ──
 
-# 新しいウィンドウ作成時にステータスバーの色を一時変更（通知効果）
+# Temporarily change the status bar color when a new window is created (notification effect)
 set-hook -g after-new-window 'set -g status-style "bg=#2e7d32 fg=#ffffff"; run-shell "sleep 1"; set -g status-style "bg=#1e1e2e fg=#cdd6f4"'
 
-# セッション作成後に自動でウィンドウ名を設定
+# Automatically set window name after session creation
 set-hook -g after-new-session 'rename-window "main"'
 
-# ペインフォーカス時にボーダー色を変更（アクティブペインを強調）
+# Change pane border color on focus (highlight the active pane)
 set-hook -g pane-focus-in 'select-pane -P "bg=#1a1b26"'
 set-hook -g pane-focus-out 'select-pane -P "bg=default"'
 
-# クライアント接続時にログを記録
+# Log when a client connects
 set-hook -g client-attached 'run-shell "echo $(date): attached >> ~/.tmux-access.log"'
 set-hook -g client-detached 'run-shell "echo $(date): detached >> ~/.tmux-access.log"'
 ```
 
-### 12.2 実践的な Hook パターン
+### 12.2 Practical Hook Patterns
 
 ```bash
-# ── 自動レイアウト調整 ──
-# ウィンドウリサイズ時にレイアウトを自動的に最適化
+# ── Automatic Layout Adjustment ──
+# Automatically optimize layout when the window is resized
 set-hook -g client-resized 'run-shell "
     width=$(tmux display -p \"#{window_width}\")
     if [ \"$width\" -lt 120 ]; then
@@ -1048,17 +1048,17 @@ set-hook -g client-resized 'run-shell "
     fi
 "'
 
-# ── ペイン終了時の自動クリーンアップ ──
-# 最後のペイン以外が終了したらレイアウトを再調整
+# ── Auto-Cleanup When a Pane Closes ──
+# Re-adjust layout when a non-last pane closes
 set-hook -g after-kill-pane 'select-layout tiled'
 
-# ── ウィンドウ切り替え時のカスタム動作 ──
-# ウィンドウ切り替え時に前のウィンドウ名をログ
+# ── Custom Action on Window Switch ──
+# Log the previous window name when switching windows
 set-hook -g after-select-window 'run-shell "echo $(date +%H:%M:%S) $(tmux display -p \"#W\") >> /tmp/tmux-window-history.log"'
 
-# ── 作業時間トラッキング ──
-# セッション接続・切断の時刻を記録して作業時間を可視化
-# ~/.tmux.conf に追加:
+# ── Work Time Tracking ──
+# Record session attach/detach times to visualize work hours
+# Add to ~/.tmux.conf:
 set-hook -g client-attached 'run-shell "
     echo \"START $(date +%Y-%m-%d_%H:%M:%S) $(tmux display -p '#S')\" >> ~/.tmux-timetrack.log
 "'
@@ -1066,104 +1066,104 @@ set-hook -g client-detached 'run-shell "
     echo \"END   $(date +%Y-%m-%d_%H:%M:%S) $(tmux display -p '#S')\" >> ~/.tmux-timetrack.log
 "'
 
-# 作業時間の集計スクリプト
+# Script to aggregate work hours
 # #!/bin/bash
 # awk '/START/{start=$2} /END/{print $3, start, "→", $2}' ~/.tmux-timetrack.log
 ```
 
 ---
 
-## 13. tmux の環境変数とフォーマット文字列
+## 13. tmux Environment Variables and Format Strings
 
-### 13.1 環境変数の管理
+### 13.1 Managing Environment Variables
 
 ```bash
-# tmux はセッションごとに独立した環境変数を持つ
-# グローバル環境とセッション環境の2層構造
+# tmux maintains independent environment variables per session
+# Two-layer structure: global environment and session environment
 
-# ── グローバル環境変数 ──
+# ── Global Environment Variables ──
 tmux set-environment -g MY_VAR "global_value"
 tmux show-environment -g MY_VAR
 
-# ── セッション環境変数 ──
+# ── Session Environment Variables ──
 tmux set-environment MY_VAR "session_value"
 tmux show-environment MY_VAR
 
-# ── 環境変数の一覧 ──
-tmux show-environment -g              # グローバル一覧
-tmux show-environment                 # セッション一覧
+# ── List Environment Variables ──
+tmux show-environment -g              # List global
+tmux show-environment                 # List session
 
-# ── 環境変数の削除 ──
-tmux set-environment -g -u MY_VAR     # グローバルから削除
-tmux set-environment -u MY_VAR        # セッションから削除
+# ── Delete Environment Variables ──
+tmux set-environment -g -u MY_VAR     # Delete from global
+tmux set-environment -u MY_VAR        # Delete from session
 
-# ── 環境変数の自動更新 ──
-# SSH_AUTH_SOCK 等を新しいクライアント接続時に更新
+# ── Auto-Update Environment Variables ──
+# Update SSH_AUTH_SOCK etc. when a new client connects
 set -g update-environment "SSH_AUTH_SOCK SSH_CONNECTION DISPLAY XAUTHORITY"
 
-# SSH Agent転送を維持するための設定（重要）
+# Configuration to maintain SSH Agent forwarding (important)
 # ~/.tmux.conf:
 set -g update-environment "SSH_AUTH_SOCK SSH_AGENT_PID"
-# これにより、新しい ssh 接続で tmux に attach した際に
-# SSH Agent のソケットが正しく更新される
+# This ensures the SSH Agent socket is correctly updated
+# when attaching to tmux via a new ssh connection
 
-# 手動で SSH_AUTH_SOCK を更新するスクリプト
+# Script to manually update SSH_AUTH_SOCK
 # ~/.local/bin/fix-ssh-auth
 #!/bin/bash
 eval $(tmux show-env -s SSH_AUTH_SOCK 2>/dev/null)
 ```
 
-### 13.2 フォーマット文字列の活用
+### 13.2 Using Format Strings
 
 ```bash
-# tmux のフォーマット文字列は #{...} 構文で使用する
-# ステータスバー、display-message、if-shell 等で利用可能
+# tmux format strings use the #{...} syntax
+# Available in status bars, display-message, if-shell, and more
 
-# ── 主要なフォーマット変数 ──
-# #{session_name}         — セッション名
-# #{window_index}         — ウィンドウ番号
-# #{window_name}          — ウィンドウ名
-# #{pane_index}           — ペイン番号
-# #{pane_current_path}    — ペインの現在ディレクトリ
-# #{pane_current_command} — ペインで実行中のコマンド
-# #{pane_pid}             — ペインのPID
-# #{pane_width}           — ペインの幅
-# #{pane_height}          — ペインの高さ
-# #{window_width}         — ウィンドウの幅
-# #{window_height}        — ウィンドウの高さ
-# #{client_width}         — クライアントの幅
-# #{client_height}        — クライアントの高さ
-# #{cursor_x}             — カーソルのX位置
-# #{cursor_y}             — カーソルのY位置
-# #{pane_in_mode}         — コピーモードかどうか (0 or 1)
-# #{window_zoomed_flag}   — ズーム状態かどうか (0 or 1)
-# #{session_windows}      — セッションのウィンドウ数
-# #{window_panes}         — ウィンドウのペイン数
+# ── Key Format Variables ──
+# #{session_name}         — Session name
+# #{window_index}         — Window number
+# #{window_name}          — Window name
+# #{pane_index}           — Pane number
+# #{pane_current_path}    — Current directory of the pane
+# #{pane_current_command} — Command running in the pane
+# #{pane_pid}             — PID of the pane
+# #{pane_width}           — Pane width
+# #{pane_height}          — Pane height
+# #{window_width}         — Window width
+# #{window_height}        — Window height
+# #{client_width}         — Client width
+# #{client_height}        — Client height
+# #{cursor_x}             — Cursor X position
+# #{cursor_y}             — Cursor Y position
+# #{pane_in_mode}         — Whether in copy mode (0 or 1)
+# #{window_zoomed_flag}   — Whether zoomed (0 or 1)
+# #{session_windows}      — Number of windows in the session
+# #{window_panes}         — Number of panes in the window
 
-# ── 条件分岐 ──
-# #{?condition,true-value,false-value} 形式で条件分岐
-# ズーム状態を表示
+# ── Conditional Branching ──
+# #{?condition,true-value,false-value} format for conditionals
+# Display zoom status
 set -g status-right '#{?window_zoomed_flag,🔍 ZOOM ,}#H %H:%M'
 
-# コピーモード中に表示を変更
+# Change display during copy mode
 set -g status-left '#{?pane_in_mode,COPY ,}#S '
 
-# ── 文字列操作 ──
-# #{=N:variable}   — N文字に切り詰め
+# ── String Operations ──
+# #{=N:variable}   — Truncate to N characters
 # #{b:variable}    — basename
 # #{d:variable}    — dirname
 
-# ディレクトリ名をステータスに表示（basenameのみ）
+# Display directory name in status (basename only)
 set -g window-status-format '#I:#{b:pane_current_path}'
 set -g window-status-current-format '#I:#{b:pane_current_path}*'
 
-# ── display-message でのフォーマット活用 ──
+# ── Using Formats with display-message ──
 tmux display-message -p "Session: #S | Window: #W (#I) | Pane: #P"
 tmux display-message -p "Size: #{pane_width}x#{pane_height}"
 tmux display-message -p "Path: #{pane_current_path}"
 tmux display-message -p "Command: #{pane_current_command} (PID: #{pane_pid})"
 
-# ── list-windows でカスタムフォーマット ──
+# ── Custom Formats with list-windows ──
 tmux list-windows -F '#I: #W (#{window_panes} panes) [#{window_width}x#{window_height}]'
 tmux list-panes -F '#P: #{pane_current_command} [#{pane_width}x#{pane_height}] #{pane_current_path}'
 tmux list-sessions -F '#S: #{session_windows} windows (#{session_attached} attached)'
@@ -1171,66 +1171,66 @@ tmux list-sessions -F '#S: #{session_windows} windows (#{session_attached} attac
 
 ---
 
-## 14. tmux Popup と高度な表示
+## 14. tmux Popups and Advanced Display
 
-### 14.1 Popup ウィンドウ（tmux 3.2+）
+### 14.1 Popup Windows (tmux 3.2+)
 
 ```bash
-# tmux 3.2 以降で使える popup 機能
-# 浮遊ウィンドウ（フローティング）としてコマンドを実行
+# The popup feature is available from tmux 3.2
+# Run commands as a floating window
 
-# ── 基本的な Popup ──
-tmux popup                            # デフォルトのシェルをpopupで開く
-tmux popup -w 80% -h 60%             # サイズ指定
-tmux popup -E "htop"                  # コマンド実行（終了でpopupも閉じる）
-tmux popup -E -w 80% -h 80% "lazygit"   # lazygit をポップアップで
+# ── Basic Popup ──
+tmux popup                            # Open the default shell in a popup
+tmux popup -w 80% -h 60%             # Specify size
+tmux popup -E "htop"                  # Run a command (popup closes when it exits)
+tmux popup -E -w 80% -h 80% "lazygit"   # Open lazygit as a popup
 
-# ── キーバインドに登録 ──
+# ── Register as a Key Binding ──
 # ~/.tmux.conf:
 
-# Ctrl+b g で lazygit をポップアップ
+# Ctrl+b g opens lazygit as a popup
 bind g popup -E -w 80% -h 80% -d "#{pane_current_path}" "lazygit"
 
-# Ctrl+b f で fzf ファイル検索 → 選択したファイルを vim で開く
+# Ctrl+b f opens fzf file search → opens selected file in vim
 bind f popup -E -w 60% -h 60% -d "#{pane_current_path}" \
     'file=$(fzf --preview "bat --color=always {}"); [ -n "$file" ] && tmux send-keys -t ! "vim $file" Enter'
 
-# Ctrl+b j で jq をインタラクティブに使う（popup内）
+# Ctrl+b j uses jq interactively (inside a popup)
 bind j popup -E -w 80% -h 80% 'echo "{}" | jq -R "fromjson?" | less'
 
-# Ctrl+b t でポップアップターミナル（簡易的な操作用）
+# Ctrl+b t opens a popup terminal (for quick operations)
 bind t popup -E -w 60% -h 40% -d "#{pane_current_path}"
 
-# Ctrl+b n でメモ帳をポップアップで開く
+# Ctrl+b n opens a notepad in a popup
 bind n popup -E -w 60% -h 60% "vim ~/notes/scratch.md"
 
-# Ctrl+b G で git status をクイック表示
+# Ctrl+b G shows git status quickly
 bind G popup -E -w 70% -h 50% -d "#{pane_current_path}" \
     "git status && echo '---' && git log --oneline -10; read -p 'Press Enter to close'"
 
-# ── popup のオプション詳細 ──
-# -E        — コマンド終了時にpopupを閉じる
-# -w WIDTH  — 幅（数値 or パーセント）
-# -h HEIGHT — 高さ（数値 or パーセント）
-# -x X      — X位置
-# -y Y      — Y位置
-# -d DIR    — 作業ディレクトリ
-# -b BORDER — ボーダースタイル（rounded, double, heavy, simple, none）
-# -s STYLE  — ボーダーのスタイル（色など）
-# -S STYLE  — ポップアップ内のスタイル
-# -T TITLE  — タイトル
+# ── Popup Option Details ──
+# -E        — Close popup when command exits
+# -w WIDTH  — Width (number or percentage)
+# -h HEIGHT — Height (number or percentage)
+# -x X      — X position
+# -y Y      — Y position
+# -d DIR    — Working directory
+# -b BORDER — Border style (rounded, double, heavy, simple, none)
+# -s STYLE  — Border style (color, etc.)
+# -S STYLE  — Style inside the popup
+# -T TITLE  — Title
 
-# ボーダースタイルの指定
+# Specifying border style
 tmux popup -b rounded -s "fg=#a6e3a1" -T "Quick Terminal" -E -w 60% -h 50%
 ```
 
-### 14.2 メニューシステム（tmux 3.0+）
+### 14.2 Menu System (tmux 3.0+)
 
 ```bash
-# tmux display-menu でインタラクティブなメニューを表示
+# Display an interactive menu with tmux display-menu
 # ~/.tmux.conf:
 
-# Ctrl+b m でカスタムメニューを表示
+# Ctrl+b m shows a custom menu
 bind m display-menu -T "#[align=centre]Actions" \
     "New Window"      w "new-window -c '#{pane_current_path}'" \
     "Kill Window"     x "kill-window" \
@@ -1246,7 +1246,7 @@ bind m display-menu -T "#[align=centre]Actions" \
     "Reload Config"   r "source-file ~/.tmux.conf; display 'Reloaded'" \
     "Edit Config"     e "popup -E -w 80% -h 80% 'vim ~/.tmux.conf'"
 
-# ペインを右クリックしたときのメニュー
+# Menu when right-clicking a pane
 bind -n MouseDown3Pane display-menu -T "#[align=centre]Pane" -t = -x M -y M \
     "Split Horizontal" h "split-window -v -c '#{pane_current_path}'" \
     "Split Vertical"   v "split-window -h -c '#{pane_current_path}'" \
@@ -1260,42 +1260,42 @@ bind -n MouseDown3Pane display-menu -T "#[align=centre]Pane" -t = -x M -y M \
 
 ---
 
-## 15. セッション管理の自動化パターン
+## 15. Automating Session Management
 
-### 15.1 tmux-sessionizer パターン
+### 15.1 The tmux-sessionizer Pattern
 
 ```bash
 #!/bin/bash
-# tmux-sessionizer — プロジェクトディレクトリを選択してセッションを作成/切替
-# ThePrimeagen 氏の手法をベースにした実装
+# tmux-sessionizer — Select a project directory to create/switch a session
+# An implementation based on the approach by ThePrimeagen
 
-# 検索対象ディレクトリ
+# Directories to search
 SEARCH_DIRS=(
     "$HOME/projects"
     "$HOME/work"
     "$HOME/.dotfiles"
 )
 
-# fzf でプロジェクトを選択
+# Select a project with fzf
 selected=$(find "${SEARCH_DIRS[@]}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | fzf \
     --preview 'eza -la --git --no-user --no-permissions {} 2>/dev/null || ls -la {}' \
     --preview-window right:50% \
     --header "Select project to open in tmux")
 
-# 選択がなければ終了
+# Exit if nothing is selected
 [ -z "$selected" ] && exit 0
 
-# セッション名を作成（ディレクトリ名、ドットをアンダースコアに変換）
+# Create session name (directory name, dots replaced with underscores)
 session_name=$(basename "$selected" | tr '.' '_')
 
-# tmux が動いていない場合
+# If tmux is not running
 if ! tmux has-session 2>/dev/null; then
     tmux new-session -d -s "$session_name" -c "$selected"
     tmux attach -t "$session_name"
     exit 0
 fi
 
-# セッションが既に存在する場合はアタッチ/切替
+# If the session already exists, attach/switch to it
 if tmux has-session -t="$session_name" 2>/dev/null; then
     if [ -z "$TMUX" ]; then
         tmux attach -t "$session_name"
@@ -1303,7 +1303,7 @@ if tmux has-session -t="$session_name" 2>/dev/null; then
         tmux switch-client -t "$session_name"
     fi
 else
-    # 新規セッション作成
+    # Create a new session
     if [ -z "$TMUX" ]; then
         tmux new-session -s "$session_name" -c "$selected"
     else
@@ -1312,56 +1312,56 @@ else
     fi
 fi
 
-# このスクリプトをキーバインドに登録:
+# Register this script as a key binding:
 # ~/.tmux.conf:
 # bind C-f popup -E -w 80% -h 60% "~/.local/bin/tmux-sessionizer"
-# または tmux 外からも使えるように:
+# Or to use outside of tmux:
 # ~/.zshrc:
 # bindkey -s '^f' '~/.local/bin/tmux-sessionizer\n'
 ```
 
-### 15.2 プロジェクト別セッション設定
+### 15.2 Per-Project Session Configuration
 
 ```bash
 # ~/.config/tmux/projects/web-project.sh
 #!/bin/bash
-# Web開発プロジェクト用のセッション定義
+# Session definition for a web development project
 
 SESSION="web"
 ROOT="$HOME/projects/my-web-app"
 
 tmux_setup() {
-    # セッション作成
+    # Create session
     tmux new-session -d -s "$SESSION" -n "code" -c "$ROOT"
 
-    # コードウィンドウ（メインの作業場所）
+    # Code window (main workspace)
     tmux send-keys -t "$SESSION:code" "nvim ." Enter
 
-    # サーバーウィンドウ（フロント + バック）
+    # Server window (front + back)
     tmux new-window -t "$SESSION" -n "server" -c "$ROOT"
     tmux split-window -h -t "$SESSION:server" -c "$ROOT"
     tmux send-keys -t "$SESSION:server.0" "cd frontend && npm run dev" Enter
     tmux send-keys -t "$SESSION:server.1" "cd backend && npm run dev" Enter
 
-    # DB・キャッシュウィンドウ
+    # DB / cache window
     tmux new-window -t "$SESSION" -n "data" -c "$ROOT"
     tmux split-window -h -t "$SESSION:data" -c "$ROOT"
     tmux send-keys -t "$SESSION:data.0" "docker compose up db redis" Enter
     tmux send-keys -t "$SESSION:data.1" "lazydocker" Enter
 
-    # テストウィンドウ
+    # Test window
     tmux new-window -t "$SESSION" -n "test" -c "$ROOT"
     tmux send-keys -t "$SESSION:test" "npm run test:watch" Enter
 
-    # Git ウィンドウ
+    # Git window
     tmux new-window -t "$SESSION" -n "git" -c "$ROOT"
     tmux send-keys -t "$SESSION:git" "lazygit" Enter
 
-    # コードウィンドウに戻る
+    # Return to code window
     tmux select-window -t "$SESSION:code"
 }
 
-# 既存セッションがあればアタッチ
+# Attach if session already exists
 if tmux has-session -t "$SESSION" 2>/dev/null; then
     tmux attach -t "$SESSION"
 else
@@ -1370,57 +1370,57 @@ else
 fi
 ```
 
-### 15.3 セッションの自動保存・復元
+### 15.3 Auto-Save and Restore Sessions
 
 ```bash
-# tmux-resurrect と tmux-continuum による自動保存
+# Auto-save with tmux-resurrect and tmux-continuum
 
-# ── tmux-resurrect の設定 ──
+# ── tmux-resurrect Configuration ──
 # ~/.tmux.conf:
 set -g @plugin 'tmux-plugins/tmux-resurrect'
 
-# 保存対象の拡張
+# Extended save targets
 set -g @resurrect-capture-pane-contents 'on'
-set -g @resurrect-strategy-vim 'session'     # vim のセッションも復元
-set -g @resurrect-strategy-nvim 'session'    # neovim のセッションも復元
+set -g @resurrect-strategy-vim 'session'     # Also restore vim sessions
+set -g @resurrect-strategy-nvim 'session'    # Also restore neovim sessions
 
-# 追加プログラムの復元
+# Restore additional programs
 set -g @resurrect-processes 'ssh mosh "~rails s" "~rails c" "~mix phx.server"'
 
-# 手動保存: Ctrl+b Ctrl+s
-# 手動復元: Ctrl+b Ctrl+r
+# Manual save: Ctrl+b Ctrl+s
+# Manual restore: Ctrl+b Ctrl+r
 
-# ── tmux-continuum の設定 ──
+# ── tmux-continuum Configuration ──
 # ~/.tmux.conf:
 set -g @plugin 'tmux-plugins/tmux-continuum'
 
-set -g @continuum-restore 'on'          # tmux 起動時に自動復元
-set -g @continuum-save-interval '10'    # 10分ごとに自動保存
-set -g @continuum-boot 'on'             # システム起動時に tmux を自動起動
+set -g @continuum-restore 'on'          # Auto-restore when tmux starts
+set -g @continuum-save-interval '10'    # Auto-save every 10 minutes
+set -g @continuum-boot 'on'             # Auto-start tmux when system boots
 
-# macOS で iTerm2 を使う場合:
+# When using iTerm2 on macOS:
 set -g @continuum-boot-options 'iterm'
 
-# ── 保存ファイルの場所 ──
-# ~/.tmux/resurrect/ に保存される
+# ── Save File Location ──
+# Saved in ~/.tmux/resurrect/
 ls -la ~/.tmux/resurrect/
-# last → 最新の保存ファイルへのシンボリックリンク
+# last → symbolic link to the latest save file
 # tmux_resurrect_YYYYMMDDTHHMMSS.txt
 
-# 手動でバックアップ
+# Manual backup
 cp ~/.tmux/resurrect/last ~/.tmux/resurrect/backup-$(date +%Y%m%d).txt
 ```
 
-### 15.4 tmuxinator によるセッション管理
+### 15.4 Session Management with tmuxinator
 
 ```bash
-# tmuxinator はYAMLでセッション定義を管理するツール
+# tmuxinator is a tool that manages session definitions with YAML
 # gem install tmuxinator
 
-# ── プロジェクト作成 ──
+# ── Create a Project ──
 tmuxinator new myproject
 
-# ── YAML設定ファイル ──
+# ── YAML Configuration File ──
 # ~/.config/tmuxinator/myproject.yml
 name: myproject
 root: ~/projects/myproject
@@ -1445,60 +1445,60 @@ windows:
         - tail -f logs/error.log
   - console:
       panes:
-        - # 空のシェル
+        - # empty shell
 
-# ── tmuxinator コマンド ──
-tmuxinator start myproject       # セッション開始
-tmuxinator stop myproject        # セッション停止
-tmuxinator list                  # プロジェクト一覧
-tmuxinator edit myproject        # 設定編集
-tmuxinator delete myproject      # プロジェクト削除
-tmuxinator copy myproject newprj # プロジェクト複製
-tmuxinator doctor                # 設定の問題をチェック
+# ── tmuxinator Commands ──
+tmuxinator start myproject       # Start session
+tmuxinator stop myproject        # Stop session
+tmuxinator list                  # List projects
+tmuxinator edit myproject        # Edit configuration
+tmuxinator delete myproject      # Delete project
+tmuxinator copy myproject newprj # Duplicate project
+tmuxinator doctor                # Check for configuration issues
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1507,26 +1507,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1534,7 +1534,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1545,14 +1545,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1560,7 +1560,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1568,44 +1568,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1614,7 +1614,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1629,47 +1629,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured configuration file | Check the configuration file path and format |
+| Timeout | Network delay / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check the executing user's permissions, review settings |
+| Data inconsistency | Concurrent processing conflict | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify incrementally**: Use log output or a debugger to validate hypotheses
+5. **Fix and run regression tests**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1677,88 +1677,88 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debugging target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O wait**: Check the state of disk and network I/O
+4. **Check concurrent connections**: Check the state of connection pools
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|-------------|----------------|----------|
+| CPU load | cProfile, py-spy | Improve algorithm, parallelize |
+| Memory leak | tracemalloc, objgraph | Release references properly |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB slowness | EXPLAIN, slow query log | Indexes, query optimization |
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not only through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and moving on to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 操作 | tmux キー | コマンド |
-|------|----------|---------|
-| セッション作成 | - | tmux new -s name |
-| デタッチ | Ctrl+b d | - |
-| アタッチ | - | tmux attach -t name |
-| 水平分割 | Ctrl+b " | split-window -v |
-| 垂直分割 | Ctrl+b % | split-window -h |
-| ペイン移動 | Ctrl+b 矢印 | select-pane -[LRUD] |
-| ペインズーム | Ctrl+b z | resize-pane -Z |
-| ウィンドウ作成 | Ctrl+b c | new-window |
-| ウィンドウ切替 | Ctrl+b 0-9 | select-window -t N |
-| コピーモード | Ctrl+b [ | - |
-| ウィンドウ一覧 | Ctrl+b w | - |
-| セッション一覧 | Ctrl+b s | tmux ls |
-| 設定再読み込み | Ctrl+b r | source-file ~/.tmux.conf |
-| コマンド入力 | Ctrl+b : | - |
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Operation | tmux Key | Command |
+|-----------|----------|---------|
+| Create session | - | tmux new -s name |
+| Detach | Ctrl+b d | - |
+| Attach | - | tmux attach -t name |
+| Horizontal split | Ctrl+b " | split-window -v |
+| Vertical split | Ctrl+b % | split-window -h |
+| Move pane | Ctrl+b arrow | select-pane -[LRUD] |
+| Zoom pane | Ctrl+b z | resize-pane -Z |
+| Create window | Ctrl+b c | new-window |
+| Switch window | Ctrl+b 0-9 | select-window -t N |
+| Copy mode | Ctrl+b [ | - |
+| Window list | Ctrl+b w | - |
+| Session list | Ctrl+b s | tmux ls |
+| Reload config | Ctrl+b r | source-file ~/.tmux.conf |
+| Enter command | Ctrl+b : | - |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+---
+
+## References
 1. Hogan, B. "tmux 2: Productive Mouse-Free Development." Pragmatic Bookshelf, 2016.
 2. "tmux Wiki." github.com/tmux/tmux/wiki.
 3. "Awesome tmux." github.com/rothgar/awesome-tmux.
