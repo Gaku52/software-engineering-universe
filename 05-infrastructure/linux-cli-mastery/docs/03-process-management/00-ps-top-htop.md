@@ -1,499 +1,500 @@
-# プロセス監視（ps, top, htop）
+# Process Monitoring (ps, top, htop)
 
-> プロセスの状態を把握することは、トラブルシューティングの第一歩。
-> サーバーの負荷分析、メモリリークの検出、異常プロセスの特定 — すべてはプロセス監視から始まる。
+> Understanding the state of processes is the first step in troubleshooting.
+> Server load analysis, memory leak detection, identifying abnormal processes — it all starts with process monitoring.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] ps でプロセス一覧を取得・フィルタリングできる
-- [ ] top / htop でリアルタイム監視ができる
-- [ ] プロセスの状態・リソース使用量を読み解ける
-- [ ] pgrep / pstree でプロセスの検索・構造把握ができる
-- [ ] /proc ファイルシステムからプロセス情報を取得できる
-- [ ] 監視スクリプトを作成して自動化できる
+- [ ] Retrieve and filter process lists with ps
+- [ ] Perform real-time monitoring with top / htop
+- [ ] Read and interpret process states and resource usage
+- [ ] Search for processes and understand their structure with pgrep / pstree
+- [ ] Retrieve process information from the /proc filesystem
+- [ ] Create monitoring scripts for automation
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. ps — プロセスのスナップショット
+## 1. ps — Process Snapshot
 
-### 1.1 基本的な使い方
+### 1.1 Basic Usage
 
 ```bash
-# ps はプロセスの「ある瞬間」のスナップショットを取得するコマンド
-# BSD形式とUNIX（System V）形式の2種類の書式がある
+# ps is a command that takes a "snapshot" of processes at a given moment
+# There are two syntax formats: BSD style and UNIX (System V) style
 
-# BSD形式（ダッシュなし）
-ps aux                          # 全プロセス表示
-ps axjf                         # ツリー表示（プロセス階層）
+# BSD style (no dash)
+ps aux                          # Show all processes
+ps axjf                         # Tree view (process hierarchy)
 
-# UNIX形式（ダッシュあり）
-ps -ef                          # 全プロセス表示
-ps -eF                          # 拡張フォーマットで全プロセス
+# UNIX style (with dash)
+ps -ef                          # Show all processes
+ps -eF                          # All processes in extended format
 
-# 違い:
+# Differences:
 # ps aux → USER, PID, %CPU, %MEM, VSZ, RSS, TTY, STAT, START, TIME, COMMAND
 # ps -ef → UID, PID, PPID, C, STIME, TTY, TIME, CMD
 
-# 自分のプロセスのみ
-ps u                            # 現在のユーザーの端末に関連するプロセス
-ps ux                           # 現在のユーザーの全プロセス
+# Only your own processes
+ps u                            # Processes associated with the current user's terminal
+ps ux                           # All processes of the current user
 
-# 特定ユーザーのプロセス
-ps -u gaku                      # ユーザー gaku のプロセス
-ps -u root                      # root のプロセス
-ps -U gaku                      # 実UID で検索
-ps -u gaku -f                   # フルフォーマット
+# Processes of a specific user
+ps -u gaku                      # Processes of user gaku
+ps -u root                      # Processes of root
+ps -U gaku                      # Search by real UID
+ps -u gaku -f                   # Full format
 ```
 
-### 1.2 出力列の詳細解説
+### 1.2 Detailed Column Descriptions
 
 ```bash
-# ps aux の出力例:
+# Example output of ps aux:
 # USER   PID  %CPU %MEM    VSZ   RSS TTY  STAT START   TIME COMMAND
 # root     1   0.0  0.1 169344 13256 ?    Ss   Jan01   0:15 /sbin/init
 # gaku  1234   5.2  2.3 524288 37120 pts/0 Sl+  14:30  0:42 node server.js
 
-# 各列の詳細:
-# USER:    プロセスの実効ユーザー
-# PID:     プロセスID（一意の識別子）
-# %CPU:    CPU使用率（プロセスのライフタイムにおける平均）
-# %MEM:    物理メモリ使用率
-# VSZ:     仮想メモリサイズ（KB）— プロセスがアクセスできる全メモリ空間
-# RSS:     常駐セットサイズ（KB）— 実際に物理メモリに存在するサイズ
-# TTY:     制御端末（? = デーモン、pts/N = 疑似端末）
-# STAT:    プロセス状態（後述の詳細参照）
-# START:   開始時刻（24時間以内は時刻、それ以外は日付）
-# TIME:    累積CPU時間（プロセスが実際にCPUを使用した合計時間）
-# COMMAND: 実行コマンド
+# Details of each column:
+# USER:    Effective user of the process
+# PID:     Process ID (unique identifier)
+# %CPU:    CPU usage rate (average over the lifetime of the process)
+# %MEM:    Physical memory usage rate
+# VSZ:     Virtual memory size (KB) — total memory space accessible by the process
+# RSS:     Resident Set Size (KB) — the size actually present in physical memory
+# TTY:     Controlling terminal (? = daemon, pts/N = pseudo-terminal)
+# STAT:    Process state (see details below)
+# START:   Start time (time if within 24 hours, otherwise date)
+# TIME:    Cumulative CPU time (total time the process actually used the CPU)
+# COMMAND: Executed command
 
-# VSZ と RSS の違い:
-#   VSZ（Virtual Size）: mmap されたファイル、共有ライブラリ、未使用の割当メモリも含む
-#   RSS（Resident Set Size）: 実際に物理メモリに存在するページのサイズ
-#   通常 VSZ >> RSS（VSZが大きくても実害は少ないことが多い）
-#   RSS が大きいプロセスが実際のメモリ消費者
+# Difference between VSZ and RSS:
+#   VSZ (Virtual Size): includes mmap'd files, shared libraries, and unused allocated memory
+#   RSS (Resident Set Size): size of pages actually present in physical memory
+#   Typically VSZ >> RSS (large VSZ is often not harmful)
+#   Processes with large RSS are the actual memory consumers
 
-# ps -ef の出力例:
+# Example output of ps -ef:
 # UID        PID  PPID  C STIME TTY          TIME CMD
 # root         1     0  0 Jan01 ?        00:00:15 /sbin/init
 
-# PPID: 親プロセスID（このプロセスを生成したプロセス）
-# C:    CPU利用率（短期間の数値）
-# STIME: 開始時刻
+# PPID: Parent process ID (the process that spawned this process)
+# C:    CPU utilization (short-term value)
+# STIME: Start time
 ```
 
-### 1.3 STAT（プロセス状態）の完全ガイド
+### 1.3 Complete Guide to STAT (Process States)
 
 ```bash
-# STAT フィールドは1文字の基本状態 + 追加フラグで構成される
+# The STAT field consists of a single-character base state + additional flags
 
-# === 基本状態（1文字目） ===
-# R: Running     — 実行中またはCPU実行キューに入っている
-# S: Sleeping    — 割り込み可能なスリープ（I/O完了やシグナルを待機）
-# D: Disk sleep  — 割り込み不可のスリープ（I/O待ち）
-#                  → kill -9 でも終了できない！ ディスクやNFSの問題が原因
-# Z: Zombie      — 終了済みだが親がwait()していない
-#                  → 親プロセスのバグが原因。親を終了させれば消える
-# T: Stopped     — シグナルで停止（SIGSTOP/SIGTSTP）
-# t: Tracing     — デバッガ（strace等）によるトレース中
-# I: Idle        — カーネルのアイドルスレッド（Linux 4.14+）
-# X: Dead        — 表示されることはない（終了処理中の一瞬）
+# === Base state (1st character) ===
+# R: Running     — Running or in the CPU run queue
+# S: Sleeping    — Interruptible sleep (waiting for I/O completion or signal)
+# D: Disk sleep  — Uninterruptible sleep (waiting for I/O)
+#                  → Cannot be killed even with kill -9! Caused by disk or NFS issues
+# Z: Zombie      — Terminated but parent has not called wait()
+#                  → Caused by a bug in the parent process. Killing the parent will remove it
+# T: Stopped     — Stopped by a signal (SIGSTOP/SIGTSTP)
+# t: Tracing     — Being traced by a debugger (strace, etc.)
+# I: Idle        — Kernel idle thread (Linux 4.14+)
+# X: Dead        — Never displayed (a brief moment during exit processing)
 
-# === 追加フラグ（2文字目以降） ===
-# s: セッションリーダー（ログインシェルなど）
-# l: マルチスレッド
-# +: フォアグラウンドプロセスグループのメンバー
-# <: 高優先度（nice値が負）
-# N: 低優先度（nice値が正）
-# L: メモリ内にロックされたページがある
-# W: スワップアウトされている（Linux 2.6以降では使われない）
+# === Additional flags (2nd character onward) ===
+# s: Session leader (login shell, etc.)
+# l: Multi-threaded
+# +: Member of the foreground process group
+# <: High priority (negative nice value)
+# N: Low priority (positive nice value)
+# L: Has pages locked in memory
+# W: Swapped out (not used since Linux 2.6)
 
-# よく見るSTATの組み合わせと意味:
-# Ss   → スリープ中のセッションリーダー（sshd, init など）
-# Ssl  → スリープ中のセッションリーダー、マルチスレッド（systemd など）
-# R+   → 実行中のフォアグラウンドプロセス
-# S+   → スリープ中のフォアグラウンドプロセス（vim, less など）
-# Sl   → スリープ中のマルチスレッドプロセス（Java, Node.js など）
-# S<   → 高優先度でスリープ中
-# SN   → 低優先度でスリープ中
-# Z+   → ゾンビ状態のフォアグラウンドプロセス
-# D+   → I/O待ちのフォアグラウンドプロセス
+# Common STAT combinations and their meanings:
+# Ss   → Sleeping session leader (sshd, init, etc.)
+# Ssl  → Sleeping session leader, multi-threaded (systemd, etc.)
+# R+   → Running foreground process
+# S+   → Sleeping foreground process (vim, less, etc.)
+# Sl   → Sleeping multi-threaded process (Java, Node.js, etc.)
+# S<   → Sleeping with high priority
+# SN   → Sleeping with low priority
+# Z+   → Zombie foreground process
+# D+   → Foreground process waiting for I/O
 
-# STATで状態を絞り込む
-ps aux | awk '$8 ~ /Z/'          # ゾンビプロセスのみ
-ps aux | awk '$8 ~ /D/'          # I/O待ちプロセスのみ（ディスク問題の兆候）
-ps aux | awk '$8 ~ /R/'          # 実行中のプロセスのみ
-ps aux | awk '$8 ~ /T/'          # 停止中のプロセスのみ
+# Filter by state using STAT
+ps aux | awk '$8 ~ /Z/'          # Zombie processes only
+ps aux | awk '$8 ~ /D/'          # I/O-waiting processes only (sign of disk issues)
+ps aux | awk '$8 ~ /R/'          # Running processes only
+ps aux | awk '$8 ~ /T/'          # Stopped processes only
 ```
 
-### 1.4 カスタム出力（-o / --format）
+### 1.4 Custom Output (-o / --format)
 
 ```bash
-# 特定の列だけ表示（-o / --format）
+# Show only specific columns (-o / --format)
 ps -eo pid,ppid,user,%cpu,%mem,stat,cmd --sort=-%cpu | head -20
 
-# よく使うカスタムフォーマット
+# Commonly used custom formats
 ps -eo pid,ppid,user,%cpu,%mem,rss,vsz,stat,etime,cmd --sort=-%mem | head -20
 
-# 利用可能なフォーマットキーワード（主要なもの）
-# pid     プロセスID
-# ppid    親プロセスID
-# pgid    プロセスグループID
-# sid     セッションID
-# uid     ユーザーID
-# user    ユーザー名
-# gid     グループID
-# group   グループ名
-# %cpu    CPU使用率
-# %mem    メモリ使用率
-# rss     常駐メモリサイズ（KB）
-# vsz     仮想メモリサイズ（KB）
-# sz      物理ページ数
-# stat    プロセス状態
-# state   プロセス状態（1文字）
-# pri     優先度
-# ni      nice値
-# tty     制御端末
-# time    累積CPU時間
-# etime   経過時間（プロセス起動からの時間）
-# etimes  経過時間（秒数）
-# cmd     コマンド（引数なし）
-# args    コマンド（引数付き）
-# comm    コマンド名のみ
-# wchan   カーネル関数名（待機中の場所）
-# lstart  起動時刻（詳細形式）
-# nlwp    スレッド数
+# Available format keywords (major ones)
+# pid     Process ID
+# ppid    Parent process ID
+# pgid    Process group ID
+# sid     Session ID
+# uid     User ID
+# user    Username
+# gid     Group ID
+# group   Group name
+# %cpu    CPU usage rate
+# %mem    Memory usage rate
+# rss     Resident memory size (KB)
+# vsz     Virtual memory size (KB)
+# sz      Number of physical pages
+# stat    Process state
+# state   Process state (1 character)
+# pri     Priority
+# ni      Nice value
+# tty     Controlling terminal
+# time    Cumulative CPU time
+# etime   Elapsed time (time since process start)
+# etimes  Elapsed time (in seconds)
+# cmd     Command (without arguments)
+# args    Command (with arguments)
+# comm    Command name only
+# wchan   Kernel function name (where it is waiting)
+# lstart  Start time (detailed format)
+# nlwp    Number of threads
 
-# 特定プロセスの詳細
+# Details of a specific process
 ps -p 1234 -o pid,ppid,%cpu,%mem,rss,etime,lstart,cmd
-# etime:  経過時間（DD-HH:MM:SS形式）
-# lstart: 起動時刻（Wed Jan 15 14:30:00 2024形式）
+# etime:  elapsed time (DD-HH:MM:SS format)
+# lstart: start time (Wed Jan 15 14:30:00 2024 format)
 
-# カスタムヘッダー
+# Custom headers
 ps -eo pid=PID,user=USER,%cpu=CPU,%mem=MEM,cmd=COMMAND --sort=-%cpu | head -10
 
-# ヘッダーなし
+# No headers
 ps -eo pid,%cpu,%mem,cmd --sort=-%cpu --no-headers | head -10
 
-# スレッド表示
+# Thread display
 ps -eLo pid,tid,user,%cpu,%mem,cmd | head -20
-# -L: スレッドを個別行で表示
-# tid: スレッドID
+# -L: Display threads on individual lines
+# tid: Thread ID
 
-# プロセスのnice値とスケジューリング情報
+# Process nice value and scheduling info
 ps -eo pid,ni,pri,cls,cmd --sort=-ni | head -20
-# ni:  nice値（-20〜19、低いほど高優先度）
-# pri: カーネル内部優先度
-# cls: スケジューリングクラス（TS=タイムシェア、FF=FIFO、RR=ラウンドロビン）
+# ni:  nice value (-20 to 19, lower = higher priority)
+# pri: kernel internal priority
+# cls: scheduling class (TS=timeshare, FF=FIFO, RR=round-robin)
 ```
 
-### 1.5 ソートオプション
+### 1.5 Sort Options
 
 ```bash
-# ソート指定（--sort）
-ps aux --sort=-%cpu                 # CPU使用率の高い順（降順）
-ps aux --sort=-%mem                 # メモリ使用率の高い順
-ps aux --sort=-rss                  # 常駐メモリの大きい順
-ps aux --sort=-vsz                  # 仮想メモリの大きい順
-ps aux --sort=start_time            # 起動時刻の古い順
-ps aux --sort=-start_time           # 起動時刻の新しい順
-ps aux --sort=pid                   # PID順（昇順）
-ps aux --sort=-etime               # 経過時間の長い順
+# Sort specification (--sort)
+ps aux --sort=-%cpu                 # Highest CPU usage first (descending)
+ps aux --sort=-%mem                 # Highest memory usage first
+ps aux --sort=-rss                  # Largest resident memory first
+ps aux --sort=-vsz                  # Largest virtual memory first
+ps aux --sort=start_time            # Oldest start time first
+ps aux --sort=-start_time           # Newest start time first
+ps aux --sort=pid                   # By PID (ascending)
+ps aux --sort=-etime               # Longest elapsed time first
 
-# 複数キーでのソート
-ps aux --sort=-%cpu,-%mem           # CPU順、同値ならメモリ順
+# Multi-key sort
+ps aux --sort=-%cpu,-%mem           # By CPU, then memory for ties
 
-# 特定のコマンドでフィルタ
-ps -C nginx                         # コマンド名で検索
-ps -C nginx -o pid,%cpu,%mem,cmd    # フォーマット指定付き
-ps -C nginx,node,python -o pid,cmd  # 複数コマンド名
+# Filter by specific command
+ps -C nginx                         # Search by command name
+ps -C nginx -o pid,%cpu,%mem,cmd    # With format specification
+ps -C nginx,node,python -o pid,cmd  # Multiple command names
 ```
 
-### 1.6 パイプとの組み合わせ
+### 1.6 Combining with Pipes
 
 ```bash
-# nginx プロセスの検索（grep パターン）
+# Search for nginx processes (grep pattern)
 ps aux | grep nginx | grep -v grep
-# grep -v grep: grep 自身を除外
+# grep -v grep: exclude grep itself
 
-# pgrep の方がスマート（推奨）
-pgrep -la nginx                  # PID + コマンドライン全体
-pgrep -l nginx                   # PID + プロセス名
-pgrep -u root -l                 # rootのプロセス一覧
-pgrep -c nginx                   # プロセス数のカウント
-pgrep -f "node.*server"          # コマンドライン全体で正規表現マッチ
-pgrep -P 1234                    # 親PID 1234 の子プロセス
-pgrep -n nginx                   # 最新のnginxプロセスのPID
-pgrep -o nginx                   # 最古のnginxプロセスのPID
-pgrep -x nginx                   # 完全一致（部分一致を防ぐ）
+# pgrep is smarter (recommended)
+pgrep -la nginx                  # PID + full command line
+pgrep -l nginx                   # PID + process name
+pgrep -u root -l                 # List of root processes
+pgrep -c nginx                   # Count number of processes
+pgrep -f "node.*server"          # Regex match against full command line
+pgrep -P 1234                    # Child processes of parent PID 1234
+pgrep -n nginx                   # PID of newest nginx process
+pgrep -o nginx                   # PID of oldest nginx process
+pgrep -x nginx                   # Exact match (prevents partial matches)
 
-# pidof（完全一致のPID取得）
-pidof nginx                      # 全プロセスのPID（スペース区切り）
-pidof -s nginx                   # 1つだけ取得
+# pidof (get PIDs by exact match)
+pidof nginx                      # All PIDs (space-separated)
+pidof -s nginx                   # Get only one
 
-# プロセスの親子関係
-pstree -p                        # PID付きツリー
-pstree -p 1234                   # 特定プロセスの子孫
-pstree -u                        # UID変更を表示
-pstree -a                        # コマンドライン引数も表示
-pstree -h                        # カレントプロセスをハイライト
-pstree -H 1234                   # 指定PIDをハイライト
-pstree -s 1234                   # 指定PIDの祖先を表示
-pstree -c                        # 同一プロセスを折りたたまない
-pstree -g                        # プロセスグループIDを表示
+# Parent-child process relationships
+pstree -p                        # Tree with PIDs
+pstree -p 1234                   # Descendants of a specific process
+pstree -u                        # Show UID changes
+pstree -a                        # Also show command line arguments
+pstree -h                        # Highlight current process
+pstree -H 1234                   # Highlight specified PID
+pstree -s 1234                   # Show ancestors of specified PID
+pstree -c                        # Do not collapse identical processes
+pstree -g                        # Show process group IDs
 
-# 実用パターン: 特定サービスのプロセスツリー
-pstree -p $(pgrep -o nginx)      # nginx のマスタープロセスからのツリー
+# Practical pattern: process tree of a specific service
+pstree -p $(pgrep -o nginx)      # Tree starting from nginx master process
 ```
 
 ---
 
-## 2. top — リアルタイム監視
+## 2. top — Real-Time Monitoring
 
-### 2.1 画面構成の詳細解説
+### 2.1 Detailed Screen Layout
 
 ```bash
-top                              # 基本起動
+top                              # Basic launch
 
-# top 画面の構成（5つのセクション）
+# top screen layout (5 sections)
 # ┌──────────────────────────────────────────────────────────┐
-# │ top - 14:30:00 up 30 days, 2:15, 3 users, load avg: ... │ ← (1) サマリ行
-# │ Tasks: 256 total, 1 running, 254 sleeping, 1 stopped    │ ← (2) タスク行
-# │ %Cpu(s): 3.2 us, 1.1 sy, 0.0 ni, 95.5 id, 0.1 wa...   │ ← (3) CPU行
-# │ MiB Mem:  16384.0 total,  8192.0 free,  4096.0 used..  │ ← (4) メモリ行
-# │ MiB Swap:  8192.0 total,  8192.0 free,     0.0 used..  │ ← (5) スワップ行
+# │ top - 14:30:00 up 30 days, 2:15, 3 users, load avg: ... │ ← (1) Summary line
+# │ Tasks: 256 total, 1 running, 254 sleeping, 1 stopped    │ ← (2) Tasks line
+# │ %Cpu(s): 3.2 us, 1.1 sy, 0.0 ni, 95.5 id, 0.1 wa...   │ ← (3) CPU line
+# │ MiB Mem:  16384.0 total,  8192.0 free,  4096.0 used..  │ ← (4) Memory line
+# │ MiB Swap:  8192.0 total,  8192.0 free,     0.0 used..  │ ← (5) Swap line
 # ├──────────────────────────────────────────────────────────┤
-# │  PID USER  PR  NI    VIRT    RES    SHR S  %CPU  %MEM.. │ ← プロセス一覧
+# │  PID USER  PR  NI    VIRT    RES    SHR S  %CPU  %MEM.. │ ← Process list
 # └──────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 サマリ行の読み方
+### 2.2 How to Read the Summary Lines
 
 ```
-(1) サマリ行:
+(1) Summary line:
 top - 14:30:00 up 30 days, 2:15, 3 users, load average: 1.50, 2.00, 1.80
       ↑          ↑                ↑         ↑      ↑      ↑     ↑
-      現在時刻    稼働時間          ユーザ数   1分平均  5分平均  15分平均
+      current    uptime           users     1-min  5-min  15-min average
 
-(2) タスク行:
+(2) Tasks line:
 Tasks: 256 total, 1 running, 254 sleeping, 0 stopped, 1 zombie
        ↑          ↑           ↑             ↑          ↑
-       総数       実行中      スリープ中     停止中     ゾンビ
-       ※ zombie > 0 の場合は親プロセスの問題を調査すべき
+       total      running     sleeping      stopped    zombie
+       ※ If zombie > 0, investigate the parent process
 
-(3) CPU行:
+(3) CPU line:
 %Cpu(s):  3.2 us,  1.1 sy,  0.0 ni, 95.5 id,  0.1 wa,  0.0 hi,  0.1 si,  0.0 st
           ↑        ↑        ↑        ↑         ↑        ↑        ↑        ↑
           user     system   nice     idle      iowait   hw-irq   sw-irq   steal
 
-各値の意味:
-  us (user):     ユーザー空間のプロセス（nice値変更なし）
-  sy (system):   カーネル空間の処理
-  ni (nice):     nice値を変更したユーザープロセス
-  id (idle):     アイドル（何もしていない）
-  wa (iowait):   I/O 完了待ち ← ディスクボトルネックの指標
-  hi (hardware): ハードウェア割り込み処理
-  si (software): ソフトウェア割り込み処理（ネットワーク処理など）
-  st (steal):    仮想化環境でホストに奪われた時間 ← クラウドで重要
+Meaning of each value:
+  us (user):     User-space processes (no nice value change)
+  sy (system):   Kernel-space processing
+  ni (nice):     User processes with modified nice values
+  id (idle):     Idle (doing nothing)
+  wa (iowait):   Waiting for I/O completion ← indicator of disk bottleneck
+  hi (hardware): Hardware interrupt handling
+  si (software): Software interrupt handling (network processing, etc.)
+  st (steal):    Time stolen by the host in a virtualized environment ← important in cloud
 
-注目すべきパターン:
-  wa が高い → ディスクI/O がボトルネック（SSD化、I/Oスケジューラ調整を検討）
-  sy が高い → カーネル処理が多い（コンテキストスイッチ過多、システムコール多発）
-  st が高い → VM のCPU リソース不足（インスタンスタイプの変更を検討）
-  us が高い → アプリケーションがCPUを消費（プロファイリングで原因特定）
+Patterns to watch for:
+  High wa → Disk I/O is a bottleneck (consider SSD, I/O scheduler tuning)
+  High sy → Heavy kernel processing (excess context switches, many syscalls)
+  High st → VM CPU resource shortage (consider changing instance type)
+  High us → Application consuming CPU (identify cause via profiling)
 
-(4) メモリ行:
+(4) Memory line:
 MiB Mem:  16384.0 total,   2048.0 free,   8192.0 used,   6144.0 buff/cache
                             ↑              ↑               ↑
-                            完全に空き      プロセス使用     バッファ/キャッシュ
+                            completely     used by         buffer/cache
+                            free           processes
 
-  ※ Linux はメモリをキャッシュに積極活用するため、free が少なくても問題ない
-  ※ 実際の空き = free + buff/cache の大部分
-  ※ 「avail Mem」（利用可能メモリ）がより正確な空き容量
+  ※ Linux aggressively uses memory for caching, so low free is not necessarily a problem
+  ※ Actual free ≈ free + most of buff/cache
+  ※ "avail Mem" (available memory) is a more accurate measure of free space
 
-(5) スワップ行:
+(5) Swap line:
 MiB Swap:  8192.0 total,   8192.0 free,      0.0 used.    10240.0 avail Mem
                                                ↑            ↑
-                                               スワップ使用量  利用可能メモリ
+                                               swap used    available memory
 
-  ※ Swap used > 0 が継続的に増加 → メモリ不足の兆候
-  ※ avail Mem が物理メモリの10%以下 → メモリ増設を検討
+  ※ If Swap used > 0 keeps increasing → sign of memory shortage
+  ※ If avail Mem is below 10% of physical memory → consider adding more memory
 ```
 
-### 2.3 プロセス一覧の列
+### 2.3 Process List Columns
 
 ```bash
-# プロセス一覧の各列:
+# Columns in the process list:
 #  PID  USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
 #  1234 gaku      20   0  524288  37120  15360 S   5.2   2.3   0:42.50 node
 
-# PID:     プロセスID
-# USER:    所有者
-# PR:      カーネル内部優先度（rt = リアルタイム）
-# NI:      nice値（-20〜19）
-# VIRT:    仮想メモリ（VSZ相当）
-# RES:     常駐メモリ（RSS相当）
-# SHR:     共有メモリ（ライブラリなど）
-# S:       状態（R/S/D/Z/T）
-# %CPU:    CPU使用率（直近の更新間隔での値）
-# %MEM:    物理メモリ使用率
-# TIME+:   累積CPU時間（1/100秒単位）
-# COMMAND: コマンド名
+# PID:     Process ID
+# USER:    Owner
+# PR:      Kernel internal priority (rt = real-time)
+# NI:      Nice value (-20 to 19)
+# VIRT:    Virtual memory (equivalent to VSZ)
+# RES:     Resident memory (equivalent to RSS)
+# SHR:     Shared memory (libraries, etc.)
+# S:       State (R/S/D/Z/T)
+# %CPU:    CPU usage rate (value during the most recent update interval)
+# %MEM:    Physical memory usage rate
+# TIME+:   Cumulative CPU time (in 1/100 second units)
+# COMMAND: Command name
 
-# top と ps の %CPU の違い:
-#   top: 直近の更新間隔（デフォルト3秒）における瞬間的なCPU使用率
-#   ps:  プロセスのライフタイム全体での平均CPU使用率
-#   → top の方がリアルタイムな負荷を反映する
+# Difference between top and ps %CPU:
+#   top: instantaneous CPU usage during the most recent update interval (default 3 seconds)
+#   ps:  average CPU usage over the entire lifetime of the process
+#   → top reflects real-time load more accurately
 ```
 
-### 2.4 top の対話的操作キー
+### 2.4 Interactive Keys in top
 
 ```bash
-# top 実行中に使えるキー（覚えるべきもの）
+# Keys available while top is running (ones worth memorizing)
 
-# === ソート ===
-# P:  CPU使用率順でソート（デフォルト）
-# M:  メモリ使用率順でソート
-# T:  累積CPU時間順でソート
-# N:  PID順でソート
-# R:  現在のソートを逆順に
+# === Sorting ===
+# P:  Sort by CPU usage (default)
+# M:  Sort by memory usage
+# T:  Sort by cumulative CPU time
+# N:  Sort by PID
+# R:  Reverse the current sort order
 
-# === 表示切替 ===
-# 1:  CPU をコア別に表示/集約表示（マルチコアの確認に必須）
-# c:  コマンド名 / フルコマンドライン切替
-# H:  スレッド表示ON/OFF
-# V:  ツリー表示（プロセスの親子関係）
-# e:  メモリ単位切替（KB→MB→GB→TB→PB）
-# E:  サマリ行のメモリ単位切替
-# m:  メモリ行の表示形式切替（数値/バー表示）
-# t:  タスク/CPU行の表示形式切替
-# l:  ロードアベレージ行のON/OFF
-# 0:  ゼロ値の表示/非表示
+# === Display Toggles ===
+# 1:  Toggle per-core / aggregate CPU display (essential for multi-core check)
+# c:  Toggle between command name / full command line
+# H:  Toggle thread display on/off
+# V:  Tree view (parent-child process relationships)
+# e:  Cycle memory units (KB→MB→GB→TB→PB)
+# E:  Cycle memory units in summary lines
+# m:  Toggle memory line display format (numeric/bar)
+# t:  Toggle tasks/CPU line display format
+# l:  Toggle load average line on/off
+# 0:  Toggle display of zero values
 
-# === フィルタリング ===
-# u:  ユーザーでフィルタ（ユーザー名を入力）
-# o:  フィルタ条件追加（例: %CPU>10, COMMAND=nginx）
-# O:  フィルタ条件追加（大文字小文字区別なし）
-# =:  フィルタをクリア
+# === Filtering ===
+# u:  Filter by user (type username)
+# o:  Add filter condition (e.g., %CPU>10, COMMAND=nginx)
+# O:  Add filter condition (case-insensitive)
+# =:  Clear filters
 
-# === アクション ===
-# k:  プロセスを kill（PIDとシグナルを入力）
-# r:  プロセスの nice 値を変更（renice）
-# d:  更新間隔を変更（秒数を入力）
-# s:  更新間隔を変更（同上）
+# === Actions ===
+# k:  Kill a process (enter PID and signal)
+# r:  Change nice value of a process (renice)
+# d:  Change update interval (enter seconds)
+# s:  Change update interval (same as above)
 
-# === 設定 ===
-# f:  表示列の選択・順序変更
-# W:  現在の設定を ~/.toprc に保存
-# q:  終了
+# === Settings ===
+# f:  Select and reorder display columns
+# W:  Save current settings to ~/.toprc
+# q:  Quit
 
-# フィルタの例:
-# o を押して以下を入力:
-#   %CPU>5.0          → CPU 5%以上のプロセスのみ
-#   COMMAND=java       → java を含むプロセスのみ
-#   %MEM>10.0          → メモリ 10%以上
-#   USER=gaku          → ユーザー gaku のみ
-#   !COMMAND=kworker   → kworker を除外
+# Filter examples:
+# Press o and enter the following:
+#   %CPU>5.0          → Only processes using more than 5% CPU
+#   COMMAND=java       → Only processes containing "java"
+#   %MEM>10.0          → More than 10% memory
+#   USER=gaku          → Only user gaku
+#   !COMMAND=kworker   → Exclude kworker
 ```
 
-### 2.5 top のコマンドラインオプション
+### 2.5 top Command-Line Options
 
 ```bash
-# バッチモード（スクリプト用）
-top -bn1                         # 1回だけ出力して終了
-top -bn1 | head -20              # 上位20行のみ
-top -bn1 -o %MEM | head -20     # メモリ順で1回出力
+# Batch mode (for scripts)
+top -bn1                         # Output once and exit
+top -bn1 | head -20              # Top 20 lines only
+top -bn1 -o %MEM | head -20     # Output once sorted by memory
 
-# 更新間隔の指定
-top -d 1                         # 1秒間隔で更新
-top -d 0.5                       # 0.5秒間隔
+# Specify update interval
+top -d 1                         # Update every 1 second
+top -d 0.5                       # Every 0.5 seconds
 
-# 特定ユーザーのプロセスのみ
+# Show only specific user's processes
 top -u gaku
 top -u root
 
-# 特定PIDのみ監視
-top -p 1234                      # 1つのプロセス
-top -p 1234,5678,9012            # 複数プロセス
+# Monitor only specific PIDs
+top -p 1234                      # One process
+top -p 1234,5678,9012            # Multiple processes
 
-# スレッド表示
-top -H                           # スレッドを個別に表示
-top -H -p 1234                   # 特定プロセスのスレッドを監視
+# Thread display
+top -H                           # Display threads individually
+top -H -p 1234                   # Monitor threads of a specific process
 
-# セキュア（安全）モード
-top -s                           # kill, renice などの操作を無効化
+# Secure mode
+top -s                           # Disable kill, renice, and similar operations
 
-# バッチモードの活用例
-# CPUトップ10を記録
+# Batch mode usage examples
+# Record top 10 CPU consumers
 top -bn1 -o %CPU | head -17 > /tmp/cpu_snapshot_$(date +%H%M%S).txt
 
-# 5秒間隔で10回記録（50秒分の推移）
+# Record every 5 seconds, 10 times (50 seconds of trend)
 top -bn10 -d 5 -o %CPU | head -17 > /tmp/cpu_trend.txt
 
-# 特定プロセスのCPU使用率の推移を記録
+# Record CPU usage trend of a specific process
 while true; do
     echo "$(date +%H:%M:%S) $(top -bn1 -p 1234 | tail -1 | awk '{print $9, $10}')"
     sleep 5
 done >> /tmp/process_cpu_trend.log
 ```
 
-### 2.6 load average の深い理解
+### 2.6 Deep Understanding of Load Average
 
 ```
 load average: 1.50, 2.00, 1.80
               ↑     ↑     ↑
-              1分   5分   15分
+              1min  5min  15min
 
-意味: 「実行中(R) + 実行待ち(R in queue) + I/O待ち(D)のプロセスの指数移動平均」
+Meaning: "Exponential moving average of processes in Running (R) + run queue (R) + I/O wait (D)"
 
-重要: Linux の load average は I/O 待ち（D状態）のプロセスも含む
-  → 他のUNIX（FreeBSD等）とは異なる
-  → ディスクI/Oが多い環境ではCPUに余裕があっても load が高くなる
+Important: Linux load average also includes processes waiting for I/O (D state)
+  → This differs from other UNIX systems (FreeBSD, etc.)
+  → In I/O-heavy environments, load can be high even when CPU has headroom
 
-判断基準（CPUコア数との比較）:
-  コア数の確認:
-    nproc                         # コア数
-    lscpu | grep "^CPU(s):"      # 詳細
-    cat /proc/cpuinfo | grep processor | wc -l  # 論理コア数
+Guidelines (compare against number of CPU cores):
+  Check core count:
+    nproc                         # Number of cores
+    lscpu | grep "^CPU(s):"      # Details
+    cat /proc/cpuinfo | grep processor | wc -l  # Logical core count
 
-  4コアマシンの場合:
-    load avg < 4.0  → 正常（余裕あり）
-    load avg ≈ 4.0  → フル稼働（ギリギリ）
-    load avg > 4.0  → 過負荷（CPUキューに待ちが発生）
-    load avg > 8.0  → 深刻な過負荷（応答遅延の可能性）
-    load avg > 16.0 → 危機的状況（サービス影響あり）
+  For a 4-core machine:
+    load avg < 4.0  → Normal (headroom available)
+    load avg ≈ 4.0  → Running at full capacity
+    load avg > 4.0  → Overloaded (processes queued for CPU)
+    load avg > 8.0  → Severely overloaded (possible response delays)
+    load avg > 16.0 → Critical (service impact likely)
 
-  load avg の傾向分析:
-    1分 > 5分 > 15分  → 負荷が上昇中（要注意）
-    1分 < 5分 < 15分  → 負荷が下降中（改善傾向）
-    1分 ≈ 5分 ≈ 15分  → 安定状態
+  Trend analysis of load avg:
+    1min > 5min > 15min  → Load is rising (caution)
+    1min < 5min < 15min  → Load is falling (improving)
+    1min ≈ 5min ≈ 15min  → Stable state
 
-  load が高い場合の調査手順:
-    1. top の CPU行（us, sy, wa, st）を確認
-       - wa が高い → ディスクI/Oが原因
-       - us が高い → アプリケーションが原因
-       - sy が高い → カーネル処理が原因
-       - st が高い → 仮想化リソース不足
-    2. ps aux --sort=-%cpu | head -10  でCPU消費プロセスを特定
-    3. iostat -x 1  でディスクI/Oを確認
-    4. vmstat 1     でシステム全体の状態を確認
+  Investigation steps when load is high:
+    1. Check the CPU line (us, sy, wa, st) in top
+       - High wa → Disk I/O is the cause
+       - High us → Application is the cause
+       - High sy → Kernel processing is the cause
+       - High st → Virtualization resource shortage
+    2. ps aux --sort=-%cpu | head -10  to identify CPU-consuming processes
+    3. iostat -x 1  to check disk I/O
+    4. vmstat 1     to check overall system state
 ```
 
 ---
 
-## 3. htop — モダンなプロセスモニタ
+## 3. htop — Modern Process Monitor
 
-### 3.1 インストールと起動
+### 3.1 Installation and Launch
 
 ```bash
-# インストール
+# Installation
 # macOS:
 brew install htop
 
@@ -502,396 +503,396 @@ sudo apt install htop
 
 # CentOS/RHEL:
 sudo yum install htop
-# または
+# or
 sudo dnf install htop
 
 # Arch Linux:
 sudo pacman -S htop
 
-# 基本起動
+# Basic launch
 htop
 ```
 
-### 3.2 画面構成
+### 3.2 Screen Layout
 
 ```bash
-# htop の画面構成
+# htop screen layout
 # ┌──────────────────────────────────────────────┐
-# │ CPU[||||||||||||       35%]  Tasks: 142, 1 run│  ← CPUメーター
-# │ CPU[|||              12%]   Load: 1.50 2.00  │  ← マルチコア個別表示
+# │ CPU[||||||||||||       35%]  Tasks: 142, 1 run│  ← CPU meter
+# │ CPU[|||              12%]   Load: 1.50 2.00  │  ← Per-core display
 # │ CPU[||||||           25%]   Uptime: 30 days  │
 # │ CPU[|                 5%]                    │
-# │ Mem[|||||||||||||||  4.2G/16.0G]             │  ← メモリメーター
-# │ Swp[                 0K/8.0G]               │  ← スワップメーター
+# │ Mem[|||||||||||||||  4.2G/16.0G]             │  ← Memory meter
+# │ Swp[                 0K/8.0G]               │  ← Swap meter
 # ├──────────────────────────────────────────────┤
-# │  PID USER    PRI  NI  VIRT  RES  SHR S CPU% │  ← プロセス一覧
-# │  1234 gaku    20   0  512M  36M  15M S  5.2 │     カラー表示
-# │  5678 root    20   0  256M  18M  12M S  2.1 │     ツリー表示対応
-# │  ...                                         │     マウス操作対応
+# │  PID USER    PRI  NI  VIRT  RES  SHR S CPU% │  ← Process list
+# │  1234 gaku    20   0  512M  36M  15M S  5.2 │     Color display
+# │  5678 root    20   0  256M  18M  12M S  2.1 │     Tree view supported
+# │  ...                                         │     Mouse operation supported
 # ├──────────────────────────────────────────────┤
-# │ F1Help F2Setup F3Search F4Filter F5Tree F6So │  ← ファンクションキー
+# │ F1Help F2Setup F3Search F4Filter F5Tree F6So │  ← Function keys
 # │ F7Nice- F8Nice+ F9Kill F10Quit              │
 # └──────────────────────────────────────────────┘
 
-# CPUメーターの色の意味（デフォルト）
-#   緑色:  ユーザープロセス（通常の負荷）
-#   赤色:  カーネルプロセス（システム負荷）
-#   青色:  低優先度プロセス（nice値が高い）
-#   水色:  仮想化スチール時間
-#   黄色:  I/O待ち時間
+# CPU meter color meanings (default)
+#   Green:  User processes (normal load)
+#   Red:    Kernel processes (system load)
+#   Blue:   Low-priority processes (high nice value)
+#   Cyan:   Virtualization steal time
+#   Yellow: I/O wait time
 
-# メモリメーターの色の意味
-#   緑色:  使用中メモリ
-#   青色:  バッファ
-#   黄色:  キャッシュ
+# Memory meter color meanings
+#   Green:  Used memory
+#   Blue:   Buffers
+#   Yellow: Cache
 ```
 
-### 3.3 htop の操作キー
+### 3.3 htop Operation Keys
 
 ```bash
-# === 基本操作 ===
-# F1 / h:     ヘルプ画面
-# F2 / S:     設定画面（メーター、カラー、表示列などを変更）
-# F3 / /:     インクリメンタル検索
-# F4 / \:     フィルタ（表示するプロセスを文字列でフィルタ）
-# F5 / t:     ツリー表示ON/OFF
-# F6 / >:     ソート列の選択
-# F7 / ]:     nice値を下げる（優先度を上げる）
-# F8 / [:     nice値を上げる（優先度を下げる）
-# F9 / k:     シグナル送信（プロセスをkill）
-# F10 / q:    終了
+# === Basic Operations ===
+# F1 / h:     Help screen
+# F2 / S:     Settings screen (change meters, colors, display columns, etc.)
+# F3 / /:     Incremental search
+# F4 / \:     Filter (filter displayed processes by string)
+# F5 / t:     Toggle tree view on/off
+# F6 / >:     Select sort column
+# F7 / ]:     Decrease nice value (increase priority)
+# F8 / [:     Increase nice value (decrease priority)
+# F9 / k:     Send signal (kill process)
+# F10 / q:    Quit
 
-# === 表示操作 ===
-# Space:      プロセスをマーク（複数選択）
-# c:          マークしたプロセスにタグ付け
-# U:          全マーク解除
-# u:          ユーザーでフィルタ
-# H:          ユーザースレッドの表示/非表示
-# K:          カーネルスレッドの表示/非表示
-# p:          プロセスのフルパス表示
-# m:          メモリソートの切替
-# T:          CPU時間ソート
+# === Display Operations ===
+# Space:      Mark a process (multi-select)
+# c:          Tag marked processes
+# U:          Clear all marks
+# u:          Filter by user
+# H:          Show/hide user threads
+# K:          Show/hide kernel threads
+# p:          Show full path of process
+# m:          Toggle memory sort
+# T:          Sort by CPU time
 
-# === 高度な操作 ===
-# l:          プロセスが開いているファイル一覧（lsof）
-# s:          プロセスのシステムコール追跡（strace）
-# e:          プロセスの環境変数表示
-# w:          プロセスを /proc/PID/wchan で確認
-# i:          プロセスのI/O情報
-# M:          ライブラリマッピング表示（メモリマップ）
+# === Advanced Operations ===
+# l:          List files opened by the process (lsof)
+# s:          Trace system calls of the process (strace)
+# e:          Show environment variables of the process
+# w:          Check process via /proc/PID/wchan
+# i:          Show I/O information of the process
+# M:          Show library mappings (memory map)
 
-# === 検索とフィルタの違い ===
-# F3 (検索): プロセス名でカーソルを移動（次を検索: F3 を再度押す）
-# F4 (フィルタ): マッチするプロセスのみ表示（他は非表示）
-# → フィルタの方が見やすい
+# === Difference Between Search and Filter ===
+# F3 (Search): Move cursor to process by name (press F3 again to find next)
+# F4 (Filter): Show only matching processes (hide others)
+# → Filter is easier to read
 ```
 
-### 3.4 htop のコマンドラインオプション
+### 3.4 htop Command-Line Options
 
 ```bash
-# ユーザーフィルタ
-htop -u gaku                     # ユーザー gaku のプロセスのみ
+# User filter
+htop -u gaku                     # Only processes of user gaku
 
-# 特定PIDのみ
-htop -p 1234,5678                # 指定PIDのみ表示
+# Specific PIDs only
+htop -p 1234,5678                # Show only specified PIDs
 
-# ツリーモードで起動
-htop -t                          # ツリー表示をデフォルトに
+# Start in tree mode
+htop -t                          # Tree view as default
 
-# 更新間隔（単位: 1/10秒）
-htop -d 10                       # 1秒間隔（10 × 0.1秒）
-htop -d 50                       # 5秒間隔
+# Update interval (unit: 1/10 second)
+htop -d 10                       # 1-second interval (10 × 0.1s)
+htop -d 50                       # 5-second interval
 
-# ソート列を指定して起動
-htop --sort-key=PERCENT_CPU      # CPU使用率順
-htop --sort-key=PERCENT_MEM      # メモリ使用率順
-htop --sort-key=M_RESIDENT       # RSS順
+# Start with specified sort column
+htop --sort-key=PERCENT_CPU      # Sort by CPU usage
+htop --sort-key=PERCENT_MEM      # Sort by memory usage
+htop --sort-key=M_RESIDENT       # Sort by RSS
 
-# モノクロ表示
-htop -C                          # カラーなし
+# Monochrome display
+htop -C                          # No color
 
-# 遅延カウントを指定
-htop --delay=20                  # 2秒間隔
+# Specify delay count
+htop --delay=20                  # 2-second interval
 ```
 
-### 3.5 htop の設定（F2）
+### 3.5 htop Settings (F2)
 
 ```bash
-# F2 で設定画面を開く
+# Open settings screen with F2
 
-# Meters（メーター設定）
-# ヘッダー部分に表示するメーターを追加・削除・配置変更
-# 追加可能なメーター:
-#   - CPU使用率（全体/個別）
-#   - メモリ使用率
-#   - スワップ使用率
-#   - タスク数
-#   - ロードアベレージ
-#   - 稼働時間
-#   - バッテリー
-#   - ホスト名
-#   - クロック
-#   - ディスクI/O
-#   - ネットワークI/O
+# Meters (meter settings)
+# Add, remove, and rearrange meters displayed in the header
+# Available meters:
+#   - CPU usage (overall/per-core)
+#   - Memory usage
+#   - Swap usage
+#   - Task count
+#   - Load average
+#   - Uptime
+#   - Battery
+#   - Hostname
+#   - Clock
+#   - Disk I/O
+#   - Network I/O
 
-# Display options（表示オプション）
-# - ツリー表示
-# - シャドウ表示
-# - カウント表示
-# - プロセスパスの表示方法
+# Display options
+# - Tree view
+# - Shadow display
+# - Count display
+# - How to display process path
 
-# Colors（カラースキーム）
-# - デフォルト
-# - モノクロ
-# - ブラック・オン・ホワイト
+# Colors (color scheme)
+# - Default
+# - Monochrome
+# - Black on White
 # - Light Terminal
 # - MC
 
-# Columns（表示列設定）
-# プロセス一覧に表示する列を追加・削除・順序変更
-# 設定は ~/.config/htop/htoprc に保存される
+# Columns (display column settings)
+# Add, remove, and reorder columns in the process list
+# Settings are saved in ~/.config/htop/htoprc
 ```
 
 ---
 
-## 4. その他の監視ツール
+## 4. Other Monitoring Tools
 
-### 4.1 glances — 統合システムモニタ
+### 4.1 glances — Integrated System Monitor
 
 ```bash
-# インストール
+# Installation
 pip install glances
-# または
+# or
 brew install glances                # macOS
 sudo apt install glances            # Ubuntu
 
-# 基本起動
+# Basic launch
 glances
 
-# glances の特徴:
-# - CPU + メモリ + ディスク + ネットワーク + プロセスを一画面で表示
-# - アラート機能（閾値超過で色が変わる）
-# - Web UI モード
-# - API モード（RESTful API でデータ取得）
-# - CSV/JSON エクスポート
+# Features of glances:
+# - Displays CPU + memory + disk + network + processes on one screen
+# - Alert functionality (color changes when threshold is exceeded)
+# - Web UI mode
+# - API mode (retrieve data via RESTful API)
+# - CSV/JSON export
 
-# Web UI モード（リモートからブラウザで監視）
-glances -w                        # http://localhost:61208 で接続
-glances -w --bind 0.0.0.0         # 全インターフェースでリッスン
+# Web UI mode (monitor remotely from a browser)
+glances -w                        # Connect at http://localhost:61208
+glances -w --bind 0.0.0.0         # Listen on all interfaces
 
-# クライアント/サーバーモード
-glances -s                        # サーバーとして起動
-glances -c server-ip              # クライアントとして接続
+# Client/server mode
+glances -s                        # Start as server
+glances -c server-ip              # Connect as client
 
-# CSV エクスポート
+# CSV export
 glances --export csv --export-csv-file /tmp/glances.csv
 
-# JSON エクスポート
+# JSON export
 glances --stdout cpu.total,mem.percent,load
 ```
 
-### 4.2 btop — 美しいリソースモニタ
+### 4.2 btop — Beautiful Resource Monitor
 
 ```bash
-# インストール
+# Installation
 brew install btop                 # macOS
 sudo apt install btop             # Ubuntu 22.04+
 sudo snap install btop            # Snap
 
-# 基本起動
+# Basic launch
 btop
 
-# btop の特徴:
-# - 美しいグラフィカル表示（CPU/メモリ/ネットワーク/ディスクのグラフ）
-# - マウス操作対応
-# - テーマ変更可能
-# - プロセスのフィルタリング/ソート
-# - 設定ファイル: ~/.config/btop/btop.conf
+# Features of btop:
+# - Beautiful graphical display (graphs for CPU/memory/network/disk)
+# - Mouse operation support
+# - Themeable
+# - Process filtering/sorting
+# - Config file: ~/.config/btop/btop.conf
 ```
 
-### 4.3 /proc ファイルシステム（Linux）
+### 4.3 /proc Filesystem (Linux)
 
 ```bash
-# /proc はカーネルが提供する仮想ファイルシステム
-# プロセスとシステムの詳細情報にアクセスできる
+# /proc is a virtual filesystem provided by the kernel
+# Provides access to detailed information about processes and the system
 
-# === プロセス別情報（/proc/PID/） ===
+# === Per-process information (/proc/PID/) ===
 
-# プロセスの詳細情報
+# Detailed process information
 cat /proc/1234/status
 # Name:   nginx
 # State:  S (sleeping)
 # Tgid:   1234
 # Pid:    1234
 # PPid:   1
-# VmPeak: 524288 kB    ← 仮想メモリのピーク値
-# VmSize: 524288 kB    ← 現在の仮想メモリサイズ
-# VmRSS:  37120 kB     ← 常駐メモリサイズ
-# VmSwap: 0 kB         ← スワップされたサイズ
-# Threads: 4           ← スレッド数
+# VmPeak: 524288 kB    ← Peak virtual memory value
+# VmSize: 524288 kB    ← Current virtual memory size
+# VmRSS:  37120 kB     ← Resident memory size
+# VmSwap: 0 kB         ← Swapped-out size
+# Threads: 4           ← Number of threads
 
-# コマンドライン
+# Command line
 cat /proc/1234/cmdline | tr '\0' ' '
 # /usr/sbin/nginx -g daemon off;
 
-# 環境変数
+# Environment variables
 cat /proc/1234/environ | tr '\0' '\n'
 # HOME=/root
 # PATH=/usr/local/sbin:/usr/local/bin:...
 
-# ファイルディスクリプタ一覧
+# File descriptor list
 ls -l /proc/1234/fd
 # lrwx------ 1 root root 64 ... 0 -> /dev/null
 # l-wx------ 1 root root 64 ... 1 -> /var/log/nginx/access.log
 # l-wx------ 1 root root 64 ... 2 -> /var/log/nginx/error.log
 # lrwx------ 1 root root 64 ... 3 -> socket:[12345]
 
-# ファイルディスクリプタ数
+# Number of file descriptors
 ls /proc/1234/fd | wc -l
 
-# メモリマップ
+# Memory map
 cat /proc/1234/maps | head -20
-# 各行: 開始-終了 パーミッション オフセット デバイス inode パス名
+# Each line: start-end permissions offset device inode pathname
 
-# プロセスのリソース制限
+# Process resource limits
 cat /proc/1234/limits
 # Max open files      65536     65536     files
 
-# プロセスのI/O統計
+# Process I/O statistics
 cat /proc/1234/io
-# rchar:  読み取りバイト数
-# wchar:  書き込みバイト数
-# read_bytes:  実際のディスク読み取り
-# write_bytes: 実際のディスク書き込み
+# rchar:  bytes read
+# wchar:  bytes written
+# read_bytes:  actual disk reads
+# write_bytes: actual disk writes
 
-# プロセスの cgroup 情報
+# Process cgroup information
 cat /proc/1234/cgroup
 
-# === システム全体の情報 ===
-cat /proc/loadavg                # ロードアベレージ
-cat /proc/meminfo                # メモリ情報の詳細
-cat /proc/cpuinfo                # CPU情報
-cat /proc/uptime                 # 稼働時間（秒）
-cat /proc/version                # カーネルバージョン
-cat /proc/stat                   # CPU統計
-cat /proc/diskstats              # ディスクI/O統計
-cat /proc/net/dev                # ネットワークI/O統計
+# === System-wide information ===
+cat /proc/loadavg                # Load average
+cat /proc/meminfo                # Detailed memory information
+cat /proc/cpuinfo                # CPU information
+cat /proc/uptime                 # Uptime (in seconds)
+cat /proc/version                # Kernel version
+cat /proc/stat                   # CPU statistics
+cat /proc/diskstats              # Disk I/O statistics
+cat /proc/net/dev                # Network I/O statistics
 ```
 
-### 4.4 lsof — 開いているファイル/ソケット
+### 4.4 lsof — Open Files/Sockets
 
 ```bash
-# lsof (List Open Files): プロセスが開いているファイルを一覧表示
-# Linuxでは「すべてがファイル」→ ソケット、パイプも対象
+# lsof (List Open Files): lists files opened by processes
+# In Linux, "everything is a file" → sockets and pipes are also targets
 
-# 特定PIDが開いているファイル
+# Files opened by a specific PID
 lsof -p 1234
 
-# ポートを使っているプロセス
-lsof -i :8080                    # ポート8080
-lsof -i :80,443                  # 複数ポート
-lsof -i TCP:3000                 # TCPのポート3000
-lsof -i UDP:53                   # UDPのポート53
-lsof -i TCP                      # 全TCP接続
-lsof -i -P -n                   # 名前解決しない（高速）
+# Processes using a port
+lsof -i :8080                    # Port 8080
+lsof -i :80,443                  # Multiple ports
+lsof -i TCP:3000                 # TCP port 3000
+lsof -i UDP:53                   # UDP port 53
+lsof -i TCP                      # All TCP connections
+lsof -i -P -n                   # No name resolution (faster)
 
-# ユーザーが開いているファイル
+# Files opened by a user
 lsof -u gaku
-lsof -u gaku -c python           # ユーザー + コマンド名
+lsof -u gaku -c python           # User + command name
 
-# ディレクトリ内のファイルを開いているプロセス
-lsof +D /var/log                 # /var/log 内のファイル
-lsof +d /var/log                 # /var/log 直下のみ（再帰なし）
+# Processes with files open in a directory
+lsof +D /var/log                 # Files inside /var/log
+lsof +d /var/log                 # /var/log top level only (no recursion)
 
-# 削除されたがまだ開いているファイル（ディスク解放されない原因）
+# Deleted files still open (why disk space is not freed)
 lsof +L1
-# 解決策: プロセスを再起動するか、/proc/PID/fd/N を truncate
+# Solution: restart the process, or truncate /proc/PID/fd/N
 
-# ネットワーク接続の確認
-lsof -i -P -n | grep LISTEN     # リッスンしているポート一覧
-lsof -i -P -n | grep ESTABLISHED # 確立済み接続一覧
+# Check network connections
+lsof -i -P -n | grep LISTEN     # List of listening ports
+lsof -i -P -n | grep ESTABLISHED # List of established connections
 
-# 特定ファイルを開いているプロセス
-lsof /var/log/syslog             # 特定ファイル
+# Processes with a specific file open
+lsof /var/log/syslog             # Specific file
 
-# NFS のロック問題調査
-lsof -N                          # NFSファイルを開いているプロセス
+# Investigate NFS lock issues
+lsof -N                          # Processes with NFS files open
 ```
 
 ### 4.5 vmstat / iostat / mpstat
 
 ```bash
-# vmstat — 仮想メモリ統計（システム全体の概要）
-vmstat 1 5                       # 1秒間隔で5回表示
+# vmstat — Virtual memory statistics (system-wide overview)
+vmstat 1 5                       # Display 5 times at 1-second intervals
 # procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
 #  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
 #  1  0      0 8192000 256000 4096000  0    0    10    20  500  800  3  1 95  1  0
 
-# r: 実行待ちプロセス数（CPUコア数以上なら過負荷）
-# b: I/O待ちプロセス数（D状態）
-# si/so: スワップイン/スワップアウト（0以外が継続ならメモリ不足）
-# bi/bo: ディスクI/O（ブロック/秒）
-# in: 割り込み数/秒
-# cs: コンテキストスイッチ数/秒
+# r: Number of processes waiting for CPU (overloaded if >= number of cores)
+# b: Number of processes waiting for I/O (D state)
+# si/so: Swap in/swap out (memory shortage if non-zero continuously)
+# bi/bo: Disk I/O (blocks/sec)
+# in: Interrupts/sec
+# cs: Context switches/sec
 
-# iostat — ディスクI/O統計
-iostat -x 1 5                    # 拡張統計、1秒間隔で5回
+# iostat — Disk I/O statistics
+iostat -x 1 5                    # Extended stats, 5 times at 1-second intervals
 # Device  r/s   w/s  rkB/s  wkB/s  await  %util
 # sda     50.0  30.0 2000.0 1500.0  5.00  40.0
 
-# %util: ディスク使用率（100%に近いとボトルネック）
-# await: 平均I/O待ち時間（ミリ秒）
+# %util: Disk utilization (bottleneck if close to 100%)
+# await: Average I/O wait time (milliseconds)
 
-# mpstat — CPU別統計
-mpstat -P ALL 1 5                # 全CPU、1秒間隔で5回
-# 特定のCPUコアだけに負荷が偏っていないか確認
+# mpstat — Per-CPU statistics
+mpstat -P ALL 1 5                # All CPUs, 5 times at 1-second intervals
+# Check whether load is concentrated on a specific CPU core
 ```
 
 ---
 
-## 5. 実践パターン
+## 5. Practical Patterns
 
-### 5.1 CPUボトルネックの調査
+### 5.1 Investigating CPU Bottlenecks
 
 ```bash
-# ステップ1: 全体像の把握
+# Step 1: Get the big picture
 top -bn1 | head -5
-# load average と CPU行を確認
+# Check load average and the CPU line
 
-# ステップ2: CPU消費プロセスの特定
+# Step 2: Identify CPU-consuming processes
 ps aux --sort=-%cpu | head -10
-# または
+# or
 top -bn1 -o %CPU | head -15
 
-# ステップ3: 特定プロセスの詳細確認
+# Step 3: Detailed check of a specific process
 ps -p 1234 -o pid,ppid,%cpu,%mem,etime,ni,stat,cmd
-# etime: どのくらい前から動いているか
-# ni: nice値（優先度）
+# etime: how long it has been running
+# ni: nice value (priority)
 
-# ステップ4: スレッドレベルの確認
+# Step 4: Check at the thread level
 ps -p 1234 -L -o pid,tid,%cpu,cmd | sort -k3 -rn | head -10
-# どのスレッドがCPUを消費しているか
+# Which thread is consuming CPU
 
-# ステップ5: strace でシステムコールを確認（上級）
-strace -p 1234 -c -T             # システムコールの統計
-strace -p 1234 -e trace=write    # write システムコールのみ
+# Step 5: Check system calls with strace (advanced)
+strace -p 1234 -c -T             # Statistics of system calls
+strace -p 1234 -e trace=write    # Only the write system call
 ```
 
-### 5.2 メモリリークの調査
+### 5.2 Investigating Memory Leaks
 
 ```bash
-# パターン1: メモリ使用量の継続監視
+# Pattern 1: Continuous monitoring of memory usage
 watch -n 5 'ps -p 1234 -o pid,rss,vsz,%mem,etime'
-# 5秒ごとにメモリ使用量を表示
-# RSS が時間とともに増加し続ける → メモリリークの疑い
+# Display memory usage every 5 seconds
+# RSS that keeps increasing over time → suspected memory leak
 
-# パターン2: メモリ使用量の記録
+# Pattern 2: Record memory usage
 while true; do
     echo "$(date +%Y-%m-%d_%H:%M:%S) $(ps -p 1234 -o rss=,vsz=,%mem= --no-headers)"
     sleep 60
 done >> /tmp/memory_monitor_1234.log
 
-# パターン3: メモリ上位プロセスの定期記録
+# Pattern 3: Periodic recording of top memory processes
 while true; do
     echo "=== $(date) ==="
     ps aux --sort=-rss | head -11
@@ -899,184 +900,184 @@ while true; do
     sleep 300
 done >> /tmp/memory_top_processes.log
 
-# パターン4: システム全体のメモリ使用量の推移
+# Pattern 4: Track system-wide memory usage over time
 while true; do
     echo "$(date +%H:%M:%S) $(free -m | awk '/Mem:/ {printf "used:%sMB free:%sMB avail:%sMB", $3, $4, $7}')"
     sleep 10
 done >> /tmp/system_memory.log
 
-# パターン5: /proc からの詳細メモリ情報
+# Pattern 5: Detailed memory info from /proc
 cat /proc/1234/status | grep -E "^Vm|^Rss|^Threads"
-cat /proc/1234/smaps_rollup       # メモリマッピングのサマリ
+cat /proc/1234/smaps_rollup       # Summary of memory mappings
 
-# パターン6: pmap でメモリマップを確認
-pmap -x 1234 | tail -5           # プロセスのメモリマップ
-pmap -x 1234 | sort -k3 -rn | head -10  # サイズ順
+# Pattern 6: Check memory map with pmap
+pmap -x 1234 | tail -5           # Memory map of the process
+pmap -x 1234 | sort -k3 -rn | head -10  # Sorted by size
 ```
 
-### 5.3 ゾンビプロセスの対処
+### 5.3 Handling Zombie Processes
 
 ```bash
-# ゾンビプロセスの発見
+# Find zombie processes
 ps aux | awk '$8 ~ /Z/ {print}'
-# または
+# or
 ps -eo pid,ppid,stat,cmd | grep -E "Z"
 
-# ゾンビの数を確認
+# Check the number of zombies
 ps aux | awk '$8 ~ /Z/' | wc -l
 
-# ゾンビの親プロセスを特定
+# Identify the parent process of zombies
 ps -eo pid,ppid,stat,cmd | awk '$3 ~ /Z/ {print "Zombie PID:", $1, "Parent PID:", $2}'
 
-# 親プロセスの情報を確認
-ps -p <親PID> -o pid,cmd,stat
+# Check parent process information
+ps -p <parent PID> -o pid,cmd,stat
 
-# 対処法1: 親プロセスに SIGCHLD を送る
-kill -SIGCHLD <親PID>
+# Solution 1: Send SIGCHLD to the parent process
+kill -SIGCHLD <parent PID>
 
-# 対処法2: 親プロセスを終了する
-kill <親PID>
-# 親が終了すると、ゾンビは init(PID 1) に引き取られて自動的にクリーンアップ
+# Solution 2: Terminate the parent process
+kill <parent PID>
+# When the parent exits, zombies are adopted by init (PID 1) and automatically cleaned up
 
-# 対処法3: 大量のゾンビの場合
-# ゾンビの親PIDを集計
+# Solution 3: For large numbers of zombies
+# Aggregate parent PIDs of zombies
 ps -eo ppid,stat | grep Z | awk '{print $1}' | sort | uniq -c | sort -rn
 
-# 注意: ゾンビプロセスは kill -9 では消えない（既に死んでいる）
-# ゾンビはプロセステーブルのエントリのみ消費（CPU/メモリはほぼゼロ）
-# 少数のゾンビは問題ないが、大量に増え続ける場合は親プロセスのバグ
+# Note: Zombie processes cannot be removed with kill -9 (they are already dead)
+# Zombies only consume a process table entry (CPU/memory usage is near zero)
+# A few zombies are not a problem, but if they keep growing it indicates a bug in the parent
 ```
 
-### 5.4 ポート使用状況の調査
+### 5.4 Investigating Port Usage
 
 ```bash
-# ポートを使用しているプロセスを特定（複数の方法）
+# Identify the process using a port (multiple methods)
 
-# lsof（macOS/Linux 共通）
-lsof -i :3000                    # ポート3000
-lsof -i TCP:3000 -P -n           # TCP限定、名前解決なし
+# lsof (common to macOS/Linux)
+lsof -i :3000                    # Port 3000
+lsof -i TCP:3000 -P -n           # TCP only, no name resolution
 
-# ss（Linux、netstat より高速）
-ss -tlnp | grep 3000             # TCPリッスン
-ss -tunlp                        # TCP/UDP リッスン全一覧
-# -t: TCP  -u: UDP  -l: LISTEN  -n: 数値表示  -p: プロセス表示
+# ss (Linux, faster than netstat)
+ss -tlnp | grep 3000             # TCP listen
+ss -tunlp                        # Full list of TCP/UDP listeners
+# -t: TCP  -u: UDP  -l: LISTEN  -n: numeric  -p: show process
 
-# netstat（古い方法、レガシー環境用）
+# netstat (old method, for legacy environments)
 netstat -tlnp | grep 3000
 
-# fuser（ポートを使っているプロセスを直接特定）
-fuser 3000/tcp                   # ポート3000/TCPのPID
-fuser -v 3000/tcp                # 詳細表示
-fuser -k 3000/tcp                # ポート3000/TCPを使っているプロセスをkill
+# fuser (directly identify the process using a port)
+fuser 3000/tcp                   # PID of port 3000/TCP
+fuser -v 3000/tcp                # Verbose output
+fuser -k 3000/tcp                # Kill the process using port 3000/TCP
 ```
 
-### 5.5 包括的なシステム診断スクリプト
+### 5.5 Comprehensive System Diagnostic Script
 
 ```bash
 #!/bin/bash
-# system_health_check.sh - システムヘルスチェックスクリプト
+# system_health_check.sh - System health check script
 
 echo "=============================================="
-echo "システムヘルスチェック: $(date)"
-echo "ホスト名: $(hostname)"
+echo "System Health Check: $(date)"
+echo "Hostname: $(hostname)"
 echo "=============================================="
 
 echo ""
-echo "--- ロードアベレージ ---"
+echo "--- Load Average ---"
 uptime
 CORES=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 1)
-echo "CPUコア数: $CORES"
+echo "CPU core count: $CORES"
 LOAD1=$(cat /proc/loadavg 2>/dev/null | awk '{print $1}' || uptime | awk -F'[,:]' '{print $(NF-2)}' | tr -d ' ')
-echo "Load/Core比: $(echo "$LOAD1 / $CORES" | bc -l 2>/dev/null | head -c 5)"
+echo "Load/Core ratio: $(echo "$LOAD1 / $CORES" | bc -l 2>/dev/null | head -c 5)"
 
 echo ""
-echo "--- メモリ使用量 ---"
+echo "--- Memory Usage ---"
 free -m 2>/dev/null || vm_stat 2>/dev/null
 echo ""
 
-echo "--- ディスク使用量 ---"
+echo "--- Disk Usage ---"
 df -h | grep -vE "tmpfs|devtmpfs|overlay"
 echo ""
 
-echo "--- CPU消費プロセス Top5 ---"
+echo "--- Top 5 CPU-Consuming Processes ---"
 ps aux --sort=-%cpu | head -6 2>/dev/null || ps aux | sort -k3 -rn | head -6
 echo ""
 
-echo "--- メモリ消費プロセス Top5 ---"
+echo "--- Top 5 Memory-Consuming Processes ---"
 ps aux --sort=-rss | head -6 2>/dev/null || ps aux | sort -k6 -rn | head -6
 echo ""
 
-echo "--- ゾンビプロセス ---"
+echo "--- Zombie Processes ---"
 ZOMBIES=$(ps aux 2>/dev/null | awk '$8 ~ /Z/' | wc -l)
-echo "ゾンビ数: $ZOMBIES"
+echo "Zombie count: $ZOMBIES"
 if [ "$ZOMBIES" -gt 0 ]; then
     ps aux | awk '$8 ~ /Z/ {print}'
 fi
 
 echo ""
-echo "--- D状態（I/O待ち）プロセス ---"
+echo "--- D-state (I/O-waiting) Processes ---"
 DSTATE=$(ps aux 2>/dev/null | awk '$8 ~ /D/' | wc -l)
-echo "D状態プロセス数: $DSTATE"
+echo "D-state process count: $DSTATE"
 if [ "$DSTATE" -gt 0 ]; then
     ps aux | awk '$8 ~ /D/ {print}'
 fi
 
 echo ""
-echo "--- リッスンポート ---"
+echo "--- Listening Ports ---"
 ss -tlnp 2>/dev/null | head -20 || lsof -i -P -n 2>/dev/null | grep LISTEN | head -20
 
 echo ""
-echo "--- ESTABLISHED接続数 ---"
+echo "--- ESTABLISHED Connection Count ---"
 ss -tn state established 2>/dev/null | wc -l || netstat -tn 2>/dev/null | grep ESTABLISHED | wc -l
 
 echo ""
-echo "--- ディスクI/O ---"
+echo "--- Disk I/O ---"
 iostat -x 1 1 2>/dev/null | tail -10
 
 echo ""
-echo "--- 最近のOOMキル ---"
+echo "--- Recent OOM Kills ---"
 dmesg 2>/dev/null | grep -i "out of memory\|oom" | tail -5
 
 echo ""
 echo "=============================================="
-echo "チェック完了"
+echo "Check complete"
 echo "=============================================="
 ```
 
-### 5.6 プロセスリソース監視スクリプト
+### 5.6 Process Resource Monitoring Script
 
 ```bash
 #!/bin/bash
-# process_monitor.sh - 特定プロセスの継続監視
-# 使い方: ./process_monitor.sh <PID> [間隔秒] [出力ファイル]
+# process_monitor.sh - Continuous monitoring of a specific process
+# Usage: ./process_monitor.sh <PID> [interval seconds] [output file]
 
-PID="${1:?使い方: $0 <PID> [間隔秒] [出力ファイル]}"
+PID="${1:?Usage: $0 <PID> [interval seconds] [output file]}"
 INTERVAL="${2:-10}"
 OUTPUT="${3:-/tmp/process_monitor_${PID}.csv}"
 
 if ! kill -0 "$PID" 2>/dev/null; then
-    echo "エラー: PID $PID が存在しません" >&2
+    echo "Error: PID $PID does not exist" >&2
     exit 1
 fi
 
 PROCESS_NAME=$(ps -p "$PID" -o comm= 2>/dev/null)
-echo "監視開始: PID=$PID ($PROCESS_NAME), 間隔=${INTERVAL}秒"
-echo "出力ファイル: $OUTPUT"
-echo "Ctrl+C で停止"
+echo "Monitoring started: PID=$PID ($PROCESS_NAME), interval=${INTERVAL}s"
+echo "Output file: $OUTPUT"
+echo "Press Ctrl+C to stop"
 echo ""
 
-# CSV ヘッダー
+# CSV header
 echo "timestamp,pid,cpu_pct,mem_pct,rss_kb,vsz_kb,threads,fd_count,state" > "$OUTPUT"
 
-trap 'echo ""; echo "監視終了: $(wc -l < "$OUTPUT") レコード記録"; exit 0' INT TERM
+trap 'echo ""; echo "Monitoring ended: $(wc -l < "$OUTPUT") records written"; exit 0' INT TERM
 
 while kill -0 "$PID" 2>/dev/null; do
     TIMESTAMP=$(date +%Y-%m-%d_%H:%M:%S)
 
-    # ps からプロセス情報を取得
+    # Get process info from ps
     PS_DATA=$(ps -p "$PID" -o %cpu=,%mem=,rss=,vsz=,nlwp=,stat= --no-headers 2>/dev/null)
     if [ -z "$PS_DATA" ]; then
-        echo "プロセス $PID が終了しました"
+        echo "Process $PID has exited"
         break
     fi
 
@@ -1087,12 +1088,12 @@ while kill -0 "$PID" 2>/dev/null; do
     THREADS=$(echo "$PS_DATA" | awk '{print $5}')
     STATE=$(echo "$PS_DATA" | awk '{print $6}')
 
-    # ファイルディスクリプタ数
+    # File descriptor count
     FD_COUNT=$(ls /proc/"$PID"/fd 2>/dev/null | wc -l)
 
     echo "$TIMESTAMP,$PID,$CPU,$MEM,$RSS,$VSZ,$THREADS,$FD_COUNT,$STATE" >> "$OUTPUT"
 
-    # 画面にもサマリを表示
+    # Also display a summary on screen
     printf "\r%s CPU:%s%% MEM:%s%% RSS:%sKB Threads:%s FDs:%s State:%s" \
         "$TIMESTAMP" "$CPU" "$MEM" "$RSS" "$THREADS" "$FD_COUNT" "$STATE"
 
@@ -1100,20 +1101,20 @@ while kill -0 "$PID" 2>/dev/null; do
 done
 
 echo ""
-echo "監視終了: $(wc -l < "$OUTPUT") レコード → $OUTPUT"
+echo "Monitoring ended: $(wc -l < "$OUTPUT") records → $OUTPUT"
 ```
 
-### 5.7 アラート付き監視スクリプト
+### 5.7 Monitoring Script with Alerts
 
 ```bash
 #!/bin/bash
-# alert_monitor.sh - 閾値超過時にアラートを出す監視
-# 使い方: ./alert_monitor.sh
+# alert_monitor.sh - Monitoring that alerts when thresholds are exceeded
+# Usage: ./alert_monitor.sh
 
-CPU_THRESHOLD=80     # CPU使用率の閾値（%）
-MEM_THRESHOLD=90     # メモリ使用率の閾値（%）
-LOAD_THRESHOLD_RATIO=2  # load average / コア数の閾値
-CHECK_INTERVAL=30    # チェック間隔（秒）
+CPU_THRESHOLD=80     # CPU usage threshold (%)
+MEM_THRESHOLD=90     # Memory usage threshold (%)
+LOAD_THRESHOLD_RATIO=2  # Threshold for load average / core count
+CHECK_INTERVAL=30    # Check interval (seconds)
 LOG_FILE="/tmp/alert_monitor.log"
 
 CORES=$(nproc 2>/dev/null || echo 4)
@@ -1128,119 +1129,119 @@ log_info() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $1" >> "$LOG_FILE"
 }
 
-echo "監視開始（CPU>${CPU_THRESHOLD}%, MEM>${MEM_THRESHOLD}%, Load>${LOAD_THRESHOLD}）"
-echo "ログファイル: $LOG_FILE"
+echo "Monitoring started (CPU>${CPU_THRESHOLD}%, MEM>${MEM_THRESHOLD}%, Load>${LOAD_THRESHOLD})"
+echo "Log file: $LOG_FILE"
 
 while true; do
-    # CPU チェック
+    # CPU check
     CPU_HOGGERS=$(ps aux --sort=-%cpu --no-headers | awk -v thresh="$CPU_THRESHOLD" '$3 > thresh {print $2, $3"%", $11}')
     if [ -n "$CPU_HOGGERS" ]; then
-        log_alert "CPU閾値超過:"
+        log_alert "CPU threshold exceeded:"
         echo "$CPU_HOGGERS" | while read -r line; do
             log_alert "  $line"
         done
     fi
 
-    # メモリチェック
+    # Memory check
     MEM_USED_PCT=$(free 2>/dev/null | awk '/Mem:/ {printf "%.0f", $3/$2*100}')
     if [ -n "$MEM_USED_PCT" ] && [ "$MEM_USED_PCT" -gt "$MEM_THRESHOLD" ]; then
-        log_alert "メモリ使用率: ${MEM_USED_PCT}%"
+        log_alert "Memory usage: ${MEM_USED_PCT}%"
         ps aux --sort=-rss --no-headers | head -5 | while read -r line; do
             log_alert "  Top RSS: $(echo "$line" | awk '{print $2, $6"KB", $11}')"
         done
     fi
 
-    # Load Average チェック
+    # Load Average check
     LOAD1=$(cat /proc/loadavg 2>/dev/null | awk '{print $1}')
     if [ -n "$LOAD1" ]; then
         OVER=$(echo "$LOAD1 > $LOAD_THRESHOLD" | bc -l 2>/dev/null)
         if [ "$OVER" = "1" ]; then
-            log_alert "Load Average: $LOAD1（閾値: $LOAD_THRESHOLD）"
+            log_alert "Load Average: $LOAD1 (threshold: $LOAD_THRESHOLD)"
         fi
     fi
 
-    # ゾンビチェック
+    # Zombie check
     ZOMBIE_COUNT=$(ps aux 2>/dev/null | awk '$8 ~ /Z/' | wc -l)
     if [ "$ZOMBIE_COUNT" -gt 5 ]; then
-        log_alert "ゾンビプロセス: ${ZOMBIE_COUNT}個"
+        log_alert "Zombie processes: ${ZOMBIE_COUNT}"
     fi
 
-    log_info "チェック完了 (CPU:OK MEM:${MEM_USED_PCT:-?}% Load:${LOAD1:-?})"
+    log_info "Check complete (CPU:OK MEM:${MEM_USED_PCT:-?}% Load:${LOAD1:-?})"
     sleep "$CHECK_INTERVAL"
 done
 ```
 
 ---
 
-## 6. コマンド比較表
+## 6. Command Comparison Table
 
 ```
 ┌──────────────┬──────────────┬─────────────┬──────────────────┐
-│ 機能         │ ps           │ top         │ htop             │
+│ Feature      │ ps           │ top         │ htop             │
 ├──────────────┼──────────────┼─────────────┼──────────────────┤
-│ 更新         │ スナップショット │ リアルタイム│ リアルタイム     │
-│ 表示形式     │ テキスト     │ TUI         │ カラーTUI        │
-│ ソート       │ --sort オプション│ 対話キー    │ 対話キー/マウス  │
-│ フィルタ     │ grep/awk     │ u/o キー    │ F4キー           │
-│ ツリー表示   │ axjf / f     │ V キー      │ F5キー           │
-│ kill         │ 別コマンド   │ k キー      │ F9キー           │
-│ カスタマイズ │ -o オプション│ f キー      │ F2設定画面       │
-│ スクリプト用 │ 最適         │ -bn1 で可   │ 不向き           │
-│ マウス操作   │ なし         │ なし        │ 対応             │
-│ スレッド     │ -L / -T      │ H キー      │ H キー           │
-│ インストール │ 標準搭載     │ 標準搭載    │ 追加インストール │
+│ Updates      │ Snapshot     │ Real-time   │ Real-time        │
+│ Display      │ Text         │ TUI         │ Color TUI        │
+│ Sort         │ --sort option│ Interactive │ Interactive/mouse│
+│ Filter       │ grep/awk     │ u/o keys    │ F4 key           │
+│ Tree view    │ axjf / f     │ V key       │ F5 key           │
+│ kill         │ Separate cmd │ k key       │ F9 key           │
+│ Customize    │ -o option    │ f key       │ F2 settings      │
+│ For scripts  │ Best         │ -bn1 works  │ Not suitable     │
+│ Mouse        │ None         │ None        │ Supported        │
+│ Threads      │ -L / -T      │ H key       │ H key            │
+│ Install      │ Standard     │ Standard    │ Additional install│
 └──────────────┴──────────────┴─────────────┴──────────────────┘
 
-使い分けガイド:
-  スクリプト・自動化       → ps（出力が安定、パイプに適する）
-  対話的なトラブルシュート → htop（最も使いやすい）
-  htop がない環境         → top（どこにでもある）
-  特定プロセスの詳細調査   → ps -p PID -o ...
-  サーバーの定期監視       → top -bn1（cron + ログ記録）
+Usage guide:
+  Scripts and automation          → ps (stable output, pipes well)
+  Interactive troubleshooting     → htop (most user-friendly)
+  Environments without htop       → top (available everywhere)
+  Detailed investigation of a PID → ps -p PID -o ...
+  Periodic server monitoring      → top -bn1 (cron + log recording)
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Template for basic implementation
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1249,26 +1250,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Should have raised an exception"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1276,7 +1277,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1287,14 +1288,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1302,7 +1303,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1310,44 +1311,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1356,7 +1357,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1371,47 +1372,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured config file | Check config file path and format |
+| Timeout | Network latency / resource shortage | Adjust timeout values, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check running user's permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace to identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Stepwise verification**: Use logging or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1419,102 +1420,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Called: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O wait**: Examine the state of disk and network I/O
+4. **Check concurrent connections**: Check the state of connection pools
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Issue type | Diagnostic tool | Countermeasure |
+|------------|----------------|----------------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When it can be compromised |
+|-----------|-------------------|--------------------------|
+| Performance | Real-time processing, large-scale data | Admin dashboards, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① Team size?                                   │
+│    ├─ Small (1-5)  → Monolith                   │
+│    └─ Large (10+)  → go to ②                    │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② Deployment frequency?                        │
+│    ├─ Once a week or less → Monolith + modular  │
+│    └─ Daily/multiple times → go to ③            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ Team independence?                           │
+│    ├─ High   → Microservices                    │
+│    └─ Medium → Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A faster approach in the short term can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- Higher abstraction enables reuse, but can make debugging difficult
+- Lower abstraction is intuitive, but tends to cause code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1524,17 +1525,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and issues"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1542,7 +1543,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1550,15 +1551,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1568,59 +1569,59 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| コマンド | 用途 | よく使うオプション |
-|---------|------|-------------------|
-| ps aux | プロセス一覧（スナップショット） | --sort, -o, -p, -u, -C |
-| ps aux --sort=-%cpu | CPU順でソート | head -N で上位N件 |
-| pgrep -la name | プロセス名で検索 | -f（全コマンドライン）, -c（カウント） |
-| pstree -p | プロセスツリー | -s（祖先表示）, -a（引数表示） |
-| top | リアルタイム監視（標準） | -bn1（バッチ）, -u（ユーザー）, -p（PID） |
-| htop | リアルタイム監視（高機能） | -t（ツリー）, -u（ユーザー）, -p（PID） |
-| lsof -i :port | ポート使用プロセス特定 | -P -n（高速化） |
-| vmstat 1 | システム全体の統計 | r, b 列に注目 |
+| Command | Use | Commonly Used Options |
+|---------|-----|-----------------------|
+| ps aux | Process list (snapshot) | --sort, -o, -p, -u, -C |
+| ps aux --sort=-%cpu | Sort by CPU usage | head -N for top N |
+| pgrep -la name | Search by process name | -f (full command line), -c (count) |
+| pstree -p | Process tree | -s (show ancestors), -a (show args) |
+| top | Real-time monitoring (standard) | -bn1 (batch), -u (user), -p (PID) |
+| htop | Real-time monitoring (feature-rich) | -t (tree), -u (user), -p (PID) |
+| lsof -i :port | Identify process using a port | -P -n (faster) |
+| vmstat 1 | System-wide statistics | Focus on r, b columns |
 
-### 調査フローチャート
+### Investigation Flowchart
 
 ```
-サーバーが遅い
-  ├→ uptime: load average を確認
-  │   ├→ load < コア数 → CPUは余裕あり → アプリ・ネットワーク調査
-  │   └→ load > コア数 → CPUボトルネック
-  │       ├→ top: us が高い → ps --sort=-%cpu → アプリ最適化
-  │       ├→ top: wa が高い → iostat -x → ディスクI/O改善
-  │       ├→ top: sy が高い → vmstat → コンテキストスイッチ多発
-  │       └→ top: st が高い → VM リソース増強
-  ├→ free -m: メモリ確認
-  │   ├→ avail > 10% → メモリは余裕あり
-  │   └→ avail < 10% → メモリ不足
-  │       └→ ps --sort=-rss → メモリ消費プロセス特定
-  └→ df -h: ディスク確認
-      └→ 使用率 > 90% → 不要ファイル削除 or ディスク拡張
+Server is slow
+  ├→ uptime: check load average
+  │   ├→ load < core count → CPU has headroom → investigate app/network
+  │   └→ load > core count → CPU bottleneck
+  │       ├→ top: high us → ps --sort=-%cpu → optimize app
+  │       ├→ top: high wa → iostat -x → improve disk I/O
+  │       ├→ top: high sy → vmstat → excessive context switches
+  │       └→ top: high st → scale up VM resources
+  ├→ free -m: check memory
+  │   ├→ avail > 10% → memory has headroom
+  │   └→ avail < 10% → memory shortage
+  │       └→ ps --sort=-rss → identify memory-consuming processes
+  └→ df -h: check disk
+      └→ usage > 90% → delete unused files or expand disk
 ```
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
 ---
 
-## 参考文献
+## References
 1. Barrett, D. "Efficient Linux at the Command Line." Ch.8, O'Reilly, 2022.
 2. Gregg, B. "Systems Performance: Enterprise and the Cloud." 2nd Ed, Addison-Wesley, 2020.
 3. Evi Nemeth et al. "UNIX and Linux System Administration Handbook." 5th Ed, Addison-Wesley, 2017.
