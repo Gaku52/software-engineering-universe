@@ -1,46 +1,46 @@
-# パッケージングと署名
+# Packaging and Signing
 
-> Electron と Tauri アプリケーションを各 OS 向けにパッケージングし、コード署名を適用してユーザーに安全に配布するためのインストーラー作成プロセスを体系的に学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **Electron（Forge / Builder）と Tauri bundler** のそれぞれのパッケージングツールを使いこなせるようになる
-2. **コード署名**の仕組みを理解し、Windows（Authenticode）と macOS（Apple 署名）の署名を設定できるようになる
-3. **各 OS 向けのインストーラー**（NSIS, MSI, DMG, AppImage, deb）を作成できるようになる
-4. **CI/CD パイプラインでの自動署名** を構築し、セキュアなリリースフローを実現できるようになる
-5. **証明書のライフサイクル管理** を理解し、期限切れや失効への対処を計画できるようになる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> Systematically learn the installer creation process for packaging Electron and Tauri applications for each OS, applying code signing to safely distribute to users.
 
 ---
 
-## 1. パッケージング概要
+## What You Will Learn
 
-### 1.1 全体フロー
+1. Master the packaging tools for both **Electron (Forge / Builder) and Tauri bundler**
+2. Understand how **code signing** works and configure signing for Windows (Authenticode) and macOS (Apple signing)
+3. Create **OS-specific installers** (NSIS, MSI, DMG, AppImage, deb)
+4. Build **automated signing in CI/CD pipelines** to achieve a secure release flow
+5. Understand **certificate lifecycle management** and plan for handling expiration and revocation
+
+
+## Prerequisites
+
+The following knowledge will help you understand this guide:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. Packaging Overview
+
+### 1.1 Overall Flow
 
 ```
-ソースコード
+Source Code
     │
     ▼
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  ビルド      │     │ パッケージング │     │  コード署名  │
+│  Build       │     │ Packaging   │     │ Code Signing │
 │             │     │             │     │             │
-│ - TypeScript│────→│ - バンドル   │────→│ - 証明書    │
-│ - React     │     │ - asar 化   │     │ - タイムスタンプ│
-│ - Rust      │     │ - リソース   │     │ - 公証      │
+│ - TypeScript│────→│ - Bundle    │────→│ - Certificate│
+│ - React     │     │ - asar      │     │ - Timestamp  │
+│ - Rust      │     │ - Resources │     │ - Notarize   │
 └─────────────┘     └─────────────┘     └─────────────┘
                                               │
                                               ▼
                                     ┌─────────────────┐
-                                    │ インストーラー作成 │
+                                    │ Installer Creation│
                                     │                 │
                                     │ Windows: NSIS/MSI│
                                     │ macOS: DMG      │
@@ -48,50 +48,50 @@
                                     └─────────────────┘
 ```
 
-### 1.2 OS 別インストーラー形式の比較
+### 1.2 Comparison of Installer Formats by OS
 
-| 形式 | OS | 特徴 | ファイルサイズ |
+| Format | OS | Features | File Size |
 |---|---|---|---|
-| NSIS (.exe) | Windows | カスタムインストーラー。最も一般的 | 小 (圧縮効率高) |
-| MSI | Windows | Windows Installer 標準。エンタープライズ向け | 中 |
-| MSIX | Windows | モダン形式。ストア配布対応 | 中 |
-| DMG | macOS | ディスクイメージ。ドラッグ&ドロップインストール | 中 |
-| pkg | macOS | インストーラーパッケージ。ストア配布対応 | 中 |
-| AppImage | Linux | 単一実行ファイル。インストール不要 | 大 |
-| deb | Linux | Debian/Ubuntu パッケージ | 中 |
-| rpm | Linux | Red Hat/Fedora パッケージ | 中 |
-| snap | Linux | Snap パッケージ。自動更新対応 | 大 |
+| NSIS (.exe) | Windows | Custom installer. Most common | Small (high compression efficiency) |
+| MSI | Windows | Windows Installer standard. For enterprise use | Medium |
+| MSIX | Windows | Modern format. Supports Store distribution | Medium |
+| DMG | macOS | Disk image. Drag & drop installation | Medium |
+| pkg | macOS | Installer package. Supports Store distribution | Medium |
+| AppImage | Linux | Single executable. No installation required | Large |
+| deb | Linux | Debian/Ubuntu package | Medium |
+| rpm | Linux | Red Hat/Fedora package | Medium |
+| snap | Linux | Snap package. Supports automatic updates | Large |
 
-### 1.3 パッケージングの前提条件
+### 1.3 Prerequisites for Packaging
 
-パッケージングを開始する前に、以下の前提条件を確認する。
+Before starting the packaging process, verify the following prerequisites.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                パッケージング前チェックリスト                    │
+│                Pre-Packaging Checklist                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  □ Node.js LTS (v20+) がインストール済み                     │
-│  □ npm / yarn / pnpm のいずれかが利用可能                    │
-│  □ 各 OS 向けのビルドツールチェーン                           │
+│  □ Node.js LTS (v20+) is installed                          │
+│  □ npm / yarn / pnpm is available                           │
+│  □ Build toolchains for each OS                             │
 │    - Windows: Visual Studio Build Tools 2022                │
 │    - macOS: Xcode Command Line Tools                        │
 │    - Linux: build-essential, dpkg-dev, rpm                  │
-│  □ アイコンファイルの準備                                     │
-│    - Windows: .ico (256x256 以上)                           │
-│    - macOS: .icns (1024x1024 以上)                          │
-│    - Linux: .png (512x512 以上)                             │
-│  □ 署名証明書の取得完了                                       │
-│    - Windows: OV/EV コード署名証明書                         │
-│    - macOS: Apple Developer ID Application 証明書           │
-│  □ CI/CD の Secret に証明書情報を登録済み                     │
+│  □ Icon files prepared                                      │
+│    - Windows: .ico (256x256 or larger)                      │
+│    - macOS: .icns (1024x1024 or larger)                     │
+│    - Linux: .png (512x512 or larger)                        │
+│  □ Signing certificate obtained                             │
+│    - Windows: OV/EV code signing certificate                │
+│    - macOS: Apple Developer ID Application certificate      │
+│  □ Certificate information registered in CI/CD Secrets      │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 1.4 アイコンファイルの生成
+### 1.4 Generating Icon Files
 
-各 OS で必要なアイコン形式が異なるため、マスター画像から自動生成するのが効率的である。
+Since required icon formats differ by OS, it is efficient to auto-generate them from a master image.
 
 ```bash
 # electron-icon-maker を使ったアイコン一括生成
@@ -143,23 +143,23 @@ cargo tauri icon ./icon-master.png
 
 ---
 
-## 2. Electron パッケージング
+## 2. Electron Packaging
 
 ### 2.1 Electron Forge vs Electron Builder
 
-| 項目 | Electron Forge | Electron Builder |
+| Item | Electron Forge | Electron Builder |
 |---|---|---|
-| 運営 | Electron 公式 | コミュニティ |
-| 設定方式 | `forge.config.ts` | `electron-builder.yml` |
-| プラグイン | Maker / Publisher | 単一設定ファイル |
-| 自動更新 | `@electron-forge/publisher-*` | `electron-updater` |
-| NSIS カスタマイズ | 限定的 | 詳細な制御可能 |
-| ユースケース | 公式推奨。シンプルな構成 | 複雑な要件。細かい制御 |
-| ネイティブモジュール | Rebuild 自動 | Rebuild 自動 |
-| マルチアーキテクチャ | 対応 | 対応（Universal Binary 含む） |
-| monorepo 対応 | 限定的 | 良好 |
+| Maintainer | Electron official | Community |
+| Configuration | `forge.config.ts` | `electron-builder.yml` |
+| Plugins | Maker / Publisher | Single config file |
+| Auto-update | `@electron-forge/publisher-*` | `electron-updater` |
+| NSIS customization | Limited | Detailed control available |
+| Use case | Officially recommended. Simple setup | Complex requirements. Fine-grained control |
+| Native modules | Rebuild automatic | Rebuild automatic |
+| Multi-architecture | Supported | Supported (including Universal Binary) |
+| Monorepo support | Limited | Good |
 
-### コード例 1: Electron Forge の設定
+### Code Example 1: Electron Forge Configuration
 
 ```typescript
 // forge.config.ts — Electron Forge 設定ファイル
@@ -289,7 +289,7 @@ const config: ForgeConfig = {
 export default config
 ```
 
-### コード例 2: Electron Builder の設定
+### Code Example 2: Electron Builder Configuration
 
 ```yaml
 # electron-builder.yml — Electron Builder 設定ファイル
@@ -473,9 +473,9 @@ publish:
   releaseType: release
 ```
 
-### 2.2 NSIS カスタムスクリプト
+### 2.2 NSIS Custom Scripts
 
-NSIS インストーラーをさらにカスタマイズする場合、カスタムスクリプトを使用できる。
+When further customizing the NSIS installer, custom scripts can be used.
 
 ```nsis
 ; build/installer-scripts/custom.nsh — NSIS カスタムスクリプト
@@ -538,7 +538,7 @@ NSIS インストーラーをさらにカスタマイズする場合、カスタ
 !macroend
 ```
 
-### 2.3 asar アーカイブの詳細設定
+### 2.3 Detailed asar Archive Configuration
 
 ```typescript
 // asar の詳細設定（electron-builder.yml の asar セクション代替）
@@ -571,7 +571,7 @@ asarUnpack:
   - "node_modules/ffmpeg-static/**"
 ```
 
-### 2.4 ネイティブモジュールのリビルド
+### 2.4 Rebuilding Native Modules
 
 ```bash
 # Electron のバージョンに合わせてネイティブモジュールをリビルド
@@ -601,7 +601,7 @@ npx electron-rebuild --vs-version=2022
 }
 ```
 
-### 2.5 ビルドサイズの最適化
+### 2.5 Build Size Optimization
 
 ```yaml
 # electron-builder.yml — サイズ最適化設定
@@ -662,9 +662,9 @@ export default defineConfig({
 
 ---
 
-## 3. Tauri パッケージング
+## 3. Tauri Packaging
 
-### コード例 3: Tauri バンドラー設定
+### Code Example 3: Tauri Bundler Configuration
 
 ```json
 // src-tauri/tauri.conf.json — バンドル設定
@@ -731,7 +731,7 @@ export default defineConfig({
 }
 ```
 
-### 3.1 Tauri v2 のバンドル設定の拡張
+### 3.1 Extended Bundle Configuration for Tauri v2
 
 ```json
 // src-tauri/tauri.conf.json — Tauri v2 の拡張設定
@@ -816,7 +816,7 @@ cargo tauri build --no-bundle
 cargo tauri build --ci  # CI 環境用（対話なし）
 ```
 
-### 3.2 Tauri のバイナリサイズ最適化
+### 3.2 Tauri Binary Size Optimization
 
 ```toml
 # src-tauri/Cargo.toml — リリースビルドの最適化
@@ -851,43 +851,45 @@ upx --best --lzma target/release/my-app.exe
 
 ---
 
-## 4. コード署名
+## 4. Code Signing
 
-### 4.1 署名の仕組み
+### 4.1 How Signing Works
 
 ```
 +----------------------------------------------------------+
-|                   コード署名のフロー                       |
+|                   Code Signing Flow                      |
 +----------------------------------------------------------+
 |                                                          |
-|  開発者                                                   |
+|  Developer                                               |
 |  ┌──────────────────────────────────────────────────┐    |
-|  │  1. 証明書の取得                                   │    |
-|  │     CA (認証局) から Code Signing 証明書を購入      │    |
+|  │  1. Obtain Certificate                            │    |
+|  │     Purchase a Code Signing certificate from     │    |
+|  │     a CA (Certificate Authority)                 │    |
 |  │                                                  │    |
-|  │  2. バイナリへの署名                               │    |
-|  │     秘密鍵でバイナリのハッシュに署名               │    |
+|  │  2. Sign the Binary                              │    |
+|  │     Sign the binary's hash with the private key  │    |
 |  │     ┌──────┐    ┌──────────┐    ┌─────────┐     │    |
-|  │     │.exe  │ +  │秘密鍵    │ →  │署名済み │     │    |
-|  │     │.dll  │    │(.pfx)   │    │.exe     │     │    |
+|  │     │.exe  │ +  │Private   │ →  │Signed   │     │    |
+|  │     │.dll  │    │Key(.pfx) │    │.exe     │     │    |
 |  │     └──────┘    └──────────┘    └─────────┘     │    |
 |  │                                                  │    |
-|  │  3. タイムスタンプの付与                            │    |
-|  │     証明書の有効期限後も署名が有効になる            │    |
+|  │  3. Apply Timestamp                              │    |
+|  │     Keeps the signature valid after the          │    |
+|  │     certificate expires                          │    |
 |  └──────────────────────────────────────────────────┘    |
 |                                                          |
-|  ユーザー                                                 |
+|  User                                                    |
 |  ┌──────────────────────────────────────────────────┐    |
-|  │  4. 署名の検証                                     │    |
-|  │     OS が証明書チェーンを検証                      │    |
-|  │     → SmartScreen / Gatekeeper の警告が消える     │    |
+|  │  4. Verify Signature                             │    |
+|  │     OS verifies the certificate chain            │    |
+|  │     → SmartScreen / Gatekeeper warning disappears│    |
 |  └──────────────────────────────────────────────────┘    |
 +----------------------------------------------------------+
 ```
 
-### 4.2 Windows (Authenticode) 署名
+### 4.2 Windows (Authenticode) Signing
 
-### コード例 4: Windows 署名の設定
+### Code Example 4: Windows Signing Configuration
 
 ```bash
 # signtool.exe を使った手動署名（Windows SDK に含まれる）
@@ -933,9 +935,9 @@ signtool sign /f "certificate.pfx" \
 }
 ```
 
-### 4.3 Azure Trusted Signing（旧 Azure Code Signing）
+### 4.3 Azure Trusted Signing (formerly Azure Code Signing)
 
-Azure Trusted Signing は、ハードウェアトークンなしで EV 相当の信頼レベルを実現するクラウドベースの署名サービスである。
+Azure Trusted Signing is a cloud-based signing service that achieves EV-equivalent trust levels without a hardware token.
 
 ```yaml
 # .github/workflows/sign-with-azure.yml
@@ -986,7 +988,7 @@ az codesigning sign `
   --timestamp-digest SHA256
 ```
 
-### 4.4 DigiCert KeyLocker での署名
+### 4.4 Signing with DigiCert KeyLocker
 
 ```bash
 # DigiCert KeyLocker — クラウドベースの EV 署名
@@ -1029,28 +1031,29 @@ smctl sign \
       --signature-algorithm="sha256"
 ```
 
-### 4.5 macOS 署名と公証（Notarization）
+### 4.5 macOS Signing and Notarization
 
 ```
-macOS コード署名 + 公証のフロー:
+macOS Code Signing + Notarization Flow:
 
-  1. Apple Developer Program に登録（年間 $99）
-  2. Developer ID Application 証明書を取得
-  3. アプリにコード署名
-  4. Apple に公証申請（Notarization）
-  5. Staple（公証チケットをアプリに添付）
+  1. Enroll in the Apple Developer Program (annual $99)
+  2. Obtain a Developer ID Application certificate
+  3. Code sign the app
+  4. Submit for Notarization to Apple
+  5. Staple (attach the notarization ticket to the app)
 
   ┌─────────────┐    ┌───────────────┐    ┌──────────┐
-  │ コード署名   │───→│ Apple に送信   │───→│ Staple   │
-  │ (codesign)  │    │ (notarytool)  │    │          │
-  └─────────────┘    └───────────────┘    └──────────┘
+  │ Code Sign    │───→│ Submit to     │───→│ Staple   │
+  │ (codesign)  │    │ Apple         │    │          │
+  └─────────────┘    │ (notarytool)  │    └──────────┘
+                     └───────────────┘
                           ↓
-                     Apple サーバーで
-                     マルウェアスキャン
-                     (数分～数十分)
+                     Malware scan on
+                     Apple servers
+                     (a few minutes to tens of minutes)
 ```
 
-### コード例 5: macOS 公証スクリプト
+### Code Example 5: macOS Notarization Script
 
 ```javascript
 // scripts/notarize.js — Electron Builder の afterSign フック
@@ -1109,7 +1112,7 @@ exports.default = async function notarizing(context) {
 </plist>
 ```
 
-### 4.6 macOS 手動署名コマンド
+### 4.6 macOS Manual Signing Commands
 
 ```bash
 # codesign を使った手動署名
@@ -1155,50 +1158,50 @@ xcrun stapler validate "MyApp.dmg"
 
 ---
 
-## 5. 署名証明書の種類と費用
+## 5. Certificate Types and Costs
 
-| 証明書種類 | 対象 OS | 年間費用目安 | SmartScreen 即時信頼 |
+| Certificate Type | Target OS | Estimated Annual Cost | Immediate SmartScreen Trust |
 |---|---|---|---|
-| OV (Organization Validation) | Windows | $200-400 | いいえ (実績蓄積が必要) |
-| EV (Extended Validation) | Windows | $300-600 | はい |
-| Azure Trusted Signing | Windows | 月額 $9.99 | はい |
-| Apple Developer ID | macOS | $99 | はい (公証後) |
-| 自己署名証明書 | 開発用 | 無料 | いいえ |
+| OV (Organization Validation) | Windows | $200-400 | No (reputation accumulation required) |
+| EV (Extended Validation) | Windows | $300-600 | Yes |
+| Azure Trusted Signing | Windows | $9.99/month | Yes |
+| Apple Developer ID | macOS | $99 | Yes (after notarization) |
+| Self-signed certificate | Development only | Free | No |
 
-### 5.1 証明書の取得手順（Windows OV/EV）
+### 5.1 Certificate Acquisition Process (Windows OV/EV)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│             Windows コード署名証明書の取得フロー                │
+│          Windows Code Signing Certificate Acquisition Flow   │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  1. 認証局（CA）の選択                                       │
-│     - DigiCert（推奨）: EV $449/年, OV $349/年              │
-│     - Sectigo: EV $319/年, OV $189/年                      │
-│     - GlobalSign: EV $399/年, OV $249/年                   │
+│  1. Choose a Certificate Authority (CA)                     │
+│     - DigiCert (recommended): EV $449/yr, OV $349/yr        │
+│     - Sectigo: EV $319/yr, OV $189/yr                       │
+│     - GlobalSign: EV $399/yr, OV $249/yr                    │
 │                                                             │
-│  2. 申請に必要な書類                                         │
-│     - 法人登記簿謄本（登記事項証明書）                        │
-│     - 代表者の身分証明書                                     │
-│     - 会社のドメインで受信可能なメールアドレス                  │
-│     - DUNS 番号（EV の場合）                                 │
+│  2. Required Documents for Application                      │
+│     - Corporate registration certificate                    │
+│     - Representative's identification                       │
+│     - Email address receivable at company's domain          │
+│     - DUNS number (for EV)                                  │
 │                                                             │
-│  3. 認証プロセス                                             │
-│     - OV: 組織確認 (3-5 営業日)                              │
-│     - EV: 組織確認 + 電話確認 (5-10 営業日)                  │
+│  3. Verification Process                                    │
+│     - OV: Organization verification (3-5 business days)     │
+│     - EV: Org verification + phone verification (5-10 days) │
 │                                                             │
-│  4. 証明書の受け取り                                         │
-│     - OV: PFX ファイルでダウンロード                         │
-│     - EV: ハードウェアトークン(USB)で郵送                     │
+│  4. Receiving the Certificate                               │
+│     - OV: Download as PFX file                             │
+│     - EV: Delivered via hardware token (USB) by mail        │
 │                                                             │
-│  5. CI/CD への設定                                           │
-│     - OV: PFX を Base64 エンコードして Secret に保存          │
-│     - EV: クラウド署名サービスと連携                          │
+│  5. CI/CD Configuration                                     │
+│     - OV: Base64-encode PFX and save to Secrets             │
+│     - EV: Integrate with cloud signing service              │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 証明書のライフサイクル管理
+### 5.2 Certificate Lifecycle Management
 
 ```typescript
 // scripts/check-cert-expiry.ts — 証明書の有効期限を監視するスクリプト
@@ -1285,9 +1288,9 @@ jobs:
 
 ---
 
-## 6. CI/CD での自動署名パイプライン
+## 6. Automated Signing Pipeline in CI/CD
 
-### 6.1 GitHub Actions での完全自動ビルド・署名
+### 6.1 Full Automated Build and Signing with GitHub Actions
 
 ```yaml
 # .github/workflows/build-and-sign.yml
@@ -1305,7 +1308,7 @@ env:
   NODE_VERSION: '20'
 
 jobs:
-  # ── Windows ビルド ──
+  # ── Windows Build ──
   build-windows:
     runs-on: windows-latest
     steps:
@@ -1352,7 +1355,7 @@ jobs:
             Remove-Item "$env:RUNNER_TEMP\cert.pfx" -Force
           }
 
-  # ── macOS ビルド ──
+  # ── macOS Build ──
   build-macos:
     runs-on: macos-latest
     steps:
@@ -1391,7 +1394,7 @@ jobs:
             release/*.blockmap
             release/latest-mac.yml
 
-  # ── Linux ビルド ──
+  # ── Linux Build ──
   build-linux:
     runs-on: ubuntu-latest
     steps:
@@ -1417,7 +1420,7 @@ jobs:
             release/*.rpm
             release/latest-linux.yml
 
-  # ── リリース作成 ──
+  # ── Create Release ──
   create-release:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
@@ -1441,7 +1444,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### 6.2 署名の検証スクリプト
+### 6.2 Signature Verification Script
 
 ```powershell
 # scripts/verify-signatures.ps1 — ビルド成果物の署名検証
@@ -1496,9 +1499,9 @@ Write-Host "全ての署名検証が成功しました" -ForegroundColor Green
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン 1: 秘密鍵や証明書パスワードをリポジトリにコミットする
+### Anti-Pattern 1: Committing Private Keys or Certificate Passwords to the Repository
 
 ```yaml
 # NG: ハードコードされた秘密情報
@@ -1518,34 +1521,34 @@ win:
 # secrets.WIN_CERT_PASSWORD → 証明書のパスワード
 ```
 
-### アンチパターン 2: 署名なしでアプリを配布する
+### Anti-Pattern 2: Distributing an App Without Signing
 
 ```
-署名なしの場合に表示される警告:
+Warnings displayed when the app is unsigned:
 
 Windows:
 ┌──────────────────────────────────────────┐
-│  Windows によって PC が保護されました       │
+│  Windows protected your PC               │
 │                                          │
-│  Windows SmartScreen は認識されないアプリの │
-│  起動を停止しました。                      │
+│  Windows SmartScreen prevented an        │
+│  unrecognized app from starting.         │
 │                                          │
-│  [実行しない]  [詳細情報 → 実行]           │
+│  [Don't run]  [More info → Run anyway]   │
 └──────────────────────────────────────────┘
 
 macOS:
 ┌──────────────────────────────────────────┐
-│  "MyApp" は開発元が未確認のため           │
-│  開けません。                             │
+│  "MyApp" cannot be opened because the    │
+│  developer cannot be verified.           │
 │                                          │
-│  [ゴミ箱に入れる]  [キャンセル]           │
+│  [Move to Trash]  [Cancel]               │
 └──────────────────────────────────────────┘
 
-→ ユーザーの信頼を損ない、インストール率が大幅に低下する
-→ 必ずコード署名を行うこと
+→ Damages user trust and significantly reduces installation rates
+→ Always perform code signing
 ```
 
-### アンチパターン 3: タイムスタンプなしで署名する
+### Anti-Pattern 3: Signing Without a Timestamp
 
 ```bash
 # NG: タイムスタンプを省略して署名
@@ -1561,7 +1564,7 @@ signtool sign /f "cert.pfx" /p "password" \
 # → 証明書の有効期限が切れても、署名時点で有効だったことが証明される
 ```
 
-### アンチパターン 4: asar を無効にしたまま配布する
+### Anti-Pattern 4: Distributing with asar Disabled
 
 ```yaml
 # NG: ソースコードが平文で配布される
@@ -1573,9 +1576,9 @@ asarUnpack:
   - "**/*.node"  # ネイティブモジュールのみ除外
 ```
 
-**問題点**: asar を無効にすると、ユーザーがアプリのソースコードを直接読めてしまう。asar は完全な暗号化ではないが、カジュアルなリバースエンジニアリングを防ぐ最低限の保護として必須。
+**Issue**: Disabling asar allows users to read the app's source code directly. While asar is not full encryption, it is essential as a minimum protection against casual reverse engineering.
 
-### アンチパターン 5: 全アーキテクチャを単一バイナリに同梱する
+### Anti-Pattern 5: Bundling All Architectures Into a Single Binary
 
 ```yaml
 # NG: 全アーキテクチャのネイティブモジュールを同梱
@@ -1591,82 +1594,82 @@ win:
       arch: [arm64]    # arm64 用のインストーラー（別ファイル）
 ```
 
-**問題点**: 不要なアーキテクチャのバイナリが含まれるとインストーラーサイズが倍近くに膨らむ。各アーキテクチャ別にビルドするのが正しいアプローチ。
+**Issue**: Including binaries for unnecessary architectures can nearly double the installer size. The correct approach is to build separately for each architecture.
 
 ---
 
 ## 8. FAQ
 
-### Q1: EV 証明書と OV 証明書のどちらを選ぶべきか？
+### Q1: Should I choose an EV certificate or an OV certificate?
 
-**A:** 初期段階では EV 証明書を推奨する。OV 証明書は SmartScreen での信頼を蓄積するのに数週間〜数ヶ月かかるが、EV 証明書は即座に SmartScreen の警告を回避できる。ただし EV 証明書はハードウェアトークン（USB キー）が必要であり、CI/CD での自動署名にはクラウド署名サービス（DigiCert KeyLocker, Azure Trusted Signing など）との組み合わせが必要になる。2024 年以降は Azure Trusted Signing が月額 $9.99 で EV 相当の信頼を提供しており、コスト面でも有利な選択肢となっている。
+**A:** An EV certificate is recommended for the initial stage. An OV certificate requires weeks to months to build up SmartScreen trust, whereas an EV certificate immediately bypasses SmartScreen warnings. However, EV certificates require a hardware token (USB key), and for automated signing in CI/CD, they must be combined with a cloud signing service (DigiCert KeyLocker, Azure Trusted Signing, etc.). Since 2024, Azure Trusted Signing provides EV-equivalent trust for $9.99/month, making it a cost-effective option.
 
-### Q2: macOS の公証（Notarization）はどのくらい時間がかかるか？
+### Q2: How long does macOS Notarization take?
 
-**A:** 通常 1〜5 分で完了する。ただし Apple のサーバー負荷によっては 15 分以上かかる場合もある。CI/CD パイプラインでは公証完了まで待機するタイムアウトを十分に設定すること（最低 30 分推奨）。`xcrun notarytool submit --wait` コマンドで完了を待機できる。公証が失敗した場合は `xcrun notarytool log` でログを取得し、問題を特定する。よくある失敗原因は、エンタイトルメントの不備や Hardened Runtime の未設定である。
+**A:** It typically completes in 1 to 5 minutes. However, depending on Apple server load, it may take more than 15 minutes. When setting up CI/CD pipelines, configure sufficient timeout for the notarization to complete (at least 30 minutes recommended). The `xcrun notarytool submit --wait` command can be used to wait for completion. If notarization fails, retrieve the log with `xcrun notarytool log` to identify the issue. Common failure causes include insufficient entitlements and missing Hardened Runtime configuration.
 
-### Q3: Linux アプリにはコード署名は必要か？
+### Q3: Is code signing required for Linux apps?
 
-**A:** Linux にはWindows/macOS のような OS レベルのコード署名チェック機構がないため、技術的には不要である。ただし、GPG 署名でパッケージの完全性を証明したり、AppImage に署名を埋め込んだりすることはできる。配布チャネルに応じて（Snap Store は自動署名される等）検討すればよい。
+**A:** Linux does not have an OS-level code signing check mechanism like Windows/macOS, so it is technically not required. However, you can use GPG signing to prove package integrity or embed signatures in AppImages. This should be considered based on the distribution channel (e.g., the Snap Store performs automatic signing).
 
-### Q4: CI/CD で証明書を安全に管理するには？
+### Q4: How do I securely manage certificates in CI/CD?
 
-**A:** PFX ファイルは Base64 エンコードして GitHub Actions の Encrypted Secrets に保存する。ワークフロー内でデコードし、使用後は必ず削除する。EV 証明書の場合はクラウド署名サービス（Azure Trusted Signing, DigiCert KeyLocker）を使い、秘密鍵がランナー上に存在しない状態で署名する。また、証明書へのアクセスは最小権限の原則に従い、リリース用ワークフローからのみアクセス可能にする。
+**A:** Base64-encode the PFX file and store it in GitHub Actions Encrypted Secrets. Decode it within the workflow and always delete it after use. For EV certificates, use a cloud signing service (Azure Trusted Signing, DigiCert KeyLocker) so that the private key never exists on the runner. Also, follow the principle of least privilege for certificate access, making it accessible only from the release workflow.
 
-### Q5: Electron と Tauri でパッケージサイズはどのくらい違うか？
+### Q5: How much do package sizes differ between Electron and Tauri?
 
-**A:** 同じ機能のアプリケーションの場合、典型的なサイズ比較は以下の通り。Electron は Chromium を同梱するため基本サイズが 80〜150 MB になる。Tauri は OS 標準の WebView を使うため 2〜10 MB 程度で済む。ただし Electron はロケールファイルの削除や asar 圧縮で 60〜80 MB 程度まで削減可能。Tauri は UPX 圧縮でさらに小さくなるが、アンチウイルスの誤検知リスクがある。
+**A:** For applications with equivalent functionality, a typical size comparison is as follows. Electron bundles Chromium, resulting in a base size of 80 to 150 MB. Tauri uses the OS standard WebView, so it can be as small as 2 to 10 MB. However, Electron can be reduced to roughly 60 to 80 MB by removing locale files and applying asar compression. Tauri can be made even smaller with UPX compression, but this carries a risk of false positives from antivirus software.
 
-### Q6: マルチアーキテクチャ（x64/ARM64）対応のベストプラクティスは？
+### Q6: What are best practices for multi-architecture (x64/ARM64) support?
 
-**A:** 各アーキテクチャ別に個別のインストーラーを作成するのが基本。macOS では Universal Binary（x64 + ARM64 統合）も選択肢だが、サイズが倍増する。CI/CD では matrix ビルドで並列にビルドし、それぞれのアーティファクトを GitHub Release にアップロードする。ダウンロードページでは OS とアーキテクチャを自動判定して適切なバイナリを提示する仕組みが望ましい。
+**A:** The basic approach is to create separate installers for each architecture. On macOS, Universal Binary (x64 + ARM64 combined) is also an option, but it doubles the size. In CI/CD, use matrix builds to build in parallel and upload the respective artifacts to a GitHub Release. On the download page, it is desirable to have a mechanism that automatically detects the OS and architecture to present the appropriate binary.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just from theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend solidly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architectural design.
 
 ---
 
-## 9. まとめ
+## 9. Summary
 
-| トピック | キーポイント |
+| Topic | Key Points |
 |---|---|
-| Electron Forge | 公式推奨ツール。Maker/Publisher プラグインで拡張 |
-| Electron Builder | 詳細な制御が可能。NSIS のカスタマイズが強力 |
-| Tauri bundler | `cargo tauri build` で NSIS/MSI/DMG/AppImage を生成 |
-| Windows 署名 | Authenticode。EV 証明書で SmartScreen を即時回避 |
-| Azure Trusted Signing | 月額 $9.99 で EV 相当のクラウド署名サービス |
-| macOS 署名 | Developer ID + Notarization + Staple が必須 |
-| 証明書管理 | 秘密鍵は CI/CD の Secret で管理。リポジトリにコミットしない |
-| 証明書の期限監視 | 定期的に有効期限をチェックし、期限切れを防ぐ |
-| インストーラー | NSIS(Win) + DMG(Mac) + AppImage(Linux) が標準構成 |
-| ビルド最適化 | ロケール削減・Tree-shaking・asar 圧縮でサイズ最小化 |
-| CI/CD パイプライン | GitHub Actions で全 OS のビルド・署名・リリースを自動化 |
-| マルチアーキテクチャ | x64/ARM64 を matrix ビルドで並列処理 |
+| Electron Forge | Officially recommended tool. Extensible with Maker/Publisher plugins |
+| Electron Builder | Detailed control available. Powerful NSIS customization |
+| Tauri bundler | Generates NSIS/MSI/DMG/AppImage with `cargo tauri build` |
+| Windows signing | Authenticode. EV certificate provides immediate SmartScreen bypass |
+| Azure Trusted Signing | Cloud signing service with EV-equivalent trust for $9.99/month |
+| macOS signing | Developer ID + Notarization + Staple are all required |
+| Certificate management | Manage private keys in CI/CD Secrets. Never commit to repository |
+| Certificate expiry monitoring | Regularly check expiry dates to prevent certificates from lapsing |
+| Installers | NSIS (Win) + DMG (Mac) + AppImage (Linux) is the standard configuration |
+| Build optimization | Minimize size with locale reduction, tree-shaking, and asar compression |
+| CI/CD pipeline | Automate build, signing, and release for all OS with GitHub Actions |
+| Multi-architecture | Process x64/ARM64 in parallel with matrix builds |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- **[01-auto-update.md](./01-auto-update.md)** — 自動更新の実装（electron-updater / Tauri updater）
-- **[02-store-distribution.md](./02-store-distribution.md)** — Microsoft Store / Mac App Store への配布
+- **[01-auto-update.md](./01-auto-update.md)** — Implementing auto-update (electron-updater / Tauri updater)
+- **[02-store-distribution.md](./02-store-distribution.md)** — Distribution to Microsoft Store / Mac App Store
 
 ---
 
-## 参考文献
+## References
 
 1. Electron Forge, "Configuration", https://www.electronforge.io/configuration
 2. Electron Builder, "Configuration", https://www.electron.build/configuration
