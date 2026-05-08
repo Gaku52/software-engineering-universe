@@ -1,103 +1,104 @@
 # bisect/blame
 
-> `git bisect`によるバグ原因コミットの二分探索と、`git blame`によるコード変更の追跡手法を解説し、大規模プロジェクトでのデバッグ効率を飛躍的に向上させる。
+> Explains how to use `git bisect` for binary search to identify bug-introducing commits and `git blame` to trace code changes, dramatically improving debugging efficiency in large projects.
 
-## この章で学ぶこと
+## What You'll Learn in This Chapter
 
-1. **git bisectの二分探索アルゴリズム** — 手動・自動bisectの使い方と効率的なバグ特定手順
-2. **git blameの高度な活用** — 行単位の変更追跡、コード移動の検出、ignore-revs
-3. **bisectとblameの組み合わせ戦略** — 実践的なデバッグワークフロー
-4. **pickaxeとlog -L** — 変更内容での検索と行範囲の履歴追跡
-5. **大規模プロジェクトでの効率化テクニック** — first-parent、パス限定、自動化パターン
+1. **git bisect binary search algorithm** — How to use manual and automated bisect, and efficient bug identification procedures
+2. **Advanced git blame usage** — Line-by-line change tracking, code movement detection, and ignore-revs
+3. **Combined bisect and blame strategy** — Practical debugging workflows
+4. **pickaxe and log -L** — Searching by change content and tracking line range history
+5. **Efficiency techniques for large projects** — first-parent, path restriction, and automation patterns
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Worktree/Submodule](./01-worktree-submodule.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Understanding the content of [Worktree/Submodule](./01-worktree-submodule.md)
 
 ---
 
-## 1. git bisect — 二分探索でバグを特定
+## 1. git bisect — Identify Bugs with Binary Search
 
-### 1.1 二分探索の原理
+### 1.1 The Principle of Binary Search
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  二分探索（Binary Search）の原理                    │
+│  Binary Search Principle                           │
 │                                                    │
-│  1000コミットの中からバグ混入コミットを特定する場合 │
+│  Finding the bug-introducing commit among 1000     │
+│  commits:                                          │
 │                                                    │
-│  線形探索: 最悪 1000 回のテスト                     │
-│  二分探索: 最悪 ceil(log2(1000)) = 10 回のテスト   │
+│  Linear search: up to 1000 tests in the worst case │
+│  Binary search: up to ceil(log2(1000)) = 10 tests  │
 │                                                    │
 │  good                              bad             │
 │  v                                  v              │
 │  o---o---o---o---o---o---o---o---o---o              │
 │  1                                  1000           │
 │                                                    │
-│  Step 1: 500番目をテスト → bad                     │
+│  Step 1: Test commit 500 → bad                     │
 │  good              bad                             │
 │  v                  v                              │
 │  o---o---o---o---o---o                             │
 │  1                  500                            │
 │                                                    │
-│  Step 2: 250番目をテスト → good                    │
+│  Step 2: Test commit 250 → good                    │
 │           good     bad                             │
 │            v        v                              │
 │  o---o---o---o---o---o                             │
 │          250       500                             │
 │                                                    │
-│  ... 10ステップで特定完了                           │
+│  ... Identified in 10 steps                        │
 └────────────────────────────────────────────────────┘
 ```
 
-### 1.2 bisectの計算量
+### 1.2 bisect Complexity
 
-bisectの最大テスト回数は `ceil(log2(n))` で計算できる。具体的な目安は以下の通り。
+The maximum number of tests for bisect can be calculated as `ceil(log2(n))`. Concrete benchmarks are as follows.
 
-| コミット数 | 最大テスト回数 | 備考                         |
-|-----------|---------------|------------------------------|
-| 10        | 4             | 小さなfeatureブランチ        |
-| 100       | 7             | 中規模のプロジェクト         |
-| 1,000     | 10            | 大規模プロジェクト           |
-| 10,000    | 14            | 非常に長い履歴               |
-| 100,000   | 17            | Linux kernelレベル           |
-| 1,000,000 | 20            | 超大規模monorepo             |
+| Commits   | Max tests | Notes                          |
+|-----------|-----------|--------------------------------|
+| 10        | 4         | Small feature branch           |
+| 100       | 7         | Mid-scale project              |
+| 1,000     | 10        | Large project                  |
+| 10,000    | 14        | Very long history              |
+| 100,000   | 17        | Linux kernel scale             |
+| 1,000,000 | 20        | Super-large monorepo           |
 
-このように、コミット数が増えても必要なテスト回数は対数的にしか増加しない。100万コミットでもわずか20回のテストで原因を特定できる。
+As you can see, even as the number of commits grows, the required number of tests only increases logarithmically. Even with 1 million commits, the cause can be identified in just 20 tests.
 
-### 1.3 手動bisect
+### 1.3 Manual bisect
 
 ```bash
-# 1. bisect開始
+# 1. Start bisect
 $ git bisect start
 
-# 2. 現在のHEAD（バグあり）をbadとマーク
+# 2. Mark current HEAD (has bug) as bad
 $ git bisect bad
 
-# 3. 正常だったコミットをgoodとマーク
+# 3. Mark a known-good commit as good
 $ git bisect good v1.0.0
 # Bisecting: 512 revisions left to test after this (roughly 9 steps)
 # [abc123...] feat: some commit message
 
-# 4. テストして結果をマーク（繰り返し）
+# 4. Test and mark the result (repeat)
 $ npm test
-# テスト失敗
+# Test fails
 $ git bisect bad
 # Bisecting: 256 revisions left to test after this (roughly 8 steps)
 
 $ npm test
-# テスト成功
+# Test passes
 $ git bisect good
 # Bisecting: 128 revisions left to test after this (roughly 7 steps)
 
-# ... 繰り返し ...
+# ... repeat ...
 
-# 5. 原因コミットが特定される
+# 5. The causing commit is identified
 # abc123def456789abcdef is the first bad commit
 # commit abc123def456789abcdef
 # Author: Developer <dev@example.com>
@@ -105,14 +106,14 @@ $ git bisect good
 #
 #     feat: add caching layer
 
-# 6. bisect終了（元のHEADに戻る）
+# 6. End bisect (returns to original HEAD)
 $ git bisect reset
 ```
 
-### 1.4 bisect中の状態確認
+### 1.4 Checking bisect Status
 
 ```bash
-# bisectの現在の状態を確認
+# Check the current state of bisect
 $ git bisect log
 # git bisect start
 # # bad: [abc123...] feat: latest
@@ -122,51 +123,51 @@ $ git bisect log
 # # bad: [789abc...] feat: caching
 # git bisect bad 789abc...
 
-# 残りのコミット数と予想ステップ数
+# Remaining commit count and estimated steps
 $ git bisect visualize
-# → gitk等でbisect範囲のコミットを視覚化
+# → Visualize commits in the bisect range using gitk etc.
 
-# bisect範囲のコミットを一覧表示
+# List commits in the bisect range
 $ git bisect visualize --oneline
-# → テキスト形式で残りのコミット一覧を表示
+# → Display remaining commit list in text format
 
-# 現在のbisect位置の確認
+# Check current bisect position
 $ git log --oneline -1
 ```
 
-### 1.5 自動bisect
+### 1.5 Automated bisect
 
 ```bash
-# テストスクリプトを指定して自動実行
+# Specify a test script for automatic execution
 $ git bisect start HEAD v1.0.0
 $ git bisect run npm test
-# → 自動的にテストを実行し、exit code 0=good, 非0=bad として判定
+# → Automatically runs tests; exit code 0=good, non-0=bad
 
-# カスタムスクリプトでの自動bisect
+# Automated bisect with a custom script
 $ git bisect run ./test-specific-bug.sh
 
-# test-specific-bug.sh の例:
+# Example test-specific-bug.sh:
 #!/bin/bash
-npm run build 2>/dev/null || exit 125  # ビルド失敗はスキップ
+npm run build 2>/dev/null || exit 125  # Skip if build fails
 node -e "
   const result = require('./dist/auth').validate('test@example.com');
   process.exit(result ? 0 : 1);
 "
 ```
 
-**exit codeの意味**:
+**Meaning of exit codes**:
 
-| exit code | 意味                                          |
-|-----------|-----------------------------------------------|
-| 0         | good（このコミットにバグなし）                |
-| 1-124, 126, 127 | bad（このコミットにバグあり）           |
-| 125       | skip（このコミットはテスト不可能）            |
-| 128-      | bisectを中断                                  |
+| exit code       | Meaning                                       |
+|-----------------|-----------------------------------------------|
+| 0               | good (no bug in this commit)                  |
+| 1-124, 126, 127 | bad (bug present in this commit)              |
+| 125             | skip (this commit cannot be tested)           |
+| 128+            | abort bisect                                  |
 
-### 1.6 自動bisectスクリプトのパターン集
+### 1.6 Collection of Automated bisect Script Patterns
 
 ```bash
-# パターン1: 特定のテストケースのみ実行
+# Pattern 1: Run only specific test cases
 #!/bin/bash
 # bisect-specific-test.sh
 npm run build 2>/dev/null || exit 125
@@ -175,17 +176,17 @@ exit $?
 ```
 
 ```bash
-# パターン2: コンパイルエラーの検出
+# Pattern 2: Detect compile errors
 #!/bin/bash
 # bisect-compile.sh
 make clean 2>/dev/null
 make 2>/dev/null
 exit $?
-# → コンパイルが失敗するコミットを特定
+# → Identify commits where compilation fails
 ```
 
 ```bash
-# パターン3: パフォーマンスリグレッションの検出
+# Pattern 3: Detect performance regressions
 #!/bin/bash
 # bisect-performance.sh
 npm run build 2>/dev/null || exit 125
@@ -195,7 +196,7 @@ RESULT=$(node -e "
   const elapsed = Date.now() - start;
   console.log(elapsed);
 ")
-# 500ms以上かかるようになったら bad
+# bad if it takes more than 500ms
 if [ "$RESULT" -gt 500 ]; then
   exit 1
 else
@@ -204,20 +205,20 @@ fi
 ```
 
 ```bash
-# パターン4: 特定の文字列が存在するかチェック
+# Pattern 4: Check if a specific string exists
 #!/bin/bash
 # bisect-string-check.sh
-# 特定のファイルに特定の文字列が含まれているか確認
+# Check if a specific string is present in a specific file
 grep -q "deprecated_function" src/auth.js
 if [ $? -eq 0 ]; then
-  exit 1  # deprecated_functionが存在 → bad
+  exit 1  # deprecated_function exists → bad
 else
-  exit 0  # 存在しない → good
+  exit 0  # does not exist → good
 fi
 ```
 
 ```bash
-# パターン5: Dockerを使った環境構築付きテスト
+# Pattern 5: Test with Docker environment setup
 #!/bin/bash
 # bisect-docker.sh
 docker build -t bisect-test . 2>/dev/null || exit 125
@@ -227,75 +228,75 @@ docker rmi bisect-test 2>/dev/null
 exit $EXIT_CODE
 ```
 
-### 1.7 bisectの高度な使い方
+### 1.7 Advanced bisect Usage
 
 ```bash
-# 特定のパスに限定してbisect
+# Limit bisect to specific paths
 $ git bisect start -- src/auth/ tests/auth/
-# → 指定パスに変更があるコミットのみを対象にする
+# → Only target commits that changed files in the specified paths
 
-# 用語のカスタマイズ（新旧で使う場合）
+# Customize terminology (for old/new usage)
 $ git bisect start --term-old=slow --term-new=fast
 $ git bisect slow v1.0.0
 $ git bisect fast HEAD
-# → パフォーマンス改善コミットの特定にも使える
+# → Can also be used to identify performance improvement commits
 
-# bisectログの保存と再実行
+# Save and replay bisect log
 $ git bisect log > bisect-log.txt
 $ git bisect replay bisect-log.txt
 
-# 特定のコミットをスキップ
+# Skip a specific commit
 $ git bisect skip
-# → ビルドできないコミットなどをスキップ
+# → Skip commits that cannot be built
 
-# 範囲指定でスキップ
+# Skip a range
 $ git bisect skip abc123..def456
-# → 指定範囲のコミットを全てスキップ
+# → Skip all commits in the specified range
 
-# first-parent のみをbisect（Git 2.29+）
+# Bisect first-parent only (Git 2.29+)
 $ git bisect start --first-parent HEAD v1.0.0
-# → マージコミットの第一親のみを辿る
-# → featureブランチのコミットをスキップ
-# → マージ単位での二分探索が可能
+# → Only follow the first parent of merge commits
+# → Skip commits in feature branches
+# → Enables binary search at the merge unit level
 ```
 
-### 1.8 bisectとDAG（マージ履歴）
+### 1.8 bisect and DAG (Merge History)
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  マージ履歴でのbisect                                    │
+│  bisect with Merge History                             │
 │                                                        │
-│  直線的な履歴:                                         │
+│  Linear history:                                       │
 │  o---o---o---o---o---o---o---o---o---o                  │
 │  good                              bad                 │
-│  → 単純な二分探索                                      │
+│  → Simple binary search                                │
 │                                                        │
-│  マージを含む履歴:                                      │
+│  History with merges:                                  │
 │  o---o---o---M---o---M---o---M---o                      │
 │       \     / \     / \     /                          │
 │        o---o   o---o   o---o                           │
 │  good                         bad                      │
 │                                                        │
-│  → bisectはDAG上で二分探索を行う                       │
-│  → マージコミット自体もテスト対象になる                │
-│  → --first-parent で第一親のみに限定可能               │
+│  → bisect performs binary search on the DAG            │
+│  → Merge commits themselves are also test targets      │
+│  → Can restrict to first parent with --first-parent    │
 │                                                        │
-│  --first-parent の動作:                                 │
+│  --first-parent behavior:                              │
 │  o---o---o---M---o---M---o---M---o                      │
 │  ↑   ↑   ↑   ↑   ↑   ↑   ↑   ↑   ↑                  │
-│  これらのcommitのみが対象                               │
-│  → マージ単位で「どのマージがバグを導入したか」を特定  │
+│  Only these commits are targeted                       │
+│  → Identify "which merge introduced the bug"           │
 └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. git blame — 行単位の変更追跡
+## 2. git blame — Line-by-Line Change Tracking
 
-### 2.1 基本的な使い方
+### 2.1 Basic Usage
 
 ```bash
-# ファイル全体のblame
+# Blame the entire file
 $ git blame src/auth.js
 a1b2c3d4 (Gaku    2025-01-15 10:30:00 +0900  1) const bcrypt = require('bcrypt');
 d4e5f6a7 (Tanaka  2025-02-01 14:20:00 +0900  2) const jwt = require('jsonwebtoken');
@@ -303,20 +304,20 @@ a1b2c3d4 (Gaku    2025-01-15 10:30:00 +0900  3)
 b7c8d9e0 (Suzuki  2025-02-10 09:15:00 +0900  4) async function login(email, password) {
 d4e5f6a7 (Tanaka  2025-02-01 14:20:00 +0900  5)   const user = await User.findByEmail(email);
 
-# 行範囲を指定
+# Specify a line range
 $ git blame -L 10,20 src/auth.js
-$ git blame -L '/function login/,/^}/' src/auth.js  # 正規表現で範囲指定
+$ git blame -L '/function login/,/^}/' src/auth.js  # Specify range with regex
 
-# 詳細表示（コミットメッセージの1行目も表示）
+# Verbose output (also shows the first line of the commit message)
 $ git blame --show-description src/auth.js
 ```
 
-### 2.2 blameの出力フォーマット
+### 2.2 blame Output Format
 
 ```bash
-# porcelain形式（スクリプト処理用）
+# Porcelain format (for script processing)
 $ git blame --porcelain src/auth.js
-# 出力:
+# Output:
 # a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0 1 1 3
 # author Gaku
 # author-mail <gaku@example.com>
@@ -330,352 +331,360 @@ $ git blame --porcelain src/auth.js
 # filename src/auth.js
 # 	const bcrypt = require('bcrypt');
 
-# line-porcelain形式（各行に完全なcommit情報）
+# line-porcelain format (complete commit info per line)
 $ git blame --line-porcelain src/auth.js
 
-# 最小限の出力
+# Minimal output
 $ git blame -s src/auth.js
-# → 著者名と日付を省略、SHA-1と行番号のみ
+# → Omit author name and date; show only SHA-1 and line number
 
-# メールアドレスも表示
+# Also show email address
 $ git blame -e src/auth.js
 ```
 
-### 2.3 コード移動・コピーの検出
+### 2.3 Detecting Code Movement and Copying
 
 ```bash
-# -M: 同一ファイル内のコード移動を検出
+# -M: Detect code movement within the same file
 $ git blame -M src/auth.js
-# → 同じファイル内で移動された行の元のコミットを表示
+# → Show the original commit for lines moved within the same file
 
-# -C: ファイル間のコード移動を検出
+# -C: Detect code movement across files
 $ git blame -C src/auth.js
-# → 別ファイルからコピーされた行の元のコミットを表示
+# → Show the original commit for lines copied from another file
 
-# -C -C: さらに広範囲のコピー検出（同一コミット内）
+# -C -C: Broader copy detection (within the same commit)
 $ git blame -C -C src/auth.js
 
-# -C -C -C: 全コミットにわたるコピー検出
+# -C -C -C: Copy detection across all commits
 $ git blame -C -C -C src/auth.js
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  -C オプションのレベル                              │
+│  Levels of the -C option                           │
 │                                                    │
-│  -C (1回):                                         │
-│    同じコミットで変更されたファイルからのコピー検出 │
+│  -C (once):                                        │
+│    Detect copies from files changed in the same   │
+│    commit                                          │
 │                                                    │
-│  -C -C (2回):                                      │
-│    任意のコミットでのファイル作成時のコピー検出     │
+│  -C -C (twice):                                    │
+│    Detect copies at file creation time in any     │
+│    commit                                          │
 │                                                    │
-│  -C -C -C (3回):                                   │
-│    全コミットにわたるコピー検出（最も遅いが完全）   │
+│  -C -C -C (three times):                           │
+│    Full copy detection across all commits          │
+│    (slowest but most thorough)                     │
 │                                                    │
-│  処理時間: -C < -C -C < -C -C -C                   │
-│  検出範囲: -C < -C -C < -C -C -C                   │
+│  Processing time: -C < -C -C < -C -C -C            │
+│  Detection scope: -C < -C -C < -C -C -C            │
 └────────────────────────────────────────────────────┘
 ```
 
-### 2.4 -Mと-Cの閾値設定
+### 2.4 Setting Thresholds for -M and -C
 
 ```bash
-# -M のデフォルト閾値は 20文字
-# 移動とみなす最小文字数を変更
+# Default threshold for -M is 20 characters
+# Change the minimum character count to consider as a move
 $ git blame -M40 src/auth.js
-# → 40文字以上の連続する同一テキストを移動として検出
+# → Detect 40+ consecutive identical characters as a move
 
-# -C のデフォルト閾値も 40文字
+# Default threshold for -C is also 40 characters
 $ git blame -C40 src/auth.js
-# → 40文字以上のコピーを検出
+# → Detect copies of 40+ characters
 
-# 閾値を小さくすると:
-# - より多くの移動/コピーを検出できる
-# - 偽陽性（実際にはコピーでない部分を検出）が増える
-# - 処理時間が長くなる
+# Making the threshold smaller:
+# - Detects more moves/copies
+# - Increases false positives (parts detected as copies when they aren't)
+# - Increases processing time
 ```
 
-### 2.5 ignore-revs — フォーマット変更の除外
+### 2.5 ignore-revs — Excluding Formatting Changes
 
 ```bash
-# 大規模なコードフォーマット変更のコミットを除外
+# Exclude commits with large-scale code formatting changes
 $ git blame --ignore-rev abc123def456
 $ git blame --ignore-revs-file .git-blame-ignore-revs
 
-# .git-blame-ignore-revs ファイルの作成
+# Create the .git-blame-ignore-revs file
 $ cat .git-blame-ignore-revs
-# Prettier導入による全ファイルフォーマット
+# Full file format from Prettier introduction
 abc123def456789abcdef1234567890abcdef1234
 
 # ESLint auto-fix
 def456789abcdef1234567890abcdef1234567890
 
-# タブ→スペース変換
+# Tab-to-space conversion
 789abcdef1234567890abcdef1234567890abcdef
 
-# gitの設定で自動的に読み込む
+# Configure git to load automatically
 $ git config blame.ignoreRevsFile .git-blame-ignore-revs
 
-# GitHub上でも自動的に認識される（リポジトリルートに配置）
+# Also automatically recognized on GitHub (place at repository root)
 ```
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  --ignore-revs の動作原理                               │
+│  How --ignore-revs works                               │
 │                                                        │
-│  通常のblame:                                          │
-│  行 15: abc123 (Prettier) → "  const x = 1;"          │
-│  → Prettierのコミットが最終変更として表示              │
+│  Normal blame:                                         │
+│  Line 15: abc123 (Prettier) → "  const x = 1;"        │
+│  → The Prettier commit is shown as the last change     │
 │                                                        │
 │  --ignore-revs abc123:                                 │
-│  行 15: def456 (Gaku) → "  const x = 1;"              │
-│  → Prettierを無視して、実質的な変更のコミットを表示    │
+│  Line 15: def456 (Gaku) → "  const x = 1;"            │
+│  → Ignores Prettier and shows the substantive commit   │
 │                                                        │
-│  動作:                                                 │
-│  1. abc123の変更前の状態を確認                         │
-│  2. abc123の変更後の状態を確認                         │
-│  3. 行の内容が変わっていても、abc123を「透過」する     │
-│  4. abc123以前のコミットを「最終変更」として表示       │
+│  Behavior:                                             │
+│  1. Check the state before abc123's changes            │
+│  2. Check the state after abc123's changes             │
+│  3. Even if the line content changed, "pass through"  │
+│     abc123                                             │
+│  4. Show the commit before abc123 as the "last change" │
 │                                                        │
-│  注意: 行の追加・削除があると正確に追跡できない場合あり │
+│  Note: May not track accurately if lines were added   │
+│  or deleted                                            │
 └────────────────────────────────────────────────────────┘
 ```
 
-### 2.6 時間を遡るblame
+### 2.6 Going Back in Time with blame
 
 ```bash
-# 特定のコミット時点でのblame
+# blame at a specific commit point
 $ git blame abc123 -- src/auth.js
 
-# 特定の行が変更される前のコミットを追跡
+# Track the commit before a specific line was changed
 $ git log -p -L 15,25:src/auth.js
-# → 指定行範囲の変更履歴を全て表示（logベースの追跡）
+# → Show the full change history for the specified line range (log-based tracking)
 
-# 特定の行の変更履歴を1つずつ遡る
-$ git blame src/auth.js     # → 最新のblameでcommit Xを発見
-$ git blame X~1 -- src/auth.js  # → X以前のblameでcommit Yを発見
-$ git blame Y~1 -- src/auth.js  # → Y以前の変更を確認
+# Trace the change history of a specific line one step at a time
+$ git blame src/auth.js     # → Discover commit X in the latest blame
+$ git blame X~1 -- src/auth.js  # → Discover commit Y in the blame before X
+$ git blame Y~1 -- src/auth.js  # → Check changes before Y
 
-# 特定の日時以降の変更のみ表示
+# Show only changes since a specific date
 $ git blame --since="2025-01-01" src/auth.js
-# → 2025-01-01以降に変更された行のみblame表示
-# → それ以前の行は ^abc123 のように ^ プレフィックス付きで表示
+# → Show blame only for lines changed since 2025-01-01
+# → Lines changed before that are shown with a ^ prefix like ^abc123
 ```
 
-### 2.7 blameの視覚化ツール
+### 2.7 Visualization Tools for blame
 
 ```bash
-# VS Code のGitLens拡張
-# → エディタ内でインラインblameを表示
-# → カーソル行のblame情報が自動表示される
+# VS Code GitLens extension
+# → Show inline blame within the editor
+# → Blame info for the cursor line is shown automatically
 
-# GitHub上のblame
-# URLパターン: https://github.com/user/repo/blame/main/src/auth.js
-# → Webブラウザで対話的にblameを確認
-# → 各行のコミットリンクから詳細を辿れる
+# blame on GitHub
+# URL pattern: https://github.com/user/repo/blame/main/src/auth.js
+# → Interactively check blame in a web browser
+# → Follow commit links for each line to see details
 
 # git gui blame
 $ git gui blame src/auth.js
-# → GUIでblameを表示（Git標準のGUIツール）
+# → Show blame in a GUI (Git's standard GUI tool)
 
-# tig（コンソールUIツール）
+# tig (console UI tool)
 $ tig blame src/auth.js
-# → コンソール上で対話的にblameを操作
-# → Enterキーでコミット詳細に移動
+# → Interactively operate blame in the console
+# → Press Enter to navigate to commit details
 ```
 
 ---
 
-## 3. pickaxeとlog — 変更内容での検索
+## 3. pickaxe and log — Searching by Change Content
 
-### 3.1 -S（pickaxe）での検索
+### 3.1 Searching with -S (pickaxe)
 
 ```bash
-# 特定の文字列を追加または削除したコミットを検索
+# Find commits that added or removed a specific string
 $ git log -S "bcrypt" --oneline
-# → "bcrypt"という文字列の出現回数が変化したコミット一覧
+# → List commits where the occurrence count of "bcrypt" changed
 
-# 正規表現での検索
+# Search with a regex
 $ git log -G "function\s+login" --oneline
-# → 正規表現にマッチする行が変更されたコミット一覧
+# → List commits where a line matching the regex was changed
 
-# 差分も表示
+# Also show the diff
 $ git log -S "bcrypt" -p -- src/auth.js
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  -S と -G の違い                                    │
+│  Difference between -S and -G                      │
 │                                                    │
 │  -S "text" (pickaxe):                              │
-│    "text" の出現回数が変化したコミットを検索        │
-│    → 追加・削除を検出（移動は検出しない）          │
+│    Find commits where the occurrence count of      │
+│    "text" changed                                  │
+│    → Detects additions and deletions (not moves)  │
 │                                                    │
 │  -G "regex":                                       │
-│    差分に regex がマッチするコミットを検索          │
-│    → 移動・修正も検出する（範囲が広い）            │
+│    Find commits where the diff matches regex       │
+│    → Also detects moves and modifications          │
+│      (broader scope)                               │
 │                                                    │
-│  例: "x = 1" を "x = 2" に変更した場合             │
-│    -S "x = 1" → 検出する（出現回数が減少）        │
-│    -S "x = 2" → 検出する（出現回数が増加）        │
-│    -G "x = " → 検出する（差分にマッチ）           │
+│  Example: changing "x = 1" to "x = 2"             │
+│    -S "x = 1" → Detected (occurrence count drops) │
+│    -S "x = 2" → Detected (occurrence count rises) │
+│    -G "x = " → Detected (matches diff)            │
 │                                                    │
-│  例: 行の移動のみ（内容は同じ）                    │
-│    -S "function login" → 検出しない（回数不変）    │
-│    -G "function login" → 検出する（差分に出現）    │
+│  Example: line moved only (same content)           │
+│    -S "function login" → Not detected (count unchanged) │
+│    -G "function login" → Detected (appears in diff)│
 └────────────────────────────────────────────────────┘
 ```
 
-### 3.2 -Sの高度なオプション
+### 3.2 Advanced Options for -S
 
 ```bash
-# -S に正規表現を使用（--pickaxe-regex と組み合わせ）
+# Use regex with -S (combined with --pickaxe-regex)
 $ git log -S "validate[A-Z]\w+" --pickaxe-regex --oneline
-# → validateEmail, validatePassword等のパターンにマッチ
+# → Matches patterns like validateEmail, validatePassword, etc.
 
-# 全ブランチにわたって検索
+# Search across all branches
 $ git log --all -S "deprecated_function" --oneline
-# → 全ブランチの全コミットから検索
+# → Search all commits on all branches
 
-# 特定のファイルに限定
+# Restrict to specific files
 $ git log -S "bcrypt" -- src/auth/ lib/security/
-# → 指定パス内のファイルのみ対象
+# → Only target files in the specified paths
 
-# 差分のコンテキストも表示
+# Also show diff context
 $ git log -S "bcrypt" -p --word-diff
-# → 変更箇所を単語単位でハイライト表示
+# → Highlight changes at the word level
 ```
 
-### 3.3 log -L による行範囲の追跡
+### 3.3 Tracking Line Ranges with log -L
 
 ```bash
-# 特定の行範囲の変更履歴
+# Change history for a specific line range
 $ git log -L 10,20:src/auth.js
-# → 10行目から20行目の変更を含む全コミットを表示
+# → Show all commits that include changes to lines 10-20
 
-# 関数定義の変更履歴
+# Change history for a function definition
 $ git log -L ':function login:src/auth.js'
-# → login関数の定義全体の変更履歴を追跡
-# → Git が関数の開始と終了を自動検出
+# → Track the full change history of the login function definition
+# → Git auto-detects the start and end of the function
 
-# 正規表現で範囲指定
+# Specify range with regex
 $ git log -L '/^async function login/,/^}/':src/auth.js
-# → 指定パターンで範囲を指定
+# → Specify range with a pattern
 
-# -p オプションと組み合わせてパッチ表示
+# Combined with -p option for patch display
 $ git log -L 10,20:src/auth.js -p
-# → 各コミットの具体的な差分を表示
+# → Show the specific diff for each commit
 ```
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  git log -L の動作                                      │
+│  How git log -L works                                  │
 │                                                        │
 │  git log -L 10,20:src/auth.js                          │
 │                                                        │
-│  最新 → 古い の順でcommitを辿り:                       │
+│  Traverses commits from newest to oldest:              │
 │                                                        │
-│  commit C3 (最新):                                     │
+│  commit C3 (newest):                                   │
 │    10: const salt = 10;                                │
 │    11: async function login(email, password) {         │
 │    ...                                                 │
 │    20: }                                               │
-│    ← C3で11行目が変更された → 表示する                 │
+│    ← Line 11 was changed in C3 → Show it              │
 │                                                        │
 │  commit C2:                                            │
 │    10: const salt = 10;                                │
 │    11: function login(email, password) {               │
 │    ...                                                 │
 │    18: }                                               │
-│    ← C2では変更なし → スキップ                         │
-│    ← ただし行番号の対応関係は追跡                      │
+│    ← No change in C2 → Skip                           │
+│    ← But track the correspondence of line numbers     │
 │                                                        │
 │  commit C1:                                            │
 │    8: function login(email, password) {                │
 │    ...                                                 │
 │    15: }                                               │
-│    ← C1で関数が追加された → 表示する                   │
-│    ← 行番号がずれても内容を追跡                        │
+│    ← Function was added in C1 → Show it               │
+│    ← Tracks content even when line numbers shift      │
 │                                                        │
-│  → -Lは行番号のずれ（前の行の追加/削除）を考慮して    │
-│    「同じ論理的位置」の変更履歴を正確に追跡する        │
+│  → -L accounts for line number shifts (from additions │
+│    /deletions in preceding lines) and accurately      │
+│    tracks changes at the "same logical position"      │
 └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. 実践的なデバッグワークフロー
+## 4. Practical Debugging Workflow
 
-### 4.1 bisect + blame の組み合わせ
+### 4.1 Combining bisect + blame
 
 ```bash
-# Step 1: bisectでバグ混入コミットを特定
+# Step 1: Use bisect to identify the bug-introducing commit
 $ git bisect start HEAD v1.0.0
 $ git bisect run npm test
-# → commit abc123 が原因と判明
+# → commit abc123 identified as the cause
 
-# Step 2: 原因コミットの詳細を確認
+# Step 2: Check the details of the causing commit
 $ git show abc123 --stat
-# → 変更されたファイルの一覧
+# → List of changed files
 
 $ git show abc123 -p
-# → 具体的な変更内容
+# → Specific change contents
 
-# Step 3: blameで関連するコードの履歴を確認
+# Step 3: Use blame to check the history of related code
 $ git blame -L '/function validate/,/^}/' src/auth.js
-# → validate関数の各行がいつ・誰に変更されたか
+# → Who changed each line of the validate function and when
 
-# Step 4: pickaxeで関連する変更を全て洗い出す
+# Step 4: Use pickaxe to identify all related changes
 $ git log -S "validate" --oneline -- src/auth.js
-# → validate関連の全変更履歴
+# → Full change history related to validate
 ```
 
-### 4.2 バグの原因調査の完全なフロー
+### 4.2 Complete Flow for Bug Root Cause Investigation
 
 ```bash
-# シナリオ: ログイン機能が壊れている
+# Scenario: The login feature is broken
 
-# Phase 1: いつから壊れたかを特定
+# Phase 1: Identify when it broke
 $ git bisect start HEAD v2.0.0 -- src/auth/
 $ git bisect run ./test-login.sh
-# → commit def456 が最初の bad commit
+# → commit def456 is the first bad commit
 
-# Phase 2: 何が変わったかを確認
+# Phase 2: Check what changed
 $ git show def456 --stat
 # src/auth/login.js  | 15 ++++++-----
 # src/auth/session.js | 8 ++++----
 # 2 files changed, 11 insertions(+), 12 deletions(-)
 
 $ git show def456 -p
-# → 具体的なコード変更を確認
+# → Review the specific code changes
 
-# Phase 3: 変更の背景を理解
+# Phase 3: Understand the context of the change
 $ git log --oneline def456~5..def456
-# → 前後のコミットのコンテキスト
+# → Context of surrounding commits
 
 $ git blame -L '/function createSession/,/^}/' src/auth/session.js
-# → セッション関連コードの変更履歴
+# → Change history for session-related code
 
-# Phase 4: 関連する変更を全て洗い出し
+# Phase 4: Identify all related changes
 $ git log -S "createSession" --oneline
-# → createSession関数に関わる全コミット
+# → All commits related to the createSession function
 
 $ git log -G "session.*expire" --oneline -- src/auth/
-# → セッションの有効期限に関わる変更
+# → Changes related to session expiration
 
-# Phase 5: 修正方針の決定
+# Phase 5: Determine the fix strategy
 $ git diff def456~1 def456 -- src/auth/
-# → バグを導入した変更の具体的な差分
-# → この差分を元に修正方法を決定
+# → The specific diff of the change that introduced the bug
+# → Use this diff to decide on the fix approach
 ```
 
-### 4.3 パフォーマンスリグレッションの調査
+### 4.3 Investigating Performance Regressions
 
 ```bash
-# Step 1: パフォーマンスが低下した時期を特定
+# Step 1: Identify when the performance degraded
 $ git bisect start HEAD v2.0.0
 $ git bisect run ./benchmark.sh
-# benchmark.shの中身:
+# Contents of benchmark.sh:
 #!/bin/bash
 npm run build 2>/dev/null || exit 125
 TIME=$(node -e "
@@ -685,278 +694,279 @@ TIME=$(node -e "
 ")
 [ "$TIME" -lt 1000 ] && exit 0 || exit 1
 
-# Step 2: 原因コミットの分析
+# Step 2: Analyze the causing commit
 $ git show <first-bad-commit> --stat
-# → どのファイルが変更されたか
+# → What files were changed
 
 $ git diff <first-bad-commit>~1 <first-bad-commit>
-# → 具体的な変更内容
+# → Specific change content
 
-# Step 3: 変更された関数の履歴を確認
+# Step 3: Check the history of changed functions
 $ git log -L ':function processData:src/data-processor.js'
-# → processData関数の変更履歴
+# → Change history of the processData function
 ```
 
-### 4.4 削除されたコードの追跡
+### 4.4 Tracking Deleted Code
 
 ```bash
-# Step 1: 特定の関数が削除されたコミットを特定
+# Step 1: Find the commit where a specific function was deleted
 $ git log -S "function deprecatedAuth" --oneline
-# abc123 feat: remove deprecated auth (← 削除)
-# def456 feat: initial auth module    (← 追加)
+# abc123 feat: remove deprecated auth (← deletion)
+# def456 feat: initial auth module    (← addition)
 
-# Step 2: 削除直前のバージョンを確認
+# Step 2: Check the version right before deletion
 $ git show abc123~1:src/auth.js
-# → 削除される前のファイル全体
+# → The entire file before deletion
 
 $ git blame abc123~1 -- src/auth.js
-# → 削除直前の各行のblame
+# → blame of the file just before deletion
 
-# Step 3: 関連する変更を追跡
+# Step 3: Track related changes
 $ git log -S "deprecatedAuth" -p
-# → 追加と削除の両方のコミットの差分を表示
+# → Show diffs for both the addition and deletion commits
 ```
 
 ---
 
-## 5. git annotate と git log --follow
+## 5. git annotate and git log --follow
 
 ```bash
-# annotateはblameのエイリアス（出力形式が若干異なる）
+# annotate is an alias for blame (output format differs slightly)
 $ git annotate src/auth.js
 
-# ファイル名の変更を追跡するblame
+# blame that tracks file renames
 $ git log --follow -p -- src/auth.js
-# → ファイル名が変更されていても変更履歴を追跡
+# → Track change history even if the file was renamed
 
-# blameでの--follow相当
+# Equivalent to --follow for blame
 $ git log --follow --diff-filter=R -- src/auth.js
-# → リネームを検出して元のファイル名を特定
-$ git blame <旧ファイル名のcommit> -- <旧ファイル名>
+# → Detect renames and identify the old filename
+$ git blame <commit with old filename> -- <old filename>
 ```
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  ファイルリネーム時のblame追跡                           │
+│  Tracking blame through file renames                   │
 │                                                        │
-│  commit C1: src/authentication.js を作成               │
-│  commit C2: src/authentication.js を修正               │
-│  commit C3: src/authentication.js → src/auth.js にリネーム │
-│  commit C4: src/auth.js を修正                         │
+│  commit C1: src/authentication.js created              │
+│  commit C2: src/authentication.js modified             │
+│  commit C3: src/authentication.js → src/auth.js renamed│
+│  commit C4: src/auth.js modified                       │
 │                                                        │
 │  git blame src/auth.js:                                │
-│  → C3, C4 の変更のみ表示                               │
-│  → C1, C2 の情報は表示されない                         │
+│  → Shows only changes from C3, C4                      │
+│  → C1, C2 information is not shown                     │
 │                                                        │
 │  git log --follow -p -- src/auth.js:                   │
-│  → C1〜C4 の全変更を表示（リネームを追跡）             │
+│  → Shows all changes from C1 to C4 (tracks renames)   │
 │                                                        │
-│  リネーム前の blame を見るには:                          │
+│  To see blame before the rename:                       │
 │  $ git log --follow --diff-filter=R -- src/auth.js     │
-│  # → リネームコミット C3 を発見                        │
+│  # → Find the rename commit C3                         │
 │  $ git blame C3~1 -- src/authentication.js             │
-│  # → リネーム前のファイルの blame                      │
+│  # → blame of the file before rename                   │
 └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. git shortlog と統計分析
+## 6. git shortlog and Statistical Analysis
 
 ```bash
-# 著者別のコミット数
+# Commit count by author
 $ git shortlog -sn
     145  Gaku
      87  Tanaka
      53  Suzuki
 
-# 特定期間の著者別統計
+# Author statistics for a specific period
 $ git shortlog -sn --since="2025-01-01" --until="2025-03-01"
 
-# ファイル別の変更回数ランキング
+# Ranking of files by number of changes
 $ git log --name-only --pretty=format: | sort | uniq -c | sort -rn | head -20
 
-# 著者別の変更行数
+# Lines changed by author
 $ git log --author="Gaku" --numstat --pretty=format: | \
   awk '{added+=$1; deleted+=$2} END {print "Added:", added, "Deleted:", deleted}'
 
-# 月別のコミット数推移
+# Monthly commit count trend
 $ git log --format="%ai" | cut -d'-' -f1,2 | uniq -c
 ```
 
 ---
 
-## 7. 大規模プロジェクトでの効率化
+## 7. Efficiency for Large Projects
 
-### 7.1 bisectの効率化戦略
+### 7.1 bisect Efficiency Strategies
 
 ```bash
-# 戦略1: パス限定
+# Strategy 1: Path restriction
 $ git bisect start HEAD v1.0.0 -- src/auth/ tests/auth/
-# → 関連パスの変更があるコミットのみテスト
+# → Only test commits with changes to the relevant paths
 
-# 戦略2: first-parent
+# Strategy 2: first-parent
 $ git bisect start --first-parent HEAD v1.0.0
-# → マージコミットの第一親のみ辿る
-# → featureブランチのコミットをスキップ
+# → Only follow the first parent of merge commits
+# → Skip feature branch commits
 
-# 戦略3: 自動bisect + スキップ
+# Strategy 3: Automated bisect + skip
 $ git bisect run ./smart-test.sh
 # smart-test.sh:
 #!/bin/bash
-# 依存関係のインストール（キャッシュ使用）
+# Install dependencies (using cache)
 npm ci --cache /tmp/npm-cache 2>/dev/null || exit 125
 npm run build 2>/dev/null || exit 125
 npm test -- --bail --testPathPattern="auth" 2>/dev/null
 exit $?
 
-# 戦略4: 範囲の事前絞り込み
+# Strategy 4: Pre-narrowing the range
 $ git log --oneline --first-parent v1.0.0..HEAD | wc -l
-# 500 コミット
+# 500 commits
 $ git log --oneline --first-parent v1.0.0..HEAD -- src/auth/ | wc -l
-# 30 コミット → パス限定でテスト回数を大幅削減
+# 30 commits → Significantly reduce test count with path restriction
 ```
 
-### 7.2 blameの効率化
+### 7.2 blame Efficiency
 
 ```bash
-# 大規模ファイルのblameを高速化
+# Speed up blame for large files
 $ git blame --incremental src/auth.js
-# → 結果をインクリメンタルに出力（パイプラインに適す）
+# → Output results incrementally (suitable for pipelines)
 
-# 特定の行のみblame（全行をblameしない）
+# Blame only specific lines (don't blame all lines)
 $ git blame -L 100,120 src/auth.js
-# → 必要な行範囲のみ処理（高速）
+# → Process only the needed line range (fast)
 
-# .git-blame-ignore-revs で不要なコミットを除外
-# → フォーマット変更のコミットをスキップして高速化
+# Exclude unnecessary commits with .git-blame-ignore-revs
+# → Skip formatting change commits for faster processing
 
-# diff.renameLimit を調整
+# Adjust diff.renameLimit
 $ git config diff.renameLimit 10000
-# → リネーム検出の精度と速度のバランスを調整
+# → Balance rename detection accuracy and speed
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン1: bisect中にコードを手動修正する
+### Anti-Pattern 1: Manually Modifying Code During bisect
 
 ```bash
-# NG: bisect中に作業ディレクトリのファイルを修正
+# NG: Modifying working directory files during bisect
 $ git bisect start HEAD v1.0.0
-$ vim src/auth.js         # ← ファイルを修正してしまう
-$ git bisect good         # ← 修正した状態でテストした結果を報告
-# → 結果が不正確になり、誤ったコミットが原因として報告される
+$ vim src/auth.js         # ← Modify a file
+$ git bisect good         # ← Report results tested with the modification
+# → Results become inaccurate; wrong commit reported as the cause
 
-# OK: bisect中はコードを変更しない。テストのみ行う
+# OK: Don't change code during bisect. Only run tests.
 $ git bisect start HEAD v1.0.0
-$ npm test                # テストのみ実行
-$ git bisect bad          # 結果を正確に報告
+$ npm test                # Run tests only
+$ git bisect bad          # Report results accurately
 ```
 
-**理由**: bisectは各コミットの「そのままの状態」でテストすることが前提。手動修正を加えるとテスト条件が変わり、二分探索の前提が崩れる。
+**Reason**: bisect assumes testing each commit "as-is." Adding manual modifications changes the test conditions and breaks the premise of binary search.
 
-### アンチパターン2: blameの結果だけで犯人を決めつける
+### Anti-Pattern 2: Blaming Someone Based Only on blame Results
 
 ```bash
-# NG: blameの表示コミットが必ずしもバグの原因とは限らない
+# NG: The displayed commit in blame is not necessarily the bug cause
 $ git blame src/auth.js
-# Line 15: abc123 (Tanaka) ... ← "Tanakaがバグを入れた"と判断
-# → 実際にはTanakaはフォーマット変更しただけ。本当の原因は別のコミット
+# Line 15: abc123 (Tanaka) ... ← Judging "Tanaka introduced the bug"
+# → Tanaka actually only made a formatting change. The real cause is another commit.
 
-# OK: --ignore-revs-fileとlog -Lで深掘りする
+# OK: Dig deeper with --ignore-revs-file and log -L
 $ git blame --ignore-revs-file .git-blame-ignore-revs src/auth.js
 $ git log -p -L 15,15:src/auth.js
-# → フォーマット変更を除外し、実質的な変更履歴を追跡
+# → Exclude formatting changes and track substantive change history
 ```
 
-**理由**: blameは「最後にその行を変更したコミット」を表示するだけ。空白調整、リネーム、自動フォーマットのコミットが表示されることが多い。
+**Reason**: blame only shows "the commit that last changed that line." Whitespace adjustments, renames, and auto-formatting commits often appear instead of the real culprit.
 
-### アンチパターン3: bisect runのスクリプトでexit 125を使わない
+### Anti-Pattern 3: Not Using exit 125 in bisect run Scripts
 
 ```bash
-# NG: ビルドエラーをbadとして報告
+# NG: Report build errors as bad
 #!/bin/bash
 npm run build
 npm test
 exit $?
-# → ビルドが壊れているコミットもbadとして報告
-# → 実際のバグ混入コミットと区別できない
-# → bisectの結果が不正確になる
+# → Build-broken commits are also reported as bad
+# → Cannot distinguish from actual bug-introducing commits
+# → bisect results become inaccurate
 
-# OK: ビルドエラーはexit 125（skip）にする
+# OK: Exit with 125 (skip) for build errors
 #!/bin/bash
-npm run build 2>/dev/null || exit 125  # ビルド失敗はスキップ
+npm run build 2>/dev/null || exit 125  # Skip if build fails
 npm test
 exit $?
-# → ビルドできないコミットはスキップ
-# → テスト結果のみで正確にgood/badを判定
+# → Skip commits that can't be built
+# → Accurately judge good/bad based only on test results
 ```
 
-**理由**: exit 125はbisectに「このコミットはテスト不可能」と伝えるための特別なexit code。ビルドエラーやテスト環境の問題で正確にgood/bad判定できないコミットはスキップすべき。
+**Reason**: exit 125 is a special exit code to tell bisect "this commit cannot be tested." Commits where good/bad cannot be accurately determined due to build errors or test environment problems should be skipped.
 
-### アンチパターン4: 広い範囲でbisectを開始する
+### Anti-Pattern 4: Starting bisect with Too Wide a Range
 
 ```bash
-# NG: プロジェクトの最初のコミットからbisect
+# NG: Start bisect from the very first commit of the project
 $ git bisect start HEAD $(git rev-list --max-parents=0 HEAD)
-# → 数千〜数万コミットが対象になり、テスト環境の変化も大きい
-# → 古いコミットではビルドすらできない可能性が高い
+# → Thousands to tens of thousands of commits become targets
+# → Test environment changes significantly over that range
+# → Old commits may not even build
 
-# OK: 範囲を適切に絞り込んでから開始
+# OK: Narrow the range appropriately before starting
 $ git log --oneline --since="2025-01-01" | tail -1
-# def456 最古のコミット
+# def456 oldest commit
 $ git bisect start HEAD def456
-# → 直近の変更に限定してbisect
+# → Limit bisect to recent changes
 
-# さらに良い: パス限定も追加
+# Even better: Add path restriction
 $ git bisect start HEAD def456 -- src/auth/
-# → 関連ファイルの変更のみを対象
+# → Only target changes to relevant files
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement error handling appropriately
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -965,26 +975,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -992,7 +1002,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1003,14 +1013,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1018,7 +1028,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1026,44 +1036,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1072,7 +1082,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1087,47 +1097,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Configuration file issues | Check configuration file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Check execution user permissions, review configuration |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify the location of occurrence
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Stepwise verification**: Verify hypotheses using log output or a debugger
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1135,102 +1145,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs input and output of a function"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Check the status of disk and network I/O
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem type    | Diagnostic tool              | Solution                            |
+|-----------------|------------------------------|-------------------------------------|
+| CPU load        | cProfile, py-spy             | Algorithm improvements, parallelization |
+| Memory leak     | tracemalloc, objgraph        | Properly release references         |
+| I/O bottleneck  | strace, iostat               | Async I/O, caching                  |
+| DB latency      | EXPLAIN, slow query log      | Indexing, query optimization        |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criteria        | Prioritize when                          | Can compromise when                      |
+|-----------------|------------------------------------------|------------------------------------------|
+| Performance     | Real-time processing, large-scale data   | Admin panels, batch processing           |
+| Maintainability | Long-term operation, team development    | Prototypes, short-term projects          |
+| Scalability     | Services expected to grow               | Internal tools, fixed user base          |
+| Security        | Personal data, financial data           | Public data, internal use                |
+| Dev speed       | MVP, time-to-market                     | Quality-focused, mission critical        |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│         Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① Team size?                                   │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② Deployment frequency?                        │
+│    ├─ Weekly or less → Monolith + modules       │
+│    └─ Daily/multiple times → Go to ③            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ Team independence?                           │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs long-term cost**
+- A faster short-term approach can become technical debt in the long term
+- Conversely, over-engineering has a high short-term cost and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs flexibility**
+- A unified technology stack has low learning costs
+- Adopting diverse technologies allows "right tool for the job" but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction offers reusability but can make debugging harder
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1240,17 +1250,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision content"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1258,7 +1268,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1266,15 +1276,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1282,53 +1292,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum required features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't strive for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renovating a system that has been running for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Write Characterization Tests first if no existing tests exist
+- Use an API gateway to coexist new and old systems
+- Migrate data in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase       | Work content                              | Estimated duration | Risk   |
+|-------------|-------------------------------------------|--------------------|--------|
+| 1. Survey   | Current state analysis, mapping dependencies | 2-4 weeks        | Low    |
+| 2. Foundation| Set up CI/CD, test environment           | 4-6 weeks          | Low    |
+| 3. Migration begins | Migrate peripheral functions first | 3-6 months        | Medium |
+| 4. Core migration | Migrate core functions              | 6-12 months        | High   |
+| 5. Completion | Decommission old system              | 2-4 weeks          | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use Domain-Driven Design to clarify boundaries
+- Set ownership per team
+- Manage shared libraries using Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1341,20 +1351,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1363,7 +1373,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1384,159 +1394,159 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems where millisecond-level response times are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leverage asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization method    | Effect  | Implementation cost | Use case                         |
+|------------------------|---------|---------------------|----------------------------------|
+| In-memory cache        | High    | Low                 | Frequently accessed data         |
+| CDN                    | High    | Low                 | Static content                   |
+| Async processing       | Medium  | Medium              | I/O-heavy processing             |
+| DB optimization        | High    | High                | When queries are slow            |
+| Code optimization      | Low-Med | High                | CPU-bound processing             |
 
 ---
 
-## チーム開発での活用
+## Team Development Usage
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Is the naming convention consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any performance impact?
+- [ ] Are there any security issues?
+- [ ] Has documentation been updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Method              | Frequency     | Audience          | Effect                         |
+|---------------------|---------------|-------------------|--------------------------------|
+| Pair programming    | As needed     | Complex tasks     | Immediate feedback             |
+| Tech talk           | Weekly        | Entire team       | Horizontal knowledge spread    |
+| ADR (design record) | As needed     | Future members    | Transparency in decision-making|
+| Retrospective       | Bi-weekly     | Entire team       | Continuous improvement         |
+| Mob programming     | Monthly       | Key designs       | Consensus building             |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority matrix:
 
-        影響度 高
+        High impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan│ Act │
+    │ ned │ imm.│
+    │     │     │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Log │ Next│
+    │ only│Sprint│
+    │     │     │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low impact
+    Low frequency  High frequency
 ```
 ---
 
 ## 9. FAQ
 
-### Q1. bisectはマージコミットを正しく扱えるか？
+### Q1. Can bisect handle merge commits correctly?
 
-**A1.** はい、bisectは**DAG（有向非巡回グラフ）上の二分探索**を行うため、マージコミットが含まれる複雑な履歴でも正しく動作します。ただし、マージコミット自体のテストが困難な場合は`git bisect skip`でスキップできます。直線的な履歴と比較すると、マージが多い場合はステップ数がやや増える可能性があります。
+**A1.** Yes, bisect performs **binary search on a DAG (Directed Acyclic Graph)**, so it works correctly even with complex histories containing merge commits. However, if testing the merge commit itself is difficult, you can skip it with `git bisect skip`. Compared to a linear history, having many merges may slightly increase the number of steps.
 
-`--first-parent`オプション（Git 2.29+）を使うと、マージの第一親のみを辿るため、マージ単位での二分探索が可能です。
+Using the `--first-parent` option (Git 2.29+) only follows the first parent of merges, enabling binary search at the merge unit level.
 
-### Q2. blameで削除された行の履歴を追跡するには？
+### Q2. How do I track the history of a deleted line with blame?
 
-**A2.** 直接的な方法はありませんが、以下のアプローチで追跡できます。
+**A2.** There is no direct method, but you can track it with the following approaches.
 
 ```bash
-# 方法1: pickaxeで文字列の追加・削除コミットを検索
-$ git log -S "削除された行の内容" --all -p
+# Method 1: Use pickaxe to search for commits that added or deleted the string
+$ git log -S "content of the deleted line" --all -p
 
-# 方法2: 特定行範囲の変更履歴をlog -Lで追跡
+# Method 2: Track change history for a specific line range with log -L
 $ git log -p -L '15,20:src/auth.js'
-# → 過去に存在した行を含む変更履歴が表示される
+# → Shows change history including lines that previously existed
 
-# 方法3: 削除前のコミットでblame
-$ git blame <削除直前のcommit>~1 -- src/auth.js
+# Method 3: blame at the commit before deletion
+$ git blame <commit just before deletion>~1 -- src/auth.js
 
-# 方法4: git log --diff-filter=D で削除されたファイル自体を検索
+# Method 4: Find deleted files themselves with git log --diff-filter=D
 $ git log --diff-filter=D --summary -- src/deprecated/
-# → 削除されたファイルの一覧
+# → List of deleted files
 ```
 
-### Q3. 数千コミットの範囲でbisectする場合、効率化する方法はあるか？
+### Q3. Is there a way to improve efficiency when running bisect across thousands of commits?
 
-**A3.** いくつかの戦略があります。
+**A3.** There are several strategies.
 
-1. **パス限定**: `git bisect start HEAD v1.0.0 -- src/auth/`で関連パスに変更があるコミットのみを対象にする
-2. **自動bisect**: `git bisect run`でテストスクリプトを自動実行する
-3. **ビルド不能コミットのスキップ**: テストスクリプトでexit 125を返す
-4. **first-parentのみ**: `git bisect start --first-parent`でマージの第一親のみを辿る（Git 2.29+）
+1. **Path restriction**: Use `git bisect start HEAD v1.0.0 -- src/auth/` to only target commits with changes to relevant paths
+2. **Automated bisect**: Automatically run a test script with `git bisect run`
+3. **Skip non-buildable commits**: Return exit 125 in test scripts
+4. **first-parent only**: Use `git bisect start --first-parent` to only follow the first parent of merges (Git 2.29+)
 
 ```bash
 $ git bisect start --first-parent HEAD v1.0.0 -- src/auth/
 $ git bisect run ./test-auth-bug.sh
-# → 対象を絞り込み、自動実行で高速に特定
+# → Narrow the scope and run automatically for fast identification
 ```
 
-### Q4. blameの-Mと-Cはどのような場面で使うべきか？
+### Q4. When should I use blame's -M and -C?
 
-**A4.** 以下のような場面で使用します。
+**A4.** Use them in the following situations.
 
-| オプション | 場面                                              | 例                                    |
-|-----------|---------------------------------------------------|---------------------------------------|
-| -M        | 同一ファイル内でコードが移動された場合             | 関数の並べ替え                        |
-| -C        | 別ファイルからコピーされたコードの原点を知りたい場合| リファクタリングでファイル分割         |
-| -C -C     | ファイル作成時にコピーされたコードの原点            | テンプレートからの新規ファイル作成     |
-| -C -C -C  | 全履歴にわたるコピーの完全な検出                   | コードの出自の完全な追跡（低速）      |
+| Option    | Situation                                              | Example                                    |
+|-----------|--------------------------------------------------------|--------------------------------------------|
+| -M        | When code was moved within the same file              | Reordering functions                       |
+| -C        | When you want to know the origin of code copied from another file | Splitting files during refactoring |
+| -C -C     | Origin of code copied when a file was created         | Creating new files from templates          |
+| -C -C -C  | Complete detection of copies across all history       | Complete tracing of code origin (slow)    |
 
-### Q5. git log -L は関数の境界をどのように検出するか？
+### Q5. How does git log -L detect function boundaries?
 
-**A5.** Gitは`.gitattributes`で定義された言語ごとの関数パターンを使用します。デフォルトでは多くの言語をサポートしていますが、カスタマイズも可能です。
+**A5.** Git uses per-language function patterns defined in `.gitattributes`. Many languages are supported by default, but customization is also possible.
 
 ```bash
-# デフォルトの関数検出パターンの確認
+# Check the default function detection pattern
 $ git config diff.javascript.xfuncname
-# → JavaScriptの関数定義を検出する正規表現
+# → Regular expression to detect JavaScript function definitions
 
-# カスタムパターンの設定
+# Set a custom pattern
 $ cat .gitattributes
 *.js diff=javascript
 *.py diff=python
 *.rs diff=rust
 
-# カスタム言語の関数パターンを定義
+# Define function pattern for a custom language
 $ git config diff.myLang.xfuncname "^\\s*(function|class|def)\\s+.*$"
 ```
 
-### Q6. bisectの結果が間違っている（偽の原因コミットが報告される）場合の対処法は？
+### Q6. What to do when the bisect result is wrong (a false cause commit is reported)?
 
-**A6.** 以下の原因と対処法があります。
+**A6.** The following are causes and solutions.
 
-1. **テストが不安定（flaky test）**: テストスクリプトで複数回テストを実行し、多数決で判定する
-2. **ビルドエラーをbadと報告**: exit 125でスキップするようにスクリプトを修正
-3. **環境依存**: テストスクリプト内で環境を初期化（node_modules再インストール等）
-4. **bisect中にコードを変更**: `git bisect reset`でやり直す
+1. **Unstable (flaky) tests**: In the test script, run tests multiple times and use a majority vote
+2. **Reporting build errors as bad**: Fix the script to return exit 125 on skip
+3. **Environment dependency**: Initialize the environment within the test script (e.g., reinstall node_modules)
+4. **Modified code during bisect**: Restart with `git bisect reset`
 
 ```bash
-# 安定したテストスクリプトの例
+# Example of a stable test script
 #!/bin/bash
-npm ci 2>/dev/null || exit 125           # 依存関係を確実にインストール
-npm run build 2>/dev/null || exit 125     # ビルド失敗はスキップ
-# 3回テストして2回以上成功ならgood
+npm ci 2>/dev/null || exit 125           # Ensure dependencies are installed
+npm run build 2>/dev/null || exit 125     # Skip if build fails
+# Run 3 tests; good if 2 or more pass
 PASS=0
 for i in 1 2 3; do
   npm test -- --bail --testPathPattern="login" 2>/dev/null && PASS=$((PASS+1))
@@ -1549,49 +1559,49 @@ done
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Rather than theory alone, writing and running actual code deepens understanding.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Jumping to advanced topics without mastering the basics. It is recommended to thoroughly understand the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 概念                | 要点                                                          |
-|---------------------|---------------------------------------------------------------|
-| git bisect          | 二分探索でバグ混入コミットを O(log n) で特定                  |
-| bisect run          | テストスクリプトで自動bisect、exit codeで判定                 |
-| exit 125            | bisect runでテスト不可能なコミットをスキップ                  |
-| --first-parent      | マージの第一親のみ辿り、マージ単位でbisect                   |
-| git blame           | 各行の最終変更コミット・著者・日時を表示                      |
-| blame -M -C         | コード移動・コピーを検出して元のコミットを表示                |
-| ignore-revs-file    | フォーマット変更等のノイズをblameから除外                     |
-| git log -S          | 特定文字列の出現回数が変化したコミットを検索（pickaxe）       |
-| git log -G          | 差分に正規表現がマッチするコミットを検索                      |
-| git log -L          | 特定行範囲の変更履歴を追跡                                    |
-| --follow            | ファイルリネームを追跡してログを表示                          |
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [インタラクティブRebase](./00-interactive-rebase.md) — bisectで見つけたコミットの修正
-- [Git Hooks](./03-hooks-automation.md) — bisectテストの自動化との連携
-- [マージアルゴリズム](../00-git-internals/02-merge-algorithms.md) — マージ履歴上でのbisect
+| Concept             | Key Point                                                          |
+|---------------------|--------------------------------------------------------------------|
+| git bisect          | Identify the bug-introducing commit in O(log n) via binary search  |
+| bisect run          | Automated bisect with test scripts; judged by exit code            |
+| exit 125            | Skip non-testable commits in bisect run                            |
+| --first-parent      | Follow only the first parent of merges; bisect at merge unit level |
+| git blame           | Show the last modifying commit, author, and date for each line     |
+| blame -M -C         | Detect code moves/copies and show the original commit              |
+| ignore-revs-file    | Exclude noise like formatting changes from blame                   |
+| git log -S          | Find commits where the occurrence count of a string changed (pickaxe) |
+| git log -G          | Find commits where the diff matches a regex                        |
+| git log -L          | Track change history for a specific line range                     |
+| --follow            | Show logs tracking file renames                                    |
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+- [Interactive Rebase](./00-interactive-rebase.md) — Fixing commits found with bisect
+- [Git Hooks](./03-hooks-automation.md) — Integration with bisect test automation
+- [Merge Algorithms](../00-git-internals/02-merge-algorithms.md) — bisect on merge history
+
+---
+
+## References
 
 1. **Pro Git Book** — "Git Tools - Debugging with Git" https://git-scm.com/book/en/v2/Git-Tools-Debugging-with-Git
-2. **Git公式ドキュメント** — `git-bisect`, `git-blame`, `git-log` https://git-scm.com/docs
+2. **Git Official Documentation** — `git-bisect`, `git-blame`, `git-log` https://git-scm.com/docs
 3. **GitHub Docs** — "Using git blame to trace changes in a file" https://docs.github.com/en/repositories/working-with-files/using-files/viewing-a-file#viewing-the-line-by-line-revision-history-for-a-file
 4. **Christian Couder** — "Fighting regressions with git bisect" https://git-scm.com/docs/git-bisect-lk2009
