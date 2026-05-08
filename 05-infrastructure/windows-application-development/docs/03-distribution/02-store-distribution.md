@@ -1,120 +1,120 @@
-# ストア配布 (Store Distribution)
+# Store Distribution
 
-> Microsoft Store (MSIX)、Mac App Store、GitHub Releases を活用し、CI/CD パイプラインで自動化されたアプリケーション配布を実現する技術を学ぶ。
+> Learn the techniques for automated application distribution using Microsoft Store (MSIX), Mac App Store, and GitHub Releases in a CI/CD pipeline.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **MSIX パッケージングと Microsoft Store 配布** -- Windows アプリを MSIX 形式でパッケージし、Microsoft Store に公開するまでの全工程を理解する
-2. **Mac App Store と GitHub Releases の配布戦略** -- macOS アプリのサンドボックス対応と、GitHub Releases を使った直接配布を使い分ける
-3. **CI/CD による自動ビルド・署名・公開パイプライン** -- GitHub Actions を中心に、マルチプラットフォームのリリース自動化を構築する
-4. **Linux パッケージ配布** -- Snap Store、Flathub、自前 APT リポジトリへの配布手法を理解する
-5. **企業内配布 (LOB/MDM)** -- Microsoft Intune や Jamf を使った企業向けアプリ配布を理解する
+1. **MSIX Packaging and Microsoft Store Distribution** -- Understand the full process of packaging Windows apps in MSIX format and publishing them to the Microsoft Store
+2. **Mac App Store and GitHub Releases Distribution Strategies** -- Learn when to use macOS app sandboxing for the Mac App Store versus direct distribution via GitHub Releases
+3. **Automated Build, Signing, and Publishing Pipelines with CI/CD** -- Build multi-platform release automation centered on GitHub Actions
+4. **Linux Package Distribution** -- Understand distribution methods for Snap Store, Flathub, and self-hosted APT repositories
+5. **Enterprise Distribution (LOB/MDM)** -- Understand enterprise app distribution using Microsoft Intune and Jamf
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [自動更新 (Auto Update)](./01-auto-update.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Auto Update](./01-auto-update.md)
 
 ---
 
-## 1. 配布チャネルの全体像
+## 1. Overview of Distribution Channels
 
 ```
 +------------------------------------------------------------------+
-|                    配布チャネルの選択マップ                          |
+|                    Distribution Channel Selection Map             |
 +------------------------------------------------------------------+
 |                                                                  |
-|  ソースコード (GitHub / GitLab)                                   |
+|  Source Code (GitHub / GitLab)                                   |
 |       |                                                          |
 |       v                                                          |
-|  CI/CD パイプライン                                               |
+|  CI/CD Pipeline                                                  |
 |       |                                                          |
-|       +-----> Microsoft Store (MSIX)     [Windows ユーザー]       |
-|       |          - 自動更新・サンドボックス                         |
-|       |          - 企業配布(LOB)対応                               |
+|       +-----> Microsoft Store (MSIX)     [Windows Users]         |
+|       |          - Auto-update & sandbox                         |
+|       |          - Enterprise distribution (LOB)                 |
 |       |                                                          |
-|       +-----> Mac App Store (pkg/app)    [macOS ユーザー]         |
-|       |          - サンドボックス必須                               |
-|       |          - Notarization 必須                              |
+|       +-----> Mac App Store (pkg/app)    [macOS Users]           |
+|       |          - Sandbox required                              |
+|       |          - Notarization required                         |
 |       |                                                          |
-|       +-----> GitHub Releases            [開発者/パワーユーザー]   |
-|       |          - 直接DL・自由な形式                              |
-|       |          - electron-updater 連携                          |
+|       +-----> GitHub Releases            [Developers/Power Users]|
+|       |          - Direct download, flexible format              |
+|       |          - electron-updater integration                  |
 |       |                                                          |
-|       +-----> Snap Store / Flathub       [Linux ユーザー]         |
-|       |          - サンドボックス配布                               |
-|       |          - 自動更新対応                                    |
+|       +-----> Snap Store / Flathub       [Linux Users]           |
+|       |          - Sandboxed distribution                        |
+|       |          - Auto-update support                           |
 |       |                                                          |
-|       +-----> 自社サイト / CDN            [企業向け]              |
-|       |          - 完全制御                                       |
-|       |          - カスタムインストーラー                           |
+|       +-----> Own Website / CDN          [Enterprise]            |
+|       |          - Full control                                  |
+|       |          - Custom installer                              |
 |       |                                                          |
-|       +-----> 企業内配布 (LOB/MDM)        [社内ユーザー]          |
-|                  - Intune / Jamf 連携                             |
-|                  - サイレントインストール                           |
+|       +-----> Enterprise Distribution (LOB/MDM) [Internal Users] |
+|                  - Intune / Jamf integration                     |
+|                  - Silent installation                           |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 1.1 配布チャネル比較表
+### 1.1 Distribution Channel Comparison Table
 
-| 項目 | Microsoft Store | Mac App Store | GitHub Releases | Snap Store | 自社サイト |
-|------|----------------|---------------|-----------------|------------|----------|
-| 審査 | あり(1-3日) | あり(1-7日) | なし | あり(自動) | なし |
-| 手数料 | 15%(アプリ) / 12%(ゲーム) | 30% / 15%(小規模) | 無料 | 無料 | 無料 |
-| 自動更新 | OS 標準 | OS 標準 | 自前実装 | snapd | 自前実装 |
-| サンドボックス | MSIX は制限あり | 必須 | なし | あり(strict) | なし |
-| 到達範囲 | Windows 10/11 ユーザー | macOS ユーザー | 技術者中心 | Ubuntu中心 | 任意 |
-| パッケージ形式 | MSIX / MSIX Bundle | pkg / app (zip) | exe/msi/dmg/AppImage | snap | 任意 |
-| 企業配布 | LOB 対応 | MDM 対応 | 非対応 | 非対応 | 任意 |
-| オフラインインストール | 可能(サイドロード) | 不可 | 可能 | 可能 | 可能 |
+| Item | Microsoft Store | Mac App Store | GitHub Releases | Snap Store | Own Website |
+|------|----------------|---------------|-----------------|------------|-------------|
+| Review | Yes (1-3 days) | Yes (1-7 days) | None | Yes (automated) | None |
+| Fee | 15% (apps) / 12% (games) | 30% / 15% (small scale) | Free | Free | Free |
+| Auto-update | OS standard | OS standard | Self-implemented | snapd | Self-implemented |
+| Sandbox | MSIX has restrictions | Required | None | Yes (strict) | None |
+| Reach | Windows 10/11 users | macOS users | Developers-focused | Ubuntu-centric | Any |
+| Package format | MSIX / MSIX Bundle | pkg / app (zip) | exe/msi/dmg/AppImage | snap | Any |
+| Enterprise distribution | LOB support | MDM support | Not supported | Not supported | Any |
+| Offline install | Possible (sideload) | Not possible | Possible | Possible | Possible |
 
-### 1.2 配布チャネル選定のフローチャート
+### 1.2 Distribution Channel Selection Flowchart
 
-アプリケーションの性質に応じて最適な配布チャネルを選定する指針を以下に示す。
+The following provides guidance for selecting the optimal distribution channel based on the nature of your application.
 
 ```
-[ターゲットユーザーは誰か？]
+[Who is the target user?]
      |
-     +--- 一般消費者（非技術者）
+     +--- General consumers (non-technical)
      |        |
-     |        +--- Windows → Microsoft Store (MSIX) を第一候補
-     |        +--- macOS → Mac App Store を第一候補
+     |        +--- Windows → Microsoft Store (MSIX) as first choice
+     |        +--- macOS → Mac App Store as first choice
      |        +--- Linux → Snap Store / Flathub
      |
-     +--- 開発者・技術者
+     +--- Developers / technical users
      |        |
-     |        +--- GitHub Releases + 自動更新 (electron-updater / Tauri updater)
-     |        +--- 補助: Store にも掲載して発見性を高める
+     |        +--- GitHub Releases + auto-update (electron-updater / Tauri updater)
+     |        +--- Supplement: also list on Store for discoverability
      |
-     +--- 企業内ユーザー
+     +--- Enterprise internal users
      |        |
-     |        +--- Windows → Intune + MSIX サイドロード
+     |        +--- Windows → Intune + MSIX sideload
      |        +--- macOS → Jamf + pkg
-     |        +--- 共通 → 自社 CDN + MDM 連携
+     |        +--- Common → Own CDN + MDM integration
      |
-     +--- 全プラットフォーム最大到達
+     +--- Maximum reach across all platforms
               |
-              +--- Store + GitHub Releases + 自社サイトの三本柱
-              +--- CI/CD で全チャネル同時配信
+              +--- Store + GitHub Releases + own website: three pillars
+              +--- Simultaneous multi-channel delivery via CI/CD
 ```
 
 ---
 
-## 2. Microsoft Store (MSIX) 配布
+## 2. Microsoft Store (MSIX) Distribution
 
-### 2.1 MSIX パッケージの構造
+### 2.1 MSIX Package Structure
 
 ```
 +-----------------------------------------------+
-|  MSIX パッケージ (.msix)                        |
+|  MSIX Package (.msix)                          |
 +-----------------------------------------------+
 |                                               |
-|  AppxManifest.xml    ← アプリ情報・権限宣言     |
+|  AppxManifest.xml    <- App info & permissions |
 |  Assets/                                      |
 |    +-- Square150x150Logo.png                  |
 |    +-- Square44x44Logo.png                    |
@@ -126,15 +126,15 @@
 |  app/                                         |
 |    +-- myapp.exe                              |
 |    +-- resources/                             |
-|    +-- node_modules/ (Electron の場合)         |
-|  AppxBlockMap.xml    ← ブロック単位ハッシュ      |
-|  AppxSignature.p7x   ← デジタル署名            |
+|    +-- node_modules/ (for Electron)           |
+|  AppxBlockMap.xml    <- Block-level hashes     |
+|  AppxSignature.p7x   <- Digital signature     |
 |  [Content_Types].xml                          |
 |                                               |
 +-----------------------------------------------+
 ```
 
-### 2.2 electron-builder での MSIX 生成
+### 2.2 Generating MSIX with electron-builder
 
 ```yaml
 # electron-builder.yml
@@ -165,7 +165,7 @@ publish:
     repo: myapp
 ```
 
-### 2.3 AppxManifest.xml の設定
+### 2.3 AppxManifest.xml Configuration
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -219,7 +219,7 @@ publish:
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
 
-      <!-- ファイル関連付け -->
+      <!-- File associations -->
       <Extensions>
         <uap:Extension Category="windows.fileTypeAssociation">
           <uap:FileTypeAssociation Name="myapp-project">
@@ -232,14 +232,14 @@ publish:
           </uap:FileTypeAssociation>
         </uap:Extension>
 
-        <!-- プロトコルハンドラ (myapp:// で起動) -->
+        <!-- Protocol handler (launch via myapp://) -->
         <uap:Extension Category="windows.protocol">
           <uap:Protocol Name="myapp">
             <uap:DisplayName>MyApp Protocol</uap:DisplayName>
           </uap:Protocol>
         </uap:Extension>
 
-        <!-- スタートアップ起動 -->
+        <!-- Startup launch -->
         <desktop:Extension Category="windows.startupTask">
           <desktop:StartupTask
             TaskId="MyAppStartup"
@@ -247,7 +247,7 @@ publish:
             DisplayName="MyApp を起動時に実行" />
         </desktop:Extension>
 
-        <!-- トースト通知アクティベーション -->
+        <!-- Toast notification activation -->
         <desktop:Extension Category="windows.toastNotificationActivation">
           <desktop:ToastNotificationActivation
             ToastActivatorCLSID="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" />
@@ -265,41 +265,41 @@ publish:
 </Package>
 ```
 
-### 2.4 Partner Center への提出フロー
+### 2.4 Partner Center Submission Flow
 
 ```
 +------------------------------------------------------------------+
-|           Microsoft Store 提出フロー                               |
+|           Microsoft Store Submission Flow                         |
 +------------------------------------------------------------------+
 |                                                                  |
-|  1. Partner Center アカウント作成 ($19 一回のみ)                   |
+|  1. Create a Partner Center account ($19 one-time fee)           |
 |       |                                                          |
-|  2. アプリ名の予約                                                |
+|  2. Reserve the app name                                         |
 |       |                                                          |
-|  3. Identity 情報の取得                                           |
-|     (identityName, publisher, publisherDisplayName)               |
+|  3. Retrieve identity information                                |
+|     (identityName, publisher, publisherDisplayName)              |
 |       |                                                          |
-|  4. MSIX パッケージのビルド & 署名                                 |
+|  4. Build & sign the MSIX package                                |
 |       |                                                          |
-|  5. Partner Center にアップロード                                  |
-|     - パッケージ (.msix / .msixbundle)                            |
-|     - スクリーンショット (最低1枚)                                 |
-|     - 説明文 (日本語/英語)                                        |
-|     - プライバシーポリシー URL                                     |
+|  5. Upload to Partner Center                                     |
+|     - Package (.msix / .msixbundle)                              |
+|     - Screenshots (at least 1)                                   |
+|     - Description (Japanese/English)                             |
+|     - Privacy policy URL                                         |
 |       |                                                          |
-|  6. 認定テスト (自動 + 手動)                                      |
-|     - セキュリティスキャン                                        |
-|     - API 準拠チェック                                            |
-|     - コンテンツポリシー                                          |
+|  6. Certification testing (automated + manual)                   |
+|     - Security scan                                              |
+|     - API compliance check                                       |
+|     - Content policy                                             |
 |       |                                                          |
-|  7. 公開 (審査通過後、即時 or スケジュール)                        |
+|  7. Publish (after passing review: immediate or scheduled)       |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### 2.5 Partner Center API による自動提出
+### 2.5 Automated Submission via Partner Center API
 
-CI/CD から Partner Center API を使って MSIX パッケージを自動提出するスクリプトを以下に示す。
+The following script automatically submits MSIX packages to Partner Center from a CI/CD pipeline using the Partner Center Submission API.
 
 ```typescript
 // scripts/submit-to-store.ts
@@ -489,9 +489,9 @@ main().catch((error) => {
 });
 ```
 
-### 2.6 WACK (Windows App Certification Kit) による事前検証
+### 2.6 Pre-validation with WACK (Windows App Certification Kit)
 
-Microsoft Store に提出する前に、WACK を使ってローカルで事前検証を行う。
+Before submitting to the Microsoft Store, use WACK to run pre-validation locally.
 
 ```powershell
 # PowerShell: WACK による MSIX 検証
@@ -551,7 +551,7 @@ if ($app) {
 }
 ```
 
-### 2.7 MSIX Bundle (マルチアーキテクチャ)
+### 2.7 MSIX Bundle (Multi-Architecture)
 
 ```powershell
 # PowerShell: 複数アーキテクチャの MSIX を Bundle にまとめる
@@ -574,9 +574,9 @@ Write-Host "MSIX Bundle 作成完了: $bundlePath"
 
 ---
 
-## 3. Mac App Store 配布
+## 3. Mac App Store Distribution
 
-### 3.1 サンドボックス対応の entitlements
+### 3.1 Sandbox-Compatible Entitlements
 
 ```xml
 <!-- entitlements.mas.plist (Mac App Store 用) -->
@@ -646,7 +646,7 @@ Write-Host "MSIX Bundle 作成完了: $bundlePath"
 </plist>
 ```
 
-### 3.2 electron-builder の Mac App Store 設定
+### 3.2 electron-builder Mac App Store Configuration
 
 ```yaml
 # electron-builder.yml (macOS 部分)
@@ -675,7 +675,7 @@ mas:
 afterSign: scripts/notarize.js
 ```
 
-### 3.3 Notarization スクリプト
+### 3.3 Notarization Script
 
 ```javascript
 // scripts/notarize.js
@@ -705,7 +705,7 @@ exports.default = async function notarizing(context) {
 };
 ```
 
-### 3.4 App Store Connect への提出自動化
+### 3.4 Automating App Store Connect Submission
 
 ```bash
 #!/bin/bash
@@ -766,7 +766,7 @@ echo "[4/4] App Store Connect ダッシュボードで審査を開始してく�
 echo "=== 提出完了 ==="
 ```
 
-### 3.5 Provisioning Profile の管理
+### 3.5 Managing Provisioning Profiles
 
 ```bash
 #!/bin/bash
@@ -800,7 +800,7 @@ echo "プロファイル配置完了: $PROFILE_PATH"
 cp "$PROFILE_PATH" "./build/embedded.provisionprofile"
 ```
 
-### 3.6 Tauri アプリの Mac App Store 対応
+### 3.6 Tauri App Support for Mac App Store
 
 ```rust
 // src-tauri/src/main.rs
@@ -878,9 +878,9 @@ fn main() {
 
 ---
 
-## 4. GitHub Releases 配布
+## 4. GitHub Releases Distribution
 
-### 4.1 GitHub Actions ワークフロー (Electron)
+### 4.1 GitHub Actions Workflow (Electron)
 
 ```yaml
 # .github/workflows/release.yml
@@ -953,7 +953,7 @@ jobs:
           draft: true
 ```
 
-### 4.2 Tauri の GitHub Actions ワークフロー
+### 4.2 Tauri GitHub Actions Workflow
 
 ```yaml
 # .github/workflows/tauri-release.yml
@@ -1049,7 +1049,7 @@ jobs:
             });
 ```
 
-### 4.3 リリースノート自動生成
+### 4.3 Automated Release Notes Generation
 
 ```typescript
 // scripts/generate-release-notes.ts
@@ -1093,12 +1093,12 @@ function parseCommits(since: string): CommitInfo[] {
 
 function generateNotes(commits: CommitInfo[]): string {
   const sections: Record<string, { title: string; items: string[] }> = {
-    feat: { title: '新機能', items: [] },
-    fix: { title: 'バグ修正', items: [] },
-    perf: { title: 'パフォーマンス改善', items: [] },
-    refactor: { title: 'リファクタリング', items: [] },
-    docs: { title: 'ドキュメント', items: [] },
-    chore: { title: 'その他', items: [] },
+    feat: { title: 'New Features', items: [] },
+    fix: { title: 'Bug Fixes', items: [] },
+    perf: { title: 'Performance Improvements', items: [] },
+    refactor: { title: 'Refactoring', items: [] },
+    docs: { title: 'Documentation', items: [] },
+    chore: { title: 'Other', items: [] },
   };
 
   const breakingChanges: string[] = [];
@@ -1116,7 +1116,7 @@ function generateNotes(commits: CommitInfo[]): string {
   let notes = '';
 
   if (breakingChanges.length > 0) {
-    notes += '## 破壊的変更\n\n';
+    notes += '## Breaking Changes\n\n';
     notes += breakingChanges.join('\n') + '\n\n';
   }
 
@@ -1144,19 +1144,19 @@ console.log(notes);
 
 ---
 
-## 5. Linux パッケージ配布
+## 5. Linux Package Distribution
 
-### 5.1 Snap パッケージ
+### 5.1 Snap Package
 
 ```yaml
 # snap/snapcraft.yaml
 name: myapp
 base: core22
 version: '1.2.0'
-summary: 高機能デスクトップアプリケーション
+summary: Feature-rich desktop application
 description: |
-  MyApp は高機能なデスクトップアプリケーションです。
-  クロスプラットフォーム対応で、直感的な UI を提供します。
+  MyApp is a feature-rich desktop application.
+  Cross-platform with an intuitive UI.
 
 grade: stable
 confinement: strict
@@ -1229,7 +1229,7 @@ snapcraft status myapp
 echo "=== Snap Store 公開完了 (チャネル: $CHANNEL) ==="
 ```
 
-### 5.2 Flatpak パッケージ
+### 5.2 Flatpak Package
 
 ```yaml
 # com.example.MyApp.yaml (Flatpak マニフェスト)
@@ -1263,7 +1263,7 @@ modules:
         sha256: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
-### 5.3 自前 APT リポジトリの構築
+### 5.3 Building a Self-Hosted APT Repository
 
 ```bash
 #!/bin/bash
@@ -1314,7 +1314,7 @@ aws s3 sync "$REPO_DIR" "s3://$S3_BUCKET/" \
   --cache-control "max-age=300"
 
 echo "=== APT リポジトリ更新完了 ==="
-echo "ユーザー側の設定:"
+echo "User-side configuration:"
 echo "  curl -fsSL https://apt.example.com/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/myapp.gpg"
 echo "  echo 'deb [signed-by=/etc/apt/keyrings/myapp.gpg] https://apt.example.com stable main' | sudo tee /etc/apt/sources.list.d/myapp.list"
 echo "  sudo apt update && sudo apt install myapp"
@@ -1322,16 +1322,16 @@ echo "  sudo apt update && sudo apt install myapp"
 
 ---
 
-## 6. CI/CD パイプライン全体設計
+## 6. CI/CD Pipeline Overall Design
 
-### 6.1 リリースパイプラインの全体像
+### 6.1 Overview of the Release Pipeline
 
 ```
 +------------------------------------------------------------------+
-|                    リリースパイプライン全体像                        |
+|                    Release Pipeline Overview                      |
 +------------------------------------------------------------------+
 |                                                                  |
-|  [開発者]                                                        |
+|  [Developer]                                                     |
 |     |                                                            |
 |     v  git tag v1.2.0 && git push --tags                        |
 |                                                                  |
@@ -1341,7 +1341,7 @@ echo "  sudo apt update && sudo apt install myapp"
 |     |       - npm ci                                             |
 |     |       - npm test                                           |
 |     |       - electron-builder --win (NSIS + MSIX)               |
-|     |       - signtool (Authenticode 署名)                       |
+|     |       - signtool (Authenticode signature)                  |
 |     |       - Upload to GitHub Release                           |
 |     |       - Upload to Partner Center (MSIX)                    |
 |     |                                                            |
@@ -1363,7 +1363,7 @@ echo "  sudo apt update && sudo apt install myapp"
 +------------------------------------------------------------------+
 ```
 
-### 6.2 マルチストア統合リリースワークフロー
+### 6.2 Multi-Store Integrated Release Workflow
 
 ```yaml
 # .github/workflows/multi-store-release.yml
@@ -1374,19 +1374,19 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'リリースバージョン (例: 1.2.0)'
+        description: 'Release version (e.g. 1.2.0)'
         required: true
       channels:
-        description: 'リリースチャネル (comma separated: github,msstore,appstore,snap)'
+        description: 'Release channels (comma separated: github,msstore,appstore,snap)'
         required: true
         default: 'github,msstore,appstore,snap'
       prerelease:
-        description: 'プレリリースとして公開'
+        description: 'Publish as pre-release'
         type: boolean
         default: false
 
 jobs:
-  # ステップ 1: バージョンバンプとタグ作成
+  # Step 1: Version bump and tag creation
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -1412,7 +1412,7 @@ jobs:
           git tag v${{ steps.version.outputs.version }}
           git push --follow-tags
 
-  # ステップ 2: マルチプラットフォームビルド
+  # Step 2: Multi-platform build
   build-windows:
     needs: prepare
     runs-on: windows-latest
@@ -1503,7 +1503,7 @@ jobs:
             dist/*.snap
             dist/latest-linux.yml
 
-  # ステップ 3: GitHub Releases
+  # Step 3: GitHub Releases
   publish-github:
     needs: [prepare, build-windows, build-macos, build-linux]
     if: contains(inputs.channels, 'github')
@@ -1530,7 +1530,7 @@ jobs:
             linux-artifacts/*.deb
             linux-artifacts/latest-linux.yml
 
-  # ステップ 4: Microsoft Store
+  # Step 4: Microsoft Store
   publish-msstore:
     needs: [prepare, build-windows]
     if: contains(inputs.channels, 'msstore')
@@ -1549,7 +1549,7 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           PARTNER_CENTER_APP_ID: ${{ secrets.PARTNER_CENTER_APP_ID }}
 
-  # ステップ 5: Snap Store
+  # Step 5: Snap Store
   publish-snap:
     needs: [prepare, build-linux]
     if: contains(inputs.channels, 'snap')
@@ -1567,7 +1567,7 @@ jobs:
           release: stable
 ```
 
-### 6.3 セマンティックバージョニングとリリース自動化
+### 6.3 Semantic Versioning and Release Automation
 
 ```typescript
 // scripts/bump-version.ts
@@ -1604,7 +1604,7 @@ function updateJsonVersion(filePath: string, jsonPath: string, newVersion: strin
 
   obj[keys[keys.length - 1]] = newVersion;
   writeFileSync(filePath, JSON.stringify(content, null, 2) + '\n');
-  console.log(`  更新: ${filePath} -> ${newVersion}`);
+  console.log(`  Updated: ${filePath} -> ${newVersion}`);
   return true;
 }
 
@@ -1617,7 +1617,7 @@ function updateCargoToml(filePath: string, newVersion: string): boolean {
     `version = "${newVersion}"`
   );
   writeFileSync(filePath, content);
-  console.log(`  更新: ${filePath} -> ${newVersion}`);
+  console.log(`  Updated: ${filePath} -> ${newVersion}`);
   return true;
 }
 
@@ -1626,9 +1626,9 @@ function bumpVersion(type: ReleaseType): void {
   const currentVersion = pkg.version;
   const newVersion = semver.inc(currentVersion, type)!;
 
-  console.log(`バージョン更新: ${currentVersion} -> ${newVersion}`);
+  console.log(`Version update: ${currentVersion} -> ${newVersion}`);
 
-  // 各ファイルのバージョンを更新
+  // Update version in each file
   for (const vf of VERSION_FILES) {
     if (vf.jsonPath) {
       updateJsonVersion(vf.path, vf.jsonPath, newVersion);
@@ -1637,7 +1637,7 @@ function bumpVersion(type: ReleaseType): void {
     }
   }
 
-  // CHANGELOG の更新 (もし存在すれば)
+  // Update CHANGELOG if it exists
   if (existsSync('CHANGELOG.md')) {
     const changelog = readFileSync('CHANGELOG.md', 'utf-8');
     const date = new Date().toISOString().split('T')[0];
@@ -1647,10 +1647,10 @@ function bumpVersion(type: ReleaseType): void {
       `## [Unreleased]\n\n${newEntry}`
     );
     writeFileSync('CHANGELOG.md', updated);
-    console.log(`  更新: CHANGELOG.md`);
+    console.log(`  Updated: CHANGELOG.md`);
   }
 
-  // Git 操作
+  // Git operations
   execSync(`git add -A`);
   execSync(`git commit -m "chore: bump version to v${newVersion}"`);
   execSync(`git tag v${newVersion}`);
@@ -1665,9 +1665,9 @@ bumpVersion(type);
 
 ---
 
-## 7. 企業内配布 (LOB / MDM)
+## 7. Enterprise Distribution (LOB / MDM)
 
-### 7.1 Microsoft Intune による配布
+### 7.1 Distribution via Microsoft Intune
 
 ```powershell
 # PowerShell: Intune への LOB アプリ登録スクリプト
@@ -1702,7 +1702,7 @@ $headers = @{
 $appBody = @{
     "@odata.type"       = "#microsoft.graph.windowsAppX"
     displayName         = "MyApp"
-    description         = "社内向けデスクトップアプリケーション"
+    description         = "In-house desktop application"
     publisher           = "Example Inc."
     applicableArchitectures = "x64"
     identityName        = "12345ExampleInc.MyApp"
@@ -1719,20 +1719,20 @@ $app = Invoke-RestMethod `
     -Headers $headers `
     -Body $appBody
 
-Write-Host "LOB アプリ作成完了: $($app.id)"
+Write-Host "LOB app created: $($app.id)"
 
-# アプリの割り当て (全デバイスに配布)
+# App assignment (deploy to all devices)
 $assignmentBody = @{
     mobileAppAssignments = @(
         @{
             "@odata.type" = "#microsoft.graph.mobileAppAssignment"
-            intent        = "required"  # required = 強制インストール
+            intent        = "required"  # required = forced installation
             target        = @{
                 "@odata.type" = "#microsoft.graph.allDevicesAssignmentTarget"
             }
             settings      = @{
                 "@odata.type"    = "#microsoft.graph.windowsAppXAppAssignmentSettings"
-                useDeviceContext = $true  # デバイスコンテキストでインストール
+                useDeviceContext = $true  # Install in device context
             }
         }
     )
@@ -1744,10 +1744,10 @@ Invoke-RestMethod `
     -Headers $headers `
     -Body $assignmentBody
 
-Write-Host "アプリ割り当て完了（全デバイスに必須インストール）"
+Write-Host "App assignment complete (required installation for all devices)"
 ```
 
-### 7.2 macOS (Jamf Pro) での配布
+### 7.2 macOS Distribution via Jamf Pro
 
 ```bash
 #!/bin/bash
@@ -1762,10 +1762,10 @@ JAMF_PASS="${JAMF_API_PASSWORD:?JAMF_API_PASSWORD が未設定です}"
 PKG_PATH="$1"
 APP_NAME="MyApp"
 
-echo "=== Jamf Pro デプロイスクリプト ==="
+echo "=== Jamf Pro Deploy Script ==="
 
-# 1. Bearer Token の取得
-echo "[1/4] 認証中..."
+# 1. Obtain Bearer Token
+echo "[1/4] Authenticating..."
 TOKEN=$(curl -s -X POST "${JAMF_URL}/api/v1/auth/token" \
   -u "${JAMF_USER}:${JAMF_PASS}" | \
   python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
@@ -1775,18 +1775,18 @@ HEADERS=(
   -H "Accept: application/json"
 )
 
-# 2. パッケージのアップロード
-echo "[2/4] パッケージアップロード中..."
+# 2. Upload package
+echo "[2/4] Uploading package..."
 UPLOAD_RESULT=$(curl -s -X POST "${JAMF_URL}/api/v1/packages" \
   "${HEADERS[@]}" \
   -F "file=@${PKG_PATH}" \
   -F "name=${APP_NAME}-$(date +%Y%m%d)")
 
 PACKAGE_ID=$(echo "$UPLOAD_RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
-echo "パッケージ ID: $PACKAGE_ID"
+echo "Package ID: $PACKAGE_ID"
 
-# 3. ポリシーの作成（配布ルールの設定）
-echo "[3/4] 配布ポリシー作成中..."
+# 3. Create policy (distribution rules)
+echo "[3/4] Creating distribution policy..."
 POLICY_XML="<policy>
   <general>
     <name>Deploy ${APP_NAME}</name>
@@ -1813,58 +1813,58 @@ curl -s -X POST "${JAMF_URL}/JSSResource/policies" \
   -H "Content-Type: application/xml" \
   -d "$POLICY_XML"
 
-echo "[4/4] 配布ポリシー作成完了"
-echo "=== Jamf Pro デプロイ完了 ==="
+echo "[4/4] Distribution policy created"
+echo "=== Jamf Pro deploy complete ==="
 ```
 
 ---
 
-## 8. パッケージ形式の比較
+## 8. Package Format Comparison
 
-| 形式 | プラットフォーム | サンドボックス | 自動更新 | サイズ | 用途 |
-|------|---------------|--------------|---------|-------|------|
-| MSIX | Windows 10+ | 部分的 | Store 経由 | 中 | Store 配布 |
-| NSIS | Windows | なし | electron-updater | 小 | 直接配布 |
-| MSI | Windows | なし | なし(WiX) | 中 | 企業配布 |
-| DMG | macOS | なし | 自前 | 大 | 直接配布 |
-| pkg (MAS) | macOS | 必須 | Store 経由 | 中 | App Store |
-| AppImage | Linux | なし | AppImageUpdate | 大 | 汎用 |
-| deb | Debian/Ubuntu | なし | apt repo | 小 | Debian系 |
-| snap | Linux | あり(strict) | snapd | 大 | Ubuntu中心 |
-| flatpak | Linux | あり | Flathub | 大 | 汎用 |
-| RPM | RHEL/Fedora | なし | dnf/yum repo | 小 | RedHat系 |
+| Format | Platform | Sandbox | Auto-update | Size | Use case |
+|--------|----------|---------|-------------|------|----------|
+| MSIX | Windows 10+ | Partial | Via Store | Medium | Store distribution |
+| NSIS | Windows | None | electron-updater | Small | Direct distribution |
+| MSI | Windows | None | None (WiX) | Medium | Enterprise distribution |
+| DMG | macOS | None | Self-managed | Large | Direct distribution |
+| pkg (MAS) | macOS | Required | Via Store | Medium | App Store |
+| AppImage | Linux | None | AppImageUpdate | Large | General purpose |
+| deb | Debian/Ubuntu | None | apt repo | Small | Debian-based |
+| snap | Linux | Yes (strict) | snapd | Large | Ubuntu-centric |
+| flatpak | Linux | Yes | Flathub | Large | General purpose |
+| RPM | RHEL/Fedora | None | dnf/yum repo | Small | RedHat-based |
 
-### 8.1 パッケージ形式の選定ガイド
+### 8.1 Package Format Selection Guide
 
 ```
-[配布対象は？]
+[Who is the distribution target?]
      |
-     +--- Windows 一般ユーザー
-     |        +--- Store 経由 → MSIX
-     |        +--- 直接配布 → NSIS (exe)
-     |        +--- 企業内 → MSI (グループポリシー対応)
+     +--- General Windows users
+     |        +--- Via Store → MSIX
+     |        +--- Direct distribution → NSIS (exe)
+     |        +--- Enterprise → MSI (Group Policy support)
      |
-     +--- macOS 一般ユーザー
+     +--- General macOS users
      |        +--- App Store → pkg (MAS)
-     |        +--- 直接配布 → DMG + Notarization
+     |        +--- Direct distribution → DMG + Notarization
      |
      +--- Linux
-     |        +--- 汎用 → AppImage (依存関係なし)
+     |        +--- General → AppImage (no dependencies)
      |        +--- Ubuntu/GNOME → Snap
      |        +--- Fedora/KDE → Flatpak
-     |        +--- Debian系サーバー → deb + APT リポジトリ
-     |        +--- RHEL系サーバー → RPM + YUM/DNF リポジトリ
+     |        +--- Debian-based servers → deb + APT repository
+     |        +--- RHEL-based servers → RPM + YUM/DNF repository
      |
-     +--- 全プラットフォーム
-              +--- Store + 直接配布 の二本柱を推奨
-              +--- CI/CD で全形式を自動ビルド
+     +--- All platforms
+              +--- Store + direct distribution: two-pillar approach recommended
+              +--- Auto-build all formats via CI/CD
 ```
 
 ---
 
-## 9. コード署名の包括的ガイド
+## 9. Comprehensive Code Signing Guide
 
-### 9.1 Windows (Authenticode) 署名
+### 9.1 Windows (Authenticode) Signing
 
 ```powershell
 # PowerShell: Windows コード署名の完全フロー
@@ -1897,10 +1897,10 @@ $signtoolPath = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\sig
     /fd SHA256 `
     "dist\MyApp-1.2.0-x64.msix"
 
-Write-Host "コード署名完了"
+Write-Host "Code signing complete"
 ```
 
-### 9.2 macOS (codesign + notarize) 署名
+### 9.2 macOS (codesign + notarize) Signing
 
 ```bash
 #!/bin/bash
@@ -1913,10 +1913,10 @@ APP_PATH="$1"
 DEVELOPER_ID="Developer ID Application: Example Inc. (XXXXXXXXXX)"
 TEAM_ID="${APPLE_TEAM_ID:?APPLE_TEAM_ID が未設定です}"
 
-echo "=== macOS 署名・Notarization フロー ==="
+echo "=== macOS Signing & Notarization Flow ==="
 
-# 1. deep signing (全バイナリを再帰的に署名)
-echo "[1/5] コード署名中..."
+# 1. Deep signing (recursively sign all binaries)
+echo "[1/5] Code signing..."
 codesign --deep --force --verify --verbose \
   --sign "$DEVELOPER_ID" \
   --options runtime \
@@ -1924,24 +1924,24 @@ codesign --deep --force --verify --verbose \
   --timestamp \
   "$APP_PATH"
 
-# 2. 署名の検証
-echo "[2/5] 署名検証中..."
+# 2. Verify signature
+echo "[2/5] Verifying signature..."
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 spctl --assess --type execute --verbose "$APP_PATH"
 
-# 3. DMG の作成
-echo "[3/5] DMG 作成中..."
+# 3. Create DMG
+echo "[3/5] Creating DMG..."
 DMG_PATH="${APP_PATH%.app}.dmg"
 hdiutil create -volname "MyApp" \
   -srcfolder "$APP_PATH" \
   -ov -format UDZO \
   "$DMG_PATH"
 
-# DMG にも署名
+# Sign the DMG as well
 codesign --sign "$DEVELOPER_ID" --timestamp "$DMG_PATH"
 
-# 4. Notarization 提出
-echo "[4/5] Notarization 提出中..."
+# 4. Submit for Notarization
+echo "[4/5] Submitting for Notarization..."
 SUBMISSION_ID=$(xcrun notarytool submit "$DMG_PATH" \
   --apple-id "$APPLE_ID" \
   --password "$APPLE_APP_SPECIFIC_PASSWORD" \
@@ -1950,21 +1950,21 @@ SUBMISSION_ID=$(xcrun notarytool submit "$DMG_PATH" \
 
 echo "Submission ID: $SUBMISSION_ID"
 
-# 5. Stapling (Notarization チケットの埋め込み)
-echo "[5/5] Stapling 中..."
+# 5. Stapling (embed Notarization ticket)
+echo "[5/5] Stapling..."
 xcrun stapler staple "$DMG_PATH"
 
-# 最終検証
+# Final validation
 xcrun stapler validate "$DMG_PATH"
 
-echo "=== 署名・Notarization 完了: $DMG_PATH ==="
+echo "=== Signing & Notarization complete: $DMG_PATH ==="
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: シークレットのハードコード
+### Anti-Pattern 1: Hardcoding Secrets
 
 ```yaml
 # NG: シークレットを直接ワークフローに記述
@@ -1978,9 +1978,9 @@ echo "=== 署名・Notarization 完了: $DMG_PATH ==="
     WIN_CSC_LINK: ${{ secrets.WIN_CERT_BASE64 }}
 ```
 
-**問題点**: CI/CD ログにパスワードが出力される可能性があり、リポジトリにアクセスできる全員に証明書の秘密鍵が漏洩する。必ず Secrets 管理機能を使い、ログマスキングを確認する。
+**Problem**: Passwords may be output in CI/CD logs, and the private key of the certificate could be exposed to anyone with repository access. Always use the Secrets management feature and confirm that log masking is enabled.
 
-### アンチパターン 2: 全プラットフォーム同時リリース
+### Anti-Pattern 2: Releasing All Platforms Simultaneously
 
 ```yaml
 # NG: 全プラットフォームを同時に公開
@@ -1994,9 +1994,9 @@ echo "=== 署名・Notarization 完了: $DMG_PATH ==="
   # QA テスト完了後に手動で公開
 ```
 
-**問題点**: あるプラットフォームで問題があった場合に、全プラットフォームのリリースを巻き戻す必要が生じる。Draft リリースで段階的に検証し、問題なければ公開する方が安全。
+**Problem**: If a problem occurs on one platform, the entire multi-platform release must be rolled back. It is safer to validate using a Draft release and only publish after verifying that everything works correctly.
 
-### アンチパターン 3: Store 審査の考慮不足
+### Anti-Pattern 3: Ignoring Store Review Requirements
 
 ```typescript
 // NG: Mac App Store サンドボックスで禁止される操作
@@ -2029,9 +2029,9 @@ function readUserFile(): string {
 }
 ```
 
-**問題点**: Mac App Store のサンドボックス制限を無視した実装は審査で却下される。Microsoft Store の MSIX でも同様に、任意のパスへの書き込みや管理者権限の要求は避けるべき。Store 向けビルドとそれ以外を分岐する設計が必要。
+**Problem**: Implementations that ignore Mac App Store sandbox restrictions will be rejected during review. The same applies to Microsoft Store MSIX — writing to arbitrary paths or requesting administrator privileges should be avoided. A design that branches between Store builds and other builds is necessary.
 
-### アンチパターン 4: バージョン不整合
+### Anti-Pattern 4: Version Inconsistency
 
 ```json
 // NG: 複数ファイルのバージョンが不一致
@@ -2039,77 +2039,77 @@ function readUserFile(): string {
 { "version": "1.2.0" }
 
 // tauri.conf.json
-{ "version": "1.1.0" }  // <- 古いまま!
+{ "version": "1.1.0" }  // <- Still outdated!
 
 // Cargo.toml
-// version = "1.0.0"    // <- 更新忘れ!
+// version = "1.0.0"    // <- Forgotten to update!
 ```
 
 ```typescript
 // OK: バージョンバンプスクリプトで一括更新
-// scripts/bump-version.ts を使って全ファイルを同時に更新する
-// (セクション 6.3 参照)
+// Use scripts/bump-version.ts to update all files at once
+// (See Section 6.3)
 ```
 
-**問題点**: バージョン番号が一致しないと、Store 審査で却下されるケースや、自動更新が正しく動作しないケースが発生する。CI/CD パイプラインでバージョンの整合性チェックを入れるか、バンプスクリプトで一括管理する。
+**Problem**: Mismatched version numbers can cause Store review rejections and cases where auto-updates do not work correctly. Either add a version consistency check to the CI/CD pipeline or manage everything with a bump script.
 
 ---
 
 ## FAQ
 
-### Q1: Microsoft Store の審査でよく落ちるポイントは何ですか？
+### Q1: What are the most common reasons for Microsoft Store review rejections?
 
-**A**: 最も多い理由は (1) プライバシーポリシーの不備または不適切な URL、(2) アプリの説明文とスクリーンショットの不一致、(3) クラッシュやハングアップなどの品質問題。特に Electron アプリでは、起動時間が遅いと審査に影響することがある。事前に Windows App Certification Kit (WACK) を実行してセルフチェックすることを強く推奨する。また、アプリが特定の API（位置情報、カメラ等）を使用する場合、AppxManifest.xml で対応する Capability を宣言しないと審査で却下される。
+**A**: The most frequent reasons are (1) missing or invalid privacy policy URL, (2) mismatch between the app description and screenshots, and (3) quality issues such as crashes or hangs. For Electron apps in particular, a slow startup time can negatively affect the review. It is strongly recommended to run the Windows App Certification Kit (WACK) for a self-check before submitting. Also, if the app uses certain APIs (location, camera, etc.), not declaring the corresponding Capability in AppxManifest.xml will result in review rejection.
 
-### Q2: Mac App Store のサンドボックス制限で困る機能はありますか？
+### Q2: What features are problematic under Mac App Store sandbox restrictions?
 
-**A**: ファイルシステムへの広範なアクセス、グローバルキーボードショートカット、他アプリとのプロセス間通信、カーネル拡張などがサンドボックスで制限される。特に開発ツールでは Terminal.app の操作や `/usr/local` 配下のファイルアクセスが困難。これらの機能が必須の場合は、Mac App Store 外での直接配布（DMG + Notarization）を検討すべき。なお、Security-Scoped Bookmarks を使えば、ユーザーが一度許可したディレクトリには継続的にアクセスできるため、部分的な回避策となる。
+**A**: Broad filesystem access, global keyboard shortcuts, inter-process communication with other apps, and kernel extensions are restricted in the sandbox. Developer tools in particular may have difficulty operating Terminal.app or accessing files under `/usr/local`. If these features are essential, consider distributing directly outside the Mac App Store (DMG + Notarization). Note that Security-Scoped Bookmarks allow continued access to directories the user has once approved, providing a partial workaround.
 
-### Q3: GitHub Releases と Store 配布を両方やるべきですか？
+### Q3: Should I provide both GitHub Releases and Store distribution?
 
-**A**: 理想的には両方提供すべき。Store 配布はエンドユーザーにとってインストール・更新が容易で、信頼性も高い。一方 GitHub Releases は開発者コミュニティへのリーチと、Store 審査を待たない即時配布に有利。CI/CD パイプラインで両方のチャネルに同時デプロイする設計にすることで、追加の運用コストを最小化できる。
+**A**: Ideally, both should be provided. Store distribution makes it easy for end users to install and update, and is also more trustworthy. GitHub Releases, on the other hand, is better for reaching the developer community and for immediate distribution without waiting for Store review. By designing the CI/CD pipeline to deploy to both channels simultaneously, the additional operational cost can be minimized.
 
-### Q4: Linux での配布はどの形式を選ぶべきですか？
+### Q4: Which package format should I choose for Linux distribution?
 
-**A**: ユーザー層と用途による。最も汎用的なのは AppImage で、単一バイナリとしてどの Linux ディストリビューションでも動作する。Ubuntu ユーザーが多い場合は Snap が良い（自動更新サポートあり）。GNOME/KDE デスクトップユーザーには Flatpak + Flathub が発見性に優れる。サーバー環境やシステム管理者向けなら deb/RPM + 自前リポジトリが適切。複数形式を並行提供するのがベストで、electron-builder はこれを1コマンドで実現できる。
+**A**: It depends on the user base and use case. The most versatile is AppImage, which works as a single binary on any Linux distribution. If your audience is primarily Ubuntu users, Snap is a good choice (with auto-update support). For GNOME/KDE desktop users, Flatpak + Flathub offers better discoverability. For server environments or system administrators, deb/RPM + a self-hosted repository is more appropriate. Providing multiple formats in parallel is best, and electron-builder can achieve this with a single command.
 
-### Q5: コード署名証明書の種類と選び方は？
+### Q5: What are the types of code signing certificates and how do I choose one?
 
-**A**: Windows では Standard コード署名証明書（ソフトウェアトークン）と EV コード署名証明書（ハードウェアトークン必須）がある。EV 証明書は SmartScreen の即時信頼を獲得できるため、ダウンロード数の少ない初期段階では特に重要。価格は年間 $200-500 程度。macOS では Apple Developer Program ($99/年) に含まれる Developer ID 証明書を使用する。CI 環境では証明書の取り扱いに注意が必要で、Base64 エンコードして GitHub Secrets に保管し、ビルド時にデコードして使用するのが一般的なパターン。
+**A**: On Windows, there are Standard code signing certificates (software token) and EV (Extended Validation) code signing certificates (hardware token required). EV certificates can immediately gain SmartScreen trust, which is especially important in the early stages when download numbers are low. Prices range from around $200-500 per year. On macOS, you use the Developer ID certificate included in the Apple Developer Program ($99/year). In CI environments, certificates require careful handling — the common pattern is to Base64-encode them, store them in GitHub Secrets, and decode them at build time.
 
-### Q6: 企業内配布で Microsoft Store を使わずに MSIX を配布できますか？
+### Q6: Can MSIX be distributed within an enterprise without using the Microsoft Store?
 
-**A**: はい、可能。MSIX サイドロード（LOB 配布）は Windows 10 1809 以降でサポートされている。Intune などの MDM ソリューション経由で配布するか、PowerShell の `Add-AppxPackage` コマンドで直接インストールできる。サイドロードの場合、自社の証明書で署名した MSIX を使用する。グループポリシーで開発者モードまたはサイドロードを有効化する必要がある点に注意。Store を介さないため審査は不要だが、自動更新は自前で実装する必要がある。
+**A**: Yes, it is possible. MSIX sideloading (LOB distribution) is supported on Windows 10 1809 and later. You can distribute via an MDM solution such as Intune, or install directly using PowerShell's `Add-AppxPackage` command. For sideloading, use an MSIX signed with your own certificate. Note that developer mode or sideloading must be enabled via Group Policy. Since the Store is not involved, no review is required, but auto-updates must be implemented on your own.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| Microsoft Store | MSIX パッケージング + Partner Center 提出。審査 1-3 日。WACK で事前検証 |
-| Mac App Store | サンドボックス対応 + Notarization。審査 1-7 日。Provisioning Profile 管理 |
-| GitHub Releases | 即時配布。electron-updater / Tauri updater と連携。Draft → QA → 公開 |
-| Linux 配布 | Snap / Flatpak / AppImage / deb の複数形式を CI/CD で自動ビルド |
-| 企業配布 | Intune (Windows) / Jamf (macOS) + MDM 連携でサイレントインストール |
-| パッケージ形式 | MSIX(Win Store)、NSIS(Win直接)、DMG(Mac直接)、AppImage(Linux) |
-| CI/CD | GitHub Actions でマルチプラットフォーム・マルチストア自動ビルド・署名・公開 |
-| 署名 | Windows=Authenticode(EV推奨)、macOS=codesign+notarize を CI で自動化 |
-| リリース戦略 | Draft リリース → QA → 公開の段階的プロセス。マルチストア統合ワークフロー |
-| バージョン管理 | semver + git tag でリリースを自動トリガー。全ファイルの一括バンプ |
+| Item | Key Points |
+|------|-----------|
+| Microsoft Store | MSIX packaging + Partner Center submission. Review takes 1-3 days. Pre-validate with WACK |
+| Mac App Store | Sandbox support + Notarization. Review takes 1-7 days. Manage Provisioning Profiles |
+| GitHub Releases | Immediate distribution. Integrates with electron-updater / Tauri updater. Draft → QA → publish |
+| Linux distribution | Auto-build multiple formats (Snap / Flatpak / AppImage / deb) via CI/CD |
+| Enterprise distribution | Silent installation via Intune (Windows) / Jamf (macOS) + MDM integration |
+| Package formats | MSIX (Win Store), NSIS (Win direct), DMG (Mac direct), AppImage (Linux) |
+| CI/CD | GitHub Actions for multi-platform, multi-store automated build, signing, and publishing |
+| Signing | Windows = Authenticode (EV recommended), macOS = codesign + notarize, both automated via CI |
+| Release strategy | Staged process: Draft release → QA → publish. Multi-store integrated workflow |
+| Version management | semver + git tags to auto-trigger releases. Bulk bump across all files |
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [自動更新](./01-auto-update.md) -- electron-updater / Tauri updater による OTA 更新
-- インストーラーのカスタマイズ -- NSIS スクリプトと WiX ツールセットの活用
-- マルチアーキテクチャ対応 -- x64 / ARM64 / Universal Binary の戦略
+- [Auto Update](./01-auto-update.md) -- OTA updates with electron-updater / Tauri updater
+- Installer Customization -- Using NSIS scripts and the WiX Toolset
+- Multi-Architecture Support -- Strategies for x64 / ARM64 / Universal Binary
 
-## 参考文献
+## References
 
-1. **Microsoft Store アプリの公開ガイド** -- https://learn.microsoft.com/ja-jp/windows/apps/publish/publish-your-app/overview -- Partner Center でのアプリ提出から公開までの公式ガイド
-2. **Apple Developer - App Store 配布** -- https://developer.apple.com/distribute/ -- Mac App Store へのアプリ提出と Notarization の公式ドキュメント
-3. **electron-builder 公式ドキュメント** -- https://www.electron.build/ -- マルチプラットフォームビルドと署名の包括的リファレンス
-4. **GitHub Actions for Tauri** -- https://github.com/tauri-apps/tauri-action -- Tauri アプリのクロスプラットフォームビルドとリリース用 Action
-5. **Snapcraft Documentation** -- https://snapcraft.io/docs -- Snap パッケージの作成と Snap Store への公開ガイド
-6. **Flatpak Documentation** -- https://docs.flatpak.org/ -- Flatpak マニフェストの作成と Flathub への公開手順
-7. **Microsoft Intune - LOB アプリ配布** -- https://learn.microsoft.com/ja-jp/mem/intune/apps/lob-apps-windows -- 企業向け MSIX サイドロード配布の公式ガイド
+1. **Microsoft Store App Publishing Guide** -- https://learn.microsoft.com/ja-jp/windows/apps/publish/publish-your-app/overview -- Official guide from app submission to publishing on Partner Center
+2. **Apple Developer - App Store Distribution** -- https://developer.apple.com/distribute/ -- Official documentation for Mac App Store submission and Notarization
+3. **electron-builder Official Documentation** -- https://www.electron.build/ -- Comprehensive reference for multi-platform builds and signing
+4. **GitHub Actions for Tauri** -- https://github.com/tauri-apps/tauri-action -- Action for cross-platform builds and releases of Tauri apps
+5. **Snapcraft Documentation** -- https://snapcraft.io/docs -- Guide to creating Snap packages and publishing to the Snap Store
+6. **Flatpak Documentation** -- https://docs.flatpak.org/ -- Creating Flatpak manifests and publishing to Flathub
+7. **Microsoft Intune - LOB App Distribution** -- https://learn.microsoft.com/ja-jp/mem/intune/apps/lob-apps-windows -- Official guide for enterprise MSIX sideload distribution
