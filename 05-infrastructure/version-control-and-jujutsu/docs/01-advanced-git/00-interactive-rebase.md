@@ -1,748 +1,748 @@
-# インタラクティブRebase
+# Interactive Rebase
 
-> `git rebase -i`を使いこなし、コミット履歴の整理（squash、fixup、reword、edit、drop）を安全に行うためのテクニックと運用ルールを解説する。
+> Techniques and operational rules for mastering `git rebase -i` to safely clean up commit history (squash, fixup, reword, edit, drop).
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **インタラクティブRebaseの基本操作** -- 各コマンド（pick, squash, fixup, reword, edit, drop）の動作と使い分け
-2. **安全なコミット履歴の書き換え** -- autosquash、fixupコミット、`--update-refs`による効率的なワークフロー
-3. **トラブル発生時の復旧方法** -- rebase中のコンフリクト対処、`--abort`、reflogからの救出
-4. **高度なrebaseテクニック** -- `--rebase-merges`、`exec`コマンド、スタックドブランチ運用
-5. **チーム開発でのrebase運用ルール** -- 安全なforce-push、レビュー前の履歴整理フロー
+1. **Basic Interactive Rebase Operations** -- How each command works (pick, squash, fixup, reword, edit, drop) and when to use each
+2. **Safe Commit History Rewriting** -- Efficient workflows with autosquash, fixup commits, and `--update-refs`
+3. **Recovery from Problems** -- Handling conflicts during rebase, `--abort`, and rescue via reflog
+4. **Advanced Rebase Techniques** -- `--rebase-merges`, the `exec` command, and stacked branch workflows
+5. **Team Rebase Guidelines** -- Safe force-push rules and history cleanup flow before review
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following background knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. インタラクティブRebaseの基本
+## 1. Interactive Rebase Basics
 
-### 1.1 起動方法
+### 1.1 How to Launch
 
 ```bash
-# 直近N件のコミットを対象にする
+# Target the last N commits
 $ git rebase -i HEAD~5
 
-# 特定のコミット以降を対象にする
+# Target all commits after a specific commit
 $ git rebase -i abc123
 
-# ルートコミットから全てを対象にする
+# Target everything from the root commit
 $ git rebase -i --root
 
-# 上流ブランチとの分岐点から対象にする
+# Target from the divergence point with the upstream branch
 $ git rebase -i main
 
-# upstream..HEADの範囲を明示的に指定
+# Explicitly specify the upstream..HEAD range
 $ git rebase -i --onto main feature-base feature-branch
 ```
 
-### 1.2 エディタの設定
+### 1.2 Editor Configuration
 
-rebase時に開くエディタはGitの設定で制御できる。
+The editor opened during rebase is controlled by Git settings.
 
 ```bash
-# エディタの設定
+# Configure the editor
 $ git config --global core.editor "vim"
 $ git config --global core.editor "code --wait"
 $ git config --global core.editor "nano"
 
-# 環境変数でも指定可能（優先度: GIT_SEQUENCE_EDITOR > GIT_EDITOR > core.editor）
+# Can also be specified via environment variable (priority: GIT_SEQUENCE_EDITOR > GIT_EDITOR > core.editor)
 $ export GIT_SEQUENCE_EDITOR="vim"
 
-# todoリスト編集時のみ別のエディタを使う
+# Use a different editor only when editing the todo list
 $ GIT_SEQUENCE_EDITOR="code --wait" git rebase -i HEAD~5
-# → todoリストはVS Codeで編集、reword時のメッセージ編集はvimなど
+# → todo list is edited in VS Code, reword message editing uses vim etc.
 ```
 
-### 1.3 todoリストの構造
+### 1.3 Todo List Structure
 
 ```bash
 $ git rebase -i HEAD~4
-# エディタが開き、以下のようなtodoリストが表示される:
+# The editor opens showing a todo list like this:
 
-pick a1b2c3d feat: ユーザー認証の基本実装
-pick d4e5f6a fix: パスワードバリデーションの修正
-pick b7c8d9e feat: ログイン画面のUI実装
+pick a1b2c3d feat: basic user authentication implementation
+pick d4e5f6a fix: fix password validation
+pick b7c8d9e feat: implement login screen UI
 pick e0f1a2b fix: typo in login form
 
 # Rebase abc123..e0f1a2b onto abc123 (4 commands)
 #
 # Commands:
-# p, pick   = コミットをそのまま使用
-# r, reword = コミットを使用するが、メッセージを変更
-# e, edit   = コミットを使用するが、修正のために停止
-# s, squash = 直前のコミットに統合（メッセージも統合）
-# f, fixup  = squashと同じだが、このコミットのメッセージは破棄
-# x, exec   = シェルコマンドを実行
-# b, break  = ここで停止（後で git rebase --continue で再開）
-# d, drop   = コミットを削除
-# l, label  = 現在のHEADにラベルを付ける
-# t, reset  = HEADをラベルにリセット
-# m, merge  = マージコミットを作成
+# p, pick   = use commit as-is
+# r, reword = use commit, but edit the message
+# e, edit   = use commit, but stop for modification
+# s, squash = merge into previous commit (messages combined)
+# f, fixup  = like squash, but discard this commit's message
+# x, exec   = run a shell command
+# b, break  = stop here (resume later with git rebase --continue)
+# d, drop   = remove the commit
+# l, label  = label the current HEAD
+# t, reset  = reset HEAD to a label
+# m, merge  = create a merge commit
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  todoリストの実行順序                                │
+│  Todo list execution order                           │
 │                                                     │
-│  ※ 上から下へ順番に適用される（古い→新しい）       │
+│  * Applied top to bottom (oldest → newest)          │
 │                                                     │
-│  pick a1b2c3d  ──→ 1番目に適用                     │
-│  pick d4e5f6a  ──→ 2番目に適用                     │
-│  pick b7c8d9e  ──→ 3番目に適用                     │
-│  pick e0f1a2b  ──→ 4番目に適用                     │
+│  pick a1b2c3d  ──→ applied 1st                      │
+│  pick d4e5f6a  ──→ applied 2nd                      │
+│  pick b7c8d9e  ──→ applied 3rd                      │
+│  pick e0f1a2b  ──→ applied 4th                      │
 │                                                     │
-│  行の入れ替え = コミット順序の変更                   │
-│  行の削除     = コミットの削除（dropと同じ）         │
+│  Swapping lines = changing commit order              │
+│  Deleting a line = deleting a commit (same as drop)  │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.4 rebaseの内部動作
+### 1.4 Internal Rebase Behavior
 
-rebaseは内部的に以下の手順で実行される。この動作を理解するとトラブル時の対応が容易になる。
+Rebase executes the following steps internally. Understanding this makes it easier to handle problems when they arise.
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  rebase の内部動作フロー                              │
+│  Internal rebase flow                                 │
 │                                                      │
-│  1. ORIG_HEAD に現在のHEADを保存                     │
-│  2. HEADを onto（rebase先）に移動                    │
-│  3. todoリストを上から順に処理                        │
-│     ├── pick: cherry-pick で適用                     │
-│     ├── squash/fixup: 前のコミットに統合             │
-│     ├── reword: cherry-pick後メッセージ編集          │
-│     ├── edit: cherry-pick後に停止                    │
-│     └── drop: スキップ（何もしない）                 │
-│  4. 全て完了したらブランチポインタを更新              │
+│  1. Save current HEAD to ORIG_HEAD                   │
+│  2. Move HEAD to onto (rebase target)                │
+│  3. Process the todo list from top to bottom         │
+│     ├── pick: apply via cherry-pick                  │
+│     ├── squash/fixup: merge into previous commit     │
+│     ├── reword: edit message after cherry-pick       │
+│     ├── edit: stop after cherry-pick                 │
+│     └── drop: skip (do nothing)                      │
+│  4. Update branch pointer when all done              │
 │                                                      │
-│  ※ 各ステップでコンフリクトが発生すると停止          │
-│  ※ .git/rebase-merge/ にtodoリスト等の状態を保存    │
+│  * Stops if a conflict occurs at any step            │
+│  * State (todo list, etc.) is saved in .git/rebase-merge/ │
 └──────────────────────────────────────────────────────┘
 ```
 
 ```bash
-# rebase中の内部状態を確認
+# Check the internal state during rebase
 $ ls .git/rebase-merge/
-git-rebase-todo       # 残りのtodoリスト
-done                  # 完了したコマンド
-head-name             # rebase開始時のブランチ名
-onto                  # rebase先のコミット
-orig-head             # rebase開始時のHEAD
-interactive           # インタラクティブモードのフラグ
+git-rebase-todo       # remaining todo list
+done                  # completed commands
+head-name             # branch name at rebase start
+onto                  # target commit for rebase
+orig-head             # HEAD at rebase start
+interactive           # flag for interactive mode
 ```
 
 ---
 
-## 2. 各コマンドの詳細
+## 2. Detailed Command Reference
 
-### 2.1 squash -- コミットの統合（メッセージ編集あり）
+### 2.1 squash -- Merge Commits (with Message Editing)
 
 ```bash
-# Before: 4つの細かいコミット
-pick a1b2c3d feat: 認証機能の骨格を作成
-squash d4e5f6a feat: パスワードハッシュを実装
-squash b7c8d9e feat: ログインエンドポイントを追加
-squash e0f1a2b feat: 認証ミドルウェアを実装
+# Before: 4 small commits
+pick a1b2c3d feat: create authentication skeleton
+squash d4e5f6a feat: implement password hashing
+squash b7c8d9e feat: add login endpoint
+squash e0f1a2b feat: implement authentication middleware
 
-# → エディタが開き、4つのコミットメッセージが表示される
-# → 統合後のメッセージを編集して保存
+# → The editor opens showing all 4 commit messages
+# → Edit and save the merged message
 ```
 
-squash時のメッセージ編集画面の例:
+Example of the message editing screen during squash:
 
 ```
 # This is a combination of 4 commits.
 # This is the 1st commit message:
 
-feat: 認証機能の骨格を作成
+feat: create authentication skeleton
 
-- auth.jsの雛形作成
-- ルーティング設定
+- create auth.js scaffold
+- configure routing
 
 # This is the commit message #2:
 
-feat: パスワードハッシュを実装
+feat: implement password hashing
 
-- bcryptを導入
-- ハッシュ化・検証関数を追加
+- introduce bcrypt
+- add hash/verify functions
 
 # This is the commit message #3:
 
-feat: ログインエンドポイントを追加
+feat: add login endpoint
 
 # This is the commit message #4:
 
-feat: 認証ミドルウェアを実装
+feat: implement authentication middleware
 
-# ↑ これらを編集して、以下のような統合メッセージにする:
+# ↑ Edit these to create a combined message like:
 
-feat: ユーザー認証機能を実装
+feat: implement user authentication
 
-- 認証ロジックの骨格作成
-- bcryptによるパスワードハッシュ化
-- ログインエンドポイント (/api/login)
-- JWT認証ミドルウェア
+- create authentication logic skeleton
+- password hashing with bcrypt
+- login endpoint (/api/login)
+- JWT authentication middleware
 ```
 
 ```
 Before:                        After:
-a1b2c3d feat: 骨格            xyz789 feat: ユーザー認証機能を実装
-d4e5f6a feat: ハッシュ          (4つのコミットが1つに統合)
-b7c8d9e feat: エンドポイント
-e0f1a2b feat: ミドルウェア
+a1b2c3d feat: skeleton         xyz789 feat: implement user authentication
+d4e5f6a feat: hashing            (4 commits merged into 1)
+b7c8d9e feat: endpoint
+e0f1a2b feat: middleware
 ```
 
-### 2.2 fixup -- コミットの統合（メッセージ破棄）
+### 2.2 fixup -- Merge Commits (Discard Message)
 
 ```bash
-pick a1b2c3d feat: ユーザー認証機能を実装
-fixup d4e5f6a fix: テストの修正
-fixup b7c8d9e fix: lint エラーの修正
+pick a1b2c3d feat: implement user authentication
+fixup d4e5f6a fix: fix tests
+fixup b7c8d9e fix: fix lint errors
 
-# → d4e5f6a と b7c8d9e の内容は a1b2c3d に統合されるが、
-#   コミットメッセージは a1b2c3d のものだけが残る
+# → The contents of d4e5f6a and b7c8d9e are merged into a1b2c3d,
+#   but only a1b2c3d's commit message is retained
 ```
 
-#### fixup -C オプション（Git 2.32+）
+#### fixup -C Option (Git 2.32+)
 
 ```bash
-# fixup -C: fixupだがメッセージは「fixupコミット側」のものを使用
-pick a1b2c3d feat: 認証機能（仮メッセージ）
-fixup -C d4e5f6a feat: ユーザー認証機能を完全実装
+# fixup -C: fixup but use the "fixup commit's" message
+pick a1b2c3d feat: authentication (placeholder message)
+fixup -C d4e5f6a feat: fully implement user authentication
 
-# → 変更は統合されるが、メッセージはd4e5f6aのものが使われる
-# → メッセージを後から改善したい場合に便利
+# → Changes are merged, but d4e5f6a's message is used
+# → Useful when you want to improve the message later
 
-# fixup -c: fixup -C と同じだが、エディタでメッセージ編集も可能
-pick a1b2c3d feat: 認証機能（仮）
-fixup -c d4e5f6a feat: 改善メッセージ
-# → エディタが開き、d4e5f6aのメッセージをベースに編集できる
+# fixup -c: same as fixup -C but also opens editor for message editing
+pick a1b2c3d feat: authentication (draft)
+fixup -c d4e5f6a feat: improved message
+# → Editor opens, allowing editing based on d4e5f6a's message
 ```
 
-### 2.3 reword -- メッセージのみ変更
+### 2.3 reword -- Change Message Only
 
 ```bash
 reword a1b2c3d feat: auht functon   # typo!
-pick d4e5f6a fix: バグ修正
+pick d4e5f6a fix: bug fix
 
-# → エディタが開き、a1b2c3d のメッセージだけを編集できる
-# → ファイルの内容は変更されない
+# → Editor opens allowing you to edit only a1b2c3d's message
+# → File contents are not changed
 ```
 
-#### rewordの実務的ユースケース
+#### Practical Use Cases for reword
 
 ```bash
-# ユースケース1: Conventional Commitsの修正
-reword a1b2c3d update: ログイン画面   # ← typeが不正
-# → "feat: ログイン画面のUI実装" に修正
+# Use case 1: Fix Conventional Commits
+reword a1b2c3d update: login screen   # ← invalid type
+# → Fix to "feat: implement login screen UI"
 
-# ユースケース2: チケット番号の追加
-reword d4e5f6a fix: メモリリークを修正
-# → "fix(JIRA-1234): メモリリークを修正" に修正
+# Use case 2: Add ticket number
+reword d4e5f6a fix: fix memory leak
+# → Fix to "fix(JIRA-1234): fix memory leak"
 
-# ユースケース3: 複数コミットのメッセージを一括修正
-reword a1b2c3d feat: 機能A
-reword d4e5f6a feat: 機能B
-reword b7c8d9e feat: 機能C
-# → 3つのコミットメッセージを順番に編集
+# Use case 3: Batch fix multiple commit messages
+reword a1b2c3d feat: feature A
+reword d4e5f6a feat: feature B
+reword b7c8d9e feat: feature C
+# → Edit the 3 commit messages one by one
 ```
 
-### 2.4 edit -- コミットを修正するために停止
+### 2.4 edit -- Stop to Modify a Commit
 
 ```bash
-pick a1b2c3d feat: 認証機能
-edit d4e5f6a feat: API実装    # ← ここで停止
-pick b7c8d9e feat: UI実装
+pick a1b2c3d feat: authentication
+edit d4e5f6a feat: API implementation    # ← stops here
+pick b7c8d9e feat: UI implementation
 
-# rebase実行後、d4e5f6a の時点で停止
-$ vim src/api.js              # ファイルを修正
+# After running rebase, stops at d4e5f6a
+$ vim src/api.js              # modify file
 $ git add src/api.js
-$ git commit --amend          # コミットを修正
-$ git rebase --continue       # rebase再開
+$ git commit --amend          # amend the commit
+$ git rebase --continue       # resume rebase
 ```
 
-#### editで追加のコミットを挿入する
+#### Inserting Additional Commits with edit
 
 ```bash
-# editで停止した後、新しいコミットを挿入することも可能
+# After stopping with edit, you can also insert new commits
 $ git rebase -i HEAD~3
 
-pick a1b2c3d feat: 認証機能
-edit d4e5f6a feat: API実装
-pick b7c8d9e feat: UI実装
+pick a1b2c3d feat: authentication
+edit d4e5f6a feat: API implementation
+pick b7c8d9e feat: UI implementation
 
-# d4e5f6a で停止後:
+# After stopping at d4e5f6a:
 $ vim src/middleware.js
 $ git add src/middleware.js
-$ git commit -m "feat: ミドルウェアを追加"   # 新しいコミットを挿入
+$ git commit -m "feat: add middleware"   # insert new commit
 $ git rebase --continue
-# → 結果: a1b2c3d → d4e5f6a → [新コミット] → b7c8d9e
+# → Result: a1b2c3d → d4e5f6a → [new commit] → b7c8d9e
 ```
 
-### 2.5 exec -- シェルコマンドの実行
+### 2.5 exec -- Run Shell Commands
 
 ```bash
-pick a1b2c3d feat: 認証機能
-exec npm test                  # テストを実行
-pick d4e5f6a feat: API実装
-exec npm test                  # テストを実行
+pick a1b2c3d feat: authentication
+exec npm test                  # run tests
+pick d4e5f6a feat: API implementation
+exec npm test                  # run tests
 
-# → 各コミットの後でテストを実行し、失敗したら停止
-# → 全コミットでテストが通ることを保証
+# → Runs tests after each commit, stops if they fail
+# → Ensures tests pass at every commit
 ```
 
-#### execの応用パターン
+#### Advanced exec Patterns
 
 ```bash
-# 全コミットにexecを自動挿入（--exec オプション）
+# Auto-insert exec after every commit (--exec option)
 $ git rebase -i --exec "npm test" main
-# → 各コミットの後に自動で "exec npm test" が挿入される
+# → "exec npm test" is automatically inserted after each commit
 
-# 複数コマンドの実行
+# Run multiple commands
 $ git rebase -i --exec "npm run build && npm test" main
 
-# 各コミットでビルド・テスト・lint全てが通ることを確認
-pick a1b2c3d feat: 認証機能
+# Verify build, tests, and lint all pass at each commit
+pick a1b2c3d feat: authentication
 exec npm run build && npm test && npm run lint
-pick d4e5f6a feat: API実装
+pick d4e5f6a feat: API implementation
 exec npm run build && npm test && npm run lint
 
-# exec が失敗した場合
-# → rebaseが停止する
-# → 修正して git rebase --continue するか
-# → git rebase --abort で全て取り消し
+# When exec fails:
+# → rebase stops
+# → Fix and run git rebase --continue, or
+# → git rebase --abort to cancel everything
 ```
 
-### 2.6 break -- 一時停止
+### 2.6 break -- Pause
 
 ```bash
-pick a1b2c3d feat: 認証機能
-break                          # ← ここで一時停止
-pick d4e5f6a feat: API実装
-pick b7c8d9e feat: UI実装
+pick a1b2c3d feat: authentication
+break                          # ← pause here
+pick d4e5f6a feat: API implementation
+pick b7c8d9e feat: UI implementation
 
-# breakで停止後、自由に作業可能
-$ git log --oneline -3         # 現在の状態を確認
-$ git diff HEAD~1              # 直前のコミットの差分を確認
-$ git rebase --continue        # 確認後に続行
+# After pausing at break, you can work freely
+$ git log --oneline -3         # check current state
+$ git diff HEAD~1              # check diff from previous commit
+$ git rebase --continue        # resume after checking
 ```
 
-### 2.7 drop -- コミットの削除
+### 2.7 drop -- Delete a Commit
 
 ```bash
-pick a1b2c3d feat: 認証機能
-drop d4e5f6a WIP: 一時保存      # ← このコミットを削除
-pick b7c8d9e feat: API実装
+pick a1b2c3d feat: authentication
+drop d4e5f6a WIP: temporary save      # ← delete this commit
+pick b7c8d9e feat: API implementation
 
-# ※ todoリストから行を削除するのと同じ効果
-# ※ dropは明示的に意図を示すので、行削除より安全
+# * Same effect as deleting the line from the todo list
+# * drop is safer than deleting the line as it explicitly shows intent
 ```
 
-### 2.8 label / reset / merge -- マージ構造の再構築
+### 2.8 label / reset / merge -- Rebuilding Merge Structure
 
 ```bash
-# --rebase-merges 使用時に現れるコマンド
+# Commands that appear when using --rebase-merges
 label onto
 
 # Branch: feature-a
 reset onto
-pick a1b2c3d feat: 機能A
+pick a1b2c3d feat: feature A
 label feature-a
 
 # Branch: feature-b
 reset onto
-pick d4e5f6a feat: 機能B
+pick d4e5f6a feat: feature B
 label feature-b
 
 # Merge
 reset feature-a
-merge -C e0f1a2b feature-b  # マージコミットの再作成
+merge -C e0f1a2b feature-b  # recreate the merge commit
 ```
 
 ---
 
-## 3. autosquashワークフロー
+## 3. Autosquash Workflow
 
-### 3.1 fixup!とsquash!コミット
+### 3.1 fixup! and squash! Commits
 
 ```bash
-# 通常の開発フロー
-$ git commit -m "feat: ユーザー認証"   # a1b2c3d
+# Normal development flow
+$ git commit -m "feat: user authentication"   # a1b2c3d
 
-# 後から修正が必要になった場合
-$ git commit --fixup=a1b2c3d           # fixup! feat: ユーザー認証
-# または
-$ git commit --squash=a1b2c3d          # squash! feat: ユーザー認証
+# When a fix is needed later
+$ git commit --fixup=a1b2c3d           # fixup! feat: user authentication
+# or
+$ git commit --squash=a1b2c3d          # squash! feat: user authentication
 
-# autosquashでrebase
+# Rebase with autosquash
 $ git rebase -i --autosquash main
-# → fixup!/squash! コミットが自動的に対象コミットの直下に移動
+# → fixup!/squash! commits are automatically moved below their target commit
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  autosquash の自動並べ替え                           │
+│  autosquash automatic reordering                     │
 │                                                     │
-│  コミット履歴:                                       │
-│  1. a1b2c3d feat: ユーザー認証                      │
-│  2. d4e5f6a feat: API実装                           │
-│  3. b7c8d9e fixup! feat: ユーザー認証               │
-│  4. e0f1a2b feat: UI実装                            │
+│  Commit history:                                     │
+│  1. a1b2c3d feat: user authentication               │
+│  2. d4e5f6a feat: API implementation                │
+│  3. b7c8d9e fixup! feat: user authentication        │
+│  4. e0f1a2b feat: UI implementation                 │
 │                                                     │
-│  git rebase -i --autosquash 後のtodoリスト:         │
-│  pick   a1b2c3d feat: ユーザー認証                  │
-│  fixup  b7c8d9e fixup! feat: ユーザー認証  ← 移動! │
-│  pick   d4e5f6a feat: API実装                       │
-│  pick   e0f1a2b feat: UI実装                        │
+│  Todo list after git rebase -i --autosquash:        │
+│  pick   a1b2c3d feat: user authentication           │
+│  fixup  b7c8d9e fixup! feat: user authentication ← moved! │
+│  pick   d4e5f6a feat: API implementation            │
+│  pick   e0f1a2b feat: UI implementation             │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 3.2 autosquashの自動有効化
+### 3.2 Enabling autosquash by Default
 
 ```bash
-# グローバル設定で常にautosquashを有効にする
+# Enable autosquash globally
 $ git config --global rebase.autosquash true
 
-# 個別にautosquashを無効にしたい場合
+# Disable autosquash for a specific run
 $ git rebase -i --no-autosquash main
 ```
 
-### 3.3 --fixup=amend: と --fixup=reword:（Git 2.32+）
+### 3.3 --fixup=amend: and --fixup=reword: (Git 2.32+)
 
 ```bash
-# --fixup=amend: コードの変更とメッセージの変更を同時に行う
+# --fixup=amend: change code and message at the same time
 $ git commit --fixup=amend:a1b2c3d
-# → "amend! feat: ユーザー認証" というコミットが作成される
-# → autosquash時にコードの変更を統合し、メッセージ編集画面が開く
+# → Creates a commit named "amend! feat: user authentication"
+# → During autosquash, merges code changes and opens message editor
 
-# --fixup=reword: メッセージの変更のみ（コードの変更なし）
+# --fixup=reword: change message only (no code changes)
 $ git commit --allow-empty --fixup=reword:a1b2c3d
-# → autosquash時にメッセージ編集画面が開く（コードは変更なし）
+# → During autosquash, opens message editor (no code changes)
 ```
 
-### 3.4 実践: fixupワークフローの全体像
+### 3.4 Practice: The Full fixup Workflow
 
 ```bash
-# Step 1: 機能を実装してコミット
-$ git commit -m "feat: ユーザープロフィール画面"
+# Step 1: Implement feature and commit
+$ git commit -m "feat: user profile screen"
 
-# Step 2: コードレビューで指摘を受ける
-# 「バリデーションが不足している」→ 修正
+# Step 2: Receive code review feedback
+# "Validation is insufficient" → fix it
 $ vim src/profile.js
 $ git add src/profile.js
-$ git log --oneline -5  # 対象コミットのSHA-1を確認
-# a1b2c3d feat: ユーザープロフィール画面
+$ git log --oneline -5  # check SHA-1 of target commit
+# a1b2c3d feat: user profile screen
 $ git commit --fixup=a1b2c3d
 
-# Step 3: さらに別の指摘
-# 「エラーハンドリングを追加して」→ 修正
+# Step 3: More feedback
+# "Please add error handling" → fix it
 $ vim src/profile.js
 $ git add src/profile.js
 $ git commit --fixup=a1b2c3d
 
-# Step 4: レビュー対応完了、コミットを整理
+# Step 4: Review complete, clean up commits
 $ git rebase -i --autosquash main
-# → fixup!コミットが自動的に a1b2c3d の直下に配置される
-# → 保存してエディタを閉じると、3つのコミットが1つに統合される
+# → fixup! commits are automatically placed right below a1b2c3d
+# → Save and close the editor to merge the 3 commits into 1
 
-# Step 5: force-pushでPRを更新
+# Step 5: Update PR with force-push
 $ git push --force-with-lease origin feature/profile
 ```
 
 ---
 
-## 4. --update-refs（Git 2.38+）
+## 4. --update-refs (Git 2.38+)
 
-複数のブランチが積み重なっている場合、rebaseで全てのrefを同時に更新できる。
+When multiple branches are stacked, rebase can update all refs simultaneously.
 
 ```bash
-# スタックドブランチ構成
+# Stacked branch layout
 # main → feature/base → feature/api → feature/ui
 
 $ git rebase -i --update-refs main
-# → feature/base, feature/api のrefも自動的に更新される
+# → refs for feature/base and feature/api are also automatically updated
 ```
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  --update-refs なし                                 │
+│  Without --update-refs                              │
 │                                                    │
 │  Before rebase:                                    │
 │  main ── A ── B(feature/base) ── C ── D(feature/api)│
 │                                                    │
-│  After rebase (feature/api のみ):                  │
+│  After rebase (feature/api only):                  │
 │  main ── A ── B(feature/base) ── C ── D            │
 │            \                                       │
 │             B'── C'── D'(feature/api)              │
-│  → feature/base が古い位置のまま！                  │
+│  → feature/base remains at the old position!        │
 │                                                    │
 ├────────────────────────────────────────────────────┤
-│  --update-refs あり                                 │
+│  With --update-refs                                 │
 │                                                    │
 │  After rebase:                                     │
 │  main ── A ── B'(feature/base) ── C'── D'(feature/api)│
-│  → 全てのrefが正しく更新される                      │
+│  → All refs are correctly updated                   │
 └────────────────────────────────────────────────────┘
 ```
 
 ```bash
-# デフォルトで有効にする
+# Enable by default
 $ git config --global rebase.updateRefs true
 ```
 
-### 4.1 スタックドブランチの実践ワークフロー
+### 4.1 Practical Stacked Branch Workflow
 
 ```bash
-# Step 1: ベース機能のブランチ
+# Step 1: Branch for base feature
 $ git checkout -b feature/auth main
-# ... 実装 ...
-$ git commit -m "feat: 認証基盤"
+# ... implement ...
+$ git commit -m "feat: authentication foundation"
 
-# Step 2: 認証の上にAPI機能を積む
+# Step 2: Stack API feature on top of authentication
 $ git checkout -b feature/api feature/auth
-# ... 実装 ...
-$ git commit -m "feat: API実装"
+# ... implement ...
+$ git commit -m "feat: API implementation"
 
-# Step 3: APIの上にUI機能を積む
+# Step 3: Stack UI feature on top of API
 $ git checkout -b feature/ui feature/api
-# ... 実装 ...
-$ git commit -m "feat: UI実装"
+# ... implement ...
+$ git commit -m "feat: UI implementation"
 
-# Step 4: mainが進んだのでrebase
+# Step 4: Rebase because main has advanced
 $ git checkout feature/ui
 $ git rebase -i --update-refs main
-# → feature/auth, feature/api のポインタも自動更新
+# → Pointers for feature/auth and feature/api are also automatically updated
 
-# Step 5: 各ブランチのPRが正しい差分になる
-$ git log --oneline main..feature/auth    # 認証のみ
-$ git log --oneline feature/auth..feature/api  # APIのみ
-$ git log --oneline feature/api..feature/ui    # UIのみ
+# Step 5: Each branch PR shows correct diff
+$ git log --oneline main..feature/auth    # auth only
+$ git log --oneline feature/auth..feature/api  # API only
+$ git log --oneline feature/api..feature/ui    # UI only
 ```
 
-### 4.2 todoリストでのupdate-ref
+### 4.2 update-ref in the Todo List
 
-`--update-refs`を使用すると、todoリストに`update-ref`コマンドが自動挿入される。
+When using `--update-refs`, `update-ref` commands are automatically inserted into the todo list.
 
 ```bash
-pick a1b2c3d feat: 認証基盤
-update-ref refs/heads/feature/auth    # ← ここでブランチポインタ更新
-pick d4e5f6a feat: API実装
-update-ref refs/heads/feature/api     # ← ここでブランチポインタ更新
-pick b7c8d9e feat: UI実装
+pick a1b2c3d feat: authentication foundation
+update-ref refs/heads/feature/auth    # ← update branch pointer here
+pick d4e5f6a feat: API implementation
+update-ref refs/heads/feature/api     # ← update branch pointer here
+pick b7c8d9e feat: UI implementation
 
-# update-refの行を削除すると、そのブランチは更新されない
-# update-refの位置を移動させることも可能
+# Deleting an update-ref line means that branch won't be updated
+# You can also move the update-ref position
 ```
 
 ---
 
-## 5. --rebase-merges によるマージ構造の保持
+## 5. Preserving Merge Structure with --rebase-merges
 
-### 5.1 基本的な使い方
+### 5.1 Basic Usage
 
 ```bash
-# マージコミットを含む範囲をrebase
+# Rebase a range that includes merge commits
 $ git rebase -i --rebase-merges main
 
-# todoリストの例:
+# Example todo list:
 label onto
 
 # Branch: feature-auth
 reset onto
-pick a1b2c3d feat: 認証基盤
-pick d4e5f6a feat: ログイン画面
+pick a1b2c3d feat: authentication foundation
+pick d4e5f6a feat: login screen
 label feature-auth
 
 # Branch: feature-api
 reset onto
-pick b7c8d9e feat: API基盤
-pick e0f1a2b feat: エンドポイント
+pick b7c8d9e feat: API foundation
+pick e0f1a2b feat: endpoints
 label feature-api
 
 reset feature-auth
-merge -C f2a3b4c feature-api  # feature-apiをマージ
-pick 1234567 feat: 統合テスト
+merge -C f2a3b4c feature-api  # merge feature-api
+pick 1234567 feat: integration tests
 ```
 
-### 5.2 マージ構造の編集
+### 5.2 Editing the Merge Structure
 
 ```bash
-# マージ戦略を変更
+# Change merge strategy
 reset feature-auth
-merge -C f2a3b4c feature-api   # 通常のマージ
+merge -C f2a3b4c feature-api   # normal merge
 
-# ↓ --no-ff を明示的に指定
+# ↓ Explicitly specify --no-ff
 reset feature-auth
 merge -C f2a3b4c --no-ff feature-api
 
-# マージコミットのメッセージを変更
+# Change the merge commit message
 reset feature-auth
-merge -c f2a3b4c feature-api   # -c (小文字) でメッセージ編集画面が開く
+merge -c f2a3b4c feature-api   # -c (lowercase) opens message editor
 ```
 
-### 5.3 --rebase-merges の廃止された前身
+### 5.3 The Deprecated Predecessor of --rebase-merges
 
 ```bash
-# 旧オプション（非推奨、Git 2.22で廃止）
-$ git rebase -i --preserve-merges main  # ← 使わないこと
+# Old option (deprecated, removed in Git 2.22)
+$ git rebase -i --preserve-merges main  # ← do not use
 
-# 新オプション（Git 2.18+、推奨）
+# New option (Git 2.18+, recommended)
 $ git rebase -i --rebase-merges main
 ```
 
 ---
 
-## 6. 実践的なワークフロー例
+## 6. Practical Workflow Examples
 
-### 6.1 PR用のコミット整理
+### 6.1 Cleaning Up Commits for a PR
 
 ```bash
-# 開発中の雑多なコミット履歴
+# Messy commit history during development
 $ git log --oneline main..HEAD
 e0f1a2b fix: lint
 b7c8d9e wip
 d4e5f6a fix: typo
-a1b2c3d feat: ユーザー登録
-9876543 feat: メール送信
-1234567 feat: バリデーション
+a1b2c3d feat: user registration
+9876543 feat: email sending
+1234567 feat: validation
 
-# 整理のためのtodoリスト
+# Todo list to clean up
 $ git rebase -i main
 
-pick 1234567 feat: バリデーション
-pick 9876543 feat: メール送信
-pick a1b2c3d feat: ユーザー登録
-fixup d4e5f6a fix: typo            # typo修正をユーザー登録に統合
-fixup b7c8d9e wip                  # wipもユーザー登録に統合
-fixup e0f1a2b fix: lint            # lint修正もユーザー登録に統合
+pick 1234567 feat: validation
+pick 9876543 feat: email sending
+pick a1b2c3d feat: user registration
+fixup d4e5f6a fix: typo            # merge typo fix into user registration
+fixup b7c8d9e wip                  # merge wip into user registration too
+fixup e0f1a2b fix: lint            # merge lint fix into user registration too
 
-# 結果: 3つのクリーンなコミットになる
-# 1234567' feat: バリデーション
-# 9876543' feat: メール送信
-# xxxxxxx  feat: ユーザー登録（typo/wip/lint修正を含む）
+# Result: 3 clean commits
+# 1234567' feat: validation
+# 9876543' feat: email sending
+# xxxxxxx  feat: user registration (includes typo/wip/lint fixes)
 ```
 
-### 6.2 コミットの分割
+### 6.2 Splitting a Commit
 
 ```bash
-# 1つの大きなコミットを複数に分割
+# Split one large commit into multiple commits
 $ git rebase -i HEAD~3
 
-edit a1b2c3d feat: 認証とUI（分割したい）
-pick d4e5f6a feat: テスト
+edit a1b2c3d feat: auth and UI (want to split)
+pick d4e5f6a feat: tests
 
-# a1b2c3d で停止後:
-$ git reset HEAD~1                    # コミットを取り消し（変更は保持）
+# After stopping at a1b2c3d:
+$ git reset HEAD~1                    # undo commit (keep changes)
 $ git add src/auth.js src/middleware.js
-$ git commit -m "feat: 認証ロジック"
+$ git commit -m "feat: authentication logic"
 $ git add src/components/Login.jsx
-$ git commit -m "feat: ログインUI"
+$ git commit -m "feat: login UI"
 $ git rebase --continue
 ```
 
-### 6.3 コミットの順序変更
+### 6.3 Reordering Commits
 
 ```bash
-# todoリスト内で行を入れ替えるだけ
+# Just swap lines in the todo list
 $ git rebase -i HEAD~4
 
 # Before:
-pick a1b2c3d feat: テスト追加
-pick d4e5f6a feat: 実装
-pick b7c8d9e feat: 型定義
+pick a1b2c3d feat: add tests
+pick d4e5f6a feat: implementation
+pick b7c8d9e feat: type definitions
 
-# After (テストを最後に移動):
-pick d4e5f6a feat: 実装
-pick b7c8d9e feat: 型定義
-pick a1b2c3d feat: テスト追加
+# After (move tests to the end):
+pick d4e5f6a feat: implementation
+pick b7c8d9e feat: type definitions
+pick a1b2c3d feat: add tests
 
-# ※ 順序変更はコンフリクトの原因になりやすい
-# ※ 依存関係がないコミット同士で行うのが安全
+# * Reordering is a common cause of conflicts
+# * Safest to do between commits with no dependencies
 ```
 
-### 6.4 複数のPRにコミットを振り分ける
+### 6.4 Distributing Commits Across Multiple PRs
 
 ```bash
-# 1つのブランチに混在した変更を2つのPRに分ける
+# Split mixed changes in one branch into 2 PRs
 
-# Step 1: 現在のブランチの状態を確認
+# Step 1: Check current branch state
 $ git log --oneline main..HEAD
-e0f1a2b feat: プロフィール画面のUI
-b7c8d9e feat: プロフィール画面のAPI
-d4e5f6a feat: ダッシュボードのUI
-a1b2c3d feat: ダッシュボードのAPI
+e0f1a2b feat: profile screen UI
+b7c8d9e feat: profile screen API
+d4e5f6a feat: dashboard UI
+a1b2c3d feat: dashboard API
 
-# Step 2: ダッシュボード用のブランチを作成
+# Step 2: Create branch for dashboard
 $ git checkout -b feature/dashboard main
 $ git cherry-pick a1b2c3d d4e5f6a
 
-# Step 3: プロフィール用のブランチを作成
+# Step 3: Create branch for profile
 $ git checkout -b feature/profile main
 $ git cherry-pick b7c8d9e e0f1a2b
 
-# Step 4: 元のブランチを削除
+# Step 4: Delete original branch
 $ git branch -D feature/mixed
 ```
 
-### 6.5 テストが全コミットで通ることを検証
+### 6.5 Verifying Tests Pass at Every Commit
 
 ```bash
-# 全てのコミットでCIが通ることを確認してからPRを出す
+# Confirm CI passes at all commits before submitting a PR
 $ git rebase -i --exec "npm run build && npm test" main
 
-# ↓ 自動生成されるtodoリスト
-pick a1b2c3d feat: 認証機能
+# ↓ Auto-generated todo list
+pick a1b2c3d feat: authentication
 exec npm run build && npm test
-pick d4e5f6a feat: API実装
+pick d4e5f6a feat: API implementation
 exec npm run build && npm test
-pick b7c8d9e feat: UI実装
+pick b7c8d9e feat: UI implementation
 exec npm run build && npm test
 
-# いずれかのコミットでテストが失敗した場合:
-# → rebaseが停止
-# → editで修正してから続行
+# If tests fail at any commit:
+# → rebase stops
+# → Fix with edit and then continue
 ```
 
-### 6.6 機密情報を含むコミットの修正
+### 6.6 Fixing Commits Containing Sensitive Information
 
 ```bash
-# 誤ってAPIキーをコミットしてしまった場合
+# If you accidentally committed an API key
 $ git rebase -i HEAD~5
 
-edit a1b2c3d feat: API連携を追加    # ← APIキーが含まれるコミット
-pick d4e5f6a feat: テスト追加
+edit a1b2c3d feat: add API integration    # ← commit containing API key
+pick d4e5f6a feat: add tests
 
-# a1b2c3d で停止後:
-$ vim .env                            # APIキーを.envに移動
-$ vim src/api.js                      # 環境変数から読むように修正
-$ echo ".env" >> .gitignore           # .gitignoreに追加
+# After stopping at a1b2c3d:
+$ vim .env                            # move API key to .env
+$ vim src/api.js                      # modify to read from environment variable
+$ echo ".env" >> .gitignore           # add to .gitignore
 $ git add .gitignore src/api.js
-$ git rm --cached .env 2>/dev/null    # .envをトラッキングから除外
-$ git commit --amend                  # コミットを修正
+$ git rm --cached .env 2>/dev/null    # remove .env from tracking
+$ git commit --amend                  # amend the commit
 $ git rebase --continue
 
-# ※ 既にpush済みの場合、force-pushしてもGitHubのキャッシュに残る可能性がある
-# ※ 漏洩したAPIキーは必ずローテーション（再発行）すること
+# * If already pushed, even force-pushing may leave it in GitHub's cache
+# * Always rotate (regenerate) a leaked API key
 ```
 
 ---
 
-## 7. コンフリクト解決
+## 7. Conflict Resolution
 
-### 7.1 rebase中のコンフリクト
+### 7.1 Conflicts During Rebase
 
 ```bash
-# コンフリクトが発生した場合
+# When a conflict occurs
 $ git rebase -i main
 # CONFLICT (content): Merge conflict in src/auth.js
-# error: could not apply d4e5f6a... feat: API実装
+# error: could not apply d4e5f6a... feat: API implementation
 
-# 現在の状態を確認
+# Check current state
 $ git status
 # interactive rebase in progress; onto abc123
 # You are currently rebasing branch 'feature' on 'abc123'.
@@ -753,239 +753,239 @@ $ git status
 # Unmerged paths:
 #   both modified:   src/auth.js
 
-# コンフリクトを解決
+# Resolve the conflict
 $ vim src/auth.js
 # <<<<<<< HEAD
-# ... rebase先の内容 ...
+# ... content from rebase target ...
 # =======
-# ... 適用しようとしたコミットの内容 ...
-# >>>>>>> d4e5f6a (feat: API実装)
+# ... content from the commit being applied ...
+# >>>>>>> d4e5f6a (feat: API implementation)
 
-# 解決後
+# After resolving
 $ git add src/auth.js
 $ git rebase --continue
-# → 次のコミットの処理に進む
+# → Moves on to processing the next commit
 ```
 
-### 7.2 コンフリクト解決の選択肢
+### 7.2 Options for Conflict Resolution
 
 ```bash
-# 選択肢1: コンフリクトを解決して続行
+# Option 1: Resolve the conflict and continue
 $ git add <resolved-files>
 $ git rebase --continue
 
-# 選択肢2: このコミットをスキップ
+# Option 2: Skip this commit
 $ git rebase --skip
-# → このコミットの変更は適用されない
+# → This commit's changes will not be applied
 
-# 選択肢3: rebase全体を中止
+# Option 3: Abort the entire rebase
 $ git rebase --abort
-# → rebase開始前の状態に完全復帰
+# → Fully reverts to the state before rebase started
 
-# 選択肢4: 特定のファイルでどちらかの内容を採用
-$ git checkout --ours src/auth.js    # rebase先（onto）の内容を採用
-$ git checkout --theirs src/auth.js  # 適用中のコミットの内容を採用
+# Option 4: Accept one side's content for a specific file
+$ git checkout --ours src/auth.js    # accept the rebase target (onto) content
+$ git checkout --theirs src/auth.js  # accept the content from the commit being applied
 $ git add src/auth.js
 $ git rebase --continue
 ```
 
-### 7.3 rerere -- コンフリクト解決の記憶
+### 7.3 rerere -- Remembering Conflict Resolutions
 
 ```bash
-# rerere（reuse recorded resolution）を有効化
+# Enable rerere (reuse recorded resolution)
 $ git config --global rerere.enabled true
 
-# 仕組み:
-# 1. コンフリクトが発生 → 解決方法を記録
-# 2. 同じコンフリクトが再発 → 自動的に同じ解決方法を適用
-# → rebaseのやり直し時に同じコンフリクトを再度解決する必要がなくなる
+# How it works:
+# 1. Conflict occurs → resolution is recorded
+# 2. Same conflict recurs → same resolution is applied automatically
+# → No need to re-resolve the same conflict when redoing a rebase
 
-# 記録された解決方法の確認
+# Check recorded resolutions
 $ git rerere status
 $ git rerere diff
 
-# 記録をクリア
+# Clear records
 $ git rerere forget <pathspec>
-$ git rerere gc  # 古い記録を削除
+$ git rerere gc  # delete old records
 ```
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  rerere の動作フロー                                  │
+│  rerere operation flow                                │
 │                                                      │
-│  1回目のrebase:                                      │
-│  コンフリクト発生 → 手動解決 → rerereが解決を記録    │
+│  First rebase:                                       │
+│  Conflict occurs → manually resolve → rerere records it │
 │                                                      │
-│  2回目のrebase（やり直し時）:                        │
-│  同じコンフリクト発生 → rerereが自動解決             │
+│  Second rebase (when redoing):                       │
+│  Same conflict occurs → rerere auto-resolves it      │
 │                                                      │
-│  ※ rebase → abort → 修正 → 再rebase の繰り返しで威力発揮  │
-│  ※ マージとrebaseを行き来する場合にも有効            │
+│  * Especially powerful in rebase → abort → fix → re-rebase cycles │
+│  * Also effective when alternating between merge and rebase │
 └──────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 8. リカバリー手法
+## 8. Recovery Techniques
 
 ### 8.1 rebase --abort
 
 ```bash
-# rebase中に問題が発生した場合、いつでも中止できる
+# If a problem occurs during rebase, you can abort at any time
 $ git rebase --abort
-# → ORIG_HEADの状態に完全復帰
-# → 作業ディレクトリ、インデックス、HEADの全てが元に戻る
+# → Fully reverts to the state saved in ORIG_HEAD
+# → Working directory, index, and HEAD are all restored
 ```
 
-### 8.2 reflogからの救出
+### 8.2 Rescue via reflog
 
 ```bash
-# rebase完了後に「間違えた」と気づいた場合
+# If you realize a mistake after rebase is complete
 $ git reflog
 abc123 HEAD@{0}: rebase (finish): returning to refs/heads/feature
 def456 HEAD@{1}: rebase (squash): feat: ...
 789abc HEAD@{2}: rebase (start): checkout main
-fedcba HEAD@{3}: commit: feat: ...    # ← rebase前の最後のcommit
+fedcba HEAD@{3}: commit: feat: ...    # ← last commit before rebase
 
-# rebase前の状態に戻す
+# Restore to pre-rebase state
 $ git reset --hard fedcba
-# → rebase前の状態に完全復帰
+# → Fully reverts to pre-rebase state
 ```
 
-### 8.3 ORIG_HEADの活用
+### 8.3 Using ORIG_HEAD
 
 ```bash
-# rebase直後なら ORIG_HEAD で簡単に戻れる
+# Right after a rebase, you can easily go back with ORIG_HEAD
 $ git rebase -i main
-# ... rebase完了 ...
+# ... rebase completes ...
 
-# 「やっぱりやめたい」
+# "Actually, I want to undo this"
 $ git reset --hard ORIG_HEAD
-# → rebase開始前のHEADに戻る
+# → Returns to HEAD before rebase started
 
-# ※ ORIG_HEAD は destructive な操作（rebase, merge, reset）の前に自動保存される
-# ※ 次の destructive 操作で上書きされるので注意
+# * ORIG_HEAD is automatically saved before destructive operations (rebase, merge, reset)
+# * Be careful: it gets overwritten by the next destructive operation
 ```
 
-### 8.4 バックアップブランチの作成
+### 8.4 Creating a Backup Branch
 
 ```bash
-# rebase前にバックアップブランチを作成する習慣
+# The habit of creating a backup branch before rebasing
 $ git branch backup/feature-before-rebase
 $ git rebase -i main
-# ... 作業 ...
+# ... work ...
 
-# 問題があれば:
+# If there are problems:
 $ git reset --hard backup/feature-before-rebase
-$ git branch -D backup/feature-before-rebase  # 不要になったら削除
+$ git branch -D backup/feature-before-rebase  # delete when no longer needed
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン1: push済みコミットのrebase
+### Anti-Pattern 1: Rebasing Already-Pushed Commits
 
 ```bash
-# NG: リモートにpush済みのコミットをrebase
+# BAD: Rebase commits already pushed to remote
 $ git push origin feature
-# ... 後からrebase ...
+# ... rebase later ...
 $ git rebase -i HEAD~5
 $ git push --force origin feature
-# → 他の開発者がpullできなくなる
+# → Other developers will be unable to pull
 
-# OK: force-with-leaseを使い、push前に確認
+# GOOD: Use force-with-lease and confirm before pushing
 $ git push --force-with-lease origin feature
-# → リモートが予期しない更新をされていたら拒否
+# → Rejects if the remote has been updated unexpectedly
 
-# より安全: ローカル専用コミットのみrebase
-$ git rebase -i origin/feature  # originにないコミットのみ対象
+# Even safer: Only rebase commits not on the remote
+$ git rebase -i origin/feature  # targets only commits not in origin
 ```
 
-**理由**: rebaseはコミットのSHA-1を変更する。push済みコミットのSHA-1を変更すると、そのブランチを追跡している全ての開発者に影響する。
+**Reason**: Rebase changes commit SHA-1s. Changing the SHA-1 of pushed commits affects all developers tracking that branch.
 
-### アンチパターン2: マージコミットを含む範囲のrebase
+### Anti-Pattern 2: Rebasing a Range That Includes Merge Commits
 
 ```bash
-# NG: マージコミットを含む範囲を通常のrebaseで処理
+# BAD: Process a range including merge commits with normal rebase
 $ git rebase -i HEAD~10
-# → マージコミットが消えて、線形履歴に変わってしまう
+# → Merge commits disappear, history becomes linear
 
-# OK: --rebase-merges でマージ構造を保持
+# GOOD: Use --rebase-merges to preserve merge structure
 $ git rebase -i --rebase-merges HEAD~10
-# → todoリストにlabel, reset, mergeコマンドが追加される
+# → label, reset, and merge commands are added to the todo list
 ```
 
-**理由**: 通常のrebaseはマージコミットをスキップまたは線形化する。`--rebase-merges`を使うことで、マージの分岐・合流構造を保ったままrebaseが可能。
+**Reason**: Normal rebase skips or linearizes merge commits. Using `--rebase-merges` allows rebasing while preserving the branching and merging structure.
 
-### アンチパターン3: 大量のコミットを一度にrebase
+### Anti-Pattern 3: Rebasing a Large Number of Commits at Once
 
 ```bash
-# NG: 100以上のコミットを一度にインタラクティブrebase
+# BAD: Interactive rebase on 100+ commits at once
 $ git rebase -i HEAD~150
-# → コンフリクトが連鎖して収拾がつかなくなる
+# → Cascading conflicts spiral out of control
 
-# OK: 段階的にrebaseする
-$ git rebase -i HEAD~20    # まず直近20件を整理
-$ git rebase -i HEAD~20    # 次の20件を整理
-# → 小さな単位で段階的に処理
+# GOOD: Rebase in stages
+$ git rebase -i HEAD~20    # clean up the most recent 20 first
+$ git rebase -i HEAD~20    # then the next 20
+# → Process in small batches
 
-# OK: 機能単位でブランチを分割してからrebase
-$ git rebase -i feature/base  # ベースブランチからの差分のみ
+# GOOD: Split into branches by feature, then rebase
+$ git rebase -i feature/base  # only changes from the base branch
 ```
 
-**理由**: 大量のコミットのrebaseはコンフリクトの連鎖を引き起こしやすい。段階的に処理することでリスクを最小化できる。
+**Reason**: Rebasing many commits at once easily causes cascading conflicts. Processing in stages minimizes risk.
 
-### アンチパターン4: 他人のコミットをsquashで潰す
+### Anti-Pattern 4: Squashing Another Person's Commits into Your Own
 
 ```bash
-# NG: 別の開発者のコミットを自分のコミットにsquash
-pick a1b2c3d feat: Tanakaさんの実装
-squash d4e5f6a feat: 自分の修正
-# → Tanakaさんの貢献が履歴から消える
+# BAD: Squash another developer's commits into your own
+pick a1b2c3d feat: Tanaka's implementation
+squash d4e5f6a feat: my fix
+# → Tanaka's contribution disappears from history
 
-# OK: Co-authored-byを使う or 別コミットとして保持
-pick a1b2c3d feat: Tanakaさんの実装
-pick d4e5f6a feat: 自分の修正
-# → 両方の貢献が履歴に残る
+# GOOD: Use Co-authored-by or keep them as separate commits
+pick a1b2c3d feat: Tanaka's implementation
+pick d4e5f6a feat: my fix
+# → Both contributions remain in history
 ```
 
-**理由**: オープンソースでは特に、各開発者の貢献を正確に記録することが重要。他人のコミットを自分のものに統合するのは不適切。
+**Reason**: Especially in open source, it is important to accurately record each developer's contributions. Merging someone else's commits into your own is inappropriate.
 
 ---
 
-## 10. パフォーマンスとGit設定
+## 10. Performance and Git Configuration
 
-### 10.1 rebase高速化の設定
+### 10.1 Settings to Speed Up Rebase
 
 ```bash
-# rebase時のmerge-backendを設定（Git 2.33+）
+# Set the merge backend for rebase (Git 2.33+)
 $ git config --global rebase.backend merge
-# → 'apply' バックエンドより高速で、rename検出も優れている
+# → Faster than the 'apply' backend with better rename detection
 
-# rebase時のstat表示を無効化（大規模リポジトリで有効）
+# Disable stat display during rebase (useful for large repositories)
 $ git config --global rebase.stat false
 
-# autostashを有効にして手動stashの手間を省く
+# Enable autostash to eliminate manual stashing
 $ git config --global rebase.autostash true
 ```
 
-### 10.2 推奨するGit設定まとめ
+### 10.2 Recommended Git Configuration Summary
 
 ```bash
-# rebase関連の推奨設定
-$ git config --global rebase.autosquash true     # fixup!/squash!の自動並べ替え
-$ git config --global rebase.updateRefs true     # スタックドブランチの自動更新
-$ git config --global rebase.autostash true      # 未コミット変更の自動stash
-$ git config --global rerere.enabled true        # コンフリクト解決の記憶
-$ git config --global pull.rebase true           # pull時にmergeではなくrebase
-$ git config --global fetch.prune true           # fetch時に削除済みブランチを自動削除
+# Recommended settings related to rebase
+$ git config --global rebase.autosquash true     # auto-reorder fixup!/squash! commits
+$ git config --global rebase.updateRefs true     # auto-update stacked branches
+$ git config --global rebase.autostash true      # auto-stash uncommitted changes
+$ git config --global rerere.enabled true        # remember conflict resolutions
+$ git config --global pull.rebase true           # rebase instead of merge on pull
+$ git config --global fetch.prune true           # auto-delete removed branches on fetch
 ```
 
-### 10.3 エイリアスの設定
+### 10.3 Alias Configuration
 
 ```bash
-# rebase関連の便利エイリアス
+# Useful aliases for rebase
 $ git config --global alias.ri "rebase -i"
 $ git config --global alias.rc "rebase --continue"
 $ git config --global alias.ra "rebase --abort"
@@ -993,119 +993,119 @@ $ git config --global alias.rs "rebase --skip"
 $ git config --global alias.rim "rebase -i main"
 $ git config --global alias.fixup "commit --fixup"
 
-# 使用例
-$ git ri HEAD~5          # インタラクティブrebase
-$ git ri main            # mainからのrebase
-$ git fixup abc123       # fixupコミット作成
-$ git rc                 # rebase続行
-$ git ra                 # rebase中止
+# Usage examples
+$ git ri HEAD~5          # interactive rebase
+$ git ri main            # rebase from main
+$ git fixup abc123       # create fixup commit
+$ git rc                 # continue rebase
+$ git ra                 # abort rebase
 ```
 
 ---
 
-## 11. チーム開発でのrebase運用
+## 11. Rebase Practices for Team Development
 
-### 11.1 rebase vs merge 戦略
+### 11.1 Rebase vs. Merge Strategy
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  rebase戦略                                          │
+│  Rebase strategy                                     │
 │  main ── A ── B ── C ── D ── E ── F                  │
-│  → 直線的で読みやすい履歴                            │
-│  → コミットの因果関係が明確                          │
-│  → bisectが効率的                                    │
+│  → Linear, easy-to-read history                      │
+│  → Clear causal relationships between commits        │
+│  → Efficient bisect                                  │
 │                                                      │
-│  merge戦略                                           │
+│  Merge strategy                                      │
 │  main ── A ── B ──────── M1 ──────── M2              │
 │            \           /     \      /                │
 │             C ── D ──/       E ── F                  │
-│  → ブランチの分岐・合流が明確                        │
-│  → 変更の文脈が保持される                            │
-│  → コンフリクト解決が一度で済む                      │
+│  → Clear view of branch divergence and merges        │
+│  → Context of changes is preserved                   │
+│  → Conflict resolution happens only once             │
 │                                                      │
-│  推奨: 個人作業はrebase、チーム統合はmerge            │
+│  Recommendation: rebase for individual work, merge for team integration │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 11.2 PRマージ前のコミット整理ルール
+### 11.2 Commit Cleanup Rules Before PR Merge
 
 ```bash
-# チームで合意すべきルール:
+# Rules to agree on as a team:
 
-# ルール1: PRマージ前にsquash or rebaseで整理
-# → WIP、fixup、typoなどの一時コミットを統合
-# → 論理的に意味のある単位にまとめる
+# Rule 1: Clean up with squash or rebase before PR merge
+# → Consolidate temporary commits like WIP, fixup, typo
+# → Group into logically meaningful units
 
-# ルール2: force-pushのルール
-# → force-push-with-lease のみ許可
-# → main/developへのforce-push は禁止
-# → レビュー後のforce-pushはレビュアーに通知
+# Rule 2: Rules for force-push
+# → Only force-push-with-lease is allowed
+# → force-push to main/develop is prohibited
+# → Notify reviewers when force-pushing after review
 
-# ルール3: コミットメッセージの形式
-# → Conventional Commits準拠
-# → 日本語/英語の統一
+# Rule 3: Commit message format
+# → Follow Conventional Commits
+# → Be consistent with language (Japanese/English)
 ```
 
-### 11.3 GitHub/GitLabでのSquash Mergeとの使い分け
+### 11.3 When to Use GitHub/GitLab Squash Merge vs. Manual Rebase
 
 ```bash
-# GitHubの「Squash and merge」ボタン:
-# → PRの全コミットを1つにまとめてmainにマージ
-# → 個別のコミット履歴はmainに残らない
-# → PRのタイトルがコミットメッセージになる
+# GitHub "Squash and merge" button:
+# → Combines all PR commits into one and merges into main
+# → Individual commit history does not remain in main
+# → PR title becomes the commit message
 
-# ローカルでの手動rebase + 通常のmerge:
-# → コミットを整理しつつ、複数のコミットとしてmainに残す
-# → 論理的に意味のある複数コミットを保持できる
-# → より細かい制御が可能
+# Manual rebase locally + normal merge:
+# → Clean up commits while keeping multiple commits in main
+# → Can preserve multiple logically meaningful commits
+# → Allows finer-grained control
 
-# 判断基準:
-# - 小さなPR（1-2コミット程度）: Squash Merge で十分
-# - 大きなPR（複数の論理的変更）: 手動rebaseで整理後、通常のmerge
+# Decision criteria:
+# - Small PR (1-2 commits): Squash Merge is sufficient
+# - Large PR (multiple logical changes): Clean up with manual rebase, then normal merge
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1114,26 +1114,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Should have raised an exception"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1141,7 +1141,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1152,14 +1152,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1167,7 +1167,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1175,44 +1175,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1221,7 +1221,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1236,47 +1236,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Check the path and format of the config file |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check executing user's permissions, review settings |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Verify step by step**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1284,102 +1284,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator to log function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Problems
 
-パフォーマンス問題が発生した場合の診断手順:
+Diagnostic steps when performance problems occur:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB slowness | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to prioritize | When to compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed users |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① Team size?                                    │
+│    ├─ Small (1-5 people) → Monolith              │
+│    └─ Large (10+ people) → go to ②               │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② Deployment frequency?                         │
+│    ├─ Once a week or less → Monolith + modular split │
+│    └─ Daily / multiple times → go to ③            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ Team independence?                             │
+│    ├─ High → Microservices                        │
+│    └─ Moderate → Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A fast short-term approach can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies enables best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction increases reusability but can make debugging harder
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1389,17 +1389,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1407,7 +1407,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1415,15 +1415,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1431,53 +1431,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renewing a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Gradually migrate using the Strangler Fig pattern
+- If no existing tests, first write Characterization Tests
+- Coexist old and new systems via an API gateway
+- Migrate data in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Start migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Assign ownership per team
+- Manage shared libraries with Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1490,20 +1490,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1512,7 +1512,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1533,117 +1533,117 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems where millisecond-level response times are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging async processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Technique | Effect | Implementation Cost | Use Case |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy operations |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 ---
 
 ## 12. FAQ
 
-### Q1. rebase中にコンフリクトが発生して収拾がつかなくなった場合は？
+### Q1. What should I do if conflicts during rebase spiral out of control?
 
-**A1.** `git rebase --abort`で**rebase開始前の状態に完全に復帰**できます。作業ディレクトリ、インデックス、HEADの全てが元に戻ります。rebaseで途中まで処理したコミットも全て巻き戻されます。
+**A1.** You can use `git rebase --abort` to **fully revert to the state before rebase started**. The working directory, index, and HEAD are all restored. Commits already processed mid-rebase are also rewound.
 
 ```bash
-$ git rebase --abort    # 全てを元に戻す
-$ git reflog            # 念のため元の状態を確認
+$ git rebase --abort    # revert everything
+$ git reflog            # verify the original state just in case
 ```
 
-### Q2. rebase後に「間違えた」と気づいた場合、元に戻せるか？
+### Q2. Can I undo a rebase after it completes if I realize I made a mistake?
 
-**A2.** はい、reflogを使って復元できます。
+**A2.** Yes, you can restore using reflog.
 
 ```bash
-# rebase前のHEADの位置をreflogで確認
+# Check where HEAD was before rebase using reflog
 $ git reflog
 abc123 HEAD@{0}: rebase (finish): returning to refs/heads/feature
 def456 HEAD@{1}: rebase (squash): feat: ...
 789abc HEAD@{2}: rebase (start): checkout main
-fedcba HEAD@{3}: commit: feat: ...    # ← rebase前の最後のcommit
+fedcba HEAD@{3}: commit: feat: ...    # ← last commit before rebase
 
-# rebase前の状態に戻す
+# Restore to pre-rebase state
 $ git reset --hard fedcba
 ```
 
-### Q3. `--autosquash`と`--autostash`の違いは何か？
+### Q3. What is the difference between `--autosquash` and `--autostash`?
 
-**A3.** 全く異なる機能です。
+**A3.** They are completely different features.
 
-| 機能            | 説明                                                   |
-|-----------------|--------------------------------------------------------|
-| `--autosquash`  | `fixup!`/`squash!`コミットをtodoリスト内で自動並べ替え |
-| `--autostash`   | rebase開始前に未コミットの変更を自動stash、終了後にpop |
+| Feature         | Description                                                   |
+|-----------------|----------------------------------------------------------------|
+| `--autosquash`  | Auto-reorders `fixup!`/`squash!` commits within the todo list |
+| `--autostash`   | Auto-stashes uncommitted changes before rebase, pops after    |
 
 ```bash
-# 未コミットの変更がある状態でrebase
+# Rebase with uncommitted changes
 $ git rebase -i --autostash main
-# → 自動で stash → rebase → stash pop
+# → Automatically: stash → rebase → stash pop
 ```
 
-### Q4. rebase中にeditで停止した際、どのコミットの状態にいるのか？
+### Q4. When stopped at edit during rebase, which commit's state am I in?
 
-**A4.** editで停止した時点では、**そのコミットが既に適用された状態**です。つまりHEADはeditに指定したコミットを指しています。`git commit --amend`でそのコミットを修正するか、新しいコミットを追加して`git rebase --continue`で続行します。
+**A4.** When stopped at edit, **that commit has already been applied**. This means HEAD points to the commit specified with edit. Either amend it with `git commit --amend` or add new commits and continue with `git rebase --continue`.
 
 ```bash
 $ git rebase -i HEAD~3
-# edit a1b2c3d feat: 何かの実装
+# edit a1b2c3d feat: some implementation
 
-# 停止後の状態:
+# State after stopping:
 $ git log --oneline -1
-# a1b2c3d feat: 何かの実装    ← このコミットが適用済み
+# a1b2c3d feat: some implementation    ← this commit is already applied
 $ git status
 # interactive rebase in progress
 ```
 
-### Q5. squashとfixupはどう使い分けるべきか？
+### Q5. How should I choose between squash and fixup?
 
-**A5.** 以下の基準で使い分けます。
+**A5.** Use the following criteria to decide.
 
-| 状況 | 推奨コマンド | 理由 |
+| Situation | Recommended Command | Reason |
 |------|-------------|------|
-| 複数の実装を1つのコミットにまとめたい | squash | メッセージを統合・編集できる |
-| typo修正、lint修正など小さな修正 | fixup | メッセージは親コミットのものを維持 |
-| コードレビュー後の修正 | fixup + autosquash | 修正を元のコミットに自動統合 |
-| メッセージを後から改善したい | fixup -C | fixupコミット側のメッセージを採用 |
+| Want to combine multiple implementations into one commit | squash | Can merge and edit messages |
+| Small fixes like typos or lint errors | fixup | Keeps the parent commit's message |
+| Fixes after code review | fixup + autosquash | Auto-merges fix into original commit |
+| Want to improve message later | fixup -C | Uses the fixup commit's message |
 
-### Q6. `git rebase --onto`の使い方は？
+### Q6. How do you use `git rebase --onto`?
 
-**A6.** `--onto`は「コミットの移植先」を指定するオプションで、3つの引数を取ります。
+**A6.** `--onto` is an option to specify the "transplant destination" for commits, and takes 3 arguments.
 
 ```bash
-# 構文: git rebase --onto <新しいベース> <古いベース> <ブランチ>
+# Syntax: git rebase --onto <new base> <old base> <branch>
 
-# ユースケース1: ブランチの付け替え
+# Use case 1: Switch branch base
 # Before: main → feature-a → feature-b
-# After:  main → feature-b（feature-aを飛ばす）
+# After:  main → feature-b (skipping feature-a)
 $ git rebase --onto main feature-a feature-b
 
-# ユースケース2: 特定範囲のコミットだけを移植
-# feature ブランチの最新3コミットだけをmainに移植
+# Use case 2: Transplant only specific commits
+# Transplant the latest 3 commits from feature branch to main
 $ git rebase --onto main HEAD~3 feature
 
-# ユースケース3: 古いベースブランチからの切り替え
-# develop → feature だったのを main → feature に変更
+# Use case 3: Switch from an old base branch
+# Change from develop → feature to main → feature
 $ git rebase --onto main develop feature
 ```
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  --onto の動作イメージ                                │
+│  How --onto works                                     │
 │                                                      │
 │  Before:                                             │
 │  main ── A ── B(feature-a) ── C ── D(feature-b)     │
@@ -1654,27 +1654,27 @@ $ git rebase --onto main develop feature
 │  main ── A ── C'── D'(feature-b)                     │
 │            \                                         │
 │             B(feature-a)                              │
-│  → feature-a以降のコミット(C,D)をmainに直接移植      │
+│  → Commits after feature-a (C,D) are transplanted directly onto main │
 └──────────────────────────────────────────────────────┘
 ```
 
-### Q7. インタラクティブrebaseとnon-interactiveなrebaseの違いは？
+### Q7. What is the difference between interactive rebase and non-interactive rebase?
 
-**A7.** 動作原理は同じですが、制御の粒度が異なります。
+**A7.** The underlying mechanism is the same, but the level of control differs.
 
 ```bash
 # non-interactive rebase
 $ git rebase main
-# → mainからHEADまでの全コミットを自動的にpick
-# → コンフリクト以外は介入なしで完了
+# → Automatically picks all commits from main to HEAD
+# → Completes without intervention except for conflicts
 
 # interactive rebase
 $ git rebase -i main
-# → todoリストが表示され、各コミットの処理を個別に指定可能
-# → squash, fixup, reword, edit, drop, exec が使える
+# → Todo list is shown, allowing individual processing of each commit
+# → squash, fixup, reword, edit, drop, exec are available
 
-# ※ non-interactive でもautosquashは適用される（設定次第）
-# ※ --exec はnon-interactiveでも使用可能
+# * autosquash applies to non-interactive too (depending on settings)
+# * --exec can also be used with non-interactive
 $ git rebase --exec "npm test" main
 ```
 
@@ -1683,54 +1683,54 @@ $ git rebase --exec "npm test" main
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to keep in mind when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Jumping to advanced topics without mastering the basics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 概念           | 要点                                                          |
+| Concept        | Key Point                                                     |
 |----------------|---------------------------------------------------------------|
-| pick           | コミットをそのまま使用                                        |
-| squash         | 直前のコミットに統合、メッセージ編集可能                      |
-| fixup          | 直前のコミットに統合、メッセージは直前のものを維持            |
-| fixup -C       | fixupだがメッセージはfixupコミット側を採用（Git 2.32+）       |
-| reword         | コミットメッセージのみ変更                                    |
-| edit           | コミットの時点で停止、修正や分割が可能                        |
-| exec           | 任意のシェルコマンドを実行                                    |
-| break          | 一時停止、確認後にcontinueで続行                              |
-| drop           | コミットを明示的に削除                                        |
-| autosquash     | `fixup!`/`squash!`プレフィックスで自動並べ替え               |
-| --update-refs  | スタックドブランチのrefを自動更新（Git 2.38+）               |
-| --rebase-merges| マージ構造を保持したままrebase                                |
-| --onto         | コミットの移植先を明示的に指定                                |
-| rerere         | コンフリクト解決方法を記憶し再利用                            |
-| ORIG_HEAD      | rebase前のHEAD位置を自動保存                                  |
+| pick           | Use commit as-is                                              |
+| squash         | Merge into previous commit, message can be edited             |
+| fixup          | Merge into previous commit, keep previous commit's message    |
+| fixup -C       | fixup but use the fixup commit's message (Git 2.32+)          |
+| reword         | Change only the commit message                                |
+| edit           | Stop at that commit, allows modification or splitting         |
+| exec           | Run an arbitrary shell command                                |
+| break          | Pause, resume with continue after checking                    |
+| drop           | Explicitly delete a commit                                    |
+| autosquash     | Auto-reorder with `fixup!`/`squash!` prefix                   |
+| --update-refs  | Auto-update stacked branch refs (Git 2.38+)                   |
+| --rebase-merges| Rebase while preserving merge structure                       |
+| --onto         | Explicitly specify the transplant destination for commits     |
+| rerere         | Remember and reuse conflict resolutions                       |
+| ORIG_HEAD      | Automatically saves HEAD position before rebase               |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [マージアルゴリズム](../00-git-internals/02-merge-algorithms.md) -- rebase時のコンフリクト解決の原理
-- [bisect/blame](./02-bisect-blame.md) -- 整理された履歴でのバグ特定
-- [Git Hooks](./03-hooks-automation.md) -- rebase時のhook連携
+- [Merge Algorithms](../00-git-internals/02-merge-algorithms.md) -- The principles behind conflict resolution during rebase
+- [bisect/blame](./02-bisect-blame.md) -- Bug identification with a clean history
+- [Git Hooks](./03-hooks-automation.md) -- Hook integration during rebase
 
 ---
 
-## 参考文献
+## References
 
 1. **Pro Git Book** -- "Rewriting History" https://git-scm.com/book/en/v2/Git-Tools-Rewriting-History
-2. **Git公式ドキュメント** -- `git-rebase` https://git-scm.com/docs/git-rebase
+2. **Git Official Documentation** -- `git-rebase` https://git-scm.com/docs/git-rebase
 3. **GitHub Blog** -- "Git Tips: `--update-refs`" https://github.blog/2022-10-03-highlights-from-git-2-38/#rebase-update-refs
 4. **Git Release Notes 2.32** -- fixup amend/reword https://github.com/git/git/blob/master/Documentation/RelNotes/2.32.0.txt
 5. **Git Release Notes 2.38** -- update-refs https://github.com/git/git/blob/master/Documentation/RelNotes/2.38.0.txt
