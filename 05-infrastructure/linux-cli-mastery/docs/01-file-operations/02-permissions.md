@@ -1,103 +1,103 @@
-# パーミッションと所有者
+# Permissions and Ownership
 
-> Unixの「全てはファイル」哲学において、パーミッション管理はセキュリティの要。
-> 適切なパーミッション設定は、不正アクセス防止・データ保護・システム安定性の基盤となる。
+> In the Unix philosophy of "everything is a file," permission management is the cornerstone of security.
+> Proper permission settings form the foundation of preventing unauthorized access, protecting data, and maintaining system stability.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] ファイルパーミッションの読み方・変更方法をマスターする
-- [ ] 所有者とグループの管理ができる
-- [ ] 特殊パーミッション（SUID/SGID/Sticky Bit）を理解する
-- [ ] ACL（Access Control List）で細かなアクセス制御ができる
-- [ ] umaskの仕組みと適切な設定方法を理解する
-- [ ] セキュリティベストプラクティスを実践できる
-- [ ] パーミッション関連のトラブルシューティングができる
+- [ ] Master how to read and change file permissions
+- [ ] Manage owners and groups
+- [ ] Understand special permissions (SUID/SGID/Sticky Bit)
+- [ ] Implement fine-grained access control with ACL (Access Control List)
+- [ ] Understand how umask works and configure it appropriately
+- [ ] Apply security best practices
+- [ ] Troubleshoot permission-related issues
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ファイルの作成・コピー・移動・削除](./01-file-crud.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Creating, Copying, Moving, and Deleting Files](./01-file-crud.md)
 
 ---
 
-## 1. パーミッションの基本
+## 1. Permission Basics
 
-### 1.1 パーミッションの読み方
+### 1.1 Reading Permissions
 
 ```bash
-# パーミッションの表示
+# Display permissions
 $ ls -la
 -rwxr-xr-- 1 user group 4096 Jan 1 file.txt
 │├─┤├─┤├─┤   │     │
-│ │  │  │     │     └── グループ
-│ │  │  │     └── 所有者
-│ │  │  └── other: 読み取りのみ (r--)
-│ │  └── group: 読取+実行 (r-x)
-│ └── owner: 全権限 (rwx)
-└── タイプ: - file, d dir, l link
+│ │  │  │     │     └── group
+│ │  │  │     └── owner
+│ │  │  └── other: read only (r--)
+│ │  └── group: read+execute (r-x)
+│ └── owner: full permissions (rwx)
+└── type: - file, d dir, l link
 
-# ファイルタイプ一覧
-# -  : 通常ファイル
-# d  : ディレクトリ
-# l  : シンボリックリンク
-# c  : キャラクタデバイス（/dev/tty等）
-# b  : ブロックデバイス（/dev/sda等）
-# p  : 名前付きパイプ（FIFO）
-# s  : ソケット
+# File type overview
+# -  : regular file
+# d  : directory
+# l  : symbolic link
+# c  : character device (/dev/tty, etc.)
+# b  : block device (/dev/sda, etc.)
+# p  : named pipe (FIFO)
+# s  : socket
 
-# 各パーミッションの意味
-# ファイルの場合:
-#   r (read)    : ファイルの内容を読み取れる（cat, less等）
-#   w (write)   : ファイルの内容を変更できる（vi, echo >>等）
-#   x (execute) : ファイルを実行できる（./script.sh）
+# Meaning of each permission
+# For files:
+#   r (read)    : can read file contents (cat, less, etc.)
+#   w (write)   : can modify file contents (vi, echo >>, etc.)
+#   x (execute) : can execute the file (./script.sh)
 #
-# ディレクトリの場合:
-#   r (read)    : ディレクトリ内のファイル一覧を見れる（ls）
-#   w (write)   : ディレクトリ内にファイルを作成・削除できる
-#   x (execute) : ディレクトリに入れる（cd）、中のファイルにアクセスできる
+# For directories:
+#   r (read)    : can list files in the directory (ls)
+#   w (write)   : can create and delete files inside the directory
+#   x (execute) : can enter the directory (cd) and access files inside
 ```
 
-### 1.2 パーミッションとディレクトリの関係
+### 1.2 The Relationship Between Permissions and Directories
 
 ```bash
-# ディレクトリのパーミッション実験
+# Experimenting with directory permissions
 
-# ケース1: x がないディレクトリ
+# Case 1: directory without x
 $ mkdir /tmp/test_dir
-$ chmod 644 /tmp/test_dir     # rw-r--r-- (xなし)
-$ ls /tmp/test_dir             # エラー: Permission denied
-$ cd /tmp/test_dir             # エラー: Permission denied
+$ chmod 644 /tmp/test_dir     # rw-r--r-- (no x)
+$ ls /tmp/test_dir             # Error: Permission denied
+$ cd /tmp/test_dir             # Error: Permission denied
 
-# ケース2: r がないディレクトリ
-$ chmod 311 /tmp/test_dir     # --x--x--x (rなし)
-$ cd /tmp/test_dir             # OK: 入れる
-$ ls /tmp/test_dir             # エラー: 一覧表示できない
-$ cat /tmp/test_dir/known.txt  # OK: ファイル名を知っていればアクセス可能
+# Case 2: directory without r
+$ chmod 311 /tmp/test_dir     # --x--x--x (no r)
+$ cd /tmp/test_dir             # OK: can enter
+$ ls /tmp/test_dir             # Error: cannot list contents
+$ cat /tmp/test_dir/known.txt  # OK: accessible if you know the filename
 
-# ケース3: w + x の組み合わせ
+# Case 3: combination of w + x
 $ chmod 733 /tmp/test_dir     # rwx-wx-wx
-$ touch /tmp/test_dir/new.txt  # OK: ファイル作成可能
-$ rm /tmp/test_dir/old.txt     # OK: ファイル削除可能
-$ ls /tmp/test_dir             # エラー: 一覧表示はできない
+$ touch /tmp/test_dir/new.txt  # OK: can create files
+$ rm /tmp/test_dir/old.txt     # OK: can delete files
+$ ls /tmp/test_dir             # Error: cannot list contents
 
-# ケース4: w があっても x がなければ書き込み不可
-$ chmod 622 /tmp/test_dir     # rw--w--w- (xなし)
-$ touch /tmp/test_dir/new.txt  # エラー: x がないのでアクセス不可
+# Case 4: w without x means no write access
+$ chmod 622 /tmp/test_dir     # rw--w--w- (no x)
+$ touch /tmp/test_dir/new.txt  # Error: no access without x
 ```
 
-### 1.3 数値（8進数）表現
+### 1.3 Numeric (Octal) Representation
 
 ```bash
-# 各ビットの値
+# Bit values
 # r = 4 (100 in binary)
 # w = 2 (010 in binary)
 # x = 1 (001 in binary)
 
-# 計算方法: 各カテゴリのビットを足す
+# Calculation: add bits for each category
 # rwx = 4+2+1 = 7
 # rw- = 4+2+0 = 6
 # r-x = 4+0+1 = 5
@@ -107,27 +107,27 @@ $ touch /tmp/test_dir/new.txt  # エラー: x がないのでアクセス不可
 # --x = 0+0+1 = 1
 # --- = 0+0+0 = 0
 
-# よく使うパーミッション
-chmod 777 file    # rwxrwxrwx — 全員にフルアクセス（非推奨）
-chmod 755 file    # rwxr-xr-x — 実行ファイル/ディレクトリの標準
-chmod 750 file    # rwxr-x--- — グループまで実行可能
-chmod 700 file    # rwx------ — 所有者のみフルアクセス
-chmod 644 file    # rw-r--r-- — 通常ファイルの標準
-chmod 640 file    # rw-r----- — グループまで読み取り可能
-chmod 600 file    # rw------- — 秘密ファイル（SSH鍵等）
-chmod 555 file    # r-xr-xr-x — 読取+実行のみ（編集不可）
-chmod 444 file    # r--r--r-- — 読み取り専用
-chmod 400 file    # r-------- — 所有者のみ読み取り
+# Commonly used permissions
+chmod 777 file    # rwxrwxrwx — full access for everyone (not recommended)
+chmod 755 file    # rwxr-xr-x — standard for executables/directories
+chmod 750 file    # rwxr-x--- — executable by group and owner
+chmod 700 file    # rwx------ — full access for owner only
+chmod 644 file    # rw-r--r-- — standard for regular files
+chmod 640 file    # rw-r----- — readable by group
+chmod 600 file    # rw------- — secret files (SSH keys, etc.)
+chmod 555 file    # r-xr-xr-x — read+execute only (no editing)
+chmod 444 file    # r--r--r-- — read-only
+chmod 400 file    # r-------- — owner read-only
 
-# ディレクトリによく使うパーミッション
-chmod 755 dir/    # rwxr-xr-x — 公開ディレクトリ
-chmod 750 dir/    # rwxr-x--- — グループ限定ディレクトリ
-chmod 700 dir/    # rwx------ — 個人ディレクトリ
-chmod 1777 dir/   # rwxrwxrwt — 共有ディレクトリ（/tmp等）
-chmod 2755 dir/   # rwxr-sr-x — SGIDディレクトリ
+# Commonly used permissions for directories
+chmod 755 dir/    # rwxr-xr-x — public directory
+chmod 750 dir/    # rwxr-x--- — group-restricted directory
+chmod 700 dir/    # rwx------ — private directory
+chmod 1777 dir/   # rwxrwxrwt — shared directory (like /tmp)
+chmod 2755 dir/   # rwxr-sr-x — SGID directory
 
-# 4桁表記（特殊ビット含む）
-# 1つ目の数字: 特殊ビット
+# 4-digit notation (including special bits)
+# First digit: special bits
 #   4 = SUID
 #   2 = SGID
 #   1 = Sticky Bit
@@ -137,62 +137,62 @@ chmod 1777 dir/   # Sticky + rwxrwxrwx
 chmod 6755 file   # SUID + SGID + rwxr-xr-x
 ```
 
-### 1.4 シンボリック表現
+### 1.4 Symbolic Representation
 
 ```bash
-# 対象の指定
-# u = user (所有者)
-# g = group (グループ)
-# o = others (その他)
-# a = all (全員、ugo と同じ)
+# Specifying targets
+# u = user (owner)
+# g = group
+# o = others
+# a = all (same as ugo)
 
-# 操作の指定
-# + = 権限を追加
-# - = 権限を削除
-# = = 権限を設定（指定した権限のみにする）
+# Specifying operations
+# + = add permission
+# - = remove permission
+# = = set permission (only the specified permissions)
 
-# 基本的な使い方
-chmod u+x file.txt         # 所有者に実行権追加
-chmod g-w file.txt         # グループから書込権削除
-chmod o=r file.txt         # その他に読取のみ設定
-chmod a+r file.txt         # 全員に読取権追加
-chmod ug+rw file.txt       # 所有者とグループに読み書き追加
-chmod u=rwx,g=rx,o=r file  # 明示的に全て設定（= 754）
+# Basic usage
+chmod u+x file.txt         # add execute to owner
+chmod g-w file.txt         # remove write from group
+chmod o=r file.txt         # set others to read only
+chmod a+r file.txt         # add read to everyone
+chmod ug+rw file.txt       # add read/write to owner and group
+chmod u=rwx,g=rx,o=r file  # explicitly set all (= 754)
 
-# 複数の操作を同時に
-chmod u+x,g-w,o-rwx file   # 所有者に+x、グループから-w、その他から全削除
-chmod a=r,u+w file          # 全員にr、所有者に+w（= 644）
+# Multiple operations at once
+chmod u+x,g-w,o-rwx file   # owner +x, group -w, others remove all
+chmod a=r,u+w file          # all get r, owner +w (= 644)
 
-# 参照コピー
-chmod --reference=ref.txt target.txt  # ref.txt と同じパーミッションに設定
+# Reference copy
+chmod --reference=ref.txt target.txt  # set same permissions as ref.txt
 
-# 再帰的に変更
-chmod -R 755 dir/           # ディレクトリ内を全て再帰的に変更
+# Recursive change
+chmod -R 755 dir/           # recursively change all contents
 
-# ディレクトリとファイルを区別して再帰的に設定
-# ディレクトリ: 755, ファイル: 644 にしたい場合
+# Distinguish directories and files for recursive setting
+# To set directories: 755, files: 644
 find /path -type d -exec chmod 755 {} \;
 find /path -type f -exec chmod 644 {} \;
 
-# 大文字 X: ディレクトリまたは既に実行権があるファイルにのみ x を設定
+# Uppercase X: set x only on directories or files that already have x
 chmod -R u=rwX,g=rX,o=rX dir/
-# → ディレクトリには x が付く
-# → ファイルには x が付かない（元々 x があるファイルを除く）
+# → directories get x
+# → files do not get x (except files that already had x)
 
-# verbose モード: 変更内容を表示
+# verbose mode: show changes
 chmod -v 644 *.txt
 # mode of 'file1.txt' changed from 0755 (rwxr-xr-x) to 0644 (rw-r--r--)
 # mode of 'file2.txt' retained as 0644 (rw-r--r--)
 
-# changes モード: 実際に変更があった場合のみ表示
+# changes mode: show only when actually changed
 chmod -c 644 *.txt
 # mode of 'file1.txt' changed from 0755 (rwxr-xr-x) to 0644 (rw-r--r--)
 ```
 
-### 1.5 stat コマンドによる詳細表示
+### 1.5 Detailed Display with the stat Command
 
 ```bash
-# stat でパーミッションの詳細を確認
+# Check permission details with stat
 $ stat file.txt
   File: file.txt
   Size: 4096        Blocks: 8          IO Block: 4096   regular file
@@ -203,29 +203,29 @@ Modify: 2026-01-14 09:20:00.000000000 +0900
 Change: 2026-01-14 09:20:00.000000000 +0900
  Birth: 2026-01-10 08:00:00.000000000 +0900
 
-# macOS の stat（BSD版）
+# macOS stat (BSD version)
 $ stat -f "%Sp %Su %Sg %z %N" file.txt
 # -rw-r--r-- user group 4096 file.txt
 
-# Linux の stat（GNU版）でフォーマット指定
+# Linux stat (GNU version) with format specification
 $ stat -c "%A %U %G %s %n" file.txt
 # -rw-r--r-- user group 4096 file.txt
 
-# 数値表現で表示（Linux）
+# Display as numeric (Linux)
 $ stat -c "%a %n" file.txt
 # 644 file.txt
 
-# macOS での数値表現
+# Numeric display on macOS
 $ stat -f "%OLp %N" file.txt
 # 644 file.txt
 
-# アクセス時刻の確認
+# Check access timestamps
 $ stat -c "Access: %x\nModify: %y\nChange: %z" file.txt
 # Access: 2026-01-15 10:30:00
 # Modify: 2026-01-14 09:20:00
 # Change: 2026-01-14 09:20:00
 
-# 複数ファイルのパーミッション一括確認
+# Check permissions of multiple files at once
 $ stat -c "%a %A %U:%G %n" /etc/passwd /etc/shadow /etc/group
 # 644 -rw-r--r-- root:root /etc/passwd
 # 640 -rw-r----- root:shadow /etc/shadow
@@ -234,274 +234,274 @@ $ stat -c "%a %A %U:%G %n" /etc/passwd /etc/shadow /etc/group
 
 ---
 
-## 2. 所有者とグループ
+## 2. Owners and Groups
 
-### 2.1 chown — 所有者の変更
+### 2.1 chown — Change Owner
 
 ```bash
-# 基本構文: chown [OPTION] [OWNER][:[GROUP]] FILE
+# Basic syntax: chown [OPTION] [OWNER][:[GROUP]] FILE
 
-# 所有者変更（要root）
-sudo chown user file.txt             # 所有者をuserに変更
-sudo chown user:group file.txt       # 所有者+グループを同時に変更
-sudo chown :group file.txt           # グループのみ変更（chgrpと同等）
-sudo chown user: file.txt            # 所有者変更 + グループを所有者のデフォルトグループに
+# Change owner (requires root)
+sudo chown user file.txt             # change owner to user
+sudo chown user:group file.txt       # change owner and group simultaneously
+sudo chown :group file.txt           # change group only (equivalent to chgrp)
+sudo chown user: file.txt            # change owner + set group to owner's default group
 
-# 再帰的に変更
-sudo chown -R user:group dir/        # ディレクトリ内を全て変更
-sudo chown -R --preserve-root user:group /  # / への再帰変更を防止
+# Recursive change
+sudo chown -R user:group dir/        # change all contents recursively
+sudo chown -R --preserve-root user:group /  # prevent recursive change to /
 
-# verbose/changes モード
-sudo chown -v user:group file.txt    # 変更内容を全て表示
-sudo chown -c user:group file.txt    # 実際に変更があった場合のみ表示
+# verbose/changes mode
+sudo chown -v user:group file.txt    # show all changes
+sudo chown -c user:group file.txt    # show only when actually changed
 
-# 参照コピー
-sudo chown --reference=ref.txt target.txt  # ref.txt と同じ所有者に設定
+# Reference copy
+sudo chown --reference=ref.txt target.txt  # set same owner as ref.txt
 
-# シンボリックリンクの扱い
-sudo chown user symlink              # リンク先のファイルを変更
-sudo chown -h user symlink           # シンボリックリンク自体を変更
+# Handling symbolic links
+sudo chown user symlink              # change the linked file
+sudo chown -h user symlink           # change the symbolic link itself
 
-# from オプション: 現在の所有者が一致する場合のみ変更
+# from option: change only when current owner matches
 sudo chown --from=olduser newuser file.txt
 sudo chown --from=:oldgroup user:newgroup file.txt
 
-# 実践例: Webサーバーのドキュメントルート
+# Practical example: web server document root
 sudo chown -R www-data:www-data /var/www/html/
 sudo chown -R nginx:nginx /usr/share/nginx/html/
 
-# 実践例: ホームディレクトリの修復
+# Practical example: repair home directory
 sudo chown -R $USER:$(id -gn $USER) ~/
 
-# 実践例: 特定ユーザーのファイルだけ変更
+# Practical example: change only files owned by a specific user
 sudo find /shared -user olduser -exec chown newuser {} \;
 ```
 
-### 2.2 chgrp — グループの変更
+### 2.2 chgrp — Change Group
 
 ```bash
-# 基本構文: chgrp [OPTION] GROUP FILE
+# Basic syntax: chgrp [OPTION] GROUP FILE
 
-# グループ変更
-sudo chgrp developers project/       # グループをdevelopersに変更
-sudo chgrp -R developers project/    # 再帰的にグループ変更
+# Change group
+sudo chgrp developers project/       # change group to developers
+sudo chgrp -R developers project/    # change group recursively
 
-# verbose モード
-sudo chgrp -vc developers *.py       # 変更があったファイルのみ表示
+# verbose mode
+sudo chgrp -vc developers *.py       # show only files that changed
 
-# 参照コピー
+# Reference copy
 sudo chgrp --reference=ref.txt target.txt
 
-# 自分が所属するグループへの変更はsudo不要
-# （自分がそのグループのメンバーの場合）
+# Changing to a group you belong to does not require sudo
+# (when you are a member of that group)
 chgrp mygroup file.txt
 
-# 実践例: 共有プロジェクトディレクトリ
+# Practical example: shared project directory
 sudo chgrp -R devteam /opt/project/
 sudo chmod -R g+rw /opt/project/
-sudo chmod g+s /opt/project/         # 新規ファイルにもグループを継承
+sudo chmod g+s /opt/project/         # inherit group for new files
 ```
 
-### 2.3 ユーザーとグループの管理
+### 2.3 User and Group Management
 
 ```bash
-# 現在のユーザー情報
-whoami                               # 現在のユーザー名
-id                                   # UID, GID, 全グループ一覧
-id -u                                # UID のみ
-id -g                                # プライマリGID のみ
-id -G                                # 全GID一覧
-id -Gn                               # 全グループ名一覧
-id username                          # 特定ユーザーの情報
+# Current user information
+whoami                               # current username
+id                                   # UID, GID, all groups
+id -u                                # UID only
+id -g                                # primary GID only
+id -G                                # all GIDs
+id -Gn                               # all group names
+id username                          # information for a specific user
 
-# グループ一覧
-groups                               # 自分のグループ一覧
-groups username                      # 特定ユーザーのグループ一覧
-getent group                         # システム全体のグループ一覧
-getent group groupname               # 特定グループのメンバー確認
+# Group list
+groups                               # your group list
+groups username                      # group list for a specific user
+getent group                         # system-wide group list
+getent group groupname               # check members of a specific group
 
-# ユーザー追加
-sudo useradd -m -s /bin/bash newuser          # ホーム作成 + シェル指定
-sudo useradd -m -G sudo,docker newuser        # 追加グループ指定
-sudo adduser newuser                          # 対話形式（Debian系）
+# Add user
+sudo useradd -m -s /bin/bash newuser          # create home + specify shell
+sudo useradd -m -G sudo,docker newuser        # specify additional groups
+sudo adduser newuser                          # interactive (Debian-based)
 
-# グループの作成・管理
-sudo groupadd developers                      # グループ作成
-sudo groupadd -g 1500 custom                  # GID指定で作成
-sudo groupdel oldgroup                         # グループ削除
+# Create and manage groups
+sudo groupadd developers                      # create group
+sudo groupadd -g 1500 custom                  # create with specific GID
+sudo groupdel oldgroup                         # delete group
 
-# ユーザーをグループに追加
-sudo usermod -aG docker $USER                  # dockerグループに追加
-sudo usermod -aG sudo,adm,www-data user       # 複数グループに追加
-# 注意: -a を忘れると既存グループから外れる！
-# sudo usermod -G docker user  ← 危険！docker以外から全て外れる
+# Add user to group
+sudo usermod -aG docker $USER                  # add to docker group
+sudo usermod -aG sudo,adm,www-data user       # add to multiple groups
+# Note: forgetting -a will remove from all existing groups!
+# sudo usermod -G docker user  ← Dangerous! Removes from all groups except docker
 
-# グループの変更を反映
-newgrp docker                                  # 新しいグループでシェル開始
-# または一度ログアウトして再ログイン
+# Apply group changes
+newgrp docker                                  # start new shell with the group
+# or log out and log back in
 
-# ユーザーのプライマリグループ変更
+# Change user's primary group
 sudo usermod -g newgroup user
 
-# グループからユーザーを削除
+# Remove user from group
 sudo gpasswd -d user groupname
 
-# /etc/passwd の確認
+# Check /etc/passwd
 getent passwd username
 # username:x:1000:1000:Full Name:/home/username:/bin/bash
-# ユーザー名:パスワード(x=shadow):UID:GID:コメント:ホーム:シェル
+# username:password(x=shadow):UID:GID:comment:home:shell
 
-# /etc/group の確認
+# Check /etc/group
 getent group groupname
 # groupname:x:1000:user1,user2
-# グループ名:パスワード:GID:メンバー一覧
+# groupname:password:GID:member list
 
-# /etc/shadow（パスワード情報、要root）
+# /etc/shadow (password info, requires root)
 sudo getent shadow username
 ```
 
-### 2.4 UID と GID の理解
+### 2.4 Understanding UID and GID
 
 ```bash
-# UID/GIDの範囲（一般的なLinuxディストリビューション）
+# UID/GID ranges (typical Linux distributions)
 # 0       : root
-# 1-999   : システムユーザー/グループ（デーモン等）
-# 1000+   : 一般ユーザー/グループ
-# 65534   : nobody/nogroup（権限なしユーザー）
+# 1-999   : system users/groups (daemons, etc.)
+# 1000+   : regular users/groups
+# 65534   : nobody/nogroup (user with no permissions)
 
-# 重要なシステムユーザー
+# Important system users
 id root          # uid=0(root) gid=0(root)
 id nobody        # uid=65534(nobody) gid=65534(nogroup)
-id www-data      # uid=33(www-data) gid=33(www-data) (Debian系)
+id www-data      # uid=33(www-data) gid=33(www-data) (Debian-based)
 
-# Docker でのUID/GIDマッピング
-# コンテナ内のUID = ホストのUID
-# コンテナ内でroot(0)で実行 → ホストでもroot権限
-# セキュリティのため非rootユーザーでの実行を推奨
+# UID/GID mapping in Docker
+# container UID = host UID
+# running as root(0) in container → root privileges on host
+# recommended to run as non-root user for security
 docker run --user 1000:1000 myimage
 
-# ファイルのUID/GIDを数値で確認
+# Check file UID/GID as numbers
 ls -ln file.txt
 # -rw-r--r-- 1 1000 1000 4096 Jan 1 file.txt
 
-# 存在しないUID/GIDのファイル
-# ユーザー削除後やNFSマウント時に発生
+# Files with non-existent UID/GID
+# Occurs after user deletion or during NFS mounts
 $ ls -la orphaned.txt
 -rw-r--r-- 1 5001 5001 100 Jan 1 orphaned.txt
-# 数値表示 = そのUID/GIDに対応するユーザー/グループが存在しない
+# numeric display = no user/group exists for that UID/GID
 
-# 孤児ファイルの検索
+# Find orphaned files
 find / -nouser -o -nogroup 2>/dev/null
 ```
 
 ---
 
-## 3. umask — デフォルトパーミッション
+## 3. umask — Default Permissions
 
-### 3.1 umaskの仕組み
+### 3.1 How umask Works
 
 ```bash
-# umask は新規ファイル/ディレクトリのパーミッションを制御する「マスク」
-# 「この権限は付与しない」というビットを指定
+# umask is a "mask" that controls permissions for new files/directories
+# Specifies bits that should NOT be granted
 
-# 基本計算:
-# ファイルの最大パーミッション    : 666 (実行権なし)
-# ディレクトリの最大パーミッション: 777
+# Basic calculation:
+# Maximum permission for files       : 666 (no execute)
+# Maximum permission for directories : 777
 
-# umask = 022 の場合:
-# ファイル    : 666 - 022 = 644 (rw-r--r--)
-# ディレクトリ: 777 - 022 = 755 (rwxr-xr-x)
+# With umask = 022:
+# File      : 666 - 022 = 644 (rw-r--r--)
+# Directory : 777 - 022 = 755 (rwxr-xr-x)
 
-# umask = 002 の場合:
-# ファイル    : 666 - 002 = 664 (rw-rw-r--)
-# ディレクトリ: 777 - 002 = 775 (rwxrwxr-x)
+# With umask = 002:
+# File      : 666 - 002 = 664 (rw-rw-r--)
+# Directory : 777 - 002 = 775 (rwxrwxr-x)
 
-# umask = 077 の場合:
-# ファイル    : 666 - 077 = 600 (rw-------)
-# ディレクトリ: 777 - 077 = 700 (rwx------)
+# With umask = 077:
+# File      : 666 - 077 = 600 (rw-------)
+# Directory : 777 - 077 = 700 (rwx------)
 
-# 現在のumask確認
-umask            # 数値表示（例: 0022）
-umask -S         # シンボリック表示（例: u=rwx,g=rx,o=rx）
+# Check current umask
+umask            # numeric display (e.g., 0022)
+umask -S         # symbolic display (e.g., u=rwx,g=rx,o=rx)
 
-# umask の一時変更（現在のシェルのみ）
-umask 077        # セキュアな設定
+# Temporary umask change (current shell only)
+umask 077        # secure setting
 touch secret.txt # → 600 (rw-------)
 mkdir private/   # → 700 (rwx------)
 
-# umask の恒久設定
-# ~/.bashrc または ~/.zshrc に追加
+# Permanent umask setting
+# Add to ~/.bashrc or ~/.zshrc
 echo "umask 022" >> ~/.bashrc
 ```
 
-### 3.2 umask の正確な計算方法
+### 3.2 The Precise umask Calculation
 
 ```bash
-# 実は「引き算」ではなく「ビット演算」
+# Actually "subtraction" but rather "bitwise operation"
 # result = max_perm AND (NOT umask)
 #
-# 例: umask=033 の場合
-# ファイル: 666 AND (NOT 033)
+# Example: umask=033
+# File: 666 AND (NOT 033)
 # 666 = 110 110 110
 # 033 = 000 011 011
 # NOT = 111 100 100
 # AND = 110 100 100 = 644
 #
-# 引き算だと 666 - 033 = 633 になるが、実際は 644
-# → ビット演算なので「引きすぎ」は起きない
+# Subtraction would give 666 - 033 = 633, but the actual result is 644
+# → Because it's bitwise, "over-subtraction" doesn't occur
 
-# 検証
+# Verification
 $ umask 033
 $ touch test_umask.txt
 $ stat -c "%a" test_umask.txt
-644    # 633 ではなく 644
+644    # 644, not 633
 
-# よく使われるumask値
-# 022 : デフォルト（一般的なLinux）
-# 002 : グループ共有向き（Red Hat系のデフォルト）
-# 027 : セキュア（otherに何も許可しない）
-# 077 : 最もセキュア（所有者のみ）
-# 000 : 最も緩い（テスト用）
+# Commonly used umask values
+# 022 : default (typical Linux)
+# 002 : for group sharing (default on Red Hat-based systems)
+# 027 : secure (no permissions for others)
+# 077 : most secure (owner only)
+# 000 : most permissive (for testing)
 
-# プロセスごとのumask
-# umask はプロセスの属性であり、子プロセスに継承される
+# umask per process
+# umask is a process attribute and is inherited by child processes
 bash -c 'umask; umask 077; umask'
-# 0022  ← 親のumask
-# 0077  ← 変更後のumask（このサブシェル内のみ）
-umask  # 親シェルでは変更されていない
+# 0022  ← parent's umask
+# 0077  ← umask after change (this subshell only)
+umask  # unchanged in parent shell
 # 0022
 ```
 
-### 3.3 umask のユースケース別設定
+### 3.3 umask Settings by Use Case
 
 ```bash
-# 個人作業用（デフォルト）
+# For personal work (default)
 umask 022
-# ファイル: 644, ディレクトリ: 755
+# File: 644, Directory: 755
 
-# チーム開発用
+# For team development
 umask 002
-# ファイル: 664, ディレクトリ: 775
-# グループメンバーがファイルを編集できる
+# File: 664, Directory: 775
+# Group members can edit files
 
-# セキュアサーバー用
+# For secure servers
 umask 077
-# ファイル: 600, ディレクトリ: 700
-# 所有者以外は一切アクセス不可
+# File: 600, Directory: 700
+# No access for anyone other than the owner
 
-# 条件付きumask設定（~/.bashrc）
-# SSH接続時はセキュアに
+# Conditional umask setting (~/.bashrc)
+# Use secure setting for SSH connections
 if [ -n "$SSH_CLIENT" ]; then
     umask 077
 else
     umask 022
 fi
 
-# ディレクトリ別umask（direnvとの組み合わせ）
+# Per-directory umask (combined with direnv)
 # /shared/project/.envrc
 # umask 002
 
-# systemd サービスでのumask設定
+# umask setting for systemd services
 # /etc/systemd/system/myapp.service
 # [Service]
 # UMask=0027
@@ -509,244 +509,244 @@ fi
 
 ---
 
-## 4. 特殊パーミッション
+## 4. Special Permissions
 
-### 4.1 SUID（Set User ID）
+### 4.1 SUID (Set User ID)
 
 ```bash
-# SUID: 実行時にファイル所有者の権限で実行される
-# 数値: 4000
-# シンボリック: u+s
-# 表示: -rwsr-xr-x（所有者のxがsに変わる）
+# SUID: the file is executed with the file owner's privileges
+# Numeric: 4000
+# Symbolic: u+s
+# Display: -rwsr-xr-x (owner's x becomes s)
 
-# SUID の設定
+# Setting SUID
 chmod u+s executable
 chmod 4755 executable
 
-# SUID が大文字Sの場合: 実行権がない + SUID設定
-# -rwSr-xr-x → 所有者にxがなくSUIDが設定されている（意味がない設定）
+# When SUID is uppercase S: no execute permission + SUID set
+# -rwSr-xr-x → owner has no x but SUID is set (meaningless setting)
 
-# 代表的なSUID付きコマンド
+# Representative commands with SUID
 $ ls -la /usr/bin/passwd
 -rwsr-xr-x 1 root root 68208 May 28 2020 /usr/bin/passwd
-# → 一般ユーザーが実行してもroot権限で/etc/shadowを更新
+# → runs with root privileges to update /etc/shadow even when executed by a regular user
 
 $ ls -la /usr/bin/sudo
 -rwsr-xr-x 1 root root 166056 Jan 19 2021 /usr/bin/sudo
-# → root権限でコマンドを実行
+# → executes commands with root privileges
 
 $ ls -la /usr/bin/ping
 -rwsr-xr-x 1 root root 64424 Jun 28 2019 /usr/bin/ping
-# → rawソケットを使用するためroot権限が必要
+# → requires root privileges to use raw sockets
 
-# SUID付きファイルの検索（セキュリティ監査）
+# Find SUID files (security audit)
 find / -perm -4000 -type f 2>/dev/null
 find / -perm -4000 -type f -exec ls -la {} \; 2>/dev/null
 
-# SUID のセキュリティリスク
-# - 不適切なSUID設定は権限昇格の脆弱性につながる
-# - カスタムスクリプトにはSUIDを設定しない
-# - 定期的にSUID付きファイルを監査する
-# - シェルスクリプトのSUIDは多くのOSで無視される
+# SUID security risks
+# - Improper SUID settings can lead to privilege escalation vulnerabilities
+# - Do not set SUID on custom scripts
+# - Audit SUID files periodically
+# - SUID on shell scripts is ignored on most OSes
 
-# SUID付きファイルの一覧を保存（ベースライン作成）
+# Save list of SUID files (create baseline)
 find / -perm -4000 -type f 2>/dev/null | sort > /tmp/suid_baseline.txt
-# 定期的に比較
+# Compare periodically
 find / -perm -4000 -type f 2>/dev/null | sort | diff /tmp/suid_baseline.txt -
 ```
 
-### 4.2 SGID（Set Group ID）
+### 4.2 SGID (Set Group ID)
 
 ```bash
-# SGID on ファイル: 実行時にファイルグループの権限で実行される
-# SGID on ディレクトリ: 新規作成ファイルに親ディレクトリのグループが継承される
-# 数値: 2000
-# シンボリック: g+s
-# 表示: -rwxr-sr-x（グループのxがsに変わる）
+# SGID on file: executed with the file's group privileges
+# SGID on directory: new files inherit the parent directory's group
+# Numeric: 2000
+# Symbolic: g+s
+# Display: -rwxr-sr-x (group's x becomes s)
 
-# ファイルへのSGID設定
+# Setting SGID on a file
 chmod g+s executable
 chmod 2755 executable
 
-# ディレクトリへのSGID設定（最も実用的な使い方）
+# Setting SGID on a directory (most practical use)
 chmod g+s /shared/project/
 chmod 2775 /shared/project/
 
-# SGIDディレクトリの動作確認
+# Verify SGID directory behavior
 $ mkdir /tmp/sgid_test
 $ sudo chown :developers /tmp/sgid_test
 $ chmod 2775 /tmp/sgid_test
 $ ls -la /tmp/ | grep sgid_test
 drwxrwsr-x 2 user developers 4096 Jan 1 sgid_test
-#                ^ s が付いている
+#                ^ s is set
 
 $ touch /tmp/sgid_test/newfile.txt
 $ ls -la /tmp/sgid_test/newfile.txt
 -rw-r--r-- 1 user developers 0 Jan 1 newfile.txt
-#                  ^ 親ディレクトリのグループ(developers)が継承された
+#                  ^ parent directory's group (developers) was inherited
 
-# SGID なしの場合
+# Without SGID
 $ mkdir /tmp/nosgid_test
 $ sudo chown :developers /tmp/nosgid_test
 $ chmod 775 /tmp/nosgid_test
 $ touch /tmp/nosgid_test/newfile.txt
 $ ls -la /tmp/nosgid_test/newfile.txt
 -rw-r--r-- 1 user user 0 Jan 1 newfile.txt
-#                  ^ ユーザーのプライマリグループになる
+#                  ^ becomes the user's primary group
 
-# チーム共有ディレクトリの正しい設定
+# Correct setup for team shared directory
 sudo mkdir -p /opt/shared/project
 sudo groupadd devteam
 sudo chown root:devteam /opt/shared/project
 sudo chmod 2775 /opt/shared/project
-# → メンバーが作成したファイルは全てdevteamグループになる
+# → all files created by members will belong to devteam group
 
-# SGID付きファイルの検索
+# Find SGID files
 find / -perm -2000 -type f 2>/dev/null
-find / -perm -2000 -type d 2>/dev/null  # ディレクトリも
+find / -perm -2000 -type d 2>/dev/null  # also directories
 ```
 
 ### 4.3 Sticky Bit
 
 ```bash
-# Sticky Bit: ディレクトリ内のファイル削除を所有者とrootのみに制限
-# 数値: 1000
-# シンボリック: +t
-# 表示: drwxrwxrwt（otherのxがtに変わる）
+# Sticky Bit: restricts file deletion within a directory to the owner and root
+# Numeric: 1000
+# Symbolic: +t
+# Display: drwxrwxrwt (other's x becomes t)
 
-# Sticky Bitの設定
+# Setting Sticky Bit
 chmod +t /shared/
 chmod 1777 /shared/
 
-# /tmp が代表的な Sticky Bit ディレクトリ
+# /tmp is a representative Sticky Bit directory
 $ ls -ld /tmp
 drwxrwxrwt 20 root root 4096 Jan 1 /tmp
-#                             ^ t が付いている
+#                             ^ t is set
 
-# Sticky Bitの動作確認
-# ユーザーAがファイルを作成
+# Verify Sticky Bit behavior
+# User A creates a file
 $ touch /tmp/userA_file.txt
 
-# ユーザーBが削除を試みる
+# User B attempts to delete it
 $ sudo -u userB rm /tmp/userA_file.txt
 rm: cannot remove '/tmp/userA_file.txt': Operation not permitted
-# → Sticky Bitにより、所有者以外は削除できない
+# → Sticky Bit prevents anyone other than the owner from deleting
 
-# ただし所有者とrootは削除可能
-$ rm /tmp/userA_file.txt        # OK (所有者)
+# However, the owner and root can delete
+$ rm /tmp/userA_file.txt        # OK (owner)
 $ sudo rm /tmp/userA_file.txt   # OK (root)
 
-# Sticky Bit + SGID の組み合わせ（チーム共有）
+# Combining Sticky Bit + SGID (team sharing)
 sudo mkdir /shared/team
 sudo chown root:devteam /shared/team
 sudo chmod 3775 /shared/team
 # → 3 = SGID(2) + Sticky(1)
-# → グループは継承されるが、他人のファイルは削除できない
+# → group is inherited, but other members' files cannot be deleted
 
-# 大文字T: 実行権がない + Sticky Bit設定
-# drwxrwxrwT → otherにxがなくSticky設定（意味がない設定）
+# Uppercase T: no execute permission + Sticky Bit set
+# drwxrwxrwT → others have no x and Sticky is set (meaningless setting)
 
-# Sticky Bit付きディレクトリの検索
+# Find directories with Sticky Bit
 find / -perm -1000 -type d 2>/dev/null
 ```
 
-### 4.4 特殊パーミッションの表示と確認
+### 4.4 Displaying and Checking Special Permissions
 
 ```bash
-# ls -la での特殊パーミッション表示
-# SUID: 所有者のx位置
-#   s = SUID + 実行権あり
-#   S = SUID + 実行権なし（通常は設定ミス）
+# Special permission display in ls -la
+# SUID: owner's x position
+#   s = SUID + execute permission
+#   S = SUID + no execute permission (usually a misconfiguration)
 
-# SGID: グループのx位置
-#   s = SGID + 実行権あり
-#   S = SGID + 実行権なし
+# SGID: group's x position
+#   s = SGID + execute permission
+#   S = SGID + no execute permission
 
-# Sticky: otherのx位置
-#   t = Sticky + 実行権あり
-#   T = Sticky + 実行権なし
+# Sticky: other's x position
+#   t = Sticky + execute permission
+#   T = Sticky + no execute permission
 
-# 具体的な表示例
-# -rwsr-xr-x : SUID設定、全員実行可能
-# -rwxr-sr-x : SGID設定
-# drwxrwxrwt : Sticky Bit設定
-# -rwSr--r-- : SUID設定だが所有者に実行権なし（問題あり）
-# -rwxr-Sr-- : SGID設定だがグループに実行権なし（問題あり）
-# drwxrwxrwT : Sticky設定だがotherに実行権なし（問題あり）
+# Concrete display examples
+# -rwsr-xr-x : SUID set, everyone can execute
+# -rwxr-sr-x : SGID set
+# drwxrwxrwt : Sticky Bit set
+# -rwSr--r-- : SUID set but owner has no execute (problem)
+# -rwxr-Sr-- : SGID set but group has no execute (problem)
+# drwxrwxrwT : Sticky set but others have no execute (problem)
 
-# stat での数値確認
+# Numeric confirmation with stat
 stat -c "%a %A %n" /usr/bin/passwd
 # 4755 -rwsr-xr-x /usr/bin/passwd
 
 stat -c "%a %A %n" /tmp
 # 1777 drwxrwxrwt /tmp
 
-# 全ての特殊パーミッション付きファイルを検索
+# Find all files with special permissions
 find / -perm /7000 -type f 2>/dev/null | head -20
-# /7000 = SUID(4000) OR SGID(2000) OR Sticky(1000) のいずれか
+# /7000 = any of SUID(4000) OR SGID(2000) OR Sticky(1000)
 ```
 
 ---
 
-## 5. ACL（Access Control List）
+## 5. ACL (Access Control List)
 
-### 5.1 ACLの基本概念
+### 5.1 Basic Concepts of ACL
 
 ```bash
-# ACL = 標準のuser/group/other以上の細かなアクセス制御
-# 特定のユーザーやグループに個別の権限を付与できる
+# ACL = fine-grained access control beyond standard user/group/other
+# Allows granting individual permissions to specific users or groups
 
-# ACLが必要なケース:
-# - 所有者グループ以外の特定グループにもアクセスを許可したい
-# - 特定のユーザーだけに書き込み権限を与えたい
-# - 複数のグループに異なるレベルのアクセスを設定したい
+# When ACL is needed:
+# - You want to allow access to specific groups other than the owner's group
+# - You want to give write permissions to only specific users
+# - You want to set different access levels for multiple groups
 
-# ACLのインストール確認
+# Check ACL installation
 which getfacl setfacl
 # Ubuntu/Debian: sudo apt install acl
 # CentOS/RHEL: sudo yum install acl
 
-# ファイルシステムのACLサポート確認
+# Check filesystem ACL support
 mount | grep acl
-# ext4, xfs, btrfs は通常ACLをサポート
-# mount -o acl でマウントされていること
+# ext4, xfs, btrfs typically support ACL
+# must be mounted with mount -o acl
 
-# tune2fs でACLサポート確認（ext4）
+# Check ACL support with tune2fs (ext4)
 sudo tune2fs -l /dev/sda1 | grep -i acl
 # Default mount options: ... acl ...
 ```
 
-### 5.2 getfacl — ACLの表示
+### 5.2 getfacl — Display ACL
 
 ```bash
-# 基本的なACL表示
+# Basic ACL display
 $ getfacl file.txt
 # file: file.txt
 # owner: user
 # group: group
-user::rw-           # 所有者の権限
-group::r--          # グループの権限
-other::r--          # その他の権限
+user::rw-           # owner permissions
+group::r--          # group permissions
+other::r--          # other permissions
 
-# ACLが設定されている場合
+# When ACL is set
 $ getfacl file.txt
 # file: file.txt
 # owner: user
 # group: group
-user::rw-           # 所有者
-user:alice:rw-      # aliceに個別のrw権限
-user:bob:r--        # bobに個別のr権限
-group::r--          # 所有者グループ
-group:devteam:rw-   # devteamグループにrw権限
-mask::rw-           # 有効な最大権限
-other::r--          # その他
+user::rw-           # owner
+user:alice:rw-      # individual rw permission for alice
+user:bob:r--        # individual r permission for bob
+group::r--          # owner group
+group:devteam:rw-   # rw permission for devteam group
+mask::rw-           # effective maximum permission
+other::r--          # others
 
-# ACLが設定されているファイルの見分け方
+# How to identify files with ACL set
 $ ls -la
 -rw-rw-r--+ 1 user group 4096 Jan 1 file.txt
-#          ^ + マークがACL設定済みの印
+#          ^ + mark indicates ACL is set
 
-# ディレクトリのACL（デフォルトACL含む）
+# Directory ACL (including default ACL)
 $ getfacl dir/
 # file: dir/
 # owner: user
@@ -754,208 +754,208 @@ $ getfacl dir/
 user::rwx
 group::r-x
 other::r-x
-default:user::rwx          # 新規ファイルのデフォルト: 所有者
-default:user:alice:rw-     # 新規ファイルのデフォルト: alice
-default:group::r-x         # 新規ファイルのデフォルト: グループ
-default:mask::rwx          # 新規ファイルのデフォルト: mask
-default:other::r-x         # 新規ファイルのデフォルト: その他
+default:user::rwx          # default for new files: owner
+default:user:alice:rw-     # default for new files: alice
+default:group::r-x         # default for new files: group
+default:mask::rwx          # default for new files: mask
+default:other::r-x         # default for new files: others
 
-# 再帰的にACL表示
+# Display ACL recursively
 getfacl -R dir/
 
-# 数値で表示
+# Display as numeric
 getfacl --omit-header -e n file.txt
 
-# ACL付きファイルだけを検索
+# Search only files with ACL
 getfacl -R -s -p dir/ 2>/dev/null
 ```
 
-### 5.3 setfacl — ACLの設定
+### 5.3 setfacl — Set ACL
 
 ```bash
-# 基本構文: setfacl [OPTIONS] [操作] FILE
+# Basic syntax: setfacl [OPTIONS] [operation] FILE
 
-# ユーザーACLの追加
-setfacl -m u:alice:rw file.txt       # aliceにrw権限を追加
-setfacl -m u:bob:r file.txt          # bobにr権限を追加
-setfacl -m u:charlie:rwx script.sh   # charlieにrwx権限を追加
+# Add user ACL
+setfacl -m u:alice:rw file.txt       # add rw permission for alice
+setfacl -m u:bob:r file.txt          # add r permission for bob
+setfacl -m u:charlie:rwx script.sh   # add rwx permission for charlie
 
-# グループACLの追加
-setfacl -m g:devteam:rw file.txt     # devteamグループにrw権限
-setfacl -m g:qa:r file.txt           # qaグループにr権限
+# Add group ACL
+setfacl -m g:devteam:rw file.txt     # rw permission for devteam group
+setfacl -m g:qa:r file.txt           # r permission for qa group
 
-# その他のACL設定
-setfacl -m o::r file.txt             # other の権限を設定
+# Set other ACL
+setfacl -m o::r file.txt             # set permissions for others
 
-# 複数のACLを同時に設定
+# Set multiple ACLs at once
 setfacl -m u:alice:rw,u:bob:r,g:devteam:rw file.txt
 
-# ACLの削除
-setfacl -x u:alice file.txt          # aliceのACLエントリを削除
-setfacl -x g:devteam file.txt        # devteamのACLエントリを削除
+# Remove ACL
+setfacl -x u:alice file.txt          # remove alice's ACL entry
+setfacl -x g:devteam file.txt        # remove devteam's ACL entry
 
-# 全てのACLを削除
-setfacl -b file.txt                  # 全ACL削除（基本パーミッションは残る）
+# Remove all ACLs
+setfacl -b file.txt                  # remove all ACLs (base permissions remain)
 
-# デフォルトACL（ディレクトリ用）
-# 新規作成されるファイル/ディレクトリに自動適用されるACL
-setfacl -d -m u:alice:rw dir/        # デフォルトACLを設定
-setfacl -d -m g:devteam:rwx dir/     # デフォルトACLを設定
+# Default ACL (for directories)
+# ACL automatically applied to newly created files/directories
+setfacl -d -m u:alice:rw dir/        # set default ACL
+setfacl -d -m g:devteam:rwx dir/     # set default ACL
 
-# デフォルトACLの削除
-setfacl -k dir/                      # デフォルトACLのみ削除
+# Remove default ACL
+setfacl -k dir/                      # remove only default ACL
 
-# 再帰的にACLを設定
-setfacl -R -m u:alice:rw dir/        # 既存ファイルにも適用
-setfacl -R -d -m u:alice:rw dir/     # 既存ディレクトリにデフォルトACL
+# Set ACL recursively
+setfacl -R -m u:alice:rw dir/        # apply to existing files too
+setfacl -R -d -m u:alice:rw dir/     # default ACL on existing directories
 
-# ACLのバックアップと復元
-getfacl -R dir/ > acl_backup.txt     # バックアップ
-setfacl --restore=acl_backup.txt     # 復元
+# Backup and restore ACL
+getfacl -R dir/ > acl_backup.txt     # backup
+setfacl --restore=acl_backup.txt     # restore
 
-# mask の設定
-setfacl -m m::r file.txt             # maskをrに設定
-# mask はACLユーザー/グループの有効な最大権限を制限する
-# 例: u:alice:rw でも mask::r なら、実効権限は r のみ
+# Set mask
+setfacl -m m::r file.txt             # set mask to r
+# mask limits the effective maximum permission for ACL users/groups
+# e.g., u:alice:rw with mask::r → effective permission is r only
 
-# mask の自動再計算を防ぐ
-setfacl -n -m u:alice:rw file.txt    # maskを自動更新しない
+# Prevent automatic mask recalculation
+setfacl -n -m u:alice:rw file.txt    # do not auto-update mask
 ```
 
-### 5.4 ACLの実践パターン
+### 5.4 ACL Practical Patterns
 
 ```bash
-# パターン1: プロジェクトディレクトリの共有設定
+# Pattern 1: Shared setup for project directory
 sudo mkdir -p /projects/webapp
 sudo chown root:devteam /projects/webapp
 sudo chmod 2770 /projects/webapp
 
-# 開発チーム: フルアクセス
+# Dev team: full access
 setfacl -R -m g:devteam:rwx /projects/webapp
 setfacl -R -d -m g:devteam:rwx /projects/webapp
 
-# QAチーム: 読み取りのみ
+# QA team: read only
 setfacl -R -m g:qa:rx /projects/webapp
 setfacl -R -d -m g:qa:rx /projects/webapp
 
-# 外部コンサルタント: 特定ディレクトリのみ
+# External consultant: specific directory only
 setfacl -m u:consultant:rx /projects/webapp/docs
 setfacl -R -m u:consultant:rx /projects/webapp/docs/
 
-# パターン2: ログファイルのアクセス制御
-# 特定ユーザーにログ閲覧権限を付与
+# Pattern 2: Access control for log files
+# Grant log viewing permissions to a specific user
 setfacl -m u:logviewer:r /var/log/app/app.log
 setfacl -d -m u:logviewer:r /var/log/app/
 
-# パターン3: Webサーバーとデプロイユーザーの共存
+# Pattern 3: Web server and deploy user coexistence
 setfacl -R -m u:www-data:rx /var/www/html/
 setfacl -R -m u:deploy:rwx /var/www/html/
 setfacl -R -d -m u:www-data:rx /var/www/html/
 setfacl -R -d -m u:deploy:rwx /var/www/html/
 
-# パターン4: バックアップ用の読み取り専用アクセス
+# Pattern 4: Read-only access for backups
 setfacl -R -m u:backup:rx /important/data/
 setfacl -R -d -m u:backup:rx /important/data/
 
-# ACLの確認（結果の見方）
+# Checking ACL results
 $ getfacl /projects/webapp/newfile.txt
 # file: projects/webapp/newfile.txt
 # owner: developer1
 # group: devteam
 user::rw-
-user:consultant:r-x     #effective:r--   ← mask による制限
-group::rwx               #effective:rw-   ← mask による制限
-group:devteam:rwx        #effective:rw-   ← mask による制限
-group:qa:r-x             #effective:r--   ← mask による制限
-mask::rw-                                  ← 有効な最大権限
+user:consultant:r-x     #effective:r--   ← restricted by mask
+group::rwx               #effective:rw-   ← restricted by mask
+group:devteam:rwx        #effective:rw-   ← restricted by mask
+group:qa:r-x             #effective:r--   ← restricted by mask
+mask::rw-                                  ← effective maximum permission
 other::---
 ```
 
-### 5.5 ACL と標準パーミッションの関係
+### 5.5 Relationship Between ACL and Standard Permissions
 
 ```bash
-# ACL と chmod の相互作用
-# chmod はACLのmaskに影響する
+# Interaction between ACL and chmod
+# chmod affects the ACL mask
 
-# 例: ACLでaliceにrwx権限を設定
+# Example: set rwx permission for alice with ACL
 setfacl -m u:alice:rwx file.txt
 getfacl file.txt
 # user:alice:rwx
 # mask::rwx
 
-# chmod でグループ権限を変更すると mask も変わる
+# Changing group permissions with chmod also changes the mask
 chmod 644 file.txt
 getfacl file.txt
-# user:alice:rwx    #effective:r--  ← mask により制限！
-# mask::r--         ← chmod がmaskを変更した
+# user:alice:rwx    #effective:r--  ← restricted by mask!
+# mask::r--         ← chmod changed the mask
 
-# 対処法: chmod 後に mask を再設定
+# Solution: reset mask after chmod
 chmod 644 file.txt
-setfacl -m m::rwx file.txt  # mask を明示的にrwxに設定
+setfacl -m m::rwx file.txt  # explicitly set mask to rwx
 
-# ACL設定時の優先順位
-# 1. 所有者（user::）→ 常に適用
-# 2. 名前付きユーザーACL（user:name:） → mask で制限
-# 3. 所有者グループ（group::） → mask で制限（ACLが存在する場合）
-# 4. 名前付きグループACL（group:name:） → mask で制限
-# 5. その他（other::） → 常に適用
+# ACL priority order
+# 1. Owner (user::) → always applied
+# 2. Named user ACL (user:name:) → restricted by mask
+# 3. Owner group (group::) → restricted by mask (when ACL exists)
+# 4. Named group ACL (group:name:) → restricted by mask
+# 5. Others (other::) → always applied
 
-# cp と mv でのACL保持
-cp --preserve=all src.txt dst.txt    # ACLを保持してコピー
-cp -a src/ dst/                       # ACLを保持して再帰コピー
-mv src.txt dst.txt                    # 同一FS内ならACL保持
+# ACL preservation with cp and mv
+cp --preserve=all src.txt dst.txt    # copy preserving ACL
+cp -a src/ dst/                       # recursive copy preserving ACL
+mv src.txt dst.txt                    # ACL preserved within the same FS
 
-# tar でのACL保持
-tar --acls -czf backup.tar.gz dir/   # ACL付きでアーカイブ
-tar --acls -xzf backup.tar.gz       # ACL付きで展開
+# ACL preservation with tar
+tar --acls -czf backup.tar.gz dir/   # archive with ACL
+tar --acls -xzf backup.tar.gz       # extract with ACL
 
-# rsync でのACL保持
-rsync -avA src/ dst/                 # -A でACLを同期
+# ACL preservation with rsync
+rsync -avA src/ dst/                 # sync ACL with -A
 ```
 
 ---
 
-## 6. セキュリティ用途のパーミッション設定
+## 6. Permission Settings for Security Purposes
 
-### 6.1 SSH 関連の必須パーミッション
+### 6.1 Required Permissions for SSH
 
 ```bash
-# SSH は厳格なパーミッションチェックを行う
-# 不適切なパーミッションだとSSH接続が拒否される
+# SSH performs strict permission checks
+# Improper permissions will cause SSH connection to be rejected
 
-# ホームディレクトリ
-chmod 755 ~                   # または 700
-# ホームディレクトリが他人に書き込み可能だとSSH拒否
+# Home directory
+chmod 755 ~                   # or 700
+# SSH is rejected if home directory is writable by others
 
-# .ssh ディレクトリ
-chmod 700 ~/.ssh              # 所有者のみ
+# .ssh directory
+chmod 700 ~/.ssh              # owner only
 chown $USER:$(id -gn) ~/.ssh
 
-# 秘密鍵
-chmod 600 ~/.ssh/id_rsa       # 所有者のみ読み書き
-chmod 600 ~/.ssh/id_ed25519   # Ed25519鍵
-# 400 でもOK（読み取り専用）
-chmod 400 ~/.ssh/id_rsa       # より安全
+# Private key
+chmod 600 ~/.ssh/id_rsa       # owner read/write only
+chmod 600 ~/.ssh/id_ed25519   # Ed25519 key
+# 400 is also fine (read-only)
+chmod 400 ~/.ssh/id_rsa       # more secure
 
-# 公開鍵
-chmod 644 ~/.ssh/id_rsa.pub   # 誰でも読み取り可能
+# Public key
+chmod 644 ~/.ssh/id_rsa.pub   # readable by everyone
 
 # authorized_keys
 chmod 600 ~/.ssh/authorized_keys
-# または 644
+# or 644
 
 # known_hosts
 chmod 644 ~/.ssh/known_hosts
 
-# config ファイル
+# config file
 chmod 600 ~/.ssh/config
 
-# SSH サーバー側の設定
+# SSH server side settings
 chmod 600 /etc/ssh/sshd_config
-chmod 600 /etc/ssh/ssh_host_*_key      # ホスト秘密鍵
-chmod 644 /etc/ssh/ssh_host_*_key.pub  # ホスト公開鍵
+chmod 600 /etc/ssh/ssh_host_*_key      # host private keys
+chmod 644 /etc/ssh/ssh_host_*_key.pub  # host public keys
 
-# 一括修正スクリプト
+# Batch fix script
 fix_ssh_permissions() {
     chmod 700 ~/.ssh
     chmod 600 ~/.ssh/id_* 2>/dev/null
@@ -966,7 +966,7 @@ fix_ssh_permissions() {
     echo "SSH permissions fixed."
 }
 
-# SSH パーミッションエラーの確認
+# Check SSH permission errors
 ssh -vvv user@host 2>&1 | grep -i permission
 # debug1: identity file /home/user/.ssh/id_rsa type 0
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -975,96 +975,96 @@ ssh -vvv user@host 2>&1 | grep -i permission
 # Permissions 0644 for '/home/user/.ssh/id_rsa' are too open.
 ```
 
-### 6.2 Webサーバーのパーミッション設定
+### 6.2 Web Server Permission Settings
 
 ```bash
-# ===== Apache / Nginx 共通 =====
+# ===== Common for Apache / Nginx =====
 
-# ドキュメントルート
+# Document root
 sudo chown -R root:www-data /var/www/html/
 sudo chmod -R 750 /var/www/html/
-# ファイル: 640 (rw-r-----)
-# ディレクトリ: 750 (rwxr-x---)
+# File: 640 (rw-r-----)
+# Directory: 750 (rwxr-x---)
 
 find /var/www/html -type f -exec chmod 640 {} \;
 find /var/www/html -type d -exec chmod 750 {} \;
 
-# アップロードディレクトリ
+# Upload directory
 sudo mkdir -p /var/www/html/uploads
 sudo chown www-data:www-data /var/www/html/uploads
 sudo chmod 770 /var/www/html/uploads
 
-# CGI/スクリプト
+# CGI/scripts
 sudo chmod 750 /var/www/cgi-bin/*.cgi
 
-# 設定ファイル
+# Configuration files
 sudo chmod 600 /etc/apache2/apache2.conf
 sudo chmod 600 /etc/nginx/nginx.conf
 sudo chmod 600 /etc/nginx/conf.d/*.conf
 
-# SSL証明書
+# SSL certificates
 sudo chmod 600 /etc/ssl/private/server.key
 sudo chmod 644 /etc/ssl/certs/server.crt
 
-# ログファイル
+# Log files
 sudo chmod 640 /var/log/apache2/*.log
 sudo chmod 640 /var/log/nginx/*.log
 
 # ===== PHP-FPM =====
-# phpのセッション/テンプファイル
+# PHP session/temp files
 sudo chown www-data:www-data /var/lib/php/sessions
 sudo chmod 730 /var/lib/php/sessions
 
-# .htaccess のセキュリティ（Apache）
-# .htaccess 自体のパーミッション
+# .htaccess security (Apache)
+# .htaccess permission itself
 chmod 644 /var/www/html/.htaccess
 
-# .env ファイルへのWebアクセスをブロック
-# .htaccess に追加:
+# Block web access to .env files
+# Add to .htaccess:
 # <Files ".env">
 #     Require all denied
 # </Files>
 
-# ===== WordPress の推奨パーミッション =====
-# ファイル: 644
-# ディレクトリ: 755
-# wp-config.php: 440 または 400
+# ===== Recommended permissions for WordPress =====
+# File: 644
+# Directory: 755
+# wp-config.php: 440 or 400
 # .htaccess: 644
 find /var/www/wordpress -type f -exec chmod 644 {} \;
 find /var/www/wordpress -type d -exec chmod 755 {} \;
 chmod 440 /var/www/wordpress/wp-config.php
 ```
 
-### 6.3 データベースのパーミッション設定
+### 6.3 Database Permission Settings
 
 ```bash
 # ===== MySQL / MariaDB =====
-# データディレクトリ
+# Data directory
 sudo chown -R mysql:mysql /var/lib/mysql/
 sudo chmod 750 /var/lib/mysql/
 sudo chmod 660 /var/lib/mysql/ib_logfile*
 
-# 設定ファイル
+# Configuration files
 sudo chmod 644 /etc/mysql/my.cnf
 sudo chmod 640 /etc/mysql/conf.d/*.cnf
 
-# ログファイル
+# Log files
 sudo chmod 640 /var/log/mysql/error.log
 sudo chown mysql:adm /var/log/mysql/error.log
 
 # ===== PostgreSQL =====
-# データディレクトリ
+# Data directory
 sudo chown -R postgres:postgres /var/lib/postgresql/
 sudo chmod 700 /var/lib/postgresql/*/main/
 
-# 認証設定
+# Authentication settings
 sudo chmod 640 /etc/postgresql/*/main/pg_hba.conf
 sudo chown postgres:postgres /etc/postgresql/*/main/pg_hba.conf
 
 # ===== SQLite =====
-# データベースファイル
+# Database file
 chmod 660 /path/to/database.db
-# ディレクトリにも書き込み権限が必要（WALモード用）
+# Directory also needs write permission (for WAL mode)
 chmod 770 /path/to/
 
 # ===== Redis =====
@@ -1073,86 +1073,86 @@ sudo chmod 750 /var/lib/redis/
 sudo chmod 640 /etc/redis/redis.conf
 ```
 
-### 6.4 アプリケーションのパーミッション設定
+### 6.4 Application Permission Settings
 
 ```bash
-# ===== 秘密情報ファイル =====
-# .env ファイル
+# ===== Secret files =====
+# .env files
 chmod 600 .env
 chmod 600 .env.production
 
-# API キーファイル
+# API key files
 chmod 600 credentials.json
 chmod 600 service-account.json
 chmod 600 api_key.txt
 
-# 暗号化キー
+# Encryption keys
 chmod 600 encryption.key
 chmod 600 master.key
 
 # ===== Docker =====
-# Docker ソケット
+# Docker socket
 sudo chmod 660 /var/run/docker.sock
 sudo chown root:docker /var/run/docker.sock
 
-# Docker Compose ファイル（秘密情報を含む場合）
+# Docker Compose files (when containing secrets)
 chmod 600 docker-compose.override.yml
 
-# ===== systemd サービス =====
-# ユニットファイル
+# ===== systemd services =====
+# Unit files
 sudo chmod 644 /etc/systemd/system/myapp.service
 
-# 環境変数ファイル（秘密情報含む）
+# Environment variable files (containing secrets)
 sudo chmod 600 /etc/myapp/env
 sudo chown root:root /etc/myapp/env
 
 # ===== cron =====
-# crontab ファイル
+# crontab files
 chmod 600 /var/spool/cron/crontabs/*
-# cronスクリプト
+# cron scripts
 chmod 700 /etc/cron.d/myscript
 chmod 755 /etc/cron.daily/backup.sh
 
-# ===== Git フック =====
+# ===== Git hooks =====
 chmod 755 .git/hooks/pre-commit
 chmod 755 .git/hooks/post-merge
 
-# ===== Python 仮想環境 =====
+# ===== Python virtual environments =====
 chmod 755 venv/bin/activate
 chmod 755 venv/bin/python
 ```
 
-### 6.5 重要なシステムファイルの標準パーミッション
+### 6.5 Standard Permissions for Important System Files
 
 ```bash
-# 認証関連
-ls -la /etc/passwd         # 644 -rw-r--r-- (全員が読める)
-ls -la /etc/shadow         # 640 -rw-r----- (rootとshadowグループのみ)
-ls -la /etc/group          # 644 -rw-r--r-- (全員が読める)
-ls -la /etc/gshadow        # 640 -rw-r----- (rootとshadowグループのみ)
-ls -la /etc/sudoers        # 440 -r--r----- (rootのみ読み取り)
+# Authentication related
+ls -la /etc/passwd         # 644 -rw-r--r-- (readable by everyone)
+ls -la /etc/shadow         # 640 -rw-r----- (root and shadow group only)
+ls -la /etc/group          # 644 -rw-r--r-- (readable by everyone)
+ls -la /etc/gshadow        # 640 -rw-r----- (root and shadow group only)
+ls -la /etc/sudoers        # 440 -r--r----- (root read-only)
 
-# ネットワーク設定
+# Network settings
 ls -la /etc/hosts          # 644 -rw-r--r--
 ls -la /etc/hostname       # 644 -rw-r--r--
 ls -la /etc/resolv.conf    # 644 -rw-r--r--
 
-# サービス設定
-ls -la /etc/ssh/sshd_config  # 600 -rw------- (rootのみ)
+# Service settings
+ls -la /etc/ssh/sshd_config  # 600 -rw------- (root only)
 ls -la /etc/crontab          # 644 -rw-r--r--
 
-# ブート関連
-ls -la /boot/vmlinuz-*       # 600 -rw------- (Debian系)
-ls -la /boot/grub/grub.cfg   # 400 -r-------- (rootのみ読み取り)
+# Boot related
+ls -la /boot/vmlinuz-*       # 600 -rw------- (Debian-based)
+ls -la /boot/grub/grub.cfg   # 400 -r-------- (root read-only)
 
-# デバイスファイル
+# Device files
 ls -la /dev/null             # 666 crw-rw-rw-
 ls -la /dev/zero             # 666 crw-rw-rw-
 ls -la /dev/random           # 666 crw-rw-rw-
-ls -la /dev/sda              # 660 brw-rw---- (rootとdiskグループ)
+ls -la /dev/sda              # 660 brw-rw---- (root and disk group)
 ls -la /dev/tty              # 666 crw-rw-rw-
 
-# パーミッション監査: 重要ファイルのチェック
+# Permission audit: check critical files
 check_critical_permissions() {
     echo "=== Critical File Permissions ==="
     for f in /etc/passwd /etc/shadow /etc/group /etc/sudoers \
@@ -1166,67 +1166,67 @@ check_critical_permissions() {
 
 ---
 
-## 7. パーミッション管理の実践テクニック
+## 7. Practical Techniques for Permission Management
 
-### 7.1 find を使ったパーミッション操作
+### 7.1 Permission Operations Using find
 
 ```bash
-# 特定のパーミッションを持つファイルを検索
-find /path -perm 777                  # 正確に 777 のファイル
-find /path -perm -777                 # 少なくとも 777 を含む
-find /path -perm /777                 # いずれかのビットが一致
+# Find files with specific permissions
+find /path -perm 777                  # exactly 777
+find /path -perm -777                 # at least 777
+find /path -perm /777                 # any bit matches
 
-# 世界書き込み可能なファイルを検索（セキュリティ監査）
+# Find world-writable files (security audit)
 find / -perm -002 -type f 2>/dev/null
-# -002 = other に w がある全てのファイル
+# -002 = all files with w for others
 
-# 世界書き込み可能なディレクトリ（Sticky Bitなし）を検索
+# Find world-writable directories (without Sticky Bit)
 find / -perm -002 -not -perm -1000 -type d 2>/dev/null
 
-# SUID/SGID 付きファイルの検索
+# Find SUID/SGID files
 find / -perm -4000 -type f 2>/dev/null  # SUID
 find / -perm -2000 -type f 2>/dev/null  # SGID
-find / -perm /6000 -type f 2>/dev/null  # SUID または SGID
+find / -perm /6000 -type f 2>/dev/null  # SUID or SGID
 
-# 実行権限のあるファイルを検索
-find /path -perm /111 -type f          # 誰かが実行可能
+# Find executable files
+find /path -perm /111 -type f          # executable by anyone
 
-# パーミッションが不適切なファイルを修正
-# ファイル: 644, ディレクトリ: 755 に統一
+# Fix files with improper permissions
+# Normalize to file: 644, directory: 755
 find /path -type f -not -perm 644 -exec chmod 644 {} \;
 find /path -type d -not -perm 755 -exec chmod 755 {} \;
 
-# 所有者がいないファイルを検索
+# Find files with no owner
 find / -nouser 2>/dev/null
 find / -nogroup 2>/dev/null
 find / -nouser -o -nogroup 2>/dev/null
 
-# 特定ユーザーのファイルを検索
+# Find files for a specific user
 find / -user username 2>/dev/null
 find / -uid 1000 2>/dev/null
 find / -group groupname 2>/dev/null
 find / -gid 1000 2>/dev/null
 
-# 最近パーミッションが変更されたファイル
-find / -cmin -60 2>/dev/null           # 過去60分以内にctime変更
-# ctime = inode変更時刻（パーミッション変更を含む）
+# Files with recently changed permissions
+find / -cmin -60 2>/dev/null           # ctime changed within the last 60 minutes
+# ctime = inode change time (includes permission changes)
 
-# 書き込み可能なSUIDファイル（深刻な脆弱性）
+# Writable SUID files (critical vulnerability)
 find / -perm -4002 -type f 2>/dev/null
 ```
 
-### 7.2 パーミッション設定スクリプト
+### 7.2 Permission Setting Scripts
 
 ```bash
 #!/bin/bash
 # fix-web-permissions.sh
-# Webプロジェクトのパーミッションを修正するスクリプト
+# Script to fix permissions for web projects
 
 WEB_ROOT="${1:?Usage: $0 <web-root-path>}"
 WEB_USER="www-data"
 WEB_GROUP="www-data"
 
-# 存在確認
+# Check existence
 if [ ! -d "$WEB_ROOT" ]; then
     echo "Error: $WEB_ROOT does not exist"
     exit 1
@@ -1234,38 +1234,38 @@ fi
 
 echo "Fixing permissions for: $WEB_ROOT"
 
-# 所有者設定
+# Set ownership
 echo "Setting ownership to ${WEB_USER}:${WEB_GROUP}..."
 sudo chown -R "${WEB_USER}:${WEB_GROUP}" "$WEB_ROOT"
 
-# ディレクトリ: 755
+# Directory: 755
 echo "Setting directory permissions to 755..."
 find "$WEB_ROOT" -type d -exec chmod 755 {} \;
 
-# ファイル: 644
+# File: 644
 echo "Setting file permissions to 644..."
 find "$WEB_ROOT" -type f -exec chmod 644 {} \;
 
-# 実行可能ファイル: 755
+# Executables: 755
 echo "Setting executable permissions..."
 find "$WEB_ROOT" -name "*.sh" -exec chmod 755 {} \;
 find "$WEB_ROOT" -name "*.py" -exec chmod 755 {} \;
 find "$WEB_ROOT" -name "*.cgi" -exec chmod 755 {} \;
 
-# 秘密ファイル: 600
+# Secret files: 600
 echo "Securing sensitive files..."
 find "$WEB_ROOT" -name ".env" -exec chmod 600 {} \;
 find "$WEB_ROOT" -name "*.key" -exec chmod 600 {} \;
 find "$WEB_ROOT" -name "*.pem" -exec chmod 600 {} \;
 find "$WEB_ROOT" -name "wp-config.php" -exec chmod 440 {} \;
 
-# アップロードディレクトリ
+# Upload directory
 if [ -d "$WEB_ROOT/uploads" ]; then
     echo "Setting upload directory permissions..."
     chmod 770 "$WEB_ROOT/uploads"
 fi
 
-# ログディレクトリ
+# Log directory
 if [ -d "$WEB_ROOT/logs" ]; then
     echo "Setting log directory permissions..."
     chmod 750 "$WEB_ROOT/logs"
@@ -1278,7 +1278,7 @@ echo "Done! Permissions fixed."
 ```bash
 #!/bin/bash
 # permission-audit.sh
-# セキュリティ監査用パーミッションチェックスクリプト
+# Permission check script for security audit
 
 echo "============================================"
 echo " Permission Security Audit Report"
@@ -1287,7 +1287,7 @@ echo " Host: $(hostname)"
 echo "============================================"
 echo ""
 
-# 1. 世界書き込み可能ファイル
+# 1. World-writable files
 echo "=== World-Writable Files ==="
 world_writable=$(find / -perm -002 -type f -not -path "/proc/*" -not -path "/sys/*" 2>/dev/null)
 if [ -n "$world_writable" ]; then
@@ -1298,7 +1298,7 @@ else
 fi
 echo ""
 
-# 2. 世界書き込み可能ディレクトリ（Sticky Bitなし）
+# 2. World-writable directories (without Sticky Bit)
 echo "=== World-Writable Directories (without Sticky Bit) ==="
 ww_dirs=$(find / -perm -002 -not -perm -1000 -type d \
     -not -path "/proc/*" -not -path "/sys/*" 2>/dev/null)
@@ -1311,7 +1311,7 @@ else
 fi
 echo ""
 
-# 3. SUID/SGID ファイル
+# 3. SUID/SGID files
 echo "=== SUID Files ==="
 find / -perm -4000 -type f -not -path "/proc/*" -not -path "/sys/*" \
     -exec ls -la {} \; 2>/dev/null | head -20
@@ -1322,7 +1322,7 @@ find / -perm -2000 -type f -not -path "/proc/*" -not -path "/sys/*" \
     -exec ls -la {} \; 2>/dev/null | head -20
 echo ""
 
-# 4. 孤児ファイル
+# 4. Orphaned files
 echo "=== Orphaned Files (no user/group) ==="
 orphans=$(find / -nouser -o -nogroup 2>/dev/null | head -20)
 if [ -n "$orphans" ]; then
@@ -1333,7 +1333,7 @@ else
 fi
 echo ""
 
-# 5. 重要ファイルのパーミッションチェック
+# 5. Critical file permission check
 echo "=== Critical File Permissions ==="
 check_perm() {
     local file="$1"
@@ -1355,7 +1355,7 @@ check_perm "/etc/sudoers" "440"
 check_perm "/etc/ssh/sshd_config" "600"
 echo ""
 
-# 6. SSH 鍵のパーミッション
+# 6. SSH key permissions
 echo "=== SSH Key Permissions ==="
 if [ -d ~/.ssh ]; then
     ls -la ~/.ssh/ 2>/dev/null
@@ -1371,10 +1371,10 @@ echo " Audit Complete"
 echo "============================================"
 ```
 
-### 7.3 よくあるパーミッション設定パターン
+### 7.3 Common Permission Setting Patterns
 
 ```bash
-# ===== パターン1: 共有プロジェクトディレクトリ =====
+# ===== Pattern 1: Shared project directory =====
 sudo mkdir -p /opt/project
 sudo groupadd project-team
 sudo usermod -aG project-team user1
@@ -1382,74 +1382,74 @@ sudo usermod -aG project-team user2
 
 sudo chown root:project-team /opt/project
 sudo chmod 2775 /opt/project
-# SGID(2) + 所有者rwx(7) + グループrwx(7) + その他rx(5)
-# 新規ファイルはproject-teamグループに自動設定
+# SGID(2) + owner rwx(7) + group rwx(7) + others rx(5)
+# New files are automatically assigned to project-team group
 
-# ===== パターン2: 機密ドキュメント管理 =====
+# ===== Pattern 2: Confidential document management =====
 sudo mkdir -p /secure/documents
 sudo chmod 700 /secure
 sudo chmod 700 /secure/documents
 sudo chown manager:management /secure/documents
 
-# ACLで特定メンバーにアクセス許可
+# Grant access to specific members with ACL
 setfacl -m u:assistant:rx /secure/documents
 setfacl -d -m u:assistant:rx /secure/documents
 
-# ===== パターン3: ログ収集ディレクトリ =====
+# ===== Pattern 3: Log collection directory =====
 sudo mkdir -p /var/log/app
 sudo chown root:adm /var/log/app
 sudo chmod 2750 /var/log/app
-# アプリケーションが書き込み、admグループが読み取り
+# Application writes, adm group reads
 
-# logrotate 用の設定
+# logrotate configuration
 sudo chmod 640 /var/log/app/*.log
 
-# ===== パターン4: CI/CDデプロイ用 =====
+# ===== Pattern 4: CI/CD deployment =====
 sudo mkdir -p /var/www/app
 sudo groupadd deployers
 sudo chown root:deployers /var/www/app
 sudo chmod 2775 /var/www/app
 
-# デプロイユーザーに権限
+# Grant permissions to deploy user
 sudo usermod -aG deployers deploy-bot
 setfacl -R -m g:deployers:rwx /var/www/app
 setfacl -R -d -m g:deployers:rwx /var/www/app
 
-# Webサーバーには読み取りのみ
+# Web server gets read only
 setfacl -R -m u:www-data:rx /var/www/app
 setfacl -R -d -m u:www-data:rx /var/www/app
 
-# ===== パターン5: バックアップディレクトリ =====
+# ===== Pattern 5: Backup directory =====
 sudo mkdir -p /backup
 sudo chown root:backup /backup
 sudo chmod 770 /backup
-# バックアップスクリプトはbackupグループで実行
+# Backup scripts run as backup group
 
-# 個別バックアップの保護
+# Protect individual backups
 sudo chmod 600 /backup/*.tar.gz
 
-# ===== パターン6: 一時的な作業ディレクトリ =====
+# ===== Pattern 6: Temporary working directory =====
 sudo mkdir -p /tmp/shared-work
 sudo chmod 1777 /tmp/shared-work
-# Sticky Bit: 他人のファイルは削除不可、全員が書き込み可能
+# Sticky Bit: cannot delete others' files, everyone can write
 ```
 
 ---
 
-## 8. Linux のセキュリティモジュール
+## 8. Linux Security Modules
 
-### 8.1 SELinux の基本
+### 8.1 SELinux Basics
 
 ```bash
 # SELinux (Security-Enhanced Linux)
-# Red Hat系（RHEL, CentOS, Fedora）でデフォルト有効
-# 標準のUNIXパーミッションに加えて、強制アクセス制御(MAC)を提供
+# Enabled by default on Red Hat-based systems (RHEL, CentOS, Fedora)
+# Provides Mandatory Access Control (MAC) in addition to standard UNIX permissions
 
-# SELinuxの状態確認
+# Check SELinux status
 getenforce
-# Enforcing  : ポリシーを強制（違反はブロック）
-# Permissive : ポリシー違反をログのみ（ブロックしない）
-# Disabled   : SELinux無効
+# Enforcing  : enforce policy (block violations)
+# Permissive : log policy violations only (no blocking)
+# Disabled   : SELinux disabled
 
 sestatus
 # SELinux status:                 enabled
@@ -1458,285 +1458,285 @@ sestatus
 # Loaded policy name:             targeted
 # Current mode:                   enforcing
 
-# 一時的にモード変更（再起動で戻る）
-sudo setenforce 0       # Permissive に変更
-sudo setenforce 1       # Enforcing に変更
+# Temporarily change mode (reverts on reboot)
+sudo setenforce 0       # change to Permissive
+sudo setenforce 1       # change to Enforcing
 
-# 恒久的な設定変更
+# Permanent configuration change
 sudo vi /etc/selinux/config
 # SELINUX=enforcing   ← enforcing, permissive, disabled
 
-# SELinuxコンテキストの表示
+# Display SELinux context
 ls -Z file.txt
 # -rw-r--r--. user group unconfined_u:object_r:user_home_t:s0 file.txt
-#                         ↑ユーザー    ↑ロール   ↑タイプ    ↑レベル
+#                         ↑user        ↑role     ↑type      ↑level
 
 ps -eZ | grep httpd
 # system_u:system_r:httpd_t:s0  1234 ?  00:00:01 httpd
 
-# SELinuxコンテキストの変更
+# Change SELinux context
 sudo chcon -t httpd_sys_content_t /var/www/html/index.html
 sudo chcon -R -t httpd_sys_content_t /var/www/html/
 
-# デフォルトコンテキストに復元
+# Restore to default context
 sudo restorecon -v file.txt
 sudo restorecon -Rv /var/www/html/
 
-# SELinuxブール値の管理
-getsebool -a                             # 全ブール値を表示
-getsebool httpd_can_network_connect      # 特定のブール値
+# Manage SELinux boolean values
+getsebool -a                             # show all boolean values
+getsebool httpd_can_network_connect      # specific boolean value
 
-# ブール値の設定
-sudo setsebool httpd_can_network_connect on        # 一時的
-sudo setsebool -P httpd_can_network_connect on     # 恒久的
+# Set boolean values
+sudo setsebool httpd_can_network_connect on        # temporary
+sudo setsebool -P httpd_can_network_connect on     # permanent
 
-# よく使うSELinuxブール値
-sudo setsebool -P httpd_can_network_connect on     # Apache外部接続許可
-sudo setsebool -P httpd_enable_homedirs on         # ホームディレクトリ許可
-sudo setsebool -P httpd_can_sendmail on            # メール送信許可
+# Commonly used SELinux boolean values
+sudo setsebool -P httpd_can_network_connect on     # allow Apache external connections
+sudo setsebool -P httpd_enable_homedirs on         # allow home directories
+sudo setsebool -P httpd_can_sendmail on            # allow sending mail
 
-# SELinux違反ログの確認
+# Check SELinux violation logs
 sudo ausearch -m AVC -ts recent
 sudo sealert -a /var/log/audit/audit.log
 sudo journalctl -t setroubleshoot
 
-# ポート管理
-sudo semanage port -l | grep http       # HTTP関連ポート一覧
-sudo semanage port -a -t http_port_t -p tcp 8080  # カスタムポート追加
+# Port management
+sudo semanage port -l | grep http       # list HTTP-related ports
+sudo semanage port -a -t http_port_t -p tcp 8080  # add custom port
 ```
 
-### 8.2 AppArmor の基本
+### 8.2 AppArmor Basics
 
 ```bash
 # AppArmor
-# Ubuntu, Debian, SUSE でデフォルト有効
-# プロファイルベースの強制アクセス制御
+# Enabled by default on Ubuntu, Debian, SUSE
+# Profile-based mandatory access control
 
-# AppArmorの状態確認
+# Check AppArmor status
 sudo aa-status
 # apparmor module is loaded.
 # 42 profiles are loaded.
 # 25 profiles are in enforce mode.
 # 17 profiles are in complain mode.
 
-# プロファイルの場所
+# Profile location
 ls /etc/apparmor.d/
 
-# プロファイルのモード
-# enforce  : ポリシーを強制
-# complain : ポリシー違反をログのみ（学習モード）
-# disabled : プロファイル無効
+# Profile modes
+# enforce  : enforce policy
+# complain : log violations only (learning mode)
+# disabled : profile disabled
 
-# モード変更
-sudo aa-enforce /etc/apparmor.d/usr.sbin.apache2    # 強制モード
-sudo aa-complain /etc/apparmor.d/usr.sbin.apache2   # 学習モード
-sudo aa-disable /etc/apparmor.d/usr.sbin.apache2    # 無効化
+# Change modes
+sudo aa-enforce /etc/apparmor.d/usr.sbin.apache2    # enforce mode
+sudo aa-complain /etc/apparmor.d/usr.sbin.apache2   # learning mode
+sudo aa-disable /etc/apparmor.d/usr.sbin.apache2    # disable
 
-# プロファイルの読み込み
-sudo apparmor_parser -r /etc/apparmor.d/usr.sbin.apache2  # 再読み込み
-sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.apache2  # 削除
+# Load profiles
+sudo apparmor_parser -r /etc/apparmor.d/usr.sbin.apache2  # reload
+sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.apache2  # remove
 
-# ログの確認（違反の検出）
+# Check logs (detect violations)
 sudo journalctl -k | grep apparmor
 sudo dmesg | grep apparmor
-# DENIED を検索
+# Search for DENIED
 sudo journalctl -k | grep "apparmor.*DENIED"
 
-# プロファイルの生成
+# Generate profile
 sudo aa-genprof /usr/bin/myapp
-# → アプリケーションを操作して学習させる
-# → プロファイルが自動生成される
+# → operate the application to let it learn
+# → profile is auto-generated
 
-# 簡易プロファイル例（/etc/apparmor.d/usr.local.bin.myapp）
+# Simple profile example (/etc/apparmor.d/usr.local.bin.myapp)
 # /usr/local/bin/myapp {
-#   /usr/local/bin/myapp mr,         # 自身の読み取り+実行
-#   /etc/myapp/** r,                 # 設定ファイル読み取り
-#   /var/log/myapp/** w,             # ログ書き込み
-#   /tmp/myapp-* rw,                 # 一時ファイル読み書き
-#   /usr/lib/** rm,                  # ライブラリ読み取り+実行
-#   network tcp,                      # TCP通信許可
+#   /usr/local/bin/myapp mr,         # read+execute itself
+#   /etc/myapp/** r,                 # read config files
+#   /var/log/myapp/** w,             # write logs
+#   /tmp/myapp-* rw,                 # read/write temp files
+#   /usr/lib/** rm,                  # read+execute libraries
+#   network tcp,                      # allow TCP communication
 # }
 ```
 
 ### 8.3 Linux Capabilities
 
 ```bash
-# Linux Capabilities: root権限を細分化した仕組み
-# 特定の権限だけをプロセス/ファイルに付与できる
+# Linux Capabilities: a mechanism that subdivides root privileges
+# Allows granting specific privileges to processes/files
 
-# 主要な Capabilities
-# CAP_NET_BIND_SERVICE : 1024未満のポートにバインド
-# CAP_NET_RAW          : RAWソケットの使用（ping等）
-# CAP_SYS_ADMIN        : 多くの管理操作
-# CAP_DAC_OVERRIDE     : ファイルアクセス制御のバイパス
-# CAP_CHOWN            : ファイル所有者の変更
-# CAP_KILL             : 他ユーザーのプロセスにシグナル送信
-# CAP_SETUID/SETGID    : UID/GIDの変更
+# Main Capabilities
+# CAP_NET_BIND_SERVICE : bind to ports below 1024
+# CAP_NET_RAW          : use RAW sockets (ping, etc.)
+# CAP_SYS_ADMIN        : many administrative operations
+# CAP_DAC_OVERRIDE     : bypass file access control
+# CAP_CHOWN            : change file owner
+# CAP_KILL             : send signals to other users' processes
+# CAP_SETUID/SETGID    : change UID/GID
 
-# ファイルの Capability 確認
+# Check file Capabilities
 getcap /usr/bin/ping
 # /usr/bin/ping cap_net_raw=ep
 
-# 全ファイルの Capability を検索
+# Search all files for Capabilities
 getcap -r / 2>/dev/null
 
-# Capability の設定（要root）
+# Set Capability (requires root)
 sudo setcap cap_net_bind_service=+ep /usr/bin/myapp
-# → myapp は非rootでも80番ポートにバインド可能
+# → myapp can bind to port 80 without root
 
-# Capability の削除
+# Remove Capability
 sudo setcap -r /usr/bin/myapp
 
-# プロセスの Capability 確認
+# Check process Capabilities
 cat /proc/$$/status | grep -i cap
-# CapInh: 0000000000000000  (継承可能)
-# CapPrm: 0000000000000000  (許可)
-# CapEff: 0000000000000000  (有効)
-# CapBnd: 000001ffffffffff  (バウンディングセット)
-# CapAmb: 0000000000000000  (アンビエント)
+# CapInh: 0000000000000000  (inheritable)
+# CapPrm: 0000000000000000  (permitted)
+# CapEff: 0000000000000000  (effective)
+# CapBnd: 000001ffffffffff  (bounding set)
+# CapAmb: 0000000000000000  (ambient)
 
-# 数値を読みやすく変換
+# Convert numbers to readable form
 capsh --decode=000001ffffffffff
 
-# 実践例: SUIDの代わりにCapabilityを使用
-# pingコマンド（従来はSUID）
+# Practical example: use Capability instead of SUID
+# ping command (traditionally SUID)
 sudo chmod u-s /usr/bin/ping
 sudo setcap cap_net_raw=ep /usr/bin/ping
-# → SUIDなしでもpingが動作
+# → ping works without SUID
 
-# 実践例: Node.jsアプリを非rootで80番ポートで動作
+# Practical example: run Node.js app on port 80 without root
 sudo setcap cap_net_bind_service=+ep /usr/bin/node
-# または
+# or
 sudo setcap 'cap_net_bind_service=+ep' $(which node)
 ```
 
 ---
 
-## 9. トラブルシューティング
+## 9. Troubleshooting
 
-### 9.1 よくあるパーミッションエラー
+### 9.1 Common Permission Errors
 
 ```bash
-# ===== エラー1: Permission denied =====
+# ===== Error 1: Permission denied =====
 $ cat /etc/shadow
 cat: /etc/shadow: Permission denied
 
-# 原因: 読み取り権限がない
-# 解決:
-ls -la /etc/shadow     # パーミッション確認
-sudo cat /etc/shadow   # root権限で実行
+# Cause: no read permission
+# Fix:
+ls -la /etc/shadow     # check permissions
+sudo cat /etc/shadow   # run with root privileges
 
-# ===== エラー2: Operation not permitted =====
+# ===== Error 2: Operation not permitted =====
 $ chown user file.txt
 chown: changing ownership of 'file.txt': Operation not permitted
 
-# 原因: chown はroot権限が必要
-# 解決:
+# Cause: chown requires root privileges
+# Fix:
 sudo chown user file.txt
 
-# ===== エラー3: SSH Permission denied =====
+# ===== Error 3: SSH Permission denied =====
 # "Permissions 0644 for '~/.ssh/id_rsa' are too open."
-# 原因: SSH鍵のパーミッションが緩すぎる
-# 解決:
+# Cause: SSH key permissions are too permissive
+# Fix:
 chmod 600 ~/.ssh/id_rsa
 chmod 700 ~/.ssh
 
-# ===== エラー4: bash: ./script.sh: Permission denied =====
-# 原因: 実行権限がない
-# 解決:
+# ===== Error 4: bash: ./script.sh: Permission denied =====
+# Cause: no execute permission
+# Fix:
 chmod +x script.sh
-# または
-bash script.sh         # bash を明示的に呼ぶ
+# or
+bash script.sh         # call bash explicitly
 
-# ===== エラー5: mkdir: cannot create directory: Permission denied =====
-# 原因: 親ディレクトリへの書き込み権限がない
-# 解決:
-ls -la /parent/dir/    # 親ディレクトリのパーミッション確認
+# ===== Error 5: mkdir: cannot create directory: Permission denied =====
+# Cause: no write permission on parent directory
+# Fix:
+ls -la /parent/dir/    # check parent directory permissions
 sudo mkdir /parent/dir/newdir
 
-# ===== エラー6: rm: cannot remove: Operation not permitted =====
-# 原因1: ファイルがimmutableフラグ付き
-lsattr file.txt        # フラグ確認
+# ===== Error 6: rm: cannot remove: Operation not permitted =====
+# Cause 1: file has immutable flag
+lsattr file.txt        # check flags
 # ----i--------e-- file.txt  ← i=immutable
-sudo chattr -i file.txt  # immutableフラグ解除
+sudo chattr -i file.txt  # remove immutable flag
 rm file.txt
 
-# 原因2: Sticky Bit付きディレクトリで他人のファイル
-ls -ld /tmp            # Sticky Bit確認
-# drwxrwxrwt ...       ← t がある
+# Cause 2: other person's file in Sticky Bit directory
+ls -ld /tmp            # check Sticky Bit
+# drwxrwxrwt ...       ← t is present
 
-# ===== エラー7: cp: cannot create regular file: Permission denied =====
-# 原因: コピー先のディレクトリへの書き込み権限がない
-ls -la /destination/   # コピー先のパーミッション確認
-# 解決:
+# ===== Error 7: cp: cannot create regular file: Permission denied =====
+# Cause: no write permission on destination directory
+ls -la /destination/   # check destination permissions
+# Fix:
 sudo cp file.txt /destination/
-# または
+# or
 chmod u+w /destination/
 ```
 
-### 9.2 ファイル属性（chattr / lsattr）
+### 9.2 File Attributes (chattr / lsattr)
 
 ```bash
-# chattr: 拡張ファイル属性の設定（パーミッションとは別の制御レイヤー）
-# lsattr: 拡張ファイル属性の表示
+# chattr: set extended file attributes (a separate control layer from permissions)
+# lsattr: display extended file attributes
 
-# 主要な属性
-# i (immutable) : 変更・削除・名前変更・リンク作成不可（rootでも！）
-# a (append)    : 追記のみ可能（ログファイル向き）
-# e (extent)    : ext4のエクステント使用（通常デフォルト）
-# A (noatime)   : アクセス時刻を更新しない
-# S (sync)      : 即座にディスクに書き込み
-# d (nodump)    : dump によるバックアップ対象外
-# c (compress)  : 自動圧縮（対応FS必要）
+# Main attributes
+# i (immutable) : cannot be changed, deleted, renamed, or linked (even by root!)
+# a (append)    : append only (suitable for log files)
+# e (extent)    : uses ext4 extents (usually default)
+# A (noatime)   : do not update access time
+# S (sync)      : write to disk immediately
+# d (nodump)    : excluded from dump backups
+# c (compress)  : auto-compress (requires supported FS)
 
-# 属性の表示
+# Display attributes
 lsattr file.txt
 # ----i--------e-- file.txt
 
-lsattr -d dir/        # ディレクトリの属性
-lsattr -R dir/        # 再帰的に表示
+lsattr -d dir/        # attributes of a directory
+lsattr -R dir/        # display recursively
 
-# immutable 属性の設定（最強の保護）
+# Set immutable attribute (strongest protection)
 sudo chattr +i important.conf
-# → root でも変更・削除できなくなる
-# → 解除するには chattr -i が必要
+# → cannot be changed or deleted, even by root
+# → requires chattr -i to unlock
 
 rm important.conf
 # rm: cannot remove 'important.conf': Operation not permitted
 
 sudo rm important.conf
 # rm: cannot remove 'important.conf': Operation not permitted
-# → root でも削除できない！
+# → even root cannot delete!
 
-# immutable の解除
+# Remove immutable
 sudo chattr -i important.conf
 rm important.conf     # OK
 
-# append-only 属性（ログファイル向き）
+# append-only attribute (for log files)
 sudo chattr +a /var/log/secure.log
-echo "new entry" >> /var/log/secure.log    # OK（追記）
-echo "overwrite" > /var/log/secure.log     # エラー（上書き不可）
-rm /var/log/secure.log                      # エラー（削除不可）
+echo "new entry" >> /var/log/secure.log    # OK (append)
+echo "overwrite" > /var/log/secure.log     # Error (no overwrite)
+rm /var/log/secure.log                      # Error (no delete)
 
-# 実践例: 重要な設定ファイルの保護
-sudo chattr +i /etc/resolv.conf    # DNS設定の保護
-sudo chattr +i /etc/passwd         # パスワードファイルの保護
-sudo chattr +i /etc/shadow         # シャドウファイルの保護
-# 注意: ユーザー管理ツールが動作しなくなるので一時的な保護のみ推奨
+# Practical example: protect important config files
+sudo chattr +i /etc/resolv.conf    # protect DNS settings
+sudo chattr +i /etc/passwd         # protect password file
+sudo chattr +i /etc/shadow         # protect shadow file
+# Note: user management tools will stop working, so only use for temporary protection
 
-# 実践例: ブートファイルの保護
+# Practical example: protect boot files
 sudo chattr +i /boot/vmlinuz-*
 sudo chattr +i /boot/initrd.img-*
 
-# immutable フラグ付きファイルの検索
+# Find files with immutable flag
 lsattr -R / 2>/dev/null | grep -- "----i"
 ```
 
-### 9.3 デバッグテクニック
+### 9.3 Debugging Techniques
 
 ```bash
-# ===== namei: パス全体のパーミッションチェック =====
-# ファイルにアクセスできない時、パスのどこで権限がないか確認
+# ===== namei: check permissions along entire path =====
+# When you cannot access a file, find which part of the path lacks permissions
 namei -l /var/www/html/index.html
 # f: /var/www/html/index.html
 # dr-xr-xr-x root root /
@@ -1745,56 +1745,56 @@ namei -l /var/www/html/index.html
 # drwxr-xr-x root root html
 # -rw-r--r-- root root index.html
 
-# 各ディレクトリの x ビットを確認
-# x がないディレクトリがあるとそこでブロックされる
+# Check the x bit on each directory
+# A directory without x will block access there
 
-# ===== strace: システムコールレベルでの権限エラー追跡 =====
+# ===== strace: trace permission errors at system call level =====
 strace -f -e trace=open,openat,access cat /etc/shadow 2>&1
 # openat(AT_FDCWD, "/etc/shadow", O_RDONLY) = -1 EACCES (Permission denied)
 
-# ===== sudo -l: 利用可能なsudo権限の確認 =====
+# ===== sudo -l: check available sudo permissions =====
 sudo -l
 # User user may run the following commands on host:
 #     (ALL : ALL) ALL
 #     (root) /usr/bin/systemctl restart apache2
 
-# ===== getfacl: ACLを含む完全なパーミッション確認 =====
+# ===== getfacl: full permission check including ACL =====
 getfacl /path/to/file
 
-# ===== /proc/self/status: 現在のプロセスの権限情報 =====
+# ===== /proc/self/status: permission info for current process =====
 cat /proc/self/status | grep -E "Uid|Gid|Groups|Cap"
 
-# ===== loginctl: ログインセッションの確認 =====
+# ===== loginctl: check login sessions =====
 loginctl show-user $USER
 
-# ===== パーミッション変更履歴の確認 =====
-# auditd が有効な場合
+# ===== Check permission change history =====
+# When auditd is enabled
 sudo ausearch -f /path/to/file -ts recent
-# ファイルへのアクセス試行と権限変更を記録
+# Records access attempts and permission changes to file
 
-# auditルールの追加
+# Add audit rules
 sudo auditctl -w /etc/passwd -p wa -k passwd_changes
-# -w: 監視対象ファイル
-# -p: 監視する操作 (w=write, a=attribute change)
-# -k: ログ検索用のキー
+# -w: file to monitor
+# -p: operations to monitor (w=write, a=attribute change)
+# -k: key for log search
 
-# ===== inotifywait: リアルタイムファイル監視 =====
-# パーミッション変更をリアルタイムで監視
+# ===== inotifywait: real-time file monitoring =====
+# Monitor permission changes in real time
 inotifywait -m -e attrib /path/to/file
-# /path/to/file ATTRIB  ← パーミッションや属性が変更された
+# /path/to/file ATTRIB  ← permission or attribute changed
 
-# ===== テスト用ユーザーでの確認 =====
-# 特定ユーザーの視点でアクセスをテスト
+# ===== Testing from a specific user's perspective =====
+# Test access as a specific user
 sudo -u www-data cat /var/www/html/config.php
 sudo -u postgres ls /var/lib/postgresql/
 
-# ===== access コマンド（test）での確認 =====
-# 現在のユーザーがアクセスできるかテスト
+# ===== Check with access command (test) =====
+# Test if current user can access
 test -r file.txt && echo "Readable" || echo "Not readable"
 test -w file.txt && echo "Writable" || echo "Not writable"
 test -x file.txt && echo "Executable" || echo "Not executable"
 
-# スクリプトでの活用
+# Use in scripts
 if [ ! -r "$config_file" ]; then
     echo "Error: Cannot read $config_file" >&2
     echo "Current permissions: $(ls -la "$config_file")" >&2
@@ -1805,171 +1805,171 @@ fi
 
 ---
 
-## 10. macOS 固有のパーミッション
+## 10. macOS-Specific Permissions
 
-### 10.1 macOS のパーミッション特性
+### 10.1 macOS Permission Characteristics
 
 ```bash
-# macOS は BSD ベースのパーミッションシステム + 独自拡張
-# POSIX パーミッション + ACL + SIP + TCC + Sandbox
+# macOS uses a BSD-based permission system + proprietary extensions
+# POSIX permissions + ACL + SIP + TCC + Sandbox
 
-# 基本的なパーミッション操作はLinuxと同じ
+# Basic permission operations are the same as Linux
 chmod 755 file.txt
 chown user:group file.txt
-# ただし stat コマンドの書式がBSD形式
+# However, stat command format is BSD style
 
-# macOS の stat（BSD版）
+# macOS stat (BSD version)
 stat -f "%Sp %Su %Sg %z %N" file.txt
 # -rw-r--r-- user staff 4096 file.txt
 
-# 数値表示
+# Numeric display
 stat -f "%OLp %N" file.txt
 # 644 file.txt
 
-# macOS のデフォルトグループは "staff"
+# Default group on macOS is "staff"
 id
 # uid=501(user) gid=20(staff) groups=20(staff),80(admin),...
 
-# macOS のACL
-# macOS は独自のACLフォーマットを使用
-ls -le file.txt              # ACL表示（-e オプション）
+# macOS ACL
+# macOS uses its own ACL format
+ls -le file.txt              # display ACL (-e option)
 # -rw-r--r--+ 1 user staff 4096 Jan 1 file.txt
 #  0: user:alice allow read,write
 #  1: group:devteam allow read
 
-# macOS ACLの設定
+# Set macOS ACL
 chmod +a "user:alice allow read,write" file.txt
 chmod +a "group:devteam allow read" file.txt
-chmod +a "user:bob deny write" file.txt       # 拒否ルール
+chmod +a "user:bob deny write" file.txt       # deny rule
 
-# macOS ACLの削除
+# Remove macOS ACL
 chmod -a "user:alice allow read,write" file.txt
-chmod -a# 0 file.txt          # インデックス0のACLを削除
-chmod -N file.txt              # 全ACL削除
+chmod -a# 0 file.txt          # remove ACL at index 0
+chmod -N file.txt              # remove all ACLs
 
-# ACLの順序指定
-chmod +a# 0 "user:alice allow read,write" file.txt  # 先頭に挿入
+# Specify ACL order
+chmod +a# 0 "user:alice allow read,write" file.txt  # insert at beginning
 ```
 
-### 10.2 SIP（System Integrity Protection）
+### 10.2 SIP (System Integrity Protection)
 
 ```bash
-# SIP: macOS のシステムファイル保護機能
-# rootでも保護されたファイル/ディレクトリの変更不可
+# SIP: macOS system file protection feature
+# Even root cannot modify protected files/directories
 
-# SIPの状態確認
+# Check SIP status
 csrutil status
 # System Integrity Protection status: enabled.
 
-# SIPで保護されるディレクトリ
+# Directories protected by SIP
 # /System
-# /usr (ただし /usr/local は除く)
+# /usr (except /usr/local)
 # /bin
 # /sbin
-# /Applications（プリインストールアプリ）
+# /Applications (pre-installed apps)
 
-# SIP保護下でのエラー例
+# Error example under SIP protection
 sudo rm /usr/bin/python3
 # rm: /usr/bin/python3: Operation not permitted
-# → SIPにより rootでも削除不可
+# → even root cannot delete due to SIP
 
-# SIPの無効化（推奨されない、開発時のみ）
-# リカバリモードで起動 → ターミナル → csrutil disable
-# 再起動後に有効になる
+# Disabling SIP (not recommended, only for development)
+# Boot in Recovery Mode → Terminal → csrutil disable
+# Takes effect after restart
 
-# /usr/local は SIP の対象外
-# Homebrew はここにインストールされる
+# /usr/local is not subject to SIP
+# Homebrew installs here
 ls -la /usr/local/bin/
 ```
 
-### 10.3 xattr（拡張属性）
+### 10.3 xattr (Extended Attributes)
 
 ```bash
-# macOS の拡張属性（Extended Attributes）
-# ファイルにメタデータを付加する仕組み
+# macOS extended attributes
+# A mechanism to attach metadata to files
 
-# 拡張属性の表示
+# Display extended attributes
 xattr file.txt
-xattr -l file.txt                    # 値も表示
+xattr -l file.txt                    # also show values
 
-# よく見る拡張属性
-# com.apple.quarantine        : ダウンロードしたファイルの隔離フラグ
-# com.apple.metadata:kMDItemWhereFroms : ダウンロード元URL
-# com.apple.FinderInfo        : Finderの表示情報
-# com.apple.ResourceFork      : リソースフォーク
+# Commonly seen extended attributes
+# com.apple.quarantine        : quarantine flag for downloaded files
+# com.apple.metadata:kMDItemWhereFroms : download source URL
+# com.apple.FinderInfo        : Finder display info
+# com.apple.ResourceFork      : resource fork
 
-# 隔離フラグの確認
+# Check quarantine flag
 xattr -p com.apple.quarantine downloaded_file
 # 0083;5f8b1234;Chrome;...
 
-# 隔離フラグの削除（Gatekeeperの警告解除）
+# Remove quarantine flag (bypass Gatekeeper warning)
 xattr -d com.apple.quarantine downloaded_file
-# ディレクトリ全体から削除
+# Remove from entire directory
 xattr -dr com.apple.quarantine ~/Downloads/app.app
 
-# 全拡張属性の削除
+# Remove all extended attributes
 xattr -c file.txt
 
-# 拡張属性の設定
+# Set extended attributes
 xattr -w com.example.note "important file" file.txt
 
-# 再帰的に拡張属性を削除
+# Remove extended attributes recursively
 xattr -cr dir/
 
-# @ マーク: ls で拡張属性の存在を示す
+# @ mark: indicates extended attributes in ls
 ls -la
 # -rw-r--r--@ 1 user staff 4096 Jan 1 downloaded.zip
-#            ^ @ は拡張属性あり
+#            ^ @ means extended attributes are present
 ```
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: [基礎] — パーミッション操作
+### Exercise 1: [Basic] — Permission Operations
 
 ```bash
-# スクリプトに実行権限を付与
+# Add execute permission to a script
 echo '#!/bin/bash' > /tmp/test.sh
 echo 'echo "Hello from test.sh!"' >> /tmp/test.sh
 echo 'echo "Running as: $(whoami)"' >> /tmp/test.sh
 echo 'echo "PID: $$"' >> /tmp/test.sh
 
-# パーミッション確認
+# Check permissions
 ls -la /tmp/test.sh
-# -rw-r--r-- 1 user group ... test.sh  (実行権なし)
+# -rw-r--r-- 1 user group ... test.sh  (no execute)
 
-# 実行を試みる（失敗するはず）
+# Try to execute (should fail)
 /tmp/test.sh
 # bash: /tmp/test.sh: Permission denied
 
-# 実行権限付与
+# Add execute permission
 chmod +x /tmp/test.sh
 ls -la /tmp/test.sh
-# -rwxr-xr-x 1 user group ... test.sh  (実行権あり)
+# -rwxr-xr-x 1 user group ... test.sh  (execute added)
 
-# 実行
+# Execute
 /tmp/test.sh
 # Hello from test.sh!
 # Running as: user
 # PID: 12345
 
-# パーミッションを数値で確認
+# Check permissions as numeric
 stat -c "%a %n" /tmp/test.sh 2>/dev/null || stat -f "%OLp %N" /tmp/test.sh
 # 755 /tmp/test.sh
 
-# クリーンアップ
+# Cleanup
 rm /tmp/test.sh
 ```
 
-### 演習2: [基礎] — umask の理解
+### Exercise 2: [Basic] — Understanding umask
 
 ```bash
-# 現在のumaskを確認
+# Check current umask
 echo "Current umask: $(umask)"
 echo "Symbolic: $(umask -S)"
 
-# umask 022 でファイル作成
+# Create files with umask 022
 umask 022
 touch /tmp/umask_022.txt
 mkdir /tmp/umask_022_dir
@@ -1979,7 +1979,7 @@ stat -c "  Dir:  %a %n" /tmp/umask_022_dir 2>/dev/null
 # File: 644
 # Dir:  755
 
-# umask 077 でファイル作成
+# Create files with umask 077
 umask 077
 touch /tmp/umask_077.txt
 mkdir /tmp/umask_077_dir
@@ -1989,7 +1989,7 @@ stat -c "  Dir:  %a %n" /tmp/umask_077_dir 2>/dev/null
 # File: 600
 # Dir:  700
 
-# umask 002 でファイル作成
+# Create files with umask 002
 umask 002
 touch /tmp/umask_002.txt
 mkdir /tmp/umask_002_dir
@@ -1999,132 +1999,132 @@ stat -c "  Dir:  %a %n" /tmp/umask_002_dir 2>/dev/null
 # File: 664
 # Dir:  775
 
-# umask を元に戻す
+# Restore umask
 umask 022
 
-# クリーンアップ
+# Cleanup
 rm -f /tmp/umask_*.txt
 rmdir /tmp/umask_*_dir
 ```
 
-### 演習3: [中級] — チーム共有ディレクトリの構築
+### Exercise 3: [Intermediate] — Building a Team Shared Directory
 
 ```bash
-# チーム共有ディレクトリを作成して適切なパーミッションを設定
-# この演習はroot権限が必要
+# Create a team shared directory with appropriate permissions
+# This exercise requires root privileges
 
-# 1. グループの作成
+# 1. Create group
 sudo groupadd exercise-team 2>/dev/null
 
-# 2. テストユーザーの作成（演習用）
+# 2. Create test users (for exercise)
 sudo useradd -m -G exercise-team member1 2>/dev/null
 sudo useradd -m -G exercise-team member2 2>/dev/null
 
-# 3. 共有ディレクトリの作成
+# 3. Create shared directory
 sudo mkdir -p /tmp/team-share
 
-# 4. 所有者とグループの設定
+# 4. Set owner and group
 sudo chown root:exercise-team /tmp/team-share
 
-# 5. SGID + Sticky Bit の設定
+# 5. Set SGID + Sticky Bit
 sudo chmod 3770 /tmp/team-share
 # 3 = SGID(2) + Sticky(1)
 # 770 = rwx rwx ---
 
-# 確認
+# Verify
 ls -ld /tmp/team-share
 # drwxrws--T 2 root exercise-team 4096 ... team-share
-# s = SGID（新規ファイルにグループが継承される）
-# T = Sticky（他メンバーのファイルは削除不可）
-# 大文字Tはotherにxがないため
+# s = SGID (group is inherited for new files)
+# T = Sticky (cannot delete other members' files)
+# Uppercase T because others has no x
 
-# 6. テスト: member1がファイル作成
+# 6. Test: member1 creates a file
 sudo -u member1 touch /tmp/team-share/member1_file.txt
 ls -la /tmp/team-share/member1_file.txt
 # -rw-r--r-- 1 member1 exercise-team ... member1_file.txt
-# → グループが exercise-team に自動設定（SGID効果）
+# → group is automatically set to exercise-team (SGID effect)
 
-# 7. テスト: member2がmember1のファイルを削除（失敗するはず）
+# 7. Test: member2 tries to delete member1's file (should fail)
 sudo -u member2 rm /tmp/team-share/member1_file.txt 2>&1
-# rm: cannot remove ...: Operation not permitted（Sticky Bit効果）
+# rm: cannot remove ...: Operation not permitted (Sticky Bit effect)
 
-# 8. テスト: member2が自分のファイルを作成・削除（成功するはず）
+# 8. Test: member2 creates and deletes their own file (should succeed)
 sudo -u member2 touch /tmp/team-share/member2_file.txt
 sudo -u member2 rm /tmp/team-share/member2_file.txt
 
-# クリーンアップ
+# Cleanup
 sudo rm -rf /tmp/team-share
 sudo userdel -r member1 2>/dev/null
 sudo userdel -r member2 2>/dev/null
 sudo groupdel exercise-team 2>/dev/null
 ```
 
-### 演習4: [中級] — ACL の設定と検証
+### Exercise 4: [Intermediate] — Setting and Verifying ACL
 
 ```bash
-# ACL を使って複雑なアクセス制御を実装
+# Implement complex access control using ACL
 
-# 1. テスト環境の作成
+# 1. Create test environment
 mkdir -p /tmp/acl-exercise/docs
 mkdir -p /tmp/acl-exercise/code
 
 echo "Secret document" > /tmp/acl-exercise/docs/secret.txt
 echo "Public code" > /tmp/acl-exercise/code/main.py
 
-# 2. 基本パーミッションの設定
+# 2. Set base permissions
 chmod 700 /tmp/acl-exercise/docs/
 chmod 755 /tmp/acl-exercise/code/
 
-# 3. ACLの設定（自分のユーザーで実験）
-# 特定ユーザーにdocsへの読み取りアクセスを許可
-# （存在するユーザー名で実行してください）
+# 3. Set ACL (experiment with your own user)
+# Grant read access to docs for a specific user
+# (run with an existing username)
 setfacl -m u:$(whoami):rx /tmp/acl-exercise/docs/
 setfacl -m u:$(whoami):r /tmp/acl-exercise/docs/secret.txt
 
-# 4. ACLの確認
+# 4. Verify ACL
 echo "=== Directory ACL ==="
 getfacl /tmp/acl-exercise/docs/
 echo ""
 echo "=== File ACL ==="
 getfacl /tmp/acl-exercise/docs/secret.txt
 
-# 5. デフォルトACLの設定（新規ファイルに自動適用）
+# 5. Set default ACL (automatically applied to new files)
 setfacl -d -m u:$(whoami):r /tmp/acl-exercise/docs/
 
-# 6. デフォルトACLの検証
+# 6. Verify default ACL
 touch /tmp/acl-exercise/docs/new_file.txt
 echo "=== New file ACL (should inherit default) ==="
 getfacl /tmp/acl-exercise/docs/new_file.txt
 
-# 7. ls で + マークを確認
+# 7. Verify + mark in ls
 ls -la /tmp/acl-exercise/docs/
-# + マークが表示されるはず
+# + mark should be displayed
 
-# 8. ACLのバックアップと復元
+# 8. Backup and restore ACL
 getfacl -R /tmp/acl-exercise/ > /tmp/acl_backup.txt
 echo "=== ACL Backup ==="
 cat /tmp/acl_backup.txt
 
-# 9. ACLの削除
+# 9. Remove ACL
 setfacl -b /tmp/acl-exercise/docs/secret.txt
 echo "=== After ACL removal ==="
 getfacl /tmp/acl-exercise/docs/secret.txt
 
-# 10. バックアップからの復元
+# 10. Restore from backup
 setfacl --restore=/tmp/acl_backup.txt
 echo "=== After ACL restore ==="
 getfacl /tmp/acl-exercise/docs/secret.txt
 
-# クリーンアップ
+# Cleanup
 rm -rf /tmp/acl-exercise /tmp/acl_backup.txt
 ```
 
-### 演習5: [上級] — セキュリティ監査スクリプト
+### Exercise 5: [Advanced] — Security Audit Script
 
 ```bash
 #!/bin/bash
 # security-check.sh
-# 自分のホームディレクトリのパーミッションを監査
+# Audit permissions in your home directory
 
 HOME_DIR="${HOME}"
 ISSUES=0
@@ -2137,7 +2137,7 @@ echo " Date: $(date)"
 echo "============================================"
 echo ""
 
-# 1. ホームディレクトリのパーミッション
+# 1. Home directory permissions
 echo "=== 1. Home Directory ==="
 home_perm=$(stat -c "%a" "${HOME_DIR}" 2>/dev/null || stat -f "%OLp" "${HOME_DIR}" 2>/dev/null)
 if [ "$home_perm" -gt 755 ]; then
@@ -2148,7 +2148,7 @@ else
 fi
 echo ""
 
-# 2. SSH ディレクトリ
+# 2. SSH directory
 echo "=== 2. SSH Configuration ==="
 if [ -d "${HOME_DIR}/.ssh" ]; then
     ssh_perm=$(stat -c "%a" "${HOME_DIR}/.ssh" 2>/dev/null || stat -f "%OLp" "${HOME_DIR}/.ssh" 2>/dev/null)
@@ -2159,7 +2159,7 @@ if [ -d "${HOME_DIR}/.ssh" ]; then
         echo "[OK]   .ssh directory: $ssh_perm"
     fi
 
-    # 秘密鍵のチェック
+    # Check private keys
     for key in "${HOME_DIR}"/.ssh/id_*; do
         if [ -f "$key" ] && [[ ! "$key" == *.pub ]]; then
             key_perm=$(stat -c "%a" "$key" 2>/dev/null || stat -f "%OLp" "$key" 2>/dev/null)
@@ -2176,7 +2176,7 @@ else
 fi
 echo ""
 
-# 3. 秘密情報ファイル
+# 3. Sensitive files
 echo "=== 3. Sensitive Files ==="
 for pattern in ".env" ".env.*" "*.pem" "*.key" "credentials*" "secret*"; do
     while IFS= read -r -d '' sensitive; do
@@ -2191,7 +2191,7 @@ for pattern in ".env" ".env.*" "*.pem" "*.key" "credentials*" "secret*"; do
 done
 echo ""
 
-# 4. 世界書き込み可能ファイル
+# 4. World-writable files
 echo "=== 4. World-Writable Files ==="
 ww_files=$(find "${HOME_DIR}" -perm -002 -type f 2>/dev/null | head -10)
 if [ -n "$ww_files" ]; then
@@ -2204,7 +2204,7 @@ else
 fi
 echo ""
 
-# 5. 実行可能な隠しファイル
+# 5. Hidden executable files
 echo "=== 5. Hidden Executable Files ==="
 hidden_exec=$(find "${HOME_DIR}" -maxdepth 2 -name ".*" -perm /111 -type f 2>/dev/null | head -10)
 if [ -n "$hidden_exec" ]; then
@@ -2215,7 +2215,7 @@ else
 fi
 echo ""
 
-# サマリー
+# Summary
 echo "============================================"
 if [ $ISSUES -eq 0 ]; then
     echo " Result: All checks passed!"
@@ -2226,15 +2226,15 @@ fi
 echo "============================================"
 ```
 
-### 演習6: [上級] — パーミッション変更の監視
+### Exercise 6: [Advanced] — Monitoring Permission Changes
 
 ```bash
-# inotifywait を使ったリアルタイムパーミッション監視
-# インストール: sudo apt install inotify-tools
+# Real-time permission monitoring using inotifywait
+# Install: sudo apt install inotify-tools
 
 #!/bin/bash
 # watch-permissions.sh
-# 指定ディレクトリのパーミッション変更を監視
+# Monitor permission changes in a specified directory
 
 WATCH_DIR="${1:-.}"
 LOG_FILE="/tmp/permission_changes.log"
@@ -2243,7 +2243,7 @@ echo "Watching permission changes in: $WATCH_DIR"
 echo "Log file: $LOG_FILE"
 echo "Press Ctrl+C to stop"
 
-# inotifywait で attrib（属性変更）イベントを監視
+# Monitor attrib (attribute change) events with inotifywait
 inotifywait -m -r -e attrib --format '%T %w%f %e' \
     --timefmt '%Y-%m-%d %H:%M:%S' \
     "$WATCH_DIR" 2>/dev/null | while read -r line; do
@@ -2258,11 +2258,11 @@ inotifywait -m -r -e attrib --format '%T %w%f %e' \
     fi
 done
 
-# 別ターミナルでテスト:
+# Test in another terminal:
 # chmod 777 /path/to/watched/file
-# → 監視画面にリアルタイムで表示される
+# → appears in real time in the monitoring screen
 
-# auditd を使った監視（より本格的）
+# Monitoring with auditd (more production-grade)
 # sudo auditctl -w /etc/passwd -p wa -k passwd_watch
 # sudo ausearch -k passwd_watch
 ```
@@ -2272,78 +2272,78 @@ done
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| カテゴリ | 操作 | コマンド |
+| Category | Operation | Command |
 |---------|------|---------|
-| パーミッション表示 | 一覧表示 | `ls -la`, `stat` |
-| パーミッション変更 | 数値指定 | `chmod 755 file` |
-| パーミッション変更 | シンボリック | `chmod u+x file` |
-| パーミッション変更 | 再帰的 | `chmod -R 755 dir/` |
-| パーミッション変更 | ファイル/ディレクトリ分離 | `find -type f/d -exec chmod` |
-| 所有者変更 | 所有者+グループ | `chown user:group file` |
-| グループ変更 | グループのみ | `chgrp group file` |
-| デフォルトパーミッション | umask設定 | `umask 022` |
-| 特殊ビット | SUID | `chmod u+s file` / `chmod 4755` |
-| 特殊ビット | SGID | `chmod g+s dir/` / `chmod 2755` |
-| 特殊ビット | Sticky | `chmod +t dir/` / `chmod 1777` |
-| ACL表示 | ACL確認 | `getfacl file` |
-| ACL設定 | ユーザーACL | `setfacl -m u:user:rw file` |
-| ACL設定 | グループACL | `setfacl -m g:group:rx file` |
-| ACL設定 | デフォルトACL | `setfacl -d -m u:user:rw dir/` |
-| ACL削除 | 全削除 | `setfacl -b file` |
-| ファイル属性 | 不変設定 | `chattr +i file` |
-| ファイル属性 | 追記のみ | `chattr +a file` |
-| ファイル属性 | 属性確認 | `lsattr file` |
-| Capability | 確認 | `getcap file` |
-| Capability | 設定 | `setcap cap_xxx=+ep file` |
-| セキュリティ監査 | SUID検索 | `find / -perm -4000` |
-| セキュリティ監査 | 世界書込検索 | `find / -perm -002` |
-| セキュリティ監査 | 孤児ファイル | `find / -nouser -o -nogroup` |
-| SELinux | 状態確認 | `getenforce`, `sestatus` |
-| AppArmor | 状態確認 | `aa-status` |
+| Display permissions | List | `ls -la`, `stat` |
+| Change permissions | Numeric | `chmod 755 file` |
+| Change permissions | Symbolic | `chmod u+x file` |
+| Change permissions | Recursive | `chmod -R 755 dir/` |
+| Change permissions | Separate files/dirs | `find -type f/d -exec chmod` |
+| Change owner | Owner+group | `chown user:group file` |
+| Change group | Group only | `chgrp group file` |
+| Default permissions | Set umask | `umask 022` |
+| Special bits | SUID | `chmod u+s file` / `chmod 4755` |
+| Special bits | SGID | `chmod g+s dir/` / `chmod 2755` |
+| Special bits | Sticky | `chmod +t dir/` / `chmod 1777` |
+| Display ACL | Check ACL | `getfacl file` |
+| Set ACL | User ACL | `setfacl -m u:user:rw file` |
+| Set ACL | Group ACL | `setfacl -m g:group:rx file` |
+| Set ACL | Default ACL | `setfacl -d -m u:user:rw dir/` |
+| Remove ACL | Remove all | `setfacl -b file` |
+| File attributes | Set immutable | `chattr +i file` |
+| File attributes | Append only | `chattr +a file` |
+| File attributes | Check attributes | `lsattr file` |
+| Capability | Check | `getcap file` |
+| Capability | Set | `setcap cap_xxx=+ep file` |
+| Security audit | Find SUID | `find / -perm -4000` |
+| Security audit | Find world-writable | `find / -perm -002` |
+| Security audit | Orphaned files | `find / -nouser -o -nogroup` |
+| SELinux | Check status | `getenforce`, `sestatus` |
+| AppArmor | Check status | `aa-status` |
 
-### パーミッション設定クイックリファレンス
+### Permission Setting Quick Reference
 
 ```
-用途                    パーミッション  コマンド
+Purpose                     Permission     Command
 ─────────────────────────────────────────────────
-公開Webファイル          644            chmod 644 index.html
-公開ディレクトリ         755            chmod 755 public/
-実行スクリプト           755            chmod 755 script.sh
-SSH秘密鍵              600 or 400     chmod 600 ~/.ssh/id_rsa
-.sshディレクトリ        700            chmod 700 ~/.ssh
-秘密設定ファイル         600            chmod 600 .env
-共有ディレクトリ         2775           chmod 2775 /shared/
-一時ディレクトリ         1777           chmod 1777 /tmp/
-ログファイル            640            chmod 640 app.log
-SSL秘密鍵              600            chmod 600 server.key
-SSL証明書              644            chmod 644 server.crt
-crontab                600            chmod 600 crontab
-sudoers                440            chmod 440 /etc/sudoers
+Public web file             644            chmod 644 index.html
+Public directory            755            chmod 755 public/
+Executable script           755            chmod 755 script.sh
+SSH private key             600 or 400     chmod 600 ~/.ssh/id_rsa
+.ssh directory              700            chmod 700 ~/.ssh
+Secret config file          600            chmod 600 .env
+Shared directory            2775           chmod 2775 /shared/
+Temporary directory         1777           chmod 1777 /tmp/
+Log file                    640            chmod 640 app.log
+SSL private key             600            chmod 600 server.key
+SSL certificate             644            chmod 644 server.crt
+crontab                     600            chmod 600 crontab
+sudoers                     440            chmod 440 /etc/sudoers
 ```
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
 ---
 
-## 参考文献
+## References
 1. Kerrisk, M. "The Linux Programming Interface." Ch.15: File Attributes, 2010.
 2. Shotts, W. "The Linux Command Line." Ch.9: Permissions, 5th ed., 2019.
 3. Nemeth, E. et al. "UNIX and Linux System Administration Handbook." Ch.5: Access Control, 5th ed., 2017.
