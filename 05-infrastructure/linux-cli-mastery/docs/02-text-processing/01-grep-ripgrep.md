@@ -1,916 +1,916 @@
-# パターン検索（grep / ripgrep）
+# Pattern Search (grep / ripgrep)
 
-> grep は「テキストの中から必要な行を抽出する」最も重要なフィルタリングツール。
+> grep is the most important filtering tool for "extracting lines you need from text."
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] grep の主要オプションを使いこなせる
-- [ ] 正規表現を活用した検索ができる
-- [ ] ripgrep（rg）で高速な再帰検索ができる
-- [ ] grep 系ツール（egrep, fgrep, ag, ack）の使い分けができる
-- [ ] 実務で頻出する検索パターンを身につける
+- [ ] Master the key options of grep
+- [ ] Perform searches using regular expressions
+- [ ] Use ripgrep (rg) for fast recursive searches
+- [ ] Know when to use grep-family tools (egrep, fgrep, ag, ack)
+- [ ] Learn search patterns commonly used in real-world work
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ファイル表示](./00-cat-less-head-tail.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [File Display](./00-cat-less-head-tail.md)
 
 ---
 
-## 1. grep の基本
+## 1. grep Basics
 
-### 1.1 基本構文と動作
+### 1.1 Basic Syntax and Behavior
 
 ```bash
-# 基本構文: grep [オプション] パターン [ファイル...]
+# Basic syntax: grep [options] pattern [file...]
 #
-# grep は入力の各行に対してパターンをマッチングし、
-# マッチした行を標準出力に出力する。
-# パターンはデフォルトで基本正規表現（BRE）として解釈される。
+# grep matches the pattern against each line of input,
+# and prints matching lines to standard output.
+# Patterns are interpreted as Basic Regular Expressions (BRE) by default.
 
-# 基本的な文字列検索
-grep "error" logfile.txt            # "error" を含む行を表示
-grep "warning" logfile.txt          # "warning" を含む行を表示
-grep "fatal" logfile.txt            # "fatal" を含む行を表示
+# Basic string search
+grep "error" logfile.txt            # Show lines containing "error"
+grep "warning" logfile.txt          # Show lines containing "warning"
+grep "fatal" logfile.txt            # Show lines containing "fatal"
 
-# ファイルを指定しない場合は標準入力から読む
-echo "hello world" | grep "world"   # "world" を含む行
-ps aux | grep nginx                 # パイプ経由で検索
-cat /etc/passwd | grep "root"       # /etc/passwd から root を検索
+# Without a file argument, reads from standard input
+echo "hello world" | grep "world"   # Lines containing "world"
+ps aux | grep nginx                 # Search via pipe
+cat /etc/passwd | grep "root"       # Search for root in /etc/passwd
 
-# 複数ファイルの検索
-grep "error" *.log                  # 全 .log ファイルから検索
-grep "TODO" src/*.py                # Python ファイルから TODO を検索
-grep "import" lib/*.js              # JS ファイルから import を検索
+# Searching multiple files
+grep "error" *.log                  # Search all .log files
+grep "TODO" src/*.py                # Search Python files for TODO
+grep "import" lib/*.js              # Search JS files for import
 ```
 
-### 1.2 主要オプション（出力制御）
+### 1.2 Key Options (Output Control)
 
 ```bash
-# -i: 大小文字を無視（ignore case）
-grep -i "error" logfile.txt         # Error, ERROR, error 全てマッチ
-grep -i "warning" logfile.txt       # Warning, WARNING 等もマッチ
+# -i: Ignore case
+grep -i "error" logfile.txt         # Matches Error, ERROR, error, etc.
+grep -i "warning" logfile.txt       # Also matches Warning, WARNING, etc.
 
-# -n: 行番号を表示
-grep -n "error" logfile.txt         # "42:error occurred" のように行番号付き
-grep -n "TODO" src/*.py             # ファイル名:行番号:マッチ行
+# -n: Show line numbers
+grep -n "error" logfile.txt         # Output like "42:error occurred"
+grep -n "TODO" src/*.py             # filename:line_number:matched_line
 
-# -c: マッチした行数をカウント
-grep -c "error" logfile.txt         # マッチ行数を数値で表示
-grep -c "error" *.log               # 各ファイルのマッチ行数
+# -c: Count matching lines
+grep -c "error" logfile.txt         # Show match count as a number
+grep -c "error" *.log               # Match count per file
 
-# -l: マッチしたファイル名のみ表示（ファイル内容は表示しない）
-grep -l "error" *.log               # error を含むログファイルの名前
-grep -rl "TODO" src/                # 再帰的に TODO を含むファイル名
-grep -rL "test" src/                # test を含まないファイル名（-L は -l の逆）
+# -l: Show only matching file names (not file contents)
+grep -l "error" *.log               # Names of log files containing error
+grep -rl "TODO" src/                # Recursively find file names containing TODO
+grep -rL "test" src/                # File names NOT containing test (-L is the inverse of -l)
 
-# -v: 逆マッチ（マッチしない行を表示）
-grep -v "debug" logfile.txt         # debug を含まない行
-grep -v "^#" config.conf            # コメント行以外
-grep -v "^$" file.txt               # 空行以外
+# -v: Invert match (show lines that do NOT match)
+grep -v "debug" logfile.txt         # Lines not containing debug
+grep -v "^#" config.conf            # Lines that are not comments
+grep -v "^$" file.txt               # Lines that are not empty
 
-# -w: 単語として完全一致（word match）
-grep -w "error" logfile.txt         # "error" に完全一致（"errors" はマッチしない）
-grep -w "log" file.txt              # "log" に一致（"logging" はマッチしない）
-grep -w "main" *.py                 # 単語 "main" を検索
+# -w: Whole-word match
+grep -w "error" logfile.txt         # Exact match for "error" ("errors" does not match)
+grep -w "log" file.txt              # Matches "log" (not "logging")
+grep -w "main" *.py                 # Search for the word "main"
 
-# -x: 行全体が完全一致
-grep -x "hello" file.txt            # 行全体が "hello" の行のみ
+# -x: Match entire line
+grep -x "hello" file.txt            # Only lines where the entire line is "hello"
 
-# -o: マッチした部分のみ表示（行全体ではなく）
-grep -o "error[a-z]*" logfile.txt   # "error" で始まる単語だけ抽出
-grep -oP "\d+\.\d+\.\d+\.\d+" access.log  # IPアドレスを抽出
+# -o: Show only the matched part (not the full line)
+grep -o "error[a-z]*" logfile.txt   # Extract words starting with "error"
+grep -oP "\d+\.\d+\.\d+\.\d+" access.log  # Extract IP addresses
 
-# -q: 何も出力しない（終了コードのみ、スクリプト用）
+# -q: Suppress output (exit code only, for scripts)
 if grep -q "error" logfile.txt; then
-    echo "エラーが見つかりました"
+    echo "Error found"
 fi
 ```
 
-### 1.3 コンテキスト表示（-A / -B / -C）
+### 1.3 Context Display (-A / -B / -C)
 
 ```bash
-# -A N: マッチ行の後（After）N行も表示
-grep -A 3 "error" logfile.txt       # マッチ行 + 後3行
-grep -A 5 "Exception" app.log       # 例外発生行 + スタックトレース5行
+# -A N: Show N lines After the match
+grep -A 3 "error" logfile.txt       # Matched line + 3 lines after
+grep -A 5 "Exception" app.log       # Exception line + 5 lines of stack trace
 
-# -B N: マッチ行の前（Before）N行も表示
-grep -B 2 "error" logfile.txt       # 前2行 + マッチ行
-grep -B 5 "FATAL" app.log           # エラー前の文脈を確認
+# -B N: Show N lines Before the match
+grep -B 2 "error" logfile.txt       # 2 lines before + matched line
+grep -B 5 "FATAL" app.log           # Review context before the error
 
-# -C N: マッチ行の前後（Context）N行を表示
-grep -C 2 "error" logfile.txt       # 前2行 + マッチ行 + 後2行
-grep -C 3 "segfault" /var/log/kern.log  # セグフォルト前後3行
+# -C N: Show N lines of Context before and after the match
+grep -C 2 "error" logfile.txt       # 2 lines before + matched line + 2 lines after
+grep -C 3 "segfault" /var/log/kern.log  # 3 lines around the segfault
 
-# コンテキスト表示の区切り
-# 複数のマッチがある場合、"--" で区切られる
+# Context display separator
+# When there are multiple matches, they are separated by "--"
 grep -C 1 "error" logfile.txt
-# → マッチブロック間に "--" が表示される
+# → "--" is displayed between match blocks
 
-# グループセパレータの変更
+# Change the group separator
 grep --group-separator="===" -C 2 "error" logfile.txt
 ```
 
-### 1.4 再帰検索（-r / -R）
+### 1.4 Recursive Search (-r / -R)
 
 ```bash
-# -r: ディレクトリを再帰的に検索
-grep -r "TODO" ./src/               # src/ 以下を再帰検索
-grep -r "import os" ./              # カレントディレクトリ以下を検索
-grep -rn "console.log" ./src/       # 行番号付きで再帰検索
+# -r: Recursively search directories
+grep -r "TODO" ./src/               # Recursive search under src/
+grep -r "import os" ./              # Search the current directory and below
+grep -rn "console.log" ./src/       # Recursive search with line numbers
 
-# -R: -r と同等だが、シンボリックリンクもたどる
-grep -R "pattern" /etc/             # シンボリックリンク先も検索
+# -R: Same as -r, but follows symbolic links
+grep -R "pattern" /etc/             # Also searches symlink targets
 
-# --include: 特定のファイルパターンのみ検索
-grep -rn --include="*.py" "import" ./src/     # .py ファイルのみ
-grep -rn --include="*.{js,ts}" "fetch" ./src/ # .js と .ts のみ
-grep -rn --include="*.go" "func main" ./      # .go ファイルのみ
+# --include: Search only specific file patterns
+grep -rn --include="*.py" "import" ./src/     # Only .py files
+grep -rn --include="*.{js,ts}" "fetch" ./src/ # Only .js and .ts
+grep -rn --include="*.go" "func main" ./      # Only .go files
 
-# --exclude: 特定のファイルパターンを除外
-grep -rn --exclude="*.min.js" "function" ./   # minified JS を除外
-grep -rn --exclude="*.pyc" "import" ./        # .pyc を除外
+# --exclude: Exclude specific file patterns
+grep -rn --exclude="*.min.js" "function" ./   # Exclude minified JS
+grep -rn --exclude="*.pyc" "import" ./        # Exclude .pyc files
 
-# --exclude-dir: 特定のディレクトリを除外
-grep -rn --exclude-dir=node_modules "require" ./       # node_modules 除外
-grep -rn --exclude-dir=.git "TODO" ./                  # .git 除外
-grep -rn --exclude-dir={node_modules,.git,dist} "pattern" ./  # 複数除外
+# --exclude-dir: Exclude specific directories
+grep -rn --exclude-dir=node_modules "require" ./       # Exclude node_modules
+grep -rn --exclude-dir=.git "TODO" ./                  # Exclude .git
+grep -rn --exclude-dir={node_modules,.git,dist} "pattern" ./  # Exclude multiple
 
-# 実務でよく使う再帰検索パターン
+# Common recursive search patterns in real-world use
 grep -rn --include="*.py" --exclude-dir={__pycache__,.git,venv} "TODO\|FIXME\|HACK" ./
 grep -rn --include="*.{js,ts,jsx,tsx}" --exclude-dir={node_modules,.next,dist} "console.log" ./
 ```
 
-### 1.5 複数パターンの検索
+### 1.5 Multiple Pattern Search
 
 ```bash
-# -e: 複数パターンの OR 検索
+# -e: OR search with multiple patterns
 grep -e "error" -e "warning" logfile.txt        # error OR warning
-grep -e "fatal" -e "critical" -e "error" app.log  # 3つのパターン
+grep -e "fatal" -e "critical" -e "error" app.log  # Three patterns
 
-# -f: ファイルからパターンを読み込み
+# -f: Load patterns from a file
 cat > patterns.txt << 'EOF'
 error
 warning
 fatal
 EOF
-grep -f patterns.txt logfile.txt    # ファイル内のパターンで検索
+grep -f patterns.txt logfile.txt    # Search using patterns from file
 
-# パイプで AND 検索
+# AND search via pipe
 grep "error" logfile.txt | grep "database"    # error AND database
 grep "error" logfile.txt | grep -v "timeout"  # error AND NOT timeout
 
-# 正規表現で OR 検索（-E = 拡張正規表現）
-grep -E "error|warning|fatal" logfile.txt     # OR 検索
-grep -E "(error|warning)" logfile.txt         # グループ化
+# OR search with regular expressions (-E = Extended Regular Expressions)
+grep -E "error|warning|fatal" logfile.txt     # OR search
+grep -E "(error|warning)" logfile.txt         # With grouping
 
-# AND 検索の別の方法（awk を使用）
-awk '/error/ && /database/' logfile.txt       # error AND database を含む行
+# Alternative AND search (using awk)
+awk '/error/ && /database/' logfile.txt       # Lines containing both error AND database
 ```
 
 ---
 
-## 2. 正規表現の活用
+## 2. Using Regular Expressions
 
-### 2.1 基本正規表現（BRE）と拡張正規表現（ERE）
+### 2.1 Basic Regular Expressions (BRE) and Extended Regular Expressions (ERE)
 
 ```bash
-# grep はデフォルトで基本正規表現（BRE）を使用
-# -E オプション（または egrep）で拡張正規表現（ERE）を使用
-# -P オプションで Perl 互換正規表現（PCRE）を使用（GNU grep のみ）
+# grep uses Basic Regular Expressions (BRE) by default
+# Use -E option (or egrep) for Extended Regular Expressions (ERE)
+# Use -P option for Perl Compatible Regular Expressions (PCRE) (GNU grep only)
 
-# BRE と ERE の違い:
-# BRE: +, ?, |, (), {} はリテラル。エスケープ \+, \?, \|, \(\), \{\} でメタ文字
-# ERE: +, ?, |, (), {} がメタ文字。エスケープ不要
+# Difference between BRE and ERE:
+# BRE: +, ?, |, (), {} are literals. Use \+, \?, \|, \(\), \{\} as metacharacters
+# ERE: +, ?, |, (), {} are metacharacters. No escaping needed
 
-# BRE の例
-grep "error\|warning" logfile.txt              # OR（BRE）
-grep "ab\{2,4\}" file.txt                      # a の後に b が 2〜4個（BRE）
-grep "\(abc\)\{2\}" file.txt                   # "abc" が2回繰り返し（BRE）
+# BRE examples
+grep "error\|warning" logfile.txt              # OR (BRE)
+grep "ab\{2,4\}" file.txt                      # b appears 2-4 times after a (BRE)
+grep "\(abc\)\{2\}" file.txt                   # "abc" repeated twice (BRE)
 
-# ERE の例（-E / egrep）
-grep -E "error|warning" logfile.txt            # OR（ERE、エスケープ不要）
-grep -E "ab{2,4}" file.txt                     # a の後に b が 2〜4個（ERE）
-grep -E "(abc){2}" file.txt                    # "abc" が2回繰り返し（ERE）
+# ERE examples (-E / egrep)
+grep -E "error|warning" logfile.txt            # OR (ERE, no escaping needed)
+grep -E "ab{2,4}" file.txt                     # b appears 2-4 times after a (ERE)
+grep -E "(abc){2}" file.txt                    # "abc" repeated twice (ERE)
 ```
 
-### 2.2 正規表現メタ文字リファレンス
+### 2.2 Regular Expression Metacharacter Reference
 
 ```bash
-# === アンカー ===
-grep "^Error" logfile.txt            # 行頭が "Error"
-grep "done$" logfile.txt             # 行末が "done"
-grep "^$" file.txt                   # 空行
-grep -E "^\s*$" file.txt             # 空白のみの行（空行含む）
+# === Anchors ===
+grep "^Error" logfile.txt            # Line starts with "Error"
+grep "done$" logfile.txt             # Line ends with "done"
+grep "^$" file.txt                   # Empty lines
+grep -E "^\s*$" file.txt             # Lines with only whitespace (including empty lines)
 
-# === 文字クラス ===
-grep "[abc]" file.txt                # a, b, c のいずれか
-grep "[a-z]" file.txt                # 小文字アルファベット
-grep "[A-Z]" file.txt                # 大文字アルファベット
-grep "[0-9]" file.txt                # 数字
-grep "[^0-9]" file.txt               # 数字以外
+# === Character classes ===
+grep "[abc]" file.txt                # Any of a, b, c
+grep "[a-z]" file.txt                # Lowercase letters
+grep "[A-Z]" file.txt                # Uppercase letters
+grep "[0-9]" file.txt                # Digits
+grep "[^0-9]" file.txt               # Non-digits
 
-# === 量指定子 ===
-grep -E "ab?" file.txt               # a の後に b が 0 または 1個
-grep -E "ab+" file.txt               # a の後に b が 1個以上
-grep -E "ab*" file.txt               # a の後に b が 0個以上
-grep -E "ab{3}" file.txt             # a の後に b がちょうど3個
-grep -E "ab{2,5}" file.txt           # a の後に b が 2〜5個
-grep -E "ab{3,}" file.txt            # a の後に b が 3個以上
+# === Quantifiers ===
+grep -E "ab?" file.txt               # 0 or 1 b after a
+grep -E "ab+" file.txt               # 1 or more b after a
+grep -E "ab*" file.txt               # 0 or more b after a
+grep -E "ab{3}" file.txt             # Exactly 3 b's after a
+grep -E "ab{2,5}" file.txt           # 2 to 5 b's after a
+grep -E "ab{3,}" file.txt            # 3 or more b's after a
 
-# === ワイルドカード ===
-grep "a.b" file.txt                  # a の後に任意の1文字、その後 b
-grep "a.*b" file.txt                 # a と b の間に任意の文字列
+# === Wildcards ===
+grep "a.b" file.txt                  # Any single character between a and b
+grep "a.*b" file.txt                 # Any string between a and b
 
-# === グループ化と後方参照 ===
-grep -E "(abc){2}" file.txt          # "abcabc" にマッチ
-grep -E "(error|warn)" logfile.txt   # "error" または "warn"
-grep "\(.*\)\1" file.txt             # 同じ文字列の繰り返し（後方参照、BRE）
+# === Grouping and back-references ===
+grep -E "(abc){2}" file.txt          # Matches "abcabc"
+grep -E "(error|warn)" logfile.txt   # "error" or "warn"
+grep "\(.*\)\1" file.txt             # Repeated string (back-reference, BRE)
 
-# === 単語境界 ===
-grep "\berror\b" logfile.txt         # 単語 "error"（\b = 単語境界）
-grep "\<error\>" logfile.txt         # 同上（\< = 単語先頭、\> = 単語末尾）
-grep -w "error" logfile.txt          # -w オプション（同等）
+# === Word boundaries ===
+grep "\berror\b" logfile.txt         # Word "error" (\b = word boundary)
+grep "\<error\>" logfile.txt         # Same (\< = word start, \> = word end)
+grep -w "error" logfile.txt          # -w option (equivalent)
 ```
 
-### 2.3 Perl 互換正規表現（PCRE）
+### 2.3 Perl Compatible Regular Expressions (PCRE)
 
 ```bash
-# -P オプション（GNU grep のみ。macOS の grep では非対応）
-# macOS では brew install grep で ggrep を使うか、ripgrep を使う
+# -P option (GNU grep only. Not supported on macOS grep)
+# On macOS, use brew install grep for ggrep, or use ripgrep
 
-# \d: 数字（[0-9] と同等）
-grep -P "\d{4}-\d{2}-\d{2}" logfile.txt        # 日付パターン（YYYY-MM-DD）
+# \d: Digit (equivalent to [0-9])
+grep -P "\d{4}-\d{2}-\d{2}" logfile.txt        # Date pattern (YYYY-MM-DD)
 
-# \w: 英数字とアンダースコア（[a-zA-Z0-9_] と同等）
-grep -P "\w+@\w+\.\w+" file.txt                # メールアドレスの簡易マッチ
+# \w: Alphanumeric and underscore (equivalent to [a-zA-Z0-9_])
+grep -P "\w+@\w+\.\w+" file.txt                # Simple email address match
 
-# \s: 空白文字
-grep -P "status:\s+\d{3}" access.log           # ステータスコード
+# \s: Whitespace character
+grep -P "status:\s+\d{3}" access.log           # Status code
 
-# 先読み・後読み（lookahead / lookbehind）
-grep -P "(?<=price: )\d+" file.txt             # "price: " の後の数字（後読み）
-grep -P "\d+(?= yen)" file.txt                 # " yen" の前の数字（先読み）
-grep -P "(?<!no )error" logfile.txt            # "no " が前にない "error"（否定後読み）
-grep -P "error(?! ignored)" logfile.txt        # " ignored" が後にない "error"（否定先読み）
+# Lookahead / Lookbehind
+grep -P "(?<=price: )\d+" file.txt             # Digits after "price: " (lookbehind)
+grep -P "\d+(?= yen)" file.txt                 # Digits before " yen" (lookahead)
+grep -P "(?<!no )error" logfile.txt            # "error" not preceded by "no " (negative lookbehind)
+grep -P "error(?! ignored)" logfile.txt        # "error" not followed by " ignored" (negative lookahead)
 
-# 名前付きキャプチャ
-grep -oP "(?P<ip>\d+\.\d+\.\d+\.\d+)" access.log  # IPアドレスを抽出
+# Named capture groups
+grep -oP "(?P<ip>\d+\.\d+\.\d+\.\d+)" access.log  # Extract IP addresses
 
-# 非貪欲マッチ
-grep -oP '".*?"' file.txt                       # 最短一致の引用符内テキスト
-grep -oP '<.*?>' file.html                      # HTMLタグ（最短一致）
+# Non-greedy match
+grep -oP '".*?"' file.txt                       # Shortest quoted text
+grep -oP '<.*?>' file.html                      # HTML tags (shortest match)
 ```
 
-### 2.4 よく使う正規表現パターン集
+### 2.4 Commonly Used Regex Pattern Library
 
 ```bash
-# --- 日付・時刻 ---
-grep -E "^[0-9]{4}-[0-9]{2}-[0-9]{2}" logfile.txt         # YYYY-MM-DD 形式
-grep -E "[0-9]{2}:[0-9]{2}:[0-9]{2}" logfile.txt           # HH:MM:SS 形式
-grep -P "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}" logfile.txt # ISO 8601 形式
+# --- Date / Time ---
+grep -E "^[0-9]{4}-[0-9]{2}-[0-9]{2}" logfile.txt         # YYYY-MM-DD format
+grep -E "[0-9]{2}:[0-9]{2}:[0-9]{2}" logfile.txt           # HH:MM:SS format
+grep -P "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}" logfile.txt # ISO 8601 format
 
-# --- IPアドレス ---
+# --- IP Addresses ---
 grep -E "\b[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\b" access.log
-grep -oP "\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b" access.log  # IP抽出
+grep -oP "\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b" access.log  # Extract IPs
 
-# --- メールアドレス ---
+# --- Email Addresses ---
 grep -E "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" file.txt
 
-# --- URL ---
+# --- URLs ---
 grep -E "https?://[a-zA-Z0-9./?&=%-]+" file.txt
-grep -oP "https?://[^\s\"'>]+" file.html                     # URL 抽出
+grep -oP "https?://[^\s\"'>]+" file.html                     # Extract URLs
 
-# --- HTTP ステータスコード ---
+# --- HTTP Status Codes ---
 grep -E "HTTP/[0-9.]+ [0-9]{3}" access.log
-grep -E "\s(4[0-9]{2}|5[0-9]{2})\s" access.log              # 4xx/5xx エラー
+grep -E "\s(4[0-9]{2}|5[0-9]{2})\s" access.log              # 4xx/5xx errors
 
-# --- JSON のキー検索 ---
+# --- JSON Key Search ---
 grep -oP '"name"\s*:\s*"[^"]*"' data.json
 grep -oP '"version"\s*:\s*"[^"]*"' package.json
 
-# --- プログラミング ---
-grep -E "^(def|class) " *.py                                 # Python の関数/クラス定義
-grep -E "^(function|const|let|var) " *.js                    # JS の関数/変数定義
-grep -E "^func " *.go                                        # Go の関数定義
-grep -E "^(pub )?fn " *.rs                                   # Rust の関数定義
+# --- Programming ---
+grep -E "^(def|class) " *.py                                 # Python function/class definitions
+grep -E "^(function|const|let|var) " *.js                    # JS function/variable definitions
+grep -E "^func " *.go                                        # Go function definitions
+grep -E "^(pub )?fn " *.rs                                   # Rust function definitions
 ```
 
 ---
 
-## 3. grep の高度な使い方
+## 3. Advanced grep Usage
 
-### 3.1 grep + パイプの実務パターン
+### 3.1 grep + Pipe Real-World Patterns
 
 ```bash
-# プロセス検索（自分自身を除外するテクニック）
-ps aux | grep "[n]ginx"             # grep 自身を除外（[n] トリック）
-ps aux | grep nginx | grep -v grep  # grep -v で除外（従来の方法）
-pgrep -la nginx                     # pgrep を使う（推奨）
+# Process search (technique to exclude grep itself)
+ps aux | grep "[n]ginx"             # Exclude grep itself ([n] trick)
+ps aux | grep nginx | grep -v grep  # Exclude with grep -v (traditional method)
+pgrep -la nginx                     # Use pgrep (recommended)
 
-# コマンド履歴から検索
-history | grep "git push"           # Git push の履歴
-history | grep "docker" | tail -20  # Docker 関連の直近20件
+# Search command history
+history | grep "git push"           # Git push history
+history | grep "docker" | tail -20  # Last 20 Docker-related entries
 
-# パッケージ検索
-dpkg -l | grep "python"             # インストール済み Python パッケージ
-pip list | grep "django"            # Django 関連パッケージ
-npm list | grep "react"             # React 関連パッケージ
+# Package search
+dpkg -l | grep "python"             # Installed Python packages
+pip list | grep "django"            # Django-related packages
+npm list | grep "react"             # React-related packages
 
-# ネットワーク情報の検索
-netstat -tlnp | grep ":80"          # ポート80を使用しているプロセス
-ss -tlnp | grep ":443"              # ポート443を使用しているプロセス
-ip addr | grep "inet "              # IPアドレスの確認
+# Network information search
+netstat -tlnp | grep ":80"          # Processes using port 80
+ss -tlnp | grep ":443"              # Processes using port 443
+ip addr | grep "inet "              # Check IP addresses
 
-# Docker 関連
-docker ps | grep -i running         # 稼働中のコンテナ
-docker images | grep "<none>"       # 名前のないイメージ（dangling）
-docker logs container 2>&1 | grep "ERROR"  # コンテナログからエラー検索
+# Docker-related
+docker ps | grep -i running         # Running containers
+docker images | grep "<none>"       # Unnamed images (dangling)
+docker logs container 2>&1 | grep "ERROR"  # Search container logs for errors
 
-# Git 関連
-git log --oneline | grep "fix"      # fix を含むコミット
-git diff | grep "^+"                # 追加された行のみ
-git branch -a | grep "feature"      # feature ブランチの一覧
+# Git-related
+git log --oneline | grep "fix"      # Commits containing "fix"
+git diff | grep "^+"                # Only added lines
+git branch -a | grep "feature"      # List of feature branches
 ```
 
-### 3.2 grep の出力のカスタマイズ
+### 3.2 Customizing grep Output
 
 ```bash
-# --color: マッチ部分をカラー表示
-grep --color=always "error" logfile.txt   # 常にカラー
-grep --color=auto "error" logfile.txt     # 端末出力時のみカラー（デフォルト）
-grep --color=never "error" logfile.txt    # カラー無効
+# --color: Highlight matched parts in color
+grep --color=always "error" logfile.txt   # Always use color
+grep --color=auto "error" logfile.txt     # Color only for terminal output (default)
+grep --color=never "error" logfile.txt    # Disable color
 
-# カラーをパイプで保持する
+# Preserve color through a pipe
 grep --color=always "error" logfile.txt | less -R
 
-# -H / -h: ファイル名の表示制御
-grep -H "pattern" file.txt          # ファイル名を常に表示
-grep -h "pattern" *.txt             # ファイル名を非表示
+# -H / -h: Control filename display
+grep -H "pattern" file.txt          # Always show filename
+grep -h "pattern" *.txt             # Hide filename
 
-# -Z: ファイル名の区切りをNULL文字に（xargs -0 と組み合わせ）
+# -Z: Use NULL character as filename separator (combine with xargs -0)
 grep -rlZ "pattern" . | xargs -0 sed -i 's/pattern/replacement/g'
 
-# --label: 標準入力に対するラベルを指定
+# --label: Specify label for standard input
 cat file.txt | grep --label="STDIN" -H "pattern"
 
-# -m N: 最初のN件のマッチで停止
-grep -m 5 "error" large_logfile.txt      # 最初の5件のみ
-grep -m 1 "pattern" file.txt             # 最初の1件のみ（存在確認）
+# -m N: Stop after first N matches
+grep -m 5 "error" large_logfile.txt      # First 5 matches only
+grep -m 1 "pattern" file.txt             # First match only (existence check)
 
-# カウントとファイル名の組み合わせ
+# Combining count and filename
 grep -rc "TODO" ./src/ | grep -v ":0$" | sort -t: -k2 -rn
-# → TODO を含むファイルを、TODO の数の降順で表示
+# → Show files containing TODO in descending order of count
 ```
 
-### 3.3 grep の特殊なオプション
+### 3.3 Special grep Options
 
 ```bash
-# -F: 固定文字列として検索（正規表現を無効化、高速）
-grep -F "error.log" file.txt         # ドットをリテラルとして検索
-grep -F "[ERROR]" logfile.txt        # 角括弧をリテラルとして検索
-grep -F "$HOME" script.sh            # $HOME をリテラルとして検索
+# -F: Search as fixed string (disables regex, faster)
+grep -F "error.log" file.txt         # Search for dot as literal
+grep -F "[ERROR]" logfile.txt        # Search for brackets as literals
+grep -F "$HOME" script.sh            # Search for $HOME as literal
 
-# fgrep は grep -F と同等
-fgrep "pattern" file.txt             # 固定文字列検索
+# fgrep is equivalent to grep -F
+fgrep "pattern" file.txt             # Fixed string search
 
-# -z: NULL文字を行区切りとして扱う（マルチライン検索の一種）
-grep -Pzo "function.*?\n.*?return" *.js   # 関数定義から return まで
+# -z: Treat NULL character as line separator (a form of multiline search)
+grep -Pzo "function.*?\n.*?return" *.js   # From function definition to return
 
-# --binary-files: バイナリファイルの扱い
-grep --binary-files=text "pattern" binary_file   # バイナリをテキストとして検索
-grep -a "pattern" binary_file                     # -a と同等
+# --binary-files: How to handle binary files
+grep --binary-files=text "pattern" binary_file   # Search binary as text
+grep -a "pattern" binary_file                     # Same as -a
 
-# -T: タブ揃えで出力
-grep -Tn "pattern" file.txt          # タブで位置を揃えて表示
+# -T: Align output with tabs
+grep -Tn "pattern" file.txt          # Display with tab-aligned positions
 ```
 
-### 3.4 grep + xargs による一括操作
+### 3.4 Bulk Operations with grep + xargs
 
 ```bash
-# 検索結果のファイルに対して一括操作
+# Bulk operations on files from search results
 grep -rl "old_function" ./src/ | xargs sed -i 's/old_function/new_function/g'
-# → old_function を含むファイルを見つけて、一括置換
+# → Find files containing old_function and replace in bulk
 
-# 検索結果のファイルをエディタで開く
+# Open search result files in editor
 grep -rl "TODO" ./src/ | xargs code
-# → TODO を含むファイルを VS Code で開く
+# → Open files containing TODO in VS Code
 
-# 検索結果を一覧表示
+# List search results
 grep -rl "deprecated" ./src/ | xargs ls -la
-# → deprecated を含むファイルの詳細情報
+# → Detailed info on files containing "deprecated"
 
-# NULL区切りを使った安全な一括操作（スペース入りファイル名対応）
+# Safe bulk operations with NULL separator (handles filenames with spaces)
 grep -rlZ "pattern" . | xargs -0 wc -l
 grep -rlZ "old" . | xargs -0 sed -i 's/old/new/g'
 ```
 
 ---
 
-## 4. ripgrep（rg）— モダンな高速検索ツール
+## 4. ripgrep (rg) — A Modern High-Speed Search Tool
 
-### 4.1 インストールと概要
+### 4.1 Installation and Overview
 
 ```bash
-# インストール
+# Installation
 brew install ripgrep               # macOS
 sudo apt install ripgrep           # Ubuntu/Debian
 sudo pacman -S ripgrep             # Arch Linux
 cargo install ripgrep              # Rust (Cargo)
 
-# ripgrep の特徴
-# - デフォルトで再帰検索
-# - .gitignore を自動で尊重
-# - Unicode 対応
-# - カラー出力がデフォルト
-# - 並列処理による高速検索
-# - 行番号の自動表示
-# - 豊富なファイルタイプフィルタ
+# ripgrep features
+# - Recursive search by default
+# - Automatically respects .gitignore
+# - Unicode support
+# - Color output by default
+# - Fast search via parallel processing
+# - Automatic line numbers
+# - Rich file type filters
 ```
 
-### 4.2 基本的な使い方
+### 4.2 Basic Usage
 
 ```bash
-# 基本構文: rg [オプション] パターン [パス]
-rg "pattern"                       # カレントディレクトリを再帰検索
-rg "pattern" src/                  # src/ ディレクトリを検索
-rg "pattern" file.txt              # 特定ファイルを検索
+# Basic syntax: rg [options] pattern [path]
+rg "pattern"                       # Recursive search in current directory
+rg "pattern" src/                  # Search in src/ directory
+rg "pattern" file.txt              # Search a specific file
 
-# 大小文字の制御
-rg -i "error"                      # 大小文字無視（ignore case）
-rg -s "Error"                      # 大小文字を区別（smart case 無効化）
-# デフォルト: スマートケース（パターンが全て小文字なら case-insensitive）
+# Case control
+rg -i "error"                      # Ignore case
+rg -s "Error"                      # Case sensitive (disable smart case)
+# Default: smart case (case-insensitive if pattern is all lowercase)
 
-# 行番号と列番号
-rg -n "pattern"                    # 行番号表示（デフォルトで有効）
-rg --column "pattern"              # 列番号も表示
+# Line and column numbers
+rg -n "pattern"                    # Show line numbers (enabled by default)
+rg --column "pattern"              # Also show column numbers
 
-# コンテキスト表示
-rg -A 3 "error"                    # マッチ行の後3行
-rg -B 2 "error"                    # マッチ行の前2行
-rg -C 2 "error"                    # マッチ行の前後2行
+# Context display
+rg -A 3 "error"                    # 3 lines after matched line
+rg -B 2 "error"                    # 2 lines before matched line
+rg -C 2 "error"                    # 2 lines before and after matched line
 ```
 
-### 4.3 ファイルタイプフィルタ
+### 4.3 File Type Filters
 
 ```bash
-# -t: ファイルタイプで絞り込み
-rg "pattern" -t py                 # Python ファイルのみ
-rg "pattern" -t js                 # JavaScript ファイルのみ
-rg "pattern" -t go                 # Go ファイルのみ
-rg "pattern" -t rust               # Rust ファイルのみ
-rg "pattern" -t java               # Java ファイルのみ
-rg "pattern" -t cpp                # C++ ファイルのみ
-rg "pattern" -t html               # HTML ファイルのみ
-rg "pattern" -t css                # CSS ファイルのみ
-rg "pattern" -t yaml               # YAML ファイルのみ
-rg "pattern" -t json               # JSON ファイルのみ
-rg "pattern" -t md                 # Markdown ファイルのみ
-rg "pattern" -t sh                 # シェルスクリプトのみ
-rg "pattern" -t sql                # SQL ファイルのみ
-rg "pattern" -t docker             # Dockerfile のみ
-rg "pattern" -t make               # Makefile のみ
+# -t: Filter by file type
+rg "pattern" -t py                 # Python files only
+rg "pattern" -t js                 # JavaScript files only
+rg "pattern" -t go                 # Go files only
+rg "pattern" -t rust               # Rust files only
+rg "pattern" -t java               # Java files only
+rg "pattern" -t cpp                # C++ files only
+rg "pattern" -t html               # HTML files only
+rg "pattern" -t css                # CSS files only
+rg "pattern" -t yaml               # YAML files only
+rg "pattern" -t json               # JSON files only
+rg "pattern" -t md                 # Markdown files only
+rg "pattern" -t sh                 # Shell scripts only
+rg "pattern" -t sql                # SQL files only
+rg "pattern" -t docker             # Dockerfiles only
+rg "pattern" -t make               # Makefiles only
 
-# -T: ファイルタイプを除外
-rg "pattern" -T js                 # JavaScript 以外
-rg "pattern" -T test               # テストファイル以外
+# -T: Exclude a file type
+rg "pattern" -T js                 # Exclude JavaScript
+rg "pattern" -T test               # Exclude test files
 
-# -g: グロブパターンでフィルタ
-rg "pattern" -g "*.{js,ts}"        # .js と .ts ファイル
-rg "pattern" -g "!*.min.js"        # .min.js を除外
-rg "pattern" -g "src/**"           # src/ ディレクトリ以下のみ
-rg "pattern" -g "!test/**"         # test/ を除外
+# -g: Filter with glob pattern
+rg "pattern" -g "*.{js,ts}"        # .js and .ts files
+rg "pattern" -g "!*.min.js"        # Exclude .min.js
+rg "pattern" -g "src/**"           # Only under src/ directory
+rg "pattern" -g "!test/**"         # Exclude test/
 
-# 定義済みタイプの一覧
-rg --type-list                     # 全ファイルタイプとその拡張子を表示
-rg --type-list | grep "python"     # Python タイプの定義を確認
+# List predefined types
+rg --type-list                     # Show all file types and their extensions
+rg --type-list | grep "python"     # Check Python type definition
 
-# カスタムタイプの定義
-rg --type-add "web:*.{html,css,js}" -t web "pattern"   # カスタムタイプで検索
+# Define custom types
+rg --type-add "web:*.{html,css,js}" -t web "pattern"   # Search with custom type
 ```
 
-### 4.4 出力制御
+### 4.4 Output Control
 
 ```bash
-# -l: マッチしたファイル名のみ表示
-rg "pattern" -l                    # マッチするファイル名のみ
+# -l: Show only matching filenames
+rg "pattern" -l                    # Only filenames with matches
 
-# --files-without-match: マッチしないファイル名を表示
+# --files-without-match: Show filenames that do NOT match
 rg "pattern" --files-without-match
 
-# -c: ファイルごとのマッチ数をカウント
-rg "TODO|FIXME" -c                 # ファイルごとの TODO/FIXME 数
+# -c: Count matches per file
+rg "TODO|FIXME" -c                 # Count of TODO/FIXME per file
 
-# --count-matches: マッチの総数（行単位ではなく出現数）
+# --count-matches: Total match count (occurrences, not lines)
 rg "pattern" --count-matches
 
-# -o: マッチ部分のみ表示
-rg -o "\d+\.\d+\.\d+" file.txt    # バージョン番号を抽出
+# -o: Show only the matched portion
+rg -o "\d+\.\d+\.\d+" file.txt    # Extract version numbers
 
-# --json: JSON 形式で出力（ツール連携用）
-rg "pattern" --json                # 検索結果をJSON形式で出力
+# --json: Output in JSON format (for tool integration)
+rg "pattern" --json                # Output search results in JSON
 
-# --vimgrep: Vim の quickfix 形式で出力
-rg "pattern" --vimgrep             # ファイル:行:列:マッチ行
+# --vimgrep: Output in Vim quickfix format
+rg "pattern" --vimgrep             # file:line:col:matched_line
 
-# --no-heading: ファイル名をグループヘッダーではなく各行に表示
+# --no-heading: Show filename on each line instead of as a group header
 rg --no-heading "pattern"
 
-# --heading: ファイル名をグループヘッダーとして表示（デフォルト）
+# --heading: Show filename as a group header (default)
 rg --heading "pattern"
 
-# -U: マルチラインマッチ
-rg -U "function.*\n.*return" -t js  # 複数行にまたがるパターン
+# -U: Multiline match
+rg -U "function.*\n.*return" -t js  # Pattern spanning multiple lines
 
-# -M: マッチ行の最大文字数を制限
-rg -M 200 "pattern"                # マッチ行が200文字を超えたら省略
+# -M: Limit maximum characters per matched line
+rg -M 200 "pattern"                # Truncate matched lines over 200 chars
 
-# --trim: マッチ行の先頭の空白を除去
+# --trim: Remove leading whitespace from matched lines
 rg --trim "pattern"
 ```
 
-### 4.5 隠しファイルと .gitignore
+### 4.5 Hidden Files and .gitignore
 
 ```bash
-# デフォルトの動作
-# - .gitignore を尊重
-# - 隠しファイル（.xxx）を除外
-# - バイナリファイルを除外
+# Default behavior
+# - Respects .gitignore
+# - Excludes hidden files (.xxx)
+# - Excludes binary files
 
-# --hidden: 隠しファイルを含める
-rg "pattern" --hidden              # .env, .config 等を含めて検索
-rg "API_KEY" --hidden              # .env ファイル内の検索
+# --hidden: Include hidden files
+rg "pattern" --hidden              # Include .env, .config, etc.
+rg "API_KEY" --hidden              # Search inside .env files
 
-# --no-ignore: .gitignore を無視
-rg "pattern" --no-ignore           # .gitignore 対象ファイルも検索
-rg "pattern" -u                    # --no-ignore の短縮形
+# --no-ignore: Ignore .gitignore
+rg "pattern" --no-ignore           # Also search .gitignore targets
+rg "pattern" -u                    # Short form of --no-ignore
 
-# -uu: 隠しファイル + .gitignore 無視
-rg "pattern" -uu                   # --hidden --no-ignore と同等
+# -uu: Hidden files + ignore .gitignore
+rg "pattern" -uu                   # Equivalent to --hidden --no-ignore
 
-# -uuu: さらにバイナリファイルも検索
-rg "pattern" -uuu                  # 全ファイルを対象（find + grep と同等）
+# -uuu: Also search binary files
+rg "pattern" -uuu                  # All files (equivalent to find + grep)
 
-# --no-ignore-vcs: VCS の ignore ファイルのみ無視（.gitignore 等）
+# --no-ignore-vcs: Only ignore VCS ignore files (.gitignore, etc.)
 rg "pattern" --no-ignore-vcs
 
-# 特定の ignore ファイルを追加
+# Add a specific ignore file
 rg "pattern" --ignore-file .customignore
 ```
 
-### 4.6 rg の置換機能
+### 4.6 rg Replacement Feature
 
 ```bash
-# -r / --replace: マッチ部分を置換して表示（ファイルは変更しない）
-rg "old" -r "new"                  # "old" を "new" に置換して表示
-rg "foo(\d+)" -r "bar$1"          # キャプチャグループを使った置換
+# -r / --replace: Replace matched portion for display (does not modify files)
+rg "old" -r "new"                  # Display "old" replaced with "new"
+rg "foo(\d+)" -r "bar$1"          # Replacement using capture groups
 
-# 実際のファイル置換は sed と組み合わせる
+# Actual file replacement uses sed
 rg -l "old_name" -t py | xargs sed -i 's/old_name/new_name/g'
 
-# 置換のプレビュー
+# Preview of replacement
 rg "old_function" -r "new_function" --passthru
-# → マッチしない行も表示し、マッチ行は置換後の状態で表示
+# → Shows non-matching lines as-is, matched lines show replacement
 ```
 
-### 4.7 rg の実務パターン集
+### 4.7 rg Real-World Pattern Library
 
 ```bash
-# --- コード検索 ---
+# --- Code Search ---
 
-# TODO/FIXME/HACK の一括検索
+# Search for TODO/FIXME/HACK in bulk
 rg "TODO|FIXME|HACK|XXX" -t py -t js -t go
 
-# 未使用の import を検索（Python）
+# Search for unused imports (Python)
 rg "^import|^from .* import" -t py --no-heading
 
-# console.log の残りを検索（JavaScript）
+# Find leftover console.log (JavaScript)
 rg "console\.(log|debug|info|warn|error)" -t js -t ts
 
-# デバッグ文の検索（Python）
+# Search for debug statements (Python)
 rg "(print\(|pdb\.set_trace|breakpoint\(\))" -t py
 
-# 関数定義の検索
+# Search for function definitions
 rg "^(def|class) " -t py                    # Python
 rg "^(export )?(function|const|class) " -t js  # JavaScript
 rg "^func " -t go                            # Go
 rg "^(pub )?fn " -t rust                     # Rust
 
-# --- ログ分析 ---
+# --- Log Analysis ---
 
-# HTTPステータスコード別のカウント
+# Count by HTTP status code
 rg -o "HTTP/\d\.\d\" (\d{3})" -r '$1' access.log | sort | uniq -c | sort -rn
 
-# 特定時間帯のログ
+# Logs for a specific time period
 rg "^2026-02-16 1[4-5]:" app.log
 
-# エラーログの IP アドレス抽出
+# Extract IP addresses from error logs
 rg "ERROR" access.log | rg -o "\d+\.\d+\.\d+\.\d+" | sort -u
 
-# --- 設定ファイル ---
+# --- Configuration Files ---
 
-# 環境変数の使用箇所を検索
+# Find where environment variables are used
 rg "process\.env\." -t js -t ts
 rg "os\.environ" -t py
 rg "os\.Getenv" -t go
 
-# ハードコードされた認証情報の検出
+# Detect hardcoded credentials
 rg -i "(password|secret|api.?key|token)\s*[:=]\s*[\"']" --hidden
 
-# --- プロジェクト管理 ---
+# --- Project Management ---
 
-# ファイルの行数統計（rg + wc）
+# File line count statistics (rg + wc)
 rg --files -t py | xargs wc -l | sort -n
 
-# 使用ライブラリの検索
-rg "^import " -t py --no-filename | sort -u    # Python のインポート一覧
-rg "require\(" -t js --no-filename -o | sort -u  # Node.js の require 一覧
+# Search for used libraries
+rg "^import " -t py --no-filename | sort -u    # Python import list
+rg "require\(" -t js --no-filename -o | sort -u  # Node.js require list
 
-# 特定の関数の使用箇所
-rg "deprecated_function\(" -t py --stats      # --stats でマッチ統計も表示
+# Find usage of a specific function
+rg "deprecated_function\(" -t py --stats      # --stats also shows match statistics
 ```
 
-### 4.8 rg の設定ファイル
+### 4.8 rg Configuration File
 
 ```bash
-# ~/.ripgreprc に設定を記述
-# 環境変数 RIPGREP_CONFIG_PATH で設定ファイルのパスを指定
+# Write settings in ~/.ripgreprc
+# Specify config file path with RIPGREP_CONFIG_PATH environment variable
 
-# ~/.ripgreprc の例
+# Example ~/.ripgreprc
 cat > ~/.ripgreprc << 'EOF'
-# デフォルトでスマートケース
+# Smart case by default
 --smart-case
 
-# 最大列数
+# Max columns
 --max-columns=200
 
-# 隠しファイルを含める
+# Include hidden files
 # --hidden
 
-# 特定ディレクトリを常に除外
+# Always exclude specific directories
 --glob=!.git/
 --glob=!node_modules/
 --glob=!target/
 --glob=!__pycache__/
 --glob=!*.pyc
 
-# カスタムタイプの定義
+# Custom type definitions
 --type-add=web:*.{html,css,js,ts}
 EOF
 
-# 設定ファイルのパスを環境変数で指定（~/.bashrc に追加）
+# Specify config file path via environment variable (add to ~/.bashrc)
 export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
 ```
 
 ---
 
-## 5. 他の検索ツール
+## 5. Other Search Tools
 
-### 5.1 ag（The Silver Searcher）
+### 5.1 ag (The Silver Searcher)
 
 ```bash
-# インストール
+# Installation
 brew install the_silver_searcher    # macOS
 sudo apt install silversearcher-ag  # Ubuntu/Debian
 
-# 基本的な使い方
-ag "pattern"                        # 再帰検索（.gitignore 尊重）
-ag -i "pattern"                     # 大小文字無視
-ag "pattern" -G "\.py$"             # Python ファイルのみ
-ag -l "pattern"                     # マッチファイル名のみ
-ag --stats "pattern"                # 統計情報付き
+# Basic usage
+ag "pattern"                        # Recursive search (respects .gitignore)
+ag -i "pattern"                     # Case insensitive
+ag "pattern" -G "\.py$"             # Python files only
+ag -l "pattern"                     # Show matching filenames only
+ag --stats "pattern"                # With statistics
 
-# rg と ag の比較:
-# ag: rg 以前のモダン grep。まだ使われているが、rg の方が高速
-# rg: ag の後継として開発。ほぼ全ての面で ag を上回る
+# Comparison of rg and ag:
+# ag: Modern grep before rg. Still used, but rg is faster
+# rg: Developed as ag's successor. Outperforms ag in almost every way
 ```
 
 ### 5.2 ack
 
 ```bash
-# インストール
+# Installation
 brew install ack                    # macOS
 sudo apt install ack               # Ubuntu/Debian
 
-# 基本的な使い方
-ack "pattern"                       # 再帰検索
-ack "pattern" --python              # Python ファイルのみ
-ack "pattern" --type-set=web:ext:html,css,js  # カスタムタイプ
-ack -f --python                     # Python ファイルの一覧
+# Basic usage
+ack "pattern"                       # Recursive search
+ack "pattern" --python              # Python files only
+ack "pattern" --type-set=web:ext:html,css,js  # Custom type
+ack -f --python                     # List Python files
 
-# ack は grep の先駆的な代替ツール
-# 現在は rg が最も推奨される
+# ack was a pioneering grep alternative
+# rg is now the most recommended tool
 ```
 
-### 5.3 grep / rg / ag / ack の比較
+### 5.3 grep / rg / ag / ack Comparison
 
 ```
 ┌──────────┬────────────┬────────────┬────────────┬────────────┐
-│ 機能     │ grep       │ rg         │ ag         │ ack        │
+│ Feature  │ grep       │ rg         │ ag         │ ack        │
 ├──────────┼────────────┼────────────┼────────────┼────────────┤
-│ 速度     │ 標準       │ 最速       │ 高速       │ 中速       │
-│ .gitignore│ 非対応    │ 対応       │ 対応       │ 対応       │
-│ カラー   │ --color    │ デフォルト │ デフォルト │ デフォルト │
-│ Unicode  │ 制限あり   │ 完全対応   │ 部分対応   │ 部分対応   │
-│ PCRE     │ -P (GNU)   │ デフォルト │ 部分対応   │ Perl正規表現│
-│ マルチライン│ 制限あり│ -U        │ 非対応     │ 非対応     │
-│ 環境     │ 標準搭載   │ 別途導入   │ 別途導入   │ 別途導入   │
-│ 置換     │ 非対応     │ -r (表示)  │ 非対応     │ 非対応     │
-│ 並列処理 │ 非対応     │ 対応       │ 対応       │ 非対応     │
+│ Speed    │ Standard   │ Fastest    │ Fast       │ Medium     │
+│.gitignore│ No support │ Supported  │ Supported  │ Supported  │
+│ Color    │ --color    │ Default    │ Default    │ Default    │
+│ Unicode  │ Limited    │ Full       │ Partial    │ Partial    │
+│ PCRE     │ -P (GNU)   │ Default    │ Partial    │ Perl regex │
+│Multiline │ Limited    │ -U         │ No support │ No support │
+│ Bundled  │ Yes        │ Separate   │ Separate   │ Separate   │
+│ Replace  │ No support │ -r (display)│ No support│ No support │
+│ Parallel │ No support │ Supported  │ Supported  │ No support │
 └──────────┴────────────┴────────────┴────────────┴────────────┘
 
-推奨: rg を最優先で使用。スクリプトでは POSIX 互換の grep を使用。
+Recommendation: Use rg first. Use POSIX-compatible grep in scripts.
 ```
 
 ---
 
-## 6. 実務パターン集（応用編）
+## 6. Real-World Pattern Library (Advanced)
 
-### 6.1 ログ分析ワンライナー
+### 6.1 Log Analysis One-liners
 
 ```bash
-# アクセスログの IP アドレス別アクセス数トップ20
+# Top 20 IP addresses by access count in access log
 grep -oP "^\d+\.\d+\.\d+\.\d+" access.log | sort | uniq -c | sort -rn | head -20
 
-# HTTP ステータスコード分布
+# HTTP status code distribution
 awk '{print $9}' access.log | sort | uniq -c | sort -rn
 
-# 404 エラーの URL 一覧
+# List of 404 error URLs
 grep " 404 " access.log | awk '{print $7}' | sort | uniq -c | sort -rn | head -20
 
-# 特定時間帯のリクエスト数
+# Request count for a specific time period
 grep "16/Feb/2026:14:" access.log | wc -l
 
-# レスポンスタイムの分析（最終フィールドがレスポンスタイムの場合）
-awk '{print $NF}' access.log | sort -n | tail -20    # 遅いリクエスト
+# Response time analysis (assuming last field is response time)
+awk '{print $NF}' access.log | sort -n | tail -20    # Slow requests
 
-# エラーレートの計算
+# Calculate error rate
 total=$(wc -l < access.log)
 errors=$(grep -c " [45][0-9][0-9] " access.log)
 echo "Error rate: $(echo "scale=2; $errors * 100 / $total" | bc)%"
 
-# リアルタイムエラー監視（カラー付き）
+# Real-time error monitoring (with color)
 tail -f access.log | grep --color=always --line-buffered " [45][0-9][0-9] "
 ```
 
-### 6.2 セキュリティ監査パターン
+### 6.2 Security Audit Patterns
 
 ```bash
-# ハードコードされた認証情報の検出
+# Detect hardcoded credentials
 rg -i "(password|passwd|pwd)\s*[:=]" --hidden -g "!*.{lock,sum}"
 rg -i "api[_-]?key\s*[:=]\s*['\"]" --hidden
 rg -i "secret\s*[:=]" --hidden -g "!*.{lock,sum}"
 rg "-----BEGIN (RSA |DSA |EC )?PRIVATE KEY-----" --hidden
 
-# SQL インジェクションの脆弱性検出
-rg "execute\(.*\+.*\)" -t py         # 文字列連結による SQL
-rg "query\(.*\$" -t js               # テンプレートリテラルによる SQL
-rg "f\".*SELECT.*{" -t py            # f-string による SQL
+# Detect SQL injection vulnerabilities
+rg "execute\(.*\+.*\)" -t py         # SQL via string concatenation
+rg "query\(.*\$" -t js               # SQL via template literals
+rg "f\".*SELECT.*{" -t py            # SQL via f-string
 
-# XSS の脆弱性検出
+# Detect XSS vulnerabilities
 rg "innerHTML\s*=" -t js -t ts
 rg "dangerouslySetInnerHTML" -t js -t ts
 rg "v-html=" -t html
 
-# 安全でない関数の使用検出
-rg "eval\(" -t py -t js              # eval の使用
-rg "exec\(" -t py                    # exec の使用
-rg "pickle\.loads?" -t py            # pickle の使用
+# Detect use of unsafe functions
+rg "eval\(" -t py -t js              # Use of eval
+rg "exec\(" -t py                    # Use of exec
+rg "pickle\.loads?" -t py            # Use of pickle
 ```
 
-### 6.3 コードレビュー支援パターン
+### 6.3 Code Review Support Patterns
 
 ```bash
-# デバッグ用コードの残り検出
-rg "console\.(log|debug)" -t js -t ts  # JS/TS のデバッグ出力
-rg "print\(" -t py -g "!test_*"        # Python の print（テスト除外）
-rg "debugger" -t js -t ts              # JS のデバッグブレークポイント
-rg "binding\.pry" -t ruby              # Ruby のデバッグ
-rg "fmt\.Print" -t go -g "!*_test.go"  # Go の fmt.Print（テスト除外）
+# Detect leftover debug code
+rg "console\.(log|debug)" -t js -t ts  # JS/TS debug output
+rg "print\(" -t py -g "!test_*"        # Python print (exclude tests)
+rg "debugger" -t js -t ts              # JS debug breakpoints
+rg "binding\.pry" -t ruby              # Ruby debug
+rg "fmt\.Print" -t go -g "!*_test.go"  # Go fmt.Print (exclude tests)
 
-# TODO/FIXME のサマリー
+# TODO/FIXME summary
 rg "TODO|FIXME|HACK|XXX|DEPRECATED" --stats -c | sort -t: -k2 -rn
 
-# 長い関数の検出（行数ベース）
+# Detect long functions (line count based)
 rg -U "^def \w+.*:\n(.*\n){50,}" -t py --no-heading -l
-# → 50行以上の Python 関数を含むファイル
+# → Files containing Python functions with 50+ lines
 
-# マジックナンバーの検出
+# Detect magic numbers
 rg "(?<![\"'])\b\d{3,}\b(?![\"'])" -t py -g "!test_*" -g "!*constants*"
 ```
 
 ---
 
-## 7. トラブルシューティング
+## 7. Troubleshooting
 
-### 7.1 よくある問題と対処法
+### 7.1 Common Issues and Solutions
 
 ```bash
-# 問題: 特殊文字がパターンとして解釈される
-# 対処: -F（固定文字列）を使うか、エスケープする
-grep -F "[ERROR]" logfile.txt        # -F で固定文字列として検索
-grep "\[ERROR\]" logfile.txt         # エスケープする
-rg -F "[ERROR]" logfile.txt          # rg でも -F が使える
+# Problem: Special characters are interpreted as part of the pattern
+# Solution: Use -F (fixed string) or escape them
+grep -F "[ERROR]" logfile.txt        # Search as fixed string with -F
+grep "\[ERROR\]" logfile.txt         # Escape them
+rg -F "[ERROR]" logfile.txt          # -F also works in rg
 
-# 問題: バイナリファイルがマッチする
-# 対処: -I オプションでバイナリを無視
-grep -rI "pattern" ./               # バイナリファイルを無視
-rg "pattern"                        # rg はデフォルトでバイナリを無視
+# Problem: Binary files are being matched
+# Solution: Use -I option to ignore binaries
+grep -rI "pattern" ./               # Ignore binary files
+rg "pattern"                        # rg ignores binaries by default
 
-# 問題: 大量のマッチで出力が溢れる
-# 対処: -m, -l, less を使う
-grep -m 10 "pattern" logfile.txt    # 最初の10件で停止
-grep -l "pattern" *.log             # ファイル名のみ
-grep "pattern" logfile.txt | less   # ページャで閲覧
+# Problem: Output overwhelmed by too many matches
+# Solution: Use -m, -l, or less
+grep -m 10 "pattern" logfile.txt    # Stop after first 10 matches
+grep -l "pattern" *.log             # Show only filenames
+grep "pattern" logfile.txt | less   # Browse with pager
 
-# 問題: macOS の grep で -P（PCRE）が使えない
-# 対処: GNU grep をインストールするか、rg を使う
-brew install grep                    # ggrep としてインストールされる
-ggrep -P "\d+" file.txt             # GNU grep の PCRE
-rg "\d+" file.txt                   # rg を使う（推奨）
+# Problem: -P (PCRE) not available on macOS grep
+# Solution: Install GNU grep or use rg
+brew install grep                    # Installed as ggrep
+ggrep -P "\d+" file.txt             # GNU grep PCRE
+rg "\d+" file.txt                   # Use rg (recommended)
 
-# 問題: UTF-8 のファイルで日本語が検索できない
-# 対処: ロケールを確認/設定
+# Problem: Cannot search Japanese in UTF-8 files
+# Solution: Check/set locale
 export LANG=en_US.UTF-8
-grep "日本語" file.txt              # UTF-8 が正しく設定されていれば動作
-rg "日本語" file.txt                # rg はUnicode対応
+grep "Japanese text" file.txt       # Works if UTF-8 is set correctly
+rg "Japanese text" file.txt         # rg has full Unicode support
 
-# 問題: grep -r が遅い
-# 対処: rg を使うか、--include/--exclude-dir を指定
-rg "pattern"                         # rg は圧倒的に高速
-grep -rn --include="*.py" --exclude-dir=venv "pattern" ./  # grep で絞り込み
+# Problem: grep -r is slow
+# Solution: Use rg or specify --include/--exclude-dir
+rg "pattern"                         # rg is dramatically faster
+grep -rn --include="*.py" --exclude-dir=venv "pattern" ./  # Narrow down with grep
 ```
 
-### 7.2 パフォーマンスのヒント
+### 7.2 Performance Tips
 
 ```bash
-# 1. -F（固定文字列検索）は正規表現より高速
+# 1. -F (fixed string search) is faster than regular expressions
 grep -F "exact string" large_file.txt
 
-# 2. -m で検索を早期終了
-grep -m 1 "pattern" large_file.txt   # 最初の1件で停止
+# 2. -m for early termination
+grep -m 1 "pattern" large_file.txt   # Stop after first match
 
-# 3. 不要なオプションを避ける
-# -i（大小文字無視）は若干遅くなる
-# -E（拡張正規表現）は単純パターンでは不要
+# 3. Avoid unnecessary options
+# -i (case insensitive) is slightly slower
+# -E (extended regex) is unnecessary for simple patterns
 
-# 4. 検索範囲を限定する
-grep -rn --include="*.py" "pattern" ./  # ファイルタイプを限定
-grep "pattern" specific_file.txt         # 特定ファイルのみ
+# 4. Limit the search scope
+grep -rn --include="*.py" "pattern" ./  # Limit to file type
+grep "pattern" specific_file.txt         # Search a specific file only
 
-# 5. rg は grep の 2〜10 倍高速
-# 大規模コードベースでは rg を第一選択にする
+# 5. rg is 2-10x faster than grep
+# Use rg as the first choice for large codebases
 
-# 6. LC_ALL=C で高速化（ASCII のみの場合）
-LC_ALL=C grep "pattern" large_file.txt   # ロケール処理をスキップ
+# 6. Speed up with LC_ALL=C (for ASCII only)
+LC_ALL=C grep "pattern" large_file.txt   # Skip locale processing
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -919,26 +919,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -946,7 +946,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -957,14 +957,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -972,7 +972,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -980,44 +980,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1026,7 +1026,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1041,76 +1041,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | High Priority | Acceptable to Compromise |
+|-----------|--------------|--------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, fast time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → Go to 2                     │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How frequent are deployments?               │
+│    ├─ Weekly or less → Monolith + modular split  │
+│    └─ Daily/multiple times → Go to 3            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?              │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A fast short-term approach may become technical debt in the long run
+- Conversely, over-engineering has a high short-term cost and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1120,17 +1120,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1138,7 +1138,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1146,15 +1146,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1162,84 +1162,84 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## チーム開発での活用
+## Team Development
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Naming conventions are consistent
+- [ ] Error handling is appropriate
+- [ ] Test coverage is sufficient
+- [ ] No performance impact
+- [ ] No security issues
+- [ ] Documentation is up to date
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Method | Frequency | Target | Effect |
+|--------|-----------|--------|--------|
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Entire team | Horizontal knowledge sharing |
+| ADR (design records) | As needed | Future members | Decision transparency |
+| Retrospectives | Every 2 weeks | Entire team | Continuous improvement |
+| Mob programming | Monthly | Key designs | Consensus building |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
-          │
+        High Impact
+          |
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │Plan │Act  │
+    │ ned │ Now │
+    │     │     │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Log  │Next │
+    │Only │Sprint│
+    │     │     │
     └─────┼─────┘
-          │
-        影響度 低
-    発生頻度 低  発生頻度 高
+          |
+        Low Impact
+    Low Frequency  High Frequency
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
-|--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
+|---------------|------------|----------------|------------------|
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Broken authentication | High | Multi-factor auth, session management | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Security misconfiguration | Medium | Security headers, least privilege | Config scanning |
+| Insufficient logging | Medium | Structured logs, audit trails | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1252,219 +1252,219 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is configured correctly
+- [ ] Vulnerability scanning of dependency packages is performed
+- [ ] Error messages do not contain internal information
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Jumping to advanced topics without mastering the basics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| オプション / ツール | 意味 |
-|-------------------|------|
-| grep -i | 大小文字無視 |
-| grep -r / -R | 再帰検索 |
-| grep -n | 行番号表示 |
-| grep -l / -L | マッチ/非マッチファイル名 |
-| grep -v | 逆マッチ |
-| grep -w | 単語完全一致 |
-| grep -E | 拡張正規表現 |
-| grep -F | 固定文字列（正規表現無効） |
-| grep -P | Perl 互換正規表現 |
-| grep -o | マッチ部分のみ表示 |
-| grep -c | マッチ行数カウント |
-| grep -A/-B/-C N | 前後のコンテキスト |
-| grep -q | 終了コードのみ（出力なし） |
-| grep --include | 対象ファイルの絞り込み |
-| grep --exclude-dir | ディレクトリの除外 |
-| rg (ripgrep) | 高速再帰検索（.gitignore 尊重） |
-| rg -t TYPE | ファイルタイプフィルタ |
-| rg -g GLOB | グロブパターンフィルタ |
-| rg --hidden | 隠しファイルを含める |
-| rg -U | マルチラインマッチ |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 12. grep / rg のパフォーマンスチューニング
+## Summary
 
-### 12.1 検索速度の最適化
+| Option / Tool | Meaning |
+|---------------|---------|
+| grep -i | Case insensitive |
+| grep -r / -R | Recursive search |
+| grep -n | Show line numbers |
+| grep -l / -L | Matching / non-matching filenames |
+| grep -v | Invert match |
+| grep -w | Whole-word match |
+| grep -E | Extended regular expressions |
+| grep -F | Fixed string (disable regex) |
+| grep -P | Perl compatible regular expressions |
+| grep -o | Show only matched portion |
+| grep -c | Count matching lines |
+| grep -A/-B/-C N | Context before/after match |
+| grep -q | Exit code only (no output) |
+| grep --include | Narrow down target files |
+| grep --exclude-dir | Exclude directories |
+| rg (ripgrep) | Fast recursive search (respects .gitignore) |
+| rg -t TYPE | File type filter |
+| rg -g GLOB | Glob pattern filter |
+| rg --hidden | Include hidden files |
+| rg -U | Multiline match |
+
+---
+
+## 12. grep / rg Performance Tuning
+
+### 12.1 Search Speed Optimization
 
 ```bash
-# grep の高速化テクニック
+# grep speed-up techniques
 
-# 1. 固定文字列検索（-F）は正規表現より高速
-grep -F "exact string" file.txt              # 正規表現解析をスキップ
-grep -F "error" large_log.txt                # 単純な文字列検索に最適
-fgrep "pattern" file.txt                     # -F のエイリアス（非推奨だが利用可）
+# 1. Fixed string search (-F) is faster than regex
+grep -F "exact string" file.txt              # Skip regex parsing
+grep -F "error" large_log.txt                # Best for simple string search
+fgrep "pattern" file.txt                     # Alias for -F (deprecated but usable)
 
-# 2. ロケール設定で高速化
-LC_ALL=C grep "pattern" file.txt             # Cロケール（ASCII前提）で大幅に高速化
-# → UTF-8ロケールの場合、文字クラスの処理が重い
-# → 英数字のみの検索なら LC_ALL=C が効果的
+# 2. Speed up with locale settings
+LC_ALL=C grep "pattern" file.txt             # C locale (assumes ASCII) is much faster
+# → UTF-8 locale has overhead for character class processing
+# → LC_ALL=C is effective for alphanumeric-only searches
 
-# 3. 不要なオプションを避ける
-grep -c "pattern" file.txt                   # カウントだけなら -c（行全体を出力しない）
-grep -q "pattern" file.txt                   # 存在確認だけなら -q（最初のマッチで終了）
-grep -l "pattern" *.log                      # ファイル名だけなら -l（全行スキャン不要）
-grep -m 1 "pattern" file.txt                 # 最初のマッチだけなら -m 1（早期終了）
+# 3. Avoid unnecessary options
+grep -c "pattern" file.txt                   # Use -c if you only need the count
+grep -q "pattern" file.txt                   # Use -q for existence check (stops at first match)
+grep -l "pattern" *.log                      # Use -l for filenames only (no full scan needed)
+grep -m 1 "pattern" file.txt                 # Use -m 1 if you only need the first match
 
-# 4. バッファリングの制御
-grep --line-buffered "pattern" file.txt      # 行バッファリング（リアルタイム出力）
-# → パイプラインで使用する場合に有用
+# 4. Buffering control
+grep --line-buffered "pattern" file.txt      # Line buffering (real-time output)
+# → Useful when used in pipelines
 
-# 5. 並列検索
-grep -r "pattern" /path --include="*.py" &   # バックグラウンドで実行
-# GNU parallel を使った並列検索
+# 5. Parallel search
+grep -r "pattern" /path --include="*.py" &   # Run in background
+# Parallel search using GNU parallel
 find . -name "*.log" | parallel -j4 grep -l "ERROR" {}
 
-# ripgrep の高速化テクニック
-# rg はデフォルトで最適化されているが、さらに調整可能
+# ripgrep speed-up techniques
+# rg is optimized by default, but can be tuned further
 
-# スレッド数の制御
-rg -j 4 "pattern" /large/directory           # 4スレッドで検索
-rg -j 1 "pattern" file.txt                   # シングルスレッド（小ファイル向け）
+# Thread count control
+rg -j 4 "pattern" /large/directory           # Search with 4 threads
+rg -j 1 "pattern" file.txt                   # Single-threaded (for small files)
 
-# メモリマップの制御
-rg --mmap "pattern" huge_file.txt            # メモリマップを強制使用
-rg --no-mmap "pattern" /nfs/share/           # メモリマップを無効化（NFS等）
+# Memory map control
+rg --mmap "pattern" huge_file.txt            # Force use of memory map
+rg --no-mmap "pattern" /nfs/share/           # Disable memory map (for NFS etc.)
 
-# バイナリファイルのスキップ
-rg --no-binary "pattern" /mixed/content/     # バイナリファイルを完全スキップ
+# Skip binary files completely
+rg --no-binary "pattern" /mixed/content/     # Completely skip binary files
 
-# エンコーディング指定
-rg -E shift-jis "パターン" legacy_file.txt   # 文字コード指定
-rg -E euc-jp "検索語" old_data.txt
+# Specify encoding
+rg -E shift-jis "pattern" legacy_file.txt   # Specify character encoding
+rg -E euc-jp "keyword" old_data.txt
 ```
 
-### 12.2 大規模コードベースでの検索戦略
+### 12.2 Search Strategy for Large Codebases
 
 ```bash
-# プロジェクト全体の検索を効率化
+# Optimize searching across an entire project
 
-# 1. .gitignore を活用（rg はデフォルトで尊重）
-rg "TODO" .                                   # node_modules, .git 等は自動除外
+# 1. Leverage .gitignore (rg respects it by default)
+rg "TODO" .                                   # node_modules, .git etc. auto-excluded
 
-# 2. 検索対象を絞り込む
-rg -t py "import" .                           # Python ファイルのみ
-rg -g "!tests/" "function" .                  # テストディレクトリを除外
-rg -g "*.{ts,tsx}" "useState" .               # TypeScript ファイルのみ
+# 2. Narrow down search targets
+rg -t py "import" .                           # Python files only
+rg -g "!tests/" "function" .                  # Exclude test directory
+rg -g "*.{ts,tsx}" "useState" .               # TypeScript files only
 
-# 3. 事前フィルタリング
-# よく検索するパターンをエイリアスに登録
+# 3. Pre-filtering
+# Register frequently used patterns as aliases
 alias rgpy='rg -t py'
 alias rgjs='rg -t js -t ts'
 alias rgerr='rg -i "error|exception|fail"'
 alias rgtodo='rg "TODO|FIXME|HACK|XXX"'
 
-# 4. 検索結果のキャッシュ（頻繁に実行する場合）
+# 4. Cache search results (when executed frequently)
 rg -l "pattern" > /tmp/matched_files.txt
 cat /tmp/matched_files.txt | xargs rg "another_pattern"
 
-# 5. インクリメンタル検索
-# fzf と組み合わせた対話的検索
+# 5. Incremental search
+# Interactive search combined with fzf
 rg --line-number --no-heading "." | fzf --preview 'echo {} | cut -d: -f1-2 | xargs -I{} sh -c "head -n \$(echo {} | cut -d: -f2) \$(echo {} | cut -d: -f1) | tail -5"'
 
-# grep / rg と IDE の検索の使い分け
-# - 単純な文字列検索: rg（最速）
-# - 構文を考慮した検索: IDE（AST ベース）
-# - 正規表現の複雑な検索: rg -P（PCRE2）
-# - 対話的な絞り込み: rg | fzf
+# When to use grep/rg vs. IDE search
+# - Simple string search: rg (fastest)
+# - Syntax-aware search: IDE (AST-based)
+# - Complex regex search: rg -P (PCRE2)
+# - Interactive narrowing: rg | fzf
 ```
 
 ---
 
-## 13. 実務シナリオ別の総合レシピ
+## 13. Comprehensive Recipes by Real-World Scenario
 
-### 13.1 インシデント対応での grep/rg 活用
+### 13.1 grep/rg for Incident Response
 
 ```bash
-# 障害発生時の迅速なログ調査
+# Rapid log investigation during an outage
 
-# 1. エラーの初回発生時刻を特定
+# 1. Find the first occurrence of an error
 rg -m 1 "OutOfMemoryError" /var/log/app/*.log
 grep -rn -m 1 "Connection refused" /var/log/
 
-# 2. エラー前後のコンテキストを確認
+# 2. Check context around the error
 rg -C 10 "FATAL" /var/log/app/app.log | head -50
 
-# 3. エラーの頻度を時系列で確認
+# 3. Check error frequency over time
 rg "ERROR" app.log | rg -o "^\d{4}-\d{2}-\d{2} \d{2}:" | sort | uniq -c
 
-# 4. 特定時間帯のログを抽出
-rg "^2024-01-15 1[4-6]:" app.log                # 14:00-16:59 のログ
-grep "^2024-01-15 15:3[0-9]:" app.log            # 15:30-15:39 のログ
+# 4. Extract logs for a specific time period
+rg "^2024-01-15 1[4-6]:" app.log                # Logs from 14:00-16:59
+grep "^2024-01-15 15:3[0-9]:" app.log            # Logs from 15:30-15:39
 
-# 5. 複数サーバーのログを同時検索
+# 5. Search logs across multiple servers simultaneously
 for host in web01 web02 web03; do
   echo "=== $host ==="
   ssh "$host" "rg 'ERROR' /var/log/app/app.log | tail -5"
 done
 
-# 6. スタックトレースの抽出
-rg -U "Exception.*\n(\s+at .*\n)+" app.log       # マルチラインマッチ
-grep -A 20 "Exception" app.log | grep -B 1 "^$"  # 空行までのスタックトレース
+# 6. Extract stack traces
+rg -U "Exception.*\n(\s+at .*\n)+" app.log       # Multiline match
+grep -A 20 "Exception" app.log | grep -B 1 "^$"  # Stack trace until empty line
 
-# 7. 影響を受けたユーザーの特定
+# 7. Identify affected users
 rg "ERROR.*user_id=(\w+)" -o -r '$1' app.log | sort -u
 
-# 8. エラー発生パターンの分析
+# 8. Analyze error occurrence patterns
 rg -o "ERROR \[([^\]]+)\]" -r '$1' app.log | sort | uniq -c | sort -rn | head -20
 ```
 
-### 13.2 コードレビューでの grep/rg 活用
+### 13.2 grep/rg for Code Review
 
 ```bash
-# コードの品質チェック
+# Code quality checks
 
-# 1. ハードコードされた値の検出
+# 1. Detect hardcoded values
 rg -n "localhost|127\.0\.0\.1|192\.168\." --type-not test src/
 rg -n "password\s*=\s*[\"'][^\"']+[\"']" src/
 
-# 2. デバッグコードの残存チェック
+# 2. Check for leftover debug code
 rg -n "console\.(log|debug|warn)|print\(|debugger|binding\.pry" src/
 rg -n "TODO|FIXME|HACK|XXX|TEMP" src/ --stats
 
-# 3. 未使用のインポート検出（簡易版）
+# 3. Detect unused imports (simple version)
 for import in $(rg -o "^import \{ (\w+)" -r '$1' src/index.ts); do
   count=$(rg -c "\b$import\b" src/index.ts)
   if [ "$count" -le 1 ]; then
@@ -1472,58 +1472,58 @@ for import in $(rg -o "^import \{ (\w+)" -r '$1' src/index.ts); do
   fi
 done
 
-# 4. API エンドポイントの一覧抽出
+# 4. Extract API endpoint list
 rg -n "(@(Get|Post|Put|Delete|Patch)Mapping|@RequestMapping)" --type java src/
 rg -n "router\.(get|post|put|delete|patch)\(" --type js src/
 rg -n "@app\.(route|get|post|put|delete)" --type py src/
 
-# 5. SQL インジェクションの可能性チェック
+# 5. Check for SQL injection possibilities
 rg -n "execute\(.*\+.*\)|execute\(.*%s.*%|execute\(.*\{.*\}.*\.format" --type py src/
 rg -n "query\(.*\+.*\)|query\(.*\$\{" --type js src/
 
-# 6. 例外処理の確認
+# 6. Check exception handling
 rg -n "except:|catch\s*\(" --type py --type java --type js src/ | rg -v "except Exception|catch \(Error"
 
-# 7. マジックナンバーの検出
+# 7. Detect magic numbers
 rg -n "(?<!=\s*)\b(0|1)\b(?!\s*[;,\)])" --type java src/ | rg -v "//|/\*|\*/"
 ```
 
-### 13.3 セキュリティ監査での grep/rg 活用
+### 13.3 grep/rg for Security Audits
 
 ```bash
-# 包括的なセキュリティスキャン
+# Comprehensive security scan
 
-# 1. 機密情報の漏洩チェック
+# 1. Check for leaked credentials
 rg -in "(api[_-]?key|secret[_-]?key|access[_-]?token|private[_-]?key)\s*[=:]\s*[\"']?\w+" .
 rg -in "BEGIN (RSA |DSA |EC |OPENSSH )?PRIVATE KEY" .
 rg -in "(password|passwd|pwd)\s*[=:]\s*[\"'][^\"']{4,}" .
 
-# 2. AWS 認証情報の検出
+# 2. Detect AWS credentials
 rg "AKIA[0-9A-Z]{16}" .                         # AWS Access Key ID
-rg "[0-9a-zA-Z/+]{40}" . | rg -v "test|example"  # AWS Secret Key（要確認）
+rg "[0-9a-zA-Z/+]{40}" . | rg -v "test|example"  # AWS Secret Key (verify manually)
 
-# 3. 脆弱な暗号化の使用
+# 3. Detect weak cryptography usage
 rg -in "md5|sha1(?!sum)|des[^ign]|rc4" --type py --type java --type js .
 rg -in "eval\s*\(|exec\s*\(|system\s*\(" --type py --type rb .
 
-# 4. CORS 設定の確認
+# 4. Check CORS configuration
 rg -in "Access-Control-Allow-Origin.*\*" .
 rg -in "cors.*origin.*\*|allowAllOrigins" .
 
-# 5. ファイルパーミッションの確認（設定ファイル内）
+# 5. Check file permissions in config files
 rg -in "chmod\s+777|chmod\s+666|umask\s+000" .
 
-# 6. 入力バリデーションの欠如
+# 6. Check for missing input validation
 rg -n "request\.(params|query|body)\.\w+" --type js . | rg -v "validate|sanitize|escape"
 ```
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
 ---
 
-## 参考文献
+## References
 1. Barrett, D. "Efficient Linux at the Command Line." Ch.5, O'Reilly, 2022.
 2. Friedl, J. "Mastering Regular Expressions." 3rd Ed, O'Reilly, 2006.
 3. GNU Grep Manual. https://www.gnu.org/software/grep/manual/
