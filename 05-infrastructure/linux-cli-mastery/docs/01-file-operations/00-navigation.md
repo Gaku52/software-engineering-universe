@@ -1,31 +1,31 @@
-# ディレクトリ移動と一覧
+# Directory Navigation and Listing
 
-> ファイルシステムのナビゲーションは CLI の最も基本的なスキル。ここを確実にマスターすることが、全てのコマンド操作の土台となる。
+> Navigating the filesystem is the most fundamental CLI skill. Mastering this thoroughly forms the foundation for all command-line operations.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] ディレクトリの移動と一覧表示を使いこなせる
-- [ ] 絶対パスと相対パスの違いを理解する
-- [ ] ls の主要オプションを完全に把握する
-- [ ] ディレクトリスタック（pushd/popd）を活用できる
-- [ ] zoxide や fzf を使った高速ナビゲーションを実践できる
-- [ ] ファイルシステムの構造を理解する
-- [ ] ディスク使用量の確認と分析ができる
-- [ ] モダンな代替ツール（eza, tree, ncdu）を使いこなせる
+- [ ] Navigate directories and display listings with confidence
+- [ ] Understand the difference between absolute and relative paths
+- [ ] Fully grasp the major options of ls
+- [ ] Leverage the directory stack (pushd/popd)
+- [ ] Practice high-speed navigation with zoxide and fzf
+- [ ] Understand the structure of the filesystem
+- [ ] Check and analyze disk usage
+- [ ] Use modern alternative tools (eza, tree, ncdu)
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. ディレクトリ操作の基本
+## 1. Directory Operation Basics
 
-### 1.1 cd（Change Directory）
+### 1.1 cd (Change Directory)
 
 ```bash
 # ============================================
@@ -66,7 +66,7 @@ cd /var/log && ls -la        # 移動後にls実行
 (cd /tmp && make)            # サブシェルで移動（元に戻る）
 ```
 
-### 1.2 cd のショートカットと効率化
+### 1.2 cd Shortcuts and Efficiency
 
 ```bash
 # ============================================
@@ -113,7 +113,7 @@ alias cdc='cd ~/.config'
 alias cdt='cd /tmp'
 ```
 
-### 1.3 ディレクトリスタック（pushd/popd）
+### 1.3 Directory Stack (pushd/popd)
 
 ```bash
 # ============================================
@@ -163,7 +163,7 @@ dirs -v
 dirs -c                      # スタックを全クリア
 ```
 
-### 1.4 zoxide（スマートcd）
+### 1.4 zoxide (Smart cd)
 
 ```bash
 # ============================================
@@ -216,7 +216,7 @@ z infra terraform            # ~/infra/terraform/environments に移動
 # → 手動でフルパスを入力する必要がない
 ```
 
-### 1.5 fzf を使ったディレクトリナビゲーション
+### 1.5 Directory Navigation with fzf
 
 ```bash
 # ============================================
@@ -275,9 +275,9 @@ repos() {
 
 ---
 
-## 2. ファイル一覧（ls）
+## 2. File Listing (ls)
 
-### 2.1 ls の基本オプション
+### 2.1 Basic ls Options
 
 ```bash
 # ============================================
@@ -353,12 +353,12 @@ ls -l --time-style=full-iso  # フルISO形式
 ls -l --time-style="+%Y-%m-%d %H:%M"  # カスタム形式
 ```
 
-### 2.2 ls の出力を理解する
+### 2.2 Understanding ls Output
 
 ```
-ls -la の出力の完全な読み方:
+How to fully read the output of ls -la:
 
-total 48                              ← ブロックの合計サイズ
+total 48                              <- Total block size
 drwxr-xr-x  12 user group 384 Feb 16 10:30 .
 drwxr-xr-x   5 user group 160 Feb 16 09:00 ..
 -rw-r--r--   1 user group  35 Feb 16 10:30 .gitignore
@@ -368,26 +368,26 @@ drwxr-xr-x   8 user group 256 Feb 16 10:30 .git
 drwxr-xr-x   5 user group 160 Feb 16 10:15 src
 lrwxr-xr-x   1 user group   3 Feb 16 10:10 link -> src
 
-ファイルタイプ（先頭1文字）:
-  -  通常のファイル
-  d  ディレクトリ
-  l  シンボリックリンク
-  c  キャラクターデバイス（/dev/null等）
-  b  ブロックデバイス（/dev/sda等）
-  p  名前付きパイプ（FIFO）
-  s  ソケット
+File type (first character):
+  -  Regular file
+  d  Directory
+  l  Symbolic link
+  c  Character device (/dev/null, etc.)
+  b  Block device (/dev/sda, etc.)
+  p  Named pipe (FIFO)
+  s  Socket
 
-カラー表示の意味（一般的な設定）:
-  青色     ディレクトリ
-  緑色     実行可能ファイル
-  シアン   シンボリックリンク
-  赤色     壊れたシンボリックリンク / アーカイブファイル
-  黄色     デバイスファイル
-  マゼンタ 画像・動画ファイル
-  白色     通常のファイル
+Color display meanings (typical configuration):
+  Blue      Directory
+  Green     Executable file
+  Cyan      Symbolic link
+  Red       Broken symbolic link / archive file
+  Yellow    Device file
+  Magenta   Image / video file
+  White     Regular file
 ```
 
-### 2.3 ls の実用的な使い方
+### 2.3 Practical ls Usage
 
 ```bash
 # ============================================
@@ -436,7 +436,7 @@ ls -R                                # 再帰的に全ファイルを表示
 find . -name "*.md" -type f          # .md ファイルをフルパスで表示
 ```
 
-### 2.4 ls のエイリアス設定
+### 2.4 ls Alias Configuration
 
 ```bash
 # ============================================
@@ -478,9 +478,9 @@ fi
 
 ---
 
-## 3. eza（モダンな ls 代替ツール）
+## 3. eza (Modern ls Alternative)
 
-### 3.1 eza の基本
+### 3.1 eza Basics
 
 ```bash
 # ============================================
@@ -553,9 +553,9 @@ eza -la --icons --git --time-style=relative
 
 ---
 
-## 4. tree コマンド
+## 4. tree Command
 
-### 4.1 tree の基本
+### 4.1 tree Basics
 
 ```bash
 # ============================================
@@ -621,7 +621,7 @@ tree -d -L 2                 # ディレクトリ構造だけ2階層
 tree -L 3 --dirsfirst -I "node_modules|.git|dist|build|__pycache__" > project-structure.txt
 ```
 
-### 4.2 プロジェクト構造の表示例
+### 4.2 Example Project Structure Display
 
 ```bash
 # プロジェクト構造の表示（一般的なWebアプリ）
@@ -658,58 +658,58 @@ tree -L 3 --dirsfirst -I "node_modules|.git|dist|build|.next"
 
 ---
 
-## 5. パスの基本と応用
+## 5. Path Fundamentals and Advanced Usage
 
-### 5.1 絶対パスと相対パス
+### 5.1 Absolute Paths and Relative Paths
 
 ```
 ============================================
-パスの種類と表記
+Types and Notation of Paths
 ============================================
 
-■ 絶対パス（Absolute Path）
-  ルート（/）から始まる完全なパス
-  例:
+■ Absolute Path
+  A complete path starting from the root (/)
+  Examples:
     /home/user/documents/file.txt
     /var/log/syslog
     /etc/nginx/nginx.conf
     /usr/local/bin/python3
 
-  特徴:
-    - 常に同じファイルを指す（現在地に依存しない）
-    - スクリプト内で確実にファイルを指定したい場合に使う
-    - 長くなりがち
+  Characteristics:
+    - Always refers to the same file (independent of current location)
+    - Use when you need to reliably specify a file in scripts
+    - Tends to be long
 
-■ 相対パス（Relative Path）
-  現在のディレクトリからの相対位置
-  例:
-    ./documents/file.txt     # 現在のディレクトリの documents
-    ../other/file.txt        # 1つ上の other ディレクトリ
-    ../../config/app.yml     # 2つ上の config ディレクトリ
-    documents/file.txt       # ./ は省略可能
+■ Relative Path
+  Position relative to the current directory
+  Examples:
+    ./documents/file.txt     # documents in the current directory
+    ../other/file.txt        # other directory one level up
+    ../../config/app.yml     # config directory two levels up
+    documents/file.txt       # ./ can be omitted
 
-  特徴:
-    - 現在のディレクトリに依存する
-    - 短く書ける
-    - プロジェクト内のファイル参照に便利
+  Characteristics:
+    - Depends on the current directory
+    - Can be written more concisely
+    - Convenient for referencing files within a project
 
-■ 特殊なパス
-  ~         → ホームディレクトリ（/home/user）
-  ~/        → ホームディレクトリの下
-  .         → 現在のディレクトリ
-  ..        → 親ディレクトリ（1つ上）
-  -         → 前のディレクトリ（cd 限定）
-  /         → ルートディレクトリ
+■ Special Paths
+  ~         → Home directory (/home/user)
+  ~/        → Under the home directory
+  .         → Current directory
+  ..        → Parent directory (one level up)
+  -         → Previous directory (cd only)
+  /         → Root directory
 
-■ 環境変数によるパス
-  $HOME     → ホームディレクトリ（~ と同等）
-  $PWD      → 現在のディレクトリ（pwd の出力と同じ）
-  $OLDPWD   → 前のディレクトリ（cd - の移動先）
-  $TMPDIR   → テンポラリディレクトリ（macOS: /var/folders/...）
-  $PATH     → コマンド検索パス（コロン区切り）
+■ Paths via Environment Variables
+  $HOME     → Home directory (equivalent to ~)
+  $PWD      → Current directory (same as pwd output)
+  $OLDPWD   → Previous directory (destination of cd -)
+  $TMPDIR   → Temporary directory (macOS: /var/folders/...)
+  $PATH     → Command search path (colon-separated)
 ```
 
-### 5.2 パスの操作コマンド
+### 5.2 Path Manipulation Commands
 
 ```bash
 # ============================================
@@ -767,76 +767,76 @@ abspath() {
 }
 ```
 
-### 5.3 Linux ファイルシステムの構造
+### 5.3 Linux Filesystem Structure
 
 ```
 ============================================
-FHS (Filesystem Hierarchy Standard) の概要
+Overview of FHS (Filesystem Hierarchy Standard)
 ============================================
 
-/                   ルートディレクトリ（全てのファイルの起点）
-├── bin/            基本コマンド（ls, cp, mv等）
-├── sbin/           システム管理コマンド（mount, fsck等）
-├── boot/           ブートローダー、カーネルイメージ
-├── dev/            デバイスファイル（/dev/null, /dev/sda等）
-├── etc/            設定ファイル（システム全体の設定）
-│   ├── nginx/      Nginx の設定
-│   ├── ssh/        SSH の設定
-│   ├── passwd      ユーザーアカウント情報
-│   ├── shadow      パスワードハッシュ（root のみ読み取り可）
-│   ├── hosts       ホスト名の静的テーブル
-│   ├── fstab       ファイルシステムのマウントテーブル
-│   └── crontab     cron のスケジュール
-├── home/           一般ユーザーのホームディレクトリ
+/                   Root directory (starting point for all files)
+├── bin/            Basic commands (ls, cp, mv, etc.)
+├── sbin/           System administration commands (mount, fsck, etc.)
+├── boot/           Bootloader, kernel images
+├── dev/            Device files (/dev/null, /dev/sda, etc.)
+├── etc/            Configuration files (system-wide settings)
+│   ├── nginx/      Nginx configuration
+│   ├── ssh/        SSH configuration
+│   ├── passwd      User account information
+│   ├── shadow      Password hashes (root-only read access)
+│   ├── hosts       Static hostname table
+│   ├── fstab       Filesystem mount table
+│   └── crontab     cron schedule
+├── home/           Home directories for regular users
 │   └── user/
 │       ├── .bashrc
 │       ├── .ssh/
 │       └── ...
-├── lib/            共有ライブラリ
-├── media/          リムーバブルメディアのマウントポイント
-├── mnt/            一時的なマウントポイント
-├── opt/            サードパーティソフトウェア
-├── proc/           プロセス情報（仮想ファイルシステム）
-│   ├── cpuinfo     CPU情報
-│   ├── meminfo     メモリ情報
-│   ├── uptime      稼働時間
-│   └── [PID]/      各プロセスの情報
-├── root/           root ユーザーのホームディレクトリ
-├── run/            実行時の変数データ
-├── srv/            サービスのデータ
-├── sys/            カーネル・デバイス情報（仮想ファイルシステム）
-├── tmp/            一時ファイル（再起動で削除される場合がある）
-├── usr/            ユーザーアプリケーション
-│   ├── bin/        一般的なコマンド
-│   ├── sbin/       管理コマンド
-│   ├── lib/        ライブラリ
-│   ├── local/      ローカルインストールしたソフトウェア
+├── lib/            Shared libraries
+├── media/          Mount points for removable media
+├── mnt/            Temporary mount points
+├── opt/            Third-party software
+├── proc/           Process information (virtual filesystem)
+│   ├── cpuinfo     CPU information
+│   ├── meminfo     Memory information
+│   ├── uptime      Uptime
+│   └── [PID]/      Per-process information
+├── root/           Home directory for the root user
+├── run/            Runtime variable data
+├── srv/            Service data
+├── sys/            Kernel and device information (virtual filesystem)
+├── tmp/            Temporary files (may be deleted on reboot)
+├── usr/            User applications
+│   ├── bin/        General commands
+│   ├── sbin/       Administration commands
+│   ├── lib/        Libraries
+│   ├── local/      Locally installed software
 │   │   ├── bin/
 │   │   ├── lib/
 │   │   └── share/
-│   ├── share/      共有データ（manページ、ドキュメント等）
-│   └── include/    ヘッダファイル
-└── var/            可変データ
-    ├── log/        ログファイル
+│   ├── share/      Shared data (man pages, documentation, etc.)
+│   └── include/    Header files
+└── var/            Variable data
+    ├── log/        Log files
     │   ├── syslog
     │   ├── auth.log
     │   └── nginx/
-    ├── cache/      キャッシュデータ
-    ├── lib/        アプリケーションの永続データ
-    ├── mail/       メールボックス
-    ├── run/        実行時データ（PIDファイル等）
-    ├── spool/      スプールデータ（印刷キュー等）
-    └── tmp/        再起動で消えない一時ファイル
+    ├── cache/      Cache data
+    ├── lib/        Persistent application data
+    ├── mail/       Mailboxes
+    ├── run/        Runtime data (PID files, etc.)
+    ├── spool/      Spool data (print queues, etc.)
+    └── tmp/        Temporary files that persist across reboots
 
-macOS固有:
-  /Applications      GUIアプリケーション
-  /System            macOSシステムファイル
-  /Library           システム全体のライブラリ
-  ~/Library          ユーザー固有のライブラリ
-  /Volumes           マウントされたボリューム
-  /private/etc       /etc のシンボリックリンク先
-  /private/var       /var のシンボリックリンク先
-  /private/tmp       /tmp のシンボリックリンク先
+macOS-specific:
+  /Applications      GUI applications
+  /System            macOS system files
+  /Library           System-wide libraries
+  ~/Library          User-specific libraries
+  /Volumes           Mounted volumes
+  /private/etc       Symlink target of /etc
+  /private/var       Symlink target of /var
+  /private/tmp       Symlink target of /tmp
 ```
 
 ```bash
@@ -870,9 +870,9 @@ mount | grep "^/"            # マウントされたデバイスのみ
 
 ---
 
-## 6. ディスク使用量の確認
+## 6. Checking Disk Usage
 
-### 6.1 du（Disk Usage）
+### 6.1 du (Disk Usage)
 
 ```bash
 # ============================================
@@ -919,7 +919,7 @@ find . -type f -size +100M -exec ls -lh {} \;  # 100MB以上のファイル
 find . -type f -size +1G -exec ls -lh {} \;    # 1GB以上のファイル
 ```
 
-### 6.2 df（Disk Free）
+### 6.2 df (Disk Free)
 
 ```bash
 # ============================================
@@ -952,7 +952,7 @@ df -h --output=source,fstype,size,used,avail,pcent,target  # 表示カラムを�
 # tmpfs           8.0G  1.2G  6.8G  15% /tmp
 ```
 
-### 6.3 ncdu（インタラクティブなディスク使用量ビューア）
+### 6.3 ncdu (Interactive Disk Usage Viewer)
 
 ```bash
 # ============================================
@@ -975,44 +975,44 @@ ncdu --exclude ".git"        # .git を除外
 ncdu -e                      # エクスポートモード
 
 # ncdu 内の操作
-# ↑/↓ or k/j   → 項目間の移動
-# Enter or →    → ディレクトリに入る
-# ← or <       → 親ディレクトリに戻る
-# d             → 選択した項目を削除（確認あり）
-# n             → 名前順でソート
-# s             → サイズ順でソート
-# C             → アイテム数順でソート
-# M             → 最終更新日時順でソート
-# g             → グラフ表示を切り替え
-# q             → 終了
-# ?             → ヘルプ
+# ↑/↓ or k/j   → Move between items
+# Enter or →    → Enter a directory
+# ← or <       → Go back to the parent directory
+# d             → Delete selected item (with confirmation)
+# n             → Sort by name
+# s             → Sort by size
+# C             → Sort by item count
+# M             → Sort by last modification time
+# g             → Toggle graph display
+# q             → Quit
+# ?             → Help
 
 # 結果をファイルに保存して後で閲覧
 ncdu -o /tmp/ncdu-export.json ~/  # エクスポート
 ncdu -f /tmp/ncdu-export.json     # インポートして閲覧
 ```
 
-### 6.4 ディスク容量不足の対処法
+### 6.4 Handling Low Disk Space
 
 ```bash
 # ============================================
 # ディスク容量不足時の対処手順
 # ============================================
 
-# Step 1: 現在の使用状況を確認
+# Step 1: Check current usage
 df -h
 
-# Step 2: 大きなディレクトリを特定
+# Step 2: Identify large directories
 du -h -d 1 / 2>/dev/null | sort -rh | head -20
 
-# Step 3: 一般的な容量消費源をチェック
+# Step 3: Check common disk consumers
 
-# ログファイル
+# Log files
 du -sh /var/log/
 sudo find /var/log -name "*.gz" -delete          # 古い圧縮ログを削除
 sudo journalctl --vacuum-size=500M                # systemd ログを500MBに制限
 
-# キャッシュ
+# Cache
 du -sh ~/.cache/
 rm -rf ~/.cache/pip                               # pip キャッシュ
 rm -rf ~/.cache/yarn                              # yarn キャッシュ
@@ -1028,162 +1028,162 @@ brew cleanup --prune=all                           # 古いバージョンを削
 du -sh $(brew --cache)                             # キャッシュサイズ確認
 rm -rf $(brew --cache)                             # キャッシュを削除
 
-# 一時ファイル
+# Temporary files
 du -sh /tmp/
 sudo rm -rf /tmp/large-temp-files/
 
-# 大きなファイルの検索
+# Search for large files
 find / -type f -size +500M -exec ls -lh {} \; 2>/dev/null
 find /home -type f -size +100M -exec ls -lh {} \; 2>/dev/null
 
-# node_modules の削除（全プロジェクト）
+# Remove node_modules (across all projects)
 find ~/projects -name "node_modules" -type d -prune -exec du -sh {} \;
-# 確認後に削除:
+# After confirming, delete:
 find ~/projects -name "node_modules" -type d -prune -exec rm -rf {} +
 
-# .git ディレクトリのサイズ確認
+# Check .git directory sizes
 find ~/projects -name ".git" -type d -exec du -sh {} \;
 ```
 
 ---
 
-## 7. 実践演習
+## 7. Practical Exercises
 
-### 演習1: [基礎] ── ディレクトリ移動の基本
+### Exercise 1: [Basic] — Directory Navigation Fundamentals
 
 ```bash
-# 課題: 以下の操作を実行してください
+# Task: Perform the following operations
 
-# 1. ホームディレクトリに移動
+# 1. Move to the home directory
 cd ~
 
-# 2. /tmp に移動
+# 2. Move to /tmp
 cd /tmp
 
-# 3. 前のディレクトリに戻る
+# 3. Return to the previous directory
 cd -
 
-# 4. /var/log に移動して内容を確認
+# 4. Move to /var/log and check its contents
 cd /var/log && ls -lt | head -10
 
-# 5. ホームディレクトリに戻る
+# 5. Return to the home directory
 cd
 
-# 6. ディレクトリを作成して移動
+# 6. Create a directory and move into it
 mkdir -p /tmp/exercise/subdir && cd /tmp/exercise/subdir
 
-# 7. 現在のディレクトリを確認
+# 7. Check the current directory
 pwd
 
-# 8. 2つ上のディレクトリに移動
+# 8. Move two levels up
 cd ../..
 pwd
-# /tmp になるはず
+# Should be /tmp
 ```
 
-### 演習2: [中級] ── ls の高度な使い方
+### Exercise 2: [Intermediate] — Advanced ls Usage
 
 ```bash
-# 課題: ls コマンドで以下の情報を取得してください
+# Task: Use the ls command to retrieve the following information
 
-# 1. ホームディレクトリの隠しファイルを含む詳細一覧
+# 1. Detailed listing including hidden files in the home directory
 ls -lah ~
 
-# 2. /var/log 内で最近更新されたファイルのトップ5
+# 2. Top 5 most recently updated files in /var/log
 ls -lt /var/log/ | head -6
 
-# 3. /usr/bin 内のファイル数をカウント
+# 3. Count the number of files in /usr/bin
 ls -1 /usr/bin/ | wc -l
 
-# 4. カレントディレクトリのディレクトリのみをサイズ付きで表示
+# 4. Show only directories in the current directory with sizes
 ls -ld */ 2>/dev/null
 
-# 5. /etc 内のシンボリックリンクのみ表示
+# 5. Show only symbolic links in /etc
 ls -la /etc/ | grep "^l"
 
-# 6. ホームディレクトリで最も大きなファイルトップ10
+# 6. Top 10 largest files in the home directory
 ls -lhS ~ | head -11
 ```
 
-### 演習3: [中級] ── ディレクトリスタックの活用
+### Exercise 3: [Intermediate] — Using the Directory Stack
 
 ```bash
-# 課題: pushd/popd を使って複数ディレクトリ間を効率的に移動する
+# Task: Use pushd/popd to efficiently move between multiple directories
 
-# 1. ホームディレクトリから開始
+# 1. Start from the home directory
 cd ~
 
-# 2. 3つのディレクトリをスタックに積む
+# 2. Push three directories onto the stack
 pushd /var/log
 pushd /etc
 pushd /tmp
 
-# 3. スタックの内容を確認
+# 3. Check the contents of the stack
 dirs -v
 
-# 4. /etc（スタック上の特定エントリ）に移動
+# 4. Move to /etc (a specific entry on the stack)
 pushd +1
 
-# 5. スタックの内容を再確認
+# 5. Verify the stack contents again
 dirs -v
 
-# 6. popd で順番に戻る
+# 6. Return in order using popd
 popd
 popd
 popd
 
-# 7. 元のディレクトリに戻っていることを確認
+# 7. Verify that you are back in the original directory
 pwd
 ```
 
-### 演習4: [上級] ── ディスク使用量の分析
+### Exercise 4: [Advanced] — Disk Usage Analysis
 
 ```bash
-# 課題: システムのディスク使用状況を分析する
+# Task: Analyze the disk usage of the system
 
-# 1. 全パーティションの使用状況を確認
+# 1. Check usage of all partitions
 df -h
 
-# 2. ホームディレクトリ直下の各ディレクトリのサイズを確認
+# 2. Check the size of each directory directly under the home directory
 du -sh ~/* 2>/dev/null | sort -rh | head -15
 
-# 3. 隠しディレクトリのサイズも確認
+# 3. Also check sizes of hidden directories
 du -sh ~/.[^.]* 2>/dev/null | sort -rh | head -10
 
-# 4. 100MB以上のファイルを検索
+# 4. Find files larger than 100MB
 find ~ -type f -size +100M -exec ls -lh {} \; 2>/dev/null
 
-# 5. node_modules ディレクトリの合計サイズ
+# 5. Total size of node_modules directories
 find ~/projects -name "node_modules" -type d -prune 2>/dev/null | \
     xargs du -sh 2>/dev/null | sort -rh
 
-# 6. .git ディレクトリの合計サイズ
+# 6. Total size of .git directories
 find ~/projects -name ".git" -type d 2>/dev/null | \
     xargs du -sh 2>/dev/null | sort -rh | head -10
 ```
 
-### 演習5: [上級] ── ナビゲーション効率化のセットアップ
+### Exercise 5: [Advanced] — Setting Up Efficient Navigation
 
 ```bash
-# 課題: 自分の環境に最適なナビゲーション設定を作成する
+# Task: Create an optimal navigation configuration for your environment
 
-# ~/.zshrc に以下を追加:
+# Add the following to ~/.zshrc:
 
-# 1. zoxide の設定
+# 1. zoxide configuration
 eval "$(zoxide init zsh)"
 
-# 2. ディレクトリ移動のエイリアス
+# 2. Directory navigation aliases
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 
-# 3. よく使うディレクトリのブックマーク
+# 3. Bookmarks for frequently used directories
 hash -d p=~/projects
 hash -d w=~/work
 hash -d d=~/Documents
 hash -d dl=~/Downloads
 
-# 4. fzf でのディレクトリ移動関数
+# 4. Directory navigation function with fzf
 fcd() {
     local dir
     dir=$(fd --type d --hidden --follow --exclude .git . "${1:-.}" | \
@@ -1191,7 +1191,7 @@ fcd() {
     [ -n "$dir" ] && cd "$dir"
 }
 
-# 5. Git リポジトリに高速移動
+# 5. Fast navigation to Git repositories
 repos() {
     local repo
     repo=$(fd -H -t d .git ~/projects ~/work 2>/dev/null | \
@@ -1200,7 +1200,7 @@ repos() {
     [ -n "$repo" ] && cd "$repo"
 }
 
-# 6. AUTO_CD と補完の設定
+# 6. AUTO_CD and completion settings
 setopt AUTO_CD
 setopt AUTO_PUSHD
 setopt PUSHD_IGNORE_DUPS
@@ -1210,25 +1210,25 @@ setopt PUSHD_SILENT
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured config file | Check the path and format of the config file |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check the running user's permissions, review settings |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify step by step**: Use log output or a debugger to validate hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
 # デバッグ用ユーティリティ
@@ -1266,39 +1266,39 @@ def process_data(items):
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Examine disk and network I/O status
+4. **Check concurrent connections**: Check the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|-------------|-----------------|----------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When it can be compromised |
+|----------|--------------------|---------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -1320,21 +1320,21 @@ def process_data(items):
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A faster short-term approach may become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables the right tool for the right job but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- Higher abstraction improves reusability but can make debugging harder
+- Lower abstraction is intuitive but tends to cause code duplication
 
 ```python
 # 設計判断の記録テンプレート
@@ -1391,50 +1391,50 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for critical paths
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't strive for perfection (YAGNI principle)
+- Obtain user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally overhaul a system that has been running for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If there are no existing tests, create Characterization Tests first
+- Coexist old and new systems via an API gateway
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work | Estimated Duration | Risk |
+|-------|------|--------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission the old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use Domain-Driven Design to clarify boundaries
+- Assign ownership per team
+- Manage shared libraries via Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
 # チーム間のAPI契約定義
@@ -1493,85 +1493,84 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system where millisecond-level response times are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
-
----
-
-## チーム開発での活用
-
-### コードレビューのチェックリスト
-
-このトピックに関連するコードレビューで確認すべきポイント:
-
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
-
-### ナレッジ共有のベストプラクティス
-
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
-
-### 技術的負債の管理
-
-```
-優先度マトリクス:
-
-        影響度 高
-          │
-    ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
-    ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
-    └─────┼─────┘
-          │
-        影響度 低
-    発生頻度 低  発生頻度 高
-```
+| Optimization Technique | Effect | Implementation Cost | Use Case |
+|------------------------|--------|---------------------|----------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 
 ---
 
-## セキュリティの考慮事項
+## Team Development Usage
 
-### 一般的な脆弱性と対策
+### Code Review Checklist
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
-|--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+Points to verify in code reviews related to this topic:
 
-### セキュアコーディングのベストプラクティス
+- [ ] Is the naming convention consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any performance impact?
+- [ ] Are there any security issues?
+- [ ] Has the documentation been updated?
+
+### Knowledge Sharing Best Practices
+
+| Method | Frequency | Target | Effect |
+|--------|-----------|--------|--------|
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talk | Weekly | Whole team | Horizontal knowledge sharing |
+| ADR (design records) | As needed | Future members | Transparency of decisions |
+| Retrospective | Every 2 weeks | Whole team | Continuous improvement |
+| Mob programming | Monthly | Important designs | Building consensus |
+
+### Managing Technical Debt
+
+```
+Priority Matrix:
+
+        High Impact
+          |
+    +-----+-----+
+    | Plan| Act |
+    | ned | Now |
+    +-----+-----+
+    | Log | Next|
+    | Only|Sprint|
+    |     |     |
+    +-----+-----+
+          |
+        Low Impact
+    Low Frequency  High Frequency
+```
+
+---
+
+## Security Considerations
+
+### Common Vulnerabilities and Countermeasures
+
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
+|--------------|------------|----------------|-----------------|
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication flaws | High | Multi-factor authentication, session management hardening | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Security misconfiguration | Medium | Security headers, principle of least privilege | Configuration scanning |
+| Insufficient logging | Medium | Structured logs, audit trail | Log analysis |
+
+### Secure Coding Best Practices
 
 ```python
 # セキュアコーディング例
@@ -1622,68 +1621,68 @@ hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is properly configured
+- [ ] Vulnerability scanning of dependency packages has been performed
+- [ ] Error messages do not contain internal information
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| コマンド | 用途 | 備考 |
-|---------|------|------|
-| cd | ディレクトリ移動 | 最も基本的な移動手段 |
-| pwd | 現在のディレクトリ表示 | -P で物理パス |
-| ls -lah | 詳細一覧表示 | 最もよく使う組み合わせ |
-| eza | モダンな ls 代替 | Git連携、アイコン表示 |
-| tree | ツリー表示 | -L で深さ制限 |
-| pushd/popd | ディレクトリスタック | 複数ディレクトリ間の移動 |
-| zoxide (z) | スマート移動 | 訪問履歴ベースの高速移動 |
-| du -sh | ディスク使用量 | ディレクトリ単位の容量確認 |
-| df -h | パーティション情報 | 全体の使用状況確認 |
-| ncdu | インタラクティブ分析 | ディスク使用量の可視化 |
-
-### 効率的なナビゲーションのポイント
-
-1. **zoxide を導入する** -- 過去の訪問履歴から最適なディレクトリに一発移動
-2. **fzf と組み合わせる** -- ディレクトリ名を覚えていなくてもインタラクティブに検索
-3. **エイリアスとブックマークを設定する** -- よく行くディレクトリにはショートカットを用意
-4. **AUTO_CD を有効にする** -- zshならディレクトリ名だけで移動可能
-5. **pushd/popd を活用する** -- 複数ディレクトリ間を頻繁に行き来する場合に有効
-6. **eza + tree でファイル一覧を見やすくする** -- Git連携とアイコン表示で視認性向上
-7. **ncdu でディスク使用量を定期的にチェック** -- 不要ファイルの発見と容量管理
+Knowledge of this topic is frequently applied in day-to-day development tasks. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Command | Use | Notes |
+|---------|-----|-------|
+| cd | Navigate directories | The most fundamental navigation method |
+| pwd | Display current directory | -P for the physical path |
+| ls -lah | Display detailed listing | The most commonly used combination |
+| eza | Modern ls alternative | Git integration, icon display |
+| tree | Tree display | -L to limit depth |
+| pushd/popd | Directory stack | Moving between multiple directories |
+| zoxide (z) | Smart navigation | Fast navigation based on visit history |
+| du -sh | Disk usage | Check capacity per directory |
+| df -h | Partition information | Check overall usage status |
+| ncdu | Interactive analysis | Visualize disk usage |
+
+### Keys to Efficient Navigation
+
+1. **Install zoxide** -- Jump instantly to the optimal directory based on past visit history
+2. **Combine with fzf** -- Search interactively even without remembering directory names
+3. **Set up aliases and bookmarks** -- Create shortcuts for frequently visited directories
+4. **Enable AUTO_CD** -- In zsh, navigate by directory name alone
+5. **Use pushd/popd** -- Effective when frequently switching between multiple directories
+6. **Use eza + tree for better file listings** -- Improve readability with Git integration and icon display
+7. **Regularly check disk usage with ncdu** -- Discover unnecessary files and manage capacity
 
 ---
 
-## 参考文献
+## What to Read Next
+
+---
+
+## References
 1. Shotts, W. "The Linux Command Line." 2nd Ed, Ch.2-3, No Starch Press, 2019.
 2. Ward, B. "How Linux Works." 3rd Ed, Ch.2, No Starch Press, 2021.
 3. Filesystem Hierarchy Standard: https://refspecs.linuxfoundation.org/FHS_3.0/
-4. zoxide 公式リポジトリ: https://github.com/ajeetdsouza/zoxide
-5. eza 公式リポジトリ: https://github.com/eza-community/eza
-6. fzf 公式リポジトリ: https://github.com/junegunn/fzf
+4. zoxide official repository: https://github.com/ajeetdsouza/zoxide
+5. eza official repository: https://github.com/eza-community/eza
+6. fzf official repository: https://github.com/junegunn/fzf
