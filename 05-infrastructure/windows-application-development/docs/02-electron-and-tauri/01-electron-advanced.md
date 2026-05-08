@@ -1,29 +1,29 @@
-# Electron 応用
+# Electron Advanced
 
-> マルチウィンドウ管理、カスタムタイトルバー、ネイティブモジュール統合、SQLite データベース、パフォーマンス最適化など、本格的な Electron アプリ開発に必要な応用技術を習得する。
-
----
-
-## この章で学ぶこと
-
-1. **マルチウィンドウ管理**とカスタムタイトルバーの実装方法を習得する
-2. **ネイティブモジュール（C++ アドオン）と SQLite** の統合手法を理解する
-3. **パフォーマンスのボトルネック**を特定し、起動時間・メモリ使用量を最適化する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Electron セットアップ](./00-electron-setup.md) の内容を理解していること
+> Master advanced techniques required for full-scale Electron app development, including multi-window management, custom title bars, native module integration, SQLite databases, and performance optimization.
 
 ---
 
-## 1. マルチウィンドウ管理
+## What You Will Learn
 
-### 1.1 ウィンドウ管理アーキテクチャ
+1. How to implement **multi-window management** and custom title bars
+2. How to integrate **native modules (C++ add-ons) and SQLite**
+3. How to identify **performance bottlenecks** and optimize startup time and memory usage
+
+
+## Prerequisites
+
+Having the following knowledge will deepen your understanding before reading this guide:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Electron Setup](./00-electron-setup.md)
+
+---
+
+## 1. Multi-Window Management
+
+### 1.1 Window Management Architecture
 
 ```
 +----------------------------------------------------------+
@@ -35,42 +35,42 @@
 |  │                                                     │  |
 |  │  ┌──────────┐  ┌──────────┐  ┌──────────┐         │  |
 |  │  │ main     │  │ settings │  │ about    │         │  |
-|  │  │ (メイン) │  │ (設定)   │  │ (概要)   │         │  |
+|  │  │ (Main)   │  │ (Config) │  │ (About)  │         │  |
 |  │  └──────────┘  └──────────┘  └──────────┘         │  |
 |  └─────────────────────────────────────────────────────┘  |
 |                                                          |
-|  ウィンドウ間通信: Main プロセス経由の IPC                 |
+|  Inter-window communication: IPC via Main process        |
 |  Window A  ───→  Main  ───→  Window B                    |
 +----------------------------------------------------------+
 ```
 
-### コード例 1: WindowManager クラス
+### Code Example 1: WindowManager Class
 
 ```typescript
-// src/main/window-manager.ts — ウィンドウの一元管理クラス
+// src/main/window-manager.ts — Centralized window management class
 import { BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 
-// ウィンドウ設定の型定義
+// Type definition for window configuration
 interface WindowConfig {
   width?: number
   height?: number
   minWidth?: number
   minHeight?: number
-  parent?: BrowserWindow   // 親ウィンドウ（モーダル用）
-  modal?: boolean          // モーダルウィンドウにするか
-  route?: string           // Renderer 側のルートパス
+  parent?: BrowserWindow   // Parent window (for modals)
+  modal?: boolean          // Whether to make it a modal window
+  route?: string           // Route path on the Renderer side
   resizable?: boolean
 }
 
 class WindowManager {
-  // ウィンドウ ID をキーとして管理
+  // Managed with window ID as the key
   private windows = new Map<string, BrowserWindow>()
 
-  // ウィンドウを作成または既存ウィンドウにフォーカス
+  // Create a window or focus an existing one
   createWindow(id: string, config: WindowConfig = {}): BrowserWindow {
-    // 既にウィンドウが存在する場合はフォーカスして返す
+    // If the window already exists, focus it and return
     const existing = this.windows.get(id)
     if (existing && !existing.isDestroyed()) {
       existing.focus()
@@ -104,20 +104,20 @@ class WindowManager {
       },
     })
 
-    // 準備完了後に表示（ちらつき防止）
+    // Show after ready to prevent flickering
     win.once('ready-to-show', () => win.show())
 
-    // ウィンドウ閉鎖時にマップから削除
+    // Remove from map when window is closed
     win.on('closed', () => {
       this.windows.delete(id)
     })
 
-    // コンテンツの読み込み
+    // Load the content
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-      // 開発時: Vite Dev Server の URL + ルートパス
+      // Development: Vite Dev Server URL + route path
       win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#${route}`)
     } else {
-      // 本番: ビルド済み HTML + ハッシュルーティング
+      // Production: built HTML + hash routing
       win.loadFile(join(__dirname, '../renderer/index.html'), {
         hash: route,
       })
@@ -127,12 +127,12 @@ class WindowManager {
     return win
   }
 
-  // 全ウィンドウを取得
+  // Get all windows
   getWindow(id: string): BrowserWindow | undefined {
     return this.windows.get(id)
   }
 
-  // 特定ウィンドウにメッセージを送信
+  // Send a message to a specific window
   sendTo(id: string, channel: string, ...args: unknown[]): void {
     const win = this.windows.get(id)
     if (win && !win.isDestroyed()) {
@@ -140,7 +140,7 @@ class WindowManager {
     }
   }
 
-  // 全ウィンドウにブロードキャスト
+  // Broadcast to all windows
   broadcast(channel: string, ...args: unknown[]): void {
     for (const [, win] of this.windows) {
       if (!win.isDestroyed()) {
@@ -149,7 +149,7 @@ class WindowManager {
     }
   }
 
-  // 全ウィンドウを閉じる
+  // Close all windows
   closeAll(): void {
     for (const [, win] of this.windows) {
       if (!win.isDestroyed()) win.close()
@@ -158,45 +158,45 @@ class WindowManager {
   }
 }
 
-// シングルトンとしてエクスポート
+// Export as singleton
 export const windowManager = new WindowManager()
 ```
 
 ---
 
-## 2. カスタムタイトルバー
+## 2. Custom Title Bar
 
-### 2.1 フレームレスウィンドウ構成
+### 2.1 Frameless Window Configuration
 
 ```
-デフォルトタイトルバー:
+Default title bar:
 +------------------------------------------------------+
-| [icon] My App              [_] [□] [X]  ← OS ネイティブ|
+| [icon] My App              [_] [□] [X]  ← OS native  |
 +------------------------------------------------------+
-| コンテンツ                                             |
+| Content                                               |
 +------------------------------------------------------+
 
-カスタムタイトルバー:
+Custom title bar:
 +------------------------------------------------------+
-| 🔍 検索...  |  ファイル  編集  表示  | ● ● ●  ← 独自UI |
+| 🔍 Search...  |  File  Edit  View  | ● ● ●  ← Custom UI |
 +------------------------------------------------------+
-| コンテンツ                                             |
+| Content                                               |
 +------------------------------------------------------+
 ```
 
-### コード例 2: カスタムタイトルバーの実装
+### Code Example 2: Implementing a Custom Title Bar
 
 ```typescript
-// Main プロセス: フレームレスウィンドウの作成
+// Main process: creating a frameless window
 const win = new BrowserWindow({
-  frame: false,            // OS 標準のタイトルバーを非表示
-  titleBarStyle: 'hidden', // macOS: ネイティブの信号ボタンは残す
-  titleBarOverlay: {       // Windows: 最小化/最大化/閉じるボタンを残す
-    color: '#1e1e2e',      // タイトルバーの背景色
-    symbolColor: '#cdd6f4', // ボタンアイコンの色
-    height: 40,            // タイトルバーの高さ
+  frame: false,            // Hide the OS default title bar
+  titleBarStyle: 'hidden', // macOS: keep native traffic light buttons
+  titleBarOverlay: {       // Windows: keep minimize/maximize/close buttons
+    color: '#1e1e2e',      // Title bar background color
+    symbolColor: '#cdd6f4', // Button icon color
+    height: 40,            // Title bar height
   },
-  // Windows でのコンテンツ領域の調整
+  // Adjust content area on Windows
   ...(process.platform === 'win32' && {
     backgroundMaterial: 'mica',
   }),
@@ -204,7 +204,7 @@ const win = new BrowserWindow({
 ```
 
 ```tsx
-// src/renderer/src/components/TitleBar.tsx — カスタムタイトルバー
+// src/renderer/src/components/TitleBar.tsx — Custom title bar
 import { useState, useEffect } from 'react'
 import './TitleBar.css'
 
@@ -212,7 +212,7 @@ export function TitleBar(): JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false)
 
   useEffect(() => {
-    // ウィンドウの最大化状態を監視
+    // Monitor window maximized state
     window.electronAPI.onWindowStateChange((maximized: boolean) => {
       setIsMaximized(maximized)
     })
@@ -220,19 +220,19 @@ export function TitleBar(): JSX.Element {
 
   return (
     <div className="titlebar">
-      {/* ドラッグ可能領域（ウィンドウ移動用） */}
+      {/* Draggable region (for moving the window) */}
       <div className="titlebar-drag-region">
         <span className="titlebar-title">My App</span>
       </div>
 
-      {/* メニュー領域（ドラッグ不可） */}
+      {/* Menu region (non-draggable) */}
       <div className="titlebar-menu">
-        <button className="menu-item">ファイル</button>
-        <button className="menu-item">編集</button>
-        <button className="menu-item">表示</button>
+        <button className="menu-item">File</button>
+        <button className="menu-item">Edit</button>
+        <button className="menu-item">View</button>
       </div>
 
-      {/* ウィンドウ操作ボタン（macOS では非表示） */}
+      {/* Window control buttons (hidden on macOS) */}
       {window.electronAPI.platform !== 'darwin' && (
         <div className="titlebar-controls">
           <button
@@ -267,26 +267,26 @@ export function TitleBar(): JSX.Element {
   align-items: center;
   height: 40px;
   background: var(--bg-primary);
-  user-select: none; /* テキスト選択を無効化 */
+  user-select: none; /* Disable text selection */
 }
 
-/* ドラッグ可能領域: ウィンドウの移動に使用 */
+/* Draggable region: used for moving the window */
 .titlebar-drag-region {
   flex: 1;
   height: 100%;
   display: flex;
   align-items: center;
   padding-left: 16px;
-  -webkit-app-region: drag; /* この領域でウィンドウをドラッグ可能にする */
+  -webkit-app-region: drag; /* Make this region draggable for the window */
 }
 
-/* メニューやボタンはドラッグ不可にする */
+/* Menu and buttons must not be draggable */
 .titlebar-menu,
 .titlebar-controls {
   -webkit-app-region: no-drag;
 }
 
-/* 閉じるボタンのホバー効果 */
+/* Hover effect for the close button */
 .control-btn.close:hover {
   background: #e81123;
   color: white;
@@ -295,21 +295,21 @@ export function TitleBar(): JSX.Element {
 
 ---
 
-## 3. ネイティブモジュール
+## 3. Native Modules
 
-### 3.1 ネイティブモジュールの種類
+### 3.1 Types of Native Modules
 
-| 種類 | ビルドツール | 言語 | 用途 |
+| Type | Build Tool | Language | Use Case |
 |---|---|---|---|
-| N-API (node-addon-api) | node-gyp / cmake-js | C / C++ | 高速計算、OS API |
-| Rust (napi-rs) | napi-rs | Rust | 安全な高速処理 |
-| WASM | wasm-pack | Rust / C++ | ポータブルな計算 |
-| FFI (ffi-napi) | なし（動的ロード） | C 互換 DLL | 既存 DLL の呼び出し |
+| N-API (node-addon-api) | node-gyp / cmake-js | C / C++ | High-speed computation, OS API |
+| Rust (napi-rs) | napi-rs | Rust | Safe high-performance processing |
+| WASM | wasm-pack | Rust / C++ | Portable computation |
+| FFI (ffi-napi) | None (dynamic loading) | C-compatible DLL | Calling existing DLLs |
 
-### コード例 3: napi-rs による Rust ネイティブモジュール
+### Code Example 3: Rust Native Module with napi-rs
 
 ```toml
-# native-module/Cargo.toml — Rust プロジェクト設定
+# native-module/Cargo.toml — Rust project configuration
 [package]
 name = "my-native"
 version = "0.1.0"
@@ -327,12 +327,12 @@ napi-build = "2"
 ```
 
 ```rust
-// native-module/src/lib.rs — Rust で高速な画像処理を実装
+// native-module/src/lib.rs — Fast image processing implemented in Rust
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
-/// 画像のリサイズを高速に実行する関数
-/// JavaScript から直接呼び出し可能
+/// A function that quickly resizes images
+/// Callable directly from JavaScript
 #[napi]
 pub fn resize_image(
     input_path: String,
@@ -341,7 +341,7 @@ pub fn resize_image(
     height: u32,
 ) -> Result<()> {
     let img = image::open(&input_path)
-        .map_err(|e| Error::from_reason(format!("画像を開けません: {}", e)))?;
+        .map_err(|e| Error::from_reason(format!("Cannot open image: {}", e)))?;
 
     let resized = img.resize_exact(
         width,
@@ -350,19 +350,19 @@ pub fn resize_image(
     );
 
     resized.save(&output_path)
-        .map_err(|e| Error::from_reason(format!("保存に失敗: {}", e)))?;
+        .map_err(|e| Error::from_reason(format!("Failed to save: {}", e)))?;
 
     Ok(())
 }
 
-/// 非同期関数も定義可能
+/// Async functions can also be defined
 #[napi]
 pub async fn hash_file(path: String) -> Result<String> {
     use sha2::{Sha256, Digest};
     use tokio::fs;
 
     let data = fs::read(&path).await
-        .map_err(|e| Error::from_reason(format!("ファイル読み込みエラー: {}", e)))?;
+        .map_err(|e| Error::from_reason(format!("File read error: {}", e)))?;
 
     let mut hasher = Sha256::new();
     hasher.update(&data);
@@ -373,37 +373,37 @@ pub async fn hash_file(path: String) -> Result<String> {
 ```
 
 ```typescript
-// TypeScript から Rust ネイティブモジュールを使用
+// Using the Rust native module from TypeScript
 import { resizeImage, hashFile } from 'my-native'
 
-// 同期呼び出し（CPU バウンドの処理）
+// Synchronous call (CPU-bound processing)
 resizeImage('/path/to/input.jpg', '/path/to/output.jpg', 800, 600)
 
-// 非同期呼び出し（I/O バウンドの処理）
+// Asynchronous call (I/O-bound processing)
 const hash = await hashFile('/path/to/large-file.bin')
-console.log(`ファイルハッシュ: ${hash}`)
+console.log(`File hash: ${hash}`)
 ```
 
 ---
 
-## 4. SQLite 統合
+## 4. SQLite Integration
 
-### 4.1 SQLite ライブラリの比較
+### 4.1 SQLite Library Comparison
 
-| ライブラリ | 種類 | 同期/非同期 | Electron 対応 |
+| Library | Type | Sync/Async | Electron Support |
 |---|---|---|---|
-| better-sqlite3 | ネイティブ (C) | 同期 | electron-rebuild 必要 |
-| sql.js | WASM | 同期 | そのまま動作 |
-| drizzle-orm + better-sqlite3 | ORM | 同期 | 型安全 |
-| prisma | ORM | 非同期 | 設定が複雑 |
+| better-sqlite3 | Native (C) | Synchronous | Requires electron-rebuild |
+| sql.js | WASM | Synchronous | Works out of the box |
+| drizzle-orm + better-sqlite3 | ORM | Synchronous | Type-safe |
+| prisma | ORM | Asynchronous | Complex configuration |
 
-### コード例 4: better-sqlite3 + drizzle-orm
+### Code Example 4: better-sqlite3 + drizzle-orm
 
 ```typescript
-// src/main/database/schema.ts — drizzle-orm でスキーマ定義
+// src/main/database/schema.ts — Schema definition with drizzle-orm
 import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
 
-// タスクテーブルの定義
+// Task table definition
 export const tasks = sqliteTable('tasks', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   title: text('title').notNull(),
@@ -422,13 +422,13 @@ export const tasks = sqliteTable('tasks', {
     .$defaultFn(() => new Date()),
 })
 
-// タスクの TypeScript 型を自動導出
+// Automatically derive TypeScript types for tasks
 export type Task = typeof tasks.$inferSelect
 export type NewTask = typeof tasks.$inferInsert
 ```
 
 ```typescript
-// src/main/database/index.ts — データベース接続と初期化
+// src/main/database/index.ts — Database connection and initialization
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
@@ -436,22 +436,22 @@ import { app } from 'electron'
 import { join } from 'path'
 import * as schema from './schema'
 
-// データベースファイルのパス（ユーザーデータディレクトリに保存）
+// Database file path (saved in the user data directory)
 const DB_PATH = join(app.getPath('userData'), 'app-data.db')
 
-// SQLite 接続を作成
+// Create SQLite connection
 const sqlite = new Database(DB_PATH)
 
-// WAL モードを有効化（読み書きの並行性能向上）
+// Enable WAL mode (improves concurrent read/write performance)
 sqlite.pragma('journal_mode = WAL')
 
-// 外部キー制約を有効化
+// Enable foreign key constraints
 sqlite.pragma('foreign_keys = ON')
 
-// drizzle ORM インスタンスを作成
+// Create drizzle ORM instance
 export const db = drizzle(sqlite, { schema })
 
-// マイグレーションの実行
+// Run migrations
 export function runMigrations(): void {
   migrate(db, {
     migrationsFolder: join(__dirname, '../../drizzle'),
@@ -460,35 +460,35 @@ export function runMigrations(): void {
 ```
 
 ```typescript
-// src/main/database/task-repository.ts — リポジトリパターンの実装
+// src/main/database/task-repository.ts — Repository pattern implementation
 import { eq, desc, and, like } from 'drizzle-orm'
 import { db } from './index'
 import { tasks, Task, NewTask } from './schema'
 
 export class TaskRepository {
-  // 全タスクを取得（新しい順）
+  // Get all tasks (newest first)
   findAll(): Task[] {
     return db.select().from(tasks).orderBy(desc(tasks.createdAt)).all()
   }
 
-  // ID でタスクを取得
+  // Get task by ID
   findById(id: number): Task | undefined {
     return db.select().from(tasks).where(eq(tasks.id, id)).get()
   }
 
-  // タスクを検索
+  // Search tasks
   search(query: string): Task[] {
     return db.select().from(tasks)
       .where(like(tasks.title, `%${query}%`))
       .all()
   }
 
-  // タスクを作成
+  // Create a task
   create(task: NewTask): Task {
     return db.insert(tasks).values(task).returning().get()
   }
 
-  // タスクを更新
+  // Update a task
   update(id: number, data: Partial<NewTask>): Task | undefined {
     return db.update(tasks)
       .set({ ...data, updatedAt: new Date() })
@@ -497,12 +497,12 @@ export class TaskRepository {
       .get()
   }
 
-  // タスクを削除
+  // Delete a task
   delete(id: number): void {
     db.delete(tasks).where(eq(tasks.id, id)).run()
   }
 
-  // 完了済みタスクの一括削除
+  // Bulk delete completed tasks
   deleteCompleted(): number {
     const result = db.delete(tasks)
       .where(eq(tasks.completed, true))
@@ -514,27 +514,27 @@ export class TaskRepository {
 
 ---
 
-## 5. パフォーマンス最適化
+## 5. Performance Optimization
 
-### 5.1 起動時間の最適化
+### 5.1 Startup Time Optimization
 
 ```
-典型的な Electron アプリの起動フロー:
+Typical Electron app startup flow:
 
-  時間軸 (ms)
+  Time axis (ms)
   0     200    400    600    800   1000   1200   1400
   |------|------|------|------|------|------|------|
-  [== Electron 初期化 ==]
-         [=== Main プロセス起動 ===]
-                [== Preload 実行 ==]
-                      [======= Renderer 読み込み =======]
-                                    [=== React 初期化 ===]
+  [== Electron initialization ==]
+         [=== Main process startup ===]
+                [== Preload execution ==]
+                      [======= Renderer loading =======]
+                                    [=== React init ===]
                                                   [Ready!]
 
-  最適化後:
+  After optimization:
   0     200    400    600    800
   |------|------|------|------|
-  [= 初期化 =]
+  [= Init =]
         [= Main =]
              [Preload]
                [=== Renderer ===]
@@ -542,24 +542,24 @@ export class TaskRepository {
                             [Ready!]
 ```
 
-### コード例 5: 起動時間最適化テクニック集
+### Code Example 5: Collection of Startup Time Optimization Techniques
 
 ```typescript
-// src/main/index.ts — 起動時間の最適化
+// src/main/index.ts — Startup time optimization
 
-// 最適化1: 必要なモジュールを遅延インポート
+// Optimization 1: Lazy import of required modules
 // NG: import { autoUpdater } from 'electron-updater'
-// OK: 必要になった時点でインポート
+// OK: Import when actually needed
 async function checkForUpdates(): Promise<void> {
   const { autoUpdater } = await import('electron-updater')
   autoUpdater.checkForUpdates()
 }
 
-// 最適化2: ウィンドウの事前ウォームアップ
+// Optimization 2: Pre-warm the window
 let splashWindow: BrowserWindow | null = null
 
 function createSplashScreen(): void {
-  // 軽量なスプラッシュスクリーンを即座に表示
+  // Immediately display a lightweight splash screen
   splashWindow = new BrowserWindow({
     width: 400,
     height: 300,
@@ -574,7 +574,7 @@ function createSplashScreen(): void {
 
 async function createMainWindow(): Promise<void> {
   const mainWindow = new BrowserWindow({
-    show: false, // メインウィンドウは裏で準備
+    show: false, // Prepare the main window in the background
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -582,62 +582,62 @@ async function createMainWindow(): Promise<void> {
     },
   })
 
-  // 最適化3: V8 コードキャッシュの有効化
+  // Optimization 3: Enable V8 code cache
   mainWindow.webContents.session.setCodeCachePath(
     join(app.getPath('userData'), 'code-cache')
   )
 
-  // Renderer の読み込みを開始
+  // Start loading the Renderer
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     await mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     await mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
-  // メインウィンドウの準備完了後にスプラッシュを閉じる
+  // Close splash after the main window is ready
   mainWindow.show()
   splashWindow?.close()
   splashWindow = null
 }
 
-// 最適化4: アプリの初期化を並列実行
+// Optimization 4: Run app initialization in parallel
 app.whenReady().then(async () => {
-  // スプラッシュスクリーンを即座に表示
+  // Display splash screen immediately
   createSplashScreen()
 
-  // 並列で初期化を実行
+  // Run initialization in parallel
   await Promise.all([
     createMainWindow(),
-    runMigrations(),        // DB マイグレーション
-    loadUserPreferences(),  // ユーザー設定読み込み
+    runMigrations(),        // DB migrations
+    loadUserPreferences(),  // Load user settings
   ])
 })
 ```
 
-### 5.2 メモリ最適化
+### 5.2 Memory Optimization
 
 ```typescript
-// メモリ使用量の監視と最適化
+// Monitor and optimize memory usage
 
-// バックグラウンドウィンドウのスロットリング
+// Throttle background windows
 mainWindow.on('blur', () => {
-  // ウィンドウが非アクティブ時にフレームレートを下げる
+  // Lower the frame rate when the window is inactive
   mainWindow.webContents.setFrameRate(5)
 })
 
 mainWindow.on('focus', () => {
-  // アクティブ時は通常のフレームレートに戻す
+  // Restore normal frame rate when active
   mainWindow.webContents.setFrameRate(60)
 })
 
-// 定期的なガベージコレクション（大量データ処理後）
+// Periodic garbage collection (after processing large amounts of data)
 function triggerGC(): void {
   if (global.gc) {
     global.gc()
   }
 }
 
-// メモリ使用量のログ出力
+// Log memory usage
 function logMemoryUsage(): void {
   const usage = process.memoryUsage()
   console.log({
@@ -650,12 +650,12 @@ function logMemoryUsage(): void {
 
 ---
 
-## 6. 自動アップデート
+## 6. Auto Updater
 
-### 6.1 electron-updater による自動更新
+### 6.1 Automatic Updates with electron-updater
 
 ```typescript
-// src/main/updater.ts — 自動アップデート管理
+// src/main/updater.ts — Auto update management
 import { autoUpdater, UpdateCheckResult, UpdateInfo } from 'electron-updater'
 import { BrowserWindow, dialog, app } from 'electron'
 import { logger } from './logger'
@@ -682,19 +682,19 @@ class AppUpdater {
   private mainWindow: BrowserWindow | null = null
 
   constructor() {
-    // ログの設定
+    // Configure logging
     autoUpdater.logger = logger
 
-    // 開発環境でもテスト可能にする
+    // Enable testing in development environment
     autoUpdater.forceDevUpdateConfig = false
 
-    // 自動ダウンロードを無効化（ユーザーの確認後にダウンロード）
+    // Disable auto-download (download after user confirmation)
     autoUpdater.autoDownload = false
 
-    // プレリリースも含めるか
+    // Whether to include pre-releases
     autoUpdater.allowPrerelease = false
 
-    // イベントハンドラの登録
+    // Register event handlers
     this.setupEventHandlers()
   }
 
@@ -702,7 +702,7 @@ class AppUpdater {
     autoUpdater.on('checking-for-update', () => {
       this.state.checking = true
       this.notifyRenderer('update:checking')
-      logger.info('アップデートを確認中...')
+      logger.info('Checking for updates...')
     })
 
     autoUpdater.on('update-available', (info: UpdateInfo) => {
@@ -710,9 +710,9 @@ class AppUpdater {
       this.state.available = true
       this.state.version = info.version
       this.notifyRenderer('update:available', info)
-      logger.info(`アップデート利用可能: v${info.version}`)
+      logger.info(`Update available: v${info.version}`)
 
-      // ユーザーに確認ダイアログを表示
+      // Show confirmation dialog to user
       this.promptUpdate(info)
     })
 
@@ -720,7 +720,7 @@ class AppUpdater {
       this.state.checking = false
       this.state.available = false
       this.notifyRenderer('update:not-available', info)
-      logger.info('最新バージョンです')
+      logger.info('Already on the latest version')
     })
 
     autoUpdater.on('download-progress', (progress) => {
@@ -732,7 +732,7 @@ class AppUpdater {
         transferred: progress.transferred,
       })
 
-      // タスクバーのプログレス表示（Windows）
+      // Show taskbar progress (Windows)
       this.mainWindow?.setProgressBar(progress.percent / 100)
     })
 
@@ -740,11 +740,11 @@ class AppUpdater {
       this.state.downloaded = true
       this.state.progress = 100
       this.notifyRenderer('update:downloaded', info)
-      this.mainWindow?.setProgressBar(-1) // プログレスバーをリセット
+      this.mainWindow?.setProgressBar(-1) // Reset progress bar
 
-      logger.info(`アップデートダウンロード完了: v${info.version}`)
+      logger.info(`Update download complete: v${info.version}`)
 
-      // 再起動の確認
+      // Confirm restart
       this.promptRestart(info)
     })
 
@@ -753,7 +753,7 @@ class AppUpdater {
       this.state.error = error
       this.notifyRenderer('update:error', error.message)
       this.mainWindow?.setProgressBar(-1)
-      logger.error('アップデートエラー', error)
+      logger.error('Update error', error)
     })
   }
 
@@ -762,10 +762,10 @@ class AppUpdater {
 
     const result = await dialog.showMessageBox(this.mainWindow, {
       type: 'info',
-      title: 'アップデート利用可能',
-      message: `新しいバージョン v${info.version} が利用可能です。`,
-      detail: `現在のバージョン: v${app.getVersion()}\n\nダウンロードしますか？`,
-      buttons: ['ダウンロード', '後で'],
+      title: 'Update Available',
+      message: `A new version v${info.version} is available.`,
+      detail: `Current version: v${app.getVersion()}\n\nWould you like to download it?`,
+      buttons: ['Download', 'Later'],
       defaultId: 0,
       cancelId: 1,
     })
@@ -780,10 +780,10 @@ class AppUpdater {
 
     const result = await dialog.showMessageBox(this.mainWindow, {
       type: 'info',
-      title: 'アップデート準備完了',
-      message: `v${info.version} のインストール準備が完了しました。`,
-      detail: '今すぐ再起動してアップデートを適用しますか？',
-      buttons: ['今すぐ再起動', '後で再起動'],
+      title: 'Update Ready',
+      message: `v${info.version} is ready to install.`,
+      detail: 'Would you like to restart now to apply the update?',
+      buttons: ['Restart Now', 'Restart Later'],
       defaultId: 0,
       cancelId: 1,
     })
@@ -815,13 +815,13 @@ class AppUpdater {
 export const appUpdater = new AppUpdater()
 ```
 
-### 6.2 更新配信サーバーの設定
+### 6.2 Update Distribution Server Configuration
 
 ```typescript
-// electron-builder.yml での更新サーバー設定例
+// Example update server configuration in electron-builder.yml
 
-// パターン 1: GitHub Releases を利用（最も簡単）
-// package.json の build セクション
+// Pattern 1: Using GitHub Releases (simplest)
+// build section in package.json
 const githubConfig = {
   publish: {
     provider: 'github',
@@ -831,7 +831,7 @@ const githubConfig = {
   },
 }
 
-// パターン 2: S3 互換ストレージ
+// Pattern 2: S3-compatible storage
 const s3Config = {
   publish: {
     provider: 's3',
@@ -841,7 +841,7 @@ const s3Config = {
   },
 }
 
-// パターン 3: 汎用サーバー（社内配布向け）
+// Pattern 3: Generic server (for internal distribution)
 const genericConfig = {
   publish: {
     provider: 'generic',
@@ -853,12 +853,12 @@ const genericConfig = {
 
 ---
 
-## 7. システムトレイとバックグラウンド動作
+## 7. System Tray and Background Operation
 
-### 7.1 トレイアイコンの実装
+### 7.1 Implementing a Tray Icon
 
 ```typescript
-// src/main/tray.ts — システムトレイの管理
+// src/main/tray.ts — System tray management
 import { Tray, Menu, nativeImage, app, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { windowManager } from './window-manager'
@@ -868,7 +868,7 @@ class TrayManager {
   private isQuitting = false
 
   create(mainWindow: BrowserWindow): void {
-    // プラットフォーム別のアイコン
+    // Platform-specific icons
     const iconPath = process.platform === 'win32'
       ? join(__dirname, '../../resources/tray-icon.ico')    // Windows: ICO
       : process.platform === 'darwin'
@@ -877,20 +877,20 @@ class TrayManager {
 
     const icon = nativeImage.createFromPath(iconPath)
 
-    // macOS のテンプレートイメージ設定
+    // macOS template image configuration
     if (process.platform === 'darwin') {
       icon.setTemplateImage(true)
     }
 
     this.tray = new Tray(icon)
 
-    // ツールチップ
+    // Tooltip
     this.tray.setToolTip(`${app.getName()} v${app.getVersion()}`)
 
-    // コンテキストメニューの構築
+    // Build context menu
     this.updateContextMenu(mainWindow)
 
-    // ダブルクリックでウィンドウを表示（Windows/Linux）
+    // Show window on double-click (Windows/Linux)
     this.tray.on('double-click', () => {
       if (mainWindow.isVisible()) {
         mainWindow.focus()
@@ -899,24 +899,24 @@ class TrayManager {
       }
     })
 
-    // ウィンドウの閉じるボタンでトレイに格納（終了ではなく最小化）
+    // Minimize to tray on close button (minimize, not quit)
     mainWindow.on('close', (event) => {
       if (!this.isQuitting) {
         event.preventDefault()
         mainWindow.hide()
 
-        // Windows ではバルーン通知を表示
+        // Show balloon notification on Windows
         if (process.platform === 'win32' && this.tray) {
           this.tray.displayBalloon({
             title: app.getName(),
-            content: 'アプリはシステムトレイで実行中です',
+            content: 'App is running in the system tray',
             iconType: 'info',
           })
         }
       }
     })
 
-    // app.quit() が呼ばれたら本当に終了
+    // Actually quit when app.quit() is called
     app.on('before-quit', () => {
       this.isQuitting = true
     })
@@ -925,7 +925,7 @@ class TrayManager {
   private updateContextMenu(mainWindow: BrowserWindow): void {
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: 'ウィンドウを表示',
+        label: 'Show Window',
         click: () => {
           mainWindow.show()
           mainWindow.focus()
@@ -933,16 +933,16 @@ class TrayManager {
       },
       { type: 'separator' },
       {
-        label: 'ステータス',
+        label: 'Status',
         submenu: [
-          { label: 'オンライン', type: 'radio', checked: true },
-          { label: '取り込み中', type: 'radio' },
-          { label: 'オフライン', type: 'radio' },
+          { label: 'Online', type: 'radio', checked: true },
+          { label: 'Busy', type: 'radio' },
+          { label: 'Offline', type: 'radio' },
         ],
       },
       { type: 'separator' },
       {
-        label: '設定',
+        label: 'Settings',
         click: () => {
           windowManager.createWindow('settings', {
             route: '/settings',
@@ -955,7 +955,7 @@ class TrayManager {
       },
       { type: 'separator' },
       {
-        label: '終了',
+        label: 'Quit',
         click: () => {
           this.isQuitting = true
           app.quit()
@@ -966,18 +966,18 @@ class TrayManager {
     this.tray?.setContextMenu(contextMenu)
   }
 
-  // バッジ数の更新（通知数など）
+  // Update badge count (e.g., notification count)
   updateBadge(count: number): void {
     if (process.platform === 'darwin') {
       app.dock.setBadge(count > 0 ? String(count) : '')
     }
 
-    // Windows: タスクバーのオーバーレイアイコン
+    // Windows: taskbar overlay icon
     if (process.platform === 'win32') {
       const mainWindow = windowManager.getWindow('main')
       if (mainWindow && count > 0) {
         const badge = this.createBadgeImage(count)
-        mainWindow.setOverlayIcon(badge, `${count} 件の通知`)
+        mainWindow.setOverlayIcon(badge, `${count} notifications`)
       } else if (mainWindow) {
         mainWindow.setOverlayIcon(null, '')
       }
@@ -985,7 +985,7 @@ class TrayManager {
   }
 
   private createBadgeImage(count: number): Electron.NativeImage {
-    // Canvas でバッジ画像を生成（16x16 px）
+    // Generate badge image using Canvas (16x16 px)
     const size = 16
     const canvas = new OffscreenCanvas(size, size)
     const ctx = canvas.getContext('2d')!
@@ -1014,20 +1014,20 @@ export const trayManager = new TrayManager()
 
 ---
 
-## 8. ファイル関連付けとプロトコルハンドラ
+## 8. File Associations and Protocol Handlers
 
-### 8.1 カスタムファイル拡張子の関連付け
+### 8.1 Custom File Extension Associations
 
 ```typescript
-// electron-builder の設定でファイル関連付けを定義
-// package.json の build セクション
+// Define file associations in electron-builder configuration
+// build section in package.json
 const fileAssociations = {
   build: {
     fileAssociations: [
       {
-        ext: 'myapp',             // 拡張子
-        name: 'My App Document',  // ファイルタイプの表示名
-        description: 'My App のドキュメントファイル',
+        ext: 'myapp',             // Extension
+        name: 'My App Document',  // Display name for the file type
+        description: 'My App document file',
         mimeType: 'application/x-myapp',
         icon: 'resources/file-icon', // .ico / .icns
         role: 'Editor',           // macOS: Editor | Viewer | Shell | None
@@ -1043,28 +1043,28 @@ const fileAssociations = {
 ```
 
 ```typescript
-// src/main/file-handler.ts — ファイルを開く処理
+// src/main/file-handler.ts — File open handling
 import { app, ipcMain } from 'electron'
 import { windowManager } from './window-manager'
 import fs from 'fs'
 
-// macOS: ファイルをドロップまたはダブルクリックで開いた時
+// macOS: When a file is dropped or double-clicked to open
 app.on('open-file', (event, filePath) => {
   event.preventDefault()
 
   if (app.isReady()) {
     handleFileOpen(filePath)
   } else {
-    // アプリ起動前にファイルが渡された場合はキューに入れる
+    // Queue the file if it was passed before the app started
     pendingFiles.push(filePath)
   }
 })
 
-// Windows/Linux: コマンドライン引数からファイルパスを取得
+// Windows/Linux: Get file path from command-line arguments
 const pendingFiles: string[] = []
 
 function processCommandLineArgs(argv: string[]): void {
-  // 最初の引数はアプリのパスなのでスキップ
+  // Skip the first argument (app path)
   const filePaths = argv.slice(1).filter(arg => {
     return !arg.startsWith('--') && fs.existsSync(arg)
   })
@@ -1074,14 +1074,14 @@ function processCommandLineArgs(argv: string[]): void {
   }
 }
 
-// 二重起動防止 + ファイルを既存インスタンスに渡す
+// Prevent duplicate instances + pass file to existing instance
 const gotTheLock = app.requestSingleInstanceLock()
 
 if (!gotTheLock) {
   app.quit()
 } else {
   app.on('second-instance', (_event, argv) => {
-    // 既存のインスタンスにフォーカスしてファイルを開く
+    // Focus the existing instance and open the file
     const mainWindow = windowManager.getWindow('main')
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore()
@@ -1104,35 +1104,35 @@ async function handleFileOpen(filePath: string): Promise<void> {
       })
     }
   } catch (error) {
-    logger.error(`ファイルを開けません: ${filePath}`, error as Error)
+    logger.error(`Cannot open file: ${filePath}`, error as Error)
   }
 }
 ```
 
-### 8.2 カスタムプロトコルハンドラ
+### 8.2 Custom Protocol Handler
 
 ```typescript
-// src/main/protocol.ts — カスタムプロトコル (myapp://) の登録
+// src/main/protocol.ts — Register custom protocol (myapp://)
 import { app, protocol, net } from 'electron'
 import { join } from 'path'
 import { URL } from 'url'
 
-// カスタムプロトコルを登録（app.whenReady() の前に呼ぶ必要あり）
+// Register custom protocol (must be called before app.whenReady())
 if (process.defaultApp) {
-  // 開発環境: コマンドライン引数でプロトコルを登録
+  // Development: register protocol with command-line argument
   if (process.argv.length >= 2) {
     app.setAsDefaultProtocolClient('myapp', process.execPath, [
       join(__dirname, '..'),
     ])
   }
 } else {
-  // 本番環境: そのまま登録
+  // Production: register directly
   app.setAsDefaultProtocolClient('myapp')
 }
 
-// プロトコルリクエストのハンドリング
+// Handle protocol requests
 app.whenReady().then(() => {
-  // myapp:// スキームの処理
+  // Handle myapp:// scheme
   protocol.handle('myapp', (request) => {
     const url = new URL(request.url)
 
@@ -1154,13 +1154,13 @@ app.whenReady().then(() => {
   })
 })
 
-// macOS: プロトコル URL でアプリが起動された時
+// macOS: When the app is launched with a protocol URL
 app.on('open-url', (event, url) => {
   event.preventDefault()
   handleProtocolUrl(url)
 })
 
-// Windows/Linux: 二重起動時にプロトコル URL を受け取る
+// Windows/Linux: Receive protocol URL on second instance
 app.on('second-instance', (_event, argv) => {
   const url = argv.find(arg => arg.startsWith('myapp://'))
   if (url) handleProtocolUrl(url)
@@ -1169,22 +1169,22 @@ app.on('second-instance', (_event, argv) => {
 function handleProtocolUrl(url: string): void {
   try {
     const parsed = new URL(url)
-    logger.info(`プロトコル URL を処理: ${parsed.hostname}${parsed.pathname}`)
-    // URL に応じた処理を実行
+    logger.info(`Processing protocol URL: ${parsed.hostname}${parsed.pathname}`)
+    // Execute processing based on the URL
   } catch (error) {
-    logger.error('無効なプロトコル URL', error as Error)
+    logger.error('Invalid protocol URL', error as Error)
   }
 }
 ```
 
 ---
 
-## 9. ドラッグ＆ドロップとクリップボード
+## 9. Drag & Drop and Clipboard
 
-### 9.1 ドラッグ＆ドロップの実装
+### 9.1 Implementing Drag & Drop
 
 ```tsx
-// src/renderer/src/components/DropZone.tsx — ファイルドロップ領域
+// src/renderer/src/components/DropZone.tsx — File drop area
 import { useState, useCallback, DragEvent } from 'react'
 
 interface DroppedFile {
@@ -1220,7 +1220,7 @@ export function DropZone(): JSX.Element {
     for (const file of Array.from(e.dataTransfer.files)) {
       droppedFiles.push({
         name: file.name,
-        path: (file as File & { path: string }).path, // Electron 拡張
+        path: (file as File & { path: string }).path, // Electron extension
         size: file.size,
         type: file.type || 'application/octet-stream',
       })
@@ -1228,7 +1228,7 @@ export function DropZone(): JSX.Element {
 
     setFiles(prev => [...prev, ...droppedFiles])
 
-    // Main プロセスにファイルパスを送信して処理
+    // Send file paths to Main process for processing
     for (const file of droppedFiles) {
       await window.electronAPI.processDroppedFile(file.path)
     }
@@ -1242,9 +1242,9 @@ export function DropZone(): JSX.Element {
       onDrop={handleDrop}
     >
       {isDragging ? (
-        <p>ここにファイルをドロップ</p>
+        <p>Drop files here</p>
       ) : (
-        <p>ファイルをドラッグ＆ドロップ</p>
+        <p>Drag & drop files here</p>
       )}
       {files.length > 0 && (
         <ul className="file-list">
@@ -1262,7 +1262,7 @@ export function DropZone(): JSX.Element {
 ```
 
 ```css
-/* ドロップゾーンのスタイル */
+/* Drop zone styles */
 .drop-zone {
   border: 2px dashed var(--border-color, #ccc);
   border-radius: 8px;
@@ -1278,12 +1278,12 @@ export function DropZone(): JSX.Element {
 }
 ```
 
-### 9.2 アプリからのドラッグアウト（ファイルのエクスポート）
+### 9.2 Drag-Out from App (File Export)
 
 ```typescript
-// Main プロセス: ドラッグアウトのハンドリング
+// Main process: Handle drag-out
 ipcMain.on('drag-out', (event, filePath: string) => {
-  // ファイルをアプリからデスクトップやエクスプローラーにドラッグ
+  // Drag a file from the app to the desktop or file explorer
   event.sender.startDrag({
     file: filePath,
     icon: nativeImage.createFromPath(
@@ -1294,11 +1294,11 @@ ipcMain.on('drag-out', (event, filePath: string) => {
 ```
 
 ```tsx
-// Renderer 側: ドラッグ開始のハンドリング
+// Renderer side: Handle drag start
 function FileItem({ file }: { file: { name: string; path: string } }) {
   const handleDragStart = (e: React.DragEvent) => {
     e.preventDefault()
-    // Main プロセスにドラッグ開始を通知
+    // Notify Main process of drag start
     window.electronAPI.startDrag(file.path)
   }
 
@@ -1310,13 +1310,13 @@ function FileItem({ file }: { file: { name: string; path: string } }) {
 }
 ```
 
-### 9.3 クリップボード操作
+### 9.3 Clipboard Operations
 
 ```typescript
-// src/main/clipboard-handler.ts — クリップボードの高度な操作
+// src/main/clipboard-handler.ts — Advanced clipboard operations
 import { clipboard, nativeImage, ipcMain } from 'electron'
 
-// テキストの読み書き
+// Read/write text
 ipcMain.handle('clipboard:readText', () => {
   return clipboard.readText()
 })
@@ -1325,17 +1325,17 @@ ipcMain.handle('clipboard:writeText', (_event, text: string) => {
   clipboard.writeText(text)
 })
 
-// リッチテキスト（HTML）の読み書き
+// Read/write rich text (HTML)
 ipcMain.handle('clipboard:readHTML', () => {
   return clipboard.readHTML()
 })
 
 ipcMain.handle('clipboard:writeHTML', (_event, html: string) => {
-  clipboard.writeText(html.replace(/<[^>]*>/g, '')) // プレーンテキストも同時に設定
+  clipboard.writeText(html.replace(/<[^>]*>/g, '')) // Also set plain text simultaneously
   clipboard.writeHTML(html)
 })
 
-// 画像の読み書き
+// Read/write images
 ipcMain.handle('clipboard:readImage', () => {
   const image = clipboard.readImage()
   if (image.isEmpty()) return null
@@ -1347,7 +1347,7 @@ ipcMain.handle('clipboard:writeImage', (_event, dataUrl: string) => {
   clipboard.writeImage(image)
 })
 
-// クリップボードの変更監視
+// Monitor clipboard changes
 let previousContent = ''
 const CLIPBOARD_POLL_INTERVAL = 1000
 
@@ -1364,12 +1364,12 @@ function startClipboardWatcher(callback: (content: string) => void): NodeJS.Time
 
 ---
 
-## 10. 通知とシステム連携
+## 10. Notifications and System Integration
 
-### 10.1 ネイティブ通知
+### 10.1 Native Notifications
 
 ```typescript
-// src/main/notifications.ts — 通知管理
+// src/main/notifications.ts — Notification management
 import { Notification, app, shell } from 'electron'
 
 interface AppNotification {
@@ -1388,9 +1388,9 @@ class NotificationManager {
   async show(options: AppNotification): Promise<void> {
     if (!this.enabled) return
 
-    // 通知がサポートされているか確認
+    // Check if notifications are supported
     if (!Notification.isSupported()) {
-      logger.warn('通知がサポートされていません')
+      logger.warn('Notifications are not supported')
       return
     }
 
@@ -1407,23 +1407,23 @@ class NotificationManager {
       notification.on('click', options.onClick)
     }
 
-    // アクションボタンのクリックハンドリング
+    // Handle action button clicks
     notification.on('action', (_event, index) => {
-      logger.info(`通知アクション: インデックス ${index}`)
+      logger.info(`Notification action: index ${index}`)
     })
 
     notification.show()
   }
 
-  // 通知の有効/無効を切り替え
+  // Toggle notifications on/off
   setEnabled(enabled: boolean): void {
     this.enabled = enabled
   }
 
-  // Windows: Focus Assist の状態を確認
+  // Windows: Check Focus Assist status
   isDoNotDisturbEnabled(): boolean {
-    // Windows 10+ の Focus Assist / Do Not Disturb の確認は
-    // ネイティブモジュールが必要（electron-windows-notifications 等）
+    // Checking Windows 10+ Focus Assist / Do Not Disturb status
+    // requires a native module (e.g., electron-windows-notifications)
     return false
   }
 }
@@ -1431,72 +1431,72 @@ class NotificationManager {
 export const notificationManager = new NotificationManager()
 ```
 
-### 10.2 電源状態の監視
+### 10.2 Power State Monitoring
 
 ```typescript
-// src/main/power-monitor.ts — 電源管理
+// src/main/power-monitor.ts — Power management
 import { powerMonitor, powerSaveBlocker, app } from 'electron'
 
 class PowerManager {
   private saveBlockerId: number | null = null
 
   setup(): void {
-    // スリープ/復帰の検知
+    // Detect sleep/resume
     powerMonitor.on('suspend', () => {
-      logger.info('システムがスリープします')
-      // 保存されていないデータの自動保存
+      logger.info('System is going to sleep')
+      // Auto-save unsaved data
       this.autoSave()
     })
 
     powerMonitor.on('resume', () => {
-      logger.info('システムがスリープから復帰しました')
-      // ネットワーク接続の再確立
+      logger.info('System resumed from sleep')
+      // Re-establish network connection
       this.reconnect()
     })
 
-    // ロック/アンロックの検知
+    // Detect lock/unlock
     powerMonitor.on('lock-screen', () => {
-      logger.info('画面がロックされました')
+      logger.info('Screen is locked')
     })
 
     powerMonitor.on('unlock-screen', () => {
-      logger.info('画面がアンロックされました')
+      logger.info('Screen is unlocked')
     })
 
-    // AC/バッテリーの切り替え
+    // AC/battery switching
     powerMonitor.on('on-ac', () => {
-      logger.info('AC 電源に接続されました')
+      logger.info('Connected to AC power')
     })
 
     powerMonitor.on('on-battery', () => {
-      logger.info('バッテリー駆動に切り替わりました')
-      // バッテリー駆動時はバックグラウンド処理を制限
+      logger.info('Switched to battery power')
+      // Limit background processing on battery
     })
 
-    // シャットダウン検知
+    // Shutdown detection
     powerMonitor.on('shutdown', () => {
-      logger.info('システムがシャットダウンします')
+      logger.info('System is shutting down')
       this.emergencySave()
     })
   }
 
-  // スリープ防止（長時間処理の実行中に使用）
+  // Prevent sleep (used during long-running operations)
   preventSleep(reason: string): void {
     if (this.saveBlockerId !== null) return
 
     this.saveBlockerId = powerSaveBlocker.start('prevent-display-sleep')
-    logger.info(`スリープ防止を開始: ${reason}`)
+    logger.info(`Sleep prevention started: ${reason}`)
   }
 
   allowSleep(): void {
     if (this.saveBlockerId !== null) {
       powerSaveBlocker.stop(this.saveBlockerId)
       this.saveBlockerId = null
-      logger.info('スリープ防止を解除')
+      logger.info('Sleep prevention released')
     }
   }
 
-  // バッテリー残量の取得（Electron 30+ で利用可能）
+  // Get battery info (available in Electron 30+)
   getBatteryInfo(): { level: number; charging: boolean } {
     return {
       level: powerMonitor.isOnBatteryPower() ? -1 : 100,
@@ -1505,15 +1505,15 @@ class PowerManager {
   }
 
   private autoSave(): void {
-    // 保存処理の実装
+    // Implement save logic
   }
 
   private reconnect(): void {
-    // 再接続処理の実装
+    // Implement reconnection logic
   }
 
   private emergencySave(): void {
-    // 緊急保存処理の実装
+    // Implement emergency save logic
   }
 }
 
@@ -1522,17 +1522,17 @@ export const powerManager = new PowerManager()
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### アンチパターン 1: 重い処理を Main プロセスで同期実行する
+### Anti-Pattern 1: Running Heavy Processing Synchronously in the Main Process
 
 ```typescript
-// NG: Main プロセスで同期的に大量のファイルを処理
-// → UI がフリーズし、ウィンドウが応答なしになる
+// NG: Synchronously processing a large number of files in the Main process
+// → The UI freezes and the window becomes unresponsive
 ipcMain.handle('process-files', (_event, paths: string[]) => {
   const results = []
   for (const path of paths) {
-    // 同期的に大量のファイルを読み込み・処理
+    // Synchronously read and process large numbers of files
     const data = fs.readFileSync(path)
     const processed = heavyComputation(data)
     results.push(processed)
@@ -1542,11 +1542,11 @@ ipcMain.handle('process-files', (_event, paths: string[]) => {
 ```
 
 ```typescript
-// OK: Worker スレッドまたは UtilityProcess に委譲
+// OK: Delegate to a Worker thread or UtilityProcess
 import { utilityProcess } from 'electron'
 
 ipcMain.handle('process-files', async (_event, paths: string[]) => {
-  // UtilityProcess で重い処理を別プロセスで実行
+  // Run heavy processing in a separate process with UtilityProcess
   const worker = utilityProcess.fork(
     join(__dirname, 'workers/file-processor.js')
   )
@@ -1561,19 +1561,19 @@ ipcMain.handle('process-files', async (_event, paths: string[]) => {
 })
 ```
 
-### アンチパターン 2: BrowserWindow を無制限に作成する
+### Anti-Pattern 2: Creating BrowserWindows Without Limit
 
 ```typescript
-// NG: ユーザー操作のたびに新しいウィンドウを作成
+// NG: Creating a new window on every user action
 ipcMain.handle('open-detail', (_event, itemId: string) => {
-  // 100個のアイテムを開くと100個のウィンドウ → メモリ枯渇
+  // Opening 100 items creates 100 windows → memory exhaustion
   const win = new BrowserWindow({ width: 600, height: 400 })
   win.loadURL(`app://detail/${itemId}`)
 })
 ```
 
 ```typescript
-// OK: ウィンドウプールで上限管理
+// OK: Manage upper limit with a window pool
 const MAX_WINDOWS = 10
 
 ipcMain.handle('open-detail', (_event, itemId: string) => {
@@ -1583,11 +1583,11 @@ ipcMain.handle('open-detail', (_event, itemId: string) => {
     return
   }
 
-  // ウィンドウ数の上限チェック
+  // Check window count limit
   if (windowManager.count() >= MAX_WINDOWS) {
     dialog.showMessageBox({
       type: 'warning',
-      message: `ウィンドウは最大 ${MAX_WINDOWS} 個まで開けます`,
+      message: `You can open up to ${MAX_WINDOWS} windows`,
     })
     return
   }
@@ -1600,26 +1600,26 @@ ipcMain.handle('open-detail', (_event, itemId: string) => {
 })
 ```
 
-### アンチパターン 3: Renderer プロセスから直接ファイルシステムにアクセスする
+### Anti-Pattern 3: Accessing the File System Directly from the Renderer Process
 
 ```typescript
-// NG: Renderer で fs を直接使う（nodeIntegration: true の状態）
-// セキュリティリスクが非常に高い
+// NG: Using fs directly in the Renderer (with nodeIntegration: true)
+// Very high security risk
 import fs from 'fs'
-const data = fs.readFileSync('/etc/passwd', 'utf-8') // 何でも読める
+const data = fs.readFileSync('/etc/passwd', 'utf-8') // Can read anything
 ```
 
 ```typescript
-// OK: IPC 経由で Main プロセスに委譲し、パスの検証を行う
-// Renderer 側
+// OK: Delegate to the Main process via IPC with path validation
+// Renderer side
 const data = await window.electronAPI.readFile('data/config.json')
 
-// Main 側（パスの検証付き）
+// Main side (with path validation)
 ipcMain.handle('fs:readFile', (_event, relativePath: string) => {
   const safePath = join(app.getPath('userData'), relativePath)
-  // パストラバーサル攻撃の防止
+  // Prevent path traversal attacks
   if (!safePath.startsWith(app.getPath('userData'))) {
-    throw new Error('不正なパスです')
+    throw new Error('Invalid path')
   }
   return fs.readFileSync(safePath, 'utf-8')
 })
@@ -1629,77 +1629,77 @@ ipcMain.handle('fs:readFile', (_event, relativePath: string) => {
 
 ## 12. FAQ
 
-### Q1: Electron のバージョンを上げると better-sqlite3 が動かなくなる。どうすべきか？
+### Q1: When I upgrade the Electron version, better-sqlite3 stops working. What should I do?
 
-**A:** ネイティブモジュールは Electron の Node.js バージョンに合わせてリビルドが必要である。`electron-rebuild` パッケージを使うと自動でリビルドされる。`package.json` の `scripts` に `"postinstall": "electron-rebuild"` を追加するのが定番である。あるいは `sql.js`（WASM ベース）に切り替えればリビルド不要になる。
+**A:** Native modules need to be rebuilt to match the Electron version's Node.js version. The `electron-rebuild` package handles this automatically. Adding `"postinstall": "electron-rebuild"` to the `scripts` section of `package.json` is the standard approach. Alternatively, switching to `sql.js` (WASM-based) eliminates the need for rebuilds.
 
-### Q2: マルチウィンドウ間でデータを共有する最善の方法は？
+### Q2: What is the best way to share data between multiple windows?
 
-**A:** Main プロセスをデータハブとして使い、IPC 経由でデータを配信するのが最も安全で管理しやすい。共有ストア（SQLite や electron-store）を Main プロセスに置き、各ウィンドウは IPC でデータを要求する設計が推奨される。`BrowserWindow.webContents.send()` で変更通知をブロードキャストすれば、全ウィンドウがリアルタイムに同期できる。
+**A:** The safest and most manageable approach is to use the Main process as a data hub and distribute data via IPC. It is recommended to place shared stores (SQLite or electron-store) in the Main process and have each window request data via IPC. By broadcasting change notifications with `BrowserWindow.webContents.send()`, all windows can synchronize in real time.
 
-### Q3: Electron アプリのバイナリサイズを小さくするには？
+### Q3: How do I reduce the binary size of an Electron app?
 
-**A:** 以下の手法を組み合わせる。(1) `electron-builder` の `asar` パッキングを有効化する、(2) `devDependencies` を正しく分離し、本番ビルドに含めない、(3) 未使用の `node_modules` を `files` 設定で除外する、(4) UPX 圧縮を適用する（Windows/Linux）。通常 150-200MB から 80-100MB 程度まで削減可能である。
+**A:** Combine the following techniques: (1) Enable `asar` packing in `electron-builder`, (2) Properly separate `devDependencies` to exclude them from production builds, (3) Exclude unused `node_modules` using the `files` configuration, (4) Apply UPX compression (Windows/Linux). It is typically possible to reduce from 150-200MB to around 80-100MB.
 
 ---
 
-### Q4: UtilityProcess と Worker Threads の使い分けはどうすべきか？
+### Q4: When should I use UtilityProcess vs Worker Threads?
 
-**A:** `UtilityProcess` は Electron 独自の API で、完全に独立したプロセスとして動作する。Node.js の全 API が利用可能であり、クラッシュしてもメインプロセスに影響しない。一方、`Worker Threads` は Node.js 標準のスレッド機能で、メモリをメインプロセスと共有できる（SharedArrayBuffer）。CPU バウンドの重い計算には `UtilityProcess`、比較的軽い非同期タスクには `Worker Threads` が適している。
+**A:** `UtilityProcess` is an Electron-specific API that runs as a completely independent process. All Node.js APIs are available, and a crash does not affect the main process. `Worker Threads`, on the other hand, is Node.js's standard threading feature that can share memory with the main process (SharedArrayBuffer). `UtilityProcess` is suitable for CPU-bound heavy computation, while `Worker Threads` is appropriate for relatively lighter asynchronous tasks.
 
-### Q5: Electron アプリでのデータベースのバックアップ戦略は？
+### Q5: What is the recommended database backup strategy for Electron apps?
 
-**A:** SQLite の場合、以下の戦略を推奨する。(1) `VACUUM INTO` コマンドで定期的にバックアップファイルを作成する、(2) WAL モードを有効にして書き込み中でも安全にコピーできるようにする、(3) `app.getPath('userData')` 内にバックアップディレクトリを作り、世代管理する（最新5件など）、(4) ファイル名にタイムスタンプを含める（`backup-2024-01-15T10-30-00.db`）、(5) アプリ起動時に自動バックアップを実行する。
+**A:** For SQLite, the following strategy is recommended: (1) Use the `VACUUM INTO` command to periodically create backup files, (2) Enable WAL mode to allow safe copying even during writes, (3) Create a backup directory inside `app.getPath('userData')` with version management (e.g., keep the latest 5), (4) Include a timestamp in filenames (e.g., `backup-2024-01-15T10-30-00.db`), (5) Run automatic backups at app startup.
 
-### Q6: カスタムタイトルバーを実装するとアクセシビリティに影響はあるか？
+### Q6: Does implementing a custom title bar affect accessibility?
 
-**A:** Windows の場合、`titleBarOverlay` オプションを使えばネイティブのウィンドウ操作ボタン（最小化、最大化、閉じる）が残るため、アクセシビリティへの影響は最小限である。ただし、カスタムメニュー領域にはキーボードナビゲーション（Tab/Enter/Escape）を適切に実装する必要がある。macOS ではネイティブの信号ボタン（赤黄緑）を `titleBarStyle: 'hidden'` で残すことが推奨される。完全なフレームレス（`frame: false`）は非推奨である。
+**A:** On Windows, using the `titleBarOverlay` option retains the native window control buttons (minimize, maximize, close), so the accessibility impact is minimal. However, keyboard navigation (Tab/Enter/Escape) must be properly implemented for the custom menu area. On macOS, it is recommended to keep the native traffic light buttons (red, yellow, green) using `titleBarStyle: 'hidden'`. A fully frameless window (`frame: false`) is not recommended.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to keep in mind when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## 13. まとめ
+## 13. Summary
 
-| トピック | キーポイント |
+| Topic | Key Points |
 |---|---|
-| マルチウィンドウ | WindowManager で一元管理。ウィンドウ数に上限を設ける |
-| カスタムタイトルバー | `titleBarOverlay`（Windows）+ `-webkit-app-region: drag` |
-| ネイティブモジュール | napi-rs (Rust) が安全性と性能のバランスに優れる |
-| SQLite | better-sqlite3 + drizzle-orm で型安全な DB 操作 |
-| 起動時間 | スプラッシュスクリーン + 遅延インポート + 並列初期化 |
-| メモリ最適化 | バックグラウンドスロットリング + UtilityProcess |
-| 自動更新 | electron-updater でダイアログ確認 + 差分ダウンロード |
-| システムトレイ | TrayManager でバックグラウンド常駐 + バッジ通知 |
-| ファイル関連付け | electron-builder 設定 + protocol.handle でカスタムスキーム |
-| ドラッグ＆ドロップ | Renderer のドロップ受信 + Main の startDrag でエクスポート |
-| セキュリティ | 全てのファイル操作は Main プロセス経由 + パス検証 |
+| Multi-window | Centralize management with WindowManager. Set an upper limit on window count |
+| Custom title bar | `titleBarOverlay` (Windows) + `-webkit-app-region: drag` |
+| Native modules | napi-rs (Rust) offers an excellent balance of safety and performance |
+| SQLite | Type-safe DB operations with better-sqlite3 + drizzle-orm |
+| Startup time | Splash screen + lazy imports + parallel initialization |
+| Memory optimization | Background throttling + UtilityProcess |
+| Auto updater | Dialog confirmation with electron-updater + delta downloads |
+| System tray | Background residence with TrayManager + badge notifications |
+| File associations | electron-builder config + protocol.handle for custom schemes |
+| Drag & drop | Drop reception in Renderer + startDrag in Main for export |
+| Security | All file operations via Main process + path validation |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- **[02-tauri-setup.md](./02-tauri-setup.md)** — 軽量な代替フレームワーク Tauri の入門
-- **[00-packaging-and-signing.md](../03-distribution/00-packaging-and-signing.md)** — Electron アプリのパッケージングと署名
+- **[02-tauri-setup.md](./02-tauri-setup.md)** — Introduction to Tauri, a lightweight alternative framework
+- **[00-packaging-and-signing.md](../03-distribution/00-packaging-and-signing.md)** — Packaging and signing Electron apps
 
 ---
 
-## 参考文献
+## References
 
 1. Electron, "Performance", https://www.electronjs.org/docs/latest/tutorial/performance
 2. Electron, "UtilityProcess", https://www.electronjs.org/docs/latest/api/utility-process
