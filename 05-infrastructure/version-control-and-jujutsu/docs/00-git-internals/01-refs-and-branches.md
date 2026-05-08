@@ -1,60 +1,60 @@
-# Ref・ブランチ
+# Refs and Branches
 
-> GitのRef（参照）機構を深堀りし、HEAD、ブランチ、タグ、reflogの内部表現とdetached HEAD状態の正しい理解・復旧方法を解説する。
+> A deep dive into Git's ref (reference) mechanism, covering the internal representation of HEAD, branches, tags, and reflog, as well as a proper understanding of detached HEAD state and how to recover from it.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Refの種類と内部表現** — ブランチ、タグ、リモート追跡ブランチがファイルシステム上でどう管理されるか
-2. **HEADの仕組みとdetached HEAD** — シンボリック参照の動作原理と安全な運用方法
-3. **reflogによる履歴復元** — 失われたコミットの追跡と救出テクニック
-4. **packed-refsと参照解決** — 大量のrefの最適化と解決優先順位
-5. **タグの内部表現** — lightweight tagとannotated tagの違い
-6. **ブランチ運用パターン** — 実務で遭遇する様々なブランチ操作と内部動作の理解
+1. **Ref types and internal representation** — How branches, tags, and remote-tracking branches are managed on the filesystem
+2. **How HEAD works and detached HEAD** — The operating principles of symbolic references and how to use them safely
+3. **History recovery with reflog** — Techniques for tracking and rescuing lost commits
+4. **packed-refs and reference resolution** — Optimization for large numbers of refs and resolution priority
+5. **Internal representation of tags** — Differences between lightweight tags and annotated tags
+6. **Branch operation patterns** — Understanding the internal behavior behind various branch operations encountered in practice
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Gitオブジェクトモデル](./00-git-object-model.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Git Object Model](./00-git-object-model.md)
 
 ---
 
-## 1. Refとは何か
+## 1. What Is a Ref?
 
-Refは**SHA-1ハッシュへのポインタ**であり、`.git/refs/`配下のテキストファイルとして保存される。Gitのオブジェクトモデル（blob、tree、commit、tag）では、すべてのオブジェクトがSHA-1（またはSHA-256）ハッシュで一意に識別されるが、40文字のハッシュを直接覚えるのは人間には困難である。Refはこのハッシュに**人間が読みやすい名前**を与える仕組みである。
+A ref is a **pointer to a SHA-1 hash**, stored as a text file under `.git/refs/`. In Git's object model (blob, tree, commit, tag), all objects are uniquely identified by their SHA-1 (or SHA-256) hash, but memorizing 40-character hashes directly is difficult for humans. A ref is the mechanism that gives these hashes **human-readable names**.
 
-### 1.1 Refのファイルシステム上の配置
+### 1.1 Refs on the Filesystem
 
 ```
 .git/
-├── HEAD                          ← シンボリック参照
-├── ORIG_HEAD                     ← merge/rebase/reset前のHEAD位置
-├── MERGE_HEAD                    ← マージ中の相手側HEAD
-├── FETCH_HEAD                    ← fetch結果の一時参照
-├── CHERRY_PICK_HEAD              ← cherry-pick中の参照
-├── REVERT_HEAD                   ← revert中の参照
+├── HEAD                          ← symbolic reference
+├── ORIG_HEAD                     ← HEAD position before merge/rebase/reset
+├── MERGE_HEAD                    ← the other side's HEAD during a merge
+├── FETCH_HEAD                    ← temporary reference holding fetch results
+├── CHERRY_PICK_HEAD              ← reference during a cherry-pick
+├── REVERT_HEAD                   ← reference during a revert
 ├── refs/
-│   ├── heads/                    ← ローカルブランチ
-│   │   ├── main                  ← "main"ブランチ
-│   │   ├── develop               ← "develop"ブランチ
-│   │   └── feature/auth          ← "feature/auth"ブランチ
-│   ├── tags/                     ← タグ
+│   ├── heads/                    ← local branches
+│   │   ├── main                  ← "main" branch
+│   │   ├── develop               ← "develop" branch
+│   │   └── feature/auth          ← "feature/auth" branch
+│   ├── tags/                     ← tags
 │   │   ├── v1.0.0
 │   │   └── v2.0.0
-│   ├── remotes/                  ← リモート追跡ブランチ
+│   ├── remotes/                  ← remote-tracking branches
 │   │   ├── origin/
 │   │   │   ├── main
 │   │   │   ├── develop
 │   │   │   └── feature/auth
 │   │   └── upstream/
 │   │       └── main
-│   ├── stash                     ← stashの最新エントリ
-│   └── notes/                    ← git notesの参照
+│   ├── stash                     ← latest stash entry
+│   └── notes/                    ← git notes references
 │       └── commits
-├── packed-refs                   ← pack済みref（最適化）
+├── packed-refs                   ← packed refs (optimized)
 └── logs/                         ← reflog
     ├── HEAD
     └── refs/
@@ -66,29 +66,29 @@ Refは**SHA-1ハッシュへのポインタ**であり、`.git/refs/`配下の�
                 └── main
 ```
 
-### 1.2 Refの実体を確認する
+### 1.2 Inspecting a Ref Directly
 
 ```bash
-# ブランチの実体を確認
+# Inspect a branch ref directly
 $ cat .git/refs/heads/main
 a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 
-# HEADの実体を確認（シンボリック参照）
+# Inspect HEAD directly (symbolic reference)
 $ cat .git/HEAD
 ref: refs/heads/main
 
-# git rev-parseでRefをSHA-1に変換
+# Convert a ref to SHA-1 with git rev-parse
 $ git rev-parse main
 a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 
 $ git rev-parse HEAD
 a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 
-# refが指すオブジェクトの型を確認
+# Check the object type that a ref points to
 $ git cat-file -t refs/heads/main
 commit
 
-# 全てのrefを一覧表示
+# List all refs
 $ git for-each-ref --format='%(refname) %(objecttype) %(objectname:short)' refs/
 refs/heads/develop commit a1b2c3d
 refs/heads/feature/auth commit f5e6d7c
@@ -98,14 +98,14 @@ refs/tags/v1.0.0 tag 1234567
 refs/tags/v2.0.0 commit 89abcde
 ```
 
-### 1.3 Refの名前解決ルール
+### 1.3 Ref Name Resolution Rules
 
-Gitは省略されたref名を以下の順序で解決する。この順序を理解しておくことで、同名のブランチとタグが存在する場合の挙動を予測できる。
+Git resolves abbreviated ref names in the following order. Understanding this order lets you predict behavior when a branch and a tag have the same name.
 
 ```
-git rev-parse <name> の解決順序:
+Resolution order for git rev-parse <name>:
 
-1. <name> をそのまま試す（例: HEAD、ORIG_HEAD）
+1. Try <name> as-is (e.g., HEAD, ORIG_HEAD)
 2. refs/<name>
 3. refs/tags/<name>
 4. refs/heads/<name>
@@ -114,61 +114,61 @@ git rev-parse <name> の解決順序:
 ```
 
 ```bash
-# 同名のブランチとタグがある場合の問題
-$ git branch v1.0.0       # ブランチ "v1.0.0" を作成
-$ git checkout v1.0.0     # タグ? ブランチ? → 警告が出る
+# Problem when a branch and tag share the same name
+$ git branch v1.0.0       # Create branch "v1.0.0"
+$ git checkout v1.0.0     # Tag? Branch? → A warning is shown
 
 warning: refname 'v1.0.0' is ambiguous.
 
-# 明示的に指定する方法
-$ git checkout refs/heads/v1.0.0    # ブランチを指定
-$ git checkout refs/tags/v1.0.0     # タグを指定（detached HEAD）
+# How to specify explicitly
+$ git checkout refs/heads/v1.0.0    # Specify the branch
+$ git checkout refs/tags/v1.0.0     # Specify the tag (detached HEAD)
 
-# rev-parseでの明示的な解決
-$ git rev-parse refs/heads/v1.0.0   # ブランチのSHA-1
-$ git rev-parse refs/tags/v1.0.0    # タグのSHA-1
+# Explicit resolution with rev-parse
+$ git rev-parse refs/heads/v1.0.0   # SHA-1 of the branch
+$ git rev-parse refs/tags/v1.0.0    # SHA-1 of the tag
 ```
 
-### 1.4 特殊なRef
+### 1.4 Special Refs
 
-Gitには特定の操作中に自動的に設定される特殊なRefがある。
+Git has special refs that are automatically set during certain operations.
 
-| Ref名               | 設定タイミング              | 用途                                     |
-|---------------------|-----------------------------|-----------------------------------------|
-| `HEAD`              | 常時                        | 現在のチェックアウト位置                 |
-| `ORIG_HEAD`         | merge/rebase/reset後        | 操作前のHEAD位置（取り消し用）          |
-| `MERGE_HEAD`        | merge中                     | マージ中の相手ブランチのHEAD            |
-| `FETCH_HEAD`        | fetch後                     | 最後にfetchした結果                      |
-| `CHERRY_PICK_HEAD`  | cherry-pick中               | cherry-pick対象のコミット               |
-| `REVERT_HEAD`       | revert中                    | revert対象のコミット                     |
-| `BISECT_HEAD`       | bisect中                    | 現在のbisectチェックポイント            |
+| Ref name            | When it is set              | Purpose                                          |
+|---------------------|-----------------------------|--------------------------------------------------|
+| `HEAD`              | Always                      | Current checkout position                        |
+| `ORIG_HEAD`         | After merge/rebase/reset    | HEAD position before the operation (for undoing) |
+| `MERGE_HEAD`        | During a merge              | HEAD of the branch being merged in               |
+| `FETCH_HEAD`        | After a fetch               | Result of the most recent fetch                  |
+| `CHERRY_PICK_HEAD`  | During cherry-pick          | The commit being cherry-picked                   |
+| `REVERT_HEAD`       | During revert               | The commit being reverted                        |
+| `BISECT_HEAD`       | During bisect               | Current bisect checkpoint                        |
 
 ```bash
-# ORIG_HEADを使った操作の取り消し
+# Undoing an operation using ORIG_HEAD
 $ git merge feature/auth
-# マージを取り消したい場合:
+# To undo the merge:
 $ git reset --hard ORIG_HEAD
 
-# FETCH_HEADの確認
+# Inspecting FETCH_HEAD
 $ git fetch origin
 $ cat .git/FETCH_HEAD
 a1b2c3d4e5f6... branch 'main' of https://github.com/user/repo
 
-# MERGE_HEADはマージ中のみ存在
+# MERGE_HEAD only exists during a merge
 $ git merge feature/auth
-# コンフリクト発生中:
+# While a conflict is in progress:
 $ cat .git/MERGE_HEAD
 f5e6d7c8b9a0e1f2d3c4b5a6d7e8f9a0b1c2d3e4
-# マージ完了後はファイルが削除される
+# The file is deleted after the merge completes
 ```
 
 ---
 
-## 2. HEADの仕組み
+## 2. How HEAD Works
 
-HEADはGitで最も重要なRefであり、**現在のチェックアウト位置**を示す。通常はブランチへのシンボリック参照だが、特定のコミットを直接指すこともある（detached HEAD）。
+HEAD is the most important ref in Git; it indicates the **current checkout position**. It is normally a symbolic reference to a branch, but it can also point directly to a specific commit (detached HEAD).
 
-### 2.1 通常のHEAD（attached）
+### 2.1 Normal HEAD (attached)
 
 ```
 ┌───────────────────────────────────────┐
@@ -186,248 +186,248 @@ HEADはGitで最も重要なRefであり、**現在のチェックアウト位�
 │    └── message: "Add login form"      │
 └───────────────────────────────────────┘
 
-新しいコミット時:
-  1. 新commitオブジェクト作成（parent = c3d4e5f6...）
-  2. refs/heads/feature/auth を新commitのSHA-1に更新
-  3. HEADは refs/heads/feature/auth を指したまま
+When a new commit is made:
+  1. A new commit object is created (parent = c3d4e5f6...)
+  2. refs/heads/feature/auth is updated to the new commit's SHA-1
+  3. HEAD continues to point to refs/heads/feature/auth
 ```
 
-HEADがブランチを間接参照している状態では、`git commit`を実行すると**ブランチのポインタが自動的に前進**する。これがGitの通常の動作であり、ブランチが「成長する」仕組みの本質である。
+When HEAD is indirectly referencing a branch, running `git commit` causes the **branch pointer to advance automatically**. This is the normal behavior of Git and is the essence of how branches "grow."
 
 ```bash
-# HEADの状態を確認するコマンド群
+# Commands for checking HEAD state
 $ git symbolic-ref HEAD
-refs/heads/feature/auth    # ブランチ名が返る = attached
+refs/heads/feature/auth    # Returns branch name = attached
 
 $ git rev-parse HEAD
-c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0a1b2    # SHA-1が返る
+c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0a1b2    # Returns SHA-1
 
 $ git rev-parse --abbrev-ref HEAD
-feature/auth    # 短縮形のブランチ名
+feature/auth    # Short branch name
 
-# コミット前後のブランチ位置の変化
+# Branch position change before and after a commit
 $ git rev-parse feature/auth
 c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0a1b2
 
 $ echo "new content" >> file.txt && git add file.txt && git commit -m "update"
 
 $ git rev-parse feature/auth
-d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0a1b2c3    # 新しいSHA-1に更新
+d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0a1b2c3    # Updated to new SHA-1
 ```
 
-### 2.2 detached HEAD
+### 2.2 Detached HEAD
 
-detached HEADは、HEADがブランチではなく**特定のコミットを直接指している状態**である。
+A detached HEAD is a state in which HEAD points **directly to a specific commit** rather than to a branch.
 
 ```bash
-# detached HEADになる主な操作
-$ git checkout a1b2c3d                # 特定コミットのチェックアウト
-$ git checkout v1.0.0                 # タグのチェックアウト
-$ git checkout origin/main            # リモート追跡ブランチのチェックアウト
-$ git rebase --onto main feature HEAD~3  # rebase操作の途中
+# Common operations that result in a detached HEAD
+$ git checkout a1b2c3d                # Checkout a specific commit
+$ git checkout v1.0.0                 # Checkout a tag
+$ git checkout origin/main            # Checkout a remote-tracking branch
+$ git rebase --onto main feature HEAD~3  # Mid-rebase
 
-# HEADの状態確認
+# Checking HEAD state
 $ cat .git/HEAD
 a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
-# ← "ref:" プレフィックスがない = detached
+# ← No "ref:" prefix = detached
 
 $ git symbolic-ref HEAD
 fatal: ref HEAD is not a symbolic ref
-# ← symbolic-refはdetached HEADではエラーになる
+# ← symbolic-ref errors on a detached HEAD
 
 $ git status
 HEAD detached at a1b2c3d
-# Gitはdetached HEAD状態を明確に表示する
+# Git clearly shows the detached HEAD state
 ```
 
 ```
 ┌────────────────────────────────────────┐
-│  通常のHEAD（attached）               │
+│  Normal HEAD (attached)                │
 │                                        │
 │  HEAD ──→ refs/heads/main ──→ commit   │
 │                                        │
 ├────────────────────────────────────────┤
-│  detached HEAD                         │
+│  Detached HEAD                         │
 │                                        │
-│  HEAD ──→ commit（直接参照）           │
-│  refs/heads/main ──→ 別のcommit       │
+│  HEAD ──→ commit (direct reference)    │
+│  refs/heads/main ──→ different commit  │
 │                                        │
-│  ※ この状態で新コミットを作ると       │
-│    どのブランチにも属さないコミット    │
-│    が生成される（GC対象になりうる）    │
+│  * Any new commits made in this state  │
+│    do not belong to any branch         │
+│    (and may be subject to GC)          │
 └────────────────────────────────────────┘
 ```
 
-### 2.3 detached HEADの正しい活用シーン
+### 2.3 Valid Use Cases for Detached HEAD
 
-detached HEADは必ずしも危険な状態ではない。以下のようなユースケースでは意図的に使用される。
+Detached HEAD is not necessarily a dangerous state. It is intentionally used in the following scenarios.
 
 ```bash
-# ユースケース1: 過去のコミットを一時的に確認する
+# Use case 1: Temporarily inspecting a past commit
 $ git checkout v1.0.0
-# テストを実行して過去のバージョンの動作を確認
+# Run tests to verify behavior of the old version
 $ make test
-# 確認が終わったら元のブランチに戻る
+# Return to the original branch when done
 $ git checkout main
 
-# ユースケース2: CI/CDパイプラインでのタグチェックアウト
-# Jenkins/GitHub Actionsなどでタグベースのビルドを行う
+# Use case 2: Tag-based checkout in a CI/CD pipeline
+# Tag-based builds in Jenkins/GitHub Actions, etc.
 $ git checkout v2.1.0
 $ docker build -t myapp:2.1.0 .
 
-# ユースケース3: bisect中の自動チェックアウト
+# Use case 3: Automatic checkout during bisect
 $ git bisect start
 $ git bisect bad HEAD
 $ git bisect good v1.0.0
-# → Gitが自動的にdetached HEADで中間コミットをチェックアウト
+# → Git automatically checks out an intermediate commit in detached HEAD mode
 
-# ユースケース4: worktreeでの一時的な作業
+# Use case 4: Temporary work in a worktree
 $ git worktree add /tmp/hotfix v1.0.0
-# → worktreeはdetached HEADで作成可能
+# → worktrees can be created in detached HEAD mode
 ```
 
-### 2.4 detached HEADからの復帰
+### 2.4 Recovering from Detached HEAD
 
 ```bash
-# 方法1: 新しいブランチを作成して退避
+# Method 1: Create a new branch to save your work
 $ git checkout -b rescue-branch
-# → 現在のHEAD位置に新ブランチを作成し、attachedに戻る
+# → Creates a new branch at the current HEAD position and returns to attached state
 
-# 方法2: 既存ブランチに戻る
+# Method 2: Return to an existing branch
 $ git checkout main
-# → detached HEAD中に作ったコミットがある場合、
-#    reflogにのみ記録される（ブランチには属さない）
+# → If commits were made while in detached HEAD,
+#    they are recorded only in reflog (not on any branch)
 
-# 方法3: detached HEAD中に作ったコミットを救出
+# Method 3: Rescue a commit made while in detached HEAD
 $ git reflog
 # a1b2c3d HEAD@{0}: checkout: moving from main to a1b2c3d
 # f5e6d7c HEAD@{1}: commit: important work in detached state
 $ git branch rescue-branch f5e6d7c
 
-# 方法4: Git 2.23以降のswitchコマンド
-$ git switch main              # ブランチに戻る
-$ git switch -c new-branch     # 新ブランチを作って戻る
-$ git switch --detach v1.0.0   # 意図的にdetachする（明示的）
+# Method 4: The switch command (Git 2.23+)
+$ git switch main              # Return to a branch
+$ git switch -c new-branch     # Create a new branch and switch to it
+$ git switch --detach v1.0.0   # Intentionally detach (explicit)
 
-# 方法5: detached HEAD中の複数コミットをまとめて救出
+# Method 5: Rescue multiple commits made while in detached HEAD
 $ git reflog
 # abc1234 HEAD@{0}: commit: third fix
 # def5678 HEAD@{1}: commit: second fix
 # 789abcd HEAD@{2}: commit: first fix
 # a1b2c3d HEAD@{3}: checkout: moving from main to a1b2c3d
 $ git branch rescue-branch abc1234
-# → abc1234から辿れる全コミット（first/second/third fix）が保護される
+# → All commits reachable from abc1234 (first/second/third fix) are protected
 ```
 
-### 2.5 HEADの内部操作
+### 2.5 Low-Level HEAD Operations
 
-`git update-ref`コマンドを使うことで、低レベルでRefを操作できる。通常のGitコマンドの裏側で実行されている処理を理解するのに役立つ。
+Using the `git update-ref` command, you can manipulate refs at a low level. This is useful for understanding the processing that takes place behind ordinary Git commands.
 
 ```bash
-# HEADが指すブランチを変更（git checkoutの内部動作に近い）
+# Change the branch that HEAD points to (similar to the internals of git checkout)
 $ git symbolic-ref HEAD refs/heads/feature/auth
 
-# ブランチを新しいコミットに更新（git commitの内部動作の一部）
+# Update a branch to a new commit (part of the internals of git commit)
 $ git update-ref refs/heads/main a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 
-# update-refは安全なref更新を行う
-# - reflogエントリを自動作成
-# - ロックファイル(.lock)を使用して並行アクセスを保護
+# update-ref performs safe ref updates:
+# - Automatically creates a reflog entry
+# - Uses a lock file (.lock) to protect against concurrent access
 $ ls .git/refs/heads/main.lock
-# → update-ref実行中のみ存在する一時ファイル
+# → A temporary file that exists only while update-ref is running
 
-# refの削除
+# Deleting a ref
 $ git update-ref -d refs/heads/old-branch
-# → refs/heads/old-branchファイルを削除し、reflogにも記録
+# → Deletes the refs/heads/old-branch file and records the deletion in reflog
 ```
 
 ---
 
-## 3. ブランチの操作と内部動作
+## 3. Branch Operations and Internal Behavior
 
-### 3.1 ブランチの作成・削除の内部動作
+### 3.1 Internal Behavior of Branch Creation and Deletion
 
 ```bash
-# ブランチ作成 = ファイル作成
+# Creating a branch = creating a file
 $ git branch feature/new-ui
-# → .git/refs/heads/feature/new-ui にHEADのSHA-1を書き込み
-# → .git/logs/refs/heads/feature/new-ui にreflogエントリを作成
+# → Writes HEAD's SHA-1 to .git/refs/heads/feature/new-ui
+# → Creates a reflog entry in .git/logs/refs/heads/feature/new-ui
 
-# 特定コミットからブランチ作成
+# Creating a branch from a specific commit
 $ git branch feature/from-tag v1.0.0
-# → v1.0.0が指すSHA-1を書き込み
+# → Writes the SHA-1 that v1.0.0 points to
 
-# ブランチ削除 = ファイル削除
+# Deleting a branch = deleting a file
 $ git branch -d feature/new-ui
-# → .git/refs/heads/feature/new-ui を削除
-#    (commitオブジェクト自体は削除されない)
-#    マージ済みでない場合はエラーになる
+# → Deletes .git/refs/heads/feature/new-ui
+#    (the commit object itself is not deleted)
+#    Errors if not yet merged
 
-# 強制削除（マージ状態を確認しない）
+# Force delete (does not check merge status)
 $ git branch -D feature/new-ui
-# → -d --force と同等、マージ済みでなくても削除
+# → Equivalent to -d --force; deletes even if not merged
 
-# ブランチ名の変更 = ファイルのリネーム + reflog更新
+# Renaming a branch = renaming the file + updating reflog
 $ git branch -m old-name new-name
 # → refs/heads/old-name → refs/heads/new-name
 # → logs/refs/heads/old-name → logs/refs/heads/new-name
-# → configのブランチ設定も更新
+# → Branch settings in config are also updated
 ```
 
-### 3.2 ブランチの内部操作を手動で再現する
+### 3.2 Manually Reproducing Branch Internals
 
-Gitのブランチは本質的には「commitオブジェクトのSHA-1が書かれたテキストファイル」に過ぎない。この事実を確認するために、手動でブランチを操作してみる。
+A Git branch is essentially nothing more than "a text file containing the SHA-1 of a commit object." To verify this fact, try manipulating a branch manually.
 
 ```bash
-# 現在のHEADのSHA-1を確認
+# Check the SHA-1 of the current HEAD
 $ git rev-parse HEAD
 a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 
-# 手動でブランチを作成（git branchの代替）
+# Manually create a branch (alternative to git branch)
 $ echo "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0" > .git/refs/heads/manual-branch
-# → git branch -a で manual-branch が表示される
+# → manual-branch will appear in git branch -a
 
-# ただし上記の方法はreflogが作成されず非推奨
-# 正しい低レベル操作:
+# However, the above does not create a reflog entry and is not recommended
+# The correct low-level operation:
 $ git update-ref refs/heads/manual-branch HEAD
-# → reflogエントリも作成される
+# → A reflog entry is also created
 
-# 手動でブランチを移動（git reset --hardの内部動作に近い）
+# Manually move a branch (similar to the internals of git reset --hard)
 $ git update-ref refs/heads/main f5e6d7c8b9a0e1f2d3c4b5a6d7e8f9a0b1c2d3e4
-# → mainブランチが別のコミットを指すようになる
+# → The main branch now points to a different commit
 
-# ブランチのトラッキング設定
+# Branch tracking configuration
 $ git branch --set-upstream-to=origin/main main
-# → .git/config に以下が書き込まれる:
+# → The following is written to .git/config:
 # [branch "main"]
 #     remote = origin
 #     merge = refs/heads/main
 ```
 
-### 3.3 ブランチの階層構造（名前空間）
+### 3.3 Branch Hierarchy (Namespacing)
 
-Gitのブランチ名にはスラッシュ（`/`）を含めることができ、ファイルシステム上ではディレクトリ階層として表現される。
+Git branch names can include slashes (`/`), which are represented as directory hierarchies on the filesystem.
 
 ```bash
-# スラッシュを含むブランチ名
+# Branch names containing slashes
 $ git branch feature/auth/login
 $ git branch feature/auth/signup
 $ git branch feature/ui/dashboard
 
-# ファイルシステム上の構造
+# Structure on the filesystem
 $ find .git/refs/heads -type f
 .git/refs/heads/main
 .git/refs/heads/feature/auth/login
 .git/refs/heads/feature/auth/signup
 .git/refs/heads/feature/ui/dashboard
 
-# 注意: "feature/auth" というブランチと "feature/auth/login" は共存できない
-# → "feature/auth" はファイルだが "feature/auth/" はディレクトリになるため
+# Note: A branch named "feature/auth" cannot coexist with "feature/auth/login"
+# → "feature/auth" would be a file, but "feature/auth/" needs to be a directory
 $ git branch feature/auth
 fatal: cannot lock ref 'refs/heads/feature/auth':
   'refs/heads/feature/auth/login' exists; cannot create 'refs/heads/feature/auth'
 
-# ブランチ一覧のフィルタリング
+# Filtering the branch list
 $ git branch --list 'feature/*'
   feature/auth/login
   feature/auth/signup
@@ -438,17 +438,17 @@ $ git branch --list 'feature/auth/*'
   feature/auth/signup
 ```
 
-### 3.4 リモート追跡ブランチ
+### 3.4 Remote-Tracking Branches
 
 ```bash
-# リモート追跡ブランチの一覧
+# List remote-tracking branches
 $ git branch -r
   origin/main
   origin/develop
   origin/feature/auth
   upstream/main
 
-# 全ブランチ（ローカル + リモート追跡）
+# All branches (local + remote-tracking)
 $ git branch -a
   develop
   feature/auth
@@ -458,12 +458,12 @@ $ git branch -a
   remotes/origin/main
   remotes/upstream/main
 
-# fetch時の動作
+# Behavior on fetch
 $ git fetch origin
-# → refs/remotes/origin/* を更新
-# → ローカルブランチは変更しない
+# → Updates refs/remotes/origin/*
+# → Does not change local branches
 
-# リモート追跡ブランチの更新ルール（refspec）
+# Rules for updating remote-tracking branches (refspec)
 $ cat .git/config
 [remote "origin"]
     url = https://github.com/user/repo.git
@@ -476,112 +476,112 @@ $ cat .git/config
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                    refspec の構造                     │
+│                  refspec structure                   │
 │                                                     │
 │  +refs/heads/*:refs/remotes/origin/*                │
 │  │    │              │                              │
-│  │    │              └── ローカル側のref             │
-│  │    └── リモート側のref                            │
-│  └── "+" = 非fast-forwardでも強制更新               │
+│  │    │              └── local-side ref             │
+│  │    └── remote-side ref                           │
+│  └── "+" = force update even on non-fast-forward   │
 │                                                     │
-│  例: origin/main が更新された場合                    │
+│  Example: when origin/main is updated               │
 │  refs/heads/main (remote)                           │
 │    → refs/remotes/origin/main (local)               │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 3.5 高度なrefspec操作
+### 3.5 Advanced Refspec Operations
 
 ```bash
-# 特定ブランチのみfetch
+# Fetch only a specific branch
 $ git fetch origin main
-# → refs/remotes/origin/main のみ更新
+# → Updates only refs/remotes/origin/main
 
-# カスタムrefspecでfetch
+# Fetch with a custom refspec
 $ git fetch origin +refs/heads/release/*:refs/remotes/origin/release/*
-# → release/ で始まるブランチのみ取得
+# → Retrieves only branches starting with release/
 
-# pushのrefspec
+# Push refspec
 $ git push origin main:main
-# → ローカルのmain をリモートの main にpush
+# → Pushes local main to remote main
 
 $ git push origin feature/auth:refs/heads/feature/auth
-# → 明示的なrefspec指定
+# → Explicit refspec specification
 
-# リモートブランチの削除
+# Delete a remote branch
 $ git push origin --delete feature/old
-# → リモートの feature/old ブランチを削除
-# → ローカルの refs/remotes/origin/feature/old も削除
+# → Deletes the feature/old branch on the remote
+# → Also deletes the local refs/remotes/origin/feature/old
 
-# refspecでリモートブランチを削除する別の方法
+# Alternative way to delete a remote branch using refspec
 $ git push origin :feature/old
-# → "空" をfeature/oldにpush = 削除
+# → Push "nothing" to feature/old = delete
 
-# 不要になったリモート追跡ブランチの整理
+# Clean up stale remote-tracking branches
 $ git remote prune origin
-# → リモートに存在しなくなったrefs/remotes/origin/*を削除
+# → Deletes refs/remotes/origin/* that no longer exist on the remote
 
 $ git fetch --prune origin
-# → fetchと同時にpruneも実行（推奨設定）
+# → Runs prune at the same time as fetch (recommended setting)
 
-# 自動pruneの設定
+# Configure automatic pruning
 $ git config fetch.prune true
-# → 毎回のfetchで自動的にpruneが実行される
+# → Prune runs automatically on every fetch
 ```
 
-### 3.6 上流ブランチ（upstream）の設定と活用
+### 3.6 Setting and Using Upstream Branches
 
 ```bash
-# 上流ブランチの設定
+# Set the upstream branch
 $ git branch --set-upstream-to=origin/main main
-# または
+# or
 $ git push -u origin feature/auth
-# → push時に自動的に上流ブランチを設定
+# → Automatically sets the upstream branch when pushing
 
-# 上流ブランチの確認
+# Check upstream branches
 $ git branch -vv
 * feature/auth abc1234 [origin/feature/auth: ahead 2] latest commit
   main         def5678 [origin/main] synced commit
   develop      789abcd [origin/develop: behind 3] older commit
 
-# 上流ブランチとの差分確認
-$ git log @{upstream}..HEAD    # ローカルにあってリモートにないコミット
-$ git log HEAD..@{upstream}    # リモートにあってローカルにないコミット
-$ git log @{upstream}...HEAD   # 双方の差分（対称差分）
+# Check differences from the upstream branch
+$ git log @{upstream}..HEAD    # Commits in local but not in remote
+$ git log HEAD..@{upstream}    # Commits in remote but not in local
+$ git log @{upstream}...HEAD   # Differences in both directions (symmetric diff)
 
-# @{push}との違い（Git 2.5+）
+# Difference from @{push} (Git 2.5+)
 $ git log @{push}..HEAD
-# → pushする先のブランチとの差分（triangular workflowで有用）
-# 例: fetchはupstreamから、pushはoriginへ、という運用
+# → Difference from the push target branch (useful in triangular workflows)
+# Example: fetch from upstream, push to origin
 ```
 
 ---
 
-## 4. タグの内部表現
+## 4. Internal Representation of Tags
 
-### 4.1 lightweight tag vs annotated tag
+### 4.1 Lightweight Tags vs. Annotated Tags
 
-Gitのタグには2種類があり、内部表現が異なる。
+Git has two types of tags with different internal representations.
 
 ```bash
-# lightweight tag の作成
+# Creating a lightweight tag
 $ git tag v1.0.0-rc1
-# → .git/refs/tags/v1.0.0-rc1 にcommitのSHA-1を直接保存
-# → タグオブジェクトは作成されない
+# → Stores the commit's SHA-1 directly in .git/refs/tags/v1.0.0-rc1
+# → No tag object is created
 
 $ cat .git/refs/tags/v1.0.0-rc1
 a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 
 $ git cat-file -t v1.0.0-rc1
-commit    # ← commitオブジェクトを直接指している
+commit    # ← Points directly to a commit object
 
-# annotated tag の作成
+# Creating an annotated tag
 $ git tag -a v1.0.0 -m "Release version 1.0.0"
-# → tagオブジェクトが作成される
-# → .git/refs/tags/v1.0.0 にtagオブジェクトのSHA-1を保存
+# → A tag object is created
+# → The SHA-1 of the tag object is stored in .git/refs/tags/v1.0.0
 
 $ git cat-file -t v1.0.0
-tag       # ← tagオブジェクトを指している
+tag       # ← Points to a tag object
 
 $ git cat-file -p v1.0.0
 object a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
@@ -594,35 +594,35 @@ Release version 1.0.0
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  lightweight tag                                    │
+│  Lightweight tag                                    │
 │                                                    │
 │  refs/tags/v1.0.0-rc1 ──→ commit object            │
-│  （SHA-1を直接保存）                                │
+│  (SHA-1 stored directly)                           │
 │                                                    │
 ├────────────────────────────────────────────────────┤
-│  annotated tag                                      │
+│  Annotated tag                                      │
 │                                                    │
 │  refs/tags/v1.0.0 ──→ tag object ──→ commit object │
-│  （tagオブジェクトを経由）                           │
+│  (goes through a tag object)                       │
 │                                                    │
-│  tag objectの内容:                                  │
-│  - object: 対象commitのSHA-1                        │
-│  - type: commit                                     │
-│  - tag: タグ名                                      │
-│  - tagger: 作成者情報                               │
-│  - message: タグメッセージ                           │
-│  - GPG signature（署名付きの場合）                   │
+│  Contents of the tag object:                       │
+│  - object: SHA-1 of the target commit              │
+│  - type: commit                                    │
+│  - tag: tag name                                   │
+│  - tagger: creator information                     │
+│  - message: tag message                            │
+│  - GPG signature (if signed)                      │
 └────────────────────────────────────────────────────┘
 ```
 
-### 4.2 署名付きタグ
+### 4.2 Signed Tags
 
 ```bash
-# GPG署名付きタグの作成
+# Creating a GPG-signed tag
 $ git tag -s v1.0.0 -m "Signed release v1.0.0"
-# → tagオブジェクトにGPG署名が含まれる
+# → The tag object includes a GPG signature
 
-# 署名の検証
+# Verifying the signature
 $ git tag -v v1.0.0
 object a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 type commit
@@ -633,69 +633,69 @@ Signed release v1.0.0
 gpg: Signature made Mon 12 Feb 2024 10:00:00 AM JST
 gpg: Good signature from "Gaku <gaku@example.com>"
 
-# SSH署名（Git 2.34+）
+# SSH signing (Git 2.34+)
 $ git config gpg.format ssh
 $ git config user.signingKey ~/.ssh/id_ed25519.pub
 $ git tag -s v2.0.0 -m "SSH signed release v2.0.0"
 ```
 
-### 4.3 タグのpush
+### 4.3 Pushing Tags
 
-タグはデフォルトでは`git push`でリモートに送信されない。明示的な操作が必要。
+Tags are not sent to the remote by default when running `git push`. Explicit action is required.
 
 ```bash
-# 個別タグのpush
+# Push an individual tag
 $ git push origin v1.0.0
 
-# 全タグのpush
+# Push all tags
 $ git push origin --tags
-# → lightweight tag と annotated tag の両方がpushされる
+# → Pushes both lightweight and annotated tags
 
-# annotated tagのみpush（Git 2.4+）
+# Push only annotated tags (Git 2.4+)
 $ git push origin --follow-tags
-# → annotated tagのみ選択的にpush
+# → Selectively pushes only annotated tags
 
-# リモートのタグを削除
+# Delete a tag from the remote
 $ git push origin --delete v1.0.0
-# または
+# or
 $ git push origin :refs/tags/v1.0.0
 
-# リモートからタグを再取得
+# Re-fetch tags from the remote
 $ git fetch origin --tags
-# → ローカルに存在しないタグをリモートから取得
+# → Retrieves tags from the remote that do not exist locally
 ```
 
-### 4.4 タグの"peeling"
+### 4.4 Tag "Peeling"
 
-packed-refsやfor-each-refでは、annotated tagが最終的に指すcommitのSHA-1も記録される。これを「peeling」と呼ぶ。
+In packed-refs and for-each-ref output, the SHA-1 of the commit that an annotated tag ultimately points to is also recorded. This is called "peeling."
 
 ```bash
-# peelされたタグの確認
+# Inspecting a peeled tag
 $ git for-each-ref --format='%(refname) %(objectname:short) → %(objectname:short=,deref)' refs/tags/
 
-# peel先のcommit SHA-1を直接取得
+# Directly obtain the SHA-1 of the peeled commit
 $ git rev-parse v1.0.0^{}
 a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
-# ^{} は tagオブジェクトを「剥がして」内部のcommitを返す
+# ^{} "peels" the tag object and returns the internal commit
 
-# packed-refsでのpeeled表現
+# Peeled representation in packed-refs
 $ cat .git/packed-refs
 # pack-refs with: peeled fully-peeled sorted
 f5e6d7c8b9a0e1f2d3c4b5a6d7e8f9a0b1c2d3e4 refs/tags/v1.0.0
 ^a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
-# ^ から始まる行がpeeled SHA-1（tagが指すcommit）
+# Lines starting with ^ are the peeled SHA-1 (the commit the tag points to)
 ```
 
 ---
 
-## 5. reflog — 操作履歴の記録
+## 5. Reflog — Recording Operation History
 
-### 5.1 reflogの基本
+### 5.1 Reflog Basics
 
-reflogは**refの変更履歴**を記録するローカル専用の仕組みである。`git clone`や`git push`では転送されない。リポジトリローカルの「操作日誌」であり、誤操作からの復旧の最後の手段となる。
+Reflog is a local-only mechanism that records the **history of changes to a ref**. It is not transferred during `git clone` or `git push`. It is the repository's local "operation journal" and serves as the last resort for recovery from mistakes.
 
 ```bash
-# HEADのreflogを表示
+# Display the reflog for HEAD
 $ git reflog
 a1b2c3d HEAD@{0}: commit: feat: add authentication
 f5e6d7c HEAD@{1}: checkout: moving from feature to main
@@ -706,34 +706,34 @@ fedcba0 HEAD@{5}: rebase (finish): returning to refs/heads/main
 fedcba0 HEAD@{6}: rebase (pick): update config
 1111111 HEAD@{7}: rebase (start): checkout origin/main
 
-# 特定ブランチのreflog
+# Reflog for a specific branch
 $ git reflog show main
 a1b2c3d main@{0}: commit: feat: add authentication
 f5e6d7c main@{1}: merge feature/ui: Merge made by 'ort'
 b8c9d0e main@{2}: commit: initial setup
 
-# 日時指定でのアクセス
+# Accessing by date/time
 $ git show main@{2.days.ago}
 $ git show HEAD@{2024-02-01}
 $ git show HEAD@{yesterday}
 $ git show main@{1.week.ago}
 
-# reflogの詳細表示
+# Detailed reflog display
 $ git reflog --format='%C(auto)%h %gd %gs %ci'
 a1b2c3d HEAD@{0} commit: feat: add authentication 2024-02-12 10:00:00 +0900
 f5e6d7c HEAD@{1} checkout: moving from feature to main 2024-02-12 09:45:00 +0900
 
-# reflogのdiff表示
+# Display diffs in reflog
 $ git diff HEAD@{0} HEAD@{3}
-# → 3操作前との差分を表示
+# → Shows the diff from 3 operations ago
 ```
 
-### 5.2 reflogの保存場所と形式
+### 5.2 Reflog Storage Location and Format
 
 ```bash
-# reflogファイルの確認
+# Inspect a reflog file
 $ cat .git/logs/HEAD
-# 各行: 旧SHA-1 新SHA-1 操作者 タイムスタンプ 操作内容
+# Each line: old-SHA-1 new-SHA-1 author timestamp operation
 
 $ cat .git/logs/refs/heads/main
 0000000... a1b2c3d... Gaku <gaku@example.com> 1707600000 +0900	commit (initial): first commit
@@ -743,116 +743,116 @@ f5e6d7c... b8c9d0e... Gaku <gaku@example.com> 1707607200 +0900	merge feature/aut
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│  reflogエントリの形式                                      │
+│  Reflog entry format                                       │
 │                                                           │
-│  <旧SHA-1> <新SHA-1> <名前> <<メール>> <UNIXtime> <TZ>\t<メッセージ>  │
+│  <old-SHA-1> <new-SHA-1> <name> <<email>> <UNIXtime> <TZ>\t<message>  │
 │                                                           │
-│  例:                                                       │
+│  Example:                                                  │
 │  a1b2c3d... f5e6d7c... Gaku <g@ex.com> 1707600000 +0900  │
 │  \tcommit: add feature                                    │
 │                                                           │
-│  旧SHA-1が 0000000... の場合 = ブランチの新規作成          │
-│  新SHA-1が 0000000... の場合 = ブランチの削除              │
+│  old-SHA-1 = 0000000... means the branch was newly created│
+│  new-SHA-1 = 0000000... means the branch was deleted      │
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 5.3 reflogの有効期限
+### 5.3 Reflog Expiry
 
-| 種別                     | デフォルト期限 | 設定キー                     |
-|--------------------------|----------------|------------------------------|
-| 到達可能なエントリ       | 90日           | `gc.reflogExpire`            |
-| 到達不可能なエントリ     | 30日           | `gc.reflogExpireUnreachable` |
+| Category                   | Default expiry | Configuration key            |
+|----------------------------|----------------|------------------------------|
+| Reachable entries          | 90 days        | `gc.reflogExpire`            |
+| Unreachable entries        | 30 days        | `gc.reflogExpireUnreachable` |
 
 ```bash
-# reflogの期限を変更
+# Change reflog expiry
 $ git config gc.reflogExpire "180 days"
 $ git config gc.reflogExpireUnreachable "60 days"
 
-# 特定のrefに対する個別設定
+# Per-ref individual settings
 $ git config gc.main.reflogExpire "365 days"
-# → mainブランチのreflogは1年間保持
+# → Keeps the reflog for the main branch for 1 year
 
-# 手動でreflogを期限切れにする
+# Manually expire reflog entries
 $ git reflog expire --expire=now --all
-# → 全refの全reflogエントリを即座に期限切れに（危険！）
+# → Immediately expires all reflog entries for all refs (dangerous!)
 
-# 特定のrefのreflogのみ期限切れにする
+# Expire reflog for a specific ref only
 $ git reflog expire --expire=30.days.ago refs/heads/feature/old
 
-# dry-runで確認
+# Check with dry-run first
 $ git reflog expire --expire=30.days.ago --dry-run --all
-# → 実際には削除せず、削除対象を表示
+# → Shows what would be deleted without actually deleting it
 ```
 
-### 5.4 reflogを使った復旧テクニック
+### 5.4 Recovery Techniques Using Reflog
 
 ```bash
-# テクニック1: git reset --hard の取り消し
-$ git reset --hard HEAD~3    # 直近3コミットを破棄
-# "やっぱり元に戻したい"
+# Technique 1: Undoing a git reset --hard
+$ git reset --hard HEAD~3    # Discard the last 3 commits
+# "I want to undo that"
 $ git reflog
 # a1b2c3d HEAD@{0}: reset: moving to HEAD~3
 # f5e6d7c HEAD@{1}: commit: important commit 3
 # b8c9d0e HEAD@{2}: commit: important commit 2
 # 1234567 HEAD@{3}: commit: important commit 1
 $ git reset --hard HEAD@{1}
-# → reset前の状態に復帰
+# → Restores to the state before the reset
 
-# テクニック2: 削除したブランチの復元
+# Technique 2: Restoring a deleted branch
 $ git branch -D feature/important
-# "削除すべきではなかった"
+# "I shouldn't have deleted that"
 $ git reflog
-# → feature/importantの最後のコミットを探す
+# → Find the last commit SHA-1 that feature/important pointed to
 $ git branch feature/important HEAD@{2}
 
-# テクニック3: 失敗したrebaseの取り消し
+# Technique 3: Undoing a failed rebase
 $ git rebase main
-# コンフリクトだらけで収拾がつかない
-$ git rebase --abort    # rebase中なら --abort が使える
+# Too many conflicts to resolve
+$ git rebase --abort    # If still in progress, --abort works
 
-# rebase完了後に元に戻したい場合
+# To undo after the rebase has completed
 $ git reflog
-# → rebase開始前のHEAD位置を探す
-$ git reset --hard HEAD@{5}    # rebase前の状態に復帰
+# → Find the HEAD position before the rebase started
+$ git reset --hard HEAD@{5}    # Restore to pre-rebase state
 
-# テクニック4: amend前のコミットを取得
+# Technique 4: Retrieving a commit before an amend
 $ git commit --amend -m "corrected message"
-# "amend前のコミットも保存しておきたい"
+# "I want to keep the pre-amend commit too"
 $ git reflog
 # a1b2c3d HEAD@{0}: commit (amend): corrected message
 # f5e6d7c HEAD@{1}: commit: original message
 $ git branch backup-original f5e6d7c
 
-# テクニック5: stash dropの復元
+# Technique 5: Restoring a dropped stash
 $ git stash drop stash@{0}
-# "ドロップしたstashを取り戻したい"
+# "I want to get back the dropped stash"
 $ git fsck --no-reflogs | grep commit
 # dangling commit f5e6d7c...
 $ git stash apply f5e6d7c
 ```
 
-### 5.5 reflogとgit fsckの連携
+### 5.5 Using Reflog with git fsck
 
-reflogの期限が切れた後でも、GCが実行されるまではオブジェクト自体は残っている可能性がある。`git fsck`で到達不可能なオブジェクトを探索できる。
+Even after reflog entries expire, the objects themselves may still remain until GC is run. You can search for unreachable objects using `git fsck`.
 
 ```bash
-# 到達不可能なオブジェクトを探す
+# Find unreachable objects
 $ git fsck --unreachable
 unreachable commit a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 unreachable blob f5e6d7c8b9a0e1f2d3c4b5a6d7e8f9a0b1c2d3e4
 unreachable tree 1234567890abcdef1234567890abcdef12345678
 
-# 到達不可能なコミットを lost-found に保存
+# Save unreachable commits to lost-found
 $ git fsck --lost-found
-# → .git/lost-found/commit/ にコミットのSHA-1ファイルが作成される
-# → .git/lost-found/other/ にその他のオブジェクトが保存される
+# → SHA-1 files for commits are created in .git/lost-found/commit/
+# → Other objects are saved in .git/lost-found/other/
 
-# dangling object（どこからも参照されていないオブジェクト）の確認
+# Check dangling objects (objects not referenced from anywhere)
 $ git fsck --no-reflogs
-# → reflogからの到達可能性を無視して判定
-# → reflogでのみ保護されているオブジェクトも表示される
+# → Determines reachability ignoring reflog
+# → Also shows objects protected only by reflog
 
-# 特定のdanglingコミットの内容を確認
+# Inspect the content of a specific dangling commit
 $ git log --oneline --graph a1b2c3d4
 $ git show a1b2c3d4
 ```
@@ -861,12 +861,12 @@ $ git show a1b2c3d4
 
 ## 6. packed-refs
 
-大量のrefがある場合、個別ファイルではなく`packed-refs`にまとめて性能を向上させる。
+When there are a large number of refs, Git aggregates them into `packed-refs` rather than individual files to improve performance.
 
-### 6.1 packed-refsの構造
+### 6.1 Structure of packed-refs
 
 ```bash
-# packed-refsの中身
+# Contents of packed-refs
 $ cat .git/packed-refs
 # pack-refs with: peeled fully-peeled sorted
 a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0 refs/heads/main
@@ -874,118 +874,118 @@ b8c9d0e1f2a3b4c5d6e7f8a9b0a1b2c3d4e5f6a7 refs/heads/develop
 f5e6d7c8b9a0e1f2d3c4b5a6d7e8f9a0b1c2d3e4 refs/tags/v1.0.0
 ^a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 89abcdef0123456789abcdef0123456789abcdef refs/tags/v2.0.0
-# ^ = peeled tag（tagオブジェクトが指すcommitのSHA-1）
-# 行頭の # はコメント
+# ^ = peeled tag (SHA-1 of the commit pointed to by the tag object)
+# Lines starting with # are comments
 
-# 手動でpackする
+# Pack manually
 $ git pack-refs --all
-# → 全てのloose refをpacked-refsに統合
-# → アクティブなブランチ（現在のHEAD）のloose refは残る場合がある
+# → Consolidates all loose refs into packed-refs
+# → Loose refs for active branches (current HEAD) may remain
 
-# packのみ（looseを削除しない）
+# Pack only (without deleting loose refs)
 $ git pack-refs --no-prune
 ```
 
-### 6.2 ref解決の優先順位と動作
+### 6.2 Ref Resolution Priority and Behavior
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  ref解決の優先順位                               │
+│  Ref resolution priority                        │
 │                                                 │
-│  1. .git/refs/heads/<name>  （loose ref）       │
-│  2. .git/packed-refs 内の該当行                  │
+│  1. .git/refs/heads/<name>  (loose ref)         │
+│  2. Matching line in .git/packed-refs           │
 │                                                 │
-│  → looseが存在すればそちらが優先                 │
-│  → ブランチ更新時は loose に書き込み             │
-│  → git gc / pack-refs で packed に統合           │
+│  → Loose refs take priority if they exist       │
+│  → Branch updates are written to loose refs     │
+│  → git gc / pack-refs consolidates into packed  │
 │                                                 │
-│  更新の流れ:                                     │
-│  1. git commit → loose ref が更新される          │
-│  2. looseとpackedの両方に同じrefが存在する場合    │
-│     → looseが最新（packed側は古いまま）          │
-│  3. git gc → loose を packed に統合              │
-│     → loose ファイルを削除                       │
-│  4. 次のcommit → 再びloose refが作成される       │
+│  Update flow:                                   │
+│  1. git commit → loose ref is updated           │
+│  2. When the same ref exists in both loose and  │
+│     packed → loose is the latest (packed is old)│
+│  3. git gc → consolidates loose into packed     │
+│     → loose file is deleted                     │
+│  4. Next commit → a new loose ref is created    │
 └─────────────────────────────────────────────────┘
 ```
 
-### 6.3 packed-refsの性能への影響
+### 6.3 Performance Impact of packed-refs
 
 ```bash
-# 大量のブランチ/タグがある場合の比較
-# (例: 10,000タグのリポジトリ)
+# Comparison when there are a large number of branches/tags
+# (Example: repository with 10,000 tags)
 
-# looseオブジェクトの場合:
-# → 10,000個のファイルがrefs/tags/に作成される
-# → ファイルシステムのinode消費が激しい
-# → ls-remote, branch -a 等が遅くなる
+# With loose objects:
+# → 10,000 files created under refs/tags/
+# → Heavy inode consumption on the filesystem
+# → ls-remote, branch -a, etc. become slow
 
-# packed-refsの場合:
-# → 1ファイルに全タグが格納される
-# → ファイルシステムの負荷が大幅に減少
-# → 参照解決も高速化（sequential read vs random seek）
+# With packed-refs:
+# → All tags stored in a single file
+# → Filesystem load significantly reduced
+# → Reference resolution also faster (sequential read vs random seek)
 
-# パフォーマンス測定
+# Performance measurement
 $ time git for-each-ref refs/tags/ | wc -l
 # packed-refs: ~0.01s
-# loose refs:  ~0.5s  (10,000ファイルの場合)
+# loose refs:  ~0.5s  (for 10,000 files)
 
-# reftableフォーマット（Git 2.45+、実験的）
-# → packed-refsのさらなる進化版
-# → バイナリ形式で高速なルックアップが可能
-# → JGit発のフォーマットをC実装に移植
+# reftable format (Git 2.45+, experimental)
+# → Further evolution of packed-refs
+# → Binary format enabling fast lookups
+# → JGit-originated format ported to C implementation
 $ git config core.repositoryFormatVersion 1
 $ git config extensions.refStorage reftable
-# → 注意: reftableは実験的機能であり、互換性リスクがある
+# → Note: reftable is an experimental feature and carries compatibility risks
 ```
 
 ---
 
-## 7. シンボリック参照
+## 7. Symbolic References
 
-シンボリック参照は**他のrefを間接参照するref**である。最も一般的な例はHEADであり、通常はブランチrefを指す。
+A symbolic reference is a **ref that indirectly references another ref**. The most common example is HEAD, which normally points to a branch ref.
 
-### 7.1 基本操作
+### 7.1 Basic Operations
 
 ```bash
-# HEADが最も一般的なシンボリック参照
+# HEAD is the most common symbolic reference
 $ git symbolic-ref HEAD
 refs/heads/main
 
-# カスタムシンボリック参照の作成
+# Creating a custom symbolic reference
 $ git symbolic-ref refs/custom/current refs/heads/feature/auth
-# → refs/custom/current は feature/auth を間接参照する
+# → refs/custom/current indirectly references feature/auth
 
-# detached HEAD時はエラーになる
+# Errors when HEAD is detached
 $ git symbolic-ref HEAD
 fatal: ref HEAD is not a symbolic ref
 
-# シンボリック参照の安全な確認（エラーを回避）
+# Safe check for symbolic reference (avoids the error)
 $ git symbolic-ref --quiet HEAD && echo "attached" || echo "detached"
 ```
 
-### 7.2 シンボリック参照の実用例
+### 7.2 Practical Examples of Symbolic References
 
 ```bash
-# リモートのデフォルトブランチ（HEAD）
+# Default branch of a remote (HEAD)
 $ git remote show origin
-# → "HEAD branch: main" と表示される
-# → これは refs/remotes/origin/HEAD がシンボリック参照
+# → Shows "HEAD branch: main"
+# → This is because refs/remotes/origin/HEAD is a symbolic reference
 
 $ cat .git/refs/remotes/origin/HEAD
 ref: refs/remotes/origin/main
 
-# origin/HEADを更新
+# Update origin/HEAD
 $ git remote set-head origin develop
-# → refs/remotes/origin/HEAD が refs/remotes/origin/develop を指すように変更
+# → Changes refs/remotes/origin/HEAD to point to refs/remotes/origin/develop
 
-# origin/HEADを自動検出で設定
+# Auto-detect and set origin/HEAD
 $ git remote set-head origin --auto
-# → リモートに問い合わせてデフォルトブランチを自動設定
+# → Queries the remote to automatically set the default branch
 
-# ワークツリーでのHEAD
-# メインワークツリー: .git/HEAD
-# 追加ワークツリー: .git/worktrees/<name>/HEAD
+# HEAD in worktrees
+# Main worktree: .git/HEAD
+# Additional worktrees: .git/worktrees/<name>/HEAD
 $ git worktree add ../feature-worktree feature/auth
 $ cat .git/worktrees/feature-worktree/HEAD
 ref: refs/heads/feature/auth
@@ -993,32 +993,32 @@ ref: refs/heads/feature/auth
 
 ---
 
-## 8. ブランチ保護と運用パターン
+## 8. Branch Protection and Operation Patterns
 
-### 8.1 ローカルでのブランチ保護
+### 8.1 Local Branch Protection
 
 ```bash
-# receive.denyNonFastForwardsによる保護（共有リポジトリ）
+# Protection via receive.denyNonFastForwards (shared repositories)
 $ git config receive.denyNonFastForwards true
-# → 非fast-forwardのpushを全て拒否
+# → Rejects all non-fast-forward pushes
 
-# receive.denyDeletesによる削除防止
+# Deletion prevention via receive.denyDeletes
 $ git config receive.denyDeletes true
-# → ブランチ/タグの削除pushを拒否
+# → Rejects push deletions of branches/tags
 
-# pre-receiveフックによるブランチ保護（サーバーサイド）
+# Branch protection via pre-receive hook (server-side)
 # .git/hooks/pre-receive:
 #!/bin/bash
 while read oldrev newrev refname; do
   if [ "$refname" = "refs/heads/main" ]; then
-    # mainブランチへの直接pushを拒否
+    # Reject direct pushes to the main branch
     echo "ERROR: Direct push to main is not allowed."
     echo "Please create a pull request instead."
     exit 1
   fi
 done
 
-# update フックによる個別ref制御
+# Per-ref control via update hook
 # .git/hooks/update:
 #!/bin/bash
 refname="$1"
@@ -1031,35 +1031,35 @@ if [ "$refname" = "refs/heads/main" ] && \
 fi
 ```
 
-### 8.2 ブランチの整理と棚卸し
+### 8.2 Branch Cleanup and Housekeeping
 
 ```bash
-# マージ済みブランチの一覧
+# List merged branches
 $ git branch --merged main
-  feature/auth        # mainにマージ済み
-  feature/old-ui      # mainにマージ済み
+  feature/auth        # Merged into main
+  feature/old-ui      # Merged into main
 * main
 
-# 未マージブランチの一覧
+# List unmerged branches
 $ git branch --no-merged main
-  feature/wip         # 進行中の作業
+  feature/wip         # Work in progress
 
-# マージ済みブランチを一括削除
+# Bulk delete merged branches
 $ git branch --merged main | grep -v '^\*' | grep -v 'main' | xargs git branch -d
 
-# リモートで削除済みだがローカルに残っている追跡ブランチの確認
+# Check for tracking branches deleted on remote but still present locally
 $ git remote prune origin --dry-run
 Pruning origin
  * [would prune] origin/feature/deleted-remote
 
-# 最終コミット日時でソートしたブランチ一覧
+# Branch list sorted by last commit date
 $ git for-each-ref --sort=-committerdate --format='%(committerdate:short) %(refname:short)' refs/heads/
 2024-02-12 main
 2024-02-10 feature/auth
 2024-01-15 feature/old
 2023-11-20 feature/ancient
 
-# 3ヶ月以上更新のないブランチを検出するスクリプト
+# Script to detect branches not updated in 3+ months
 $ git for-each-ref --sort=committerdate --format='%(committerdate:unix) %(refname:short)' refs/heads/ | \
   while read timestamp branch; do
     if [ "$timestamp" -lt "$(date -d '3 months ago' +%s)" ]; then
@@ -1068,41 +1068,41 @@ $ git for-each-ref --sort=committerdate --format='%(committerdate:unix) %(refnam
   done
 ```
 
-### 8.3 ブランチの命名規則
+### 8.3 Branch Naming Conventions
 
-実務でよく使われるブランチ命名パターンとその内部動作への影響を整理する。
+Summarizing common branch naming patterns used in practice and their impact on internal behavior.
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  ブランチ命名規則の例                                   │
+│  Branch naming convention examples                     │
 │                                                        │
-│  パターン          例                     用途          │
+│  Pattern           Example                  Purpose   │
 │  ──────────────────────────────────────────────────── │
-│  feature/<name>    feature/user-auth      新機能        │
-│  bugfix/<name>     bugfix/login-crash     バグ修正      │
-│  hotfix/<name>     hotfix/security-patch  緊急修正      │
-│  release/<ver>     release/2.1.0          リリース準備  │
-│  chore/<name>      chore/update-deps      メンテナンス  │
-│  refactor/<name>   refactor/auth-module   リファクタ    │
+│  feature/<name>    feature/user-auth        New feature│
+│  bugfix/<name>     bugfix/login-crash       Bug fix    │
+│  hotfix/<name>     hotfix/security-patch    Emergency  │
+│  release/<ver>     release/2.1.0            Release prep│
+│  chore/<name>      chore/update-deps        Maintenance│
+│  refactor/<name>   refactor/auth-module     Refactor   │
 │                                                        │
-│  注意: "feature" と "feature/x" は共存不可             │
-│  → ディレクトリとファイルの衝突                         │
-│  → 命名規則を決めたらチームで統一する                   │
+│  Note: "feature" and "feature/x" cannot coexist       │
+│  → Directory and file naming conflict                  │
+│  → Decide on a convention and standardize it as a team │
 └────────────────────────────────────────────────────────┘
 ```
 
 ```bash
-# ブランチ名に使えない文字
-# - スペース、~、^、:、?、*、[、\
-# - ".." を含む名前
-# - "." で始まる名前
-# - "/" で終わる名前
-# - ".lock" で終わる名前
-# - ASCII制御文字
+# Characters not allowed in branch names
+# - Spaces, ~, ^, :, ?, *, [, \
+# - Names containing ".."
+# - Names starting with "."
+# - Names ending with "/"
+# - Names ending with ".lock"
+# - ASCII control characters
 
-# ブランチ名のバリデーション
+# Validating a branch name
 $ git check-ref-format --branch "feature/valid-name"
-feature/valid-name    # 有効
+feature/valid-name    # Valid
 
 $ git check-ref-format --branch "feature/invalid..name"
 fatal: 'feature/invalid..name' is not a valid branch name
@@ -1110,156 +1110,156 @@ fatal: 'feature/invalid..name' is not a valid branch name
 
 ---
 
-## 9. Refの並行アクセス制御
+## 9. Concurrent Access Control for Refs
 
-### 9.1 ロックファイルによる排他制御
+### 9.1 Mutual Exclusion via Lock Files
 
-Gitはref更新時にロックファイル（`.lock`サフィックス）を使用して並行アクセスを制御する。
+Git uses lock files (with a `.lock` suffix) to control concurrent access when updating refs.
 
 ```bash
-# ロックの仕組み
-# 1. refs/heads/main を更新する場合:
-#    → .git/refs/heads/main.lock を作成（排他ロック取得）
-#    → main.lock に新しいSHA-1を書き込み
-#    → main.lock → main にアトミックにリネーム
-#    → ロック解放
+# How locking works
+# 1. When updating refs/heads/main:
+#    → Create .git/refs/heads/main.lock (acquire exclusive lock)
+#    → Write the new SHA-1 to main.lock
+#    → Atomically rename main.lock → main
+#    → Release lock
 
-# ロック競合が発生した場合のエラー
+# Error when a lock conflict occurs
 $ git checkout feature/auth
 error: Unable to create '/path/to/repo/.git/refs/heads/main.lock':
   File exists.
 Another git process seems to be running in this repository.
 If no other git process is running, remove the file manually.
 
-# 強制ロック解除（他のgitプロセスが本当に動いていないことを確認してから）
+# Force remove lock (only after confirming no other git process is running)
 $ rm .git/refs/heads/main.lock
 
-# index.lockも同様の仕組み
-$ rm .git/index.lock    # インデックスのロック解除
+# index.lock uses the same mechanism
+$ rm .git/index.lock    # Remove the index lock
 ```
 
-### 9.2 CAS（Compare-And-Swap）によるref更新
+### 9.2 Ref Updates via CAS (Compare-And-Swap)
 
 ```bash
-# update-refでのCAS操作
+# CAS operation with update-ref
 $ git update-ref refs/heads/main <new-sha1> <expected-old-sha1>
-# → expected-old-sha1 と現在のSHA-1が一致する場合のみ更新
-# → 一致しない場合はエラー（他のプロセスが先に更新した）
+# → Updates only if expected-old-sha1 matches the current SHA-1
+# → Errors if they do not match (another process updated it first)
 
-# pushでのCAS（--force-with-lease）
+# CAS in push (--force-with-lease)
 $ git push --force-with-lease origin main
-# → リモートのmainが最後にfetchした時から変わっていない場合のみforce push
-# → 他の開発者のpushを上書きするリスクを低減
+# → Force pushes only if the remote's main has not changed since the last fetch
+# → Reduces the risk of overwriting another developer's push
 
-# 期待値を明示するforce-with-lease
+# force-with-lease with an explicit expected value
 $ git push --force-with-lease=main:a1b2c3d origin main
-# → リモートのmainが a1b2c3d の場合のみforce push
+# → Force pushes only if the remote's main is a1b2c3d
 ```
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン1: detached HEADでの長時間作業
+### Anti-Pattern 1: Prolonged Work in Detached HEAD
 
 ```bash
-# NG: detached HEAD状態で何日も作業を続ける
+# Bad: Continuing to work for days in a detached HEAD state
 $ git checkout v1.0.0
 # (detached HEAD)
-$ ... 数日間の作業 ...
+$ ... several days of work ...
 $ git commit -m "important changes"
-# → ブランチに属さないコミットが作られる
-# → git gcで消失する可能性がある
+# → Creates a commit that does not belong to any branch
+# → May be lost to git gc
 
-# OK: 必ずブランチを作成してから作業する
+# Good: Always create a branch before starting work
 $ git checkout v1.0.0
 $ git checkout -b hotfix/v1.0.0-patch
-$ ... 作業 ...
+$ ... work ...
 $ git commit -m "important changes"
 ```
 
-**理由**: detached HEADで作成されたコミットはどのrefからも到達不可能になった時点でGCの対象になる。reflogの期限（デフォルト30日）を過ぎると完全に消失する。
+**Reason**: Commits created in detached HEAD become subject to GC as soon as they are no longer reachable from any ref. Once the reflog expiry (default 30 days) passes, they are permanently lost.
 
-### アンチパターン2: reflogに依存した「バックアップ」戦略
+### Anti-Pattern 2: Using Reflog as a "Backup" Strategy
 
 ```bash
-# NG: "reflogがあるからreset --hardしても大丈夫"
+# Bad: "It's fine to do reset --hard because reflog has it"
 $ git reset --hard HEAD~5
-# → reflogには残るが、30-90日で期限切れ
-# → git gcでオブジェクト自体が削除される可能性
+# → It stays in reflog, but expires in 30–90 days
+# → The objects themselves may be deleted by git gc
 
-# OK: 明示的にブランチやタグで保護する
+# Good: Protect explicitly with a branch or tag
 $ git tag backup/before-cleanup HEAD
 $ git reset --hard HEAD~5
-# → tagがある限りGCされない
+# → Not GC'd as long as the tag exists
 ```
 
-**理由**: reflogはローカル専用で、`git clone`や`git push`では転送されない。サーバー側にはreflogが存在しない場合もある。
+**Reason**: Reflog is local-only and is not transferred during `git clone` or `git push`. The server side may not have a reflog at all.
 
-### アンチパターン3: ブランチ名とタグ名の衝突
+### Anti-Pattern 3: Name Collision Between Branch and Tag
 
 ```bash
-# NG: タグと同名のブランチを作成
+# Bad: Creating a branch with the same name as a tag
 $ git tag release-v1.0
 $ git branch release-v1.0
-# → 参照が曖昧になり、コマンドによって解決結果が異なる
-# → checkout時は警告が出るが、他のコマンドでは暗黙的に片方が選ばれる
+# → References become ambiguous; different commands may resolve differently
+# → checkout produces a warning, but other commands silently pick one
 
-# OK: 命名規則でブランチとタグの名前空間を明確に分離
-$ git tag v1.0.0                    # タグ: vX.Y.Z
-$ git branch release/1.0.0         # ブランチ: release/X.Y.Z
+# Good: Use naming conventions to clearly separate branch and tag namespaces
+$ git tag v1.0.0                    # Tags: vX.Y.Z
+$ git branch release/1.0.0         # Branches: release/X.Y.Z
 ```
 
-**理由**: Gitのref解決順序（タグ → ブランチの順）により、同名のrefが存在すると予期しないrefが選択される可能性がある。
+**Reason**: Due to Git's ref resolution order (tags before branches), when refs with the same name exist, an unexpected ref may be selected.
 
-### アンチパターン4: packed-refsの手動編集
+### Anti-Pattern 4: Manually Editing packed-refs
 
 ```bash
-# NG: packed-refsファイルを直接テキストエディタで編集
+# Bad: Editing the packed-refs file directly in a text editor
 $ vim .git/packed-refs
-# → ソート順が崩れたり、チェックサムが不整合になる可能性
+# → Sort order may be broken or checksums may become inconsistent
 
-# OK: Gitコマンドを通じて操作
+# Good: Operate through Git commands
 $ git update-ref refs/heads/main <new-sha1>
 $ git pack-refs --all
 ```
 
-**理由**: packed-refsは内部フォーマットの整合性（ソート順、peeled行の位置）が重要であり、手動編集は破損リスクが高い。
+**Reason**: The internal format consistency of packed-refs (sort order, position of peeled lines) is critical, and manual editing carries a high risk of corruption.
 
-### アンチパターン5: 全ブランチの一括force push
+### Anti-Pattern 5: Force-Pushing All Branches at Once
 
 ```bash
-# NG: 全ブランチを一括force push
+# Bad: Force-pushing all branches at once
 $ git push --force --all origin
-# → リモートの全ブランチを上書き
-# → 他の開発者の作業が消失する可能性
+# → Overwrites all branches on the remote
+# → May erase other developers' work
 
-# OK: 必要なブランチのみを個別にforce push
+# Good: Force-push only the necessary branch individually
 $ git push --force-with-lease origin feature/my-branch
-# → 自分専用のブランチのみ、安全にforce push
+# → Safely force-push only your own branch
 ```
 
-**理由**: `--force --all`はリモートの全ブランチを無条件に上書きする。チーム開発では他のメンバーのpushを巻き戻す危険がある。`--force-with-lease`を使えば、他のpushがあった場合に拒否される。
+**Reason**: `--force --all` unconditionally overwrites all remote branches. In team development, it risks rolling back other members' pushes. Using `--force-with-lease` causes the push to be rejected if someone else has pushed in the meantime.
 
 ---
 
-## 11. 実務シナリオ集
+## 11. Real-World Scenarios
 
-### シナリオ1: ブランチの分岐点を調べる
+### Scenario 1: Finding Where a Branch Diverged
 
 ```bash
-# feature/authがmainから分岐した地点を特定
+# Find the point where feature/auth diverged from main
 $ git merge-base main feature/auth
 a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 
-# 分岐後のコミット数を確認
+# Count commits since the divergence
 $ git rev-list --count main..feature/auth
-5    # feature/authにあってmainにないコミット数
+5    # Commits in feature/auth that are not in main
 
 $ git rev-list --count feature/auth..main
-3    # mainにあってfeature/authにないコミット数
+3    # Commits in main that are not in feature/auth
 
-# グラフで分岐を視覚化
+# Visualize the divergence with a graph
 $ git log --oneline --graph main feature/auth
 * abc1234 (feature/auth) latest feature commit
 * def5678 add feature logic
@@ -1271,101 +1271,101 @@ $ git log --oneline --graph main feature/auth
 * a1b2c3d common ancestor (merge-base)
 ```
 
-### シナリオ2: 複数のリモートからの同期
+### Scenario 2: Syncing from Multiple Remotes
 
 ```bash
-# フォークしたリポジトリで、上流の変更を取り込む
+# In a forked repository, pull in changes from upstream
 $ git remote add upstream https://github.com/original/repo.git
 $ git fetch upstream
 $ git checkout main
 $ git merge upstream/main
 
-# 複数リモートのref状況を一覧
+# List ref status across multiple remotes
 $ git for-each-ref --format='%(refname:short) %(upstream:short) %(upstream:track)' refs/heads/
 main origin/main [ahead 0, behind 0]
 feature/auth origin/feature/auth [ahead 2]
 ```
 
-### シナリオ3: refs/notesの活用
+### Scenario 3: Using refs/notes
 
 ```bash
-# コミットにメモ（note）を追加
-$ git notes add -m "このコミットはパフォーマンスに影響あり" abc1234
-# → refs/notes/commits にnoteオブジェクトが保存される
+# Add a note to a commit
+$ git notes add -m "This commit has performance implications" abc1234
+# → The note object is stored under refs/notes/commits
 
-# noteの表示
+# Display the note
 $ git log --show-notes abc1234
 commit abc1234...
     fix: update query
 Notes:
-    このコミットはパフォーマンスに影響あり
+    This commit has performance implications
 
-# noteのpush（明示的に指定が必要）
+# Push notes (must be specified explicitly)
 $ git push origin refs/notes/commits
 ```
 
-### シナリオ4: replace refによるコミットの差し替え
+### Scenario 4: Replacing a Commit with replace refs
 
 ```bash
-# コミットメッセージを修正したいが、pushbackはしたくない場合
+# When you want to fix a commit message without force-pushing
 $ git replace abc1234 def5678
-# → refs/replace/abc1234 が作成される
-# → abc1234へのアクセスがdef5678に透過的に差し替えられる
+# → refs/replace/abc1234 is created
+# → Access to abc1234 is transparently redirected to def5678
 
-# replaceの確認
+# Check the replacement
 $ git replace -l
 abc1234
 
-# replaceの削除
+# Delete the replacement
 $ git replace -d abc1234
 
-# replaceされたコミットを表示
+# Display the replaced commit
 $ git log --no-replace-objects abc1234
-# → 元のコミットが表示される（replace無視）
+# → Shows the original commit (ignoring the replacement)
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1374,26 +1374,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1401,7 +1401,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1412,14 +1412,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1427,7 +1427,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1435,44 +1435,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1481,7 +1481,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1496,43 +1496,43 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## 12. FAQ
 
-### Q1. `git branch -d`で削除したブランチを復元できるか？
+### Q1. Can a branch deleted with `git branch -d` be restored?
 
-**A1.** はい、reflogを使えば復元できます。
+**A1.** Yes, it can be restored using reflog.
 
 ```bash
 $ git reflog
-# 削除前のブランチが指していたcommit SHA-1を見つける
+# Find the commit SHA-1 that the deleted branch was pointing to
 $ git branch recovered-branch <SHA-1>
 ```
 
-ただし、reflogの有効期限内に限ります。期限切れ後は`git fsck --lost-found`で到達不可能オブジェクトから探す必要があります。
+However, this is only possible within the reflog expiry period. After expiry, you need to search for unreachable objects using `git fsck --lost-found`.
 
-### Q2. HEADとORIG_HEADの違いは何か？
+### Q2. What is the difference between HEAD and ORIG_HEAD?
 
-**A2.** `HEAD`は現在のチェックアウト位置を指すシンボリック参照です。`ORIG_HEAD`は`merge`、`rebase`、`reset`など**HEADを大きく移動させる操作の直前の位置**を記録する特殊参照です。操作を取り消したい場合に`git reset --hard ORIG_HEAD`のように使用します。
+**A2.** `HEAD` is a symbolic reference indicating the current checkout position. `ORIG_HEAD` is a special reference that records the **position of HEAD immediately before operations that significantly move it**, such as `merge`, `rebase`, and `reset`. It is used like `git reset --hard ORIG_HEAD` when you want to undo such operations.
 
-### Q3. `refs/stash`はどのような仕組みか？
+### Q3. How does `refs/stash` work internally?
 
-**A3.** `git stash`はワーキングディレクトリの変更をcommitオブジェクトとして保存し、`refs/stash`がその最新のstashエントリを指します。過去のstashエントリはreflog（`stash@{0}`, `stash@{1}`, ...）として保持されます。内部的には通常のcommit/tree/blobオブジェクトで構成されています。
+**A3.** `git stash` saves the working directory changes as commit objects, and `refs/stash` points to the latest stash entry. Past stash entries are retained as reflog entries (`stash@{0}`, `stash@{1}`, ...). Internally, they are composed of ordinary commit/tree/blob objects.
 
 ```bash
-# stashの内部構造を確認
+# Inspect the internal structure of stash
 $ git cat-file -p refs/stash
 tree d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0a1b2c3
 parent a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
@@ -1542,30 +1542,30 @@ committer Gaku <gaku@example.com> 1707600000 +0900
 
 WIP on main: a1b2c3d commit message
 
-# stashコミットは2つ（またはuntracked含め3つ）のparentを持つ
-# parent 1: stash時のHEADコミット
-# parent 2: インデックスの状態を記録したコミット
-# parent 3: --include-untracked時のuntracked filesコミット
+# A stash commit has 2 (or 3, if --include-untracked) parents
+# parent 1: the HEAD commit at the time of stash
+# parent 2: a commit recording the state of the index
+# parent 3: a commit for untracked files (when --include-untracked is used)
 ```
 
-### Q4. SHA-1からSHA-256への移行はrefにどのような影響があるか？
+### Q4. How does the SHA-1 to SHA-256 migration affect refs?
 
-**A4.** Git 2.29以降、SHA-256をオブジェクトハッシュとして使用する実験的サポートが追加されています。SHA-256リポジトリでは、refファイルに格納されるハッシュが64文字（40文字ではなく）になります。ただし、SHA-1とSHA-256のリポジトリ間の相互運用性は限定的であり、実務での移行はまだ先の話です。
+**A4.** Since Git 2.29, experimental support has been added for using SHA-256 as the object hash. In a SHA-256 repository, the hashes stored in ref files are 64 characters long (instead of 40). However, interoperability between SHA-1 and SHA-256 repositories is limited, and migration in practice is still a future concern.
 
 ```bash
-# SHA-256リポジトリの作成（実験的）
+# Creating a SHA-256 repository (experimental)
 $ git init --object-format=sha256 my-repo
 $ cd my-repo
 $ echo "test" | git hash-object --stdin
-# → 64文字のSHA-256ハッシュが返る
+# → Returns a 64-character SHA-256 hash
 ```
 
-### Q5. refの操作をフックで監視する方法は？
+### Q5. How can ref operations be monitored with hooks?
 
-**A5.** `reference-transaction`フック（Git 2.28+）を使うと、全てのref更新をフックで監視できます。
+**A5.** Using the `reference-transaction` hook (Git 2.28+), all ref updates can be monitored.
 
 ```bash
-# .git/hooks/reference-transaction の例
+# Example .git/hooks/reference-transaction
 #!/bin/bash
 # $1 = "prepared" | "committed" | "aborted"
 while read oldvalue newvalue refname; do
@@ -1575,20 +1575,20 @@ while read oldvalue newvalue refname; do
 done
 ```
 
-### Q6. git worktreeとHEADの関係は？
+### Q6. What is the relationship between git worktree and HEAD?
 
-**A6.** 各worktreeは独自のHEADを持ちます。メインのworktreeは`.git/HEAD`を使い、追加worktreeは`.git/worktrees/<name>/HEAD`を使います。重要な制約として、**複数のworktreeで同じブランチをチェックアウトすることはできません**。
+**A6.** Each worktree has its own HEAD. The main worktree uses `.git/HEAD`, and additional worktrees use `.git/worktrees/<name>/HEAD`. An important constraint is that **multiple worktrees cannot check out the same branch**.
 
 ```bash
-# worktree追加
+# Adding a worktree
 $ git worktree add ../feature-wt feature/auth
 # → .git/worktrees/feature-wt/HEAD = "ref: refs/heads/feature/auth"
 
-# 同じブランチをチェックアウトしようとするとエラー
+# Error when trying to check out the same branch
 $ git worktree add ../another-wt feature/auth
 fatal: 'feature/auth' is already checked out at '/path/to/feature-wt'
 
-# worktree一覧
+# List worktrees
 $ git worktree list
 /path/to/main      a1b2c3d [main]
 /path/to/feature-wt f5e6d7c [feature/auth]
@@ -1599,54 +1599,54 @@ $ git worktree list
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend solidly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 概念                   | 要点                                                          |
-|------------------------|---------------------------------------------------------------|
-| Ref                    | SHA-1ハッシュへのポインタ、`.git/refs/`配下にテキストファイル |
-| ブランチ               | `refs/heads/<name>` に保存、作成・削除はファイル操作         |
-| HEAD                   | シンボリック参照、通常はブランチを間接参照                    |
-| detached HEAD          | HEADがcommitを直接参照、ブランチなしで危険                   |
-| reflog                 | refの変更履歴、ローカル専用、30-90日で期限切れ               |
-| packed-refs            | 大量refの最適化、looseが優先                                 |
-| リモート追跡ブランチ   | `refs/remotes/<remote>/<branch>`、fetch時に更新              |
-| lightweight tag        | commitを直接指すref、メタデータなし                           |
-| annotated tag          | tagオブジェクトを経由、作成者・メッセージ・署名を格納        |
-| シンボリック参照       | 他のrefへの間接参照、HEADが代表例                            |
-| ロックファイル         | `.lock`サフィックスで並行アクセスを排他制御                   |
-| ORIG_HEAD              | 破壊的操作前のHEAD位置を記録、取り消しに使用                |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [Gitオブジェクトモデル](./00-git-object-model.md) — blob/tree/commit/tagの基礎
-- [マージアルゴリズム](./02-merge-algorithms.md) — 3-way mergeとortの内部動作
-- [Packfile/GC](./03-packfile-gc.md) — オブジェクトの圧縮とガベージコレクション
-- [インタラクティブRebase](../01-advanced-git/00-interactive-rebase.md) — HEADの書き換え操作
+| Concept                | Key Points                                                          |
+|------------------------|---------------------------------------------------------------------|
+| Ref                    | Pointer to a SHA-1 hash; stored as a text file under `.git/refs/`  |
+| Branch                 | Stored in `refs/heads/<name>`; creation and deletion are file ops   |
+| HEAD                   | Symbolic reference; normally an indirect reference to a branch      |
+| Detached HEAD          | HEAD directly references a commit; dangerous without a branch       |
+| Reflog                 | History of ref changes; local-only; expires in 30–90 days          |
+| packed-refs            | Optimization for large numbers of refs; loose refs take priority    |
+| Remote-tracking branch | `refs/remotes/<remote>/<branch>`; updated on fetch                 |
+| Lightweight tag        | Ref pointing directly to a commit; no metadata                     |
+| Annotated tag          | Goes through a tag object; stores author, message, and signature   |
+| Symbolic reference     | Indirect reference to another ref; HEAD is the prime example       |
+| Lock file              | `.lock` suffix; provides mutual exclusion for concurrent access     |
+| ORIG_HEAD              | Records HEAD position before destructive operations; used to undo  |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [Git Object Model](./00-git-object-model.md) — Fundamentals of blob/tree/commit/tag
+- [Merge Algorithms](./02-merge-algorithms.md) — Internal workings of 3-way merge and ort
+- [Packfile/GC](./03-packfile-gc.md) — Object compression and garbage collection
+- [Interactive Rebase](../01-advanced-git/00-interactive-rebase.md) — HEAD rewriting operations
+
+---
+
+## References
 
 1. **Pro Git Book** — Scott Chacon, Ben Straub "Git Internals - Git References" https://git-scm.com/book/en/v2/Git-Internals-Git-References
-2. **Git公式ドキュメント** — `git-symbolic-ref`, `git-reflog`, `git-update-ref`, `git-for-each-ref` https://git-scm.com/docs
+2. **Git Official Documentation** — `git-symbolic-ref`, `git-reflog`, `git-update-ref`, `git-for-each-ref` https://git-scm.com/docs
 3. **GitHub Blog** — "Commits are snapshots, not diffs" https://github.blog/2020-12-17-commits-are-snapshots-not-diffs/
-4. **Git公式ドキュメント** — `git-pack-refs`, `git-check-ref-format` https://git-scm.com/docs
+4. **Git Official Documentation** — `git-pack-refs`, `git-check-ref-format` https://git-scm.com/docs
 5. **Derrick Stolee** — "Scaling monorepo maintenance" https://github.blog/2021-04-29-scaling-monorepo-maintenance/
 6. **Git Reference Transaction Hook** — https://git-scm.com/docs/githooks#_reference_transaction
 7. **reftable specification** — https://www.git-scm.com/docs/reftable
