@@ -1,106 +1,106 @@
-# リモート接続（SSH, SCP, rsync）
+# Remote Connections (SSH, SCP, rsync)
 
-> SSH はリモートサーバー操作の基盤。安全な接続・ファイル転送・トンネリングを可能にする。
+> SSH is the foundation of remote server operations. It enables secure connections, file transfers, and tunneling.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] SSH で安全にリモートサーバーに接続できる
-- [ ] SSH鍵の生成・管理ができる
-- [ ] SCP / rsync でファイル転送ができる
-- [ ] SSHトンネリングを活用できる
-- [ ] SSH設定ファイルを効率的に構成できる
-- [ ] sshd のセキュリティ設定を理解できる
-- [ ] 多段SSH・踏み台サーバーを使いこなせる
-- [ ] SSH関連のトラブルシューティングができる
+- [ ] Connect securely to remote servers using SSH
+- [ ] Generate and manage SSH keys
+- [ ] Transfer files with SCP / rsync
+- [ ] Leverage SSH tunneling
+- [ ] Configure the SSH config file efficiently
+- [ ] Understand sshd security settings
+- [ ] Use multi-hop SSH and jump hosts
+- [ ] Troubleshoot SSH-related issues
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will help you understand the content:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ネットワークツール（curl, wget）](./00-curl-wget.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Network Tools (curl, wget)](./00-curl-wget.md)
 
 ---
 
-## 1. SSH の基本
+## 1. SSH Basics
 
-### 1.1 SSH とは
+### 1.1 What is SSH
 
-SSH（Secure Shell）は、ネットワーク上の安全な通信チャネルを確立するプロトコル。暗号化された通信により、以下の機能を提供する：
+SSH (Secure Shell) is a protocol that establishes a secure communication channel over a network. Through encrypted communication, it provides the following capabilities:
 
-- **リモートシェルアクセス**: 安全にリモートサーバーのコマンドラインを操作
-- **ファイル転送**: SCP, SFTP, rsync による暗号化ファイル転送
-- **ポートフォワーディング**: SSHトンネルによる安全なネットワーク中継
-- **X11フォワーディング**: リモートGUIアプリケーションの表示
+- **Remote shell access**: Safely operate the command line of a remote server
+- **File transfer**: Encrypted file transfer via SCP, SFTP, and rsync
+- **Port forwarding**: Secure network relay through SSH tunnels
+- **X11 forwarding**: Display remote GUI applications locally
 
 ```bash
-# SSH のバージョン確認
+# Check SSH version
 ssh -V
 # OpenSSH_9.6p1, LibreSSL 3.3.6
 
-# SSH プロトコルの仕組み（簡略化）
-# 1. TCPコネクション確立（デフォルト: ポート22）
-# 2. SSHプロトコルバージョン交換
-# 3. 鍵交換アルゴリズムのネゴシエーション
-# 4. サーバー認証（ホスト鍵の検証）
-# 5. ユーザー認証（公開鍵、パスワード等）
-# 6. 暗号化通信チャネル確立
+# How the SSH protocol works (simplified)
+# 1. Establish TCP connection (default: port 22)
+# 2. Exchange SSH protocol version
+# 3. Negotiate key exchange algorithm
+# 4. Server authentication (verify host key)
+# 5. User authentication (public key, password, etc.)
+# 6. Establish encrypted communication channel
 ```
 
-### 1.2 基本的な接続
+### 1.2 Basic Connection
 
 ```bash
-# 基本: ssh [オプション] [ユーザー@]ホスト
+# Basic: ssh [options] [user@]host
 
-# ===== 接続方法 =====
+# ===== Connection methods =====
 
-# ユーザー指定で接続
+# Connect with a specific user
 ssh user@server.example.com
 
-# 現在のユーザー名で接続
+# Connect with the current username
 ssh server.example.com
 
-# ポート指定
+# Specify a port
 ssh -p 2222 user@server.com
 
-# 秘密鍵を明示的に指定
+# Explicitly specify a private key
 ssh -i ~/.ssh/my_key user@server.com
 
-# IPv6 アドレスで接続
+# Connect via IPv6 address
 ssh user@"[2001:db8::1]"
 
-# 接続時のホスト鍵チェックをスキップ（初回接続時の自動化用）
+# Skip host key check on connection (for automation on first connect)
 ssh -o StrictHostKeyChecking=no user@server.com
-# ※ セキュリティリスクあり。自動化スクリプト以外では非推奨
+# Note: Security risk. Not recommended outside of automation scripts
 
-# 接続先のホスト鍵フィンガープリントを事前確認
+# Check the host key fingerprint in advance
 ssh-keyscan server.example.com 2>/dev/null | ssh-keygen -l -f -
 ```
 
-### 1.3 リモートコマンド実行
+### 1.3 Executing Remote Commands
 
 ```bash
-# リモートでコマンド実行して切断
+# Execute a command on the remote host and disconnect
 ssh user@server.com command
 
-# 単一コマンド
+# Single command
 ssh user@server "ls -la /var/log"
 ssh user@server "df -h && free -m"
 ssh user@server 'cat /etc/nginx/nginx.conf'
 
-# 複数コマンドの実行
+# Run multiple commands
 ssh user@server "uname -a; uptime; who"
 ssh user@server "cd /var/log && tail -100 syslog"
 
-# パイプを使ったコマンド
+# Commands using pipes
 ssh user@server "ps aux | grep nginx | grep -v grep"
 
-# sudo 付きコマンド（-t: 疑似端末を強制割り当て）
+# Commands with sudo (-t: force pseudo-terminal allocation)
 ssh -t user@server "sudo systemctl restart nginx"
 
-# ヒアドキュメントで複雑なスクリプトを実行
+# Run complex scripts using a here document
 ssh user@server bash <<'EOF'
 echo "=== System Info ==="
 uname -a
@@ -115,222 +115,222 @@ echo "=== Top Processes ==="
 ps aux --sort=-%cpu | head -5
 EOF
 
-# リモートコマンドの終了コードを受け取る
+# Receive the exit code from the remote command
 ssh user@server "test -f /var/run/app.pid"
-echo "Exit code: $?"  # 0=ファイルあり, 1=なし
+echo "Exit code: $?"  # 0=file exists, 1=does not exist
 
-# 複数サーバーで同じコマンド実行
+# Run the same command on multiple servers
 for server in web1 web2 web3; do
     echo "=== $server ==="
     ssh "$server" "uptime"
 done
 
-# 並列実行（xargs）
+# Parallel execution (xargs)
 echo -e "web1\nweb2\nweb3" | xargs -P 3 -I {} ssh {} "uptime"
 
-# 並列実行（GNU parallel）
+# Parallel execution (GNU parallel)
 parallel ssh {} "uptime" ::: web1 web2 web3
 ```
 
-### 1.4 SSH の接続オプション
+### 1.4 SSH Connection Options
 
 ```bash
-# 詳細デバッグ出力（接続問題の調査に必須）
-ssh -v user@server    # レベル1（基本的なデバッグ情報）
-ssh -vv user@server   # レベル2（より詳細）
-ssh -vvv user@server  # レベル3（最大限の詳細）
+# Verbose debug output (essential for investigating connection issues)
+ssh -v user@server    # Level 1 (basic debug information)
+ssh -vv user@server   # Level 2 (more detailed)
+ssh -vvv user@server  # Level 3 (maximum detail)
 
-# 圧縮を有効にする（遅い回線で有効）
+# Enable compression (useful on slow connections)
 ssh -C user@server
 
-# X11 フォワーディング（リモートのGUIアプリを表示）
-ssh -X user@server    # X11 フォワーディング
-ssh -Y user@server    # 信頼された X11 フォワーディング（セキュリティ緩い）
+# X11 forwarding (display remote GUI apps locally)
+ssh -X user@server    # X11 forwarding
+ssh -Y user@server    # Trusted X11 forwarding (less secure)
 
-# 接続のキープアライブ
+# Connection keepalive
 ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=3 user@server
 
-# 接続タイムアウト
+# Connection timeout
 ssh -o ConnectTimeout=10 user@server
 
-# バッチモード（パスワード入力を求めない）
+# Batch mode (do not prompt for password)
 ssh -o BatchMode=yes user@server "uptime"
 
-# エスケープ文字の変更（デフォルトは ~）
+# Change escape character (default is ~)
 ssh -e '%' user@server
 
-# SSH セッション内のエスケープコマンド（デフォルト: ~）
-# ~.   → 接続を強制切断
-# ~^Z  → SSHをバックグラウンドに移動
-# ~~   → ~ 文字を送信
-# ~?   → エスケープコマンド一覧表示
-# ~#   → フォワードされたコネクション一覧
-# ~C   → コマンドラインを開く（動的フォワーディング追加等）
+# Escape commands within an SSH session (default: ~)
+# ~.   → Force disconnect
+# ~^Z  → Move SSH to background
+# ~~   → Send the ~ character
+# ~?   → Show list of escape commands
+# ~#   → List forwarded connections
+# ~C   → Open command line (for adding dynamic forwarding, etc.)
 ```
 
 ---
 
-## 2. SSH鍵の管理
+## 2. Managing SSH Keys
 
-### 2.1 鍵ペアの生成
+### 2.1 Generating Key Pairs
 
 ```bash
-# ===== 鍵アルゴリズムの選択 =====
+# ===== Choosing a key algorithm =====
 
-# Ed25519（推奨）: 高速・安全・鍵が短い
+# Ed25519 (recommended): fast, secure, short key
 ssh-keygen -t ed25519 -C "gaku@example.com"
-# 生成される鍵:
-# ~/.ssh/id_ed25519      ← 秘密鍵（絶対に共有しない）
-# ~/.ssh/id_ed25519.pub  ← 公開鍵（サーバーに登録する）
+# Keys generated:
+# ~/.ssh/id_ed25519      ← Private key (never share this)
+# ~/.ssh/id_ed25519.pub  ← Public key (register on the server)
 
-# Ed25519-SK（FIDO2/U2Fハードウェアキー用）
+# Ed25519-SK (for FIDO2/U2F hardware keys)
 ssh-keygen -t ed25519-sk -C "gaku@example.com"
 
-# RSA 4096bit: レガシー環境向け（古いシステムとの互換性）
+# RSA 4096bit: for legacy environments (compatibility with older systems)
 ssh-keygen -t rsa -b 4096 -C "gaku@example.com"
 
-# ECDSA: 楕円曲線暗号（NISTカーブ）
+# ECDSA: elliptic curve cryptography (NIST curves)
 ssh-keygen -t ecdsa -b 521 -C "gaku@example.com"
 
-# ===== 鍵生成のオプション =====
+# ===== Key generation options =====
 
-# ファイル名を指定して生成
+# Generate with a specified filename
 ssh-keygen -t ed25519 -f ~/.ssh/project_key -C "project@example.com"
 
-# パスフレーズなしで生成（自動化用）
+# Generate without a passphrase (for automation)
 ssh-keygen -t ed25519 -f ~/.ssh/automation_key -N "" -C "automation"
 
-# パスフレーズを変更
+# Change the passphrase
 ssh-keygen -p -f ~/.ssh/id_ed25519
 
-# 鍵のフィンガープリントを確認
+# Check the key fingerprint
 ssh-keygen -l -f ~/.ssh/id_ed25519.pub
 # 256 SHA256:AbCdEfGhIj... gaku@example.com (ED25519)
 
-# 鍵のビジュアルフィンガープリント（ランダムアート）
+# Visual fingerprint (random art) of the key
 ssh-keygen -lv -f ~/.ssh/id_ed25519.pub
 
-# 公開鍵の内容を確認
+# Check the public key content
 cat ~/.ssh/id_ed25519.pub
 # ssh-ed25519 AAAA... gaku@example.com
 
-# 秘密鍵から公開鍵を再生成
+# Regenerate a public key from a private key
 ssh-keygen -y -f ~/.ssh/id_ed25519 > ~/.ssh/id_ed25519.pub
 ```
 
-### 2.2 鍵アルゴリズムの比較
+### 2.2 Comparing Key Algorithms
 
 ```text
 ┌──────────────┬────────────┬──────────────┬───────────────┬──────────────────┐
-│ アルゴリズム │ 鍵長       │ 安全性       │ 速度          │ 備考             │
+│ Algorithm    │ Key length │ Security     │ Speed         │ Notes            │
 ├──────────────┼────────────┼──────────────┼───────────────┼──────────────────┤
-│ Ed25519      │ 256bit     │ ◎ 非常に高い │ ◎ 非常に速い  │ 現在の推奨       │
-│ Ed25519-SK   │ 256bit     │ ◎ HW鍵必須   │ ◎             │ FIDO2対応        │
-│ ECDSA        │ 256-521bit │ ○ 高い       │ ○ 速い        │ NISTカーブ       │
-│ RSA          │ 2048-4096  │ ○ 高い(4096) │ △ やや遅い    │ レガシー互換     │
-│ DSA          │ 1024bit    │ × 非推奨     │ ○ 速い        │ OpenSSH 7.0で廃止│
+│ Ed25519      │ 256bit     │ ◎ Very high  │ ◎ Very fast   │ Current standard │
+│ Ed25519-SK   │ 256bit     │ ◎ HW key req │ ◎             │ FIDO2 support    │
+│ ECDSA        │ 256-521bit │ ○ High       │ ○ Fast        │ NIST curves      │
+│ RSA          │ 2048-4096  │ ○ High(4096) │ △ Slightly slow│ Legacy compat   │
+│ DSA          │ 1024bit    │ × Deprecated │ ○ Fast        │ Removed in OpenSSH 7.0│
 └──────────────┴────────────┴──────────────┴───────────────┴──────────────────┘
 
-推奨: Ed25519 > ECDSA > RSA 4096 > RSA 2048
+Recommended: Ed25519 > ECDSA > RSA 4096 > RSA 2048
 ```
 
-### 2.3 公開鍵の登録
+### 2.3 Registering a Public Key
 
 ```bash
-# 方法1: ssh-copy-id（最も簡単）
+# Method 1: ssh-copy-id (easiest)
 ssh-copy-id user@server.com
 ssh-copy-id -i ~/.ssh/specific_key.pub user@server.com
 ssh-copy-id -p 2222 user@server.com
 
-# 方法2: 手動でコピー
+# Method 2: Copy manually
 cat ~/.ssh/id_ed25519.pub | ssh user@server "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 
-# 方法3: クリップボードからペースト（macOS）
+# Method 3: Paste from clipboard (macOS)
 pbcopy < ~/.ssh/id_ed25519.pub
-# サーバー側で ~/.ssh/authorized_keys にペースト
+# Paste into ~/.ssh/authorized_keys on the server
 
-# 方法4: GitHub/GitLab から公開鍵を取得
+# Method 4: Retrieve public key from GitHub/GitLab
 curl -s https://github.com/username.keys >> ~/.ssh/authorized_keys
 curl -s https://gitlab.com/username.keys >> ~/.ssh/authorized_keys
 
-# 登録済み公開鍵の確認（サーバー側）
+# Check registered public keys (on the server)
 cat ~/.ssh/authorized_keys
 
-# 特定の鍵に制限を付ける（authorized_keys内）
-# コマンド制限: 特定コマンドのみ許可
+# Adding restrictions to specific keys (inside authorized_keys)
+# Command restriction: allow only a specific command
 # command="rsync --server --sender -logDtprze.iLsfxCIvu . /data",no-pty,no-port-forwarding ssh-ed25519 AAAA...
-# IPアドレス制限
+# IP address restriction
 # from="192.168.1.0/24" ssh-ed25519 AAAA...
-# 複数制限の組み合わせ
+# Combining multiple restrictions
 # from="10.0.0.0/8",command="/usr/local/bin/backup.sh",no-pty,no-port-forwarding ssh-ed25519 AAAA...
 ```
 
-### 2.4 ssh-agent による鍵管理
+### 2.4 Key Management with ssh-agent
 
 ```bash
-# ssh-agent: パスフレーズ付き鍵のパスフレーズをメモリに保持
-# → 毎回パスフレーズを入力する必要がなくなる
+# ssh-agent: keeps passphrases for passphrase-protected keys in memory
+# → No need to enter the passphrase every time
 
-# エージェント起動
+# Start the agent
 eval "$(ssh-agent -s)"
 # Agent pid 12345
 
-# 鍵をエージェントに登録
-ssh-add ~/.ssh/id_ed25519        # デフォルト鍵
-ssh-add ~/.ssh/project_key       # 特定の鍵
+# Add a key to the agent
+ssh-add ~/.ssh/id_ed25519        # Default key
+ssh-add ~/.ssh/project_key       # Specific key
 
-# 登録済み鍵の一覧
-ssh-add -l                       # フィンガープリント表示
-ssh-add -L                       # 公開鍵全体を表示
+# List registered keys
+ssh-add -l                       # Show fingerprints
+ssh-add -L                       # Show full public keys
 
-# 全鍵を削除
+# Remove all keys
 ssh-add -D
 
-# 特定の鍵を削除
+# Remove a specific key
 ssh-add -d ~/.ssh/id_ed25519
 
-# 有効期限付きで登録（セキュリティ向上）
-ssh-add -t 3600 ~/.ssh/id_ed25519    # 1時間で自動削除
-ssh-add -t 28800 ~/.ssh/id_ed25519   # 8時間（就業時間中のみ）
+# Register with an expiration time (improved security)
+ssh-add -t 3600 ~/.ssh/id_ed25519    # Auto-delete after 1 hour
+ssh-add -t 28800 ~/.ssh/id_ed25519   # 8 hours (working hours only)
 
-# macOS: Keychainと統合
+# macOS: Integrate with Keychain
 ssh-add --apple-use-keychain ~/.ssh/id_ed25519
-# → ログイン時に自動的に鍵がロードされる
+# → Keys are automatically loaded on login
 
-# macOS: ~/.ssh/config に設定（永続化）
+# macOS: Set in ~/.ssh/config (for persistence)
 # Host *
 #     UseKeychain yes
 #     AddKeysToAgent yes
 #     IdentityFile ~/.ssh/id_ed25519
 
-# エージェントフォワーディング（踏み台経由の認証に使用）
+# Agent forwarding (used for authentication through a jump host)
 ssh -A user@bastion
-# bastion から内部サーバーに接続する際、ローカルの鍵が使える
-# ※ セキュリティリスクあり。信頼できるサーバーでのみ使用
+# When connecting to an internal server from the bastion, your local key can be used
+# Note: Security risk. Use only with trusted servers
 
-# エージェント転送の確認
+# Check agent forwarding
 echo "$SSH_AUTH_SOCK"
-ssh-add -l  # 踏み台サーバー上で実行 → ローカルの鍵が見える
+ssh-add -l  # Run on the bastion server → local keys are visible
 
-# エージェントの停止
+# Stop the agent
 ssh-agent -k
 ```
 
-### 2.5 SSH鍵のセキュリティ
+### 2.5 SSH Key Security
 
 ```bash
-# ===== パーミッション（重要）=====
-chmod 700 ~/.ssh                 # ディレクトリ
-chmod 600 ~/.ssh/id_ed25519      # 秘密鍵
-chmod 644 ~/.ssh/id_ed25519.pub  # 公開鍵
-chmod 600 ~/.ssh/authorized_keys # 認証鍵リスト
-chmod 600 ~/.ssh/config          # 設定ファイル
-chmod 600 ~/.ssh/known_hosts     # 既知ホスト
+# ===== Permissions (important) =====
+chmod 700 ~/.ssh                 # Directory
+chmod 600 ~/.ssh/id_ed25519      # Private key
+chmod 644 ~/.ssh/id_ed25519.pub  # Public key
+chmod 600 ~/.ssh/authorized_keys # Authorized keys list
+chmod 600 ~/.ssh/config          # Config file
+chmod 600 ~/.ssh/known_hosts     # Known hosts
 
-# パーミッションが正しくないと SSH は鍵を拒否する
-# エラー例: "Permissions 0644 for '/home/user/.ssh/id_ed25519' are too open."
+# SSH will reject a key if permissions are incorrect
+# Error example: "Permissions 0644 for '/home/user/.ssh/id_ed25519' are too open."
 
-# パーミッション一括修正スクリプト
+# Script to fix all permissions at once
 fix_ssh_permissions() {
     local ssh_dir="$HOME/.ssh"
 
@@ -341,38 +341,38 @@ fix_ssh_permissions() {
     chmod 600 "$ssh_dir"/config 2>/dev/null
     chmod 600 "$ssh_dir"/known_hosts 2>/dev/null
 
-    echo "SSH パーミッション修正完了"
+    echo "SSH permissions fixed"
     ls -la "$ssh_dir"
 }
 
-# ===== known_hosts の管理 =====
+# ===== Managing known_hosts =====
 
-# ホスト鍵のハッシュ化（IPアドレスの漏洩防止）
+# Hash host keys (to prevent IP address leakage)
 ssh-keygen -H -f ~/.ssh/known_hosts
 
-# 特定ホストの鍵を削除（ホスト鍵が変わった場合）
+# Remove a specific host's key (when the host key has changed)
 ssh-keygen -R server.example.com
-ssh-keygen -R "[server.example.com]:2222"  # ポート指定の場合
+ssh-keygen -R "[server.example.com]:2222"  # When a port is specified
 
-# ホスト鍵を事前に追加
+# Pre-add a host key
 ssh-keyscan -H server.example.com >> ~/.ssh/known_hosts 2>/dev/null
 ssh-keyscan -p 2222 -H server.example.com >> ~/.ssh/known_hosts 2>/dev/null
 
-# ===== 鍵のローテーション =====
+# ===== Key rotation =====
 
-# 1. 新しい鍵を生成
+# 1. Generate a new key
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_new -C "gaku@example.com (rotated $(date +%Y%m%d))"
 
-# 2. 新しい公開鍵をサーバーに追加
+# 2. Add the new public key to the server
 ssh-copy-id -i ~/.ssh/id_ed25519_new.pub user@server
 
-# 3. 新しい鍵で接続テスト
+# 3. Test connection with the new key
 ssh -i ~/.ssh/id_ed25519_new user@server "echo 'New key works'"
 
-# 4. 古い鍵を削除（サーバー側の authorized_keys から）
+# 4. Remove the old key (from authorized_keys on the server)
 ssh user@server "sed -i '/OLD_KEY_COMMENT/d' ~/.ssh/authorized_keys"
 
-# 5. ローカルの鍵を入れ替え
+# 5. Replace the local key
 mv ~/.ssh/id_ed25519 ~/.ssh/id_ed25519_old
 mv ~/.ssh/id_ed25519_new ~/.ssh/id_ed25519
 mv ~/.ssh/id_ed25519_new.pub ~/.ssh/id_ed25519.pub
@@ -380,15 +380,15 @@ mv ~/.ssh/id_ed25519_new.pub ~/.ssh/id_ed25519.pub
 
 ---
 
-## 3. SSH設定ファイル（~/.ssh/config）
+## 3. SSH Config File (~/.ssh/config)
 
-### 3.1 基本設定
+### 3.1 Basic Configuration
 
 ```bash
-# ~/.ssh/config で接続設定を管理
-# 長いコマンドを短いエイリアスにできる
+# Manage connection settings with ~/.ssh/config
+# Long commands can be shortened to aliases
 
-# 基本的なホスト定義
+# Basic host definition
 # ssh production → ssh -p 2222 -i ~/.ssh/prod_key deploy@prod.example.com
 Host production
     HostName prod.example.com
@@ -401,18 +401,18 @@ Host staging
     User deploy
     IdentityFile ~/.ssh/staging_key
 
-# ワイルドカード
+# Wildcard
 Host *.example.com
     User gaku
     IdentityFile ~/.ssh/id_ed25519
 ```
 
-### 3.2 踏み台サーバー設定
+### 3.2 Jump Host Configuration
 
 ```bash
-# ===== ProxyJump（推奨: OpenSSH 7.3+）=====
+# ===== ProxyJump (recommended: OpenSSH 7.3+) =====
 
-# 踏み台サーバー経由で内部サーバーに接続
+# Connect to an internal server through a jump host
 Host bastion
     HostName bastion.example.com
     User admin
@@ -423,34 +423,34 @@ Host internal-server
     User admin
     ProxyJump bastion
 
-# 多段踏み台（bastion1 → bastion2 → target）
+# Multi-hop jump host (bastion1 → bastion2 → target)
 Host target
     HostName 10.0.1.50
     User admin
     ProxyJump bastion1,bastion2
 
-# ssh internal-server だけで接続可能
+# Connectable with just: ssh internal-server
 
-# ===== ProxyCommand（レガシー: 古い OpenSSH 用）=====
+# ===== ProxyCommand (legacy: for older OpenSSH) =====
 
 Host internal-legacy
     HostName 192.168.1.100
     User admin
     ProxyCommand ssh -W %h:%p bastion
 
-# ===== コマンドラインでの踏み台指定 =====
+# ===== Specifying a jump host on the command line =====
 
-# -J オプション（ProxyJump のコマンドライン版）
+# -J option (command-line version of ProxyJump)
 ssh -J bastion.example.com user@10.0.1.100
 ssh -J user1@bastion1:22,user2@bastion2:22 user3@target
 ```
 
-### 3.3 高度な設定
+### 3.3 Advanced Configuration
 
 ```bash
-# ===== 環境別設定 =====
+# ===== Per-environment configuration =====
 
-# 開発環境
+# Development environment
 Host dev-*
     User developer
     IdentityFile ~/.ssh/dev_key
@@ -458,7 +458,7 @@ Host dev-*
     UserKnownHostsFile /dev/null
     LogLevel ERROR
 
-# 本番環境（厳格設定）
+# Production environment (strict settings)
 Host prod-*
     User deploy
     IdentityFile ~/.ssh/prod_key
@@ -466,14 +466,14 @@ Host prod-*
     PasswordAuthentication no
     ForwardAgent no
 
-# AWS EC2 インスタンス
+# AWS EC2 instances
 Host ec2-*
     User ec2-user
     IdentityFile ~/.ssh/aws_key.pem
     StrictHostKeyChecking no
     UserKnownHostsFile /dev/null
 
-# GitHub（鍵の使い分け）
+# GitHub (using different keys)
 Host github.com
     HostName github.com
     User git
@@ -484,55 +484,55 @@ Host github-work
     User git
     IdentityFile ~/.ssh/github_work_ed25519
 
-# ===== 接続の最適化 =====
+# ===== Connection optimization =====
 
-# 接続の多重化（ControlMaster）
-# 同じホストへの2回目以降の接続が瞬時になる
+# Connection multiplexing (ControlMaster)
+# Subsequent connections to the same host become instant
 Host *
     ControlMaster auto
     ControlPath ~/.ssh/sockets/%r@%h-%p
     ControlPersist 600
-    # ControlMaster auto: 最初の接続をマスターにする
-    # ControlPath: ソケットファイルの場所
-    # ControlPersist 600: マスター接続を600秒維持
+    # ControlMaster auto: make the first connection the master
+    # ControlPath: location of the socket file
+    # ControlPersist 600: keep master connection for 600 seconds
 
-# ソケットディレクトリの作成が必要
+# The socket directory must be created
 # mkdir -p ~/.ssh/sockets
 
-# 多重化の手動管理
-# ssh -O check hostname   → マスター接続の確認
-# ssh -O stop hostname    → マスター接続の停止
-# ssh -O exit hostname    → マスター接続の終了
+# Manual multiplexing management
+# ssh -O check hostname   → Check master connection
+# ssh -O stop hostname    → Stop master connection
+# ssh -O exit hostname    → Exit master connection
 
-# ===== 全ホスト共通設定 =====
+# ===== Global settings for all hosts =====
 Host *
-    ServerAliveInterval 60       # 60秒ごとにKeepAlive
-    ServerAliveCountMax 3        # 3回失敗で切断
-    AddKeysToAgent yes           # 鍵を自動でエージェントに追加
-    IdentitiesOnly yes           # 指定した鍵のみ使用
-    HashKnownHosts yes           # known_hosts をハッシュ化
-    Compression yes              # 圧縮を有効化
-    TCPKeepAlive yes             # TCP レベルのキープアライブ
+    ServerAliveInterval 60       # Send keepalive every 60 seconds
+    ServerAliveCountMax 3        # Disconnect after 3 failures
+    AddKeysToAgent yes           # Automatically add keys to agent
+    IdentitiesOnly yes           # Use only specified keys
+    HashKnownHosts yes           # Hash known_hosts
+    Compression yes              # Enable compression
+    TCPKeepAlive yes             # TCP-level keepalive
 ```
 
-### 3.4 設定ファイルの読み込み順序
+### 3.4 Config File Load Order
 
 ```bash
-# SSH 設定の優先順位（上が高い）
-# 1. コマンドラインオプション（ssh -p 2222 ...）
-# 2. ユーザー設定（~/.ssh/config）
-# 3. システム設定（/etc/ssh/ssh_config）
+# SSH config priority (higher is higher priority)
+# 1. Command-line options (ssh -p 2222 ...)
+# 2. User config (~/.ssh/config)
+# 3. System config (/etc/ssh/ssh_config)
 
-# 設定ファイル内の優先順位
-# - 最初にマッチした Host ブロックの設定が使われる
-# - Host * は最後に書く（フォールバック）
+# Priority within the config file
+# - Settings from the first matching Host block are used
+# - Host * should be written last (as a fallback)
 
-# 設定の確認（実際に使われる設定値を表示）
+# Check config (display the actual settings values used)
 ssh -G hostname
 ssh -G hostname | grep -i proxyj
 
-# Include で設定を分割管理
-# ~/.ssh/config の先頭に記述:
+# Use Include to manage config across multiple files
+# Write at the top of ~/.ssh/config:
 Include config.d/*
 
 # ~/.ssh/config.d/work
@@ -548,88 +548,88 @@ Host personal-*
 
 ---
 
-## 4. ファイル転送（SCP, rsync）
+## 4. File Transfer (SCP, rsync)
 
 ### 4.1 SCP
 
 ```bash
-# scp: SSH経由のファイルコピー
-# 注意: OpenSSH 9.0 以降、内部的に sftp プロトコルを使用
-# シンプルなコピーには使えるが、rsync の方が高機能
+# scp: file copy over SSH
+# Note: OpenSSH 9.0 and later uses the sftp protocol internally
+# Fine for simple copies, but rsync is more feature-rich
 
-# ===== ローカル → リモート =====
+# ===== Local → Remote =====
 scp file.txt user@server:/home/user/
-scp -r ./dir user@server:/home/user/       # ディレクトリ（再帰）
-scp -P 2222 file.txt user@server:/tmp/     # ポート指定（-P 大文字！）
-scp -i ~/.ssh/key file.txt user@server:/tmp/  # 鍵指定
+scp -r ./dir user@server:/home/user/       # Directory (recursive)
+scp -P 2222 file.txt user@server:/tmp/     # Port specification (-P uppercase!)
+scp -i ~/.ssh/key file.txt user@server:/tmp/  # Specify key
 
-# 複数ファイル
+# Multiple files
 scp file1.txt file2.txt file3.txt user@server:/home/user/
 scp *.log user@server:/var/log/backup/
 
-# ===== リモート → ローカル =====
+# ===== Remote → Local =====
 scp user@server:/var/log/app.log ./
 scp -r user@server:/home/user/dir ./
 
-# ===== リモート → リモート =====
+# ===== Remote → Remote =====
 scp user@server1:/file user@server2:/file
 
-# ===== オプション =====
-scp -C file.txt user@server:/tmp/       # 圧縮転送
-scp -l 5000 file.txt user@server:/tmp/  # 帯域制限（Kbit/s）
-scp -p file.txt user@server:/tmp/       # タイムスタンプ保持
-scp -q file.txt user@server:/tmp/       # プログレス非表示
-scp -v file.txt user@server:/tmp/       # デバッグ出力
+# ===== Options =====
+scp -C file.txt user@server:/tmp/       # Compressed transfer
+scp -l 5000 file.txt user@server:/tmp/  # Bandwidth limit (Kbit/s)
+scp -p file.txt user@server:/tmp/       # Preserve timestamps
+scp -q file.txt user@server:/tmp/       # Suppress progress
+scp -v file.txt user@server:/tmp/       # Debug output
 
-# SCP の制限事項:
-# - 差分転送ができない（毎回全データ転送）
-# - 中断再開ができない
-# - 除外パターンを指定できない
-# - シンボリックリンクの扱いが限定的
-# → これらが必要な場合は rsync を使用
+# SCP limitations:
+# - No delta transfer (always transfers all data)
+# - Cannot resume interrupted transfers
+# - Cannot specify exclusion patterns
+# - Limited symlink handling
+# → Use rsync when these features are needed
 ```
 
-### 4.2 rsync（推奨）
+### 4.2 rsync (Recommended)
 
 ```bash
-# rsync: 差分転送（高速・中断再開可能・柔軟）
+# rsync: delta transfer (fast, resumable, flexible)
 
-# ===== 基本構文 =====
-# rsync [オプション] 送信元 送信先
+# ===== Basic syntax =====
+# rsync [options] source destination
 
-# ===== ローカル → リモート =====
+# ===== Local → Remote =====
 rsync -avz ./project/ user@server:/home/user/project/
-# -a: アーカイブモード（-rlptgoD と同等）
-#   -r: 再帰的
-#   -l: シンボリックリンクを保持
-#   -p: パーミッション保持
-#   -t: タイムスタンプ保持
-#   -g: グループ保持
-#   -o: オーナー保持
-#   -D: デバイスファイル・特殊ファイル保持
-# -v: 詳細表示
-# -z: 圧縮転送
+# -a: archive mode (equivalent to -rlptgoD)
+#   -r: recursive
+#   -l: preserve symlinks
+#   -p: preserve permissions
+#   -t: preserve timestamps
+#   -g: preserve group
+#   -o: preserve owner
+#   -D: preserve device and special files
+# -v: verbose output
+# -z: compressed transfer
 
-# ===== リモート → ローカル =====
+# ===== Remote → Local =====
 rsync -avz user@server:/var/log/ ./logs/
 
-# ===== ポート・鍵の指定 =====
+# ===== Specifying port and key =====
 rsync -avz -e "ssh -p 2222 -i ~/.ssh/key" ./project/ user@server:/app/
 
-# ===== 重要: 末尾のスラッシュの意味 =====
-rsync -avz ./dir  user@server:/dest/   # → /dest/dir/ として転送
-rsync -avz ./dir/ user@server:/dest/   # → /dest/ の中身として転送
-# 末尾の / は「ディレクトリの中身」を意味する
-# / なしは「ディレクトリそのもの」を意味する
+# ===== Important: meaning of the trailing slash =====
+rsync -avz ./dir  user@server:/dest/   # → transferred as /dest/dir/
+rsync -avz ./dir/ user@server:/dest/   # → transferred as contents of /dest/
+# Trailing / means "contents of the directory"
+# Without / means "the directory itself"
 
-# ===== 除外パターン =====
+# ===== Exclusion patterns =====
 rsync -avz --exclude='.git' --exclude='node_modules' ./project/ user@server:/app/
 rsync -avz --exclude='*.log' --exclude='*.tmp' ./data/ user@server:/data/
 
-# パターンファイルで除外
+# Exclude using a pattern file
 rsync -avz --exclude-from='.rsyncignore' ./project/ user@server:/app/
 
-# .rsyncignore の例:
+# Example .rsyncignore:
 # .git/
 # node_modules/
 # *.log
@@ -639,90 +639,90 @@ rsync -avz --exclude-from='.rsyncignore' ./project/ user@server:/app/
 # __pycache__/
 # *.pyc
 
-# 除外と包含の組み合わせ
+# Combining exclusions and inclusions
 rsync -avz --include='*.py' --exclude='*' ./src/ user@server:/src/
-# Python ファイルのみ転送
+# Transfer only Python files
 
-# ===== ドライラン（実行せずに確認）=====
-rsync -avzn ./project/ user@server:/app/   # -n: ドライラン
-rsync -avz --dry-run ./project/ user@server:/app/  # 同上
+# ===== Dry run (check without executing) =====
+rsync -avzn ./project/ user@server:/app/   # -n: dry run
+rsync -avz --dry-run ./project/ user@server:/app/  # same as above
 
-# ===== 削除同期 =====
-# 送信元にないファイルを送信先からも削除
+# ===== Delete sync =====
+# Delete files from the destination that no longer exist in the source
 rsync -avz --delete ./project/ user@server:/app/
 
-# 削除前に確認（ドライラン + 削除）
+# Confirm before deleting (dry run + delete)
 rsync -avzn --delete ./project/ user@server:/app/
 
-# 削除を除外ファイルに限定しない
+# Do not restrict deletions to excluded files
 rsync -avz --delete --delete-excluded ./project/ user@server:/app/
 
-# ===== 帯域制限 =====
+# ===== Bandwidth limit =====
 rsync -avz --bwlimit=5000 ./large/ user@server:/backup/  # 5MB/s
 rsync -avz --bwlimit=1m ./large/ user@server:/backup/    # 1MB/s
 
-# ===== 進捗表示 =====
+# ===== Progress display =====
 rsync -avz --progress ./large/ user@server:/backup/
-rsync -avz --info=progress2 ./large/ user@server:/backup/  # 全体進捗
+rsync -avz --info=progress2 ./large/ user@server:/backup/  # Overall progress
 
-# ===== チェックサム検証 =====
+# ===== Checksum verification =====
 rsync -avzc ./project/ user@server:/app/
-# -c: タイムスタンプではなくチェックサムで差分判定（遅いが確実）
+# -c: determine delta by checksum instead of timestamp (slower but reliable)
 
-# ===== 部分転送（中断再開） =====
+# ===== Partial transfer (resume) =====
 rsync -avz --partial --partial-dir=.rsync-partial ./large/ user@server:/backup/
-# 中断しても部分的に転送されたファイルを保持 → 再開時に続きから
+# Keeps partially transferred files on interruption → resumes from where it left off
 
-# -P は --partial --progress の短縮形
+# -P is shorthand for --partial --progress
 rsync -avzP ./large/ user@server:/backup/
 
-# ===== バックアップ機能 =====
-# 上書きされるファイルのバックアップを作成
+# ===== Backup feature =====
+# Create a backup of files that would be overwritten
 rsync -avz --backup --backup-dir=../backup/$(date +%Y%m%d) \
     ./project/ user@server:/app/
 
-# ===== ハードリンクを使った世代バックアップ =====
+# ===== Generational backup using hard links =====
 rsync -avz --link-dest=../backup-prev \
     user@server:/var/www/ ./backup-$(date +%Y%m%d)/
-# --link-dest: 前回のバックアップと同じファイルはハードリンクで省容量化
+# --link-dest: hard-link files identical to the previous backup to save space
 ```
 
-### 4.3 rsync の高度な使い方
+### 4.3 Advanced rsync Usage
 
 ```bash
-# ===== フィルタールール =====
+# ===== Filter rules =====
 rsync -avz --filter='- .git/' --filter='- node_modules/' ./project/ user@server:/app/
 
-# マージファイル（.rsync-filter）
+# Merge file (.rsync-filter)
 rsync -avz --filter=': .rsync-filter' ./project/ user@server:/app/
 
-# ===== リモート間のコピー（自分経由） =====
+# ===== Copy between remotes (through your machine) =====
 rsync -avz user@server1:/data/ user@server2:/data/
-# ※ データはローカルマシン経由で転送される
+# Note: data is transferred through the local machine
 
-# ===== ローカル同期（cp の代わり） =====
+# ===== Local sync (as a replacement for cp) =====
 rsync -avz /source/ /destination/
-# cp -a より高速（差分のみ転送）
+# Faster than cp -a (only delta is transferred)
 
-# ===== inotifywait と組み合わせたリアルタイム同期 =====
-# Linux で inotify-tools が必要
+# ===== Real-time sync combined with inotifywait =====
+# Requires inotify-tools on Linux
 while inotifywait -r -e modify,create,delete ./project/; do
     rsync -avz --delete ./project/ user@server:/app/
 done
 
-# ===== rsync デーモンモード =====
-# サーバー側: /etc/rsyncd.conf
+# ===== rsync daemon mode =====
+# Server side: /etc/rsyncd.conf
 # [data]
 #   path = /var/data
 #   read only = false
 #   auth users = rsyncuser
 #   secrets file = /etc/rsyncd.secrets
 
-# クライアント側
+# Client side
 rsync -avz ./data/ rsyncuser@server::data/
 rsync -avz rsyncuser@server::data/ ./data/
 
-# ===== 統計情報の表示 =====
+# ===== Show statistics =====
 rsync -avz --stats ./project/ user@server:/app/
 # Number of files: 1,234
 # Total file size: 123,456,789 bytes
@@ -735,46 +735,46 @@ rsync -avz --stats ./project/ user@server:/app/
 ### 4.4 sftp
 
 ```bash
-# sftp: 対話的ファイル転送（FTPライクなインターフェース）
+# sftp: interactive file transfer (FTP-like interface)
 
-# 接続
+# Connect
 sftp user@server
-sftp -P 2222 user@server          # ポート指定
-sftp -i ~/.ssh/key user@server    # 鍵指定
+sftp -P 2222 user@server          # Specify port
+sftp -i ~/.ssh/key user@server    # Specify key
 
-# sftp コマンド一覧
-# ===== ナビゲーション =====
-# ls            リモートのファイル一覧
-# lls           ローカルのファイル一覧
-# cd /var/log   リモートディレクトリ移動
-# lcd ~/tmp     ローカルディレクトリ移動
-# pwd           リモートの現在ディレクトリ
-# lpwd          ローカルの現在ディレクトリ
+# sftp commands
+# ===== Navigation =====
+# ls            List remote files
+# lls           List local files
+# cd /var/log   Change remote directory
+# lcd ~/tmp     Change local directory
+# pwd           Show current remote directory
+# lpwd          Show current local directory
 
-# ===== ファイル転送 =====
-# get remote_file.txt              ダウンロード
-# get remote_file.txt local.txt    名前を変えてダウンロード
-# get -r remote_dir/               ディレクトリごとダウンロード
-# put local_file.txt               アップロード
-# put local_file.txt remote.txt    名前を変えてアップロード
-# put -r local_dir/                ディレクトリごとアップロード
-# mget *.log                       ワイルドカードでダウンロード
-# mput *.txt                       ワイルドカードでアップロード
+# ===== File transfer =====
+# get remote_file.txt              Download
+# get remote_file.txt local.txt    Download with a new name
+# get -r remote_dir/               Download a directory
+# put local_file.txt               Upload
+# put local_file.txt remote.txt    Upload with a new name
+# put -r local_dir/                Upload a directory
+# mget *.log                       Download with wildcard
+# mput *.txt                       Upload with wildcard
 
-# ===== ファイル操作 =====
-# mkdir new_dir    ディレクトリ作成
-# rmdir old_dir    ディレクトリ削除
-# rm file.txt      ファイル削除
-# rename old new   名前変更
-# chmod 644 file   パーミッション変更
-# chown uid file   オーナー変更
+# ===== File operations =====
+# mkdir new_dir    Create directory
+# rmdir old_dir    Remove directory
+# rm file.txt      Delete file
+# rename old new   Rename
+# chmod 644 file   Change permissions
+# chown uid file   Change owner
 
-# ===== その他 =====
-# !command    ローカルでコマンド実行
-# df -h       リモートのディスク使用量
-# quit        終了（exit, bye も同じ）
+# ===== Other =====
+# !command    Execute command locally
+# df -h       Show remote disk usage
+# quit        Exit (exit, bye also work)
 
-# バッチモード（非対話的）
+# Batch mode (non-interactive)
 sftp -b batch.txt user@server
 # batch.txt:
 # cd /var/log
@@ -784,133 +784,133 @@ sftp -b batch.txt user@server
 
 ---
 
-## 5. SSHトンネリング（ポートフォワーディング）
+## 5. SSH Tunneling (Port Forwarding)
 
-### 5.1 ローカルフォワード
+### 5.1 Local Forwarding
 
 ```bash
-# ローカルフォワード: リモートのサービスをローカルポート経由でアクセス
-# ssh -L [ローカルアドレス:]ローカルポート:リモートホスト:リモートポート user@sshサーバー
+# Local forwarding: access a remote service via a local port
+# ssh -L [local-address:]local-port:remote-host:remote-port user@ssh-server
 
-# 基本形
+# Basic form
 ssh -L 8080:localhost:80 user@server
-# ローカルの8080 → SSHサーバーの80
-# ブラウザで http://localhost:8080 → リモートの80番ポートに接続
+# Local port 8080 → port 80 on the SSH server
+# http://localhost:8080 in browser → connects to remote port 80
 
-# リモートDB への接続
+# Connect to a remote DB
 ssh -L 5432:localhost:5432 user@server
-# ローカルの5432 → リモートのPostgreSQL
-# psql -h localhost -p 5432 でリモートDBに接続
+# Local port 5432 → remote PostgreSQL
+# Connect to remote DB with: psql -h localhost -p 5432
 
 ssh -L 3306:localhost:3306 user@server
-# ローカルの3306 → リモートのMySQL
+# Local port 3306 → remote MySQL
 
 ssh -L 6379:localhost:6379 user@server
-# ローカルの6379 → リモートのRedis
+# Local port 6379 → remote Redis
 
-# 踏み台経由で内部サーバーに接続
+# Connect to an internal server through a jump host
 ssh -L 3306:internal-db:3306 user@bastion
-# ローカルの3306 → bastion経由 → internal-db:3306
-# MySQL Workbench で localhost:3306 に接続 → 内部DBにアクセス
+# Local port 3306 → via bastion → internal-db:3306
+# Connect MySQL Workbench to localhost:3306 → accesses internal DB
 
 ssh -L 8443:internal-web:443 user@bastion
-# ローカルの8443 → bastion経由 → 内部Webサーバーの443
+# Local port 8443 → via bastion → internal web server port 443
 
-# 複数ポートの同時フォワーディング
+# Forwarding multiple ports simultaneously
 ssh -L 5432:db-server:5432 -L 6379:redis-server:6379 -L 9200:es-server:9200 user@bastion
 
-# バインドアドレスの指定
+# Specifying a bind address
 ssh -L 0.0.0.0:8080:localhost:80 user@server
-# → ローカルネットワークの他のマシンからもアクセス可能
-# ※ セキュリティリスクに注意
+# → Also accessible from other machines on the local network
+# Note: Be aware of security risks
 
 ssh -L 127.0.0.1:8080:localhost:80 user@server
-# → ローカルホストのみ（デフォルト）
+# → Localhost only (default)
 ```
 
-### 5.2 リモートフォワード
+### 5.2 Remote Forwarding
 
 ```bash
-# リモートフォワード: ローカルのサービスをリモートポート経由で公開
-# ssh -R [リモートアドレス:]リモートポート:ローカルホスト:ローカルポート user@sshサーバー
+# Remote forwarding: expose a local service via a remote port
+# ssh -R [remote-address:]remote-port:local-host:local-port user@ssh-server
 
-# 基本形
+# Basic form
 ssh -R 8080:localhost:3000 user@server
-# リモートの8080 → ローカルの3000
-# 開発中のアプリをリモートから確認可能
-# リモートで curl http://localhost:8080 → ローカルの3000に接続
+# Remote port 8080 → local port 3000
+# Allows viewing an app under development from the remote side
+# curl http://localhost:8080 on remote → connects to local port 3000
 
-# ユースケース:
-# 1. 開発中のアプリをチームメンバーに見せる
+# Use cases:
+# 1. Show an app under development to team members
 ssh -R 8080:localhost:3000 user@shared-server
 
-# 2. NAT/ファイアウォール内のサービスを外部に公開
+# 2. Expose a service behind NAT/firewall to the outside
 ssh -R 0.0.0.0:9090:localhost:8080 user@public-server
-# ※ sshd_config で GatewayPorts yes が必要
+# Note: Requires GatewayPorts yes in sshd_config
 
-# 3. Webhook のテスト（ローカル開発サーバーで受信）
+# 3. Testing webhooks (receive on local dev server)
 ssh -R 8080:localhost:4000 user@server
-# Webhook の URL を http://server:8080/ に設定
+# Set webhook URL to http://server:8080/
 
-# リモートフォワードの注意点:
-# - デフォルトではリモートの localhost のみバインド
-# - 外部からアクセスさせるには GatewayPorts の設定が必要
-# - サーバー側の sshd_config: GatewayPorts yes
+# Notes on remote forwarding:
+# - By default, only binds to localhost on the remote side
+# - GatewayPorts setting is needed for external access
+# - sshd_config on the server: GatewayPorts yes
 ```
 
-### 5.3 ダイナミックフォワード（SOCKSプロキシ）
+### 5.3 Dynamic Forwarding (SOCKS Proxy)
 
 ```bash
-# ダイナミックフォワード: SSH サーバーを SOCKS プロキシとして使用
-# ssh -D [ローカルアドレス:]ローカルポート user@sshサーバー
+# Dynamic forwarding: use the SSH server as a SOCKS proxy
+# ssh -D [local-address:]local-port user@ssh-server
 
 ssh -D 1080 user@server
-# ローカルの1080がSOCKSプロキシになる
-# すべての通信がSSHサーバー経由になる
+# Local port 1080 becomes a SOCKS proxy
+# All traffic is routed through the SSH server
 
-# ブラウザの設定:
+# Browser settings:
 # SOCKS Host: localhost
 # Port: 1080
 # SOCKS Version: SOCKS5
 
-# curl でSOCKSプロキシを使用
+# Use SOCKS proxy with curl
 curl --socks5 localhost:1080 https://example.com
 curl --socks5-hostname localhost:1080 https://example.com
-# --socks5-hostname: DNS解決もプロキシ経由（推奨）
+# --socks5-hostname: DNS resolution also goes through the proxy (recommended)
 
-# Git でSOCKSプロキシ経由
+# Git via SOCKS proxy
 git -c "http.proxy=socks5://localhost:1080" clone https://github.com/user/repo
 
-# ユースケース:
-# - 特定の国からしかアクセスできないサービスに接続
-# - 会社のネットワークから内部サービスにアクセス
-# - 公共Wi-Fiでの通信を暗号化
+# Use cases:
+# - Connect to services only accessible from a specific country
+# - Access internal services from a company network
+# - Encrypt traffic on public Wi-Fi
 ```
 
-### 5.4 バックグラウンドトンネル
+### 5.4 Background Tunnels
 
 ```bash
-# バックグラウンドでトンネルを張る
+# Create a tunnel in the background
 ssh -fNL 5432:localhost:5432 user@server
-# -f: バックグラウンドに移行
-# -N: コマンド実行しない（トンネルのみ）
+# -f: go to background
+# -N: do not execute a command (tunnel only)
 
-# トンネルの確認
+# Check the tunnel
 ps aux | grep "ssh -fN"
 lsof -i :5432
 
-# トンネルの終了
+# Terminate the tunnel
 kill $(pgrep -f "ssh -fNL 5432")
 
-# autossh: 自動再接続付きトンネル（推奨）
+# autossh: tunnel with automatic reconnection (recommended)
 # brew install autossh / apt install autossh
 autossh -M 0 -fNL 5432:localhost:5432 user@server \
     -o "ServerAliveInterval 30" \
     -o "ServerAliveCountMax 3"
-# -M 0: 接続監視にSSHのKeepAliveを使用
-# 接続が切れると自動的に再接続
+# -M 0: use SSH keepalive for connection monitoring
+# Automatically reconnects when the connection is lost
 
-# systemd でトンネルを永続化（Linux）
+# Persist the tunnel with systemd (Linux)
 # /etc/systemd/system/ssh-tunnel-db.service
 # [Unit]
 # Description=SSH Tunnel to Database
@@ -928,96 +928,96 @@ autossh -M 0 -fNL 5432:localhost:5432 user@server \
 # WantedBy=multi-user.target
 ```
 
-### 5.5 トンネリングの図解
+### 5.5 Tunneling Diagram
 
 ```text
-=== ローカルフォワード（-L） ===
+=== Local Forwarding (-L) ===
 
-[ローカルPC]                    [SSHサーバー]          [ターゲット]
-  localhost:8080 ──SSH暗号化──→ sshd ──平文──→ internal-db:3306
-  (ブラウザ等)                   (踏み台)
+[Local PC]                      [SSH Server]           [Target]
+  localhost:8080 ──SSH encrypted──→ sshd ──plain──→ internal-db:3306
+  (browser, etc.)                   (jump host)
 
-  コマンド: ssh -L 8080:internal-db:3306 user@sshserver
+  Command: ssh -L 8080:internal-db:3306 user@sshserver
 
-=== リモートフォワード（-R） ===
+=== Remote Forwarding (-R) ===
 
-[ローカルPC]                    [SSHサーバー]
-  localhost:3000 ←──SSH暗号化── sshd:8080
-  (開発サーバー)                 (外部からアクセス可能)
+[Local PC]                      [SSH Server]
+  localhost:3000 ←──SSH encrypted── sshd:8080
+  (dev server)                      (externally accessible)
 
-  コマンド: ssh -R 8080:localhost:3000 user@sshserver
+  Command: ssh -R 8080:localhost:3000 user@sshserver
 
-=== ダイナミックフォワード（-D） ===
+=== Dynamic Forwarding (-D) ===
 
-[ローカルPC]                    [SSHサーバー]          [任意のサーバー]
-  SOCKS5:1080 ──SSH暗号化──→ sshd ──平文──→ (どこでも)
-  (ブラウザ等)
+[Local PC]                      [SSH Server]           [Any Server]
+  SOCKS5:1080 ──SSH encrypted──→ sshd ──plain──→ (anywhere)
+  (browser, etc.)
 
-  コマンド: ssh -D 1080 user@sshserver
+  Command: ssh -D 1080 user@sshserver
 ```
 
 ---
 
-## 6. SSHサーバー設定（sshd_config）
+## 6. SSH Server Configuration (sshd_config)
 
-### 6.1 セキュリティ強化設定
+### 6.1 Security Hardening Settings
 
 ```bash
-# /etc/ssh/sshd_config の推奨設定
+# Recommended settings for /etc/ssh/sshd_config
 
-# ===== 基本設定 =====
-Port 22                        # ポート番号（変更推奨）
-# Port 2222                    # 非標準ポートを使う場合
-ListenAddress 0.0.0.0          # IPv4 で待ち受け
-ListenAddress ::               # IPv6 で待ち受け
+# ===== Basic settings =====
+Port 22                        # Port number (recommended to change)
+# Port 2222                    # When using a non-standard port
+ListenAddress 0.0.0.0          # Listen on IPv4
+ListenAddress ::               # Listen on IPv6
 
-# ===== 認証設定 =====
-PermitRootLogin no             # rootログイン禁止（必須）
-PasswordAuthentication no      # パスワード認証無効化（鍵認証のみ）
-PermitEmptyPasswords no        # 空パスワード禁止
-PubkeyAuthentication yes       # 公開鍵認証を有効化
-AuthorizedKeysFile .ssh/authorized_keys  # 公開鍵ファイルの場所
+# ===== Authentication settings =====
+PermitRootLogin no             # Prohibit root login (required)
+PasswordAuthentication no      # Disable password authentication (key auth only)
+PermitEmptyPasswords no        # Prohibit empty passwords
+PubkeyAuthentication yes       # Enable public key authentication
+AuthorizedKeysFile .ssh/authorized_keys  # Location of public key file
 
-# ===== セキュリティ =====
-MaxAuthTries 3                 # 認証試行回数の制限
-MaxSessions 5                  # 最大セッション数
-LoginGraceTime 30              # ログイン猶予時間（秒）
-ClientAliveInterval 300        # クライアントの生存確認間隔
-ClientAliveCountMax 2          # 生存確認の最大失敗回数
+# ===== Security =====
+MaxAuthTries 3                 # Limit authentication attempts
+MaxSessions 5                  # Maximum number of sessions
+LoginGraceTime 30              # Login grace period (seconds)
+ClientAliveInterval 300        # Client liveness check interval
+ClientAliveCountMax 2          # Maximum failed liveness checks
 
-# ===== プロトコル設定 =====
-Protocol 2                     # SSH2のみ（SSH1は廃止）
-X11Forwarding no               # X11フォワーディング無効化
-AllowTcpForwarding yes         # TCPフォワーディング許可
-GatewayPorts no                # リモートフォワードのバインド制限
-AllowAgentForwarding yes       # エージェントフォワーディング許可
+# ===== Protocol settings =====
+Protocol 2                     # SSH2 only (SSH1 is deprecated)
+X11Forwarding no               # Disable X11 forwarding
+AllowTcpForwarding yes         # Allow TCP forwarding
+GatewayPorts no                # Restrict remote forwarding bind
+AllowAgentForwarding yes       # Allow agent forwarding
 
-# ===== ユーザー/グループ制限 =====
-AllowUsers deploy admin        # 許可ユーザー
-# DenyUsers testuser           # 拒否ユーザー
-# AllowGroups sshusers         # 許可グループ
-# DenyGroups noremote          # 拒否グループ
+# ===== User/group restrictions =====
+AllowUsers deploy admin        # Allowed users
+# DenyUsers testuser           # Denied users
+# AllowGroups sshusers         # Allowed groups
+# DenyGroups noremote          # Denied groups
 
-# ===== ログ =====
+# ===== Logging =====
 SyslogFacility AUTH
-LogLevel VERBOSE               # 詳細ログ（監査用）
+LogLevel VERBOSE               # Verbose logging (for auditing)
 
-# ===== その他のセキュリティ =====
-UsePAM yes                     # PAM認証を使用
-PrintMotd no                   # ログイン時のメッセージ非表示
-Banner /etc/ssh/banner.txt     # 接続時のバナー表示
-AcceptEnv LANG LC_*            # 環境変数の受け渡し制限
+# ===== Other security settings =====
+UsePAM yes                     # Use PAM authentication
+PrintMotd no                   # Do not display login message
+Banner /etc/ssh/banner.txt     # Display banner on connection
+AcceptEnv LANG LC_*            # Restrict environment variable passing
 
-# 設定変更後の反映
-sudo sshd -t                   # 設定ファイルのテスト
-sudo systemctl restart sshd    # sshd を再起動
-# ※ 再起動前に必ず別ターミナルでの接続を確保しておくこと！
+# Apply configuration changes
+sudo sshd -t                   # Test config file
+sudo systemctl restart sshd    # Restart sshd
+# Note: Always keep another terminal connected before restarting!
 ```
 
-### 6.2 追加のセキュリティ対策
+### 6.2 Additional Security Measures
 
 ```bash
-# ===== fail2ban による不正アクセス防止 =====
+# ===== Preventing unauthorized access with fail2ban =====
 # sudo apt install fail2ban
 
 # /etc/fail2ban/jail.local
@@ -1030,34 +1030,34 @@ sudo systemctl restart sshd    # sshd を再起動
 # bantime = 3600
 # findtime = 600
 
-# fail2ban の状態確認
+# Check fail2ban status
 sudo fail2ban-client status sshd
 
-# ===== ファイアウォール（ufw）=====
-sudo ufw allow 22/tcp          # SSHポートを許可
-sudo ufw allow from 192.168.1.0/24 to any port 22  # 特定ネットワークのみ
+# ===== Firewall (ufw) =====
+sudo ufw allow 22/tcp          # Allow SSH port
+sudo ufw allow from 192.168.1.0/24 to any port 22  # Allow only specific network
 sudo ufw enable
 
 # ===== iptables =====
-# 特定IPからのみSSH許可
+# Allow SSH only from specific IPs
 sudo iptables -A INPUT -p tcp --dport 22 -s 192.168.1.0/24 -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport 22 -j DROP
 
-# ===== SSHログの監視 =====
-# 認証失敗の確認
+# ===== Monitoring SSH logs =====
+# Check authentication failures
 sudo grep "Failed password" /var/log/auth.log | tail -20
 sudo grep "Invalid user" /var/log/auth.log | tail -20
 
-# 成功した認証の確認
+# Check successful authentications
 sudo grep "Accepted" /var/log/auth.log | tail -20
 
-# リアルタイム監視
+# Real-time monitoring
 sudo tail -f /var/log/auth.log | grep sshd
 
-# ===== 二要素認証（Google Authenticator）=====
+# ===== Two-factor authentication (Google Authenticator) =====
 # sudo apt install libpam-google-authenticator
-# google-authenticator  # 初期設定
-# /etc/pam.d/sshd に追加:
+# google-authenticator  # Initial setup
+# Add to /etc/pam.d/sshd:
 # auth required pam_google_authenticator.so
 # /etc/ssh/sshd_config:
 # ChallengeResponseAuthentication yes
@@ -1066,12 +1066,12 @@ sudo tail -f /var/log/auth.log | grep sshd
 
 ---
 
-## 7. 実践パターン
+## 7. Practical Patterns
 
-### 7.1 多段SSH（踏み台サーバー経由）
+### 7.1 Multi-hop SSH (via Jump Host)
 
 ```bash
-# ===== ~/.ssh/config での設定 =====
+# ===== Configuration in ~/.ssh/config =====
 Host bastion
     HostName bastion.example.com
     User admin
@@ -1082,32 +1082,32 @@ Host target
     User admin
     ProxyJump bastion
 
-# ssh target だけで接続可能
+# Connectable with just: ssh target
 
-# ===== 多段ファイル転送 =====
-# 踏み台経由の rsync
+# ===== Multi-hop file transfer =====
+# rsync via jump host
 rsync -avz -e "ssh -J bastion" ./data/ admin@10.0.1.100:/data/
 
-# 踏み台経由の scp
+# scp via jump host
 scp -o ProxyJump=bastion file.txt admin@10.0.1.100:/tmp/
 
-# ===== 多段トンネル =====
-# bastion → internal-server のDBに接続
+# ===== Multi-hop tunneling =====
+# Connect to the DB on internal-server via bastion
 ssh -J bastion -L 5432:localhost:5432 admin@10.0.1.100
 ```
 
-### 7.2 リモートサーバーの監視
+### 7.2 Remote Server Monitoring
 
 ```bash
-# リモートサーバーのログをリアルタイム監視
+# Real-time monitoring of remote server logs
 ssh user@server "tail -f /var/log/app.log"
 
-# 複数サーバーのログを同時監視（tmux/screen使用推奨）
+# Monitor logs from multiple servers simultaneously (recommend using tmux/screen)
 # tmux:
-# Ctrl-b " → 画面分割
-# 各ペインで ssh user@web1 "tail -f /var/log/app.log"
+# Ctrl-b " → split pane
+# In each pane: ssh user@web1 "tail -f /var/log/app.log"
 
-# リモートのシステム情報をワンコマンドで取得
+# Retrieve remote system info in one command
 ssh user@server bash <<'EOF'
 echo "=== $(hostname) ==="
 echo ""
@@ -1127,7 +1127,7 @@ echo "--- Network ---"
 ss -tlnp
 EOF
 
-# 複数サーバーの一括ヘルスチェック
+# Batch health check for multiple servers
 #!/bin/bash
 SERVERS=("web1" "web2" "web3" "db1" "db2")
 
@@ -1141,76 +1141,76 @@ for server in "${SERVERS[@]}"; do
 done
 ```
 
-### 7.3 ファイル差分比較
+### 7.3 File Diff Comparison
 
 ```bash
-# リモートとローカルでファイル差分比較
+# Compare file differences between remote and local
 diff <(ssh user@server "cat /etc/nginx/nginx.conf") ./nginx.conf
 
-# カラー付き差分
+# Colored diff
 diff --color <(ssh user@server "cat /etc/nginx/nginx.conf") ./nginx.conf
 
-# vimdiff で比較
+# Compare with vimdiff
 vimdiff <(ssh user@server "cat /etc/nginx/nginx.conf") ./nginx.conf
 
-# 複数サーバー間の設定差分
+# Config diff between multiple servers
 diff <(ssh web1 "cat /etc/nginx/nginx.conf") <(ssh web2 "cat /etc/nginx/nginx.conf")
 
-# ディレクトリ全体の差分（rsync ドライラン）
+# Diff of entire directory (rsync dry run)
 rsync -avzn user@server:/etc/nginx/ ./nginx-local/ 2>&1 | head -50
 ```
 
-### 7.4 SSH接続のデバッグ
+### 7.4 Debugging SSH Connections
 
 ```bash
-# 段階的なデバッグ
-ssh -v user@server    # 基本的な接続情報
-ssh -vv user@server   # 鍵の試行順序など
-ssh -vvv user@server  # 全詳細（パケットレベル）
+# Step-by-step debugging
+ssh -v user@server    # Basic connection info
+ssh -vv user@server   # Key trial order, etc.
+ssh -vvv user@server  # Full detail (packet level)
 
-# よくある問題のデバッグ出力例:
+# Debug output examples for common issues:
 
-# 問題1: 鍵が見つからない
+# Issue 1: Key not found
 # debug1: Trying private key: /home/user/.ssh/id_rsa
 # debug1: Trying private key: /home/user/.ssh/id_ecdsa
 # debug1: Trying private key: /home/user/.ssh/id_ed25519
 # debug1: No more authentication methods to try.
-# → 解決: 正しい鍵を -i で指定 or ~/.ssh/config で設定
+# → Fix: specify the correct key with -i or configure it in ~/.ssh/config
 
-# 問題2: パーミッションエラー
+# Issue 2: Permission error
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # @         WARNING: UNPROTECTED PRIVATE KEY FILE!          @
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# → 解決: chmod 600 ~/.ssh/id_ed25519
+# → Fix: chmod 600 ~/.ssh/id_ed25519
 
-# 問題3: ホスト鍵の変更
+# Issue 3: Host key changed
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # @    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# → 解決: ssh-keygen -R hostname（正当な変更であることを確認後）
+# → Fix: ssh-keygen -R hostname (after confirming the change is legitimate)
 
-# 問題4: Connection refused
+# Issue 4: Connection refused
 # ssh: connect to host server.com port 22: Connection refused
-# → 確認: サーバー側で sshd が起動しているか
+# → Check: whether sshd is running on the server
 #   sudo systemctl status sshd
 #   sudo ss -tlnp | grep 22
 
-# 問題5: Connection timed out
+# Issue 5: Connection timed out
 # ssh: connect to host server.com port 22: Connection timed out
-# → 確認: ファイアウォール、セキュリティグループ、ネットワーク経路
+# → Check: firewall, security groups, network routing
 
-# 接続テスト（タイムアウト付き）
+# Connection test (with timeout)
 ssh -o ConnectTimeout=5 -o BatchMode=yes user@server "echo OK" 2>/dev/null
 echo "Result: $?"
 ```
 
-### 7.5 定期的なバックアップ
+### 7.5 Regular Backups
 
 ```bash
 #!/bin/bash
-# remote_backup.sh - rsync を使った定期バックアップスクリプト
+# remote_backup.sh - Regular backup script using rsync
 
-# 設定
+# Settings
 REMOTE_USER="deploy"
 REMOTE_HOST="server.example.com"
 REMOTE_DIR="/var/www/app/"
@@ -1219,23 +1219,23 @@ RETENTION_DAYS=30
 LOG_FILE="/var/log/backup.log"
 SSH_KEY="/home/deploy/.ssh/backup_key"
 
-# 日付
+# Date
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="${LOCAL_BACKUP_DIR}/${DATE}"
 LATEST_LINK="${LOCAL_BACKUP_DIR}/latest"
 
-# ログ関数
+# Log function
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
-# バックアップ開始
-log "バックアップ開始: ${REMOTE_HOST}:${REMOTE_DIR}"
+# Start backup
+log "Starting backup: ${REMOTE_HOST}:${REMOTE_DIR}"
 
-# ディレクトリ作成
+# Create directory
 mkdir -p "$BACKUP_DIR"
 
-# rsync 実行（ハードリンクで差分バックアップ）
+# Run rsync (incremental backup using hard links)
 rsync -avz --delete \
     --link-dest="$LATEST_LINK" \
     --exclude='.git' \
@@ -1249,95 +1249,95 @@ rsync -avz --delete \
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 0 ]; then
-    # latest シンボリックリンクを更新
+    # Update the latest symlink
     rm -f "$LATEST_LINK"
     ln -s "$BACKUP_DIR" "$LATEST_LINK"
-    log "バックアップ成功: $BACKUP_DIR"
+    log "Backup successful: $BACKUP_DIR"
 
-    # バックアップサイズ
+    # Backup size
     SIZE=$(du -sh "$BACKUP_DIR" | cut -f1)
-    log "バックアップサイズ: $SIZE"
+    log "Backup size: $SIZE"
 else
-    log "バックアップ失敗: exit code $EXIT_CODE"
-    rm -rf "$BACKUP_DIR"  # 失敗したバックアップを削除
+    log "Backup failed: exit code $EXIT_CODE"
+    rm -rf "$BACKUP_DIR"  # Remove failed backup
 fi
 
-# 古いバックアップの削除
-log "古いバックアップの削除（${RETENTION_DAYS}日以前）"
+# Delete old backups
+log "Removing backups older than ${RETENTION_DAYS} days"
 find "$LOCAL_BACKUP_DIR" -maxdepth 1 -type d -name "20*" \
     -mtime +${RETENTION_DAYS} -exec rm -rf {} \;
 
-# バックアップ一覧
-log "現在のバックアップ一覧:"
+# List current backups
+log "Current backup list:"
 ls -la "$LOCAL_BACKUP_DIR" | tee -a "$LOG_FILE"
 
-log "バックアップ処理完了"
+log "Backup process complete"
 exit $EXIT_CODE
 ```
 
-### 7.6 サーバー初期設定の自動化
+### 7.6 Automating New Server Initial Setup
 
 ```bash
 #!/bin/bash
-# server_setup.sh - 新規サーバーの初期設定スクリプト
+# server_setup.sh - Initial setup script for a new server
 
 set -euo pipefail
 
-SERVER="${1:?使い方: $0 user@server}"
+SERVER="${1:?Usage: $0 user@server}"
 
-echo "=== サーバー初期設定: $SERVER ==="
+echo "=== Server initial setup: $SERVER ==="
 
-# 1. SSH鍵の登録
-echo "--- SSH鍵の登録 ---"
+# 1. Register SSH key
+echo "--- Registering SSH key ---"
 ssh-copy-id -i ~/.ssh/id_ed25519.pub "$SERVER"
 
-# 2. 基本パッケージのインストール
-echo "--- 基本パッケージのインストール ---"
+# 2. Install basic packages
+echo "--- Installing basic packages ---"
 ssh -t "$SERVER" bash <<'SETUP'
 set -e
 
-# パッケージ更新
+# Update packages
 sudo apt update && sudo apt upgrade -y
 
-# 基本ツール
+# Basic tools
 sudo apt install -y \
     vim htop tmux git curl wget \
     jq tree unzip \
     fail2ban ufw
 
-# fail2ban 設定
+# fail2ban configuration
 sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
 sudo systemctl enable fail2ban
 sudo systemctl start fail2ban
 
-# UFW ファイアウォール
+# UFW firewall
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow ssh
 sudo ufw --force enable
 
-# SSH セキュリティ強化
+# SSH security hardening
 sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
 sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 sudo systemctl restart sshd
 
-echo "=== 初期設定完了 ==="
+echo "=== Initial setup complete ==="
 SETUP
 
-echo "=== サーバー初期設定が完了しました ==="
-echo "接続テスト: ssh $SERVER"
+echo "=== Server initial setup is complete ==="
+echo "Connection test: ssh $SERVER"
 ```
 
-### 7.7 SSH を使ったリモートスクリプト配布・実行
+### 7.7 Distributing and Executing Remote Scripts via SSH
 
 ```bash
-# ===== 方法1: パイプで直接実行 =====
+# ===== Method 1: Execute directly via pipe =====
 ssh user@server bash < local_script.sh
 
-# 引数付き
+# With arguments
 ssh user@server "bash -s arg1 arg2" < local_script.sh
 
-# ===== 方法2: ヒアドキュメント =====
+# ===== Method 2: Here document =====
 ssh user@server bash <<'EOF'
 #!/bin/bash
 echo "Running on: $(hostname)"
@@ -1345,14 +1345,14 @@ echo "Date: $(date)"
 echo "Uptime: $(uptime)"
 EOF
 
-# ===== 方法3: scp + ssh =====
+# ===== Method 3: scp + ssh =====
 scp script.sh user@server:/tmp/
 ssh user@server "chmod +x /tmp/script.sh && /tmp/script.sh && rm /tmp/script.sh"
 
-# ===== 方法4: tar パイプ（複数ファイル転送 + 実行）=====
+# ===== Method 4: tar pipe (transfer multiple files + execute) =====
 tar czf - scripts/ | ssh user@server "cd /tmp && tar xzf - && bash scripts/setup.sh"
 
-# ===== 複数サーバーへの一括実行 =====
+# ===== Batch execution to multiple servers =====
 deploy_to_all() {
     local script=$1
     shift
@@ -1371,414 +1371,414 @@ deploy_to_all setup.sh web1 web2 web3
 
 ---
 
-## 8. 高度なSSH活用
+## 8. Advanced SSH Usage
 
 ### 8.1 SSH over WebSocket / HTTP
 
 ```bash
-# ファイアウォールでSSHポートがブロックされている場合の対処法
+# Workarounds when the SSH port is blocked by a firewall
 
-# 方法1: HTTPSポート経由でSSH接続
-# サーバー側: sshd を443ポートでも待ち受け
+# Method 1: SSH connection via HTTPS port
+# Server side: also listen on sshd port 443
 # Port 22
 # Port 443
 
-# 方法2: sslh（ポートマルチプレクサ）
-# 同じポートでSSHとHTTPSを振り分ける
+# Method 2: sslh (port multiplexer)
+# Route SSH and HTTPS on the same port
 # sudo apt install sslh
 
-# 方法3: ProxyCommand with corkscrew（HTTPプロキシ経由）
+# Method 3: ProxyCommand with corkscrew (via HTTP proxy)
 # brew install corkscrew
 Host behind-proxy
     HostName server.example.com
     User admin
     ProxyCommand corkscrew proxy.company.com 8080 %h %p
 
-# 方法4: ngrok でSSHトンネル公開
+# Method 4: Expose SSH tunnel with ngrok
 # ngrok tcp 22
-# → tcp://0.tcp.ngrok.io:12345 のようなURLが生成される
+# → A URL like tcp://0.tcp.ngrok.io:12345 is generated
 # ssh -p 12345 user@0.tcp.ngrok.io
 ```
 
-### 8.2 SSH証明書認証
+### 8.2 SSH Certificate Authentication
 
 ```bash
-# SSH証明書: authorized_keys を使わない集中管理型認証
+# SSH certificates: centralized authentication without authorized_keys
 
-# 1. CA鍵の生成
+# 1. Generate a CA key
 ssh-keygen -t ed25519 -f ~/.ssh/ca_key -C "SSH CA Key"
 
-# 2. ユーザー鍵への署名（証明書発行）
+# 2. Sign a user key (issue a certificate)
 ssh-keygen -s ~/.ssh/ca_key \
     -I "gaku@example.com" \
     -n gaku,admin \
     -V +52w \
     ~/.ssh/id_ed25519.pub
-# -s: CA秘密鍵
-# -I: 証明書の識別名
-# -n: 許可されるプリンシパル（ユーザー名）
-# -V: 有効期限（+52w = 52週間）
-# 結果: ~/.ssh/id_ed25519-cert.pub が生成される
+# -s: CA private key
+# -I: certificate identity
+# -n: allowed principals (usernames)
+# -V: validity period (+52w = 52 weeks)
+# Result: ~/.ssh/id_ed25519-cert.pub is generated
 
-# 3. 証明書の確認
+# 3. Inspect the certificate
 ssh-keygen -L -f ~/.ssh/id_ed25519-cert.pub
 
-# 4. サーバー側の設定（/etc/ssh/sshd_config）
+# 4. Server-side configuration (/etc/ssh/sshd_config)
 # TrustedUserCAKeys /etc/ssh/ca_key.pub
-# → CA が署名した全ての鍵を信頼
+# → Trust all keys signed by the CA
 
-# メリット:
-# - authorized_keys の管理が不要
-# - 有効期限付きで自動失効
-# - 証明書の取り消し（revoked_keys）が可能
-# - 大規模環境での鍵管理が容易
+# Benefits:
+# - No need to manage authorized_keys
+# - Automatically expires with a time limit
+# - Revocation via revoked_keys is possible
+# - Easy key management in large-scale environments
 ```
 
-### 8.3 Mosh（Mobile Shell）
+### 8.3 Mosh (Mobile Shell)
 
 ```bash
-# Mosh: SSH の代替（モバイル/不安定回線向け）
+# Mosh: SSH alternative (for mobile/unstable connections)
 # brew install mosh / apt install mosh
 
-# 接続
+# Connect
 mosh user@server
 mosh --ssh="ssh -p 2222" user@server
 
-# Mosh の特徴:
-# - UDP ベース（ネットワーク切断後も自動再接続）
-# - ローミング対応（IPアドレスが変わっても継続）
-# - 即時のローカルエコー（入力のレイテンシが低い）
-# - SSH で認証後、UDP に切り替え
+# Mosh features:
+# - UDP-based (auto-reconnects after network interruption)
+# - Roaming support (continues even if IP address changes)
+# - Immediate local echo (low input latency)
+# - Authenticates via SSH, then switches to UDP
 
-# 制限:
-# - ポートフォワーディング非対応
-# - X11 フォワーディング非対応
-# - スクロールバック履歴が限定的
-# - UDP 60000-61000 ポートの開放が必要
+# Limitations:
+# - No port forwarding support
+# - No X11 forwarding support
+# - Limited scrollback history
+# - Requires ports 60000-61000 UDP to be open
 ```
 
-### 8.4 tmux / screen との連携
+### 8.4 Integration with tmux / screen
 
 ```bash
-# SSH切断後もプロセスを維持するための tmux 活用
+# Using tmux to keep processes alive after SSH disconnection
 
-# 新しい名前付きセッションを作成
+# Create a new named session
 ssh user@server -t "tmux new-session -s work"
 
-# 既存セッションに再接続
+# Reconnect to an existing session
 ssh user@server -t "tmux attach-session -t work || tmux new-session -s work"
 
-# デタッチ: Ctrl-b d（セッションを維持したまま切断）
-# SSH が切れても tmux セッション内のプロセスは継続
+# Detach: Ctrl-b d (disconnect while keeping the session alive)
+# Processes inside the tmux session continue even if SSH disconnects
 
-# ~/.bashrc にエイリアス設定
+# Set an alias in ~/.bashrc
 # alias sshwork='ssh user@server -t "tmux attach-session -t work || tmux new-session -s work"'
 
-# screen の場合
+# With screen
 ssh user@server -t "screen -dR work"
 ```
 
 ---
 
-## 9. トラブルシューティング
+## 9. Troubleshooting
 
-### 9.1 接続問題のフローチャート
+### 9.1 Connection Issue Flowchart
 
 ```text
-SSH接続失敗
+SSH connection failed
 │
 ├─ "Connection refused"
-│  ├─ sshd が起動していない → sudo systemctl start sshd
-│  ├─ ポートが違う → ssh -p PORT user@server
-│  └─ ファイアウォール → sudo ufw allow 22
+│  ├─ sshd is not running → sudo systemctl start sshd
+│  ├─ Wrong port → ssh -p PORT user@server
+│  └─ Firewall → sudo ufw allow 22
 │
 ├─ "Connection timed out"
-│  ├─ ネットワーク到達不可 → ping server
-│  ├─ ファイアウォール → セキュリティグループ確認
-│  └─ ルーティング → traceroute server
+│  ├─ Network unreachable → ping server
+│  ├─ Firewall → check security groups
+│  └─ Routing → traceroute server
 │
 ├─ "Permission denied"
-│  ├─ 鍵が登録されていない → ssh-copy-id user@server
-│  ├─ パーミッション不正 → chmod 600 ~/.ssh/id_ed25519
-│  ├─ ユーザーが存在しない → サーバー側で確認
-│  └─ sshd設定で拒否 → AllowUsers/DenyUsers 確認
+│  ├─ Key not registered → ssh-copy-id user@server
+│  ├─ Incorrect permissions → chmod 600 ~/.ssh/id_ed25519
+│  ├─ User does not exist → check on the server side
+│  └─ Denied by sshd config → check AllowUsers/DenyUsers
 │
 ├─ "Host key verification failed"
-│  ├─ ホスト鍵が変わった → ssh-keygen -R hostname
-│  └─ 中間者攻撃の可能性 → ホスト鍵を管理者に確認
+│  ├─ Host key changed → ssh-keygen -R hostname
+│  └─ Possible MITM attack → confirm host key with administrator
 │
 ├─ "Too many authentication failures"
-│  ├─ 鍵が多すぎる → ssh -o IdentitiesOnly=yes -i KEY user@server
-│  └─ MaxAuthTries に達した → 管理者に確認
+│  ├─ Too many keys → ssh -o IdentitiesOnly=yes -i KEY user@server
+│  └─ MaxAuthTries reached → contact administrator
 │
-└─ 接続後すぐに切断
-   ├─ シェルが設定されていない → /etc/passwd 確認
-   ├─ /etc/nologin が存在 → ファイルを削除
-   └─ ディスク容量不足 → df -h 確認
+└─ Disconnects immediately after connecting
+   ├─ Shell not configured → check /etc/passwd
+   ├─ /etc/nologin exists → remove the file
+   └─ Disk full → df -h
 ```
 
-### 9.2 よくあるエラーと解決策
+### 9.2 Common Errors and Solutions
 
 ```bash
-# ===== エラー1: WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! =====
-# 原因: サーバーのホスト鍵が変更された（再インストール、IPアドレス変更等）
-# 解決:
+# ===== Error 1: WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! =====
+# Cause: Server host key changed (reinstall, IP address change, etc.)
+# Fix:
 ssh-keygen -R server.example.com
 ssh-keygen -R 192.168.1.100
-# ※ 中間者攻撃の可能性がないことを確認してから実行！
+# Note: Execute only after confirming there is no MITM attack!
 
-# ===== エラー2: Permission denied (publickey) =====
-# 原因: 公開鍵認証に失敗
-# 確認手順:
+# ===== Error 2: Permission denied (publickey) =====
+# Cause: Public key authentication failed
+# Diagnosis steps:
 ssh -vvv user@server 2>&1 | grep -A5 "Trying\|Offering\|Authentication"
-# 解決:
-# 1. 鍵が正しく登録されているか確認
+# Fix:
+# 1. Confirm the key is correctly registered
 ssh user@server "cat ~/.ssh/authorized_keys"
-# 2. パーミッションを確認
+# 2. Check permissions
 ssh user@server "ls -la ~/.ssh/ && ls -la ~/.ssh/authorized_keys"
-# 3. ローカルの鍵パーミッション
+# 3. Check local key permissions
 ls -la ~/.ssh/id_ed25519
 chmod 600 ~/.ssh/id_ed25519
 
-# ===== エラー3: ssh_exchange_identification: Connection closed =====
-# 原因: sshd が接続を拒否
-# 確認:
+# ===== Error 3: ssh_exchange_identification: Connection closed =====
+# Cause: sshd rejected the connection
+# Check:
 # 1. /etc/hosts.allow, /etc/hosts.deny
-# 2. MaxStartups 設定（同時接続数制限）
-# 3. fail2ban でブロックされている
+# 2. MaxStartups setting (concurrent connection limit)
+# 3. Blocked by fail2ban
 sudo fail2ban-client status sshd
 sudo fail2ban-client set sshd unbanip 192.168.1.100
 
-# ===== エラー4: broken pipe / Write failed =====
-# 原因: 接続が切れた
-# 解決（~/.ssh/config）:
+# ===== Error 4: broken pipe / Write failed =====
+# Cause: Connection was lost
+# Fix (in ~/.ssh/config):
 # Host *
 #     ServerAliveInterval 60
 #     ServerAliveCountMax 3
 #     TCPKeepAlive yes
 
-# ===== エラー5: Agent forwarding でリモートから接続できない =====
-# 確認:
-echo "$SSH_AUTH_SOCK"   # 空なら agent が動いていない
-ssh-add -l              # 鍵がロードされているか確認
-# 解決:
+# ===== Error 5: Cannot connect from remote with Agent forwarding =====
+# Check:
+echo "$SSH_AUTH_SOCK"   # If empty, agent is not running
+ssh-add -l              # Check if keys are loaded
+# Fix:
 eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/id_ed25519
-ssh -A user@bastion     # -A を忘れないこと
+ssh -A user@bastion     # Don't forget -A
 ```
 
-### 9.3 パフォーマンスチューニング
+### 9.3 Performance Tuning
 
 ```bash
-# ===== 接続の高速化 =====
+# ===== Speeding up connections =====
 
-# 1. ControlMaster で接続を多重化
+# 1. Multiplex connections with ControlMaster
 Host *
     ControlMaster auto
     ControlPath ~/.ssh/sockets/%r@%h-%p
     ControlPersist 600
 
-# 2. 暗号アルゴリズムの指定（高速なものを優先）
+# 2. Specifying cipher algorithms (prioritize faster ones)
 Host fast-server
     Ciphers aes128-gcm@openssh.com,aes256-gcm@openssh.com,chacha20-poly1305@openssh.com
 
-# 3. 圧縮の有効/無効
+# 3. Enabling/disabling compression
 Host slow-network
-    Compression yes       # 遅い回線では有効化
+    Compression yes       # Enable for slow connections
 
 Host fast-network
-    Compression no        # 速い回線では無効化（CPU節約）
+    Compression no        # Disable for fast connections (save CPU)
 
-# 4. AddressFamily の制限（IPv4のみで高速化）
+# 4. Restricting AddressFamily (speed up with IPv4 only)
 Host *
-    AddressFamily inet    # IPv6解決の待ち時間を省略
+    AddressFamily inet    # Skip IPv6 resolution wait time
 
-# ===== rsync の高速化 =====
+# ===== Speeding up rsync =====
 
-# 圧縮レベルの調整
+# Adjust compression level
 rsync -avz --compress-level=1 ./data/ user@server:/data/
-# レベル1: 高速（CPUボトルネック時に有効）
+# Level 1: fast (effective when CPU is the bottleneck)
 
-# 暗号化の軽量化（信頼できるネットワーク内のみ）
+# Lighter encryption (only on trusted networks)
 rsync -avz -e "ssh -c aes128-gcm@openssh.com" ./data/ user@server:/data/
 
-# 並列rsync（大量の小さいファイル向け）
+# Parallel rsync (for many small files)
 find ./data -maxdepth 1 -type d | xargs -P 4 -I {} \
     rsync -avz {}/ user@server:/data/{}/
 ```
 
 ---
 
-## 10. SSH 関連コマンド一覧
+## 10. SSH Command Reference
 
-### 10.1 コマンドリファレンス
+### 10.1 Command Reference
 
 ```text
 ┌────────────────────┬─────────────────────────────────────────────────────┐
-│ コマンド           │ 用途                                              │
+│ Command            │ Purpose                                             │
 ├────────────────────┼─────────────────────────────────────────────────────┤
-│ ssh                │ リモートサーバーへの接続                          │
-│ ssh-keygen         │ SSH鍵の生成・管理                                 │
-│ ssh-copy-id        │ 公開鍵をリモートに登録                            │
-│ ssh-add            │ ssh-agent に鍵を登録                              │
-│ ssh-agent          │ 鍵エージェントの起動・管理                        │
-│ ssh-keyscan        │ リモートホストの公開鍵を取得                      │
-│ scp                │ SSH経由のファイルコピー                           │
-│ sftp               │ 対話的ファイル転送                                │
-│ rsync              │ 差分ファイル同期                                  │
-│ sshd               │ SSHサーバーデーモン                               │
-│ sshd -t            │ sshd設定ファイルのテスト                          │
-│ autossh            │ 自動再接続付きSSH接続                             │
-│ mosh               │ モバイル向けSSH代替                               │
-│ ssh-audit          │ SSHサーバーのセキュリティ監査                     │
+│ ssh                │ Connect to a remote server                          │
+│ ssh-keygen         │ Generate and manage SSH keys                        │
+│ ssh-copy-id        │ Register public key on remote                       │
+│ ssh-add            │ Add key to ssh-agent                                │
+│ ssh-agent          │ Start and manage key agent                          │
+│ ssh-keyscan        │ Retrieve public key from remote host                │
+│ scp                │ File copy over SSH                                  │
+│ sftp               │ Interactive file transfer                           │
+│ rsync              │ Delta file synchronization                          │
+│ sshd               │ SSH server daemon                                   │
+│ sshd -t            │ Test sshd config file                               │
+│ autossh            │ SSH connection with auto-reconnect                  │
+│ mosh               │ SSH alternative for mobile                          │
+│ ssh-audit          │ Security audit of SSH server                        │
 └────────────────────┴─────────────────────────────────────────────────────┘
 ```
 
-### 10.2 主要オプション一覧
+### 10.2 Key Options Reference
 
 ```text
-===== ssh のオプション =====
--p PORT        ポート指定
--i KEY         秘密鍵ファイル指定
--l USER        ユーザー名指定（user@host の代わり）
--v/-vv/-vvv    デバッグ出力レベル
--C             圧縮有効化
--X/-Y          X11フォワーディング
--A             エージェントフォワーディング
--N             コマンド実行しない（トンネル用）
--f             バックグラウンド実行
--t             疑似端末を強制割り当て
--L             ローカルポートフォワード
--R             リモートポートフォワード
--D             ダイナミックフォワード（SOCKSプロキシ）
--J             ProxyJump（踏み台サーバー）
--o OPTION      設定オプション指定
--W host:port   標準入出力をリモートに転送
+===== ssh options =====
+-p PORT        Specify port
+-i KEY         Specify private key file
+-l USER        Specify username (instead of user@host)
+-v/-vv/-vvv    Debug output level
+-C             Enable compression
+-X/-Y          X11 forwarding
+-A             Agent forwarding
+-N             Do not execute a command (for tunneling)
+-f             Run in background
+-t             Force pseudo-terminal allocation
+-L             Local port forwarding
+-R             Remote port forwarding
+-D             Dynamic forwarding (SOCKS proxy)
+-J             ProxyJump (jump host)
+-o OPTION      Specify config option
+-W host:port   Forward stdio to remote
 
-===== ssh-keygen のオプション =====
--t TYPE        鍵タイプ（ed25519, rsa, ecdsa）
--b BITS        鍵のビット数（RSA: 4096推奨）
--f FILE        出力ファイル名
--C COMMENT     コメント
--N PASS        パスフレーズ
--p             パスフレーズ変更
--l             フィンガープリント表示
--R HOST        known_hosts からホスト削除
--y             秘密鍵から公開鍵を出力
--s CA_KEY      証明書に署名
--L             証明書情報の表示
+===== ssh-keygen options =====
+-t TYPE        Key type (ed25519, rsa, ecdsa)
+-b BITS        Number of bits (RSA: 4096 recommended)
+-f FILE        Output filename
+-C COMMENT     Comment
+-N PASS        Passphrase
+-p             Change passphrase
+-l             Show fingerprint
+-R HOST        Remove host from known_hosts
+-y             Output public key from private key
+-s CA_KEY      Sign certificate
+-L             Show certificate info
 
-===== rsync のオプション =====
--a             アーカイブモード（-rlptgoD）
--v             詳細表示
--z             圧縮転送
--n             ドライラン
+===== rsync options =====
+-a             Archive mode (-rlptgoD)
+-v             Verbose output
+-z             Compressed transfer
+-n             Dry run
 -P             --partial --progress
---delete       送信元にないファイルを削除
---exclude      除外パターン
---include      包含パターン
---exclude-from ファイルから除外パターン読み込み
---link-dest    ハードリンクベースの差分バックアップ
---bwlimit      帯域制限
---stats        統計情報表示
--e "ssh ..."   SSH オプション指定
+--delete       Delete files not in source
+--exclude      Exclusion pattern
+--include      Inclusion pattern
+--exclude-from Read exclusion patterns from file
+--link-dest    Hard-link-based incremental backup
+--bwlimit      Bandwidth limit
+--stats        Show statistics
+-e "ssh ..."   Specify SSH options
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| コマンド | 用途 |
-|---------|------|
-| ssh user@host | リモート接続 |
-| ssh -v user@host | デバッグ接続 |
-| ssh-keygen -t ed25519 | 鍵ペア生成 |
-| ssh-copy-id user@host | 公開鍵登録 |
-| ssh-add key | エージェントに鍵登録 |
-| ~/.ssh/config | 接続設定管理 |
-| rsync -avz src dst | 差分ファイル転送 |
-| rsync -avzn src dst | ドライラン |
-| rsync --delete | 完全同期 |
-| scp file user@host:/path | ファイルコピー |
-| sftp user@host | 対話的ファイル転送 |
-| ssh -L local:host:remote | ローカルポートフォワード |
-| ssh -R remote:host:local | リモートポートフォワード |
-| ssh -D 1080 user@host | SOCKSプロキシ |
-| ssh -J bastion target | 踏み台経由接続 |
-| autossh -M 0 -fNL ... | 自動再接続トンネル |
+| Command | Purpose |
+|---------|---------|
+| ssh user@host | Remote connection |
+| ssh -v user@host | Debug connection |
+| ssh-keygen -t ed25519 | Generate key pair |
+| ssh-copy-id user@host | Register public key |
+| ssh-add key | Add key to agent |
+| ~/.ssh/config | Manage connection settings |
+| rsync -avz src dst | Delta file transfer |
+| rsync -avzn src dst | Dry run |
+| rsync --delete | Full sync |
+| scp file user@host:/path | File copy |
+| sftp user@host | Interactive file transfer |
+| ssh -L local:host:remote | Local port forwarding |
+| ssh -R remote:host:local | Remote port forwarding |
+| ssh -D 1080 user@host | SOCKS proxy |
+| ssh -J bastion target | Connect via jump host |
+| autossh -M 0 -fNL ... | Auto-reconnect tunnel |
 
 ---
 
-## よくある質問（FAQ）
+## Frequently Asked Questions (FAQ)
 
-### Q1: Ed25519 と RSA、どちらを使うべき？
+### Q1: Which should I use, Ed25519 or RSA?
 
-Ed25519 を推奨する。理由は以下の通り：
-- 鍵が短い（RSA 4096bit: 約750文字 vs Ed25519: 約68文字）
-- 署名・検証が高速
-- セキュリティ強度が高い（128bit相当 vs RSA 4096の約128bit相当）
-- 実装が安全（サイドチャネル攻撃に強い）
+Ed25519 is recommended for the following reasons:
+- Shorter key (RSA 4096bit: ~750 characters vs Ed25519: ~68 characters)
+- Faster signing and verification
+- Higher security strength (equivalent to 128-bit vs RSA 4096's ~128-bit)
+- Safer implementation (resistant to side-channel attacks)
 
-ただし、古いシステム（OpenSSH 6.5未満）では Ed25519 が使えないため、その場合は RSA 4096bit を使用する。
+However, Ed25519 is not available on older systems (OpenSSH < 6.5), so use RSA 4096bit in those cases.
 
-### Q2: ssh-agent と Keychain の違いは？
+### Q2: What is the difference between ssh-agent and Keychain?
 
-ssh-agent はメモリ上にパスフレーズを保持する一時的な仕組み。ログアウトすると消える。macOS の Keychain はシステムレベルのパスワード管理で、再起動後も保持される。`UseKeychain yes` と `AddKeysToAgent yes` を ~/.ssh/config に設定すれば両方を連携できる。
+ssh-agent is a temporary mechanism that holds passphrases in memory. It is cleared on logout. macOS Keychain is a system-level password manager that persists across reboots. By setting `UseKeychain yes` and `AddKeysToAgent yes` in ~/.ssh/config, you can integrate both.
 
-### Q3: SSH接続が頻繁に切れる場合の対処法は？
+### Q3: What should I do if my SSH connection frequently drops?
 
 ```bash
-# ~/.ssh/config に以下を追加
+# Add the following to ~/.ssh/config
 Host *
-    ServerAliveInterval 60   # 60秒ごとにキープアライブ送信
-    ServerAliveCountMax 3    # 3回失敗で切断
-    TCPKeepAlive yes         # TCP レベルのキープアライブ
+    ServerAliveInterval 60   # Send keepalive every 60 seconds
+    ServerAliveCountMax 3    # Disconnect after 3 failures
+    TCPKeepAlive yes         # TCP-level keepalive
 ```
 
-さらに不安定な場合は、autossh や mosh の使用を検討する。
+If it remains unstable, consider using autossh or mosh.
 
-### Q4: 踏み台サーバー経由で rsync するには？
+### Q4: How do I rsync through a jump host?
 
 ```bash
-# ProxyJump オプションを使用
+# Use the ProxyJump option
 rsync -avz -e "ssh -J bastion.example.com" ./data/ user@10.0.1.100:/data/
 
-# または ~/.ssh/config に設定
+# Or configure in ~/.ssh/config
 # Host internal
 #     HostName 10.0.1.100
 #     User admin
 #     ProxyJump bastion
-# その後:
+# Then:
 rsync -avz ./data/ internal:/data/
 ```
 
-### Q5: パスワード認証を無効にしても大丈夫？
+### Q5: Is it safe to disable password authentication?
 
-鍵認証が正しく設定されていれば問題ない。ただし、以下を事前に確認すること：
+It is fine as long as key authentication is set up correctly. However, confirm the following in advance:
 
-1. 少なくとも1つの鍵ペアで接続テスト済み
-2. 別のターミナルで接続を維持したまま sshd を再起動
-3. コンソールアクセス（VPS管理画面等）が使える状態であること
+1. Connection has been tested with at least one key pair
+2. Restart sshd while keeping a connection open in another terminal
+3. Console access (VPS management console, etc.) is available
 
-### Q6: scp と rsync の使い分けは？
+### Q6: When should I use scp vs rsync?
 
-| 項目 | scp | rsync |
+| Item | scp | rsync |
 |------|-----|-------|
-| 差分転送 | 不可 | 可能 |
-| 中断再開 | 不可 | 可能（--partial） |
-| 除外パターン | 不可 | 可能 |
-| 帯域制限 | 限定的 | 可能 |
-| シンボリックリンク | 限定的 | 完全対応 |
-| 削除同期 | 不可 | 可能（--delete） |
-| 推奨度 | 簡単なコピー | 全般的に推奨 |
+| Delta transfer | Not supported | Supported |
+| Resume interrupted transfer | Not supported | Supported (--partial) |
+| Exclusion patterns | Not supported | Supported |
+| Bandwidth limit | Limited | Supported |
+| Symlink handling | Limited | Full support |
+| Delete sync | Not supported | Supported (--delete) |
+| Recommendation | Simple copies | Recommended in general |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
 ---
 
-## 参考文献
+## References
 1. Barrett, D. "SSH, The Secure Shell: The Definitive Guide." 2nd Ed, O'Reilly, 2005.
 2. "OpenSSH Manual Pages." openssh.com.
 3. Stahnke, M. "Pro OpenSSH." Apress, 2005.
