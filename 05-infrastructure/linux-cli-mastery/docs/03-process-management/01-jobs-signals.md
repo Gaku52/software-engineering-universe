@@ -1,751 +1,751 @@
-# ジョブ制御とシグナル
+# Job Control and Signals
 
-> シェルのジョブ制御とシグナルは、プロセスのライフサイクルを操る基本技術。
-> バックグラウンド処理、プロセス間通信、堅牢なスクリプト作成のすべてに関わる重要概念である。
+> Shell job control and signals are the fundamental techniques for managing process lifecycles.
+> These are essential concepts that underpin background processing, inter-process communication, and robust script writing.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] フォアグラウンド/バックグラウンドのジョブ制御ができる
-- [ ] シグナルの種類と使い方を理解する
-- [ ] nohup / disown でセッション切断後も実行を継続できる
-- [ ] trap でシグナルハンドラを設定し、堅牢なスクリプトを書ける
-- [ ] wait / timeout で並列処理とタイムアウトを制御できる
-- [ ] プロセスグループとセッションの概念を理解する
+- [ ] Control foreground/background jobs
+- [ ] Understand the types and usage of signals
+- [ ] Use nohup / disown to keep processes running after session disconnect
+- [ ] Set signal handlers with trap to write robust scripts
+- [ ] Control parallel processing and timeouts with wait / timeout
+- [ ] Understand the concepts of process groups and sessions
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [プロセス監視（ps, top, htop）](./00-ps-top-htop.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Process Monitoring (ps, top, htop)](./00-ps-top-htop.md)
 
 ---
 
-## 1. ジョブ制御
+## 1. Job Control
 
-### 1.1 フォアグラウンドとバックグラウンド
+### 1.1 Foreground and Background
 
 ```bash
-# フォアグラウンド実行（デフォルト）
-# → 端末がブロックされ、コマンドが完了するまで入力を受け付けない
-sleep 100                        # フォアグラウンド実行
+# Foreground execution (default)
+# → The terminal is blocked; no input is accepted until the command completes
+sleep 100                        # Foreground execution
 
-# バックグラウンド実行（& を末尾に付ける）
-# → 端末は空き、別のコマンドを実行可能
-sleep 100 &                      # バックグラウンド実行
-# [1] 12345                      ← ジョブ番号とPID が表示される
+# Background execution (append & at the end)
+# → The terminal is free; other commands can be run
+sleep 100 &                      # Background execution
+# [1] 12345                      ← Job number and PID are displayed
 
-# 複数のバックグラウンドジョブ
+# Multiple background jobs
 sleep 60 &                       # [1] 12345
 sleep 120 &                      # [2] 12346
 find / -name "*.log" > /tmp/logs.txt 2>/dev/null &  # [3] 12347
 
-# バックグラウンドジョブの標準出力/エラー
-# バックグラウンドジョブの出力は端末に混ざって表示される
-# → リダイレクトしておくのがベストプラクティス
-long_task > output.log 2>&1 &    # 出力をファイルにリダイレクト
+# stdout/stderr of background jobs
+# Output from background jobs is mixed into the terminal output
+# → Redirecting is best practice
+long_task > output.log 2>&1 &    # Redirect output to a file
 
-# バックグラウンドで実行しつつPIDを記録
+# Run in background and record PID
 long_task &
-PID=$!                           # $! = 直前のバックグラウンドプロセスのPID
+PID=$!                           # $! = PID of the most recent background process
 echo "Started with PID: $PID"
 ```
 
-### 1.2 ジョブ一覧と状態確認
+### 1.2 Listing Jobs and Checking Status
 
 ```bash
-# ジョブ一覧
-jobs                             # 現在のシェルのジョブ一覧
-jobs -l                          # PID付き一覧
-jobs -r                          # 実行中のジョブのみ
-jobs -s                          # 停止中のジョブのみ
-jobs -p                          # PIDのみ表示
+# List jobs
+jobs                             # List jobs in the current shell
+jobs -l                          # List with PIDs
+jobs -r                          # Running jobs only
+jobs -s                          # Stopped jobs only
+jobs -p                          # Show PIDs only
 
-# 出力例:
+# Example output:
 # [1]+  Running    sleep 100 &
 # [2]-  Stopped    vim file.txt
 # [3]   Running    find / -name "*.log" > /tmp/logs.txt 2>/dev/null &
 #  ↑ ↑   ↑
-# ジョブ番号  状態
-#    + = カレントジョブ（最後に操作した/起動したジョブ）
-#    - = 前のジョブ
+# Job number  Status
+#    + = Current job (the last job operated on / started)
+#    - = Previous job
 
-# ジョブの状態:
-# Running:   実行中（バックグラウンド）
-# Stopped:   一時停止中（Ctrl+Z で停止）
-# Done:      完了（次のプロンプト表示時に通知）
-# Terminated: シグナルで終了
-# Killed:    SIGKILLで強制終了
-# Exit N:    終了コード N で終了
+# Job states:
+# Running:    Executing (in background)
+# Stopped:    Paused (stopped with Ctrl+Z)
+# Done:       Completed (notified at next prompt)
+# Terminated: Killed by signal
+# Killed:     Forcefully terminated by SIGKILL
+# Exit N:     Exited with code N
 ```
 
-### 1.3 ジョブの切り替え操作
+### 1.3 Switching Jobs
 
 ```bash
-# Ctrl+Z: フォアグラウンドジョブを一時停止（SIGTSTP送信）
-vim file.txt                     # vim で編集中
-# Ctrl+Z                        # vim が一時停止（Stoppedになる）
+# Ctrl+Z: Pause a foreground job (sends SIGTSTP)
+vim file.txt                     # Editing in vim
+# Ctrl+Z                        # vim is paused (becomes Stopped)
 # [1]+  Stopped    vim file.txt
 
-# fg: ジョブをフォアグラウンドに戻す
-fg                               # カレントジョブ（+のついたジョブ）
-fg %1                            # ジョブ番号1をフォアグラウンドに
-fg %vim                          # vim で始まるジョブを指定
-fg %?file                        # "file" を含むジョブを指定
+# fg: Bring a job to the foreground
+fg                               # Current job (the one marked with +)
+fg %1                            # Bring job number 1 to foreground
+fg %vim                          # Specify a job starting with vim
+fg %?file                        # Specify a job containing "file"
 
-# bg: 停止中のジョブをバックグラウンドで再開
-bg                               # カレントジョブをバックグラウンドで再開
-bg %2                            # ジョブ番号2をバックグラウンドで再開
+# bg: Resume a stopped job in the background
+bg                               # Resume current job in background
+bg %2                            # Resume job number 2 in background
 
-# 典型的なワークフロー
-vim file.txt                     # vim で編集中
-# Ctrl+Z                        # 一時停止
-make build                       # ビルド実行
-fg                               # vim に戻る
+# Typical workflow
+vim file.txt                     # Editing in vim
+# Ctrl+Z                        # Pause
+make build                       # Run build
+fg                               # Return to vim
 
-# 典型的なワークフロー2: フォアグラウンドをバックグラウンドに移す
-long_running_command              # フォアグラウンドで実行してしまった
-# Ctrl+Z                        # 一時停止
-bg                               # バックグラウンドで再開
-# これで端末が使える
+# Typical workflow 2: Move a foreground job to background
+long_running_command              # Accidentally started in foreground
+# Ctrl+Z                        # Pause
+bg                               # Resume in background
+# The terminal is now available
 
-# 典型的なワークフロー3: 複数のエディタを切り替え
-vim file1.txt                    # 編集
+# Typical workflow 3: Switch between multiple editors
+vim file1.txt                    # Edit
 # Ctrl+Z
-vim file2.txt                    # 別のファイルを編集
+vim file2.txt                    # Edit another file
 # Ctrl+Z
-jobs                             # ジョブ確認
-fg %1                            # file1 に戻る
+jobs                             # Check jobs
+fg %1                            # Return to file1
 ```
 
-### 1.4 ジョブ指定の書式
+### 1.4 Job Specification Syntax
 
 ```bash
-# ジョブの指定方法
-%1                               # ジョブ番号1
-%2                               # ジョブ番号2
-%%                               # カレントジョブ（%+ と同じ）
-%+                               # カレントジョブ（最後に操作したジョブ）
-%-                               # 前のジョブ（カレントの1つ前）
-%string                          # コマンドがstringで始まるジョブ
-%?string                         # コマンドにstringを含むジョブ
+# How to specify jobs
+%1                               # Job number 1
+%2                               # Job number 2
+%%                               # Current job (same as %+)
+%+                               # Current job (the last one operated on)
+%-                               # Previous job (one before the current)
+%string                          # Job whose command starts with string
+%?string                         # Job whose command contains string
 
-# 使用例
-fg %vim                          # vim で始まるジョブをフォアグラウンドに
-bg %2                            # ジョブ2をバックグラウンドで再開
-kill %?sleep                     # sleep を含むジョブを終了
-kill %%                          # カレントジョブを終了
-kill %1 %2 %3                   # 複数ジョブを終了
-wait %1                          # ジョブ1の完了を待つ
+# Examples
+fg %vim                          # Bring the job starting with vim to foreground
+bg %2                            # Resume job 2 in background
+kill %?sleep                     # Kill the job containing sleep
+kill %%                          # Kill the current job
+kill %1 %2 %3                   # Kill multiple jobs
+wait %1                          # Wait for job 1 to complete
 
-# 注意: ジョブ番号はシェルごとに独立
-# 別の端末/シェルのジョブにはアクセスできない
-# → PID を使う場合は kill コマンドを使う
+# Note: Job numbers are independent per shell
+# Jobs in other terminals/shells are not accessible
+# → Use the kill command with PIDs in that case
 ```
 
-### 1.5 バックグラウンドジョブの注意点
+### 1.5 Caveats for Background Jobs
 
 ```bash
-# 注意1: バックグラウンドジョブの出力は端末に混ざる
+# Caveat 1: Output from background jobs mixes into the terminal
 long_task &
-# → 出力がプロンプトに割り込む可能性
-# 対策: リダイレクト
+# → Output may interrupt the prompt
+# Solution: Redirect output
 long_task > /tmp/output.log 2>&1 &
 
-# 注意2: バックグラウンドジョブの入力
-# バックグラウンドジョブが端末からの入力を要求すると停止する
-cat &                            # 入力待ちで自動停止
+# Caveat 2: Input for background jobs
+# A background job that requests terminal input will be stopped automatically
+cat &                            # Automatically stopped while waiting for input
 # [1]+  Stopped    cat
 
-# 注意3: シェルを終了するとバックグラウンドジョブにSIGHUPが送られる
-# → nohup や disown を使う（後述）
+# Caveat 3: SIGHUP is sent to background jobs when the shell exits
+# → Use nohup or disown (described later)
 
-# 注意4: bash の huponexit オプション
-shopt -s huponexit               # シェル終了時に全ジョブにSIGHUP送信（デフォルトOFF）
-shopt -u huponexit               # SIGHUP送信しない
+# Caveat 4: bash huponexit option
+shopt -s huponexit               # Send SIGHUP to all jobs on shell exit (default: OFF)
+shopt -u huponexit               # Do not send SIGHUP
 
-# 注意5: スクリプト内でのバックグラウンドジョブ
+# Caveat 5: Background jobs in scripts
 #!/bin/bash
 task1 &
 task2 &
-wait                             # 全バックグラウンドジョブの完了を待つ
-echo "全タスク完了"
-# wait を忘れると、スクリプトがジョブの完了前に終了する
+wait                             # Wait for all background jobs to complete
+echo "All tasks completed"
+# Forgetting wait causes the script to exit before jobs complete
 ```
 
 ---
 
-## 2. シグナル
+## 2. Signals
 
-### 2.1 シグナルの基礎
+### 2.1 Signal Basics
 
 ```bash
-# シグナルとは: カーネルからプロセスへの非同期通知メカニズム
-# プロセスを制御する（終了、停止、再開など）ための仕組み
+# What is a signal: An asynchronous notification mechanism from the kernel to a process
+# A mechanism for controlling processes (termination, stop, resume, etc.)
 
-# シグナル一覧
-kill -l                          # 全シグナル一覧（名前）
-kill -l 15                       # シグナル番号→名前（TERM）
-kill -l TERM                     # シグナル名→番号（15）
+# List signals
+kill -l                          # List all signals (by name)
+kill -l 15                       # Signal number → name (TERM)
+kill -l TERM                     # Signal name → number (15)
 
-# シグナルの配送:
-# 1. ユーザーがシグナルを送信（kill コマンド、Ctrl+C など）
-# 2. カーネルがプロセスにシグナルを配送
-# 3. プロセスがシグナルを処理:
-#    a. デフォルト動作を実行（終了、停止など）
-#    b. カスタムハンドラを実行（trap で設定）
-#    c. シグナルを無視（一部のシグナルのみ）
-#    ※ SIGKILL と SIGSTOP は捕捉も無視もできない
+# Signal delivery:
+# 1. User sends a signal (kill command, Ctrl+C, etc.)
+# 2. Kernel delivers the signal to the process
+# 3. Process handles the signal:
+#    a. Execute default action (terminate, stop, etc.)
+#    b. Execute custom handler (set with trap)
+#    c. Ignore the signal (only for some signals)
+#    ※ SIGKILL and SIGSTOP cannot be caught or ignored
 ```
 
-### 2.2 主要シグナルの詳細
+### 2.2 Key Signals in Detail
 
 ```bash
 # ┌────────┬───────────┬──────────────────┬─────────────────────────────────┐
-# │ 番号   │ 名前      │ デフォルト動作   │ 用途・説明                      │
+# │ Number │ Name      │ Default Action   │ Purpose / Description           │
 # ├────────┼───────────┼──────────────────┼─────────────────────────────────┤
-# │  1     │ SIGHUP    │ 終了             │ ハングアップ / 設定再読み込み   │
-# │  2     │ SIGINT    │ 終了             │ Ctrl+C（割り込み）             │
-# │  3     │ SIGQUIT   │ コアダンプ+終了  │ Ctrl+\（デバッグ用終了）       │
-# │  6     │ SIGABRT   │ コアダンプ+終了  │ abort() 呼び出し               │
-# │  9     │ SIGKILL   │ 強制終了         │ 捕捉不可（最終手段）           │
-# │ 11     │ SIGSEGV   │ コアダンプ+終了  │ セグメンテーション違反         │
-# │ 13     │ SIGPIPE   │ 終了             │ 壊れたパイプへの書き込み       │
-# │ 14     │ SIGALRM   │ 終了             │ alarm() タイマー満了           │
-# │ 15     │ SIGTERM   │ 終了             │ 正常終了要求（kill のデフォルト）│
-# │ 17     │ SIGCHLD   │ 無視             │ 子プロセスの状態変更           │
-# │ 18     │ SIGCONT   │ 再開             │ 停止プロセスの再開             │
-# │ 19     │ SIGSTOP   │ 停止             │ 捕捉不可の一時停止             │
-# │ 20     │ SIGTSTP   │ 停止             │ Ctrl+Z（端末からの停止）       │
-# │ 21     │ SIGTTIN   │ 停止             │ バックグラウンドプロセスの入力  │
-# │ 22     │ SIGTTOU   │ 停止             │ バックグラウンドプロセスの出力  │
-# │ 28     │ SIGWINCH  │ 無視             │ 端末のウィンドウサイズ変更     │
-# │ 10     │ SIGUSR1   │ 終了             │ ユーザー定義シグナル1          │
-# │ 12     │ SIGUSR2   │ 終了             │ ユーザー定義シグナル2          │
+# │  1     │ SIGHUP    │ Terminate        │ Hang up / Reload configuration  │
+# │  2     │ SIGINT    │ Terminate        │ Ctrl+C (interrupt)              │
+# │  3     │ SIGQUIT   │ Core dump+term   │ Ctrl+\ (quit for debugging)     │
+# │  6     │ SIGABRT   │ Core dump+term   │ Called by abort()               │
+# │  9     │ SIGKILL   │ Force terminate  │ Uncatchable (last resort)       │
+# │ 11     │ SIGSEGV   │ Core dump+term   │ Segmentation fault              │
+# │ 13     │ SIGPIPE   │ Terminate        │ Write to broken pipe            │
+# │ 14     │ SIGALRM   │ Terminate        │ alarm() timer expiry            │
+# │ 15     │ SIGTERM   │ Terminate        │ Graceful termination (kill default) │
+# │ 17     │ SIGCHLD   │ Ignore           │ Child process state change      │
+# │ 18     │ SIGCONT   │ Resume           │ Resume a stopped process        │
+# │ 19     │ SIGSTOP   │ Stop             │ Uncatchable pause               │
+# │ 20     │ SIGTSTP   │ Stop             │ Ctrl+Z (terminal stop)          │
+# │ 21     │ SIGTTIN   │ Stop             │ Background process reads input  │
+# │ 22     │ SIGTTOU   │ Stop             │ Background process writes output│
+# │ 28     │ SIGWINCH  │ Ignore           │ Terminal window resize          │
+# │ 10     │ SIGUSR1   │ Terminate        │ User-defined signal 1           │
+# │ 12     │ SIGUSR2   │ Terminate        │ User-defined signal 2           │
 # └────────┴───────────┴──────────────────┴─────────────────────────────────┘
 
-# 注意: シグナル番号はOS/アーキテクチャによって異なる場合がある
-# → スクリプトでは名前で指定するのが安全（kill -TERM, kill -HUP）
+# Note: Signal numbers may differ depending on OS/architecture
+# → Using names in scripts is safer (kill -TERM, kill -HUP)
 
-# SIGKILL（9）と SIGSTOP（19）の特殊性:
-# - 捕捉（trap）できない
-# - 無視できない
-# - ブロックできない
-# → カーネルが直接処理する
+# Special properties of SIGKILL (9) and SIGSTOP (19):
+# - Cannot be caught (trap)
+# - Cannot be ignored
+# - Cannot be blocked
+# → Handled directly by the kernel
 ```
 
-### 2.3 シグナルの送信
+### 2.3 Sending Signals
 
 ```bash
-# kill コマンド（名前が紛らわしいが、任意のシグナルを送信するコマンド）
-kill 1234                        # SIGTERM（デフォルト）
-kill -15 1234                    # SIGTERM（番号で指定）
-kill -TERM 1234                  # SIGTERM（名前で指定）
-kill -s TERM 1234                # SIGTERM（-s オプション）
+# kill command (misleading name — it sends any signal to a process)
+kill 1234                        # SIGTERM (default)
+kill -15 1234                    # SIGTERM (by number)
+kill -TERM 1234                  # SIGTERM (by name)
+kill -s TERM 1234                # SIGTERM (-s option)
 
-kill -9 1234                     # SIGKILL（強制終了）
-kill -KILL 1234                  # SIGKILL（名前で指定）
+kill -9 1234                     # SIGKILL (force terminate)
+kill -KILL 1234                  # SIGKILL (by name)
 
-kill -HUP 1234                   # SIGHUP（設定再読み込み）
-kill -USR1 1234                  # SIGUSR1（ユーザー定義）
-kill -USR2 1234                  # SIGUSR2（ユーザー定義）
+kill -HUP 1234                   # SIGHUP (reload configuration)
+kill -USR1 1234                  # SIGUSR1 (user-defined)
+kill -USR2 1234                  # SIGUSR2 (user-defined)
 
-kill -CONT 1234                  # SIGCONT（停止プロセスの再開）
-kill -STOP 1234                  # SIGSTOP（強制停止）
+kill -CONT 1234                  # SIGCONT (resume a stopped process)
+kill -STOP 1234                  # SIGSTOP (force stop)
 
-kill -0 1234                     # シグナルは送らない（プロセス存在確認）
+kill -0 1234                     # No signal sent (check if process exists)
 if kill -0 1234 2>/dev/null; then
-    echo "PID 1234 は存在する"
+    echo "PID 1234 exists"
 else
-    echo "PID 1234 は存在しない"
+    echo "PID 1234 does not exist"
 fi
 
-# 複数プロセスへの送信
-kill 1234 5678 9012              # 複数PIDに送信
-kill -TERM 1234 5678             # 複数PIDにTERM
+# Send to multiple processes
+kill 1234 5678 9012              # Send to multiple PIDs
+kill -TERM 1234 5678             # Send TERM to multiple PIDs
 
-# killall — プロセス名でシグナル送信
-killall nginx                    # nginx という名前の全プロセスにTERM
-killall -9 nginx                 # 全 nginx プロセスを強制終了
-killall -u gaku python           # ユーザー gaku の python プロセスを終了
-killall -i nginx                 # 確認プロンプト付き（1つずつ）
-killall -v nginx                 # 詳細表示
-killall -w nginx                 # 全プロセスが終了するまで待機
-killall -e "python3 server.py"   # 完全一致（exactマッチ）
-killall -s HUP nginx             # シグナル指定
-killall -o 1h nginx              # 1時間以上前に起動したもの
-killall -y 30m nginx             # 30分以内に起動したもの
+# killall — send signal by process name
+killall nginx                    # Send TERM to all processes named nginx
+killall -9 nginx                 # Force kill all nginx processes
+killall -u gaku python           # Kill python processes owned by user gaku
+killall -i nginx                 # Interactive confirmation prompt (one by one)
+killall -v nginx                 # Verbose output
+killall -w nginx                 # Wait until all processes terminate
+killall -e "python3 server.py"   # Exact match
+killall -s HUP nginx             # Specify signal
+killall -o 1h nginx              # Processes started more than 1 hour ago
+killall -y 30m nginx             # Processes started within 30 minutes
 
-# pkill — 柔軟なパターンマッチングでシグナル送信
-pkill nginx                      # nginx にマッチするプロセスにTERM
-pkill -9 nginx                   # 強制終了
-pkill -f "python server.py"      # コマンドライン全体でマッチ
-pkill -u root nginx              # ユーザー指定
-pkill -u root -HUP nginx         # ユーザー + シグナル指定
-pkill -P 1234                    # 親PID 1234 の子プロセスにTERM
-pkill -t pts/0                   # 端末 pts/0 のプロセスにTERM
-pkill -g 1234                    # プロセスグループ 1234 にTERM
-pkill -x nginx                   # 完全一致
-pkill --signal HUP nginx         # シグナル指定（長いオプション形式）
-pkill -c nginx                   # マッチしたプロセス数を表示
-pkill -e nginx                   # 終了させたプロセスを表示
+# pkill — send signal with flexible pattern matching
+pkill nginx                      # Send TERM to processes matching nginx
+pkill -9 nginx                   # Force kill
+pkill -f "python server.py"      # Match against the full command line
+pkill -u root nginx              # Specify user
+pkill -u root -HUP nginx         # User + signal
+pkill -P 1234                    # Send TERM to children of parent PID 1234
+pkill -t pts/0                   # Send TERM to processes on terminal pts/0
+pkill -g 1234                    # Send TERM to process group 1234
+pkill -x nginx                   # Exact match
+pkill --signal HUP nginx         # Specify signal (long option form)
+pkill -c nginx                   # Display count of matched processes
+pkill -e nginx                   # Display killed processes
 
-# プロセスグループ全体にシグナルを送信
-kill -TERM -1234                 # PID の前にマイナスをつける → プロセスグループ
-kill -- -1234                    # -- で負の数と区別
+# Send signal to an entire process group
+kill -TERM -1234                 # Prepend minus to PID → process group
+kill -- -1234                    # Use -- to distinguish negative numbers
 ```
 
-### 2.4 シグナルの正しい使い方（段階的終了）
+### 2.4 Correct Signal Usage (Graceful Termination)
 
 ```bash
-# === 推奨される段階的な終了手順 ===
+# === Recommended gradual termination procedure ===
 
-# ステップ1: 正常終了を要求（SIGTERM）
+# Step 1: Request graceful termination (SIGTERM)
 kill 1234                        # SIGTERM
-# → プロセスはクリーンアップ処理を実行して終了するチャンス
+# → The process gets a chance to run cleanup and exit
 
-# ステップ2: 数秒待つ
+# Step 2: Wait a few seconds
 sleep 5
 
-# ステップ3: まだ生きていれば強制終了（SIGKILL）
+# Step 3: If still alive, force kill (SIGKILL)
 kill -0 1234 2>/dev/null && kill -9 1234
 
-# ワンライナー版
+# One-liner version
 kill 1234; sleep 5; kill -0 1234 2>/dev/null && kill -9 1234
 
-# スクリプト版（関数化）
+# Script version (as a function)
 graceful_kill() {
     local pid=$1
-    local timeout=${2:-10}  # デフォルト10秒
+    local timeout=${2:-10}  # Default 10 seconds
 
-    # プロセスが存在するか確認
+    # Check if process exists
     if ! kill -0 "$pid" 2>/dev/null; then
-        echo "PID $pid は既に存在しない"
+        echo "PID $pid no longer exists"
         return 0
     fi
 
-    # SIGTERM を送信
-    echo "PID $pid に SIGTERM を送信..."
+    # Send SIGTERM
+    echo "Sending SIGTERM to PID $pid..."
     kill "$pid"
 
-    # timeout 秒待機
+    # Wait up to timeout seconds
     local elapsed=0
     while [ $elapsed -lt $timeout ]; do
         if ! kill -0 "$pid" 2>/dev/null; then
-            echo "PID $pid が正常終了"
+            echo "PID $pid terminated gracefully"
             return 0
         fi
         sleep 1
         elapsed=$((elapsed + 1))
     done
 
-    # まだ生きていれば SIGKILL
-    echo "タイムアウト。PID $pid に SIGKILL を送信..."
+    # If still alive, send SIGKILL
+    echo "Timeout. Sending SIGKILL to PID $pid..."
     kill -9 "$pid"
     sleep 1
 
     if kill -0 "$pid" 2>/dev/null; then
-        echo "警告: PID $pid が SIGKILL でも終了しない（D状態の可能性）"
+        echo "Warning: PID $pid did not exit even with SIGKILL (may be in D state)"
         return 1
     fi
 
-    echo "PID $pid を強制終了"
+    echo "PID $pid forcefully terminated"
     return 0
 }
 
-# 使用例
+# Usage
 graceful_kill 1234
-graceful_kill 1234 30    # 30秒のタイムアウト
+graceful_kill 1234 30    # 30-second timeout
 
-# === なぜ kill -9 を最初に使わないのか？ ===
+# === Why not use kill -9 first? ===
 #
-# kill -9 (SIGKILL) の問題点:
-# 1. クリーンアップ処理が実行されない
-#    → 一時ファイルが残る
-#    → PIDファイルが残る
-#    → ソケットファイルが残る
+# Problems with kill -9 (SIGKILL):
+# 1. Cleanup routines are not executed
+#    → Temporary files remain
+#    → PID files remain
+#    → Socket files remain
 #
-# 2. ファイルのフラッシュが行われない
-#    → バッファ内のデータが失われる
-#    → ログの最後の数行が失われる
-#    → データベースの未コミットトランザクションが失われる
+# 2. File buffers are not flushed
+#    → Data in buffers is lost
+#    → Last few lines of logs are lost
+#    → Uncommitted database transactions are lost
 #
-# 3. ロックの解放が行われない
-#    → ファイルロックが残り、次回起動時にデッドロック
-#    → 共有メモリセグメントが残る
+# 3. Locks are not released
+#    → File locks remain, causing deadlock on next startup
+#    → Shared memory segments remain
 #
-# 4. 子プロセスへの影響
-#    → 子プロセスがゾンビ化する可能性
-#    → 子プロセスの終了処理が行われない
+# 4. Impact on child processes
+#    → Child processes may become zombies
+#    → Child process cleanup is not performed
 #
-# 5. trap ハンドラが実行されない
-#    → スクリプトのクリーンアップコードが無視される
+# 5. trap handlers are not executed
+#    → Script cleanup code is ignored
 ```
 
-### 2.5 キーボードショートカットとシグナル
+### 2.5 Keyboard Shortcuts and Signals
 
 ```bash
-# 端末のキーボードショートカットとシグナルの対応
-# Ctrl+C  → SIGINT  (2)   割り込み（プロセスの終了）
-# Ctrl+\  → SIGQUIT (3)   終了（コアダンプ付き）
-# Ctrl+Z  → SIGTSTP (20)  一時停止
-# Ctrl+D  → EOF（シグナルではない、標準入力の終端）
+# Mapping of terminal keyboard shortcuts to signals
+# Ctrl+C  → SIGINT  (2)   Interrupt (terminate process)
+# Ctrl+\  → SIGQUIT (3)   Quit (with core dump)
+# Ctrl+Z  → SIGTSTP (20)  Pause
+# Ctrl+D  → EOF (not a signal; end of standard input)
 
-# ショートカットの確認・変更
-stty -a                          # 全端末設定の表示
+# Check and change shortcuts
+stty -a                          # Display all terminal settings
 # intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D;
 # susp = ^Z; ...
 
-# キーバインドの変更（一時的）
-stty intr ^X                     # Ctrl+X で SIGINT に変更
-stty susp ^Y                     # Ctrl+Y で SIGTSTP に変更
-stty intr ^C                     # 元に戻す
+# Change key bindings (temporarily)
+stty intr ^X                     # Change SIGINT to Ctrl+X
+stty susp ^Y                     # Change SIGTSTP to Ctrl+Y
+stty intr ^C                     # Restore
 
-# Ctrl+C を無効化（Ctrl+C で終了させたくないスクリプト内で）
-stty -isig                       # 全シグナルキーを無効化
-stty isig                        # 元に戻す
+# Disable Ctrl+C (inside a script you don't want Ctrl+C to stop)
+stty -isig                       # Disable all signal keys
+stty isig                        # Restore
 ```
 
-### 2.6 SIGHUP の活用
+### 2.6 Using SIGHUP
 
 ```bash
-# SIGHUP の2つの用途:
-# 1. 端末が切断されたときの通知（元の意味: Hang Up）
-# 2. デーモンへの設定再読み込み要求（慣例的な使い方）
+# Two uses of SIGHUP:
+# 1. Notification when the terminal disconnects (original meaning: Hang Up)
+# 2. Request daemons to reload configuration (conventional usage)
 
-# 設定ファイルの再読み込み（プロセスを再起動せずに）
-kill -HUP $(pgrep -o nginx)      # nginx の設定リロード
-kill -HUP $(cat /var/run/nginx.pid)  # PIDファイルから
-kill -HUP $(pgrep sshd | head -1) # sshd の設定リロード
+# Reload configuration files (without restarting the process)
+kill -HUP $(pgrep -o nginx)      # Reload nginx configuration
+kill -HUP $(cat /var/run/nginx.pid)  # From PID file
+kill -HUP $(pgrep sshd | head -1) # Reload sshd configuration
 
-# systemd 管理のサービスの場合（こちらが推奨）
-sudo systemctl reload nginx      # nginx設定リロード
-sudo systemctl reload sshd       # sshd設定リロード
-sudo systemctl reload postgresql # PostgreSQL設定リロード
+# For services managed by systemd (recommended)
+sudo systemctl reload nginx      # Reload nginx config
+sudo systemctl reload sshd       # Reload sshd config
+sudo systemctl reload postgresql # Reload PostgreSQL config
 
-# SIGHUP で設定再読み込みをサポートする主要デーモン:
-# nginx:     ワーカープロセスの graceful restart
-# Apache:    設定再読み込み
-# sshd:      設定再読み込み
-# rsyslog:   設定再読み込み
-# logrotate: ログローテーション時に使用
-# PostgreSQL: postgresql.conf の再読み込み
-# HAProxy:   設定再読み込み
+# Major daemons that support configuration reload via SIGHUP:
+# nginx:     Graceful restart of worker processes
+# Apache:    Reload configuration
+# sshd:      Reload configuration
+# rsyslog:   Reload configuration
+# logrotate: Used during log rotation
+# PostgreSQL: Reload postgresql.conf
+# HAProxy:   Reload configuration
 
-# SIGHUP で再読み込みされる内容（nginx の場合）:
-# - nginx.conf とインクルードファイル
-# - 新しいワーカープロセスが新設定で起動
-# - 古いワーカープロセスは現在の接続を処理してから終了
-# - マスタープロセスは再起動しない
-# → ダウンタイムなしで設定変更が可能
+# What gets reloaded with SIGHUP (nginx example):
+# - nginx.conf and included files
+# - New worker processes start with the new configuration
+# - Old worker processes finish handling current connections then exit
+# - The master process does not restart
+# → Configuration changes can be applied with zero downtime
 ```
 
 ---
 
-## 3. セッション切断後の実行継続
+## 3. Keeping Processes Running After Session Disconnect
 
 ### 3.1 nohup
 
 ```bash
-# nohup: SIGHUP を無視してコマンドを実行
-# SSH接続が切れてもプロセスが終了しない
+# nohup: Run a command ignoring SIGHUP
+# The process does not exit when the SSH connection drops
 
-# 基本的な使い方
-nohup long_task.sh &             # バックグラウンドで実行
-# 出力は nohup.out に自動リダイレクト（カレントディレクトリ）
-# nohup.out に書けない場合は ~/nohup.out にフォールバック
+# Basic usage
+nohup long_task.sh &             # Run in background
+# Output is automatically redirected to nohup.out (current directory)
+# Falls back to ~/nohup.out if nohup.out is not writable
 
-# 出力先を明示指定（推奨）
+# Explicitly specify output destination (recommended)
 nohup long_task.sh > /var/log/task.log 2>&1 &
-echo $!                          # PID を表示
+echo $!                          # Display PID
 
-# PIDを記録
+# Record PID
 nohup long_task.sh > /tmp/task.log 2>&1 &
 echo $! > /tmp/task.pid
-# 後で確認: cat /tmp/task.pid
+# Check later: cat /tmp/task.pid
 
-# nohup の動作:
-# 1. SIGHUP を無視（SIG_IGN）に設定
-# 2. 標準出力が端末の場合、nohup.out にリダイレクト
-# 3. 標準エラー出力が端末の場合、標準出力にリダイレクト
-# 4. コマンドを exec する
+# How nohup works:
+# 1. Sets SIGHUP to be ignored (SIG_IGN)
+# 2. If stdout is a terminal, redirects to nohup.out
+# 3. If stderr is a terminal, redirects to stdout
+# 4. Execs the command
 
-# nohup の確認方法
+# How to verify nohup
 cat /proc/$(cat /tmp/task.pid)/status | grep SigIgn
-# SigIgn: 0000000000000001  ← SIGHUP(1) が無視されている
+# SigIgn: 0000000000000001  ← SIGHUP(1) is being ignored
 ```
 
 ### 3.2 disown
 
 ```bash
-# disown: 実行中のジョブをシェルのジョブテーブルから切り離す
-# nohup を付け忘れて実行してしまった場合に有用
+# disown: Detach a running job from the shell's job table
+# Useful when you forgot to use nohup before running a command
 
-# 基本的な使い方
-long_task.sh &                   # バックグラウンドで開始
-disown %1                        # ジョブ1をシェルから切り離す
-# → シェル終了時にSIGHUPが送信されなくなる
+# Basic usage
+long_task.sh &                   # Start in background
+disown %1                        # Detach job 1 from the shell
+# → SIGHUP will no longer be sent when the shell exits
 
-# SIGHUP だけ無視（ジョブリストには残る）
+# Ignore only SIGHUP (job remains in the job list)
 long_task.sh &
-disown -h %1                     # SIGHUPだけ無視（jobsには残る）
+disown -h %1                     # Ignore only SIGHUP (still visible in jobs)
 
-# 全ジョブを切り離す
-disown -a                        # 全ジョブを切り離す
+# Detach all jobs
+disown -a                        # Detach all jobs
 
-# 最後のバックグラウンドジョブを切り離す
+# Detach the last background job
 long_task.sh &
-disown                           # 引数なし = 最後のジョブ
+disown                           # No argument = last job
 
-# 典型的なワークフロー: nohup を忘れた場合の対処
-long_running_command              # フォアグラウンドで実行中
-# Ctrl+Z                        # 一時停止
-bg                               # バックグラウンドで再開
-disown %1                        # シェルから切り離す
-# → SSH接続が切れてもプロセスは継続する
+# Typical workflow: handling a forgotten nohup
+long_running_command              # Running in foreground
+# Ctrl+Z                        # Pause
+bg                               # Resume in background
+disown %1                        # Detach from shell
+# → The process continues even if the SSH connection drops
 
-# 注意: disown は出力をリダイレクトしない
-# → 出力が端末に残る場合、端末を閉じるとSIGPIPEが送信される可能性
-# → 可能であればリダイレクトしてから disown する
+# Note: disown does not redirect output
+# → If output goes to the terminal, closing it may send SIGPIPE
+# → Redirect before disowning if possible
 long_task.sh > /tmp/output.log 2>&1 &
 disown %1
 ```
 
-### 3.3 nohup vs disown の比較
+### 3.3 nohup vs disown Comparison
 
 ```bash
-# ┌────────────┬──────────────────────────────────┬────────────────────────────────┐
-# │ 特徴       │ nohup                            │ disown                         │
-# ├────────────┼──────────────────────────────────┼────────────────────────────────┤
-# │ 実行タイミング │ コマンド実行前に指定            │ 実行後に適用可能               │
-# │ SIGHUP     │ 無視                             │ シェルからの送信を防ぐ         │
-# │ 出力       │ nohup.out に自動リダイレクト      │ リダイレクトしない             │
-# │ ジョブリスト │ 通常通り表示                     │ 切り離されるとリストから消える  │
-# │ 再接続     │ 不可                             │ 不可                           │
-# │ 主な用途   │ 計画的な長時間タスク              │ nohup 忘れの救済               │
-# └────────────┴──────────────────────────────────┴────────────────────────────────┘
+# ┌─────────────────┬──────────────────────────────────┬────────────────────────────────┐
+# │ Feature         │ nohup                            │ disown                         │
+# ├─────────────────┼──────────────────────────────────┼────────────────────────────────┤
+# │ Timing          │ Specified before command runs    │ Can be applied after execution │
+# │ SIGHUP          │ Ignored                          │ Prevents shell from sending it │
+# │ Output          │ Auto-redirected to nohup.out     │ Not redirected                 │
+# │ Job list        │ Shown normally                   │ Removed from list when detached│
+# │ Reconnect       │ Not possible                     │ Not possible                   │
+# │ Main use        │ Planned long-running tasks       │ Recovery when nohup is forgotten│
+# └─────────────────┴──────────────────────────────────┴────────────────────────────────┘
 ```
 
 ### 3.4 setsid
 
 ```bash
-# setsid: 新しいセッションでコマンドを実行
-# 端末から完全に切り離される
+# setsid: Run a command in a new session
+# Completely detached from the terminal
 
-setsid long_task.sh              # 新セッションリーダーとして実行
-setsid -f long_task.sh           # フォーク後に新セッション作成
+setsid long_task.sh              # Run as new session leader
+setsid -f long_task.sh           # Create new session after forking
 
-# setsid の動作:
-# 1. fork() で子プロセスを作成
-# 2. 子プロセスで setsid() を呼び出し
-# 3. 新しいセッションの作成（制御端末を持たない）
-# 4. コマンドを exec
+# How setsid works:
+# 1. Creates a child process with fork()
+# 2. Calls setsid() in the child process
+# 3. Creates a new session (no controlling terminal)
+# 4. Execs the command
 #
-# nohup/disown との違い:
-# - 完全に新しいセッションを作成（端末から完全分離）
-# - デーモン化に近い動作
-# - プロセスグループも新しくなる
+# Differences from nohup/disown:
+# - Creates a completely new session (fully detached from terminal)
+# - Behavior close to daemonization
+# - Process group is also new
 ```
 
-### 3.5 tmux / screen との比較
+### 3.5 Comparison with tmux / screen
 
 ```
-セッション切断対策の比較:
+Comparison of methods to survive session disconnect:
 
 ┌────────────┬────────────────────────────────────────────┐
-│ 方法       │ 特徴                                       │
+│ Method     │ Characteristics                            │
 ├────────────┼────────────────────────────────────────────┤
-│ nohup      │ 簡単。出力は nohup.out へ。再接続不可      │
-│ disown     │ 実行後に適用可能。再接続不可               │
-│ setsid     │ 完全にセッション分離。再接続不可           │
-│ tmux       │ セッション管理。切断後も再接続可能 ← 推奨  │
-│ screen     │ tmuxと同等。古くからあり互換性高い         │
-│ systemd    │ サービスとして管理。ログ、再起動対応       │
+│ nohup      │ Simple. Output goes to nohup.out. Cannot reconnect      │
+│ disown     │ Can be applied after execution. Cannot reconnect         │
+│ setsid     │ Fully session-isolated. Cannot reconnect                 │
+│ tmux       │ Session management. Can reconnect after disconnect ← Recommended │
+│ screen     │ Equivalent to tmux. Older and highly compatible          │
+│ systemd    │ Managed as a service. Supports logs and restart          │
 └────────────┴────────────────────────────────────────────┘
 
-実務での使い分け:
-  一時的なコマンド実行   → nohup（最も簡単）
-  nohup を忘れた場合     → disown（救済策）
-  対話的な長時間作業     → tmux ← 最も推奨
-  デーモン的なサービス   → systemd / supervisor
+Practical usage guide:
+  Temporary command execution   → nohup (simplest)
+  Forgot nohup                  → disown (rescue option)
+  Interactive long-running work → tmux ← most recommended
+  Daemon-like services          → systemd / supervisor
 ```
 
-### 3.6 tmux でのセッション管理
+### 3.6 Session Management with tmux
 
 ```bash
-# tmux の基本操作（ジョブ制御の文脈で）
+# Basic tmux operations (in the context of job control)
 
-# セッション作成
-tmux new -s work                 # "work" という名前でセッション作成
+# Create a session
+tmux new -s work                 # Create a session named "work"
 
-# 作業実行
-# ... 長時間タスクを実行 ...
+# Do work
+# ... run long-running tasks ...
 
-# デタッチ（切断してもセッションは維持）
-# Ctrl+b d                      # デタッチ
+# Detach (session is preserved even after disconnect)
+# Ctrl+b d                      # Detach
 
-# 再接続（SSH再接続後でも可能）
-tmux attach -t work              # "work" セッションに再接続
-tmux a -t work                   # 省略形
+# Reconnect (possible even after reconnecting via SSH)
+tmux attach -t work              # Reconnect to the "work" session
+tmux a -t work                   # Short form
 
-# セッション一覧
-tmux ls                          # セッション一覧
+# List sessions
+tmux ls                          # List sessions
 
-# セッション終了
-tmux kill-session -t work        # セッションを終了
+# Terminate a session
+tmux kill-session -t work        # Terminate the session
 
-# ウィンドウ操作
-# Ctrl+b c                      # 新しいウィンドウ
-# Ctrl+b n                      # 次のウィンドウ
-# Ctrl+b p                      # 前のウィンドウ
-# Ctrl+b 0-9                    # 番号でウィンドウ切替
-# Ctrl+b w                      # ウィンドウ一覧
+# Window operations
+# Ctrl+b c                      # New window
+# Ctrl+b n                      # Next window
+# Ctrl+b p                      # Previous window
+# Ctrl+b 0-9                    # Switch window by number
+# Ctrl+b w                      # Window list
 
-# ペイン操作
-# Ctrl+b %                      # 垂直分割
-# Ctrl+b "                      # 水平分割
-# Ctrl+b 矢印キー               # ペイン間移動
-# Ctrl+b z                      # ペインのズーム切替
+# Pane operations
+# Ctrl+b %                      # Vertical split
+# Ctrl+b "                      # Horizontal split
+# Ctrl+b arrow keys             # Move between panes
+# Ctrl+b z                      # Toggle pane zoom
 
-# スクリプトでの tmux 活用
+# Using tmux in scripts
 tmux new-session -d -s build 'make all && echo Done'
-# バックグラウンドでセッションを作成してコマンド実行
-# 後で tmux a -t build で結果を確認可能
+# Create a session in the background and run a command
+# View results later with tmux a -t build
 ```
 
 ---
 
-## 4. trap — シグナルハンドラ
+## 4. trap — Signal Handlers
 
-### 4.1 基本構文
+### 4.1 Basic Syntax
 
 ```bash
-# trap 'コマンド' シグナル [シグナル...]
+# trap 'command' signal [signal...]
 
-# 基本的な使い方
-trap 'echo "Ctrl+C を受信しました"' INT
+# Basic usage
+trap 'echo "Received Ctrl+C"' INT
 
-# 複数のシグナルを捕捉
-trap 'echo "終了します"' INT TERM
+# Catch multiple signals
+trap 'echo "Exiting"' INT TERM
 
-# シグナルを無視
-trap '' INT                      # SIGINTを無視（Ctrl+Cが効かなくなる）
-trap '' HUP                      # SIGHUPを無視
+# Ignore a signal
+trap '' INT                      # Ignore SIGINT (Ctrl+C stops working)
+trap '' HUP                      # Ignore SIGHUP
 
-# デフォルト動作に戻す
-trap - INT                       # SIGINTをデフォルトに戻す
-trap - HUP TERM                  # 複数シグナルをリセット
+# Restore default behavior
+trap - INT                       # Restore SIGINT to default
+trap - HUP TERM                  # Reset multiple signals
 
-# 現在のtrap設定を表示
-trap -p                          # 全trap設定
-trap -p INT                      # 特定シグナルの設定
+# Display current trap settings
+trap -p                          # All trap settings
+trap -p INT                      # Settings for a specific signal
 ```
 
-### 4.2 EXIT トラップ（最重要パターン）
+### 4.2 EXIT Trap (Most Important Pattern)
 
 ```bash
 #!/bin/bash
-# EXIT トラップ: スクリプト終了時に必ず実行される
-# 正常終了でも異常終了でも呼ばれる（SIGKILLを除く）
+# EXIT trap: Always executed when the script exits
+# Called on both normal and abnormal exit (except SIGKILL)
 
-# パターン1: 一時ファイルのクリーンアップ
+# Pattern 1: Cleanup temporary files
 TMPFILE=$(mktemp)
 TMPDIR=$(mktemp -d)
-trap 'rm -f "$TMPFILE"; rm -rf "$TMPDIR"; echo "クリーンアップ完了"' EXIT
+trap 'rm -f "$TMPFILE"; rm -rf "$TMPDIR"; echo "Cleanup complete"' EXIT
 
-echo "一時ファイル: $TMPFILE"
-echo "一時ディレクトリ: $TMPDIR"
-# ... 処理 ...
-# スクリプト終了時に自動的にクリーンアップ
+echo "Temp file: $TMPFILE"
+echo "Temp dir: $TMPDIR"
+# ... processing ...
+# Automatically cleaned up when the script exits
 
-# パターン2: ロックファイル管理
+# Pattern 2: Lock file management
 LOCKFILE="/tmp/myapp.lock"
 if [ -f "$LOCKFILE" ]; then
-    echo "別のインスタンスが実行中です（ロックファイル: $LOCKFILE）" >&2
+    echo "Another instance is running (lock file: $LOCKFILE)" >&2
     exit 1
 fi
 trap 'rm -f "$LOCKFILE"' EXIT
 echo $$ > "$LOCKFILE"
-# ... 処理 ...
+# ... processing ...
 
-# パターン3: PIDファイル管理
+# Pattern 3: PID file management
 PIDFILE="/var/run/myapp.pid"
 trap 'rm -f "$PIDFILE"' EXIT
 echo $$ > "$PIDFILE"
 
-# パターン4: サービスの停止処理
-trap 'echo "シャットダウン中..."; stop_service; echo "完了"' EXIT
+# Pattern 4: Service shutdown processing
+trap 'echo "Shutting down..."; stop_service; echo "Done"' EXIT
 
-# パターン5: SSH接続のクリーンアップ
+# Pattern 5: SSH connection cleanup
 trap 'ssh -O exit user@server 2>/dev/null' EXIT
 ssh -M -S /tmp/ssh_mux_%h_%p_%r user@server
 ```
 
-### 4.3 ERR トラップ
+### 4.3 ERR Trap
 
 ```bash
 #!/bin/bash
-# ERR トラップ: コマンドが非ゼロ終了コードを返したときに実行される
-# set -e と組み合わせて使うことが多い
+# ERR trap: Executed when a command returns a non-zero exit code
+# Often used in combination with set -e
 
-# パターン1: エラー発生箇所の表示
-trap 'echo "エラー発生: 行 $LINENO コマンド \"$BASH_COMMAND\" 終了コード $?" >&2' ERR
+# Pattern 1: Display where the error occurred
+trap 'echo "Error at line $LINENO command \"$BASH_COMMAND\" exit code $?" >&2' ERR
 
-# set -e と組み合わせ
+# Combined with set -e
 set -e
-trap 'echo "行 $LINENO でエラー: $BASH_COMMAND" >&2' ERR
+trap 'echo "Error at line $LINENO: $BASH_COMMAND" >&2' ERR
 
-# パターン2: エラー時のスタックトレース
+# Pattern 2: Stack trace on error
 trap 'echo "Error at ${BASH_SOURCE[0]}:${LINENO} in ${FUNCNAME[0]:-main}"' ERR
 
-# パターン3: 詳細なエラーハンドリング
+# Pattern 3: Detailed error handling
 error_handler() {
     local exit_code=$?
     local line_no=$1
     local command=$2
     echo "=============================" >&2
-    echo "エラー発生!" >&2
-    echo "  行番号: $line_no" >&2
-    echo "  コマンド: $command" >&2
-    echo "  終了コード: $exit_code" >&2
-    echo "  スクリプト: ${BASH_SOURCE[1]}" >&2
+    echo "Error occurred!" >&2
+    echo "  Line number: $line_no" >&2
+    echo "  Command: $command" >&2
+    echo "  Exit code: $exit_code" >&2
+    echo "  Script: ${BASH_SOURCE[1]}" >&2
     echo "=============================" >&2
 
-    # コールスタック表示
+    # Show call stack
     local i=0
-    echo "コールスタック:" >&2
+    echo "Call stack:" >&2
     while caller $i; do
         ((i++))
     done 2>/dev/null >&2
 }
 trap 'error_handler $LINENO "$BASH_COMMAND"' ERR
 
-# 注意: ERR トラップはサブシェルには伝播しない（デフォルト）
-# set -E で ERR トラップをサブシェルに伝播させる
+# Note: ERR trap does not propagate to subshells (by default)
+# Use set -E to propagate ERR trap to subshells
 set -eE
 trap 'echo "Error at line $LINENO" >&2' ERR
 ```
 
-### 4.4 DEBUG トラップ
+### 4.4 DEBUG Trap
 
 ```bash
 #!/bin/bash
-# DEBUG トラップ: 各コマンドの実行前に呼ばれる
+# DEBUG trap: Called before each command is executed
 
-# パターン1: 実行コマンドの追跡（デバッグ用）
-trap 'echo "DEBUG: $BASH_COMMAND (行 $LINENO)"' DEBUG
+# Pattern 1: Trace executed commands (for debugging)
+trap 'echo "DEBUG: $BASH_COMMAND (line $LINENO)"' DEBUG
 
 echo "step 1"
 echo "step 2"
-# 出力:
-# DEBUG: echo "step 1" (行 5)
+# Output:
+# DEBUG: echo "step 1" (line 5)
 # step 1
-# DEBUG: echo "step 2" (行 6)
+# DEBUG: echo "step 2" (line 6)
 # step 2
 
-# パターン2: 実行時間の計測
+# Pattern 2: Measure execution time
 LAST_TIME=$(date +%s%N)
 trap '
     NOW=$(date +%s%N)
@@ -757,190 +757,190 @@ trap '
 ' DEBUG
 ```
 
-### 4.5 RETURN トラップ
+### 4.5 RETURN Trap
 
 ```bash
 #!/bin/bash
-# RETURN トラップ: 関数やsourceから戻るときに呼ばれる
+# RETURN trap: Called when returning from a function or source
 
-trap 'echo "関数から戻りました"' RETURN
+trap 'echo "Returned from function"' RETURN
 
 my_function() {
-    echo "関数内"
+    echo "Inside function"
     return 0
 }
 
 my_function
-# 出力:
-# 関数内
-# 関数から戻りました
+# Output:
+# Inside function
+# Returned from function
 ```
 
-### 4.6 trap の実践パターン集
+### 4.6 Practical trap Pattern Collection
 
 ```bash
 #!/bin/bash
-# === 堅牢なスクリプトのテンプレート ===
+# === Robust Script Template ===
 
 set -euo pipefail
 
-# グローバル変数
+# Global variables
 SCRIPT_NAME=$(basename "$0")
 TMPDIR=""
 LOCKFILE=""
 CLEANUP_DONE=false
 
-# クリーンアップ関数
+# Cleanup function
 cleanup() {
     if [ "$CLEANUP_DONE" = true ]; then
         return
     fi
     CLEANUP_DONE=true
 
-    echo "[$SCRIPT_NAME] クリーンアップ中..."
+    echo "[$SCRIPT_NAME] Cleaning up..."
 
-    # 一時ディレクトリの削除
+    # Remove temporary directory
     if [ -n "$TMPDIR" ] && [ -d "$TMPDIR" ]; then
         rm -rf "$TMPDIR"
     fi
 
-    # ロックファイルの削除
+    # Remove lock file
     if [ -n "$LOCKFILE" ] && [ -f "$LOCKFILE" ]; then
         rm -f "$LOCKFILE"
     fi
 
-    # バックグラウンドジョブの終了
+    # Terminate background jobs
     jobs -p | xargs -r kill 2>/dev/null
 
-    echo "[$SCRIPT_NAME] クリーンアップ完了"
+    echo "[$SCRIPT_NAME] Cleanup complete"
 }
 
-# エラーハンドラ
+# Error handler
 error_handler() {
     local exit_code=$?
     local line_no=$1
-    echo "[$SCRIPT_NAME] エラー: 行 $line_no 終了コード $exit_code" >&2
+    echo "[$SCRIPT_NAME] Error: line $line_no exit code $exit_code" >&2
     cleanup
     exit "$exit_code"
 }
 
-# トラップの設定
+# Set traps
 trap cleanup EXIT
 trap 'error_handler $LINENO' ERR
-trap 'echo "[$SCRIPT_NAME] 割り込みを受信"; exit 130' INT
-trap 'echo "[$SCRIPT_NAME] 終了要求を受信"; exit 143' TERM
+trap 'echo "[$SCRIPT_NAME] Interrupt received"; exit 130' INT
+trap 'echo "[$SCRIPT_NAME] Termination request received"; exit 143' TERM
 
-# 初期化
+# Initialization
 TMPDIR=$(mktemp -d "/tmp/${SCRIPT_NAME}.XXXXXX")
 LOCKFILE="/tmp/${SCRIPT_NAME}.lock"
 
 if [ -f "$LOCKFILE" ]; then
     EXISTING_PID=$(cat "$LOCKFILE")
     if kill -0 "$EXISTING_PID" 2>/dev/null; then
-        echo "エラー: 別のインスタンスが実行中 (PID: $EXISTING_PID)" >&2
+        echo "Error: Another instance is running (PID: $EXISTING_PID)" >&2
         exit 1
     else
-        echo "警告: 古いロックファイルを削除します" >&2
+        echo "Warning: Removing stale lock file" >&2
         rm -f "$LOCKFILE"
     fi
 fi
 echo $$ > "$LOCKFILE"
 
-# メイン処理
-echo "[$SCRIPT_NAME] 開始 (PID: $$, TMPDIR: $TMPDIR)"
-# ... ここにメイン処理 ...
-echo "[$SCRIPT_NAME] 正常完了"
+# Main processing
+echo "[$SCRIPT_NAME] Starting (PID: $$, TMPDIR: $TMPDIR)"
+# ... main processing here ...
+echo "[$SCRIPT_NAME] Completed successfully"
 ```
 
 ```bash
-# === Ctrl+C で中断可能なループ ===
+# === Loop interruptible with Ctrl+C ===
 #!/bin/bash
 
 RUNNING=true
-trap 'RUNNING=false; echo "中断要求を受信..."' INT
+trap 'RUNNING=false; echo "Interrupt request received..."' INT
 
-echo "処理を開始します (Ctrl+C で中断)"
+echo "Starting processing (Ctrl+C to interrupt)"
 count=0
 while $RUNNING && [ $count -lt 100 ]; do
-    echo "処理中... ($count/100)"
+    echo "Processing... ($count/100)"
     sleep 1
     count=$((count + 1))
 done
 
 if $RUNNING; then
-    echo "全処理が完了しました"
+    echo "All processing completed"
 else
-    echo "処理が中断されました ($count/100 完了)"
+    echo "Processing interrupted ($count/100 completed)"
 fi
 ```
 
 ```bash
-# === SIGUSR1/SIGUSR2 を使ったプロセス間通信 ===
+# === Inter-process communication using SIGUSR1/SIGUSR2 ===
 #!/bin/bash
 
-# ワーカースクリプト（worker.sh）
+# Worker script (worker.sh)
 STATS_REQUESTS=0
 PAUSED=false
 
-# SIGUSR1 → 統計情報を出力
-trap 'echo "統計: リクエスト数=$STATS_REQUESTS, 一時停止=$PAUSED"' USR1
+# SIGUSR1 → Output statistics
+trap 'echo "Stats: requests=$STATS_REQUESTS, paused=$PAUSED"' USR1
 
-# SIGUSR2 → 一時停止/再開のトグル
+# SIGUSR2 → Toggle pause/resume
 trap '
     if $PAUSED; then
         PAUSED=false
-        echo "再開"
+        echo "Resumed"
     else
         PAUSED=true
-        echo "一時停止"
+        echo "Paused"
     fi
 ' USR2
 
-echo "ワーカー開始 (PID: $$)"
+echo "Worker started (PID: $$)"
 while true; do
     if ! $PAUSED; then
-        # ... 実際の処理 ...
+        # ... actual processing ...
         STATS_REQUESTS=$((STATS_REQUESTS + 1))
     fi
     sleep 1
 done
 
-# 制御側:
-# kill -USR1 <PID>   # 統計表示
-# kill -USR2 <PID>   # 一時停止/再開
+# Controller side:
+# kill -USR1 <PID>   # Show stats
+# kill -USR2 <PID>   # Pause/resume
 ```
 
 ---
 
-## 5. wait / timeout — 並列処理の制御
+## 5. wait / timeout — Controlling Parallel Processing
 
-### 5.1 wait — バックグラウンドジョブの完了待ち
+### 5.1 wait — Waiting for Background Jobs to Complete
 
 ```bash
-# 全バックグラウンドジョブの完了を待つ
+# Wait for all background jobs to complete
 task1 &
 task2 &
 task3 &
-wait                             # 全ジョブが終了するまでブロック
-echo "全タスク完了"
+wait                             # Block until all jobs finish
+echo "All tasks completed"
 
-# 特定のPIDの完了を待つ
+# Wait for a specific PID
 task1 &
 PID1=$!
 task2 &
 PID2=$!
 
 wait $PID1
-echo "task1 完了 (終了コード: $?)"
+echo "task1 completed (exit code: $?)"
 wait $PID2
-echo "task2 完了 (終了コード: $?)"
+echo "task2 completed (exit code: $?)"
 
-# 特定ジョブの完了を待つ
+# Wait for a specific job
 task1 &
 wait %1
-echo "ジョブ1 完了"
+echo "Job 1 completed"
 
-# どれか1つの完了を待つ（bash 4.3+）
+# Wait for any one to complete (bash 4.3+)
 task1 &
 PID1=$!
 task2 &
@@ -948,26 +948,26 @@ PID2=$!
 task3 &
 PID3=$!
 
-wait -n                          # 最初に終了したジョブを待つ
-echo "最初のジョブが完了 (終了コード: $?)"
+wait -n                          # Wait for the first job to finish
+echo "First job completed (exit code: $?)"
 
-# wait -n で完了したPIDを取得（bash 5.1+）
+# Get the PID of the completed job with wait -n (bash 5.1+)
 wait -n -p DONE_PID $PID1 $PID2 $PID3
-echo "PID $DONE_PID が完了"
+echo "PID $DONE_PID completed"
 ```
 
-### 5.2 並列処理パターン
+### 5.2 Parallel Processing Patterns
 
 ```bash
-# パターン1: 単純な並列実行
+# Pattern 1: Simple parallel execution
 #!/bin/bash
 for file in *.csv; do
     process_file "$file" &
 done
 wait
-echo "全ファイル処理完了"
+echo "All files processed"
 
-# パターン2: 並列数を制限した並列処理
+# Pattern 2: Parallel execution with concurrency limit
 #!/bin/bash
 MAX_PARALLEL=4
 count=0
@@ -977,13 +977,13 @@ for file in *.csv; do
     count=$((count + 1))
 
     if [ $count -ge $MAX_PARALLEL ]; then
-        wait -n              # 1つ完了するのを待つ
+        wait -n              # Wait for one to complete
         count=$((count - 1))
     fi
 done
-wait                         # 残りの全ジョブを待つ
+wait                         # Wait for all remaining jobs
 
-# パターン3: 結果の収集
+# Pattern 3: Collecting results
 #!/bin/bash
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
@@ -997,7 +997,7 @@ for i in $(seq 1 10); do
     PIDS+=($!)
 done
 
-# 全完了を待ち、エラーチェック
+# Wait for all and check for errors
 ERRORS=0
 for pid in "${PIDS[@]}"; do
     if ! wait "$pid"; then
@@ -1005,155 +1005,155 @@ for pid in "${PIDS[@]}"; do
     fi
 done
 
-echo "完了: 成功=$((10 - ERRORS)), 失敗=$ERRORS"
+echo "Done: success=$((10 - ERRORS)), failed=$ERRORS"
 cat "$TMPDIR"/result_* | sort
 
-# パターン4: xargs による並列処理
+# Pattern 4: Parallel processing with xargs
 find . -name "*.jpg" | xargs -P 4 -I {} convert {} -resize 800x600 resized_{}
-# -P 4: 4並列
+# -P 4: 4-way parallelism
 
-# パターン5: GNU parallel による並列処理
-# parallel がインストールされている場合
+# Pattern 5: Parallel processing with GNU parallel
+# When parallel is installed
 find . -name "*.csv" | parallel -j 4 process_file {}
 seq 100 | parallel -j 8 'curl -s "https://api.example.com/item/{}" > /tmp/item_{}.json'
 ```
 
-### 5.3 timeout — タイムアウト付き実行
+### 5.3 timeout — Execution with a Timeout
 
 ```bash
-# timeout: 指定時間でコマンドを自動終了
+# timeout: Automatically terminate a command after a specified time
 
-# 基本的な使い方
-timeout 60 long_command          # 60秒でタイムアウト（SIGTERM）
-timeout 30s curl -s https://example.com  # 30秒でタイムアウト
-timeout 5m make build            # 5分でタイムアウト
-timeout 2h rsync -avz src/ dst/  # 2時間でタイムアウト
+# Basic usage
+timeout 60 long_command          # Timeout after 60 seconds (SIGTERM)
+timeout 30s curl -s https://example.com  # Timeout after 30 seconds
+timeout 5m make build            # Timeout after 5 minutes
+timeout 2h rsync -avz src/ dst/  # Timeout after 2 hours
 
-# 時間の単位:
-# s: 秒（デフォルト）
-# m: 分
-# h: 時間
-# d: 日
+# Time units:
+# s: seconds (default)
+# m: minutes
+# h: hours
+# d: days
 
-# タイムアウト時のシグナルを指定
-timeout -s KILL 60 long_command  # 60秒後にSIGKILL
-timeout --signal=HUP 30 daemon  # 30秒後にSIGHUP
+# Specify signal on timeout
+timeout -s KILL 60 long_command  # Send SIGKILL after 60 seconds
+timeout --signal=HUP 30 daemon  # Send SIGHUP after 30 seconds
 
-# 段階的タイムアウト（-k オプション）
+# Staged timeout (-k option)
 timeout -k 10 60 long_command
-# 60秒後に SIGTERM を送信
-# それでも終了しなければ 10秒後に SIGKILL を送信
+# Send SIGTERM after 60 seconds
+# If still not terminated, send SIGKILL 10 seconds later
 
-# 終了コードの確認
+# Check exit code
 timeout 5 sleep 10
-echo $?                          # 124 = タイムアウトで終了
-# 終了コード:
-# 124: SIGTERM でタイムアウト
-# 137: SIGKILL でタイムアウト（128 + 9）
-# それ以外: コマンド自身の終了コード
+echo $?                          # 124 = exited due to timeout
+# Exit codes:
+# 124: Timed out with SIGTERM
+# 137: Timed out with SIGKILL (128 + 9)
+# Other: The command's own exit code
 
-# タイムアウトかどうかの判定
+# Determine if it timed out
 timeout 5 some_command
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 124 ]; then
-    echo "タイムアウトしました"
+    echo "Timed out"
 elif [ $EXIT_CODE -eq 0 ]; then
-    echo "正常完了"
+    echo "Completed successfully"
 else
-    echo "エラー終了 (コード: $EXIT_CODE)"
+    echo "Exited with error (code: $EXIT_CODE)"
 fi
 
-# フォアグラウンドで実行（--foreground）
+# Run in foreground (--foreground)
 timeout --foreground 60 interactive_command
-# 対話的なコマンドに使う場合
+# Used for interactive commands
 
-# 実践例: APIのタイムアウト付きヘルスチェック
+# Practical example: API health check with timeout
 timeout 5 curl -s -o /dev/null -w "%{http_code}" https://api.example.com/health
 if [ $? -eq 124 ]; then
-    echo "API応答タイムアウト"
+    echo "API response timeout"
 fi
 
-# 実践例: タイムアウト付きファイル待機
+# Practical example: Wait for a file with timeout
 timeout 60 bash -c 'while [ ! -f /tmp/ready.flag ]; do sleep 1; done'
 if [ $? -eq 124 ]; then
-    echo "ファイルが作成されませんでした（タイムアウト）"
+    echo "File was not created (timeout)"
 fi
 ```
 
 ---
 
-## 6. プロセスグループとセッション
+## 6. Process Groups and Sessions
 
-### 6.1 概念の理解
+### 6.1 Understanding the Concepts
 
 ```bash
-# プロセスの階層構造:
+# Process hierarchy:
 #
-# セッション（SID）
-#   └─ プロセスグループ（PGID）
-#       └─ プロセス（PID）
-#           └─ スレッド（TID）
+# Session (SID)
+#   └─ Process Group (PGID)
+#       └─ Process (PID)
+#           └─ Thread (TID)
 #
-# セッション: ログインから始まる一連のプロセスの集合
-# プロセスグループ: パイプラインなどで関連するプロセスの集合
-# セッションリーダー: セッションを開始したプロセス（ログインシェル）
+# Session: A collection of processes associated with a login
+# Process Group: A collection of related processes (e.g., in a pipeline)
+# Session Leader: The process that started the session (login shell)
 
-# 確認方法
+# How to check
 ps -eo pid,ppid,pgid,sid,tty,cmd | head -20
 
-# 例: cat file | grep pattern | sort
-# この3つのプロセスは同じプロセスグループに属する
-# → Ctrl+C で3つ全部にSIGINTが送られる
+# Example: cat file | grep pattern | sort
+# These 3 processes belong to the same process group
+# → Ctrl+C sends SIGINT to all 3
 
-# 現在のプロセスの情報
-echo "PID: $$"                   # プロセスID
-echo "PPID: $PPID"              # 親プロセスID
-ps -p $$ -o pid,ppid,pgid,sid   # グループ・セッション情報
+# Information about the current process
+echo "PID: $$"                   # Process ID
+echo "PPID: $PPID"              # Parent process ID
+ps -p $$ -o pid,ppid,pgid,sid   # Group and session info
 
-# プロセスグループIDの確認
+# Check process group ID
 ps -eo pid,pgid,cmd | grep nginx
 
-# プロセスグループにシグナル送信
+# Send signal to a process group
 kill -TERM -$(ps -o pgid= -p 1234 | tr -d ' ')
-# PGID の前にマイナスをつけて、グループ全体にシグナル送信
+# Prepend minus to PGID to send signal to the entire group
 ```
 
-### 6.2 フォアグラウンド/バックグラウンドプロセスグループ
+### 6.2 Foreground/Background Process Groups
 
 ```bash
-# 端末には1つのフォアグラウンドプロセスグループと
-# 0個以上のバックグラウンドプロセスグループがある
+# A terminal has one foreground process group
+# and zero or more background process groups
 
-# フォアグラウンドプロセスグループ:
-# - 端末からの入力を受け取れる
-# - Ctrl+C, Ctrl+Z のシグナルを受け取る
-# - 1つの端末に1つだけ
+# Foreground process group:
+# - Can receive input from the terminal
+# - Receives Ctrl+C, Ctrl+Z signals
+# - Only one per terminal
 
-# バックグラウンドプロセスグループ:
-# - 端末からの入力を受け取れない（試みるとSIGTTIN/SIGTTOUで停止）
-# - Ctrl+C, Ctrl+Z のシグナルを受け取らない
-# - 複数存在可能
+# Background process groups:
+# - Cannot receive input from the terminal (stopped with SIGTTIN/SIGTTOU if attempted)
+# - Do not receive Ctrl+C, Ctrl+Z signals
+# - Multiple can exist
 
-# fg/bg はフォアグラウンドプロセスグループの切り替え
+# fg/bg switches the foreground process group
 ```
 
 ---
 
-## 7. 実践パターン集
+## 7. Practical Pattern Collection
 
-### 7.1 暴走プロセスの対処
+### 7.1 Handling a Runaway Process
 
 ```bash
-# CPU 90%以上のプロセスを表示
+# Display processes using more than 90% CPU
 ps aux --sort=-%cpu | awk 'NR<=1 || $3>90'
 
-# 確認してから kill
+# Confirm and then kill
 kill $(ps aux --sort=-%cpu | awk 'NR==2 {print $2}')
 
-# 特定ユーザーの全プロセスを終了（慎重に）
+# Kill all processes of a specific user (use with caution)
 pkill -u problematic_user
 
-# プロセスを段階的に終了
+# Gradually terminate a process
 graceful_kill() {
     local pid=$1
     kill -TERM "$pid" 2>/dev/null || return 0
@@ -1165,13 +1165,13 @@ graceful_kill() {
 }
 ```
 
-### 7.2 全子プロセスの終了
+### 7.2 Terminating All Child Processes
 
 ```bash
-# 親PIDの子プロセスを全て終了
-pkill -P 1234                    # 直接の子プロセスのみ
+# Kill all child processes of a parent PID
+pkill -P 1234                    # Direct children only
 
-# 子孫プロセス全体を終了（再帰的）
+# Kill all descendant processes (recursive)
 kill_descendants() {
     local pid=$1
     local children=$(pgrep -P "$pid")
@@ -1182,25 +1182,25 @@ kill_descendants() {
 }
 kill_descendants 1234
 
-# プロセスグループ全体を終了（より簡単）
-kill -TERM -1234                 # PGIDの全プロセスを終了
+# Kill the entire process group (simpler)
+kill -TERM -1234                 # Kill all processes in PGID
 ```
 
-### 7.3 バックグラウンドタスクの管理
+### 7.3 Managing Background Tasks
 
 ```bash
-# バックグラウンドタスクの完了を待ち、結果を収集
+# Wait for background tasks to complete and collect results
 #!/bin/bash
 
 declare -A TASK_PIDS
 
-# タスク起動
+# Start tasks
 for server in web1 web2 web3 db1 db2; do
     ssh "$server" "uptime" > "/tmp/uptime_${server}.txt" 2>&1 &
     TASK_PIDS[$server]=$!
 done
 
-# 結果収集
+# Collect results
 FAILED=()
 for server in "${!TASK_PIDS[@]}"; do
     pid=${TASK_PIDS[$server]}
@@ -1213,16 +1213,16 @@ for server in "${!TASK_PIDS[@]}"; do
 done
 
 if [ ${#FAILED[@]} -gt 0 ]; then
-    echo "失敗したサーバー: ${FAILED[*]}"
+    echo "Failed servers: ${FAILED[*]}"
     exit 1
 fi
 ```
 
-### 7.4 タイムアウト付きリトライ
+### 7.4 Retry with Timeout
 
 ```bash
 #!/bin/bash
-# retry_with_timeout.sh - タイムアウト付きリトライ
+# retry_with_timeout.sh - Retry with timeout
 
 retry_command() {
     local max_retries=${1:-3}
@@ -1233,69 +1233,69 @@ retry_command() {
     local attempt=0
     while [ $attempt -lt $max_retries ]; do
         attempt=$((attempt + 1))
-        echo "試行 $attempt/$max_retries: $*"
+        echo "Attempt $attempt/$max_retries: $*"
 
         if timeout "$timeout_sec" "$@"; then
-            echo "成功 (試行 $attempt)"
+            echo "Success (attempt $attempt)"
             return 0
         fi
 
         local exit_code=$?
         if [ $exit_code -eq 124 ]; then
-            echo "タイムアウト (${timeout_sec}秒)"
+            echo "Timeout (${timeout_sec}s)"
         else
-            echo "失敗 (終了コード: $exit_code)"
+            echo "Failed (exit code: $exit_code)"
         fi
 
         if [ $attempt -lt $max_retries ]; then
-            echo "${retry_delay}秒後にリトライ..."
+            echo "Retrying in ${retry_delay}s..."
             sleep "$retry_delay"
         fi
     done
 
-    echo "全 $max_retries 回失敗"
+    echo "All $max_retries attempts failed"
     return 1
 }
 
-# 使用例
+# Usage
 retry_command 3 10 5 curl -s https://api.example.com/health
 ```
 
-### 7.5 デーモン化スクリプト
+### 7.5 Daemonization Script
 
 ```bash
 #!/bin/bash
-# simple_daemon.sh - シンプルなデーモン化スクリプト
+# simple_daemon.sh - Simple daemonization script
 
 PIDFILE="/var/run/myapp.pid"
 LOGFILE="/var/log/myapp.log"
 
 start() {
     if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
-        echo "既に実行中 (PID: $(cat "$PIDFILE"))"
+        echo "Already running (PID: $(cat "$PIDFILE"))"
         return 1
     fi
 
-    echo "起動中..."
+    echo "Starting..."
     nohup /usr/local/bin/myapp > "$LOGFILE" 2>&1 &
     echo $! > "$PIDFILE"
-    echo "起動完了 (PID: $(cat "$PIDFILE"))"
+    echo "Started (PID: $(cat "$PIDFILE"))"
 }
 
 stop() {
     if [ ! -f "$PIDFILE" ]; then
-        echo "PIDファイルがありません"
+        echo "No PID file found"
         return 1
     fi
 
     local pid=$(cat "$PIDFILE")
     if ! kill -0 "$pid" 2>/dev/null; then
-        echo "プロセスが存在しません (PID: $pid)"
+        echo "Process does not exist (PID: $pid)"
         rm -f "$PIDFILE"
         return 1
     fi
 
-    echo "停止中 (PID: $pid)..."
+    echo "Stopping (PID: $pid)..."
     kill "$pid"
 
     local timeout=30
@@ -1305,19 +1305,19 @@ stop() {
     done
 
     if kill -0 "$pid" 2>/dev/null; then
-        echo "SIGKILL で強制停止..."
+        echo "Force stopping with SIGKILL..."
         kill -9 "$pid"
     fi
 
     rm -f "$PIDFILE"
-    echo "停止完了"
+    echo "Stopped"
 }
 
 status() {
     if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
-        echo "実行中 (PID: $(cat "$PIDFILE"))"
+        echo "Running (PID: $(cat "$PIDFILE"))"
     else
-        echo "停止中"
+        echo "Stopped"
         [ -f "$PIDFILE" ] && rm -f "$PIDFILE"
     fi
 }
@@ -1333,52 +1333,52 @@ case "${1:-}" in
     stop)    stop ;;
     restart) restart ;;
     status)  status ;;
-    *)       echo "使い方: $0 {start|stop|restart|status}" ;;
+    *)       echo "Usage: $0 {start|stop|restart|status}" ;;
 esac
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1387,26 +1387,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation and add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1414,7 +1414,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1425,14 +1425,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1440,7 +1440,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1448,44 +1448,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1494,7 +1494,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1509,47 +1509,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Check config file path and format |
+| Timeout | Network latency / resource shortage | Adjust timeout values, add retry logic |
+| Out of memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review settings |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Stepwise verification**: Use logging or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, run tests for related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utilities
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1557,102 +1557,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O wait**: Examine disk and network I/O conditions
+4. **Check concurrent connections**: Inspect connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem type | Diagnostic tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to prioritize | When to deprioritize |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                        │
+│    ├─ Small (1-5)  → Monolith                    │
+│    └─ Large (10+)  → Go to ②                     │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② What is the deployment frequency?             │
+│    ├─ Weekly or less → Monolith + module split   │
+│    └─ Daily/multiple → Go to ③                   │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are the teams?                │
+│    ├─ High   → Microservices                     │
+│    └─ Medium → Modular monolith                  │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering increases short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows for best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction increases reusability but can make debugging harder
+- Low abstraction is intuitive but tends to result in code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1662,17 +1662,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1680,7 +1680,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1688,15 +1688,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1704,53 +1704,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually modernizing a system that has been in operation for more than 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate gradually using the Strangler Fig pattern
+- If there are no existing tests, create Characterization Tests first
+- Coexist old and new systems via an API gateway
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Begin migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core functionality | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Assign ownership per team
+- Manage shared libraries using Inner Source model
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# Define API contract between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1763,20 +1763,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1785,7 +1785,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1806,67 +1806,67 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system that requires millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization technique | Effect | Implementation cost | Use case |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 操作 | コマンド | 備考 |
+| Operation | Command | Notes |
 |------|---------|------|
-| バックグラウンド実行 | command & | PID は $! で取得 |
-| 一時停止 | Ctrl+Z | SIGTSTP 送信 |
-| フォアグラウンドに戻す | fg %N | |
-| バックグラウンドで再開 | bg %N | |
-| 正常終了要求 | kill PID | SIGTERM（デフォルト） |
-| 強制終了（最終手段） | kill -9 PID | SIGKILL（クリーンアップなし） |
-| 設定再読み込み | kill -HUP PID | SIGHUP |
-| プロセス名で終了 | pkill -f "pattern" | 正規表現対応 |
-| 切断後も継続（事前） | nohup command & | 出力は nohup.out |
-| 切断後も継続（事後） | disown %N | ジョブリストから除外 |
-| シグナル捕捉 | trap 'handler' SIGNAL | EXIT が最重要 |
-| 全ジョブ完了待ち | wait | スクリプトの並列処理 |
-| タイムアウト付き実行 | timeout 60 command | 124=タイムアウト |
+| Run in background | command & | PID obtained via $! |
+| Pause | Ctrl+Z | Sends SIGTSTP |
+| Bring to foreground | fg %N | |
+| Resume in background | bg %N | |
+| Request graceful termination | kill PID | SIGTERM (default) |
+| Force kill (last resort) | kill -9 PID | SIGKILL (no cleanup) |
+| Reload configuration | kill -HUP PID | SIGHUP |
+| Kill by process name | pkill -f "pattern" | Supports regex |
+| Continue after disconnect (before) | nohup command & | Output to nohup.out |
+| Continue after disconnect (after) | disown %N | Removes from job list |
+| Catch signal | trap 'handler' SIGNAL | EXIT is most important |
+| Wait for all jobs | wait | Parallel processing in scripts |
+| Execute with timeout | timeout 60 command | 124=timeout |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
 ---
 
-## 参考文献
+## References
 1. Barrett, D. "Efficient Linux at the Command Line." Ch.8-9, O'Reilly, 2022.
 2. Shotts, W. "The Linux Command Line." Ch.10-11, No Starch Press, 2019.
 3. Cooper, M. "Advanced Bash-Scripting Guide." Ch.15 (Signals), tldp.org.
