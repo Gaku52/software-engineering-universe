@@ -1,66 +1,66 @@
-# ネットワークツール（curl, wget）
+# Network Tools (curl, wget)
 
-> curl と wget は CLI からの HTTP 通信を可能にする、API開発・デバッグの必須ツール。
-> Web API のテスト、ファイルダウンロード、ヘルスチェック、CI/CD 連携まで幅広く活用される。
+> curl and wget are essential tools for HTTP communication from the CLI, indispensable for API development and debugging.
+> They are widely used for testing Web APIs, downloading files, health checks, and CI/CD integration.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] curl で各種 HTTP リクエストを送信できる
-- [ ] wget でファイルダウンロード・ミラーリングができる
-- [ ] API テスト・デバッグに活用できる
-- [ ] jq と組み合わせて JSON を処理できる
-- [ ] curl を使った自動化スクリプトを書ける
-- [ ] セキュリティを意識した通信設定ができる
+- [ ] Send various HTTP requests with curl
+- [ ] Download files and mirror websites with wget
+- [ ] Use these tools for API testing and debugging
+- [ ] Process JSON by combining them with jq
+- [ ] Write automation scripts using curl
+- [ ] Configure secure communication settings
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. curl の基本
+## 1. curl Basics
 
-### 1.1 GET リクエスト
+### 1.1 GET Requests
 
 ```bash
-# 基本: curl [オプション] URL
+# Basic: curl [options] URL
 
-# 最も基本的な GET リクエスト
-curl https://example.com                     # HTMLをstdoutに出力
+# Most basic GET request
+curl https://example.com                     # Output HTML to stdout
 
-# ファイルに保存
-curl -o output.html https://example.com      # 指定ファイル名で保存
-curl -O https://example.com/file.zip         # 元のファイル名で保存
-curl -O -O https://example.com/{a,b}.zip     # 複数ファイル
+# Save to a file
+curl -o output.html https://example.com      # Save with a specified filename
+curl -O https://example.com/file.zip         # Save with the original filename
+curl -O -O https://example.com/{a,b}.zip     # Multiple files
 
-# サイレントモード
-curl -s https://api.example.com/data         # プログレス表示なし
-curl -sS https://api.example.com/data        # エラーのみ表示
-curl -s --fail https://api.example.com/data  # HTTPエラー時に終了コード非0
+# Silent mode
+curl -s https://api.example.com/data         # No progress display
+curl -sS https://api.example.com/data        # Show errors only
+curl -s --fail https://api.example.com/data  # Non-zero exit code on HTTP error
 
-# 出力の制御
-curl -s https://api.example.com/data | python3 -m json.tool  # JSON整形
-curl -s https://api.example.com/data | jq '.'                # jqで整形
+# Output control
+curl -s https://api.example.com/data | python3 -m json.tool  # Format JSON
+curl -s https://api.example.com/data | jq '.'                # Format with jq
 ```
 
-### 1.2 レスポンスヘッダの確認
+### 1.2 Checking Response Headers
 
 ```bash
-# ヘッダのみ取得（HEAD リクエスト）
+# Get headers only (HEAD request)
 curl -I https://example.com
 # HTTP/2 200
 # content-type: text/html; charset=UTF-8
 # date: Mon, 15 Jan 2024 10:30:00 GMT
 # content-length: 1234
 
-# ヘッダ + ボディ
+# Headers + body
 curl -i https://example.com
 
-# 詳細な通信情報（リクエスト/レスポンスの全内容）
+# Detailed communication info (full request/response content)
 curl -v https://example.com
 # > GET / HTTP/2
 # > Host: example.com
@@ -71,117 +71,117 @@ curl -v https://example.com
 # < content-type: text/html; charset=UTF-8
 # ...
 
-# さらに詳細（TLSハンドシェイクも含む）
+# Even more detail (including TLS handshake)
 curl -vvv https://example.com
 
-# トレース（バイナリレベルの詳細）
+# Trace (binary-level detail)
 curl --trace /tmp/curl_trace.log https://example.com
-curl --trace-ascii /tmp/curl_trace.txt https://example.com  # ASCII形式
+curl --trace-ascii /tmp/curl_trace.txt https://example.com  # ASCII format
 ```
 
-### 1.3 リダイレクト
+### 1.3 Redirects
 
 ```bash
-# リダイレクトに追従（-L / --location）
-curl -L https://example.com                  # 301/302 に自動で追従
+# Follow redirects (-L / --location)
+curl -L https://example.com                  # Automatically follow 301/302
 
-# 最大リダイレクト数を制限
+# Limit the maximum number of redirects
 curl -L --max-redirs 5 https://example.com
 
-# リダイレクト先を確認するだけ
+# Just check the redirect destination
 curl -sI -o /dev/null -w "%{url_effective}\n" -L https://short.url/abc
 
-# リダイレクト履歴を表示
+# Show redirect history
 curl -sIL https://example.com | grep -i "^location:"
 ```
 
-### 1.4 User-Agent とヘッダ
+### 1.4 User-Agent and Headers
 
 ```bash
-# User-Agent を指定
+# Specify User-Agent
 curl -A "Mozilla/5.0 (compatible; MyBot/1.0)" https://example.com
 
-# カスタムヘッダの追加（-H）
+# Add custom headers (-H)
 curl -H "Accept: application/json" https://api.example.com
-curl -H "Accept-Language: ja" https://example.com
+curl -H "Accept-Language: en" https://example.com
 curl -H "X-Custom-Header: value" https://api.example.com
 
-# 複数のカスタムヘッダ
+# Multiple custom headers
 curl -H "Accept: application/json" \
      -H "X-API-Version: 2" \
      -H "X-Request-ID: $(uuidgen)" \
      https://api.example.com
 
-# リファラーの指定
+# Specify referer
 curl -e "https://google.com" https://example.com
 curl --referer "https://google.com" https://example.com
 ```
 
 ---
 
-## 2. HTTP メソッド
+## 2. HTTP Methods
 
-### 2.1 POST リクエスト
+### 2.1 POST Requests
 
 ```bash
-# JSON データの送信
+# Send JSON data
 curl -X POST https://api.example.com/users \
   -H "Content-Type: application/json" \
   -d '{"name": "Gaku", "email": "gaku@example.com"}'
 
-# JSON データを送る（省略形、curl 7.82+）
+# Send JSON data (shorthand, curl 7.82+)
 curl -X POST https://api.example.com/users \
   --json '{"name": "Gaku"}'
-# --json は以下と同等:
+# --json is equivalent to:
 # -H "Content-Type: application/json"
 # -H "Accept: application/json"
-# -d 'データ'
+# -d 'data'
 
-# ファイルからデータを読み込む
+# Read data from a file
 curl -X POST https://api.example.com/users \
   -H "Content-Type: application/json" \
   -d @data.json
 
-# 標準入力からデータを読み込む
+# Read data from stdin
 echo '{"name": "Gaku"}' | curl -X POST https://api.example.com/users \
   -H "Content-Type: application/json" \
   -d @-
 
-# URL エンコードされたフォームデータ
+# URL-encoded form data
 curl -X POST https://example.com/login \
   -d "username=gaku&password=secret"
-# Content-Type: application/x-www-form-urlencoded が自動設定
+# Content-Type: application/x-www-form-urlencoded is set automatically
 
-# --data-urlencode で自動エンコード
+# Auto-encode with --data-urlencode
 curl -X POST https://example.com/search \
   --data-urlencode "q=hello world" \
-  --data-urlencode "lang=日本語"
+  --data-urlencode "lang=Japanese"
 ```
 
-### 2.2 ファイルアップロード（マルチパート）
+### 2.2 File Upload (Multipart)
 
 ```bash
-# フォームデータ + ファイルアップロード
+# Form data + file upload
 curl -X POST https://example.com/upload \
   -F "file=@photo.jpg" \
   -F "name=test"
-# Content-Type: multipart/form-data が自動設定
+# Content-Type: multipart/form-data is set automatically
 
-# 複数ファイルのアップロード
+# Upload multiple files
 curl -X POST https://example.com/upload \
   -F "files[]=@file1.pdf" \
   -F "files[]=@file2.pdf" \
   -F "description=Documents"
 
-# ファイルのContent-Typeを明示指定
+# Explicitly specify the Content-Type of the file
 curl -X POST https://example.com/upload \
   -F "file=@data.csv;type=text/csv"
 
-# ファイル名を変更してアップロード
+# Upload with a different filename
 curl -X POST https://example.com/upload \
   -F "file=@local_name.jpg;filename=uploaded.jpg"
 
-# 大容量ファイルのアップロード（プログレス表示付き）
+# Upload a large file (with progress display)
 curl -X POST https://example.com/upload \
   -F "file=@large_file.zip" \
   --progress-bar
@@ -190,12 +190,12 @@ curl -X POST https://example.com/upload \
 ### 2.3 PUT / PATCH / DELETE
 
 ```bash
-# PUT（リソースの完全置換）
+# PUT (complete replacement of a resource)
 curl -X PUT https://api.example.com/users/1 \
   -H "Content-Type: application/json" \
   -d '{"name": "Updated Name", "email": "new@example.com"}'
 
-# PATCH（リソースの部分更新）
+# PATCH (partial update of a resource)
 curl -X PATCH https://api.example.com/users/1 \
   -H "Content-Type: application/json" \
   -d '{"name": "Patched Name"}'
@@ -203,12 +203,12 @@ curl -X PATCH https://api.example.com/users/1 \
 # DELETE
 curl -X DELETE https://api.example.com/users/1
 
-# DELETE with body（一部のAPIで使用）
+# DELETE with body (used by some APIs)
 curl -X DELETE https://api.example.com/users \
   -H "Content-Type: application/json" \
   -d '{"ids": [1, 2, 3]}'
 
-# OPTIONS（CORSプリフライトの確認）
+# OPTIONS (checking CORS preflight)
 curl -X OPTIONS https://api.example.com/users \
   -H "Origin: https://frontend.example.com" \
   -H "Access-Control-Request-Method: POST" \
@@ -217,48 +217,48 @@ curl -X OPTIONS https://api.example.com/users \
 
 ---
 
-## 3. 認証
+## 3. Authentication
 
-### 3.1 Basic 認証
+### 3.1 Basic Authentication
 
 ```bash
-# Basic認証
+# Basic authentication
 curl -u username:password https://api.example.com
-# Authorization: Basic base64(username:password) が自動設定
+# Authorization: Basic base64(username:password) is set automatically
 
-# パスワードをプロンプトで入力（コマンド履歴に残さない）
+# Enter password via prompt (avoids leaving it in command history)
 curl -u username https://api.example.com
-# パスワードの入力を求められる
+# You will be prompted for the password
 
-# .netrc ファイルを使用（認証情報をファイルに保存）
+# Use a .netrc file (store credentials in a file)
 # ~/.netrc:
 # machine api.example.com
 # login username
 # password secret
-curl -n https://api.example.com              # .netrc を使用
+curl -n https://api.example.com              # Use .netrc
 curl --netrc-file /path/to/netrc https://api.example.com
 ```
 
-### 3.2 Bearer トークン / API キー
+### 3.2 Bearer Token / API Key
 
 ```bash
-# Bearer トークン（OAuth2 など）
+# Bearer token (OAuth2, etc.)
 curl -H "Authorization: Bearer TOKEN_HERE" https://api.example.com
 
-# 変数を使用（推奨）
+# Use a variable (recommended)
 TOKEN="your_api_token_here"
 curl -H "Authorization: Bearer $TOKEN" https://api.example.com
 
-# 環境変数から読み込み
+# Read from an environment variable
 curl -H "Authorization: Bearer ${API_TOKEN}" https://api.example.com
 
-# APIキー（ヘッダ）
+# API key (header)
 curl -H "X-API-Key: KEY_HERE" https://api.example.com
 
-# APIキー（クエリパラメータ）
+# API key (query parameter)
 curl "https://api.example.com/data?api_key=KEY_HERE"
 
-# AWS Signature v4（AWS CLI を使うのが一般的）
+# AWS Signature v4 (typically done via AWS CLI)
 curl --aws-sigv4 "aws:amz:us-east-1:s3" \
   --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" \
   https://s3.amazonaws.com/bucket/key
@@ -267,216 +267,216 @@ curl --aws-sigv4 "aws:amz:us-east-1:s3" \
 ### 3.3 Cookie
 
 ```bash
-# Cookie を送信
-curl -b "session=abc123; lang=ja" https://example.com
+# Send cookies
+curl -b "session=abc123; lang=en" https://example.com
 
-# Cookie をファイルに保存（レスポンスの Set-Cookie を保存）
+# Save cookies to a file (saves Set-Cookie from response)
 curl -c cookies.txt https://example.com/login \
   -d "username=gaku&password=secret"
 
-# 保存した Cookie を送信
+# Send saved cookies
 curl -b cookies.txt https://example.com/dashboard
 
-# Cookie の保存と送信を同時に（セッション維持）
+# Save and send cookies simultaneously (maintain session)
 curl -b cookies.txt -c cookies.txt https://example.com/api/data
 
-# Cookie jar を使ったセッション管理（一連のリクエスト）
+# Session management using a cookie jar (series of requests)
 COOKIE_JAR=$(mktemp)
 trap "rm -f $COOKIE_JAR" EXIT
 
-# ログイン
+# Login
 curl -s -c "$COOKIE_JAR" https://example.com/login \
   -d "username=gaku&password=secret"
 
-# セッションを使ってデータ取得
+# Fetch data using the session
 curl -s -b "$COOKIE_JAR" https://example.com/api/data
 
-# ログアウト
+# Logout
 curl -s -b "$COOKIE_JAR" -c "$COOKIE_JAR" https://example.com/logout
 ```
 
-### 3.4 クライアント証明書
+### 3.4 Client Certificate
 
 ```bash
-# クライアント証明書での認証
+# Authenticate with a client certificate
 curl --cert client.pem --key client-key.pem https://secure.example.com
 
-# PKCS#12 形式
+# PKCS#12 format
 curl --cert client.p12:password https://secure.example.com
 
-# CA証明書の指定
+# Specify CA certificate
 curl --cacert ca-bundle.crt https://example.com
 
-# 証明書の検証をスキップ（開発環境のみ）
+# Skip certificate validation (development environment only)
 curl -k https://self-signed.example.com
-# 注意: 本番環境では絶対に使わない
+# Warning: never use this in production
 ```
 
 ---
 
-## 4. 高度なオプション
+## 4. Advanced Options
 
-### 4.1 タイムアウトとリトライ
+### 4.1 Timeouts and Retries
 
 ```bash
-# 接続タイムアウト（TCP接続確立まで）
+# Connection timeout (until TCP connection is established)
 curl --connect-timeout 5 https://example.com
 
-# 全体タイムアウト（リクエスト全体）
+# Total timeout (entire request)
 curl --max-time 30 https://example.com
 
-# 両方指定（推奨）
+# Specify both (recommended)
 curl --connect-timeout 5 --max-time 30 https://example.com
 
-# リトライ
+# Retries
 curl --retry 3 https://example.com
-curl --retry 3 --retry-delay 2 https://example.com          # 2秒間隔
-curl --retry 3 --retry-max-time 60 https://example.com      # リトライ全体で60秒まで
-curl --retry 3 --retry-all-errors https://example.com        # 全エラーでリトライ
-# デフォルトではタイムアウトと一部のHTTPエラーのみリトライ
+curl --retry 3 --retry-delay 2 https://example.com          # 2-second interval
+curl --retry 3 --retry-max-time 60 https://example.com      # Up to 60 seconds total for retries
+curl --retry 3 --retry-all-errors https://example.com        # Retry on all errors
+# By default, only retries on timeouts and some HTTP errors
 
-# DNS解決のタイムアウト
-curl --dns-servers 8.8.8.8 https://example.com  # DNSサーバー指定
-curl --resolve example.com:443:93.184.216.34 https://example.com  # DNS解決をオーバーライド
+# DNS resolution timeout
+curl --dns-servers 8.8.8.8 https://example.com  # Specify DNS server
+curl --resolve example.com:443:93.184.216.34 https://example.com  # Override DNS resolution
 ```
 
-### 4.2 プロキシ
+### 4.2 Proxy
 
 ```bash
-# HTTPプロキシ
+# HTTP proxy
 curl -x http://proxy:8080 https://example.com
 curl --proxy http://proxy:8080 https://example.com
 
-# 認証付きプロキシ
+# Proxy with authentication
 curl -x http://user:pass@proxy:8080 https://example.com
 curl --proxy-user user:pass -x http://proxy:8080 https://example.com
 
-# SOCKSプロキシ
+# SOCKS proxy
 curl --proxy socks5://proxy:1080 https://example.com
-curl --proxy socks5h://proxy:1080 https://example.com  # DNS もプロキシ経由
+curl --proxy socks5h://proxy:1080 https://example.com  # DNS also goes through proxy
 
-# プロキシなし
+# No proxy
 curl --noproxy "*" https://example.com
 curl --noproxy "localhost,127.0.0.1,.internal.com" https://example.com
 
-# 環境変数でプロキシ設定
+# Configure proxy via environment variables
 export http_proxy=http://proxy:8080
 export https_proxy=http://proxy:8080
 export no_proxy=localhost,127.0.0.1
-curl https://example.com   # 環境変数のプロキシを使用
+curl https://example.com   # Uses proxy from environment variables
 ```
 
 ### 4.3 SSL/TLS
 
 ```bash
-# 証明書検証スキップ（開発環境のみ）
+# Skip certificate validation (development environment only)
 curl -k https://self-signed.example.com
 
-# CA証明書指定
+# Specify CA certificate
 curl --cacert ca.pem https://example.com
 
-# CA証明書ディレクトリ指定
+# Specify CA certificate directory
 curl --capath /etc/ssl/certs https://example.com
 
-# TLSバージョンの指定
-curl --tlsv1.2 https://example.com           # TLS 1.2以上
-curl --tlsv1.3 https://example.com           # TLS 1.3以上
+# Specify TLS version
+curl --tlsv1.2 https://example.com           # TLS 1.2 or higher
+curl --tlsv1.3 https://example.com           # TLS 1.3 or higher
 
-# 暗号スイートの指定
+# Specify cipher suite
 curl --ciphers "ECDHE-RSA-AES256-GCM-SHA384" https://example.com
 
-# 証明書情報の表示
+# Display certificate information
 curl -vI https://example.com 2>&1 | grep -A 5 "Server certificate"
 
-# HSTS の確認
+# Check HSTS
 curl -sI https://example.com | grep -i "strict-transport-security"
 ```
 
-### 4.4 レスポンス情報の取得（-w オプション）
+### 4.4 Retrieving Response Information (-w option)
 
 ```bash
-# ステータスコードのみ取得
+# Get only the status code
 curl -s -o /dev/null -w "%{http_code}" https://example.com
-# 出力: 200
+# Output: 200
 
-# 応答時間の取得
+# Get response time
 curl -s -o /dev/null -w "%{time_total}" https://example.com
-# 出力: 0.123456
+# Output: 0.123456
 
-# 詳細なタイミング情報
+# Detailed timing information
 curl -s -o /dev/null -w "\
-DNS解決:    %{time_namelookup}s\n\
-TCP接続:    %{time_connect}s\n\
-TLSハンドシェイク: %{time_appconnect}s\n\
-リダイレクト: %{time_redirect}s\n\
-TTFB:       %{time_starttransfer}s\n\
-合計:       %{time_total}s\n\
+DNS Lookup:      %{time_namelookup}s\n\
+TCP Connect:     %{time_connect}s\n\
+TLS Handshake:   %{time_appconnect}s\n\
+Redirect:        %{time_redirect}s\n\
+TTFB:            %{time_starttransfer}s\n\
+Total:           %{time_total}s\n\
 " https://example.com
 
-# -w で使える変数（主要なもの）
-# %{http_code}:          ステータスコード
-# %{http_version}:       HTTPバージョン
-# %{url_effective}:      最終URL（リダイレクト後）
+# Main variables available with -w
+# %{http_code}:          Status code
+# %{http_version}:       HTTP version
+# %{url_effective}:      Final URL (after redirect)
 # %{content_type}:       Content-Type
-# %{size_download}:      ダウンロードサイズ（バイト）
-# %{size_header}:        ヘッダサイズ
-# %{speed_download}:     ダウンロード速度（バイト/秒）
-# %{time_namelookup}:    DNS解決時間
-# %{time_connect}:       TCP接続時間
-# %{time_appconnect}:    TLSハンドシェイク完了時間
-# %{time_pretransfer}:   転送開始前の時間
-# %{time_starttransfer}: 最初のバイト受信時間（TTFB）
-# %{time_redirect}:      リダイレクト時間
-# %{time_total}:         合計時間
-# %{num_redirects}:      リダイレクト回数
-# %{ssl_verify_result}:  SSL検証結果（0=成功）
-# %{local_ip}:           ローカルIPアドレス
-# %{remote_ip}:          リモートIPアドレス
-# %{remote_port}:        リモートポート
+# %{size_download}:      Download size (bytes)
+# %{size_header}:        Header size
+# %{speed_download}:     Download speed (bytes/sec)
+# %{time_namelookup}:    DNS lookup time
+# %{time_connect}:       TCP connection time
+# %{time_appconnect}:    TLS handshake completion time
+# %{time_pretransfer}:   Time before transfer starts
+# %{time_starttransfer}: Time to first byte (TTFB)
+# %{time_redirect}:      Redirect time
+# %{time_total}:         Total time
+# %{num_redirects}:      Number of redirects
+# %{ssl_verify_result}:  SSL verification result (0=success)
+# %{local_ip}:           Local IP address
+# %{remote_ip}:          Remote IP address
+# %{remote_port}:        Remote port
 
-# JSON 形式で出力
+# Output in JSON format
 curl -s -o /dev/null -w '{"code":%{http_code},"time":%{time_total},"size":%{size_download}}' \
   https://example.com
 
-# ファイルからフォーマットを読み込む
+# Read format from a file
 # format.txt: %{http_code}\t%{time_total}\t%{url_effective}\n
 curl -s -o /dev/null -w @format.txt https://example.com
 ```
 
-### 4.5 ダウンロードの制御
+### 4.5 Download Control
 
 ```bash
-# ダウンロードの再開
+# Resume a download
 curl -C - -O https://example.com/large.zip
-# -C -: 前回の続きから自動的に再開
+# -C -: Automatically resume from where it left off
 
-# 帯域制限
+# Bandwidth limit
 curl --limit-rate 1M -O https://example.com/large.zip  # 1MB/s
 
-# プログレスバー
+# Progress bar
 curl --progress-bar -O https://example.com/large.zip
 # #####################################    85%
 
-# 最大ファイルサイズ制限
+# Maximum file size limit
 curl --max-filesize 10485760 -O https://example.com/file.zip
-# 10MB以上なら中止
+# Abort if over 10MB
 
-# 条件付きダウンロード（更新されていれば取得）
-curl -z "2024-01-01" https://example.com/file.txt  # 指定日以降に更新されていれば
-curl -z localfile.txt -O https://example.com/file.txt  # ローカルファイルより新しければ
+# Conditional download (fetch only if updated)
+curl -z "2024-01-01" https://example.com/file.txt  # If updated after the specified date
+curl -z localfile.txt -O https://example.com/file.txt  # If newer than local file
 
-# 並列ダウンロード（curl 7.66+）
+# Parallel download (curl 7.66+)
 curl --parallel --parallel-max 5 \
   -O https://example.com/file1.zip \
   -O https://example.com/file2.zip \
   -O https://example.com/file3.zip
 ```
 
-### 4.6 curl の設定ファイル
+### 4.6 curl Configuration File
 
 ```bash
-# ~/.curlrc に共通設定を記述
-# 例:
+# Write common settings in ~/.curlrc
+# Example:
 # --connect-timeout 10
 # --max-time 60
 # --retry 3
@@ -485,21 +485,21 @@ curl --parallel --parallel-max 5 \
 # --location
 # --user-agent "MyCurlClient/1.0"
 
-# 設定ファイルを無視
+# Ignore the configuration file
 curl -q https://example.com
 
-# 別の設定ファイルを指定
+# Specify a different configuration file
 curl -K /path/to/config https://example.com
 curl --config /path/to/config https://example.com
 
-# 設定ファイルの例（api_config.txt）:
+# Example configuration file (api_config.txt):
 # url = "https://api.example.com/data"
 # header = "Authorization: Bearer TOKEN"
 # header = "Accept: application/json"
 # silent
 # show-error
 
-# 使用
+# Usage
 curl -K api_config.txt
 ```
 
@@ -507,91 +507,91 @@ curl -K api_config.txt
 
 ## 5. wget
 
-### 5.1 基本的なダウンロード
+### 5.1 Basic Download
 
 ```bash
-# 基本: wget [オプション] URL
+# Basic: wget [options] URL
 
-# ファイルダウンロード
-wget https://example.com/file.zip             # ダウンロード
-wget -O output.zip https://example.com/file   # ファイル名指定
-wget -O - https://example.com                 # stdoutに出力
-wget -c https://example.com/large.zip         # 中断したダウンロードの再開
-wget -q https://example.com/file.zip          # 静かにダウンロード
-wget -nv https://example.com/file.zip         # 簡易表示
+# File download
+wget https://example.com/file.zip             # Download
+wget -O output.zip https://example.com/file   # Specify filename
+wget -O - https://example.com                 # Output to stdout
+wget -c https://example.com/large.zip         # Resume an interrupted download
+wget -q https://example.com/file.zip          # Download quietly
+wget -nv https://example.com/file.zip         # Simple output
 
-# 複数ファイル
-wget -i urls.txt                              # URLリストから一括DL
+# Multiple files
+wget -i urls.txt                              # Batch download from a URL list
 
-# 帯域制限
-wget --limit-rate=1m https://example.com/large.zip  # 1MB/s制限
+# Bandwidth limit
+wget --limit-rate=1m https://example.com/large.zip  # 1MB/s limit
 
-# ユーザーエージェント
+# User agent
 wget -U "Mozilla/5.0" https://example.com
 
-# バックグラウンドダウンロード
+# Background download
 wget -b https://example.com/large.zip
-# ログは wget-log に出力
-tail -f wget-log                              # 進捗確認
+# Log is output to wget-log
+tail -f wget-log                              # Check progress
 ```
 
-### 5.2 再帰的ダウンロード・ミラーリング
+### 5.2 Recursive Download / Mirroring
 
 ```bash
-# ミラーリング（Webサイト丸ごとダウンロード）
-wget -m https://example.com                   # ミラー
-wget -m -p -k https://example.com             # ページ表示に必要なファイル含む
-# -m: ミラー（再帰 + タイムスタンプ + 無限深度）
-# -p: ページ表示に必要な画像/CSS/JS
-# -k: ローカルリンクに変換
+# Mirroring (download an entire website)
+wget -m https://example.com                   # Mirror
+wget -m -p -k https://example.com             # Include files needed for page display
+# -m: Mirror (recursive + timestamps + unlimited depth)
+# -p: Images/CSS/JS needed for page display
+# -k: Convert to local links
 
-# 完全なオフラインコピー
+# Complete offline copy
 wget -m -p -k -E https://example.com
-# -E: .htmlを拡張子に付与
+# -E: Add .html extension
 
-# 再帰ダウンロード
-wget -r -l 2 https://example.com              # 深度2まで再帰
-wget -r --accept=pdf https://example.com      # PDFのみ
-wget -r --reject=jpg,png https://example.com  # 画像除外
-wget -r -A "*.pdf,*.doc" https://example.com  # PDFとDOCのみ
-wget -r -R "*.exe,*.zip" https://example.com  # exeとzip除外
+# Recursive download
+wget -r -l 2 https://example.com              # Recurse up to depth 2
+wget -r --accept=pdf https://example.com      # PDFs only
+wget -r --reject=jpg,png https://example.com  # Exclude images
+wget -r -A "*.pdf,*.doc" https://example.com  # Only PDFs and DOCs
+wget -r -R "*.exe,*.zip" https://example.com  # Exclude exe and zip
 
-# ドメイン制限
-wget -r -np https://example.com/docs/         # 親ディレクトリに遡らない
-wget -r -D example.com https://example.com    # 指定ドメインのみ
+# Domain restriction
+wget -r -np https://example.com/docs/         # Do not ascend to parent directory
+wget -r -D example.com https://example.com    # Specified domain only
 wget -r --exclude-domains=ads.example.com https://example.com
 
-# ウェイト（サーバー負荷軽減）
-wget -r -w 2 https://example.com              # 2秒間隔
-wget -r --random-wait https://example.com     # ランダム間隔（0.5〜1.5倍）
-wget -r -w 1 --random-wait https://example.com  # 0.5〜1.5秒のランダム間隔
+# Wait (reduce server load)
+wget -r -w 2 https://example.com              # 2-second interval
+wget -r --random-wait https://example.com     # Random interval (0.5–1.5x)
+wget -r -w 1 --random-wait https://example.com  # Random interval of 0.5–1.5 seconds
 
-# ロボット除外を無視（注意して使用）
+# Ignore robots exclusion (use with caution)
 wget -r -e robots=off https://example.com
 ```
 
-### 5.3 認証とセキュリティ
+### 5.3 Authentication and Security
 
 ```bash
-# Basic認証
+# Basic authentication
 wget --user=username --password=password https://secure.example.com
 
-# パスワードプロンプト
+# Password prompt
 wget --user=username --ask-password https://secure.example.com
 
 # Cookie
 wget --load-cookies cookies.txt https://example.com
 wget --save-cookies cookies.txt https://example.com
 
-# SSL 証明書
-wget --no-check-certificate https://self-signed.example.com  # 検証スキップ
-wget --ca-certificate=ca.pem https://example.com             # CA指定
+# SSL certificate
+wget --no-check-certificate https://self-signed.example.com  # Skip validation
+wget --ca-certificate=ca.pem https://example.com             # Specify CA
 
-# ヘッダ追加
+# Add headers
 wget --header="Authorization: Bearer TOKEN" https://api.example.com
 wget --header="Accept: application/json" https://api.example.com
 
-# POST リクエスト
+# POST request
 wget --post-data="username=gaku&password=secret" https://example.com/login
 wget --post-file=data.json --header="Content-Type: application/json" \
   https://api.example.com/users
@@ -599,175 +599,175 @@ wget --post-file=data.json --header="Content-Type: application/json" \
 
 ---
 
-## 6. curl vs wget 比較
+## 6. curl vs wget Comparison
 
 ```
-┌──────────────┬────────────────────┬────────────────────┐
-│ 機能         │ curl               │ wget               │
-├──────────────┼────────────────────┼────────────────────┤
-│ 主な用途     │ API通信・デバッグ  │ ファイルDL         │
-│ HTTPメソッド │ 全メソッド対応     │ GET/POST           │
-│ プロトコル   │ 多数（FTP,SMTP等） │ HTTP/FTP           │
-│ 再帰DL      │ 非対応             │ 対応               │
-│ レジューム   │ -C - で対応        │ -c で対応          │
-│ 出力先       │ stdout（デフォルト）│ ファイル           │
-│ JSON処理     │ --json オプション  │ 非対応             │
-│ パイプ       │ 得意               │ 不向き             │
-│ Cookie管理   │ -b/-c オプション   │ --cookies          │
-│ SSL制御      │ 詳細な制御可能     │ 基本的な制御       │
-│ タイミング   │ -w で詳細取得      │ 非対応             │
-│ 並列DL      │ --parallel（7.66+）│ 非対応（xargs併用）│
-│ ロボット.txt │ 無視               │ 遵守（デフォルト） │
-│ ミラーリング │ 非対応             │ -m オプション      │
-│ WebSocket    │ 対応（7.86+）      │ 非対応             │
-│ HTTP/2       │ 対応               │ 対応（2.0+）       │
-│ HTTP/3       │ 対応（実験的）     │ 非対応             │
-└──────────────┴────────────────────┴────────────────────┘
+┌──────────────────┬────────────────────┬────────────────────┐
+│ Feature          │ curl               │ wget               │
+├──────────────────┼────────────────────┼────────────────────┤
+│ Main use case    │ API/debug          │ File download      │
+│ HTTP methods     │ All methods        │ GET/POST           │
+│ Protocols        │ Many (FTP,SMTP...) │ HTTP/FTP           │
+│ Recursive DL     │ Not supported      │ Supported          │
+│ Resume           │ -C -               │ -c                 │
+│ Output           │ stdout (default)   │ File               │
+│ JSON support     │ --json option      │ Not supported      │
+│ Piping           │ Excellent          │ Not ideal          │
+│ Cookie handling  │ -b/-c options      │ --cookies          │
+│ SSL control      │ Fine-grained       │ Basic control      │
+│ Timing           │ -w for details     │ Not supported      │
+│ Parallel DL      │ --parallel (7.66+) │ No (use xargs)     │
+│ robots.txt       │ Ignored            │ Respected (default)│
+│ Mirroring        │ Not supported      │ -m option          │
+│ WebSocket        │ Supported (7.86+)  │ Not supported      │
+│ HTTP/2           │ Supported          │ Supported (2.0+)   │
+│ HTTP/3           │ Supported (exp.)   │ Not supported      │
+└──────────────────┴────────────────────┴────────────────────┘
 
-使い分けガイド:
-  API開発・デバッグ       → curl（メソッド/ヘッダ/認証の柔軟な制御）
-  ファイルダウンロード    → wget（curl -O でも可）
-  Webサイトミラーリング   → wget -m
-  パイプライン処理        → curl -s
-  CI/CD スクリプト        → curl（より普及している）
-  JSON API テスト         → curl + jq
-  ヘルスチェック          → curl -s -o /dev/null -w "%{http_code}"
-  レスポンスタイム計測    → curl -w
+Usage guide:
+  API development/debugging    → curl (flexible method/header/auth control)
+  File download                → wget (curl -O also works)
+  Website mirroring            → wget -m
+  Pipeline processing          → curl -s
+  CI/CD scripts                → curl (more widely available)
+  JSON API testing             → curl + jq
+  Health check                 → curl -s -o /dev/null -w "%{http_code}"
+  Response time measurement    → curl -w
 ```
 
 ---
 
-## 7. jq との組み合わせ（JSON処理）
+## 7. Combining with jq (JSON Processing)
 
-### 7.1 基本的な使い方
+### 7.1 Basic Usage
 
 ```bash
-# jq: JSON のパース・整形・変換ツール
-# インストール:
+# jq: A tool for parsing, formatting, and transforming JSON
+# Install:
 # macOS: brew install jq
 # Ubuntu: sudo apt install jq
 
-# JSON レスポンスの整形
+# Format a JSON response
 curl -s https://api.github.com/users/octocat | jq '.'
 
-# 特定フィールドの抽出
+# Extract a specific field
 curl -s https://api.github.com/users/octocat | jq '.name'
 # "The Octocat"
 
-# 複数フィールドの抽出
+# Extract multiple fields
 curl -s https://api.github.com/users/octocat | jq '{name: .name, id: .id, location: .location}'
 
-# 文字列として取得（クォートなし）
+# Get as a string (without quotes)
 curl -s https://api.github.com/users/octocat | jq -r '.name'
-# The Octocat（クォートなし）
+# The Octocat (without quotes)
 ```
 
-### 7.2 配列の処理
+### 7.2 Processing Arrays
 
 ```bash
-# 配列の全要素の特定フィールド
+# A specific field from all array elements
 curl -s https://api.github.com/users/octocat/repos | jq '.[].name'
 
-# 配列の最初の要素
+# First element of an array
 curl -s https://api.github.com/users/octocat/repos | jq '.[0]'
 
-# 配列のスライス
-curl -s https://api.github.com/users/octocat/repos | jq '.[:5]'  # 最初の5つ
+# Array slice
+curl -s https://api.github.com/users/octocat/repos | jq '.[:5]'  # First 5
 
-# 配列の長さ
+# Array length
 curl -s https://api.github.com/users/octocat/repos | jq 'length'
 
-# オブジェクトの構築
+# Build objects
 curl -s https://api.github.com/users/octocat/repos \
   | jq '.[] | {name, stars: .stargazers_count, lang: .language}'
 
-# テーブル形式で出力
+# Output in table format
 curl -s https://api.github.com/users/octocat/repos \
   | jq -r '.[] | "\(.name)\t\(.stargazers_count)\t\(.language)"' \
   | sort -t$'\t' -k2 -rn \
   | head -10
 ```
 
-### 7.3 フィルタリングと変換
+### 7.3 Filtering and Transformation
 
 ```bash
-# 条件でフィルタ
+# Filter by condition
 curl -s https://api.github.com/users/octocat/repos \
   | jq '[.[] | select(.stargazers_count > 100)]'
 
-# 言語でフィルタ
+# Filter by language
 curl -s https://api.github.com/users/octocat/repos \
   | jq '[.[] | select(.language == "Ruby")]'
 
-# NULL でないものだけ
+# Only non-null values
 curl -s https://api.github.com/users/octocat/repos \
   | jq '[.[] | select(.language != null)]'
 
-# ソート
+# Sort
 curl -s https://api.github.com/users/octocat/repos \
   | jq 'sort_by(-.stargazers_count) | .[:5]'
 
-# グループ化（言語別リポジトリ数）
+# Group (number of repositories per language)
 curl -s https://api.github.com/users/octocat/repos \
   | jq 'group_by(.language) | map({language: .[0].language, count: length}) | sort_by(-.count)'
 
-# 集計
+# Aggregation
 curl -s https://api.github.com/users/octocat/repos \
-  | jq '[.[].stargazers_count] | add'  # スター数の合計
+  | jq '[.[].stargazers_count] | add'  # Total star count
 
 # map / reduce
 curl -s https://api.github.com/users/octocat/repos \
-  | jq 'map(.name) | join(", ")'  # 名前をカンマ区切りに
+  | jq 'map(.name) | join(", ")'  # Join names with commas
 
 # if-then-else
 curl -s https://api.github.com/users/octocat/repos \
   | jq '.[] | {name, popularity: (if .stargazers_count > 1000 then "popular" elif .stargazers_count > 100 then "moderate" else "niche" end)}'
 ```
 
-### 7.4 jq の高度な使い方
+### 7.4 Advanced jq Usage
 
 ```bash
-# JSON の更新（入力を変更して出力）
+# Update JSON (modify input and output)
 echo '{"name":"Gaku","age":30}' | jq '.age = 31'
 
-# フィールドの追加
+# Add a field
 echo '{"name":"Gaku"}' | jq '. + {country: "Japan"}'
 
-# フィールドの削除
+# Delete a field
 echo '{"name":"Gaku","age":30,"email":"a@b.com"}' | jq 'del(.email)'
 
-# 型変換
+# Type conversion
 echo '{"count":"42"}' | jq '.count | tonumber'
 
-# CSV への変換
+# Convert to CSV
 curl -s https://api.github.com/users/octocat/repos \
   | jq -r '.[] | [.name, .stargazers_count, .language // "N/A"] | @csv'
 
-# TSV への変換
+# Convert to TSV
 curl -s https://api.github.com/users/octocat/repos \
   | jq -r '.[] | [.name, .stargazers_count, .language // "N/A"] | @tsv'
 
-# HTML への変換
+# Convert to HTML
 curl -s https://api.github.com/users/octocat/repos \
   | jq -r '.[] | "<li>\(.name) (\(.stargazers_count) stars)</li>"'
 
-# 変数の使用
+# Use variables
 curl -s https://api.github.com/users/octocat/repos \
   | jq --arg lang "Ruby" '[.[] | select(.language == $lang)]'
 
-# 複数の JSON ファイルの処理
-jq -s '.' file1.json file2.json  # 配列にまとめる
-jq -s 'add' file1.json file2.json  # マージ
+# Process multiple JSON files
+jq -s '.' file1.json file2.json  # Combine into an array
+jq -s 'add' file1.json file2.json  # Merge
 ```
 
 ---
 
-## 8. 実践パターン
+## 8. Practical Patterns
 
-### 8.1 APIのヘルスチェック
+### 8.1 API Health Check
 
 ```bash
-# 基本的なヘルスチェック
+# Basic health check
 check_api() {
     local url=$1
     local timeout=${2:-5}
@@ -784,15 +784,15 @@ check_api() {
     fi
 }
 
-# 単一エンドポイント
+# Single endpoint
 check_api "https://api.example.com/health"
 
-# 複数エンドポイント
+# Multiple endpoints
 for endpoint in /health /ready /metrics; do
     check_api "https://api.example.com${endpoint}"
 done
 
-# JSONレスポンスのチェック
+# Check JSON response
 check_api_json() {
     local url=$1
     local expected_field=$2
@@ -816,33 +816,33 @@ check_api_json() {
 check_api_json "https://api.example.com/health" "status" "ok"
 ```
 
-### 8.2 レスポンス時間計測
+### 8.2 Response Time Measurement
 
 ```bash
-# 複数エンドポイントの応答時間計測
+# Measure response time for multiple endpoints
 for endpoint in /users /posts /comments; do
     time=$(curl -s -o /dev/null -w "%{time_total}" "https://api.example.com$endpoint")
     echo "$endpoint: ${time}s"
 done
 
-# 詳細なタイミング計測スクリプト
+# Detailed timing measurement script
 measure_api() {
     local url=$1
     curl -s -o /dev/null -w "\
 URL: %{url_effective}\n\
-ステータス: %{http_code}\n\
-DNS解決: %{time_namelookup}s\n\
-TCP接続: %{time_connect}s\n\
+Status: %{http_code}\n\
+DNS Lookup: %{time_namelookup}s\n\
+TCP Connect: %{time_connect}s\n\
 TLS: %{time_appconnect}s\n\
 TTFB: %{time_starttransfer}s\n\
-合計: %{time_total}s\n\
-サイズ: %{size_download} bytes\n\
-速度: %{speed_download} bytes/s\n\
+Total: %{time_total}s\n\
+Size: %{size_download} bytes\n\
+Speed: %{speed_download} bytes/s\n\
 ---\n\
 " "$url"
 }
 
-# 複数回計測して平均を出す
+# Measure multiple times and compute average
 measure_avg() {
     local url=$1
     local count=${2:-10}
@@ -851,36 +851,36 @@ measure_avg() {
     for i in $(seq 1 "$count"); do
         time=$(curl -s -o /dev/null -w "%{time_total}" "$url")
         total=$(echo "$total + $time" | bc)
-        echo "  試行 $i: ${time}s"
+        echo "  Trial $i: ${time}s"
     done
 
     avg=$(echo "scale=4; $total / $count" | bc)
-    echo "平均: ${avg}s ($count 回)"
+    echo "Average: ${avg}s ($count trials)"
 }
 
 measure_avg "https://api.example.com/health" 5
 ```
 
-### 8.3 ファイルの並列ダウンロード
+### 8.3 Parallel File Download
 
 ```bash
-# xargs を使った並列ダウンロード
+# Parallel download using xargs
 cat urls.txt | xargs -P 4 -I {} curl -sOL {}
-# -P 4: 4並列
-# -s: サイレント
-# -O: 元のファイル名で保存
-# -L: リダイレクト追従
+# -P 4: 4 parallel
+# -s: silent
+# -O: save with original filename
+# -L: follow redirects
 
-# aria2c（高速ダウンローダー）
+# aria2c (high-speed downloader)
 # brew install aria2
 aria2c -x 16 -s 16 https://example.com/large.zip
-# -x 16: 最大16接続
-# -s 16: 16分割ダウンロード
+# -x 16: up to 16 connections
+# -s 16: 16-segment download
 
 # wget + xargs
 cat urls.txt | xargs -P 4 -I {} wget -q {}
 
-# curl のビルトイン並列（7.66+）
+# curl built-in parallel (7.66+)
 curl --parallel --parallel-max 4 \
   -O https://example.com/file1.zip \
   -O https://example.com/file2.zip \
@@ -888,7 +888,7 @@ curl --parallel --parallel-max 4 \
   -O https://example.com/file4.zip
 ```
 
-### 8.4 Webhook テスト
+### 8.4 Webhook Testing
 
 ```bash
 # Slack Webhook
@@ -901,13 +901,13 @@ curl -X POST "https://discord.com/api/webhooks/ID/TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"content": "Deploy completed!"}'
 
-# GitHub API（Issue 作成）
+# GitHub API (create an Issue)
 curl -X POST https://api.github.com/repos/owner/repo/issues \
   -H "Authorization: token $GITHUB_TOKEN" \
   -H "Accept: application/vnd.github.v3+json" \
   -d '{"title": "Bug report", "body": "Description here", "labels": ["bug"]}'
 
-# PagerDuty アラート
+# PagerDuty alert
 curl -X POST https://events.pagerduty.com/v2/enqueue \
   -H "Content-Type: application/json" \
   -d '{
@@ -921,18 +921,18 @@ curl -X POST https://events.pagerduty.com/v2/enqueue \
   }'
 ```
 
-### 8.5 REST API の CRUD テスト
+### 8.5 REST API CRUD Testing
 
 ```bash
 #!/bin/bash
-# api_crud_test.sh - REST API の CRUD テスト
+# api_crud_test.sh - REST API CRUD test
 
 BASE_URL="${1:-https://jsonplaceholder.typicode.com}"
 TOKEN="${API_TOKEN:-}"
 AUTH_HEADER=""
 [ -n "$TOKEN" ] && AUTH_HEADER="-H \"Authorization: Bearer $TOKEN\""
 
-echo "=== REST API CRUD テスト ==="
+echo "=== REST API CRUD Test ==="
 echo "Base URL: $BASE_URL"
 echo ""
 
@@ -990,14 +990,14 @@ DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$BASE_URL/post
 echo "Status: $DELETE_STATUS"
 echo ""
 
-echo "=== テスト完了 ==="
+echo "=== Test Complete ==="
 ```
 
-### 8.6 API 監視スクリプト
+### 8.6 API Monitoring Script
 
 ```bash
 #!/bin/bash
-# api_monitor.sh - APIの継続監視スクリプト
+# api_monitor.sh - Continuous API monitoring script
 
 ENDPOINTS=(
     "https://api.example.com/health"
@@ -1007,7 +1007,7 @@ ENDPOINTS=(
 CHECK_INTERVAL=60
 TIMEOUT=10
 LOG_FILE="/tmp/api_monitor.log"
-ALERT_THRESHOLD=3  # 連続失敗回数
+ALERT_THRESHOLD=3  # Consecutive failure count
 
 declare -A FAIL_COUNTS
 
@@ -1038,18 +1038,18 @@ check_endpoint() {
         count=$((count + 1))
         FAIL_COUNTS[$url]=$count
 
-        log "FAIL $url status=$status time=${time}s (連続${count}回目)"
+        log "FAIL $url status=$status time=${time}s (consecutive failure #${count})"
 
         if [ "$count" -ge "$ALERT_THRESHOLD" ]; then
-            log "ALERT: $url が ${count} 回連続で失敗"
-            # アラート送信（Slack、PagerDuty等）
+            log "ALERT: $url has failed ${count} times consecutively"
+            # Send alert (Slack, PagerDuty, etc.)
             # curl -X POST "$SLACK_WEBHOOK" -d "{\"text\":\"ALERT: $url down\"}"
         fi
         return 1
     fi
 }
 
-log "監視開始 (${#ENDPOINTS[@]} エンドポイント, ${CHECK_INTERVAL}秒間隔)"
+log "Monitoring started (${#ENDPOINTS[@]} endpoints, ${CHECK_INTERVAL}s interval)"
 
 while true; do
     for url in "${ENDPOINTS[@]}"; do
@@ -1059,13 +1059,13 @@ while true; do
 done
 ```
 
-### 8.7 curl を使ったスモークテスト
+### 8.7 Smoke Test with curl
 
 ```bash
 #!/bin/bash
-# smoke_test.sh - デプロイ後のスモークテスト
+# smoke_test.sh - Smoke test after deployment
 
-BASE_URL="${1:?使い方: $0 <base_url>}"
+BASE_URL="${1:?Usage: $0 <base_url>}"
 PASSED=0
 FAILED=0
 TOTAL=0
@@ -1074,7 +1074,7 @@ assert_status() {
     local description=$1
     local expected_status=$2
     local url=$3
-    shift 3  # 残りは curl オプション
+    shift 3  # Remaining args are curl options
 
     TOTAL=$((TOTAL + 1))
     local actual_status
@@ -1107,30 +1107,30 @@ assert_contains() {
     fi
 }
 
-echo "=== スモークテスト: $BASE_URL ==="
+echo "=== Smoke Test: $BASE_URL ==="
 echo ""
 
-# ヘルスチェック
-assert_status "ヘルスチェック" "200" "$BASE_URL/health"
+# Health check
+assert_status "Health check" "200" "$BASE_URL/health"
 
-# トップページ
-assert_status "トップページ" "200" "$BASE_URL/"
-assert_contains "トップページにタイトルが含まれる" "<title>" "$BASE_URL/"
+# Top page
+assert_status "Top page" "200" "$BASE_URL/"
+assert_contains "Top page contains title" "<title>" "$BASE_URL/"
 
-# API エンドポイント
-assert_status "API v1 ステータス" "200" "$BASE_URL/api/v1/status"
+# API endpoint
+assert_status "API v1 status" "200" "$BASE_URL/api/v1/status"
 
-# 認証なしアクセスの拒否
-assert_status "認証なし → 401" "401" "$BASE_URL/api/v1/protected"
+# Reject unauthenticated access
+assert_status "No auth → 401" "401" "$BASE_URL/api/v1/protected"
 
-# 存在しないページ
-assert_status "404 ページ" "404" "$BASE_URL/nonexistent-page"
+# Non-existent page
+assert_status "404 page" "404" "$BASE_URL/nonexistent-page"
 
-# リダイレクト
-assert_status "HTTP→HTTPS リダイレクト" "301" "http://${BASE_URL#https://}/"
+# Redirect
+assert_status "HTTP → HTTPS redirect" "301" "http://${BASE_URL#https://}/"
 
 echo ""
-echo "=== 結果: $PASSED/$TOTAL 成功, $FAILED/$TOTAL 失敗 ==="
+echo "=== Results: $PASSED/$TOTAL passed, $FAILED/$TOTAL failed ==="
 
 if [ "$FAILED" -gt 0 ]; then
     exit 1
@@ -1139,45 +1139,45 @@ fi
 
 ---
 
-## 9. セキュリティベストプラクティス
+## 9. Security Best Practices
 
 ```bash
-# 1. 認証情報をコマンドラインに直接書かない
-# 悪い例（psで見える、historyに残る）
+# 1. Do not write credentials directly on the command line
+# Bad example (visible in ps, remains in history)
 curl -u "user:password" https://api.example.com
 
-# 良い例（.netrc ファイルを使用）
+# Good example (use .netrc file)
 curl -n https://api.example.com
 
-# 良い例（環境変数を使用）
+# Good example (use environment variables)
 curl -H "Authorization: Bearer ${API_TOKEN}" https://api.example.com
 
-# 2. HTTPS を常に使用
-# curl はデフォルトで証明書を検証する → -k は開発環境のみ
+# 2. Always use HTTPS
+# curl verifies certificates by default → -k should only be used in development
 
-# 3. レスポンスの検証
+# 3. Validate the response
 response=$(curl -s -w "\n%{http_code}" https://api.example.com/data)
 status=$(echo "$response" | tail -1)
 body=$(echo "$response" | head -n -1)
 if [ "$status" != "200" ]; then
-    echo "エラー: ステータス $status" >&2
+    echo "Error: status $status" >&2
     exit 1
 fi
 
-# 4. タイムアウトを必ず設定
+# 4. Always set timeouts
 curl --connect-timeout 5 --max-time 30 https://api.example.com
 
-# 5. 出力をサニタイズ（ログに認証情報を残さない）
+# 5. Sanitize output (do not leave credentials in logs)
 curl -v https://api.example.com 2>&1 | sed 's/Authorization:.*/Authorization: [REDACTED]/'
 
-# 6. .curlrc でデフォルト設定
+# 6. Set defaults in .curlrc
 # ~/.curlrc:
 # --connect-timeout 10
 # --max-time 60
 # --location
 # --fail
 
-# 7. 一時ファイルのセキュアな扱い
+# 7. Handle temporary files securely
 TMPFILE=$(mktemp)
 chmod 600 "$TMPFILE"
 trap "rm -f $TMPFILE" EXIT
@@ -1186,98 +1186,98 @@ curl -s https://api.example.com/data > "$TMPFILE"
 
 ---
 
-## 10. よくある質問（FAQ）
+## 10. Frequently Asked Questions (FAQ)
 
-### Q1: curl と wget、どちらを使うべき？
+### Q1: Which should I use, curl or wget?
 
 ```bash
-# 基本的な使い分け:
-# - API操作・RESTリクエスト → curl（メソッド・ヘッダ・ボディの柔軟な制御）
-# - ファイルダウンロード → wget（再帰ダウンロード・ミラーリング）
-# - スクリプトでの自動化 → curl（戻り値・出力のカスタマイズが豊富）
-# - 帯域が不安定な環境 → wget（-c で中断再開が標準サポート）
+# Basic usage guide:
+# - API operations / REST requests → curl (flexible control of methods, headers, body)
+# - File download → wget (recursive download, mirroring)
+# - Automation scripts → curl (richer return values and output customization)
+# - Unstable bandwidth → wget (-c supports resume natively)
 
-# curl でも wget 的な使い方は可能
+# curl can also be used like wget
 curl -LOC - https://example.com/large.zip
-# -L: リダイレクト追従
-# -O: 元のファイル名で保存
-# -C -: 中断再開
+# -L: follow redirects
+# -O: save with original filename
+# -C -: resume from interruption
 ```
 
-### Q2: curl でリクエストボディが大きすぎてコマンドラインに収まらない場合は？
+### Q2: What if the curl request body is too large for the command line?
 
 ```bash
-# 方法1: ファイルから読み込む（@プレフィックス）
+# Method 1: Read from a file (@ prefix)
 curl -X POST https://api.example.com/data \
   -H "Content-Type: application/json" \
   -d @request.json
 
-# 方法2: stdin から読み込む（@-）
+# Method 2: Read from stdin (@-)
 cat request.json | curl -X POST https://api.example.com/data \
   -H "Content-Type: application/json" \
   -d @-
 
-# 方法3: ヒアドキュメント
+# Method 3: Here document
 curl -X POST https://api.example.com/data \
   -H "Content-Type: application/json" \
   -d @- <<'EOF'
 {
-  "title": "大きなリクエスト",
+  "title": "Large request",
   "items": [1, 2, 3, 4, 5]
 }
 EOF
 ```
 
-### Q3: curl でレスポンスヘッダだけ取得したい場合は？
+### Q3: How do I get only the response headers with curl?
 
 ```bash
-# HEAD リクエスト（-I）
+# HEAD request (-I)
 curl -I https://example.com
-# GET のレスポンスヘッダのみ（-sD - -o /dev/null）
+# Response headers only for GET (-sD - -o /dev/null)
 curl -sD - -o /dev/null https://example.com
-# 特定のヘッダだけ取得
+# Get a specific header only
 curl -sI https://example.com | grep -i "content-type"
-# -w でも取得可能（curl 7.84+）
+# Also available with -w (curl 7.84+)
 curl -s -o /dev/null -w "%header{content-type}" https://example.com
 ```
 
-### Q4: curl で Cookie を使うには？
+### Q4: How do I use cookies with curl?
 
 ```bash
-# Cookie の送信
-curl -b "session=abc123; lang=ja" https://example.com
+# Send cookies
+curl -b "session=abc123; lang=en" https://example.com
 
-# Cookie をファイルに保存
+# Save cookies to a file
 curl -c cookies.txt https://example.com/login -d "user=admin&pass=secret"
 
-# 保存した Cookie を使ってリクエスト
+# Use saved cookies in a request
 curl -b cookies.txt https://example.com/dashboard
 
-# Cookie の保存と送信を同時に（セッション維持）
+# Save and send cookies simultaneously (maintain session)
 curl -b cookies.txt -c cookies.txt https://example.com/page1
 curl -b cookies.txt -c cookies.txt https://example.com/page2
 ```
 
-### Q5: jq がインストールされていない環境で JSON を処理するには？
+### Q5: How do I process JSON in environments where jq is not installed?
 
 ```bash
-# Python を使う（ほとんどの環境で利用可能）
+# Use Python (available in most environments)
 curl -s https://api.example.com/data | python3 -m json.tool
 
-# 特定のフィールド抽出
+# Extract a specific field
 curl -s https://api.example.com/data | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
 print(data['name'])
 "
 
-# grep で簡易的に抽出（非推奨だが緊急時に）
+# Quick extraction with grep (not recommended, for emergencies only)
 curl -s https://api.example.com/data | grep -o '"name":"[^"]*"' | head -1
 
-# sed で簡易的に整形
+# Quick formatting with sed
 curl -s https://api.example.com/data | sed 's/,/,\n/g; s/{/{\n/g; s/}/\n}/g'
 
-# Node.js が使える場合
+# If Node.js is available
 curl -s https://api.example.com/data | node -e "
 const chunks = [];
 process.stdin.on('data', c => chunks.push(c));
@@ -1288,67 +1288,67 @@ process.stdin.on('end', () => {
 "
 ```
 
-### Q6: SSL証明書エラーが出る場合の対処法は？
+### Q6: How do I handle SSL certificate errors?
 
 ```bash
-# 証明書の詳細を確認
+# Check certificate details
 curl -vI https://example.com 2>&1 | grep -A5 "SSL certificate"
 
-# 自己署名証明書を許可（開発環境のみ！）
+# Allow self-signed certificates (development environment only!)
 curl -k https://localhost:8443/api
 
-# CA証明書を明示的に指定
+# Explicitly specify CA certificate
 curl --cacert /path/to/ca-bundle.crt https://example.com
 
-# 証明書チェーンの確認
+# Check certificate chain
 openssl s_client -connect example.com:443 -showcerts </dev/null 2>/dev/null \
   | openssl x509 -noout -dates -subject -issuer
 
-# 本番環境では -k を使わず、証明書の問題を根本的に解決する
+# In production, do not use -k — fix the certificate issue at its root
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1357,26 +1357,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1384,7 +1384,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1395,14 +1395,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1410,7 +1410,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1418,44 +1418,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1464,7 +1464,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1479,47 +1479,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithmic complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Invalid configuration file | Check the config file path and format |
+| Timeout | Network delay / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check the execution user's permissions, review settings |
+| Data inconsistency | Concurrent processing race condition | Introduce locking, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify incrementally**: Use log output or a debugger to verify hypotheses
+5. **Fix and run regression tests**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1527,102 +1527,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Issue type | Diagnostic tool | Solution |
+|------------|----------------|---------|
+| High CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criteria | When to prioritize | When to compromise |
+|----------|-------------------|--------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal info, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                       │
+│    ├─ Small (1-5) → Monolith                     │
+│    └─ Large (10+) → Go to 2                      │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How often do you deploy?                     │
+│    ├─ Once a week or less → Monolith + modules   │
+│    └─ Daily / multiple times → Go to 3           │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?               │
+│    ├─ High → Microservices                       │
+│    └─ Medium → Modular monolith                  │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs long-term costs**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction improves reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1632,17 +1632,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and issues"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1650,7 +1650,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1658,15 +1658,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1676,43 +1676,43 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Accumulating hands-on experience is most important. Understanding deepens not just through theory but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| コマンド | 用途 | よく使うオプション |
-|---------|------|-------------------|
-| curl -s URL | GET リクエスト | -s（サイレント）, -S（エラー表示） |
-| curl -X POST --json '{...}' | JSON POST | --json（curl 7.82+） |
-| curl -H "Authorization: Bearer TOKEN" | 認証付きリクエスト | -H（ヘッダ追加） |
-| curl -w "%{http_code}" | ステータスコード取得 | -o /dev/null と組み合わせ |
-| curl -w "%{time_total}" | 応答時間取得 | |
-| curl -L | リダイレクト追従 | --max-redirs で制限 |
-| curl --connect-timeout 5 --max-time 30 | タイムアウト設定 | 必ず設定すべき |
-| curl --retry 3 | リトライ | --retry-delay, --retry-all-errors |
-| wget -c URL | 中断可能なダウンロード | -q（静か）, -O（出力先） |
-| wget -m URL | Webサイトミラーリング | -p -k で完全コピー |
-| jq '.field' | JSON パース | -r（raw出力）, -c（コンパクト） |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Command | Purpose | Common options |
+|---------|---------|---------------|
+| curl -s URL | GET request | -s (silent), -S (show errors) |
+| curl -X POST --json '{...}' | JSON POST | --json (curl 7.82+) |
+| curl -H "Authorization: Bearer TOKEN" | Authenticated request | -H (add header) |
+| curl -w "%{http_code}" | Get status code | Combine with -o /dev/null |
+| curl -w "%{time_total}" | Get response time | |
+| curl -L | Follow redirects | Limit with --max-redirs |
+| curl --connect-timeout 5 --max-time 30 | Set timeouts | Always set these |
+| curl --retry 3 | Retry | --retry-delay, --retry-all-errors |
+| wget -c URL | Resumable download | -q (quiet), -O (output path) |
+| wget -m URL | Mirror a website | -p -k for complete copy |
+| jq '.field' | Parse JSON | -r (raw output), -c (compact) |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+---
+
+## References
 1. Stenberg, D. "Everything curl." curl.se, 2024.
 2. Barrett, D. "Efficient Linux at the Command Line." Ch.11, O'Reilly, 2022.
 3. "jq Manual." jqlang.github.io/jq/manual.
