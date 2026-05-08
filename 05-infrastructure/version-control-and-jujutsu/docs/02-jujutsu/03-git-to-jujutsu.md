@@ -1,126 +1,126 @@
-# Git→Jujutsu移行
+# Git → Jujutsu Migration
 
-> 既存のGitワークフローからJujutsuへのスムーズな移行方法を解説し、操作対応表、co-located repoの運用、チームへの段階的導入戦略を提供する。
+> This guide explains how to smoothly migrate from existing Git workflows to Jujutsu, providing a command reference table, co-located repo usage, and a step-by-step team adoption strategy.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Git→Jujutsu操作対応表** — 日常的なGit操作に対応するJujutsuコマンドの完全マッピング
-2. **co-located repoの実践運用** — GitとJujutsuを併用する環境の設定と注意点
-3. **段階的移行戦略** — 個人利用からチーム導入までの移行ロードマップ
-4. **実践ワークフロー変換** — Feature Branch、Gitflow、Trunk-Based等のJujutsu化
-5. **移行時のトラブルシューティング** — よくある問題と解決手順
+1. **Git → Jujutsu Command Reference Table** — Complete mapping of Jujutsu commands for everyday Git operations
+2. **Co-located Repo in Practice** — Configuration and considerations for environments using both Git and Jujutsu
+3. **Step-by-Step Migration Strategy** — Migration roadmap from personal use to team adoption
+4. **Workflow Conversion in Practice** — Converting Feature Branch, Gitflow, Trunk-Based, and more to Jujutsu
+5. **Migration Troubleshooting** — Common issues and resolution steps
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Jujutsu応用](./02-jujutsu-advanced.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Jujutsu Advanced](./02-jujutsu-advanced.md)
 
 ---
 
-## 1. Git→Jujutsu操作対応表
+## 1. Git → Jujutsu Command Reference Table
 
-### 1.1 基本操作
+### 1.1 Basic Operations
 
-| Git コマンド                      | Jujutsu コマンド                    | 備考                              |
+| Git Command                       | Jujutsu Command                     | Notes                             |
 |-----------------------------------|-------------------------------------|-----------------------------------|
-| `git init`                        | `jj git init`                       | `--colocate`で既存gitと共存       |
+| `git init`                        | `jj git init`                       | Use `--colocate` to coexist with existing git |
 | `git clone URL`                   | `jj git clone URL`                  |                                   |
 | `git status`                      | `jj status` / `jj st`              |                                   |
-| `git diff`                        | `jj diff`                           | ステージの概念なし                |
-| `git diff --staged`               | (不要)                              | ステージが存在しない              |
-| `git diff HEAD~3..HEAD`           | `jj diff -r @---..@`               | 範囲diff                         |
-| `git log`                         | `jj log`                            | デフォルトでグラフ表示            |
+| `git diff`                        | `jj diff`                           | No staging concept                |
+| `git diff --staged`               | (not needed)                        | Staging does not exist            |
+| `git diff HEAD~3..HEAD`           | `jj diff -r @---..@`               | Range diff                        |
+| `git log`                         | `jj log`                            | Graph display by default          |
 | `git log --oneline`               | `jj log --no-graph`                |                                   |
-| `git log -p`                      | `jj log -p`                         | パッチ付きlog                    |
+| `git log -p`                      | `jj log -p`                         | Log with patches                  |
 | `git show COMMIT`                 | `jj show REVISION`                  |                                   |
-| `git blame FILE`                  | (co-locatedでgit blameを使用)       | jjにはblame未実装                |
-| `git bisect`                      | (co-locatedでgit bisectを使用)      | jjにはbisect未実装               |
+| `git blame FILE`                  | (use git blame in co-located)       | blame not implemented in jj       |
+| `git bisect`                      | (use git bisect in co-located)      | bisect not implemented in jj      |
 
-### 1.2 変更の記録
+### 1.2 Recording Changes
 
-| Git コマンド                      | Jujutsu コマンド                    | 備考                              |
+| Git Command                       | Jujutsu Command                     | Notes                             |
 |-----------------------------------|-------------------------------------|-----------------------------------|
-| `git add FILE`                    | (不要)                              | 自動的にworking copyに反映        |
-| `git add .`                       | (不要)                              | 全変更が自動追跡                  |
-| `git add -p`                      | `jj split`                          | 後から分割する発想                |
-| `git commit -m "MSG"`             | `jj commit -m "MSG"`               | describe + new のショートカット   |
-| `git commit --amend`              | `jj describe -m "MSG"`             | working copyを直接編集            |
-| `git commit --amend --no-edit`    | (ファイルを編集するだけ)            | 自動的にcommitに反映              |
+| `git add FILE`                    | (not needed)                        | Automatically reflected in working copy |
+| `git add .`                       | (not needed)                        | All changes are automatically tracked |
+| `git add -p`                      | `jj split`                          | Split later instead               |
+| `git commit -m "MSG"`             | `jj commit -m "MSG"`               | Shortcut for describe + new       |
+| `git commit --amend`              | `jj describe -m "MSG"`             | Edit the working copy directly    |
+| `git commit --amend --no-edit`    | (just edit the file)                | Automatically reflected in commit |
 | `git reset HEAD FILE`             | `jj restore --from @- FILE`        |                                   |
 | `git checkout -- FILE`            | `jj restore FILE`                   |                                   |
-| `git stash`                       | (不要)                              | jj newで新commitに移動            |
-| `git stash pop`                   | `jj edit CHANGE_ID`                | 元のcommitに戻る                  |
-| `git stash list`                  | `jj log -r 'description("wip")'`  | WIPコミットを検索                 |
-| `git clean -fd`                   | `jj restore`                        | working copyを親の状態に復元      |
+| `git stash`                       | (not needed)                        | Move to a new commit with jj new  |
+| `git stash pop`                   | `jj edit CHANGE_ID`                | Return to the original commit     |
+| `git stash list`                  | `jj log -r 'description("wip")'`  | Search for WIP commits            |
+| `git clean -fd`                   | `jj restore`                        | Restore working copy to parent state |
 
-### 1.3 ブランチ操作
+### 1.3 Branch Operations
 
-| Git コマンド                      | Jujutsu コマンド                    | 備考                              |
+| Git Command                       | Jujutsu Command                     | Notes                             |
 |-----------------------------------|-------------------------------------|-----------------------------------|
 | `git branch NAME`                 | `jj bookmark create NAME`          |                                   |
 | `git branch -d NAME`              | `jj bookmark delete NAME`          |                                   |
 | `git branch -m OLD NEW`           | `jj bookmark rename OLD NEW`       |                                   |
 | `git branch -a`                   | `jj bookmark list --all`           |                                   |
-| `git branch --merged`             | `jj log -r 'bookmarks() & ::trunk()'` | trunkにマージ済みのブックマーク |
-| `git checkout BRANCH`             | `jj new BRANCH`                    | 新commitを作成                    |
+| `git branch --merged`             | `jj log -r 'bookmarks() & ::trunk()'` | Bookmarks merged into trunk    |
+| `git checkout BRANCH`             | `jj new BRANCH`                    | Creates a new commit              |
 | `git checkout -b NAME`            | `jj new && jj bookmark create NAME`|                                   |
 | `git switch BRANCH`               | `jj new BRANCH`                    |                                   |
 | `git switch -c NAME`              | `jj new main && jj bookmark create NAME` |                            |
 
-### 1.4 履歴操作
+### 1.4 History Operations
 
-| Git コマンド                      | Jujutsu コマンド                    | 備考                              |
+| Git Command                       | Jujutsu Command                     | Notes                             |
 |-----------------------------------|-------------------------------------|-----------------------------------|
-| `git rebase -i`                   | `jj rebase` / `jj squash` / `jj split` | 個別の操作に分解            |
+| `git rebase -i`                   | `jj rebase` / `jj squash` / `jj split` | Decomposed into individual operations |
 | `git rebase main`                 | `jj rebase -d main`                |                                   |
-| `git rebase --onto A B C`         | `jj rebase -r C -d A`              | より直感的                       |
-| `git cherry-pick COMMIT`          | `jj duplicate COMMIT`              | cherry-pick相当                  |
-| `git merge BRANCH`                | `jj new @ BRANCH`                  | マージcommitを作成                |
-| `git merge --squash BRANCH`       | `jj new @ BRANCH && jj squash`     | squash merge                     |
+| `git rebase --onto A B C`         | `jj rebase -r C -d A`              | More intuitive                    |
+| `git cherry-pick COMMIT`          | `jj duplicate COMMIT`              | Equivalent to cherry-pick         |
+| `git merge BRANCH`                | `jj new @ BRANCH`                  | Creates a merge commit            |
+| `git merge --squash BRANCH`       | `jj new @ BRANCH && jj squash`     | Squash merge                      |
 | `git revert COMMIT`               | `jj backout -r COMMIT`             |                                   |
 | `git reset --hard HEAD~1`         | `jj abandon @`                      |                                   |
-| `git reset --soft HEAD~1`         | `jj squash --from @ --into @-`     | 変更を親に移動                    |
-| `git reset --mixed HEAD~1`        | (Jujutsuにはstaging概念なし)       |                                   |
+| `git reset --soft HEAD~1`         | `jj squash --from @ --into @-`     | Move changes to parent            |
+| `git reset --mixed HEAD~1`        | (Jujutsu has no staging concept)   |                                   |
 | `git reflog`                      | `jj op log`                         | Operation Log                     |
-| `git commit --fixup=COMMIT`       | `jj absorb`                         | 自動振り分け                     |
+| `git commit --fixup=COMMIT`       | `jj absorb`                         | Auto-distribution                 |
 
-### 1.5 リモート操作
+### 1.5 Remote Operations
 
-| Git コマンド                      | Jujutsu コマンド                    | 備考                              |
+| Git Command                       | Jujutsu Command                     | Notes                             |
 |-----------------------------------|-------------------------------------|-----------------------------------|
 | `git fetch`                       | `jj git fetch`                      |                                   |
 | `git fetch --all`                 | `jj git fetch --all-remotes`       |                                   |
-| `git pull`                        | `jj git fetch && jj rebase -d main@origin` | pull = fetch + rebase |
-| `git pull --rebase`               | `jj git fetch && jj rebase -d main@origin` | 同上（デフォルトでrebase） |
+| `git pull`                        | `jj git fetch && jj rebase -d main@origin` | pull = fetch + rebase    |
+| `git pull --rebase`               | `jj git fetch && jj rebase -d main@origin` | Same (rebase by default)  |
 | `git push`                        | `jj git push`                       |                                   |
 | `git push -u origin BRANCH`       | `jj git push --bookmark NAME --allow-new` |                          |
-| `git push --force-with-lease`     | `jj git push`                       | 自動的にforce push判定           |
+| `git push --force-with-lease`     | `jj git push`                       | Force push judgment is automatic  |
 | `git push --delete origin BRANCH` | `jj bookmark delete NAME && jj git push --deleted` |              |
 | `git remote add NAME URL`         | `jj git remote add NAME URL`       |                                   |
 | `git remote -v`                   | `jj git remote list`               |                                   |
 | `git remote set-url NAME URL`     | `jj git remote set-url NAME URL`   |                                   |
 
-### 1.6 その他の操作
+### 1.6 Other Operations
 
-| Git コマンド                      | Jujutsu コマンド                    | 備考                              |
+| Git Command                       | Jujutsu Command                     | Notes                             |
 |-----------------------------------|-------------------------------------|-----------------------------------|
-| `git tag v1.0`                    | (co-locatedでgit tagを使用)         | jjからタグ作成は制限あり         |
-| `git tag -a v1.0 -m "MSG"`       | (co-locatedでgit tagを使用)         |                                   |
-| `git grep "pattern"`              | `jj file grep "pattern"` (予定)    | co-locatedでgit grepを使用       |
-| `git log -S "code"`              | (co-locatedでgit logを使用)        | pickaxe検索                      |
-| `git worktree add PATH`          | (未サポート)                        |                                   |
-| `git submodule update`           | (co-locatedでgit submoduleを使用)  | Git submoduleを直接使用          |
-| `git lfs pull`                    | (co-locatedでgit lfsを使用)        |                                   |
+| `git tag v1.0`                    | (use git tag in co-located)         | Tag creation from jj has limitations |
+| `git tag -a v1.0 -m "MSG"`       | (use git tag in co-located)         |                                   |
+| `git grep "pattern"`              | `jj file grep "pattern"` (planned) | Use git grep in co-located        |
+| `git log -S "code"`              | (use git log in co-located)        | Pickaxe search                    |
+| `git worktree add PATH`          | (not supported)                     |                                   |
+| `git submodule update`           | (use git submodule in co-located)  | Use Git submodule directly        |
+| `git lfs pull`                    | (use git lfs in co-located)        |                                   |
 
 ---
 
-## 2. 概念の対応マップ
+## 2. Concept Mapping
 
-### 2.1 基本概念の比較
+### 2.1 Comparison of Basic Concepts
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -149,7 +149,7 @@
 └─────────────────────────────────────────────────────┘
 ```
 
-### 2.2 メンタルモデルの違い
+### 2.2 Difference in Mental Models
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -170,7 +170,7 @@
 └─────────────────────────────────────────────────────┘
 ```
 
-### 2.3 ワークフローの本質的な違い
+### 2.3 Essential Workflow Differences
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -214,7 +214,7 @@
 └──────────────────────────────────────────────────────┘
 ```
 
-### 2.4 IDシステムの違い
+### 2.4 Difference in ID Systems
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -246,9 +246,9 @@
 
 ---
 
-## 3. co-located repoの設定と運用
+## 3. Co-located Repo Configuration and Usage
 
-### 3.1 既存リポジトリでのセットアップ
+### 3.1 Setup in an Existing Repository
 
 ```bash
 # Step 1: 既存のGitリポジトリでJujutsuを初期化
@@ -274,7 +274,7 @@ $ jj config list
 # → git config のuser.name/emailがデフォルトで使われる
 ```
 
-### 3.2 新規リポジトリの作成
+### 3.2 Creating a New Repository
 
 ```bash
 # 方法1: jjで新規作成（co-located）
@@ -298,7 +298,7 @@ $ cd my-project
 # → git コマンドは使えない（推奨しない移行時は）
 ```
 
-### 3.3 ディレクトリ構造
+### 3.3 Directory Structure
 
 ```
 my-project/
@@ -318,7 +318,7 @@ my-project/
 └── ...
 ```
 
-### 3.4 共存時の注意点
+### 3.4 Considerations When Coexisting
 
 ```bash
 # gitコマンドを使った後にjjの状態を同期
@@ -332,17 +332,17 @@ $ jj git export        # jj→git のref同期（通常は自動）
 $ jj git import && jj git export
 ```
 
-| 操作                     | 自動同期 | 手動同期が必要な場合                  |
-|--------------------------|----------|---------------------------------------|
-| `jj`コマンド実行後       | Yes      | -                                     |
-| `git fetch`実行後        | Yes      | jjコマンドを次に実行した時に自動import|
-| `git commit`実行後       | Yes      | jjコマンドを次に実行した時に自動import|
-| `git rebase`実行後       | 注意     | `jj git import`が安全                 |
-| `git reset --hard`実行後 | 注意     | `jj git import`推奨                   |
-| `git merge`実行後        | Yes      | jjコマンドを次に実行した時に自動import|
-| `git stash`実行後        | 部分的   | jjからはstashが見えない               |
+| Operation                        | Auto Sync | When Manual Sync Is Needed                        |
+|----------------------------------|-----------|---------------------------------------------------|
+| After `jj` command               | Yes       | -                                                 |
+| After `git fetch`                | Yes       | Auto-imported on next jj command execution        |
+| After `git commit`               | Yes       | Auto-imported on next jj command execution        |
+| After `git rebase`               | Caution   | `jj git import` is safer                          |
+| After `git reset --hard`         | Caution   | `jj git import` recommended                       |
+| After `git merge`                | Yes       | Auto-imported on next jj command execution        |
+| After `git stash`                | Partial   | Stash is not visible from jj                      |
 
-### 3.5 co-located repoの安全なGitコマンド
+### 3.5 Safe Git Commands in a Co-located Repo
 
 ```bash
 # 安全に使えるGitコマンド（jjとの不整合が起きにくい）
@@ -367,9 +367,9 @@ $ git push --force     # → jj git push を推奨
 
 ---
 
-## 4. 段階的移行戦略
+## 4. Step-by-Step Migration Strategy
 
-### 4.1 Phase 1: 個人での試用（1-2週間）
+### 4.1 Phase 1: Personal Trial (1–2 Weeks)
 
 ```bash
 # 既存プロジェクトにco-locatedで導入
@@ -404,7 +404,7 @@ $ jj git push --bookmark feature --allow-new
 └────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Phase 2: 高度な機能の活用（2-4週間）
+### 4.2 Phase 2: Using Advanced Features (2–4 Weeks)
 
 ```bash
 # jj edit による過去commit の直接編集
@@ -456,7 +456,7 @@ $ jj git push --bookmark pr/auth --allow-new
 └────────────────────────────────────────────────────┘
 ```
 
-### 4.3 Phase 3: チームへの紹介（4-8週間）
+### 4.3 Phase 3: Introducing to the Team (4–8 Weeks)
 
 ```bash
 # チーム共有の設定ファイル
@@ -488,7 +488,7 @@ $ jj git push --bookmark pr/auth --allow-new
 └────────────────────────────────────────────────────┘
 ```
 
-### 4.4 Phase 4: チーム運用の成熟（8週間〜）
+### 4.4 Phase 4: Mature Team Operation (8+ Weeks)
 
 ```toml
 # チーム共有の.jj/repo/config.toml
@@ -528,9 +528,9 @@ $ jj git push --deleted
 
 ---
 
-## 5. 実践: よくあるGitワークフローのJujutsu化
+## 5. Practice: Converting Common Git Workflows to Jujutsu
 
-### 5.1 Feature Branch ワークフロー
+### 5.1 Feature Branch Workflow
 
 ```bash
 # Git:
@@ -561,7 +561,7 @@ $ jj git push --bookmark feature/auth  # 更新（force push相当が自動）
 # → コミット履歴がクリーンに保たれる
 ```
 
-### 5.2 mainへの追従（rebase）
+### 5.2 Keeping Up with main (Rebase)
 
 ```bash
 # Git:
@@ -590,7 +590,7 @@ $ jj git push --bookmark feature/auth
 #     → 他の作業をしてから後で解決することも可能
 ```
 
-### 5.3 コミットの修正
+### 5.3 Editing Commits
 
 ```bash
 # Git: 直前のcommitを修正
@@ -620,7 +620,7 @@ $ jj absorb
 # → 各行の修正が元のcommitに自動振り分け
 ```
 
-### 5.4 stash相当の操作
+### 5.4 Stash-Equivalent Operations
 
 ```bash
 # Git:
@@ -646,7 +646,7 @@ $ jj log -r 'description(regex:"^wip:")'
 # → jj edit で任意の作業に戻れる
 ```
 
-### 5.5 インタラクティブrebase相当
+### 5.5 Interactive Rebase Equivalent
 
 ```bash
 # Git: git rebase -i HEAD~4
@@ -675,7 +675,7 @@ $ jj split -r <change-id>
 # → 対話的に分割（1コマンドで完結）
 ```
 
-### 5.6 Gitflowワークフローのjj化
+### 5.6 Gitflow Workflow in Jujutsu
 
 ```bash
 # Gitflow: develop → feature → develop → release → main
@@ -714,7 +714,7 @@ $ jj new develop hotfix/critical-fix
 $ jj bookmark set develop -r @
 ```
 
-### 5.7 Trunk-Based Development のjj化
+### 5.7 Trunk-Based Development in Jujutsu
 
 ```bash
 # Trunk-Based: mainに直接（短寿命ブランチで）
@@ -748,9 +748,9 @@ $ jj git push --bookmark pr/3-ui --allow-new
 
 ---
 
-## 6. 移行時のトラブルシューティング
+## 6. Migration Troubleshooting
 
-### 6.1 よくある問題と解決法
+### 6.1 Common Issues and Solutions
 
 ```bash
 # 問題1: jj と git の状態が不整合になった
@@ -784,7 +784,7 @@ $ jj git import    # gitの変更をjjに取り込む
 $ jj workspace update-stale   # working copyの状態を更新
 ```
 
-### 6.2 コンフリクト解決の違い
+### 6.2 Differences in Conflict Resolution
 
 ```bash
 # Git: rebase中のコンフリクト
@@ -821,7 +821,7 @@ $ jj edit <conflict-commit>   # 後でコンフリクトを解決
 $ vim src/auth.js
 ```
 
-### 6.3 大規模リポジトリでの注意点
+### 6.3 Considerations for Large Repositories
 
 ```bash
 # 大規模リポジトリでのパフォーマンス
@@ -847,7 +847,7 @@ $ git lfs track "*.psd"
 
 ---
 
-## 7. IDE統合
+## 7. IDE Integration
 
 ### 7.1 VS Code
 
@@ -887,7 +887,7 @@ $ git lfs track "*.psd"
 # 3. commit/push/rebaseはjjコマンドで実行
 ```
 
-### 7.3 lazyjj (TUIツール)
+### 7.3 lazyjj (TUI Tool)
 
 ```bash
 # lazyjjのインストール
@@ -910,9 +910,9 @@ $ lazyjj
 
 ---
 
-## 8. チートシート
+## 8. Cheat Sheet
 
-### 8.1 日常操作のクイックリファレンス
+### 8.1 Quick Reference for Daily Operations
 
 ```bash
 # === 朝一番の同期 ===
@@ -947,7 +947,7 @@ $ jj op log                        # 操作履歴を確認
 $ jj op restore <op-id>            # 特定時点に復元
 ```
 
-### 8.2 GitユーザーのためのJujutsu早見表
+### 8.2 Jujutsu Quick Reference for Git Users
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -993,9 +993,9 @@ $ jj op restore <op-id>            # 特定時点に復元
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン1: co-located repoでGitとJujutsuの破壊的操作を混在させる
+### Anti-Pattern 1: Mixing Destructive Git and Jujutsu Operations in a Co-located Repo
 
 ```bash
 # NG: jjで作業した後にgit reset --hardする
@@ -1010,9 +1010,9 @@ $ jj undo                  # jjの操作取り消し
 $ jj op restore <op-id>   # 特定時点への復元
 ```
 
-**理由**: co-located repoではjjとgitがオブジェクトストアを共有している。gitの破壊的操作はjjのメタデータ（Operation Log等）と不整合を起こす可能性がある。
+**Reason**: In a co-located repo, jj and git share the same object store. Destructive git operations can cause inconsistencies with jj metadata such as the Operation Log.
 
-### アンチパターン2: チーム全員に一度にJujutsuを強制する
+### Anti-Pattern 2: Forcing the Entire Team to Switch to Jujutsu at Once
 
 ```bash
 # NG: "来週からJujutsu必須です"
@@ -1026,9 +1026,9 @@ $ jj op restore <op-id>   # 特定時点への復元
 # → GitユーザーとJujutsuユーザーが共存可能
 ```
 
-**理由**: Jujutsuはco-located repoにより、Gitユーザーに影響を与えずに導入できる。強制ではなく段階的な移行が最も効果的。
+**Reason**: Jujutsu can be introduced without affecting Git users through co-located repos. Gradual migration rather than forced adoption is the most effective approach.
 
-### アンチパターン3: Gitの癖でjj add を探す
+### Anti-Pattern 3: Looking for `jj add` Due to Git Habits
 
 ```bash
 # NG: stagingの概念を持ち込む
@@ -1041,9 +1041,9 @@ $ vim src/auth.ts
 # → 特定のファイルだけcommitしたい場合はjj split
 ```
 
-**理由**: Jujutsuの「常にcommitの上で作業する」モデルではstagingが不要。ファイルの保存が即座にcommitに反映される。粒度の調整は事後的にsplit/squashで行う。
+**Reason**: In Jujutsu's "always working on a commit" model, staging is unnecessary. Saving a file is immediately reflected in the commit. Granularity can be adjusted after the fact with split/squash.
 
-### アンチパターン4: jjでworking copyの変更を確認せずにjj newする
+### Anti-Pattern 4: Running `jj new` Without Checking Working Copy Changes
 
 ```bash
 # NG: 意図しない変更が含まれたままnew
@@ -1059,9 +1059,9 @@ $ jj restore --from @- src/unrelated.ts
 $ jj new                  # クリーンな状態で次へ
 ```
 
-**理由**: jjではstagingがないため、全てのファイル変更がworking copy commitに含まれる。`jj status`で確認し、不要な変更は`jj restore`で取り消すか、後で`jj split`で分離する。
+**Reason**: Because jj has no staging, all file changes are included in the working copy commit. Check with `jj status`, undo unwanted changes with `jj restore`, or separate them later with `jj split`.
 
-### アンチパターン5: bookmarkを作らずにpushしようとする
+### Anti-Pattern 5: Trying to Push Without Creating a Bookmark
 
 ```bash
 # NG: bookmarkなしでpush
@@ -1078,9 +1078,9 @@ $ jj git push --bookmark feature-x --allow-new
 $ jj git push --change @  # ← change IDからブックマーク名を自動生成
 ```
 
-**理由**: `jj git push`はブックマークをGitブランチに変換してpushする。ブックマークがないcommitはpushの対象にならない。`--change`オプションで自動生成するか、明示的にブックマークを作成する。
+**Reason**: `jj git push` converts bookmarks to Git branches and pushes them. Commits without bookmarks are not push targets. Use `--change` to auto-generate, or explicitly create a bookmark.
 
-### アンチパターン6: jj editした後にjj newを忘れる
+### Anti-Pattern 6: Forgetting to Run `jj new` After `jj edit`
 
 ```bash
 # NG: editしたまま作業を続ける
@@ -1095,15 +1095,15 @@ $ jj new                      # 先端に戻る
 $ vim src/new-feature.ts      # 新しい機能は別のcommitで
 ```
 
-**理由**: `jj edit`で過去のcommitを修正する場合、そのcommitのスコープを超える変更を加えるべきではない。修正が終わったら`jj new`で新しいcommitに移動する。
+**Reason**: When editing a past commit with `jj edit`, you should not add changes that go beyond that commit's scope. Once editing is complete, move to a new commit with `jj new`.
 
 ---
 
 ## 10. FAQ
 
-### Q1. Jujutsuに移行するとGitの履歴は失われるか？
+### Q1. Will Git history be lost when migrating to Jujutsu?
 
-**A1.** いいえ、**全く失われません**。Jujutsuは内部的にGitのオブジェクトストアを使用しており、co-located repoでは`.git/`がそのまま維持されます。全てのコミット履歴、タグ、ブランチ、reflogがそのまま保持されます。
+**A1.** No, **nothing will be lost**. Jujutsu internally uses Git's object store, and in a co-located repo, `.git/` is maintained as-is. All commit history, tags, branches, and reflog are fully preserved.
 
 ```bash
 # co-located repoの確認
@@ -1115,9 +1115,9 @@ $ jj log
 # → 同じ履歴がjjからも見える
 ```
 
-### Q2. GitHub/GitLabのPRワークフローはそのまま使えるか？
+### Q2. Can the GitHub/GitLab PR workflow be used as-is?
 
-**A2.** はい、**完全に互換性があります**。`jj git push`はGitのブランチとしてリモートにpushされるため、GitHub/GitLabはそれを通常のGitブランチとして認識します。PR/MRの作成、レビュー、マージは従来通りです。
+**A2.** Yes, **it is fully compatible**. `jj git push` pushes to the remote as a Git branch, so GitHub/GitLab recognizes it as a normal Git branch. PR/MR creation, review, and merging work as usual.
 
 ```bash
 # JujutsuでPRを作成するフロー
@@ -1132,26 +1132,26 @@ $ jj git push --bookmark feature-branch --allow-new
 $ gh pr create --base main --head feature-branch --title "feat: new feature"
 ```
 
-### Q3. Jujutsuにはまだ不足している機能はあるか？
+### Q3. Are there features still missing from Jujutsu compared to Git?
 
-**A3.** 2025年時点で以下の機能がGitと比較して未実装または限定的です。
+**A3.** As of 2025, the following features are unimplemented or limited compared to Git.
 
-| 機能               | 状態                              | 代替手段                         |
-|--------------------|-----------------------------------|----------------------------------|
-| `bisect`           | 未実装                            | co-locatedでgit bisectを使用     |
-| `blame`            | 未実装                            | co-locatedでgit blameを使用      |
-| hooks              | 未実装                            | co-locatedでGit hooksを使用      |
-| submodule          | 部分サポート                      | Git submoduleコマンドを併用      |
-| sparse checkout    | 未実装                            | git sparse-checkoutを使用        |
-| GUI ツール         | 限定的                            | lazyjj（TUIツール）              |
-| IDE統合            | 一部IDE対応中                     | co-locatedでGit IDE統合を使用    |
-| shallow clone      | 未実装                            | git clone --depthを使用          |
-| LFS                | 部分的                            | co-locatedでgit lfsを使用        |
-| worktree           | 未サポート                        | jj workspace（別の概念）         |
+| Feature            | Status                            | Alternative                       |
+|--------------------|-----------------------------------|-----------------------------------|
+| `bisect`           | Not implemented                   | Use git bisect in co-located      |
+| `blame`            | Not implemented                   | Use git blame in co-located       |
+| hooks              | Not implemented                   | Use Git hooks in co-located       |
+| submodule          | Partial support                   | Use Git submodule commands        |
+| sparse checkout    | Not implemented                   | Use git sparse-checkout           |
+| GUI tools          | Limited                           | lazyjj (TUI tool)                 |
+| IDE integration    | Some IDEs being supported         | Use Git IDE integration in co-located |
+| shallow clone      | Not implemented                   | Use git clone --depth             |
+| LFS                | Partial                           | Use git lfs in co-located         |
+| worktree           | Not supported                     | jj workspace (different concept)  |
 
-### Q4. Jujutsuを使い始めて最初に混乱するポイントは？
+### Q4. What are the most common points of confusion when starting with Jujutsu?
 
-**A4.** 以下の3点が最も一般的な混乱ポイントです。
+**A4.** The following three points are the most commonly reported areas of confusion.
 
 ```bash
 # 混乱1: staging（git add）がない
@@ -1170,9 +1170,9 @@ $ gh pr create --base main --head feature-branch --title "feat: new feature"
 # → jj bookmark set NAME -r @ で明示的に移動
 ```
 
-### Q5. Jujutsuを元に戻してGitだけに戻すには？
+### Q5. How do I revert to Git-only after using Jujutsu?
 
-**A5.** co-located repoの場合、.jjディレクトリを削除するだけです。
+**A5.** For a co-located repo, simply delete the .jj directory.
 
 ```bash
 # Jujutsuを完全に削除
@@ -1188,9 +1188,9 @@ $ git checkout .
 # → Gitの最新状態に復元
 ```
 
-### Q6. jjのバージョンアップ時に注意することは？
+### Q6. What should I be careful about when upgrading jj?
 
-**A6.** 基本的にjjはバージョン間の互換性を維持していますが、以下に注意してください。
+**A6.** Jujutsu generally maintains compatibility between versions, but pay attention to the following.
 
 ```bash
 # バージョン確認
@@ -1207,9 +1207,9 @@ $ brew upgrade jj
 # - 問題がある場合は jj op log で確認して jj undo
 ```
 
-### Q7. 大規模なモノレポでjjは使えるか？
+### Q7. Can jj be used with a large monorepo?
 
-**A7.** 使えますが、パフォーマンス設定が重要です。
+**A7.** Yes, but performance configuration is important.
 
 ```bash
 # watchmanの有効化（必須）
@@ -1227,9 +1227,9 @@ $ jj config set --user ui.default-revset 'ancestors(heads(all()), 10)'
 #       数十万ファイルの場合はwatchman必須
 ```
 
-### Q8. jjとgitを使い分けるべきシーンは？
+### Q8. When should I use jj vs. git?
 
-**A8.** 基本的にjjで行い、以下の場面でgitコマンドを使います。
+**A8.** Use jj as the default, and use git commands in the following situations.
 
 ```bash
 # gitを使うべきシーン（co-located repo）:
@@ -1257,51 +1257,51 @@ $ jj log -r '<revset>'              # 高度なログ検索
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 概念                   | 要点                                                          |
+| Concept                | Key Point                                                     |
 |------------------------|---------------------------------------------------------------|
-| co-located repo        | .git/と.jj/が共存、GitとJujutsu両方使用可能                  |
-| jj git init --colocate | 既存Gitリポジトリに即座にJujutsuを追加                       |
-| 操作対応              | git add→不要、git commit→jj commit、git branch→jj bookmark   |
-| メンタルモデル         | "ステージ→コミット"から"常にcommit上で作業"に転換            |
-| change ID             | rebase後も不変の識別子、commit IDとは独立                    |
-| 自動同期               | jjコマンド実行時にgitとの同期が自動的に行われる              |
-| 段階的移行             | 個人試用→高度な活用→チーム紹介→チーム運用の4段階            |
-| undo                   | jj undo / jj op restoreで安全に復元可能                      |
-| コンフリクト           | commitに記録、後から解決可能（中途半端な状態にならない）     |
-| スタックドPR           | 依存関係のあるPRを効率的に管理、自動リベースで連動           |
-| IDE統合                | co-located repoでGit IDE統合をそのまま利用可能               |
+| co-located repo        | .git/ and .jj/ coexist; both Git and Jujutsu can be used     |
+| jj git init --colocate | Instantly add Jujutsu to an existing Git repository          |
+| Command mapping        | git add → not needed, git commit → jj commit, git branch → jj bookmark |
+| Mental model           | Shift from "stage → commit" to "always working on a commit"  |
+| change ID              | Identifier that remains stable after rebase, independent of commit ID |
+| Auto sync              | Sync with git happens automatically when jj commands are run |
+| Gradual migration      | 4 phases: personal trial → advanced use → team introduction → mature team operation |
+| undo                   | Safe restoration with jj undo / jj op restore                |
+| Conflicts              | Recorded in commit, can be resolved later (no half-baked state) |
+| Stacked PRs            | Efficiently manage dependent PRs, auto-rebased in sync       |
+| IDE integration        | Git IDE integration works as-is with co-located repo         |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Further Reading
 
-- [Jujutsu入門](./00-jujutsu-introduction.md) — 基本概念と設計思想の復習
-- [Jujutsuワークフロー](./01-jujutsu-workflow.md) — 変更セットと自動リベースの実践
-- [Jujutsu応用](./02-jujutsu-advanced.md) — revset、テンプレート、Git連携
+- [Jujutsu Introduction](./00-jujutsu-introduction.md) — Review of basic concepts and design philosophy
+- [Jujutsu Workflow](./01-jujutsu-workflow.md) — Practical use of change sets and auto-rebase
+- [Jujutsu Advanced](./02-jujutsu-advanced.md) — revsets, templates, and Git integration
 
 ---
 
-## 参考文献
+## References
 
-1. **Jujutsu公式ドキュメント** — "Git comparison" https://martinvonz.github.io/jj/latest/git-comparison/
-2. **Jujutsu公式ドキュメント** — "Git compatibility" https://martinvonz.github.io/jj/latest/git-compatibility/
-3. **Jujutsu公式ドキュメント** — "Tutorial" https://martinvonz.github.io/jj/latest/tutorial/
-4. **Steve Klabnik** — "jj init" (Gitからの移行体験記) https://steveklabnik.com/writing/jj-init
+1. **Jujutsu Official Documentation** — "Git comparison" https://martinvonz.github.io/jj/latest/git-comparison/
+2. **Jujutsu Official Documentation** — "Git compatibility" https://martinvonz.github.io/jj/latest/git-compatibility/
+3. **Jujutsu Official Documentation** — "Tutorial" https://martinvonz.github.io/jj/latest/tutorial/
+4. **Steve Klabnik** — "jj init" (Migration experience from Git) https://steveklabnik.com/writing/jj-init
 5. **Jujutsu GitHub Discussions** — Migration tips and tricks https://github.com/martinvonz/jj/discussions
 6. **lazyjj** — TUI for Jujutsu https://github.com/Cretezy/lazyjj
