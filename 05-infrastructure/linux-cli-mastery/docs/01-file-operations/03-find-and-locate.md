@@ -1,397 +1,397 @@
-# ファイル検索
+# File Search
 
-> 「あのファイルどこだっけ？」— find と fd があれば必ず見つかる。
+> "Where was that file again?" — with find and fd, you'll always find it.
 
-## この章で学ぶこと
+## What You'll Learn in This Chapter
 
-- [ ] find の主要な使い方をマスターする
-- [ ] fd（モダン代替）を使いこなせる
-- [ ] locate / mlocate によるデータベース検索を理解する
-- [ ] which / whereis / type によるコマンド検索を使い分ける
-- [ ] 実務で頻出するファイル検索パターンを身につける
+- [ ] Master the main usage patterns of find
+- [ ] Use fd (modern alternative) effectively
+- [ ] Understand database-based search with locate / mlocate
+- [ ] Distinguish between which / whereis / type for command lookup
+- [ ] Acquire commonly used file search patterns in real-world work
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [パーミッションと所有者](./02-permissions.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of [Permissions and Ownership](./02-permissions.md)
 
 ---
 
-## 1. find — 標準のファイル検索ツール
+## 1. find — The Standard File Search Tool
 
-### 1.1 基本構文
+### 1.1 Basic Syntax
 
 ```bash
-# 基本構文: find [検索開始パス] [条件式] [アクション]
+# Basic syntax: find [search start path] [conditions] [actions]
 #
-# find は指定されたパスを起点にディレクトリツリーを再帰的に走査し、
-# 条件にマッチするファイル/ディレクトリを出力する。
-# パスを省略すると . （カレントディレクトリ）が使われる。
+# find recursively traverses the directory tree starting from the specified path,
+# and outputs files/directories that match the conditions.
+# If path is omitted, . (current directory) is used.
 
-# 全ファイル・ディレクトリを表示
+# Display all files and directories
 find .
 
-# 特定のディレクトリを起点に検索
+# Search starting from a specific directory
 find /var/log
 find /home/user/projects
 
-# 複数の起点ディレクトリを指定
+# Specify multiple starting directories
 find /etc /usr/local/etc -name "*.conf"
 ```
 
-### 1.2 名前による検索（-name / -iname / -path / -regex）
+### 1.2 Search by Name (-name / -iname / -path / -regex)
 
 ```bash
-# -name: ファイル名のパターンマッチ（シェルグロブ）
-find . -name "*.md"               # .md ファイルを再帰検索
-find . -name "*.txt"              # .txt ファイルを再帰検索
-find . -name "Makefile"           # Makefile を検索
-find . -name "*.log"              # ログファイルを検索
-find . -name "config.*"           # config.xxx を検索
+# -name: filename pattern matching (shell glob)
+find . -name "*.md"               # recursively search for .md files
+find . -name "*.txt"              # recursively search for .txt files
+find . -name "Makefile"           # search for Makefile
+find . -name "*.log"              # search for log files
+find . -name "config.*"           # search for config.xxx
 
-# -iname: 大小文字を無視したパターンマッチ
-find . -iname "readme*"           # README, readme, Readme 全てマッチ
-find . -iname "*.jpg"             # .jpg, .JPG, .Jpg 全てマッチ
-find . -iname "license*"          # LICENSE, license, License 全てマッチ
+# -iname: case-insensitive pattern matching
+find . -iname "readme*"           # matches README, readme, Readme, etc.
+find . -iname "*.jpg"             # matches .jpg, .JPG, .Jpg, etc.
+find . -iname "license*"          # matches LICENSE, license, License, etc.
 
-# -path: パス全体に対するパターンマッチ
-find . -path "*/src/*.js"         # src ディレクトリ内の .js ファイル
-find . -path "*/test/*"           # test ディレクトリ以下の全ファイル
-find . -path "*/.git/*" -prune -o -name "*.py" -print  # .git を除外して .py 検索
+# -path: pattern matching against the full path
+find . -path "*/src/*.js"         # .js files inside src directory
+find . -path "*/test/*"           # all files under test directory
+find . -path "*/.git/*" -prune -o -name "*.py" -print  # exclude .git, search .py
 
-# -regex: 正規表現によるパス全体のマッチ
-find . -regex ".*\.\(js\|ts\|jsx\|tsx\)"   # JS/TS 関連ファイル
-find . -regextype posix-extended -regex ".*\.(jpg|jpeg|png|gif)"  # 画像ファイル
-find . -regex ".*/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}.*"  # 日付パターンを含むパス
+# -regex: match full path with regular expression
+find . -regex ".*\.\(js\|ts\|jsx\|tsx\)"   # JS/TS related files
+find . -regextype posix-extended -regex ".*\.(jpg|jpeg|png|gif)"  # image files
+find . -regex ".*/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}.*"  # paths containing date pattern
 
-# ワイルドカードの注意点
-# シェルが先にグロブ展開しないよう、パターンは必ずクォートで囲む
-find . -name "*.log"              # 正しい
-# find . -name *.log              # シェルが展開するので危険
+# Note on wildcards
+# Always quote patterns to prevent the shell from glob-expanding them first
+find . -name "*.log"              # correct
+# find . -name *.log              # dangerous: shell may expand it
 ```
 
-### 1.3 タイプによる絞り込み（-type）
+### 1.3 Filtering by Type (-type)
 
 ```bash
-# -type で検索対象の種類を指定
-find . -type f                    # 通常ファイルのみ
-find . -type d                    # ディレクトリのみ
-find . -type l                    # シンボリックリンクのみ
-find . -type b                    # ブロックデバイス
-find . -type c                    # キャラクタデバイス
-find . -type p                    # 名前付きパイプ（FIFO）
-find . -type s                    # ソケット
+# Use -type to specify the kind of entry to search for
+find . -type f                    # regular files only
+find . -type d                    # directories only
+find . -type l                    # symbolic links only
+find . -type b                    # block devices
+find . -type c                    # character devices
+find . -type p                    # named pipes (FIFO)
+find . -type s                    # sockets
 
-# 組み合わせ例
-find . -type f -name "*.conf"     # 設定ファイル（ファイルのみ）
-find . -type d -name "test*"      # test で始まるディレクトリ
-find . -type l -name "*.so"       # .so のシンボリックリンク
+# Examples combining type with other conditions
+find . -type f -name "*.conf"     # configuration files (files only)
+find . -type d -name "test*"      # directories starting with test
+find . -type l -name "*.so"       # symbolic links for .so files
 
-# ディレクトリ一覧を取得（プロジェクト構造の確認に便利）
+# List directories (useful for checking project structure)
 find . -maxdepth 2 -type d | sort
 ```
 
-### 1.4 サイズによる絞り込み（-size）
+### 1.4 Filtering by Size (-size)
 
 ```bash
 # -size [+-]N[cwbkMG]
-# +N: Nより大きい, -N: Nより小さい, N: ちょうどN
-# c: バイト, w: ワード(2B), b: ブロック(512B), k: KB, M: MB, G: GB
+# +N: greater than N, -N: less than N, N: exactly N
+# c: bytes, w: words (2B), b: blocks (512B), k: KB, M: MB, G: GB
 
-find . -size +100M                # 100MB以上のファイル
-find . -size +1G                  # 1GB以上のファイル
-find . -size -1k                  # 1KB未満のファイル
-find . -size 0                    # 0バイトのファイル
-find . -empty                     # 空ファイル/空ディレクトリ
+find . -size +100M                # files 100MB or larger
+find . -size +1G                  # files 1GB or larger
+find . -size -1k                  # files smaller than 1KB
+find . -size 0                    # zero-byte files
+find . -empty                     # empty files/directories
 
-# サイズ範囲で絞り込み
-find . -size +10M -size -100M     # 10MB〜100MB のファイル
-find . -size +1k -size -10k       # 1KB〜10KB のファイル
+# Filter by size range
+find . -size +10M -size -100M     # files between 10MB and 100MB
+find . -size +1k -size -10k       # files between 1KB and 10KB
 
-# 実務例: ディスク容量を圧迫している大きなファイルを探す
+# Real-world example: find large files consuming disk space
 find / -type f -size +500M 2>/dev/null | head -20
 find /var -type f -size +100M -exec ls -lh {} \; 2>/dev/null
 
-# 空ディレクトリを探す（掃除用）
+# Find empty directories (for cleanup)
 find . -type d -empty
-find . -type d -empty -delete     # 空ディレクトリを削除
+find . -type d -empty -delete     # delete empty directories
 ```
 
-### 1.5 日時による絞り込み（-mtime / -atime / -ctime / -newer）
+### 1.5 Filtering by Time (-mtime / -atime / -ctime / -newer)
 
 ```bash
-# -mtime: 内容の最終更新日（modification time）
-# -atime: 最終アクセス日（access time）
-# -ctime: メタデータの最終変更日（change time = パーミッション変更等）
-# 単位は「日」。+N は N日より前、-N は N日以内
+# -mtime: last modification time of contents
+# -atime: last access time
+# -ctime: last metadata change time (permission changes, etc.)
+# Unit is "days". +N means more than N days ago, -N means within N days
 
-find . -mtime -7                  # 7日以内に変更されたファイル
-find . -mtime +30                 # 30日以上前に変更されたファイル
-find . -mtime 0                   # 今日変更されたファイル（24時間以内）
-find . -atime -1                  # 1日以内にアクセスされたファイル
-find . -ctime -3                  # 3日以内にメタデータが変更されたファイル
+find . -mtime -7                  # files modified within the last 7 days
+find . -mtime +30                 # files modified more than 30 days ago
+find . -mtime 0                   # files modified today (within 24 hours)
+find . -atime -1                  # files accessed within the last 1 day
+find . -ctime -3                  # files with metadata changed within 3 days
 
-# -mmin / -amin / -cmin: 分単位での指定
-find . -mmin -30                  # 30分以内に変更されたファイル
-find . -mmin +60                  # 60分以上前に変更されたファイル
-find . -mmin -5                   # 5分以内に変更（デバッグに便利）
+# -mmin / -amin / -cmin: specify in minutes
+find . -mmin -30                  # files modified within the last 30 minutes
+find . -mmin +60                  # files modified more than 60 minutes ago
+find . -mmin -5                   # modified within 5 minutes (useful for debugging)
 
-# -newer: 基準ファイルより新しいファイルを検索
-find . -newer reference.txt       # reference.txt より新しいファイル
-find . -newer /tmp/timestamp      # タイムスタンプファイルより新しい
+# -newer: find files newer than a reference file
+find . -newer reference.txt       # files newer than reference.txt
+find . -newer /tmp/timestamp      # files newer than a timestamp file
 
-# 実務例: タイムスタンプファイルを活用した差分ファイル検出
-touch -t 202601010000 /tmp/since_newyear   # 基準タイムスタンプ作成
-find . -newer /tmp/since_newyear -type f    # 基準以降に変更されたファイル
+# Real-world example: detect changed files using a timestamp file
+touch -t 202601010000 /tmp/since_newyear   # create reference timestamp
+find . -newer /tmp/since_newyear -type f    # files changed since that time
 
-# 日付範囲で検索（-newerXY を使う方法 ※GNU find）
-# -newermt: modification time を文字列で指定
+# Search by date range (using -newerXY, GNU find)
+# -newermt: specify modification time as string
 find . -newermt "2026-01-01" ! -newermt "2026-02-01" -type f
-# → 2026年1月に変更されたファイル
+# → files modified in January 2026
 
-# 古いファイルの掃除
-find /tmp -type f -mtime +7 -delete         # 7日以上前の一時ファイルを削除
-find /var/log -name "*.gz" -mtime +90 -delete  # 90日以上前の圧縮ログを削除
+# Clean up old files
+find /tmp -type f -mtime +7 -delete         # delete temp files older than 7 days
+find /var/log -name "*.gz" -mtime +90 -delete  # delete compressed logs older than 90 days
 ```
 
-### 1.6 パーミッション・所有者による絞り込み
+### 1.6 Filtering by Permission and Ownership
 
 ```bash
-# -perm: パーミッションで検索
-find . -perm 644                  # 正確に644のファイル
-find . -perm -644                 # 644を含む（644以上）ファイル
-find . -perm /111                 # 実行権限があるファイル（いずれかのビット）
-find . -perm -u+x                # ユーザーに実行権限があるファイル
-find . -perm /o+w                 # その他に書き込み権限があるファイル
+# -perm: search by permission
+find . -perm 644                  # files with exactly 644
+find . -perm -644                 # files with at least 644 bits set
+find . -perm /111                 # files with any execute bit set
+find . -perm -u+x                # files where user has execute permission
+find . -perm /o+w                 # files where others have write permission
 
-# セキュリティチェック: 危険なパーミッションのファイルを検出
-find / -perm -4000 -type f 2>/dev/null   # SUID ビットが設定されたファイル
-find / -perm -2000 -type f 2>/dev/null   # SGID ビットが設定されたファイル
-find / -perm /o+w -type f 2>/dev/null    # 全ユーザー書き込み可能ファイル
-find /home -perm 777 -type f             # 権限が緩すぎるファイル
+# Security check: detect files with dangerous permissions
+find / -perm -4000 -type f 2>/dev/null   # files with SUID bit set
+find / -perm -2000 -type f 2>/dev/null   # files with SGID bit set
+find / -perm /o+w -type f 2>/dev/null    # world-writable files
+find /home -perm 777 -type f             # files with overly permissive rights
 
-# -user / -group: 所有者・グループで検索
-find . -user root                 # root が所有するファイル
-find . -user nobody               # nobody が所有するファイル
-find . -group www-data            # www-data グループのファイル
-find . -nouser                    # 所有者が存在しないファイル
-find . -nogroup                   # グループが存在しないファイル
+# -user / -group: search by owner or group
+find . -user root                 # files owned by root
+find . -user nobody               # files owned by nobody
+find . -group www-data            # files in the www-data group
+find . -nouser                    # files with no existing owner
+find . -nogroup                   # files with no existing group
 
-# 実務例: 特定ユーザーのファイル一覧
-find /home/developer -user developer -type f | wc -l   # ファイル数カウント
-find /var/www -not -user www-data -type f              # www-data 以外のファイル
+# Real-world example: list files belonging to a specific user
+find /home/developer -user developer -type f | wc -l   # count files
+find /var/www -not -user www-data -type f              # files not owned by www-data
 ```
 
-### 1.7 論理演算子と条件の組み合わせ
+### 1.7 Logical Operators and Combining Conditions
 
 ```bash
-# AND（暗黙的 / -a）
-find . -name "*.log" -size +10M   # 10MB以上のログファイル（暗黙的 AND）
-find . -name "*.log" -a -size +10M  # 明示的 AND（同じ意味）
+# AND (implicit / -a)
+find . -name "*.log" -size +10M   # log files larger than 10MB (implicit AND)
+find . -name "*.log" -a -size +10M  # explicit AND (same meaning)
 
-# OR（-o）
-find . \( -name "*.js" -o -name "*.ts" \)        # .js または .ts
-find . \( -name "*.jpg" -o -name "*.png" -o -name "*.gif" \)  # 画像ファイル
-find . -type f \( -name "*.log" -o -name "*.tmp" \) -mtime +30  # 古いログ/tmp
+# OR (-o)
+find . \( -name "*.js" -o -name "*.ts" \)        # .js or .ts
+find . \( -name "*.jpg" -o -name "*.png" -o -name "*.gif" \)  # image files
+find . -type f \( -name "*.log" -o -name "*.tmp" \) -mtime +30  # old logs/tmp
 
-# NOT（! / -not）
-find . -type f ! -name "*.md"     # .md 以外のファイル
-find . -not -name "*.pyc"         # .pyc 以外のファイル
-find . ! -empty                   # 空でないファイル
-find . -type f ! -user root       # root 以外が所有するファイル
+# NOT (! / -not)
+find . -type f ! -name "*.md"     # files that are not .md
+find . -not -name "*.pyc"         # files that are not .pyc
+find . ! -empty                   # non-empty files
+find . -type f ! -user root       # files not owned by root
 
-# 複雑な条件の組み合わせ
-# 括弧 \( \) で優先順位を制御（エスケープ必須）
+# Complex condition combinations
+# Control precedence with parentheses \( \) (escaping required)
 find . -type f \( -name "*.js" -o -name "*.ts" \) ! -path "*/node_modules/*"
-# → node_modules を除外した JS/TS ファイル
+# → JS/TS files excluding node_modules
 
 find . -type f \( -name "*.py" -o -name "*.rb" \) -size +1k -mtime -30
-# → 30日以内に変更された 1KB以上の Python/Ruby ファイル
+# → Python/Ruby files larger than 1KB modified within the last 30 days
 
-# -prune による除外（効率的なディレクトリスキップ）
-find . -path "./.git" -prune -o -type f -print   # .git を除外
-find . -name "node_modules" -prune -o -name "*.js" -print  # node_modules除外
+# Exclusion with -prune (efficient directory skipping)
+find . -path "./.git" -prune -o -type f -print   # exclude .git
+find . -name "node_modules" -prune -o -name "*.js" -print  # exclude node_modules
 find . \( -name ".git" -o -name "node_modules" -o -name "__pycache__" \) -prune -o -type f -print
-# → .git, node_modules, __pycache__ を全て除外
+# → exclude .git, node_modules, and __pycache__ all at once
 ```
 
-### 1.8 アクション（-exec / -execdir / -ok / -delete / -print）
+### 1.8 Actions (-exec / -execdir / -ok / -delete / -print)
 
 ```bash
-# -print: デフォルトのアクション（パスを表示）
-find . -name "*.md" -print        # 明示的に -print（省略可）
+# -print: default action (display path)
+find . -name "*.md" -print        # explicit -print (can be omitted)
 
-# -print0: NULL文字区切りで出力（xargs -0 と組み合わせ）
-find . -name "*.txt" -print0 | xargs -0 wc -l   # スペース入りファイル名対応
+# -print0: output with NULL separator (combine with xargs -0)
+find . -name "*.txt" -print0 | xargs -0 wc -l   # handles filenames with spaces
 
-# -printf: カスタムフォーマット出力（GNU find）
-find . -type f -printf "%s %p\n"            # サイズとパス
-find . -type f -printf "%T+ %p\n" | sort    # 更新日時でソート
-find . -type f -printf "%u %g %m %p\n"      # 所有者 グループ パーミッション パス
+# -printf: custom format output (GNU find)
+find . -type f -printf "%s %p\n"            # size and path
+find . -type f -printf "%T+ %p\n" | sort    # sort by modification time
+find . -type f -printf "%u %g %m %p\n"      # owner, group, permission, path
 
-# -delete: マッチしたファイルを削除（注意して使用！）
-find . -name "*.tmp" -delete      # .tmp ファイルを削除
-find . -type d -empty -delete     # 空ディレクトリを削除
-find /tmp -mtime +7 -delete       # 7日以上前の一時ファイルを削除
+# -delete: delete matched files (use with care!)
+find . -name "*.tmp" -delete      # delete .tmp files
+find . -type d -empty -delete     # delete empty directories
+find /tmp -mtime +7 -delete       # delete temp files older than 7 days
 
-# -exec: 各ファイルに対してコマンドを実行
-find . -name "*.sh" -exec chmod +x {} \;        # シェルスクリプトに実行権限付与
-find . -name "*.log" -exec gzip {} \;           # ログファイルを圧縮
-find . -name "*.bak" -exec rm {} \;             # バックアップファイルを削除
-find . -name "*.py" -exec grep -l "import os" {} \;  # osをimportしているPyファイル
+# -exec: run a command for each file
+find . -name "*.sh" -exec chmod +x {} \;        # add execute permission to shell scripts
+find . -name "*.log" -exec gzip {} \;           # compress log files
+find . -name "*.bak" -exec rm {} \;             # delete backup files
+find . -name "*.py" -exec grep -l "import os" {} \;  # Python files importing os
 
-# -exec の末尾
-# \;  各ファイルごとに1回コマンドを実行（遅い）
-# +   まとめてコマンドに渡す（高速、xargs と同等）
-find . -name "*.txt" -exec wc -l {} +           # まとめて wc に渡す（高速）
-find . -name "*.js" -exec grep -l "console.log" {} +   # まとめて grep
+# -exec terminators
+# \;  runs the command once per file (slow)
+# +   passes all files at once (fast, equivalent to xargs)
+find . -name "*.txt" -exec wc -l {} +           # pass all to wc at once (fast)
+find . -name "*.js" -exec grep -l "console.log" {} +   # bulk grep
 
-# -execdir: ファイルが存在するディレクトリで実行（セキュリティ向上）
+# -execdir: run in the directory containing the file (improved security)
 find . -name "*.sh" -execdir chmod +x {} \;
 
-# -ok: 実行前に確認を求める（対話的）
-find . -name "*.tmp" -ok rm {} \;   # 1つずつ確認して削除
+# -ok: prompt for confirmation before executing (interactive)
+find . -name "*.tmp" -ok rm {} \;   # confirm each deletion
 
-# xargs との組み合わせ（-exec + と同等だがより柔軟）
-find . -name "*.py" | xargs grep "TODO"              # スペースなしファイル名向け
-find . -name "*.py" -print0 | xargs -0 grep "TODO"   # スペース対応版
-find . -name "*.css" -print0 | xargs -0 -I{} cp {} /backup/   # 個別コピー
-find . -name "*.log" -print0 | xargs -0 -P 4 gzip    # 4並列で圧縮
+# Combining with xargs (equivalent to -exec + but more flexible)
+find . -name "*.py" | xargs grep "TODO"              # for filenames without spaces
+find . -name "*.py" -print0 | xargs -0 grep "TODO"   # space-safe version
+find . -name "*.css" -print0 | xargs -0 -I{} cp {} /backup/   # copy individually
+find . -name "*.log" -print0 | xargs -0 -P 4 gzip    # compress with 4-way parallelism
 ```
 
-### 1.9 深さ制限と検索順序
+### 1.9 Depth Limits and Search Order
 
 ```bash
-# -maxdepth: 検索の最大深度を制限
-find . -maxdepth 1 -type f        # カレントディレクトリのファイルのみ（再帰しない）
-find . -maxdepth 2 -type d        # 2階層まで のディレクトリ
-find . -maxdepth 3 -name "*.md"   # 3階層までの .md ファイル
+# -maxdepth: limit the maximum search depth
+find . -maxdepth 1 -type f        # files in current directory only (no recursion)
+find . -maxdepth 2 -type d        # directories up to 2 levels deep
+find . -maxdepth 3 -name "*.md"   # .md files up to 3 levels deep
 
-# -mindepth: 検索の最小深度を指定
-find . -mindepth 2 -name "*.py"   # 2階層以降の .py ファイル（直下を除外）
-find . -mindepth 1 -maxdepth 1 -type d  # 直下のディレクトリのみ（ls -d */ と同等）
+# -mindepth: specify the minimum search depth
+find . -mindepth 2 -name "*.py"   # .py files at depth 2 or deeper (skip direct children)
+find . -mindepth 1 -maxdepth 1 -type d  # direct subdirectories only (equivalent to ls -d */)
 
-# -depth: 深さ優先（ディレクトリの内容を先に処理）
-find . -depth -name "*.tmp" -delete  # 深さ優先で削除（空ディレクトリ対策）
+# -depth: depth-first (process directory contents before the directory itself)
+find . -depth -name "*.tmp" -delete  # delete depth-first (handles non-empty dirs)
 
-# -mount / -xdev: ファイルシステムをまたがない
-find / -mount -name "*.conf" -type f  # ルートファイルシステムのみ検索
+# -mount / -xdev: do not cross filesystem boundaries
+find / -mount -name "*.conf" -type f  # search only the root filesystem
 ```
 
-### 1.10 find の実務パターン集
+### 1.10 Real-World find Patterns
 
 ```bash
-# --- プロジェクト管理 ---
+# --- Project Management ---
 
-# プロジェクト内の全ソースファイルを列挙
+# List all source files in a project
 find ./src -type f \( -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" \) \
   ! -path "*/node_modules/*" ! -path "*/.next/*" | sort
 
-# プロジェクトのファイル数をディレクトリごとに集計
+# Count files per directory in a project
 find . -type f ! -path "*/.git/*" | sed 's|/[^/]*$||' | sort | uniq -c | sort -rn | head -20
 
-# 最近変更されたファイルトップ20
+# Top 20 most recently modified files
 find . -type f ! -path "*/.git/*" -printf "%T@ %T+ %p\n" | sort -rn | head -20
 
-# 重複ファイルの検出（MD5ハッシュベース）
+# Detect duplicate files (MD5 hash-based)
 find . -type f -exec md5sum {} + | sort | uniq -w 32 -d
 
-# --- ディスク管理 ---
+# --- Disk Management ---
 
-# サイズ順に大きいファイルを表示
+# Show largest files sorted by size
 find . -type f -exec ls -lS {} + | head -20
 
-# ディスク使用量トップ10ディレクトリ
+# Top 10 directories by disk usage
 find . -maxdepth 3 -type d -exec du -sh {} + 2>/dev/null | sort -rh | head -10
 
-# 古い大きなファイルの検出（アーカイブ候補）
+# Find large old files (archival candidates)
 find /data -type f -size +100M -mtime +365 -ls
 
-# --- ログ管理 ---
+# --- Log Management ---
 
-# 本日のログファイルのみ表示
+# Show only today's log files
 find /var/log -type f -mtime 0 -name "*.log"
 
-# ログローテーション: 古い圧縮ログの削除
+# Log rotation: delete old compressed logs
 find /var/log -name "*.gz" -mtime +180 -delete
 
-# エラーを含むログファイルを検索
+# Find log files containing errors
 find /var/log -name "*.log" -mtime -1 -exec grep -l "ERROR" {} +
 
-# --- 開発環境 ---
+# --- Development Environment ---
 
-# 全テストファイルを列挙
+# List all test files
 find . -type f \( -name "*_test.go" -o -name "*_test.py" -o -name "*.test.js" -o -name "*.spec.ts" \)
 
-# __pycache__ の一括削除
+# Bulk delete __pycache__
 find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
 
-# .DS_Store の一括削除
+# Bulk delete .DS_Store
 find . -name ".DS_Store" -delete
 
-# node_modules のサイズ確認
+# Check size of node_modules
 find . -type d -name "node_modules" -exec du -sh {} + 2>/dev/null
 
-# Go の依存パッケージ一覧
+# List Go dependency packages
 find $GOPATH/pkg -type d -maxdepth 4
 
-# --- セキュリティ ---
+# --- Security ---
 
-# ワールドライタブルなファイルを検出
+# Detect world-writable files
 find /var/www -type f -perm /o+w -ls
 
-# SUID/SGID ファイルの監査
+# Audit SUID/SGID files
 find / -type f \( -perm -4000 -o -perm -2000 \) -exec ls -la {} \; 2>/dev/null
 
-# 所有者不明ファイルの検出
+# Detect files with no owner
 find / -nouser -o -nogroup 2>/dev/null
 
-# 最近変更された設定ファイル（改ざん検知）
+# Recently modified configuration files (tamper detection)
 find /etc -type f -mmin -60 -ls
 
-# --- バックアップ ---
+# --- Backup ---
 
-# rsync 用のファイルリスト生成
+# Generate file list for rsync
 find /data -type f -newer /tmp/last_backup -print0 > /tmp/backup_list.txt
 
-# tar アーカイブの作成
+# Create tar archive
 find ./project -type f -name "*.py" -print0 | tar czf python_files.tar.gz --null -T -
 
-# 差分バックアップ
+# Incremental backup
 find /home -type f -mtime -1 -print0 | cpio -0 -pdm /backup/daily/
 ```
 
-### 1.11 find のパフォーマンス最適化
+### 1.11 find Performance Optimization
 
 ```bash
-# 1. -type を早い段階で指定（ディレクトリエントリのタイプチェックはコスト低）
-find . -type f -name "*.log"      # 良い: type を先に
-# find . -name "*.log" -type f    # 動作は同じだが、type 先の方が一般的
+# 1. Specify -type early (type check on directory entries is low cost)
+find . -type f -name "*.log"      # good: type first
+# find . -name "*.log" -type f    # works the same but putting type first is conventional
 
-# 2. -prune で不要ディレクトリをスキップ
+# 2. Use -prune to skip unnecessary directories
 find . -path "./.git" -prune -o -type f -name "*.py" -print
-# → .git 以下を完全にスキップするため高速
+# → completely skips .git for better performance
 
-# 3. -exec + を使う（\; より高速）
-find . -name "*.txt" -exec wc -l {} +     # 良い: まとめて実行
-# find . -name "*.txt" -exec wc -l {} \;  # 遅い: 1ファイルずつ実行
+# 3. Use -exec + (faster than \;)
+find . -name "*.txt" -exec wc -l {} +     # good: batch execution
+# find . -name "*.txt" -exec wc -l {} \;  # slow: one file at a time
 
-# 4. -maxdepth で検索範囲を限定
-find . -maxdepth 3 -name "*.conf"   # 3階層までに制限
+# 4. Use -maxdepth to limit search scope
+find . -maxdepth 3 -name "*.conf"   # limit to 3 levels
 
-# 5. 標準エラーを抑制（権限エラーの無視）
+# 5. Suppress standard error (ignore permission errors)
 find / -name "*.conf" 2>/dev/null
 find / -name "*.conf" 2>&1 | grep -v "Permission denied"
 
-# 6. 並列処理（xargs -P）
+# 6. Parallel processing (xargs -P)
 find . -name "*.png" -print0 | xargs -0 -P $(nproc) optipng -o7
-# → CPU コア数分の並列で画像最適化
+# → optimize images in parallel using all CPU cores
 
-# 7. find の結果をファイルに保存して再利用
+# 7. Save find results to a file for reuse
 find /data -type f -name "*.csv" > /tmp/csv_files.txt
 while IFS= read -r file; do
     process_csv "$file"
@@ -400,269 +400,269 @@ done < /tmp/csv_files.txt
 
 ---
 
-## 2. fd — モダンな代替ツール
+## 2. fd — A Modern Alternative Tool
 
-### 2.1 インストールと概要
+### 2.1 Installation and Overview
 
 ```bash
-# インストール
+# Installation
 brew install fd                   # macOS
-sudo apt install fd-find          # Ubuntu/Debian（コマンド名は fdfind）
+sudo apt install fd-find          # Ubuntu/Debian (command is fdfind)
 sudo pacman -S fd                 # Arch Linux
 cargo install fd-find             # Rust (Cargo)
 
-# Ubuntu/Debian では fdfind という名前になるため、エイリアスを設定
+# On Ubuntu/Debian the command is called fdfind, so set an alias
 alias fd='fdfind'
-# または ~/.bashrc に追加
+# or add to ~/.bashrc
 
-# fd の特徴
-# - .gitignore を自動で尊重（--no-ignore で無効化可能）
-# - カラー出力がデフォルト
-# - 正規表現がデフォルト（-g でグロブに切替）
-# - Unicode 対応
-# - find より簡潔な構文
-# - 並列実行による高速化
+# Features of fd
+# - Automatically respects .gitignore (disable with --no-ignore)
+# - Color output by default
+# - Regular expressions by default (switch to glob with -g)
+# - Unicode support
+# - More concise syntax than find
+# - Faster due to parallel execution
 ```
 
-### 2.2 基本的な使い方
+### 2.2 Basic Usage
 
 ```bash
-# 基本構文: fd [パターン] [検索パス]
+# Basic syntax: fd [pattern] [search path]
 
-# パターンなし: 全ファイルを表示
-fd                                # 全ファイル（.gitignore を尊重）
+# No pattern: show all files
+fd                                # all files (respects .gitignore)
 
-# 文字列パターン（部分一致、正規表現）
-fd readme                         # "readme" を含むファイル/ディレクトリ
-fd "\.md$"                        # 正規表現: .md で終わるファイル
-fd "^test"                        # test で始まるファイル
-fd "[0-9]{4}"                     # 4桁の数字を含むファイル
-fd "config\.(json|yaml|toml)"     # 設定ファイル（複数拡張子）
+# String pattern (partial match, regex)
+fd readme                         # files/directories containing "readme"
+fd "\.md$"                        # regex: files ending with .md
+fd "^test"                        # files starting with test
+fd "[0-9]{4}"                     # files containing 4-digit numbers
+fd "config\.(json|yaml|toml)"     # config files (multiple extensions)
 
-# -g: グロブパターン（find の -name に近い）
-fd -g "*.md"                      # グロブで .md ファイル検索
-fd -g "Makefile"                  # 完全一致
-fd -g "*.{js,ts,jsx,tsx}"         # 複数拡張子
+# -g: glob pattern (similar to find's -name)
+fd -g "*.md"                      # search for .md files using glob
+fd -g "Makefile"                  # exact match
+fd -g "*.{js,ts,jsx,tsx}"         # multiple extensions
 
-# 検索パスの指定
-fd "\.py$" /home/user/projects    # 特定ディレクトリ以下を検索
-fd "\.rs$" src/                   # src/ 以下の Rust ファイル
+# Specify search path
+fd "\.py$" /home/user/projects    # search under a specific directory
+fd "\.rs$" src/                   # Rust files under src/
 ```
 
-### 2.3 主要オプション
+### 2.3 Key Options
 
 ```bash
-# 拡張子で検索（-e / --extension）
-fd -e md                          # .md ファイル
-fd -e py                          # .py ファイル
-fd -e jpg -e png -e gif           # 画像ファイル（複数拡張子）
-fd -e rs -e toml                  # Rust プロジェクト関連
+# Search by extension (-e / --extension)
+fd -e md                          # .md files
+fd -e py                          # .py files
+fd -e jpg -e png -e gif           # image files (multiple extensions)
+fd -e rs -e toml                  # Rust project related files
 
-# タイプで絞り込み（-t / --type）
-fd -t f                           # ファイルのみ (file)
-fd -t d                           # ディレクトリのみ (directory)
-fd -t l                           # シンボリックリンクのみ (symlink)
-fd -t x                           # 実行可能ファイルのみ (executable)
-fd -t e                           # 空ファイル/ディレクトリ (empty)
+# Filter by type (-t / --type)
+fd -t f                           # files only (file)
+fd -t d                           # directories only (directory)
+fd -t l                           # symbolic links only (symlink)
+fd -t x                           # executable files only (executable)
+fd -t e                           # empty files/directories (empty)
 
-# 隠しファイル（-H / --hidden）
-fd -H                             # 隠しファイル含む（.gitignore は引き続き尊重）
-fd -H "\.env"                     # .env ファイル検索
+# Hidden files (-H / --hidden)
+fd -H                             # include hidden files (.gitignore still respected)
+fd -H "\.env"                     # search for .env files
 
-# .gitignore を無視（-I / --no-ignore）
-fd -I                             # .gitignore を無視
-fd -HI                            # 隠しファイル + .gitignore 無視（find と同等）
+# Ignore .gitignore (-I / --no-ignore)
+fd -I                             # ignore .gitignore
+fd -HI                            # hidden files + ignore .gitignore (equivalent to find)
 
-# 大小文字の制御
-fd -s "README"                    # 大小文字を区別（-s / --case-sensitive）
-fd -i "readme"                    # 大小文字を無視（-i / --ignore-case）
-# デフォルト: パターンが全て小文字なら case-insensitive（スマートケース）
+# Case sensitivity control
+fd -s "README"                    # case-sensitive (-s / --case-sensitive)
+fd -i "readme"                    # case-insensitive (-i / --ignore-case)
+# Default: smart case — case-insensitive if pattern is all lowercase
 
-# 深さ制限
-fd -d 1                           # 1階層のみ（--max-depth）
-fd -d 3                           # 3階層まで
-fd --min-depth 2                  # 2階層以降
+# Depth limits
+fd -d 1                           # 1 level only (--max-depth)
+fd -d 3                           # up to 3 levels
+fd --min-depth 2                  # depth 2 or deeper
 
-# 除外パターン（-E / --exclude）
-fd -E node_modules                # node_modules を除外
-fd -E "*.min.js"                  # minified JS を除外
-fd -E ".git" -E "target"          # 複数ディレクトリを除外
+# Exclude patterns (-E / --exclude)
+fd -E node_modules                # exclude node_modules
+fd -E "*.min.js"                  # exclude minified JS
+fd -E ".git" -E "target"          # exclude multiple directories
 
-# サイズフィルタ（-S / --size）
-fd -S +1m                         # 1MB 以上
-fd -S -10k                        # 10KB 以下
-fd -S +100k -S -1m               # 100KB〜1MB
+# Size filter (-S / --size)
+fd -S +1m                         # 1MB or larger
+fd -S -10k                        # 10KB or smaller
+fd -S +100k -S -1m               # between 100KB and 1MB
 
-# 日時フィルタ
-fd --changed-within 1h            # 1時間以内に変更
-fd --changed-within 2d            # 2日以内に変更
-fd --changed-before 1w            # 1週間以上前に変更
-fd --changed-within "2026-01-01"  # 指定日以降に変更
+# Time filter
+fd --changed-within 1h            # changed within 1 hour
+fd --changed-within 2d            # changed within 2 days
+fd --changed-before 1w            # changed more than 1 week ago
+fd --changed-within "2026-01-01"  # changed since the specified date
 
-# 所有者フィルタ
-fd --owner root                   # root が所有するファイル
-fd --owner ":www-data"            # www-data グループのファイル
+# Owner filter
+fd --owner root                   # files owned by root
+fd --owner ":www-data"            # files in the www-data group
 ```
 
-### 2.4 アクション実行（-x / -X）
+### 2.4 Executing Actions (-x / -X)
 
 ```bash
-# -x / --exec: 各ファイルに対してコマンドを実行
-fd -e txt -x wc -l                # 各 .txt ファイルの行数
-fd -e sh -x chmod +x              # シェルスクリプトに実行権限
-fd -e bak -x rm                   # .bak ファイルを削除
-fd -e png -x optipng              # PNG 最適化
+# -x / --exec: run a command for each file
+fd -e txt -x wc -l                # line count for each .txt file
+fd -e sh -x chmod +x              # add execute permission to shell scripts
+fd -e bak -x rm                   # delete .bak files
+fd -e png -x optipng              # optimize PNG
 
-# プレースホルダ
-# {}   フルパス
-# {/}  ファイル名のみ（ディレクトリ部分なし）
-# {//} ディレクトリ部分のみ
-# {.}  拡張子を除いたパス
-# {/.} 拡張子を除いたファイル名
-fd -e jpg -x convert {} {.}.png   # JPG → PNG 変換
-fd -e md -x echo "File: {/}, Dir: {//}"  # ファイル名とディレクトリ
+# Placeholders
+# {}   full path
+# {/}  filename only (no directory)
+# {//} directory part only
+# {.}  path without extension
+# {/.} filename without extension
+fd -e jpg -x convert {} {.}.png   # convert JPG to PNG
+fd -e md -x echo "File: {/}, Dir: {//}"  # filename and directory
 
-# -X / --exec-batch: 全結果をまとめて1回のコマンドに渡す（find -exec + 相当）
-fd -e py -X wc -l                 # 全 .py ファイルの行数を一括カウント
-fd -e js -X eslint                # 全 JS ファイルを一括 lint
+# -X / --exec-batch: pass all results to one command at once (equivalent to find -exec +)
+fd -e py -X wc -l                 # count lines across all .py files at once
+fd -e js -X eslint                # lint all JS files at once
 
-# 並列実行（-j / --threads）
-fd -e png -x optipng -j 4         # 4スレッドで並列処理
-fd -e mp4 -x ffmpeg -i {} {.}.webm -j 2  # 2並列で動画変換
+# Parallel execution (-j / --threads)
+fd -e png -x optipng -j 4         # parallel processing with 4 threads
+fd -e mp4 -x ffmpeg -i {} {.}.webm -j 2  # convert videos with 2-way parallelism
 ```
 
-### 2.5 fd の実務パターン集
+### 2.5 Real-World fd Patterns
 
 ```bash
-# プロジェクト内の全ソースファイル行数を集計
+# Count total lines across all source files in a project
 fd -e py -X wc -l | tail -1
 
-# 特定パターンのファイルを一括リネーム
+# Bulk rename files with a specific pattern
 fd -e txt -x mv {} {.}.md        # .txt → .md
 
-# Docker 関連ファイルを検索
+# Search for Docker-related files
 fd -g "Dockerfile*" -g "docker-compose*" -g ".dockerignore"
 
-# 最近変更されたファイルの一覧（更新日時付き）
+# List recently modified files with timestamps
 fd -t f --changed-within 1d -x ls -la
 
-# テストファイルを除外してソースファイルを列挙
+# List source files excluding test files
 fd -e py -E "*_test.py" -E "test_*" -E "conftest.py"
 
-# 設定ファイルの一括検索
+# Bulk search for configuration files
 fd -e yaml -e yml -e json -e toml -e ini -e conf
 
-# Git で追跡されていないファイルの中から検索
-fd -I -t f "\.log$"              # .gitignore を無視してログファイル検索
+# Search among files not tracked by Git
+fd -I -t f "\.log$"              # search for log files ignoring .gitignore
 ```
 
-### 2.6 find と fd の比較表
+### 2.6 Comparison Table: find vs fd
 
 ```
 ┌─────────────────┬────────────────────────┬────────────────────────┐
-│ 機能            │ find                   │ fd                     │
+│ Feature         │ find                   │ fd                     │
 ├─────────────────┼────────────────────────┼────────────────────────┤
-│ デフォルト動作  │ 全ファイルを表示       │ .gitignore 尊重        │
-│ パターン        │ シェルグロブ(-name)    │ 正規表現（デフォルト） │
-│ 大小文字        │ 区別（-iname で無視）  │ スマートケース         │
-│ 出力            │ モノクロ               │ カラー表示             │
-│ 速度            │ 標準的                 │ 高速（並列処理）       │
-│ 構文            │ 冗長（-name, -type等） │ 簡潔                   │
-│ 環境            │ 標準搭載               │ 別途インストール       │
-│ スクリプト      │ POSIX 互換             │ 非標準                 │
-│ 隠しファイル    │ 含む                   │ デフォルト除外         │
-│ -exec 相当      │ -exec {} \; / +        │ -x / -X                │
-│ 深さ制限        │ -maxdepth / -mindepth  │ -d / --min-depth       │
-│ サイズ          │ -size +10M             │ -S +10m                │
+│ Default behavior│ Show all files         │ Respects .gitignore    │
+│ Pattern         │ Shell glob (-name)     │ Regex (default)        │
+│ Case sensitivity│ Sensitive (-iname off) │ Smart case             │
+│ Output          │ Monochrome             │ Color                  │
+│ Speed           │ Standard               │ Fast (parallel)        │
+│ Syntax          │ Verbose (-name, -type) │ Concise                │
+│ Availability    │ Bundled                │ Requires install       │
+│ Scripts         │ POSIX compatible       │ Non-standard           │
+│ Hidden files    │ Included               │ Excluded by default    │
+│ -exec equivalent│ -exec {} \; / +        │ -x / -X                │
+│ Depth limit     │ -maxdepth / -mindepth  │ -d / --min-depth       │
+│ Size            │ -size +10M             │ -S +10m                │
 └─────────────────┴────────────────────────┴────────────────────────┘
 
-使い分けガイド:
-- 日常的な検索 → fd（シンプルで高速）
-- シェルスクリプト/CI → find（POSIX 互換、標準搭載）
-- 複雑な条件 → find（論理演算子が豊富）
-- .gitignore 尊重 → fd（デフォルト対応）
+Usage guide:
+- Everyday searches → fd (simple and fast)
+- Shell scripts / CI → find (POSIX compatible, bundled)
+- Complex conditions → find (rich logical operators)
+- Respecting .gitignore → fd (supported by default)
 ```
 
 ---
 
-## 3. locate / mlocate / plocate — データベースベースの高速検索
+## 3. locate / mlocate / plocate — Fast Database-Based Search
 
-### 3.1 概要とインストール
+### 3.1 Overview and Installation
 
 ```bash
-# locate はファイルシステムのデータベースを使った高速検索
-# find/fd がリアルタイムにディスクを走査するのに対し、
-# locate は事前に構築されたデータベースを検索するため非常に高速
+# locate uses a filesystem database for fast searching.
+# While find/fd scan the disk in real time,
+# locate queries a pre-built database and is therefore much faster.
 
-# インストール
-sudo apt install mlocate          # Ubuntu/Debian（mlocate）
-sudo apt install plocate          # Ubuntu 22.04+（plocate、より高速）
+# Installation
+sudo apt install mlocate          # Ubuntu/Debian (mlocate)
+sudo apt install plocate          # Ubuntu 22.04+ (plocate, faster)
 sudo yum install mlocate          # CentOS/RHEL
-brew install findutils            # macOS（glocate として利用可能）
+brew install findutils            # macOS (available as glocate)
 
-# データベースの初期構築
-sudo updatedb                     # データベースの構築/更新
-# cron で毎日自動更新される（通常 /etc/cron.daily/mlocate）
+# Initial database build
+sudo updatedb                     # build/update the database
+# Automatically updated daily via cron (usually /etc/cron.daily/mlocate)
 ```
 
-### 3.2 基本的な使い方
+### 3.2 Basic Usage
 
 ```bash
-# 基本: locate [パターン]
-locate filename                   # パス名でデータベース検索
-locate "*.conf"                   # ワイルドカード
-locate -i "readme"                # 大小文字無視
-locate -n 10 "*.log"             # 結果を10件に制限
-locate -c "*.py"                 # マッチ数をカウント
-locate -b "filename"              # ベースネーム（ファイル名部分）のみで検索
-locate -r "\.py$"                 # 正規表現で検索
+# Basic: locate [pattern]
+locate filename                   # search the database by path name
+locate "*.conf"                   # wildcard
+locate -i "readme"                # case-insensitive
+locate -n 10 "*.log"             # limit results to 10
+locate -c "*.py"                 # count matches
+locate -b "filename"              # search only the basename (filename part)
+locate -r "\.py$"                 # search with regular expression
 
-# データベースの確認
-locate -S                         # データベースの統計情報表示
-# → ファイル数、ディレクトリ数、データベースサイズ等
+# Check database stats
+locate -S                         # display database statistics
+# → shows number of files, directories, database size, etc.
 
-# データベースの手動更新
-sudo updatedb                     # 全体更新
-# updatedb の設定: /etc/updatedb.conf
-# PRUNEPATHS: 除外するパス（/tmp, /proc 等）
-# PRUNEFS: 除外するファイルシステム（nfs, tmpfs 等）
+# Manually update the database
+sudo updatedb                     # full update
+# updatedb configuration: /etc/updatedb.conf
+# PRUNEPATHS: paths to exclude (/tmp, /proc, etc.)
+# PRUNEFS: filesystems to exclude (nfs, tmpfs, etc.)
 ```
 
-### 3.3 locate の注意点と使い分け
+### 3.3 Limitations and Usage Guidelines for locate
 
 ```bash
-# locate の制限事項:
-# 1. データベースが古い場合、最近のファイルが見つからない
-#    → sudo updatedb で手動更新するか、find/fd を使う
-# 2. 権限を考慮しない場合がある（設定による）
-# 3. 削除済みファイルが表示される可能性がある
+# Limitations of locate:
+# 1. If the database is outdated, recently created files won't be found
+#    → run sudo updatedb to manually update, or use find/fd
+# 2. May not respect permissions (depends on configuration)
+# 3. Deleted files may still appear in results
 
-# 使い分けガイド:
-# - ファイル名だけで素早く探したい → locate
-# - 最新の状態を確実に検索したい → find / fd
-# - サイズ・日時等の条件が必要 → find / fd
-# - サーバー上の設定ファイル検索 → locate（高速で便利）
+# Usage guidelines:
+# - Want to find a file quickly by name alone → locate
+# - Need to search the current state reliably → find / fd
+# - Need conditions like size or time → find / fd
+# - Searching config files on a server → locate (fast and convenient)
 
-# 実務例: locate + grep の組み合わせ
-locate "nginx.conf" | grep -v backup   # バックアップを除外
-locate -b "settings.py" | head -5       # Django の設定ファイルを素早く発見
+# Real-world example: combining locate + grep
+locate "nginx.conf" | grep -v backup   # exclude backups
+locate -b "settings.py" | head -5       # quickly find Django settings files
 ```
 
 ---
 
-## 4. which / whereis / type — コマンドの場所を検索
+## 4. which / whereis / type — Locating Commands
 
 ### 4.1 which
 
 ```bash
-# which: 実行可能ファイルのパスを表示（PATH から検索）
+# which: display the path to an executable (searches PATH)
 which python                      # /usr/bin/python
-which -a python                   # PATH 上の全 python を表示
+which -a python                   # show all python entries on PATH
 which node                        # /usr/local/bin/node
-which gcc                         # コンパイラのパス確認
+which gcc                         # check path of the compiler
 
-# 実務例
-which python3 && python3 --version   # Python3 があればバージョン表示
+# Real-world examples
+which python3 && python3 --version   # if Python3 exists, show version
 if which docker > /dev/null 2>&1; then
     echo "Docker is installed"
 fi
@@ -671,92 +671,92 @@ fi
 ### 4.2 whereis
 
 ```bash
-# whereis: バイナリ、ソース、マニュアルの場所を検索
-whereis python                    # バイナリ、マニュアル等
-whereis -b python                 # バイナリのみ
-whereis -m python                 # マニュアルのみ
-whereis -s python                 # ソースのみ
-whereis ls grep awk               # 複数コマンドを一括検索
+# whereis: find binary, source, and manual page locations
+whereis python                    # binary, manual, etc.
+whereis -b python                 # binary only
+whereis -m python                 # manual only
+whereis -s python                 # source only
+whereis ls grep awk               # look up multiple commands at once
 ```
 
 ### 4.3 type
 
 ```bash
-# type: コマンドの種類を表示（bash 組み込み）
-type ls                           # ls はエイリアス / 関数 / 外部コマンド のいずれか
+# type: show the type of a command (bash built-in)
+type ls                           # ls is an alias / function / external command
 type cd                           # cd is a shell builtin
 type ll                           # ll is aliased to `ls -la`
-type -a python                    # 全ての候補を表示
-type -t ls                        # 種類だけ表示（alias, builtin, function, file）
+type -a python                    # show all matching entries
+type -t ls                        # show type only (alias, builtin, function, file)
 
-# 実務例: コマンドの実体確認
-type -a grep                      # grep がエイリアスか外部コマンドか確認
-type -a python python3 pip pip3   # Python 環境の確認
+# Real-world examples: inspect command identity
+type -a grep                      # check if grep is an alias or external command
+type -a python python3 pip pip3   # check Python environment
 ```
 
 ---
 
-## 5. 高度なファイル検索テクニック
+## 5. Advanced File Search Techniques
 
-### 5.1 fzf を活用したインタラクティブ検索
+### 5.1 Interactive Search with fzf
 
 ```bash
-# fzf: ファジーファインダー（対話的に絞り込み検索）
+# fzf: fuzzy finder (interactive narrowing search)
 # brew install fzf
 
-# 基本的な使い方
-find . -type f | fzf              # 全ファイルからインタラクティブ選択
-fd -t f | fzf                     # fd + fzf の組み合わせ
+# Basic usage
+find . -type f | fzf              # interactively select from all files
+fd -t f | fzf                     # combine fd + fzf
 
-# fzf + エディタ
-vim $(fzf)                        # fzf で選択したファイルを vim で開く
-code $(fd -e py | fzf -m)         # 複数選択して VS Code で開く
+# fzf + editor
+vim $(fzf)                        # open the file selected in fzf with vim
+code $(fd -e py | fzf -m)         # select multiple files and open in VS Code
 
 # fzf + preview
-fd -t f | fzf --preview 'bat --color=always {}'   # プレビュー付き
-fd -t f | fzf --preview 'head -50 {}'              # head でプレビュー
+fd -t f | fzf --preview 'bat --color=always {}'   # with preview
+fd -t f | fzf --preview 'head -50 {}'              # preview with head
 
-# fzf + kill（プロセス検索 & kill）
+# fzf + kill (search processes and kill)
 ps aux | fzf | awk '{print $2}' | xargs kill
 
 # fzf + git
-git log --oneline | fzf --preview 'git show {1}'   # コミット選択
-git branch | fzf | xargs git checkout               # ブランチ切替
+git log --oneline | fzf --preview 'git show {1}'   # select a commit
+git branch | fzf | xargs git checkout               # switch branches
 
-# .bashrc / .zshrc に設定するキーバインド
+# Key bindings to add to .bashrc / .zshrc
 export FZF_DEFAULT_COMMAND='fd -t f --hidden --exclude .git'
 export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
-# Ctrl+T: ファイル検索、Ctrl+R: コマンド履歴検索、Alt+C: ディレクトリ移動
+# Ctrl+T: file search, Ctrl+R: command history, Alt+C: navigate to directory
 ```
 
-### 5.2 tree コマンドによるディレクトリ構造の可視化
+### 5.2 Visualizing Directory Structure with tree
 
 ```bash
-# tree: ディレクトリ構造をツリー形式で表示
+# tree: display directory structure in tree format
 # brew install tree
 
-tree                              # カレントディレクトリのツリー表示
-tree -L 2                         # 2階層まで表示
-tree -d                           # ディレクトリのみ
-tree -a                           # 隠しファイル含む
-tree -I "node_modules|.git"       # 特定ディレクトリを除外
-tree -P "*.py"                    # Python ファイルのみ
-tree --prune                      # 空ディレクトリを非表示
-tree -s                           # ファイルサイズ表示
-tree -D                           # 更新日時表示
-tree -h                           # 人間が読みやすいサイズ表示
-tree -f                           # フルパス表示
-tree --du                         # ディレクトリの合計サイズ
+tree                              # show tree of current directory
+tree -L 2                         # display up to 2 levels
+tree -d                           # directories only
+tree -a                           # include hidden files
+tree -I "node_modules|.git"       # exclude specific directories
+tree -P "*.py"                    # Python files only
+tree --prune                      # hide empty directories
+tree -s                           # show file sizes
+tree -D                           # show modification times
+tree -h                           # human-readable sizes
+tree -f                           # show full paths
+tree --du                         # show total size of directories
 
-# 実務例: プロジェクト構造の文書化
+# Real-world example: document project structure
 tree -L 3 -I "node_modules|.git|__pycache__|.next" > project_structure.txt
 ```
 
-### 5.3 ファイル検索の自動化スクリプト
+### 5.3 File Search Automation Scripts
 
 ```bash
 #!/bin/bash
-# find_large_files.sh - 指定サイズ以上のファイルを検索してレポート
+# find_large_files.sh - search for files above a specified size and generate a report
 
 set -euo pipefail
 
@@ -764,10 +764,10 @@ SEARCH_DIR="${1:-.}"
 MIN_SIZE="${2:-100M}"
 OUTPUT_FILE="/tmp/large_files_report_$(date +%Y%m%d_%H%M%S).txt"
 
-echo "=== 大容量ファイルレポート ===" > "$OUTPUT_FILE"
-echo "検索ディレクトリ: $SEARCH_DIR" >> "$OUTPUT_FILE"
-echo "最小サイズ: $MIN_SIZE" >> "$OUTPUT_FILE"
-echo "実行日時: $(date)" >> "$OUTPUT_FILE"
+echo "=== Large File Report ===" > "$OUTPUT_FILE"
+echo "Search directory: $SEARCH_DIR" >> "$OUTPUT_FILE"
+echo "Minimum size: $MIN_SIZE" >> "$OUTPUT_FILE"
+echo "Run time: $(date)" >> "$OUTPUT_FILE"
 echo "---" >> "$OUTPUT_FILE"
 
 find "$SEARCH_DIR" -type f -size +"$MIN_SIZE" -printf "%s\t%p\n" 2>/dev/null \
@@ -779,24 +779,24 @@ find "$SEARCH_DIR" -type f -size +"$MIN_SIZE" -printf "%s\t%p\n" 2>/dev/null \
 
 total=$(grep -c "^" "$OUTPUT_FILE" 2>/dev/null || echo "0")
 echo "---" >> "$OUTPUT_FILE"
-echo "合計: $((total - 5)) ファイル" >> "$OUTPUT_FILE"
+echo "Total: $((total - 5)) files" >> "$OUTPUT_FILE"
 
-echo "レポート出力先: $OUTPUT_FILE"
+echo "Report output: $OUTPUT_FILE"
 cat "$OUTPUT_FILE"
 ```
 
 ```bash
 #!/bin/bash
-# find_duplicates.sh - 重複ファイルの検出
+# find_duplicates.sh - detect duplicate files
 
 set -euo pipefail
 
 SEARCH_DIR="${1:-.}"
-echo "=== 重複ファイル検出 ==="
-echo "検索ディレクトリ: $SEARCH_DIR"
+echo "=== Duplicate File Detection ==="
+echo "Search directory: $SEARCH_DIR"
 echo ""
 
-# 同じサイズのファイルをグループ化し、MD5で比較
+# Group files by size, then compare by MD5
 find "$SEARCH_DIR" -type f ! -empty -printf "%s %p\n" 2>/dev/null \
   | sort -n \
   | uniq -w 10 -D \
@@ -817,19 +817,19 @@ find "$SEARCH_DIR" -type f ! -empty -printf "%s %p\n" 2>/dev/null \
 
 ```bash
 #!/bin/bash
-# cleanup_project.sh - プロジェクトの不要ファイル掃除
+# cleanup_project.sh - clean up unnecessary files in a project
 
 set -euo pipefail
 
 PROJECT_DIR="${1:-.}"
-DRY_RUN="${2:-true}"  # デフォルトはドライラン
+DRY_RUN="${2:-true}"  # dry run by default
 
-echo "=== プロジェクトクリーンアップ ==="
-echo "対象: $PROJECT_DIR"
-echo "ドライラン: $DRY_RUN"
+echo "=== Project Cleanup ==="
+echo "Target: $PROJECT_DIR"
+echo "Dry run: $DRY_RUN"
 echo ""
 
-# 削除対象パターン
+# Patterns to delete
 PATTERNS=(
     "*.pyc"
     "__pycache__"
@@ -853,126 +853,126 @@ for pattern in "${PATTERNS[@]}"; do
         total_count=$((total_count + count))
         total_size=$((total_size + size))
 
-        echo "[$pattern] $count ファイル ($((size / 1024)) KB)"
+        echo "[$pattern] $count files ($((size / 1024)) KB)"
 
         if [ "$DRY_RUN" = "false" ]; then
             echo "$files" | xargs rm -rf
-            echo "  → 削除完了"
+            echo "  → Deleted"
         fi
     fi
 done
 
 echo ""
-echo "合計: $total_count ファイル ($((total_size / 1024)) KB)"
+echo "Total: $total_count files ($((total_size / 1024)) KB)"
 if [ "$DRY_RUN" = "true" ]; then
-    echo "※ ドライランモードです。実際に削除するには第2引数に false を指定してください。"
+    echo "* This is a dry run. To actually delete, pass false as the second argument."
 fi
 ```
 
 ---
 
-## 6. トラブルシューティング
+## 6. Troubleshooting
 
-### 6.1 find でよくあるエラーと対処法
+### 6.1 Common Errors in find and How to Handle Them
 
 ```bash
-# エラー: "Permission denied"
-# 対処: 標準エラーを抑制
+# Error: "Permission denied"
+# Fix: suppress standard error
 find / -name "*.conf" 2>/dev/null
 find / -name "*.conf" 2>&1 | grep -v "Permission denied"
 
-# エラー: "Argument list too long"（ファイルが多すぎる場合）
-# 対処: xargs を使う
+# Error: "Argument list too long" (too many files)
+# Fix: use xargs
 find . -name "*.log" -print0 | xargs -0 rm          # OK
-# find . -name "*.log" -exec rm {} +                 # これも OK
-# rm $(find . -name "*.log")                         # NG: 引数が多すぎる
+# find . -name "*.log" -exec rm {} +                 # also OK
+# rm $(find . -name "*.log")                         # NG: too many arguments
 
-# エラー: ファイル名にスペースや特殊文字が含まれる
-# 対処: -print0 と xargs -0 を使う
+# Error: filenames contain spaces or special characters
+# Fix: use -print0 and xargs -0
 find . -name "*.txt" -print0 | xargs -0 grep "keyword"
 
-# エラー: -prune が期待通り動作しない
-# 対処: -prune は -o (OR) と組み合わせる
-find . -name ".git" -prune -o -type f -print        # 正しい
-# find . -name ".git" -prune -type f -print          # 誤り
+# Error: -prune does not work as expected
+# Fix: combine -prune with -o (OR)
+find . -name ".git" -prune -o -type f -print        # correct
+# find . -name ".git" -prune -type f -print          # incorrect
 
-# エラー: macOS の find で GNU find のオプションが使えない
-# 対処: GNU find をインストール
+# Error: GNU find options not available on macOS
+# Fix: install GNU find
 # brew install findutils
-# gfind を使うか、PATH に追加
-# macOS find は BSD find であり、-printf 等が使えない
-gfind . -type f -printf "%T+ %p\n"                   # GNU find を使用
+# use gfind or add to PATH
+# macOS find is BSD find and does not support -printf, etc.
+gfind . -type f -printf "%T+ %p\n"                   # use GNU find
 
-# -delete が最初の条件として使われた場合の警告
-# 対処: 必ず条件を先に指定
-find . -name "*.tmp" -delete                          # 正しい
-# find . -delete -name "*.tmp"                        # 危険！全ファイル削除の恐れ
+# Warning when -delete is used as the first condition
+# Fix: always specify conditions before -delete
+find . -name "*.tmp" -delete                          # correct
+# find . -delete -name "*.tmp"                        # dangerous! may delete all files
 ```
 
-### 6.2 検索のデバッグ
+### 6.2 Debugging Searches
 
 ```bash
-# find の動作を確認するためのテクニック
+# Techniques for verifying find behavior
 
-# 1. まず -print で結果を確認してから -delete / -exec
-find . -name "*.tmp" -print            # まず確認
-find . -name "*.tmp" -delete           # 確認後に削除
+# 1. Check with -print before using -delete / -exec
+find . -name "*.tmp" -print            # check first
+find . -name "*.tmp" -delete           # delete after confirming
 
-# 2. -ok で対話的に確認
-find . -name "*.bak" -ok rm {} \;      # 1つずつ確認
+# 2. Use -ok for interactive confirmation
+find . -name "*.bak" -ok rm {} \;      # confirm one by one
 
-# 3. echo で実行されるコマンドを確認
-find . -name "*.sh" -exec echo chmod +x {} \;   # 実際には実行しない
+# 3. Use echo to verify the command that will be run
+find . -name "*.sh" -exec echo chmod +x {} \;   # does not actually execute
 
-# 4. 件数を確認
-find . -name "*.log" | wc -l           # マッチ件数を確認
+# 4. Check the count
+find . -name "*.log" | wc -l           # check number of matches
 
-# 5. fd の --list-file-types でサポートされるファイルタイプ確認
-fd --list-file-types                   # fd が認識するファイルタイプ一覧
+# 5. Use fd's --list-file-types to see supported file types
+fd --list-file-types                   # list file types recognized by fd
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -981,26 +981,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1008,7 +1008,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1019,14 +1019,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1034,7 +1034,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1042,44 +1042,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1088,7 +1088,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1103,76 +1103,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to prioritize | When it can be compromised |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → Go to 2                     │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How frequent are deployments?               │
+│    ├─ Once a week or less → Monolith + modules  │
+│    └─ Daily / multiple times → Go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are teams?                  │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term cost**
+- A quick short-term solution can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies allows the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is more intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1182,17 +1182,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1200,7 +1200,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1208,15 +1208,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1224,53 +1224,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum viable set of features
+- Automated tests only for critical paths
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally overhauling a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Create Characterization Tests first if existing tests are absent
+- Coexist old and new systems via an API gateway
+- Perform data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Analyze current state, map dependencies | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Start migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries using Domain-Driven Design
+- Assign ownership per team
+- Manage shared libraries using Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# Define API contracts between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1283,20 +1283,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1305,7 +1305,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1326,104 +1326,105 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Technique | Effect | Implementation Cost | Applicable When |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-bound processing |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound processing |
 
 ---
 
-## チーム開発での活用
+## Team Development Practices
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to verify in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Naming conventions are consistent
+- [ ] Error handling is appropriate
+- [ ] Test coverage is sufficient
+- [ ] No negative performance impact
+- [ ] No security issues
+- [ ] Documentation is updated
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Audience | Effect |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Whole team | Horizontal knowledge sharing |
+| ADR (design records) | Per decision | Future members | Transparency of decisions |
+| Retrospectives | Every 2 weeks | Whole team | Continuous improvement |
+| Mob programming | Monthly | Key design | Building consensus |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan│ Act │
+    │ ned │ imm │
+    │     │ edia│
+    │     │ tely│
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Log │ Next│
+    │ only│ Spr │
+    │     │ int │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Frequency  High Frequency
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
 |--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication failures | High | Multi-factor auth, strong session management | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Misconfiguration | Medium | Security headers, principle of least privilege | Config scanning |
+| Insufficient logging | Medium | Structured logs, audit trails | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1436,125 +1437,125 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is configured appropriately
+- [ ] Vulnerability scanning of dependencies has been performed
+- [ ] Error messages do not contain internal information
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| ツール | 特徴 | 用途 | 速度 |
+| Tool | Features | Use Case | Speed |
 |--------|------|------|------|
-| find | 標準搭載、高機能、POSIX互換 | 複雑な条件検索、スクリプト | 中 |
-| fd | 高速、簡潔、.gitignore尊重 | 日常的な検索、開発作業 | 高 |
-| locate | データベース検索 | ファイル名の素早い検索 | 最速 |
-| which | PATH 検索 | コマンドの場所確認 | 即時 |
-| whereis | バイナリ+man 検索 | コマンド関連ファイル確認 | 即時 |
-| type | bash 組み込み | コマンドの種類確認 | 即時 |
-| fzf | ファジー検索 | 対話的なファイル選択 | 即時 |
-| tree | ツリー表示 | ディレクトリ構造の可視化 | 中 |
+| find | Bundled, feature-rich, POSIX compatible | Complex condition searches, scripts | Medium |
+| fd | Fast, concise, respects .gitignore | Everyday searches, development work | High |
+| locate | Database search | Quick file name lookup | Fastest |
+| which | PATH search | Check location of a command | Instant |
+| whereis | Binary + man search | Check command-related files | Instant |
+| type | bash built-in | Check type of a command | Instant |
+| fzf | Fuzzy search | Interactive file selection | Instant |
+| tree | Tree display | Visualize directory structure | Medium |
 
-### 選択フローチャート
+### Selection Flowchart
 
 ```
-ファイルを探したい
+I want to find a file
   │
-  ├─ ファイル名だけ分かっている → locate（高速）
+  ├─ Only know the filename → locate (fast)
   │
-  ├─ 開発プロジェクト内の検索
-  │    ├─ シンプルな検索 → fd（.gitignore 尊重、簡潔）
-  │    └─ 複雑な条件    → find（論理演算子、-exec）
+  ├─ Searching inside a development project
+  │    ├─ Simple search → fd (respects .gitignore, concise)
+  │    └─ Complex conditions → find (logical operators, -exec)
   │
-  ├─ システム全体の検索
-  │    ├─ 条件が名前だけ → locate
-  │    └─ サイズ/日時/権限も → find
+  ├─ Searching the entire system
+  │    ├─ Condition is name only → locate
+  │    └─ Also need size/time/permissions → find
   │
-  ├─ コマンドの場所 → which / type
+  ├─ Location of a command → which / type
   │
-  └─ 対話的に選びたい → find/fd | fzf
+  └─ Want to select interactively → find/fd | fzf
 ```
 
 ---
 
-## 13. find の高度なセキュリティ活用
+## 13. Advanced Security Uses of find
 
-### 13.1 ファイルシステムセキュリティ監査
+### 13.1 Filesystem Security Auditing
 
 ```bash
-# SUID/SGID ビットが設定されたファイルの検出（権限昇格のリスク）
+# Detect files with SUID/SGID bits set (privilege escalation risk)
 find / -type f \( -perm -4000 -o -perm -2000 \) -ls 2>/dev/null
 
-# ワールドライタブルなファイルの検出
+# Detect world-writable files
 find / -type f -perm -0002 -not -path "/proc/*" -not -path "/sys/*" 2>/dev/null
 
-# 所有者のないファイル（ユーザーやグループが削除されている）
+# Files with no owner (user or group has been deleted)
 find / -nouser -o -nogroup 2>/dev/null | head -50
 
-# 最近変更された設定ファイルの確認（侵入の痕跡）
+# Check recently modified config files (signs of intrusion)
 find /etc -type f -mtime -1 -ls 2>/dev/null
 
-# 隠しファイルの検出（ドットファイル、不審なファイル）
+# Detect hidden files (dot files, suspicious files)
 find / -name ".*" -type f -not -path "/home/*" -not -path "/root/*" 2>/dev/null | head -50
 
-# 実行可能ファイルで最近作成されたもの
+# Recently created executable files
 find /tmp /var/tmp /dev/shm -type f -executable -newer /etc/hostname 2>/dev/null
 
-# 不審な cron ジョブの検出
+# Detect suspicious cron jobs
 find /etc/cron* /var/spool/cron -type f -ls 2>/dev/null
 find / -name "*.cron" -o -name "crontab" 2>/dev/null
 
-# 大きすぎるログファイルの検出（DoS対策）
+# Detect oversized log files (DoS prevention)
 find /var/log -type f -size +100M -exec ls -lh {} \; 2>/dev/null
 ```
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
 ---
 
-## 参考文献
+## References
 1. Barrett, D. "Efficient Linux at the Command Line." Ch.4, O'Reilly, 2022.
 2. Shotts, W. "The Linux Command Line." 2nd Ed, Ch.17-18, 2019.
 3. GNU Findutils Manual. https://www.gnu.org/software/findutils/manual/
