@@ -1,320 +1,320 @@
-# テキスト処理言語（awk）
+# Text Processing Language (awk)
 
-> awk は「構造化テキストを列単位で処理する」ミニプログラミング言語。
+> awk is a mini programming language for "processing structured text column by column."
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] awk の基本構文を理解する
-- [ ] フィールド操作と集計ができる
-- [ ] 組み込み変数と関数を使いこなせる
-- [ ] 条件分岐・ループ・配列を活用できる
-- [ ] 実務でのログ分析・データ加工パターンを身につける
-- [ ] gawk（GNU awk）の拡張機能を理解する
+- [ ] Understand the basic syntax of awk
+- [ ] Perform field manipulation and aggregation
+- [ ] Use built-in variables and functions effectively
+- [ ] Apply conditionals, loops, and arrays
+- [ ] Learn log analysis and data transformation patterns for real-world use
+- [ ] Understand the extended features of gawk (GNU awk)
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ストリームエディタ（sed）](./02-sed.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Stream Editor (sed)](./02-sed.md)
 
 ---
 
-## 1. awk の基本
+## 1. awk Basics
 
-### 1.1 基本構文と動作原理
+### 1.1 Basic Syntax and Operating Principles
 
 ```bash
-# 基本構文: awk 'パターン { アクション }' [ファイル...]
+# Basic syntax: awk 'pattern { action }' [file...]
 #
-# awk の動作原理:
-# 1. 入力を1行ずつ読み込む（レコード）
-# 2. レコードをフィールド（列）に分割する
-# 3. パターンに一致するレコードに対してアクションを実行する
-# 4. 次の行へ進み、1に戻る
+# How awk works:
+# 1. Read input one line at a time (records)
+# 2. Split records into fields (columns)
+# 3. Execute action on records matching the pattern
+# 4. Advance to the next line and go back to 1
 #
-# 特殊パターン:
-# BEGIN { ... }  入力処理の前に1回実行
-# END { ... }    入力処理の後に1回実行
-# パターン省略   全行に対してアクションを実行
-# アクション省略 マッチした行を表示（print $0 と同等）
+# Special patterns:
+# BEGIN { ... }  Executed once before input processing
+# END { ... }    Executed once after input processing
+# (no pattern)   Execute action on every line
+# (no action)    Print matched lines (equivalent to print $0)
 
-# 基本的な使い方
-awk '{print}' file.txt                # 全行を表示（cat と同等）
-awk '{print $0}' file.txt             # 同上（$0 = 行全体）
-awk '{print $1}' file.txt             # 1列目を表示
-awk '{print $1, $3}' file.txt         # 1列目と3列目を表示
+# Basic usage
+awk '{print}' file.txt                # Print all lines (equivalent to cat)
+awk '{print $0}' file.txt             # Same as above ($0 = entire line)
+awk '{print $1}' file.txt             # Print the 1st column
+awk '{print $1, $3}' file.txt         # Print the 1st and 3rd columns
 
-# パイプからの入力
+# Input from pipe
 echo "hello world" | awk '{print $2}' # → world
-ps aux | awk '{print $1, $11}'        # プロセスの所有者とコマンド
-ls -la | awk '{print $5, $9}'         # ファイルサイズと名前
+ps aux | awk '{print $1, $11}'        # Process owner and command
+ls -la | awk '{print $5, $9}'         # File size and name
 ```
 
-### 1.2 フィールド（列）の基本
+### 1.2 Field (Column) Basics
 
 ```bash
-# デフォルトの区切り文字は連続する空白（スペース/タブ）
-# $0: 行全体
-# $1: 1番目のフィールド（列）
-# $2: 2番目のフィールド
-# $NF: 最後のフィールド
-# $(NF-1): 最後から2番目のフィールド
+# Default delimiter is consecutive whitespace (spaces/tabs)
+# $0: entire line
+# $1: 1st field (column)
+# $2: 2nd field
+# $NF: last field
+# $(NF-1): second-to-last field
 
-awk '{print $1}' file.txt              # 1列目を表示
-awk '{print $2}' file.txt              # 2列目を表示
-awk '{print $NF}' file.txt             # 最終列を表示
-awk '{print $(NF-1)}' file.txt         # 最後から2番目の列
-awk '{print NR, $0}' file.txt          # 行番号+全体を表示
-awk '{print NR": "$0}' file.txt        # 行番号: 行内容
+awk '{print $1}' file.txt              # Print column 1
+awk '{print $2}' file.txt              # Print column 2
+awk '{print $NF}' file.txt             # Print last column
+awk '{print $(NF-1)}' file.txt         # Print second-to-last column
+awk '{print NR, $0}' file.txt          # Print line number + entire line
+awk '{print NR": "$0}' file.txt        # Line number: line content
 
-# フィールドの計算
-awk '{print $1, $2, $1+$2}' data.txt   # 1列目、2列目、合計
-awk '{print $1, $2*100}' data.txt      # 2列目を100倍
+# Field arithmetic
+awk '{print $1, $2, $1+$2}' data.txt   # Column 1, column 2, sum
+awk '{print $1, $2*100}' data.txt      # Multiply column 2 by 100
 
-# フィールドの連結
-awk '{print $1 "-" $2}' file.txt       # ハイフンで連結
-awk '{print $1 "," $2 "," $3}' file.txt  # カンマで連結
+# Field concatenation
+awk '{print $1 "-" $2}' file.txt       # Concatenate with hyphen
+awk '{print $1 "," $2 "," $3}' file.txt  # Concatenate with commas
 
-# フィールド数の確認
-awk '{print NF}' file.txt              # 各行のフィールド数
-awk 'NF > 0' file.txt                  # 空行以外を表示（フィールド数 > 0）
-awk 'NF == 5' file.txt                 # ちょうど5列の行のみ
+# Check number of fields
+awk '{print NF}' file.txt              # Number of fields per line
+awk 'NF > 0' file.txt                  # Print non-empty lines (field count > 0)
+awk 'NF == 5' file.txt                 # Only lines with exactly 5 columns
 ```
 
-### 1.3 区切り文字の指定（-F / FS）
+### 1.3 Specifying Delimiters (-F / FS)
 
 ```bash
-# -F オプションで入力区切り文字を指定
-awk -F',' '{print $2}' data.csv        # CSV の2列目
-awk -F':' '{print $1}' /etc/passwd     # ユーザー名一覧
-awk -F'\t' '{print $1}' data.tsv       # TSV の1列目
-awk -F'|' '{print $2}' data.txt        # パイプ区切り
-awk -F'/' '{print $NF}' paths.txt      # パスの最後の部分
+# Use the -F option to specify the input field delimiter
+awk -F',' '{print $2}' data.csv        # 2nd column of CSV
+awk -F':' '{print $1}' /etc/passwd     # List of usernames
+awk -F'\t' '{print $1}' data.tsv       # 1st column of TSV
+awk -F'|' '{print $2}' data.txt        # Pipe-delimited
+awk -F'/' '{print $NF}' paths.txt      # Last component of a path
 
-# 正規表現を区切り文字に
-awk -F'[,;]' '{print $2}' file.txt     # カンマまたはセミコロン
-awk -F'[=:]' '{print $1, $2}' config.txt   # = または : で分割
+# Regular expression as delimiter
+awk -F'[,;]' '{print $2}' file.txt     # Comma or semicolon
+awk -F'[=:]' '{print $1, $2}' config.txt   # Split on = or :
 
-# BEGIN ブロックで FS を設定
+# Set FS in BEGIN block
 awk 'BEGIN{FS=","} {print $2}' data.csv
 awk 'BEGIN{FS=":"} {print $1, $NF}' /etc/passwd
 
-# 出力区切り文字（OFS）の指定
+# Specify output delimiter (OFS)
 awk -F',' 'BEGIN{OFS="\t"} {print $1, $2, $3}' data.csv
-# → CSV をTSVに変換
+# → Convert CSV to TSV
 
 awk -F':' 'BEGIN{OFS=","} {print $1, $3, $6}' /etc/passwd
-# → ユーザー名、UID、ホームディレクトリをCSVで出力
+# → Output username, UID, home directory as CSV
 
-# 複数文字の区切り
-awk -F'::' '{print $2}' file.txt       # :: で分割
-awk -F' -> ' '{print $2}' file.txt     # " -> " で分割
+# Multi-character delimiters
+awk -F'::' '{print $2}' file.txt       # Split on ::
+awk -F' -> ' '{print $2}' file.txt     # Split on " -> "
 ```
 
 ---
 
-## 2. パターンマッチング
+## 2. Pattern Matching
 
-### 2.1 条件式によるフィルタリング
+### 2.1 Filtering with Conditional Expressions
 
 ```bash
-# 比較演算子
-awk '$3 > 100' data.txt                # 3列目が100より大きい行
-awk '$3 >= 100' data.txt               # 3列目が100以上の行
-awk '$3 < 50' data.txt                 # 3列目が50未満の行
-awk '$3 == 100' data.txt               # 3列目がちょうど100の行
-awk '$3 != 0' data.txt                 # 3列目が0でない行
-awk '$1 == "admin"' users.txt          # 1列目が "admin" の行
-awk '$1 != "root"' /etc/passwd         # 1列目が "root" でない行
+# Comparison operators
+awk '$3 > 100' data.txt                # Lines where column 3 > 100
+awk '$3 >= 100' data.txt               # Lines where column 3 >= 100
+awk '$3 < 50' data.txt                 # Lines where column 3 < 50
+awk '$3 == 100' data.txt               # Lines where column 3 == 100
+awk '$3 != 0' data.txt                 # Lines where column 3 != 0
+awk '$1 == "admin"' users.txt          # Lines where column 1 is "admin"
+awk '$1 != "root"' /etc/passwd         # Lines where column 1 is not "root"
 
-# 文字列比較
-awk '$1 > "M"' file.txt                # 1列目がM以降（辞書順）
-awk '$2 == ""' file.txt                # 2列目が空の行
+# String comparison
+awk '$1 > "M"' file.txt                # Column 1 is after M (lexicographic order)
+awk '$2 == ""' file.txt                # Lines where column 2 is empty
 
-# 行番号による選択
-awk 'NR >= 10 && NR <= 20' file.txt    # 10〜20行目
-awk 'NR == 1' file.txt                 # 1行目のみ
-awk 'NR > 1' file.txt                  # 2行目以降（ヘッダースキップ）
-awk 'NR % 2 == 0' file.txt             # 偶数行のみ
-awk 'NR % 2 == 1' file.txt             # 奇数行のみ
+# Selection by line number
+awk 'NR >= 10 && NR <= 20' file.txt    # Lines 10 to 20
+awk 'NR == 1' file.txt                 # First line only
+awk 'NR > 1' file.txt                  # From line 2 onwards (skip header)
+awk 'NR % 2 == 0' file.txt             # Even lines only
+awk 'NR % 2 == 1' file.txt             # Odd lines only
 
-# 論理演算子
-awk '$3 > 50 && $3 < 100' data.txt     # 50 < 3列目 < 100
+# Logical operators
+awk '$3 > 50 && $3 < 100' data.txt     # 50 < column 3 < 100
 awk '$1 == "error" || $1 == "fatal"' log.txt  # error OR fatal
-awk '!($3 > 100)' data.txt             # 3列目が100以下（NOT）
+awk '!($3 > 100)' data.txt             # Column 3 <= 100 (NOT)
 ```
 
-### 2.2 正規表現によるフィルタリング
+### 2.2 Filtering with Regular Expressions
 
 ```bash
-# ~ : 正規表現マッチ
-# !~ : 正規表現非マッチ
+# ~ : regex match
+# !~ : regex non-match
 
-awk '/error/' logfile.txt              # error を含む行（grep と同等）
-awk '/^#/' config.txt                  # # で始まる行
-awk '/error|warning/' logfile.txt      # error または warning を含む行
-awk '!/^#/' config.txt                 # # で始まらない行
-awk '/^$/' file.txt                    # 空行のみ
-awk '!/^$/' file.txt                   # 空行以外
+awk '/error/' logfile.txt              # Lines containing "error" (equivalent to grep)
+awk '/^#/' config.txt                  # Lines starting with #
+awk '/error|warning/' logfile.txt      # Lines containing "error" or "warning"
+awk '!/^#/' config.txt                 # Lines not starting with #
+awk '/^$/' file.txt                    # Empty lines only
+awk '!/^$/' file.txt                   # Non-empty lines
 
-# フィールドに対する正規表現
-awk '$1 ~ /^[0-9]+$/' file.txt         # 1列目が数字のみの行
-awk '$2 ~ /error/' logfile.txt         # 2列目に error を含む行
-awk '$NF !~ /\.log$/' file.txt         # 最終列が .log で終わらない行
-awk '$3 ~ /^[A-Z]/' file.txt           # 3列目が大文字で始まる行
+# Regular expressions on fields
+awk '$1 ~ /^[0-9]+$/' file.txt         # Lines where column 1 is all digits
+awk '$2 ~ /error/' logfile.txt         # Lines where column 2 contains "error"
+awk '$NF !~ /\.log$/' file.txt         # Lines where last column doesn't end in .log
+awk '$3 ~ /^[A-Z]/' file.txt           # Lines where column 3 starts with uppercase
 
-# 範囲パターン（sed と同様の開始/終了パターン）
-awk '/BEGIN/,/END/' file.txt           # BEGIN〜END の範囲の行
-awk '/^<body>/,/^<\/body>/' file.html  # <body>〜</body> の範囲
-awk 'NR==5,NR==10' file.txt            # 5〜10行目
+# Range patterns (start/end pattern, similar to sed)
+awk '/BEGIN/,/END/' file.txt           # Lines in range BEGIN to END
+awk '/^<body>/,/^<\/body>/' file.html  # Range from <body> to </body>
+awk 'NR==5,NR==10' file.txt            # Lines 5 to 10
 
-# POSIX 文字クラス
+# POSIX character classes
 ```
 
 ---
 
-## 3. 組み込み変数
+## 3. Built-in Variables
 
-### 3.1 主要な組み込み変数
+### 3.1 Key Built-in Variables
 
 ```bash
-# === レコード・フィールド関連 ===
-# $0     : 現在の行全体
-# $1〜$N : N番目のフィールド
-# NR     : 現在の行番号（全ファイル通算）
-# NF     : 現在の行のフィールド数
-# FNR    : 現在のファイル内の行番号
-# FILENAME: 現在処理中のファイル名
+# === Record / Field Related ===
+# $0     : Entire current line
+# $1~$N  : Nth field
+# NR     : Current line number (across all files)
+# NF     : Number of fields in the current line
+# FNR    : Line number within the current file
+# FILENAME: Name of the file currently being processed
 
-# === 区切り文字関連 ===
-# FS     : 入力フィールドセパレータ（デフォルト: 空白）
-# OFS    : 出力フィールドセパレータ（デフォルト: スペース）
-# RS     : 入力レコードセパレータ（デフォルト: 改行）
-# ORS    : 出力レコードセパレータ（デフォルト: 改行）
+# === Delimiter Related ===
+# FS     : Input field separator (default: whitespace)
+# OFS    : Output field separator (default: space)
+# RS     : Input record separator (default: newline)
+# ORS    : Output record separator (default: newline)
 
-# === その他 ===
-# OFMT   : 数値の出力フォーマット（デフォルト: "%.6g"）
-# RSTART : match() でマッチした開始位置
-# RLENGTH: match() でマッチした長さ
-# ARGC   : コマンドライン引数の数
-# ARGV   : コマンドライン引数の配列
+# === Other ===
+# OFMT   : Output format for numbers (default: "%.6g")
+# RSTART : Start position of match() result
+# RLENGTH: Length of match() result
+# ARGC   : Number of command-line arguments
+# ARGV   : Array of command-line arguments
 
-# 使用例
-awk '{print NR, NF, $0}' file.txt      # 行番号、列数、行内容
-awk 'END{print NR}' file.txt           # 総行数
-awk 'END{print NR " lines"}' file.txt  # 総行数（ラベル付き）
+# Usage examples
+awk '{print NR, NF, $0}' file.txt      # Line number, field count, line content
+awk 'END{print NR}' file.txt           # Total number of lines
+awk 'END{print NR " lines"}' file.txt  # Total lines with label
 
-# 複数ファイルでの NR と FNR の違い
+# Difference between NR and FNR with multiple files
 awk '{print FILENAME, FNR, NR, $0}' file1.txt file2.txt
-# FILENAME: ファイル名
-# FNR: ファイル内の行番号（ファイルごとにリセット）
-# NR: 通算行番号（リセットされない）
+# FILENAME: file name
+# FNR: line number within the file (reset per file)
+# NR: cumulative line number (not reset)
 
-# ファイルの切り替え検知
+# Detect file switches
 awk 'FNR==1{print "=== " FILENAME " ==="}; {print}' *.txt
 ```
 
-### 3.2 区切り文字のカスタマイズ
+### 3.2 Customizing Delimiters
 
 ```bash
-# 出力区切り文字の変更
+# Change the output delimiter
 awk 'BEGIN{OFS=","} {print $1, $2, $3}' file.txt
-# → 出力をカンマ区切りに
+# → Output with comma separation
 
 awk 'BEGIN{OFS="\t"} {print $1, $2}' file.txt
-# → 出力をタブ区切りに
+# → Output with tab separation
 
-# フィールドを再割り当てすると OFS が適用される
+# OFS is applied when a field is reassigned
 awk -F',' 'BEGIN{OFS="|"} {$1=$1; print}' data.csv
-# → CSV をパイプ区切りに変換
+# → Convert CSV to pipe-delimited
 
-# レコードセパレータの変更（段落モード）
+# Change record separator (paragraph mode)
 awk 'BEGIN{RS=""} {print NR, $0}' file.txt
-# → 空行で区切られた段落単位で処理
+# → Process in paragraph units separated by blank lines
 
-# 複数文字のレコードセパレータ（gawk）
+# Multi-character record separator (gawk)
 awk 'BEGIN{RS="---\n"} {print NR": "$0}' file.txt
-# → --- で区切られたブロック単位で処理
+# → Process in blocks separated by ---
 
-# 出力レコードセパレータの変更
+# Change output record separator
 awk 'BEGIN{ORS="\n\n"} {print}' file.txt
-# → 各行の後に空行を挿入
+# → Insert a blank line after each line
 
-# CSV → TSV 変換
+# CSV → TSV conversion
 awk -F',' 'BEGIN{OFS="\t"} {$1=$1; print}' data.csv > data.tsv
 
-# TSV → CSV 変換
+# TSV → CSV conversion
 awk -F'\t' 'BEGIN{OFS=","} {$1=$1; print}' data.tsv > data.csv
 ```
 
 ---
 
-## 4. 集計と計算
+## 4. Aggregation and Calculation
 
-### 4.1 合計・平均・最大・最小
+### 4.1 Sum, Average, Max, Min
 
 ```bash
-# 合計
-awk '{sum += $2} END {print "合計:", sum}' data.txt
+# Sum
+awk '{sum += $2} END {print "Sum:", sum}' data.txt
 awk -F',' '{sum += $3} END {print sum}' data.csv
 
-# 平均
-awk '{sum += $2; n++} END {print "平均:", sum/n}' data.txt
-awk '{sum += $2} END {print "平均:", sum/NR}' data.txt  # NR を使う方法
+# Average
+awk '{sum += $2; n++} END {print "Average:", sum/n}' data.txt
+awk '{sum += $2} END {print "Average:", sum/NR}' data.txt  # Using NR
 
-# 最大値
-awk 'BEGIN{max=-999999} $2>max{max=$2} END{print "最大:", max}' data.txt
+# Maximum value
+awk 'BEGIN{max=-999999} $2>max{max=$2} END{print "Max:", max}' data.txt
 awk 'NR==1{max=$2} $2>max{max=$2} END{print max}' data.txt
 
-# 最小値
-awk 'BEGIN{min=999999} $2<min{min=$2} END{print "最小:", min}' data.txt
+# Minimum value
+awk 'BEGIN{min=999999} $2<min{min=$2} END{print "Min:", min}' data.txt
 awk 'NR==1{min=$2} $2<min{min=$2} END{print min}' data.txt
 
-# 合計・平均・最大・最小をまとめて
+# Sum, average, max, and min all at once
 awk 'NR==1{min=max=$2}
      {sum+=$2; if($2>max)max=$2; if($2<min)min=$2}
-     END{printf "合計: %d\n平均: %.2f\n最大: %d\n最小: %d\n", sum, sum/NR, max, min}' data.txt
+     END{printf "Sum: %d\nAverage: %.2f\nMax: %d\nMin: %d\n", sum, sum/NR, max, min}' data.txt
 
-# 条件付き合計
+# Conditional sum
 awk '$1=="sales" {sum += $3} END {print sum}' data.txt
-# → 1列目が "sales" の行の3列目を合計
+# → Sum column 3 for rows where column 1 is "sales"
 
-# 累積和
+# Cumulative sum
 awk '{sum += $1; print sum}' data.txt
-# → 各行で累積和を表示
+# → Display cumulative sum for each line
 
-# 移動平均（直近N個）
+# Moving average (last N items)
 awk '{a[NR%5]=$1; s=0; for(i in a)s+=a[i]; print s/(NR<5?NR:5)}' data.txt
 ```
 
-### 4.2 カウントと頻度分析
+### 4.2 Counting and Frequency Analysis
 
 ```bash
-# 単純カウント
+# Simple count
 awk '{count[$1]++} END {for (k in count) print k, count[k]}' access.log
-# → 1列目（IPアドレス等）ごとの出現回数
+# → Occurrence count per column 1 value (e.g., IP address)
 
-# ソート付きカウント（awk + sort）
+# Count with sorting (awk + sort)
 awk '{count[$1]++} END {for (k in count) print count[k], k}' access.log | sort -rn
-# → 出現回数の降順
+# → In descending order by count
 
-# 特定フィールドのユニーク値カウント
+# Count unique values of a specific field
 awk '{seen[$3]=1} END {print length(seen) " unique values"}' data.txt
-# → 3列目のユニークな値の数
+# → Number of unique values in column 3
 
-# ユニーク値の一覧
-awk '!seen[$1]++' file.txt             # 1列目の重複を除去（最初の出現を保持）
-awk '!seen[$0]++' file.txt             # 行全体の重複を除去（sort | uniq と同等）
+# List of unique values
+awk '!seen[$1]++' file.txt             # Remove duplicates from column 1 (keep first occurrence)
+awk '!seen[$0]++' file.txt             # Remove duplicate lines (equivalent to sort | uniq)
 
-# グループ別の集計
+# Group aggregation
 awk '{sum[$1] += $2; count[$1]++}
      END {for (k in sum) printf "%s: total=%d, avg=%.2f\n", k, sum[k], sum[k]/count[k]}' data.txt
-# → 1列目のカテゴリごとに合計と平均
+# → Total and average per category in column 1
 
-# ヒストグラム風の出力
+# Histogram-style output
 awk '{count[$1]++}
      END {for (k in count) {
          printf "%-20s ", k
@@ -322,112 +322,112 @@ awk '{count[$1]++}
          printf " (%d)\n", count[k]
      }}' data.txt
 
-# クロス集計（2つのフィールドの組み合わせ）
+# Cross-tabulation (combination of two fields)
 awk '{count[$1","$2]++}
      END {for (k in count) print k, count[k]}' data.txt | sort
 ```
 
-### 4.3 統計計算
+### 4.3 Statistical Calculations
 
 ```bash
-# 標準偏差
+# Standard deviation
 awk '{sum+=$1; sumsq+=$1*$1}
      END{mean=sum/NR; variance=sumsq/NR-mean*mean;
          printf "Mean: %.2f\nStdDev: %.2f\n", mean, sqrt(variance)}' data.txt
 
-# パーセンタイル（簡易版 - ソート済みデータ）
+# Percentiles (simple version - sorted data)
 sort -n data.txt | awk '{a[NR]=$1}
     END{print "25th:", a[int(NR*0.25)];
         print "50th:", a[int(NR*0.50)];
         print "75th:", a[int(NR*0.75)];
         print "90th:", a[int(NR*0.90)]}'
 
-# 度数分布（ビン幅10）
+# Frequency distribution (bin width 10)
 awk '{bin=int($1/10)*10; count[bin]++}
      END{for(b in count) printf "%3d-%3d: %d\n", b, b+9, count[b]}' data.txt | sort -n
 
-# 百分率の計算
+# Percentage calculation
 awk '{count[$1]++; total++}
      END{for(k in count) printf "%-15s %5d (%5.1f%%)\n", k, count[k], count[k]*100/total}' data.txt
 ```
 
 ---
 
-## 5. 出力フォーマット
+## 5. Output Formatting
 
-### 5.1 print と printf
+### 5.1 print and printf
 
 ```bash
-# print: 簡単な出力（OFS で区切り、ORS で改行）
-awk '{print $1, $2}' file.txt          # フィールドをOFSで区切って出力
-awk '{print $1 $2}' file.txt           # フィールドを連結して出力（区切りなし）
-awk '{print $1 " - " $2}' file.txt     # 文字列で連結
+# print: simple output (separated by OFS, terminated by ORS)
+awk '{print $1, $2}' file.txt          # Output fields separated by OFS
+awk '{print $1 $2}' file.txt           # Concatenate fields (no separator)
+awk '{print $1 " - " $2}' file.txt     # Concatenate with string
 
-# printf: C 言語スタイルのフォーマット出力（改行は自動付加されない）
-awk '{printf "%s\n", $1}' file.txt                    # 文字列
-awk '{printf "%d\n", $1}' file.txt                    # 整数
-awk '{printf "%.2f\n", $1}' file.txt                  # 小数2桁
-awk '{printf "%10d\n", $1}' file.txt                  # 右寄せ10桁
-awk '{printf "%-10s %5d\n", $1, $2}' file.txt         # 左寄せ10桁、右寄せ5桁
-awk '{printf "%05d\n", $1}' file.txt                  # ゼロ埋め5桁
-awk '{printf "%-20s %10.2f\n", $1, $2}' data.txt      # 表形式
+# printf: C-style formatted output (newline not added automatically)
+awk '{printf "%s\n", $1}' file.txt                    # String
+awk '{printf "%d\n", $1}' file.txt                    # Integer
+awk '{printf "%.2f\n", $1}' file.txt                  # 2 decimal places
+awk '{printf "%10d\n", $1}' file.txt                  # Right-aligned 10 chars
+awk '{printf "%-10s %5d\n", $1, $2}' file.txt         # Left-aligned 10 chars, right-aligned 5 chars
+awk '{printf "%05d\n", $1}' file.txt                  # Zero-padded 5 digits
+awk '{printf "%-20s %10.2f\n", $1, $2}' data.txt      # Tabular format
 
-# printf のフォーマット指定子
-# %s   : 文字列
-# %d   : 10進整数
-# %f   : 浮動小数点数
-# %e   : 指数表記
-# %g   : %f または %e のコンパクトな方
-# %x   : 16進数
-# %o   : 8進数
-# %c   : 文字（ASCII値から）
-# %%   : リテラルの %
-# %10s : 右寄せ10桁
-# %-10s: 左寄せ10桁
-# %05d : ゼロ埋め5桁
-# %.2f : 小数点以下2桁
+# printf format specifiers
+# %s   : String
+# %d   : Decimal integer
+# %f   : Floating point
+# %e   : Scientific notation
+# %g   : Compact form of %f or %e
+# %x   : Hexadecimal
+# %o   : Octal
+# %c   : Character (from ASCII value)
+# %%   : Literal %
+# %10s : Right-aligned 10 chars
+# %-10s: Left-aligned 10 chars
+# %05d : Zero-padded 5 digits
+# %.2f : 2 decimal places
 
-# テーブル形式の出力
+# Table-formatted output
 awk 'BEGIN{printf "%-15s %10s %10s\n", "Name", "Score", "Grade";
            printf "%-15s %10s %10s\n", "----", "-----", "-----"}
      {printf "%-15s %10d %10s\n", $1, $2, $3}' scores.txt
 
-# CSV 形式の出力
+# CSV-formatted output
 awk '{printf "\"%s\",\"%s\",%d\n", $1, $2, $3}' data.txt
 
-# ヘッダー付きレポート
+# Report with header
 awk 'BEGIN{print "====== Report ======"}
      {printf "  %-20s: %s\n", $1, $2}
      END{print "==== End Report ===="}' data.txt
 ```
 
-### 5.2 出力リダイレクト
+### 5.2 Output Redirection
 
 ```bash
-# awk 内でのファイル出力
-awk '{print $0 > "output.txt"}' input.txt          # ファイルに書き出し
-awk '{print $0 >> "output.txt"}' input.txt         # ファイルに追記
-awk '{print $0 | "sort"}' input.txt                # コマンドにパイプ
+# File output within awk
+awk '{print $0 > "output.txt"}' input.txt          # Write to file
+awk '{print $0 >> "output.txt"}' input.txt         # Append to file
+awk '{print $0 | "sort"}' input.txt                # Pipe to command
 
-# 条件によるファイル分割
+# Split into files by condition
 awk '{print > $1".txt"}' data.txt
-# → 1列目の値をファイル名として各行を振り分け
+# → Write each line to a file named after column 1
 
-# ログレベルによるファイル分割
+# Split into files by log level
 awk '/ERROR/{print > "error.log"} /WARN/{print > "warn.log"} /INFO/{print > "info.log"}' app.log
 
-# ファイルの閉じ方（大量のファイルを開く場合）
+# Closing files (when opening many files)
 awk '{filename = $1".txt"; print >> filename; close(filename)}' data.txt
 ```
 
 ---
 
-## 6. 条件分岐とループ
+## 6. Conditionals and Loops
 
-### 6.1 if-else 文
+### 6.1 if-else Statements
 
 ```bash
-# 基本的な if-else
+# Basic if-else
 awk '{
     if ($3 >= 90) grade = "A"
     else if ($3 >= 80) grade = "B"
@@ -437,78 +437,78 @@ awk '{
     print $1, $3, grade
 }' scores.txt
 
-# 三項演算子
+# Ternary operator
 awk '{print $1, ($2 > 0 ? "positive" : "non-positive")}' data.txt
 awk '{status = ($3 >= 200 && $3 < 300) ? "OK" : "ERROR"; print $0, status}' access.log
 
-# 条件付き出力
+# Conditional output
 awk '{
     if ($1 == "ERROR") {
-        printf "\033[31m%s\033[0m\n", $0   # 赤色で表示
+        printf "\033[31m%s\033[0m\n", $0   # Display in red
     } else if ($1 == "WARN") {
-        printf "\033[33m%s\033[0m\n", $0   # 黄色で表示
+        printf "\033[33m%s\033[0m\n", $0   # Display in yellow
     } else {
         print $0
     }
 }' logfile.txt
 ```
 
-### 6.2 ループ処理
+### 6.2 Loop Processing
 
 ```bash
-# for ループ
-awk '{for (i=1; i<=NF; i++) print $i}' file.txt   # 全フィールドを1行ずつ表示
-awk '{for (i=NF; i>=1; i--) printf "%s ", $i; printf "\n"}' file.txt  # フィールドを逆順
+# for loop
+awk '{for (i=1; i<=NF; i++) print $i}' file.txt   # Print all fields one per line
+awk '{for (i=NF; i>=1; i--) printf "%s ", $i; printf "\n"}' file.txt  # Fields in reverse order
 
-# while ループ
+# while loop
 awk '{i=1; while(i<=NF) {print $i; i++}}' file.txt
 
-# do-while ループ
+# do-while loop
 awk '{i=1; do {print $i; i++} while(i<=NF)}' file.txt
 
-# 配列の for-in ループ
+# for-in loop over arrays
 awk '{count[$1]++} END {for (key in count) print key, count[key]}' data.txt
 
-# フィールドの結合（特定のフィールド以降を全て結合）
+# Join fields (concatenate all fields from a certain column onwards)
 awk '{result=""; for(i=3;i<=NF;i++) result=result" "$i; print $1, $2, result}' file.txt
 
-# 行の反転（フィールド順を逆にする）
+# Reverse field order
 awk '{for(i=NF;i>0;i--) printf "%s%s", $i, (i==1?"\n":OFS)}' file.txt
 
-# 九九表の生成
+# Generate multiplication table
 awk 'BEGIN{for(i=1;i<=9;i++){for(j=1;j<=9;j++)printf "%3d",i*j;print""}}'
 ```
 
 ---
 
-## 7. 連想配列（Associative Arrays）
+## 7. Associative Arrays
 
-### 7.1 基本的な配列操作
+### 7.1 Basic Array Operations
 
 ```bash
-# awk の配列は全て連想配列（ハッシュマップ）
-# インデックスは文字列（数値も文字列に変換される）
+# All arrays in awk are associative arrays (hash maps)
+# Indices are strings (numbers are also converted to strings)
 
-# 基本的なカウント
+# Basic counting
 awk '{count[$1]++}
      END {for (k in count) print k, count[k]}' file.txt
 
-# 配列の存在チェック
+# Check for array key existence
 awk '{if ($1 in seen) print "duplicate:", $0; seen[$1]=1}' file.txt
-# → 重複する1列目を検出
+# → Detect duplicate values in column 1
 
-# 配列の削除
+# Delete from array
 awk '{count[$1]++}
      END {delete count["unwanted"]; for(k in count) print k, count[k]}' file.txt
 
-# 多次元配列（疑似的にキーを連結）
+# Multi-dimensional arrays (pseudo, by concatenating keys)
 awk '{count[$1","$2]++}
      END {for (k in count) print k, count[k]}' data.txt
 
-# gawk の多次元配列
-# gawk '{count[$1][$2]++} ...'  # gawk 4.0+ で使用可能
+# gawk multi-dimensional arrays
+# gawk '{count[$1][$2]++} ...'  # Available in gawk 4.0+
 
-# 配列のソート（gawk の asorti / asort）
+# Array sorting (gawk's asorti / asort)
 awk '{count[$1]++}
      END {
          n = asorti(count, sorted)
@@ -516,22 +516,22 @@ awk '{count[$1]++}
      }' data.txt
 ```
 
-### 7.2 配列を使った実務パターン
+### 7.2 Practical Patterns Using Arrays
 
 ```bash
-# 2つのファイルの結合（JOIN 操作）
+# Joining two files (JOIN operation)
 awk 'NR==FNR{a[$1]=$2; next} ($1 in a){print $0, a[$1]}' file1.txt file2.txt
-# → file1.txt の1列目をキーに、file2.txt と結合
+# → Join file2.txt with file1.txt using column 1 as key
 
-# マスターデータとの照合
+# Cross-check with master data
 awk 'NR==FNR{master[$1]=1; next} !($1 in master){print "Not found:", $0}' master.txt data.txt
-# → master.txt に存在しないデータを検出
+# → Detect data not present in master.txt
 
-# 重複チェック
+# Duplicate check
 awk 'seen[$0]++ > 0 {print NR": "$0}' file.txt
-# → 重複行とその行番号を表示
+# → Display duplicate lines and their line numbers
 
-# フィールド値の集約（GROUP BY 的な操作）
+# Field value aggregation (GROUP BY-like operation)
 awk -F',' '{
     key = $1
     values[key] = values[key] ? values[key] ", " $2 : $2
@@ -539,111 +539,111 @@ awk -F',' '{
 END {
     for (k in values) print k ": " values[k]
 }' data.csv
-# → 1列目でグループ化し、2列目の値をカンマ区切りで集約
+# → Group by column 1, aggregate column 2 values as comma-separated
 
-# ランキング（降順）
+# Ranking (descending order)
 awk '{count[$1]++}
      END{
          for(k in count) print count[k], k
      }' data.txt | sort -rn | awk '{printf "%2d. %-20s %d\n", NR, $2, $1}'
 
-# 前の行との比較（差分計算）
+# Compare with previous line (calculate difference)
 awk 'NR>1{print $0, $2-prev} {prev=$2}' data.txt
-# → 2列目の前行との差分を表示
+# → Display the difference from the previous line's column 2
 
-# 逆引き（値からキーを検索）
+# Reverse lookup (find key by value)
 awk '{inv[$2]=$1} END{print inv["target_value"]}' data.txt
 ```
 
 ---
 
-## 8. 組み込み関数
+## 8. Built-in Functions
 
-### 8.1 文字列関数
+### 8.1 String Functions
 
 ```bash
-# length(): 文字列の長さ
-awk '{print length($0)}' file.txt          # 各行の文字数
-awk 'length($0) > 80' file.txt             # 80文字超の行
-awk '{print length($1), $1}' file.txt      # 1列目の長さと値
+# length(): string length
+awk '{print length($0)}' file.txt          # Character count per line
+awk 'length($0) > 80' file.txt             # Lines longer than 80 characters
+awk '{print length($1), $1}' file.txt      # Length and value of column 1
 
-# substr(): 部分文字列の抽出
-awk '{print substr($1, 1, 3)}' file.txt    # 1列目の先頭3文字
-awk '{print substr($0, 10)}' file.txt      # 10文字目以降
-awk '{print substr($0, 5, 10)}' file.txt   # 5文字目から10文字
+# substr(): extract substring
+awk '{print substr($1, 1, 3)}' file.txt    # First 3 characters of column 1
+awk '{print substr($0, 10)}' file.txt      # From character 10 onwards
+awk '{print substr($0, 5, 10)}' file.txt   # 10 characters starting at position 5
 
-# index(): 文字列の検索（位置を返す、見つからなければ0）
+# index(): search in string (returns position, 0 if not found)
 awk '{pos = index($0, "error"); if(pos) print NR, pos, $0}' file.txt
 
-# split(): 文字列を分割して配列に格納
+# split(): split string into array
 awk '{n = split($1, arr, "-"); print arr[1], arr[2]}' file.txt
 # → "2026-02-16" → "2026" "02"
 
 awk '{n = split($0, arr, ","); for(i=1;i<=n;i++) print arr[i]}' csv_line.txt
 
-# sub(): 最初のマッチを置換
+# sub(): replace first match
 awk '{sub(/error/, "ERROR"); print}' file.txt
 
-# gsub(): 全てのマッチを置換（global sub）
+# gsub(): replace all matches (global sub)
 awk '{gsub(/error/, "ERROR"); print}' file.txt
-awk '{gsub(/,/, "\t"); print}' data.csv    # カンマをタブに置換
-awk '{n = gsub(/e/, "E"); print n, $0}' file.txt  # 置換回数を取得
+awk '{gsub(/,/, "\t"); print}' data.csv    # Replace commas with tabs
+awk '{n = gsub(/e/, "E"); print n, $0}' file.txt  # Get replacement count
 
-# match(): 正規表現マッチ（RSTART, RLENGTH を設定）
+# match(): regex match (sets RSTART, RLENGTH)
 awk 'match($0, /[0-9]+/) {print substr($0, RSTART, RLENGTH)}' file.txt
-# → 最初の数字列を抽出
+# → Extract the first numeric sequence
 
-# sprintf(): フォーマット文字列を変数に格納
+# sprintf(): store formatted string in a variable
 awk '{result = sprintf("%s: %.2f", $1, $2); print result}' data.txt
 
-# tolower() / toupper(): 大文字/小文字変換
-awk '{print tolower($0)}' file.txt         # 全て小文字に
-awk '{print toupper($1)}' file.txt         # 1列目を大文字に
-awk '{$1=toupper($1); print}' file.txt     # 1列目だけ大文字に変換して出力
+# tolower() / toupper(): case conversion
+awk '{print tolower($0)}' file.txt         # Convert all to lowercase
+awk '{print toupper($1)}' file.txt         # Convert column 1 to uppercase
+awk '{$1=toupper($1); print}' file.txt     # Convert column 1 to uppercase and output
 ```
 
-### 8.2 数値関数
+### 8.2 Numeric Functions
 
 ```bash
-# int(): 整数部分を取得（切り捨て）
-awk '{print int($1)}' file.txt             # 小数を切り捨て
-awk '{print int($1 + 0.5)}' file.txt       # 四捨五入
+# int(): get integer part (truncate)
+awk '{print int($1)}' file.txt             # Truncate decimal
+awk '{print int($1 + 0.5)}' file.txt       # Round to nearest integer
 
-# sqrt(): 平方根
+# sqrt(): square root
 awk '{print sqrt($1)}' file.txt
 
-# sin(), cos(), atan2(): 三角関数
+# sin(), cos(), atan2(): trigonometric functions
 awk 'BEGIN{print sin(3.14159/2)}'          # → 1
 awk 'BEGIN{pi=atan2(0,-1); print pi}'      # → 3.14159
 
-# exp(), log(): 指数・対数
-awk 'BEGIN{print exp(1)}'                  # → 2.71828（e）
+# exp(), log(): exponential and logarithm
+awk 'BEGIN{print exp(1)}'                  # → 2.71828 (e)
 awk 'BEGIN{print log(2.71828)}'            # → 1
 
-# rand(), srand(): 乱数
+# rand(), srand(): random numbers
 awk 'BEGIN{srand(); for(i=1;i<=10;i++) print rand()}'
-# → 0〜1 の乱数を10個生成
+# → Generate 10 random numbers between 0 and 1
 
 awk 'BEGIN{srand(); for(i=1;i<=10;i++) print int(rand()*100)+1}'
-# → 1〜100 の整数乱数を10個生成
+# → Generate 10 random integers between 1 and 100
 
-# ランダムサンプリング（全行の10%を抽出）
+# Random sampling (extract 10% of all lines)
 awk 'BEGIN{srand()} rand() < 0.1' large_file.txt
 ```
 
-### 8.3 時間関数（gawk）
+### 8.3 Time Functions (gawk)
 
 ```bash
-# systime(): 現在のUNIXタイムスタンプ
+# systime(): current UNIX timestamp
 gawk 'BEGIN{print systime()}'
 
-# mktime(): 日時文字列からタイムスタンプ
+# mktime(): timestamp from date string
 gawk 'BEGIN{print mktime("2026 02 16 12 00 00")}'
 
-# strftime(): タイムスタンプから日時文字列
+# strftime(): date string from timestamp
 gawk 'BEGIN{print strftime("%Y-%m-%d %H:%M:%S", systime())}'
 
-# 日付の計算
+# Date arithmetic
 gawk 'BEGIN{
     now = systime()
     yesterday = now - 86400
@@ -651,7 +651,7 @@ gawk 'BEGIN{
     print "Yesterday:", strftime("%Y-%m-%d", yesterday)
 }'
 
-# ログのタイムスタンプを変換
+# Convert log timestamps
 gawk '{
     timestamp = mktime(gensub(/[-:]/, " ", "g", $1 " " $2))
     print strftime("%s", timestamp), $0
@@ -660,51 +660,51 @@ gawk '{
 
 ---
 
-## 9. awk スクリプト
+## 9. awk Scripts
 
-### 9.1 awk スクリプトファイル
+### 9.1 awk Script Files
 
 ```bash
 #!/usr/bin/awk -f
-# analyze_log.awk - ログ分析スクリプト
+# analyze_log.awk - Log analysis script
 
 BEGIN {
     FS = " "
-    print "=== ログ分析レポート ==="
+    print "=== Log Analysis Report ==="
     print ""
 }
 
-# エラー行のカウント
+# Count error lines
 /ERROR/ {
     error_count++
     error_lines[error_count] = $0
 }
 
-# 警告行のカウント
+# Count warning lines
 /WARN/ {
     warn_count++
 }
 
-# IPアドレスのカウント（1列目がIPの場合）
+# Count IP addresses (when column 1 is an IP)
 {
     ip_count[$1]++
     total++
 }
 
 END {
-    print "総行数: " total
-    print "エラー: " error_count+0
-    print "警告: " warn_count+0
+    print "Total lines: " total
+    print "Errors: " error_count+0
+    print "Warnings: " warn_count+0
     print ""
 
-    print "=== エラー詳細 ==="
+    print "=== Error Details ==="
     for (i = 1; i <= error_count && i <= 10; i++) {
         print "  " error_lines[i]
     }
     print ""
 
-    print "=== IPアドレス別アクセス数（上位10）==="
-    # awk 内でソートはできないため、パイプで処理
+    print "=== Access Count by IP Address (Top 10) ==="
+    # Sorting within awk is not possible, so use a pipe
     n = asorti(ip_count, sorted_ips)
     for (i = 1; i <= n; i++) {
         ip = sorted_ips[i]
@@ -714,27 +714,27 @@ END {
 ```
 
 ```bash
-# 実行方法
+# How to run
 awk -f analyze_log.awk access.log
-# または
+# or
 chmod +x analyze_log.awk
 ./analyze_log.awk access.log
 ```
 
-### 9.2 複雑な処理の例
+### 9.2 Examples of Complex Processing
 
 ```bash
 #!/usr/bin/awk -f
-# csv_report.awk - CSV レポート生成
+# csv_report.awk - CSV report generation
 
 BEGIN {
     FS = ","
     OFS = ","
 
-    print "=== CSV データ分析レポート ==="
+    print "=== CSV Data Analysis Report ==="
 }
 
-# ヘッダー行の処理
+# Process header row
 NR == 1 {
     for (i = 1; i <= NF; i++) {
         headers[i] = $i
@@ -743,10 +743,10 @@ NR == 1 {
     next
 }
 
-# データ行の処理
+# Process data rows
 {
     for (i = 1; i <= NF; i++) {
-        # 数値フィールドの場合は集計
+        # Aggregate numeric fields
         if ($i ~ /^[0-9.]+$/) {
             sum[i] += $i
             count[i]++
@@ -758,8 +758,8 @@ NR == 1 {
 }
 
 END {
-    printf "\nデータ行数: %d\n", data_rows
-    printf "列数: %d\n\n", num_cols
+    printf "\nData rows: %d\n", data_rows
+    printf "Columns: %d\n\n", num_cols
 
     printf "%-20s %10s %10s %10s %10s\n", "Column", "Sum", "Avg", "Min", "Max"
     printf "%-20s %10s %10s %10s %10s\n", "------", "---", "---", "---", "---"
@@ -775,115 +775,115 @@ END {
 
 ---
 
-## 10. 実務パターン集
+## 10. Practical Pattern Collection
 
-### 10.1 Apache/Nginx アクセスログ分析
+### 10.1 Apache/Nginx Access Log Analysis
 
 ```bash
-# ステータスコード別の集計
+# Aggregate by status code
 awk '{count[$9]++} END {for (c in count) print c, count[c]}' access.log | sort -k2 -rn
 
-# IPアドレス別アクセス数トップ20
+# Top 20 IP addresses by access count
 awk '{count[$1]++} END {for (ip in count) print count[ip], ip}' access.log | sort -rn | head -20
 
-# リクエストURL別アクセス数トップ20
+# Top 20 request URLs by access count
 awk '{count[$7]++} END {for (url in count) print count[url], url}' access.log | sort -rn | head -20
 
-# HTTPメソッド別の集計
+# Aggregate by HTTP method
 awk '{gsub(/"/, "", $6); count[$6]++} END {for (m in count) print m, count[m]}' access.log
 
-# 時間帯別のリクエスト数
+# Request count by hour of day
 awk '{split($4, a, ":"); hour=a[2]; count[hour]++}
      END {for (h in count) print h, count[h]}' access.log | sort
 
-# レスポンスタイムの分析（最終フィールドがレスポンスタイムの場合）
+# Response time analysis (when last field is response time)
 awk '{sum += $NF; count++; if($NF > max) max=$NF}
      END {printf "Avg: %.2fms, Max: %.2fms, Count: %d\n", sum/count, max, count}' access.log
 
-# 4xx/5xx エラーのURL一覧
+# List URLs with 4xx/5xx errors
 awk '$9 >= 400 {count[$7]++}
      END {for (url in count) print count[url], url}' access.log | sort -rn | head -20
 
-# 帯域使用量の集計（10列目がバイト数の場合）
+# Aggregate bandwidth usage (when column 10 is byte count)
 awk '{bytes[$1] += $10}
      END {for (ip in bytes) printf "%-20s %10.2f MB\n", ip, bytes[ip]/1048576}' access.log | sort -t'M' -k2 -rn | head -10
 
-# 特定のIPからの不正アクセス検出（短時間に大量リクエスト）
+# Detect unauthorized access from specific IP (large number of requests in short time)
 awk '{ip_time[$1","$4]++}
      END {for (k in ip_time) if (ip_time[k] > 100) print k, ip_time[k]}' access.log
 
-# スロークエリの検出（1秒以上のレスポンス）
+# Detect slow queries (response time > 1 second)
 awk '$NF > 1000 {print $4, $7, $NF"ms"}' access.log | head -20
 ```
 
-### 10.2 システムモニタリング
+### 10.2 System Monitoring
 
 ```bash
-# プロセスのメモリ使用量トップ10
+# Top 10 processes by memory usage
 ps aux | awk 'NR>1{print $4, $11}' | sort -rn | head -10
 
-# プロセスのCPU使用量トップ10
+# Top 10 processes by CPU usage
 ps aux | awk 'NR>1{print $3, $11}' | sort -rn | head -10
 
-# ユーザー別プロセス数
+# Process count per user
 ps aux | awk 'NR>1{count[$1]++} END{for(u in count) print count[u], u}' | sort -rn
 
-# ディスク使用率の警告
+# Disk usage warnings
 df -h | awk 'NR>1{gsub(/%/,"",$5); if($5+0 > 80) printf "WARNING: %s is %s%% full\n", $6, $5}'
 
-# メモリ使用状況（/proc/meminfo から）
+# Memory usage (from /proc/meminfo)
 awk '/^(MemTotal|MemFree|MemAvailable|Buffers|Cached):/{
     gsub(/kB/,""); printf "%-15s %10.2f MB\n", $1, $2/1024
 }' /proc/meminfo
 
-# ネットワーク接続の状態別カウント
+# Network connection count by state
 ss -tan | awk 'NR>1{count[$1]++} END{for(s in count) print s, count[s]}'
 
-# 接続元IPアドレス別カウント
+# Connection count by source IP address
 ss -tan | awk 'NR>1{split($5,a,":"); if(a[1]!="*") count[a[1]]++}
                END{for(ip in count) print count[ip], ip}' | sort -rn | head -10
 
-# CPU使用率の時系列モニタリング（1秒おき）
+# CPU usage time-series monitoring (every 1 second)
 # vmstat 1 | awk '{print strftime("%H:%M:%S"), 100-$15"%"}'
 ```
 
-### 10.3 CSV/TSV データ処理
+### 10.3 CSV/TSV Data Processing
 
 ```bash
-# CSVのヘッダーを除いたデータ行数
+# Count data rows excluding header in CSV
 awk -F',' 'NR>1{count++} END{print count}' data.csv
 
-# 特定列の値でフィルタリング
-awk -F',' '$3 > 1000' data.csv         # 3列目が1000超
+# Filter by value in a specific column
+awk -F',' '$3 > 1000' data.csv         # Column 3 > 1000
 
-# 列の追加（計算列）
+# Add a column (calculated column)
 awk -F',' 'BEGIN{OFS=","} NR==1{print $0,"total"; next} {print $0, $2+$3+$4}' data.csv
 
-# 列の削除（3列目を除外）
+# Remove a column (exclude column 3)
 awk -F',' 'BEGIN{OFS=","} {$3=""; gsub(/,,/,","); print}' data.csv
-# より堅牢な方法:
+# More robust approach:
 awk -F',' 'BEGIN{OFS=","} {
     for(i=1;i<=NF;i++) if(i!=3) printf "%s%s", $i, (i<NF&&i+1!=3?OFS:"");
     print ""
 }' data.csv
 
-# 列の並び替え
+# Reorder columns
 awk -F',' 'BEGIN{OFS=","} {print $3, $1, $2}' data.csv
 
-# NULL/空値のチェック
+# Check for NULL/empty values
 awk -F',' '{for(i=1;i<=NF;i++) if($i=="") printf "Row %d, Col %d is empty\n", NR, i}' data.csv
 
-# CSV のダブルクォートを適切に処理（簡易版）
+# Handle CSV double-quotes properly (simple version)
 awk -F'","' '{gsub(/^"|"$/, ""); print $2}' data.csv
 
-# データのバリデーション
+# Data validation
 awk -F',' 'NR>1{
     if ($2 !~ /^[0-9]+$/) print "Invalid number at row " NR ": " $2
     if ($3 == "") print "Empty field at row " NR ", col 3"
     if (NF != expected_cols) print "Wrong column count at row " NR ": " NF " (expected " expected_cols ")"
 }' expected_cols=5 data.csv
 
-# ピボットテーブル（行→列変換）
+# Pivot table (row to column conversion)
 awk -F',' '{
     rows[$1] = 1
     cols[$2] = 1
@@ -901,20 +901,20 @@ END {
 }' data.csv
 ```
 
-### 10.4 テキスト変換
+### 10.4 Text Conversion
 
 ```bash
-# JSON 風の出力（簡易版）
+# JSON-like output (simple version)
 awk -F',' 'NR==1{split($0,h); next}
     {printf "{\n"
      for(i=1;i<=NF;i++) printf "  \"%s\": \"%s\"%s\n", h[i], $i, (i<NF?",":"")
      printf "}\n"}' data.csv
 
-# key=value から JSON への変換
+# key=value to JSON conversion
 awk -F'=' 'BEGIN{print "{"} {printf "  \"%s\": \"%s\"", $1, $2; if(NR>1) printf ","
     printf "\n"} END{print "}"}' config.ini
 
-# Markdown テーブルの生成
+# Generate Markdown table
 awk -F',' 'NR==1{
     printf "| "
     for(i=1;i<=NF;i++) printf "%s | ", $i
@@ -929,7 +929,7 @@ awk -F',' 'NR==1{
     printf "\n"
 }' data.csv
 
-# SQL INSERT 文の生成
+# Generate SQL INSERT statements
 awk -F',' 'NR>1{
     printf "INSERT INTO table_name VALUES ("
     for(i=1;i<=NF;i++) {
@@ -940,35 +940,35 @@ awk -F',' 'NR>1{
     printf ");\n"
 }' data.csv
 
-# HTML テーブルの生成
+# Generate HTML table
 awk -F',' 'BEGIN{print "<table>"}
     NR==1{print "  <tr>"; for(i=1;i<=NF;i++) print "    <th>"$i"</th>"; print "  </tr>"; next}
     {print "  <tr>"; for(i=1;i<=NF;i++) print "    <td>"$i"</td>"; print "  </tr>"}
     END{print "</table>"}' data.csv
 
-# 複数行レコードの処理（空行区切り）
+# Process multi-line records (blank-line delimited)
 awk 'BEGIN{RS=""; FS="\n"} {print $1, $2, $3}' records.txt
-# → 空行で区切られた複数行のレコードを1行にまとめる
+# → Merge multi-line records separated by blank lines into a single line
 ```
 
-### 10.5 ファイル比較と差分
+### 10.5 File Comparison and Diff
 
 ```bash
-# 2つのファイルの共通行
+# Common lines in two files
 awk 'NR==FNR{a[$0]; next} $0 in a' file1.txt file2.txt
 
-# file1 にあって file2 にない行
+# Lines in file1 but not in file2
 awk 'NR==FNR{a[$0]; next} !($0 in a)' file2.txt file1.txt
 
-# file2 にあって file1 にない行
+# Lines in file2 but not in file1
 awk 'NR==FNR{a[$0]; next} !($0 in a)' file1.txt file2.txt
 
-# フィールド単位での比較
+# Field-level comparison
 awk -F',' 'NR==FNR{a[$1]=$2; next} ($1 in a) && a[$1]!=$2{
     print $1, "changed:", a[$1], "->", $2
 }' old.csv new.csv
 
-# 差分レポートの生成
+# Generate diff report
 awk 'NR==FNR{old[$1]=$0; next}
      {
          if ($1 in old) {
@@ -983,25 +983,25 @@ awk 'NR==FNR{old[$1]=$0; next}
 
 ---
 
-## 11. gawk 拡張機能
+## 11. gawk Extensions
 
-### 11.1 gawk 固有の機能
+### 11.1 gawk-Specific Features
 
 ```bash
-# gawk（GNU awk）は POSIX awk に多くの拡張を追加
+# gawk (GNU awk) adds many extensions to POSIX awk
 
-# BEGINFILE / ENDFILE: 各ファイルの処理前/後に実行
+# BEGINFILE / ENDFILE: executed before/after each file
 gawk 'BEGINFILE{print "=== " FILENAME " ==="} {print}' *.txt
 
-# nextfile: 現在のファイルの残りをスキップ
+# nextfile: skip the rest of the current file
 gawk '/ERROR/{print FILENAME; nextfile}' *.log
-# → ERROR を含む最初のファイル名を表示して次のファイルへ
+# → Print the name of the first file containing ERROR and move to the next
 
-# @include: 外部ファイルの読み込み
-# gawk スクリプト内で:
+# @include: load external file
+# Inside a gawk script:
 # @include "functions.awk"
 
-# ネットワーク通信（gawk のネットワーク機能）
+# Network communication (gawk network feature)
 # gawk 'BEGIN{
 #     service = "/inet/tcp/0/example.com/80"
 #     print "GET / HTTP/1.0\r\nHost: example.com\r\n" |& service
@@ -1010,146 +1010,146 @@ gawk '/ERROR/{print FILENAME; nextfile}' *.log
 #     close(service)
 # }'
 
-# 正規表現の強力なマッチ（gensub）
+# Powerful regex matching (gensub)
 gawk '{print gensub(/([0-9]+)/, "[\\1]", "g")}' file.txt
-# → 全ての数字を角括弧で囲む
+# → Wrap all numbers in square brackets
 
 gawk '{print gensub(/(.)(.)/, "\\2\\1", "g")}' file.txt
-# → 2文字ずつ入れ替え
+# → Swap every 2 characters
 
-# 多次元配列
+# Multi-dimensional arrays
 gawk '{sales[$1][$2] += $3}
       END{for(dept in sales) for(month in sales[dept])
           print dept, month, sales[dept][month]}' sales.txt
 
-# ソート制御（PROCINFO["sorted_in"]）
+# Sort control (PROCINFO["sorted_in"])
 gawk 'BEGIN{PROCINFO["sorted_in"]="@val_num_desc"}
       {count[$1]++}
       END{for(k in count) print k, count[k]}' data.txt
-# → 値の降順でソートして出力
+# → Output sorted in descending order by value
 ```
 
-### 11.2 FPAT（フィールドパターン）
+### 11.2 FPAT (Field Pattern)
 
 ```bash
-# CSV の正しい解析（ダブルクォート内のカンマを考慮）
+# Correctly parse CSV (accounting for commas inside double-quotes)
 gawk 'BEGIN{FPAT="([^,]*)|(\"[^\"]*\")"} {print $2}' data.csv
-# → "field1","field with, comma","field3" を正しく分割
+# → Correctly split "field1","field with, comma","field3"
 
-# 例: CSV のフィールドをダブルクォート付きで正しく抽出
+# Example: correctly extract CSV fields with double-quotes
 gawk 'BEGIN{FPAT="([^,]*)|(\"[^\"]*\")"}
       {for(i=1;i<=NF;i++) {
-          gsub(/^"|"$/, "", $i)  # クォートを除去
+          gsub(/^"|"$/, "", $i)  # Remove quotes
           print i": "$i
       }}' data.csv
 ```
 
 ---
 
-## 12. トラブルシューティング
+## 12. Troubleshooting
 
-### 12.1 よくある問題と対処法
+### 12.1 Common Problems and Solutions
 
 ```bash
-# 問題: フィールドが期待通りに分割されない
-# 対処: -F で正しい区切り文字を指定
-awk -F',' '{print NF, $0}' data.csv    # 列数を確認
-awk -F'\t' '{print NF, $0}' data.tsv   # タブ区切りの確認
+# Problem: Fields are not split as expected
+# Solution: Specify the correct delimiter with -F
+awk -F',' '{print NF, $0}' data.csv    # Check column count
+awk -F'\t' '{print NF, $0}' data.tsv   # Check tab-delimited
 
-# 問題: 数値の比較が文字列比較になる
-# 対処: 明示的に数値に変換（+0）
-awk '$3+0 > 100' data.txt              # +0 で数値化
+# Problem: Numeric comparison is being treated as string comparison
+# Solution: Explicitly convert to number (+0)
+awk '$3+0 > 100' data.txt              # Numerify with +0
 awk '{if ($3+0 > 100) print}' data.txt
 
-# 問題: 空のフィールドが正しく処理されない
-# 対処: FPAT を使うか、フィールドの存在を確認
+# Problem: Empty fields are not handled correctly
+# Solution: Use FPAT or check field existence
 awk -F',' '{if ($3 != "") print $3}' data.csv
 
-# 問題: 大きなファイルでメモリ不足
-# 対処: 配列の蓄積を避ける、または定期的に削除
+# Problem: Out of memory with large files
+# Solution: Avoid accumulating arrays, or delete periodically
 awk '{count[$1]++; if(NR%1000000==0){for(k in count){print k,count[k]; delete count[k]}}}
      END{for(k in count) print k, count[k]}' huge_file.txt
 
-# 問題: macOS のデフォルト awk と gawk の違い
-# 対処: gawk をインストール
+# Problem: Differences between macOS default awk and gawk
+# Solution: Install gawk
 # brew install gawk
-# gawk を使用するか、POSIX 互換の構文に限定する
+# Use gawk or limit syntax to POSIX-compatible constructs
 
-# 問題: 日本語（マルチバイト文字）の処理
-# 対処: ロケールを設定
+# Problem: Processing Japanese (multibyte characters)
+# Solution: Set locale
 LC_ALL=en_US.UTF-8 awk '{print length($0)}' file.txt
-# または gawk を使用（UTF-8 対応が良い）
+# Or use gawk (better UTF-8 support)
 
-# デバッグ: 各行の処理を確認
+# Debugging: check processing per line
 awk '{print "DEBUG:", NR, NF, $0}' file.txt
 awk '{for(i=1;i<=NF;i++) print "Field " i ": [" $i "]"}' file.txt
 ```
 
-### 12.2 パフォーマンスのヒント
+### 12.2 Performance Tips
 
 ```bash
-# 1. 不要な出力を避ける
-awk '/pattern/' file.txt               # 良い: 条件に一致する行のみ出力
-# awk '{if(/pattern/) print}' file.txt # 同じだがやや冗長
+# 1. Avoid unnecessary output
+awk '/pattern/' file.txt               # Good: output only matching lines
+# awk '{if(/pattern/) print}' file.txt # Same but slightly more verbose
 
-# 2. gsub より sub を使う（1回の置換で十分な場合）
+# 2. Use sub instead of gsub (when one replacement is enough)
 awk '{sub(/old/, "new"); print}' file.txt
 
-# 3. 巨大ファイルでの配列使用を最小化
-# 全行を配列に格納するのではなく、ストリーム処理を心がける
+# 3. Minimize array usage with large files
+# Prefer stream processing rather than storing all lines in an array
 
-# 4. 正規表現のキャッシュ
-# awk は同じ正規表現を繰り返し使う場合に自動でキャッシュするが、
-# 動的な正規表現（変数を使った）はキャッシュされない
+# 4. Regular expression caching
+# awk automatically caches repeatedly-used regex patterns,
+# but dynamic regex (using variables) is not cached
 
-# 5. パイプとの組み合わせで役割分担
-# 複雑な処理は awk 1つで全てやるのではなく、
-# grep でフィルタ → awk で整形 → sort でソート のようにパイプで分担
+# 5. Divide responsibilities using pipes
+# Rather than doing everything in one awk command,
+# chain: grep for filtering → awk for formatting → sort for sorting
 grep "ERROR" logfile.txt | awk '{print $1, $NF}' | sort | uniq -c | sort -rn
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1158,26 +1158,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1185,7 +1185,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1196,14 +1196,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1211,7 +1211,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistical information"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1219,44 +1219,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1265,7 +1265,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1280,76 +1280,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes criteria for making technology decisions.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to Prioritize | When to Compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① Team size?                                   │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → Go to ②                     │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② Deployment frequency?                        │
+│    ├─ Weekly or less → Monolith + modular split  │
+│    └─ Daily/multiple times → Go to ③            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ Team independence?                           │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack reduces the learning curve
+- Adopting diverse technologies allows the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability, but can make debugging harder
+- Low abstraction is intuitive, but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1359,17 +1359,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1377,7 +1377,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1385,15 +1385,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1401,84 +1401,85 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## チーム開発での活用
+## Team Development
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Is naming consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any performance impact?
+- [ ] Are there any security issues?
+- [ ] Is documentation updated?
 
-### ナレッジ共有のベストプラクティス
+### Knowledge Sharing Best Practices
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Audience | Effect |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talk | Weekly | Entire team | Horizontal knowledge spread |
+| ADR (design records) | Per decision | Future members | Decision transparency |
+| Retrospective | Every 2 weeks | Entire team | Continuous improvement |
+| Mob programming | Monthly | Key design | Building consensus |
 
-### 技術的負債の管理
+### Technical Debt Management
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │Plan │Act  │
+    │ned  │imme-│
+    │resp │diat-│
+    │onse │ely  │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Log  │Next │
+    │only │     │
+    │     │Sprint│
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Frequency  High Frequency
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
 |--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Broken authentication | High | Multi-factor auth, session management | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Security misconfiguration | Medium | Security headers, least privilege | Configuration scan |
+| Insufficient logging | Medium | Structured logs, audit trail | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1491,154 +1492,154 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not written to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is configured appropriately
+- [ ] Vulnerability scans on dependency packages have been performed
+- [ ] Error messages do not contain internal information
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. It is recommended to thoroughly understand the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 構文 | 用途 | 例 |
+| Syntax | Use | Example |
 |------|------|------|
-| {print $N} | N列目を表示 | awk '{print $1}' |
-| -F',' | 区切り文字指定 | awk -F',' '{print $2}' |
-| /pattern/ | 行のフィルタ | awk '/error/' |
-| $N > val | 条件フィルタ | awk '$3 > 100' |
-| BEGIN {} | 前処理 | awk 'BEGIN{FS=","}' |
-| END {} | 後処理（集計） | awk 'END{print NR}' |
-| count[$1]++ | 連想配列でカウント | グループ別集計 |
-| sum += $N | 合計の計算 | awk '{s+=$2}END{print s}' |
-| printf | フォーマット出力 | printf "%.2f", val |
-| NR | 行番号 | awk 'NR>1' |
-| NF | フィールド数 | awk '{print NF}' |
-| length() | 文字列長 | awk 'length>80' |
-| substr() | 部分文字列 | substr($1,1,3) |
-| split() | 文字列分割 | split($1,a,"-") |
-| sub/gsub | 置換 | gsub(/old/,"new") |
-| tolower/toupper | 大小文字変換 | tolower($0) |
-| NR==FNR | ファイル結合 | 2ファイルのJOIN |
+| {print $N} | Print column N | awk '{print $1}' |
+| -F',' | Specify delimiter | awk -F',' '{print $2}' |
+| /pattern/ | Filter lines | awk '/error/' |
+| $N > val | Conditional filter | awk '$3 > 100' |
+| BEGIN {} | Pre-processing | awk 'BEGIN{FS=","}' |
+| END {} | Post-processing (aggregation) | awk 'END{print NR}' |
+| count[$1]++ | Count with associative array | Group aggregation |
+| sum += $N | Calculate sum | awk '{s+=$2}END{print s}' |
+| printf | Formatted output | printf "%.2f", val |
+| NR | Line number | awk 'NR>1' |
+| NF | Field count | awk '{print NF}' |
+| length() | String length | awk 'length>80' |
+| substr() | Substring | substr($1,1,3) |
+| split() | Split string | split($1,a,"-") |
+| sub/gsub | Replace | gsub(/old/,"new") |
+| tolower/toupper | Case conversion | tolower($0) |
+| NR==FNR | File join | JOIN of 2 files |
 
-### awk vs sed vs grep の使い分け
+### When to Use awk vs sed vs grep
 
 ```
 ┌────────────────────────────┬──────────────┐
-│ やりたいこと               │ 最適なツール │
+│ Task                       │ Best Tool    │
 ├────────────────────────────┼──────────────┤
-│ パターンに一致する行を抽出 │ grep / rg    │
-│ 文字列の置換               │ sed          │
-│ 行の削除・挿入             │ sed          │
-│ 列（フィールド）の抽出     │ awk          │
-│ 数値の計算・集計           │ awk          │
-│ グループ別の集計           │ awk          │
-│ フォーマット出力           │ awk          │
-│ 2つのファイルの結合        │ awk          │
-│ 条件付きの複雑な処理       │ awk          │
-│ 簡単なフィルタリング       │ grep         │
-│ 簡単な置換                 │ sed          │
+│ Extract lines by pattern   │ grep / rg    │
+│ Replace strings            │ sed          │
+│ Delete/insert lines        │ sed          │
+│ Extract columns (fields)   │ awk          │
+│ Numeric calculation/agg.   │ awk          │
+│ Group aggregation          │ awk          │
+│ Formatted output           │ awk          │
+│ Join two files             │ awk          │
+│ Complex conditional logic  │ awk          │
+│ Simple filtering           │ grep         │
+│ Simple replacement         │ sed          │
 └────────────────────────────┴──────────────┘
 ```
 
 ---
 
-## 15. awk と他ツールの連携パターン
+## 15. awk and Other Tool Integration Patterns
 
-### 15.1 パイプライン構築の実践
+### 15.1 Building Pipelines in Practice
 
 ```bash
-# grep + awk の効率的な連携
-# grep で絞り込み、awk で集計する典型パターン
+# Efficient combination of grep + awk
+# Typical pattern: grep to narrow down, awk to aggregate
 grep "ERROR" app.log | awk '{count[$5]++} END {for (k in count) print count[k], k}' | sort -rn
 
-# find + awk でファイルシステム分析
+# Filesystem analysis with find + awk
 find /var/log -type f -name "*.log" -printf "%s %p\n" | \
   awk '{total += $1; count++} END {printf "Files: %d, Total: %.2f MB, Avg: %.2f KB\n", count, total/1024/1024, total/count/1024}'
 
-# ps + awk でプロセスメモリ使用量を集計
+# Aggregate process memory usage with ps + awk
 ps aux | awk 'NR>1 {mem[$11] += $6} END {for (p in mem) printf "%10d KB  %s\n", mem[p], p}' | sort -rn | head -20
 
-# docker stats + awk でコンテナリソース集計
+# Aggregate container resources with docker stats + awk
 docker stats --no-stream --format "{{.Name}} {{.MemUsage}} {{.CPUPerc}}" | \
   awk '{gsub(/MiB|%/, ""); print $1, $2, $NF}'
 
-# netstat + awk でコネクション状態の集計
+# Aggregate connection states with netstat + awk
 netstat -an 2>/dev/null | awk '/^tcp/ {state[$6]++} END {for (s in state) printf "%-20s %d\n", s, state[s]}'
 
-# sar + awk でCPU使用率のピーク時間帯を特定
+# Identify peak CPU usage periods with sar + awk
 sar -u 2>/dev/null | awk 'NR>3 && $NF != "idle" && $NF+0 < 20 {print "High CPU at", $1, "idle:", $NF"%"}'
 ```
 
-### 15.2 シェルスクリプト内での awk 活用
+### 15.2 Using awk in Shell Scripts
 
 ```bash
-# awk の結果をシェル変数に代入
+# Assign awk output to shell variable
 total=$(awk '{sum += $1} END {print sum}' data.txt)
 echo "Total: $total"
 
-# awk の結果で条件分岐
+# Conditional branching based on awk output
 if awk '{sum += $1} END {exit (sum > 1000) ? 0 : 1}' data.txt; then
   echo "Sum exceeds 1000"
 fi
 
-# awk で生成したコマンドを実行
+# Execute commands generated by awk
 awk '{printf "mv %s %s.bak\n", $0, $0}' file_list.txt | sh
 
-# awk からシェル変数を参照
+# Reference shell variables in awk
 threshold=100
 awk -v t="$threshold" '$3 > t {print $0}' data.txt
 
-# 複数の変数を同時に取得
+# Retrieve multiple variables at once
 read total count avg <<< $(awk '{sum+=$1; n++} END {printf "%d %d %.2f", sum, n, sum/n}' data.txt)
 echo "Total: $total, Count: $count, Average: $avg"
 ```
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
 ---
 
-## 参考文献
+## References
 1. Aho, A., Kernighan, B. & Weinberger, P. "The AWK Programming Language." 2nd Ed, 2023.
 2. Robbins, A. "sed & awk." 2nd Ed, O'Reilly, 1997.
 3. Robbins, A. "Effective awk Programming." 5th Ed, O'Reilly, 2024.
