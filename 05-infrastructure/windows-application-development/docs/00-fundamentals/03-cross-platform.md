@@ -1,37 +1,37 @@
-# クロスプラットフォーム対応
+# Cross-Platform Support
 
-> 1つのコードベースで Windows・macOS・Linux をサポートする。プラットフォーム検出、OS 固有 API の抽象化、パス処理、UI/UX の差異対応まで、クロスプラットフォーム設計を解説する。
+> Support Windows, macOS, and Linux from a single codebase. This chapter covers cross-platform design: platform detection, abstraction of OS-specific APIs, path handling, and UI/UX difference handling.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] プラットフォーム検出と条件分岐を実装できる
-- [ ] OS 固有の UI/UX 差異に対応できる
-- [ ] パス・改行コード等の環境差異を適切に処理できる
-- [ ] フォント・レンダリング・ファイルシステムの差異を理解し対処できる
-- [ ] CI/CD でマルチプラットフォームビルドを構築できる
-- [ ] 各 OS のネイティブ機能（通知・トレイ・ショートカット）に適切に対応できる
+- [ ] Implement platform detection and conditional branching
+- [ ] Handle OS-specific UI/UX differences
+- [ ] Properly process environment differences such as paths and line endings
+- [ ] Understand and handle differences in fonts, rendering, and file systems
+- [ ] Set up multi-platform builds in CI/CD
+- [ ] Properly support native features on each OS (notifications, tray, shortcuts)
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ネイティブ機能の活用](./02-native-features.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Using Native Features](./02-native-features.md)
 
 ---
 
-## 1. プラットフォーム検出
+## 1. Platform Detection
 
-### 1.1 基本的なプラットフォーム検出
+### 1.1 Basic Platform Detection
 
 ```typescript
-// プラットフォーム検出
+// Platform detection
 const platform = process.platform;
 // 'win32' | 'darwin' | 'linux'
 
-// OS 別処理の抽象化
+// Abstraction of OS-specific processing
 function getPlatformConfig() {
   switch (process.platform) {
     case 'win32':
@@ -61,20 +61,20 @@ function getPlatformConfig() {
 }
 ```
 
-### 1.2 詳細なプラットフォーム情報の取得
+### 1.2 Retrieving Detailed Platform Information
 
 ```typescript
 import os from 'os';
 import { app } from 'electron';
 
-// 詳細なシステム情報を取得するユーティリティクラス
+// Utility class for retrieving detailed system information
 class SystemInfo {
-  // OS のバージョン情報
+  // OS version information
   static getOSVersion(): string {
-    return os.release(); // 例: '10.0.22631' (Windows 11)
+    return os.release(); // e.g. '10.0.22631' (Windows 11)
   }
 
-  // OS の種類をフレンドリー名で返す
+  // Returns the OS type as a friendly name
   static getOSName(): string {
     switch (process.platform) {
       case 'win32': return `Windows ${this.getWindowsVersion()}`;
@@ -84,7 +84,7 @@ class SystemInfo {
     }
   }
 
-  // Windows のバージョンを判定
+  // Determine the Windows version
   private static getWindowsVersion(): string {
     const release = os.release();
     const build = parseInt(release.split('.')[2] || '0');
@@ -93,11 +93,11 @@ class SystemInfo {
     return release;
   }
 
-  // macOS のバージョンを判定
+  // Determine the macOS version
   private static getMacOSVersion(): string {
     const release = os.release();
     const major = parseInt(release.split('.')[0]);
-    // Darwin カーネルバージョンと macOS バージョンの対応
+    // Mapping between Darwin kernel version and macOS version
     const macVersionMap: Record<number, string> = {
       23: '14 (Sonoma)',
       22: '13 (Ventura)',
@@ -107,7 +107,7 @@ class SystemInfo {
     return macVersionMap[major] || release;
   }
 
-  // Linux ディストリビューションの判定
+  // Determine the Linux distribution
   private static getLinuxDistro(): string {
     try {
       const osRelease = require('fs').readFileSync('/etc/os-release', 'utf-8');
@@ -118,12 +118,12 @@ class SystemInfo {
     }
   }
 
-  // アーキテクチャの取得
+  // Get architecture
   static getArch(): string {
     return process.arch; // 'x64' | 'arm64' | 'ia32'
   }
 
-  // メモリ情報
+  // Memory information
   static getMemoryInfo(): { total: number; free: number; used: number } {
     const total = os.totalmem();
     const free = os.freemem();
@@ -134,7 +134,7 @@ class SystemInfo {
     };
   }
 
-  // CPU 情報
+  // CPU information
   static getCPUInfo(): { model: string; cores: number; speed: number } {
     const cpus = os.cpus();
     return {
@@ -144,12 +144,12 @@ class SystemInfo {
     };
   }
 
-  // ユーザーのロケール情報
+  // User locale information
   static getLocale(): string {
-    return app.getLocale(); // 例: 'ja', 'en-US'
+    return app.getLocale(); // e.g. 'ja', 'en-US'
   }
 
-  // ダークモードの判定
+  // Determine dark mode
   static isDarkMode(): boolean {
     const { nativeTheme } = require('electron');
     return nativeTheme.shouldUseDarkColors;
@@ -157,53 +157,53 @@ class SystemInfo {
 }
 ```
 
-### 1.3 機能ベースの検出パターン
+### 1.3 Feature-Based Detection Pattern
 
 ```typescript
-// OS ではなく機能の有無で分岐する設計（推奨）
+// Preferred design: branch on feature availability rather than OS
 class FeatureDetector {
-  // システムトレイがサポートされているか
+  // Whether the system tray is supported
   static supportsTray(): boolean {
-    // Linux の一部環境ではトレイがサポートされない
+    // Tray is not supported in some Linux environments
     if (process.platform === 'linux') {
-      // Wayland 環境ではシステムトレイの挙動が異なる
+      // System tray behavior differs in Wayland environments
       return process.env.XDG_SESSION_TYPE !== 'wayland' ||
              !!process.env.DBUS_SESSION_BUS_ADDRESS;
     }
     return true;
   }
 
-  // ネイティブ通知がサポートされているか
+  // Whether native notifications are supported
   static supportsNotification(): boolean {
     const { Notification } = require('electron');
     return Notification.isSupported();
   }
 
-  // タッチスクリーンが利用可能か
+  // Whether a touch screen is available
   static hasTouchScreen(): boolean {
-    // Renderer プロセスで使用
+    // Used in the Renderer process
     return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   }
 
-  // ハイコントラストモードが有効か
+  // Whether high contrast mode is enabled
   static isHighContrast(): boolean {
     const { nativeTheme } = require('electron');
     return nativeTheme.shouldUseHighContrastColors;
   }
 
-  // Apple Silicon (ARM) かどうか
+  // Whether the device is Apple Silicon (ARM)
   static isAppleSilicon(): boolean {
     return process.platform === 'darwin' && process.arch === 'arm64';
   }
 
-  // Windows の特定バージョン以降かチェック
+  // Check if running on Windows 11 or later
   static isWindows11OrLater(): boolean {
     if (process.platform !== 'win32') return false;
     const build = parseInt(require('os').release().split('.')[2] || '0');
     return build >= 22000;
   }
 
-  // Mica / Acrylic が利用可能か（Windows 11 以降）
+  // Whether Mica / Acrylic is available (Windows 11 and later)
   static supportsMica(): boolean {
     return this.isWindows11OrLater();
   }
@@ -212,42 +212,42 @@ class FeatureDetector {
 
 ---
 
-## 2. パス処理
+## 2. Path Handling
 
-### 2.1 基本的なパス処理
+### 2.1 Basic Path Handling
 
 ```
-パス処理の注意点:
+Path handling notes:
 
   Windows: C:\Users\gaku\Documents\file.txt
   macOS:   /Users/gaku/Documents/file.txt
   Linux:   /home/gaku/Documents/file.txt
 
-  解決策: path モジュールを常に使用する
+  Solution: Always use the path module
 ```
 
 ```typescript
 import path from 'path';
 import { app } from 'electron';
 
-// 正しい: path.join を使用
+// Correct: use path.join
 const configPath = path.join(app.getPath('userData'), 'config.json');
 
-// 間違い: 文字列結合
-const badPath = app.getPath('userData') + '/config.json'; // Windows で壊れる
+// Incorrect: string concatenation
+const badPath = app.getPath('userData') + '/config.json'; // Breaks on Windows
 
-// アプリデータの保存先
+// App data storage locations
 const paths = {
-  userData: app.getPath('userData'),      // アプリ設定
-  documents: app.getPath('documents'),    // ユーザードキュメント
-  downloads: app.getPath('downloads'),    // ダウンロード
-  temp: app.getPath('temp'),              // 一時ファイル
-  home: app.getPath('home'),              // ホーム
-  desktop: app.getPath('desktop'),        // デスクトップ
+  userData: app.getPath('userData'),      // App settings
+  documents: app.getPath('documents'),    // User documents
+  downloads: app.getPath('downloads'),    // Downloads
+  temp: app.getPath('temp'),              // Temporary files
+  home: app.getPath('home'),              // Home
+  desktop: app.getPath('desktop'),        // Desktop
 };
 ```
 
-### 2.2 高度なパス処理ユーティリティ
+### 2.2 Advanced Path Handling Utilities
 
 ```typescript
 import path from 'path';
@@ -255,35 +255,35 @@ import fs from 'fs/promises';
 import { app } from 'electron';
 
 class PathUtils {
-  // アプリケーション固有のパスを安全に構築
+  // Safely construct application-specific paths
   static getAppPath(...segments: string[]): string {
     const basePath = app.getPath('userData');
     const resolved = path.resolve(basePath, ...segments);
-    // パストラバーサル攻撃の防止
+    // Prevent path traversal attacks
     if (!resolved.startsWith(basePath)) {
-      throw new Error(`不正なパス: ${resolved}`);
+      throw new Error(`Invalid path: ${resolved}`);
     }
     return resolved;
   }
 
-  // ファイル名をプラットフォームに合わせてサニタイズ
+  // Sanitize a filename to be compatible with the current platform
   static sanitizeFileName(name: string): string {
-    // Windows で許可されない文字を除去
+    // Remove characters not allowed on Windows
     const windowsForbidden = /[<>:"/\\|?*\x00-\x1f]/g;
     let sanitized = name.replace(windowsForbidden, '_');
 
-    // Windows の予約名を回避
+    // Avoid Windows reserved names
     const windowsReserved = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)/i;
     if (windowsReserved.test(sanitized)) {
       sanitized = `_${sanitized}`;
     }
 
-    // macOS ではコロンも問題になる
+    // Colons are also problematic on macOS
     if (process.platform === 'darwin') {
       sanitized = sanitized.replace(/:/g, '_');
     }
 
-    // ファイル名の長さを制限（ext4: 255バイト, NTFS: 255文字）
+    // Limit filename length (ext4: 255 bytes, NTFS: 255 characters)
     if (sanitized.length > 200) {
       const ext = path.extname(sanitized);
       sanitized = sanitized.substring(0, 200 - ext.length) + ext;
@@ -292,22 +292,22 @@ class PathUtils {
     return sanitized;
   }
 
-  // パスの最大長チェック
+  // Check maximum path length
   static validatePathLength(filePath: string): boolean {
     if (process.platform === 'win32') {
-      // Windows: MAX_PATH は 260 文字（長いパスを有効化していない場合）
+      // Windows: MAX_PATH is 260 characters (when long paths are not enabled)
       return filePath.length < 260;
     }
-    // macOS / Linux: PATH_MAX は通常 4096
+    // macOS / Linux: PATH_MAX is typically 4096
     return filePath.length < 4096;
   }
 
-  // UNC パスの処理（Windows ネットワークドライブ）
+  // Handle UNC paths (Windows network drives)
   static isUNCPath(filePath: string): boolean {
     return filePath.startsWith('\\\\') || filePath.startsWith('//');
   }
 
-  // ホームディレクトリの展開（~/ → 実際のパス）
+  // Expand home directory (~/ → actual path)
   static expandHome(filePath: string): string {
     if (filePath.startsWith('~/') || filePath === '~') {
       return filePath.replace('~', app.getPath('home'));
@@ -315,7 +315,7 @@ class PathUtils {
     return filePath;
   }
 
-  // クロスプラットフォームな一時ファイルの作成
+  // Create a cross-platform temporary file
   static async createTempFile(prefix: string, extension: string): Promise<string> {
     const tempDir = app.getPath('temp');
     const fileName = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
@@ -324,7 +324,7 @@ class PathUtils {
     return tempPath;
   }
 
-  // ディレクトリの再帰的な作成（存在しない場合のみ）
+  // Recursively create a directory (only if it does not exist)
   static async ensureDirectory(dirPath: string): Promise<void> {
     try {
       await fs.mkdir(dirPath, { recursive: true });
@@ -335,7 +335,7 @@ class PathUtils {
     }
   }
 
-  // シンボリックリンクの解決（Linux/macOS でよく使われる）
+  // Resolve symbolic links (commonly used on Linux/macOS)
   static async resolveSymlinks(filePath: string): Promise<string> {
     try {
       return await fs.realpath(filePath);
@@ -346,29 +346,29 @@ class PathUtils {
 }
 ```
 
-### 2.3 ファイルシステムの差異対応
+### 2.3 Handling File System Differences
 
 ```typescript
 import fs from 'fs/promises';
 import path from 'path';
 
 class FileSystemCompat {
-  // ファイルシステムの大文字小文字の区別
-  // Windows: 区別なし（NTFS）
-  // macOS: デフォルトでは区別なし（APFS は大文字小文字を保持するが検索では無視）
-  // Linux: 区別あり（ext4）
+  // Case sensitivity of the file system
+  // Windows: case-insensitive (NTFS)
+  // macOS: case-insensitive by default (APFS preserves case but ignores it in searches)
+  // Linux: case-sensitive (ext4)
   static isCaseSensitive(): boolean {
     return process.platform === 'linux';
   }
 
-  // ファイルの権限設定（Unix 系と Windows で異なる）
+  // Set file permissions (differs between Unix-based systems and Windows)
   static async setFilePermissions(
     filePath: string,
     mode: 'readable' | 'writable' | 'executable'
   ): Promise<void> {
     if (process.platform === 'win32') {
-      // Windows では POSIX パーミッションが限定的にしか機能しない
-      // icacls コマンドを使用する場合もある
+      // POSIX permissions work only in a limited way on Windows
+      // The icacls command may be used in some cases
       return;
     }
 
@@ -381,38 +381,38 @@ class FileSystemCompat {
     await fs.chmod(filePath, modeMap[mode]);
   }
 
-  // ファイルロックの処理（排他制御）
+  // Handle file locking (exclusive control)
   static async acquireFileLock(lockPath: string): Promise<boolean> {
     try {
-      // O_EXCL フラグでアトミックに作成（既に存在する場合はエラー）
+      // Atomically create with O_EXCL flag (error if already exists)
       const fd = await fs.open(lockPath, 'wx');
       await fd.writeFile(String(process.pid));
       await fd.close();
       return true;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
-        return false; // 既にロックされている
+        return false; // Already locked
       }
       throw error;
     }
   }
 
-  // ファイルロックの解放
+  // Release a file lock
   static async releaseFileLock(lockPath: string): Promise<void> {
     try {
       await fs.unlink(lockPath);
     } catch {
-      // ロックファイルが存在しない場合は無視
+      // Ignore if lock file does not exist
     }
   }
 
-  // クロスプラットフォームなファイル監視
+  // Cross-platform file watching
   static watchFile(
     filePath: string,
     callback: (eventType: string, filename: string) => void
   ): fs.FileHandle | null {
-    // fs.watch の挙動が OS によって異なるため、ラッパーを使用
-    // 注意: macOS では rename イベントが多発する場合がある
+    // Use a wrapper because the behavior of fs.watch differs by OS
+    // Note: on macOS, rename events may fire frequently
     try {
       const watcher = require('fs').watch(filePath, (eventType: string, filename: string) => {
         callback(eventType, filename || path.basename(filePath));
@@ -423,13 +423,13 @@ class FileSystemCompat {
     }
   }
 
-  // 改行コードの正規化
+  // Normalize line endings
   static normalizeLineEndings(content: string): string {
-    // Windows の CRLF → LF に統一
+    // Normalize Windows CRLF → LF
     return content.replace(/\r\n/g, '\n');
   }
 
-  // プラットフォームに合わせた改行コードに変換
+  // Convert to the platform-specific line ending
   static toPlatformLineEndings(content: string): string {
     const normalized = content.replace(/\r\n/g, '\n');
     if (process.platform === 'win32') {
@@ -442,27 +442,27 @@ class FileSystemCompat {
 
 ---
 
-## 3. メニューバーの OS 差異
+## 3. Menu Bar OS Differences
 
-### 3.1 メニューバーの構造的な違い
+### 3.1 Structural Differences in the Menu Bar
 
 ```
-メニューバーの違い:
+Menu bar differences:
 
-  macOS:   画面上部にグローバルメニューバー
-           アプリ名メニュー（About/Preferences/Quit）が必須
-           Cmd+Q で終了
+  macOS:   Global menu bar at the top of the screen
+           App name menu (About/Preferences/Quit) is required
+           Cmd+Q to quit
 
-  Windows: ウィンドウ上部にメニューバー
-           File メニューに Exit
-           Alt+F4 で終了
+  Windows: Menu bar at the top of the window
+           Exit in the File menu
+           Alt+F4 to quit
 
-  Linux:   ウィンドウ上部（デスクトップ環境による）
-           File メニューに Quit
-           GNOME ではグローバルメニューバーの場合もある
+  Linux:   At the top of the window (depends on desktop environment)
+           Quit in the File menu
+           GNOME may use a global menu bar
 ```
 
-### 3.2 完全なメニュー実装例
+### 3.2 Complete Menu Implementation Example
 
 ```typescript
 import { Menu, app, shell, dialog, BrowserWindow } from 'electron';
@@ -471,13 +471,13 @@ function createMenu() {
   const isMac = process.platform === 'darwin';
 
   const template: Electron.MenuItemConstructorOptions[] = [
-    // macOS: アプリ名メニュー
+    // macOS: app name menu
     ...(isMac ? [{
       label: app.name,
       submenu: [
         { role: 'about' as const },
         { type: 'separator' as const },
-        { label: '設定...', accelerator: 'Cmd+,', click: openSettings },
+        { label: 'Preferences...', accelerator: 'Cmd+,', click: openSettings },
         { type: 'separator' as const },
         { role: 'services' as const },
         { type: 'separator' as const },
@@ -488,100 +488,100 @@ function createMenu() {
         { role: 'quit' as const },
       ],
     }] : []),
-    // File メニュー
+    // File menu
     {
-      label: 'ファイル',
+      label: 'File',
       submenu: [
-        { label: '新規', accelerator: 'CmdOrCtrl+N', click: newFile },
-        { label: '開く', accelerator: 'CmdOrCtrl+O', click: openFile },
+        { label: 'New', accelerator: 'CmdOrCtrl+N', click: newFile },
+        { label: 'Open', accelerator: 'CmdOrCtrl+O', click: openFile },
         { type: 'separator' },
-        { label: '保存', accelerator: 'CmdOrCtrl+S', click: saveFile },
-        { label: '名前を付けて保存...', accelerator: 'CmdOrCtrl+Shift+S', click: saveFileAs },
+        { label: 'Save', accelerator: 'CmdOrCtrl+S', click: saveFile },
+        { label: 'Save As...', accelerator: 'CmdOrCtrl+Shift+S', click: saveFileAs },
         { type: 'separator' },
         ...(isMac ? [] : [
-          { label: '設定', accelerator: 'Ctrl+,', click: openSettings },
+          { label: 'Preferences', accelerator: 'Ctrl+,', click: openSettings },
           { type: 'separator' as const },
-          { label: '終了', accelerator: 'Alt+F4', click: () => app.quit() },
+          { label: 'Exit', accelerator: 'Alt+F4', click: () => app.quit() },
         ]),
       ],
     },
-    // Edit メニュー
+    // Edit menu
     {
-      label: '編集',
+      label: 'Edit',
       submenu: [
-        { role: 'undo' as const, label: '元に戻す' },
-        { role: 'redo' as const, label: 'やり直し' },
+        { role: 'undo' as const, label: 'Undo' },
+        { role: 'redo' as const, label: 'Redo' },
         { type: 'separator' as const },
-        { role: 'cut' as const, label: '切り取り' },
-        { role: 'copy' as const, label: 'コピー' },
-        { role: 'paste' as const, label: '貼り付け' },
+        { role: 'cut' as const, label: 'Cut' },
+        { role: 'copy' as const, label: 'Copy' },
+        { role: 'paste' as const, label: 'Paste' },
         ...(isMac ? [
-          { role: 'pasteAndMatchStyle' as const, label: 'スタイルを合わせて貼り付け' },
-          { role: 'delete' as const, label: '削除' },
-          { role: 'selectAll' as const, label: 'すべて選択' },
+          { role: 'pasteAndMatchStyle' as const, label: 'Paste and Match Style' },
+          { role: 'delete' as const, label: 'Delete' },
+          { role: 'selectAll' as const, label: 'Select All' },
           { type: 'separator' as const },
           {
-            label: 'スピーチ',
+            label: 'Speech',
             submenu: [
-              { role: 'startSpeaking' as const, label: '読み上げ開始' },
-              { role: 'stopSpeaking' as const, label: '読み上げ停止' },
+              { role: 'startSpeaking' as const, label: 'Start Speaking' },
+              { role: 'stopSpeaking' as const, label: 'Stop Speaking' },
             ],
           },
         ] : [
-          { role: 'delete' as const, label: '削除' },
+          { role: 'delete' as const, label: 'Delete' },
           { type: 'separator' as const },
-          { role: 'selectAll' as const, label: 'すべて選択' },
+          { role: 'selectAll' as const, label: 'Select All' },
         ]),
       ],
     },
-    // View メニュー
+    // View menu
     {
-      label: '表示',
+      label: 'View',
       submenu: [
-        { role: 'reload' as const, label: '再読み込み' },
-        { role: 'forceReload' as const, label: '強制再読み込み' },
-        { role: 'toggleDevTools' as const, label: '開発者ツール' },
+        { role: 'reload' as const, label: 'Reload' },
+        { role: 'forceReload' as const, label: 'Force Reload' },
+        { role: 'toggleDevTools' as const, label: 'Developer Tools' },
         { type: 'separator' as const },
-        { role: 'resetZoom' as const, label: '拡大率をリセット' },
-        { role: 'zoomIn' as const, label: '拡大' },
-        { role: 'zoomOut' as const, label: '縮小' },
+        { role: 'resetZoom' as const, label: 'Reset Zoom' },
+        { role: 'zoomIn' as const, label: 'Zoom In' },
+        { role: 'zoomOut' as const, label: 'Zoom Out' },
         { type: 'separator' as const },
-        { role: 'togglefullscreen' as const, label: 'フルスクリーン' },
+        { role: 'togglefullscreen' as const, label: 'Full Screen' },
       ],
     },
-    // Window メニュー
+    // Window menu
     {
-      label: 'ウィンドウ',
+      label: 'Window',
       submenu: [
-        { role: 'minimize' as const, label: '最小化' },
-        { role: 'zoom' as const, label: 'ズーム' },
+        { role: 'minimize' as const, label: 'Minimize' },
+        { role: 'zoom' as const, label: 'Zoom' },
         ...(isMac ? [
           { type: 'separator' as const },
-          { role: 'front' as const, label: '手前に表示' },
+          { role: 'front' as const, label: 'Bring All to Front' },
           { type: 'separator' as const },
           { role: 'window' as const },
         ] : [
-          { role: 'close' as const, label: '閉じる' },
+          { role: 'close' as const, label: 'Close' },
         ]),
       ],
     },
-    // Help メニュー
+    // Help menu
     {
-      label: 'ヘルプ',
+      label: 'Help',
       submenu: [
         {
-          label: 'ドキュメント',
+          label: 'Documentation',
           click: async () => {
             await shell.openExternal('https://example.com/docs');
           },
         },
         { type: 'separator' },
         {
-          label: 'バージョン情報',
+          label: 'About',
           click: () => {
             dialog.showMessageBox({
               type: 'info',
-              title: 'バージョン情報',
+              title: 'About',
               message: `${app.name} v${app.getVersion()}`,
               detail: `Electron: ${process.versions.electron}\nNode.js: ${process.versions.node}\nChromium: ${process.versions.chrome}\nOS: ${process.platform} ${process.arch}`,
             });
@@ -596,12 +596,12 @@ function createMenu() {
 }
 ```
 
-### 3.3 コンテキストメニュー（右クリックメニュー）の実装
+### 3.3 Context Menu (Right-Click Menu) Implementation
 
 ```typescript
 import { Menu, MenuItem, BrowserWindow } from 'electron';
 
-// Renderer から呼び出されるコンテキストメニュー
+// Context menu called from the Renderer
 function showContextMenu(
   window: BrowserWindow,
   params: { x: number; y: number; isEditable: boolean; selectedText: string }
@@ -609,48 +609,48 @@ function showContextMenu(
   const menu = new Menu();
 
   if (params.isEditable) {
-    // テキスト編集可能な要素の場合
+    // For editable text elements
     menu.append(new MenuItem({
-      label: '元に戻す',
+      label: 'Undo',
       role: 'undo',
       accelerator: 'CmdOrCtrl+Z',
     }));
     menu.append(new MenuItem({
-      label: 'やり直し',
+      label: 'Redo',
       role: 'redo',
       accelerator: 'CmdOrCtrl+Shift+Z',
     }));
     menu.append(new MenuItem({ type: 'separator' }));
     menu.append(new MenuItem({
-      label: '切り取り',
+      label: 'Cut',
       role: 'cut',
       accelerator: 'CmdOrCtrl+X',
     }));
     menu.append(new MenuItem({
-      label: 'コピー',
+      label: 'Copy',
       role: 'copy',
       accelerator: 'CmdOrCtrl+C',
     }));
     menu.append(new MenuItem({
-      label: '貼り付け',
+      label: 'Paste',
       role: 'paste',
       accelerator: 'CmdOrCtrl+V',
     }));
     menu.append(new MenuItem({
-      label: 'すべて選択',
+      label: 'Select All',
       role: 'selectAll',
       accelerator: 'CmdOrCtrl+A',
     }));
   } else if (params.selectedText) {
-    // テキストが選択されている場合
+    // When text is selected
     menu.append(new MenuItem({
-      label: 'コピー',
+      label: 'Copy',
       role: 'copy',
       accelerator: 'CmdOrCtrl+C',
     }));
     menu.append(new MenuItem({ type: 'separator' }));
     menu.append(new MenuItem({
-      label: `"${params.selectedText.substring(0, 20)}..." で検索`,
+      label: `Search for "${params.selectedText.substring(0, 20)}..."`,
       click: () => {
         const { shell } = require('electron');
         shell.openExternal(
@@ -666,38 +666,38 @@ function showContextMenu(
 
 ---
 
-## 4. ウィンドウ管理の差異
+## 4. Window Management Differences
 
-### 4.1 基本的なウィンドウライフサイクル
+### 4.1 Basic Window Lifecycle
 
 ```typescript
 import { app, BrowserWindow } from 'electron';
 
-// macOS: ウィンドウを閉じてもアプリは終了しない
+// macOS: closing all windows does not quit the app
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-// macOS: Dock アイコンクリックでウィンドウ再作成
+// macOS: clicking the Dock icon recreates the window
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
 
-// タイトルバーのカスタマイズ
+// Title bar customization
 const win = new BrowserWindow({
   titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
-  // macOS: トラフィックライト（閉じる/最小化/最大化）の位置
+  // macOS: position of traffic lights (close/minimize/maximize)
   trafficLightPosition: { x: 15, y: 15 },
-  // Windows: タイトルバー非表示時のフレーム
+  // Windows: frame when title bar is hidden
   frame: process.platform === 'darwin' ? true : true,
 });
 ```
 
-### 4.2 ウィンドウ位置・サイズの保存と復元
+### 4.2 Saving and Restoring Window Position and Size
 
 ```typescript
 import { BrowserWindow, screen } from 'electron';
@@ -730,12 +730,12 @@ class WindowStateManager {
     };
   }
 
-  // 保存された状態を取得
+  // Get the saved state
   getState(): WindowState {
     const saved = this.store.get(`windows.${this.windowId}`) as WindowState | undefined;
     if (!saved) return this.defaultState;
 
-    // 保存された位置が現在のディスプレイに収まるか検証
+    // Validate that the saved position fits within the current display
     const displays = screen.getAllDisplays();
     const isVisible = displays.some(display => {
       const bounds = display.bounds;
@@ -750,7 +750,7 @@ class WindowStateManager {
     return isVisible ? saved : this.defaultState;
   }
 
-  // ウィンドウの状態変更を監視して自動保存
+  // Monitor window state changes and auto-save
   track(window: BrowserWindow): void {
     const saveState = (): void => {
       if (window.isDestroyed()) return;
@@ -768,7 +768,7 @@ class WindowStateManager {
       this.store.set(`windows.${this.windowId}`, state);
     };
 
-    // 各種イベントで状態を保存
+    // Save state on various events
     window.on('resize', saveState);
     window.on('move', saveState);
     window.on('maximize', saveState);
@@ -778,7 +778,7 @@ class WindowStateManager {
     window.on('close', saveState);
   }
 
-  // 保存された状態でウィンドウを復元
+  // Restore the window with the saved state
   restore(window: BrowserWindow): void {
     const state = this.getState();
 
@@ -790,7 +790,7 @@ class WindowStateManager {
   }
 }
 
-// 使用例
+// Usage example
 function createWindow(): BrowserWindow {
   const stateManager = new WindowStateManager('main', {
     width: 1200,
@@ -821,13 +821,13 @@ function createWindow(): BrowserWindow {
 }
 ```
 
-### 4.3 マルチディスプレイ対応
+### 4.3 Multi-Display Support
 
 ```typescript
 import { screen, BrowserWindow } from 'electron';
 
 class DisplayManager {
-  // 全ディスプレイの情報を取得
+  // Get information about all displays
   static getAllDisplays() {
     return screen.getAllDisplays().map(display => ({
       id: display.id,
@@ -839,13 +839,13 @@ class DisplayManager {
     }));
   }
 
-  // カーソル位置のディスプレイを取得
+  // Get the display at the cursor position
   static getDisplayAtCursor() {
     const cursor = screen.getCursorScreenPoint();
     return screen.getDisplayNearestPoint(cursor);
   }
 
-  // ウィンドウを特定のディスプレイの中央に配置
+  // Center the window on a specific display
   static centerOnDisplay(window: BrowserWindow, displayId?: number): void {
     const display = displayId
       ? screen.getAllDisplays().find(d => d.id === displayId) || screen.getPrimaryDisplay()
@@ -860,7 +860,7 @@ class DisplayManager {
     );
   }
 
-  // DPI スケーリングの処理
+  // Handle DPI scaling
   static getScaleFactor(): number {
     const primaryDisplay = screen.getPrimaryDisplay();
     return primaryDisplay.scaleFactor;
@@ -870,9 +870,9 @@ class DisplayManager {
 
 ---
 
-## 5. システムトレイの OS 差異
+## 5. System Tray OS Differences
 
-### 5.1 トレイの実装
+### 5.1 Tray Implementation
 
 ```typescript
 import { Tray, Menu, nativeImage, app } from 'electron';
@@ -882,24 +882,24 @@ class TrayManager {
   private tray: Tray | null = null;
 
   create(): void {
-    // OS ごとにアイコンサイズが異なる
+    // Icon size differs by OS
     const iconPath = this.getIconPath();
     const icon = nativeImage.createFromPath(iconPath);
 
-    // macOS: テンプレートイメージを使用すると自動でダークモード対応
+    // macOS: using a template image automatically handles dark mode
     if (process.platform === 'darwin') {
       icon.setTemplateImage(true);
     }
 
     this.tray = new Tray(icon);
 
-    // ツールチップの設定
+    // Set tooltip
     this.tray.setToolTip(app.name);
 
-    // コンテキストメニューの設定
+    // Set context menu
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: 'ウィンドウを表示',
+        label: 'Show Window',
         click: () => {
           const windows = BrowserWindow.getAllWindows();
           if (windows.length > 0) {
@@ -910,24 +910,24 @@ class TrayManager {
       },
       { type: 'separator' },
       {
-        label: 'ステータス',
+        label: 'Status',
         enabled: false,
-        // アイコンの表示（macOS では自動でリサイズ）
+        // Show icon (automatically resized on macOS)
         icon: nativeImage.createFromPath(
           path.join(__dirname, '../../resources/status-ok.png')
         ).resize({ width: 16, height: 16 }),
       },
       { type: 'separator' },
       {
-        label: '終了',
+        label: 'Quit',
         click: () => app.quit(),
       },
     ]);
 
     this.tray.setContextMenu(contextMenu);
 
-    // Windows / Linux: クリックでウィンドウ表示
-    // macOS: クリックでメニュー表示（デフォルト動作）
+    // Windows / Linux: click to show window
+    // macOS: click to show menu (default behavior)
     if (process.platform !== 'darwin') {
       this.tray.on('click', () => {
         const windows = BrowserWindow.getAllWindows();
@@ -942,7 +942,7 @@ class TrayManager {
       });
     }
 
-    // macOS: ダブルクリックでウィンドウ表示
+    // macOS: double-click to show window
     if (process.platform === 'darwin') {
       this.tray.on('double-click', () => {
         const windows = BrowserWindow.getAllWindows();
@@ -954,37 +954,37 @@ class TrayManager {
     }
   }
 
-  // プラットフォーム別のアイコンパス
+  // Platform-specific icon path
   private getIconPath(): string {
     const resourcesPath = path.join(__dirname, '../../resources');
 
     switch (process.platform) {
       case 'win32':
-        // Windows: .ico ファイルを使用（16x16, 32x32, 48x48 を含む）
+        // Windows: use .ico file (contains 16x16, 32x32, 48x48)
         return path.join(resourcesPath, 'tray-icon.ico');
       case 'darwin':
-        // macOS: @2x を含む PNG テンプレートイメージ（16x16 + 32x32）
+        // macOS: PNG template image including @2x (16x16 + 32x32)
         return path.join(resourcesPath, 'tray-iconTemplate.png');
       case 'linux':
-        // Linux: PNG ファイル（24x24 推奨）
+        // Linux: PNG file (24x24 recommended)
         return path.join(resourcesPath, 'tray-icon.png');
       default:
         return path.join(resourcesPath, 'tray-icon.png');
     }
   }
 
-  // トレイのバッジ（未読数など）を更新
+  // Update tray badge (e.g. unread count)
   updateBadge(count: number): void {
     if (!this.tray) return;
 
     if (process.platform === 'darwin') {
-      // macOS: Dock にバッジを表示
+      // macOS: show badge on the Dock
       app.dock.setBadge(count > 0 ? String(count) : '');
     }
 
-    // トレイのツールチップを更新
+    // Update tray tooltip
     this.tray.setToolTip(
-      count > 0 ? `${app.name} (${count} 件の通知)` : app.name
+      count > 0 ? `${app.name} (${count} notifications)` : app.name
     );
   }
 
@@ -997,13 +997,13 @@ class TrayManager {
 
 ---
 
-## 6. 通知の OS 差異
+## 6. Notification OS Differences
 
 ```typescript
 import { Notification, app } from 'electron';
 
 class NotificationManager {
-  // クロスプラットフォームな通知の送信
+  // Send a cross-platform notification
   static send(options: {
     title: string;
     body: string;
@@ -1013,7 +1013,7 @@ class NotificationManager {
     actions?: Array<{ text: string; type: string }>;
   }): void {
     if (!Notification.isSupported()) {
-      console.warn('通知はこの環境ではサポートされていません');
+      console.warn('Notifications are not supported in this environment');
       return;
     }
 
@@ -1022,7 +1022,7 @@ class NotificationManager {
       body: options.body,
       icon: options.icon,
       silent: options.silent || false,
-      // macOS: アクションボタン
+      // macOS: action buttons
       ...(process.platform === 'darwin' && options.actions && {
         actions: options.actions.map(a => ({
           text: a.text,
@@ -1030,13 +1030,13 @@ class NotificationManager {
         })),
         hasReply: false,
       }),
-      // Linux: 緊急度の設定
+      // Linux: set urgency
       ...(process.platform === 'linux' && {
         urgency: options.urgency || 'normal',
       }),
     });
 
-    // 通知クリック時の処理
+    // Handle notification click
     notification.on('click', () => {
       const windows = BrowserWindow.getAllWindows();
       if (windows.length > 0) {
@@ -1045,19 +1045,19 @@ class NotificationManager {
       }
     });
 
-    // macOS: アクションボタンクリック時の処理
+    // macOS: handle action button click
     notification.on('action', (_event, index) => {
-      console.log(`アクション ${index} がクリックされました`);
+      console.log(`Action ${index} was clicked`);
     });
 
     notification.show();
   }
 
-  // Windows 特有: トースト通知のための設定
+  // Windows-specific: setup for toast notifications
   static setupWindowsNotifications(): void {
     if (process.platform !== 'win32') return;
 
-    // AppUserModelId を設定（スタートメニューのショートカットと一致させる必要がある）
+    // Set AppUserModelId (must match the shortcut in the Start menu)
     app.setAppUserModelId('com.example.myapp');
   }
 }
@@ -1065,40 +1065,40 @@ class NotificationManager {
 
 ---
 
-## 7. キーボードショートカットの統一
+## 7. Unifying Keyboard Shortcuts
 
-### 7.1 CmdOrCtrl の使用
+### 7.1 Using CmdOrCtrl
 
 ```typescript
 import { globalShortcut, app } from 'electron';
 
-// グローバルショートカットの登録
+// Register global shortcuts
 function registerGlobalShortcuts(): void {
-  // CmdOrCtrl を使用すると OS に応じて自動的に切り替わる
+  // CmdOrCtrl automatically switches based on the OS
   globalShortcut.register('CmdOrCtrl+Shift+Space', () => {
-    // クイックアクション（全 OS 共通）
+    // Quick action (common to all OS)
     showQuickAction();
   });
 
-  // OS 固有のショートカット
+  // OS-specific shortcuts
   if (process.platform === 'darwin') {
-    // macOS 固有: Cmd+Option+I は Safari のインスペクタと同じ
+    // macOS-specific: Cmd+Option+I matches Safari's inspector
     globalShortcut.register('Cmd+Option+I', () => {
       toggleDevTools();
     });
   }
 }
 
-// アプリ終了時にグローバルショートカットを解除
+// Unregister global shortcuts when the app quits
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
 });
 ```
 
-### 7.2 キーボードショートカットの一覧表示
+### 7.2 Displaying a Keyboard Shortcut List
 
 ```typescript
-// Renderer 側のショートカット一覧コンポーネント
+// Shortcut list component on the Renderer side
 interface ShortcutEntry {
   action: string;
   windows: string;
@@ -1107,19 +1107,19 @@ interface ShortcutEntry {
 }
 
 const shortcuts: ShortcutEntry[] = [
-  { action: '新規ファイル', windows: 'Ctrl+N', mac: 'Cmd+N', linux: 'Ctrl+N' },
-  { action: '開く', windows: 'Ctrl+O', mac: 'Cmd+O', linux: 'Ctrl+O' },
-  { action: '保存', windows: 'Ctrl+S', mac: 'Cmd+S', linux: 'Ctrl+S' },
-  { action: '閉じる', windows: 'Ctrl+W', mac: 'Cmd+W', linux: 'Ctrl+W' },
-  { action: '設定', windows: 'Ctrl+,', mac: 'Cmd+,', linux: 'Ctrl+,' },
-  { action: '検索', windows: 'Ctrl+F', mac: 'Cmd+F', linux: 'Ctrl+F' },
-  { action: '置換', windows: 'Ctrl+H', mac: 'Cmd+Option+F', linux: 'Ctrl+H' },
-  { action: '全画面', windows: 'F11', mac: 'Ctrl+Cmd+F', linux: 'F11' },
-  { action: '終了', windows: 'Alt+F4', mac: 'Cmd+Q', linux: 'Ctrl+Q' },
+  { action: 'New File', windows: 'Ctrl+N', mac: 'Cmd+N', linux: 'Ctrl+N' },
+  { action: 'Open', windows: 'Ctrl+O', mac: 'Cmd+O', linux: 'Ctrl+O' },
+  { action: 'Save', windows: 'Ctrl+S', mac: 'Cmd+S', linux: 'Ctrl+S' },
+  { action: 'Close', windows: 'Ctrl+W', mac: 'Cmd+W', linux: 'Ctrl+W' },
+  { action: 'Preferences', windows: 'Ctrl+,', mac: 'Cmd+,', linux: 'Ctrl+,' },
+  { action: 'Find', windows: 'Ctrl+F', mac: 'Cmd+F', linux: 'Ctrl+F' },
+  { action: 'Replace', windows: 'Ctrl+H', mac: 'Cmd+Option+F', linux: 'Ctrl+H' },
+  { action: 'Full Screen', windows: 'F11', mac: 'Ctrl+Cmd+F', linux: 'F11' },
+  { action: 'Quit', windows: 'Alt+F4', mac: 'Cmd+Q', linux: 'Ctrl+Q' },
   { action: 'DevTools', windows: 'F12', mac: 'Cmd+Option+I', linux: 'F12' },
 ];
 
-// 現在のプラットフォームに合わせたショートカットを取得
+// Get the shortcut for the current platform
 function getShortcutForPlatform(entry: ShortcutEntry): string {
   switch (process.platform) {
     case 'darwin': return entry.mac;
@@ -1132,10 +1132,10 @@ function getShortcutForPlatform(entry: ShortcutEntry): string {
 
 ---
 
-## 8. フォントとレンダリングの差異
+## 8. Font and Rendering Differences
 
 ```typescript
-// クロスプラットフォームなフォント設定
+// Cross-platform font settings
 const fontFamilies = {
   win32: {
     sansSerif: '"Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif',
@@ -1154,35 +1154,35 @@ const fontFamilies = {
   },
 };
 
-// CSS でのクロスプラットフォーム対応
+// Cross-platform CSS
 const crossPlatformCSS = `
-/* システムフォントを使用する推奨設定 */
+/* Recommended settings for using system fonts */
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                "Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic UI",
                "Meiryo", sans-serif;
 
-  /* OS ごとに異なるフォントレンダリングの調整 */
+  /* Adjust font rendering differences per OS */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
-/* macOS 特有: サブピクセルレンダリング */
+/* macOS-specific: subpixel rendering */
 @media screen and (-webkit-min-device-pixel-ratio: 2) {
   body {
     -webkit-font-smoothing: subpixel-antialiased;
   }
 }
 
-/* Windows 特有: ClearType の最適化 */
+/* Windows-specific: ClearType optimization */
 @media screen and (-ms-high-contrast: none) {
   body {
-    font-feature-settings: "liga" 0; /* リガチャの無効化（ClearType との相性） */
+    font-feature-settings: "liga" 0; /* Disable ligatures (compatibility with ClearType) */
   }
 }
 
-/* スクロールバーのカスタマイズ（OS 間の統一） */
+/* Scrollbar customization (unified across OS) */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -1201,7 +1201,7 @@ body {
   background: rgba(128, 128, 128, 0.6);
 }
 
-/* macOS: オーバーレイスクロールバーの場合は非表示 */
+/* macOS: hide scrollbar when using overlay scrollbars */
 @supports (-webkit-overflow-scrolling: touch) {
   ::-webkit-scrollbar {
     display: none;
@@ -1212,34 +1212,34 @@ body {
 
 ---
 
-## 9. ネイティブダイアログの差異
+## 9. Native Dialog Differences
 
 ```typescript
 import { dialog, BrowserWindow } from 'electron';
 
 class DialogManager {
-  // ファイル選択ダイアログ（OS によって外観が異なる）
+  // File selection dialog (appearance differs by OS)
   static async openFile(parentWindow: BrowserWindow): Promise<string | null> {
     const result = await dialog.showOpenDialog(parentWindow, {
-      title: 'ファイルを選択',
-      // macOS: ファイルとフォルダの同時選択が可能
+      title: 'Select File',
+      // macOS: allows simultaneous selection of files and folders
       properties: [
         'openFile',
         ...(process.platform === 'darwin' ? ['treatPackageAsDirectory' as const] : []),
       ],
       filters: [
-        { name: 'テキストファイル', extensions: ['txt', 'md', 'json'] },
-        { name: '画像', extensions: ['png', 'jpg', 'gif', 'svg'] },
-        { name: 'すべてのファイル', extensions: ['*'] },
+        { name: 'Text Files', extensions: ['txt', 'md', 'json'] },
+        { name: 'Images', extensions: ['png', 'jpg', 'gif', 'svg'] },
+        { name: 'All Files', extensions: ['*'] },
       ],
-      // macOS: シートダイアログとして表示（親ウィンドウに紐づく）
-      // Windows / Linux: 独立したダイアログ
+      // macOS: displayed as a sheet dialog (attached to the parent window)
+      // Windows / Linux: standalone dialog
     });
 
     return result.canceled ? null : result.filePaths[0];
   }
 
-  // 確認ダイアログ
+  // Confirmation dialog
   static async confirm(
     parentWindow: BrowserWindow,
     message: string,
@@ -1247,22 +1247,22 @@ class DialogManager {
   ): Promise<boolean> {
     const result = await dialog.showMessageBox(parentWindow, {
       type: 'question',
-      title: '確認',
+      title: 'Confirm',
       message,
       detail,
       buttons: process.platform === 'darwin'
-        ? ['キャンセル', 'OK'] // macOS: 右側が肯定
-        : ['OK', 'キャンセル'], // Windows/Linux: 左側が肯定
+        ? ['Cancel', 'OK'] // macOS: affirmative button on the right
+        : ['OK', 'Cancel'], // Windows/Linux: affirmative button on the left
       defaultId: process.platform === 'darwin' ? 1 : 0,
       cancelId: process.platform === 'darwin' ? 0 : 1,
-      // macOS: チェックボックスの追加が可能
-      checkboxLabel: process.platform === 'darwin' ? '次回から表示しない' : undefined,
+      // macOS: can add a checkbox
+      checkboxLabel: process.platform === 'darwin' ? 'Do not show again' : undefined,
     });
 
     return result.response === (process.platform === 'darwin' ? 1 : 0);
   }
 
-  // エラーダイアログ
+  // Error dialog
   static showError(title: string, content: string): void {
     dialog.showErrorBox(title, content);
   }
@@ -1271,7 +1271,7 @@ class DialogManager {
 
 ---
 
-## 10. 自動更新のプラットフォーム差異
+## 10. Auto-Update Platform Differences
 
 ```typescript
 import { autoUpdater, UpdateCheckResult } from 'electron-updater';
@@ -1287,25 +1287,25 @@ class UpdateManager {
   }
 
   private configure(): void {
-    // ログの設定
+    // Configure logging
     autoUpdater.logger = log;
 
-    // 自動ダウンロードの設定
+    // Configure automatic download
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
 
-    // macOS: コード署名の検証を要求
+    // macOS: require code signature verification
     if (process.platform === 'darwin') {
       autoUpdater.autoRunAppAfterInstall = true;
     }
 
-    // イベントリスナーの設定
+    // Set up event listeners
     autoUpdater.on('update-available', async (info) => {
       const result = await dialog.showMessageBox(this.mainWindow, {
         type: 'info',
-        title: '更新があります',
-        message: `バージョン ${info.version} が利用可能です。ダウンロードしますか？`,
-        buttons: ['ダウンロード', '後で'],
+        title: 'Update Available',
+        message: `Version ${info.version} is available. Download now?`,
+        buttons: ['Download', 'Later'],
         defaultId: 0,
       });
 
@@ -1317,9 +1317,9 @@ class UpdateManager {
     autoUpdater.on('update-downloaded', async () => {
       const result = await dialog.showMessageBox(this.mainWindow, {
         type: 'info',
-        title: '更新の準備完了',
-        message: '再起動して更新を適用しますか？',
-        buttons: ['今すぐ再起動', '後で'],
+        title: 'Update Ready',
+        message: 'Restart and apply the update?',
+        buttons: ['Restart Now', 'Later'],
         defaultId: 0,
       });
 
@@ -1329,16 +1329,16 @@ class UpdateManager {
     });
 
     autoUpdater.on('error', (error) => {
-      log.error('自動更新エラー:', error);
+      log.error('Auto-update error:', error);
     });
   }
 
-  // 更新チェックの実行
+  // Run update check
   async checkForUpdates(): Promise<void> {
     try {
       await autoUpdater.checkForUpdates();
     } catch (error) {
-      log.error('更新チェックに失敗:', error);
+      log.error('Update check failed:', error);
     }
   }
 }
@@ -1346,9 +1346,9 @@ class UpdateManager {
 
 ---
 
-## 11. CI/CD マルチプラットフォームビルド
+## 11. CI/CD Multi-Platform Build
 
-### 11.1 GitHub Actions の設定
+### 11.1 GitHub Actions Configuration
 
 ```yaml
 # .github/workflows/build.yml
@@ -1384,14 +1384,14 @@ jobs:
           path: out/make/**/*
 ```
 
-### 11.2 electron-builder のマルチプラットフォーム設定
+### 11.2 electron-builder Multi-Platform Configuration
 
 ```yaml
 # electron-builder.yml
 appId: com.example.myapp
 productName: My App
 
-# Windows 固有の設定
+# Windows-specific settings
 win:
   target:
     - target: nsis
@@ -1399,7 +1399,7 @@ win:
     - target: portable
       arch: [x64]
   icon: resources/icon.ico
-  # コード署名
+  # Code signing
   certificateFile: ${env.WIN_CERT_FILE}
   certificatePassword: ${env.WIN_CERT_PASSWORD}
 
@@ -1410,10 +1410,10 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: My App
-  # 日本語のインストーラ UI
+  # Japanese installer UI
   language: 1041
 
-# macOS 固有の設定
+# macOS-specific settings
 mac:
   target:
     - target: dmg
@@ -1426,7 +1426,7 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  # 公証（Notarization）
+  # Notarization
   notarize:
     teamId: ${env.APPLE_TEAM_ID}
 
@@ -1440,7 +1440,7 @@ dmg:
       type: link
       path: /Applications
 
-# Linux 固有の設定
+# Linux-specific settings
 linux:
   target:
     - target: AppImage
@@ -1454,8 +1454,8 @@ linux:
   maintainer: developer@example.com
   synopsis: A cross-platform desktop application
   description: |
-    My App は Windows、macOS、Linux に対応した
-    クロスプラットフォームデスクトップアプリケーションです。
+    My App is a cross-platform desktop application
+    that supports Windows, macOS, and Linux.
 
 deb:
   depends:
@@ -1466,18 +1466,18 @@ deb:
     - libxtst6
     - libnss3
 
-# 自動更新の設定
+# Auto-update settings
 publish:
   provider: github
   owner: myorg
   repo: myapp
 ```
 
-### 11.3 macOS 公証（Notarization）のスクリプト
+### 11.3 macOS Notarization Script
 
 ```bash
 #!/bin/bash
-# scripts/notarize.sh — macOS アプリの公証スクリプト
+# scripts/notarize.sh — macOS app notarization script
 
 set -e
 
@@ -1486,77 +1486,77 @@ APPLE_ID="${APPLE_ID}"
 APPLE_PASSWORD="${APPLE_APP_SPECIFIC_PASSWORD}"
 TEAM_ID="${APPLE_TEAM_ID}"
 
-echo "公証を開始: $APP_PATH"
+echo "Starting notarization: $APP_PATH"
 
-# アプリを zip に圧縮
+# Compress the app to zip
 ditto -c -k --keepParent "$APP_PATH" "$APP_PATH.zip"
 
-# Apple に送信して公証を要求
+# Submit to Apple for notarization
 xcrun notarytool submit "$APP_PATH.zip" \
   --apple-id "$APPLE_ID" \
   --password "$APPLE_PASSWORD" \
   --team-id "$TEAM_ID" \
   --wait
 
-# 公証結果をアプリにステープル
+# Staple the notarization result to the app
 xcrun stapler staple "$APP_PATH"
 
-echo "公証が完了しました"
+echo "Notarization complete"
 ```
 
 ---
 
-## 12. テストのクロスプラットフォーム対応
+## 12. Cross-Platform Testing
 
 ```typescript
 import { describe, it, expect, beforeAll } from 'vitest';
 
-// プラットフォーム依存のテストをスキップするヘルパー
+// Helper to skip platform-dependent tests
 const onlyOnWindows = process.platform === 'win32' ? describe : describe.skip;
 const onlyOnMac = process.platform === 'darwin' ? describe : describe.skip;
 const onlyOnLinux = process.platform === 'linux' ? describe : describe.skip;
 const skipOnCI = process.env.CI ? describe.skip : describe;
 
 describe('PathUtils', () => {
-  it('sanitizeFileName は Windows の予約名を処理する', () => {
+  it('sanitizeFileName handles Windows reserved names', () => {
     expect(PathUtils.sanitizeFileName('CON')).toBe('_CON');
     expect(PathUtils.sanitizeFileName('NUL.txt')).toBe('_NUL.txt');
     expect(PathUtils.sanitizeFileName('normal.txt')).toBe('normal.txt');
   });
 
-  it('sanitizeFileName は不正な文字を除去する', () => {
+  it('sanitizeFileName removes invalid characters', () => {
     expect(PathUtils.sanitizeFileName('file<>:name.txt')).toBe('file___name.txt');
     expect(PathUtils.sanitizeFileName('file|name?.txt')).toBe('file_name_.txt');
   });
 
-  it('expandHome はホームディレクトリを展開する', () => {
+  it('expandHome expands the home directory', () => {
     const expanded = PathUtils.expandHome('~/Documents/test.txt');
     expect(expanded).not.toContain('~');
     expect(expanded).toContain('Documents/test.txt');
   });
 });
 
-onlyOnWindows('Windows 固有テスト', () => {
-  it('UNC パスを正しく検出する', () => {
+onlyOnWindows('Windows-specific tests', () => {
+  it('correctly detects UNC paths', () => {
     expect(PathUtils.isUNCPath('\\\\server\\share')).toBe(true);
     expect(PathUtils.isUNCPath('C:\\Users')).toBe(false);
   });
 
-  it('Windows のパス長制限を検証する', () => {
+  it('validates Windows path length limit', () => {
     const longPath = 'C:\\' + 'a'.repeat(260);
     expect(PathUtils.validatePathLength(longPath)).toBe(false);
   });
 });
 
-onlyOnMac('macOS 固有テスト', () => {
-  it('macOS のバージョンを正しく検出する', () => {
+onlyOnMac('macOS-specific tests', () => {
+  it('correctly detects macOS version', () => {
     const version = SystemInfo.getOSName();
     expect(version).toContain('macOS');
   });
 });
 
-onlyOnLinux('Linux 固有テスト', () => {
-  it('ファイルシステムが大文字小文字を区別する', () => {
+onlyOnLinux('Linux-specific tests', () => {
+  it('file system is case-sensitive', () => {
     expect(FileSystemCompat.isCaseSensitive()).toBe(true);
   });
 });
@@ -1564,14 +1564,14 @@ onlyOnLinux('Linux 固有テスト', () => {
 
 ---
 
-## 13. Tauri でのクロスプラットフォーム対応
+## 13. Cross-Platform Support with Tauri
 
 ```rust
-// src-tauri/src/platform.rs — Tauri でのプラットフォーム固有処理
+// src-tauri/src/platform.rs — Platform-specific processing in Tauri
 
 use std::env;
 
-/// プラットフォーム固有の設定ディレクトリを取得
+/// Get the platform-specific configuration directory
 pub fn get_config_dir() -> std::path::PathBuf {
     #[cfg(target_os = "windows")]
     {
@@ -1599,11 +1599,11 @@ pub fn get_config_dir() -> std::path::PathBuf {
     }
 }
 
-/// プラットフォーム固有の初期化処理
+/// Platform-specific initialization
 pub fn platform_init() {
     #[cfg(target_os = "windows")]
     {
-        // Windows: DPI 対応の設定
+        // Windows: configure DPI awareness
         unsafe {
             winapi::um::shellscalingapi::SetProcessDpiAwareness(
                 winapi::um::shellscalingapi::PROCESS_PER_MONITOR_DPI_AWARE,
@@ -1613,19 +1613,19 @@ pub fn platform_init() {
 
     #[cfg(target_os = "macos")]
     {
-        // macOS: 特別な初期化は不要（Tauri が処理）
+        // macOS: no special initialization needed (handled by Tauri)
     }
 
     #[cfg(target_os = "linux")]
     {
-        // Linux: GTK テーマの設定
+        // Linux: set GTK theme
         env::set_var("GTK_THEME", "Adwaita:dark");
     }
 }
 ```
 
 ```toml
-# src-tauri/Cargo.toml — プラットフォーム固有の依存関係
+# src-tauri/Cargo.toml — Platform-specific dependencies
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["shellscalingapi", "winuser"] }
@@ -1643,50 +1643,50 @@ gtk = "0.18"
 
 ## FAQ
 
-### Q1: Windows と macOS でキーボードショートカットをどう統一する？
-`CmdOrCtrl` を使用。macOS では Cmd、Windows/Linux では Ctrl に自動マッピングされる。ただし、`Cmd+Option` のような macOS 固有の修飾キーの組み合わせは別途処理が必要。Electron の `accelerator` 文字列で `CmdOrCtrl` を使うのが最も簡便な方法である。
+### Q1: How do I unify keyboard shortcuts between Windows and macOS?
+Use `CmdOrCtrl`. It is automatically mapped to Cmd on macOS and Ctrl on Windows/Linux. However, macOS-specific modifier key combinations such as `Cmd+Option` require separate handling. Using `CmdOrCtrl` in Electron's `accelerator` string is the most convenient approach.
 
-### Q2: macOS のダークモードにどう対応する？
-`nativeTheme.shouldUseDarkColors` で現在のテーマを検出。`nativeTheme.on('updated', ...)` で変更を監視。CSS では `prefers-color-scheme` メディアクエリを使用する。Electron 側では `nativeTheme.themeSource` を `'system'`、`'dark'`、`'light'` のいずれかに設定することでテーマを制御できる。
+### Q2: How do I support dark mode on macOS?
+Detect the current theme with `nativeTheme.shouldUseDarkColors`. Monitor changes with `nativeTheme.on('updated', ...)`. On the CSS side, use the `prefers-color-scheme` media query. On the Electron side, set `nativeTheme.themeSource` to `'system'`, `'dark'`, or `'light'` to control the theme.
 
-### Q3: Apple Silicon (arm64) と Intel (x64) の両方に対応するには？
-Electron: `--arch=universal` でユニバーサルバイナリを作成。Tauri: `--target aarch64-apple-darwin` と `--target x86_64-apple-darwin` で個別ビルド後、`lipo` で結合。CI/CD では `macos-latest` ランナー（Apple Silicon）と `macos-13`（Intel）の両方でビルドし、`lipo -create` で統合する方法が確実。
+### Q3: How do I support both Apple Silicon (arm64) and Intel (x64)?
+Electron: create a universal binary with `--arch=universal`. Tauri: build separately with `--target aarch64-apple-darwin` and `--target x86_64-apple-darwin`, then combine with `lipo`. In CI/CD, building on both a `macos-latest` runner (Apple Silicon) and `macos-13` (Intel) and merging with `lipo -create` is the most reliable method.
 
-### Q4: Linux の複数ディストリビューションにどう対応する？
-AppImage 形式が最もポータブルで、ほぼ全ての Linux ディストリビューションで動作する。Debian/Ubuntu 向けには `.deb`、Fedora/RHEL 向けには `.rpm` を追加で提供するのが一般的。Snap や Flatpak は配布の仕組みとしては優れるが、サンドボックスの制限に注意が必要。
+### Q4: How do I support multiple Linux distributions?
+The AppImage format is the most portable and works on almost all Linux distributions. It is common to additionally provide `.deb` for Debian/Ubuntu and `.rpm` for Fedora/RHEL. Snap and Flatpak are excellent as distribution mechanisms, but be careful about sandbox restrictions.
 
-### Q5: Windows でのネイティブ通知が表示されない場合は？
-Windows 10/11 では `app.setAppUserModelId()` でアプリケーション ID を正しく設定する必要がある。また、スタートメニューにショートカットが存在しないとトースト通知が表示されない場合がある。NSIS インストーラーでショートカットを作成するか、開発時は `Notification.isSupported()` で事前にチェックする。
+### Q5: What should I do if native notifications are not displayed on Windows?
+On Windows 10/11, you need to correctly set the application ID with `app.setAppUserModelId()`. Also, toast notifications may not appear if no shortcut exists in the Start menu. Either create a shortcut with the NSIS installer, or check in advance with `Notification.isSupported()` during development.
 
-### Q6: ファイルの drag & drop でパスが OS ごとに異なる問題は？
-Electron の `webContents` で `will-navigate` イベントを監視し、ドロップされたファイルのパスを `path.normalize()` で正規化する。macOS では `file://` プロトコルが付与される場合があるため、`new URL(path).pathname` でパスを抽出する。Windows ではバックスラッシュをフォワードスラッシュに変換する必要が生じることがある。
+### Q6: How do I handle the issue where file drag & drop paths differ by OS?
+Monitor the `will-navigate` event in Electron's `webContents` and normalize the dropped file path with `path.normalize()`. On macOS, the `file://` protocol may be prepended, so extract the path with `new URL(path).pathname`. On Windows, backslashes may need to be converted to forward slashes.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | Windows | macOS | Linux |
+| Item | Windows | macOS | Linux |
 |------|---------|-------|-------|
-| パス区切り | `\` | `/` | `/` |
-| 改行コード | `\r\n` | `\n` | `\n` |
-| 修飾キー | Ctrl | Cmd | Ctrl |
-| メニュー位置 | ウィンドウ内 | 画面上部 | ウィンドウ内 |
-| 終了動作 | 全Window閉じ→終了 | Window閉じ→常駐 | 全Window閉じ→終了 |
-| 大文字小文字 | 区別なし (NTFS) | 区別なし (APFS) | 区別あり (ext4) |
-| アイコン形式 | .ico | .icns | .png |
-| インストーラ | NSIS / MSI / MSIX | DMG / PKG | AppImage / deb / rpm |
-| 通知 | トースト (Win10+) | Notification Center | libnotify |
-| トレイ | 常にサポート | サポート | DE 依存 |
-| 自動更新 | NSIS / Squirrel | DMG / ZIP | AppImage のみ |
-| DPI対応 | 手動設定が必要な場合あり | 自動（Retina） | 手動設定が必要な場合あり |
+| Path separator | `\` | `/` | `/` |
+| Line ending | `\r\n` | `\n` | `\n` |
+| Modifier key | Ctrl | Cmd | Ctrl |
+| Menu position | Inside window | Top of screen | Inside window |
+| Quit behavior | All windows closed → quit | Window closed → stays resident | All windows closed → quit |
+| Case sensitivity | Case-insensitive (NTFS) | Case-insensitive (APFS) | Case-sensitive (ext4) |
+| Icon format | .ico | .icns | .png |
+| Installer | NSIS / MSI / MSIX | DMG / PKG | AppImage / deb / rpm |
+| Notifications | Toast (Win10+) | Notification Center | libnotify |
+| Tray | Always supported | Supported | Depends on DE |
+| Auto-update | NSIS / Squirrel | DMG / ZIP | AppImage only |
+| DPI support | Manual setup may be required | Automatic (Retina) | Manual setup may be required |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
 ---
 
-## 参考文献
+## References
 1. Electron. "Platform Considerations." electronjs.org/docs, 2024.
 2. Apple. "Human Interface Guidelines." developer.apple.com/design, 2024.
 3. Microsoft. "Windows App Design." learn.microsoft.com, 2024.
