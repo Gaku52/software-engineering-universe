@@ -1,77 +1,77 @@
-# アーキテクチャパターン
+# Architecture Patterns
 
-> デスクトップアプリのアーキテクチャはプロセス分離とIPC通信が核心。メインプロセス/レンダラーモデル、セキュアなIPC設計、preloadスクリプト、コンテキスト分離まで、安全で堅牢なアプリ設計を解説する。さらに、.NET デスクトップにおける MVVM・クリーンアーキテクチャ・DI コンテナ構成、Win32 アプリのメッセージループ設計、マルチウィンドウ管理パターンまで包括的にカバーする。
+> The core of desktop app architecture lies in process isolation and IPC communication. This guide explains safe and robust app design covering the main process/renderer model, secure IPC design, preload scripts, and context isolation. It also comprehensively covers MVVM, clean architecture, and DI container configuration for .NET desktop, Win32 message loop design, and multi-window management patterns.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] メインプロセス/レンダラープロセスモデルを理解する
-- [ ] IPC通信パターン（invoke/handle、send/on）を実装できる
-- [ ] preloadスクリプトでセキュアなブリッジを構築できる
-- [ ] .NET デスクトップアプリケーションのアーキテクチャ層を設計できる
-- [ ] Win32 メッセージループの仕組みを理解する
-- [ ] マルチウィンドウ管理とプラグインアーキテクチャを構築できる
-- [ ] 依存性注入（DI）コンテナを活用したテスタブルな設計ができる
+- [ ] Understand the main process/renderer process model
+- [ ] Implement IPC communication patterns (invoke/handle, send/on)
+- [ ] Build a secure bridge using preload scripts
+- [ ] Design architecture layers for .NET desktop applications
+- [ ] Understand how Win32 message loops work
+- [ ] Build multi-window management and plugin architecture
+- [ ] Create testable designs using dependency injection (DI) containers
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [デスクトップアプリの全体像](./00-desktop-app-overview.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Having read [Desktop App Overview](./00-desktop-app-overview.md)
 
 ---
 
-## 1. プロセスモデル
+## 1. Process Model
 
 ```
-デスクトップアプリのプロセス構造:
+Desktop app process structure:
 
   ┌─────────────────────────────────────────────┐
-  │              メインプロセス                    │
-  │  (Node.js / Rust バックエンド)                │
+  │              Main Process                    │
+  │  (Node.js / Rust Backend)                   │
   │                                              │
   │  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-  │  │ファイルI/O │  │ネイティブ │  │ OS API   │   │
-  │  │          │  │メニュー  │  │ 通知/トレイ│   │
+  │  │ File I/O │  │ Native   │  │ OS API   │   │
+  │  │          │  │ Menu     │  │ Notif/Tray│   │
   │  └──────────┘  └──────────┘  └──────────┘   │
   │              ▲  IPC  ▼                       │
   ├──────────────┼──────┼───────────────────────┤
   │              ▼      ▲                        │
   │         ┌───────────────┐                    │
-  │         │ preload.js    │ ← ブリッジ層       │
+  │         │ preload.js    │ ← Bridge layer     │
   │         │ contextBridge │                    │
   │         └───────┬───────┘                    │
   │                 │                            │
   │  ┌──────────────▼──────────────┐             │
-  │  │     レンダラープロセス        │             │
+  │  │     Renderer Process        │             │
   │  │  (Chromium / WebView)       │             │
   │  │  React / Vue / Svelte       │             │
   │  │  HTML / CSS / JavaScript    │             │
   │  └─────────────────────────────┘             │
   └─────────────────────────────────────────────┘
 
-  Electron のプロセスモデル:
-    メインプロセス:   1つ（Node.js ランタイム）
-    レンダラープロセス: ウィンドウごとに1つ（Chromium）
-    preload:         レンダラーごとに1つ（隔離されたコンテキスト）
+  Electron process model:
+    Main process:     1 (Node.js runtime)
+    Renderer process: 1 per window (Chromium)
+    preload:          1 per renderer (isolated context)
 
-  Tauri のプロセスモデル:
-    コアプロセス:     1つ（Rust バックエンド）
-    WebView プロセス: ウィンドウごとに1つ（OS WebView）
-    → Chromium を同梱しないため軽量
+  Tauri process model:
+    Core process:     1 (Rust backend)
+    WebView process:  1 per window (OS WebView)
+    → Lightweight because Chromium is not bundled
 
-  .NET デスクトップ (WPF/WinUI 3) のプロセスモデル:
-    単一プロセス:     UI スレッド + バックグラウンドスレッド
-    UI スレッド:      メッセージループ（Dispatcher）で UI を管理
-    ワーカースレッド:  Task / ThreadPool で非同期処理
+  .NET Desktop (WPF/WinUI 3) process model:
+    Single process:   UI thread + background threads
+    UI thread:        Manages UI via message loop (Dispatcher)
+    Worker thread:    Async processing via Task / ThreadPool
 ```
 
-### 1.1 Electron のメインプロセス
+### 1.1 Electron Main Process
 
 ```typescript
-// main.ts — Electron メインプロセス
+// main.ts — Electron main process
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 
@@ -82,15 +82,15 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      // セキュリティ設定
-      nodeIntegration: false,      // レンダラーで Node.js 無効
-      contextIsolation: true,      // コンテキスト分離有効
-      sandbox: true,               // サンドボックス有効
+      // Security settings
+      nodeIntegration: false,      // Disable Node.js in renderer
+      contextIsolation: true,      // Enable context isolation
+      sandbox: true,               // Enable sandbox
       preload: path.join(__dirname, 'preload.js'),
     },
   });
 
-  // 開発時: Vite dev server
+  // Development: Vite dev server
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
@@ -106,10 +106,10 @@ app.on('window-all-closed', () => {
 });
 ```
 
-### 1.2 Tauri のコアプロセス
+### 1.2 Tauri Core Process
 
 ```rust
-// src-tauri/src/main.rs — Tauri コアプロセス
+// src-tauri/src/main.rs — Tauri core process
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! From Rust backend.", name)
@@ -129,25 +129,25 @@ fn main() {
 }
 ```
 
-### 1.3 .NET デスクトップのプロセスモデル
+### 1.3 .NET Desktop Process Model
 
 ```
-.NET デスクトップアプリのスレッドモデル:
+.NET desktop app thread model:
 
   ┌──────────────────────────────────────────────┐
-  │              アプリケーション                   │
+  │              Application                      │
   │                                               │
   │  ┌─────────────────────────────────────────┐  │
-  │  │           UI スレッド (STA)               │  │
+  │  │           UI Thread (STA)               │  │
   │  │  ┌─────────┐  ┌──────────┐  ┌────────┐ │  │
-  │  │  │DispatcherQueue│  │ XAML    │  │メッセージ│ │  │
-  │  │  │ メッセージループ│  │ レンダリング│  │ ポンプ │ │  │
+  │  │  │DispatcherQueue│  │ XAML    │  │Message │ │  │
+  │  │  │ Message Loop  │  │Rendering│  │ Pump   │ │  │
   │  │  └─────────┘  └──────────┘  └────────┘ │  │
   │  └──────────────┬──────────────────────────┘  │
   │                 │ Dispatcher.Invoke            │
   │                 │ DispatcherQueue.TryEnqueue    │
   │  ┌──────────────▼──────────────────────────┐  │
-  │  │        バックグラウンドスレッド              │  │
+  │  │        Background Threads               │  │
   │  │  ┌─────────┐  ┌──────────┐  ┌────────┐ │  │
   │  │  │ Task     │  │ ThreadPool│  │ Timer  │ │  │
   │  │  │ async/await│  │ WorkItem │  │        │ │  │
@@ -157,7 +157,7 @@ fn main() {
 ```
 
 ```csharp
-// WPF の UI スレッドとバックグラウンド処理
+// WPF UI thread and background processing
 using System.Windows;
 using System.Windows.Threading;
 
@@ -170,27 +170,27 @@ public partial class MainWindow : Window
 
     private async void LoadDataButton_Click(object sender, RoutedEventArgs e)
     {
-        // UI スレッドでボタンを無効化
+        // Disable button on UI thread
         LoadDataButton.IsEnabled = false;
-        StatusText.Text = "読み込み中...";
+        StatusText.Text = "Loading...";
 
         try
         {
-            // バックグラウンドスレッドで重い処理を実行
+            // Run heavy processing on background thread
             var data = await Task.Run(() =>
             {
-                // CPU バウンドな処理（別スレッドで実行される）
-                Thread.Sleep(3000); // シミュレーション
+                // CPU-bound processing (runs on separate thread)
+                Thread.Sleep(3000); // Simulation
                 return LoadExpensiveData();
             });
 
-            // await の後は自動的に UI スレッドに戻る
-            StatusText.Text = $"完了: {data.Count} 件取得";
+            // After await, automatically returns to UI thread
+            StatusText.Text = $"Done: {data.Count} items retrieved";
             DataGrid.ItemsSource = data;
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"エラー: {ex.Message}";
+            StatusText.Text = $"Error: {ex.Message}";
         }
         finally
         {
@@ -198,13 +198,13 @@ public partial class MainWindow : Window
         }
     }
 
-    // Dispatcher を使った明示的な UI スレッドへのマーシャリング
+    // Explicit marshaling to UI thread using Dispatcher
     private void BackgroundWorker_DoWork()
     {
         for (int i = 0; i < 100; i++)
         {
             Thread.Sleep(50);
-            // UI スレッドで進捗を更新
+            // Update progress on UI thread
             Dispatcher.Invoke(() =>
             {
                 ProgressBar.Value = i + 1;
@@ -215,7 +215,7 @@ public partial class MainWindow : Window
 ```
 
 ```csharp
-// WinUI 3 の DispatcherQueue を使ったスレッド管理
+// Thread management using DispatcherQueue in WinUI 3
 using Microsoft.UI.Dispatching;
 
 public sealed partial class MainPage : Page
@@ -232,10 +232,10 @@ public sealed partial class MainPage : Page
     {
         Task.Run(() =>
         {
-            // バックグラウンド処理
+            // Background processing
             var result = PerformHeavyComputation();
 
-            // UI スレッドに結果を返す
+            // Return result to UI thread
             _dispatcherQueue.TryEnqueue(() =>
             {
                 ResultText.Text = result.ToString();
@@ -243,7 +243,7 @@ public sealed partial class MainPage : Page
         });
     }
 
-    // DispatcherQueue のプライオリティ指定
+    // Specify DispatcherQueue priority
     private void UpdateUIWithPriority(string message,
         DispatcherQueuePriority priority = DispatcherQueuePriority.Normal)
     {
@@ -257,71 +257,71 @@ public sealed partial class MainPage : Page
 
 ---
 
-## 2. IPC 通信パターン
+## 2. IPC Communication Patterns
 
 ```
-IPC（Inter-Process Communication）パターン:
+IPC (Inter-Process Communication) patterns:
 
-  パターン1: Request-Response（invoke/handle）
+  Pattern 1: Request-Response (invoke/handle)
   ┌──────────┐  invoke('get-data', args)  ┌──────────┐
-  │レンダラー  │ ───────────────────────→  │メイン     │
+  │ Renderer │ ───────────────────────→  │ Main     │
   │          │                            │          │
   │          │  ←──────────────────────── │          │
   │          │  Promise<result>           │          │
   └──────────┘                            └──────────┘
 
-  パターン2: Fire-and-Forget（send/on）
+  Pattern 2: Fire-and-Forget (send/on)
   ┌──────────┐  send('log', data)         ┌──────────┐
-  │レンダラー  │ ───────────────────────→  │メイン     │
-  │          │  （応答なし）               │          │
+  │ Renderer │ ───────────────────────→  │ Main     │
+  │          │  (no response)             │          │
   └──────────┘                            └──────────┘
 
-  パターン3: Push（メイン→レンダラー）
+  Pattern 3: Push (main → renderer)
   ┌──────────┐                            ┌──────────┐
-  │レンダラー  │  ←──────────────────────  │メイン     │
+  │ Renderer │  ←──────────────────────  │ Main     │
   │          │  webContents.send('event') │          │
   └──────────┘                            └──────────┘
 
-  パターン4: Bidirectional Stream（MessagePort）
+  Pattern 4: Bidirectional Stream (MessagePort)
   ┌──────────┐  port.postMessage(data)    ┌──────────┐
-  │レンダラー  │ ←───────────────────────→ │メイン     │
+  │ Renderer │ ←───────────────────────→ │ Main     │
   │          │  port.onmessage            │          │
   └──────────┘                            └──────────┘
 ```
 
-### 2.1 Electron IPC 実装
+### 2.1 Electron IPC Implementation
 
 ```typescript
-// preload.ts — セキュアなブリッジ
+// preload.ts — Secure bridge
 import { contextBridge, ipcRenderer } from 'electron';
 
-// レンダラーに公開するAPI（ホワイトリスト方式）
+// APIs exposed to renderer (whitelist approach)
 contextBridge.exposeInMainWorld('electronAPI', {
-  // パターン1: Request-Response
+  // Pattern 1: Request-Response
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   readFile: (path: string) => ipcRenderer.invoke('read-file', path),
   saveFile: (path: string, data: string) =>
     ipcRenderer.invoke('save-file', path, data),
 
-  // パターン2: Fire-and-Forget
+  // Pattern 2: Fire-and-Forget
   logEvent: (event: string) => ipcRenderer.send('log-event', event),
 
-  // パターン3: メインからの通知を受信
+  // Pattern 3: Receive notifications from main
   onUpdateAvailable: (callback: (version: string) => void) => {
     const handler = (_event: any, version: string) => callback(version);
     ipcRenderer.on('update-available', handler);
-    // クリーンアップ関数を返す
+    // Return cleanup function
     return () => ipcRenderer.removeListener('update-available', handler);
   },
 });
 
-// main.ts — ハンドラー登録
+// main.ts — Register handlers
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
 
 ipcMain.handle('read-file', async (_event, filePath: string) => {
-  // パス検証（セキュリティ）
+  // Path validation (security)
   const safePath = path.resolve(filePath);
   if (!safePath.startsWith(app.getPath('documents'))) {
     throw new Error('Access denied: path outside documents');
@@ -338,55 +338,55 @@ ipcMain.handle('save-file', async (_event, filePath: string, data: string) => {
   return { success: true };
 });
 
-// メイン→レンダラー通知
+// Main → Renderer notification
 function notifyUpdate(version: string) {
   mainWindow?.webContents.send('update-available', version);
 }
 ```
 
-### 2.2 Tauri コマンド通信
+### 2.2 Tauri Command Communication
 
 ```typescript
-// フロントエンド（TypeScript）
+// Frontend (TypeScript)
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
-// コマンド呼び出し（Request-Response）
+// Command call (Request-Response)
 const greeting = await invoke<string>('greet', { name: 'Gaku' });
 
-// イベント受信（メイン→フロントエンド）
+// Event reception (main → frontend)
 const unlisten = await listen<string>('file-changed', (event) => {
   console.log('File changed:', event.payload);
 });
 
-// クリーンアップ
+// Cleanup
 unlisten();
 ```
 
-### 2.3 MessagePort による高速双方向通信
+### 2.3 High-Speed Bidirectional Communication via MessagePort
 
 ```typescript
-// main.ts — MessagePort の作成と転送
+// main.ts — Create and transfer MessagePort
 import { MessageChannelMain } from 'electron';
 
 function setupMessagePort() {
   const { port1, port2 } = new MessageChannelMain();
 
-  // メインプロセス側でポートを使用
+  // Use port on main process side
   port1.on('message', (event) => {
     console.log('Received from renderer:', event.data);
-    // ストリーミングデータの処理
+    // Process streaming data
     if (event.data.type === 'audio-chunk') {
       processAudioChunk(event.data.buffer);
     }
   });
   port1.start();
 
-  // レンダラーにポートを転送
+  // Transfer port to renderer
   mainWindow.webContents.postMessage('port-transfer', null, [port2]);
 }
 
-// preload.ts — MessagePort の受信
+// preload.ts — Receive MessagePort
 ipcRenderer.on('port-transfer', (event) => {
   const port = event.ports[0];
   contextBridge.exposeInMainWorld('dataChannel', {
@@ -398,44 +398,44 @@ ipcRenderer.on('port-transfer', (event) => {
 });
 ```
 
-### 2.4 SharedArrayBuffer による共有メモリ通信
+### 2.4 Shared Memory Communication via SharedArrayBuffer
 
 ```typescript
-// main.ts — SharedArrayBuffer を使った高性能データ共有
-// 注意: CSP で cross-origin-opener-policy と
-//       cross-origin-embedder-policy の設定が必要
+// main.ts — High-performance data sharing with SharedArrayBuffer
+// Note: CSP requires cross-origin-opener-policy and
+//       cross-origin-embedder-policy settings
 
 function setupSharedMemory() {
-  // 共有バッファを作成（1MB）
+  // Create shared buffer (1MB)
   const sharedBuffer = new SharedArrayBuffer(1024 * 1024);
   const view = new Int32Array(sharedBuffer);
 
-  // メインプロセスでデータを書き込み
+  // Write data in main process
   Atomics.store(view, 0, 42);
 
-  // レンダラーに SharedArrayBuffer を送信
+  // Send SharedArrayBuffer to renderer
   mainWindow.webContents.send('shared-buffer', sharedBuffer);
 }
 
-// renderer — SharedArrayBuffer の利用
+// renderer — Use SharedArrayBuffer
 window.electronAPI.onSharedBuffer((buffer: SharedArrayBuffer) => {
   const view = new Int32Array(buffer);
-  // Atomics API でスレッドセーフにアクセス
+  // Thread-safe access via Atomics API
   const value = Atomics.load(view, 0);
   console.log('Shared value:', value); // 42
 
-  // 値の更新（他のスレッドにも即座に反映）
+  // Update value (immediately reflected to other threads)
   Atomics.store(view, 0, 100);
 });
 ```
 
-### 2.5 .NET アプリケーション内の通信パターン
+### 2.5 Communication Patterns Within .NET Applications
 
 ```csharp
-// Messenger パターン（CommunityToolkit.Mvvm）
-// ViewModel 間の疎結合な通信を実現する
+// Messenger pattern (CommunityToolkit.Mvvm)
+// Achieves loosely-coupled communication between ViewModels
 
-// メッセージの定義
+// Message definition
 public sealed class NavigationMessage : ValueChangedMessage<string>
 {
     public NavigationMessage(string pageName) : base(pageName) { }
@@ -447,30 +447,30 @@ public sealed class DataLoadedMessage
     public DateTime LoadedAt { get; init; } = DateTime.Now;
 }
 
-// 送信側 ViewModel
+// Sender ViewModel
 public partial class SidebarViewModel : ObservableRecipient
 {
     [RelayCommand]
     private void NavigateTo(string pageName)
     {
-        // メッセージを送信
+        // Send message
         Messenger.Send(new NavigationMessage(pageName));
     }
 }
 
-// 受信側 ViewModel
+// Receiver ViewModel
 public partial class ShellViewModel : ObservableRecipient,
     IRecipient<NavigationMessage>
 {
     public ShellViewModel()
     {
-        // メッセンジャーに登録（IsActive = true で自動登録）
+        // Register with messenger (auto-register when IsActive = true)
         IsActive = true;
     }
 
     public void Receive(NavigationMessage message)
     {
-        // メッセージを受信して処理
+        // Receive and process message
         CurrentPage = message.Value switch
         {
             "Home" => new HomeViewModel(),
@@ -482,14 +482,14 @@ public partial class ShellViewModel : ObservableRecipient,
 ```
 
 ```csharp
-// EventAggregator パターン（Prism フレームワーク）
+// EventAggregator pattern (Prism framework)
 using Prism.Events;
 
-// イベントの定義
+// Event definition
 public class OrderCreatedEvent : PubSubEvent<Order> { }
 public class CustomerSelectedEvent : PubSubEvent<Customer> { }
 
-// パブリッシャー
+// Publisher
 public class OrderViewModel
 {
     private readonly IEventAggregator _eventAggregator;
@@ -502,27 +502,27 @@ public class OrderViewModel
     private void CreateOrder()
     {
         var order = new Order { /* ... */ };
-        // イベントを発行
+        // Publish event
         _eventAggregator.GetEvent<OrderCreatedEvent>().Publish(order);
     }
 }
 
-// サブスクライバー
+// Subscriber
 public class DashboardViewModel
 {
     public DashboardViewModel(IEventAggregator eventAggregator)
     {
-        // イベントを購読
+        // Subscribe to event
         eventAggregator.GetEvent<OrderCreatedEvent>()
             .Subscribe(OnOrderCreated,
-                ThreadOption.UIThread,       // UI スレッドで実行
-                keepSubscriberReferenceAlive: false,  // 弱参照
-                filter: order => order.Amount > 1000); // フィルタ条件
+                ThreadOption.UIThread,       // Execute on UI thread
+                keepSubscriberReferenceAlive: false,  // Weak reference
+                filter: order => order.Amount > 1000); // Filter condition
     }
 
     private void OnOrderCreated(Order order)
     {
-        // 注文作成時の処理
+        // Process when order is created
         TotalOrders++;
         RecentOrders.Insert(0, order);
     }
@@ -531,45 +531,45 @@ public class DashboardViewModel
 
 ---
 
-## 3. セキュリティモデル
+## 3. Security Model
 
 ```
-セキュリティ多層防御:
+Defense-in-depth security:
 
-  レイヤー1: プロセス分離
-    → レンダラーは Node.js API にアクセス不可
-    → nodeIntegration: false（必須）
+  Layer 1: Process isolation
+    → Renderer cannot access Node.js APIs
+    → nodeIntegration: false (required)
 
-  レイヤー2: コンテキスト分離
-    → contextIsolation: true（必須）
-    → preload と Web ページは別コンテキスト
+  Layer 2: Context isolation
+    → contextIsolation: true (required)
+    → preload and web page have separate contexts
 
-  レイヤー3: サンドボックス
+  Layer 3: Sandbox
     → sandbox: true
-    → ファイルシステム・プロセスへの直接アクセス不可
+    → No direct access to filesystem or processes
 
-  レイヤー4: CSP（Content Security Policy）
-    → インラインスクリプト禁止
-    → 外部リソース読み込み制限
+  Layer 4: CSP (Content Security Policy)
+    → Inline scripts forbidden
+    → Restrict external resource loading
 
-  レイヤー5: API ホワイトリスト
-    → contextBridge で必要な API のみ公開
-    → 入力検証をメインプロセス側で実施
+  Layer 5: API whitelist
+    → Expose only necessary APIs via contextBridge
+    → Input validation performed on main process side
 
-  Tauri のセキュリティモデル:
-    → Capabilities（権限宣言）でAPI単位の許可
-    → デフォルトで全API無効
-    → ウィンドウ単位で権限を設定可能
+  Tauri security model:
+    → Per-API permission grants via Capabilities
+    → All APIs disabled by default
+    → Permissions configurable per window
 
-  .NET デスクトップのセキュリティモデル:
-    → CAS (Code Access Security) は .NET Core 以降廃止
-    → MSIX パッケージでサンドボックス配布可能
-    → Windows Defender Application Control (WDAC) 対応
-    → コード署名による改ざん防止
+  .NET Desktop security model:
+    → CAS (Code Access Security) deprecated since .NET Core
+    → Sandbox distribution possible via MSIX package
+    → Windows Defender Application Control (WDAC) support
+    → Code signing prevents tampering
 ```
 
 ```typescript
-// Electron — CSP 設定
+// Electron — CSP configuration
 // main.ts
 mainWindow.webContents.session.webRequest.onHeadersReceived(
   (details, callback) => {
@@ -590,7 +590,7 @@ mainWindow.webContents.session.webRequest.onHeadersReceived(
 ```
 
 ```json
-// Tauri — capabilities 設定
+// Tauri — capabilities configuration
 // src-tauri/capabilities/default.json
 {
   "identifier": "default",
@@ -606,7 +606,7 @@ mainWindow.webContents.session.webRequest.onHeadersReceived(
 }
 ```
 
-### 3.1 Tauri のスコープ付きファイルアクセス
+### 3.1 Tauri Scoped File Access
 
 ```json
 // src-tauri/capabilities/file-access.json
@@ -636,11 +636,11 @@ mainWindow.webContents.session.webRequest.onHeadersReceived(
 ```
 
 ```rust
-// src-tauri/src/security.rs — 入力検証とサニタイズ
+// src-tauri/src/security.rs — Input validation and sanitization
 use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 
-/// パストラバーサル攻撃を防止するパス検証
+/// Path validation to prevent path traversal attacks
 pub fn validate_path(
     app: &AppHandle,
     requested_path: &str,
@@ -655,7 +655,7 @@ pub fn validate_path(
         .canonicalize()
         .map_err(|e| format!("Invalid path: {}", e))?;
 
-    // 正規化されたパスがベースディレクトリ内にあることを確認
+    // Verify that the canonicalized path is within the base directory
     if !canonical.starts_with(&base_dir) {
         return Err("Access denied: path traversal detected".to_string());
     }
@@ -663,7 +663,7 @@ pub fn validate_path(
     Ok(canonical)
 }
 
-/// ファイル名のサニタイズ
+/// Filename sanitization
 pub fn sanitize_filename(name: &str) -> String {
     name.chars()
         .filter(|c| !matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'))
@@ -679,7 +679,7 @@ pub async fn secure_read_file(
 ) -> Result<String, String> {
     let safe_path = validate_path(&app, &path)?;
 
-    // ファイルサイズチェック（100MB 上限）
+    // File size check (100MB limit)
     let metadata = std::fs::metadata(&safe_path)
         .map_err(|e| format!("Cannot read metadata: {}", e))?;
     if metadata.len() > 100 * 1024 * 1024 {
@@ -691,10 +691,10 @@ pub async fn secure_read_file(
 }
 ```
 
-### 3.2 .NET デスクトップのセキュリティ実装
+### 3.2 .NET Desktop Security Implementation
 
 ```csharp
-// セキュアなデータ保存（DPAPI を使用）
+// Secure data storage (using DPAPI)
 using System.Security.Cryptography;
 using System.Text;
 
@@ -712,8 +712,8 @@ public class SecureStorage
     }
 
     /// <summary>
-    /// DPAPI（Data Protection API）で暗号化して保存
-    /// 現在のユーザーのみが復号可能
+    /// Encrypt and save using DPAPI (Data Protection API)
+    /// Only the current user can decrypt
     /// </summary>
     public void SaveSecure(string key, string value)
     {
@@ -728,7 +728,7 @@ public class SecureStorage
     }
 
     /// <summary>
-    /// DPAPI で復号して読み取り
+    /// Decrypt and read using DPAPI
     /// </summary>
     public string? LoadSecure(string key)
     {
@@ -746,7 +746,7 @@ public class SecureStorage
         }
         catch (CryptographicException)
         {
-            // 別ユーザーのデータや改ざんされたデータ
+            // Data from another user or tampered data
             return null;
         }
     }
@@ -759,7 +759,7 @@ public class SecureStorage
 ```
 
 ```csharp
-// Windows Credential Manager を使った認証情報管理
+// Credential management using Windows Credential Manager
 using System.Runtime.InteropServices;
 
 public static class CredentialManager
@@ -818,37 +818,37 @@ public static class CredentialManager
 
 ---
 
-## 4. preload スクリプト設計
+## 4. Preload Script Design
 
 ```
-preload 設計原則:
+Preload design principles:
 
-  ✓ ホワイトリスト方式（必要な API のみ公開）
-  ✓ 入力のサニタイズ（レンダラーからの入力を信頼しない）
-  ✓ 型安全な API 定義
-  ✗ ipcRenderer を直接公開しない
-  ✗ require/import を公開しない
-  ✗ Node.js API を直接公開しない
+  ✓ Whitelist approach (expose only necessary APIs)
+  ✓ Input sanitization (do not trust input from renderer)
+  ✓ Type-safe API definitions
+  ✗ Do not expose ipcRenderer directly
+  ✗ Do not expose require/import
+  ✗ Do not expose Node.js APIs directly
 ```
 
 ```typescript
-// preload.ts — 型安全な API 設計
+// preload.ts — Type-safe API design
 import { contextBridge, ipcRenderer } from 'electron';
 
-// API の型定義
+// API type definitions
 export interface ElectronAPI {
-  // ファイル操作
+  // File operations
   file: {
     open: () => Promise<{ path: string; content: string } | null>;
     save: (content: string) => Promise<boolean>;
     saveAs: (content: string) => Promise<string | null>;
   };
-  // アプリ情報
+  // App information
   app: {
     getVersion: () => Promise<string>;
     getPlatform: () => string;
   };
-  // イベント
+  // Events
   events: {
     onMenuAction: (callback: (action: string) => void) => () => void;
   };
@@ -873,7 +873,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 } satisfies ElectronAPI);
 
-// renderer.d.ts — レンダラー側の型定義
+// renderer.d.ts — Type definitions for renderer side
 declare global {
   interface Window {
     electronAPI: import('./preload').ElectronAPI;
@@ -881,18 +881,18 @@ declare global {
 }
 ```
 
-### 4.1 preload の高度なパターン
+### 4.1 Advanced Preload Patterns
 
 ```typescript
-// preload.ts — バリデーション付き API 設計
+// preload.ts — API design with validation
 import { contextBridge, ipcRenderer } from 'electron';
 
-// 入力バリデーション関数
+// Input validation functions
 function validateFilePath(path: string): string {
   if (typeof path !== 'string') throw new Error('Path must be a string');
   if (path.length === 0) throw new Error('Path cannot be empty');
   if (path.length > 32767) throw new Error('Path too long');
-  // パストラバーサル防止
+  // Prevent path traversal
   if (path.includes('..')) throw new Error('Path traversal not allowed');
   return path;
 }
@@ -903,12 +903,12 @@ function validateContent(content: string, maxSize = 10 * 1024 * 1024): string {
   return content;
 }
 
-// 率制限（レンダラーからの過剰な呼び出しを防止）
+// Rate limiter (prevent excessive calls from renderer)
 function createRateLimiter(maxCalls: number, windowMs: number) {
   const calls: number[] = [];
   return () => {
     const now = Date.now();
-    // ウィンドウ外の古い呼び出しを除去
+    // Remove old calls outside the window
     while (calls.length > 0 && calls[0]! < now - windowMs) {
       calls.shift();
     }
@@ -919,8 +919,8 @@ function createRateLimiter(maxCalls: number, windowMs: number) {
   };
 }
 
-const fileOpenLimiter = createRateLimiter(10, 60000); // 1分に10回まで
-const fileSaveLimiter = createRateLimiter(5, 60000);  // 1分に5回まで
+const fileOpenLimiter = createRateLimiter(10, 60000); // Up to 10 times per minute
+const fileSaveLimiter = createRateLimiter(5, 60000);  // Up to 5 times per minute
 
 contextBridge.exposeInMainWorld('electronAPI', {
   file: {
@@ -950,42 +950,42 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 ---
 
-## 5. クリーンアーキテクチャ（.NET デスクトップ）
+## 5. Clean Architecture (.NET Desktop)
 
 ```
-クリーンアーキテクチャのレイヤー構成:
+Clean architecture layer structure:
 
   ┌─────────────────────────────────────────────┐
-  │          プレゼンテーション層                  │
+  │          Presentation Layer                  │
   │  ┌──────────┐  ┌──────────┐  ┌───────────┐ │
   │  │ View     │  │ ViewModel│  │ Converter │ │
   │  │ (XAML)   │  │          │  │           │ │
   │  └──────────┘  └──────────┘  └───────────┘ │
   ├─────────────────────────────────────────────┤
-  │          アプリケーション層                    │
+  │          Application Layer                   │
   │  ┌──────────┐  ┌──────────┐  ┌───────────┐ │
   │  │ UseCase  │  │ DTO      │  │ Service   │ │
   │  │ (CQRS)   │  │          │  │ Interface │ │
   │  └──────────┘  └──────────┘  └───────────┘ │
   ├─────────────────────────────────────────────┤
-  │          ドメイン層                           │
+  │          Domain Layer                        │
   │  ┌──────────┐  ┌──────────┐  ┌───────────┐ │
   │  │ Entity   │  │ValueObject│  │ Repository│ │
   │  │          │  │          │  │ Interface │ │
   │  └──────────┘  └──────────┘  └───────────┘ │
   ├─────────────────────────────────────────────┤
-  │          インフラストラクチャ層               │
+  │          Infrastructure Layer                │
   │  ┌──────────┐  ┌──────────┐  ┌───────────┐ │
   │  │ DB Access│  │ File I/O │  │ HTTP      │ │
   │  │ (EF Core)│  │          │  │ Client    │ │
   │  └──────────┘  └──────────┘  └───────────┘ │
   └─────────────────────────────────────────────┘
 
-  依存性の方向: 外側 → 内側（内側は外側に依存しない）
+  Direction of dependencies: outer → inner (inner does not depend on outer)
 ```
 
 ```csharp
-// ドメイン層 — エンティティとバリューオブジェクト
+// Domain layer — Entities and value objects
 namespace MyApp.Domain.Entities;
 
 public class Customer
@@ -996,7 +996,7 @@ public class Customer
     public DateTime CreatedAt { get; private set; }
     public DateTime? UpdatedAt { get; private set; }
 
-    // ファクトリメソッドでバリデーション付き生成
+    // Factory method with validation
     public static Customer Create(string name, string email)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -1022,7 +1022,7 @@ public class Customer
     }
 }
 
-// バリューオブジェクト
+// Value object
 public record Email
 {
     public string Value { get; }
@@ -1046,7 +1046,7 @@ public record CustomerId(Guid Value)
 ```
 
 ```csharp
-// ドメイン層 — リポジトリインターフェース
+// Domain layer — Repository interface
 namespace MyApp.Domain.Repositories;
 
 public interface ICustomerRepository
@@ -1061,15 +1061,15 @@ public interface ICustomerRepository
 ```
 
 ```csharp
-// アプリケーション層 — ユースケース（CQRS パターン）
+// Application layer — Use cases (CQRS pattern)
 using MediatR;
 
 namespace MyApp.Application.Customers.Commands;
 
-// コマンド定義
+// Command definition
 public record CreateCustomerCommand(string Name, string Email) : IRequest<CustomerId>;
 
-// コマンドハンドラー
+// Command handler
 public class CreateCustomerHandler : IRequestHandler<CreateCustomerCommand, CustomerId>
 {
     private readonly ICustomerRepository _repository;
@@ -1094,7 +1094,7 @@ public class CreateCustomerHandler : IRequestHandler<CreateCustomerCommand, Cust
     }
 }
 
-// クエリ定義
+// Query definition
 public record GetCustomerByIdQuery(CustomerId Id) : IRequest<CustomerDto?>;
 
 public class GetCustomerByIdHandler : IRequestHandler<GetCustomerByIdQuery, CustomerDto?>
@@ -1124,7 +1124,7 @@ public record CustomerDto(Guid Id, string Name, string Email, DateTime CreatedAt
 ```
 
 ```csharp
-// インフラストラクチャ層 — EF Core リポジトリ実装
+// Infrastructure layer — EF Core repository implementation
 using Microsoft.EntityFrameworkCore;
 
 namespace MyApp.Infrastructure.Persistence;
@@ -1185,10 +1185,10 @@ public class CustomerRepository : ICustomerRepository
 
 ---
 
-## 6. 依存性注入（DI）の設計
+## 6. Dependency Injection (DI) Design
 
 ```csharp
-// App.xaml.cs — DI コンテナの構成（WinUI 3）
+// App.xaml.cs — DI container configuration (WinUI 3)
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -1212,27 +1212,27 @@ public partial class App : Application
             .CreateDefaultBuilder()
             .ConfigureServices((context, services) =>
             {
-                // ViewModel の登録
+                // Register ViewModels
                 services.AddTransient<MainViewModel>();
                 services.AddTransient<SettingsViewModel>();
                 services.AddTransient<CustomerListViewModel>();
                 services.AddTransient<CustomerDetailViewModel>();
 
-                // View の登録
+                // Register Views
                 services.AddTransient<MainPage>();
                 services.AddTransient<SettingsPage>();
                 services.AddTransient<CustomerListPage>();
 
-                // サービスの登録
+                // Register services
                 services.AddSingleton<INavigationService, NavigationService>();
                 services.AddSingleton<IDialogService, DialogService>();
                 services.AddSingleton<ISettingsService, SettingsService>();
 
-                // リポジトリの登録
+                // Register repositories
                 services.AddScoped<ICustomerRepository, CustomerRepository>();
                 services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-                // データベースコンテキスト
+                // Database context
                 services.AddDbContext<AppDbContext>(options =>
                 {
                     var dbPath = Path.Combine(
@@ -1242,14 +1242,14 @@ public partial class App : Application
                     options.UseSqlite($"Data Source={dbPath}");
                 });
 
-                // HTTP クライアント
+                // HTTP client
                 services.AddHttpClient<IApiClient, ApiClient>(client =>
                 {
                     client.BaseAddress = new Uri("https://api.example.com");
                     client.Timeout = TimeSpan.FromSeconds(30);
                 });
 
-                // MediatR（CQRS）
+                // MediatR (CQRS)
                 services.AddMediatR(cfg =>
                 {
                     cfg.RegisterServicesFromAssemblyContaining<CreateCustomerCommand>();
@@ -1259,7 +1259,7 @@ public partial class App : Application
                         typeof(LoggingBehavior<,>));
                 });
 
-                // ロギング
+                // Logging
                 services.AddLogging(builder =>
                 {
                     builder.AddDebug();
@@ -1278,14 +1278,14 @@ public partial class App : Application
 ```
 
 ```csharp
-// ViewModel の DI 活用例
+// Example of DI usage in ViewModel
 public partial class CustomerListViewModel : ObservableObject
 {
     private readonly IMediator _mediator;
     private readonly INavigationService _navigation;
     private readonly IDialogService _dialog;
 
-    // コンストラクタインジェクション
+    // Constructor injection
     public CustomerListViewModel(
         IMediator mediator,
         INavigationService navigation,
@@ -1324,8 +1324,8 @@ public partial class CustomerListViewModel : ObservableObject
     private async Task DeleteCustomerAsync(CustomerDto customer)
     {
         var confirmed = await _dialog.ShowConfirmAsync(
-            "削除確認",
-            $"{customer.Name} を削除しますか？");
+            "Delete Confirmation",
+            $"Delete {customer.Name}?");
 
         if (confirmed)
         {
@@ -1345,10 +1345,10 @@ public partial class CustomerListViewModel : ObservableObject
 
 ---
 
-## 7. マルチウィンドウ管理
+## 7. Multi-Window Management
 
 ```csharp
-// WinUI 3 のマルチウィンドウ管理
+// Multi-window management in WinUI 3
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using WinRT.Interop;
@@ -1358,14 +1358,14 @@ public class WindowManager
     private readonly Dictionary<string, Window> _windows = new();
 
     /// <summary>
-    /// 新しいウィンドウを作成・表示する
+    /// Create and display a new window
     /// </summary>
     public Window CreateWindow(string id, string title, Type pageType,
         int width = 800, int height = 600)
     {
         if (_windows.TryGetValue(id, out var existing))
         {
-            // 既存ウィンドウをアクティブにする
+            // Activate existing window
             ActivateWindow(existing);
             return existing;
         }
@@ -1376,11 +1376,11 @@ public class WindowManager
             Content = (Page)App.GetService(pageType),
         };
 
-        // AppWindow でサイズと位置を設定
+        // Set size and position with AppWindow
         var appWindow = GetAppWindow(window);
         appWindow.Resize(new Windows.Graphics.SizeInt32(width, height));
 
-        // ウィンドウが閉じられたときの処理
+        // Handle window close
         window.Closed += (_, _) =>
         {
             _windows.Remove(id);
@@ -1392,13 +1392,13 @@ public class WindowManager
     }
 
     /// <summary>
-    /// IDを指定してウィンドウを取得
+    /// Get a window by ID
     /// </summary>
     public Window? GetWindow(string id) =>
         _windows.TryGetValue(id, out var w) ? w : null;
 
     /// <summary>
-    /// 全ウィンドウを閉じる
+    /// Close all windows
     /// </summary>
     public void CloseAll()
     {
@@ -1421,7 +1421,7 @@ public class WindowManager
         var hwnd = WindowNative.GetWindowHandle(window);
         var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = AppWindow.GetFromWindowId(windowId);
-        // ウィンドウを前面に
+        // Bring window to front
         if (appWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsMinimizable = true;
@@ -1433,12 +1433,12 @@ public class WindowManager
 ```
 
 ```csharp
-// Electron のマルチウィンドウ管理（TypeScript）
-// ※ 比較のために .NET の後に掲載
+// Electron multi-window management (TypeScript)
+// Note: Listed after .NET for comparison
 ```
 
 ```typescript
-// main.ts — Electron マルチウィンドウ管理
+// main.ts — Electron multi-window management
 class WindowManager {
   private windows = new Map<string, BrowserWindow>();
 
@@ -1452,7 +1452,7 @@ class WindowManager {
       parent?: BrowserWindow;
     }
   ): BrowserWindow {
-    // 既存ウィンドウがあれば前面に
+    // Bring existing window to front if it exists
     const existing = this.windows.get(id);
     if (existing && !existing.isDestroyed()) {
       existing.focus();
@@ -1493,13 +1493,13 @@ class WindowManager {
     this.windows.clear();
   }
 
-  // ウィンドウ間通信
+  // Inter-window communication
   sendToWindow(id: string, channel: string, ...args: any[]): void {
     const win = this.getWindow(id);
     win?.webContents.send(channel, ...args);
   }
 
-  // 全ウィンドウにブロードキャスト
+  // Broadcast to all windows
   broadcast(channel: string, ...args: any[]): void {
     for (const [, win] of this.windows) {
       if (!win.isDestroyed()) {
@@ -1512,14 +1512,14 @@ class WindowManager {
 
 ---
 
-## 8. プラグインアーキテクチャ
+## 8. Plugin Architecture
 
 ```csharp
-// プラグインインターフェース
+// Plugin interface
 namespace MyApp.Plugins;
 
 /// <summary>
-/// プラグインの基本インターフェース
+/// Base interface for plugins
 /// </summary>
 public interface IPlugin
 {
@@ -1529,48 +1529,48 @@ public interface IPlugin
     string Description { get; }
 
     /// <summary>
-    /// プラグインを初期化する
+    /// Initialize the plugin
     /// </summary>
     Task InitializeAsync(IPluginContext context);
 
     /// <summary>
-    /// プラグインを破棄する
+    /// Dispose the plugin
     /// </summary>
     Task ShutdownAsync();
 }
 
 /// <summary>
-/// プラグインに提供するコンテキスト
+/// Context provided to plugins
 /// </summary>
 public interface IPluginContext
 {
     /// <summary>
-    /// メニューにアイテムを追加
+    /// Add an item to the menu
     /// </summary>
     void RegisterMenuItem(string menuPath, string label, Action handler);
 
     /// <summary>
-    /// コマンドパレットにコマンドを追加
+    /// Add a command to the command palette
     /// </summary>
     void RegisterCommand(string id, string label, Func<Task> handler);
 
     /// <summary>
-    /// サイドバーにパネルを追加
+    /// Add a panel to the sidebar
     /// </summary>
     void RegisterSidebarPanel(string id, string title, Type panelType);
 
     /// <summary>
-    /// イベントを購読
+    /// Subscribe to events
     /// </summary>
     IDisposable Subscribe<TEvent>(Action<TEvent> handler);
 
     /// <summary>
-    /// 設定を読み書き
+    /// Read and write settings
     /// </summary>
     IPluginSettings Settings { get; }
 }
 
-// プラグインローダー
+// Plugin loader
 public class PluginLoader
 {
     private readonly List<IPlugin> _plugins = new();
@@ -1584,7 +1584,7 @@ public class PluginLoader
     }
 
     /// <summary>
-    /// プラグインディレクトリからすべてのプラグインを読み込む
+    /// Load all plugins from the plugin directory
     /// </summary>
     public async Task LoadAllAsync()
     {
@@ -1609,7 +1609,7 @@ public class PluginLoader
 
     private async Task LoadPluginAsync(string dllPath)
     {
-        // AssemblyLoadContext で分離してロード
+        // Load isolated with AssemblyLoadContext
         var loadContext = new PluginLoadContext(dllPath);
         var assembly = loadContext.LoadFromAssemblyPath(dllPath);
 
@@ -1627,7 +1627,7 @@ public class PluginLoader
     }
 
     /// <summary>
-    /// 全プラグインをシャットダウン
+    /// Shut down all plugins
     /// </summary>
     public async Task UnloadAllAsync()
     {
@@ -1647,7 +1647,7 @@ public class PluginLoader
 }
 
 /// <summary>
-/// プラグイン用の分離された AssemblyLoadContext
+/// Isolated AssemblyLoadContext for plugins
 /// </summary>
 public class PluginLoadContext : AssemblyLoadContext
 {
@@ -1670,25 +1670,25 @@ public class PluginLoadContext : AssemblyLoadContext
 
 ---
 
-## 9. Win32 メッセージループの理解
+## 9. Understanding the Win32 Message Loop
 
 ```
-Win32 メッセージループ:
+Win32 message loop:
 
   ┌──────────┐     ┌───────────────┐     ┌──────────────┐
-  │  OS      │────→│ メッセージキュー  │────→│ WndProc      │
-  │ (入力)   │     │               │     │ (メッセージ処理)│
-  │ マウス   │     │ WM_PAINT      │     │              │
-  │ キーボード│     │ WM_KEYDOWN    │     │ switch(msg)  │
-  │ タイマー │     │ WM_MOUSEMOVE  │     │  case ...    │
+  │  OS      │────→│ Message Queue │────→│ WndProc      │
+  │ (input)  │     │               │     │ (msg handler)│
+  │ Mouse    │     │ WM_PAINT      │     │              │
+  │ Keyboard │     │ WM_KEYDOWN    │     │ switch(msg)  │
+  │ Timer    │     │ WM_MOUSEMOVE  │     │  case ...    │
   └──────────┘     └───────────────┘     └──────────────┘
 
   GetMessage() → TranslateMessage() → DispatchMessage() → WndProc()
 ```
 
 ```csharp
-// Win32 メッセージループの基本（P/Invoke）
-// WPF/WinUI 3 では通常直接操作しないが、理解は重要
+// Win32 message loop basics (P/Invoke)
+// Not normally manipulated directly in WPF/WinUI 3, but understanding is important
 
 using System.Runtime.InteropServices;
 
@@ -1722,7 +1722,7 @@ public class Win32MessageLoop
     [DllImport("user32.dll")]
     private static extern IntPtr DispatchMessage(ref MSG lpMsg);
 
-    // 標準メッセージループ（参考用 — 実際にはフレームワークが管理）
+    // Standard message loop (for reference — managed by the framework in practice)
     public static void RunMessageLoop()
     {
         MSG msg;
@@ -1733,7 +1733,7 @@ public class Win32MessageLoop
         }
     }
 
-    // よく使う Win32 メッセージ定数
+    // Common Win32 message constants
     public const uint WM_PAINT = 0x000F;
     public const uint WM_CLOSE = 0x0010;
     public const uint WM_DESTROY = 0x0002;
@@ -1748,7 +1748,7 @@ public class Win32MessageLoop
 ```
 
 ```csharp
-// WPF での Win32 メッセージフック（高度な使用例）
+// Win32 message hook in WPF (advanced usage)
 using System.Windows.Interop;
 
 public partial class MainWindow : Window
@@ -1759,7 +1759,7 @@ public partial class MainWindow : Window
     {
         base.OnSourceInitialized(e);
 
-        // ウィンドウハンドルを取得してメッセージフックを設定
+        // Get window handle and set up message hook
         _hwndSource = PresentationSource.FromVisual(this) as HwndSource;
         _hwndSource?.AddHook(WndProc);
     }
@@ -1770,13 +1770,13 @@ public partial class MainWindow : Window
         switch ((uint)msg)
         {
             case Win32MessageLoop.WM_COPYDATA:
-                // 他のアプリケーションからのデータ受信
+                // Receive data from other applications
                 HandleCopyData(lParam);
                 handled = true;
                 break;
 
             case Win32MessageLoop.WM_APP + 1:
-                // カスタムメッセージの処理
+                // Handle custom messages
                 HandleCustomMessage(wParam, lParam);
                 handled = true;
                 break;
@@ -1795,13 +1795,13 @@ public partial class MainWindow : Window
 
 ---
 
-## 10. 状態管理パターン
+## 10. State Management Patterns
 
 ```csharp
-// アプリケーション状態管理 — Redux 風パターン
+// Application state management — Redux-style pattern
 namespace MyApp.State;
 
-// 状態の定義（Immutable）
+// State definition (Immutable)
 public record AppState
 {
     public IReadOnlyList<Customer> Customers { get; init; } = Array.Empty<Customer>();
@@ -1811,7 +1811,7 @@ public record AppState
     public ThemeMode Theme { get; init; } = ThemeMode.System;
 }
 
-// アクションの定義
+// Action definitions
 public abstract record AppAction;
 public record LoadCustomersAction : AppAction;
 public record CustomersLoadedAction(IReadOnlyList<Customer> Customers) : AppAction;
@@ -1820,7 +1820,7 @@ public record SetErrorAction(string Message) : AppAction;
 public record ClearErrorAction : AppAction;
 public record ChangeThemeAction(ThemeMode Theme) : AppAction;
 
-// リデューサー
+// Reducer
 public static class AppReducer
 {
     public static AppState Reduce(AppState state, AppAction action)
@@ -1850,7 +1850,7 @@ public static class AppReducer
     }
 }
 
-// ストア
+// Store
 public class Store : ObservableObject
 {
     private AppState _state = new();
@@ -1866,7 +1866,7 @@ public class Store : ObservableObject
         State = AppReducer.Reduce(State, action);
     }
 
-    // 非同期アクション（Thunk）
+    // Async action (Thunk)
     public async Task DispatchAsync(
         Func<Func<AppAction, void>, Task> thunk)
     {
@@ -1874,7 +1874,7 @@ public class Store : ObservableObject
     }
 }
 
-// 使用例
+// Usage example
 public partial class CustomerListViewModel : ObservableObject
 {
     private readonly Store _store;
@@ -1905,93 +1905,93 @@ public partial class CustomerListViewModel : ObservableObject
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
 ```
-よくある間違い:
+Common mistakes:
 
-  ✗ nodeIntegration: true にする
-    → レンダラーから Node.js API に直接アクセス可能
-    → XSS 攻撃で任意コード実行のリスク
+  ✗ Setting nodeIntegration: true
+    → Node.js APIs directly accessible from renderer
+    → Risk of arbitrary code execution via XSS attacks
 
-  ✗ contextIsolation: false にする
-    → preload のコンテキストが Web ページと共有
-    → prototype pollution 攻撃のリスク
+  ✗ Setting contextIsolation: false
+    → preload context shared with web page
+    → Risk of prototype pollution attacks
 
-  ✗ ipcRenderer を丸ごと公開する
-    → 任意のチャンネルにメッセージ送信可能
-    → ホワイトリスト方式で制限すべき
+  ✗ Exposing ipcRenderer wholesale
+    → Messages can be sent to any channel
+    → Should be restricted with whitelist approach
 
-  ✗ メインプロセスで入力検証しない
-    → レンダラーからの入力は常に信頼できない
-    → パストラバーサル、インジェクション攻撃のリスク
+  ✗ Not validating input in main process
+    → Input from renderer is never trustworthy
+    → Risk of path traversal and injection attacks
 
-  ✗ UI スレッドで重い処理を実行する（.NET）
-    → UIフリーズ（応答なしダイアログ）
-    → Task.Run + async/await で回避
+  ✗ Running heavy processing on UI thread (.NET)
+    → UI freeze (not responding dialog)
+    → Avoid with Task.Run + async/await
 
-  ✗ ViewModel にフレームワーク依存コードを入れる
-    → テスタビリティが低下
-    → サービスインターフェースで抽象化すべき
+  ✗ Putting framework-dependent code in ViewModel
+    → Reduces testability
+    → Should abstract with service interfaces
 
-  ✗ DI を使わずに new で依存性を生成する
-    → 結合度が高く、モック化困難
-    → コンストラクタインジェクションを使用する
+  ✗ Creating dependencies with new instead of using DI
+    → High coupling, difficult to mock
+    → Use constructor injection
 
-  ✗ 状態を複数の場所に分散して管理する
-    → 状態の不整合が発生しやすい
-    → 単一のStore / ViewModel で一元管理する
+  ✗ Managing state scattered across multiple locations
+    → State inconsistencies occur easily
+    → Centrally manage with a single Store / ViewModel
 ```
 
 ---
 
 ## FAQ
 
-### Q1: Electron と Tauri のセキュリティモデルの違いは？
-Electron はデフォルトで緩い設定（手動で厳格化が必要）。Tauri はデフォルトで全て無効（必要なAPIのみ capabilities で許可）。Tauri の方がセキュア・バイ・デフォルト。
+### Q1: What is the difference between Electron and Tauri security models?
+Electron has permissive defaults (manual hardening required). Tauri has everything disabled by default (only explicitly permitted APIs are granted via capabilities). Tauri is secure by default.
 
-### Q2: preload スクリプトは複数使えるか？
-Electron では BrowserWindow ごとに1つの preload を指定。複数の機能は1つの preload 内でモジュール化して管理する。
+### Q2: Can multiple preload scripts be used?
+In Electron, one preload can be specified per BrowserWindow. Multiple features should be modularized and managed within a single preload.
 
-### Q3: IPC 通信のパフォーマンスは？
-invoke/handle は数百μs程度のオーバーヘッド。大量データの転送は MessagePort や SharedArrayBuffer の活用を検討。
+### Q3: What is the performance of IPC communication?
+invoke/handle has overhead on the order of a few hundred microseconds. For large data transfers, consider using MessagePort or SharedArrayBuffer.
 
-### Q4: WPF/WinUI 3 で DI コンテナは何を使うべきか？
-Microsoft.Extensions.DependencyInjection が標準的。Generic Host パターンで構成する。Autofac や DryIoc も選択肢だが、特別な理由がなければ標準のもので十分。
+### Q4: Which DI container should be used for WPF/WinUI 3?
+Microsoft.Extensions.DependencyInjection is the standard choice. Configure using the Generic Host pattern. Autofac and DryIoc are also options, but the standard one is sufficient unless there is a specific reason.
 
-### Q5: MVVM と MVC の違いは？
-MVC はコントローラーが入力を受け取りモデルを操作する。MVVM は View と ViewModel がデータバインディングで結合され、ViewModel が表示ロジックを担当する。デスクトップの XAML アプリには MVVM が最適。
+### Q5: What is the difference between MVVM and MVC?
+In MVC, the controller receives input and manipulates the model. In MVVM, the View and ViewModel are bound via data binding, and the ViewModel handles presentation logic. MVVM is optimal for XAML-based desktop apps.
 
-### Q6: CommunityToolkit.Mvvm と Prism の使い分けは？
-CommunityToolkit.Mvvm は軽量で Source Generator ベース。Prism はモジュール化・リージョン管理・ダイアログサービスなど大規模向け機能が充実。小中規模は CommunityToolkit、大規模エンタープライズは Prism を検討。
+### Q6: When to use CommunityToolkit.Mvvm vs Prism?
+CommunityToolkit.Mvvm is lightweight and Source Generator-based. Prism offers rich features for large-scale applications such as modularization, region management, and dialog services. Consider CommunityToolkit for small-to-medium scale, and Prism for large enterprise applications.
 
-### Q7: クリーンアーキテクチャはデスクトップアプリに必要か？
-小規模アプリには過剰設計になりがち。中規模以上、または長期保守が見込まれるアプリには推奨。まずは MVVM + DI から始め、必要に応じてレイヤーを追加するのが現実的。
-
----
-
-## まとめ
-
-| 概念 | ポイント |
-|------|---------|
-| プロセス分離 | メイン（バックエンド）とレンダラー（UI）を分離 |
-| IPC | invoke/handle（Request-Response）が基本 |
-| preload | contextBridge でホワイトリスト方式の API 公開 |
-| セキュリティ | nodeIntegration:false + contextIsolation:true + sandbox:true |
-| Tauri | Capabilities でAPI単位の権限管理 |
-| .NET MVVM | CommunityToolkit.Mvvm + DI で疎結合な設計 |
-| クリーンアーキテクチャ | ドメイン → アプリケーション → インフラ → プレゼンテーション |
-| 状態管理 | Store パターンまたは ViewModel で一元管理 |
-| マルチウィンドウ | WindowManager で ID ベースの管理 |
-| プラグイン | AssemblyLoadContext で分離ロード |
+### Q7: Is clean architecture necessary for desktop apps?
+It can be over-engineering for small apps. Recommended for medium and larger applications, or those expected to require long-term maintenance. A practical approach is to start with MVVM + DI and add layers as needed.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Concept | Key Points |
+|---------|-----------|
+| Process isolation | Separate main (backend) and renderer (UI) |
+| IPC | invoke/handle (Request-Response) is the foundation |
+| preload | Expose APIs via whitelist approach using contextBridge |
+| Security | nodeIntegration:false + contextIsolation:true + sandbox:true |
+| Tauri | Per-API permission management via Capabilities |
+| .NET MVVM | Loosely-coupled design with CommunityToolkit.Mvvm + DI |
+| Clean architecture | Domain → Application → Infrastructure → Presentation |
+| State management | Centralized management with Store pattern or ViewModel |
+| Multi-window | ID-based management with WindowManager |
+| Plugins | Isolated loading with AssemblyLoadContext |
 
 ---
 
-## 参考文献
+## Further Reading
+
+---
+
+## References
 1. Electron. "Security." electronjs.org/docs/tutorial/security, 2024.
 2. Electron. "Context Isolation." electronjs.org/docs/tutorial/context-isolation, 2024.
 3. Tauri. "Security." tauri.app/security, 2024.
