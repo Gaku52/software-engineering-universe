@@ -1,158 +1,161 @@
-# RBAC（ロールベースアクセス制御）
+# RBAC (Role-Based Access Control)
 
-> RBAC はユーザーに「ロール」を割り当て、ロールに「権限」を紐付ける最も普及したアクセス制御モデル。ロール設計、権限モデル、階層ロール、マルチテナント対応、キャッシングまで、実践的な RBAC の設計と実装を解説する。
+> RBAC is the most widely adopted access control model, assigning "roles" to users and associating "permissions" with roles. This chapter covers practical RBAC design and implementation: role design, permission models, hierarchical roles, multi-tenant support, and caching.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] RBAC の基本概念（RBAC0〜RBAC3）とモデルの違いを理解する
-- [ ] 権限の命名規則とロール設計パターンを実務レベルで設計できる
-- [ ] 階層ロール（ロール継承）を再帰的に解決するアルゴリズムを実装できる
-- [ ] マルチテナント環境での組織別 RBAC を設計・実装できる
-- [ ] Redis を使った権限キャッシングでパフォーマンスを最適化できる
+- [ ] Understand the fundamental RBAC concepts (RBAC0–RBAC3) and the differences between models
+- [ ] Design permission naming conventions and role design patterns at a production level
+- [ ] Implement an algorithm that recursively resolves hierarchical roles (role inheritance)
+- [ ] Design and implement organization-scoped RBAC for multi-tenant environments
+- [ ] Optimize performance using Redis-based permission caching
 
-## 前提知識
+## Prerequisites
 
-- 認証と認可の違い → [00-fundamentals/](../00-fundamentals/)
-- トークン管理の基本 → [02-token-auth/03-token-management.md](../02-token-auth/03-token-management.md)
-- RDB の基本（多対多リレーション）→ sql-and-query-mastery: 02-design/
-- セキュリティの基礎 → security-fundamentals: 00-basics/
+- Difference between authentication and authorization → [00-fundamentals/](../00-fundamentals/)
+- Token management basics → [02-token-auth/03-token-management.md](../02-token-auth/03-token-management.md)
+- RDB basics (many-to-many relations) → sql-and-query-mastery: 02-design/
+- Security fundamentals → security-fundamentals: 00-basics/
 
 ---
 
-## 1. RBAC の基本モデル
+## 1. RBAC Core Models
 
-### 1.1 RBAC の構成要素
+### 1.1 RBAC Building Blocks
 
 ```
-RBAC の構成要素:
+RBAC building blocks:
 
   ┌──────────┐    ┌──────────┐    ┌──────────────┐
   │  User    │───→│  Role    │───→│  Permission  │
-  │ ユーザー  │ N:M│  ロール   │ N:M│  権限         │
+  │          │ N:M│          │ N:M│              │
   └──────────┘    └──────────┘    └──────────────┘
 
-  User → Role:      ユーザーは1つ以上のロールを持つ
-  Role → Permission: ロールは1つ以上の権限を持つ
-  User → Permission: ユーザーはロール経由で間接的に権限を得る
+  User → Role:       A user holds one or more roles
+  Role → Permission: A role holds one or more permissions
+  User → Permission: A user gains permissions indirectly through roles
 
-  なぜ直接 User → Permission にしないのか（WHY）:
-    → ユーザー数が増えると権限の個別管理が破綻する
-    → 「編集者」という役割を定義すれば、新ユーザーにロールを割当てるだけ
-    → 権限変更時もロールを変えれば全ユーザーに反映
-    → 監査が容易（「誰がどのロールを持つか」で説明可能）
+  Why not assign User → Permission directly (WHY):
+    → As the number of users grows, managing permissions individually becomes unmanageable
+    → Defining a role like "editor" means you only need to assign the role to new users
+    → Changing permissions only requires updating the role — all users reflect the change
+    → Auditing is straightforward ("who holds which role" is self-explanatory)
 ```
 
-### 1.2 RBAC のレベル（NIST 定義）
+### 1.2 RBAC Levels (NIST Definition)
 
 ```
-RBAC のレベル（NIST SP 359 に基づく）:
+RBAC levels (based on NIST SP 359):
 
   ┌──────────────────────────────────────────────────────────────┐
   │                                                              │
-  │  RBAC0（基本 RBAC）:                                          │
+  │  RBAC0 (Flat RBAC):                                          │
   │  ┌──────────────────────────────────────────────────────┐    │
-  │  │ ユーザー ←→ ロール → 権限                              │    │
-  │  │ 最もシンプルな形。ロールに権限を紐付ける。              │    │
-  │  │ 例: admin, editor, viewer の3ロール                    │    │
+  │  │ User ←→ Role → Permission                            │    │
+  │  │ The simplest form. Permissions are bound to roles.   │    │
+  │  │ Example: 3 roles — admin, editor, viewer             │    │
   │  └──────────────────────────────────────────────────────┘    │
   │                                                              │
-  │  RBAC1（階層ロール）:                                         │
+  │  RBAC1 (Hierarchical RBAC):                                  │
   │  ┌──────────────────────────────────────────────────────┐    │
-  │  │ ロール間の継承関係を追加                                │    │
-  │  │ admin は editor の権限を「継承」する                     │    │
-  │  │ editor は viewer の権限を「継承」する                    │    │
-  │  │ → 権限の重複定義を排除できる                            │    │
+  │  │ Adds inheritance relationships between roles          │    │
+  │  │ admin "inherits" the permissions of editor            │    │
+  │  │ editor "inherits" the permissions of viewer           │    │
+  │  │ → Eliminates redundant permission definitions         │    │
   │  └──────────────────────────────────────────────────────┘    │
   │                                                              │
-  │  RBAC2（制約付き RBAC）:                                      │
+  │  RBAC2 (Constrained RBAC):                                   │
   │  ┌──────────────────────────────────────────────────────┐    │
-  │  │ ロールに制約を追加                                      │    │
-  │  │ ① 相互排他: 「承認者」と「申請者」を同時に持てない       │    │
-  │  │ ② 最大ロール数: 1ユーザーにつき3ロールまで              │    │
-  │  │ ③ 職務分離（SoD）: 利益相反を防止                       │    │
+  │  │ Adds constraints to roles                             │    │
+  │  │ ① Mutual exclusion: "approver" and "requester"        │    │
+  │  │    cannot be held simultaneously                      │    │
+  │  │ ② Maximum roles: up to 3 roles per user               │    │
+  │  │ ③ Separation of Duties (SoD): prevents conflicts      │    │
+  │  │    of interest                                        │    │
   │  └──────────────────────────────────────────────────────┘    │
   │                                                              │
-  │  RBAC3（統合）:                                               │
+  │  RBAC3 (Unified RBAC):                                       │
   │  ┌──────────────────────────────────────────────────────┐    │
-  │  │ RBAC1（階層）+ RBAC2（制約）の両方を統合                 │    │
-  │  │ 最も柔軟で完全なモデル                                  │    │
-  │  │ エンタープライズ向け                                    │    │
+  │  │ Combines both RBAC1 (hierarchy) and RBAC2             │    │
+  │  │ (constraints)                                         │    │
+  │  │ The most flexible and complete model                  │    │
+  │  │ Designed for enterprise use                           │    │
   │  └──────────────────────────────────────────────────────┘    │
   │                                                              │
   └──────────────────────────────────────────────────────────────┘
 
-  選択ガイド:
-    小規模アプリ → RBAC0 で十分
-    中規模アプリ → RBAC1（階層ロール）推奨
-    エンタープライズ → RBAC3（階層 + 制約）
+  Selection guide:
+    Small-scale apps → RBAC0 is sufficient
+    Medium-scale apps → RBAC1 (hierarchical roles) recommended
+    Enterprise → RBAC3 (hierarchy + constraints)
 ```
 
 ---
 
-## 2. ロールと権限の設計
+## 2. Role and Permission Design
 
-### 2.1 権限の命名規則
-
-```
-権限の命名規則: resource:action
-
-  基本パターン:
-    articles:read     — 記事の閲覧
-    articles:create   — 記事の作成
-    articles:update   — 記事の編集
-    articles:delete   — 記事の削除
-    articles:publish  — 記事の公開
-
-  ユーザー管理:
-    users:read        — ユーザー一覧閲覧
-    users:create      — ユーザー作成
-    users:update      — ユーザー編集
-    users:delete      — ユーザー削除
-    users:invite      — ユーザー招待
-
-  組織管理:
-    org:settings      — 組織設定の変更
-    org:billing       — 課金管理
-    org:members       — メンバー管理
-
-  命名のベストプラクティス:
-    ✓ resource:action 形式で統一
-    ✓ リソース名は複数形（articles, users）
-    ✓ アクションは CRUD ベース + ドメイン固有（publish, approve）
-    ✓ ワイルドカード: articles:* で全権限
-
-  避けるべき命名:
-    ✗ can_edit_articles（verbose すぎる）
-    ✗ admin（リソースが不明）
-    ✗ 1, 2, 3（数値 ID は意味不明）
-```
-
-### 2.2 ロール設計パターン
+### 2.1 Permission Naming Conventions
 
 ```
-ロール設計例（CMS アプリケーション）:
+Permission naming convention: resource:action
+
+  Basic patterns:
+    articles:read     — View articles
+    articles:create   — Create articles
+    articles:update   — Edit articles
+    articles:delete   — Delete articles
+    articles:publish  — Publish articles
+
+  User management:
+    users:read        — View user list
+    users:create      — Create users
+    users:update      — Edit users
+    users:delete      — Delete users
+    users:invite      — Invite users
+
+  Organization management:
+    org:settings      — Change organization settings
+    org:billing       — Manage billing
+    org:members       — Manage members
+
+  Naming best practices:
+    ✓ Use the resource:action format consistently
+    ✓ Resource names in plural (articles, users)
+    ✓ Actions based on CRUD + domain-specific (publish, approve)
+    ✓ Wildcard: articles:* grants all permissions on articles
+
+  Naming to avoid:
+    ✗ can_edit_articles (too verbose)
+    ✗ admin (resource is unclear)
+    ✗ 1, 2, 3 (numeric IDs are meaningless)
+```
+
+### 2.2 Role Design Patterns
+
+```
+Role design example (CMS application):
 
   viewer:
     → articles:read
 
   editor:
-    → viewer の全権限 +
+    → all viewer permissions +
     → articles:create, articles:update
 
   publisher:
-    → editor の全権限 +
+    → all editor permissions +
     → articles:publish, articles:delete
 
   admin:
-    → publisher の全権限 +
+    → all publisher permissions +
     → users:*, org:settings
 
   super_admin:
-    → admin の全権限 +
-    → org:billing, システム設定
+    → all admin permissions +
+    → org:billing, system settings
 
   ┌─────────────────────────────────────────────────┐
-  │  ロール階層（RBAC1）:                             │
+  │  Role hierarchy (RBAC1):                         │
   │                                                   │
   │  super_admin                                      │
   │    └── admin                                      │
@@ -160,33 +163,33 @@ RBAC のレベル（NIST SP 359 に基づく）:
   │                └── editor                         │
   │                      └── viewer                   │
   │                                                   │
-  │  各ロールは親ロールの権限を全て継承                  │
+  │  Each role inherits all permissions of its parent │
   └─────────────────────────────────────────────────┘
 
-  ロール数の目安:
-    → 小規模: 3〜5 ロール
-    → 中規模: 5〜10 ロール
-    → 大規模: 10〜20 ロール（それ以上は ABAC の併用を検討）
+  Recommended number of roles:
+    → Small-scale: 3–5 roles
+    → Medium-scale: 5–10 roles
+    → Large-scale: 10–20 roles (consider combining with ABAC beyond that)
 ```
 
-### 2.3 権限とロールの型定義
+### 2.3 Type Definitions for Permissions and Roles
 
 ```typescript
-// 権限定義（型安全）
+// Permission definitions (type-safe)
 const PERMISSIONS = {
-  // 記事
+  // Articles
   'articles:read': '記事の閲覧',
   'articles:create': '記事の作成',
   'articles:update': '記事の編集',
   'articles:delete': '記事の削除',
   'articles:publish': '記事の公開',
-  // ユーザー
+  // Users
   'users:read': 'ユーザー一覧',
   'users:create': 'ユーザー作成',
   'users:update': 'ユーザー編集',
   'users:delete': 'ユーザー削除',
   'users:invite': 'ユーザー招待',
-  // 組織
+  // Organization
   'org:settings': '組織設定',
   'org:billing': '課金管理',
   'org:members': 'メンバー管理',
@@ -194,7 +197,7 @@ const PERMISSIONS = {
 
 type Permission = keyof typeof PERMISSIONS;
 
-// ロール定義（階層付き）
+// Role definitions (with hierarchy)
 interface RoleConfig {
   description: string;
   permissions: Permission[];
@@ -235,12 +238,12 @@ const ROLES: Record<string, RoleConfig> = {
 type Role = keyof typeof ROLES;
 ```
 
-### 2.4 ロールの全権限を解決（継承込み）
+### 2.4 Resolving All Permissions for a Role (Including Inheritance)
 
 ```typescript
-// ロールの全権限を再帰的に解決
+// Recursively resolve all permissions for a role
 function resolvePermissions(role: string, visited = new Set<string>()): Set<Permission> {
-  // 循環参照の防止
+  // Prevent circular references
   if (visited.has(role)) return new Set();
   visited.add(role);
 
@@ -249,10 +252,10 @@ function resolvePermissions(role: string, visited = new Set<string>()): Set<Perm
 
   const permissions = new Set<Permission>();
 
-  // 直接の権限を追加
+  // Add direct permissions
   roleConfig.permissions.forEach((p) => permissions.add(p));
 
-  // 継承された権限を再帰的に解決
+  // Recursively resolve inherited permissions
   roleConfig.inherits.forEach((parentRole) => {
     resolvePermissions(parentRole, visited).forEach((p) => permissions.add(p));
   });
@@ -260,49 +263,49 @@ function resolvePermissions(role: string, visited = new Set<string>()): Set<Perm
   return permissions;
 }
 
-// 権限チェック
+// Permission check
 function hasPermission(userRole: string, permission: Permission): boolean {
   const permissions = resolvePermissions(userRole);
   return permissions.has(permission);
 }
 
-// ワイルドカード対応の権限チェック
+// Permission check with wildcard support
 function hasPermissionWithWildcard(
   userRole: string,
   requiredPermission: string
 ): boolean {
   const permissions = resolvePermissions(userRole);
 
-  // 完全一致
+  // Exact match
   if (permissions.has(requiredPermission as Permission)) return true;
 
-  // ワイルドカードチェック: users:* → users:read, users:create, ...
+  // Wildcard check: users:* → users:read, users:create, ...
   const [resource] = requiredPermission.split(':');
   const wildcardPerm = `${resource}:*` as Permission;
   if (permissions.has(wildcardPerm)) return true;
 
-  // 全権限ワイルドカード
+  // Global wildcard
   if (permissions.has('*:*' as Permission)) return true;
 
   return false;
 }
 
-// 使用例
-console.log(hasPermission('editor', 'articles:read'));     // true（viewer から継承）
-console.log(hasPermission('editor', 'articles:create'));   // true（直接の権限）
-console.log(hasPermission('editor', 'articles:publish'));  // false（publisher 以上）
-console.log(hasPermission('admin', 'articles:publish'));   // true（publisher から継承）
-console.log(hasPermission('super_admin', 'org:billing'));  // true（直接の権限）
+// Usage examples
+console.log(hasPermission('editor', 'articles:read'));     // true (inherited from viewer)
+console.log(hasPermission('editor', 'articles:create'));   // true (direct permission)
+console.log(hasPermission('editor', 'articles:publish'));  // false (requires publisher or above)
+console.log(hasPermission('admin', 'articles:publish'));   // true (inherited from publisher)
+console.log(hasPermission('super_admin', 'org:billing'));  // true (direct permission)
 ```
 
 ---
 
-## 3. データベース設計
+## 3. Database Design
 
-### 3.1 テーブル構造
+### 3.1 Table Structure
 
 ```
-RBAC のテーブル設計:
+RBAC table design:
 
   ┌─────────┐   ┌──────────────┐   ┌──────────┐
   │  users  │──→│ user_roles   │←──│  roles   │
@@ -320,24 +323,24 @@ RBAC のテーブル設計:
                                    │ permissions   │
                                    └──────────────┘
 
-  正規化 vs 非正規化:
+  Normalized vs Denormalized:
 
-  正規化（上記の5テーブル構成）:
-    ✓ 柔軟性が高い（権限の動的追加・削除）
-    ✓ 管理画面からの権限設定変更に対応
-    △ JOIN が多くてクエリが複雑
+  Normalized (5-table structure above):
+    ✓ Highly flexible (dynamic add/remove of permissions)
+    ✓ Supports permission changes from an admin UI
+    △ Complex queries due to many JOINs
 
-  非正規化（ロール定義をコードに持つ）:
-    ✓ クエリがシンプル（user テーブルに role カラム）
-    ✓ パフォーマンスが良い
-    △ 権限変更にはコード変更 + デプロイが必要
+  Denormalized (role definitions in code):
+    ✓ Simple queries (role column in the user table)
+    ✓ Better performance
+    △ Permission changes require code changes + deployment
 
-  推奨:
-    → 小〜中規模: 非正規化（role カラム + コード定義）
-    → 大規模: 正規化（DB テーブル + 管理画面）
+  Recommendation:
+    → Small to medium-scale: denormalized (role column + code definitions)
+    → Large-scale: normalized (DB tables + admin UI)
 ```
 
-### 3.2 Prisma スキーマ（正規化版）
+### 3.2 Prisma Schema (Normalized Version)
 
 ```typescript
 // schema.prisma
@@ -393,10 +396,10 @@ RBAC のテーブル設計:
 // }
 ```
 
-### 3.3 DB からユーザーの全権限を取得
+### 3.3 Fetching All Permissions for a User from the DB
 
 ```typescript
-// DB からユーザーの全権限を取得（階層ロール対応）
+// Fetch all permissions for a user from the DB (with hierarchical role support)
 async function getUserPermissions(userId: string): Promise<Set<string>> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -413,7 +416,7 @@ async function getUserPermissions(userId: string): Promise<Set<string>> {
                   permissions: {
                     include: { permission: true },
                   },
-                  // 2段階まで（深い階層は再帰で解決）
+                  // Up to 2 levels deep (deeper hierarchies resolved recursively)
                   parent: {
                     include: {
                       permissions: {
@@ -432,13 +435,13 @@ async function getUserPermissions(userId: string): Promise<Set<string>> {
 
   const permissions = new Set<string>();
 
-  // 全ロールの権限を収集（階層込み）
+  // Collect permissions from all roles (including hierarchy)
   function collectPermissions(role: any) {
     role.permissions.forEach(({ permission }: any) => {
       permissions.add(permission.name);
     });
 
-    // 親ロールの権限も収集（再帰）
+    // Collect parent role permissions recursively
     if (role.parent) {
       collectPermissions(role.parent);
     }
@@ -449,42 +452,42 @@ async function getUserPermissions(userId: string): Promise<Set<string>> {
   return permissions;
 }
 
-// 非正規化版（シンプル・高速）
+// Denormalized version (simple and fast)
 async function getUserPermissionsSimple(userId: string): Promise<Set<string>> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true }, // role カラムが1つの場合
+    select: { role: true }, // when there is a single role column
   });
 
   if (!user) return new Set();
 
-  // コード定義のロールから権限を解決
+  // Resolve permissions from code-defined roles
   return resolvePermissions(user.role);
 }
 ```
 
 ---
 
-## 4. ミドルウェアでの権限チェック
+## 4. Permission Checks in Middleware
 
-### 4.1 Express ミドルウェア
+### 4.1 Express Middleware
 
 ```typescript
-// Express ミドルウェア（汎用的な権限チェック）
+// Express middleware (generic permission check)
 import { Request, Response, NextFunction } from 'express';
 
-// 権限チェックミドルウェア
+// Permission check middleware
 function requirePermission(...requiredPermissions: string[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const user = req.user; // 認証ミドルウェアで設定済み
+    const user = req.user; // set by authentication middleware
     if (!user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // ユーザーの権限を取得（キャッシュ付き）
+    // Fetch user permissions (with cache)
     const userPermissions = await getCachedPermissions(user.id);
 
-    // 全ての必要権限を持っているか確認
+    // Check if the user holds all required permissions
     const hasAll = requiredPermissions.every((p) => userPermissions.has(p));
     if (!hasAll) {
       return res.status(403).json({
@@ -498,7 +501,7 @@ function requirePermission(...requiredPermissions: string[]) {
   };
 }
 
-// いずれかの権限を持っていれば OK
+// Allow access if the user holds any one of the required permissions
 function requireAnyPermission(...requiredPermissions: string[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const user = req.user;
@@ -520,34 +523,34 @@ function requireAnyPermission(...requiredPermissions: string[]) {
   };
 }
 
-// 使用例
+// Usage examples
 app.get('/api/articles', requirePermission('articles:read'), getArticles);
 app.post('/api/articles', requirePermission('articles:create'), createArticle);
 app.put('/api/articles/:id', requirePermission('articles:update'), updateArticle);
 app.delete('/api/articles/:id', requirePermission('articles:delete'), deleteArticle);
 app.post('/api/articles/:id/publish', requirePermission('articles:publish'), publishArticle);
 
-// 複数権限が必要な場合
+// When multiple permissions are required
 app.delete('/api/users/:id',
   requirePermission('users:delete', 'users:read'),
   deleteUser
 );
 
-// いずれかの権限でアクセス可能
+// When any of the permissions grants access
 app.get('/api/reports',
   requireAnyPermission('reports:read', 'admin'),
   getReports
 );
 ```
 
-### 4.2 Next.js Server Actions での権限チェック
+### 4.2 Permission Checks in Next.js Server Actions
 
 ```typescript
-// Next.js Server Actions での権限チェック
+// Permission checks in Next.js Server Actions
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 
-// 権限チェックユーティリティ
+// Authorization utility
 async function authorize(...requiredPermissions: string[]) {
   const session = await auth();
 
@@ -569,7 +572,7 @@ async function authorize(...requiredPermissions: string[]) {
   return session;
 }
 
-// Server Action での使用例
+// Usage in a Server Action
 'use server';
 
 async function createArticle(formData: FormData) {
@@ -600,11 +603,11 @@ async function deleteArticle(articleId: string) {
 async function inviteUser(email: string, role: string) {
   const session = await authorize('users:invite', 'users:create');
 
-  // 招待するロールが自分のロールより高くないことを確認
+  // Ensure the role being assigned is not higher than the inviter's role
   const inviterPermissions = resolvePermissions(session.user.role);
   const inviteePermissions = resolvePermissions(role);
 
-  // 招待先のロールが自分にない権限を持っている場合はエラー
+  // Error if the invitee's role includes permissions the inviter does not have
   for (const perm of inviteePermissions) {
     if (!inviterPermissions.has(perm)) {
       throw new Error('Cannot assign a role with higher permissions than your own');
@@ -617,41 +620,41 @@ async function inviteUser(email: string, role: string) {
 
 ---
 
-## 5. マルチテナント RBAC
+## 5. Multi-Tenant RBAC
 
-### 5.1 テナント分離の設計
+### 5.1 Tenant Isolation Design
 
 ```
-マルチテナント RBAC の設計:
+Multi-tenant RBAC design:
 
-  課題: 同じユーザーが組織ごとに異なるロールを持つ
+  Problem: the same user holds different roles per organization
     Alice: Organization A → admin
     Alice: Organization B → viewer
     Bob:   Organization A → editor
 
-  テーブル設計:
+  Table design:
 
   ┌─────────┐   ┌─────────────────────────┐   ┌───────────┐
   │  users  │──→│ organization_members     │←──│ orgs      │
   │         │   │ (user_id, org_id, role)  │   │           │
   └─────────┘   └─────────────────────────┘   └───────────┘
 
-  設計の選択肢:
+  Design options:
 
-  ① role カラム（シンプル）:
-     organization_members テーブルに role カラムを追加
-     → 小〜中規模向け
+  ① role column (simple):
+     Add a role column to the organization_members table
+     → Suitable for small to medium-scale
 
-  ② 別テーブル（柔軟）:
+  ② Separate table (flexible):
      org_member_roles (member_id, role_id)
-     → ユーザーが組織内で複数ロールを持てる
-     → 大規模向け
+     → Allows a user to hold multiple roles within an organization
+     → Suitable for large-scale
 ```
 
-### 5.2 マルチテナント RBAC の実装
+### 5.2 Multi-Tenant RBAC Implementation
 
 ```typescript
-// マルチテナント RBAC の実装
+// Multi-tenant RBAC implementation
 interface OrgMembership {
   userId: string;
   orgId: string;
@@ -659,7 +662,7 @@ interface OrgMembership {
   joinedAt: Date;
 }
 
-// 組織内の権限チェック
+// Permission check within an organization
 async function checkOrgPermission(
   userId: string,
   orgId: string,
@@ -673,11 +676,11 @@ async function checkOrgPermission(
 
   if (!membership) return false;
 
-  // ロールの権限を解決
+  // Resolve permissions from role
   return hasPermission(membership.role, permission as Permission);
 }
 
-// 組織コンテキスト付きミドルウェア
+// Middleware with organization context
 function requireOrgPermission(...permissions: string[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const user = req.user;
@@ -685,7 +688,7 @@ function requireOrgPermission(...permissions: string[]) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // URL から orgId を取得（/org/:orgId/...）
+    // Get orgId from URL (/org/:orgId/...)
     const orgId = req.params.orgId;
     if (!orgId) {
       return res.status(400).json({ error: 'Organization ID required' });
@@ -701,13 +704,13 @@ function requireOrgPermission(...permissions: string[]) {
       });
     }
 
-    // 組織情報をリクエストに付与
+    // Attach organization info to the request
     req.orgId = orgId;
     next();
   };
 }
 
-// Next.js Server Component での組織コンテキスト
+// Organization context in a Next.js Server Component
 async function OrgDashboard({ params }: { params: { orgId: string } }) {
   const session = await auth();
   if (!session) redirect('/login');
@@ -749,19 +752,19 @@ async function OrgDashboard({ params }: { params: { orgId: string } }) {
 }
 ```
 
-### 5.3 組織メンバーの招待と管理
+### 5.3 Inviting and Managing Organization Members
 
 ```typescript
-// 組織メンバー管理 API
+// Organization member management API
 class OrgMemberService {
-  // メンバー招待
+  // Invite a member
   async inviteMember(
     inviterId: string,
     orgId: string,
     email: string,
     role: string
   ) {
-    // 招待者の権限チェック
+    // Check inviter's permissions
     const inviterMembership = await prisma.organizationMember.findUnique({
       where: { userId_orgId: { userId: inviterId, orgId } },
     });
@@ -774,7 +777,7 @@ class OrgMemberService {
       throw new Error('You do not have permission to invite members');
     }
 
-    // 招待先のロールが招待者以下であることを確認
+    // Ensure the invited role is no higher than the inviter's role
     const inviterPerms = resolvePermissions(inviterMembership.role);
     const inviteePerms = resolvePermissions(role);
 
@@ -784,7 +787,7 @@ class OrgMemberService {
       }
     }
 
-    // 招待を作成
+    // Create the invitation
     const invitation = await prisma.orgInvitation.create({
       data: {
         orgId,
@@ -800,14 +803,14 @@ class OrgMemberService {
     return invitation;
   }
 
-  // ロール変更
+  // Change role
   async changeRole(
     adminId: string,
     orgId: string,
     targetUserId: string,
     newRole: string
   ) {
-    // 管理者権限チェック
+    // Check admin permissions
     const adminMembership = await prisma.organizationMember.findUnique({
       where: { userId_orgId: { userId: adminId, orgId } },
     });
@@ -816,7 +819,7 @@ class OrgMemberService {
       throw new Error('Permission denied');
     }
 
-    // 自分自身のロール変更は不可（別の管理者が必要）
+    // A user cannot change their own role (requires another admin)
     if (adminId === targetUserId) {
       throw new Error('Cannot change your own role');
     }
@@ -831,17 +834,17 @@ class OrgMemberService {
 
 ---
 
-## 6. 権限のキャッシング
+## 6. Permission Caching
 
-### 6.1 Redis キャッシュ実装
+### 6.1 Redis Cache Implementation
 
 ```typescript
-// Redis キャッシュで権限チェックを高速化
+// Speed up permission checks with Redis caching
 import Redis from 'ioredis';
 
 class PermissionCache {
   private redis: Redis;
-  private ttl = 300; // 5分
+  private ttl = 300; // 5 minutes
 
   constructor(redisUrl: string) {
     this.redis = new Redis(redisUrl);
@@ -851,13 +854,13 @@ class PermissionCache {
     return orgId ? `perms:${userId}:${orgId}` : `perms:${userId}`;
   }
 
-  // キャッシュから権限を取得
+  // Retrieve permissions from cache
   async get(userId: string, orgId?: string): Promise<Set<string> | null> {
     const cached = await this.redis.smembers(this.key(userId, orgId));
     return cached.length > 0 ? new Set(cached) : null;
   }
 
-  // キャッシュに権限を保存
+  // Store permissions in cache
   async set(
     userId: string,
     permissions: Set<string>,
@@ -873,58 +876,58 @@ class PermissionCache {
     await pipeline.exec();
   }
 
-  // キャッシュを無効化（ロール変更時）
+  // Invalidate cache (on role change)
   async invalidate(userId: string, orgId?: string): Promise<void> {
     if (orgId) {
       await this.redis.del(this.key(userId, orgId));
     } else {
-      // 全組織のキャッシュを削除
+      // Delete cache for all organizations
       const keys = await this.redis.keys(`perms:${userId}:*`);
       if (keys.length > 0) await this.redis.del(...keys);
       await this.redis.del(this.key(userId));
     }
   }
 
-  // ロール変更時のイベントハンドラ
+  // Event handler for role changes
   async onRoleChanged(userId: string, orgId?: string): Promise<void> {
     await this.invalidate(userId, orgId);
   }
 }
 
-// キャッシュ付き権限取得
+// Fetch permissions with caching
 const permissionCache = new PermissionCache(process.env.REDIS_URL!);
 
 async function getCachedPermissions(
   userId: string,
   orgId?: string
 ): Promise<Set<string>> {
-  // キャッシュをチェック
+  // Check cache
   const cached = await permissionCache.get(userId, orgId);
   if (cached) return cached;
 
-  // キャッシュミス → DB から取得
+  // Cache miss → fetch from DB
   const permissions = orgId
     ? await getOrgPermissions(userId, orgId)
     : await getUserPermissions(userId);
 
-  // キャッシュに保存
+  // Store in cache
   await permissionCache.set(userId, permissions, orgId);
 
   return permissions;
 }
 ```
 
-### 6.2 インメモリキャッシュ（Redis 不要な場合）
+### 6.2 In-Memory Cache (When Redis Is Not Available)
 
 ```typescript
-// LRU キャッシュ（小規模アプリ向け）
+// LRU cache (for small-scale apps)
 class InMemoryPermissionCache {
   private cache = new Map<string, {
     permissions: Set<string>;
     expiresAt: number;
   }>();
   private maxSize = 1000;
-  private ttl = 5 * 60 * 1000; // 5分
+  private ttl = 5 * 60 * 1000; // 5 minutes
 
   get(userId: string): Set<string> | null {
     const entry = this.cache.get(userId);
@@ -937,9 +940,9 @@ class InMemoryPermissionCache {
   }
 
   set(userId: string, permissions: Set<string>): void {
-    // サイズ制限チェック
+    // Check size limit
     if (this.cache.size >= this.maxSize) {
-      // 最も古いエントリを削除
+      // Remove the oldest entry
       const firstKey = this.cache.keys().next().value;
       if (firstKey) this.cache.delete(firstKey);
     }
@@ -962,25 +965,25 @@ class InMemoryPermissionCache {
 
 ---
 
-## 7. RBAC の制約（RBAC2）
+## 7. RBAC Constraints (RBAC2)
 
-### 7.1 相互排他ロールと職務分離
+### 7.1 Mutually Exclusive Roles and Separation of Duties
 
 ```typescript
-// RBAC2: 制約の実装
+// RBAC2: implementing constraints
 
-// 相互排他ロール（同時に持てないロール）
+// Mutually exclusive roles (cannot be held simultaneously)
 const MUTUALLY_EXCLUSIVE_ROLES: [string, string][] = [
-  ['approver', 'requester'],     // 承認者と申請者は兼任不可
-  ['auditor', 'admin'],          // 監査役と管理者は兼任不可
+  ['approver', 'requester'],     // approver and requester cannot be combined
+  ['auditor', 'admin'],          // auditor and admin cannot be combined
 ];
 
-// ロール割当時のバリデーション
+// Validation when assigning a role
 async function assignRole(userId: string, newRole: string, orgId?: string) {
-  // 現在のロールを取得
+  // Get current roles
   const currentRoles = await getUserRoles(userId, orgId);
 
-  // 相互排他チェック
+  // Mutual exclusion check
   for (const [roleA, roleB] of MUTUALLY_EXCLUSIVE_ROLES) {
     if (newRole === roleA && currentRoles.includes(roleB)) {
       throw new Error(
@@ -994,27 +997,27 @@ async function assignRole(userId: string, newRole: string, orgId?: string) {
     }
   }
 
-  // 最大ロール数チェック
+  // Maximum roles check
   const MAX_ROLES = 5;
   if (currentRoles.length >= MAX_ROLES) {
     throw new Error(`Maximum of ${MAX_ROLES} roles per user`);
   }
 
-  // ロールを割当
+  // Assign the role
   await prisma.userRole.create({
     data: { userId, roleId: newRole },
   });
 }
 
-// 職務分離（SoD）チェック
+// Separation of Duties (SoD) check
 function checkSeparationOfDuties(
   userRoles: string[],
   operation: string
 ): boolean {
-  // 例: 支払い承認は、支払い作成者とは別の人が行う必要がある
+  // Example: payment approval must be done by someone other than the payment creator
   const sodRules: Record<string, string[]> = {
-    'payment:approve': ['payment:create'], // 承認者は作成者になれない
-    'audit:sign': ['accounting:post'],      // 監査署名者は記帳者になれない
+    'payment:approve': ['payment:create'], // approver cannot also be a creator
+    'audit:sign': ['accounting:post'],      // audit signer cannot also post accounting entries
   };
 
   const conflictingOps = sodRules[operation];
@@ -1025,66 +1028,66 @@ function checkSeparationOfDuties(
     resolvePermissions(role).forEach((p) => userPermissions.add(p));
   });
 
-  // 利益相反するオペレーションを持っていないかチェック
+  // Check that the user does not hold any conflicting operations
   return !conflictingOps.some((op) => userPermissions.has(op as Permission));
 }
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### 8.1 ロール名をハードコーディングする
+### 8.1 Hardcoding Role Names
 
 ```typescript
-// NG: ロール名のハードコーディング
+// BAD: hardcoding role names
 async function deleteArticle(userId: string, articleId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
 
-  // ✗ ロール名をコードに直接書く
+  // ✗ Writing role names directly in code
   if (user?.role !== 'admin' && user?.role !== 'super_admin') {
     throw new Error('Permission denied');
   }
 
   await prisma.article.delete({ where: { id: articleId } });
 }
-// 問題: ロールが変わるたびにコード修正が必要
+// Problem: code changes are required every time roles change
 
-// ✓ OK: 権限ベースでチェック
+// ✓ GOOD: check by permission
 async function deleteArticleGood(userId: string, articleId: string) {
   const permissions = await getCachedPermissions(userId);
 
-  // 権限名でチェック（ロール名に依存しない）
+  // Check by permission name (no dependency on role names)
   if (!permissions.has('articles:delete')) {
     throw new Error('Permission denied');
   }
 
   await prisma.article.delete({ where: { id: articleId } });
 }
-// ロールを変更しても、権限の割当を変えるだけでコード修正不要
+// No code changes needed when roles change — just update the permission assignment
 ```
 
-### 8.2 権限チェックを省略する
+### 8.2 Skipping Permission Checks
 
 ```typescript
-// NG: フロントエンドの表示制御のみで権限管理
-// フロントエンド
+// BAD: managing permissions only through frontend display controls
+// Frontend
 function AdminPanel() {
   const { user } = useAuth();
-  if (user.role !== 'admin') return null; // 非表示にするだけ
+  if (user.role !== 'admin') return null; // just hide it
   return <AdminDashboard />;
 }
 
-// バックエンド API に権限チェックがない
+// Backend API has no permission check
 app.delete('/api/users/:id', async (req, res) => {
-  // ✗ 誰でもユーザーを削除できてしまう
+  // ✗ Anyone can delete a user
   await prisma.user.delete({ where: { id: req.params.id } });
   res.json({ success: true });
 });
 
-// ✓ OK: バックエンドで必ず権限チェック
+// ✓ GOOD: always check permissions on the backend
 app.delete('/api/users/:id',
-  requirePermission('users:delete'), // ミドルウェアでチェック
+  requirePermission('users:delete'), // checked in middleware
   async (req, res) => {
     await prisma.user.delete({ where: { id: req.params.id } });
     res.json({ success: true });
@@ -1092,35 +1095,35 @@ app.delete('/api/users/:id',
 );
 ```
 
-### 8.3 デフォルトで許可する
+### 8.3 Defaulting to Allow
 
 ```typescript
-// NG: デフォルト許可（明示的に拒否しないとアクセス可能）
+// BAD: default allow (access is granted unless explicitly denied)
 function checkAccess(userRole: string, resource: string): boolean {
   const deniedResources: Record<string, string[]> = {
     viewer: ['admin-panel', 'billing'],
     editor: ['admin-panel'],
   };
 
-  // ✗ リストにないリソースは許可（新しいリソース追加時に漏れる）
+  // ✗ Resources not in the list are allowed (new resources may be missed)
   return !(deniedResources[userRole]?.includes(resource));
 }
 
-// ✓ OK: デフォルト拒否（明示的に許可したもののみアクセス可能）
+// ✓ GOOD: default deny (only explicitly allowed resources are accessible)
 function checkAccessGood(userRole: string, permission: string): boolean {
   const permissions = resolvePermissions(userRole);
-  // 明示的に許可されていなければ拒否
+  // Deny unless explicitly permitted
   return permissions.has(permission as Permission);
 }
 ```
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基礎 - ロール階層と権限解決の実装
+### Exercise 1: Basics — Implementing Role Hierarchy and Permission Resolution
 
-**課題**: 以下のロール階層を定義し、`resolvePermissions` と `hasPermission` を実装してください。
+**Task**: Define the following role hierarchy and implement `resolvePermissions` and `hasPermission`.
 
 - guest: articles:read
 - member: guest + comments:create, comments:read
@@ -1128,20 +1131,20 @@ function checkAccessGood(userRole: string, permission: string): boolean {
 - admin: editor + users:read, users:update, articles:delete
 
 ```typescript
-// テンプレート
+// Template
 function resolvePermissions(role: string): Set<string> {
-  // TODO: 実装してください
+  // TODO: implement
   return new Set();
 }
 
-// テスト
+// Tests
 console.assert(resolvePermissions('guest').size === 1);
-console.assert(resolvePermissions('admin').has('articles:read')); // 継承
-console.assert(!resolvePermissions('editor').has('users:read')); // admin のみ
+console.assert(resolvePermissions('admin').has('articles:read')); // inherited
+console.assert(!resolvePermissions('editor').has('users:read')); // admin only
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```typescript
 const ROLE_DEFINITIONS: Record<string, {
@@ -1188,7 +1191,7 @@ function hasPermission(role: string, permission: string): boolean {
   return resolvePermissions(role).has(permission);
 }
 
-// テスト
+// Tests
 const guestPerms = resolvePermissions('guest');
 console.log('guest permissions:', [...guestPerms]);
 console.assert(guestPerms.size === 1, 'guest should have 1 permission');
@@ -1215,23 +1218,23 @@ console.log('All tests passed!');
 
 </details>
 
-### 演習2: 応用 - マルチテナント RBAC ミドルウェア
+### Exercise 2: Applied — Multi-Tenant RBAC Middleware
 
-**課題**: Express のマルチテナント RBAC ミドルウェアを実装してください。ユーザーは組織ごとに異なるロールを持ち、`/org/:orgId/...` のルートで権限チェックを行います。
+**Task**: Implement an Express multi-tenant RBAC middleware. Users hold different roles per organization, and permission checks are performed on routes under `/org/:orgId/...`.
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```typescript
 import express, { Request, Response, NextFunction } from 'express';
 
-// インメモリデータ（本番では DB）
+// In-memory data (use DB in production)
 const memberships = new Map<string, { userId: string; orgId: string; role: string }>();
 memberships.set('user1:org1', { userId: 'user1', orgId: 'org1', role: 'admin' });
 memberships.set('user1:org2', { userId: 'user1', orgId: 'org2', role: 'viewer' });
 memberships.set('user2:org1', { userId: 'user2', orgId: 'org1', role: 'editor' });
 
-// ロール定義（演習1のものを再利用）
+// Role definitions (reuse from Exercise 1)
 const ROLES: Record<string, { permissions: string[]; inherits: string[] }> = {
   viewer: { permissions: ['articles:read'], inherits: [] },
   editor: {
@@ -1256,10 +1259,10 @@ function resolvePerms(role: string, visited = new Set<string>()): Set<string> {
   return perms;
 }
 
-// ミドルウェア
+// Middleware
 function requireOrgPermission(...permissions: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const userId = (req as any).userId; // 認証済みと仮定
+    const userId = (req as any).userId; // assume authenticated
     const orgId = req.params.orgId;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
@@ -1288,10 +1291,10 @@ function requireOrgPermission(...permissions: string[]) {
   };
 }
 
-// テスト用の簡易サーバー
+// Simple test server
 const app = express();
 
-// 認証をシミュレート
+// Simulate authentication
 app.use((req, res, next) => {
   (req as any).userId = req.headers['x-user-id'] as string;
   next();
@@ -1309,7 +1312,7 @@ app.get('/org/:orgId/settings', requireOrgPermission('org:settings'), (req, res)
   res.json({ settings: {} });
 });
 
-// テスト実行例:
+// Example test runs:
 // user1 (admin in org1): GET /org/org1/articles → 200
 // user1 (viewer in org2): DELETE /org/org2/articles/1 → 403
 // user2 (editor in org1): GET /org/org1/settings → 403
@@ -1317,24 +1320,24 @@ app.get('/org/:orgId/settings', requireOrgPermission('org:settings'), (req, res)
 
 </details>
 
-### 演習3: 発展 - Redis キャッシュ付き権限チェッカーの設計
+### Exercise 3: Advanced — Designing a Permission Checker with Redis Cache
 
-**課題**: 以下の要件を満たす権限チェッカークラスを設計してください。
+**Task**: Design a permission checker class that satisfies the following requirements.
 
-1. DB からの権限取得結果を Redis にキャッシュ（TTL: 5分）
-2. ロール変更時にキャッシュを即座に無効化
-3. キャッシュミス時のみ DB アクセス
-4. マルチテナント対応（orgId 別にキャッシュ）
+1. Cache permission fetch results from the DB in Redis (TTL: 5 minutes)
+2. Immediately invalidate the cache when a role changes
+3. Access the DB only on cache misses
+4. Multi-tenant support (cache keyed by orgId)
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```typescript
 import Redis from 'ioredis';
 
 class CachedPermissionChecker {
   private redis: Redis;
-  private ttl = 300; // 5分
+  private ttl = 300; // 5 minutes
 
   constructor(redisUrl: string) {
     this.redis = new Redis(redisUrl);
@@ -1344,7 +1347,7 @@ class CachedPermissionChecker {
     return orgId ? `perms:v1:${userId}:${orgId}` : `perms:v1:${userId}`;
   }
 
-  // 権限チェック（キャッシュ優先）
+  // Permission check (cache-first)
   async hasPermission(
     userId: string,
     permission: string,
@@ -1354,22 +1357,22 @@ class CachedPermissionChecker {
     return permissions.has(permission);
   }
 
-  // 権限セットを取得（キャッシュ優先）
+  // Retrieve permission set (cache-first)
   async getPermissions(userId: string, orgId?: string): Promise<Set<string>> {
     const key = this.cacheKey(userId, orgId);
 
-    // 1. キャッシュチェック
+    // 1. Check cache
     const cached = await this.redis.smembers(key);
     if (cached.length > 0) {
       return new Set(cached);
     }
 
-    // 2. DB から取得
+    // 2. Fetch from DB
     const permissions = orgId
       ? await this.fetchOrgPermissionsFromDB(userId, orgId)
       : await this.fetchPermissionsFromDB(userId);
 
-    // 3. キャッシュに保存
+    // 3. Store in cache
     if (permissions.size > 0) {
       const pipeline = this.redis.pipeline();
       pipeline.del(key);
@@ -1381,7 +1384,7 @@ class CachedPermissionChecker {
     return permissions;
   }
 
-  // キャッシュ無効化
+  // Invalidate cache
   async invalidateUser(userId: string): Promise<void> {
     const pattern = `perms:v1:${userId}*`;
     const keys = await this.redis.keys(pattern);
@@ -1394,7 +1397,7 @@ class CachedPermissionChecker {
     await this.redis.del(this.cacheKey(userId, orgId));
   }
 
-  // ロール変更時のフック
+  // Hook for role changes
   async onRoleChanged(event: {
     userId: string;
     orgId?: string;
@@ -1411,9 +1414,9 @@ class CachedPermissionChecker {
     );
   }
 
-  // DB取得（実装は省略、Prisma等で実装）
+  // DB fetch (implementation omitted; use Prisma, etc.)
   private async fetchPermissionsFromDB(userId: string): Promise<Set<string>> {
-    // getUserPermissions(userId) を呼び出す
+    // Call getUserPermissions(userId)
     return new Set(['articles:read']);
   }
 
@@ -1421,20 +1424,20 @@ class CachedPermissionChecker {
     userId: string,
     orgId: string
   ): Promise<Set<string>> {
-    // getOrgPermissions(userId, orgId) を呼び出す
+    // Call getOrgPermissions(userId, orgId)
     return new Set(['articles:read']);
   }
 }
 
-// 使用例
+// Usage example
 async function example() {
   const checker = new CachedPermissionChecker('redis://localhost:6379');
 
-  // 権限チェック（初回はDB、以降はキャッシュ）
+  // Permission check (DB on first call, cache thereafter)
   const canRead = await checker.hasPermission('user1', 'articles:read', 'org1');
   console.log('Can read:', canRead);
 
-  // ロール変更時にキャッシュを無効化
+  // Invalidate cache on role change
   await checker.onRoleChanged({
     userId: 'user1',
     orgId: 'org1',
@@ -1442,7 +1445,7 @@ async function example() {
     newRole: 'editor',
   });
 
-  // 次回アクセス時はDBから再取得してキャッシュ
+  // Next access re-fetches from DB and caches
 }
 ```
 
@@ -1451,33 +1454,33 @@ async function example() {
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured settings file | Verify the settings file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Verify the executing user's permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Read the error message**: Examine the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify incrementally**: Use log output and a debugger to test each hypothesis
+5. **Fix and run regression tests**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1507,71 +1510,71 @@ def process_data(items):
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with a profiling tool
+2. **Check memory usage**: Verify whether memory leaks exist
+3. **Check for I/O waits**: Inspect disk and network I/O conditions
+4. **Check concurrent connections**: Monitor the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Issue Type | Diagnostic Tool | Remedy |
+|-----------|----------------|--------|
+| High CPU | cProfile, py-spy | Improve algorithms, parallelize |
+| Memory leak | tracemalloc, objgraph | Release references properly |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 ---
 
 ## FAQ
 
-### Q1: RBAC と ABAC はどちらを選ぶべきですか？
+### Q1: Should I choose RBAC or ABAC?
 
-基本的には RBAC から始めることを推奨します。多くのアプリケーションでは RBAC で十分です。ABAC が必要になるのは「自分が作成したリソースのみ編集可能」「同じ部署のメンバーのみ閲覧可能」のような属性ベースの制御が必要な場合です。実務では RBAC + ABAC のハイブリッドが一般的で、粗い制御を RBAC、細かい制御を ABAC で行います。詳しくは [ABAC とポリシー](./01-abac-and-policies.md) を参照してください。
+It is generally recommended to start with RBAC. For most applications, RBAC is sufficient. ABAC becomes necessary when attribute-based control is required — for example, "only the creator of a resource can edit it" or "only members of the same department can view it." In practice, a hybrid of RBAC + ABAC is common: RBAC handles coarse-grained control, and ABAC handles fine-grained control. See [ABAC and Policies](./01-abac-and-policies.md) for details.
 
-### Q2: ロールの数はどのくらいが適切ですか？
+### Q2: How many roles is an appropriate number?
 
-3〜10 ロールが管理しやすい範囲です。ロールが 20 を超えると管理が困難になり、ABAC の導入を検討すべきです。「ロール爆発」（Role Explosion）は RBAC の典型的な問題で、リソースや条件ごとにロールを作ると組合せ爆発が起きます。ロールはあくまで「役割」であり、細かい条件分岐は ABAC（属性ベース）で処理すべきです。
+3–10 roles is a manageable range. When roles exceed 20, management becomes difficult and you should consider introducing ABAC. "Role explosion" is a classic RBAC problem: creating roles per resource or condition leads to a combinatorial explosion. Roles should represent "job functions," and fine-grained conditional logic should be handled by ABAC (attribute-based).
 
-### Q3: 権限チェックを API の各エンドポイントで書くのは面倒です。自動化できますか？
+### Q3: Writing permission checks at every API endpoint is tedious. Can it be automated?
 
-ミドルウェアパターンを使えば、ルート定義時に宣言的に権限を指定できます（本章セクション4参照）。さらに、OpenAPI スキーマに権限情報を含めて自動生成するアプローチや、デコレーターパターン（NestJS の `@UseGuards`）を使う方法もあります。
+Using the middleware pattern, you can declaratively specify permissions at route definition time (see Section 4 of this chapter). You can also include permission metadata in your OpenAPI schema and auto-generate checks, or use a decorator pattern (such as NestJS's `@UseGuards`).
 
-### Q4: 権限のキャッシュを使う場合、ロール変更の即時反映はどうしますか？
+### Q4: When using permission caching, how do I ensure role changes are reflected immediately?
 
-Redis キャッシュを使う場合、ロール変更時にキャッシュを明示的に無効化します（セクション6参照）。キャッシュの TTL を 5分程度にしておけば、無効化に失敗しても最大5分で反映されます。即時性が重要な場合は、Token Version と組み合わせてトークンレベルで失効させます。
+With Redis caching, explicitly invalidate the cache when a role changes (see Section 6). Setting a TTL of around 5 minutes ensures that even if invalidation fails, the change is reflected within 5 minutes at most. When immediacy is critical, combine this with a Token Version to expire permissions at the token level.
 
-### Q5: フロントエンドでもロールチェックが必要ですか？
+### Q5: Do I need to check roles on the frontend as well?
 
-フロントエンドでのロールチェックは UX の最適化（権限のないボタンを非表示にする等）のために行いますが、セキュリティの保証はバックエンド API で行うべきです。DevTools でフロントエンドのチェックを回避できるため、フロントエンドのみの権限チェックは危険です。詳しくは [フロントエンド認可](./03-frontend-authorization.md) を参照してください。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| 権限命名 | `resource:action` 形式で統一 |
-| ロール階層 | 継承で権限の重複定義を排除（RBAC1） |
-| DB設計 | 小規模: role カラム、大規模: 5テーブル正規化 |
-| ミドルウェア | `requirePermission()` で宣言的にチェック |
-| マルチテナント | 組織ごとにロール割当（organization_members） |
-| キャッシュ | Redis で権限チェックを高速化（TTL: 5分） |
-| 制約 | 相互排他ロール、職務分離で不正を防止 |
-| デフォルト | 拒否がデフォルト（最小権限の原則） |
+Frontend role checks serve as UX optimization (e.g., hiding buttons the user lacks permission for), but security guarantees must be enforced by the backend API. Frontend checks can be bypassed via DevTools, so relying solely on frontend permission checks is dangerous. See [Frontend Authorization](./03-frontend-authorization.md) for details.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [ABAC とポリシーエンジン](./01-abac-and-policies.md) - RBAC で表現しきれない細かい制御
-- [API 認可](./02-api-authorization.md) - スコープベースの API アクセス制御
-- [フロントエンド認可](./03-frontend-authorization.md) - UI での権限制御パターン
+| Topic | Key Point |
+|-------|-----------|
+| Permission naming | Use the `resource:action` format consistently |
+| Role hierarchy | Use inheritance to eliminate redundant permission definitions (RBAC1) |
+| DB design | Small-scale: role column; large-scale: 5-table normalized schema |
+| Middleware | Declare checks with `requirePermission()` |
+| Multi-tenant | Assign roles per organization (organization_members) |
+| Caching | Speed up permission checks with Redis (TTL: 5 minutes) |
+| Constraints | Prevent abuse with mutually exclusive roles and Separation of Duties |
+| Default | Deny by default (principle of least privilege) |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [ABAC and Policy Engines](./01-abac-and-policies.md) — Fine-grained control that RBAC cannot express
+- [API Authorization](./02-api-authorization.md) — Scope-based API access control
+- [Frontend Authorization](./03-frontend-authorization.md) — Permission control patterns in the UI
+
+---
+
+## References
 
 1. NIST. "Role Based Access Control." NIST SP 359, csrc.nist.gov, 2004.
 2. OWASP. "Authorization Cheat Sheet." cheatsheetseries.owasp.org, 2024.
