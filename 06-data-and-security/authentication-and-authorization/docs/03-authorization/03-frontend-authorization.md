@@ -1,162 +1,162 @@
-# フロントエンド認可
+# Frontend Authorization
 
-> フロントエンドの認可はUX向上のための「表示制御」であり、セキュリティの最終防衛線ではない。ルートガード、コンポーネントの条件表示、権限に基づくUI制御、CASL/Zod を使った宣言的認可、Server Components との責務分担、権限のプリフェッチ戦略を網羅的に解説する。
+> Frontend authorization is "display control" for improving UX — it is not the final line of defense for security. This guide comprehensively covers route guards, conditional component rendering, permission-based UI control, declarative authorization with CASL/Zod, responsibility sharing with Server Components, and permission prefetching strategies.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] フロントエンド認可の役割と限界を正確に理解する
-- [ ] Next.js Middleware と React Router のルートガードを実装できるようになる
-- [ ] 権限ベースの UI 制御を宣言的に実装する方法を学ぶ
-- [ ] Server Components と Client Components の認可責務分担を把握する
-- [ ] 権限のプリフェッチ、キャッシュ、リアルタイム更新を実践する
+- [ ] Accurately understand the role and limitations of frontend authorization
+- [ ] Implement route guards with Next.js Middleware and React Router
+- [ ] Learn how to declaratively implement permission-based UI control
+- [ ] Understand the division of authorization responsibilities between Server Components and Client Components
+- [ ] Practice permission prefetching, caching, and real-time updates
 
-### 前提知識
+### Prerequisites
 
-- React（Context API, Hooks）の基礎
-- Next.js App Router（Server Components, Middleware）の基礎
+- Basics of React (Context API, Hooks)
+- Basics of Next.js App Router (Server Components, Middleware)
 
 ---
 
-## 1. フロントエンド認可の原則
+## 1. Principles of Frontend Authorization
 
-### 1.1 フロントエンドとバックエンドの責務分担
+### 1.1 Division of Responsibilities Between Frontend and Backend
 
 ```
-重要な原則:
+Key Principle:
 
-  フロントエンドの認可 = UX の最適化
-  サーバーの認可 = セキュリティの保証
+  Frontend authorization = UX optimization
+  Server authorization   = Security guarantee
 
   ┌──────────────────────────────────────────────────────┐
-  │                 認可の階層構造                        │
+  │              Authorization Layer Structure            │
   │                                                      │
   │  ┌──────────────────────────────────────────────┐    │
-  │  │ Layer 1: フロントエンド（表示制御）            │    │
+  │  │ Layer 1: Frontend (Display Control)           │    │
   │  │                                              │    │
-  │  │  → 権限のないメニュー項目を非表示             │    │
-  │  │  → 権限のないボタンを無効化（disabled）       │    │
-  │  │  → 権限のないページへアクセス時にリダイレクト  │    │
-  │  │  → ユーザーに不要な選択肢を見せない           │    │
-  │  │  → 操作不可の理由をユーザーに説明             │    │
+  │  │  → Hide menu items the user lacks access to  │    │
+  │  │  → Disable buttons (disabled) without perms  │    │
+  │  │  → Redirect when accessing unauthorized pages │    │
+  │  │  → Don't show unnecessary options to users   │    │
+  │  │  → Explain to users why an action is blocked  │    │
   │  │                                              │    │
-  │  │  目的: ユーザー体験の向上                     │    │
-  │  │  信頼度: 低（バイパス可能）                   │    │
+  │  │  Purpose: Improve user experience            │    │
+  │  │  Trust level: Low (bypassable)               │    │
   │  └──────────────────────────────────────────────┘    │
   │                                                      │
   │  ┌──────────────────────────────────────────────┐    │
   │  │ Layer 2: BFF / API Gateway                    │    │
   │  │                                              │    │
-  │  │  → ルートレベルの認可チェック                 │    │
-  │  │  → トークン検証                              │    │
-  │  │  → レート制限                                │    │
+  │  │  → Route-level authorization checks          │    │
+  │  │  → Token validation                          │    │
+  │  │  → Rate limiting                             │    │
   │  │                                              │    │
-  │  │  目的: 粗いアクセス制御                       │    │
-  │  │  信頼度: 中                                   │    │
+  │  │  Purpose: Coarse-grained access control      │    │
+  │  │  Trust level: Medium                         │    │
   │  └──────────────────────────────────────────────┘    │
   │                                                      │
   │  ┌──────────────────────────────────────────────┐    │
-  │  │ Layer 3: バックエンド（セキュリティ）          │    │
+  │  │ Layer 3: Backend (Security)                   │    │
   │  │                                              │    │
-  │  │  → 全 API リクエストで権限チェック             │    │
-  │  │  → リソースレベルの認可（所有権チェック）      │    │
-  │  │  → フロントエンドの表示状態に依存しない        │    │
-  │  │  → フロントエンドがバイパスされても安全         │    │
+  │  │  → Permission check on every API request     │    │
+  │  │  → Resource-level authorization (ownership)  │    │
+  │  │  → Does not rely on frontend display state   │    │
+  │  │  → Safe even if frontend is bypassed         │    │
   │  │                                              │    │
-  │  │  目的: セキュリティの保証                     │    │
-  │  │  信頼度: 高（唯一の信頼境界）                 │    │
+  │  │  Purpose: Security guarantee                 │    │
+  │  │  Trust level: High (sole trust boundary)     │    │
   │  └──────────────────────────────────────────────┘    │
   │                                                      │
   └──────────────────────────────────────────────────────┘
 ```
 
-### 1.2 なぜフロントエンドのみの認可は危険なのか
+### 1.2 Why Frontend-Only Authorization Is Dangerous
 
 ```
-フロントエンドのみの認可が危険な理由:
+Reasons why frontend-only authorization is dangerous:
 
-  攻撃手法①: DevTools による操作
+  Attack Method 1: Manipulation via DevTools
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  // DevTools Console で実行                        │
+  │  // Run in DevTools Console                        │
   │  document.querySelector('[disabled]')               │
   │    .removeAttribute('disabled');                    │
-  │  // → 無効化されたボタンがクリック可能に             │
+  │  // → Disabled button becomes clickable             │
   │                                                    │
-  │  // hidden 要素の表示                              │
+  │  // Show a hidden element                          │
   │  document.querySelector('.hidden')                  │
   │    .style.display = 'block';                       │
-  │  // → 非表示だった管理者メニューが表示される        │
+  │  // → Hidden admin menu becomes visible            │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  攻撃手法②: API の直接呼び出し
+  Attack Method 2: Direct API calls
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  // フロントエンドを完全にスキップ                  │
+  │  // Completely bypassing the frontend              │
   │  curl -X DELETE https://api.example.com/users/123  │
   │    -H "Cookie: session=stolen_session"             │
-  │  // → フロントエンドの表示制御は意味なし            │
+  │  // → Frontend display control is meaningless      │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  攻撃手法③: JavaScript の改変
+  Attack Method 3: JavaScript manipulation
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  // React DevTools でステートを書き換え             │
+  │  // Overwrite state via React DevTools             │
   │  // user.role = 'viewer' → user.role = 'admin'     │
-  │  // → クライアント側の権限チェックがバイパスされる   │
+  │  // → Client-side permission checks are bypassed   │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  正しいアプローチ:
+  The correct approach:
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ✓ バックエンドで必ず認可チェック                   │
-  │  ✓ フロントエンドは UX のために補助的に表示制御     │
-  │  ✓ フロントエンドの権限データはバックエンドから取得  │
-  │  ✓ 操作の最終判断はバックエンドが行う              │
+  │  ✓ Always perform authorization checks on backend  │
+  │  ✓ Frontend controls display as a supplementary UX │
+  │  ✓ Permission data must be fetched from backend    │
+  │  ✓ Backend makes the final decision on operations  │
   │                                                    │
   └────────────────────────────────────────────────────┘
 ```
 
-### 1.3 フロントエンド認可で実現すべきこと
+### 1.3 What Frontend Authorization Should Achieve
 
 ```
-フロントエンド認可の具体的な目的:
+Specific purposes of frontend authorization:
 
-  ① プリベンティブ UI:
-     → 権限のない操作を事前にブロック
-     → ユーザーがエラーに遭遇する前に防止
-     → 例: 編集権限がなければ Edit ボタンを非表示
+  ① Preventive UI:
+     → Block unauthorized operations proactively
+     → Prevent users from encountering errors
+     → Example: Hide Edit button if the user lacks edit permission
 
-  ② ガイダンス:
-     → なぜ操作できないかを説明
-     → 権限取得の方法を案内
-     → 例: 「編集するにはエディターロールが必要です」
+  ② Guidance:
+     → Explain why an action is unavailable
+     → Guide users on how to obtain permission
+     → Example: "You need the Editor role to edit this"
 
-  ③ パフォーマンス:
-     → 不要な API コールを防止
-     → 権限のないデータの取得を避ける
-     → 例: 管理者でなければ管理者 API を呼ばない
+  ③ Performance:
+     → Prevent unnecessary API calls
+     → Avoid fetching data the user isn't allowed to see
+     → Example: Don't call the admin API if the user isn't an admin
 
-  ④ 情報の最小化:
-     → 権限のないデータをそもそも取得しない
-     → Server Components で権限に応じたデータのみ返す
-     → 例: 一般ユーザーには管理者メニューの存在すら見せない
+  ④ Information minimization:
+     → Don't fetch unauthorized data in the first place
+     → Return only relevant data in Server Components based on permissions
+     → Example: Don't even show the existence of the admin menu to regular users
 ```
 
 ---
 
-## 2. ルートガード
+## 2. Route Guards
 
-### 2.1 Next.js Middleware によるルートガード
+### 2.1 Route Guards with Next.js Middleware
 
 ```typescript
-// middleware.ts - Next.js Middleware によるルートガード
+// middleware.ts - Route guard with Next.js Middleware
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 
-// 保護ルートの定義（パス → 許可ロール）
+// Protected route definitions (path → allowed roles)
 const protectedRoutes: Record<string, string[]> = {
   '/dashboard': ['viewer', 'editor', 'admin'],
   '/articles/new': ['editor', 'admin'],
@@ -166,7 +166,7 @@ const protectedRoutes: Record<string, string[]> = {
   '/billing': ['admin'],
 };
 
-// 公開ルート（認証不要）
+// Public routes (no authentication required)
 const publicRoutes = new Set([
   '/',
   '/login',
@@ -182,7 +182,7 @@ export default auth((request) => {
   const { pathname } = request.nextUrl;
   const session = request.auth;
 
-  // 静的ファイルと API ルートはスキップ
+  // Skip static files and API routes
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/') ||
@@ -191,23 +191,23 @@ export default auth((request) => {
     return NextResponse.next();
   }
 
-  // 公開ルートはそのまま
+  // Allow public routes through
   if (publicRoutes.has(pathname)) {
-    // ログイン済みユーザーが /login にアクセスした場合はリダイレクト
+    // Redirect logged-in users away from /login
     if (session && pathname === '/login') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
     return NextResponse.next();
   }
 
-  // 認証チェック
+  // Authentication check
   if (!session) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // 保護ルートのロールチェック
+  // Role check for protected routes
   const matchedRoute = Object.keys(protectedRoutes).find(
     (route) => pathname.startsWith(route)
   );
@@ -217,7 +217,7 @@ export default auth((request) => {
     const userRole = session.user?.role;
 
     if (!userRole || !allowedRoles.includes(userRole)) {
-      // 権限不足: 403 ページにリダイレクト
+      // Insufficient permissions: redirect to 403 page
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
   }
@@ -227,45 +227,45 @@ export default auth((request) => {
 
 export const config = {
   matcher: [
-    // 静的ファイルと内部パスを除外
+    // Exclude static files and internal paths
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
 ```
 
 ```
-Middleware の動作フロー:
+Middleware flow:
 
-  リクエスト
+  Request
   │
-  ├─ 静的ファイル？ ──Yes──→ スキップ（NextResponse.next()）
+  ├─ Static file? ──Yes──→ Skip (NextResponse.next())
   │
-  ├─ 公開ルート？ ──Yes──→ そのまま通過
-  │   └─ ログイン済み + /login？ ──→ /dashboard にリダイレクト
+  ├─ Public route? ──Yes──→ Pass through
+  │   └─ Logged in + /login? ──→ Redirect to /dashboard
   │
-  ├─ セッションあり？ ──No──→ /login にリダイレクト（callbackUrl 付き）
+  ├─ Session exists? ──No──→ Redirect to /login (with callbackUrl)
   │
-  ├─ 保護ルート？ ──Yes──→ ロールチェック
-  │   ├─ 許可ロール？ ──Yes──→ NextResponse.next()
-  │   └─ 不許可？ ──→ /unauthorized にリダイレクト
+  ├─ Protected route? ──Yes──→ Role check
+  │   ├─ Allowed role? ──Yes──→ NextResponse.next()
+  │   └─ Not allowed? ──→ Redirect to /unauthorized
   │
-  └─ その他 ──→ NextResponse.next()
+  └─ Other ──→ NextResponse.next()
 
-  注意事項:
+  Notes:
   ┌────────────────────────────────────────────────────┐
-  │ ・Middleware は Edge Runtime で動作                  │
-  │ ・DB アクセスは制限がある（Prisma は使用不可）       │
-  │ ・JWT の検証のみで判断するのが一般的                │
-  │ ・matcher で対象パスを適切に制限する                │
-  │ ・パフォーマンスに影響するため処理は軽量に          │
+  │ · Middleware runs on the Edge Runtime               │
+  │ · DB access is limited (Prisma cannot be used)     │
+  │ · Typically decided by JWT validation only         │
+  │ · Properly restrict target paths via matcher       │
+  │ · Keep processing lightweight to minimize perf impact│
   └────────────────────────────────────────────────────┘
 ```
 
-### 2.2 動的ルートの権限チェック
+### 2.2 Permission Checks for Dynamic Routes
 
 ```typescript
-// 動的ルートでのリソースレベル認可
-// middleware だけでは不十分な場合 → ページコンポーネントで追加チェック
+// Resource-level authorization for dynamic routes
+// When Middleware alone is insufficient → add checks in the page component
 
 // app/articles/[id]/edit/page.tsx
 import { auth } from '@/auth';
@@ -279,14 +279,14 @@ export default async function EditArticlePage({
   const session = await auth();
   if (!session) redirect('/login');
 
-  // 記事の取得
+  // Fetch the article
   const article = await prisma.article.findUnique({
     where: { id: params.id },
   });
 
   if (!article) notFound();
 
-  // リソースレベルの認可チェック
+  // Resource-level authorization check
   const canEdit =
     session.user.role === 'admin' ||
     article.authorId === session.user.id;
@@ -299,15 +299,15 @@ export default async function EditArticlePage({
 }
 ```
 
-### 2.3 React Router でのルートガード
+### 2.3 Route Guards with React Router
 
 ```typescript
-// React Router v6 でのルートガード（SPA 向け）
+// Route guards with React Router v6 (for SPAs)
 
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
-// 基本のルートガード
+// Basic route guard
 function ProtectedRoute({
   children,
   requiredRole,
@@ -322,12 +322,12 @@ function ProtectedRoute({
   const { user, isLoading, can } = useAuth();
   const location = useLocation();
 
-  // ローディング中はスケルトンを表示
+  // Show skeleton while loading
   if (isLoading) {
     return fallback ?? <FullPageSkeleton />;
   }
 
-  // 未認証 → ログインページにリダイレクト
+  // Not authenticated → redirect to login page
   if (!user) {
     return (
       <Navigate
@@ -338,12 +338,12 @@ function ProtectedRoute({
     );
   }
 
-  // ロールチェック
+  // Role check
   if (requiredRole && !requiredRole.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // パーミッションチェック
+  // Permission check
   if (requiredPermission && !can(requiredPermission)) {
     return <Navigate to="/unauthorized" replace />;
   }
@@ -351,15 +351,15 @@ function ProtectedRoute({
   return children ?? <Outlet />;
 }
 
-// 使用例: ルート定義
+// Usage example: Route definitions
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 const router = createBrowserRouter([
-  // 公開ルート
+  // Public routes
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
 
-  // 認証必須ルート
+  // Routes requiring authentication
   {
     element: <ProtectedRoute />,
     children: [
@@ -368,7 +368,7 @@ const router = createBrowserRouter([
     ],
   },
 
-  // エディター以上
+  // Editor or above
   {
     element: <ProtectedRoute requiredRole={['editor', 'admin']} />,
     children: [
@@ -377,7 +377,7 @@ const router = createBrowserRouter([
     ],
   },
 
-  // 管理者のみ
+  // Admin only
   {
     element: <ProtectedRoute requiredRole={['admin']} />,
     children: [
@@ -387,7 +387,7 @@ const router = createBrowserRouter([
     ],
   },
 
-  // パーミッションベース
+  // Permission-based
   {
     element: <ProtectedRoute requiredPermission="billing:manage" />,
     children: [
@@ -403,12 +403,12 @@ const router = createBrowserRouter([
 
 ---
 
-## 3. 権限ベースの UI 制御
+## 3. Permission-Based UI Control
 
-### 3.1 AuthContext の設計
+### 3.1 AuthContext Design
 
 ```typescript
-// lib/auth-context.tsx - 権限コンテキストの完全実装
+// lib/auth-context.tsx - Complete implementation of the permission context
 'use client';
 
 import {
@@ -421,11 +421,11 @@ import {
 import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
 
-// 権限の型定義
-type Permission = string; // "resource:action" 形式
+// Permission type definition
+type Permission = string; // "resource:action" format
 
 interface AuthContextValue {
-  // ユーザー情報
+  // User information
   user: {
     id: string;
     name: string;
@@ -434,20 +434,20 @@ interface AuthContextValue {
     image?: string;
   } | null;
 
-  // 認証状態
+  // Authentication state
   isAuthenticated: boolean;
   isLoading: boolean;
 
-  // 権限
+  // Permissions
   permissions: Set<Permission>;
   permissionsLoading: boolean;
 
-  // 権限チェック関数
+  // Permission check functions
   can: (action: string, resource?: string) => boolean;
   canAny: (permissions: string[]) => boolean;
   canAll: (permissions: string[]) => boolean;
 
-  // ロールチェック
+  // Role checks
   hasRole: (role: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
 }
@@ -465,7 +465,7 @@ const AuthContext = createContext<AuthContextValue>({
   hasAnyRole: () => false,
 });
 
-// 権限のフェッチ
+// Fetch permissions
 async function fetchPermissions(): Promise<Set<Permission>> {
   const res = await fetch('/api/auth/permissions');
   if (!res.ok) throw new Error('Failed to fetch permissions');
@@ -477,7 +477,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const isAuthenticated = status === 'authenticated';
 
-  // 権限のフェッチ（React Query でキャッシュ管理）
+  // Fetch permissions (cache managed by React Query)
   const {
     data: permissions = new Set<Permission>(),
     isLoading: permissionsLoading,
@@ -485,18 +485,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ['permissions', session?.user?.id],
     queryFn: fetchPermissions,
     enabled: isAuthenticated,
-    staleTime: 5 * 60 * 1000,   // 5 分間はキャッシュを使用
-    gcTime: 30 * 60 * 1000,     // 30 分間メモリに保持
-    refetchOnWindowFocus: false, // タブ切替時の再取得を防止
+    staleTime: 5 * 60 * 1000,   // Use cache for 5 minutes
+    gcTime: 30 * 60 * 1000,     // Keep in memory for 30 minutes
+    refetchOnWindowFocus: false, // Prevent refetch on tab switch
     retry: 2,
   });
 
-  // 権限チェック: resource:action 形式
+  // Permission check: resource:action format
   const can = useCallback(
     (action: string, resource?: string): boolean => {
       if (!isAuthenticated) return false;
 
-      // admin ロールは全権限を持つ
+      // admin role has all permissions
       if (session?.user?.role === 'admin') return true;
 
       const permission = resource ? `${resource}:${action}` : action;
@@ -505,7 +505,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [isAuthenticated, session?.user?.role, permissions]
   );
 
-  // いずれかの権限を持っているか
+  // Check if any of the given permissions are held
   const canAny = useCallback(
     (perms: string[]): boolean => {
       return perms.some((p) => {
@@ -516,7 +516,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [can]
   );
 
-  // 全ての権限を持っているか
+  // Check if all of the given permissions are held
   const canAll = useCallback(
     (perms: string[]): boolean => {
       return perms.every((p) => {
@@ -527,7 +527,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [can]
   );
 
-  // ロールチェック
+  // Role check
   const hasRole = useCallback(
     (role: string): boolean => {
       return session?.user?.role === role;
@@ -583,14 +583,14 @@ export function useAuth(): AuthContextValue {
 }
 ```
 
-### 3.2 権限 API エンドポイント
+### 3.2 Permissions API Endpoint
 
 ```typescript
 // app/api/auth/permissions/route.ts
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 
-// ロールごとの権限マッピング
+// Permission mapping per role
 const rolePermissions: Record<string, string[]> = {
   viewer: [
     'articles:read',
@@ -613,7 +613,7 @@ const rolePermissions: Record<string, string[]> = {
     'profile:update',
   ],
   admin: [
-    'admin', // 特殊権限: 全権限を包含
+    'admin', // Special permission: encompasses all permissions
   ],
 };
 
@@ -627,7 +627,7 @@ export async function GET() {
   const role = session.user.role as string;
   const permissions = rolePermissions[role] ?? [];
 
-  // ユーザー固有の追加権限（DB から取得する場合）
+  // User-specific additional permissions (when fetching from DB)
   // const userPermissions = await prisma.userPermission.findMany({
   //   where: { userId: session.user.id },
   //   select: { permission: true },
@@ -641,30 +641,30 @@ export async function GET() {
 }
 ```
 
-### 3.3 Authorized コンポーネント（宣言的認可）
+### 3.3 Authorized Component (Declarative Authorization)
 
 ```typescript
-// components/authorized.tsx - 宣言的な権限チェックコンポーネント
+// components/authorized.tsx - Declarative permission-check component
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
 import type { ReactNode } from 'react';
 
 interface AuthorizedProps {
-  // 単一権限チェック
+  // Single permission check
   permission?: string;
-  // 複数権限（いずれか）
+  // Multiple permissions (any)
   anyPermission?: string[];
-  // 複数権限（全て）
+  // Multiple permissions (all)
   allPermissions?: string[];
-  // ロールチェック
+  // Role check
   role?: string;
   anyRole?: string[];
-  // 権限がない場合の表示
+  // Display when unauthorized
   fallback?: ReactNode;
-  // 権限がない場合にdisabledで表示するか
+  // Whether to render as disabled when unauthorized
   showDisabled?: boolean;
-  // 子要素
+  // Children
   children: ReactNode;
 }
 
@@ -680,12 +680,12 @@ export function Authorized({
 }: AuthorizedProps) {
   const { can, canAny, canAll, hasRole, hasAnyRole, permissionsLoading } = useAuth();
 
-  // 権限ロード中は何も表示しない（ちらつき防止）
+  // Show nothing while permissions are loading (prevent flicker)
   if (permissionsLoading) return null;
 
   let authorized = true;
 
-  // 権限チェック
+  // Permission checks
   if (permission) {
     const [resource, action] = permission.split(':');
     authorized = can(action, resource);
@@ -699,7 +699,7 @@ export function Authorized({
     authorized = canAll(allPermissions);
   }
 
-  // ロールチェック
+  // Role checks
   if (role) {
     authorized = hasRole(role);
   }
@@ -710,7 +710,7 @@ export function Authorized({
 
   if (!authorized) {
     if (showDisabled) {
-      // disabled 状態で表示
+      // Render in disabled state
       return (
         <div className="opacity-50 pointer-events-none" aria-disabled="true">
           {children}
@@ -723,7 +723,7 @@ export function Authorized({
   return <>{children}</>;
 }
 
-// 使用例
+// Usage example
 function ArticleCard({ article }: { article: Article }) {
   return (
     <div className="border rounded-lg p-4">
@@ -731,20 +731,20 @@ function ArticleCard({ article }: { article: Article }) {
       <p className="text-gray-600 mt-2">{article.excerpt}</p>
 
       <div className="flex gap-2 mt-4">
-        {/* 閲覧権限のある人だけに表示 */}
+        {/* Show only to users with update permission */}
         <Authorized permission="articles:update">
           <Link href={`/articles/${article.id}/edit`} className="btn-secondary">
-            編集
+            Edit
           </Link>
         </Authorized>
 
-        {/* 削除権限: 無効化状態で表示 */}
+        {/* Delete permission: show in disabled state */}
         <Authorized
           permission="articles:delete"
           showDisabled
           fallback={
-            <button disabled className="btn-danger opacity-50" title="削除権限がありません">
-              削除
+            <button disabled className="btn-danger opacity-50" title="You don't have permission to delete">
+              Delete
             </button>
           }
         >
@@ -752,29 +752,29 @@ function ArticleCard({ article }: { article: Article }) {
             className="btn-danger"
             onClick={() => deleteArticle(article.id)}
           >
-            削除
+            Delete
           </button>
         </Authorized>
 
-        {/* 公開権限 */}
+        {/* Publish permission */}
         <Authorized permission="articles:publish">
           {article.status === 'draft' && (
             <button
               className="btn-primary"
               onClick={() => publishArticle(article.id)}
             >
-              公開
+              Publish
             </button>
           )}
         </Authorized>
 
-        {/* 管理者のみ */}
+        {/* Admin only */}
         <Authorized role="admin">
           <button
             className="btn-outline"
             onClick={() => viewAuditLog(article.id)}
           >
-            監査ログ
+            Audit Log
           </button>
         </Authorized>
       </div>
@@ -783,10 +783,10 @@ function ArticleCard({ article }: { article: Article }) {
 }
 ```
 
-### 3.4 useAuthorized フック
+### 3.4 useAuthorized Hook
 
 ```typescript
-// hooks/useAuthorized.ts - フックとしての権限チェック
+// hooks/useAuthorized.ts - Permission check as a hook
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
@@ -841,7 +841,7 @@ export function useAuthorized(options: UseAuthorizedOptions): UseAuthorizedResul
   };
 }
 
-// 使用例
+// Usage example
 function ArticleActions({ article }: { article: Article }) {
   const { authorized: canEdit } = useAuthorized({ permission: 'articles:update' });
   const { authorized: canDelete } = useAuthorized({ permission: 'articles:delete' });
@@ -859,12 +859,12 @@ function ArticleActions({ article }: { article: Article }) {
 
 ---
 
-## 4. ナビゲーションの権限制御
+## 4. Navigation Permission Control
 
-### 4.1 権限ベースのナビゲーション定義
+### 4.1 Permission-Based Navigation Definitions
 
 ```typescript
-// lib/navigation.ts - ナビゲーション項目の定義
+// lib/navigation.ts - Navigation item definitions
 import {
   HomeIcon,
   DocumentIcon,
@@ -879,60 +879,60 @@ export interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  permission?: string;   // 必要な権限
-  role?: string;         // 必要なロール
-  badge?: string;        // バッジ表示
+  permission?: string;   // Required permission
+  role?: string;         // Required role
+  badge?: string;        // Badge display
   children?: NavItem[];
 }
 
 export const navItems: NavItem[] = [
   {
-    label: 'ダッシュボード',
+    label: 'Dashboard',
     href: '/dashboard',
     icon: HomeIcon,
-    // 全ユーザーがアクセス可能
+    // Accessible by all users
   },
   {
-    label: '記事',
+    label: 'Articles',
     href: '/articles',
     icon: DocumentIcon,
     permission: 'articles:read',
     children: [
-      { label: '一覧', href: '/articles', icon: DocumentIcon },
-      { label: '新規作成', href: '/articles/new', icon: DocumentIcon, permission: 'articles:create' },
-      { label: '下書き', href: '/articles/drafts', icon: DocumentIcon, permission: 'articles:update' },
+      { label: 'List', href: '/articles', icon: DocumentIcon },
+      { label: 'New', href: '/articles/new', icon: DocumentIcon, permission: 'articles:create' },
+      { label: 'Drafts', href: '/articles/drafts', icon: DocumentIcon, permission: 'articles:update' },
     ],
   },
   {
-    label: 'ユーザー管理',
+    label: 'User Management',
     href: '/admin/users',
     icon: UsersIcon,
     permission: 'users:read',
   },
   {
-    label: '分析',
+    label: 'Analytics',
     href: '/analytics',
     icon: ChartBarIcon,
     permission: 'analytics:read',
   },
   {
-    label: '設定',
+    label: 'Settings',
     href: '/settings',
     icon: CogIcon,
     children: [
-      { label: '一般', href: '/settings/general', icon: CogIcon },
-      { label: '請求', href: '/settings/billing', icon: CreditCardIcon, permission: 'billing:manage' },
-      { label: 'メンバー', href: '/settings/members', icon: UsersIcon, permission: 'users:read' },
-      { label: 'セキュリティ', href: '/settings/security', icon: ShieldCheckIcon, role: 'admin' },
+      { label: 'General', href: '/settings/general', icon: CogIcon },
+      { label: 'Billing', href: '/settings/billing', icon: CreditCardIcon, permission: 'billing:manage' },
+      { label: 'Members', href: '/settings/members', icon: UsersIcon, permission: 'users:read' },
+      { label: 'Security', href: '/settings/security', icon: ShieldCheckIcon, role: 'admin' },
     ],
   },
 ];
 ```
 
-### 4.2 サイドバーの権限フィルタリング
+### 4.2 Sidebar Permission Filtering
 
 ```typescript
-// components/sidebar.tsx - 権限ベースのサイドバー
+// components/sidebar.tsx - Permission-based sidebar
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
@@ -945,32 +945,32 @@ export function Sidebar() {
   const { can, hasRole, permissionsLoading } = useAuth();
   const pathname = usePathname();
 
-  // 権限に基づいてナビゲーション項目をフィルタリング
+  // Filter navigation items based on permissions
   const filterNavItems = (items: NavItem[]): NavItem[] => {
     return items
       .filter((item) => {
-        // 権限チェック
+        // Permission check
         if (item.permission) {
           const [resource, action] = item.permission.split(':');
           if (!can(action, resource)) return false;
         }
-        // ロールチェック
+        // Role check
         if (item.role && !hasRole(item.role)) return false;
         return true;
       })
       .map((item) => ({
         ...item,
-        // 子項目も再帰的にフィルタリング
+        // Recursively filter children
         children: item.children ? filterNavItems(item.children) : undefined,
       }))
-      // 子項目がすべてフィルタリングされた親は非表示
+      // Hide parent items whose all children have been filtered out
       .filter((item) => {
         if (item.children && item.children.length === 0) return false;
         return true;
       });
   };
 
-  // 権限ロード中はスケルトン表示
+  // Show skeleton while permissions are loading
   if (permissionsLoading) {
     return <SidebarSkeleton />;
   }
@@ -1040,13 +1040,13 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 
 ---
 
-## 5. Server Components での認可
+## 5. Authorization in Server Components
 
-### 5.1 サーバーサイドでの権限判定（推奨パターン）
+### 5.1 Server-Side Permission Evaluation (Recommended Pattern)
 
 ```typescript
-// Next.js Server Components での認可（推奨）
-// サーバーサイドで権限チェック → クライアントに不要な情報を送らない
+// Authorization in Next.js Server Components (recommended)
+// Check permissions on the server → don't send unnecessary data to the client
 
 // app/articles/[id]/page.tsx
 import { auth } from '@/auth';
@@ -1060,7 +1060,7 @@ export default async function ArticlePage({
   const session = await auth();
   if (!session) redirect('/login');
 
-  // 記事データの取得
+  // Fetch article data
   const article = await prisma.article.findUnique({
     where: { id: params.id },
     include: {
@@ -1074,7 +1074,7 @@ export default async function ArticlePage({
 
   if (!article) notFound();
 
-  // サーバーサイドで権限を判定
+  // Evaluate permissions on the server side
   const permissions = {
     canEdit:
       session.user.role === 'admin' ||
@@ -1093,27 +1093,27 @@ export default async function ArticlePage({
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* 記事コンテンツ（Server Component） */}
+      {/* Article content (Server Component) */}
       <article>
         <h1 className="text-3xl font-bold">{article.title}</h1>
         <AuthorInfo author={article.author} />
         <ArticleContent content={article.content} />
       </article>
 
-      {/* アクションバー（Client Component、権限は props で渡す） */}
+      {/* Action bar (Client Component, permissions passed via props) */}
       <ArticleActions
         articleId={article.id}
         status={article.status}
         {...permissions}
       />
 
-      {/* コメントセクション */}
+      {/* Comments section */}
       <CommentSection
         comments={article.comments}
         canModerate={permissions.canModerateComments}
       />
 
-      {/* 分析データ（権限がある場合のみサーバーで取得） */}
+      {/* Analytics data (only fetched on server if authorized) */}
       {permissions.canViewAnalytics && (
         <ArticleAnalytics articleId={article.id} />
       )}
@@ -1123,8 +1123,8 @@ export default async function ArticlePage({
 ```
 
 ```typescript
-// クライアントコンポーネント（権限は props で受け取る）
-// サーバーで判定済みの権限フラグを使用
+// Client Component (receives permissions via props)
+// Uses permission flags already evaluated on the server
 'use client';
 
 interface ArticleActionsProps {
@@ -1146,7 +1146,7 @@ function ArticleActions({
     <div className="flex gap-2 border-t border-b py-4 my-8">
       {canEdit && (
         <Link href={`/articles/${articleId}/edit`} className="btn-secondary">
-          編集
+          Edit
         </Link>
       )}
       {canPublish && (
@@ -1154,19 +1154,19 @@ function ArticleActions({
           className="btn-primary"
           onClick={() => publishArticle(articleId)}
         >
-          公開
+          Publish
         </button>
       )}
       {canDelete && (
         <button
           className="btn-danger"
           onClick={() => {
-            if (confirm('本当に削除しますか？')) {
+            if (confirm('Are you sure you want to delete this?')) {
               deleteArticle(articleId);
             }
           }}
         >
-          削除
+          Delete
         </button>
       )}
     </div>
@@ -1174,43 +1174,43 @@ function ArticleActions({
 }
 ```
 
-### 5.2 Server Components vs Client Components の使い分け
+### 5.2 When to Use Server Components vs Client Components
 
 ```
-Server Components と Client Components の認可パターン比較:
+Comparison of authorization patterns for Server Components and Client Components:
 
   ┌──────────────────┬───────────────────┬──────────────────────┐
-  │ 項目              │ Server Component  │ Client Component     │
+  │ Item             │ Server Component  │ Client Component     │
   ├──────────────────┼───────────────────┼──────────────────────┤
-  │ 権限チェック場所   │ サーバー          │ クライアント         │
-  │ データ取得        │ DB に直接アクセス  │ API 経由             │
-  │ セキュリティ      │ 高（改ざん不可）  │ 低（バイパス可能）    │
-  │ 不要データの送信   │ なし             │ 権限データの送信が必要 │
-  │ インタラクティブ性 │ なし             │ あり（onClick 等）    │
-  │ パフォーマンス     │ 高（JS バンドルなし）│ 権限フェッチのコスト │
-  │ 推奨用途          │ 初期表示制御      │ インタラクティブ UI   │
+  │ Where checked    │ Server            │ Client               │
+  │ Data fetching    │ Direct DB access  │ Via API              │
+  │ Security         │ High (tamper-proof)│ Low (bypassable)    │
+  │ Unnecessary data │ None              │ Permission data sent │
+  │ Interactivity    │ None              │ Yes (onClick, etc.)  │
+  │ Performance      │ High (no JS bundle)│ Permission fetch cost│
+  │ Recommended use  │ Initial rendering │ Interactive UI       │
   └──────────────────┴───────────────────┴──────────────────────┘
 
-  推奨パターン:
+  Recommended patterns:
 
-  ① 初期表示: Server Component で権限判定
-     → 不要な UI 要素をそもそもレンダリングしない
-     → クライアントに権限のないデータを送信しない
+  ① Initial rendering: Evaluate permissions in Server Component
+     → Don't render unauthorized UI elements at all
+     → Don't send unauthorized data to the client
 
-  ② インタラクティブ操作: Client Component + props
-     → Server Component で判定した権限を props で渡す
-     → Client Component はフラグに基づいて表示制御
+  ② Interactive operations: Client Component + props
+     → Pass permissions evaluated in Server Component as props
+     → Client Component controls display based on flags
 
-  ③ 動的な権限変更: Client Component + Context
-     → リアルタイムで権限が変わる場合（ロール変更等）
-     → AuthContext から権限を取得して表示制御
+  ③ Dynamic permission changes: Client Component + Context
+     → When permissions change in real time (e.g., role changes)
+     → Fetch permissions from AuthContext for display control
 ```
 
 ---
 
-## 6. 権限のプリフェッチとキャッシュ
+## 6. Permission Prefetching and Caching
 
-### 6.1 React Query を使ったプリフェッチ
+### 6.1 Prefetching with React Query
 
 ```typescript
 // lib/permissions-provider.tsx
@@ -1226,8 +1226,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000, // 5分
-            gcTime: 30 * 60 * 1000,   // 30分
+            staleTime: 5 * 60 * 1000, // 5 minutes
+            gcTime: 30 * 60 * 1000,   // 30 minutes
           },
         },
       })
@@ -1267,11 +1267,11 @@ export function usePermissions() {
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
-    // ログインイベントで自動更新される
+    // Automatically updated on login events
   });
 }
 
-// 権限の手動更新（ロール変更時、権限変更時）
+// Manual permission refresh (on role or permission change)
 export function useInvalidatePermissions() {
   const queryClient = useQueryClient();
 
@@ -1280,7 +1280,7 @@ export function useInvalidatePermissions() {
   }, [queryClient]);
 }
 
-// 権限のプリフェッチ（ログイン直後に呼ぶ）
+// Prefetch permissions (call immediately after login)
 export function usePrefetchPermissions() {
   const queryClient = useQueryClient();
 
@@ -1297,11 +1297,11 @@ export function usePrefetchPermissions() {
 }
 ```
 
-### 6.2 権限変更時のリアルタイム更新
+### 6.2 Real-Time Permission Updates on Change
 
 ```typescript
 // hooks/usePermissionsSync.ts
-// WebSocket または Server-Sent Events で権限変更を検知
+// Detect permission changes via WebSocket or Server-Sent Events
 
 'use client';
 
@@ -1316,13 +1316,13 @@ export function usePermissionsSync() {
   useEffect(() => {
     if (!session?.user?.id) return;
 
-    // Server-Sent Events で権限変更を監視
+    // Monitor permission changes via Server-Sent Events
     const eventSource = new EventSource(
       `/api/auth/permissions/stream?userId=${session.user.id}`
     );
 
     eventSource.addEventListener('permissions_changed', () => {
-      // 権限キャッシュを無効化して再取得
+      // Invalidate permission cache and refetch
       invalidatePermissions();
     });
 
@@ -1331,10 +1331,10 @@ export function usePermissionsSync() {
     });
 
     eventSource.onerror = () => {
-      // 接続エラー時は 5 秒後に再接続
+      // Reconnect after 5 seconds on connection error
       eventSource.close();
       setTimeout(() => {
-        // 再接続ロジック（実装は省略）
+        // Reconnection logic (implementation omitted)
       }, 5000);
     };
 
@@ -1347,48 +1347,48 @@ export function usePermissionsSync() {
 
 ---
 
-## 7. CASL を使った宣言的認可
+## 7. Declarative Authorization with CASL
 
-### 7.1 CASL の概要
+### 7.1 CASL Overview
 
 ```
-CASL (Isomorphic Authorization) の特徴:
+Features of CASL (Isomorphic Authorization):
 
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ① Isomorphic: サーバーとクライアントで同じルール    │
-  │  ② 宣言的: ルールを定義するだけで権限チェック        │
-  │  ③ React 統合: Can コンポーネント                   │
-  │  ④ TypeScript: 型安全な権限定義                     │
-  │  ⑤ パフォーマンス: ルール評価のキャッシュ            │
+  │  ① Isomorphic: same rules on server and client     │
+  │  ② Declarative: define rules to enable checks      │
+  │  ③ React integration: Can component                │
+  │  ④ TypeScript: type-safe permission definitions    │
+  │  ⑤ Performance: caching of rule evaluation         │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  CASL vs 自前実装:
+  CASL vs custom implementation:
 
   ┌──────────────────┬──────────────────┬──────────────┐
-  │ 項目              │ CASL             │ 自前実装      │
+  │ Item             │ CASL             │ Custom       │
   ├──────────────────┼──────────────────┼──────────────┤
-  │ ルール定義        │ DSL で宣言的     │ コードで手続的 │
-  │ 条件付き権限      │ 組み込みサポート  │ 自前で実装    │
-  │ React 統合       │ @casl/react      │ 自前コンポーネント│
-  │ フィールドレベル  │ サポートあり      │ 自前で実装    │
-  │ 学習コスト        │ 中               │ 低           │
-  │ バンドルサイズ     │ ~8KB (gzip)      │ 依存なし     │
-  │ 推奨              │ 複雑な権限体系   │ シンプルな RBAC│
+  │ Rule definition  │ Declarative DSL  │ Procedural   │
+  │ Conditional perms│ Built-in support │ Custom impl  │
+  │ React integration│ @casl/react      │ Custom comp  │
+  │ Field-level      │ Supported        │ Custom impl  │
+  │ Learning cost    │ Medium           │ Low          │
+  │ Bundle size      │ ~8KB (gzip)      │ No deps      │
+  │ Recommended for  │ Complex ABAC     │ Simple RBAC  │
   └──────────────────┴──────────────────┴──────────────┘
 ```
 
-### 7.2 CASL の実装
+### 7.2 CASL Implementation
 
 ```typescript
-// lib/ability.ts - CASL による権限定義
+// lib/ability.ts - Permission definitions with CASL
 import { AbilityBuilder, createMongoAbility, MongoAbility } from '@casl/ability';
 
-// アクションの型定義
+// Action type definitions
 type Actions = 'create' | 'read' | 'update' | 'delete' | 'publish' | 'manage';
 
-// サブジェクト（リソース）の型定義
+// Subject (resource) type definitions
 type Subjects =
   | 'Article'
   | 'Comment'
@@ -1398,7 +1398,7 @@ type Subjects =
 
 export type AppAbility = MongoAbility<[Actions, Subjects]>;
 
-// ロールに基づく Ability の構築
+// Build Ability based on role
 export function defineAbilityFor(user: {
   id: string;
   role: string;
@@ -1408,18 +1408,18 @@ export function defineAbilityFor(user: {
 
   switch (user.role) {
     case 'admin':
-      // 管理者は全権限
+      // Admin has all permissions
       can('manage', 'all');
       break;
 
     case 'editor':
       can('read', 'Article');
       can('create', 'Article');
-      // 自分の記事のみ編集・削除可能
+      // Can only edit/delete/publish own articles
       can('update', 'Article', { authorId: user.id });
       can('delete', 'Article', { authorId: user.id });
       can('publish', 'Article', { authorId: user.id });
-      // コメント
+      // Comments
       can('read', 'Comment');
       can('create', 'Comment');
       can('update', 'Comment', { authorId: user.id });
@@ -1431,12 +1431,12 @@ export function defineAbilityFor(user: {
       can('read', 'Comment');
       can('create', 'Comment');
       can('update', 'Comment', { authorId: user.id });
-      // 公開記事のみ
+      // Published articles only
       cannot('read', 'Article', { status: 'draft' });
       break;
 
     default:
-      // ゲスト: 公開記事の閲覧のみ
+      // Guest: read published articles only
       can('read', 'Article', { status: 'published' });
   }
 
@@ -1445,14 +1445,14 @@ export function defineAbilityFor(user: {
 ```
 
 ```typescript
-// components/can.tsx - CASL の React コンポーネント
+// components/can.tsx - CASL React component
 'use client';
 
 import { createContext, useContext, type ReactNode } from 'react';
 import { createContextualCan } from '@casl/react';
 import { type AppAbility } from '@/lib/ability';
 
-// Ability コンテキスト
+// Ability context
 const AbilityContext = createContext<AppAbility>(undefined!);
 
 export function AbilityProvider({
@@ -1473,30 +1473,30 @@ export function useAbility(): AppAbility {
   return useContext(AbilityContext);
 }
 
-// CASL の Can コンポーネント
+// CASL Can component
 export const Can = createContextualCan(AbilityContext.Consumer);
 
-// 使用例
+// Usage example
 function ArticleActions({ article }: { article: Article }) {
   return (
     <div className="flex gap-2">
       <Can I="update" this={article}>
-        <Link href={`/articles/${article.id}/edit`}>編集</Link>
+        <Link href={`/articles/${article.id}/edit`}>Edit</Link>
       </Can>
 
       <Can I="delete" this={article}>
-        <button onClick={() => deleteArticle(article.id)}>削除</button>
+        <button onClick={() => deleteArticle(article.id)}>Delete</button>
       </Can>
 
       <Can I="publish" this={article}>
         {article.status === 'draft' && (
-          <button onClick={() => publishArticle(article.id)}>公開</button>
+          <button onClick={() => publishArticle(article.id)}>Publish</button>
         )}
       </Can>
 
-      {/* not で否定 */}
+      {/* Negation with "not" */}
       <Can not I="update" this={article}>
-        <p className="text-gray-500">この記事を編集する権限がありません</p>
+        <p className="text-gray-500">You don't have permission to edit this article</p>
       </Can>
     </div>
   );
@@ -1505,12 +1505,12 @@ function ArticleActions({ article }: { article: Article }) {
 
 ---
 
-## 8. エラーページとフォールバック
+## 8. Error Pages and Fallbacks
 
-### 8.1 認可エラーページの実装
+### 8.1 Authorization Error Page Implementation
 
 ```typescript
-// app/unauthorized/page.tsx - 403 Unauthorized ページ
+// app/unauthorized/page.tsx - 403 Unauthorized page
 import { auth } from '@/auth';
 import Link from 'next/link';
 
@@ -1521,36 +1521,36 @@ export default async function UnauthorizedPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center max-w-md">
         <div className="text-6xl font-bold text-gray-300">403</div>
-        <h1 className="text-2xl font-bold mt-4">アクセスが拒否されました</h1>
+        <h1 className="text-2xl font-bold mt-4">Access Denied</h1>
         <p className="text-gray-600 mt-2">
-          このページにアクセスする権限がありません。
+          You do not have permission to access this page.
         </p>
 
         {session ? (
           <div className="mt-6 space-y-3">
             <p className="text-sm text-gray-500">
-              ログイン中: {session.user?.email}
-              （ロール: {session.user?.role}）
+              Logged in as: {session.user?.email}
+              (Role: {session.user?.role})
             </p>
             <div className="flex gap-3 justify-center">
               <Link href="/dashboard" className="btn-primary">
-                ダッシュボードに戻る
+                Back to Dashboard
               </Link>
               <Link href="/settings" className="btn-secondary">
-                権限を確認
+                Check Permissions
               </Link>
             </div>
           </div>
         ) : (
           <div className="mt-6">
             <Link href="/login" className="btn-primary">
-              ログインする
+              Log In
             </Link>
           </div>
         )}
 
         <p className="text-xs text-gray-400 mt-8">
-          この問題が続く場合は、管理者にお問い合わせください。
+          If this problem persists, please contact an administrator.
         </p>
       </div>
     </div>
@@ -1560,36 +1560,36 @@ export default async function UnauthorizedPage() {
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### 9.1 フロントエンドのみでの認可
+### 9.1 Frontend-Only Authorization
 
 ```typescript
-// ✗ 危険: フロントエンドのみで認可（バックエンドチェックなし）
+// ✗ Dangerous: authorization on frontend only (no backend check)
 function DeleteButton({ articleId }: { articleId: string }) {
   const { user } = useAuth();
 
-  if (user?.role !== 'admin') return null; // これだけでは不十分！
+  if (user?.role !== 'admin') return null; // This alone is insufficient!
 
   const handleDelete = async () => {
-    // API 側で権限チェックがないと、直接 API を叩かれる
+    // Without a permission check on the API side, anyone can call it directly
     await fetch(`/api/articles/${articleId}`, { method: 'DELETE' });
   };
 
-  return <button onClick={handleDelete}>削除</button>;
+  return <button onClick={handleDelete}>Delete</button>;
 }
 
-// ✓ 正しい: フロントエンド + バックエンドの両方でチェック
-// API 側:
+// ✓ Correct: check on both frontend and backend
+// API side:
 // if (session.user.role !== 'admin') {
 //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 // }
 ```
 
-### 9.2 権限データのハードコーディング
+### 9.2 Hardcoding Permission Data
 
 ```typescript
-// ✗ 問題: 権限をフロントエンドにハードコード
+// ✗ Problem: hardcoding permissions in the frontend
 const ADMIN_EMAILS = ['admin@example.com', 'boss@example.com'];
 
 function AdminPanel() {
@@ -1598,7 +1598,7 @@ function AdminPanel() {
   return <AdminDashboard />;
 }
 
-// ✓ 正しい: サーバーから権限を取得
+// ✓ Correct: fetch permissions from the server
 function AdminPanel() {
   const { hasRole } = useAuth();
   if (!hasRole('admin')) return null;
@@ -1606,183 +1606,183 @@ function AdminPanel() {
 }
 ```
 
-### 9.3 権限チェックの不整合
+### 9.3 Inconsistent Permission Checks
 
 ```typescript
-// ✗ 問題: フロントとバックで異なるロジック
-// フロントエンド: editor でも公開可能
+// ✗ Problem: different logic on frontend and backend
+// Frontend: editor can also publish
 const canPublish = hasRole('editor') || hasRole('admin');
 
-// バックエンド: admin のみ公開可能
+// Backend: only admin can publish
 // if (user.role !== 'admin') return 403;
 
-// → エディターが公開ボタンを押すと 403 エラー
-// → UX が悪い（ボタンは見えるのにエラー）
+// → Editor clicks Publish button → gets 403 error
+// → Poor UX (button is visible but fails)
 
-// ✓ 正しい: 権限の判定ロジックを共有する
-// 共通の権限ファイルを定義し、フロントとバックで共有
-// または、権限 API からフラグを取得
+// ✓ Correct: share permission logic between frontend and backend
+// Define a shared permissions file and use it on both sides
+// Or obtain permission flags from the permissions API
 ```
 
 ---
 
-## 10. 演習問題
+## 10. Exercises
 
-### 演習 1: 基本 — ルートガードとProtectedRouteの実装（難易度: 基本）
-
-```
-課題:
-  Next.js App Router で、Middleware を使ったルートガードと
-  ProtectedRoute コンポーネントを実装してください。
-
-要件:
-  ① /dashboard は全認証ユーザーがアクセス可能
-  ② /admin は admin ロールのみ
-  ③ /articles/new は editor と admin のみ
-  ④ 未認証ユーザーは /login にリダイレクト（callbackUrl 付き）
-  ⑤ 権限不足は /unauthorized にリダイレクト
-
-ヒント:
-  → auth() 関数で Middleware 内のセッション取得
-  → matcher で対象パスを制限
-
-確認ポイント:
-  □ 未認証で /dashboard → /login にリダイレクト
-  □ viewer で /admin → /unauthorized にリダイレクト
-  □ editor で /articles/new → アクセス可能
-  □ ログイン後に元のページに戻る
-```
-
-### 演習 2: 応用 — 権限ベースの UI 制御（難易度: 応用）
+### Exercise 1: Basic — Implement Route Guards and ProtectedRoute (Difficulty: Basic)
 
 ```
-課題:
-  AuthContext と Authorized コンポーネントを実装し、
-  記事管理画面で権限に基づく UI 制御を行ってください。
+Task:
+  In Next.js App Router, implement a route guard using Middleware
+  and a ProtectedRoute component.
 
-要件:
-  ① 権限を API からフェッチしてキャッシュ
-  ② Authorized コンポーネントで条件表示
-  ③ 権限のないボタンは非表示 or disabled
-  ④ ナビゲーションの権限フィルタリング
-  ⑤ Server Component で初期権限判定
+Requirements:
+  ① /dashboard is accessible by all authenticated users
+  ② /admin is for admin role only
+  ③ /articles/new is for editor and admin only
+  ④ Unauthenticated users are redirected to /login (with callbackUrl)
+  ⑤ Insufficient permissions redirect to /unauthorized
 
-ヒント:
-  → React Query で権限をキャッシュ
-  → AuthProvider → Authorized → useAuth のレイヤー構成
-  → Server Component から props で権限フラグを渡す
+Hints:
+  → Use the auth() function to get the session inside Middleware
+  → Restrict target paths using matcher
 
-確認ポイント:
-  □ viewer は記事の閲覧のみ
-  □ editor は記事の作成・編集・削除が可能
-  □ admin はすべての操作が可能
-  □ ナビゲーションが権限に応じて変化
+Verification:
+  □ Unauthenticated access to /dashboard → redirects to /login
+  □ Viewer accessing /admin → redirects to /unauthorized
+  □ Editor accessing /articles/new → access granted
+  □ Returns to the original page after login
 ```
 
-### 演習 3: 発展 — CASL + リアルタイム権限更新（難易度: 発展）
+### Exercise 2: Applied — Permission-Based UI Control (Difficulty: Applied)
 
 ```
-課題:
-  CASL ライブラリを使った宣言的認可と、
-  WebSocket を使った権限のリアルタイム更新を実装してください。
+Task:
+  Implement AuthContext and the Authorized component, and apply
+  permission-based UI control to an article management screen.
 
-要件:
-  ① CASL で条件付き認可を定義（自分の記事のみ編集可能等）
-  ② Can コンポーネントで UI 制御
-  ③ WebSocket で権限変更をリアルタイム通知
-  ④ 管理者が他ユーザーのロールを変更 → 即座に UI が更新
-  ⑤ フィールドレベルの権限（特定フィールドの編集制限）
+Requirements:
+  ① Fetch permissions from API and cache them
+  ② Conditional rendering using the Authorized component
+  ③ Buttons without permission are hidden or disabled
+  ④ Navigation permission filtering
+  ⑤ Initial permission evaluation in Server Component
 
-ヒント:
-  → @casl/ability + @casl/react を使用
-  → subject() ヘルパーでリソースの型を指定
-  → WebSocket: socket.io-client を使用
+Hints:
+  → Cache permissions with React Query
+  → Layer structure: AuthProvider → Authorized → useAuth
+  → Pass permission flags from Server Component via props
 
-確認ポイント:
-  □ editor が自分の記事のみ編集できる
-  □ admin がロール変更 → 即座に対象ユーザーの UI が変化
-  □ フィールドレベルの制限が動作する
+Verification:
+  □ Viewer can only view articles
+  □ Editor can create, edit, and delete articles
+  □ Admin can perform all operations
+  □ Navigation changes based on permissions
+```
+
+### Exercise 3: Advanced — CASL + Real-Time Permission Updates (Difficulty: Advanced)
+
+```
+Task:
+  Implement declarative authorization using the CASL library
+  and real-time permission updates via WebSocket.
+
+Requirements:
+  ① Define conditional authorization with CASL (e.g., only edit own articles)
+  ② UI control using the Can component
+  ③ Notify permission changes in real time via WebSocket
+  ④ Admin changes another user's role → UI updates immediately
+  ⑤ Field-level permissions (restrict editing of specific fields)
+
+Hints:
+  → Use @casl/ability + @casl/react
+  → Use the subject() helper to specify resource type
+  → WebSocket: use socket.io-client
+
+Verification:
+  □ Editor can only edit their own articles
+  □ Admin changes a role → target user's UI changes immediately
+  □ Field-level restrictions work correctly
 ```
 
 ---
 
 ## 11. FAQ
 
-### Q1: Server Components と Client Components のどちらで権限チェックすべき？
+### Q1: Should I perform permission checks in Server Components or Client Components?
 
 ```
-A: 可能な限り Server Components で行うのが推奨です。
+A: Server Components are recommended wherever possible.
 
-理由:
-  → サーバーで判定するため改ざん不可能
-  → 権限のないデータをクライアントに送信しない
-  → JS バンドルサイズを削減（権限ロジックがサーバー側に）
+Reasons:
+  → Evaluated on the server, so cannot be tampered with
+  → Unauthorized data is never sent to the client
+  → Reduces JS bundle size (permission logic stays on the server)
 
-Client Components を使う場合:
-  → インタラクティブな UI（onClick、状態変更）
-  → リアルタイムの権限更新が必要な場合
-  → ユーザー操作に応じた動的な表示切替
+When to use Client Components:
+  → Interactive UI (onClick, state changes)
+  → When real-time permission updates are needed
+  → Dynamic display toggling based on user interaction
 
-推奨パターン:
-  Server Component で権限を判定 → boolean フラグとして
-  Client Component に props で渡す
+Recommended pattern:
+  Evaluate permissions in Server Component → pass as boolean flags
+  to Client Components via props
 ```
 
-### Q2: 権限キャッシュの有効期間はどのくらいが適切？
+### Q2: How long should the permission cache TTL be?
 
 ```
-A: 一般的に 5 分が推奨です。
+A: 5 minutes is generally recommended.
 
-考慮事項:
-  → 短すぎる: API 呼び出しが増え、パフォーマンス低下
-  → 長すぎる: 権限変更が反映されるまでの遅延
+Considerations:
+  → Too short: more API calls, reduced performance
+  → Too long: delay before permission changes take effect
 
-  ┌──────────────┬──────────────────────────────┐
-  │ staleTime     │ 用途                         │
-  ├──────────────┼──────────────────────────────┤
-  │ 1 分          │ 厳密な権限制御が必要な場合     │
-  │ 5 分（推奨）  │ 一般的な Web アプリ           │
-  │ 15 分         │ 権限変更が稀な場合            │
-  │ リアルタイム   │ WebSocket + invalidate       │
-  └──────────────┴──────────────────────────────┘
+  ┌──────────────┬──────────────────────────────────┐
+  │ staleTime    │ Use case                         │
+  ├──────────────┼──────────────────────────────────┤
+  │ 1 minute     │ When strict permission control is needed │
+  │ 5 min (rec.) │ General web applications         │
+  │ 15 minutes   │ When permission changes are rare  │
+  │ Real-time    │ WebSocket + invalidate            │
+  └──────────────┴──────────────────────────────────┘
 
-  リアルタイム性が必要な場合:
-  → WebSocket / SSE で権限変更を通知
-  → invalidateQueries で即座にキャッシュ更新
+  When real-time behavior is required:
+  → Notify permission changes via WebSocket / SSE
+  → Immediately update cache via invalidateQueries
 ```
 
-### Q3: ナビゲーションで権限のないページを完全に非表示にすべき？
+### Q3: Should I completely hide navigation items the user doesn't have access to?
 
 ```
-A: 状況によります。
+A: It depends on the situation.
 
-完全非表示にすべき場合:
-  → セキュリティ上、ページの存在を知られたくない
-  → 管理者機能（一般ユーザーは知る必要なし）
+When to hide completely:
+  → When the existence of a page should not be known for security reasons
+  → Admin features (regular users have no need to know)
 
-disabled / グレーアウトにすべき場合:
-  → 機能の存在は知ってほしい（アップグレード促進）
-  → 「Pro プランにアップグレードすると利用可能」
+When to show as disabled / grayed out:
+  → When you want users to know the feature exists (to encourage upgrades)
+  → "Available with a Pro plan upgrade"
 
-推奨:
-  → セキュリティ系: 完全非表示
-  → ビジネス系: disabled + ツールチップで説明
+Recommendations:
+  → Security-related: hide completely
+  → Business-related: disabled + tooltip explanation
 ```
 
-### Q4: 大規模アプリでの権限管理のベストプラクティスは？
+### Q4: What are the best practices for permission management in large-scale apps?
 
 ```
-A: 以下の構成を推奨します。
+A: The following structure is recommended.
 
-  ① 権限定義: 一元管理ファイル（lib/permissions.ts）
-  ② 権限取得: 専用 API + React Query キャッシュ
-  ③ 権限チェック: AuthContext + Authorized コンポーネント
-  ④ ルートガード: Middleware（粗いチェック）
-  ⑤ ページレベル: Server Components（詳細チェック）
-  ⑥ UIレベル: Authorized コンポーネント / Can（CASL）
-  ⑦ APIレベル: バックエンドで最終チェック（必須）
+  ① Permission definitions: centralized file (lib/permissions.ts)
+  ② Permission fetching: dedicated API + React Query cache
+  ③ Permission checks: AuthContext + Authorized component
+  ④ Route guard: Middleware (coarse-grained check)
+  ⑤ Page level: Server Components (fine-grained check)
+  ⑥ UI level: Authorized component / Can (CASL)
+  ⑦ API level: final check on backend (mandatory)
 
-権限定義の一元管理例:
+Example of centralized permission definitions:
   // lib/permissions.ts
   export const PERMISSIONS = {
     ARTICLES_CREATE: 'articles:create',
@@ -1790,7 +1790,7 @@ A: 以下の構成を推奨します。
     // ...
   } as const;
 
-  // フロントとバックで同じ定数を使用
+  // Use the same constants on both frontend and backend
 ```
 
 ---
@@ -1798,41 +1798,41 @@ A: 以下の構成を推奨します。
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world development?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| 原則 | フロント=UX最適化、バックエンド=セキュリティ保証 |
-| ルートガード | Next.js Middleware + Auth.js で実装 |
-| UI制御 | AuthContext + Authorized コンポーネント |
-| Server Components | サーバーで権限判定 → props でクライアントに渡す（推奨） |
-| ナビゲーション | 権限ベースの再帰的フィルタリング |
-| キャッシュ | React Query で 5 分キャッシュ、WebSocket で即時更新 |
-| CASL | 複雑な条件付き認可に最適。シンプルな RBAC なら自前でも可 |
-| 必須 | フロントエンドの認可は補助的。API 側での認可が必須 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and when designing system architecture.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Item | Key Point |
+|------|-----------|
+| Principle | Frontend = UX optimization, Backend = security guarantee |
+| Route guards | Implemented with Next.js Middleware + Auth.js |
+| UI control | AuthContext + Authorized component |
+| Server Components | Evaluate permissions on server → pass to client via props (recommended) |
+| Navigation | Recursive filtering based on permissions |
+| Caching | React Query with 5-minute cache, instant update via WebSocket |
+| CASL | Best for complex conditional authorization. Simple RBAC can be custom-built |
+| Required | Frontend authorization is supplementary. API-level authorization is mandatory |
+
+---
+
+## Further Reading
 
 
 ---
 
-## 参考文献
+## References
 
 1. OWASP. "Authorization Testing." owasp.org, 2024.
 2. Next.js. "Middleware." nextjs.org/docs/app/building-your-application/routing/middleware, 2024.
