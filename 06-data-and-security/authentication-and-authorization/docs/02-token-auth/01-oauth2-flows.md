@@ -1,251 +1,251 @@
-# OAuth 2.0 フロー
+# OAuth 2.0 Flows
 
-> OAuth 2.0 は「認可の委譲」のための標準プロトコル。Authorization Code + PKCE、Client Credentials、Device Code、Implicit（非推奨）の各フローの仕組み、適用場面、セキュリティ上の注意点を網羅的に解説する。
+> OAuth 2.0 is a standard protocol for "delegated authorization." This guide provides a comprehensive explanation of the Authorization Code + PKCE, Client Credentials, Device Code, and Implicit (deprecated) flows — including how each works, when to use it, and security considerations.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] OAuth 2.0 の役割とアクターを理解する
-- [ ] 各フローの仕組みと適用場面を把握する
-- [ ] PKCE による SPA/モバイル向けセキュリティ強化を実装できる
-- [ ] トークンのライフサイクル管理（発行・リフレッシュ・失効）を実装できる
-- [ ] OAuth 2.0 のセキュリティ脅威と防御策を理解する
-- [ ] 認可サーバーの内部実装を理解する
+- [ ] Understand the role of OAuth 2.0 and its actors
+- [ ] Understand the mechanics and appropriate use cases for each flow
+- [ ] Implement PKCE-based security hardening for SPAs and mobile apps
+- [ ] Implement token lifecycle management (issuance, refresh, revocation)
+- [ ] Understand OAuth 2.0 security threats and countermeasures
+- [ ] Understand the internal implementation of an authorization server
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [JWT 詳解](./00-jwt-deep-dive.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [JWT Deep Dive](./00-jwt-deep-dive.md)
 
 ---
 
-## 1. OAuth 2.0 の基本概念
+## 1. OAuth 2.0 Fundamentals
 
 ```
-OAuth 2.0 の役割:
-  「第三者アプリケーションにユーザーのリソースへの
-   限定的なアクセスを許可する仕組み」
+Role of OAuth 2.0:
+  "A mechanism for granting third-party applications
+   limited access to a user's resources"
 
-  例: 「GitHub のリポジトリ一覧を MyApp に許可する」
-  → ユーザーは GitHub のパスワードを MyApp に渡さない
-  → MyApp は必要な権限（スコープ）のみ取得
+  Example: "Allow MyApp to access the list of GitHub repositories"
+  → The user does not give their GitHub password to MyApp
+  → MyApp only obtains the required permissions (scopes)
 
-4つのアクター:
+Four Actors:
 
   ┌─────────────────────────────────────────┐
   │                                         │
-  │  Resource Owner（リソースオーナー）        │
-  │  → ユーザー本人                           │
+  │  Resource Owner                         │
+  │  → The user themselves                  │
   │                                         │
-  │  Client（クライアント）                    │
-  │  → アクセスを要求するアプリケーション        │
+  │  Client                                 │
+  │  → The application requesting access    │
   │  → MyApp                                │
   │                                         │
-  │  Authorization Server（認可サーバー）      │
-  │  → アクセス許可を発行するサーバー            │
-  │  → GitHub の OAuth サーバー               │
+  │  Authorization Server                   │
+  │  → The server that issues access grants │
+  │  → GitHub's OAuth server                │
   │                                         │
-  │  Resource Server（リソースサーバー）        │
-  │  → 保護されたリソースを持つサーバー          │
+  │  Resource Server                        │
+  │  → The server holding protected resources│
   │  → GitHub API                           │
   │                                         │
   └─────────────────────────────────────────┘
 
-フローの選択:
+Flow Selection:
 
-  アプリ種別              │ 推奨フロー
-  ──────────────────────┼──────────────────────
-  Web アプリ（サーバーあり）│ Authorization Code
-  SPA（サーバーなし）      │ Authorization Code + PKCE
-  モバイルアプリ           │ Authorization Code + PKCE
-  サーバー間通信           │ Client Credentials
-  IoT / テレビ            │ Device Code
-  SPA（レガシー）         │ Implicit（非推奨）
+  App Type                        │ Recommended Flow
+  ────────────────────────────────┼──────────────────────
+  Web app (with server)           │ Authorization Code
+  SPA (no server)                 │ Authorization Code + PKCE
+  Mobile app                      │ Authorization Code + PKCE
+  Server-to-server communication  │ Client Credentials
+  IoT / TV                        │ Device Code
+  SPA (legacy)                    │ Implicit (deprecated)
 ```
 
-### 1.1 OAuth 2.0 の歴史と設計思想
+### 1.1 History and Design Philosophy of OAuth 2.0
 
 ```
-OAuth の進化:
+Evolution of OAuth:
 
-  OAuth 1.0（2007年）:
-    → 署名ベース（HMAC-SHA1）
-    → 各リクエストに署名が必要
-    → 実装が複雑（正規化、署名生成）
-    → TLS が必須ではなかった
+  OAuth 1.0 (2007):
+    → Signature-based (HMAC-SHA1)
+    → Each request required a signature
+    → Complex implementation (canonicalization, signature generation)
+    → TLS was not mandatory
 
-  OAuth 2.0（2012年、RFC 6749）:
-    → Bearer トークンベース
-    → TLS 必須（署名を簡素化）
-    → 複数のグラントタイプ（フロー）
-    → スコープによる権限制御
-    → リフレッシュトークンの導入
+  OAuth 2.0 (2012, RFC 6749):
+    → Bearer token-based
+    → TLS mandatory (simplifies signatures)
+    → Multiple grant types (flows)
+    → Permission control via scopes
+    → Introduction of refresh tokens
 
-  OAuth 2.1（策定中）:
-    → PKCE の必須化（全フロー）
-    → Implicit フローの廃止
-    → Resource Owner Password の廃止
-    → リフレッシュトークンのローテーション推奨
-    → Bearer トークンの sender-constraint 推奨
+  OAuth 2.1 (in development):
+    → PKCE mandatory (for all flows)
+    → Deprecation of the Implicit flow
+    → Deprecation of Resource Owner Password
+    → Refresh token rotation recommended
+    → Bearer token sender-constraint recommended
 
-  設計上の重要な判断:
-    ① OAuth 2.0 は「認可」プロトコル（認証ではない）
-       → 「このアプリに GitHub リポジトリへのアクセスを許可」
-       → ユーザーの身元確認は OpenID Connect が担う
+  Key design decisions:
+    ① OAuth 2.0 is an "authorization" protocol (not authentication)
+       → "Allow this app to access GitHub repositories"
+       → Identity verification of the user is handled by OpenID Connect
 
-    ② アクセストークンはクライアントにとって「不透明」
-       → クライアントはトークンの中身を解析してはいけない
-       → リソースサーバーのみがトークンを検証する
-       → JWT を使うかどうかは認可サーバーの実装次第
+    ② Access tokens are "opaque" to the client
+       → Clients must not parse the contents of a token
+       → Only the resource server validates the token
+       → Whether to use JWT is an implementation detail of the authorization server
 
-    ③ フロントチャネル vs バックチャネル
-       → フロントチャネル: ブラウザのリダイレクト（傍受リスク）
-       → バックチャネル: サーバー間の直接通信（安全）
-       → 認可コードはフロントチャネルで受け取り
-       → トークン交換はバックチャネルで実行
+    ③ Front channel vs. back channel
+       → Front channel: browser redirects (risk of interception)
+       → Back channel: direct server-to-server communication (secure)
+       → Authorization codes are received via the front channel
+       → Token exchange is performed via the back channel
 ```
 
-### 1.2 クライアントの分類
+### 1.2 Client Classification
 
 ```
-OAuth 2.0 におけるクライアントの分類:
+Client classification in OAuth 2.0:
 
-  Confidential Client（秘密クライアント）:
-    → client_secret を安全に保持できる
-    → サーバーサイドアプリケーション
-    → バックエンド Web アプリ
-    → client_secret をトークン交換時に使用
+  Confidential Client:
+    → Can securely hold a client_secret
+    → Server-side applications
+    → Backend web apps
+    → Uses client_secret during token exchange
 
-  Public Client（公開クライアント）:
-    → client_secret を安全に保持できない
-    → SPA（ブラウザ上の JavaScript）
-    → モバイルアプリ（デコンパイル可能）
-    → デスクトップアプリ
-    → PKCE を使用して保護
+  Public Client:
+    → Cannot securely hold a client_secret
+    → SPA (JavaScript running in the browser)
+    → Mobile apps (can be decompiled)
+    → Desktop apps
+    → Protected using PKCE
 
   ┌───────────────────────────────────────────────────┐
   │                                                   │
   │  Confidential Client:                              │
   │  ┌─────────────┐    client_secret    ┌──────────┐ │
   │  │ Web Server  │───────────────────>│ Auth     │ │
-  │  │ (backend)   │    安全に送信可能    │ Server   │ │
+  │  │ (backend)   │  Can send securely  │ Server   │ │
   │  └─────────────┘                    └──────────┘ │
   │                                                   │
   │  Public Client:                                    │
   │  ┌─────────────┐    client_secret    ┌──────────┐ │
   │  │ SPA / Mobile│───────────× ───────│ Auth     │ │
-  │  │ (frontend)  │  ソースから漏洩する   │ Server   │ │
+  │  │ (frontend)  │  Leaks from source  │ Server   │ │
   │  └─────────────┘                    └──────────┘ │
-  │                    代わりに PKCE を使用            │
+  │                    Use PKCE instead               │
   │                                                   │
   └───────────────────────────────────────────────────┘
 
-  クライアント登録時の設定:
-    → client_id: 公開識別子
-    → client_secret: 秘密鍵（Confidential のみ）
-    → redirect_uris: 許可されたリダイレクト先
-    → grant_types: 許可されたフロー
-    → scopes: 要求可能なスコープ
-    → token_endpoint_auth_method: 認証方式
-      → client_secret_basic: Basic 認証
-      → client_secret_post: POST パラメータ
-      → private_key_jwt: JWT ベース認証
+  Settings configured at client registration:
+    → client_id: Public identifier
+    → client_secret: Secret key (Confidential clients only)
+    → redirect_uris: Allowed redirect destinations
+    → grant_types: Permitted flows
+    → scopes: Requestable scopes
+    → token_endpoint_auth_method: Authentication method
+      → client_secret_basic: Basic authentication
+      → client_secret_post: POST parameters
+      → private_key_jwt: JWT-based authentication
       → none: Public Client
 ```
 
 ---
 
-## 2. Authorization Code フロー
+## 2. Authorization Code Flow
 
 ```
-Authorization Code フロー（最も安全、最も一般的）:
+Authorization Code Flow (most secure, most common):
 
-  ユーザー    クライアント   認可サーバー    リソースサーバー
+  User      Client       Authorization Server    Resource Server
     │           │            │               │
-    │ ログイン   │            │               │
+    │ Login     │            │               │
     │──────────>│            │               │
-    │           │ ① 認可リクエスト             │
+    │           │ ① Authorization request    │
     │           │───────────>│               │
     │           │            │               │
-    │ ② ログイン画面          │               │
+    │ ② Login screen         │               │
     │<──────────────────────│               │
     │           │            │               │
-    │ ③ 認証 + 権限承認      │               │
+    │ ③ Authenticate + grant permissions     │
     │──────────────────────>│               │
     │           │            │               │
     │ ④ redirect_uri +      │               │
     │   authorization_code  │               │
     │──────────>│            │               │
     │           │            │               │
-    │           │ ⑤ code → token 交換        │
+    │           │ ⑤ code → token exchange    │
     │           │───────────>│               │
     │           │            │               │
     │           │ ⑥ access_token +           │
     │           │   refresh_token             │
     │           │<───────────│               │
     │           │            │               │
-    │           │ ⑦ API リクエスト             │
+    │           │ ⑦ API request              │
     │           │ + Bearer access_token       │
     │           │───────────────────────────>│
     │           │            │               │
-    │           │ ⑧ リソース                  │
+    │           │ ⑧ Resource                 │
     │           │<───────────────────────────│
-    │ レスポンス  │            │               │
+    │ Response  │            │               │
     │<──────────│            │               │
 ```
 
-### 2.1 各ステップの詳細
+### 2.1 Details of Each Step
 
 ```
-① 認可リクエストの内部:
+① Inside the authorization request:
 
   GET /authorize?
-    response_type=code          ← 認可コードを要求
-    &client_id=my-app-id        ← クライアント識別子
-    &redirect_uri=https://myapp.com/callback  ← コールバック先
-    &scope=read:user repo       ← 要求する権限
-    &state=xyzabc123            ← CSRF 防御用ランダム値
-    &code_challenge=E9Melhoa... ← PKCE チャレンジ（推奨）
-    &code_challenge_method=S256 ← PKCE メソッド
+    response_type=code          ← Request authorization code
+    &client_id=my-app-id        ← Client identifier
+    &redirect_uri=https://myapp.com/callback  ← Callback destination
+    &scope=read:user repo       ← Requested permissions
+    &state=xyzabc123            ← Random value for CSRF protection
+    &code_challenge=E9Melhoa... ← PKCE challenge (recommended)
+    &code_challenge_method=S256 ← PKCE method
 
-  各パラメータの意味と重要性:
+  Meaning and importance of each parameter:
 
     response_type:
-      → "code" = Authorization Code フロー
-      → "token" = Implicit フロー（非推奨）
+      → "code" = Authorization Code flow
+      → "token" = Implicit flow (deprecated)
 
     state:
-      → CSRF 防御の要
-      → 暗号的にランダムな値（32バイト以上）
-      → セッションに紐づけて保存
-      → コールバック時に一致確認
-      → 一致しなければ → 攻撃の可能性
+      → Key to CSRF protection
+      → Cryptographically random value (32 bytes or more)
+      → Saved and tied to the session
+      → Must be verified to match on callback
+      → If it doesn't match → possible attack
 
     redirect_uri:
-      → 事前登録された URI と完全一致が必須
-      → オープンリダイレクタの防止
-      → ワイルドカード禁止（セキュリティリスク）
-      → localhost は開発時のみ許可
+      → Must exactly match the pre-registered URI
+      → Prevents open redirector attacks
+      → Wildcards prohibited (security risk)
+      → localhost allowed only for development
 
-④ 認可レスポンス:
+④ Authorization response:
 
   HTTP/1.1 302 Found
   Location: https://myapp.com/callback
-    ?code=SplxlOBeZQQYbYS6WxSbIA    ← 認可コード（短寿命）
-    &state=xyzabc123                 ← 送信した state がそのまま返る
+    ?code=SplxlOBeZQQYbYS6WxSbIA    ← Authorization code (short-lived)
+    &state=xyzabc123                 ← The sent state is returned as-is
 
-  認可コードの特性:
-    → 有効期限: 10分以内（推奨: 30秒〜1分）
-    → 一度使い切り（使用後は無効化）
-    → client_id に紐づく
-    → redirect_uri に紐づく
-    → 漏洩しても client_secret なしでは使えない
-      （Confidential Client の場合）
+  Characteristics of the authorization code:
+    → Expiry: within 10 minutes (recommended: 30 seconds to 1 minute)
+    → Single-use (invalidated after use)
+    → Bound to client_id
+    → Bound to redirect_uri
+    → Useless if leaked without client_secret
+      (in the case of a Confidential Client)
 
-⑤ トークン交換リクエスト:
+⑤ Token exchange request:
 
   POST /token
   Content-Type: application/x-www-form-urlencoded
@@ -256,15 +256,15 @@ Authorization Code フロー（最も安全、最も一般的）:
   &redirect_uri=https://myapp.com/callback
   &code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
 
-  認可サーバーの検証:
-    ✓ client_id と client_secret の一致
-    ✓ code が有効（未使用、未期限切れ）
-    ✓ code が client_id に紐づくか
-    ✓ redirect_uri が認可リクエスト時と同一か
-    ✓ code_verifier のハッシュが code_challenge と一致（PKCE）
-    ✓ すべて OK → トークン発行
+  Authorization server validation:
+    ✓ client_id and client_secret match
+    ✓ code is valid (unused, not expired)
+    ✓ code is bound to client_id
+    ✓ redirect_uri matches the one in the authorization request
+    ✓ Hash of code_verifier matches code_challenge (PKCE)
+    ✓ All OK → Issue tokens
 
-⑥ トークンレスポンス:
+⑥ Token response:
 
   HTTP/1.1 200 OK
   Content-Type: application/json
@@ -279,35 +279,37 @@ Authorization Code フロー（最も安全、最も一般的）:
     "scope": "read:user repo"
   }
 
-  重要なレスポンスヘッダー:
-    → Cache-Control: no-store（トークンをキャッシュしない）
-    → Pragma: no-cache（HTTP/1.0 互換）
+  Important response headers:
+    → Cache-Control: no-store (do not cache tokens)
+    → Pragma: no-cache (HTTP/1.0 compatibility)
 ```
 
 ```typescript
-// Authorization Code フロー 完全実装
+// Authorization Code Flow — complete implementation
 
-// ① 認可リクエスト（クライアント → 認可サーバー）
+// ① Authorization request (client → authorization server)
 function getAuthorizationUrl(state: string): string {
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: process.env.GITHUB_CLIENT_ID!,
     redirect_uri: 'https://myapp.com/callback',
     scope: 'read:user repo',
-    state, // CSRF 防御用ランダム値
+    state, // Random value for CSRF protection
   });
+```
 
+```typescript
   return `https://github.com/login/oauth/authorize?${params}`;
 }
 
-// ④⑤ コールバック処理（認可コード → トークン交換）
+// ④⑤ Callback handling (authorization code → token exchange)
 async function handleCallback(code: string, state: string) {
-  // state の検証（CSRF 防御）
+  // Validate state (CSRF protection)
   if (state !== storedState) {
     throw new Error('Invalid state parameter');
   }
 
-  // ⑤ トークン交換（サーバー側で実行 → client_secret を安全に使用）
+  // ⑤ Token exchange (executed server-side → uses client_secret securely)
   const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
     headers: {
@@ -316,7 +318,7 @@ async function handleCallback(code: string, state: string) {
     },
     body: JSON.stringify({
       client_id: process.env.GITHUB_CLIENT_ID,
-      client_secret: process.env.GITHUB_CLIENT_SECRET, // サーバーのみ
+      client_secret: process.env.GITHUB_CLIENT_SECRET, // Server only
       code,
       redirect_uri: 'https://myapp.com/callback',
     }),
@@ -324,7 +326,7 @@ async function handleCallback(code: string, state: string) {
 
   const { access_token, refresh_token, scope, token_type } = await tokenResponse.json();
 
-  // ⑦ リソース取得
+  // ⑦ Fetch resource
   const userResponse = await fetch('https://api.github.com/user', {
     headers: { Authorization: `Bearer ${access_token}` },
   });
@@ -333,10 +335,10 @@ async function handleCallback(code: string, state: string) {
 }
 ```
 
-### 2.2 認可サーバーの内部実装
+### 2.2 Internal Implementation of the Authorization Server
 
 ```typescript
-// 認可サーバーの内部実装（Express）
+// Internal implementation of the authorization server (Express)
 import express from 'express';
 import crypto from 'crypto';
 
@@ -368,7 +370,7 @@ class AuthorizationServer {
   private tokens: Map<string, TokenRecord> = new Map();
   private refreshTokenIndex: Map<string, string> = new Map(); // refreshToken → accessToken
 
-  // ① 認可エンドポイント
+  // ① Authorization endpoint
   async handleAuthorize(req: express.Request, res: express.Response) {
     const {
       response_type,
@@ -380,47 +382,47 @@ class AuthorizationServer {
       code_challenge_method,
     } = req.query as Record<string, string>;
 
-    // バリデーション
+    // Validation
     if (response_type !== 'code') {
       return res.status(400).json({ error: 'unsupported_response_type' });
     }
 
-    // クライアント検証
+    // Client verification
     const client = await this.getClient(client_id);
     if (!client) {
       return res.status(400).json({ error: 'invalid_client' });
     }
 
-    // redirect_uri の完全一致確認
+    // Exact match check on redirect_uri
     if (!client.redirectUris.includes(redirect_uri)) {
-      // redirect_uri が不正な場合はリダイレクトしてはいけない
-      // （オープンリダイレクタ防止）
+      // Must not redirect if redirect_uri is invalid
+      // (prevents open redirector attacks)
       return res.status(400).json({ error: 'invalid_redirect_uri' });
     }
 
-    // スコープ検証
+    // Scope validation
     const requestedScopes = scope.split(' ');
     const allowedScopes = requestedScopes.filter(s => client.allowedScopes.includes(s));
 
-    // ユーザー認証済みか確認（未認証ならログイン画面へ）
+    // Check if user is authenticated (redirect to login if not)
     const user = req.session?.user;
     if (!user) {
-      // ログイン画面にリダイレクト（認可パラメータを保持）
+      // Redirect to login screen (preserving authorization parameters)
       return res.redirect(`/login?return_to=${encodeURIComponent(req.originalUrl)}`);
     }
 
-    // 同意画面を表示（または以前の同意を確認）
+    // Show consent screen (or check prior consent)
     const existingConsent = await this.getConsent(user.id, client_id, allowedScopes);
     if (!existingConsent) {
       return res.render('consent', {
         client,
         scopes: allowedScopes,
         state,
-        // 同意フォーム送信先
+        // Consent form submission destination
       });
     }
 
-    // 認可コード生成
+    // Generate authorization code
     const code = crypto.randomBytes(32).toString('hex');
     this.codes.set(code, {
       code,
@@ -434,10 +436,10 @@ class AuthorizationServer {
       used: false,
     });
 
-    // 認可コードは短寿命（30秒後に自動削除）
+    // Authorization code is short-lived (auto-deleted after 30 seconds)
     setTimeout(() => this.codes.delete(code), 30 * 1000);
 
-    // リダイレクト
+    // Redirect
     const callbackUrl = new URL(redirect_uri);
     callbackUrl.searchParams.set('code', code);
     if (state) callbackUrl.searchParams.set('state', state);
@@ -445,11 +447,11 @@ class AuthorizationServer {
     res.redirect(302, callbackUrl.toString());
   }
 
-  // ⑤ トークンエンドポイント
+  // ⑤ Token endpoint
   async handleToken(req: express.Request, res: express.Response) {
     const { grant_type } = req.body;
 
-    // Cache-Control ヘッダー（RFC 6749 Section 5.1）
+    // Cache-Control header (RFC 6749 Section 5.1)
     res.set('Cache-Control', 'no-store');
     res.set('Pragma', 'no-cache');
 
@@ -472,37 +474,37 @@ class AuthorizationServer {
     const { code, redirect_uri, code_verifier } = req.body;
     const { clientId, clientSecret } = this.extractClientCredentials(req);
 
-    // クライアント認証
+    // Client authentication
     const client = await this.authenticateClient(clientId, clientSecret);
     if (!client) {
       return res.status(401).json({ error: 'invalid_client' });
     }
 
-    // 認可コード検証
+    // Authorization code validation
     const authCode = this.codes.get(code);
     if (!authCode) {
       return res.status(400).json({ error: 'invalid_grant', error_description: 'Code not found or expired' });
     }
 
-    // 使用済みチェック
+    // Check if already used
     if (authCode.used) {
-      // 認可コード再利用 = 攻撃の可能性
-      // → 該当コードで発行された全トークンを無効化
+      // Authorization code reuse = possible attack
+      // → Invalidate all tokens issued with this code
       await this.revokeTokensByCode(code);
       return res.status(400).json({ error: 'invalid_grant', error_description: 'Code already used' });
     }
 
-    // client_id 一致確認
+    // Verify client_id match
     if (authCode.clientId !== clientId) {
       return res.status(400).json({ error: 'invalid_grant' });
     }
 
-    // redirect_uri 一致確認
+    // Verify redirect_uri match
     if (authCode.redirectUri !== redirect_uri) {
       return res.status(400).json({ error: 'invalid_grant' });
     }
 
-    // PKCE 検証
+    // PKCE verification
     if (authCode.codeChallenge) {
       if (!code_verifier) {
         return res.status(400).json({ error: 'invalid_grant', error_description: 'code_verifier required' });
@@ -519,10 +521,10 @@ class AuthorizationServer {
       }
     }
 
-    // コードを使用済みにマーク
+    // Mark code as used
     authCode.used = true;
 
-    // トークン発行
+    // Issue tokens
     const tokens = await this.issueTokens(clientId, authCode.userId, authCode.scope);
 
     res.json({
@@ -534,7 +536,7 @@ class AuthorizationServer {
     });
   }
 
-  // PKCE 検証
+  // PKCE verification
   private verifyPKCE(
     verifier: string,
     challenge: string,
@@ -555,12 +557,12 @@ class AuthorizationServer {
     return false;
   }
 
-  // クライアント認証情報の抽出
+  // Extract client credentials
   private extractClientCredentials(req: express.Request): {
     clientId: string;
     clientSecret: string | null;
   } {
-    // Basic 認証ヘッダーから取得
+    // Get from Basic authentication header
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Basic ')) {
       const decoded = Buffer.from(authHeader.slice(6), 'base64').toString();
@@ -568,14 +570,14 @@ class AuthorizationServer {
       return { clientId, clientSecret };
     }
 
-    // POST ボディから取得
+    // Get from POST body
     return {
       clientId: req.body.client_id,
       clientSecret: req.body.client_secret || null,
     };
   }
 
-  // トークン発行
+  // Issue tokens
   private async issueTokens(
     clientId: string,
     userId: string,
@@ -590,8 +592,8 @@ class AuthorizationServer {
       clientId,
       userId,
       scope,
-      accessTokenExpiresAt: new Date(Date.now() + 3600 * 1000),    // 1時間
-      refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000), // 30日
+      accessTokenExpiresAt: new Date(Date.now() + 3600 * 1000),    // 1 hour
+      refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000), // 30 days
       revoked: false,
     };
 
@@ -605,48 +607,50 @@ class AuthorizationServer {
 
 ---
 
-## 3. PKCE（Proof Key for Code Exchange）
+## 3. PKCE (Proof Key for Code Exchange)
 
 ```
-PKCE の必要性:
+Why PKCE is needed:
 
-  SPA / モバイルアプリの問題:
-  → client_secret を安全に保持できない
-  → 認可コードの横取り攻撃（Authorization Code Interception）
-  → 悪意あるアプリが redirect_uri を傍受して code を取得
+  Problem with SPA / mobile apps:
+  → Cannot securely hold a client_secret
+  → Authorization Code Interception Attack
+  → A malicious app intercepts the redirect_uri and obtains the code
 
-  PKCE の仕組み:
-  → code_verifier: クライアントが生成するランダム文字列
-  → code_challenge: code_verifier のハッシュ（SHA-256）
-  → 認可リクエスト時に challenge を送信
-  → トークン交換時に verifier を送信
-  → サーバーが verifier をハッシュして challenge と比較
+  How PKCE works:
+  → code_verifier: A random string generated by the client
+  → code_challenge: Hash of code_verifier (SHA-256)
+  → Send the challenge with the authorization request
+  → Send the verifier with the token exchange
+  → Server hashes the verifier and compares it to the challenge
 
-  PKCE フロー:
-  ① code_verifier = ランダム文字列（43〜128文字）
+  PKCE Flow:
+  ① code_verifier = random string (43–128 characters)
   ② code_challenge = BASE64URL(SHA256(code_verifier))
-  ③ 認可リクエスト: code_challenge + code_challenge_method=S256
-  ④ コールバック: authorization_code を受信
-  ⑤ トークン交換: code + code_verifier を送信
-  ⑥ サーバー: SHA256(code_verifier) == code_challenge を検証
+  ③ Authorization request: code_challenge + code_challenge_method=S256
+  ④ Callback: receive authorization_code
+  ⑤ Token exchange: send code + code_verifier
+  ⑥ Server: verify SHA256(code_verifier) == code_challenge
 ```
 
-### 3.1 PKCE が防ぐ攻撃
+### 3.1 Attacks That PKCE Prevents
 
 ```
-認可コード横取り攻撃（PKCE なし）:
+Authorization Code Interception Attack (without PKCE):
 
-  正規アプリ        悪意あるアプリ     認可サーバー
+  Legitimate App    Malicious App     Authorization Server
     │                  │                │
-    │ 認可リクエスト     │                │
+    │ Authorization     │                │
+    │ request          │                │
     │──────────────────────────────────>│
     │                  │                │
     │ 302 Redirect     │                │
     │ ?code=abc123     │                │
     │<──────────────────────────────────│
     │                  │                │
-    │ ★ 悪意あるアプリが │                │
-    │   code を傍受!    │                │
+    │ ★ Malicious app  │                │
+    │   intercepts     │                │
+    │   the code!      │                │
     │─────────────────>│                │
     │                  │                │
     │                  │ code → token   │
@@ -655,21 +659,22 @@ PKCE の必要性:
     │                  │ access_token   │
     │                  │<──────────────│
     │                  │                │
-    │                  │ ★ 不正にリソースアクセス!
+    │                  │ ★ Unauthorized resource access!
 
-  傍受の方法:
-  → カスタム URL スキームの乗っ取り（モバイル）
-  → ブラウザ拡張の悪用
-  → OS レベルのリダイレクト傍受
+  Methods of interception:
+  → Hijacking custom URL schemes (mobile)
+  → Abusing browser extensions
+  → OS-level redirect interception
 
-認可コード横取り攻撃（PKCE あり）:
+Authorization Code Interception Attack (with PKCE):
 
-  正規アプリ        悪意あるアプリ     認可サーバー
+  Legitimate App    Malicious App     Authorization Server
     │                  │                │
-    │ verifier を生成    │                │
+    │ Generate verifier │                │
     │ challenge = SHA256(verifier)       │
     │                  │                │
-    │ 認可リクエスト     │                │
+    │ Authorization     │                │
+    │ request          │                │
     │ + challenge      │                │
     │──────────────────────────────────>│
     │                  │                │
@@ -677,35 +682,36 @@ PKCE の必要性:
     │ ?code=abc123     │                │
     │<──────────────────────────────────│
     │                  │                │
-    │ ★ 悪意あるアプリが │                │
-    │   code を傍受     │                │
+    │ ★ Malicious app  │                │
+    │   intercepts     │                │
+    │   the code       │                │
     │─────────────────>│                │
     │                  │                │
     │                  │ code → token   │
     │                  │ verifier = ??? │
     │                  │──────────────>│
     │                  │                │
-    │                  │ ✗ PKCE 検証失敗!│
-    │                  │ verifier 不明   │
+    │                  │ ✗ PKCE failed! │
+    │                  │ verifier unknown│
     │                  │<──────────────│
     │                  │                │
-    │ 正規アプリ:        │                │
+    │ Legitimate app:   │                │
     │ code + verifier   │                │
     │──────────────────────────────────>│
-    │                  │ ✓ PKCE 検証成功 │
+    │                  │ ✓ PKCE passed  │
     │ access_token     │                │
     │<──────────────────────────────────│
 ```
 
 ```typescript
-// PKCE 実装
+// PKCE implementation
 
-// code_verifier と code_challenge の生成
+// Generate code_verifier and code_challenge
 async function generatePKCE(): Promise<{ verifier: string; challenge: string }> {
-  // code_verifier: 43〜128文字の暗号ランダム文字列
+  // code_verifier: cryptographically random string of 43–128 characters
   const verifier = base64URLEncode(crypto.getRandomValues(new Uint8Array(32)));
 
-  // code_challenge: SHA-256 ハッシュの Base64URL エンコード
+  // code_challenge: Base64URL-encoded SHA-256 hash
   const encoder = new TextEncoder();
   const data = encoder.encode(verifier);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -721,12 +727,12 @@ function base64URLEncode(buffer: Uint8Array): string {
     .replace(/=+$/, '');
 }
 
-// ① 認可リクエスト（PKCE 付き）
+// ① Authorization request (with PKCE)
 async function startAuthFlow() {
   const { verifier, challenge } = await generatePKCE();
   const state = crypto.randomUUID();
 
-  // verifier と state をセッションに保存
+  // Save verifier and state to session
   sessionStorage.setItem('pkce_verifier', verifier);
   sessionStorage.setItem('oauth_state', state);
 
@@ -743,15 +749,15 @@ async function startAuthFlow() {
   window.location.href = `https://auth.example.com/authorize?${params}`;
 }
 
-// ⑤ コールバック（PKCE + トークン交換）
+// ⑤ Callback (PKCE + token exchange)
 async function handlePKCECallback(code: string, state: string) {
-  // state 検証
+  // Validate state
   const storedState = sessionStorage.getItem('oauth_state');
   if (state !== storedState) throw new Error('Invalid state');
 
   const verifier = sessionStorage.getItem('pkce_verifier');
 
-  // トークン交換（client_secret 不要）
+  // Token exchange (no client_secret needed)
   const response = await fetch('https://auth.example.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -760,14 +766,14 @@ async function handlePKCECallback(code: string, state: string) {
       code,
       redirect_uri: 'https://myapp.com/callback',
       client_id: 'my-spa-client-id',
-      code_verifier: verifier!,  // client_secret の代わり
+      code_verifier: verifier!,  // In place of client_secret
     }),
   });
 
   const tokens = await response.json();
   // { access_token, refresh_token, id_token, token_type, expires_in }
 
-  // クリーンアップ
+  // Cleanup
   sessionStorage.removeItem('pkce_verifier');
   sessionStorage.removeItem('oauth_state');
 
@@ -775,47 +781,47 @@ async function handlePKCECallback(code: string, state: string) {
 }
 ```
 
-### 3.2 PKCE の内部：SHA-256 による検証
+### 3.2 Inside PKCE: SHA-256 Verification
 
 ```
-PKCE の暗号学的な安全性:
+Cryptographic security of PKCE:
 
   code_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 
   code_challenge = BASE64URL(SHA256(code_verifier))
                  = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
 
-  なぜ安全か:
-  ① SHA-256 は一方向関数
-     → challenge から verifier を逆算することは計算上不可能
-     → 2^256 の探索空間 ≈ 1.16 × 10^77
+  Why it is secure:
+  ① SHA-256 is a one-way function
+     → It is computationally infeasible to reverse-engineer the verifier from the challenge
+     → Search space of 2^256 ≈ 1.16 × 10^77
 
-  ② verifier は 43〜128 文字（RFC 7636）
-     → 十分なエントロピー
-     → ブルートフォース不可能
+  ② Verifier is 43–128 characters (RFC 7636)
+     → Sufficient entropy
+     → Brute force is infeasible
 
-  ③ verifier はネットワークに流れない（バックチャネルのみ）
-     → フロントチャネルに challenge のみ
-     → challenge を傍受しても verifier は不明
+  ③ Verifier never travels over the network (back channel only)
+     → Only the challenge is sent over the front channel
+     → Even if the challenge is intercepted, the verifier remains unknown
 
-  plain メソッド（非推奨）:
-    → code_challenge = code_verifier そのもの
-    → 傍受されると意味がない
-    → SHA-256 をサポートしないクライアント向け
-    → OAuth 2.1 では S256 のみ必須
+  plain method (deprecated):
+    → code_challenge = code_verifier itself
+    → Meaningless if intercepted
+    → For clients that do not support SHA-256
+    → OAuth 2.1 requires S256 only
 ```
 
 ---
 
-## 4. Client Credentials フロー
+## 4. Client Credentials Flow
 
 ```
-Client Credentials フロー:
+Client Credentials Flow:
 
-  用途: サーバー間通信（ユーザーが介在しない）
-  例: バッチ処理、マイクロサービス間、バックエンド API
+  Use case: Server-to-server communication (no user involvement)
+  Examples: Batch processing, inter-microservice calls, backend APIs
 
-  クライアント          認可サーバー         リソースサーバー
+  Client             Authorization Server    Resource Server
     │                   │                   │
     │ client_id +       │                   │
     │ client_secret     │                   │
@@ -827,26 +833,26 @@ Client Credentials フロー:
     │ Bearer token      │                   │
     │──────────────────────────────────────>│
     │                   │                   │
-    │ リソース           │                   │
+    │ Resource          │                   │
     │<──────────────────────────────────────│
 
-  特徴:
-  → ユーザーの同意画面なし
-  → client_id + client_secret で認証
-  → refresh_token は発行されない
-  → トークンの有効期限で管理
+  Characteristics:
+  → No user consent screen
+  → Authenticated with client_id + client_secret
+  → No refresh_token issued
+  → Managed by token expiry
 ```
 
-### 4.1 Client Credentials の実装パターン
+### 4.1 Client Credentials Implementation Patterns
 
 ```typescript
-// Client Credentials フロー（基本）
+// Client Credentials Flow (basic)
 async function getServiceToken(): Promise<string> {
   const response = await fetch('https://auth.example.com/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      // Basic 認証で client_id:client_secret を送信
+      // Send client_id:client_secret via Basic authentication
       'Authorization': `Basic ${btoa(`${CLIENT_ID}:${CLIENT_SECRET}`)}`,
     },
     body: new URLSearchParams({
@@ -859,12 +865,12 @@ async function getServiceToken(): Promise<string> {
   return access_token;
 }
 
-// トークンキャッシュ付きの実装（本番向け）
+// Implementation with token cache (for production)
 class ServiceTokenManager {
   private token: string | null = null;
   private expiresAt: number = 0;
   private refreshPromise: Promise<string> | null = null;
-  private readonly bufferSeconds = 60; // 期限の60秒前に更新
+  private readonly bufferSeconds = 60; // Refresh 60 seconds before expiry
 
   constructor(
     private clientId: string,
@@ -874,12 +880,12 @@ class ServiceTokenManager {
   ) {}
 
   async getToken(): Promise<string> {
-    // キャッシュが有効ならそのまま返す
+    // Return cached token if still valid
     if (this.token && Date.now() < this.expiresAt - this.bufferSeconds * 1000) {
       return this.token;
     }
 
-    // 同時リクエスト時に重複リフレッシュを防止
+    // Prevent duplicate refresh on concurrent requests
     if (this.refreshPromise) {
       return this.refreshPromise;
     }
@@ -920,7 +926,7 @@ class ServiceTokenManager {
   }
 }
 
-// マイクロサービス間通信での使用例
+// Example usage in inter-microservice communication
 class OrderService {
   private tokenManager: ServiceTokenManager;
 
@@ -936,7 +942,7 @@ class OrderService {
   async createOrder(orderData: OrderRequest): Promise<Order> {
     const token = await this.tokenManager.getToken();
 
-    // 在庫サービスに問い合わせ
+    // Query inventory service
     const inventory = await fetch('https://inventory.internal/api/check', {
       method: 'POST',
       headers: {
@@ -946,7 +952,7 @@ class OrderService {
       body: JSON.stringify({ items: orderData.items }),
     });
 
-    // 決済サービスに送信
+    // Send to payment service
     const payment = await fetch('https://payments.internal/api/charge', {
       method: 'POST',
       headers: {
@@ -964,29 +970,29 @@ class OrderService {
 }
 ```
 
-### 4.2 private_key_jwt 認証
+### 4.2 private_key_jwt Authentication
 
 ```
-Client Credentials の高度な認証方式:
+Advanced authentication methods for Client Credentials:
 
-  client_secret_basic（基本）:
+  client_secret_basic (basic):
     → Authorization: Basic base64(client_id:client_secret)
-    → シンプルだが、secret の安全な管理が必要
+    → Simple, but requires secure management of the secret
 
   client_secret_post:
-    → POST ボディに client_id と client_secret を含める
-    → TLS 必須
+    → Include client_id and client_secret in the POST body
+    → TLS required
 
-  private_key_jwt（推奨・高セキュリティ）:
-    → client_secret の代わりに RSA/EC 秘密鍵で署名した JWT を送信
-    → 秘密鍵が外部に送信されない
-    → 鍵のローテーションが容易
+  private_key_jwt (recommended, high security):
+    → Send a JWT signed with an RSA/EC private key instead of client_secret
+    → Private key is never transmitted externally
+    → Easy key rotation
 
-  private_key_jwt のフロー:
+  private_key_jwt flow:
     ┌──────────────┐                    ┌──────────────┐
-    │ クライアント   │                    │ 認可サーバー   │
+    │ Client        │                    │ Auth Server   │
     │              │                    │              │
-    │ JWT 生成:    │                    │              │
+    │ Generate JWT:│                    │              │
     │ {            │                    │              │
     │  iss: client │                    │              │
     │  sub: client │                    │              │
@@ -994,7 +1000,8 @@ Client Credentials の高度な認証方式:
     │  exp: +5min  │                    │              │
     │  jti: random │                    │              │
     │ }            │                    │              │
-    │ → 秘密鍵で署名 │                   │              │
+    │ → Sign with  │                    │              │
+    │   private key│                    │              │
     │              │                    │              │
     │ POST /token  │                    │              │
     │ grant_type=  │                    │              │
@@ -1002,7 +1009,8 @@ Client Credentials の高度な認証方式:
     │ client_      │                    │              │
     │ assertion=JWT│                    │              │
     │─────────────────────────────────>│              │
-    │              │                    │ 公開鍵で検証   │
+    │              │                    │ Verify with  │
+    │              │                    │ public key   │
     │              │                    │ (JWKS)       │
     │              │                    │              │
     │ access_token │                    │              │
@@ -1011,7 +1019,7 @@ Client Credentials の高度な認証方式:
 ```
 
 ```typescript
-// private_key_jwt 認証の実装
+// Implementation of private_key_jwt authentication
 import * as jose from 'jose';
 
 async function getTokenWithPrivateKeyJWT(
@@ -1020,7 +1028,7 @@ async function getTokenWithPrivateKeyJWT(
   tokenUrl: string,
   scope: string,
 ): Promise<string> {
-  // クライアントアサーション JWT の生成
+  // Generate client assertion JWT
   const assertion = await new jose.SignJWT({})
     .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
     .setIssuer(clientId)
@@ -1050,16 +1058,16 @@ async function getTokenWithPrivateKeyJWT(
 
 ---
 
-## 5. Device Code フロー
+## 5. Device Code Flow
 
 ```
-Device Code フロー:
+Device Code Flow:
 
-  用途: キーボード入力が困難なデバイス（テレビ、IoT、CLI）
-  例: 「テレビで https://example.com/activate にアクセスして
-       コード ABC-123 を入力してください」
+  Use case: Devices where keyboard input is difficult (TVs, IoT, CLI)
+  Example: "Go to https://example.com/activate on your TV
+            and enter the code ABC-123"
 
-  デバイス        認可サーバー      ユーザーのスマホ/PC
+  Device          Authorization Server    User's Phone/PC
     │               │                 │
     │ device auth    │                 │
     │──────────────>│                 │
@@ -1070,17 +1078,18 @@ Device Code フロー:
     │ _uri          │                 │
     │<──────────────│                 │
     │               │                 │
-    │ 画面に表示:    │                 │
-    │ "コード:       │                 │
-    │  ABC-123"     │                 │
-    │               │ ユーザーが        │
+    │ Display on     │                 │
+    │ screen:        │                 │
+    │ "Code:         │                 │
+    │  ABC-123"      │                 │
+    │               │ User accesses   │
     │               │ verification_uri│
-    │               │ にアクセス        │
     │               │<────────────────│
-    │               │ コード入力+承認   │
+    │               │ Enter code +    │
+    │               │ approve         │
     │               │<────────────────│
     │               │                 │
-    │ ポーリング      │                 │
+    │ Polling        │                 │
     │ (device_code)  │                 │
     │──────────────>│                 │
     │               │                 │
@@ -1088,39 +1097,39 @@ Device Code フロー:
     │<──────────────│                 │
 ```
 
-### 5.1 Device Code フローのセキュリティ
+### 5.1 Security of the Device Code Flow
 
 ```
-Device Code フローの攻撃と対策:
+Attacks and countermeasures for the Device Code Flow:
 
-  攻撃1: リモートフィッシング
-    → 攻撃者が自分のデバイスコードをフィッシングメールで送信
-    → 「ログインして ABC-123 を入力してください」
-    → ユーザーが攻撃者のデバイスにアクセスを許可してしまう
-    対策:
-      → ユーザーにデバイス情報を表示
-      → 「このデバイスからのアクセスを許可しますか?」と明示
-      → verification_uri_complete を使用しない（自動承認防止）
+  Attack 1: Remote phishing
+    → Attacker sends their own device code via a phishing email
+    → "Please log in and enter ABC-123"
+    → User unknowingly grants access to the attacker's device
+    Countermeasures:
+      → Display device information to the user
+      → Explicitly state "Do you want to allow access from this device?"
+      → Do not use verification_uri_complete (prevents auto-approval)
 
-  攻撃2: ポーリング過多（DoS）
-    → 悪意あるクライアントが高頻度でポーリング
-    対策:
-      → interval パラメータで最小間隔を指定
-      → slow_down エラーで間隔延長を要求
-      → レート制限
+  Attack 2: Excessive polling (DoS)
+    → Malicious client polls at a high frequency
+    Countermeasures:
+      → Specify minimum interval with the interval parameter
+      → Request interval extension with the slow_down error
+      → Rate limiting
 
-  攻撃3: デバイスコードのブルートフォース
-    → user_code の総当たり試行
-    対策:
-      → user_code の試行回数制限
-      → 十分なエントロピー（8文字英数字 = ~40ビット）
-      → 短い有効期限（15分程度）
+  Attack 3: Brute force of device codes
+    → Brute-force attempts against user_code
+    Countermeasures:
+      → Limit the number of user_code attempts
+      → Sufficient entropy (8-character alphanumeric ≈ ~40 bits)
+      → Short expiry (about 15 minutes)
 ```
 
 ```typescript
-// Device Code フロー（CLI ツール等）
+// Device Code Flow (for CLI tools, etc.)
 async function deviceCodeFlow() {
-  // デバイス認可リクエスト
+  // Device authorization request
   const deviceRes = await fetch('https://auth.example.com/device/code', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1139,11 +1148,11 @@ async function deviceCodeFlow() {
     interval,
   } = await deviceRes.json();
 
-  // ユーザーに表示
-  console.log(`ブラウザで ${verification_uri} にアクセスし、`);
-  console.log(`コード ${user_code} を入力してください。`);
+  // Display to user
+  console.log(`Open ${verification_uri} in a browser and`);
+  console.log(`enter the code ${user_code}.`);
 
-  // ポーリングでトークン取得を試行
+  // Poll to obtain token
   let pollInterval = interval;
   const deadline = Date.now() + expires_in * 1000;
 
@@ -1164,7 +1173,7 @@ async function deviceCodeFlow() {
 
     if (data.error === 'authorization_pending') continue;
     if (data.error === 'slow_down') {
-      pollInterval += 5; // ポーリング間隔を延長
+      pollInterval += 5; // Extend polling interval
       continue;
     }
     if (data.error) throw new Error(data.error_description);
@@ -1182,78 +1191,78 @@ function sleep(ms: number): Promise<void> {
 
 ---
 
-## 6. Implicit フロー（非推奨）
+## 6. Implicit Flow (Deprecated)
 
 ```
-Implicit フロー（歴史的背景と非推奨の理由）:
+Implicit Flow (historical background and reasons for deprecation):
 
-  OAuth 2.0 初期の SPA 向けフロー:
-    → ブラウザから直接 access_token を取得
-    → トークン交換ステップが不要（シンプル）
-    → CORS が普及する前の妥協策
+  An early SPA flow in OAuth 2.0:
+    → Obtain access_token directly from the browser
+    → No token exchange step required (simpler)
+    → A compromise from before CORS was widely supported
 
-  フロー:
-    クライアント          認可サーバー
+  Flow:
+    Client             Authorization Server
       │                   │
       │ response_type=    │
       │ token             │
       │──────────────────>│
       │                   │
-      │ #access_token=... │  ← URL フラグメントに含まれる
+      │ #access_token=... │  ← Included in URL fragment
       │<──────────────────│
 
-  非推奨の理由:
+  Reasons for deprecation:
 
-    ① アクセストークンがフロントチャネルに露出:
-       → URL フラグメントに含まれる
-       → ブラウザ履歴に残る
-       → Referer ヘッダーで漏洩する可能性
-       → ログファイルに記録される可能性
+    ① Access token is exposed in the front channel:
+       → Included in the URL fragment
+       → Remains in browser history
+       → May leak via the Referer header
+       → May be recorded in log files
 
-    ② リフレッシュトークンが使えない:
-       → トークン期限切れ = 再認可が必要
-       → UX が悪い
+    ② Refresh tokens cannot be used:
+       → Token expiry requires re-authorization
+       → Poor user experience
 
-    ③ トークン置換攻撃:
-       → 攻撃者のトークンを注入可能
-       → aud 検証が困難
+    ③ Token substitution attack:
+       → Attacker can inject their own token
+       → Difficult to validate the aud claim
 
-    ④ PKCE が使えない:
-       → トークン交換ステップがないため
+    ④ PKCE cannot be used:
+       → Because there is no token exchange step
 
-  代替策:
-    → Authorization Code + PKCE を使用
-    → BFF（Backend for Frontend）パターン
-    → OAuth 2.1 では Implicit は廃止予定
+  Alternatives:
+    → Use Authorization Code + PKCE
+    → BFF (Backend for Frontend) pattern
+    → Implicit flow is planned for removal in OAuth 2.1
 
-  移行ガイド:
+  Migration guide:
     Before (Implicit):
       response_type=token
-      → #access_token=xxx が直接返される
+      → #access_token=xxx is returned directly
 
     After (Auth Code + PKCE):
       response_type=code
       code_challenge=xxx
       code_challenge_method=S256
-      → ?code=yyy が返される
-      → バックチャネルで code → token 交換
+      → ?code=yyy is returned
+      → code → token exchange via back channel
 ```
 
 ---
 
-## 7. トークンのライフサイクル管理
+## 7. Token Lifecycle Management
 
-### 7.1 リフレッシュトークンフロー
+### 7.1 Refresh Token Flow
 
 ```
-リフレッシュトークンの仕組み:
+How the refresh token works:
 
-  access_token の有効期限が切れた場合:
+  When the access_token has expired:
 
-  クライアント          認可サーバー
+  Client             Authorization Server
     │                   │
-    │ API リクエスト      │
-    │ + 期限切れ token   │
+    │ API request        │
+    │ + expired token    │
     │──────────────────>│
     │                   │
     │ 401 Unauthorized  │
@@ -1265,40 +1274,40 @@ Implicit フロー（歴史的背景と非推奨の理由）:
     │ + refresh_token   │
     │──────────────────>│
     │                   │
-    │ 新 access_token + │
-    │ 新 refresh_token  │
-    │ (ローテーション)    │
+    │ New access_token + │
+    │ New refresh_token  │
+    │ (rotation)         │
     │<──────────────────│
     │                   │
-    │ API リクエスト      │
-    │ + 新 token        │
+    │ API request        │
+    │ + new token        │
     │──────────────────>│
     │                   │
-    │ 200 OK + データ    │
+    │ 200 OK + data      │
     │<──────────────────│
 
-  トークンの有効期限設計:
+  Token expiry design:
 
     access_token:
-      → 短寿命: 5分〜1時間
-      → 漏洩時の影響を最小化
-      → 権限変更の反映を早める
-      → 推奨: 15分（金融系: 5分）
+      → Short-lived: 5 minutes to 1 hour
+      → Minimizes impact if leaked
+      → Speeds up reflection of permission changes
+      → Recommended: 15 minutes (financial: 5 minutes)
 
     refresh_token:
-      → 長寿命: 7日〜90日
-      → ユーザー体験（頻繁な再ログイン防止）
-      → 使用時にローテーション（新しいものに交換）
-      → 推奨: 30日（activity に応じて延長も可）
+      → Long-lived: 7 to 90 days
+      → User experience (prevents frequent re-login)
+      → Rotated on use (exchanged for a new one)
+      → Recommended: 30 days (can extend based on activity)
 
-    id_token（OIDC）:
-      → 認証時刻の証明のみ
-      → リフレッシュ不可
-      → 推奨: 1時間
+    id_token (OIDC):
+      → Proves only the authentication time
+      → Not refreshable
+      → Recommended: 1 hour
 ```
 
 ```typescript
-// リフレッシュトークン ローテーション実装
+// Refresh token rotation implementation
 class TokenRefreshManager {
   private refreshing: Promise<TokenPair> | null = null;
 
@@ -1308,9 +1317,9 @@ class TokenRefreshManager {
     private onTokenRefresh: (tokens: TokenPair) => void,
   ) {}
 
-  // トークンリフレッシュ（重複防止付き）
+  // Token refresh (with deduplication)
   async refreshTokens(currentRefreshToken: string): Promise<TokenPair> {
-    // 既にリフレッシュ中なら同じ Promise を返す
+    // Return the same Promise if a refresh is already in progress
     if (this.refreshing) {
       return this.refreshing;
     }
@@ -1341,7 +1350,7 @@ class TokenRefreshManager {
       const error = await response.json();
 
       if (error.error === 'invalid_grant') {
-        // リフレッシュトークンが無効 → 再ログインが必要
+        // Refresh token is invalid → re-authentication required
         throw new TokenRefreshError('refresh_token_invalid', 'Re-authentication required');
       }
 
@@ -1351,13 +1360,13 @@ class TokenRefreshManager {
     const data = await response.json();
     return {
       accessToken: data.access_token,
-      refreshToken: data.refresh_token,  // ローテーション: 新しい refresh_token
+      refreshToken: data.refresh_token,  // Rotation: new refresh_token
       expiresIn: data.expires_in,
     };
   }
 }
 
-// HTTP クライアントとの統合（自動リフレッシュ）
+// Integration with HTTP client (auto-refresh)
 class AuthenticatedHttpClient {
   private accessToken: string;
   private refreshToken: string;
@@ -1375,7 +1384,7 @@ class AuthenticatedHttpClient {
   }
 
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
-    // アクセストークンの期限チェック
+    // Check access token expiry
     await this.ensureValidToken();
 
     const response = await fetch(url, {
@@ -1386,12 +1395,12 @@ class AuthenticatedHttpClient {
       },
     });
 
-    // 401 が返ってきた場合はリフレッシュを試行
+    // Attempt refresh if 401 is returned
     if (response.status === 401) {
       try {
         await this.doTokenRefresh();
 
-        // リトライ
+        // Retry
         return fetch(url, {
           ...options,
           headers: {
@@ -1401,7 +1410,7 @@ class AuthenticatedHttpClient {
         });
       } catch (error) {
         if (error instanceof TokenRefreshError) {
-          // リフレッシュ失敗 → 再ログインが必要
+          // Refresh failed → re-login required
           this.redirectToLogin();
         }
         throw error;
@@ -1412,7 +1421,7 @@ class AuthenticatedHttpClient {
   }
 
   private async ensureValidToken(): Promise<void> {
-    // 有効期限の30秒前にプロアクティブにリフレッシュ
+    // Proactively refresh 30 seconds before expiry
     if (Date.now() > this.expiresAt - 30 * 1000) {
       await this.doTokenRefresh();
     }
@@ -1431,47 +1440,47 @@ class AuthenticatedHttpClient {
 }
 ```
 
-### 7.2 リフレッシュトークンのセキュリティ
+### 7.2 Refresh Token Security
 
 ```
-リフレッシュトークン ローテーションの重要性:
+Importance of refresh token rotation:
 
-  ローテーションなし（危険）:
-    → リフレッシュトークンが漏洩 → 無期限にアクセス可能
-    → 攻撃者と正規ユーザーが同じトークンを使用
-    → 検知が困難
+  Without rotation (dangerous):
+    → Leaked refresh token → indefinite access
+    → Attacker and legitimate user share the same token
+    → Difficult to detect
 
-  ローテーションあり（推奨）:
-    → リフレッシュするたびに新しいトークンを発行
-    → 古いトークンは無効化
+  With rotation (recommended):
+    → Issue a new token on every refresh
+    → Invalidate the old token
 
-  リプレイ検知:
+  Replay detection:
 
-    正常フロー:
-      RT1 → 新 AT + RT2 → 新 AT + RT3 → ...
+    Normal flow:
+      RT1 → new AT + RT2 → new AT + RT3 → ...
 
-    攻撃フロー:
-      攻撃者が RT1 を窃取
-      正規ユーザー: RT1 → RT2（正常）
-      攻撃者:       RT1 → ✗ 使用済み!
-        → 全リフレッシュトークンを無効化
-        → ユーザーに再ログインを要求
+    Attack flow:
+      Attacker steals RT1
+      Legitimate user: RT1 → RT2 (normal)
+      Attacker:        RT1 → ✗ Already used!
+        → Invalidate all refresh tokens
+        → Require user to re-login
 
-  リプレイ検知の仕組み:
+  How replay detection works:
   ┌──────────────────────────────────────────┐
   │ Token Family                              │
   │                                           │
-  │ RT1 → RT2 → RT3 → RT4（現在有効）          │
+  │ RT1 → RT2 → RT3 → RT4 (currently valid)  │
   │                                           │
-  │ RT1 が再使用された場合:                      │
-  │ → RT1, RT2, RT3, RT4 すべて無効化          │
-  │ → 「トークンファミリー」全体を無効化          │
-  │ → ユーザーに再認証を要求                     │
+  │ If RT1 is reused:                         │
+  │ → Invalidate RT1, RT2, RT3, RT4 entirely  │
+  │ → Invalidate the entire "token family"    │
+  │ → Require user to re-authenticate         │
   └──────────────────────────────────────────┘
 ```
 
 ```typescript
-// リフレッシュトークン ローテーション + リプレイ検知
+// Refresh token rotation + replay detection
 class RefreshTokenStore {
   private redis: Redis;
 
@@ -1489,10 +1498,10 @@ class RefreshTokenStore {
       createdAt: Date.now(),
     });
 
-    // リフレッシュトークン → データのマッピング
+    // Map refresh token → data
     await this.redis.setex(`rt:${refreshToken}`, expiresIn, data);
 
-    // トークンファミリーに追加（リプレイ検知用）
+    // Add to token family (for replay detection)
     await this.redis.sadd(`tf:${tokenFamily}`, refreshToken);
     await this.redis.expire(`tf:${tokenFamily}`, expiresIn);
   }
@@ -1505,20 +1514,20 @@ class RefreshTokenStore {
     const raw = await this.redis.get(`rt:${refreshToken}`);
 
     if (!raw) {
-      // トークンが存在しない
-      // → 有効期限切れ or 既に使用済み（リプレイ攻撃の可能性）
+      // Token does not exist
+      // → Expired or already used (possible replay attack)
       return null;
     }
 
     const data = JSON.parse(raw);
 
-    // トークンを使用済みにする（一度きりの使用）
+    // Mark token as used (single-use)
     await this.redis.del(`rt:${refreshToken}`);
 
     return data;
   }
 
-  // トークンファミリー全体を無効化（リプレイ検知時）
+  // Invalidate entire token family (on replay detection)
   async revokeFamily(tokenFamily: string): Promise<void> {
     const tokens = await this.redis.smembers(`tf:${tokenFamily}`);
 
@@ -1530,9 +1539,9 @@ class RefreshTokenStore {
     await this.redis.del(`tf:${tokenFamily}`);
   }
 
-  // 特定ユーザーの全トークンを無効化
+  // Invalidate all tokens for a specific user
   async revokeAllForUser(userId: string): Promise<void> {
-    // ユーザーのトークンファミリー一覧を取得して全無効化
+    // Retrieve all token families for the user and invalidate all
     const families = await this.redis.smembers(`user_families:${userId}`);
     for (const family of families) {
       await this.revokeFamily(family);
@@ -1544,95 +1553,95 @@ class RefreshTokenStore {
 
 ---
 
-## 8. スコープ設計
+## 8. Scope Design
 
 ```
-スコープの設計パターン:
+Scope design patterns:
 
-  resource:action 形式:
+  resource:action format:
     → read:user, write:user, delete:user
     → read:repo, write:repo, admin:repo
 
-  GitHub のスコープ例:
-    → repo: リポジトリ全般
-    → read:user: ユーザープロフィール読取
-    → user:email: メールアドレス読取
-    → admin:org: 組織管理
+  GitHub scope examples:
+    → repo: general repository access
+    → read:user: read user profile
+    → user:email: read email address
+    → admin:org: organization management
 
-  設計原則:
-    → 最小権限: 必要最小限のスコープのみ要求
-    → 粒度: 細かすぎず粗すぎず
-    → 命名: resource:action の一貫したパターン
-    → ドキュメント: 各スコープの意味を明確に
+  Design principles:
+    → Least privilege: only request the minimum required scopes
+    → Granularity: not too fine, not too coarse
+    → Naming: consistent resource:action pattern
+    → Documentation: clearly define the meaning of each scope
 ```
 
-### 8.1 スコープ設計の詳細パターン
+### 8.1 Detailed Scope Design Patterns
 
 ```
-スコープの階層設計:
+Hierarchical scope design:
 
-  粗粒度（GitHub 方式）:
-    repo                → リポジトリ全般（読取・書込・削除）
-    repo:status         → コミットステータスのみ
-    read:user           → ユーザー情報読取
-    user:email          → メールアドレスのみ
+  Coarse-grained (GitHub style):
+    repo                → general repository (read, write, delete)
+    repo:status         → commit status only
+    read:user           → read user information
+    user:email          → email address only
 
-    利点: シンプルでユーザーが理解しやすい
-    欠点: 細かい制御が困難
+    Advantages: Simple and easy for users to understand
+    Disadvantages: Fine-grained control is difficult
 
-  中粒度（Google 方式）:
+  Medium-grained (Google style):
     https://www.googleapis.com/auth/calendar
     https://www.googleapis.com/auth/calendar.readonly
     https://www.googleapis.com/auth/gmail.send
     https://www.googleapis.com/auth/gmail.readonly
 
-    利点: URI で名前空間を明確に
-    欠点: URL が長い
+    Advantages: Namespace is clear with URI
+    Disadvantages: URLs are long
 
-  細粒度（resource:action 方式）:
-    users:read           → ユーザー一覧の閲覧
-    users:write          → ユーザー情報の更新
-    users:delete         → ユーザーの削除
-    posts:read           → 記事の閲覧
-    posts:write          → 記事の作成・編集
-    posts:publish        → 記事の公開
-    admin:settings:read  → 管理設定の閲覧
-    admin:settings:write → 管理設定の変更
+  Fine-grained (resource:action style):
+    users:read           → View user list
+    users:write          → Update user information
+    users:delete         → Delete users
+    posts:read           → View articles
+    posts:write          → Create and edit articles
+    posts:publish        → Publish articles
+    admin:settings:read  → View admin settings
+    admin:settings:write → Change admin settings
 
-    利点: 最小権限の原則を徹底
-    欠点: スコープ数が増大
+    Advantages: Thorough principle of least privilege
+    Disadvantages: Number of scopes grows large
 
-  同意画面での表示:
+  Consent screen display:
   ┌─────────────────────────────────────────────┐
-  │  MyApp がアクセスを要求しています              │
+  │  MyApp is requesting access                  │
   │                                              │
-  │  □ プロフィール情報の閲覧（users:read）        │
-  │  □ メールアドレスの読取（users:email）          │
-  │  □ リポジトリの読取（repos:read）              │
+  │  □ View profile information (users:read)     │
+  │  □ Read email address (users:email)          │
+  │  □ Read repositories (repos:read)            │
   │                                              │
-  │  [許可する]  [拒否する]                         │
+  │  [Allow]  [Deny]                             │
   └─────────────────────────────────────────────┘
 ```
 
 ```typescript
-// スコープベースの認可チェック実装
+// Scope-based authorization check implementation
 class ScopeValidator {
-  // スコープ文字列を配列に変換
+  // Convert scope string to array
   static parse(scopeString: string): string[] {
     return scopeString.split(' ').filter(Boolean);
   }
 
-  // 要求されたスコープが付与されたスコープに含まれるか確認
+  // Check if the requested scope is included in the granted scopes
   static hasScope(grantedScopes: string[], requiredScope: string): boolean {
-    // 完全一致チェック
+    // Exact match check
     if (grantedScopes.includes(requiredScope)) return true;
 
-    // 階層チェック（"repo" は "repo:status" を包含）
+    // Hierarchy check ("repo" includes "repo:status")
     for (const granted of grantedScopes) {
       if (requiredScope.startsWith(granted + ':')) return true;
     }
 
-    // ワイルドカードチェック
+    // Wildcard check
     for (const granted of grantedScopes) {
       if (granted.endsWith(':*')) {
         const prefix = granted.slice(0, -1);
@@ -1643,7 +1652,7 @@ class ScopeValidator {
     return false;
   }
 
-  // 複数スコープの確認（全て必要）
+  // Check multiple scopes (all required)
   static hasAllScopes(
     grantedScopes: string[],
     requiredScopes: string[],
@@ -1651,7 +1660,7 @@ class ScopeValidator {
     return requiredScopes.every(scope => this.hasScope(grantedScopes, scope));
   }
 
-  // 複数スコープの確認（いずれか1つ）
+  // Check multiple scopes (any one required)
   static hasAnyScope(
     grantedScopes: string[],
     requiredScopes: string[],
@@ -1660,7 +1669,7 @@ class ScopeValidator {
   }
 }
 
-// Express ミドルウェアとして使用
+// Use as Express middleware
 function requireScope(...scopes: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     const tokenScopes = req.tokenPayload?.scope?.split(' ') || [];
@@ -1677,7 +1686,7 @@ function requireScope(...scopes: string[]) {
   };
 }
 
-// 使用例
+// Usage examples
 app.get('/api/repos',
   authenticateBearer,
   requireScope('repos:read'),
@@ -1693,10 +1702,10 @@ app.post('/api/repos/:id/deploy',
 
 ---
 
-## 9. トークン失効（Revocation）
+## 9. Token Revocation
 
 ```
-トークン失効の仕組み（RFC 7009）:
+Token revocation mechanism (RFC 7009):
 
   POST /revoke
   Content-Type: application/x-www-form-urlencoded
@@ -1705,64 +1714,64 @@ app.post('/api/repos/:id/deploy',
   token=<access_token or refresh_token>
   &token_type_hint=refresh_token
 
-  失効が必要なケース:
-    → ユーザーがログアウト
-    → ユーザーがアプリ連携を解除
-    → 管理者がユーザーのアクセスを取り消し
-    → パスワード変更時に全トークンを無効化
-    → セキュリティインシデント発生時
+  Cases requiring revocation:
+    → User logs out
+    → User disconnects an app integration
+    → Admin revokes a user's access
+    → All tokens invalidated on password change
+    → On a security incident
 
-  失効の範囲:
-    → refresh_token を失効 → 関連する access_token も失効（推奨）
-    → access_token のみ失効 → refresh_token で再取得可能（不十分）
+  Revocation scope:
+    → Revoke refresh_token → also revoke related access_tokens (recommended)
+    → Revoke access_token only → re-obtainable with refresh_token (insufficient)
 ```
 
 ```typescript
-// トークン失効エンドポイントの実装
+// Token revocation endpoint implementation
 async function handleRevocation(req: express.Request, res: express.Response) {
   const { token, token_type_hint } = req.body;
   const { clientId } = extractClientCredentials(req);
 
-  // RFC 7009: 成功時は常に 200 OK を返す
-  // （トークンが存在しない場合も 200 を返す）
+  // RFC 7009: always return 200 OK on success
+  // (also return 200 if token does not exist)
   res.status(200);
 
   try {
     if (token_type_hint === 'refresh_token' || !token_type_hint) {
-      // リフレッシュトークンの失効を試行
+      // Attempt to revoke refresh token
       const revoked = await tokenStore.revokeRefreshToken(token, clientId);
       if (revoked) {
-        // 関連するアクセストークンも失効
+        // Also revoke related access tokens
         await tokenStore.revokeAccessTokensByRefreshToken(token);
         return res.json({ revoked: true });
       }
     }
 
     if (token_type_hint === 'access_token' || !token_type_hint) {
-      // アクセストークンの失効を試行
+      // Attempt to revoke access token
       await tokenStore.revokeAccessToken(token, clientId);
       return res.json({ revoked: true });
     }
 
     res.json({ revoked: false });
   } catch (error) {
-    // エラーでも 200 OK を返す（RFC 7009 準拠）
+    // Return 200 OK even on error (RFC 7009 compliant)
     res.json({ revoked: false });
   }
 }
 
-// トークンイントロスペクション（RFC 7662）
+// Token introspection (RFC 7662)
 async function handleIntrospection(req: express.Request, res: express.Response) {
   const { token } = req.body;
 
   const tokenData = await tokenStore.getToken(token);
 
   if (!tokenData || tokenData.revoked || tokenData.expiresAt < new Date()) {
-    // 無効なトークン
+    // Invalid token
     return res.json({ active: false });
   }
 
-  // 有効なトークン
+  // Valid token
   res.json({
     active: true,
     scope: tokenData.scope,
@@ -1780,117 +1789,118 @@ async function handleIntrospection(req: express.Request, res: express.Response) 
 
 ---
 
-## 10. セキュリティ脅威と対策
+## 10. Security Threats and Countermeasures
 
 ```
-OAuth 2.0 に対する主要な攻撃:
+Major attacks against OAuth 2.0:
 
-  ┌─────────────────────────┬──────────────────────────────┐
-  │ 攻撃                     │ 対策                          │
-  ├─────────────────────────┼──────────────────────────────┤
-  │ CSRF（認可リクエスト偽造） │ state パラメータ               │
-  │ 認可コード横取り          │ PKCE                          │
-  │ オープンリダイレクタ      │ redirect_uri の完全一致        │
-  │ トークン漏洩             │ 短寿命 + TLS + HttpOnly       │
-  │ コード再利用攻撃          │ 一度きりの使用 + ファミリー無効化│
-  │ クリックジャッキング      │ X-Frame-Options: DENY         │
-  │ 混同攻撃（Mix-Up）       │ iss パラメータ検証             │
-  │ トークン置換             │ aud / azp クレーム検証          │
-  └─────────────────────────┴──────────────────────────────┘
+  ┌──────────────────────────────┬──────────────────────────────┐
+  │ Attack                        │ Countermeasure               │
+  ├──────────────────────────────┼──────────────────────────────┤
+  │ CSRF (forged auth requests)   │ state parameter              │
+  │ Authorization code interception│ PKCE                        │
+  │ Open redirector               │ Exact match on redirect_uri  │
+  │ Token leakage                 │ Short-lived + TLS + HttpOnly │
+  │ Code reuse attack             │ Single-use + family revocation│
+  │ Clickjacking                  │ X-Frame-Options: DENY        │
+  │ Mix-Up attack                 │ Validate iss parameter       │
+  │ Token substitution            │ Validate aud / azp claims    │
+  └──────────────────────────────┴──────────────────────────────┘
 ```
 
-### 10.1 オープンリダイレクタ攻撃
+### 10.1 Open Redirector Attack
 
 ```
-オープンリダイレクタ攻撃の仕組み:
+How the open redirector attack works:
 
-  ① 攻撃者が redirect_uri を操作:
+  ① Attacker manipulates redirect_uri:
      /authorize?
        client_id=legit-app
-       &redirect_uri=https://evil.com/steal  ← 不正な URI
+       &redirect_uri=https://evil.com/steal  ← Invalid URI
 
-  ② 認可サーバーが redirect_uri を検証しない場合:
-     → 認可コードが evil.com に送信される
-     → 攻撃者がコードを取得
+  ② If the authorization server does not validate redirect_uri:
+     → Authorization code is sent to evil.com
+     → Attacker obtains the code
 
-  対策:
-    → redirect_uri の完全一致検証（部分一致禁止）
-    → ワイルドカード禁止
-    → 事前登録された URI のみ許可
-    → パスの追加やクエリパラメータの変更も拒否
+  Countermeasures:
+    → Exact match validation on redirect_uri (partial match forbidden)
+    → Wildcards forbidden
+    → Only allow pre-registered URIs
+    → Reject path additions or query parameter changes as well
 
-  安全な実装:
+  Safe implementation:
     ✗ redirect_uri.startsWith('https://myapp.com')
-      → https://myapp.com.evil.com にマッチしてしまう
+      → Would match https://myapp.com.evil.com
 
-    ✗ redirect_uri が登録済みのいずれかで「始まる」
-      → https://myapp.com/callback/../../../evil にマッチしうる
+    ✗ redirect_uri "starts with" one of the registered URIs
+      → Could match https://myapp.com/callback/../../../evil
 
-    ✓ redirect_uri === 登録済み URI（完全一致のみ）
+    ✓ redirect_uri === registered URI (exact match only)
 ```
 
-### 10.2 CSRF 攻撃と state パラメータ
+### 10.2 CSRF Attack and the state Parameter
 
 ```
-OAuth 2.0 における CSRF 攻撃:
+CSRF attack in OAuth 2.0:
 
-  攻撃シナリオ（state パラメータなし）:
+  Attack scenario (without state parameter):
 
-    攻撃者                 被害者              認可サーバー
+    Attacker           Victim              Authorization Server
       │                    │                   │
-      │ ① 攻撃者のアカウント │                   │
-      │    で認可コード取得  │                   │
+      │ ① Obtain auth code │                   │
+      │   with attacker's  │                   │
+      │   account          │                   │
       │───────────────────────────────────────>│
       │                    │                   │
       │ code=ATTACKER_CODE │                   │
       │<───────────────────────────────────────│
       │                    │                   │
-      │ ② 被害者に偽の       │                   │
-      │    callback URL を   │                   │
-      │    踏ませる         │                   │
-      │ myapp.com/callback  │                   │
-      │ ?code=ATTACKER_CODE │                   │
+      │ ② Make victim click│                   │
+      │   fake callback URL│                   │
+      │ myapp.com/callback │                   │
+      │ ?code=ATTACKER_CODE│                   │
       │───────────────────>│                   │
       │                    │                   │
-      │                    │ ③ ATTACKER_CODE    │
-      │                    │   で token 取得    │
+      │                    │ ③ Obtain token    │
+      │                    │   with            │
+      │                    │   ATTACKER_CODE   │
       │                    │──────────────────>│
       │                    │                   │
-      │                    │ ④ 攻撃者のアカウントの│
-      │                    │   トークンを使用!    │
+      │                    │ ④ Uses attacker's │
+      │                    │   account token!  │
       │                    │<──────────────────│
 
-    結果:
-      → 被害者のアプリが攻撃者のアカウントに紐づく
-      → 被害者が攻撃者のアカウントにデータをアップロード
-      → 攻撃者がそのデータを取得
+    Result:
+      → Victim's app is linked to attacker's account
+      → Victim uploads data to attacker's account
+      → Attacker retrieves that data
 
-  対策: state パラメータ
-    → 暗号的にランダムな値を生成
-    → セッションに紐づけて保存
-    → コールバック時に一致確認
-    → 一致しなければリクエストを拒否
+  Countermeasure: state parameter
+    → Generate a cryptographically random value
+    → Save it tied to the session
+    → Verify it matches on callback
+    → Reject the request if it does not match
 ```
 
 ---
 
-## 11. BFF（Backend for Frontend）パターン
+## 11. BFF (Backend for Frontend) Pattern
 
 ```
-BFF パターンの概要:
+BFF Pattern Overview:
 
-  SPA の OAuth セキュリティ課題:
-    → access_token をブラウザに保存 → XSS リスク
-    → refresh_token をブラウザに保存 → 漏洩リスク
-    → PKCE でも、トークン自体の保護は不十分
+  OAuth security challenges with SPAs:
+    → Storing access_token in the browser → XSS risk
+    → Storing refresh_token in the browser → leakage risk
+    → Even with PKCE, token protection itself is insufficient
 
-  BFF パターンの解決策:
-    → フロントエンドとバックエンドの間に薄い BFF サーバーを配置
-    → BFF が OAuth フローを代行
-    → トークンはサーバー側（BFF）のみに保存
-    → ブラウザとの通信は HttpOnly Cookie で行う
+  BFF pattern solution:
+    → Place a thin BFF server between the frontend and backend
+    → BFF handles the OAuth flow on behalf of the frontend
+    → Tokens are stored only on the server side (BFF)
+    → Communication with the browser uses HttpOnly Cookies
 
-  アーキテクチャ:
+  Architecture:
   ┌─────────┐  Cookie    ┌──────┐  Bearer   ┌──────────┐
   │ SPA     │──────────>│ BFF  │─────────>│ API      │
   │ (React) │<──────────│      │<─────────│ Server   │
@@ -1903,15 +1913,15 @@ BFF パターンの概要:
                         │Server│
                         └──────┘
 
-  BFF の役割:
-    → /bff/login → 認可リクエスト開始
-    → /bff/callback → コールバック処理 + セッション作成
-    → /bff/api/* → API プロキシ（Bearer トークン付与）
-    → /bff/logout → セッション破棄 + トークン失効
+  BFF responsibilities:
+    → /bff/login → Start authorization request
+    → /bff/callback → Handle callback + create session
+    → /bff/api/* → API proxy (attach Bearer token)
+    → /bff/logout → Destroy session + revoke token
 ```
 
 ```typescript
-// BFF パターンの実装
+// BFF pattern implementation
 import express from 'express';
 import session from 'express-session';
 
@@ -1929,12 +1939,12 @@ bff.use(session({
   },
 }));
 
-// ログイン開始
+// Start login
 bff.get('/bff/login', async (req, res) => {
   const { verifier, challenge } = await generatePKCE();
   const state = crypto.randomUUID();
 
-  // セッションに保存
+  // Save to session
   req.session.pkceVerifier = verifier;
   req.session.oauthState = state;
 
@@ -1951,16 +1961,16 @@ bff.get('/bff/login', async (req, res) => {
   res.redirect(`${process.env.AUTH_URL}/authorize?${params}`);
 });
 
-// コールバック
+// Callback
 bff.get('/bff/callback', async (req, res) => {
   const { code, state } = req.query as Record<string, string>;
 
-  // state 検証
+  // Validate state
   if (state !== req.session.oauthState) {
     return res.status(403).json({ error: 'Invalid state' });
   }
 
-  // トークン交換
+  // Token exchange
   const tokenResponse = await fetch(`${process.env.AUTH_URL}/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1969,33 +1979,33 @@ bff.get('/bff/callback', async (req, res) => {
       code,
       redirect_uri: `${process.env.BFF_URL}/bff/callback`,
       client_id: process.env.OAUTH_CLIENT_ID!,
-      client_secret: process.env.OAUTH_CLIENT_SECRET!, // BFF は Confidential Client
+      client_secret: process.env.OAUTH_CLIENT_SECRET!, // BFF is a Confidential Client
       code_verifier: req.session.pkceVerifier,
     }),
   });
 
   const tokens = await tokenResponse.json();
 
-  // トークンをセッションに保存（ブラウザには渡さない!）
+  // Store tokens in session (never pass to browser!)
   req.session.accessToken = tokens.access_token;
   req.session.refreshToken = tokens.refresh_token;
   req.session.tokenExpiresAt = Date.now() + tokens.expires_in * 1000;
 
-  // クリーンアップ
+  // Cleanup
   delete req.session.pkceVerifier;
   delete req.session.oauthState;
 
-  // SPA にリダイレクト
+  // Redirect to SPA
   res.redirect(process.env.SPA_URL!);
 });
 
-// API プロキシ
+// API proxy
 bff.all('/bff/api/*', async (req, res) => {
   if (!req.session.accessToken) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  // トークンの期限チェック + リフレッシュ
+  // Check token expiry + refresh
   if (Date.now() > req.session.tokenExpiresAt - 30000) {
     try {
       const refreshed = await refreshTokens(req.session.refreshToken);
@@ -2007,7 +2017,7 @@ bff.all('/bff/api/*', async (req, res) => {
     }
   }
 
-  // API にプロキシ
+  // Proxy to API
   const apiPath = req.path.replace('/bff/api', '');
   const apiResponse = await fetch(`${process.env.API_URL}${apiPath}`, {
     method: req.method,
@@ -2024,9 +2034,9 @@ bff.all('/bff/api/*', async (req, res) => {
   res.status(apiResponse.status).json(data);
 });
 
-// ログアウト
+// Logout
 bff.post('/bff/logout', async (req, res) => {
-  // トークン失効
+  // Revoke token
   if (req.session.refreshToken) {
     await fetch(`${process.env.AUTH_URL}/revoke`, {
       method: 'POST',
@@ -2043,7 +2053,7 @@ bff.post('/bff/logout', async (req, res) => {
     });
   }
 
-  // セッション破棄
+  // Destroy session
   req.session.destroy(() => {
     res.clearCookie('connect.sid');
     res.json({ success: true });
@@ -2053,194 +2063,194 @@ bff.post('/bff/logout', async (req, res) => {
 
 ---
 
-## 12. アンチパターン
+## 12. Anti-patterns
 
 ```
-OAuth 2.0 のアンチパターン:
+OAuth 2.0 anti-patterns:
 
-  ① フロントエンドに client_secret を含める:
-     ✗ SPA の JavaScript に client_secret をハードコード
-     → ブラウザの開発者ツールで閲覧可能
-     → ソースマップから発見可能
-     対策: Public Client + PKCE を使用
+  ① Including client_secret in the frontend:
+     ✗ Hard-coding client_secret in SPA JavaScript
+     → Viewable via browser developer tools
+     → Discoverable from source maps
+     Countermeasure: Use Public Client + PKCE
 
-  ② redirect_uri の部分一致検証:
-     ✗ startsWith や contains で検証
-     → オープンリダイレクタ攻撃が可能
-     対策: 完全一致のみ許可
+  ② Partial match validation on redirect_uri:
+     ✗ Validating with startsWith or contains
+     → Open redirector attacks are possible
+     Countermeasure: Allow exact match only
 
-  ③ state パラメータの省略:
-     ✗ CSRF 防御なしで OAuth フロー実行
-     → 攻撃者のアカウントに紐づけ攻撃が可能
-     対策: 暗号的にランダムな state を必ず使用
+  ③ Omitting the state parameter:
+     ✗ Running OAuth flow without CSRF protection
+     → Attackers can link their account to victims
+     Countermeasure: Always use a cryptographically random state
 
-  ④ アクセストークンの長寿命化:
-     ✗ access_token の有効期限を24時間以上に設定
-     → 漏洩時の影響が長期化
-     対策: 短寿命（15分）+ リフレッシュトークン
+  ④ Long-lived access tokens:
+     ✗ Setting access_token expiry to 24+ hours
+     → Extends the impact window if leaked
+     Countermeasure: Short-lived (15 minutes) + refresh token
 
-  ⑤ リフレッシュトークンのローテーションなし:
-     ✗ 同じリフレッシュトークンを永続的に使用
-     → 漏洩時に永続的なアクセスを許す
-     対策: ローテーション + リプレイ検知
+  ⑤ No refresh token rotation:
+     ✗ Permanently using the same refresh token
+     → Allows persistent access if leaked
+     Countermeasure: Rotation + replay detection
 
-  ⑥ Implicit フローの使用:
-     ✗ SPA で response_type=token を使用
-     → トークンが URL フラグメントに露出
-     対策: Authorization Code + PKCE に移行
+  ⑥ Using the Implicit flow:
+     ✗ Using response_type=token in SPAs
+     → Token is exposed in the URL fragment
+     Countermeasure: Migrate to Authorization Code + PKCE
 
-  ⑦ スコープの過剰要求:
-     ✗ 必要以上のスコープを要求
-     → ユーザーの信頼を損なう
-     → 漏洩時の影響範囲が拡大
-     対策: 最小権限の原則（必要なスコープのみ要求）
+  ⑦ Excessive scope requests:
+     ✗ Requesting more scopes than necessary
+     → Damages user trust
+     → Expands the blast radius if leaked
+     Countermeasure: Principle of least privilege (request only required scopes)
 
-  ⑧ トークンの不適切な保存:
-     ✗ localStorage にアクセストークンを保存
-     → XSS で窃取可能
-     対策: BFF パターン or メモリ内保存 + HttpOnly Cookie
-```
-
----
-
-## 13. エッジケース
-
-```
-OAuth 2.0 のエッジケース:
-
-  ① スコープのダウングレード:
-     → ユーザーが要求された一部のスコープのみ承認
-     → クライアントは実際に付与されたスコープを確認すべき
-     → レスポンスの scope パラメータで確認
-
-  ② 認可サーバーのダウンタイム:
-     → トークンリフレッシュが失敗
-     → 対策: 短期的にキャッシュされたトークンで動作継続
-     → access_token の有効期限まではリソースアクセス可能
-
-  ③ クロックスキュー:
-     → JWT の exp/iat 検証時にサーバー間の時刻のずれ
-     → 対策: ±30秒の許容範囲（clock skew tolerance）
-
-  ④ 複数の redirect_uri:
-     → 開発環境と本番環境で異なるコールバック URL
-     → 認可リクエストの redirect_uri は登録済みのいずれかと完全一致
-     → 環境ごとにクライアント ID を分離する方が安全
-
-  ⑤ トークンの最大サイズ:
-     → JWT をアクセストークンとして使用する場合
-     → HTTP ヘッダーの制限（通常 8KB）
-     → スコープやクレームが多いと超過する可能性
-     → 対策: トークンイントロスペクション、参照トークン
+  ⑧ Improper token storage:
+     ✗ Storing access tokens in localStorage
+     → Vulnerable to theft via XSS
+     Countermeasure: BFF pattern or in-memory storage + HttpOnly Cookie
 ```
 
 ---
 
-## 14. 演習問題
+## 13. Edge Cases
 
 ```
-演習1（基礎）: Authorization Code + PKCE フローの実装
+OAuth 2.0 edge cases:
 
-  以下の要件で OAuth 2.0 クライアントを実装せよ。
+  ① Scope downgrade:
+     → User approves only a subset of the requested scopes
+     → Client should verify the actually granted scopes
+     → Check via the scope parameter in the response
 
-  要件:
-  1. PKCE 対応の認可リクエスト生成
-  2. state パラメータによる CSRF 防御
-  3. コールバック処理（検証 + トークン交換）
-  4. トークンの安全な保存
+  ② Authorization server downtime:
+     → Token refresh fails
+     → Countermeasure: Continue operating with cached tokens temporarily
+     → Resource access remains possible until access_token expires
 
-  テストケース:
-  → code_verifier の長さが 43〜128 文字であること
-  → code_challenge が SHA-256 で正しく計算されること
-  → state の不一致で例外が発生すること
-  → トークン交換後に verifier がクリーンアップされること
+  ③ Clock skew:
+     → Time difference between servers when validating JWT exp/iat
+     → Countermeasure: Allow ±30-second tolerance (clock skew tolerance)
 
-演習2（応用）: リフレッシュトークン ローテーション
+  ④ Multiple redirect_uris:
+     → Different callback URLs for development and production environments
+     → redirect_uri in the authorization request must exactly match one of the registered URIs
+     → Separating client IDs per environment is safer
 
-  以下の機能を持つリフレッシュトークン管理システムを実装せよ。
-
-  要件:
-  1. リフレッシュトークンのローテーション（毎回新しいトークン）
-  2. リプレイ検知（使用済みトークンの再利用を検知）
-  3. トークンファミリーの無効化
-  4. ユーザー単位の全トークン無効化
-
-  テストケース:
-  → 正常なリフレッシュフロー
-  → 使用済みトークンの再利用 → ファミリー全体が無効化
-  → パスワード変更 → 全トークン無効化
-
-演習3（発展）: 認可サーバーの構築
-
-  OAuth 2.0 認可サーバーを実装せよ。
-
-  要件:
-  1. Authorization Code + PKCE フロー対応
-  2. Client Credentials フロー対応
-  3. リフレッシュトークンフロー
-  4. トークン失効エンドポイント（RFC 7009）
-  5. トークンイントロスペクション（RFC 7662）
-  6. クライアント登録管理
-
-  セキュリティ要件:
-  → 認可コードの一度切り使用
-  → redirect_uri の完全一致検証
-  → PKCE の S256 検証
-  → リフレッシュトークンのローテーション
+  ⑤ Maximum token size:
+     → When using JWT as the access token
+     → HTTP header size limit (typically 8KB)
+     → Can be exceeded if there are many scopes or claims
+     → Countermeasure: Token introspection, reference tokens
 ```
 
 ---
 
-## 15. FAQ・トラブルシューティング
+## 14. Exercises
 
 ```
-Q1: OAuth 2.0 と OpenID Connect の違いは何ですか?
-A1: OAuth 2.0 は「認可」、OIDC は「認証」です:
-    → OAuth 2.0: 「MyApp に GitHub のリポジトリへのアクセスを許可」
-    → OIDC: 「このユーザーは alice@example.com である」
-    → OIDC は OAuth 2.0 の上に構築された認証レイヤー
-    → OIDC 追加要素: id_token、userinfo エンドポイント、標準クレーム
+Exercise 1 (Basic): Implement the Authorization Code + PKCE flow
 
-Q2: PKCE は Confidential Client にも必要ですか?
-A2: OAuth 2.1 では全クライアントに PKCE が必須になります:
-    → Confidential Client でも追加のセキュリティ層として有効
-    → 認可コードの漏洩リスクをさらに低減
-    → 実装コストが低い（数十行のコード）ため、常に使用を推奨
+  Implement an OAuth 2.0 client with the following requirements.
 
-Q3: アクセストークンの適切な有効期限は?
-A3: ユースケースによります:
-    → 一般的な Web アプリ: 15〜60分
-    → 金融系: 5〜15分
-    → マイクロサービス間: 30〜60分
-    → 原則: 短いほど安全、長いほど UX が良い
-    → リフレッシュトークンと組み合わせて調整
+  Requirements:
+  1. Generate PKCE-enabled authorization requests
+  2. CSRF protection via state parameter
+  3. Callback handling (validation + token exchange)
+  4. Secure token storage
 
-Q4: SPA でトークンをどこに保存すべき?
-A4: 推奨される方法（安全な順）:
-    ① BFF パターン（サーバー側セッション）← 最も安全
-    ② メモリ（JavaScript 変数）+ HttpOnly Cookie の refresh
-    ③ sessionStorage（タブ単位で隔離）
-    ✗ localStorage は XSS リスクが高く非推奨
+  Test cases:
+  → code_verifier length must be 43–128 characters
+  → code_challenge must be correctly computed with SHA-256
+  → An exception must be thrown on state mismatch
+  → verifier must be cleaned up after token exchange
 
-Q5: state パラメータと PKCE の違いは何ですか?
-A5: 防御する攻撃が異なります:
-    → state: CSRF 攻撃の防御（攻撃者のコードを注入）
-    → PKCE: 認可コード横取り攻撃の防御（正規のコードを窃取）
-    → 両方を使うことが推奨（防御する脅威が異なるため）
+Exercise 2 (Applied): Refresh token rotation
 
-Q6: Device Code フローで user_code の形式に制約はありますか?
-A6: RFC 8628 の推奨:
-    → 8文字以上の英数字（大文字推奨）
-    → ハイフン区切り推奨（例: ABCD-EFGH）
-    → 混同しやすい文字を除外（0/O, 1/I/l）
-    → 十分なエントロピー（ブルートフォース防止）
+  Implement a refresh token management system with the following features.
 
-Q7: リフレッシュトークンのローテーションで古いトークンが使われたら?
-A7: リプレイ攻撃の可能性が高いです:
-    → そのトークンファミリー全体を無効化
-    → ユーザーに再認証を要求
-    → セキュリティアラートを発行
-    → 監査ログに記録
+  Requirements:
+  1. Refresh token rotation (new token on every refresh)
+  2. Replay detection (detect reuse of used tokens)
+  3. Token family invalidation
+  4. Invalidate all tokens per user
+
+  Test cases:
+  → Normal refresh flow
+  → Reuse of a used token → entire family is invalidated
+  → Password change → all tokens invalidated
+
+Exercise 3 (Advanced): Build an authorization server
+
+  Implement an OAuth 2.0 authorization server.
+
+  Requirements:
+  1. Support Authorization Code + PKCE flow
+  2. Support Client Credentials flow
+  3. Refresh token flow
+  4. Token revocation endpoint (RFC 7009)
+  5. Token introspection (RFC 7662)
+  6. Client registration management
+
+  Security requirements:
+  → Single-use authorization codes
+  → Exact match validation on redirect_uri
+  → PKCE S256 verification
+  → Refresh token rotation
+```
+
+---
+
+## 15. FAQ and Troubleshooting
+
+```
+Q1: What is the difference between OAuth 2.0 and OpenID Connect?
+A1: OAuth 2.0 is "authorization," OIDC is "authentication":
+    → OAuth 2.0: "Allow MyApp to access GitHub repositories"
+    → OIDC: "This user is alice@example.com"
+    → OIDC is an authentication layer built on top of OAuth 2.0
+    → OIDC additions: id_token, userinfo endpoint, standard claims
+
+Q2: Is PKCE required for Confidential Clients too?
+A2: In OAuth 2.1, PKCE will be mandatory for all clients:
+    → Also effective as an additional security layer for Confidential Clients
+    → Further reduces the risk of authorization code leakage
+    → Low implementation cost (a few dozen lines of code) — always recommended
+
+Q3: What is the appropriate access token expiry?
+A3: It depends on the use case:
+    → General web apps: 15–60 minutes
+    → Financial systems: 5–15 minutes
+    → Between microservices: 30–60 minutes
+    → Rule: shorter is more secure, longer is better for UX
+    → Adjust in combination with refresh tokens
+
+Q4: Where should tokens be stored in a SPA?
+A4: Recommended methods (in order of security):
+    ① BFF pattern (server-side session) ← most secure
+    ② Memory (JavaScript variable) + HttpOnly Cookie for refresh
+    ③ sessionStorage (isolated per tab)
+    ✗ localStorage is not recommended due to high XSS risk
+
+Q5: What is the difference between the state parameter and PKCE?
+A5: They defend against different attacks:
+    → state: Defends against CSRF attacks (injecting attacker's code)
+    → PKCE: Defends against authorization code interception attacks (stealing legitimate code)
+    → Using both is recommended (they address different threats)
+
+Q6: Are there constraints on the format of user_code in the Device Code flow?
+A6: RFC 8628 recommendations:
+    → 8 or more alphanumeric characters (uppercase recommended)
+    → Hyphen separation recommended (e.g., ABCD-EFGH)
+    → Exclude easily confused characters (0/O, 1/I/l)
+    → Sufficient entropy (to prevent brute force)
+
+Q7: What should be done if an old refresh token is used after rotation?
+A7: It is likely a replay attack:
+    → Invalidate the entire token family
+    → Require the user to re-authenticate
+    → Issue a security alert
+    → Record in the audit log
 ```
 
 ---
@@ -2248,46 +2258,46 @@ A7: リプレイ攻撃の可能性が高いです:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Not just theory — actually writing code and verifying behavior will deepen your understanding.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in professional work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| フロー | 用途 | セキュリティ |
+| Flow | Use Case | Security |
 |--------|------|------------|
-| Authorization Code | Web アプリ（サーバーあり） | 最高 |
-| Auth Code + PKCE | SPA、モバイル | 高い |
-| Client Credentials | サーバー間 | 高い |
-| Device Code | IoT、CLI | 中程度 |
-| Implicit | 非推奨 | 低い |
+| Authorization Code | Web app (with server) | Highest |
+| Auth Code + PKCE | SPA, mobile | High |
+| Client Credentials | Server-to-server | High |
+| Device Code | IoT, CLI | Moderate |
+| Implicit | Deprecated | Low |
 
-| トピック | ポイント |
+| Topic | Key Points |
 |---------|---------|
-| PKCE | SHA-256 による認可コード横取り防止。OAuth 2.1 で必須 |
-| state | CSRF 防御。暗号的ランダム値をセッションに紐づけ |
-| リフレッシュトークン | ローテーション + リプレイ検知が推奨 |
-| スコープ | 最小権限の原則。resource:action 形式 |
-| BFF パターン | SPA の最もセキュアなトークン管理方法 |
-| トークン失効 | RFC 7009。ログアウト時に必ず実行 |
+| PKCE | Prevents authorization code interception via SHA-256. Mandatory in OAuth 2.1 |
+| state | CSRF protection. Tie a cryptographically random value to the session |
+| Refresh token | Rotation + replay detection recommended |
+| Scope | Principle of least privilege. Use resource:action format |
+| BFF pattern | Most secure token management method for SPAs |
+| Token revocation | RFC 7009. Always execute on logout |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
 ---
 
-## 参考文献
+## References
 1. RFC 6749. "The OAuth 2.0 Authorization Framework." IETF, 2012.
 2. RFC 7636. "Proof Key for Code Exchange by OAuth Public Clients." IETF, 2015.
 3. RFC 8628. "OAuth 2.0 Device Authorization Grant." IETF, 2019.
