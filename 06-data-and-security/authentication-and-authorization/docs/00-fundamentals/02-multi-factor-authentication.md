@@ -1,153 +1,157 @@
-# 多要素認証（MFA）
+# Multi-Factor Authentication (MFA)
 
-> パスワード単体では不十分な時代。TOTP、WebAuthn/Passkeys、SMS認証、リカバリーコードまで、多要素認証の仕組みと安全な実装方法を解説する。パスワードレス認証の未来も見据える。RFC 6238（TOTP）、W3C WebAuthn、FIDO2 の仕様に基づき、内部アルゴリズムから実装・運用のベストプラクティスまでを網羅する。
+> Passwords alone are no longer enough. This guide covers how multi-factor authentication works and how to implement it securely — from TOTP and WebAuthn/Passkeys to SMS authentication and recovery codes — while also looking ahead to the future of passwordless authentication. Based on RFC 6238 (TOTP), W3C WebAuthn, and FIDO2 specifications, this guide covers everything from internal algorithms to implementation and operational best practices.
 
-## 前提知識
+## Prerequisites
 
-- 対称鍵暗号・HMAC の基本概念
-- 公開鍵暗号の基礎
-- HTTP Cookie とセッション管理の基本
+- Basic concepts of symmetric-key cryptography and HMAC
+- Fundamentals of public-key cryptography
+- Basics of HTTP cookies and session management
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] MFAの種類と各方式のセキュリティ強度を理解する
-- [ ] TOTPの内部アルゴリズム（RFC 6238 / RFC 4226）を把握する
-- [ ] WebAuthn/Passkeysの仕組みと実装方法を習得する
-- [ ] MFAの実装とリカバリー戦略を設計できるようになる
-- [ ] パスワードレス認証の設計パターンを理解する
-- [ ] ステップアップ認証の実装方法を学ぶ
+- [ ] Understand the types of MFA and the security strength of each method
+- [ ] Grasp the internal algorithm of TOTP (RFC 6238 / RFC 4226)
+- [ ] Learn how WebAuthn/Passkeys work and how to implement them
+- [ ] Design MFA implementation and recovery strategies
+- [ ] Understand design patterns for passwordless authentication
+- [ ] Learn how to implement step-up authentication
 
 ---
 
-## 1. MFA の基礎理論
+## 1. MFA Fundamentals
 
 ```
-認証の3要素:
+The Three Authentication Factors:
 
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  ① Something You Know（知識要素）                 │
-  │     → パスワード、PIN、秘密の質問                   │
-  │     → 最も一般的だが最も脆弱                       │
-  │     → フィッシング、ブルートフォースに弱い            │
+  │  ① Something You Know (Knowledge Factor)         │
+  │     → Passwords, PINs, security questions        │
+  │     → Most common but most vulnerable            │
+  │     → Weak against phishing and brute force      │
   │                                                  │
-  │  ② Something You Have（所有要素）                 │
-  │     → スマートフォン、ハードウェアキー、ICカード       │
-  │     → TOTP、SMS コード、FIDO2 セキュリティキー       │
-  │     → 物理的な盗難が必要 → リモート攻撃が困難        │
+  │  ② Something You Have (Possession Factor)        │
+  │     → Smartphone, hardware key, smart card       │
+  │     → TOTP, SMS code, FIDO2 security key         │
+  │     → Requires physical theft → difficult to     │
+  │       attack remotely                            │
   │                                                  │
-  │  ③ Something You Are（生体要素）                  │
-  │     → 指紋、顔認証、虹彩、声紋                      │
-  │     → 変更不可（漏洩時のリスクが高い）               │
-  │     → デバイスローカルで処理（サーバーに送信しない）   │
+  │  ③ Something You Are (Inherence Factor)          │
+  │     → Fingerprint, face, iris, voice             │
+  │     → Cannot be changed (high risk if leaked)    │
+  │     → Processed locally on device (not sent to   │
+  │       server)                                    │
   │                                                  │
   └──────────────────────────────────────────────────┘
 
-MFA の原則:
-  → 異なるカテゴリの要素を組み合わせる
-  → 同一カテゴリの複数要素は MFA にならない
+MFA Principle:
+  → Combine factors from different categories
+  → Multiple factors from the same category do NOT constitute MFA
 
-  ✗ パスワード + 秘密の質問 = 単一要素（両方「知識」）
-  ✓ パスワード + TOTP = 多要素（「知識」+「所有」）
-  ✓ パスワード + 指紋 = 多要素（「知識」+「生体」）
-  ✓ Passkey = 多要素（「所有」+「生体」を1つのデバイスで実現）
+  ✗ Password + security question = Single factor (both "knowledge")
+  ✓ Password + TOTP = Multi-factor ("knowledge" + "possession")
+  ✓ Password + fingerprint = Multi-factor ("knowledge" + "inherence")
+  ✓ Passkey = Multi-factor ("possession" + "inherence" on a single device)
 ```
 
 ---
 
-## 2. MFA方式の比較
+## 2. MFA Method Comparison
 
 ```
-MFA方式の詳細比較:
+Detailed MFA Method Comparison:
 
-  方式          │ セキュリティ │ UX    │ フィッシング │ コスト  │ オフライン
-  ─────────────┼────────────┼──────┼───────────┼───────┼────────
-  SMS OTP      │ △ 低い     │ ○ 良  │ ✗ 弱い     │ 通信費  │ ✗ 不可
-  Email OTP    │ △ 低い     │ ○ 良  │ ✗ 弱い     │ 無料   │ ✗ 不可
-  TOTP         │ ○ 中程度   │ ○ 良  │ △ やや弱い  │ 無料   │ ✓ 可能
-  Push通知     │ ○ 中程度   │ ◎ 最良│ △ やや弱い  │ 有料   │ ✗ 不可
-  FIDO2/       │ ◎ 最強    │ ◎ 最良│ ✓ 耐性あり  │ キー代  │ ✓ 可能
-  WebAuthn     │            │       │            │        │
-  Passkeys     │ ◎ 最強    │ ◎ 最良│ ✓ 耐性あり  │ 無料   │ ✓ 可能
+  Method        │ Security    │ UX      │ Phishing    │ Cost    │ Offline
+  ──────────────┼─────────────┼─────────┼─────────────┼─────────┼────────
+  SMS OTP       │ △ Low       │ ○ Good  │ ✗ Weak      │ Carrier │ ✗ No
+  Email OTP     │ △ Low       │ ○ Good  │ ✗ Weak      │ Free    │ ✗ No
+  TOTP          │ ○ Moderate  │ ○ Good  │ △ Somewhat  │ Free    │ ✓ Yes
+  Push Notify   │ ○ Moderate  │ ◎ Best  │ △ Somewhat  │ Paid    │ ✗ No
+  FIDO2/        │ ◎ Strongest │ ◎ Best  │ ✓ Resistant │ Key $   │ ✓ Yes
+  WebAuthn      │             │         │             │         │
+  Passkeys      │ ◎ Strongest │ ◎ Best  │ ✓ Resistant │ Free    │ ✓ Yes
 
-推奨の優先順位:
-  1. Passkeys / WebAuthn（最も安全 + UX最良）
-  2. TOTP（広く普及、無料）
-  3. Push 通知（UX が良い）
-  4. SMS OTP（最後の手段）
+Recommended Priority:
+  1. Passkeys / WebAuthn (most secure + best UX)
+  2. TOTP (widely adopted, free)
+  3. Push notifications (good UX)
+  4. SMS OTP (last resort)
 
-攻撃耐性の詳細比較:
+Detailed Attack Resistance Comparison:
 
-  攻撃手法            │ SMS  │ TOTP │ Push │ WebAuthn
-  ───────────────────┼─────┼─────┼─────┼────────
-  フィッシング         │ ✗    │ ✗    │ ✗    │ ✓ 耐性
-  SIM スワップ        │ ✗    │ ✓    │ ✓    │ ✓
-  SS7 傍受           │ ✗    │ ✓    │ ✓    │ ✓
-  リアルタイムフィッシング│ ✗   │ ✗    │ △    │ ✓
-  MitM プロキシ       │ ✗    │ ✗    │ △    │ ✓
-  ソーシャルエンジニアリング│ ✗  │ △    │ ✗    │ ✓
-  マルウェア           │ △    │ △    │ △    │ ○
+  Attack Type              │ SMS  │ TOTP │ Push │ WebAuthn
+  ─────────────────────────┼──────┼──────┼──────┼─────────
+  Phishing                 │ ✗    │ ✗    │ ✗    │ ✓ Resistant
+  SIM Swap                 │ ✗    │ ✓    │ ✓    │ ✓
+  SS7 Interception         │ ✗    │ ✓    │ ✓    │ ✓
+  Real-time Phishing       │ ✗    │ ✗    │ △    │ ✓
+  MitM Proxy               │ ✗    │ ✗    │ △    │ ✓
+  Social Engineering       │ ✗    │ △    │ ✗    │ ✓
+  Malware                  │ △    │ △    │ △    │ ○
 ```
 
 ---
 
-## 3. TOTP（Time-based One-Time Password）
+## 3. TOTP (Time-based One-Time Password)
 
-### 3.1 TOTP の内部アルゴリズム
+### 3.1 TOTP Internal Algorithm
 
 ```
-TOTP の仕組み（RFC 6238 + RFC 4226）:
+How TOTP Works (RFC 6238 + RFC 4226):
 
-  セットアップ:
-    ① サーバーが秘密鍵（secret）を生成（160ビット以上推奨）
-    ② QRコードとして表示（otpauth:// URI）
-    ③ ユーザーが認証アプリ（Google Authenticator等）でスキャン
-    ④ ユーザーが表示された6桁コードを入力して検証
+  Setup:
+    ① Server generates a secret key (160 bits or more recommended)
+    ② Displayed as a QR code (otpauth:// URI)
+    ③ User scans with an authenticator app (e.g. Google Authenticator)
+    ④ User enters the displayed 6-digit code for verification
 
-  認証時:
-    ① ユーザーが認証アプリに表示された6桁コードを入力
-    ② サーバーが同じアルゴリズムでコードを計算
-    ③ 一致すれば認証成功
+  Authentication:
+    ① User enters the 6-digit code shown in the authenticator app
+    ② Server computes the code using the same algorithm
+    ③ If they match, authentication succeeds
 
-  アルゴリズムの内部動作:
+  Internal Algorithm Steps:
 
-  Step 1: タイムステップの計算
+  Step 1: Calculate the time step
   ┌──────────────────────────────────────────┐
   │  T = floor(unix_time / period)           │
   │                                          │
-  │  unix_time = 1700000000（秒）             │
-  │  period = 30（秒）                        │
+  │  unix_time = 1700000000 (seconds)        │
+  │  period = 30 (seconds)                   │
   │  T = floor(1700000000 / 30) = 56666666   │
   │                                          │
-  │  → 30秒ごとに T が変わる                   │
-  │  → サーバーとクライアントで T が同期        │
+  │  → T changes every 30 seconds            │
+  │  → T is synchronized between server and  │
+  │    client                                │
   └──────────────────────────────────────────┘
 
-  Step 2: HOTP の計算（RFC 4226）
+  Step 2: Compute HOTP (RFC 4226)
   ┌──────────────────────────────────────────┐
   │  HOTP(K, C) = Truncate(HMAC-SHA1(K, C))  │
   │                                          │
-  │  K = 秘密鍵（Base32エンコード前の生バイト）  │
-  │  C = T（8バイトのビッグエンディアン表現）    │
+  │  K = secret key (raw bytes before        │
+  │      Base32 encoding)                    │
+  │  C = T (8-byte big-endian representation)│
   │                                          │
   │  ① hmac = HMAC-SHA1(K, C)               │
-  │     → 20バイト（160ビット）のハッシュ値     │
+  │     → 20-byte (160-bit) hash value       │
   │                                          │
-  │  ② offset = hmac[19] & 0x0F              │
-  │     → 最後のバイトの下位4ビット（0-15）     │
+  │  ② offset = hmac[19] & 0x0F             │
+  │     → Lower 4 bits of the last byte (0-15)│
   │                                          │
   │  ③ binary = (hmac[offset] & 0x7F) << 24  │
   │           | hmac[offset+1] << 16          │
   │           | hmac[offset+2] << 8           │
   │           | hmac[offset+3]                │
-  │     → 4バイトを31ビット整数に変換           │
+  │     → Convert 4 bytes to a 31-bit integer │
   │                                          │
-  │  ④ otp = binary % 10^digits              │
-  │     → 6桁: binary % 1000000              │
-  │     → 結果: "481592"                      │
+  │  ④ otp = binary % 10^digits             │
+  │     → 6 digits: binary % 1000000         │
+  │     → Result: "481592"                   │
   └──────────────────────────────────────────┘
 
-  QRコード URI:
+  QR Code URI:
     otpauth://totp/MyApp:alice@example.com
       ?secret=JBSWY3DPEHPK3PXP
       &issuer=MyApp
@@ -157,23 +161,23 @@ TOTP の仕組み（RFC 6238 + RFC 4226）:
 ```
 
 ```typescript
-// TOTP の内部実装（教育目的、本番では otplib を使用）
+// TOTP internal implementation (educational purposes; use otplib in production)
 import crypto from 'crypto';
 
 function generateTOTP(
-  secret: Buffer,      // 秘密鍵（生バイト）
-  period: number = 30, // タイムステップ（秒）
-  digits: number = 6,  // OTP の桁数
+  secret: Buffer,      // Secret key (raw bytes)
+  period: number = 30, // Time step (seconds)
+  digits: number = 6,  // Number of OTP digits
   algorithm: string = 'sha1'
 ): string {
-  // Step 1: タイムステップの計算
+  // Step 1: Calculate the time step
   const time = Math.floor(Date.now() / 1000 / period);
 
-  // Step 2: タイムステップを8バイトのビッグエンディアンに変換
+  // Step 2: Convert time step to 8-byte big-endian
   const timeBuffer = Buffer.alloc(8);
   timeBuffer.writeBigUInt64BE(BigInt(time));
 
-  // Step 3: HMAC-SHA1 を計算
+  // Step 3: Compute HMAC-SHA1
   const hmac = crypto.createHmac(algorithm, secret).update(timeBuffer).digest();
 
   // Step 4: Dynamic Truncation
@@ -185,18 +189,18 @@ function generateTOTP(
     (hmac[offset + 3] & 0xff)
   );
 
-  // Step 5: 指定桁数に切り詰め
+  // Step 5: Truncate to the specified number of digits
   const otp = binary % Math.pow(10, digits);
 
-  // Step 6: 先頭のゼロを保持してゼロパディング
+  // Step 6: Zero-pad to preserve leading zeros
   return otp.toString().padStart(digits, '0');
 }
 
-// 検証（前後のウィンドウも許容）
+// Verification (allows a window of previous/next steps)
 function verifyTOTP(
   token: string,
   secret: Buffer,
-  window: number = 1  // 前後何ステップを許容するか
+  window: number = 1  // How many steps before/after to allow
 ): boolean {
   const period = 30;
   const currentTime = Math.floor(Date.now() / 1000);
@@ -216,7 +220,7 @@ function verifyTOTP(
     );
     const otp = (binary % 1000000).toString().padStart(6, '0');
 
-    // タイミングセーフな比較
+    // Timing-safe comparison
     if (crypto.timingSafeEqual(Buffer.from(otp), Buffer.from(token))) {
       return true;
     }
@@ -226,34 +230,34 @@ function verifyTOTP(
 }
 ```
 
-### 3.2 TOTP の実装（otplib ライブラリ）
+### 3.2 TOTP Implementation (otplib Library)
 
 ```typescript
-// TOTP 実装（otplib）
+// TOTP implementation (otplib)
 import { authenticator } from 'otplib';
 import qrcode from 'qrcode';
 
-// セットアップ: 秘密鍵の生成
+// Setup: Generate secret key
 async function setupTOTP(userId: string, email: string) {
-  const secret = authenticator.generateSecret(); // Base32 エンコード
+  const secret = authenticator.generateSecret(); // Base32 encoded
 
-  // 秘密鍵を暗号化してDBに保存（MFA有効化前は仮保存）
+  // Encrypt and save secret to DB (pending until MFA is verified)
   await db.mfaSetup.create({
     data: {
       userId,
-      secret: encrypt(secret),  // AES で暗号化して保存
+      secret: encrypt(secret),  // Encrypt with AES before saving
       verified: false,
     },
   });
 
-  // QRコード生成
+  // Generate QR code
   const otpauthUrl = authenticator.keyuri(email, 'MyApp', secret);
   const qrCodeUrl = await qrcode.toDataURL(otpauthUrl);
 
-  return { qrCodeUrl, secret }; // secret はバックアップ用に表示
+  return { qrCodeUrl, secret }; // secret is shown for backup purposes
 }
 
-// セットアップ検証: ユーザーが入力したコードを確認
+// Verify setup: Confirm the code entered by the user
 async function verifyTOTPSetup(userId: string, token: string) {
   const setup = await db.mfaSetup.findUnique({ where: { userId } });
   if (!setup) throw new Error('MFA setup not found');
@@ -265,7 +269,7 @@ async function verifyTOTPSetup(userId: string, token: string) {
     throw new Error('Invalid TOTP code');
   }
 
-  // MFA を有効化
+  // Enable MFA
   await db.$transaction([
     db.user.update({
       where: { id: userId },
@@ -277,14 +281,14 @@ async function verifyTOTPSetup(userId: string, token: string) {
     }),
   ]);
 
-  // リカバリーコード生成
+  // Generate recovery codes
   const recoveryCodes = generateRecoveryCodes();
   await saveRecoveryCodes(userId, recoveryCodes);
 
-  return { recoveryCodes }; // ユーザーに1度だけ表示
+  return { recoveryCodes }; // Shown to user only once
 }
 
-// 認証時の検証
+// Verify during authentication
 async function verifyTOTP(userId: string, token: string): Promise<boolean> {
   const setup = await db.mfaSetup.findUnique({
     where: { userId, verified: true },
@@ -293,16 +297,16 @@ async function verifyTOTP(userId: string, token: string): Promise<boolean> {
 
   const secret = decrypt(setup.secret);
 
-  // リプレイ攻撃防止: 使用済みコードをチェック
+  // Replay attack prevention: check if code has already been used
   const codeKey = `totp:used:${userId}:${token}`;
   const isUsed = await redis.exists(codeKey);
   if (isUsed) return false;
 
-  // ウィンドウ=1: 前後30秒のコードも許容
+  // Window=1: also accept codes from the previous/next 30 seconds
   const isValid = authenticator.verify({ token, secret });
 
   if (isValid) {
-    // 使用済みとして記録（90秒間保持 = period * 3）
+    // Record as used (retain for 90 seconds = period * 3)
     await redis.setex(codeKey, 90, '1');
   }
 
@@ -310,163 +314,170 @@ async function verifyTOTP(userId: string, token: string): Promise<boolean> {
 }
 ```
 
-### 3.3 TOTP のセキュリティ考慮事項
+### 3.3 TOTP Security Considerations
 
 ```
-TOTP のセキュリティリスクと対策:
+TOTP Security Risks and Mitigations:
 
-  ① 秘密鍵の保護:
-     → DB に平文保存しない（AES-256-GCM 等で暗号化）
-     → 暗号化鍵は HSM や KMS で管理
-     → バックアップも暗号化して保存
+  ① Protecting the secret key:
+     → Do not store in DB as plaintext (encrypt with AES-256-GCM, etc.)
+     → Manage encryption keys with HSM or KMS
+     → Store backups encrypted as well
 
-  ② リプレイ攻撃:
-     → 同じ OTP コードの再使用を防止
-     → 使用済みコードを Redis に短期間保存
-     → 30秒 × 3 = 90秒間のウィンドウで管理
+  ② Replay attacks:
+     → Prevent reuse of the same OTP code
+     → Store used codes in Redis for a short period
+     → Manage with a window of 30s × 3 = 90 seconds
 
-  ③ タイムドリフト:
-     → サーバーとクライアントの時刻ズレ
-     → NTP で時刻同期が前提
-     → ウィンドウ（前後1-2ステップ）で許容
-     → 大きなドリフト → ユーザーに時刻同期を案内
+  ③ Time drift:
+     → Clock skew between server and client
+     → Requires NTP time synchronization as a prerequisite
+     → A window (1-2 steps before/after) accommodates this
+     → Large drift → guide the user to sync their clock
 
-  ④ ブルートフォース:
-     → 6桁 = 100万通り（30秒以内に試行が必要）
-     → レート制限: 5回失敗でロックアウト
-     → ロックアウト時間: 15-30分
+  ④ Brute force:
+     → 6 digits = 1,000,000 possibilities (must be tried within 30 seconds)
+     → Rate limiting: lock out after 5 failures
+     → Lockout duration: 15-30 minutes
 
-  ⑤ フィッシング（リアルタイムプロキシ）:
-     → 攻撃者がユーザーと本物のサーバーの間に立つ
-     → ユーザーが入力した OTP をリアルタイムで転送
-     → TOTP はこの攻撃に脆弱（WebAuthn は耐性あり）
-     → 対策: WebAuthn の併用推奨
+  ⑤ Phishing (real-time proxy):
+     → Attacker sits between the user and the real server
+     → Forwards OTP entered by user to the real server in real time
+     → TOTP is vulnerable to this attack (WebAuthn is resistant)
+     → Mitigation: recommend combining with WebAuthn
 
-  ⑥ TOTP から WebAuthn への移行パス:
-     → まず TOTP を導入
-     → WebAuthn/Passkey を追加オプションとして提供
-     → ユーザーの移行を促す
-     → 最終的に TOTP を補助方式に
+  ⑥ Migration path from TOTP to WebAuthn:
+     → Start by introducing TOTP
+     → Offer WebAuthn/Passkey as an additional option
+     → Encourage users to migrate
+     → Eventually make TOTP a secondary method
 ```
 
 ---
 
 ## 4. WebAuthn / Passkeys
 
-### 4.1 WebAuthn の内部動作
+### 4.1 WebAuthn Internal Operation
 
 ```
-WebAuthn の仕組み:
+How WebAuthn Works:
 
-  公開鍵暗号ベースの認証:
-    → パスワードを使わない
-    → 秘密鍵はデバイスに保存（サーバーには送信されない）
-    → フィッシング完全耐性（オリジン検証あり）
+  Public-key cryptography-based authentication:
+    → No passwords used
+    → Private key stored on device (never sent to server)
+    → Full phishing resistance (origin verification)
 
-  登録フロー:
+  Registration Flow:
 
-  ユーザー    ブラウザ        認証器          サーバー
+  User      Browser         Authenticator   Server
     │          │              │               │
-    │ 登録開始  │              │               │
+    │ Start     │              │               │
+    │ register  │              │               │
     │─────────>│              │               │
-    │          │ オプション要求  │               │
+    │          │ Request       │               │
+    │          │ options       │               │
     │          │──────────────────────────────>│
     │          │              │               │
     │          │ challenge +   │               │
     │          │ rpId + userId │               │
     │          │<──────────────────────────────│
     │          │              │               │
-    │          │ credentials  │               │
-    │          │ .create()    │               │
+    │          │ credentials   │               │
+    │          │ .create()     │               │
     │          │─────────────>│               │
     │          │              │               │
-    │ 指紋/顔   │              │ ユーザー検証   │
-    │ 認証     │              │ 鍵ペア生成     │
-    │<─────────│              │               │
+    │ Finger/   │              │ User verify   │
+    │ face auth │              │ Generate key  │
+    │<─────────│              │ pair          │
     │ OK       │              │               │
     │─────────>│              │               │
-    │          │              │ 公開鍵 +      │
+    │          │              │ Public key +  │
     │          │              │ attestation   │
     │          │<─────────────│               │
     │          │              │               │
-    │          │ 公開鍵 +      │               │
-    │          │ attestation  │               │
+    │          │ Public key +  │               │
+    │          │ attestation   │               │
     │          │──────────────────────────────>│
     │          │              │               │
-    │          │              │   署名検証     │
-    │          │              │   公開鍵保存   │
-    │          │ 登録完了       │               │
+    │          │              │  Verify sig   │
+    │          │              │  Save pub key │
+    │          │ Registration  │               │
+    │          │ complete      │               │
     │          │<──────────────────────────────│
-    │ 完了     │              │               │
+    │ Done     │              │               │
     │<─────────│              │               │
 
-  認証フロー:
+  Authentication Flow:
 
-  ユーザー    ブラウザ        認証器          サーバー
+  User      Browser         Authenticator   Server
     │          │              │               │
-    │ ログイン  │              │               │
+    │ Login    │              │               │
     │─────────>│              │               │
-    │          │ challenge 要求│               │
+    │          │ Request       │               │
+    │          │ challenge     │               │
     │          │──────────────────────────────>│
     │          │              │               │
-    │          │ challenge +  │               │
+    │          │ challenge +   │               │
     │          │ allowCredentials              │
     │          │<──────────────────────────────│
     │          │              │               │
-    │          │ credentials  │               │
-    │          │ .get()       │               │
+    │          │ credentials   │               │
+    │          │ .get()        │               │
     │          │─────────────>│               │
     │          │              │               │
-    │ 指紋/顔   │              │ ユーザー検証   │
-    │ 認証     │              │ challenge署名  │
+    │ Finger/   │              │ User verify   │
+    │ face auth │              │ Sign challenge│
     │<─────────│              │               │
     │ OK       │              │               │
     │─────────>│              │               │
-    │          │              │ 署名データ     │
+    │          │              │ Signed data   │
     │          │<─────────────│               │
     │          │              │               │
-    │          │ 署名データ送信  │               │
+    │          │ Send signed   │               │
+    │          │ data          │               │
     │          │──────────────────────────────>│
     │          │              │               │
-    │          │              │   公開鍵で     │
-    │          │              │   署名検証     │
-    │          │ 認証成功       │               │
+    │          │              │  Verify sig   │
+    │          │              │  with pub key │
+    │          │ Auth success  │               │
     │          │<──────────────────────────────│
-    │ ログイン  │              │               │
-    │ 成功     │              │               │
+    │ Login    │              │               │
+    │ success  │              │               │
     │<─────────│              │               │
 
-  Passkeys（WebAuthn の進化）:
-    → iCloud Keychain / Google Password Manager で同期
-    → デバイス間で使える（iPhone で登録 → Mac で使用）
-    → パスワードレス認証のデファクトスタンダード
-    → Conditional UI: 入力フィールドに Passkey 候補を表示
+  Passkeys (evolution of WebAuthn):
+    → Synced via iCloud Keychain / Google Password Manager
+    → Works across devices (register on iPhone → use on Mac)
+    → De facto standard for passwordless authentication
+    → Conditional UI: shows Passkey candidates in the input field
 
-  なぜフィッシング耐性があるか:
+  Why Phishing-Resistant:
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  WebAuthn の認証データに含まれるもの:               │
-  │  → rpIdHash: RP（Relying Party）のドメインハッシュ  │
-  │  → origin: リクエスト元のオリジン                   │
+  │  What WebAuthn authentication data contains:     │
+  │  → rpIdHash: hash of the RP (Relying Party)      │
+  │    domain                                        │
+  │  → origin: the origin of the request             │
   │                                                  │
-  │  example.com で登録した鍵:                          │
+  │  A key registered on example.com:                │
   │  → rpIdHash = SHA256("example.com")              │
-  │  → evil.com からの認証要求 → rpId が不一致          │
-  │  → 認証器が自動的に拒否                            │
+  │  → Auth request from evil.com → rpId mismatch    │
+  │  → Authenticator automatically rejects it        │
   │                                                  │
-  │  ユーザーが偽サイト evil.com にアクセスしても:        │
-  │  → 認証器は example.com の鍵を使用しない            │
-  │  → フィッシング攻撃が原理的に不可能                  │
+  │  Even if the user visits a fake site evil.com:   │
+  │  → Authenticator will not use the example.com    │
+  │    key                                           │
+  │  → Phishing attacks are fundamentally impossible │
   │                                                  │
   └──────────────────────────────────────────────────┘
 ```
 
-### 4.2 WebAuthn サーバー実装
+### 4.2 WebAuthn Server Implementation
 
 ```typescript
-// WebAuthn 実装（@simplewebauthn/server + @simplewebauthn/browser）
+// WebAuthn implementation (@simplewebauthn/server + @simplewebauthn/browser)
 
-// サーバー側: 登録オプション生成
+// Server side: Generate registration options
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -478,7 +489,7 @@ const rpName = 'My App';
 const rpID = 'example.com';
 const origin = 'https://example.com';
 
-// 登録: オプション生成
+// Registration: Generate options
 async function getRegistrationOptions(userId: string) {
   const user = await db.user.findUnique({ where: { id: userId } });
   const existingDevices = await db.credential.findMany({
@@ -496,12 +507,12 @@ async function getRegistrationOptions(userId: string) {
       transports: d.transports,
     })),
     authenticatorSelection: {
-      residentKey: 'preferred',          // Passkey をサポート
-      userVerification: 'preferred',     // 生体認証を推奨
+      residentKey: 'preferred',          // Support Passkeys
+      userVerification: 'preferred',     // Recommend biometrics
     },
   });
 
-  // チャレンジを一時保存（5分間有効）
+  // Temporarily store the challenge (valid for 5 minutes)
   await redis.setex(
     `webauthn:challenge:${userId}`,
     300,
@@ -511,7 +522,7 @@ async function getRegistrationOptions(userId: string) {
   return options;
 }
 
-// 登録: レスポンス検証
+// Registration: Verify response
 async function verifyRegistration(userId: string, response: any) {
   const expectedChallenge = await redis.get(`webauthn:challenge:${userId}`);
   if (!expectedChallenge) {
@@ -528,7 +539,7 @@ async function verifyRegistration(userId: string, response: any) {
   if (verification.verified && verification.registrationInfo) {
     const { credential } = verification.registrationInfo;
 
-    // クレデンシャルを保存
+    // Save the credential
     await db.credential.create({
       data: {
         userId,
@@ -542,19 +553,19 @@ async function verifyRegistration(userId: string, response: any) {
       },
     });
 
-    // チャレンジを削除
+    // Delete the challenge
     await redis.del(`webauthn:challenge:${userId}`);
   }
 
   return verification;
 }
 
-// 認証: オプション生成
+// Authentication: Generate options
 async function getAuthenticationOptions(email?: string) {
   let allowCredentials: any[] = [];
 
   if (email) {
-    // メールアドレスが指定された場合、そのユーザーのクレデンシャルを取得
+    // If email is specified, retrieve the credentials for that user
     const user = await db.user.findUnique({ where: { email } });
     if (user) {
       const credentials = await db.credential.findMany({
@@ -566,8 +577,8 @@ async function getAuthenticationOptions(email?: string) {
       }));
     }
   }
-  // email が指定されない場合、allowCredentials を空にする
-  // → Discoverable Credential（Passkey）が使われる
+  // If email is not specified, leave allowCredentials empty
+  // → Discoverable Credential (Passkey) will be used
 
   const options = await generateAuthenticationOptions({
     rpID,
@@ -575,7 +586,7 @@ async function getAuthenticationOptions(email?: string) {
     userVerification: 'preferred',
   });
 
-  // チャレンジを一時保存
+  // Temporarily store the challenge
   const challengeKey = email || 'anonymous';
   await redis.setex(
     `webauthn:auth:challenge:${challengeKey}`,
@@ -586,9 +597,9 @@ async function getAuthenticationOptions(email?: string) {
   return options;
 }
 
-// 認証: レスポンス検証
+// Authentication: Verify response
 async function verifyAuthentication(response: any, email?: string) {
-  // クレデンシャルIDからユーザーを特定
+  // Identify user from credential ID
   const credential = await db.credential.findFirst({
     where: {
       credentialId: Buffer.from(response.id, 'base64url'),
@@ -622,7 +633,7 @@ async function verifyAuthentication(response: any, email?: string) {
   });
 
   if (verification.verified) {
-    // カウンターを更新（クローン検知）
+    // Update the counter (clone detection)
     await db.credential.update({
       where: { id: credential.id },
       data: {
@@ -631,7 +642,7 @@ async function verifyAuthentication(response: any, email?: string) {
       },
     });
 
-    // チャレンジを削除
+    // Delete the challenge
     await redis.del(`webauthn:auth:challenge:${challengeKey}`);
 
     return { verified: true, user: credential.user };
@@ -641,10 +652,10 @@ async function verifyAuthentication(response: any, email?: string) {
 }
 ```
 
-### 4.3 WebAuthn クライアント実装
+### 4.3 WebAuthn Client Implementation
 
 ```typescript
-// クライアント側: WebAuthn 登録・認証
+// Client side: WebAuthn registration and authentication
 import {
   startRegistration,
   startAuthentication,
@@ -652,26 +663,26 @@ import {
   platformAuthenticatorIsAvailable,
 } from '@simplewebauthn/browser';
 
-// WebAuthn サポートチェック
+// Check WebAuthn support
 async function checkWebAuthnSupport() {
   const supported = browserSupportsWebAuthn();
   const platformAvailable = await platformAuthenticatorIsAvailable();
 
   return {
-    supported,              // ブラウザが WebAuthn をサポート
-    platformAvailable,       // 指紋/顔認証が使用可能
+    supported,              // Browser supports WebAuthn
+    platformAvailable,       // Fingerprint/face auth is available
     canUsePasskeys: supported && platformAvailable,
   };
 }
 
-// Passkey 登録
+// Register Passkey
 async function registerPasskey() {
   const support = await checkWebAuthnSupport();
   if (!support.supported) {
-    throw new Error('このブラウザは Passkey をサポートしていません');
+    throw new Error('This browser does not support Passkeys');
   }
 
-  // サーバーからオプション取得
+  // Fetch options from server
   const optionsRes = await fetch('/api/webauthn/register/options', {
     method: 'POST',
     credentials: 'include',
@@ -679,10 +690,10 @@ async function registerPasskey() {
   const options = await optionsRes.json();
 
   try {
-    // ブラウザの認証ダイアログを表示
+    // Show the browser authentication dialog
     const registration = await startRegistration({ optionsJSON: options });
 
-    // サーバーに検証を送信
+    // Send verification to server
     const verifyRes = await fetch('/api/webauthn/register/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -691,22 +702,22 @@ async function registerPasskey() {
     });
 
     if (!verifyRes.ok) {
-      throw new Error('登録の検証に失敗しました');
+      throw new Error('Registration verification failed');
     }
 
     return verifyRes.json();
   } catch (error: any) {
     if (error.name === 'NotAllowedError') {
-      throw new Error('認証がキャンセルされました');
+      throw new Error('Authentication was cancelled');
     }
     if (error.name === 'InvalidStateError') {
-      throw new Error('この認証器は既に登録されています');
+      throw new Error('This authenticator is already registered');
     }
     throw error;
   }
 }
 
-// Passkey 認証
+// Authenticate with Passkey
 async function authenticateWithPasskey(email?: string) {
   const optionsRes = await fetch('/api/webauthn/authenticate/options', {
     method: 'POST',
@@ -726,19 +737,19 @@ async function authenticateWithPasskey(email?: string) {
     });
 
     if (!verifyRes.ok) {
-      throw new Error('認証に失敗しました');
+      throw new Error('Authentication failed');
     }
 
     return verifyRes.json();
   } catch (error: any) {
     if (error.name === 'NotAllowedError') {
-      throw new Error('認証がキャンセルされました');
+      throw new Error('Authentication was cancelled');
     }
     throw error;
   }
 }
 
-// Conditional UI（入力フィールドに Passkey 候補を表示）
+// Conditional UI (show Passkey candidates in the input field)
 async function setupConditionalUI() {
   if (!browserSupportsWebAuthn()) return;
 
@@ -748,13 +759,13 @@ async function setupConditionalUI() {
     });
     const options = await optionsRes.json();
 
-    // mediation: 'conditional' で Conditional UI を有効化
+    // Enable Conditional UI with mediation: 'conditional'
     const authentication = await startAuthentication({
       optionsJSON: options,
-      useBrowserAutofill: true, // Conditional UI を使用
+      useBrowserAutofill: true, // Use Conditional UI
     });
 
-    // 自動的に認証が完了した場合の処理
+    // Handle the case where authentication completes automatically
     const verifyRes = await fetch('/api/webauthn/authenticate/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -771,35 +782,37 @@ async function setupConditionalUI() {
 }
 ```
 
-### 4.4 Passkey と従来の WebAuthn の違い
+### 4.4 Differences Between Passkeys and Traditional WebAuthn
 
 ```
-Passkey vs 従来の WebAuthn:
+Passkey vs Traditional WebAuthn:
 
   ┌───────────────────┬─────────────────┬─────────────────┐
-  │ 項目              │ 従来の WebAuthn  │ Passkey          │
+  │ Feature           │ Traditional     │ Passkey          │
+  │                   │ WebAuthn        │                  │
   ├───────────────────┼─────────────────┼─────────────────┤
-  │ 鍵の同期          │ デバイスに紐付き  │ クラウド同期      │
-  │ デバイス間共有     │ 不可            │ 可能             │
-  │ バックアップ       │ なし            │ 自動             │
-  │ デバイス紛失       │ アクセス不可     │ 他のデバイスで可   │
-  │ Discoverable      │ 任意            │ 必須             │
-  │ ユーザー名不要     │ 条件付き         │ 可能             │
-  │ クロスデバイス認証  │ 不可            │ QR + Bluetooth   │
+  │ Key sync          │ Tied to device  │ Cloud synced     │
+  │ Cross-device      │ Not possible    │ Possible         │
+  │ Backup            │ None            │ Automatic        │
+  │ Lost device       │ No access       │ Use other device │
+  │ Discoverable      │ Optional        │ Required         │
+  │ No username       │ Conditional     │ Possible         │
+  │ Cross-device auth │ Not possible    │ QR + Bluetooth   │
   └───────────────────┴─────────────────┴─────────────────┘
 
-  Passkey のクロスデバイス認証:
+  Passkey Cross-Device Authentication:
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  PC（Passkey未登録） → QR コード表示              │
+  │  PC (no Passkey) → Display QR code               │
   │         ↕                                        │
-  │  スマホ（Passkey登録済み）                         │
-  │  → QR をスキャン                                  │
-  │  → Bluetooth Proximity で近くにいることを確認      │
-  │  → 指紋/顔認証で本人確認                          │
-  │  → PC 側で認証完了                               │
+  │  Smartphone (Passkey registered)                 │
+  │  → Scan the QR code                              │
+  │  → Confirm proximity via Bluetooth               │
+  │  → Verify identity with fingerprint/face         │
+  │  → Authentication completes on the PC            │
   │                                                  │
-  │  このフローは CTAP 2.2 Hybrid Transport で定義     │
+  │  This flow is defined in CTAP 2.2 Hybrid         │
+  │  Transport                                       │
   │                                                  │
   └──────────────────────────────────────────────────┘
 ```
@@ -809,42 +822,42 @@ Passkey vs 従来の WebAuthn:
 ## 5. SMS / Email OTP
 
 ```
-SMS OTP のリスク:
+Risks of SMS OTP:
 
-  ✗ SIM スワップ攻撃:
-    → 攻撃者が携帯ショップで SIM 再発行
-    → ソーシャルエンジニアリングで店員を騙す
-    → 被害者の電話番号が攻撃者のデバイスに移行
-    → SMS OTP が攻撃者に届く
+  ✗ SIM Swap Attack:
+    → Attacker has SIM reissued at a carrier store
+    → Tricks staff through social engineering
+    → Victim's phone number transferred to attacker's device
+    → SMS OTP is delivered to the attacker
 
-  ✗ SS7 プロトコルの脆弱性:
-    → 電話網の制御プロトコル（1975年設計）
-    → 認証メカニズムが貧弱
-    → SMS の傍受・リダイレクトが技術的に可能
-    → 国家レベルの攻撃者が悪用可能
+  ✗ SS7 Protocol Vulnerability:
+    → Control protocol of the telephone network (designed in 1975)
+    → Weak authentication mechanism
+    → Technically possible to intercept or redirect SMS
+    → Can be exploited by nation-state-level attackers
 
-  ✗ フィッシング:
-    → コードを偽サイトに入力させる
-    → リアルタイムプロキシ攻撃で即座に使用
-    → SMS のリンクフィッシングも一般的
+  ✗ Phishing:
+    → Tricks user into entering code on a fake site
+    → Immediately used via real-time proxy attack
+    → SMS link phishing is also common
 
-  ✗ ソーシャルエンジニアリング:
-    → 「認証コードが届いたので教えてください」
-    → カスタマーサポートを装った詐取
+  ✗ Social Engineering:
+    → "A verification code was sent to you — please share it"
+    → Fraudulent extraction posing as customer support
 
-  ✗ マルウェア:
-    → Android の SMS 読み取りマルウェア
-    → iOS ではリスクが低い（サンドボックス）
+  ✗ Malware:
+    → Android malware that reads SMS messages
+    → Lower risk on iOS (sandboxed)
 
-  それでも SMS OTP を使う場合:
-  → MFA なしよりは大幅に安全（99.9% の攻撃を防ぐ）
-  → ユーザーにとって最も馴染みがある
-  → TOTP / WebAuthn を主、SMS をフォールバックに
-  → NIST SP 800-63B では「制限付きの認証器」として許容
+  When using SMS OTP anyway:
+  → Significantly more secure than no MFA (blocks 99.9% of attacks)
+  → Most familiar method for users
+  → Use TOTP / WebAuthn as primary, SMS as fallback
+  → Permitted as a "restricted authenticator" under NIST SP 800-63B
 ```
 
 ```typescript
-// OTP の実装（レート制限、ブルートフォース対策付き）
+// OTP implementation (with rate limiting and brute-force protection)
 import crypto from 'crypto';
 
 class OTPService {
@@ -855,35 +868,35 @@ class OTPService {
     private emailService: EmailService
   ) {}
 
-  // OTP 生成・送信
+  // Generate and send OTP
   async sendOTP(userId: string, channel: 'sms' | 'email'): Promise<void> {
     const user = await this.db.user.findUnique({ where: { id: userId } });
     if (!user) throw new Error('User not found');
 
-    // レート制限: 1分に1回まで
+    // Rate limiting: once per minute
     const rateLimitKey = `otp:ratelimit:${userId}`;
     const isLimited = await this.redis.exists(rateLimitKey);
     if (isLimited) {
       throw new Error('Please wait before requesting a new code');
     }
 
-    // 1日の送信上限: 10回まで
+    // Daily sending limit: up to 10 times
     const dailyKey = `otp:daily:${userId}:${new Date().toISOString().slice(0, 10)}`;
     const dailyCount = await this.redis.incr(dailyKey);
     if (dailyCount === 1) {
-      await this.redis.expire(dailyKey, 86400); // 24時間
+      await this.redis.expire(dailyKey, 86400); // 24 hours
     }
     if (dailyCount > 10) {
       throw new Error('Daily OTP limit exceeded');
     }
 
-    // 6桁のランダムコード
+    // Random 6-digit code
     const code = crypto.randomInt(100000, 999999).toString();
 
-    // ハッシュ化して保存
+    // Hash and store
     const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
 
-    // 既存の未使用コードを無効化
+    // Invalidate existing unused codes
     await this.db.otpCode.updateMany({
       where: { userId, usedAt: null },
       data: { usedAt: new Date() },
@@ -894,30 +907,30 @@ class OTPService {
         userId,
         code: hashedCode,
         channel,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10分有効
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // Valid for 10 minutes
         attempts: 0,
       },
     });
 
-    // レート制限を設定（60秒）
+    // Set rate limit (60 seconds)
     await this.redis.setex(rateLimitKey, 60, '1');
 
-    // 送信
+    // Send
     if (channel === 'sms') {
-      await this.smsService.send(user.phone!, `認証コード: ${code}`);
+      await this.smsService.send(user.phone!, `Your verification code: ${code}`);
     } else {
       await this.emailService.send(user.email, {
-        subject: '認証コード',
+        subject: 'Verification Code',
         html: `
-          <p>あなたの認証コードは <strong>${code}</strong> です。</p>
-          <p>このコードは10分間有効です。</p>
-          <p>心当たりがない場合は、このメールを無視してください。</p>
+          <p>Your verification code is <strong>${code}</strong>.</p>
+          <p>This code is valid for 10 minutes.</p>
+          <p>If you did not request this, please ignore this email.</p>
         `,
       });
     }
   }
 
-  // OTP 検証
+  // Verify OTP
   async verifyOTP(userId: string, code: string): Promise<boolean> {
     const otpRecord = await this.db.otpCode.findFirst({
       where: {
@@ -930,26 +943,26 @@ class OTPService {
 
     if (!otpRecord) return false;
 
-    // 試行回数制限（ブルートフォース対策）
+    // Attempt limit (brute-force protection)
     if (otpRecord.attempts >= 5) {
       await this.db.otpCode.update({
         where: { id: otpRecord.id },
-        data: { usedAt: new Date() }, // 無効化
+        data: { usedAt: new Date() }, // Invalidate
       });
 
-      // アカウントロックアウト
-      await this.lockAccount(userId, 15 * 60); // 15分
+      // Account lockout
+      await this.lockAccount(userId, 15 * 60); // 15 minutes
 
       return false;
     }
 
-    // 試行回数をインクリメント
+    // Increment attempt count
     await this.db.otpCode.update({
       where: { id: otpRecord.id },
       data: { attempts: { increment: 1 } },
     });
 
-    // タイミングセーフな比較
+    // Timing-safe comparison
     const hashedInput = crypto.createHash('sha256').update(code).digest('hex');
     const isValid = crypto.timingSafeEqual(
       Buffer.from(hashedInput),
@@ -958,7 +971,7 @@ class OTPService {
 
     if (!isValid) return false;
 
-    // 使用済みに
+    // Mark as used
     await this.db.otpCode.update({
       where: { id: otpRecord.id },
       data: { usedAt: new Date() },
@@ -975,59 +988,61 @@ class OTPService {
 
 ---
 
-## 6. リカバリーコード
+## 6. Recovery Codes
 
 ```
-リカバリーコードの設計:
+Recovery Code Design:
 
-  目的:
-  → MFAデバイスを紛失した場合のアカウント復旧
-  → バックアップとしての最後の手段
+  Purpose:
+  → Account recovery when the MFA device is lost
+  → The last resort as a backup
 
-  要件:
-  → 8〜10個のコード（各コード1回使い切り）
-  → 十分なエントロピー（推測不可能）
-  → 安全な場所に保管するようユーザーに案内
-  → 使用済みコードは無効化
-  → ハッシュ化して保存（平文保存しない）
+  Requirements:
+  → 8-10 codes (each code is single-use)
+  → Sufficient entropy (unpredictable)
+  → Guide users to store them in a safe place
+  → Invalidate used codes
+  → Store hashed (do not store as plaintext)
 
-  エントロピーの計算:
+  Entropy Calculation:
   ┌──────────────────────────────────────────┐
-  │  8文字の英数字コード（例: "a3f8-e2b1"）    │
-  │  → 16進数8桁 = 4バイト = 32ビット         │
-  │  → 2^32 = 約43億通り                     │
-  │  → ブルートフォースには十分だが、           │
-  │    試行回数制限が必須                       │
+  │  8-character alphanumeric code           │
+  │  (e.g., "a3f8-e2b1")                    │
+  │  → 8 hex digits = 4 bytes = 32 bits      │
+  │  → 2^32 ≈ 4.3 billion combinations       │
+  │  → Sufficient for brute force, but        │
+  │    attempt rate limiting is essential     │
   │                                          │
-  │  推奨: 10文字の英数字（a-z, 0-9）         │
+  │  Recommended: 10-character alphanumeric  │
+  │  (a-z, 0-9)                              │
   │  → 36^10 = 3.6 × 10^15                  │
-  │  → 十分なエントロピー                     │
+  │  → Sufficient entropy                    │
   └──────────────────────────────────────────┘
 ```
 
 ```typescript
-// リカバリーコード生成・管理
+// Recovery code generation and management
 import crypto from 'crypto';
 
 class RecoveryCodeService {
   constructor(private db: Database, private redis: Redis) {}
 
-  // リカバリーコード生成
+  // Generate recovery codes
   generateRecoveryCodes(count: number = 10): string[] {
     return Array.from({ length: count }, () => {
-      // 10文字の安全なランダムコード（例: "a3f8-e2b1-c7d9"）
+      // 10-character secure random code (e.g., "a3f8-e2b1-c7d9")
       const bytes = crypto.randomBytes(6);
       const hex = bytes.toString('hex');
       return `${hex.slice(0, 4)}-${hex.slice(4, 8)}-${hex.slice(8, 12)}`;
     });
   }
 
-  // リカバリーコードの保存
+  // Save recovery codes
   async saveCodes(userId: string, codes: string[]): Promise<void> {
-    // 既存のコードを削除
+    // Delete existing codes
     await this.db.recoveryCode.deleteMany({ where: { userId } });
 
-    // ハッシュ化して保存
+    // Hash and store
     const hashedCodes = codes.map((code) => ({
       userId,
       code: crypto.createHash('sha256').update(code).digest('hex'),
@@ -1037,13 +1052,13 @@ class RecoveryCodeService {
     await this.db.recoveryCode.createMany({ data: hashedCodes });
   }
 
-  // リカバリーコードの検証
+  // Verify a recovery code
   async verifyCode(userId: string, code: string): Promise<boolean> {
-    // レート制限
+    // Rate limiting
     const rateLimitKey = `recovery:ratelimit:${userId}`;
     const attempts = await this.redis.incr(rateLimitKey);
     if (attempts === 1) {
-      await this.redis.expire(rateLimitKey, 3600); // 1時間
+      await this.redis.expire(rateLimitKey, 3600); // 1 hour
     }
     if (attempts > 10) {
       throw new Error('Too many recovery attempts. Try again later.');
@@ -1057,23 +1072,23 @@ class RecoveryCodeService {
 
     if (!record) return false;
 
-    // 使用済みにマーク
+    // Mark as used
     await this.db.recoveryCode.update({
       where: { id: record.id },
       data: { used: true, usedAt: new Date() },
     });
 
-    // 残りのコード数を確認
+    // Check remaining code count
     const remaining = await this.db.recoveryCode.count({
       where: { userId, used: false },
     });
 
-    // 残り少ない場合は通知
+    // Notify if few codes remain
     if (remaining <= 2) {
       await this.notifyLowCodes(userId, remaining);
     }
 
-    // 全て使用済みの場合は MFA を一時無効化して再設定を促す
+    // If all codes are used, temporarily disable MFA and prompt re-setup
     if (remaining === 0) {
       await this.promptMfaReset(userId);
     }
@@ -1081,7 +1096,7 @@ class RecoveryCodeService {
     return true;
   }
 
-  // リカバリーコードの再生成
+  // Regenerate recovery codes
   async regenerateCodes(userId: string): Promise<string[]> {
     const codes = this.generateRecoveryCodes();
     await this.saveCodes(userId, codes);
@@ -1092,14 +1107,14 @@ class RecoveryCodeService {
     const user = await this.db.user.findUnique({ where: { id: userId } });
     if (user) {
       await emailService.send(user.email, {
-        subject: 'リカバリーコードが残りわずかです',
-        html: `<p>リカバリーコードの残りが ${remaining} 個です。安全のため、新しいコードを生成してください。</p>`,
+        subject: 'Your recovery codes are running low',
+        html: `<p>You have ${remaining} recovery code(s) remaining. Please generate new codes to stay secure.</p>`,
       });
     }
   }
 
   private async promptMfaReset(userId: string): Promise<void> {
-    // 一時的なMFAリセットトークンを発行
+    // Issue a temporary MFA reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
     await this.redis.setex(`mfa:reset:${userId}`, 3600, resetToken);
   }
@@ -1108,41 +1123,44 @@ class RecoveryCodeService {
 
 ---
 
-## 7. ステップアップ認証
+## 7. Step-Up Authentication
 
 ```
-ステップアップ認証（Step-up Authentication）:
+Step-Up Authentication:
 
-  概念:
-  → 通常の操作: ベースライン認証（パスワード + TOTP）
-  → 高リスク操作: 追加の認証ステップを要求
+  Concept:
+  → Normal operations: baseline authentication (password + TOTP)
+  → High-risk operations: require additional authentication steps
 
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  リスクレベルと要求する認証:                        │
+  │  Risk Levels and Required Authentication:        │
   │                                                  │
-  │  Level 0: パスワードのみ                           │
-  │    → プロフィール閲覧、設定変更                     │
+  │  Level 0: Password only                          │
+  │    → View profile, change settings               │
   │                                                  │
-  │  Level 1: パスワード + TOTP                       │
-  │    → ログイン、一般的な操作                        │
+  │  Level 1: Password + TOTP                        │
+  │    → Login, general operations                   │
   │                                                  │
-  │  Level 2: パスワード + TOTP + 再認証               │
-  │    → パスワード変更、MFA設定変更、支払い情報変更     │
+  │  Level 2: Password + TOTP + re-authentication    │
+  │    → Change password, change MFA settings,       │
+  │      update payment info                         │
   │                                                  │
-  │  Level 3: パスワード + TOTP + 生体認証 + 承認      │
-  │    → 大額の送金、アカウント削除、管理者操作          │
+  │  Level 3: Password + TOTP + biometrics +         │
+  │           approval                               │
+  │    → Large transfers, account deletion,          │
+  │      admin operations                            │
   │                                                  │
   └──────────────────────────────────────────────────┘
 
-  JWT での実装:
-  → acr (Authentication Context Class Reference) クレーム
-  → amr (Authentication Methods References) クレーム
-  → auth_time: 最後の認証時刻
+  Implementation in JWT:
+  → acr (Authentication Context Class Reference) claim
+  → amr (Authentication Methods References) claim
+  → auth_time: timestamp of last authentication
 ```
 
 ```typescript
-// ステップアップ認証の実装
+// Step-up authentication implementation
 interface AuthLevel {
   level: number;
   methods: string[];
@@ -1150,14 +1168,14 @@ interface AuthLevel {
 }
 
 class StepUpAuthService {
-  // 認証レベルの定義
+  // Authentication level definitions
   private readonly AUTH_LEVELS = {
-    basic: { level: 1, maxAge: 24 * 60 * 60 },      // 24時間
-    elevated: { level: 2, maxAge: 15 * 60 },         // 15分
-    critical: { level: 3, maxAge: 5 * 60 },          // 5分
+    basic: { level: 1, maxAge: 24 * 60 * 60 },      // 24 hours
+    elevated: { level: 2, maxAge: 15 * 60 },         // 15 minutes
+    critical: { level: 3, maxAge: 5 * 60 },          // 5 minutes
   };
 
-  // 操作に必要な認証レベル
+  // Required authentication level per operation
   private readonly OPERATION_LEVELS: Record<string, keyof typeof this.AUTH_LEVELS> = {
     'view:profile': 'basic',
     'update:profile': 'basic',
@@ -1168,7 +1186,7 @@ class StepUpAuthService {
     'admin:users': 'critical',
   };
 
-  // 現在の認証レベルを確認
+  // Check current authentication level
   async checkAuthLevel(
     userId: string,
     operation: string
@@ -1176,17 +1194,17 @@ class StepUpAuthService {
     const requiredLevelName = this.OPERATION_LEVELS[operation] || 'basic';
     const requiredLevel = this.AUTH_LEVELS[requiredLevelName];
 
-    // セッションから認証情報を取得
+    // Retrieve authentication info from session
     const authInfo = await this.getAuthInfo(userId);
 
     if (!authInfo) {
       return { allowed: false, requiredLevel: requiredLevelName, currentLevel: 0 };
     }
 
-    // 認証レベルが足りるか
+    // Check if auth level is sufficient
     const levelSufficient = authInfo.level >= requiredLevel.level;
 
-    // 認証の鮮度が十分か
+    // Check if authentication is fresh enough
     const ageSeconds = (Date.now() - authInfo.authenticatedAt.getTime()) / 1000;
     const freshEnough = ageSeconds <= requiredLevel.maxAge;
 
@@ -1197,7 +1215,7 @@ class StepUpAuthService {
     };
   }
 
-  // ステップアップ認証を実行
+  // Perform step-up authentication
   async performStepUp(
     userId: string,
     method: 'totp' | 'webauthn' | 'password',
@@ -1250,7 +1268,7 @@ class StepUpAuthService {
   }
 }
 
-// Express ミドルウェアとして使用
+// Used as Express middleware
 function requireAuthLevel(operation: string) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const result = await stepUpAuth.checkAuthLevel(req.user!.userId, operation);
@@ -1268,12 +1286,12 @@ function requireAuthLevel(operation: string) {
   };
 }
 
-// 使用例
+// Usage example
 app.post('/api/transfer',
   requireAuth(),
   requireAuthLevel('transfer:funds'),
   async (req, res) => {
-    // 高リスク操作の実行
+    // Execute high-risk operation
     await transferFunds(req.body);
     res.json({ success: true });
   }
@@ -1282,67 +1300,67 @@ app.post('/api/transfer',
 
 ---
 
-## 8. MFA の UX 設計
+## 8. MFA UX Design
 
 ```
-MFA セットアップ UX:
+MFA Setup UX:
 
-  ① オンボーディング時に推奨（強制しない）
-  ② ステップバイステップのガイド表示
-  ③ QRコード + 手動入力の両方を提供
-  ④ セットアップ直後にコードを検証
-  ⑤ リカバリーコードを確実に保存させる
+  ① Recommend during onboarding (don't force)
+  ② Display step-by-step guidance
+  ③ Provide both QR code and manual entry options
+  ④ Verify the code immediately after setup
+  ⑤ Ensure users save their recovery codes
 
-  ✓ リカバリーコード保存の確認:
-    → ダウンロードボタンを提供
-    → 「コードを安全な場所に保存しましたか？」チェックボックス
-    → コードの一部を再入力させて確認
-    → PDF/テキストファイルとしてエクスポート
+  ✓ Confirm recovery code storage:
+    → Provide a download button
+    → "Have you saved your codes in a safe place?" checkbox
+    → Ask users to re-enter part of the code to confirm
+    → Export as PDF or text file
 
-MFA セットアップフロー:
+MFA Setup Flow:
 
   ┌──────────────────────────────────────────────┐
   │                                              │
-  │  Step 1: MFA 方式の選択                       │
+  │  Step 1: Choose MFA Method                   │
   │  ┌─────────┐  ┌─────────┐  ┌─────────┐      │
   │  │ Passkey  │  │  TOTP   │  │   SMS   │      │
-  │  │ (推奨)   │  │         │  │         │      │
+  │  │(Recommended)│        │  │         │      │
   │  └────┬────┘  └────┬────┘  └────┬────┘      │
   │       ↓            ↓            ↓            │
   │                                              │
-  │  Step 2: セットアップ                          │
-  │  → Passkey: 指紋/顔認証で鍵を生成              │
-  │  → TOTP: QRコードスキャン → コード入力          │
-  │  → SMS: 電話番号入力 → コード入力              │
+  │  Step 2: Setup                               │
+  │  → Passkey: generate key with finger/face    │
+  │  → TOTP: scan QR code → enter code           │
+  │  → SMS: enter phone number → enter code      │
   │                                              │
-  │  Step 3: 検証                                 │
-  │  → 実際にコードを入力して動作確認               │
+  │  Step 3: Verify                              │
+  │  → Enter the code to confirm it works        │
   │                                              │
-  │  Step 4: リカバリーコード                      │
-  │  → 10個のリカバリーコードを表示                 │
-  │  → ダウンロード/コピーボタン                    │
-  │  → 「保存しました」のチェック                   │
-  │  → コードの一部を再入力して確認                 │
+  │  Step 4: Recovery Codes                      │
+  │  → Display 10 recovery codes                 │
+  │  → Download/copy button                      │
+  │  → "I have saved these" checkbox             │
+  │  → Re-enter part of the codes to confirm     │
   │                                              │
-  │  Step 5: 完了                                 │
-  │  → MFA が有効になりました                      │
-  │  → 信頼できるデバイスの登録を提案               │
+  │  Step 5: Complete                            │
+  │  → MFA is now enabled                        │
+  │  → Suggest registering a trusted device      │
   │                                              │
   └──────────────────────────────────────────────┘
 
-MFA 認証時の UX:
-  ✓ 「このデバイスを信頼する」オプション（30日間）
-  ✓ 複数のMFA方式からの選択
-  ✓ リカバリーコードへのフォールバック
-  ✗ MFA強制でアカウントロック → 必ず復旧手段を用意
+MFA Authentication UX:
+  ✓ "Trust this device" option (30 days)
+  ✓ Choose from multiple MFA methods
+  ✓ Fallback to recovery codes
+  ✗ Account lockout from enforced MFA → always provide a recovery path
 ```
 
 ```typescript
-// 信頼済みデバイスの管理
+// Trusted device management
 class TrustedDeviceService {
   constructor(private db: Database, private redis: Redis) {}
 
-  // デバイスを信頼済みとして登録
+  // Register a device as trusted
   async trustDevice(userId: string, req: Request): Promise<string> {
     const deviceId = crypto.randomUUID();
     const hashedDeviceId = crypto.createHash('sha256').update(deviceId).digest('hex');
@@ -1353,7 +1371,7 @@ class TrustedDeviceService {
       userAgent: req.headers['user-agent'] || 'unknown',
       ip: req.ip,
       trustedAt: new Date(),
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30日
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
     };
 
     await this.db.trustedDevice.create({ data: deviceInfo });
@@ -1361,7 +1379,7 @@ class TrustedDeviceService {
     return deviceId;
   }
 
-  // デバイスが信頼済みか確認
+  // Check if a device is trusted
   async isDeviceTrusted(userId: string, deviceId: string): Promise<boolean> {
     if (!deviceId) return false;
 
@@ -1378,40 +1396,40 @@ class TrustedDeviceService {
     return device !== null;
   }
 
-  // Cookie でデバイスIDを管理
+  // Manage device ID via cookie
   setDeviceCookie(res: Response, deviceId: string): void {
     res.cookie('trusted_device', deviceId, {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30日
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       path: '/',
     });
   }
 }
 
-// ログインフローへの組み込み
+// Integrated into the login flow
 async function loginWithMFA(email: string, password: string, req: Request, res: Response) {
-  // Step 1: パスワード認証
+  // Step 1: Password authentication
   const user = await authenticatePassword(email, password);
   if (!user) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  // Step 2: MFA が有効な場合
+  // Step 2: If MFA is enabled
   if (user.mfaEnabled) {
-    // 信頼済みデバイスか確認
+    // Check if this is a trusted device
     const deviceId = req.cookies.trusted_device;
     const isTrusted = await trustedDeviceService.isDeviceTrusted(user.id, deviceId);
 
     if (isTrusted) {
-      // MFA をスキップ
+      // Skip MFA
       const tokens = await issueTokens(user);
       return res.json(tokens);
     }
 
-    // MFA が必要
-    const mfaToken = await issueMfaToken(user.id); // 一時的なトークン（5分有効）
+    // MFA is required
+    const mfaToken = await issueMfaToken(user.id); // Temporary token (valid for 5 minutes)
     return res.json({
       requireMFA: true,
       mfaToken,
@@ -1419,7 +1437,7 @@ async function loginWithMFA(email: string, password: string, req: Request, res: 
     });
   }
 
-  // MFA なしでログイン
+  // Login without MFA
   const tokens = await issueTokens(user);
   return res.json(tokens);
 }
@@ -1427,74 +1445,74 @@ async function loginWithMFA(email: string, password: string, req: Request, res: 
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
 ```
-MFA 実装のアンチパターン:
+MFA Implementation Anti-Patterns:
 
-  ✗ アンチパターン 1: TOTP シークレットの平文保存
-    → DB が漏洩すると全ユーザーの MFA が無効化される
-    → 必ず暗号化して保存（AES-256-GCM + KMS）
+  ✗ Anti-pattern 1: Storing TOTP secrets in plaintext
+    → If the DB is leaked, MFA for all users is compromised
+    → Always encrypt before storing (AES-256-GCM + KMS)
 
-  ✗ アンチパターン 2: SMS OTP のみに依存
-    → SIM スワップ攻撃で完全にバイパス可能
-    → 少なくとも TOTP を主方式として提供
+  ✗ Anti-pattern 2: Relying solely on SMS OTP
+    → Can be completely bypassed by SIM swap attacks
+    → Provide TOTP at minimum as the primary method
 
-  ✗ アンチパターン 3: リカバリー手段なしの MFA 強制
-    → デバイス紛失でアカウントに永久にアクセス不可
-    → 必ずリカバリーコードを提供
-    → サポートによるアイデンティティ検証フローも用意
+  ✗ Anti-pattern 3: Enforcing MFA without a recovery path
+    → Losing a device means permanent loss of account access
+    → Always provide recovery codes
+    → Also set up an identity verification flow via support
 
-  ✗ アンチパターン 4: MFA の存在を認証前に漏らす
-    → 「MFA コードを入力してください」とエラー表示
-    → 攻撃者にそのアカウントに MFA が有効だと伝わる
-    → ユーザー列挙攻撃の手がかり
+  ✗ Anti-pattern 4: Revealing MFA status before authentication
+    → Displaying "Please enter your MFA code" as an error
+    → This tells attackers that MFA is enabled on the account
+    → A clue for user enumeration attacks
 
-  ✗ アンチパターン 5: OTP のリプレイを許可
-    → 同じ OTP コードの複数回使用を許可してしまう
-    → 使用済みコードを追跡して拒否する
+  ✗ Anti-pattern 5: Allowing OTP replay
+    → Permitting the same OTP code to be used multiple times
+    → Track and reject already-used codes
 
-  ✗ アンチパターン 6: WebAuthn のカウンター検証を省略
-    → クローン検知ができない
-    → 認証器の複製攻撃に脆弱
+  ✗ Anti-pattern 6: Skipping WebAuthn counter validation
+    → Cannot detect cloned authenticators
+    → Vulnerable to authenticator cloning attacks
 ```
 
 ---
 
-## 10. パスワードレス認証の設計
+## 10. Passwordless Authentication Design
 
 ```
-パスワードレス認証の方式:
+Passwordless Authentication Methods:
 
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  1. Passkey（推奨）                               │
-  │     → 公開鍵暗号ベース                            │
-  │     → フィッシング耐性                            │
-  │     → UX 最良（指紋/顔認証のみ）                   │
-  │     → クラウド同期でデバイス間共有                  │
+  │  1. Passkey (Recommended)                        │
+  │     → Public-key cryptography based              │
+  │     → Phishing resistant                         │
+  │     → Best UX (fingerprint/face only)            │
+  │     → Cloud-synced across devices                │
   │                                                  │
   │  2. Magic Link                                   │
-  │     → メールにワンタイムリンクを送信                │
-  │     → リンクをクリックしてログイン                  │
-  │     → メールセキュリティに依存                     │
+  │     → Send a one-time link to email              │
+  │     → Click the link to log in                   │
+  │     → Depends on email security                  │
   │                                                  │
-  │  3. OTP（Email / SMS）                            │
-  │     → ワンタイムパスワードを送信                    │
-  │     → 入力して認証                                │
-  │     → フィッシングに弱い                           │
+  │  3. OTP (Email / SMS)                            │
+  │     → Send a one-time password                   │
+  │     → Enter to authenticate                      │
+  │     → Vulnerable to phishing                     │
   │                                                  │
   └──────────────────────────────────────────────────┘
 
-パスワードレスのメリット:
-  → パスワード漏洩リスクの完全排除
-  → クレデンシャルスタッフィング攻撃の防止
-  → ユーザー体験の向上（パスワードを覚えなくてよい）
-  → サポートコストの削減（パスワードリセットが不要）
+Benefits of Passwordless:
+  → Completely eliminates password leak risk
+  → Prevents credential stuffing attacks
+  → Better user experience (no passwords to remember)
+  → Reduces support costs (no password resets needed)
 ```
 
 ```typescript
-// Magic Link 認証の実装
+// Magic Link authentication implementation
 class MagicLinkService {
   constructor(
     private db: Database,
@@ -1502,23 +1520,23 @@ class MagicLinkService {
     private emailService: EmailService
   ) {}
 
-  // Magic Link の送信
+  // Send Magic Link
   async sendMagicLink(email: string): Promise<void> {
-    // ユーザーの存在有無に関わらず同じレスポンス
+    // Same response regardless of whether the user exists
     const user = await this.db.user.findUnique({ where: { email } });
 
     if (!user) {
-      // タイミング攻撃防止のため、同じ時間をかける
+      // Take the same amount of time to prevent timing attacks
       await new Promise((resolve) => setTimeout(resolve, 200));
       return;
     }
 
-    // レート制限
+    // Rate limiting
     const rateLimitKey = `magiclink:ratelimit:${email}`;
     const isLimited = await this.redis.exists(rateLimitKey);
     if (isLimited) return;
 
-    // トークン生成
+    // Generate token
     const token = crypto.randomBytes(32).toString('base64url');
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
@@ -1526,25 +1544,25 @@ class MagicLinkService {
       data: {
         userId: user.id,
         token: hashedToken,
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15分
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000), // Valid for 15 minutes
       },
     });
 
     await this.redis.setex(rateLimitKey, 60, '1');
 
-    // メール送信
+    // Send email
     const loginUrl = `${process.env.APP_URL}/auth/magic-link?token=${token}`;
     await this.emailService.send(email, {
-      subject: 'ログインリンク',
+      subject: 'Your Login Link',
       html: `
-        <p>以下のリンクをクリックしてログインしてください（15分有効）:</p>
-        <a href="${loginUrl}">ログインする</a>
-        <p>心当たりがない場合は、このメールを無視してください。</p>
+        <p>Click the link below to log in (valid for 15 minutes):</p>
+        <a href="${loginUrl}">Log in</a>
+        <p>If you did not request this, please ignore this email.</p>
       `,
     });
   }
 
-  // Magic Link の検証
+  // Verify Magic Link
   async verifyMagicLink(token: string): Promise<{ userId: string } | null> {
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
@@ -1558,7 +1576,7 @@ class MagicLinkService {
 
     if (!magicLink) return null;
 
-    // 使用済みにする
+    // Mark as used
     await this.db.magicLink.update({
       where: { id: magicLink.id },
       data: { usedAt: new Date() },
@@ -1571,72 +1589,72 @@ class MagicLinkService {
 
 ---
 
-## 11. 演習
+## 11. Exercises
 
-### 演習 1: TOTP アルゴリズムの実装（基礎）
+### Exercise 1: Implement the TOTP Algorithm (Basic)
 
 ```
-課題:
-  RFC 6238 に基づき、TOTP アルゴリズムをゼロから実装せよ。
+Task:
+  Implement the TOTP algorithm from scratch based on RFC 6238.
 
-  要件:
-  1. HMAC-SHA1 ベースの TOTP 生成
-  2. 6桁のワンタイムパスワード
-  3. 30秒のタイムステップ
-  4. 前後1ステップの検証ウィンドウ
-  5. タイミングセーフな比較
+  Requirements:
+  1. TOTP generation based on HMAC-SHA1
+  2. 6-digit one-time password
+  3. 30-second time step
+  4. Verification window of 1 step before and after
+  5. Timing-safe comparison
 
-  テストベクトル（RFC 6238 Appendix B）:
-  Secret: "12345678901234567890"（ASCII）
-  Time 0: OTP = 755224（RFC 4226 テストベクトル）
+  Test Vectors (RFC 6238 Appendix B):
+  Secret: "12345678901234567890" (ASCII)
+  Time 0: OTP = 755224 (RFC 4226 test vector)
   Time 1: OTP = 287082
 
-  検証: otplib ライブラリの結果と一致させる
+  Verification: Match the results of the otplib library
 ```
 
-### 演習 2: WebAuthn を使ったパスワードレスログイン（応用）
+### Exercise 2: Passwordless Login with WebAuthn (Applied)
 
 ```
-課題:
-  @simplewebauthn を使って、パスワードレスログインページを実装せよ。
+Task:
+  Implement a passwordless login page using @simplewebauthn.
 
-  要件:
-  1. Passkey の登録フロー
-  2. Passkey による認証フロー
-  3. Conditional UI（入力フィールドに Passkey 候補表示）
-  4. 複数の認証器の管理（一覧表示、削除）
-  5. フォールバック（Passkey 非対応ブラウザ向け）
+  Requirements:
+  1. Passkey registration flow
+  2. Passkey authentication flow
+  3. Conditional UI (show Passkey candidates in the input field)
+  4. Manage multiple authenticators (list and delete)
+  5. Fallback (for browsers without Passkey support)
 
-  技術スタック:
-  → サーバー: Express + @simplewebauthn/server
-  → クライアント: React + @simplewebauthn/browser
-  → DB: PostgreSQL（Prisma）
+  Tech stack:
+  → Server: Express + @simplewebauthn/server
+  → Client: React + @simplewebauthn/browser
+  → DB: PostgreSQL (Prisma)
 ```
 
-### 演習 3: MFA ポリシーエンジンの設計（発展）
+### Exercise 3: Design an MFA Policy Engine (Advanced)
 
 ```
-課題:
-  組織レベルの MFA ポリシーを管理するエンジンを設計・実装せよ。
+Task:
+  Design and implement an engine for managing MFA policies at the organization level.
 
-  要件:
-  1. 組織ごとに MFA ポリシーを設定可能
-     → 全員に MFA 強制
-     → 管理者のみ MFA 強制
-     → 推奨のみ（強制しない）
-  2. 許可する MFA 方式の制限
-     → 例: SMS を禁止、WebAuthn のみ許可
-  3. ステップアップ認証ルール
-     → 操作ごとに要求する認証レベルを設定
-  4. リスクベース認証
-     → 新しいデバイス → MFA 必須
-     → 異常な地理的位置 → MFA 必須
-     → 通常のアクセスパターン → 信頼デバイスなら MFA スキップ
-  5. 監査ログ
-     → 全ての MFA 操作をログに記録
-     → 管理画面で確認可能
+  Requirements:
+  1. Configurable MFA policy per organization
+     → Enforce MFA for everyone
+     → Enforce MFA for admins only
+     → Recommendation only (not enforced)
+  2. Restrict allowed MFA methods
+     → Example: prohibit SMS, allow WebAuthn only
+  3. Step-up authentication rules
+     → Set the required authentication level per operation
+  4. Risk-based authentication
+     → New device → MFA required
+     → Unusual geographic location → MFA required
+     → Normal access pattern → skip MFA for trusted devices
+  5. Audit log
+     → Log all MFA operations
+     → Viewable in admin panel
 
-  データモデル:
+  Data Model:
   ┌──────────────┐  ┌──────────────┐
   │ Organization │  │ MFAPolicy    │
   ├──────────────┤  ├──────────────┤
@@ -1650,50 +1668,50 @@ class MagicLinkService {
 
 ---
 
-## 12. FAQ・トラブルシューティング
+## 12. FAQ / Troubleshooting
 
 ```
-Q1: TOTP コードが常に不一致になる
-A1: → サーバーの時刻を確認（NTP 同期）
-    → ウィンドウを広げて検証（window=2）
-    → クライアントの時刻も確認（スマホの自動時刻設定）
-    → 秘密鍵の保存/復号が正しいか確認
+Q1: TOTP code always mismatches
+A1: → Check server time (NTP sync)
+    → Widen the verification window (window=2)
+    → Check client time (enable auto time on smartphone)
+    → Verify that the secret key is being saved/decrypted correctly
 
-Q2: WebAuthn 登録がブラウザでエラーになる
-A2: → HTTPS 環境か確認（localhost は例外的に可能）
-    → rpID がドメインと一致しているか確認
-    → ブラウザの WebAuthn サポート状況を確認
-    → Content-Security-Policy がブロックしていないか確認
+Q2: WebAuthn registration fails in the browser
+A2: → Confirm HTTPS environment (localhost is an exception)
+    → Confirm rpID matches the domain
+    → Check browser WebAuthn support status
+    → Check if Content-Security-Policy is blocking it
 
-Q3: Passkey がデバイス間で同期されない
-A3: → iCloud Keychain / Google Password Manager が有効か確認
-    → residentKey: 'required' に設定しているか確認
-    → Passkey 対応のプラットフォーム認証器が使われているか確認
+Q3: Passkey is not syncing across devices
+A3: → Confirm iCloud Keychain / Google Password Manager is enabled
+    → Confirm residentKey is set to 'required'
+    → Confirm a Passkey-compatible platform authenticator is being used
 
-Q4: SMS OTP が届かない
-A4: → 電話番号の形式を確認（国際形式: +81...）
-    → SMS 送信サービスのクォータを確認
-    → ブロックされた番号でないか確認
-    → フォールバックとして音声通話オプションを提供
+Q4: SMS OTP is not being delivered
+A4: → Verify phone number format (international format: +1...)
+    → Check SMS sending service quota
+    → Check if the number is blocked
+    → Provide voice call as a fallback option
 
-Q5: MFA 有効後にアカウントがロックされた
-A5: → リカバリーコードで復旧
-    → サポートによるアイデンティティ検証フロー
-    → 管理者による MFA リセット（監査ログ必須）
-    → 予防: 複数の MFA 方式の登録を推奨
+Q5: Account is locked after enabling MFA
+A5: → Recover using recovery codes
+    → Identity verification flow via support
+    → Admin-initiated MFA reset (audit log required)
+    → Prevention: recommend registering multiple MFA methods
 
-Q6: リカバリーコードを紛失した
-A6: → 別の MFA 方式でログイン可能か確認
-    → 身分証明によるアイデンティティ検証
-    → 管理者によるリセット（承認フロー付き）
-    → 予防: リカバリーコード保存確認のUXを改善
+Q6: Lost recovery codes
+A6: → Check if login is possible with another MFA method
+    → Identity verification via government-issued ID
+    → Admin-initiated reset (with approval flow)
+    → Prevention: improve UX for confirming recovery code storage
 
-Q7: MFA の導入でユーザーの離脱が増えた
-A7: → MFA を強制ではなく推奨にする（段階的導入）
-    → Passkey を優先的に提案（UX が最良）
-    → 信頼済みデバイス機能で頻度を下げる
-    → セットアップの UI/UX を改善
-    → MFA のメリットをユーザーに説明する
+Q7: User drop-off increased after introducing MFA
+A7: → Make MFA a recommendation rather than a requirement (gradual rollout)
+    → Prioritize suggesting Passkeys (best UX)
+    → Reduce frequency with trusted device feature
+    → Improve setup UI/UX
+    → Explain the benefits of MFA to users
 ```
 
 ---
@@ -1701,45 +1719,45 @@ A7: → MFA を強制ではなく推奨にする（段階的導入）
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to keep in mind when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Jumping to advanced topics without mastering the basics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| MFA方式 | セキュリティ | フィッシング耐性 | オフライン | 推奨度 |
-|---------|------------|----------------|-----------|--------|
-| Passkeys/WebAuthn | 最強 | あり | 可能 | 最推奨 |
-| TOTP | 中程度 | なし | 可能 | 推奨 |
-| Push通知 | 中程度 | 限定的 | 不可 | 良い |
-| SMS OTP | 低い | なし | 不可 | 最後の手段 |
-
-| 設計要素 | 推奨 |
-|---------|------|
-| 主要方式 | Passkey + TOTP のデュアル |
-| リカバリー | 10個のワンタイムコード |
-| 信頼デバイス | 30日間、Cookie で管理 |
-| ステップアップ | 高リスク操作に追加認証 |
-| OTP 保存 | ハッシュ化 + 暗号化 |
-| リプレイ防止 | 使用済みコードの追跡 |
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| MFA Method | Security | Phishing Resistance | Offline | Recommended |
+|------------|----------|---------------------|---------|-------------|
+| Passkeys/WebAuthn | Strongest | Yes | Possible | Most recommended |
+| TOTP | Moderate | No | Possible | Recommended |
+| Push Notifications | Moderate | Limited | No | Good |
+| SMS OTP | Low | No | No | Last resort |
+
+| Design Element | Recommendation |
+|----------------|----------------|
+| Primary methods | Passkey + TOTP dual |
+| Recovery | 10 single-use codes |
+| Trusted devices | 30 days, managed via cookie |
+| Step-up auth | Additional auth for high-risk operations |
+| OTP storage | Hashed + encrypted |
+| Replay prevention | Track used codes |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+---
+
+## References
 1. RFC 6238. "TOTP: Time-Based One-Time Password Algorithm." IETF, 2011.
 2. RFC 4226. "HOTP: An HMAC-Based One-Time Password Algorithm." IETF, 2005.
 3. W3C. "Web Authentication: An API for accessing Public Key Credentials Level 2." w3.org, 2021.
