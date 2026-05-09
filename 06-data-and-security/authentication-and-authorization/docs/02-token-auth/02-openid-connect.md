@@ -1,50 +1,50 @@
 # OpenID Connect
 
-> OpenID Connect（OIDC）は OAuth 2.0 の上に構築された認証レイヤー。OAuth 2.0 が「認可」のプロトコルであるのに対し、OIDC は「認証」を標準化する。ID Token、UserInfo エンドポイント、Discovery、ソーシャルログインの基盤を解説する。
+> OpenID Connect (OIDC) is an authentication layer built on top of OAuth 2.0. While OAuth 2.0 is a protocol for "authorization," OIDC standardizes "authentication." This guide covers ID Tokens, the UserInfo endpoint, Discovery, and the foundation of social login.
 
-## 前提知識
+## Prerequisites
 
-- OAuth 2.0 の基本概念（認可コードフロー、アクセストークン）
-- HTTP の基礎（リダイレクト、ヘッダー）
+- Basic concepts of OAuth 2.0 (authorization code flow, access tokens)
+- HTTP fundamentals (redirects, headers)
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] OAuth 2.0 と OIDC の関係と根本的な違いを理解する
-- [ ] ID Token の構造、クレーム、検証フローを完全に把握する
-- [ ] OIDC Discovery の仕組みと活用方法を学ぶ
-- [ ] 標準スコープとクレームの対応関係を理解する
-- [ ] OIDC 認証フローの完全な実装を習得する
-- [ ] 主要プロバイダーの差異と注意点を把握する
-- [ ] OIDC のセキュリティ上の落とし穴を回避できるようになる
+- [ ] Understand the relationship between OAuth 2.0 and OIDC, and their fundamental differences
+- [ ] Fully grasp the structure, claims, and validation flow of ID Tokens
+- [ ] Learn how OIDC Discovery works and how to use it
+- [ ] Understand the mapping between standard scopes and claims
+- [ ] Master a complete implementation of the OIDC authentication flow
+- [ ] Understand the differences and caveats of major providers
+- [ ] Be able to avoid common OIDC security pitfalls
 
 ---
 
-## 1. OIDC と OAuth 2.0 の関係
+## 1. The Relationship Between OIDC and OAuth 2.0
 
-### 1.1 なぜ OIDC が必要か
+### 1.1 Why OIDC Is Needed
 
-OAuth 2.0 は本来「認可（Authorization）」のためのプロトコルであり、「認証（Authentication）」を目的としたものではない。OAuth 2.0 で得られるアクセストークンは「このトークンの持ち主にリソースへのアクセスを許可する」ことを意味するが、「このトークンの持ち主が誰であるか」は保証しない。
+OAuth 2.0 was originally designed for "Authorization," not "Authentication." An access token obtained via OAuth 2.0 means "grant the holder of this token access to the resource," but it does not guarantee "who the holder of this token is."
 
-多くの開発者が OAuth 2.0 を認証に流用した結果（いわゆる「OAuth Dance」）、セキュリティ上の脆弱性が生じた。OIDC はこの問題を解決するために、OAuth 2.0 の上に認証のための標準化レイヤーを追加したものである。
+Many developers repurposed OAuth 2.0 for authentication (the so-called "OAuth Dance"), which introduced security vulnerabilities. OIDC resolves this problem by adding a standardized authentication layer on top of OAuth 2.0.
 
 ```
 OAuth 2.0 vs OpenID Connect:
 
   OAuth 2.0:
-  → 目的: 認可（Authorization）
-  → 質問: 「このアプリに何を許可しますか？」
-  → 結果: アクセストークン（リソースアクセス用）
-  → ユーザーが誰かは保証しない
+  → Purpose: Authorization
+  → Question: "What do you permit this app to do?"
+  → Result: Access token (for resource access)
+  → Does not guarantee who the user is
   → RFC 6749, 6750
 
   OpenID Connect:
-  → 目的: 認証（Authentication）
-  → 質問: 「あなたは誰ですか？」
-  → 結果: ID トークン（ユーザー情報）+ アクセストークン
-  → ユーザーの身元を保証する
+  → Purpose: Authentication
+  → Question: "Who are you?"
+  → Result: ID Token (user information) + Access token
+  → Guarantees the user's identity
   → OpenID Connect Core 1.0
 
-  関係:
+  Relationship:
   ┌──────────────────────────────────┐
   │         OpenID Connect           │
   │  ┌──────────────────────────┐    │
@@ -60,87 +60,87 @@ OAuth 2.0 vs OpenID Connect:
   │  + Back-Channel Logout          │
   └──────────────────────────────────┘
 
-  OIDC = OAuth 2.0 + 認証の標準化
+  OIDC = OAuth 2.0 + Standardized Authentication
 ```
 
-### 1.2 OAuth 2.0 を認証に使う場合の問題
+### 1.2 Problems When Using OAuth 2.0 for Authentication
 
 ```
-OAuth 2.0 で認証を試みる場合の脆弱性:
+Vulnerabilities when attempting authentication with OAuth 2.0:
 
-  問題 1: トークン置換攻撃（Token Substitution）
+  Problem 1: Token Substitution Attack
   ┌────────────────────────────────────────────┐
   │                                            │
-  │  正規フロー:                                │
-  │    ユーザー → App A → IdP → Access Token    │
-  │    App A が Access Token で /userinfo       │
-  │    → ユーザー情報を取得（OK）                 │
+  │  Legitimate flow:                          │
+  │    User → App A → IdP → Access Token       │
+  │    App A calls /userinfo with Access Token  │
+  │    → User info retrieved (OK)              │
   │                                            │
-  │  攻撃フロー:                                │
-  │    攻撃者 → 悪意 App B → IdP → Access Token │
-  │    攻撃者が App B の Access Token を盗む     │
-  │    その Token を App A に送信                │
-  │    App A が /userinfo → 攻撃者の情報取得     │
-  │    → 攻撃者として App A にログイン（NG!）     │
+  │  Attack flow:                              │
+  │    Attacker → Malicious App B → IdP → Access Token │
+  │    Attacker steals App B's Access Token    │
+  │    Sends that token to App A               │
+  │    App A calls /userinfo → gets attacker's info │
+  │    → Attacker logs into App A (NG!)        │
   │                                            │
-  │  OIDC の解決策:                              │
-  │    ID Token の aud クレームで                 │
-  │    「どのクライアント向けか」を検証             │
-  │    → 他のクライアントの Token は拒否           │
+  │  OIDC solution:                            │
+  │    The aud claim in the ID Token validates │
+  │    "which client is this intended for"     │
+  │    → Tokens for other clients are rejected │
   │                                            │
   └────────────────────────────────────────────┘
 
-  問題 2: Access Token の不透明性
-  → Access Token の形式は規定されていない
-  → JWT かもしれないし opaque かもしれない
-  → ユーザー情報が含まれる保証がない
+  Problem 2: Opacity of Access Token
+  → The format of Access Tokens is not specified
+  → May be JWT or opaque
+  → No guarantee that user information is included
 
-  問題 3: 認証時刻の保証がない
-  → Access Token は認証時刻を含まない
-  → 古い Access Token が再利用される可能性
-  → OIDC の auth_time クレームで解決
+  Problem 3: No Guarantee of Authentication Time
+  → Access Tokens do not include authentication time
+  → Old Access Tokens may be reused
+  → Resolved by the auth_time claim in OIDC
 
-  問題 4: リプレイ攻撃
-  → Access Token にはリプレイ防止の仕組みがない
-  → OIDC の nonce クレームで解決
+  Problem 4: Replay Attacks
+  → Access Tokens have no replay prevention mechanism
+  → Resolved by the nonce claim in OIDC
 ```
 
 ---
 
 ## 2. ID Token
 
-### 2.1 ID Token の構造
+### 2.1 Structure of an ID Token
 
-ID Token は JWT（JSON Web Token）形式で、ユーザーの認証情報を含む。アクセストークンとは異なり、クライアントアプリケーション内で消費されることを目的としている。
+An ID Token is in JWT (JSON Web Token) format and contains user authentication information. Unlike access tokens, it is intended to be consumed within the client application.
 
 ```
-ID Token の構造（JWT）:
+ID Token Structure (JWT):
 
   ┌─────────────────────────────────────────────────┐
-  │  Header（ヘッダー）                               │
+  │  Header                                          │
   │  {                                               │
-  │    "alg": "RS256",       ← 署名アルゴリズム       │
+  │    "alg": "RS256",       ← Signing algorithm     │
   │    "typ": "JWT",                                 │
-  │    "kid": "key-id-123"   ← 署名鍵の識別子         │
+  │    "kid": "key-id-123"   ← Signing key ID        │
   │  }                                               │
   ├─────────────────────────────────────────────────┤
-  │  Payload（ペイロード）                             │
+  │  Payload                                         │
   │  {                                               │
-  │    // 必須クレーム                                │
+  │    // Required claims                            │
   │    "iss": "https://accounts.google.com",         │
   │    "sub": "110169484474386276334",               │
   │    "aud": "my-client-id",                        │
   │    "exp": 1700000000,                            │
   │    "iat": 1699999100,                            │
   │                                                  │
-  │    // 認証情報クレーム                              │
+  │    // Authentication info claims                 │
   │    "auth_time": 1699999000,                      │
   │    "nonce": "random-nonce-value",                │
   │    "acr": "urn:mace:incommon:iap:silver",        │
   │    "amr": ["pwd", "mfa"],                        │
   │    "azp": "my-client-id",                        │
   │                                                  │
-  │    // ユーザー情報クレーム                          │
+  │    // User info claims                           │
   │    "email": "alice@example.com",                 │
   │    "email_verified": true,                       │
   │    "name": "Alice Example",                      │
@@ -148,73 +148,73 @@ ID Token の構造（JWT）:
   │    "locale": "ja"                                │
   │  }                                               │
   ├─────────────────────────────────────────────────┤
-  │  Signature（署名）                                │
+  │  Signature                                       │
   │  RS256(base64(header).base64(payload), secret)   │
   └─────────────────────────────────────────────────┘
 
-  必須クレームの説明:
-    iss (Issuer):     トークンの発行者 URL
-    sub (Subject):    ユーザーの一意識別子（IdP内で一意）
-    aud (Audience):   トークンの対象クライアント ID
-    exp (Expiration): 有効期限（UNIX タイムスタンプ）
-    iat (Issued At):  発行時刻（UNIX タイムスタンプ）
+  Required claim descriptions:
+    iss (Issuer):     URL of the token issuer
+    sub (Subject):    Unique user identifier (unique within the IdP)
+    aud (Audience):   Target client ID for this token
+    exp (Expiration): Expiration time (UNIX timestamp)
+    iat (Issued At):  Issuance time (UNIX timestamp)
 
-  重要な任意クレーム:
-    auth_time:  実際に認証が行われた時刻
-    nonce:      リプレイ攻撃防止用のランダム値
-    acr:        認証コンテキストクラス（認証レベル）
-    amr:        使用された認証方式のリスト
-    azp:        認可されたパーティ（client_id）
+  Important optional claims:
+    auth_time:  Time at which authentication actually occurred
+    nonce:      Random value for replay attack prevention
+    acr:        Authentication Context Class (authentication level)
+    amr:        List of authentication methods used
+    azp:        Authorized party (client_id)
 
   Access Token vs ID Token:
-    Access Token: API アクセスに使用（リソースサーバーに送信）
-    ID Token:    ユーザー情報の確認に使用（クライアント内で消費）
+    Access Token: Used for API access (sent to resource server)
+    ID Token:     Used to verify user info (consumed within the client)
 
-    ✗ ID Token を API アクセスに使用してはいけない
-    ✗ Access Token からユーザー情報を取得してはいけない
-    ✗ ID Token をリソースサーバーに送信してはいけない
+    ✗ Do not use ID Token for API access
+    ✗ Do not retrieve user info from Access Token
+    ✗ Do not send ID Token to the resource server
 ```
 
-### 2.2 ID Token の検証
+### 2.2 Validating an ID Token
 
-ID Token の検証は OIDC のセキュリティの要であり、以下の全ステップを漏れなく実行する必要がある。
+Validating an ID Token is the cornerstone of OIDC security; all of the following steps must be performed without omission.
 
 ```
-ID Token 検証の完全な手順:
+Complete procedure for ID Token validation:
 
-  Step 1: JWT の形式検証
-    → 3つのBase64URLエンコードされたパートに分割できるか
-    → ヘッダーの alg が期待するアルゴリズムか（RS256等）
-    → "none" アルゴリズムを絶対に受け入れない
+  Step 1: Validate the JWT format
+    → Can it be split into 3 Base64URL-encoded parts?
+    → Is the alg in the header the expected algorithm (e.g., RS256)?
+    → Never accept the "none" algorithm
 
-  Step 2: 署名の検証
-    → IdP の公開鍵（JWKS エンドポイント）で検証
-    → kid ヘッダーで正しい鍵を選択
-    → 鍵のローテーションに対応（キャッシュ + フォールバック）
+  Step 2: Verify the signature
+    → Verify using the IdP's public key (JWKS endpoint)
+    → Select the correct key using the kid header
+    → Handle key rotation (cache + fallback)
 
-  Step 3: iss（発行者）の検証
-    → 期待する IdP の URL と完全一致するか
-    → 例: "https://accounts.google.com"
+  Step 3: Validate iss (issuer)
+    → Does it exactly match the expected IdP URL?
+    → Example: "https://accounts.google.com"
 
-  Step 4: aud（対象）の検証
-    → 自分の client_id が含まれているか
-    → 複数の aud がある場合は azp も検証
+  Step 4: Validate aud (audience)
+    → Is your client_id included?
+    → If multiple aud values exist, also validate azp
 
-  Step 5: exp（有効期限）の検証
-    → 現在時刻が exp より前か
-    → クロックスキューを考慮（通常5分の猶予）
+  Step 5: Validate exp (expiration)
+    → Is the current time before exp?
+    → Allow for clock skew (typically 5-minute tolerance)
 
-  Step 6: iat（発行時刻）の検証（推奨）
-    → 未来の時刻でないか
-    → 極端に古い時刻でないか
+  Step 6: Validate iat (issued at) — recommended
+    → Is it not in the future?
+    → Is it not an extremely old timestamp?
 
-  Step 7: nonce の検証（認証リクエスト時に送信した場合）
-    → セッションに保存した nonce と一致するか
-    → リプレイ攻撃の防止
+  Step 7: Validate nonce (if sent in the authentication request)
+    → Does it match the nonce stored in the session?
+    → Prevents replay attacks
 
-  Step 8: auth_time の検証（max_age を指定した場合）
-    → 認証時刻が max_age 以内か
-    → 例: 1時間以内の認証を要求
+  Step 8: Validate auth_time (if max_age was specified)
+    → Is the authentication time within max_age?
+    → Example: Require authentication within the last hour
 ```
 
 ```typescript
@@ -318,29 +318,29 @@ async function verifyIdToken(
 }
 ```
 
-### 2.3 JWKS（JSON Web Key Set）の仕組み
+### 2.3 How JWKS (JSON Web Key Set) Works
 
 ```
-JWKS の仕組み:
+How JWKS works:
 
-  IdP は公開鍵を JWKS エンドポイントで公開:
+  The IdP publishes public keys at the JWKS endpoint:
   GET https://www.googleapis.com/oauth2/v3/certs
 
-  レスポンス:
+  Response:
   {
     "keys": [
       {
-        "kty": "RSA",           ← 鍵タイプ
-        "alg": "RS256",         ← アルゴリズム
-        "kid": "key-id-1",      ← 鍵 ID（JWT の kid ヘッダーと対応）
-        "use": "sig",           ← 用途（署名）
-        "n": "0vx7a...",        ← RSA 公開鍵の modulus
-        "e": "AQAB"             ← RSA 公開鍵の exponent
+        "kty": "RSA",           ← Key type
+        "alg": "RS256",         ← Algorithm
+        "kid": "key-id-1",      ← Key ID (matches the kid header in JWT)
+        "use": "sig",           ← Usage (signature)
+        "n": "0vx7a...",        ← RSA public key modulus
+        "e": "AQAB"             ← RSA public key exponent
       },
       {
         "kty": "RSA",
         "alg": "RS256",
-        "kid": "key-id-2",      ← 次の鍵（ローテーション用）
+        "kid": "key-id-2",      ← Next key (for rotation)
         "use": "sig",
         "n": "1wy8b...",
         "e": "AQAB"
@@ -348,26 +348,26 @@ JWKS の仕組み:
     ]
   }
 
-  鍵のローテーション:
+  Key rotation:
   ┌──────────────────────────────────────────────┐
   │                                              │
-  │  Time 0: key-1 がアクティブ                    │
-  │    → 新しい ID Token は key-1 で署名           │
+  │  Time 0: key-1 is active                     │
+  │    → New ID Tokens are signed with key-1     │
   │                                              │
-  │  Time 1: key-2 を追加（JWKS に2つの鍵）       │
-  │    → 新しい ID Token は key-2 で署名           │
-  │    → key-1 で署名された古いトークンもまだ有効    │
+  │  Time 1: key-2 is added (2 keys in JWKS)     │
+  │    → New ID Tokens are signed with key-2     │
+  │    → Older tokens signed with key-1 still valid │
   │                                              │
-  │  Time 2: key-1 を削除                         │
-  │    → key-1 で署名されたトークンは検証不可        │
-  │    → 期限切れトークンなので問題なし              │
+  │  Time 2: key-1 is removed                   │
+  │    → Tokens signed with key-1 cannot be verified │
+  │    → Those tokens are expired, so no problem │
   │                                              │
   └──────────────────────────────────────────────┘
 
-  クライアント側の対応:
-  → JWKS をキャッシュ（通常24時間）
-  → kid が見つからない場合は JWKS を再取得
-  → Cache-Control ヘッダーを尊重
+  Client-side handling:
+  → Cache JWKS (typically 24 hours)
+  → Re-fetch JWKS if kid is not found
+  → Respect Cache-Control headers
 ```
 
 ```typescript
@@ -421,29 +421,29 @@ class JWKSCache {
 
 ## 3. OIDC Discovery
 
-### 3.1 Discovery の仕組み
+### 3.1 How Discovery Works
 
-OpenID Connect Discovery は、IdP の設定情報を標準化された形式で自動取得する仕組みである。これにより、エンドポイント URL をハードコードする必要がなくなり、IdP の変更に自動的に追従できる。
+OpenID Connect Discovery is a mechanism for automatically retrieving an IdP's configuration in a standardized format. This eliminates the need to hardcode endpoint URLs and allows automatic adaptation to IdP changes.
 
 ```
 OpenID Connect Discovery:
 
-  プロバイダーの設定を自動取得:
+  Automatically retrieve provider configuration:
   GET https://accounts.google.com/.well-known/openid-configuration
 
-  レスポンス:
+  Response:
   {
-    // 基本情報
+    // Basic information
     "issuer": "https://accounts.google.com",
 
-    // エンドポイント
+    // Endpoints
     "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
     "token_endpoint": "https://oauth2.googleapis.com/token",
     "userinfo_endpoint": "https://openidconnect.googleapis.com/v1/userinfo",
     "jwks_uri": "https://www.googleapis.com/oauth2/v3/certs",
     "revocation_endpoint": "https://oauth2.googleapis.com/revoke",
 
-    // サポートする機能
+    // Supported features
     "scopes_supported": ["openid", "email", "profile"],
     "response_types_supported": ["code", "token", "id_token", "code token",
                                   "code id_token", "token id_token",
@@ -453,26 +453,26 @@ OpenID Connect Discovery:
                                "refresh_token"],
     "subject_types_supported": ["public"],
 
-    // 署名・暗号化
+    // Signing and encryption
     "id_token_signing_alg_values_supported": ["RS256"],
     "token_endpoint_auth_methods_supported": ["client_secret_post",
                                               "client_secret_basic"],
 
-    // クレーム
+    // Claims
     "claims_supported": ["sub", "email", "email_verified",
                           "name", "given_name", "family_name",
                           "picture", "locale"]
   }
 
-  Discovery の利点:
-  → エンドポイント URL をハードコードしない
-  → プロバイダーの変更に自動追従
-  → 複数プロバイダーの一元管理
-  → サポートする機能の動的な確認
-  → IdP のバージョンアップに自動対応
+  Benefits of Discovery:
+  → No hardcoded endpoint URLs
+  → Automatically adapts to provider changes
+  → Centralized management of multiple providers
+  → Dynamic confirmation of supported features
+  → Automatically adapts to IdP version upgrades
 ```
 
-### 3.2 汎用 OIDC プロバイダーの実装
+### 3.2 Implementing a Generic OIDC Provider
 
 ```typescript
 // OIDC Discovery を活用した汎用プロバイダー
@@ -676,30 +676,30 @@ const providers = {
 
 ---
 
-## 4. OIDC スコープとクレーム
+## 4. OIDC Scopes and Claims
 
-### 4.1 標準スコープとクレームの対応
+### 4.1 Mapping of Standard Scopes to Claims
 
 ```
-標準スコープ:
+Standard scopes:
 
-  スコープ   │ 返されるクレーム
+  Scope    │ Claims returned
   ─────────┼──────────────────────────────
-  openid   │ sub（必須スコープ）
+  openid   │ sub (required scope)
   profile  │ name, family_name, given_name,
            │ middle_name, nickname, picture,
            │ preferred_username, website,
            │ gender, birthdate, zoneinfo,
            │ locale, updated_at
   email    │ email, email_verified
-  address  │ address（構造化住所）
+  address  │ address (structured address)
   phone    │ phone_number, phone_number_verified
 
-  最小限の推奨:
+  Recommended minimum:
   scope: "openid email profile"
-  → ユーザー ID + メール + 名前・アイコン
+  → User ID + email + name and avatar
 
-  address クレームの構造:
+  Structure of the address claim:
   {
     "formatted": "東京都千代田区...",
     "street_address": "千代田区...",
@@ -709,28 +709,28 @@ const providers = {
     "country": "JP"
   }
 
-UserInfo エンドポイント vs ID Token:
-  ID Token:     認証時に最小限の情報を含む
-  UserInfo:     詳細なプロフィール情報を取得
-  使い分け:     ID Token で認証、UserInfo で追加情報取得
+UserInfo endpoint vs ID Token:
+  ID Token:   Contains minimal information at authentication time
+  UserInfo:   Retrieves detailed profile information
+  Usage:      Authenticate with ID Token, retrieve additional info with UserInfo
 
-  ID Token に含まれるクレーム:
-  → 認証に必要な最小限の情報
+  Claims included in ID Token:
+  → Minimum information required for authentication
   → iss, sub, aud, exp, iat, nonce
-  → 追加情報はプロバイダーの裁量
+  → Additional information at the provider's discretion
 
-  UserInfo で取得するクレーム:
-  → scope で要求した詳細情報
-  → プロフィール写真、住所、電話番号等
-  → Access Token で認証して取得
+  Claims retrieved from UserInfo:
+  → Detailed information requested via scope
+  → Profile photo, address, phone number, etc.
+  → Retrieved by authenticating with Access Token
 
-  注意:
-  → ID Token の情報は認証時点のスナップショット
-  → UserInfo は最新の情報を返す
-  → ユーザー情報の更新には UserInfo を使う
+  Note:
+  → Information in the ID Token is a snapshot at authentication time
+  → UserInfo returns the latest information
+  → Use UserInfo for updated user information
 ```
 
-### 4.2 カスタムクレーム
+### 4.2 Custom Claims
 
 ```typescript
 // Auth0 でカスタムクレームを追加する例
@@ -775,32 +775,32 @@ function extractCustomClaims(payload: any): {
 
 ---
 
-## 5. 認証フローの完全実装
+## 5. Complete Authentication Flow Implementation
 
 ### 5.1 Authorization Code Flow + PKCE
 
-OIDC で推奨される認証フローは Authorization Code Flow with PKCE（Proof Key for Code Exchange）である。
+The recommended authentication flow for OIDC is the Authorization Code Flow with PKCE (Proof Key for Code Exchange).
 
 ```
 OIDC Authorization Code Flow + PKCE:
 
-  ブラウザ          サーバー          IdP
+  Browser           Server            IdP
     │                │                │
-    │ ログインクリック  │                │
+    │  Click login   │                │
     │───────────────>│                │
     │                │                │
-    │                │ code_verifier 生成│
-    │                │ code_challenge   │
-    │                │ = SHA256(        │
-    │                │   code_verifier) │
+    │                │ Generate code_verifier │
+    │                │ code_challenge         │
+    │                │ = SHA256(              │
+    │                │   code_verifier)       │
     │                │                │
-    │                │ state, nonce 生成│
-    │                │ セッションに保存  │
+    │                │ Generate state, nonce  │
+    │                │ Save to session        │
     │                │                │
-    │ 302 Redirect   │                │
+    │  302 Redirect  │                │
     │<───────────────│                │
     │                                 │
-    │ GET /authorize?                 │
+    │  GET /authorize?                │
     │   response_type=code            │
     │   client_id=xxx                 │
     │   redirect_uri=xxx              │
@@ -811,40 +811,40 @@ OIDC Authorization Code Flow + PKCE:
     │   code_challenge_method=S256    │
     │────────────────────────────────>│
     │                                 │
-    │         ログイン画面              │
+    │         Login screen            │
     │<────────────────────────────────│
-    │ 認証情報入力                      │
+    │  Enter credentials              │
     │────────────────────────────────>│
     │                                 │
-    │ 302 Redirect                    │
-    │ ?code=AUTH_CODE&state=xxx       │
+    │  302 Redirect                   │
+    │  ?code=AUTH_CODE&state=xxx      │
     │<────────────────────────────────│
     │                                 │
-    │ GET /callback                   │
+    │  GET /callback                  │
     │   ?code=AUTH_CODE               │
     │   &state=xxx                    │
     │───────────────>│                │
     │                │                │
-    │                │ state 検証      │
+    │                │  Validate state │
     │                │                │
-    │                │ POST /token     │
+    │                │  POST /token    │
     │                │   code=AUTH_CODE│
     │                │   code_verifier │
     │                │────────────────>│
     │                │                │
-    │                │ ID Token +      │
-    │                │ Access Token    │
+    │                │  ID Token +     │
+    │                │  Access Token   │
     │                │<────────────────│
     │                │                │
-    │                │ ID Token 検証   │
-    │                │ nonce 検証      │
-    │                │ セッション作成   │
+    │                │  Validate ID Token │
+    │                │  Validate nonce    │
+    │                │  Create session    │
     │                │                │
-    │ Set-Cookie     │                │
+    │  Set-Cookie    │                │
     │<───────────────│                │
 ```
 
-### 5.2 Next.js での完全実装
+### 5.2 Complete Implementation with Next.js
 
 ```typescript
 // OIDC 認証フロー（Next.js App Router）
@@ -1030,7 +1030,7 @@ export async function GET(request: Request) {
 }
 ```
 
-### 5.3 アカウントリンク（複数プロバイダー対応）
+### 5.3 Account Linking (Multi-Provider Support)
 
 ```typescript
 // 同一ユーザーが複数のプロバイダーでログインする場合
@@ -1139,73 +1139,73 @@ async function handleOIDCCallback(
 
 ---
 
-## 6. 主要プロバイダーの特徴と注意点
+## 6. Characteristics and Caveats of Major Providers
 
-### 6.1 プロバイダー比較
+### 6.1 Provider Comparison
 
 ```
-OIDC プロバイダー比較:
+OIDC provider comparison:
 
-  プロバイダー │ Discovery │ PKCE │ Refresh │ 特記事項
+  Provider   │ Discovery │ PKCE │ Refresh │ Notes
   ────────────┼──────────┼─────┼────────┼──────────────
-  Google      │ ✓        │ ✓   │ ✓      │ 最も標準準拠
-  Microsoft   │ ✓        │ ✓   │ ✓      │ テナント別 issuer
-  Apple       │ ✓        │ ✓   │ ✓      │ name は初回のみ返却
-  GitHub      │ △        │ ✓   │ ✓      │ 標準 OIDC に非準拠
-  LINE        │ ✓        │ ✗   │ ✓      │ 日本市場で重要
-  Auth0       │ ✓        │ ✓   │ ✓      │ カスタマイズ性高い
-  Keycloak    │ ✓        │ ✓   │ ✓      │ セルフホスト可能
-  Okta        │ ✓        │ ✓   │ ✓      │ エンタープライズ向け
+  Google      │ ✓        │ ✓   │ ✓      │ Most standards-compliant
+  Microsoft   │ ✓        │ ✓   │ ✓      │ Tenant-specific issuer
+  Apple       │ ✓        │ ✓   │ ✓      │ name returned on first login only
+  GitHub      │ △        │ ✓   │ ✓      │ Non-compliant with standard OIDC
+  LINE        │ ✓        │ ✗   │ ✓      │ Important in the Japanese market
+  Auth0       │ ✓        │ ✓   │ ✓      │ Highly customizable
+  Keycloak    │ ✓        │ ✓   │ ✓      │ Self-hostable
+  Okta        │ ✓        │ ✓   │ ✓      │ Geared toward enterprises
 ```
 
-### 6.2 各プロバイダーの注意点
+### 6.2 Caveats for Each Provider
 
 ```
-Apple Sign In の注意点:
-  → name / email は初回認可時のみ返却
-  → 2回目以降は sub のみ（アプリ再インストール含む）
-  → 初回レスポンスを確実に保存する必要がある
-  → Web では redirect 方式のみ（ポップアップ不可の場合あり）
-  → App Store に出すアプリは Apple Sign In 対応必須
-  → ユーザーはメールを非公開にできる（リレーメール）
-  → client_secret は JWT 形式で自分で生成する必要がある
+Apple Sign In caveats:
+  → name / email are only returned on the first authorization
+  → On subsequent logins, only sub is returned (including after app reinstall)
+  → The first-login response must be saved reliably
+  → On the web, only the redirect method is available (popup may not work)
+  → Apps published on the App Store must support Apple Sign In
+  → Users can hide their email (relay email)
+  → The client_secret must be self-generated in JWT format
 
-  Apple のメール非公開の仕組み:
+  How Apple's email hiding works:
   ┌──────────────────────────────────────────┐
   │                                          │
-  │  ユーザーが「メールを非公開」を選択した場合   │
+  │  When the user selects "Hide My Email"   │
   │                                          │
-  │  提供されるメール:                          │
+  │  Email provided:                         │
   │  abc123@privaterelay.appleid.com         │
   │                                          │
-  │  このアドレスに送信したメールは               │
-  │  ユーザーの実際のメールに転送される            │
+  │  Emails sent to this address are         │
+  │  forwarded to the user's real email      │
   │                                          │
-  │  注意:                                    │
-  │  → 自社ドメインを Apple に登録する必要あり   │
-  │  → SPF/DKIM の設定が必要                   │
-  │  → リレーメールは永続的ではない場合がある      │
+  │  Notes:                                  │
+  │  → Your domain must be registered with Apple │
+  │  → SPF/DKIM configuration is required   │
+  │  → Relay emails may not be permanent     │
   │                                          │
   └──────────────────────────────────────────┘
 
-GitHub の注意点:
-  → 標準 OIDC ではなく独自 OAuth 実装
-  → ID Token を返さない（/user API で取得）
-  → email が null の場合がある（非公開設定）
-  → 別途 GET /user/emails API で取得が必要
-  → Discovery エンドポイントがない（または限定的）
-  → scope は "user:email" のように GitHub 独自形式
+GitHub caveats:
+  → Uses its own OAuth implementation, not standard OIDC
+  → Does not return an ID Token (retrieve via /user API)
+  → email may be null (if set to private)
+  → Must call GET /user/emails API separately
+  → No Discovery endpoint (or limited)
+  → Scopes use GitHub-specific format like "user:email"
 
-Microsoft / Azure AD の注意点:
-  → テナント別 issuer URL
+Microsoft / Azure AD caveats:
+  → Tenant-specific issuer URL
   → common: https://login.microsoftonline.com/common/v2.0
-  → 特定テナント: https://login.microsoftonline.com/{tenant-id}/v2.0
-  → ID Token の iss がテナント ID を含む
-  → 個人アカウント (MSA) と組織アカウント (AAD) で動作が異なる
-  → v1.0 と v2.0 エンドポイントがある（v2.0 を使用）
+  → Specific tenant: https://login.microsoftonline.com/{tenant-id}/v2.0
+  → The iss in the ID Token includes the tenant ID
+  → Behavior differs between personal accounts (MSA) and org accounts (AAD)
+  → There are v1.0 and v2.0 endpoints (use v2.0)
 ```
 
-### 6.3 GitHub の OIDC 非準拠への対応
+### 6.3 Handling GitHub's Non-Compliance with OIDC
 
 ```typescript
 // GitHub は標準 OIDC ではないため、独自実装が必要
@@ -1282,84 +1282,84 @@ class GitHubOAuthProvider {
 
 ---
 
-## 7. エッジケースとセキュリティ
+## 7. Edge Cases and Security
 
-### 7.1 エッジケース
-
-```
-OIDC のエッジケース:
-
-  (1) メールアドレスの変更
-     → ユーザーが IdP 側でメールを変更した場合
-     → sub は変わらないがメールが変わる
-     → sub をプライマリキーとして使用する
-     → メールを一意制約にしない or 更新を追従
-
-  (2) アカウント削除と再作成
-     → ユーザーが IdP アカウントを削除して再作成
-     → Google: 同じメールでも sub が変わる場合がある
-     → Apple: sub は永続（デバイスリセットでも）
-     → sub + provider の組み合わせで識別
-
-  (3) トークンの失効とリフレッシュ
-     → Access Token の有効期限切れ
-     → Refresh Token でサイレントリフレッシュ
-     → Refresh Token も失効した場合は再認証
-
-  (4) 複数タブでの同時認証
-     → 複数タブで同時にログインフローを開始
-     → state/nonce が異なるため片方は失敗
-     → state を Cookie に保存（最後の値が有効）
-     → 対策: ログイン中は他のタブをブロック or 共有
-
-  (5) IdP のダウンタイム
-     → Discovery エンドポイントが応答しない
-     → JWKS エンドポイントが応答しない
-     → 設定と鍵のキャッシュで一時的に対応
-     → フォールバック認証方式の提供
-```
-
-### 7.2 セキュリティのベストプラクティス
+### 7.1 Edge Cases
 
 ```
-OIDC セキュリティのベストプラクティス:
+OIDC edge cases:
 
-  ✓ 必ず実行すべきこと:
-    → state パラメータで CSRF を防止
-    → nonce パラメータでリプレイ攻撃を防止
-    → PKCE を使用（特にパブリッククライアント）
-    → ID Token の全クレームを検証
-    → HTTPS を必須にする
-    → redirect_uri を厳密に検証（完全一致）
-    → client_secret を安全に管理
+  (1) Email address changes
+     → When the user changes their email on the IdP side
+     → sub remains the same, but the email changes
+     → Use sub as the primary key
+     → Either don't use email as a unique constraint, or track updates
 
-  ✗ 避けるべきこと:
-    → ID Token を API アクセスに使用
-    → Access Token でユーザー認証
-    → Implicit Flow の使用（非推奨）
-    → redirect_uri にワイルドカード
-    → client_secret をフロントエンドに含める
-    → ID Token のペイロードを検証なしで使用
-    → "none" アルゴリズムの受け入れ
+  (2) Account deletion and recreation
+     → User deletes their IdP account and recreates it
+     → Google: sub may change even with the same email
+     → Apple: sub is persistent (even after device reset)
+     → Identify by the combination of sub + provider
 
-  redirect_uri の攻撃:
+  (3) Token expiration and refresh
+     → Access Token expires
+     → Silent refresh using Refresh Token
+     → If Refresh Token also expires, require re-authentication
+
+  (4) Concurrent authentication in multiple tabs
+     → Login flow started simultaneously in multiple tabs
+     → Different state/nonce values cause one to fail
+     → State stored in Cookie (last value wins)
+     → Mitigation: block other tabs during login, or share state
+
+  (5) IdP downtime
+     → Discovery endpoint is not responding
+     → JWKS endpoint is not responding
+     → Temporarily handle with cached config and keys
+     → Provide a fallback authentication method
+```
+
+### 7.2 Security Best Practices
+
+```
+OIDC security best practices:
+
+  ✓ Must always do:
+    → Use the state parameter to prevent CSRF
+    → Use the nonce parameter to prevent replay attacks
+    → Use PKCE (especially for public clients)
+    → Validate all claims in the ID Token
+    → Require HTTPS
+    → Validate redirect_uri strictly (exact match)
+    → Manage client_secret securely
+
+  ✗ Must avoid:
+    → Using ID Token for API access
+    → Authenticating users with Access Token
+    → Using Implicit Flow (deprecated)
+    → Wildcards in redirect_uri
+    → Including client_secret in the frontend
+    → Using ID Token payload without validation
+    → Accepting the "none" algorithm
+
+  redirect_uri attacks:
   ┌────────────────────────────────────────┐
   │                                        │
-  │  Open Redirect 攻撃:                    │
-  │    攻撃者が redirect_uri を                │
-  │    自分のサーバーに書き換え                  │
-  │    → 認可コードが攻撃者に送信される          │
+  │  Open Redirect attack:                 │
+  │    Attacker rewrites redirect_uri to   │
+  │    point to their own server           │
+  │    → Authorization code is sent to attacker │
   │                                        │
-  │  対策:                                  │
-  │    → 登録済み redirect_uri のみ許可       │
-  │    → 完全一致で検証（前方一致NG）           │
-  │    → ワイルドカード禁止                    │
-  │    → localhost はデバッグ時のみ許可         │
+  │  Mitigation:                           │
+  │    → Only allow registered redirect_uri │
+  │    → Validate with exact match (no prefix match) │
+  │    → Wildcards are prohibited          │
+  │    → Allow localhost only during debugging │
   │                                        │
   └────────────────────────────────────────┘
 ```
 
-### 7.3 Token Leakage の防止
+### 7.3 Preventing Token Leakage
 
 ```typescript
 // トークン漏洩の防止策
@@ -1392,187 +1392,187 @@ function safeLog(message: string, data: any) {
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
 ```
-OIDC のアンチパターン:
+OIDC anti-patterns:
 
-  (1) ID Token を API の認証に使用
-     ✗ 悪い例:
+  (1) Using ID Token for API authentication
+     ✗ Bad example:
        fetch('/api/data', {
          headers: { Authorization: `Bearer ${idToken}` }
        });
-     → ID Token はクライアント向け
-     → API には Access Token を使用する
+     → ID Token is meant for the client
+     → Use Access Token for APIs
 
-  (2) JWT の検証を省略
-     ✗ 悪い例:
+  (2) Skipping JWT validation
+     ✗ Bad example:
        const payload = JSON.parse(atob(token.split('.')[1]));
-       // 署名検証なしでペイロードを使用
-     → 改ざんされたトークンを受け入れてしまう
-     → 必ず署名を検証する
+       // Using payload without signature verification
+     → Tampered tokens would be accepted
+     → Always verify the signature
 
-  (3) sub 以外でユーザーを識別
-     ✗ 悪い例:
-       // メールアドレスでユーザーを識別
+  (3) Identifying users by something other than sub
+     ✗ Bad example:
+       // Identifying users by email address
        const user = await db.user.findUnique({ where: { email: payload.email } });
-     → メールは変更される可能性がある
-     → sub + provider の組み合わせで識別する
+     → Email addresses can change
+     → Identify by the combination of sub + provider
 
-  (4) Implicit Flow の使用
-     ✗ 悪い例:
+  (4) Using Implicit Flow
+     ✗ Bad example:
        response_type: 'id_token token'
-     → Access Token がフラグメントで公開される
-     → Authorization Code Flow + PKCE を使用する
+     → Access Token is exposed in the fragment
+     → Use Authorization Code Flow + PKCE instead
 ```
 
 ---
 
-## 9. パフォーマンスに関する考察
+## 9. Performance Considerations
 
 ```
-OIDC のパフォーマンス最適化:
+OIDC performance optimization:
 
-  (1) Discovery のキャッシュ
-     → .well-known/openid-configuration は頻繁に変わらない
-     → 24時間のキャッシュが一般的
-     → アプリ起動時に事前取得（warm-up）
+  (1) Cache Discovery
+     → .well-known/openid-configuration rarely changes
+     → 24-hour cache is common
+     → Pre-fetch at app startup (warm-up)
 
-  (2) JWKS のキャッシュ
-     → 公開鍵は鍵ローテーション時のみ変更
-     → kid が見つからない場合のみ再取得
-     → Cache-Control ヘッダーを尊重
+  (2) Cache JWKS
+     → Public keys only change during key rotation
+     → Re-fetch only when kid is not found
+     → Respect Cache-Control headers
 
-  (3) Token 交換のレイテンシ
-     → IdP のトークンエンドポイントへの HTTP リクエスト
-     → 通常 100-500ms のレイテンシ
-     → ログインフロー全体で 1-3 秒
+  (3) Token exchange latency
+     → HTTP request to the IdP token endpoint
+     → Typically 100-500ms latency
+     → Overall login flow takes 1-3 seconds
 
-  (4) UserInfo リクエストの最適化
-     → 必要な情報が ID Token にあれば UserInfo は不要
-     → UserInfo の結果はキャッシュ可能
-     → Access Token の有効期間中のみキャッシュ
+  (4) Optimize UserInfo requests
+     → If the required information is in the ID Token, UserInfo is not needed
+     → UserInfo results can be cached
+     → Cache only for the duration of the Access Token's validity
 
-  (5) セッションの活用
-     → 認証後はセッションベースに切り替え
-     → 毎回 IdP と通信しない
-     → セッション有効期限の設計が重要
+  (5) Leverage sessions
+     → Switch to session-based after authentication
+     → Avoid contacting the IdP on every request
+     → Session expiration design is important
 ```
 
 ---
 
-## 10. 演習問題
+## 10. Exercises
 
-### 演習 1: OIDC 基本実装（基礎）
+### Exercise 1: Basic OIDC Implementation (Beginner)
 
-Google OIDC を使ったログイン機能を実装せよ。
+Implement a login feature using Google OIDC.
 
 ```
-要件:
-- Discovery で設定を自動取得
+Requirements:
+- Automatically retrieve configuration via Discovery
 - Authorization Code Flow + PKCE
-- ID Token の完全な検証（issuer, audience, nonce, exp）
-- ユーザー情報の DB 保存
-- セッション Cookie の設定
+- Complete ID Token validation (issuer, audience, nonce, exp)
+- Save user information to DB
+- Set session Cookie
 
-環境:
+Environment:
 - Node.js + Express or Next.js
-- jose ライブラリ（JWT検証）
-- Google Cloud Console でクライアント ID 取得済み
+- jose library (JWT validation)
+- Google Cloud Console client ID already obtained
 
-テスト:
-- 正常系: ログイン成功 → セッション作成
-- 異常系: state 不一致、nonce 不一致、期限切れ ID Token
+Tests:
+- Happy path: Login succeeds → Session created
+- Unhappy path: state mismatch, nonce mismatch, expired ID Token
 ```
 
-### 演習 2: マルチプロバイダー対応（応用）
+### Exercise 2: Multi-Provider Support (Intermediate)
 
-Google + GitHub + Apple のマルチプロバイダーログインを実装せよ。
-
-```
-要件:
-- 汎用 OIDCProvider クラスを拡張
-- GitHub の非標準 OAuth に対応
-- Apple Sign In の初回データ保存に対応
-- メールアドレスベースのアカウントリンク
-- 同一メールで異なるプロバイダーからのログインをマージ
-
-テスト:
-- 各プロバイダーでログイン成功
-- 同一メールの自動リンク
-- プロバイダー追加（既存ユーザーに新プロバイダーをリンク）
-```
-
-### 演習 3: セキュリティ強化（発展）
-
-OIDC 認証にセキュリティ強化機能を追加せよ。
+Implement multi-provider login with Google + GitHub + Apple.
 
 ```
-要件:
-- ステップアップ認証（sensitive な操作時に再認証要求）
-  → max_age=0 で認証を強制
-  → acr_values で認証レベルを指定
-- RP-Initiated Logout の実装
-- Back-Channel Logout の受信
-- Token Binding（DPoP）の概念理解
-- 不正アクセス検知（異常な認証パターンの検出）
+Requirements:
+- Extend the generic OIDCProvider class
+- Support GitHub's non-standard OAuth
+- Handle Apple Sign In first-login data saving
+- Email-based account linking
+- Merge logins from different providers with the same email
 
-実装:
-- ステップアップ認証ミドルウェア
-- ログアウト API + IdP 連携
-- セキュリティイベントの監査ログ
+Tests:
+- Login success with each provider
+- Automatic linking with the same email
+- Add provider (link a new provider to an existing user)
+```
+
+### Exercise 3: Security Hardening (Advanced)
+
+Add security hardening features to OIDC authentication.
+
+```
+Requirements:
+- Step-up authentication (require re-authentication for sensitive operations)
+  → Force re-authentication with max_age=0
+  → Specify authentication level with acr_values
+- Implement RP-Initiated Logout
+- Receive Back-Channel Logout
+- Understand the concept of Token Binding (DPoP)
+- Detect unauthorized access (detect abnormal authentication patterns)
+
+Implementation:
+- Step-up authentication middleware
+- Logout API + IdP integration
+- Audit log for security events
 ```
 
 ---
 
-## 11. FAQ・トラブルシューティング
+## 11. FAQ / Troubleshooting
 
-### Q1: "invalid_grant" エラーが発生する
+### Q1: Getting an "invalid_grant" error
 
-**原因**: 認可コードの二重使用、コードの期限切れ、redirect_uri の不一致が一般的。
-
-```
-対処法:
-1. 認可コードは1回のみ使用可能 → ブラウザの「戻る」ボタンで再送信されていないか
-2. 認可コードの有効期限は通常10分 → ユーザーが長時間放置していないか
-3. redirect_uri がトークン交換時と認可リクエスト時で完全一致するか
-4. client_id / client_secret が正しいか
-```
-
-### Q2: ID Token の署名検証に失敗する
-
-**原因**: JWKS の鍵ローテーション、kid の不一致、アルゴリズムの不一致が考えられる。
+**Cause**: Common causes are double use of authorization code, code expiration, or redirect_uri mismatch.
 
 ```
-対処法:
-1. JWKS キャッシュを強制的にクリアして再取得
-2. ID Token ヘッダーの kid が JWKS に含まれているか確認
-3. alg が期待するアルゴリズム（RS256）か確認
-4. IdP 側で鍵ローテーションが行われた可能性
+Resolution:
+1. Authorization code can only be used once → Check if the browser's back button is re-submitting
+2. Authorization code typically expires in 10 minutes → Check if the user has been idle for too long
+3. Verify redirect_uri exactly matches between token exchange and authorization request
+4. Verify client_id / client_secret are correct
 ```
 
-### Q3: UserInfo で取得できる情報が少ない
+### Q2: ID Token signature verification fails
 
-**原因**: scope の不足、プロバイダーの制限、ユーザーの設定。
-
-```
-対処法:
-1. 認可リクエストの scope に必要なスコープが含まれているか
-2. プロバイダーによってはスコープの承認が必要
-3. Apple: name は初回のみ、GitHub: email は非公開の場合あり
-4. Google: 追加スコープは Google Cloud Console で有効化が必要
-```
-
-### Q4: Silent Refresh が動作しない
-
-**原因**: サードパーティ Cookie の制限、Refresh Token の失効。
+**Cause**: JWKS key rotation, kid mismatch, or algorithm mismatch.
 
 ```
-対処法:
-1. ITP/ETP によりサードパーティ Cookie がブロック
-2. prompt=none による Silent Auth は Cookie 制限の影響を受ける
-3. サーバーサイドでの Refresh Token 使用が推奨
-4. Refresh Token の有効期限を確認（Google: 7日〜無期限）
+Resolution:
+1. Force clear the JWKS cache and re-fetch
+2. Verify that the kid in the ID Token header is in the JWKS
+3. Verify alg is the expected algorithm (RS256)
+4. The IdP may have performed key rotation
+```
+
+### Q3: Getting less information from UserInfo
+
+**Cause**: Insufficient scope, provider limitations, or user settings.
+
+```
+Resolution:
+1. Verify the authorization request scope includes the required scopes
+2. Some providers require scope approval
+3. Apple: name is first-login only; GitHub: email may be private
+4. Google: Additional scopes must be enabled in Google Cloud Console
+```
+
+### Q4: Silent Refresh is not working
+
+**Cause**: Third-party cookie restrictions, or Refresh Token expiration.
+
+```
+Resolution:
+1. Third-party cookies may be blocked by ITP/ETP
+2. Silent Auth with prompt=none is affected by cookie restrictions
+3. Server-side use of Refresh Token is recommended
+4. Check Refresh Token expiration (Google: 7 days to indefinite)
 ```
 
 ---
@@ -1580,41 +1580,41 @@ OIDC 認証にセキュリティ強化機能を追加せよ。
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend solidly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 概念 | ポイント |
-|------|---------|
-| OIDC | OAuth 2.0 上の認証レイヤー。認証と認可の明確な分離 |
-| ID Token | ユーザー情報を含む JWT。クライアント内で消費する |
-| Access Token | API アクセス用。リソースサーバーに送信する |
-| Discovery | プロバイダー設定の自動取得。キャッシュ推奨 |
-| PKCE | 認可コード横取り攻撃の防止。全クライアントで推奨 |
-| nonce | リプレイ攻撃防止。ID Token に含め検証する |
-| UserInfo | 詳細プロフィールの取得。Access Token で認証 |
-| JWKS | 公開鍵の配布。鍵ローテーション対応が必要 |
-| アカウントリンク | sub + provider で識別。メールベースのマージ |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Concept | Key Points |
+|---------|-----------|
+| OIDC | Authentication layer on top of OAuth 2.0. Clear separation of authentication and authorization |
+| ID Token | JWT containing user information. Consumed within the client |
+| Access Token | Used for API access. Sent to the resource server |
+| Discovery | Automatic retrieval of provider configuration. Caching recommended |
+| PKCE | Prevents authorization code interception attacks. Recommended for all clients |
+| nonce | Prevents replay attacks. Include in ID Token and validate |
+| UserInfo | Retrieve detailed profile information. Authenticated with Access Token |
+| JWKS | Distributes public keys. Key rotation support is required |
+| Account Linking | Identify by sub + provider. Email-based merging |
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+---
+
+## References
 1. OpenID Foundation. "OpenID Connect Core 1.0." openid.net/specs/openid-connect-core-1_0.html, 2014.
 2. OpenID Foundation. "OpenID Connect Discovery 1.0." openid.net/specs/openid-connect-discovery-1_0.html, 2014.
 3. RFC 7636. "Proof Key for Code Exchange by OAuth Public Clients." IETF, 2015.
