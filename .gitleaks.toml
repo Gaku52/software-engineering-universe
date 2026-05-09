@@ -15,4 +15,8 @@ paths = [
   '''ja/05-infrastructure/linux-cli-mastery/docs/00-introduction/01-shell-config\.md''',
   '''05-infrastructure/linux-cli-mastery/docs/04-networking/00-curl-wget\.md''',
   '''ja/05-infrastructure/linux-cli-mastery/docs/04-networking/00-curl-wget\.md''',
+  '''06-data-and-security/authentication-and-authorization/docs/00-fundamentals/03-session-vs-token\.md''',
+  '''ja/06-data-and-security/authentication-and-authorization/docs/00-fundamentals/03-session-vs-token\.md''',
+  '''06-data-and-security/authentication-and-authorization/docs/02-token-auth/01-oauth2-flows\.md''',
+  '''ja/06-data-and-security/authentication-and-authorization/docs/02-token-auth/01-oauth2-flows\.md''',
 ]
