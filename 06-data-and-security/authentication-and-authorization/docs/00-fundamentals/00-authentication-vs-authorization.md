@@ -1,166 +1,171 @@
-# 認証と認可の基礎
+# Fundamentals of Authentication and Authorization
 
-> 認証（Authentication）は「あなたは誰か？」、認可（Authorization）は「あなたに何が許されているか？」。この2つの根本的な違いを理解し、脅威モデル、セキュリティ原則、認証フローの全体像を把握することが、安全なシステム構築の第一歩となる。
+> Authentication (AuthN) asks "Who are you?" and Authorization (AuthZ) asks "What are you allowed to do?" Understanding this fundamental distinction — along with threat models, security principles, and the overall authentication flow — is the first step toward building secure systems.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] 認証と認可の違いを正確に理解する
-- [ ] 主要な脅威モデルとセキュリティ原則を把握する
-- [ ] 認証・認可の全体アーキテクチャを設計できるようになる
-- [ ] RBAC / ABAC / ReBAC の認可モデルを比較・選択できるようになる
-- [ ] セッション方式とトークン方式の内部動作を理解する
-- [ ] 実運用で必要なセキュリティヘッダーとミドルウェアを実装できる
+- [ ] Understand the precise difference between authentication and authorization
+- [ ] Grasp the major threat models and security principles
+- [ ] Design the overall architecture for authentication and authorization
+- [ ] Compare and choose between RBAC, ABAC, and ReBAC authorization models
+- [ ] Understand the internal workings of session-based and token-based approaches
+- [ ] Implement the security headers and middleware required in production
 
+## Prerequisites
 
-## 前提知識
+Having the following knowledge before reading this guide will deepen your understanding:
 
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. 認証と認可の違い
+## 1. The Difference Between Authentication and Authorization
 
 ```
-認証（Authentication / AuthN）:
-  質問: 「あなたは誰ですか？」
-  目的: ユーザーの身元を確認する
-  例:   パスワード入力、指紋認証、Google ログイン
+Authentication (AuthN):
+  Question: "Who are you?"
+  Purpose:  Verify the identity of the user
+  Examples: Password entry, fingerprint scan, Google login
 
   ┌─────────────────────────────────────────┐
-  │  ユーザー: 「私は alice@example.com です」  │
-  │  システム: 「パスワードで証明してください」     │
-  │  ユーザー: 「********」                    │
-  │  システム: 「確認しました。alice さんですね」   │
+  │  User:   "I am alice@example.com"       │
+  │  System: "Please prove it with a        │
+  │           password"                     │
+  │  User:   "********"                     │
+  │  System: "Confirmed. You are alice."    │
   └─────────────────────────────────────────┘
 
-認可（Authorization / AuthZ）:
-  質問: 「あなたに何が許されていますか？」
-  目的: ユーザーのアクセス権限を判定する
-  例:   管理画面へのアクセス、ファイルの編集権限
+Authorization (AuthZ):
+  Question: "What are you permitted to do?"
+  Purpose:  Determine the user's access rights
+  Examples: Accessing the admin panel, file edit permissions
 
   ┌─────────────────────────────────────────┐
-  │  alice: 「管理画面にアクセスしたい」          │
-  │  システム: 「alice の権限を確認中...」         │
-  │  システム: 「admin ロール確認。アクセス許可」    │
+  │  alice:  "I want to access the admin    │
+  │           panel"                        │
+  │  System: "Checking alice's permissions  │
+  │           ..."                          │
+  │  System: "Admin role confirmed.         │
+  │           Access granted."             │
   └─────────────────────────────────────────┘
 
-重要な関係:
-  認証 → 認可 の順序（必ず認証が先）
-  認証なしに認可はできない
-  認証されても認可されるとは限らない
+Important relationship:
+  Authentication → Authorization (authentication always comes first)
+  Authorization cannot occur without authentication
+  Being authenticated does not guarantee being authorized
 ```
 
 ```
-比較表:
+Comparison table:
 
-  項目       │ 認証（AuthN）      │ 認可（AuthZ）
-  ───────────┼───────────────────┼──────────────────
-  質問       │ Who are you?      │ What can you do?
-  タイミング  │ 最初に実行          │ 認証後に実行
-  入力       │ クレデンシャル       │ ユーザー属性・ロール
-  出力       │ ユーザー ID         │ 許可 / 拒否
-  失敗時     │ 401 Unauthorized   │ 403 Forbidden
-  技術例     │ パスワード、JWT      │ RBAC、ABAC
-  変更頻度   │ ユーザー主導        │ 管理者主導
-  保存場所   │ DB / IdP           │ ポリシーエンジン
-  キャッシュ  │ セッション / トークン │ 権限テーブル / ポリシー
-  スケール   │ IdP に集約可能      │ サービスごとに分散可能
+  Item          │ Authentication (AuthN) │ Authorization (AuthZ)
+  ──────────────┼────────────────────────┼──────────────────────
+  Question      │ Who are you?           │ What can you do?
+  Timing        │ Executed first         │ Executed after AuthN
+  Input         │ Credentials            │ User attributes / roles
+  Output        │ User ID                │ Allow / Deny
+  On failure    │ 401 Unauthorized       │ 403 Forbidden
+  Tech examples │ Password, JWT          │ RBAC, ABAC
+  Change freq.  │ User-driven            │ Admin-driven
+  Storage       │ DB / IdP               │ Policy engine
+  Cache         │ Session / Token        │ Permission table / Policy
+  Scale         │ Can be centralized     │ Can be distributed per
+                │ in an IdP             │ service
 ```
 
-### 1.1 認証と認可の境界が曖昧になるケース
+### 1.1 Cases Where the Boundary Between Authentication and Authorization Becomes Blurry
 
 ```
-実務で混乱しやすいケース:
+Cases that tend to cause confusion in practice:
 
-  ケース1: API キー
-    → 認証? 認可? → 実は「両方」を兼ねることが多い
-    → API キー自体がクライアントの身元証明（認証）
-    → API キーに紐づくスコープで権限制御（認可）
-    → 問題: キー漏洩時に認証・認可の両方が突破される
+  Case 1: API Keys
+    → Authentication? Authorization? → In practice, often "both"
+    → The API key itself proves the client's identity (authentication)
+    → Scopes tied to the key control permissions (authorization)
+    → Problem: A leaked key compromises both authentication and authorization
 
-  ケース2: OAuth 2.0 のスコープ
-    → OAuth は「認可の委譲」プロトコル
-    → しかし OpenID Connect を加えると「認証」も行う
-    → scope=openid が認証、scope=read:user が認可
+  Case 2: OAuth 2.0 Scopes
+    → OAuth is an "authorization delegation" protocol
+    → However, adding OpenID Connect also provides "authentication"
+    → scope=openid is authentication; scope=read:user is authorization
 
-  ケース3: JWT のクレーム
-    → sub クレーム: 認証情報（誰か）
-    → role / permissions クレーム: 認可情報（何ができるか）
-    → 1つのトークンに認証・認可の両方が含まれる
+  Case 3: JWT Claims
+    → sub claim: authentication information (who)
+    → role / permissions claims: authorization information (what they can do)
+    → A single token contains both authentication and authorization
 
-  ケース4: IP アドレス制限
-    → 「社内ネットワークからのみアクセス可能」
-    → これは認証? 認可?
-    → 厳密には認可（ネットワーク位置に基づくアクセス制御）
-    → ただし暗黙的に「社内にいる = 社員である」という認証を含意
+  Case 4: IP Address Restrictions
+    → "Accessible only from the internal network"
+    → Is this authentication or authorization?
+    → Strictly speaking, it is authorization (access control based on network location)
+    → However, it implicitly implies authentication: "being on the internal network = being an employee"
 ```
 
-### 1.2 認証・認可パイプラインの内部動作
+### 1.2 Internal Workings of the Authentication/Authorization Pipeline
 
 ```
-リクエスト処理パイプライン（詳細版）:
+Request processing pipeline (detailed):
 
-  HTTP リクエスト
+  HTTP Request
     │
     ▼
   ┌──────────────────────┐
-  │ ① TLS 終端            │  通信の暗号化を確認
-  │    証明書検証           │  MITM 防止
+  │ ① TLS Termination    │  Verify encrypted communication
+  │    Certificate check │  Prevent MITM
   └──────────┬───────────┘
              │
              ▼
   ┌──────────────────────┐
-  │ ② レート制限           │  IP / ユーザー単位
-  │    DDoS 防御           │  ブルートフォース防止
+  │ ② Rate Limiting      │  Per IP / user
+  │    DDoS protection   │  Brute force prevention
   └──────────┬───────────┘
              │
              ▼
   ┌──────────────────────┐
-  │ ③ CORS チェック        │  Origin ヘッダー検証
-  │    プリフライト処理     │  ブラウザセキュリティ
+  │ ③ CORS Check         │  Validate Origin header
+  │    Preflight         │  Browser security
   └──────────┬───────────┘
              │
              ▼
   ┌──────────────────────┐
-  │ ④ 認証（AuthN）        │  Cookie / Bearer Token
-  │    身元確認            │  → ユーザー ID 特定
-  │    セッション検証       │  → 401 or 続行
+  │ ④ Authentication     │  Cookie / Bearer Token
+  │    Identity check    │  → Identify User ID
+  │    Session verify    │  → 401 or continue
   └──────────┬───────────┘
              │
              ▼
   ┌──────────────────────┐
-  │ ⑤ 認可（AuthZ）        │  RBAC / ABAC チェック
-  │    権限確認            │  → 403 or 続行
-  │    リソースアクセス判定  │  → ポリシー評価
+  │ ⑤ Authorization      │  RBAC / ABAC check
+  │    Permission check  │  → 403 or continue
+  │    Resource access   │  → Policy evaluation
   └──────────┬───────────┘
              │
              ▼
   ┌──────────────────────┐
-  │ ⑥ 入力検証             │  バリデーション
-  │    サニタイズ           │  XSS / SQLi 防止
+  │ ⑥ Input Validation   │  Validation
+  │    Sanitization      │  XSS / SQLi prevention
   └──────────┬───────────┘
              │
              ▼
   ┌──────────────────────┐
-  │ ⑦ ビジネスロジック      │  実際の処理
-  │    データアクセス       │  DB クエリ
+  │ ⑦ Business Logic     │  Actual processing
+  │    Data Access       │  DB queries
+  └──────────┬───────────┘
   └──────────┬───────────┘
              │
              ▼
   ┌──────────────────────┐
-  │ ⑧ 監査ログ            │  誰が何をしたか記録
-  │    レスポンス生成       │  セキュリティヘッダー付与
+  │ ⑧ Audit Log          │  Record who did what
+  │    Response          │  Attach security headers
   └──────────────────────┘
 ```
 
 ```typescript
-// 完全な認証・認可パイプライン実装（Express）
+// Complete authentication/authorization pipeline implementation (Express)
 import express, { Request, Response, NextFunction } from 'express';
 
-// ユーザー型定義
+// User type definition
 interface AuthenticatedUser {
   id: string;
   email: string;
@@ -171,7 +176,7 @@ interface AuthenticatedUser {
   mfaVerified: boolean;
 }
 
-// Request 拡張
+// Request extension
 declare global {
   namespace Express {
     interface Request {
@@ -181,14 +186,14 @@ declare global {
   }
 }
 
-// ① リクエストID付与（トレーサビリティ）
+// ① Assign request ID (traceability)
 function requestIdMiddleware(req: Request, _res: Response, next: NextFunction) {
   req.requestId = req.headers['x-request-id'] as string
     || crypto.randomUUID();
   next();
 }
 
-// ② レート制限
+// ② Rate limiting
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
 function rateLimitMiddleware(maxAttempts: number, windowMs: number) {
@@ -214,13 +219,13 @@ function rateLimitMiddleware(maxAttempts: number, windowMs: number) {
   };
 }
 
-// ④ 認証ミドルウェア（複数方式対応）
+// ④ Authentication middleware (supports multiple methods)
 async function authenticationMiddleware(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
-  // 方式1: Cookie セッション
+  // Method 1: Cookie session
   const sessionId = req.cookies?.session_id;
   if (sessionId) {
     const session = await sessionStore.get(sessionId);
@@ -238,7 +243,7 @@ async function authenticationMiddleware(
     }
   }
 
-  // 方式2: Bearer トークン
+  // Method 2: Bearer token
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
@@ -255,11 +260,11 @@ async function authenticationMiddleware(
       };
       return next();
     } catch (err) {
-      // トークン検証失敗 → 401
+      // Token verification failed → 401
     }
   }
 
-  // 方式3: API キー
+  // Method 3: API key
   const apiKey = req.headers['x-api-key'] as string;
   if (apiKey) {
     const client = await apiKeyStore.verify(apiKey);
@@ -277,7 +282,7 @@ async function authenticationMiddleware(
     }
   }
 
-  // 認証失敗
+  // Authentication failed
   res.status(401).json({
     error: 'Authentication required',
     message: 'Valid session, token, or API key is required',
@@ -285,7 +290,7 @@ async function authenticationMiddleware(
   res.setHeader('WWW-Authenticate', 'Bearer realm="api"');
 }
 
-// ⑤ 認可ミドルウェア（権限チェック）
+// ⑤ Authorization middleware (permission check)
 function requirePermission(...requiredPermissions: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
@@ -297,7 +302,7 @@ function requirePermission(...requiredPermissions: string[]) {
     );
 
     if (!hasAll) {
-      // 監査ログに記録（認可失敗は重要なセキュリティイベント）
+      // Record in audit log (authorization failure is an important security event)
       auditLog.warn('authorization_denied', {
         userId: req.user.id,
         required: requiredPermissions,
@@ -318,21 +323,21 @@ function requirePermission(...requiredPermissions: string[]) {
   };
 }
 
-// 使用例
+// Usage example
 const app = express();
 
 app.use(requestIdMiddleware);
 
-// 公開エンドポイント（認証不要）
+// Public endpoint (no authentication required)
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
-// ログイン（レート制限あり、認証不要）
+// Login (rate limited, no authentication required)
 app.post('/api/auth/login',
-  rateLimitMiddleware(5, 15 * 60 * 1000), // 15分に5回まで
+  rateLimitMiddleware(5, 15 * 60 * 1000), // up to 5 times per 15 minutes
   loginHandler,
 );
 
-// 保護エンドポイント（認証 + 認可）
+// Protected endpoint (authentication + authorization)
 app.get('/api/users',
   authenticationMiddleware,
   requirePermission('users:read'),
@@ -345,10 +350,10 @@ app.delete('/api/users/:id',
   deleteUserHandler,
 );
 
-// 管理者エンドポイント（認証 + 管理者認可 + MFA 必須）
+// Admin endpoint (authentication + admin authorization + MFA required)
 app.post('/api/admin/settings',
   authenticationMiddleware,
-  requireMFA,                              // MFA 検証済みか確認
+  requireMFA,                              // Verify MFA has been completed
   requirePermission('admin:settings:write'),
   updateSettingsHandler,
 );
@@ -356,222 +361,230 @@ app.post('/api/admin/settings',
 
 ---
 
-## 2. 認証の要素（Authentication Factors）
+## 2. Authentication Factors
 
 ```
-3つの認証要素:
+The three authentication factors:
 
   ┌──────────────────────────────────────────────┐
   │                                              │
-  │  ① Something You Know（知識要素）              │
-  │     → パスワード、PIN、秘密の質問               │
-  │     → 最も一般的だが最も脆弱                    │
+  │  ① Something You Know (knowledge factor)     │
+  │     → Password, PIN, security question       │
+  │     → Most common but most vulnerable        │
   │                                              │
-  │  ② Something You Have（所有要素）              │
-  │     → スマートフォン、ハードウェアキー、ICカード   │
-  │     → TOTP、SMS コード、FIDO2 セキュリティキー   │
+  │  ② Something You Have (possession factor)    │
+  │     → Smartphone, hardware key, IC card      │
+  │     → TOTP, SMS code, FIDO2 security key     │
   │                                              │
-  │  ③ Something You Are（生体要素）               │
-  │     → 指紋、顔認証、虹彩、声紋                  │
-  │     → 変更不可（漏洩時のリスクが高い）            │
+  │  ③ Something You Are (inherence factor)      │
+  │     → Fingerprint, face recognition,         │
+  │       iris, voiceprint                       │
+  │     → Cannot be changed (high risk if        │
+  │       compromised)                           │
   │                                              │
   └──────────────────────────────────────────────┘
 
-多要素認証（MFA）:
-  2つ以上の異なる要素を組み合わせる
-  例: パスワード（知識）+ TOTP（所有）= 2FA
+Multi-Factor Authentication (MFA):
+  Combine two or more different factors
+  Example: Password (knowledge) + TOTP (possession) = 2FA
 
-  ✗ パスワード + 秘密の質問 = 単一要素（両方「知識」）
-  ✓ パスワード + TOTP = 多要素（「知識」+「所有」）
-  ✓ パスワード + 指紋 = 多要素（「知識」+「生体」）
+  ✗ Password + security question = single factor (both "knowledge")
+  ✓ Password + TOTP = multi-factor ("knowledge" + "possession")
+  ✓ Password + fingerprint = multi-factor ("knowledge" + "inherence")
 
-強度の順:
-  パスワードのみ < パスワード + SMS < パスワード + TOTP < パスワード + FIDO2
+Order of strength:
+  Password only < Password + SMS < Password + TOTP < Password + FIDO2
 ```
 
-### 2.1 認証要素の詳細比較
+### 2.1 Detailed Comparison of Authentication Factors
 
 ```
-認証要素の強度・利便性比較:
+Authentication factor strength and usability comparison:
 
-  方式            │ 強度 │ 利便性 │ フィッシング │ リモート攻撃 │ コスト
-  ───────────────┼─────┼──────┼───────────┼───────────┼──────
-  パスワードのみ    │ ★☆☆ │ ★★★  │ 脆弱       │ 脆弱       │ 低
-  パスワード+SMS   │ ★★☆ │ ★★☆  │ やや脆弱    │ SIM swap   │ 中
-  パスワード+TOTP  │ ★★★ │ ★★☆  │ やや脆弱    │ 耐性あり    │ 低
-  パスワード+Push  │ ★★★ │ ★★★  │ やや脆弱    │ MFA疲労    │ 中
-  Passkeys        │ ★★★ │ ★★★  │ 耐性あり    │ 耐性あり    │ 低
-  FIDO2 HW Key   │ ★★★ │ ★★☆  │ 耐性あり    │ 耐性あり    │ 高
+  Method             │ Strength │ UX    │ Phishing │ Remote attack │ Cost
+  ───────────────────┼──────────┼───────┼──────────┼───────────────┼──────
+  Password only      │ ★☆☆     │ ★★★  │ Weak     │ Weak          │ Low
+  Password + SMS     │ ★★☆     │ ★★☆  │ Somewhat │ SIM swap      │ Med
+  Password + TOTP    │ ★★★     │ ★★☆  │ Somewhat │ Resistant     │ Low
+  Password + Push    │ ★★★     │ ★★★  │ Somewhat │ MFA fatigue   │ Med
+  Passkeys           │ ★★★     │ ★★★  │ Resistant│ Resistant     │ Low
+  FIDO2 HW Key       │ ★★★     │ ★★☆  │ Resistant│ Resistant     │ High
 
-  各攻撃への耐性:
-  ───────────────────────────────────────────────────────
-  攻撃手法         │ パスワード │ SMS  │ TOTP │ Push │ FIDO2
-  ───────────────┼─────────┼─────┼─────┼─────┼──────
-  ブルートフォース   │ ✗        │ △    │ △    │ ○    │ ○
-  クレデンシャル     │ ✗        │ △    │ △    │ ○    │ ○
-  　スタッフィング   │          │      │      │      │
-  フィッシング      │ ✗        │ ✗    │ ✗    │ △    │ ○
-  SIM スワップ     │ -        │ ✗    │ ○    │ ○    │ ○
-  MITM プロキシ    │ ✗        │ ✗    │ ✗    │ △    │ ○
-  MFA 疲労攻撃    │ -        │ -    │ -    │ ✗    │ ○
-  デバイス窃取     │ -        │ ✗    │ ✗    │ ✗    │ △
+  Resistance to each attack:
+  ─────────────────────────────────────────────────────────────────
+  Attack             │ Password │ SMS  │ TOTP │ Push │ FIDO2
+  ───────────────────┼──────────┼──────┼──────┼──────┼──────
+  Brute force        │ ✗        │ △    │ △    │ ○    │ ○
+  Credential         │ ✗        │ △    │ △    │ ○    │ ○
+    stuffing         │          │      │      │      │
+  Phishing           │ ✗        │ ✗    │ ✗    │ △    │ ○
+  SIM swap           │ -        │ ✗    │ ○    │ ○    │ ○
+  MITM proxy         │ ✗        │ ✗    │ ✗    │ △    │ ○
+  MFA fatigue attack │ -        │ -    │ -    │ ✗    │ ○
+  Device theft       │ -        │ ✗    │ ✗    │ ✗    │ △
 
-  ○ = 耐性あり  △ = 条件次第  ✗ = 脆弱  - = 該当なし
+  ○ = Resistant  △ = Conditional  ✗ = Vulnerable  - = Not applicable
 ```
 
-### 2.2 NIST SP 800-63B の認証保証レベル（AAL）
+### 2.2 NIST SP 800-63B Authentication Assurance Levels (AAL)
 
 ```
-NIST が定義する3つの認証保証レベル:
+Three authentication assurance levels defined by NIST:
 
-  AAL1（低保証）:
-    → 単一要素認証で十分
-    → パスワードのみ、または生体認証のみ
-    → 用途: 一般的な Web サービス、SNS
+  AAL1 (Low assurance):
+    → Single-factor authentication is sufficient
+    → Password only, or biometric only
+    → Use case: General web services, social media
 
-  AAL2（中保証）:
-    → 多要素認証（MFA）が必須
-    → 2つの異なる要素の組み合わせ
-    → 用途: オンラインバンキング、企業システム
-    → 要件: フィッシング耐性は不要だが推奨
+  AAL2 (Medium assurance):
+    → Multi-factor authentication (MFA) is required
+    → Combination of two different factors
+    → Use case: Online banking, enterprise systems
+    → Requirement: Phishing resistance not required but recommended
 
-  AAL3（高保証）:
-    → ハードウェアベースの暗号認証が必須
-    → FIDO2 セキュリティキー等
-    → フィッシング耐性が必須
-    → 用途: 政府システム、医療、金融の高リスク取引
-    → 要件: Verifier impersonation resistance
+  AAL3 (High assurance):
+    → Hardware-based cryptographic authentication is required
+    → FIDO2 security key, etc.
+    → Phishing resistance is required
+    → Use case: Government systems, healthcare, high-risk financial transactions
+    → Requirement: Verifier impersonation resistance
 
-  レベル選択の指針:
+  Guidelines for level selection:
 
-    リスク              │ 推奨 AAL
-    ──────────────────┼──────────
-    個人的な不便        │ AAL1
-    金銭的損害（小）     │ AAL2
-    金銭的損害（大）     │ AAL2 or AAL3
-    個人情報漏洩        │ AAL2
-    機密情報漏洩        │ AAL3
-    人命に関わる        │ AAL3
+    Risk                        │ Recommended AAL
+    ────────────────────────────┼──────────────
+    Personal inconvenience      │ AAL1
+    Minor financial damage      │ AAL2
+    Major financial damage      │ AAL2 or AAL3
+    Personal data breach        │ AAL2
+    Confidential data breach    │ AAL3
+    Risk to human life          │ AAL3
 ```
 
 ---
 
-## 3. 脅威モデル
+## 3. Threat Model
 
 ```
-主要な認証への脅威:
+Major threats to authentication:
 
-  ┌─────────────────────┬─────────────────────────────────┐
-  │ 脅威                 │ 説明                            │
-  ├─────────────────────┼─────────────────────────────────┤
-  │ ブルートフォース      │ パスワードの総当たり攻撃           │
-  │ クレデンシャル        │ 漏洩したパスワードリストで         │
-  │   スタッフィング      │ 他サービスにログイン試行           │
-  │ フィッシング         │ 偽サイトでクレデンシャル詐取        │
-  │ セッションハイジャック │ セッションIDの窃取                │
-  │ CSRF               │ 認証済みユーザーの操作を偽造        │
-  │ XSS → トークン窃取  │ スクリプト注入でトークン読取        │
-  │ 中間者攻撃（MITM）   │ 通信の傍受・改ざん                │
-  │ リプレイ攻撃         │ 正規のリクエストを再送             │
-  │ 権限昇格            │ 一般ユーザーが管理者権限を取得      │
-  └─────────────────────┴─────────────────────────────────┘
+  ┌─────────────────────────┬───────────────────────────────────┐
+  │ Threat                  │ Description                       │
+  ├─────────────────────────┼───────────────────────────────────┤
+  │ Brute force             │ Exhaustive password guessing      │
+  │ Credential stuffing     │ Using leaked password lists to    │
+  │                         │ attempt logins on other services  │
+  │ Phishing                │ Stealing credentials via fake     │
+  │                         │ sites                             │
+  │ Session hijacking       │ Stealing session IDs              │
+  │ CSRF                    │ Forging actions of authenticated  │
+  │                         │ users                             │
+  │ XSS → token theft       │ Reading tokens via script         │
+  │                         │ injection                         │
+  │ Man-in-the-middle(MITM) │ Intercepting/tampering with       │
+  │                         │ communications                    │
+  │ Replay attack           │ Re-sending legitimate requests    │
+  │ Privilege escalation    │ Regular user gaining admin access │
+  └─────────────────────────┴───────────────────────────────────┘
 ```
 
-### 3.1 攻撃フローの詳細分析
+### 3.1 Detailed Analysis of Attack Flows
 
 ```
-攻撃1: クレデンシャルスタッフィング
+Attack 1: Credential Stuffing
 
-  ① 攻撃者がサービスAの漏洩データを入手
-  ② alice@example.com / password123 を取得
-  ③ サービスB, C, D... に同じ認証情報でログイン試行
-  ④ パスワード使い回しのユーザーがアカウント侵害される
+  ① Attacker obtains leaked data from Service A
+  ② Retrieves alice@example.com / password123
+  ③ Attempts login on Service B, C, D... with the same credentials
+  ④ Users who reuse passwords have their accounts compromised
 
-  対策:
-  → パスワード漏洩チェック（Have I Been Pwned API）
-  → レート制限（ログイン試行回数制限）
-  → MFA の強制
-  → アカウントロックアウト
+  Countermeasures:
+  → Password breach check (Have I Been Pwned API)
+  → Rate limiting (limit login attempt count)
+  → Enforce MFA
+  → Account lockout
 
-攻撃2: セッション固定攻撃（Session Fixation）
+Attack 2: Session Fixation
 
-  攻撃者           被害者          サーバー
+  Attacker         Victim            Server
     │                │               │
-    │ セッションID取得  │               │
+    │ Obtain SID     │               │
     │───────────────────────────────>│
-    │ SID=abc123      │               │
+    │ SID=abc123     │               │
     │<───────────────────────────────│
     │                │               │
-    │ SID=abc123 を    │               │
-    │ 被害者に注入     │               │
+    │ Inject         │               │
+    │ SID=abc123     │               │
+    │ into victim    │               │
     │───────────────>│               │
-    │                │ ログイン        │
-    │                │ (SID=abc123)   │
+    │                │ Login         │
+    │                │ (SID=abc123)  │
     │                │──────────────>│
-    │                │ 認証成功        │
+    │                │ Auth success  │
     │                │<──────────────│
     │                │               │
-    │ SID=abc123 で    │               │
-    │ アクセス（認証済み）│              │
+    │ Access with    │               │
+    │ SID=abc123     │               │
+    │ (authenticated)│               │
     │───────────────────────────────>│
-    │ 被害者のデータ    │               │
+    │ Victim's data  │               │
     │<───────────────────────────────│
 
-  対策:
-  → ログイン成功時にセッションIDを再生成
-  → セッションIDをURLパラメータに含めない
-  → Cookie の Secure, HttpOnly, SameSite 属性
+  Countermeasures:
+  → Regenerate session ID on successful login
+  → Do not include session ID in URL parameters
+  → Cookie Secure, HttpOnly, SameSite attributes
 ```
 
 ```
-攻撃3: CSRF（Cross-Site Request Forgery）
+Attack 3: CSRF (Cross-Site Request Forgery)
 
-  被害者（認証済み）   悪意あるサイト     正規サーバー
-    │                  │                │
-    │ 悪意サイト訪問     │                │
-    │────────────────>│                │
-    │                  │                │
-    │ 不正リクエスト     │                │
-    │ （被害者のCookie   │                │
-    │  が自動送信）      │                │
-    │─────────────────────────────────>│
-    │                  │                │
-    │                  │  送金完了       │
-    │<─────────────────────────────────│
+  Victim (authenticated)  Malicious site   Legitimate server
+    │                        │               │
+    │ Visit malicious site   │               │
+    │───────────────────────>│               │
+    │                        │               │
+    │ Fraudulent request     │               │
+    │ (victim's Cookie       │               │
+    │  is sent automatically)│               │
+    │───────────────────────────────────────>│
+    │                        │               │
+    │                        │ Transfer done │
+    │<───────────────────────────────────────│
 
-  悪意あるサイトの HTML:
+  Malicious site HTML:
   <form action="https://bank.com/transfer" method="POST">
     <input type="hidden" name="to" value="attacker">
     <input type="hidden" name="amount" value="1000000">
   </form>
   <script>document.forms[0].submit();</script>
 
-  対策:
-  → SameSite Cookie 属性（Lax or Strict）
-  → CSRF トークン（Synchronizer Token Pattern）
-  → カスタムヘッダー検証（X-Requested-With）
-  → Origin / Referer ヘッダー検証
+  Countermeasures:
+  → SameSite Cookie attribute (Lax or Strict)
+  → CSRF token (Synchronizer Token Pattern)
+  → Custom header validation (X-Requested-With)
+  → Origin / Referer header validation
 
-攻撃4: 権限昇格（Privilege Escalation）
+Attack 4: Privilege Escalation
 
-  水平権限昇格:
-    → 同じ権限レベルの他ユーザーのリソースにアクセス
-    → 例: /api/users/123/profile → /api/users/456/profile
-    → 対策: オブジェクトレベル認可（リソースの所有者チェック）
+  Horizontal privilege escalation:
+    → Access another user's resource at the same privilege level
+    → Example: /api/users/123/profile → /api/users/456/profile
+    → Countermeasure: Object-level authorization (check resource ownership)
 
-  垂直権限昇格:
-    → より高い権限レベルの機能にアクセス
-    → 例: 一般ユーザーが /api/admin/users にアクセス
-    → 対策: ロールベース認可チェック
+  Vertical privilege escalation:
+    → Access functionality at a higher privilege level
+    → Example: Regular user accesses /api/admin/users
+    → Countermeasure: Role-based authorization check
 
-  コンテキスト依存の権限昇格:
-    → ビジネスフローの順序を無視
-    → 例: 支払い前に商品ダウンロードリンクにアクセス
-    → 対策: ステート管理 + フロー検証
+  Context-dependent privilege escalation:
+    → Bypass the order of a business flow
+    → Example: Access download link before payment
+    → Countermeasure: State management + flow validation
 ```
 
 ```typescript
-// CSRF 防御の実装
+// CSRF protection implementation
 import crypto from 'crypto';
 
 class CSRFProtection {
@@ -581,7 +594,7 @@ class CSRFProtection {
     this.secret = secret;
   }
 
-  // トークン生成
+  // Generate token
   generateToken(sessionId: string): string {
     const timestamp = Date.now().toString(36);
     const random = crypto.randomBytes(16).toString('hex');
@@ -593,21 +606,21 @@ class CSRFProtection {
     return `${data}:${hmac}`;
   }
 
-  // トークン検証
+  // Verify token
   verifyToken(token: string, sessionId: string): boolean {
     const parts = token.split(':');
     if (parts.length !== 4) return false;
 
     const [storedSessionId, timestamp, random, providedHmac] = parts;
 
-    // セッションID一致確認
+    // Verify session ID match
     if (storedSessionId !== sessionId) return false;
 
-    // 有効期限チェック（1時間）
+    // Check expiration (1 hour)
     const tokenTime = parseInt(timestamp, 36);
     if (Date.now() - tokenTime > 3600 * 1000) return false;
 
-    // HMAC 検証（タイミングセーフ比較）
+    // HMAC verification (timing-safe comparison)
     const data = `${storedSessionId}:${timestamp}:${random}`;
     const expectedHmac = crypto
       .createHmac('sha256', this.secret)
@@ -621,22 +634,22 @@ class CSRFProtection {
   }
 }
 
-// ミドルウェアとして使用
+// Use as middleware
 function csrfMiddleware(csrf: CSRFProtection) {
   return (req: Request, res: Response, next: NextFunction) => {
-    // GET, HEAD, OPTIONS は CSRF チェック不要
+    // GET, HEAD, OPTIONS do not require CSRF check
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-      // レスポンスにトークンをセット
+      // Set token in response
       const token = csrf.generateToken(req.cookies.session_id);
       res.cookie('csrf_token', token, {
-        httpOnly: false,  // JavaScript から読み取り可能にする
+        httpOnly: false,  // Must be readable by JavaScript
         secure: true,
         sameSite: 'strict',
       });
       return next();
     }
 
-    // 変更系リクエストはトークン検証
+    // Mutating requests require token verification
     const token = req.headers['x-csrf-token'] as string
       || req.body?._csrf;
 
@@ -652,123 +665,123 @@ function csrfMiddleware(csrf: CSRFProtection) {
 }
 ```
 
-### 3.2 STRIDE 脅威モデリング
+### 3.2 STRIDE Threat Modeling
 
 ```
-STRIDE フレームワーク（Microsoft）:
+STRIDE framework (Microsoft):
 
-  脅威カテゴリ                     │ 対策
-  ────────────────────────────────┼──────────────────────
-  S: Spoofing（なりすまし）          │ 認証
-    → 他のユーザーになりすます       │ MFA、Passkeys
+  Threat category                  │ Countermeasure
+  ─────────────────────────────────┼──────────────────────
+  S: Spoofing                      │ Authentication
+    → Impersonate another user     │ MFA, Passkeys
                                    │
-  T: Tampering（改ざん）            │ 完全性検証
-    → データや通信を改ざん          │ HMAC、デジタル署名
+  T: Tampering                     │ Integrity verification
+    → Alter data or communication  │ HMAC, digital signature
                                    │
-  R: Repudiation（否認）            │ 監査ログ
-    → 「自分はやっていない」と主張   │ タイムスタンプ、署名
+  R: Repudiation                   │ Audit log
+    → Claim "I didn't do it"       │ Timestamp, signature
                                    │
-  I: Information Disclosure        │ 暗号化
-    （情報漏洩）                    │ アクセス制御
-    → 機密情報の漏洩               │ TLS、暗号化
+  I: Information Disclosure        │ Encryption
+    → Leak of confidential info    │ Access control, TLS
                                    │
-  D: Denial of Service             │ レート制限
-    （サービス拒否）                │ キャパシティ管理
-    → サービスを利用不能に          │ CDN、WAF
+  D: Denial of Service             │ Rate limiting
+    → Render service unavailable   │ Capacity management,
+                                   │ CDN, WAF
                                    │
-  E: Elevation of Privilege        │ 認可
-    （権限昇格）                    │ 最小権限の原則
-    → より高い権限を取得           │ RBAC/ABAC
+  E: Elevation of Privilege        │ Authorization
+    → Gain higher privileges       │ Principle of least
+                                   │ privilege, RBAC/ABAC
 
-  認証・認可システムで特に重要:
-  → S（なりすまし）: 認証の強度が直接防御になる
-  → E（権限昇格）: 認可の設計が直接防御になる
-  → T（改ざん）: トークンの署名検証が防御になる
+  Especially important for authentication/authorization systems:
+  → S (Spoofing): Authentication strength is the direct defense
+  → E (Elevation of Privilege): Authorization design is the direct defense
+  → T (Tampering): Token signature verification is the defense
 ```
 
 ---
 
-## 4. セキュリティ原則
+## 4. Security Principles
 
 ```
-認証・認可のセキュリティ原則:
+Security principles for authentication and authorization:
 
-  ① 最小権限の原則（Principle of Least Privilege）:
-     → 必要最小限の権限のみ付与
-     → デフォルトは「拒否」
-     → 管理者権限は必要な人にのみ
-     → 時間制限付き権限昇格（Just-In-Time Access）
+  ① Principle of Least Privilege:
+     → Grant only the minimum permissions necessary
+     → Default is "deny"
+     → Admin privileges only for those who need them
+     → Time-limited privilege escalation (Just-In-Time Access)
 
-  ② 多層防御（Defense in Depth）:
-     → 単一の防御に頼らない
-     → ネットワーク + アプリ + DB の各層で防御
-     → 1つ突破されても次の層で止める
-     → 例: WAF → API Gateway → Middleware → DB RLS
+  ② Defense in Depth:
+     → Do not rely on a single defense
+     → Defend at each layer: network + application + DB
+     → If one layer is breached, the next layer stops the attack
+     → Example: WAF → API Gateway → Middleware → DB RLS
 
-  ③ フェイルセキュア（Fail Secure）:
-     → エラー時は安全側に倒す
-     → 認証エラー → アクセス拒否（許可ではなく）
-     → 例外発生 → ログアウト状態に
-     → DB接続断 → デフォルト拒否（キャッシュ許可しない）
+  ③ Fail Secure:
+     → On error, fail to the safe side
+     → Authentication error → deny access (not permit)
+     → Exception occurs → revert to logged-out state
+     → DB connection lost → deny by default (do not use cached permission)
 
-  ④ セキュリティバイデフォルト:
-     → 安全な設定をデフォルトに
+  ④ Secure by Default:
+     → Make the secure configuration the default
      → Cookie: HttpOnly=true, Secure=true, SameSite=Lax
-     → HTTPS 強制
-     → 新規ユーザーは最小権限ロール
+     → Enforce HTTPS
+     → New users get the least-privilege role
 
-  ⑤ ゼロトラスト:
-     → 「信頼しない、常に検証する」
-     → 内部ネットワークも信頼しない
-     → リクエストごとに認証・認可
-     → マイクロセグメンテーション
+  ⑤ Zero Trust:
+     → "Never trust, always verify"
+     → Do not trust even the internal network
+     → Authenticate and authorize every request
+     → Micro-segmentation
 ```
 
-### 4.1 多層防御の実装例
+### 4.1 Defense-in-Depth Implementation Example
 
 ```
-多層防御アーキテクチャ:
+Defense-in-depth architecture:
 
-  インターネット
+  Internet
     │
     ▼
   ┌──────────────────────────────────┐
-  │ Layer 1: ネットワーク層           │
-  │ → WAF（Web Application Firewall） │
-  │ → DDoS 防御（Cloudflare 等）      │
-  │ → IP 制限、Geo-blocking          │
+  │ Layer 1: Network Layer           │
+  │ → WAF (Web Application Firewall) │
+  │ → DDoS protection (Cloudflare    │
+  │   etc.)                          │
+  │ → IP restrictions, Geo-blocking  │
   └──────────────┬───────────────────┘
                  │
                  ▼
   ┌──────────────────────────────────┐
   │ Layer 2: API Gateway             │
-  │ → レート制限                      │
-  │ → API キー検証                    │
-  │ → リクエストサイズ制限             │
-  │ → TLS 終端                       │
+  │ → Rate limiting                  │
+  │ → API key validation             │
+  │ → Request size limits            │
+  │ → TLS termination                │
   └──────────────┬───────────────────┘
                  │
                  ▼
   ┌──────────────────────────────────┐
-  │ Layer 3: アプリケーション層        │
-  │ → 認証ミドルウェア                │
-  │ → 認可ミドルウェア                │
-  │ → CSRF 防御                      │
-  │ → 入力検証・サニタイズ             │
+  │ Layer 3: Application Layer       │
+  │ → Authentication middleware      │
+  │ → Authorization middleware       │
+  │ → CSRF protection                │
+  │ → Input validation/sanitization  │
   └──────────────┬───────────────────┘
                  │
                  ▼
   ┌──────────────────────────────────┐
-  │ Layer 4: データ層                 │
-  │ → Row Level Security（RLS）      │
-  │ → 暗号化（at rest / in transit） │
-  │ → DB ユーザー権限分離             │
-  │ → クエリパラメータ化              │
+  │ Layer 4: Data Layer              │
+  │ → Row Level Security (RLS)       │
+  │ → Encryption (at rest/in transit)│
+  │ → DB user privilege separation   │
+  │ → Parameterized queries          │
   └──────────────────────────────────┘
 ```
 
 ```typescript
-// フェイルセキュアの実装パターン
+// Fail-secure implementation pattern
 class FailSecureAuthService {
   private tokenVerifier: TokenVerifier;
   private permissionCache: PermissionCache;
@@ -776,18 +789,18 @@ class FailSecureAuthService {
 
   async authenticate(token: string): Promise<AuthResult> {
     try {
-      // トークン検証
+      // Token verification
       const payload = await this.tokenVerifier.verify(token);
       return { authenticated: true, user: payload };
     } catch (error) {
-      // あらゆるエラーで「拒否」に倒す
+      // Fail to "deny" on any error
       if (error instanceof TokenExpiredError) {
         return { authenticated: false, reason: 'token_expired' };
       }
       if (error instanceof InvalidSignatureError) {
         return { authenticated: false, reason: 'invalid_signature' };
       }
-      // 未知のエラーも安全側に倒す
+      // Also fail safe on unknown errors
       console.error('Unexpected auth error:', error);
       return { authenticated: false, reason: 'internal_error' };
     }
@@ -795,210 +808,213 @@ class FailSecureAuthService {
 
   async authorize(userId: string, resource: string, action: string): Promise<boolean> {
     try {
-      // 権限サービスへの問い合わせ
+      // Query the permission service
       if (this.circuitBreaker.isOpen()) {
-        // サーキットブレーカー発動時 → デフォルト拒否
+        // Circuit breaker triggered → deny by default
         console.warn('Permission service circuit breaker open, denying access');
-        return false;  // フェイルセキュア: 許可しない
+        return false;  // Fail-secure: do not permit
       }
 
       const permissions = await this.permissionCache.getOrFetch(userId);
       return permissions.includes(`${resource}:${action}`);
     } catch (error) {
-      // 権限確認でエラー → 拒否
+      // Error during permission check → deny
       console.error('Authorization check failed:', error);
-      return false;  // フェイルセキュア: 許可しない
+      return false;  // Fail-secure: do not permit
     }
   }
 }
 
-// アンチパターン: フェイルオープン（絶対にやってはいけない）
+// Anti-pattern: Fail-open (never do this)
 // async authorize(userId, resource, action) {
 //   try {
 //     const permissions = await getPermissions(userId);
 //     return permissions.includes(`${resource}:${action}`);
 //   } catch (error) {
-//     return true;  // ✗ エラー時に許可 = フェイルオープン
+//     return true;  // ✗ Permit on error = fail-open
 //   }
 // }
 ```
 
 ---
 
-## 5. 認証・認可の全体アーキテクチャ
+## 5. Overall Architecture for Authentication and Authorization
 
 ```
-一般的な認証フロー:
+Typical authentication flow:
 
-  ユーザー         フロントエンド       バックエンド        DB / IdP
-    │                 │                  │                │
-    │ ログイン画面     │                  │                │
-    │────────────────>│                  │                │
-    │                 │ POST /auth/login │                │
-    │                 │────────────────>│                │
-    │                 │                  │ パスワード検証   │
-    │                 │                  │───────────────>│
-    │                 │                  │ ユーザー情報     │
-    │                 │                  │<───────────────│
-    │                 │                  │                │
-    │                 │  セッション or    │                │
-    │                 │  トークン発行     │                │
-    │                 │<────────────────│                │
-    │ ログイン成功     │                  │                │
-    │<────────────────│                  │                │
-    │                 │                  │                │
-    │ 保護リソース要求  │                  │                │
-    │────────────────>│                  │                │
-    │                 │ + Cookie/Bearer  │                │
-    │                 │────────────────>│                │
-    │                 │                  │ 認証チェック     │
-    │                 │                  │ 認可チェック     │
-    │                 │                  │───────────────>│
-    │                 │  200 OK + データ  │                │
-    │                 │<────────────────│                │
-    │ データ表示       │                  │                │
-    │<────────────────│                  │                │
+  User          Frontend          Backend           DB / IdP
+    │               │                │               │
+    │ Login screen  │                │               │
+    │──────────────>│                │               │
+    │               │ POST /auth/login│               │
+    │               │───────────────>│               │
+    │               │                │ Verify passwd │
+    │               │                │──────────────>│
+    │               │                │ User info     │
+    │               │                │<──────────────│
+    │               │                │               │
+    │               │  Issue session │               │
+    │               │  or token      │               │
+    │               │<───────────────│               │
+    │ Login success │                │               │
+    │<──────────────│                │               │
+    │               │                │               │
+    │ Request       │                │               │
+    │ protected     │                │               │
+    │ resource      │                │               │
+    │──────────────>│                │               │
+    │               │ + Cookie/Bearer│               │
+    │               │───────────────>│               │
+    │               │                │ Auth check    │
+    │               │                │ Authz check   │
+    │               │                │──────────────>│
+    │               │  200 OK + data │               │
+    │               │<───────────────│               │
+    │ Display data  │                │               │
+    │<──────────────│                │               │
 ```
 
-### 5.1 セッション方式 vs トークン方式の内部動作
+### 5.1 Internal Workings: Session vs Token
 
 ```
-セッション方式の内部動作:
+Internal workings of session-based approach:
 
-  クライアント               サーバー                 セッションストア
-    │                        │                       │
-    │ POST /login            │                       │
-    │ {email, password}      │                       │
-    │───────────────────────>│                       │
-    │                        │                       │
-    │                        │ パスワード検証          │
-    │                        │ セッション作成          │
-    │                        │ sid = crypto.randomUUID()
-    │                        │                       │
-    │                        │ SET sid → {           │
-    │                        │   userId, roles,      │
-    │                        │   expiresAt, ip,      │
-    │                        │   userAgent           │
-    │                        │ }                     │
-    │                        │──────────────────────>│
-    │                        │                       │
-    │ Set-Cookie:            │                       │
-    │ session_id=<sid>;      │                       │
-    │ HttpOnly; Secure;      │                       │
-    │ SameSite=Lax;          │                       │
-    │ Max-Age=86400          │                       │
-    │<───────────────────────│                       │
-    │                        │                       │
-    │ GET /api/data          │                       │
-    │ Cookie: session_id=sid │                       │
-    │───────────────────────>│                       │
-    │                        │ GET sid               │
-    │                        │──────────────────────>│
-    │                        │ {userId, roles, ...}  │
-    │                        │<──────────────────────│
-    │                        │                       │
-    │                        │ 有効期限チェック        │
-    │                        │ IP / UA 検証          │
-    │                        │ ロールで認可チェック    │
-    │                        │                       │
-    │ 200 OK + data          │                       │
-    │<───────────────────────│                       │
+  Client                  Server                  Session Store
+    │                       │                       │
+    │ POST /login           │                       │
+    │ {email, password}     │                       │
+    │──────────────────────>│                       │
+    │                       │                       │
+    │                       │ Verify password       │
+    │                       │ Create session        │
+    │                       │ sid = crypto.randomUUID()
+    │                       │                       │
+    │                       │ SET sid → {           │
+    │                       │   userId, roles,      │
+    │                       │   expiresAt, ip,      │
+    │                       │   userAgent           │
+    │                       │ }                     │
+    │                       │──────────────────────>│
+    │                       │                       │
+    │ Set-Cookie:           │                       │
+    │ session_id=<sid>;     │                       │
+    │ HttpOnly; Secure;     │                       │
+    │ SameSite=Lax;         │                       │
+    │ Max-Age=86400         │                       │
+    │<──────────────────────│                       │
+    │                       │                       │
+    │ GET /api/data         │                       │
+    │ Cookie: session_id=sid│                       │
+    │──────────────────────>│                       │
+    │                       │ GET sid               │
+    │                       │──────────────────────>│
+    │                       │ {userId, roles, ...}  │
+    │                       │<──────────────────────│
+    │                       │                       │
+    │                       │ Check expiry          │
+    │                       │ Verify IP / UA        │
+    │                       │ Authz check by role   │
+    │                       │                       │
+    │ 200 OK + data         │                       │
+    │<──────────────────────│                       │
 
-  セッション方式の特徴:
-    利点:
-      → サーバー側で即座にセッション無効化可能
-      → セッションデータの更新が容易
-      → Cookie の HttpOnly で XSS からの保護
-      → セッションデータのサイズに制限なし
+  Characteristics of session-based approach:
+    Advantages:
+      → Server can invalidate session instantly
+      → Session data is easy to update
+      → HttpOnly Cookie protects against XSS
+      → No size limit on session data
 
-    欠点:
-      → サーバーにステート（セッションストア）が必要
-      → スケーリング時にセッション共有が必要
-        → Redis / Memcached 等の分散ストア
-      → マイクロサービス間での共有が困難
-      → モバイルアプリとの統合がやや面倒
+    Disadvantages:
+      → Server requires state (session store)
+      → Session sharing required when scaling
+        → Distributed store such as Redis / Memcached
+      → Difficult to share across microservices
+      → Slightly cumbersome integration with mobile apps
 ```
 
 ```
-トークン方式（JWT）の内部動作:
+Internal workings of token-based (JWT) approach:
 
-  クライアント               サーバー                 DB
-    │                        │                       │
-    │ POST /login            │                       │
-    │ {email, password}      │                       │
-    │───────────────────────>│                       │
-    │                        │                       │
-    │                        │ パスワード検証          │
-    │                        │──────────────────────>│
-    │                        │<──────────────────────│
-    │                        │                       │
-    │                        │ JWT 生成:             │
-    │                        │ Header = {            │
-    │                        │   alg: "RS256",       │
-    │                        │   typ: "JWT"          │
-    │                        │ }                     │
-    │                        │ Payload = {           │
-    │                        │   sub: "user123",     │
-    │                        │   roles: ["admin"],   │
-    │                        │   exp: 1700000000,    │
-    │                        │   iat: 1699996400     │
-    │                        │ }                     │
-    │                        │ Signature = RS256(    │
-    │                        │   header + payload,   │
-    │                        │   privateKey          │
-    │                        │ )                     │
-    │                        │                       │
-    │ {                      │                       │
-    │   access_token: "ey..",│                       │
-    │   refresh_token: "ey.."│                       │
-    │   expires_in: 3600     │                       │
-    │ }                      │                       │
-    │<───────────────────────│                       │
-    │                        │                       │
-    │ GET /api/data          │                       │
-    │ Authorization:         │                       │
-    │ Bearer ey..            │                       │
-    │───────────────────────>│                       │
-    │                        │                       │
-    │                        │ JWT 検証:             │
-    │                        │ ① 署名検証（公開鍵）   │
-    │                        │ ② exp チェック        │
-    │                        │ ③ iss, aud チェック   │
-    │                        │ ④ roles で認可        │
-    │                        │ （DBアクセス不要!）     │
-    │                        │                       │
-    │ 200 OK + data          │                       │
-    │<───────────────────────│                       │
+  Client                  Server                  DB
+    │                       │                       │
+    │ POST /login           │                       │
+    │ {email, password}     │                       │
+    │──────────────────────>│                       │
+    │                       │                       │
+    │                       │ Verify password       │
+    │                       │──────────────────────>│
+    │                       │<──────────────────────│
+    │                       │                       │
+    │                       │ Generate JWT:         │
+    │                       │ Header = {            │
+    │                       │   alg: "RS256",       │
+    │                       │   typ: "JWT"          │
+    │                       │ }                     │
+    │                       │ Payload = {           │
+    │                       │   sub: "user123",     │
+    │                       │   roles: ["admin"],   │
+    │                       │   exp: 1700000000,    │
+    │                       │   iat: 1699996400     │
+    │                       │ }                     │
+    │                       │ Signature = RS256(    │
+    │                       │   header + payload,   │
+    │                       │   privateKey          │
+    │                       │ )                     │
+    │                       │                       │
+    │ {                     │                       │
+    │   access_token: "ey.."│                       │
+    │   refresh_token:"ey.."│                       │
+    │   expires_in: 3600    │                       │
+    │ }                     │                       │
+    │<──────────────────────│                       │
+    │                       │                       │
+    │ GET /api/data         │                       │
+    │ Authorization:        │                       │
+    │ Bearer ey..           │                       │
+    │──────────────────────>│                       │
+    │                       │                       │
+    │                       │ Verify JWT:           │
+    │                       │ ① Verify signature    │
+    │                       │   (public key)        │
+    │                       │ ② Check exp           │
+    │                       │ ③ Check iss, aud      │
+    │                       │ ④ Authz by roles      │
+    │                       │   (no DB access!)     │
+    │                       │                       │
+    │ 200 OK + data         │                       │
+    │<──────────────────────│                       │
 
-  トークン方式の特徴:
-    利点:
-      → ステートレス（サーバーにセッション不要）
-      → スケーリングが容易（どのサーバーでも検証可能）
-      → マイクロサービスに最適
-      → モバイル / SPA との統合が容易
-      → 検証時に DB アクセス不要
+  Characteristics of token-based approach:
+    Advantages:
+      → Stateless (no session store needed on server)
+      → Easy to scale (any server can verify)
+      → Ideal for microservices
+      → Easy integration with mobile / SPA
+      → No DB access needed for verification
 
-    欠点:
-      → トークン無効化が困難（ブラックリスト必要）
-      → ペイロードサイズに実質制限（HTTP ヘッダー）
-      → トークン漏洩時のリスクが高い
-      → 有効期限まで権限変更が反映されない
+    Disadvantages:
+      → Difficult to invalidate tokens (requires blacklist)
+      → Practical payload size limit (HTTP header constraint ~8KB)
+      → Higher risk when token is leaked
+      → Permission changes are not reflected until token expires
 ```
 
 ```typescript
-// セッション方式の実装
+// Session-based implementation
 import { Redis } from 'ioredis';
 import crypto from 'crypto';
 
 class SessionManager {
   private redis: Redis;
-  private defaultTTL: number = 24 * 60 * 60; // 24時間
+  private defaultTTL: number = 24 * 60 * 60; // 24 hours
 
   constructor(redis: Redis) {
     this.redis = redis;
   }
 
-  // セッション作成
+  // Create session
   async createSession(
     userId: string,
     metadata: { ip: string; userAgent: string; roles: string[] },
@@ -1020,20 +1036,20 @@ class SessionManager {
       JSON.stringify(sessionData),
     );
 
-    // ユーザーのアクティブセッション一覧にも記録
+    // Also record in the user's active session list
     await this.redis.sadd(`user_sessions:${userId}`, sessionId);
 
     return sessionId;
   }
 
-  // セッション検証
+  // Validate session
   async getSession(sessionId: string): Promise<SessionData | null> {
     const raw = await this.redis.get(`session:${sessionId}`);
     if (!raw) return null;
 
     const session = JSON.parse(raw) as SessionData;
 
-    // スライディングウィンドウ: アクセスのたびに有効期限を延長
+    // Sliding window: extend expiry on every access
     session.lastAccessedAt = Date.now();
     await this.redis.setex(
       `session:${sessionId}`,
@@ -1044,7 +1060,7 @@ class SessionManager {
     return session;
   }
 
-  // セッション破棄
+  // Destroy session
   async destroySession(sessionId: string): Promise<void> {
     const raw = await this.redis.get(`session:${sessionId}`);
     if (raw) {
@@ -1054,7 +1070,7 @@ class SessionManager {
     await this.redis.del(`session:${sessionId}`);
   }
 
-  // 特定ユーザーの全セッションを破棄（パスワード変更時等）
+  // Destroy all sessions for a specific user (e.g., on password change)
   async destroyAllSessions(userId: string): Promise<void> {
     const sessionIds = await this.redis.smembers(`user_sessions:${userId}`);
     if (sessionIds.length > 0) {
@@ -1065,7 +1081,7 @@ class SessionManager {
   }
 }
 
-// セッション固定攻撃対策
+// Session fixation countermeasure
 async function loginHandler(req: Request, res: Response) {
   const { email, password } = req.body;
 
@@ -1074,8 +1090,8 @@ async function loginHandler(req: Request, res: Response) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  // 重要: ログイン成功時に既存セッションを破棄して新規作成
-  // → セッション固定攻撃の防止
+  // Important: destroy existing session on successful login and create a new one
+  // → Prevents session fixation attacks
   if (req.cookies.session_id) {
     await sessionManager.destroySession(req.cookies.session_id);
   }
@@ -1087,10 +1103,10 @@ async function loginHandler(req: Request, res: Response) {
   });
 
   res.cookie('session_id', newSessionId, {
-    httpOnly: true,    // JavaScript からアクセス不可
-    secure: true,      // HTTPS のみ
-    sameSite: 'lax',   // CSRF 防御
-    maxAge: 24 * 60 * 60 * 1000,  // 24時間
+    httpOnly: true,    // Not accessible by JavaScript
+    secure: true,      // HTTPS only
+    sameSite: 'lax',   // CSRF protection
+    maxAge: 24 * 60 * 60 * 1000,  // 24 hours
     path: '/',
   });
 
@@ -1098,51 +1114,51 @@ async function loginHandler(req: Request, res: Response) {
 }
 ```
 
-### 5.2 セッション方式 vs トークン方式の選択基準
+### 5.2 Criteria for Choosing Between Session and Token
 
 ```
-方式選択の判断基準:
+Decision criteria for selecting an approach:
 
-  項目              │ セッション        │ JWT トークン
-  ────────────────┼────────────────┼─────────────────
-  ステート管理      │ サーバー側        │ クライアント側
-  ストレージ        │ Redis 等必要      │ 不要
-  スケーラビリティ  │ △ ストア共有必要  │ ○ ステートレス
-  即時無効化        │ ○ 即座に可能      │ △ ブラックリスト要
-  ペイロードサイズ  │ 制限なし          │ ~8KB（ヘッダー制限）
-  DB アクセス       │ 毎リクエスト      │ 不要（検証のみ）
-  マイクロサービス  │ △ 共有ストア      │ ○ 公開鍵配布のみ
-  モバイル対応      │ △ Cookie 管理    │ ○ ヘッダー送信
-  XSS 耐性        │ ○ HttpOnly       │ △ 保存場所に依存
-  CSRF 耐性       │ △ 対策必要        │ ○ ヘッダー送信
+  Item                │ Session          │ JWT Token
+  ────────────────────┼──────────────────┼────────────────────
+  State management    │ Server-side       │ Client-side
+  Storage             │ Requires Redis    │ Not required
+  Scalability         │ △ Store sharing  │ ○ Stateless
+  Instant invalidation│ ○ Immediate       │ △ Requires blacklist
+  Payload size        │ Unlimited         │ ~8KB (header limit)
+  DB access           │ Every request     │ Not needed (verify only)
+  Microservices       │ △ Shared store   │ ○ Public key only
+  Mobile support      │ △ Cookie mgmt    │ ○ Header-based
+  XSS resistance      │ ○ HttpOnly       │ △ Depends on storage
+  CSRF resistance     │ △ Needs measures │ ○ Header-based
 
-  推奨パターン:
+  Recommended patterns:
 
-    Web アプリ（SSR）       → セッション + Cookie
-    SPA + BFF             → セッション（BFF が Cookie 管理）
-    SPA + API 直接        → JWT（短寿命 access + refresh）
-    モバイルアプリ          → JWT
-    マイクロサービス間      → JWT（Client Credentials）
-    ハイブリッド            → セッション（Web）+ JWT（API）
+    Web app (SSR)            → Session + Cookie
+    SPA + BFF                → Session (BFF manages Cookie)
+    SPA + direct API         → JWT (short-lived access + refresh)
+    Mobile app               → JWT
+    Between microservices    → JWT (Client Credentials)
+    Hybrid                   → Session (Web) + JWT (API)
 ```
 
 ---
 
-## 6. 認可モデルの詳細
+## 6. Authorization Models in Detail
 
-### 6.1 RBAC（Role-Based Access Control）
+### 6.1 RBAC (Role-Based Access Control)
 
 ```
-RBAC の仕組み:
+How RBAC works:
 
-  ユーザー ──has──> ロール ──has──> パーミッション
+  User ──has──> Role ──has──> Permission
 
-  例:
+  Example:
   alice ──has──> admin ──has──> users:read
-                              users:write
-                              users:delete
-                              settings:read
-                              settings:write
+                               users:write
+                               users:delete
+                               settings:read
+                               settings:write
 
   bob   ──has──> editor ──has──> users:read
                                 posts:read
@@ -1151,22 +1167,22 @@ RBAC の仕組み:
   carol ──has──> viewer ──has──> users:read
                                 posts:read
 
-  RBAC の階層（Hierarchical RBAC）:
+  RBAC hierarchy (Hierarchical RBAC):
   ┌────────┐
-  │ admin  │ → すべての権限を包含
+  │ admin  │ → Encompasses all permissions
   ├────────┤
-  │ editor │ → viewer の権限 + 編集権限
+  │ editor │ → viewer permissions + edit permissions
   ├────────┤
-  │ viewer │ → 閲覧権限のみ
+  │ viewer │ → Read-only permissions
   └────────┘
 ```
 
 ```typescript
-// RBAC 実装
+// RBAC implementation
 interface Role {
   name: string;
   permissions: string[];
-  inherits?: string[];  // 継承するロール
+  inherits?: string[];  // Roles to inherit from
 }
 
 class RBACEngine {
@@ -1176,9 +1192,9 @@ class RBACEngine {
     this.roles.set(role.name, role);
   }
 
-  // ロールの全権限を取得（継承を含む）
+  // Get all permissions for a role (including inherited)
   getPermissions(roleName: string, visited = new Set<string>()): string[] {
-    if (visited.has(roleName)) return []; // 循環防止
+    if (visited.has(roleName)) return []; // Prevent circular reference
     visited.add(roleName);
 
     const role = this.roles.get(roleName);
@@ -1186,7 +1202,7 @@ class RBACEngine {
 
     const permissions = new Set(role.permissions);
 
-    // 親ロールの権限を継承
+    // Inherit permissions from parent roles
     for (const parent of role.inherits || []) {
       for (const perm of this.getPermissions(parent, visited)) {
         permissions.add(perm);
@@ -1196,13 +1212,13 @@ class RBACEngine {
     return Array.from(permissions);
   }
 
-  // 権限チェック
+  // Permission check
   hasPermission(userRoles: string[], permission: string): boolean {
     for (const roleName of userRoles) {
       const permissions = this.getPermissions(roleName);
       if (permissions.includes(permission)) return true;
 
-      // ワイルドカード対応: "admin:*" は "admin:read" にマッチ
+      // Wildcard support: "admin:*" matches "admin:read"
       for (const perm of permissions) {
         if (perm.endsWith(':*')) {
           const prefix = perm.slice(0, -1);
@@ -1214,7 +1230,7 @@ class RBACEngine {
   }
 }
 
-// 使用例
+// Usage example
 const rbac = new RBACEngine();
 
 rbac.registerRole({
@@ -1225,65 +1241,65 @@ rbac.registerRole({
 rbac.registerRole({
   name: 'editor',
   permissions: ['posts:write', 'posts:delete'],
-  inherits: ['viewer'],  // viewer の権限を継承
+  inherits: ['viewer'],  // Inherit viewer permissions
 });
 
 rbac.registerRole({
   name: 'admin',
   permissions: ['users:write', 'users:delete', 'settings:*'],
-  inherits: ['editor'],  // editor（+ viewer）の権限を継承
+  inherits: ['editor'],  // Inherit editor (+ viewer) permissions
 });
 
-// チェック
-rbac.hasPermission(['editor'], 'posts:read');    // true（viewer から継承）
+// Checks
+rbac.hasPermission(['editor'], 'posts:read');    // true (inherited from viewer)
 rbac.hasPermission(['editor'], 'users:delete');  // false
-rbac.hasPermission(['admin'], 'settings:write'); // true（ワイルドカード）
+rbac.hasPermission(['admin'], 'settings:write'); // true (wildcard)
 ```
 
-### 6.2 ABAC（Attribute-Based Access Control）
+### 6.2 ABAC (Attribute-Based Access Control)
 
 ```
-ABAC の仕組み:
+How ABAC works:
 
-  ポリシー = 主体の属性 + リソースの属性 + 環境属性 + アクション
+  Policy = Subject attributes + Resource attributes + Environment attributes + Action
 
-  例: 「平日の営業時間内に、東京オフィスの正社員が、
-       自部署の機密文書を閲覧できる」
+  Example: "Full-time employees at the Tokyo office can view confidential
+            documents of their department during business hours on weekdays"
 
-  主体（Subject）属性:
+  Subject attributes:
     → role: employee
     → department: engineering
     → office: tokyo
     → employment_type: full_time
 
-  リソース（Resource）属性:
+  Resource attributes:
     → type: document
     → classification: confidential
     → department: engineering
 
-  環境（Environment）属性:
-    → time: 10:30 JST（営業時間内）
-    → day: Monday（平日）
-    → ip: 10.0.1.xxx（社内ネットワーク）
+  Environment attributes:
+    → time: 10:30 JST (within business hours)
+    → day: Monday (weekday)
+    → ip: 10.0.1.xxx (internal network)
 
-  アクション（Action）:
+  Action:
     → read
 
-  ポリシー評価:
-    主体.role == "employee"
-    AND 主体.department == リソース.department
-    AND 環境.time BETWEEN "09:00" AND "18:00"
-    AND 環境.day IN ["Monday".."Friday"]
+  Policy evaluation:
+    subject.role == "employee"
+    AND subject.department == resource.department
+    AND environment.time BETWEEN "09:00" AND "18:00"
+    AND environment.day IN ["Monday".."Friday"]
     → PERMIT
 ```
 
 ```typescript
-// ABAC 実装
+// ABAC implementation
 interface ABACContext {
-  subject: Record<string, any>;     // ユーザー属性
-  resource: Record<string, any>;    // リソース属性
-  action: string;                   // アクション
-  environment: Record<string, any>; // 環境属性
+  subject: Record<string, any>;     // User attributes
+  resource: Record<string, any>;    // Resource attributes
+  action: string;                   // Action
+  environment: Record<string, any>; // Environment attributes
 }
 
 interface ABACPolicy {
@@ -1291,7 +1307,7 @@ interface ABACPolicy {
   description: string;
   effect: 'permit' | 'deny';
   condition: (ctx: ABACContext) => boolean;
-  priority: number;  // 数値が大きいほど優先
+  priority: number;  // Higher number = higher priority
 }
 
 class ABACEngine {
@@ -1299,7 +1315,7 @@ class ABACEngine {
 
   addPolicy(policy: ABACPolicy): void {
     this.policies.push(policy);
-    // 優先度順にソート
+    // Sort by priority
     this.policies.sort((a, b) => b.priority - a.priority);
   }
 
@@ -1313,23 +1329,23 @@ class ABACEngine {
           };
         }
       } catch {
-        // ポリシー評価エラー → スキップ（フェイルセキュア）
+        // Policy evaluation error → skip (fail-secure)
         continue;
       }
     }
 
-    // どのポリシーにもマッチしない → デフォルト拒否
+    // No policy matched → default deny
     return { allowed: false, matchedPolicy: 'default_deny' };
   }
 }
 
-// 使用例
+// Usage example
 const abac = new ABACEngine();
 
-// ポリシー: 自部署の機密文書は正社員のみ閲覧可能（営業時間内）
+// Policy: Only full-time employees can view confidential docs of their dept (business hours)
 abac.addPolicy({
   name: 'confidential_doc_access',
-  description: '正社員は営業時間内に自部署の機密文書を閲覧可能',
+  description: 'Full-time employees can view confidential documents of their department during business hours',
   effect: 'permit',
   priority: 10,
   condition: (ctx) => {
@@ -1345,16 +1361,16 @@ abac.addPolicy({
   },
 });
 
-// ポリシー: 管理者はすべてのリソースにアクセス可能
+// Policy: Admins can access all resources
 abac.addPolicy({
   name: 'admin_full_access',
-  description: '管理者は全リソースにアクセス可能',
+  description: 'Admins can access all resources',
   effect: 'permit',
-  priority: 100,  // 最高優先度
+  priority: 100,  // Highest priority
   condition: (ctx) => ctx.subject.role === 'admin',
 });
 
-// 評価
+// Evaluation
 const result = abac.evaluate({
   subject: { role: 'employee', department: 'engineering', employment_type: 'full_time' },
   resource: { type: 'document', classification: 'confidential', department: 'engineering' },
@@ -1364,96 +1380,101 @@ const result = abac.evaluate({
 // → { allowed: true, matchedPolicy: 'confidential_doc_access' }
 ```
 
-### 6.3 認可モデルの比較
+### 6.3 Comparison of Authorization Models
 
 ```
-認可モデル比較表:
+Authorization model comparison:
 
-  項目          │ RBAC           │ ABAC            │ ReBAC
-  ─────────────┼───────────────┼────────────────┼──────────────
-  基本単位      │ ロール          │ 属性             │ 関係性
-  柔軟性        │ 中             │ 高              │ 高
-  複雑性        │ 低             │ 高              │ 中〜高
-  パフォーマンス │ 高             │ 中              │ 中
-  管理の容易さ  │ ○ 直感的       │ △ ポリシー複雑   │ ○ グラフで表現
-  監査の容易さ  │ ○ ロール追跡   │ △ 条件分岐多い   │ ○ 関係追跡
-  適用場面      │ 企業内アプリ    │ ヘルスケア、金融  │ SNS、ファイル共有
-  代表ツール    │ Casbin         │ OPA/Rego        │ SpiceDB/Zanzibar
+  Item            │ RBAC           │ ABAC              │ ReBAC
+  ────────────────┼────────────────┼───────────────────┼──────────────
+  Basic unit      │ Role           │ Attribute         │ Relationship
+  Flexibility     │ Medium         │ High              │ High
+  Complexity      │ Low            │ High              │ Medium~High
+  Performance     │ High           │ Medium            │ Medium
+  Ease of mgmt    │ ○ Intuitive   │ △ Complex policy  │ ○ Graph-based
+  Ease of audit   │ ○ Role trace  │ △ Many conditions │ ○ Relation trace
+  Use case        │ Enterprise app │ Healthcare, finance│ SNS, file sharing
+  Representative  │ Casbin         │ OPA/Rego          │ SpiceDB/Zanzibar
+  tools           │                │                   │
 
-  具体例:
-    RBAC: 「管理者はユーザー一覧を閲覧できる」
-    ABAC: 「東京オフィスの正社員が営業時間内に機密文書を閲覧できる」
-    ReBAC: 「このフォルダの owner はファイルを削除できる」
-           「このファイルの viewer は閲覧できる」
-           「親フォルダの editor は子ファイルの editor でもある」
+  Concrete examples:
+    RBAC:  "Admins can view the user list"
+    ABAC:  "Full-time employees at the Tokyo office can view confidential
+            documents during business hours"
+    ReBAC: "The owner of this folder can delete files in it"
+           "The viewer of this file can read it"
+           "An editor of the parent folder is also an editor of child files"
 
-  選択指針:
-    → シンプルな権限管理 → RBAC
-    → 条件付きの細かい制御 → ABAC
-    → リソースの所有関係ベース → ReBAC
-    → 複合 → RBAC + ABAC のハイブリッド（実務で最も多い）
+  Selection guidelines:
+    → Simple permission management → RBAC
+    → Fine-grained conditional control → ABAC
+    → Resource ownership-based → ReBAC
+    → Combined → RBAC + ABAC hybrid (most common in practice)
 ```
 
 ---
 
-## 7. 認証方式の全体像
+## 7. Overview of Authentication Methods
 
 ```
-認証方式の分類:
+Classification of authentication methods:
 
   ┌─────────────────────────────────────────────────┐
   │                                                 │
-  │  サーバーサイド（ステートフル）                     │
-  │  ├── セッション + Cookie                          │
-  │  │   → サーバーにセッション状態を保持               │
-  │  │   → Cookie でセッション ID を送信               │
-  │  │   → 伝統的な Web アプリに最適                   │
-  │  │                                               │
-  │  クライアントサイド（ステートレス）                   │
-  │  ├── JWT（JSON Web Token）                        │
-  │  │   → トークンに情報を含む（自己完結型）            │
-  │  │   → API 認証に最適                             │
-  │  │                                               │
-  │  委譲型（第三者認証）                               │
-  │  ├── OAuth 2.0                                   │
-  │  │   → 認可の委譲（第三者アプリへのアクセス許可）     │
-  │  ├── OpenID Connect                              │
-  │  │   → OAuth 2.0 上の認証レイヤー                  │
-  │  ├── SAML                                        │
-  │  │   → エンタープライズ SSO                        │
-  │  │                                               │
-  │  パスワードレス                                    │
-  │  ├── Magic Link                                  │
-  │  │   → メールでワンタイムリンクを送信                │
-  │  ├── WebAuthn / Passkeys                         │
-  │  │   → 公開鍵暗号による認証                         │
-  │  │   → フィッシング耐性が最強                       │
-  │  └── OTP                                         │
-  │      → ワンタイムパスワード（SMS / メール）           │
+  │  Server-side (Stateful)                         │
+  │  ├── Session + Cookie                           │
+  │  │   → Keep session state on server             │
+  │  │   → Send session ID via Cookie               │
+  │  │   → Ideal for traditional web apps           │
+  │  │                                              │
+  │  Client-side (Stateless)                        │
+  │  ├── JWT (JSON Web Token)                       │
+  │  │   → Token contains information (self-        │
+  │  │     contained)                               │
+  │  │   → Ideal for API authentication             │
+  │  │                                              │
+  │  Delegated (Third-party authentication)         │
+  │  ├── OAuth 2.0                                  │
+  │  │   → Delegation of authorization (grant       │
+  │  │     access to third-party apps)              │
+  │  ├── OpenID Connect                             │
+  │  │   → Authentication layer on top of OAuth 2.0 │
+  │  ├── SAML                                       │
+  │  │   → Enterprise SSO                           │
+  │  │                                              │
+  │  Passwordless                                   │
+  │  ├── Magic Link                                 │
+  │  │   → Send one-time link via email             │
+  │  ├── WebAuthn / Passkeys                        │
+  │  │   → Authentication via public key            │
+  │  │     cryptography                             │
+  │  │   → Strongest phishing resistance            │
+  │  └── OTP                                        │
+  │      → One-time password (SMS / email)          │
   │                                                 │
   └─────────────────────────────────────────────────┘
 ```
 
-### 7.1 各認証方式の詳細比較
+### 7.1 Detailed Comparison of Authentication Methods
 
 ```
-認証方式の詳細比較:
+Detailed comparison of authentication methods:
 
-  方式             │ セキュリティ │ UX    │ 実装コスト │ 運用コスト │ 適用
-  ────────────────┼───────────┼──────┼─────────┼──────────┼──────
-  パスワード        │ ★★☆       │ ★★★  │ ★☆☆      │ ★★★      │ 汎用
-  セッション+Cookie │ ★★★       │ ★★★  │ ★★☆      │ ★★☆      │ Web
-  JWT              │ ★★☆       │ ★★☆  │ ★★☆      │ ★☆☆      │ API
-  OAuth 2.0/OIDC  │ ★★★       │ ★★★  │ ★★★      │ ★★☆      │ SSO
-  SAML             │ ★★★       │ ★★☆  │ ★★★      │ ★★★      │ 企業
-  Magic Link       │ ★★☆       │ ★★★  │ ★☆☆      │ ★★☆      │ B2C
-  Passkeys         │ ★★★       │ ★★★  │ ★★★      │ ★☆☆      │ 次世代
-  API Key          │ ★★☆       │ ★★★  │ ★☆☆      │ ★☆☆      │ M2M
-  mTLS             │ ★★★       │ ★☆☆  │ ★★★      │ ★★★      │ 内部
+  Method             │ Security │ UX   │ Impl cost │ Op cost │ Use case
+  ───────────────────┼──────────┼──────┼───────────┼─────────┼──────────
+  Password           │ ★★☆     │ ★★★ │ ★☆☆       │ ★★★    │ General
+  Session + Cookie   │ ★★★     │ ★★★ │ ★★☆       │ ★★☆    │ Web
+  JWT                │ ★★☆     │ ★★☆ │ ★★☆       │ ★☆☆    │ API
+  OAuth 2.0/OIDC    │ ★★★     │ ★★★ │ ★★★       │ ★★☆    │ SSO
+  SAML               │ ★★★     │ ★★☆ │ ★★★       │ ★★★    │ Enterprise
+  Magic Link         │ ★★☆     │ ★★★ │ ★☆☆       │ ★★☆    │ B2C
+  Passkeys           │ ★★★     │ ★★★ │ ★★★       │ ★☆☆    │ Next-gen
+  API Key            │ ★★☆     │ ★★★ │ ★☆☆       │ ★☆☆    │ M2M
+  mTLS               │ ★★★     │ ★☆☆ │ ★★★       │ ★★★    │ Internal
 ```
 
 ```typescript
-// マルチ認証プロバイダーの統一インターフェース
+// Unified interface for multiple authentication providers
 interface AuthProvider {
   name: string;
   authenticate(credentials: unknown): Promise<AuthResult>;
@@ -1476,7 +1497,7 @@ class AuthProviderChain {
             return result;
           }
         } catch (error) {
-          // プロバイダーエラー → 次のプロバイダーを試行
+          // Provider error → try next provider
           console.warn(`Auth provider ${provider.name} failed:`, error);
         }
       }
@@ -1485,7 +1506,7 @@ class AuthProviderChain {
   }
 }
 
-// セッションプロバイダー
+// Session provider
 class SessionAuthProvider implements AuthProvider {
   name = 'session';
 
@@ -1502,7 +1523,7 @@ class SessionAuthProvider implements AuthProvider {
   }
 }
 
-// JWT プロバイダー
+// JWT provider
 class JWTAuthProvider implements AuthProvider {
   name = 'jwt';
 
@@ -1517,7 +1538,7 @@ class JWTAuthProvider implements AuthProvider {
   }
 }
 
-// API キープロバイダー
+// API key provider
 class APIKeyAuthProvider implements AuthProvider {
   name = 'api_key';
 
@@ -1535,7 +1556,7 @@ class APIKeyAuthProvider implements AuthProvider {
   }
 }
 
-// 組み合わせ
+// Combine providers
 const authChain = new AuthProviderChain();
 authChain.register(new SessionAuthProvider());
 authChain.register(new JWTAuthProvider());
@@ -1544,83 +1565,83 @@ authChain.register(new APIKeyAuthProvider());
 
 ---
 
-## 8. HTTPステータスコードと認証・認可
+## 8. HTTP Status Codes and Authentication/Authorization
 
 ```
-認証・認可関連のHTTPステータスコード:
+HTTP status codes related to authentication and authorization:
 
-  401 Unauthorized（認証エラー）:
-    → 認証が必要、または認証に失敗
-    → WWW-Authenticate ヘッダーを返すべき
-    → 例: トークン未送信、トークン期限切れ
+  401 Unauthorized (authentication error):
+    → Authentication is required, or authentication failed
+    → Should return a WWW-Authenticate header
+    → Example: Token not sent, token expired
 
-  403 Forbidden（認可エラー）:
-    → 認証済みだが権限がない
-    → 再認証しても結果は変わらない
-    → 例: 一般ユーザーが管理画面にアクセス
+  403 Forbidden (authorization error):
+    → Authenticated but lacks permission
+    → Re-authentication will not change the result
+    → Example: Regular user accessing the admin panel
 
   407 Proxy Authentication Required:
-    → プロキシ認証が必要
-    → Proxy-Authenticate ヘッダー
+    → Proxy authentication is required
+    → Proxy-Authenticate header
 
-よくある間違い:
-  ✗ 未ログインで 403 を返す → 401 が正しい
-  ✗ 権限不足で 401 を返す → 403 が正しい
-  ✗ リソースの存在を隠す場合 → 404 を返す（情報漏洩防止）
+Common mistakes:
+  ✗ Returning 403 for unauthenticated requests → 401 is correct
+  ✗ Returning 401 for insufficient permissions → 403 is correct
+  ✗ When hiding the existence of a resource → return 404 (prevent information disclosure)
 ```
 
-### 8.1 ステータスコードの正確な使い分け
+### 8.1 Precise Usage of Status Codes
 
 ```
-ステータスコード判定フローチャート:
+Status code decision flowchart:
 
-  リクエスト受信
+  Request received
     │
-    ├── 認証情報なし?
+    ├── No authentication information?
     │     └── YES → 401 Unauthorized
-    │              + WWW-Authenticate ヘッダー
+    │              + WWW-Authenticate header
     │
-    ├── 認証情報が無効?（期限切れ、署名不正等）
+    ├── Authentication information is invalid? (expired, bad signature, etc.)
     │     └── YES → 401 Unauthorized
     │
-    ├── 認証成功、だが権限不足?
+    ├── Authentication succeeded, but insufficient permissions?
     │     └── YES → 403 Forbidden
     │
-    ├── リソースが存在しない?
-    │     ├── ユーザーがリソースの存在を知るべき
+    ├── Resource does not exist?
+    │     ├── User should know the resource exists
     │     │     └── YES → 404 Not Found
-    │     └── リソースの存在自体を隠すべき
-    │           └── YES → 404 Not Found（403 ではなく）
-    │                     ※ 情報漏洩防止
+    │     └── The existence of the resource should be hidden
+    │           └── YES → 404 Not Found (not 403)
+    │                     * Prevent information disclosure
     │
-    ├── メソッドが許可されていない?
+    ├── Method is not allowed?
     │     └── YES → 405 Method Not Allowed
     │
-    └── すべて OK
+    └── Everything OK
           └── 200 OK / 201 Created / 204 No Content
 
-  実務での複雑なケース:
+  Complex real-world cases:
 
-    ケース: 管理者 API に一般ユーザーがアクセス
-      → 403 が正解（認証済み、権限なし）
-      → ただし API の存在を隠したい場合は 404
+    Case: Regular user accesses admin API
+      → 403 is correct (authenticated, no permission)
+      → However, 404 if you want to hide the API's existence
 
-    ケース: 他ユーザーのリソースにアクセス
-      → 403 が基本（アクセス権限なし）
-      → ただし 404 の方がセキュア（リソースの存在を隠す）
+    Case: User accesses another user's resource
+      → 403 is the baseline (no access permission)
+      → However, 404 is more secure (hides resource existence)
 
-    ケース: ログイン試行でユーザーが存在しない
-      → 「ユーザーが存在しません」は NG（ユーザー列挙攻撃）
-      → 「メールアドレスまたはパスワードが正しくありません」が正解
-      → ステータスコードは 401（存在有無に関わらず同じ）
+    Case: Login attempt where user does not exist
+      → "User does not exist" is wrong (user enumeration attack)
+      → "Invalid email address or password" is correct
+      → Status code is 401 (same regardless of whether user exists)
 ```
 
 ```typescript
-// 正しいレスポンスの使い分け（完全版）
+// Correct response handling (complete version)
 import { Request, Response } from 'express';
 
 class AuthResponseHandler {
-  // 認証エラー（401）
+  // Authentication error (401)
   static unauthorized(res: Response, scheme: string = 'Bearer'): Response {
     return res
       .status(401)
@@ -1628,11 +1649,11 @@ class AuthResponseHandler {
       .json({
         error: 'unauthorized',
         message: 'Authentication is required to access this resource',
-        // エラーの詳細はセキュリティ上あいまいにする
+        // Keep error details vague for security reasons
       });
   }
 
-  // 認可エラー（403）
+  // Authorization error (403)
   static forbidden(res: Response): Response {
     return res
       .status(403)
@@ -1642,7 +1663,7 @@ class AuthResponseHandler {
       });
   }
 
-  // リソース不存在（404）- 存在を隠す目的でも使う
+  // Resource not found (404) - also used to hide resource existence
   static notFound(res: Response): Response {
     return res
       .status(404)
@@ -1652,7 +1673,7 @@ class AuthResponseHandler {
       });
   }
 
-  // レート制限（429）
+  // Rate limit (429)
   static tooManyRequests(res: Response, retryAfter: number): Response {
     return res
       .status(429)
@@ -1664,50 +1685,50 @@ class AuthResponseHandler {
       });
   }
 
-  // 統合判定
+  // Integrated check
   static handleAccessCheck(
     res: Response,
     user: User | null,
     resource: Resource | null,
     requiredPermission: string,
   ): Response | null {
-    // 未認証
+    // Not authenticated
     if (!user) {
       return this.unauthorized(res);
     }
 
-    // リソースが存在しない
+    // Resource does not exist
     if (!resource) {
       return this.notFound(res);
     }
 
-    // 権限チェック
+    // Permission check
     if (!hasPermission(user, resource, requiredPermission)) {
-      // リソースの存在を隠すべきか?
+      // Should the resource existence be hidden?
       if (shouldHideResourceExistence(resource)) {
-        return this.notFound(res); // 403 ではなく 404
+        return this.notFound(res); // 404 instead of 403
       }
       return this.forbidden(res);
     }
 
-    // アクセス許可 → null を返す（呼び出し元で続行）
+    // Access permitted → return null (caller continues)
     return null;
   }
 }
 
-// ユーザー列挙攻撃の防止
+// Preventing user enumeration attacks
 async function loginHandler(req: Request, res: Response) {
   const { email, password } = req.body;
 
-  // ユーザーが存在しない場合もパスワード検証と同等の時間をかける
+  // Spend the same amount of time as password verification even if user does not exist
   const user = await findUserByEmail(email);
 
   if (!user) {
-    // ダミーのハッシュ比較（タイミング攻撃防止）
+    // Dummy hash comparison (prevent timing attacks)
     await bcrypt.compare(password, '$2b$12$dummy.hash.to.prevent.timing.attacks');
     return res.status(401).json({
       error: 'invalid_credentials',
-      message: 'Invalid email or password',  // 曖昧なメッセージ
+      message: 'Invalid email or password',  // Ambiguous message
     });
   }
 
@@ -1715,52 +1736,53 @@ async function loginHandler(req: Request, res: Response) {
   if (!valid) {
     return res.status(401).json({
       error: 'invalid_credentials',
-      message: 'Invalid email or password',  // 同じメッセージ
+      message: 'Invalid email or password',  // Same message
     });
   }
 
-  // ログイン成功処理...
+  // Successful login processing...
 }
 ```
 
 ---
 
-## 9. セキュリティヘッダーの実装
+## 9. Implementing Security Headers
 
 ```
-認証・認可に関連する重要なセキュリティヘッダー:
+Important security headers related to authentication and authorization:
 
   ┌────────────────────────────────────────────────────────┐
-  │ ヘッダー                          │ 目的              │
+  │ Header                            │ Purpose            │
   ├────────────────────────────────────────────────────────┤
-  │ Strict-Transport-Security          │ HTTPS 強制        │
-  │ X-Content-Type-Options             │ MIME スニッフィング │
-  │ X-Frame-Options                    │ クリックジャッキング │
-  │ Content-Security-Policy            │ XSS / インジェクション │
-  │ X-XSS-Protection                   │ XSS フィルター     │
-  │ Referrer-Policy                    │ リファラー制御      │
-  │ Permissions-Policy                 │ ブラウザ機能制限    │
-  │ Cache-Control                      │ 認証データの       │
-  │                                    │ キャッシュ防止      │
+  │ Strict-Transport-Security         │ Enforce HTTPS      │
+  │ X-Content-Type-Options            │ MIME sniffing      │
+  │ X-Frame-Options                   │ Clickjacking       │
+  │ Content-Security-Policy           │ XSS / Injection    │
+  │ X-XSS-Protection                  │ XSS filter         │
+  │ Referrer-Policy                   │ Referrer control   │
+  │ Permissions-Policy                │ Browser feature    │
+  │                                   │ restrictions       │
+  │ Cache-Control                     │ Prevent caching    │
+  │                                   │ of auth data       │
   └────────────────────────────────────────────────────────┘
 ```
 
 ```typescript
-// セキュリティヘッダーミドルウェア
+// Security headers middleware
 function securityHeaders(req: Request, res: Response, next: NextFunction) {
-  // HTTPS 強制（1年間、サブドメイン含む）
+  // Enforce HTTPS (1 year, including subdomains)
   res.setHeader(
     'Strict-Transport-Security',
     'max-age=31536000; includeSubDomains; preload',
   );
 
-  // MIME タイプスニッフィング防止
+  // Prevent MIME type sniffing
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
-  // クリックジャッキング防止
+  // Prevent clickjacking
   res.setHeader('X-Frame-Options', 'DENY');
 
-  // XSS 防御（CSP が主力だが追加防御として）
+  // XSS protection (CSP is the main defense; this is an additional layer)
   res.setHeader('X-XSS-Protection', '1; mode=block');
 
   // Content Security Policy
@@ -1775,10 +1797,10 @@ function securityHeaders(req: Request, res: Response, next: NextFunction) {
     "base-uri 'self'",
   ].join('; '));
 
-  // リファラー制御
+  // Referrer control
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-  // 認証済みレスポンスのキャッシュ防止
+  // Prevent caching of authenticated responses
   if (req.user) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.setHeader('Pragma', 'no-cache');
@@ -1790,36 +1812,36 @@ function securityHeaders(req: Request, res: Response, next: NextFunction) {
 
 ---
 
-## 10. 監査ログ
+## 10. Audit Logging
 
 ```
-監査ログの重要性:
+Importance of audit logging:
 
-  「誰が、いつ、何をしたか」を記録する
-  → セキュリティインシデントの調査
-  → コンプライアンス要件の充足
-  → 不正アクセスの早期検知
+  Record "who did what and when"
+  → Investigate security incidents
+  → Satisfy compliance requirements
+  → Detect unauthorized access early
 
-  記録すべきイベント:
-  ┌──────────────────────────┬────────────┐
-  │ イベント                  │ 重要度      │
-  ├──────────────────────────┼────────────┤
-  │ ログイン成功              │ INFO       │
-  │ ログイン失敗              │ WARN       │
-  │ 連続ログイン失敗          │ ALERT      │
-  │ パスワード変更            │ INFO       │
-  │ MFA 有効化 / 無効化      │ INFO       │
-  │ 権限変更                 │ WARN       │
-  │ 管理者操作               │ INFO       │
-  │ 認可拒否                 │ WARN       │
-  │ トークン無効化            │ INFO       │
-  │ 異常なアクセスパターン     │ ALERT      │
-  │ 新しいデバイスからのログイン│ WARN       │
-  └──────────────────────────┴────────────┘
+  Events to record:
+  ┌──────────────────────────────┬────────────┐
+  │ Event                        │ Severity   │
+  ├──────────────────────────────┼────────────┤
+  │ Successful login             │ INFO       │
+  │ Failed login                 │ WARN       │
+  │ Consecutive login failures   │ ALERT      │
+  │ Password change              │ INFO       │
+  │ MFA enabled / disabled       │ INFO       │
+  │ Permission change            │ WARN       │
+  │ Admin operation              │ INFO       │
+  │ Authorization denied         │ WARN       │
+  │ Token invalidated            │ INFO       │
+  │ Abnormal access pattern      │ ALERT      │
+  │ Login from new device        │ WARN       │
+  └──────────────────────────────┴────────────┘
 ```
 
 ```typescript
-// 監査ログサービス
+// Audit log service
 interface AuditLogEntry {
   timestamp: Date;
   eventType: string;
@@ -1841,7 +1863,7 @@ class AuditLogger {
     this.transport = transport;
   }
 
-  // 認証イベント記録
+  // Record authentication event
   async logAuthEvent(
     eventType: 'login' | 'logout' | 'login_failed' | 'mfa_verify' | 'password_change',
     req: Request,
@@ -1862,7 +1884,7 @@ class AuditLogger {
       requestId: req.requestId || 'unknown',
     };
 
-    // 連続失敗の検知
+    // Detect consecutive failures
     if (eventType === 'login_failed') {
       await this.checkBruteForce(req.ip!, details.userId);
     }
@@ -1870,7 +1892,7 @@ class AuditLogger {
     await this.transport.write(entry);
   }
 
-  // 認可イベント記録
+  // Record authorization event
   async logAuthzEvent(
     req: Request,
     resource: string,
@@ -1893,14 +1915,14 @@ class AuditLogger {
     await this.transport.write(entry);
   }
 
-  // ブルートフォース検知
+  // Brute force detection
   private async checkBruteForce(ip: string, userId?: string): Promise<void> {
     const key = userId ? `bf:user:${userId}` : `bf:ip:${ip}`;
     const count = await redis.incr(key);
-    await redis.expire(key, 900); // 15分ウィンドウ
+    await redis.expire(key, 900); // 15-minute window
 
     if (count >= 10) {
-      // アラート発火
+      // Fire alert
       await this.transport.write({
         timestamp: new Date(),
         eventType: 'security.brute_force_detected',
@@ -1913,7 +1935,7 @@ class AuditLogger {
         requestId: 'system',
       });
 
-      // 自動対策: IP / アカウントの一時ロック
+      // Automatic countermeasure: temporarily lock IP / account
       if (userId) {
         await redis.setex(`locked:user:${userId}`, 900, '1');
       }
@@ -1925,215 +1947,216 @@ class AuditLogger {
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
 ```
-認証・認可のアンチパターン:
+Authentication and authorization anti-patterns:
 
-  ① フェイルオープン:
-     ✗ エラー時にアクセスを許可する
-     → 認可サービスダウン時に「全許可」
-     → DB 接続エラー時に「認証スキップ」
-     対策: エラー時は必ずアクセス拒否
+  ① Fail-open:
+     ✗ Permit access on error
+     → "Allow all" when authorization service is down
+     → "Skip authentication" on DB connection error
+     Countermeasure: Always deny access on error
 
-  ② セキュリティ through Obscurity:
-     ✗ 「この URL は誰も知らないから安全」
-     → /admin-secret-panel-xyz は推測可能
-     → API の隠しエンドポイントも発見される
-     対策: すべてのエンドポイントに認証・認可を適用
+  ② Security through Obscurity:
+     ✗ "This URL is safe because nobody knows it"
+     → /admin-secret-panel-xyz can be guessed
+     → Hidden API endpoints can also be discovered
+     Countermeasure: Apply authentication and authorization to all endpoints
 
-  ③ クライアント側認可:
-     ✗ フロントエンドだけで権限チェック
-     → ボタンの非表示は認可ではない
-     → JavaScript の条件分岐はバイパス可能
-     対策: サーバー側で必ず認可チェック（UI は UX 向上用）
+  ③ Client-side authorization:
+     ✗ Checking permissions only on the frontend
+     → Hiding a button is not authorization
+     → JavaScript conditions can be bypassed
+     Countermeasure: Always check authorization on the server (UI is for UX only)
 
-  ④ 過度な権限の付与:
-     ✗ 「面倒だから全員 admin にしよう」
-     → 1人の侵害 = システム全体の侵害
-     対策: 最小権限の原則を徹底
+  ④ Over-granting permissions:
+     ✗ "It's a hassle, so let's make everyone admin"
+     → One compromise = entire system compromised
+     Countermeasure: Strictly enforce the principle of least privilege
 
-  ⑤ ハードコードされたクレデンシャル:
-     ✗ ソースコードに API キーやパスワードを直接記述
-     → Git 履歴に残る
-     → デプロイ環境ごとに変更できない
-     対策: 環境変数 / Secrets Manager
+  ⑤ Hardcoded credentials:
+     ✗ Writing API keys or passwords directly in source code
+     → Remains in Git history
+     → Cannot be changed per deployment environment
+     Countermeasure: Environment variables / Secrets Manager
 
-  ⑥ 曖昧なエラーメッセージの欠如:
-     ✗ 「このメールアドレスは登録されていません」
-     → ユーザー列挙攻撃に利用される
-     対策: 「メールアドレスまたはパスワードが正しくありません」
+  ⑥ Missing ambiguous error messages:
+     ✗ "This email address is not registered"
+     → Used in user enumeration attacks
+     Countermeasure: "Invalid email address or password"
 
-  ⑦ セッションの不適切な管理:
-     ✗ ログアウト時にサーバー側セッションを破棄しない
-     ✗ パスワード変更後に既存セッションを無効化しない
-     ✗ セッション ID を URL パラメータに含める
-     対策: 明示的なセッション破棄 + Cookie 属性の適切な設定
+  ⑦ Improper session management:
+     ✗ Not destroying server-side session on logout
+     ✗ Not invalidating existing sessions after password change
+     ✗ Including session ID in URL parameters
+     Countermeasure: Explicit session destruction + proper Cookie attribute settings
 
-  ⑧ 認証と認可の混同:
-     ✗ 認証されたら何でもできる前提の設計
-     → 全ユーザーがすべての API にアクセス可能
-     対策: 認証と認可を明確に分離
-```
-
----
-
-## 12. エッジケース
-
-```
-認証・認可のエッジケース:
-
-  ① 権限の即時反映 vs パフォーマンス:
-     → 管理者がユーザーの権限を変更した
-     → JWT の場合、トークン有効期限まで旧権限が有効
-     → セッションの場合、キャッシュしていると反映が遅延
-     対策: 重要な権限変更は即時反映の仕組みを用意
-           （ブラックリスト、セッション無効化、短寿命トークン）
-
-  ② 並行セッション:
-     → ユーザーが複数デバイスで同時ログイン
-     → 1つのデバイスでパスワード変更 → 他のセッションは?
-     → 金融系: 同時セッション禁止（最新のみ有効）
-     → 一般: 全セッション無効化 + 再ログイン要求
-
-  ③ タイムゾーンと有効期限:
-     → JWT の exp はUTCで記録
-     → サーバーとクライアントの時刻のずれ
-     → 対策: サーバー側でのみ検証 + NTP 同期
-     → 許容範囲: ±30秒のクロックスキュー
-
-  ④ ロールの削除:
-     → 「editor」ロールを廃止したい
-     → 既存の「editor」ユーザーの権限はどうなる?
-     → マイグレーション戦略が必要
-     → ソフトデリート + 新ロールへの段階的移行
-
-  ⑤ 管理者自身の権限削除:
-     → 最後の管理者が自分の admin ロールを削除
-     → システムに管理者が不在になる
-     → 対策: 「最低1人の admin 必須」制約
+  ⑧ Confusing authentication with authorization:
+     ✗ Designing under the assumption that authenticated = can do anything
+     → All users can access all APIs
+     Countermeasure: Clearly separate authentication and authorization
 ```
 
 ---
 
-## 13. 演習問題
+## 12. Edge Cases
 
 ```
-演習1（基礎）: 認証・認可の判定
+Edge cases in authentication and authorization:
 
-  以下の各シナリオに対して、適切な HTTP ステータスコードと
-  レスポンスメッセージを回答せよ。
+  ① Immediate permission reflection vs performance:
+     → Admin changes a user's permissions
+     → With JWT, old permissions are valid until token expiry
+     → With sessions, caching can delay reflection
+     Countermeasure: Provide a mechanism for immediate reflection of critical
+                     permission changes
+                     (blacklist, session invalidation, short-lived tokens)
 
-  シナリオ:
-  a) API リクエストに Authorization ヘッダーがない
-  b) JWT トークンの署名が不正
-  c) 有効なトークンだが、一般ユーザーが /admin にアクセス
-  d) ログインフォームで存在しないメールアドレスを入力
-  e) 認証済みユーザーが他人のプロフィールにアクセス
-     （リソースの存在を隠したい場合）
+  ② Concurrent sessions:
+     → User is logged in on multiple devices simultaneously
+     → Password changed on one device → what happens to other sessions?
+     → Finance: concurrent sessions forbidden (only latest is valid)
+     → General: invalidate all sessions + require re-login
 
-  期待する回答:
-  → ステータスコード
-  → レスポンスボディのメッセージ
-  → 必要なヘッダー
-```
+  ③ Timezone and expiry:
+     → JWT exp is recorded in UTC
+     → Clock skew between server and client
+     → Countermeasure: Validate only on server side + NTP sync
+     → Acceptable range: ±30 seconds clock skew
 
-```
-演習2（応用）: RBAC エンジンの設計
+  ④ Role deletion:
+     → Want to retire the "editor" role
+     → What happens to existing "editor" users' permissions?
+     → A migration strategy is needed
+     → Soft delete + gradual migration to new role
 
-  以下の要件を満たす RBAC エンジンを実装せよ。
-
-  要件:
-  1. ロールの階層構造（admin > editor > viewer）
-  2. ワイルドカード権限（"posts:*" が "posts:read" にマッチ）
-  3. 否定権限（"!users:delete" で特定操作を明示的に拒否）
-  4. ロールの動的追加・削除
-  5. 権限キャッシュ（Redis）
-
-  テストケース:
-  → admin が "users:delete" を持つことを確認
-  → editor が "posts:read" を持つことを確認（継承）
-  → editor に "!users:delete" があれば拒否を確認
-```
-
-```
-演習3（発展）: ゼロトラスト API Gateway の実装
-
-  以下の機能を持つ API Gateway を実装せよ。
-
-  要件:
-  1. 複数の認証方式をサポート（Session, JWT, API Key）
-  2. リクエストごとに認証・認可を実行
-  3. レート制限（IP + ユーザー単位）
-  4. 監査ログの記録
-  5. Circuit Breaker パターン（認可サービスダウン時の制御）
-  6. リクエストの正規化（path traversal 防止等）
-
-  テストシナリオ:
-  → 正常な認証フロー（各方式）
-  → 認証失敗時の正しいステータスコード
-  → レート制限到達時の 429 レスポンス
-  → 認可サービスダウン時のフォールバック（deny）
+  ⑤ Admin deleting their own permissions:
+     → The last admin deletes their own admin role
+     → No admin remains in the system
+     → Countermeasure: Enforce "at least one admin required" constraint
 ```
 
 ---
 
-## 14. FAQ・トラブルシューティング
+## 13. Exercises
 
 ```
-Q1: 401 と 403 の使い分けがわかりません。
-A1: 以下のルールで判断してください:
-    → 認証情報がない / 無効 → 401
-    → 認証済みだが権限不足 → 403
-    → 迷ったら: 「再認証したら結果が変わるか?」
-      YES → 401（認証の問題）
-      NO  → 403（認可の問題）
+Exercise 1 (Basics): Determining authentication and authorization
 
-Q2: JWT とセッションはどちらを使うべき?
-A2: アーキテクチャ次第です:
-    → モノリシック Web アプリ → セッション（シンプル、即時無効化可能）
-    → SPA + API → JWT（ステートレス、CORS 対応しやすい）
-    → マイクロサービス → JWT（サービス間で公開鍵のみ共有）
-    → ハイブリッド → BFF パターン（セッション + JWT 内部利用）
+  For each scenario below, provide the appropriate HTTP status code
+  and response message.
 
-Q3: RBAC と ABAC はどう使い分ける?
-A3: 複雑さで判断してください:
-    → 権限が「誰が」で決まる → RBAC（シンプル）
-    → 権限が「条件」で決まる → ABAC（柔軟）
-    → 実務では RBAC + 条件付きチェック（ハイブリッド）が最も多い
+  Scenarios:
+  a) No Authorization header in API request
+  b) JWT token has an invalid signature
+  c) Valid token but regular user accesses /admin
+  d) Login form submitted with a non-existent email address
+  e) Authenticated user accesses another person's profile
+     (when you want to hide the resource's existence)
 
-Q4: API キーはセキュアですか?
-A4: 条件付きで安全です:
-    → サーバー間通信 → OK（安全な環境で管理）
-    → フロントエンド → NG（漏洩リスク大）
-    → API キーは認証（身元確認）のみ、認可は別途必要
-    → ローテーション（定期的な更新）の仕組みが必須
+  Expected answers:
+  → Status code
+  → Response body message
+  → Required headers
+```
 
-Q5: パスワードリセット機能はどう実装すべき?
-A5: 安全な実装のポイント:
-    → ユーザー存在の有無に関わらず同じレスポンスを返す
-    → リセットトークンは暗号的に安全なランダム値
-    → 有効期限は短く（15-30分）
-    → 使用後は即座に無効化
-    → リセット成功時に全セッションを無効化
+```
+Exercise 2 (Applied): Designing an RBAC engine
 
-Q6: CORS の設定を間違えると何が起きますか?
-A6: 設定ミスの影響:
+  Implement an RBAC engine satisfying the following requirements.
+
+  Requirements:
+  1. Hierarchical role structure (admin > editor > viewer)
+  2. Wildcard permissions ("posts:*" matches "posts:read")
+  3. Deny permissions ("!users:delete" explicitly denies a specific operation)
+  4. Dynamic role addition and deletion
+  5. Permission cache (Redis)
+
+  Test cases:
+  → Verify that admin has "users:delete"
+  → Verify that editor has "posts:read" (inherited)
+  → Verify that "!users:delete" on editor results in denial
+```
+
+```
+Exercise 3 (Advanced): Implementing a Zero Trust API Gateway
+
+  Implement an API Gateway with the following capabilities.
+
+  Requirements:
+  1. Support multiple authentication methods (Session, JWT, API Key)
+  2. Execute authentication and authorization for each request
+  3. Rate limiting (per IP + per user)
+  4. Audit log recording
+  5. Circuit Breaker pattern (control when authorization service is down)
+  6. Request normalization (prevent path traversal, etc.)
+
+  Test scenarios:
+  → Normal authentication flow (each method)
+  → Correct status code on authentication failure
+  → 429 response when rate limit is reached
+  → Fallback (deny) when authorization service is down
+```
+
+---
+
+## 14. FAQ & Troubleshooting
+
+```
+Q1: I can't figure out when to use 401 vs 403.
+A1: Use the following rule:
+    → No / invalid authentication information → 401
+    → Authenticated but insufficient permission → 403
+    → When in doubt: "Would re-authentication change the result?"
+      YES → 401 (authentication problem)
+      NO  → 403 (authorization problem)
+
+Q2: Which should I use, JWT or sessions?
+A2: It depends on your architecture:
+    → Monolithic web app → Session (simple, can invalidate immediately)
+    → SPA + API → JWT (stateless, easier CORS handling)
+    → Microservices → JWT (share only public key between services)
+    → Hybrid → BFF pattern (session + JWT for internal use)
+
+Q3: How do I choose between RBAC and ABAC?
+A3: Judge by complexity:
+    → Permission determined by "who" → RBAC (simple)
+    → Permission determined by "conditions" → ABAC (flexible)
+    → In practice, RBAC + conditional checks (hybrid) is most common
+
+Q4: Are API keys secure?
+A4: Conditionally secure:
+    → Server-to-server communication → OK (managed in a secure environment)
+    → Frontend → NO (high leak risk)
+    → API keys cover authentication (identity verification) only; authorization is separate
+    → A rotation mechanism (regular updates) is required
+
+Q5: How should I implement a password reset feature?
+A5: Key points for a secure implementation:
+    → Return the same response regardless of whether the user exists
+    → Reset token must be a cryptographically secure random value
+    → Short expiry (15-30 minutes)
+    → Invalidate immediately after use
+    → Invalidate all sessions on successful reset
+
+Q6: What happens if CORS is misconfigured?
+A6: Impact of misconfiguration:
     → Access-Control-Allow-Origin: * + credentials: true
-      → ブラウザがブロック（仕様で禁止）
-    → 特定 Origin のみ許可しないと
-      → 任意のサイトから API コール可能（Cookie 送信含む）
-    → preflight キャッシュが長すぎると
-      → CORS 設定変更が反映されない
+      → Browser blocks it (prohibited by spec)
+    → Not restricting to specific Origins
+      → API calls possible from any site (including Cookie submission)
+    → Preflight cache too long
+      → CORS configuration changes are not reflected
 
-Q7: 認証情報をどこに保存すべき?
-A7: 保存場所ごとのリスク:
-    → Cookie（HttpOnly, Secure）: XSS 耐性あり、CSRF 対策必要
-    → localStorage: XSS で窃取可能、CSRF 耐性あり
-    → sessionStorage: タブを閉じると消える、XSS で窃取可能
-    → メモリ（変数）: 最もセキュアだがリロードで消失
-    推奨: セッション → HttpOnly Cookie
-         JWT → メモリ + refresh を HttpOnly Cookie（BFF パターン）
+Q7: Where should I store authentication information?
+A7: Risk by storage location:
+    → Cookie (HttpOnly, Secure): XSS-resistant, CSRF countermeasures needed
+    → localStorage: Can be stolen via XSS, CSRF-resistant
+    → sessionStorage: Cleared when tab is closed, can be stolen via XSS
+    → Memory (variable): Most secure but lost on reload
+    Recommended: Session → HttpOnly Cookie
+                 JWT → Memory + refresh in HttpOnly Cookie (BFF pattern)
 ```
 
 ---
@@ -2141,42 +2164,42 @@ A7: 保存場所ごとのリスク:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Rather than theory alone, writing actual code and verifying its behavior deepens your understanding.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 概念 | ポイント |
-|------|---------|
-| 認証 | 「誰か」を確認する。失敗時は 401 |
-| 認可 | 「何ができるか」を判定する。失敗時は 403 |
-| 認証要素 | 知識・所有・生体の3要素。MFAは異なる要素の組合せ |
-| 脅威 | ブルートフォース、フィッシング、セッションハイジャック、CSRF、権限昇格等 |
-| 原則 | 最小権限、多層防御、フェイルセキュア、ゼロトラスト |
-| 方式 | セッション、JWT、OAuth 2.0、Passkeys 等 |
-| RBAC | ロールベース。シンプルで管理しやすい |
-| ABAC | 属性ベース。柔軟だが複雑 |
-| 監査 | 誰が何をしたかの記録。インシデント対応の基盤 |
-| ヘッダー | HSTS、CSP、X-Frame-Options 等で多層防御 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Concept | Key Points |
+|---------|-----------|
+| Authentication | Verify "who". Returns 401 on failure |
+| Authorization | Determine "what they can do". Returns 403 on failure |
+| Authentication factors | Three factors: knowledge, possession, inherence. MFA combines different factors |
+| Threats | Brute force, phishing, session hijacking, CSRF, privilege escalation, etc. |
+| Principles | Least privilege, defense in depth, fail-secure, zero trust |
+| Methods | Session, JWT, OAuth 2.0, Passkeys, etc. |
+| RBAC | Role-based. Simple and easy to manage |
+| ABAC | Attribute-based. Flexible but complex |
+| Audit log | Record of who did what. Foundation for incident response |
+| Headers | Multi-layer defense with HSTS, CSP, X-Frame-Options, etc. |
 
 ---
 
-## 参考文献
+## Further Reading
+
+---
+
+## References
 1. OWASP. "Authentication Cheat Sheet." cheatsheetseries.owasp.org, 2024.
 2. NIST. "SP 800-63B: Digital Identity Guidelines." nist.gov, 2020.
 3. RFC 7235. "Hypertext Transfer Protocol (HTTP/1.1): Authentication." IETF, 2014.
