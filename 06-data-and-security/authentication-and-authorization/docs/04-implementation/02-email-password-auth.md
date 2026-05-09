@@ -1,101 +1,101 @@
-# メール・パスワード認証
+# Email and Password Authentication
 
-> ソーシャルログインだけでは不十分な場面で必要となるメール・パスワード認証。ユーザー登録、メール確認、ログイン、パスワードリセット、アカウントロックまで、安全なメール認証の完全フローを解説する。
+> Email and password authentication is necessary when social login alone is insufficient. This guide covers the complete flow for secure email-based authentication: user registration, email verification, login, password reset, and account lockout.
 
-## 前提知識
+## Prerequisites
 
-- HTTP の基礎（POST リクエスト、ステータスコード）
-- TypeScript / JavaScript の基礎
-- データベースの基本操作（Prisma）
+- HTTP fundamentals (POST requests, status codes)
+- TypeScript / JavaScript basics
+- Basic database operations (Prisma)
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] ユーザー登録とメール確認の安全なフローを実装する
-- [ ] パスワードハッシュ化の内部実装と bcrypt/Argon2 の使い分けを理解する
-- [ ] 安全なログインとレート制限の設計・実装を把握する
-- [ ] パスワードリセットとアカウント保護の完全なフローを設計できるようになる
-- [ ] ユーザー列挙攻撃やタイミング攻撃への対策を講じられる
-- [ ] NIST SP 800-63B に準拠したパスワードポリシーを設計できる
+- [ ] Implement a secure user registration and email verification flow
+- [ ] Understand the internal implementation of password hashing and when to use bcrypt vs Argon2
+- [ ] Understand the design and implementation of secure login with rate limiting
+- [ ] Design a complete password reset and account protection flow
+- [ ] Apply countermeasures against user enumeration attacks and timing attacks
+- [ ] Design a password policy compliant with NIST SP 800-63B
 
 ---
 
-## 1. パスワードハッシュ化の基礎
+## 1. Password Hashing Fundamentals
 
-### 1.1 なぜハッシュ化が必要か
+### 1.1 Why Hashing Is Necessary
 
-パスワードを平文で保存してはならない。データベースが漏洩した場合、全ユーザーのパスワードが攻撃者に露出する。ハッシュ化により、漏洩しても元のパスワードを復元できないようにする。
+Passwords must never be stored in plaintext. If the database is compromised, all users' passwords are exposed to attackers. Hashing ensures that even if data is leaked, the original password cannot be recovered.
 
 ```
-パスワード保存の進化:
+Evolution of password storage:
 
-  ✗ Level 0: 平文保存
+  ✗ Level 0: Plaintext storage
     password: "MySecret123"
-    → DB 漏洩で即座に全パスワード露出
+    → All passwords are immediately exposed upon DB leak
 
-  ✗ Level 1: 単純ハッシュ（MD5/SHA-256）
+  ✗ Level 1: Simple hash (MD5/SHA-256)
     hash: SHA256("MySecret123")
-    → レインボーテーブル攻撃で突破可能
+    → Vulnerable to rainbow table attacks
 
-  ✗ Level 2: ソルト付きハッシュ
+  ✗ Level 2: Salted hash
     hash: SHA256("random_salt" + "MySecret123")
-    → GPUで高速に総当たり可能（SHA-256は高速すぎる）
+    → Can be brute-forced quickly with GPUs (SHA-256 is too fast)
 
-  ✓ Level 3: 専用ハッシュ関数（bcrypt/Argon2）
+  ✓ Level 3: Dedicated hash function (bcrypt/Argon2)
     hash: bcrypt("MySecret123", cost=12)
-    → 意図的に低速化されたハッシュ関数
-    → 総当たり攻撃のコストが非常に高い
+    → Intentionally slow hash function
+    → Makes brute-force attacks extremely costly
 
-  パスワードハッシュ関数の内部動作:
+  Internal workings of password hash functions:
 
   ┌──────────────────────────────────────────────┐
   │                                              │
-  │  bcrypt の構造:                                │
-  │  $2b$12$LJ3m4ysKlcWBzBH8PsYBte.JZj2gLSf...   │
-  │   │  │  │                    │                │
-  │   │  │  │                    └─ ハッシュ値     │
-  │   │  │  └─ ソルト（22文字 Base64）              │
-  │   │  └─ コストファクター（2^12 = 4096回）       │
-  │   └─ アルゴリズム識別子（2b = bcrypt）           │
+  │  bcrypt structure:                           │
+  │  $2b$12$LJ3m4ysKlcWBzBH8PsYBte.JZj2gLSf...  │
+  │   │  │  │                    │               │
+  │   │  │  │                    └─ Hash value   │
+  │   │  │  └─ Salt (22-char Base64)             │
+  │   │  └─ Cost factor (2^12 = 4096 rounds)     │
+  │   └─ Algorithm identifier (2b = bcrypt)      │
   │                                              │
-  │  Argon2id の構造:                              │
-  │  $argon2id$v=19$m=65536,t=3,p=4$salt$hash    │
-  │   │        │    │       │  │                  │
-  │   │        │    │       │  └─ 並列度           │
-  │   │        │    │       └─ 反復回数             │
-  │   │        │    └─ メモリ使用量（KB）            │
-  │   │        └─ バージョン                        │
-  │   └─ アルゴリズム識別子                          │
+  │  Argon2id structure:                         │
+  │  $argon2id$v=19$m=65536,t=3,p=4$salt$hash   │
+  │   │        │    │       │  │                 │
+  │   │        │    │       │  └─ Parallelism    │
+  │   │        │    │       └─ Iterations        │
+  │   │        │    └─ Memory usage (KB)         │
+  │   │        └─ Version                        │
+  │   └─ Algorithm identifier                    │
   │                                              │
   └──────────────────────────────────────────────┘
 ```
 
-### 1.2 bcrypt vs Argon2 の比較
+### 1.2 bcrypt vs Argon2 Comparison
 
 ```
-パスワードハッシュ関数の比較:
+Comparison of password hash functions:
 
-  項目           │ bcrypt          │ Argon2id        │ scrypt
-  ──────────────┼────────────────┼────────────────┼────────────────
-  設計年         │ 1999            │ 2015            │ 2009
-  メモリハード   │ ✗               │ ✓（主要な利点）  │ ✓
-  GPU 耐性      │ 中              │ 高              │ 高
-  設定の容易さ   │ コスト1つ        │ 3つのパラメータ  │ 3つのパラメータ
-  ライブラリ     │ 豊富            │ 増加中          │ 中程度
-  推奨ユース     │ 既存システム     │ 新規システム     │ 暗号通貨で多い
-  OWASP 推奨    │ ✓（代替）       │ ✓（第一推奨）   │ ✓（代替）
-  標準化        │ ─               │ PHC Winner      │ RFC 7914
+  Feature        │ bcrypt          │ Argon2id        │ scrypt
+  ───────────────┼────────────────┼────────────────┼────────────────
+  Designed       │ 1999            │ 2015            │ 2009
+  Memory-hard    │ ✗               │ ✓ (key benefit) │ ✓
+  GPU resistance │ Medium          │ High            │ High
+  Ease of config │ 1 parameter     │ 3 parameters    │ 3 parameters
+  Library support│ Abundant        │ Growing         │ Moderate
+  Recommended use│ Existing systems│ New systems     │ Common in crypto
+  OWASP recommend│ ✓ (alternative) │ ✓ (first choice)│ ✓ (alternative)
+  Standardized   │ ─               │ PHC Winner      │ RFC 7914
 
-  推奨設定:
-    bcrypt:    cost = 12 （ログインに 250ms 程度）
+  Recommended settings:
+    bcrypt:    cost = 12 (approx. 250ms per login)
     Argon2id:  m=65536 (64MB), t=3, p=4
-    → サーバーのスペックに合わせて調整
-    → ログイン処理が 250ms-1s になるよう設定
+    → Adjust based on server specs
+    → Target 250ms–1s for login processing
 
-  重要: MD5, SHA-1, SHA-256 はパスワードハッシュに使用してはならない
-  → これらは高速ハッシュであり、パスワード用ではない
+  Important: MD5, SHA-1, SHA-256 must NOT be used for password hashing
+  → These are fast hash functions and are not designed for passwords
 ```
 
-### 1.3 パスワードハッシュの実装
+### 1.3 Implementing Password Hashing
 
 ```typescript
 // bcrypt でのパスワードハッシュ化
@@ -181,37 +181,37 @@ async function loginWithHashUpgrade(email: string, password: string) {
 
 ---
 
-## 2. NIST SP 800-63B に基づくパスワードポリシー
+## 2. Password Policy Based on NIST SP 800-63B
 
-### 2.1 現代のパスワードポリシー
+### 2.1 Modern Password Policy
 
 ```
-NIST SP 800-63B の推奨事項（2020年改訂）:
+NIST SP 800-63B Recommendations (2020 revision):
 
-  ✓ すべきこと:
-    → 最低8文字を要求（推奨は最低15文字）
-    → 最大64文字以上を許容
-    → Unicode文字を許容（日本語パスワード等）
-    → 漏洩パスワードリストとの照合（haveibeenpwned API）
-    → パスワード強度メーターの提供
-    → ペーストの許可（パスワードマネージャー対応）
+  ✓ Do:
+    → Require a minimum of 8 characters (15+ recommended)
+    → Allow at least 64 characters maximum
+    → Allow Unicode characters (e.g., Japanese passwords)
+    → Check against compromised password lists (Have I Been Pwned API)
+    → Provide a password strength meter
+    → Allow paste (for password manager compatibility)
 
-  ✗ すべきでないこと:
-    → 定期的なパスワード変更の強制
-    → 複雑さの要件（大文字/小文字/数字/記号の組合せ）
-    → セキュリティの質問
-    → パスワードヒント
+  ✗ Do not:
+    → Force periodic password changes
+    → Require complexity rules (uppercase/lowercase/digit/symbol combinations)
+    → Use security questions
+    → Use password hints
 
-  理由:
-  → 複雑さの要件は弱いパスワードのパターン化を招く
-    （例: Password1! → 覚えやすいが弱い）
-  → 定期変更は微小な変更を招く
-    （例: MyPass1 → MyPass2 → MyPass3）
-  → 長いパスフレーズの方が安全
-    （例: "correct horse battery staple" = 高いエントロピー）
+  Rationale:
+  → Complexity requirements lead to predictable weak password patterns
+    (e.g., Password1! — easy to remember but weak)
+  → Forced rotation leads to minor incremental changes
+    (e.g., MyPass1 → MyPass2 → MyPass3)
+  → Long passphrases are more secure
+    (e.g., "correct horse battery staple" = high entropy)
 ```
 
-### 2.2 パスワードバリデーションの実装
+### 2.2 Implementing Password Validation
 
 ```typescript
 // NIST準拠のパスワードバリデーション
@@ -296,54 +296,54 @@ const registerSchema = z.object({
 
 ---
 
-## 3. ユーザー登録
+## 3. User Registration
 
-### 3.1 登録フローの全体像
+### 3.1 Overview of the Registration Flow
 
 ```
-ユーザー登録フロー:
+User registration flow:
 
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  ユーザー                   サーバー               │
-  │    │                         │                    │
-  │    │ 登録フォーム送信          │                    │
-  │    │ (name, email, password) │                    │
-  │    │────────────────────────>│                    │
-  │    │                         │                    │
-  │    │                    バリデーション               │
-  │    │                    ├─ フォーマット検証          │
-  │    │                    ├─ パスワード強度チェック     │
-  │    │                    ├─ 漏洩パスワードチェック     │
-  │    │                    └─ メール重複チェック         │
-  │    │                         │                    │
-  │    │                    パスワードハッシュ化          │
-  │    │                    (bcrypt/Argon2)            │
-  │    │                         │                    │
-  │    │                    ユーザー作成(未確認)         │
-  │    │                         │                    │
-  │    │                    確認トークン生成             │
-  │    │                    (crypto.randomBytes)       │
-  │    │                         │                    │
-  │    │                    確認メール送信               │
-  │    │                         │                    │
-  │    │ 「確認メールを送信しました」│                    │
-  │    │<────────────────────────│                    │
-  │    │                         │                    │
-  │    │ メール内リンクをクリック   │                    │
-  │    │────────────────────────>│                    │
-  │    │                         │                    │
-  │    │                    トークン検証                 │
-  │    │                    emailVerified = true        │
-  │    │                    トークン削除                 │
-  │    │                         │                    │
-  │    │ 「確認完了」             │                    │
-  │    │<────────────────────────│                    │
+  │  User                       Server               │
+  │    │                         │                   │
+  │    │ Submit registration form │                   │
+  │    │ (name, email, password) │                   │
+  │    │────────────────────────>│                   │
+  │    │                         │                   │
+  │    │                    Validation               │
+  │    │                    ├─ Format check          │
+  │    │                    ├─ Password strength     │
+  │    │                    ├─ Breach check          │
+  │    │                    └─ Duplicate email check │
+  │    │                         │                   │
+  │    │                    Hash password            │
+  │    │                    (bcrypt/Argon2)          │
+  │    │                         │                   │
+  │    │                    Create user (unverified) │
+  │    │                         │                   │
+  │    │                    Generate verification    │
+  │    │                    token (crypto.randomBytes)│
+  │    │                         │                   │
+  │    │                    Send verification email  │
+  │    │                         │                   │
+  │    │ "Verification email sent"│                  │
+  │    │<────────────────────────│                   │
+  │    │                         │                   │
+  │    │ Click link in email     │                   │
+  │    │────────────────────────>│                   │
+  │    │                         │                   │
+  │    │                    Verify token             │
+  │    │                    emailVerified = true      │
+  │    │                    Delete token             │
+  │    │                         │                   │
+  │    │ "Verification complete" │                   │
+  │    │<────────────────────────│                   │
   │                                                  │
   └──────────────────────────────────────────────────┘
 ```
 
-### 3.2 登録の実装
+### 3.2 Implementing Registration
 
 ```typescript
 // 登録 Server Action
@@ -441,40 +441,43 @@ async function register(formData: FormData) {
 }
 ```
 
-### 3.3 ユーザー列挙攻撃への対策
+### 3.3 Countermeasures Against User Enumeration Attacks
 
 ```
-ユーザー列挙攻撃（User Enumeration）:
+User Enumeration Attack:
 
-  攻撃手法:
+  Attack methods:
   ┌────────────────────────────────────────────┐
   │                                            │
-  │  攻撃者がメールアドレスの存在を確認する手法:    │
+  │  Ways an attacker can confirm whether      │
+  │  an email address exists:                  │
   │                                            │
-  │  (1) 登録時のエラーメッセージ                  │
-  │     ✗ 「このメールは既に登録されています」       │
-  │     → メールの存在を確認できてしまう             │
+  │  (1) Error messages during registration    │
+  │     ✗ "This email is already registered"  │
+  │     → Confirms the email exists            │
   │                                            │
-  │  (2) ログイン時のエラーメッセージ               │
-  │     ✗ 「メールアドレスが見つかりません」          │
-  │     ✗ 「パスワードが間違っています」              │
-  │     → どちらが間違いかで存在を判定               │
+  │  (2) Error messages during login           │
+  │     ✗ "Email address not found"            │
+  │     ✗ "Incorrect password"                 │
+  │     → Which error reveals whether email    │
+  │       exists                               │
   │                                            │
-  │  (3) パスワードリセット                        │
-  │     ✗ 「このメールは登録されていません」          │
-  │     → メールの存在を確認できてしまう             │
+  │  (3) Password reset                        │
+  │     ✗ "This email is not registered"      │
+  │     → Confirms the email does not exist    │
   │                                            │
-  │  (4) レスポンス時間の差                        │
-  │     ✗ 存在するメール: ハッシュ比較で遅い         │
-  │     ✗ 存在しないメール: DB検索のみで速い         │
-  │     → タイミング攻撃で存在を判定                 │
+  │  (4) Differences in response time          │
+  │     ✗ Existing email: slower due to hash   │
+  │       comparison                           │
+  │     ✗ Non-existing email: faster (DB only) │
+  │     → Timing attack reveals existence      │
   │                                            │
   └────────────────────────────────────────────┘
 
-  対策:
-  → 全てのケースで同一のレスポンスメッセージ
-  → 全てのケースで同一のレスポンス時間（ダミー処理）
-  → メール送信の有無は外部から観察不可能
+  Countermeasures:
+  → Use the same response message in all cases
+  → Use the same response time in all cases (dummy operations)
+  → Whether an email was sent must not be observable from the outside
 ```
 
 ```typescript
@@ -500,11 +503,11 @@ async function loginSafe(email: string, password: string) {
 
 ---
 
-## 4. メール確認
+## 4. Email Verification
 
-### 4.1 メール確認の重要性
+### 4.1 Why Email Verification Is Important
 
-メール確認はなぜ必要か。(1) メールアドレスの所有権を検証する。(2) 他人のメールでアカウントが作成されるのを防ぐ。(3) パスワードリセット機能の安全性を担保する。(4) コミュニケーション経路を確保する。
+Why is email verification necessary? (1) It verifies ownership of the email address. (2) It prevents accounts from being created using someone else's email. (3) It ensures the security of the password reset feature. (4) It establishes a reliable communication channel.
 
 ```typescript
 // メール確認処理
@@ -619,45 +622,46 @@ async function VerifyEmailPage({ searchParams }: { searchParams: { token?: strin
 
 ---
 
-## 5. ログインとレート制限
+## 5. Login and Rate Limiting
 
-### 5.1 ログインフローの全体像
+### 5.1 Overview of the Login Flow
 
 ```
-ログインフロー:
+Login flow:
 
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  ユーザー                   サーバー               │
-  │    │                         │                    │
-  │    │ ログイン送信              │                    │
-  │    │ (email, password)       │                    │
-  │    │────────────────────────>│                    │
-  │    │                         │                    │
-  │    │                    ① レート制限チェック         │
-  │    │                    ├─ IP ベース（15分/5回）    │
-  │    │                    └─ メールベース（15分/5回）  │
-  │    │                         │                    │
-  │    │                    ② ユーザー取得              │
-  │    │                         │                    │
-  │    │                    ③ アカウントロックチェック    │
-  │    │                         │                    │
-  │    │                    ④ パスワード検証             │
-  │    │                    (bcrypt.compare)           │
-  │    │                         │                    │
-  │    │                    ⑤ メール確認チェック          │
-  │    │                         │                    │
-  │    │                    ⑥ 失敗カウントリセット       │
-  │    │                    ⑦ セッション作成             │
-  │    │                    ⑧ セキュリティ通知           │
-  │    │                         │                    │
-  │    │ Set-Cookie: session    │                    │
-  │    │<────────────────────────│                    │
+  │  User                       Server               │
+  │    │                         │                   │
+  │    │ Submit login            │                   │
+  │    │ (email, password)       │                   │
+  │    │────────────────────────>│                   │
+  │    │                         │                   │
+  │    │                    ① Rate limit check       │
+  │    │                    ├─ IP-based (5/15min)    │
+  │    │                    └─ Email-based (5/15min) │
+  │    │                         │                   │
+  │    │                    ② Fetch user             │
+  │    │                         │                   │
+  │    │                    ③ Account lock check     │
+  │    │                         │                   │
+  │    │                    ④ Verify password        │
+  │    │                    (bcrypt.compare)         │
+  │    │                         │                   │
+  │    │                    ⑤ Email verification     │
+  │    │                       check                 │
+  │    │                         │                   │
+  │    │                    ⑥ Reset failure count    │
+  │    │                    ⑦ Create session         │
+  │    │                    ⑧ Send security notice   │
+  │    │                         │                   │
+  │    │ Set-Cookie: session     │                   │
+  │    │<────────────────────────│                   │
   │                                                  │
   └──────────────────────────────────────────────────┘
 ```
 
-### 5.2 多層レート制限の実装
+### 5.2 Implementing Multi-Layer Rate Limiting
 
 ```typescript
 // 多層レート制限の設計
@@ -815,7 +819,7 @@ async function authorize(credentials: { email: string; password: string }, req: 
 }
 ```
 
-### 5.3 デバイスフィンガープリントによる不正検知
+### 5.3 Fraud Detection Using Device Fingerprinting
 
 ```typescript
 // デバイスフィンガープリント（簡易版）
@@ -875,62 +879,62 @@ async function recordDevice(userId: string, req: Request): Promise<void> {
 
 ---
 
-## 6. パスワードリセット
+## 6. Password Reset
 
-### 6.1 リセットフローの設計
+### 6.1 Designing the Reset Flow
 
 ```
-パスワードリセットフロー:
+Password reset flow:
 
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  ユーザー                   サーバー               │
-  │    │                         │                    │
-  │    │ メールアドレス送信        │                    │
-  │    │────────────────────────>│                    │
-  │    │                         │                    │
-  │    │                    レート制限チェック           │
-  │    │                    (1時間に3回まで)            │
-  │    │                         │                    │
-  │    │                    ユーザー検索                 │
-  │    │                    ├─ 存在: トークン生成        │
-  │    │                    │       メール送信          │
-  │    │                    └─ 不在: 何もしない          │
-  │    │                         │                    │
-  │    │ 「リセットメールを送信     │                    │
-  │    │  しました（登録済の場合）」│                    │
-  │    │<────────────────────────│                    │
-  │    │                         │                    │
-  │    │                     ...メール受信...           │
-  │    │                         │                    │
-  │    │ リセットリンクをクリック   │                    │
-  │    │────────────────────────>│                    │
-  │    │                         │                    │
-  │    │                    トークン検証                 │
-  │    │                    (SHA-256ハッシュ比較)       │
-  │    │                    有効期限チェック (1時間)      │
-  │    │                         │                    │
-  │    │ 新パスワード入力画面      │                    │
-  │    │<────────────────────────│                    │
-  │    │                         │                    │
-  │    │ 新パスワード送信          │                    │
-  │    │────────────────────────>│                    │
-  │    │                         │                    │
-  │    │                    ① 旧パスワードと同一でないか │
-  │    │                    ② 新パスワードハッシュ化     │
-  │    │                    ③ パスワード更新             │
-  │    │                    ④ 全セッション無効化         │
-  │    │                    ⑤ リセットトークン削除       │
-  │    │                    ⑥ 変更通知メール送信         │
-  │    │                         │                    │
-  │    │ 「パスワードが変更         │                    │
-  │    │  されました」             │                    │
-  │    │<────────────────────────│                    │
+  │  User                       Server               │
+  │    │                         │                   │
+  │    │ Submit email address    │                   │
+  │    │────────────────────────>│                   │
+  │    │                         │                   │
+  │    │                    Rate limit check         │
+  │    │                    (max 3 per hour)         │
+  │    │                         │                   │
+  │    │                    Look up user             │
+  │    │                    ├─ Found: generate token │
+  │    │                    │        send email      │
+  │    │                    └─ Not found: do nothing │
+  │    │                         │                   │
+  │    │ "Reset email sent       │                   │
+  │    │  (if registered)"       │                   │
+  │    │<────────────────────────│                   │
+  │    │                         │                   │
+  │    │               ...receive email...           │
+  │    │                         │                   │
+  │    │ Click reset link        │                   │
+  │    │────────────────────────>│                   │
+  │    │                         │                   │
+  │    │                    Verify token             │
+  │    │                    (SHA-256 hash compare)   │
+  │    │                    Check expiry (1 hour)    │
+  │    │                         │                   │
+  │    │ New password input screen│                  │
+  │    │<────────────────────────│                   │
+  │    │                         │                   │
+  │    │ Submit new password     │                   │
+  │    │────────────────────────>│                   │
+  │    │                         │                   │
+  │    │                    ① Check not same as old  │
+  │    │                    ② Hash new password      │
+  │    │                    ③ Update password        │
+  │    │                    ④ Invalidate all sessions│
+  │    │                    ⑤ Delete reset token     │
+  │    │                    ⑥ Send change notice     │
+  │    │                         │                   │
+  │    │ "Password has been      │                   │
+  │    │  changed"               │                   │
+  │    │<────────────────────────│                   │
   │                                                  │
   └──────────────────────────────────────────────────┘
 ```
 
-### 6.2 リセットの実装
+### 6.2 Implementing the Reset
 
 ```typescript
 // パスワードリセット要求
@@ -1062,7 +1066,7 @@ async function resetPassword(token: string, newPassword: string) {
 
 ---
 
-## 7. パスワード変更（ログイン中）
+## 7. Password Change (While Logged In)
 
 ```typescript
 // パスワード変更（要現在のパスワード）
@@ -1139,7 +1143,7 @@ async function changePassword(formData: FormData) {
 
 ---
 
-## 8. セキュリティ通知
+## 8. Security Notifications
 
 ```typescript
 // 重要なアカウントイベントの通知
@@ -1152,24 +1156,24 @@ async function sendSecurityNotification(
 
   const messages = {
     login: {
-      subject: '新しいログインがありました',
-      body: '新しいデバイスからログインがありました。',
+      subject: 'A new login was detected',
+      body: 'A login was detected from a new device.',
     },
     password_change: {
-      subject: 'パスワードが変更されました',
-      body: 'パスワードが正常に変更されました。',
+      subject: 'Your password has been changed',
+      body: 'Your password was successfully changed.',
     },
     email_change: {
-      subject: 'メールアドレスが変更されました',
-      body: 'アカウントのメールアドレスが変更されました。',
+      subject: 'Your email address has been changed',
+      body: 'The email address on your account has been changed.',
     },
     new_device: {
-      subject: '新しいデバイスからのアクセス',
-      body: '認識されていないデバイスからアクセスがありました。',
+      subject: 'Access from a new device',
+      body: 'Your account was accessed from an unrecognized device.',
     },
     account_locked: {
-      subject: 'アカウントがロックされました',
-      body: 'ログイン試行の失敗が多数あり、アカウントが一時的にロックされました。30分後に自動解除されます。',
+      subject: 'Your account has been locked',
+      body: 'There were multiple failed login attempts, and your account has been temporarily locked. It will be automatically unlocked after 30 minutes.',
     },
   };
 
@@ -1200,7 +1204,7 @@ async function sendSecurityNotification(
 
 ---
 
-## 9. データベーススキーマ
+## 9. Database Schema
 
 ```typescript
 // Prisma スキーマ（認証関連の完全版）
@@ -1291,149 +1295,149 @@ model SecurityEvent {
 
 ---
 
-## 10. エッジケースとアンチパターン
+## 10. Edge Cases and Anti-Patterns
 
-### 10.1 エッジケース
+### 10.1 Edge Cases
 
 ```
-メール・パスワード認証のエッジケース:
+Edge cases in email and password authentication:
 
-  (1) メール配信の遅延・不達
-     → 確認メールの再送機能を提供
-     → 迷惑メールフォルダの確認を促す
-     → 代替のメール確認方法（コード入力）を検討
+  (1) Email delivery delays or failures
+     → Provide a resend verification email feature
+     → Prompt users to check their spam folder
+     → Consider an alternative verification method (code entry)
 
-  (2) メールアドレスの大文字・小文字
-     → RFC 5321: ローカルパートは大文字小文字を区別する
-     → 実務上: ほぼ全てのメールプロバイダーで区別しない
-     → 推奨: 保存時に小文字に正規化する
-     → email.toLowerCase() で統一
+  (2) Email address case sensitivity
+     → RFC 5321: the local part is case-sensitive
+     → In practice: virtually all email providers treat it as case-insensitive
+     → Recommendation: normalize to lowercase when storing
+     → Unify using email.toLowerCase()
 
-  (3) パスワードの Unicode 正規化
-     → "cafe\u0301" と "caf\u00e9" は見た目が同じだが異なるバイト列
-     → NIST SP 800-63B: SASLprep (RFC 7613) で正規化を推奨
-     → 最低限: NFC 正規化を適用
+  (3) Unicode normalization for passwords
+     → "cafe\u0301" and "caf\u00e9" look the same but are different byte sequences
+     → NIST SP 800-63B: recommends normalization using SASLprep (RFC 7613)
+     → At minimum: apply NFC normalization
      → password.normalize('NFC')
 
-  (4) 大量の同時登録（ボット）
-     → CAPTCHA の導入（reCAPTCHA, hCaptcha, Turnstile）
-     → ハニーポットフィールド
-     → 登録速度制限
+  (4) Mass simultaneous registrations (bots)
+     → Introduce CAPTCHA (reCAPTCHA, hCaptcha, Turnstile)
+     → Honeypot fields
+     → Registration rate limiting
 
-  (5) 既存ユーザーがパスワード未設定（ソーシャルログインのみ）
-     → パスワード設定フローを別途提供
-     → 「パスワードを設定」はリセットとは別フロー
-     → メール確認済みであることを前提にする
+  (5) Existing users with no password set (social login only)
+     → Provide a separate password setup flow
+     → "Set password" is a different flow from reset
+     → Assume email is already verified
 ```
 
-### 10.2 アンチパターン
+### 10.2 Anti-Patterns
 
 ```
-メール・パスワード認証のアンチパターン:
+Anti-patterns in email and password authentication:
 
-  (1) パスワードの平文ログ出力
+  (1) Logging passwords in plaintext
      ✗ console.log(`Login: ${email}, ${password}`);
-     → パスワードは一切ログに出力してはならない
-     → 本番環境のログにパスワードが残ると重大インシデント
+     → Passwords must never be written to logs
+     → Passwords in production logs constitute a critical incident
 
-  (2) リセットトークンの平文保存
+  (2) Storing reset tokens in plaintext
      ✗ await db.resetToken.create({ token: rawToken });
-     → DB 漏洩時にトークンが露出
-     → SHA-256 でハッシュ化して保存
+     → Tokens are exposed upon DB leak
+     → Store after hashing with SHA-256
 
-  (3) エラーメッセージの差異
-     ✗ 「メールが見つかりません」「パスワードが間違っています」
-     → ユーザー列挙攻撃を許す
-     → 「メールアドレスまたはパスワードが正しくありません」に統一
+  (3) Differing error messages
+     ✗ "Email not found" vs "Incorrect password"
+     → Enables user enumeration attacks
+     → Standardize to "Incorrect email address or password"
 
-  (4) セッション無効化の欠如
-     ✗ パスワード変更後も旧セッションが有効
-     → 攻撃者がパスワードを知っている場合にセッションが残る
-     → パスワード変更時は全セッションを無効化
+  (4) Failing to invalidate sessions
+     ✗ Old sessions remain valid after a password change
+     → Sessions persist even if an attacker knows the password
+     → Invalidate all sessions on password change
 ```
 
 ---
 
-## 11. 演習問題
+## 11. Exercises
 
-### 演習 1: 基本的なメール・パスワード認証（基礎）
+### Exercise 1: Basic Email and Password Authentication (Beginner)
 
-以下の要件でメール・パスワード認証を実装せよ。
-
-```
-要件:
-- ユーザー登録（名前、メール、パスワード）
-- bcrypt でのパスワードハッシュ化
-- メール確認（24時間有効のトークン）
-- ログイン（セッション作成）
-- ログアウト（セッション破棄）
-
-テスト:
-- 登録成功 → メール確認 → ログイン成功
-- 未確認メールでのログイン拒否
-- 不正パスワードでのログイン失敗
-```
-
-### 演習 2: セキュリティ強化（応用）
-
-演習 1 に以下のセキュリティ機能を追加せよ。
+Implement email and password authentication with the following requirements.
 
 ```
-要件:
-- レート制限（IP + メールの2層）
-- アカウントロック（10回失敗で30分ロック）
-- パスワードリセット（1時間有効のトークン）
-- パスワード変更（現在のパスワード確認必須）
-- ユーザー列挙攻撃対策
-- タイミング攻撃対策
+Requirements:
+- User registration (name, email, password)
+- Password hashing with bcrypt
+- Email verification (token valid for 24 hours)
+- Login (session creation)
+- Logout (session destruction)
 
-テスト:
-- レート制限の動作確認
-- アカウントロック → 自動解除
-- パスワードリセットの完全フロー
+Tests:
+- Successful registration → email verification → successful login
+- Reject login with unverified email
+- Login failure with incorrect password
 ```
 
-### 演習 3: エンタープライズ機能（発展）
+### Exercise 2: Security Hardening (Intermediate)
 
-本番環境を想定した機能を追加せよ。
+Add the following security features to Exercise 1.
 
 ```
-要件:
-- Have I Been Pwned API との連携
-- デバイスフィンガープリントによる不正検知
-- セキュリティイベントの監査ログ
-- Argon2id への移行（bcrypt からの自動アップグレード）
-- パスワード履歴（過去5個のパスワードを禁止）
-- CAPTCHA 統合（reCAPTCHA or Turnstile）
+Requirements:
+- Rate limiting (2-layer: IP + email)
+- Account lockout (lock for 30 minutes after 10 failures)
+- Password reset (token valid for 1 hour)
+- Password change (requires current password confirmation)
+- Countermeasures against user enumeration attacks
+- Countermeasures against timing attacks
 
-テスト:
-- 漏洩パスワードの拒否
-- 未知デバイスからのログイン通知
-- ハッシュ関数の自動アップグレード
+Tests:
+- Verify rate limiting behavior
+- Account lockout → automatic unlock
+- Complete password reset flow
+```
+
+### Exercise 3: Enterprise Features (Advanced)
+
+Add features for a production environment.
+
+```
+Requirements:
+- Integration with Have I Been Pwned API
+- Fraud detection using device fingerprinting
+- Audit log for security events
+- Migration to Argon2id (automatic upgrade from bcrypt)
+- Password history (prohibit the last 5 passwords)
+- CAPTCHA integration (reCAPTCHA or Turnstile)
+
+Tests:
+- Rejection of breached passwords
+- Login notification from unknown device
+- Automatic hash function upgrade
 ```
 
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|---------|
+| Initialization error | Misconfigured configuration file | Verify the config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review settings |
+| Data inconsistency | Concurrency conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify incrementally**: Use log output or a debugger to validate hypotheses
+5. **Fix and run regression tests**: After fixing, also run tests for related areas
 
 ```python
 # デバッグ用ユーティリティ
@@ -1471,69 +1475,69 @@ def process_data(items):
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose performance issues when they occur:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with a profiling tool
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Review disk and network I/O status
+4. **Check concurrent connections**: Inspect the connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Issue type | Diagnostic tool | Countermeasure |
+|-----------|----------------|---------------|
+| High CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 ---
 
-## 12. FAQ・トラブルシューティング
+## 12. FAQ / Troubleshooting
 
-### Q1: bcrypt の比較が常に遅い
+### Q1: bcrypt comparison is always slow
 
-**原因**: bcrypt は意図的に低速に設計されている。cost=12 の場合、約250msかかる。
-
-```
-対処法:
-- cost を下げるのは非推奨（セキュリティが低下）
-- ログイン処理全体のパフォーマンスが問題なら:
-  1. ワーカースレッドで bcrypt を実行
-  2. Node.js の場合は bcrypt ネイティブモジュールを使用
-  3. bcryptjs（pure JS）より bcrypt（C++バインディング）を推奨
-```
-
-### Q2: メール配信が遅い / 届かない
+**Cause**: bcrypt is intentionally designed to be slow. At cost=12, it takes approximately 250ms.
 
 ```
-対処法:
-1. メール送信は非同期（バックグラウンドジョブ）で実行
-2. SendGrid, Resend, Amazon SES 等の専用サービスを使用
-3. SPF, DKIM, DMARC を設定
-4. 送信元ドメインの評判を維持
-5. 迷惑メールフォルダの確認を促すUI
+Solutions:
+- Lowering the cost is not recommended (reduces security)
+- If overall login performance is a concern:
+  1. Run bcrypt in a worker thread
+  2. For Node.js, use the native bcrypt module
+  3. Prefer bcrypt (C++ bindings) over bcryptjs (pure JS)
 ```
 
-### Q3: アカウントロックが頻繁に発生する
+### Q2: Emails are slow to deliver or never arrive
 
 ```
-対処法:
-1. CAPTCHA でボット攻撃を防止
-2. IP ベースのレート制限を先に適用
-3. ロック閾値を調整（5回 → 10回）
-4. ロック期間を段階的に増加（5分 → 15分 → 30分）
-5. 管理者によるロック解除機能を提供
+Solutions:
+1. Send emails asynchronously (background job)
+2. Use a dedicated email service such as SendGrid, Resend, or Amazon SES
+3. Configure SPF, DKIM, and DMARC
+4. Maintain the reputation of the sending domain
+5. Provide UI that prompts users to check their spam folder
 ```
 
-### Q4: パスワードリセットメールが悪用される
+### Q3: Account lockouts occur frequently
 
 ```
-対処法:
-1. リセットメールの送信にもレート制限を適用
-2. トークンの有効期限を短くする（1時間以下）
-3. トークンは1回使用で無効化
-4. リセット完了時にメール通知
-5. 不審なリセット要求のモニタリング
+Solutions:
+1. Use CAPTCHA to prevent bot attacks
+2. Apply IP-based rate limiting first
+3. Adjust the lockout threshold (5 attempts → 10 attempts)
+4. Increase the lockout duration gradually (5 min → 15 min → 30 min)
+5. Provide an admin account unlock feature
+```
+
+### Q4: Password reset emails are being abused
+
+```
+Solutions:
+1. Apply rate limiting to reset email sending as well
+2. Shorten the token expiry (1 hour or less)
+3. Invalidate tokens after a single use
+4. Send email notification upon reset completion
+5. Monitor suspicious reset requests
 ```
 
 ---
@@ -1541,39 +1545,39 @@ def process_data(items):
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Rather than theory alone, actually writing code and verifying its behavior deepens your understanding.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| フロー | セキュリティ要件 |
-|--------|----------------|
-| 登録 | bcrypt/Argon2 ハッシュ、メール確認必須、漏洩チェック |
-| ログイン | 多層レート制限、アカウントロック、タイミング攻撃対策 |
-| メール確認 | SHA-256 ハッシュトークン、24時間有効、再送レート制限 |
-| リセット | ハッシュトークン、1時間有効、全セッション無効化 |
-| 変更 | 現在パスワード確認、他セッション無効化 |
-| 通知 | 重要イベントのメール通知、監査ログ |
-| 列挙対策 | 統一エラーメッセージ、タイミング均一化 |
+Knowledge of this topic is frequently applied in day-to-day development work, and is especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Flow | Security Requirements |
+|------|----------------------|
+| Registration | bcrypt/Argon2 hashing, email verification required, breach check |
+| Login | Multi-layer rate limiting, account lockout, timing attack countermeasures |
+| Email verification | SHA-256 hashed token, valid 24 hours, resend rate limiting |
+| Reset | Hashed token, valid 1 hour, invalidate all sessions |
+| Change | Confirm current password, invalidate other sessions |
+| Notification | Email notification for important events, audit log |
+| Enumeration countermeasures | Unified error messages, uniform response timing |
 
 ---
 
-## 参考文献
+## Further Reading
+
+---
+
+## References
 1. NIST. "Digital Identity Guidelines: Authentication and Lifecycle Management." SP 800-63B, 2020.
 2. OWASP. "Password Storage Cheat Sheet." cheatsheetseries.owasp.org, 2024.
 3. OWASP. "Forgot Password Cheat Sheet." cheatsheetseries.owasp.org, 2024.
