@@ -1,98 +1,98 @@
-# セッション vs トークン
+# Session vs Token
 
-> 認証状態の管理には「セッション方式」と「トークン方式」の2つの主要なアプローチがある。ステートフルとステートレスの本質的な違い、それぞれのメリット・デメリット、セキュリティ上のトレードオフ、保存場所の比較、そしてプロジェクト要件に応じた正しい選定基準を、実装コード付きで徹底解説する。
-
----
-
-## この章で学ぶこと
-
-- [ ] セッション方式とトークン方式の仕組みと本質的な違い（ステートフル vs ステートレス）を理解する
-- [ ] 各方式のセキュリティ上のトレードオフ（XSS/CSRF/即時失効）を正確に把握する
-- [ ] トークンの保存場所ごとのリスクを理解し、最適な保存戦略を選定できる
-- [ ] プロジェクト要件（アーキテクチャ・規模・セキュリティ要件）に基づく適切な方式を選定できるようになる
-- [ ] ハイブリッドアプローチ（JWT in HttpOnly Cookie）を実装できるようになる
+> There are two primary approaches to managing authentication state: the "session-based approach" and the "token-based approach." This guide provides an in-depth explanation — complete with implementation code — of the fundamental difference between stateful and stateless designs, the advantages and disadvantages of each, security trade-offs, storage location comparisons, and the correct criteria for choosing between them based on project requirements.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-このガイドを読む前に、以下の知識があることを前提とする。
+- [ ] Understand how session-based and token-based authentication work, and the essential difference between them (stateful vs stateless)
+- [ ] Accurately identify the security trade-offs of each approach (XSS / CSRF / immediate revocation)
+- [ ] Understand the risks associated with each token storage location and choose the optimal storage strategy
+- [ ] Be able to select the appropriate approach based on project requirements (architecture, scale, security requirements)
+- [ ] Be able to implement the hybrid approach (JWT in HttpOnly Cookie)
 
-| 前提知識 | 参照先 |
+---
+
+## Prerequisites
+
+Before reading this guide, you are expected to have the following knowledge.
+
+| Prerequisite | Reference |
 |---------|--------|
-| 認証と認可の基本概念 | 00-fundamentals/00-authentication-basics.md |
-| パスワードハッシュの仕組み | 00-fundamentals/01-password-hashing.md |
-| HTTP の基礎（Cookie、ヘッダー） | 04-web-and-network |
-| 暗号化と署名の基礎 | security-fundamentals/00-basics/ |
+| Basic concepts of authentication and authorization | 00-fundamentals/00-authentication-basics.md |
+| How password hashing works | 00-fundamentals/01-password-hashing.md |
+| HTTP basics (Cookies, headers) | 04-web-and-network |
+| Basics of encryption and signing | security-fundamentals/00-basics/ |
 
 ---
 
-## 1. 2つの方式の全体像
+## 1. Overview of the Two Approaches
 
-### 1.1 セッション方式（ステートフル）
+### 1.1 Session-Based Approach (Stateful)
 
 ```
-セッション方式の認証フロー:
+Session-based authentication flow:
 
-  ユーザー             サーバー              セッションストア
+  User               Server              Session Store
     │                   │                      │
-    │ ① ログイン         │                      │
+    │ ① Login            │                      │
     │ (email + password) │                      │
     │──────────────────>│                      │
-    │                   │ ② 認証成功            │
-    │                   │ セッションデータ作成    │
+    │                   │ ② Authentication OK   │
+    │                   │ Create session data   │
     │                   │ { userId, role, ... } │
     │                   │─────────────────────>│
-    │                   │ ③ session_id 返却     │
+    │                   │ ③ Return session_id   │
     │                   │<─────────────────────│
     │ ④ Set-Cookie:     │                      │
     │ session_id=abc123 │                      │
     │ HttpOnly; Secure  │                      │
     │<──────────────────│                      │
     │                   │                      │
-    │  --- 以降のリクエスト ---                   │
+    │  --- Subsequent requests ---              │
     │                   │                      │
     │ ⑤ Cookie:         │                      │
     │ session_id=abc123 │                      │
     │──────────────────>│                      │
-    │                   │ ⑥ セッションデータ取得 │
+    │                   │ ⑥ Retrieve session data│
     │                   │─────────────────────>│
     │                   │ ⑦ { userId, role }   │
     │                   │<─────────────────────│
-    │                   │ ⑧ ユーザー確認OK      │
-    │ ⑨ レスポンス       │                      │
+    │                   │ ⑧ User verified OK   │
+    │ ⑨ Response        │                      │
     │<──────────────────│                      │
 
-  本質:
-  → サーバーが「誰がログインしているか」を記憶（ステートフル）
-  → Cookie にはセッション ID（ポインタ）のみ含む
-  → 実際のデータはサーバー側のストア（Redis/DB）に保管
-  → セッション ID は「引換券」、データは「金庫の中身」
+  Essence:
+  → The server remembers "who is logged in" (stateful)
+  → The Cookie contains only a session ID (a pointer)
+  → The actual data is stored in a server-side store (Redis/DB)
+  → The session ID is a "claim ticket"; the data is "what's in the vault"
 ```
 
-**WHY: なぜセッション方式はサーバー側に状態を持つのか？**
+**WHY: Why does the session-based approach hold state on the server side?**
 
-セッション方式の核心は「信頼の一元管理」にある。認証情報をサーバー側で管理することで、以下のメリットが得られる:
+The core of the session-based approach is "centralized trust management." By managing authentication information on the server side, you gain the following benefits:
 
-1. **即時失効**: サーバー側のデータを削除するだけで、即座にアクセスを遮断できる
-2. **データの安全性**: 認証データがクライアントに露出しない
-3. **サイズ制限なし**: サーバー側に保存するため、セッションデータに実質的な容量制限がない
-4. **改ざん不可能**: クライアントが持つのは ID のみで、データ自体を改ざんできない
+1. **Immediate revocation**: Access can be blocked instantly simply by deleting the server-side data
+2. **Data security**: Authentication data is not exposed to the client
+3. **No size limit**: Since data is stored on the server, there is no practical capacity limit for session data
+4. **Tamper-proof**: The client holds only an ID and cannot tamper with the data itself
 
-代償として「スケーラビリティ」と「ストア管理」のコストが発生する。
+The trade-off is the cost of "scalability" and "store management."
 
-### 1.2 トークン方式（ステートレス）
+### 1.2 Token-Based Approach (Stateless)
 
 ```
-トークン方式の認証フロー:
+Token-based authentication flow:
 
-  ユーザー             サーバー
+  User               Server
     │                   │
-    │ ① ログイン         │
+    │ ① Login            │
     │ (email + password) │
     │──────────────────>│
-    │                   │ ② 認証成功
-    │                   │ JWT 生成（署名付き）
+    │                   │ ② Authentication OK
+    │                   │ Generate JWT (with signature)
     │                   │ ┌─────────────────────┐
     │                   │ │ Header: { alg, typ } │
     │                   │ │ Payload: {           │
@@ -108,269 +108,291 @@
     │ ③ { accessToken } │
     │<──────────────────│
     │                   │
-    │  --- 以降のリクエスト ---
+    │  --- Subsequent requests ---
     │                   │
     │ ④ Authorization:  │
     │ Bearer eyJhbG...  │
     │──────────────────>│
-    │                   │ ⑤ JWT 検証
-    │                   │ → 署名の確認（改ざんなし？）
-    │                   │ → 有効期限チェック
-    │                   │ → クレーム検証
-    │                   │ → DB/ストアへのアクセス不要！
-    │ ⑥ レスポンス       │
+    │                   │ ⑤ Verify JWT
+    │                   │ → Check signature (no tampering?)
+    │                   │ → Check expiration
+    │                   │ → Validate claims
+    │                   │ → No DB/store access needed!
+    │ ⑥ Response        │
     │<──────────────────│
 
-  本質:
-  → トークン自体にユーザー情報を含む（自己完結型）
-  → サーバーは状態を持たない（ステートレス）
-  → 署名により改ざんを検知（ただし暗号化ではない）
-  → トークンは「パスポート」、情報が記載されている
+  Essence:
+  → The token itself contains user information (self-contained)
+  → The server holds no state (stateless)
+  → Tampering is detected via signature (but this is not encryption)
+  → The token is like a "passport" — the information is written on it
 ```
 
-**WHY: なぜトークン方式はステートレスなのか？**
+**WHY: Why is the token-based approach stateless?**
 
-トークン方式の核心は「検証の分散化」にある。各サーバーが独立にトークンを検証できるため:
+The core of the token-based approach is "distributed verification." Since each server can independently verify tokens:
 
-1. **水平スケーリング**: サーバーを増やしても共有ストアが不要
-2. **マイクロサービス対応**: 各サービスが公開鍵だけで検証可能
-3. **クロスドメイン**: API が異なるドメインでもヘッダーで送信可能
-4. **モバイル対応**: Cookie に依存しないためネイティブアプリと相性が良い
+1. **Horizontal scaling**: No shared store required even as servers are added
+2. **Microservices-ready**: Each service can verify using only the public key
+3. **Cross-domain**: APIs can send tokens via headers even across different domains
+4. **Mobile-friendly**: Does not depend on Cookies, making it well-suited for native apps
 
-代償として「即時失効」と「トークン肥大化」の問題が発生する。
+The trade-off is the problems of "immediate revocation" and "token bloat."
 
 ---
 
-## 2. 詳細比較
+## 2. Detailed Comparison
 
-### 2.1 機能・アーキテクチャ比較表
+### 2.1 Feature / Architecture Comparison Table
 
 ```
 ┌──────────────────┬───────────────────────┬───────────────────────┐
-│ 比較項目          │ セッション方式          │ トークン方式（JWT）      │
+│ Comparison Item  │ Session-Based          │ Token-Based (JWT)     │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ 状態管理          │ サーバー側（ステートフル） │ クライアント側           │
-│                  │                       │ （ステートレス）         │
+│ State Management │ Server-side (stateful) │ Client-side           │
+│                  │                       │ (stateless)           │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ ストレージ        │ Redis / DB / メモリ    │ 不要（署名検証のみ）     │
+│ Storage          │ Redis / DB / Memory   │ None (signature       │
+│                  │                       │ verification only)    │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ スケーラビリティ   │ セッションストアの       │ ステートレスのため       │
-│                  │ 共有・レプリケーション要  │ スケール容易            │
+│ Scalability      │ Requires shared /     │ Easy to scale due to  │
+│                  │ replicated session    │ stateless design      │
+│                  │ store                 │                       │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ 即時失効          │ サーバー側で即時削除可能  │ 有効期限まで失効不可     │
-│                  │                       │ （ブラックリスト要）     │
+│ Immediate        │ Can delete server-    │ Cannot revoke before  │
+│ Revocation       │ side data instantly   │ expiry (blacklist     │
+│                  │                       │ required)             │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ データサイズ      │ Cookie: 小（~50B）     │ JWT: 大（~800B-2KB）   │
-│                  │ セッションIDのみ         │ ペイロード含む          │
+│ Data Size        │ Cookie: small (~50B)  │ JWT: large (~800B-2KB)│
+│                  │ Session ID only       │ Payload included      │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ CSRF 耐性        │ 脆弱（対策必須）        │ Authorization ヘッダー  │
-│                  │                       │ なら不要               │
+│ CSRF Resistance  │ Vulnerable (mitigation│ Not needed if using   │
+│                  │ required)             │ Authorization header  │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ XSS 耐性         │ HttpOnly Cookie で保護  │ localStorage 保存は    │
-│                  │                       │ XSS に脆弱             │
+│ XSS Resistance   │ Protected with        │ localStorage storage  │
+│                  │ HttpOnly Cookie       │ is vulnerable to XSS  │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ ネットワーク負荷   │ 低（ID のみ送信）       │ 高（毎回トークン送信）   │
+│ Network Load     │ Low (ID only)         │ High (token sent each │
+│                  │                       │ request)              │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ サーバー負荷      │ 毎リクエストでストア参照  │ 署名検証のみ（CPU負荷） │
+│ Server Load      │ Store lookup per      │ Signature verification│
+│                  │ request               │ only (CPU load)       │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ モバイル対応      │ Cookie 管理が煩雑       │ ヘッダーで簡単          │
+│ Mobile Support   │ Cookie management     │ Simple via headers    │
+│                  │ is complex            │                       │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ マイクロサービス   │ セッションストア共有が    │ 各サービスで独立検証可能  │
-│                  │ 困難                   │ （公開鍵配布のみ）       │
+│ Microservices    │ Sharing session store │ Independent           │
+│                  │ is difficult          │ verification per      │
+│                  │                       │ service (public key   │
+│                  │                       │ distribution only)    │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ オフライン対応    │ 不可（ストア参照必須）    │ 可能（署名検証のみ）     │
+│ Offline Support  │ Not possible (store   │ Possible (signature   │
+│                  │ lookup required)      │ verification only)    │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ 実装の複雑さ      │ 低（フレームワーク充実）  │ 中〜高（鍵管理、        │
-│                  │                       │ リフレッシュ設計要）     │
+│ Implementation   │ Low (mature           │ Medium–High (key      │
+│ Complexity       │ frameworks)           │ management, refresh   │
+│                  │                       │ design required)      │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ デバッグ容易性    │ サーバーログで追跡可能    │ jwt.io で内容確認可能   │
+│ Debuggability    │ Traceable via server  │ Contents viewable at  │
+│                  │ logs                  │ jwt.io                │
 └──────────────────┴───────────────────────┴───────────────────────┘
 ```
 
-### 2.2 コスト比較表
+### 2.2 Cost Comparison Table
 
 ```
 ┌──────────────────┬───────────────────────┬───────────────────────┐
-│ コスト要素        │ セッション方式          │ トークン方式            │
+│ Cost Factor      │ Session-Based          │ Token-Based           │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ インフラコスト    │ Redis/DBの運用費用      │ ほぼゼロ               │
-│                  │ 月額 $10-100+         │ （CPU負荷のみ）         │
+│ Infrastructure   │ Redis/DB operating    │ Nearly zero           │
+│ Cost             │ costs: $10–100+/month │ (CPU load only)       │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ 開発コスト        │ 低（express-session等） │ 中（トークン管理設計）   │
+│ Development Cost │ Low (express-session, │ Medium (token         │
+│                  │ etc.)                 │ management design)    │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ 運用コスト        │ ストア監視・スケール管理 │ 鍵ローテーション管理    │
+│ Operational Cost │ Store monitoring &    │ Key rotation          │
+│                  │ scale management      │ management            │
 ├──────────────────┼───────────────────────┼───────────────────────┤
-│ 障害時の影響      │ ストア障害 → 全ユーザー  │ 鍵漏洩 → 全トークン    │
-│                  │ ログアウト              │ 偽造可能               │
+│ Impact of        │ Store failure →       │ Key leak → All tokens │
+│ Failure          │ All users logged out  │ can be forged         │
 └──────────────────┴───────────────────────┴───────────────────────┘
 ```
 
 ---
 
-## 3. セキュリティの詳細比較
+## 3. Detailed Security Comparison
 
-### 3.1 セッション方式のセキュリティ
-
-```
-セッション方式のセキュリティプロファイル:
-
-  ┌── 利点 ──────────────────────────────────────────┐
-  │                                                  │
-  │ ✓ サーバー側で即時無効化可能                        │
-  │   → パスワード変更、不正検知時に即座に遮断            │
-  │   → 特定デバイスのセッションだけを無効化可能           │
-  │                                                  │
-  │ ✓ HttpOnly Cookie でXSS耐性                       │
-  │   → JavaScript からアクセス不可                     │
-  │   → document.cookie で読み取り不能                  │
-  │                                                  │
-  │ ✓ セッションデータはサーバーに安全に保管              │
-  │   → クライアントに機密情報が露出しない                │
-  │   → 改ざんが不可能                                 │
-  │                                                  │
-  │ ✓ セッション固定攻撃の防御が確立                     │
-  │   → ログイン時の ID ローテーションで対策              │
-  │                                                  │
-  │ ✓ アクティブセッション管理が容易                     │
-  │   → ユーザーに「ログイン中のデバイス一覧」を表示可能    │
-  │   → 「全デバイスからログアウト」が簡単に実装可能       │
-  │                                                  │
-  └──────────────────────────────────────────────────┘
-
-  ┌── リスク ─────────────────────────────────────────┐
-  │                                                  │
-  │ ✗ CSRF攻撃に脆弱（Cookie 自動送信のため）           │
-  │   → 対策: SameSite=Lax + CSRF トークン             │
-  │                                                  │
-  │ ✗ セッションハイジャック（ID 漏洩時）                │
-  │   → 対策: セッション ID ローテーション、IP 検証       │
-  │                                                  │
-  │ ✗ セッションストアの SPOF（単一障害点）              │
-  │   → 対策: Redis Sentinel / Cluster                │
-  │                                                  │
-  │ ✗ サーバー負荷（毎リクエストでストア参照）            │
-  │   → 対策: Redis のレプリカ読み取り                  │
-  │                                                  │
-  └──────────────────────────────────────────────────┘
-```
-
-### 3.2 トークン方式（JWT）のセキュリティ
+### 3.1 Security of the Session-Based Approach
 
 ```
-トークン方式のセキュリティプロファイル:
+Session-based security profile:
 
-  ┌── 利点 ──────────────────────────────────────────┐
-  │                                                  │
-  │ ✓ CSRF攻撃の心配なし（Authorization ヘッダー使用時） │
-  │   → ブラウザは Authorization ヘッダーを自動送信しない │
-  │   → 攻撃者がヘッダーを設定できない                   │
-  │                                                  │
-  │ ✓ サーバーに状態不要（高可用性）                     │
-  │   → ストア障害の影響を受けない                       │
-  │   → サーバー再起動でもセッション維持                  │
-  │                                                  │
-  │ ✓ マイクロサービス間の認証が容易                     │
-  │   → 各サービスが公開鍵だけで検証可能                  │
-  │   → 認可サーバーへの問い合わせ不要                    │
-  │                                                  │
-  │ ✓ クロスドメイン対応                               │
-  │   → Cookie のドメイン制約を受けない                  │
-  │                                                  │
-  └──────────────────────────────────────────────────┘
+  ┌── Advantages ────────────────────────────────────────┐
+  │                                                      │
+  │ ✓ Can be instantly invalidated server-side           │
+  │   → Immediately block access on password change or   │
+  │     suspicious activity detection                    │
+  │   → Can invalidate only specific device sessions     │
+  │                                                      │
+  │ ✓ XSS resistance with HttpOnly Cookie               │
+  │   → Not accessible from JavaScript                  │
+  │   → Cannot be read via document.cookie              │
+  │                                                      │
+  │ ✓ Session data is securely stored on the server     │
+  │   → Sensitive information is not exposed to client  │
+  │   → Cannot be tampered with                         │
+  │                                                      │
+  │ ✓ Established defense against session fixation      │
+  │   → Mitigated by ID rotation on login               │
+  │                                                      │
+  │ ✓ Easy active session management                    │
+  │   → Can show users a "list of logged-in devices"    │
+  │   → "Log out from all devices" is easy to implement │
+  │                                                      │
+  └──────────────────────────────────────────────────────┘
 
-  ┌── リスク ─────────────────────────────────────────┐
-  │                                                  │
-  │ ✗ 即時失効が困難                                   │
-  │   → 対策: 短い有効期限（15分）+ Refresh Token       │
-  │   → 対策: ブラックリスト（ただしステートフルに戻る）    │
-  │   → 対策: Token Version（ユーザーごとのバージョン番号）│
-  │                                                  │
-  │ ✗ localStorage 保存 → XSS で窃取可能              │
-  │   → 対策: HttpOnly Cookie に保存（ハイブリッド）     │
-  │   → 対策: メモリ内保持（リロードで消失）              │
-  │                                                  │
-  │ ✗ ペイロードが平文（Base64URL）                     │
-  │   → 対策: 機密情報を含めない                        │
-  │   → 対策: 必要なら JWE（暗号化 JWT）を使用           │
-  │                                                  │
-  │ ✗ 秘密鍵が漏洩すると全トークンが偽造可能              │
-  │   → 対策: HSM / KMS で鍵管理                       │
-  │   → 対策: 非対称鍵（RS256/ES256）で署名             │
-  │   → 対策: 定期的な鍵ローテーション                   │
-  │                                                  │
-  │ ✗ トークンサイズが大きい（ヘッダー肥大）              │
-  │   → 対策: 必要最小限のクレーム                       │
-  │   → 対策: ES256 で署名サイズ削減                    │
-  │                                                  │
-  │ ✗ alg: "none" 攻撃、アルゴリズム混乱攻撃            │
-  │   → 対策: algorithms パラメータで許可アルゴリズム限定  │
-  │                                                  │
-  └──────────────────────────────────────────────────┘
+  ┌── Risks ─────────────────────────────────────────────┐
+  │                                                      │
+  │ ✗ Vulnerable to CSRF (Cookies are sent automatically)│
+  │   → Mitigation: SameSite=Lax + CSRF token           │
+  │                                                      │
+  │ ✗ Session hijacking (on ID leak)                    │
+  │   → Mitigation: session ID rotation, IP verification│
+  │                                                      │
+  │ ✗ Session store as SPOF (single point of failure)   │
+  │   → Mitigation: Redis Sentinel / Cluster            │
+  │                                                      │
+  │ ✗ Server load (store lookup per request)            │
+  │   → Mitigation: read from Redis replicas            │
+  │                                                      │
+  └──────────────────────────────────────────────────────┘
 ```
 
-### 3.3 攻撃ベクトル別の比較表
+### 3.2 Security of the Token-Based (JWT) Approach
+
+```
+Token-based security profile:
+
+  ┌── Advantages ────────────────────────────────────────┐
+  │                                                      │
+  │ ✓ No CSRF concern (when using Authorization header) │
+  │   → Browsers do not automatically send Authorization │
+  │     headers                                         │
+  │   → Attackers cannot set the header                 │
+  │                                                      │
+  │ ✓ No server state needed (high availability)        │
+  │   → Not affected by store failures                  │
+  │   → Sessions persist across server restarts         │
+  │                                                      │
+  │ ✓ Easy authentication between microservices         │
+  │   → Each service can verify using only public key   │
+  │   → No need to query the authorization server       │
+  │                                                      │
+  │ ✓ Cross-domain support                              │
+  │   → Not subject to Cookie domain restrictions       │
+  │                                                      │
+  └──────────────────────────────────────────────────────┘
+
+  ┌── Risks ─────────────────────────────────────────────┐
+  │                                                      │
+  │ ✗ Immediate revocation is difficult                 │
+  │   → Mitigation: short expiry (15 min) + Refresh     │
+  │     Token                                           │
+  │   → Mitigation: blacklist (but becomes stateful)    │
+  │   → Mitigation: Token Version (per-user version     │
+  │     number)                                         │
+  │                                                      │
+  │ ✗ localStorage storage → stealable via XSS         │
+  │   → Mitigation: store in HttpOnly Cookie (hybrid)   │
+  │   → Mitigation: keep in memory (lost on reload)     │
+  │                                                      │
+  │ ✗ Payload is plaintext (Base64URL)                  │
+  │   → Mitigation: do not include sensitive data       │
+  │   → Mitigation: use JWE (encrypted JWT) if needed   │
+  │                                                      │
+  │ ✗ Secret key leak allows all tokens to be forged   │
+  │   → Mitigation: manage keys with HSM / KMS         │
+  │   → Mitigation: use asymmetric keys (RS256/ES256)  │
+  │     for signing                                     │
+  │   → Mitigation: periodic key rotation              │
+  │                                                      │
+  │ ✗ Token size is large (bloated headers)             │
+  │   → Mitigation: include only the minimum claims    │
+  │   → Mitigation: use ES256 to reduce signature size  │
+  │                                                      │
+  │ ✗ alg: "none" attack, algorithm confusion attack    │
+  │   → Mitigation: restrict allowed algorithms with   │
+  │     the algorithms parameter                        │
+  │                                                      │
+  └──────────────────────────────────────────────────────┘
+```
+
+### 3.3 Attack Vector Comparison Table
 
 ```
 ┌──────────────────┬──────────────────────┬──────────────────────┐
-│ 攻撃ベクトル      │ セッション方式         │ トークン方式           │
+│ Attack Vector    │ Session-Based         │ Token-Based          │
 ├──────────────────┼──────────────────────┼──────────────────────┤
-│ XSS              │ ○ HttpOnly で保護    │ △ localStorage は    │
-│                  │                      │   窃取可能            │
+│ XSS              │ ○ Protected via       │ △ localStorage is    │
+│                  │   HttpOnly           │   stealable          │
 ├──────────────────┼──────────────────────┼──────────────────────┤
-│ CSRF             │ △ SameSite + Token   │ ○ Bearer ヘッダー    │
-│                  │   で対策可能          │   なら影響なし         │
+│ CSRF             │ △ Mitigated with     │ ○ No impact if       │
+│                  │   SameSite + Token   │   using Bearer header│
 ├──────────────────┼──────────────────────┼──────────────────────┤
-│ セッション        │ △ ID ローテーション   │ ○ 署名検証で改ざん    │
-│ ハイジャック      │   で対策              │   検知                │
+│ Session          │ △ Mitigated with     │ ○ Tampering detected │
+│ Hijacking        │   ID rotation        │   via signature      │
 ├──────────────────┼──────────────────────┼──────────────────────┤
-│ リプレイ攻撃      │ ○ ストアで管理可能    │ △ jti + ブラック      │
-│                  │                      │   リスト必要           │
+│ Replay Attack    │ ○ Manageable via     │ △ Requires jti +     │
+│                  │   store              │   blacklist          │
 ├──────────────────┼──────────────────────┼──────────────────────┤
-│ ブルートフォース   │ ○ 256bit ランダム ID │ ○ 暗号署名で保護      │
+│ Brute Force      │ ○ 256-bit random ID  │ ○ Protected via      │
+│                  │                      │   cryptographic sig  │
 ├──────────────────┼──────────────────────┼──────────────────────┤
-│ 中間者攻撃        │ ○ Secure Cookie      │ ○ HTTPS 必須         │
+│ Man-in-the-      │ ○ Secure Cookie      │ ○ HTTPS required     │
+│ Middle           │                      │                      │
 ├──────────────────┼──────────────────────┼──────────────────────┤
-│ トークン窃取      │ ○ 即時無効化可能      │ ✗ 有効期限まで有効    │
+│ Token Theft      │ ○ Can be revoked     │ ✗ Valid until expiry │
+│                  │   immediately        │                      │
 ├──────────────────┼──────────────────────┼──────────────────────┤
-│ 鍵の漏洩          │ △ ストアのセキュリティ │ ✗ 全トークン偽造可能   │
-│                  │   に依存              │                      │
+│ Key Leak         │ △ Depends on store   │ ✗ All tokens can be  │
+│                  │   security           │   forged             │
 └──────────────────┴──────────────────────┴──────────────────────┘
 ```
 
 ---
 
-## 4. JWT の失効対策パターン
+## 4. JWT Revocation Mitigation Patterns
 
-JWT の最大の弱点である「即時失効の困難さ」に対する3つの主要な対策パターンを解説する。
+This section explains three primary mitigation patterns for JWT's biggest weakness: the difficulty of immediate revocation.
 
-### 4.1 短い有効期限 + Refresh Token
+### 4.1 Short Expiry + Refresh Token
 
 ```
-最も標準的な失効対策:
+The most standard revocation mitigation:
 
-  Access Token（短命: 15分）:
-  → API アクセスに使用
-  → 失効しても15分以内に自然に切れる
-  → 窃取されても被害は限定的
+  Access Token (short-lived: 15 minutes):
+  → Used for API access
+  → Even if revoked, it naturally expires within 15 minutes
+  → Damage is limited even if stolen
 
-  Refresh Token（長命: 7-30日）:
-  → 新しい Access Token の取得に使用
-  → サーバー側で管理（ステートフル）
-  → Rotation: 使用するたびに新しい Refresh Token を発行
+  Refresh Token (long-lived: 7–30 days):
+  → Used to obtain a new Access Token
+  → Managed server-side (stateful)
+  → Rotation: a new Refresh Token is issued each time it is used
 
-  フロー:
-    ① Access Token で API アクセス
-    ② Access Token 期限切れ → 401 Unauthorized
-    ③ Refresh Token で新しい Access Token を取得
-    ④ Refresh Token も新しいものに置き換え（Rotation）
-    ⑤ 新しい Access Token で再試行
+  Flow:
+    ① Access API with Access Token
+    ② Access Token expires → 401 Unauthorized
+    ③ Use Refresh Token to obtain a new Access Token
+    ④ Replace with a new Refresh Token (Rotation)
+    ⑤ Retry with the new Access Token
 
-  Refresh Token Rotation の重要性:
-  → Refresh Token が窃取された場合:
-     - 正規ユーザーと攻撃者が同じ Refresh Token を持つ
-     - 先に使った方が新しい Refresh Token を取得
-     - もう一方が古い Refresh Token を使おうとすると検知
-     - 全 Refresh Token を無効化 → 両者をログアウト
+  Importance of Refresh Token Rotation:
+  → If Refresh Token is stolen:
+     - The legitimate user and the attacker hold the same Refresh Token
+     - Whoever uses it first gets the new Refresh Token
+     - The other party attempting to use the old Refresh Token is detected
+     - All Refresh Tokens are invalidated → both parties are logged out
 ```
 
 ```typescript
@@ -459,7 +481,7 @@ async function refreshTokens(refreshToken: string): Promise<{
 }
 ```
 
-### 4.2 ブラックリスト方式
+### 4.2 Blacklist Approach
 
 ```typescript
 // Redis ベースのブラックリスト
@@ -526,7 +548,7 @@ async function verifyAccessToken(token: string) {
 }
 ```
 
-### 4.3 Token Version 方式
+### 4.3 Token Version Approach
 
 ```typescript
 // Token Version（DB ベース、ブラックリスト不要）
@@ -572,41 +594,44 @@ async function verifyTokenVersion(payload: {
 
 ---
 
-## 5. ハイブリッドアプローチ（推奨）
+## 5. Hybrid Approach (Recommended)
 
-### 5.1 概要
+### 5.1 Overview
 
 ```
-推奨: JWT を HttpOnly Cookie に保存するハイブリッドアプローチ:
+Recommended: Hybrid approach — storing JWT in an HttpOnly Cookie:
 
-  トークンの利点（ステートレス検証）+ Cookie の利点（XSS 耐性）
+  Benefits of tokens (stateless verification) + Benefits of Cookies (XSS resistance)
 
-  ┌──────────────────────────────────────────────────┐
-  │                                                  │
-  │  ログイン時:                                       │
-  │    サーバー → JWT 生成                              │
-  │    サーバー → Set-Cookie: token=eyJ..;              │
-  │               HttpOnly; Secure; SameSite=Lax       │
-  │                                                  │
-  │  リクエスト時:                                      │
-  │    ブラウザ → Cookie: token=eyJ..                   │
-  │    サーバー → JWT 検証（署名確認のみ、ストア不要）     │
-  │                                                  │
-  │  利点の組合せ:                                      │
-  │  ✓ JavaScript からトークンにアクセス不可（XSS 耐性）  │
-  │  ✓ ステートレス検証（サーバーに状態不要）              │
-  │  ✓ CSRF は SameSite=Lax で基本防御                 │
-  │  ✓ Secure 属性で HTTPS 強制                        │
-  │                                                  │
-  │  注意点:                                           │
-  │  △ CSRF 対策は SameSite だけでなく Origin 検証も推奨  │
-  │  △ Cookie サイズ上限（~4KB）に注意                   │
-  │  △ クロスドメインでは使えない                         │
-  │                                                  │
-  └──────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────┐
+  │                                                      │
+  │  On login:                                           │
+  │    Server → Generate JWT                             │
+  │    Server → Set-Cookie: token=eyJ..;                 │
+  │               HttpOnly; Secure; SameSite=Lax         │
+  │                                                      │
+  │  On request:                                         │
+  │    Browser → Cookie: token=eyJ..                     │
+  │    Server  → Verify JWT (signature check only,       │
+  │              no store needed)                        │
+  │                                                      │
+  │  Combined benefits:                                  │
+  │  ✓ Token inaccessible from JavaScript (XSS           │
+  │    resistance)                                       │
+  │  ✓ Stateless verification (no server state)          │
+  │  ✓ CSRF is basically defended with SameSite=Lax      │
+  │  ✓ HTTPS enforced via Secure attribute               │
+  │                                                      │
+  │  Caveats:                                            │
+  │  △ CSRF mitigation: Origin header validation         │
+  │    recommended in addition to SameSite               │
+  │  △ Be mindful of Cookie size limit (~4KB)            │
+  │  △ Cannot be used cross-domain                       │
+  │                                                      │
+  └──────────────────────────────────────────────────────┘
 ```
 
-### 5.2 完全実装例
+### 5.2 Complete Implementation Example
 
 ```typescript
 // ハイブリッドアプローチの完全実装
@@ -768,7 +793,7 @@ async function logout(): Promise<void> {
 }
 ```
 
-### 5.3 クライアント側の自動リフレッシュ（SPA）
+### 5.3 Client-Side Auto-Refresh (SPA)
 
 ```typescript
 // fetch のラッパー: 401 時に自動でトークンリフレッシュ
@@ -832,56 +857,60 @@ async function fetchUserProfile() {
 
 ---
 
-## 6. トークン保存場所の比較
+## 6. Comparing Token Storage Locations
 
-### 6.1 比較表
-
-```
-ブラウザでのトークン保存場所:
-
-┌────────────────┬────────┬────────┬──────────┬──────────────────────┐
-│ 保存場所        │ XSS耐性│ CSRF耐性│ 永続性   │ 推奨度                │
-├────────────────┼────────┼────────┼──────────┼──────────────────────┤
-│ HttpOnly Cookie│ ✓ 安全 │ △ 対策要│ ✓ 永続  │ ◎ 最も推奨            │
-├────────────────┼────────┼────────┼──────────┼──────────────────────┤
-│ localStorage   │ ✗ 脆弱 │ ✓ 安全 │ ✓ 永続  │ ✗ 非推奨              │
-├────────────────┼────────┼────────┼──────────┼──────────────────────┤
-│ sessionStorage │ ✗ 脆弱 │ ✓ 安全 │ △ タブ単位│ ✗ 非推奨              │
-├────────────────┼────────┼────────┼──────────┼──────────────────────┤
-│ メモリ（変数）  │ ○ 比較的│ ✓ 安全 │ ✗ 消失  │ △ 特定ケースで有効     │
-│                │   安全 │        │          │ （SPA + Refresh Token）│
-├────────────────┼────────┼────────┼──────────┼──────────────────────┤
-│ Web Worker     │ ✓ 安全 │ ✓ 安全 │ ✗ 消失  │ ○ 高セキュリティ要件向け│
-└────────────────┴────────┴────────┴──────────┴──────────────────────┘
-```
-
-### 6.2 各保存場所の詳細解説
+### 6.1 Comparison Table
 
 ```
-■ HttpOnly Cookie が推奨される理由:
-  → XSS でトークンを読み取れない（document.cookie で不可）
-  → SameSite 属性で CSRF も防御可能
-  → ブラウザが自動送信（実装が簡潔）
-  → Secure 属性で HTTPS 強制
+Token storage locations in the browser:
 
-■ localStorage が非推奨の理由:
-  → XSS 脆弱性1つでトークン窃取
-  → window.localStorage.getItem('token') で読み取り可能
-  → HttpOnly に相当する保護機能がない
-  → 一度窃取されると有効期限まで悪用可能
-  → 証拠: OWASP は localStorage でのトークン保存を非推奨
+┌────────────────┬──────────┬──────────┬──────────┬──────────────────────┐
+│ Storage        │ XSS      │ CSRF     │ Persist- │ Recommendation       │
+│ Location       │ Safety   │ Safety   │ ence     │                      │
+├────────────────┼──────────┼──────────┼──────────┼──────────────────────┤
+│ HttpOnly Cookie│ ✓ Safe   │ △ Needs  │ ✓ Persists│ ◎ Most recommended  │
+│                │          │ mitigation│         │                      │
+├────────────────┼──────────┼──────────┼──────────┼──────────────────────┤
+│ localStorage   │ ✗ Risky  │ ✓ Safe   │ ✓ Persists│ ✗ Not recommended  │
+├────────────────┼──────────┼──────────┼──────────┼──────────────────────┤
+│ sessionStorage │ ✗ Risky  │ ✓ Safe   │ △ Per tab │ ✗ Not recommended  │
+├────────────────┼──────────┼──────────┼──────────┼──────────────────────┤
+│ Memory         │ ○ Relatively│ ✓ Safe│ ✗ Lost   │ △ Valid for specific │
+│ (variable)     │   safe   │          │ on reload│ cases (SPA + Refresh │
+│                │          │          │          │ Token)               │
+├────────────────┼──────────┼──────────┼──────────┼──────────────────────┤
+│ Web Worker     │ ✓ Safe   │ ✓ Safe   │ ✗ Lost   │ ○ For high-security  │
+│                │          │          │          │ requirements         │
+└────────────────┴──────────┴──────────┴──────────┴──────────────────────┘
+```
 
-■ メモリ保存（Auth0/Okta のアプローチ）:
-  → Access Token を JavaScript 変数（クロージャ内）に保持
-  → XSS でもスコープ外なのでアクセス困難（不可能ではない）
-  → ページリロード時に Refresh Token（HttpOnly Cookie）で再取得
-  → 完全な保護ではないが、localStorage より安全
+### 6.2 Detailed Explanation of Each Storage Location
 
-■ Web Worker 保存（最高セキュリティ）:
-  → トークンを Web Worker 内に隔離
-  → メインスレッドからアクセス不可
-  → Worker 経由で API リクエストを送信
-  → 実装が複雑だが XSS 耐性が最も高い
+```
+■ Why HttpOnly Cookie is recommended:
+  → Token cannot be read via XSS (document.cookie is blocked)
+  → SameSite attribute can also defend against CSRF
+  → Browser sends it automatically (simple implementation)
+  → Secure attribute enforces HTTPS
+
+■ Why localStorage is not recommended:
+  → A single XSS vulnerability allows token theft
+  → Readable via window.localStorage.getItem('token')
+  → No protection equivalent to HttpOnly
+  → Once stolen, can be abused until expiry
+  → Evidence: OWASP recommends against storing tokens in localStorage
+
+■ In-memory storage (approach used by Auth0/Okta):
+  → Hold the Access Token in a JavaScript variable (inside a closure)
+  → Hard to access via XSS because it is out of scope (not impossible)
+  → Re-fetched from Refresh Token (HttpOnly Cookie) on page reload
+  → Not complete protection, but safer than localStorage
+
+■ Web Worker storage (highest security):
+  → Isolate the token inside a Web Worker
+  → Inaccessible from the main thread
+  → API requests are sent via the Worker
+  → Complex to implement but offers the highest XSS resistance
 ```
 
 ```typescript
@@ -926,97 +955,101 @@ self.addEventListener('message', async (event) => {
 
 ---
 
-## 7. 選定ガイドライン
+## 7. Selection Guidelines
 
-### 7.1 プロジェクトタイプ別の推奨
+### 7.1 Recommendations by Project Type
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ プロジェクトタイプ別の推奨方式                                  │
+│ Recommended approach by project type                        │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ■ Next.js / フルスタック Web アプリ:                         │
-│    → ハイブリッド（JWT in HttpOnly Cookie）                    │
-│    → 理由: SSR + SPA 両対応、CSRF/XSS 対策済み                │
-│    → Refresh Token Rotation で長期セッション                  │
+│  ■ Next.js / Full-stack web app:                            │
+│    → Hybrid (JWT in HttpOnly Cookie)                        │
+│    → Reason: Supports both SSR and SPA; CSRF/XSS protected  │
+│    → Long-term sessions via Refresh Token Rotation          │
 │                                                             │
-│  ■ SPA + 別バックエンド API（同一ドメイン）:                    │
-│    → JWT in HttpOnly Cookie（BFF経由）                       │
-│    → 理由: BFF が Cookie を管理、SPA は Cookie を意識しない     │
+│  ■ SPA + Separate backend API (same domain):                │
+│    → JWT in HttpOnly Cookie (via BFF)                       │
+│    → Reason: BFF manages Cookies; SPA is unaware of them    │
 │                                                             │
-│  ■ SPA + 別バックエンド API（クロスドメイン）:                   │
-│    → メモリ保持 + Refresh Token in HttpOnly Cookie            │
-│    → 理由: CORS 制約で Cookie が使えない場合                    │
+│  ■ SPA + Separate backend API (cross-domain):               │
+│    → In-memory + Refresh Token in HttpOnly Cookie           │
+│    → Reason: For cases where CORS constraints prevent Cookies│
 │                                                             │
-│  ■ モバイルアプリ + API:                                      │
-│    → JWT（Secure Storage に保存: Keychain / Keystore）        │
-│    → Access Token(15分) + Refresh Token(30日)                │
-│    → 理由: Cookie 概念がない、Secure Storage は OS が保護       │
+│  ■ Mobile app + API:                                        │
+│    → JWT (stored in Secure Storage: Keychain / Keystore)    │
+│    → Access Token (15 min) + Refresh Token (30 days)        │
+│    → Reason: No Cookie concept; Secure Storage is OS-protected│
 │                                                             │
-│  ■ マイクロサービス間通信:                                     │
-│    → JWT（サービス間は短命トークン）                            │
-│    → mTLS（相互TLS認証）を併用                                │
-│    → 理由: 各サービスが独立検証、中央認可不要                    │
+│  ■ Inter-microservice communication:                        │
+│    → JWT (short-lived tokens between services)              │
+│    → Combined with mTLS (mutual TLS authentication)         │
+│    → Reason: Independent verification per service; no       │
+│      central authorization needed                           │
 │                                                             │
-│  ■ 伝統的 Web アプリ（MPA / サーバーレンダリング）:              │
-│    → セッション + Cookie                                     │
-│    → 理由: 最もシンプルで安全、express-session 等のライブラリ充実 │
+│  ■ Traditional web app (MPA / server-rendered):             │
+│    → Session + Cookie                                       │
+│    → Reason: Simplest and most secure; mature libraries     │
+│      like express-session                                   │
 │                                                             │
-│  ■ B2B エンタープライズ:                                      │
-│    → セッション（即時無効化が重要な場合）                       │
+│  ■ B2B enterprise:                                          │
+│    → Session (when immediate revocation is critical)        │
 │    → SAML / OIDC for SSO                                    │
-│    → 理由: コンプライアンス要件で即時失効が必須の場合が多い       │
+│    → Reason: Compliance requirements often mandate          │
+│      immediate revocation                                   │
 │                                                             │
-│  ■ IoT / CLI ツール:                                         │
-│    → Device Code Flow + JWT                                  │
-│    → 理由: UI がないため OAuth Device Flow が適切               │
+│  ■ IoT / CLI tools:                                         │
+│    → Device Code Flow + JWT                                 │
+│    → Reason: OAuth Device Flow is appropriate when no UI    │
+│      exists                                                 │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 判断フローチャート
+### 7.2 Decision Flowchart
 
 ```
-判断フローチャート:
+Decision flowchart:
 
-  ①モバイルネイティブアプリ？
+  ① Native mobile app?
     │
     ├─ yes → JWT + Secure Storage (Keychain/Keystore)
     │         + Refresh Token
     │
     └─ no
         │
-        ②マイクロサービス間通信？
+        ② Inter-microservice communication?
         │
-        ├─ yes → JWT（ES256）+ mTLS
+        ├─ yes → JWT (ES256) + mTLS
         │
         └─ no
             │
-            ③即時失効が必須？（金融・医療・コンプライアンス）
+            ③ Is immediate revocation required? (finance / healthcare / compliance)
             │
-            ├─ yes → セッション方式（Redis ストア）
+            ├─ yes → Session-based (Redis store)
             │
             └─ no
                 │
-                ④SPA or フルスタック Web？
+                ④ SPA or full-stack web?
                 │
-                ├─ yes → ハイブリッド（JWT in HttpOnly Cookie）
+                ├─ yes → Hybrid (JWT in HttpOnly Cookie)
                 │         + Refresh Token Rotation
                 │
                 └─ no
                     │
-                    ⑤サーバーサイドレンダリング（MPA）？
+                    ⑤ Server-side rendering (MPA)?
                     │
-                    ├─ yes → セッション + Cookie
+                    ├─ yes → Session + Cookie
                     │
-                    └─ no → 要件を詳細分析して選定
+                    └─ no → Analyze requirements in detail and choose
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### 8.1 NG: localStorage にトークンを保存する
+### 8.1 NG: Storing Tokens in localStorage
 
 ```typescript
 // NG: XSS で窃取可能
@@ -1053,7 +1086,7 @@ async function loginGood(email: string, password: string) {
 }
 ```
 
-### 8.2 NG: JWT にアルゴリズム制限を設定しない
+### 8.2 NG: Not Setting Algorithm Restrictions for JWT
 
 ```typescript
 // NG: アルゴリズムを検証しない → alg: "none" 攻撃に脆弱
@@ -1081,7 +1114,7 @@ async function verifyTokenGood(token: string) {
 }
 ```
 
-### 8.3 NG: JWT に機密情報を含める
+### 8.3 NG: Including Sensitive Information in JWT
 
 ```typescript
 // NG: JWT ペイロードに機密情報
@@ -1107,7 +1140,7 @@ const goodPayload = {
 // 詳細情報が必要な場合は /userinfo API で取得
 ```
 
-### 8.4 NG: セッション ID に予測可能な値を使う
+### 8.4 NG: Using Predictable Values for Session IDs
 
 ```typescript
 // NG: 予測可能なセッション ID
@@ -1132,13 +1165,13 @@ function generateSessionIdGood(): string {
 
 ---
 
-## 9. 実践演習
+## 9. Practice Exercises
 
-### 演習1: 基礎 - セッション方式とトークン方式の識別
+### Exercise 1: Basic — Identifying Session-Based vs Token-Based Approaches
 
-以下の HTTP リクエスト/レスポンスを見て、それぞれがセッション方式かトークン方式かを判別し、その理由を説明せよ。
+Look at the following HTTP requests/responses and determine whether each uses a session-based or token-based approach, explaining your reasoning.
 
-**ケース A:**
+**Case A:**
 ```
 POST /api/login HTTP/1.1
 Content-Type: application/json
@@ -1152,7 +1185,7 @@ Set-Cookie: sid=a1b2c3d4e5; HttpOnly; Secure; SameSite=Lax
 {"message": "Login successful"}
 ```
 
-**ケース B:**
+**Case B:**
 ```
 POST /api/login HTTP/1.1
 Content-Type: application/json
@@ -1166,7 +1199,7 @@ Content-Type: application/json
 {"access_token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...", "token_type": "Bearer", "expires_in": 900}
 ```
 
-**ケース C:**
+**Case C:**
 ```
 POST /api/login HTTP/1.1
 Content-Type: application/json
@@ -1181,40 +1214,40 @@ Set-Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; Sam
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
-**ケース A: セッション方式**
-- 理由: `Set-Cookie: sid=a1b2c3d4e5` でランダムなセッション ID を Cookie に設定している
-- セッション ID は単なるポインタであり、実際の認証データはサーバー側に保存されている
-- レスポンスボディにトークンは含まれていない
+**Case A: Session-based approach**
+- Reason: `Set-Cookie: sid=a1b2c3d4e5` sets a random session ID in a Cookie
+- The session ID is merely a pointer; the actual authentication data is stored server-side
+- The response body does not include a token
 
-**ケース B: トークン方式（純粋な JWT）**
-- 理由: レスポンスボディに `access_token`（JWT 形式）が返されている
-- `token_type: "Bearer"` は Authorization ヘッダーで送信することを示す
-- `expires_in: 900` は900秒（15分）の有効期限
-- Cookie は使用されていない → クライアントがトークンを管理
+**Case B: Token-based approach (pure JWT)**
+- Reason: The response body returns an `access_token` (JWT format)
+- `token_type: "Bearer"` indicates it should be sent via the Authorization header
+- `expires_in: 900` is a 900-second (15-minute) expiry
+- No Cookie is used → the client manages the token
 
-**ケース C: ハイブリッド方式**
-- 理由: JWT 形式のトークン（`eyJ...`）が HttpOnly Cookie に設定されている
-- JWT の自己完結型検証 + Cookie の XSS 耐性を組み合わせている
-- レスポンスボディにトークンは含まれない（JavaScript からアクセス不可）
-- 最も推奨されるアプローチ
+**Case C: Hybrid approach**
+- Reason: A JWT-format token (`eyJ...`) is set in an HttpOnly Cookie
+- Combines JWT's self-contained verification with the XSS resistance of Cookies
+- The response body does not include a token (inaccessible from JavaScript)
+- The most recommended approach
 
 </details>
 
-### 演習2: 応用 - Refresh Token Rotation の実装
+### Exercise 2: Applied — Implementing Refresh Token Rotation
 
-以下の仕様を満たす Refresh Token Rotation の仕組みを実装せよ。
+Implement a Refresh Token Rotation mechanism that satisfies the following specification.
 
-**仕様:**
-1. Access Token の有効期限は 15分
-2. Refresh Token の有効期限は 7日
-3. Refresh Token を使用するたびに新しい Refresh Token を発行する
-4. 使用済みの Refresh Token が再利用されたら、同一ファミリーの全トークンを無効化する
-5. Refresh Token はハッシュ化して DB に保存する
+**Specification:**
+1. Access Token expiry: 15 minutes
+2. Refresh Token expiry: 7 days
+3. A new Refresh Token is issued each time a Refresh Token is used
+4. If a used Refresh Token is reused, invalidate all tokens in the same family
+5. Store Refresh Tokens in the DB after hashing
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```typescript
 import crypto from 'crypto';
@@ -1329,48 +1362,48 @@ class TokenService {
 }
 ```
 
-**設計のポイント:**
+**Key design points:**
 
-1. **ファミリーID**: 同一ログインセッションから生成された全 Refresh Token を追跡
-2. **再利用検知**: `used` フラグで使用済みトークンの再利用を検知
-3. **ハッシュ化保存**: DB に保存するのはハッシュ値のみ（DB 漏洩時の被害軽減）
-4. **ファミリー全体の無効化**: 1つのトークンが不正使用されたら関連する全トークンを削除
+1. **Family ID**: Tracks all Refresh Tokens generated from the same login session
+2. **Reuse detection**: The `used` flag detects reuse of an already-consumed token
+3. **Hashed storage**: Only the hash value is stored in the DB (reduces damage from DB leaks)
+4. **Invalidate entire family**: If one token is misused, all related tokens are deleted
 
 </details>
 
-### 演習3: 発展 - セキュリティ要件に基づく認証方式設計
+### Exercise 3: Advanced — Designing an Authentication Approach Based on Security Requirements
 
-以下のシステム要件に基づき、最適な認証方式を設計し、その理由を技術的に説明せよ。
+Based on the system requirements below, design the optimal authentication approach and explain your reasoning technically.
 
-**システム要件:**
-- 医療系 SaaS アプリケーション（HIPAA 準拠が必要）
-- フロントエンド: React SPA
-- バックエンド: マイクロサービス（3つのサービス）
-- モバイルアプリ: iOS / Android
-- 要件: セッション即時無効化、監査ログ、15分の無操作タイムアウト
-- ユーザー規模: 1万人
-- 可用性: 99.9%
+**System requirements:**
+- Healthcare SaaS application (HIPAA compliance required)
+- Frontend: React SPA
+- Backend: Microservices (3 services)
+- Mobile app: iOS / Android
+- Requirements: Immediate session revocation, audit logging, 15-minute inactivity timeout
+- User scale: 10,000 users
+- Availability: 99.9%
 
-設計書として以下を含めること:
-1. 認証方式の選定とその理由
-2. トークン/セッションの保存場所
-3. 有効期限設計
-4. 失効戦略
-5. スケーリング戦略
+Include the following in your design document:
+1. Authentication approach selection and rationale
+2. Token/session storage locations
+3. Expiry design
+4. Revocation strategy
+5. Scaling strategy
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
-### 1. 認証方式の選定
+### 1. Authentication Approach Selection
 
-**ハイブリッド方式（JWT + サーバーサイド検証）を採用する。**
+**Adopt a hybrid approach (JWT + server-side validation).**
 
-理由:
-- HIPAA 準拠には即時失効が必須 → 純粋な JWT（ステートレス）だけでは不十分
-- マイクロサービス間通信には JWT の自己完結型検証が効率的
-- モバイル対応には JWT ベースのフローが適切
+Rationale:
+- HIPAA compliance requires immediate revocation → pure JWT (stateless) alone is insufficient
+- JWT self-contained verification is efficient for inter-microservice communication
+- JWT-based flows are appropriate for mobile support
 
-具体的な設計:
+Specific design:
 ```
 [Web SPA] → BFF（Backend for Frontend）→ [マイクロサービス群]
                                            ├─ Patient Service
@@ -1380,70 +1413,70 @@ class TokenService {
 [Mobile App] → API Gateway → [マイクロサービス群]
 ```
 
-### 2. トークン/セッションの保存場所
+### 2. Token/Session Storage Locations
 
 **Web SPA:**
-- Access Token: BFF の HttpOnly Cookie に JWT を保存
-- Refresh Token: HttpOnly Cookie（Strict, path 限定）
-- SPA 自体はトークンを保持しない → XSS 耐性最大化
+- Access Token: JWT stored in BFF's HttpOnly Cookie
+- Refresh Token: HttpOnly Cookie (Strict, restricted path)
+- The SPA itself holds no tokens → maximum XSS resistance
 
-**モバイルアプリ:**
+**Mobile App:**
 - Access Token: iOS Keychain / Android Keystore
-- Refresh Token: 同上（OS レベルのセキュアストレージ）
+- Refresh Token: Same (OS-level secure storage)
 
-**マイクロサービス間:**
-- 短命 JWT（5分）で認証
-- mTLS を併用して通信路も保護
+**Inter-microservice:**
+- Short-lived JWT (5 min) for authentication
+- Combined with mTLS to protect the communication channel
 
-### 3. 有効期限設計
-
-```
-Access Token:   15分（HIPAA の無操作タイムアウト要件に合致）
-Refresh Token:  8時間（業務時間内）
-                ※ 「ログイン状態維持」オプションは提供しない（HIPAA 要件）
-```
-
-### 4. 失効戦略
-
-**Redis ベースの Token Version + ブラックリスト併用:**
-```
-通常の失効:     短い有効期限（15分）で自然に失効
-即時失効:       Redis ブラックリスト（jti ベース）
-全セッション:    Token Version インクリメント（DB + Redis キャッシュ）
-```
-
-**監査ログ:**
-```
-ログイン/ログアウト/トークンリフレッシュ/失効/不正アクセス検知
-→ 全て監査ログに記録（DynamoDB or CloudWatch Logs）
-→ HIPAA 要件: 最低6年間保持
-```
-
-### 5. スケーリング戦略
+### 3. Expiry Design
 
 ```
-Redis:         Redis Cluster（3ノード、マルチAZ）
-               → ブラックリスト + Token Version キャッシュ
-               → 99.9% 可用性を保証
+Access Token:   15 minutes (meets HIPAA inactivity timeout requirement)
+Refresh Token:  8 hours (within business hours)
+                ※ "Stay logged in" option is not offered (HIPAA requirement)
+```
 
-BFF:           水平スケーリング（ECS/EKS、最低3インスタンス）
-               → JWT 検証はステートレス、Redis のみ参照
+### 4. Revocation Strategy
+
+**Redis-based Token Version + blacklist combination:**
+```
+Normal revocation:     Natural expiry via short Access Token lifetime (15 min)
+Immediate revocation:  Redis blacklist (jti-based)
+All sessions:          Token Version increment (DB + Redis cache)
+```
+
+**Audit logging:**
+```
+Login / logout / token refresh / revocation / unauthorized access detection
+→ All recorded in audit logs (DynamoDB or CloudWatch Logs)
+→ HIPAA requirement: retained for at least 6 years
+```
+
+### 5. Scaling Strategy
+
+```
+Redis:         Redis Cluster (3 nodes, multi-AZ)
+               → Blacklist + Token Version cache
+               → Guarantees 99.9% availability
+
+BFF:           Horizontal scaling (ECS/EKS, minimum 3 instances)
+               → JWT verification is stateless; only Redis is referenced
 
 API Gateway:   AWS API Gateway or Kong
-               → JWT 検証をゲートウェイレベルで実施
-               → 各マイクロサービスの負荷を軽減
+               → JWT verification performed at the gateway level
+               → Reduces load on each microservice
 
-鍵管理:        AWS KMS で署名鍵を管理
-               → ES256（楕円曲線暗号）
-               → 90日ごとに自動ローテーション
+Key management: Signing keys managed with AWS KMS
+               → ES256 (elliptic curve cryptography)
+               → Automatic rotation every 90 days
 ```
 
-**この設計が最適な理由:**
-1. HIPAA の即時失効要件を Redis ブラックリストで満たす
-2. マイクロサービスの独立性を JWT の自己完結型検証で確保
-3. Web の XSS 耐性を BFF + HttpOnly Cookie で最大化
-4. モバイル対応を JWT + Secure Storage で実現
-5. 99.9% 可用性を Redis Cluster + 水平スケーリングで達成
+**Why this design is optimal:**
+1. Meets HIPAA's immediate revocation requirement with Redis blacklist
+2. Ensures microservice independence via JWT self-contained verification
+3. Maximizes web XSS resistance with BFF + HttpOnly Cookie
+4. Supports mobile with JWT + Secure Storage
+5. Achieves 99.9% availability with Redis Cluster + horizontal scaling
 
 </details>
 
@@ -1451,127 +1484,127 @@ API Gateway:   AWS API Gateway or Kong
 
 ## 10. FAQ
 
-### Q1: セッション方式と JWT、どちらが「安全」なのか？
+### Q1: Which is "more secure" — session-based or JWT?
 
-**A:** 「どちらが安全か」は一概に言えない。セキュリティの性質が異なる。
+**A:** There is no simple answer to which is "more secure." The security characteristics differ.
 
-- **セッション方式**は「即時失効」に強く、**管理の安全性**が高い
-- **トークン方式**は「改ざん検知」に強く、**伝送の安全性**が高い
+- **Session-based** is strong in "immediate revocation" and provides high **management security**
+- **Token-based** is strong in "tamper detection" and provides high **transmission security**
 
-実際には、保存場所（HttpOnly Cookie vs localStorage）や実装品質がセキュリティを決定する。HttpOnly Cookie に JWT を保存するハイブリッドが、両方の利点を活かせる。
+In practice, the storage location (HttpOnly Cookie vs localStorage) and implementation quality determine security. A hybrid that stores JWT in an HttpOnly Cookie makes the most of both approaches' advantages.
 
-### Q2: JWT の有効期限は何分が最適か？
+### Q2: What is the optimal expiry duration for a JWT?
 
-**A:** アプリケーションの性質による。
+**A:** It depends on the nature of the application.
 
-| アプリ種別 | Access Token | Refresh Token |
+| App Type | Access Token | Refresh Token |
 |-----------|-------------|---------------|
-| 一般的な Web | 15分 | 7日 |
-| 金融・医療 | 5-15分 | 8時間 |
-| ソーシャルメディア | 1時間 | 30日 |
-| IoT デバイス | 1時間 | 90日 |
-| マイクロサービス間 | 5分 | なし |
+| General web | 15 min | 7 days |
+| Finance / Healthcare | 5–15 min | 8 hours |
+| Social media | 1 hour | 30 days |
+| IoT devices | 1 hour | 90 days |
+| Inter-microservice | 5 min | None |
 
-短すぎるとリフレッシュが頻発し UX が悪化する。長すぎるとセキュリティリスクが増大する。15分は一般的に良いバランスとされている。
+Too short and refreshes become too frequent, degrading UX. Too long and security risks increase. 15 minutes is generally considered a good balance.
 
-### Q3: Refresh Token は本当に必要か？
+### Q3: Is a Refresh Token truly necessary?
 
-**A:** Access Token だけでは長期セッションを安全に維持できないため、ほぼ必須。
+**A:** Long-term sessions cannot be maintained securely with an Access Token alone, so it is essentially required.
 
-Refresh Token なしの場合:
-- Access Token の有効期限を長くする → 窃取時のリスク増大
-- Access Token の有効期限を短くする → ユーザーが頻繁に再ログイン
+Without a Refresh Token:
+- Lengthen Access Token expiry → increased risk on theft
+- Shorten Access Token expiry → users must frequently re-login
 
-Refresh Token があれば:
-- Access Token を短命にしてセキュリティ確保
-- Refresh Token で透過的にトークン更新
-- Rotation で Refresh Token の窃取も検知可能
+With a Refresh Token:
+- Keep Access Token short-lived for security
+- Update tokens transparently with the Refresh Token
+- Rotation makes Refresh Token theft detectable
 
-### Q4: SameSite Cookie だけで CSRF は防げるか？
+### Q4: Can SameSite Cookie alone prevent CSRF?
 
-**A:** SameSite=Lax は主要な CSRF 攻撃を防ぐが、完全ではない。
+**A:** SameSite=Lax prevents major CSRF attacks, but is not complete.
 
-防げるもの:
-- `<form method="POST">` の自動送信
-- `<img>`, `<iframe>` からのリクエスト
-- `fetch()` / `XMLHttpRequest` のクロスサイトリクエスト
+What it prevents:
+- Automatic submission of `<form method="POST">`
+- Requests from `<img>`, `<iframe>`
+- Cross-site requests from `fetch()` / `XMLHttpRequest`
 
-防げないもの:
-- サブドメインからの攻撃（同一サイトと見なされる）
-- GET リクエストでの状態変更（API 設計の問題）
-- SameSite 非対応の古いブラウザ
+What it does not prevent:
+- Attacks from subdomains (treated as same-site)
+- State changes via GET requests (an API design issue)
+- Old browsers that do not support SameSite
 
-推奨: SameSite=Lax + Origin ヘッダー検証の組み合わせ。
+Recommendation: Combine SameSite=Lax with Origin header validation.
 
-### Q5: セッションストアが落ちたらどうなるか？
+### Q5: What happens when the session store goes down?
 
-**A:** セッション方式ではストアが SPOF（単一障害点）になる。対策:
+**A:** In the session-based approach, the store becomes a SPOF (single point of failure). Mitigations:
 
-1. **Redis Sentinel**: 自動フェイルオーバーで高可用性（99.99%）
-2. **Redis Cluster**: 水平スケーリング + 自動シャーディング
-3. **マルチリージョン**: Active-Active レプリケーション
-4. **フォールバック**: ストア障害時はグレースフルに新しいログインを要求
+1. **Redis Sentinel**: Automatic failover for high availability (99.99%)
+2. **Redis Cluster**: Horizontal scaling + automatic sharding
+3. **Multi-region**: Active-Active replication
+4. **Fallback**: Gracefully prompt new login when the store is unavailable
 
-JWT 方式ならストア不要だが、ブラックリスト/Token Version のために Redis を使う場合は同じ問題が発生する。完全なステートレスは「即時失効なし」のトレードオフを受け入れる必要がある。
+With JWT, no store is needed — but if Redis is used for blacklisting/Token Version, the same problem arises. Completely stateless operation requires accepting the trade-off of "no immediate revocation."
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not only through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-### 方式別の総合比較表
+### Overall Comparison Table by Approach
 
-| 方式 | 最適な用途 | セキュリティ | スケール | 実装難度 | 注意点 |
+| Approach | Best Use Case | Security | Scalability | Implementation Difficulty | Notes |
 |------|----------|------------|---------|---------|--------|
-| セッション | MPA、即時失効が必須 | ○ 高い | △ ストア依存 | 低い | CSRF対策必須、ストア管理 |
-| JWT（Bearer） | モバイル、API間通信 | △ 保存場所依存 | ◎ 容易 | 中程度 | 即時失効困難、サイズ大 |
-| JWT + Cookie | Next.js、SPA | ◎ 最も安全 | ○ 良い | 中程度 | Cookie サイズ上限、同一ドメイン |
-| Refresh Token | 長期セッション維持 | ○ Rotation前提 | ○ 良い | 高い | ローテーション必須 |
+| Session | MPA, when immediate revocation is required | ○ High | △ Store-dependent | Low | CSRF mitigation required; store management |
+| JWT (Bearer) | Mobile, inter-API communication | △ Depends on storage | ◎ Easy | Medium | Immediate revocation is difficult; large size |
+| JWT + Cookie | Next.js, SPA | ◎ Most secure | ○ Good | Medium | Cookie size limit; same domain |
+| Refresh Token | Long-term session maintenance | ○ Requires Rotation | ○ Good | High | Rotation is mandatory |
 
-### 選定の原則
+### Principles for Selection
 
 ```
-1. ブラウザアプリでは HttpOnly Cookie が最優先
-2. localStorage にトークンを保存しない
-3. Access Token は短命（15分以下）にする
-4. Refresh Token Rotation を必ず実装する
-5. アルゴリズムの許可リストを明示する
-6. 機密情報を JWT ペイロードに含めない
-7. 迷ったらハイブリッド（JWT in HttpOnly Cookie）を選ぶ
+1. For browser apps, HttpOnly Cookie is the top priority
+2. Do not store tokens in localStorage
+3. Keep Access Tokens short-lived (15 minutes or less)
+4. Always implement Refresh Token Rotation
+5. Explicitly specify the algorithm allowlist
+6. Do not include sensitive information in the JWT payload
+7. When in doubt, choose the hybrid approach (JWT in HttpOnly Cookie)
 ```
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-| 次のトピック | リンク |
+| Next Topic | Link |
 |-------------|--------|
-| Cookie とセッション管理 | [01-session-auth/00-cookie-and-session.md](../01-session-auth/00-cookie-and-session.md) |
-| セッションストア | [01-session-auth/01-session-store.md](../01-session-auth/01-session-store.md) |
-| CSRF 防御 | [01-session-auth/02-csrf-protection.md](../01-session-auth/02-csrf-protection.md) |
-| JWT 詳解 | [02-token-auth/00-jwt-deep-dive.md](../02-token-auth/00-jwt-deep-dive.md) |
-| OAuth 2.0 フロー | [02-token-auth/01-oauth2-flows.md](../02-token-auth/01-oauth2-flows.md) |
-| セキュリティ基礎 | security-fundamentals/00-basics/ |
+| Cookies and session management | [01-session-auth/00-cookie-and-session.md](../01-session-auth/00-cookie-and-session.md) |
+| Session store | [01-session-auth/01-session-store.md](../01-session-auth/01-session-store.md) |
+| CSRF defense | [01-session-auth/02-csrf-protection.md](../01-session-auth/02-csrf-protection.md) |
+| JWT deep dive | [02-token-auth/00-jwt-deep-dive.md](../02-token-auth/00-jwt-deep-dive.md) |
+| OAuth 2.0 flows | [02-token-auth/01-oauth2-flows.md](../02-token-auth/01-oauth2-flows.md) |
+| Security fundamentals | security-fundamentals/00-basics/ |
 
 ---
 
-## 参考文献
+## References
 
 1. OWASP. "Session Management Cheat Sheet." cheatsheetseries.owasp.org, 2024.
 2. OWASP. "JSON Web Token Cheat Sheet." cheatsheetseries.owasp.org, 2024.
