@@ -1,85 +1,85 @@
-# ソーシャルログイン
+# Social Login
 
-> Google、GitHub、Apple のソーシャルログインは現代の Web アプリに不可欠。各プロバイダーの OAuth 2.0 / OpenID Connect フロー、設定手順、アカウントリンク、プロフィール同期、プロバイダー固有の注意点、セキュリティ上の落とし穴を網羅的に解説する。
+> Social login via Google, GitHub, and Apple is essential for modern web applications. This guide provides comprehensive coverage of OAuth 2.0 / OpenID Connect flows, configuration steps, account linking, profile synchronization, provider-specific considerations, and security pitfalls.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] OAuth 2.0 / OpenID Connect の仕組みとソーシャルログインにおける役割を理解する
-- [ ] 主要プロバイダー（Google、GitHub、Apple）の設定と固有の制約を把握する
-- [ ] アカウントリンクとプロバイダー切り替えを安全に実装する
-- [ ] プロバイダー固有のエッジケースとトラブルシューティングを学ぶ
-- [ ] ソーシャルログインの UX 最適化とセキュリティ強化を実践する
+- [ ] Understand how OAuth 2.0 / OpenID Connect works and its role in social login
+- [ ] Learn how to configure major providers (Google, GitHub, Apple) and understand their unique constraints
+- [ ] Implement secure account linking and provider switching
+- [ ] Learn provider-specific edge cases and troubleshooting
+- [ ] Apply UX optimization and security hardening for social login
 
-### 前提知識
+### Prerequisites
 
-- OAuth 2.0 の基本概念（Authorization Code Grant）
-- Prisma による DB 操作の基礎
+- Basic understanding of OAuth 2.0 (Authorization Code Grant)
+- Fundamentals of DB operations with Prisma
 
 ---
 
-## 1. ソーシャルログインの全体像
+## 1. Overview of Social Login
 
-### 1.1 なぜソーシャルログインが必要なのか
+### 1.1 Why Social Login Is Needed
 
 ```
-ソーシャルログインの利点:
+Benefits of Social Login:
 
-  ユーザー視点:
+  User perspective:
   ┌─────────────────────────────────────────────────────┐
   │                                                     │
-  │  ① パスワード不要 → 記憶・管理の負担なし             │
-  │  ② ワンクリックログイン → 離脱率の低下               │
-  │  ③ 信頼性 → Google / Apple という既知のブランド       │
-  │  ④ プロフィール自動入力 → サインアップの簡略化        │
+  │  ① No password required → No memorization burden    │
+  │  ② One-click login → Lower abandonment rate         │
+  │  ③ Trust → Familiar brands like Google / Apple      │
+  │  ④ Auto-fill profile → Simplified sign-up           │
   │                                                     │
   └─────────────────────────────────────────────────────┘
 
-  開発者視点:
+  Developer perspective:
   ┌─────────────────────────────────────────────────────┐
   │                                                     │
-  │  ① パスワードハッシュ管理が不要                       │
-  │  ② メール検証をプロバイダーに委任可能                 │
-  │  ③ 2FA / MFA をプロバイダー側で実施                   │
-  │  ④ ブルートフォース対策が不要                         │
-  │  ⑤ パスワードリセットフローが不要                     │
+  │  ① No need to manage password hashing               │
+  │  ② Email verification can be delegated to providers │
+  │  ③ 2FA / MFA handled on the provider side           │
+  │  ④ No need to handle brute-force protection         │
+  │  ⑤ No need to implement password reset flow         │
   │                                                     │
   └─────────────────────────────────────────────────────┘
 
-  統計（業界データ）:
-    → ソーシャルログイン導入でサインアップ率が 20-50% 向上
-    → Google が最も利用率が高い（約 60%）
-    → Apple は iOS ユーザーで急速に普及中
-    → GitHub は開発者向けサービスでほぼ必須
+  Statistics (industry data):
+    → Introducing social login improves sign-up rates by 20-50%
+    → Google has the highest usage rate (approx. 60%)
+    → Apple is rapidly growing among iOS users
+    → GitHub is nearly essential for developer-facing services
 ```
 
-### 1.2 OAuth 2.0 Authorization Code Flow（PKCE 付き）
+### 1.2 OAuth 2.0 Authorization Code Flow (with PKCE)
 
 ```
-ソーシャルログインの認証フロー:
+Authentication flow for social login:
 
   ┌──────────┐     ┌──────────┐     ┌──────────────┐     ┌──────────┐
-  │ ブラウザ  │     │ App Server│     │ Auth Provider │     │ Database │
-  │          │     │ (Auth.js) │     │ (Google等)    │     │          │
+  │ Browser  │     │App Server│     │ Auth Provider │     │ Database │
+  │          │     │ (Auth.js)│     │ (Google etc.) │     │          │
   └────┬─────┘     └────┬──────┘     └──────┬────────┘     └────┬─────┘
        │                │                    │                   │
-       │ ① ログインボタン│                    │                   │
-       │ クリック        │                    │                   │
+       │ ① Click login  │                    │                   │
+       │ button         │                    │                   │
        ├───────────────→│                    │                   │
        │                │                    │                   │
-       │                │ ② state + PKCE     │                   │
-       │                │ code_verifier 生成  │                   │
+       │                │ ② Generate state + │                   │
+       │                │ PKCE code_verifier │                   │
        │                │                    │                   │
-       │ ③ リダイレクト  │                    │                   │
+       │ ③ Redirect     │                    │                   │
        │←───────────────│                    │                   │
-       │ (認可エンドポイント)                  │                   │
+       │ (authorization endpoint)             │                   │
        │                │                    │                   │
-       │ ④ ユーザーに同意画面表示              │                   │
+       │ ④ Show consent screen to user        │                   │
        ├────────────────────────────────────→│                   │
        │                │                    │                   │
-       │ ⑤ 同意 → Authorization Code         │                   │
+       │ ⑤ Consent → Authorization Code      │                   │
        │←────────────────────────────────────│                   │
        │                │                    │                   │
-       │ ⑥ Code をコールバック URL で送信      │                   │
+       │ ⑥ Send code via callback URL         │                   │
        ├───────────────→│                    │                   │
        │                │                    │                   │
        │                │ ⑦ Code + code_verifier                 │
@@ -90,115 +90,118 @@
        │                │ ID Token + Refresh  │                   │
        │                │←───────────────────│                   │
        │                │                    │                   │
-       │                │ ⑨ UserInfo取得/     │                   │
-       │                │ ID Token 検証       │                   │
+       │                │ ⑨ Fetch UserInfo /  │                   │
+       │                │ Validate ID Token   │                   │
        │                │                    │                   │
-       │                │ ⑩ ユーザー作成/更新                     │
+       │                │ ⑩ Create/update user                    │
        │                ├──────────────────────────────────────→│
        │                │                                        │
-       │                │ ⑪ セッション作成                        │
+       │                │ ⑪ Create session                        │
        │                │←──────────────────────────────────────│
        │                │                    │                   │
-       │ ⑫ セッション Cookie                  │                   │
+       │ ⑫ Session Cookie                    │                   │
        │←───────────────│                    │                   │
        │                │                    │                   │
-  ※ PKCE (Proof Key for Code Exchange):
-    → Authorization Code 横取り攻撃を防止
-    → code_verifier: クライアントで生成したランダム文字列
-    → code_challenge: code_verifier の SHA256 ハッシュ
-    → ⑦ で code_verifier を送信し、サーバーが検証
+  * PKCE (Proof Key for Code Exchange):
+    → Prevents Authorization Code interception attacks
+    → code_verifier: random string generated on the client
+    → code_challenge: SHA256 hash of code_verifier
+    → code_verifier is sent at ⑦ and verified by the server
 ```
 
-### 1.3 OpenID Connect と OAuth 2.0 の違い
+### 1.3 Differences Between OpenID Connect and OAuth 2.0
 
 ```
 OAuth 2.0 vs OpenID Connect:
 
   ┌─────────────────┬──────────────────┬──────────────────────┐
-  │ 項目             │ OAuth 2.0        │ OpenID Connect       │
+  │ Item            │ OAuth 2.0        │ OpenID Connect       │
   ├─────────────────┼──────────────────┼──────────────────────┤
-  │ 目的             │ 認可（API アクセス）│ 認証（ユーザー特定） │
-  │ 返却トークン      │ Access Token     │ ID Token + Access T. │
-  │ ユーザー情報      │ API で取得       │ ID Token に含有      │
-  │ 標準スコープ      │ なし             │ openid, profile等    │
-  │ Discovery        │ なし             │ .well-known/openid-c │
-  │ 利用プロバイダー   │ GitHub          │ Google, Apple        │
+  │ Purpose         │ Authorization    │ Authentication       │
+  │                 │ (API access)     │ (user identification)│
+  │ Returned token  │ Access Token     │ ID Token + Access T. │
+  │ User info       │ Fetched via API  │ Included in ID Token │
+  │ Standard scopes │ None             │ openid, profile, etc.│
+  │ Discovery       │ None             │ .well-known/openid-c │
+  │ Providers       │ GitHub           │ Google, Apple        │
   └─────────────────┴──────────────────┴──────────────────────┘
 
-  ID Token (JWT) の構造:
+  ID Token (JWT) structure:
     {
-      "iss": "https://accounts.google.com",   // 発行者
-      "sub": "1234567890",                     // ユーザー識別子
-      "aud": "your-client-id.apps...",         // クライアント ID
-      "exp": 1700000000,                       // 有効期限
-      "iat": 1699996400,                       // 発行時刻
-      "email": "user@gmail.com",               // メール
-      "email_verified": true,                  // メール検証済み
-      "name": "Taro Yamada",                   // 名前
-      "picture": "https://..."                 // アバター URL
+      "iss": "https://accounts.google.com",   // Issuer
+      "sub": "1234567890",                     // User identifier
+      "aud": "your-client-id.apps...",         // Client ID
+      "exp": 1700000000,                       // Expiration
+      "iat": 1699996400,                       // Issued at
+      "email": "user@gmail.com",               // Email
+      "email_verified": true,                  // Email verified flag
+      "name": "Taro Yamada",                   // Name
+      "picture": "https://..."                 // Avatar URL
     }
 
-  重要: GitHub は純粋な OAuth 2.0 のみ（OpenID Connect 非対応）
-  → ID Token がないため、/user API でユーザー情報を取得
+  Important: GitHub supports only pure OAuth 2.0 (not OpenID Connect)
+  → Since there is no ID Token, user info must be fetched via the /user API
 ```
 
 ---
 
-## 2. Google ログイン
+## 2. Google Login
 
-### 2.1 Google Cloud Console 設定
+### 2.1 Google Cloud Console Configuration
 
 ```
-Google Cloud Console での詳細設定手順:
+Detailed setup steps in Google Cloud Console:
 
-  ① プロジェクト作成:
+  ① Create a project:
      → console.cloud.google.com
-     → 新しいプロジェクトを作成（または既存プロジェクトを選択）
+     → Create a new project (or select an existing one)
 
-  ② OAuth 同意画面の設定:
+  ② Configure the OAuth consent screen:
      → APIs & Services > OAuth consent screen
      → User Type:
-        ・Internal: Google Workspace ユーザーのみ（組織内用）
-        ・External: 全 Google ユーザー（一般公開用）
-     → アプリ名、サポートメール、デベロッパー連絡先
-     → スコープの追加:
-        ・openid（必須）
-        ・email（メール取得）
-        ・profile（名前・アバター取得）
-     → テストユーザー追加（External の場合、公開審査前に必要）
+        · Internal: Google Workspace users only (for internal use)
+        · External: All Google users (for public use)
+     → App name, support email, developer contact
+     → Add scopes:
+        · openid (required)
+        · email (to obtain email)
+        · profile (to obtain name and avatar)
+     → Add test users (required for External before publishing)
 
-  ③ 認証情報の作成:
+  ③ Create credentials:
      → APIs & Services > Credentials
      → Create Credentials > OAuth client ID
-     → アプリケーションの種類: Web application
-     → 承認済みの JavaScript 生成元:
-        開発: http://localhost:3000
-        本番: https://myapp.com
-     → 承認済みのリダイレクト URI:
-        開発: http://localhost:3000/api/auth/callback/google
-        本番: https://myapp.com/api/auth/callback/google
+     → Application type: Web application
+     → Authorized JavaScript origins:
+        Development: http://localhost:3000
+        Production: https://myapp.com
+     → Authorized redirect URIs:
+        Development: http://localhost:3000/api/auth/callback/google
+        Production: https://myapp.com/api/auth/callback/google
 
-  ④ Client ID と Client Secret を取得
-     → .env.local に設定
+  ④ Obtain Client ID and Client Secret
+     → Configure in .env.local
 
-  ⑤ 本番公開:
-     → OAuth 同意画面で「PUBLISH APP」
-     → Google による審査（数日〜数週間）
-     → プライバシーポリシーとサービス利用規約の URL が必要
+  ⑤ Publish for production:
+     → Click "PUBLISH APP" on the OAuth consent screen
+     → Google review process (several days to weeks)
+     → Privacy policy and terms of service URLs are required
 
-  注意事項:
+  Notes:
   ┌────────────────────────────────────────────────────┐
-  │ ・テストモードでは最大 100 人のテストユーザーまで     │
-  │ ・公開後は Google のブランドガイドラインに準拠必須     │
-  │ ・Sensitive scope（カレンダー等）は追加審査が必要      │
-  │ ・Client Secret は絶対にフロントエンドに露出させない   │
+  │ · Test mode supports up to 100 test users           │
+  │ · After publishing, must comply with Google's       │
+  │   brand guidelines                                  │
+  │ · Sensitive scopes (e.g. Calendar) require          │
+  │   additional review                                 │
+  │ · Never expose Client Secret to the frontend        │
   └────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Google プロバイダー設定（Auth.js v5）
+### 2.2 Google Provider Configuration (Auth.js v5)
 
 ```typescript
-// auth.ts - Google プロバイダーの完全設定
+// auth.ts - Complete Google provider configuration
 import Google from 'next-auth/providers/google';
 import type { NextAuthConfig } from 'next-auth';
 
@@ -206,79 +209,79 @@ export const googleProvider = Google({
   clientId: process.env.GOOGLE_CLIENT_ID!,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
 
-  // 認可パラメータのカスタマイズ
+  // Customize authorization parameters
   authorization: {
     params: {
       scope: 'openid email profile',
-      prompt: 'consent',         // 毎回同意画面を表示（Refresh Token 取得に必要）
-      access_type: 'offline',    // Refresh Token を取得
+      prompt: 'consent',         // Show consent screen every time (required to obtain Refresh Token)
+      access_type: 'offline',    // Obtain Refresh Token
       response_type: 'code',     // Authorization Code Flow
-      // hd: 'mycompany.com',    // 特定ドメインに限定（Google Workspace）
+      // hd: 'mycompany.com',    // Restrict to a specific domain (Google Workspace)
     },
   },
 
-  // ID Token から取得するプロフィール情報のマッピング
+  // Map profile info obtained from ID Token
   profile(profile) {
     return {
-      id: profile.sub,                        // Google の一意識別子
-      name: profile.name,                     // フルネーム
-      email: profile.email,                   // メールアドレス
-      image: profile.picture,                 // アバター URL
-      emailVerified: profile.email_verified,  // メール検証済みフラグ
-      // カスタムフィールド
-      role: 'viewer',                         // デフォルトロール
-      locale: profile.locale,                 // ロケール（ja, en 等）
+      id: profile.sub,                        // Google's unique identifier
+      name: profile.name,                     // Full name
+      email: profile.email,                   // Email address
+      image: profile.picture,                 // Avatar URL
+      emailVerified: profile.email_verified,  // Email verified flag
+      // Custom fields
+      role: 'viewer',                         // Default role
+      locale: profile.locale,                 // Locale (ja, en, etc.)
     };
   },
 });
 ```
 
-### 2.3 Google 固有の注意点
+### 2.3 Google-Specific Considerations
 
 ```
-Google ログインの重要な注意事項:
+Important notes for Google login:
 
-  ① prompt パラメータの挙動:
+  ① Behavior of the prompt parameter:
      ┌──────────────┬──────────────────────────────────────┐
-     │ 値            │ 挙動                                 │
+     │ Value        │ Behavior                             │
      ├──────────────┼──────────────────────────────────────┤
-     │ none          │ 自動ログイン（同意済みの場合）         │
-     │ consent       │ 毎回同意画面を表示                    │
-     │ select_account│ アカウント選択画面を表示               │
-     │ login         │ 再認証を要求                          │
+     │ none         │ Automatic login (if already consented)│
+     │ consent      │ Show consent screen every time        │
+     │ select_account│ Show account selection screen        │
+     │ login        │ Require re-authentication             │
      └──────────────┴──────────────────────────────────────┘
 
-     推奨: prompt: 'consent' + access_type: 'offline'
-     → Refresh Token を確実に取得するため
+     Recommended: prompt: 'consent' + access_type: 'offline'
+     → To ensure Refresh Token is obtained
 
-  ② Refresh Token の取得条件:
-     → access_type: 'offline' が必要
-     → 初回認可時のみ発行される（デフォルト）
-     → prompt: 'consent' で毎回発行を強制
-     → Refresh Token がない場合、Access Token 期限切れでログアウト
+  ② Conditions for obtaining a Refresh Token:
+     → access_type: 'offline' is required
+     → Issued only at the first authorization (by default)
+     → Use prompt: 'consent' to force issuance every time
+     → Without a Refresh Token, user is logged out when Access Token expires
 
   ③ Google One Tap:
-     → ページ上にポップアップで表示されるログイン
-     → OAuth フローではなく、credential response を直接受信
-     → Auth.js では直接サポートされていないため、
-       カスタム実装が必要
+     → A popup-based login displayed on the page
+     → Directly receives a credential response, not an OAuth flow
+     → Not directly supported by Auth.js;
+       requires a custom implementation
 
-  ④ Google Workspace（旧 G Suite）制限:
-     → hd パラメータで組織ドメインを制限可能
-     → 管理者がアプリへのアクセスを制御可能
-     → Workspace ユーザーは管理者の許可が必要な場合あり
+  ④ Google Workspace (formerly G Suite) restrictions:
+     → Use the hd parameter to restrict to an organization domain
+     → Admins can control app access
+     → Workspace users may need admin approval
 
-  ⑤ Google のアバター URL の有効期限:
-     → Google のプロフィール画像 URL は変更される可能性がある
-     → 定期的に更新するか、ローカルにキャッシュ
+  ⑤ Expiry of Google avatar URLs:
+     → Google profile image URLs may change over time
+     → Update periodically or cache locally
 ```
 
 ```typescript
-// Google Workspace ドメイン制限の実装
+// Implementing Google Workspace domain restriction
 callbacks: {
   async signIn({ account, profile }) {
     if (account?.provider === 'google') {
-      // 特定ドメインのみ許可
+      // Allow only specific domains
       const allowedDomains = ['mycompany.com', 'partner.com'];
       const email = profile?.email;
 
@@ -289,7 +292,7 @@ callbacks: {
         return '/login?error=DomainNotAllowed';
       }
 
-      // email_verified チェック
+      // Check email_verified
       if (!profile?.email_verified) {
         return '/login?error=EmailNotVerified';
       }
@@ -300,7 +303,7 @@ callbacks: {
 ```
 
 ```typescript
-// Google Refresh Token Rotation の実装
+// Implementing Google Refresh Token Rotation
 import { google } from 'googleapis';
 
 async function refreshGoogleAccessToken(refreshToken: string) {
@@ -320,8 +323,8 @@ async function refreshGoogleAccessToken(refreshToken: string) {
       access_token: credentials.access_token!,
       expires_at: Math.floor(credentials.expiry_date! / 1000),
       refresh_token: credentials.refresh_token ?? refreshToken,
-      // Google は Refresh Token を毎回返さない場合がある
-      // → 既存の Refresh Token を保持
+      // Google may not return a Refresh Token every time
+      // → Retain the existing Refresh Token
     };
   } catch (error) {
     console.error('Failed to refresh Google access token:', error);
@@ -329,10 +332,10 @@ async function refreshGoogleAccessToken(refreshToken: string) {
   }
 }
 
-// Auth.js の jwt コールバックで使用
+// Used in Auth.js jwt callback
 callbacks: {
   async jwt({ token, account }) {
-    // 初回ログイン時: トークンを保存
+    // First login: save tokens
     if (account) {
       return {
         ...token,
@@ -343,12 +346,12 @@ callbacks: {
       };
     }
 
-    // Access Token が有効な場合はそのまま返す
+    // If Access Token is still valid, return as-is
     if (token.expires_at && Date.now() < (token.expires_at as number) * 1000) {
       return token;
     }
 
-    // Access Token が期限切れの場合はリフレッシュ
+    // If Access Token has expired, refresh it
     if (token.provider === 'google' && token.refresh_token) {
       try {
         const refreshed = await refreshGoogleAccessToken(
@@ -361,7 +364,7 @@ callbacks: {
           refresh_token: refreshed.refresh_token,
         };
       } catch {
-        // リフレッシュ失敗 → 再ログインを促す
+        // Refresh failed → prompt user to re-login
         return { ...token, error: 'RefreshAccessTokenError' };
       }
     }
@@ -373,131 +376,133 @@ callbacks: {
 
 ---
 
-## 3. GitHub ログイン
+## 3. GitHub Login
 
 ### 3.1 GitHub OAuth App vs GitHub App
 
 ```
-GitHub の 2 種類の OAuth 方式:
+Two types of OAuth methods on GitHub:
 
   ┌─────────────────┬──────────────────┬──────────────────────┐
-  │ 項目             │ OAuth App        │ GitHub App           │
+  │ Item            │ OAuth App        │ GitHub App           │
   ├─────────────────┼──────────────────┼──────────────────────┤
-  │ 作成場所         │ Developer settings│ Developer settings  │
+  │ Created in      │ Developer settings│ Developer settings  │
   │                 │ > OAuth Apps     │ > GitHub Apps        │
-  │ スコープ制御      │ ユーザーが選択   │ インストール時に設定   │
-  │ 組織アクセス      │ 別途承認が必要   │ インストール単位       │
-  │ Webhook          │ なし             │ あり                 │
-  │ インストール      │ OAuth 認可のみ   │ アカウント/組織に install│
-  │ Refresh Token    │ なし             │ あり（8時間有効）     │
-  │ Rate Limit       │ 5,000 req/h      │ 5,000 req/h (user)  │
+  │ Scope control   │ User selects     │ Set at installation  │
+  │ Org access      │ Requires         │ Per installation     │
+  │                 │ separate approval│                      │
+  │ Webhook         │ None             │ Available            │
+  │ Installation    │ OAuth auth only  │ Install on account   │
+  │                 │                  │ or organization      │
+  │ Refresh Token   │ None             │ Available (8h valid) │
+  │ Rate Limit      │ 5,000 req/h      │ 5,000 req/h (user)  │
   │                 │                  │ + installation limit │
-  │ 推奨用途         │ シンプルなログイン │ リポジトリ操作あり    │
+  │ Recommended for │ Simple login     │ Repository access    │
   └─────────────────┴──────────────────┴──────────────────────┘
 
-  ソーシャルログインだけなら OAuth App で十分。
-  リポジトリアクセスが必要な場合は GitHub App を推奨。
+  OAuth App is sufficient for social login only.
+  GitHub App is recommended when repository access is needed.
 ```
 
-### 3.2 GitHub OAuth App 設定
+### 3.2 GitHub OAuth App Configuration
 
 ```
-GitHub OAuth App の設定手順:
+Steps to configure a GitHub OAuth App:
 
   ① Settings > Developer settings > OAuth Apps
-  ② New OAuth App を作成
-  ③ 設定項目:
-     ・Application name: アプリ名（ユーザーに表示される）
-     ・Homepage URL: https://myapp.com
-     ・Application description: アプリの説明
-     ・Authorization callback URL:
-       開発: http://localhost:3000/api/auth/callback/github
-       本番: https://myapp.com/api/auth/callback/github
-  ④ Client ID と Client Secret を取得
+  ② Create a new OAuth App
+  ③ Configuration fields:
+     · Application name: App name (displayed to users)
+     · Homepage URL: https://myapp.com
+     · Application description: Description of the app
+     · Authorization callback URL:
+       Development: http://localhost:3000/api/auth/callback/github
+       Production: https://myapp.com/api/auth/callback/github
+  ④ Obtain Client ID and Client Secret
 
-  重要: GitHub OAuth App はコールバック URL を 1 つしか設定できない
-  → 開発/ステージング/本番で別々の OAuth App が必要
-  → GitHub App なら複数のコールバック URL を設定可能
+  Important: GitHub OAuth App only supports one callback URL
+  → Separate OAuth Apps are needed for development / staging / production
+  → GitHub App supports multiple callback URLs
 
-  スコープ一覧（よく使うもの）:
+  Common scopes:
   ┌──────────────────┬────────────────────────────────────┐
-  │ スコープ          │ 説明                               │
+  │ Scope            │ Description                        │
   ├──────────────────┼────────────────────────────────────┤
-  │ (なし)            │ 公開情報のみ（login, avatar 等）    │
-  │ read:user        │ ユーザープロフィール読み取り          │
-  │ user:email       │ メールアドレス取得                   │
-  │ repo             │ プライベートリポジトリへのフルアクセス │
-  │ read:org         │ 組織メンバーシップ読み取り            │
-  │ gist             │ Gist 作成                           │
-  │ admin:org        │ 組織の管理                          │
+  │ (none)           │ Public info only (login, avatar)   │
+  │ read:user        │ Read user profile                  │
+  │ user:email       │ Obtain email address               │
+  │ repo             │ Full access to private repositories│
+  │ read:org         │ Read organization membership       │
+  │ gist             │ Create Gists                       │
+  │ admin:org        │ Manage organization                │
   └──────────────────┴────────────────────────────────────┘
 
-  ログインだけなら: read:user user:email で十分
+  For login only: read:user user:email is sufficient
 ```
 
-### 3.3 GitHub プロバイダー設定（Auth.js v5）
+### 3.3 GitHub Provider Configuration (Auth.js v5)
 
 ```typescript
-// auth.ts - GitHub プロバイダーの完全設定
+// auth.ts - Complete GitHub provider configuration
 import GitHub from 'next-auth/providers/github';
 
 export const githubProvider = GitHub({
   clientId: process.env.GITHUB_CLIENT_ID!,
   clientSecret: process.env.GITHUB_CLIENT_SECRET!,
 
-  // スコープ設定
+  // Scope configuration
   authorization: {
     params: {
       scope: 'read:user user:email',
     },
   },
 
-  // GitHub は OpenID Connect ではないため、/user API レスポンスを使用
+  // GitHub is not OpenID Connect, so uses /user API response
   profile(profile) {
     return {
-      id: String(profile.id),              // GitHub の数値 ID を文字列に
-      name: profile.name || profile.login,  // name が null なら login を使用
-      email: profile.email,                 // null の場合がある（後述）
-      image: profile.avatar_url,            // アバター URL
-      role: 'viewer',                       // デフォルトロール
+      id: String(profile.id),              // Convert GitHub's numeric ID to string
+      name: profile.name || profile.login,  // Use login if name is null
+      email: profile.email,                 // May be null (see below)
+      image: profile.avatar_url,            // Avatar URL
+      role: 'viewer',                       // Default role
     };
   },
 });
 ```
 
-### 3.4 GitHub のメール問題と解決策
+### 3.4 The GitHub Email Problem and Solutions
 
 ```
-GitHub のメール取得における問題:
+Issues with obtaining emails on GitHub:
 
-  GitHub ユーザーのメールが null になるケース:
+  Cases where a GitHub user's email is null:
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ① メールを非公開に設定している                      │
+  │  ① Email is set to private                         │
   │     → Settings > Emails > "Keep my email private"  │
-  │     → profile.email が null になる                  │
+  │     → profile.email becomes null                   │
   │                                                    │
-  │  ② メールを公開設定にしていない                      │
-  │     → Settings > Profile > "Public email" が空     │
+  │  ② Email is not set as public                      │
+  │     → Settings > Profile > "Public email" is empty │
   │                                                    │
-  │  ③ スコープに user:email がない                     │
-  │     → /user API でもメールが返らない                │
+  │  ③ user:email scope is not included                │
+  │     → Email is not returned even from /user API    │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  解決策: /user/emails API を使って取得
-  → user:email スコープが必要
-  → primary かつ verified なメールを使用
+  Solution: Fetch email via the /user/emails API
+  → Requires user:email scope
+  → Use the email that is both primary and verified
 ```
 
 ```typescript
-// GitHub メール取得の完全実装
+// Complete implementation for fetching GitHub email
 callbacks: {
   async signIn({ user, account, profile }) {
-    // GitHub プロバイダーでメールが null の場合の対処
+    // Handle case where email is null for GitHub provider
     if (account?.provider === 'github' && !user.email) {
       try {
-        // GitHub API でメール一覧を取得
+        // Fetch email list via GitHub API
         const emailRes = await fetch('https://api.github.com/user/emails', {
           headers: {
             Authorization: `Bearer ${account.access_token}`,
@@ -518,7 +523,7 @@ callbacks: {
           visibility: string | null;
         }> = await emailRes.json();
 
-        // 優先順位: primary + verified > verified > primary
+        // Priority: primary + verified > verified > primary
         const primary = emails.find((e) => e.primary && e.verified);
         const verified = emails.find((e) => e.verified);
 
@@ -527,7 +532,7 @@ callbacks: {
         if (selectedEmail) {
           user.email = selectedEmail;
         } else {
-          // 検証済みメールがない場合はログインを拒否
+          // Deny login if no verified email exists
           return '/login?error=NoVerifiedEmail';
         }
       } catch (error) {
@@ -540,10 +545,10 @@ callbacks: {
 }
 ```
 
-### 3.5 GitHub 組織メンバーシップによるアクセス制御
+### 3.5 Access Control Based on GitHub Organization Membership
 
 ```typescript
-// GitHub 組織メンバーシップを検証してアクセスを制限
+// Validate GitHub organization membership to restrict access
 async function checkGitHubOrgMembership(
   accessToken: string,
   allowedOrgs: string[]
@@ -561,7 +566,7 @@ async function checkGitHubOrgMembership(
   return orgs.some((org) => allowedOrgs.includes(org.login));
 }
 
-// Auth.js コールバックで使用
+// Used in Auth.js callback
 callbacks: {
   async signIn({ account }) {
     if (account?.provider === 'github') {
@@ -580,13 +585,13 @@ callbacks: {
 ```
 
 ```typescript
-// GitHub の特定チームメンバーシップ確認
+// Check GitHub team membership for a specific team
 async function checkGitHubTeamMembership(
   accessToken: string,
   org: string,
   teamSlug: string
 ): Promise<boolean> {
-  // 自分のチームメンバーシップを確認
+  // Check team membership for self
   const res = await fetch(
     `https://api.github.com/orgs/${org}/teams/${teamSlug}/memberships/${username}`,
     {
@@ -603,114 +608,115 @@ async function checkGitHubTeamMembership(
   return data.state === 'active';
 }
 
-// チームに基づくロール割り当て
+// Assign role based on team membership
 async function assignRoleByTeam(
   accessToken: string,
   org: string
 ): Promise<string> {
-  // admin チームのメンバーか確認
+  // Check if member of admin team
   if (await checkGitHubTeamMembership(accessToken, org, 'admin')) {
     return 'admin';
   }
 
-  // editors チームのメンバーか確認
+  // Check if member of editors team
   if (await checkGitHubTeamMembership(accessToken, org, 'editors')) {
     return 'editor';
   }
 
-  // それ以外は viewer
+  // Otherwise, assign viewer
   return 'viewer';
 }
 ```
 
 ---
 
-## 4. Apple ログイン
+## 4. Apple Login
 
-### 4.1 Apple Developer 設定
+### 4.1 Apple Developer Configuration
 
 ```
-Apple Developer での詳細設定手順:
+Detailed setup steps in Apple Developer:
 
-  前提条件:
+  Prerequisites:
   ┌────────────────────────────────────────────────────┐
-  │ ・Apple Developer Program（年額 $99）への加入が必須  │
-  │ ・Web 向けは Services ID が必要                     │
-  │ ・iOS アプリと Web で設定が異なる                    │
+  │ · Apple Developer Program ($99/year) is required   │
+  │ · A Services ID is required for web use            │
+  │ · Configuration differs between iOS apps and web   │
   └────────────────────────────────────────────────────┘
 
-  ① App ID の登録:
+  ① Register an App ID:
      → Certificates, Identifiers & Profiles
      → Identifiers > App IDs
-     → Sign in with Apple の Capability を有効化
+     → Enable the Sign in with Apple capability
      → Bundle ID: com.mycompany.myapp
 
-  ② Services ID の作成（Web 向け）:
+  ② Create a Services ID (for web):
      → Identifiers > Services IDs
      → Identifier: com.mycompany.myapp.web
-     → Sign in with Apple を有効化
+     → Enable Sign in with Apple
      → Configure:
-       ・Primary App ID: ① で作成した App ID
-       ・Website URLs:
-         ・Domains and Subdomains: myapp.com
-         ・Return URLs: https://myapp.com/api/auth/callback/apple
+       · Primary App ID: the App ID created in ①
+       · Website URLs:
+         · Domains and Subdomains: myapp.com
+         · Return URLs: https://myapp.com/api/auth/callback/apple
 
-  ③ Key の作成:
+  ③ Create a Key:
      → Keys > Create a key
      → Key Name: MyApp Auth Key
-     → Sign in with Apple を有効化
-     → Configure で Primary App ID を選択
-     → Register → ダウンロード（AuthKey_XXXXXXXXXX.p8）
-     → Key ID をメモ
+     → Enable Sign in with Apple
+     → Select Primary App ID in Configure
+     → Register → Download (AuthKey_XXXXXXXXXX.p8)
+     → Note the Key ID
 
-  ④ 必要な環境変数:
+  ④ Required environment variables:
      APPLE_CLIENT_ID=com.mycompany.myapp.web  (Services ID)
      APPLE_TEAM_ID=XXXXXXXXXX                 (Team ID)
      APPLE_KEY_ID=XXXXXXXXXX                  (Key ID)
      APPLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
 
-  重要な制約:
+  Important constraints:
   ┌────────────────────────────────────────────────────┐
-  │ ・p8 ファイルは一度しかダウンロードできない          │
-  │ ・Key は最大 2 つまで作成可能                       │
-  │ ・Return URL は最大 10 個まで設定可能               │
-  │ ・localhost は Return URL に使用できない             │
-  │   → 開発時は ngrok 等のトンネルが必要               │
-  │ ・clientSecret は JWT 形式で動的生成が必要           │
+  │ · The p8 file can only be downloaded once          │
+  │ · Up to 2 keys can be created                      │
+  │ · Up to 10 Return URLs can be configured           │
+  │ · localhost cannot be used as a Return URL         │
+  │   → A tunnel such as ngrok is needed in development│
+  │ · clientSecret must be dynamically generated       │
+  │   in JWT format                                    │
   └────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Apple プロバイダー設定（Auth.js v5）
+### 4.2 Apple Provider Configuration (Auth.js v5)
 
 ```typescript
-// auth.ts - Apple プロバイダーの完全設定
+// auth.ts - Complete Apple provider configuration
 import Apple from 'next-auth/providers/apple';
 
 export const appleProvider = Apple({
   clientId: process.env.APPLE_CLIENT_ID!,
-  // clientSecret は動的に生成する必要がある
+  // clientSecret must be dynamically generated
   clientSecret: generateAppleClientSecret(),
 });
 
-// Apple clientSecret の生成
-// p8 秘密鍵から ES256 JWT を生成
+// Generate Apple clientSecret
+// Generate an ES256 JWT from the p8 private key
 import * as jose from 'jose';
 
 async function generateAppleClientSecret(): Promise<string> {
-  // 環境変数から秘密鍵を取得（改行を復元）
+  // Retrieve the private key from the environment variable (restoring newlines)
   const privateKeyPem = process.env.APPLE_PRIVATE_KEY!.replace(/\\n/g, '\n');
 
-  // PKCS#8 形式の秘密鍵をインポート
+  // Import the PKCS#8 private key
   const privateKey = await jose.importPKCS8(privateKeyPem, 'ES256');
 
-  // JWT を生成
+  // Generate the JWT
   const jwt = await new jose.SignJWT({})
     .setProtectedHeader({
       alg: 'ES256',
       kid: process.env.APPLE_KEY_ID!,  // Key ID
     })
     .setIssuedAt()
-    .setExpirationTime('180d')  // 最大 6 ヶ月
+    .setExpirationTime('180d')  // Maximum 6 months
     .setAudience('https://appleid.apple.com')
     .setIssuer(process.env.APPLE_TEAM_ID!)   // Team ID
     .setSubject(process.env.APPLE_CLIENT_ID!) // Services ID
@@ -720,71 +726,71 @@ async function generateAppleClientSecret(): Promise<string> {
 }
 ```
 
-### 4.3 Apple 固有の注意点とエッジケース
+### 4.3 Apple-Specific Considerations and Edge Cases
 
 ```
-Apple ログインの特殊な挙動:
+Special behavior of Apple login:
 
-  ① name と email は初回認可時のみ返却される:
+  ① name and email are only returned on the first authorization:
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  初回ログイン:                                      │
+  │  First login:                                      │
   │  {                                                 │
   │    "sub": "001234.abcdef...",                      │
   │    "email": "user@icloud.com",                     │
   │    "email_verified": true,                         │
-  │    "name": { "firstName": "太郎", "lastName": "山田" }│
+  │    "name": { "firstName": "Taro", "lastName": "Yamada" }│
   │  }                                                 │
   │                                                    │
-  │  2回目以降:                                         │
+  │  Second login and beyond:                          │
   │  {                                                 │
   │    "sub": "001234.abcdef..."                       │
-  │    // email も name も含まれない！                   │
+  │    // email and name are NOT included!             │
   │  }                                                 │
   │                                                    │
-  │  対策:                                              │
-  │  → 初回ログイン時に必ず DB に保存する               │
-  │  → 保存に失敗した場合、ユーザーは Apple ID 設定で    │
-  │    「Stop using Apple ID」→ 再度認可が必要          │
+  │  Mitigation:                                       │
+  │  → Always save to DB on first login                │
+  │  → If saving fails, the user must go to Apple ID   │
+  │    settings → "Stop using Apple ID" → re-authorize │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  ② Private Email Relay（メール非公開機能）:
+  ② Private Email Relay (hide email feature):
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ユーザーが「メールを非公開」を選択した場合:          │
-  │  → xxxxx@privaterelay.appleid.com が返される        │
-  │  → Apple のリレーサービスを経由してメール転送        │
+  │  When the user selects "Hide My Email":            │
+  │  → xxxxx@privaterelay.appleid.com is returned      │
+  │  → Emails are forwarded via Apple's relay service  │
   │                                                    │
-  │  リレーメールの設定:                                 │
+  │  Relay email configuration:                        │
   │  → Certificates > More > Configure                 │
-  │  → Email Sources に送信元ドメインを登録             │
-  │  → SPF / DKIM の設定が必要                         │
+  │  → Register the sending domain in Email Sources    │
+  │  → SPF / DKIM configuration is required            │
   │                                                    │
-  │  注意:                                              │
-  │  → 同じユーザーが別のメールアドレスを返す可能性      │
-  │  → メールアドレスでのアカウント照合が困難            │
-  │  → sub（ユーザー ID）で照合するのが確実             │
+  │  Note:                                             │
+  │  → The same user may return different email addrs  │
+  │  → Account matching by email address is difficult  │
+  │  → Matching by sub (user ID) is reliable           │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  ③ clientSecret の有効期限:
-     → JWT の有効期限は最大 6 ヶ月
-     → 6 ヶ月ごとに再生成が必要
-     → アプリ起動時に動的生成するのが推奨
+  ③ clientSecret expiration:
+     → JWT is valid for a maximum of 6 months
+     → Must be regenerated every 6 months
+     → Recommended to generate dynamically at app startup
 
-  ④ Apple のレビューガイドライン:
-     → iOS アプリでソーシャルログインを提供する場合、
-       Sign in with Apple の提供が必須
-     → Web のみのサービスでは任意
+  ④ Apple's review guidelines:
+     → If providing social login in an iOS app,
+       Sign in with Apple is mandatory
+     → Optional for web-only services
 ```
 
 ```typescript
-// Apple ログインの初回データ保存実装
+// Apple login first-time data saving implementation
 callbacks: {
   async signIn({ user, account, profile }) {
     if (account?.provider === 'apple') {
-      // Apple の profile は初回のみ name を含む
+      // Apple's profile includes name only on first login
       const appleProfile = profile as {
         sub: string;
         email?: string;
@@ -792,8 +798,8 @@ callbacks: {
         is_private_email?: string;
       };
 
-      // user オブジェクトには Auth.js が name を設定済み
-      // （POST ボディの user パラメータから取得）
+      // Auth.js sets name on the user object
+      // (retrieved from the user parameter in the POST body)
 
       const existingUser = await prisma.user.findFirst({
         where: {
@@ -807,7 +813,7 @@ callbacks: {
       });
 
       if (!existingUser && user.email) {
-        // 新規ユーザー: Private Relay メールのフラグを保存
+        // New user: save the Private Relay email flag
         await prisma.user.create({
           data: {
             email: user.email,
@@ -824,16 +830,16 @@ callbacks: {
 ```
 
 ```typescript
-// Apple Private Relay メールへの送信設定
-// Apple にリレーメール送信元として登録が必要
+// Configuration for sending emails to Apple Private Relay addresses
+// Must be registered with Apple as a relay email source
 
-// メール送信時の分岐
+// Branching logic for email sending
 async function sendEmail(to: string, subject: string, body: string) {
   const isAppleRelay = to.endsWith('@privaterelay.appleid.com');
 
   if (isAppleRelay) {
-    // Apple Relay 経由の場合、送信元ドメインが登録済みである必要がある
-    // From: noreply@myapp.com（Apple に登録したドメイン）
+    // When sending via Apple Relay, the sending domain must be registered
+    // From: noreply@myapp.com (domain registered with Apple)
     await sendViaRegisteredDomain(to, subject, body);
   } else {
     await sendNormally(to, subject, body);
@@ -843,23 +849,23 @@ async function sendEmail(to: string, subject: string, body: string) {
 
 ---
 
-## 5. その他のプロバイダー
+## 5. Other Providers
 
 ### 5.1 Microsoft (Azure AD / Entra ID)
 
 ```typescript
-// Microsoft プロバイダー設定
+// Microsoft provider configuration
 import MicrosoftEntraID from 'next-auth/providers/microsoft-entra-id';
 
 MicrosoftEntraID({
   clientId: process.env.AZURE_AD_CLIENT_ID!,
   clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-  // テナント ID（特定組織のみ許可する場合）
+  // Tenant ID (to allow only a specific organization)
   tenantId: process.env.AZURE_AD_TENANT_ID,
-  // 'common': 全 Microsoft アカウント
-  // 'organizations': 組織アカウントのみ
-  // 'consumers': 個人アカウントのみ
-  // 特定テナントID: その組織のみ
+  // 'common': All Microsoft accounts
+  // 'organizations': Organization accounts only
+  // 'consumers': Personal accounts only
+  // Specific tenant ID: Only that organization
 
   authorization: {
     params: {
@@ -872,7 +878,7 @@ MicrosoftEntraID({
       id: profile.sub,
       name: profile.name,
       email: profile.email,
-      image: null, // Microsoft は picture を直接返さない
+      image: null, // Microsoft does not return picture directly
       role: 'viewer',
     };
   },
@@ -882,7 +888,7 @@ MicrosoftEntraID({
 ### 5.2 Discord
 
 ```typescript
-// Discord プロバイダー設定
+// Discord provider configuration
 import Discord from 'next-auth/providers/discord';
 
 Discord({
@@ -891,12 +897,12 @@ Discord({
 
   authorization: {
     params: {
-      scope: 'identify email guilds', // guilds でサーバー情報も取得可能
+      scope: 'identify email guilds', // guilds also fetches server info
     },
   },
 
   profile(profile) {
-    // Discord のアバター URL 構築
+    // Build Discord avatar URL
     const avatarUrl = profile.avatar
       ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.${
           profile.avatar.startsWith('a_') ? 'gif' : 'png'
@@ -916,77 +922,81 @@ Discord({
 });
 ```
 
-### 5.3 プロバイダー比較表
+### 5.3 Provider Comparison Table
 
 ```
-主要プロバイダーの比較:
+Comparison of major providers:
 
   ┌─────────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
-  │ 項目         │ Google   │ GitHub   │ Apple    │ Microsoft│ Discord  │
+  │ Item        │ Google   │ GitHub   │ Apple    │Microsoft │ Discord  │
   ├─────────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
-  │ プロトコル    │ OIDC     │ OAuth2.0 │ OIDC     │ OIDC     │ OAuth2.0 │
+  │ Protocol    │ OIDC     │ OAuth2.0 │ OIDC     │ OIDC     │ OAuth2.0 │
   │ ID Token    │ ✓        │ ✗        │ ✓        │ ✓        │ ✗        │
-  │ email保証    │ ✓ 常時   │ △ null可 │ △ 初回のみ│ ✓ 常時   │ ✓ 常時   │
-  │ email検証    │ ✓        │ ✓(別API) │ ✓        │ ✓        │ △ 未検証可│
+  │ Email avail.│ ✓ always │ △ may be │ △ 1st    │ ✓ always │ ✓ always │
+  │             │          │   null   │   time   │          │          │
+  │ Email verif.│ ✓        │ ✓(sep API)│ ✓       │ ✓        │ △ may be │
+  │             │          │          │          │          │   unverif│
   │ Refresh T.  │ ✓        │ ✗(OAuth) │ ✓        │ ✓        │ ✓        │
-  │ name取得     │ ✓ 常時   │ △ null可 │ △ 初回のみ│ ✓ 常時   │ ✓ 常時   │
-  │ アバター     │ ✓        │ ✓        │ ✗        │ △(別API) │ ✓        │
-  │ 費用         │ 無料     │ 無料     │ $99/年   │ 無料     │ 無料     │
-  │ 審査         │ 必要     │ 不要     │ 不要     │ 不要     │ 不要     │
+  │ Name avail. │ ✓ always │ △ may be │ △ 1st    │ ✓ always │ ✓ always │
+  │             │          │   null   │   time   │          │          │
+  │ Avatar      │ ✓        │ ✓        │ ✗        │ △(sep API)│ ✓       │
+  │ Cost        │ Free     │ Free     │ $99/yr   │ Free     │ Free     │
+  │ Review      │ Required │ Not req. │ Not req. │ Not req. │ Not req. │
   │ localhost   │ ✓        │ ✓        │ ✗        │ ✓        │ ✓        │
-  │ 推奨対象     │ 全般     │ 開発者   │ iOS      │ 企業     │ ゲーマー │
+  │ Best for    │ General  │Developers│ iOS      │Enterprise│ Gamers   │
   └─────────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
 ```
 
 ---
 
-## 6. アカウントリンク
+## 6. Account Linking
 
-### 6.1 アカウントリンクの問題と戦略
+### 6.1 Account Linking Problems and Strategies
 
 ```
-アカウントリンクの問題:
+Account linking problems:
 
-  シナリオ:
+  Scenario:
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ① Alice が Google (alice@gmail.com) でサインアップ │
-  │  ② 後日 Alice が GitHub (alice@gmail.com) でログイン│
+  │  ① Alice signs up with Google (alice@gmail.com)    │
+  │  ② Later, Alice logs in with GitHub (alice@gmail.com)│
   │                                                    │
-  │  問題: 同じメールだが、どう扱うべきか？              │
+  │  Problem: Same email — how should this be handled? │
   │                                                    │
-  │  選択肢:                                            │
-  │  (a) 自動リンク → 便利だがセキュリティリスク         │
-  │  (b) 別アカウント作成 → 安全だが UX が悪い          │
-  │  (c) エラー表示 → 安全だが UX が悪い                │
-  │  (d) 条件付き自動リンク → バランスの取れた方法       │
+  │  Options:                                          │
+  │  (a) Auto-link → Convenient but security risk      │
+  │  (b) Create separate account → Safe but poor UX    │
+  │  (c) Show error → Safe but poor UX                 │
+  │  (d) Conditional auto-link → Balanced approach     │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  攻撃シナリオ（自動リンクが危険な理由）:
+  Attack scenario (why auto-link is dangerous):
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ① 攻撃者が victim@example.com を知っている         │
-  │  ② 攻撃者が GitHub で victim@example.com を登録     │
-  │    （GitHub はメール検証なしでも登録可能）            │
-  │  ③ 攻撃者が GitHub で対象サービスにログイン          │
-  │  ④ 自動リンクにより被害者のアカウントに紐付け        │
-  │  ⑤ 攻撃者が被害者のデータにアクセス可能に！         │
+  │  ① Attacker knows victim@example.com               │
+  │  ② Attacker registers victim@example.com on GitHub │
+  │    (GitHub allows registration without email verif)│
+  │  ③ Attacker logs into target service via GitHub    │
+  │  ④ Auto-link associates account with victim's      │
+  │  ⑤ Attacker can access victim's data!              │
   │                                                    │
-  │  対策: email_verified が true の場合のみ自動リンク   │
+  │  Mitigation: Only auto-link when email_verified    │
+  │  is true                                           │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  Auth.js のデフォルト動作:
-  → allowDangerousEmailAccountLinking: false（デフォルト）
-  → 同じメールの既存アカウントにはリンクしない
-  → OAuthAccountNotLinked エラーが発生
+  Auth.js default behavior:
+  → allowDangerousEmailAccountLinking: false (default)
+  → Does not link to existing accounts with the same email
+  → OAuthAccountNotLinked error is raised
 ```
 
-### 6.2 安全なアカウントリンクの実装
+### 6.2 Implementing Secure Account Linking
 
 ```typescript
-// 条件付き自動アカウントリンクの完全実装
+// Complete implementation of conditional automatic account linking
 // auth.ts
 
 import { PrismaAdapter } from '@auth/prisma-adapter';
@@ -1007,7 +1017,7 @@ export const authConfig = {
     }) {
       if (!account || !user.email) return true;
 
-      // 同じメールの既存ユーザーをチェック
+      // Check for an existing user with the same email
       const existingUser = await prisma.user.findUnique({
         where: { email: user.email },
         include: {
@@ -1020,27 +1030,27 @@ export const authConfig = {
         },
       });
 
-      // 新規ユーザーの場合はそのまま
+      // If new user, proceed as-is
       if (!existingUser) return true;
 
-      // 既にこのプロバイダーでリンク済みの場合はそのまま
+      // If already linked with this provider, proceed as-is
       const isLinked = existingUser.accounts.some(
         (a) => a.provider === account.provider
       );
       if (isLinked) return true;
 
-      // メールの検証状態を確認
+      // Check email verification status
       const isEmailVerified = checkEmailVerification(
         account.provider,
         profile
       );
 
       if (!isEmailVerified) {
-        // 検証されていない場合: エラーページにリダイレクト
+        // If not verified: redirect to error page
         return `/login?error=OAuthAccountNotLinked&provider=${account.provider}`;
       }
 
-      // 検証済みの場合: 既存ユーザーにアカウントをリンク
+      // If verified: link account to existing user
       try {
         await prisma.account.create({
           data: {
@@ -1057,7 +1067,7 @@ export const authConfig = {
           },
         });
 
-        // リンクイベントを記録
+        // Record the link event
         await prisma.auditLog.create({
           data: {
             userId: existingUser.id,
@@ -1070,7 +1080,7 @@ export const authConfig = {
           },
         });
 
-        // Auth.js のユーザー ID を既存ユーザーに合わせる
+        // Align Auth.js user ID with existing user
         user.id = existingUser.id;
       } catch (error) {
         console.error('Failed to link account:', error);
@@ -1082,40 +1092,40 @@ export const authConfig = {
   },
 };
 
-// プロバイダーごとのメール検証チェック
+// Check email verification per provider
 function checkEmailVerification(
   provider: string,
   profile?: Profile
 ): boolean {
   switch (provider) {
     case 'google':
-      // Google: email_verified フィールドで判定
+      // Google: determined by the email_verified field
       return (profile as any)?.email_verified === true;
 
     case 'github':
-      // GitHub: /user/emails API で verified のみ返すため
-      // user:email スコープがあれば検証済みとみなせる
+      // GitHub: /user/emails API only returns verified emails
+      // If user:email scope is present, can be considered verified
       return true;
 
     case 'apple':
-      // Apple: email_verified は常に true（Apple が保証）
+      // Apple: email_verified is always true (guaranteed by Apple)
       return (profile as any)?.email_verified === true;
 
     case 'microsoft-entra-id':
-      // Microsoft: email_verified フィールドで判定
+      // Microsoft: determined by the email_verified field
       return (profile as any)?.email_verified === true;
 
     default:
-      // 不明なプロバイダーは安全側に倒す
+      // Unknown providers: err on the side of caution
       return false;
   }
 }
 ```
 
-### 6.3 手動アカウントリンク（設定画面）
+### 6.3 Manual Account Linking (Settings Page)
 
 ```typescript
-// app/settings/accounts/page.tsx - アカウント管理画面（Server Component）
+// app/settings/accounts/page.tsx - Account management page (Server Component)
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { LinkedAccountsList } from './linked-accounts-list';
@@ -1124,7 +1134,7 @@ export default async function AccountSettingsPage() {
   const session = await auth();
   if (!session) redirect('/login');
 
-  // ユーザーのリンク済みアカウントを取得
+  // Fetch linked accounts for the user
   const accounts = await prisma.account.findMany({
     where: { userId: session.user.id },
     select: {
@@ -1136,7 +1146,7 @@ export default async function AccountSettingsPage() {
     orderBy: { createdAt: 'asc' },
   });
 
-  // パスワードの有無を確認
+  // Check if user has a password
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { password: true },
@@ -1147,7 +1157,7 @@ export default async function AccountSettingsPage() {
 
   return (
     <div>
-      <h1>アカウント連携</h1>
+      <h1>Account Connections</h1>
       <LinkedAccountsList
         accounts={accounts}
         canUnlink={canUnlink}
@@ -1164,18 +1174,18 @@ export default async function AccountSettingsPage() {
 import { auth, signIn } from '@/auth';
 import { revalidatePath } from 'next/cache';
 
-// アカウントリンク開始
+// Start account linking
 export async function linkAccount(provider: string) {
   const session = await auth();
   if (!session) throw new Error('Unauthorized');
 
-  // signIn を呼び出してOAuthフローを開始
+  // Call signIn to start the OAuth flow
   await signIn(provider, {
     redirectTo: '/settings/accounts',
   });
 }
 
-// アカウントリンク解除
+// Unlink an account
 export async function unlinkAccount(
   _prevState: any,
   formData: FormData
@@ -1186,21 +1196,21 @@ export async function unlinkAccount(
   const provider = formData.get('provider') as string;
   if (!provider) return { error: 'Provider is required' };
 
-  // リンク済みアカウント数を確認
+  // Check number of linked accounts
   const accountCount = await prisma.account.count({
     where: { userId: session.user.id },
   });
 
-  // パスワードの有無を確認
+  // Check if user has a password
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { password: true },
   });
 
-  // 最後のログイン方法は削除不可
+  // Cannot remove the last login method
   if (accountCount <= 1 && !user?.password) {
     return {
-      error: 'ログイン方法が他にないため、この連携は解除できません。',
+      error: 'Cannot unlink this connection as it is your only login method.',
     };
   }
 
@@ -1212,7 +1222,7 @@ export async function unlinkAccount(
       },
     });
 
-    // 監査ログ
+    // Audit log
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,
@@ -1224,13 +1234,13 @@ export async function unlinkAccount(
     revalidatePath('/settings/accounts');
     return { success: true };
   } catch {
-    return { error: 'アカウント連携の解除に失敗しました。' };
+    return { error: 'Failed to unlink account.' };
   }
 }
 ```
 
 ```typescript
-// app/settings/accounts/linked-accounts-list.tsx - クライアントコンポーネント
+// app/settings/accounts/linked-accounts-list.tsx - Client Component
 'use client';
 
 import { useActionState } from 'react';
@@ -1259,8 +1269,8 @@ export function LinkedAccountsList({
 
   return (
     <div className="space-y-4">
-      {/* リンク済みアカウント */}
-      <h2>連携済みアカウント</h2>
+      {/* Linked accounts */}
+      <h2>Connected Accounts</h2>
       {accounts.map((account) => {
         const info = providerInfo[account.provider];
         return (
@@ -1269,14 +1279,14 @@ export function LinkedAccountsList({
               <img src={info?.icon} alt="" className="w-6 h-6" />
               <span>{info?.name ?? account.provider}</span>
               <span className="text-sm text-gray-500">
-                連携日: {new Date(account.createdAt).toLocaleDateString('ja-JP')}
+                Connected: {new Date(account.createdAt).toLocaleDateString('en-US')}
               </span>
             </div>
             {canUnlink && (
               <form action={dispatch}>
                 <input type="hidden" name="provider" value={account.provider} />
                 <button type="submit" className="text-red-500 hover:text-red-700">
-                  連携解除
+                  Disconnect
                 </button>
               </form>
             )}
@@ -1284,10 +1294,10 @@ export function LinkedAccountsList({
         );
       })}
 
-      {/* 未リンクのプロバイダー */}
+      {/* Unlinked providers */}
       {unlinkedProviders.length > 0 && (
         <>
-          <h2>追加の連携</h2>
+          <h2>Add Connections</h2>
           {unlinkedProviders.map((provider) => {
             const info = providerInfo[provider];
             return (
@@ -1298,7 +1308,7 @@ export function LinkedAccountsList({
                 </div>
                 <form action={() => linkAccount(provider)}>
                   <button type="submit" className="text-blue-500 hover:text-blue-700">
-                    連携する
+                    Connect
                   </button>
                 </form>
               </div>
@@ -1317,25 +1327,25 @@ export function LinkedAccountsList({
 
 ---
 
-## 7. プロフィール同期
+## 7. Profile Synchronization
 
-### 7.1 ログイン時のプロフィール同期
+### 7.1 Profile Sync on Login
 
 ```typescript
-// プロフィール同期の完全実装
-// 各ログイン時にプロバイダーからの最新情報でプロフィールを更新
+// Complete profile synchronization implementation
+// Update profile with the latest info from the provider on each login
 
 callbacks: {
   async signIn({ user, account, profile }) {
     if (!account || !user.id) return true;
 
-    // プロフィール同期データの構築
+    // Build profile sync data
     const syncData: Record<string, any> = {
       lastLoginAt: new Date(),
       lastLoginProvider: account.provider,
     };
 
-    // プロバイダーごとのプロフィール情報取得
+    // Fetch profile info per provider
     switch (account.provider) {
       case 'google': {
         const googleProfile = profile as {
@@ -1361,21 +1371,22 @@ callbacks: {
         };
         if (githubProfile.name) syncData.name = githubProfile.name;
         if (githubProfile.avatar_url) syncData.image = githubProfile.avatar_url;
-        // 追加フィールド（スキーマに存在する場合）
+        // Additional fields (if present in schema)
         if (githubProfile.bio) syncData.bio = githubProfile.bio;
         if (githubProfile.company) syncData.company = githubProfile.company;
         break;
       }
 
       case 'apple': {
-        // Apple は 2 回目以降 name を返さないため、既存データを上書きしない
-        // sub のみで識別
+        // Apple does not return name after the first login,
+        // so do not overwrite existing data
+        // Identify by sub only
         break;
       }
     }
 
-    // メールは変更しない（セキュリティ上の理由）
-    // → メール変更は別のフローで行う
+    // Do not change email (for security reasons)
+    // → Email changes should be handled via a separate flow
 
     try {
       await prisma.user.update({
@@ -1383,11 +1394,11 @@ callbacks: {
         data: syncData,
       });
     } catch (error) {
-      // 同期失敗はログインを妨げない
+      // Sync failure should not block login
       console.error('Profile sync failed:', error);
     }
 
-    // Access Token / Refresh Token の更新
+    // Update Access Token / Refresh Token
     await prisma.account.update({
       where: {
         provider_providerAccountId: {
@@ -1410,11 +1421,11 @@ callbacks: {
 }
 ```
 
-### 7.2 アバター画像のローカルキャッシュ
+### 7.2 Local Caching of Avatar Images
 
 ```typescript
-// プロバイダーのアバター URL は変更される可能性がある
-// ローカルにキャッシュして安定した URL を提供
+// Provider avatar URLs may change over time
+// Cache locally to provide a stable URL
 
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
@@ -1426,44 +1437,44 @@ async function cacheAvatar(
   avatarUrl: string
 ): Promise<string> {
   try {
-    // 画像をダウンロード
+    // Download the image
     const response = await fetch(avatarUrl);
     if (!response.ok) throw new Error('Failed to fetch avatar');
 
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    // リサイズと最適化
+    // Resize and optimize
     const optimized = await sharp(buffer)
       .resize(256, 256, { fit: 'cover' })
       .webp({ quality: 80 })
       .toBuffer();
 
-    // S3 にアップロード
+    // Upload to S3
     const key = `avatars/${userId}.webp`;
     await s3.send(new PutObjectCommand({
       Bucket: process.env.AVATAR_BUCKET!,
       Key: key,
       Body: optimized,
       ContentType: 'image/webp',
-      CacheControl: 'public, max-age=86400', // 1 日キャッシュ
+      CacheControl: 'public, max-age=86400', // Cache for 1 day
     }));
 
     return `${process.env.CDN_URL}/${key}`;
   } catch (error) {
     console.error('Avatar cache failed:', error);
-    return avatarUrl; // フォールバック: 元の URL をそのまま返す
+    return avatarUrl; // Fallback: return the original URL
   }
 }
 ```
 
 ---
 
-## 8. ソーシャルログインの UX
+## 8. Social Login UX
 
-### 8.1 ログインページの実装
+### 8.1 Login Page Implementation
 
 ```typescript
-// app/login/page.tsx - ソーシャルログインページ
+// app/login/page.tsx - Social login page
 import { signIn } from '@/auth';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
@@ -1473,25 +1484,25 @@ export default async function LoginPage({
 }: {
   searchParams: { callbackUrl?: string; error?: string };
 }) {
-  // 既にログイン済みならリダイレクト
+  // Redirect if already logged in
   const session = await auth();
   if (session) redirect(searchParams.callbackUrl || '/dashboard');
 
   const callbackUrl = searchParams.callbackUrl || '/dashboard';
 
-  // エラーメッセージのマッピング
+  // Error message mapping
   const errorMessages: Record<string, string> = {
     OAuthAccountNotLinked:
-      'このメールアドレスは別のログイン方法で登録されています。元の方法でログインしてください。',
-    OAuthSignin: 'ログインの開始に失敗しました。もう一度お試しください。',
-    OAuthCallback: '認証に失敗しました。もう一度お試しください。',
-    Callback: '認証処理中にエラーが発生しました。',
-    AccessDenied: 'アクセスが拒否されました。',
-    DomainNotAllowed: 'このドメインのアカウントではログインできません。',
-    OrgMembershipRequired: '組織のメンバーシップが必要です。',
-    EmailFetchFailed: 'メールアドレスの取得に失敗しました。',
-    NoVerifiedEmail: '検証済みのメールアドレスが見つかりません。',
-    Default: 'ログインに失敗しました。もう一度お試しください。',
+      'This email address is registered with a different login method. Please log in using the original method.',
+    OAuthSignin: 'Failed to initiate login. Please try again.',
+    OAuthCallback: 'Authentication failed. Please try again.',
+    Callback: 'An error occurred during authentication.',
+    AccessDenied: 'Access denied.',
+    DomainNotAllowed: 'Login is not allowed for this domain.',
+    OrgMembershipRequired: 'Organization membership is required.',
+    EmailFetchFailed: 'Failed to retrieve email address.',
+    NoVerifiedEmail: 'No verified email address found.',
+    Default: 'Login failed. Please try again.',
   };
 
   const error = searchParams.error;
@@ -1503,9 +1514,9 @@ export default async function LoginPage({
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-md">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">ログイン</h1>
+          <h1 className="text-2xl font-bold">Login</h1>
           <p className="mt-2 text-gray-600">
-            アカウントにログインしてください
+            Sign in to your account
           </p>
         </div>
 
@@ -1530,7 +1541,7 @@ export default async function LoginPage({
                          transition-colors"
             >
               <GoogleIcon className="w-5 h-5" />
-              <span>Google で続ける</span>
+              <span>Continue with Google</span>
             </button>
           </form>
 
@@ -1548,7 +1559,7 @@ export default async function LoginPage({
                          transition-colors"
             >
               <AppleIcon className="w-5 h-5" />
-              <span>Apple で続ける</span>
+              <span>Continue with Apple</span>
             </button>
           </form>
 
@@ -1566,30 +1577,29 @@ export default async function LoginPage({
                          transition-colors"
             >
               <GitHubIcon className="w-5 h-5" />
-              <span>GitHub で続ける</span>
+              <span>Continue with GitHub</span>
             </button>
           </form>
         </div>
 
-        {/* 区切り線 */}
+        {/* Divider */}
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-300" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">または</span>
+            <span className="px-2 bg-white text-gray-500">or</span>
           </div>
         </div>
 
-        {/* メール・パスワードフォーム（フォールバック） */}
+        {/* Email / password form (fallback) */}
         <EmailPasswordForm callbackUrl={callbackUrl} />
 
         <p className="text-center text-xs text-gray-500">
-          ログインすることで、
-          <a href="/terms" className="underline">利用規約</a>
-          と
-          <a href="/privacy" className="underline">プライバシーポリシー</a>
-          に同意したものとみなします。
+          By logging in, you agree to our{' '}
+          <a href="/terms" className="underline">Terms of Service</a>
+          {' '}and{' '}
+          <a href="/privacy" className="underline">Privacy Policy</a>.
         </p>
       </div>
     </div>
@@ -1597,71 +1607,71 @@ export default async function LoginPage({
 }
 ```
 
-### 8.2 UX のベストプラクティス
+### 8.2 UX Best Practices
 
 ```
-ソーシャルログインの UX ベストプラクティス:
+UX best practices for social login:
 
-  ① ボタンの順序と配置:
+  ① Button order and placement:
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  推奨順序（利用率順）:                               │
-  │    1. Google（最も普及、約 60%）                     │
-  │    2. Apple（iOS ユーザーに人気）                    │
-  │    3. GitHub（開発者向けサービスの場合は上位に）      │
-  │    4. メール・パスワード（フォールバック）            │
+  │  Recommended order (by usage rate):                │
+  │    1. Google (most popular, approx. 60%)           │
+  │    2. Apple (popular among iOS users)              │
+  │    3. GitHub (top priority for developer services) │
+  │    4. Email / password (fallback)                  │
   │                                                    │
-  │  ターゲットに応じた調整:                             │
-  │  ・開発者向け → GitHub を最上位に                    │
-  │  ・B2B SaaS  → Google + Microsoft を上位に         │
-  │  ・ゲーム    → Discord を追加                       │
-  │  ・日本市場  → LINE ログインを検討                   │
+  │  Adjust based on target audience:                  │
+  │  · Developer-facing → GitHub at the top            │
+  │  · B2B SaaS  → Google + Microsoft at the top      │
+  │  · Gaming    → Add Discord                         │
+  │  · Japanese market → Consider LINE login           │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  ② ボタンのデザイン:
+  ② Button design:
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ✓ 推奨:                                           │
-  │  → 各プロバイダーのブランドガイドラインに準拠        │
-  │  → 「Continue with Google」形式のラベル             │
-  │  → 公式ロゴの使用                                  │
-  │  → 十分な大きさのタッチターゲット（44px 以上）       │
+  │  ✓ Recommended:                                    │
+  │  → Follow each provider's brand guidelines         │
+  │  → Use "Continue with Google" style labels         │
+  │  → Use official logos                              │
+  │  → Sufficient touch target size (44px or more)     │
   │                                                    │
-  │  ✗ 避けるべき:                                     │
-  │  → 「Sign in with」ではなく「Continue with」を使用  │
-  │    （サインアップとログインの区別をなくす）           │
-  │  → 自前のアイコン使用（ブランドガイドライン違反）    │
-  │  → 5 個以上のプロバイダーを並べない（選択疲れ）      │
-  │  → プロバイダー名だけのテキストリンク               │
+  │  ✗ Avoid:                                          │
+  │  → Use "Continue with" not "Sign in with"          │
+  │    (removes distinction between sign-up and login) │
+  │  → Using custom icons (violates brand guidelines)  │
+  │  → Listing 5 or more providers (choice fatigue)    │
+  │  → Text-only links with just the provider name     │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  ③ エラーハンドリング:
+  ③ Error handling:
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ユーザーに分かりやすいメッセージ:                    │
+  │  User-friendly messages:                           │
   │                                                    │
-  │  ✓ 「このメールアドレスは Google で登録されています。│
-  │     Google でログインしてください。」                │
+  │  ✓ "This email is registered with Google.          │
+  │     Please log in with Google."                    │
   │                                                    │
-  │  ✗ 「OAuthAccountNotLinked」                       │
+  │  ✗ "OAuthAccountNotLinked"                         │
   │                                                    │
-  │  ✓ 「ログインがキャンセルされました。               │
-  │     もう一度お試しください。」                       │
+  │  ✓ "Login was cancelled.                           │
+  │     Please try again."                             │
   │                                                    │
-  │  ✗ 「access_denied: user denied access」           │
+  │  ✗ "access_denied: user denied access"             │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  ④ callbackUrl の処理:
-     → ログイン前にアクセスしようとしたページに戻す
-     → オープンリダイレクト攻撃を防ぐためバリデーション必須
-     → 外部 URL へのリダイレクトを禁止
+  ④ Handling callbackUrl:
+     → Return user to the page they tried to access before login
+     → Validation is mandatory to prevent open redirect attacks
+     → Prohibit redirects to external URLs
 ```
 
 ```typescript
-// callbackUrl のバリデーション
+// callbackUrl validation
 function validateCallbackUrl(url: string | undefined): string {
   const defaultUrl = '/dashboard';
 
@@ -1671,12 +1681,12 @@ function validateCallbackUrl(url: string | undefined): string {
     const parsed = new URL(url, process.env.NEXTAUTH_URL);
     const appHost = new URL(process.env.NEXTAUTH_URL!).host;
 
-    // 同一ホストのみ許可（オープンリダイレクト防止）
+    // Allow only the same host (prevent open redirect)
     if (parsed.host !== appHost) {
       return defaultUrl;
     }
 
-    // 特定のパスを禁止
+    // Block specific paths
     const blockedPaths = ['/api/', '/auth/'];
     if (blockedPaths.some((p) => parsed.pathname.startsWith(p))) {
       return defaultUrl;
@@ -1691,45 +1701,48 @@ function validateCallbackUrl(url: string | undefined): string {
 
 ---
 
-## 9. セキュリティ強化
+## 9. Security Hardening
 
-### 9.1 state パラメータと CSRF 防御
+### 9.1 state Parameter and CSRF Defense
 
 ```
-OAuth の state パラメータ:
+OAuth state parameter:
 
-  目的: CSRF 攻撃の防止
+  Purpose: Prevent CSRF attacks
 
-  攻撃シナリオ（state なし）:
+  Attack scenario (without state):
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ① 攻撃者が自分の Google アカウントで OAuth 開始    │
-  │  ② 攻撃者がリダイレクト URL（code 付き）を取得      │
-  │  ③ 攻撃者がこの URL を被害者に踏ませる             │
-  │  ④ 被害者のブラウザが code をサーバーに送信         │
-  │  ⑤ サーバーが攻撃者のアカウントでセッション作成     │
-  │  ⑥ 被害者が攻撃者のアカウントで操作（情報漏洩）     │
+  │  ① Attacker initiates OAuth with their own Google  │
+  │    account                                         │
+  │  ② Attacker obtains the redirect URL (with code)   │
+  │  ③ Attacker tricks the victim into visiting the URL│
+  │  ④ Victim's browser sends the code to the server   │
+  │  ⑤ Server creates a session for the attacker's     │
+  │    account                                         │
+  │  ⑥ Victim operates under the attacker's account    │
+  │    (data leakage)                                  │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  Auth.js は state を自動で処理:
-  → ランダムな state 値を生成
-  → Cookie に保存（HttpOnly, SameSite=Lax）
-  → コールバック時に一致を検証
-  → 不一致の場合は認証を拒否
+  Auth.js handles state automatically:
+  → Generates a random state value
+  → Stores it in a Cookie (HttpOnly, SameSite=Lax)
+  → Validates the match on callback
+  → Rejects authentication if mismatched
 
-  PKCE も同様に Auth.js が自動処理:
-  → code_verifier を生成・保存
-  → code_challenge を認可リクエストに含める
-  → トークン交換時に code_verifier を送信
+  Auth.js also handles PKCE automatically:
+  → Generates and stores code_verifier
+  → Includes code_challenge in the authorization request
+  → Sends code_verifier during token exchange
 ```
 
-### 9.2 Token 保管のセキュリティ
+### 9.2 Token Storage Security
 
 ```typescript
-// Access Token / Refresh Token の安全な保管
+// Secure storage of Access Token / Refresh Token
 
-// Prisma Schema - Token の暗号化
+// Prisma Schema - Token encryption
 // model Account {
 //   ...
 //   access_token_encrypted   String?
@@ -1751,7 +1764,7 @@ function encryptToken(token: string): string {
 
   const authTag = cipher.getAuthTag().toString('hex');
 
-  // iv:authTag:encrypted の形式で保存
+  // Store in iv:authTag:encrypted format
   return `${iv.toString('hex')}:${authTag}:${encrypted}`;
 }
 
@@ -1769,7 +1782,7 @@ function decryptToken(encryptedToken: string): string {
   return decrypted;
 }
 
-// Auth.js のアダプターをラップして暗号化
+// Wrap the Auth.js adapter to enable encryption
 import { PrismaAdapter } from '@auth/prisma-adapter';
 
 function encryptedAdapter(prisma: PrismaClient) {
@@ -1778,7 +1791,7 @@ function encryptedAdapter(prisma: PrismaClient) {
   return {
     ...adapter,
     async linkAccount(account: any) {
-      // トークンを暗号化してから保存
+      // Encrypt tokens before saving
       const encryptedAccount = {
         ...account,
         access_token: account.access_token
@@ -1794,25 +1807,25 @@ function encryptedAdapter(prisma: PrismaClient) {
 }
 ```
 
-### 9.3 レート制限とブルートフォース防止
+### 9.3 Rate Limiting and Brute-Force Prevention
 
 ```typescript
-// ソーシャルログインのレート制限
-// 短時間での大量のログイン試行を防止
+// Rate limiting for social login
+// Prevent large numbers of login attempts in a short time
 
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
 const loginRatelimit = new Ratelimit({
   redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(5, '1 m'), // 1分に5回まで
+  limiter: Ratelimit.slidingWindow(5, '1 m'), // Up to 5 times per minute
   analytics: true,
   prefix: 'ratelimit:login',
 });
 
-// middleware.ts でレート制限を適用
+// Apply rate limiting in middleware.ts
 export async function middleware(request: NextRequest) {
-  // /api/auth/signin へのリクエストをレート制限
+  // Rate limit requests to /api/auth/signin
   if (request.nextUrl.pathname.startsWith('/api/auth/signin')) {
     const ip = request.ip ?? request.headers.get('x-forwarded-for') ?? 'unknown';
     const { success, remaining, reset } = await loginRatelimit.limit(ip);
@@ -1834,57 +1847,59 @@ export async function middleware(request: NextRequest) {
 
 ---
 
-## 10. エッジケースとトラブルシューティング
+## 10. Edge Cases and Troubleshooting
 
-### 10.1 よくある問題と解決策
+### 10.1 Common Issues and Solutions
 
 ```
-ソーシャルログインのトラブルシューティング:
+Troubleshooting social login:
 
   ┌─────────────────────┬──────────────────────────────────────┐
-  │ 問題                 │ 解決策                               │
+  │ Problem             │ Solution                             │
   ├─────────────────────┼──────────────────────────────────────┤
-  │ OAuthAccountNotLinked│ 同じメールが別プロバイダーで登録済み   │
-  │                     │ → アカウントリンク機能を実装          │
+  │ OAuthAccountNotLinked│ Same email already registered with  │
+  │                     │ another provider                     │
+  │                     │ → Implement account linking feature  │
   ├─────────────────────┼──────────────────────────────────────┤
-  │ redirect_uri_mismatch│ コールバック URL が不一致              │
-  │                     │ → プロバイダー設定を確認              │
-  │                     │ → 末尾スラッシュの有無に注意          │
+  │ redirect_uri_mismatch│ Callback URL mismatch               │
+  │                     │ → Check provider settings            │
+  │                     │ → Watch for trailing slash           │
   ├─────────────────────┼──────────────────────────────────────┤
-  │ CSRF エラー          │ state の不一致                       │
-  │                     │ → Cookie 設定を確認                  │
-  │                     │ → SameSite=Lax を確認                │
+  │ CSRF error          │ state mismatch                       │
+  │                     │ → Check Cookie settings              │
+  │                     │ → Verify SameSite=Lax                │
   ├─────────────────────┼──────────────────────────────────────┤
-  │ Token 期限切れ       │ Refresh Token が取得できていない      │
-  │                     │ → Google: prompt=consent +           │
-  │                     │   access_type=offline を設定          │
+  │ Token expired       │ Refresh Token was not obtained       │
+  │                     │ → Google: set prompt=consent +       │
+  │                     │   access_type=offline                │
   ├─────────────────────┼──────────────────────────────────────┤
-  │ Apple name が null  │ 初回以降は name が返されない          │
-  │                     │ → 初回ログイン時に必ず保存           │
-  │                     │ → Apple ID 設定から再認可            │
+  │ Apple name is null  │ name is not returned after first     │
+  │                     │ login                                │
+  │                     │ → Always save on first login         │
+  │                     │ → Re-authorize from Apple ID settings│
   ├─────────────────────┼──────────────────────────────────────┤
-  │ GitHub email null   │ メール非公開設定                      │
-  │                     │ → user:email スコープ +              │
-  │                     │   /user/emails API で取得            │
+  │ GitHub email null   │ Email set to private                 │
+  │                     │ → user:email scope +                 │
+  │                     │   /user/emails API to retrieve       │
   ├─────────────────────┼──────────────────────────────────────┤
-  │ NEXT_REDIRECT error │ Server Action 内で signIn 呼出し      │
-  │                     │ → Next.js の仕様。try-catch で       │
-  │                     │   NEXT_REDIRECT を再 throw          │
+  │ NEXT_REDIRECT error │ signIn called inside Server Action   │
+  │                     │ → Next.js behavior. Re-throw         │
+  │                     │   NEXT_REDIRECT in try-catch         │
   ├─────────────────────┼──────────────────────────────────────┤
-  │ 開発環境で動かない   │ localhost の設定漏れ                  │
-  │                     │ → Google/GitHub: localhost を追加    │
-  │                     │ → Apple: ngrok 等のトンネルが必要    │
+  │ Not working in dev  │ Missing localhost configuration      │
+  │                     │ → Google/GitHub: add localhost       │
+  │                     │ → Apple: tunnel such as ngrok needed │
   └─────────────────────┴──────────────────────────────────────┘
 ```
 
-### 10.2 デバッグ方法
+### 10.2 Debugging
 
 ```typescript
-// Auth.js のデバッグモードを有効化
+// Enable Auth.js debug mode
 // auth.ts
 export const { handlers, auth, signIn, signOut } = NextAuth({
   debug: process.env.NODE_ENV === 'development',
-  // これにより、コンソールに詳細なログが出力される
+  // This outputs detailed logs to the console
 
   logger: {
     error(code, ...message) {
@@ -1926,38 +1941,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### 11.1 フロントエンドに Client Secret を露出
+### 11.1 Exposing Client Secret to the Frontend
 
 ```typescript
-// ✗ 危険: Client Secret をフロントエンドに露出
-// フロントエンドのコード
+// ✗ Dangerous: exposing Client Secret to the frontend
+// Frontend code
 const response = await fetch('https://oauth2.googleapis.com/token', {
   method: 'POST',
   body: JSON.stringify({
     client_id: 'xxx',
-    client_secret: 'EXPOSED_SECRET', // 絶対にダメ！
+    client_secret: 'EXPOSED_SECRET', // Never do this!
     code: authorizationCode,
   }),
 });
 
-// ✓ 正しい: サーバーサイドでトークン交換
-// Auth.js がサーバーサイドで自動的に処理
-// Client Secret は環境変数から読み取り、サーバーでのみ使用
+// ✓ Correct: token exchange on the server side
+// Auth.js handles this automatically on the server side
+// Client Secret is read from environment variables and used only on the server
 ```
 
-### 11.2 email_verified を確認せずにアカウントリンク
+### 11.2 Linking Accounts Without Checking email_verified
 
 ```typescript
-// ✗ 危険: メール検証なしの自動リンク
+// ✗ Dangerous: auto-linking without email verification
 callbacks: {
   async signIn({ user, account }) {
     const existing = await prisma.user.findUnique({
       where: { email: user.email! },
     });
     if (existing) {
-      // メール検証なしでリンク → アカウント乗っ取り可能！
+      // Linking without email verification → account takeover is possible!
       await prisma.account.create({
         data: { userId: existing.id, ...account },
       });
@@ -1966,194 +1981,194 @@ callbacks: {
   },
 }
 
-// ✓ 正しい: email_verified を確認してからリンク
-// （前述の checkEmailVerification 関数を使用）
+// ✓ Correct: verify email_verified before linking
+// (use the checkEmailVerification function described above)
 ```
 
-### 11.3 Apple の初回データを保存し忘れる
+### 11.3 Forgetting to Save Apple First-Login Data
 
 ```typescript
-// ✗ 問題: Apple のプロフィール情報を初回に保存していない
+// ✗ Problem: Apple profile info not saved on first login
 callbacks: {
   async signIn({ user, account }) {
-    // Apple の name が null でも気にせず進む
-    // → 2 回目以降は name が取得できなくなる！
+    // Proceeds even if Apple's name is null
+    // → name cannot be retrieved on subsequent logins!
     return true;
   },
 }
 
-// ✓ 正しい: 初回ログイン時に name / email を確実に保存
-// （前述の Apple 実装を参照）
+// ✓ Correct: always save name / email on first login
+// (refer to the Apple implementation above)
 ```
 
 ---
 
-## 12. 演習問題
+## 12. Exercises
 
-### 演習 1: 基本 — Google + GitHub ログインの実装（難易度: 基本）
-
-```
-課題:
-  Next.js App Router + Auth.js v5 で、Google と GitHub の
-  ソーシャルログインを実装してください。
-
-要件:
-  ① Google と GitHub プロバイダーを設定
-  ② ログインページにプロバイダーボタンを配置
-  ③ ログイン後にダッシュボードにリダイレクト
-  ④ ユーザー情報をヘッダーに表示（名前 + アバター）
-  ⑤ ログアウト機能
-
-ヒント:
-  → auth.ts でプロバイダーを設定
-  → app/api/auth/[...nextauth]/route.ts でハンドラーを公開
-  → SessionProvider でクライアントコンポーネントを wrap
-
-確認ポイント:
-  □ Google でログインできるか
-  □ GitHub でログインできるか
-  □ ログアウトが動作するか
-  □ セッションが正しく保持されるか
-```
-
-### 演習 2: 応用 — アカウントリンク機能の実装（難易度: 応用）
+### Exercise 1: Basic — Implement Google + GitHub Login (Difficulty: Basic)
 
 ```
-課題:
-  演習 1 の上に、条件付き自動アカウントリンク機能を
-  実装してください。
+Task:
+  Implement social login with Google and GitHub using
+  Next.js App Router + Auth.js v5.
 
-要件:
-  ① email_verified が true の場合のみ自動リンク
-  ② 設定画面でリンク済みアカウント一覧を表示
-  ③ アカウントのリンク解除機能
-  ④ 最後のログイン方法は解除不可
-  ⑤ リンク / 解除のイベントを監査ログに記録
+Requirements:
+  ① Configure Google and GitHub providers
+  ② Add provider buttons to the login page
+  ③ Redirect to dashboard after login
+  ④ Display user info in the header (name + avatar)
+  ⑤ Logout functionality
 
-ヒント:
-  → signIn コールバックでリンク処理
-  → /settings/accounts ページを作成
-  → Server Actions で link/unlink を実装
+Hints:
+  → Configure providers in auth.ts
+  → Expose handlers via app/api/auth/[...nextauth]/route.ts
+  → Wrap client components with SessionProvider
 
-確認ポイント:
-  □ Google で登録 → 同じメールの GitHub で自動リンク
-  □ アカウント一覧が正しく表示される
-  □ 2 つ以上のアカウントがある場合のみ解除可能
-  □ 監査ログが記録される
+Verification checklist:
+  □ Can log in with Google
+  □ Can log in with GitHub
+  □ Logout works
+  □ Session is correctly maintained
 ```
 
-### 演習 3: 発展 — マルチテナント対応ソーシャルログイン（難易度: 発展）
+### Exercise 2: Applied — Implement Account Linking (Difficulty: Applied)
 
 ```
-課題:
-  複数の組織（テナント）を持つ SaaS アプリケーションで、
-  組織ごとに許可するプロバイダーを制御するソーシャルログインを
-  実装してください。
+Task:
+  Build on Exercise 1 and implement conditional
+  automatic account linking.
 
-要件:
-  ① 組織ごとに許可プロバイダーを設定（管理画面）
-  ② Google Workspace ドメイン制限
-  ③ GitHub 組織メンバーシップによるアクセス制御
-  ④ 新規ユーザーの自動組織割り当て（メールドメインベース）
-  ⑤ 組織ごとの SSO 設定（Google Workspace / Azure AD）
-  ⑥ ユーザーが複数組織に所属可能
+Requirements:
+  ① Auto-link only when email_verified is true
+  ② Display list of linked accounts on the settings page
+  ③ Account unlinking functionality
+  ④ The last login method cannot be unlinked
+  ⑤ Log link / unlink events to the audit log
 
-ヒント:
-  → Organization モデルに allowedProviders を追加
-  → signIn コールバックでドメイン / 組織チェック
-  → jwt コールバックで組織情報をトークンに含める
+Hints:
+  → Handle linking in the signIn callback
+  → Create a /settings/accounts page
+  → Implement link/unlink via Server Actions
 
-確認ポイント:
-  □ 組織 A は Google のみ、組織 B は GitHub のみ
-  □ ドメイン制限が正しく動作
-  □ 新規ユーザーが正しい組織に割り当てられる
-  □ 組織切り替えが動作する
+Verification checklist:
+  □ Register with Google → auto-link with GitHub using the same email
+  □ Account list displays correctly
+  □ Unlinking is only possible when 2 or more accounts are linked
+  □ Audit log is recorded
+```
+
+### Exercise 3: Advanced — Multi-Tenant Social Login (Difficulty: Advanced)
+
+```
+Task:
+  Implement social login for a SaaS application with multiple
+  organizations (tenants), where allowed providers are controlled
+  per organization.
+
+Requirements:
+  ① Configure allowed providers per organization (admin panel)
+  ② Google Workspace domain restriction
+  ③ Access control based on GitHub organization membership
+  ④ Automatic organization assignment for new users (email domain-based)
+  ⑤ Per-organization SSO configuration (Google Workspace / Azure AD)
+  ⑥ Users can belong to multiple organizations
+
+Hints:
+  → Add allowedProviders to the Organization model
+  → Check domain / org membership in the signIn callback
+  → Include organization info in the token via the jwt callback
+
+Verification checklist:
+  □ Org A allows only Google, Org B allows only GitHub
+  □ Domain restriction works correctly
+  □ New users are assigned to the correct organization
+  □ Organization switching works
 ```
 
 ---
 
 ## 13. FAQ
 
-### Q1: ソーシャルログインのみでパスワードなしの運用は安全ですか？
+### Q1: Is it safe to operate with social login only and no passwords?
 
 ```
-A: 安全です。むしろパスワードレスの方がセキュリティは高くなります。
+A: Yes, it is safe. In fact, going passwordless often improves security.
 
-理由:
-  → パスワードの漏洩リスクがない
-  → ブルートフォース攻撃の対象にならない
-  → プロバイダー側の 2FA / MFA を活用できる
-  → パスワードリセットフローが不要
+Reasons:
+  → No risk of password leakage
+  → Not a target for brute-force attacks
+  → Can leverage the provider's 2FA / MFA
+  → No need to implement a password reset flow
 
-注意点:
-  → プロバイダーのアカウントが乗っ取られた場合のリスク
-  → プロバイダーのサービス障害時にログインできなくなる
-  → 複数プロバイダーの提供を推奨（フォールバック用）
+Caveats:
+  → Risk if the provider account is compromised
+  → Login becomes unavailable during provider outages
+  → Providing multiple providers is recommended (as fallbacks)
 ```
 
-### Q2: 同じユーザーが Google と GitHub で異なるメールを使っている場合は？
+### Q2: What if the same user uses different emails for Google and GitHub?
 
 ```
-A: 自動リンクは不可能です。手動リンク機能を提供します。
+A: Automatic linking is not possible. Provide a manual linking feature.
 
-推奨フロー:
-  ① ユーザーが Google (alice@gmail.com) でログイン
-  ② 設定画面で「GitHub を連携」をクリック
-  ③ GitHub OAuth フローを開始
-  ④ コールバックで既存ユーザーにアカウントを追加
-  ⑤ 以後、どちらでもログイン可能
+Recommended flow:
+  ① User logs in with Google (alice@gmail.com)
+  ② Clicks "Connect GitHub" on the settings page
+  ③ GitHub OAuth flow begins
+  ④ On callback, the account is added to the existing user
+  ⑤ Either login method works from that point on
 
-実装のポイント:
-  → ログイン済みの状態でリンクフローを開始
-  → signIn コールバックでセッションの userId を確認
-  → 別のメールでも同一ユーザーに紐付け可能
+Implementation notes:
+  → Start the link flow while the user is already logged in
+  → Check the session's userId in the signIn callback
+  → Can link different emails to the same user
 ```
 
-### Q3: Apple の Private Relay メールでメール送信ができません
+### Q3: I cannot send emails to Apple Private Relay addresses
 
 ```
-A: Apple の Private Email Relay の設定が必要です。
+A: You need to configure Apple's Private Email Relay.
 
-手順:
+Steps:
   ① Apple Developer > Certificates > More > Configure
-  ② 「Email Sources」に送信元ドメインを登録
-  ③ SPF レコードの設定:
+  ② Register your sending domain in "Email Sources"
+  ③ SPF record configuration:
      v=spf1 include:_spf.appleid.apple.com ~all
-  ④ DKIM の設定（メールサービスプロバイダーの手順に従う）
-  ⑤ 登録したドメインからのみ送信可能
+  ④ DKIM configuration (follow your email service provider's instructions)
+  ⑤ Only emails sent from registered domains are allowed
 
-注意:
-  → Apple が中継するため、バウンスの検知が難しい
-  → ユーザーが Apple ID 設定から転送を停止する可能性
-  → 重要な通知にはアプリ内通知も併用
+Notes:
+  → Since Apple relays the messages, bounce detection is difficult
+  → Users may disable forwarding from their Apple ID settings
+  → Use in-app notifications alongside for important alerts
 ```
 
-### Q4: Auth.js v4 から v5 への移行でソーシャルログインの変更点は？
+### Q4: What changed for social login when migrating from Auth.js v4 to v5?
 
 ```
-A: 主な変更点:
+A: Key changes:
 
-  ① import パスの変更:
+  ① Import path changes:
      v4: import GoogleProvider from 'next-auth/providers/google'
      v5: import Google from 'next-auth/providers/google'
-     → Provider は default export に変更
+     → Providers changed to default exports
 
-  ② 設定ファイルの構造:
+  ② Config file structure:
      v4: pages/api/auth/[...nextauth].ts
-     v5: auth.ts（ルートレベル）+ app/api/auth/[...nextauth]/route.ts
+     v5: auth.ts (root level) + app/api/auth/[...nextauth]/route.ts
 
-  ③ Adapter の変更:
+  ③ Adapter change:
      v4: @next-auth/prisma-adapter
      v5: @auth/prisma-adapter
 
-  ④ コールバックの引数:
-     v4: profile パラメータの型が any
-     v5: profile の型がプロバイダーごとに定義
+  ④ Callback arguments:
+     v4: profile parameter was typed as any
+     v5: profile type is defined per provider
 
-  ⑤ signIn / signOut の呼び出し:
+  ⑤ signIn / signOut calls:
      v4: import { signIn } from 'next-auth/react'
-     v5: サーバー: import { signIn } from '@/auth'
-         クライアント: import { signIn } from 'next-auth/react'
+     v5: Server: import { signIn } from '@/auth'
+         Client: import { signIn } from 'next-auth/react'
 ```
 
 ---
@@ -2161,40 +2176,40 @@ A: 主な変更点:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Rather than theory alone, understanding deepens by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| プロトコル | Google/Apple は OIDC、GitHub は OAuth 2.0 |
-| Google | prompt=consent + access_type=offline で Refresh Token 取得 |
-| GitHub | email が null の場合あり。/user/emails API で取得 |
-| Apple | name/email は初回のみ。clientSecret は JWT 動的生成 |
-| アカウントリンク | email_verified の場合のみ自動リンク。手動リンク UI も提供 |
-| セキュリティ | state + PKCE は Auth.js が自動処理。Token は暗号化保管 |
-| UX | 「Continue with」形式、ブランドガイドライン遵守、エラーは具体的に |
+| Protocol | Google/Apple use OIDC; GitHub uses OAuth 2.0 |
+| Google | Use prompt=consent + access_type=offline to obtain Refresh Token |
+| GitHub | email may be null. Retrieve via /user/emails API |
+| Apple | name/email only on first login. clientSecret requires dynamic JWT generation |
+| Account Linking | Auto-link only when email_verified. Also provide manual link UI |
+| Security | state + PKCE are handled automatically by Auth.js. Store tokens encrypted |
+| UX | Use "Continue with" format, follow brand guidelines, show specific error messages |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
 
 ---
 
-## 参考文献
+## References
 
 1. Auth.js. "Providers." authjs.dev, 2024.
 2. Google. "Sign in with Google for Web." developers.google.com/identity, 2024.
