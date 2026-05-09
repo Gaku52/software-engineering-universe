@@ -1,71 +1,73 @@
-# ABAC とポリシーエンジン
+# ABAC and Policy Engines
 
-> RBAC では表現しきれない複雑なアクセス制御には ABAC（属性ベースアクセス制御）が必要。ユーザー属性、リソース属性、環境条件を組み合わせた動的な認可ポリシーの設計と、CASL / Oso / Cedar 等のポリシーエンジンを解説する。
+> When RBAC cannot express complex access control requirements, ABAC (Attribute-Based Access Control) is needed. This chapter covers designing dynamic authorization policies that combine user attributes, resource attributes, and environment conditions, along with policy engines such as CASL, Oso, and Cedar.
 
-## 前提知識
+## Prerequisites
 
-- RBAC の基本概念（ロール、パーミッション）
-- TypeScript / JavaScript の基礎
+- Basic concepts of RBAC (roles, permissions)
+- Fundamentals of TypeScript / JavaScript
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] ABAC の概念と RBAC との本質的な違いを理解する
-- [ ] NIST SP 800-162 に基づく ABAC アーキテクチャを把握する
-- [ ] ポリシーの設計パターンを実践的に適用できる
-- [ ] CASL を使った実践的なポリシー実装を学ぶ
-- [ ] OPA/Rego、Cedar などの外部ポリシーエンジンの特徴を比較できる
-- [ ] ポリシーのテスト・デバッグ・運用手法を身につける
+- [ ] Understand the concept of ABAC and its essential differences from RBAC
+- [ ] Grasp the ABAC architecture based on NIST SP 800-162
+- [ ] Apply policy design patterns in practice
+- [ ] Learn practical policy implementation using CASL
+- [ ] Compare the characteristics of external policy engines such as OPA/Rego and Cedar
+- [ ] Acquire techniques for testing, debugging, and operating policies
 
 ---
 
-## 1. ABAC の基本概念
+## 1. Core Concepts of ABAC
 
-### 1.1 ABAC とは何か
+### 1.1 What Is ABAC?
 
-ABAC（Attribute-Based Access Control）は、アクセス制御の決定を「属性」の評価に基づいて行うモデルである。RBAC（Role-Based Access Control）がユーザーに割り当てられた「ロール」によってアクセス権を決定するのに対し、ABAC はユーザー、リソース、アクション、環境の各属性を動的に評価してアクセス可否を判断する。
+ABAC (Attribute-Based Access Control) is a model in which access control decisions are made based on the evaluation of "attributes." While RBAC (Role-Based Access Control) determines access rights by the "role" assigned to a user, ABAC dynamically evaluates attributes of the subject, resource, action, and environment to determine whether access is granted.
 
-ABAC の最大の利点は、事前にロールを定義する必要がなく、属性の組み合わせによって極めて細かい粒度のアクセス制御が可能になる点にある。例えば「東京オフィスの部長以上が、営業時間内に、自部署の機密文書を閲覧できる」といった複合的な条件を自然に表現できる。
+The greatest advantage of ABAC is that it eliminates the need to predefine roles, enabling extremely fine-grained access control through combinations of attributes. For example, complex conditions such as "managers at or above a certain rank in the Tokyo office can view confidential documents of their own department during business hours" can be expressed naturally.
 
 ```
-ABAC（Attribute-Based Access Control）:
+ABAC (Attribute-Based Access Control):
 
-  RBAC: 「ロール」に基づくアクセス制御
-    → admin は全記事を編集できる
-    → 粒度が粗い、ロール爆発の問題
+  RBAC: Access control based on "roles"
+    → admin can edit all articles
+    → Coarse granularity, role explosion problem
 
-  ABAC: 「属性」に基づくアクセス制御
-    → 記事の作者は自分の記事を編集できる
-    → 部署が同じマネージャーは部下の評価を閲覧できる
-    → 営業時間内のみデータをエクスポートできる
-    → 条件の組み合わせで細かい制御が可能
+  ABAC: Access control based on "attributes"
+    → The author of an article can edit their own article
+    → A manager in the same department can view their subordinates' evaluations
+    → Data can only be exported during business hours
+    → Fine-grained control through combinations of conditions
 
-  4つの属性カテゴリ:
+  4 Attribute Categories:
 
   ┌──────────────────────────────────────────┐
   │                                          │
-  │  (1) Subject（主体）属性:                  │
-  │     → ユーザーID、ロール、部署、役職         │
-  │     → メール、入社日、資格、クリアランス      │
-  │     → 所属グループ、マネージャーフラグ        │
+  │  (1) Subject attributes:                 │
+  │     → User ID, role, department, title   │
+  │     → Email, hire date, qualifications,  │
+  │        clearance                         │
+  │     → Group membership, manager flag     │
   │                                          │
-  │  (2) Resource（リソース）属性:              │
-  │     → リソースID、タイプ、作成者             │
-  │     → ステータス、分類、公開フラグ            │
-  │     → 機密レベル、所有組織、作成日            │
+  │  (2) Resource attributes:                │
+  │     → Resource ID, type, creator         │
+  │     → Status, classification, public flag│
+  │     → Sensitivity level, owning org,     │
+  │        creation date                     │
   │                                          │
-  │  (3) Action（操作）属性:                    │
-  │     → read、create、update、delete         │
-  │     → publish、approve、export             │
-  │     → archive、share、transfer             │
+  │  (3) Action attributes:                  │
+  │     → read, create, update, delete       │
+  │     → publish, approve, export           │
+  │     → archive, share, transfer           │
   │                                          │
-  │  (4) Environment（環境）属性:              │
-  │     → 時刻、IPアドレス、デバイス             │
-  │     → 地域、ネットワーク種別                 │
-  │     → リスクスコア、MFA ステータス            │
+  │  (4) Environment attributes:             │
+  │     → Time, IP address, device           │
+  │     → Region, network type               │
+  │     → Risk score, MFA status             │
   │                                          │
   └──────────────────────────────────────────┘
 
-  ポリシー例:
+  Policy examples:
     IF subject.role == "editor"
     AND resource.type == "article"
     AND resource.author == subject.id
@@ -84,12 +86,12 @@ ABAC（Attribute-Based Access Control）:
     THEN ALLOW
 ```
 
-### 1.2 NIST SP 800-162 の ABAC アーキテクチャ
+### 1.2 NIST SP 800-162 ABAC Architecture
 
-NIST（米国国立標準技術研究所）が定義する ABAC の参照アーキテクチャは、以下のコンポーネントで構成される。
+The ABAC reference architecture defined by NIST (National Institute of Standards and Technology) consists of the following components.
 
 ```
-NIST ABAC 参照アーキテクチャ:
+NIST ABAC Reference Architecture:
 
   ┌─────────────────────────────────────────────────┐
   │                                                 │
@@ -102,9 +104,9 @@ NIST ABAC 参照アーキテクチャ:
   │  └───────────┘           │                     │
   │       │            ┌─────┴─────┐               │
   │       │            │   PAP     │               │
-  │  アプリ層で         │ (Policy   │               │
-  │  アクセス制御       │ Admin     │               │
-  │  を実施            │ Point)    │               │
+  │  Enforces          │ (Policy   │               │
+  │  access control    │ Admin     │               │
+  │  at the app layer  │ Point)    │               │
   │                    └─────┬─────┘               │
   │                          │                     │
   │                    ┌─────┴─────┐               │
@@ -117,91 +119,91 @@ NIST ABAC 参照アーキテクチャ:
   └─────────────────────────────────────────────────┘
 
   PEP (Policy Enforcement Point):
-    → アクセス要求をインターセプトする
-    → PDP の決定を実施する（許可/拒否）
-    → アプリケーションのミドルウェアやゲートウェイ
+    → Intercepts access requests
+    → Enforces PDP decisions (allow/deny)
+    → Application middleware or gateway
 
   PDP (Policy Decision Point):
-    → ポリシーを評価してアクセス可否を決定する
-    → 属性情報を PIP から取得する
-    → ポリシーエンジン（OPA、Cedar、CASL 等）
+    → Evaluates policies and decides whether access is allowed
+    → Retrieves attribute information from PIP
+    → Policy engine (OPA, Cedar, CASL, etc.)
 
   PAP (Policy Administration Point):
-    → ポリシーの作成・管理・配布を行う
-    → 管理者がポリシーを定義するインターフェース
+    → Creates, manages, and distributes policies
+    → Interface through which administrators define policies
 
   PIP (Policy Information Point):
-    → 属性情報を提供する
-    → ユーザーDB、リソースDB、外部サービス等
-    → 環境情報（時刻、IP、デバイス）の取得
+    → Provides attribute information
+    → User DB, resource DB, external services, etc.
+    → Retrieves environment information (time, IP, device)
 ```
 
-### 1.3 RBAC vs ABAC vs ReBAC の比較
+### 1.3 Comparison: RBAC vs ABAC vs ReBAC
 
 ```
-アクセス制御モデルの比較:
+Comparison of Access Control Models:
 
-  項目         │ RBAC           │ ABAC              │ ReBAC
-  ────────────┼───────────────┼──────────────────┼──────────────────
-  制御の基盤   │ ロール          │ 属性の組合せ       │ 関係（リレーション）
-  制御の粒度   │ ロール単位      │ 属性の組合せ       │ オブジェクト間関係
-  柔軟性       │ 低〜中          │ 高                │ 高
-  複雑性       │ 低              │ 中〜高            │ 中〜高
-  管理コスト   │ 低              │ 中                │ 中
-  スケーラ     │ ロール爆発の     │ ポリシー複雑化の   │ グラフ探索の
-  ビリティ     │ リスク          │ リスク             │ パフォーマンス
-  ユースケース │ 組織の役割が     │ リソース所有者、   │ ドキュメント共有、
-              │ 明確な場合       │ 条件付きアクセス   │ 階層的権限
-  実装例       │ admin/editor/  │ 「自分の記事のみ   │ 「共有された
-              │ viewer          │ 編集可能」         │ フォルダの中身」
-  代表的       │ express-roles  │ CASL, OPA,        │ Google Zanzibar,
-  ツール       │                │ Cedar             │ SpiceDB, Ory Keto
+  Item           │ RBAC             │ ABAC               │ ReBAC
+  ───────────────┼─────────────────┼───────────────────┼──────────────────
+  Basis          │ Role             │ Attribute combos   │ Relationship
+  Granularity    │ Role level       │ Attribute combos   │ Object relations
+  Flexibility    │ Low to medium    │ High               │ High
+  Complexity     │ Low              │ Medium to high     │ Medium to high
+  Mgmt cost      │ Low              │ Medium             │ Medium
+  Scalability    │ Risk of role     │ Risk of policy     │ Graph traversal
+                 │ explosion        │ complexity         │ performance
+  Use case       │ Clear org roles  │ Resource owners,   │ Document sharing,
+                 │                  │ conditional access  │ hierarchical perms
+  Example        │ admin/editor/    │ "Only edit your    │ "Contents inside
+                 │ viewer           │ own articles"      │ a shared folder"
+  Tools          │ express-roles    │ CASL, OPA, Cedar   │ Google Zanzibar,
+                 │                  │                    │ SpiceDB, Ory Keto
 
-  実際のプロジェクト:
-  → RBAC + ABAC のハイブリッドが一般的
-  → 基本はRBAC、細かい制御にABACを追加
-  → 大規模SaaS ではReBAC を併用するケースも
+  In practice:
+  → A RBAC + ABAC hybrid is common
+  → Use RBAC as the base, add ABAC for fine-grained control
+  → Large-scale SaaS may combine ReBAC as well
 ```
 
-### 1.4 RBAC のロール爆発問題
+### 1.4 The Role Explosion Problem in RBAC
 
-RBAC が ABAC を必要とする主な理由の一つが「ロール爆発」問題である。
+One of the main reasons RBAC requires ABAC is the "role explosion" problem.
 
 ```
-ロール爆発（Role Explosion）:
+Role Explosion:
 
-  単純な RBAC:
-    admin, editor, viewer → 3 ロール
+  Simple RBAC:
+    admin, editor, viewer → 3 roles
 
-  部署を追加:
+  Add departments:
     admin_sales, admin_engineering, admin_hr,
     editor_sales, editor_engineering, editor_hr,
     viewer_sales, viewer_engineering, viewer_hr
-    → 3 x 3 = 9 ロール
+    → 3 x 3 = 9 roles
 
-  地域を追加:
+  Add regions:
     admin_sales_tokyo, admin_sales_osaka, ...
-    → 3 x 3 x 3 = 27 ロール
+    → 3 x 3 x 3 = 27 roles
 
-  プロジェクトを追加:
-    → 3 x 3 x 3 x N = 指数関数的増加
+  Add projects:
+    → 3 x 3 x 3 x N = exponential growth
 
-  ABAC なら:
-    ポリシー: "同じ部署 AND 同じ地域 AND ロールが editor 以上"
-    → ロール数は増えない
-    → 属性の組み合わせで動的に判定
+  With ABAC:
+    Policy: "same department AND same region AND role is editor or above"
+    → No increase in role count
+    → Dynamically evaluated through attribute combinations
 ```
 
 ---
 
-## 2. CASL によるポリシー実装
+## 2. Policy Implementation with CASL
 
-### 2.1 CASL の基本
+### 2.1 CASL Basics
 
-CASL（pronounced "castle"）は JavaScript/TypeScript 向けのポリシーライブラリで、ABAC スタイルのアクセス制御を宣言的に定義できる。MongoDB のクエリ構文と互換性があり、フロントエンド・バックエンドの両方で同じポリシー定義を共有できる点が大きな特徴である。
+CASL (pronounced "castle") is a policy library for JavaScript/TypeScript that enables declarative definition of ABAC-style access control. Its major features include compatibility with MongoDB query syntax and the ability to share the same policy definitions between frontend and backend.
 
 ```typescript
-// CASL: JavaScript/TypeScript のポリシーライブラリ
+// CASL: JavaScript/TypeScript policy library
 // npm install @casl/ability
 
 import {
@@ -212,12 +214,12 @@ import {
   ForbiddenError,
 } from '@casl/ability';
 
-// アクションとサブジェクトの型定義
+// Type definitions for actions and subjects
 type Actions = 'read' | 'create' | 'update' | 'delete' | 'publish' | 'manage';
 type Subjects = 'Article' | 'User' | 'Comment' | 'Organization' | 'all';
 type AppAbility = MongoAbility<[Actions, Subjects]>;
 
-// ユーザー型
+// User type
 interface User {
   id: string;
   role: string;
@@ -226,21 +228,21 @@ interface User {
   permissions?: string[];
 }
 
-// ユーザーのロールに基づくAbility定義
+// Ability definition based on user role
 function defineAbilityFor(user: User): AppAbility {
   const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
 
   switch (user.role) {
     case 'super_admin':
-      can('manage', 'all'); // 全権限
+      can('manage', 'all'); // Full permissions
       break;
 
     case 'admin':
       can('manage', 'Article');
       can('read', 'User');
       can('create', 'User');
-      can('update', 'User', { orgId: user.orgId }); // 同じ組織のみ
-      cannot('delete', 'User'); // ユーザー削除は super_admin のみ
+      can('update', 'User', { orgId: user.orgId }); // Same org only
+      cannot('delete', 'User'); // User deletion is super_admin only
       can('manage', 'Comment');
       can('read', 'Organization', { id: user.orgId });
       can('update', 'Organization', { id: user.orgId });
@@ -249,8 +251,8 @@ function defineAbilityFor(user: User): AppAbility {
     case 'editor':
       can('read', 'Article');
       can('create', 'Article');
-      can('update', 'Article', { authorId: user.id }); // 自分の記事のみ
-      can('delete', 'Article', { authorId: user.id }); // 自分の記事のみ
+      can('update', 'Article', { authorId: user.id }); // Own articles only
+      can('delete', 'Article', { authorId: user.id }); // Own articles only
       can('read', 'Comment');
       can('create', 'Comment');
       can('update', 'Comment', { authorId: user.id });
@@ -258,10 +260,10 @@ function defineAbilityFor(user: User): AppAbility {
       break;
 
     case 'viewer':
-      can('read', 'Article', { status: 'published' }); // 公開記事のみ
+      can('read', 'Article', { status: 'published' }); // Published articles only
       can('read', 'Comment');
       can('create', 'Comment');
-      can('update', 'Comment', { authorId: user.id }); // 自分のコメントのみ
+      can('update', 'Comment', { authorId: user.id }); // Own comments only
       can('delete', 'Comment', { authorId: user.id });
       break;
   }
@@ -269,77 +271,77 @@ function defineAbilityFor(user: User): AppAbility {
   return build();
 }
 
-// 使用例
+// Usage example
 const ability = defineAbilityFor({ id: 'user_1', role: 'editor', orgId: 'org_1' });
 
 ability.can('read', 'Article');    // true
 ability.can('create', 'Article');  // true
-ability.can('update', subject('Article', { authorId: 'user_1' })); // true（自分の記事）
-ability.can('update', subject('Article', { authorId: 'user_2' })); // false（他人の記事）
-ability.can('publish', 'Article'); // false（editor には publish 権限なし）
+ability.can('update', subject('Article', { authorId: 'user_1' })); // true (own article)
+ability.can('update', subject('Article', { authorId: 'user_2' })); // false (another's article)
+ability.can('publish', 'Article'); // false (editor has no publish permission)
 ```
 
-### 2.2 CASL の条件構文の詳細
+### 2.2 CASL Condition Syntax in Detail
 
-CASL は MongoDB のクエリ構文をサポートしており、複雑な条件を表現できる。
+CASL supports MongoDB query syntax, enabling complex conditions to be expressed.
 
 ```typescript
-// CASL の MongoDB 互換条件構文
+// CASL MongoDB-compatible condition syntax
 function defineAdvancedAbility(user: User): AppAbility {
   const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
 
-  // $eq: 等値比較（デフォルト）
+  // $eq: equality comparison (default)
   can('read', 'Article', { status: 'published' });
 
-  // $ne: 否定
+  // $ne: negation
   can('update', 'Article', { status: { $ne: 'archived' } });
 
-  // $in: 配列内のいずれかに一致
+  // $in: matches any value in an array
   can('read', 'Article', { category: { $in: ['tech', 'science'] } });
 
-  // $nin: 配列内のいずれにも一致しない
+  // $nin: matches none of the values in an array
   can('read', 'Article', { sensitivity: { $nin: ['confidential', 'top_secret'] } });
 
-  // $gt, $gte, $lt, $lte: 比較演算
+  // $gt, $gte, $lt, $lte: comparison operators
   can('read', 'Article', { priority: { $gte: 1, $lte: 5 } });
 
-  // $exists: フィールドの存在チェック
+  // $exists: checks for field existence
   can('read', 'Article', { deletedAt: { $exists: false } });
 
-  // $regex: 正規表現マッチ
+  // $regex: regular expression match
   can('read', 'Article', { title: { $regex: /^公開/ } });
 
-  // $all: 配列の全要素を含む
+  // $all: array contains all elements
   can('read', 'Article', { tags: { $all: ['approved', 'reviewed'] } });
 
-  // $elemMatch: 配列要素の条件
+  // $elemMatch: condition on array elements
   can('read', 'Article', {
     collaborators: { $elemMatch: { userId: user.id, role: 'editor' } },
   });
 
-  // 複数条件の組み合わせ（AND）
+  // Combining multiple conditions (AND)
   can('update', 'Article', {
     authorId: user.id,
     status: { $ne: 'archived' },
     orgId: user.orgId,
   });
 
-  // cannot で明示的に拒否（can よりも優先）
+  // cannot for explicit denial (takes priority over can)
   cannot('delete', 'Article', { status: 'published' });
 
   return build();
 }
 ```
 
-### 2.3 カスタムフィールドマッチャー
+### 2.3 Custom Field Matchers
 
-デフォルトの MongoDB 構文では表現できない条件にはカスタムマッチャーを使用する。
+For conditions that cannot be expressed with the default MongoDB syntax, use custom matchers.
 
 ```typescript
 import { createMongoAbility, MongoAbility, AbilityBuilder } from '@casl/ability';
 import { buildMongoQueryMatcher } from '@casl/ability/extra';
 
-// カスタム演算子: $today（今日かどうか）
+// Custom operator: $today (checks if a date is today)
 const customConditionsMatcher = buildMongoQueryMatcher({
   $today: (value: boolean, fieldValue: Date) => {
     const today = new Date();
@@ -355,18 +357,18 @@ const customConditionsMatcher = buildMongoQueryMatcher({
   },
 });
 
-// カスタムマッチャーを使った Ability
+// Ability using custom matchers
 const ability = createMongoAbility<[Actions, Subjects]>(
   [
     {
       action: 'update',
       subject: 'Article',
-      conditions: { createdAt: { $withinHours: 24 } }, // 作成24時間以内のみ編集可
+      conditions: { createdAt: { $withinHours: 24 } }, // Editable only within 24 hours of creation
     },
     {
       action: 'delete',
       subject: 'Comment',
-      conditions: { createdAt: { $today: true } }, // 今日作成したコメントのみ削除可
+      conditions: { createdAt: { $today: true } }, // Only delete comments created today
     },
   ],
   { conditionsMatcher: customConditionsMatcher }
@@ -375,21 +377,21 @@ const ability = createMongoAbility<[Actions, Subjects]>(
 
 ---
 
-## 3. API での権限チェック
+## 3. Permission Checks in the API
 
-### 3.1 Express ミドルウェアでの実装
+### 3.1 Implementation with Express Middleware
 
 ```typescript
-// CASL + Express ミドルウェア
+// CASL + Express middleware
 import { ForbiddenError, subject } from '@casl/ability';
 
-// 汎用権限チェックミドルウェア
+// General permission check middleware
 function authorize(action: Actions, subjectType: Subjects) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const ability = defineAbilityFor(req.user);
 
     try {
-      // サブジェクトタイプのみのチェック（条件なし）
+      // Check subject type only (no conditions)
       ForbiddenError.from(ability).throwUnlessCan(action, subjectType);
       next();
     } catch (error) {
@@ -405,7 +407,7 @@ function authorize(action: Actions, subjectType: Subjects) {
   };
 }
 
-// リソースベースの権限チェック（属性付き）
+// Resource-based permission check (with attributes)
 function authorizeResource<T>(
   action: Actions,
   subjectType: Subjects,
@@ -414,14 +416,14 @@ function authorizeResource<T>(
   return async (req: Request, res: Response, next: NextFunction) => {
     const ability = defineAbilityFor(req.user);
 
-    // リソースの取得
+    // Fetch the resource
     const resource = await getResource(req);
     if (!resource) {
       return res.status(404).json({ error: 'Resource not found' });
     }
 
     try {
-      // 属性ベースのチェック
+      // Attribute-based check
       ForbiddenError.from(ability).throwUnlessCan(
         action,
         subject(subjectType, resource as Record<string, unknown>)
@@ -440,7 +442,7 @@ function authorizeResource<T>(
   };
 }
 
-// 記事の更新API
+// Article update API
 app.put(
   '/api/articles/:id',
   authorizeResource('update', 'Article', async (req) =>
@@ -458,11 +460,11 @@ app.put(
   }
 );
 
-// 記事一覧API（ポリシーに基づくフィルタリング）
+// Article list API (filtering based on policy)
 app.get('/api/articles', async (req, res) => {
   const ability = defineAbilityFor(req.user);
 
-  // CASL のルールから Prisma の where 条件を構築
+  // Build Prisma where conditions from CASL rules
   const articles = await prisma.article.findMany({
     where: accessibleBy(ability, 'read').Article,
     orderBy: { createdAt: 'desc' },
@@ -472,7 +474,7 @@ app.get('/api/articles', async (req, res) => {
   res.json(articles);
 });
 
-// グローバルエラーハンドラー
+// Global error handler
 app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
   if (error instanceof ForbiddenError) {
     return res.status(403).json({
@@ -484,24 +486,24 @@ app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 });
 ```
 
-### 3.2 Prisma との統合（accessibleBy）
+### 3.2 Integration with Prisma (accessibleBy)
 
-CASL は Prisma と統合して、ポリシーに基づいたデータベースクエリのフィルタリングを自動生成できる。
+CASL can integrate with Prisma to automatically generate database query filters based on policies.
 
 ```typescript
 // npm install @casl/prisma
 import { accessibleBy } from '@casl/prisma';
 
-// CASL のルールから Prisma の where 条件を自動生成
+// Automatically generate Prisma where conditions from CASL rules
 async function getAccessibleArticles(user: User) {
   const ability = defineAbilityFor(user);
 
-  // ability の 'read' ルールから where 条件を自動構築
-  // editor の場合:
+  // Automatically builds where conditions from ability's 'read' rules
+  // For editor:
   //   can('read', 'Article')
-  //   → where: {} （制限なし）
+  //   → where: {} (no restrictions)
   //
-  // viewer の場合:
+  // For viewer:
   //   can('read', 'Article', { status: 'published' })
   //   → where: { status: 'published' }
   const articles = await prisma.article.findMany({
@@ -511,7 +513,7 @@ async function getAccessibleArticles(user: User) {
   return articles;
 }
 
-// 更新可能な記事のみ取得
+// Fetch only editable articles
 async function getEditableArticles(user: User) {
   const ability = defineAbilityFor(user);
 
@@ -524,11 +526,11 @@ async function getEditableArticles(user: User) {
   return articles;
 }
 
-// 安全な更新（権限チェック + データ取得を統合）
+// Safe update (integrates permission check + data retrieval)
 async function safeUpdateArticle(user: User, articleId: string, data: any) {
   const ability = defineAbilityFor(user);
 
-  // accessibleBy で権限のある記事のみを対象にする
+  // Use accessibleBy to target only articles the user has permission for
   const article = await prisma.article.findFirst({
     where: {
       id: articleId,
@@ -549,9 +551,9 @@ async function safeUpdateArticle(user: User, articleId: string, data: any) {
 
 ---
 
-## 4. フロントエンドでの権限制御
+## 4. Permission Control on the Frontend
 
-### 4.1 React + CASL の統合
+### 4.1 React + CASL Integration
 
 ```typescript
 // React + CASL
@@ -559,11 +561,11 @@ import { createContext, useContext, useMemo } from 'react';
 import { createContextualCan } from '@casl/react';
 import { createMongoAbility, MongoAbility } from '@casl/ability';
 
-// Ability コンテキスト
+// Ability context
 const AbilityContext = createContext<AppAbility>(undefined!);
 const Can = createContextualCan(AbilityContext.Consumer);
 
-// プロバイダー
+// Provider
 function AbilityProvider({ children }: { children: React.ReactNode }) {
   const { data: user } = useUser();
   const ability = useMemo(() => {
@@ -578,7 +580,7 @@ function AbilityProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Can コンポーネントで UI を条件表示
+// Conditionally render UI using the Can component
 function ArticleActions({ article }: { article: Article }) {
   return (
     <div className="flex gap-2">
@@ -598,25 +600,25 @@ function ArticleActions({ article }: { article: Article }) {
         <button className="text-green-500">Publish</button>
       </Can>
 
-      {/* not プロパティで否定条件 */}
+      {/* not prop for negated conditions */}
       <Can not I="update" this={subject('Article', article)}>
-        <span className="text-gray-400">編集権限なし</span>
+        <span className="text-gray-400">No edit permission</span>
       </Can>
     </div>
   );
 }
 
-// フック
+// Hook
 function useAbility() {
   return useContext(AbilityContext);
 }
 
-// useAbility フックを使った条件分岐
+// Conditional branching using the useAbility hook
 function ArticlePage({ article }: { article: Article }) {
   const ability = useAbility();
 
   if (ability.cannot('read', subject('Article', article))) {
-    return <div>この記事を閲覧する権限がありません</div>;
+    return <div>You do not have permission to view this article.</div>;
   }
 
   return (
@@ -630,23 +632,23 @@ function ArticlePage({ article }: { article: Article }) {
 }
 ```
 
-### 4.2 サーバーからのポリシー同期
+### 4.2 Syncing Policies from the Server
 
-フロントエンドとバックエンドでポリシーを一致させるためのアプローチ。
+An approach for keeping frontend and backend policies consistent.
 
 ```typescript
-// バックエンド: ポリシールールを API で公開
+// Backend: Expose policy rules via API
 // GET /api/auth/permissions
 app.get('/api/auth/permissions', async (req, res) => {
   const ability = defineAbilityFor(req.user);
 
-  // CASL のルールを JSON シリアライズ可能な形式で返す
+  // Return CASL rules in a JSON-serializable format
   res.json({
     rules: ability.rules,
   });
 });
 
-// フロントエンド: サーバーのルールで Ability を再構築
+// Frontend: Reconstruct Ability from server rules
 import { createMongoAbility } from '@casl/ability';
 import { unpackRules } from '@casl/ability/extra';
 
@@ -664,12 +666,12 @@ function useServerAbility() {
   return { ability, isLoading: !data && !error };
 }
 
-// Ability の更新を検知して再レンダリング
+// Detect Ability updates and trigger re-renders
 function useAbilityUpdate(ability: AppAbility) {
   const [, forceUpdate] = useState(0);
 
   useEffect(() => {
-    // ability.rules が変更されたら再レンダリング
+    // Re-render when ability.rules change
     const unsubscribe = ability.on('updated', () => {
       forceUpdate((n) => n + 1);
     });
@@ -679,92 +681,93 @@ function useAbilityUpdate(ability: AppAbility) {
 }
 ```
 
-### 4.3 フロントエンド権限制御の注意点
+### 4.3 Caveats for Frontend Permission Control
 
 ```
-フロントエンドでの権限制御の注意点:
+Important notes on frontend permission control:
 
   ┌────────────────────────────────────────────────┐
   │                                                │
-  │  重要: フロントエンドの権限制御は UX のため       │
-  │        セキュリティのためではない                  │
+  │  Important: Frontend permission control is     │
+  │             for UX purposes, NOT for security. │
   │                                                │
-  │  フロントエンド:                                 │
-  │    → ボタンの表示/非表示                         │
-  │    → メニュー項目のフィルタリング                  │
-  │    → 権限のないページへのリダイレクト               │
-  │    → DevTools で簡単に回避可能                    │
+  │  Frontend:                                     │
+  │    → Show/hide buttons                         │
+  │    → Filter menu items                         │
+  │    → Redirect to pages without permission      │
+  │    → Can easily be bypassed via DevTools       │
   │                                                │
-  │  バックエンド（必須）:                            │
-  │    → API レベルでの権限チェック                    │
-  │    → データベースクエリのフィルタリング              │
-  │    → 回避不可能なセキュリティ境界                   │
+  │  Backend (required):                           │
+  │    → Permission checks at the API level        │
+  │    → Database query filtering                  │
+  │    → Security boundary that cannot be bypassed │
   │                                                │
-  │  結論: 両方で同じポリシーを適用する                 │
-  │        CASL のルール共有が効果的                    │
+  │  Conclusion: Apply the same policy on both     │
+  │              sides — sharing CASL rules is     │
+  │              an effective approach.            │
   │                                                │
   └────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. ポリシーの設計パターン
+## 5. Policy Design Patterns
 
-### 5.1 基本パターン
+### 5.1 Basic Patterns
 
 ```
-ポリシー設計のパターン:
+Policy design patterns:
 
-  (1) リソースオーナーシップ:
-     → 作成者は自分のリソースを操作可能
+  (1) Resource ownership:
+     → The creator can operate on their own resources
      → can('update', 'Article', { authorId: user.id })
-     → 最も一般的なパターン
+     → The most common pattern
 
-  (2) 組織スコープ:
-     → 同じ組織内のリソースのみアクセス可能
+  (2) Organization scope:
+     → Access only resources within the same organization
      → can('read', 'Article', { orgId: user.orgId })
-     → マルチテナント SaaS の基本
+     → The foundation for multi-tenant SaaS
 
-  (3) ステータスベース:
-     → ステータスに応じた操作制限
+  (3) Status-based:
+     → Operation restrictions based on status
      → can('update', 'Article', { status: { $ne: 'archived' } })
-     → 公開済みは管理者のみ編集可能
+     → Only admins can edit published content
 
-  (4) 時間ベース:
-     → 特定時間帯のみ許可
-     → ポリシー定義時に現在時刻をチェック
-     → 環境属性として実装
+  (4) Time-based:
+     → Allow only during specific time periods
+     → Check current time when defining the policy
+     → Implemented as an environment attribute
 
-  (5) 承認フロー:
-     → 下書き → レビュー → 承認 → 公開
-     → 各ステージで操作可能なロールが異なる
-     → ステートマシンと組み合わせる
+  (5) Approval workflow:
+     → Draft → Review → Approved → Published
+     → Different roles can operate at each stage
+     → Combine with a state machine
 
-  (6) 階層的権限:
-     → 部門の長は部門配下の全リソースにアクセス可能
-     → 組織ツリーを辿って権限を解決
-     → ReBAC 的なアプローチが必要になることもある
+  (6) Hierarchical permissions:
+     → Department heads can access all resources under their department
+     → Resolve permissions by traversing the org tree
+     → May require a ReBAC-style approach
 
-  (7) 委任権限:
-     → 権限の一時的な委任（代理承認等）
-     → 有効期限付きの一時的な権限拡張
-     → 監査ログとの連携が重要
+  (7) Delegated permissions:
+     → Temporary delegation of permissions (e.g., proxy approvals)
+     → Temporary permission expansion with an expiry date
+     → Integration with audit logs is important
 
-  設計の原則:
-  → デフォルトは拒否（明示的に許可したもののみ）
-  → 最小権限の原則
-  → ポリシーをコードとして管理（バージョン管理可能）
-  → テスト可能（ポリシーのユニットテスト）
-  → 監査可能（誰が何にアクセスしたか記録）
+  Design principles:
+  → Default deny (allow only what is explicitly permitted)
+  → Principle of least privilege
+  → Manage policies as code (version-controllable)
+  → Testable (unit tests for policies)
+  → Auditable (record who accessed what)
 ```
 
-### 5.2 実践的な承認フローの実装
+### 5.2 Practical Approval Workflow Implementation
 
 ```typescript
-// 承認フローを ABAC で実装
+// Implementing an approval workflow with ABAC
 interface WorkflowStage {
   status: string;
-  allowedActions: Record<string, string[]>; // ロール → 許可アクション
+  allowedActions: Record<string, string[]>; // role → allowed actions
 }
 
 const articleWorkflow: WorkflowStage[] = [
@@ -802,20 +805,20 @@ const articleWorkflow: WorkflowStage[] = [
   },
 ];
 
-// ワークフロー対応の Ability 定義
+// Ability definition supporting workflows
 function defineWorkflowAbility(user: User, article: Article): AppAbility {
   const { can, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
 
   const stage = articleWorkflow.find((s) => s.status === article.status);
   if (!stage) return build();
 
-  // ロールに基づく権限
+  // Permissions based on role
   const roleActions = stage.allowedActions[user.role] || [];
   for (const action of roleActions) {
     can(action as Actions, 'Article', { id: article.id });
   }
 
-  // 作者の場合の追加権限
+  // Additional permissions for the author
   if (article.authorId === user.id) {
     const authorActions = stage.allowedActions['author'] || [];
     for (const action of authorActions) {
@@ -827,10 +830,10 @@ function defineWorkflowAbility(user: User, article: Article): AppAbility {
 }
 ```
 
-### 5.3 環境属性を使ったポリシー
+### 5.3 Policies Using Environment Attributes
 
 ```typescript
-// 環境情報を含むポリシー定義
+// Policy definition including environment information
 interface EnvironmentContext {
   time: Date;
   ipAddress: string;
@@ -846,10 +849,10 @@ function defineAbilityWithEnvironment(
 ): AppAbility {
   const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
 
-  // 基本的な読み取り権限
+  // Basic read permission
   can('read', 'Article', { orgId: user.orgId });
 
-  // 営業時間内のみデータエクスポートを許可
+  // Allow data export only during business hours
   const hour = env.time.getHours();
   const isBusinessHours = hour >= 9 && hour < 18;
   const isWeekday = env.time.getDay() >= 1 && env.time.getDay() <= 5;
@@ -858,18 +861,18 @@ function defineAbilityWithEnvironment(
     can('export', 'Article' as any, { orgId: user.orgId });
   }
 
-  // 社内ネットワークからのみ機密データへのアクセスを許可
+  // Allow access to confidential data only from the corporate network
   if (env.networkType === 'corporate' || env.networkType === 'vpn') {
     can('read', 'Article', { classification: 'confidential', orgId: user.orgId });
   }
 
-  // MFA 認証済みの場合のみ管理操作を許可
+  // Allow administrative operations only if MFA is verified
   if (env.isMfaVerified) {
     can('update', 'User', { orgId: user.orgId });
     can('delete', 'Article', { authorId: user.id });
   }
 
-  // 高リスクスコアの場合は機密操作を拒否
+  // Deny sensitive operations if the risk score is high
   if (env.riskScore > 70) {
     cannot('export', 'Article' as any);
     cannot('delete', 'Article');
@@ -879,7 +882,7 @@ function defineAbilityWithEnvironment(
   return build();
 }
 
-// 環境情報の取得
+// Retrieve environment information
 function getEnvironmentContext(req: Request): EnvironmentContext {
   return {
     time: new Date(),
@@ -894,12 +897,12 @@ function getEnvironmentContext(req: Request): EnvironmentContext {
 
 ---
 
-## 6. ポリシーのテスト
+## 6. Testing Policies
 
-### 6.1 ユニットテスト
+### 6.1 Unit Tests
 
 ```typescript
-// ポリシーのテスト
+// Policy tests
 import { describe, it, expect } from 'vitest';
 import { subject } from '@casl/ability';
 
@@ -1018,12 +1021,12 @@ describe('Super admin permissions', () => {
 });
 ```
 
-### 6.2 ポリシーマトリクステスト
+### 6.2 Policy Matrix Testing
 
-包括的なテストを行うためのマトリクスベースのアプローチ。
+A matrix-based approach for comprehensive testing.
 
 ```typescript
-// ポリシーマトリクステスト — 全ロール x 全アクション の組み合わせを検証
+// Policy matrix test — validates all role x action combinations
 describe('Permission matrix', () => {
   type PermissionMatrix = {
     [role: string]: {
@@ -1078,7 +1081,7 @@ describe('Permission matrix', () => {
               expect(ability.can(action as Actions, subjectType as Subjects)).toBe(false);
             });
           }
-          // 'conditional' は個別テストで検証
+          // 'conditional' is verified with individual tests
         }
       }
     });
@@ -1088,33 +1091,33 @@ describe('Permission matrix', () => {
 
 ---
 
-## 7. RBAC + ABAC ハイブリッド
+## 7. RBAC + ABAC Hybrid
 
-### 7.1 ハイブリッドアーキテクチャ
+### 7.1 Hybrid Architecture
 
 ```
-実践的なハイブリッドアプローチ:
+Practical hybrid approach:
 
-  第1層: RBAC（粗い制御）
-    → ロールで基本的なアクセス範囲を決定
+  Layer 1: RBAC (coarse-grained control)
+    → Role determines the basic scope of access
     → admin, editor, viewer
-    → ミドルウェアでチェック
-    → 「この API エンドポイントにアクセスできるか？」
+    → Checked in middleware
+    → "Can this user access this API endpoint?"
 
-  第2層: ABAC（細かい制御）
-    → リソースの属性で追加の制約
-    → 自分の記事のみ編集可能
-    → 同じ組織のデータのみ
-    → サービス層でチェック
-    → 「この特定のリソースを操作できるか？」
+  Layer 2: ABAC (fine-grained control)
+    → Additional constraints based on resource attributes
+    → Only edit your own articles
+    → Only data within the same organization
+    → Checked in the service layer
+    → "Can this user operate on this specific resource?"
 
-  第3層: ビジネスルール
-    → 時間帯制限、承認フロー
-    → APIレート制限、データ量制限
-    → ドメインロジック内でチェック
-    → 「この操作はビジネス上許可されているか？」
+  Layer 3: Business rules
+    → Time-of-day restrictions, approval workflows
+    → API rate limits, data volume limits
+    → Checked within domain logic
+    → "Is this operation permitted by business rules?"
 
-  リクエスト処理の流れ:
+  Request processing flow:
 
   ┌──────────────────────────────────────────────────┐
   │                                                  │
@@ -1122,28 +1125,28 @@ describe('Permission matrix', () => {
   │    │                                             │
   │    ▼                                             │
   │  ┌────────────────────┐                          │
-  │  │ 認証ミドルウェア      │ ← ユーザーの特定        │
+  │  │ Auth middleware     │ ← Identify the user     │
   │  └────────┬───────────┘                          │
   │           ▼                                      │
   │  ┌────────────────────┐                          │
-  │  │ RBAC チェック        │ ← ロールベースの制御     │
-  │  │ (ミドルウェア)       │    requireRole('editor') │
+  │  │ RBAC check         │ ← Role-based control     │
+  │  │ (middleware)        │    requireRole('editor') │
   │  └────────┬───────────┘                          │
   │           ▼                                      │
   │  ┌────────────────────┐                          │
-  │  │ リソース取得          │ ← DB からリソースを取得   │
-  │  └────────┬───────────┘                          │
+  │  │ Fetch resource     │ ← Retrieve resource from │
+  │  └────────┬───────────┘   DB                     │
   │           ▼                                      │
   │  ┌────────────────────┐                          │
-  │  │ ABAC チェック        │ ← 属性ベースの制御       │
-  │  │ (サービス層)         │    ability.can('update', │
+  │  │ ABAC check         │ ← Attribute-based control│
+  │  │ (service layer)    │    ability.can('update', │
   │  │                    │    subject('Article',    │
   │  │                    │    article))             │
   │  └────────┬───────────┘                          │
   │           ▼                                      │
   │  ┌────────────────────┐                          │
-  │  │ ビジネスルール       │ ← 業務ロジックの制約      │
-  │  │ (ドメイン層)         │                         │
+  │  │ Business rules     │ ← Business logic         │
+  │  │ (domain layer)     │   constraints            │
   │  └────────┬───────────┘                          │
   │           ▼                                      │
   │  Response                                        │
@@ -1151,12 +1154,12 @@ describe('Permission matrix', () => {
   └──────────────────────────────────────────────────┘
 ```
 
-### 7.2 ハイブリッド実装
+### 7.2 Hybrid Implementation
 
 ```typescript
-// ハイブリッドアクセス制御の完全な実装例
+// Complete example of hybrid access control
 
-// 第1層: RBAC ミドルウェア
+// Layer 1: RBAC middleware
 function requireRole(...allowedRoles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
@@ -1169,7 +1172,7 @@ function requireRole(...allowedRoles: string[]) {
   };
 }
 
-// 第2層: ABAC サービス
+// Layer 2: ABAC service
 class ArticleService {
   async update(user: User, articleId: string, data: UpdateArticleInput) {
     const ability = defineAbilityFor(user);
@@ -1177,13 +1180,13 @@ class ArticleService {
 
     if (!article) throw new NotFoundError('Article not found');
 
-    // ABAC チェック
+    // ABAC check
     ForbiddenError.from(ability).throwUnlessCan(
       'update',
       subject('Article', article)
     );
 
-    // 第3層: ビジネスルール
+    // Layer 3: Business rules
     if (article.status === 'published' && !user.permissions?.includes('edit_published')) {
       throw new BusinessRuleError('Published articles require special permission to edit');
     }
@@ -1192,13 +1195,13 @@ class ArticleService {
   }
 }
 
-// API ルート（3層を組み合わせ）
+// API route (combining all 3 layers)
 app.put(
   '/api/articles/:id',
-  requireRole('editor', 'admin', 'super_admin'),  // 第1層: RBAC
+  requireRole('editor', 'admin', 'super_admin'),  // Layer 1: RBAC
   async (req, res, next) => {
     try {
-      const result = await articleService.update(  // 第2層 + 第3層
+      const result = await articleService.update(  // Layer 2 + Layer 3
         req.user,
         req.params.id,
         req.body
@@ -1213,19 +1216,19 @@ app.put(
 
 ---
 
-## 8. 外部ポリシーエンジンとの比較
+## 8. Comparison of External Policy Engines
 
 ### 8.1 OPA (Open Policy Agent) / Rego
 
 ```
 OPA (Open Policy Agent):
 
-  概要: CNCF 卒業プロジェクトの汎用ポリシーエンジン
-  言語: Rego（独自のポリシー言語）
-  デプロイ: サイドカー、ライブラリ、REST API
-  用途: Kubernetes、API ゲートウェイ、マイクロサービス
+  Overview: General-purpose policy engine, a CNCF graduated project
+  Language: Rego (a proprietary policy language)
+  Deployment: Sidecar, library, REST API
+  Use cases: Kubernetes, API gateways, microservices
 
-  Rego ポリシー例:
+  Rego policy example:
 
     package authz
 
@@ -1254,12 +1257,12 @@ OPA (Open Policy Agent):
 ```
 Cedar (Amazon Verified Permissions):
 
-  概要: AWS が開発したポリシー言語・エンジン
-  言語: Cedar（型安全なポリシー言語）
-  特徴: 形式検証可能、高速な評価、SDK 提供
-  用途: AWS Verified Permissions、アプリケーション
+  Overview: Policy language and engine developed by AWS
+  Language: Cedar (a type-safe policy language)
+  Features: Formally verifiable, fast evaluation, SDK provided
+  Use cases: AWS Verified Permissions, applications
 
-  Cedar ポリシー例:
+  Cedar policy example:
 
     permit(
       principal in Group::"editors",
@@ -1281,128 +1284,128 @@ Cedar (Amazon Verified Permissions):
     };
 ```
 
-### 8.3 ポリシーエンジンの比較
+### 8.3 Policy Engine Comparison
 
 ```
-ポリシーエンジン比較表:
+Policy engine comparison table:
 
-  項目           │ CASL          │ OPA/Rego      │ Cedar         │ Casbin
-  ──────────────┼──────────────┼──────────────┼──────────────┼──────────────
-  言語           │ JavaScript/TS│ Rego（独自）   │ Cedar（独自） │ 設定ファイル
-  実行環境       │ ブラウザ/Node │ Go バイナリ   │ Rust バイナリ │ 多言語 SDK
-  学習コスト     │ 低            │ 中〜高        │ 中            │ 低〜中
-  型安全性       │ TypeScript    │ なし          │ あり          │ なし
-  フロント対応   │ ✓（React等）  │ ✗             │ ✗            │ ✗
-  DB 統合       │ ✓（Prisma等） │ ✗             │ ✗            │ 限定的
-  パフォーマンス │ 高速（同一    │ 高速（Go      │ 非常に高速   │ 高速
-               │ プロセス）     │ サイドカー）   │ （Rust）     │
-  形式検証       │ ✗             │ 限定的        │ ✓            │ ✗
-  ユースケース   │ Web アプリ    │ K8s/マイクロ  │ AWS 連携     │ 汎用
-               │               │ サービス      │              │
-  ライセンス     │ MIT           │ Apache 2.0   │ Apache 2.0   │ Apache 2.0
+  Item           │ CASL          │ OPA/Rego      │ Cedar         │ Casbin
+  ───────────────┼──────────────┼──────────────┼──────────────┼──────────────
+  Language       │ JavaScript/TS│ Rego (custom) │ Cedar (custom)│ Config files
+  Runtime        │ Browser/Node │ Go binary     │ Rust binary   │ Multi-lang SDK
+  Learning cost  │ Low          │ Medium–High   │ Medium        │ Low–Medium
+  Type safety    │ TypeScript   │ None          │ Yes           │ None
+  Frontend       │ ✓ (React etc)│ ✗             │ ✗            │ ✗
+  DB integration │ ✓ (Prisma)   │ ✗             │ ✗            │ Limited
+  Performance    │ Fast (same   │ Fast (Go      │ Very fast    │ Fast
+                 │ process)     │ sidecar)      │ (Rust)       │
+  Formal verify  │ ✗            │ Limited       │ ✓            │ ✗
+  Use case       │ Web apps     │ K8s/micro-    │ AWS           │ General
+                 │              │ services      │ integration   │
+  License        │ MIT          │ Apache 2.0   │ Apache 2.0   │ Apache 2.0
 
-  選定ガイド:
-    単一 Web アプリ → CASL（フロント共有可能）
-    マイクロサービス → OPA（サイドカーパターン）
-    AWS 環境 → Cedar（Verified Permissions）
-    多言語環境 → Casbin（SDK が豊富）
+  Selection guide:
+    Single web app    → CASL (sharable with frontend)
+    Microservices     → OPA (sidecar pattern)
+    AWS environment   → Cedar (Verified Permissions)
+    Multi-language    → Casbin (rich SDK ecosystem)
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### 9.1 よくある間違い
+### 9.1 Common Mistakes
 
 ```
-ABAC アンチパターン:
+ABAC anti-patterns:
 
-  (1) フロントエンドのみの権限制御
-     ✗ ボタンを非表示にしただけ
-     → API 直接叩けば操作可能
-     → 必ずバックエンドでも検証する
+  (1) Permission control on the frontend only
+     ✗ Simply hiding buttons
+     → Direct API calls can still perform operations
+     → Always validate on the backend as well
 
-     ✗ 悪い例:
-       // フロントでボタン非表示
+     ✗ Bad example:
+       // Hide button on frontend
        {user.role === 'admin' && <DeleteButton />}
-       // しかし API に権限チェックがない
+       // But no permission check in the API
        app.delete('/api/articles/:id', async (req, res) => {
          await prisma.article.delete({ where: { id: req.params.id } });
        });
 
-     ✓ 良い例:
-       // フロントでボタン非表示 + API でも権限チェック
+     ✓ Good example:
+       // Hide button on frontend + permission check in API
        app.delete('/api/articles/:id', async (req, res) => {
          const ability = defineAbilityFor(req.user);
          ForbiddenError.from(ability).throwUnlessCan('delete', ...);
          await prisma.article.delete({ where: { id: req.params.id } });
        });
 
-  (2) ハードコードされた権限チェック
-     ✗ 悪い例:
+  (2) Hardcoded permission checks
+     ✗ Bad example:
        if (user.role === 'admin' || user.role === 'editor') {
-         // 操作を許可
+         // Allow operation
        }
-     → ロールが増えるたびにコード修正が必要
-     → 散在するチェックで不整合が発生
+     → Code changes required every time a role is added
+     → Inconsistencies arise from scattered checks
 
-     ✓ 良い例:
+     ✓ Good example:
        if (ability.can('update', subject('Article', article))) {
-         // 操作を許可
+         // Allow operation
        }
-     → ポリシーを一箇所で管理
+     → Manage policies in one place
 
-  (3) 過度に複雑なポリシー
-     ✗ 100個以上の条件が絡み合うポリシー
-     → デバッグが困難
-     → パフォーマンスに影響
-     → ポリシーの階層化・モジュール化で対処
+  (3) Overly complex policies
+     ✗ Policies with more than 100 intertwined conditions
+     → Difficult to debug
+     → Impacts performance
+     → Address by layering and modularizing policies
 
-  (4) テスト不足
-     ✗ ポリシーのユニットテストがない
-     → 変更時に意図しない権限漏れが発生
-     → 必ずポリシーマトリクステストを書く
+  (4) Insufficient testing
+     ✗ No unit tests for policies
+     → Unintended permission leaks occur during changes
+     → Always write policy matrix tests
 
-  (5) 監査ログの欠如
-     ✗ 誰がいつ何にアクセスしたか記録されていない
-     → セキュリティインシデント時の調査が不可能
-     → アクセス制御の決定を必ずログに記録する
+  (5) Lack of audit logs
+     ✗ No record of who accessed what and when
+     → Investigation is impossible during security incidents
+     → Always log access control decisions
 ```
 
-### 9.2 パフォーマンスの落とし穴
+### 9.2 Performance Pitfalls
 
 ```
-パフォーマンス上の注意:
+Performance considerations:
 
-  (1) N+1 問題
-     ✗ リスト表示で各アイテムに個別に権限チェック
+  (1) N+1 problem
+     ✗ Checking permissions individually for each item in a list
        for (const article of articles) {
          if (ability.can('read', subject('Article', article))) { ... }
        }
-     → アイテム数に比例して処理時間が増加
+     → Processing time grows in proportion to the number of items
 
-     ✓ DB レベルでフィルタリング
+     ✓ Filter at the DB level
        const articles = await prisma.article.findMany({
          where: accessibleBy(ability, 'read').Article,
        });
 
-  (2) 属性取得のコスト
-     ✗ 毎回 DB から全属性を取得
-     → 必要な属性のみ select する
-     → キャッシュを活用する
+  (2) Cost of fetching attributes
+     ✗ Fetching all attributes from the DB every time
+     → Select only the required attributes
+     → Utilize caching
 
-  (3) ポリシー評価のキャッシュ
-     → 同じユーザー・同じリソースタイプの評価結果をキャッシュ
-     → TTL は短めに設定（権限変更の即時反映のため）
-     → ユーザーの権限変更時にキャッシュ無効化
+  (3) Caching policy evaluation results
+     → Cache evaluation results for the same user and resource type
+     → Set a short TTL (to ensure permission changes take effect quickly)
+     → Invalidate the cache when user permissions change
 ```
 
 ---
 
-## 10. 監査ログとコンプライアンス
+## 10. Audit Logs and Compliance
 
 ```typescript
-// ABAC アクセス制御の監査ログ
+// Audit log for ABAC access control
 interface AuditLogEntry {
   timestamp: Date;
   userId: string;
@@ -1422,14 +1425,14 @@ interface AuditLogEntry {
 
 class AuditLogger {
   async log(entry: AuditLogEntry) {
-    // 構造化ログとして出力
+    // Output as structured log
     console.log(JSON.stringify({
       level: entry.decision === 'deny' ? 'warn' : 'info',
       message: `ABAC ${entry.decision}: ${entry.userId} ${entry.action} ${entry.resourceType}/${entry.resourceId}`,
       ...entry,
     }));
 
-    // DB に永続化
+    // Persist to DB
     await prisma.auditLog.create({
       data: {
         timestamp: entry.timestamp,
@@ -1447,7 +1450,7 @@ class AuditLogger {
   }
 }
 
-// 監査付き権限チェック
+// Permission check with auditing
 async function authorizeWithAudit(
   user: User,
   action: Actions,
@@ -1480,134 +1483,134 @@ async function authorizeWithAudit(
 
 ---
 
-## 11. 演習問題
+## 11. Exercises
 
-### 演習 1: 基本的な ABAC ポリシー（基礎）
+### Exercise 1: Basic ABAC Policy (Foundational)
 
-以下の要件を CASL で実装せよ。
-
-```
-要件:
-- viewer: 公開済み記事のみ読める
-- editor: 全記事を読める、自分の記事を編集・削除できる
-- admin: 全記事を管理でき、同じ組織のユーザーを管理できる
-- 全ロール: 自分のコメントのみ編集・削除できる
-- アーカイブ済み記事は誰も編集できない
-
-テスト:
-- 各ロールで期待通りの権限があることを vitest で検証
-- 最低 10 テストケースを作成
-```
-
-### 演習 2: 承認ワークフロー（応用）
-
-以下の承認フローを ABAC で実装せよ。
+Implement the following requirements using CASL.
 
 ```
-要件:
-- 記事のステータス: draft → submitted → reviewed → approved → published
-- 各ステータスで操作可能なロールが異なる
-- 作者は draft のみ編集可能
-- レビュアーは submitted を approved/rejected にできる
-- 管理者はどのステータスでも操作可能
-- ステータス遷移は一方向のみ（戻しは reject で draft に戻す）
+Requirements:
+- viewer: can only read published articles
+- editor: can read all articles; can edit and delete their own articles
+- admin: can manage all articles; can manage users in the same organization
+- All roles: can only edit and delete their own comments
+- No one can edit archived articles
 
-実装:
-- ステートマシンと CASL を組み合わせる
-- API エンドポイント: POST /api/articles/:id/transition
-- テスト: 全ステータス x 全ロール の遷移マトリクスを検証
+Tests:
+- Verify with vitest that each role has the expected permissions
+- Create at least 10 test cases
 ```
 
-### 演習 3: マルチテナント ABAC（発展）
+### Exercise 2: Approval Workflow (Applied)
 
-マルチテナント SaaS における ABAC を設計・実装せよ。
+Implement the following approval flow using ABAC.
 
 ```
-要件:
-- 組織ごとに異なるポリシーを定義可能
-- カスタムロールの作成（組織管理者が定義）
-- リソースの組織スコープ（他組織のデータにアクセス不可）
-- 組織間コラボレーション（招待されたリソースのみアクセス可能）
-- ポリシーの監査ログ
+Requirements:
+- Article statuses: draft → submitted → reviewed → approved → published
+- Different roles can perform operations at each status
+- Authors can only edit drafts
+- Reviewers can approve or reject submitted articles
+- Admins can operate at any status
+- Status transitions are one-way only (rejection returns article to draft)
 
-設計:
-- ポリシーの保存方法（DB スキーマ）
-- カスタムロールの Ability への変換
-- パフォーマンス最適化（キャッシュ戦略）
+Implementation:
+- Combine a state machine with CASL
+- API endpoint: POST /api/articles/:id/transition
+- Tests: Verify the transition matrix for all statuses x all roles
+```
 
-実装:
-- Prisma + CASL で完全に動作するプロトタイプ
-- 組織管理画面のモックAPI
-- テスト: 組織間のデータ分離を検証
+### Exercise 3: Multi-Tenant ABAC (Advanced)
+
+Design and implement ABAC for a multi-tenant SaaS.
+
+```
+Requirements:
+- Each organization can define different policies
+- Custom role creation (defined by organization administrators)
+- Organization scope for resources (no access to data from other organizations)
+- Cross-organization collaboration (access only to invited resources)
+- Policy audit logs
+
+Design:
+- How to store policies (DB schema)
+- Converting custom roles to Ability
+- Performance optimization (caching strategy)
+
+Implementation:
+- Fully functional prototype using Prisma + CASL
+- Mock API for organization management UI
+- Tests: Verify data isolation between organizations
 ```
 
 ---
 
-## 12. FAQ・トラブルシューティング
+## 12. FAQ and Troubleshooting
 
-### Q1: CASL で「Cannot read properties of undefined」エラーが出る
+### Q1: Getting "Cannot read properties of undefined" error in CASL
 
-**原因**: `subject()` ヘルパーを使わずにオブジェクトを直接渡している場合に発生する。CASL はサブジェクトの種類を特定するために `__caslSubjectType__` プロパティを必要とする。
+**Cause**: This occurs when an object is passed directly without using the `subject()` helper. CASL requires the `__caslSubjectType__` property to identify the type of subject.
 
 ```typescript
-// ✗ エラーが出る
-ability.can('update', { authorId: 'user_1' }); // subject type が不明
+// ✗ Causes an error
+ability.can('update', { authorId: 'user_1' }); // subject type is unknown
 
-// ✓ 正しい方法
+// ✓ Correct approach
 import { subject } from '@casl/ability';
 ability.can('update', subject('Article', { authorId: 'user_1' }));
 ```
 
-### Q2: CASL のルールが期待通りに動かない
+### Q2: CASL rules are not working as expected
 
-**原因**: `cannot` は `can` より後に評価されるため、順序に注意。また、条件付きの `can` は条件なしの `can` を上書きしない。
+**Cause**: `cannot` is evaluated after `can`, so be mindful of order. Also, a conditional `can` does not override an unconditional `can`.
 
 ```typescript
-// ✗ 意図しない動作
-can('read', 'Article');                          // 全記事を読める
-can('read', 'Article', { status: 'published' }); // これは上のルールに追加されるだけ
+// ✗ Unintended behavior
+can('read', 'Article');                          // Can read all articles
+can('read', 'Article', { status: 'published' }); // This only adds to the rule above
 
-// ✓ 正しいアプローチ（deny-first）
-can('read', 'Article', { status: 'published' }); // まず限定的なルール
-// admin の場合のみ全記事
+// ✓ Correct approach (deny-first)
+can('read', 'Article', { status: 'published' }); // More restrictive rule first
+// Allow all articles for admin only
 if (user.role === 'admin') {
-  can('read', 'Article'); // 条件なしで全許可
+  can('read', 'Article'); // Unconditional allow
 }
 ```
 
-### Q3: パフォーマンスが悪い場合の対処法
+### Q3: How to address poor performance
 
 ```
-パフォーマンス改善のステップ:
+Steps to improve performance:
 
-  1. Ability のキャッシュ
-     → リクエストごとに再生成しない
-     → ユーザーごとに TTL 付きキャッシュ
+  1. Cache Ability instances
+     → Do not regenerate on every request
+     → Cache per user with a TTL
 
-  2. DB クエリの最適化
-     → accessibleBy で DB レベルフィルタリング
-     → 必要な属性のみ select
+  2. Optimize DB queries
+     → Use accessibleBy for DB-level filtering
+     → Select only the required attributes
 
-  3. ルール数の削減
-     → 冗長なルールを統合
-     → ワイルドカード（manage, all）を適切に使用
+  3. Reduce the number of rules
+     → Consolidate redundant rules
+     → Use wildcards (manage, all) appropriately
 
-  4. 条件の簡素化
-     → 複雑な $elemMatch は避ける
-     → 可能なら事前計算した属性を使用
+  4. Simplify conditions
+     → Avoid complex $elemMatch where possible
+     → Use precomputed attributes when feasible
 ```
 
-### Q4: CASL と Prisma の where 条件が一致しない
+### Q4: CASL conditions do not match Prisma where clauses
 
-**原因**: CASL の条件構文と Prisma のクエリ構文には一部互換性のない部分がある。`@casl/prisma` パッケージはこの変換を行うが、全ての MongoDB 演算子がサポートされているわけではない。
+**Cause**: There are some incompatibilities between CASL's condition syntax and Prisma's query syntax. The `@casl/prisma` package handles this conversion, but not all MongoDB operators are supported.
 
 ```typescript
-// サポートされている条件
+// Supported conditions
 can('read', 'Article', { status: 'published' });        // ✓
 can('read', 'Article', { status: { $ne: 'archived' } }); // ✓
 can('read', 'Article', { status: { $in: ['a', 'b'] } }); // ✓
 
-// サポートされていない可能性のある条件
+// Conditions that may not be supported
 can('read', 'Article', { tags: { $all: ['a', 'b'] } });  // △
 can('read', 'Article', { title: { $regex: /^test/ } });   // ✗
 ```
@@ -1617,41 +1620,41 @@ can('read', 'Article', { title: { $regex: /^test/ } });   // ✗
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping straight to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| ABAC | 属性（主体・リソース・操作・環境）ベースの制御 |
-| NIST アーキテクチャ | PEP, PDP, PAP, PIP の分離 |
-| CASL | JS/TS のポリシーライブラリ。条件付き権限定義 |
-| ハイブリッド | RBAC（基本）+ ABAC（細かい制御） |
-| フロント | Can コンポーネントで UI の条件表示（UX目的） |
-| バックエンド | API + DB レベルの権限チェック（セキュリティ目的） |
-| テスト | ポリシーマトリクステストで全ロール x 全アクションを検証 |
-| 監査 | アクセス制御の決定を監査ログに記録 |
-| ポリシーエンジン | CASL（Web）、OPA（K8s）、Cedar（AWS） |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architectural design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Item | Key Points |
+|------|-----------|
+| ABAC | Control based on attributes (subject, resource, action, environment) |
+| NIST Architecture | Separation of PEP, PDP, PAP, PIP |
+| CASL | JS/TS policy library with conditional permission definitions |
+| Hybrid | RBAC (basic) + ABAC (fine-grained control) |
+| Frontend | Conditional UI display with the Can component (for UX purposes) |
+| Backend | Permission checks at the API and DB level (for security purposes) |
+| Testing | Verify all roles x all actions with policy matrix tests |
+| Auditing | Record access control decisions in audit logs |
+| Policy engines | CASL (Web), OPA (K8s), Cedar (AWS) |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
+
+---
+
+## References
 1. NIST. "Guide to Attribute Based Access Control (ABAC) Definition and Considerations." SP 800-162, 2014.
 2. NIST. "Attribute-Based Access Control." SP 800-205, 2019.
 3. CASL. "Documentation." casl.js.org, 2024.
