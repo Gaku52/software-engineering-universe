@@ -1,131 +1,131 @@
-# セッションストア
+# Session Store
 
-> セッションデータの保存先はアプリケーションのスケーラビリティとパフォーマンスに直結する。メモリ、Redis、データベースの各セッションストアの特徴と選定基準、Redis を使ったスケーラブルなセッション管理、セッション ID の生成・検証・ローテーション、分散環境でのセッション共有戦略を網羅的に解説する。
+> The choice of session data storage is directly tied to application scalability and performance. This guide comprehensively covers the characteristics and selection criteria for memory, Redis, and database session stores; scalable session management using Redis; session ID generation, validation, and rotation; and session sharing strategies in distributed environments.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] セッションストアの種類と選定基準を理解する
-- [ ] Redis セッションストアの設計と実装を完全に把握する
-- [ ] データベースセッションストアのスキーマ設計と最適化を学ぶ
-- [ ] スケーリング戦略とセッションの永続化・レプリケーションを理解する
-- [ ] セッション ID の生成要件とセキュリティ強化手法を実践する
+- [ ] Understand the types of session stores and their selection criteria
+- [ ] Fully grasp the design and implementation of a Redis session store
+- [ ] Learn schema design and optimization for database session stores
+- [ ] Understand scaling strategies and session persistence/replication
+- [ ] Practice session ID generation requirements and security hardening techniques
 
-### 前提知識
+### Prerequisites
 
-- Node.js / TypeScript の非同期処理
-- Redis の基本操作（GET / SET / DEL / EXPIRE）
+- Asynchronous processing in Node.js / TypeScript
+- Basic Redis operations (GET / SET / DEL / EXPIRE)
 
 ---
 
-## 1. セッションストアの全体像
+## 1. Overview of Session Stores
 
-### 1.1 なぜセッションストアの選択が重要なのか
+### 1.1 Why Does the Choice of Session Store Matter?
 
 ```
-セッションストアの役割:
+Role of a session store:
 
-  ┌────────────┐      ┌────────────────┐      ┌────────────────┐
-  │  ブラウザ   │      │  Web サーバー   │      │ セッションストア │
-  │            │      │               │      │               │
-  │  Cookie:   │─────→│  Session ID   │─────→│  Session Data  │
-  │  sess_id   │      │  の検証        │      │  の取得/保存   │
-  │            │      │               │      │               │
-  └────────────┘      └────────────────┘      └────────────────┘
+  ┌────────────────┐      ┌────────────────┐      ┌────────────────┐
+  │    Browser     │      │   Web Server   │      │ Session Store  │
+  │                │      │               │      │               │
+  │  Cookie:       │─────→│  Session ID   │─────→│  Fetch/Save    │
+  │  sess_id       │      │  validation   │      │  Session Data  │
+  │                │      │               │      │               │
+  └────────────────┘      └────────────────┘      └────────────────┘
 
-  セッションストアに求められる要件:
+  Requirements for a session store:
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ① 高速なRead/Write（全リクエストで実行される）     │
-  │  ② スケーラビリティ（複数サーバーでの共有）          │
-  │  ③ 永続性（サーバー再起動に耐える）                 │
-  │  ④ TTL（有効期限の自動管理）                       │
-  │  ⑤ 同時アクセスの整合性（Race Condition 防止）      │
-  │  ⑥ セキュリティ（データの暗号化・アクセス制御）      │
+  │  ① Fast Read/Write (executed on every request)     │
+  │  ② Scalability (shared across multiple servers)    │
+  │  ③ Persistence (survives server restarts)          │
+  │  ④ TTL (automatic expiry management)               │
+  │  ⑤ Concurrent access consistency (prevent races)  │
+  │  ⑥ Security (data encryption and access control)  │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  選択を間違えるとどうなるか:
-    → メモリストアで本番運用 → サーバー再起動で全ユーザーログアウト
-    → DB ストアでハイトラフィック → レイテンシ増大・DB 過負荷
-    → ストア障害 → 全ユーザーがアクセス不能
+  What happens if you choose wrong:
+    → In-memory store in production → all users logged out on server restart
+    → DB store under high traffic → increased latency and DB overload
+    → Store failure → all users unable to access
 ```
 
-### 1.2 セッションストアの比較
+### 1.2 Comparison of Session Stores
 
 ```
-セッションストアの種類と詳細比較:
+Session store types and detailed comparison:
 
-  ┌───────────┬───────┬─────────┬───────┬──────────┬───────────────┐
-  │ ストア     │ 速度   │ スケール │ 永続化 │ TTL 管理  │ 用途          │
-  ├───────────┼───────┼─────────┼───────┼──────────┼───────────────┤
-  │ メモリ     │ ◎最速  │ ✗ 不可  │ ✗     │ 手動     │ 開発/単一サーバー│
-  │ Redis     │ ○ 高速 │ ✓ 可能  │ △     │ ✓ 自動   │ 本番推奨       │
-  │ PostgreSQL│ △ 中   │ ✓ 可能  │ ✓     │ 手動     │ 追加インフラ不要│
-  │ MySQL     │ △ 中   │ ✓ 可能  │ ✓     │ 手動     │ MySQL環境      │
-  │ MongoDB   │ △ 中   │ ✓ 可能  │ ✓     │ ✓ TTL idx│ MongoDB使用中  │
-  │ DynamoDB  │ ○ 高速 │ ✓ 自動  │ ✓     │ ✓ TTL   │ AWS環境        │
-  │ Memcached │ ◎ 高速 │ ✓ 可能  │ ✗     │ ✓ 自動   │ 純粋キャッシュ │
-  │ Cookie    │ ◎ 最速 │ ✓ 自動  │ ✓     │ ✓ Cookie │ JWT/小データ   │
-  └───────────┴───────┴─────────┴───────┴──────────┴───────────────┘
+  ┌───────────┬────────┬──────────┬────────┬──────────┬────────────────┐
+  │ Store     │ Speed  │ Scale    │ Persist│ TTL Mgmt │ Use Case       │
+  ├───────────┼────────┼──────────┼────────┼──────────┼────────────────┤
+  │ Memory    │ ◎ Best │ ✗ No     │ ✗      │ Manual   │ Dev/Single srv │
+  │ Redis     │ ○ Fast │ ✓ Yes    │ △      │ ✓ Auto   │ Production rec │
+  │ PostgreSQL│ △ Med  │ ✓ Yes    │ ✓      │ Manual   │ No extra infra │
+  │ MySQL     │ △ Med  │ ✓ Yes    │ ✓      │ Manual   │ MySQL envs     │
+  │ MongoDB   │ △ Med  │ ✓ Yes    │ ✓      │ ✓ TTL idx│ Using MongoDB  │
+  │ DynamoDB  │ ○ Fast │ ✓ Auto   │ ✓      │ ✓ TTL   │ AWS envs       │
+  │ Memcached │ ◎ Fast │ ✓ Yes    │ ✗      │ ✓ Auto   │ Pure cache     │
+  │ Cookie    │ ◎ Best │ ✓ Auto   │ ✓      │ ✓ Cookie │ JWT/small data │
+  └───────────┴────────┴──────────┴────────┴──────────┴────────────────┘
 
-  レイテンシ比較（参考値）:
+  Latency comparison (reference values):
   ┌───────────┬──────────────────┬───────────────────┐
-  │ ストア     │ Read（p50）       │ Read（p99）        │
+  │ Store     │ Read (p50)       │ Read (p99)         │
   ├───────────┼──────────────────┼───────────────────┤
-  │ メモリ     │ < 0.01 ms        │ < 0.1 ms          │
+  │ Memory    │ < 0.01 ms        │ < 0.1 ms          │
   │ Redis     │ 0.1 - 0.5 ms     │ 1 - 5 ms          │
   │ Memcached │ 0.1 - 0.5 ms     │ 1 - 3 ms          │
   │ DynamoDB  │ 1 - 5 ms         │ 10 - 25 ms        │
   │ PostgreSQL│ 1 - 10 ms        │ 20 - 50 ms        │
   │ MongoDB   │ 1 - 10 ms        │ 20 - 50 ms        │
-  │ Cookie    │ 0 ms (ネットワーク不要)│ 0 ms          │
+  │ Cookie    │ 0 ms (no network)│ 0 ms              │
   └───────────┴──────────────────┴───────────────────┘
 
-  ※ ネットワーク遅延、データサイズ、同時接続数により変動
+  ※ Varies by network latency, data size, and concurrent connections
 ```
 
-### 1.3 選定フローチャート
+### 1.3 Selection Flowchart
 
 ```
-セッションストア選定の意思決定:
+Decision process for selecting a session store:
 
-  開始
+  Start
   │
-  ├─ 開発環境？ ──Yes──→ メモリストア
+  ├─ Development environment? ──Yes──→ In-memory store
   │
-  ├─ サーバーレス（Vercel/Lambda）？
-  │   ├─ Yes → Cookie-based（JWT）or DynamoDB / Upstash Redis
+  ├─ Serverless (Vercel/Lambda)?
+  │   ├─ Yes → Cookie-based (JWT) or DynamoDB / Upstash Redis
   │   └─ No ↓
   │
-  ├─ 既に Redis を使用中？
-  │   ├─ Yes → Redis セッションストア（第一選択）
+  ├─ Already using Redis?
+  │   ├─ Yes → Redis session store (first choice)
   │   └─ No ↓
   │
-  ├─ 追加インフラを避けたい？
-  │   ├─ Yes → データベースセッションストア
+  ├─ Want to avoid additional infrastructure?
+  │   ├─ Yes → Database session store
   │   └─ No ↓
   │
-  ├─ 高トラフィック（1000+ req/sec）？
-  │   ├─ Yes → Redis（Sentinel/Cluster）
-  │   └─ No → データベースセッションストアでも可
+  ├─ High traffic (1000+ req/sec)?
+  │   ├─ Yes → Redis (Sentinel/Cluster)
+  │   └─ No → Database session store is also viable
   │
-  └─ AWS 環境？ → DynamoDB + DAX（キャッシュ）
+  └─ AWS environment? → DynamoDB + DAX (cache)
 
-  推奨:
-  → ほとんどのケースで Redis が最適解
-  → Redis を追加できない場合は DB セッション
-  → サーバーレスの場合は Upstash Redis or Cookie-based
+  Recommendation:
+  → Redis is the optimal choice in most cases
+  → If Redis cannot be added, use DB sessions
+  → For serverless, use Upstash Redis or Cookie-based
 ```
 
 ---
 
-## 2. メモリセッションストア
+## 2. In-Memory Session Store
 
-### 2.1 実装と注意点
+### 2.1 Implementation and Caveats
 
 ```typescript
-// メモリセッションストアの実装
-// 開発環境・プロトタイプ用。本番では使用しないこと。
+// In-memory session store implementation
+// For development environments and prototypes. Do NOT use in production.
 
 interface SessionData {
   userId: string;
@@ -141,7 +141,7 @@ class InMemorySessionStore {
   private cleanupInterval: ReturnType<typeof setInterval>;
 
   constructor(private cleanupIntervalMs: number = 60_000) {
-    // 定期クリーンアップ（メモリリーク防止）
+    // Periodic cleanup (prevent memory leaks)
     this.cleanupInterval = setInterval(() => {
       this.cleanup();
     }, cleanupIntervalMs);
@@ -151,7 +151,7 @@ class InMemorySessionStore {
     const expiresAt = Date.now() + ttlSeconds * 1000;
     this.sessions.set(sessionId, { data, expiresAt });
 
-    // ユーザー → セッションのマッピング
+    // User → session mapping
     if (!this.userSessions.has(data.userId)) {
       this.userSessions.set(data.userId, new Set());
     }
@@ -162,7 +162,7 @@ class InMemorySessionStore {
     const entry = this.sessions.get(sessionId);
     if (!entry) return null;
 
-    // 有効期限チェック
+    // Check expiry
     if (entry.expiresAt < Date.now()) {
       this.sessions.delete(sessionId);
       return null;
@@ -215,79 +215,79 @@ class InMemorySessionStore {
 ```
 
 ```
-メモリストアの制約:
+Limitations of the in-memory store:
 
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ✗ サーバー再起動で全セッション消失                  │
-  │  ✗ 複数サーバー間で共有不可                         │
-  │  ✗ メモリ使用量が増加し続ける可能性                  │
-  │  ✗ Node.js プロセスのヒープサイズに制限される        │
+  │  ✗ All sessions lost on server restart             │
+  │  ✗ Cannot be shared across multiple servers        │
+  │  ✗ Memory usage can grow indefinitely              │
+  │  ✗ Limited by the Node.js process heap size        │
   │                                                    │
-  │  1 セッション ≈ 1KB とした場合:                     │
-  │  → 10,000 セッション ≈ 10 MB                       │
-  │  → 100,000 セッション ≈ 100 MB                     │
-  │  → 1,000,000 セッション ≈ 1 GB                     │
+  │  Assuming 1 session ≈ 1KB:                         │
+  │  → 10,000 sessions ≈ 10 MB                         │
+  │  → 100,000 sessions ≈ 100 MB                       │
+  │  → 1,000,000 sessions ≈ 1 GB                       │
   │                                                    │
-  │  Node.js デフォルトヒープ: ~1.5 GB                  │
-  │  → 100万セッションでメモリ不足の危険                │
+  │  Node.js default heap: ~1.5 GB                     │
+  │  → Risk of out-of-memory at 1 million sessions     │
   │                                                    │
   └────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Redis セッションストア
+## 3. Redis Session Store
 
-### 3.1 なぜ Redis が最適なのか
+### 3.1 Why Redis Is the Optimal Choice
 
 ```
-Redis がセッションストアに最適な理由:
+Why Redis is ideal for a session store:
 
-  ① インメモリ + 永続化:
-     → データはメモリ上で処理（高速）
-     → RDB / AOF で永続化可能（再起動に耐える）
+  ① In-memory + persistence:
+     → Data is processed in memory (fast)
+     → Can be persisted with RDB / AOF (survives restarts)
 
-  ② TTL の自動管理:
-     → SETEX / EXPIRE コマンドで自動削除
-     → クリーンアップバッチが不要
+  ② Automatic TTL management:
+     → Auto-deletion via SETEX / EXPIRE commands
+     → No cleanup batch jobs needed
 
-  ③ 豊富なデータ構造:
-     → String: セッションデータ（JSON）
-     → Set: ユーザーの全セッション ID
-     → Hash: セッション内のフィールド操作
-     → Sorted Set: セッション一覧（最終アクセス順）
+  ③ Rich data structures:
+     → String: session data (JSON)
+     → Set: all session IDs for a user
+     → Hash: field-level operations within a session
+     → Sorted Set: session list (ordered by last access)
 
-  ④ アトミック操作:
-     → MULTI/EXEC: トランザクション
-     → Lua スクリプト: 複合操作のアトミック実行
-     → Race Condition を防止
+  ④ Atomic operations:
+     → MULTI/EXEC: transactions
+     → Lua scripts: atomic execution of compound operations
+     → Prevents race conditions
 
-  ⑤ スケーリング:
-     → Sentinel: 高可用性（自動フェイルオーバー）
-     → Cluster: 水平スケーリング（シャーディング）
-     → Pub/Sub: セッション無効化の通知
+  ⑤ Scaling:
+     → Sentinel: high availability (automatic failover)
+     → Cluster: horizontal scaling (sharding)
+     → Pub/Sub: notifications for session invalidation
 
-  Redis のセッション関連コマンド:
+  Redis commands related to sessions:
   ┌──────────────┬─────────────────────────────────────┐
-  │ コマンド      │ 用途                                │
+  │ Command      │ Purpose                             │
   ├──────────────┼─────────────────────────────────────┤
-  │ SETEX        │ セッション保存 + TTL 設定             │
-  │ GET          │ セッション取得                        │
-  │ DEL          │ セッション削除                        │
-  │ EXPIRE       │ TTL 更新（Sliding Expiration）       │
-  │ TTL          │ 残り有効期限の確認                    │
-  │ SADD/SMEMBERS│ ユーザーのセッション Set 操作          │
-  │ SREM         │ Set からセッション ID 削除            │
-  │ PIPELINE     │ 複数コマンドの一括実行                │
-  │ SCAN         │ キーの安全な列挙（KEYS の代替）       │
+  │ SETEX        │ Save session + set TTL              │
+  │ GET          │ Retrieve session                    │
+  │ DEL          │ Delete session                      │
+  │ EXPIRE       │ Update TTL (Sliding Expiration)     │
+  │ TTL          │ Check remaining expiry time         │
+  │ SADD/SMEMBERS│ Set operations for user sessions    │
+  │ SREM         │ Remove session ID from Set          │
+  │ PIPELINE     │ Batch execution of multiple commands│
+  │ SCAN         │ Safe key enumeration (alt to KEYS)  │
   └──────────────┴─────────────────────────────────────┘
 ```
 
-### 3.2 Redis セッションストアの完全実装
+### 3.2 Complete Redis Session Store Implementation
 
 ```typescript
-// Redis セッションストアの完全実装
+// Complete Redis session store implementation
 import Redis from 'ioredis';
 import { randomBytes, createHash } from 'crypto';
 
@@ -304,7 +304,7 @@ interface SessionData {
 interface SessionEntry {
   id: string;
   data: SessionData;
-  ttl: number;  // 残り秒数
+  ttl: number;  // remaining seconds
 }
 
 class RedisSessionStore {
@@ -319,14 +319,14 @@ class RedisSessionStore {
     defaultTtl?: number;
   }) {
     this.redis = new Redis(options.redisUrl, {
-      // 接続の堅牢性
+      // Connection robustness
       retryStrategy: (times) => {
-        if (times > 10) return null; // 10回超で諦める
-        return Math.min(times * 100, 3000); // 最大3秒待機
+        if (times > 10) return null; // give up after 10 attempts
+        return Math.min(times * 100, 3000); // wait up to 3 seconds
       },
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
-      // パフォーマンス
+      // Performance
       lazyConnect: true,
       keepAlive: 10000,
       connectTimeout: 5000,
@@ -334,9 +334,9 @@ class RedisSessionStore {
 
     this.prefix = options.prefix ?? 'sess:';
     this.userPrefix = `${this.prefix}user:`;
-    this.defaultTtl = options.defaultTtl ?? 86400; // 24時間
+    this.defaultTtl = options.defaultTtl ?? 86400; // 24 hours
 
-    // エラーハンドリング
+    // Error handling
     this.redis.on('error', (err) => {
       console.error('[SessionStore] Redis error:', err);
     });
@@ -346,7 +346,7 @@ class RedisSessionStore {
     });
   }
 
-  // セッション保存
+  // Save session
   async set(
     sessionId: string,
     data: SessionData,
@@ -356,19 +356,19 @@ class RedisSessionStore {
     const userKey = this.userPrefix + data.userId;
     const serialized = JSON.stringify(data);
 
-    // Pipeline で複数操作をアトミックに実行
+    // Execute multiple operations atomically via Pipeline
     const pipeline = this.redis.pipeline();
 
-    // セッションデータを保存（TTL 付き）
+    // Save session data (with TTL)
     pipeline.setex(key, ttl, serialized);
 
-    // ユーザー → セッション ID のマッピング（Set）
+    // User → session ID mapping (Set)
     pipeline.sadd(userKey, sessionId);
     pipeline.expire(userKey, ttl);
 
     const results = await pipeline.exec();
 
-    // エラーチェック
+    // Error check
     if (results) {
       for (const [err] of results) {
         if (err) throw err;
@@ -376,7 +376,7 @@ class RedisSessionStore {
     }
   }
 
-  // セッション取得
+  // Retrieve session
   async get(sessionId: string): Promise<SessionData | null> {
     const key = this.prefix + sessionId;
     const data = await this.redis.get(key);
@@ -386,20 +386,20 @@ class RedisSessionStore {
     try {
       return JSON.parse(data) as SessionData;
     } catch {
-      // 不正なデータの場合は削除
+      // Delete if data is malformed
       await this.redis.del(key);
       return null;
     }
   }
 
-  // セッション取得 + TTL 延長（Sliding Expiration）
+  // Retrieve session + extend TTL (Sliding Expiration)
   async getAndRefresh(
     sessionId: string,
     ttl: number = this.defaultTtl
   ): Promise<SessionData | null> {
     const key = this.prefix + sessionId;
 
-    // Lua スクリプトでアトミックに取得 + TTL 更新
+    // Atomically retrieve + update TTL using a Lua script
     const luaScript = `
       local data = redis.call('GET', KEYS[1])
       if data then
@@ -420,7 +420,7 @@ class RedisSessionStore {
 
     try {
       const session = JSON.parse(data) as SessionData;
-      // lastAccessedAt を更新
+      // Update lastAccessedAt
       session.lastAccessedAt = Date.now();
       await this.redis.setex(key, ttl, JSON.stringify(session));
       return session;
@@ -429,7 +429,7 @@ class RedisSessionStore {
     }
   }
 
-  // セッション削除（ログアウト）
+  // Delete session (logout)
   async delete(sessionId: string): Promise<void> {
     const key = this.prefix + sessionId;
     const data = await this.get(sessionId);
@@ -438,21 +438,21 @@ class RedisSessionStore {
     pipeline.del(key);
 
     if (data) {
-      // ユーザーの Session Set からも削除
+      // Also remove from user's session Set
       pipeline.srem(this.userPrefix + data.userId, sessionId);
     }
 
     await pipeline.exec();
   }
 
-  // ユーザーの全セッション取得（アクティブセッション一覧）
+  // Get all sessions for a user (active session list)
   async findByUserId(userId: string): Promise<SessionEntry[]> {
     const userKey = this.userPrefix + userId;
     const sessionIds = await this.redis.smembers(userKey);
 
     if (sessionIds.length === 0) return [];
 
-    // Pipeline で一括取得（N+1 問題を防止）
+    // Batch fetch via Pipeline (avoid N+1 problem)
     const pipeline = this.redis.pipeline();
     for (const id of sessionIds) {
       pipeline.get(this.prefix + id);
@@ -470,7 +470,7 @@ class RedisSessionStore {
       const [ttlErr, ttl] = results[i * 2 + 1];
 
       if (getErr || ttlErr || !data || (ttl as number) <= 0) {
-        // 期限切れまたはエラー
+        // Expired or error
         expiredIds.push(sessionIds[i]);
         continue;
       }
@@ -486,7 +486,7 @@ class RedisSessionStore {
       }
     }
 
-    // 期限切れセッション ID を Set から削除
+    // Remove expired session IDs from Set
     if (expiredIds.length > 0) {
       const cleanPipeline = this.redis.pipeline();
       for (const id of expiredIds) {
@@ -498,7 +498,7 @@ class RedisSessionStore {
     return sessions;
   }
 
-  // ユーザーの全セッション削除（パスワード変更時、全デバイスログアウト）
+  // Delete all sessions for a user (on password change, logout all devices)
   async deleteAllForUser(userId: string): Promise<number> {
     const userKey = this.userPrefix + userId;
     const sessionIds = await this.redis.smembers(userKey);
@@ -515,7 +515,7 @@ class RedisSessionStore {
     return sessionIds.length;
   }
 
-  // 特定セッション以外を全削除（他のデバイスをログアウト）
+  // Delete all sessions except the current one (logout other devices)
   async deleteOthersForUser(
     userId: string,
     currentSessionId: string
@@ -536,7 +536,7 @@ class RedisSessionStore {
     return toDelete.length;
   }
 
-  // セッション数の取得（SCAN ベース、本番安全）
+  // Get session count (SCAN-based, safe for production)
   async count(): Promise<number> {
     let count = 0;
     let cursor = '0';
@@ -550,14 +550,14 @@ class RedisSessionStore {
         100
       );
       cursor = nextCursor;
-      // user: プレフィックスを除外
+      // Exclude user: prefix
       count += keys.filter((k) => !k.startsWith(this.userPrefix)).length;
     } while (cursor !== '0');
 
     return count;
   }
 
-  // 接続の正常性確認
+  // Check connection health
   async healthCheck(): Promise<boolean> {
     try {
       const result = await this.redis.ping();
@@ -567,125 +567,125 @@ class RedisSessionStore {
     }
   }
 
-  // クリーンシャットダウン
+  // Clean shutdown
   async close(): Promise<void> {
     await this.redis.quit();
   }
 }
 ```
 
-### 3.3 Redis 接続オプションの詳細
+### 3.3 Redis Connection Options in Detail
 
 ```typescript
-// ioredis 接続設定の詳細解説
+// Detailed explanation of ioredis connection settings
 import Redis, { RedisOptions } from 'ioredis';
 
-// 開発環境
+// Development environment
 const devOptions: RedisOptions = {
   host: 'localhost',
   port: 6379,
-  db: 0, // セッション用 DB
+  db: 0, // DB for sessions
 };
 
-// 本番環境（シングルノード）
+// Production environment (single node)
 const prodOptions: RedisOptions = {
   host: process.env.REDIS_HOST!,
   port: Number(process.env.REDIS_PORT) || 6379,
   password: process.env.REDIS_PASSWORD,
 
-  // TLS 設定（Redis 6+）
+  // TLS settings (Redis 6+)
   tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
 
-  // 接続プール
-  lazyConnect: true,     // 明示的に connect() するまで待機
-  keepAlive: 10000,      // TCP KeepAlive（ミリ秒）
-  connectTimeout: 5000,  // 接続タイムアウト
+  // Connection pool
+  lazyConnect: true,     // wait until explicit connect() call
+  keepAlive: 10000,      // TCP KeepAlive (milliseconds)
+  connectTimeout: 5000,  // connection timeout
 
-  // コマンドリトライ
+  // Command retry
   maxRetriesPerRequest: 3,
   retryStrategy: (times) => {
-    if (times > 20) return null; // 諦める
+    if (times > 20) return null; // give up
     return Math.min(times * 200, 5000);
   },
 
-  // 再接続
+  // Reconnect
   reconnectOnError: (err) => {
     const targetErrors = ['READONLY', 'ECONNREFUSED'];
     return targetErrors.some((e) => err.message.includes(e));
   },
 };
 
-// Upstash Redis（サーバーレス向け）
+// Upstash Redis (for serverless)
 import { Redis as UpstashRedis } from '@upstash/redis';
 
 const upstashRedis = new UpstashRedis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
-// 注意: Upstash は HTTP ベースなので ioredis の Pipeline/Lua は使えない
-// → @upstash/redis 固有の API を使用
+// Note: Upstash is HTTP-based, so ioredis Pipeline/Lua cannot be used
+// → Use the @upstash/redis-specific API instead
 
-// Elasticache（AWS）
+// Elasticache (AWS)
 const elasticacheOptions: RedisOptions = {
   host: process.env.ELASTICACHE_ENDPOINT!,
   port: 6379,
   tls: {},
-  // Elasticache はパスワード不要の場合あり（VPC 内アクセス）
+  // Elasticache may not require a password (VPC internal access)
 };
 ```
 
-### 3.4 Sliding Expiration と Absolute Expiration
+### 3.4 Sliding Expiration vs. Absolute Expiration
 
 ```
-セッション有効期限の 2 つの方式:
+Two approaches to session expiry:
 
-  ① Sliding Expiration（スライディング有効期限）:
+  ① Sliding Expiration:
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  アクセスするたびに有効期限がリセットされる           │
+  │  Expiry resets on every access                     │
   │                                                    │
-  │  時間 ──────────────────────────────────────→       │
-  │  ├──────┤ アクセス                                  │
-  │         ├──────┤ アクセス                            │
-  │                ├──────┤ アクセス                     │
-  │                       ├──────┤ 期限切れ              │
+  │  Time ──────────────────────────────────────→      │
+  │  ├──────┤ access                                   │
+  │         ├──────┤ access                            │
+  │                ├──────┤ access                     │
+  │                       ├──────┤ expired             │
   │                                                    │
-  │  利点: アクティブユーザーはログアウトされない         │
-  │  欠点: 永遠にセッションが延長される可能性            │
+  │  Advantage: Active users are not logged out        │
+  │  Disadvantage: Session may extend indefinitely     │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  ② Absolute Expiration（絶対有効期限）:
+  ② Absolute Expiration:
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  作成時刻から固定時間で期限切れ                      │
+  │  Expires at a fixed time from creation             │
   │                                                    │
-  │  時間 ──────────────────────────────────────→       │
-  │  ├─────────────────────────────┤ 期限切れ（固定）   │
-  │  ├──┤ アクセス                                     │
-  │      ├──┤ アクセス（延長されない）                   │
-  │          ├──┤ アクセス                              │
+  │  Time ──────────────────────────────────────→      │
+  │  ├─────────────────────────────┤ expired (fixed)  │
+  │  ├──┤ access                                       │
+  │      ├──┤ access (not extended)                    │
+  │          ├──┤ access                               │
   │                                                    │
-  │  利点: セッション乗っ取りの影響を時間的に制限        │
-  │  欠点: アクティブでも強制ログアウト                  │
+  │  Advantage: Limits the time window of hijacking    │
+  │  Disadvantage: Forced logout even when active      │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  ③ 推奨: ハイブリッド方式
+  ③ Recommended: Hybrid approach
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  Sliding: 30 分（非アクティブでログアウト）          │
-  │  Absolute: 24 時間（最大セッション寿命）             │
-  │  → 両方の制限のうち早い方で期限切れ                 │
+  │  Sliding: 30 minutes (logout on inactivity)        │
+  │  Absolute: 24 hours (maximum session lifetime)     │
+  │  → Expire at whichever limit comes first           │
   │                                                    │
   └────────────────────────────────────────────────────┘
 ```
 
 ```typescript
-// ハイブリッド有効期限の実装
+// Hybrid expiration implementation
 class HybridExpirationSessionStore extends RedisSessionStore {
-  private readonly slidingTtl: number;   // 非アクティブ期限（秒）
-  private readonly absoluteTtl: number;  // 最大セッション寿命（秒）
+  private readonly slidingTtl: number;   // inactivity timeout (seconds)
+  private readonly absoluteTtl: number;  // maximum session lifetime (seconds)
 
   constructor(options: {
     redisUrl: string;
@@ -693,28 +693,28 @@ class HybridExpirationSessionStore extends RedisSessionStore {
     absoluteTtl?: number;
   }) {
     super({ redisUrl: options.redisUrl });
-    this.slidingTtl = options.slidingTtl ?? 1800;    // 30分
-    this.absoluteTtl = options.absoluteTtl ?? 86400;  // 24時間
+    this.slidingTtl = options.slidingTtl ?? 1800;    // 30 minutes
+    this.absoluteTtl = options.absoluteTtl ?? 86400;  // 24 hours
   }
 
   async getWithHybridExpiration(sessionId: string): Promise<SessionData | null> {
     const data = await this.get(sessionId);
     if (!data) return null;
 
-    // Absolute Expiration チェック
+    // Absolute Expiration check
     const sessionAge = Date.now() - data.createdAt;
     if (sessionAge > this.absoluteTtl * 1000) {
       await this.delete(sessionId);
       return null;
     }
 
-    // Sliding Expiration: 残り時間を計算
+    // Sliding Expiration: calculate remaining time
     const remainingAbsolute = Math.ceil(
       (this.absoluteTtl * 1000 - sessionAge) / 1000
     );
     const ttl = Math.min(this.slidingTtl, remainingAbsolute);
 
-    // TTL を更新
+    // Update TTL
     await this.set(sessionId, {
       ...data,
       lastAccessedAt: Date.now(),
@@ -727,48 +727,48 @@ class HybridExpirationSessionStore extends RedisSessionStore {
 
 ---
 
-## 4. データベースセッションストア
+## 4. Database Session Store
 
-### 4.1 Prisma スキーマ設計
+### 4.1 Prisma Schema Design
 
 ```prisma
-// schema.prisma - セッションテーブルの最適設計
+// schema.prisma - Optimal session table design
 
 model Session {
   id            String   @id @default(cuid())
   sessionToken  String   @unique @map("session_token")
   userId        String   @map("user_id")
-  data          Json?    // セッション追加データ
+  data          Json?    // Additional session data
   expiresAt     DateTime @map("expires_at")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  // セッションのメタデータ
+  // Session metadata
   ipAddress     String?  @map("ip_address")
   userAgent     String?  @map("user_agent")
   deviceName    String?  @map("device_name")
   lastAccessedAt DateTime? @map("last_accessed_at")
 
-  // リレーション
+  // Relations
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // インデックス
-  @@index([userId])                    // ユーザーのセッション検索
-  @@index([expiresAt])                 // 期限切れクリーンアップ
-  @@index([userId, expiresAt])         // ユーザーのアクティブセッション
+  // Indexes
+  @@index([userId])                    // search sessions by user
+  @@index([expiresAt])                 // speed up expiry cleanup
+  @@index([userId, expiresAt])         // find active sessions for a user
   @@map("sessions")
 }
 
-// インデックスの重要性:
-// ① userId: ユーザーの全セッション取得（O(1) → O(n)を防止）
-// ② expiresAt: クリーンアップバッチの WHERE 句を高速化
-// ③ 複合インデックス: 特定ユーザーの有効セッション検索
+// Importance of indexes:
+// ① userId: fetch all sessions for a user (prevent O(n) scan)
+// ② expiresAt: speed up WHERE clause in cleanup batch
+// ③ composite index: search valid sessions for a specific user
 ```
 
-### 4.2 データベースセッションストアの完全実装
+### 4.2 Complete Database Session Store Implementation
 
 ```typescript
-// Prisma を使ったデータベースセッションストアの完全実装
+// Complete database session store implementation using Prisma
 
 import { PrismaClient, Prisma } from '@prisma/client';
 
@@ -779,7 +779,7 @@ const prisma = new PrismaClient({
 });
 
 class DatabaseSessionStore {
-  // セッション保存（Upsert: 存在すれば更新、なければ作成）
+  // Save session (Upsert: update if exists, create if not)
   async set(
     sessionId: string,
     data: SessionData,
@@ -806,12 +806,12 @@ class DatabaseSessionStore {
     });
   }
 
-  // セッション取得（有効期限チェック付き）
+  // Retrieve session (with expiry check)
   async get(sessionId: string): Promise<SessionData | null> {
     const session = await prisma.session.findFirst({
       where: {
         sessionToken: sessionId,
-        expiresAt: { gt: new Date() },  // 有効期限内のみ
+        expiresAt: { gt: new Date() },  // only within expiry
       },
     });
 
@@ -820,12 +820,12 @@ class DatabaseSessionStore {
     return session.data as unknown as SessionData;
   }
 
-  // セッション取得 + Sliding Expiration
+  // Retrieve session + Sliding Expiration
   async getAndRefresh(
     sessionId: string,
     ttl: number
   ): Promise<SessionData | null> {
-    // トランザクションで取得と更新をアトミックに
+    // Atomically fetch and update in a transaction
     const session = await prisma.$transaction(async (tx) => {
       const found = await tx.session.findFirst({
         where: {
@@ -836,7 +836,7 @@ class DatabaseSessionStore {
 
       if (!found) return null;
 
-      // 有効期限を延長
+      // Extend expiry
       await tx.session.update({
         where: { id: found.id },
         data: {
@@ -852,14 +852,14 @@ class DatabaseSessionStore {
     return session.data as unknown as SessionData;
   }
 
-  // セッション削除
+  // Delete session
   async delete(sessionId: string): Promise<void> {
     await prisma.session.deleteMany({
       where: { sessionToken: sessionId },
     });
   }
 
-  // ユーザーの全セッション取得
+  // Get all sessions for a user
   async findByUserId(userId: string): Promise<Array<{
     id: string;
     sessionToken: string;
@@ -888,7 +888,7 @@ class DatabaseSessionStore {
     }));
   }
 
-  // ユーザーの全セッション削除
+  // Delete all sessions for a user
   async deleteAllForUser(userId: string): Promise<number> {
     const result = await prisma.session.deleteMany({
       where: { userId },
@@ -896,11 +896,11 @@ class DatabaseSessionStore {
     return result.count;
   }
 
-  // 期限切れセッションのクリーンアップ（バッチ削除）
+  // Cleanup expired sessions (batch delete)
   async cleanup(batchSize: number = 1000): Promise<number> {
     let totalDeleted = 0;
 
-    // 大量削除はバッチで行う（テーブルロック防止）
+    // Delete in batches to prevent table locks
     while (true) {
       const result = await prisma.$executeRaw`
         DELETE FROM sessions
@@ -910,24 +910,24 @@ class DatabaseSessionStore {
 
       totalDeleted += result;
 
-      // 削除対象がバッチサイズ未満なら完了
+      // Done when fewer than batchSize rows are deleted
       if (result < batchSize) break;
 
-      // 短い待機を入れて他のクエリに CPU を譲る
+      // Yield CPU to other queries with a brief pause
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     return totalDeleted;
   }
 
-  // アクティブセッション数
+  // Count active sessions
   async count(): Promise<number> {
     return prisma.session.count({
       where: { expiresAt: { gt: new Date() } },
     });
   }
 
-  // ユーザーのアクティブセッション数
+  // Count active sessions for a user
   async countByUser(userId: string): Promise<number> {
     return prisma.session.count({
       where: {
@@ -939,17 +939,17 @@ class DatabaseSessionStore {
 }
 ```
 
-### 4.3 定期クリーンアップの実装
+### 4.3 Periodic Cleanup Implementation
 
 ```typescript
-// cron ジョブによる期限切れセッションのクリーンアップ
+// Cleanup of expired sessions via cron job
 
-// ① Node.js の cron ライブラリを使用する場合
+// ① Using a Node.js cron library
 import { CronJob } from 'cron';
 
 const store = new DatabaseSessionStore();
 
-// 毎時 0 分に実行
+// Run at minute 0 of every hour
 const cleanupJob = new CronJob('0 * * * *', async () => {
   const startTime = Date.now();
 
@@ -961,7 +961,7 @@ const cleanupJob = new CronJob('0 * * * *', async () => {
       `[Session Cleanup] Deleted ${deletedCount} expired sessions in ${elapsed}ms`
     );
 
-    // メトリクスの記録（Prometheus 等）
+    // Record metrics (Prometheus, etc.)
     sessionCleanupCounter.inc(deletedCount);
     sessionCleanupDuration.observe(elapsed / 1000);
   } catch (error) {
@@ -971,15 +971,15 @@ const cleanupJob = new CronJob('0 * * * *', async () => {
 
 cleanupJob.start();
 
-// ② PostgreSQL のネイティブ機能を使用する場合
-// pg_cron 拡張を使用（Supabase、RDS 等で利用可能）
+// ② Using native PostgreSQL features
+// Use the pg_cron extension (available on Supabase, RDS, etc.)
 // SELECT cron.schedule(
 //   'cleanup_expired_sessions',
 //   '0 * * * *',
 //   $$DELETE FROM sessions WHERE expires_at < NOW()$$
 // );
 
-// ③ Vercel Cron Jobs を使用する場合
+// ③ Using Vercel Cron Jobs
 // vercel.json:
 // {
 //   "crons": [{
@@ -992,7 +992,7 @@ cleanupJob.start();
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  // Vercel Cron の認証ヘッダー確認
+  // Verify Vercel Cron authorization header
   const authHeader = request.headers.get('Authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new NextResponse('Unauthorized', { status: 401 });
@@ -1007,16 +1007,16 @@ export async function GET(request: NextRequest) {
 
 ---
 
-## 5. スケーリング戦略
+## 5. Scaling Strategies
 
-### 5.1 Redis を使ったスケーリング
+### 5.1 Scaling with Redis
 
 ```
-セッションとスケーリングの全体図:
+Overview of sessions and scaling:
 
   ┌─────────────────────────────────────────────────────┐
   │                Load Balancer                        │
-  │          (ラウンドロビン / Least Connections)         │
+  │          (Round Robin / Least Connections)          │
   └───────────┬───────────┬───────────┬────────────────┘
               │           │           │
   ┌───────────┴┐ ┌────────┴──┐ ┌─────┴──────┐
@@ -1031,31 +1031,31 @@ export async function GET(request: NextRequest) {
     ┌────┴────┐          ┌────┴────┐
     │ Redis   │          │ Redis   │
     │ Primary │──────────│ Replica │
-    │ (Write) │  複製    │ (Read)  │
+    │ (Write) │  replicate│ (Read) │
     └────┬────┘          └─────────┘
          │
     ┌────┴────┐
     │ Redis   │
-    │ Sentinel│  監視 + 自動フェイルオーバー
+    │ Sentinel│  monitor + automatic failover
     └─────────┘
 
-  スケーリング戦略の比較:
+  Comparison of scaling strategies:
 
   ┌──────────────────┬──────────────┬──────────────┬──────────────┐
-  │ 方式              │ 可用性       │ 複雑度       │ 推奨規模     │
+  │ Approach         │ Availability │ Complexity   │ Scale        │
   ├──────────────────┼──────────────┼──────────────┼──────────────┤
-  │ 単一 Redis        │ 低           │ 低           │ 小規模       │
-  │ Redis Sentinel   │ 高           │ 中           │ 中〜大規模   │
-  │ Redis Cluster    │ 高           │ 高           │ 大規模       │
-  │ Upstash Redis    │ 高           │ 低           │ サーバーレス │
-  │ Elasticache      │ 高           │ 低（AWS）    │ AWS 環境     │
+  │ Single Redis     │ Low          │ Low          │ Small        │
+  │ Redis Sentinel   │ High         │ Medium       │ Medium-Large │
+  │ Redis Cluster    │ High         │ High         │ Large        │
+  │ Upstash Redis    │ High         │ Low          │ Serverless   │
+  │ Elasticache      │ High         │ Low (AWS)    │ AWS envs     │
   └──────────────────┴──────────────┴──────────────┴──────────────┘
 ```
 
-### 5.2 Redis Sentinel 構成（高可用性）
+### 5.2 Redis Sentinel Configuration (High Availability)
 
 ```typescript
-// Redis Sentinel 構成
+// Redis Sentinel configuration
 import Redis from 'ioredis';
 
 const redis = new Redis({
@@ -1064,21 +1064,21 @@ const redis = new Redis({
     { host: 'sentinel-2.internal', port: 26379 },
     { host: 'sentinel-3.internal', port: 26379 },
   ],
-  name: 'mymaster',  // マスター名
+  name: 'mymaster',  // master name
   sentinelPassword: process.env.REDIS_SENTINEL_PASSWORD,
   password: process.env.REDIS_PASSWORD,
 
-  // フェイルオーバー時の挙動
+  // Behavior during failover
   sentinelRetryStrategy: (times) => {
     return Math.min(times * 100, 3000);
   },
 
-  // Read Replica からの読み取り
-  role: 'master',  // 書き込みはマスターのみ
-  // preferredSlaves を設定すると読み取りをレプリカに分散可能
+  // Reading from Read Replica
+  role: 'master',  // writes go to master only
+  // configure preferredSlaves to distribute reads to replicas
 });
 
-// フェイルオーバーイベントの監視
+// Monitor failover events
 redis.on('reconnecting', () => {
   console.log('[Redis] Reconnecting...');
 });
@@ -1088,10 +1088,10 @@ redis.on('+failover-end', () => {
 });
 ```
 
-### 5.3 Redis Cluster 構成（水平スケーリング）
+### 5.3 Redis Cluster Configuration (Horizontal Scaling)
 
 ```typescript
-// Redis Cluster 構成
+// Redis Cluster configuration
 import Redis from 'ioredis';
 
 const cluster = new Redis.Cluster(
@@ -1101,7 +1101,7 @@ const cluster = new Redis.Cluster(
     { host: 'cluster-3.internal', port: 6379 },
   ],
   {
-    // クラスター固有オプション
+    // Cluster-specific options
     clusterRetryStrategy: (times) => {
       return Math.min(times * 100, 3000);
     },
@@ -1109,23 +1109,23 @@ const cluster = new Redis.Cluster(
       password: process.env.REDIS_PASSWORD,
       tls: {},
     },
-    // 読み取りの分散
-    scaleReads: 'slave', // レプリカから読み取り
-    // scaleReads: 'all'   // 全ノードから読み取り
+    // Distribute reads
+    scaleReads: 'slave', // read from replicas
+    // scaleReads: 'all'   // read from all nodes
   }
 );
 
-// Cluster 使用時の注意点:
-// ① KEYS コマンドは使用不可 → SCAN を使用
-// ② Pipeline のキーは同じスロットに属する必要がある
-//    → {user:123}:session のようにハッシュタグを使用
-// ③ Lua スクリプトのキーも同一スロット制約あり
-// ④ MULTI/EXEC も同一スロット制約あり
+// Notes when using Cluster:
+// ① KEYS command is unavailable → use SCAN
+// ② Pipeline keys must belong to the same slot
+//    → use hash tags like {user:123}:session
+// ③ Lua script keys are also subject to the same-slot constraint
+// ④ MULTI/EXEC also has same-slot constraint
 
-// ハッシュタグを使ったキー設計（同一スロットに配置）
+// Key design using hash tags (place in the same slot)
 class ClusterAwareSessionStore {
   private prefix(userId: string): string {
-    // {userId} でハッシュタグを使い、同一ユーザーのキーを同じスロットに
+    // Use hash tag {userId} to keep all keys for the same user in one slot
     return `{sess:${userId}}:`;
   }
 
@@ -1133,7 +1133,7 @@ class ClusterAwareSessionStore {
     const key = `${this.prefix(data.userId)}${sessionId}`;
     const userKey = `${this.prefix(data.userId)}sessions`;
 
-    // 同一ハッシュタグなので Pipeline 使用可能
+    // Pipeline is allowed because of the same hash tag
     const pipeline = cluster.pipeline();
     pipeline.setex(key, ttl, JSON.stringify(data));
     pipeline.sadd(userKey, sessionId);
@@ -1143,11 +1143,11 @@ class ClusterAwareSessionStore {
 }
 ```
 
-### 5.4 Upstash Redis（サーバーレス向け）
+### 5.4 Upstash Redis (For Serverless)
 
 ```typescript
-// Upstash Redis を使ったセッションストア
-// サーバーレス環境（Vercel、Cloudflare Workers）に最適
+// Session store using Upstash Redis
+// Ideal for serverless environments (Vercel, Cloudflare Workers)
 
 import { Redis } from '@upstash/redis';
 
@@ -1162,7 +1162,7 @@ class UpstashSessionStore {
   async set(sessionId: string, data: SessionData, ttl: number): Promise<void> {
     const key = this.prefix + sessionId;
 
-    // Upstash は HTTP ベースなので Pipeline の書き方が異なる
+    // Upstash is HTTP-based, so Pipeline syntax differs slightly
     const pipeline = redis.pipeline();
     pipeline.setex(key, ttl, JSON.stringify(data));
     pipeline.sadd(`user:${data.userId}:sessions`, sessionId);
@@ -1192,69 +1192,70 @@ class UpstashSessionStore {
   }
 }
 
-// 注意: Upstash の制約
-// → 各コマンドが HTTP リクエスト
-// → Pipeline で複数コマンドをバッチ化可能
-// → Lua スクリプトも利用可能（制限あり）
-// → Free tier: 10,000 コマンド/日
-// → Pro: 従量課金（$0.2 / 100,000 コマンド）
+// Notes: Upstash limitations
+// → Each command is an HTTP request
+// → Multiple commands can be batched with Pipeline
+// → Lua scripts are also available (with limitations)
+// → Free tier: 10,000 commands/day
+// → Pro: pay-as-you-go ($0.2 / 100,000 commands)
 ```
 
 ---
 
-## 6. セッション ID の生成とセキュリティ
+## 6. Session ID Generation and Security
 
-### 6.1 セッション ID の要件
+### 6.1 Session ID Requirements
 
 ```
-セッション ID のセキュリティ要件（OWASP 準拠）:
+Session ID security requirements (OWASP-compliant):
 
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ① 十分な長さ:                                     │
-  │     → 最低 128 ビット（推奨 256 ビット）             │
-  │     → Base64 エンコードで 32〜43 文字                │
+  │  ① Sufficient length:                              │
+  │     → Minimum 128 bits (256 bits recommended)      │
+  │     → 32–43 characters in Base64 encoding          │
   │                                                    │
-  │  ② 暗号学的にランダム:                              │
-  │     → crypto.randomBytes() を使用                  │
-  │     → Math.random() は不可（予測可能）              │
-  │     → UUID v4 は十分（122 ビットのランダム性）       │
+  │  ② Cryptographically random:                       │
+  │     → Use crypto.randomBytes()                     │
+  │     → Math.random() is not acceptable (predictable)│
+  │     → UUID v4 is sufficient (122 bits of randomness)│
   │                                                    │
-  │  ③ 予測不可能:                                      │
-  │     → シーケンシャルな ID は不可                    │
-  │     → タイムスタンプベースは不可                    │
-  │     → 前のセッション ID から次を推測不可            │
+  │  ③ Unpredictable:                                  │
+  │     → Sequential IDs are not acceptable            │
+  │     → Timestamp-based IDs are not acceptable       │
+  │     → Cannot infer the next ID from previous ones  │
   │                                                    │
-  │  ④ 衝突耐性:                                       │
-  │     → 256 ビットで衝突確率は天文学的に低い          │
-  │     → 2^128 個のセッションで 50% の衝突確率         │
+  │  ④ Collision resistance:                           │
+  │     → At 256 bits, collision probability is        │
+  │        astronomically low                          │
+  │     → 50% collision probability at 2^128 sessions  │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  ブルートフォース試行に必要な時間（参考）:
-  ┌──────────┬──────────────────┬────────────────────┐
-  │ ビット数  │ パターン数        │ 100万回/秒での試行  │
-  ├──────────┼──────────────────┼────────────────────┤
-  │ 64 ビット │ 1.8 × 10^19     │ ≈ 585,000 年       │
-  │ 128 ビット│ 3.4 × 10^38     │ ≈ 10^25 年         │
-  │ 256 ビット│ 1.2 × 10^77     │ ≈ 10^64 年         │
-  └──────────┴──────────────────┴────────────────────┘
+  Time required for brute-force attempts (reference):
+  ┌──────────┬──────────────────┬────────────────────────┐
+  │ Bits     │ Possible values  │ At 1M attempts/sec      │
+  ├──────────┼──────────────────┼────────────────────────┤
+  │ 64-bit   │ 1.8 × 10^19      │ ≈ 585,000 years        │
+  │ 128-bit  │ 3.4 × 10^38      │ ≈ 10^25 years          │
+  │ 256-bit  │ 1.2 × 10^77      │ ≈ 10^64 years          │
+  └──────────┴──────────────────┴────────────────────────┘
 ```
 
-### 6.2 セッション ID 生成の実装
+### 6.2 Session ID Generation Implementation
 
 ```typescript
-// セッション ID の安全な生成
+// Secure session ID generation
 import { randomBytes, createHash, createHmac } from 'crypto';
 
-// 方法 1: ランダムバイト（最もシンプル）
+// Method 1: Random bytes (simplest)
 function generateSessionId(): string {
   return randomBytes(32).toString('base64url');
-  // 結果例: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2"
-  // 256 ビットのランダム性
+  // Example result: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2"
+  // 256 bits of randomness
 }
 
-// 方法 2: HMAC 付き（改ざん検知）
+// Method 2: With HMAC (tamper detection)
 function generateSignedSessionId(secret: string): string {
   const id = randomBytes(32).toString('hex');
   const signature = createHmac('sha256', secret)
@@ -1275,13 +1276,13 @@ function verifySignedSessionId(
     .update(id)
     .digest('base64url');
 
-  // タイミング攻撃防止のため、定数時間比較を使用
+  // Use constant-time comparison to prevent timing attacks
   const expected = Buffer.from(expectedSignature);
   const actual = Buffer.from(signature);
 
   if (expected.length !== actual.length) return null;
 
-  // crypto.timingSafeEqual は同じ長さの Buffer を要求
+  // crypto.timingSafeEqual requires Buffers of the same length
   if (!require('crypto').timingSafeEqual(expected, actual)) {
     return null;
   }
@@ -1289,66 +1290,66 @@ function verifySignedSessionId(
   return id;
 }
 
-// 方法 3: cuid2（衝突耐性 + ソート可能）
+// Method 3: cuid2 (collision-resistant + sortable)
 import { createId } from '@paralleldrive/cuid2';
 
 function generateCuid2SessionId(): string {
-  // cuid2 は暗号学的にランダムだが、ソート可能
+  // cuid2 is cryptographically random but also sortable
   return createId();
-  // 結果例: "clh3am8w000003b5y0h8xk8q9"
+  // Example result: "clh3am8w000003b5y0h8xk8q9"
 }
 ```
 
-### 6.3 セッション固定化攻撃の防止
+### 6.3 Preventing Session Fixation Attacks
 
 ```
-セッション固定化攻撃（Session Fixation）:
+Session Fixation Attack:
 
-  攻撃手順:
+  Attack steps:
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ① 攻撃者がサーバーから有効なセッション ID を取得    │
-  │  ② 攻撃者がこの ID を被害者のブラウザにセット       │
-  │     （URL パラメータ、Cookie 操作等）               │
-  │  ③ 被害者がこの ID でログイン                      │
-  │  ④ 攻撃者が同じ ID でアクセス → 認証済みセッション  │
+  │  ① Attacker obtains a valid session ID from server │
+  │  ② Attacker sets this ID in the victim's browser   │
+  │     (via URL parameter, Cookie manipulation, etc.) │
+  │  ③ Victim logs in with this ID                     │
+  │  ④ Attacker accesses with same ID → authenticated  │
   │                                                    │
   └────────────────────────────────────────────────────┘
 
-  防止策: ログイン成功時にセッション ID を再生成
+  Prevention: regenerate the session ID on successful login
 
   ┌────────────────────────────────────────────────────┐
   │                                                    │
-  │  ログイン前: sessionId = "abc123"                   │
-  │  ↓ 認証成功                                        │
-  │  ログイン後: sessionId = "xyz789"（新しい ID）      │
+  │  Before login: sessionId = "abc123"                │
+  │  ↓ Authentication succeeds                         │
+  │  After login:  sessionId = "xyz789" (new ID)       │
   │                                                    │
-  │  → 攻撃者が知っている "abc123" は無効になる         │
+  │  → The "abc123" known to the attacker is now invalid│
   │                                                    │
   └────────────────────────────────────────────────────┘
 ```
 
 ```typescript
-// セッション ID ローテーションの実装
+// Session ID rotation implementation
 async function rotateSession(
   store: RedisSessionStore,
   oldSessionId: string,
   response: Response
 ): Promise<string> {
-  // 古いセッションデータを取得
+  // Retrieve old session data
   const data = await store.get(oldSessionId);
   if (!data) throw new Error('Session not found');
 
-  // 新しいセッション ID を生成
+  // Generate a new session ID
   const newSessionId = generateSessionId();
 
-  // 新しい ID でセッションを保存
+  // Save session under the new ID
   await store.set(newSessionId, data, 86400);
 
-  // 古いセッションを削除
+  // Delete the old session
   await store.delete(oldSessionId);
 
-  // Cookie を更新
+  // Update the Cookie
   response.headers.set('Set-Cookie', [
     `session_id=${newSessionId}`,
     'Path=/',
@@ -1361,7 +1362,7 @@ async function rotateSession(
   return newSessionId;
 }
 
-// ログイン処理内で使用
+// Used within the login handler
 async function handleLogin(
   credentials: { email: string; password: string },
   request: Request,
@@ -1370,13 +1371,13 @@ async function handleLogin(
   const user = await authenticateUser(credentials);
   if (!user) throw new Error('Invalid credentials');
 
-  // 既存セッションがある場合はローテーション
+  // If an existing session is present, delete it
   const existingSessionId = getSessionIdFromCookie(request);
   if (existingSessionId) {
     await store.delete(existingSessionId);
   }
 
-  // 新しいセッションを作成
+  // Create a new session
   const newSessionId = generateSessionId();
   await store.set(newSessionId, {
     userId: user.id,
@@ -1388,7 +1389,7 @@ async function handleLogin(
     metadata: {},
   }, 86400);
 
-  // Cookie にセット
+  // Set the Cookie
   response.headers.set('Set-Cookie', [
     `session_id=${newSessionId}`,
     'Path=/',
@@ -1402,12 +1403,12 @@ async function handleLogin(
 
 ---
 
-## 7. セッションの監視と運用
+## 7. Session Monitoring and Operations
 
-### 7.1 アクティブセッション管理 UI
+### 7.1 Active Session Management UI
 
 ```typescript
-// app/settings/sessions/page.tsx - セッション管理画面
+// app/settings/sessions/page.tsx - Session management screen
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 
@@ -1424,9 +1425,9 @@ export default async function SessionsPage() {
 
   return (
     <div>
-      <h1>アクティブセッション</h1>
+      <h1>Active Sessions</h1>
       <p className="text-gray-500">
-        お使いのアカウントでログインしているデバイスの一覧です。
+        A list of devices currently logged into your account.
       </p>
 
       <div className="space-y-4 mt-6">
@@ -1442,16 +1443,16 @@ export default async function SessionsPage() {
                     {ua.browser} on {ua.os}
                     {isCurrent && (
                       <span className="ml-2 text-green-600 text-sm">
-                        (このデバイス)
+                        (This device)
                       </span>
                     )}
                   </p>
                   <p className="text-sm text-gray-500">
-                    IP: {s.data.ip} ・
-                    最終アクセス: {formatRelativeTime(s.data.lastAccessedAt)}
+                    IP: {s.data.ip} ·
+                    Last accessed: {formatRelativeTime(s.data.lastAccessedAt)}
                   </p>
                   <p className="text-xs text-gray-400">
-                    セッション開始: {formatDate(s.data.createdAt)}
+                    Session started: {formatDate(s.data.createdAt)}
                   </p>
                 </div>
                 {!isCurrent && (
@@ -1473,22 +1474,22 @@ export default async function SessionsPage() {
 }
 ```
 
-### 7.2 セッションメトリクスの収集
+### 7.2 Collecting Session Metrics
 
 ```typescript
-// Prometheus 互換のメトリクス収集
+// Prometheus-compatible metrics collection
 import { Registry, Counter, Gauge, Histogram } from 'prom-client';
 
 const registry = new Registry();
 
-// セッション数（ゲージ）
+// Active session count (gauge)
 const activeSessionsGauge = new Gauge({
   name: 'session_active_total',
   help: 'Total number of active sessions',
   registers: [registry],
 });
 
-// セッション操作のカウンター
+// Session operation counter
 const sessionOperationCounter = new Counter({
   name: 'session_operations_total',
   help: 'Total number of session operations',
@@ -1496,7 +1497,7 @@ const sessionOperationCounter = new Counter({
   registers: [registry],
 });
 
-// セッション操作のレイテンシ
+// Session operation latency
 const sessionOperationDuration = new Histogram({
   name: 'session_operation_duration_seconds',
   help: 'Session operation duration in seconds',
@@ -1505,7 +1506,7 @@ const sessionOperationDuration = new Histogram({
   registers: [registry],
 });
 
-// インストルメンテーション付きストア
+// Instrumented store wrapper
 class InstrumentedSessionStore {
   constructor(private inner: RedisSessionStore) {}
 
@@ -1541,7 +1542,7 @@ class InstrumentedSessionStore {
     }
   }
 
-  // 定期的にアクティブセッション数を更新
+  // Periodically update the active session count
   async updateMetrics(): Promise<void> {
     const count = await this.inner.count();
     activeSessionsGauge.set(count);
@@ -1551,12 +1552,12 @@ class InstrumentedSessionStore {
 
 ---
 
-## 8. セッションのセキュリティ強化
+## 8. Session Security Hardening
 
-### 8.1 追加の検証レイヤー
+### 8.1 Additional Validation Layers
 
 ```typescript
-// セッション検証ミドルウェア
+// Session validation middleware
 async function validateSession(
   sessionId: string,
   request: Request,
@@ -1571,34 +1572,34 @@ async function validateSession(
 
   const warnings: string[] = [];
 
-  // ① IP アドレス変更の検知
+  // ① Detect IP address changes
   const currentIp = getClientIp(request);
   if (data.ip !== currentIp) {
     warnings.push(`IP changed: ${data.ip} → ${currentIp}`);
-    // モバイルネットワークでは頻繁に変わるため、
-    // 警告のみで遮断しない
+    // Mobile networks change IPs frequently,
+    // so warn but do not block
   }
 
-  // ② User-Agent 変更の検知
+  // ② Detect User-Agent changes
   const currentUa = request.headers.get('user-agent') || '';
   if (data.userAgent !== currentUa) {
     warnings.push('User-Agent changed');
-    // User-Agent の変更はセッション乗っ取りの可能性
-    // ただし UA は偽装が容易なので補助的な指標
+    // A UA change may indicate session hijacking
+    // However, UA is easy to spoof, so treat as a secondary signal
   }
 
-  // ③ Absolute Expiration チェック
-  const maxSessionAge = 24 * 60 * 60 * 1000; // 24 時間
+  // ③ Absolute Expiration check
+  const maxSessionAge = 24 * 60 * 60 * 1000; // 24 hours
   if (Date.now() - data.createdAt > maxSessionAge) {
     await store.delete(sessionId);
     return { valid: false };
   }
 
-  // ④ 同時セッション数の制限
+  // ④ Limit concurrent sessions per user
   const maxSessionsPerUser = 5;
   const userSessions = await store.findByUserId(data.userId);
   if (userSessions.length > maxSessionsPerUser) {
-    // 最も古いセッションを削除
+    // Delete the oldest sessions
     const sorted = userSessions.sort(
       (a, b) => a.data.lastAccessedAt - b.data.lastAccessedAt
     );
@@ -1616,10 +1617,10 @@ async function validateSession(
 }
 ```
 
-### 8.2 セッションデータの暗号化
+### 8.2 Encrypting Session Data
 
 ```typescript
-// セッションデータの暗号化（Redis に保存するデータを暗号化）
+// Encrypt session data (encrypt data before storing in Redis)
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
 
 const ENCRYPTION_KEY = scryptSync(
@@ -1655,13 +1656,13 @@ function decryptSessionData(encrypted: string): SessionData {
   return JSON.parse(decrypted);
 }
 
-// 暗号化対応のセッションストア
+// Encryption-aware session store
 class EncryptedSessionStore {
   constructor(private inner: RedisSessionStore) {}
 
   async set(sessionId: string, data: SessionData, ttl: number): Promise<void> {
     const encrypted = encryptSessionData(data);
-    // Redis には暗号化された文字列として保存
+    // Store encrypted string in Redis
     await this.inner.setRaw(sessionId, encrypted, ttl);
   }
 
@@ -1672,7 +1673,7 @@ class EncryptedSessionStore {
     try {
       return decryptSessionData(encrypted);
     } catch {
-      // 復号失敗（鍵の変更等）→ セッション無効
+      // Decryption failure (e.g., key rotation) → invalidate session
       await this.inner.delete(sessionId);
       return null;
     }
@@ -1682,29 +1683,29 @@ class EncryptedSessionStore {
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### 9.1 メモリストアを本番環境で使用
+### 9.1 Using an In-Memory Store in Production
 
 ```typescript
-// ✗ 危険: メモリストアで本番運用
-// サーバー再起動で全ユーザーがログアウトされる
+// ✗ Dangerous: using in-memory store in production
+// All users will be logged out on server restart
 const sessions = new Map<string, SessionData>();
 
-// ✓ 正しい: Redis または DB ストアを使用
+// ✓ Correct: use Redis or DB store
 const store = new RedisSessionStore({
   redisUrl: process.env.REDIS_URL!,
 });
 ```
 
-### 9.2 KEYS コマンドを使用
+### 9.2 Using the KEYS Command
 
 ```typescript
-// ✗ 危険: KEYS * は本番で使用してはいけない
-// → O(N) でブロッキング、全キーをスキャンする
+// ✗ Dangerous: KEYS * must not be used in production
+// → O(N) blocking operation that scans all keys
 const allKeys = await redis.keys('sess:*');
 
-// ✓ 正しい: SCAN を使用（非ブロッキング、イテレーティブ）
+// ✓ Correct: use SCAN (non-blocking, iterative)
 let cursor = '0';
 const keys: string[] = [];
 do {
@@ -1714,182 +1715,182 @@ do {
 } while (cursor !== '0');
 ```
 
-### 9.3 セッションに大量のデータを保存
+### 9.3 Storing Too Much Data in a Session
 
 ```typescript
-// ✗ 問題: セッションに大きなオブジェクトを保存
+// ✗ Problem: storing large objects in a session
 await store.set(sessionId, {
   userId: user.id,
   role: user.role,
-  cart: hugeCartData,           // NG: 買い物かごのデータ全体
-  searchHistory: allHistory,     // NG: 検索履歴全件
-  preferences: allPreferences,   // NG: 設定データ全体
+  cart: hugeCartData,           // NG: full cart data
+  searchHistory: allHistory,     // NG: full search history
+  preferences: allPreferences,   // NG: full preferences data
 }, ttl);
 
-// ✓ 正しい: セッションは最小限に、詳細データは DB に保存
+// ✓ Correct: keep session minimal; store detailed data in DB
 await store.set(sessionId, {
   userId: user.id,
   role: user.role,
-  // カートや履歴は DB に保存し、userId で参照
+  // Cart and history are stored in DB and referenced by userId
 }, ttl);
 ```
 
 ---
 
-## 10. 演習問題
+## 10. Exercises
 
-### 演習 1: 基本 — Redis セッションストアの構築（難易度: 基本）
-
-```
-課題:
-  Redis を使ったセッションストアを実装し、Express/Next.js の
-  ミドルウェアとして組み込んでください。
-
-要件:
-  ① セッションの CRUD 操作（set, get, delete）
-  ② TTL による自動期限切れ
-  ③ Sliding Expiration（アクセスで延長）
-  ④ ユーザーの全セッション取得
-
-ヒント:
-  → ioredis の Pipeline を活用
-  → セッション ID は crypto.randomBytes(32) で生成
-
-確認ポイント:
-  □ Redis に接続できるか
-  □ セッションが保存・取得できるか
-  □ TTL 経過後に自動削除されるか
-  □ アクセスで有効期限が延長されるか
-```
-
-### 演習 2: 応用 — セッション管理 UI の実装（難易度: 応用）
+### Exercise 1: Basic — Build a Redis Session Store (Difficulty: Basic)
 
 ```
-課題:
-  演習 1 の上に、ユーザーがアクティブセッションを
-  管理できる設定画面を実装してください。
+Task:
+  Implement a session store using Redis and integrate it as
+  middleware for Express/Next.js.
 
-要件:
-  ① アクティブセッション一覧の表示
-  ② 各セッションの情報（IP, UA, 最終アクセス日時）
-  ③ 個別セッションの無効化（ログアウト）
-  ④ 「他のすべてのデバイスからログアウト」機能
-  ⑤ 現在のセッションのハイライト表示
+Requirements:
+  ① Session CRUD operations (set, get, delete)
+  ② Automatic expiry via TTL
+  ③ Sliding Expiration (extend on access)
+  ④ Retrieve all sessions for a user
 
-ヒント:
-  → User-Agent パーサーで OS / ブラウザ名を取得
-  → 現在のセッション ID は Cookie から取得
-  → Server Actions で無効化を実装
+Hints:
+  → Make use of ioredis Pipeline
+  → Generate session IDs with crypto.randomBytes(32)
 
-確認ポイント:
-  □ 複数ブラウザでログインした場合に一覧表示されるか
-  □ 個別ログアウトが正しく動作するか
-  □ 一括ログアウト後に現在のセッションは維持されるか
+Verification checklist:
+  □ Can you connect to Redis?
+  □ Can sessions be saved and retrieved?
+  □ Are sessions automatically deleted after TTL expires?
+  □ Is the expiry extended on each access?
 ```
 
-### 演習 3: 発展 — 高可用性セッションストアの設計（難易度: 発展）
+### Exercise 2: Applied — Implement a Session Management UI (Difficulty: Applied)
 
 ```
-課題:
-  Redis Sentinel を使った高可用性セッションストアを設計し、
-  フェイルオーバーのテストを行ってください。
+Task:
+  On top of Exercise 1, implement a settings screen where users
+  can manage their active sessions.
 
-要件:
-  ① Redis Sentinel 構成（Master 1 + Replica 2 + Sentinel 3）
-  ② フェイルオーバー時のセッション維持
-  ③ セッションメトリクスの収集（Prometheus 互換）
-  ④ セッションデータの暗号化
-  ⑤ Health Check エンドポイント
-  ⑥ グレースフルシャットダウン
+Requirements:
+  ① Display a list of active sessions
+  ② Show session details (IP, UA, last access time)
+  ③ Revoke individual sessions (logout)
+  ④ "Log out of all other devices" feature
+  ⑤ Highlight the current session
 
-ヒント:
-  → Docker Compose で Sentinel 環境を構築
-  → docker stop でマスターを停止し、フェイルオーバーを確認
-  → prom-client でメトリクスを公開
+Hints:
+  → Use a User-Agent parser to extract OS / browser name
+  → Get the current session ID from the Cookie
+  → Implement revocation using Server Actions
 
-確認ポイント:
-  □ マスター停止後に自動フェイルオーバーするか
-  □ フェイルオーバー中のリクエストはどう処理されるか
-  □ メトリクスが正しく収集されるか
-  □ 暗号化/復号が正しく動作するか
+Verification checklist:
+  □ Are all sessions shown when logged in from multiple browsers?
+  □ Does individual logout work correctly?
+  □ Is the current session preserved after bulk logout?
+```
+
+### Exercise 3: Advanced — Design a High-Availability Session Store (Difficulty: Advanced)
+
+```
+Task:
+  Design a high-availability session store using Redis Sentinel
+  and test the failover behavior.
+
+Requirements:
+  ① Redis Sentinel configuration (1 Master + 2 Replicas + 3 Sentinels)
+  ② Session preservation during failover
+  ③ Metrics collection (Prometheus-compatible)
+  ④ Session data encryption
+  ⑤ Health check endpoint
+  ⑥ Graceful shutdown
+
+Hints:
+  → Build the Sentinel environment with Docker Compose
+  → Stop the master with docker stop to trigger failover
+  → Expose metrics with prom-client
+
+Verification checklist:
+  □ Does automatic failover occur after the master is stopped?
+  □ How are requests handled during failover?
+  □ Are metrics collected correctly?
+  □ Do encryption/decryption work correctly?
 ```
 
 ---
 
 ## 11. FAQ
 
-### Q1: Redis と Memcached のどちらがセッションストアに適していますか？
+### Q1: Which is better for a session store — Redis or Memcached?
 
 ```
-A: ほとんどのケースで Redis が推奨です。
+A: Redis is recommended in most cases.
 
-比較:
-  ┌──────────┬──────────────────┬──────────────────┐
-  │ 項目      │ Redis            │ Memcached        │
-  ├──────────┼──────────────────┼──────────────────┤
-  │ データ構造│ 豊富（Set等）    │ Key-Value のみ   │
-  │ 永続化   │ RDB / AOF        │ なし             │
-  │ TTL管理  │ キーごとに設定可 │ キーごとに設定可  │
-  │ クラスタ │ Redis Cluster    │ 一貫性ハッシュ    │
-  │ Pub/Sub  │ ✓                │ ✗               │
-  │ Lua      │ ✓                │ ✗               │
-  │ メモリ効率│ やや劣る         │ 優れている        │
-  └──────────┴──────────────────┴──────────────────┘
+Comparison:
+  ┌──────────────┬──────────────────┬──────────────────┐
+  │ Item         │ Redis            │ Memcached        │
+  ├──────────────┼──────────────────┼──────────────────┤
+  │ Data structs │ Rich (Set, etc.) │ Key-Value only   │
+  │ Persistence  │ RDB / AOF        │ None             │
+  │ TTL mgmt     │ Per-key          │ Per-key          │
+  │ Clustering   │ Redis Cluster    │ Consistent hash  │
+  │ Pub/Sub      │ ✓                │ ✗               │
+  │ Lua          │ ✓                │ ✗               │
+  │ Memory eff.  │ Slightly lower   │ Superior         │
+  └──────────────┴──────────────────┴──────────────────┘
 
-Memcached が適するケース:
-  → 純粋なキャッシュとしてのみ使用
-  → メモリ効率が最優先
-  → 高頻度の読み取り
+When Memcached is a good fit:
+  → Used purely as a cache
+  → Memory efficiency is the top priority
+  → High-frequency reads
 ```
 
-### Q2: Cookie-based セッションと Server-side セッションの違いは？
+### Q2: What is the difference between Cookie-based sessions and server-side sessions?
 
 ```
-A: データの保存場所が異なります。
+A: They differ in where session data is stored.
 
-Cookie-based（JWT 等）:
-  → セッションデータを Cookie / JWT に含める
-  → サーバー側にストア不要
-  → ステートレス（スケーリング容易）
-  → データサイズに制限（4KB）
-  → 即座の無効化が困難
+Cookie-based (JWT, etc.):
+  → Session data is embedded in a Cookie / JWT
+  → No server-side store required
+  → Stateless (easy to scale)
+  → Data size limited (4KB)
+  → Immediate invalidation is difficult
 
 Server-side:
-  → Cookie にはセッション ID のみ
-  → データはサーバー側ストアに保存
-  → サイズ制限なし
-  → 即座の無効化が可能
-  → ストアが SPOF になりうる
+  → Cookie contains only the session ID
+  → Data is stored in a server-side store
+  → No size limit
+  → Immediate invalidation is possible
+  → Store can become a single point of failure
 
-推奨: 機密データが多い場合は Server-side、
-      ステートレス性を重視する場合は Cookie-based
+Recommendation: use server-side when handling sensitive data;
+                use Cookie-based when statelessness is a priority.
 ```
 
-### Q3: Auth.js (NextAuth) のセッションストアはどう設定しますか？
+### Q3: How do I configure the session store in Auth.js (NextAuth)?
 
 ```
-A: Auth.js は adapter を設定することでセッションストアを変更できます。
+A: In Auth.js, the session store is changed by configuring an adapter.
 
-// JWT セッション（デフォルト、ストア不要）
+// JWT session (default, no store required)
 export const { handlers, auth } = NextAuth({
   session: { strategy: 'jwt' },
 });
 
-// DB セッション（Prisma）
+// DB session (Prisma)
 export const { handlers, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: 'database' },
 });
 
-// Upstash Redis（@auth/upstash-redis-adapter）
+// Upstash Redis (@auth/upstash-redis-adapter)
 import { UpstashRedisAdapter } from '@auth/upstash-redis-adapter';
 export const { handlers, auth } = NextAuth({
   adapter: UpstashRedisAdapter(redis),
   session: { strategy: 'database' },
 });
 
-注意: JWT 戦略の場合、セッションストアは不要（Cookie に含まれる）
-     Database 戦略の場合、adapter 必須
+Note: With the JWT strategy, no session store is needed (included in Cookie)
+      With the Database strategy, an adapter is required
 ```
 
 ---
@@ -1897,39 +1898,39 @@ export const { handlers, auth } = NextAuth({
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. Be sure to thoroughly understand the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 推奨 |
-|------|------|
-| ストア | Redis（本番）、メモリ（開発）、DB（Redis 導入不可時） |
-| スケーリング | Redis Sentinel（高可用性）/ Cluster（水平スケール） |
-| TTL | Sliding + Absolute のハイブリッド |
-| セッション ID | crypto.randomBytes(32)、256 ビット以上 |
-| セキュリティ | 固定化防止（ローテーション）、データ暗号化、同時セッション制限 |
-| 運用 | メトリクス収集、アクティブセッション管理 UI、定期クリーンアップ |
+Knowledge of this topic is frequently applied in day-to-day development. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Item | Recommendation |
+|------|----------------|
+| Store | Redis (production), in-memory (development), DB (when Redis cannot be added) |
+| Scaling | Redis Sentinel (high availability) / Cluster (horizontal scaling) |
+| TTL | Hybrid of Sliding + Absolute |
+| Session ID | crypto.randomBytes(32), 256 bits or more |
+| Security | Fixation prevention (rotation), data encryption, concurrent session limits |
+| Operations | Metrics collection, active session management UI, periodic cleanup |
+
+---
+
+## Next Guides to Read
 
 
 ---
 
-## 参考文献
+## References
 
 1. Redis. "Redis as a Session Store." redis.io, 2024.
 2. OWASP. "Session Management Cheat Sheet." cheatsheetseries.owasp.org, 2024.
