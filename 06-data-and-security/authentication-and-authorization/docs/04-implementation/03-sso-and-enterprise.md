@@ -1,192 +1,193 @@
-# SSO とエンタープライズ認証
+# SSO and Enterprise Authentication
 
-> B2B SaaS では SSO（Single Sign-On）対応がエンタープライズ契約の必須要件。SAML 2.0、OIDC ベースの SSO、ディレクトリ連携（SCIM）、テナント別認証設定まで、エンタープライズ認証の全体像を解説する。エンタープライズ顧客の 80% 以上が SSO を要求しており、SSO 非対応は事実上のエンタープライズ市場からの脱落を意味する。
+> In B2B SaaS, SSO (Single Sign-On) support is a mandatory requirement for enterprise contracts. This chapter covers the full picture of enterprise authentication: SAML 2.0, OIDC-based SSO, directory integration (SCIM), and per-tenant authentication configuration. More than 80% of enterprise customers require SSO, and lacking SSO support effectively means being excluded from the enterprise market.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] SSO の概念と SAML / OIDC の違いを理解する
-- [ ] SAML 2.0 の認証フローを把握する
-- [ ] OIDC ベースの SSO を実装する
-- [ ] テナント別 SSO 設定の設計と実装を学ぶ
-- [ ] SCIM によるディレクトリ連携を実装する
-- [ ] エンタープライズ向けの認証セキュリティ要件を把握する
-- [ ] Just-in-Time プロビジョニングを実装する
+- [ ] Understand the concept of SSO and the difference between SAML and OIDC
+- [ ] Grasp the SAML 2.0 authentication flow
+- [ ] Implement OIDC-based SSO
+- [ ] Learn how to design and implement per-tenant SSO configuration
+- [ ] Implement directory integration via SCIM
+- [ ] Understand authentication security requirements for enterprise use
+- [ ] Implement Just-in-Time provisioning
 
-## 前提知識
+## Prerequisites
 
-- HTTP プロトコルの基礎
-- OAuth 2.0 / OpenID Connect の基本概念
-- TypeScript / Node.js の基本
-- マルチテナントアーキテクチャの基礎
+- Fundamentals of the HTTP protocol
+- Basic concepts of OAuth 2.0 / OpenID Connect
+- Basics of TypeScript / Node.js
+- Fundamentals of multi-tenant architecture
 
-## 関連ガイド
+## Related Guides
 
 
 ---
 
-## 1. SSO の基本概念
+## 1. SSO Basics
 
 ```
-SSO（Single Sign-On）とは:
+SSO (Single Sign-On):
 
-  1回のログインで複数のアプリケーションにアクセス可能にする仕組み
+  A mechanism that allows users to access multiple applications with a single login
 
-  ┌─────────────────────────────────────────┐
-  │                                         │
-  │  ユーザー: Okta にログイン（1回だけ）       │
-  │                                         │
-  │  → Slack にアクセス → 自動ログイン          │
-  │  → Jira にアクセス → 自動ログイン           │
-  │  → 自社アプリにアクセス → 自動ログイン       │
-  │                                         │
-  │  Identity Provider（IdP）:               │
-  │    → Okta, Azure AD, Google Workspace    │
-  │    → ユーザーの認証を一元管理               │
-  │                                         │
-  │  Service Provider（SP）:                  │
-  │    → 自社アプリ（SSO を受け入れる側）        │
-  │    → IdP の認証結果を信頼                  │
-  │                                         │
-  └─────────────────────────────────────────┘
+  ┌─────────────────────────────────────────────────────────┐
+  │                                                         │
+  │  User: Logs into Okta (just once)                       │
+  │                                                         │
+  │  → Access Slack → Automatically logged in               │
+  │  → Access Jira → Automatically logged in                │
+  │  → Access your app → Automatically logged in            │
+  │                                                         │
+  │  Identity Provider (IdP):                               │
+  │    → Okta, Azure AD, Google Workspace                   │
+  │    → Centralized management of user authentication      │
+  │                                                         │
+  │  Service Provider (SP):                                 │
+  │    → Your app (the SSO-accepting side)                  │
+  │    → Trusts the IdP's authentication result             │
+  │                                                         │
+  └─────────────────────────────────────────────────────────┘
 
-SSO のメリット:
-  企業側:
-    → ユーザー管理の一元化（1箇所で全アプリの権限制御）
-    → 退職時の即時アクセス無効化（IdP で無効化 → 全アプリ遮断）
-    → コンプライアンス対応（監査ログの一元化）
-    → IT コスト削減（パスワードリセット問い合わせの減少）
+Benefits of SSO:
+  For the organization:
+    → Centralized user management (control all app permissions in one place)
+    → Immediate access revocation on employee departure (disable in IdP → blocks all apps)
+    → Compliance support (centralized audit logs)
+    → Reduced IT costs (fewer password reset requests)
 
-  ユーザー側:
-    → パスワード記憶の削減（1つのパスワードで全アプリ）
-    → ログイン手順の簡素化
-    → パスワード疲れの解消
+  For users:
+    → Fewer passwords to remember (one password for all apps)
+    → Simplified login process
+    → Relief from password fatigue
 
-  セキュリティ:
-    → MFA の一元適用（IdP で MFA → 全アプリに波及）
-    → パスワード漏洩リスクの低減
-    → フィッシング対策の強化
-    → 一貫したセキュリティポリシーの適用
+  For security:
+    → Centralized MFA enforcement (MFA at IdP → applied to all apps)
+    → Reduced risk of password leakage
+    → Stronger phishing protection
+    → Consistent security policy application
 ```
 
-### 1.1 SSO プロトコルの比較
+### 1.1 Comparing SSO Protocols
 
 ```
-SSO プロトコル:
+SSO Protocols:
 
   ┌────────────┬──────────────────┬──────────────────┬──────────────────┐
-  │ 項目       │ SAML 2.0          │ OIDC              │ LDAP             │
+  │ Item       │ SAML 2.0          │ OIDC              │ LDAP             │
   ├────────────┼──────────────────┼──────────────────┼──────────────────┤
-  │ データ形式 │ XML               │ JSON              │ バイナリ(ASN.1)   │
-  │ トークン   │ Assertion         │ ID Token(JWT)     │ セッション        │
-  │ 署名方式   │ XML Signature     │ JWS(JWT)          │ SASL/TLS         │
-  │ 対象       │ エンタープライズ    │ コンシューマー+エンタープライズ│ 社内ネットワーク │
-  │ 策定年     │ 2005年            │ 2014年            │ 1993年           │
-  │ 複雑さ     │ 高い              │ 中程度            │ 高い             │
-  │ ブラウザ   │ リダイレクト/POST  │ リダイレクト       │ 不要(TCP直接)     │
-  │ モバイル   │ △(XMLパースが重い) │ ◎(JSON,軽量)      │ ×(社内のみ)       │
-  │ IdP例      │ Okta,Azure AD,    │ Okta,Azure AD,    │ Active Directory │
-  │           │ OneLogin          │ Auth0,Google      │ OpenLDAP         │
-  │ 採用率     │ エンタープライズの  │ 増加中            │ レガシー          │
-  │           │ デファクト標準      │                  │ （縮小傾向）       │
+  │ Data format│ XML               │ JSON              │ Binary (ASN.1)   │
+  │ Token      │ Assertion         │ ID Token (JWT)    │ Session          │
+  │ Signing    │ XML Signature     │ JWS (JWT)         │ SASL/TLS         │
+  │ Target     │ Enterprise        │ Consumer + Enterprise│ Internal network│
+  │ Year       │ 2005              │ 2014              │ 1993             │
+  │ Complexity │ High              │ Moderate          │ High             │
+  │ Browser    │ Redirect/POST     │ Redirect          │ Not needed (TCP) │
+  │ Mobile     │ △ (XML parse heavy)│ ◎ (JSON, light)  │ × (internal only)│
+  │ IdP ex.    │ Okta, Azure AD,   │ Okta, Azure AD,   │ Active Directory │
+  │            │ OneLogin          │ Auth0, Google     │ OpenLDAP         │
+  │ Adoption   │ De facto standard │ Growing           │ Legacy           │
+  │            │ in enterprise     │                   │ (shrinking)      │
   └────────────┴──────────────────┴──────────────────┴──────────────────┘
 
-  選定ガイドライン:
-    SAML 2.0 を選ぶ場合:
-      → 大企業の既存 IdP が SAML のみ対応
-      → Okta、OneLogin 等のレガシー連携
-      → セキュリティ要件が XML Signature を要求
+  Selection guidelines:
+    Choose SAML 2.0 when:
+      → Large enterprise's existing IdP supports SAML only
+      → Legacy integration with Okta, OneLogin, etc.
+      → Security requirements mandate XML Signature
 
-    OIDC を選ぶ場合:
-      → モダンな IdP（Azure AD、Google Workspace）
-      → モバイルアプリ対応が必要
-      → 開発コストを最小化したい
-      → JSON ベースで扱いやすい
+    Choose OIDC when:
+      → Modern IdP (Azure AD, Google Workspace)
+      → Mobile app support is needed
+      → Want to minimize development cost
+      → JSON-based and easier to work with
 
-    両方サポートする場合（推奨）:
-      → エンタープライズ顧客の要件に柔軟に対応
-      → SAML と OIDC の両方を統一的に扱う抽象レイヤーを設計
+    Support both (recommended):
+      → Flexibly accommodate enterprise customer requirements
+      → Design an abstraction layer to handle both SAML and OIDC uniformly
 ```
 
 ---
 
 ## 2. SAML 2.0
 
-### 2.1 SAML 2.0 の認証フロー
+### 2.1 SAML 2.0 Authentication Flow
 
 ```
-SAML 2.0 の認証フロー（SP-Initiated）:
+SAML 2.0 Authentication Flow (SP-Initiated):
 
-  ユーザー     SP（自社アプリ）    IdP（Okta等）
+  User        SP (your app)       IdP (Okta, etc.)
     │            │                │
-    │ アクセス    │                │
+    │ Access     │                │
     │───────────>│                │
-    │            │ 未認証を検知     │
+    │            │ Detects unauthenticated
     │            │                │
-    │ ① SAMLRequest             │
-    │ （リダイレクト）              │
+    │ ① SAMLRequest               │
+    │ (redirect)                  │
     │<───────────│                │
     │────────────────────────────>│
     │            │                │
-    │            │  ② ログイン画面  │
+    │            │  ② Login page  │
     │            │                │
     │<───────────────────────────│
-    │ 認証情報入力│                │
+    │ Enter credentials           │
     │────────────────────────────>│
     │            │                │
-    │ ③ SAMLResponse            │
-    │ （署名付きアサーション）       │
+    │ ③ SAMLResponse              │
+    │ (signed assertion)          │
     │<───────────────────────────│
     │────────────>│               │
-    │            │ ④ 署名検証      │
-    │            │ セッション作成   │
-    │ ⑤ ログイン  │               │
-    │   完了      │               │
+    │            │ ④ Verify signature
+    │            │ Create session  │
+    │ ⑤ Login    │               │
+    │   complete  │               │
     │<───────────│               │
 
 IdP-Initiated SSO:
-  ユーザーが IdP のダッシュボードからアプリを選択して直接アクセス
+  User selects an app from the IdP dashboard and accesses it directly
 
-  ユーザー     IdP（Okta等）      SP（自社アプリ）
+  User        IdP (Okta, etc.)    SP (your app)
     │            │                │
-    │ Okta にログイン              │
+    │            │                │
+    │ Log in to Okta               │
     │───────────>│                │
     │            │                │
-    │ アプリ選択  │                │
+    │ Select app │                │
     │───────────>│                │
+    │            │ Generate       │
     │            │ SAMLResponse   │
-    │            │ 生成            │
     │<───────────│                │
-    │ POST /saml/callback         │
+    │ POST /saml/callback          │
     │────────────────────────────>│
-    │            │                │ 署名検証
-    │            │                │ セッション作成
-    │ ログイン完了│                │
+    │            │                │ Verify signature
+    │            │                │ Create session
+    │ Login complete               │
     │<───────────────────────────│
 
-SAML の構成要素:
-  → Assertion: ユーザー情報を含む XML（署名付き）
-     → Authentication Statement: いつ、どのように認証されたか
-     → Attribute Statement: ユーザー属性（email, name, groups）
-     → Authorization Decision Statement: 認可判定（あまり使われない）
-  → Metadata: SP/IdP の設定情報（エンドポイント、証明書）
-  → Binding: 通信方式（HTTP-Redirect, HTTP-POST, SOAP）
-  → Profile: ユースケースの定義（Web Browser SSO Profile 等）
+SAML components:
+  → Assertion: XML containing user information (signed)
+     → Authentication Statement: When and how the user was authenticated
+     → Attribute Statement: User attributes (email, name, groups)
+     → Authorization Decision Statement: Authorization decision (rarely used)
+  → Metadata: Configuration information for SP/IdP (endpoints, certificates)
+  → Binding: Communication method (HTTP-Redirect, HTTP-POST, SOAP)
+  → Profile: Use case definitions (Web Browser SSO Profile, etc.)
 ```
 
-### 2.2 SAML 2.0 の実装
+### 2.2 SAML 2.0 Implementation
 
 ```typescript
-// SAML 2.0 実装（samlify ライブラリ）
+// SAML 2.0 implementation (samlify library)
 // npm install samlify @authenio/samlify-node-xmllint
 
 import * as samlify from 'samlify';
 import * as validator from '@authenio/samlify-node-xmllint';
 import fs from 'fs';
 
-// XML 署名の検証を有効化（本番では必須）
+// Enable XML signature validation (required in production)
 samlify.setSchemaValidator(validator);
 
-// SP（自社アプリ）の設定
+// SP (your app) configuration
 const sp = samlify.ServiceProvider({
   entityID: 'https://myapp.com/saml/metadata',
   assertionConsumerService: [{
@@ -200,25 +201,25 @@ const sp = samlify.ServiceProvider({
   nameIDFormat: ['urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'],
   signingCert: fs.readFileSync('./certs/sp-cert.pem', 'utf8'),
   privateKey: fs.readFileSync('./certs/sp-key.pem', 'utf8'),
-  // 署名アルゴリズム（SHA-256 推奨、SHA-1 は非推奨）
+  // Signing algorithm (SHA-256 recommended, SHA-1 deprecated)
   requestSignatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
-  // Assertion の暗号化を要求（オプション、高セキュリティ環境）
+  // Require signed assertions (optional, for high-security environments)
   wantAssertionsSigned: true,
 });
 
-// IdP の設定（Okta の Metadata から自動構成）
+// IdP configuration (auto-configured from Okta Metadata)
 async function createIdPFromMetadata(metadataUrl: string) {
   const response = await fetch(metadataUrl);
   const metadata = await response.text();
 
   return samlify.IdentityProvider({
     metadata,
-    // Assertion 内の署名を検証
+    // Verify signature within the Assertion
     wantMessageSigned: true,
   });
 }
 
-// IdP の設定（手動構成）
+// IdP configuration (manual)
 function createIdPManually(config: {
   entityId: string;
   ssoUrl: string;
@@ -235,17 +236,17 @@ function createIdPManually(config: {
   });
 }
 
-// SP Metadata エンドポイント（IdP に提供する）
+// SP Metadata endpoint (provided to the IdP)
 app.get('/api/auth/saml/metadata', (req, res) => {
   res.type('application/xml');
   res.send(sp.getMetadata());
 });
 
-// SAML ログイン開始（SP-Initiated）
+// Start SAML login (SP-Initiated)
 app.get('/api/auth/saml/login', async (req, res) => {
   const { orgId } = req.query;
 
-  // テナントの SSO 設定を取得
+  // Retrieve tenant's SSO configuration
   const org = await prisma.organization.findUnique({
     where: { id: orgId as string },
   });
@@ -254,7 +255,7 @@ app.get('/api/auth/saml/login', async (req, res) => {
     return res.status(400).json({ error: 'SAML SSO not configured' });
   }
 
-  // テナント固有の IdP を構成
+  // Configure tenant-specific IdP
   const idp = org.ssoMetadataUrl
     ? await createIdPFromMetadata(org.ssoMetadataUrl)
     : createIdPManually({
@@ -263,7 +264,7 @@ app.get('/api/auth/saml/login', async (req, res) => {
         certificate: org.ssoCertificate!,
       });
 
-  // RelayState にリダイレクト先を保存
+  // Store redirect destination in RelayState
   const relayState = JSON.stringify({
     orgId: org.id,
     redirectTo: req.query.redirectTo || '/dashboard',
@@ -271,17 +272,17 @@ app.get('/api/auth/saml/login', async (req, res) => {
 
   const { context } = sp.createLoginRequest(idp, 'redirect');
 
-  // RelayState をクエリパラメータに追加
+  // Add RelayState as a query parameter
   const redirectUrl = new URL(context);
   redirectUrl.searchParams.set('RelayState', relayState);
 
   res.redirect(redirectUrl.toString());
 });
 
-// SAML コールバック（Assertion 受信・検証）
+// SAML callback (receive and verify Assertion)
 app.post('/api/auth/saml/callback', async (req, res) => {
   try {
-    // RelayState からテナント情報を取得
+    // Get tenant information from RelayState
     const relayState = JSON.parse(req.body.RelayState || '{}');
     const { orgId, redirectTo } = relayState;
 
@@ -293,7 +294,7 @@ app.post('/api/auth/saml/callback', async (req, res) => {
       return res.redirect('/login?error=org_not_found');
     }
 
-    // テナント固有の IdP を構成
+    // Configure tenant-specific IdP
     const idp = org.ssoMetadataUrl
       ? await createIdPFromMetadata(org.ssoMetadataUrl)
       : createIdPManually({
@@ -302,17 +303,17 @@ app.post('/api/auth/saml/callback', async (req, res) => {
           certificate: org.ssoCertificate!,
         });
 
-    // SAML Response の検証
+    // Verify SAML Response
     const { extract } = await sp.parseLoginResponse(idp, 'post', {
       body: req.body,
     });
 
-    // ユーザー情報の取得
+    // Extract user information
     const email = extract.nameID;
     const attributes = extract.attributes || {};
     const sessionIndex = extract.sessionIndex?.sessionIndex;
 
-    // email のドメインが組織のドメインと一致するか検証
+    // Verify that the email domain matches the organization's domain
     const emailDomain = email.split('@')[1];
     if (org.domain && emailDomain !== org.domain) {
       await logSecurityEvent({
@@ -325,7 +326,7 @@ app.post('/api/auth/saml/callback', async (req, res) => {
       return res.redirect('/login?error=domain_mismatch');
     }
 
-    // JIT（Just-in-Time）プロビジョニング
+    // JIT (Just-in-Time) provisioning
     const user = await findOrCreateSAMLUser({
       email,
       name: formatUserName(attributes),
@@ -336,7 +337,7 @@ app.post('/api/auth/saml/callback', async (req, res) => {
       attributes,
     });
 
-    // セッション作成
+    // Create session
     const { sessionId } = await sessionManager.create(
       { userId: user.id, role: user.role },
       req
@@ -344,7 +345,7 @@ app.post('/api/auth/saml/callback', async (req, res) => {
 
     setSessionCookie(res, sessionId);
 
-    // 監査ログ
+    // Audit log
     await logAuthEvent({
       type: 'saml_login',
       userId: user.id,
@@ -367,7 +368,7 @@ app.post('/api/auth/saml/callback', async (req, res) => {
   }
 });
 
-// ユーザー名のフォーマット（IdP ごとに属性名が異なる）
+// Format user name (attribute names differ by IdP)
 function formatUserName(attributes: Record<string, unknown>): string {
   // Okta
   if (attributes.firstName && attributes.lastName) {
@@ -383,51 +384,51 @@ function formatUserName(attributes: Record<string, unknown>): string {
   if (attributes.displayName) {
     return attributes.displayName as string;
   }
-  // フォールバック
+  // Fallback
   return attributes.name as string || 'Unknown User';
 }
 ```
 
-### 2.3 SAML 証明書管理
+### 2.3 SAML Certificate Management
 
 ```
-SAML 証明書のライフサイクル:
+SAML Certificate Lifecycle:
 
   ┌─────────────────────────────────────────────────────────┐
-  │              証明書管理の重要性                            │
+  │              Importance of Certificate Management        │
   │                                                         │
-  │  SAML では XML 署名に X.509 証明書を使用                  │
-  │  証明書の期限切れ = SSO の停止 = 全ユーザーがログイン不能    │
+  │  SAML uses X.509 certificates for XML signatures        │
+  │  Expired certificate = SSO down = all users can't login │
   │                                                         │
-  │  証明書の種類:                                            │
-  │  1. IdP の署名証明書: IdP が SAMLResponse に署名          │
-  │     → SP は IdP の公開鍵で署名を検証                      │
-  │     → IdP の管理画面からダウンロード                       │
+  │  Types of certificates:                                 │
+  │  1. IdP signing certificate: IdP signs SAMLResponse     │
+  │     → SP verifies signature using IdP's public key      │
+  │     → Download from IdP's admin console                 │
   │                                                         │
-  │  2. SP の署名証明書: SP が SAMLRequest に署名             │
-  │     → IdP は SP の公開鍵でリクエストを検証                 │
-  │     → 自社で生成して IdP に登録                           │
+  │  2. SP signing certificate: SP signs SAMLRequest        │
+  │     → IdP verifies request using SP's public key        │
+  │     → Generate locally and register with the IdP        │
   │                                                         │
-  │  3. SP の暗号化証明書: IdP が Assertion を暗号化          │
-  │     → SP が秘密鍵で復号                                  │
-  │     → 高セキュリティ環境でのみ使用                         │
+  │  3. SP encryption certificate: IdP encrypts Assertion   │
+  │     → SP decrypts using private key                     │
+  │     → Used only in high-security environments           │
   │                                                         │
-  │  証明書ローテーション:                                     │
-  │  1. 新しい証明書を生成                                    │
-  │  2. Metadata に新旧両方の証明書を掲載                      │
-  │  3. IdP に新しい Metadata を登録                          │
-  │  4. 旧証明書を削除                                        │
-  │  ⚠️ ダウンタイムなしでのローテーションが必要                │
+  │  Certificate rotation:                                  │
+  │  1. Generate a new certificate                          │
+  │  2. Include both old and new certificates in Metadata   │
+  │  3. Register the new Metadata with the IdP              │
+  │  4. Remove the old certificate                          │
+  │  ⚠️ Zero-downtime rotation is required                  │
   └─────────────────────────────────────────────────────────┘
 ```
 
 ```typescript
-// SP 証明書の生成と管理
+// SP certificate generation and management
 import { execSync } from 'child_process';
 import crypto from 'crypto';
 
 class SAMLCertificateManager {
-  // 自己署名証明書の生成（SP 用）
+  // Generate a self-signed certificate (for SP)
   static generateSPCertificate(options: {
     commonName: string;
     organization: string;
@@ -439,10 +440,10 @@ class SAMLCertificateManager {
     const keyPath = `${outputDir}/sp-key.pem`;
     const certPath = `${outputDir}/sp-cert.pem`;
 
-    // RSA 2048ビット秘密鍵の生成
+    // Generate RSA 2048-bit private key
     execSync(`openssl genrsa -out ${keyPath} 2048`);
 
-    // 自己署名証明書の生成
+    // Generate self-signed certificate
     execSync(
       `openssl req -new -x509 -key ${keyPath} -out ${certPath} ` +
       `-days ${validityDays} ` +
@@ -452,12 +453,12 @@ class SAMLCertificateManager {
     return { certPath, keyPath };
   }
 
-  // 証明書の有効期限チェック
+  // Check certificate expiry
   static async checkCertificateExpiry(certPem: string): Promise<{
     expiresAt: Date;
     daysUntilExpiry: number;
     isExpired: boolean;
-    isExpiringSoon: boolean; // 30日以内
+    isExpiringSoon: boolean; // within 30 days
   }> {
     const cert = new crypto.X509Certificate(certPem);
     const expiresAt = new Date(cert.validTo);
@@ -474,7 +475,7 @@ class SAMLCertificateManager {
     };
   }
 
-  // 定期的な証明書チェック（cron で実行）
+  // Periodic certificate check (run via cron)
   static async checkAllOrganizationCertificates(): Promise<void> {
     const orgs = await prisma.organization.findMany({
       where: { ssoEnabled: true, ssoProvider: 'saml' },
@@ -488,17 +489,17 @@ class SAMLCertificateManager {
       );
 
       if (status.isExpired) {
-        // 期限切れ → 管理者に緊急通知
+        // Expired → urgent notification to admins
         await notifyOrgAdmins(org.id, {
           type: 'certificate_expired',
-          message: 'SSO 証明書が期限切れです。SSO が機能しません。',
+          message: 'The SSO certificate has expired. SSO is not functioning.',
           severity: 'critical',
         });
       } else if (status.isExpiringSoon) {
-        // 期限間近 → 管理者に警告
+        // Expiring soon → warning to admins
         await notifyOrgAdmins(org.id, {
           type: 'certificate_expiring_soon',
-          message: `SSO 証明書が ${status.daysUntilExpiry} 日後に期限切れになります。`,
+          message: `The SSO certificate will expire in ${status.daysUntilExpiry} days.`,
           severity: 'warning',
         });
       }
@@ -509,31 +510,31 @@ class SAMLCertificateManager {
 
 ---
 
-## 3. OIDC ベースの SSO
+## 3. OIDC-Based SSO
 
 ```
-OIDC SSO のフロー:
+OIDC SSO Flow:
 
-  OIDC は SAML より軽量でモダンな SSO プロトコル
-  JSON ベース、JWT 使用、モバイル対応
+  OIDC is a lighter, more modern SSO protocol than SAML
+  JSON-based, uses JWT, supports mobile
 
-  ユーザー     SP（自社アプリ）    IdP（Azure AD等）
+  User        SP (your app)       IdP (Azure AD, etc.)
     │            │                │
-    │ アクセス    │                │
+    │ Access     │                │
     │───────────>│                │
-    │            │ 未認証を検知     │
+    │            │ Detects unauthenticated
     │            │                │
-    │ ① Authorization Request    │
-    │ (PKCE + state + nonce)     │
+    │ ① Authorization Request     │
+    │ (PKCE + state + nonce)      │
     │<───────────│                │
     │────────────────────────────>│
     │            │                │
-    │            │  ② ログイン画面  │
+    │            │  ② Login page  │
     │<───────────────────────────│
-    │ 認証情報入力│                │
+    │ Enter credentials           │
     │────────────────────────────>│
     │            │                │
-    │ ③ Authorization Code       │
+    │ ③ Authorization Code        │
     │<───────────────────────────│
     │────────────>│               │
     │            │                │
@@ -545,36 +546,36 @@ OIDC SSO のフロー:
     │            │ Access Token   │
     │            │ <──────────────│
     │            │                │
-    │            │ ⑥ ID Token 検証 │
-    │            │ セッション作成   │
-    │ ⑦ ログイン  │               │
-    │   完了      │               │
+    │            │ ⑥ Verify ID Token
+    │            │ Create session  │
+    │ ⑦ Login    │               │
+    │   complete  │               │
     │<───────────│               │
 
-  SAML との違い:
-    → ID Token は JWT（JSON）なので軽量
-    → PKCE でセキュリティ強化
-    → UserInfo エンドポイントで追加情報取得
-    → リフレッシュトークンでセッション延長可能
+  Differences from SAML:
+    → ID Token is JWT (JSON), so it's lightweight
+    → Security enhanced with PKCE
+    → Additional info retrieved from UserInfo endpoint
+    → Session can be extended with refresh tokens
 ```
 
 ```typescript
-// OIDC ベースの SSO 実装
+// OIDC-based SSO implementation
 import { Issuer, Client, generators, TokenSet } from 'openid-client';
 
 class OIDCSSOManager {
   private clients: Map<string, Client> = new Map();
 
-  // テナント固有の OIDC クライアント取得
+  // Get tenant-specific OIDC client
   async getClient(org: Organization): Promise<Client> {
     const cacheKey = org.id;
 
-    // キャッシュチェック
+    // Check cache
     if (this.clients.has(cacheKey)) {
       return this.clients.get(cacheKey)!;
     }
 
-    // OIDC Discovery でプロバイダー情報を自動取得
+    // Auto-retrieve provider info via OIDC Discovery
     const issuer = await Issuer.discover(org.ssoIssuer!);
 
     const client = new issuer.Client({
@@ -589,7 +590,7 @@ class OIDCSSOManager {
     return client;
   }
 
-  // SSO ログイン開始
+  // Initiate SSO login
   async initiateLogin(
     orgId: string,
     redirectTo: string
@@ -608,10 +609,10 @@ class OIDCSSOManager {
     const codeVerifier = generators.codeVerifier();
     const codeChallenge = generators.codeChallenge(codeVerifier);
 
-    // state（CSRF 防御）
+    // state (CSRF protection)
     const state = generators.state();
 
-    // nonce（リプレイ攻撃防御）
+    // nonce (replay attack protection)
     const nonce = generators.nonce();
 
     const url = client.authorizationUrl({
@@ -620,11 +621,11 @@ class OIDCSSOManager {
       nonce,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
-      // ログインヒント（ドメイン指定で IdP のログイン画面を省略）
+      // Login hint (specify domain to skip IdP login screen)
       login_hint: `@${org.domain}`,
     });
 
-    // state, nonce, codeVerifier を Redis に保存（5分間有効）
+    // Save state, nonce, codeVerifier in Redis (valid for 5 minutes)
     await redis.setex(
       `oidc_state:${state}`,
       300,
@@ -634,7 +635,7 @@ class OIDCSSOManager {
     return { url, state, nonce, codeVerifier };
   }
 
-  // コールバック処理
+  // Handle callback
   async handleCallback(
     orgId: string,
     params: Record<string, string>,
@@ -648,16 +649,16 @@ class OIDCSSOManager {
 
     const client = await this.getClient(org);
 
-    // state の検証
+    // Verify state
     const stateData = await redis.get(`oidc_state:${params.state}`);
     if (!stateData) throw new Error('Invalid or expired state');
 
     const { nonce, codeVerifier, redirectTo } = JSON.parse(stateData);
 
-    // state を使用済みにする（リプレイ攻撃防止）
+    // Mark state as used (prevent replay attacks)
     await redis.del(`oidc_state:${params.state}`);
 
-    // Authorization Code を Token に交換
+    // Exchange Authorization Code for Token
     const tokenSet: TokenSet = await client.callback(
       `https://myapp.com/api/auth/oidc/${orgId}/callback`,
       params,
@@ -668,31 +669,31 @@ class OIDCSSOManager {
       }
     );
 
-    // ID Token の検証は openid-client が自動で行う
-    // → 署名検証、issuer 検証、audience 検証、nonce 検証、有効期限検証
+    // ID Token validation is done automatically by openid-client
+    // → signature, issuer, audience, nonce, expiry verification
     const claims = tokenSet.claims();
 
-    // email 検証
+    // Verify email
     if (!claims.email_verified) {
       throw new Error('Email not verified at IdP');
     }
 
-    // ドメイン検証
+    // Verify domain
     const emailDomain = (claims.email as string).split('@')[1];
     if (org.domain && emailDomain !== org.domain) {
       throw new Error('Email domain mismatch');
     }
 
-    // UserInfo エンドポイントで追加情報取得（groups 等）
+    // Get additional info from UserInfo endpoint (groups, etc.)
     let userInfo = claims;
     try {
       const additionalInfo = await client.userinfo(tokenSet.access_token!);
       userInfo = { ...claims, ...additionalInfo };
     } catch {
-      // UserInfo が利用できない場合は claims のみ使用
+      // Use only claims if UserInfo is unavailable
     }
 
-    // JIT プロビジョニング
+    // JIT provisioning
     const user = await findOrCreateOIDCUser({
       email: claims.email as string,
       name: claims.name as string,
@@ -702,13 +703,13 @@ class OIDCSSOManager {
       picture: claims.picture as string,
     });
 
-    // セッション作成
+    // Create session
     const { sessionId } = await sessionManager.create(
       { userId: user.id, role: user.role },
       req
     );
 
-    // 監査ログ
+    // Audit log
     await logAuthEvent({
       type: 'oidc_sso_login',
       userId: user.id,
@@ -724,84 +725,84 @@ class OIDCSSOManager {
 
 ---
 
-## 4. テナント別 SSO 設定
+## 4. Per-Tenant SSO Configuration
 
 ```
-マルチテナント SSO:
+Multi-tenant SSO:
 
-  テナント A: Okta で SAML SSO
-  テナント B: Azure AD で OIDC SSO
-  テナント C: Google Workspace で OIDC SSO
-  テナント D: SSO なし（メール・パスワード）
+  Tenant A: SAML SSO with Okta
+  Tenant B: OIDC SSO with Azure AD
+  Tenant C: OIDC SSO with Google Workspace
+  Tenant D: No SSO (email + password)
 
-  ログインフロー:
+  Login flow:
 
   ┌─────────────────────────────────────────────────────────┐
   │                                                         │
-  │  ① ユーザーがメールアドレスを入力                          │
-  │     alice@company-a.com                                  │
+  │  ① User enters email address                            │
+  │     alice@company-a.com                                 │
   │                                                         │
-  │  ② ドメインから組織を特定                                 │
-  │     company-a.com → テナント A                           │
+  │  ② Identify organization by domain                      │
+  │     company-a.com → Tenant A                            │
   │                                                         │
-  │  ③ テナントの SSO 設定を確認                              │
-  │     テナント A: ssoEnabled=true, ssoProvider="saml"      │
+  │  ③ Check tenant's SSO configuration                     │
+  │     Tenant A: ssoEnabled=true, ssoProvider="saml"       │
   │                                                         │
-  │  ④ SSO が設定されている場合                               │
-  │     → IdP にリダイレクト（Okta のログイン画面へ）           │
+  │  ④ If SSO is configured                                 │
+  │     → Redirect to IdP (Okta login screen)               │
   │                                                         │
-  │  ⑤ SSO が未設定の場合                                    │
-  │     → パスワード入力画面を表示                             │
+  │  ⑤ If SSO is not configured                             │
+  │     → Show password input screen                        │
   │                                                         │
-  │  ⑥ SSO 強制（enforceSSO=true）の場合                     │
-  │     → パスワードログインを拒否                             │
-  │     → 「この組織は SSO でのログインが必要です」             │
+  │  ⑥ If SSO is enforced (enforceSSO=true)                 │
+  │     → Reject password login                             │
+  │     → "This organization requires SSO login"            │
   │                                                         │
   └─────────────────────────────────────────────────────────┘
 ```
 
-### 4.1 データモデル
+### 4.1 Data Model
 
 ```typescript
-// テナント別 SSO 設定のデータモデル
+// Data model for per-tenant SSO configuration
 // schema.prisma
 
 // model Organization {
 //   id               String   @id @default(cuid())
 //   name             String
-//   slug             String   @unique          // URL 用のスラッグ
+//   slug             String   @unique          // URL slug
 //   domain           String?  @unique          // "company-a.com"
-//   domains          String[] @default([])     // 複数ドメイン対応
+//   domains          String[] @default([])     // Multiple domain support
 //
-//   // SSO 設定
+//   // SSO configuration
 //   ssoEnabled       Boolean  @default(false)
 //   ssoProvider      String?                   // "saml" | "oidc"
-//   enforceSSO       Boolean  @default(false)  // SSO を強制
+//   enforceSSO       Boolean  @default(false)  // Enforce SSO
 //
-//   // SAML 設定
+//   // SAML configuration
 //   ssoEntityId      String?                   // IdP Entity ID
 //   ssoSignOnUrl     String?                   // IdP SSO URL
 //   ssoLogoutUrl     String?                   // IdP SLO URL
-//   ssoCertificate   String?  @db.Text         // IdP 署名証明書（PEM）
-//   ssoMetadataUrl   String?                   // IdP Metadata URL（自動更新用）
+//   ssoCertificate   String?  @db.Text         // IdP signing certificate (PEM)
+//   ssoMetadataUrl   String?                   // IdP Metadata URL (for auto-update)
 //   ssoMetadataXml   String?  @db.Text         // IdP Metadata XML
 //
-//   // OIDC 設定
+//   // OIDC configuration
 //   ssoClientId      String?
-//   ssoClientSecret  String?                   // 暗号化保存
+//   ssoClientSecret  String?                   // Stored encrypted
 //   ssoIssuer        String?                   // OIDC issuer URL
 //
-//   // セキュリティ設定
-//   mfaRequired      Boolean  @default(false)  // MFA 強制
-//   sessionMaxAge    Int?                      // セッション最大時間（秒）
-//   ipAllowlist      String[] @default([])     // IP ホワイトリスト
+//   // Security settings
+//   mfaRequired      Boolean  @default(false)  // Enforce MFA
+//   sessionMaxAge    Int?                      // Max session duration (seconds)
+//   ipAllowlist      String[] @default([])     // IP allowlist
 //
-//   // SCIM 設定
+//   // SCIM configuration
 //   scimEnabled      Boolean  @default(false)
-//   scimToken        String?                   // SCIM API トークン（ハッシュ化）
+//   scimToken        String?                   // SCIM API token (hashed)
 //   scimTokenSalt    String?
 //
-//   // 関連
+//   // Relations
 //   members          OrganizationMember[]
 //   ssoConnections   SSOConnection[]
 //   auditLogs        AuditLog[]
@@ -815,34 +816,34 @@ class OIDCSSOManager {
 //   orgId            String
 //   org              Organization @relation(fields: [orgId], references: [id])
 //   provider         String   // "saml" | "oidc"
-//   name             String   // "Okta Production", "Azure AD" 等
+//   name             String   // "Okta Production", "Azure AD", etc.
 //   isActive         Boolean  @default(true)
-//   isPrimary        Boolean  @default(false)  // メインの SSO 接続
-//   config           Json     // プロバイダー固有の設定
+//   isPrimary        Boolean  @default(false)  // Main SSO connection
+//   config           Json     // Provider-specific configuration
 //   lastTestedAt     DateTime?
 //   lastUsedAt       DateTime?
 //   createdAt        DateTime @default(now())
 //   updatedAt        DateTime @updatedAt
 //
-//   @@unique([orgId, isPrimary])  // 組織ごとにプライマリは1つ
+//   @@unique([orgId, isPrimary])  // Only one primary per organization
 // }
 ```
 
-### 4.2 ログインフロー実装
+### 4.2 Login Flow Implementation
 
 ```typescript
-// ドメインから組織を特定
+// Identify organization by email domain
 async function getOrgByEmailDomain(email: string): Promise<Organization | null> {
   const domain = email.split('@')[1].toLowerCase();
 
-  // 完全一致で検索
+  // Exact match search
   let org = await prisma.organization.findUnique({
     where: { domain },
   });
 
   if (org) return org;
 
-  // 複数ドメイン対応（domains 配列で検索）
+  // Multiple domain support (search in domains array)
   org = await prisma.organization.findFirst({
     where: { domains: { has: domain } },
   });
@@ -850,7 +851,7 @@ async function getOrgByEmailDomain(email: string): Promise<Organization | null> 
   return org;
 }
 
-// ログイン開始（メールアドレスから SSO 判定）
+// Start login (determine SSO from email address)
 app.post('/api/auth/login/check', async (req, res) => {
   const { email } = req.body;
 
@@ -861,7 +862,7 @@ app.post('/api/auth/login/check', async (req, res) => {
   const org = await getOrgByEmailDomain(email);
 
   if (org?.ssoEnabled) {
-    // SSO にリダイレクト
+    // Redirect to SSO
     return res.json({
       method: 'sso',
       provider: org.ssoProvider,
@@ -872,22 +873,22 @@ app.post('/api/auth/login/check', async (req, res) => {
   }
 
   if (org?.enforceSSO) {
-    // SSO 強制だが SSO が設定されていない → エラー
+    // SSO enforced but not configured → error
     return res.status(403).json({
       error: 'SSO is required for this organization but not configured',
       contactAdmin: true,
     });
   }
 
-  // パスワードログイン
+  // Password login
   return res.json({
     method: 'password',
-    // SSO が利用可能な場合はヒントを表示
+    // Show hint if SSO is available
     ssoAvailable: org?.ssoEnabled || false,
   });
 });
 
-// SSO ログインの統一エントリーポイント
+// Unified SSO login entry point
 app.get('/api/auth/sso/:orgId/login', async (req, res) => {
   const { orgId } = req.params;
   const { redirectTo } = req.query;
@@ -902,7 +903,7 @@ app.get('/api/auth/sso/:orgId/login', async (req, res) => {
 
   switch (org.ssoProvider) {
     case 'saml': {
-      // SAML ログインフローへ
+      // Route to SAML login flow
       const idp = await getSAMLIdP(org);
       const { context } = sp.createLoginRequest(idp, 'redirect');
       const url = new URL(context);
@@ -914,7 +915,7 @@ app.get('/api/auth/sso/:orgId/login', async (req, res) => {
     }
 
     case 'oidc': {
-      // OIDC ログインフローへ
+      // Route to OIDC login flow
       const oidcManager = new OIDCSSOManager();
       const { url } = await oidcManager.initiateLogin(
         orgId,
@@ -929,12 +930,12 @@ app.get('/api/auth/sso/:orgId/login', async (req, res) => {
 });
 ```
 
-### 4.3 SSO 管理画面（組織管理者用）
+### 4.3 SSO Admin Panel (for Organization Administrators)
 
 ```typescript
-// SSO 設定 API（組織管理者用）
+// SSO configuration API (for organization administrators)
 
-// SSO 設定の取得
+// Get SSO configuration
 app.get('/api/admin/sso/config', requireOrgAdmin, async (req, res) => {
   const org = await prisma.organization.findUnique({
     where: { id: req.orgId },
@@ -947,29 +948,29 @@ app.get('/api/admin/sso/config', requireOrgAdmin, async (req, res) => {
       ssoMetadataUrl: true,
       ssoClientId: true,
       ssoIssuer: true,
-      // 秘密情報は返さない
-      // ssoCertificate, ssoClientSecret は除外
+      // Do not return sensitive data
+      // ssoCertificate, ssoClientSecret are excluded
     },
   });
 
-  // SP Metadata URL（IdP に設定するための情報）
+  // SP Metadata URL (information to configure in IdP)
   const spInfo = {
     entityId: 'https://myapp.com/saml/metadata',
     acsUrl: `https://myapp.com/api/auth/saml/${req.orgId}/callback`,
     metadataUrl: 'https://myapp.com/api/auth/saml/metadata',
     sloUrl: `https://myapp.com/api/auth/saml/${req.orgId}/logout`,
-    // OIDC の場合
+    // For OIDC
     redirectUri: `https://myapp.com/api/auth/oidc/${req.orgId}/callback`,
   };
 
   res.json({ config: org, spInfo });
 });
 
-// SAML SSO の設定
+// Configure SAML SSO
 app.put('/api/admin/sso/saml', requireOrgAdmin, async (req, res) => {
   const { metadataUrl, metadataXml, entityId, signOnUrl, certificate } = req.body;
 
-  // Metadata URL からの自動取得
+  // Auto-fetch from Metadata URL
   let resolvedConfig: any = {};
 
   if (metadataUrl) {
@@ -989,14 +990,14 @@ app.put('/api/admin/sso/saml', requireOrgAdmin, async (req, res) => {
     resolvedConfig = parseSAMLMetadata(metadataXml);
     resolvedConfig.ssoMetadataXml = metadataXml;
   } else {
-    // 手動設定
+    // Manual configuration
     if (!entityId || !signOnUrl || !certificate) {
       return res.status(400).json({
         error: 'entityId, signOnUrl, certificate are required for manual configuration',
       });
     }
 
-    // 証明書の形式検証
+    // Validate certificate format
     if (!isValidX509Certificate(certificate)) {
       return res.status(400).json({ error: 'Invalid X.509 certificate' });
     }
@@ -1008,7 +1009,7 @@ app.put('/api/admin/sso/saml', requireOrgAdmin, async (req, res) => {
     };
   }
 
-  // 設定を保存
+  // Save configuration
   await prisma.organization.update({
     where: { id: req.orgId },
     data: {
@@ -1018,7 +1019,7 @@ app.put('/api/admin/sso/saml', requireOrgAdmin, async (req, res) => {
     },
   });
 
-  // 監査ログ
+  // Audit log
   await logAdminEvent({
     type: 'sso_saml_configured',
     orgId: req.orgId,
@@ -1028,7 +1029,7 @@ app.put('/api/admin/sso/saml', requireOrgAdmin, async (req, res) => {
   res.json({ success: true, message: 'SAML SSO configured' });
 });
 
-// SSO 接続テスト
+// Test SSO connection
 app.post('/api/admin/sso/test', requireOrgAdmin, async (req, res) => {
   const org = await prisma.organization.findUnique({
     where: { id: req.orgId },
@@ -1041,13 +1042,13 @@ app.post('/api/admin/sso/test', requireOrgAdmin, async (req, res) => {
   try {
     switch (org.ssoProvider) {
       case 'saml': {
-        // SAML Metadata の取得テスト
+        // Test fetching SAML Metadata
         if (org.ssoMetadataUrl) {
           const metadataRes = await fetch(org.ssoMetadataUrl, { signal: AbortSignal.timeout(10000) });
           if (!metadataRes.ok) throw new Error(`Metadata fetch failed: ${metadataRes.status}`);
         }
 
-        // 証明書の有効期限チェック
+        // Check certificate expiry
         if (org.ssoCertificate) {
           const certStatus = await SAMLCertificateManager.checkCertificateExpiry(org.ssoCertificate);
           if (certStatus.isExpired) {
@@ -1063,7 +1064,7 @@ app.post('/api/admin/sso/test', requireOrgAdmin, async (req, res) => {
       }
 
       case 'oidc': {
-        // OIDC Discovery の取得テスト
+        // Test fetching OIDC Discovery
         const discoveryUrl = `${org.ssoIssuer}/.well-known/openid-configuration`;
         const discoveryRes = await fetch(discoveryUrl, { signal: AbortSignal.timeout(10000) });
         if (!discoveryRes.ok) throw new Error(`Discovery fetch failed: ${discoveryRes.status}`);
@@ -1090,22 +1091,22 @@ app.post('/api/admin/sso/test', requireOrgAdmin, async (req, res) => {
   }
 });
 
-// SSO の有効化/無効化
+// Enable/disable SSO
 app.put('/api/admin/sso/toggle', requireOrgAdmin, async (req, res) => {
   const { enabled, enforceSSO } = req.body;
 
-  // SSO 無効化時の確認
+  // Confirmation when disabling SSO
   if (!enabled) {
     const activeUsers = await prisma.organizationMember.count({
       where: { orgId: req.orgId },
     });
 
-    // SSO でのみログインしているユーザーにパスワードリセットを送信
+    // Send password reset to users who only log in via SSO
     if (activeUsers > 0) {
       const ssoOnlyUsers = await prisma.user.findMany({
         where: {
           memberships: { some: { orgId: req.orgId } },
-          passwordHash: null, // パスワード未設定（SSO でのみログイン）
+          passwordHash: null, // No password set (SSO-only login)
         },
       });
 
@@ -1141,37 +1142,37 @@ app.put('/api/admin/sso/toggle', requireOrgAdmin, async (req, res) => {
 
 ---
 
-## 5. JIT（Just-in-Time）プロビジョニング
+## 5. JIT (Just-in-Time) Provisioning
 
 ```
-JIT プロビジョニング:
+JIT Provisioning:
 
-  SSO ログイン時にユーザーアカウントを自動作成する仕組み
+  A mechanism to automatically create user accounts on SSO login
 
   ┌─────────────────────────────────────────────────────────┐
   │                                                         │
-  │  従来の方法:                                             │
-  │  1. 管理者がユーザーを手動作成                             │
-  │  2. ユーザーに招待メールを送信                             │
-  │  3. ユーザーがアカウントを有効化                           │
-  │  → 管理者の手間 + ユーザーの待ち時間                       │
+  │  Traditional approach:                                  │
+  │  1. Admin manually creates user                         │
+  │  2. Send invitation email to user                       │
+  │  3. User activates account                              │
+  │  → Admin overhead + user waiting time                   │
   │                                                         │
-  │  JIT プロビジョニング:                                    │
-  │  1. ユーザーが IdP でログイン                              │
-  │  2. SSO コールバック時にユーザーが存在しなければ自動作成     │
-  │  3. IdP の属性（groups 等）からロールを自動割当             │
-  │  → 管理者の手間ゼロ + 即時アクセス                        │
+  │  JIT Provisioning:                                      │
+  │  1. User logs in via IdP                                │
+  │  2. Auto-create user if not found at SSO callback       │
+  │  3. Auto-assign role from IdP attributes (groups, etc.) │
+  │  → Zero admin effort + instant access                   │
   │                                                         │
-  │  注意点:                                                 │
-  │  → 想定外のユーザーが作成される可能性（ドメイン検証必須）    │
-  │  → ロール/権限の自動マッピングルールの設計が重要            │
-  │  → 不要なアカウントのクリーンアップが必要                   │
+  │  Caveats:                                               │
+  │  → Unexpected users may be created (domain validation required)
+  │  → Role/permission auto-mapping rules design is critical │
+  │  → Cleanup of unused accounts is necessary              │
   │                                                         │
   └─────────────────────────────────────────────────────────┘
 ```
 
 ```typescript
-// JIT プロビジョニングの実装
+// JIT provisioning implementation
 
 interface SSOUserData {
   email: string;
@@ -1180,13 +1181,13 @@ interface SSOUserData {
   samlNameId?: string;
   samlSessionIndex?: string;
   sub?: string;           // OIDC subject
-  groups?: string[];      // IdP グループ
+  groups?: string[];      // IdP groups
   picture?: string;
   attributes?: Record<string, unknown>;
 }
 
 async function findOrCreateSSOUser(data: SSOUserData): Promise<User> {
-  // 1. 既存ユーザーを検索
+  // 1. Search for existing user
   let user = await prisma.user.findFirst({
     where: {
       email: data.email.toLowerCase(),
@@ -1196,7 +1197,7 @@ async function findOrCreateSSOUser(data: SSOUserData): Promise<User> {
   });
 
   if (user) {
-    // 2a. 既存ユーザーの情報を更新
+    // 2a. Update existing user's information
     user = await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -1205,7 +1206,7 @@ async function findOrCreateSSOUser(data: SSOUserData): Promise<User> {
         samlNameId: data.samlNameId,
         oidcSub: data.sub,
         lastLoginAt: new Date(),
-        // グループベースのロール更新
+        // Group-based role update
         memberships: {
           update: {
             where: {
@@ -1223,29 +1224,29 @@ async function findOrCreateSSOUser(data: SSOUserData): Promise<User> {
     return user;
   }
 
-  // 2b. 新規ユーザーの自動作成（JIT プロビジョニング）
+  // 2b. Auto-create new user (JIT provisioning)
   const org = await prisma.organization.findUnique({
     where: { id: data.orgId },
   });
 
   if (!org) throw new Error('Organization not found');
 
-  // JIT プロビジョニングが許可されているか確認
+  // Check if JIT provisioning is enabled
   if (!org.jitProvisioningEnabled) {
     throw new Error('Just-in-Time provisioning is not enabled for this organization');
   }
 
-  // ドメイン検証
+  // Domain validation
   const emailDomain = data.email.split('@')[1].toLowerCase();
   const allowedDomains = [org.domain, ...org.domains].filter(Boolean);
   if (!allowedDomains.includes(emailDomain)) {
     throw new Error(`Email domain ${emailDomain} is not allowed for this organization`);
   }
 
-  // グループからロールをマッピング
+  // Map groups to role
   const role = mapGroupsToRole(data.groups || [], data.orgId);
 
-  // ユーザー作成
+  // Create user
   user = await prisma.user.create({
     data: {
       email: data.email.toLowerCase(),
@@ -1253,7 +1254,7 @@ async function findOrCreateSSOUser(data: SSOUserData): Promise<User> {
       picture: data.picture,
       samlNameId: data.samlNameId,
       oidcSub: data.sub,
-      emailVerified: true,  // IdP で認証済みなので verified
+      emailVerified: true,  // Already verified by IdP
       lastLoginAt: new Date(),
       memberships: {
         create: {
@@ -1266,7 +1267,7 @@ async function findOrCreateSSOUser(data: SSOUserData): Promise<User> {
     include: { memberships: true },
   });
 
-  // 監査ログ
+  // Audit log
   await logAuthEvent({
     type: 'jit_user_created',
     userId: user.id,
@@ -1276,20 +1277,20 @@ async function findOrCreateSSOUser(data: SSOUserData): Promise<User> {
     groups: data.groups,
   });
 
-  // 組織管理者に通知
+  // Notify organization admins
   await notifyOrgAdmins(data.orgId, {
     type: 'new_user_via_jit',
-    message: `${data.email} が SSO 経由で自動作成されました`,
+    message: `${data.email} was automatically created via SSO`,
     userId: user.id,
   });
 
   return user;
 }
 
-// グループからロールへのマッピング
+// Mapping groups to roles
 function mapGroupsToRole(groups: string[], orgId: string): string {
-  // 組織固有のマッピングルールを取得
-  // 例: Okta のグループ "MyApp-Admins" → admin ロール
+  // Get organization-specific mapping rules
+  // Example: Okta group "MyApp-Admins" → admin role
   const mappingRules = [
     { pattern: /admin/i, role: 'admin' },
     { pattern: /manager/i, role: 'manager' },
@@ -1303,68 +1304,69 @@ function mapGroupsToRole(groups: string[], orgId: string): string {
     }
   }
 
-  return 'member'; // デフォルトロール
+  return 'member'; // Default role
 }
 ```
 
 ---
 
-## 6. SCIM（ディレクトリ連携）
+## 6. SCIM (Directory Integration)
 
 ```
-SCIM（System for Cross-domain Identity Management）:
+SCIM (System for Cross-domain Identity Management):
 
-  IdP のユーザーディレクトリと自社アプリを同期:
-  → ユーザーの自動作成（プロビジョニング）
-  → ユーザーの自動無効化（デプロビジョニング）
-  → グループメンバーシップの同期
-  → 属性変更の同期（名前変更、部署変更等）
+  Synchronize the IdP's user directory with your app:
+  → Automatic user creation (provisioning)
+  → Automatic user deactivation (deprovisioning)
+  → Group membership synchronization
+  → Attribute change synchronization (name change, department change, etc.)
 
-  JIT プロビジョニングとの違い:
+  Differences from JIT provisioning:
 
   ┌──────────────────┬──────────────────────┬──────────────────────┐
-  │ 項目             │ JIT プロビジョニング   │ SCIM                 │
+  │ Item             │ JIT Provisioning      │ SCIM                 │
   ├──────────────────┼──────────────────────┼──────────────────────┤
-  │ タイミング       │ ログイン時            │ IdP での変更時         │
-  │ 方向             │ IdP → SP（ログイン時） │ IdP → SP（随時）      │
-  │ ユーザー作成     │ ✓                    │ ✓                    │
-  │ ユーザー無効化   │ ✗（ログインしなければ│ ✓（即時無効化）        │
-  │                 │   検知できない）       │                      │
-  │ 属性更新        │ △（ログイン時のみ）    │ ✓（即時反映）          │
-  │ グループ同期    │ △（ログイン時のみ）    │ ✓（即時反映）          │
-  │ 実装コスト      │ 低い                  │ 高い                  │
-  │ 推奨           │ スタートアップ          │ エンタープライズ       │
+  │ Timing           │ At login             │ At IdP change        │
+  │ Direction        │ IdP → SP (at login)  │ IdP → SP (ongoing)   │
+  │ User creation    │ ✓                    │ ✓                    │
+  │ User deactivation│ ✗ (only detectable   │ ✓ (immediate)        │
+  │                  │   if user logs in)   │                      │
+  │ Attribute update │ △ (login only)        │ ✓ (immediate)        │
+  │ Group sync       │ △ (login only)        │ ✓ (immediate)        │
+  │ Implementation   │ Low                  │ High                 │
+  │ cost             │                      │                      │
+  │ Recommended for  │ Startups             │ Enterprise           │
   └──────────────────┴──────────────────────┴──────────────────────┘
 
-  SCIM API エンドポイント（RFC 7644）:
+  SCIM API endpoints (RFC 7644):
 
-    GET    /scim/v2/Users           — ユーザー一覧
-    POST   /scim/v2/Users           — ユーザー作成
-    GET    /scim/v2/Users/:id       — ユーザー取得
-    PUT    /scim/v2/Users/:id       — ユーザー更新（全属性）
-    PATCH  /scim/v2/Users/:id       — ユーザー部分更新
-    DELETE /scim/v2/Users/:id       — ユーザー削除
+    GET    /scim/v2/Users           — List users
+    POST   /scim/v2/Users           — Create user
+    GET    /scim/v2/Users/:id       — Get user
+    PUT    /scim/v2/Users/:id       — Update user (all attributes)
+    PATCH  /scim/v2/Users/:id       — Partial user update
+    DELETE /scim/v2/Users/:id       — Delete user
 
-    GET    /scim/v2/Groups          — グループ一覧
-    POST   /scim/v2/Groups          — グループ作成
-    GET    /scim/v2/Groups/:id      — グループ取得
-    PUT    /scim/v2/Groups/:id      — グループ更新
-    PATCH  /scim/v2/Groups/:id      — グループ部分更新
-    DELETE /scim/v2/Groups/:id      — グループ削除
+    GET    /scim/v2/Groups          — List groups
+    POST   /scim/v2/Groups          — Create group
+    GET    /scim/v2/Groups/:id      — Get group
+    PUT    /scim/v2/Groups/:id      — Update group
+    PATCH  /scim/v2/Groups/:id      — Partial group update
+    DELETE /scim/v2/Groups/:id      — Delete group
 
-    GET    /scim/v2/ServiceProviderConfig — SP 機能情報
-    GET    /scim/v2/Schemas         — スキーマ定義
-    GET    /scim/v2/ResourceTypes   — リソースタイプ
+    GET    /scim/v2/ServiceProviderConfig — SP capability info
+    GET    /scim/v2/Schemas         — Schema definitions
+    GET    /scim/v2/ResourceTypes   — Resource types
 ```
 
 ```typescript
-// SCIM エンドポイントの実装
+// SCIM endpoint implementation
 
 import express from 'express';
 
 const scimRouter = express.Router();
 
-// SCIM 認証ミドルウェア
+// SCIM authentication middleware
 async function scimAuth(
   req: express.Request,
   res: express.Response,
@@ -1381,7 +1383,7 @@ async function scimAuth(
 
   const token = authHeader.replace('Bearer ', '');
 
-  // トークンから組織を特定
+  // Identify organization from token
   const org = await findOrgByScimToken(token);
   if (!org) {
     return res.status(401).json({
@@ -1397,7 +1399,7 @@ async function scimAuth(
 
 scimRouter.use(scimAuth);
 
-// SCIM ユーザーへの変換
+// Convert to SCIM user
 function toScimUser(user: User & { memberships: OrganizationMember[] }): any {
   return {
     schemas: ['urn:ietf:params:scim:schemas:core:2.0:User'],
@@ -1428,13 +1430,13 @@ function toScimUser(user: User & { memberships: OrganizationMember[] }): any {
   };
 }
 
-// ユーザー一覧
+// List users
 scimRouter.get('/Users', async (req, res) => {
   const orgId = (req as any).orgId;
   const startIndex = parseInt(req.query.startIndex as string) || 1;
   const count = Math.min(parseInt(req.query.count as string) || 100, 200);
 
-  // フィルター解析（例: filter=userName eq "alice@example.com"）
+  // Parse filter (e.g., filter=userName eq "alice@example.com")
   const filter = req.query.filter as string;
   let where: any = {
     memberships: { some: { orgId } },
@@ -1466,12 +1468,12 @@ scimRouter.get('/Users', async (req, res) => {
   });
 });
 
-// ユーザー作成
+// Create user
 scimRouter.post('/Users', async (req, res) => {
   const orgId = (req as any).orgId;
   const scimUser = req.body;
 
-  // 既存ユーザーチェック
+  // Check for existing user
   const existingUser = await prisma.user.findFirst({
     where: {
       email: scimUser.userName || scimUser.emails?.[0]?.value,
@@ -1517,7 +1519,7 @@ scimRouter.post('/Users', async (req, res) => {
   res.status(201).json(toScimUser(user));
 });
 
-// ユーザー取得
+// Get user
 scimRouter.get('/Users/:id', async (req, res) => {
   const orgId = (req as any).orgId;
 
@@ -1540,7 +1542,7 @@ scimRouter.get('/Users/:id', async (req, res) => {
   res.json(toScimUser(user));
 });
 
-// ユーザー部分更新（PATCH）
+// Partial user update (PATCH)
 scimRouter.patch('/Users/:id', async (req, res) => {
   const orgId = (req as any).orgId;
   const operations = req.body.Operations || [];
@@ -1569,13 +1571,13 @@ scimRouter.patch('/Users/:id', async (req, res) => {
           updateData.active = op.value;
 
           if (op.value === false) {
-            // ユーザー無効化（デプロビジョニング）
+            // Deactivate user (deprovisioning)
             updateData.deactivatedAt = new Date();
 
-            // 全セッションを無効化
+            // Invalidate all sessions
             await sessionManager.destroyAllForUser(user.id);
 
-            // Remember Me トークンを全て無効化
+            // Revoke all Remember Me tokens
             await rememberMeManager.revokeAllForUser(user.id);
 
             await logAuditEvent({
@@ -1585,7 +1587,7 @@ scimRouter.patch('/Users/:id', async (req, res) => {
               email: user.email,
             });
           } else {
-            // ユーザー再有効化
+            // Reactivate user
             updateData.deactivatedAt = null;
 
             await logAuditEvent({
@@ -1602,7 +1604,7 @@ scimRouter.patch('/Users/:id', async (req, res) => {
         }
 
         if (op.path === 'name.givenName' || op.path === 'name.familyName') {
-          // 名前の更新は完全な名前を再構築
+          // Rebuild full name for name updates
           const currentName = user.name?.split(' ') || ['', ''];
           if (op.path === 'name.givenName') currentName[0] = op.value;
           if (op.path === 'name.familyName') currentName[1] = op.value;
@@ -1612,12 +1614,12 @@ scimRouter.patch('/Users/:id', async (req, res) => {
       }
 
       case 'add': {
-        // グループへの追加等
+        // Add to group, etc.
         break;
       }
 
       case 'remove': {
-        // グループからの削除等
+        // Remove from group, etc.
         break;
       }
     }
@@ -1632,7 +1634,7 @@ scimRouter.patch('/Users/:id', async (req, res) => {
   res.json(toScimUser(updatedUser));
 });
 
-// ユーザー削除（完全削除 or 無効化）
+// Delete user (full delete or deactivation)
 scimRouter.delete('/Users/:id', async (req, res) => {
   const orgId = (req as any).orgId;
 
@@ -1651,7 +1653,7 @@ scimRouter.delete('/Users/:id', async (req, res) => {
     });
   }
 
-  // ソフトデリート（推奨: 完全削除ではなく無効化）
+  // Soft delete (recommended: deactivate rather than fully delete)
   await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -1660,7 +1662,7 @@ scimRouter.delete('/Users/:id', async (req, res) => {
     },
   });
 
-  // 全セッションを無効化
+  // Invalidate all sessions
   await sessionManager.destroyAllForUser(user.id);
 
   await logAuditEvent({
@@ -1673,7 +1675,7 @@ scimRouter.delete('/Users/:id', async (req, res) => {
   res.status(204).send();
 });
 
-// ServiceProviderConfig（SCIM サーバーの機能情報）
+// ServiceProviderConfig (SCIM server capability info)
 scimRouter.get('/ServiceProviderConfig', (req, res) => {
   res.json({
     schemas: ['urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig'],
@@ -1692,58 +1694,58 @@ scimRouter.get('/ServiceProviderConfig', (req, res) => {
   });
 });
 
-// ルーターのマウント
+// Mount the router
 app.use('/scim/v2', scimRouter);
 ```
 
 ---
 
-## 7. エンタープライズ認証のセキュリティ要件
+## 7. Enterprise Authentication Security Requirements
 
 ```
-B2B SaaS の認証チェックリスト:
+B2B SaaS Authentication Checklist:
 
   SSO:
-  ✓ SAML 2.0 対応（SP-Initiated + IdP-Initiated）
-  ✓ OIDC 対応（Authorization Code Flow + PKCE）
-  ✓ テナント別 SSO 設定
-  ✓ SSO 強制オプション（パスワード無効化）
-  ✓ IdP Metadata の自動取得（URL指定）
-  ✓ 証明書ローテーション（ダウンタイムなし）
-  ✓ SSO 接続テスト機能
+  ✓ SAML 2.0 support (SP-Initiated + IdP-Initiated)
+  ✓ OIDC support (Authorization Code Flow + PKCE)
+  ✓ Per-tenant SSO configuration
+  ✓ SSO enforcement option (disable password)
+  ✓ Auto-fetch of IdP Metadata (by URL)
+  ✓ Certificate rotation (zero downtime)
+  ✓ SSO connection test feature
 
-  ディレクトリ:
-  ✓ SCIM プロビジョニング
-  ✓ 退職者の自動無効化（デプロビジョニング）
-  ✓ グループ/ロール同期
-  ✓ JIT プロビジョニング
+  Directory:
+  ✓ SCIM provisioning
+  ✓ Auto-deactivation of departed employees (deprovisioning)
+  ✓ Group/role synchronization
+  ✓ JIT provisioning
 
-  セキュリティ:
-  ✓ MFA の組織レベル強制
-  ✓ セッション有効期限の組織設定
-  ✓ IP ホワイトリスト
-  ✓ 監査ログ（ログイン/ログアウト/権限変更）
-  ✓ API キー管理
-  ✓ パスワードポリシーのカスタマイズ
+  Security:
+  ✓ Organization-level MFA enforcement
+  ✓ Session expiry configurable per organization
+  ✓ IP allowlist
+  ✓ Audit logs (login/logout/permission changes)
+  ✓ API key management
+  ✓ Customizable password policies
 
-  コンプライアンス:
+  Compliance:
   ✓ SOC 2 Type II
-  ✓ GDPR 対応（データ削除要求）
-  ✓ HIPAA 対応（医療向け）
-  ✓ データ保管場所の選択（リージョン指定）
-  ✓ データ暗号化（保存時/転送時）
-  ✓ 保持期間ポリシー
+  ✓ GDPR compliance (data deletion requests)
+  ✓ HIPAA compliance (for healthcare)
+  ✓ Data residency selection (region specification)
+  ✓ Data encryption (at rest / in transit)
+  ✓ Retention period policies
 ```
 
-### 7.1 組織レベルの MFA 強制
+### 7.1 Organization-Level MFA Enforcement
 
 ```typescript
-// 組織レベルの MFA 強制
+// Organization-level MFA enforcement
 app.use('/api', async (req, res, next) => {
   const session = await getSession(req);
   if (!session) return next();
 
-  // 組織のセキュリティ設定を取得
+  // Get organization's security settings
   const membership = await prisma.organizationMember.findFirst({
     where: { userId: session.userId },
     include: { org: true },
@@ -1753,7 +1755,7 @@ app.use('/api', async (req, res, next) => {
 
   const org = membership.org;
 
-  // 1. MFA 強制チェック
+  // 1. MFA enforcement check
   if (org.mfaRequired) {
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
@@ -1769,12 +1771,12 @@ app.use('/api', async (req, res, next) => {
     }
   }
 
-  // 2. IP ホワイトリストチェック
+  // 2. IP allowlist check
   if (org.ipAllowlist.length > 0) {
     const clientIP = getClientIP(req);
     const isAllowed = org.ipAllowlist.some((allowed: string) => {
       if (allowed.includes('/')) {
-        // CIDR 表記
+        // CIDR notation
         return isIPInCIDR(clientIP, allowed);
       }
       return clientIP === allowed;
@@ -1797,7 +1799,7 @@ app.use('/api', async (req, res, next) => {
     }
   }
 
-  // 3. セッション最大時間チェック
+  // 3. Session max age check
   if (org.sessionMaxAge) {
     const sessionAge = Date.now() - session.createdAt;
     if (sessionAge > org.sessionMaxAge * 1000) {
@@ -1814,16 +1816,16 @@ app.use('/api', async (req, res, next) => {
 });
 ```
 
-### 7.2 監査ログ
+### 7.2 Audit Logs
 
 ```typescript
-// エンタープライズ向け監査ログ
+// Enterprise audit logs
 
 interface AuditLogEntry {
   id: string;
   timestamp: Date;
   orgId: string;
-  actorId: string;         // 操作者（ユーザー or システム）
+  actorId: string;         // Operator (user or system)
   actorType: 'user' | 'admin' | 'system' | 'scim' | 'api';
   action: string;          // 'login', 'logout', 'create_user', etc.
   resource: string;        // 'session', 'user', 'team', etc.
@@ -1836,7 +1838,7 @@ interface AuditLogEntry {
 }
 
 class AuditLogger {
-  // 監査ログの記録
+  // Record audit log entry
   async log(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): Promise<void> {
     await prisma.auditLog.create({
       data: {
@@ -1846,13 +1848,13 @@ class AuditLogger {
       },
     });
 
-    // リアルタイム通知（セキュリティイベント）
+    // Real-time notification (for security events)
     if (this.isSecurityEvent(entry.action)) {
       await this.notifySecurityTeam(entry);
     }
   }
 
-  // 監査ログの検索（管理画面用）
+  // Search audit logs (for admin panel)
   async search(orgId: string, filters: {
     startDate?: Date;
     endDate?: Date;
@@ -1896,7 +1898,7 @@ class AuditLogger {
     };
   }
 
-  // 監査ログのエクスポート（CSV）
+  // Export audit logs (CSV)
   async exportCSV(orgId: string, startDate: Date, endDate: Date): Promise<string> {
     const entries = await prisma.auditLog.findMany({
       where: {
@@ -1929,12 +1931,12 @@ class AuditLogger {
   private async notifySecurityTeam(
     entry: Omit<AuditLogEntry, 'id' | 'timestamp'>
   ): Promise<void> {
-    // Slack / PagerDuty / メール等への通知
-    // 組織のセキュリティ通知設定に基づく
+    // Notify via Slack / PagerDuty / email, etc.
+    // Based on organization's security notification settings
   }
 }
 
-// 監査ログ API
+// Audit log API
 app.get('/api/admin/audit-logs', requireOrgAdmin, async (req, res) => {
   const auditLogger = new AuditLogger();
   const result = await auditLogger.search(req.orgId, {
@@ -1952,65 +1954,65 @@ app.get('/api/admin/audit-logs', requireOrgAdmin, async (req, res) => {
 
 ---
 
-## 8. 認証 SaaS の活用
+## 8. Authentication SaaS Options
 
 ```
-認証 SaaS の比較:
+Comparison of Authentication SaaS:
 
   ┌────────────┬──────┬──────┬────────────────┬──────────────────────┐
-  │ サービス    │ SSO  │ SCIM │ 価格           │ 特徴                  │
+  │ Service    │ SSO  │ SCIM │ Pricing        │ Features             │
   ├────────────┼──────┼──────┼────────────────┼──────────────────────┤
-  │ Auth0      │ ✓    │ ✓    │ 高い($23k+/年) │ 最も機能豊富           │
-  │ WorkOS     │ ✓    │ ✓    │ 中($49/接続/月) │ エンタープライズ SSO 特化│
-  │ Clerk      │ ✓    │ △    │ 中($0.02/MAU)  │ React UI コンポーネント │
-  │ Kinde      │ ✓    │ △    │ 安い($0/～)     │ 新興、DX 良好          │
-  │ Keycloak   │ ✓    │ ✓    │ 無料(自前運用)  │ セルフホスト           │
-  │ Stytch     │ ✓    │ ✓    │ 中             │ B2B 認証に強い         │
-  │ FusionAuth │ ✓    │ ✓    │ 中(自前運用可)  │ 柔軟なカスタマイズ     │
+  │ Auth0      │ ✓    │ ✓    │ High ($23k+/yr)│ Most feature-rich    │
+  │ WorkOS     │ ✓    │ ✓    │ Mid ($49/conn/mo)│ Enterprise SSO focused│
+  │ Clerk      │ ✓    │ △    │ Mid ($0.02/MAU) │ React UI components  │
+  │ Kinde      │ ✓    │ △    │ Low ($0/~)     │ New, great DX        │
+  │ Keycloak   │ ✓    │ ✓    │ Free (self-host)│ Self-hosted          │
+  │ Stytch     │ ✓    │ ✓    │ Mid            │ Strong B2B auth      │
+  │ FusionAuth │ ✓    │ ✓    │ Mid (self-host) │ Flexible customization│
   └────────────┴──────┴──────┴────────────────┴──────────────────────┘
 
-  選定ガイド:
+  Selection guide:
 
   ┌─────────────────────────────────────────────────────────┐
   │                                                         │
-  │  スタートアップ（～シリーズA）:                             │
-  │    → Auth.js（無料）でメール/パスワード + ソーシャルログイン │
-  │    → SSO が必要になったら WorkOS を追加                    │
-  │    → 理由: 初期コスト最小、必要に応じてスケール             │
+  │  Startups (up to Series A):                             │
+  │    → Auth.js (free) for email/password + social login   │
+  │    → Add WorkOS when SSO becomes needed                 │
+  │    → Reason: Minimize upfront cost, scale as needed     │
   │                                                         │
-  │  成長期（シリーズB～）:                                    │
-  │    → Clerk or Auth0 でフルスタック認証                     │
-  │    → SCIM 対応が必要なら WorkOS or Auth0                  │
-  │    → 理由: 開発リソースを製品に集中                        │
+  │  Growth stage (Series B+):                              │
+  │    → Full-stack auth with Clerk or Auth0                │
+  │    → WorkOS or Auth0 if SCIM support is needed          │
+  │    → Reason: Focus development resources on the product │
   │                                                         │
-  │  エンタープライズ:                                        │
-  │    → Auth0（フルスタック）or WorkOS（SSO/SCIM特化）        │
-  │    → セルフホスト要件 → Keycloak or FusionAuth            │
-  │    → 理由: コンプライアンス、SLA、サポート                  │
+  │  Enterprise:                                            │
+  │    → Auth0 (full-stack) or WorkOS (SSO/SCIM focused)   │
+  │    → Self-hosting requirements → Keycloak or FusionAuth │
+  │    → Reason: Compliance, SLA, support                   │
   │                                                         │
-  │  セルフホスト要件:                                        │
-  │    → Keycloak（Java）or Authentik（Python）               │
-  │    → 理由: データ主権、規制要件                            │
+  │  Self-hosting requirements:                             │
+  │    → Keycloak (Java) or Authentik (Python)              │
+  │    → Reason: Data sovereignty, regulatory requirements  │
   │                                                         │
   └─────────────────────────────────────────────────────────┘
 ```
 
 ```typescript
-// WorkOS を使った SSO 実装（最小限のコード）
+// SSO implementation using WorkOS (minimal code)
 // npm install @workos-inc/node
 
 import WorkOS from '@workos-inc/node';
 
 const workos = new WorkOS(process.env.WORKOS_API_KEY!);
 
-// SSO ログイン開始
+// Start SSO login
 app.get('/api/auth/sso/login', async (req, res) => {
   const { email } = req.query;
 
-  // WorkOS が自動的にドメインから組織を特定
+  // WorkOS automatically identifies the organization from the domain
   const authorizationUrl = workos.sso.getAuthorizationURL({
     clientId: process.env.WORKOS_CLIENT_ID!,
-    // ドメインベース or 接続 ID ベース
+    // Domain-based or connection ID-based
     domain: email ? (email as string).split('@')[1] : undefined,
     connection: req.query.connectionId as string,
     redirectUri: 'https://myapp.com/api/auth/sso/callback',
@@ -2022,13 +2024,13 @@ app.get('/api/auth/sso/login', async (req, res) => {
   res.redirect(authorizationUrl);
 });
 
-// SSO コールバック
+// SSO callback
 app.get('/api/auth/sso/callback', async (req, res) => {
   const { code, state } = req.query;
   const { redirectTo } = JSON.parse(state as string);
 
   try {
-    // WorkOS がプロファイル取得と検証を一括処理
+    // WorkOS handles profile retrieval and validation in one step
     const { profile } = await workos.sso.getProfileAndToken({
       clientId: process.env.WORKOS_CLIENT_ID!,
       code: code as string,
@@ -2056,7 +2058,7 @@ app.get('/api/auth/sso/callback', async (req, res) => {
   }
 });
 
-// WorkOS SCIM ディレクトリ同期（Webhook）
+// WorkOS SCIM directory sync (Webhook)
 app.post('/api/webhooks/workos', async (req, res) => {
   const payload = workos.webhooks.constructEvent({
     payload: req.body,
@@ -2092,7 +2094,7 @@ app.post('/api/webhooks/workos', async (req, res) => {
 
     case 'dsync.group.user_added':
     case 'dsync.group.user_removed': {
-      // グループメンバーシップの更新
+      // Update group membership
       break;
     }
   }
@@ -2103,84 +2105,84 @@ app.post('/api/webhooks/workos', async (req, res) => {
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
 ```
-エンタープライズ認証のアンチパターン:
+Enterprise Authentication Anti-Patterns:
 
-  ❌ アンチパターン1: SSO を後付けで実装
-     → マルチテナントを考慮せずに認証を実装
-     → SSO 追加時に大規模リファクタリングが必要
-     ○ 正しい方法: 初期設計からテナント別認証を考慮
+  ❌ Anti-pattern 1: Adding SSO as an afterthought
+     → Implement authentication without considering multi-tenancy
+     → Major refactoring required when adding SSO later
+     ○ Correct approach: Plan for per-tenant authentication from the initial design
 
-  ❌ アンチパターン2: SAML 署名の検証を省略
-     → 開発時に署名検証を無効化 → 本番にそのまま投入
-     → IdP のなりすましが可能になる
-     ○ 正しい方法: 必ず XML 署名を検証、テストでも有効化
+  ❌ Anti-pattern 2: Skipping SAML signature verification
+     → Disable signature verification during development → shipped to production as-is
+     → Enables IdP impersonation attacks
+     ○ Correct approach: Always verify XML signatures, enable them in tests too
 
-  ❌ アンチパターン3: SCIM トークンを平文保存
-     → SCIM の Bearer トークンを DB に平文で保存
-     → DB 漏洩時にディレクトリ連携が悪用される
-     ○ 正しい方法: トークンはハッシュ化して保存
+  ❌ Anti-pattern 3: Storing SCIM tokens in plaintext
+     → Save SCIM Bearer tokens to the DB in plaintext
+     → Directory integration can be exploited if DB is leaked
+     ○ Correct approach: Hash tokens before storing
 
-  ❌ アンチパターン4: SSO ユーザーにパスワードリセットを許可
-     → SSO 強制の組織でパスワードリセットが可能
-     → SSO バイパスのセキュリティホール
-     ○ 正しい方法: SSO 強制時はパスワード関連機能を無効化
+  ❌ Anti-pattern 4: Allowing password reset for SSO users
+     → Password reset is possible in organizations with enforced SSO
+     → Security hole that allows bypassing SSO
+     ○ Correct approach: Disable password-related features when SSO is enforced
 
-  ❌ アンチパターン5: 退職者のセッションを放置
-     → SCIM でユーザーを無効化したがセッションは有効のまま
-     → 退職者が引き続きアクセス可能
-     ○ 正しい方法: 無効化時に全セッションを即座に破棄
+  ❌ Anti-pattern 5: Leaving departed users' sessions active
+     → SCIM deactivates the user but sessions remain valid
+     → Departed user can still access the system
+     ○ Correct approach: Immediately destroy all sessions upon deactivation
 ```
 
 ---
 
-## 10. エッジケース
+## 10. Edge Cases
 
 ```
-SSO のエッジケース:
+SSO Edge Cases:
 
-  ① IdP 障害時のフォールバック:
-     → IdP がダウン → SSO ログイン不可
-     → 対策: 緊急アクセス用の「ブレークグラス」アカウント
-     → 組織管理者にのみバックアップパスワードを許可
-     → IdP 障害の自動検知と通知
+  ① Fallback on IdP failure:
+     → IdP goes down → SSO login unavailable
+     → Mitigation: "Break glass" account for emergency access
+     → Allow backup password only for organization administrators
+     → Auto-detect and alert on IdP failure
 
-  ② 証明書ローテーション中の検証エラー:
-     → IdP が新しい証明書に切り替え → 旧証明書での検証失敗
-     → 対策: Metadata URL を定期取得して証明書を自動更新
-     → 複数の証明書を同時に信頼する猶予期間
+  ② Verification errors during certificate rotation:
+     → IdP switches to new certificate → validation with old certificate fails
+     → Mitigation: Periodically fetch Metadata URL to auto-update certificates
+     → Grace period where both old and new certificates are trusted
 
-  ③ ドメインの所有権変更:
-     → 企業買収で example.com のドメイン所有者が変わった
-     → 旧組織のユーザーが新組織の SSO で認証される可能性
-     → 対策: ドメイン所有権の定期検証（DNS TXT レコード）
+  ③ Domain ownership transfer:
+     → Corporate acquisition changes ownership of example.com
+     → Previous organization's users may authenticate via new organization's SSO
+     → Mitigation: Periodic domain ownership verification (DNS TXT record)
 
-  ④ 複数組織に所属するユーザー:
-     → alice@consultant.com が複数の顧客組織に所属
-     → どの組織の SSO でログインすべきか？
-     → 対策: 組織選択画面を表示、または組織ごとに異なる URL
+  ④ Users belonging to multiple organizations:
+     → alice@consultant.com belongs to multiple customer organizations
+     → Which organization's SSO should be used for login?
+     → Mitigation: Show organization selection screen, or use different URLs per organization
 
-  ⑤ SSO 設定ミスによるロックアウト:
-     → 組織管理者が誤った SSO 設定を保存
-     → 全ユーザーがログイン不能
-     → 対策: SSO 設定変更前にテスト接続を必須化
-     → バックドアとしてのスーパー管理者アカウント
-     → SSO 設定の即時ロールバック機能
+  ⑤ Lockout due to SSO misconfiguration:
+     → Organization admin saves incorrect SSO settings
+     → All users are unable to log in
+     → Mitigation: Require test connection before saving SSO settings
+     → Super admin account as a backdoor
+     → Immediate SSO configuration rollback feature
 
-  ⑥ SAML Response のリプレイ攻撃:
-     → 攻撃者が過去の SAMLResponse を再利用
-     → 対策: InResponseTo の検証、Assertion の有効期限チェック
-     → 一度使用した AssertionID の記録（リプレイ防止）
+  ⑥ SAML Response replay attacks:
+     → Attacker reuses a previous SAMLResponse
+     → Mitigation: Verify InResponseTo, check Assertion expiry
+     → Record used AssertionIDs (replay prevention)
 ```
 
 ```typescript
-// ブレークグラス（緊急アクセス）の実装
+// Break glass (emergency access) implementation
 app.post('/api/auth/break-glass', async (req, res) => {
   const { email, password, breakGlassCode } = req.body;
 
-  // ブレークグラスコードの検証（事前に組織管理者に配布）
+  // Verify break glass code (distributed to org admins in advance)
   const org = await getOrgByEmailDomain(email);
   if (!org) {
     return res.status(400).json({ error: 'Organization not found' });
@@ -2198,19 +2200,19 @@ app.post('/api/auth/break-glass', async (req, res) => {
     return res.status(403).json({ error: 'Invalid break glass code' });
   }
 
-  // 通常の認証（SSO バイパス）
+  // Normal authentication (SSO bypass)
   const user = await authenticateWithPassword(email, password);
   if (!user) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  // セッション作成（短い有効期限）
+  // Create session (short expiry)
   const { sessionId } = await sessionManager.create(
     { userId: user.id, role: user.role },
     req
   );
 
-  // 全管理者に緊急通知
+  // Urgent notification to all admins
   await notifyAllAdmins({
     type: 'break_glass_used',
     email,
@@ -2234,153 +2236,54 @@ app.post('/api/auth/break-glass', async (req, res) => {
 
 ---
 
-## 11. 演習問題
+## 11. Exercises
 
-### 演習1（基礎）: テナント別 SSO 判定の実装
-
-```
-課題:
-  以下を実装せよ:
-  1. メールアドレスのドメインから組織を特定する関数
-  2. 組織の SSO 設定に基づいて認証方法を判定する API
-  3. SSO 強制時にパスワードログインを拒否する処理
-
-検証ポイント:
-  - ドメイン検索が大文字/小文字を区別しないか
-  - SSO 未設定の組織ではパスワードログインが許可されるか
-  - SSO 強制時にパスワードログインが適切に拒否されるか
-```
-
-### 演習2（応用）: SAML SSO の実装
+### Exercise 1 (Basic): Implementing Per-Tenant SSO Determination
 
 ```
-課題:
-  samlify ライブラリを使って以下を実装せよ:
-  1. SP Metadata の生成と配信エンドポイント
-  2. SP-Initiated SSO ログインフロー
-  3. SAML Assertion の検証とユーザー作成（JIT プロビジョニング）
-  4. テナント別の IdP 設定管理
+Task:
+  Implement the following:
+  1. A function that identifies an organization from an email address domain
+  2. An API that determines the authentication method based on the organization's SSO settings
+  3. Logic to reject password login when SSO is enforced
 
-検証ポイント:
-  - XML 署名の検証が有効になっているか
-  - NameID とドメインの一致確認が行われているか
-  - JIT プロビジョニング時にグループからロールがマッピングされるか
-  - 監査ログが記録されているか
+Verification points:
+  - Does the domain search handle uppercase/lowercase correctly?
+  - Is password login permitted for organizations without SSO configured?
+  - Is password login properly rejected when SSO is enforced?
 ```
 
-### 演習3（発展）: SCIM プロビジョニングの実装
+### Exercise 2 (Intermediate): Implementing SAML SSO
 
 ```
-課題:
-  RFC 7644 準拠の SCIM エンドポイントを実装せよ:
-  1. Bearer トークン認証
-  2. CRUD エンドポイント（Users）
-  3. PATCH 操作によるユーザー無効化（デプロビジョニング）
-  4. 無効化時の全セッション破棄
-  5. フィルター対応（userName eq "..."）
+Task:
+  Use the samlify library to implement the following:
+  1. SP Metadata generation and distribution endpoint
+  2. SP-Initiated SSO login flow
+  3. SAML Assertion verification and user creation (JIT provisioning)
+  4. Per-tenant IdP configuration management
 
-検証ポイント:
-  - SCIM トークンがハッシュ化されて保存されているか
-  - デプロビジョニング時に全セッションが破棄されるか
-  - SCIM レスポンスが RFC 7644 のスキーマに準拠しているか
-  - エラーレスポンスが SCIM 標準形式か
+Verification points:
+  - Is XML signature verification enabled?
+  - Is NameID and domain matching being checked?
+  - Are groups being mapped to roles during JIT provisioning?
+  - Are audit logs being recorded?
 ```
 
----
-
-## 12. FAQ / トラブルシューティング
+### Exercise 3 (Advanced): Implementing SCIM Provisioning
 
 ```
-Q: SAML ログインで「Signature validation failed」エラーが出る
-A: 以下をチェック:
-   1. IdP の証明書が正しく設定されているか（PEM 形式、ヘッダー/フッター含む）
-   2. 証明書が期限切れでないか
-   3. IdP が Response と Assertion のどちらに署名しているか確認
-   4. 署名アルゴリズムが一致しているか（SHA-1 vs SHA-256）
-   5. IdP の Metadata を再取得して更新
+Task:
+  Implement RFC 7644-compliant SCIM endpoints:
+  1. Bearer token authentication
+  2. CRUD endpoints (Users)
+  3. User deactivation via PATCH operation (deprovisioning)
+  4. Destroy all sessions on deactivation
+  5. Filter support (userName eq "...")
 
-Q: OIDC SSO で「Invalid redirect_uri」エラーが出る
-A: 以下をチェック:
-   1. IdP に登録した redirect_uri と完全一致しているか（末尾のスラッシュ含む）
-   2. https:// が正しく使用されているか
-   3. ポート番号が一致しているか（開発環境で localhost:3000 等）
-
-Q: SCIM でユーザーが二重作成される
-A: 以下をチェック:
-   1. externalId で既存ユーザーを検索しているか
-   2. email の大文字/小文字を正規化しているか（.toLowerCase()）
-   3. IdP 側で「User uniqueness」の設定が正しいか
-   4. 同時リクエストの排他制御（Unique 制約、トランザクション）
-
-Q: SSO 設定後に管理者がログインできなくなった
-A: 対策:
-   1. ブレークグラスアカウントで緊急アクセス
-   2. DB で直接 ssoEnabled を false に変更
-   3. 事前にスーパー管理者のパスワードログインを維持
-   4. SSO 設定変更前にテスト接続を必須化
-
-Q: IdP-Initiated SSO でユーザーが「Invalid RelayState」エラーになる
-A: IdP-Initiated SSO では SP が RelayState を設定しないため:
-   1. RelayState が空/null の場合のデフォルト処理を追加
-   2. IdP-Initiated SSO のコールバック URL を別途用意
-   3. IdP 側で RelayState にデフォルト値を設定
-
-Q: SCIM トークンのローテーションはどう行うべきか
-A: 以下の手順:
-   1. 新しいトークンを生成して DB に保存
-   2. IdP の SCIM 設定を新しいトークンに更新
-   3. 旧トークンを猶予期間（例: 24時間）有効に保持
-   4. 猶予期間後に旧トークンを無効化
-   5. ダウンタイムなしのローテーションが可能
+Verification points:
+  - Are SCIM tokens hashed before being stored?
+  - Are all sessions destroyed on deprovisioning?
+  - Do SCIM responses conform to the RFC 7644 schema?
+  - Are error responses in SCIM standard format?
 ```
-
----
-
-
-## FAQ
-
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
-
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
-
-### Q2: 初心者がよく陥る間違いは何ですか？
-
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
-
-### Q3: 実務ではどのように活用されていますか？
-
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| SSO プロトコル | SAML 2.0（エンタープライズ標準）+ OIDC（モダン） |
-| テナント別 | ドメインから組織特定 → SSO 判定 → IdP リダイレクト |
-| JIT プロビジョニング | SSO ログイン時にユーザー自動作成 + グループロールマッピング |
-| SCIM | 自動プロビジョニング/デプロビジョニング、即時セッション無効化 |
-| セキュリティ | MFA 強制、IP ホワイトリスト、監査ログ、証明書管理 |
-| 緊急対応 | ブレークグラスアカウント、IdP 障害時のフォールバック |
-| 認証 SaaS | WorkOS（SSO/SCIM 特化）、Auth0（フルスタック）、Keycloak（セルフホスト） |
-
----
-
-## 次に読むべきガイド
-
-
----
-
-## 参考文献
-
-1. OASIS. "SAML 2.0 Technical Overview." docs.oasis-open.org, 2008.
-2. RFC 7644. "System for Cross-domain Identity Management: Protocol." IETF, 2015.
-3. RFC 7643. "System for Cross-domain Identity Management: Core Schema." IETF, 2015.
-4. OpenID Foundation. "OpenID Connect Core 1.0." openid.net, 2014.
-5. WorkOS. "Enterprise SSO." workos.com/docs, 2024.
-6. Auth0. "Enterprise Connections." auth0.com/docs, 2024.
-7. Okta. "SAML 2.0 Overview." developer.okta.com, 2024.
-8. Microsoft. "Azure AD SAML Protocol." learn.microsoft.com, 2024.
-9. OWASP. "SAML Security Cheat Sheet." cheatsheetseries.owasp.org, 2024.
-10. NIST SP 800-63C. "Digital Identity Guidelines: Federation and Assertions." NIST, 2017.
