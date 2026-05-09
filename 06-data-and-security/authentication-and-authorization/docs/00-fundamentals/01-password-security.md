@@ -1,142 +1,142 @@
-# パスワードセキュリティ
+# Password Security
 
-> パスワードは最も広く使われる認証手段だが、最も攻撃されやすい。bcrypt/Argon2によるハッシュ化、安全なパスワードポリシー、漏洩検知、パスワードリセットフローまで、パスワード管理の全ベストプラクティスを解説する。NIST SP 800-63B、OWASP Password Storage Cheat Sheet に基づき、内部アルゴリズムレベルの理解から実運用のセキュリティ対策までを網羅する。
+> Passwords are the most widely used authentication method, but also the most vulnerable to attack. This guide covers all best practices for password management: hashing with bcrypt/Argon2, secure password policies, breach detection, and password reset flows. Based on NIST SP 800-63B and the OWASP Password Storage Cheat Sheet, it spans from understanding internal algorithm mechanics to practical security measures for production systems.
 
-## 前提知識
+## Prerequisites
 
-- ハッシュ関数の基本概念（一方向性、衝突耐性）
-- 対称鍵暗号と非対称鍵暗号の違い
-- HTTP リクエスト/レスポンスの基本
-- データベース操作の基本
+- Basic concepts of hash functions (one-wayness, collision resistance)
+- Differences between symmetric and asymmetric encryption
+- Basics of HTTP request/response
+- Basics of database operations
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] パスワードハッシュの仕組みと適切なアルゴリズム選択を理解する
-- [ ] bcrypt と Argon2id の内部動作を把握する
-- [ ] 安全なパスワードポリシーを設計できるようになる
-- [ ] パスワードリセットとアカウントリカバリーを安全に実装する
-- [ ] ブルートフォース攻撃とクレデンシャルスタッフィングへの防御策を習得する
-- [ ] パスワードマイグレーション戦略を理解する
+- [ ] Understand how password hashing works and how to choose the right algorithm
+- [ ] Understand the internal workings of bcrypt and Argon2id
+- [ ] Be able to design a secure password policy
+- [ ] Implement password reset and account recovery securely
+- [ ] Learn defenses against brute-force attacks and credential stuffing
+- [ ] Understand password migration strategies
 
 ---
 
-## 1. パスワードハッシュの基礎
+## 1. Fundamentals of Password Hashing
 
 ```
-なぜハッシュが必要か:
+Why hashing is necessary:
 
-  平文保存のリスク:
-    DB漏洩 → 全ユーザーのパスワード即座に判明
-    内部犯行 → 開発者がパスワードを閲覧可能
-    ログ混入 → パスワードがログファイルに記録
-    バックアップ → バックアップファイルから読取可能
+  Risks of storing plaintext:
+    DB breach → All user passwords immediately exposed
+    Insider threat → Developers can view passwords
+    Log leakage → Passwords recorded in log files
+    Backups → Readable from backup files
 
-  ハッシュの役割:
-    パスワード → ハッシュ関数 → ハッシュ値（不可逆）
+  Role of hashing:
+    Password → Hash function → Hash value (irreversible)
     "password123" → bcrypt → "$2b$12$LJ3m4ys..."
-    ハッシュ値からパスワードを復元不可能
+    Cannot recover the password from the hash value
 
-ハッシュ vs 暗号化:
+Hashing vs Encryption:
 
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  ハッシュ（一方向関数）:                            │
-  │  → 入力 → ハッシュ値（復元不可能）                  │
-  │  → パスワード保存に使用                            │
-  │  → 同じ入力 → 常に同じ出力                         │
-  │  → 例: bcrypt, Argon2, SHA-256                   │
+  │  Hashing (one-way function):                     │
+  │  → Input → Hash value (irreversible)             │
+  │  → Used for storing passwords                    │
+  │  → Same input → always same output               │
+  │  → Examples: bcrypt, Argon2, SHA-256             │
   │                                                  │
-  │  暗号化（双方向関数）:                              │
-  │  → 平文 → 暗号文（復号可能）                       │
-  │  → データの保護に使用（パスワードには使わない）       │
-  │  → 鍵があれば復元可能                              │
-  │  → 例: AES, ChaCha20                             │
+  │  Encryption (two-way function):                  │
+  │  → Plaintext → Ciphertext (decryptable)          │
+  │  → Used for protecting data (not for passwords)  │
+  │  → Recoverable with a key                        │
+  │  → Examples: AES, ChaCha20                       │
   │                                                  │
   └──────────────────────────────────────────────────┘
 
-  ✗ AES暗号化 → 鍵があれば復号できるため不適切
-  ✗ MD5 / SHA-256 → 高速すぎてブルートフォースに弱い
-  ✓ bcrypt / Argon2 → 意図的に低速化された専用ハッシュ
+  ✗ AES encryption → Inappropriate because it can be decrypted with the key
+  ✗ MD5 / SHA-256 → Too fast, vulnerable to brute-force
+  ✓ bcrypt / Argon2 → Intentionally slow, purpose-built hashing
 ```
 
-### 1.1 ソルトの重要性
+### 1.1 The Importance of Salts
 
 ```
-ソルトの仕組み:
+How salts work:
 
-  ソルトなし:
-    "password" → SHA-256 → "5e884..."（全ユーザー同じ）
-    → レインボーテーブルで一括解読可能
+  Without salt:
+    "password" → SHA-256 → "5e884..."  (same for all users)
+    → Can be cracked in bulk with rainbow tables
 
-  ソルト付き:
+  With salt:
     "password" + "a3f8e2..." → SHA-256 → "8b2c1..."
     "password" + "7d4b9c..." → SHA-256 → "f1e3a..."
-    → ユーザーごとに異なるハッシュ値
-    → レインボーテーブル攻撃を無効化
+    → Different hash value for each user
+    → Renders rainbow table attacks ineffective
 
-  ソルトの要件:
+  Salt requirements:
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  ① 暗号的に安全な乱数生成器で生成                   │
-  │     → crypto.randomBytes(16) 以上                │
-  │     → Math.random() は不可                       │
+  │  ① Generated with a cryptographically secure RNG │
+  │     → crypto.randomBytes(16) or more             │
+  │     → Math.random() is not allowed               │
   │                                                  │
-  │  ② ユーザーごとに一意                              │
-  │     → 同じパスワードでも異なるハッシュ値              │
+  │  ② Unique per user                               │
+  │     → Different hash even for the same password  │
   │                                                  │
-  │  ③ ハッシュ値と共に保存                             │
-  │     → bcrypt は自動的にハッシュ値にソルトを埋め込む  │
-  │     → 手動管理は不要                               │
+  │  ③ Stored alongside the hash value               │
+  │     → bcrypt automatically embeds salt in hash   │
+  │     → No manual management required              │
   │                                                  │
-  │  ④ 十分な長さ（16バイト / 128ビット以上）            │
-  │     → ソルト空間が広いほどレインボーテーブルが困難    │
+  │  ④ Sufficient length (16 bytes / 128 bits or more)│
+  │     → Larger salt space makes rainbow tables harder│
   │                                                  │
   └──────────────────────────────────────────────────┘
 
-  bcrypt / Argon2 はソルトを自動生成・埋込み → 手動管理不要
+  bcrypt / Argon2 auto-generate and embed salts → no manual management needed
 ```
 
-### 1.2 ペッパー（Secret Salt）
+### 1.2 Pepper (Secret Salt)
 
 ```
-ペッパーの概念:
+The pepper concept:
 
-  ソルト: ハッシュ値と共にDBに保存（公開情報）
-  ペッパー: DB外に保存される秘密値（秘密情報）
+  Salt: Stored in the DB alongside the hash (public information)
+  Pepper: A secret value stored outside the DB (secret information)
 
-  目的:
-  → DB漏洩だけではハッシュを攻撃できない
-  → ペッパーも入手しないとオフライン攻撃不可
+  Purpose:
+  → A DB breach alone is not enough to attack the hashes
+  → Offline attacks are impossible without also obtaining the pepper
 
-  実装パターン:
+  Implementation patterns:
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  方法1: HMAC ラッピング                            │
+  │  Method 1: HMAC wrapping                         │
   │  hash = bcrypt(HMAC-SHA256(pepper, password))    │
-  │  → ペッパーは環境変数 or HSM/KMS に保存            │
+  │  → Pepper stored in environment variable or HSM/KMS│
   │                                                  │
-  │  方法2: 暗号化ラッピング                            │
+  │  Method 2: Encryption wrapping                   │
   │  stored = AES-256-GCM(key, bcrypt(password))     │
-  │  → ハッシュ値を暗号化して保存                       │
-  │  → 鍵ローテーションが容易                           │
+  │  → Encrypt the hash value before storing         │
+  │  → Easy key rotation                             │
   │                                                  │
   └──────────────────────────────────────────────────┘
 
-  推奨: 方法2（暗号化ラッピング）
-  → ペッパーの更新時にパスワード再設定が不要
-  → 鍵ローテーション = 暗号化し直すだけ
+  Recommended: Method 2 (encryption wrapping)
+  → No need to reset passwords when updating the pepper
+  → Key rotation = just re-encrypt
 ```
 
 ```typescript
-// ペッパー（暗号化ラッピング）の実装
+// Pepper (encryption wrapping) implementation
 import crypto from 'crypto';
 import argon2 from 'argon2';
 
-const PEPPER_KEY = Buffer.from(process.env.PEPPER_KEY!, 'hex'); // 32バイト
+const PEPPER_KEY = Buffer.from(process.env.PEPPER_KEY!, 'hex'); // 32 bytes
 
-// パスワードハッシュ + ペッパー暗号化
+// Password hash + pepper encryption
 async function hashPasswordWithPepper(password: string): Promise<string> {
-  // Step 1: Argon2id でハッシュ化
+  // Step 1: Hash with Argon2id
   const hash = await argon2.hash(password, {
     type: argon2.argon2id,
     memoryCost: 65536,
@@ -144,7 +144,7 @@ async function hashPasswordWithPepper(password: string): Promise<string> {
     parallelism: 4,
   });
 
-  // Step 2: AES-256-GCM で暗号化
+  // Step 2: Encrypt with AES-256-GCM
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-gcm', PEPPER_KEY, iv);
   const encrypted = Buffer.concat([
@@ -153,125 +153,125 @@ async function hashPasswordWithPepper(password: string): Promise<string> {
   ]);
   const authTag = cipher.getAuthTag();
 
-  // iv + authTag + encrypted を結合して返す
+  // Concatenate iv + authTag + encrypted and return
   return Buffer.concat([iv, authTag, encrypted]).toString('base64');
 }
 
-// パスワード検証
+// Password verification
 async function verifyPasswordWithPepper(
   password: string,
   stored: string
 ): Promise<boolean> {
   const data = Buffer.from(stored, 'base64');
 
-  // 分離: iv(16) + authTag(16) + encrypted(残り)
+  // Split: iv(16) + authTag(16) + encrypted(remainder)
   const iv = data.subarray(0, 16);
   const authTag = data.subarray(16, 32);
   const encrypted = data.subarray(32);
 
-  // Step 1: AES-256-GCM で復号
+  // Step 1: Decrypt with AES-256-GCM
   const decipher = crypto.createDecipheriv('aes-256-gcm', PEPPER_KEY, iv);
   decipher.setAuthTag(authTag);
   const hash = decipher.update(encrypted) + decipher.final('utf8');
 
-  // Step 2: Argon2 で検証
+  // Step 2: Verify with Argon2
   return argon2.verify(hash, password);
 }
 ```
 
 ---
 
-## 2. 推奨アルゴリズム
+## 2. Recommended Algorithms
 
 ```
-アルゴリズム比較:
+Algorithm comparison:
 
-  アルゴリズム │ 推奨度  │ 特徴                    │ GPU耐性
-  ──────────┼────────┼────────────────────────┼────────
-  Argon2id  │ ◎ 最良  │ メモリハード、GPU耐性最強  │ ◎
-  bcrypt    │ ○ 良好  │ 実績豊富、広くサポート     │ ○
-  scrypt    │ ○ 良好  │ メモリハード              │ ○
-  PBKDF2    │ △ 可    │ FIPS準拠が必要な場合のみ  │ △
-  SHA-256   │ ✗ 不可  │ 高速すぎる               │ ✗
-  MD5       │ ✗ 不可  │ 高速 + 衝突脆弱性         │ ✗
+  Algorithm  │ Recommendation │ Characteristics               │ GPU Resistance
+  ───────────┼────────────────┼───────────────────────────────┼───────────────
+  Argon2id   │ ◎ Best         │ Memory-hard, strongest GPU resistance │ ◎
+  bcrypt     │ ○ Good         │ Proven track record, wide support     │ ○
+  scrypt     │ ○ Good         │ Memory-hard                           │ ○
+  PBKDF2     │ △ Acceptable   │ Only when FIPS compliance is required │ △
+  SHA-256    │ ✗ Not allowed  │ Too fast                              │ ✗
+  MD5        │ ✗ Not allowed  │ Fast + collision vulnerabilities      │ ✗
 
-推奨:
-  新規プロジェクト → Argon2id
-  既存プロジェクト → bcrypt（十分安全）
-  FIPS準拠が必要 → PBKDF2（HMAC-SHA256, 600,000回以上）
+Recommendations:
+  New projects → Argon2id
+  Existing projects → bcrypt (sufficiently secure)
+  FIPS compliance required → PBKDF2 (HMAC-SHA256, 600,000+ iterations)
 ```
 
-### 2.1 bcrypt の内部動作
+### 2.1 Internal Workings of bcrypt
 
 ```
-bcrypt の構造:
+bcrypt structure:
 
-  ハッシュ値の形式:
+  Hash value format:
   $2b$12$LJ3m4ys3Gk8v0f2xKb2I4OXYiDkG0...
-  │  │ │  └──────────────────────────────── ハッシュ + ソルト
-  │  │ └─── コスト係数（2^12 = 4096回）
-  │  └───── バージョン（2b が最新）
-  └──────── アルゴリズム識別子
+  │  │ │  └──────────────────────────────── Hash + salt
+  │  │ └─── Cost factor (2^12 = 4096 iterations)
+  │  └───── Version (2b is latest)
+  └──────── Algorithm identifier
 
-  内部アルゴリズム:
+  Internal algorithm:
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  bcrypt(password, cost, salt):                    │
+  │  bcrypt(password, cost, salt):                   │
   │                                                  │
   │  ① state = EksBlowfishSetup(cost, salt, password)│
   │                                                  │
   │  ② ctext = "OrpheanBeholderScryDoubt"            │
-  │     → 24バイトの固定マジック文字列                  │
+  │     → Fixed 24-byte magic string                 │
   │                                                  │
   │  ③ for i = 0 to 63:                              │
   │       ctext = EncryptECB(state, ctext)            │
-  │     → Blowfish ECB 暗号化を 64 回繰り返す         │
+  │     → Repeat Blowfish ECB encryption 64 times    │
   │                                                  │
   │  ④ return concat(cost, salt, ctext)              │
   │                                                  │
   │  EksBlowfishSetup:                               │
-  │  → Blowfish の鍵スケジュールを2^cost回繰り返す     │
-  │  → cost=12 の場合: 2^12 = 4,096 回               │
-  │  → 各イテレーションでパスワードとソルトを交互に使用  │
-  │  → これが「意図的な遅さ」の源                       │
+  │  → Repeat Blowfish key schedule 2^cost times     │
+  │  → When cost=12: 2^12 = 4,096 iterations         │
+  │  → Each iteration alternates password and salt   │
+  │  → This is the source of "intentional slowness"  │
   │                                                  │
   └──────────────────────────────────────────────────┘
 
-  bcrypt の制限:
-  → パスワード長: 最大72バイト（超過分は無視）
-  → UTF-8 の場合、日本語は1文字3バイト → 24文字が上限
-  → 対策: SHA-256 プレハッシュ
+  bcrypt limitations:
+  → Password length: max 72 bytes (excess is ignored)
+  → For multi-byte characters, long text can be truncated
+  → Workaround: SHA-256 pre-hashing
     bcrypt(SHA256(password).base64())
 ```
 
 ```typescript
-// bcrypt 実装
+// bcrypt implementation
 import bcrypt from 'bcrypt';
 
-const SALT_ROUNDS = 12; // コスト係数（2^12 = 4096回のイテレーション）
+const SALT_ROUNDS = 12; // Cost factor (2^12 = 4096 iterations)
 
-// パスワードのハッシュ化
+// Hash a password
 async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, SALT_ROUNDS);
 }
 
-// パスワードの検証
+// Verify a password
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
   return bcrypt.compare(password, hash);
 }
 
-// 使用例
+// Usage example
 const hash = await hashPassword('mySecurePassword123!');
 // "$2b$12$LJ3m4ys3Gk8v0f2xKb2I4O..."
 
 const isValid = await verifyPassword('mySecurePassword123!', hash);
 // true
 
-// bcrypt の72バイト制限に対するプレハッシュ
+// Pre-hashing for bcrypt's 72-byte limit
 import crypto from 'crypto';
 
 async function hashLongPassword(password: string): Promise<string> {
-  // SHA-256 でプレハッシュ（Base64で44文字、72バイト以内）
+  // Pre-hash with SHA-256 (Base64 output is 44 chars, within 72 bytes)
   const preHash = crypto.createHash('sha256').update(password).digest('base64');
   return bcrypt.hash(preHash, SALT_ROUNDS);
 }
@@ -282,57 +282,59 @@ async function verifyLongPassword(password: string, hash: string): Promise<boole
 }
 ```
 
-### 2.2 Argon2id の内部動作
+### 2.2 Internal Workings of Argon2id
 
 ```
-Argon2 の3つのバリアント:
+Three Argon2 variants:
 
-  Argon2d: サイドチャネル攻撃に弱いが、GPU 攻撃に最強
-  Argon2i: サイドチャネル攻撃に強いが、GPU 耐性がやや低い
-  Argon2id: Argon2d + Argon2i のハイブリッド（推奨）
+  Argon2d: Vulnerable to side-channel attacks, but strongest against GPU attacks
+  Argon2i: Resistant to side-channel attacks, but slightly lower GPU resistance
+  Argon2id: Hybrid of Argon2d + Argon2i (recommended)
 
-Argon2id の内部動作:
+Internal workings of Argon2id:
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  パラメータ:                                       │
-  │  → memoryCost (m): 使用メモリ量（KB）              │
-  │  → timeCost (t): イテレーション回数                 │
-  │  → parallelism (p): 並列レーン数                   │
-  │  → saltLength: ソルト長（16バイト推奨）             │
-  │  → hashLength: 出力ハッシュ長（32バイト推奨）       │
+  │  Parameters:                                     │
+  │  → memoryCost (m): Amount of memory used (KB)   │
+  │  → timeCost (t): Number of iterations           │
+  │  → parallelism (p): Number of parallel lanes    │
+  │  → saltLength: Salt length (16 bytes recommended)│
+  │  → hashLength: Output hash length (32 bytes rec.)│
   │                                                  │
-  │  アルゴリズム:                                     │
-  │  ① メモリを m KB 確保                              │
-  │  ② メモリを p 個のレーンに分割                      │
-  │  ③ 各レーンで独立にメモリフィリング                  │
-  │  ④ t 回のパス実行:                                 │
-  │     → 最初のパス: Argon2i モード                   │
-  │       （データ独立アクセス → サイドチャネル耐性）     │
-  │     → 2回目以降: Argon2d モード                    │
-  │       （データ依存アクセス → GPU 攻撃耐性）          │
-  │  ⑤ 各レーンの最終ブロックを XOR して出力            │
+  │  Algorithm:                                      │
+  │  ① Allocate m KB of memory                      │
+  │  ② Divide memory into p lanes                   │
+  │  ③ Fill memory independently in each lane       │
+  │  ④ Execute t passes:                            │
+  │     → First pass: Argon2i mode                  │
+  │       (data-independent access → side-channel   │
+  │        resistance)                              │
+  │     → Second pass onward: Argon2d mode          │
+  │       (data-dependent access → GPU resistance)  │
+  │  ⑤ XOR the final block of each lane for output  │
   │                                                  │
-  │  なぜメモリハードが重要か:                           │
-  │  → GPU は計算は速いがメモリが限定的                 │
-  │  → 64MB のメモリが必要 → GPU の並列実行数が激減     │
-  │  → ASIC での攻撃コストも大幅に増加                  │
+  │  Why memory-hardness matters:                    │
+  │  → GPUs are fast to compute but have limited RAM │
+  │  → Requiring 64MB of memory → drastically reduces│
+  │    GPU parallelism                              │
+  │  → Also greatly increases cost of ASIC attacks  │
   │                                                  │
   └──────────────────────────────────────────────────┘
 ```
 
 ```typescript
-// Argon2 実装（推奨）
+// Argon2 implementation (recommended)
 import argon2 from 'argon2';
 
-// Argon2id（推奨バリアント）
+// Argon2id (recommended variant)
 async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password, {
-    type: argon2.argon2id,  // Argon2id: サイドチャネル + GPU 両対策
-    memoryCost: 65536,       // 64MB のメモリ使用
-    timeCost: 3,             // 3回のイテレーション
-    parallelism: 4,          // 4つの並列レーン
-    saltLength: 16,          // 16バイトのソルト
-    hashLength: 32,          // 32バイトのハッシュ出力
+    type: argon2.argon2id,  // Argon2id: protects against both side-channel + GPU
+    memoryCost: 65536,       // 64MB memory usage
+    timeCost: 3,             // 3 iterations
+    parallelism: 4,          // 4 parallel lanes
+    saltLength: 16,          // 16-byte salt
+    hashLength: 32,          // 32-byte hash output
   });
 }
 
@@ -340,11 +342,11 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
   return argon2.verify(hash, password);
 }
 
-// ハッシュ結果例:
+// Example hash output:
 // "$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$..."
-// ↑ アルゴリズム、パラメータ、ソルト、ハッシュが全て含まれる
+// ↑ Algorithm, parameters, salt, and hash are all included
 
-// パスワードが変更された時のリハッシュ確認
+// Check if a hash needs rehashing when parameters change
 async function needsRehash(hash: string): Promise<boolean> {
   return argon2.needsRehash(hash, {
     type: argon2.argon2id,
@@ -354,7 +356,7 @@ async function needsRehash(hash: string): Promise<boolean> {
   });
 }
 
-// ログイン時の透過的リハッシュ
+// Transparent rehashing at login
 async function loginWithRehash(
   password: string,
   storedHash: string,
@@ -363,7 +365,7 @@ async function loginWithRehash(
   const isValid = await argon2.verify(storedHash, password);
 
   if (isValid && await needsRehash(storedHash)) {
-    // パラメータが古い場合、新しいパラメータでリハッシュ
+    // If parameters are outdated, rehash with new parameters
     const newHash = await hashPassword(password);
     await db.user.update({
       where: { id: userId },
@@ -376,59 +378,59 @@ async function loginWithRehash(
 }
 ```
 
-### 2.3 コスト係数の選定
+### 2.3 Choosing a Cost Factor
 
 ```
-コスト係数の選定ガイドライン:
+Cost factor selection guidelines:
 
   bcrypt:
-    目標: ハッシュ計算に 250ms〜1秒
-    cost=10: ~100ms（最低限）
-    cost=12: ~300ms（推奨）
-    cost=14: ~1s（高セキュリティ）
+    Target: 250ms–1 second per hash
+    cost=10: ~100ms (minimum)
+    cost=12: ~300ms (recommended)
+    cost=14: ~1s (high security)
 
   Argon2id:
-    OWASP 推奨（2024）:
-    → memoryCost: 19456 (19MB) 以上
-    → timeCost: 2 以上
+    OWASP recommended (2024):
+    → memoryCost: 19456 (19MB) or more
+    → timeCost: 2 or more
     → parallelism: 1
 
-    高セキュリティ:
+    High security:
     → memoryCost: 65536 (64MB)
     → timeCost: 3
     → parallelism: 4
 
-    最高セキュリティ（余裕がある場合）:
+    Highest security (when resources allow):
     → memoryCost: 131072 (128MB)
     → timeCost: 4
     → parallelism: 4
 
-  チューニング方法:
-    → サーバーで実際に計測
-    → ログイン時の許容レイテンシに合わせる
-    → 250ms〜1秒が一般的な目標
-    → 定期的にパラメータを見直す（ハードウェアの進化に合わせる）
+  Tuning method:
+    → Measure on actual server
+    → Adjust to acceptable login latency
+    → 250ms–1 second is a typical target
+    → Periodically review parameters (keep up with hardware advances)
 
-  サーバーリソースへの影響:
+  Impact on server resources:
   ┌──────────────────────────────────────────────────┐
   │                                                  │
-  │  同時ログインユーザー数 × ハッシュ計算時間            │
-  │  → 100 req/s × 300ms = 30 CPU コア分              │
+  │  Concurrent logins × hash computation time       │
+  │  → 100 req/s × 300ms = 30 CPU cores worth        │
   │                                                  │
-  │  対策:                                            │
-  │  → ハッシュ計算をワーカースレッドで実行              │
-  │  → 同時実行数を制限（Semaphore）                   │
-  │  → 急激なスパイク時はキューイング                    │
+  │  Mitigations:                                    │
+  │  → Run hash computation in worker threads        │
+  │  → Limit concurrency (Semaphore)                 │
+  │  → Queue requests during sudden spikes           │
   │                                                  │
   └──────────────────────────────────────────────────┘
 ```
 
 ```typescript
-// コスト係数のベンチマーク
+// Benchmarking hash parameters
 async function benchmarkHashParameters() {
   const password = 'test-password-for-benchmarking';
 
-  // bcrypt ベンチマーク
+  // bcrypt benchmark
   for (const cost of [10, 11, 12, 13, 14]) {
     const start = performance.now();
     await bcrypt.hash(password, cost);
@@ -436,7 +438,7 @@ async function benchmarkHashParameters() {
     console.log(`bcrypt cost=${cost}: ${duration.toFixed(0)}ms`);
   }
 
-  // Argon2id ベンチマーク
+  // Argon2id benchmark
   const configs = [
     { memoryCost: 19456, timeCost: 2, parallelism: 1 },
     { memoryCost: 47104, timeCost: 1, parallelism: 1 },
@@ -454,7 +456,7 @@ async function benchmarkHashParameters() {
   }
 }
 
-// ハッシュ計算の並行制御
+// Concurrency control for hash computation
 class HashService {
   private semaphore: number = 0;
   private readonly maxConcurrent: number;
@@ -510,86 +512,86 @@ class HashService {
 
 ---
 
-## 3. パスワードポリシー
+## 3. Password Policy
 
 ```
-NIST SP 800-63B（2020）推奨:
+NIST SP 800-63B (2020) recommendations:
 
-  ✓ 推奨:
-    → 最小8文字（できれば15文字以上推奨）
-    → 最大64文字以上を許容
-    → Unicode の全文字を許容（日本語OK）
-    → 漏洩パスワードリストとの照合
-    → パスワード強度メーターの表示
-    → ペーストを許可（パスワードマネージャー対応）
+  ✓ Recommended:
+    → Minimum 8 characters (15+ characters preferred)
+    → Allow 64 characters or more as maximum
+    → Allow all Unicode characters
+    → Check against breached password lists
+    → Show a password strength meter
+    → Allow paste (for password manager support)
 
-  ✗ 非推奨（NIST が廃止した古い慣習）:
-    → 大文字小文字数字記号の強制（✗ 廃止）
-    → 定期的な変更の強制（✗ 廃止）
-    → 秘密の質問（✗ 廃止）
-    → パスワードヒント（✗ 廃止）
-    → 過去パスワードとの類似性チェック（✗ 過度なものは廃止）
+  ✗ Not recommended (outdated practices deprecated by NIST):
+    → Requiring uppercase, lowercase, digits, and symbols (✗ deprecated)
+    → Forcing periodic password changes (✗ deprecated)
+    → Security questions (✗ deprecated)
+    → Password hints (✗ deprecated)
+    → Similarity checks with previous passwords (✗ excessive ones deprecated)
 
-  理由:
-    → 複雑性ルール → ユーザーが "P@ssw0rd!" のような予測可能な置換
-    → 定期変更 → "password1", "password2"... のインクリメント
-    → 長さ重視 → "correct horse battery staple" のような長いフレーズが強力
+  Rationale:
+    → Complexity rules → Users make predictable substitutions like "P@ssw0rd!"
+    → Periodic changes → Increments like "password1", "password2"...
+    → Length emphasis → Long passphrases like "correct horse battery staple" are strong
 
-パスワード強度とエントロピー:
+Password strength and entropy:
 
-  ┌───────────────────────────────┬─────────┬──────────────┐
-  │ パスワードの例                 │ エントロピー│ オフライン攻撃  │
-  ├───────────────────────────────┼─────────┼──────────────┤
-  │ "password"                   │ ~0 bit  │ 即座に解読     │
-  │ "P@ssw0rd!"                  │ ~15 bit │ 数秒          │
-  │ "7kX#mP2q"                   │ ~50 bit │ 数時間        │
-  │ "correct horse battery staple"│ ~44 bit │ 数日          │
-  │ "dWp8#kL2$mN9xQ4@"          │ ~95 bit │ 数十億年       │
-  │ ランダム20文字（全文字種）       │ ~130 bit│ 宇宙の寿命超   │
-  └───────────────────────────────┴─────────┴──────────────┘
+  ┌───────────────────────────────┬──────────────┬──────────────────┐
+  │ Password example              │ Entropy      │ Offline attack   │
+  ├───────────────────────────────┼──────────────┼──────────────────┤
+  │ "password"                    │ ~0 bit       │ Instant          │
+  │ "P@ssw0rd!"                   │ ~15 bit      │ Seconds          │
+  │ "7kX#mP2q"                    │ ~50 bit      │ Hours            │
+  │ "correct horse battery staple"│ ~44 bit      │ Days             │
+  │ "dWp8#kL2$mN9xQ4@"           │ ~95 bit      │ Billions of years │
+  │ Random 20 chars (all types)   │ ~130 bit     │ Beyond universe  │
+  └───────────────────────────────┴──────────────┴──────────────────┘
 
-  ※ オフライン攻撃は bcrypt cost=12 前提
+  * Offline attack assumes bcrypt cost=12
 ```
 
 ```typescript
-// モダンなパスワードバリデーション
+// Modern password validation
 import { z } from 'zod';
 
 const passwordSchema = z.string()
-  .min(8, 'パスワードは8文字以上必要です')
-  .max(128, 'パスワードは128文字以下にしてください')
+  .min(8, 'Password must be at least 8 characters')
+  .max(128, 'Password must be 128 characters or fewer')
   .refine(
     (password) => !isCommonPassword(password),
-    'このパスワードはよく使われるため安全ではありません'
+    'This password is too commonly used and is not secure'
   )
   .refine(
     async (password) => !(await isBreachedPassword(password)),
-    'このパスワードは過去のデータ漏洩で確認されています'
+    'This password has been found in a previous data breach'
   );
 
-// Have I Been Pwned API でチェック（k-Anonymity モデル）
+// Check via Have I Been Pwned API (k-Anonymity model)
 async function isBreachedPassword(password: string): Promise<boolean> {
   const hash = await sha1(password);
   const prefix = hash.substring(0, 5);
   const suffix = hash.substring(5).toUpperCase();
 
-  // k-Anonymity: ハッシュの先頭5文字のみ送信
-  // → サーバーにパスワードの情報を漏らさない
+  // k-Anonymity: only send the first 5 characters of the hash
+  // → does not leak password information to the server
   const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
-    headers: { 'Add-Padding': 'true' }, // タイミング攻撃防止
+    headers: { 'Add-Padding': 'true' }, // Prevent timing attacks
   });
   const text = await res.text();
 
-  // レスポンス例:
+  // Response example:
   // "1E4C9B93F3F0682250B6CF8331B7EE68FD8:3"
-  // → suffix: 一致するハッシュ, count: 漏洩回数
+  // → suffix: matching hash, count: number of breaches
   return text.split('\n').some((line) => {
     const [hashSuffix] = line.split(':');
     return hashSuffix === suffix;
   });
 }
 
-// SHA-1 ハッシュ（HIBP API 用）
+// SHA-1 hash (for HIBP API)
 async function sha1(input: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(input);
@@ -598,14 +600,14 @@ async function sha1(input: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
-// よく使われるパスワードリスト（上位10万件）
+// Common password list (top 100,000)
 const commonPasswordSet = new Set<string>();
-// 起動時にファイルから読み込み
+// Load from file at startup
 function isCommonPassword(password: string): boolean {
   return commonPasswordSet.has(password.toLowerCase());
 }
 
-// コンテキスト依存チェック
+// Context-aware check
 function containsUserInfo(password: string, userInfo: {
   email: string;
   name?: string;
@@ -622,47 +624,47 @@ function containsUserInfo(password: string, userInfo: {
 }
 ```
 
-### 3.1 パスワード強度メーター
+### 3.1 Password Strength Meter
 
 ```typescript
-// パスワード強度メーター（zxcvbn）
+// Password strength meter (zxcvbn)
 import zxcvbn from 'zxcvbn';
 
 function checkPasswordStrength(password: string, userInputs: string[] = []) {
   const result = zxcvbn(password, userInputs);
 
   return {
-    score: result.score,           // 0-4（0=最弱, 4=最強）
+    score: result.score,           // 0-4 (0=weakest, 4=strongest)
     crackTime: result.crack_times_display.offline_slow_hashing_1e4_per_second,
-    feedback: result.feedback,     // 改善提案
+    feedback: result.feedback,     // Improvement suggestions
     warning: result.feedback.warning,
-    guesses: result.guesses,       // 推定試行回数
+    guesses: result.guesses,       // Estimated number of guesses
     guessesLog10: result.guesses_log10,
   };
 }
 
-// 結果例:
+// Example results:
 // "password" → score: 0, crackTime: "less than a second"
 // "correcthorsebatterystaple" → score: 4, crackTime: "centuries"
 
-// React コンポーネント
+// React component
 function PasswordStrengthMeter({ password, email }: {
   password: string;
   email: string;
 }) {
   const { score, feedback, crackTime } = checkPasswordStrength(
     password,
-    [email.split('@')[0]] // ユーザー固有の入力をペナルティ対象に
+    [email.split('@')[0]] // Penalize user-specific inputs
   );
 
-  const labels = ['非常に弱い', '弱い', '普通', '強い', '非常に強い'];
+  const labels = ['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'];
   const colors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
 
   if (!password) return null;
 
   return (
     <div className="mt-2">
-      {/* 強度バー */}
+      {/* Strength bar */}
       <div className="flex gap-1">
         {[0, 1, 2, 3].map((i) => (
           <div
@@ -675,17 +677,17 @@ function PasswordStrengthMeter({ password, email }: {
         ))}
       </div>
 
-      {/* ラベルと推定解読時間 */}
+      {/* Label and estimated crack time */}
       <div className="flex justify-between mt-1">
         <span className="text-xs" style={{ color: colors[score] }}>
           {labels[score]}
         </span>
         <span className="text-xs text-gray-500">
-          解読推定: {crackTime}
+          Estimated crack time: {crackTime}
         </span>
       </div>
 
-      {/* フィードバック */}
+      {/* Feedback */}
       {feedback.warning && (
         <p className="text-xs text-amber-600 mt-1">{feedback.warning}</p>
       )}
@@ -699,52 +701,52 @@ function PasswordStrengthMeter({ password, email }: {
 
 ---
 
-## 4. ブルートフォース対策
+## 4. Brute-Force Defense
 
 ```
-攻撃手法と対策:
+Attack types and countermeasures:
 
-  ① オンラインブルートフォース:
-     → ログインエンドポイントへの連続試行
-     → 対策: レート制限、アカウントロックアウト
+  ① Online brute-force:
+     → Repeated attempts against the login endpoint
+     → Countermeasures: rate limiting, account lockout
 
-  ② オフラインブルートフォース:
-     → DB漏洩後のハッシュに対する攻撃
-     → 対策: 強力なハッシュアルゴリズム（Argon2id）
+  ② Offline brute-force:
+     → Attacking hashes after a DB breach
+     → Countermeasures: strong hash algorithm (Argon2id)
 
-  ③ クレデンシャルスタッフィング:
-     → 他サービスで漏洩した認証情報の流用
-     → 対策: 漏洩チェック（HIBP）、MFA
+  ③ Credential stuffing:
+     → Reusing credentials leaked from other services
+     → Countermeasures: breach checking (HIBP), MFA
 
-  ④ パスワードスプレー:
-     → 少数の一般的なパスワードで多数アカウントを試行
-     → 対策: よく使われるパスワードの禁止、IP ベースの制限
+  ④ Password spraying:
+     → Trying a small number of common passwords against many accounts
+     → Countermeasures: ban commonly used passwords, IP-based restrictions
 
-攻撃速度の比較（GPU クラスター想定）:
+Attack speed comparison (assuming GPU cluster):
 
-  アルゴリズム     │ 試行速度 / 秒    │ 8文字ランダム解読
-  ──────────────┼────────────────┼──────────────
-  MD5            │ ~300 億         │ 数秒
-  SHA-256        │ ~30 億          │ 数分
-  bcrypt (12)    │ ~10万           │ 数十年
-  Argon2id (64MB)│ ~1,000          │ 数億年
+  Algorithm        │ Attempts / second │ Cracking 8-char random password
+  ─────────────────┼───────────────────┼─────────────────────────────────
+  MD5              │ ~30 billion       │ Seconds
+  SHA-256          │ ~3 billion        │ Minutes
+  bcrypt (12)      │ ~100,000          │ Decades
+  Argon2id (64MB)  │ ~1,000            │ Hundreds of millions of years
 ```
 
 ```typescript
-// レート制限の実装（Redis ベース）
+// Rate limiting implementation (Redis-based)
 class LoginRateLimiter {
   constructor(private redis: Redis) {}
 
-  // IP ベースの制限
+  // IP-based limit
   async checkIPLimit(ip: string): Promise<{ allowed: boolean; retryAfter?: number }> {
     const key = `login:ip:${ip}`;
     const attempts = await this.redis.incr(key);
 
     if (attempts === 1) {
-      await this.redis.expire(key, 900); // 15分
+      await this.redis.expire(key, 900); // 15 minutes
     }
 
-    if (attempts > 100) { // IP あたり15分に100回まで
+    if (attempts > 100) { // 100 attempts per IP per 15 minutes
       const ttl = await this.redis.ttl(key);
       return { allowed: false, retryAfter: ttl };
     }
@@ -752,7 +754,7 @@ class LoginRateLimiter {
     return { allowed: true };
   }
 
-  // アカウントベースの制限
+  // Account-based limit
   async checkAccountLimit(email: string): Promise<{
     allowed: boolean;
     retryAfter?: number;
@@ -762,17 +764,17 @@ class LoginRateLimiter {
     const attempts = await this.redis.incr(key);
 
     if (attempts === 1) {
-      await this.redis.expire(key, 3600); // 1時間
+      await this.redis.expire(key, 3600); // 1 hour
     }
 
     const maxAttempts = 10;
 
     if (attempts > maxAttempts) {
       const ttl = await this.redis.ttl(key);
-      // プログレッシブロックアウト: 失敗が増えるほど長くロック
+      // Progressive lockout: longer lock the more failures occur
       const lockoutTime = Math.min(
-        Math.pow(2, attempts - maxAttempts) * 60, // 指数バックオフ
-        3600 // 最大1時間
+        Math.pow(2, attempts - maxAttempts) * 60, // Exponential backoff
+        3600 // Max 1 hour
       );
       await this.redis.expire(key, lockoutTime);
 
@@ -789,18 +791,18 @@ class LoginRateLimiter {
     };
   }
 
-  // ログイン成功時にカウンターをリセット
+  // Reset counter on successful login
   async onLoginSuccess(email: string): Promise<void> {
     await this.redis.del(`login:account:${email.toLowerCase()}`);
   }
 }
 
-// ログインエンドポイント
+// Login endpoint
 app.post('/auth/login', async (req, res) => {
   const { email, password } = req.body;
   const ip = req.ip!;
 
-  // IP 制限チェック
+  // Check IP limit
   const ipCheck = await rateLimiter.checkIPLimit(ip);
   if (!ipCheck.allowed) {
     return res.status(429).json({
@@ -809,7 +811,7 @@ app.post('/auth/login', async (req, res) => {
     });
   }
 
-  // アカウント制限チェック
+  // Check account limit
   const accountCheck = await rateLimiter.checkAccountLimit(email);
   if (!accountCheck.allowed) {
     return res.status(429).json({
@@ -818,10 +820,10 @@ app.post('/auth/login', async (req, res) => {
     });
   }
 
-  // 認証処理
+  // Authentication
   const user = await db.user.findUnique({ where: { email: email.toLowerCase() } });
 
-  // タイミング攻撃防止: ユーザーが存在しなくてもハッシュ計算
+  // Timing attack prevention: always compute hash even if user doesn't exist
   if (!user) {
     await argon2.hash('dummy-password-for-timing', {
       type: argon2.argon2id, memoryCost: 65536, timeCost: 3, parallelism: 4,
@@ -838,10 +840,10 @@ app.post('/auth/login', async (req, res) => {
     });
   }
 
-  // ログイン成功
+  // Login successful
   await rateLimiter.onLoginSuccess(email);
 
-  // 異常検知: 新しい IP / デバイスからのログイン
+  // Anomaly detection: login from new IP / device
   await notifyUnusualLogin(user, req);
 
   const tokens = await issueTokens(user);
@@ -851,43 +853,43 @@ app.post('/auth/login', async (req, res) => {
 
 ---
 
-## 5. パスワードリセット
+## 5. Password Reset
 
 ```
-安全なパスワードリセットフロー:
+Secure password reset flow:
 
-  ユーザー        フロントエンド      バックエンド         メールサーバー
+  User          Frontend          Backend              Mail Server
     │               │                 │                   │
-    │ リセット要求   │                 │                   │
+    │ Reset request │                 │                   │
     │──────────────>│                 │                   │
     │               │ POST /reset     │                   │
     │               │────────────────>│                   │
-    │               │                 │ トークン生成        │
-    │               │                 │ （ランダム、有効期限付き）
+    │               │                 │ Generate token    │
+    │               │                 │ (random, with expiry)
     │               │                 │────────────────────>│
-    │               │                 │                   │ メール送信
-    │               │  「メールを確認   │                   │
-    │               │   してください」  │                   │
+    │               │                 │                   │ Send email
+    │               │  "Please check  │                   │
+    │               │   your email"   │                   │
     │               │<────────────────│                   │
     │               │                 │                   │
-    │ メール内リンク  │                 │                   │
-    │ をクリック      │                 │                   │
+    │ Click link    │                 │                   │
+    │ in email      │                 │                   │
     │──────────────>│                 │                   │
-    │               │ トークン検証      │                   │
+    │               │ Verify token    │                   │
     │               │────────────────>│                   │
-    │               │                 │ トークン有効性確認   │
-    │ 新パスワード入力│                 │                   │
+    │               │                 │ Check token validity│
+    │ Enter new pw  │                 │                   │
     │──────────────>│                 │                   │
     │               │ POST /reset/confirm                 │
     │               │────────────────>│                   │
-    │               │                 │ パスワード更新      │
-    │               │                 │ 全セッション無効化   │
-    │ 完了          │                 │ トークン無効化       │
+    │               │                 │ Update password   │
+    │               │                 │ Invalidate all sessions
+    │ Done          │                 │ Invalidate token  │
     │<──────────────│                 │                   │
 ```
 
 ```typescript
-// パスワードリセットの実装
+// Password reset implementation
 import crypto from 'crypto';
 
 class PasswordResetService {
@@ -898,64 +900,64 @@ class PasswordResetService {
     private hashService: HashService
   ) {}
 
-  // リセットトークン生成
+  // Generate reset token
   async createResetToken(email: string): Promise<void> {
     const user = await this.db.user.findUnique({ where: { email } });
 
-    // ユーザーが存在しなくても同じレスポンスを返す（ユーザー列挙攻撃対策）
+    // Return the same response whether or not the user exists (prevents user enumeration)
     if (!user) {
-      // タイミング攻撃防止
+      // Timing attack prevention
       await new Promise((resolve) => setTimeout(resolve, 200));
       return;
     }
 
-    // レート制限: 同一メールへの連続リクエスト制限
+    // Rate limit: restrict repeated requests to the same email
     const rateLimitKey = `reset:ratelimit:${email}`;
     const isLimited = await this.redis.exists(rateLimitKey);
     if (isLimited) return;
-    await this.redis.setex(rateLimitKey, 300, '1'); // 5分
+    await this.redis.setex(rateLimitKey, 300, '1'); // 5 minutes
 
-    // 既存のトークンを無効化
+    // Invalidate existing tokens
     await this.db.resetToken.updateMany({
       where: { userId: user.id, usedAt: null },
       data: { usedAt: new Date() },
     });
 
-    // 安全なランダムトークン生成
+    // Generate a cryptographically secure random token
     const token = crypto.randomBytes(32).toString('hex');
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     await this.db.resetToken.create({
       data: {
         userId: user.id,
-        token: hashedToken,            // ハッシュ化して保存
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1時間有効
+        token: hashedToken,            // Store hashed
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // Valid for 1 hour
       },
     });
 
-    // リセットリンクを送信（平文トークンをURL に含める）
+    // Send reset link (include plaintext token in URL)
     await this.emailService.send(email, {
-      subject: 'パスワードリセット',
+      subject: 'Password Reset',
       html: `
-        <p>以下のリンクからパスワードをリセットしてください（1時間有効）:</p>
+        <p>Click the link below to reset your password (valid for 1 hour):</p>
         <a href="${process.env.APP_URL}/reset-password?token=${token}">
-          パスワードをリセット
+          Reset Password
         </a>
-        <p>このリクエストに心当たりがない場合は、このメールを無視してください。</p>
-        <p>リンクの有効期限: 1時間</p>
+        <p>If you did not request this, please ignore this email.</p>
+        <p>Link expires in: 1 hour</p>
       `,
     });
   }
 
-  // パスワードリセット実行
+  // Execute password reset
   async resetPassword(token: string, newPassword: string): Promise<void> {
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const resetToken = await this.db.resetToken.findFirst({
       where: {
         token: hashedToken,
-        expiresAt: { gt: new Date() },   // 有効期限チェック
-        usedAt: null,                     // 未使用チェック
+        expiresAt: { gt: new Date() },   // Check expiry
+        usedAt: null,                     // Check unused
       },
       include: { user: true },
     });
@@ -964,37 +966,37 @@ class PasswordResetService {
       throw new Error('Invalid or expired reset token');
     }
 
-    // 旧パスワードと同じでないか確認
+    // Ensure new password is different from old
     const isSameAsOld = await argon2.verify(resetToken.user.password, newPassword);
     if (isSameAsOld) {
       throw new Error('New password must be different from the current password');
     }
 
-    // パスワード更新
+    // Update password
     const hashedPassword = await this.hashService.hash(newPassword);
     await this.db.$transaction([
       this.db.user.update({
         where: { id: resetToken.userId },
         data: { password: hashedPassword },
       }),
-      // トークンを使用済みに
+      // Mark token as used
       this.db.resetToken.update({
         where: { id: resetToken.id },
         data: { usedAt: new Date() },
       }),
-      // 全セッション無効化（パスワード変更時は全デバイスからログアウト）
+      // Invalidate all sessions (log out from all devices on password change)
       this.db.session.deleteMany({
         where: { userId: resetToken.userId },
       }),
     ]);
 
-    // パスワード変更通知メールを送信
+    // Send password change notification email
     await this.emailService.send(resetToken.user.email, {
-      subject: 'パスワードが変更されました',
+      subject: 'Your Password Has Been Changed',
       html: `
-        <p>パスワードが正常に変更されました。</p>
-        <p>変更日時: ${new Date().toISOString()}</p>
-        <p>この変更に心当たりがない場合は、直ちにサポートに連絡してください。</p>
+        <p>Your password has been successfully changed.</p>
+        <p>Changed at: ${new Date().toISOString()}</p>
+        <p>If you did not make this change, please contact support immediately.</p>
       `,
     });
   }
@@ -1002,79 +1004,79 @@ class PasswordResetService {
 ```
 
 ```
-パスワードリセットのセキュリティ要件:
+Password reset security requirements:
 
-  トークン:
-  ✓ 暗号的に安全なランダム値（crypto.randomBytes）
-  ✓ DB にはハッシュ化して保存
-  ✓ 有効期限を設定（1時間以内推奨）
-  ✓ 使用後は即座に無効化
-  ✓ 1ユーザー1トークン（新規発行時に旧トークン削除）
+  Token:
+  ✓ Cryptographically secure random value (crypto.randomBytes)
+  ✓ Store hashed in DB
+  ✓ Set an expiry (within 1 hour recommended)
+  ✓ Invalidate immediately after use
+  ✓ One token per user (delete old token when issuing new one)
 
-  レスポンス:
-  ✓ ユーザー存在有無に関わらず同じレスポンス
-    → 「メールアドレスが登録されていればメールを送信しました」
-    → ユーザー列挙攻撃を防止
+  Response:
+  ✓ Same response regardless of whether user exists
+    → "If the email address is registered, a reset email has been sent"
+    → Prevents user enumeration attacks
 
-  追加対策:
-  ✓ レート制限（同一メールへの連続リクエスト制限）
-  ✓ パスワード変更後の全セッション無効化
-  ✓ パスワード変更通知メールの送信
-  ✓ 旧パスワードと同じ新パスワードを拒否
-  ✓ CAPTCHA（ボット対策）
+  Additional measures:
+  ✓ Rate limiting (restrict repeated requests to the same email)
+  ✓ Invalidate all sessions after password change
+  ✓ Send a password change notification email
+  ✓ Reject new password that matches the old one
+  ✓ CAPTCHA (bot prevention)
 ```
 
 ---
 
-## 6. パスワードマイグレーション
+## 6. Password Migration
 
 ```
-既存のハッシュアルゴリズムから移行する戦略:
+Strategies for migrating from existing hash algorithms:
 
-  シナリオ: MD5/SHA-256 → Argon2id への移行
+  Scenario: Migrating from MD5/SHA-256 → Argon2id
 
-  方法1: 透過的リハッシュ（推奨）
-  ┌──────────────────────────────────────────────┐
-  │  ① ユーザーがログイン                          │
-  │  ② 旧アルゴリズムでパスワードを検証              │
-  │  ③ 検証成功 → 新アルゴリズムでリハッシュ         │
-  │  ④ DB のハッシュ値を更新                        │
-  │                                              │
-  │  利点: ユーザーの操作不要、段階的に移行           │
-  │  欠点: 全ユーザーがログインするまで移行完了しない  │
-  └──────────────────────────────────────────────┘
+  Method 1: Transparent rehashing (recommended)
+  ┌──────────────────────────────────────────────────┐
+  │  ① User logs in                                  │
+  │  ② Verify password with old algorithm            │
+  │  ③ On success → rehash with new algorithm        │
+  │  ④ Update hash value in DB                       │
+  │                                                  │
+  │  Pros: No user action required, gradual migration│
+  │  Cons: Migration not complete until all users log in│
+  └──────────────────────────────────────────────────┘
 
-  方法2: ラッピング（即座に移行）
-  ┌──────────────────────────────────────────────┐
-  │  旧: MD5(password)                            │
-  │  新: Argon2id(MD5(password))                   │
-  │                                              │
-  │  ① 既存の MD5 ハッシュを Argon2id で再ハッシュ   │
-  │  ② 全ユーザーを即座に移行                       │
-  │  ③ ログイン時: Argon2id(MD5(input)) で検証      │
-  │  ④ 次回ログイン時に Argon2id(password) に更新    │
-  │                                              │
-  │  利点: 即座に全ユーザーの保護を強化              │
-  │  欠点: 実装が複雑                              │
-  └──────────────────────────────────────────────┘
+  Method 2: Wrapping (immediate migration)
+  ┌──────────────────────────────────────────────────┐
+  │  Old: MD5(password)                              │
+  │  New: Argon2id(MD5(password))                    │
+  │                                                  │
+  │  ① Re-hash existing MD5 hashes with Argon2id     │
+  │  ② Immediately migrate all users                 │
+  │  ③ At login: verify with Argon2id(MD5(input))    │
+  │  ④ On next login: update to Argon2id(password)   │
+  │                                                  │
+  │  Pros: Immediately strengthens all user protection│
+  │  Cons: More complex implementation               │
+  └──────────────────────────────────────────────────┘
 ```
 
 ```typescript
-// パスワードマイグレーション実装
+// Password migration implementation
 import crypto from 'crypto';
 import argon2 from 'argon2';
 
 class PasswordMigration {
-  // ハッシュ形式の判定
+  // Detect hash format
   detectHashType(hash: string): 'md5' | 'sha256' | 'bcrypt' | 'argon2' {
     if (hash.startsWith('$argon2')) return 'argon2';
     if (hash.startsWith('$2b$') || hash.startsWith('$2a$')) return 'bcrypt';
-    if (hash.length === 32) return 'md5';    // 32文字のhex
-    if (hash.length === 64) return 'sha256'; // 64文字のhex
+    if (hash.length === 32) return 'md5';    // 32-char hex
+    if (hash.length === 64) return 'sha256'; // 64-char hex
     throw new Error(`Unknown hash format: ${hash.substring(0, 10)}...`);
   }
 
-  // 旧ハッシュで検証
+  // Verify with legacy hash
   async verifyLegacy(password: string, hash: string, type: string): Promise<boolean> {
     switch (type) {
       case 'md5':
@@ -1090,7 +1092,7 @@ class PasswordMigration {
     }
   }
 
-  // ログイン時の透過的マイグレーション
+  // Transparent migration at login
   async loginWithMigration(
     email: string,
     password: string
@@ -1103,7 +1105,7 @@ class PasswordMigration {
 
     if (!isValid) return { success: false };
 
-    // 旧アルゴリズムの場合、Argon2id にリハッシュ
+    // If using old algorithm, rehash with Argon2id
     if (hashType !== 'argon2') {
       const newHash = await argon2.hash(password, {
         type: argon2.argon2id,
@@ -1123,7 +1125,7 @@ class PasswordMigration {
     return { success: true, user };
   }
 
-  // 一括ラッピングマイグレーション
+  // Bulk wrapping migration
   async wrapAllHashes(): Promise<{ migrated: number; errors: number }> {
     let migrated = 0;
     let errors = 0;
@@ -1136,7 +1138,7 @@ class PasswordMigration {
 
     for (const user of users) {
       try {
-        // 旧ハッシュを Argon2id でラッピング
+        // Wrap old hash with Argon2id
         const wrappedHash = await argon2.hash(user.password, {
           type: argon2.argon2id,
           memoryCost: 65536,
@@ -1149,7 +1151,7 @@ class PasswordMigration {
           where: { id: user.id },
           data: {
             password: wrappedHash,
-            passwordWrapped: true, // ラッピング済みフラグ
+            passwordWrapped: true, // Flag as wrapped
           },
         });
 
@@ -1167,164 +1169,164 @@ class PasswordMigration {
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
 ```
-パスワード管理のアンチパターン:
+Password management anti-patterns:
 
-  ✗ 平文保存:
-    → DB漏洩で全パスワードが即座に判明
-    → 法的責任を問われる可能性
-    → GDPR、個人情報保護法に違反
+  ✗ Storing plaintext:
+    → A DB breach immediately exposes all passwords
+    → May result in legal liability
+    → Violates GDPR and personal information protection laws
 
-  ✗ 可逆暗号化:
-    → AES等で暗号化 → 鍵があれば復号可能
-    → 鍵管理の問題が発生
-    → 鍵漏洩 = 全パスワード漏洩
+  ✗ Reversible encryption:
+    → Encrypting with AES, etc. → decryptable with the key
+    → Creates key management problems
+    → Key breach = all passwords breached
 
-  ✗ MD5/SHA-256（ソルトなし）:
-    → レインボーテーブルで解読可能
-    → GPU で毎秒数十億回のハッシュ計算
-    → 現在のハードウェアでは防御力ゼロ
+  ✗ MD5/SHA-256 (without salt):
+    → Crackable with rainbow tables
+    → GPUs compute billions of hashes per second
+    → Zero defensive value with modern hardware
 
-  ✗ 独自のハッシュアルゴリズム:
-    → 暗号の専門家でない限り脆弱性がある
-    → 検証済みのライブラリを使用すべき
-    → 「シンプルすぎて破られない」は幻想
+  ✗ Custom hash algorithms:
+    → Will have vulnerabilities unless you are a cryptography expert
+    → Use verified, well-tested libraries
+    → "Too simple to break" is an illusion
 
-  ✗ パスワードの最大長制限（例: 16文字）:
-    → パスフレーズの使用を妨げる
-    → ハッシュ化すれば長さは関係ない
-    → bcrypt の72バイト制限はプレハッシュで対応
+  ✗ Maximum password length restriction (e.g., 16 characters):
+    → Prevents use of passphrases
+    → Length doesn't matter after hashing
+    → Handle bcrypt's 72-byte limit with pre-hashing
 
-  ✗ パスワードをログに出力:
-    → 平文パスワードがログファイルに残る
-    → リクエストボディのログ記録時に特に注意
-    → ログフレームワークでフィルタリング
+  ✗ Logging passwords:
+    → Plaintext passwords remain in log files
+    → Be especially careful when logging request bodies
+    → Filter with logging framework
 
-  ✗ エラーメッセージで情報漏洩:
-    → 「パスワードが間違っています」→ ユーザー存在が判明
-    → 「メールアドレスまたはパスワードが間違っています」が正しい
+  ✗ Information leakage via error messages:
+    → "Wrong password" → reveals user existence
+    → "Incorrect email address or password" is correct
 
-  ✗ タイミング攻撃への無防備:
-    → ユーザーが存在しない場合、即座にエラー応答
-    → ハッシュ検証のない高速応答でユーザー存在が判明
-    → 対策: 常にハッシュ計算を行う（ダミーでも）
+  ✗ Vulnerability to timing attacks:
+    → Immediately returning an error when user doesn't exist
+    → Fast response without hash verification reveals user existence
+    → Countermeasure: always compute hash (even with a dummy)
 
-  ✗ パスワード変更時に旧セッションを残す:
-    → パスワード変更後も旧セッションが有効
-    → アカウント侵害時に攻撃者のセッションが残る
-    → パスワード変更時は全セッション無効化
+  ✗ Leaving old sessions after password change:
+    → Old sessions remain valid after password change
+    → Attacker's session persists even after account compromise
+    → Invalidate all sessions on password change
 ```
 
 ---
 
-## 8. 演習
+## 8. Exercises
 
-### 演習 1: パスワードハッシュの比較実験（基礎）
-
-```
-課題:
-  各ハッシュアルゴリズムの速度を計測し、なぜ bcrypt/Argon2 が
-  パスワードに適しているかを体感する。
-
-  要件:
-  1. MD5, SHA-256, bcrypt, Argon2id でそれぞれハッシュ化
-  2. 各アルゴリズムで10万回のハッシュ計算時間を計測
-  3. 結果を表にまとめる
-  4. なぜ「遅い」ことが利点なのかを説明
-
-  期待される結果:
-  MD5:        ~1秒 / 10万回
-  SHA-256:    ~2秒 / 10万回
-  bcrypt(12): ~30分 / 10万回
-  Argon2id:   ~8時間 / 10万回
-```
-
-### 演習 2: 安全なパスワードリセットフローの実装（応用）
+### Exercise 1: Hash Algorithm Speed Comparison (Basic)
 
 ```
-課題:
-  Express + Prisma を使って、OWASP に準拠した
-  パスワードリセットフローを実装せよ。
+Task:
+  Measure the speed of each hash algorithm and get a feel for why
+  bcrypt/Argon2 are appropriate for password hashing.
 
-  要件:
-  1. POST /auth/reset-request: メールアドレスでリセット要求
-  2. GET /auth/reset-verify/:token: トークン有効性確認
-  3. POST /auth/reset-confirm: 新パスワード設定
-  4. セキュリティ要件:
-     → トークンは crypto.randomBytes(32) で生成
-     → DB にはハッシュ化して保存
-     → 有効期限: 1時間
-     → 使用済みトークンの無効化
-     → ユーザー列挙攻撃の防止
-     → レート制限
-     → 全セッション無効化
-     → 変更通知メール
+  Requirements:
+  1. Hash with MD5, SHA-256, bcrypt, and Argon2id respectively
+  2. Measure the time to compute 100,000 hashes with each algorithm
+  3. Summarize the results in a table
+  4. Explain why being "slow" is an advantage
+
+  Expected results:
+  MD5:        ~1 second / 100,000 hashes
+  SHA-256:    ~2 seconds / 100,000 hashes
+  bcrypt(12): ~30 minutes / 100,000 hashes
+  Argon2id:   ~8 hours / 100,000 hashes
 ```
 
-### 演習 3: パスワードマイグレーションの実装（発展）
+### Exercise 2: Implementing a Secure Password Reset Flow (Intermediate)
 
 ```
-課題:
-  MD5 → bcrypt → Argon2id の段階的マイグレーション機構を
-  実装せよ。
+Task:
+  Using Express + Prisma, implement an OWASP-compliant
+  password reset flow.
 
-  要件:
-  1. ハッシュ形式の自動判定
-  2. 透過的リハッシュ（ログイン時に自動移行）
-  3. 一括ラッピング（MD5 hash を Argon2id で包む）
-  4. マイグレーション進捗のモニタリング
-  5. ロールバック可能な設計
+  Requirements:
+  1. POST /auth/reset-request: Request reset by email address
+  2. GET /auth/reset-verify/:token: Verify token validity
+  3. POST /auth/reset-confirm: Set new password
+  4. Security requirements:
+     → Token generated with crypto.randomBytes(32)
+     → Store hashed in DB
+     → Expiry: 1 hour
+     → Invalidate used tokens
+     → Prevent user enumeration attacks
+     → Rate limiting
+     → Invalidate all sessions
+     → Send change notification email
+```
 
-  テストシナリオ:
-  → MD5 ハッシュのユーザーがログイン → Argon2id に移行
-  → bcrypt ハッシュのユーザーがログイン → Argon2id に移行
-  → Argon2id の古いパラメータ → 新しいパラメータでリハッシュ
+### Exercise 3: Implementing Password Migration (Advanced)
+
+```
+Task:
+  Implement a step-by-step migration mechanism from
+  MD5 → bcrypt → Argon2id.
+
+  Requirements:
+  1. Automatic detection of hash format
+  2. Transparent rehashing (automatic migration at login)
+  3. Bulk wrapping (wrap MD5 hash with Argon2id)
+  4. Migration progress monitoring
+  5. Rollback-capable design
+
+  Test scenarios:
+  → User with MD5 hash logs in → migrated to Argon2id
+  → User with bcrypt hash logs in → migrated to Argon2id
+  → Old Argon2id parameters → rehash with new parameters
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1333,26 +1335,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1360,7 +1362,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1371,14 +1373,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1386,7 +1388,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1394,44 +1396,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1440,7 +1442,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1455,64 +1457,64 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup:             {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithmic time complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
-## 9. FAQ・トラブルシューティング
+## 9. FAQ & Troubleshooting
 
 ```
-Q1: bcrypt と Argon2 どちらを使うべきか
-A1: → 新規プロジェクト: Argon2id（メモリハードで GPU 耐性最強）
-    → 既存プロジェクト: bcrypt のままでも十分安全
-    → FIPS 準拠が必要: PBKDF2-HMAC-SHA256
-    → どちらも使えない環境: scrypt
+Q1: Which should I use, bcrypt or Argon2?
+A1: → New projects: Argon2id (memory-hard, strongest GPU resistance)
+    → Existing projects: bcrypt is still sufficiently secure
+    → FIPS compliance required: PBKDF2-HMAC-SHA256
+    → Environments where neither is available: scrypt
 
-Q2: bcrypt の72バイト制限が心配
-A2: → SHA-256 プレハッシュで対応: bcrypt(SHA256(password).base64())
-    → Base64 出力は44文字 → 72バイト以内
-    → または Argon2id に移行（長さ制限なし）
+Q2: I'm worried about bcrypt's 72-byte limit
+A2: → Handle with SHA-256 pre-hashing: bcrypt(SHA256(password).base64())
+    → Base64 output is 44 chars → within 72 bytes
+    → Or migrate to Argon2id (no length limit)
 
-Q3: パスワードの最大長はどうすべきか
-A3: → 少なくとも64文字を許容（NIST 推奨）
-    → 128〜256文字を上限に（DoS 対策）
-    → ハッシュ前に長さチェック（巨大な入力での計算負荷を防止）
+Q3: What should the maximum password length be?
+A3: → Allow at least 64 characters (NIST recommended)
+    → Cap at 128–256 characters (DoS mitigation)
+    → Check length before hashing (prevent computation load from huge inputs)
 
-Q4: パスワードの保存場所はどこか
-A4: → ハッシュ化してメインDBに保存
-    → 暗号化が必要なら「暗号化ラッピング」を追加
-    → 暗号化鍵はKMS/HSMで管理
-    → バックアップにも同じ保護を適用
+Q4: Where should passwords be stored?
+A4: → Store hashed in the main DB
+    → Add "encryption wrapping" if encryption is needed
+    → Manage encryption keys with KMS/HSM
+    → Apply the same protection to backups
 
-Q5: ユーザーがパスワードを忘れた場合のフロー
-A5: → リセットトークンをメールで送信
-    → トークンはランダムで暗号的に安全
-    → 1時間有効、使用後は無効化
-    → ユーザー存在を漏らさない
-    → MFA が有効ならリセット後も MFA 要求
+Q5: What is the flow when a user forgets their password?
+A5: → Send a reset token via email
+    → Token is random and cryptographically secure
+    → Valid for 1 hour, invalidated after use
+    → Do not reveal whether user exists
+    → If MFA is enabled, require MFA even after reset
 
-Q6: パスワードの平文がログに残ってしまった
-A6: → 即座にログファイルを安全に削除
-    → 影響を受けたユーザーのパスワードリセットを強制
-    → ログフレームワークにリクエストボディのフィルタリングを追加
-    → 監査ログにインシデントを記録
-    → セキュリティチームに報告
+Q6: Plaintext passwords ended up in the logs
+A6: → Immediately delete the log files securely
+    → Force a password reset for affected users
+    → Add request body filtering to the logging framework
+    → Record the incident in the audit log
+    → Report to the security team
 
-Q7: Argon2 のメモリ使用量でサーバーが不安定になる
-A7: → parallelism を下げる（4 → 1）
-    → memoryCost を下げる（65536 → 19456）
-    → 同時ハッシュ計算数を制限（Semaphore）
-    → ワーカースレッドで実行
-    → ハッシュ計算専用のサービスに分離
+Q7: Argon2 memory usage is destabilizing the server
+A7: → Lower parallelism (4 → 1)
+    → Lower memoryCost (65536 → 19456)
+    → Limit concurrent hash computations (Semaphore)
+    → Run in worker threads
+    → Isolate hash computation to a dedicated service
 ```
 
 ---
@@ -1520,42 +1522,42 @@ A7: → parallelism を下げる（4 → 1）
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ベストプラクティス |
-|------|-----------------|
-| ハッシュ | Argon2id（推奨）または bcrypt |
-| ソルト | アルゴリズムが自動生成（手動不要） |
-| ペッパー | 暗号化ラッピング（KMS で鍵管理） |
-| コスト | 250ms〜1秒のハッシュ計算時間 |
-| ポリシー | 8文字以上、漏洩チェック、強度メーター |
-| 禁止ルール | よく使われるパスワード、ユーザー情報を含むもの |
-| リセット | 暗号ランダムトークン、1時間有効、ハッシュ保存 |
-| エラー | 「メールまたはパスワードが違います」（曖昧に） |
-| セッション | パスワード変更時に全セッション無効化 |
-| マイグレーション | 透過的リハッシュ or ラッピング |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Item | Best Practice |
+|------|---------------|
+| Hash | Argon2id (recommended) or bcrypt |
+| Salt | Auto-generated by the algorithm (no manual management needed) |
+| Pepper | Encryption wrapping (key managed via KMS) |
+| Cost | 250ms–1 second hash computation time |
+| Policy | 8+ characters, breach check, strength meter |
+| Prohibited | Commonly used passwords, passwords containing user info |
+| Reset | Cryptographically random token, 1 hour validity, stored hashed |
+| Error | "Incorrect email or password" (keep it vague) |
+| Session | Invalidate all sessions on password change |
+| Migration | Transparent rehashing or wrapping |
 
 ---
 
-## 参考文献
+## Further Reading
+
+---
+
+## References
 1. NIST. "SP 800-63B: Digital Identity Guidelines." nist.gov, 2020.
 2. OWASP. "Password Storage Cheat Sheet." cheatsheetseries.owasp.org, 2024.
 3. Troy Hunt. "Have I Been Pwned." haveibeenpwned.com, 2024.
