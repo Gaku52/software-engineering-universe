@@ -1,112 +1,112 @@
-# CSRF 防御
+# CSRF Protection
 
-> CSRF（Cross-Site Request Forgery）は認証済みユーザーの操作を偽造する攻撃。Synchronizer Token パターン、Double Submit Cookie、SameSite Cookie、Origin ヘッダー検証まで、CSRF 攻撃の仕組みと多層防御を解説する。
+> CSRF (Cross-Site Request Forgery) is an attack that forges operations on behalf of an authenticated user. This guide covers how CSRF attacks work and multi-layered defenses including the Synchronizer Token pattern, Double Submit Cookie, SameSite Cookie, and Origin header validation.
 
-## 前提知識
+## Prerequisites
 
-- HTTP Cookie の仕組み（Set-Cookie ヘッダー、Cookie 属性）
-- 同一オリジンポリシー（Same-Origin Policy）の基本
+- How HTTP Cookies work (Set-Cookie header, Cookie attributes)
+- Basics of Same-Origin Policy
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] CSRF 攻撃の仕組みとリスクを理解する
-- [ ] 主要な CSRF 防御パターンを実装できるようになる
-- [ ] SameSite Cookie による防御の効果と限界を把握する
-- [ ] Next.js / Express での実践的な CSRF 対策を実装できる
-- [ ] 多層防御の設計原則を把握する
+- [ ] Understand how CSRF attacks work and their risks
+- [ ] Be able to implement the major CSRF defense patterns
+- [ ] Know the effectiveness and limitations of SameSite Cookie protection
+- [ ] Implement practical CSRF countermeasures in Next.js / Express
+- [ ] Understand the design principles of defense in depth
 
 ---
 
-## 1. CSRF 攻撃の仕組み
+## 1. How CSRF Attacks Work
 
-### 1.1 基本的な攻撃フロー
+### 1.1 Basic Attack Flow
 
 ```
-CSRF 攻撃フロー:
+CSRF Attack Flow:
 
-  ① ユーザーが bank.com にログイン中（Cookie 有効）
-  ② 攻撃者が evil.com に以下のHTMLを仕込む:
+  ① User is logged in to bank.com (Cookie is valid)
+  ② Attacker embeds the following HTML on evil.com:
      <form action="https://bank.com/transfer" method="POST">
        <input type="hidden" name="to" value="attacker" />
        <input type="hidden" name="amount" value="1000000" />
      </form>
      <script>document.forms[0].submit();</script>
-  ③ ユーザーが evil.com を訪問
-  ④ フォームが自動送信
-  ⑤ ブラウザが bank.com の Cookie を自動付与
-  ⑥ bank.com はユーザーからの正規リクエストと判断
-  ⑦ 送金が実行される
+  ③ User visits evil.com
+  ④ Form is automatically submitted
+  ⑤ Browser automatically attaches bank.com's Cookie
+  ⑥ bank.com judges it as a legitimate request from the user
+  ⑦ The transfer is executed
 
-  なぜ成功するか:
-  → ブラウザはクロスサイトリクエストでも Cookie を送信する
-  → サーバーは Cookie のみでユーザーを認証している
-  → リクエストが正規のユーザーからか判別できない
+  Why it succeeds:
+  → The browser sends Cookies even for cross-site requests
+  → The server authenticates users only via Cookies
+  → The server cannot distinguish whether the request came from a legitimate user
 ```
 
-### 1.2 攻撃の詳細な分類
+### 1.2 Detailed Classification of Attacks
 
 ```
-CSRF 攻撃の種類:
+Types of CSRF Attacks:
 
   ┌─────────────────────────────────────────────────────────┐
-  │                    CSRF 攻撃分類                         │
+  │                    CSRF Attack Classification            │
   ├──────────────┬──────────────────────────────────────────┤
-  │ 種類         │ 説明                                     │
+  │ Type         │ Description                              │
   ├──────────────┼──────────────────────────────────────────┤
-  │ POST CSRF    │ 隠しフォームの自動送信                     │
-  │              │ → 最も一般的な攻撃ベクター                 │
-  │              │ → 状態変更操作を狙う                      │
+  │ POST CSRF    │ Auto-submission of hidden forms           │
+  │              │ → Most common attack vector               │
+  │              │ → Targets state-changing operations       │
   ├──────────────┼──────────────────────────────────────────┤
-  │ GET CSRF     │ img/script タグで GET リクエスト発行       │
-  │              │ → GET で状態変更する API が対象             │
+  │ GET CSRF     │ Issuing GET requests via img/script tags  │
+  │              │ → Targets APIs that change state via GET  │
   │              │ → <img src="bank.com/transfer?to=evil">   │
   ├──────────────┼──────────────────────────────────────────┤
-  │ Login CSRF   │ 攻撃者のアカウントでログインさせる          │
-  │              │ → ユーザーが攻撃者のアカウントで操作        │
-  │              │ → 入力した情報が攻撃者に漏洩              │
+  │ Login CSRF   │ Forces login with attacker's account      │
+  │              │ → User operates under attacker's account  │
+  │              │ → Input data leaks to attacker            │
   ├──────────────┼──────────────────────────────────────────┤
-  │ JSON CSRF    │ Content-Type を偽装した JSON 送信          │
-  │              │ → enctype="text/plain" の悪用              │
-  │              │ → CORS 制限のバイパス                     │
+  │ JSON CSRF    │ Spoofed JSON submission via Content-Type  │
+  │              │ → Exploiting enctype="text/plain"         │
+  │              │ → Bypassing CORS restrictions             │
   ├──────────────┼──────────────────────────────────────────┤
-  │ XHR CSRF     │ JavaScript による非同期リクエスト           │
-  │              │ → withCredentials: true で Cookie 送信     │
-  │              │ → CORS が許可されている場合に成功           │
+  │ XHR CSRF     │ Asynchronous requests via JavaScript      │
+  │              │ → Sends Cookie with withCredentials: true │
+  │              │ → Succeeds when CORS is permitted         │
   └──────────────┴──────────────────────────────────────────┘
 ```
 
-### 1.3 攻撃が成立する条件
+### 1.3 Conditions for a Successful Attack
 
 ```
-CSRF 攻撃成立の3条件:
+3 Conditions for a CSRF Attack to Succeed:
 
   ┌──────────────────────────────────────────────────┐
-  │ 条件①: Cookie ベースの認証を使用している           │
-  │   → セッション Cookie が自動送信される              │
-  │   → Authorization ヘッダーは自動送信されない        │
+  │ Condition ①: Uses Cookie-based authentication    │
+  │   → Session Cookie is automatically sent         │
+  │   → Authorization header is not auto-sent        │
   └──────────────────┬───────────────────────────────┘
                      ↓
   ┌──────────────────────────────────────────────────┐
-  │ 条件②: 予測可能なリクエスト構造                    │
-  │   → パラメータ名と値が推測可能                     │
-  │   → ランダムトークン等の秘密値が不要               │
+  │ Condition ②: Predictable request structure       │
+  │   → Parameter names and values are guessable     │
+  │   → No secret value such as a random token needed│
   └──────────────────┬───────────────────────────────┘
                      ↓
   ┌──────────────────────────────────────────────────┐
-  │ 条件③: 状態変更を行う操作がある                    │
-  │   → 送金、購入、パスワード変更                     │
-  │   → メールアドレス変更 → アカウント乗っ取り         │
-  │   → 管理操作（ユーザー削除、権限変更）              │
+  │ Condition ③: There is a state-changing operation │
+  │   → Transfer, purchase, password change          │
+  │   → Email change → Account takeover              │
+  │   → Admin operations (user deletion, role change)│
   └──────────────────────────────────────────────────┘
 
-  3つすべてが揃った場合のみ CSRF 攻撃が成立する
+  A CSRF attack succeeds only when all three conditions are met
 ```
 
-### 1.4 実際の攻撃シナリオ
+### 1.4 Real Attack Scenarios
 
 ```typescript
-// 攻撃シナリオ1: 送金（POST CSRF）
-// evil.com に設置されたHTML
+// Attack scenario 1: Fund transfer (POST CSRF)
+// HTML placed on evil.com
 `
 <html>
 <body onload="document.forms[0].submit()">
@@ -119,7 +119,7 @@ CSRF 攻撃成立の3条件:
 </html>
 `;
 
-// 攻撃シナリオ2: パスワード変更（POST CSRF）
+// Attack scenario 2: Password change (POST CSRF)
 `
 <iframe style="display:none" name="csrf-frame"></iframe>
 <form action="https://target.com/api/change-password" method="POST" target="csrf-frame">
@@ -129,106 +129,106 @@ CSRF 攻撃成立の3条件:
 <script>document.forms[0].submit();</script>
 `;
 
-// 攻撃シナリオ3: メールアドレス変更 → アカウント乗っ取り
+// Attack scenario 3: Email change → Account takeover
 `
 <img src="https://target.com/api/update-email?email=attacker@evil.com"
      style="display:none" />
 `;
-// ↑ GET で状態変更する設計が危険
+// ↑ Designs that change state via GET are dangerous
 
-// 攻撃シナリオ4: JSON リクエストの偽装
+// Attack scenario 4: Spoofed JSON request
 `
 <form action="https://target.com/api/update-profile" method="POST"
       enctype="text/plain">
   <input name='{"name":"attacker","ignore":"' value='"}' />
 </form>
 `;
-// Content-Type: text/plain でもサーバーが JSON としてパースする場合
+// When the server parses it as JSON even with Content-Type: text/plain
 ```
 
-### 1.5 Login CSRF の詳細
+### 1.5 Login CSRF in Detail
 
 ```
-Login CSRF 攻撃:
+Login CSRF Attack:
 
-  通常の CSRF とは異なるパターン
+  A different pattern from regular CSRF
 
-  ① 攻撃者が自分のアカウントの認証情報でログインリクエストを偽造
-  ② ユーザーが攻撃者のアカウントでログインした状態になる
-  ③ ユーザーがサービスを利用（個人情報入力、ファイルアップロード等）
-  ④ 攻撃者が自分のアカウントでログインし、情報を閲覧
+  ① Attacker forges a login request using their own credentials
+  ② The user ends up logged in as the attacker's account
+  ③ User uses the service (enters personal info, uploads files, etc.)
+  ④ Attacker logs in with their account and views the information
 
-  攻撃フロー:
+  Attack Flow:
   ┌─────────┐     ┌─────────┐     ┌─────────┐
   │  User   │────→│ evil.com │────→│ target  │
   │ Browser │     │  (CSRF)  │     │  .com   │
   └─────────┘     └──────────┘     └─────────┘
-       │          攻撃者の認証情報で         │
-       │          ログインリクエスト          │
-       │                                    │
-       │←── 攻撃者のセッション Cookie ──────│
-       │                                    │
-       │ ユーザーは攻撃者のアカウントで       │
-       │ 個人情報を入力...                   │
+       │          Login request with              │
+       │          attacker's credentials          │
+       │                                          │
+       │←── Attacker's session Cookie ────────────│
+       │                                          │
+       │ User enters personal info                │
+       │ under attacker's account...              │
 
-  対策:
-  → ログインフォームにも CSRF トークンを設定
-  → ログイン後にセッション ID を再生成
-  → ログイン通知をユーザーに送信
+  Countermeasures:
+  → Set CSRF tokens on login forms as well
+  → Regenerate session ID after login
+  → Send login notifications to users
 ```
 
 ---
 
-## 2. 防御パターン
+## 2. Defense Patterns
 
-### 2.1 4つの防御パターンの概要
+### 2.1 Overview of 4 Defense Patterns
 
 ```
-CSRF 防御の4つのパターン:
+4 CSRF Defense Patterns:
 
-  ① Synchronizer Token Pattern（同期トークン）:
-     → サーバーがランダムトークンを生成
-     → フォームに hidden field として埋め込み
-     → サーバーでトークンを検証
-     → 最も確実な防御
+  ① Synchronizer Token Pattern:
+     → Server generates a random token
+     → Embed as a hidden field in the form
+     → Server validates the token
+     → Most reliable defense
 
   ② Double Submit Cookie:
-     → トークンを Cookie と リクエスト両方に設定
-     → 両者が一致するか検証
-     → サーバーに状態不要
+     → Set token in both Cookie and request
+     → Verify that both match
+     → No server-side state required
 
   ③ SameSite Cookie:
-     → Cookie の SameSite 属性で制御
-     → ブラウザレベルの防御
-     → 追加実装不要
+     → Controlled via the SameSite attribute of Cookies
+     → Browser-level defense
+     → No additional implementation needed
 
-  ④ Origin / Referer ヘッダー検証:
-     → リクエスト元のオリジンを検証
-     → 補助的な防御
-     → ヘッダーが省略される場合がある
+  ④ Origin / Referer Header Validation:
+     → Validate the origin of the request
+     → Supplementary defense
+     → Headers may be omitted in some cases
 
-  推奨: ③ SameSite=Lax + ① or ② の組合せ
+  Recommended: ③ SameSite=Lax + ① or ② combined
 ```
 
-### 2.2 防御パターン比較表
+### 2.2 Defense Pattern Comparison
 
 ```
 ┌────────────────────┬──────────────┬──────────────┬──────────┬──────────────┐
-│ パターン            │ セキュリティ │ 実装コスト    │ 状態管理 │ SPA 適合性    │
+│ Pattern            │ Security     │ Impl. Cost   │ State    │ SPA Fit      │
 ├────────────────────┼──────────────┼──────────────┼──────────┼──────────────┤
-│ Synchronizer Token │ ★★★★★      │ ★★★         │ 必要     │ △ 要工夫     │
-│ Double Submit      │ ★★★★       │ ★★           │ 不要     │ ○ 適合      │
-│ SameSite Cookie    │ ★★★★       │ ★（最少）     │ 不要     │ ○ 自動      │
-│ Origin 検証        │ ★★★         │ ★★           │ 不要     │ ○ 適合      │
-│ Custom Header      │ ★★★★       │ ★★           │ 不要     │ ◎ 最適     │
-│ Encrypted Token    │ ★★★★★      │ ★★★★        │ 不要     │ △ 要工夫     │
+│ Synchronizer Token │ ★★★★★      │ ★★★         │ Required │ △ Needs work │
+│ Double Submit      │ ★★★★       │ ★★           │ None     │ ○ Compatible │
+│ SameSite Cookie    │ ★★★★       │ ★ (minimal)  │ None     │ ○ Automatic  │
+│ Origin Validation  │ ★★★         │ ★★           │ None     │ ○ Compatible │
+│ Custom Header      │ ★★★★       │ ★★           │ None     │ ◎ Ideal     │
+│ Encrypted Token    │ ★★★★★      │ ★★★★        │ None     │ △ Needs work │
 └────────────────────┴──────────────┴──────────────┴──────────┴──────────────┘
 ```
 
-### 2.3 Synchronizer Token Pattern（同期トークン）
+### 2.3 Synchronizer Token Pattern
 
 ```
-Synchronizer Token Pattern の内部動作:
+Synchronizer Token Pattern - Internal Operation:
 
   ┌──────────┐          ┌──────────────┐          ┌──────────┐
   │ Browser  │          │    Server    │          │ Session  │
@@ -255,14 +255,14 @@ Synchronizer Token Pattern の内部動作:
        │                       │←──────────────────────│
        │                       │                       │
        │                       │ compare(req, stored)  │
-       │                       │ → 一致 → 処理実行     │
+       │                       │ → match → execute     │
        │  200 OK               │                       │
        │←──────────────────────│                       │
        │                       │                       │
 ```
 
 ```typescript
-// ① Synchronizer Token Pattern - 完全な実装
+// ① Synchronizer Token Pattern - Full Implementation
 import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 
@@ -272,11 +272,11 @@ interface CSRFStore {
   deleteToken(sessionId: string): Promise<void>;
 }
 
-// Redis ベースのトークンストア
+// Redis-based token store
 class RedisCSRFStore implements CSRFStore {
   private redis: Redis;
   private prefix = 'csrf:';
-  private ttl = 3600; // 1時間
+  private ttl = 3600; // 1 hour
 
   constructor(redis: Redis) {
     this.redis = redis;
@@ -295,28 +295,28 @@ class RedisCSRFStore implements CSRFStore {
   }
 }
 
-// トークン生成（暗号論的に安全なランダム値）
+// Token generation (cryptographically secure random value)
 function generateCSRFToken(): string {
   return crypto.randomBytes(32).toString('hex');
-  // 32バイト = 256ビット → 64文字の16進数文字列
-  // 2^256 の可能性 → 推測は事実上不可能
+  // 32 bytes = 256 bits → 64-character hex string
+  // 2^256 possibilities → practically impossible to guess
 }
 
-// トークン比較（タイミング攻撃対策）
+// Token comparison (timing attack countermeasure)
 function safeCompare(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
-  // ※ 通常の === 比較は最初の不一致文字で返却するため
-  //    レスポンス時間からトークンを推測される可能性がある
-  //    timingSafeEqual は常に同じ時間で比較する
+  // Note: Regular === comparison returns at the first mismatch character,
+  //    which allows guessing the token from response timing.
+  //    timingSafeEqual always takes the same amount of time to compare.
 }
 
-// CSRF 保護ミドルウェア
+// CSRF protection middleware
 function csrfProtection(store: CSRFStore) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    // GET, HEAD, OPTIONS はスキップ（安全なメソッド = RFC 7231 §4.2.1）
+    // Skip GET, HEAD, OPTIONS (safe methods = RFC 7231 §4.2.1)
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-      // トークンを生成してレスポンスに含める
+      // Generate a token and include it in the response
       const sessionId = req.session?.id;
       if (sessionId) {
         let token = await store.getToken(sessionId);
@@ -324,23 +324,23 @@ function csrfProtection(store: CSRFStore) {
           token = generateCSRFToken();
           await store.setToken(sessionId, token);
         }
-        // テンプレートで使えるようにローカル変数に設定
+        // Set as a local variable so templates can use it
         res.locals.csrfToken = token;
       }
       return next();
     }
 
-    // POST/PUT/DELETE 等の状態変更メソッド
+    // State-changing methods: POST/PUT/DELETE etc.
     const sessionId = req.session?.id;
     if (!sessionId) {
       return res.status(403).json({ error: 'No session' });
     }
 
-    // トークンの取得元（優先順位）
+    // Token retrieval sources (priority order)
     const token =
-      req.headers['x-csrf-token'] as string ||   // カスタムヘッダー
-      req.body?._csrf ||                           // フォームの hidden field
-      req.query?._csrf as string;                  // クエリパラメータ（非推奨）
+      req.headers['x-csrf-token'] as string ||   // Custom header
+      req.body?._csrf ||                           // Form hidden field
+      req.query?._csrf as string;                  // Query parameter (not recommended)
 
     const storedToken = await store.getToken(sessionId);
 
@@ -351,8 +351,8 @@ function csrfProtection(store: CSRFStore) {
       });
     }
 
-    // トークンを再生成（ワンタイム使用 - Per-Request Token）
-    // ※ Per-Session Token の場合はここを削除
+    // Regenerate token (one-time use - Per-Request Token)
+    // Note: Delete this section for Per-Session Token
     const newToken = generateCSRFToken();
     await store.setToken(sessionId, newToken);
     res.setHeader('X-CSRF-Token', newToken);
@@ -361,7 +361,7 @@ function csrfProtection(store: CSRFStore) {
   };
 }
 
-// Express アプリケーションへの適用
+// Applying to Express application
 import express from 'express';
 
 const app = express();
@@ -370,61 +370,61 @@ const csrfStore = new RedisCSRFStore(redis);
 
 app.use(csrfProtection(csrfStore));
 
-// フォームに埋め込み（サーバーサイドレンダリング）
+// Embed in form (server-side rendering)
 // <input type="hidden" name="_csrf" value="${res.locals.csrfToken}" />
 
-// SPA の場合: メタタグ or API で取得
+// For SPA: retrieve via meta tag or API
 // <meta name="csrf-token" content="${res.locals.csrfToken}" />
 ```
 
 ### 2.4 Per-Session Token vs Per-Request Token
 
 ```
-トークンの更新戦略:
+Token Update Strategy:
 
   Per-Session Token:
   ┌────────────────────────────────────────────┐
-  │ セッション開始時に1つのトークンを生成       │
-  │ セッション中はそのトークンを使い続ける       │
-  │                                            │
-  │ 利点:                                      │
-  │ → 実装がシンプル                            │
-  │ → ブラウザの「戻る」ボタンで問題が起きない   │
-  │ → タブ間で共有可能                          │
-  │                                            │
-  │ 欠点:                                      │
-  │ → トークン漏洩時の影響が大きい              │
-  │ → XSS と組み合わさると危険                  │
+  │ Generate one token at session start         │
+  │ Continue using the same token throughout    │
+  │                                             │
+  │ Advantages:                                 │
+  │ → Simple implementation                     │
+  │ → No issues with browser "Back" button      │
+  │ → Can be shared across tabs                 │
+  │                                             │
+  │ Disadvantages:                              │
+  │ → Greater impact if token is leaked         │
+  │ → Dangerous when combined with XSS          │
   └────────────────────────────────────────────┘
 
   Per-Request Token:
   ┌────────────────────────────────────────────┐
-  │ リクエストごとに新しいトークンを生成         │
-  │ 使用後は無効化                              │
-  │                                            │
-  │ 利点:                                      │
-  │ → より高いセキュリティ                      │
-  │ → トークン漏洩時の影響が限定的              │
-  │                                            │
-  │ 欠点:                                      │
-  │ → 「戻る」ボタンでフォーム再送信が失敗       │
-  │ → 複数タブでの同時操作で問題                │
-  │ → AJAX 多用のアプリで複雑                   │
+  │ Generate a new token for each request       │
+  │ Invalidate after use                        │
+  │                                             │
+  │ Advantages:                                 │
+  │ → Higher security                           │
+  │ → Limited impact if token is leaked         │
+  │                                             │
+  │ Disadvantages:                              │
+  │ → Form re-submission fails with "Back"      │
+  │ → Issues with simultaneous multi-tab ops    │
+  │ → Complex in AJAX-heavy applications        │
   └────────────────────────────────────────────┘
 
-  推奨:
-  → 一般的な Web アプリ: Per-Session Token
-  → 金融系・高セキュリティ: Per-Request Token
+  Recommendation:
+  → General web apps: Per-Session Token
+  → Financial / high-security: Per-Request Token
   → SPA: Per-Session Token + Custom Header
 ```
 
 ### 2.5 Double Submit Cookie
 
 ```
-Double Submit Cookie の内部動作:
+Double Submit Cookie - Internal Operation:
 
-  ポイント: 攻撃者は Cookie を「設定」できないが
-           ブラウザは Cookie を「自動送信」する
+  Key point: An attacker cannot "set" a Cookie,
+             but the browser will "auto-send" Cookies
 
   ┌──────────┐          ┌──────────────┐
   │ Browser  │          │    Server    │
@@ -438,25 +438,25 @@ Double Submit Cookie の内部動作:
        │  (httpOnly=false)     │
        │←──────────────────────│
        │                       │
-       │  JavaScript が        │
-       │  Cookie を読み取り     │
+       │  JavaScript reads     │
+       │  the Cookie           │
        │  ↓                    │
        │  POST /action         │
-       │  Cookie: csrf=token123│ ← ブラウザが自動送信
-       │  X-CSRF-Token: token123│ ← JS が明示的に設定
+       │  Cookie: csrf=token123│ ← Browser auto-sends
+       │  X-CSRF-Token: token123│ ← JS explicitly sets
        │──────────────────────→│
        │                       │
-       │                       │ Cookie の値 === ヘッダーの値？
-       │                       │ → 一致 → 正規リクエスト
+       │                       │ Cookie value === Header value?
+       │                       │ → Match → Legitimate request
        │                       │
-       │  攻撃者の場合:         │
-       │  Cookie: csrf=token123│ ← ブラウザが自動送信
-       │  X-CSRF-Token: ???    │ ← 攻撃者は Cookie を読めない
-       │                       │   → 不一致 → 拒否
+       │  Attacker's case:     │
+       │  Cookie: csrf=token123│ ← Browser auto-sends
+       │  X-CSRF-Token: ???    │ ← Attacker cannot read Cookie
+       │                       │   → Mismatch → Rejected
 ```
 
 ```typescript
-// ② Double Submit Cookie - 完全な実装
+// ② Double Submit Cookie - Full Implementation
 import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 
@@ -469,7 +469,7 @@ interface DoubleSubmitOptions {
     path?: string;
     domain?: string;
   };
-  // HMAC 署名を使用するか（推奨）
+  // Whether to use HMAC signing (recommended)
   signedCookie?: boolean;
   secret?: string;
 }
@@ -483,7 +483,7 @@ function doubleSubmitCSRF(options: DoubleSubmitOptions = {}) {
     secret = process.env.CSRF_SECRET || 'default-change-me',
   } = options;
 
-  // HMAC 署名付きトークン生成
+  // Generate HMAC-signed token
   function createSignedToken(): string {
     const value = crypto.randomBytes(32).toString('hex');
     if (!signedCookie) return value;
@@ -495,7 +495,7 @@ function doubleSubmitCSRF(options: DoubleSubmitOptions = {}) {
     return `${value}.${signature}`;
   }
 
-  // 署名の検証
+  // Verify signature
   function verifySignature(token: string): boolean {
     if (!signedCookie) return true;
 
@@ -511,22 +511,22 @@ function doubleSubmitCSRF(options: DoubleSubmitOptions = {}) {
 
   return (req: Request, res: Response, next: NextFunction) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-      // GET 時にトークンを Cookie に設定
+      // Set token in Cookie on GET
       if (!req.cookies[cookieName]) {
         const token = createSignedToken();
         res.cookie(cookieName, token, {
-          httpOnly: false,   // JavaScript で読める必要あり
+          httpOnly: false,   // Must be readable by JavaScript
           secure: cookieOptions.secure ?? process.env.NODE_ENV === 'production',
           sameSite: cookieOptions.sameSite ?? 'lax',
           path: cookieOptions.path ?? '/',
           domain: cookieOptions.domain,
-          maxAge: 24 * 60 * 60 * 1000, // 24時間
+          maxAge: 24 * 60 * 60 * 1000, // 24 hours
         });
       }
       return next();
     }
 
-    // POST/PUT/DELETE 時: Cookie とヘッダーのトークンを比較
+    // On POST/PUT/DELETE: compare Cookie and header tokens
     const cookieToken = req.cookies[cookieName];
     const headerToken = req.headers[headerName] as string
       || req.body?._csrf;
@@ -538,7 +538,7 @@ function doubleSubmitCSRF(options: DoubleSubmitOptions = {}) {
       });
     }
 
-    // 署名の検証
+    // Verify signature
     if (!verifySignature(cookieToken)) {
       return res.status(403).json({
         error: 'CSRF validation failed',
@@ -546,7 +546,7 @@ function doubleSubmitCSRF(options: DoubleSubmitOptions = {}) {
       });
     }
 
-    // Cookie とヘッダーの値を比較
+    // Compare Cookie and header values
     if (!crypto.timingSafeEqual(Buffer.from(cookieToken), Buffer.from(headerToken))) {
       return res.status(403).json({
         error: 'CSRF validation failed',
@@ -558,7 +558,7 @@ function doubleSubmitCSRF(options: DoubleSubmitOptions = {}) {
   };
 }
 
-// クライアント側の実装
+// Client-side implementation
 // const csrfToken = document.cookie.match(/csrf-token=([^;]+)/)?.[1];
 // fetch('/api/data', {
 //   method: 'POST',
@@ -571,47 +571,49 @@ function doubleSubmitCSRF(options: DoubleSubmitOptions = {}) {
 // });
 ```
 
-### 2.6 Signed Double Submit Cookie（署名付き）
+### 2.6 Signed Double Submit Cookie
 
 ```
-なぜ署名が必要か:
+Why Signing Is Necessary:
 
-  通常の Double Submit Cookie の弱点:
+  Weakness of regular Double Submit Cookie:
   ┌──────────────────────────────────────────────────┐
-  │ 攻撃者がサブドメインを制御している場合:            │
-  │                                                  │
-  │ evil.sub.example.com から                         │
+  │ If the attacker controls a subdomain:             │
+  │                                                   │
+  │ From evil.sub.example.com:                        │
   │ Set-Cookie: csrf=attacker-value; domain=.example.com │
-  │ を設定可能                                        │
-  │                                                  │
-  │ → Cookie を上書きして、ヘッダーにも同じ値を設定    │
-  │ → 検証を通過してしまう（Cookie Injection 攻撃）   │
+  │ can be set                                        │
+  │                                                   │
+  │ → Overwrite the Cookie and set the same value in  │
+  │   the header                                      │
+  │ → Passes validation (Cookie Injection attack)     │
   └──────────────────────────────────────────────────┘
 
-  HMAC 署名付きの場合:
+  With HMAC signing:
   ┌──────────────────────────────────────────────────┐
-  │ トークン = value.HMAC(secret, value)              │
-  │                                                  │
-  │ 攻撃者は secret を知らないため、                   │
-  │ 正しい署名を生成できない                          │
-  │ → Cookie を上書きしても署名検証で失敗              │
+  │ Token = value.HMAC(secret, value)                 │
+  │                                                   │
+  │ Since the attacker does not know the secret,      │
+  │ they cannot generate a valid signature            │
+  │ → Even if the Cookie is overwritten, signature    │
+  │   verification fails                              │
   └──────────────────────────────────────────────────┘
 ```
 
-### 2.7 Custom Request Header パターン
+### 2.7 Custom Request Header Pattern
 
 ```typescript
-// ③ Custom Request Header パターン
-// fetch API は Same-Origin でなければカスタムヘッダーを送信できない
-// → CORS プリフライトが必要 → 攻撃者のサイトからは送信不可
+// ③ Custom Request Header Pattern
+// The fetch API cannot send custom headers cross-origin without a CORS preflight
+// → CORS preflight is required → Cannot be sent from an attacker's site
 
-// サーバー側
+// Server side
 function customHeaderCSRF(req: Request, res: Response, next: NextFunction) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }
 
-  // カスタムヘッダーの存在を確認（値は問わない）
+  // Check for the presence of a custom header (value doesn't matter)
   const csrfHeader = req.headers['x-requested-with'];
 
   if (csrfHeader !== 'XMLHttpRequest') {
@@ -624,28 +626,28 @@ function customHeaderCSRF(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-// クライアント側
+// Client side
 // fetch('/api/data', {
 //   method: 'POST',
 //   headers: {
 //     'Content-Type': 'application/json',
-//     'X-Requested-With': 'XMLHttpRequest', // カスタムヘッダー
+//     'X-Requested-With': 'XMLHttpRequest', // Custom header
 //   },
 //   credentials: 'same-origin',
 //   body: JSON.stringify(data),
 // });
 
-// ※ 注意: Content-Type が application/json の場合、
-//    CORS プリフライト（OPTIONS）が発行され、
-//    クロスオリジンからのリクエストはブロックされる
-//    ただし Content-Type: text/plain の場合はプリフライトが不要
-//    → Content-Type の検証も併用すべき
+// Note: When Content-Type is application/json,
+//    a CORS preflight (OPTIONS) is issued,
+//    blocking requests from cross-origin.
+//    However, Content-Type: text/plain does not require a preflight
+//    → Content-Type validation should also be used together
 ```
 
-### 2.8 Origin / Referer ヘッダー検証
+### 2.8 Origin / Referer Header Validation
 
 ```typescript
-// ④ Origin / Referer ヘッダー検証 - 完全な実装
+// ④ Origin / Referer Header Validation - Full Implementation
 function originVerification(allowedOrigins: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
@@ -655,7 +657,7 @@ function originVerification(allowedOrigins: string[]) {
     const origin = req.headers.origin;
     const referer = req.headers.referer;
 
-    // Origin ヘッダーがある場合（推奨）
+    // When Origin header is present (preferred)
     if (origin) {
       if (!allowedOrigins.includes(origin)) {
         console.warn(`CSRF: Rejected request from origin: ${origin}`);
@@ -667,8 +669,8 @@ function originVerification(allowedOrigins: string[]) {
       return next();
     }
 
-    // Origin がない場合は Referer をフォールバック
-    // ※ Origin ヘッダーは一部のブラウザ/条件で省略される
+    // Fall back to Referer if Origin is absent
+    // Note: Origin header may be omitted by some browsers/conditions
     if (referer) {
       try {
         const refererUrl = new URL(referer);
@@ -683,10 +685,10 @@ function originVerification(allowedOrigins: string[]) {
       }
     }
 
-    // Origin も Referer もない場合の判断
-    // → プライバシー設定やプロキシで省略される場合がある
-    // → 厳格: 拒否する（セキュリティ優先）
-    // → 緩和: 許可する（互換性優先）
+    // Decision when neither Origin nor Referer is present
+    // → May be omitted by privacy settings or proxies
+    // → Strict: reject (security-first)
+    // → Permissive: allow (compatibility-first)
     console.warn('CSRF: Request without Origin or Referer header');
     return res.status(403).json({
       error: 'Missing Origin or Referer header',
@@ -694,7 +696,7 @@ function originVerification(allowedOrigins: string[]) {
   };
 }
 
-// 使用例
+// Usage example
 app.use(originVerification([
   'https://myapp.com',
   'https://www.myapp.com',
@@ -703,72 +705,73 @@ app.use(originVerification([
 ```
 
 ```
-Origin / Referer ヘッダーが省略されるケース:
+Cases Where Origin / Referer Headers Are Omitted:
 
   ┌──────────────────────────────────────────────────┐
-  │ Origin ヘッダーが省略される場合:                   │
-  │                                                  │
-  │ → Same-Origin の GET/HEAD リクエスト               │
-  │ → Referrer-Policy: no-referrer 設定時             │
-  │ → 一部の古いブラウザ                              │
-  │ → ブックマークからの直接アクセス                    │
-  │ → アドレスバーからの直接入力                        │
-  │                                                  │
-  │ Referer ヘッダーが省略される場合:                   │
-  │                                                  │
-  │ → HTTPS → HTTP のダウングレード                    │
-  │ → Referrer-Policy: no-referrer 設定時             │
-  │ → プライバシー拡張機能の使用                       │
-  │ → メールクライアントからのリンク                    │
-  │                                                  │
-  │ → Origin 検証は補助的な防御として位置づける          │
+  │ Cases where Origin header is omitted:             │
+  │                                                   │
+  │ → Same-origin GET/HEAD requests                   │
+  │ → When Referrer-Policy: no-referrer is set        │
+  │ → Some older browsers                             │
+  │ → Direct access from bookmarks                    │
+  │ → Direct input from the address bar               │
+  │                                                   │
+  │ Cases where Referer header is omitted:            │
+  │                                                   │
+  │ → HTTPS → HTTP downgrade                          │
+  │ → When Referrer-Policy: no-referrer is set        │
+  │ → Use of privacy extensions                       │
+  │ → Links from email clients                        │
+  │                                                   │
+  │ → Position Origin validation as a supplementary   │
+  │   defense                                         │
   └──────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. SameSite Cookie による防御
+## 3. Defense with SameSite Cookie
 
-### 3.1 SameSite 属性の詳細
+### 3.1 SameSite Attribute in Detail
 
 ```
-SameSite 属性の効果:
+Effects of SameSite Attribute:
 
   SameSite=Strict:
-    → クロスサイトリクエストで Cookie を一切送信しない
-    → CSRF を完全に防御
-    → ただし: 外部リンクからのアクセスで未ログイン状態になる
-    → 例: Google検索から bank.com をクリック → ログイン画面
+    → No Cookie is sent with any cross-site request
+    → Completely prevents CSRF
+    → However: user appears logged out when arriving via an external link
+    → Example: clicking bank.com from Google Search → login screen
 
-  SameSite=Lax（推奨デフォルト）:
-    → トップレベルの GET ナビゲーションのみ Cookie 送信
-    → POST, iframe, img, fetch 等のクロスサイトリクエストはブロック
-    → CSRF の主要な攻撃ベクターを防御
-    → UX への影響が少ない
+  SameSite=Lax (recommended default):
+    → Sends Cookie only for top-level GET navigations
+    → Blocks cross-site requests from POST, iframe, img, fetch, etc.
+    → Defends against the main CSRF attack vectors
+    → Minimal impact on UX
 
   SameSite=None:
-    → すべてのクロスサイトリクエストで Cookie 送信
-    → Secure 属性が必須
-    → サードパーティ Cookie が必要な場合のみ
+    → Sends Cookie with all cross-site requests
+    → Requires the Secure attribute
+    → Only for cases where third-party Cookies are necessary
 ```
 
-### 3.2 SameSite の判定ロジック
+### 3.2 SameSite Determination Logic
 
 ```
-「サイト」の定義（SameSite の判定基準）:
+Definition of "Site" (SameSite Determination Criteria):
 
-  SameSite は eTLD+1（有効トップレベルドメイン + 1）で判定
+  SameSite is determined by eTLD+1 (effective TLD + 1)
 
-  eTLD+1 の例:
+  Examples of eTLD+1:
     example.com          → eTLD+1 = example.com
     app.example.com      → eTLD+1 = example.com
     sub.app.example.com  → eTLD+1 = example.com
-    example.co.jp        → eTLD+1 = example.co.jp (co.jp が eTLD)
-    myapp.github.io      → eTLD+1 = myapp.github.io (github.io が eTLD)
+    example.co.jp        → eTLD+1 = example.co.jp (co.jp is eTLD)
+    myapp.github.io      → eTLD+1 = myapp.github.io (github.io is eTLD)
 
-  Same-Site の判定:
+  Same-Site Determination:
   ┌──────────────────────┬──────────────────────┬──────────┐
-  │ リクエスト元          │ リクエスト先          │ 判定     │
+  │ Request Source       │ Request Destination  │ Result   │
   ├──────────────────────┼──────────────────────┼──────────┤
   │ app.example.com      │ api.example.com      │ Same-Site│
   │ example.com          │ sub.example.com      │ Same-Site│
@@ -777,19 +780,19 @@ SameSite 属性の効果:
   │ http://example.com   │ https://example.com  │ Cross-Site│
   └──────────────────────┴──────────────────────┴──────────┘
 
-  ※ スキーム（http/https）も考慮される（Schemeful Same-Site）
-  ※ ポート番号は同一でなくても Same-Site
+  Note: Scheme (http/https) is also considered (Schemeful Same-Site)
+  Note: Port number does not need to match for Same-Site
 ```
 
-### 3.3 リクエスト種別ごとの Cookie 送信
+### 3.3 Cookie Sending by Request Type
 
 ```
-SameSite によるリクエスト種別ごとの Cookie 送信:
+Cookie Sending by Request Type Based on SameSite:
 
   ┌──────────────────────────────┬────────┬──────┬──────┐
-  │ リクエスト種別                │ Strict │ Lax  │ None │
+  │ Request Type                 │ Strict │ Lax  │ None │
   ├──────────────────────────────┼────────┼──────┼──────┤
-  │ <a href="...">リンク         │ ✗      │ ✓    │ ✓    │
+  │ <a href="..."> link          │ ✗      │ ✓    │ ✓    │
   │ <form method="GET">          │ ✗      │ ✓    │ ✓    │
   │ <form method="POST">         │ ✗      │ ✗    │ ✓    │
   │ <img src="...">              │ ✗      │ ✗    │ ✓    │
@@ -801,97 +804,97 @@ SameSite によるリクエスト種別ごとの Cookie 送信:
   │ <link rel="prerender">       │ ✗      │ ✓    │ ✓    │
   └──────────────────────────────┴────────┴──────┴──────┘
 
-  Lax で Cookie が送信される条件:
-  ① トップレベルナビゲーション（URLバーが変わる）
-  ② HTTP GET メソッド
-  ③ ①②の両方を満たす場合のみ
+  Conditions for Cookie to be sent with Lax:
+  ① Top-level navigation (URL bar changes)
+  ② HTTP GET method
+  ③ Only when both ① and ② are satisfied
 ```
 
-### 3.4 SameSite の限界
+### 3.4 Limitations of SameSite
 
 ```
-SameSite の限界:
+Limitations of SameSite:
 
-  ① GET リクエストでの状態変更:
-     → GET /delete-account のようなAPIは SameSite=Lax でも攻撃可能
-     → 対策: 状態変更は必ず POST/PUT/DELETE を使用
+  ① State changes via GET requests:
+     → APIs like GET /delete-account can still be attacked even with SameSite=Lax
+     → Countermeasure: Always use POST/PUT/DELETE for state changes
 
-  ② サブドメイン間:
-     → SameSite は eTLD+1 で判定
-     → app.example.com と evil.example.com は同一サイト
-     → サブドメインの信頼性に依存
-     → 対策: サブドメインの管理を厳格化
+  ② Between subdomains:
+     → SameSite is determined by eTLD+1
+     → app.example.com and evil.example.com are the same site
+     → Depends on the trustworthiness of subdomains
+     → Countermeasure: Strictly manage subdomains
 
-  ③ 古いブラウザ:
-     → SameSite をサポートしないブラウザが存在
-     → iOS 12 以前の Safari は SameSite=None を Unknown として扱う
-     → 追加の防御策との併用が推奨
+  ③ Older browsers:
+     → Some browsers do not support SameSite
+     → Safari on iOS 12 and older treats SameSite=None as Unknown
+     → Combining with additional defenses is recommended
 
-  ④ Lax+POST の2分間ウィンドウ（Chrome）:
-     → Chrome は新しい Cookie に対して最初の2分間
-        POST リクエストでも Lax Cookie を送信する
-     → トップレベルのクロスサイト POST ナビゲーションが対象
-     → 2020年に導入、互換性のための措置
+  ④ Lax+POST 2-minute window (Chrome):
+     → Chrome sends Lax Cookies in POST requests during the first 2 minutes
+        for new Cookies
+     → Targets top-level cross-site POST navigations
+     → Introduced in 2020 as a compatibility measure
 
   ⑤ Same-Site ≠ Same-Origin:
-     → Same-Site 判定は Same-Origin より緩い
-     → サブドメインからの攻撃を防げない
-     → XSS がサブドメインにあると危険
+     → Same-Site determination is looser than Same-Origin
+     → Cannot prevent attacks from subdomains
+     → Dangerous if XSS exists on a subdomain
 ```
 
 ```typescript
-// SameSite Cookie の正しい設定
+// Correct SameSite Cookie configuration
 import { CookieOptions } from 'express';
 
-// セッション Cookie の推奨設定
+// Recommended settings for session Cookies
 const sessionCookieOptions: CookieOptions = {
-  httpOnly: true,        // JavaScript からアクセス不可
-  secure: true,          // HTTPS のみ
-  sameSite: 'lax',       // クロスサイト POST をブロック
-  path: '/',             // すべてのパスで有効
-  maxAge: 30 * 24 * 60 * 60 * 1000, // 30日
-  // domain は設定しない（発行元ドメインのみに限定）
+  httpOnly: true,        // Not accessible via JavaScript
+  secure: true,          // HTTPS only
+  sameSite: 'lax',       // Blocks cross-site POST
+  path: '/',             // Valid for all paths
+  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  // Do not set domain (restrict to issuing domain only)
 };
 
-// 高セキュリティ Cookie（管理画面等）
+// High-security Cookie (admin panels, etc.)
 const strictCookieOptions: CookieOptions = {
   httpOnly: true,
   secure: true,
-  sameSite: 'strict',    // クロスサイトリクエストで一切送信しない
-  path: '/admin',        // 管理画面パスのみ
-  maxAge: 4 * 60 * 60 * 1000, // 4時間
+  sameSite: 'strict',    // Never sent with any cross-site request
+  path: '/admin',        // Admin path only
+  maxAge: 4 * 60 * 60 * 1000, // 4 hours
 };
 
-// サードパーティ Cookie が必要な場合（埋め込みウィジェット等）
+// When third-party Cookies are required (embedded widgets, etc.)
 const thirdPartyCookieOptions: CookieOptions = {
   httpOnly: true,
-  secure: true,          // SameSite=None は Secure 必須
-  sameSite: 'none',      // クロスサイトリクエストを許可
+  secure: true,          // Secure is required for SameSite=None
+  sameSite: 'none',      // Allow cross-site requests
   path: '/',
-  maxAge: 24 * 60 * 60 * 1000, // 24時間
+  maxAge: 24 * 60 * 60 * 1000, // 24 hours
 };
 ```
 
 ---
 
-## 4. Next.js での CSRF 対策
+## 4. CSRF Protection in Next.js
 
-### 4.1 Server Actions の自動保護
+### 4.1 Automatic Protection with Server Actions
 
 ```typescript
-// Next.js App Router での CSRF 対策
+// CSRF protection in Next.js App Router
 
-// Server Actions は自動的に CSRF 保護される
-// Next.js が内部的に Origin ヘッダーを検証する
-// → 追加の CSRF 対策は不要
+// Server Actions are automatically CSRF-protected
+// Next.js internally validates the Origin header
+// → No additional CSRF countermeasures needed
 
-// Server Actions の内部動作:
-// 1. クライアントが POST リクエストを送信
-// 2. Next.js が Origin ヘッダーを検証
-// 3. Origin が一致しない場合は 403 を返す
-// 4. Content-Type: multipart/form-data で送信
-// 5. Next-Action ヘッダーでアクション ID を指定
-// 6. これらの検証により CSRF 攻撃を防御
+// How Server Actions work internally:
+// 1. Client sends a POST request
+// 2. Next.js validates the Origin header
+// 3. If Origin doesn't match, returns 403
+// 4. Sends with Content-Type: multipart/form-data
+// 5. Specifies action ID via Next-Action header
+// 6. These validations prevent CSRF attacks
 
 // app/actions/article.ts
 'use server';
@@ -900,14 +903,14 @@ import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 
 export async function createArticle(formData: FormData) {
-  // Server Actions は自動的に CSRF 保護される
+  // Server Actions are automatically CSRF-protected
   const session = await auth();
   if (!session) throw new Error('Unauthorized');
 
   const title = formData.get('title') as string;
   const content = formData.get('content') as string;
 
-  // 入力バリデーション
+  // Input validation
   if (!title || title.length > 200) {
     throw new Error('Invalid title');
   }
@@ -935,16 +938,16 @@ export default function NewArticlePage() {
 }
 ```
 
-### 4.2 API Routes の CSRF 対策
+### 4.2 CSRF Protection for API Routes
 
 ```typescript
-// API Routes の場合は手動で対策が必要
+// API Routes require manual protection
 
 // middleware.ts
 import { NextRequest, NextResponse } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // API ルートの POST/PUT/DELETE を保護
+  // Protect POST/PUT/DELETE on API routes
   if (
     request.nextUrl.pathname.startsWith('/api/') &&
     !['GET', 'HEAD', 'OPTIONS'].includes(request.method)
@@ -952,11 +955,11 @@ export function middleware(request: NextRequest) {
     const origin = request.headers.get('origin');
     const host = request.headers.get('host');
 
-    // Origin ヘッダーの検証
+    // Validate Origin header
     if (origin) {
       try {
         const originUrl = new URL(origin);
-        const expectedHost = host?.split(':')[0]; // ポート番号を除去
+        const expectedHost = host?.split(':')[0]; // Remove port number
         const originHost = originUrl.hostname;
 
         if (originHost !== expectedHost) {
@@ -975,9 +978,9 @@ export function middleware(request: NextRequest) {
         );
       }
     } else {
-      // Origin ヘッダーがない場合
-      // → API Routes は通常 fetch で呼ばれるため Origin が存在するはず
-      // → ない場合は不正なリクエストの可能性
+      // When Origin header is absent
+      // → API Routes are usually called via fetch, so Origin should be present
+      // → If absent, it may be an invalid request
       const referer = request.headers.get('referer');
       if (!referer) {
         return NextResponse.json(
@@ -996,7 +999,7 @@ export const config = {
 };
 ```
 
-### 4.3 Next.js で Double Submit Cookie を使う
+### 4.3 Using Double Submit Cookie in Next.js
 
 ```typescript
 // lib/csrf.ts
@@ -1006,7 +1009,7 @@ import crypto from 'crypto';
 const CSRF_COOKIE = '__csrf';
 const CSRF_HEADER = 'x-csrf-token';
 
-// トークン生成（Server Component / Server Action から呼出し）
+// Token generation (called from Server Component / Server Action)
 export async function getCSRFToken(): Promise<string> {
   const cookieStore = await cookies();
   let token = cookieStore.get(CSRF_COOKIE)?.value;
@@ -1014,18 +1017,18 @@ export async function getCSRFToken(): Promise<string> {
   if (!token) {
     token = crypto.randomBytes(32).toString('hex');
     cookieStore.set(CSRF_COOKIE, token, {
-      httpOnly: false, // JS から読み取り可能
+      httpOnly: false, // Must be readable by JS
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60, // 1時間
+      maxAge: 60 * 60, // 1 hour
     });
   }
 
   return token;
 }
 
-// トークン検証（API Route / Server Action から呼出し）
+// Token validation (called from API Route / Server Action)
 export async function validateCSRFToken(request: Request): Promise<boolean> {
   const cookieStore = await cookies();
   const cookieToken = cookieStore.get(CSRF_COOKIE)?.value;
@@ -1039,7 +1042,7 @@ export async function validateCSRFToken(request: Request): Promise<boolean> {
   );
 }
 
-// Client Component 用のフック
+// Hook for Client Components
 // hooks/useCSRF.ts
 'use client';
 
@@ -1048,7 +1051,7 @@ export function useCSRFToken(): string | null {
   return match ? match[1] : null;
 }
 
-// API 呼び出しラッパー
+// API call wrapper
 export function csrfFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const csrfToken = document.cookie.match(/__csrf=([^;]+)/)?.[1];
 
@@ -1063,15 +1066,15 @@ export function csrfFetch(url: string, options: RequestInit = {}): Promise<Respo
 }
 ```
 
-### 4.4 Next.js Middleware による包括的な CSRF 対策
+### 4.4 Comprehensive CSRF Protection via Next.js Middleware
 
 ```typescript
-// middleware.ts - 包括的な CSRF 保護
+// middleware.ts - Comprehensive CSRF protection
 import { NextRequest, NextResponse } from 'next/server';
 
-// 保護対象のパス
+// Paths to protect
 const PROTECTED_API_PATHS = ['/api/'];
-// CSRF 検証をスキップするパス（Webhook 等）
+// Paths to skip CSRF validation (Webhooks, etc.)
 const SKIP_CSRF_PATHS = ['/api/webhooks/stripe', '/api/webhooks/github'];
 
 function isProtectedRoute(pathname: string): boolean {
@@ -1080,17 +1083,17 @@ function isProtectedRoute(pathname: string): boolean {
 }
 
 export function middleware(request: NextRequest) {
-  // Safe methods はスキップ
+  // Skip safe methods
   if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
     return NextResponse.next();
   }
 
-  // 保護対象でないパスはスキップ
+  // Skip unprotected paths
   if (!isProtectedRoute(request.nextUrl.pathname)) {
     return NextResponse.next();
   }
 
-  // 1. Origin ヘッダー検証
+  // 1. Origin header validation
   const origin = request.headers.get('origin');
   if (origin) {
     const allowedOrigins = [
@@ -1108,12 +1111,12 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 2. Double Submit Cookie 検証
+  // 2. Double Submit Cookie validation
   const cookieToken = request.cookies.get('__csrf')?.value;
   const headerToken = request.headers.get('x-csrf-token');
 
   if (cookieToken && headerToken) {
-    // Double Submit が設定されている場合は検証
+    // Validate if Double Submit is configured
     if (cookieToken !== headerToken) {
       return NextResponse.json({ error: 'CSRF: Token mismatch' }, { status: 403 });
     }
@@ -1125,49 +1128,50 @@ export function middleware(request: NextRequest) {
 
 ---
 
-## 5. SPA (React / Vue) での CSRF 対策
+## 5. CSRF Protection in SPAs (React / Vue)
 
-### 5.1 SPA 特有の考慮事項
+### 5.1 SPA-Specific Considerations
 
 ```
-SPA と CSRF:
+SPAs and CSRF:
 
-  SPA が CSRF に比較的強い理由:
+  Why SPAs are relatively resistant to CSRF:
   ┌──────────────────────────────────────────────────┐
-  │ ① API リクエストは通常 JSON                       │
-  │   → Content-Type: application/json                │
-  │   → CORS プリフライト (OPTIONS) が発行される       │
-  │   → クロスオリジンからは送信不可（CORS 設定次第）   │
-  │                                                   │
-  │ ② カスタムヘッダーを使用                           │
-  │   → Authorization: Bearer token                   │
-  │   → X-Requested-With: XMLHttpRequest              │
-  │   → CORS プリフライトが必要                        │
-  │                                                   │
-  │ ③ トークン認証の場合                               │
-  │   → Cookie ではなく localStorage/memory に保存     │
-  │   → 自動送信されない                               │
+  │ ① API requests are usually JSON                  │
+  │   → Content-Type: application/json               │
+  │   → CORS preflight (OPTIONS) is issued           │
+  │   → Cross-origin requests are blocked (depends   │
+  │      on CORS config)                             │
+  │                                                  │
+  │ ② Custom headers are used                        │
+  │   → Authorization: Bearer token                  │
+  │   → X-Requested-With: XMLHttpRequest             │
+  │   → CORS preflight is required                   │
+  │                                                  │
+  │ ③ Token-based authentication                     │
+  │   → Stored in localStorage/memory, not Cookie    │
+  │   → Not auto-sent                                │
   └──────────────────────────────────────────────────┘
 
-  SPA でも CSRF 対策が必要な場合:
+  When CSRF protection is still needed in SPAs:
   ┌──────────────────────────────────────────────────┐
-  │ ① Cookie ベースの認証を使用                       │
-  │   → httpOnly Cookie でセッション管理               │
-  │   → ブラウザが自動送信                             │
-  │                                                   │
-  │ ② API が application/x-www-form-urlencoded を受容 │
-  │   → CORS プリフライトなしで送信可能                 │
-  │                                                   │
-  │ ③ CORS 設定が緩い                                 │
-  │   → Access-Control-Allow-Origin: *                │
-  │   → credentials: true との組合せは危険              │
+  │ ① Cookie-based authentication is used            │
+  │   → Session management via httpOnly Cookie        │
+  │   → Browser auto-sends                           │
+  │                                                  │
+  │ ② API accepts application/x-www-form-urlencoded  │
+  │   → Can be sent without CORS preflight           │
+  │                                                  │
+  │ ③ CORS configuration is permissive               │
+  │   → Access-Control-Allow-Origin: *               │
+  │   → Dangerous when combined with credentials: true│
   └──────────────────────────────────────────────────┘
 ```
 
-### 5.2 React での CSRF 対策実装
+### 5.2 CSRF Protection Implementation in React
 
 ```typescript
-// React アプリでの CSRF 対策
+// CSRF protection in a React application
 
 // CSRFProvider.tsx
 import { createContext, useContext, useEffect, useState } from 'react';
@@ -1212,7 +1216,7 @@ export function useCSRF() {
   return useContext(CSRFContext);
 }
 
-// CSRF 対応の fetch ラッパー
+// CSRF-aware fetch wrapper
 export function useCSRFFetch() {
   const { token, refresh } = useCSRF();
 
@@ -1226,7 +1230,7 @@ export function useCSRFFetch() {
       credentials: 'same-origin',
     });
 
-    // 403 の場合はトークンを更新してリトライ
+    // On 403, refresh token and retry
     if (res.status === 403) {
       await refresh();
       return fetch(url, {
@@ -1244,20 +1248,20 @@ export function useCSRFFetch() {
 }
 ```
 
-### 5.3 Axios インターセプターによる自動付与
+### 5.3 Automatic Injection via Axios Interceptors
 
 ```typescript
-// Axios での CSRF トークン自動付与
+// Automatic CSRF token injection with Axios
 import axios from 'axios';
 
 const api = axios.create({
   baseURL: '/api',
-  withCredentials: true, // Cookie を送信
+  withCredentials: true, // Send Cookie
 });
 
-// リクエストインターセプター: CSRF トークンを自動付与
+// Request interceptor: automatically attach CSRF token
 api.interceptors.request.use((config) => {
-  // Cookie から CSRF トークンを取得
+  // Get CSRF token from Cookie
   const token = document.cookie
     .split('; ')
     .find(row => row.startsWith('csrf-token='))
@@ -1270,10 +1274,10 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// レスポンスインターセプター: 新しいトークンを Cookie に保存
+// Response interceptor: save new token to Cookie
 api.interceptors.response.use(
   (response) => {
-    // サーバーが新しいトークンをヘッダーで返す場合
+    // When server returns a new token in the header
     const newToken = response.headers['x-csrf-token'];
     if (newToken) {
       document.cookie = `csrf-token=${newToken}; path=/; SameSite=Lax`;
@@ -1282,7 +1286,7 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 403) {
-      // CSRF エラーの場合はページをリロード
+      // Reload page on CSRF error
       console.warn('CSRF token expired. Refreshing...');
       window.location.reload();
     }
@@ -1295,71 +1299,71 @@ export default api;
 
 ---
 
-## 6. CSRF 対策が不要なケース
+## 6. Cases Where CSRF Protection Is Not Needed
 
 ```
-CSRF 対策が不要な場合:
+When CSRF protection is not needed:
 
-  ① Bearer トークン認証:
-     → Authorization ヘッダーは自動送信されない
-     → JavaScript で明示的に設定する必要がある
-     → 攻撃者はトークンを設定できない
+  ① Bearer token authentication:
+     → Authorization header is not auto-sent
+     → Must be explicitly set by JavaScript
+     → Attacker cannot set the token
 
-  ② SameSite=Strict の Cookie:
-     → クロスサイトリクエストで Cookie が送信されない
-     → ただし UX に影響
+  ② SameSite=Strict Cookie:
+     → Cookie is not sent with cross-site requests
+     → However, impacts UX
 
-  ③ API Key 認証:
-     → カスタムヘッダーで送信
-     → 自動送信されない
+  ③ API Key authentication:
+     → Sent via custom header
+     → Not auto-sent
 
-  ④ CORS を正しく設定した API:
-     → Access-Control-Allow-Origin を限定
+  ④ API with correctly configured CORS:
+     → Restrict Access-Control-Allow-Origin
      → Access-Control-Allow-Credentials: true
-     → プリフライトチェックで不正リクエストをブロック
+     → Preflight check blocks unauthorized requests
 
-  CSRF 対策が必要な場合:
-     → Cookie ベースのセッション認証
-     → SameSite=None の Cookie
-     → SameSite=Lax で GET に状態変更がある場合
-     → CORS 設定が緩い場合
+  When CSRF protection is needed:
+     → Cookie-based session authentication
+     → SameSite=None Cookie
+     → SameSite=Lax with state changes on GET
+     → Permissive CORS configuration
 ```
 
 ---
 
-## 7. 多層防御の設計
+## 7. Defense in Depth Design
 
-### 7.1 防御レイヤーの構成
+### 7.1 Defense Layer Configuration
 
 ```
-CSRF 多層防御の推奨構成:
+Recommended Defense in Depth Configuration for CSRF:
 
   ┌─────────────────────────────────────────────────┐
-  │ Layer 1: SameSite=Lax Cookie（ブラウザレベル）    │
-  │ → 追加実装不要、ほとんどの攻撃をブロック           │
+  │ Layer 1: SameSite=Lax Cookie (browser level)    │
+  │ → No additional implementation, blocks most attacks │
   ├─────────────────────────────────────────────────┤
-  │ Layer 2: Origin ヘッダー検証（ネットワークレベル）  │
-  │ → リクエスト元の検証                              │
+  │ Layer 2: Origin header validation (network level)│
+  │ → Validate the source of the request            │
   ├─────────────────────────────────────────────────┤
-  │ Layer 3: CSRF トークン（アプリケーションレベル）    │
-  │ → Synchronizer Token または Double Submit Cookie  │
+  │ Layer 3: CSRF token (application level)         │
+  │ → Synchronizer Token or Double Submit Cookie    │
   ├─────────────────────────────────────────────────┤
-  │ Layer 4: Content-Type 検証                       │
-  │ → application/json のみ受け入れ                   │
+  │ Layer 4: Content-Type validation                │
+  │ → Accept only application/json                  │
   ├─────────────────────────────────────────────────┤
-  │ Layer 5: カスタムヘッダー要求                     │
-  │ → X-Requested-With 等の存在確認                   │
+  │ Layer 5: Custom header requirement              │
+  │ → Check for presence of X-Requested-With etc.   │
   └─────────────────────────────────────────────────┘
 
-  一般的な Web アプリ: Layer 1 + Layer 2 で十分
-  金融/医療系: Layer 1 + Layer 2 + Layer 3 推奨
-  パブリック API: Layer 1 + Layer 4 + Layer 5
+  General web app: Layer 1 + Layer 2 is sufficient
+  Financial/medical: Layer 1 + Layer 2 + Layer 3 recommended
+  Public API: Layer 1 + Layer 4 + Layer 5
 ```
 
-### 7.2 包括的な CSRF 対策ミドルウェア
+### 7.2 Comprehensive CSRF Protection Middleware
 
 ```typescript
-// 多層防御の統合ミドルウェア
+// Integrated defense-in-depth middleware
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 
@@ -1383,9 +1387,9 @@ function comprehensiveCSRF(options: CSRFProtectionOptions) {
   } = options;
 
   return (req: Request, res: Response, next: NextFunction) => {
-    // Safe methods はスキップ
+    // Skip safe methods
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-      // Double Submit Cookie の設定
+      // Set Double Submit Cookie
       if (enableDoubleSubmit && !req.cookies[cookieName]) {
         const token = crypto.randomBytes(32).toString('hex');
         res.cookie(cookieName, token, {
@@ -1398,12 +1402,12 @@ function comprehensiveCSRF(options: CSRFProtectionOptions) {
       return next();
     }
 
-    // 除外パスのチェック（Webhook 等）
+    // Check excluded paths (Webhooks, etc.)
     if (ignorePaths.some(p => req.path.startsWith(p))) {
       return next();
     }
 
-    // Layer 2: Origin ヘッダー検証
+    // Layer 2: Origin header validation
     const origin = req.headers.origin;
     if (origin && !allowedOrigins.includes(origin)) {
       return res.status(403).json({
@@ -1412,7 +1416,7 @@ function comprehensiveCSRF(options: CSRFProtectionOptions) {
       });
     }
 
-    // Layer 4: Content-Type 検証
+    // Layer 4: Content-Type validation
     if (requireContentType) {
       const contentType = req.headers['content-type'] || '';
       const allowedTypes = [
@@ -1429,7 +1433,7 @@ function comprehensiveCSRF(options: CSRFProtectionOptions) {
       }
     }
 
-    // Layer 3: Double Submit Cookie 検証
+    // Layer 3: Double Submit Cookie validation
     if (enableDoubleSubmit) {
       const cookieToken = req.cookies[cookieName];
       const headerToken = req.headers[headerName] as string;
@@ -1456,7 +1460,7 @@ function comprehensiveCSRF(options: CSRFProtectionOptions) {
   };
 }
 
-// 使用例
+// Usage example
 app.use(comprehensiveCSRF({
   allowedOrigins: [
     'https://myapp.com',
@@ -1470,404 +1474,404 @@ app.use(comprehensiveCSRF({
 
 ---
 
-## 8. エッジケースと注意点
+## 8. Edge Cases and Caveats
 
-### 8.1 CORS と CSRF の関係
+### 8.1 Relationship Between CORS and CSRF
 
 ```
-CORS と CSRF の関係:
+Relationship Between CORS and CSRF:
 
-  よくある誤解: 「CORS を設定すれば CSRF は防げる」
-  → 部分的に正しいが不十分
+  Common misconception: "Configuring CORS prevents CSRF"
+  → Partially true, but insufficient
 
   ┌──────────────────────────────────────────────────┐
-  │ CORS が防ぐもの:                                  │
-  │ → fetch() / XMLHttpRequest のクロスオリジンリクエスト│
-  │ → カスタムヘッダーの送信                           │
-  │ → レスポンスの読み取り                             │
+  │ What CORS prevents:                               │
+  │ → Cross-origin requests via fetch()/XMLHttpRequest│
+  │ → Sending custom headers                          │
+  │ → Reading responses                               │
   │                                                   │
-  │ CORS が防がないもの:                               │
-  │ → <form> の送信（CORS の管轄外）                   │
-  │ → <img> タグによる GET リクエスト                   │
-  │ → 単純リクエスト（Simple Request）のレスポンス読取   │
-  │   以外の副作用                                     │
+  │ What CORS does NOT prevent:                       │
+  │ → <form> submissions (outside CORS jurisdiction)  │
+  │ → GET requests via <img> tags                     │
+  │ → Side effects of simple requests other than      │
+  │   response reading                                │
   └──────────────────────────────────────────────────┘
 
-  ★ 重要: CORS はリクエストの送信を防ぐのではなく
-          レスポンスの読み取りを制御する
-          → リクエスト自体はサーバーに到達する場合がある
+  ★ Important: CORS controls reading of responses, not
+              whether requests are sent.
+              → The request itself may reach the server
 ```
 
-### 8.2 サブドメイン攻撃
+### 8.2 Subdomain Attacks
 
 ```
-サブドメインからの CSRF 攻撃:
+CSRF Attacks from Subdomains:
 
-  シナリオ:
-  → evil.example.com が攻撃者に制御されている
-  → app.example.com を攻撃したい
+  Scenario:
+  → evil.example.com is controlled by the attacker
+  → Want to attack app.example.com
 
   ① SameSite Cookie:
-     → evil.example.com と app.example.com は Same-Site
-     → SameSite=Lax でも Cookie が送信される場合がある
+     → evil.example.com and app.example.com are Same-Site
+     → Cookie may still be sent even with SameSite=Lax
 
   ② Cookie Injection:
-     → evil.example.com から
+     → From evil.example.com:
         Set-Cookie: session=...; domain=.example.com
-     → app.example.com の Cookie を上書き可能
+     → Can overwrite app.example.com's Cookie
 
-  対策:
-  → __Host- プレフィックスを使用
+  Countermeasures:
+  → Use the __Host- prefix
      Set-Cookie: __Host-session=abc123; Secure; Path=/
-     → Domain 属性を設定できない
-     → Secure 属性が必須
-     → Path=/ が必須
-     → サブドメインからの Cookie 上書きを防止
+     → Cannot set Domain attribute
+     → Secure attribute is required
+     → Path=/ is required
+     → Prevents Cookie overwriting from subdomains
 ```
 
 ```typescript
-// __Host- プレフィックスの使用
+// Using the __Host- prefix
 res.cookie('__Host-session', sessionId, {
   httpOnly: true,
-  secure: true,         // 必須
+  secure: true,         // Required
   sameSite: 'lax',
-  path: '/',            // 必須（Path=/ のみ）
-  // domain: 設定不可   // __Host- では domain を設定できない
+  path: '/',            // Required (Path=/ only)
+  // domain: cannot be set  // domain cannot be configured with __Host-
 });
 
-// __Secure- プレフィックスの使用（制約が少ない）
+// Using the __Secure- prefix (fewer restrictions)
 res.cookie('__Secure-session', sessionId, {
   httpOnly: true,
-  secure: true,         // 必須
+  secure: true,         // Required
   sameSite: 'lax',
   path: '/',
-  domain: '.example.com', // 設定可能
+  domain: '.example.com', // Can be set
 });
 ```
 
-### 8.3 JSON CSRF の詳細
+### 8.3 JSON CSRF in Detail
 
 ```
-JSON CSRF 攻撃の詳細:
+Details of JSON CSRF Attacks:
 
-  通常、JSON リクエストは CSRF に強い:
-  → Content-Type: application/json は「非単純リクエスト」
-  → CORS プリフライト（OPTIONS）が発行される
-  → サーバーが許可しなければリクエストがブロックされる
+  JSON requests are normally resistant to CSRF:
+  → Content-Type: application/json is a "non-simple request"
+  → CORS preflight (OPTIONS) is issued
+  → Request is blocked unless the server permits it
 
-  しかし以下の場合に攻撃可能:
+  However, attacks are possible in the following cases:
   ┌──────────────────────────────────────────────────┐
-  │ ① サーバーが Content-Type を無視して JSON パース   │
+  │ ① Server ignores Content-Type and parses as JSON │
   │                                                   │
-  │ <form enctype="text/plain" method="POST"           │
-  │       action="https://target.com/api/transfer">    │
-  │   <input name='{"amount":1000,"to":"evil","x":"'   │
-  │          value='"}' />                             │
-  │ </form>                                            │
+  │ <form enctype="text/plain" method="POST"          │
+  │       action="https://target.com/api/transfer">   │
+  │   <input name='{"amount":1000,"to":"evil","x":"'  │
+  │          value='"}' />                            │
+  │ </form>                                           │
   │                                                   │
-  │ 送信される body:                                    │
-  │ {"amount":1000,"to":"evil","x":"="}                │
-  │ → text/plain だが JSON としてパースされる            │
+  │ Submitted body:                                   │
+  │ {"amount":1000,"to":"evil","x":"="}               │
+  │ → text/plain but parsed as JSON                   │
   │                                                   │
-  │ 対策:                                              │
-  │ → Content-Type: application/json を厳格にチェック   │
-  │ → text/plain を拒否                                │
+  │ Countermeasure:                                   │
+  │ → Strictly check Content-Type: application/json   │
+  │ → Reject text/plain                               │
   └──────────────────────────────────────────────────┘
 ```
 
-### 8.4 ファイルアップロード CSRF
+### 8.4 File Upload CSRF
 
 ```
-ファイルアップロードと CSRF:
+File Uploads and CSRF:
 
-  <form enctype="multipart/form-data"> は
-  CORS プリフライトなしで送信可能（単純リクエスト）
+  <form enctype="multipart/form-data"> can be sent
+  without a CORS preflight (simple request)
 
-  攻撃者のサイトから:
+  From attacker's site:
   <form action="https://target.com/api/upload" method="POST"
         enctype="multipart/form-data">
     <input type="hidden" name="filename" value="malware.exe" />
     <input type="hidden" name="content" value="..." />
   </form>
 
-  対策:
-  → CSRF トークンを multipart/form-data に含める
-  → Origin ヘッダー検証
-  → ファイルアップロード API にも CSRF 保護を適用
+  Countermeasures:
+  → Include CSRF token in multipart/form-data
+  → Origin header validation
+  → Apply CSRF protection to file upload APIs as well
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### 9.1 よくある間違い
+### 9.1 Common Mistakes
 
 ```
-CSRF 対策のアンチパターン:
+CSRF Protection Anti-Patterns:
 
-  ✗ アンチパターン①: Referer ヘッダーのみに依存
+  ✗ Anti-pattern ①: Relying solely on Referer header
   ┌──────────────────────────────────────────────────┐
-  │ // 危険: Referer は省略・偽装される場合がある       │
+  │ // Dangerous: Referer may be omitted or spoofed   │
   │ if (req.headers.referer?.includes('mysite.com')) { │
   │   // OK                                           │
   │ }                                                  │
-  │ → Referrer-Policy: no-referrer で省略される        │
-  │ → 一部のプロキシで削除される                        │
-  │ → 補助的な防御としてのみ使用すべき                  │
+  │ → Omitted with Referrer-Policy: no-referrer        │
+  │ → Removed by some proxies                          │
+  │ → Should be used only as a supplementary defense   │
   └──────────────────────────────────────────────────┘
 
-  ✗ アンチパターン②: GET で状態変更
+  ✗ Anti-pattern ②: State changes via GET
   ┌──────────────────────────────────────────────────┐
-  │ // 危険: GET は SameSite=Lax でも Cookie 送信       │
-  │ app.get('/api/delete-user/:id', deleteUser);       │
-  │ app.get('/api/transfer', handleTransfer);          │
+  │ // Dangerous: GET sends Cookie even with Lax      │
+  │ app.get('/api/delete-user/:id', deleteUser);      │
+  │ app.get('/api/transfer', handleTransfer);         │
   │                                                    │
-  │ → <img src="/api/delete-user/123"> で攻撃可能      │
-  │ → 状態変更は必ず POST/PUT/DELETE を使用             │
-  │ → RFC 7231: GET は安全なメソッド（副作用なし）      │
+  │ → Attackable via <img src="/api/delete-user/123"> │
+  │ → Always use POST/PUT/DELETE for state changes    │
+  │ → RFC 7231: GET is a safe method (no side effects)│
   └──────────────────────────────────────────────────┘
 
-  ✗ アンチパターン③: CSRF トークンの予測可能な生成
+  ✗ Anti-pattern ③: Predictable CSRF token generation
   ┌──────────────────────────────────────────────────┐
-  │ // 危険: Math.random() は暗号的に安全ではない       │
+  │ // Dangerous: Math.random() is not cryptographically safe │
   │ const token = Math.random().toString(36);          │
   │                                                    │
-  │ // 危険: タイムスタンプベースは推測可能              │
+  │ // Dangerous: Timestamp-based tokens are guessable │
   │ const token = Date.now().toString(16);             │
   │                                                    │
-  │ // 正しい: crypto.randomBytes() を使用              │
+  │ // Correct: Use crypto.randomBytes()               │
   │ const token = crypto.randomBytes(32).toString('hex');│
   └──────────────────────────────────────────────────┘
 
-  ✗ アンチパターン④: CSRF トークンを URL に含める
+  ✗ Anti-pattern ④: Including CSRF token in URLs
   ┌──────────────────────────────────────────────────┐
-  │ // 危険: URL はログ・Referer ヘッダーで漏洩         │
+  │ // Dangerous: URLs are recorded in logs/Referer   │
   │ <a href="/api/action?csrf=token123">              │
   │                                                    │
-  │ → アクセスログに記録される                          │
-  │ → 外部サイトへのリンクの Referer で漏洩             │
-  │ → ブラウザ履歴に残る                               │
-  │ → トークンはヘッダーまたは POST body で送信すべき    │
+  │ → Recorded in access logs                          │
+  │ → Leaked via Referer header on external links      │
+  │ → Remains in browser history                       │
+  │ → Token should be sent in header or POST body      │
   └──────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 10. 演習
+## 10. Exercises
 
-### 演習1: 基礎 - CSRF 攻撃のシミュレーション
-
-```
-【演習1】CSRF 攻撃のシミュレーション
-
-目的: CSRF 攻撃の仕組みを実際に体験し、危険性を理解する
-
-手順:
-1. Express で簡単な銀行アプリを作成
-   - POST /transfer (送金 API、Cookie 認証)
-   - GET /balance (残高確認)
-   - SameSite 属性を設定しない Cookie を使用
-
-2. 別のポートで攻撃者サイトを作成
-   - 自動送信フォームを設置
-   - 銀行アプリに POST リクエストを送信
-
-3. 以下を確認:
-   - 攻撃者サイトにアクセスすると送金が実行されること
-   - Cookie が自動送信されることを DevTools で確認
-   - SameSite=Lax を設定すると攻撃がブロックされること
-
-4. 発展:
-   - img タグを使った GET CSRF を試す
-   - JSON CSRF を試す（enctype="text/plain"）
-
-評価基準:
-  □ CSRF 攻撃が成功することを確認
-  □ SameSite Cookie で防御できることを確認
-  □ なぜ攻撃が成立するか説明できる
-```
-
-### 演習2: 応用 - CSRF 防御の実装
+### Exercise 1: Basic - CSRF Attack Simulation
 
 ```
-【演習2】CSRF 防御の実装
+[Exercise 1] CSRF Attack Simulation
 
-目的: 主要な CSRF 防御パターンを実装し、比較する
+Objective: Experience how CSRF attacks work firsthand and understand their risks
 
-手順:
-1. Synchronizer Token Pattern を実装
-   - Redis にトークンを保存
-   - フォームに hidden field として埋め込み
-   - POST 時にトークンを検証
-   - タイミング攻撃対策（timingSafeEqual）
+Steps:
+1. Create a simple banking app with Express
+   - POST /transfer (fund transfer API, Cookie auth)
+   - GET /balance (balance check)
+   - Use Cookies without setting the SameSite attribute
 
-2. Double Submit Cookie を実装
-   - HMAC 署名付きトークンを使用
-   - Cookie とヘッダーの両方にトークンを設定
-   - サーバー側で比較検証
+2. Create an attacker's site on a different port
+   - Set up an auto-submitting form
+   - Send a POST request to the banking app
 
-3. 両方の実装で以下をテスト:
-   - 正常なリクエストが通ること
-   - トークンなしのリクエストが拒否されること
-   - 不正なトークンのリクエストが拒否されること
-   - ブラウザの「戻る」ボタンでの挙動
+3. Verify the following:
+   - That visiting the attacker's site executes the transfer
+   - Confirm Cookie auto-sending in DevTools
+   - That setting SameSite=Lax blocks the attack
 
-4. 比較レポートを作成:
-   - 実装の複雑さ
-   - スケーラビリティ
-   - UX への影響
+4. Advanced:
+   - Try GET CSRF using an img tag
+   - Try JSON CSRF (enctype="text/plain")
 
-評価基準:
-  □ 両方のパターンが正しく動作する
-  □ エッジケースをテストしている
-  □ 比較レポートが適切
+Evaluation Criteria:
+  □ Confirm that the CSRF attack succeeds
+  □ Confirm that SameSite Cookie provides protection
+  □ Can explain why the attack succeeds
 ```
 
-### 演習3: 発展 - Next.js での包括的 CSRF 対策
+### Exercise 2: Applied - Implementing CSRF Defenses
 
 ```
-【演習3】Next.js での包括的 CSRF 対策
+[Exercise 2] Implementing CSRF Defenses
 
-目的: Next.js App Router で多層防御を実装する
+Objective: Implement and compare the major CSRF defense patterns
 
-手順:
-1. Next.js プロジェクトをセットアップ
-   - App Router を使用
-   - Prisma + SQLite でデータベース設定
-   - Auth.js でセッション認証
+Steps:
+1. Implement the Synchronizer Token Pattern
+   - Store token in Redis
+   - Embed as a hidden field in the form
+   - Validate token on POST
+   - Timing attack countermeasure (timingSafeEqual)
 
-2. 以下の CSRF 対策を実装:
-   a. Middleware での Origin ヘッダー検証
-   b. Double Submit Cookie（API Routes 用）
-   c. Server Actions の CSRF 保護を確認
-   d. Cookie に __Host- プレフィックスを使用
+2. Implement Double Submit Cookie
+   - Use HMAC-signed tokens
+   - Set token in both Cookie and header
+   - Validate by comparing on the server side
 
-3. テストスイートを作成:
-   - クロスオリジンリクエストが拒否されること
-   - 同一オリジンリクエストが成功すること
-   - トークン検証が機能すること
-   - Server Actions が安全であること
+3. Test both implementations:
+   - Legitimate requests pass
+   - Requests without token are rejected
+   - Requests with invalid token are rejected
+   - Behavior with browser "Back" button
 
-4. セキュリティ監査:
-   - OWASP CSRF テストガイドに沿って検証
-   - 各防御レイヤーの効果を確認
-   - 改善点を文書化
+4. Write a comparison report:
+   - Implementation complexity
+   - Scalability
+   - Impact on UX
 
-評価基準:
-  □ 多層防御が正しく機能する
-  □ テストが網羅的
-  □ パフォーマンスへの影響を測定している
-  □ セキュリティ監査レポートを作成
+Evaluation Criteria:
+  □ Both patterns work correctly
+  □ Edge cases are tested
+  □ Comparison report is appropriate
+```
+
+### Exercise 3: Advanced - Comprehensive CSRF Protection in Next.js
+
+```
+[Exercise 3] Comprehensive CSRF Protection in Next.js
+
+Objective: Implement defense in depth with Next.js App Router
+
+Steps:
+1. Set up a Next.js project
+   - Use App Router
+   - Database setup with Prisma + SQLite
+   - Session authentication with Auth.js
+
+2. Implement the following CSRF protections:
+   a. Origin header validation in Middleware
+   b. Double Submit Cookie (for API Routes)
+   c. Verify CSRF protection of Server Actions
+   d. Use __Host- prefix for Cookies
+
+3. Create a test suite:
+   - Cross-origin requests are rejected
+   - Same-origin requests succeed
+   - Token validation works
+   - Server Actions are secure
+
+4. Security audit:
+   - Validate against OWASP CSRF Testing Guide
+   - Verify the effect of each defense layer
+   - Document areas for improvement
+
+Evaluation Criteria:
+  □ Defense in depth works correctly
+  □ Tests are comprehensive
+  □ Performance impact is measured
+  □ Security audit report is created
 ```
 
 ---
 
-## 11. FAQ・トラブルシューティング
+## 11. FAQ / Troubleshooting
 
-### Q1: SPA で CSRF 対策は本当に必要ですか？
-
-```
-A: Cookie ベースの認証を使用しているなら必要です。
-
-  JWT を localStorage に保存し Authorization ヘッダーで送信する場合:
-  → 不要（自動送信されないため）
-
-  httpOnly Cookie でセッション管理する場合:
-  → 必要（ブラウザが自動送信するため）
-
-  ただし SPA でも SameSite=Lax を設定していれば、
-  追加のトークン検証なしでもほとんどの攻撃を防げます。
-  高セキュリティ要件の場合は Double Submit Cookie を追加してください。
-```
-
-### Q2: CSRF トークンが 403 エラーを返す場合のデバッグ方法
+### Q1: Is CSRF protection really necessary in SPAs?
 
 ```
-A: 以下の順序で確認してください:
+A: Yes, if you are using Cookie-based authentication.
 
-  1. トークンの送信確認:
-     → DevTools の Network タブでリクエストヘッダーを確認
-     → X-CSRF-Token ヘッダーまたは _csrf フィールドがあるか
+  When storing JWT in localStorage and sending via Authorization header:
+  → Not needed (because it is not auto-sent)
 
-  2. Cookie の確認:
-     → DevTools の Application > Cookies で CSRF Cookie を確認
-     → SameSite 属性が正しいか
-     → Secure 属性と HTTPS の整合性
+  When managing sessions with httpOnly Cookie:
+  → Needed (because the browser auto-sends it)
 
-  3. サーバーログの確認:
-     → 受信したトークンと保存されたトークンの比較
-     → セッション ID が正しいか
-
-  4. よくある原因:
-     → ページキャッシュにより古いトークンを使用
-     → 複数タブでトークンが上書きされた
-     → セッション切れでトークンも無効化
-     → httpOnly Cookie でクライアントから読めない
+  However, even in SPAs, if SameSite=Lax is set,
+  most attacks can be prevented without additional token validation.
+  For high-security requirements, add Double Submit Cookie.
 ```
 
-### Q3: Webhook エンドポイントで CSRF 対策をスキップしても安全ですか？
+### Q2: How to debug when CSRF token returns a 403 error
 
 ```
-A: はい、ただし別の認証メカニズムが必要です。
+A: Check in the following order:
 
-  Webhook の場合:
-  → 外部サービスからのリクエストなので CSRF トークンは使えない
-  → 代替手段:
-     ① HMAC 署名検証（Stripe, GitHub 等）
-     ② IP ホワイトリスト
-     ③ Webhook Secret による検証
-     ④ mTLS（相互TLS認証）
+  1. Confirm token is being sent:
+     → Check request headers in the DevTools Network tab
+     → Verify presence of X-CSRF-Token header or _csrf field
 
-  実装例（Stripe Webhook）:
+  2. Check Cookie:
+     → Check CSRF Cookie in DevTools Application > Cookies
+     → Verify SameSite attribute is correct
+     → Consistency between Secure attribute and HTTPS
+
+  3. Check server logs:
+     → Compare received token with stored token
+     → Verify session ID is correct
+
+  4. Common causes:
+     → Page cache causing an old token to be used
+     → Token overwritten by multiple tabs
+     → Session expiration invalidating the token
+     → httpOnly Cookie not readable by the client
+```
+
+### Q3: Is it safe to skip CSRF protection for Webhook endpoints?
+
+```
+A: Yes, but a separate authentication mechanism is required.
+
+  For Webhooks:
+  → CSRF tokens cannot be used because requests come from external services
+  → Alternatives:
+     ① HMAC signature validation (Stripe, GitHub, etc.)
+     ② IP whitelist
+     ③ Webhook Secret validation
+     ④ mTLS (mutual TLS authentication)
+
+  Implementation example (Stripe Webhook):
   const sig = req.headers['stripe-signature'];
   const event = stripe.webhooks.constructEvent(
     req.body, sig, process.env.STRIPE_WEBHOOK_SECRET
   );
 ```
 
-### Q4: モバイルアプリのバックエンドで CSRF 対策は必要ですか？
+### Q4: Is CSRF protection needed for a mobile app backend?
 
 ```
-A: 通常は不要です。
+A: Usually not.
 
-  理由:
-  → モバイルアプリはブラウザではない
-  → Cookie の自動送信は発生しない
-  → API トークンで認証するのが一般的
-  → CSRF はブラウザの Cookie 自動送信を悪用する攻撃
+  Reasons:
+  → Mobile apps are not browsers
+  → No automatic Cookie sending occurs
+  → API token authentication is common practice
+  → CSRF exploits the automatic Cookie sending of browsers
 
-  ただし:
-  → WebView を使用する場合は Cookie が使われる可能性
-  → ブラウザと API を共有する場合は CSRF 対策が必要
-  → モバイル専用 API なら Authorization ヘッダー認証で OK
+  However:
+  → If using WebView, Cookies may be involved
+  → If the browser and API share the same backend, CSRF protection is needed
+  → For mobile-only APIs, Authorization header authentication is sufficient
 ```
 
 ---
 
-## 12. パフォーマンスに関する考察
+## 12. Performance Considerations
 
 ```
-CSRF 対策のパフォーマンス影響:
+Performance Impact of CSRF Protection:
 
   ┌──────────────────────┬───────────────┬──────────────┐
-  │ 防御パターン          │ レイテンシ影響 │ メモリ影響    │
+  │ Defense Pattern      │ Latency Impact│ Memory Impact│
   ├──────────────────────┼───────────────┼──────────────┤
-  │ SameSite Cookie      │ なし（0ms）    │ なし         │
-  │ Origin 検証           │ 極小（<1ms）   │ なし         │
-  │ Double Submit Cookie │ 極小（<1ms）   │ なし         │
-  │ Synchronizer Token   │ 小（1-5ms）    │ Redis 依存   │
-  │ Encrypted Token      │ 小（1-3ms）    │ なし         │
+  │ SameSite Cookie      │ None (0ms)    │ None         │
+  │ Origin validation    │ Minimal (<1ms)│ None         │
+  │ Double Submit Cookie │ Minimal (<1ms)│ None         │
+  │ Synchronizer Token   │ Small (1-5ms) │ Redis dep.   │
+  │ Encrypted Token      │ Small (1-3ms) │ None         │
   └──────────────────────┴───────────────┴──────────────┘
 
-  Synchronizer Token の Redis アクセス:
-  → セッションストアと同じ Redis を使えばコネクション共有可能
-  → Redis のレイテンシは通常 0.5-1ms
-  → パイプライン処理でセッション読取と同時実行可能
+  Redis access for Synchronizer Token:
+  → Can share connection with the same Redis as the session store
+  → Redis latency is typically 0.5-1ms
+  → Can be executed concurrently with session reads via pipelining
 
-  最適化:
-  → Per-Session Token にすればリクエストごとの書込みが不要
-  → Double Submit Cookie はサーバー状態不要で最速
-  → SameSite Cookie は CPU/メモリ影響ゼロ
+  Optimizations:
+  → Per-Session Token eliminates per-request writes
+  → Double Submit Cookie requires no server state and is fastest
+  → SameSite Cookie has zero CPU/memory impact
 ```
 
 ---
@@ -1875,39 +1879,39 @@ CSRF 対策のパフォーマンス影響:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. It is recommended to solidly understand the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 防御方法 | 効果 | 状態管理 | SPA 適合性 | 推奨用途 |
+| Defense Method | Effectiveness | State Mgmt | SPA Fit | Recommended Use |
 |---------|------|---------|-----------|---------|
-| SameSite=Lax | 高 | 不要 | 自動 | 全アプリ必須 |
-| Synchronizer Token | 最高 | 必要（Redis等） | 要工夫 | 高セキュリティ |
-| Double Submit Cookie | 高 | 不要 | 適合 | SPA + Cookie 認証 |
-| Signed Double Submit | 最高 | 不要 | 適合 | サブドメインリスク時 |
-| Origin 検証 | 中 | 不要 | 適合 | 補助防御 |
-| Custom Header | 高 | 不要 | 最適 | API 限定 |
-| Content-Type 検証 | 中 | 不要 | 適合 | JSON API |
+| SameSite=Lax | High | None | Automatic | Required for all apps |
+| Synchronizer Token | Highest | Required (Redis etc.) | Needs work | High security |
+| Double Submit Cookie | High | None | Compatible | SPA + Cookie auth |
+| Signed Double Submit | Highest | None | Compatible | When subdomain risk exists |
+| Origin validation | Medium | None | Compatible | Supplementary defense |
+| Custom Header | High | None | Ideal | API only |
+| Content-Type validation | Medium | None | Compatible | JSON API |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
 ---
 
-## 参考文献
+## References
 1. OWASP. "Cross-Site Request Forgery Prevention Cheat Sheet." cheatsheetseries.owasp.org, 2024.
 2. MDN. "SameSite cookies." developer.mozilla.org, 2024.
 3. Next.js. "Server Actions and Mutations." nextjs.org/docs, 2024.
