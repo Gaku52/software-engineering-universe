@@ -1,201 +1,201 @@
-# Cookie とセッション管理
+# Cookie and Session Management
 
-> Cookie はブラウザとサーバー間の状態管理の基盤。Cookie の属性設計、セッション管理の仕組み、セキュアなセッション ID 生成、セッションライフサイクルまで、安全なセッション管理の全てを解説する。HTTP はステートレスプロトコルであり、Cookie とセッションの組み合わせがステートフルな Web アプリケーションを実現する唯一の標準的手段である。
+> Cookies are the foundation of state management between browsers and servers. This guide covers everything you need for secure session management: cookie attribute design, session management mechanics, secure session ID generation, and session lifecycle. HTTP is a stateless protocol, and the combination of cookies and sessions is the only standard mechanism for building stateful web applications.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] Cookie の属性とセキュリティ設定を理解する
-- [ ] セッションの作成・管理・破棄のライフサイクルを把握する
-- [ ] セキュアなセッション管理を実装できるようになる
-- [ ] セッション固定攻撃・セッションハイジャックの原理と対策を理解する
-- [ ] Cookie のスコープ設計とサブドメイン戦略を習得する
-- [ ] セッションストアの選択基準と実装パターンを学ぶ
+- [ ] Understand cookie attributes and security settings
+- [ ] Grasp the lifecycle of session creation, management, and destruction
+- [ ] Be able to implement secure session management
+- [ ] Understand the principles and countermeasures for session fixation attacks and session hijacking
+- [ ] Learn cookie scope design and subdomain strategies
+- [ ] Learn session store selection criteria and implementation patterns
 
-## 前提知識
+## Prerequisites
 
-- HTTP プロトコルの基礎（リクエスト/レスポンスモデル）
-- TypeScript / Node.js の基本
-- Web セキュリティの基礎概念（XSS, CSRF）
+- HTTP protocol basics (request/response model)
+- TypeScript / Node.js fundamentals
+- Basic web security concepts (XSS, CSRF)
 
-## 関連ガイド
+## Related Guides
 
-
----
-
-## 1. HTTP のステートレス性と Cookie の役割
-
-```
-なぜ Cookie が必要か:
-
-  HTTP はステートレスプロトコル:
-    → 各リクエストは独立しており、前回のリクエストの情報を保持しない
-    → サーバーは「同じユーザーからの連続リクエスト」を識別できない
-
-  ┌──────────┐                    ┌──────────┐
-  │ ブラウザ  │  GET /dashboard    │ サーバー  │
-  │          │ ─────────────────> │          │
-  │          │                    │ 「誰？」  │
-  │          │  GET /profile      │          │
-  │          │ ─────────────────> │          │
-  │          │                    │ 「誰？」  │
-  └──────────┘                    └──────────┘
-
-  Cookie がこの問題を解決:
-    → サーバーがレスポンスに Set-Cookie ヘッダーを付与
-    → ブラウザが自動的に Cookie をリクエストに付与
-    → サーバーは Cookie からユーザーを識別
-
-  ┌──────────┐                           ┌──────────┐
-  │ ブラウザ  │  POST /login              │ サーバー  │
-  │          │ ─────────────────────────> │          │
-  │          │  Set-Cookie: sid=abc123    │ セッション │
-  │          │ <───────────────────────── │ 作成      │
-  │          │                           │          │
-  │          │  GET /dashboard            │          │
-  │          │  Cookie: sid=abc123        │          │
-  │          │ ─────────────────────────> │          │
-  │          │                           │ 「ユーザー │
-  │          │  200 OK (認証済み)          │  Aだ」    │
-  │          │ <───────────────────────── │          │
-  └──────────┘                           └──────────┘
-
-  歴史的経緯:
-    1994年: Netscape が Cookie を発明（Lou Montulli）
-    1997年: RFC 2109（Cookie の初期標準化）
-    2000年: RFC 2965（Cookie2、普及せず）
-    2011年: RFC 6265（現行標準、Set-Cookie/Cookie の仕様統一）
-    2025年: RFC 6265bis（SameSite のデフォルト等、最新仕様）
-```
 
 ---
 
-## 2. Cookie の基礎
+## 1. HTTP Statelessness and the Role of Cookies
 
 ```
-Cookie の仕組み:
+Why cookies are necessary:
 
-  サーバー → レスポンスヘッダーで設定:
+  HTTP is a stateless protocol:
+    → Each request is independent and does not retain information from previous requests
+    → The server cannot identify "consecutive requests from the same user"
+
+  ┌──────────────┐                    ┌──────────┐
+  │   Browser    │  GET /dashboard    │  Server  │
+  │              │ ─────────────────> │          │
+  │              │                    │  "Who?"  │
+  │              │  GET /profile      │          │
+  │              │ ─────────────────> │          │
+  │              │                    │  "Who?"  │
+  └──────────────┘                    └──────────┘
+
+  Cookies solve this problem:
+    → Server attaches Set-Cookie header to the response
+    → Browser automatically includes the cookie in requests
+    → Server identifies the user from the cookie
+
+  ┌──────────────┐                           ┌────────────────┐
+  │   Browser    │  POST /login              │    Server      │
+  │              │ ─────────────────────────> │                │
+  │              │  Set-Cookie: sid=abc123    │ Create         │
+  │              │ <───────────────────────── │ Session        │
+  │              │                           │                │
+  │              │  GET /dashboard            │                │
+  │              │  Cookie: sid=abc123        │                │
+  │              │ ─────────────────────────> │                │
+  │              │                           │ "It's          │
+  │              │  200 OK (authenticated)    │  User A"       │
+  │              │ <───────────────────────── │                │
+  └──────────────┘                           └────────────────┘
+
+  Historical background:
+    1994: Netscape invented cookies (Lou Montulli)
+    1997: RFC 2109 (initial cookie standardization)
+    2000: RFC 2965 (Cookie2, never widely adopted)
+    2011: RFC 6265 (current standard, unified Set-Cookie/Cookie spec)
+    2025: RFC 6265bis (SameSite defaults, etc., latest spec)
+```
+
+---
+
+## 2. Cookie Basics
+
+```
+How cookies work:
+
+  Server → set via response header:
     Set-Cookie: session_id=abc123; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=3600
 
-  ブラウザ → リクエストヘッダーで自動送信:
+  Browser → automatically sent via request header:
     Cookie: session_id=abc123
 
-  複数の Cookie を設定する場合:
+  Setting multiple cookies:
     Set-Cookie: session_id=abc123; HttpOnly; Secure
     Set-Cookie: theme=dark; Path=/
-    Set-Cookie: lang=ja; Path=/
+    Set-Cookie: lang=en; Path=/
 
-  ブラウザからの送信（すべての Cookie が1行で送信される）:
-    Cookie: session_id=abc123; theme=dark; lang=ja
+  Sent from browser (all cookies sent on a single line):
+    Cookie: session_id=abc123; theme=dark; lang=en
 ```
 
-### 2.1 Cookie の属性一覧
+### 2.1 Cookie Attribute Reference
 
 ```
-Cookie の属性:
+Cookie attributes:
 
-  属性          │ 値              │ 説明
-  ────────────┼────────────────┼────────────────────────
-  HttpOnly     │ true            │ JavaScript からアクセス不可
-               │                │ → XSS でのトークン窃取を防止
-  Secure       │ true            │ HTTPS のみで送信
-               │                │ → 中間者攻撃を防止
-  SameSite     │ Strict/Lax/None│ クロスサイトでの送信制御
-               │                │ → CSRF 防御
-  Path         │ /               │ Cookie が送信されるパス
-  Domain       │ .example.com    │ Cookie が有効なドメイン
-  Max-Age      │ 3600            │ 有効期間（秒）
-  Expires      │ Date            │ 有効期限（日時）
-  Partitioned  │ true            │ CHIPS（Cookie Having
-               │                │ Independent Partitioned State）
-               │                │ → サードパーティ Cookie 制限対応
-  __Prefix     │ (名前の接頭辞)   │ Cookie 名による追加セキュリティ
+  Attribute     │ Value           │ Description
+  ──────────────┼─────────────────┼────────────────────────
+  HttpOnly      │ true            │ Not accessible from JavaScript
+                │                 │ → Prevents token theft via XSS
+  Secure        │ true            │ Sent over HTTPS only
+                │                 │ → Prevents man-in-the-middle attacks
+  SameSite      │ Strict/Lax/None │ Controls sending on cross-site requests
+                │                 │ → CSRF protection
+  Path          │ /               │ Path for which the cookie is sent
+  Domain        │ .example.com    │ Domain for which the cookie is valid
+  Max-Age       │ 3600            │ Validity period (seconds)
+  Expires       │ Date            │ Expiration date/time
+  Partitioned   │ true            │ CHIPS (Cookie Having
+                │                 │ Independent Partitioned State)
+                │                 │ → Handles third-party cookie restrictions
+  __Prefix      │ (name prefix)   │ Additional security via cookie name prefix
 ```
 
-### 2.2 SameSite 属性の詳細
+### 2.2 SameSite Attribute in Detail
 
 ```
-SameSite の値と動作の違い:
+SameSite values and their behavior:
 
   ┌─────────────────────────────────────────────────────────────┐
   │                    SameSite=Strict                          │
-  │                                                            │
-  │  同一サイトからのリクエストのみ Cookie 送信                     │
-  │                                                            │
-  │  ✓ same-origin POST → Cookie 送信                          │
-  │  ✓ same-origin GET → Cookie 送信                           │
-  │  ✗ cross-site リンク → Cookie 送信されない                   │
-  │  ✗ cross-site POST → Cookie 送信されない                    │
-  │  ✗ cross-site iframe → Cookie 送信されない                  │
-  │                                                            │
-  │  問題: 外部サイトからリンクでアクセスするとログイン状態が失われる  │
-  │  例: Google 検索結果 → 自社サイト → 未ログイン表示              │
-  │      メール内リンク → 自社サイト → 未ログイン表示               │
+  │                                                             │
+  │  Sends cookies only for same-site requests                  │
+  │                                                             │
+  │  ✓ same-origin POST → cookie sent                           │
+  │  ✓ same-origin GET → cookie sent                            │
+  │  ✗ cross-site link → cookie NOT sent                        │
+  │  ✗ cross-site POST → cookie NOT sent                        │
+  │  ✗ cross-site iframe → cookie NOT sent                      │
+  │                                                             │
+  │  Issue: navigating from an external link loses login state  │
+  │  Example: Google search result → your site → shows logged out│
+  │           Email link → your site → shows logged out         │
   └─────────────────────────────────────────────────────────────┘
 
   ┌─────────────────────────────────────────────────────────────┐
-  │                    SameSite=Lax（推奨）                      │
-  │                                                            │
-  │  トップレベルナビゲーション（リンク遷移）の GET は許可           │
-  │                                                            │
-  │  ✓ same-origin POST → Cookie 送信                          │
-  │  ✓ same-origin GET → Cookie 送信                           │
-  │  ✓ cross-site リンク（GET）→ Cookie 送信                    │
-  │  ✗ cross-site POST → Cookie 送信されない → CSRF 防御        │
-  │  ✗ cross-site iframe → Cookie 送信されない                  │
-  │  ✗ cross-site img/script → Cookie 送信されない              │
-  │                                                            │
-  │  バランスが良い: UX を損なわずに CSRF を防御                   │
+  │                    SameSite=Lax (recommended)               │
+  │                                                             │
+  │  Allows GET for top-level navigation (link traversal)       │
+  │                                                             │
+  │  ✓ same-origin POST → cookie sent                           │
+  │  ✓ same-origin GET → cookie sent                            │
+  │  ✓ cross-site link (GET) → cookie sent                      │
+  │  ✗ cross-site POST → cookie NOT sent → CSRF protection      │
+  │  ✗ cross-site iframe → cookie NOT sent                      │
+  │  ✗ cross-site img/script → cookie NOT sent                  │
+  │                                                             │
+  │  Well-balanced: protects against CSRF without hurting UX    │
   └─────────────────────────────────────────────────────────────┘
 
   ┌─────────────────────────────────────────────────────────────┐
   │                    SameSite=None                            │
-  │                                                            │
-  │  全てのクロスサイトリクエストで送信                             │
-  │  Secure 属性が必須（HTTPS のみ）                              │
-  │                                                            │
-  │  ✓ 全てのリクエストで Cookie 送信                             │
-  │                                                            │
-  │  用途:                                                      │
-  │    → サードパーティ Cookie（広告、埋め込みウィジェット）         │
-  │    → クロスドメイン認証（iframe 内ログイン）                    │
-  │    → 決済ゲートウェイの 3D Secure                             │
-  │                                                            │
-  │  注意: ブラウザのサードパーティ Cookie 廃止の影響を受ける        │
-  │  → Chrome: Privacy Sandbox / CHIPS への移行                  │
+  │                                                             │
+  │  Sends on all cross-site requests                           │
+  │  Requires Secure attribute (HTTPS only)                     │
+  │                                                             │
+  │  ✓ cookie sent on all requests                              │
+  │                                                             │
+  │  Use cases:                                                 │
+  │    → Third-party cookies (ads, embedded widgets)            │
+  │    → Cross-domain authentication (login inside iframe)      │
+  │    → Payment gateway 3D Secure                              │
+  │                                                             │
+  │  Note: affected by browser third-party cookie deprecation   │
+  │  → Chrome: migrating to Privacy Sandbox / CHIPS             │
   └─────────────────────────────────────────────────────────────┘
 ```
 
-### 2.3 Cookie Prefix（名前による追加セキュリティ）
+### 2.3 Cookie Prefix (Additional Security via Naming)
 
 ```
 Cookie Prefix:
 
-  __Secure- 接頭辞:
-    → Secure 属性が必須
-    → HTTPS でのみ設定可能
-    → 例: __Secure-session_id=abc123
+  __Secure- prefix:
+    → Requires Secure attribute
+    → Can only be set over HTTPS
+    → Example: __Secure-session_id=abc123
 
-  __Host- 接頭辞（最も厳格）:
-    → Secure 属性が必須
-    → Domain 属性を指定不可（現在のホストのみ）
-    → Path=/ が必須
-    → 例: __Host-session_id=abc123
+  __Host- prefix (most strict):
+    → Requires Secure attribute
+    → Domain attribute must not be specified (current host only)
+    → Path=/ is required
+    → Example: __Host-session_id=abc123
 
-  なぜ重要か:
-    → 攻撃者が http:// 経由で Cookie を上書きすることを防止
-    → サブドメインからの Cookie 上書き攻撃を防止
-    → 「Cookie Tossing」攻撃の防御
+  Why it matters:
+    → Prevents attackers from overwriting cookies via http://
+    → Prevents cookie overwrite attacks from subdomains
+    → Defends against "Cookie Tossing" attacks
 
-  ブラウザの挙動:
+  Browser behavior:
     Set-Cookie: __Host-sid=abc123; Secure; Path=/
-    → ✓ ブラウザが受け入れる
+    → ✓ Browser accepts
 
     Set-Cookie: __Host-sid=abc123; Secure; Path=/; Domain=example.com
-    → ✗ ブラウザが拒否する（Domain 属性があるため）
+    → ✗ Browser rejects (Domain attribute is present)
 
     Set-Cookie: __Host-sid=abc123; Path=/
-    → ✗ ブラウザが拒否する（Secure がないため）
+    → ✗ Browser rejects (Secure is missing)
 ```
 
 ```typescript
@@ -286,47 +286,47 @@ app.post('/login', async (req, res) => {
 
 ---
 
-## 3. Cookie のスコープ設計
+## 3. Cookie Scope Design
 
 ```
-Domain 属性とスコープ:
+Domain attribute and scope:
 
-  Domain を省略した場合:
-    → 設定元のホストのみで有効（サブドメインには送信されない）
-    → 例: app.example.com で設定 → app.example.com のみ
-    → 最も安全
+  When Domain is omitted:
+    → Valid for the originating host only (not sent to subdomains)
+    → Example: set on app.example.com → valid for app.example.com only
+    → Most secure
 
-  Domain=.example.com を指定:
-    → example.com とすべてのサブドメインで有効
-    → 例: app.example.com, api.example.com, admin.example.com
-    → 便利だがリスクがある
+  When Domain=.example.com is specified:
+    → Valid for example.com and all subdomains
+    → Example: app.example.com, api.example.com, admin.example.com
+    → Convenient but carries risk
 
   ┌──────────────────────────────────────────────────────────┐
-  │             Domain スコープの設計パターン                   │
+  │             Domain Scope Design Patterns                  │
   │                                                          │
-  │  パターン1: 単一ドメイン（推奨）                            │
-  │    app.example.com → Cookie: Domain 省略                  │
-  │    api.example.com → Cookie なし（トークン認証）             │
-  │    → 最小権限の原則に沿う                                   │
+  │  Pattern 1: Single domain (recommended)                  │
+  │    app.example.com → Cookie: Domain omitted              │
+  │    api.example.com → No cookie (token-based auth)        │
+  │    → Follows principle of least privilege                │
   │                                                          │
-  │  パターン2: サブドメイン共有                                 │
-  │    *.example.com → Cookie: Domain=.example.com            │
-  │    → SSO 的に使いたい場合                                   │
-  │    → サブドメインの XSS が全体に影響（リスク）                │
+  │  Pattern 2: Shared subdomain                             │
+  │    *.example.com → Cookie: Domain=.example.com           │
+  │    → For SSO-like scenarios                              │
+  │    → XSS on a subdomain affects the whole domain (risk)  │
   │                                                          │
-  │  パターン3: BFF パターン（推奨）                             │
-  │    app.example.com → Cookie: Domain 省略                   │
-  │    app.example.com/api/* → リバースプロキシで API へ          │
-  │    → Cookie は同一オリジンで管理                             │
-  │    → API サーバーと Cookie を分離                            │
+  │  Pattern 3: BFF pattern (recommended)                    │
+  │    app.example.com → Cookie: Domain omitted              │
+  │    app.example.com/api/* → Reverse proxy to API          │
+  │    → Cookie managed under the same origin                │
+  │    → API server and cookie are separated                 │
   └──────────────────────────────────────────────────────────┘
 
-  Path 属性の注意点:
-    Path=/ → 全パスで Cookie 送信
-    Path=/admin → /admin 以下のみ
-    ⚠️ Path はセキュリティ機能ではない
-      → 同一オリジンの JavaScript は任意パスの Cookie を読み取れる
-      → iframe で /admin を開けば Cookie にアクセス可能
+  Notes on the Path attribute:
+    Path=/ → cookie sent for all paths
+    Path=/admin → only for /admin and below
+    ⚠️ Path is NOT a security feature
+      → Same-origin JavaScript can read cookies at any path
+      → Opening /admin in an iframe allows cookie access
 ```
 
 ```typescript
@@ -360,81 +360,81 @@ app.use('/api', (req, res, next) => {
 
 ---
 
-## 4. セッション管理
+## 4. Session Management
 
-### 4.1 セッションのライフサイクル
+### 4.1 Session Lifecycle
 
 ```
-セッションのライフサイクル:
+Session lifecycle:
 
-  ① 作成（ログイン時）:
-     → セッション ID 生成（暗号的に安全なランダム値）
-     → セッションデータをストアに保存
-     → Cookie にセッション ID を設定
+  ① Creation (on login):
+     → Generate session ID (cryptographically secure random value)
+     → Store session data in the store
+     → Set session ID in cookie
 
-  ② 使用（リクエストごと）:
-     → Cookie からセッション ID を取得
-     → ストアからセッションデータを取得
-     → ユーザー情報を元にリクエスト処理
+  ② Usage (per request):
+     → Retrieve session ID from cookie
+     → Retrieve session data from store
+     → Process request based on user information
 
-  ③ 更新（セキュリティイベント時）:
-     → セッション ID のローテーション
-     → 権限変更時、パスワード変更時
-     → セッション固定攻撃の防御
+  ③ Update (on security events):
+     → Rotate session ID
+     → On permission change, password change
+     → Defense against session fixation attacks
 
-  ④ 破棄（ログアウト時）:
-     → ストアからセッションデータを削除
-     → Cookie を無効化
-     → 関連するすべてのセッションを無効化（オプション）
+  ④ Destruction (on logout):
+     → Delete session data from store
+     → Invalidate cookie
+     → Optionally invalidate all related sessions
 
-  タイムライン:
+  Timeline:
 
-  ログイン     リクエスト   権限変更    ログアウト
-    │            │          │           │
-    ▼            ▼          ▼           ▼
+  Login       Request     Permission   Logout
+    │            │           Change      │
+    ▼            ▼             │         ▼
   ┌─────┐    ┌─────┐    ┌─────┐    ┌─────┐
-  │ 作成 │───>│ 使用 │───>│ 更新 │───>│ 破棄 │
-  │     │    │     │    │(ID  │    │     │
-  │ ID  │    │ ID  │    │ 再生│    │ ID  │
-  │ =A  │    │ =A  │    │ =B) │    │ =B  │
+  │Create│───>│ Use │───>│Update│───>│Destroy│
+  │      │    │     │    │(ID  │    │      │
+  │ ID   │    │ ID  │    │regen│    │ ID   │
+  │ =A   │    │ =A  │    │ =B) │    │ =B   │
   └─────┘    └─────┘    └─────┘    └─────┘
                 │                     │
-              ストア               ストア
-              から                 から
-              取得                 削除
+             Fetch                 Delete
+             from                  from
+             store                 store
 ```
 
-### 4.2 セキュアなセッション ID 生成
+### 4.2 Secure Session ID Generation
 
 ```
-セッション ID の要件（OWASP 準拠）:
+Session ID requirements (OWASP compliant):
 
-  ① エントロピー: 最低128ビット（推奨: 256ビット）
-     → 2^128 の組み合わせ → ブルートフォース不可能
-     → crypto.randomBytes(32) = 256ビット
+  ① Entropy: minimum 128 bits (recommended: 256 bits)
+     → 2^128 combinations → brute force is infeasible
+     → crypto.randomBytes(32) = 256 bits
 
-  ② 予測不可能性: CSPRNG（暗号論的擬似乱数生成器）を使用
-     → Math.random() は使用禁止（予測可能）
-     → Date.now() は使用禁止（推測可能）
-     → UUID v4 は使用可能だが、エントロピーが122ビットと少なめ
+  ② Unpredictability: use a CSPRNG (Cryptographically Secure Pseudo-Random Number Generator)
+     → Math.random() is prohibited (predictable)
+     → Date.now() is prohibited (guessable)
+     → UUID v4 is acceptable but has only 122 bits of entropy
 
-  ③ 一意性: 衝突が事実上発生しない
-     → 256ビットランダム値の衝突確率 ≈ 0
-     → 誕生日攻撃を考慮しても 2^128 の試行が必要
+  ③ Uniqueness: collisions are practically impossible
+     → Collision probability for a 256-bit random value ≈ 0
+     → Even considering birthday attacks, 2^128 attempts are needed
 
-  各言語でのセッション ID 生成:
+  Session ID generation in various languages:
 
-  Node.js:  crypto.randomBytes(32).toString('hex')     // 64文字の16進数
-  Python:   secrets.token_hex(32)                      // 64文字の16進数
+  Node.js:  crypto.randomBytes(32).toString('hex')     // 64-char hex string
+  Python:   secrets.token_hex(32)                      // 64-char hex string
   Go:       rand.Read(make([]byte, 32))                // crypto/rand
-  Ruby:     SecureRandom.hex(32)                       // 64文字の16進数
-  Java:     new SecureRandom().generateSeed(32)        // 32バイト
+  Ruby:     SecureRandom.hex(32)                       // 64-char hex string
+  Java:     new SecureRandom().generateSeed(32)        // 32 bytes
 
-  ⚠️ 危険なセッション ID 生成の例:
-    × Math.random().toString(36).substr(2)  // 予測可能
-    × Date.now().toString(36)               // 推測可能
-    × `user_${userId}_${timestamp}`         // 情報漏洩＋推測可能
-    × md5(username + password)              // 固定値＋レインボーテーブル
+  ⚠️ Examples of dangerous session ID generation:
+    × Math.random().toString(36).substr(2)  // predictable
+    × Date.now().toString(36)               // guessable
+    × `user_${userId}_${timestamp}`         // information leak + guessable
+    × md5(username + password)              // fixed value + rainbow table
 ```
 
 ```typescript
@@ -641,7 +641,7 @@ class SessionManager {
 }
 ```
 
-### 4.3 Redis ベースのセッションストア実装
+### 4.3 Redis-Based Session Store Implementation
 
 ```typescript
 // Redis を使ったセッションストアの実装
@@ -785,45 +785,46 @@ class RedisSessionStore implements SessionStore {
 
 ---
 
-## 5. セッション固定攻撃と対策
+## 5. Session Fixation Attacks and Countermeasures
 
 ```
-セッション固定攻撃（Session Fixation）:
+Session Fixation Attack:
 
-  攻撃フロー:
+  Attack flow:
 
-  攻撃者                         被害者                       サーバー
+  Attacker                       Victim                       Server
     │                             │                           │
-    │ ① サイトにアクセス            │                           │
+    │ ① Access the site           │                           │
     │ ─────────────────────────────────────────────────────>  │
     │                             │                           │
-    │ ② セッション ID 取得          │                           │
+    │ ② Obtain session ID         │                           │
     │ (session_id = "known_id")   │                           │
     │ <─────────────────────────────────────────────────────  │
     │                             │                           │
-    │ ③ リンクを送信               │                           │
+    │ ③ Send link to victim       │                           │
     │ (https://site.com/?sid=     │                           │
     │  known_id)                  │                           │
     │ ──────────────────────────> │                           │
     │                             │                           │
-    │                             │ ④ リンクをクリック          │
+    │                             │ ④ Click the link          │
     │                             │ ──────────────────────>   │
     │                             │                           │
-    │                             │ ⑤ ログイン                │
+    │                             │ ⑤ Log in                  │
     │                             │ (session_id=known_id)     │
     │                             │ ──────────────────────>   │
     │                             │                           │
-    │ ⑥ 同じ session_id でアクセス │                           │
+    │ ⑥ Access with same          │                           │
+    │    session_id               │                           │
     │ ─────────────────────────────────────────────────────>  │
     │                             │                           │
-    │ ⑦ ログイン済み状態でアクセス  │                           │
+    │ ⑦ Access as logged-in user  │                           │
     │ <─────────────────────────────────────────────────────  │
 
-  対策（必須）:
-    1. ログイン成功時にセッション ID を再生成（ローテーション）
-    2. URL パラメータからのセッション ID 受け入れを拒否
-    3. Cookie のみでセッション ID を管理
-    4. ログイン前のセッションデータを新セッションにコピーしない
+  Countermeasures (required):
+    1. Regenerate session ID on successful login (rotation)
+    2. Reject session IDs received via URL parameters
+    3. Manage session IDs via cookies only
+    4. Do not copy pre-login session data to the new session
 ```
 
 ```typescript
@@ -899,44 +900,44 @@ async function handleRoleChange(
 
 ---
 
-## 6. セッションハイジャック攻撃と対策
+## 6. Session Hijacking Attacks and Countermeasures
 
 ```
-セッションハイジャックの手法:
+Session hijacking methods:
 
-  ① ネットワーク盗聴（Sniffing）:
-     → 暗号化されていない通信でセッション ID を傍受
-     → 対策: HTTPS 必須 + Secure Cookie 属性
+  ① Network eavesdropping (Sniffing):
+     → Intercept session ID over unencrypted communication
+     → Countermeasure: Require HTTPS + Secure cookie attribute
 
-  ② XSS（Cross-Site Scripting）:
-     → JavaScript でdocument.cookie を読み取り
-     → 対策: HttpOnly Cookie 属性 + CSP ヘッダー
+  ② XSS (Cross-Site Scripting):
+     → Read document.cookie via JavaScript
+     → Countermeasure: HttpOnly cookie attribute + CSP header
 
-  ③ CSRF（Cross-Site Request Forgery）:
-     → ユーザーのブラウザから意図しないリクエストを送信
-     → 対策: SameSite=Lax + CSRF トークン
+  ③ CSRF (Cross-Site Request Forgery):
+     → Send unintended requests from the user's browser
+     → Countermeasure: SameSite=Lax + CSRF token
 
-  ④ セッション ID 推測:
-     → 弱い乱数で生成されたセッション ID を推測
-     → 対策: CSPRNG で 256ビット以上のランダム値
+  ④ Session ID guessing:
+     → Guess session IDs generated with weak randomness
+     → Countermeasure: Use CSPRNG with 256+ bits of randomness
 
-  ⑤ サイドチャネル攻撃:
-     → Referer ヘッダー経由でセッション ID 漏洩
-     → 対策: セッション ID は URL に含めない + Referrer-Policy ヘッダー
+  ⑤ Side-channel attacks:
+     → Session ID leaks via Referer header
+     → Countermeasure: Do not include session ID in URL + Referrer-Policy header
 
-  多層防御の全体像:
+  Overview of defense-in-depth:
 
   ┌────────────────────────────────────────────┐
-  │              防御レイヤー                    │
+  │              Defense Layers                │
   │                                            │
-  │  Layer 1: 通信路          HTTPS 必須        │
-  │  Layer 2: Cookie 属性     HttpOnly, Secure  │
-  │  Layer 3: CSRF 防御       SameSite, Token   │
-  │  Layer 4: セッション ID   CSPRNG 256bit     │
-  │  Layer 5: ローテーション  ログイン/権限変更時  │
-  │  Layer 6: 有効期限        スライディング+絶対 │
-  │  Layer 7: 異常検知        IP/UA変更検知      │
-  │  Layer 8: 並行制御        最大セッション数    │
+  │  Layer 1: Transport          HTTPS required│
+  │  Layer 2: Cookie attributes  HttpOnly, Secure│
+  │  Layer 3: CSRF protection    SameSite, Token│
+  │  Layer 4: Session ID         CSPRNG 256bit │
+  │  Layer 5: Rotation           On login/role change│
+  │  Layer 6: Expiration         Sliding + absolute│
+  │  Layer 7: Anomaly detection  IP/UA change detection│
+  │  Layer 8: Concurrency control Max sessions │
   └────────────────────────────────────────────┘
 ```
 
@@ -1009,52 +1010,52 @@ async function sessionAnomalyDetection(
 
 ---
 
-## 7. セッションの有効期限戦略
+## 7. Session Expiration Strategies
 
 ```
-有効期限の種類:
+Types of expiration:
 
-  ① 絶対有効期限（Absolute Timeout）:
-     → セッション作成からN時間後に失効
-     → 例: 24時間後に自動ログアウト
-     → セキュリティが厳しいシステム向け
-     → アクティブであっても強制ログアウト
+  ① Absolute Timeout:
+     → Expires N hours after session creation
+     → Example: automatic logout after 24 hours
+     → For systems with strict security requirements
+     → Forces logout even for active users
 
-  ② スライディング有効期限（Sliding/Idle Timeout）:
-     → 最後のアクティビティからN分後に失効
-     → アクティブなユーザーはセッション維持
-     → 例: 30分操作なしで失効
-     → Redis の TTL 更新で実現
+  ② Sliding / Idle Timeout:
+     → Expires N minutes after last activity
+     → Active users keep their session alive
+     → Example: expires after 30 minutes of inactivity
+     → Implemented by updating Redis TTL
 
-  ③ ハイブリッド（推奨）:
-     → スライディング + 絶対有効期限の組合せ
-     → 例: 操作があれば延長するが、最大72時間で失効
-     → 両方の利点を組み合わせ
+  ③ Hybrid (recommended):
+     → Combination of sliding + absolute timeout
+     → Example: extends on activity but expires after 72 hours at most
+     → Combines the advantages of both
 
-  タイムライン:
+  Timeline:
 
-  ログイン        アクセス   アクセス   30分放置     失効
+  Login         Access    Access   30min idle  Expire
     │              │         │         │           │
     ▼              ▼         ▼         ▼           ▼
     ├──────────────┼─────────┼─────────┼───────────┤
     │← 30min TTL →│← reset →│← reset →│← 30min → │
     │                                              │
-    │← ─── 絶対有効期限（24時間）─── ─── ─── ──→    │
+    │← ─── Absolute timeout (24 hours) ─── ──→    │
     │                                              │
-    │  アクティブなら TTL がリセットされ続ける         │
-    │  しかし絶対有効期限に達したら強制失効            │
+    │  TTL keeps resetting while user is active    │
+    │  But session expires when absolute limit hits│
 
-  推奨の組合せ:
+  Recommended combinations:
 
   ┌──────────────────┬───────────┬──────────┬──────────────────┐
-  │ アプリケーション   │ スライディング│ 絶対     │ Remember Me     │
+  │ Application      │ Sliding   │ Absolute │ Remember Me      │
   ├──────────────────┼───────────┼──────────┼──────────────────┤
-  │ 一般的なWebアプリ  │ 30分       │ 24時間   │ 30日             │
-  │ ECサイト          │ 60分       │ 72時間   │ 90日             │
-  │ 金融・医療        │ 15分       │ 8時間    │ なし             │
-  │ ソーシャルメディア │ 24時間     │ 30日     │ 365日            │
-  │ 管理画面          │ 15分       │ 4時間    │ なし             │
-  │ B2B SaaS         │ 60分       │ 12時間   │ 30日             │
+  │ General web app  │ 30 min    │ 24 hours │ 30 days          │
+  │ E-commerce       │ 60 min    │ 72 hours │ 90 days          │
+  │ Finance/Healthcare│ 15 min   │ 8 hours  │ None             │
+  │ Social media     │ 24 hours  │ 30 days  │ 365 days         │
+  │ Admin panel      │ 15 min    │ 4 hours  │ None             │
+  │ B2B SaaS         │ 60 min    │ 12 hours │ 30 days          │
   └──────────────────┴───────────┴──────────┴──────────────────┘
 ```
 
@@ -1231,33 +1232,33 @@ async function restoreSession(req: Request, res: Response): Promise<SessionData 
 
 ---
 
-## 8. CSRF 対策とセッション
+## 8. CSRF Protection and Sessions
 
 ```
-CSRF（Cross-Site Request Forgery）攻撃:
+CSRF (Cross-Site Request Forgery) attack:
 
-  攻撃フロー:
-    ① ユーザーが bank.com にログイン済み（Cookie あり）
-    ② 攻撃者のサイト evil.com にアクセス
-    ③ evil.com に隠しフォーム: <form action="https://bank.com/transfer" method="POST">
-    ④ JavaScript で自動送信
-    ⑤ ブラウザが bank.com の Cookie を自動付与
-    ⑥ bank.com は正規リクエストと区別できない
+  Attack flow:
+    ① User is logged in to bank.com (has cookie)
+    ② User visits attacker's site evil.com
+    ③ evil.com has a hidden form: <form action="https://bank.com/transfer" method="POST">
+    ④ JavaScript auto-submits it
+    ⑤ Browser automatically attaches bank.com cookie
+    ⑥ bank.com cannot distinguish it from a legitimate request
 
-  対策の比較:
+  Comparison of countermeasures:
 
   ┌──────────────────┬──────────────┬────────────────┬──────────────┐
-  │ 対策             │ 実装難易度     │ 保護レベル      │ 副作用       │
+  │ Countermeasure   │ Impl. Effort │ Protection     │ Side Effects │
   ├──────────────────┼──────────────┼────────────────┼──────────────┤
-  │ SameSite=Lax     │ 低           │ 高             │ 少ない       │
-  │ SameSite=Strict  │ 低           │ 最高           │ UX 影響あり  │
-  │ CSRF トークン     │ 中           │ 高             │ なし         │
-  │ Double Submit    │ 中           │ 中             │ なし         │
-  │ Origin ヘッダー   │ 低           │ 中             │ 古いブラウザ  │
-  │ Referer 検証     │ 低           │ 低             │ プライバシー  │
+  │ SameSite=Lax     │ Low          │ High           │ Few          │
+  │ SameSite=Strict  │ Low          │ Highest        │ UX impact    │
+  │ CSRF token       │ Medium       │ High           │ None         │
+  │ Double Submit    │ Medium       │ Medium         │ None         │
+  │ Origin header    │ Low          │ Medium         │ Old browsers │
+  │ Referer check    │ Low          │ Low            │ Privacy      │
   └──────────────────┴──────────────┴────────────────┴──────────────┘
 
-  推奨: SameSite=Lax + CSRF トークン（多層防御）
+  Recommendation: SameSite=Lax + CSRF token (defense-in-depth)
 ```
 
 ```typescript
@@ -1364,50 +1365,50 @@ async function secureFetch(url: string, options: RequestInit = {}) {
 
 ---
 
-## 9. 並行セッション管理
+## 9. Concurrent Session Management
 
 ```
-並行セッションの制御:
+Controlling concurrent sessions:
 
-  ① 無制限（デフォルト）:
-     → 複数デバイスから同時ログイン可能
-     → 一般的な Web アプリ
-     → 管理が簡単だが、不正利用の検知が難しい
+  ① Unlimited (default):
+     → Simultaneous login from multiple devices
+     → Common for general web apps
+     → Easy to manage but hard to detect misuse
 
-  ② 最大数制限:
-     → 最大5デバイスまで等
-     → 古いセッションから自動ログアウト
-     → バランスが良い（推奨）
+  ② Maximum count limit:
+     → e.g., up to 5 devices
+     → Automatically logs out oldest session
+     → Well-balanced (recommended)
 
-  ③ 単一セッション:
-     → 1デバイスのみ
-     → 金融系で多い
-     → 新しいログインで旧セッション無効化
-     → UX への影響が大きい（別デバイスで強制ログアウト）
+  ③ Single session:
+     → One device only
+     → Common in financial systems
+     → New login invalidates old session
+     → Significant UX impact (forced logout on another device)
 
-  ④ デバイスタイプ別:
-     → PC: 1セッション、モバイル: 1セッション
-     → 各デバイスタイプ1つずつ許可
-     → デバイスフィンガープリントの信頼性が課題
+  ④ By device type:
+     → PC: 1 session, Mobile: 1 session
+     → One session per device type
+     → Device fingerprint reliability is a challenge
 
-  セッション管理 UI のパターン:
+  Session management UI pattern:
 
   ┌─────────────────────────────────────────────────────┐
-  │  アクティブなセッション                                │
+  │  Active Sessions                                    │
   │                                                     │
-  │  🖥️ Chrome on macOS          ★ 現在のセッション      │
-  │     最終アクセス: 2分前                                │
-  │     IP: 203.0.113.***                                │
+  │  🖥️ Chrome on macOS          ★ Current session      │
+  │     Last access: 2 minutes ago                      │
+  │     IP: 203.0.113.***                               │
   │                                                     │
   │  📱 Safari on iOS                                    │
-  │     最終アクセス: 3時間前        [ログアウト]           │
-  │     IP: 198.51.100.***                               │
+  │     Last access: 3 hours ago        [Log out]       │
+  │     IP: 198.51.100.***                              │
   │                                                     │
   │  🖥️ Firefox on Windows                              │
-  │     最終アクセス: 2日前          [ログアウト]           │
-  │     IP: 192.0.2.***                                  │
+  │     Last access: 2 days ago         [Log out]       │
+  │     IP: 192.0.2.***                                 │
   │                                                     │
-  │  [他の全デバイスからログアウト]                          │
+  │  [Log out from all other devices]                   │
   └─────────────────────────────────────────────────────┘
 ```
 
@@ -1497,32 +1498,32 @@ app.post('/api/sessions/revoke-others', async (req, res) => {
 
 ---
 
-## 10. ログアウトの実装
+## 10. Implementing Logout
 
 ```
-ログアウトの種類:
+Types of logout:
 
-  ① 単一ログアウト:
-     → 現在のセッションのみ破棄
-     → 他のデバイスのセッションは維持
+  ① Single logout:
+     → Destroy the current session only
+     → Sessions on other devices remain active
 
-  ② グローバルログアウト:
-     → ユーザーの全セッションを破棄
-     → パスワード変更時、セキュリティインシデント時
+  ② Global logout:
+     → Destroy all sessions for the user
+     → On password change, security incident
 
-  ③ フェデレーテッドログアウト:
-     → SSO 環境で IdP にもログアウト通知
-     → SAML SLO（Single Logout）
+  ③ Federated logout:
+     → Notify the IdP in SSO environments
+     → SAML SLO (Single Logout)
      → OIDC RP-Initiated Logout
 
-  ログアウトのチェックリスト:
-    ✓ サーバー側のセッションデータを削除
-    ✓ セッション Cookie を無効化（Max-Age=0）
-    ✓ Remember Me トークンを無効化
-    ✓ CSRF トークンを無効化
-    ✓ クライアント側のキャッシュをクリア（Cache-Control ヘッダー）
-    ✓ WebSocket 接続を切断
-    ✓ 監査ログを記録
+  Logout checklist:
+    ✓ Delete session data on the server side
+    ✓ Invalidate session cookie (Max-Age=0)
+    ✓ Invalidate Remember Me token
+    ✓ Invalidate CSRF token
+    ✓ Clear client-side cache (Cache-Control header)
+    ✓ Disconnect WebSocket connections
+    ✓ Record audit log
 ```
 
 ```typescript
@@ -1620,73 +1621,73 @@ app.post('/api/auth/logout-all', async (req, res) => {
 
 ---
 
-## 11. セッション vs JWT の比較
+## 11. Sessions vs. JWT Comparison
 
 ```
-セッションベース認証 vs JWT ベース認証:
+Session-based authentication vs. JWT-based authentication:
 
   ┌──────────────────┬──────────────────────┬──────────────────────┐
-  │ 項目             │ セッション             │ JWT                  │
+  │ Item             │ Session              │ JWT                  │
   ├──────────────────┼──────────────────────┼──────────────────────┤
-  │ 状態管理         │ サーバー側（Stateful） │ クライアント（Stateless）│
-  │ ストレージ       │ Redis/DB が必要       │ 不要                  │
-  │ 即時無効化       │ ✓ ストアから削除       │ ✗ 期限まで有効         │
-  │ スケーラビリティ │ ストアが必要           │ 高い（ストア不要）     │
-  │ セキュリティ     │ Cookie（HttpOnly）    │ localStorage or Cookie│
-  │ ペイロード       │ サーバー側で管理       │ トークンに含まれる     │
-  │ CSRF 脆弱性     │ あり（Cookie 自動送信）│ なし（手動付与の場合） │
-  │ XSS 脆弱性      │ 低い（HttpOnly Cookie）│ 高い（localStorage）  │
-  │ マイクロサービス │ 共有ストアが必要       │ 各サービスで検証可能   │
-  │ モバイル対応     │ Cookie サポートに依存  │ Bearer トークン        │
-  │ 実装の複雑さ     │ シンプル              │ リフレッシュ等が複雑   │
+  │ State management │ Server-side (Stateful)│ Client (Stateless)  │
+  │ Storage          │ Requires Redis/DB    │ Not required         │
+  │ Immediate revoke │ ✓ Delete from store  │ ✗ Valid until expiry │
+  │ Scalability      │ Requires shared store│ High (no store needed)│
+  │ Security         │ Cookie (HttpOnly)    │ localStorage or Cookie│
+  │ Payload          │ Managed server-side  │ Included in token    │
+  │ CSRF risk        │ Yes (auto cookie)    │ No (if sent manually)│
+  │ XSS risk         │ Low (HttpOnly Cookie)│ High (localStorage)  │
+  │ Microservices    │ Needs shared store   │ Verifiable per service│
+  │ Mobile support   │ Depends on cookies   │ Bearer token         │
+  │ Impl. complexity │ Simple               │ Refresh etc. complex │
   └──────────────────┴──────────────────────┴──────────────────────┘
 
-  推奨:
-    Web アプリ（SPA + サーバー）→ セッション + Cookie
-    API（モバイル、マイクロサービス）→ JWT
-    ハイブリッド → セッション（Web）+ JWT（API）
+  Recommendation:
+    Web app (SPA + server) → Session + Cookie
+    API (mobile, microservices) → JWT
+    Hybrid → Session (Web) + JWT (API)
 
-  なぜ Web アプリにはセッション + Cookie が推奨されるのか:
-    1. HttpOnly Cookie で XSS からトークンを保護できる
-    2. 即時無効化（ログアウト、アカウント停止）が可能
-    3. サーバー側でセッションデータを完全に制御
-    4. JWT のようなリフレッシュトークン管理が不要
-    5. OWASP もこのパターンを推奨
+  Why Session + Cookie is recommended for web apps:
+    1. HttpOnly Cookie protects tokens from XSS
+    2. Immediate revocation is possible (logout, account suspension)
+    3. Full server-side control over session data
+    4. No need for refresh token management like JWT
+    5. OWASP also recommends this pattern
 ```
 
 ---
 
-## 12. パフォーマンス最適化
+## 12. Performance Optimization
 
 ```
-セッション管理のパフォーマンス考慮点:
+Performance considerations for session management:
 
-  ① Redis レイテンシ:
-     → 通常 <1ms（同一リージョン）
-     → リクエストごとに GET + SET（TTL 更新）= 2回
-     → パイプライニングで最適化可能
+  ① Redis latency:
+     → Typically <1ms (same region)
+     → GET + SET (TTL update) per request = 2 round trips
+     → Can be optimized with pipelining
 
-  ② セッションデータのサイズ:
-     → 小さく保つ（<1KB 推奨）
-     → ユーザー情報は DB から取得、セッションには ID のみ
-     → 大きなデータはセッション外に保存
+  ② Session data size:
+     → Keep small (<1KB recommended)
+     → Fetch user info from DB; store only IDs in session
+     → Store large data outside the session
 
-  ③ Cookie のサイズ:
-     → Cookie ヘッダーの上限: 約4KB（ブラウザ依存）
-     → セッション ID のみ保存（64文字 = 約64バイト）
-     → Cookie が大きすぎると全リクエストに影響
+  ③ Cookie size:
+     → Cookie header limit: ~4KB (browser-dependent)
+     → Store only session ID (64 chars ≈ 64 bytes)
+     → Large cookies affect every request
 
-  ④ セッションストアの選択:
-     → Redis: 最速、TTL 自動管理、クラスタリング対応
-     → PostgreSQL: 追加インフラ不要、ACID 保証
-     → DynamoDB: サーバーレス、自動スケーリング
-     → メモリ: 開発環境のみ（再起動で全消失）
+  ④ Session store selection:
+     → Redis: fastest, automatic TTL management, supports clustering
+     → PostgreSQL: no extra infrastructure, ACID guarantees
+     → DynamoDB: serverless, auto-scaling
+     → In-memory: development only (lost on restart)
 
-  Redis パフォーマンスチューニング:
-    → Connection Pooling: 接続の再利用
-    → Pipeline: 複数コマンドのバッチ実行
-    → Cluster: 大規模環境での水平分散
-    → Sentinel: 高可用性（自動フェイルオーバー）
+  Redis performance tuning:
+    → Connection Pooling: reuse connections
+    → Pipeline: batch multiple commands
+    → Cluster: horizontal scaling for large environments
+    → Sentinel: high availability (automatic failover)
 ```
 
 ```typescript
@@ -1743,7 +1744,7 @@ class OptimizedSessionMiddleware {
 
 ---
 
-## 13. セキュリティヘッダーとの組み合わせ
+## 13. Combined with Security Headers
 
 ```typescript
 // セッション管理に関連するセキュリティヘッダー
@@ -1797,78 +1798,78 @@ app.use((req, res, next) => {
 
 ---
 
-## 14. アンチパターン
+## 14. Anti-Patterns
 
 ```
-セッション管理のアンチパターン:
+Session management anti-patterns:
 
-  ❌ アンチパターン1: セッション ID を URL に含める
+  Anti-pattern 1: Including session ID in the URL
      × https://example.com/dashboard?sid=abc123
-     → Referer ヘッダーで漏洩
-     → ブラウザ履歴に残る
-     → ブックマークで共有される
-     → アクセスログに記録される
+     → Leaked via Referer header
+     → Remains in browser history
+     → Shared via bookmarks
+     → Recorded in access logs
 
-  ❌ アンチパターン2: Math.random() でセッション ID 生成
+  Anti-pattern 2: Generating session ID with Math.random()
      × const sid = Math.random().toString(36)
-     → 予測可能（V8 の xorshift128+ は逆算可能）
-     → エントロピーが不足（約52ビット）
-     → ブルートフォースで推測可能
+     → Predictable (V8's xorshift128+ can be reversed)
+     → Insufficient entropy (~52 bits)
+     → Guessable via brute force
 
-  ❌ アンチパターン3: セッションデータを Cookie に直接保存
+  Anti-pattern 3: Storing session data directly in a cookie
      × Set-Cookie: user={"id":"123","role":"admin","email":"..."}
-     → クライアントが改ざん可能（role を admin に変更）
-     → Cookie サイズ制限（4KB）
-     → 個人情報の漏洩リスク
-     ○ 正しい方法: Cookie にはセッション ID のみ、データはサーバー側
+     → Client can tamper with it (e.g., change role to admin)
+     → Cookie size limit (4KB)
+     → Risk of personal data leakage
+     ✓ Correct approach: store only the session ID in the cookie; keep data server-side
 
-  ❌ アンチパターン4: ログアウト時に Cookie のみ削除
-     × res.clearCookie('session_id')  // サーバー側のセッションは残存
-     → 攻撃者がセッション ID を知っていれば引き続きアクセス可能
-     ○ 正しい方法: サーバー側のセッションデータも必ず削除
+  Anti-pattern 4: Only deleting the cookie on logout
+     × res.clearCookie('session_id')  // server-side session remains
+     → Attacker can continue to access if they know the session ID
+     ✓ Correct approach: always delete server-side session data as well
 
-  ❌ アンチパターン5: セッション ID のローテーションを行わない
-     × ログイン前後で同じセッション ID を使用
-     → セッション固定攻撃に脆弱
-     ○ 正しい方法: ログイン成功時に必ず新しいセッション ID を生成
+  Anti-pattern 5: Not rotating the session ID
+     × Using the same session ID before and after login
+     → Vulnerable to session fixation attacks
+     ✓ Correct approach: always generate a new session ID on successful login
 ```
 
 ---
 
-## 15. エッジケース
+## 15. Edge Cases
 
 ```
-セッション管理のエッジケース:
+Session management edge cases:
 
-  ① Redis ダウン時の対応:
-     → セッション取得が失敗 → 全ユーザーがログアウト状態
-     → 対策: Redis Sentinel/Cluster で冗長化
-     → フォールバック: DB から直接セッション取得（遅い）
-     → グレースフルデグラデーション: 一時的に JWT を発行
+  ① When Redis goes down:
+     → Session retrieval fails → all users appear logged out
+     → Countermeasure: Redis Sentinel/Cluster for redundancy
+     → Fallback: retrieve sessions directly from DB (slow)
+     → Graceful degradation: temporarily issue JWTs
 
-  ② 時刻同期のずれ:
-     → サーバー間で時刻がずれるとセッション有効期限が不正確
-     → 対策: NTP で時刻同期、Redis の TTL（サーバー時刻に依存しない）
+  ② Clock skew:
+     → Time differences between servers make session expiry inaccurate
+     → Countermeasure: synchronize with NTP; use Redis TTL (independent of server clock)
 
-  ③ Cookie の同時更新競合:
-     → 複数タブから同時にリクエスト → セッション ID ローテーションの競合
-     → 旧セッション ID で後続リクエストが失敗
-     → 対策: ローテーション後も旧 ID を短時間（30秒）有効に保持
+  ③ Cookie update race conditions:
+     → Simultaneous requests from multiple tabs → session ID rotation conflict
+     → Subsequent requests with old session ID fail
+     → Countermeasure: keep old ID valid for a short period (30 seconds) after rotation
 
-  ④ ブラウザの Cookie 削除:
-     → ユーザーが手動で Cookie を削除
-     → Remember Me があれば自動復元
-     → なければ再ログインが必要
+  ④ Browser cookie deletion:
+     → User manually deletes cookies
+     → Auto-restored if Remember Me is set
+     → Otherwise, re-login is required
 
-  ⑤ Cookie のサイズ上限超過:
-     → 多数の Cookie で合計4KBを超えるとブラウザが切り捨て
-     → セッション Cookie が失われる可能性
-     → 対策: 不要な Cookie を削減、セッション Cookie の優先度を確保
+  ⑤ Cookie size limit exceeded:
+     → Browser truncates if total cookies exceed 4KB
+     → Session cookie may be lost
+     → Countermeasure: reduce unnecessary cookies; ensure session cookie priority
 
-  ⑥ サードパーティ Cookie ブロック:
-     → Safari ITP、Chrome の Cookie 制限
-     → 自社ドメインのファーストパーティ Cookie は影響なし
-     → iframe 内での認証は SameSite=None + CHIPS が必要
+  ⑥ Third-party cookie blocking:
+     → Safari ITP, Chrome cookie restrictions
+     → First-party cookies on your own domain are unaffected
+     → Auth inside iframes requires SameSite=None + CHIPS
 ```
 
 ```typescript
@@ -1927,114 +1928,114 @@ class ResilientSessionManager {
 
 ---
 
-## 16. 演習問題
+## 16. Exercises
 
-### 演習1（基礎）: セッション管理の基本実装
-
-```
-課題:
-  Express.js アプリケーションで以下を実装せよ:
-  1. ログイン時のセッション作成（セッション ID ローテーション付き）
-  2. 認証ミドルウェア（セッション検証）
-  3. ログアウト（サーバー側セッション削除 + Cookie 無効化）
-  4. Cookie 属性の適切な設定
-
-検証ポイント:
-  - crypto.randomBytes() でセッション ID を生成しているか
-  - HttpOnly, Secure, SameSite が設定されているか
-  - ログイン時にセッション ID が再生成されているか
-  - ログアウト時にサーバー側のセッションも削除されているか
-```
-
-### 演習2（応用）: Remember Me とセッション管理 UI
+### Exercise 1 (Basic): Basic Session Management Implementation
 
 ```
-課題:
-  以下の機能を追加実装せよ:
-  1. Remember Me 機能（30日間のトークン + ローテーション）
-  2. アクティブセッション一覧 API
-  3. 特定セッションの無効化 API
-  4. 他の全デバイスからログアウト API
+Task:
+  Implement the following in an Express.js application:
+  1. Session creation on login (with session ID rotation)
+  2. Authentication middleware (session validation)
+  3. Logout (server-side session deletion + cookie invalidation)
+  4. Proper cookie attribute configuration
 
-検証ポイント:
-  - Remember Me トークンがハッシュ化されて DB に保存されているか
-  - トークン使用時にローテーションが行われているか
-  - トークン盗難検知（シリーズ一致・トークン不一致）が実装されているか
-  - セッション一覧で完全なセッション ID が公開されていないか
+Verification points:
+  - Is the session ID generated with crypto.randomBytes()?
+  - Are HttpOnly, Secure, and SameSite set?
+  - Is the session ID regenerated on login?
+  - Is the server-side session also deleted on logout?
 ```
 
-### 演習3（発展）: 異常検知とセキュリティ強化
+### Exercise 2 (Intermediate): Remember Me and Session Management UI
 
 ```
-課題:
-  セッション管理にセキュリティ強化機能を追加せよ:
-  1. IP アドレス変更検知（Impossible Travel Detection）
-  2. User-Agent 変更検知
-  3. 並行セッション数制限（最大5セッション、古いものから無効化）
-  4. CSRF 対策（Synchronizer Token Pattern）
-  5. セキュリティイベントの監査ログ
+Task:
+  Add the following features:
+  1. Remember Me functionality (30-day token + rotation)
+  2. Active sessions list API
+  3. Specific session invalidation API
+  4. Log out from all other devices API
 
-検証ポイント:
-  - Impossible Travel の速度計算が正しいか
-  - User-Agent 変更時にセッションが無効化されるか
-  - セッション数制限が正しく機能するか
-  - CSRF トークンがタイミングセーフに比較されているか
-  - 全セキュリティイベントがログに記録されているか
+Verification points:
+  - Is the Remember Me token stored hashed in the DB?
+  - Is rotation performed when the token is used?
+  - Is theft detection implemented (series matches, token mismatches)?
+  - Is the full session ID hidden from the sessions list?
+```
+
+### Exercise 3 (Advanced): Anomaly Detection and Security Hardening
+
+```
+Task:
+  Add the following security enhancements to session management:
+  1. IP address change detection (Impossible Travel Detection)
+  2. User-Agent change detection
+  3. Concurrent session limit (max 5 sessions, oldest invalidated first)
+  4. CSRF protection (Synchronizer Token Pattern)
+  5. Audit log for security events
+
+Verification points:
+  - Is the speed calculation for Impossible Travel correct?
+  - Is the session invalidated when the User-Agent changes?
+  - Does the session limit work correctly?
+  - Is the CSRF token comparison timing-safe?
+  - Are all security events recorded in the log?
 ```
 
 ---
 
-## 17. FAQ / トラブルシューティング
+## 17. FAQ / Troubleshooting
 
 ```
-Q: Cookie が設定されない / 送信されない
-A: 以下をチェック:
-   1. Secure=true だが HTTP でアクセスしている → HTTPS を使用
-   2. SameSite=None だが Secure がない → Secure を追加
-   3. Domain 属性がリクエスト先のドメインと一致しない
-   4. Path 属性がリクエストパスと一致しない
-   5. Max-Age=0 で即座に失効している
-   6. ブラウザのサードパーティ Cookie ブロックが有効
-   7. 開発ツール > Application > Cookies で確認
+Q: Cookie is not being set / sent
+A: Check the following:
+   1. Secure=true but accessing via HTTP → use HTTPS
+   2. SameSite=None but Secure is missing → add Secure
+   3. Domain attribute does not match the request's domain
+   4. Path attribute does not match the request path
+   5. Max-Age=0 causes immediate expiration
+   6. Browser's third-party cookie blocking is enabled
+   7. Check via DevTools > Application > Cookies
 
-Q: セッションが頻繁に切れる
-A: 以下をチェック:
-   1. Redis の maxmemory-policy が allkeys-lru → セッションが追い出される
-      → volatile-lru に変更（TTL 付きキーのみ追い出し）
-   2. Redis のメモリ不足 → メモリ増設 or セッションデータの削減
-   3. スライディング TTL の更新が動作していない
-   4. 絶対有効期限が短すぎる
-   5. ロードバランサが異なるサーバーにルーティング
-      → Redis を共有ストアとして使用（Sticky Session は非推奨）
+Q: Session expires frequently
+A: Check the following:
+   1. Redis maxmemory-policy is allkeys-lru → session is evicted
+      → Change to volatile-lru (evicts only keys with TTL)
+   2. Redis is out of memory → add memory or reduce session data size
+   3. Sliding TTL update is not working
+   4. Absolute timeout is too short
+   5. Load balancer routing to different servers
+      → Use Redis as shared store (Sticky Session is not recommended)
 
-Q: SameSite=Lax でもまだ CSRF が心配
-A: SameSite=Lax は GET リクエストの CSRF を防げない:
-   → GET でデータ変更を行わない（REST の原則に従う）
-   → 重要な操作には CSRF トークンを追加
-   → 状態変更は必ず POST/PUT/DELETE で行う
+Q: Still worried about CSRF even with SameSite=Lax
+A: SameSite=Lax cannot prevent CSRF for GET requests:
+   → Do not change state via GET (follow REST principles)
+   → Add CSRF tokens for important operations
+   → Always use POST/PUT/DELETE for state changes
 
-Q: セッション ID のローテーション後に Ajax リクエストが失敗する
-A: 複数タブ問題:
-   → タブ A でローテーション → 新しい Cookie が設定される
-   → タブ B はまだ古い Cookie を保持 → リクエスト失敗
-   → 対策: ローテーション後に旧 ID を30秒間有効に保持
-   → または: 401 レスポンス時にフロントでリロードを促す
+Q: Ajax requests fail after session ID rotation
+A: Multiple tabs problem:
+   → Tab A rotates → new cookie is set
+   → Tab B still holds old cookie → request fails
+   → Countermeasure: keep old ID valid for 30 seconds after rotation
+   → Or: prompt frontend to reload on 401 response
 
-Q: Cookie の HttpOnly を設定すると CSRF トークンが取得できない
-A: CSRF トークンの取得方法:
-   → <meta name="csrf-token"> でHTMLに埋め込む
-   → 専用の GET エンドポイント（/api/csrf-token）を用意
-   → Double Submit Cookie パターン（HttpOnly=false の別 Cookie）
-   → セッション Cookie 自体は HttpOnly のまま維持
+Q: Setting HttpOnly on cookie prevents reading the CSRF token
+A: Ways to obtain the CSRF token:
+   → Embed in HTML via <meta name="csrf-token">
+   → Provide a dedicated GET endpoint (/api/csrf-token)
+   → Double Submit Cookie pattern (separate cookie with HttpOnly=false)
+   → Keep the session cookie itself as HttpOnly
 
-Q: JWT とセッションのどちらを使うべきか
-A: 判断基準:
-   → Web アプリのみ → セッション + Cookie（推奨）
-   → モバイルアプリ → JWT
-   → マイクロサービス間 → JWT
-   → 即時無効化が必要 → セッション
-   → サーバーレス → JWT（ストア不要）
-   → ハイブリッド → Web はセッション、API は JWT
+Q: Should I use JWT or sessions?
+A: Decision criteria:
+   → Web app only → Session + Cookie (recommended)
+   → Mobile app → JWT
+   → Between microservices → JWT
+   → Immediate revocation needed → Session
+   → Serverless → JWT (no store needed)
+   → Hybrid → Session for Web, JWT for API
 ```
 
 ---
@@ -2042,43 +2043,43 @@ A: 判断基準:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend fully understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world development?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ベストプラクティス |
-|------|--------------------|
-| Cookie 属性 | HttpOnly + Secure + SameSite=Lax + __Host- prefix |
-| セッション ID | crypto.randomBytes(32) = 256ビット |
-| ローテーション | ログイン時・権限変更時に ID 再生成 |
-| 有効期限 | スライディング(30分) + 絶対(24時間) |
-| Remember Me | 別トークン、ハッシュ保存、ローテーション付き |
-| ログアウト | ストア削除 + Cookie 無効化 + Clear-Site-Data |
-| CSRF 対策 | SameSite=Lax + CSRF トークン（多層防御） |
-| 異常検知 | IP/UA 変更検知、Impossible Travel |
-| セッション管理 | 一覧表示、個別/全体無効化 |
-| パフォーマンス | Redis + Connection Pool + TTL 更新最適化 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Item | Best Practice |
+|------|---------------|
+| Cookie attributes | HttpOnly + Secure + SameSite=Lax + __Host- prefix |
+| Session ID | crypto.randomBytes(32) = 256 bits |
+| Rotation | Regenerate ID on login and permission change |
+| Expiration | Sliding (30 min) + Absolute (24 hours) |
+| Remember Me | Separate token, stored hashed, with rotation |
+| Logout | Delete from store + invalidate cookie + Clear-Site-Data |
+| CSRF protection | SameSite=Lax + CSRF token (defense-in-depth) |
+| Anomaly detection | IP/UA change detection, Impossible Travel |
+| Session management | List view, individual/global invalidation |
+| Performance | Redis + Connection Pool + optimized TTL updates |
+
+---
+
+## What to Read Next
 
 
 ---
 
-## 参考文献
+## References
 
 1. OWASP. "Session Management Cheat Sheet." cheatsheetseries.owasp.org, 2024.
 2. RFC 6265. "HTTP State Management Mechanism." IETF, 2011.
