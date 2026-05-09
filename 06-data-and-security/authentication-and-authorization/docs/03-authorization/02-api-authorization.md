@@ -1,130 +1,132 @@
-# API 認可
+# API Authorization
 
-> API のアクセス制御はサービスのセキュリティの要。スコープ設計、API キー管理、リソースベース認可、レート制限、マルチテナント API まで、安全な API 認可の設計と実装を解説する。
+> Access control for APIs is the cornerstone of service security. This chapter covers scope design, API key management, resource-based authorization, rate limiting, and multi-tenant APIs — everything needed to design and implement secure API authorization.
 
-## 前提知識
+## Prerequisites
 
-- HTTP ステータスコードの基本（401, 403, 404）
-- Express / Next.js のミドルウェアパターン
+- Basic understanding of HTTP status codes (401, 403, 404)
+- Middleware patterns in Express / Next.js
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] OAuth スコープの設計と実装を理解する
-- [ ] API キーの安全な管理パターンを把握する
-- [ ] リソースベースの認可をミドルウェアで実装できるようになる
-- [ ] マルチテナント API のデータ分離を設計できる
-- [ ] レート制限と API 認可の組み合わせを実装できる
-- [ ] 認可エラーの適切なレスポンス設計を把握する
+- [ ] Understand OAuth scope design and implementation
+- [ ] Learn secure API key management patterns
+- [ ] Implement resource-based authorization using middleware
+- [ ] Design data isolation for multi-tenant APIs
+- [ ] Combine rate limiting with API authorization
+- [ ] Learn proper error response design for authorization failures
 
 ---
 
-## 1. スコープ設計
+## 1. Scope Design
 
-### 1.1 スコープの基本概念
+### 1.1 Basic Concepts of Scopes
 
 ```
-スコープとは:
+What is a Scope:
 
-  OAuth 2.0 におけるスコープは、アクセストークンに付与される
-  「権限の範囲」を定義する文字列
+  In OAuth 2.0, a scope is a string that defines the
+  "range of permissions" granted to an access token
 
   ┌──────────────────────────────────────────────────────┐
-  │                   アクセス制御の階層                    │
+  │              Access Control Hierarchy                 │
   │                                                       │
   │  ┌─────────────────────────────────────────────────┐  │
-  │  │ Authentication（認証）                           │  │
-  │  │ → 「誰であるか」を確認                            │  │
+  │  │ Authentication                                   │  │
+  │  │ → Verifies "who you are"                         │  │
   │  │ → JWT / Session / API Key                       │  │
   │  └────────────────────────┬────────────────────────┘  │
   │                           │                           │
   │  ┌────────────────────────┴────────────────────────┐  │
-  │  │ Authorization（認可）                            │  │
+  │  │ Authorization                                    │  │
   │  │                                                 │  │
   │  │  ┌───────────┐  ┌───────────┐  ┌────────────┐  │  │
   │  │  │ Scope     │  │ Role      │  │ Resource   │  │  │
-  │  │  │ ベース    │  │ ベース    │  │ ベース     │  │  │
+  │  │  │ Based     │  │ Based     │  │ Based      │  │  │
   │  │  │           │  │           │  │            │  │  │
-  │  │  │ API 単位  │  │ ユーザー  │  │ リソース    │  │  │
-  │  │  │ の権限    │  │ 単位の    │  │ 所有者     │  │  │
-  │  │  │           │  │ 権限      │  │ チェック   │  │  │
+  │  │  │ Per-API   │  │ Per-user  │  │ Resource   │  │  │
+  │  │  │ permissions│  │ permissions│  │ owner     │  │  │
+  │  │  │           │  │           │  │ check      │  │  │
   │  │  └───────────┘  └───────────┘  └────────────┘  │  │
   │  └─────────────────────────────────────────────────┘  │
   └──────────────────────────────────────────────────────┘
 ```
 
-### 1.2 スコープの命名パターン
+### 1.2 Scope Naming Patterns
 
 ```
-OAuth スコープの設計:
+OAuth Scope Design:
 
-  命名パターン: resource:action
+  Naming pattern: resource:action
 
-  例（GitHub 風）:
-    read:user         — ユーザー情報読取
-    user:email        — メールアドレス読取
-    repo              — リポジトリ全般
-    repo:status       — コミットステータス
-    admin:org         — 組織管理
+  Examples (GitHub-style):
+    read:user         — Read user information
+    user:email        — Read email address
+    repo              — General repository access
+    repo:status       — Commit status
+    admin:org         — Organization administration
 
-  例（Google 風）:
+  Examples (Google-style):
     https://www.googleapis.com/auth/userinfo.email
     https://www.googleapis.com/auth/drive.readonly
     https://www.googleapis.com/auth/calendar.events
 
-  例（Stripe 風）:
-    charges:read      — 課金情報の読取
-    charges:write     — 課金の作成・更新
-    customers:read    — 顧客情報の読取
+  Examples (Stripe-style):
+    charges:read      — Read billing information
+    charges:write     — Create and update charges
+    customers:read    — Read customer information
 
-  推奨パターン:
-    → resource:action 形式が最も明確
-    → 粒度は API の用途に合わせる
-    → read は readonly の意味（副作用なし）
+  Recommended pattern:
+    → resource:action format is the clearest
+    → Granularity should match the API's purpose
+    → read means read-only (no side effects)
 ```
 
-### 1.3 スコープの粒度設計
+### 1.3 Scope Granularity Design
 
 ```
-スコープの粒度:
+Scope Granularity:
 
   ┌──────────────┬──────────────────────┬────────────────┬──────────┐
-  │ 粒度          │ 例                   │ 利点            │ 欠点     │
+  │ Granularity  │ Example              │ Pros           │ Cons     │
   ├──────────────┼──────────────────────┼────────────────┼──────────┤
-  │ 粗すぎる      │ "all"               │ シンプル        │ 危険     │
-  │              │ "admin"             │ 管理しやすい     │ 過剰権限 │
+  │ Too coarse   │ "all"               │ Simple         │ Dangerous│
+  │              │ "admin"             │ Easy to manage │ Excessive│
+  │              │                     │                │ privilege│
   ├──────────────┼──────────────────────┼────────────────┼──────────┤
-  │ 適切          │ "articles:read"     │ 最小権限原則    │ 設計が    │
-  │              │ "articles:write"    │ 明確な範囲      │ 必要     │
+  │ Appropriate  │ "articles:read"     │ Least privilege│ Requires │
+  │              │ "articles:write"    │ Clear scope    │ design   │
   │              │ "users:read"        │                │          │
   ├──────────────┼──────────────────────┼────────────────┼──────────┤
-  │ 細かすぎる    │ "articles:read:title"│ 精密な制御      │ 複雑     │
-  │              │ "users:read:email"  │                │ 管理困難 │
+  │ Too fine     │ "articles:read:title"│ Precise control│ Complex  │
+  │              │ "users:read:email"  │                │ Hard to  │
+  │              │                     │                │ manage   │
   └──────────────┴──────────────────────┴────────────────┴──────────┘
 
-  適切な粒度の判断基準:
-  → ユーザーが理解できるか（OAuth 同意画面で表示）
-  → API のエンドポイント設計と一致するか
-  → 最小権限原則を満たしているか
-  → 将来の拡張性があるか
+  Criteria for appropriate granularity:
+  → Can users understand it? (shown on the OAuth consent screen)
+  → Does it align with the API endpoint design?
+  → Does it satisfy the principle of least privilege?
+  → Is it extensible for the future?
 
-  スコープの階層関係:
+  Scope hierarchy:
   ┌──────────────────────────────────────┐
-  │ admin（全権限）                       │
-  │  ├── articles:write（記事の書込み）   │
-  │  │    └── articles:read（記事の読取） │
-  │  ├── users:write（ユーザーの書込み）   │
-  │  │    └── users:read（ユーザーの読取） │
-  │  └── org:settings（組織設定）         │
+  │ admin (full access)                  │
+  │  ├── articles:write (write articles) │
+  │  │    └── articles:read (read articles)│
+  │  ├── users:write (write users)       │
+  │  │    └── users:read (read users)    │
+  │  └── org:settings (org settings)    │
   └──────────────────────────────────────┘
-  → write は read を暗黙的に含む設計が一般的
+  → write typically implies read in most designs
 ```
 
-### 1.4 スコープベースの認可実装
+### 1.4 Scope-Based Authorization Implementation
 
 ```typescript
-// スコープベースの API 認可
+// Scope-based API authorization
 
-// スコープ定義
+// Scope definitions
 const SCOPES = {
   'articles:read': 'Read articles',
   'articles:write': 'Create and update articles',
@@ -138,7 +140,7 @@ const SCOPES = {
 
 type Scope = keyof typeof SCOPES;
 
-// スコープの包含関係を定義
+// Define scope hierarchy
 const SCOPE_HIERARCHY: Record<string, Scope[]> = {
   'admin': Object.keys(SCOPES) as Scope[],
   'articles:write': ['articles:read'],
@@ -148,7 +150,7 @@ const SCOPE_HIERARCHY: Record<string, Scope[]> = {
   'org:billing': [],
 };
 
-// スコープの展開（階層を考慮）
+// Expand scopes (considering hierarchy)
 function expandScopes(scopes: Scope[]): Set<Scope> {
   const expanded = new Set<Scope>(scopes);
 
@@ -162,7 +164,7 @@ function expandScopes(scopes: Scope[]): Set<Scope> {
   return expanded;
 }
 
-// スコープ検証ミドルウェア
+// Scope validation middleware
 function requireScope(...requiredScopes: Scope[]) {
   return (req: Request, res: Response, next: Function) => {
     const tokenScopes = req.auth?.scopes as Scope[] || [];
@@ -175,7 +177,7 @@ function requireScope(...requiredScopes: Scope[]) {
         message: 'You do not have the required permissions',
         required_scopes: requiredScopes,
         granted_scopes: tokenScopes,
-        // WWW-Authenticate ヘッダー（RFC 6750 §3.1）
+        // WWW-Authenticate header (RFC 6750 §3.1)
       });
     }
 
@@ -183,7 +185,7 @@ function requireScope(...requiredScopes: Scope[]) {
   };
 }
 
-// 使用例
+// Usage examples
 app.get('/api/articles', requireScope('articles:read'), listArticles);
 app.post('/api/articles', requireScope('articles:write'), createArticle);
 app.delete('/api/articles/:id', requireScope('articles:delete'), deleteArticle);
@@ -192,54 +194,54 @@ app.put('/api/users/:id', requireScope('users:write'), updateUser);
 app.get('/api/org/settings', requireScope('org:settings'), getOrgSettings);
 ```
 
-### 1.5 OAuth 同意画面のスコープ表示
+### 1.5 Scope Display on OAuth Consent Screen
 
 ```typescript
-// スコープの説明を人間可読にする
+// Make scope descriptions human-readable
 const SCOPE_DESCRIPTIONS: Record<Scope, { title: string; description: string; risk: 'low' | 'medium' | 'high' }> = {
   'articles:read': {
-    title: '記事の閲覧',
-    description: 'あなたのアカウントの記事を読み取ります',
+    title: 'View articles',
+    description: 'Read articles in your account',
     risk: 'low',
   },
   'articles:write': {
-    title: '記事の作成・編集',
-    description: 'あなたのアカウントで記事を作成・編集します',
+    title: 'Create and edit articles',
+    description: 'Create and edit articles in your account',
     risk: 'medium',
   },
   'articles:delete': {
-    title: '記事の削除',
-    description: 'あなたのアカウントの記事を削除します',
+    title: 'Delete articles',
+    description: 'Delete articles in your account',
     risk: 'high',
   },
   'users:read': {
-    title: 'ユーザー情報の閲覧',
-    description: 'あなたのプロフィール情報を読み取ります',
+    title: 'View user information',
+    description: 'Read your profile information',
     risk: 'low',
   },
   'users:write': {
-    title: 'ユーザー情報の更新',
-    description: 'あなたのプロフィール情報を更新します',
+    title: 'Update user information',
+    description: 'Update your profile information',
     risk: 'medium',
   },
   'org:settings': {
-    title: '組織設定の管理',
-    description: '組織の設定を変更します',
+    title: 'Manage organization settings',
+    description: 'Change organization settings',
     risk: 'high',
   },
   'org:billing': {
-    title: '課金情報の管理',
-    description: '支払い情報やプランを変更します',
+    title: 'Manage billing information',
+    description: 'Change payment information and plans',
     risk: 'high',
   },
   'admin': {
-    title: '管理者アクセス',
-    description: '全ての操作を実行できます',
+    title: 'Administrator access',
+    description: 'Can perform all operations',
     risk: 'high',
   },
 };
 
-// 同意画面のAPI
+// Consent screen API
 app.get('/api/oauth/consent', async (req, res) => {
   const requestedScopes = (req.query.scope as string).split(' ') as Scope[];
 
@@ -261,50 +263,51 @@ app.get('/api/oauth/consent', async (req, res) => {
 
 ---
 
-## 2. API キー管理
+## 2. API Key Management
 
-### 2.1 API キーの設計原則
+### 2.1 API Key Design Principles
 
 ```
-API キーの設計:
+API Key Design:
 
-  構造:
+  Structure:
     prefix_randomstring
-    例: sk_live_EXAMPLE_DO_NOT_USE_1234567890
+    Example: sk_live_EXAMPLE_DO_NOT_USE_1234567890
 
-  プレフィックス:
-    sk_live_  — 本番用 Secret Key
-    sk_test_  — テスト用 Secret Key
-    pk_live_  — 本番用 Public Key（クライアント向け）
-    pk_test_  — テスト用 Public Key
+  Prefixes:
+    sk_live_  — Production Secret Key
+    sk_test_  — Test Secret Key
+    pk_live_  — Production Public Key (for clients)
+    pk_test_  — Test Public Key
 
   ┌──────────────────────────────────────────────────────────┐
-  │                  API キーのライフサイクル                   │
+  │                  API Key Lifecycle                        │
   │                                                          │
-  │  生成 → 表示(1回のみ) → 使用 → ローテーション → 失効     │
+  │  Generate → Display (once only) → Use → Rotate → Expire  │
   │                                                          │
   │  ┌────────┐  ┌────────────┐  ┌────────┐  ┌───────────┐  │
-  │  │ 生成   │→│  ハッシュ化 │→│ DB保存 │→│ 検証時に  │  │
-  │  │ random │  │  SHA-256   │  │ hash   │  │ 比較     │  │
-  │  │ bytes  │  │            │  │ prefix │  │          │  │
+  │  │Generate│→│   Hash     │→│ Save   │→│ Compare   │  │
+  │  │ random │  │  SHA-256   │  │ hash   │  │ on verify │  │
+  │  │ bytes  │  │            │  │ prefix │  │           │  │
   │  └────────┘  └────────────┘  └────────┘  └───────────┘  │
   │                                                          │
-  │  セキュリティ要件:                                         │
-  │  → API キーはハッシュ化して保存（平文保存しない）           │
-  │  → 作成時のみ平文を表示（以降は取得不可）                  │
-  │  → プレフィックスは平文で保存（検索・表示用）              │
-  │  → 定期的なローテーションを推奨                            │
-  │  → 失効・取り消しの仕組みを用意                           │
+  │  Security requirements:                                  │
+  │  → Store API keys as hashes (never store in plain text)  │
+  │  → Display plain text only at creation (cannot be        │
+  │    retrieved later)                                      │
+  │  → Store prefix in plain text (for search and display)   │
+  │  → Recommend regular rotation                            │
+  │  → Provide mechanisms for expiration and revocation      │
   └──────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 API キーの生成と管理
+### 2.2 API Key Generation and Management
 
 ```typescript
-// API キーの生成と管理
+// API key generation and management
 import crypto from 'crypto';
 
-// API キー生成
+// API key generation
 function generateApiKey(type: 'secret' | 'public', env: 'live' | 'test'): {
   key: string;
   prefix: string;
@@ -320,7 +323,7 @@ function generateApiKey(type: 'secret' | 'public', env: 'live' | 'test'): {
 
   const prefix = prefixMap[`${type}-${env}`];
   const randomPart = crypto.randomBytes(24).toString('base64url');
-  // 24 bytes = 32 文字の base64url = 192 ビットのエントロピー
+  // 24 bytes = 32 base64url characters = 192 bits of entropy
   const key = `${prefix}${randomPart}`;
   const hash = crypto.createHash('sha256').update(key).digest('hex');
   const lastFour = randomPart.slice(-4);
@@ -328,7 +331,7 @@ function generateApiKey(type: 'secret' | 'public', env: 'live' | 'test'): {
   return { key, prefix, hash, lastFour };
 }
 
-// API キー保存
+// Save API key
 async function createApiKey(
   userId: string,
   name: string,
@@ -349,11 +352,11 @@ async function createApiKey(
     data: {
       userId,
       name,
-      prefix,            // 検索・表示用（平文）
-      keyHash: hash,     // 検証用（ハッシュ）
-      lastFour,          // 表示用（末尾4文字）
+      prefix,            // For search and display (plain text)
+      keyHash: hash,     // For verification (hash)
+      lastFour,          // For display (last 4 characters)
       scopes,
-      rateLimit: options.rateLimit ?? 1000, // リクエスト/時間
+      rateLimit: options.rateLimit ?? 1000, // requests/hour
       ipWhitelist: options.ipWhitelist ?? [],
       lastUsedAt: null,
       expiresAt,
@@ -361,7 +364,7 @@ async function createApiKey(
     },
   });
 
-  // この時点でのみ完全なキーを返す
+  // Return the full key only at this point
   return {
     key,
     prefix,
@@ -370,7 +373,7 @@ async function createApiKey(
   };
 }
 
-// API キーの一覧取得（ハッシュは返さない）
+// List API keys (do not return hashes)
 async function listApiKeys(userId: string) {
   const keys = await db.apiKey.findMany({
     where: { userId },
@@ -390,7 +393,7 @@ async function listApiKeys(userId: string) {
 
   return keys.map(k => ({
     ...k,
-    // 表示用: sk_live_****abcd
+    // Display format: sk_live_****abcd
     maskedKey: `${k.prefix}****${k.lastFour}`,
     isExpired: k.expiresAt ? k.expiresAt < new Date() : false,
     isRevoked: !!k.revokedAt,
@@ -398,17 +401,17 @@ async function listApiKeys(userId: string) {
 }
 ```
 
-### 2.3 API キーの検証
+### 2.3 API Key Validation
 
 ```typescript
-// API キー検証
+// API key validation
 async function validateApiKey(key: string): Promise<ApiKeyData | null> {
-  // プレフィックスの確認
+  // Check prefix
   const validPrefixes = ['sk_live_', 'sk_test_', 'pk_live_', 'pk_test_'];
   const hasValidPrefix = validPrefixes.some(p => key.startsWith(p));
   if (!hasValidPrefix) return null;
 
-  // ハッシュ化して検索
+  // Hash and look up
   const hash = crypto.createHash('sha256').update(key).digest('hex');
 
   const apiKey = await db.apiKey.findUnique({
@@ -416,22 +419,22 @@ async function validateApiKey(key: string): Promise<ApiKeyData | null> {
     include: { user: true },
   });
 
-  // 存在チェック
+  // Existence check
   if (!apiKey) return null;
 
-  // 取り消しチェック
+  // Revocation check
   if (apiKey.revokedAt) {
     console.warn(`Revoked API key used: ${apiKey.id}`);
     return null;
   }
 
-  // 有効期限チェック
+  // Expiration check
   if (apiKey.expiresAt && apiKey.expiresAt < new Date()) {
     console.warn(`Expired API key used: ${apiKey.id}`);
     return null;
   }
 
-  // 最終使用日時を更新（非同期、リクエストをブロックしない）
+  // Update last used timestamp (async, does not block request)
   db.apiKey.update({
     where: { id: apiKey.id },
     data: { lastUsedAt: new Date() },
@@ -447,23 +450,23 @@ async function validateApiKey(key: string): Promise<ApiKeyData | null> {
   };
 }
 
-// API キーのローテーション
+// API key rotation
 async function rotateApiKey(userId: string, oldKeyId: string) {
-  // 古いキーの情報を取得
+  // Get information about the old key
   const oldKey = await db.apiKey.findFirst({
     where: { id: oldKeyId, userId },
   });
 
   if (!oldKey) throw new Error('API key not found');
 
-  // 新しいキーを生成
+  // Generate a new key
   const newKeyData = await createApiKey(userId, oldKey.name, oldKey.scopes, {
     rateLimit: oldKey.rateLimit,
     ipWhitelist: oldKey.ipWhitelist,
   });
 
-  // 古いキーにグレースピリオドを設定（即座に無効化しない）
-  const gracePeriod = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24時間
+  // Set a grace period for the old key (do not invalidate immediately)
+  const gracePeriod = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
   await db.apiKey.update({
     where: { id: oldKeyId },
     data: { expiresAt: gracePeriod },
@@ -476,7 +479,7 @@ async function rotateApiKey(userId: string, oldKeyId: string) {
   };
 }
 
-// API キーの取り消し
+// API key revocation
 async function revokeApiKey(userId: string, keyId: string) {
   await db.apiKey.update({
     where: { id: keyId, userId },
@@ -485,16 +488,16 @@ async function revokeApiKey(userId: string, keyId: string) {
 }
 ```
 
-### 2.4 API キー認証ミドルウェア
+### 2.4 API Key Authentication Middleware
 
 ```typescript
-// API キー認証ミドルウェア
+// API key authentication middleware
 async function apiKeyAuth(req: Request, res: Response, next: Function) {
-  // API キーの取得元（優先順位）
+  // Sources for the API key (in order of priority)
   const key =
-    req.headers['x-api-key'] as string ||                    // カスタムヘッダー
-    req.headers.authorization?.replace('Bearer ', '') ||     // Authorization ヘッダー
-    req.query.api_key as string;                             // クエリパラメータ（非推奨）
+    req.headers['x-api-key'] as string ||                    // Custom header
+    req.headers.authorization?.replace('Bearer ', '') ||     // Authorization header
+    req.query.api_key as string;                             // Query parameter (deprecated)
 
   if (!key) {
     return res.status(401).json({
@@ -503,7 +506,7 @@ async function apiKeyAuth(req: Request, res: Response, next: Function) {
     });
   }
 
-  // クエリパラメータ経由の場合は警告
+  // Warn if API key is passed via query parameter
   if (req.query.api_key) {
     res.setHeader('X-Warning', 'Passing API key via query parameter is deprecated. Use X-API-Key header instead.');
   }
@@ -516,7 +519,7 @@ async function apiKeyAuth(req: Request, res: Response, next: Function) {
     });
   }
 
-  // IP ホワイトリストのチェック
+  // IP whitelist check
   if (apiKeyData.ipWhitelist.length > 0) {
     const clientIp = req.ip || req.headers['x-forwarded-for'];
     if (!apiKeyData.ipWhitelist.includes(clientIp as string)) {
@@ -527,9 +530,9 @@ async function apiKeyAuth(req: Request, res: Response, next: Function) {
     }
   }
 
-  // テストキーの分離
+  // Separate test keys
   if (apiKeyData.isTestKey && process.env.NODE_ENV === 'production') {
-    // テストキーは本番環境ではテストデータのみアクセス可能
+    // Test keys can only access test data in production
     req.isTestMode = true;
   }
 
@@ -540,51 +543,51 @@ async function apiKeyAuth(req: Request, res: Response, next: Function) {
 
 ---
 
-## 3. リソースベース認可
+## 3. Resource-Based Authorization
 
-### 3.1 リソースベース認可の設計
+### 3.1 Resource-Based Authorization Design
 
 ```
-リソースベース認可:
+Resource-Based Authorization:
 
-  スコープやロールだけでは不十分な場合:
-  → 「記事の編集権限がある」だけでなく
-  → 「この記事の編集権限がある」かを判定
+  When scope or role alone is insufficient:
+  → Not just "has permission to edit articles"
+  → But "has permission to edit THIS article"
 
-  判定ロジック:
+  Decision logic:
   ┌──────────────────────────────────────────────────┐
-  │ リソースアクセスの判定フロー:                      │
+  │ Resource Access Decision Flow:                    │
   │                                                   │
-  │ ① リソースの存在確認                              │
-  │    → 見つからない場合: 404                         │
+  │ ① Check resource existence                        │
+  │    → Not found: 404                               │
   │                                                   │
-  │ ② 公開リソースかチェック                           │
-  │    → 公開 + read アクション: 許可                  │
+  │ ② Check if resource is public                     │
+  │    → Public + read action: allow                  │
   │                                                   │
-  │ ③ 所有者チェック                                   │
-  │    → リソースの authorId === userId: 許可           │
+  │ ③ Ownership check                                 │
+  │    → resource.authorId === userId: allow           │
   │                                                   │
-  │ ④ 組織内の権限チェック                             │
-  │    → 同じ組織 + 適切なロール: 許可                  │
+  │ ④ Organization permission check                   │
+  │    → Same org + appropriate role: allow           │
   │                                                   │
-  │ ⑤ 共有設定のチェック                               │
-  │    → 明示的に共有されている: 許可                   │
+  │ ⑤ Sharing settings check                          │
+  │    → Explicitly shared: allow                     │
   │                                                   │
-  │ ⑥ 上記すべて不可: 403（または 404）                │
+  │ ⑥ All of the above fail: 403 (or 404)             │
   └──────────────────────────────────────────────────┘
 ```
 
-### 3.2 リソースベース認可の実装
+### 3.2 Resource-Based Authorization Implementation
 
 ```typescript
-// リソースの所有者チェック
+// Resource ownership check
 interface ResourcePolicy {
   resourceType: string;
   actions: string[];
   check: (userId: string, resourceId: string, action: string) => Promise<boolean>;
 }
 
-// ポリシー定義
+// Policy definitions
 const articlePolicy: ResourcePolicy = {
   resourceType: 'article',
   actions: ['read', 'update', 'delete', 'publish'],
@@ -597,17 +600,17 @@ const articlePolicy: ResourcePolicy = {
 
     if (!article) return false;
 
-    // 公開記事は誰でも読める
+    // Anyone can read published articles
     if (action === 'read' && article.status === 'published') return true;
 
-    // 自分の記事は操作可能
+    // Users can operate on their own articles
     if (article.authorId === userId) return true;
 
-    // 同じ組織のadminは操作可能
+    // Org admin can operate on articles in the same org
     const user = await db.user.findUnique({ where: { id: userId } });
     if (user?.role === 'admin' && user?.orgId === article.orgId) return true;
 
-    // editor はドラフト以外を publish できる
+    // Editor can publish non-draft articles in the same org
     if (action === 'publish' && user?.role === 'editor' && user?.orgId === article.orgId) {
       return true;
     }
@@ -628,16 +631,16 @@ const commentPolicy: ResourcePolicy = {
 
     if (!comment) return false;
 
-    // コメントは誰でも読める（親記事が公開の場合）
+    // Anyone can read comments (if the parent article is published)
     if (action === 'read' && comment.article.status === 'published') return true;
 
-    // 自分のコメントは更新・削除可能
+    // Users can update or delete their own comments
     if (comment.authorId === userId) return true;
 
-    // 記事の著者はコメントを削除可能
+    // Article author can delete comments
     if (action === 'delete' && comment.article.authorId === userId) return true;
 
-    // admin は全コメントを操作可能
+    // Admin can operate on all comments
     const user = await db.user.findUnique({ where: { id: userId } });
     if (user?.role === 'admin') return true;
 
@@ -645,13 +648,13 @@ const commentPolicy: ResourcePolicy = {
   },
 };
 
-// ポリシーレジストリ
+// Policy registry
 const policyRegistry = new Map<string, ResourcePolicy>([
   ['article', articlePolicy],
   ['comment', commentPolicy],
 ]);
 
-// 汎用的なリソース認可関数
+// Generic resource authorization function
 async function authorizeResourceAccess(
   userId: string,
   resourceType: string,
@@ -672,7 +675,7 @@ async function authorizeResourceAccess(
   return policy.check(userId, resourceId, action);
 }
 
-// ミドルウェアとして使用
+// Use as middleware
 function authorizeResource(resourceType: string, action: string) {
   return async (req: Request, res: Response, next: Function) => {
     const resourceId = req.params.id;
@@ -681,8 +684,8 @@ function authorizeResource(resourceType: string, action: string) {
     const allowed = await authorizeResourceAccess(userId, resourceType, resourceId, action);
 
     if (!allowed) {
-      // セキュリティ上の理由で 404 を返す場合
-      // → リソースの存在を隠したい場合
+      // Return 404 for security reasons
+      // → When you want to hide the existence of a resource
       const hideExistence = resourceType === 'article';
       const statusCode = hideExistence ? 404 : 403;
 
@@ -698,37 +701,37 @@ function authorizeResource(resourceType: string, action: string) {
   };
 }
 
-// ルート定義
+// Route definitions
 app.get('/api/articles/:id', apiKeyAuth, authorizeResource('article', 'read'), getArticle);
 app.put('/api/articles/:id', apiKeyAuth, requireScope('articles:write'), authorizeResource('article', 'update'), updateArticle);
 app.delete('/api/articles/:id', apiKeyAuth, requireScope('articles:delete'), authorizeResource('article', 'delete'), deleteArticle);
 app.post('/api/articles/:id/publish', apiKeyAuth, requireScope('articles:write'), authorizeResource('article', 'publish'), publishArticle);
 ```
 
-### 3.3 フィールドレベルの認可
+### 3.3 Field-Level Authorization
 
 ```typescript
-// フィールドレベルの認可
-// → リソースへのアクセスは許可するが、一部のフィールドを隠す
+// Field-level authorization
+// → Allow access to the resource, but hide certain fields
 
 interface FieldFilter {
   [field: string]: boolean | ((user: AuthData) => boolean);
 }
 
 const articleFieldFilters: Record<string, FieldFilter> = {
-  // 公開記事: 全フィールド
+  // Public article: all fields
   viewer: {
     id: true,
     title: true,
     content: true,
     author: true,
     createdAt: true,
-    // 内部フィールドは非表示
+    // Internal fields hidden
     internalNotes: false,
     moderationStatus: false,
     revenue: false,
   },
-  // 著者: 内部メモも表示
+  // Author: internal notes also visible
   author: {
     id: true,
     title: true,
@@ -739,7 +742,7 @@ const articleFieldFilters: Record<string, FieldFilter> = {
     moderationStatus: true,
     revenue: false,
   },
-  // 管理者: 全フィールド
+  // Admin: all fields
   admin: {
     id: true,
     title: true,
@@ -769,18 +772,18 @@ function filterFields(data: Record<string, any>, role: string): Record<string, a
 
 ---
 
-## 4. レート制限と API 認可
+## 4. Rate Limiting and API Authorization
 
-### 4.1 レート制限の設計
+### 4.1 Rate Limiting Design
 
 ```
-レート制限の設計:
+Rate Limiting Design:
 
   ┌──────────────────────────────────────────────────────────┐
-  │                  レート制限の階層                          │
+  │                  Rate Limit Hierarchy                     │
   │                                                          │
   │  ┌────────────────────────────────────────────────────┐  │
-  │  │ Global Rate Limit: 10,000 req/min（全体）          │  │
+  │  │ Global Rate Limit: 10,000 req/min (overall)        │  │
   │  │                                                    │  │
   │  │  ┌──────────────────────────────────────────────┐  │  │
   │  │  │ Per-API-Key: 1,000 req/hour                  │  │  │
@@ -790,7 +793,7 @@ function filterFields(data: Record<string, any>, role: string): Record<string, a
   │  │  │  │                                        │  │  │  │
   │  │  │  │  ┌──────────────────────────────────┐  │  │  │  │
   │  │  │  │  │ Per-Resource: 10 req/min         │  │  │  │  │
-  │  │  │  │  │ (DELETE等の破壊的操作)            │  │  │  │  │
+  │  │  │  │  │ (destructive operations like DELETE)│ │  │  │  │
   │  │  │  │  └──────────────────────────────────┘  │  │  │  │
   │  │  │  └────────────────────────────────────────┘  │  │  │
   │  │  └──────────────────────────────────────────────┘  │  │
@@ -798,16 +801,16 @@ function filterFields(data: Record<string, any>, role: string): Record<string, a
   └──────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Redis ベースのレート制限
+### 4.2 Redis-Based Rate Limiting
 
 ```typescript
-// Redis ベースのレート制限
+// Redis-based rate limiting
 import Redis from 'ioredis';
 
 interface RateLimitConfig {
-  windowMs: number;     // ウィンドウサイズ（ミリ秒）
-  max: number;          // 最大リクエスト数
-  keyPrefix?: string;   // Redis キープレフィックス
+  windowMs: number;     // Window size (milliseconds)
+  max: number;          // Maximum number of requests
+  keyPrefix?: string;   // Redis key prefix
 }
 
 class RateLimiter {
@@ -827,15 +830,15 @@ class RateLimiter {
     const now = Date.now();
     const windowStart = now - config.windowMs;
 
-    // スライディングウィンドウ方式
+    // Sliding window approach
     const pipeline = this.redis.pipeline();
-    // 古いエントリを削除
+    // Remove old entries
     pipeline.zremrangebyscore(key, '-inf', windowStart);
-    // 現在のリクエストを追加
+    // Add current request
     pipeline.zadd(key, now, `${now}-${Math.random()}`);
-    // ウィンドウ内のリクエスト数を取得
+    // Get number of requests in the window
     pipeline.zcard(key);
-    // TTL を設定
+    // Set TTL
     pipeline.expire(key, Math.ceil(config.windowMs / 1000));
 
     const results = await pipeline.exec();
@@ -849,17 +852,17 @@ class RateLimiter {
   }
 }
 
-// レート制限ミドルウェア
+// Rate limiting middleware
 function rateLimitMiddleware(redis: Redis, config: RateLimitConfig) {
   const limiter = new RateLimiter(redis);
 
   return async (req: Request, res: Response, next: Function) => {
-    // API キーベースの識別子
+    // API key-based identifier
     const identifier = req.auth?.keyId || req.ip || 'anonymous';
 
     const result = await limiter.check(identifier, config);
 
-    // レスポンスヘッダーの設定（RFC 6585 準拠）
+    // Set response headers (RFC 6585 compliant)
     res.setHeader('X-RateLimit-Limit', result.limit);
     res.setHeader('X-RateLimit-Remaining', result.remaining);
     res.setHeader('X-RateLimit-Reset', Math.ceil(result.resetAt.getTime() / 1000));
@@ -877,7 +880,7 @@ function rateLimitMiddleware(redis: Redis, config: RateLimitConfig) {
   };
 }
 
-// プランベースのレート制限
+// Plan-based rate limiting
 const PLAN_RATE_LIMITS: Record<string, RateLimitConfig> = {
   free: { windowMs: 60 * 60 * 1000, max: 100, keyPrefix: 'rl:free' },
   pro: { windowMs: 60 * 60 * 1000, max: 1000, keyPrefix: 'rl:pro' },
@@ -893,27 +896,27 @@ function planBasedRateLimit(redis: Redis) {
   };
 }
 
-// 使用例
+// Usage example
 app.use('/api/', apiKeyAuth, planBasedRateLimit(redis));
 ```
 
-### 4.3 エンドポイント別のレート制限
+### 4.3 Per-Endpoint Rate Limiting
 
 ```typescript
-// エンドポイント別のレート制限
+// Per-endpoint rate limiting
 const ENDPOINT_RATE_LIMITS: Record<string, RateLimitConfig> = {
-  // 読み取り系: 緩い制限
+  // Read operations: relaxed limits
   'GET:/api/articles': { windowMs: 60 * 1000, max: 100 },
   'GET:/api/users': { windowMs: 60 * 1000, max: 50 },
 
-  // 書き込み系: 厳しい制限
+  // Write operations: stricter limits
   'POST:/api/articles': { windowMs: 60 * 1000, max: 10 },
   'PUT:/api/articles/:id': { windowMs: 60 * 1000, max: 20 },
 
-  // 削除系: 非常に厳しい制限
+  // Delete operations: very strict limits
   'DELETE:/api/articles/:id': { windowMs: 60 * 1000, max: 5 },
 
-  // 認証系: 最も厳しい制限
+  // Auth operations: strictest limits
   'POST:/api/auth/login': { windowMs: 15 * 60 * 1000, max: 5 },
   'POST:/api/auth/register': { windowMs: 60 * 60 * 1000, max: 3 },
 };
@@ -925,7 +928,7 @@ function endpointRateLimit(redis: Redis) {
     const routeKey = `${req.method}:${req.route?.path || req.path}`;
     const config = ENDPOINT_RATE_LIMITS[routeKey];
 
-    if (!config) return next(); // 制限なし
+    if (!config) return next(); // No limit
 
     const identifier = `${req.auth?.keyId || req.ip}:${routeKey}`;
     const result = await limiter.check(identifier, config);
@@ -947,19 +950,19 @@ function endpointRateLimit(redis: Redis) {
 
 ---
 
-## 5. マルチテナント API 認可
+## 5. Multi-Tenant API Authorization
 
-### 5.1 テナント分離の設計
+### 5.1 Tenant Isolation Design
 
 ```
-マルチテナント API のデータ分離:
+Data Isolation in Multi-Tenant APIs:
 
   ┌──────────────────────────────────────────────────────────┐
-  │                 テナント分離のパターン                      │
+  │              Tenant Isolation Patterns                    │
   │                                                          │
-  │  パターン①: 行レベル分離（推奨）                           │
+  │  Pattern 1: Row-level isolation (recommended)            │
   │  ┌────────────────────────────────────────────────┐      │
-  │  │ articles テーブル                               │      │
+  │  │ articles table                                  │      │
   │  │ ┌────┬──────────┬─────────┬──────────┐         │      │
   │  │ │ id │ title    │ content │ org_id   │         │      │
   │  │ ├────┼──────────┼─────────┼──────────┤         │      │
@@ -967,27 +970,27 @@ function endpointRateLimit(redis: Redis) {
   │  │ │ 2  │ Article2 │ ...     │ org_001  │ ← Org A│      │
   │  │ │ 3  │ Article3 │ ...     │ org_002  │ ← Org B│      │
   │  │ └────┴──────────┴─────────┴──────────┘         │      │
-  │  │ → 全テナントが同一テーブル                       │      │
-  │  │ → WHERE org_id = ? で分離                       │      │
-  │  │ → 最もシンプル、スケーラブル                     │      │
+  │  │ → All tenants share the same table              │      │
+  │  │ → Isolated by WHERE org_id = ?                  │      │
+  │  │ → Simplest and most scalable                    │      │
   │  └────────────────────────────────────────────────┘      │
   │                                                          │
-  │  パターン②: スキーマ分離                                   │
-  │  → テナントごとに DB スキーマを作成                        │
-  │  → PostgreSQL の schema 機能を利用                        │
-  │  → より強い分離、マイグレーションが複雑                     │
+  │  Pattern 2: Schema isolation                             │
+  │  → Create a DB schema per tenant                         │
+  │  → Uses PostgreSQL schema feature                        │
+  │  → Stronger isolation, more complex migrations           │
   │                                                          │
-  │  パターン③: データベース分離                                │
-  │  → テナントごとに DB インスタンスを分離                     │
-  │  → 最も強い分離、コストが高い                              │
-  │  → 金融・医療等のコンプライアンス要件向け                   │
+  │  Pattern 3: Database isolation                           │
+  │  → Separate DB instance per tenant                       │
+  │  → Strongest isolation, higher cost                      │
+  │  → For compliance requirements (finance, healthcare)     │
   └──────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 テナント分離ミドルウェア
+### 5.2 Tenant Isolation Middleware
 
 ```typescript
-// テナント分離ミドルウェア
+// Tenant isolation middleware
 function tenantIsolation() {
   return async (req: Request, res: Response, next: Function) => {
     const userId = req.auth.userId;
@@ -1003,11 +1006,11 @@ function tenantIsolation() {
       });
     }
 
-    // リクエストにテナントコンテキストを設定
+    // Set tenant context on the request
     req.tenantId = user.orgId;
     req.tenantSlug = user.organization!.slug;
 
-    // Prisma のクエリに自動でテナントフィルターを追加
+    // Automatically add tenant filter to Prisma queries
     req.prisma = prisma.$extends({
       query: {
         $allModels: {
@@ -1020,11 +1023,11 @@ function tenantIsolation() {
             return query(args);
           },
           async findUnique({ args, query }) {
-            // findUnique は where に orgId を追加できないため
-            // 結果を取得後にチェック
+            // Cannot add orgId to findUnique where clause,
+            // so check after fetching the result
             const result = await query(args);
             if (result && 'orgId' in result && result.orgId !== req.tenantId) {
-              return null; // テナント外のリソース
+              return null; // Resource belongs to another tenant
             }
             return result;
           },
@@ -1033,7 +1036,7 @@ function tenantIsolation() {
             return query(args);
           },
           async update({ args, query }) {
-            // update 前にテナントチェック
+            // Check tenant before update
             const existing = await db[args.model as any].findFirst({
               where: { ...args.where, orgId: req.tenantId },
             });
@@ -1043,7 +1046,7 @@ function tenantIsolation() {
             return query(args);
           },
           async delete({ args, query }) {
-            // delete 前にテナントチェック
+            // Check tenant before delete
             const existing = await db[args.model as any].findFirst({
               where: { ...args.where, orgId: req.tenantId },
             });
@@ -1060,27 +1063,27 @@ function tenantIsolation() {
   };
 }
 
-// 使用例
+// Usage example
 app.use('/api/', apiKeyAuth, tenantIsolation());
 
-// テナント分離されたエンドポイント
+// Tenant-isolated endpoint
 app.get('/api/articles', async (req, res) => {
-  // req.prisma を使うとテナントフィルターが自動適用
+  // Using req.prisma automatically applies the tenant filter
   const articles = await req.prisma.article.findMany({
     orderBy: { createdAt: 'desc' },
     take: 20,
   });
-  // → WHERE org_id = 'tenant_123' が自動追加される
+  // → WHERE org_id = 'tenant_123' is automatically added
 
   res.json(articles);
 });
 ```
 
-### 5.3 テナント間のデータ共有
+### 5.3 Cross-Tenant Data Sharing
 
 ```typescript
-// テナント間でデータを共有する場合のパターン
-// 例: マーケットプレイスでテナント A の記事をテナント B が閲覧
+// Pattern for sharing data across tenants
+// Example: Tenant B views an article owned by Tenant A in a marketplace
 
 interface SharedResource {
   resourceType: string;
@@ -1116,54 +1119,55 @@ async function checkSharedAccess(
 
 ---
 
-## 6. 認可レスポンスのベストプラクティス
+## 6. Best Practices for Authorization Responses
 
-### 6.1 HTTP ステータスコードの使い分け
+### 6.1 Choosing the Right HTTP Status Code
 
 ```
-API 認可エラーの設計:
+API Authorization Error Design:
 
-  ┌──────────┬──────────────────────────────────────────────┐
-  │ コード   │ 用途                                          │
-  ├──────────┼──────────────────────────────────────────────┤
-  │ 401      │ 認証エラー（未認証）                           │
-  │          │ → API キー / トークンが未提供                  │
-  │          │ → API キー / トークンが無効                    │
-  │          │ → セッション期限切れ                           │
-  ├──────────┼──────────────────────────────────────────────┤
-  │ 403      │ 認可エラー（権限不足）                         │
-  │          │ → スコープ不足                                │
-  │          │ → ロール不足                                  │
-  │          │ → リソースへのアクセス拒否                     │
-  │          │ → IP ホワイトリスト外                         │
-  ├──────────┼──────────────────────────────────────────────┤
-  │ 404      │ リソース不在（セキュリティ上 403 の代替）      │
-  │          │ → リソースの存在を隠したい場合                 │
-  │          │ → 情報漏洩防止                                │
-  ├──────────┼──────────────────────────────────────────────┤
-  │ 429      │ レート制限超過                                │
-  │          │ → Retry-After ヘッダーを付与                  │
-  └──────────┴──────────────────────────────────────────────┘
+  ┌──────────────┬──────────────────────────────────────────────┐
+  │ Code         │ Usage                                         │
+  ├──────────────┼──────────────────────────────────────────────┤
+  │ 401          │ Authentication error (unauthenticated)        │
+  │              │ → API key / token not provided               │
+  │              │ → API key / token is invalid                 │
+  │              │ → Session expired                            │
+  ├──────────────┼──────────────────────────────────────────────┤
+  │ 403          │ Authorization error (insufficient permission) │
+  │              │ → Insufficient scope                         │
+  │              │ → Insufficient role                          │
+  │              │ → Resource access denied                     │
+  │              │ → IP address not in whitelist                │
+  ├──────────────┼──────────────────────────────────────────────┤
+  │ 404          │ Resource not found (security alternative to  │
+  │              │   403)                                       │
+  │              │ → When you want to hide resource existence   │
+  │              │ → Prevents information leakage               │
+  ├──────────────┼──────────────────────────────────────────────┤
+  │ 429          │ Rate limit exceeded                          │
+  │              │ → Include Retry-After header                 │
+  └──────────────┴──────────────────────────────────────────────┘
 
-  404 vs 403 の判断:
+  Deciding between 404 and 403:
   ┌──────────────────────────────────────────────────┐
-  │ リソースの存在を隠す必要がある場合 → 404          │
-  │ → 例: 他ユーザーのプライベートリソース             │
-  │ → 攻撃者にリソースの存在を知らせたくない          │
+  │ When resource existence should be hidden → 404   │
+  │ → Example: Another user's private resource       │
+  │ → Do not reveal resource existence to attackers  │
   │                                                   │
-  │ 権限不足を明示する場合 → 403                      │
-  │ → 例: アクセスを申請できるようにしたい場合         │
-  │ → デバッグを容易にしたい場合                      │
+  │ When insufficient permission should be clear → 403│
+  │ → Example: When users can request access         │
+  │ → When easier debugging is desired               │
   │                                                   │
-  │ 一般的にはセキュリティ優先で 404 を推奨             │
-  │ 内部 API や管理画面では 403 が適切                  │
+  │ Generally, 404 is recommended for security       │
+  │ 403 is appropriate for internal APIs / dashboards │
   └──────────────────────────────────────────────────┘
 ```
 
-### 6.2 エラーレスポンスの構造
+### 6.2 Error Response Structure
 
 ```typescript
-// 統一的なエラーレスポンス
+// Unified error responses
 
 // 401 Unauthorized
 {
@@ -1172,7 +1176,7 @@ API 認可エラーの設計:
   "docs_url": "https://docs.myapi.com/auth"
 }
 
-// 403 Forbidden（スコープ不足）
+// 403 Forbidden (insufficient scope)
 {
   "error": "insufficient_scope",
   "message": "You do not have the required permissions",
@@ -1181,7 +1185,7 @@ API 認可エラーの設計:
   "docs_url": "https://docs.myapi.com/scopes"
 }
 
-// 403 Forbidden（リソース認可）
+// 403 Forbidden (resource authorization)
 {
   "error": "forbidden",
   "message": "You do not have permission to perform this action on this resource",
@@ -1200,10 +1204,10 @@ API 認可エラーの設計:
 }
 ```
 
-### 6.3 WWW-Authenticate ヘッダー
+### 6.3 WWW-Authenticate Header
 
 ```typescript
-// RFC 6750 に準拠した WWW-Authenticate ヘッダー
+// WWW-Authenticate header compliant with RFC 6750
 function setWWWAuthenticate(res: Response, options: {
   realm?: string;
   error?: string;
@@ -1225,15 +1229,15 @@ function setWWWAuthenticate(res: Response, options: {
   res.setHeader('WWW-Authenticate', parts.join(', '));
 }
 
-// 使用例
-// 401: 認証なし
+// Usage examples
+// 401: Not authenticated
 setWWWAuthenticate(res, {
   realm: 'api',
   error: 'invalid_token',
   errorDescription: 'The access token is invalid',
 });
 
-// 403: スコープ不足
+// 403: Insufficient scope
 setWWWAuthenticate(res, {
   realm: 'api',
   error: 'insufficient_scope',
@@ -1243,21 +1247,21 @@ setWWWAuthenticate(res, {
 
 ---
 
-## 7. エッジケースとセキュリティ
+## 7. Edge Cases and Security
 
-### 7.1 タイミング攻撃への対策
+### 7.1 Protecting Against Timing Attacks
 
 ```typescript
-// API キー検証でのタイミング攻撃対策
+// Timing attack mitigation in API key validation
 import crypto from 'crypto';
 
-// 悪い例: 早期リターンでタイミング情報が漏洩
+// Bad example: early return leaks timing information
 function unsafeValidate(providedKey: string, storedHash: string): boolean {
   const hash = crypto.createHash('sha256').update(providedKey).digest('hex');
-  return hash === storedHash; // ← タイミング攻撃に脆弱
+  return hash === storedHash; // ← Vulnerable to timing attacks
 }
 
-// 良い例: 一定時間比較
+// Good example: constant-time comparison
 function safeValidate(providedKey: string, storedHash: string): boolean {
   const hash = crypto.createHash('sha256').update(providedKey).digest('hex');
   return crypto.timingSafeEqual(
@@ -1267,39 +1271,39 @@ function safeValidate(providedKey: string, storedHash: string): boolean {
 }
 ```
 
-### 7.2 横方向権限昇格（IDOR）の防止
+### 7.2 Preventing Horizontal Privilege Escalation (IDOR)
 
 ```
-IDOR（Insecure Direct Object Reference）:
+IDOR (Insecure Direct Object Reference):
 
-  攻撃例:
-  → GET /api/users/123/profile （自分）
-  → GET /api/users/456/profile （他人）← ID を変えるだけ
+  Attack example:
+  → GET /api/users/123/profile (own profile)
+  → GET /api/users/456/profile (another user's) ← just change the ID
 
-  対策:
-  ① リソース認可チェックを必ず実施
-  ② シーケンシャル ID を避ける（UUID/CUID を使用）
-  ③ 自分のリソースのみ返す設計
-     → GET /api/me/profile（ID 不要）
-     → GET /api/articles?mine=true（フィルタ）
+  Countermeasures:
+  ① Always perform resource authorization checks
+  ② Avoid sequential IDs (use UUID/CUID)
+  ③ Design to return only the user's own resources
+     → GET /api/me/profile (no ID needed)
+     → GET /api/articles?mine=true (filter)
 ```
 
 ```typescript
-// IDOR 対策: 自分のリソースのみ返す
+// IDOR mitigation: return only own resources
 app.get('/api/me/profile', auth, async (req, res) => {
   const profile = await db.user.findUnique({
-    where: { id: req.auth.userId }, // セッションの userId を使用
+    where: { id: req.auth.userId }, // Use userId from session
     select: { id: true, name: true, email: true, image: true },
   });
   res.json(profile);
 });
 
-// IDOR 対策: リソースの所有者チェック
+// IDOR mitigation: check resource ownership
 app.get('/api/articles/:id', auth, async (req, res) => {
   const article = await db.article.findFirst({
     where: {
       id: req.params.id,
-      // テナントフィルター
+      // Tenant filter
       orgId: req.auth.orgId,
     },
   });
@@ -1312,21 +1316,21 @@ app.get('/api/articles/:id', auth, async (req, res) => {
 });
 ```
 
-### 7.3 Mass Assignment（一括代入）の防止
+### 7.3 Preventing Mass Assignment
 
 ```typescript
-// Mass Assignment 攻撃:
-// クライアントが送信した body に予期しないフィールドが含まれる
+// Mass Assignment attack:
+// Client-submitted body contains unexpected fields
 
-// 悪い例
+// Bad example
 app.put('/api/articles/:id', async (req, res) => {
   await db.article.update({
     where: { id: req.params.id },
-    data: req.body, // ← req.body に { role: 'admin' } が含まれている可能性
+    data: req.body, // ← req.body could contain { role: 'admin' }
   });
 });
 
-// 良い例: 許可するフィールドを明示的に指定
+// Good example: explicitly specify allowed fields
 app.put('/api/articles/:id', async (req, res) => {
   const allowedFields = ['title', 'content', 'tags', 'status'];
   const data: Record<string, any> = {};
@@ -1343,7 +1347,7 @@ app.put('/api/articles/:id', async (req, res) => {
   });
 });
 
-// さらに良い例: Zod でバリデーション
+// Even better: validate with Zod
 import { z } from 'zod';
 
 const updateArticleSchema = z.object({
@@ -1368,209 +1372,213 @@ app.put('/api/articles/:id', async (req, res) => {
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
 ```
-API 認可のアンチパターン:
+API Authorization Anti-Patterns:
 
-  ✗ アンチパターン①: フロントエンドのみで認可チェック
+  Anti-pattern 1: Authorization checks on the frontend only
   ┌──────────────────────────────────────────────────┐
-  │ // 危険: API を直接叩けばバイパスできる            │
-  │ // フロントエンドで「削除ボタンを非表示」にしても   │
-  │ // curl -X DELETE /api/articles/123 でアクセス可能 │
+  │ // Dangerous: can be bypassed by calling the API │
+  │ // directly                                       │
+  │ // Even if the "Delete" button is hidden in the   │
+  │ // frontend, curl -X DELETE /api/articles/123    │
+  │ // still works                                    │
   │                                                   │
-  │ → 全 API エンドポイントでサーバーサイド認可が必須   │
+  │ → Server-side authorization is required on all   │
+  │   API endpoints                                   │
   └──────────────────────────────────────────────────┘
 
-  ✗ アンチパターン②: API キーをクライアントサイドに埋め込む
+  Anti-pattern 2: Embedding API keys on the client side
   ┌──────────────────────────────────────────────────┐
-  │ // 危険: Secret Key が漏洩する                     │
-  │ const API_KEY = 'sk_live_xxxxx'; // JSバンドルに含む│
+  │ // Dangerous: Secret Key is exposed              │
+  │ const API_KEY = 'sk_live_xxxxx'; // in JS bundle │
   │                                                   │
-  │ → Secret Key はサーバーサイドでのみ使用            │
-  │ → クライアントには Public Key のみ                 │
+  │ → Secret Keys should only be used server-side    │
+  │ → Only expose Public Keys to clients             │
   └──────────────────────────────────────────────────┘
 
-  ✗ アンチパターン③: ワイルドカードスコープ
+  Anti-pattern 3: Wildcard scopes
   ┌──────────────────────────────────────────────────┐
-  │ // 危険: 全権限を1つのスコープに                    │
-  │ scopes: ['*'] // 全権限                           │
+  │ // Dangerous: all permissions in one scope       │
+  │ scopes: ['*'] // all permissions                 │
   │                                                   │
-  │ → 最小権限原則に違反                               │
-  │ → 必要なスコープのみ付与                           │
+  │ → Violates the principle of least privilege      │
+  │ → Grant only the required scopes                 │
   └──────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 9. 演習
+## 9. Exercises
 
-### 演習1: 基礎 - スコープベースの API 認可
+### Exercise 1: Basic - Scope-Based API Authorization
 
 ```
-【演習1】スコープベースの API 認可
+[Exercise 1] Scope-Based API Authorization
 
-目的: OAuth スコープの設計と実装を体験する
+Goal: Experience designing and implementing OAuth scopes
 
-手順:
-1. Express で REST API を構築
+Steps:
+1. Build a REST API with Express
    - articles (CRUD)
    - users (Read, Update)
 
-2. スコープを設計
+2. Design scopes
    - articles:read, articles:write, articles:delete
    - users:read, users:write
    - admin
 
-3. スコープ検証ミドルウェアを実装
-   - 階層関係の考慮
-   - エラーレスポンスに不足スコープを含める
+3. Implement scope validation middleware
+   - Consider the scope hierarchy
+   - Include missing scopes in error responses
 
-4. テスト:
-   - 各スコープでアクセスの可否を確認
-   - admin スコープで全操作が可能なことを確認
+4. Testing:
+   - Verify access is allowed or denied for each scope
+   - Verify that admin scope allows all operations
 
-評価基準:
-  □ スコープ設計が最小権限原則を満たしている
-  □ エラーレスポンスが informative
-  □ 階層関係が正しく機能する
+Evaluation criteria:
+  □ Scope design satisfies the principle of least privilege
+  □ Error responses are informative
+  □ Hierarchy is functioning correctly
 ```
 
-### 演習2: 応用 - API キー管理システム
+### Exercise 2: Applied - API Key Management System
 
 ```
-【演習2】API キー管理システム
+[Exercise 2] API Key Management System
 
-目的: API キーの生成・検証・ローテーションを実装する
+Goal: Implement API key generation, validation, and rotation
 
-手順:
-1. API キー管理 API を構築
-   - POST /api/keys（キー生成）
-   - GET /api/keys（キー一覧）
-   - POST /api/keys/:id/rotate（ローテーション）
-   - DELETE /api/keys/:id（取り消し）
+Steps:
+1. Build an API key management API
+   - POST /api/keys (generate key)
+   - GET /api/keys (list keys)
+   - POST /api/keys/:id/rotate (rotate)
+   - DELETE /api/keys/:id (revoke)
 
-2. セキュリティ要件:
-   - SHA-256 ハッシュ保存
-   - プレフィックス付き（sk_live_ 等）
-   - 有効期限設定
-   - ローテーション時のグレースピリオド
+2. Security requirements:
+   - SHA-256 hash storage
+   - Prefix included (sk_live_, etc.)
+   - Expiration date setting
+   - Grace period on rotation
 
-3. API キー認証ミドルウェア:
-   - 複数の送信方法に対応
-   - レート制限の統合
+3. API key authentication middleware:
+   - Support multiple transmission methods
+   - Integrate rate limiting
 
-評価基準:
-  □ キーの平文がDBに保存されていない
-  □ ローテーションが安全に動作する
-  □ 取り消されたキーが即座に無効になる
+Evaluation criteria:
+  □ Key plain text is not stored in the DB
+  □ Rotation works safely
+  □ Revoked keys are immediately invalidated
 ```
 
-### 演習3: 発展 - マルチテナント API
+### Exercise 3: Advanced - Multi-Tenant API
 
 ```
-【演習3】マルチテナント API
+[Exercise 3] Multi-Tenant API
 
-目的: マルチテナント環境での API 認可を実装する
+Goal: Implement API authorization in a multi-tenant environment
 
-手順:
-1. テナント（Organization）モデルを設計
-2. テナント分離ミドルウェアを実装
-3. Prisma Extension でテナントフィルターを自動適用
-4. テナント間のデータ共有機能を実装
-5. テナント管理 API（招待、ロール管理）
+Steps:
+1. Design the Tenant (Organization) model
+2. Implement tenant isolation middleware
+3. Automatically apply tenant filters using Prisma Extension
+4. Implement cross-tenant data sharing
+5. Tenant management API (invitations, role management)
 
-評価基準:
-  □ テナント間でデータが完全に分離されている
-  □ クロステナントアクセスが不可能
-  □ 共有機能が正しく動作する
-  □ テナント管理が安全
-```
-
----
-
-## 10. FAQ・トラブルシューティング
-
-### Q1: API キーと OAuth トークンのどちらを使うべき？
-
-```
-A: ユースケースで判断:
-
-  API キー:
-  → サーバー間通信（M2M）
-  → サードパーティ連携
-  → シンプルな認証で十分な場合
-  → 長期的なアクセス
-
-  OAuth トークン:
-  → ユーザー代理のアクセス
-  → スコープベースの権限制御が必要
-  → 短期的なアクセス（トークン更新あり）
-  → 同意画面が必要な場合
-```
-
-### Q2: 404 と 403 のどちらを返すべき？
-
-```
-A: セキュリティ要件で判断:
-
-  一般的なルール:
-  → 外部向け API: 404（リソースの存在を隠す）
-  → 内部向け API / 管理画面: 403（デバッグしやすい）
-  → リソースの存在が秘密ではない場合: 403
-
-  例:
-  → GET /api/users/uuid-abc → 404（他人のプロフィール）
-  → GET /api/admin/settings → 403（管理者権限が必要）
-```
-
-### Q3: レート制限のリセット時間はどう設計する？
-
-```
-A: 以下の基準で設計:
-
-  読み取り API: 1分間ウィンドウ
-  → 瞬間的なバーストを許容
-  → ユーザー体験を損なわない
-
-  書き込み API: 1時間ウィンドウ
-  → 過度な書き込みを防止
-  → 正常な使用パターンを許容
-
-  認証 API: 15分間ウィンドウ
-  → ブルートフォース攻撃を防止
-  → 正規ユーザーの再試行を許容
-
-  ヘッダーには必ず以下を含める:
-  → X-RateLimit-Limit（上限）
-  → X-RateLimit-Remaining（残り回数）
-  → X-RateLimit-Reset（リセット時刻）
-  → Retry-After（429 レスポンス時）
+Evaluation criteria:
+  □ Data is completely isolated between tenants
+  □ Cross-tenant access is impossible
+  □ Sharing feature works correctly
+  □ Tenant management is secure
 ```
 
 ---
 
-## 11. パフォーマンスに関する考察
+## 10. FAQ and Troubleshooting
+
+### Q1: Should I use an API key or an OAuth token?
 
 ```
-API 認可のパフォーマンス:
+A: Decide based on the use case:
+
+  API keys:
+  → Server-to-server communication (M2M)
+  → Third-party integrations
+  → When simple authentication is sufficient
+  → Long-term access
+
+  OAuth tokens:
+  → Delegated user access
+  → When scope-based permission control is needed
+  → Short-term access (with token refresh)
+  → When a consent screen is required
+```
+
+### Q2: Should I return 404 or 403?
+
+```
+A: Decide based on security requirements:
+
+  General rules:
+  → External-facing API: 404 (hide resource existence)
+  → Internal API / admin dashboard: 403 (easier to debug)
+  → When resource existence is not secret: 403
+
+  Examples:
+  → GET /api/users/uuid-abc → 404 (another user's profile)
+  → GET /api/admin/settings → 403 (admin permission required)
+```
+
+### Q3: How should I design rate limit reset times?
+
+```
+A: Design based on these criteria:
+
+  Read APIs: 1-minute window
+  → Allows momentary bursts
+  → Does not degrade user experience
+
+  Write APIs: 1-hour window
+  → Prevents excessive writes
+  → Allows normal usage patterns
+
+  Auth APIs: 15-minute window
+  → Prevents brute-force attacks
+  → Allows legitimate users to retry
+
+  Always include the following headers:
+  → X-RateLimit-Limit (limit)
+  → X-RateLimit-Remaining (remaining count)
+  → X-RateLimit-Reset (reset time)
+  → Retry-After (for 429 responses)
+```
+
+---
+
+
+## 11. Performance Considerations
+
+```
+API Authorization Performance:
 
   ┌───────────────────────┬───────────────┬──────────────────┐
-  │ 操作                   │ レイテンシ     │ 最適化手法        │
+  │ Operation             │ Latency       │ Optimization     │
   ├───────────────────────┼───────────────┼──────────────────┤
-  │ JWT 検証               │ <1ms          │ 署名検証のみ      │
-  │ API キー検証（DB）     │ 1-5ms         │ キャッシュ(Redis) │
-  │ スコープチェック        │ <1ms          │ Set 操作          │
-  │ リソース認可            │ 5-20ms        │ DB クエリ最適化   │
-  │ テナント分離            │ 1-5ms         │ インデックス      │
-  │ レート制限（Redis）    │ 1-3ms         │ パイプライン      │
+  │ JWT validation        │ <1ms          │ Signature only   │
+  │ API key validation (DB)│ 1-5ms        │ Cache (Redis)    │
+  │ Scope check           │ <1ms          │ Set operations   │
+  │ Resource authorization│ 5-20ms        │ DB query tuning  │
+  │ Tenant isolation      │ 1-5ms         │ Indexing         │
+  │ Rate limiting (Redis) │ 1-3ms         │ Pipeline         │
   └───────────────────────┴───────────────┴──────────────────┘
 
-  最適化のポイント:
-  → API キーの検証結果を短期キャッシュ（30秒-5分）
-  → リソース認可のクエリにインデックスを設定
-  → レート制限は Redis パイプラインで複数操作を一括実行
-  → テナントフィルターのカラムにインデックス必須
+  Optimization tips:
+  → Cache API key validation results for a short period (30s-5min)
+  → Add indexes to resource authorization query columns
+  → Use Redis pipeline to batch multiple rate limit operations
+  → Index on tenant filter columns is mandatory
 ```
 
 ---
@@ -1578,39 +1586,39 @@ API 認可のパフォーマンス:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced material. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world development?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| スコープ | resource:action 形式、最小権限、階層関係 |
-| API キー | SHA-256 ハッシュ保存、プレフィックス付き、ローテーション |
-| リソース認可 | ポリシーパターン、所有者チェック + ロールチェック |
-| マルチテナント | テナント ID でデータ分離、Prisma Extension |
-| レート制限 | 階層的な制限、プランベース、Redis スライディングウィンドウ |
-| エラー設計 | 401 vs 403 vs 404 の使い分け、RFC 6750 準拠 |
-| セキュリティ | タイミング攻撃対策、IDOR 防止、Mass Assignment 防止 |
+Knowledge of this topic is frequently applied in day-to-day development work, especially during code reviews and architectural design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Topic | Key Points |
+|-------|-----------|
+| Scopes | resource:action format, least privilege, hierarchy |
+| API Keys | SHA-256 hash storage, prefixed, rotation |
+| Resource Authorization | Policy pattern, ownership check + role check |
+| Multi-Tenant | Data isolation by tenant ID, Prisma Extension |
+| Rate Limiting | Hierarchical limits, plan-based, Redis sliding window |
+| Error Design | 401 vs 403 vs 404 usage, RFC 6750 compliance |
+| Security | Timing attack mitigation, IDOR prevention, Mass Assignment prevention |
 
 ---
 
-## 参考文献
+## Further Reading
+
+---
+
+## References
 1. OWASP. "Authorization Cheat Sheet." cheatsheetseries.owasp.org, 2024.
 2. Stripe. "API Keys." stripe.com/docs, 2024.
 3. RFC 6750 §3.1. "Insufficient Scope." IETF, 2012.
