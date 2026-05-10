@@ -1,165 +1,165 @@
 # OWASP Top 10
 
-> Webアプリケーションにおける最も深刻な10のセキュリティリスクを、攻撃手法・影響・対策コード付きで包括的に解説する。
+> A comprehensive guide to the ten most critical security risks in web applications, covering attack techniques, impact, and mitigation code examples.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **OWASP Top 10 (2021)** の各脆弱性カテゴリの意味と深刻度を理解する
-2. **各脆弱性の攻撃手法**と実際のコードレベルでの対策を習得する
-3. **脆弱性テストの手法**と予防的セキュリティ設計のアプローチを身につける
+1. Understand the meaning and severity of each vulnerability category in **OWASP Top 10 (2021)**
+2. Learn **attack techniques for each vulnerability** and how to implement countermeasures at the code level
+3. Acquire **vulnerability testing techniques** and approaches to proactive security design
 
-### 前提知識
+### Prerequisites
 
-- HTTP プロトコルの基本（リクエスト/レスポンス、ステータスコード、ヘッダー）
-- Webアプリケーション開発の基礎（サーバサイド/クライアントサイドの区別）
-- Python または JavaScript の基本構文
+- HTTP protocol basics (request/response, status codes, headers)
+- Fundamentals of web application development (distinction between server-side and client-side)
+- Basic syntax of Python or JavaScript
 
-### 関連ガイド
+### Related Guides
 
-- [XSS防止](./01-xss-prevention.md) — クロスサイトスクリプティングの詳細対策
-- [インジェクション](./03-injection.md) — インジェクション攻撃の深掘り
-- [認証脆弱性](./04-auth-vulnerabilities.md) — 認証に関する脆弱性の詳細
-- [TLS/証明書](../02-cryptography/01-tls-certificates.md) — 通信暗号化の基盤技術
+- [XSS Prevention](./01-xss-prevention.md) — Detailed countermeasures for cross-site scripting
+- [Injection](./03-injection.md) — Deep dive into injection attacks
+- [Authentication Vulnerabilities](./04-auth-vulnerabilities.md) — Details on authentication-related vulnerabilities
+- [TLS/Certificates](../02-cryptography/01-tls-certificates.md) — Foundation technology for communication encryption
 
 ---
 
-## 1. OWASP Top 10 概観
+## 1. OWASP Top 10 Overview
 
-OWASP（Open Worldwide Application Security Project）が定期的に発表するWebアプリケーション脆弱性のランキング。2003年から始まり、2021年版が最新である。データドリブンなアプローチで、数十万のアプリケーションから収集されたインシデントデータに基づいている。
+OWASP (Open Worldwide Application Security Project) periodically publishes a ranking of web application vulnerabilities. Starting in 2003, the 2021 edition is the most recent. It uses a data-driven approach based on incident data collected from hundreds of thousands of applications.
 
-### OWASP Top 10 の歴史と変遷
+### History and Evolution of the OWASP Top 10
 
 ```
-2017年版からの変更点:
+Changes from the 2017 edition:
 
   2017                          2021
   ----                          ----
-  A1 インジェクション          → A3 に降格
-  A2 認証の不備                → A7 に統合
-  A3 機密データの露出          → A2 暗号化の失敗
-  A4 XML外部実体参照           → A3 インジェクションに統合
-  A5 アクセス制御の不備        → A1 に昇格
-  A6 セキュリティの設定ミス    → A5
-  A7 XSS                      → A3 インジェクションに統合
-  A8 安全でないデシリアライゼーション → A8 整合性の不具合
-  A9 既知の脆弱性を持つコンポーネント → A6
-  A10 不十分なログとモニタリング → A9
+  A1 Injection                 → Demoted to A3
+  A2 Broken Authentication     → Merged into A7
+  A3 Sensitive Data Exposure   → A2 Cryptographic Failures
+  A4 XML External Entities     → Merged into A3 Injection
+  A5 Broken Access Control     → Promoted to A1
+  A6 Security Misconfiguration → A5
+  A7 XSS                      → Merged into A3 Injection
+  A8 Insecure Deserialization  → A8 Software and Data Integrity Failures
+  A9 Using Components with Known Vulnerabilities → A6
+  A10 Insufficient Logging & Monitoring → A9
 
-  新規追加 (2021):
-  A04 安全でない設計 ← NEW
-  A08 ソフトウェアとデータの整合性の不具合 ← 再編
+  New additions (2021):
+  A04 Insecure Design ← NEW
+  A08 Software and Data Integrity Failures ← Reorganized
   A10 SSRF ← NEW
 ```
 
-### カテゴリ一覧と深刻度
+### Category List and Severity
 
 ```
 OWASP Top 10 (2021):
 
-  順位    カテゴリ                               深刻度
-  ----    --------                               ------
-  A01     アクセス制御の不備                       ████████████ Critical
-  A02     暗号化の失敗                            ███████████  Critical
-  A03     インジェクション                        ██████████   High
-  A04     安全でない設計                          ██████████   High
-  A05     セキュリティの設定ミス                   █████████    High
-  A06     脆弱で古いコンポーネント                 ████████     High
-  A07     識別と認証の失敗                        ████████     High
-  A08     ソフトウェアとデータの整合性の不具合      ███████      Medium
-  A09     セキュリティログとモニタリングの不備      ██████       Medium
-  A10     SSRF（サーバーサイドリクエストフォージェリ）██████       Medium
+  Rank    Category                                      Severity
+  ----    --------                                      --------
+  A01     Broken Access Control                          ████████████ Critical
+  A02     Cryptographic Failures                         ███████████  Critical
+  A03     Injection                                      ██████████   High
+  A04     Insecure Design                                ██████████   High
+  A05     Security Misconfiguration                      █████████    High
+  A06     Vulnerable and Outdated Components             ████████     High
+  A07     Identification and Authentication Failures     ████████     High
+  A08     Software and Data Integrity Failures           ███████      Medium
+  A09     Security Logging and Monitoring Failures       ██████       Medium
+  A10     SSRF (Server-Side Request Forgery)             ██████       Medium
 ```
 
-### 各カテゴリの CWE マッピング
+### CWE Mapping for Each Category
 
 ```
 +------------------------------------------------------------------+
-|  OWASP カテゴリと主要 CWE の対応                                    |
+|  OWASP Category to Key CWE Mapping                               |
 |------------------------------------------------------------------|
-|  A01 アクセス制御の不備                                             |
-|    +-- CWE-200: 情報漏洩                                          |
-|    +-- CWE-284: 不適切なアクセス制御                                |
-|    +-- CWE-285: 不適切な認可                                       |
-|    +-- CWE-639: IDOR (安全でない直接オブジェクト参照)               |
+|  A01 Broken Access Control                                        |
+|    +-- CWE-200: Information Exposure                             |
+|    +-- CWE-284: Improper Access Control                          |
+|    +-- CWE-285: Improper Authorization                           |
+|    +-- CWE-639: IDOR (Insecure Direct Object Reference)          |
 |                                                                    |
-|  A02 暗号化の失敗                                                   |
-|    +-- CWE-259: ハードコードされたパスワード                        |
-|    +-- CWE-327: 壊れた/危険な暗号アルゴリズム                       |
-|    +-- CWE-328: 弱いハッシュ                                       |
-|    +-- CWE-916: 不十分な計算量のパスワードハッシュ                   |
+|  A02 Cryptographic Failures                                       |
+|    +-- CWE-259: Hard-coded Password                              |
+|    +-- CWE-327: Broken or Risky Cryptographic Algorithm          |
+|    +-- CWE-328: Weak Hash                                        |
+|    +-- CWE-916: Insufficient Computational Effort for Password Hash |
 |                                                                    |
-|  A03 インジェクション                                               |
-|    +-- CWE-20: 不適切な入力検証                                    |
-|    +-- CWE-79: XSS                                                |
-|    +-- CWE-89: SQL インジェクション                                |
-|    +-- CWE-78: OS コマンドインジェクション                          |
+|  A03 Injection                                                    |
+|    +-- CWE-20: Improper Input Validation                         |
+|    +-- CWE-79: XSS                                               |
+|    +-- CWE-89: SQL Injection                                     |
+|    +-- CWE-78: OS Command Injection                              |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. A01: アクセス制御の不備（Broken Access Control）
+## 2. A01: Broken Access Control
 
-認可されていないリソースへのアクセスを許してしまう脆弱性。2021年版で A5 から A1 に昇格し、最も深刻なカテゴリとなった。調査対象アプリの 94% でアクセス制御の問題が検出されている。
+A vulnerability that allows access to unauthorized resources. In the 2021 edition, this was promoted from A5 to A1, making it the most critical category. Access control issues were detected in 94% of surveyed applications.
 
-### 攻撃手法の分類
+### Classification of Attack Techniques
 
 ```
 +------------------------------------------------------------------+
-|  アクセス制御の攻撃手法                                              |
+|  Access Control Attack Techniques                                 |
 |------------------------------------------------------------------|
 |                                                                    |
-|  [水平権限昇格 (Horizontal)]                                       |
-|  +-- IDOR: /api/users/123 → /api/users/456 で他人のデータ参照      |
-|  +-- パラメータ改竄: user_id=me → user_id=admin                    |
+|  [Horizontal Privilege Escalation]                                |
+|  +-- IDOR: /api/users/123 → access another user's data via /api/users/456 |
+|  +-- Parameter tampering: user_id=me → user_id=admin            |
 |                                                                    |
-|  [垂直権限昇格 (Vertical)]                                         |
-|  +-- URL操作: /user/dashboard → /admin/dashboard                   |
-|  +-- APIメソッド: GET (許可) → DELETE (本来は禁止)                  |
-|  +-- 強制ブラウジング: 非公開URLの推測アクセス                       |
+|  [Vertical Privilege Escalation]                                  |
+|  +-- URL manipulation: /user/dashboard → /admin/dashboard        |
+|  +-- API method: GET (allowed) → DELETE (originally forbidden)   |
+|  +-- Forced browsing: guessing and accessing non-public URLs      |
 |                                                                    |
-|  [コンテキスト依存の不備]                                           |
-|  +-- マルチテナント: テナントAのユーザがテナントBのデータにアクセス   |
-|  +-- ステート操作: ワークフローのステップをスキップ                   |
-|  +-- メタデータ操作: JWTのroleクレームを改竄                        |
+|  [Context-Dependent Failures]                                     |
+|  +-- Multi-tenant: user of tenant A accesses data of tenant B    |
+|  +-- State manipulation: skipping workflow steps                  |
+|  +-- Metadata manipulation: tampering with JWT role claims        |
 +------------------------------------------------------------------+
 ```
 
-### IDOR（安全でない直接オブジェクト参照）の詳細
+### IDOR (Insecure Direct Object Reference) in Detail
 
-IDOR は最も頻繁に発見されるアクセス制御の脆弱性である。攻撃者がURLパラメータやリクエストボディのIDを改竄するだけで、他ユーザのデータにアクセスできてしまう。
+IDOR is the most frequently discovered access control vulnerability. An attacker can access another user's data simply by tampering with IDs in URL parameters or the request body.
 
 ```python
-# コード例1: 安全なアクセス制御の実装
+# Code Example 1: Implementing secure access control
 from functools import wraps
 from flask import Flask, request, abort, g
 import uuid
 
 app = Flask(__name__)
 
-# ===== 悪い例: IDORの脆弱性 =====
+# ===== Bad example: IDOR vulnerability =====
 @app.route("/api/orders/<int:order_id>")
 def get_order_bad(order_id):
-    # 誰でも任意のorder_idにアクセスできてしまう
+    # Anyone can access any order_id
     order = db.query("SELECT * FROM orders WHERE id = ?", order_id)
     return jsonify(order)
 
-# ===== 良い例: オーナーシップチェック付き =====
+# ===== Good example: With ownership check =====
 @app.route("/api/orders/<int:order_id>")
 @login_required
 def get_order_good(order_id):
     order = db.query(
         "SELECT * FROM orders WHERE id = ? AND user_id = ?",
-        order_id, g.current_user.id  # ユーザーIDでフィルタ
+        order_id, g.current_user.id  # Filter by user ID
     )
     if not order:
-        abort(404)  # 403ではなく404（情報漏洩防止）
+        abort(404)  # Return 404 instead of 403 (prevent information leakage)
     return jsonify(order)
 
 
-# ===== ロールベースアクセス制御 (RBAC) =====
+# ===== Role-Based Access Control (RBAC) =====
 class Permission:
-    """権限定義"""
+    """Permission definitions"""
     READ_OWN = "read:own"
     READ_ALL = "read:all"
     WRITE_OWN = "write:own"
@@ -174,7 +174,7 @@ ROLE_PERMISSIONS = {
 }
 
 def require_permission(permission):
-    """パーミッションベースの認可デコレータ"""
+    """Permission-based authorization decorator"""
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
@@ -182,7 +182,7 @@ def require_permission(permission):
                 abort(401)
             user_permissions = ROLE_PERMISSIONS.get(g.current_user.role, [])
             if permission not in user_permissions:
-                # 監査ログを記録
+                # Record audit log
                 audit_log.warning(
                     f"Access denied: user={g.current_user.id}, "
                     f"permission={permission}, path={request.path}"
@@ -194,7 +194,7 @@ def require_permission(permission):
 
 
 def require_role(role):
-    """ロールベースアクセス制御デコレータ"""
+    """Role-based access control decorator"""
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
@@ -208,13 +208,13 @@ def require_role(role):
 @login_required
 @require_role("admin")
 def admin_users():
-    """管理者のみアクセス可能"""
+    """Accessible only to administrators"""
     return jsonify(db.query("SELECT id, name FROM users"))
 
 
-# ===== ABAC (属性ベースアクセス制御) の実装 =====
+# ===== ABAC (Attribute-Based Access Control) Implementation =====
 class ABACPolicy:
-    """属性ベースアクセス制御"""
+    """Attribute-Based Access Control"""
 
     def __init__(self):
         self.policies = []
@@ -236,13 +236,13 @@ class ABACPolicy:
 
 abac = ABACPolicy()
 
-# ポリシー定義: ドキュメントの所有者のみ編集可能
+# Policy definition: only the document owner can edit
 abac.add_policy(
     "document", "edit",
     lambda user, doc: doc.owner_id == user.id
 )
 
-# ポリシー定義: 同じ部署のマネージャーは閲覧可能
+# Policy definition: managers in the same department can view
 abac.add_policy(
     "document", "view",
     lambda user, doc: (
@@ -251,33 +251,33 @@ abac.add_policy(
     )
 )
 
-# ポリシー定義: 公開ドキュメントは誰でも閲覧可能
+# Policy definition: anyone can view public documents
 abac.add_policy(
     "document", "view",
     lambda user, doc: doc.visibility == "public"
 )
 ```
 
-### UUIDによるIDOR緩和
+### IDOR Mitigation with UUIDs
 
 ```python
-# コード例2: 推測困難なIDの使用
+# Code Example 2: Using hard-to-guess IDs
 import uuid
 
 class Order:
     def __init__(self, user_id, items):
-        # 連番IDではなくUUIDv4を使用
+        # Use UUIDv4 instead of sequential IDs
         self.id = str(uuid.uuid4())  # "a3b8f9c2-1d4e-4a6b-8c3d-9e7f0a1b2c3d"
         self.user_id = user_id
         self.items = items
 
-# 注意: UUIDの使用はIDORの根本対策ではない
-# 推測を困難にするが、認可チェックは依然として必須
+# Note: Using UUIDs is not a fundamental fix for IDOR
+# It makes guessing harder, but authorization checks are still required
 
 @app.route("/api/orders/<order_id>")
 @login_required
 def get_order(order_id):
-    # UUIDでもオーナーシップチェックは必須
+    # Ownership check is required even with UUIDs
     order = Order.query.filter_by(
         id=order_id,
         user_id=g.current_user.id
@@ -287,49 +287,49 @@ def get_order(order_id):
 
 ---
 
-## 3. A02: 暗号化の失敗（Cryptographic Failures）
+## 3. A02: Cryptographic Failures
 
-機密データの暗号化が不十分、または暗号化の設計が不適切な脆弱性。2017年版では「機密データの露出」と呼ばれていたが、根本原因である暗号化の失敗に名称が変更された。
+A vulnerability where sensitive data is inadequately encrypted or where the encryption design is flawed. In the 2017 edition, this was called "Sensitive Data Exposure," but the name was changed to reflect the root cause: cryptographic failures.
 
-### 暗号化の失敗パターン
+### Cryptographic Failure Patterns
 
 ```
 +------------------------------------------------------------------+
-|  暗号化の失敗パターン                                                |
+|  Cryptographic Failure Patterns                                   |
 |------------------------------------------------------------------|
 |                                                                    |
-|  [転送中のデータ]                                                   |
-|  +-- HTTP（非HTTPS）での機密データ送信                              |
-|  +-- TLS 1.0/1.1 の使用（既知の脆弱性あり）                        |
-|  +-- 弱い暗号スイートの許可（RC4, DES, 3DES）                      |
-|  +-- 証明書検証の無効化                                             |
+|  [Data in Transit]                                                |
+|  +-- Sending sensitive data over HTTP (non-HTTPS)                |
+|  +-- Using TLS 1.0/1.1 (known vulnerabilities)                   |
+|  +-- Allowing weak cipher suites (RC4, DES, 3DES)               |
+|  +-- Disabling certificate validation                             |
 |                                                                    |
-|  [保存データ]                                                       |
-|  +-- 平文でのパスワード保存                                         |
-|  +-- MD5/SHA-1 でのパスワードハッシュ                               |
-|  +-- ソルトなしのハッシュ                                           |
-|  +-- データベース暗号化の未実施                                     |
-|  +-- バックアップの非暗号化                                         |
+|  [Data at Rest]                                                   |
+|  +-- Storing passwords in plaintext                               |
+|  +-- Hashing passwords with MD5/SHA-1                            |
+|  +-- Hashing without salt                                         |
+|  +-- Not encrypting the database                                  |
+|  +-- Unencrypted backups                                          |
 |                                                                    |
-|  [暗号アルゴリズムの誤用]                                           |
-|  +-- ECB モードの使用（パターン漏洩）                               |
-|  +-- 固定IV/ノンスの使用                                           |
-|  +-- 自作暗号の使用                                                 |
-|  +-- 不十分な鍵長（RSA 1024bit, AES 128bit未満）                   |
+|  [Misuse of Cryptographic Algorithms]                             |
+|  +-- Using ECB mode (pattern leakage)                            |
+|  +-- Using a fixed IV/nonce                                       |
+|  +-- Using homegrown cryptography                                 |
+|  +-- Insufficient key length (RSA 1024-bit, AES below 128-bit)   |
 +------------------------------------------------------------------+
 ```
 
-### データ分類と暗号化要件
+### Data Classification and Encryption Requirements
 
-| データ分類 | 例 | 転送時暗号化 | 保存時暗号化 | アクセス制御 | 保持期間 |
-|-----------|-----|------------|------------|------------|---------|
-| 公開 | プレスリリース | 推奨 | 不要 | 不要 | 無期限 |
-| 内部 | 社内文書 | 必須 | 推奨 | ロールベース | 規定に従う |
-| 機密 | 顧客情報 | 必須(TLS 1.2+) | 必須(AES-256) | 最小権限 | 法令に従う |
-| 極秘 | クレジットカード | 必須(TLS 1.3) | 必須(HSM管理鍵) | Need-to-know | PCI DSS準拠 |
+| Data Classification | Examples | Encryption in Transit | Encryption at Rest | Access Control | Retention Period |
+|---------------------|----------|-----------------------|--------------------|----------------|-----------------|
+| Public | Press releases | Recommended | Not required | Not required | Indefinite |
+| Internal | Internal documents | Required | Recommended | Role-based | Per policy |
+| Confidential | Customer information | Required (TLS 1.2+) | Required (AES-256) | Least privilege | Per regulations |
+| Restricted | Credit card data | Required (TLS 1.3) | Required (HSM-managed keys) | Need-to-know | PCI DSS compliant |
 
 ```python
-# コード例3: 適切な暗号化の実装
+# Code Example 3: Implementing proper encryption
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
@@ -341,169 +341,169 @@ import hmac
 import hashlib
 
 class SecureCrypto:
-    """安全な暗号化ユーティリティ"""
+    """Secure cryptographic utilities"""
 
     @staticmethod
     def hash_password(password: str) -> str:
-        """パスワードのハッシュ化（bcrypt使用）
+        """Hash a password (using bcrypt)
 
-        bcryptが推奨される理由:
-        1. ソルトが自動生成・付与される
-        2. コストファクター（rounds）で計算時間を調整可能
-        3. GPU/ASIC による並列攻撃に対して耐性がある
-        4. タイミング攻撃に対して一定時間比較を行う
+        Why bcrypt is recommended:
+        1. Salt is automatically generated and applied
+        2. Cost factor (rounds) allows adjustment of computation time
+        3. Resistant to parallel attacks by GPU/ASIC
+        4. Uses constant-time comparison against timing attacks
         """
-        # 悪い例: MD5やSHA-256の直接使用
+        # Bad example: direct use of MD5 or SHA-256
         # hashlib.md5(password.encode()).hexdigest()  # NG!
         # hashlib.sha256(password.encode()).hexdigest()  # NG!
 
-        # 良い例: bcryptによるソルト付きハッシュ
-        # rounds=12 は2025年時点で推奨される最小値
-        # サーバの性能に応じて13-14まで上げることが望ましい
+        # Good example: salted hash with bcrypt
+        # rounds=12 is the recommended minimum as of 2025
+        # Consider increasing to 13-14 depending on server capacity
         salt = bcrypt.gensalt(rounds=12)
         return bcrypt.hashpw(password.encode(), salt).decode()
 
     @staticmethod
     def verify_password(password: str, hashed: str) -> bool:
-        """パスワードの検証（定数時間比較）"""
+        """Verify a password (constant-time comparison)"""
         return bcrypt.checkpw(password.encode(), hashed.encode())
 
     @staticmethod
     def hash_password_argon2(password: str) -> str:
-        """Argon2idによるパスワードハッシュ（OWASP推奨）
+        """Password hashing with Argon2id (OWASP recommended)
 
-        Argon2id は OWASP が最も推奨するパスワードハッシュアルゴリズム。
-        メモリハード関数であり、GPU/ASIC攻撃に対してbcryptより強い耐性を持つ。
+        Argon2id is the password hashing algorithm most recommended by OWASP.
+        As a memory-hard function, it provides stronger resistance to GPU/ASIC attacks than bcrypt.
         """
         from argon2 import PasswordHasher
-        # OWASP推奨パラメータ (2024):
+        # OWASP recommended parameters (2024):
         # memory_cost=65536 (64MB), time_cost=3, parallelism=4
         ph = PasswordHasher(
             memory_cost=65536,   # 64MB
-            time_cost=3,         # 3回の反復
-            parallelism=4,       # 4スレッド
-            hash_len=32,         # 256bit出力
-            salt_len=16,         # 128bitソルト
+            time_cost=3,         # 3 iterations
+            parallelism=4,       # 4 threads
+            hash_len=32,         # 256-bit output
+            salt_len=16,         # 128-bit salt
         )
         return ph.hash(password)
 
     @staticmethod
     def encrypt_sensitive_data(plaintext: str, master_key: bytes) -> str:
-        """機密データの暗号化（AES-256-GCM）
+        """Encrypt sensitive data (AES-256-GCM)
 
-        GCMモード（Galois/Counter Mode）を使用する理由:
-        1. 認証付き暗号化（AEAD）: 暗号化と改竄検知を同時に実現
-        2. 並列処理可能: CBCモードより高速
-        3. IVの再利用が致命的: 12バイトのランダムノンスを毎回生成
+        Why to use GCM mode (Galois/Counter Mode):
+        1. Authenticated encryption (AEAD): achieves both encryption and tamper detection
+        2. Parallelizable: faster than CBC mode
+        3. IV reuse is fatal: generate a random 12-byte nonce each time
         """
-        # ノンスは毎回一意に生成（12バイトが推奨）
+        # Nonce must be uniquely generated each time (12 bytes recommended)
         nonce = os.urandom(12)
         key = AESGCM.generate_key(bit_length=256) if not master_key else master_key[:32]
 
         aesgcm = AESGCM(key)
         ciphertext = aesgcm.encrypt(nonce, plaintext.encode(), None)
 
-        # ノンス + 暗号文を結合して返す
+        # Combine nonce + ciphertext and return
         return base64.b64encode(nonce + ciphertext).decode()
 
     @staticmethod
     def encrypt_with_kdf(plaintext: str, master_key: bytes) -> str:
-        """KDFを使用した暗号化（鍵導出関数付き）"""
-        # PBKDF2でマスターキーから暗号鍵を導出
+        """Encryption using a KDF (key derivation function)"""
+        # Derive encryption key from master key using PBKDF2
         salt = os.urandom(16)
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
-            iterations=480000,  # OWASP推奨: 最低600,000（PBKDF2-SHA256の場合）
+            iterations=480000,  # OWASP recommended: minimum 600,000 (for PBKDF2-SHA256)
         )
         key = base64.urlsafe_b64encode(kdf.derive(master_key))
         f = Fernet(key)
         encrypted = f.encrypt(plaintext.encode())
-        # ソルトと暗号文を結合して返す
+        # Combine salt + ciphertext and return
         return base64.b64encode(salt + encrypted).decode()
 
     @staticmethod
     def constant_time_compare(a: str, b: str) -> bool:
-        """定数時間文字列比較（タイミング攻撃対策）
+        """Constant-time string comparison (defense against timing attacks)
 
-        通常の == 比較は最初の不一致文字で即座に返すため、
-        応答時間の差から正しい文字列を推測できてしまう。
+        Regular == comparison returns immediately on the first mismatched character,
+        allowing an attacker to infer the correct string from response time differences.
         """
         return hmac.compare_digest(a.encode(), b.encode())
 
 
-# パスワードハッシュアルゴリズムの比較表
+# Password hashing algorithm comparison table
 """
 +------------------------------------------------------------------+
-|  パスワードハッシュアルゴリズム比較                                    |
+|  Password Hashing Algorithm Comparison                            |
 |------------------------------------------------------------------|
-|  アルゴリズム | GPU耐性 | メモリ使用 | OWASP推奨 | 備考             |
-|  ------------|---------|----------|----------|------------------|
-|  MD5          | 最弱    | 極小     | 非推奨   | 衝突攻撃が容易     |
-|  SHA-256      | 弱      | 極小     | 非推奨   | 高速すぎる         |
-|  bcrypt       | 中      | 4KB固定  | 推奨     | 72バイト制限あり    |
-|  scrypt       | 強      | 可変     | 推奨     | パラメータ設定が複雑 |
-|  Argon2id     | 最強    | 可変     | 最推奨   | PHC勝者(2015)      |
+|  Algorithm  | GPU Resistance | Memory Use | OWASP Rec | Notes   |
+|  -----------|----------------|------------|-----------|---------|
+|  MD5         | Weakest       | Minimal    | Not rec.  | Collision attacks are easy |
+|  SHA-256     | Weak          | Minimal    | Not rec.  | Too fast |
+|  bcrypt      | Medium        | Fixed 4KB  | Rec.      | 72-byte limit |
+|  scrypt      | Strong        | Variable   | Rec.      | Complex parameter tuning |
+|  Argon2id    | Strongest     | Variable   | Most rec. | PHC winner (2015) |
 +------------------------------------------------------------------+
 """
 ```
 
 ---
 
-## 4. A03: インジェクション（Injection）
+## 4. A03: Injection
 
-ユーザー入力がコード・クエリの一部として解釈されてしまう脆弱性。SQLインジェクション、XSS、コマンドインジェクション、LDAPインジェクション等が含まれる。
+A vulnerability where user input is interpreted as part of code or a query. Includes SQL injection, XSS, command injection, LDAP injection, and others.
 
-### インジェクション攻撃の内部メカニズム
+### Internal Mechanism of Injection Attacks
 
 ```
-SQL インジェクションの仕組み:
+How SQL Injection Works:
 
-正常なクエリ:
-  入力: "alice"
-  クエリ: SELECT * FROM users WHERE name = 'alice'
-  結果: aliceのデータのみ返る
+Normal query:
+  Input: "alice"
+  Query: SELECT * FROM users WHERE name = 'alice'
+  Result: Only alice's data is returned
 
-攻撃クエリ:
-  入力: "' OR '1'='1' --"
-  クエリ: SELECT * FROM users WHERE name = '' OR '1'='1' --'
+Attack query:
+  Input: "' OR '1'='1' --"
+  Query: SELECT * FROM users WHERE name = '' OR '1'='1' --'
                                         ~~~~~~~~~~~~~~~
-                                        常にTRUE → 全件返る
+                                        Always TRUE → all records returned
 
-UNION攻撃:
-  入力: "' UNION SELECT username, password FROM admin_users --"
-  クエリ: SELECT name, email FROM users WHERE name = ''
+UNION attack:
+  Input: "' UNION SELECT username, password FROM admin_users --"
+  Query: SELECT name, email FROM users WHERE name = ''
           UNION SELECT username, password FROM admin_users --'
-  結果: 管理者のユーザ名とパスワードが漏洩
+  Result: Admin usernames and passwords are leaked
 
-二次インジェクション:
-  Step 1: ユーザ登録時に "admin'--" という名前を登録（エスケープされて保存）
-  Step 2: パスワード変更時にDBから名前を取得しクエリに使用
+Second-order injection:
+  Step 1: Register with the name "admin'--" at sign-up (stored after escaping)
+  Step 2: Fetch name from DB during password change and use it in query
           UPDATE users SET password='new' WHERE name='admin'--'
-          → admin のパスワードが変更されてしまう
+          → admin's password is changed
 ```
 
 ```python
-# コード例4: 包括的なインジェクション対策
+# Code Example 4: Comprehensive injection countermeasures
 import sqlite3
 import subprocess
 import shlex
 import re
 
-# ===== SQLインジェクション対策 =====
+# ===== SQL Injection Countermeasures =====
 
-# 悪い例: 文字列連結によるSQL構築
+# Bad example: building SQL by string concatenation
 def search_users_bad(username):
     query = f"SELECT * FROM users WHERE name = '{username}'"
-    return db.execute(query)  # ' OR '1'='1 で全件取得可能
+    return db.execute(query)  # ' OR '1'='1 retrieves all records
 
-# 良い例1: パラメータ化クエリ
+# Good example 1: parameterized queries
 def search_users_good(username):
     query = "SELECT * FROM users WHERE name = ?"
     return db.execute(query, (username,))
 
-# 良い例2: ORMの使用（SQLAlchemy）
+# Good example 2: using an ORM (SQLAlchemy)
 from sqlalchemy import select
 from models import User
 
@@ -511,23 +511,23 @@ def search_users_orm(session, username):
     stmt = select(User).where(User.name == username)
     return session.execute(stmt).scalars().all()
 
-# 良い例3: ストアドプロシージャの使用
+# Good example 3: using stored procedures
 def search_users_stored_proc(username):
     return db.execute("CALL search_users(?)", (username,))
 
 
-# ===== OSコマンドインジェクション対策 =====
+# ===== OS Command Injection Countermeasures =====
 
-# 悪い例: os.system / shell=True
+# Bad example: os.system / shell=True
 def ping_host_bad(hostname):
-    os.system(f"ping -c 1 {hostname}")  # ; rm -rf / が挿入可能
+    os.system(f"ping -c 1 {hostname}")  # ; rm -rf / can be injected
 
-# 良い例: subprocessでシェルを介さない
+# Good example: subprocess without shell
 def ping_host_good(hostname):
-    # ホワイトリスト検証
+    # Whitelist validation
     if not re.match(r'^[a-zA-Z0-9\.\-]+$', hostname):
         raise ValueError("Invalid hostname")
-    # shell=False（デフォルト）で実行
+    # Execute with shell=False (default)
     result = subprocess.run(
         ["ping", "-c", "1", hostname],
         capture_output=True, text=True, timeout=10
@@ -535,15 +535,15 @@ def ping_host_good(hostname):
     return result.stdout
 
 
-# ===== テンプレートインジェクション (SSTI) 対策 =====
+# ===== Template Injection (SSTI) Countermeasures =====
 from jinja2 import Environment, select_autoescape, sandbox
 
-# 悪い例: ユーザ入力をテンプレートとして評価
+# Bad example: evaluating user input as a template
 def render_bad(user_input):
     from jinja2 import Template
-    return Template(user_input).render()  # {{7*7}} → 49, RCE可能
+    return Template(user_input).render()  # {{7*7}} → 49, RCE possible
 
-# 良い例: サンドボックス環境を使用
+# Good example: using a sandboxed environment
 def render_good(template_name, context):
     env = sandbox.SandboxedEnvironment(
         autoescape=select_autoescape(['html', 'xml'])
@@ -552,15 +552,15 @@ def render_good(template_name, context):
     return template.render(**context)
 
 
-# ===== LDAPインジェクション対策 =====
+# ===== LDAP Injection Countermeasures =====
 import ldap3
 
-# 悪い例: 文字列連結
+# Bad example: string concatenation
 def search_ldap_bad(username):
-    filter_str = f"(uid={username})"  # *)(uid=*))(|(uid=* で全件取得
+    filter_str = f"(uid={username})"  # *)(uid=*))(|(uid=* retrieves all records
     conn.search("dc=example,dc=com", filter_str)
 
-# 良い例: エスケープ関数の使用
+# Good example: using an escape function
 def search_ldap_good(username):
     from ldap3.utils.conv import escape_filter_chars
     safe_username = escape_filter_chars(username)
@@ -568,62 +568,62 @@ def search_ldap_good(username):
     conn.search("dc=example,dc=com", filter_str)
 ```
 
-### XSS（クロスサイトスクリプティング）の分類
+### XSS (Cross-Site Scripting) Classification
 
 ```
 +------------------------------------------------------------------+
-|  XSS の3分類                                                       |
+|  Three Types of XSS                                               |
 |------------------------------------------------------------------|
 |                                                                    |
-|  [Reflected XSS (反射型)]                                          |
-|  攻撃者 → 悪意のあるURL → 被害者がクリック                          |
-|  → サーバがユーザ入力をレスポンスに含める                             |
-|  → ブラウザでスクリプト実行                                         |
-|  例: https://site.com/search?q=<script>alert(1)</script>           |
+|  [Reflected XSS]                                                  |
+|  Attacker → malicious URL → victim clicks                        |
+|  → server includes user input in response                        |
+|  → script executes in browser                                    |
+|  Example: https://site.com/search?q=<script>alert(1)</script>    |
 |                                                                    |
-|  [Stored XSS (格納型)]                                              |
-|  攻撃者 → 掲示板にスクリプトを投稿 → DBに保存                       |
-|  → 他のユーザが閲覧時にスクリプト実行                                |
-|  例: コメント欄に <img src=x onerror=steal(cookie)>                |
+|  [Stored XSS]                                                     |
+|  Attacker → posts script to bulletin board → saved to DB         |
+|  → script executes when other users view the page                |
+|  Example: <img src=x onerror=steal(cookie)> in a comment field   |
 |                                                                    |
-|  [DOM-based XSS (DOM型)]                                           |
-|  攻撃者 → URLフラグメントにスクリプト                               |
-|  → クライアントサイドJSがDOMに挿入                                  |
-|  例: https://site.com/page#<img src=x onerror=alert(1)>           |
-|  document.getElementById('x').innerHTML = location.hash            |
+|  [DOM-based XSS]                                                  |
+|  Attacker → script in URL fragment                               |
+|  → client-side JS inserts into DOM                               |
+|  Example: https://site.com/page#<img src=x onerror=alert(1)>    |
+|  document.getElementById('x').innerHTML = location.hash          |
 +------------------------------------------------------------------+
 ```
 
 ```python
-# コード例5: XSS対策の実装
+# Code Example 5: XSS countermeasure implementation
 from markupsafe import escape
 from flask import Flask, Markup
 
 app = Flask(__name__)
 
-# 悪い例: ユーザ入力を直接HTMLに埋め込み
+# Bad example: directly embedding user input in HTML
 @app.route("/profile")
 def profile_bad():
     name = request.args.get("name")
-    return f"<h1>Welcome, {name}</h1>"  # XSS脆弱
+    return f"<h1>Welcome, {name}</h1>"  # XSS vulnerable
 
-# 良い例1: エスケープ
+# Good example 1: escaping
 @app.route("/profile")
 def profile_good():
     name = escape(request.args.get("name", ""))
     return f"<h1>Welcome, {name}</h1>"
 
-# 良い例2: テンプレートエンジンの自動エスケープ
+# Good example 2: automatic escaping via template engine
 # templates/profile.html: <h1>Welcome, {{ name }}</h1>
-# Jinja2はデフォルトで自動エスケープ
+# Jinja2 auto-escapes by default
 
-# CSP (Content Security Policy) の設定
+# CSP (Content Security Policy) configuration
 @app.after_request
 def set_csp(response):
-    """XSSの影響を最小化するCSPヘッダー"""
+    """CSP header to minimize the impact of XSS"""
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'nonce-{nonce}'; "  # nonceベースの許可
+        "script-src 'self' 'nonce-{nonce}'; "  # nonce-based allowlist
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: https:; "
         "frame-ancestors 'none'; "
@@ -635,77 +635,77 @@ def set_csp(response):
 
 ---
 
-## 5. A04: 安全でない設計（Insecure Design）
+## 5. A04: Insecure Design
 
-設計段階でのセキュリティ考慮の欠如に起因する脆弱性。コーディングレベルの対策では解決できない、アーキテクチャ上の問題を指す。
+Vulnerabilities stemming from a lack of security consideration at the design stage. These are architectural issues that cannot be resolved by coding-level countermeasures alone.
 
-### 脅威モデリング（STRIDE）
+### Threat Modeling (STRIDE)
 
 ```
 +------------------------------------------------------------------+
-|  STRIDE 脅威モデリングフレームワーク                                  |
+|  STRIDE Threat Modeling Framework                                 |
 |------------------------------------------------------------------|
 |                                                                    |
-|  S - Spoofing (なりすまし)                                         |
-|    → 対策: 認証、証明書、MFA                                        |
+|  S - Spoofing                                                     |
+|    → Countermeasures: authentication, certificates, MFA          |
 |                                                                    |
-|  T - Tampering (改竄)                                              |
-|    → 対策: 完全性チェック、MAC、デジタル署名                         |
+|  T - Tampering                                                    |
+|    → Countermeasures: integrity checks, MAC, digital signatures  |
 |                                                                    |
-|  R - Repudiation (否認)                                            |
-|    → 対策: 監査ログ、タイムスタンプ、デジタル署名                    |
+|  R - Repudiation                                                  |
+|    → Countermeasures: audit logs, timestamps, digital signatures  |
 |                                                                    |
-|  I - Information Disclosure (情報漏洩)                              |
-|    → 対策: 暗号化、アクセス制御、最小権限                            |
+|  I - Information Disclosure                                       |
+|    → Countermeasures: encryption, access control, least privilege |
 |                                                                    |
-|  D - Denial of Service (サービス拒否)                              |
-|    → 対策: レートリミット、リソース制限、冗長構成                    |
+|  D - Denial of Service                                            |
+|    → Countermeasures: rate limiting, resource limits, redundancy  |
 |                                                                    |
-|  E - Elevation of Privilege (権限昇格)                             |
-|    → 対策: 最小権限、入力検証、サンドボックス                        |
+|  E - Elevation of Privilege                                       |
+|    → Countermeasures: least privilege, input validation, sandbox  |
 +------------------------------------------------------------------+
 ```
 
-### セキュアな設計パターン
+### Secure Design Patterns
 
 ```python
-# コード例6: ビジネスロジックのセキュリティ設計
+# Code Example 6: Security design for business logic
 from datetime import datetime, timedelta
 from collections import defaultdict
 
 class SecurePasswordReset:
-    """安全なパスワードリセットの設計
+    """Secure password reset design
 
-    安全でない設計の例:
-    - リセットリンクが予測可能（連番ID）
-    - リセットトークンに有効期限がない
-    - レートリミットがない（列挙攻撃可能）
-    - 「ユーザが存在しません」というエラーメッセージ（情報漏洩）
+    Examples of insecure design:
+    - Reset links are predictable (sequential IDs)
+    - Reset tokens have no expiry
+    - No rate limiting (enumeration attacks possible)
+    - "User does not exist" error message (information leakage)
     """
 
     def __init__(self):
         self.reset_tokens = {}
         self.attempt_counts = defaultdict(list)
-        self.TOKEN_EXPIRY = timedelta(minutes=15)  # 短い有効期限
-        self.MAX_ATTEMPTS = 3  # 1時間あたり3回まで
+        self.TOKEN_EXPIRY = timedelta(minutes=15)  # Short expiry
+        self.MAX_ATTEMPTS = 3  # Up to 3 times per hour
 
     def request_reset(self, email: str) -> dict:
-        # レートリミットチェック
+        # Rate limit check
         now = datetime.utcnow()
         recent = [t for t in self.attempt_counts[email]
                   if t > now - timedelta(hours=1)]
         self.attempt_counts[email] = recent
 
         if len(recent) >= self.MAX_ATTEMPTS:
-            # 同じレスポンスを返す（情報漏洩防止）
+            # Return the same response (prevent information leakage)
             return {"message": "If the email exists, a reset link has been sent."}
 
         self.attempt_counts[email].append(now)
 
-        # ユーザの存在有無に関わらず同じレスポンス
+        # Return the same response regardless of whether the user exists
         user = find_user_by_email(email)
         if user:
-            token = secrets.token_urlsafe(32)  # 256bit のランダムトークン
+            token = secrets.token_urlsafe(32)  # 256-bit random token
             self.reset_tokens[token] = {
                 "user_id": user.id,
                 "expires_at": now + self.TOKEN_EXPIRY,
@@ -713,7 +713,7 @@ class SecurePasswordReset:
             }
             send_reset_email(email, token)
 
-        # 攻撃者にユーザの存在を知らせない
+        # Do not reveal user existence to the attacker
         return {"message": "If the email exists, a reset link has been sent."}
 
     def verify_reset(self, token: str, new_password: str) -> bool:
@@ -721,16 +721,16 @@ class SecurePasswordReset:
         if not data:
             return False
         if data["used"]:
-            return False  # ワンタイム使用
+            return False  # One-time use
         if datetime.utcnow() > data["expires_at"]:
             del self.reset_tokens[token]
             return False
 
-        # トークンを使用済みにマーク
+        # Mark token as used
         data["used"] = True
         update_password(data["user_id"], new_password)
 
-        # 他のセッションを無効化
+        # Invalidate all other sessions
         invalidate_all_sessions(data["user_id"])
 
         return True
@@ -738,41 +738,41 @@ class SecurePasswordReset:
 
 ---
 
-## 6. A05: セキュリティの設定ミス（Security Misconfiguration）
+## 6. A05: Security Misconfiguration
 
-デフォルト設定の変更忘れ、不要な機能の有効化、過剰な権限付与など、設定に起因するセキュリティ問題。
+Security issues caused by configuration errors, such as forgetting to change default settings, enabling unnecessary features, or granting excessive permissions.
 
-### 典型的な設定ミスと対策
+### Common Misconfigurations and Countermeasures
 
 ```python
-# コード例7: セキュリティヘッダーの包括的な設定
+# Code Example 7: Comprehensive security header configuration
 from flask import Flask, Response
 
 app = Flask(__name__)
 
-# 本番環境ではデバッグモードを無効化
+# Disable debug mode in production
 app.config["DEBUG"] = False
 app.config["TESTING"] = False
 
-# セッションの安全な設定
-app.config["SESSION_COOKIE_SECURE"] = True       # HTTPS必須
-app.config["SESSION_COOKIE_HTTPONLY"] = True      # JavaScript からアクセス不可
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"    # CSRF対策
-app.config["PERMANENT_SESSION_LIFETIME"] = 1800   # 30分でタイムアウト
+# Secure session configuration
+app.config["SESSION_COOKIE_SECURE"] = True       # HTTPS required
+app.config["SESSION_COOKIE_HTTPONLY"] = True      # Not accessible from JavaScript
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"    # CSRF protection
+app.config["PERMANENT_SESSION_LIFETIME"] = 1800   # Timeout after 30 minutes
 
 @app.after_request
 def set_security_headers(response: Response) -> Response:
-    """全レスポンスにセキュリティヘッダーを付与する"""
-    # XSSフィルタ（CSPに委任）
+    """Attach security headers to all responses"""
+    # XSS filter (delegated to CSP)
     response.headers["X-XSS-Protection"] = "0"
 
-    # MIMEタイプスニッフィング防止
+    # Prevent MIME type sniffing
     response.headers["X-Content-Type-Options"] = "nosniff"
 
-    # クリックジャッキング防止
+    # Prevent clickjacking
     response.headers["X-Frame-Options"] = "DENY"
 
-    # Content Security Policy（XSS緩和の最重要ヘッダー）
+    # Content Security Policy (most important header for XSS mitigation)
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self'; "
@@ -786,21 +786,21 @@ def set_security_headers(response: Response) -> Response:
         "upgrade-insecure-requests"
     )
 
-    # HTTPS強制（HSTS）
+    # Enforce HTTPS (HSTS)
     response.headers["Strict-Transport-Security"] = (
         "max-age=31536000; includeSubDomains; preload"
     )
 
-    # リファラー制御
+    # Referrer control
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
-    # ブラウザ機能の制限
+    # Browser feature restrictions
     response.headers["Permissions-Policy"] = (
         "camera=(), microphone=(), geolocation=(), "
         "payment=(), usb=(), magnetometer=()"
     )
 
-    # キャッシュ制御（機密データ）
+    # Cache control (sensitive data)
     if "api" in request.path:
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
         response.headers["Pragma"] = "no-cache"
@@ -808,10 +808,10 @@ def set_security_headers(response: Response) -> Response:
     return response
 
 
-# エラーハンドラ（情報漏洩防止）
+# Error handlers (prevent information leakage)
 @app.errorhandler(500)
 def internal_error(error):
-    """本番環境ではスタックトレースを返さない"""
+    """Do not return stack traces in production"""
     app.logger.error(f"Internal error: {error}", exc_info=True)
     return {"error": "Internal server error"}, 500
 
@@ -820,38 +820,38 @@ def not_found(error):
     return {"error": "Resource not found"}, 404
 ```
 
-### ハードニングチェックリスト
+### Hardening Checklist
 
 ```
 +------------------------------------------------------------------+
-|  サーバハードニングチェックリスト                                     |
+|  Server Hardening Checklist                                       |
 |------------------------------------------------------------------|
-|  [ ] デフォルトアカウント/パスワードの変更                           |
-|  [ ] 不要なポート・サービスの無効化                                  |
-|  [ ] ディレクトリリスティングの無効化                                 |
-|  [ ] サーババージョン情報の非公開化                                   |
-|  [ ] デバッグモードの無効化                                          |
-|  [ ] スタックトレースの非公開化                                       |
-|  [ ] CORSの適切な設定                                               |
-|  [ ] HTTPメソッドの制限（OPTIONS, TRACE等の無効化）                  |
-|  [ ] TLS 1.2+ の強制                                               |
-|  [ ] セキュリティヘッダーの設定                                       |
-|  [ ] Cookie属性の適切な設定 (Secure, HttpOnly, SameSite)            |
-|  [ ] ファイルアップロードの制限と検証                                 |
-|  [ ] エラーページのカスタマイズ                                       |
+|  [ ] Change default accounts/passwords                           |
+|  [ ] Disable unnecessary ports and services                      |
+|  [ ] Disable directory listing                                    |
+|  [ ] Hide server version information                              |
+|  [ ] Disable debug mode                                           |
+|  [ ] Hide stack traces                                            |
+|  [ ] Configure CORS properly                                      |
+|  [ ] Restrict HTTP methods (disable OPTIONS, TRACE, etc.)        |
+|  [ ] Enforce TLS 1.2+                                            |
+|  [ ] Configure security headers                                   |
+|  [ ] Set proper Cookie attributes (Secure, HttpOnly, SameSite)   |
+|  [ ] Restrict and validate file uploads                           |
+|  [ ] Customize error pages                                        |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 7. A06: 脆弱で古いコンポーネント（Vulnerable and Outdated Components）
+## 7. A06: Vulnerable and Outdated Components
 
-既知の脆弱性を持つライブラリ、フレームワーク、その他のソフトウェアコンポーネントの使用。サプライチェーン攻撃の入り口となる。
+Using libraries, frameworks, or other software components with known vulnerabilities. This is an entry point for supply chain attacks.
 
-### 依存関係の管理
+### Dependency Management
 
 ```bash
-# コード例8: 依存関係のセキュリティチェック
+# Code Example 8: Security checks for dependencies
 
 # Python: pip-audit
 pip install pip-audit
@@ -873,23 +873,23 @@ govulncheck ./...
 cargo install cargo-audit
 cargo audit
 
-# マルチ言語対応: Trivy
+# Multi-language: Trivy
 trivy fs --scanners vuln .
 ```
 
-### SCA（Software Composition Analysis）ツールの比較
+### SCA (Software Composition Analysis) Tool Comparison
 
-| ツール | 対応言語 | コスト | 特徴 |
-|--------|---------|--------|------|
-| Dependabot | 多数 | 無料 (GitHub) | 自動PR作成 |
-| Snyk | 多数 | フリーミアム | 修正提案が詳細 |
-| OWASP Dependency-Check | Java, .NET | 無料 | NVDベース |
-| pip-audit | Python | 無料 | OSV/PyPIデータベース |
-| npm audit | Node.js | 無料 | npm内蔵 |
-| Trivy | 多数 | 無料 | コンテナも対応 |
+| Tool | Supported Languages | Cost | Features |
+|------|---------------------|------|----------|
+| Dependabot | Many | Free (GitHub) | Auto PR creation |
+| Snyk | Many | Freemium | Detailed fix suggestions |
+| OWASP Dependency-Check | Java, .NET | Free | NVD-based |
+| pip-audit | Python | Free | OSV/PyPI database |
+| npm audit | Node.js | Free | Built into npm |
+| Trivy | Many | Free | Also supports containers |
 
 ```yaml
-# GitHub Actions: Dependabot設定
+# GitHub Actions: Dependabot configuration
 # .github/dependabot.yml
 version: 2
 updates:
@@ -907,39 +907,39 @@ updates:
 
 ---
 
-## 8. A07: 識別と認証の失敗（Identification and Authentication Failures）
+## 8. A07: Identification and Authentication Failures
 
-### セキュアな認証の実装
+### Implementing Secure Authentication
 
 ```python
-# コード例9: セッション管理のベストプラクティス
+# Code Example 9: Session management best practices
 import secrets
 from datetime import datetime, timedelta
 from flask import Flask, session, request
 
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(32)  # 256bit
+app.secret_key = secrets.token_hex(32)  # 256-bit
 
 class SecureSessionManager:
-    """安全なセッション管理"""
+    """Secure session management"""
 
     def __init__(self):
         self.sessions = {}
         self.MAX_SESSIONS_PER_USER = 5
 
     def create_session(self, user_id: str, ip: str, user_agent: str) -> str:
-        """セッション作成"""
-        # 既存セッション数チェック
+        """Create a session"""
+        # Check number of existing sessions
         user_sessions = [
             s for s in self.sessions.values()
             if s["user_id"] == user_id and not s["expired"]
         ]
         if len(user_sessions) >= self.MAX_SESSIONS_PER_USER:
-            # 最も古いセッションを無効化
+            # Invalidate the oldest session
             oldest = min(user_sessions, key=lambda s: s["created_at"])
             oldest["expired"] = True
 
-        session_id = secrets.token_urlsafe(32)  # 256bitのランダムID
+        session_id = secrets.token_urlsafe(32)  # 256-bit random ID
         self.sessions[session_id] = {
             "user_id": user_id,
             "created_at": datetime.utcnow(),
@@ -951,28 +951,28 @@ class SecureSessionManager:
         return session_id
 
     def validate_session(self, session_id: str, ip: str) -> bool:
-        """セッション検証"""
+        """Validate a session"""
         data = self.sessions.get(session_id)
         if not data or data["expired"]:
             return False
 
-        # 絶対タイムアウト: 作成から24時間
+        # Absolute timeout: 24 hours from creation
         if datetime.utcnow() - data["created_at"] > timedelta(hours=24):
             data["expired"] = True
             return False
 
-        # アイドルタイムアウト: 最終操作から30分
+        # Idle timeout: 30 minutes from last activity
         if datetime.utcnow() - data["last_activity"] > timedelta(minutes=30):
             data["expired"] = True
             return False
 
-        # IP変更の検知（セッションハイジャック対策）
+        # Detect IP change (defense against session hijacking)
         if data["ip"] != ip:
             audit_log.warning(
                 f"Session IP mismatch: session={session_id}, "
                 f"original={data['ip']}, current={ip}"
             )
-            # 厳密モード: セッション無効化
+            # Strict mode: invalidate session
             # data["expired"] = True
             # return False
 
@@ -980,53 +980,53 @@ class SecureSessionManager:
         return True
 
     def destroy_session(self, session_id: str):
-        """セッション破棄（ログアウト時）"""
+        """Destroy a session (on logout)"""
         if session_id in self.sessions:
             self.sessions[session_id]["expired"] = True
 
     def destroy_all_user_sessions(self, user_id: str):
-        """全セッション破棄（パスワード変更時）"""
+        """Destroy all sessions (on password change)"""
         for session_data in self.sessions.values():
             if session_data["user_id"] == user_id:
                 session_data["expired"] = True
 ```
 
-### 認証方式の比較
+### Authentication Method Comparison
 
-| 方式 | セキュリティ | UX | 実装難易度 | 適用場面 |
-|------|------------|-----|-----------|---------|
-| パスワードのみ | 低 | 簡単 | 低 | 非推奨 |
-| パスワード+TOTP | 中 | やや面倒 | 中 | 一般的 |
-| パスワード+WebAuthn | 高 | 初回のみ面倒 | 中 | 推奨 |
-| パスキー (Passkeys) | 高 | 簡単 | 中 | 最推奨 |
-| SSO (SAML/OIDC) | 高 | 簡単 | 高 | エンタープライズ |
+| Method | Security | UX | Implementation Complexity | Use Case |
+|--------|----------|----|--------------------------|----------|
+| Password only | Low | Easy | Low | Not recommended |
+| Password + TOTP | Medium | Somewhat inconvenient | Medium | Common |
+| Password + WebAuthn | High | Inconvenient only at first | Medium | Recommended |
+| Passkeys | High | Easy | Medium | Most recommended |
+| SSO (SAML/OIDC) | High | Easy | High | Enterprise |
 
 ---
 
-## 9. A08-A10: 詳細解説
+## 9. A08-A10: Detailed Explanation
 
-### A08: ソフトウェアとデータの整合性の不具合
+### A08: Software and Data Integrity Failures
 
-CI/CDパイプラインの侵害、安全でないデシリアライゼーション、ソフトウェアの更新検証の欠如。
+Compromise of CI/CD pipelines, insecure deserialization, and lack of software update verification.
 
 ```python
-# コード例10: 安全なデシリアライゼーション
+# Code Example 10: Secure deserialization
 import json
 import hmac
 import hashlib
 
-# 悪い例: pickle の直接使用（任意コード実行の危険）
+# Bad example: direct use of pickle (risk of arbitrary code execution)
 import pickle
 def load_bad(data):
-    return pickle.loads(data)  # 絶対にNG! RCE可能
+    return pickle.loads(data)  # Absolutely NG! RCE possible
 
-# 良い例: JSONによるシリアライゼーション + 署名検証
+# Good example: JSON serialization + signature verification
 class SecureSerializer:
     def __init__(self, secret_key: bytes):
         self.secret_key = secret_key
 
     def serialize(self, data: dict) -> str:
-        """データをシリアライズして署名"""
+        """Serialize data and sign it"""
         payload = json.dumps(data, sort_keys=True)
         signature = hmac.new(
             self.secret_key, payload.encode(), hashlib.sha256
@@ -1034,7 +1034,7 @@ class SecureSerializer:
         return json.dumps({"payload": payload, "signature": signature})
 
     def deserialize(self, raw: str) -> dict:
-        """署名を検証してデシリアライズ"""
+        """Verify signature and deserialize"""
         container = json.loads(raw)
         expected_sig = hmac.new(
             self.secret_key,
@@ -1046,16 +1046,16 @@ class SecureSerializer:
         return json.loads(container["payload"])
 ```
 
-### A09: セキュリティログとモニタリングの不備
+### A09: Security Logging and Monitoring Failures
 
 ```python
-# コード例11: 構造化セキュリティログ
+# Code Example 11: Structured security logging
 import logging
 import json
 from datetime import datetime
 
 class SecurityLogger:
-    """セキュリティイベント専用ロガー"""
+    """Logger dedicated to security events"""
 
     def __init__(self):
         self.logger = logging.getLogger("security")
@@ -1065,7 +1065,7 @@ class SecurityLogger:
         self.logger.setLevel(logging.INFO)
 
     def log_event(self, event_type: str, details: dict):
-        """構造化されたセキュリティイベントを記録"""
+        """Record a structured security event"""
         event = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "event_type": event_type,
@@ -1094,34 +1094,34 @@ class SecurityLogger:
             "severity": "HIGH",
         })
 
-# ログすべきイベント一覧:
-# - 認証の成功/失敗
-# - アクセス制御の拒否
-# - 入力検証の失敗
-# - セッションの作成/破棄
-# - 権限の変更
-# - 管理操作（ユーザ作成、設定変更）
-# - 高額取引/重要操作
+# Events that should be logged:
+# - Authentication success/failure
+# - Access control denials
+# - Input validation failures
+# - Session creation/destruction
+# - Permission changes
+# - Administrative operations (user creation, configuration changes)
+# - High-value transactions / critical operations
 ```
 
-### A10: SSRF（サーバーサイドリクエストフォージェリ）
+### A10: SSRF (Server-Side Request Forgery)
 
 ```python
-# コード例12: SSRF対策の完全な実装
+# Code Example 12: Complete SSRF protection implementation
 import ipaddress
 import socket
 from urllib.parse import urlparse
 import re
 
 class SSRFProtection:
-    """SSRF攻撃を防止するURL検証
+    """URL validation to prevent SSRF attacks
 
-    SSRFの攻撃シナリオ:
-    1. 内部メタデータAPIへのアクセス
+    SSRF attack scenarios:
+    1. Accessing internal metadata APIs
        (AWS: http://169.254.169.254/latest/meta-data/)
-    2. 内部サービスへのポートスキャン
-    3. クラウドプロバイダの認証情報の窃取
-    4. 内部ネットワークのファイル読み取り (file://)
+    2. Port scanning internal services
+    3. Stealing cloud provider credentials
+    4. Reading files on internal networks (file://)
     """
 
     BLOCKED_NETWORKS = [
@@ -1129,11 +1129,11 @@ class SSRFProtection:
         ipaddress.ip_network("172.16.0.0/12"),
         ipaddress.ip_network("192.168.0.0/16"),
         ipaddress.ip_network("127.0.0.0/8"),
-        ipaddress.ip_network("169.254.0.0/16"),  # リンクローカル/メタデータ
-        ipaddress.ip_network("100.64.0.0/10"),   # CGNATレンジ
-        ipaddress.ip_network("::1/128"),          # IPv6ループバック
+        ipaddress.ip_network("169.254.0.0/16"),  # Link-local / metadata
+        ipaddress.ip_network("100.64.0.0/10"),   # CGNAT range
+        ipaddress.ip_network("::1/128"),          # IPv6 loopback
         ipaddress.ip_network("fc00::/7"),         # IPv6 ULA
-        ipaddress.ip_network("fe80::/10"),        # IPv6 リンクローカル
+        ipaddress.ip_network("fe80::/10"),        # IPv6 link-local
     ]
 
     ALLOWED_SCHEMES = {"http", "https"}
@@ -1141,33 +1141,33 @@ class SSRFProtection:
 
     @classmethod
     def validate_url(cls, url: str) -> bool:
-        """外部アクセスに使用するURLを検証する"""
+        """Validate a URL to be used for external access"""
         parsed = urlparse(url)
 
-        # スキームチェック
+        # Scheme check
         if parsed.scheme not in cls.ALLOWED_SCHEMES:
             return False
 
-        # ポートチェック
+        # Port check
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
         if port not in cls.ALLOWED_PORTS:
             return False
 
-        # ホスト名の検証
+        # Hostname validation
         hostname = parsed.hostname
         if not hostname:
             return False
 
-        # DNS rebinding 対策: ドット区切りの数値IPを直接チェック
+        # DNS rebinding protection: directly check dotted numeric IPs
         try:
             ip = ipaddress.ip_address(hostname)
             return not cls._is_blocked(ip)
         except ValueError:
-            pass  # ホスト名の場合はDNS解決が必要
+            pass  # DNS resolution needed for hostnames
 
-        # ホスト解決とプライベートIP検出
+        # Resolve host and detect private IPs
         try:
-            # 全てのアドレスを解決（CNAMEチェーン対策）
+            # Resolve all addresses (defense against CNAME chains)
             addrinfos = socket.getaddrinfo(hostname, port)
             for family, _, _, _, sockaddr in addrinfos:
                 ip = ipaddress.ip_address(sockaddr[0])
@@ -1187,7 +1187,7 @@ class SSRFProtection:
 
     @classmethod
     def safe_fetch(cls, url: str, timeout: int = 10) -> bytes:
-        """安全な外部URLフェッチ"""
+        """Safely fetch an external URL"""
         if not cls.validate_url(url):
             raise ValueError(f"Blocked URL: {url}")
 
@@ -1195,11 +1195,11 @@ class SSRFProtection:
         response = requests.get(
             url,
             timeout=timeout,
-            allow_redirects=False,  # リダイレクトを手動で処理
+            allow_redirects=False,  # Handle redirects manually
             headers={"User-Agent": "MyApp/1.0"},
         )
 
-        # リダイレクト先も検証
+        # Also validate redirect destinations
         if response.is_redirect:
             redirect_url = response.headers.get("Location")
             if redirect_url and cls.validate_url(redirect_url):
@@ -1211,60 +1211,60 @@ class SSRFProtection:
 
 ---
 
-## 10. 各脆弱性の対策比較
+## 10. Countermeasure Comparison for Each Vulnerability
 
-| 脆弱性 | 主要対策 | ツール | 検出フェーズ | CWE |
-|--------|---------|-------|-------------|-----|
-| A01 アクセス制御 | RBAC、オーナーシップチェック | Burp Suite | DAST | CWE-284 |
-| A02 暗号化失敗 | TLS 1.3、AES-GCM、bcrypt | testssl.sh | 設計レビュー | CWE-327 |
-| A03 インジェクション | パラメータ化クエリ、ORM | SQLMap、SAST | SAST/DAST | CWE-89 |
-| A04 安全でない設計 | 脅威モデリング、セキュリティ要件 | - | 設計レビュー | CWE-501 |
-| A05 設定ミス | ハードニング、IaC | ScoutSuite | 構成監査 | CWE-16 |
-| A06 古いコンポーネント | SCA、自動更新 | Dependabot | SCA | CWE-1104 |
-| A07 認証の失敗 | MFA、レートリミット | Hydra | ペネトレーションテスト | CWE-287 |
-| A08 整合性不具合 | 署名検証、SRI | Sigstore | CI/CD | CWE-502 |
-| A09 ログ不備 | SIEM、監査ログ | ELK Stack | 運用監視 | CWE-778 |
-| A10 SSRF | URL検証、ネットワーク分離 | Burp Suite | DAST | CWE-918 |
+| Vulnerability | Key Countermeasures | Tools | Detection Phase | CWE |
+|---------------|---------------------|-------|-----------------|-----|
+| A01 Access Control | RBAC, ownership checks | Burp Suite | DAST | CWE-284 |
+| A02 Cryptographic Failures | TLS 1.3, AES-GCM, bcrypt | testssl.sh | Design review | CWE-327 |
+| A03 Injection | Parameterized queries, ORM | SQLMap, SAST | SAST/DAST | CWE-89 |
+| A04 Insecure Design | Threat modeling, security requirements | - | Design review | CWE-501 |
+| A05 Misconfiguration | Hardening, IaC | ScoutSuite | Configuration audit | CWE-16 |
+| A06 Outdated Components | SCA, auto-update | Dependabot | SCA | CWE-1104 |
+| A07 Authentication Failures | MFA, rate limiting | Hydra | Penetration testing | CWE-287 |
+| A08 Integrity Failures | Signature verification, SRI | Sigstore | CI/CD | CWE-502 |
+| A09 Logging Failures | SIEM, audit logs | ELK Stack | Operational monitoring | CWE-778 |
+| A10 SSRF | URL validation, network segmentation | Burp Suite | DAST | CWE-918 |
 
-### 対策の実装優先度マトリクス
+### Countermeasure Implementation Priority Matrix
 
 ```
 +------------------------------------------------------------------+
-|  影響度 vs 対策コスト マトリクス                                      |
+|  Impact vs. Remediation Cost Matrix                               |
 |------------------------------------------------------------------|
 |                                                                    |
-|  影響: 大 |  A01 アクセス制御  |  A04 安全な設計    |               |
-|           |  A03 インジェクション|  (設計段階で対処)  |               |
-|           |  (即座に対策すべき)  |                    |               |
-|  ---------|--------------------|--------------------|               |
-|  影響: 中 |  A02 暗号化        |  A06 コンポーネント |               |
-|           |  A05 設定ミス      |  A08 整合性        |               |
-|           |  A07 認証          |                    |               |
-|  ---------|--------------------|--------------------|               |
-|  影響: 小 |  A10 SSRF         |  A09 ログ          |               |
-|           |  (ネットワーク分離) |  (運用改善)        |               |
-|           |                    |                    |               |
-|           |  対策コスト: 低     |  対策コスト: 高     |               |
+|  Impact: High |  A01 Access Control   |  A04 Secure Design    |  |
+|               |  A03 Injection        |  (Address at design)  |  |
+|               |  (Address immediately)|                        |  |
+|  -------------|----------------------|-----------------------|  |
+|  Impact: Med  |  A02 Cryptography     |  A06 Components       |  |
+|               |  A05 Misconfiguration |  A08 Integrity        |  |
+|               |  A07 Authentication   |                        |  |
+|  -------------|----------------------|-----------------------|  |
+|  Impact: Low  |  A10 SSRF            |  A09 Logging          |  |
+|               |  (Network isolation)  |  (Operational impr.)  |  |
+|               |                       |                        |  |
+|               |  Cost: Low            |  Cost: High            |  |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 11. セキュリティテスト手法
+## 11. Security Testing Techniques
 
-### SAST/DAST/IAST の比較
+### SAST / DAST / IAST Comparison
 
-| 手法 | 正式名称 | テスト対象 | タイミング | 長所 | 短所 |
-|------|---------|-----------|-----------|------|------|
-| SAST | 静的アプリケーションセキュリティテスト | ソースコード | 開発時 | 早期発見、高カバレッジ | 偽陽性が多い |
-| DAST | 動的アプリケーションセキュリティテスト | 実行中のアプリ | テスト時 | 実際の攻撃をシミュレート | カバレッジが低い |
-| IAST | 対話型アプリケーションセキュリティテスト | 実行中のアプリ+コード | テスト時 | 低偽陽性、高精度 | エージェント必要 |
-| SCA | ソフトウェア構成分析 | 依存関係 | ビルド時 | 既知脆弱性の検出 | 0dayは検出不可 |
+| Method | Full Name | Test Target | Timing | Strengths | Weaknesses |
+|--------|-----------|-------------|--------|-----------|------------|
+| SAST | Static Application Security Testing | Source code | During development | Early detection, high coverage | High false positives |
+| DAST | Dynamic Application Security Testing | Running application | During testing | Simulates real attacks | Low coverage |
+| IAST | Interactive Application Security Testing | Running app + code | During testing | Low false positives, high accuracy | Requires an agent |
+| SCA | Software Composition Analysis | Dependencies | At build time | Detects known vulnerabilities | Cannot detect 0-days |
 
-### セキュリティテストの自動化パイプライン
+### Automated Security Testing Pipeline
 
 ```yaml
-# GitHub Actions: 包括的なセキュリティテスト
+# GitHub Actions: Comprehensive security testing
 name: Security Pipeline
 on:
   pull_request:
@@ -1301,52 +1301,52 @@ jobs:
 
 ---
 
-## 12. エッジケース分析
+## 12. Edge Case Analysis
 
-### エッジケース1: JWTの`alg`ヘッダー操作
+### Edge Case 1: JWT `alg` Header Manipulation
 
-攻撃者がJWTの`alg`フィールドを`none`に変更し、署名検証をバイパスする。または`RS256`（非対称）を`HS256`（対称）に変更し、公開鍵をHMAC鍵として使用する。
+An attacker changes the `alg` field in a JWT to `none` to bypass signature verification. Alternatively, they change `RS256` (asymmetric) to `HS256` (symmetric) and use the public key as the HMAC key.
 
 ```python
-# 対策: アルゴリズムを明示的に指定し、ヘッダーの値を信用しない
+# Countermeasure: explicitly specify the algorithm; do not trust the header value
 import jwt
 
-# NG: ヘッダーのalgを信用
+# NG: trusting the alg from the header
 payload = jwt.decode(token, key, algorithms=jwt.get_unverified_header(token)["alg"])
 
-# OK: 許可するアルゴリズムを固定
+# OK: fix the allowed algorithm
 payload = jwt.decode(token, public_key, algorithms=["RS256"])
 ```
 
-### エッジケース2: Unicode正規化によるアクセス制御バイパス
+### Edge Case 2: Access Control Bypass via Unicode Normalization
 
 ```
-URL: /admin/settings  → 403 Forbidden (ブロック)
-URL: /ａdmin/settings → 200 OK (Unicodeの全角'ａ'で回避)
-URL: /admin%2fsettings → パスの解釈がサーバによって異なる
+URL: /admin/settings  → 403 Forbidden (blocked)
+URL: /ａdmin/settings → 200 OK (bypassed using Unicode full-width 'ａ')
+URL: /admin%2fsettings → Path interpretation differs by server
 ```
 
-対策: パス正規化を行った後にアクセス制御チェックを適用する。
+Countermeasure: Apply access control checks after performing path normalization.
 
-### エッジケース3: HTTPメソッドの不整合
+### Edge Case 3: HTTP Method Inconsistency
 
 ```
-GET /api/users/123  → 認可チェックあり → 403
-HEAD /api/users/123 → 認可チェックなし → 200 (情報漏洩)
-OPTIONS /api/users/123 → CORS preflight → 許可メソッド一覧が漏洩
+GET /api/users/123  → Authorization check present → 403
+HEAD /api/users/123 → No authorization check → 200 (information leakage)
+OPTIONS /api/users/123 → CORS preflight → allowed method list is leaked
 ```
 
-対策: 全てのHTTPメソッドに対して一貫した認可チェックを実装する。
+Countermeasure: Implement consistent authorization checks for all HTTP methods.
 
-### エッジケース4: レースコンディションによる認可バイパス
+### Edge Case 4: Authorization Bypass via Race Condition
 
 ```python
-# TOCTOU (Time of Check to Time of Use) 問題
-# Step 1: 残高チェック（残高: 100円）
-# Step 2: 引き出し処理（100円引き出し）
-# 並行リクエスト: Step 1とStep 2の間に同じリクエストが通ると二重引き出し
+# TOCTOU (Time of Check to Time of Use) problem
+# Step 1: Balance check (balance: 100 JPY)
+# Step 2: Withdrawal process (withdraw 100 JPY)
+# Concurrent request: if the same request arrives between Step 1 and Step 2, double withdrawal occurs
 
-# 対策: データベースレベルのロック
+# Countermeasure: database-level locking
 def withdraw(user_id, amount):
     with db.transaction():
         balance = db.execute(
@@ -1362,25 +1362,25 @@ def withdraw(user_id, amount):
 
 ---
 
-## 13. アンチパターン
+## 13. Anti-Patterns
 
-### アンチパターン1: セキュリティヘッダーの欠如
+### Anti-Pattern 1: Missing Security Headers
 
-セキュリティヘッダーを設定せずにアプリケーションをデプロイするパターン。CSP、HSTS、X-Frame-Options等のヘッダーは、追加コストなしでクライアントサイドの攻撃を大幅に緩和できる。
+Deploying an application without configuring security headers. Headers such as CSP, HSTS, and X-Frame-Options can significantly mitigate client-side attacks at no additional cost.
 
-**検出方法**: `securityheaders.com` でスキャン、またはブラウザの開発者ツールでレスポンスヘッダーを確認。
+**Detection method**: Scan with `securityheaders.com`, or check response headers in the browser's developer tools.
 
-### アンチパターン2: エラーメッセージでの情報漏洩
+### Anti-Pattern 2: Information Leakage via Error Messages
 
-スタックトレースやDB接続情報をエラーレスポンスに含めるパターン。本番環境では一般的なエラーメッセージのみを返し、詳細はサーバーサイドのログに記録する。
+Including stack traces or database connection details in error responses. In production, return only generic error messages and record details in server-side logs.
 
 ```python
-# NG: スタックトレースを返す
+# NG: returning a stack trace
 @app.errorhandler(Exception)
 def handle_error(e):
     return {"error": str(e), "traceback": traceback.format_exc()}, 500
 
-# OK: 一般的なメッセージのみ
+# OK: return only a generic message
 @app.errorhandler(Exception)
 def handle_error(e):
     error_id = str(uuid.uuid4())
@@ -1388,24 +1388,24 @@ def handle_error(e):
     return {"error": "Internal server error", "reference": error_id}, 500
 ```
 
-### アンチパターン3: クライアントサイドのみのバリデーション
+### Anti-Pattern 3: Client-Side Validation Only
 
 ```javascript
-// NG: フロントエンドのみでバリデーション
-// → ブラウザの開発者ツールやcurlで簡単にバイパス可能
+// NG: validation only on the front end
+// → Easily bypassed with browser dev tools or curl
 
-// OK: フロントエンドは UX 向上のため、サーバサイドが本質的な防御
-// フロントエンド: 即時フィードバック用
-// バックエンド: セキュリティ用（必須）
+// OK: front end is for UX improvement; server side is the essential defense
+// Front end: for immediate feedback
+// Back end: for security (required)
 ```
 
 ---
 
-## 14. 演習
+## 14. Exercises
 
-### 演習1（基礎）: セキュリティヘッダーの確認
+### Exercise 1 (Basic): Checking Security Headers
 
-任意のWebサイトの開発者ツール（Network タブ）を開き、以下のセキュリティヘッダーの有無を確認せよ:
+Open the developer tools (Network tab) for any website and verify the presence of the following security headers:
 
 1. `Content-Security-Policy`
 2. `Strict-Transport-Security`
@@ -1413,11 +1413,11 @@ def handle_error(e):
 4. `X-Frame-Options`
 5. `Referrer-Policy`
 
-各ヘッダーの目的と、欠如している場合のリスクを説明せよ。
+Explain the purpose of each header and the risks if it is missing.
 
-### 演習2（中級）: SQLインジェクションの検出と修正
+### Exercise 2 (Intermediate): Detecting and Fixing SQL Injection
 
-以下のコードにはSQLインジェクションの脆弱性がある。攻撃ペイロードを特定し、安全なコードに修正せよ。
+The following code contains a SQL injection vulnerability. Identify the attack payload and fix the code to be secure.
 
 ```python
 def login(username, password):
@@ -1432,14 +1432,14 @@ def login(username, password):
     return None
 ```
 
-修正すべき問題:
-- SQLインジェクション
-- MD5ハッシュの使用
-- ソルトなしのハッシュ
+Issues to fix:
+- SQL injection
+- Use of MD5 hash
+- Hash without salt
 
-### 演習3（上級）: 包括的なセキュリティレビュー
+### Exercise 3 (Advanced): Comprehensive Security Review
 
-以下のFlaskアプリケーションのセキュリティ問題を全て特定し、修正版を作成せよ:
+Identify all security issues in the following Flask application and create a fixed version:
 
 ```python
 from flask import Flask, request, jsonify
@@ -1468,130 +1468,130 @@ def upload():
     return jsonify({"status": "uploaded"})
 ```
 
-問題点: シークレットキーのハードコード、SQLインジェクション、XSS、パストラバーサル、アクセス制御の欠如、セキュリティヘッダーの欠如。
+Issues: hardcoded secret key, SQL injection, XSS, path traversal, missing access control, missing security headers.
 
 ---
 
-## 15. パフォーマンスに関する考察
+## 15. Performance Considerations
 
-### セキュリティ対策のパフォーマンスへの影響
+### Performance Impact of Security Countermeasures
 
-| 対策 | パフォーマンス影響 | 最適化方法 |
-|------|------------------|-----------|
-| bcrypt (rounds=12) | ~300ms/ハッシュ | 認証時のみ使用、非同期処理 |
-| TLS 1.3 | 初回接続 +1-2ms | 0-RTT再接続、TLSセッション再利用 |
-| CSP ヘッダー | ほぼゼロ | - |
-| 入力検証 | <1ms | コンパイル済み正規表現 |
-| レートリミット (Redis) | ~1ms | ローカルキャッシュ併用 |
-| WAF | 5-20ms | ルールの最適化、バイパスルート |
+| Countermeasure | Performance Impact | Optimization Method |
+|----------------|-------------------|---------------------|
+| bcrypt (rounds=12) | ~300ms/hash | Use only during authentication, async processing |
+| TLS 1.3 | +1-2ms for first connection | 0-RTT reconnection, TLS session resumption |
+| CSP header | Nearly zero | - |
+| Input validation | <1ms | Pre-compiled regular expressions |
+| Rate limiting (Redis) | ~1ms | Combine with local cache |
+| WAF | 5-20ms | Rule optimization, bypass routes |
 
-### パスワードハッシュのコストファクターとレスポンス時間
+### Password Hash Cost Factor vs. Response Time
 
 ```
-bcrypt rounds vs 処理時間（概算）:
-  rounds=10:  ~100ms  ← 開発環境向け
+bcrypt rounds vs. processing time (approximate):
+  rounds=10:  ~100ms  ← For development environments
   rounds=11:  ~200ms
-  rounds=12:  ~400ms  ← 本番最低ライン（OWASP推奨）
+  rounds=12:  ~400ms  ← Minimum for production (OWASP recommended)
   rounds=13:  ~800ms
-  rounds=14: ~1600ms  ← 高セキュリティ要件
+  rounds=14: ~1600ms  ← High-security requirements
 
-Argon2id パラメータ vs 処理時間:
-  memory=32MB, time=3:   ~100ms  ← 最低ライン
-  memory=64MB, time=3:   ~200ms  ← OWASP推奨
-  memory=128MB, time=4:  ~500ms  ← 高セキュリティ要件
+Argon2id parameters vs. processing time:
+  memory=32MB, time=3:   ~100ms  ← Minimum baseline
+  memory=64MB, time=3:   ~200ms  ← OWASP recommended
+  memory=128MB, time=4:  ~500ms  ← High-security requirements
 ```
 
 ---
 
-## 16. トラブルシューティング
+## 16. Troubleshooting
 
-### よくある問題と解決策
+### Common Issues and Solutions
 
-| 問題 | 原因 | 解決策 |
-|------|------|--------|
-| CSP違反エラーが大量発生 | CSPポリシーが厳しすぎる | report-onlyモードで段階的に導入 |
-| HSTSが効かない | preloadリストに未登録 | max-age を十分長くし preload 申請 |
-| CORSエラー | Origin が許可リストにない | 正確なオリジンを指定（* は避ける） |
-| セッション固定攻撃 | ログイン後にセッションIDが変わらない | 認証成功後にセッションを再生成 |
-| bcryptが遅すぎる | rounds が高すぎる | 非同期処理 + 適切なrounds設定 |
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Large volume of CSP violation errors | CSP policy is too strict | Introduce gradually using report-only mode |
+| HSTS not taking effect | Not registered in preload list | Set max-age long enough and apply for preload |
+| CORS errors | Origin not in the allowlist | Specify exact origins (avoid *) |
+| Session fixation attack | Session ID does not change after login | Regenerate session after successful authentication |
+| bcrypt is too slow | Rounds set too high | Async processing + appropriate rounds setting |
 
 ---
 
 ## FAQ
 
-### Q1: OWASP Top 10は全てカバーすれば十分ですか?
+### Q1: Is covering OWASP Top 10 sufficient?
 
-十分ではない。OWASP Top 10は最も一般的な脆弱性を示したものであり、網羅的なセキュリティチェックリストではない。OWASP ASVS（Application Security Verification Standard）をより包括的なガイドラインとして活用すべきである。ASVSはレベル1（基本）、レベル2（標準）、レベル3（高度）の3段階で286の検証項目を提供する。
+No. The OWASP Top 10 represents the most common vulnerabilities and is not a comprehensive security checklist. The OWASP ASVS (Application Security Verification Standard) should be used as a more comprehensive guideline. ASVS provides 286 verification items across three levels: Level 1 (basic), Level 2 (standard), and Level 3 (advanced).
 
-### Q2: A04「安全でない設計」はコードレベルで対策できますか?
+### Q2: Can A04 "Insecure Design" be addressed at the code level?
 
-コードレベルだけでは対策できない。設計段階での脅威モデリング、セキュリティ要件の定義、アーキテクチャレビューが必要である。「セキュアコーディング」は「安全な設計」を前提として初めて効果を発揮する。具体的には、STRIDE分析、データフロー図（DFD）の作成、信頼境界の定義を設計段階で実施する。
+Code-level fixes alone are insufficient. Threat modeling at the design stage, defining security requirements, and architecture reviews are all necessary. "Secure coding" is only effective when built on a "secure design." Specifically, STRIDE analysis, creating data flow diagrams (DFDs), and defining trust boundaries should be performed during the design phase.
 
-### Q3: どの脆弱性から優先的に対策すべきですか?
+### Q3: Which vulnerability should be prioritized for remediation?
 
-自組織のリスクアセスメントに基づいて判断すべきだが、一般的にはA01（アクセス制御）とA03（インジェクション）が最も被害が大きく、対策の優先度が高い。ただし、A05（設定ミス）は対策コストが最も低く、即座に適用できるため、最初に着手することが推奨される。
+This should be determined based on your organization's risk assessment, but generally A01 (Access Control) and A03 (Injection) cause the greatest damage and should be top priorities. However, A05 (Misconfiguration) has the lowest remediation cost and can be applied immediately, so it is recommended to start there.
 
-### Q4: OWASP Top 10 はどのような頻度で更新されますか?
+### Q4: How often is the OWASP Top 10 updated?
 
-2-4年ごとに更新される。過去のリリース: 2003, 2004, 2007, 2010, 2013, 2017, 2021。次回の更新は2025年または2026年が見込まれる。各バージョン間の変更は、新たな脅威の出現とデータ分析に基づいている。
+It is updated every 2-4 years. Past releases: 2003, 2004, 2007, 2010, 2013, 2017, 2021. The next update is expected around 2025 or 2026. Changes between versions are based on the emergence of new threats and data analysis.
 
-### Q5: マイクロサービスアーキテクチャ特有のOWASP対策は?
+### Q5: Are there OWASP considerations specific to microservices architectures?
 
-マイクロサービスでは以下の追加考慮が必要: (1) サービス間認証（mTLS、JWTの伝播）、(2) API Gatewayでの一元的なレートリミットとInput Validation、(3) サービスメッシュによるネットワークポリシー、(4) 分散トレーシングによるセキュリティイベントの可視化。
+Microservices require the following additional considerations: (1) service-to-service authentication (mTLS, JWT propagation); (2) centralized rate limiting and input validation at the API Gateway; (3) network policies via a service mesh; (4) visibility of security events through distributed tracing.
 
 ---
 
-## まとめ
+## Summary
 
-| 順位 | カテゴリ | 核心的な対策 | 検出ツール |
-|------|---------|-------------|-----------|
-| A01 | アクセス制御の不備 | サーバーサイドでの認可チェック、デフォルト拒否 | Burp Suite |
-| A02 | 暗号化の失敗 | TLS強制、適切なアルゴリズム選択 | testssl.sh |
-| A03 | インジェクション | パラメータ化クエリ、入力検証 | SQLMap, Semgrep |
-| A04 | 安全でない設計 | 脅威モデリング、セキュリティ要件 | 設計レビュー |
-| A05 | 設定ミス | ハードニング、自動構成管理 | ScoutSuite |
-| A06 | 古いコンポーネント | SCA、自動更新 | Dependabot, Snyk |
-| A07 | 認証の失敗 | MFA、セキュアなセッション管理 | Hydra |
-| A08 | 整合性不具合 | 署名検証、SRI | Sigstore |
-| A09 | ログ不備 | SIEM、構造化ログ | ELK Stack |
-| A10 | SSRF | URL検証、ネットワーク分離 | Burp Suite |
+| Rank | Category | Core Countermeasure | Detection Tool |
+|------|----------|---------------------|----------------|
+| A01 | Broken Access Control | Server-side authorization checks, deny by default | Burp Suite |
+| A02 | Cryptographic Failures | Enforce TLS, choose appropriate algorithms | testssl.sh |
+| A03 | Injection | Parameterized queries, input validation | SQLMap, Semgrep |
+| A04 | Insecure Design | Threat modeling, security requirements | Design review |
+| A05 | Misconfiguration | Hardening, automated configuration management | ScoutSuite |
+| A06 | Outdated Components | SCA, auto-update | Dependabot, Snyk |
+| A07 | Authentication Failures | MFA, secure session management | Hydra |
+| A08 | Integrity Failures | Signature verification, SRI | Sigstore |
+| A09 | Logging Failures | SIEM, structured logging | ELK Stack |
+| A10 | SSRF | URL validation, network segmentation | Burp Suite |
 
-### 防御の原則
+### Principles of Defense
 
 ```
 +------------------------------------------------------------------+
-|  セキュリティ防御の5原則                                             |
+|  5 Principles of Security Defense                                 |
 |------------------------------------------------------------------|
-|  1. Defense in Depth (多層防御)                                    |
-|     単一の対策に依存しない。WAF + 入力検証 + パラメータ化クエリ      |
+|  1. Defense in Depth                                             |
+|     Do not rely on a single countermeasure. WAF + input validation + parameterized queries |
 |                                                                    |
-|  2. Least Privilege (最小権限)                                     |
-|     必要最小限の権限のみ付与。デフォルト拒否                         |
+|  2. Least Privilege                                               |
+|     Grant only the minimum necessary permissions. Deny by default |
 |                                                                    |
-|  3. Fail Securely (安全な失敗)                                     |
-|     エラー時はアクセスを拒否。情報を漏洩しない                       |
+|  3. Fail Securely                                                 |
+|     Deny access on error. Do not leak information                |
 |                                                                    |
-|  4. Don't Trust User Input (入力を信頼しない)                      |
-|     全ての入力をサーバーサイドで検証                                 |
+|  4. Don't Trust User Input                                        |
+|     Validate all input on the server side                        |
 |                                                                    |
-|  5. Security by Design (設計段階からのセキュリティ)                 |
-|     後付けではなく、設計段階からセキュリティを組み込む                |
+|  5. Security by Design                                            |
+|     Incorporate security from the design stage, not as an afterthought |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [01-xss-prevention.md](./01-xss-prevention.md) -- XSS攻撃の詳細な対策手法
-- [03-injection.md](./03-injection.md) -- インジェクション攻撃の深掘り
-- [04-auth-vulnerabilities.md](./04-auth-vulnerabilities.md) -- 認証脆弱性の詳細
-- [TLS/証明書](../02-cryptography/01-tls-certificates.md) -- 暗号化通信の基盤
-- [APIセキュリティ](../03-network-security/02-api-security.md) -- API の認証認可とレートリミット
+- [01-xss-prevention.md](./01-xss-prevention.md) -- Detailed countermeasures against XSS attacks
+- [03-injection.md](./03-injection.md) -- Deep dive into injection attacks
+- [04-auth-vulnerabilities.md](./04-auth-vulnerabilities.md) -- Details on authentication vulnerabilities
+- [TLS/Certificates](../02-cryptography/01-tls-certificates.md) -- Foundation of encrypted communication
+- [API Security](../03-network-security/02-api-security.md) -- Authentication, authorization, and rate limiting for APIs
 
 ---
 
-## 参考文献
+## References
 
 1. OWASP Top 10:2021 -- https://owasp.org/Top10/
 2. OWASP Application Security Verification Standard (ASVS) v4.0 -- https://owasp.org/www-project-application-security-verification-standard/
