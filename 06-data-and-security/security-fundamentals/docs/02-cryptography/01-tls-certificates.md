@@ -1,296 +1,299 @@
-# TLS/証明書
+# TLS / Certificates
 
-> TLS ハンドシェイクから証明書チェーン、Let's Encrypt による自動化、mTLS まで、安全な通信の基盤技術を体系的に学ぶ
+> A systematic study of the foundational technologies for secure communication — from the TLS handshake and certificate chains to automation with Let's Encrypt and mutual TLS (mTLS)
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **TLS ハンドシェイクの仕組み** — クライアントとサーバ間で暗号化通信が確立されるまでの全ステップ
-2. **証明書チェーンと PKI** — ルート CA から中間 CA、サーバ証明書に至る信頼の連鎖
-3. **実運用での証明書管理** — Let's Encrypt による自動化と mTLS による双方向認証
+1. **How the TLS Handshake Works** — Every step taken to establish encrypted communication between a client and server
+2. **Certificate Chains and PKI** — The chain of trust from the Root CA through intermediate CAs to the server certificate
+3. **Certificate Management in Production** — Automation with Let's Encrypt and mutual authentication with mTLS
 
-### 前提知識
+### Prerequisites
 
-- 公開鍵暗号の基本（RSA、楕円曲線暗号、電子署名）
-- TCP/IP ネットワーキング（3ウェイハンドシェイク、ポート）
-- HTTP プロトコルの基本動作
+- Basics of public-key cryptography (RSA, elliptic curve cryptography, digital signatures)
+- TCP/IP networking (three-way handshake, ports)
+- Fundamental behavior of the HTTP protocol
 
-### 関連ガイド
+### Related Guides
 
-- [鍵管理](./02-key-management.md) — 暗号鍵のライフサイクルと安全な保管方法
-- [ネットワークセキュリティ基礎](../03-network-security/00-network-security-basics.md) — ファイアウォール・IDS/IPS による多層防御
-- [API セキュリティ](../03-network-security/02-api-security.md) — TLS の上に構築する API 保護
-- [DNS セキュリティ](../03-network-security/01-dns-security.md) — DANE/TLSA による DNS ベースの証明書検証
+- [Key Management](./02-key-management.md) — Cryptographic key lifecycle and secure storage
+- [Network Security Basics](../03-network-security/00-network-security-basics.md) — Defense in depth with firewalls and IDS/IPS
+- [API Security](../03-network-security/02-api-security.md) — API protection built on top of TLS
+- [DNS Security](../03-network-security/01-dns-security.md) — DNS-based certificate validation with DANE/TLSA
 
 ---
 
-## 1. TLS の全体像
+## 1. TLS Overview
 
-### TLS とは何か
+### What Is TLS?
 
-TLS (Transport Layer Security) はトランスポート層の上で動作する暗号化プロトコルである。SSL の後継として策定され、現在の推奨バージョンは TLS 1.3 (RFC 8446) である。
+TLS (Transport Layer Security) is an encryption protocol that operates on top of the transport layer. It was designed as the successor to SSL, and the currently recommended version is TLS 1.3 (RFC 8446).
 
-TLS は以下の 3 つのセキュリティ特性を提供する:
-- **機密性** (Confidentiality): 通信内容の暗号化
-- **完全性** (Integrity): データ改竄の検知
-- **認証** (Authentication): 通信相手の身元確認
+TLS provides the following three security properties:
+- **Confidentiality**: Encryption of communication content
+- **Integrity**: Detection of data tampering
+- **Authentication**: Verification of the identity of the communicating party
 
 ```
 +-------------------+
 |   Application     |  HTTP, SMTP, IMAP, etc.
 +-------------------+
-|       TLS         |  暗号化・認証・完全性
+|       TLS         |  Encryption, Authentication, Integrity
 |  +-------------+  |
-|  | Record      |  |  データの分割・暗号化・MAC
+|  | Record      |  |  Data segmentation, encryption, and MAC
 |  +-------------+  |
-|  | Handshake   |  |  鍵交換・認証・パラメータ交渉
+|  | Handshake   |  |  Key exchange, authentication, parameter negotiation
 |  +-------------+  |
-|  | Alert       |  |  エラー通知・接続終了
+|  | Alert       |  |  Error notification and connection termination
 |  +-------------+  |
-|  | Change Cipher|  |  暗号仕様の切り替え (TLS 1.2)
+|  | Change Cipher|  |  Cipher spec change (TLS 1.2)
 |  +-------------+  |
 +-------------------+
-|       TCP         |  信頼性のある配送
+|       TCP         |  Reliable delivery
 +-------------------+
-|       IP          |  ルーティング
+|       IP          |  Routing
 +-------------------+
 ```
 
-### TLS のバージョン比較
+### TLS Version Comparison
 
-| バージョン | 状態 | ハンドシェイク RTT | 主な特徴 | 廃止理由/脆弱性 |
+| Version | Status | Handshake RTT | Key Features | Deprecation Reason / Vulnerabilities |
 |-----------|------|-------------------|---------|---------------|
-| SSL 2.0 | 廃止 (2011) | 2-RTT | - | 根本的な設計欠陥 |
-| SSL 3.0 | 廃止 (2015) | 2-RTT | - | POODLE 脆弱性 |
-| TLS 1.0 | 廃止 (2020) | 2-RTT | SSL 3.0 の改良 | BEAST 脆弱性 |
-| TLS 1.1 | 廃止 (2020) | 2-RTT | CBC 改善 | Lucky13、モダン暗号スイート未対応 |
-| TLS 1.2 | 現役 | 2-RTT | AEAD 暗号スイート | GCM 推奨、CBC は非推奨 |
-| TLS 1.3 | 推奨 | 1-RTT (0-RTT可) | ハンドシェイク簡素化 | 前方秘匿性必須 |
+| SSL 2.0 | Deprecated (2011) | 2-RTT | - | Fundamental design flaws |
+| SSL 3.0 | Deprecated (2015) | 2-RTT | - | POODLE vulnerability |
+| TLS 1.0 | Deprecated (2020) | 2-RTT | Improvement over SSL 3.0 | BEAST vulnerability |
+| TLS 1.1 | Deprecated (2020) | 2-RTT | CBC improvements | Lucky13, no support for modern cipher suites |
+| TLS 1.2 | Active | 2-RTT | AEAD cipher suites | GCM recommended, CBC deprecated |
+| TLS 1.3 | Recommended | 1-RTT (0-RTT possible) | Simplified handshake | Forward secrecy required |
 
-### TLS 1.3 で廃止されたもの
+### Features Removed in TLS 1.3
 
 ```
 +------------------------------------------------------------------+
-|  TLS 1.3 で廃止された機能・アルゴリズム                              |
+|  Features and Algorithms Removed in TLS 1.3                       |
 |------------------------------------------------------------------|
 |                                                                    |
-|  [鍵交換]                                                          |
-|  - RSA 鍵交換 (静的RSA) → ECDHE のみに                            |
-|    理由: 前方秘匿性なし。サーバ秘密鍵の漏洩で過去の通信全て復号可能   |
+|  [Key Exchange]                                                    |
+|  - RSA key exchange (static RSA) → replaced by ECDHE only        |
+|    Reason: no forward secrecy; leaking the server private key     |
+|    allows decryption of all past communications                   |
 |                                                                    |
-|  [暗号アルゴリズム]                                                 |
-|  - RC4 → 廃止 (統計的バイアス)                                     |
-|  - 3DES → 廃止 (64bitブロック、Sweet32攻撃)                        |
-|  - CBC モード → 廃止 (パディングオラクル)                           |
-|  - DES → 廃止 (鍵長不足)                                          |
+|  [Cipher Algorithms]                                              |
+|  - RC4 → removed (statistical bias)                               |
+|  - 3DES → removed (64-bit block, Sweet32 attack)                 |
+|  - CBC mode → removed (padding oracle)                            |
+|  - DES → removed (insufficient key length)                        |
 |                                                                    |
-|  [ハッシュ]                                                        |
-|  - MD5 → 廃止 (衝突攻撃)                                          |
-|  - SHA-1 → 廃止 (衝突攻撃)                                        |
+|  [Hash]                                                           |
+|  - MD5 → removed (collision attack)                               |
+|  - SHA-1 → removed (collision attack)                             |
 |                                                                    |
-|  [プロトコル機能]                                                   |
-|  - 圧縮 → 廃止 (CRIME/BREACH 攻撃)                                |
-|  - 再ネゴシエーション → 廃止 (三者間攻撃)                           |
-|  - ChangeCipherSpec メッセージ → 廃止                              |
-|  - カスタム暗号スイート定義 → 5 スイートのみに限定                   |
+|  [Protocol Features]                                              |
+|  - Compression → removed (CRIME/BREACH attacks)                   |
+|  - Renegotiation → removed (triple handshake attack)              |
+|  - ChangeCipherSpec message → removed                             |
+|  - Custom cipher suite definitions → limited to 5 suites only    |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. TLS 1.3 ハンドシェイク
+## 2. TLS 1.3 Handshake
 
-### ハンドシェイクの流れ
+### Handshake Flow
 
 ```
 Client                                    Server
   |                                          |
   |--- ClientHello ----------------------->  |
   |    + supported_versions: [TLS 1.3]      |
-  |    + key_share: (x25519 公開鍵)          |
+  |    + key_share: (x25519 public key)     |
   |    + signature_algorithms: [Ed25519,     |
   |      ECDSA-P256, RSA-PSS]               |
   |    + psk_key_exchange_modes             |
   |    + supported_groups: [x25519, P-256]  |
   |                                          |
   |  <--- ServerHello ---------------------  |
-  |       + key_share: (x25519 公開鍵)       |
-  |       [ここからサーバ→クライアント暗号化]   |
+  |       + key_share: (x25519 public key)  |
+  |       [Server→Client encryption starts] |
   |  <--- EncryptedExtensions -------------  |
   |  <--- Certificate ---------------------  |
-  |       (サーバ証明書チェーン)               |
+  |       (Server certificate chain)        |
   |  <--- CertificateVerify --------------  |
-  |       (ハンドシェイクメッセージの署名)      |
+  |       (Signature over handshake msgs)   |
   |  <--- Finished -----------------------  |
-  |       (ハンドシェイクの MAC)              |
+  |       (Handshake MAC)                   |
   |                                          |
   |--- Finished ------------------------->   |
-  |    [ここからクライアント→サーバ暗号化]      |
+  |    [Client→Server encryption starts]    |
   |                                          |
-  |========= 暗号化通信開始 ================|
+  |========= Encrypted Communication ======|
 ```
 
-### TLS 1.3 の暗号スイート
+### TLS 1.3 Cipher Suites
 
 ```
-TLS 1.3 で使用可能な 5 つの暗号スイート:
+5 cipher suites available in TLS 1.3:
 
-  TLS_AES_256_GCM_SHA384        最も推奨
-  TLS_AES_128_GCM_SHA256        推奨
-  TLS_CHACHA20_POLY1305_SHA256  モバイル/ARM に最適
-  TLS_AES_128_CCM_SHA256        IoT 向け
-  TLS_AES_128_CCM_8_SHA256      IoT (短い認証タグ)
+  TLS_AES_256_GCM_SHA384        Most recommended
+  TLS_AES_128_GCM_SHA256        Recommended
+  TLS_CHACHA20_POLY1305_SHA256  Optimal for mobile / ARM
+  TLS_AES_128_CCM_SHA256        For IoT
+  TLS_AES_128_CCM_8_SHA256      IoT (short authentication tag)
 
-暗号スイートの構成要素 (TLS 1.3):
-  [AEAD暗号] + [ハッシュ]
+Cipher suite components (TLS 1.3):
+  [AEAD cipher] + [Hash]
 
-  鍵交換: ECDHE (x25519 または P-256) — 暗号スイート外で選択
-  署名: Ed25519, ECDSA, RSA-PSS — 暗号スイート外で選択
+  Key exchange: ECDHE (x25519 or P-256) — selected outside cipher suite
+  Signature: Ed25519, ECDSA, RSA-PSS — selected outside cipher suite
 
-注: TLS 1.2 では暗号スイートが鍵交換+認証+暗号+MACの4要素を
-含んでいたが、TLS 1.3 では分離された。
+Note: In TLS 1.2 cipher suites included all four elements
+(key exchange + auth + cipher + MAC), but in TLS 1.3 these are separated.
 ```
 
-### TLS 1.2 と 1.3 のハンドシェイク比較
+### TLS 1.2 vs. 1.3 Handshake Comparison
 
-| 項目 | TLS 1.2 | TLS 1.3 |
+| Item | TLS 1.2 | TLS 1.3 |
 |------|---------|---------|
-| ラウンドトリップ | 2-RTT | 1-RTT |
-| 0-RTT 再接続 | 不可 | 可能 (Early Data) |
-| 鍵交換 | RSA / ECDHE | ECDHE のみ |
-| 暗号スイート数 | 数十個 | 5個 |
-| ハンドシェイク暗号化 | なし (平文) | ServerHello 以降暗号化 |
-| 前方秘匿性 | オプション | 必須 |
-| 圧縮 | サポート | 廃止 |
-| 再ネゴシエーション | あり | なし (KeyUpdate で代替) |
-| セッション再開 | セッションID/チケット | PSK ベース |
-| ServerHello の内容 | 平文 | 暗号化 |
+| Round trips | 2-RTT | 1-RTT |
+| 0-RTT reconnect | Not possible | Possible (Early Data) |
+| Key exchange | RSA / ECDHE | ECDHE only |
+| Number of cipher suites | Dozens | 5 |
+| Handshake encryption | None (plaintext) | Encrypted from ServerHello onward |
+| Forward secrecy | Optional | Required |
+| Compression | Supported | Removed |
+| Renegotiation | Yes | No (replaced by KeyUpdate) |
+| Session resumption | Session ID / ticket | PSK-based |
+| ServerHello contents | Plaintext | Encrypted |
 
-### OpenSSL でハンドシェイクを確認
+### Inspecting the Handshake with OpenSSL
 
 ```bash
-# コード例1: TLS 接続の詳細確認
+# Code example 1: Detailed TLS connection inspection
 
-# TLS 1.3 ハンドシェイクの詳細を表示
+# Display TLS 1.3 handshake details
 openssl s_client -connect example.com:443 -tls1_3 -msg
 
-# 証明書チェーンを確認
+# Inspect the certificate chain
 openssl s_client -connect example.com:443 -showcerts
 
-# 使用される暗号スイートの確認
+# Check the cipher suite in use
 openssl s_client -connect example.com:443 -cipher 'TLS_AES_256_GCM_SHA384'
 
-# サーバがサポートする暗号スイート一覧
+# List cipher suites supported by the server
 nmap --script ssl-enum-ciphers -p 443 example.com
 
-# testssl.sh による包括的なTLSテスト
+# Comprehensive TLS testing with testssl.sh
 testssl.sh https://example.com
 
-# sslyze による詳細分析
+# Detailed analysis with sslyze
 sslyze --regular example.com
 
-# curl でTLSバージョンとプロトコル情報を表示
+# Display TLS version and protocol info with curl
 curl -vI https://example.com 2>&1 | grep -E "SSL|TLS|subject|issuer"
 ```
 
-### 0-RTT (Early Data) の仕組みと注意点
+### How 0-RTT (Early Data) Works and Its Caveats
 
 ```
-0-RTT の流れ (PSK ベースの再接続):
+0-RTT flow (PSK-based reconnection):
 
   Client                                    Server
     |                                          |
     |--- ClientHello ----------------------->  |
-    |    + pre_shared_key (前回のセッションから) |
-    |    + early_data (アプリケーションデータ)   |
+    |    + pre_shared_key (from last session) |
+    |    + early_data (application data)      |
     |                                          |
     |  <--- ServerHello ---------------------  |
     |  <--- Finished -----------------------  |
     |                                          |
     |--- Finished ------------------------->   |
     |                                          |
-    | 0-RTT で送ったデータは既にサーバで処理済み |
+    | Data sent via 0-RTT is already          |
+    | processed on the server                 |
 
-  利点: 再接続時のレイテンシがゼロ
-  リスク: リプレイ攻撃が可能
+  Benefit: Zero latency on reconnect
+  Risk: Replay attacks are possible
 
-  対策:
-  +-- べき等でない操作 (POST, DELETE) には使用しない
-  +-- Anti-Replay 機構をサーバ側で実装
-  +-- Nginx: ssl_early_data on; + Early-Data ヘッダの確認
-  +-- サーバ側で同一 PSK の 0-RTT を一度だけ受け入れる
+  Mitigations:
+  +-- Do not use for non-idempotent operations (POST, DELETE)
+  +-- Implement an anti-replay mechanism on the server side
+  +-- Nginx: ssl_early_data on; + check the Early-Data header
+  +-- Accept 0-RTT for a given PSK only once on the server
 ```
 
-### 前方秘匿性 (Forward Secrecy) の仕組み
+### How Forward Secrecy Works
 
 ```
-前方秘匿性 (PFS) なし (静的RSA鍵交換):
+Without forward secrecy (static RSA key exchange):
 
   Client                              Server
-    |--- RSA暗号化(premaster secret) --> |
-    |    サーバの公開鍵で暗号化           |
-    |                                    |
-  問題: サーバの秘密鍵が将来漏洩した場合、
-  過去に記録した通信全てを復号できる
+    |--- RSA-encrypted(premaster secret) --> |
+    |    Encrypted with server public key    |
+    |                                        |
+  Problem: If the server's private key leaks in the future,
+  all previously recorded communications can be decrypted
 
-前方秘匿性あり (ECDHE 鍵交換):
+With forward secrecy (ECDHE key exchange):
 
   Client                              Server
-    |--- ECDHE公開鍵 ------------------> |
-    |<--- ECDHE公開鍵 ------------------|
-    |    両者が独立に共有秘密を計算        |
-    |    一時的な鍵ペアは破棄             |
+    |--- ECDHE public key -------------> |
+    |<--- ECDHE public key --------------|
+    |    Both sides independently compute |
+    |    the shared secret               |
+    |    Ephemeral key pairs are discarded|
     |                                    |
-  利点: 各セッションで異なる鍵ペアを使用するため、
-  サーバの秘密鍵が漏洩しても過去の通信は復号不可能
+  Benefit: Because a different key pair is used per session,
+  leaking the server's private key cannot decrypt past communications
 
-  TLS 1.3 では PFS が必須 (ECDHE のみ)
+  In TLS 1.3, PFS is mandatory (ECDHE only)
 ```
 
 ---
 
-## 3. 証明書チェーンと PKI
+## 3. Certificate Chains and PKI
 
-### 証明書チェーンの構造
+### Certificate Chain Structure
 
 ```
 +---------------------------+
-|    Root CA 証明書          |  自己署名 / OS・ブラウザに内蔵
-|    (例: DigiCert Root)    |  有効期間: 20-30年
-|    自分自身の秘密鍵で署名   |
+|    Root CA Certificate    |  Self-signed / Embedded in OS & browsers
+|    (e.g. DigiCert Root)   |  Validity: 20–30 years
+|    Signed by own key      |
 +---------------------------+
           |
-          | 署名
+          | Signs
           v
 +---------------------------+
-|    中間 CA 証明書          |  Root CA が署名
-|    (例: DigiCert SHA2)    |  有効期間: 5-10年
-|    エンドエンティティに署名  |  Root CA のオフライン保護
+|  Intermediate CA Cert     |  Signed by Root CA
+|  (e.g. DigiCert SHA2)    |  Validity: 5–10 years
+|  Signs end-entity certs   |  Root CA kept offline for protection
 +---------------------------+
           |
-          | 署名
+          | Signs
           v
 +---------------------------+
-|    サーバ証明書            |  中間 CA が署名
-|    (例: *.example.com)    |  有効期間: 最大398日
-|    サーバが TLS で提示     |  (CA/B Forum 規定)
+|    Server Certificate     |  Signed by intermediate CA
+|    (e.g. *.example.com)   |  Validity: max 398 days
+|    Presented in TLS       |  (CA/B Forum requirement)
 +---------------------------+
 
-なぜ中間 CA が必要か:
-1. Root CA の秘密鍵をオフラインで保護（HSM に格納）
-2. Root CA の侵害時の被害範囲を限定
-3. 証明書失効時に中間 CA のみ失効すれば済む
-4. 異なるポリシー/用途ごとに中間 CA を分離
+Why intermediate CAs are necessary:
+1. Protect the Root CA private key offline (stored in an HSM)
+2. Limit the blast radius if the Root CA is compromised
+3. Only the intermediate CA needs to be revoked if a cert is revoked
+4. Separate intermediate CAs for different policies / purposes
 ```
 
-### 証明書の中身を確認
+### Inspecting Certificate Contents
 
 ```bash
-# コード例2: 証明書の詳細確認コマンド
+# Code example 2: Commands to inspect certificate details
 
-# 証明書の内容をデコード
+# Decode certificate contents
 openssl x509 -in server.crt -text -noout
 
-# 出力例:
+# Sample output:
 # Certificate:
 #     Data:
 #         Version: 3 (0x2)
@@ -317,114 +320,114 @@ openssl x509 -in server.crt -text -noout
 #             X509v3 CRL Distribution Points:
 #                 URI:http://crl3.digicert.com/...
 
-# 証明書チェーンの検証
+# Verify the certificate chain
 openssl verify -CAfile ca-bundle.crt server.crt
 
-# リモートサーバの証明書チェーン全体を表示
+# Display the full certificate chain of a remote server
 openssl s_client -connect example.com:443 -showcerts 2>/dev/null | \
   openssl x509 -noout -subject -issuer -dates
 
-# 証明書のフィンガープリント
+# Certificate fingerprint
 openssl x509 -in server.crt -fingerprint -sha256 -noout
 
-# CSR (証明書署名要求) の確認
+# Inspect a CSR (Certificate Signing Request)
 openssl req -in server.csr -text -noout
 
-# 秘密鍵と証明書の一致確認
+# Verify private key matches certificate
 openssl x509 -in server.crt -modulus -noout | openssl md5
 openssl rsa -in server.key -modulus -noout | openssl md5
-# 同じハッシュ値なら一致
+# Matching hash values confirm they match
 ```
 
-### X.509 証明書の主要フィールド
+### Key Fields of an X.509 Certificate
 
 ```
 +-----------------------------------------------------+
 |  X.509 v3 Certificate                                |
 |-----------------------------------------------------|
 |  Version:             3 (v3)                         |
-|  Serial Number:       一意の識別子 (CA内で一意)        |
+|  Serial Number:       Unique identifier (unique to CA)|
 |  Signature Algorithm: sha256WithRSAEncryption        |
 |                       or ecdsa-with-SHA256           |
-|  Issuer:              発行者 (CA) の Distinguished Name|
+|  Issuer:              Distinguished Name of the CA   |
 |  Validity:                                           |
-|    Not Before:        発行日時                        |
-|    Not After:         有効期限                        |
-|  Subject:             所有者の Distinguished Name     |
-|  Public Key:          公開鍵 (RSA 2048+ / ECDSA P-256)|
+|    Not Before:        Issuance date/time             |
+|    Not After:         Expiration date/time           |
+|  Subject:             Distinguished Name of owner    |
+|  Public Key:          Public key (RSA 2048+ / ECDSA P-256)|
 |  Extensions:                                         |
-|    - Subject Alt Name (SAN): ドメイン一覧 (必須)      |
+|    - Subject Alt Name (SAN): List of domains (required)|
 |    - Key Usage: digitalSignature, keyEncipherment    |
 |    - Extended Key Usage: serverAuth, clientAuth      |
 |    - Basic Constraints: CA:FALSE / CA:TRUE           |
-|    - Authority Key Identifier: 発行者鍵の識別子       |
-|    - Subject Key Identifier: 証明書鍵の識別子         |
-|    - CRL Distribution Points: CRL の取得先           |
-|    - Authority Info Access: OCSP レスポンダ URL       |
-|    - Certificate Policies: 発行ポリシー OID          |
-|    - SCT List: Certificate Transparency ログ          |
-|  Signature:           CA の電子署名                   |
+|    - Authority Key Identifier: Issuer key identifier |
+|    - Subject Key Identifier: Certificate key identifier|
+|    - CRL Distribution Points: Where to fetch CRL    |
+|    - Authority Info Access: OCSP responder URL       |
+|    - Certificate Policies: Issuance policy OID       |
+|    - SCT List: Certificate Transparency log entries  |
+|  Signature:           Digital signature of the CA    |
 +-----------------------------------------------------+
 ```
 
-### 証明書の種類と検証レベル
+### Certificate Types and Validation Levels
 
-| 種類 | 略称 | 検証内容 | 発行時間 | 用途 | ブラウザ表示 |
+| Type | Abbreviation | Validation | Issuance Time | Use Case | Browser Display |
 |------|------|---------|---------|------|------------|
-| ドメイン検証 | DV | ドメイン制御の確認のみ | 数分 | 一般的なWebサイト | 鍵マーク |
-| 組織検証 | OV | + 組織の実在確認 | 1-3日 | 企業サイト | 鍵マーク + 組織名 |
-| 拡張検証 | EV | + 厳格な組織審査 | 1-4週間 | 金融・EC サイト | 鍵マーク + 組織名 |
-| ワイルドカード | WC | *.example.com | DV/OV に準ずる | 多数のサブドメイン | 同上 |
-| マルチドメイン | SAN | 複数ドメインを1枚に | DV/OV に準ずる | 複数サイトの統合 | 同上 |
+| Domain Validation | DV | Domain control only | Minutes | General websites | Padlock icon |
+| Organization Validation | OV | + Organization existence | 1–3 days | Corporate sites | Padlock + org name |
+| Extended Validation | EV | + Rigorous org vetting | 1–4 weeks | Finance / e-commerce | Padlock + org name |
+| Wildcard | WC | *.example.com | Same as DV/OV | Many subdomains | Same as above |
+| Multi-domain | SAN | Multiple domains in one cert | Same as DV/OV | Consolidating multiple sites | Same as above |
 
 ---
 
-## 4. 証明書の失効チェック
+## 4. Certificate Revocation Checking
 
-### OCSP と CRL の比較
+### OCSP vs. CRL Comparison
 
 ```
 +------------------------------------------------------------------+
-|  証明書失効チェックの仕組み                                          |
+|  How Certificate Revocation Checking Works                        |
 |------------------------------------------------------------------|
 |                                                                    |
 |  [CRL (Certificate Revocation List)]                               |
-|  CA が定期的に失効証明書リストを公開                                  |
-|  クライアントがリストをダウンロードして検証                            |
+|  CA periodically publishes a list of revoked certificates         |
+|  Client downloads the list and validates locally                  |
 |                                                                    |
-|  問題点:                                                           |
-|  - リストが巨大化 (数MB)                                            |
-|  - 更新頻度に依存 (リアルタイム性なし)                               |
-|  - ダウンロード失敗時のフォールバック (fail-open)                     |
+|  Drawbacks:                                                       |
+|  - List can grow very large (several MB)                          |
+|  - Depends on update frequency (not real-time)                    |
+|  - Fallback on download failure (fail-open)                       |
 |                                                                    |
 |  [OCSP (Online Certificate Status Protocol)]                       |
-|  クライアントが個別の証明書について CA に問い合わせ                    |
+|  Client queries the CA about individual certificates              |
 |                                                                    |
-|  問題点:                                                           |
-|  - レイテンシの増加 (CA への往復)                                    |
-|  - プライバシー (CA にアクセス先が漏れる)                             |
-|  - OCSP レスポンダの障害リスク                                      |
+|  Drawbacks:                                                       |
+|  - Increased latency (round trip to CA)                           |
+|  - Privacy (destination leaks to the CA)                          |
+|  - Risk of OCSP responder outage                                  |
 |                                                                    |
-|  [OCSP Stapling (推奨)]                                            |
-|  サーバが CA から OCSP レスポンスを事前に取得                         |
-|  TLS ハンドシェイク時にクライアントに提供                             |
+|  [OCSP Stapling (Recommended)]                                     |
+|  Server pre-fetches the OCSP response from the CA                 |
+|  Delivers it to the client during the TLS handshake               |
 |                                                                    |
-|  利点:                                                             |
-|  - クライアントが CA に直接問い合わせる必要がない                     |
-|  - プライバシーが保護される                                          |
-|  - レイテンシの増加なし                                              |
+|  Benefits:                                                        |
+|  - Client does not need to query the CA directly                  |
+|  - Privacy is preserved                                           |
+|  - No added latency                                               |
 +------------------------------------------------------------------+
 ```
 
-| 方式 | リアルタイム性 | プライバシー | パフォーマンス | 信頼性 |
+| Method | Real-time | Privacy | Performance | Reliability |
 |------|------------|------------|-------------|--------|
-| CRL | 低 (定期更新) | 高 | 低 (大きなリスト) | 中 |
-| OCSP | 高 | 低 (CA に漏れる) | 中 (往復あり) | CA依存 |
-| OCSP Stapling | 高 | 高 | 高 | サーバ依存 |
-| CRLite (実験的) | 高 | 高 | 高 | ブラウザ内蔵 |
+| CRL | Low (periodic updates) | High | Low (large list) | Medium |
+| OCSP | High | Low (leaks to CA) | Medium (round trip) | CA-dependent |
+| OCSP Stapling | High | High | High | Server-dependent |
+| CRLite (experimental) | High | High | High | Browser-built-in |
 
 ```nginx
-# コード例3: Nginx での OCSP Stapling 設定
+# Code example 3: OCSP Stapling configuration in Nginx
 server {
     listen 443 ssl;
     server_name example.com;
@@ -432,14 +435,14 @@ server {
     ssl_certificate     /etc/nginx/ssl/server.crt;
     ssl_certificate_key /etc/nginx/ssl/server.key;
 
-    # OCSP Stapling の有効化
+    # Enable OCSP Stapling
     ssl_stapling on;
     ssl_stapling_verify on;
 
-    # OCSP レスポンダへの接続に使用する CA 証明書
+    # CA certificate used to connect to the OCSP responder
     ssl_trusted_certificate /etc/nginx/ssl/ca-chain.crt;
 
-    # OCSP レスポンスの DNS 解決
+    # DNS resolver for OCSP response lookup
     resolver 1.1.1.1 8.8.8.8 valid=300s;
     resolver_timeout 5s;
 }
@@ -448,164 +451,165 @@ server {
 ### Certificate Transparency (CT)
 
 ```
-Certificate Transparency の仕組み:
+How Certificate Transparency works:
 
-  CA が証明書を発行する際:
-  1. CA が証明書を CT ログサーバに提出
-  2. CT ログサーバが SCT (Signed Certificate Timestamp) を返す
-  3. SCT が証明書に埋め込まれる
-  4. ブラウザが SCT を検証し、CT ログに記録されていることを確認
+  When a CA issues a certificate:
+  1. CA submits the certificate to a CT log server
+  2. CT log server returns an SCT (Signed Certificate Timestamp)
+  3. SCT is embedded in the certificate
+  4. Browser verifies the SCT and confirms the cert is recorded in the CT log
 
-  目的:
-  - 不正な証明書の発行を検知 (例: 2011年 DigiNotar 事件)
-  - ドメイン所有者が自分のドメインの証明書を監視
-  - 透明性による CA の信頼性向上
+  Purpose:
+  - Detect fraudulently issued certificates (e.g. the 2011 DigiNotar incident)
+  - Allow domain owners to monitor certificates issued for their domain
+  - Improve CA trustworthiness through transparency
 
-  Chrome の要件:
-  - 2018年4月以降、全ての新規証明書は CT ログへの登録が必須
-  - 最低 2 つの CT ログからの SCT が必要
+  Chrome requirements:
+  - Since April 2018, all new certificates must be logged in a CT log
+  - SCTs from at least 2 CT logs are required
 
-  監視ツール:
+  Monitoring tools:
   - crt.sh: https://crt.sh/?q=example.com
   - Google CT Dashboard
-  - certspotter (CLI ツール)
+  - certspotter (CLI tool)
 ```
 
 ```bash
-# コード例4: CT ログの監視
-# crt.sh で特定ドメインの全証明書を確認
+# Code example 4: Monitoring CT logs
+# Check all certificates for a domain via crt.sh
 curl -s "https://crt.sh/?q=%25.example.com&output=json" | \
   python3 -m json.tool | head -50
 
-# certspotter でリアルタイム監視
+# Real-time monitoring with certspotter
 # certspotter watch example.com
 ```
 
 ---
 
-## 5. Let's Encrypt による自動化
+## 5. Automation with Let's Encrypt
 
-### ACME プロトコルの仕組み
+### How the ACME Protocol Works
 
 ```
 ACME (Automatic Certificate Management Environment) - RFC 8555:
 
-クライアント (certbot)              Let's Encrypt CA
+Client (certbot)                    Let's Encrypt CA
      |                                      |
-     |--- (1) アカウント登録 ------------>  |
-     |    JWK公開鍵 + 利用規約同意          |
+     |--- (1) Account registration ----->  |
+     |    JWK public key + ToS agreement    |
      |                                      |
-     |  <--- アカウント作成完了 ----------  |
+     |  <--- Account created -----------  |
      |                                      |
-     |--- (2) 証明書発行リクエスト ------> |
-     |    (ドメイン: example.com)            |
+     |--- (2) Certificate request ------> |
+     |    (domain: example.com)             |
      |                                      |
-     |  <--- (3) チャレンジ発行 ----------  |
+     |  <--- (3) Challenge issued -------  |
      |       (HTTP-01 or DNS-01)            |
      |                                      |
-     |--- (4) チャレンジ応答 ------------>  |
-     |    HTTP-01: /.well-known/acme-       |
-     |    challenge/{token} にトークン配置   |
-     |    DNS-01: _acme-challenge TXT       |
-     |    レコードにトークン設定              |
+     |--- (4) Challenge response ------->  |
+     |    HTTP-01: place token at           |
+     |    /.well-known/acme-               |
+     |    challenge/{token}                 |
+     |    DNS-01: set token in _acme-       |
+     |    challenge TXT record              |
      |                                      |
-     |  <--- (5) 検証実行 ----------------  |
-     |    CA が HTTP/DNS でトークンを確認     |
+     |  <--- (5) Validation performed ---  |
+     |    CA verifies token via HTTP/DNS    |
      |                                      |
-     |  <--- (6) 検証完了 ----------------  |
+     |  <--- (6) Validation complete ----  |
      |                                      |
-     |--- (7) CSR 送信 ------------------>  |
+     |--- (7) CSR submission ----------->  |
      |                                      |
-     |  <--- (8) 証明書発行 --------------  |
-     |    (チェーン付き証明書)               |
+     |  <--- (8) Certificate issued -----  |
+     |    (certificate with chain)          |
 ```
 
-### certbot による証明書取得
+### Obtaining Certificates with certbot
 
 ```bash
-# コード例5: certbot の各種使用方法
+# Code example 5: Various certbot usage patterns
 
-# Nginx 用に証明書を取得・設定（最も簡単）
+# Obtain and configure a certificate for Nginx (easiest)
 sudo certbot --nginx -d example.com -d www.example.com
 
-# Apache 用
+# For Apache
 sudo certbot --apache -d example.com
 
-# スタンドアロンモード（既存のWebサーバを停止して使用）
+# Standalone mode (stops any existing web server)
 sudo certbot certonly --standalone -d example.com
 
-# Webroot モード（既存のWebサーバを停止せずに使用）
+# Webroot mode (uses existing web server without stopping it)
 sudo certbot certonly --webroot -w /var/www/html -d example.com
 
-# DNS-01 チャレンジでワイルドカード証明書を取得
+# Obtain a wildcard certificate via DNS-01 challenge
 sudo certbot certonly --manual --preferred-challenges dns \
   -d "*.example.com" -d "example.com"
 
-# DNS-01 + Cloudflare プラグインで自動化
+# Automated DNS-01 with Cloudflare plugin
 sudo certbot certonly \
   --dns-cloudflare \
   --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
   -d "*.example.com" -d "example.com"
 
-# 自動更新のテスト
+# Test automatic renewal
 sudo certbot renew --dry-run
 
-# 自動更新の設定
-# systemd timer (推奨)
+# Configure automatic renewal
+# systemd timer (recommended)
 # /etc/systemd/system/certbot-renewal.timer
 # [Timer]
 # OnCalendar=*-*-* 03:00:00
 # RandomizedDelaySec=3600
 
-# crontab による自動更新（代替）
+# Automatic renewal via crontab (alternative)
 # 0 3 * * * certbot renew --quiet --post-hook "systemctl reload nginx"
 
-# 証明書の情報確認
+# Check certificate info
 sudo certbot certificates
 
-# 証明書の手動失効
+# Manually revoke a certificate
 sudo certbot revoke --cert-path /etc/letsencrypt/live/example.com/cert.pem
 ```
 
-### チャレンジ方式の比較
+### Challenge Method Comparison
 
-| 方式 | 用途 | 自動化 | ワイルドカード | ポート要件 | DNS 変更 |
+| Method | Use Case | Automation | Wildcard | Port Requirement | DNS Change |
 |------|------|--------|--------------|-----------|---------|
-| HTTP-01 | Web サーバ | 容易 | 不可 | 80 | 不要 |
-| DNS-01 | 任意 | DNS API 必要 | 可能 | 不要 | 必要 |
-| TLS-ALPN-01 | 443 ポートのみ | 中程度 | 不可 | 443 | 不要 |
+| HTTP-01 | Web servers | Easy | Not possible | 80 | Not needed |
+| DNS-01 | Any | Requires DNS API | Possible | Not needed | Required |
+| TLS-ALPN-01 | Port 443 only | Moderate | Not possible | 443 | Not needed |
 
-### ACME クライアントの比較
+### ACME Client Comparison
 
-| クライアント | 言語 | 特徴 | 用途 |
+| Client | Language | Characteristics | Use Case |
 |------------|------|------|------|
-| certbot | Python | 公式、最も普及 | 汎用 |
-| acme.sh | Shell | 軽量、依存関係なし | シンプルな環境 |
-| lego | Go | シングルバイナリ | Docker/CI |
-| cert-manager | Go | K8s ネイティブ | Kubernetes |
-| Caddy (内蔵) | Go | 自動TLS | Webサーバ |
-| Traefik (内蔵) | Go | 自動TLS | リバースプロキシ |
+| certbot | Python | Official, most widely used | General purpose |
+| acme.sh | Shell | Lightweight, no dependencies | Simple environments |
+| lego | Go | Single binary | Docker / CI |
+| cert-manager | Go | Kubernetes native | Kubernetes |
+| Caddy (built-in) | Go | Automatic TLS | Web server |
+| Traefik (built-in) | Go | Automatic TLS | Reverse proxy |
 
 ---
 
 ## 6. mTLS (Mutual TLS)
 
-### 通常の TLS と mTLS の違い
+### Difference Between Standard TLS and mTLS
 
 ```
-通常の TLS (一方向認証):
-  Client ---- サーバ証明書を検証 ---> Server
-  (クライアントは認証されない)
-  用途: 一般的な HTTPS
+Standard TLS (one-way authentication):
+  Client ---- verifies server certificate ---> Server
+  (client is not authenticated)
+  Use case: general HTTPS
 
-mTLS (双方向認証):
-  Client ---- サーバ証明書を検証 ---> Server
-  Client <--- クライアント証明書を検証 --- Server
-  (双方が認証される)
-  用途: マイクロサービス間通信、ゼロトラスト、API 認証
+mTLS (mutual authentication):
+  Client ---- verifies server certificate ---> Server
+  Client <--- verifies client certificate --- Server
+  (both parties are authenticated)
+  Use case: microservice communication, zero trust, API authentication
 ```
 
-### mTLS ハンドシェイクの詳細
+### mTLS Handshake in Detail
 
 ```
 Client                                    Server
@@ -614,42 +618,42 @@ Client                                    Server
   |                                          |
   |  <--- ServerHello ---------------------  |
   |  <--- EncryptedExtensions -------------  |
-  |  <--- CertificateRequest -------------  |  ← mTLS: クライアント証明書を要求
-  |       (許可される CA の一覧)              |
+  |  <--- CertificateRequest -------------  |  <- mTLS: requests client certificate
+  |       (list of accepted CAs)             |
   |  <--- Certificate ---------------------  |
   |  <--- CertificateVerify --------------  |
   |  <--- Finished -----------------------  |
   |                                          |
-  |--- Certificate ----------------------->  |  ← mTLS: クライアント証明書を提示
-  |--- CertificateVerify ---------------->   |  ← mTLS: クライアントの署名
+  |--- Certificate ----------------------->  |  <- mTLS: presents client certificate
+  |--- CertificateVerify ---------------->   |  <- mTLS: client signature
   |--- Finished ------------------------->   |
   |                                          |
-  |========= 双方向認証された暗号化通信 ======|
+  |========= Mutually Authenticated Encrypted Communication ======|
 ```
 
-### mTLS の設定例 (Nginx)
+### mTLS Configuration Example (Nginx)
 
 ```nginx
-# コード例6: Nginx での mTLS 設定
+# Code example 6: mTLS configuration in Nginx
 server {
     listen 443 ssl;
     server_name api.example.com;
 
-    # サーバ証明書
+    # Server certificate
     ssl_certificate     /etc/nginx/ssl/server.crt;
     ssl_certificate_key /etc/nginx/ssl/server.key;
 
-    # TLS プロトコルと暗号スイートの設定
+    # TLS protocol and cipher suite settings
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';
     ssl_prefer_server_ciphers on;
 
-    # クライアント証明書の検証
-    ssl_client_certificate /etc/nginx/ssl/ca.crt;  # 信頼するCA証明書
-    ssl_verify_client on;       # 必須 (optional にすると選択的になる)
-    ssl_verify_depth 2;         # チェーンの最大深度
+    # Client certificate verification
+    ssl_client_certificate /etc/nginx/ssl/ca.crt;  # Trusted CA certificate
+    ssl_verify_client on;       # Required (use "optional" for selective verification)
+    ssl_verify_depth 2;         # Maximum chain depth
 
-    # CRL (証明書失効リスト) の設定
+    # CRL (Certificate Revocation List) configuration
     ssl_crl /etc/nginx/ssl/ca.crl;
 
     # OCSP Stapling
@@ -657,7 +661,7 @@ server {
     ssl_stapling_verify on;
 
     location / {
-        # クライアント証明書の情報をバックエンドに転送
+        # Forward client certificate info to the backend
         proxy_set_header X-Client-DN $ssl_client_s_dn;
         proxy_set_header X-Client-Serial $ssl_client_serial;
         proxy_set_header X-Client-Verify $ssl_client_verify;
@@ -667,10 +671,10 @@ server {
 }
 ```
 
-### Go でのクライアント証明書生成と mTLS クライアント
+### Generating Client Certificates and mTLS Client in Go
 
 ```go
-// コード例7: Go での mTLS 実装（サーバ + クライアント）
+// Code example 7: mTLS implementation in Go (server + client)
 package main
 
 import (
@@ -688,7 +692,7 @@ import (
     "time"
 )
 
-// ===== CA と証明書の生成 =====
+// ===== CA and Certificate Generation =====
 
 func generateCA() (*x509.Certificate, *ecdsa.PrivateKey, error) {
     caKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -716,10 +720,10 @@ func generateCA() (*x509.Certificate, *ecdsa.PrivateKey, error) {
 
 func generateClientCert(caCert *x509.Certificate, caKey *ecdsa.PrivateKey,
     commonName string) error {
-    // クライアント鍵ペア生成
+    // Generate client key pair
     clientKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
-    // 証明書テンプレート
+    // Certificate template
     template := &x509.Certificate{
         SerialNumber: big.NewInt(2),
         Subject: pkix.Name{
@@ -733,12 +737,12 @@ func generateClientCert(caCert *x509.Certificate, caKey *ecdsa.PrivateKey,
         BasicConstraintsValid: true,
     }
 
-    // CA で署名
+    // Sign with CA
     certDER, _ := x509.CreateCertificate(
         rand.Reader, template, caCert, &clientKey.PublicKey, caKey,
     )
 
-    // PEM 書き出し
+    // Write PEM files
     certFile, _ := os.Create(commonName + ".crt")
     pem.Encode(certFile, &pem.Block{Type: "CERTIFICATE", Bytes: certDER})
     certFile.Close()
@@ -751,7 +755,7 @@ func generateClientCert(caCert *x509.Certificate, caKey *ecdsa.PrivateKey,
     return nil
 }
 
-// ===== mTLS サーバ =====
+// ===== mTLS Server =====
 
 func startMTLSServer(caCertPool *x509.CertPool) {
     tlsConfig := &tls.Config{
@@ -766,7 +770,7 @@ func startMTLSServer(caCertPool *x509.CertPool) {
     }
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        // クライアント証明書の情報を取得
+        // Retrieve client certificate information
         if len(r.TLS.PeerCertificates) > 0 {
             clientCert := r.TLS.PeerCertificates[0]
             fmt.Fprintf(w, "Hello, %s (verified by mTLS)\n",
@@ -777,7 +781,7 @@ func startMTLSServer(caCertPool *x509.CertPool) {
     server.ListenAndServeTLS("server.crt", "server.key")
 }
 
-// ===== mTLS クライアント =====
+// ===== mTLS Client =====
 
 func createMTLSClient(clientCert, clientKey, caCert string) (*http.Client, error) {
     cert, err := tls.LoadX509KeyPair(clientCert, clientKey)
@@ -802,10 +806,10 @@ func createMTLSClient(clientCert, clientKey, caCert string) (*http.Client, error
 }
 ```
 
-### Python での mTLS クライアント
+### mTLS Client in Python
 
 ```python
-# コード例8: Python mTLS クライアント
+# Code example 8: Python mTLS client
 import httpx
 import ssl
 
@@ -814,7 +818,7 @@ def create_mtls_client(
     client_key: str,
     ca_cert: str,
 ) -> httpx.Client:
-    """mTLS 対応の HTTP クライアントを作成"""
+    """Create an HTTP client with mTLS support"""
     ssl_context = ssl.create_default_context(
         purpose=ssl.Purpose.SERVER_AUTH,
         cafile=ca_cert,
@@ -830,7 +834,7 @@ def create_mtls_client(
         timeout=30.0,
     )
 
-# 使用例
+# Usage example
 client = create_mtls_client(
     client_cert="client.crt",
     client_key="client.key",
@@ -842,39 +846,39 @@ print(response.json())
 
 ---
 
-## 7. Nginx / Apache の TLS 設定ベストプラクティス
+## 7. TLS Configuration Best Practices for Nginx / Apache
 
-### Mozilla SSL Configuration Generator 準拠の設定
+### Configuration Compliant with Mozilla SSL Configuration Generator
 
 ```nginx
-# コード例9: Nginx TLS 設定（Modern プロファイル）
+# Code example 9: Nginx TLS configuration (Modern profile)
 server {
     listen 443 ssl http2;
     server_name example.com;
 
-    # 証明書
+    # Certificates
     ssl_certificate     /etc/nginx/ssl/fullchain.pem;
     ssl_certificate_key /etc/nginx/ssl/privkey.pem;
 
-    # プロトコル（TLS 1.3 のみ — Modern）
+    # Protocol (TLS 1.3 only — Modern)
     ssl_protocols TLSv1.3;
-    # TLS 1.2 も含める場合（Intermediate）:
+    # To also include TLS 1.2 (Intermediate):
     # ssl_protocols TLSv1.2 TLSv1.3;
 
-    # 暗号スイート
-    # TLS 1.3 の場合は ssl_ciphers の設定は不要（TLS 1.3 のスイートは固定）
-    # TLS 1.2 を含める場合:
+    # Cipher suites
+    # For TLS 1.3 only, ssl_ciphers is not needed (TLS 1.3 suites are fixed)
+    # When including TLS 1.2:
     # ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
-    ssl_prefer_server_ciphers off;  # TLS 1.3 ではクライアント選択を推奨
+    ssl_prefer_server_ciphers off;  # Recommended to let the client choose in TLS 1.3
 
-    # DH パラメータ (TLS 1.2 使用時)
+    # DH parameters (when using TLS 1.2)
     # openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
     # ssl_dhparam /etc/nginx/ssl/dhparam.pem;
 
-    # セッションキャッシュ
+    # Session cache
     ssl_session_timeout 1d;
     ssl_session_cache shared:SSL:10m;
-    ssl_session_tickets off;  # PFS を完全に保証するため
+    ssl_session_tickets off;  # To fully guarantee PFS
 
     # OCSP Stapling
     ssl_stapling on;
@@ -885,12 +889,12 @@ server {
     # 0-RTT (TLS 1.3)
     ssl_early_data on;
 
-    # セキュリティヘッダ
+    # Security headers
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
     add_header X-Content-Type-Options nosniff always;
     add_header X-Frame-Options DENY always;
 
-    # HTTP → HTTPS リダイレクト（別の server ブロックで）
+    # HTTP → HTTPS redirect (in a separate server block)
 }
 
 server {
@@ -902,12 +906,12 @@ server {
 
 ---
 
-## 8. 証明書の自動管理と監視
+## 8. Automated Certificate Management and Monitoring
 
-### 証明書有効期限の監視
+### Certificate Expiration Monitoring
 
 ```python
-# コード例10: 証明書有効期限監視スクリプト
+# Code example 10: Certificate expiration monitoring script
 import ssl
 import socket
 import datetime
@@ -915,27 +919,27 @@ import json
 from typing import Optional
 
 class CertificateMonitor:
-    """TLS 証明書の有効期限を監視"""
+    """Monitors TLS certificate expiration"""
 
     def __init__(self, warning_days: int = 30, critical_days: int = 7):
         self.warning_days = warning_days
         self.critical_days = critical_days
 
     def check_certificate(self, hostname: str, port: int = 443) -> dict:
-        """証明書情報を取得して有効期限をチェック"""
+        """Fetch certificate info and check expiration"""
         context = ssl.create_default_context()
         try:
             with socket.create_connection((hostname, port), timeout=10) as sock:
                 with context.wrap_socket(sock, server_hostname=hostname) as ssock:
                     cert = ssock.getpeercert()
 
-            # 有効期限を解析
+            # Parse expiration date
             not_after = datetime.datetime.strptime(
                 cert["notAfter"], "%b %d %H:%M:%S %Y %Z"
             )
             days_remaining = (not_after - datetime.datetime.utcnow()).days
 
-            # ステータス判定
+            # Determine status
             if days_remaining < 0:
                 status = "EXPIRED"
             elif days_remaining <= self.critical_days:
@@ -945,7 +949,7 @@ class CertificateMonitor:
             else:
                 status = "OK"
 
-            # SAN (Subject Alternative Name) の取得
+            # Retrieve SAN (Subject Alternative Name)
             san = []
             for entry_type, value in cert.get("subjectAltName", []):
                 if entry_type == "DNS":
@@ -971,7 +975,7 @@ class CertificateMonitor:
                     "error": str(e)}
 
     def check_multiple(self, hostnames: list[str]) -> list[dict]:
-        """複数ホストの証明書を一括チェック"""
+        """Check certificates for multiple hosts in bulk"""
         results = []
         for hostname in hostnames:
             result = self.check_certificate(hostname)
@@ -982,7 +986,7 @@ class CertificateMonitor:
         return results
 
 
-# 使用例
+# Usage example
 monitor = CertificateMonitor(warning_days=30, critical_days=7)
 domains = [
     "example.com",
@@ -993,10 +997,10 @@ results = monitor.check_multiple(domains)
 print(json.dumps(results, indent=2, default=str))
 ```
 
-### Kubernetes での cert-manager
+### cert-manager in Kubernetes
 
 ```yaml
-# コード例11: cert-manager による自動証明書管理
+# Code example 11: Automated certificate management with cert-manager
 # ClusterIssuer (Let's Encrypt)
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -1023,7 +1027,7 @@ spec:
             - "example.com"
 
 ---
-# Certificate リソース
+# Certificate resource
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -1037,11 +1041,11 @@ spec:
   dnsNames:
     - example.com
     - "*.example.com"
-  duration: 2160h      # 90日
-  renewBefore: 720h    # 30日前に更新
+  duration: 2160h      # 90 days
+  renewBefore: 720h    # Renew 30 days before expiry
 
 ---
-# Ingress での使用
+# Usage in Ingress
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -1068,208 +1072,208 @@ spec:
 
 ---
 
-## 9. エッジケース
+## 9. Edge Cases
 
-### エッジケース 1: SNI (Server Name Indication) と仮想ホスト
+### Edge Case 1: SNI (Server Name Indication) and Virtual Hosting
 
-TLS ハンドシェイクの ClientHello に含まれる SNI 拡張により、同一 IP アドレスで複数ドメインの証明書を使い分けられる。ただし、SNI は平文で送信されるため、接続先ドメイン名がネットワーク上で可視。TLS 1.3 の Encrypted Client Hello (ECH) でこれを暗号化する提案がある。
+The SNI extension included in the ClientHello during the TLS handshake allows different certificates to be served for multiple domains on the same IP address. However, SNI is transmitted in plaintext, so the destination domain name is visible on the network. A proposal exists to encrypt this via Encrypted Client Hello (ECH) in TLS 1.3.
 
-### エッジケース 2: 証明書ピンニングの問題
+### Edge Case 2: Problems with Certificate Pinning
 
-HPKP (HTTP Public Key Pinning) は証明書の公開鍵ハッシュをブラウザにピン留めする仕組みだったが、運用ミスによるサイト到達不能のリスクが高く、Chrome 72 で廃止された。代替として DANE/TLSA レコード（DNSSEC 前提）や Certificate Transparency の監視が推奨される。
+HPKP (HTTP Public Key Pinning) was a mechanism that pinned the public key hash of a certificate in the browser, but it carried a high risk of rendering a site unreachable due to operational mistakes and was deprecated in Chrome 72. Alternatives such as DANE/TLSA records (requires DNSSEC) and Certificate Transparency monitoring are now recommended.
 
-### エッジケース 3: ワイルドカード証明書と SAN の制限
+### Edge Case 3: Wildcard Certificate and SAN Limitations
 
-ワイルドカード証明書（*.example.com）は 1 レベルのサブドメインのみカバーする。`sub.sub.example.com` はカバーされない。また、SAN に最大何ドメインまで含められるかは CA ごとに異なり（Let's Encrypt は 100 まで）、大量のドメインを持つ場合は複数の証明書が必要。
+A wildcard certificate (*.example.com) covers only one level of subdomain. `sub.sub.example.com` is not covered. Also, the maximum number of domains that can be included in a SAN varies by CA (Let's Encrypt allows up to 100), so multiple certificates may be needed for a large number of domains.
 
-### エッジケース 4: 時刻同期の影響
+### Edge Case 4: Impact of Clock Synchronization
 
-証明書の有効期間チェックはクライアントの時刻に依存する。NTP が正しく設定されていないクライアントでは、有効な証明書でも検証に失敗する場合がある。特に IoT デバイスや組み込みシステムで問題になりやすい。
+Certificate validity period checks depend on the client's clock. On clients where NTP is not properly configured, a valid certificate may fail verification. This is especially likely to be a problem on IoT devices and embedded systems.
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-patterns
 
-### アンチパターン 1: 証明書検証の無効化
+### Anti-pattern 1: Disabling Certificate Validation
 
 ```python
-# NG: 本番環境で証明書検証を無効化
+# BAD: Disabling certificate validation in production
 import requests
 response = requests.get("https://api.example.com", verify=False)
-# WARNING: InsecureRequestWarning が出るが無視される
+# WARNING: InsecureRequestWarning is raised but ignored
 
-# OK: 正しい CA バンドルを指定
+# GOOD: Specify the correct CA bundle
 response = requests.get("https://api.example.com", verify="/path/to/ca-bundle.crt")
 
-# OK: 環境変数で CA バンドルを指定
+# GOOD: Specify CA bundle via environment variable
 # export REQUESTS_CA_BUNDLE=/path/to/ca-bundle.crt
 ```
 
-**なぜ危険か**: 中間者攻撃 (MITM) が可能になり、通信内容の盗聴・改竄のリスクがある。開発環境でも自己署名 CA を作成して正しく検証すべきである。`verify=False` はセキュリティスキャナで自動検出される重大な問題。
+**Why it is dangerous**: It enables man-in-the-middle (MITM) attacks, creating a risk of eavesdropping and tampering with communications. Even in development environments, a self-signed CA should be created and validation done correctly. `verify=False` is a critical issue automatically detected by security scanners.
 
-### アンチパターン 2: 古い TLS バージョンの許可
+### Anti-pattern 2: Allowing Old TLS Versions
 
 ```nginx
-# NG: TLS 1.0/1.1 を許可
+# BAD: Allowing TLS 1.0/1.1
 ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
 
-# OK: TLS 1.2 以上のみ許可
+# GOOD: Allow TLS 1.2 or higher only
 ssl_protocols TLSv1.2 TLSv1.3;
 ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';
 ssl_prefer_server_ciphers on;
 ```
 
-**なぜ危険か**: TLS 1.0/1.1 には既知の脆弱性 (BEAST, POODLE, Lucky13) があり、PCI DSS でも使用が禁止されている。2020年に主要ブラウザが TLS 1.0/1.1 のサポートを終了。
+**Why it is dangerous**: TLS 1.0/1.1 have known vulnerabilities (BEAST, POODLE, Lucky13) and their use is prohibited under PCI DSS. In 2020, major browsers ended support for TLS 1.0/1.1.
 
-### アンチパターン 3: 秘密鍵のハードコーディング
+### Anti-pattern 3: Hardcoding Private Keys
 
 ```python
-# NG: ソースコードに秘密鍵を埋め込む
+# BAD: Embedding a private key in source code
 PRIVATE_KEY = """-----BEGIN EC PRIVATE KEY-----
 MHQCAQEEIBkg4LVWM...
 -----END EC PRIVATE KEY-----"""
 
-# OK: 環境変数またはシークレットマネージャから取得
+# GOOD: Retrieve from an environment variable or secrets manager
 import os
 key_path = os.environ["TLS_KEY_PATH"]
 with open(key_path) as f:
     private_key = f.read()
 
-# OK: AWS Secrets Manager / HashiCorp Vault から取得
+# GOOD: Retrieve from AWS Secrets Manager / HashiCorp Vault
 import boto3
 client = boto3.client("secretsmanager")
 secret = client.get_secret_value(SecretId="tls/server-key")
 ```
 
-### アンチパターン 4: 証明書更新の手動運用
+### Anti-pattern 4: Manual Certificate Renewal Operations
 
 ```
-NG: 証明書の更新を手動で行い、カレンダーで管理
-  → 更新忘れでサービス障害が発生
-  → 2020年: Microsoft Teams が証明書期限切れで数時間のダウン
+BAD: Renewing certificates manually and tracking on a calendar
+  → Service outages caused by missed renewals
+  → 2020: Microsoft Teams was down for several hours due to an expired certificate
 
-OK: cert-manager, certbot, Caddy などで自動更新
-  → 証明書の有効期限を Prometheus/Grafana で監視
-  → 30日前にアラート、7日前にクリティカルアラート
+GOOD: Automated renewal with cert-manager, certbot, Caddy, etc.
+  → Monitor certificate expiration with Prometheus/Grafana
+  → Alert 30 days before expiry, critical alert 7 days before
 ```
 
 ---
 
-## 11. 演習
+## 11. Exercises
 
-### 演習 1（基礎）: TLS 接続の確認
+### Exercise 1 (Basic): Inspecting a TLS Connection
 
-以下のコマンドを実行し、TLS 接続の詳細を観察せよ:
+Run the following commands and observe the details of the TLS connection:
 
 ```bash
-# 1. 任意のサイトの TLS バージョンと暗号スイートを確認
+# 1. Check the TLS version and cipher suite for any site
 openssl s_client -connect google.com:443 -tls1_3
 
-# 2. 証明書チェーンの発行者を確認
+# 2. Check the issuers in the certificate chain
 openssl s_client -connect github.com:443 -showcerts 2>/dev/null | \
   grep -E "subject|issuer"
 
-# 質問:
-# - TLS 1.3 で使用されている暗号スイートは?
-# - 証明書チェーンは何階層か?
-# - Root CA は何か?
+# Questions:
+# - What cipher suite is used with TLS 1.3?
+# - How many levels does the certificate chain have?
+# - What is the Root CA?
 ```
 
-### 演習 2（中級）: 自己署名 CA と証明書の作成
+### Exercise 2 (Intermediate): Creating a Self-signed CA and Certificate
 
-OpenSSL を使用して以下を作成せよ:
-1. Root CA の鍵ペアと自己署名証明書
-2. 中間 CA の鍵ペアと Root CA で署名した証明書
-3. サーバ証明書（SAN 付き）
-4. 証明書チェーンの検証
+Using OpenSSL, create the following:
+1. Root CA key pair and self-signed certificate
+2. Intermediate CA key pair and certificate signed by the Root CA
+3. Server certificate (with SAN)
+4. Verify the certificate chain
 
-### 演習 3（上級）: mTLS サービス間通信
+### Exercise 3 (Advanced): mTLS for Service-to-Service Communication
 
-Go または Python で以下を実装せよ:
-1. 内部 CA の構築
-2. サーバ証明書とクライアント証明書の自動生成
-3. mTLS で保護された HTTP サーバ
-4. mTLS クライアントからの API 呼び出し
-5. クライアント証明書の失効チェック
+Implement the following in Go or Python:
+1. Build an internal CA
+2. Automatically generate server and client certificates
+3. An HTTP server protected with mTLS
+4. API calls from an mTLS client
+5. Revocation checking of client certificates
 
 ---
 
-## 12. パフォーマンスに関する考察
+## 12. Performance Considerations
 
-### TLS ハンドシェイクのレイテンシ
+### TLS Handshake Latency
 
-| 設定 | レイテンシ (概算) | 最適化方法 |
+| Configuration | Latency (approximate) | Optimization Method |
 |------|-----------------|-----------|
-| TLS 1.2 フルハンドシェイク | ~100ms | - |
-| TLS 1.3 フルハンドシェイク | ~50ms | 1-RTT |
-| TLS 1.3 0-RTT | ~0ms | PSK 再利用 |
-| TLS セッション再開 (1.2) | ~50ms | セッションチケット |
-| ECDSA 署名検証 | ~0.1ms | RSA より高速 |
-| RSA 2048 署名検証 | ~0.3ms | - |
-| OCSP ステープリング | 節約 ~50ms | CA への問い合わせ不要 |
+| TLS 1.2 full handshake | ~100ms | - |
+| TLS 1.3 full handshake | ~50ms | 1-RTT |
+| TLS 1.3 0-RTT | ~0ms | PSK reuse |
+| TLS session resumption (1.2) | ~50ms | Session ticket |
+| ECDSA signature verification | ~0.1ms | Faster than RSA |
+| RSA 2048 signature verification | ~0.3ms | - |
+| OCSP Stapling | Saves ~50ms | No CA query needed |
 
-### 暗号アルゴリズムのスループット比較
+### Encryption Algorithm Throughput Comparison
 
 ```
-暗号化スループット (Intel Xeon, single core):
+Encryption throughput (Intel Xeon, single core):
 
-  AES-256-GCM:           ~5 GB/s  (AES-NI ハードウェア)
+  AES-256-GCM:           ~5 GB/s  (AES-NI hardware)
   AES-128-GCM:           ~6 GB/s
-  ChaCha20-Poly1305:     ~2 GB/s  (ソフトウェア)
+  ChaCha20-Poly1305:     ~2 GB/s  (software)
   ChaCha20-Poly1305:     ~4 GB/s  (AVX2)
-  AES-256-CBC:           ~1 GB/s  (非推奨)
+  AES-256-CBC:           ~1 GB/s  (deprecated)
 
-  鍵交換:
+  Key exchange:
   ECDHE (x25519):        ~50,000 ops/sec
   ECDHE (P-256):         ~30,000 ops/sec
-  RSA-2048 鍵交換:      ~15,000 ops/sec
+  RSA-2048 key exchange: ~15,000 ops/sec
 
-  → AES-NI 対応の x86 サーバでは AES-GCM が最速
-  → ARM (モバイル/Raspberry Pi) では ChaCha20 が高速
+  → On x86 servers with AES-NI, AES-GCM is fastest
+  → On ARM (mobile / Raspberry Pi), ChaCha20 is faster
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for a basic implementation pattern"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1278,26 +1282,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1305,7 +1309,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1316,14 +1320,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1331,7 +1335,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1339,44 +1343,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1385,7 +1389,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1400,92 +1404,92 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup:             {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## 13. FAQ
 
-### Q1. TLS 1.3 の 0-RTT は安全か?
+### Q1. Is 0-RTT in TLS 1.3 safe?
 
-0-RTT (Early Data) は再接続時のレイテンシを削減するが、リプレイ攻撃のリスクがある。べき等でない操作 (POST による状態変更など) には使用すべきでない。Nginx では `ssl_early_data on;` で有効化し、バックエンドで `Early-Data: 1` ヘッダを確認して保護する。Google は検索クエリ（べき等な GET）で 0-RTT を使用している。
+0-RTT (Early Data) reduces latency on reconnection but carries a risk of replay attacks. It should not be used for non-idempotent operations (such as POST requests that mutate state). In Nginx, enable it with `ssl_early_data on;` and protect the backend by checking the `Early-Data: 1` header. Google uses 0-RTT for search queries (idempotent GET requests).
 
-### Q2. 証明書の有効期間はどのくらいが適切か?
+### Q2. What is an appropriate certificate validity period?
 
-CA/Browser Forum の規定により、公開証明書の最大有効期間は 398 日 (約13ヶ月) である。Let's Encrypt は 90 日で発行し、自動更新を前提とする設計になっている。短い有効期間は鍵の危殆化リスクを低減する。Apple は 2025 年から 45 日への短縮を提案している。
+Per CA/Browser Forum regulations, the maximum validity period for public certificates is 398 days (approximately 13 months). Let's Encrypt issues certificates with a 90-day lifetime, designed with automatic renewal in mind. Shorter validity periods reduce the risk of key compromise. Apple has proposed shortening the period to 45 days starting in 2025.
 
-### Q3. 自己署名証明書を使ってよい場面は?
+### Q3. When is it acceptable to use a self-signed certificate?
 
-開発環境、内部マイクロサービス間の mTLS、テスト環境に限定すべきである。公開サービスでは必ず信頼された CA の証明書を使用する。自己署名でも CA を作成し、チェーンを正しく構成する運用が望ましい。
+Use should be limited to development environments, mTLS between internal microservices, and test environments. For public-facing services, always use a certificate from a trusted CA. Even with self-signed certificates, it is good practice to create a CA and properly configure the chain.
 
-### Q4. ECC (楕円曲線暗号) と RSA のどちらを選ぶべきか?
+### Q4. Should I choose ECC (Elliptic Curve Cryptography) or RSA?
 
-新規構築では ECC (P-256 or Ed25519) を推奨。RSA 2048 と同等の安全性を ECC 256 で実現でき、鍵サイズ・署名サイズが大幅に小さい。RSA は互換性が高いが、将来的には ECC が主流になる。Let's Encrypt は ECC 証明書をデフォルトで発行している。
+For new deployments, ECC (P-256 or Ed25519) is recommended. ECC 256 achieves the same security level as RSA 2048 with significantly smaller key and signature sizes. RSA has high compatibility but ECC will be the mainstream choice going forward. Let's Encrypt issues ECC certificates by default.
 
-### Q5. TLS の終端はどこで行うべきか?
+### Q5. Where should TLS be terminated?
 
-ロードバランサ/リバースプロキシで TLS を終端し、バックエンドへは HTTP で通信するパターンが一般的。ただし、ゼロトラスト環境では mTLS でバックエンドまで暗号化を維持すべき。サービスメッシュ (Istio, Linkerd) を使うと mTLS を透過的に導入できる。
+The common pattern is to terminate TLS at a load balancer or reverse proxy and communicate with the backend over HTTP. However, in a zero-trust environment, encryption should be maintained all the way to the backend using mTLS. Service meshes (Istio, Linkerd) can transparently introduce mTLS.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when studying this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Point |
 |------|------|
-| TLS バージョン | TLS 1.3 を推奨、最低でも TLS 1.2 |
-| ハンドシェイク | TLS 1.3 は 1-RTT で完了し前方秘匿性を必須化 |
-| 暗号スイート | AES-GCM / ChaCha20-Poly1305 + ECDHE |
-| 証明書チェーン | Root CA → 中間 CA → サーバ証明書の信頼の連鎖 |
-| 失効チェック | OCSP Stapling を推奨、CT ログで監視 |
-| Let's Encrypt | ACME プロトコルで証明書の取得・更新を自動化 |
-| mTLS | クライアント証明書による双方向認証でゼロトラスト実現 |
-| 証明書管理 | 自動更新必須、秘密鍵はシークレットマネージャで保護 |
-| 監視 | 証明書の有効期限を常時監視し期限切れを防止 |
-| 0-RTT | レイテンシ削減だがリプレイリスクあり、べき等操作のみ |
+| TLS version | TLS 1.3 recommended, TLS 1.2 at minimum |
+| Handshake | TLS 1.3 completes in 1-RTT and mandates forward secrecy |
+| Cipher suites | AES-GCM / ChaCha20-Poly1305 + ECDHE |
+| Certificate chain | Chain of trust: Root CA → Intermediate CA → Server certificate |
+| Revocation checking | OCSP Stapling recommended, monitor with CT logs |
+| Let's Encrypt | Automate certificate issuance and renewal via the ACME protocol |
+| mTLS | Achieve zero trust with mutual authentication via client certificates |
+| Certificate management | Automatic renewal required; protect private keys with a secrets manager |
+| Monitoring | Continuously monitor certificate expiration to prevent outages |
+| 0-RTT | Reduces latency but carries replay risk; use only for idempotent operations |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [鍵管理](./02-key-management.md) — 暗号鍵のライフサイクルと安全な保管方法
-- [ネットワークセキュリティ基礎](../03-network-security/00-network-security-basics.md) — ファイアウォール・IDS/IPS による多層防御
-- [APIセキュリティ](../03-network-security/02-api-security.md) — TLS の上に構築する API 保護
-- [DNSセキュリティ](../03-network-security/01-dns-security.md) — DANE/TLSA による DNS ベースの証明書検証
+- [Key Management](./02-key-management.md) — Cryptographic key lifecycle and secure storage
+- [Network Security Basics](../03-network-security/00-network-security-basics.md) — Defense in depth with firewalls and IDS/IPS
+- [API Security](../03-network-security/02-api-security.md) — API protection built on top of TLS
+- [DNS Security](../03-network-security/01-dns-security.md) — DNS-based certificate validation with DANE/TLSA
 
 ---
 
-## 参考文献
+## References
 
 1. **RFC 8446 — The Transport Layer Security (TLS) Protocol Version 1.3** (2018) — https://datatracker.ietf.org/doc/html/rfc8446
 2. **RFC 8555 — Automatic Certificate Management Environment (ACME)** — https://datatracker.ietf.org/doc/html/rfc8555
-3. **Mozilla SSL Configuration Generator** — https://ssl-config.mozilla.org/ — サーバソフトウェア別の推奨 TLS 設定
-4. **Let's Encrypt Documentation** — https://letsencrypt.org/docs/ — ACME プロトコルと証明書自動化の公式ガイド
+3. **Mozilla SSL Configuration Generator** — https://ssl-config.mozilla.org/ — Recommended TLS configuration by server software
+4. **Let's Encrypt Documentation** — https://letsencrypt.org/docs/ — Official guide to ACME protocol and certificate automation
 5. **Qualys SSL Labs — SSL/TLS Best Practices** — https://github.com/ssllabs/research/wiki/SSL-and-TLS-Deployment-Best-Practices
 6. **RFC 6960 — X.509 Internet PKI Online Certificate Status Protocol - OCSP** — https://datatracker.ietf.org/doc/html/rfc6960
 7. **Certificate Transparency (RFC 6962)** — https://certificate.transparency.dev/
