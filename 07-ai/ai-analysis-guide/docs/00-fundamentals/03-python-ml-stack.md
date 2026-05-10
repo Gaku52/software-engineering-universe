@@ -1,174 +1,175 @@
-# Python MLスタック — NumPy、pandas、scikit-learn
+# Python ML Stack — NumPy, pandas, scikit-learn
 
-> Python機械学習エコシステムの中核ライブラリを実践的に習得する
+> Master the core libraries of the Python machine learning ecosystem through hands-on practice
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **NumPy** — 高速な多次元配列演算とブロードキャスティング
-2. **pandas** — 表形式データの読み込み・加工・集計の全操作
-3. **scikit-learn** — 前処理→学習→評価のパイプライン構築
-4. **Matplotlib / Seaborn** — データ可視化の基礎から応用
-5. **SciPy** — 科学計算・統計検定・最適化
-6. **実務パターン** — プロジェクト構成、テスト、デプロイメント
+1. **NumPy** — Fast multi-dimensional array operations and broadcasting
+2. **pandas** — Complete operations for loading, processing, and aggregating tabular data
+3. **scikit-learn** — Building pipelines from preprocessing to training to evaluation
+4. **Matplotlib / Seaborn** — Data visualization from basics to advanced techniques
+5. **SciPy** — Scientific computing, statistical tests, and optimization
+6. **Practical Patterns** — Project structure, testing, and deployment
 
+[日本語版](ja/03-python-ml-stack.md)
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [機械学習基礎 — 教師あり/なし、評価指標](./02-ml-basics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Machine Learning Fundamentals — Supervised/Unsupervised, Evaluation Metrics](./02-ml-basics.md)
 
 ---
 
-## 1. NumPy — 数値計算の基盤
+## 1. NumPy — Foundation of Numerical Computing
 
-### 1.1 NumPyのアーキテクチャ
+### 1.1 NumPy Architecture
 
 ```
-Python リスト              NumPy ndarray
+Python List               NumPy ndarray
 ┌───┬───┬───┬───┐         ┌───┬───┬───┬───┐
 │ 1 │ 2 │ 3 │ 4 │         │ 1 │ 2 │ 3 │ 4 │
 └─┬─┴─┬─┴─┬─┴─┬─┘         └───┴───┴───┴───┘
-  │   │   │   │              連続メモリブロック
-  v   v   v   v              (C言語配列と同等)
+  │   │   │   │              Contiguous memory block
+  v   v   v   v              (equivalent to C array)
  obj obj obj obj
- (各要素が別オブジェクト)    → ベクトル化演算で高速
- → ループが必要で低速        → BLAS/LAPACK連携
+ (each element is a separate object)  → Fast with vectorized operations
+ → Requires loops, slow               → Integrates with BLAS/LAPACK
 ```
 
-NumPyの内部アーキテクチャを理解することは、高速な数値計算コードを書くうえで不可欠である。NumPyの`ndarray`は以下の3つの主要コンポーネントで構成されている。
+Understanding NumPy's internal architecture is essential for writing fast numerical computing code. NumPy's `ndarray` consists of three main components:
 
-1. **データバッファ**: 連続したメモリ領域に同一型の要素が格納される
-2. **dtype（データ型）**: 各要素のバイト数と解釈方法を定義する
-3. **ストライド**: 各次元方向に1要素進むために必要なバイト数
+1. **Data buffer**: Elements of the same type stored in a contiguous memory region
+2. **dtype (data type)**: Defines the number of bytes and interpretation for each element
+3. **Strides**: Number of bytes needed to advance one element in each dimension
 
 ```python
 import numpy as np
 
-# ndarrayの内部構造を確認
+# Inspect the internal structure of ndarray
 arr = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float64)
 
 print(f"shape:    {arr.shape}")        # (2, 3)
 print(f"dtype:    {arr.dtype}")        # float64
-print(f"strides:  {arr.strides}")      # (24, 8) — 各次元のバイトストライド
-print(f"itemsize: {arr.itemsize}")     # 8 バイト（float64）
-print(f"nbytes:   {arr.nbytes}")       # 48 バイト（2×3×8）
-print(f"flags:\n{arr.flags}")          # C_CONTIGUOUS, F_CONTIGUOUS等
+print(f"strides:  {arr.strides}")      # (24, 8) — byte strides for each dimension
+print(f"itemsize: {arr.itemsize}")     # 8 bytes (float64)
+print(f"nbytes:   {arr.nbytes}")       # 48 bytes (2×3×8)
+print(f"flags:\n{arr.flags}")          # C_CONTIGUOUS, F_CONTIGUOUS, etc.
 ```
 
-### 1.2 配列の作成パターン
+### 1.2 Array Creation Patterns
 
 ```python
 import numpy as np
 
-# --- 基本的な配列作成 ---
-# ゼロ埋め
-zeros = np.zeros((3, 4))                    # 3×4のゼロ行列
-ones = np.ones((2, 3, 4))                   # 2×3×4の1埋めテンソル
-empty = np.empty((5, 5))                    # 未初期化（高速だが値は不定）
+# --- Basic array creation ---
+# Zero-filled
+zeros = np.zeros((3, 4))                    # 3×4 zero matrix
+ones = np.ones((2, 3, 4))                   # 2×3×4 tensor filled with ones
+empty = np.empty((5, 5))                    # Uninitialized (fast but values are undefined)
 
-# 等差数列・等比数列
-linspace = np.linspace(0, 1, 100)           # 0〜1を100等分
-arange = np.arange(0, 10, 0.5)             # 0〜10を0.5刻み
-logspace = np.logspace(0, 3, 50)            # 10^0 〜 10^3 の対数等間隔
+# Arithmetic and geometric sequences
+linspace = np.linspace(0, 1, 100)           # 100 evenly spaced values from 0 to 1
+arange = np.arange(0, 10, 0.5)             # 0 to 10 in steps of 0.5
+logspace = np.logspace(0, 3, 50)            # 50 logarithmically spaced values from 10^0 to 10^3
 
-# 単位行列・対角行列
-identity = np.eye(4)                         # 4×4単位行列
-diag = np.diag([1, 2, 3, 4])               # 対角行列
+# Identity and diagonal matrices
+identity = np.eye(4)                         # 4×4 identity matrix
+diag = np.diag([1, 2, 3, 4])               # Diagonal matrix
 
-# --- 乱数生成（新しいGenerator API推奨） ---
+# --- Random number generation (new Generator API recommended) ---
 rng = np.random.default_rng(seed=42)
 
-uniform = rng.uniform(0, 1, size=(3, 4))     # 一様分布
-normal = rng.normal(loc=0, scale=1, size=1000)  # 正規分布
-integers = rng.integers(0, 100, size=50)     # 整数乱数
-choice = rng.choice(['A', 'B', 'C'], size=10, p=[0.5, 0.3, 0.2])  # 重み付き選択
+uniform = rng.uniform(0, 1, size=(3, 4))     # Uniform distribution
+normal = rng.normal(loc=0, scale=1, size=1000)  # Normal distribution
+integers = rng.integers(0, 100, size=50)     # Integer random numbers
+choice = rng.choice(['A', 'B', 'C'], size=10, p=[0.5, 0.3, 0.2])  # Weighted selection
 
-# 再現性のある乱数シード管理
+# Reproducible random seed management
 seed_seq = np.random.SeedSequence(42)
-child_seeds = seed_seq.spawn(4)  # 並列処理用に独立したシード
+child_seeds = seed_seq.spawn(4)  # Independent seeds for parallel processing
 rngs = [np.random.default_rng(s) for s in child_seeds]
 ```
 
-### 1.3 ベクトル化演算とブロードキャスティング
+### 1.3 Vectorized Operations and Broadcasting
 
 ```python
 import numpy as np
 import time
 
-# --- ベクトル化 vs ループの速度比較 ---
+# --- Vectorized vs loop speed comparison ---
 n = 1_000_000
 a = np.random.randn(n)
 b = np.random.randn(n)
 
-# BAD: Pythonループ
+# BAD: Python loop
 start = time.time()
 result_loop = [a[i] + b[i] for i in range(n)]
-print(f"ループ: {time.time() - start:.4f}秒")
+print(f"Loop: {time.time() - start:.4f} seconds")
 
-# GOOD: ベクトル化演算
+# GOOD: Vectorized operation
 start = time.time()
 result_vec = a + b
-print(f"ベクトル化: {time.time() - start:.4f}秒")
-# → 100倍以上高速
+print(f"Vectorized: {time.time() - start:.4f} seconds")
+# → 100x or more faster
 
-# --- ブロードキャスティング ---
+# --- Broadcasting ---
 matrix = np.array([[1, 2, 3],
                    [4, 5, 6],
                    [7, 8, 9]])
 row = np.array([10, 20, 30])
 
-# 行ベクトルが自動的にブロードキャスト
+# Row vector is automatically broadcast
 result = matrix + row
 # [[11, 22, 33],
 #  [14, 25, 36],
 #  [17, 28, 39]]
 ```
 
-### 1.4 ブロードキャスティングの詳細ルール
+### 1.4 Broadcasting Rules in Detail
 
-ブロードキャスティングはNumPyの最も強力な機能の一つであり、異なる形状の配列間で演算を行う際の暗黙的な拡張規則である。
+Broadcasting is one of NumPy's most powerful features — the implicit expansion rules for performing operations between arrays of different shapes.
 
 ```
-ブロードキャスティングルール:
-1. 次元数が少ない配列は、先頭に次元1を追加して揃える
-2. 各次元のサイズが一致するか、いずれかが1であれば互換
-3. サイズ1の次元は、もう一方のサイズに合わせて拡張される
+Broadcasting rules:
+1. Arrays with fewer dimensions have 1s prepended to their shape
+2. Dimensions are compatible if they match or one of them is 1
+3. Dimensions of size 1 are expanded to match the other array's size
 
-例:
+Examples:
   A: (3, 4)    B: (4,)
-  → B を (1, 4) に変換
-  → B を (3, 4) にブロードキャスト
+  → B is converted to (1, 4)
+  → B is broadcast to (3, 4)
 
   A: (3, 1, 5)  B: (1, 4, 1)
-  → 結果: (3, 4, 5)
+  → Result: (3, 4, 5)
 ```
 
 ```python
 import numpy as np
 
-# ブロードキャスティングの実用例
+# Practical examples of broadcasting
 
-# 例1: 各列の平均を引いて標準化
-data = np.random.randn(100, 5)  # 100サンプル×5特徴量
+# Example 1: Subtract column mean for standardization
+data = np.random.randn(100, 5)  # 100 samples × 5 features
 col_mean = data.mean(axis=0)     # shape: (5,)
 col_std = data.std(axis=0)       # shape: (5,)
-normalized = (data - col_mean) / col_std  # (100,5) と (5,) のブロードキャスト
+normalized = (data - col_mean) / col_std  # broadcasting (100,5) with (5,)
 
-# 例2: 距離行列の計算（ペアワイズ距離）
-points = np.random.randn(100, 3)  # 100個の3次元点
+# Example 2: Computing a distance matrix (pairwise distances)
+points = np.random.randn(100, 3)  # 100 points in 3D space
 # (100,1,3) - (1,100,3) → (100,100,3) → sum → (100,100)
 diff = points[:, np.newaxis, :] - points[np.newaxis, :, :]
 distances = np.sqrt((diff ** 2).sum(axis=-1))
 
-# 例3: 外積の計算
+# Example 3: Outer product
 x = np.array([1, 2, 3])
 y = np.array([4, 5, 6, 7])
-outer = x[:, np.newaxis] * y[np.newaxis, :]  # (3,4)の外積行列
+outer = x[:, np.newaxis] * y[np.newaxis, :]  # (3,4) outer product matrix
 
-# 例4: one-hotエンコーディング
+# Example 4: One-hot encoding
 labels = np.array([0, 2, 1, 0, 3])
 n_classes = 4
 one_hot = (labels[:, np.newaxis] == np.arange(n_classes)[np.newaxis, :]).astype(int)
@@ -179,7 +180,7 @@ one_hot = (labels[:, np.newaxis] == np.arange(n_classes)[np.newaxis, :]).astype(
 #  [0,0,0,1]]
 ```
 
-### 1.5 高度なインデキシングとスライシング
+### 1.5 Advanced Indexing and Slicing
 
 ```python
 import numpy as np
@@ -190,163 +191,163 @@ arr = np.arange(20).reshape(4, 5)
 #  [10, 11, 12, 13, 14],
 #  [15, 16, 17, 18, 19]]
 
-# --- 基本スライス（ビュー：メモリ共有） ---
+# --- Basic slicing (view: shared memory) ---
 sub = arr[1:3, 2:4]        # [[7,8],[12,13]]
-sub[0, 0] = 999            # arrも変更される！（ビューのため）
+sub[0, 0] = 999            # arr is also modified! (because it's a view)
 
-# --- ファンシーインデキシング（コピー：メモリ非共有） ---
+# --- Fancy indexing (copy: independent memory) ---
 rows = [0, 2, 3]
 cols = [1, 3, 4]
-fancy = arr[rows, cols]     # [ 1, 13, 19]（各(row,col)ペアの要素）
+fancy = arr[rows, cols]     # [ 1, 13, 19] (element at each (row,col) pair)
 
-# --- ブーリアンインデキシング ---
+# --- Boolean indexing ---
 mask = arr > 10
 filtered = arr[mask]        # [11, 12, 13, 14, 15, 16, 17, 18, 19]
 
-# 条件付き代入
+# Conditional assignment
 arr_copy = arr.copy()
-arr_copy[arr_copy > 15] = -1  # 15超の要素を-1に置換
+arr_copy[arr_copy > 15] = -1  # Replace elements greater than 15 with -1
 
-# --- np.where による条件分岐 ---
-result = np.where(arr > 10, arr, 0)  # 10超はそのまま、以下は0
+# --- Conditional branching with np.where ---
+result = np.where(arr > 10, arr, 0)  # Keep values above 10, set rest to 0
 
-# --- 多次元インデキシングの組み合わせ ---
-# 特定の行・列を選択
-selected = arr[np.ix_([0, 2], [1, 3])]  # [[1,3],[11,13]] の2×2部分行列
+# --- Combining multi-dimensional indexing ---
+# Select specific rows and columns
+selected = arr[np.ix_([0, 2], [1, 3])]  # 2×2 submatrix [[1,3],[11,13]]
 
-# --- ストライドトリック（高度） ---
-# スライディングウィンドウを効率的に作成
+# --- Stride tricks (advanced) ---
+# Efficiently create a sliding window
 from numpy.lib.stride_tricks import sliding_window_view
 data = np.arange(10)
 windows = sliding_window_view(data, window_shape=3)
 # [[0,1,2], [1,2,3], [2,3,4], ..., [7,8,9]]
 ```
 
-### 1.6 線形代数とFFT
+### 1.6 Linear Algebra and FFT
 
 ```python
 import numpy as np
 
-# --- 線形代数 ---
+# --- Linear algebra ---
 A = np.random.randn(3, 3)
 b = np.random.randn(3)
 
-# 連立方程式 Ax = b を解く
+# Solve the system of equations Ax = b
 x = np.linalg.solve(A, b)
-print(f"解: {x}")
-print(f"検証 Ax - b ≈ 0: {np.allclose(A @ x, b)}")
+print(f"Solution: {x}")
+print(f"Verification Ax - b ≈ 0: {np.allclose(A @ x, b)}")
 
-# 固有値分解
+# Eigenvalue decomposition
 eigenvalues, eigenvectors = np.linalg.eig(A)
-print(f"固有値: {eigenvalues}")
+print(f"Eigenvalues: {eigenvalues}")
 
-# 特異値分解（SVD）
+# Singular Value Decomposition (SVD)
 U, s, Vt = np.linalg.svd(A)
-print(f"特異値: {s}")
-# 再構成: A ≈ U @ diag(s) @ Vt
+print(f"Singular values: {s}")
+# Reconstruction: A ≈ U @ diag(s) @ Vt
 A_reconstructed = U @ np.diag(s) @ Vt
-print(f"再構成誤差: {np.linalg.norm(A - A_reconstructed):.2e}")
+print(f"Reconstruction error: {np.linalg.norm(A - A_reconstructed):.2e}")
 
-# コレスキー分解（正定値対称行列）
-C = A @ A.T + np.eye(3)  # 正定値行列を作成
+# Cholesky decomposition (positive definite symmetric matrix)
+C = A @ A.T + np.eye(3)  # Create a positive definite matrix
 L = np.linalg.cholesky(C)
 print(f"C = L @ L.T: {np.allclose(C, L @ L.T)}")
 
-# QR分解
+# QR decomposition
 Q, R = np.linalg.qr(A)
-print(f"Q直交性: {np.allclose(Q.T @ Q, np.eye(3))}")
+print(f"Q orthogonality: {np.allclose(Q.T @ Q, np.eye(3))}")
 
-# 行列のランク・条件数・ノルム
-print(f"ランク: {np.linalg.matrix_rank(A)}")
-print(f"条件数: {np.linalg.cond(A):.2f}")
-print(f"フロベニウスノルム: {np.linalg.norm(A, 'fro'):.4f}")
+# Matrix rank, condition number, and norm
+print(f"Rank: {np.linalg.matrix_rank(A)}")
+print(f"Condition number: {np.linalg.cond(A):.2f}")
+print(f"Frobenius norm: {np.linalg.norm(A, 'fro'):.4f}")
 
-# --- FFT（高速フーリエ変換） ---
-# 信号解析の例
-t = np.linspace(0, 1, 1000)  # 1秒間、1000サンプル
-# 50Hzと120Hzの合成信号 + ノイズ
+# --- FFT (Fast Fourier Transform) ---
+# Signal analysis example
+t = np.linspace(0, 1, 1000)  # 1 second, 1000 samples
+# Composite signal at 50Hz and 120Hz + noise
 signal = np.sin(2 * np.pi * 50 * t) + 0.5 * np.sin(2 * np.pi * 120 * t)
 signal += 0.3 * np.random.randn(len(t))
 
-# FFTで周波数成分を抽出
+# Extract frequency components with FFT
 fft_result = np.fft.fft(signal)
 frequencies = np.fft.fftfreq(len(t), d=t[1] - t[0])
 power = np.abs(fft_result) ** 2
 
-# 正の周波数のみ
+# Positive frequencies only
 positive_mask = frequencies > 0
 dominant_freq = frequencies[positive_mask][np.argmax(power[positive_mask])]
-print(f"支配的周波数: {dominant_freq:.1f} Hz")
+print(f"Dominant frequency: {dominant_freq:.1f} Hz")
 ```
 
-### 1.7 NumPyのメモリ管理と最適化
+### 1.7 NumPy Memory Management and Optimization
 
 ```python
 import numpy as np
 
-# --- dtype選択によるメモリ最適化 ---
-# 画像データ（0-255）にfloat64は無駄
+# --- Memory optimization through dtype selection ---
+# float64 is wasteful for image data (0-255)
 img_bad = np.random.randint(0, 256, (1920, 1080, 3)).astype(np.float64)
 img_good = np.random.randint(0, 256, (1920, 1080, 3)).astype(np.uint8)
 print(f"float64: {img_bad.nbytes / 1e6:.1f} MB")  # ~49.8 MB
 print(f"uint8:   {img_good.nbytes / 1e6:.1f} MB")  # ~6.2 MB
 
-# --- メモリレイアウト（C連続 vs Fortran連続） ---
-c_arr = np.array([[1,2,3],[4,5,6]], order='C')    # 行優先（C言語方式）
-f_arr = np.array([[1,2,3],[4,5,6]], order='F')    # 列優先（Fortran方式）
+# --- Memory layout (C-contiguous vs Fortran-contiguous) ---
+c_arr = np.array([[1,2,3],[4,5,6]], order='C')    # Row-major (C style)
+f_arr = np.array([[1,2,3],[4,5,6]], order='F')    # Column-major (Fortran style)
 
-# 行方向のアクセスはC連続が高速
-# 列方向のアクセスはF連続が高速
+# Row-wise access is faster with C-contiguous
+# Column-wise access is faster with F-contiguous
 
-# --- コピー vs ビューの判定 ---
+# --- Determining copy vs view ---
 original = np.arange(12).reshape(3, 4)
-view = original[1:]          # ビュー（メモリ共有）
-copy = original[1:].copy()   # コピー（独立メモリ）
+view = original[1:]          # View (shared memory)
+copy = original[1:].copy()   # Copy (independent memory)
 
-print(f"ビュー: {view.base is original}")   # True
-print(f"コピー: {copy.base is original}")   # False
+print(f"View: {view.base is original}")   # True
+print(f"Copy: {copy.base is original}")   # False
 
-# --- np.memmap: ディスク上の大規模配列 ---
-# メモリに載りきらない巨大配列を扱う
+# --- np.memmap: Large arrays on disk ---
+# Handle huge arrays that don't fit in memory
 mmap = np.memmap('/tmp/large_array.dat', dtype='float32',
                  mode='w+', shape=(10000, 10000))
 mmap[:100, :100] = np.random.randn(100, 100).astype('float32')
-mmap.flush()  # ディスクに書き出し
-del mmap      # 解放
+mmap.flush()  # Write to disk
+del mmap      # Release
 
-# 読み込み（必要な部分だけメモリにロード）
+# Read (load only the needed portion into memory)
 mmap_read = np.memmap('/tmp/large_array.dat', dtype='float32',
                       mode='r', shape=(10000, 10000))
 subset = mmap_read[:100, :100]
 ```
 
-### 1.8 NumPyの汎用関数（ufunc）
+### 1.8 NumPy Universal Functions (ufunc)
 
 ```python
 import numpy as np
 
-# --- 組み込みufuncの活用 ---
+# --- Using built-in ufuncs ---
 x = np.array([1, 4, 9, 16, 25])
 
-# 数学関数
-print(np.sqrt(x))         # 平方根
-print(np.log(x))          # 自然対数
-print(np.exp(x))          # 指数関数
+# Math functions
+print(np.sqrt(x))         # Square root
+print(np.log(x))          # Natural logarithm
+print(np.exp(x))          # Exponential function
 
-# 集約関数
+# Aggregate functions
 data = np.random.randn(1000)
-print(f"平均: {np.mean(data):.4f}")
-print(f"中央値: {np.median(data):.4f}")
-print(f"標準偏差: {np.std(data):.4f}")
-print(f"パーセンタイル: {np.percentile(data, [25, 50, 75])}")
+print(f"Mean: {np.mean(data):.4f}")
+print(f"Median: {np.median(data):.4f}")
+print(f"Std dev: {np.std(data):.4f}")
+print(f"Percentiles: {np.percentile(data, [25, 50, 75])}")
 
-# 累積関数
+# Cumulative functions
 arr = np.array([1, 2, 3, 4, 5])
-print(f"累積和: {np.cumsum(arr)}")      # [1, 3, 6, 10, 15]
-print(f"累積積: {np.cumprod(arr)}")     # [1, 2, 6, 24, 120]
+print(f"Cumulative sum: {np.cumsum(arr)}")      # [1, 3, 6, 10, 15]
+print(f"Cumulative product: {np.cumprod(arr)}") # [1, 2, 6, 24, 120]
 
-# --- カスタムufuncの作成 ---
-# np.vectorize（簡便だが速度向上なし）
+# --- Creating custom ufuncs ---
+# np.vectorize (convenient but no speed improvement)
 def my_func(x):
     if x > 0:
         return x ** 2
@@ -356,26 +357,26 @@ def my_func(x):
 vectorized = np.vectorize(my_func)
 result = vectorized(np.array([-2, -1, 0, 1, 2]))
 
-# np.frompyfunc（より高速）
+# np.frompyfunc (faster)
 ufunc = np.frompyfunc(my_func, 1, 1)
 result = ufunc(np.array([-2, -1, 0, 1, 2]))
 
-# 最も高速: np.whereとベクトル演算の組み合わせ
+# Fastest: combining np.where with vectorized operations
 x = np.array([-2, -1, 0, 1, 2])
 result = np.where(x > 0, x ** 2, -x)
 ```
 
 ---
 
-## 2. pandas — データ操作の標準ツール
+## 2. pandas — The Standard Tool for Data Manipulation
 
-### 2.1 DataFrameの基本操作とメソッドチェーン
+### 2.1 Basic DataFrame Operations and Method Chaining
 
 ```python
 import pandas as pd
 import numpy as np
 
-# --- DataFrameの作成と基本操作 ---
+# --- Creating and basic operations on DataFrames ---
 df = pd.DataFrame({
     "name": ["Alice", "Bob", "Charlie", "Diana", "Eve"],
     "age": [28, 35, 42, 31, 27],
@@ -385,7 +386,7 @@ df = pd.DataFrame({
                                   "2021-06-10", "2022-02-28"])
 })
 
-# メソッドチェーンでデータ加工
+# Data processing with method chaining
 result = (
     df
     .assign(
@@ -398,29 +399,29 @@ result = (
 )
 print(result)
 
-# --- GroupBy 集計 ---
+# --- GroupBy aggregation ---
 summary = (
     df
     .groupby("department")
     .agg(
-        人数=("name", "count"),
-        平均年齢=("age", "mean"),
-        平均給与=("salary", "mean"),
-        最高給与=("salary", "max"),
+        headcount=("name", "count"),
+        avg_age=("age", "mean"),
+        avg_salary=("salary", "mean"),
+        max_salary=("salary", "max"),
     )
     .round(0)
-    .sort_values("平均給与", ascending=False)
+    .sort_values("avg_salary", ascending=False)
 )
 print(summary)
 ```
 
-### 2.2 データ型と欠損値の管理
+### 2.2 Data Types and Missing Value Management
 
 ```python
 import pandas as pd
 import numpy as np
 
-# --- データ型の確認と変換 ---
+# --- Checking and converting data types ---
 df = pd.DataFrame({
     "id": ["001", "002", "003", "004"],
     "value": ["100", "200", "N/A", "400"],
@@ -429,59 +430,59 @@ df = pd.DataFrame({
     "flag": [1, 0, 1, 1],
 })
 
-# 型変換のベストプラクティス
+# Best practices for type conversion
 df_typed = (
     df
     .assign(
-        id=lambda x: x["id"].astype("string"),        # 文字列型（pandas StringDtype）
-        value=lambda x: pd.to_numeric(x["value"], errors="coerce"),  # 数値に変換（N/A→NaN）
-        date=lambda x: pd.to_datetime(x["date_str"]),  # 日付型
-        category=lambda x: x["category"].astype("category"),  # カテゴリ型
-        flag=lambda x: x["flag"].astype(bool),         # ブール型
+        id=lambda x: x["id"].astype("string"),        # String type (pandas StringDtype)
+        value=lambda x: pd.to_numeric(x["value"], errors="coerce"),  # Convert to numeric (N/A→NaN)
+        date=lambda x: pd.to_datetime(x["date_str"]),  # Date type
+        category=lambda x: x["category"].astype("category"),  # Category type
+        flag=lambda x: x["flag"].astype(bool),         # Boolean type
     )
     .drop(columns=["date_str"])
 )
 
 print(df_typed.dtypes)
-print(f"メモリ使用量: {df_typed.memory_usage(deep=True).sum()} bytes")
+print(f"Memory usage: {df_typed.memory_usage(deep=True).sum()} bytes")
 
-# --- Nullable型（pandas 1.0+推奨） ---
-# 従来: 整数列にNaNがあるとfloat64に昇格
-# 新方式: pd.Int64Dtype() で整数のままNaN対応
+# --- Nullable types (recommended for pandas 1.0+) ---
+# Traditional: integer columns with NaN get promoted to float64
+# New approach: pd.Int64Dtype() supports NaN while keeping integer type
 s = pd.array([1, 2, pd.NA, 4], dtype=pd.Int64Dtype())
 print(s)       # [1, 2, <NA>, 4]
 print(s.dtype) # Int64
 
-# --- 欠損値の処理パターン ---
+# --- Missing value handling patterns ---
 df_missing = pd.DataFrame({
     "A": [1, np.nan, 3, np.nan, 5],
     "B": [np.nan, 2, np.nan, 4, 5],
     "C": [1, 2, 3, 4, 5],
 })
 
-# 欠損値の確認
-print(df_missing.isnull().sum())           # 列ごとの欠損数
-print(df_missing.isnull().mean() * 100)    # 列ごとの欠損率(%)
+# Checking missing values
+print(df_missing.isnull().sum())           # Missing count per column
+print(df_missing.isnull().mean() * 100)    # Missing rate per column (%)
 
-# 補間戦略
+# Imputation strategies
 df_filled = df_missing.copy()
-df_filled["A"] = df_filled["A"].fillna(df_filled["A"].median())      # 中央値で補間
-df_filled["B"] = df_filled["B"].interpolate(method="linear")          # 線形補間
-df_filled["A_forward"] = df_missing["A"].ffill()                      # 前方補間
-df_filled["A_backward"] = df_missing["A"].bfill()                     # 後方補間
+df_filled["A"] = df_filled["A"].fillna(df_filled["A"].median())      # Impute with median
+df_filled["B"] = df_filled["B"].interpolate(method="linear")          # Linear interpolation
+df_filled["A_forward"] = df_missing["A"].ffill()                      # Forward fill
+df_filled["A_backward"] = df_missing["A"].bfill()                     # Backward fill
 
-# 欠損パターンの可視化用データ
+# Data for visualizing missing patterns
 missing_pattern = df_missing.isnull().astype(int)
 print(missing_pattern)
 ```
 
-### 2.3 時系列データの処理
+### 2.3 Time Series Data Processing
 
 ```python
 import pandas as pd
 import numpy as np
 
-# --- 時系列データの作成 ---
+# --- Creating time series data ---
 dates = pd.date_range("2023-01-01", periods=365, freq="D")
 ts = pd.DataFrame({
     "date": dates,
@@ -490,59 +491,59 @@ ts = pd.DataFrame({
 })
 ts = ts.set_index("date")
 
-# --- リサンプリング ---
-# 月次集計
+# --- Resampling ---
+# Monthly aggregation
 monthly = ts.resample("M").agg({
     "sales": ["sum", "mean", "std"],
     "temperature": "mean",
 })
 print(monthly.head())
 
-# 週次集計（月曜始まり）
+# Weekly aggregation (Monday start)
 weekly = ts.resample("W-MON").mean()
 
-# --- ローリング統計 ---
-ts["sales_ma7"] = ts["sales"].rolling(window=7).mean()           # 7日移動平均
-ts["sales_ma30"] = ts["sales"].rolling(window=30).mean()         # 30日移動平均
-ts["sales_std7"] = ts["sales"].rolling(window=7).std()           # 7日移動標準偏差
-ts["sales_ewm"] = ts["sales"].ewm(span=7).mean()                # 指数加重移動平均
+# --- Rolling statistics ---
+ts["sales_ma7"] = ts["sales"].rolling(window=7).mean()           # 7-day moving average
+ts["sales_ma30"] = ts["sales"].rolling(window=30).mean()         # 30-day moving average
+ts["sales_std7"] = ts["sales"].rolling(window=7).std()           # 7-day rolling std dev
+ts["sales_ewm"] = ts["sales"].ewm(span=7).mean()                # Exponentially weighted moving average
 
-# --- ラグ特徴量・差分 ---
-ts["sales_lag1"] = ts["sales"].shift(1)       # 1日前
-ts["sales_lag7"] = ts["sales"].shift(7)       # 7日前
-ts["sales_diff1"] = ts["sales"].diff(1)       # 1次差分
-ts["sales_pct_change"] = ts["sales"].pct_change()  # 変化率
+# --- Lag features and differences ---
+ts["sales_lag1"] = ts["sales"].shift(1)       # 1 day ago
+ts["sales_lag7"] = ts["sales"].shift(7)       # 7 days ago
+ts["sales_diff1"] = ts["sales"].diff(1)       # First difference
+ts["sales_pct_change"] = ts["sales"].pct_change()  # Percentage change
 
-# --- 曜日・月などの特徴量抽出 ---
-ts["dayofweek"] = ts.index.dayofweek          # 0=月曜
+# --- Extracting day-of-week, month, etc. as features ---
+ts["dayofweek"] = ts.index.dayofweek          # 0=Monday
 ts["month"] = ts.index.month
 ts["quarter"] = ts.index.quarter
 ts["is_weekend"] = ts["dayofweek"].isin([5, 6]).astype(int)
 ts["day_of_year"] = ts.index.dayofyear
 
-# --- 期間インデックスとタイムゾーン ---
-# タイムゾーン変換
+# --- Period index and time zones ---
+# Timezone conversion
 ts_utc = ts.tz_localize("UTC")
 ts_jst = ts_utc.tz_convert("Asia/Tokyo")
 
-# ビジネス日カレンダー
+# Business day calendar
 biz_days = pd.bdate_range("2024-01-01", "2024-12-31", freq="B")
-print(f"2024年の営業日数: {len(biz_days)}")
+print(f"Business days in 2024: {len(biz_days)}")
 ```
 
-### 2.4 大規模データの効率的な読み込み
+### 2.4 Efficient Loading of Large Data
 
 ```python
 import pandas as pd
 
-# --- メモリ最適化読み込み ---
+# --- Memory-optimized loading ---
 def read_optimized(filepath: str, sample_rows: int = 10000) -> pd.DataFrame:
-    """メモリ効率の良いCSV読み込み"""
+    """Memory-efficient CSV loading"""
 
-    # まずサンプルで型を推定
+    # First, infer types from a sample
     sample = pd.read_csv(filepath, nrows=sample_rows)
 
-    # 型の最適化マップを作成
+    # Build a type optimization map
     dtype_map = {}
     for col in sample.columns:
         col_type = sample[col].dtype
@@ -561,24 +562,24 @@ def read_optimized(filepath: str, sample_rows: int = 10000) -> pd.DataFrame:
             if sample[col].nunique() / len(sample) < 0.5:
                 dtype_map[col] = "category"
 
-    # 最適化した型で読み込み
+    # Load with optimized types
     df = pd.read_csv(filepath, dtype=dtype_map)
 
     original_mb = sample.memory_usage(deep=True).sum() / 1e6
     optimized_mb = df.head(sample_rows).memory_usage(deep=True).sum() / 1e6
-    print(f"メモリ削減: {original_mb:.1f}MB → {optimized_mb:.1f}MB "
-          f"({(1-optimized_mb/original_mb)*100:.0f}%削減)")
+    print(f"Memory reduction: {original_mb:.1f}MB → {optimized_mb:.1f}MB "
+          f"({(1-optimized_mb/original_mb)*100:.0f}% reduction)")
 
     return df
 
 
-# --- チャンク処理（メモリに載りきらないデータ） ---
+# --- Chunk processing (for data that doesn't fit in memory) ---
 def process_large_csv(filepath: str, chunksize: int = 100000):
-    """巨大CSVをチャンクで処理"""
+    """Process a large CSV in chunks"""
     results = []
 
     for i, chunk in enumerate(pd.read_csv(filepath, chunksize=chunksize)):
-        # 各チャンクに対して処理
+        # Process each chunk
         chunk_result = (
             chunk
             .groupby("category")
@@ -587,17 +588,17 @@ def process_large_csv(filepath: str, chunksize: int = 100000):
         results.append(chunk_result)
 
         if (i + 1) % 10 == 0:
-            print(f"  {(i + 1) * chunksize:,} 行処理完了")
+            print(f"  {(i + 1) * chunksize:,} rows processed")
 
-    # チャンク結果を統合
+    # Merge chunk results
     combined = pd.concat(results)
     final = combined.groupby(level=0).sum()
     return final
 
 
-# --- Parquet形式の活用（推奨） ---
+# --- Using Parquet format (recommended) ---
 def csv_to_parquet(csv_path: str, parquet_path: str):
-    """CSVからParquetへの変換（圧縮+高速読み込み）"""
+    """Convert CSV to Parquet (compression + fast loading)"""
     df = pd.read_csv(csv_path)
     df.to_parquet(parquet_path, engine="pyarrow", compression="snappy")
 
@@ -605,58 +606,58 @@ def csv_to_parquet(csv_path: str, parquet_path: str):
     csv_size = os.path.getsize(csv_path) / 1e6
     parquet_size = os.path.getsize(parquet_path) / 1e6
     print(f"CSV: {csv_size:.1f}MB → Parquet: {parquet_size:.1f}MB "
-          f"({(1-parquet_size/csv_size)*100:.0f}%圧縮)")
+          f"({(1-parquet_size/csv_size)*100:.0f}% compressed)")
 
 
-# Parquet読み込み（必要な列だけ読む）
+# Reading Parquet (only load needed columns)
 # df = pd.read_parquet("data.parquet", columns=["col1", "col2"])
 ```
 
-### 2.5 マルチインデックスとピボット操作
+### 2.5 MultiIndex and Pivot Operations
 
 ```python
 import pandas as pd
 import numpy as np
 
-# --- マルチインデックス ---
+# --- MultiIndex ---
 arrays = [
-    ["東京", "東京", "大阪", "大阪", "名古屋", "名古屋"],
+    ["Tokyo", "Tokyo", "Osaka", "Osaka", "Nagoya", "Nagoya"],
     ["2023Q1", "2023Q2", "2023Q1", "2023Q2", "2023Q1", "2023Q2"],
 ]
-index = pd.MultiIndex.from_arrays(arrays, names=["都市", "四半期"])
+index = pd.MultiIndex.from_arrays(arrays, names=["city", "quarter"])
 
 df = pd.DataFrame({
-    "売上": [100, 120, 80, 90, 60, 70],
-    "利益": [30, 35, 20, 25, 15, 18],
+    "revenue": [100, 120, 80, 90, 60, 70],
+    "profit": [30, 35, 20, 25, 15, 18],
 }, index=index)
 
-# マルチインデックスのアクセス
-print(df.loc["東京"])            # 東京の全データ
-print(df.loc[("東京", "2023Q1")]) # 東京のQ1
-print(df.xs("2023Q1", level="四半期"))  # 全都市のQ1
+# Accessing MultiIndex
+print(df.loc["Tokyo"])               # All data for Tokyo
+print(df.loc[("Tokyo", "2023Q1")])   # Tokyo Q1
+print(df.xs("2023Q1", level="quarter"))  # Q1 across all cities
 
-# --- ピボットテーブル ---
+# --- Pivot table ---
 sales_data = pd.DataFrame({
     "date": pd.date_range("2024-01-01", periods=100, freq="D"),
     "product": np.random.choice(["A", "B", "C"], 100),
-    "region": np.random.choice(["関東", "関西", "九州"], 100),
+    "region": np.random.choice(["Kanto", "Kansai", "Kyushu"], 100),
     "amount": np.random.randint(1000, 10000, 100),
     "quantity": np.random.randint(1, 50, 100),
 })
 
-# ピボットテーブル
+# Pivot table
 pivot = pd.pivot_table(
     sales_data,
     values="amount",
     index="product",
     columns="region",
     aggfunc=["sum", "mean", "count"],
-    margins=True,           # 合計行・列を追加
-    margins_name="合計",
+    margins=True,           # Add total row/column
+    margins_name="Total",
 )
 print(pivot)
 
-# --- クロス集計 ---
+# --- Cross-tabulation ---
 cross = pd.crosstab(
     sales_data["product"],
     sales_data["region"],
@@ -667,10 +668,10 @@ cross = pd.crosstab(
 print(cross)
 
 # --- stack / unstack ---
-stacked = df.stack()       # 列→行（長い形式へ）
-unstacked = stacked.unstack(level="都市")  # 行→列（広い形式へ）
+stacked = df.stack()       # Columns → rows (wide to long)
+unstacked = stacked.unstack(level="city")  # Rows → columns (long to wide)
 
-# --- melt（ワイド→ロング変換） ---
+# --- melt (wide → long conversion) ---
 wide_df = pd.DataFrame({
     "name": ["Alice", "Bob"],
     "math": [90, 85],
@@ -686,52 +687,52 @@ long_df = wide_df.melt(
 print(long_df)
 ```
 
-### 2.6 文字列操作とカテゴリカルデータ
+### 2.6 String Operations and Categorical Data
 
 ```python
 import pandas as pd
 
-# --- 文字列操作（.str アクセサ） ---
+# --- String operations (.str accessor) ---
 df = pd.DataFrame({
-    "full_name": ["田中 太郎", "佐藤 花子", "鈴木 一郎", "高橋 美咲"],
+    "full_name": ["Taro Tanaka", "Hanako Sato", "Ichiro Suzuki", "Misaki Takahashi"],
     "email": ["tanaka@example.com", "SATO@Example.COM", "suzuki@test.org", "takahashi@example.com"],
     "phone": ["090-1234-5678", "080-2345-6789", "070-3456-7890", "090-4567-8901"],
-    "address": ["東京都渋谷区1-2-3", "大阪府北区4-5-6", "東京都新宿区7-8-9", "福岡県博多区10-11-12"],
+    "address": ["1-2-3 Shibuya, Tokyo", "4-5-6 Kita-ku, Osaka", "7-8-9 Shinjuku, Tokyo", "10-11-12 Hakata-ku, Fukuoka"],
 })
 
-# 文字列メソッド
+# String methods
 df["last_name"] = df["full_name"].str.split(" ").str[0]
 df["first_name"] = df["full_name"].str.split(" ").str[1]
 df["email_lower"] = df["email"].str.lower()
 df["email_domain"] = df["email"].str.split("@").str[1].str.lower()
 df["phone_clean"] = df["phone"].str.replace("-", "", regex=False)
-df["is_tokyo"] = df["address"].str.contains("東京", regex=False)
+df["is_tokyo"] = df["address"].str.contains("Tokyo", regex=False)
 
-# 正規表現
-df["prefecture"] = df["address"].str.extract(r"^(.+?[都道府県])")
+# Regular expressions
+df["city"] = df["address"].str.extract(r",\s*(.+)$")
 
-# --- カテゴリカルデータの扱い ---
-# 順序付きカテゴリ
+# --- Handling categorical data ---
+# Ordered categories
 satisfaction = pd.Categorical(
-    ["満足", "普通", "不満", "満足", "とても満足"],
-    categories=["不満", "普通", "満足", "とても満足"],
+    ["Satisfied", "Neutral", "Dissatisfied", "Satisfied", "Very Satisfied"],
+    categories=["Dissatisfied", "Neutral", "Satisfied", "Very Satisfied"],
     ordered=True,
 )
 s = pd.Series(satisfaction)
-print(s > "普通")  # 比較演算が可能
+print(s > "Neutral")  # Comparison operations are supported
 
-# カテゴリのメモリ効率
+# Memory efficiency of categories
 large_series = pd.Series(["A", "B", "C"] * 100000)
-print(f"object型: {large_series.memory_usage(deep=True) / 1e6:.1f} MB")
-print(f"category型: {large_series.astype('category').memory_usage(deep=True) / 1e6:.1f} MB")
+print(f"object type: {large_series.memory_usage(deep=True) / 1e6:.1f} MB")
+print(f"category type: {large_series.astype('category').memory_usage(deep=True) / 1e6:.1f} MB")
 ```
 
-### 2.7 結合操作の完全ガイド
+### 2.7 Complete Guide to Join Operations
 
 ```python
 import pandas as pd
 
-# --- merge（SQLのJOINに相当） ---
+# --- merge (equivalent to SQL JOIN) ---
 orders = pd.DataFrame({
     "order_id": [1, 2, 3, 4, 5],
     "customer_id": [101, 102, 101, 103, 104],
@@ -740,37 +741,37 @@ orders = pd.DataFrame({
 
 customers = pd.DataFrame({
     "customer_id": [101, 102, 103, 105],
-    "name": ["田中", "佐藤", "鈴木", "高橋"],
-    "region": ["東京", "大阪", "東京", "福岡"],
+    "name": ["Tanaka", "Sato", "Suzuki", "Takahashi"],
+    "region": ["Tokyo", "Osaka", "Tokyo", "Fukuoka"],
 })
 
-# INNER JOIN（両方に存在するもののみ）
+# INNER JOIN (only rows present in both)
 inner = orders.merge(customers, on="customer_id", how="inner")
 
-# LEFT JOIN（左テーブル基準）
+# LEFT JOIN (based on the left table)
 left = orders.merge(customers, on="customer_id", how="left")
 
-# OUTER JOIN（全て保持）
+# OUTER JOIN (keep all rows)
 outer = orders.merge(customers, on="customer_id", how="outer", indicator=True)
 print(outer["_merge"].value_counts())
 
-# --- キーが異なる場合 ---
+# --- When keys have different names ---
 df1 = pd.DataFrame({"id_left": [1, 2], "val": [10, 20]})
 df2 = pd.DataFrame({"id_right": [1, 2], "val2": [30, 40]})
 merged = df1.merge(df2, left_on="id_left", right_on="id_right")
 
-# --- concat（積み重ね・結合） ---
+# --- concat (stacking and combining) ---
 df_a = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
 df_b = pd.DataFrame({"col1": [5, 6], "col2": [7, 8]})
 
-# 縦方向の結合
+# Vertical concatenation
 vertical = pd.concat([df_a, df_b], axis=0, ignore_index=True)
 
-# 横方向の結合
+# Horizontal concatenation
 horizontal = pd.concat([df_a, df_b], axis=1)
 
-# --- 条件付き結合（merge_asof：最近傍結合） ---
-# 時系列データの近傍マッチング
+# --- Conditional join (merge_asof: nearest neighbor join) ---
+# Nearest neighbor matching for time series data
 trades = pd.DataFrame({
     "time": pd.to_datetime(["2024-01-01 09:01:00", "2024-01-01 09:05:30"]),
     "price": [100, 102],
@@ -784,7 +785,7 @@ result = pd.merge_asof(trades, quotes, on="time", direction="backward")
 print(result)
 ```
 
-### 2.8 apply と高速な代替手法
+### 2.8 apply and Fast Alternatives
 
 ```python
 import pandas as pd
@@ -796,21 +797,21 @@ df = pd.DataFrame({
     "c": np.random.choice(["X", "Y", "Z"], 100000),
 })
 
-# --- apply は最終手段 ---
-# BAD: apply（Pythonレベルのループで遅い）
+# --- apply is a last resort ---
+# BAD: apply (slow due to Python-level loops)
 # result = df.apply(lambda row: row["a"] ** 2 + row["b"] ** 2, axis=1)
 
-# GOOD: ベクトル演算（100倍以上高速）
+# GOOD: Vectorized operations (100x or more faster)
 result = df["a"] ** 2 + df["b"] ** 2
 
-# --- 条件分岐のベクトル化 ---
+# --- Vectorizing conditional branches ---
 # BAD
 # df["label"] = df.apply(lambda row: "high" if row["a"] > 1 else "low", axis=1)
 
 # GOOD: np.where
 df["label"] = np.where(df["a"] > 1, "high", "low")
 
-# GOOD: np.select（複数条件）
+# GOOD: np.select (multiple conditions)
 conditions = [
     df["a"] > 1,
     df["a"] > 0,
@@ -820,12 +821,12 @@ choices = ["very_high", "high", "medium"]
 df["grade"] = np.select(conditions, choices, default="low")
 
 # --- groupby + transform ---
-# グループ内の標準化
+# Normalize within groups
 df["a_group_normalized"] = df.groupby("c")["a"].transform(
     lambda x: (x - x.mean()) / x.std()
 )
 
-# --- pipe: 関数パイプライン ---
+# --- pipe: function pipeline ---
 def add_features(df):
     return df.assign(
         ab_product=df["a"] * df["b"],
@@ -845,33 +846,33 @@ result = (
 
 ---
 
-## 3. scikit-learn — MLパイプライン
+## 3. scikit-learn — ML Pipelines
 
-### 3.1 scikit-learn API設計
+### 3.1 scikit-learn API Design
 
 ```
-scikit-learn の一貫したAPI:
+Consistent scikit-learn API:
 
-  すべての推定器 (Estimator)
-  ├── fit(X, y)           # 学習
-  ├── predict(X)          # 予測
-  ├── score(X, y)         # 評価
-  └── get_params()        # パラメータ取得
+  All Estimators
+  ├── fit(X, y)           # Train
+  ├── predict(X)          # Predict
+  ├── score(X, y)         # Evaluate
+  └── get_params()        # Get parameters
 
-  変換器 (Transformer) は追加で:
-  ├── transform(X)        # 変換
-  └── fit_transform(X)    # 学習+変換
+  Transformers additionally have:
+  ├── transform(X)        # Transform
+  └── fit_transform(X)    # Train + transform
 
-  Pipeline で連結:
+  Connected with Pipeline:
   ┌──────────┐   ┌──────────┐   ┌──────────┐
   │ Scaler   │──>│ PCA      │──>│ Model    │
-  │(変換器)  │   │(変換器)  │   │(推定器)  │
+  │(transform)│  │(transform)│  │(estimator)│
   │fit       │   │fit       │   │fit       │
   │transform │   │transform │   │predict   │
   └──────────┘   └──────────┘   └──────────┘
 ```
 
-### 3.2 データの前処理
+### 3.2 Data Preprocessing
 
 ```python
 from sklearn.preprocessing import (
@@ -885,56 +886,56 @@ from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 import numpy as np
 import pandas as pd
 
-# --- スケーリング手法の比較 ---
+# --- Comparing scaling methods ---
 X = np.array([[1, 10], [2, 20], [3, 30], [100, 40]])
 
-# StandardScaler: 平均0、標準偏差1
+# StandardScaler: mean 0, standard deviation 1
 standard = StandardScaler().fit_transform(X)
 
-# MinMaxScaler: 0〜1の範囲にスケーリング
+# MinMaxScaler: scale to range 0–1
 minmax = MinMaxScaler().fit_transform(X)
 
-# RobustScaler: 中央値とIQRによるスケーリング（外れ値に頑健）
+# RobustScaler: scaling using median and IQR (robust to outliers)
 robust = RobustScaler().fit_transform(X)
 
-# PowerTransformer: 正規分布に近づける変換
+# PowerTransformer: transform to approximate normal distribution
 power = PowerTransformer(method="yeo-johnson").fit_transform(X)
 
-# QuantileTransformer: 一様分布または正規分布に変換
+# QuantileTransformer: transform to uniform or normal distribution
 quantile = QuantileTransformer(output_distribution="normal").fit_transform(X)
 
 print("StandardScaler:\n", standard)
 print("RobustScaler:\n", robust)
 
-# --- 欠損値補完 ---
+# --- Missing value imputation ---
 X_missing = np.array([[1, 2], [np.nan, 3], [7, np.nan], [4, 5]])
 
-# 単純補完
+# Simple imputation
 simple = SimpleImputer(strategy="median").fit_transform(X_missing)
 
-# KNN補完（近傍データから推定）
+# KNN imputation (estimate from neighboring data)
 knn_imp = KNNImputer(n_neighbors=2).fit_transform(X_missing)
 
-# --- テキスト特徴量 ---
+# --- Text features ---
 corpus = [
-    "機械学習の基礎を学ぶ",
-    "深層学習とニューラルネットワーク",
-    "自然言語処理の応用",
-    "機械学習による画像認識",
+    "Introduction to machine learning fundamentals",
+    "Deep learning and neural networks",
+    "Applications of natural language processing",
+    "Image recognition with machine learning",
 ]
 
 # TF-IDF
 tfidf = TfidfVectorizer(max_features=100)
 X_tfidf = tfidf.fit_transform(corpus)
 print(f"TF-IDF shape: {X_tfidf.shape}")
-print(f"特徴量名: {tfidf.get_feature_names_out()[:10]}")
+print(f"Feature names: {tfidf.get_feature_names_out()[:10]}")
 
-# --- カスタム変換 ---
+# --- Custom transformation ---
 log_transformer = FunctionTransformer(np.log1p, inverse_func=np.expm1)
 X_log = log_transformer.fit_transform(np.array([[1], [10], [100], [1000]]))
 ```
 
-### 3.3 パイプライン構築
+### 3.3 Building Pipelines
 
 ```python
 from sklearn.pipeline import Pipeline
@@ -946,11 +947,11 @@ from sklearn.model_selection import GridSearchCV
 import pandas as pd
 import numpy as np
 
-# サンプルデータ
+# Sample data
 df = pd.DataFrame({
     "area": [50, 70, 90, 120, 60, np.nan, 80, 100],
     "rooms": [2, 3, 3, 4, 2, 3, np.nan, 4],
-    "location": ["都心", "郊外", "都心", "都心", "郊外", "郊外", "都心", "郊外"],
+    "location": ["urban", "suburban", "urban", "urban", "suburban", "suburban", "urban", "suburban"],
     "age_years": [5, 10, 3, 1, 20, 15, 8, 12],
     "price": [5000, 4000, 7000, 9000, 3500, 3000, 6000, 4500],
 })
@@ -958,7 +959,7 @@ df = pd.DataFrame({
 X = df.drop(columns=["price"])
 y = df["price"]
 
-# 数値列とカテゴリ列で異なる前処理
+# Different preprocessing for numeric and categorical columns
 numeric_features = ["area", "rooms", "age_years"]
 categorical_features = ["location"]
 
@@ -977,13 +978,13 @@ preprocessor = ColumnTransformer(transformers=[
     ("cat", categorical_transformer, categorical_features),
 ])
 
-# 前処理 + モデルの統合パイプライン
+# Integrated pipeline of preprocessing + model
 pipeline = Pipeline(steps=[
     ("preprocessor", preprocessor),
     ("regressor", GradientBoostingRegressor(random_state=42)),
 ])
 
-# ハイパーパラメータ探索
+# Hyperparameter search
 param_grid = {
     "regressor__n_estimators": [50, 100, 200],
     "regressor__max_depth": [3, 5, 7],
@@ -993,11 +994,11 @@ param_grid = {
 grid = GridSearchCV(pipeline, param_grid, cv=3, scoring="neg_mean_squared_error")
 grid.fit(X, y)
 
-print(f"最良パラメータ: {grid.best_params_}")
-print(f"最良スコア (neg MSE): {grid.best_score_:.2f}")
+print(f"Best parameters: {grid.best_params_}")
+print(f"Best score (neg MSE): {grid.best_score_:.2f}")
 ```
 
-### 3.4 交差検証と評価指標
+### 3.4 Cross-Validation and Evaluation Metrics
 
 ```python
 from sklearn.model_selection import (
@@ -1015,16 +1016,16 @@ from sklearn.datasets import make_classification, make_regression
 from sklearn.ensemble import RandomForestClassifier
 import numpy as np
 
-# --- 分類タスクの交差検証 ---
+# --- Cross-validation for classification tasks ---
 X, y = make_classification(n_samples=1000, n_features=20, n_informative=10,
                            n_classes=2, random_state=42)
 model = RandomForestClassifier(n_estimators=100, random_state=42)
 
-# 基本的な交差検証
+# Basic cross-validation
 scores = cross_val_score(model, X, y, cv=5, scoring="accuracy")
-print(f"精度: {scores.mean():.4f} ± {scores.std():.4f}")
+print(f"Accuracy: {scores.mean():.4f} ± {scores.std():.4f}")
 
-# 複数指標を同時に計算
+# Calculate multiple metrics simultaneously
 cv_results = cross_validate(
     model, X, y, cv=5,
     scoring=["accuracy", "precision", "recall", "f1", "roc_auc"],
@@ -1036,21 +1037,21 @@ for metric in ["accuracy", "precision", "recall", "f1", "roc_auc"]:
     print(f"{metric:12s}: train={cv_results[train_key].mean():.4f} "
           f"test={cv_results[test_key].mean():.4f}")
 
-# --- 層化K分割（クラス比率を保持） ---
+# --- Stratified K-Fold (preserves class ratios) ---
 skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 for fold, (train_idx, val_idx) in enumerate(skf.split(X, y)):
     model.fit(X[train_idx], y[train_idx])
     score = model.score(X[val_idx], y[val_idx])
     print(f"Fold {fold+1}: {score:.4f}")
 
-# --- 時系列データの交差検証 ---
+# --- Cross-validation for time series data ---
 tscv = TimeSeriesSplit(n_splits=5)
 X_ts, y_ts = make_regression(n_samples=200, n_features=5, random_state=42)
 
 for fold, (train_idx, val_idx) in enumerate(tscv.split(X_ts)):
     print(f"Fold {fold+1}: train={len(train_idx)}, val={len(val_idx)}")
 
-# --- 詳細な分類レポート ---
+# --- Detailed classification report ---
 from sklearn.model_selection import train_test_split
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -1058,18 +1059,18 @@ model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 y_proba = model.predict_proba(X_test)[:, 1]
 
-print("\n分類レポート:")
+print("\nClassification Report:")
 print(classification_report(y_test, y_pred, target_names=["Class 0", "Class 1"]))
 
 print(f"ROC-AUC: {roc_auc_score(y_test, y_proba):.4f}")
 
-# 混同行列
+# Confusion matrix
 cm = confusion_matrix(y_test, y_pred)
-print(f"\n混同行列:\n{cm}")
+print(f"\nConfusion Matrix:\n{cm}")
 
-# --- カスタムスコアラー ---
+# --- Custom scorer ---
 def custom_metric(y_true, y_pred):
-    """偽陰性に2倍のペナルティを課すカスタム指標"""
+    """Custom metric that penalizes false negatives twice as much"""
     fp = np.sum((y_pred == 1) & (y_true == 0))
     fn = np.sum((y_pred == 0) & (y_true == 1))
     tp = np.sum((y_pred == 1) & (y_true == 1))
@@ -1077,10 +1078,10 @@ def custom_metric(y_true, y_pred):
 
 custom_scorer = make_scorer(custom_metric, greater_is_better=True)
 scores = cross_val_score(model, X, y, cv=5, scoring=custom_scorer)
-print(f"\nカスタム指標: {scores.mean():.4f}")
+print(f"\nCustom metric: {scores.mean():.4f}")
 ```
 
-### 3.5 特徴量選択
+### 3.5 Feature Selection
 
 ```python
 from sklearn.feature_selection import (
@@ -1099,59 +1100,59 @@ X, y = make_classification(n_samples=500, n_features=30, n_informative=10,
 
 feature_names = [f"feature_{i}" for i in range(X.shape[1])]
 
-# --- 分散ベースのフィルタリング ---
-# 分散がほぼ0の特徴量を除去
+# --- Variance-based filtering ---
+# Remove features with near-zero variance
 selector_var = VarianceThreshold(threshold=0.01)
 X_filtered = selector_var.fit_transform(X)
-print(f"分散フィルタリング: {X.shape[1]} → {X_filtered.shape[1]} 特徴量")
+print(f"Variance filtering: {X.shape[1]} → {X_filtered.shape[1]} features")
 
-# --- 統計検定ベースの選択 ---
-# F値による選択
+# --- Statistical test-based selection ---
+# Selection by F-score
 selector_f = SelectKBest(f_classif, k=10)
 X_f = selector_f.fit_transform(X, y)
 f_scores = pd.Series(selector_f.scores_, index=feature_names)
-print("\nF値 Top10:")
+print("\nTop 10 by F-score:")
 print(f_scores.nlargest(10))
 
-# 相互情報量による選択
+# Selection by mutual information
 selector_mi = SelectKBest(mutual_info_classif, k=10)
 X_mi = selector_mi.fit_transform(X, y)
 mi_scores = pd.Series(selector_mi.scores_, index=feature_names)
-print("\n相互情報量 Top10:")
+print("\nTop 10 by mutual information:")
 print(mi_scores.nlargest(10))
 
-# --- RFE（再帰的特徴量除去） ---
+# --- RFE (Recursive Feature Elimination) ---
 model = RandomForestClassifier(n_estimators=100, random_state=42)
 rfe = RFE(model, n_features_to_select=10, step=1)
 rfe.fit(X, y)
 selected = [f for f, s in zip(feature_names, rfe.support_) if s]
-print(f"\nRFE選択特徴量: {selected}")
+print(f"\nRFE selected features: {selected}")
 
-# --- RFECV（交差検証付きRFE） ---
+# --- RFECV (RFE with cross-validation) ---
 rfecv = RFECV(model, step=1, cv=5, scoring="accuracy", min_features_to_select=5)
 rfecv.fit(X, y)
-print(f"\n最適特徴量数: {rfecv.n_features_}")
-print(f"最適スコア: {rfecv.cv_results_['mean_test_score'].max():.4f}")
+print(f"\nOptimal number of features: {rfecv.n_features_}")
+print(f"Best score: {rfecv.cv_results_['mean_test_score'].max():.4f}")
 
-# --- 特徴量重要度（モデルベース） ---
+# --- Feature importance (model-based) ---
 model.fit(X, y)
 importances = pd.Series(model.feature_importances_, index=feature_names)
-print("\n特徴量重要度 Top10:")
+print("\nTop 10 feature importances:")
 print(importances.nlargest(10))
 
-# --- 相関行列による冗長特徴量の除去 ---
+# --- Removing redundant features using correlation matrix ---
 def remove_correlated(X, threshold=0.9):
-    """高相関の特徴量ペアの片方を除去"""
+    """Remove one feature from each highly correlated pair"""
     corr_matrix = pd.DataFrame(X).corr().abs()
     upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
     to_drop = [col for col in upper.columns if any(upper[col] > threshold)]
     return np.delete(X, to_drop, axis=1), to_drop
 
 X_uncorr, dropped = remove_correlated(X, threshold=0.9)
-print(f"\n相関除去: {X.shape[1]} → {X_uncorr.shape[1]} 特徴量（{len(dropped)}列除去）")
+print(f"\nCorrelation removal: {X.shape[1]} → {X_uncorr.shape[1]} features ({len(dropped)} columns dropped)")
 ```
 
-### 3.6 カスタム変換器の作成
+### 3.6 Creating Custom Transformers
 
 ```python
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -1159,7 +1160,7 @@ import numpy as np
 import pandas as pd
 
 class OutlierClipper(BaseEstimator, TransformerMixin):
-    """IQRベースの外れ値クリッピング変換器"""
+    """IQR-based outlier clipping transformer"""
 
     def __init__(self, factor: float = 1.5):
         self.factor = factor
@@ -1179,7 +1180,7 @@ class OutlierClipper(BaseEstimator, TransformerMixin):
         return X
 
 class FeatureInteraction(BaseEstimator, TransformerMixin):
-    """特徴量の交互作用を追加する変換器"""
+    """Transformer that adds feature interaction terms"""
 
     def __init__(self, interaction_pairs=None):
         self.interaction_pairs = interaction_pairs
@@ -1200,7 +1201,7 @@ class FeatureInteraction(BaseEstimator, TransformerMixin):
 
 
 class DateFeatureExtractor(BaseEstimator, TransformerMixin):
-    """日付列から特徴量を抽出する変換器"""
+    """Transformer that extracts features from a date column"""
 
     def __init__(self, date_column: str, features=None):
         self.date_column = date_column
@@ -1232,13 +1233,13 @@ class DateFeatureExtractor(BaseEstimator, TransformerMixin):
             if feat in feature_map:
                 result[f"{self.date_column}_{feat}"] = feature_map[feat]
 
-        # 元の日付列を除去して返す
+        # Drop the original date column and return
         other_cols = X.drop(columns=[self.date_column])
         return pd.concat([other_cols, result], axis=1)
 
 
 class TargetEncoder(BaseEstimator, TransformerMixin):
-    """ターゲットエンコーディング変換器（リーク防止付き）"""
+    """Target encoding transformer (with leak prevention)"""
 
     def __init__(self, columns=None, smoothing: float = 10.0):
         self.columns = columns
@@ -1254,7 +1255,7 @@ class TargetEncoder(BaseEstimator, TransformerMixin):
 
         for col in cols:
             agg = y.groupby(X[col]).agg(["mean", "count"])
-            # スムージング: サンプルが少ないカテゴリはグローバル平均に近づける
+            # Smoothing: categories with few samples are pulled toward the global mean
             smooth = (agg["count"] * agg["mean"] + self.smoothing * self.global_mean_) / \
                      (agg["count"] + self.smoothing)
             self.encoding_map_[col] = smooth.to_dict()
@@ -1268,7 +1269,7 @@ class TargetEncoder(BaseEstimator, TransformerMixin):
         return X
 
 
-# パイプラインで使用
+# Using in a pipeline
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import GradientBoostingRegressor
@@ -1281,7 +1282,7 @@ pipeline = Pipeline([
 ])
 ```
 
-### 3.7 ハイパーパラメータ最適化
+### 3.7 Hyperparameter Optimization
 
 ```python
 from sklearn.model_selection import (
@@ -1295,7 +1296,7 @@ import numpy as np
 
 X, y = make_classification(n_samples=1000, n_features=20, random_state=42)
 
-# --- GridSearchCV（全組み合わせ探索） ---
+# --- GridSearchCV (exhaustive search over all combinations) ---
 param_grid = {
     "n_estimators": [50, 100, 200],
     "max_depth": [3, 5, 7, None],
@@ -1306,9 +1307,9 @@ grid = GridSearchCV(
     param_grid, cv=5, scoring="f1", n_jobs=-1, verbose=1,
 )
 grid.fit(X, y)
-print(f"Grid最良: {grid.best_params_}, スコア: {grid.best_score_:.4f}")
+print(f"Grid best: {grid.best_params_}, score: {grid.best_score_:.4f}")
 
-# --- RandomizedSearchCV（ランダム探索、大規模パラメータ空間向き） ---
+# --- RandomizedSearchCV (random search, suited for large parameter spaces) ---
 param_distributions = {
     "n_estimators": randint(50, 500),
     "max_depth": randint(3, 20),
@@ -1322,9 +1323,9 @@ random_search = RandomizedSearchCV(
     n_jobs=-1, random_state=42, verbose=1,
 )
 random_search.fit(X, y)
-print(f"Random最良: {random_search.best_params_}, スコア: {random_search.best_score_:.4f}")
+print(f"Random best: {random_search.best_params_}, score: {random_search.best_score_:.4f}")
 
-# --- Optuna（ベイズ最適化、pip install optuna が必要） ---
+# --- Optuna (Bayesian optimization, requires pip install optuna) ---
 """
 import optuna
 
@@ -1342,21 +1343,21 @@ def objective(trial):
 study = optuna.create_study(direction="maximize")
 study.optimize(objective, n_trials=100)
 
-print(f"Optuna最良: {study.best_params}")
-print(f"スコア: {study.best_value:.4f}")
+print(f"Optuna best: {study.best_params}")
+print(f"Score: {study.best_value:.4f}")
 """
 
-# --- 結果の分析 ---
+# --- Analyzing results ---
 import pandas as pd
 results = pd.DataFrame(grid.cv_results_)
-print("\nTop5パラメータ組み合わせ:")
+print("\nTop 5 parameter combinations:")
 top5 = results.nsmallest(5, "rank_test_score")[
     ["params", "mean_test_score", "std_test_score", "rank_test_score"]
 ]
 print(top5.to_string())
 ```
 
-### 3.8 モデルの保存と読み込み
+### 3.8 Saving and Loading Models
 
 ```python
 import joblib
@@ -1365,17 +1366,17 @@ from datetime import datetime
 from pathlib import Path
 
 def save_model(pipeline, metrics: dict, output_dir: str = "models/"):
-    """モデルと付随情報を保存"""
+    """Save the model and associated information"""
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_path = f"{output_dir}/model_{timestamp}.joblib"
     meta_path = f"{output_dir}/model_{timestamp}_meta.json"
 
-    # モデル本体
+    # Save the model itself
     joblib.dump(pipeline, model_path)
 
-    # メタデータ
+    # Save metadata
     meta = {
         "timestamp": timestamp,
         "model_type": type(pipeline.named_steps.get("regressor",
@@ -1387,26 +1388,26 @@ def save_model(pipeline, metrics: dict, output_dir: str = "models/"):
     with open(meta_path, "w") as f:
         json.dump(meta, f, indent=2, ensure_ascii=False)
 
-    print(f"モデル保存: {model_path}")
-    print(f"メタデータ: {meta_path}")
+    print(f"Model saved: {model_path}")
+    print(f"Metadata: {meta_path}")
     return model_path
 
 def load_model(model_path: str):
-    """モデルの読み込みと検証"""
+    """Load and validate the model"""
     pipeline = joblib.load(model_path)
     meta_path = model_path.replace(".joblib", "_meta.json")
 
     if Path(meta_path).exists():
         with open(meta_path) as f:
             meta = json.load(f)
-        print(f"モデル種別: {meta['model_type']}")
-        print(f"学習日時: {meta['timestamp']}")
-        print(f"評価指標: {meta['metrics']}")
+        print(f"Model type: {meta['model_type']}")
+        print(f"Training timestamp: {meta['timestamp']}")
+        print(f"Evaluation metrics: {meta['metrics']}")
 
     return pipeline
 
 
-# --- ONNX形式でのエクスポート（推論高速化） ---
+# --- Exporting to ONNX format (for faster inference) ---
 """
 from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
@@ -1418,14 +1419,14 @@ onnx_model = convert_sklearn(pipeline, initial_types=initial_type)
 with open("model.onnx", "wb") as f:
     f.write(onnx_model.SerializeToString())
 
-# ONNX Runtime で推論
+# Inference with ONNX Runtime
 import onnxruntime as rt
 sess = rt.InferenceSession("model.onnx")
 pred = sess.run(None, {"float_input": X_test.astype(np.float32)})[0]
 """
 ```
 
-### 3.9 アンサンブル学習
+### 3.9 Ensemble Learning
 
 ```python
 from sklearn.ensemble import (
@@ -1443,20 +1444,20 @@ import numpy as np
 
 X, y = make_classification(n_samples=1000, n_features=20, random_state=42)
 
-# --- Voting（投票） ---
+# --- Voting ---
 voting = VotingClassifier(
     estimators=[
         ("rf", RandomForestClassifier(n_estimators=100, random_state=42)),
         ("gb", GradientBoostingClassifier(n_estimators=100, random_state=42)),
         ("svc", SVC(probability=True, random_state=42)),
     ],
-    voting="soft",  # 確率ベースの投票
-    weights=[2, 2, 1],  # RFとGBに重み
+    voting="soft",  # Probability-based voting
+    weights=[2, 2, 1],  # Higher weight for RF and GB
 )
 scores_voting = cross_val_score(voting, X, y, cv=5, scoring="accuracy")
 print(f"Voting: {scores_voting.mean():.4f} ± {scores_voting.std():.4f}")
 
-# --- Stacking（スタッキング） ---
+# --- Stacking ---
 stacking = StackingClassifier(
     estimators=[
         ("rf", RandomForestClassifier(n_estimators=100, random_state=42)),
@@ -1465,12 +1466,12 @@ stacking = StackingClassifier(
     ],
     final_estimator=LogisticRegression(),
     cv=5,
-    passthrough=False,  # 元の特徴量をメタ学習器に渡さない
+    passthrough=False,  # Do not pass original features to meta-learner
 )
 scores_stacking = cross_val_score(stacking, X, y, cv=5, scoring="accuracy")
 print(f"Stacking: {scores_stacking.mean():.4f} ± {scores_stacking.std():.4f}")
 
-# --- 個別モデルとの比較 ---
+# --- Comparison with individual models ---
 models = {
     "RandomForest": RandomForestClassifier(n_estimators=100, random_state=42),
     "GradientBoosting": GradientBoostingClassifier(n_estimators=100, random_state=42),
@@ -1484,51 +1485,51 @@ for name, model in models.items():
 
 ---
 
-## 4. Matplotlib / Seaborn — データ可視化
+## 4. Matplotlib / Seaborn — Data Visualization
 
-### 4.1 Matplotlibの基本構成
+### 4.1 Matplotlib Basic Structure
 
 ```python
 import matplotlib.pyplot as plt
 import numpy as np
 
-# --- Figure/Axes構成の理解 ---
-# matplotlib のオブジェクト階層:
+# --- Understanding the Figure/Axes structure ---
+# matplotlib object hierarchy:
 # Figure > Axes > (Line2D, Text, Patch, ...)
 
-# 基本: サブプロットの作成
+# Basic: creating subplots
 fig, axes = plt.subplots(2, 2, figsize=(12, 8))
 
-# 左上: 折れ線グラフ
+# Top left: line chart
 x = np.linspace(0, 2 * np.pi, 100)
 axes[0, 0].plot(x, np.sin(x), label="sin(x)", color="blue")
 axes[0, 0].plot(x, np.cos(x), label="cos(x)", color="red", linestyle="--")
-axes[0, 0].set_title("三角関数")
+axes[0, 0].set_title("Trigonometric Functions")
 axes[0, 0].legend()
 axes[0, 0].grid(True, alpha=0.3)
 
-# 右上: ヒストグラム
+# Top right: histogram
 data = np.random.randn(1000)
 axes[0, 1].hist(data, bins=30, color="steelblue", edgecolor="white", alpha=0.7)
-axes[0, 1].axvline(data.mean(), color="red", linestyle="--", label=f"平均={data.mean():.2f}")
-axes[0, 1].set_title("正規分布ヒストグラム")
+axes[0, 1].axvline(data.mean(), color="red", linestyle="--", label=f"Mean={data.mean():.2f}")
+axes[0, 1].set_title("Normal Distribution Histogram")
 axes[0, 1].legend()
 
-# 左下: 散布図
+# Bottom left: scatter plot
 x = np.random.randn(200)
 y = 2 * x + np.random.randn(200) * 0.5
 colors = np.random.rand(200)
 axes[1, 0].scatter(x, y, c=colors, cmap="viridis", alpha=0.6, s=30)
-axes[1, 0].set_title("散布図")
+axes[1, 0].set_title("Scatter Plot")
 axes[1, 0].set_xlabel("X")
 axes[1, 0].set_ylabel("Y")
 
-# 右下: 棒グラフ
+# Bottom right: bar chart
 categories = ["A", "B", "C", "D", "E"]
 values = [23, 45, 56, 78, 32]
 bars = axes[1, 1].bar(categories, values, color=["#ff6b6b", "#4ecdc4", "#45b7d1",
                                                    "#96ceb4", "#ffeaa7"])
-axes[1, 1].set_title("棒グラフ")
+axes[1, 1].set_title("Bar Chart")
 for bar, val in zip(bars, values):
     axes[1, 1].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
                     str(val), ha="center", fontsize=10)
@@ -1538,7 +1539,7 @@ plt.savefig("basic_plots.png", dpi=150, bbox_inches="tight")
 plt.close()
 ```
 
-### 4.2 Seabornによる統計可視化
+### 4.2 Statistical Visualization with Seaborn
 
 ```python
 import seaborn as sns
@@ -1546,61 +1547,61 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-# サンプルデータ
+# Sample data
 np.random.seed(42)
 n = 300
 df = pd.DataFrame({
     "age": np.random.normal(40, 10, n).astype(int),
     "income": np.random.lognormal(11, 0.5, n).astype(int),
-    "education": np.random.choice(["高卒", "大卒", "院卒"], n, p=[0.3, 0.5, 0.2]),
-    "satisfaction": np.random.choice(["低", "中", "高"], n, p=[0.2, 0.5, 0.3]),
+    "education": np.random.choice(["High School", "Bachelor's", "Master's"], n, p=[0.3, 0.5, 0.2]),
+    "satisfaction": np.random.choice(["Low", "Medium", "High"], n, p=[0.2, 0.5, 0.3]),
 })
 
-# スタイル設定
+# Style settings
 sns.set_theme(style="whitegrid", font_scale=1.1)
 
 fig, axes = plt.subplots(2, 3, figsize=(18, 10))
 
-# 1. 相関行列ヒートマップ
+# 1. Correlation matrix heatmap
 numeric_df = df.select_dtypes(include=[np.number])
 sns.heatmap(numeric_df.corr(), annot=True, cmap="RdBu_r", center=0,
             ax=axes[0, 0], fmt=".2f")
-axes[0, 0].set_title("相関行列")
+axes[0, 0].set_title("Correlation Matrix")
 
-# 2. カテゴリ別箱ひげ図
+# 2. Box plot by category
 sns.boxplot(data=df, x="education", y="income", ax=axes[0, 1],
-            order=["高卒", "大卒", "院卒"], palette="Set2")
-axes[0, 1].set_title("学歴別収入分布")
+            order=["High School", "Bachelor's", "Master's"], palette="Set2")
+axes[0, 1].set_title("Income Distribution by Education Level")
 
-# 3. バイオリンプロット
+# 3. Violin plot
 sns.violinplot(data=df, x="satisfaction", y="age", ax=axes[0, 2],
-               order=["低", "中", "高"], palette="muted", inner="quart")
-axes[0, 2].set_title("満足度別年齢分布")
+               order=["Low", "Medium", "High"], palette="muted", inner="quart")
+axes[0, 2].set_title("Age Distribution by Satisfaction Level")
 
-# 4. KDEプロット
-for edu in ["高卒", "大卒", "院卒"]:
+# 4. KDE plot
+for edu in ["High School", "Bachelor's", "Master's"]:
     subset = df[df["education"] == edu]["income"]
     sns.kdeplot(subset, ax=axes[1, 0], label=edu, fill=True, alpha=0.3)
-axes[1, 0].set_title("学歴別収入密度")
+axes[1, 0].set_title("Income Density by Education Level")
 axes[1, 0].legend()
 
-# 5. カウントプロット
+# 5. Count plot
 sns.countplot(data=df, x="education", hue="satisfaction", ax=axes[1, 1],
-              order=["高卒", "大卒", "院卒"], hue_order=["低", "中", "高"],
+              order=["High School", "Bachelor's", "Master's"], hue_order=["Low", "Medium", "High"],
               palette="coolwarm")
-axes[1, 1].set_title("学歴×満足度")
+axes[1, 1].set_title("Education × Satisfaction")
 
-# 6. 散布図 + 回帰直線
+# 6. Scatter plot with regression line
 sns.regplot(data=df, x="age", y="income", ax=axes[1, 2],
             scatter_kws={"alpha": 0.3}, line_kws={"color": "red"})
-axes[1, 2].set_title("年齢と収入の関係")
+axes[1, 2].set_title("Relationship Between Age and Income")
 
 plt.tight_layout()
 plt.savefig("seaborn_analysis.png", dpi=150, bbox_inches="tight")
 plt.close()
 ```
 
-### 4.3 ML結果の可視化
+### 4.3 Visualizing ML Results
 
 ```python
 import matplotlib.pyplot as plt
@@ -1613,7 +1614,7 @@ from sklearn.model_selection import learning_curve
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import make_classification
 
-# --- 学習曲線（過学習診断） ---
+# --- Learning curve (overfitting diagnosis) ---
 X, y = make_classification(n_samples=1000, n_features=20, random_state=42)
 model = RandomForestClassifier(n_estimators=100, random_state=42)
 
@@ -1625,7 +1626,7 @@ train_sizes, train_scores, val_scores = learning_curve(
 
 fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
-# 学習曲線
+# Learning curve
 axes[0].plot(train_sizes, train_scores.mean(axis=1), "o-", label="Training")
 axes[0].plot(train_sizes, val_scores.mean(axis=1), "o-", label="Validation")
 axes[0].fill_between(train_sizes,
@@ -1636,11 +1637,11 @@ axes[0].fill_between(train_sizes,
                      val_scores.mean(axis=1) + val_scores.std(axis=1), alpha=0.1)
 axes[0].set_xlabel("Training Size")
 axes[0].set_ylabel("Score")
-axes[0].set_title("学習曲線")
+axes[0].set_title("Learning Curve")
 axes[0].legend()
 axes[0].grid(True, alpha=0.3)
 
-# ROC曲線
+# ROC curve
 from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 model.fit(X_train, y_train)
@@ -1653,16 +1654,16 @@ axes[1].plot(fpr, tpr, color="darkorange", lw=2, label=f"ROC (AUC = {roc_auc:.3f
 axes[1].plot([0, 1], [0, 1], color="navy", lw=1, linestyle="--")
 axes[1].set_xlabel("False Positive Rate")
 axes[1].set_ylabel("True Positive Rate")
-axes[1].set_title("ROC曲線")
+axes[1].set_title("ROC Curve")
 axes[1].legend()
 
-# 特徴量重要度
+# Feature importance
 importances = model.feature_importances_
 indices = np.argsort(importances)[-10:]
 axes[2].barh(range(10), importances[indices], color="steelblue")
 axes[2].set_yticks(range(10))
 axes[2].set_yticklabels([f"feature_{i}" for i in indices])
-axes[2].set_title("特徴量重要度 Top10")
+axes[2].set_title("Top 10 Feature Importances")
 axes[2].set_xlabel("Importance")
 
 plt.tight_layout()
@@ -1672,9 +1673,9 @@ plt.close()
 
 ---
 
-## 5. SciPy — 科学計算・統計検定
+## 5. SciPy — Scientific Computing and Statistical Tests
 
-### 5.1 統計検定
+### 5.1 Statistical Tests
 
 ```python
 from scipy import stats
@@ -1682,38 +1683,38 @@ import numpy as np
 
 np.random.seed(42)
 
-# --- 正規性の検定 ---
+# --- Normality tests ---
 data = np.random.normal(100, 15, 200)
 
-# Shapiro-Wilk検定（n < 5000推奨）
+# Shapiro-Wilk test (recommended for n < 5000)
 stat_sw, p_sw = stats.shapiro(data)
-print(f"Shapiro-Wilk: 統計量={stat_sw:.4f}, p値={p_sw:.4f}")
+print(f"Shapiro-Wilk: statistic={stat_sw:.4f}, p-value={p_sw:.4f}")
 
-# Kolmogorov-Smirnov検定
+# Kolmogorov-Smirnov test
 stat_ks, p_ks = stats.kstest(data, "norm", args=(data.mean(), data.std()))
-print(f"KS検定: 統計量={stat_ks:.4f}, p値={p_ks:.4f}")
+print(f"KS test: statistic={stat_ks:.4f}, p-value={p_ks:.4f}")
 
-# D'Agostino-Pearson検定
+# D'Agostino-Pearson test
 stat_dp, p_dp = stats.normaltest(data)
-print(f"D'Agostino: 統計量={stat_dp:.4f}, p値={p_dp:.4f}")
+print(f"D'Agostino: statistic={stat_dp:.4f}, p-value={p_dp:.4f}")
 
-# --- 2標本の比較 ---
+# --- Two-sample comparison ---
 group_a = np.random.normal(100, 15, 100)
 group_b = np.random.normal(105, 15, 120)
 
-# t検定（正規分布・等分散を仮定）
+# t-test (assumes normal distribution and equal variances)
 t_stat, p_value = stats.ttest_ind(group_a, group_b)
-print(f"\nt検定: t={t_stat:.4f}, p={p_value:.4f}")
+print(f"\nt-test: t={t_stat:.4f}, p={p_value:.4f}")
 
-# Welchのt検定（等分散を仮定しない）
+# Welch's t-test (does not assume equal variances)
 t_stat_w, p_value_w = stats.ttest_ind(group_a, group_b, equal_var=False)
-print(f"Welch t検定: t={t_stat_w:.4f}, p={p_value_w:.4f}")
+print(f"Welch's t-test: t={t_stat_w:.4f}, p={p_value_w:.4f}")
 
-# Mann-Whitney U検定（ノンパラメトリック）
+# Mann-Whitney U test (non-parametric)
 u_stat, p_mw = stats.mannwhitneyu(group_a, group_b, alternative="two-sided")
 print(f"Mann-Whitney: U={u_stat:.0f}, p={p_mw:.4f}")
 
-# 効果量（Cohen's d）
+# Effect size (Cohen's d)
 def cohens_d(group1, group2):
     n1, n2 = len(group1), len(group2)
     var1, var2 = group1.var(), group2.var()
@@ -1723,7 +1724,7 @@ def cohens_d(group1, group2):
 d = cohens_d(group_a, group_b)
 print(f"Cohen's d: {d:.4f}")
 
-# --- 多群比較（ANOVA） ---
+# --- Multiple group comparison (ANOVA) ---
 g1 = np.random.normal(100, 15, 50)
 g2 = np.random.normal(105, 15, 50)
 g3 = np.random.normal(110, 15, 50)
@@ -1731,35 +1732,35 @@ g3 = np.random.normal(110, 15, 50)
 f_stat, p_anova = stats.f_oneway(g1, g2, g3)
 print(f"\nANOVA: F={f_stat:.4f}, p={p_anova:.4f}")
 
-# Kruskal-Wallis（ノンパラメトリック版ANOVA）
+# Kruskal-Wallis (non-parametric version of ANOVA)
 h_stat, p_kw = stats.kruskal(g1, g2, g3)
 print(f"Kruskal-Wallis: H={h_stat:.4f}, p={p_kw:.4f}")
 
-# --- カイ二乗検定（独立性の検定） ---
+# --- Chi-squared test (test of independence) ---
 observed = np.array([[50, 30], [20, 40]])
 chi2, p_chi, dof, expected = stats.chi2_contingency(observed)
-print(f"\nカイ二乗検定: χ²={chi2:.4f}, p={p_chi:.4f}, 自由度={dof}")
-print(f"期待度数:\n{expected}")
+print(f"\nChi-squared test: χ²={chi2:.4f}, p={p_chi:.4f}, df={dof}")
+print(f"Expected frequencies:\n{expected}")
 ```
 
-### 5.2 最適化
+### 5.2 Optimization
 
 ```python
 from scipy.optimize import minimize, curve_fit, minimize_scalar
 import numpy as np
 
-# --- 関数の最小化 ---
+# --- Function minimization ---
 def rosenbrock(x):
-    """ローゼンブロック関数（最適化のベンチマーク）"""
+    """Rosenbrock function (optimization benchmark)"""
     return sum(100.0 * (x[1:] - x[:-1]**2.0)**2.0 + (1 - x[:-1])**2.0)
 
-x0 = np.array([0.0, 0.0])  # 初期点
+x0 = np.array([0.0, 0.0])  # Initial point
 result = minimize(rosenbrock, x0, method="Nelder-Mead")
-print(f"最小点: {result.x}")
-print(f"最小値: {result.fun:.6f}")
-print(f"収束: {result.success}")
+print(f"Minimum point: {result.x}")
+print(f"Minimum value: {result.fun:.6f}")
+print(f"Converged: {result.success}")
 
-# 制約付き最適化
+# Constrained optimization
 from scipy.optimize import LinearConstraint, Bounds
 
 # x + y <= 10, x >= 0, y >= 0
@@ -1770,27 +1771,27 @@ result_c = minimize(
     constraints={"type": "ineq", "fun": lambda x: 10 - x[0] - x[1]},
     bounds=Bounds(0, np.inf),
 )
-print(f"\n制約付き最適化: x={result_c.x}, f={result_c.fun:.4f}")
+print(f"\nConstrained optimization: x={result_c.x}, f={result_c.fun:.4f}")
 
-# --- カーブフィッティング ---
+# --- Curve fitting ---
 def exp_decay(x, a, b, c):
     return a * np.exp(-b * x) + c
 
-# ノイズ付きデータ生成
+# Generate noisy data
 x_data = np.linspace(0, 5, 50)
 y_data = 3.0 * np.exp(-1.5 * x_data) + 0.5 + np.random.normal(0, 0.1, 50)
 
-# フィッティング
+# Fitting
 popt, pcov = curve_fit(exp_decay, x_data, y_data, p0=[3, 1, 0.5])
-perr = np.sqrt(np.diag(pcov))  # パラメータの標準誤差
+perr = np.sqrt(np.diag(pcov))  # Standard errors of parameters
 
-print(f"\nフィッティング結果:")
+print(f"\nFitting results:")
 print(f"a = {popt[0]:.4f} ± {perr[0]:.4f}")
 print(f"b = {popt[1]:.4f} ± {perr[1]:.4f}")
 print(f"c = {popt[2]:.4f} ± {perr[2]:.4f}")
 ```
 
-### 5.3 補間とスプライン
+### 5.3 Interpolation and Splines
 
 ```python
 from scipy.interpolate import (
@@ -1799,83 +1800,83 @@ from scipy.interpolate import (
 )
 import numpy as np
 
-# --- 1次元補間 ---
+# --- 1D interpolation ---
 x = np.array([0, 1, 2, 3, 4, 5])
 y = np.array([0, 0.8, 0.9, 0.1, -0.8, -1.0])
 
-# 線形補間
+# Linear interpolation
 f_linear = interp1d(x, y, kind="linear")
 
-# 3次スプライン補間
+# Cubic spline interpolation
 f_cubic = interp1d(x, y, kind="cubic")
 
-# CubicSpline（より高機能）
+# CubicSpline (more feature-rich)
 cs = CubicSpline(x, y)
 
 x_new = np.linspace(0, 5, 100)
 y_linear = f_linear(x_new)
 y_cubic = f_cubic(x_new)
 y_cs = cs(x_new)
-y_cs_deriv = cs(x_new, 1)  # 1次導関数
+y_cs_deriv = cs(x_new, 1)  # First derivative
 
-print(f"x=2.5での値: 線形={f_linear(2.5):.4f}, 3次={f_cubic(2.5):.4f}")
-print(f"x=2.5での導関数: {cs(2.5, 1):.4f}")
+print(f"Value at x=2.5: linear={f_linear(2.5):.4f}, cubic={f_cubic(2.5):.4f}")
+print(f"Derivative at x=2.5: {cs(2.5, 1):.4f}")
 
-# --- 2次元補間 ---
+# --- 2D interpolation ---
 x_grid = np.linspace(0, 4, 5)
 y_grid = np.linspace(0, 4, 5)
 values = np.random.rand(5, 5)
 
 interpolator = RegularGridInterpolator((x_grid, y_grid), values)
 result = interpolator(point)
-print(f"\n2次元補間 (2.1, 3.3): {result[0]:.4f}")
+print(f"\n2D interpolation at (2.1, 3.3): {result[0]:.4f}")
 ```
 
 ---
 
-## 6. 実務パターン
+## 6. Practical Patterns
 
-### 6.1 プロジェクト構成テンプレート
+### 6.1 Project Structure Template
 
 ```
 ml-project/
 ├── data/
-│   ├── raw/                  # 生データ（変更禁止）
-│   ├── processed/            # 加工済みデータ
-│   └── external/             # 外部データ
+│   ├── raw/                  # Raw data (do not modify)
+│   ├── processed/            # Processed data
+│   └── external/             # External data
 ├── notebooks/
-│   ├── 01_eda.ipynb          # 探索的データ分析
-│   ├── 02_feature_eng.ipynb  # 特徴量エンジニアリング
-│   └── 03_modeling.ipynb     # モデリング実験
+│   ├── 01_eda.ipynb          # Exploratory data analysis
+│   ├── 02_feature_eng.ipynb  # Feature engineering
+│   └── 03_modeling.ipynb     # Modeling experiments
 ├── src/
 │   ├── __init__.py
 │   ├── data/
 │   │   ├── __init__.py
-│   │   ├── loader.py         # データ読み込み
-│   │   └── preprocessor.py   # 前処理
+│   │   ├── loader.py         # Data loading
+│   │   └── preprocessor.py   # Preprocessing
 │   ├── features/
 │   │   ├── __init__.py
-│   │   └── builder.py        # 特徴量生成
+│   │   └── builder.py        # Feature generation
 │   ├── models/
 │   │   ├── __init__.py
-│   │   ├── trainer.py        # 学習
-│   │   └── predictor.py      # 推論
+│   │   ├── trainer.py        # Training
+│   │   └── predictor.py      # Inference
 │   └── utils/
 │       ├── __init__.py
-│       └── metrics.py        # 評価指標
+│       └── metrics.py        # Evaluation metrics
 ├── tests/
 │   ├── test_data.py
 │   ├── test_features.py
 │   └── test_models.py
-├── models/                   # 学習済みモデル
+├── models/                   # Trained models
 ├── configs/
-│   └── config.yaml           # ハイパーパラメータ等
+│   └── config.yaml           # Hyperparameters, etc.
 ├── Makefile
 ├── pyproject.toml
 └── README.md
 ```
 
-### 6.2 設定管理
+### 6.2 Configuration Management
 
 ```python
 # configs/config.yaml
@@ -1959,12 +1960,12 @@ class Config:
         )
 
 
-# 使用例
+# Usage example
 # config = Config.from_yaml("configs/config.yaml")
 # print(config.model.params)
 ```
 
-### 6.3 MLパイプラインのテスト
+### 6.3 Testing ML Pipelines
 
 ```python
 import pytest
@@ -1976,11 +1977,11 @@ from sklearn.ensemble import RandomForestClassifier
 
 
 class TestPipeline:
-    """MLパイプラインのテストスイート"""
+    """Test suite for the ML pipeline"""
 
     @pytest.fixture
     def sample_data(self):
-        """テスト用データ"""
+        """Data for testing"""
         np.random.seed(42)
         X = pd.DataFrame({
             "feature_1": np.random.randn(100),
@@ -1992,14 +1993,14 @@ class TestPipeline:
 
     @pytest.fixture
     def pipeline(self):
-        """テスト用パイプライン"""
+        """Pipeline for testing"""
         return Pipeline([
             ("scaler", StandardScaler()),
             ("model", RandomForestClassifier(n_estimators=10, random_state=42)),
         ])
 
     def test_pipeline_fit_predict(self, pipeline, sample_data):
-        """パイプラインの学習と予測が正常に動作する"""
+        """Pipeline trains and predicts correctly"""
         X, y = sample_data
         pipeline.fit(X, y)
         predictions = pipeline.predict(X)
@@ -2007,14 +2008,14 @@ class TestPipeline:
         assert set(predictions).issubset({0, 1})
 
     def test_pipeline_accuracy(self, pipeline, sample_data):
-        """最低限の精度を達成する"""
+        """Pipeline achieves minimum accuracy"""
         X, y = sample_data
         pipeline.fit(X, y)
         accuracy = pipeline.score(X, y)
-        assert accuracy > 0.7, f"精度が低すぎます: {accuracy:.4f}"
+        assert accuracy > 0.7, f"Accuracy too low: {accuracy:.4f}"
 
     def test_pipeline_predict_proba(self, pipeline, sample_data):
-        """確率予測の出力形式が正しい"""
+        """Probability predictions have the correct output format"""
         X, y = sample_data
         pipeline.fit(X, y)
         proba = pipeline.predict_proba(X)
@@ -2023,7 +2024,7 @@ class TestPipeline:
         assert (proba >= 0).all() and (proba <= 1).all()
 
     def test_pipeline_unseen_data(self, pipeline, sample_data):
-        """未知データに対して予測できる"""
+        """Pipeline can predict on unseen data"""
         X, y = sample_data
         pipeline.fit(X, y)
         X_new = pd.DataFrame({
@@ -2035,7 +2036,7 @@ class TestPipeline:
         assert len(predictions) == 2
 
     def test_scaler_transform(self, sample_data):
-        """StandardScalerの変換が正しい"""
+        """StandardScaler transforms correctly"""
         X, _ = sample_data
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
@@ -2043,20 +2044,20 @@ class TestPipeline:
         assert np.allclose(X_scaled.std(axis=0), 1, atol=1e-10)
 
     def test_feature_names_preserved(self, pipeline, sample_data):
-        """特徴量名が保持される"""
+        """Feature names are preserved"""
         X, y = sample_data
         pipeline.fit(X, y)
-        # sklearn 1.0+ ではget_feature_names_outが利用可能
+        # get_feature_names_out is available in sklearn 1.0+
         scaler = pipeline.named_steps["scaler"]
         assert hasattr(scaler, "feature_names_in_")
         assert list(scaler.feature_names_in_) == list(X.columns)
 ```
 
-### 6.4 実験トラッキング（MLflow）
+### 6.4 Experiment Tracking (MLflow)
 
 ```python
 """
-MLflowによる実験管理の基本パターン
+Basic patterns for experiment management with MLflow
 
 pip install mlflow
 """
@@ -2068,14 +2069,14 @@ pip install mlflow
 # from sklearn.datasets import make_classification
 # import numpy as np
 
-# --- MLflow実験管理の雛形 ---
+# --- MLflow experiment management template ---
 """
-# 実験の設定
+# Configure the experiment
 mlflow.set_experiment("my-classification-experiment")
 
 X, y = make_classification(n_samples=1000, n_features=20, random_state=42)
 
-# パラメータ候補
+# Parameter candidates
 configs = [
     {"n_estimators": 100, "max_depth": 5},
     {"n_estimators": 200, "max_depth": 7},
@@ -2084,28 +2085,28 @@ configs = [
 
 for config in configs:
     with mlflow.start_run():
-        # パラメータの記録
+        # Log parameters
         mlflow.log_params(config)
 
-        # モデルの学習と評価
+        # Train and evaluate the model
         model = RandomForestClassifier(**config, random_state=42)
         scores = cross_val_score(model, X, y, cv=5, scoring="accuracy")
 
-        # メトリクスの記録
+        # Log metrics
         mlflow.log_metric("accuracy_mean", scores.mean())
         mlflow.log_metric("accuracy_std", scores.std())
 
-        # モデルの保存
+        # Save the model
         model.fit(X, y)
         mlflow.sklearn.log_model(model, "model")
 
         print(f"Config: {config}")
         print(f"  Accuracy: {scores.mean():.4f} ± {scores.std():.4f}")
 
-# 結果の確認: mlflow ui
+# View results: mlflow ui
 """
 
-# --- 独自の軽量実験トラッカー ---
+# --- Custom lightweight experiment tracker ---
 import json
 from datetime import datetime
 from pathlib import Path
@@ -2113,7 +2114,7 @@ import hashlib
 
 
 class ExperimentTracker:
-    """軽量な実験管理ツール"""
+    """Lightweight experiment management tool"""
 
     def __init__(self, experiment_name: str, base_dir: str = "experiments"):
         self.experiment_name = experiment_name
@@ -2122,7 +2123,7 @@ class ExperimentTracker:
         self.runs = []
 
     def log_run(self, params: dict, metrics: dict, tags: dict = None):
-        """実験結果を記録"""
+        """Record experiment results"""
         run = {
             "run_id": hashlib.md5(
                 json.dumps(params, sort_keys=True).encode()
@@ -2134,7 +2135,7 @@ class ExperimentTracker:
         }
         self.runs.append(run)
 
-        # 個別ファイルに保存
+        # Save to individual file
         run_path = self.base_dir / f"run_{run['run_id']}.json"
         with open(run_path, "w") as f:
             json.dump(run, f, indent=2, ensure_ascii=False)
@@ -2142,17 +2143,17 @@ class ExperimentTracker:
         return run["run_id"]
 
     def get_best_run(self, metric: str, mode: str = "max"):
-        """最良の実験結果を取得"""
+        """Get the best experiment result"""
         if not self.runs:
             return None
         key = max if mode == "max" else min
         return key(self.runs, key=lambda r: r["metrics"].get(metric, float("-inf")))
 
     def summary(self):
-        """全実験の概要を表示"""
+        """Display a summary of all experiments"""
         import pandas as pd
         if not self.runs:
-            print("実験結果がありません")
+            print("No experiment results found")
             return
 
         rows = []
@@ -2165,7 +2166,7 @@ class ExperimentTracker:
         return df
 
 
-# 使用例
+# Usage example
 # tracker = ExperimentTracker("my-experiment")
 # tracker.log_run(
 #     params={"n_estimators": 100, "max_depth": 5},
@@ -2177,135 +2178,135 @@ class ExperimentTracker:
 
 ---
 
-## 比較表
+## Comparison Tables
 
 ### NumPy vs pandas vs Polars
 
-| 項目 | NumPy | pandas | Polars |
+| Item | NumPy | pandas | Polars |
 |---|---|---|---|
-| データ型 | 同型多次元配列 | 異型表形式 | 異型表形式 |
-| 速度 | 極速（C/Fortran） | 中速 | 高速（Rust） |
-| メモリ効率 | 高い | 中程度 | 高い |
-| 遅延評価 | なし | なし | あり（LazyFrame） |
-| API | 低レベル | 高レベル | 高レベル |
-| 主な用途 | 数値計算、線形代数 | データ加工、EDA | 大規模データ処理 |
-| 学習コスト | 中程度 | 低い | 中程度 |
-| エコシステム | 広大 | 非常に広大 | 成長中 |
-| GPU対応 | CuPy連携 | なし | GPU版開発中 |
-| マルチスレッド | 限定的 | GIL制約 | ネイティブ対応 |
+| Data type | Homogeneous multi-dimensional array | Heterogeneous tabular | Heterogeneous tabular |
+| Speed | Very fast (C/Fortran) | Medium | Fast (Rust) |
+| Memory efficiency | High | Moderate | High |
+| Lazy evaluation | No | No | Yes (LazyFrame) |
+| API | Low-level | High-level | High-level |
+| Main use cases | Numerical computing, linear algebra | Data wrangling, EDA | Large-scale data processing |
+| Learning curve | Moderate | Low | Moderate |
+| Ecosystem | Vast | Very vast | Growing |
+| GPU support | CuPy integration | None | GPU version in development |
+| Multi-threading | Limited | GIL constraints | Native support |
 
-### scikit-learn モデル選択チートシート
+### scikit-learn Model Selection Cheat Sheet
 
-| データ条件 | 推奨モデル | 訓練速度 | 解釈性 | 精度 |
+| Data conditions | Recommended model | Training speed | Interpretability | Accuracy |
 |---|---|---|---|---|
-| 小規模・線形関係 | LinearRegression / LogisticRegression | 極速 | 高い | 中 |
-| 中規模・非線形 | RandomForest | 速い | 中程度 | 高い |
-| 中規模・高精度 | GradientBoosting | 中程度 | 低い | 高い |
-| 大規模・高次元 | SGDClassifier | 極速 | 中程度 | 中 |
-| テキスト分類 | MultinomialNB | 極速 | 中程度 | 中 |
-| 少量・高精度 | SVM (RBFカーネル) | 遅い | 低い | 高い |
-| 外れ値検出 | IsolationForest | 速い | 低い | 中〜高 |
-| クラスタリング | KMeans / DBSCAN | 速い | 中程度 | — |
-| 次元削減 | PCA / t-SNE / UMAP | 中程度 | 低い | — |
+| Small-scale, linear relationship | LinearRegression / LogisticRegression | Very fast | High | Medium |
+| Medium-scale, non-linear | RandomForest | Fast | Moderate | High |
+| Medium-scale, high accuracy | GradientBoosting | Moderate | Low | High |
+| Large-scale, high-dimensional | SGDClassifier | Very fast | Moderate | Medium |
+| Text classification | MultinomialNB | Very fast | Moderate | Medium |
+| Small data, high accuracy | SVM (RBF kernel) | Slow | Low | High |
+| Outlier detection | IsolationForest | Fast | Low | Medium~High |
+| Clustering | KMeans / DBSCAN | Fast | Moderate | — |
+| Dimensionality reduction | PCA / t-SNE / UMAP | Moderate | Low | — |
 
-### 前処理手法の選択ガイド
+### Preprocessing Method Selection Guide
 
-| データの特性 | 推奨スケーリング | 理由 |
+| Data characteristics | Recommended scaling | Reason |
 |---|---|---|
-| 正規分布に近い | StandardScaler | 平均0、標準偏差1に標準化 |
-| 範囲が重要（0-1） | MinMaxScaler | 最小最大値でスケーリング |
-| 外れ値が多い | RobustScaler | 中央値とIQRで頑健にスケーリング |
-| 歪んだ分布 | PowerTransformer | Box-Cox/Yeo-Johnson変換 |
-| 一様分布にしたい | QuantileTransformer | 分位数ベースの変換 |
-| カテゴリ変数（名義） | OneHotEncoder | ダミー変数化 |
-| カテゴリ変数（順序） | OrdinalEncoder | 順序を保持した数値化 |
-| 高基数カテゴリ | TargetEncoder | ターゲット値の平均で数値化 |
+| Approximately normally distributed | StandardScaler | Standardize to mean 0, std dev 1 |
+| Range is important (0-1) | MinMaxScaler | Scale by min-max values |
+| Many outliers | RobustScaler | Robust scaling using median and IQR |
+| Skewed distribution | PowerTransformer | Box-Cox/Yeo-Johnson transformation |
+| Want uniform distribution | QuantileTransformer | Quantile-based transformation |
+| Categorical (nominal) | OneHotEncoder | Dummy variable encoding |
+| Categorical (ordinal) | OrdinalEncoder | Numeric encoding preserving order |
+| High-cardinality categorical | TargetEncoder | Encode using mean of target values |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: pandas のループ処理
+### Anti-Pattern 1: Loop Processing in pandas
 
 ```python
-# BAD: iterrows で1行ずつ処理（極端に遅い）
+# BAD: Processing row by row with iterrows (extremely slow)
 for idx, row in df.iterrows():
     df.loc[idx, "new_col"] = row["a"] * row["b"] + row["c"]
 
-# GOOD: ベクトル演算を使用
+# GOOD: Use vectorized operations
 df["new_col"] = df["a"] * df["b"] + df["c"]
 
-# GOOD: 複雑な条件は np.where か apply
+# GOOD: For complex conditions, use np.where or apply
 df["category"] = np.where(df["value"] > 100, "high", "low")
 ```
 
-### アンチパターン2: Pipeline を使わない前処理
+### Anti-Pattern 2: Not Using Pipeline for Preprocessing
 
 ```python
-# BAD: 前処理とモデルが分離 → テスト時に変換忘れのリスク
+# BAD: Preprocessing and model are separate → risk of forgetting transformation at test time
 scaler = StandardScaler()
 X_train_s = scaler.fit_transform(X_train)
 model = RandomForestClassifier()
 model.fit(X_train_s, y_train)
-# テスト時に scaler.transform() を忘れる可能性大
+# High risk of forgetting scaler.transform() at test time
 
-# GOOD: Pipeline で一体化
+# GOOD: Integrate with Pipeline
 from sklearn.pipeline import make_pipeline
 pipe = make_pipeline(StandardScaler(), RandomForestClassifier())
-pipe.fit(X_train, y_train)        # 前処理+学習が一括
-score = pipe.score(X_test, y_test) # 前処理+予測が一括
+pipe.fit(X_train, y_train)        # Preprocessing + training in one step
+score = pipe.score(X_test, y_test) # Preprocessing + prediction in one step
 ```
 
-### アンチパターン3: データリーク
+### Anti-Pattern 3: Data Leakage
 
 ```python
-# BAD: 全データでfit_transformしてから分割（データリーク）
+# BAD: fit_transform on all data before splitting (data leakage)
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
-X_scaled = StandardScaler().fit_transform(X)  # テストデータの情報が漏れる！
+X_scaled = StandardScaler().fit_transform(X)  # Test data info leaks into training!
 X_train, X_test, y_train, y_test = train_test_split(X_scaled, y)
 
-# GOOD: 分割後に学習データのみでfit
+# GOOD: fit only on training data after splitting
 X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
 scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)   # 学習データでfit
-X_test_scaled = scaler.transform(X_test)          # テストデータはtransformのみ
+X_train_scaled = scaler.fit_transform(X_train)   # fit on training data
+X_test_scaled = scaler.transform(X_test)          # only transform on test data
 
-# BEST: Pipelineを使えばリークは構造的に防止される
+# BEST: Using Pipeline structurally prevents leakage
 from sklearn.pipeline import make_pipeline
 pipe = make_pipeline(StandardScaler(), RandomForestClassifier())
-# cross_val_score内部で正しくfit/transformが分離される
+# fit/transform are correctly separated inside cross_val_score
 scores = cross_val_score(pipe, X, y, cv=5)
 ```
 
-### アンチパターン4: 不適切な評価指標
+### Anti-Pattern 4: Inappropriate Evaluation Metrics
 
 ```python
-# BAD: 不均衡データでaccuracyのみを評価
-# クラス比 95:5 の場合、常に多数派を予測するだけでaccuracy=95%
+# BAD: Evaluating only accuracy on imbalanced data
+# With class ratio 95:5, always predicting the majority class gives accuracy=95%
 from sklearn.metrics import accuracy_score
-print(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")  # 見かけ上は高い
+print(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")  # Looks high superficially
 
-# GOOD: 不均衡データでは複数指標を確認
+# GOOD: Check multiple metrics for imbalanced data
 from sklearn.metrics import classification_report, balanced_accuracy_score
 print(classification_report(y_test, y_pred))
 print(f"Balanced Accuracy: {balanced_accuracy_score(y_test, y_pred):.4f}")
 
-# GOOD: クラス重み付きの学習
+# GOOD: Train with class weights
 from sklearn.ensemble import RandomForestClassifier
 model = RandomForestClassifier(class_weight="balanced", random_state=42)
-# または class_weight={0: 1, 1: 10} で明示的に指定
+# Or specify explicitly: class_weight={0: 1, 1: 10}
 ```
 
-### アンチパターン5: 再現性の欠如
+### Anti-Pattern 5: Lack of Reproducibility
 
 ```python
-# BAD: シードを固定しない
-model = RandomForestClassifier()  # 毎回異なる結果
-X_train, X_test = train_test_split(X, y)  # 分割も毎回異なる
+# BAD: Not fixing seeds
+model = RandomForestClassifier()  # Different results every time
+X_train, X_test = train_test_split(X, y)  # Split is different every time too
 
-# GOOD: すべてのランダム要素にシードを設定
+# GOOD: Set seeds for all random elements
 import numpy as np
 SEED = 42
 np.random.seed(SEED)
@@ -2315,7 +2316,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=SEED, stratify=y
 )
 
-# BEST: seedをconfigファイルで一元管理
+# BEST: Manage seed centrally in config file
 # config.yaml → seed: 42
 ```
 
@@ -2323,61 +2324,61 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 ## FAQ
 
-### Q1: pandasとPolarsのどちらを使うべき？
+### Q1: Should I use pandas or Polars?
 
-**A:** 2024年時点ではpandasが圧倒的にエコシステムが広く、scikit-learnやmatplotlibとの連携もシームレス。Polarsはデータが100万行を超える場合や速度が重要な場面で威力を発揮する。新規プロジェクトでデータサイズが大きいならPolarsを検討し、それ以外はpandasが安全な選択。なお、pandas 2.0以降はArrowバックエンドが利用可能になり、性能差は縮まりつつある。Polarsは遅延評価（LazyFrame）により、クエリプランの最適化が自動で行われるため、大規模データ処理では顕著な速度優位がある。
+**A:** As of 2024, pandas has a vastly broader ecosystem and integrates seamlessly with scikit-learn and matplotlib. Polars shines when data exceeds 1 million rows or when speed is critical. For new projects with large data, consider Polars; otherwise, pandas is the safe choice. Note that pandas 2.0+ now supports an Arrow backend, narrowing the performance gap. Polars' lazy evaluation (LazyFrame) enables automatic query plan optimization, giving it a significant speed advantage for large-scale data processing.
 
-### Q2: scikit-learnのPipelineはどこまでカスタマイズできる？
+### Q2: How far can I customize the scikit-learn Pipeline?
 
-**A:** BaseEstimator + TransformerMixinを継承すれば任意の変換器を作成可能。ColumnTransformerで列ごとに異なる処理を適用でき、FeatureUnionで特徴量を結合できる。NestedCVやカスタムスコアラーも組み合わせれば、ほぼ全てのMLワークフローをPipelineで表現できる。さらに、`set_output(transform="pandas")`を使えばDataFrameを出力として維持でき、デバッグが容易になる。
+**A:** Any transformer can be created by inheriting from BaseEstimator + TransformerMixin. ColumnTransformer applies different processing per column, and FeatureUnion combines features. Combined with NestedCV and custom scorers, nearly any ML workflow can be expressed with Pipeline. Additionally, `set_output(transform="pandas")` maintains DataFrame output, making debugging easier.
 
-### Q3: JupyterノートブックとPythonスクリプトの使い分けは？
+### Q3: How should I choose between Jupyter notebooks and Python scripts?
 
-**A:** 探索・可視化・レポーティングにはNotebook、本番パイプラインやテストコードにはスクリプト。Notebookで試行錯誤した後、確定したコードをsrc/以下のモジュールに移すのが理想。NotebookはGit管理しにくいため、nbstripoutでセル出力を除去してからコミットする。また、papermillを使えばNotebookをパラメータ化して自動実行でき、レポート生成パイプラインとして活用できる。
+**A:** Use Notebooks for exploration, visualization, and reporting; use scripts for production pipelines and test code. The ideal workflow is to experiment in notebooks, then move confirmed code to modules under `src/`. Since notebooks are hard to manage with Git, strip cell outputs with nbstripout before committing. Using papermill, notebooks can be parameterized and automatically executed as report generation pipelines.
 
-### Q4: NumPyとCuPyの切り替えはどうすればよい？
+### Q4: How do I switch between NumPy and CuPy?
 
-**A:** CuPyはNumPyと互換性の高いAPIを提供しており、`import cupy as np`とするだけで多くのコードがGPU上で動作する。ただし、データ転送のオーバーヘッドがあるため、小規模データではCPU（NumPy）の方が速い場合もある。`cupy.asnumpy()`と`cupy.asarray()`で明示的に変換する。scikit-learn互換のcuMLライブラリもあり、GPU上でscikit-learnと同じAPIでMLモデルを学習できる。
+**A:** CuPy provides a NumPy-compatible API, and much code runs on GPU simply by writing `import cupy as np`. However, data transfer overhead means CPU (NumPy) can be faster for small data. Use `cupy.asnumpy()` and `cupy.asarray()` for explicit conversion. The cuML library provides GPU-accelerated ML models with the same API as scikit-learn.
 
-### Q5: 特徴量エンジニアリングの体系的なアプローチは？
+### Q5: What is a systematic approach to feature engineering?
 
-**A:** 以下のステップで進めるのが効果的である。(1) ドメイン知識に基づく特徴量の設計、(2) 基本統計量（平均、分散、歪度、尖度）の算出、(3) 交互作用特徴量の生成、(4) 多項式特徴量の追加、(5) 時系列ならラグ・ローリング統計、(6) カテゴリ変数のエンコーディング、(7) 次元削減（PCA等）。その後、特徴量選択（RFE、重要度ベース）で不要な特徴量を除去する。Featuretoolsのような自動特徴量生成ライブラリも検討に値する。
+**A:** The following steps are effective: (1) design features based on domain knowledge, (2) compute basic statistics (mean, variance, skewness, kurtosis), (3) generate interaction features, (4) add polynomial features, (5) for time series: lag and rolling statistics, (6) encode categorical variables, (7) apply dimensionality reduction (PCA, etc.). Then use feature selection (RFE, importance-based) to remove unnecessary features. Automated feature generation libraries like Featuretools are also worth considering.
 
-### Q6: メモリ不足で大規模データを処理できない場合の対策は？
+### Q6: What should I do when I run out of memory processing large data?
 
-**A:** いくつかの段階的なアプローチがある。(1) dtypeの最適化（float64→float32、int64→int16等）、(2) カテゴリ列のcategory型変換、(3) チャンク処理（`pd.read_csv(chunksize=N)`）、(4) Parquet形式での列指向読み込み、(5) Daskによる分散DataFrame処理、(6) Polarsの遅延評価、(7) Vaexのメモリマップ処理。データベース（SQLite、DuckDB）を中間層として使う手法も有効。DuckDBはSQLでParquetファイルを直接クエリでき、pandasとの連携も良好である。
+**A:** There are several progressive approaches: (1) dtype optimization (float64→float32, int64→int16, etc.), (2) converting categorical columns to category type, (3) chunk processing (`pd.read_csv(chunksize=N)`), (4) column-oriented reading with Parquet format, (5) distributed DataFrame processing with Dask, (6) lazy evaluation with Polars, (7) memory-mapped processing with Vaex. Using databases (SQLite, DuckDB) as an intermediate layer is also effective. DuckDB can directly query Parquet files with SQL and integrates well with pandas.
 
-### Q7: scikit-learnの代わりにXGBoost/LightGBMを使うべき場面は？
+### Q7: When should I use XGBoost/LightGBM instead of scikit-learn?
 
-**A:** テーブルデータの予測タスクでは、XGBoostやLightGBMはscikit-learnのGradientBoostingよりも高速で高精度な場合が多い。特に(1) データが大規模（10万行以上）、(2) カテゴリ特徴量が多い（LightGBMのネイティブカテゴリ対応）、(3) 欠損値が多い（ネイティブ欠損値対応）、(4) Kaggle等の競技プログラミング、の場合に推奨される。ただし、scikit-learnのPipeline/GridSearchCVとの統合も容易（sklearn API互換ラッパーあり）なので、まずscikit-learnで実装し、性能が不足すればXGBoost/LightGBMに切り替えるのが実務的なアプローチである。
+**A:** For tabular data prediction tasks, XGBoost and LightGBM are often faster and more accurate than scikit-learn's GradientBoosting. They are recommended especially when: (1) data is large (100k+ rows), (2) there are many categorical features (LightGBM has native category support), (3) there are many missing values (native missing value support), (4) competing in Kaggle or similar competitions. However, integration with scikit-learn's Pipeline/GridSearchCV is straightforward (sklearn API-compatible wrappers exist), so a practical approach is to implement in scikit-learn first, then switch to XGBoost/LightGBM if performance is insufficient.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| NumPy | ベクトル化演算で高速化。ループを避けブロードキャストを活用 |
-| pandas | メソッドチェーンで可読性を高める。大規模データは型最適化 |
-| scikit-learn | Pipeline + ColumnTransformer で再現性のあるワークフローを構築 |
-| Matplotlib/Seaborn | 探索的分析にはSeaborn、細かいカスタマイズにはMatplotlib |
-| SciPy | 統計検定・最適化・補間など科学計算の基盤 |
-| モデル保存 | joblibで保存。メタデータ（バージョン、指標）を併せて記録 |
-| カスタム変換器 | BaseEstimator + TransformerMixin で独自の前処理をPipeline統合 |
-| 特徴量選択 | 統計検定→RFE→重要度の順で段階的に選択 |
-| 実験管理 | MLflowまたは軽量トラッカーで再現性を確保 |
-| テスト | パイプラインの入出力・精度・エッジケースを必ずテスト |
+| NumPy | Speed up with vectorized operations. Avoid loops, leverage broadcasting |
+| pandas | Improve readability with method chaining. Optimize types for large data |
+| scikit-learn | Build reproducible workflows with Pipeline + ColumnTransformer |
+| Matplotlib/Seaborn | Seaborn for exploratory analysis, Matplotlib for fine customization |
+| SciPy | Foundation for scientific computing: statistical tests, optimization, interpolation |
+| Model saving | Save with joblib. Record metadata (version, metrics) alongside |
+| Custom transformers | Integrate custom preprocessing into Pipeline with BaseEstimator + TransformerMixin |
+| Feature selection | Select progressively: statistical tests → RFE → importance |
+| Experiment management | Ensure reproducibility with MLflow or a lightweight tracker |
+| Testing | Always test pipeline I/O, accuracy, and edge cases |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [../01-classical-ml/00-regression.md](../01-classical-ml/00-regression.md) — 回帰モデルの実装と評価
-- [../01-classical-ml/01-classification.md](../01-classical-ml/01-classification.md) — 分類モデルの実装と評価
+- [../01-classical-ml/00-regression.md](../01-classical-ml/00-regression.md) — Implementing and evaluating regression models
+- [../01-classical-ml/01-classification.md](../01-classical-ml/01-classification.md) — Implementing and evaluating classification models
 
 ---
 
-## 参考文献
+## References
 
 1. **Jake VanderPlas** "Python Data Science Handbook" O'Reilly Media, 2016 — https://jakevdp.github.io/PythonDataScienceHandbook/
 2. **scikit-learn Documentation** "API Reference" — https://scikit-learn.org/stable/modules/classes.html
