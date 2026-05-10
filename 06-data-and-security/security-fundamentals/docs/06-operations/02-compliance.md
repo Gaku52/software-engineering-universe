@@ -1,80 +1,80 @@
-# コンプライアンス
+# Compliance
 
-> GDPR、SOC 2、PCI DSS を中心に、セキュリティに関する法規制・業界標準への準拠方法と実装のポイントを体系的に学ぶ
+> A systematic guide to complying with security-related laws, regulations, and industry standards, focusing on GDPR, SOC 2, and PCI DSS, including implementation details
 
-## 前提知識
+## Prerequisites
 
-この章を理解するために、以下の知識が必要である。
+The following knowledge is required to understand this chapter.
 
-- **暗号化の基礎** — 対称鍵暗号・非対称鍵暗号の仕組み（暗号化 を参照）
-- **アクセス制御** — RBAC/ABAC の概念（認証と認可 を参照）
-- **ログと監視** — 監査ログの基本的な仕組み（[監視/ログ](./01-monitoring-logging.md) を参照）
-- **ネットワークセキュリティ** — ファイアウォール、TLS の基礎
-
----
-
-## この章で学ぶこと
-
-1. **GDPR (一般データ保護規則)** — EU の個人データ保護規制と技術的対応
-2. **SOC 2** — サービス組織の内部統制に関する監査報告書と準拠のポイント
-3. **PCI DSS** — クレジットカード情報を扱うシステムのセキュリティ要件
-4. **HIPAA** — 米国の医療情報保護規制
-5. **日本の個人情報保護法** — 日本国内の法的要件
-6. **コンプライアンス自動化** — 継続的コンプライアンスの実装手法
-7. **監査対応の実践** — 監査準備から完了までの具体的プロセス
+- **Cryptography basics** — How symmetric and asymmetric encryption works (see Encryption)
+- **Access control** — Concepts of RBAC/ABAC (see Authentication and Authorization)
+- **Logging and monitoring** — Basic mechanisms of audit logs (see [Monitoring/Logging](./01-monitoring-logging.md))
+- **Network security** — Basics of firewalls and TLS
 
 ---
 
-## 1. コンプライアンスの全体像
+## What You Will Learn in This Chapter
 
-### なぜコンプライアンスが重要か
+1. **GDPR (General Data Protection Regulation)** — EU personal data protection regulations and technical responses
+2. **SOC 2** — Audit reports on internal controls for service organizations and key compliance points
+3. **PCI DSS** — Security requirements for systems that handle credit card information
+4. **HIPAA** — US healthcare information protection regulations
+5. **Japan's Act on the Protection of Personal Information** — Legal requirements within Japan
+6. **Compliance automation** — Implementation methods for continuous compliance
+7. **Audit response in practice** — Concrete processes from audit preparation to completion
 
-コンプライアンスは単なる法令遵守ではなく、組織のセキュリティ態勢を体系的に構築・維持するためのフレームワークである。コンプライアンスが重要な理由は以下の 4 つに集約される。
+---
 
-1. **法的リスクの回避** — GDPR 違反で最大 2000 万 EUR または全世界売上高の 4% の制裁金が課される。2023 年には Meta が 12 億 EUR の制裁金を受けた事例がある
-2. **顧客の信頼獲得** — SOC 2 Type II レポートは B2B SaaS の商談で事実上の必須要件となっている
-3. **セキュリティ態勢の底上げ** — コンプライアンス要件を満たす過程で、組織のセキュリティ基盤が体系的に整備される
-4. **事業継続性の確保** — PCI DSS 非準拠のカード加盟店はカード処理が停止され、事業に直接的な打撃を受ける
+## 1. Overview of Compliance
 
-### 主要な規制・基準の分類
+### Why Compliance Matters
+
+Compliance is not merely about adhering to laws and regulations — it is a framework for systematically building and maintaining an organization's security posture. There are four key reasons why compliance is important.
+
+1. **Avoiding legal risk** — GDPR violations can result in fines of up to EUR 20 million or 4% of global annual turnover. In 2023, Meta received a fine of EUR 1.2 billion.
+2. **Building customer trust** — SOC 2 Type II reports have become a de facto requirement in B2B SaaS enterprise deals.
+3. **Strengthening the security posture** — The process of meeting compliance requirements systematically builds an organization's security foundation.
+4. **Ensuring business continuity** — Merchants that are non-compliant with PCI DSS may have card processing suspended, directly impacting business operations.
+
+### Classification of Major Regulations and Standards
 
 ```
 +------------------------------------------------------------------+
-|              セキュリティコンプライアンスの分類                       |
+|              Classification of Security Compliance               |
 |------------------------------------------------------------------|
 |                                                                  |
-|  [法規制 (法的義務)]                                              |
-|  +-- GDPR (EU 一般データ保護規則)                                 |
-|  |   +-- 適用範囲: EU 域内の個人データ処理                         |
-|  |   +-- 施行: 2018年5月25日                                     |
-|  +-- 個人情報保護法 (日本)                                        |
-|  |   +-- 2022年改正: 漏洩報告義務化、罰則強化                      |
-|  +-- CCPA/CPRA (カリフォルニア州)                                 |
-|  |   +-- 消費者のオプトアウト権を重視                              |
-|  +-- HIPAA (米国医療情報)                                         |
-|  |   +-- PHI (Protected Health Information) の保護                |
-|  +-- LGPD (ブラジル一般データ保護法)                               |
-|  |   +-- GDPR と類似の構造                                       |
-|  +-- PIPA (韓国個人情報保護法)                                    |
+|  [Regulations (Legal Obligations)]                               |
+|  +-- GDPR (EU General Data Protection Regulation)                |
+|  |   +-- Scope: Processing personal data within the EU           |
+|  |   +-- Enforcement: May 25, 2018                               |
+|  +-- Act on the Protection of Personal Information (Japan)       |
+|  |   +-- 2022 amendment: Mandatory breach reporting, penalties   |
+|  +-- CCPA/CPRA (California)                                      |
+|  |   +-- Focuses on consumer opt-out rights                      |
+|  +-- HIPAA (US healthcare information)                           |
+|  |   +-- Protection of PHI (Protected Health Information)        |
+|  +-- LGPD (Brazil General Data Protection Law)                   |
+|  |   +-- Similar structure to GDPR                               |
+|  +-- PIPA (South Korea Personal Information Protection Act)      |
 |                                                                  |
-|  [業界標準 (業界義務)]                                            |
-|  +-- PCI DSS (カード決済)                                        |
-|  |   +-- v4.0: 2024年3月31日から全面適用                          |
-|  +-- FISC (金融情報システムセンター)                               |
-|  |   +-- 日本の金融機関向けガイドライン                            |
-|  +-- SWIFT CSP (国際送金)                                        |
+|  [Industry Standards (Industry Obligations)]                     |
+|  +-- PCI DSS (Card payments)                                     |
+|  |   +-- v4.0: Fully applicable from March 31, 2024              |
+|  +-- FISC (Center for Financial Industry Information Systems)    |
+|  |   +-- Guidelines for Japanese financial institutions          |
+|  +-- SWIFT CSP (International transfers)                         |
 |                                                                  |
-|  [監査フレームワーク (信頼性証明)]                                  |
+|  [Audit Frameworks (Trust Verification)]                         |
 |  +-- SOC 2 Type I/II                                             |
-|  |   +-- AICPA Trust Service Criteria に基づく                    |
+|  |   +-- Based on AICPA Trust Service Criteria                   |
 |  +-- ISO 27001                                                   |
-|  |   +-- ISMS (情報セキュリティマネジメントシステム)                 |
+|  |   +-- ISMS (Information Security Management System)           |
 |  +-- ISO 27701                                                   |
-|  |   +-- プライバシー情報マネジメント (PIMS)                       |
+|  |   +-- PIMS (Privacy Information Management System)            |
 |  +-- ISO 27017 / ISO 27018                                       |
-|      +-- クラウドセキュリティ / クラウドプライバシー                 |
+|      +-- Cloud security / Cloud privacy                          |
 |                                                                  |
-|  [ベストプラクティス (任意)]                                       |
+|  [Best Practices (Voluntary)]                                    |
 |  +-- NIST Cybersecurity Framework (CSF) v2.0                     |
 |  +-- CIS Controls v8                                             |
 |  +-- OWASP Top 10                                                |
@@ -83,39 +83,39 @@
 +------------------------------------------------------------------+
 ```
 
-### 規制・基準の比較
+### Comparison of Regulations and Standards
 
-| 項目 | GDPR | SOC 2 | PCI DSS | ISO 27001 | HIPAA | 個人情報保護法 |
+| Item | GDPR | SOC 2 | PCI DSS | ISO 27001 | HIPAA | Personal Information Protection Act |
 |------|------|-------|---------|-----------|-------|------------|
-| 対象 | EU 個人データ | SaaS サービス全般 | カード決済 | 情報セキュリティ全般 | 医療情報 (PHI) | 日本の個人情報 |
-| 強制力 | 法律 | 顧客要求 | 業界標準 (事実上必須) | 任意 (契約要件化あり) | 法律 | 法律 |
-| 罰則 | 最大 2000万EUR or 売上4% | なし (信頼喪失) | 罰金 + カード処理停止 | なし | 最大 $1.5M/年 | 最大 1億円 (法人) |
-| 監査 | 規制当局 | 独立監査人 (CPA) | QSA / ISA | 認証機関 | HHS OCR | 個人情報保護委員会 |
-| 更新頻度 | 適宜 | 年次 | 3-4年で改訂 | 年次サーベイランス | 適宜 | 3年ごとに見直し |
-| 認証取得期間 | N/A | 3-12ヶ月 | 6-18ヶ月 | 6-12ヶ月 | N/A | N/A |
+| Target | EU personal data | SaaS services in general | Card payments | Information security in general | Medical information (PHI) | Personal information in Japan |
+| Enforcement | Law | Customer requirement | Industry standard (de facto mandatory) | Voluntary (may be required by contract) | Law | Law |
+| Penalties | Up to EUR 20M or 4% of revenue | None (loss of trust) | Fines + card processing suspension | None | Up to $1.5M/year | Up to JPY 100M (corporate) |
+| Audit | Regulatory authority | Independent auditor (CPA) | QSA / ISA | Certification body | HHS OCR | Personal Information Protection Commission |
+| Update frequency | As needed | Annual | Revised every 3-4 years | Annual surveillance | As needed | Reviewed every 3 years |
+| Certification period | N/A | 3-12 months | 6-18 months | 6-12 months | N/A | N/A |
 
-### コンプライアンスフレームワーク間のマッピング
+### Mapping Between Compliance Frameworks
 
-多くの組織は複数のコンプライアンス要件を同時に満たす必要がある。フレームワーク間の統制は 60-80% が重複するため、統合的なアプローチが効率的である。
+Many organizations need to simultaneously satisfy multiple compliance requirements. Since 60-80% of controls overlap across frameworks, an integrated approach is efficient.
 
 ```
 +------------------------------------------------------------------+
-|          統制マッピングの概念図                                      |
+|          Conceptual diagram of control mapping                   |
 |------------------------------------------------------------------|
 |                                                                  |
 |     GDPR        SOC 2       PCI DSS      ISO 27001              |
 |      |            |            |             |                   |
 |      v            v            v             v                   |
 |  +------------------------------------------------------+       |
-|  |           統合統制フレームワーク (GRC)                    |       |
+|  |       Integrated Control Framework (GRC)             |       |
 |  |------------------------------------------------------|       |
-|  |  アクセス制御  → GDPR Art.32 / CC6.1 / Req.7 / A.9    |       |
-|  |  暗号化      → GDPR Art.32 / CC6.7 / Req.3,4 / A.10  |       |
-|  |  ログ監視    → GDPR Art.30 / CC7.2 / Req.10 / A.12   |       |
-|  |  変更管理    →    --      / CC8.1 / Req.6 / A.12     |       |
-|  |  インシデント → GDPR Art.33 / CC7.3 / Req.12 / A.16   |       |
-|  |  脆弱性管理  →    --      / CC7.1 / Req.5,6,11/ A.12 |       |
-|  |  教育・訓練  → GDPR Art.39 / CC1.4 / Req.12 / A.7    |       |
+|  |  Access control → GDPR Art.32 / CC6.1 / Req.7 / A.9 |       |
+|  |  Encryption    → GDPR Art.32 / CC6.7 / Req.3,4 / A.10|      |
+|  |  Log monitoring→ GDPR Art.30 / CC7.2 / Req.10 / A.12 |      |
+|  |  Change mgmt   →    --      / CC8.1 / Req.6 / A.12   |      |
+|  |  Incident      → GDPR Art.33 / CC7.3 / Req.12 / A.16 |      |
+|  |  Vuln mgmt     →    --      / CC7.1 / Req.5,6,11/ A.12|     |
+|  |  Training      → GDPR Art.39 / CC1.4 / Req.12 / A.7  |      |
 |  +------------------------------------------------------+       |
 +------------------------------------------------------------------+
 ```
@@ -124,81 +124,85 @@
 
 ## 2. GDPR
 
-### GDPR の適用範囲と基本概念
+### GDPR Scope and Basic Concepts
 
-GDPR (General Data Protection Regulation) は 2018 年 5 月 25 日に施行された EU の個人データ保護規則である。GDPR の適用範囲を正しく理解することが、対応の第一歩となる。
+GDPR (General Data Protection Regulation) is the EU personal data protection regulation that came into force on May 25, 2018. Correctly understanding the scope of GDPR is the first step in addressing it.
 
-**適用条件（地理的範囲 — 第 3 条）**:
-- EU 域内に拠点を持つ組織がデータを処理する場合
-- EU 域外の組織が EU 域内の個人に商品・サービスを提供する場合
-- EU 域外の組織が EU 域内の個人の行動をモニタリングする場合
+**Applicability conditions (geographical scope — Article 3)**:
+- An organization with a base in the EU that processes data
+- An organization outside the EU that provides goods or services to individuals in the EU
+- An organization outside the EU that monitors the behavior of individuals in the EU
 
-**基本用語**:
-- **データ主体 (Data Subject)** — 個人データの対象となる自然人
-- **データ管理者 (Data Controller)** — データ処理の目的と手段を決定する者
-- **データ処理者 (Data Processor)** — 管理者の代理でデータを処理する者
-- **DPO (Data Protection Officer)** — データ保護責任者。大規模データ処理を行う場合は任命が義務
+**Key terms**:
+- **Data Subject** — A natural person who is the subject of personal data
+- **Data Controller** — An entity that determines the purposes and means of processing data
+- **Data Processor** — An entity that processes data on behalf of the controller
+- **DPO (Data Protection Officer)** — The data protection officer. Appointment is mandatory for organizations that carry out large-scale data processing.
 
-### GDPR の 7 原則
+### The 7 Principles of GDPR
 
 ```
 +------------------------------------------------------------------+
-|                  GDPR データ保護 7 原則                              |
+|                  GDPR 7 Data Protection Principles               |
 |------------------------------------------------------------------|
 |                                                                  |
-|  1. 適法性・公正性・透明性 (Lawfulness, Fairness, Transparency)    |
-|     → 6 つの法的根拠のいずれかに基づく処理                         |
-|     → プライバシーポリシーの公開、平易な言語での説明               |
-|     → 処理の目的・法的根拠をデータ主体に通知                       |
+|  1. Lawfulness, Fairness, and Transparency                       |
+|     → Processing must be based on one of the 6 legal bases       |
+|     → Publish a privacy policy in plain language                 |
+|     → Notify data subjects of the purpose and legal basis        |
 |                                                                  |
-|  2. 目的の限定 (Purpose Limitation)                               |
-|     → 収集時に明示された目的のみにデータを使用                     |
-|     → 後から目的を追加する場合は互換性テストを実施                  |
-|     → アーカイブ、科学研究、統計目的は互換性ありとみなされる        |
+|  2. Purpose Limitation                                           |
+|     → Use data only for the purposes stated at collection        |
+|     → Conduct a compatibility test when adding purposes later    |
+|     → Archive, scientific research, statistical purposes are     |
+|       considered compatible                                      |
 |                                                                  |
-|  3. データの最小化 (Data Minimisation)                             |
-|     → 目的に対して必要最小限のデータのみ収集                       |
-|     → 「あると便利」なデータは収集しない                           |
-|     → 定期的にデータの必要性をレビュー                             |
+|  3. Data Minimisation                                            |
+|     → Collect only the minimum data necessary for the purpose    |
+|     → Do not collect data that is merely "nice to have"          |
+|     → Periodically review the necessity of data                  |
 |                                                                  |
-|  4. 正確性 (Accuracy)                                             |
-|     → データを最新・正確に保つ合理的な措置                         |
-|     → 不正確なデータは遅滞なく消去または訂正                       |
+|  4. Accuracy                                                     |
+|     → Take reasonable measures to keep data up to date and       |
+|       accurate                                                   |
+|     → Erase or rectify inaccurate data without delay             |
 |                                                                  |
-|  5. 保存期間の制限 (Storage Limitation)                            |
-|     → 必要な期間のみ保持、不要になったら削除                       |
-|     → データ保持ポリシーの策定と遵守                               |
-|     → 保持期間の定期レビュー                                      |
+|  5. Storage Limitation                                           |
+|     → Retain data only for as long as necessary, then delete     |
+|     → Establish and follow data retention policies               |
+|     → Periodically review retention periods                      |
 |                                                                  |
-|  6. 完全性・機密性 (Integrity & Confidentiality)                   |
-|     → 適切な技術的・組織的措置によるデータの保護                    |
-|     → 暗号化、仮名化、アクセス制御の実施                           |
-|     → 不正アクセス・データ損失からの保護                           |
+|  6. Integrity and Confidentiality                                |
+|     → Protect data with appropriate technical and organizational |
+|       measures                                                   |
+|     → Implement encryption, pseudonymization, access control     |
+|     → Protect against unauthorized access and data loss          |
 |                                                                  |
-|  7. アカウンタビリティ (Accountability)                            |
-|     → 上記 6 原則の遵守を証明できる記録の保持                      |
-|     → DPIA (データ保護影響評価) の実施                             |
-|     → データ処理活動の記録 (ROPA) の維持                           |
+|  7. Accountability                                               |
+|     → Maintain records that demonstrate compliance with the above |
+|       6 principles                                               |
+|     → Conduct DPIA (Data Protection Impact Assessment)           |
+|     → Maintain Records of Processing Activities (ROPA)          |
 +------------------------------------------------------------------+
 ```
 
-### GDPR の 6 つの法的根拠
+### The 6 Legal Bases of GDPR
 
-データ処理には以下 6 つの法的根拠のいずれかが必要である（第 6 条）。
+One of the following six legal bases is required for data processing (Article 6).
 
-| 法的根拠 | 説明 | 使用例 | 注意点 |
+| Legal Basis | Description | Use case | Notes |
 |---------|------|--------|--------|
-| 同意 (Consent) | データ主体の明確な同意 | マーケティングメール | 同意は自由に撤回可能 |
-| 契約の履行 | 契約遂行に必要な処理 | 注文処理、配送 | 契約に直接必要なもののみ |
-| 法的義務 | 法令で義務づけられた処理 | 税務記録の保存 | 根拠法を特定する必要あり |
-| 重大な利益 | 人の生命・安全を守る処理 | 医療緊急時 | 他の根拠が使えない場合のみ |
-| 公共の利益 | 公的機関の任務遂行 | 行政サービス | 公的機関に限定的 |
-| 正当な利益 | 管理者の正当な事業目的 | 不正防止、ネットワークセキュリティ | LIA (Legitimate Interest Assessment) が必要 |
+| Consent | Explicit consent of the data subject | Marketing emails | Consent can be freely withdrawn |
+| Performance of a contract | Processing necessary to perform a contract | Order processing, delivery | Only what is directly necessary for the contract |
+| Legal obligation | Processing required by law | Retention of tax records | Must identify the applicable law |
+| Vital interests | Processing to protect life or safety of a person | Medical emergencies | Only when other bases cannot be used |
+| Public interest | Performance of tasks by public authorities | Administrative services | Limited to public authorities |
+| Legitimate interests | Legitimate business purposes of the controller | Fraud prevention, network security | LIA (Legitimate Interest Assessment) required |
 
-### データ主体の権利と技術的実装
+### Data Subject Rights and Technical Implementation
 
 ```python
-# データ主体の権利への技術的対応
+# Technical response to data subject rights
 
 import json
 import hashlib
@@ -419,36 +423,37 @@ class GDPRCompliance:
         return dpia
 ```
 
-### プライバシーバイデザイン (Privacy by Design)
+### Privacy by Design
 
-GDPR 第 25 条はデータ保護をシステム設計段階から組み込むことを要求している。以下に 7 つの基本原則と実装パターンを示す。
+Article 25 of GDPR requires that data protection be embedded into system design from the outset. The following shows the 7 foundational principles and implementation patterns.
 
 ```
 +------------------------------------------------------------------+
-|          プライバシーバイデザインの 7 原則                           |
-|          (Ann Cavoukian, 2009)                                    |
+|          7 Principles of Privacy by Design                       |
+|          (Ann Cavoukian, 2009)                                   |
 |------------------------------------------------------------------|
 |                                                                  |
-|  1. 事後対応ではなく事前防止                                       |
-|     → 設計段階からプライバシーリスクを排除                          |
+|  1. Proactive not Reactive; Preventative not Remedial            |
+|     → Eliminate privacy risks at the design stage               |
 |                                                                  |
-|  2. デフォルトでのプライバシー保護                                  |
-|     → ユーザが何もしなくても最大限のプライバシーが保護される         |
+|  2. Privacy as the Default Setting                               |
+|     → Maximum privacy protection without any action by the user |
 |                                                                  |
-|  3. 設計への組み込み                                              |
-|     → プライバシーはアドオンではなく中核機能                        |
+|  3. Privacy Embedded into Design                                 |
+|     → Privacy is a core function, not an add-on                 |
 |                                                                  |
-|  4. 全機能性の確保 (ゼロサムでない)                                 |
-|     → プライバシーとセキュリティの両立                              |
+|  4. Full Functionality — Positive-Sum, not Zero-Sum              |
+|     → Privacy and security can coexist                          |
 |                                                                  |
-|  5. ライフサイクル全体の保護                                       |
-|     → 収集から削除まで一貫した保護                                 |
+|  5. End-to-End Security — Full Lifecycle Protection              |
+|     → Consistent protection from collection to deletion         |
 |                                                                  |
-|  6. 可視性と透明性                                                |
-|     → 処理の透明性確保、独立した検証可能性                         |
+|  6. Visibility and Transparency                                  |
+|     → Ensure transparency of processing, enable independent     |
+|       verification                                               |
 |                                                                  |
-|  7. ユーザのプライバシーの尊重                                      |
-|     → ユーザ中心のデザイン                                        |
+|  7. Respect for User Privacy                                     |
+|     → User-centric design                                       |
 +------------------------------------------------------------------+
 ```
 
@@ -531,40 +536,41 @@ class DataRetentionManager:
                 logger.info(f"Archived {count} expired records from {table}")
 ```
 
-### GDPR 国際データ移転
+### GDPR International Data Transfers
 
-EU 域外へのデータ移転は GDPR 第 5 章で規定されている。2020 年の Schrems II 判決により、EU-US 間の Privacy Shield は無効化され、代替メカニズムが必要となった。
+Transfers of data outside the EU are governed by Chapter 5 of GDPR. The Schrems II ruling in 2020 invalidated the EU-US Privacy Shield, requiring alternative mechanisms.
 
 ```
 +------------------------------------------------------------------+
-|          GDPR 国際データ移転の仕組み                                |
+|          Mechanisms for GDPR International Data Transfers        |
 |------------------------------------------------------------------|
 |                                                                  |
-|  [十分性認定 (Adequacy Decision)]                                 |
-|  +-- 日本 (2019年1月、相互認定)                                   |
-|  +-- 英国 (2021年6月)                                            |
-|  +-- 韓国 (2022年12月)                                           |
-|  +-- EU-US Data Privacy Framework (2023年7月)                    |
-|  → 十分性認定国: 追加措置なしでデータ移転可能                      |
+|  [Adequacy Decision]                                             |
+|  +-- Japan (January 2019, mutual recognition)                   |
+|  +-- United Kingdom (June 2021)                                  |
+|  +-- South Korea (December 2022)                                 |
+|  +-- EU-US Data Privacy Framework (July 2023)                    |
+|  → Adequacy decision countries: transfers possible without       |
+|    additional measures                                           |
 |                                                                  |
-|  [標準契約条項 (SCC - Standard Contractual Clauses)]              |
-|  +-- 2021年6月の新SCC (旧SCCは2022年12月で失効)                   |
+|  [Standard Contractual Clauses (SCC)]                            |
+|  +-- New SCC from June 2021 (old SCC expired December 2022)      |
 |  +-- Module 1: Controller → Controller                           |
-|  +-- Module 2: Controller → Processor (最も一般的)                |
+|  +-- Module 2: Controller → Processor (most common)              |
 |  +-- Module 3: Processor → Processor                             |
 |  +-- Module 4: Processor → Controller                            |
-|  → Transfer Impact Assessment (TIA) の実施が必要                  |
+|  → Transfer Impact Assessment (TIA) required                     |
 |                                                                  |
-|  [拘束的企業準則 (BCR - Binding Corporate Rules)]                 |
-|  +-- グループ企業間のデータ移転                                    |
-|  +-- 監督機関の承認が必要 (取得に 1-2 年)                          |
-|  +-- 大企業向け                                                  |
+|  [Binding Corporate Rules (BCR)]                                 |
+|  +-- Data transfers between group companies                      |
+|  +-- Requires supervisory authority approval (1-2 years)         |
+|  +-- For large enterprises                                       |
 |                                                                  |
-|  [例外的移転 (Derogations)]                                       |
-|  +-- データ主体の明示的同意                                       |
-|  +-- 契約の履行に必要                                             |
-|  +-- 重大な公共の利益                                             |
-|  → 反復的・大量のデータ移転には不適切                              |
+|  [Derogations (Exceptional transfers)]                           |
+|  +-- Explicit consent of the data subject                        |
+|  +-- Necessary for performance of a contract                     |
+|  +-- Important public interest                                   |
+|  → Not suitable for repetitive or large-scale data transfers     |
 +------------------------------------------------------------------+
 ```
 
@@ -572,68 +578,69 @@ EU 域外へのデータ移転は GDPR 第 5 章で規定されている。2020 
 
 ## 3. SOC 2
 
-### SOC 2 の位置づけと仕組み
+### SOC 2 Position and Mechanism
 
-SOC 2 (System and Organization Controls 2) は AICPA (米国公認会計士協会) が定める監査フレームワークである。クラウドサービスプロバイダーが顧客データを適切に管理していることを第三者が検証する仕組みであり、B2B SaaS では事実上の標準となっている。
+SOC 2 (System and Organization Controls 2) is an audit framework established by the AICPA (American Institute of Certified Public Accountants). It is a mechanism by which a third party verifies that cloud service providers appropriately manage customer data, and has become the de facto standard for B2B SaaS.
 
-SOC 2 レポートが求められる典型的なシナリオ:
-- エンタープライズ顧客との商談で「SOC 2 レポートを提出してください」と依頼される
-- RFP (提案依頼書) の必須要件として記載されている
-- サイバー保険の適用条件として要求される
+Typical scenarios where a SOC 2 report is required:
+- An enterprise customer requests a SOC 2 report during a business deal
+- Listed as a mandatory requirement in an RFP (Request for Proposal)
+- Required as a condition for cyber insurance coverage
 
-### SOC 2 の Trust Service Criteria (TSC)
+### SOC 2 Trust Service Criteria (TSC)
 
 ```
 +------------------------------------------------------------------+
-|            SOC 2 Trust Service Criteria (TSC)                     |
+|            SOC 2 Trust Service Criteria (TSC)                    |
 |------------------------------------------------------------------|
 |                                                                  |
-|  CC: Common Criteria (全レポートで必須 — セキュリティ)              |
-|  +-- CC1: 統制環境 (Control Environment)                         |
-|  |   → 組織のガバナンス、倫理観、人材管理                          |
-|  |   → 取締役会・経営陣によるセキュリティへのコミットメント          |
-|  +-- CC2: コミュニケーションと情報                                |
-|  |   → セキュリティポリシーの文書化と周知                          |
-|  +-- CC3: リスク評価                                             |
-|  |   → 定期的なリスクアセスメントの実施                            |
-|  +-- CC4: 監視活動                                               |
-|  |   → 統制の有効性を継続的に監視                                 |
-|  +-- CC5: 統制活動                                               |
-|  |   → リスクを軽減するための方針と手続                            |
-|  +-- CC6: 論理的・物理的アクセス制御                               |
-|  |   → 認証、認可、物理セキュリティ                               |
-|  +-- CC7: システム運用                                            |
-|  |   → 異常検知、インシデント対応                                 |
-|  +-- CC8: 変更管理                                               |
-|  |   → 変更の承認・テスト・本番適用のプロセス                      |
-|  +-- CC9: リスク軽減                                             |
-|      → ベンダー管理、ビジネスリスクの軽減策                        |
+|  CC: Common Criteria (mandatory for all reports — Security)      |
+|  +-- CC1: Control Environment                                    |
+|  |   → Organizational governance, ethics, people management      |
+|  |   → Board and management commitment to security               |
+|  +-- CC2: Communication and Information                          |
+|  |   → Documentation and communication of security policies      |
+|  +-- CC3: Risk Assessment                                        |
+|  |   → Conducting periodic risk assessments                      |
+|  +-- CC4: Monitoring Activities                                  |
+|  |   → Continuously monitoring the effectiveness of controls     |
+|  +-- CC5: Control Activities                                     |
+|  |   → Policies and procedures to mitigate risks                 |
+|  +-- CC6: Logical and Physical Access Controls                   |
+|  |   → Authentication, authorization, physical security          |
+|  +-- CC7: System Operations                                      |
+|  |   → Anomaly detection, incident response                      |
+|  +-- CC8: Change Management                                      |
+|  |   → Processes for approving, testing, and deploying changes   |
+|  +-- CC9: Risk Mitigation                                        |
+|      → Vendor management, measures to mitigate business risks    |
 |                                                                  |
-|  追加カテゴリ (必要に応じて選択):                                   |
-|  +-- A: 可用性 (Availability)                                     |
-|  |   → SLA、バックアップ、DR 計画                                 |
-|  +-- PI: 処理の完全性 (Processing Integrity)                      |
-|  |   → データ処理の正確性・完全性の保証                            |
-|  +-- C: 機密性 (Confidentiality)                                  |
-|  |   → 機密情報の保護、暗号化、アクセス制御                        |
-|  +-- P: プライバシー (Privacy)                                    |
-|      → AICPA Privacy Criteria、GDPR との整合                     |
+|  Additional categories (selected as needed):                     |
+|  +-- A: Availability                                             |
+|  |   → SLA, backups, DR plans                                    |
+|  +-- PI: Processing Integrity                                    |
+|  |   → Assurance of accuracy and completeness of data processing |
+|  +-- C: Confidentiality                                          |
+|  |   → Protection of confidential information, encryption,       |
+|  |     access control                                            |
+|  +-- P: Privacy                                                  |
+|      → AICPA Privacy Criteria, alignment with GDPR              |
 +------------------------------------------------------------------+
 ```
 
 ### SOC 2 Type I vs Type II
 
-| 項目 | Type I | Type II |
+| Item | Type I | Type II |
 |------|--------|---------|
-| 評価対象 | 特定時点の統制設計 | 一定期間の統制運用 |
-| 評価期間 | スナップショット (1日) | 通常 6-12 ヶ月 |
-| 信頼性 | 低い (設計のみ) | 高い (実際の運用を検証) |
-| 用途 | 初回取得、準備段階 | 本格的な信頼性証明 |
-| 取得期間 | 1-3 ヶ月 | 6-12 ヶ月 |
-| 費用 | $20K-$60K | $30K-$100K+ |
-| 顧客の評価 | 「まず第一歩」 | 「信頼できる証明」 |
+| Evaluation target | Control design at a point in time | Control operation over a period of time |
+| Evaluation period | Snapshot (1 day) | Typically 6-12 months |
+| Reliability | Low (design only) | High (actual operation verified) |
+| Use case | Initial acquisition, preparation stage | Full trust verification |
+| Acquisition period | 1-3 months | 6-12 months |
+| Cost | $20K-$60K | $30K-$100K+ |
+| Customer assessment | "A first step" | "A credible proof" |
 
-### SOC 2 対応の技術的統制
+### Technical Controls for SOC 2 Compliance
 
 ```yaml
 # SOC 2 統制の実装マッピング (実践的なサンプル)
@@ -715,40 +722,40 @@ CC8.1_Change_Management:
       evidence: "デプロイログ、承認記録"
 ```
 
-### SOC 2 監査準備のタイムライン
+### SOC 2 Audit Preparation Timeline
 
 ```
 +------------------------------------------------------------------+
-|          SOC 2 Type II 取得のロードマップ                           |
+|          Roadmap to SOC 2 Type II Certification                  |
 |------------------------------------------------------------------|
 |                                                                  |
-|  Month 1-2: ギャップ分析 (Gap Assessment)                         |
-|  +-- 現在の統制状況を TSC にマッピング                             |
-|  +-- ギャップを特定し優先順位付け                                  |
-|  +-- 監査法人の選定・契約                                         |
+|  Month 1-2: Gap Assessment                                       |
+|  +-- Map current control status to TSC                           |
+|  +-- Identify gaps and prioritize                                |
+|  +-- Select and engage an audit firm                             |
 |                                                                  |
-|  Month 2-4: 統制の実装 (Remediation)                              |
-|  +-- ポリシー・手順書の策定                                       |
-|  +-- 技術的統制の実装 (MFA、暗号化、監視等)                        |
-|  +-- ツール導入 (Drata / Vanta / Secureframe)                    |
+|  Month 2-4: Remediation                                          |
+|  +-- Develop policies and procedures                             |
+|  +-- Implement technical controls (MFA, encryption, monitoring)  |
+|  +-- Deploy tools (Drata / Vanta / Secureframe)                  |
 |                                                                  |
-|  Month 4-5: Type I 監査 (オプション)                               |
-|  +-- 特定時点の統制設計を検証                                      |
-|  +-- 早期に問題を発見・修正                                       |
+|  Month 4-5: Type I Audit (optional)                              |
+|  +-- Verify control design at a specific point in time           |
+|  +-- Identify and fix issues early                               |
 |                                                                  |
-|  Month 5-11: 観察期間 (Observation Period)                        |
-|  +-- 最低 6 ヶ月間の統制運用を実施                                 |
-|  +-- 証跡を継続的に収集・保管                                     |
-|  +-- 内部監査で問題がないか確認                                   |
+|  Month 5-11: Observation Period                                   |
+|  +-- Operate controls for a minimum of 6 months                  |
+|  +-- Continuously collect and retain evidence                    |
+|  +-- Verify no issues through internal audits                    |
 |                                                                  |
-|  Month 11-12: Type II 監査 (Audit)                                |
-|  +-- 監査人がサンプルテストを実施                                  |
-|  +-- 統制の運用有効性を検証                                       |
-|  +-- レポート発行                                                |
+|  Month 11-12: Type II Audit                                      |
+|  +-- Auditors conduct sample testing                             |
+|  +-- Verify operating effectiveness of controls                  |
+|  +-- Issue report                                                |
 |                                                                  |
-|  以降: 年次更新                                                   |
-|  +-- 毎年 Type II レポートを更新                                   |
-|  +-- 継続的な統制運用と証跡収集                                    |
+|  Thereafter: Annual renewal                                      |
+|  +-- Update Type II report annually                              |
+|  +-- Continuous control operation and evidence collection        |
 +------------------------------------------------------------------+
 ```
 
@@ -756,73 +763,77 @@ CC8.1_Change_Management:
 
 ## 4. PCI DSS
 
-### PCI DSS v4.0 の概要
+### Overview of PCI DSS v4.0
 
-PCI DSS (Payment Card Industry Data Security Standard) はクレジットカード情報を扱うすべての組織に適用されるセキュリティ基準である。PCI SSC (Payment Card Industry Security Standards Council) が策定し、Visa、Mastercard、American Express、JCB、Discover の 5 大カードブランドが参加している。
+PCI DSS (Payment Card Industry Data Security Standard) is a security standard that applies to all organizations that handle credit card information. It is established by the PCI SSC (Payment Card Industry Security Standards Council), with participation from the five major card brands: Visa, Mastercard, American Express, JCB, and Discover.
 
-PCI DSS v4.0 は 2022 年 3 月に公開され、2024 年 3 月 31 日に v3.2.1 から完全移行した。v4.0 の主な変更点:
-- **カスタマイズアプローチ** の導入 — 要件の目的を満たす代替手法を認める柔軟性
-- **多要素認証 (MFA)** の要件強化 — カードデータ環境 (CDE) へのすべてのアクセスに MFA
-- **リスクベースアプローチ** — ターゲット型リスク分析の義務化
-- **認証要件の強化** — パスワード最低 12 文字、フィッシング対策
+PCI DSS v4.0 was released in March 2022 and fully replaced v3.2.1 on March 31, 2024. Key changes in v4.0:
+- **Customized approach** introduced — flexibility to accept alternative methods that meet the objective of a requirement
+- **Multi-factor authentication (MFA)** requirements strengthened — MFA required for all access to the Cardholder Data Environment (CDE)
+- **Risk-based approach** — mandatory targeted risk analysis
+- **Authentication requirements strengthened** — minimum 12-character passwords, anti-phishing measures
 
-### PCI DSS v4.0 の要件概要
+### Overview of PCI DSS v4.0 Requirements
 
 ```
 +------------------------------------------------------------------+
-|                PCI DSS v4.0 の 12 要件                             |
+|                PCI DSS v4.0 12 Requirements                      |
 |------------------------------------------------------------------|
 |                                                                  |
-|  [ネットワークの構築と維持]                                        |
-|  要件 1: ネットワークセキュリティ統制の導入・維持                    |
-|      → FW/ACL でカードデータ環境 (CDE) を分離                     |
-|      → ネットワークセグメンテーションの実施                         |
-|  要件 2: すべてのシステムコンポーネントに安全な設定を適用             |
-|      → デフォルトパスワードの変更                                  |
-|      → 不要なサービス・機能の無効化                                |
+|  [Build and Maintain a Secure Network]                           |
+|  Req 1: Install and maintain network security controls           |
+|      → Separate CDE (Cardholder Data Environment) with FW/ACL   |
+|      → Implement network segmentation                            |
+|  Req 2: Apply secure configurations to all system components     |
+|      → Change default passwords                                  |
+|      → Disable unnecessary services and features                 |
 |                                                                  |
-|  [アカウントデータの保護]                                          |
-|  要件 3: 保存されたアカウントデータの保護                           |
-|      → PAN の暗号化、マスキング、トランケーション                   |
-|      → CVV/PIN の保存禁止                                        |
-|  要件 4: オープンな公共ネットワーク経由の送信データの暗号化           |
-|      → TLS 1.2 以上の使用                                        |
-|      → 安全でないプロトコル (SSL, 初期 TLS) の排除                 |
+|  [Protect Account Data]                                          |
+|  Req 3: Protect stored account data                              |
+|      → Encrypt, mask, or truncate PAN                            |
+|      → Prohibit storage of CVV/PIN                               |
+|  Req 4: Protect cardholder data with strong cryptography during  |
+|         transmission over open, public networks                  |
+|      → Use TLS 1.2 or higher                                     |
+|      → Eliminate insecure protocols (SSL, early TLS)             |
 |                                                                  |
-|  [脆弱性管理プログラムの維持]                                      |
-|  要件 5: すべてのシステムとネットワークをマルウェアから保護           |
-|      → アンチマルウェアソリューションの導入                         |
-|  要件 6: 安全なシステムとソフトウェアの開発・維持                    |
-|      → セキュアな開発ライフサイクル (SDLC)                         |
-|      → 公開アプリのWAF保護(6.4.2)、スクリプト管理(6.4.3)          |
+|  [Maintain a Vulnerability Management Program]                   |
+|  Req 5: Protect all systems and networks from malicious software |
+|      → Deploy anti-malware solutions                             |
+|  Req 6: Develop and maintain secure systems and software         |
+|      → Secure Software Development Lifecycle (SDLC)             |
+|      → WAF protection for public apps (6.4.2), script mgmt(6.4.3)|
 |                                                                  |
-|  [強力なアクセス制御の実施]                                        |
-|  要件 7: アカウントデータへのアクセスを業務上の必要性に制限           |
-|      → 最小権限の原則 (Need to Know)                              |
-|  要件 8: ユーザの識別と認証                                        |
-|      → MFA の導入拡大 (v4.0 で要件強化)                           |
-|      → パスワード最低 12 文字 (v4.0 新要件)                       |
-|  要件 9: カードデータへの物理アクセスの制限                         |
-|      → 物理セキュリティ統制 (入退室管理)                           |
+|  [Implement Strong Access Control Measures]                      |
+|  Req 7: Restrict access to system components and cardholder data |
+|         by business need to know                                 |
+|      → Principle of least privilege (Need to Know)               |
+|  Req 8: Identify users and authenticate access to system         |
+|         components                                               |
+|      → Expanded MFA requirements (strengthened in v4.0)          |
+|      → Minimum 12-character passwords (new in v4.0)              |
+|  Req 9: Restrict physical access to cardholder data              |
+|      → Physical security controls (physical access management)   |
 |                                                                  |
-|  [定期的な監視とテスト]                                            |
-|  要件 10: すべてのシステムコンポーネントとカードデータへの              |
-|           アクセスのログ記録と監視                                  |
-|      → 監査ログの生成・保護・レビュー                              |
-|      → NTP によるタイムシンク                                     |
-|  要件 11: システムとネットワークのセキュリティを定期的にテスト         |
-|      → ASV スキャン (四半期)、ペネトレーションテスト (年次)          |
-|      → 内部脆弱性スキャン (四半期)                                 |
+|  [Regularly Monitor and Test Networks]                           |
+|  Req 10: Log and monitor all access to system components and     |
+|          cardholder data                                         |
+|      → Generate, protect, and review audit logs                  |
+|      → Time synchronization via NTP                              |
+|  Req 11: Test security of systems and networks regularly         |
+|      → ASV scans (quarterly), penetration testing (annual)       |
+|      → Internal vulnerability scans (quarterly)                  |
 |                                                                  |
-|  [情報セキュリティポリシーの維持]                                    |
-|  要件 12: 組織のポリシーとプログラムで情報セキュリティをサポート       |
-|      → セキュリティポリシーの策定・維持・周知                       |
-|      → セキュリティ意識向上プログラム                               |
-|      → インシデント対応計画                                       |
+|  [Maintain an Information Security Policy]                       |
+|  Req 12: Support information security with organizational        |
+|          policies and programs                                   |
+|      → Establish, maintain, and communicate security policies    |
+|      → Security awareness program                                |
+|      → Incident response plan                                    |
 +------------------------------------------------------------------+
 ```
 
-### PCI DSS 対応の実装例
+### PCI DSS Implementation Example
 
 ```python
 # 要件 3: カードデータの保護
@@ -921,108 +932,109 @@ class CardDataProtection:
         return checksum % 10 == 0
 ```
 
-### カード情報の分類と保護要件
+### Card Data Classification and Protection Requirements
 
 ```
 +------------------------------------------------------------------+
-|            カードデータの分類と保護要件 (v4.0)                       |
+|            Card Data Classification and Protection (v4.0)        |
 |------------------------------------------------------------------|
 |                                                                  |
-|  データ種別        | 保存  | 暗号化 | マスク | 例                  |
+|  Data Type         | Store | Encrypt | Mask  | Example          |
 |  ----------------------------------------------------------------|
-|  PAN (カード番号)   | 可    | 必須   | 必須   | 4111...1111        |
-|  カード会員名       | 可    | 推奨   | --    | TARO YAMADA        |
-|  有効期限           | 可    | 推奨   | --    | 12/26              |
-|  サービスコード     | 可    | 推奨   | --    | 201                |
-|  CVV/CVC           | 不可  | --    | --    | 123                |
-|  PIN / PIN Block   | 不可  | --    | --    | ****               |
-|  磁気ストライプ     | 不可  | --    | --    | --                 |
-|  EMV チップデータ   | 不可  | --    | --    | --                 |
+|  PAN (card number) | Yes   | Required| Required| 4111...1111    |
+|  Cardholder name   | Yes   | Recommended| --  | TARO YAMADA    |
+|  Expiration date   | Yes   | Recommended| --  | 12/26          |
+|  Service code      | Yes   | Recommended| --  | 201            |
+|  CVV/CVC           | No    | --      | --    | 123            |
+|  PIN / PIN Block   | No    | --      | --    | ****           |
+|  Magnetic stripe   | No    | --      | --    | --             |
+|  EMV chip data     | No    | --      | --    | --             |
 |                                                                  |
-|  ※「不可」= 認可完了後に一切保存してはならない                      |
-|  ※ PAN マスキング: 最初の6桁と最後の4桁以外を表示                   |
-|    (BIN + 末尾4桁の表示はビジネス上の必要性が必要)                   |
+|  * "No" = must not be stored at all after authorization          |
+|  * PAN masking: display only first 6 and last 4 digits           |
+|    (displaying BIN + last 4 digits requires a business need)     |
 +------------------------------------------------------------------+
 ```
 
-### PCI DSS スコープの縮小戦略
+### PCI DSS Scope Reduction Strategies
 
 ```
 +------------------------------------------------------------------+
-|          PCI DSS スコープ縮小の 4 つの戦略                           |
+|          4 Strategies for Reducing PCI DSS Scope                 |
 |------------------------------------------------------------------|
 |                                                                  |
-|  戦略 1: トークナイゼーション                                      |
-|  +-- Stripe / Braintree 等の PSP を使用                           |
-|  +-- 自社システムにカードデータが一切触れない構成                    |
-|  +-- SAQ-A (最も簡易) で済む可能性                                 |
-|  +-- 推奨度: ★★★★★ (最も効果的)                                   |
+|  Strategy 1: Tokenization                                        |
+|  +-- Use a PSP such as Stripe / Braintree                        |
+|  +-- Configuration where card data never touches your systems    |
+|  +-- May qualify for SAQ-A (simplest form)                       |
+|  +-- Recommended: ★★★★★ (most effective)                         |
 |                                                                  |
-|  戦略 2: ネットワークセグメンテーション                             |
-|  +-- CDE (カードデータ環境) を分離された VLAN に隔離                |
-|  +-- CDE 以外のシステムはスコープ外                                |
-|  +-- セグメンテーションテスト (年2回) が必要                        |
-|  +-- 推奨度: ★★★★☆                                               |
+|  Strategy 2: Network Segmentation                                |
+|  +-- Isolate CDE in a separate VLAN                              |
+|  +-- Systems outside the CDE are out of scope                    |
+|  +-- Segmentation testing (twice yearly) required                |
+|  +-- Recommended: ★★★★☆                                          |
 |                                                                  |
-|  戦略 3: P2PE (Point-to-Point Encryption)                        |
-|  +-- PCI SSC 認定の P2PE ソリューションを使用                      |
-|  +-- 端末からPSPまでエンドツーエンドで暗号化                        |
-|  +-- 対面決済向け                                                 |
-|  +-- 推奨度: ★★★☆☆ (対面決済がある場合)                           |
+|  Strategy 3: P2PE (Point-to-Point Encryption)                    |
+|  +-- Use a PCI SSC-certified P2PE solution                       |
+|  +-- End-to-end encryption from terminal to PSP                  |
+|  +-- For in-person payments                                      |
+|  +-- Recommended: ★★★☆☆ (for in-person payments)                |
 |                                                                  |
-|  戦略 4: クラウドプロバイダの責任共有                               |
-|  +-- AWS / GCP / Azure の PCI DSS 準拠環境を活用                   |
-|  +-- 物理セキュリティ等はクラウドプロバイダの責任                    |
-|  +-- 自社の責任範囲を明確化 (Shared Responsibility Matrix)         |
-|  +-- 推奨度: ★★★★☆                                               |
+|  Strategy 4: Cloud Provider Shared Responsibility                |
+|  +-- Leverage PCI DSS-compliant environments on AWS/GCP/Azure    |
+|  +-- Physical security etc. is the cloud provider's responsibility|
+|  +-- Clarify your own responsibility scope (Shared Responsibility |
+|      Matrix)                                                     |
+|  +-- Recommended: ★★★★☆                                          |
 +------------------------------------------------------------------+
 ```
 
-### SAQ (自己問診) の種類
+### SAQ (Self-Assessment Questionnaire) Types
 
-| SAQ 種別 | 対象 | 要件数 | 主な条件 |
+| SAQ Type | Target | Requirements | Main Conditions |
 |---------|------|--------|---------|
-| SAQ-A | カードデータを一切扱わない e-commerce | ~22 | 決済ページが完全に PSP 側 |
-| SAQ-A-EP | リダイレクト型だが自社で一部制御 | ~191 | 決済フォームの JavaScript を制御 |
-| SAQ-B | インプリンタまたはダイヤルアップ端末 | ~41 | 電子的にカードデータを保存しない |
-| SAQ-B-IP | IP 接続の PTS 端末 | ~82 | スタンドアロン IP 端末のみ |
-| SAQ-C | POS システム (インターネット接続) | ~160 | PA-DSS 認定アプリを使用 |
-| SAQ-C-VT | 仮想端末 (手動入力) | ~79 | ウェブベースの仮想端末のみ |
-| SAQ-D | 上記に該当しないすべて | ~329 | フル要件準拠が必要 |
+| SAQ-A | E-commerce that does not handle card data at all | ~22 | Payment page fully hosted by PSP |
+| SAQ-A-EP | Redirect-based but partial self-control | ~191 | Controls JavaScript on payment form |
+| SAQ-B | Imprinter or dial-up terminal | ~41 | Does not store card data electronically |
+| SAQ-B-IP | IP-connected PTS terminals | ~82 | Standalone IP terminals only |
+| SAQ-C | POS system (internet-connected) | ~160 | Uses PA-DSS certified application |
+| SAQ-C-VT | Virtual terminal (manual input) | ~79 | Web-based virtual terminal only |
+| SAQ-D | All others not covered above | ~329 | Full compliance required |
 
 ---
 
-## 5. HIPAA (医療情報保護)
+## 5. HIPAA (Healthcare Information Protection)
 
-### HIPAA の基本構造
+### Basic Structure of HIPAA
 
-HIPAA (Health Insurance Portability and Accountability Act) は米国の医療情報保護法であり、PHI (Protected Health Information) の保護を義務づけている。
+HIPAA (Health Insurance Portability and Accountability Act) is the US healthcare information protection law, mandating the protection of PHI (Protected Health Information).
 
 ```
 +------------------------------------------------------------------+
-|            HIPAA の主要ルール                                      |
+|            Key HIPAA Rules                                       |
 |------------------------------------------------------------------|
 |                                                                  |
-|  [Privacy Rule (プライバシールール)]                               |
-|  +-- PHI の使用・開示に関する制限                                  |
-|  +-- 患者の権利 (アクセス権、修正権)                               |
-|  +-- NPP (Notice of Privacy Practices) の提供義務                |
-|  +-- Minimum Necessary Standard (必要最小限の原則)                |
+|  [Privacy Rule]                                                  |
+|  +-- Restrictions on use and disclosure of PHI                   |
+|  +-- Patient rights (right of access, right to amend)            |
+|  +-- Obligation to provide NPP (Notice of Privacy Practices)     |
+|  +-- Minimum Necessary Standard                                  |
 |                                                                  |
-|  [Security Rule (セキュリティルール)]                              |
-|  +-- ePHI (電子的 PHI) の保護に関する技術的要件                     |
-|  +-- 管理的保護措置 (Administrative Safeguards)                   |
-|  +-- 物理的保護措置 (Physical Safeguards)                         |
-|  +-- 技術的保護措置 (Technical Safeguards)                        |
+|  [Security Rule]                                                 |
+|  +-- Technical requirements for protecting ePHI                  |
+|  +-- Administrative Safeguards                                   |
+|  +-- Physical Safeguards                                         |
+|  +-- Technical Safeguards                                        |
 |                                                                  |
-|  [Breach Notification Rule (侵害通知ルール)]                      |
-|  +-- 500 人以上に影響: 60 日以内に HHS と個人に通知                 |
-|  +-- 500 人未満: 年次で HHS に報告                                 |
-|  +-- メディアへの通知 (500 人以上の場合)                            |
+|  [Breach Notification Rule]                                      |
+|  +-- Affecting 500+: Notify HHS and individuals within 60 days   |
+|  +-- Fewer than 500: Report to HHS annually                      |
+|  +-- Media notification (for 500+ cases)                         |
 +------------------------------------------------------------------+
 ```
 
-### HIPAA Security Rule の技術的保護措置
+### HIPAA Security Rule Technical Safeguards
 
 ```python
 # HIPAA Security Rule 準拠の ePHI 保護実装例
@@ -1083,82 +1095,92 @@ class HIPAACompliance:
 
 ---
 
-## 6. 日本の個人情報保護法
+## 6. Japan's Act on the Protection of Personal Information
 
-### 2022 年改正のポイント
+### Key Points of the 2022 Amendment
 
 ```
 +------------------------------------------------------------------+
-|          個人情報保護法 2022 年改正の主なポイント                     |
+|          Key Points of the 2022 Amendment to the                 |
+|          Act on the Protection of Personal Information           |
 |------------------------------------------------------------------|
 |                                                                  |
-|  [漏洩報告の義務化]                                               |
-|  +-- 個人情報保護委員会への報告が義務に (速報: 概ね3-5日以内)       |
-|  +-- 本人への通知も義務に                                         |
-|  +-- 対象: 要配慮個人情報、財産的被害のおそれ、                     |
-|      不正目的のおそれ、1,000件超の漏洩                             |
+|  [Mandatory Breach Reporting]                                    |
+|  +-- Reporting to the Personal Information Protection Commission |
+|      is now mandatory (initial report: generally within 3-5 days)|
+|  +-- Notification to individuals is also now mandatory           |
+|  +-- Scope: Sensitive personal information, risk of financial    |
+|      harm, risk of malicious use, leaks of over 1,000 records   |
 |                                                                  |
-|  [個人の権利拡大]                                                 |
-|  +-- 利用停止・消去請求権の拡大                                   |
-|  +-- 開示請求のデジタル化 (電磁的記録での開示)                     |
-|  +-- 第三者提供記録の開示請求                                     |
+|  [Expanded Individual Rights]                                    |
+|  +-- Expanded right to request suspension of use and deletion    |
+|  +-- Digitization of disclosure requests (disclosure in          |
+|      electronic records)                                         |
+|  +-- Right to request disclosure of third-party provision records|
 |                                                                  |
-|  [罰則の強化]                                                    |
-|  +-- 法人に対する罰金: 最大 1 億円 (従来 50 万円)                  |
-|  +-- データベース等不正提供罪の法定刑引き上げ                       |
+|  [Strengthened Penalties]                                        |
+|  +-- Corporate fines: up to JPY 100 million                      |
+|      (previously JPY 500,000)                                    |
+|  +-- Increased statutory penalties for unauthorized provision    |
+|      of personal information databases                           |
 |                                                                  |
-|  [新たな類型]                                                    |
-|  +-- 仮名加工情報の新設 (内部分析用の緩和措置)                     |
-|  +-- 個人関連情報の第三者提供規制                                  |
-|  +-- Cookie 等を他の情報と組み合わせる場合の同意                   |
+|  [New Categories]                                                |
+|  +-- New category: Pseudonymously processed information          |
+|      (relaxed measures for internal analysis)                    |
+|  +-- Regulation of third-party provision of personal-related     |
+|      information                                                 |
+|  +-- Consent required when combining cookies etc. with other     |
+|      information                                                 |
 +------------------------------------------------------------------+
 ```
 
 ---
 
-## 7. コンプライアンス自動化
+## 7. Compliance Automation
 
-### 継続的コンプライアンスの仕組み
+### Mechanism for Continuous Compliance
 
 ```
 +------------------------------------------------------------------+
-|          継続的コンプライアンス (Continuous Compliance)              |
+|          Continuous Compliance                                    |
 |------------------------------------------------------------------|
 |                                                                  |
-|  [自動チェック (Infrastructure as Code)]                          |
-|  +-- AWS Config Rules → リソース設定の継続監視                     |
-|  |   → S3 バケットの暗号化、パブリックアクセスの禁止               |
-|  +-- Prowler → CIS/PCI DSS ベンチマークスキャン                   |
-|  +-- ScoutSuite → マルチクラウドセキュリティ監査                   |
-|  +-- tfsec / checkov → Terraform 設定のセキュリティスキャン        |
-|  +-- OPA (Open Policy Agent) → ポリシーのコード化                 |
+|  [Automated Checks (Infrastructure as Code)]                     |
+|  +-- AWS Config Rules → Continuous monitoring of resource config |
+|  |   → S3 bucket encryption, prohibition of public access        |
+|  +-- Prowler → CIS/PCI DSS benchmark scanning                    |
+|  +-- ScoutSuite → Multi-cloud security audit                     |
+|  +-- tfsec / checkov → Security scanning of Terraform configs    |
+|  +-- OPA (Open Policy Agent) → Codifying policies                |
 |                                                                  |
-|  [証跡の自動収集]                                                 |
-|  +-- CloudTrail → API 操作ログ (全リージョン有効化)                |
-|  +-- VPC Flow Logs → ネットワーク通信ログ                         |
-|  +-- GitHub Audit Log → コード変更・レビューの証跡                  |
-|  +-- Okta System Log → 認証・アクセスの証跡                       |
-|  +-- PagerDuty → インシデント対応の記録                            |
+|  [Automated Evidence Collection]                                 |
+|  +-- CloudTrail → API operation logs (enabled in all regions)    |
+|  +-- VPC Flow Logs → Network traffic logs                        |
+|  +-- GitHub Audit Log → Evidence of code changes and reviews     |
+|  +-- Okta System Log → Evidence of authentication and access     |
+|  +-- PagerDuty → Records of incident response                    |
 |                                                                  |
-|  [レポートの自動生成]                                              |
-|  +-- Security Hub → コンプライアンススコアの集約                    |
-|  +-- Drata/Vanta/Secureframe → SOC 2 証跡の自動収集              |
-|  +-- AWS Audit Manager → 監査フレームワークの自動評価              |
+|  [Automated Report Generation]                                   |
+|  +-- Security Hub → Aggregation of compliance scores             |
+|  +-- Drata/Vanta/Secureframe → Automated SOC 2 evidence          |
+|      collection                                                  |
+|  +-- AWS Audit Manager → Automated evaluation of audit           |
+|      frameworks                                                  |
 +------------------------------------------------------------------+
 ```
 
-### GRC プラットフォームの比較
+### GRC Platform Comparison
 
-| 項目 | Drata | Vanta | Secureframe | 手動運用 |
+| Item | Drata | Vanta | Secureframe | Manual operation |
 |------|-------|-------|-------------|---------|
-| 対応フレームワーク | SOC 2, ISO 27001, GDPR, HIPAA, PCI DSS | SOC 2, ISO 27001, HIPAA, GDPR | SOC 2, ISO 27001, HIPAA, PCI DSS | 全て |
-| 証跡自動収集 | 75+ 連携 | 50+ 連携 | 40+ 連携 | なし |
-| 費用 (年間) | $10K-$50K | $10K-$40K | $8K-$30K | 人件費のみ |
-| セットアップ期間 | 1-2 週間 | 1-2 週間 | 1-2 週間 | N/A |
-| 監査人連携 | あり | あり | あり | 個別対応 |
-| ポリシーテンプレート | あり | あり | あり | 自作 |
+| Supported frameworks | SOC 2, ISO 27001, GDPR, HIPAA, PCI DSS | SOC 2, ISO 27001, HIPAA, GDPR | SOC 2, ISO 27001, HIPAA, PCI DSS | All |
+| Automated evidence collection | 75+ integrations | 50+ integrations | 40+ integrations | None |
+| Cost (annual) | $10K-$50K | $10K-$40K | $8K-$30K | Labor only |
+| Setup period | 1-2 weeks | 1-2 weeks | 1-2 weeks | N/A |
+| Auditor integration | Yes | Yes | Yes | Case-by-case |
+| Policy templates | Yes | Yes | Yes | Self-created |
 
-### 自動化スクリプト
+### Automation Scripts
 
 ```bash
 # Prowler で PCI DSS チェックを実行
@@ -1274,7 +1296,7 @@ def generate_compliance_report():
     return report
 ```
 
-### Terraform による Policy as Code
+### Terraform via Policy as Code
 
 ```hcl
 # OPA (Open Policy Agent) を使った PCI DSS ポリシーの例
@@ -1319,42 +1341,42 @@ deny[msg] {
 
 ---
 
-## 8. 監査対応の実践
+## 8. Audit Response in Practice
 
-### 監査準備チェックリスト
+### Audit Preparation Checklist
 
 ```
 +------------------------------------------------------------------+
-|          監査準備チェックリスト (SOC 2 / PCI DSS 共通)               |
+|          Audit Preparation Checklist (SOC 2 / PCI DSS Common)    |
 |------------------------------------------------------------------|
 |                                                                  |
-|  [ドキュメント]                                                   |
-|  [ ] 情報セキュリティポリシー (年次更新済み)                        |
-|  [ ] アクセス管理手順書                                           |
-|  [ ] 変更管理手順書                                               |
-|  [ ] インシデント対応手順書                                        |
-|  [ ] 事業継続計画 (BCP) / 災害復旧計画 (DRP)                       |
-|  [ ] リスク評価報告書 (年次)                                       |
-|  [ ] ベンダー管理ポリシーと評価記録                                 |
+|  [Documents]                                                     |
+|  [ ] Information Security Policy (annually updated)             |
+|  [ ] Access Management Procedures                                |
+|  [ ] Change Management Procedures                                |
+|  [ ] Incident Response Procedures                                |
+|  [ ] Business Continuity Plan (BCP) / Disaster Recovery Plan     |
+|  [ ] Risk Assessment Report (annual)                             |
+|  [ ] Vendor Management Policy and Evaluation Records             |
 |                                                                  |
-|  [技術的証跡]                                                     |
-|  [ ] アクセスレビュー記録 (四半期)                                  |
-|  [ ] 脆弱性スキャン結果と改善記録                                  |
-|  [ ] ペネトレーションテスト報告書 (年次)                            |
-|  [ ] パッチ適用記録                                               |
-|  [ ] バックアップ・リストアテスト記録                               |
-|  [ ] 変更管理チケット (PR ログ)                                    |
-|  [ ] インシデント対応記録 (ポストモーテム)                          |
+|  [Technical Evidence]                                            |
+|  [ ] Access Review Records (quarterly)                           |
+|  [ ] Vulnerability Scan Results and Remediation Records          |
+|  [ ] Penetration Test Reports (annual)                           |
+|  [ ] Patch Application Records                                   |
+|  [ ] Backup / Restore Test Records                               |
+|  [ ] Change Management Tickets (PR logs)                         |
+|  [ ] Incident Response Records (post-mortems)                    |
 |                                                                  |
-|  [人的証跡]                                                       |
-|  [ ] セキュリティ研修の受講記録                                    |
-|  [ ] 秘密保持契約 (NDA) の締結記録                                 |
-|  [ ] バックグラウンドチェック記録                                   |
-|  [ ] 退職者のアクセス権削除記録                                    |
+|  [Personnel Evidence]                                            |
+|  [ ] Security Training Completion Records                        |
+|  [ ] Non-Disclosure Agreement (NDA) Signing Records              |
+|  [ ] Background Check Records                                    |
+|  [ ] Records of Access Revocation for Departing Employees        |
 +------------------------------------------------------------------+
 ```
 
-### 監査人への対応の心構え
+### Mindset for Responding to Auditors
 
 ```python
 # 監査対応のベストプラクティス (疑似コードで表現)
@@ -1400,259 +1422,260 @@ class AuditResponseStrategy:
 
 ---
 
-## 9. エッジケース
+## 9. Edge Cases
 
-### エッジケース 1: GDPR と他法規制の矛盾
+### Edge Case 1: Conflict Between GDPR and Other Regulations
 
-GDPR の削除権と税法上の帳簿保存義務が矛盾する場合がある。たとえば、ドイツの AO (税法) は商業文書の 10 年保存を義務づけている。この場合、GDPR 第 17 条 3 項 (b) に基づき「法的義務の履行」として保持が認められるが、処理の制限 (第 18 条) を適用し、保持目的以外の処理を制限する必要がある。
+There are cases where the GDPR right to erasure conflicts with the obligation to retain accounting records under tax law. For example, Germany's AO (tax law) requires retention of commercial documents for 10 years. In this case, retention is permitted based on Article 17(3)(b) of GDPR as "compliance with a legal obligation," but it is necessary to apply restriction of processing (Article 18) to limit processing to purposes other than retention.
 
-### エッジケース 2: バックアップからのデータ削除
+### Edge Case 2: Deletion of Data from Backups
 
-GDPR の削除権に基づく削除要求を受けた場合、バックアップに含まれるデータの即時削除は技術的に困難な場合がある。この場合、以下のアプローチが許容される:
-- バックアップの次回ローテーション時に削除を予約する
-- リストア時に削除対象データを再削除する仕組み (暗号消去) を導入する
-- 暗号化鍵の破棄 (Crypto Shredding) により事実上のデータ削除を実現する
+When a deletion request is received under the GDPR right to erasure, immediate deletion of data contained in backups may be technically difficult. In this case, the following approaches are acceptable:
+- Schedule deletion at the next backup rotation
+- Introduce a mechanism to re-delete target data upon restoration (Crypto Erasure)
+- Achieve de facto data deletion by destroying the encryption key (Crypto Shredding)
 
-### エッジケース 3: マイクロサービス環境でのデータ主体権利の行使
+### Edge Case 3: Exercising Data Subject Rights in a Microservices Environment
 
-マイクロサービスアーキテクチャでは、データが複数のサービスに分散している。削除権やアクセス権の行使時に、すべてのサービスから確実にデータを取得・削除するためには、以下の設計が必要:
+In a microservices architecture, data is distributed across multiple services. The following design is necessary to reliably retrieve and delete data from all services when exercising the right of erasure or access:
 
 ```
 +------------------------------------------------------------------+
-|          マイクロサービスでの GDPR 対応アーキテクチャ                 |
+|          GDPR-compliant Architecture for Microservices           |
 |------------------------------------------------------------------|
 |                                                                  |
 |  [GDPR Orchestrator Service]                                     |
-|  +-- データ主体の権利行使リクエストを一元管理                       |
-|  +-- 各サービスに対して fan-out で要求を配信                       |
-|  +-- Saga パターンで全サービスの完了を確認                          |
+|  +-- Centrally manages data subject rights requests              |
+|  +-- Distributes requests to each service via fan-out            |
+|  +-- Confirms completion from all services using Saga pattern    |
 |                                                                  |
 |  User API  ---+                                                  |
-|  Order API ---+--> GDPR Orchestrator --> 結果の集約 & 応答        |
+|  Order API ---+--> GDPR Orchestrator --> Aggregate & respond     |
 |  Analytics ---+     |                                            |
-|  Payment API--+     +-- 全サービスの応答を追跡                     |
-|                     +-- タイムアウト・失敗時のリトライ              |
-|                     +-- 監査ログの記録                             |
+|  Payment API--+     +-- Track responses from all services        |
+|                     +-- Retry on timeout/failure                 |
+|                     +-- Record audit log                         |
 +------------------------------------------------------------------+
 ```
 
-### エッジケース 4: PCI DSS のカスタマイズアプローチ
+### Edge Case 4: Customized Approach in PCI DSS
 
-PCI DSS v4.0 で導入されたカスタマイズアプローチでは、定義されたアプローチ (従来の方法) の代わりに、要件の「目的」を満たす代替手法を提案できる。ただし、ターゲット型リスク分析の実施と QSA による検証が必要であり、小規模組織には負担が大きい場合がある。
-
----
-
-## 10. アンチパターン
-
-### アンチパターン 1: 年次監査だけのコンプライアンス
-
-```
-NG:
-  → 監査の直前にだけ対策を実施 (「監査シーズン」の発生)
-  → 年間の大半は統制が機能していない
-  → 監査のためだけのドキュメント作成 (形骸化)
-  → 監査直前の「証跡作り」は監査人に見抜かれる
-
-  根本原因:
-  → コンプライアンスを「コスト」として捉えている
-  → 経営層のコミットメント不足
-  → 日常業務との統合ができていない
-
-OK:
-  → 継続的なコンプライアンス監視を自動化
-  → AWS Config / Security Hub で日次チェック
-  → 証跡を自動収集し、監査時の負荷を軽減
-  → コンプライアンスを開発プロセスに組み込む (Compliance as Code)
-  → GRC プラットフォーム (Drata/Vanta) で常時可視化
-```
-
-### アンチパターン 2: チェックリスト型コンプライアンス
-
-```
-NG:
-  → 要件を形式的に満たすだけ (letter of the law)
-  → 例: 「暗号化必須」→ MD5 ハッシュで「暗号化対応済み」
-  → 例: 「ログ取得」→ ログを取るが誰も分析しない
-  → 例: 「パスワードポリシー」→ 90日ごとの変更を強制
-       (NIST SP 800-63B では定期変更は推奨されない)
-
-  根本原因:
-  → 要件の「意図」を理解していない
-  → セキュリティの専門知識の不足
-  → 形式的な達成を優先する組織文化
-
-OK:
-  → 要件の意図を理解し実効性のある対策を実施 (spirit of the law)
-  → 暗号化 → AES-256-GCM + AWS KMS 管理鍵
-  → ログ → SIEM 連携 + 異常検知ルール + 定期レビュー
-  → 認証 → パスワードレス認証 (FIDO2) への移行
-  → 定期的なペネトレーションテストで実効性を検証
-```
-
-### アンチパターン 3: 全社一律のコンプライアンス適用
-
-```
-NG:
-  → PCI DSS の要件を全システムに適用 (過剰な統制)
-  → コスト増大、開発速度の低下
-  → 「セキュリティは面倒」という認識の拡大
-
-OK:
-  → リスクベースでスコープを適切に定義
-  → PCI DSS は CDE のみ、他システムは CIS Controls ベース
-  → セグメンテーションによるスコープ最小化
-  → 環境ごとに適切なレベルの統制を適用
-```
+The customized approach introduced in PCI DSS v4.0 allows organizations to propose alternative methods that meet the "objective" of a requirement instead of the defined approach (the traditional method). However, a targeted risk analysis must be conducted and verification by a QSA is required, which may be burdensome for small organizations.
 
 ---
 
-## 11. 演習
+## 10. Anti-Patterns
 
-### 演習 1: GDPR データ主体アクセス要求 (DSAR) の処理
+### Anti-Pattern 1: Compliance Only at Annual Audits
 
-**課題**: あるユーザから GDPR 第 15 条に基づくアクセス要求が届いた。以下の要件を満たすシステムを設計せよ。
+```
+BAD:
+  → Implementing measures only right before an audit ("audit season")
+  → Controls are not functioning for most of the year
+  → Creating documentation only for the audit (becoming a formality)
+  → "Evidence creation" just before the audit is caught by auditors
 
-1. 複数のデータベース (PostgreSQL, Redis, S3) に分散したユーザデータを網羅的に収集する
-2. 第三者に共有したデータのリストを生成する
-3. 応答期限 (30 日) の管理を行う
-4. データをポータブルフォーマット (JSON) で提供する
+  Root causes:
+  → Treating compliance as a "cost"
+  → Lack of commitment from management
+  → Inability to integrate with daily operations
 
-**ヒント**:
-- データインベントリ (ROPA — Records of Processing Activities) を事前に整備しておくことが重要
-- 各サービスに「GDPR エンドポイント」を実装し、Orchestrator パターンで統合する
+GOOD:
+  → Automate continuous compliance monitoring
+  → Daily checks with AWS Config / Security Hub
+  → Automatically collect evidence to reduce audit burden
+  → Embed compliance into the development process (Compliance as Code)
+  → Constant visibility through GRC platforms (Drata/Vanta)
+```
 
-### 演習 2: SOC 2 Type II 証跡の自動収集
+### Anti-Pattern 2: Checklist-Based Compliance
 
-**課題**: 以下の SOC 2 統制に対する証跡を自動収集するスクリプトを作成せよ。
+```
+BAD:
+  → Meeting requirements only formally (letter of the law)
+  → Example: "Encryption required" → MD5 hash as "encryption implemented"
+  → Example: "Log collection" → Logs collected but never analyzed
+  → Example: "Password policy" → Force changes every 90 days
+       (NIST SP 800-63B does not recommend periodic changes)
 
-1. CC6.1: MFA 登録率が 100% であることを確認 (Okta API)
-2. CC7.2: 過去 30 日間の脆弱性スキャン結果サマリ
-3. CC8.1: すべての本番デプロイが PR レビューを経ていることを確認 (GitHub API)
+  Root causes:
+  → Not understanding the "intent" of requirements
+  → Lack of security expertise
+  → Organizational culture that prioritizes formal achievement
 
-**期待する出力**: 監査人に提出できるフォーマットの JSON/CSV レポート
+GOOD:
+  → Understand the intent of requirements and implement effective measures
+    (spirit of the law)
+  → Encryption → AES-256-GCM + AWS KMS managed keys
+  → Logging → SIEM integration + anomaly detection rules + periodic review
+  → Authentication → Migration to passwordless authentication (FIDO2)
+  → Verify effectiveness through regular penetration testing
+```
 
-### 演習 3: PCI DSS スコープ縮小の設計
+### Anti-Pattern 3: Uniform Compliance Applied Across the Entire Organization
 
-**課題**: 自社 EC サイトの PCI DSS スコープを最小化するアーキテクチャを設計せよ。
+```
+BAD:
+  → Applying PCI DSS requirements to all systems (excessive controls)
+  → Increased costs, slower development speed
+  → Spreading the perception that "security is a hassle"
 
-1. 現在の構成: 自社サーバでカード情報を受け取り、決済ゲートウェイに送信
-2. 目標: SAQ-A または SAQ-A-EP レベルまでスコープを縮小
-3. Stripe Elements / PaymentIntents を活用した設計を提案
+GOOD:
+  → Define scope appropriately based on risk
+  → PCI DSS only for CDE, other systems based on CIS Controls
+  → Minimize scope through segmentation
+  → Apply appropriate levels of controls for each environment
+```
 
-**ヒント**:
-- Stripe.js を使用し、カード情報が自社サーバを経由しない構成にする
-- iFrame ベースの決済フォームにより、自社ドメインからの JavaScript でカードデータにアクセスできない構成が理想
+---
 
-### 演習 4: コンプライアンスダッシュボードの構築
+## 11. Exercises
 
-**課題**: AWS Security Hub と CloudWatch を使用して、以下のコンプライアンスメトリクスをリアルタイムで表示するダッシュボードを設計せよ。
+### Exercise 1: Processing a GDPR Data Subject Access Request (DSAR)
 
-1. PCI DSS ベンチマークのスコア (% 準拠)
-2. CIS Benchmark のスコア
-3. 未修正の Critical/High 脆弱性の数
-4. Config Rules の準拠状況
+**Task**: A user has submitted an access request under Article 15 of GDPR. Design a system that meets the following requirements.
+
+1. Comprehensively collect user data distributed across multiple databases (PostgreSQL, Redis, S3)
+2. Generate a list of data shared with third parties
+3. Manage the response deadline (30 days)
+4. Provide data in a portable format (JSON)
+
+**Hints**:
+- It is important to maintain a data inventory (ROPA — Records of Processing Activities) in advance
+- Implement a "GDPR endpoint" in each service and integrate using the Orchestrator pattern
+
+### Exercise 2: Automated SOC 2 Type II Evidence Collection
+
+**Task**: Create a script to automatically collect evidence for the following SOC 2 controls.
+
+1. CC6.1: Verify that MFA enrollment rate is 100% (Okta API)
+2. CC7.2: Summary of vulnerability scan results for the past 30 days
+3. CC8.1: Verify that all production deployments have gone through PR review (GitHub API)
+
+**Expected output**: JSON/CSV report in a format that can be submitted to auditors
+
+### Exercise 3: Designing PCI DSS Scope Reduction
+
+**Task**: Design an architecture that minimizes the PCI DSS scope of your own e-commerce site.
+
+1. Current configuration: Receive card information on your own server and send to a payment gateway
+2. Goal: Reduce scope to SAQ-A or SAQ-A-EP level
+3. Propose a design leveraging Stripe Elements / PaymentIntents
+
+**Hints**:
+- Use Stripe.js so that card information does not pass through your own servers
+- An ideal configuration uses an iFrame-based payment form where JavaScript from your own domain cannot access card data
+
+### Exercise 4: Building a Compliance Dashboard
+
+**Task**: Design a dashboard using AWS Security Hub and CloudWatch to display the following compliance metrics in real time.
+
+1. PCI DSS benchmark score (% compliant)
+2. CIS Benchmark score
+3. Number of unresolved Critical/High vulnerabilities
+4. Config Rules compliance status
 
 ---
 
 ## 12. FAQ
 
-### Q1. SOC 2 と ISO 27001 のどちらを取得すべきか?
+### Q1. Should I obtain SOC 2 or ISO 27001?
 
-北米市場向けの SaaS では SOC 2 が標準的に求められる。グローバル市場では ISO 27001 の認知度が高い。両方を取得する企業も多い。まず顧客の要求を確認し、最も求められるものから取得するのが効率的である。統制の重複は 60-70% 程度あるため、一方を取得すればもう一方は比較的容易に取得できる。
+For SaaS targeting the North American market, SOC 2 is the standard requirement. ISO 27001 has higher recognition in global markets. Many organizations obtain both. Check your customers' requirements first and obtain whichever is most in demand. Since there is about 60-70% overlap in controls, obtaining one makes it relatively easier to obtain the other.
 
-実務的な判断基準:
-- **SOC 2 を優先**: 北米の B2B SaaS、スタートアップの初回取得
-- **ISO 27001 を優先**: グローバル展開、政府・公共機関との取引、欧州市場
-- **両方同時**: 効率的な取得が可能（統合監査アプローチ）
+Practical decision criteria:
+- **Prioritize SOC 2**: North American B2B SaaS, startups making their first certification
+- **Prioritize ISO 27001**: Global expansion, transactions with government/public institutions, European market
+- **Both simultaneously**: Efficient acquisition is possible (integrated audit approach)
 
-### Q2. GDPR は EU に顧客がいない場合も適用されるか?
+### Q2. Does GDPR apply even if I have no customers in the EU?
 
-EU 域内の個人にサービスを提供している場合、または EU 域内の個人の行動をモニタリングしている場合は、企業の所在地に関係なく GDPR が適用される（第 3 条の域外適用）。日本企業でも EU 向けサービスを提供していれば対象となる。
+If you are providing services to individuals in the EU, or monitoring the behavior of individuals in the EU, GDPR applies regardless of where the company is located (extraterritorial application under Article 3). Japanese companies that provide services to EU residents are also subject to GDPR.
 
-具体的な判断基準:
-- ウェブサイトに EU の言語 (英語以外) や通貨 (EUR) のオプションがある
-- EU からのアクセスを意図的にターゲティングしている
-- EU 居住者の行動データを収集している (Cookie, トラッキング)
+Specific criteria for determining applicability:
+- Website has non-English EU languages or EUR currency options
+- Intentionally targeting EU residents
+- Collecting behavioral data from EU residents (cookies, tracking)
 
-### Q3. PCI DSS の対象範囲 (スコープ) を縮小するには?
+### Q3. How can I reduce the PCI DSS scope?
 
-トークナイゼーションサービス (Stripe, AWS Payment Cryptography) を使い、自社システムでカード情報を扱わないようにする。これにより PCI DSS のスコープが大幅に縮小され、SAQ-A (最も簡易な自己問診) で済む場合がある。カード情報を自社で保持・処理する必要がないなら、まずスコープ縮小を検討すべきである。
+Use a tokenization service (Stripe, AWS Payment Cryptography) to avoid handling card information in your own systems. This significantly reduces PCI DSS scope, and may allow you to use SAQ-A (the simplest self-assessment questionnaire). If there is no need to retain or process card information in-house, scope reduction should be the first consideration.
 
-### Q4. コンプライアンス対応の費用はどの程度か?
+### Q4. How much does compliance cost?
 
-| 項目 | スタートアップ (50名) | 中堅企業 (200名) | 大企業 (1000名+) |
+| Item | Startup (50 employees) | Mid-size (200 employees) | Large enterprise (1000+ employees) |
 |------|-------------------|----------------|-----------------|
-| SOC 2 Type II (初回) | $50K-$100K | $100K-$200K | $200K-$500K |
-| ISO 27001 (初回) | $30K-$80K | $80K-$150K | $150K-$300K |
+| SOC 2 Type II (initial) | $50K-$100K | $100K-$200K | $200K-$500K |
+| ISO 27001 (initial) | $30K-$80K | $80K-$150K | $150K-$300K |
 | PCI DSS (SAQ-D) | $50K-$200K | $200K-$500K | $500K-$1M+ |
-| GRC プラットフォーム | $10K-$30K/年 | $30K-$60K/年 | $60K-$150K/年 |
+| GRC platform | $10K-$30K/year | $30K-$60K/year | $60K-$150K/year |
 
-※ 上記は監査費用 + ツール費用 + コンサルティング費用の概算。人件費は含まない。
+* The above are rough estimates of audit fees + tool fees + consulting fees. Labor costs are not included.
 
-### Q5. 複数のコンプライアンス要件を効率的に管理するには?
+### Q5. How can I efficiently manage multiple compliance requirements?
 
-統合コンプライアンスフレームワーク (Unified Compliance Framework) のアプローチが有効:
-1. 共通統制を特定し、一度の実装で複数の要件を満たす
-2. GRC プラットフォームで統制のマッピングを管理
-3. 証跡の収集を自動化し、複数の監査で同じ証跡を再利用
-4. 統合内部監査を実施し、監査疲れを防ぐ
+A Unified Compliance Framework approach is effective:
+1. Identify common controls and satisfy multiple requirements with a single implementation
+2. Manage control mapping with a GRC platform
+3. Automate evidence collection and reuse the same evidence across multiple audits
+4. Conduct integrated internal audits to prevent audit fatigue
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning about this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Rather than theory alone, understanding deepens by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and moving to applications. It is recommended to thoroughly understand the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in actual practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| GDPR | データ最小化、同意管理、72時間以内の侵害通知、国際データ移転 |
-| SOC 2 | Trust Service Criteria に基づく統制の設計と運用、Type II で信頼性証明 |
-| PCI DSS | カードデータの暗号化・マスク・アクセス制御、v4.0 で MFA 要件強化 |
-| HIPAA | ePHI の保護、Security Rule の管理的・物理的・技術的保護措置 |
-| 個人情報保護法 | 2022年改正で漏洩報告義務化、法人罰金最大1億円 |
-| 継続的コンプライアンス | AWS Config + Prowler + GRC プラットフォームで自動監視 |
-| 証跡自動収集 | CloudTrail + GitHub ログ + Okta ログで監査準備を効率化 |
-| スコープ縮小 | トークナイゼーション + セグメンテーションでスコープを最小化 |
-| Policy as Code | OPA / tfsec / checkov でコンプライアンスをコードとして管理 |
+| GDPR | Data minimization, consent management, breach notification within 72 hours, international data transfers |
+| SOC 2 | Design and operation of controls based on Trust Service Criteria, Type II for trust verification |
+| PCI DSS | Card data encryption, masking, and access control; MFA requirements strengthened in v4.0 |
+| HIPAA | Protection of ePHI, administrative, physical, and technical safeguards under the Security Rule |
+| Act on the Protection of Personal Information | 2022 amendment mandates breach reporting, corporate fines up to JPY 100 million |
+| Continuous compliance | Automated monitoring with AWS Config + Prowler + GRC platforms |
+| Automated evidence collection | Streamline audit preparation with CloudTrail + GitHub logs + Okta logs |
+| Scope reduction | Minimize scope with tokenization + segmentation |
+| Policy as Code | Manage compliance as code with OPA / tfsec / checkov |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [セキュリティ文化](./03-security-culture.md) — 組織全体でコンプライアンスを推進する文化
-- [インシデント対応](./00-incident-response.md) — GDPR のデータ侵害通知に対応するフロー
-- [監視/ログ](./01-monitoring-logging.md) — コンプライアンスに必要なログ収集と保存
-- 暗号化 — PCI DSS / GDPR で求められる暗号化技術
-- アクセス制御 — SOC 2 CC6 で求められるアクセス統制
+- [Security Culture](./03-security-culture.md) — Culture for promoting compliance across the organization
+- [Incident Response](./00-incident-response.md) — Flow for responding to GDPR data breach notifications
+- [Monitoring/Logging](./01-monitoring-logging.md) — Log collection and retention required for compliance
+- Encryption — Encryption technologies required by PCI DSS / GDPR
+- Access Control — Access controls required by SOC 2 CC6
 
 ---
 
-## 参考文献
+## References
 
-1. **GDPR 全文 (日本語訳)** — https://www.ppc.go.jp/enforcement/infoprovision/EU/
-2. **GDPR 全文 (英語原文)** — https://eur-lex.europa.eu/eli/reg/2016/679/oj
+1. **GDPR Full Text (Japanese translation)** — https://www.ppc.go.jp/enforcement/infoprovision/EU/
+2. **GDPR Full Text (English original)** — https://eur-lex.europa.eu/eli/reg/2016/679/oj
 3. **AICPA SOC 2 Trust Service Criteria** — https://www.aicpa.org/resources/landing/system-and-organization-controls-soc-suite-of-services
 4. **PCI DSS v4.0** — https://www.pcisecuritystandards.org/document_library/
 5. **PCI DSS v4.0 Summary of Changes** — https://www.pcisecuritystandards.org/document_library/
 6. **NIST Cybersecurity Framework v2.0** — https://www.nist.gov/cyberframework
 7. **NIST SP 800-53 Rev.5** — https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
 8. **HIPAA Security Rule** — https://www.hhs.gov/hipaa/for-professionals/security/index.html
-9. **個人情報保護法 (2022 年改正)** — https://www.ppc.go.jp/personalinfo/legal/
-10. **Prowler (AWS セキュリティ監査ツール)** — https://github.com/prowler-cloud/prowler
+9. **Act on the Protection of Personal Information (2022 Amendment)** — https://www.ppc.go.jp/personalinfo/legal/
+10. **Prowler (AWS Security Audit Tool)** — https://github.com/prowler-cloud/prowler
 11. **OWASP Top 10** — https://owasp.org/www-project-top-ten/
 12. **CIS Controls v8** — https://www.cisecurity.org/controls
