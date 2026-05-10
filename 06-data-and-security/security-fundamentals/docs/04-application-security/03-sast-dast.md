@@ -1,184 +1,186 @@
 # SAST/DAST
 
-> 静的解析 (SAST) と動的解析 (DAST) の特性を理解し、SonarQube や OWASP ZAP を活用して CI/CD パイプラインにセキュリティテストを組み込むガイド
+> A guide to understanding the characteristics of static analysis (SAST) and dynamic analysis (DAST), and integrating security testing into CI/CD pipelines using SonarQube and OWASP ZAP
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **SAST の原理と実践** — ソースコードの静的解析による脆弱性の早期発見
-2. **DAST の原理と実践** — 実行中アプリケーションに対する動的なセキュリティテスト
-3. **CI/CD 統合** — セキュリティテストを開発フローに自然に組み込む方法
-4. **IAST とハイブリッド手法** — SAST と DAST を補完する次世代アプローチ
-5. **シークレットスキャン** — ソースコードに埋め込まれた秘密情報の検出
-6. **運用ベストプラクティス** — トリアージ、チューニング、組織的導入戦略
+1. **SAST Principles and Practice** — Early vulnerability detection through static analysis of source code
+2. **DAST Principles and Practice** — Dynamic security testing against running applications
+3. **CI/CD Integration** — How to naturally embed security testing into the development flow
+4. **IAST and Hybrid Approaches** — Next-generation approaches that complement SAST and DAST
+5. **Secret Scanning** — Detecting sensitive information embedded in source code
+6. **Operational Best Practices** — Triage, tuning, and organizational adoption strategies
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [コンテナセキュリティ](./02-container-security.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Container Security](./02-container-security.md)
 
 ---
 
-## 1. SAST と DAST の全体像
+## 1. Overview of SAST and DAST
 
-### テスト手法の分類
+### Classification of Testing Methods
 
 ```
 +----------------------------------------------------------+
-|            アプリケーションセキュリティテスト                 |
+|            Application Security Testing                   |
 |----------------------------------------------------------|
 |                                                          |
 |  SAST (Static Application Security Testing)              |
-|  +-- ソースコードを解析                                    |
-|  +-- ビルド前に実行可能                                    |
-|  +-- 行番号レベルで問題箇所を特定                           |
-|  +-- 偽陽性が多い傾向                                     |
+|  +-- Analyzes source code                                |
+|  +-- Can be run before build                             |
+|  +-- Identifies issues at line-number level              |
+|  +-- Tends to produce more false positives               |
 |                                                          |
 |  DAST (Dynamic Application Security Testing)             |
-|  +-- 実行中のアプリを外部からテスト                         |
-|  +-- デプロイ後に実行                                     |
-|  +-- 実際に悪用可能な脆弱性を発見                           |
-|  +-- ソースコード不要 (ブラックボックス)                     |
+|  +-- Tests running app from the outside                  |
+|  +-- Runs after deployment                               |
+|  +-- Discovers actually exploitable vulnerabilities      |
+|  +-- No source code required (black-box)                 |
 |                                                          |
 |  IAST (Interactive Application Security Testing)         |
-|  +-- アプリ内にエージェントを埋め込み                       |
-|  +-- リアルタイムで検出                                    |
-|  +-- SAST + DAST のハイブリッド                            |
+|  +-- Embeds agent inside the application                 |
+|  +-- Detects in real time                                |
+|  +-- Hybrid of SAST + DAST                               |
 |                                                          |
 |  SCA (Software Composition Analysis)                     |
-|  +-- 依存ライブラリの脆弱性を検出                          |
-|  +-- → 別章「依存関係セキュリティ」で詳述                   |
+|  +-- Detects vulnerabilities in dependency libraries     |
+|  +-- → Covered in detail in the "Dependency Security"    |
+|          chapter                                         |
 |                                                          |
 |  RASP (Runtime Application Self-Protection)              |
-|  +-- 本番環境でリアルタイム防御                             |
-|  +-- 攻撃検出時に自動ブロック                              |
-|  +-- WAF との連携で多層防御を実現                           |
+|  +-- Real-time defense in production environment         |
+|  +-- Automatically blocks when attack is detected        |
+|  +-- Achieves layered defense in combination with WAF    |
 +----------------------------------------------------------+
 ```
 
-### セキュリティテスト手法のライフサイクル配置
+### Lifecycle Placement of Security Testing Methods
 
 ```
-  コード作成    コミット     ビルド      テスト     ステージング    本番
-     |            |          |          |            |           |
-  IDE Plugin   pre-commit  SAST       単体テスト    DAST        RASP
-  リアルタイム  Semgrep    SonarQube   セキュリティ  OWASP ZAP   監視
-  lint         gitleaks   CodeQL      テスト       Nuclei      WAF
-     |            |          |          |            |           |
-     v            v          v          v            v           v
-  [即時FB]    [数秒]     [数分]      [数分]      [数十分]     [常時]
+  Code writing   Commit      Build       Test      Staging       Production
+      |            |          |           |            |              |
+  IDE Plugin   pre-commit   SAST       Unit test     DAST           RASP
+  Real-time    Semgrep    SonarQube   Security      OWASP ZAP     Monitoring
+  lint         gitleaks   CodeQL      testing       Nuclei         WAF
+      |            |          |           |            |              |
+      v            v          v           v            v              v
+  [Instant]   [Seconds]  [Minutes]  [Minutes]   [Tens of min]   [Always]
 ```
 
-この図が示すように、セキュリティテストは開発ライフサイクルの左側 (Shift Left) に配置するほど修正コストが低くなる。SAST は最も左に位置し、DAST はデプロイ後に位置する。両者を組み合わせることでカバレッジを最大化できる。
+As this diagram shows, the further left (Shift Left) in the development lifecycle that security testing is placed, the lower the cost of remediation. SAST is positioned furthest to the left, while DAST is positioned after deployment. Combining both maximizes coverage.
 
-### SAST vs DAST 比較
+### SAST vs DAST Comparison
 
-| 項目 | SAST | DAST |
+| Item | SAST | DAST |
 |------|------|------|
-| 解析対象 | ソースコード / バイトコード | 実行中のアプリケーション |
-| 実行タイミング | 開発中 / コミット時 | デプロイ後 / ステージング |
-| 検出できる脆弱性 | インジェクション、ハードコード秘密、安全でない関数 | XSS、認証不備、設定ミス |
-| 偽陽性 | 多い (30-70%) | 少ない (5-20%) |
-| 偽陰性 | ビジネスロジック脆弱性を見逃す | コード内部の問題を見逃す |
-| 言語依存 | あり (言語別パーサ) | なし (プロトコルベース) |
-| 修正の容易さ | 行番号特定で容易 | 根本原因特定が難しい場合あり |
-| 速度 | 中程度 (分-時間) | 遅い (時間単位) |
-| 必要な環境 | ソースコードのみ | 実行環境が必要 |
-| 認証テスト | 不得意 | 得意 |
-| 設定ミス検出 | 限定的 | 得意 |
-| スケーラビリティ | 高い (並列化容易) | 中程度 (実行環境必要) |
+| Analysis target | Source code / bytecode | Running application |
+| Execution timing | During development / at commit | After deployment / staging |
+| Detectable vulnerabilities | Injection, hardcoded secrets, unsafe functions | XSS, auth failures, misconfigurations |
+| False positives | High (30-70%) | Low (5-20%) |
+| False negatives | Misses business logic vulnerabilities | Misses internal code issues |
+| Language dependency | Yes (language-specific parsers) | No (protocol-based) |
+| Ease of remediation | Easy with line number identification | Root cause can be hard to identify |
+| Speed | Moderate (minutes to hours) | Slow (hours) |
+| Required environment | Source code only | Execution environment required |
+| Authentication testing | Weak | Strong |
+| Misconfiguration detection | Limited | Strong |
+| Scalability | High (easy to parallelize) | Moderate (execution environment needed) |
 
-### SAST・DAST の検出範囲の違い
+### Detection Coverage Differences Between SAST and DAST
 
 ```
-          SAST が得意               両方で検出可能           DAST が得意
-  +-------------------------+  +-------------------+  +-----------------------+
-  | ハードコード秘密         |  | SQL インジェクション|  | 認証・認可の不備       |
-  | バッファオーバーフロー   |  | XSS               |  | CSRF                  |
-  | 安全でない乱数生成       |  | パストラバーサル   |  | セッション管理の不備   |
-  | デッドコード             |  | コマンドインジェク |  | HTTP ヘッダの設定ミス  |
-  | 未使用変数               |  |   ション           |  | CORS 設定ミス          |
-  | 型安全性の問題           |  | SSRF               |  | レートリミットの欠如   |
-  | NULL ポインタ参照        |  | XXE                |  | 情報漏洩 (エラー応答)  |
-  | リソースリーク           |  |                    |  | TLS/SSL 設定不備      |
-  +-------------------------+  +-------------------+  +-----------------------+
+        SAST excels at              Detectable by both          DAST excels at
++-------------------------+  +-------------------+  +-----------------------+
+| Hardcoded secrets       |  | SQL Injection     |  | Auth/authz failures   |
+| Buffer overflows        |  | XSS               |  | CSRF                  |
+| Insecure random numbers |  | Path traversal    |  | Session management    |
+| Dead code               |  | Command injection |  | HTTP header misconfig |
+| Unused variables        |  | SSRF              |  | CORS misconfig        |
+| Type safety issues      |  | XXE               |  | Missing rate limiting |
+| NULL pointer dereference|  |                   |  | Info leak (error resp)|
+| Resource leaks          |  |                   |  | TLS/SSL misconfig     |
++-------------------------+  +-------------------+  +-----------------------+
 ```
 
 ---
 
-## 2. SAST の実践
+## 2. SAST in Practice
 
-### 2.1 SAST の動作原理
+### 2.1 How SAST Works
 
-SAST ツールは以下のステップでソースコードを解析する。
+SAST tools analyze source code through the following steps.
 
 ```
-ソースコード → 字句解析 → 構文解析 (AST生成) → 意味解析 → データフロー解析 → パターンマッチ → 結果
-     |              |              |                |              |              |          |
-  .py, .js      トークン化     抽象構文木       型推論・      汚染追跡      ルール照合   脆弱性
-  .go, .java    分割          構築             スコープ      (taint        (OWASP等)   レポート
-                                               解決          analysis)
+Source code → Lexical analysis → Syntax analysis (AST generation) → Semantic analysis → Data flow analysis → Pattern matching → Results
+     |              |                  |                    |                |               |                |
+  .py, .js      Tokenization      Abstract             Type inference    Taint            Rule matching   Vulnerability
+  .go, .java    splitting         Syntax Tree          scope             tracking         (OWASP etc.)    report
+                                  construction         resolution        (taint
+                                                                        analysis)
 ```
 
-**データフロー解析 (Taint Analysis)** は SAST の中核技術である。ユーザー入力 (source) から危険な操作 (sink) までのデータの流れを追跡し、途中でサニタイズされていない場合に脆弱性として報告する。
+**Data Flow Analysis (Taint Analysis)** is the core technology of SAST. It tracks the flow of data from user input (source) to dangerous operations (sink), and reports a vulnerability if no sanitization occurs in between.
 
 ```python
-# Taint Analysis の例
+# Taint Analysis example
 def handler(request):
-    user_input = request.GET.get('query')   # Source: ユーザー入力
+    user_input = request.GET.get('query')   # Source: user input
     #                    |
-    #              データが流れる
+    #              data flows
     #                    |
     #                    v
-    result = db.execute(                     # Sink: SQL 実行
-        f"SELECT * FROM users WHERE name = '{user_input}'"  # 脆弱性検出!
+    result = db.execute(                     # Sink: SQL execution
+        f"SELECT * FROM users WHERE name = '{user_input}'"  # Vulnerability detected!
     )
     return result
 
-# サニタイズされている場合は安全と判定
+# Judged safe if sanitized
 def safe_handler(request):
-    user_input = request.GET.get('query')   # Source: ユーザー入力
+    user_input = request.GET.get('query')   # Source: user input
     #                    |
-    #            サニタイズ処理
+    #            sanitization
     #                    |
     #                    v
     sanitized = escape(user_input)           # Sanitizer
-    result = db.execute(                     # Sink: SQL 実行
-        "SELECT * FROM users WHERE name = %s", [sanitized]   # 安全と判定
+    result = db.execute(                     # Sink: SQL execution
+        "SELECT * FROM users WHERE name = %s", [sanitized]   # Judged safe
     )
     return result
 ```
 
-### 2.2 SonarQube によるコード解析
+### 2.2 Code Analysis with SonarQube
 
-#### SonarQube のアーキテクチャ
+#### SonarQube Architecture
 
 ```
 +-------------------+       +-------------------+       +-------------------+
 |  SonarQube Server |       |   Elasticsearch   |       |    PostgreSQL     |
-|  (Web UI +        |<----->|  (検索エンジン)    |       |  (データ保存)      |
+|  (Web UI +        |<----->|  (Search engine)  |       |  (Data storage)   |
 |   Compute Engine) |       +-------------------+       +-------------------+
 +-------------------+                                          ^
         ^                                                      |
-        |  結果送信                                             |
+        |  Result submission                                   |
         |                                                      |
 +-------------------+                                          |
 |  SonarScanner     |------------------------------------------+
-|  (解析実行)       |  解析結果をDBに保存
+|  (Run analysis)   |  Save analysis results to DB
 +-------------------+
         ^
-        |  ソースコード読み込み
+        |  Read source code
         |
 +-------------------+
-|  プロジェクト      |
-|  ソースコード      |
+|  Project          |
+|  source code      |
 +-------------------+
 ```
 
-#### 基本設定
+#### Basic Configuration
 
 ```properties
 # sonar-project.properties
@@ -190,23 +192,23 @@ sonar.tests=tests
 sonar.language=js
 sonar.javascript.lcov.reportPaths=coverage/lcov.info
 
-# セキュリティルールの重点設定
+# Focus security rule settings
 sonar.issue.ignore.multicriteria=e1
 sonar.issue.ignore.multicriteria.e1.ruleKey=javascript:S1234
 sonar.issue.ignore.multicriteria.e1.resourceKey=**/test/**
 
-# エンコーディング設定
+# Encoding settings
 sonar.sourceEncoding=UTF-8
 
-# 除外パターン
+# Exclusion patterns
 sonar.exclusions=**/node_modules/**,**/vendor/**,**/dist/**
 sonar.test.exclusions=**/test/**,**/*.test.js
 ```
 
-#### Quality Gate の設定
+#### Quality Gate Configuration
 
 ```json
-// SonarQube Quality Gate 設定例 (API 経由)
+// SonarQube Quality Gate configuration example (via API)
 // POST /api/qualitygates/create
 {
   "name": "Security-Focused Gate",
@@ -235,20 +237,20 @@ sonar.test.exclusions=**/test/**,**/*.test.js
 }
 ```
 
-#### Quality Gate の各メトリクス説明
+#### Explanation of Quality Gate Metrics
 
-| メトリクス | 説明 | 推奨閾値 |
-|-----------|------|---------|
-| `new_vulnerabilities` | 新規脆弱性の数 | 0 (1つでもあればブロック) |
-| `new_security_hotspots_reviewed` | セキュリティホットスポットのレビュー率 | 100% |
-| `new_security_rating` | セキュリティレーティング (A-E) | A (1) のみ通過 |
-| `new_coverage` | 新規コードのテストカバレッジ | 80% 以上 |
-| `new_duplicated_lines_density` | 新規コードの重複率 | 3% 以下 |
+| Metric | Description | Recommended Threshold |
+|--------|-------------|----------------------|
+| `new_vulnerabilities` | Number of new vulnerabilities | 0 (block if even one exists) |
+| `new_security_hotspots_reviewed` | Review rate for security hotspots | 100% |
+| `new_security_rating` | Security rating (A-E) | Pass only with A (1) |
+| `new_coverage` | Test coverage for new code | 80% or above |
+| `new_duplicated_lines_density` | Duplication rate in new code | 3% or below |
 
-#### GitHub Actions での SonarQube 統合
+#### SonarQube Integration with GitHub Actions
 
 ```yaml
-# GitHub Actions での SonarQube 統合
+# SonarQube integration with GitHub Actions
 name: Code Quality
 on: [push, pull_request]
 
@@ -258,7 +260,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 差分解析に必要
+          fetch-depth: 0  # Required for differential analysis
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -296,26 +298,26 @@ jobs:
             })
 ```
 
-### 2.3 Semgrep (軽量 SAST)
+### 2.3 Semgrep (Lightweight SAST)
 
-#### Semgrep の特徴と動作原理
+#### Semgrep Features and Working Principles
 
-Semgrep は「コードのための grep」として設計された軽量 SAST ツールである。正規表現ではなく、AST (抽象構文木) レベルでパターンマッチを行うため、コードのフォーマットやスタイルの違いに影響されない。
+Semgrep is a lightweight SAST tool designed as "grep for code." Rather than using regular expressions, it performs pattern matching at the AST (Abstract Syntax Tree) level, making it unaffected by differences in code formatting or style.
 
 ```
-通常の grep:                        Semgrep:
-  テキストレベルのマッチ              AST レベルのマッチ
+Regular grep:                       Semgrep:
+  Text-level matching                 AST-level matching
 
-  "eval(" で検索                     pattern: eval($X)
-    → eval( にマッチ                   → eval(user_input) にマッチ
-    → "// eval(" にもマッチ (偽陽性)   → コメント内は無視 (偽陽性なし)
-    → 改行を跨ぐと見逃し (偽陰性)     → 改行を跨いでもマッチ
+  Search for "eval("                  pattern: eval($X)
+    → Matches "eval("                   → Matches eval(user_input)
+    → Also matches "// eval(" (FP)      → Ignores comments (no FP)
+    → Misses across line breaks (FN)    → Matches across line breaks
 ```
 
-#### カスタムルールの作成
+#### Creating Custom Rules
 
 ```yaml
-# .semgrep.yml - カスタムルール
+# .semgrep.yml - custom rules
 rules:
   - id: hardcoded-secret
     patterns:
@@ -324,7 +326,7 @@ rules:
       - metavariable-regex:
           metavariable: $KEY
           regex: '(?i)(password|secret|api_key|token)'
-    message: "ハードコードされたシークレットが検出されました"
+    message: "Hardcoded secret detected"
     severity: ERROR
     languages: [python, javascript, go]
     metadata:
@@ -335,7 +337,7 @@ rules:
     patterns:
       - pattern: |
           cursor.execute(f"... {$VAR} ...")
-    message: "SQL インジェクションの可能性: パラメータ化クエリを使用してください"
+    message: "Possible SQL Injection: use parameterized queries"
     severity: ERROR
     languages: [python]
     metadata:
@@ -346,7 +348,7 @@ rules:
 
   - id: unsafe-deserialization
     pattern: pickle.loads(...)
-    message: "安全でないデシリアライゼーション: 信頼できないデータに pickle を使用しないでください"
+    message: "Unsafe deserialization: do not use pickle with untrusted data"
     severity: WARNING
     languages: [python]
     metadata:
@@ -356,7 +358,7 @@ rules:
     patterns:
       - pattern: redirect($URL)
       - pattern-not: redirect("/...")
-    message: "オープンリダイレクトの可能性: 外部 URL へのリダイレクトを検証してください"
+    message: "Possible open redirect: validate redirects to external URLs"
     severity: WARNING
     languages: [python]
 
@@ -369,7 +371,7 @@ rules:
       - pattern-not-inside: |
           @csrf_protect
           ...
-    message: "POST エンドポイントに CSRF 保護がありません"
+    message: "POST endpoint has no CSRF protection"
     severity: WARNING
     languages: [python]
 
@@ -379,7 +381,7 @@ rules:
           - pattern: random.random()
           - pattern: random.randint(...)
           - pattern: Math.random()
-    message: "セキュリティ目的には暗号学的に安全な乱数生成器を使用してください"
+    message: "Use a cryptographically secure random number generator for security purposes"
     severity: WARNING
     languages: [python, javascript]
     fix-regex:
@@ -387,12 +389,12 @@ rules:
       replacement: "secrets.token_hex(32)"
 ```
 
-#### Semgrep の高度なパターン
+#### Advanced Semgrep Patterns
 
 ```yaml
-# 高度なパターンマッチングの例
+# Advanced pattern matching examples
 rules:
-  # taint モード: source から sink への汚染追跡
+  # taint mode: track contamination from source to sink
   - id: tainted-sql-query
     mode: taint
     pattern-sources:
@@ -405,57 +407,57 @@ rules:
     pattern-sanitizers:
       - pattern: sanitize(...)
       - pattern: escape(...)
-    message: "ユーザー入力が SQL クエリに直接使用されています"
+    message: "User input is used directly in a SQL query"
     severity: ERROR
     languages: [python]
 
-  # join モード: 複数条件の組み合わせ
+  # join mode: combination of multiple conditions
   - id: jwt-without-verification
     patterns:
       - pattern: jwt.decode($TOKEN, ...)
       - pattern-not: jwt.decode($TOKEN, ..., verify=True, ...)
       - pattern-not: jwt.decode($TOKEN, ..., algorithms=[...], ...)
-    message: "JWT の署名検証が無効になっている可能性があります"
+    message: "JWT signature verification may be disabled"
     severity: ERROR
     languages: [python]
 ```
 
-#### Semgrep の実行コマンド
+#### Semgrep Execution Commands
 
 ```bash
-# Semgrep の基本実行
-semgrep --config auto .                    # 自動ルール選択
-semgrep --config .semgrep.yml .            # カスタムルール
-semgrep --config p/owasp-top-ten .         # OWASP Top 10 ルール
-semgrep --config p/javascript .            # JavaScript 専用ルール
-semgrep --config p/python .               # Python 専用ルール
-semgrep --config p/golang .               # Go 専用ルール
+# Basic Semgrep execution
+semgrep --config auto .                    # Auto rule selection
+semgrep --config .semgrep.yml .            # Custom rules
+semgrep --config p/owasp-top-ten .         # OWASP Top 10 rules
+semgrep --config p/javascript .            # JavaScript-specific rules
+semgrep --config p/python .               # Python-specific rules
+semgrep --config p/golang .               # Go-specific rules
 
-# 出力形式の指定
-semgrep --config auto --json -o results.json .     # JSON 形式
-semgrep --config auto --sarif -o results.sarif .   # SARIF 形式 (GitHub連携用)
-semgrep --config auto --emacs .                    # Emacs 形式
+# Specify output format
+semgrep --config auto --json -o results.json .     # JSON format
+semgrep --config auto --sarif -o results.sarif .   # SARIF format (for GitHub integration)
+semgrep --config auto --emacs .                    # Emacs format
 
-# CI/CD ゲート (エラーがあればビルド失敗)
+# CI/CD gate (fail build if errors exist)
 semgrep --config auto --error .
 
-# 特定ファイルのみスキャン
+# Scan only specific files
 semgrep --config auto --include="*.py" .
 semgrep --config auto --exclude="tests/*" .
 
-# 差分のみスキャン (高速化)
+# Scan only diff (speed up)
 semgrep --config auto --baseline-commit HEAD~1 .
 
-# Semgrep CI (Semgrep App 連携)
+# Semgrep CI (Semgrep App integration)
 SEMGREP_APP_TOKEN=xxx semgrep ci
 ```
 
-### 2.4 CodeQL による高度な解析
+### 2.4 Advanced Analysis with CodeQL
 
-CodeQL は GitHub が開発した SAST ツールで、コードをデータベースとして構築し、SQL ライクなクエリ言語でパターンを検索できる。
+CodeQL is a SAST tool developed by GitHub that builds code as a database and allows searching for patterns using a SQL-like query language.
 
 ```ql
-// CodeQL クエリ例: SQL インジェクションの検出
+// CodeQL query example: SQL injection detection
 import javascript
 import DataFlow::PathGraph
 
@@ -478,12 +480,12 @@ class SqlInjectionConfig extends TaintTracking::Configuration {
 from SqlInjectionConfig cfg, DataFlow::PathNode source, DataFlow::PathNode sink
 where cfg.hasFlowPath(source, sink)
 select sink, source, sink,
-  "この SQL クエリは $@ から来たユーザー入力を含んでいます。",
-  source.getNode(), "ユーザー入力"
+  "This SQL query contains user input from $@.",
+  source.getNode(), "user input"
 ```
 
 ```yaml
-# GitHub Actions での CodeQL 統合
+# CodeQL integration with GitHub Actions
 name: CodeQL Analysis
 on:
   push:
@@ -491,7 +493,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 6 * * 1'  # 毎週月曜 6:00 UTC
+    - cron: '0 6 * * 1'  # Every Monday at 6:00 UTC
 
 jobs:
   analyze:
@@ -519,197 +521,198 @@ jobs:
           category: "/language:${{ matrix.language }}"
 ```
 
-### 2.5 言語別 SAST ツールの選定ガイド
+### 2.5 SAST Tool Selection Guide by Language
 
-#### SAST ツールの比較
+#### SAST Tool Comparison
 
-| ツール | 対応言語 | 速度 | カスタムルール | コスト | 特徴 |
-|--------|---------|------|-------------|-------|------|
-| SonarQube | 30+ | 中 | はい | CE: 無料 | 品質管理の統合ダッシュボード |
-| Semgrep | 30+ | 高速 | YAML ベース | OSS: 無料 | 軽量・カスタムルールが容易 |
-| CodeQL | 10+ | 遅い | QL 言語 | GitHub 無料 | 高精度なデータフロー解析 |
-| Bandit | Python | 高速 | プラグイン | 無料 | Python 特化で導入簡単 |
-| ESLint Security | JavaScript | 高速 | ルールベース | 無料 | eslint-plugin-security |
-| gosec | Go | 高速 | AST ベース | 無料 | Go 特化 |
-| Brakeman | Ruby | 高速 | - | 無料 | Rails 特化 |
-| SpotBugs | Java | 中 | プラグイン | 無料 | Find Security Bugs プラグイン |
-| PHPStan | PHP | 高速 | ルール拡張 | 無料 | 型解析ベース |
+| Tool | Supported Languages | Speed | Custom Rules | Cost | Features |
+|------|---------------------|-------|--------------|------|----------|
+| SonarQube | 30+ | Moderate | Yes | CE: Free | Integrated quality management dashboard |
+| Semgrep | 30+ | Fast | YAML-based | OSS: Free | Lightweight, easy custom rules |
+| CodeQL | 10+ | Slow | QL language | Free on GitHub | High-precision data flow analysis |
+| Bandit | Python | Fast | Plugins | Free | Python-specific, easy to introduce |
+| ESLint Security | JavaScript | Fast | Rule-based | Free | eslint-plugin-security |
+| gosec | Go | Fast | AST-based | Free | Go-specific |
+| Brakeman | Ruby | Fast | - | Free | Rails-specific |
+| SpotBugs | Java | Moderate | Plugins | Free | Find Security Bugs plugin |
+| PHPStan | PHP | Fast | Rule extension | Free | Type analysis-based |
 
-#### 言語別の推奨構成
+#### Recommended Configuration by Language
 
 ```
-Python プロジェクト:
-  必須: Semgrep + Bandit
-  推奨: + SonarQube (品質管理)
-  任意: + CodeQL (GitHub 利用時)
+Python projects:
+  Required: Semgrep + Bandit
+  Recommended: + SonarQube (quality management)
+  Optional: + CodeQL (when using GitHub)
 
-JavaScript/TypeScript プロジェクト:
-  必須: Semgrep + ESLint Security
-  推奨: + SonarQube (品質管理)
-  任意: + CodeQL (GitHub 利用時)
+JavaScript/TypeScript projects:
+  Required: Semgrep + ESLint Security
+  Recommended: + SonarQube (quality management)
+  Optional: + CodeQL (when using GitHub)
 
-Go プロジェクト:
-  必須: Semgrep + gosec
-  推奨: + SonarQube (品質管理)
-  任意: + staticcheck (追加lint)
+Go projects:
+  Required: Semgrep + gosec
+  Recommended: + SonarQube (quality management)
+  Optional: + staticcheck (additional lint)
 
-Java プロジェクト:
-  必須: SonarQube + SpotBugs (Find Security Bugs)
-  推奨: + Semgrep
-  任意: + CodeQL (GitHub 利用時)
+Java projects:
+  Required: SonarQube + SpotBugs (Find Security Bugs)
+  Recommended: + Semgrep
+  Optional: + CodeQL (when using GitHub)
 
-Ruby/Rails プロジェクト:
-  必須: Brakeman + Semgrep
-  推奨: + SonarQube (品質管理)
+Ruby/Rails projects:
+  Required: Brakeman + Semgrep
+  Recommended: + SonarQube (quality management)
 ```
 
-### 2.6 Bandit (Python 特化 SAST) の活用
+### 2.6 Using Bandit (Python-specific SAST)
 
 ```bash
-# Bandit のインストールと実行
+# Install and run Bandit
 pip install bandit
 
-# 基本実行
+# Basic run
 bandit -r ./src/
 
-# 重大度でフィルタ
-bandit -r ./src/ -ll  # Medium 以上のみ
+# Filter by severity
+bandit -r ./src/ -ll  # Medium and above only
 
-# 特定テストのみ実行
-bandit -r ./src/ -t B601,B602,B603  # シェルインジェクション系
+# Run only specific tests
+bandit -r ./src/ -t B601,B602,B603  # Shell injection tests
 
-# JSON 出力
+# JSON output
 bandit -r ./src/ -f json -o bandit-results.json
 
-# 除外設定
+# Exclusion settings
 bandit -r ./src/ --exclude tests/,docs/
 ```
 
 ```ini
-# .bandit - Bandit 設定ファイル
+# .bandit - Bandit configuration file
 [bandit]
 exclude = tests,docs,venv
 tests = B101,B102,B103,B104,B105,B106,B107,B108,B110
-# B301-B303: pickle 関連
-# B601-B603: シェルインジェクション
-# B608: SQL インジェクション
+# B301-B303: pickle related
+# B601-B603: shell injection
+# B608: SQL injection
 
-skips = B101  # assert の使用 (テストでは必要)
+skips = B101  # Use of assert (needed in tests)
 
 [bandit.plugins.hardcoded_password_string]
 word_list = password,pass,passwd,pwd,secret,token,api_key,apikey
 ```
 
 ```python
-# Bandit が検出する典型的な脆弱性
+# Typical vulnerabilities detected by Bandit
 
-# B602: subprocess with shell=True (高リスク)
+# B602: subprocess with shell=True (high risk)
 import subprocess
 user_input = input("Command: ")
-subprocess.call(user_input, shell=True)  # 検出!
+subprocess.call(user_input, shell=True)  # Detected!
 
 # B608: SQL injection
-query = "SELECT * FROM users WHERE id = '%s'" % user_id  # 検出!
+query = "SELECT * FROM users WHERE id = '%s'" % user_id  # Detected!
 
 # B105: Hardcoded password
-password = "super_secret_123"  # 検出!
+password = "super_secret_123"  # Detected!
 
 # B301: Pickle usage
 import pickle
-data = pickle.loads(untrusted_data)  # 検出!
+data = pickle.loads(untrusted_data)  # Detected!
 
 # B104: Binding to all interfaces
 from flask import Flask
 app = Flask(__name__)
-app.run(host='0.0.0.0')  # 検出!
+app.run(host='0.0.0.0')  # Detected!
 ```
 
 ---
 
-## 3. DAST の実践
+## 3. DAST in Practice
 
-### 3.1 DAST の動作原理
+### 3.1 How DAST Works
 
-DAST ツールは実行中のアプリケーションに対して、攻撃者の視点からテストリクエストを送信する。
+DAST tools send test requests to a running application from the attacker's perspective.
 
 ```
-DAST ツール                    テスト対象アプリ
+DAST tool                       Target application
 +------------------+          +------------------+
 |                  |   HTTP   |                  |
-|  1. クローラー    |--------->|  Web サーバー     |
-|    サイトマップ   |<---------|  (Nginx等)       |
-|    構築          |   応答   |                  |
-|                  |          |  アプリケーション  |
-|  2. パッシブ     |--------->|  サーバー         |
-|    スキャナー     |<---------|  (Django等)      |
-|    通信監視      |          |                  |
-|                  |          |  データベース      |
-|  3. アクティブ   |--------->|                  |
-|    スキャナー     |<---------|                  |
-|    攻撃送信      |          |                  |
+|  1. Crawler      |--------->|  Web server      |
+|    Build site    |<---------|  (Nginx, etc.)   |
+|    map           |  Response|                  |
+|                  |          |  Application     |
+|  2. Passive      |--------->|  server          |
+|    Scanner       |<---------|  (Django, etc.)  |
+|    Monitor comms |          |                  |
+|                  |          |  Database        |
+|  3. Active       |--------->|                  |
+|    Scanner       |<---------|                  |
+|    Send attacks  |          |                  |
 |                  |          +------------------+
-|  4. レポート生成  |
+|  4. Generate     |
+|    report        |
 |                  |
 +------------------+
 
-攻撃リクエストの例:
-  通常: GET /users?id=123
-  XSS:  GET /users?id=<script>alert(1)</script>
-  SQLi: GET /users?id=123' OR '1'='1
-  Path: GET /users/../../../etc/passwd
+Example attack requests:
+  Normal: GET /users?id=123
+  XSS:    GET /users?id=<script>alert(1)</script>
+  SQLi:   GET /users?id=123' OR '1'='1
+  Path:   GET /users/../../../etc/passwd
 ```
 
-### 3.2 OWASP ZAP による動的テスト
+### 3.2 Dynamic Testing with OWASP ZAP
 
-#### ZAP のテストフロー
+#### ZAP Test Flow
 
 ```
-ZAP のテストフロー:
+ZAP test flow:
 
-  +-- Spider (クロール) --+
-  |  サイトマップ構築      |
-  |  Ajax Spider も利用可  |
+  +-- Spider (crawl) -----+
+  |  Build site map        |
+  |  Ajax Spider available |
   +-----------------------+
             |
             v
   +-- Passive Scan -------+
-  |  通信を観察して検出     |
-  |  (速い、低リスク)      |
-  |  例: ヘッダの欠如      |
-  |      Cookie の属性     |
+  |  Detect by observing  |
+  |  (fast, low risk)     |
+  |  e.g.: missing headers|
+  |      Cookie attributes|
   +-----------------------+
             |
             v
   +-- Active Scan ---------+
-  |  攻撃リクエスト送信     |
-  |  (遅い、サーバ負荷あり) |
-  |  例: SQL Injection      |
+  |  Send attack requests  |
+  |  (slow, server load)   |
+  |  e.g.: SQL Injection   |
   |      XSS               |
   |      Path Traversal    |
   +------------------------+
             |
             v
-  +-- レポート生成 --------+
-  |  HTML / JSON / XML     |
-  |  SARIF (GitHub連携)    |
+  +-- Report generation --+
+  |  HTML / JSON / XML    |
+  |  SARIF (GitHub integ) |
   +------------------------+
 ```
 
-#### ZAP のスキャンポリシー設定
+#### ZAP Scan Policy Configuration
 
 ```xml
-<!-- ZAP スキャンポリシー設定例 -->
+<!-- ZAP scan policy configuration example -->
 <configuration>
   <scanner>
-    <!-- SQL Injection テスト -->
+    <!-- SQL Injection test -->
     <plugin id="40018" enabled="true" strength="HIGH" threshold="MEDIUM"/>
-    <!-- XSS テスト -->
+    <!-- XSS test -->
     <plugin id="40012" enabled="true" strength="HIGH" threshold="LOW"/>
-    <!-- Path Traversal テスト -->
+    <!-- Path Traversal test -->
     <plugin id="6" enabled="true" strength="MEDIUM" threshold="MEDIUM"/>
     <!-- Remote Code Execution -->
     <plugin id="40014" enabled="true" strength="HIGH" threshold="HIGH"/>
-    <!-- CSRF テスト -->
+    <!-- CSRF test -->
     <plugin id="40003" enabled="true" strength="MEDIUM" threshold="LOW"/>
   </scanner>
   <spider>
@@ -720,9 +723,9 @@ ZAP のテストフロー:
 </configuration>
 ```
 
-#### ZAP の認証設定
+#### ZAP Authentication Configuration
 
-多くの Web アプリケーションは認証が必要である。ZAP で認証済みスキャンを行う方法を示す。
+Most web applications require authentication. The following shows how to perform authenticated scans with ZAP.
 
 ```python
 from zapv2 import ZAPv2
@@ -735,13 +738,13 @@ zap = ZAPv2(apikey='your-api-key', proxies={
 
 target = 'https://staging.example.com'
 
-# 認証設定
+# Authentication configuration
 context_id = zap.context.new_context('authenticated-context')
 
-# ログインページの URL パターンを含める
+# Include URL pattern of login page
 zap.context.include_in_context(context_id, f'{target}.*')
 
-# フォームベース認証の設定
+# Form-based authentication configuration
 auth_method_config = (
     f'loginUrl={target}/login&'
     f'loginRequestData=username={{%username%}}&password={{%password%}}'
@@ -750,11 +753,11 @@ zap.authentication.set_authentication_method(
     context_id, 'formBasedAuthentication', auth_method_config
 )
 
-# ログイン状態の検証パターン
+# Login state verification pattern
 zap.authentication.set_logged_in_indicator(context_id, '\\QWelcome\\E')
 zap.authentication.set_logged_out_indicator(context_id, '\\QLogin\\E')
 
-# ユーザーの追加
+# Add user
 user_id = zap.users.new_user(context_id, 'test-user')
 zap.users.set_authentication_credentials(
     context_id, user_id,
@@ -762,12 +765,12 @@ zap.users.set_authentication_credentials(
 )
 zap.users.set_user_enabled(context_id, user_id, True)
 
-# 認証済みスキャンの実行
+# Run authenticated scan
 zap.forcedUser.set_forced_user(context_id, user_id)
 zap.forcedUser.set_forced_user_mode_enabled(True)
 ```
 
-### 3.3 ZAP の API を使った自動テスト
+### 3.3 Automated Testing Using the ZAP API
 
 ```python
 from zapv2 import ZAPv2
@@ -775,7 +778,7 @@ import time
 import json
 import sys
 
-# ZAP に接続
+# Connect to ZAP
 zap = ZAPv2(apikey='your-api-key', proxies={
     'http': 'http://localhost:8080',
     'https': 'http://localhost:8080',
@@ -784,11 +787,11 @@ zap = ZAPv2(apikey='your-api-key', proxies={
 target = 'https://staging.example.com'
 
 def run_zap_scan(target_url, scan_type='full'):
-    """ZAP による自動セキュリティスキャン
+    """Automated security scan with ZAP
 
     Args:
-        target_url: スキャン対象の URL
-        scan_type: 'baseline' (パッシブのみ) または 'full' (アクティブ含む)
+        target_url: URL to scan
+        scan_type: 'baseline' (passive only) or 'full' (including active)
 
     Returns:
         tuple: (high_alerts, medium_alerts, low_alerts)
@@ -797,7 +800,7 @@ def run_zap_scan(target_url, scan_type='full'):
     print(f"[*] Target: {target_url}")
     print(f"[*] Scan type: {scan_type}")
 
-    # Step 1: Spider (クロール)
+    # Step 1: Spider (crawl)
     print("[*] Phase 1: Spidering target...")
     scan_id = zap.spider.scan(target_url)
     while int(zap.spider.status(scan_id)) < 100:
@@ -808,17 +811,17 @@ def run_zap_scan(target_url, scan_type='full'):
     urls_found = len(zap.spider.results(scan_id))
     print(f"[+] Spider found {urls_found} URLs")
 
-    # Ajax Spider (SPA 対応)
+    # Ajax Spider (SPA support)
     print("[*] Phase 1.5: Ajax Spidering...")
     zap.ajaxSpider.scan(target_url)
-    timeout = 120  # 2分のタイムアウト
+    timeout = 120  # 2-minute timeout
     while zap.ajaxSpider.status == 'running' and timeout > 0:
         time.sleep(5)
         timeout -= 5
     zap.ajaxSpider.stop()
     print(f"[+] Ajax Spider found additional URLs")
 
-    # Step 2: Passive Scan の完了を待つ
+    # Step 2: Wait for passive scan to complete
     print("[*] Phase 2: Waiting for passive scan...")
     while int(zap.pscan.records_to_scan) > 0:
         remaining = zap.pscan.records_to_scan
@@ -826,7 +829,7 @@ def run_zap_scan(target_url, scan_type='full'):
         time.sleep(1)
     print("[+] Passive scan completed")
 
-    # Step 3: Active Scan (baseline でなければ)
+    # Step 3: Active Scan (if not baseline)
     if scan_type == 'full':
         print("[*] Phase 3: Active scanning...")
         scan_id = zap.ascan.scan(target_url)
@@ -838,7 +841,7 @@ def run_zap_scan(target_url, scan_type='full'):
     else:
         print("[*] Phase 3: Skipped (baseline scan)")
 
-    # Step 4: 結果を取得・分類
+    # Step 4: Retrieve and classify results
     alerts = zap.core.alerts(baseurl=target_url)
     high_alerts = [a for a in alerts if a['risk'] == 'High']
     medium_alerts = [a for a in alerts if a['risk'] == 'Medium']
@@ -851,7 +854,7 @@ def run_zap_scan(target_url, scan_type='full'):
     print(f"    Low:           {len(low_alerts)}")
     print(f"    Informational: {len(info_alerts)}")
 
-    # 重複除去した脆弱性タイプの一覧
+    # List of deduplicated vulnerability types
     unique_alerts = set()
     for alert in high_alerts + medium_alerts:
         unique_alerts.add(f"[{alert['risk']}] {alert['alert']}")
@@ -860,22 +863,22 @@ def run_zap_scan(target_url, scan_type='full'):
         for ua in sorted(unique_alerts):
             print(f"    - {ua}")
 
-    # HTML レポート出力
+    # HTML report output
     with open('zap-report.html', 'w') as f:
         f.write(zap.core.htmlreport())
     print(f"\n[+] HTML report saved to zap-report.html")
 
-    # JSON レポート出力
+    # JSON report output
     with open('zap-report.json', 'w') as f:
         json.dump(alerts, f, indent=2)
     print(f"[+] JSON report saved to zap-report.json")
 
     return high_alerts, medium_alerts, low_alerts
 
-# 実行
+# Execute
 high, medium, low = run_zap_scan(target, scan_type='full')
 
-# CI/CD ゲート判定
+# CI/CD gate decision
 if high:
     print("\n[FAIL] CRITICAL: High-risk vulnerabilities found!")
     for alert in high:
@@ -889,10 +892,10 @@ else:
     sys.exit(0)
 ```
 
-### 3.4 ZAP の CI/CD 統合
+### 3.4 ZAP CI/CD Integration
 
 ```yaml
-# GitHub Actions での ZAP スキャン
+# ZAP scan with GitHub Actions
 name: DAST Scan
 on:
   deployment_status:
@@ -942,13 +945,13 @@ jobs:
           path: report_html.html
 ```
 
-#### ZAP ルールファイルの設定
+#### ZAP Rules File Configuration
 
 ```tsv
 # .zap/rules.tsv
-# ルールID	動作	説明
-10010	IGNORE	Cookie No HttpOnly Flag (低リスク、他で対応)
-10011	IGNORE	Cookie Without Secure Flag (開発環境のため)
+# Rule ID	Action	Description
+10010	IGNORE	Cookie No HttpOnly Flag (low risk, handled elsewhere)
+10011	IGNORE	Cookie Without Secure Flag (development environment)
 10015	WARN	Incomplete or No Cache-control Header Set
 10017	FAIL	Cross-Domain JavaScript Source File Inclusion
 10020	FAIL	X-Frame-Options Header Not Set
@@ -960,18 +963,18 @@ jobs:
 90022	FAIL	Application Error Disclosure
 ```
 
-### 3.5 Nuclei による高速 DAST
+### 3.5 Fast DAST with Nuclei
 
-Nuclei は YAML テンプレートベースの高速脆弱性スキャナである。
+Nuclei is a fast vulnerability scanner based on YAML templates.
 
 ```yaml
-# nuclei テンプレート例: カスタム脆弱性チェック
+# Nuclei template example: custom vulnerability check
 id: custom-admin-panel-check
 info:
   name: Admin Panel Detection
   author: security-team
   severity: medium
-  description: 公開されている管理画面の検出
+  description: Detect publicly exposed admin panels
   tags: admin,panel,exposure
 
 requests:
@@ -996,65 +999,65 @@ requests:
 ```
 
 ```bash
-# Nuclei の実行
-nuclei -u https://staging.example.com -t nuclei-templates/    # テンプレート指定
-nuclei -u https://staging.example.com -tags cve               # CVE テンプレート
-nuclei -u https://staging.example.com -severity critical,high  # 重大度フィルタ
-nuclei -l urls.txt -t nuclei-templates/ -o results.json -json  # バッチ実行
+# Run Nuclei
+nuclei -u https://staging.example.com -t nuclei-templates/    # Specify templates
+nuclei -u https://staging.example.com -tags cve               # CVE templates
+nuclei -u https://staging.example.com -severity critical,high  # Severity filter
+nuclei -l urls.txt -t nuclei-templates/ -o results.json -json  # Batch execution
 ```
 
 ---
 
 ## 4. IAST (Interactive Application Security Testing)
 
-### 4.1 IAST の動作原理
+### 4.1 How IAST Works
 
-IAST はアプリケーション内部にエージェント (インストゥルメンテーション) を埋め込み、実行時にリアルタイムで脆弱性を検出する。SAST と DAST の利点を組み合わせたハイブリッドアプローチである。
+IAST embeds an agent (instrumentation) inside the application and detects vulnerabilities in real time during execution. It is a hybrid approach that combines the advantages of both SAST and DAST.
 
 ```
-DAST (外部テスト)                IAST エージェント (内部監視)
+DAST (External testing)          IAST Agent (Internal monitoring)
 +------------------+            +----------------------------------+
-|  テストリクエスト  |  ------->  |  Web アプリケーション              |
-|  送信             |            |  +----------------------------+  |
+|  Send test       |  ------->  |  Web application                 |
+|  requests        |            |  +----------------------------+  |
 |                  |            |  | IAST Agent                 |  |
-|                  |            |  | +-- HTTP リクエスト解析     |  |
-|  レスポンス受信   |  <-------  |  | +-- データフロー追跡       |  |
-|                  |            |  | +-- SQL クエリ監視         |  |
-+------------------+            |  | +-- ファイルアクセス監視   |  |
-                                |  | +-- 外部呼び出し監視       |  |
+|                  |            |  | +-- HTTP request analysis  |  |
+|  Receive         |  <-------  |  | +-- Data flow tracking     |  |
+|  responses       |            |  | +-- SQL query monitoring   |  |
+|                  |            |  | +-- File access monitoring |  |
++------------------+            |  | +-- External call monit.   |  |
                                 |  +----------------------------+  |
                                 +----------------------------------+
                                            |
                                            v
                                 +----------------------------+
-                                | 脆弱性レポート              |
-                                | - ソースコードの行番号       |
-                                | - データフローの完全な経路   |
-                                | - 実際に悪用可能かどうか     |
+                                | Vulnerability report        |
+                                | - Source code line numbers  |
+                                | - Full data flow path       |
+                                | - Whether actually exploitable|
                                 +----------------------------+
 ```
 
 ### 4.2 IAST vs SAST vs DAST
 
-| 特性 | SAST | DAST | IAST |
-|------|------|------|------|
-| 偽陽性率 | 高い (30-70%) | 低い (5-20%) | 非常に低い (<5%) |
-| 偽陰性率 | 中程度 | 中程度 | 低い |
-| コード行番号特定 | はい | いいえ | はい |
-| 実行環境の必要性 | 不要 | 必要 | 必要 |
-| パフォーマンス影響 | なし | 外部からの負荷 | 2-5% のオーバーヘッド |
-| ビジネスロジック検出 | 困難 | 部分的 | 可能 |
-| 導入コスト | 低い | 低い | 高い |
-| 代表的ツール | Semgrep, SonarQube | ZAP, Nuclei | Contrast, Hdiv |
+| Characteristic | SAST | DAST | IAST |
+|----------------|------|------|------|
+| False positive rate | High (30-70%) | Low (5-20%) | Very low (<5%) |
+| False negative rate | Moderate | Moderate | Low |
+| Code line identification | Yes | No | Yes |
+| Execution environment needed | No | Yes | Yes |
+| Performance impact | None | External load | 2-5% overhead |
+| Business logic detection | Difficult | Partial | Possible |
+| Deployment cost | Low | Low | High |
+| Representative tools | Semgrep, SonarQube | ZAP, Nuclei | Contrast, Hdiv |
 
-### 4.3 IAST エージェントの導入例 (Java)
+### 4.3 IAST Agent Deployment Example (Java)
 
 ```java
-// Java アプリケーションへの IAST エージェント導入
-// JVM 起動オプションに追加
+// Deploying IAST agent in a Java application
+// Add to JVM startup options
 // java -javaagent:/path/to/contrast.jar -jar myapp.jar
 
-// もしくは Dockerfile で設定
+// Or configure in Dockerfile
 // FROM eclipse-temurin:21-jre
 // COPY contrast.jar /opt/contrast/
 // ENV JAVA_TOOL_OPTIONS="-javaagent:/opt/contrast/contrast.jar"
@@ -1063,7 +1066,7 @@ DAST (外部テスト)                IAST エージェント (内部監視)
 ```
 
 ```yaml
-# contrast_security.yaml - IAST エージェント設定
+# contrast_security.yaml - IAST agent configuration
 api:
   url: https://app.contrastsecurity.com/Contrast
   api_key: ${CONTRAST_API_KEY}
@@ -1071,39 +1074,39 @@ api:
 
 agent:
   java:
-    enable_assess: true        # IAST 機能有効化
-    enable_protect: false      # RASP 機能 (本番用)
+    enable_assess: true        # Enable IAST functionality
+    enable_protect: false      # RASP functionality (for production)
     assess:
       enable_sampling: true
       sampling_window: 180
       sampling_request_frequency: 5
     rules:
       disabled_rules:
-        - cookie-flags-missing  # テスト環境では無視
+        - cookie-flags-missing  # Ignore in test environment
 ```
 
 ---
 
-## 5. CI/CD パイプラインへの統合
+## 5. Integration into CI/CD Pipeline
 
-### 5.1 セキュリティテストの配置
+### 5.1 Placement of Security Testing
 
 ```
-開発者の PC    →    CI/CD Pipeline    →    ステージング    →    本番
+Developer PC    →    CI/CD Pipeline    →    Staging    →    Production
     |                    |                      |                |
- [pre-commit]      [ビルド時]              [デプロイ後]      [継続的]
+ [pre-commit]      [At build]           [After deploy]     [Continuous]
     |                    |                      |                |
-  Semgrep          SonarQube              OWASP ZAP         ランタイム
-  (即時)           Semgrep                Nuclei             監視
+  Semgrep          SonarQube              OWASP ZAP         Runtime
+  (instant)        Semgrep                Nuclei             monitoring
                    SCA (Trivy)            (DAST)             (IAST/RASP)
-                   シークレットスキャン                         WAF
+                   Secret scan                                WAF
                    (SAST + SCA)
 
-修正コスト:  $1          $10                   $100             $1000
-  (Shift Left するほど修正コストが低い)
+Remediation cost:  $1          $10                   $100             $1000
+  (The further left (Shift Left), the lower the remediation cost)
 ```
 
-### 5.2 統合パイプラインの完全版
+### 5.2 Complete Integrated Pipeline
 
 ```yaml
 # .github/workflows/security-pipeline.yml
@@ -1120,7 +1123,7 @@ env:
 
 jobs:
   # ====================================
-  # Stage 1: 静的解析 (並列実行)
+  # Stage 1: Static analysis (parallel)
   # ====================================
   sast-semgrep:
     runs-on: ubuntu-latest
@@ -1162,7 +1165,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # ====================================
-  # Stage 1b: SCA + シークレットスキャン (並列)
+  # Stage 1b: SCA + Secret scan (parallel)
   # ====================================
   sca:
     runs-on: ubuntu-latest
@@ -1190,7 +1193,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 全履歴をスキャン
+          fetch-depth: 0  # Scan full history
 
       - name: Gitleaks scan
         uses: gitleaks/gitleaks-action@v2
@@ -1198,7 +1201,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ====================================
-  # Stage 2: コンテナスキャン
+  # Stage 2: Container scan
   # ====================================
   container-scan:
     needs: [sast-semgrep, sast-sonarqube, sca, secret-scan]
@@ -1225,7 +1228,7 @@ jobs:
           sarif_file: trivy-image-results.sarif
 
   # ====================================
-  # Stage 3: DAST (ステージング環境)
+  # Stage 3: DAST (staging environment)
   # ====================================
   dast:
     needs: container-scan
@@ -1237,7 +1240,7 @@ jobs:
       - name: Deploy to staging
         id: deploy
         run: |
-          # ステージング環境へデプロイ
+          # Deploy to staging environment
           echo "staging_url=https://staging.example.com" >> $GITHUB_OUTPUT
 
       - name: Wait for deployment
@@ -1260,14 +1263,14 @@ jobs:
           cmd_options: '-a'
           fail_action: true
 
-      - name: ZAP Full Scan (週次)
+      - name: ZAP Full Scan (weekly)
         if: github.event.schedule != ''
         uses: zaproxy/action-full-scan@v0.10.0
         with:
           target: ${{ steps.deploy.outputs.staging_url }}
 
   # ====================================
-  # Stage 4: セキュリティレポート集約
+  # Stage 4: Security report aggregation
   # ====================================
   security-summary:
     needs: [sast-semgrep, sast-sonarqube, sca, secret-scan, container-scan]
@@ -1286,7 +1289,7 @@ jobs:
           echo "| Container Scan | ${{ needs.container-scan.result }} |" >> $GITHUB_STEP_SUMMARY
 ```
 
-### 5.3 pre-commit フックでの SAST 統合
+### 5.3 SAST Integration with pre-commit Hooks
 
 ```yaml
 # .pre-commit-config.yaml
@@ -1298,7 +1301,7 @@ repos:
       - id: semgrep
         args: ['--config', 'auto', '--error']
 
-  # Gitleaks (シークレットスキャン)
+  # Gitleaks (secret scanning)
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.0
     hooks:
@@ -1327,60 +1330,60 @@ repos:
 ```
 
 ```bash
-# pre-commit のセットアップ
+# Set up pre-commit
 pip install pre-commit
 pre-commit install
 pre-commit install --hook-type commit-msg
 
-# 全ファイルに対して実行 (初回)
+# Run on all files (initial run)
 pre-commit run --all-files
 
-# 特定のフックのみ実行
+# Run only specific hooks
 pre-commit run semgrep --all-files
 pre-commit run gitleaks --all-files
 ```
 
 ---
 
-## 6. シークレットスキャン
+## 6. Secret Scanning
 
-### 6.1 シークレットスキャンの重要性
+### 6.1 Importance of Secret Scanning
 
-ソースコードに埋め込まれた秘密情報 (API キー、パスワード、証明書など) は最もよく悪用される脆弱性の一つである。GitGuardian の調査によると、2023 年に公開リポジトリで検出されたシークレットは 1,280 万件に上る。
+Sensitive information embedded in source code (API keys, passwords, certificates, etc.) is one of the most commonly exploited vulnerabilities. According to GitGuardian's research, 12.8 million secrets were detected in public repositories in 2023.
 
 ```
-シークレット漏洩の典型的な流れ:
+Typical flow of a secret leak:
 
-  開発者が API キーを         Git に commit        GitHub に push
-  ソースコードに埋め込む  →   して履歴に残る   →   して公開される
-        |                         |                      |
-        v                         v                      v
-  「一時的なテスト」の        git rm しても          ボットが数分以内に
-  つもりで放置              履歴に残り続ける       検出して悪用開始
+  Developer embeds API key        Committed to Git         Pushed to GitHub
+  in source code             →   and left in history  →   and made public
+        |                              |                         |
+        v                              v                         v
+  Left as "just a              Remains in history even    Bots detect and
+  temporary test"              after git rm               exploit within minutes
 ```
 
-### 6.2 gitleaks の活用
+### 6.2 Using gitleaks
 
 ```bash
-# gitleaks のインストールと実行
+# Install and run gitleaks
 # macOS
 brew install gitleaks
 
-# 現在のリポジトリをスキャン
+# Scan current repository
 gitleaks detect --source . --report-format json --report-path gitleaks-report.json
 
-# Git 履歴全体をスキャン
+# Scan entire Git history
 gitleaks detect --source . --report-format json --report-path gitleaks-report.json --log-opts="--all"
 
-# 特定のコミット範囲のみスキャン
+# Scan only a specific commit range
 gitleaks detect --source . --log-opts="HEAD~10..HEAD"
 
-# 差分のみスキャン (CI/CD 用、高速)
-gitleaks protect --staged  # ステージングされたファイルのみ
+# Scan only diff (for CI/CD, fast)
+gitleaks protect --staged  # Staged files only
 ```
 
 ```toml
-# .gitleaks.toml - カスタムルール設定
+# .gitleaks.toml - custom rule configuration
 title = "Custom Gitleaks Configuration"
 
 [allowlist]
@@ -1437,7 +1440,7 @@ description = "JSON Web Token"
 regex = '''eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+'''
 tags = ["jwt", "token"]
 
-# ルール固有の allowlist
+# Rule-specific allowlist
 id = "generic-password"
 description = "Generic Password"
 regex = '''(?i)(password|passwd|pwd)\s*[:=]\s*['"][^'"]{8,}['"]'''
@@ -1448,92 +1451,92 @@ regexes = [
 ]
 ```
 
-### 6.3 シークレット漏洩時の対応手順
+### 6.3 Response Procedure When a Secret Is Leaked
 
 ```
-シークレット漏洩が発覚した場合の対応フロー:
+Response flow when a secret leak is discovered:
 
-  1. 即座にシークレットを無効化
-     +-- API キー: ダッシュボードから失効
-     +-- パスワード: 即座に変更
-     +-- 証明書: 失効リストに追加
+  1. Immediately revoke the secret
+     +-- API key: revoke from dashboard
+     +-- Password: change immediately
+     +-- Certificate: add to revocation list
      |
-  2. 影響範囲の調査
-     +-- シークレットを使用したアクセスログを確認
-     +-- 不正利用の痕跡を調査
-     +-- 影響を受けたシステムの特定
+  2. Investigate the scope of impact
+     +-- Review access logs that used the secret
+     +-- Investigate traces of unauthorized use
+     +-- Identify affected systems
      |
-  3. Git 履歴からの削除 (オプション)
-     +-- git filter-branch または BFG Repo-Cleaner を使用
-     +-- ただし既にクローンされた可能性を考慮
+  3. Remove from Git history (optional)
+     +-- Use git filter-branch or BFG Repo-Cleaner
+     +-- However, account for the possibility that it has already been cloned
      |
-  4. 新しいシークレットの発行
-     +-- より安全な管理方法 (Vault, AWS Secrets Manager 等) で管理
-     +-- 環境変数経由でアプリに注入
+  4. Issue new secret
+     +-- Manage with more secure methods (Vault, AWS Secrets Manager, etc.)
+     +-- Inject into application via environment variables
      |
-  5. 再発防止策
-     +-- pre-commit フックに gitleaks を追加
-     +-- CI/CD パイプラインにシークレットスキャンを統合
-     +-- チームへの教育
+  5. Prevention measures
+     +-- Add gitleaks to pre-commit hooks
+     +-- Integrate secret scanning into CI/CD pipeline
+     +-- Team education
 ```
 
 ```bash
-# BFG Repo-Cleaner によるシークレット削除
-# ※ 最終手段として使用。チーム全員に影響する
+# Removing secrets with BFG Repo-Cleaner
+# * Use as a last resort. Affects the entire team.
 
-# 1. ベアクローンを作成
+# 1. Create a bare clone
 git clone --mirror https://github.com/user/repo.git
 
-# 2. BFG でシークレットを含むファイルを削除
+# 2. Remove files containing secrets with BFG
 java -jar bfg.jar --replace-text passwords.txt repo.git
 
-# 3. クリーンアップ
+# 3. Clean up
 cd repo.git
 git reflog expire --expire=now --all
 git gc --prune=now --aggressive
 
-# 4. プッシュ (force push が必要)
+# 4. Push (force push required)
 git push
 ```
 
 ---
 
-## 7. 結果のトリアージと管理
+## 7. Triage and Management of Results
 
-### 7.1 トリアージプロセス
+### 7.1 Triage Process
 
 ```
-スキャン結果
+Scan results
     |
     v
-+-- 重大度分類 --+
-|               |
-|  Critical     | → 即座に修正 (24時間以内) → ビルドをブロック
-|  High         | → 即座に修正 (48時間以内) → ビルドをブロック
-|  Medium       | → 次スプリントで対応 → 警告のみ
-|  Low          | → バックログに追加 → 情報提供
-|  Info         | → 記録のみ → 無視可
-|               |
-+-- 偽陽性判定 --+
-|               |
-|  偽陽性確認    | → 抑制ルールに追加
-|  理由を文書化  | → チームで共有
-|               |
-+---------------+
++-- Severity classification --+
+|                              |
+|  Critical     | → Fix immediately (within 24h) → Block build
+|  High         | → Fix immediately (within 48h) → Block build
+|  Medium       | → Address in next sprint → Warning only
+|  Low          | → Add to backlog → Informational
+|  Info         | → Log only → Ignore
+|                              |
++-- False positive assessment --+
+|                              |
+|  Confirm false positive | → Add to suppression rules
+|  Document reason        | → Share with team
+|                              |
++------------------------------+
 ```
 
-### 7.2 偽陽性の管理
+### 7.2 Managing False Positives
 
 ```yaml
-# Semgrep の偽陽性抑制
+# Semgrep false positive suppression
 
-# インラインでの抑制 (理由を必ず記載)
+# Inline suppression (always include the reason)
 def get_system_info():
-    # nosemgrep: hardcoded-secret  # システム定数、シークレットではない
+    # nosemgrep: hardcoded-secret  # System constant, not a secret
     DEFAULT_REGION = "us-east-1"
     return DEFAULT_REGION
 
-# ファイルレベルでの抑制 (.semgrepignore)
+# File-level suppression (.semgrepignore)
 # .semgrepignore
 tests/
 fixtures/
@@ -1542,123 +1545,123 @@ vendor/
 ```
 
 ```properties
-# SonarQube の偽陽性抑制
+# SonarQube false positive suppression
 
-# インラインで抑制
-String query = buildQuery(param); // NOSONAR - パラメータはバリデーション済み
+# Suppress inline
+String query = buildQuery(param); // NOSONAR - parameter has been validated
 
-# SonarQube UI でも抑制可能:
-# Issues → Won't Fix / False Positive をマーク
-# 理由をコメントとして記録
+# Can also suppress from SonarQube UI:
+# Issues → Mark as Won't Fix / False Positive
+# Record the reason as a comment
 ```
 
-### 7.3 メトリクスとダッシュボード
+### 7.3 Metrics and Dashboard
 
 ```
-推奨メトリクス:
+Recommended metrics:
 
-  +-- セキュリティメトリクス --+
-  |                           |
-  |  脆弱性密度               |  脆弱性数 / 1000行コード
-  |  平均修正時間 (MTTR)      |  検出から修正までの平均日数
-  |  偽陽性率                 |  偽陽性数 / 全検出数
-  |  スキャンカバレッジ       |  スキャン対象リポジトリ / 全リポジトリ
-  |  Quality Gate 通過率     |  通過ビルド数 / 全ビルド数
-  |  重大脆弱性のバックログ   |  未修正の Critical/High 件数
-  |                           |
-  +---------------------------+
+  +-- Security metrics -----------+
+  |                               |
+  |  Vulnerability density        |  Vulnerabilities / 1000 lines of code
+  |  Mean Time to Remediate (MTTR)|  Average days from detection to fix
+  |  False positive rate          |  False positives / total detections
+  |  Scan coverage               |  Scanned repos / total repos
+  |  Quality Gate pass rate      |  Passing builds / total builds
+  |  Critical vulnerability backlog| Unresolved Critical/High count
+  |                               |
+  +-------------------------------+
 
-  目標値の例:
-  - 脆弱性密度: < 1.0 (1000行あたり)
-  - MTTR (Critical): < 24時間
-  - MTTR (High): < 1週間
-  - 偽陽性率: < 20%
-  - スキャンカバレッジ: > 95%
-  - Quality Gate 通過率: > 90%
-```
-
----
-
-## 8. アンチパターンとベストプラクティス
-
-### アンチパターン 1: セキュリティスキャンの結果を無視
-
-```
-NG: スキャン結果が 200 件の警告を出すが全て無視
-  → 偽陽性と本物の脆弱性が混在し、全てが放置される
-  → 「アラート疲れ」が発生してツール自体が無視される
-
-OK: トリアージプロセスを設定
-  1. Critical/High → 即座に修正 (ビルドをブロック)
-  2. Medium → 次スプリントで対応
-  3. Low/Info → バックログに追加
-  4. 偽陽性 → 抑制ルールに追加して文書化
-```
-
-### アンチパターン 2: SAST だけで安心する
-
-```
-NG: SAST のみ実施し「セキュリティテスト完了」とする
-  → SAST は認証フロー・認可ロジックの不備を検出できない
-  → ビジネスロジックの脆弱性は見逃される
-
-OK: SAST + DAST + SCA の組み合わせ
-  SAST → コードの脆弱性パターン検出
-  DAST → 実際の攻撃シミュレーション
-  SCA  → 依存関係の既知脆弱性検出
-  手動ペネトレーションテスト → ビジネスロジックの検証
-```
-
-### アンチパターン 3: 全ルールを有効にして始める
-
-```
-NG: SAST ツール導入初日に全ルールを有効化
-  → 数千件の警告が出てチームが圧倒される
-  → 「ツールが使えない」という印象になり放置される
-
-OK: 段階的導入
-  Week 1: Critical ルールのみ有効化 (10-20件の検出)
-  Week 2: High ルールを追加
-  Week 4: Medium ルールを追加
-  Month 2: カスタムルールの追加開始
-  Month 3: Quality Gate を徐々に厳格化
-```
-
-### アンチパターン 4: スキャン結果を開発者に丸投げ
-
-```
-NG: スキャン結果を開発者に送り「全部直してください」
-  → セキュリティの知識がないと修正方法が分からない
-  → 優先順位が不明で放置される
-
-OK: セキュリティチャンピオン制度
-  1. 各チームにセキュリティチャンピオンを配置
-  2. トリアージ会議で優先順位を決定
-  3. 修正ガイダンスを脆弱性レポートに含める
-  4. 定期的なセキュリティトレーニングを実施
-```
-
-### アンチパターン 5: DAST を本番環境で実行
-
-```
-NG: Active Scan を本番環境に対して実行
-  → データ破損のリスク
-  → サービス停止のリスク
-  → 攻撃として検知されアラートが発生
-
-OK: 環境の使い分け
-  本番環境: Baseline Scan (パッシブスキャン) のみ
-  ステージング環境: Full Scan (アクティブスキャン)
-  開発環境: 開発者による手動テスト
+  Example target values:
+  - Vulnerability density: < 1.0 (per 1000 lines)
+  - MTTR (Critical): < 24 hours
+  - MTTR (High): < 1 week
+  - False positive rate: < 20%
+  - Scan coverage: > 95%
+  - Quality Gate pass rate: > 90%
 ```
 
 ---
 
-## 9. 演習問題
+## 8. Anti-Patterns and Best Practices
 
-### 演習 1: Semgrep カスタムルールの作成
+### Anti-Pattern 1: Ignoring Security Scan Results
 
-以下のコードに含まれる脆弱性を検出する Semgrep ルールを作成せよ。
+```
+Bad: Scan produces 200 warnings but all are ignored
+  → False positives and real vulnerabilities mix, everything is left unaddressed
+  → "Alert fatigue" sets in and the tool itself gets ignored
+
+Good: Set up a triage process
+  1. Critical/High → Fix immediately (block build)
+  2. Medium → Address in next sprint
+  3. Low/Info → Add to backlog
+  4. False positives → Add to suppression rules and document
+```
+
+### Anti-Pattern 2: Being Satisfied with SAST Alone
+
+```
+Bad: Only perform SAST and declare "security testing complete"
+  → SAST cannot detect failures in authentication flows or authorization logic
+  → Business logic vulnerabilities are missed
+
+Good: Combination of SAST + DAST + SCA
+  SAST → Detect vulnerability patterns in code
+  DAST → Actual attack simulation
+  SCA  → Detect known vulnerabilities in dependencies
+  Manual penetration testing → Validate business logic
+```
+
+### Anti-Pattern 3: Starting with All Rules Enabled
+
+```
+Bad: Enable all rules on day one of SAST tool introduction
+  → Thousands of warnings overwhelm the team
+  → The tool gets dismissed as "unusable" and is left alone
+
+Good: Gradual introduction
+  Week 1: Enable Critical rules only (10-20 detections)
+  Week 2: Add High rules
+  Week 4: Add Medium rules
+  Month 2: Begin adding custom rules
+  Month 3: Gradually tighten Quality Gate
+```
+
+### Anti-Pattern 4: Dumping Scan Results on Developers
+
+```
+Bad: Send scan results to developers with "please fix everything"
+  → Without security knowledge, they don't know how to fix issues
+  → Priority is unclear and issues are left unaddressed
+
+Good: Security Champion program
+  1. Place a Security Champion in each team
+  2. Determine priorities in triage meetings
+  3. Include fix guidance in vulnerability reports
+  4. Conduct regular security training
+```
+
+### Anti-Pattern 5: Running DAST Against Production
+
+```
+Bad: Run Active Scan against production environment
+  → Risk of data corruption
+  → Risk of service disruption
+  → Detected as an attack, triggering alerts
+
+Good: Use environments appropriately
+  Production: Baseline Scan (passive scan) only
+  Staging: Full Scan (including active scan)
+  Development: Manual testing by developers
+```
+
+---
+
+## 9. Practice Exercises
+
+### Exercise 1: Creating Semgrep Custom Rules
+
+Create Semgrep rules to detect the vulnerabilities in the following code.
 
 ```python
 # vulnerable_app.py
@@ -1671,27 +1674,27 @@ app = Flask(__name__)
 @app.route('/search')
 def search():
     query = request.args.get('q', '')
-    # 脆弱性 1: テンプレートインジェクション
+    # Vulnerability 1: Template injection
     return render_template_string(f'<h1>Results for: {query}</h1>')
 
 @app.route('/ping')
 def ping():
     host = request.args.get('host', '')
-    # 脆弱性 2: コマンドインジェクション
+    # Vulnerability 2: Command injection
     result = subprocess.run(f'ping -c 1 {host}', shell=True, capture_output=True)
     return result.stdout.decode()
 
 @app.route('/file')
 def read_file():
     filename = request.args.get('name', '')
-    # 脆弱性 3: パストラバーサル
+    # Vulnerability 3: Path traversal
     filepath = os.path.join('/var/data', filename)
     with open(filepath) as f:
         return f.read()
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Example Answer</summary>
 
 ```yaml
 rules:
@@ -1699,7 +1702,7 @@ rules:
     patterns:
       - pattern: render_template_string(f"...", ...)
       - pattern-not: render_template_string("...", ...)
-    message: "Flask テンプレートインジェクション (SSTI): render_template_string に f-string を使用しないでください"
+    message: "Flask template injection (SSTI): do not use f-strings with render_template_string"
     severity: ERROR
     languages: [python]
     metadata:
@@ -1710,7 +1713,7 @@ rules:
       - pattern: subprocess.run(f"...", shell=True, ...)
       - pattern: subprocess.call(f"...", shell=True, ...)
       - pattern: subprocess.Popen(f"...", shell=True, ...)
-    message: "コマンドインジェクション: f-string と shell=True の組み合わせは危険です"
+    message: "Command injection: combining f-strings with shell=True is dangerous"
     severity: ERROR
     languages: [python]
     metadata:
@@ -1725,7 +1728,7 @@ rules:
       - pattern-not-inside: |
           if os.path.realpath($PATH).startswith(...):
               ...
-    message: "パストラバーサル: ファイルパスを検証してください"
+    message: "Path traversal: validate the file path"
     severity: ERROR
     languages: [python]
     metadata:
@@ -1733,18 +1736,18 @@ rules:
 ```
 </details>
 
-### 演習 2: CI/CD パイプラインの設計
+### Exercise 2: Designing a CI/CD Pipeline
 
-以下の要件を満たす GitHub Actions ワークフローを設計せよ。
+Design a GitHub Actions workflow that meets the following requirements.
 
-- Python + React (TypeScript) のフルスタックアプリケーション
-- PR 時: SAST (Semgrep + Bandit) + SCA (Trivy) + シークレットスキャン
-- main マージ時: 上記 + コンテナスキャン + DAST (ZAP Baseline)
-- 週次: Full DAST スキャン
-- 結果は SARIF 形式で GitHub Security タブに統合
+- Full-stack application with Python + React (TypeScript)
+- On PR: SAST (Semgrep + Bandit) + SCA (Trivy) + secret scanning
+- On main merge: the above + container scan + DAST (ZAP Baseline)
+- Weekly: Full DAST scan
+- Results integrated into GitHub Security tab in SARIF format
 
 <details>
-<summary>解答例 (骨格)</summary>
+<summary>Example Answer (skeleton)</summary>
 
 ```yaml
 name: Full Security Pipeline
@@ -1754,7 +1757,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: '0 2 * * 1'  # 毎週月曜 02:00 UTC
+    - cron: '0 2 * * 1'  # Every Monday at 02:00 UTC
 
 jobs:
   # PR + main: SAST
@@ -1825,12 +1828,12 @@ jobs:
 ```
 </details>
 
-### 演習 3: トリアージの実践
+### Exercise 3: Triage in Practice
 
-以下の SAST/DAST スキャン結果を、重大度・対応優先度で分類し、各項目について対応方針を示せ。
+Classify the following SAST/DAST scan results by severity and response priority, and indicate the response policy for each item.
 
-| # | ツール | 検出内容 | ファイル |
-|---|--------|---------|---------|
+| # | Tool | Finding | File |
+|---|------|---------|------|
 | 1 | Semgrep | SQL Injection in user query | src/db/users.py:42 |
 | 2 | SonarQube | Hardcoded password in config | src/config.py:15 |
 | 3 | ZAP | Missing X-Content-Type-Options header | / |
@@ -1841,144 +1844,144 @@ jobs:
 | 8 | gitleaks | AWS Access Key in commit history | - |
 
 <details>
-<summary>解答例</summary>
+<summary>Example Answer</summary>
 
-| # | 重大度 | 優先度 | 対応方針 |
-|---|--------|--------|---------|
-| 1 | Critical | 即時 (24h) | パラメータ化クエリに書き換え。ビルドブロック |
-| 2 | High | 即時 (48h) | 環境変数または Secrets Manager に移行 |
-| 3 | Low | バックログ | Web サーバー設定で X-Content-Type-Options: nosniff を追加 |
-| 4 | Critical | 即時 (24h) | log4j を修正バージョンにアップデート |
-| 5 | Low | バックログ | assert を proper な例外処理に置き換え (ただし影響は限定的) |
-| 6 | Info | 記録のみ | Server ヘッダの削除を検討 |
-| 7 | Critical | 即時 (24h) | eval を安全な代替手段に置き換え |
-| 8 | Critical | 即時 | AWS キーを即座に失効させ、新しいキーを発行。BFG で履歴からも削除 |
+| # | Severity | Priority | Response Policy |
+|---|----------|----------|----------------|
+| 1 | Critical | Immediate (24h) | Rewrite with parameterized queries. Block build |
+| 2 | High | Immediate (48h) | Migrate to environment variables or Secrets Manager |
+| 3 | Low | Backlog | Add X-Content-Type-Options: nosniff in web server config |
+| 4 | Critical | Immediate (24h) | Update log4j to fixed version |
+| 5 | Low | Backlog | Replace assert with proper exception handling (impact is limited) |
+| 6 | Info | Log only | Consider removing Server header |
+| 7 | Critical | Immediate (24h) | Replace eval with a safe alternative |
+| 8 | Critical | Immediate | Revoke AWS key immediately and issue a new one. Remove from history with BFG |
 </details>
 
 ---
 
 ## 10. FAQ
 
-### Q1. SAST の偽陽性が多すぎる場合はどうするか?
+### Q1. What to do when there are too many SAST false positives?
 
-まず、ルールの重大度を HIGH/CRITICAL に絞ってノイズを減らす。次に、偽陽性をインラインコメント (`// NOSONAR`, `// nosemgrep`) で抑制し、その理由を文書化する。チーム全体でトリアージのルールを決め、定期的にルール設定を見直すことが重要である。
+First, narrow rules to HIGH/CRITICAL severity to reduce noise. Then suppress false positives with inline comments (`// NOSONAR`, `// nosemgrep`) and document the reasons. It is important to establish team-wide triage rules and regularly review rule configurations.
 
-段階的導入アプローチも有効で、最初は Critical ルールのみ有効化し、チームが慣れてきたら段階的にルールを追加する。偽陽性率が 30% を超える場合はルールの見直しが必要である。
+A gradual introduction approach is also effective: start with only Critical rules enabled, and gradually add rules as the team becomes accustomed. If the false positive rate exceeds 30%, the rules need to be reviewed.
 
-### Q2. DAST はどの環境で実行すべきか?
+### Q2. In which environment should DAST be run?
 
-本番環境に対して DAST を実行するのはリスクが高い (データ破損やサービス影響)。ステージング環境に本番と同等の構成を用意し、そこで実行するのが標準的である。Baseline Scan (パッシブのみ) であれば本番に対しても比較的安全に実行できる。
+Running DAST against production is high-risk (data corruption and service impact). The standard approach is to prepare a staging environment with equivalent configuration to production and run DAST there. Baseline Scan (passive only) can be run against production relatively safely.
 
-環境ごとの推奨スキャンタイプ:
-- **開発環境**: 開発者による手動テスト、ZAP プロキシモード
-- **ステージング環境**: Full Scan (Active Scan 含む)
-- **本番環境**: Baseline Scan のみ (パッシブスキャン)
+Recommended scan types by environment:
+- **Development environment**: Manual testing by developers, ZAP proxy mode
+- **Staging environment**: Full Scan (including Active Scan)
+- **Production environment**: Baseline Scan only (passive scan)
 
-### Q3. SonarQube と Semgrep のどちらを選ぶべきか?
+### Q3. Which should be chosen, SonarQube or Semgrep?
 
-SonarQube はコード品質全般 (バグ、コードスメル、カバレッジ) を統合管理でき、ダッシュボードが充実している。Semgrep はセキュリティに特化し、カスタムルール作成が容易で実行速度が速い。両者は補完関係にあり、併用するのが理想的である。
+SonarQube can integrate overall code quality management (bugs, code smells, coverage) and has a rich dashboard. Semgrep is specialized for security, makes custom rule creation easy, and has fast execution speed. The two are complementary, and using them together is ideal.
 
-- **小規模チーム / スタートアップ**: Semgrep のみで始めて十分
-- **中-大規模組織**: SonarQube (品質管理) + Semgrep (セキュリティ特化)
-- **GitHub 中心のワークフロー**: CodeQL + Semgrep
+- **Small teams / startups**: Starting with Semgrep alone is sufficient
+- **Medium to large organizations**: SonarQube (quality management) + Semgrep (security-specific)
+- **GitHub-centric workflows**: CodeQL + Semgrep
 
-### Q4. SAST/DAST の導入に組織の抵抗がある場合は?
+### Q4. What to do when there is organizational resistance to adopting SAST/DAST?
 
-段階的に導入することが重要である。
+Gradual introduction is important.
 
-1. **啓蒙フェーズ**: セキュリティインシデントの事例を共有し、必要性を認識してもらう
-2. **パイロットフェーズ**: 1つのプロジェクトで導入し、効果を実証する
-3. **展開フェーズ**: 成功事例をもとに他プロジェクトに展開する
-4. **最初は「情報提供モード」**: ビルドをブロックせず、レポートのみ出力する
-5. **安定後にゲート化**: 偽陽性が十分に管理できたらビルドブロックを有効化する
+1. **Awareness phase**: Share examples of security incidents to raise awareness of the need
+2. **Pilot phase**: Introduce in one project and demonstrate effectiveness
+3. **Rollout phase**: Expand to other projects based on success stories
+4. **Start in "information mode"**: Output reports only without blocking builds
+5. **Gate after stabilization**: Enable build blocking once false positives are sufficiently managed
 
-### Q5. IAST は導入すべきか?
+### Q5. Should IAST be adopted?
 
-IAST は SAST と DAST の弱点を補完する優れた技術だが、導入コストが高い (商用ツールが多い) ことと、本番環境でのパフォーマンスオーバーヘッドを考慮する必要がある。
+IAST is an excellent technology that complements the weaknesses of SAST and DAST, but it has high adoption costs (many commercial tools) and performance overhead in production environments needs to be considered.
 
-- **推奨する場合**: セキュリティ要件が厳しい (金融、医療)、SAST/DAST の偽陽性に悩んでいる
-- **推奨しない場合**: 予算が限られている、SAST + DAST で十分なカバレッジが得られている
+- **Recommended when**: Security requirements are strict (finance, healthcare), suffering from false positives with SAST/DAST
+- **Not recommended when**: Budget is limited, sufficient coverage is already achieved with SAST + DAST
 
-### Q6. スキャン時間が CI/CD パイプラインを遅くする場合は?
+### Q6. What to do when scan time slows down the CI/CD pipeline?
 
-以下の最適化を検討する:
+Consider the following optimizations:
 
-1. **差分スキャン**: 変更されたファイルのみスキャン (`semgrep --baseline-commit`)
-2. **並列実行**: SAST/SCA/シークレットスキャンを並列に実行
-3. **キャッシュ活用**: SonarQube のインクリメンタル解析を有効化
-4. **スキャン分離**: PR 時は SAST のみ、マージ時に Full Scan
-5. **週次スキャン**: Full DAST は週次スケジュールで実行
+1. **Differential scan**: Scan only changed files (`semgrep --baseline-commit`)
+2. **Parallel execution**: Run SAST/SCA/secret scans in parallel
+3. **Cache utilization**: Enable SonarQube incremental analysis
+4. **Separate scans**: SAST only on PR, Full Scan on merge
+5. **Weekly scans**: Run Full DAST on a weekly schedule
 
-### Q7. マイクロサービスアーキテクチャでの SAST/DAST 戦略は?
+### Q7. What is the SAST/DAST strategy in a microservices architecture?
 
-マイクロサービス環境では、サービスごとに SAST を実行し、結合テスト環境で DAST を実行する。API Gateway を経由したテストと、サービス間通信のテストの両方が必要である。
+In a microservices environment, run SAST per service and run DAST in the integration testing environment. Both testing through the API Gateway and testing of inter-service communication are needed.
 
 ```
-API Gateway → DAST (外部向けAPI)
+API Gateway → DAST (external-facing APIs)
     |
-    +-- Service A → SAST (個別)
-    +-- Service B → SAST (個別)
-    +-- Service C → SAST (個別)
+    +-- Service A → SAST (individual)
+    +-- Service B → SAST (individual)
+    +-- Service C → SAST (individual)
     |
-API 間通信 → Contract Testing + DAST
+Inter-API communication → Contract Testing + DAST
 ```
 
-### Q8. コンプライアンス要件 (PCI DSS, SOC2等) で SAST/DAST は必須か?
+### Q8. Is SAST/DAST mandatory for compliance requirements (PCI DSS, SOC2, etc.)?
 
-主要なコンプライアンスフレームワークにおけるセキュリティテスト要件:
+Security testing requirements in major compliance frameworks:
 
-| フレームワーク | SAST | DAST | ペネトレーションテスト |
-|---------------|------|------|--------------------|
-| PCI DSS v4.0 | 推奨 | 推奨 | 必須 (年次) |
-| SOC 2 Type II | 推奨 | 推奨 | 推奨 |
-| HIPAA | 推奨 | 推奨 | 推奨 |
-| ISO 27001 | 推奨 | 推奨 | 推奨 |
-| NIST SP 800-53 | 必須 (SA-11) | 必須 (SA-11) | 必須 (CA-8) |
+| Framework | SAST | DAST | Penetration Testing |
+|-----------|------|------|---------------------|
+| PCI DSS v4.0 | Recommended | Recommended | Required (annual) |
+| SOC 2 Type II | Recommended | Recommended | Recommended |
+| HIPAA | Recommended | Recommended | Recommended |
+| ISO 27001 | Recommended | Recommended | Recommended |
+| NIST SP 800-53 | Required (SA-11) | Required (SA-11) | Required (CA-8) |
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and moving on to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| SAST | コード内の脆弱性パターンを早期検出 (Semgrep, SonarQube, CodeQL) |
-| DAST | 実行中アプリへの攻撃シミュレーション (OWASP ZAP, Nuclei) |
-| IAST | SAST + DAST のハイブリッド、低偽陽性率 (Contrast, Hdiv) |
-| SCA | 依存ライブラリの既知脆弱性を検出 (Trivy) |
-| シークレットスキャン | コードに埋め込まれた秘密を検出 (gitleaks) |
-| CI/CD 統合 | SAST→コンテナスキャン→DAST の段階的パイプライン |
-| トリアージ | 重大度別の対応 SLA を設定し偽陽性を管理 |
-| Shift Left | 開発ライフサイクルの早期にテストを配置し修正コストを削減 |
-| 段階的導入 | Critical ルールから始め、徐々にルールとゲートを厳格化 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [セキュアコーディング](./00-secure-coding.md) — SAST が検出する脆弱性の根本対策
-- [依存関係セキュリティ](./01-dependency-security.md) — SCA の詳細
-- [コンテナセキュリティ](./02-container-security.md) — コンテナイメージのスキャン
+| Item | Key Point |
+|------|-----------|
+| SAST | Early detection of vulnerability patterns in code (Semgrep, SonarQube, CodeQL) |
+| DAST | Attack simulation against running application (OWASP ZAP, Nuclei) |
+| IAST | Hybrid of SAST + DAST, low false positive rate (Contrast, Hdiv) |
+| SCA | Detect known vulnerabilities in dependency libraries (Trivy) |
+| Secret scanning | Detect secrets embedded in code (gitleaks) |
+| CI/CD integration | Staged pipeline: SAST → container scan → DAST |
+| Triage | Set response SLAs by severity and manage false positives |
+| Shift Left | Place testing early in the development lifecycle to reduce remediation costs |
+| Gradual adoption | Start with Critical rules, gradually tighten rules and gates |
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+- [Secure Coding](./00-secure-coding.md) — Fundamental remediation for vulnerabilities detected by SAST
+- [Dependency Security](./01-dependency-security.md) — Details on SCA
+- [Container Security](./02-container-security.md) — Scanning container images
+
+---
+
+## References
 
 1. **OWASP Testing Guide** — https://owasp.org/www-project-web-security-testing-guide/
 2. **OWASP ZAP Documentation** — https://www.zaproxy.org/docs/
