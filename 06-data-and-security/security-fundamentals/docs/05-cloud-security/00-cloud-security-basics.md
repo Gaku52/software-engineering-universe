@@ -1,252 +1,254 @@
-# クラウドセキュリティ基礎
+# Cloud Security Fundamentals
 
-> 責任共有モデルの正しい理解、IAM による最小権限アクセス制御、保存時・転送時の暗号化まで、クラウド環境のセキュリティ基盤を体系的に学ぶ
+> A systematic guide to cloud security foundations: understanding the shared responsibility model, IAM-based least-privilege access control, and encryption at rest and in transit.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **責任共有モデル** — クラウドプロバイダとユーザの責任分担の理解
-2. **IAM (Identity and Access Management)** — 最小権限の原則に基づくアクセス制御
-3. **データ暗号化** — 保存時 (at rest) と転送時 (in transit) の暗号化戦略
-4. **ネットワークセキュリティ** — VPC 設計とセグメンテーションの実践
-5. **セキュリティサービス** — 主要クラウドプロバイダのセキュリティサービス比較
-6. **ログ・監査・コンプライアンス** — 証跡の確保と継続的な監査体制
-7. **インシデント対応** — クラウド環境固有のインシデントレスポンス
+1. **Shared Responsibility Model** — Understanding the division of responsibility between cloud providers and users
+2. **IAM (Identity and Access Management)** — Access control based on the principle of least privilege
+3. **Data Encryption** — Encryption strategies for data at rest and in transit
+4. **Network Security** — VPC design and segmentation in practice
+5. **Security Services** — Comparison of security services across major cloud providers
+6. **Logging, Auditing, and Compliance** — Maintaining audit trails and continuous auditing
+7. **Incident Response** — Incident response specific to cloud environments
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. 責任共有モデル
+## 1. Shared Responsibility Model
 
-### サービスモデル別の責任分担
+### Responsibility Breakdown by Service Model
 
-クラウドセキュリティで最も重要な概念が「責任共有モデル (Shared Responsibility Model)」である。クラウドプロバイダが「クラウド "の" セキュリティ (Security "of" the Cloud)」を担い、ユーザが「クラウド "における" セキュリティ (Security "in" the Cloud)」を担う。
+The most important concept in cloud security is the "Shared Responsibility Model." The cloud provider is responsible for "Security **of** the Cloud," while the user is responsible for "Security **in** the Cloud."
 
 ```
 +----------------------------------------------------------+
-|              責任共有モデル                                 |
+|              Shared Responsibility Model                  |
 |----------------------------------------------------------|
 |                  IaaS    PaaS    SaaS                     |
 |                  (EC2)   (Lambda) (Office365)             |
 |----------------------------------------------------------|
-| データ          | User | User  | User                    |
-| アプリケーション | User | User  | Provider                |
-| ランタイム      | User | Provider| Provider               |
-| ミドルウェア    | User | Provider| Provider               |
-| OS             | User | Provider| Provider               |
-| 仮想化         | Provider| Provider| Provider             |
-| ネットワーク   | Provider| Provider| Provider              |
-| 物理           | Provider| Provider| Provider              |
+| Data            | User | User  | User                    |
+| Application     | User | User  | Provider                |
+| Runtime         | User | Provider| Provider               |
+| Middleware      | User | Provider| Provider               |
+| OS              | User | Provider| Provider               |
+| Virtualization  | Provider| Provider| Provider             |
+| Network         | Provider| Provider| Provider              |
+| Physical        | Provider| Provider| Provider              |
 |----------------------------------------------------------|
-| User = ユーザ責任  |  Provider = クラウド事業者責任         |
+| User = User Responsibility  |  Provider = Cloud Provider  |
 +----------------------------------------------------------+
 ```
 
-### 各サービスモデルにおけるユーザ責任の詳細
+### User Responsibility Details for Each Service Model
 
-#### IaaS (Infrastructure as a Service) の場合
+#### IaaS (Infrastructure as a Service)
 
-IaaS ではユーザの責任範囲が最も広い。OS パッチ適用、ミドルウェアの設定、ファイアウォールルール、アプリケーションのセキュリティすべてがユーザ責任となる。
-
-```
-IaaS ユーザ責任チェックリスト:
-+----------------------------------------------------------+
-| [ ] OS のパッチ適用を定期的に実施している                    |
-| [ ] 不要なポートを閉じ、セキュリティグループを最小化          |
-| [ ] ホストベースの IDS/IPS を導入している                   |
-| [ ] ログの収集と監視を設定している                           |
-| [ ] データの暗号化 (EBS, S3) を有効にしている                |
-| [ ] IAM ロールを使い、アクセスキーをハードコードしていない      |
-| [ ] AMI / VM イメージのセキュリティスキャンを実施している       |
-| [ ] バックアップと災害復旧の計画を策定している                 |
-+----------------------------------------------------------+
-```
-
-#### PaaS (Platform as a Service) の場合
-
-PaaS ではランタイム以下がプロバイダ責任となるが、アプリケーションコードとデータのセキュリティはユーザ責任である。
+In IaaS, the user has the broadest scope of responsibility. OS patching, middleware configuration, firewall rules, and all application security are the user's responsibility.
 
 ```
-PaaS ユーザ責任チェックリスト:
+IaaS User Responsibility Checklist:
 +----------------------------------------------------------+
-| [ ] アプリケーションコードの脆弱性スキャンを実施している       |
-| [ ] 環境変数 / シークレット管理を適切に行っている             |
-| [ ] API のアクセス制御 (認証・認可) を実装している            |
-| [ ] 関数 / コンテナの実行権限を最小化している                 |
-| [ ] デプロイパイプラインのセキュリティを確保している            |
-| [ ] 依存ライブラリの脆弱性を定期的にチェックしている           |
+| [ ] OS patches are applied regularly                      |
+| [ ] Unnecessary ports are closed, security groups minimized|
+| [ ] Host-based IDS/IPS is deployed                       |
+| [ ] Log collection and monitoring is configured           |
+| [ ] Data encryption (EBS, S3) is enabled                 |
+| [ ] IAM roles are used; access keys are not hardcoded    |
+| [ ] Security scans are performed on AMI/VM images        |
+| [ ] Backup and disaster recovery plans are in place       |
 +----------------------------------------------------------+
 ```
 
-#### SaaS (Software as a Service) の場合
+#### PaaS (Platform as a Service)
 
-SaaS ではユーザ責任はデータとアクセス管理に限定されるが、それでも重大なリスクが存在する。
-
-```
-SaaS ユーザ責任チェックリスト:
-+----------------------------------------------------------+
-| [ ] ユーザアカウントの棚卸しを定期的に実施している            |
-| [ ] MFA (多要素認証) を全ユーザに有効化している              |
-| [ ] データの分類と共有設定を適切に管理している                 |
-| [ ] 退職者のアカウント即時無効化プロセスがある                 |
-| [ ] SaaS API のアクセストークン管理を行っている               |
-| [ ] データエクスポート / バックアップの手段を確保している       |
-+----------------------------------------------------------+
-```
-
-### 責任共有でよくある誤解
+In PaaS, everything below the runtime layer is the provider's responsibility, but application code and data security remain the user's responsibility.
 
 ```
+PaaS User Responsibility Checklist:
 +----------------------------------------------------------+
-|  誤解                        | 正しい理解                  |
+| [ ] Vulnerability scans are performed on application code |
+| [ ] Environment variables / secrets are managed properly  |
+| [ ] API access control (authentication/authorization) is implemented |
+| [ ] Execution privileges for functions/containers are minimized |
+| [ ] Deployment pipeline security is ensured               |
+| [ ] Dependency library vulnerabilities are checked regularly |
++----------------------------------------------------------+
+```
+
+#### SaaS (Software as a Service)
+
+In SaaS, user responsibility is limited to data and access management, but significant risks still exist.
+
+```
+SaaS User Responsibility Checklist:
++----------------------------------------------------------+
+| [ ] User account audits are performed regularly           |
+| [ ] MFA (multi-factor authentication) is enabled for all users |
+| [ ] Data classification and sharing settings are properly managed |
+| [ ] A process exists to immediately disable departed employees |
+| [ ] SaaS API access token management is in place         |
+| [ ] Data export/backup methods are secured               |
++----------------------------------------------------------+
+```
+
+### Common Misconceptions About the Shared Responsibility Model
+
+```
++----------------------------------------------------------+
+|  Misconception               | Correct Understanding      |
 |----------------------------------------------------------+
-|  「クラウドだから安全」        | インフラは安全、設定は自己責任 |
-|  「暗号化はクラウドが自動で」  | 有効化はユーザが明示的に行う   |
-|  「アクセス制御は不要」        | IAM 設定はユーザの責任        |
-|  「バックアップは自動」        | 設定・テストはユーザの責任     |
-|  「コンプライアンスも自動」    | 認証取得と維持はユーザの責任   |
-|  「ログは永久保存される」      | 保持期間の設定はユーザの責任   |
-|  「マルチテナントは危険」      | 論理的隔離は物理隔離と同等    |
-|  「プロバイダがDRも担保」      | 可用性設計はユーザの責任       |
+|  "Cloud means secure"        | Infra is secure; config is your responsibility |
+|  "Cloud auto-encrypts"       | Encryption must be explicitly enabled by user |
+|  "Access control not needed" | IAM configuration is the user's responsibility |
+|  "Backups are automatic"     | Configuration and testing are the user's responsibility |
+|  "Compliance is automatic"   | Certification and maintenance are the user's responsibility |
+|  "Logs are stored forever"   | Retention period configuration is the user's responsibility |
+|  "Multi-tenancy is dangerous"| Logical isolation is equivalent to physical isolation |
+|  "Provider guarantees DR"    | Availability design is the user's responsibility |
 +----------------------------------------------------------+
 ```
 
-### 責任共有モデルの実例: S3 データ漏洩
+### Shared Responsibility Model in Practice: S3 Data Breach
 
-実際に多発しているインシデントで責任共有モデルを理解する。
+Understanding the shared responsibility model through a real-world incident.
 
 ```
-[インシデント例: S3 バケットの公開設定ミス]
+[Incident Example: Misconfigured S3 Bucket Public Access]
 
-状況:
-  企業が顧客データを S3 に保存
-  バケットポリシーを誤って Public に設定
-  外部から全データにアクセス可能な状態が数ヶ月続いた
+Situation:
+  A company stored customer data in S3
+  The bucket policy was accidentally set to Public
+  All data was accessible externally for several months
 
-責任の所在:
+Where Responsibility Lies:
   +----------------------------------------------------------+
-  | AWS の責任                    | ユーザの責任               |
+  | AWS Responsibility               | User Responsibility    |
   |----------------------------------------------------------+
-  | S3 サービスの可用性            | バケットポリシーの設定      |
-  | S3 インフラの物理セキュリティ   | パブリックアクセスブロック   |
-  | S3 の暗号化機能の提供          | 暗号化の有効化             |
-  | S3 のアクセスログ機能の提供     | ログの有効化と監視          |
+  | S3 service availability          | Bucket policy config   |
+  | Physical security of S3 infra    | Public access block    |
+  | Providing S3 encryption features | Enabling encryption    |
+  | Providing S3 access log features | Enabling logs & monitoring |
   +----------------------------------------------------------+
 
-  → AWS は「S3 は正しく動作していた」と判断
-  → 設定ミスはユーザの責任
-  → AWS は S3 Block Public Access 機能を追加して対策を支援
+  → AWS determined that "S3 was operating correctly"
+  → The misconfiguration was the user's responsibility
+  → AWS added the S3 Block Public Access feature to help prevent this
 ```
 
-### 主要プロバイダ別の責任共有モデルの違い
+### Differences in Shared Responsibility Models by Major Provider
 
 ```
 +----------------------------------------------------------+
-| プロバイダ   | モデル名称             | 特徴              |
+| Provider     | Model Name             | Characteristics    |
 |----------------------------------------------------------+
-| AWS          | Shared Responsibility  | 標準的な2分割      |
-|              | Model                  |                   |
-| Azure        | Shared Responsibility  | AWS とほぼ同一     |
-|              | in the Cloud           |                   |
-| GCP          | Shared Fate            | より積極的な       |
-|              |                        | 支援を強調        |
+| AWS          | Shared Responsibility  | Standard two-way   |
+|              | Model                  | split              |
+| Azure        | Shared Responsibility  | Nearly identical   |
+|              | in the Cloud           | to AWS             |
+| GCP          | Shared Fate            | Emphasizes more    |
+|              |                        | proactive support  |
 +----------------------------------------------------------+
 
-GCP の「Shared Fate」アプローチ:
-  - 単なる責任分担ではなく「共に安全を実現する」姿勢
-  - Assured Workloads: コンプライアンス準拠を自動支援
-  - Security Command Center: 設定ミスの自動検出と修復提案
-  - Organization Policy: ガードレールとしての組織ポリシー
+GCP's "Shared Fate" Approach:
+  - Not just dividing responsibility but "achieving security together"
+  - Assured Workloads: automatic compliance support
+  - Security Command Center: auto-detection and remediation suggestions for misconfigs
+  - Organization Policy: organizational policy as guardrails
 ```
 
 ---
 
 ## 2. IAM (Identity and Access Management)
 
-### IAM の構成要素
+### IAM Components
 
 ```
 +----------------------------------------------------------+
-|                    IAM の構成要素                           |
+|                    IAM Components                         |
 |----------------------------------------------------------|
 |                                                          |
-|  [アイデンティティ]                                       |
-|  +-- ユーザ (人間のオペレータ)                             |
-|  +-- サービスアカウント (アプリケーション)                   |
-|  +-- ロール (一時的な権限の集合)                           |
-|  +-- グループ (ユーザの集合)                               |
+|  [Identities]                                             |
+|  +-- Users (human operators)                             |
+|  +-- Service Accounts (applications)                     |
+|  +-- Roles (temporary permission sets)                   |
+|  +-- Groups (collections of users)                       |
 |                                                          |
-|  [ポリシー]                                               |
-|  +-- アイデンティティベースポリシー (誰に何を許可)           |
-|  +-- リソースベースポリシー (何に誰がアクセス可能)           |
-|  +-- 権限境界 (最大権限の制限)                             |
-|  +-- SCP (組織全体の制限)                                 |
+|  [Policies]                                              |
+|  +-- Identity-based policies (who can do what)           |
+|  +-- Resource-based policies (who can access what)       |
+|  +-- Permission boundaries (maximum permission limits)   |
+|  +-- SCP (organization-wide restrictions)                |
 |                                                          |
-|  [認証方式]                                               |
-|  +-- パスワード + MFA                                     |
-|  +-- アクセスキー (プログラムアクセス)                      |
-|  +-- 一時的セキュリティ認証情報 (STS)                      |
-|  +-- SSO / SAML / OIDC 連携                              |
+|  [Authentication Methods]                                |
+|  +-- Password + MFA                                      |
+|  +-- Access keys (programmatic access)                   |
+|  +-- Temporary security credentials (STS)                |
+|  +-- SSO / SAML / OIDC federation                        |
 +----------------------------------------------------------+
 ```
 
-### IAM ポリシーの評価ロジック
+### IAM Policy Evaluation Logic
 
-ポリシーがどのように評価されるかを正確に理解することが重要である。
+It is important to understand precisely how policies are evaluated.
 
 ```
-IAM ポリシー評価フロー:
+IAM Policy Evaluation Flow:
 
-リクエスト受信
+Request received
     |
     v
-[1] 明示的 Deny があるか? ──── Yes ──→ アクセス拒否
+[1] Is there an explicit Deny? ──── Yes ──→ Access Denied
     |
     No
     |
     v
-[2] SCP で許可されているか? ── No ───→ アクセス拒否
+[2] Is it allowed by SCP? ──────── No ───→ Access Denied
     |
     Yes
     |
     v
-[3] リソースベースポリシーで
-    許可されているか? ────── Yes ──→ アクセス許可
+[3] Is it allowed by a
+    resource-based policy? ──────── Yes ──→ Access Allowed
     |
-    No (or なし)
+    No (or none)
     |
     v
-[4] アイデンティティベース
-    ポリシーで許可? ──────── No ───→ アクセス拒否
+[4] Is it allowed by an
+    identity-based policy? ──────── No ───→ Access Denied
     |
     Yes
     |
     v
-[5] 権限境界で許可? ──────── No ───→ アクセス拒否
+[5] Is it allowed by the
+    permission boundary? ──────── No ───→ Access Denied
     |
     Yes
     |
     v
-[6] セッションポリシーで許可? ─ No ───→ アクセス拒否
+[6] Is it allowed by the
+    session policy? ──────────── No ───→ Access Denied
     |
     Yes
     |
     v
-  アクセス許可
+  Access Allowed
 
-重要ポイント:
-  - 明示的 Deny は常に最優先
-  - 許可が明示されていない場合はデフォルト拒否 (暗黙的 Deny)
-  - 複数ポリシーの AND 条件で評価される
+Key Points:
+  - Explicit Deny always takes highest priority
+  - No explicit Allow defaults to deny (implicit Deny)
+  - Multiple policies are evaluated with AND logic
 ```
 
-### 最小権限ポリシーの設計
+### Designing Least-Privilege Policies
 
 ```json
 {
@@ -287,41 +289,41 @@ IAM ポリシー評価フロー:
 }
 ```
 
-### IAM ポリシー設計のベストプラクティス
+### IAM Policy Design Best Practices
 
 ```
 +----------------------------------------------------------+
-|  IAM ポリシー設計 5 原則                                    |
+|  5 Principles of IAM Policy Design                       |
 |----------------------------------------------------------|
 |                                                          |
-|  1. 最小権限の原則 (Least Privilege)                       |
-|     - 必要な権限のみを付与する                              |
-|     - ワイルドカード (*) の使用を避ける                      |
-|     - Action と Resource の両方を限定する                   |
+|  1. Principle of Least Privilege                         |
+|     - Grant only the permissions required                |
+|     - Avoid using wildcards (*)                          |
+|     - Restrict both Action and Resource                  |
 |                                                          |
-|  2. 条件 (Condition) の積極活用                            |
-|     - IP アドレス制限                                      |
-|     - リージョン制限                                       |
-|     - MFA 必須化                                          |
-|     - タグベースのアクセス制御 (ABAC)                       |
+|  2. Active Use of Conditions                             |
+|     - IP address restrictions                            |
+|     - Region restrictions                                |
+|     - Require MFA                                        |
+|     - Attribute-based access control (ABAC) with tags    |
 |                                                          |
-|  3. ロールベースアクセス制御 (RBAC)                         |
-|     - 個別ユーザではなくグループ/ロールに権限を付与           |
-|     - 職務分離 (Separation of Duties) を実装               |
+|  3. Role-Based Access Control (RBAC)                     |
+|     - Assign permissions to groups/roles, not individuals|
+|     - Implement Separation of Duties                     |
 |                                                          |
-|  4. 一時的認証情報の優先使用                                |
-|     - 長期アクセスキーではなく STS を使用                    |
-|     - IAM ロールのアサムプション                            |
-|     - セッションの有効期限を適切に設定                       |
+|  4. Prefer Temporary Credentials                         |
+|     - Use STS instead of long-lived access keys          |
+|     - IAM role assumption                                |
+|     - Set appropriate session expiration                 |
 |                                                          |
-|  5. 定期的な棚卸しと権限削減                                |
-|     - IAM Access Analyzer で未使用権限を検出                |
-|     - 90 日以上未使用のアクセスキーを無効化                   |
-|     - Credential Report で定期監査                         |
+|  5. Regular Audits and Permission Reduction              |
+|     - Detect unused permissions with IAM Access Analyzer |
+|     - Disable access keys unused for 90+ days            |
+|     - Perform regular audits with Credential Report      |
 +----------------------------------------------------------+
 ```
 
-### 高度なポリシー例: ABAC (属性ベースアクセス制御)
+### Advanced Policy Example: ABAC (Attribute-Based Access Control)
 
 ```json
 {
@@ -362,24 +364,24 @@ IAM ポリシー評価フロー:
 ```
 
 ```
-ABAC の利点:
-  - タグに基づいて動的に権限を制御
-  - 新リソース追加時にポリシー更新が不要
-  - スケーラブルな権限管理
-  - 例: Department=Engineering のユーザは
-        Department=Engineering のインスタンスのみ操作可能
+Benefits of ABAC:
+  - Dynamically control permissions based on tags
+  - No policy update needed when new resources are added
+  - Scalable permission management
+  - Example: Users with Department=Engineering can only operate
+             instances with Department=Engineering
 ```
 
-### IAM ロールの活用 (EC2/Lambda)
+### Using IAM Roles (EC2/Lambda)
 
 ```python
 import boto3
 
-# EC2 インスタンスプロファイル経由でアクセス
-# (アクセスキーのハードコーディング不要)
-s3 = boto3.client('s3')  # IAM ロールの認証情報を自動取得
+# Access via EC2 instance profile
+# (No need to hardcode access keys)
+s3 = boto3.client('s3')  # Automatically retrieves IAM role credentials
 
-# Lambda 用ロールの最小権限ポリシー (Terraform)
+# Least-privilege policy for Lambda role (Terraform)
 """
 resource "aws_iam_role" "lambda_role" {
   name = "my-lambda-role"
@@ -418,10 +420,10 @@ resource "aws_iam_role_policy" "lambda_policy" {
 """
 ```
 
-### クロスアカウントアクセスの設定
+### Configuring Cross-Account Access
 
 ```json
-// Account A (リソース保有側) のロール信頼ポリシー
+// Trust policy for the role in Account A (resource owner)
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -442,19 +444,19 @@ resource "aws_iam_role_policy" "lambda_policy" {
 ```
 
 ```python
-# Account B (アクセス元) からのクロスアカウントアクセス
+# Cross-account access from Account B (requestor)
 import boto3
 
-# STS でクロスアカウントロールを引き受ける
+# Assume the cross-account role via STS
 sts = boto3.client('sts')
 assumed_role = sts.assume_role(
     RoleArn='arn:aws:iam::999888777666:role/CrossAccountS3Access',
     RoleSessionName='cross-account-session',
     ExternalId='unique-external-id-12345',
-    DurationSeconds=3600  # 1時間
+    DurationSeconds=3600  # 1 hour
 )
 
-# 一時的認証情報を使って S3 にアクセス
+# Access S3 using temporary credentials
 credentials = assumed_role['Credentials']
 s3 = boto3.client(
     's3',
@@ -463,17 +465,17 @@ s3 = boto3.client(
     aws_session_token=credentials['SessionToken']
 )
 
-# これで Account A の S3 バケットにアクセス可能
+# Now able to access Account A's S3 bucket
 response = s3.list_objects_v2(Bucket='account-a-bucket')
 ```
 
-### マルチアカウント戦略
+### Multi-Account Strategy
 
 ```
 +----------------------------------------------------------+
 |  AWS Organizations                                       |
 |                                                          |
-|  +-- Management Account (請求・組織管理のみ)              |
+|  +-- Management Account (billing and org management only)|
 |  |                                                       |
 |  +-- Security OU                                         |
 |  |   +-- Security Account (GuardDuty, Security Hub)      |
@@ -487,14 +489,14 @@ response = s3.list_objects_v2(Bucket='account-a-bucket')
 |  +-- Sandbox OU                                          |
 |      +-- Developer Sandbox Accounts                      |
 |                                                          |
-|  SCP (Service Control Policy) で全アカウントに制限適用     |
+|  Apply restrictions to all accounts via SCP              |
 +----------------------------------------------------------+
 ```
 
-### SCP (Service Control Policy) の実践例
+### Practical SCP (Service Control Policy) Examples
 
 ```json
-// 全アカウントに適用する SCP の例
+// Example SCP applied to all accounts
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -549,183 +551,183 @@ response = s3.list_objects_v2(Bucket='account-a-bucket')
 }
 ```
 
-### AWS IAM Identity Center (旧 SSO) の設定
+### AWS IAM Identity Center (formerly SSO) Configuration
 
 ```
 +----------------------------------------------------------+
-|  IAM Identity Center のアーキテクチャ                       |
+|  IAM Identity Center Architecture                        |
 |                                                          |
-|  [IdP: 外部 ID プロバイダ]                                 |
+|  [IdP: External Identity Provider]                       |
 |  (Okta / Azure AD / Google Workspace)                    |
 |       |                                                  |
 |       | SAML 2.0 / SCIM                                  |
 |       v                                                  |
 |  [IAM Identity Center]                                   |
 |       |                                                  |
-|       +-- Permission Set A (管理者)                       |
+|       +-- Permission Set A (Administrators)              |
 |       |   +-- AWS Account: Production                    |
 |       |   +-- Policy: AdministratorAccess                |
 |       |                                                  |
-|       +-- Permission Set B (開発者)                       |
+|       +-- Permission Set B (Developers)                  |
 |       |   +-- AWS Account: Development                   |
 |       |   +-- Policy: PowerUserAccess                    |
 |       |                                                  |
-|       +-- Permission Set C (読み取り専用)                  |
+|       +-- Permission Set C (Read-only)                   |
 |           +-- AWS Account: Production, Staging           |
 |           +-- Policy: ReadOnlyAccess                     |
 |                                                          |
-|  利点:                                                   |
-|  - 一箇所でアクセスを一元管理                               |
-|  - 一時的認証情報を自動発行                                 |
-|  - 長期アクセスキーが不要                                   |
-|  - 退職時のアクセス無効化が即座に可能                        |
+|  Benefits:                                               |
+|  - Centralized access management in one place            |
+|  - Automatic issuance of temporary credentials           |
+|  - No long-lived access keys required                    |
+|  - Immediate access revocation upon employee departure   |
 +----------------------------------------------------------+
 ```
 
 ---
 
-## 3. データ暗号化
+## 3. Data Encryption
 
-### 暗号化の分類
+### Encryption Classification
 
 ```
 +----------------------------------------------------------+
-|                暗号化の層                                  |
+|                Layers of Encryption                       |
 |----------------------------------------------------------|
 |                                                          |
-|  転送時の暗号化 (In Transit):                              |
+|  In Transit:                                             |
 |  +-- TLS 1.2/1.3 (HTTPS, gRPC over TLS)                 |
 |  +-- VPN (IPsec, WireGuard)                              |
-|  +-- SSH トンネル                                        |
+|  +-- SSH tunneling                                       |
 |                                                          |
-|  保存時の暗号化 (At Rest):                                |
-|  +-- サーバサイド暗号化 (SSE)                              |
-|  |   +-- SSE-S3 (S3 管理キー)                            |
-|  |   +-- SSE-KMS (KMS 管理キー)                          |
-|  |   +-- SSE-C (顧客提供キー)                             |
-|  +-- クライアントサイド暗号化 (CSE)                        |
-|  +-- ディスク暗号化 (EBS, RDS)                            |
+|  At Rest:                                                |
+|  +-- Server-side encryption (SSE)                        |
+|  |   +-- SSE-S3 (S3-managed keys)                        |
+|  |   +-- SSE-KMS (KMS-managed keys)                      |
+|  |   +-- SSE-C (customer-provided keys)                  |
+|  +-- Client-side encryption (CSE)                        |
+|  +-- Disk encryption (EBS, RDS)                          |
 |                                                          |
-|  処理時の暗号化 (In Use):                                  |
+|  In Use:                                                 |
 |  +-- AWS Nitro Enclaves                                  |
 |  +-- Confidential Computing                              |
 +----------------------------------------------------------+
 ```
 
-### 暗号化方式の詳細比較
+### Detailed Comparison of Encryption Methods
 
 ```
 +----------------------------------------------------------+
-|  暗号化方式比較                                            |
+|  Encryption Method Comparison                            |
 |----------------------------------------------------------|
-|  方式         | 鍵管理  | 監査  | コスト | ユースケース    |
+|  Method       | Key Mgmt | Audit | Cost | Use Case       |
 |----------------------------------------------------------|
-|  SSE-S3       | AWS     | 低    | 無料   | 基本的な暗号化  |
-|  SSE-KMS      | ユーザ  | 高    | 有料   | コンプライアンス|
-|  SSE-C        | ユーザ  | 最高  | 無料   | 完全な鍵制御    |
-|  CSE          | ユーザ  | 最高  | -     | 最高機密データ  |
+|  SSE-S3       | AWS      | Low   | Free | Basic encryption|
+|  SSE-KMS      | User     | High  | Paid | Compliance     |
+|  SSE-C        | User     | High  | Free | Full key control|
+|  CSE          | User     | High  | -    | Top-secret data |
 |----------------------------------------------------------|
 |                                                          |
 |  SSE-S3:                                                 |
-|  - AWS が鍵を管理、最も簡単                                |
-|  - 鍵のローテーションは自動                                 |
-|  - 監査ログでの鍵使用追跡は不可                             |
+|  - AWS manages keys; easiest to use                      |
+|  - Key rotation is automatic                             |
+|  - Key usage cannot be tracked in audit logs             |
 |                                                          |
 |  SSE-KMS:                                                |
-|  - 鍵の作成・ローテーション・削除をユーザが制御              |
-|  - CloudTrail で鍵の使用を追跡可能                         |
-|  - 鍵ポリシーで細かいアクセス制御                           |
-|  - API 呼び出しに対するレートリミットに注意                  |
+|  - User controls key creation, rotation, and deletion    |
+|  - Key usage can be tracked via CloudTrail               |
+|  - Fine-grained access control with key policies         |
+|  - Be aware of rate limits on API calls                  |
 |                                                          |
 |  SSE-C:                                                  |
-|  - ユーザが暗号化鍵を提供し、AWS が暗号化を実行             |
-|  - AWS は鍵を保存しない (HTTPS 必須)                       |
-|  - 鍵を紛失するとデータ復元不可能                           |
+|  - User provides the encryption key; AWS performs encryption |
+|  - AWS does not store the key (HTTPS required)           |
+|  - Data is irrecoverable if the key is lost              |
 |                                                          |
 |  CSE:                                                    |
-|  - クライアント側で暗号化してから AWS に保存                 |
-|  - AWS は暗号化済みデータのみ保持                           |
-|  - 最も高いセキュリティだが実装コストも最大                   |
+|  - Data is encrypted client-side before sending to AWS   |
+|  - AWS only holds encrypted data                         |
+|  - Highest security but also highest implementation cost |
 +----------------------------------------------------------+
 ```
 
-### KMS (Key Management Service) の詳細
+### KMS (Key Management Service) Details
 
 ```
 +----------------------------------------------------------+
-|  KMS キー階層                                              |
+|  KMS Key Hierarchy                                       |
 |                                                          |
 |  [Customer Master Key (CMK)]                             |
 |       |                                                  |
-|       | 暗号化                                            |
+|       | Encrypts                                         |
 |       v                                                  |
 |  [Data Encryption Key (DEK)]                             |
 |       |                                                  |
-|       | 暗号化                                            |
+|       | Encrypts                                         |
 |       v                                                  |
-|  [実データ]                                               |
+|  [Actual Data]                                           |
 |                                                          |
-|  エンベロープ暗号化の仕組み:                                |
-|  1. KMS に DEK の生成をリクエスト                          |
-|  2. 平文 DEK と暗号化済み DEK が返される                    |
-|  3. 平文 DEK でデータを暗号化                              |
-|  4. 平文 DEK をメモリから削除                               |
-|  5. 暗号化済み DEK をデータと共に保存                       |
-|  6. 復号時: 暗号化済み DEK を KMS で復号 → データを復号     |
+|  How Envelope Encryption Works:                          |
+|  1. Request DEK generation from KMS                      |
+|  2. Receive plaintext DEK and encrypted DEK              |
+|  3. Encrypt data with the plaintext DEK                  |
+|  4. Delete the plaintext DEK from memory                 |
+|  5. Store the encrypted DEK alongside the data           |
+|  6. Decryption: decrypt the encrypted DEK via KMS → decrypt data |
 +----------------------------------------------------------+
 ```
 
 ```python
-# KMS を使ったエンベロープ暗号化の実装例
+# Example implementation of envelope encryption using KMS
 import boto3
 import base64
 from cryptography.fernet import Fernet
 
 kms = boto3.client('kms', region_name='ap-northeast-1')
 
-# 1. データキーの生成
+# 1. Generate a data key
 response = kms.generate_data_key(
     KeyId='alias/my-app-key',
     KeySpec='AES_256'
 )
 
-plaintext_key = response['Plaintext']       # 平文の DEK
-encrypted_key = response['CiphertextBlob']  # 暗号化済み DEK
+plaintext_key = response['Plaintext']       # Plaintext DEK
+encrypted_key = response['CiphertextBlob']  # Encrypted DEK
 
-# 2. 平文キーでデータを暗号化
+# 2. Encrypt data with the plaintext key
 fernet_key = base64.urlsafe_b64encode(plaintext_key)
 f = Fernet(fernet_key)
 encrypted_data = f.encrypt(b"Secret data to protect")
 
-# 3. 平文キーをメモリから削除
+# 3. Delete the plaintext key from memory
 del plaintext_key
 del fernet_key
 
-# 4. 暗号化済みキーと暗号化データを保存
-# (encrypted_key と encrypted_data を保存)
+# 4. Store the encrypted key and encrypted data
+# (save encrypted_key and encrypted_data)
 
 # ========================================
-# 復号プロセス
+# Decryption Process
 # ========================================
 
-# 5. 暗号化済みキーを KMS で復号
+# 5. Decrypt the encrypted key via KMS
 decrypt_response = kms.decrypt(
     CiphertextBlob=encrypted_key,
     KeyId='alias/my-app-key'
 )
 decrypted_key = decrypt_response['Plaintext']
 
-# 6. 復号したキーでデータを復号
+# 6. Decrypt data with the decrypted key
 fernet_key = base64.urlsafe_b64encode(decrypted_key)
 f = Fernet(fernet_key)
 original_data = f.decrypt(encrypted_data)
 
-# 7. キーをメモリから削除
+# 7. Delete the key from memory
 del decrypted_key
 del fernet_key
 ```
 
-### KMS キーポリシーの設計
+### Designing KMS Key Policies
 
 ```json
 {
@@ -786,7 +788,7 @@ del fernet_key
 }
 ```
 
-### S3 バケットのセキュリティ設定
+### S3 Bucket Security Configuration
 
 ```python
 import boto3
@@ -794,7 +796,7 @@ import json
 
 s3 = boto3.client('s3')
 
-# デフォルト暗号化の設定
+# Configure default encryption
 s3.put_bucket_encryption(
     Bucket='my-secure-bucket',
     ServerSideEncryptionConfiguration={
@@ -803,12 +805,12 @@ s3.put_bucket_encryption(
                 'SSEAlgorithm': 'aws:kms',
                 'KMSMasterKeyID': 'arn:aws:kms:ap-northeast-1:123456:key/xxx',
             },
-            'BucketKeyEnabled': True,  # コスト削減
+            'BucketKeyEnabled': True,  # Cost reduction
         }]
     },
 )
 
-# パブリックアクセスブロック
+# Block public access
 s3.put_public_access_block(
     Bucket='my-secure-bucket',
     PublicAccessBlockConfiguration={
@@ -819,7 +821,7 @@ s3.put_public_access_block(
     },
 )
 
-# バケットポリシー: HTTPS のみ許可
+# Bucket policy: allow HTTPS only
 bucket_policy = {
     "Version": "2012-10-17",
     "Statement": [{
@@ -842,7 +844,7 @@ s3.put_bucket_policy(
     Policy=json.dumps(bucket_policy)
 )
 
-# バージョニングの有効化 (誤削除・改ざん対策)
+# Enable versioning (protection against accidental deletion and tampering)
 s3.put_bucket_versioning(
     Bucket='my-secure-bucket',
     VersioningConfiguration={
@@ -850,8 +852,8 @@ s3.put_bucket_versioning(
     }
 )
 
-# オブジェクトロック設定 (ランサムウェア対策)
-# ※ バケット作成時にのみ有効化可能
+# Object lock configuration (ransomware protection)
+# * Can only be enabled at bucket creation time
 s3.put_object_lock_configuration(
     Bucket='my-secure-bucket',
     ObjectLockConfiguration={
@@ -866,10 +868,10 @@ s3.put_object_lock_configuration(
 )
 ```
 
-### RDS / データベースの暗号化
+### RDS / Database Encryption
 
 ```python
-# Terraform での RDS 暗号化設定
+# RDS encryption configuration with Terraform
 """
 resource "aws_db_instance" "main" {
   identifier     = "my-secure-db"
@@ -877,37 +879,37 @@ resource "aws_db_instance" "main" {
   engine_version = "15.4"
   instance_class = "db.r6g.large"
 
-  # 暗号化設定
+  # Encryption settings
   storage_encrypted = true
   kms_key_id       = aws_kms_key.rds_key.arn
 
-  # ネットワークセキュリティ
+  # Network security
   db_subnet_group_name   = aws_db_subnet_group.private.name
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
   publicly_accessible    = false
 
-  # SSL 強制
+  # Enforce SSL
   parameter_group_name = aws_db_parameter_group.ssl_required.name
 
-  # 自動バックアップ
+  # Automated backups
   backup_retention_period = 35
   backup_window          = "03:00-04:00"
 
-  # 削除保護
+  # Deletion protection
   deletion_protection = true
 
-  # 拡張モニタリング
+  # Enhanced monitoring
   monitoring_interval = 60
   monitoring_role_arn = aws_iam_role.rds_monitoring.arn
 
-  # ログのエクスポート
+  # Log exports
   enabled_cloudwatch_logs_exports = [
     "postgresql",
     "upgrade"
   ]
 }
 
-# SSL 接続を強制するパラメータグループ
+# Parameter group to enforce SSL connections
 resource "aws_db_parameter_group" "ssl_required" {
   family = "postgres15"
   name   = "ssl-required"
@@ -920,36 +922,36 @@ resource "aws_db_parameter_group" "ssl_required" {
 """
 ```
 
-### シークレット管理
+### Secret Management
 
 ```
 +----------------------------------------------------------+
-|  シークレット管理のベストプラクティス                         |
+|  Secret Management Best Practices                        |
 |----------------------------------------------------------|
 |                                                          |
-|  NG パターン:                                             |
-|  - ソースコードにハードコード                               |
-|  - 環境変数にプレーンテキストで設定                          |
-|  - 設定ファイルに記載して Git にコミット                     |
-|  - チャットやメールでパスワードを共有                        |
+|  Anti-patterns:                                          |
+|  - Hardcoding in source code                             |
+|  - Setting as plaintext environment variables            |
+|  - Writing in config files and committing to Git         |
+|  - Sharing passwords via chat or email                   |
 |                                                          |
-|  OK パターン:                                             |
+|  Best practices:                                         |
 |  - AWS Secrets Manager / Parameter Store                 |
 |  - GCP Secret Manager                                    |
 |  - Azure Key Vault                                       |
 |  - HashiCorp Vault                                       |
-|  - 実行時にのみシークレットを取得                           |
-|  - 自動ローテーション                                     |
+|  - Retrieve secrets only at runtime                      |
+|  - Automatic rotation                                    |
 +----------------------------------------------------------+
 ```
 
 ```python
-# AWS Secrets Manager からシークレットを取得する例
+# Example of securely retrieving a secret from AWS Secrets Manager
 import boto3
 import json
 
 def get_secret(secret_name: str) -> dict:
-    """Secrets Manager からシークレットを安全に取得する"""
+    """Safely retrieve a secret from Secrets Manager"""
     client = boto3.client('secretsmanager', region_name='ap-northeast-1')
 
     try:
@@ -961,19 +963,19 @@ def get_secret(secret_name: str) -> dict:
     except client.exceptions.DecryptionFailure:
         raise ValueError(f"Cannot decrypt secret {secret_name}")
 
-# 使用例: データベース接続
+# Usage example: database connection
 db_secret = get_secret('prod/myapp/database')
 connection_string = (
     f"postgresql://{db_secret['username']}:{db_secret['password']}"
     f"@{db_secret['host']}:{db_secret['port']}/{db_secret['dbname']}"
 )
 
-# Terraform でのシークレット自動ローテーション設定
+# Automatic secret rotation configuration with Terraform
 """
 resource "aws_secretsmanager_secret" "db_password" {
   name = "prod/myapp/database"
 
-  # 自動ローテーション
+  # Automatic rotation
   rotation_rules {
     automatically_after_days = 30
   }
@@ -992,9 +994,9 @@ resource "aws_secretsmanager_secret_rotation" "db_rotation" {
 
 ---
 
-## 4. ネットワークセキュリティ (クラウド)
+## 4. Network Security (Cloud)
 
-### VPC の設計
+### VPC Design
 
 ```
 +----------------------------------------------------------+
@@ -1011,18 +1013,18 @@ resource "aws_secretsmanager_secret_rotation" "db_rotation" {
 |  |                                                       |
 |  +-- Data Subnet (10.0.3.0/24)                           |
 |  |   +-- RDS / ElastiCache                               |
-|  |   Route: ローカルのみ                                  |
+|  |   Route: local only                                   |
 |  |                                                       |
 |  +-- VPC Endpoints (S3, DynamoDB, KMS)                   |
-|      → インターネットを経由せず AWS サービスにアクセス       |
+|      → Access AWS services without going through the internet |
 +----------------------------------------------------------+
 ```
 
-### マルチ AZ 構成のセキュリティ設計
+### Security Design for Multi-AZ Configuration
 
 ```
 +----------------------------------------------------------+
-|  VPC (10.0.0.0/16) - マルチ AZ 設計                        |
+|  VPC (10.0.0.0/16) - Multi-AZ Design                    |
 |                                                          |
 |  AZ-a                          AZ-c                      |
 |  +------------------------+  +------------------------+  |
@@ -1037,43 +1039,43 @@ resource "aws_secretsmanager_secret_rotation" "db_rotation" {
 |  | +-- RDS Primary        |  | +-- RDS Standby        |  |
 |  +------------------------+  +------------------------+  |
 |                                                          |
-|  セキュリティ設計ポイント:                                 |
-|  - 各層にサブネットを配置 (パブリック/プライベート/データ)   |
-|  - 各 AZ で同じ構成を冗長化                                |
-|  - データサブネットは外部接続なし (ルートテーブルなし)       |
-|  - VPC Flow Logs を全サブネットで有効化                    |
+|  Security Design Points:                                 |
+|  - Place subnets at each tier (public/private/data)      |
+|  - Redundant identical configuration in each AZ          |
+|  - Data subnet has no external connectivity (no route table) |
+|  - Enable VPC Flow Logs on all subnets                   |
 +----------------------------------------------------------+
 ```
 
-### セキュリティグループとネットワーク ACL の使い分け
+### Security Groups vs Network ACLs
 
 ```
 +----------------------------------------------------------+
-|  セキュリティグループ vs ネットワーク ACL                    |
+|  Security Groups vs Network ACLs                         |
 |----------------------------------------------------------|
-|  項目            | セキュリティグループ | ネットワーク ACL  |
+|  Item             | Security Groups      | Network ACLs  |
 |----------------------------------------------------------|
-|  レベル          | インスタンス          | サブネット       |
-|  ステート        | ステートフル          | ステートレス     |
-|  ルール          | 許可のみ             | 許可 + 拒否      |
-|  評価            | 全ルール評価          | 番号順評価       |
-|  デフォルト      | 全インバウンド拒否    | 全通信許可       |
-|  用途            | アプリ単位の制御      | サブネット防御    |
+|  Level            | Instance             | Subnet        |
+|  State            | Stateful             | Stateless     |
+|  Rules            | Allow only           | Allow + Deny  |
+|  Evaluation       | All rules evaluated  | Numbered order|
+|  Default          | Deny all inbound     | Allow all     |
+|  Use case         | Per-app control      | Subnet defense|
 +----------------------------------------------------------+
 
-推奨構成:
-  - セキュリティグループ: 主要なアクセス制御 (メインで使用)
-  - ネットワーク ACL: 追加の防御層 (特定 IP の明示的拒否)
+Recommended Configuration:
+  - Security Groups: primary access control (main usage)
+  - Network ACLs: additional defense layer (explicit deny of specific IPs)
 ```
 
 ```hcl
-# Terraform でのセキュリティグループ設計例
+# Terraform security group design example
 resource "aws_security_group" "alb_sg" {
   name        = "alb-security-group"
   description = "ALB security group"
   vpc_id      = aws_vpc.main.id
 
-  # HTTPS のみ許可
+  # Allow HTTPS only
   ingress {
     from_port   = 443
     to_port     = 443
@@ -1082,7 +1084,7 @@ resource "aws_security_group" "alb_sg" {
     description = "HTTPS from internet"
   }
 
-  # HTTP → HTTPS リダイレクト用
+  # For HTTP → HTTPS redirect
   ingress {
     from_port   = 80
     to_port     = 80
@@ -1104,7 +1106,7 @@ resource "aws_security_group" "app_sg" {
   description = "Application server security group"
   vpc_id      = aws_vpc.main.id
 
-  # ALB からのみ受信
+  # Accept traffic from ALB only
   ingress {
     from_port       = 8080
     to_port         = 8080
@@ -1126,7 +1128,7 @@ resource "aws_security_group" "db_sg" {
   description = "Database security group"
   vpc_id      = aws_vpc.main.id
 
-  # アプリサーバからのみ受信
+  # Accept traffic from app servers only
   ingress {
     from_port       = 5432
     to_port         = 5432
@@ -1135,7 +1137,7 @@ resource "aws_security_group" "db_sg" {
     description     = "PostgreSQL from app servers only"
   }
 
-  # 外部への通信は不要
+  # No outbound traffic needed
   egress {
     from_port   = 0
     to_port     = 0
@@ -1145,33 +1147,33 @@ resource "aws_security_group" "db_sg" {
 }
 ```
 
-### VPC Endpoints の活用
+### Leveraging VPC Endpoints
 
 ```
 +----------------------------------------------------------+
-|  VPC Endpoints の種類と使い分け                             |
+|  VPC Endpoint Types and Use Cases                        |
 |----------------------------------------------------------|
 |                                                          |
-|  Gateway Endpoint (無料):                                 |
+|  Gateway Endpoints (Free):                               |
 |  +-- S3                                                  |
 |  +-- DynamoDB                                            |
-|  → ルートテーブルにエントリを追加                            |
+|  → Adds an entry to the route table                      |
 |                                                          |
-|  Interface Endpoint (有料):                               |
+|  Interface Endpoints (Paid):                             |
 |  +-- KMS, Secrets Manager, STS, CloudWatch Logs          |
 |  +-- ECR, ECS, Lambda, SNS, SQS                         |
-|  → ENI が作成され、プライベート IP で通信                    |
-|  → PrivateLink とも呼ばれる                               |
+|  → An ENI is created; communication uses a private IP    |
+|  → Also known as PrivateLink                             |
 |                                                          |
-|  利点:                                                   |
-|  - データがインターネットを経由しない                        |
-|  - NAT Gateway の帯域・コスト削減                          |
-|  - VPC エンドポイントポリシーで追加の制御                    |
+|  Benefits:                                               |
+|  - Data does not traverse the internet                   |
+|  - Reduced NAT Gateway bandwidth and cost                |
+|  - Additional control with VPC endpoint policies         |
 +----------------------------------------------------------+
 ```
 
 ```json
-// VPC エンドポイントポリシーの例: 特定バケットのみアクセス許可
+// VPC endpoint policy example: allow access to a specific bucket only
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -1193,10 +1195,10 @@ resource "aws_security_group" "db_sg" {
 }
 ```
 
-### VPC Flow Logs の活用
+### Leveraging VPC Flow Logs
 
 ```python
-# Terraform での VPC Flow Logs 設定
+# VPC Flow Logs configuration with Terraform
 """
 resource "aws_flow_log" "vpc_flow_log" {
   iam_role_arn    = aws_iam_role.flow_log_role.arn
@@ -1204,10 +1206,10 @@ resource "aws_flow_log" "vpc_flow_log" {
   traffic_type    = "ALL"  # ACCEPT, REJECT, ALL
   vpc_id          = aws_vpc.main.id
 
-  # カスタムログフォーマット
+  # Custom log format
   log_format = "$${version} $${account-id} $${interface-id} $${srcaddr} $${dstaddr} $${srcport} $${dstport} $${protocol} $${packets} $${bytes} $${start} $${end} $${action} $${log-status} $${vpc-id} $${subnet-id} $${az-id} $${sublocation-type} $${sublocation-id}"
 
-  max_aggregation_interval = 60  # 1分間隔
+  max_aggregation_interval = 60  # 1-minute intervals
 }
 
 resource "aws_cloudwatch_log_group" "flow_log" {
@@ -1217,9 +1219,9 @@ resource "aws_cloudwatch_log_group" "flow_log" {
 }
 """
 
-# Athena で VPC Flow Logs を分析するクエリ例
+# Example Athena queries for analyzing VPC Flow Logs
 """
--- 拒否されたトラフィックの分析
+-- Analyze rejected traffic
 SELECT srcaddr, dstaddr, dstport, protocol,
        SUM(packets) as total_packets,
        SUM(bytes) as total_bytes
@@ -1230,7 +1232,7 @@ GROUP BY srcaddr, dstaddr, dstport, protocol
 ORDER BY total_bytes DESC
 LIMIT 20;
 
--- 不審な外部通信の検出
+-- Detect suspicious outbound connections
 SELECT srcaddr, dstaddr, dstport,
        SUM(bytes) as total_bytes
 FROM vpc_flow_logs
@@ -1246,36 +1248,36 @@ LIMIT 50;
 
 ---
 
-## 5. セキュリティサービスの全体像
+## 5. Overview of Security Services
 
-### クラウドセキュリティサービス比較
+### Cloud Security Service Comparison
 
-| カテゴリ | AWS | GCP | Azure |
+| Category | AWS | GCP | Azure |
 |---------|-----|-----|-------|
-| 脅威検知 | GuardDuty | Security Command Center | Defender for Cloud |
-| 統合管理 | Security Hub | SCC Premium | Defender CSPM |
-| 監査ログ | CloudTrail | Cloud Audit Logs | Activity Log |
-| 設定監査 | Config | Cloud Asset Inventory | Policy |
+| Threat Detection | GuardDuty | Security Command Center | Defender for Cloud |
+| Unified Management | Security Hub | SCC Premium | Defender CSPM |
+| Audit Logs | CloudTrail | Cloud Audit Logs | Activity Log |
+| Config Audit | Config | Cloud Asset Inventory | Policy |
 | WAF | AWS WAF | Cloud Armor | Azure WAF |
 | KMS | AWS KMS | Cloud KMS | Key Vault |
-| シークレット | Secrets Manager | Secret Manager | Key Vault Secrets |
-| DDoS 防御 | Shield / Shield Advanced | Cloud Armor | DDoS Protection |
-| ネットワーク FW | Network Firewall | Cloud Firewall | Azure Firewall |
-| 脆弱性管理 | Inspector | Security Scanner | Defender for VMs |
-| コンテナ | Inspector / ECR Scan | Container Analysis | Defender for Containers |
+| Secrets | Secrets Manager | Secret Manager | Key Vault Secrets |
+| DDoS Protection | Shield / Shield Advanced | Cloud Armor | DDoS Protection |
+| Network FW | Network Firewall | Cloud Firewall | Azure Firewall |
+| Vulnerability Mgmt | Inspector | Security Scanner | Defender for VMs |
+| Containers | Inspector / ECR Scan | Container Analysis | Defender for Containers |
 | SIEM | Security Lake + OpenSearch | Chronicle | Sentinel |
 
-### AWS セキュリティサービスの連携アーキテクチャ
+### AWS Security Service Integration Architecture
 
 ```
 +----------------------------------------------------------+
-|  AWS セキュリティサービス連携図                              |
+|  AWS Security Services Integration Diagram               |
 |                                                          |
-|  [データ収集層]                                            |
+|  [Data Collection Layer]                                 |
 |  CloudTrail ──┐                                          |
 |  Config ──────┤                                          |
 |  GuardDuty ───┤                                          |
-|  Inspector ───┤──→ [Security Hub] ──→ [通知・対応]        |
+|  Inspector ───┤──→ [Security Hub] ──→ [Notifications/Response] |
 |  Macie ───────┤         |                                |
 |  IAM Analyzer ┘         |                                |
 |                         v                                |
@@ -1283,71 +1285,71 @@ LIMIT 50;
 |                         |                                |
 |                         v                                |
 |                   [Athena / OpenSearch]                   |
-|                   (分析・可視化)                           |
+|                   (Analysis / Visualization)             |
 |                                                          |
-|  [自動修復]                                               |
+|  [Automated Remediation]                                 |
 |  Security Hub                                            |
 |       |                                                  |
 |       v                                                  |
-|  EventBridge ──→ Lambda ──→ 自動修復アクション              |
-|  (ルールマッチ)    (修復)    (SG 変更, S3 非公開化等)       |
+|  EventBridge ──→ Lambda ──→ Auto-remediation actions     |
+|  (rule match)    (remediate) (SG changes, make S3 private, etc.) |
 +----------------------------------------------------------+
 ```
 
-### GuardDuty の脅威検知パターン
+### GuardDuty Threat Detection Patterns
 
 ```
 +----------------------------------------------------------+
-|  GuardDuty が検知する主な脅威カテゴリ                       |
+|  Main Threat Categories Detected by GuardDuty            |
 |----------------------------------------------------------|
 |                                                          |
-|  [偵察 (Recon)]                                          |
-|  - ポートスキャン                                         |
-|  - 異常な API 呼び出しパターン                             |
-|  - DNS クエリの異常                                       |
+|  [Recon]                                                 |
+|  - Port scanning                                         |
+|  - Anomalous API call patterns                           |
+|  - DNS query anomalies                                   |
 |                                                          |
-|  [不正アクセス (UnauthorizedAccess)]                      |
-|  - 通常と異なるリージョンからの API 呼び出し                |
-|  - 既知の悪意ある IP からのアクセス                         |
-|  - ブルートフォース攻撃 (SSH, RDP)                         |
+|  [UnauthorizedAccess]                                    |
+|  - API calls from unusual regions                        |
+|  - Access from known malicious IPs                       |
+|  - Brute force attacks (SSH, RDP)                        |
 |                                                          |
-|  [暗号通貨マイニング (CryptoCurrency)]                    |
-|  - EC2 インスタンスでのマイニング活動検出                    |
-|  - 暗号通貨関連の DNS クエリ                               |
+|  [CryptoCurrency]                                        |
+|  - Mining activity detected on EC2 instances             |
+|  - Cryptocurrency-related DNS queries                    |
 |                                                          |
-|  [データ窃取 (Exfiltration)]                              |
-|  - 異常な量の S3 データダウンロード                         |
-|  - 不審な外部エンドポイントへのデータ転送                    |
+|  [Exfiltration]                                          |
+|  - Unusual volume of S3 data downloads                   |
+|  - Data transfer to suspicious external endpoints        |
 |                                                          |
-|  [権限昇格 (PrivilegeEscalation)]                        |
-|  - 通常使わない高権限 API の呼び出し                        |
-|  - 管理者ポリシーの不正なアタッチ                           |
+|  [PrivilegeEscalation]                                   |
+|  - Calls to high-privilege APIs not normally used        |
+|  - Unauthorized attachment of administrator policies     |
 |                                                          |
-|  重要度: High / Medium / Low で分類                       |
-|  → High は即座に調査・対応が必要                           |
+|  Severity: classified as High / Medium / Low             |
+|  → High requires immediate investigation and response    |
 +----------------------------------------------------------+
 ```
 
-### AWS Config ルールによる継続的コンプライアンス
+### Continuous Compliance with AWS Config Rules
 
 ```python
-# AWS Config カスタムルールの例 (Lambda で評価)
+# Example AWS Config custom rule (evaluated via Lambda)
 import boto3
 import json
 
 def lambda_handler(event, context):
     """
-    カスタム Config ルール: S3 バケットが暗号化されているか確認
+    Custom Config rule: verify S3 buckets have encryption enabled
     """
     config = boto3.client('config')
 
-    # 評価対象のリソース情報を取得
+    # Retrieve evaluation target resource information
     invoking_event = json.loads(event['invokingEvent'])
     configuration_item = invoking_event['configurationItem']
 
     bucket_name = configuration_item['resourceName']
 
-    # S3 暗号化の確認
+    # Check S3 encryption
     s3 = boto3.client('s3')
     try:
         encryption = s3.get_bucket_encryption(Bucket=bucket_name)
@@ -1361,7 +1363,7 @@ def lambda_handler(event, context):
             compliance = 'NOT_APPLICABLE'
             annotation = f'Error checking encryption: {str(e)}'
 
-    # 評価結果を報告
+    # Report evaluation result
     config.put_evaluations(
         Evaluations=[{
             'ComplianceResourceType': configuration_item['resourceType'],
@@ -1378,36 +1380,36 @@ def lambda_handler(event, context):
 
 ---
 
-## 6. ログ・監査・コンプライアンス
+## 6. Logging, Auditing, and Compliance
 
-### CloudTrail の設定と活用
+### CloudTrail Configuration and Usage
 
 ```
 +----------------------------------------------------------+
-|  CloudTrail のベストプラクティス                             |
+|  CloudTrail Best Practices                               |
 |----------------------------------------------------------|
 |                                                          |
-|  [必須設定]                                               |
-|  - 全リージョンで有効化                                    |
-|  - S3 バケットにログを集約                                 |
-|  - ログファイルの検証 (整合性チェック) を有効化              |
-|  - ログバケットの暗号化 (SSE-KMS)                          |
-|  - ログバケットのアクセスログを有効化                        |
-|  - MFA Delete をログバケットに設定                          |
+|  [Required Settings]                                     |
+|  - Enable in all regions                                 |
+|  - Aggregate logs in an S3 bucket                        |
+|  - Enable log file validation (integrity check)          |
+|  - Encrypt the log bucket (SSE-KMS)                      |
+|  - Enable access logging on the log bucket               |
+|  - Set MFA Delete on the log bucket                      |
 |                                                          |
-|  [推奨設定]                                               |
-|  - CloudWatch Logs への配信                               |
-|  - メトリクスフィルタとアラームの設定                        |
-|  - AWS Organizations の組織トレイルとして設定               |
-|  - S3 データイベント、Lambda データイベントの記録            |
-|  - Athena テーブルを作成して分析可能にする                   |
+|  [Recommended Settings]                                  |
+|  - Deliver to CloudWatch Logs                            |
+|  - Configure metric filters and alarms                   |
+|  - Configure as an organization trail in AWS Organizations |
+|  - Record S3 data events and Lambda data events          |
+|  - Create Athena tables for analysis                     |
 +----------------------------------------------------------+
 ```
 
 ```python
-# CloudTrail ログの Athena 分析クエリ例
+# Example Athena analysis queries for CloudTrail logs
 
-# 1. IAM ポリシー変更の追跡
+# 1. Track IAM policy changes
 """
 SELECT eventtime, useridentity.arn, eventname,
        requestparameters, responseelements
@@ -1420,7 +1422,7 @@ WHERE eventsource = 'iam.amazonaws.com'
 ORDER BY eventtime DESC;
 """
 
-# 2. 未承認 API 呼び出しの検出
+# 2. Detect unauthorized API calls
 """
 SELECT eventtime, useridentity.arn, eventsource,
        eventname, errorcode, errormessage,
@@ -1433,7 +1435,7 @@ ORDER BY eventtime DESC
 LIMIT 100;
 """
 
-# 3. ルートアカウント使用の検出
+# 3. Detect root account usage
 """
 SELECT eventtime, eventname, sourceipaddress,
        useragent, requestparameters
@@ -1443,7 +1445,7 @@ WHERE useridentity.type = 'Root'
 ORDER BY eventtime DESC;
 """
 
-# 4. コンソールログイン失敗の検出
+# 4. Detect console login failures
 """
 SELECT eventtime, useridentity.arn, sourceipaddress,
        errorcode, errormessage
@@ -1455,12 +1457,12 @@ LIMIT 50;
 """
 ```
 
-### CloudWatch によるセキュリティモニタリング
+### Security Monitoring with CloudWatch
 
 ```python
-# CloudWatch メトリクスフィルタとアラームの設定 (Terraform)
+# CloudWatch metric filters and alarm configuration (Terraform)
 """
-# ルートアカウント使用の検出
+# Detect root account usage
 resource "aws_cloudwatch_log_metric_filter" "root_usage" {
   name           = "root-account-usage"
   log_group_name = aws_cloudwatch_log_group.cloudtrail.name
@@ -1486,7 +1488,7 @@ resource "aws_cloudwatch_metric_alarm" "root_usage_alarm" {
   alarm_actions       = [aws_sns_topic.security_alerts.arn]
 }
 
-# MFA なしのコンソールログイン検出
+# Detect console login without MFA
 resource "aws_cloudwatch_log_metric_filter" "no_mfa_login" {
   name           = "no-mfa-console-login"
   log_group_name = aws_cloudwatch_log_group.cloudtrail.name
@@ -1499,7 +1501,7 @@ resource "aws_cloudwatch_log_metric_filter" "no_mfa_login" {
   }
 }
 
-# セキュリティグループ変更の検出
+# Detect security group changes
 resource "aws_cloudwatch_log_metric_filter" "sg_changes" {
   name           = "security-group-changes"
   log_group_name = aws_cloudwatch_log_group.cloudtrail.name
@@ -1512,7 +1514,7 @@ resource "aws_cloudwatch_log_metric_filter" "sg_changes" {
   }
 }
 
-# IAM ポリシー変更の検出
+# Detect IAM policy changes
 resource "aws_cloudwatch_log_metric_filter" "iam_changes" {
   name           = "iam-policy-changes"
   log_group_name = aws_cloudwatch_log_group.cloudtrail.name
@@ -1527,91 +1529,92 @@ resource "aws_cloudwatch_log_metric_filter" "iam_changes" {
 """
 ```
 
-### コンプライアンスフレームワークとの対応
+### Compliance Framework Mapping
 
 ```
 +----------------------------------------------------------+
-|  主要コンプライアンスフレームワーク                           |
+|  Major Compliance Frameworks                             |
 |----------------------------------------------------------|
 |                                                          |
 |  [CIS Benchmark]                                         |
 |  - AWS CIS Benchmark v3.0                                |
-|  - 9カテゴリ、約70のチェック項目                            |
-|  - Security Hub で自動チェック可能                         |
-|  - Level 1 (基本) / Level 2 (高度) の2段階                |
+|  - Approximately 70 check items across 9 categories      |
+|  - Automated checks available via Security Hub           |
+|  - Two levels: Level 1 (basic) / Level 2 (advanced)      |
 |                                                          |
 |  [SOC 2]                                                 |
-|  - セキュリティ、可用性、処理の整合性、機密性、プライバシー  |
-|  - AWS Audit Manager で証跡収集を自動化                    |
+|  - Security, availability, processing integrity,         |
+|    confidentiality, and privacy                          |
+|  - Automate evidence collection with AWS Audit Manager   |
 |                                                          |
 |  [PCI DSS]                                               |
-|  - クレジットカード情報を扱うシステムに必須                  |
-|  - ネットワーク分離、暗号化、アクセスログが重点              |
-|  - AWS Config Rules で継続的な準拠チェック                  |
+|  - Mandatory for systems handling credit card information |
+|  - Focus on network segmentation, encryption, access logs|
+|  - Continuous compliance checks with AWS Config Rules    |
 |                                                          |
 |  [HIPAA]                                                 |
-|  - 医療情報 (PHI) の保護に関する規制                       |
-|  - AWS BAA (Business Associate Agreement) の締結が必要    |
-|  - 暗号化とアクセスログが特に重要                           |
+|  - Regulations for protecting medical information (PHI)  |
+|  - Requires signing AWS BAA (Business Associate Agreement)|
+|  - Encryption and access logs are particularly important |
 |                                                          |
 |  [GDPR]                                                  |
-|  - EU 個人データの保護                                     |
-|  - データのリージョン制限が重要                             |
-|  - データ削除 (忘れられる権利) への対応                     |
+|  - Protection of EU personal data                        |
+|  - Data region restrictions are critical                 |
+|  - Support for data deletion (right to be forgotten)     |
 +----------------------------------------------------------+
 ```
 
 ---
 
-## 7. インシデント対応
+## 7. Incident Response
 
-### クラウド環境のインシデントレスポンスプロセス
+### Cloud Incident Response Process
 
 ```
 +----------------------------------------------------------+
-|  クラウドインシデント対応フロー                              |
+|  Cloud Incident Response Flow                            |
 |                                                          |
-|  [1. 検知 (Detection)]                                   |
-|  +-- GuardDuty アラート                                   |
-|  +-- CloudWatch アラーム                                  |
+|  [1. Detection]                                          |
+|  +-- GuardDuty alerts                                    |
+|  +-- CloudWatch alarms                                   |
 |  +-- Security Hub Findings                               |
-|  +-- サードパーティ SIEM アラート                          |
+|  +-- Third-party SIEM alerts                             |
 |       |                                                  |
 |       v                                                  |
-|  [2. トリアージ (Triage)]                                 |
-|  +-- 重要度の判定 (High/Medium/Low)                       |
-|  +-- 影響範囲の特定                                       |
-|  +-- エスカレーション判断                                  |
+|  [2. Triage]                                             |
+|  +-- Severity assessment (High/Medium/Low)               |
+|  +-- Identify scope of impact                            |
+|  +-- Escalation decision                                 |
 |       |                                                  |
 |       v                                                  |
-|  [3. 封じ込め (Containment)]                              |
-|  +-- セキュリティグループの変更 (通信遮断)                  |
-|  +-- IAM 認証情報の無効化                                  |
-|  +-- インスタンスの隔離 (隔離用 SG にアタッチ)              |
-|  +-- ★クラウド固有: スナップショット取得 (証拠保全)         |
+|  [3. Containment]                                        |
+|  +-- Modify security groups (block traffic)              |
+|  +-- Disable IAM credentials                             |
+|  +-- Isolate instances (attach to isolation SG)          |
+|  +-- ★ Cloud-specific: take snapshots (preserve evidence)|
 |       |                                                  |
 |       v                                                  |
-|  [4. 根絶 (Eradication)]                                 |
-|  +-- マルウェアの除去                                     |
-|  +-- 脆弱性のパッチ適用                                    |
-|  +-- 侵害されたリソースの再構築                             |
+|  [4. Eradication]                                        |
+|  +-- Remove malware                                      |
+|  +-- Apply vulnerability patches                         |
+|  +-- Rebuild compromised resources                       |
 |       |                                                  |
 |       v                                                  |
-|  [5. 復旧 (Recovery)]                                    |
-|  +-- クリーンなイメージからの再デプロイ                     |
-|  +-- 段階的なトラフィック復旧                               |
-|  +-- モニタリングの強化                                    |
+|  [5. Recovery]                                           |
+|  +-- Redeploy from clean images                          |
+|  +-- Gradually restore traffic                           |
+|  +-- Enhance monitoring                                  |
 |       |                                                  |
 |       v                                                  |
-|  [6. 教訓 (Lessons Learned)]                             |
-|  +-- インシデント報告書の作成                               |
-|  +-- 根本原因分析 (RCA)                                   |
-|  +-- 改善策の実施                                         |
-|  +-- ランブック / プレイブックの更新                        |
+|  [6. Lessons Learned]                                    |
+|  +-- Create incident report                              |
+|  +-- Root cause analysis (RCA)                           |
+|  +-- Implement improvements                              |
+|  +-- Update runbooks/playbooks                           |
 +----------------------------------------------------------+
 ```
 
-### 自動封じ込めスクリプトの例
+### Automated Containment Script Example
 
 ```python
 import boto3
@@ -1620,18 +1623,18 @@ from datetime import datetime
 
 def auto_contain_compromised_instance(instance_id: str, region: str = 'ap-northeast-1'):
     """
-    侵害が疑われる EC2 インスタンスの自動封じ込め
+    Automated containment of a suspected compromised EC2 instance
 
-    手順:
-    1. 証拠保全のためのスナップショット取得
-    2. 隔離用セキュリティグループにアタッチ
-    3. インスタンスメタデータの記録
-    4. 自動スケーリンググループから除外
+    Steps:
+    1. Take a snapshot for evidence preservation
+    2. Attach to an isolation security group
+    3. Record instance metadata
+    4. Remove from Auto Scaling Group
     """
     ec2 = boto3.client('ec2', region_name=region)
     timestamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
 
-    # 1. インスタンス情報の取得と記録
+    # 1. Retrieve and record instance information
     instance = ec2.describe_instances(InstanceIds=[instance_id])
     reservation = instance['Reservations'][0]
     instance_detail = reservation['Instances'][0]
@@ -1641,7 +1644,7 @@ def auto_contain_compromised_instance(instance_id: str, region: str = 'ap-northe
     print(f"  Public IP: {instance_detail.get('PublicIpAddress', 'None')}")
     print(f"  VPC: {instance_detail.get('VpcId')}")
 
-    # 2. EBS ボリュームのスナップショット取得 (証拠保全)
+    # 2. Take EBS volume snapshots (preserve evidence)
     for volume in instance_detail.get('BlockDeviceMappings', []):
         vol_id = volume['Ebs']['VolumeId']
         snapshot = ec2.create_snapshot(
@@ -1658,7 +1661,7 @@ def auto_contain_compromised_instance(instance_id: str, region: str = 'ap-northe
         )
         print(f"  Snapshot created: {snapshot['SnapshotId']} for {vol_id}")
 
-    # 3. 隔離用セキュリティグループの作成 (全通信遮断)
+    # 3. Create isolation security group (block all traffic)
     vpc_id = instance_detail['VpcId']
     isolation_sg = ec2.create_security_group(
         GroupName=f'isolation-{instance_id}-{timestamp}',
@@ -1667,7 +1670,7 @@ def auto_contain_compromised_instance(instance_id: str, region: str = 'ap-northe
     )
     isolation_sg_id = isolation_sg['GroupId']
 
-    # デフォルトの egress ルールを削除 (完全隔離)
+    # Remove default egress rule (complete isolation)
     ec2.revoke_security_group_egress(
         GroupId=isolation_sg_id,
         IpPermissions=[{
@@ -1676,14 +1679,14 @@ def auto_contain_compromised_instance(instance_id: str, region: str = 'ap-northe
         }]
     )
 
-    # 4. セキュリティグループを隔離用に変更
+    # 4. Switch the security group to the isolation group
     ec2.modify_instance_attribute(
         InstanceId=instance_id,
         Groups=[isolation_sg_id]
     )
     print(f"  Instance isolated with SG: {isolation_sg_id}")
 
-    # 5. タグの追加 (調査用)
+    # 5. Add tags (for investigation)
     ec2.create_tags(
         Resources=[instance_id],
         Tags=[
@@ -1704,17 +1707,17 @@ def auto_contain_compromised_instance(instance_id: str, region: str = 'ap-northe
     }
 ```
 
-### IAM 認証情報の緊急無効化
+### Emergency IAM Credential Disablement
 
 ```python
 def emergency_disable_iam_user(username: str):
     """
-    侵害が疑われる IAM ユーザの緊急無効化
+    Emergency disablement of a suspected compromised IAM user
     """
     iam = boto3.client('iam')
     timestamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
 
-    # 1. 全アクセスキーの無効化
+    # 1. Disable all access keys
     keys = iam.list_access_keys(UserName=username)
     for key in keys['AccessKeyMetadata']:
         iam.update_access_key(
@@ -1724,14 +1727,14 @@ def emergency_disable_iam_user(username: str):
         )
         print(f"  Disabled access key: {key['AccessKeyId']}")
 
-    # 2. コンソールパスワードの削除
+    # 2. Delete console password
     try:
         iam.delete_login_profile(UserName=username)
         print(f"  Console password deleted")
     except iam.exceptions.NoSuchEntityException:
         print(f"  No console password to delete")
 
-    # 3. 全ポリシーのデタッチ
+    # 3. Detach all policies
     attached = iam.list_attached_user_policies(UserName=username)
     for policy in attached['AttachedPolicies']:
         iam.detach_user_policy(
@@ -1740,7 +1743,7 @@ def emergency_disable_iam_user(username: str):
         )
         print(f"  Detached policy: {policy['PolicyName']}")
 
-    # 4. 明示的 Deny ポリシーのアタッチ (二重防御)
+    # 4. Attach explicit Deny policy (double defense)
     deny_policy = {
         "Version": "2012-10-17",
         "Statement": [{
@@ -1762,26 +1765,26 @@ def emergency_disable_iam_user(username: str):
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: ルートアカウントの日常使用
+### Anti-Pattern 1: Using the Root Account for Daily Operations
 
 ```
-NG:
-  → root ユーザで日常的にログイン
-  → root のアクセスキーを作成してスクリプトで使用
+Anti-pattern:
+  → Logging in with the root user on a daily basis
+  → Creating root access keys and using them in scripts
 
-OK:
-  → root には MFA を設定し緊急時のみ使用
-  → 日常運用は IAM ユーザ/ロール経由
-  → root のアクセスキーは作成しない
-  → 管理操作は Organizations の管理アカウントから
+Best practice:
+  → Configure MFA for root and use only in emergencies
+  → Daily operations via IAM users/roles
+  → Do not create root access keys
+  → Administrative operations through the Organizations management account
 ```
 
-### アンチパターン 2: セキュリティグループの 0.0.0.0/0 許可
+### Anti-Pattern 2: Allowing 0.0.0.0/0 in Security Groups
 
 ```hcl
-# NG: 全ポートを全世界に公開
+# Anti-pattern: expose all ports to the world
 resource "aws_security_group_rule" "allow_all" {
   type        = "ingress"
   from_port   = 0
@@ -1790,13 +1793,13 @@ resource "aws_security_group_rule" "allow_all" {
   cidr_blocks = ["0.0.0.0/0"]
 }
 
-# OK: 必要なポートと送信元のみ
+# Best practice: restrict to necessary ports and sources only
 resource "aws_security_group_rule" "allow_https" {
   type        = "ingress"
   from_port   = 443
   to_port     = 443
   protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]  # HTTPS は公開 OK
+  cidr_blocks = ["0.0.0.0/0"]  # HTTPS can be public
 }
 
 resource "aws_security_group_rule" "allow_ssh" {
@@ -1804,24 +1807,24 @@ resource "aws_security_group_rule" "allow_ssh" {
   from_port   = 22
   to_port     = 22
   protocol    = "tcp"
-  cidr_blocks = ["10.0.0.0/8"]  # 社内のみ
+  cidr_blocks = ["10.0.0.0/8"]  # Internal only
 }
 ```
 
-### アンチパターン 3: 長期アクセスキーの利用
+### Anti-Pattern 3: Using Long-Lived Access Keys
 
 ```
-NG:
-  → アプリケーションに IAM ユーザのアクセスキーをハードコード
-  → .env ファイルにアクセスキーを記載して Git にコミット
-  → 全開発者が同じアクセスキーを共有
+Anti-pattern:
+  → Hardcoding IAM user access keys in applications
+  → Writing access keys in .env files and committing to Git
+  → All developers sharing the same access key
 
-OK:
-  → EC2 / Lambda には IAM ロールをアタッチ
-  → ローカル開発では aws-vault や SSO を使用
-  → CI/CD では OIDC 連携 (GitHub Actions の場合)
+Best practice:
+  → Attach IAM roles to EC2/Lambda
+  → Use aws-vault or SSO for local development
+  → Use OIDC federation for CI/CD (e.g., GitHub Actions)
 
-# GitHub Actions での OIDC 連携例:
+# GitHub Actions OIDC federation example:
 """
 # .github/workflows/deploy.yml
 jobs:
@@ -1834,126 +1837,126 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::123456789012:role/GitHubActionsRole
           aws-region: ap-northeast-1
-          # アクセスキーは不要、OIDC トークンで認証
+          # No access keys needed; authenticated via OIDC token
 """
 ```
 
-### アンチパターン 4: ログの未設定・未監視
+### Anti-Pattern 4: Unconfigured or Unmonitored Logs
 
 ```
-NG:
-  → CloudTrail を有効化していない
-  → ログは有効だが誰も見ていない
-  → ログの保持期間が短すぎる (デフォルト 90 日のみ)
-  → ログバケットに暗号化やアクセス制限がない
+Anti-pattern:
+  → CloudTrail not enabled
+  → Logs enabled but no one reviews them
+  → Retention period too short (default 90 days only)
+  → Log bucket has no encryption or access restrictions
 
-OK:
-  → CloudTrail + Config + GuardDuty を全リージョンで有効化
-  → Security Hub に集約して一元的に監視
-  → メトリクスフィルタとアラームで重要イベントを通知
-  → ログを S3 に長期保存 (最低 1 年、法的要件に応じて延長)
-  → ログバケットは KMS 暗号化 + MFA Delete
-  → 定期的なログレビュープロセスを確立
+Best practice:
+  → Enable CloudTrail + Config + GuardDuty in all regions
+  → Aggregate in Security Hub for unified monitoring
+  → Use metric filters and alarms to notify on critical events
+  → Long-term storage of logs in S3 (minimum 1 year; extend per legal requirements)
+  → Log bucket with KMS encryption + MFA Delete
+  → Establish a regular log review process
 ```
 
-### アンチパターン 5: 暗号化の不完全な適用
+### Anti-Pattern 5: Incomplete Encryption Coverage
 
 ```
-NG:
-  → S3 は暗号化したが EBS は暗号化していない
-  → 保存時は暗号化したが転送時 (HTTP) は未暗号化
-  → KMS キーのローテーションが無効
-  → 暗号化キーのアクセス制御が甘い
+Anti-pattern:
+  → S3 is encrypted but EBS is not
+  → At-rest encryption is in place but in-transit (HTTP) is not
+  → KMS key rotation is disabled
+  → Encryption key access control is too permissive
 
-OK:
-  → 全ストレージ (S3, EBS, RDS, EFS) を暗号化
-  → 全通信を TLS 1.2 以上で暗号化
-  → KMS キーの自動ローテーションを有効化
-  → キーポリシーで使用者を限定
-  → リージョン間のデータ転送も VPN / PrivateLink で暗号化
+Best practice:
+  → Encrypt all storage (S3, EBS, RDS, EFS)
+  → Encrypt all communication with TLS 1.2 or higher
+  → Enable automatic KMS key rotation
+  → Restrict key usage via key policies
+  → Encrypt cross-region data transfer via VPN/PrivateLink
 ```
 
 ---
 
-## 9. ゼロトラストアーキテクチャとクラウド
+## 9. Zero Trust Architecture and the Cloud
 
-### ゼロトラストの原則
+### Zero Trust Principles
 
 ```
 +----------------------------------------------------------+
-|  ゼロトラスト 5 原則                                       |
+|  5 Zero Trust Principles                                 |
 |----------------------------------------------------------|
 |                                                          |
-|  1. すべてのリソースへのアクセスは認証・認可が必要            |
-|     - ネットワーク内部であっても暗黙的に信頼しない            |
-|     - 全リクエストにアイデンティティ検証を要求                |
+|  1. All resource access requires authentication and authorization |
+|     - Do not implicitly trust anything inside the network|
+|     - Require identity verification for every request    |
 |                                                          |
-|  2. アクセスは最小権限で付与                                |
-|     - Just-In-Time (JIT) アクセス                         |
-|     - 必要な期間のみ権限を付与                              |
+|  2. Access is granted with least privilege               |
+|     - Just-In-Time (JIT) access                          |
+|     - Grant permissions only for the required duration   |
 |                                                          |
-|  3. アクセスはセッション単位で評価                           |
-|     - デバイスの状態                                       |
-|     - ユーザのコンテキスト (場所、時間)                     |
-|     - リスクスコアに基づく動的判断                          |
+|  3. Access is evaluated per session                      |
+|     - Device state                                       |
+|     - User context (location, time)                      |
+|     - Dynamic decisions based on risk score              |
 |                                                          |
-|  4. ネットワークセグメンテーション (マイクロセグメンテーション)|
-|     - サービス間通信にも認証を要求                           |
-|     - サービスメッシュ (Istio, App Mesh) の活用             |
+|  4. Network segmentation (micro-segmentation)            |
+|     - Require authentication for service-to-service communication |
+|     - Use service mesh (Istio, App Mesh)                 |
 |                                                          |
-|  5. すべてのアクティビティを記録・監視                       |
-|     - 異常検知の自動化                                     |
-|     - 継続的なリスク評価                                    |
+|  5. Record and monitor all activity                      |
+|     - Automate anomaly detection                         |
+|     - Continuous risk assessment                         |
 +----------------------------------------------------------+
 ```
 
-### クラウドにおけるゼロトラストの実装例
+### Zero Trust Implementation Example in the Cloud
 
 ```
 +----------------------------------------------------------+
-|  AWS でのゼロトラスト実装                                   |
+|  Zero Trust Implementation on AWS                        |
 |                                                          |
-|  [アイデンティティ層]                                      |
+|  [Identity Layer]                                        |
 |  IAM Identity Center + MFA                               |
 |       |                                                  |
-|  [ネットワーク層]                                          |
+|  [Network Layer]                                         |
 |  VPC + PrivateLink + VPC Endpoints                       |
-|  (インターネットを経由しない通信)                            |
+|  (communication that does not traverse the internet)     |
 |       |                                                  |
-|  [アプリケーション層]                                      |
+|  [Application Layer]                                     |
 |  AWS Verified Access                                     |
-|  (VPN 不要でゼロトラストアクセス)                           |
+|  (Zero trust access without VPN)                         |
 |       |                                                  |
-|  [データ層]                                               |
-|  KMS 暗号化 + S3 アクセスポイント                          |
-|  + Macie (データ分類)                                     |
+|  [Data Layer]                                            |
+|  KMS encryption + S3 Access Points                       |
+|  + Macie (data classification)                           |
 |       |                                                  |
-|  [監視層]                                                |
+|  [Monitoring Layer]                                      |
 |  GuardDuty + Security Hub + CloudTrail                   |
-|  (継続的な監視と脅威検知)                                   |
+|  (continuous monitoring and threat detection)            |
 +----------------------------------------------------------+
 ```
 
 ---
 
-## 10. 演習問題
+## 10. Exercises
 
-### 演習 1: IAM ポリシーの設計
+### Exercise 1: IAM Policy Design
 
-以下の要件を満たす IAM ポリシーを JSON で作成せよ。
+Create an IAM policy in JSON that satisfies the following requirements.
 
 ```
-要件:
-  - 開発チーム用のポリシー
-  - ap-northeast-1 リージョンのみ操作可能
-  - EC2 インスタンスの起動・停止・再起動が可能
-  - ただし、タグ "Environment=Production" のインスタンスは操作不可
-  - S3 の特定バケット (dev-artifacts) への読み書きが可能
-  - IAM 関連の操作は一切不可
+Requirements:
+  - Policy for the development team
+  - Operations restricted to ap-northeast-1 region only
+  - Ability to start, stop, and reboot EC2 instances
+  - However, instances with the tag "Environment=Production" cannot be operated
+  - Read and write access to a specific S3 bucket (dev-artifacts)
+  - No IAM-related operations allowed
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Answer Example</summary>
 
 ```json
 {
@@ -2017,89 +2020,89 @@ OK:
 
 </details>
 
-### 演習 2: セキュリティインシデントの対応
+### Exercise 2: Security Incident Response
 
-以下のシナリオについて、対応手順を時系列で記述せよ。
+Describe the response steps in chronological order for the following scenario.
 
 ```
-シナリオ:
-  GuardDuty が以下のアラートを検出
+Scenario:
+  GuardDuty detects the following alert
   - Finding Type: UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS
-  - 重要度: High
-  - 内容: EC2 インスタンス (i-0abc123) に割り当てられた IAM ロールの
-          認証情報が、AWS 外部の IP アドレスから使用されている
+  - Severity: High
+  - Details: Credentials from the IAM role assigned to EC2 instance (i-0abc123)
+             are being used from an IP address outside AWS
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Answer Example</summary>
 
 ```
-対応手順:
+Response Steps:
 
-[即座 (0-15分)]
-1. GuardDuty Finding の詳細確認
-   - 外部 IP アドレスの特定
-   - 使用された API 呼び出しの確認
-   - 影響を受けた IAM ロールの特定
+[Immediate (0-15 minutes)]
+1. Review GuardDuty Finding details
+   - Identify the external IP address
+   - Review the API calls made
+   - Identify the affected IAM role
 
-2. EC2 インスタンスの隔離
-   - 隔離用セキュリティグループに変更 (全通信遮断)
-   - インスタンスは停止しない (証拠保全のため)
-   - EBS スナップショットの取得
+2. Isolate the EC2 instance
+   - Change to isolation security group (block all traffic)
+   - Do not stop the instance (preserve evidence)
+   - Take EBS snapshots
 
-3. IAM ロールの認証情報の無効化
-   - ロールのセッションポリシーに明示的 Deny を追加
-   - aws:TokenIssueTime 条件で現在時刻以前のトークンを拒否
+3. Invalidate IAM role credentials
+   - Add an explicit Deny to the role's session policy
+   - Use aws:TokenIssueTime condition to reject tokens issued before the current time
 
-[初動対応 (15分-2時間)]
-4. CloudTrail ログの調査
-   - 外部 IP からの全 API 呼び出しを抽出
-   - 不正な操作 (データ取得、権限変更等) の特定
-   - 影響範囲の確定
+[Initial Response (15 minutes - 2 hours)]
+4. Investigate CloudTrail logs
+   - Extract all API calls from the external IP
+   - Identify unauthorized operations (data access, permission changes, etc.)
+   - Determine scope of impact
 
-5. 二次被害の確認
-   - 他のリソースへの横展開がないか確認
-   - S3 バケットのアクセスログ確認
-   - 他アカウントへのクロスアカウントアクセス確認
+5. Check for secondary damage
+   - Verify no lateral movement to other resources
+   - Review S3 bucket access logs
+   - Check for cross-account access to other accounts
 
-[根絶・復旧 (2時間-24時間)]
-6. 侵入経路の特定と修復
-   - IMDS v2 の強制 (HttpTokens = required)
-   - SSRF 脆弱性の修正
-   - アプリケーションの脆弱性パッチ
+[Eradication and Recovery (2 hours - 24 hours)]
+6. Identify and remediate the attack vector
+   - Enforce IMDS v2 (HttpTokens = required)
+   - Fix SSRF vulnerability
+   - Apply application vulnerability patches
 
-7. クリーンな環境での再構築
-   - 新しい AMI からインスタンスを再作成
-   - IAM ロールの権限を再レビュー
-   - セキュリティグループの設定を確認
+7. Rebuild in a clean environment
+   - Recreate instance from a new AMI
+   - Re-review IAM role permissions
+   - Verify security group configuration
 
-[事後対応 (24時間-1週間)]
-8. 報告書の作成と改善
-   - インシデント報告書
-   - 根本原因分析 (RCA)
-   - IMDS v2 の全インスタンス強制適用
-   - GuardDuty の自動修復ランブック整備
+[Post-Incident (24 hours - 1 week)]
+8. Create report and implement improvements
+   - Incident report
+   - Root cause analysis (RCA)
+   - Apply IMDS v2 enforcement to all instances
+   - Prepare GuardDuty automated remediation runbooks
 ```
 
 </details>
 
-### 演習 3: VPC ネットワーク設計
+### Exercise 3: VPC Network Design
 
-以下の要件を満たす VPC 設計図を作成せよ。
+Create a VPC design diagram that meets the following requirements.
 
 ```
-要件:
-  - Web アプリケーション (ALB + ECS Fargate)
-  - データベース (Aurora PostgreSQL)
-  - マルチ AZ (2 AZ)
-  - インターネットからは HTTPS のみ受信
-  - データベースはプライベートサブネットのみ
-  - AWS サービスへのアクセスは VPC Endpoint 経由
-  - VPC Flow Logs を有効化
+Requirements:
+  - Web application (ALB + ECS Fargate)
+  - Database (Aurora PostgreSQL)
+  - Multi-AZ (2 AZs)
+  - Accept only HTTPS from the internet
+  - Database in private subnet only
+  - Access AWS services via VPC Endpoint
+  - Enable VPC Flow Logs
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Answer Example</summary>
 
 ```
 VPC: 10.0.0.0/16
@@ -2120,13 +2123,13 @@ AZ-a (ap-northeast-1a)          AZ-c (ap-northeast-1c)
 | Private Subnet (Data)      |  | Private Subnet (Data)      |
 | 10.0.3.0/24               |  | 10.0.6.0/24               |
 | +-- Aurora Primary         |  | +-- Aurora Replica          |
-| Route: ローカルのみ         |  | Route: ローカルのみ         |
+| Route: local only          |  | Route: local only          |
 +----------------------------+  +----------------------------+
 
-セキュリティグループ:
-  ALB SG: インバウンド 443 from 0.0.0.0/0
-  App SG: インバウンド 8080 from ALB SG
-  DB SG:  インバウンド 5432 from App SG
+Security Groups:
+  ALB SG: Inbound 443 from 0.0.0.0/0
+  App SG: Inbound 8080 from ALB SG
+  DB SG:  Inbound 5432 from App SG
 
 VPC Endpoints:
   - Gateway: S3, DynamoDB
@@ -2134,9 +2137,9 @@ VPC Endpoints:
                Secrets Manager, KMS
 
 VPC Flow Logs:
-  - 全トラフィック (ACCEPT + REJECT)
-  - CloudWatch Logs に配信
-  - 保持期間 90 日
+  - All traffic (ACCEPT + REJECT)
+  - Delivered to CloudWatch Logs
+  - Retention period: 90 days
 ```
 
 </details>
@@ -2145,80 +2148,80 @@ VPC Flow Logs:
 
 ## 11. FAQ
 
-### Q1. クラウドのセキュリティは自社データセンターより安全か?
+### Q1. Is cloud security more secure than an on-premises data center?
 
-インフラの物理セキュリティ、DDoS 対策、パッチ適用は大手クラウドプロバイダの方が優れている。ただし設定ミスによるデータ漏洩は依然としてユーザ責任である。S3 バケットの公開設定ミスによるデータ流出は後を絶たない。結局のところ「クラウドのインフラは安全、しかしクラウドの中の設定は自己責任」という理解が正しい。
+Large cloud providers are superior in terms of physical infrastructure security, DDoS protection, and patch application. However, data breaches due to misconfiguration remain the user's responsibility. Data leaks caused by misconfigured S3 bucket public settings continue to occur frequently. Ultimately, the correct understanding is: "Cloud infrastructure is secure, but the configuration within the cloud is your own responsibility."
 
-### Q2. マルチクラウド環境のセキュリティはどう管理するか?
+### Q2. How do you manage security in a multi-cloud environment?
 
-CSPM (Cloud Security Posture Management) ツール (Prisma Cloud, Wiz, etc.) でマルチクラウドの設定を統合監視する。IAM は各クラウドの特性を理解した上で統一的なポリシーを設計する。共通の IaC (Terraform) で全環境を管理し、セキュリティポリシーをコードで統一する。ただし、マルチクラウドは運用の複雑性が増すため、明確なビジネス要件がない限り単一クラウドを推奨する。
+Use a CSPM (Cloud Security Posture Management) tool (such as Prisma Cloud or Wiz) to centrally monitor configuration across multiple clouds. Design a unified IAM policy that accounts for each cloud's characteristics. Manage all environments with common IaC (Terraform) and unify security policies as code. However, multi-cloud increases operational complexity, so a single cloud is recommended unless there is a clear business requirement.
 
-### Q3. IAM ポリシーが複雑になりすぎた場合はどうするか?
+### Q3. What should you do if IAM policies become too complex?
 
-AWS IAM Access Analyzer でポリシーの分析と未使用権限の特定を行う。許可されているが使われていない権限を削除し、必要最小限まで絞り込む。ポリシーの設計はロールベースで行い、個別ユーザへのインラインポリシーは避ける。Permission Boundaries を活用して権限の上限を設定することも有効である。
+Use AWS IAM Access Analyzer to analyze policies and identify unused permissions. Remove permissions that are granted but not used, and reduce them to the minimum necessary. Design policies on a role basis and avoid inline policies on individual users. Using Permission Boundaries to cap maximum permissions is also effective.
 
-### Q4. IMDS (Instance Metadata Service) v1 と v2 の違いは?
+### Q4. What is the difference between IMDS (Instance Metadata Service) v1 and v2?
 
-IMDS v1 は単純な HTTP GET でインスタンスメタデータにアクセスでき、SSRF 攻撃で認証情報が窃取されるリスクがある (Capital One 事件)。IMDS v2 ではセッショントークンが必要になり、PUT メソッドでトークンを取得した上でアクセスする仕組みとなっている。全インスタンスで IMDS v2 のみを許可する設定を推奨する。
+IMDS v1 accesses instance metadata with a simple HTTP GET, which carries the risk of credential theft via SSRF attacks (as in the Capital One incident). IMDS v2 requires a session token obtained via a PUT method before access, providing a more secure mechanism. It is recommended to configure all instances to allow only IMDS v2.
 
 ```python
-# IMDS v2 の強制設定 (Terraform)
+# Enforce IMDS v2 (Terraform)
 """
 resource "aws_instance" "example" {
   # ...
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "required"  # v2 のみ許可
-    http_put_response_hop_limit = 1           # コンテナの場合は 2
+    http_tokens                 = "required"  # Allow v2 only
+    http_put_response_hop_limit = 1           # Use 2 for containers
   }
 }
 """
 ```
 
-### Q5. クラウドでの DDoS 対策はどうすべきか?
+### Q5. How should DDoS protection be handled in the cloud?
 
-基本的な DDoS 防御は AWS Shield Standard (無料) で自動的に提供される。大規模な攻撃に対しては Shield Advanced (有料) が DDoS Response Team (DRT) と24時間365日のサポートを提供する。CloudFront + AWS WAF の組み合わせでアプリケーション層 (L7) の攻撃にも対処できる。Rate-based ルールで異常なリクエスト頻度を自動ブロックすることも重要である。
+Basic DDoS protection is automatically provided by AWS Shield Standard (free). For large-scale attacks, Shield Advanced (paid) provides a DDoS Response Team (DRT) and 24/7 support. The combination of CloudFront + AWS WAF also handles application-layer (L7) attacks. Rate-based rules to automatically block abnormally high request frequencies are also important.
 
-### Q6. コンテナ環境 (ECS/EKS) のセキュリティの注意点は?
+### Q6. What are the container-specific security considerations for ECS/EKS?
 
 ```
-コンテナセキュリティの主要チェックポイント:
+Key Container Security Checkpoints:
 +----------------------------------------------------------+
-| 層             | 対策                                    |
+| Layer          | Countermeasures                         |
 |----------------------------------------------------------+
-| イメージ        | ECR イメージスキャン、最小ベースイメージ  |
-|                | (distroless/alpine)、root 以外で実行     |
-| ランタイム      | 読み取り専用ファイルシステム、特権なし     |
+| Image          | ECR image scanning, minimal base image  |
+|                | (distroless/alpine), run as non-root     |
+| Runtime        | Read-only file system, no privileges     |
 |                | (--no-new-privileges)                    |
-| ネットワーク    | タスク単位のセキュリティグループ、          |
-|                | サービスメッシュ (mTLS)                    |
-| シークレット    | Secrets Manager / Parameter Store 連携   |
-| IAM            | タスクロールの最小権限                     |
-| ログ           | awslogs ドライバでの CloudWatch 出力      |
+| Network        | Per-task security groups,                |
+|                | service mesh (mTLS)                      |
+| Secrets        | Secrets Manager / Parameter Store integration |
+| IAM            | Least-privilege task roles               |
+| Logging        | CloudWatch output via awslogs driver     |
 +----------------------------------------------------------+
 ```
 
-### Q7. サーバレス (Lambda) のセキュリティ特有の課題は?
+### Q7. What are the unique security challenges for serverless (Lambda)?
 
-サーバレスでは OS やミドルウェアの管理は不要だが、アプリケーションコードのセキュリティ、環境変数のシークレット管理、実行ロールの権限管理が重要である。Lambda の同時実行数の制限を設定して DoS 対策を行い、VPC 内で実行してネットワーク分離を確保する。また、Lambda Layers の依存関係の脆弱性スキャンも忘れずに行う。
+With serverless, OS and middleware management is not required, but security of application code, secret management in environment variables, and execution role permission management are critical. Set Lambda concurrency limits as a DoS countermeasure and run within a VPC for network isolation. Also remember to scan Lambda Layers dependencies for vulnerabilities.
 
-### Q8. クラウドセキュリティの自動化はどこまですべきか?
+### Q8. How far should cloud security automation be pushed?
 
-可能な限り自動化を推進する。具体的には以下を自動化する。
+Promote automation wherever possible. Specifically, automate the following.
 
 ```
-自動化すべき項目:
+Items to Automate:
 +----------------------------------------------------------+
-| 優先度 | 項目                    | ツール                  |
+| Priority | Item                       | Tool              |
 |----------------------------------------------------------+
-| 必須   | IaC (インフラのコード化) | Terraform / CDK         |
-| 必須   | 設定の継続的監査         | Config Rules / Hub      |
-| 必須   | ログの収集と集約         | CloudTrail / Config     |
-| 高     | 脆弱性スキャン           | Inspector / ECR Scan    |
-| 高     | シークレットのローテーション | Secrets Manager        |
-| 高     | パッチ適用               | Systems Manager         |
-| 中     | インシデント対応         | EventBridge + Lambda    |
-| 中     | コンプライアンスレポート   | Audit Manager          |
+| Required | IaC (infrastructure as code) | Terraform / CDK |
+| Required | Continuous config auditing  | Config Rules / Hub|
+| Required | Log collection and aggregation | CloudTrail / Config |
+| High     | Vulnerability scanning      | Inspector / ECR Scan |
+| High     | Secret rotation             | Secrets Manager   |
+| High     | Patch application           | Systems Manager   |
+| Medium   | Incident response           | EventBridge + Lambda |
+| Medium   | Compliance reporting        | Audit Manager     |
 +----------------------------------------------------------+
 ```
 
@@ -2227,46 +2230,46 @@ resource "aws_instance" "example" {
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| 責任共有モデル | インフラはプロバイダ、設定・データはユーザの責任 |
-| IAM | 最小権限の原則、ロールベース、MFA 必須、ABAC の活用 |
-| 暗号化 | 保存時 (KMS) + 転送時 (TLS) を常に有効化、エンベロープ暗号化 |
-| ネットワーク | VPC セグメンテーション + VPC Endpoints + Flow Logs |
-| マルチアカウント | 環境別にアカウントを分離し SCP で統制 |
-| 監視 | CloudTrail + Config + GuardDuty + Security Hub を必ず有効化 |
-| シークレット管理 | Secrets Manager で一元管理、自動ローテーション |
-| インシデント対応 | 検知→封じ込め→根絶→復旧→教訓のフローを自動化 |
-| ゼロトラスト | ネットワーク位置ではなくアイデンティティで信頼を判断 |
-| コンプライアンス | CIS Benchmark + Config Rules で継続的に準拠状態を監視 |
+| Shared Responsibility Model | Infrastructure is the provider's responsibility; configuration and data are the user's responsibility |
+| IAM | Principle of least privilege, role-based, MFA required, leverage ABAC |
+| Encryption | Always enable at-rest (KMS) + in-transit (TLS) encryption; use envelope encryption |
+| Network | VPC segmentation + VPC Endpoints + Flow Logs |
+| Multi-Account | Separate accounts by environment and enforce governance with SCP |
+| Monitoring | Always enable CloudTrail + Config + GuardDuty + Security Hub |
+| Secret Management | Centralized management with Secrets Manager; automatic rotation |
+| Incident Response | Automate the detect → contain → eradicate → recover → learn flow |
+| Zero Trust | Trust is based on identity, not network location |
+| Compliance | Continuously monitor compliance state with CIS Benchmark + Config Rules |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [AWSセキュリティ](./01-aws-security.md) — AWS 固有のセキュリティサービスの詳細
-- [IaCセキュリティ](./02-infrastructure-as-code-security.md) — インフラ設定のセキュリティ自動チェック
-- [鍵管理](../02-cryptography/02-key-management.md) — KMS を含む暗号鍵の管理手法
+- [AWS Security](./01-aws-security.md) — Details on AWS-specific security services
+- [IaC Security](./02-infrastructure-as-code-security.md) — Automated security checks for infrastructure configuration
+- [Key Management](../02-cryptography/02-key-management.md) — Key management techniques including KMS
 
 ---
 
-## 参考文献
+## References
 
 1. **AWS Well-Architected Framework — Security Pillar** — https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/
 2. **CIS Benchmarks for Cloud Providers** — https://www.cisecurity.org/cis-benchmarks
