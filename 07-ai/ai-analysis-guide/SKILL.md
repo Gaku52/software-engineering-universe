@@ -52,5 +52,5 @@ ML Algorithm Selection:
 ## References
 
 1. Goodfellow, I. et al. "Deep Learning." MIT Press, 2016.
-2. Geron, A. "Hands-On Machine Learning." O'Reilly, 2022.
+2. Géron, A. "Hands-On Machine Learning." O'Reilly, 2022.
 3. Vaswani, A. et al. "Attention Is All You Need." NeurIPS, 2017.
