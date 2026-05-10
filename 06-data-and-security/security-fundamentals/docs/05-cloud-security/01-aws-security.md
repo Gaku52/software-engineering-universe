@@ -1,156 +1,156 @@
-# AWS セキュリティ
+# AWS Security
 
-> GuardDuty による脅威検知、Security Hub による統合管理、CloudTrail による監査ログまで、AWS 環境を安全に運用するための実践ガイド
+> A practical guide for securely operating AWS environments — covering threat detection with GuardDuty, unified management with Security Hub, and audit logging with CloudTrail
 
-## 前提知識
+## Prerequisites
 
-- AWS の基本的なサービス（EC2, S3, IAM, VPC）の理解
-- [クラウドセキュリティ基礎](./00-cloud-security-basics.md) の責任共有モデルと IAM の知識
-- JSON によるポリシー記述の基礎
+- Understanding of basic AWS services (EC2, S3, IAM, VPC)
+- Knowledge of the shared responsibility model and IAM from [Cloud Security Basics](./00-cloud-security-basics.md)
+- Basic understanding of JSON policy syntax
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **GuardDuty による脅威検知** — 機械学習ベースの異常検知と自動通知の設定
-2. **Security Hub による統合管理** — セキュリティ検知結果の集約とコンプライアンスチェック
-3. **CloudTrail と Config による監査** — 全 API 呼び出しの記録と構成変更の追跡
-4. **Secrets Manager によるシークレット管理** — 認証情報の安全な保管と自動ローテーション
-5. **WAF と Shield による境界防御** — Web アプリケーションの保護と DDoS 対策
-6. **IAM Access Analyzer による権限分析** — 過剰な権限と外部アクセスの検出
+1. **Threat Detection with GuardDuty** — Setting up machine learning-based anomaly detection and automated alerts
+2. **Unified Management with Security Hub** — Aggregating security findings and running compliance checks
+3. **Auditing with CloudTrail and Config** — Recording all API calls and tracking configuration changes
+4. **Secret Management with Secrets Manager** — Securely storing credentials and enabling automatic rotation
+5. **Perimeter Defense with WAF and Shield** — Protecting web applications and mitigating DDoS attacks
+6. **Permission Analysis with IAM Access Analyzer** — Detecting excessive permissions and external access
 
 ---
 
-## 1. AWS セキュリティサービスの全体像
+## 1. Overview of AWS Security Services
 
-### サービスマップ
+### Service Map
 
 ```
 +------------------------------------------------------------------+
-|              AWS セキュリティサービス群                              |
+|              AWS Security Services                                |
 |------------------------------------------------------------------|
 |                                                                  |
-|  [検知・脅威対応]                                                 |
-|  +-- GuardDuty: 脅威検知 (VPC Flow, DNS, CloudTrail, EKS)      |
-|  +-- Inspector: EC2/ECR/Lambda 脆弱性スキャン                    |
-|  +-- Macie: S3 の機密データ検出 (PII, クレジットカード番号)       |
-|  +-- Detective: セキュリティ調査・分析 (グラフベース)             |
+|  [Detection & Threat Response]                                   |
+|  +-- GuardDuty: Threat detection (VPC Flow, DNS, CloudTrail, EKS)|
+|  +-- Inspector: EC2/ECR/Lambda vulnerability scanning            |
+|  +-- Macie: S3 sensitive data discovery (PII, credit card numbers)|
+|  +-- Detective: Security investigation & analysis (graph-based)  |
 |                                                                  |
-|  [統合管理]                                                      |
-|  +-- Security Hub: 検知結果の集約・コンプライアンス               |
-|  +-- Config: リソース構成の記録・評価                             |
-|  +-- Organizations: マルチアカウント統制                          |
-|  +-- Control Tower: ランディングゾーンの自動セットアップ          |
+|  [Unified Management]                                            |
+|  +-- Security Hub: Findings aggregation & compliance             |
+|  +-- Config: Resource configuration recording & evaluation       |
+|  +-- Organizations: Multi-account governance                     |
+|  +-- Control Tower: Automated landing zone setup                 |
 |                                                                  |
-|  [監査・ログ]                                                    |
-|  +-- CloudTrail: API 監査ログ (管理/データイベント)              |
-|  +-- VPC Flow Logs: ネットワークトラフィックログ                  |
-|  +-- CloudWatch Logs: アプリ・インフラログ                       |
-|  +-- S3 Server Access Logging: バケットアクセスログ               |
+|  [Audit & Logging]                                               |
+|  +-- CloudTrail: API audit logs (management/data events)         |
+|  +-- VPC Flow Logs: Network traffic logs                         |
+|  +-- CloudWatch Logs: Application & infrastructure logs          |
+|  +-- S3 Server Access Logging: Bucket access logs                |
 |                                                                  |
-|  [アクセス制御]                                                  |
-|  +-- IAM: ユーザ・ロール・ポリシー管理                           |
-|  +-- IAM Access Analyzer: 外部アクセスの検出                     |
-|  +-- IAM Identity Center (SSO): 一元的な認証管理                |
-|  +-- STS: 一時的認証情報の発行                                   |
+|  [Access Control]                                                |
+|  +-- IAM: User, role, and policy management                      |
+|  +-- IAM Access Analyzer: Detection of external access           |
+|  +-- IAM Identity Center (SSO): Centralized authentication       |
+|  +-- STS: Issuing temporary credentials                          |
 |                                                                  |
-|  [データ保護]                                                    |
-|  +-- KMS: 暗号鍵管理 (エンベロープ暗号化)                       |
-|  +-- Secrets Manager: シークレット管理・自動ローテーション        |
-|  +-- ACM: TLS 証明書管理                                        |
-|  +-- CloudHSM: 専用ハードウェアセキュリティモジュール             |
+|  [Data Protection]                                               |
+|  +-- KMS: Encryption key management (envelope encryption)        |
+|  +-- Secrets Manager: Secret management & automatic rotation     |
+|  +-- ACM: TLS certificate management                             |
+|  +-- CloudHSM: Dedicated hardware security module                |
 |                                                                  |
-|  [ネットワーク保護]                                              |
-|  +-- WAF: Web アプリケーションファイアウォール                    |
-|  +-- Shield: DDoS 対策 (Standard/Advanced)                     |
-|  +-- Network Firewall: VPC レベルのファイアウォール               |
-|  +-- Firewall Manager: 組織全体のファイアウォール管理             |
+|  [Network Protection]                                            |
+|  +-- WAF: Web Application Firewall                               |
+|  +-- Shield: DDoS protection (Standard/Advanced)                 |
+|  +-- Network Firewall: VPC-level firewall                        |
+|  +-- Firewall Manager: Organization-wide firewall management     |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### AWS セキュリティサービスの関係性
+### Relationships Between AWS Security Services
 
 ```
-┌──────────── AWS セキュリティサービスの連携 ────────────┐
-│                                                        │
-│   CloudTrail ──┐                                       │
-│   VPC Flow Logs─┤                                      │
-│   DNS Logs ─────┤──→ GuardDuty ──┐                    │
-│   EKS Audit ────┤                │                    │
-│   S3 Events ────┘                ├──→ Security Hub    │
-│                                  │     (Findings 集約) │
-│   Inspector ─────────────────────┤                    │
-│   Macie ─────────────────────────┤                    │
-│   IAM Access Analyzer ───────────┤                    │
-│   Firewall Manager ──────────────┘                    │
-│                                                        │
-│   Security Hub ──→ EventBridge ──→ Lambda             │
-│                                    ├→ SNS (通知)      │
-│                                    ├→ Step Functions  │
-│                                    └→ 自動修復         │
-│                                                        │
-│   Config Rules ──→ 非準拠検出 ──→ SSM Automation     │
-│                                    └→ 自動修復         │
-│                                                        │
-└────────────────────────────────────────────────────────┘
+┌──────────── AWS Security Services Integration ────────────┐
+│                                                            │
+│   CloudTrail ──┐                                           │
+│   VPC Flow Logs─┤                                          │
+│   DNS Logs ─────┤──→ GuardDuty ──┐                        │
+│   EKS Audit ────┤                │                        │
+│   S3 Events ────┘                ├──→ Security Hub         │
+│                                  │     (Findings aggregation)│
+│   Inspector ─────────────────────┤                        │
+│   Macie ─────────────────────────┤                        │
+│   IAM Access Analyzer ───────────┤                        │
+│   Firewall Manager ──────────────┘                        │
+│                                                            │
+│   Security Hub ──→ EventBridge ──→ Lambda                  │
+│                                    ├→ SNS (notifications)  │
+│                                    ├→ Step Functions        │
+│                                    └→ Auto-remediation      │
+│                                                            │
+│   Config Rules ──→ Non-compliance detected ──→ SSM Automation│
+│                                               └→ Auto-remediation│
+│                                                            │
+└────────────────────────────────────────────────────────────┘
 ```
 
-### セキュリティサービスの導入優先度
+### Security Service Adoption Priority
 
-| 優先度 | サービス | 理由 | コスト影響 |
-|--------|---------|------|-----------|
-| P0 (必須) | CloudTrail | 全 API 操作の記録。インシデント調査の基盤 | 低 (管理イベントは無料) |
-| P0 (必須) | IAM | 最小権限の原則。全アクセス制御の基盤 | 無料 |
-| P0 (必須) | S3 暗号化 + パブリックアクセスブロック | データ漏洩防止 | 無料〜低 |
-| P1 (推奨) | GuardDuty | 継続的な脅威検知 | 中 (データ量依存) |
-| P1 (推奨) | Security Hub | 検知結果の集約と基準評価 | 低 |
-| P1 (推奨) | Config | リソース構成の継続監視 | 中 |
-| P2 (重要) | Secrets Manager | シークレットの安全管理 | 低 (シークレット数依存) |
-| P2 (重要) | WAF | Web アプリケーション保護 | 中 |
-| P2 (重要) | Inspector | 脆弱性の自動検出 | 中 |
-| P3 (推奨) | Macie | 機密データの検出 | 中〜高 |
-| P3 (推奨) | Detective | インシデント調査の効率化 | 中 |
+| Priority | Service | Reason | Cost Impact |
+|----------|---------|--------|------------|
+| P0 (Required) | CloudTrail | Records all API operations. Foundation for incident investigation | Low (management events are free) |
+| P0 (Required) | IAM | Principle of least privilege. Foundation of all access control | Free |
+| P0 (Required) | S3 Encryption + Public Access Block | Prevents data leakage | Free to Low |
+| P1 (Recommended) | GuardDuty | Continuous threat detection | Medium (depends on data volume) |
+| P1 (Recommended) | Security Hub | Aggregates findings and evaluates against standards | Low |
+| P1 (Recommended) | Config | Continuous monitoring of resource configurations | Medium |
+| P2 (Important) | Secrets Manager | Secure management of secrets | Low (depends on number of secrets) |
+| P2 (Important) | WAF | Web application protection | Medium |
+| P2 (Important) | Inspector | Automated vulnerability detection | Medium |
+| P3 (Recommended) | Macie | Sensitive data discovery | Medium to High |
+| P3 (Recommended) | Detective | Efficient incident investigation | Medium |
 
 ---
 
 ## 2. GuardDuty
 
-### GuardDuty の仕組み
+### How GuardDuty Works
 
-GuardDuty は AWS 環境における継続的な脅威検知サービスである。機械学習、異常検知、脅威インテリジェンスフィードを組み合わせて、悪意のあるアクティビティや不正な動作を検出する。
+GuardDuty is a continuous threat detection service for AWS environments. It combines machine learning, anomaly detection, and threat intelligence feeds to detect malicious activity and unauthorized behavior.
 
 ```
-データソース                 GuardDuty                  対応
+Data Sources               GuardDuty                  Response
 +------------------+     +------------------+     +------------------+
 | CloudTrail Logs  | --> |                  | --> | EventBridge      |
-| VPC Flow Logs    | --> | 機械学習エンジン  | --> | → Lambda         |
-| DNS Logs         | --> | 脅威インテリジェンス| --> | → SNS 通知      |
-| EKS Audit Logs   | --> | 異常検知          | --> | → 自動修復      |
-| S3 Data Events   | --> |                  | --> | → Slack 通知    |
-| RDS Login Events | --> |                  | --> | → SIEM 連携     |
-| Lambda Network   | --> |                  | --> | → Security Hub  |
+| VPC Flow Logs    | --> | ML Engine        | --> | → Lambda         |
+| DNS Logs         | --> | Threat Intel     | --> | → SNS Alerts     |
+| EKS Audit Logs   | --> | Anomaly Detection| --> | → Auto-remediation|
+| S3 Data Events   | --> |                  | --> | → Slack alerts   |
+| RDS Login Events | --> |                  | --> | → SIEM integration|
+| Lambda Network   | --> |                  | --> | → Security Hub   |
 | EBS Malware Scan | --> |                  |     |                  |
 +------------------+     +------------------+     +------------------+
                            |
                            v
-                    Finding (検知結果)
-                    - 重大度: Low (1-3.9) / Medium (4-6.9) / High (7-8.9) / Critical (9-10)
-                    - 分類: 200+ の検知タイプ
-                    - カテゴリ: Recon / UnauthorizedAccess / Exfiltration など
+                    Finding
+                    - Severity: Low (1-3.9) / Medium (4-6.9) / High (7-8.9) / Critical (9-10)
+                    - Classification: 200+ finding types
+                    - Categories: Recon / UnauthorizedAccess / Exfiltration, etc.
 ```
 
-#### GuardDuty の検知タイプ例
+#### GuardDuty Finding Type Examples
 
-| カテゴリ | 検知タイプ | 説明 |
-|---------|-----------|------|
-| 偵察活動 | Recon:EC2/PortProbeUnprotectedPort | EC2 インスタンスの保護されていないポートへの偵察 |
-| 不正アクセス | UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS | EC2 の認証情報が AWS 外で使用 |
-| 暗号通貨 | CryptoCurrency:EC2/BitcoinTool.B | EC2 で暗号通貨マイニングの通信を検出 |
-| データ流出 | Exfiltration:S3/MaliciousIPCaller | 悪意のある IP から S3 へのアクセス |
-| トロイの木馬 | Trojan:EC2/BlackholeTraffic | EC2 からブラックホール IP への通信 |
-| バックドア | Backdoor:EC2/DenialOfService.Tcp | EC2 が DDoS 攻撃に利用されている |
-| 特権昇格 | PrivilegeEscalation:IAMUser/AdministrativePermissions | 通常と異なる管理者権限の使用 |
+| Category | Finding Type | Description |
+|----------|-------------|-------------|
+| Reconnaissance | Recon:EC2/PortProbeUnprotectedPort | Reconnaissance of unprotected ports on an EC2 instance |
+| Unauthorized Access | UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS | EC2 credentials used outside of AWS |
+| Cryptocurrency | CryptoCurrency:EC2/BitcoinTool.B | Cryptocurrency mining traffic detected from EC2 |
+| Data Exfiltration | Exfiltration:S3/MaliciousIPCaller | S3 access from a malicious IP address |
+| Trojan | Trojan:EC2/BlackholeTraffic | EC2 communicating with a blackhole IP |
+| Backdoor | Backdoor:EC2/DenialOfService.Tcp | EC2 being used to launch a DDoS attack |
+| Privilege Escalation | PrivilegeEscalation:IAMUser/AdministrativePermissions | Unusual use of administrative permissions |
 
-### GuardDuty の有効化と設定
+### Enabling and Configuring GuardDuty
 
 ```python
 import boto3
@@ -249,7 +249,7 @@ resource "aws_guardduty_threatintelset" "custom" {
 }
 ```
 
-### GuardDuty 検知結果の自動通知
+### Automated Notifications for GuardDuty Findings
 
 ```python
 # EventBridge → Lambda → Slack 通知
@@ -351,7 +351,7 @@ def _extract_resource_details(resource):
         return json.dumps(resource, indent=2, default=str)[:300]
 ```
 
-### GuardDuty 検知結果の自動修復
+### Automated Remediation for GuardDuty Findings
 
 ```python
 # GuardDuty High Severity → 自動修復 Lambda
@@ -466,7 +466,7 @@ def _restrict_s3_bucket(detail):
     print(f"Public access blocked for bucket {bucket_name}")
 ```
 
-### GuardDuty のフィルタリングとサプレッション
+### GuardDuty Filtering and Suppression
 
 ```hcl
 # GuardDuty フィルタ（特定の検知結果をフィルタリング）
@@ -512,39 +512,39 @@ resource "aws_guardduty_filter" "suppress_internal_portscans" {
 
 ## 3. Security Hub
 
-### Security Hub の構成
+### Security Hub Architecture
 
-Security Hub は AWS セキュリティサービスの検知結果を一元管理するサービスである。複数のセキュリティ基準に対するコンプライアンスチェックを自動的に実行し、スコアカードで可視化する。
+Security Hub is a service that centrally manages findings from AWS security services. It automatically runs compliance checks against multiple security standards and visualizes results as a scorecard.
 
 ```
 +------------------------------------------------------------------+
 |                    Security Hub                                    |
 |------------------------------------------------------------------|
 |                                                                  |
-|  [データソース (Findings)]                                        |
-|  +-- GuardDuty の検知結果                                        |
-|  +-- Inspector の脆弱性                                          |
-|  +-- Macie の機密データ検出                                       |
+|  [Data Sources (Findings)]                                       |
+|  +-- GuardDuty findings                                          |
+|  +-- Inspector vulnerabilities                                   |
+|  +-- Macie sensitive data discoveries                            |
 |  +-- IAM Access Analyzer                                        |
 |  +-- Firewall Manager                                           |
-|  +-- Config Rules の非準拠                                       |
-|  +-- サードパーティ (Prowler, Checkov, Snyk)                     |
+|  +-- Config Rules non-compliance                                 |
+|  +-- Third-party (Prowler, Checkov, Snyk)                        |
 |                                                                  |
-|  [セキュリティ基準 (Standards)]                                   |
+|  [Security Standards]                                            |
 |  +-- AWS Foundational Security Best Practices (FSBP)            |
 |  +-- CIS AWS Foundations Benchmark v1.4.0 / v3.0.0             |
 |  +-- PCI DSS v3.2.1                                            |
 |  +-- NIST SP 800-53 Rev. 5                                      |
 |                                                                  |
-|  [出力]                                                          |
-|  +-- ダッシュボード (スコアカード)                                 |
-|  +-- EventBridge 統合 (自動修復)                                 |
-|  +-- カスタムアクション                                          |
-|  +-- AWS Security Lake 連携                                     |
+|  [Output]                                                        |
+|  +-- Dashboard (scorecard)                                       |
+|  +-- EventBridge integration (auto-remediation)                  |
+|  +-- Custom actions                                              |
+|  +-- AWS Security Lake integration                               |
 +------------------------------------------------------------------+
 ```
 
-### Security Hub の有効化 (Terraform)
+### Enabling Security Hub (Terraform)
 
 ```hcl
 # Security Hub の有効化
@@ -614,7 +614,7 @@ resource "aws_securityhub_organization_configuration" "main" {
 }
 ```
 
-### Security Hub カスタムアクション
+### Security Hub Custom Actions
 
 ```python
 # Security Hub のカスタムアクション（手動トリガーの修復）
@@ -645,43 +645,43 @@ securityhub.batch_update_findings(
 )
 ```
 
-### Security Hub スコアの改善戦略
+### Strategy for Improving Security Hub Score
 
 ```
-┌──────────── Security Hub スコア改善戦略 ─────────────┐
-│                                                       │
-│  Phase 1: CRITICAL の解消 (目標: 0件)                 │
-│  ├── S3 パブリックアクセス                             │
-│  ├── RDS パブリックアクセス                            │
-│  ├── root アカウントの MFA                            │
-│  └── IAM ポリシーのワイルドカード                      │
-│                                                       │
-│  Phase 2: HIGH の解消 (目標: スコア 90%+)             │
-│  ├── 暗号化の有効化 (S3, RDS, EBS)                    │
-│  ├── ログの有効化 (CloudTrail, VPC Flow Logs)         │
-│  ├── バックアップの設定                                │
-│  └── セキュリティグループの見直し                      │
-│                                                       │
-│  Phase 3: MEDIUM の対応 (目標: スコア 95%+)           │
-│  ├── タグ付け規則の適用                                │
-│  ├── VPC エンドポイントの設定                         │
-│  ├── 不要なリソースの削除                              │
-│  └── ログ保持期間の設定                                │
-│                                                       │
-│  Phase 4: 継続的改善                                   │
-│  ├── 新規リソースの自動チェック (Config Rules)         │
-│  ├── 週次でのスコアレビュー                            │
-│  ├── 例外管理プロセスの運用                            │
-│  └── 自動修復の拡充                                   │
-│                                                       │
-└───────────────────────────────────────────────────────┘
+┌──────────── Security Hub Score Improvement Strategy ──────────┐
+│                                                                │
+│  Phase 1: Eliminate CRITICAL (Target: 0 findings)             │
+│  ├── S3 public access                                          │
+│  ├── RDS public access                                         │
+│  ├── MFA for root account                                      │
+│  └── Wildcard IAM policies                                     │
+│                                                                │
+│  Phase 2: Eliminate HIGH (Target: Score 90%+)                  │
+│  ├── Enable encryption (S3, RDS, EBS)                          │
+│  ├── Enable logging (CloudTrail, VPC Flow Logs)                │
+│  ├── Configure backups                                         │
+│  └── Review security groups                                    │
+│                                                                │
+│  Phase 3: Address MEDIUM (Target: Score 95%+)                  │
+│  ├── Apply tagging policies                                    │
+│  ├── Configure VPC endpoints                                   │
+│  ├── Remove unnecessary resources                              │
+│  └── Set log retention periods                                 │
+│                                                                │
+│  Phase 4: Continuous Improvement                               │
+│  ├── Auto-check new resources (Config Rules)                   │
+│  ├── Weekly score reviews                                      │
+│  ├── Operate exception management process                      │
+│  └── Expand auto-remediation coverage                          │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 4. CloudTrail
 
-### CloudTrail の設定
+### CloudTrail Configuration
 
 ```hcl
 # CloudTrail (全リージョン、全イベント)
@@ -805,7 +805,7 @@ resource "aws_cloudwatch_metric_alarm" "unauthorized_api_calls" {
 }
 ```
 
-### CloudTrail ログの分析
+### Analyzing CloudTrail Logs
 
 ```python
 import boto3
@@ -1031,7 +1031,7 @@ resource "aws_config_remediation_configuration" "s3_public_access" {
 
 ## 5. Secrets Manager
 
-### シークレットの管理と自動ローテーション
+### Secret Management and Automatic Rotation
 
 ```python
 import boto3
@@ -1091,7 +1091,7 @@ sm.rotate_secret(
 )
 ```
 
-### ローテーション Lambda
+### Rotation Lambda
 
 ```python
 # Lambda: RDS シークレットのローテーション
@@ -1204,9 +1204,9 @@ def finish_secret(secret_arn, token):
 
 ---
 
-## 6. WAF と Shield
+## 6. WAF and Shield
 
-### AWS WAF の設定
+### AWS WAF Configuration
 
 ```hcl
 # WAF Web ACL
@@ -1420,42 +1420,42 @@ unused_access = analyzer.list_findings(
 
 ---
 
-## 8. エッジケース
+## 8. Edge Cases
 
-### エッジケース 1: クロスアカウントアクセスの見落とし
+### Edge Case 1: Overlooking Cross-Account Access
 
-リソースベースポリシー（S3バケットポリシー、KMSキーポリシーなど）で他のアカウントにアクセスを許可している場合、IAM Access Analyzer はこれを外部アクセスとして検出する。ただし、Organizations 内のアカウントからのアクセスと外部アカウントからのアクセスの区別を正しく設定しないと、正当なクロスアカウントアクセスが過剰にアラートを生成する。
+When a resource-based policy (such as an S3 bucket policy or KMS key policy) grants access to another account, IAM Access Analyzer detects it as external access. However, if you do not correctly distinguish between access from accounts within your Organization and access from external accounts, legitimate cross-account access may generate excessive alerts.
 
-### エッジケース 2: GuardDuty の検知遅延
+### Edge Case 2: GuardDuty Detection Delay
 
-GuardDuty はリアルタイムではなく、データソースの更新頻度に依存する。VPC Flow Logs は約10分遅延、CloudTrail は通常15分以内に配信される。そのため、攻撃の検知から通知までに最大30分程度のラグが発生する可能性がある。
+GuardDuty is not real-time — it depends on how frequently data sources are updated. VPC Flow Logs have an approximately 10-minute delay, and CloudTrail events are typically delivered within 15 minutes. As a result, there can be a lag of up to around 30 minutes from the time of an attack to when a notification is received.
 
-### エッジケース 3: Secrets Manager のローテーション失敗
+### Edge Case 3: Secrets Manager Rotation Failure
 
-ローテーション Lambda がタイムアウトした場合、シークレットは AWSPENDING ステータスのまま残る。この状態でアプリケーションが AWSCURRENT を参照すると、古い認証情報を使い続ける。ローテーション Lambda には適切なタイムアウト（最低5分）と、VPC 内で実行する場合は NAT Gateway 経由の Secrets Manager エンドポイントへのアクセスが必要である。
+If the rotation Lambda times out, the secret remains in AWSPENDING status. If the application then references AWSCURRENT, it continues using the old credentials. The rotation Lambda requires an appropriate timeout (at least 5 minutes), and if running inside a VPC, it needs access to the Secrets Manager endpoint via a NAT Gateway.
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン 1: CloudTrail の無効化
+### Anti-Pattern 1: Disabling CloudTrail
 
 ```
 NG:
-  → CloudTrail を無効にしてコスト削減
-  → 単一リージョンのみ有効
-  → ログファイルの整合性検証を無効化
-  → ログをアプリケーションアカウントに保存
+  → Disabling CloudTrail to reduce costs
+  → Enabling it in only a single region
+  → Disabling log file integrity validation
+  → Storing logs in the application account
 
 OK:
-  → 全リージョン + 全イベントを記録
-  → ログファイル検証を有効化
-  → S3 バケットを KMS で暗号化し MFA Delete を有効化
-  → ログアーカイブ用の別アカウントに保存
-  → CloudWatch Logs にも転送してリアルタイム分析
+  → Record all regions and all events
+  → Enable log file validation
+  → Encrypt the S3 bucket with KMS and enable MFA Delete
+  → Store logs in a separate archive account
+  → Forward to CloudWatch Logs for real-time analysis
 ```
 
-### アンチパターン 2: アクセスキーの長期使用
+### Anti-Pattern 2: Long-Term Use of Access Keys
 
 ```bash
 # NG: アクセスキーを作成して永久に使い続ける
@@ -1477,121 +1477,121 @@ aws iam create-access-key --user-name deploy-user
 #     aws-region: ap-northeast-1
 ```
 
-### アンチパターン 3: セキュリティサービスの部分的な有効化
+### Anti-Pattern 3: Partial Enablement of Security Services
 
 ```
 NG:
-  → GuardDuty を一部のリージョンでのみ有効化
-  → Security Hub を有効にしたが Standards を有効化していない
-  → Config を有効にしたが Config Rules を設定していない
-  → マネジメントアカウントのみで有効化し、メンバーアカウントは未対応
+  → Enabling GuardDuty only in some regions
+  → Enabling Security Hub without activating Standards
+  → Enabling Config without configuring Config Rules
+  → Enabling only for the management account, leaving member accounts uncovered
 
 OK:
-  → 全リージョン・全アカウントで有効化
-  → Organizations の delegated administrator で一元管理
-  → 全 Standards を有効化し、例外は正当な理由付きで管理
-  → 自動修復を設定して検知結果に対応
+  → Enable across all regions and all accounts
+  → Use Organizations delegated administrator for centralized management
+  → Enable all Standards; manage exceptions with documented justification
+  → Configure auto-remediation to respond to findings
 ```
 
 ---
 
-## 10. 演習問題
+## 10. Exercises
 
-### 演習 1: GuardDuty + EventBridge + Lambda による自動通知
+### Exercise 1: Automated Notifications with GuardDuty + EventBridge + Lambda
 
-以下を実装せよ。
-1. GuardDuty を有効化（全データソース）
-2. EventBridge ルールで High 以上の検知結果をフィルタ
-3. Lambda で Slack に通知（重大度に応じた色分け）
-4. Terraform でインフラを構築
+Implement the following:
+1. Enable GuardDuty (all data sources)
+2. Create an EventBridge rule to filter findings with severity High or above
+3. Use Lambda to send Slack notifications with color-coding by severity level
+4. Build the infrastructure with Terraform
 
-### 演習 2: CloudTrail ログの Athena 分析
+### Exercise 2: Athena Analysis of CloudTrail Logs
 
-以下のクエリを作成せよ。
-1. 過去24時間の全 IAM ユーザのログイン試行（成功/失敗）
-2. root アカウントの全操作
-3. Security Group の変更履歴
-4. 特定の IP アドレスからの全 API 呼び出し
+Write the following queries:
+1. All IAM user login attempts (successful and failed) in the past 24 hours
+2. All operations performed by the root account
+3. History of Security Group changes
+4. All API calls from a specific IP address
 
-### 演習 3: Security Hub スコア改善計画
+### Exercise 3: Security Hub Score Improvement Plan
 
-自分の AWS アカウントで以下を実施せよ。
-1. Security Hub を有効化し、AWS FSBP を有効化
-2. 現在のスコアを確認
-3. CRITICAL の Finding を全て解消
-4. HIGH の Finding の修復計画を作成
+Perform the following steps in your AWS account:
+1. Enable Security Hub and activate AWS FSBP
+2. Check your current score
+3. Resolve all CRITICAL findings
+4. Create a remediation plan for HIGH findings
 
 ---
 
 ## 11. FAQ
 
-### Q1. GuardDuty の検知結果が多すぎる場合はどうするか?
+### Q1. What should I do if there are too many GuardDuty findings?
 
-GuardDuty の Suppression Rules で低リスクの検知結果を自動アーカイブできる。まず全検知結果を確認して誤検知パターンを特定し、Filter で自動アーカイブする。ただし、High 以上の検知結果は抑制せず必ず調査すること。Trusted IP リストにオフィスの IP を登録することで、正常なトラフィックからの誤検知を減らせる。
+You can use GuardDuty Suppression Rules to automatically archive low-risk findings. First, review all findings to identify false positive patterns, then configure filters to archive them automatically. However, never suppress findings with severity High or above — always investigate those. Registering your office IP addresses in the Trusted IP List can reduce false positives from normal traffic.
 
-### Q2. Security Hub のスコアをどこまで上げるべきか?
+### Q2. How high should I aim to raise the Security Hub score?
 
-100% は現実的でない場合もある。CRITICAL と HIGH の検知結果は全て対応し、全体スコアは 90% 以上を目標とする。例外が必要な場合は Suppression ルールを適用し、その理由をドキュメント化する。スコアの推移を週次でモニタリングし、低下傾向がある場合は原因を調査する。
+Reaching 100% may not always be realistic. The goal should be to address all CRITICAL and HIGH findings and to target an overall score of 90% or higher. When exceptions are necessary, apply Suppression rules and document the reasons. Monitor score trends weekly and investigate if there is a downward trend.
 
-### Q3. CloudTrail のコストを最適化するには?
+### Q3. How can I optimize CloudTrail costs?
 
-管理イベントは基本的に全記録する (コスト影響は小さい)。データイベント (S3/Lambda) は機密バケットに限定する。CloudTrail Lake の代わりに Athena + S3 で分析することでコストを抑えられる。ログの保持期間を規制要件に合わせて設定し、不要に長期保存しない。GLACIER/DEEP_ARCHIVE へのライフサイクルルールでストレージコストを削減する。
+Management events should generally be recorded in full (the cost impact is small). Limit data events (S3/Lambda) to sensitive buckets only. Using Athena + S3 for analysis instead of CloudTrail Lake can reduce costs. Set log retention periods to match regulatory requirements — avoid unnecessarily long retention. Use GLACIER/DEEP_ARCHIVE lifecycle rules to reduce storage costs.
 
-### Q4. Secrets Manager と Parameter Store のどちらを使うべきか?
+### Q4. When should I use Secrets Manager versus Parameter Store?
 
-自動ローテーションが必要な認証情報（データベースパスワード、API キー）には Secrets Manager を使用する。設定値やフラグなどの非機密パラメータには Parameter Store (Standard) が無料で適切。Parameter Store の SecureString も暗号化されるが、自動ローテーション機能はない。コスト面では Parameter Store が有利（無料枠あり）、機能面では Secrets Manager が優位。
+Use Secrets Manager for credentials that require automatic rotation (database passwords, API keys). For non-sensitive parameters such as configuration values and flags, Parameter Store (Standard) is free and appropriate. Parameter Store's SecureString is also encrypted, but does not support automatic rotation. In terms of cost, Parameter Store has the advantage (with a free tier); in terms of functionality, Secrets Manager is superior.
 
-### Q5. WAF のルール設定をどう最適化するか?
+### Q5. How do I optimize WAF rule configuration?
 
-まず AWS マネージドルールセットを有効にする（CommonRuleSet, SQLiRuleSet, XSSRuleSet）。初期は Count モードで誤検知を確認し、問題ないことを確認してから Block モードに切り替える。レートベースルールで DDoS を緩和し、地理的制限で不要な国からのアクセスをブロックする。WAF ログを分析して、ブロックされたリクエストのパターンを定期的に確認する。
+Start by enabling the AWS managed rule sets (CommonRuleSet, SQLiRuleSet, XSSRuleSet). Initially run in Count mode to check for false positives, then switch to Block mode once confirmed safe. Use rate-based rules to mitigate DDoS attacks, and use geographic restrictions to block access from unwanted countries. Regularly analyze WAF logs to review the patterns of blocked requests.
 
-### Q6. マルチアカウント環境でセキュリティサービスをどう管理するか?
+### Q6. How do I manage security services in a multi-account environment?
 
-Organizations の delegated administrator 機能を使用して、セキュリティアカウントから全メンバーアカウントのセキュリティサービスを一元管理する。GuardDuty、Security Hub、Config、IAM Access Analyzer はいずれも delegated administrator をサポートしている。Control Tower を使用すると、新規アカウント作成時にセキュリティサービスが自動的に有効化される。
+Use the Organizations delegated administrator feature to centrally manage security services across all member accounts from a dedicated security account. GuardDuty, Security Hub, Config, and IAM Access Analyzer all support delegated administrator. Using Control Tower ensures that security services are automatically enabled when new accounts are created.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend solidly understanding the core concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| GuardDuty | 全アカウント・全リージョンで有効化、EventBridge で自動通知・修復 |
-| Security Hub | 検知結果を集約、CIS/AWS ベストプラクティスで評価、スコア 90%+ を目標 |
-| CloudTrail | 全 API 呼び出しを記録、ログ検証必須、別アカウントに保存、Athena で分析 |
-| Config | リソース構成の継続監視、ルール違反を自動検出・修復 |
-| IAM | ロールベースアクセス、一時認証情報、MFA 必須、Access Analyzer で分析 |
-| Secrets Manager | シークレットの一元管理と自動ローテーション、キャッシュ利用推奨 |
-| KMS | データ暗号化の鍵管理、エンベロープ暗号化、キーポリシーの最小権限 |
-| WAF | マネージドルール + カスタムルール、レートベース制限、Count → Block 段階的適用 |
+Knowledge of this topic is frequently applied in day-to-day development work — particularly during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [クラウドセキュリティ基礎](./00-cloud-security-basics.md) — 責任共有モデルと IAM の基本
-- [IaCセキュリティ](./02-infrastructure-as-code-security.md) — Terraform/CloudFormation のセキュリティチェック
-- [監視/ログ](../06-operations/01-monitoring-logging.md) — SIEM との統合
+| Topic | Key Points |
+|-------|-----------|
+| GuardDuty | Enable across all accounts and regions; use EventBridge for automated alerts and remediation |
+| Security Hub | Aggregate findings, evaluate against CIS/AWS best practices, target a score of 90%+ |
+| CloudTrail | Record all API calls, require log validation, store in a separate account, analyze with Athena |
+| Config | Continuously monitor resource configurations, automatically detect and remediate rule violations |
+| IAM | Role-based access, temporary credentials, mandatory MFA, analyze with Access Analyzer |
+| Secrets Manager | Centralized secret management with automatic rotation; caching is recommended |
+| KMS | Key management for data encryption, envelope encryption, least-privilege key policies |
+| WAF | Managed rules + custom rules, rate-based limits, phased rollout from Count to Block mode |
 
 ---
 
-## 参考文献
+## Further Reading
+
+- [Cloud Security Basics](./00-cloud-security-basics.md) — Shared responsibility model and IAM fundamentals
+- [IaC Security](./02-infrastructure-as-code-security.md) — Security checks for Terraform/CloudFormation
+- [Monitoring/Logging](../06-operations/01-monitoring-logging.md) — SIEM integration
+
+---
+
+## References
 
 1. **AWS Security Best Practices** — https://docs.aws.amazon.com/prescriptive-guidance/latest/security-best-practices/
 2. **AWS GuardDuty User Guide** — https://docs.aws.amazon.com/guardduty/latest/ug/
