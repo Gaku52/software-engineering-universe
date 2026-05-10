@@ -1,132 +1,132 @@
-# 自律エージェント
+# Autonomous Agents
 
-> 計画・実行・振り返り――長時間にわたり自律的にタスクを遂行するエージェントの設計パターン。目標分解、自己評価、適応的再計画の仕組みを解説する。
+> Plan, execute, reflect — design patterns for agents that autonomously carry out long-running tasks. Covers goal decomposition, self-evaluation, and adaptive replanning.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. 自律エージェントの計画-実行-振り返りサイクルの設計
-2. 目標分解とサブゴール管理の実装パターン
-3. 自律性の段階とヒューマン・イン・ザ・ループの組み込み方
-4. メモリシステム（短期・長期・エピソード記憶）の設計
-5. 安全性ガードレールと迷走検出の実装
-6. 本番運用のためのモニタリング・コスト管理・テスト手法
+1. Designing the plan-execute-reflect cycle for autonomous agents
+2. Implementation patterns for goal decomposition and sub-goal management
+3. Levels of autonomy and how to integrate human-in-the-loop checkpoints
+4. Designing a memory system (working, episodic, and semantic memory)
+5. Implementing safety guardrails and wandering detection
+6. Monitoring, cost management, and testing techniques for production use
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ワークフローエージェント](./02-workflow-agents.md) の内容を理解していること
-
----
-
-## 1. 自律エージェントの定義
-
-```
-自律エージェントの特徴
-
-通常のエージェント:
-  ユーザー: "Xを調べて"
-  → 検索→回答（数ステップで完了）
-
-自律エージェント:
-  ユーザー: "競合分析レポートを作成して"
-  → 計画立案
-  → 情報収集（複数ソース）
-  → データ分析
-  → レポート草案
-  → 自己レビュー
-  → 修正
-  → 最終レポート
-  （数十〜数百ステップ、数分〜数時間）
-```
-
-### 1.1 自律性のレベル
-
-```
-自律性の5段階
-
-Level 0: 手動          ユーザーが全ステップ指示
-Level 1: アシスト      1ステップをLLMが実行
-Level 2: 半自律        複数ステップを実行、要所で確認
-Level 3: 条件付き自律  ほぼ自律、重要判断のみ人間が承認
-Level 4: 完全自律      目標だけ与えれば完了まで自走
-                       (例: Devin, Claude Code)
-```
-
-### 1.2 自律エージェントを選ぶべきか？
-
-```
-意思決定フローチャート
-
-Q1: タスクが明確に定義されており、手順が固定か？
-├─ YES → ワークフローエージェント（02-workflow-agents.md）
-└─ NO  → Q2へ
-
-Q2: タスク完了に10ステップ以上必要か？
-├─ YES → Q3へ
-└─ NO  → シングルエージェント（00-single-agent.md）
-
-Q3: 実行中に状況に応じた判断の変更が必要か？
-├─ YES → 自律エージェント（この章）
-└─ NO  → ワークフローエージェント
-
-Q4: 失敗時に自己修正が必要か？
-├─ YES → 自律エージェント + Reflexionパターン
-└─ NO  → マルチエージェント委譲パターン
-
-Q5: セキュリティ的に許容できる操作範囲は？
-├─ 制限あり → Level 2-3（ヒューマン・イン・ザ・ループ必須）
-└─ 制限なし → Level 4（フルガードレール必須）
-```
-
-### 1.3 典型的なユースケース
-
-| ユースケース | 自律性レベル | ステップ数 | 所要時間 |
-|------------|-----------|----------|---------|
-| コード生成+テスト | L3 | 20-50 | 5-15分 |
-| 競合分析レポート作成 | L3 | 30-100 | 10-30分 |
-| バグ調査+修正 | L3-L4 | 10-40 | 3-20分 |
-| プロジェクト初期構築 | L3 | 50-200 | 15-60分 |
-| データ分析+可視化 | L2-L3 | 15-40 | 5-20分 |
-| 文書翻訳+ローカライズ | L2 | 10-30 | 3-10分 |
-| インフラ構築+デプロイ | L3（承認付き） | 30-80 | 10-40分 |
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Workflow Agents](./02-workflow-agents.md)
 
 ---
 
-## 2. 計画-実行-振り返りサイクル
-
-### 2.1 コアアーキテクチャ
+## 1. What Is an Autonomous Agent?
 
 ```
-自律エージェントのコアループ
+Characteristics of Autonomous Agents
+
+Ordinary agent:
+  User: "Look up X"
+  → search → answer (completes in a few steps)
+
+Autonomous agent:
+  User: "Create a competitive analysis report"
+  → create plan
+  → gather information (multiple sources)
+  → analyze data
+  → draft report
+  → self-review
+  → revise
+  → final report
+  (tens to hundreds of steps, minutes to hours)
+```
+
+### 1.1 Levels of Autonomy
+
+```
+Five Levels of Autonomy
+
+Level 0: Manual        User directs every step
+Level 1: Assisted      LLM executes one step
+Level 2: Semi-autonomous  Executes multiple steps, confirms at key points
+Level 3: Conditional   Nearly autonomous, human approves critical decisions only
+Level 4: Fully autonomous  Runs to completion from goal alone
+                        (e.g., Devin, Claude Code)
+```
+
+### 1.2 Should You Use an Autonomous Agent?
+
+```
+Decision Flowchart
+
+Q1: Is the task clearly defined with a fixed procedure?
+├─ YES → Workflow agent (02-workflow-agents.md)
+└─ NO  → Go to Q2
+
+Q2: Does the task require more than 10 steps to complete?
+├─ YES → Go to Q3
+└─ NO  → Single agent (00-single-agent.md)
+
+Q3: Does execution require adaptive decision-making based on context?
+├─ YES → Autonomous agent (this chapter)
+└─ NO  → Workflow agent
+
+Q4: Is self-correction required on failure?
+├─ YES → Autonomous agent + Reflexion pattern
+└─ NO  → Multi-agent delegation pattern
+
+Q5: What is the acceptable operation scope from a security standpoint?
+├─ Restricted → Level 2-3 (human-in-the-loop required)
+└─ Unrestricted → Level 4 (full guardrails required)
+```
+
+### 1.3 Typical Use Cases
+
+| Use Case | Autonomy Level | Steps | Duration |
+|----------|---------------|-------|----------|
+| Code generation + testing | L3 | 20-50 | 5-15 min |
+| Competitive analysis report | L3 | 30-100 | 10-30 min |
+| Bug investigation + fix | L3-L4 | 10-40 | 3-20 min |
+| Initial project scaffolding | L3 | 50-200 | 15-60 min |
+| Data analysis + visualization | L2-L3 | 15-40 | 5-20 min |
+| Document translation + localization | L2 | 10-30 | 3-10 min |
+| Infrastructure setup + deployment | L3 (with approval) | 30-80 | 10-40 min |
+
+---
+
+## 2. The Plan-Execute-Reflect Cycle
+
+### 2.1 Core Architecture
+
+```
+Core Loop of an Autonomous Agent
 
       +--------+
-      | 目標   |
+      |  Goal  |
       +---+----+
           |
           v
   +-------+-------+
-  |   計画 (Plan)  |←────────────+
+  |   Plan        |←────────────+
   +-------+-------+              |
           |                      |
           v                      |
   +-------+-------+      +------+------+
-  |  実行 (Act)   |----->| 振り返り    |
-  +-------+-------+      | (Reflect)   |
-          |               +------+------+
-          v                      |
-     成功? ─── YES ──→ 完了     |
+  |    Act        |----->|   Reflect   |
+  +-------+-------+      +------+------+
           |                      |
-          NO ──→ 再計画 ────────+
+          v                      |
+     Success? ── YES ──→ Done   |
+          |                      |
+          NO ──→ Replan ─────────+
 ```
 
-### 2.2 完全な実装
+### 2.2 Complete Implementation
 
 ```python
-# 自律エージェントの完全な実装
+# Complete implementation of an autonomous agent
 import anthropic
 import json
 import time
@@ -155,7 +155,7 @@ class SubTask:
     attempts: int = 0
     max_attempts: int = 3
     dependencies: list[int] = field(default_factory=list)
-    priority: int = 0  # 0が最高
+    priority: int = 0  # 0 = highest
 
     @property
     def can_execute(self) -> bool:
@@ -163,7 +163,7 @@ class SubTask:
 
 @dataclass
 class ExecutionTrace:
-    """実行トレースの記録"""
+    """Record of an execution trace"""
     step: int
     task_id: int
     task_description: str
@@ -199,34 +199,34 @@ class AutonomousAgent:
         self.agent_id = str(uuid.uuid4())[:8]
 
     def run(self, goal: str) -> str:
-        """目標を受け取り、自律的に完了まで実行"""
+        """Receive a goal and autonomously execute until completion"""
         self.start_time = time.time()
-        logger.info(f"[{self.agent_id}] 目標: {goal}")
+        logger.info(f"[{self.agent_id}] Goal: {goal}")
 
-        # Phase 1: 計画
+        # Phase 1: Planning
         self.plan = self._create_plan(goal)
-        logger.info(f"[{self.agent_id}] 計画: {len(self.plan)} サブタスク")
+        logger.info(f"[{self.agent_id}] Plan: {len(self.plan)} subtasks")
 
         for step in range(self.max_steps):
-            # ガードレールチェック
+            # Guardrail check
             if self._should_stop():
-                logger.warning(f"[{self.agent_id}] ガードレールにより停止")
+                logger.warning(f"[{self.agent_id}] Stopped by guardrail")
                 break
 
-            # Phase 2: 次のサブタスクを選択・実行
+            # Phase 2: Select and execute the next subtask
             next_task = self._select_next_task()
             if next_task is None:
-                break  # 全タスク完了
+                break  # All tasks complete
 
             logger.info(f"[{self.agent_id}] Step {step}: {next_task.description}")
             step_start = time.time()
             result = self._execute_task(next_task)
 
-            # Phase 3: 振り返り
+            # Phase 3: Reflect
             reflection = self._reflect(goal, next_task, result)
             self.reflections.append(reflection)
 
-            # トレース記録
+            # Record trace
             self.traces.append(ExecutionTrace(
                 step=step,
                 task_id=next_task.id,
@@ -239,48 +239,48 @@ class AutonomousAgent:
                 timestamp=time.time()
             ))
 
-            # 必要なら再計画
+            # Replan if necessary
             if reflection.get("needs_replan"):
-                logger.info(f"[{self.agent_id}] 再計画: {reflection['reason']}")
+                logger.info(f"[{self.agent_id}] Replanning: {reflection['reason']}")
                 self.plan = self._replan(goal, reflection["reason"])
 
-        # 最終まとめ
+        # Final synthesis
         return self._synthesize(goal)
 
     def _should_stop(self) -> bool:
-        """ガードレールチェック"""
-        # タイムアウト
+        """Guardrail check"""
+        # Timeout
         if time.time() - self.start_time > self.timeout:
-            logger.warning("タイムアウト")
+            logger.warning("Timeout")
             return True
 
-        # コスト上限
+        # Cost limit
         if self.total_cost > self.max_cost:
-            logger.warning(f"コスト上限超過: ${self.total_cost:.2f}")
+            logger.warning(f"Cost limit exceeded: ${self.total_cost:.2f}")
             return True
 
-        # 迷走検出
+        # Wandering detection
         if self._detect_wandering():
-            logger.warning("迷走検出")
+            logger.warning("Wandering detected")
             return True
 
         return False
 
     def _detect_wandering(self) -> bool:
-        """エージェントの迷走を検出"""
+        """Detect agent wandering"""
         if len(self.traces) < 5:
             return False
 
         recent = self.traces[-5:]
 
-        # 同じタスクへの連続失敗
+        # Consecutive failures on the same task
         task_ids = [t.task_id for t in recent]
         if len(set(task_ids)) == 1:
             task = next((t for t in self.plan if t.id == task_ids[0]), None)
             if task and task.status != TaskStatus.COMPLETED:
                 return True
 
-        # 全ての最近の振り返りがpoor評価
+        # All recent reflections are rated poor
         all_poor = all(
             t.reflection.get("quality") == "poor"
             for t in recent
@@ -291,23 +291,23 @@ class AutonomousAgent:
         return False
 
     def _create_plan(self, goal: str) -> list[SubTask]:
-        """目標をサブタスクに分解"""
+        """Decompose a goal into subtasks"""
         response = self.client.messages.create(
             model=self.model,
             max_tokens=2048,
             messages=[{"role": "user", "content": f"""
-目標: {goal}
+Goal: {goal}
 
-この目標を達成するためのサブタスクを JSON 配列で出力してください。
-各サブタスクは独立して実行可能で、依存関係がある場合は順序で表現。
+Output a JSON array of subtasks to accomplish this goal.
+Each subtask should be independently executable; express dependencies via ordering.
 
-形式:
+Format:
 [
   {{"id": 1, "description": "...", "dependencies": [], "priority": 0}},
   {{"id": 2, "description": "...", "dependencies": [1], "priority": 1}}
 ]
 
-JSONのみ出力してください。
+Output JSON only.
 """}]
         )
         self.total_tokens += response.usage.input_tokens + response.usage.output_tokens
@@ -325,7 +325,7 @@ JSONのみ出力してください。
         ]
 
     def _select_next_task(self) -> Optional[SubTask]:
-        """次に実行すべきサブタスクを選択（依存関係考慮）"""
+        """Select the next subtask to execute (respecting dependencies)"""
         completed_ids = {
             t.id for t in self.plan if t.status == TaskStatus.COMPLETED
         }
@@ -339,7 +339,7 @@ JSONのみ出力してください。
         if not candidates:
             return None
 
-        # 優先度順にソート
+        # Sort by priority
         candidates.sort(key=lambda t: t.priority)
         selected = candidates[0]
         selected.status = TaskStatus.IN_PROGRESS
@@ -347,20 +347,20 @@ JSONのみ出力してください。
         return selected
 
     def _execute_task(self, task: SubTask) -> str:
-        """サブタスクを実行（ツール使用あり）"""
+        """Execute a subtask (with tool use)"""
         context = ""
         if self.completed_work:
             recent_work = self.completed_work[-3:]
-            context = f"\nこれまでの成果:\n{json.dumps(recent_work, ensure_ascii=False, indent=2)}"
+            context = f"\nWork completed so far:\n{json.dumps(recent_work, ensure_ascii=False, indent=2)}"
 
         messages = [{"role": "user", "content": f"""
-サブタスク: {task.description}
+Subtask: {task.description}
 {context}
 
-このサブタスクを完了してください。
+Please complete this subtask.
 """}]
 
-        # エージェントループ（最大10ステップ）
+        # Agent loop (up to 10 steps)
         for _ in range(10):
             response = self.client.messages.create(
                 model=self.model,
@@ -382,16 +382,16 @@ JSONのみ出力してください。
                 })
                 return result
 
-            # ツール呼び出し処理
+            # Handle tool calls
             tool_results = self._handle_tool_calls(response)
             messages.append({"role": "assistant", "content": response.content})
             messages.append({"role": "user", "content": tool_results})
 
         task.status = TaskStatus.FAILED
-        return "タスクが最大ステップ内で完了できませんでした"
+        return "Task could not be completed within the maximum number of steps"
 
     def _handle_tool_calls(self, response) -> list[dict]:
-        """ツール呼び出しを処理"""
+        """Process tool calls"""
         results = []
         for block in response.content:
             if block.type == "tool_use":
@@ -404,36 +404,36 @@ JSONのみ出力してください。
         return results
 
     def _run_tool(self, name: str, input_data: dict) -> Any:
-        """ツールを実行"""
+        """Execute a tool"""
         for tool in self.tools:
             if tool.get("name") == name:
-                # 実際のツール実行ロジック
-                logger.info(f"ツール実行: {name}({json.dumps(input_data, ensure_ascii=False)[:100]})")
-                return f"ツール {name} の実行結果"
-        return f"不明なツール: {name}"
+                # Actual tool execution logic
+                logger.info(f"Tool call: {name}({json.dumps(input_data, ensure_ascii=False)[:100]})")
+                return f"Result of tool {name}"
+        return f"Unknown tool: {name}"
 
     def _reflect(self, goal: str, task: SubTask, result: str) -> dict:
-        """実行結果を振り返り、評価する"""
+        """Reflect on and evaluate the execution result"""
         response = self.client.messages.create(
             model=self.model,
             max_tokens=1024,
             messages=[{"role": "user", "content": f"""
-全体目標: {goal}
-完了したタスク: {task.description}
-結果: {result[:1000]}
-残りのタスク: {[t.description for t in self.plan if t.status == TaskStatus.PENDING]}
-これまでの振り返り: {json.dumps(self.reflections[-3:], ensure_ascii=False) if self.reflections else "なし"}
+Overall goal: {goal}
+Completed task: {task.description}
+Result: {result[:1000]}
+Remaining tasks: {[t.description for t in self.plan if t.status == TaskStatus.PENDING]}
+Previous reflections: {json.dumps(self.reflections[-3:], ensure_ascii=False) if self.reflections else "none"}
 
-以下をJSON形式で評価してください:
+Evaluate the following in JSON format:
 {{
   "quality": "good" / "acceptable" / "poor",
   "needs_replan": true/false,
-  "reason": "再計画が必要な理由（不要ならnull）",
-  "learning": "この経験から学んだこと",
+  "reason": "reason replanning is needed (null if not needed)",
+  "learning": "what was learned from this experience",
   "confidence": 0.0-1.0
 }}
 
-JSONのみ出力してください。
+Output JSON only.
 """}]
         )
         self.total_tokens += response.usage.input_tokens + response.usage.output_tokens
@@ -446,12 +446,12 @@ JSONのみ出力してください。
                 "quality": "acceptable",
                 "needs_replan": False,
                 "reason": None,
-                "learning": "振り返りの解析に失敗",
+                "learning": "Failed to parse reflection",
                 "confidence": 0.5
             }
 
     def _replan(self, goal: str, reason: str) -> list[SubTask]:
-        """失敗理由を考慮して計画を再作成"""
+        """Recreate the plan taking the failure reason into account"""
         completed = [t for t in self.plan if t.status == TaskStatus.COMPLETED]
         failed = [t for t in self.plan if t.status == TaskStatus.FAILED]
 
@@ -459,25 +459,25 @@ JSONのみ出力してください。
             model=self.model,
             max_tokens=2048,
             messages=[{"role": "user", "content": f"""
-目標: {goal}
+Goal: {goal}
 
-現在の状態:
-- 完了済み: {[t.description for t in completed]}
-- 失敗: {[t.description for t in failed]}
-- 再計画理由: {reason}
-- これまでの学び: {[r.get('learning', '') for r in self.reflections[-5:]]}
+Current state:
+- Completed: {[t.description for t in completed]}
+- Failed: {[t.description for t in failed]}
+- Reason for replanning: {reason}
+- Lessons learned so far: {[r.get('learning', '') for r in self.reflections[-5:]]}
 
-完了済みのタスクはそのまま保持し、残りのタスクを再計画してください。
-以前と同じアプローチは避け、代替手段を検討してください。
+Keep the completed tasks as-is and replan the remaining tasks.
+Avoid the previous approach and consider alternatives.
 
-JSON配列で出力（完了済みは含めない）:
+Output as a JSON array (do not include completed tasks):
 [{{"id": N, "description": "...", "dependencies": [], "priority": 0}}]
 """}]
         )
         self.total_tokens += response.usage.input_tokens + response.usage.output_tokens
         self._update_cost(response.usage)
 
-        # 完了済みタスクを保持
+        # Preserve completed tasks
         new_tasks_data = json.loads(response.content[0].text)
         new_tasks = [
             SubTask(
@@ -492,33 +492,33 @@ JSON配列で出力（完了済みは含めない）:
         return completed + new_tasks
 
     def _synthesize(self, goal: str) -> str:
-        """完了したタスクの結果を統合して最終出力を生成"""
+        """Integrate completed task results and generate the final output"""
         response = self.client.messages.create(
             model=self.model,
             max_tokens=4096,
             messages=[{"role": "user", "content": f"""
-目標: {goal}
+Goal: {goal}
 
-完了したタスクとその結果:
+Completed tasks and their results:
 {json.dumps(self.completed_work, ensure_ascii=False, indent=2)}
 
-振り返りからの学び:
+Lessons from reflections:
 {json.dumps([r.get('learning', '') for r in self.reflections], ensure_ascii=False)}
 
-上記の成果を統合して、目標に対する最終的な成果物を出力してください。
+Integrate the above results and produce the final deliverable for the goal.
 """}]
         )
         return response.content[0].text
 
     def _update_cost(self, usage):
-        """コストを更新（Sonnet基準）"""
+        """Update cost (Sonnet pricing)"""
         self.total_cost += (
             usage.input_tokens * 3.0 / 1_000_000
             + usage.output_tokens * 15.0 / 1_000_000
         )
 
     def get_execution_summary(self) -> dict:
-        """実行サマリーを取得"""
+        """Get execution summary"""
         completed = sum(1 for t in self.plan if t.status == TaskStatus.COMPLETED)
         failed = sum(1 for t in self.plan if t.status == TaskStatus.FAILED)
         total_time = time.time() - self.start_time
@@ -538,55 +538,55 @@ JSON配列で出力（完了済みは含めない）:
 
 ---
 
-## 3. 目標分解パターン
+## 3. Goal Decomposition Patterns
 
-### 3.1 階層的目標分解
+### 3.1 Hierarchical Goal Decomposition
 
 ```
-目標の階層分解
+Hierarchical Goal Decomposition
 
-[最上位目標]
-├── [サブゴール 1]
-│   ├── [タスク 1.1]
-│   ├── [タスク 1.2]
-│   └── [タスク 1.3]
-├── [サブゴール 2]
-│   ├── [タスク 2.1]
-│   └── [タスク 2.2]
-└── [サブゴール 3]
-    ├── [タスク 3.1]
-    ├── [タスク 3.2]
-    └── [タスク 3.3]
+[Top-level goal]
+├── [Sub-goal 1]
+│   ├── [Task 1.1]
+│   ├── [Task 1.2]
+│   └── [Task 1.3]
+├── [Sub-goal 2]
+│   ├── [Task 2.1]
+│   └── [Task 2.2]
+└── [Sub-goal 3]
+    ├── [Task 3.1]
+    ├── [Task 3.2]
+    └── [Task 3.3]
 
-例: "ECサイトを構築する"
-├── "DB設計をする"
-│   ├── ER図を作成
-│   ├── テーブル定義
-│   └── マイグレーション実行
-├── "APIを実装する"
-│   ├── 認証API
-│   └── 商品API
-└── "フロントエンドを構築する"
-    ├── 商品一覧ページ
-    ├── カートページ
-    └── 決済ページ
+Example: "Build an e-commerce site"
+├── "Design the database"
+│   ├── Create ER diagram
+│   ├── Define tables
+│   └── Run migrations
+├── "Implement the API"
+│   ├── Auth API
+│   └── Product API
+└── "Build the frontend"
+    ├── Product listing page
+    ├── Cart page
+    └── Checkout page
 ```
 
-### 3.2 HTA（Hierarchical Task Analysis）による分解
+### 3.2 HTA (Hierarchical Task Analysis) Decomposition
 
 ```python
-# 階層的タスク分析に基づく目標分解
+# Goal decomposition based on Hierarchical Task Analysis
 from dataclasses import dataclass, field
 from typing import Optional
 
 @dataclass
 class HTANode:
-    """HTAツリーのノード"""
+    """Node in an HTA tree"""
     id: str
     description: str
     children: list["HTANode"] = field(default_factory=list)
-    plan: str = ""  # このノードの実行計画
-    is_leaf: bool = False  # 末端タスクか
+    plan: str = ""  # Execution plan for this node
+    is_leaf: bool = False  # Whether this is a leaf task
 
     @property
     def depth(self) -> int:
@@ -595,7 +595,7 @@ class HTANode:
         return 1 + max(c.depth for c in self.children)
 
     def flatten(self) -> list["HTANode"]:
-        """末端タスクをフラット化"""
+        """Flatten leaf tasks"""
         if self.is_leaf or not self.children:
             return [self]
         result = []
@@ -604,13 +604,13 @@ class HTANode:
         return result
 
 class HTAPlanner:
-    """階層的タスク分析による計画生成"""
+    """Plan generation via Hierarchical Task Analysis"""
 
     def __init__(self, client: anthropic.Anthropic):
         self.client = client
 
     def decompose(self, goal: str, max_depth: int = 3) -> HTANode:
-        """目標を階層的に分解"""
+        """Hierarchically decompose a goal"""
         root = HTANode(id="0", description=goal)
         self._decompose_recursive(root, depth=0, max_depth=max_depth)
         return root
@@ -618,7 +618,7 @@ class HTAPlanner:
     def _decompose_recursive(
         self, node: HTANode, depth: int, max_depth: int
     ):
-        """再帰的に分解"""
+        """Recursively decompose"""
         if depth >= max_depth:
             node.is_leaf = True
             return
@@ -627,19 +627,19 @@ class HTAPlanner:
             model="claude-sonnet-4-20250514",
             max_tokens=1500,
             messages=[{"role": "user", "content": f"""
-タスク: {node.description}
+Task: {node.description}
 
-このタスクを2-5個のサブタスクに分解してください。
-各サブタスクは具体的で実行可能なものにしてください。
+Decompose this task into 2-5 subtasks.
+Each subtask should be concrete and actionable.
 
-JSON配列で出力:
+Output as a JSON array:
 [
   {{"id": "1", "description": "...", "is_leaf": true/false}},
   ...
 ]
 
-is_leaf=true: これ以上分解不要な具体的アクション
-is_leaf=false: さらに分解可能な抽象的タスク
+is_leaf=true: A concrete action that requires no further decomposition
+is_leaf=false: An abstract task that can be decomposed further
 """}]
         )
 
@@ -656,7 +656,7 @@ is_leaf=false: さらに分解可能な抽象的タスク
                 self._decompose_recursive(child, depth + 1, max_depth)
 
     def to_subtasks(self, root: HTANode) -> list[SubTask]:
-        """HTAツリーをSubTaskリストに変換"""
+        """Convert an HTA tree to a SubTask list"""
         leaves = root.flatten()
         return [
             SubTask(
@@ -667,18 +667,18 @@ is_leaf=false: さらに分解可能な抽象的タスク
             for i, leaf in enumerate(leaves)
         ]
 
-# 使用例
+# Usage example
 planner = HTAPlanner(anthropic.Anthropic())
-tree = planner.decompose("ECサイトの決済機能を実装する", max_depth=2)
+tree = planner.decompose("Implement the checkout feature for an e-commerce site", max_depth=2)
 tasks = planner.to_subtasks(tree)
 ```
 
-### 3.3 適応的再計画
+### 3.3 Adaptive Replanning
 
 ```python
-# 適応的再計画の実装
+# Adaptive replanning implementation
 class AdaptivePlanner:
-    """失敗と学びから計画を適応的に更新"""
+    """Adaptively updates the plan from failures and learnings"""
 
     def __init__(self, client: anthropic.Anthropic):
         self.client = client
@@ -691,15 +691,15 @@ class AdaptivePlanner:
         current_state: dict,
         failure_reason: str
     ) -> list[SubTask]:
-        """失敗理由を考慮して計画を再作成"""
-        # 失敗パターンを記録
+        """Recreate the plan taking the failure reason into account"""
+        # Record failure pattern
         self.failure_patterns.append({
             "reason": failure_reason,
             "failed_tasks": current_state.get("failed", []),
             "timestamp": time.time()
         })
 
-        # 過去の失敗パターンから学ぶ
+        # Learn from past failure patterns
         failure_summary = "\n".join(
             f"- {p['reason']}" for p in self.failure_patterns[-5:]
         )
@@ -708,26 +708,26 @@ class AdaptivePlanner:
             model="claude-sonnet-4-20250514",
             max_tokens=2048,
             messages=[{"role": "user", "content": f"""
-目標: {goal}
+Goal: {goal}
 
-現在の状態:
-- 完了済み: {current_state['completed']}
-- 失敗: {current_state['failed']}
-- 失敗理由: {failure_reason}
+Current state:
+- Completed: {current_state['completed']}
+- Failed: {current_state['failed']}
+- Failure reason: {failure_reason}
 
-過去の失敗パターン:
+Past failure patterns:
 {failure_summary}
 
-振り返りからの学び:
+Lessons from reflections:
 {current_state.get('reflections', [])}
 
-以下の原則で再計画してください:
-1. 過去に失敗したアプローチは避ける
-2. 代替手段を積極的に検討する
-3. 各タスクをより小さく具体的にする
-4. リスクの高いタスクには前段階の確認を入れる
+Replan following these principles:
+1. Avoid approaches that have failed before
+2. Actively consider alternatives
+3. Make each task smaller and more concrete
+4. Add a pre-check step before high-risk tasks
 
-JSON配列で出力:
+Output as a JSON array:
 [{{"id": N, "description": "...", "dependencies": [], "priority": 0}}]
 """}]
         )
@@ -747,10 +747,10 @@ JSON配列で出力:
         return new_plan
 
     def get_plan_evolution(self) -> str:
-        """計画の変遷を取得"""
+        """Get the history of plan revisions"""
         lines = []
         for i, plan in enumerate(self.plan_history):
-            lines.append(f"=== 計画 v{i+1} ({len(plan)}タスク) ===")
+            lines.append(f"=== Plan v{i+1} ({len(plan)} tasks) ===")
             for t in plan:
                 lines.append(f"  [{t.id}] {t.description}")
         return "\n".join(lines)
@@ -758,38 +758,40 @@ JSON配列で出力:
 
 ---
 
-## 4. メモリシステム
+## 4. Memory System
 
-### 4.1 メモリの3層構造
+### 4.1 Three-Layer Memory Architecture
 
 ```
-自律エージェントのメモリアーキテクチャ
+Memory Architecture of an Autonomous Agent
 
 ┌────────────────────────────────────────────┐
-│            ワーキングメモリ (短期)           │
-│  ・現在のタスクのコンテキスト               │
-│  ・直近の会話履歴                          │
-│  ・LLMのコンテキストウィンドウ内            │
-│  ・容量: 数千〜数万トークン                │
+│           Working Memory (short-term)       │
+│  · Context for the current task             │
+│  · Recent conversation history              │
+│  · Within the LLM's context window          │
+│  · Capacity: thousands to tens of thousands │
+│    of tokens                                │
 ├────────────────────────────────────────────┤
-│           エピソード記憶 (中期)             │
-│  ・過去の成功/失敗の記録                    │
-│  ・学んだ教訓のリスト                      │
-│  ・タスク間で引き継ぐ情報                  │
-│  ・容量: JSON/テキストファイル              │
+│           Episodic Memory (mid-term)        │
+│  · Records of past successes/failures       │
+│  · List of lessons learned                  │
+│  · Information carried over between tasks   │
+│  · Capacity: JSON/text files                │
 ├────────────────────────────────────────────┤
-│           セマンティック記憶 (長期)          │
-│  ・ベクトルDBに格納                        │
-│  ・類似経験の検索に使用                     │
-│  ・ドメイン知識の蓄積                      │
-│  ・容量: 数千〜数百万エントリ              │
+│           Semantic Memory (long-term)       │
+│  · Stored in a vector DB                   │
+│  · Used to retrieve similar experiences     │
+│  · Accumulated domain knowledge             │
+│  · Capacity: thousands to millions of      │
+│    entries                                  │
 └────────────────────────────────────────────┘
 ```
 
-### 4.2 メモリシステムの実装
+### 4.2 Memory System Implementation
 
 ```python
-# 3層メモリシステム
+# Three-layer memory system
 from dataclasses import dataclass, field
 from typing import Optional
 import json
@@ -798,7 +800,7 @@ import hashlib
 
 @dataclass
 class MemoryEntry:
-    """メモリエントリ"""
+    """A memory entry"""
     content: str
     type: str  # "success", "failure", "learning", "fact"
     tags: list[str] = field(default_factory=list)
@@ -807,7 +809,7 @@ class MemoryEntry:
     access_count: int = 0
 
 class WorkingMemory:
-    """ワーキングメモリ（短期）"""
+    """Working memory (short-term)"""
 
     def __init__(self, max_items: int = 20):
         self.items: list[dict] = []
@@ -819,12 +821,12 @@ class WorkingMemory:
             "type": type,
             "timestamp": time.time()
         })
-        # 容量超過時は古いものから削除
+        # Remove oldest items when capacity is exceeded
         if len(self.items) > self.max_items:
             self.items = self.items[-self.max_items:]
 
     def get_context(self, max_tokens: int = 2000) -> str:
-        """LLMに渡すコンテキストを生成"""
+        """Generate context to pass to the LLM"""
         context_parts = []
         total_chars = 0
         for item in reversed(self.items):
@@ -839,7 +841,7 @@ class WorkingMemory:
         self.items = []
 
 class EpisodicMemory:
-    """エピソード記憶（中期）"""
+    """Episodic memory (mid-term)"""
 
     def __init__(self, filepath: str = "episodic_memory.json"):
         self.filepath = filepath
@@ -875,7 +877,7 @@ class EpisodicMemory:
 
     def record(self, content: str, type: str,
                tags: list[str] = None, importance: float = 0.5):
-        """エピソードを記録"""
+        """Record an episode"""
         entry = MemoryEntry(
             content=content,
             type=type,
@@ -886,8 +888,8 @@ class EpisodicMemory:
         self._save()
 
     def recall(self, query: str, top_k: int = 5) -> list[MemoryEntry]:
-        """関連するエピソードを検索"""
-        # 簡易的なキーワードマッチング
+        """Search for relevant episodes"""
+        # Simple keyword matching
         query_words = set(query.lower().split())
         scored = []
         for ep in self.episodes:
@@ -900,7 +902,7 @@ class EpisodicMemory:
         scored.sort(key=lambda x: x[0], reverse=True)
         results = [ep for _, ep in scored[:top_k] if _ > 0]
 
-        # アクセスカウント更新
+        # Update access count
         for ep in results:
             ep.access_count += 1
         self._save()
@@ -908,17 +910,17 @@ class EpisodicMemory:
         return results
 
     def get_learnings(self) -> list[str]:
-        """学びのリストを取得"""
+        """Get the list of learnings"""
         return [
             ep.content for ep in self.episodes
             if ep.type == "learning"
         ]
 
 class SemanticMemory:
-    """セマンティック記憶（長期）- ベクトルDB連携"""
+    """Semantic memory (long-term) — vector DB integration"""
 
     def __init__(self, collection_name: str = "agent_memory"):
-        # ChromaDB等のベクトルDBを使用
+        # Use a vector DB such as ChromaDB
         try:
             import chromadb
             self.client = chromadb.PersistentClient(path="./chroma_db")
@@ -927,11 +929,11 @@ class SemanticMemory:
                 metadata={"hnsw:space": "cosine"}
             )
         except ImportError:
-            logger.warning("chromadb未インストール: セマンティック記憶は無効")
+            logger.warning("chromadb not installed: semantic memory is disabled")
             self.collection = None
 
     def store(self, content: str, metadata: dict = None):
-        """知識を格納"""
+        """Store knowledge"""
         if not self.collection:
             return
 
@@ -943,7 +945,7 @@ class SemanticMemory:
         )
 
     def search(self, query: str, top_k: int = 5) -> list[dict]:
-        """類似知識を検索"""
+        """Search for similar knowledge"""
         if not self.collection:
             return []
 
@@ -966,7 +968,7 @@ class SemanticMemory:
         ]
 
 class AgentMemorySystem:
-    """統合メモリシステム"""
+    """Integrated memory system"""
 
     def __init__(self):
         self.working = WorkingMemory()
@@ -974,7 +976,7 @@ class AgentMemorySystem:
         self.semantic = SemanticMemory()
 
     def remember(self, content: str, type: str, importance: float = 0.5):
-        """記憶を統一的に格納"""
+        """Store a memory uniformly across all layers"""
         self.working.add(content, type)
         self.episodic.record(content, type, importance=importance)
 
@@ -982,7 +984,7 @@ class AgentMemorySystem:
             self.semantic.store(content, {"type": type})
 
     def recall_relevant(self, query: str) -> dict:
-        """関連する記憶を全層から取得"""
+        """Retrieve relevant memories from all layers"""
         return {
             "working": self.working.get_context(),
             "episodic": [
@@ -994,46 +996,46 @@ class AgentMemorySystem:
         }
 ```
 
-### 4.3 メモリ統合エージェント
+### 4.3 Memory-Augmented Agent
 
 ```python
-# メモリ付き自律エージェント
+# Autonomous agent with memory
 class MemoryAugmentedAgent(AutonomousAgent):
-    """メモリシステムを統合した自律エージェント"""
+    """Autonomous agent integrated with the memory system"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.memory = AgentMemorySystem()
 
     def _execute_task(self, task: SubTask) -> str:
-        # 関連記憶を検索
+        # Search for relevant memories
         memories = self.memory.recall_relevant(task.description)
 
-        # メモリをコンテキストに追加
+        # Add memories to context
         memory_context = ""
         if memories["episodic"]:
-            memory_context += "\n関連する過去の経験:\n"
+            memory_context += "\nRelated past experiences:\n"
             memory_context += "\n".join(f"- {m}" for m in memories["episodic"][:3])
         if memories["semantic"]:
-            memory_context += "\n関連する知識:\n"
+            memory_context += "\nRelated knowledge:\n"
             memory_context += "\n".join(f"- {m}" for m in memories["semantic"][:3])
 
         messages = [{"role": "user", "content": f"""
-サブタスク: {task.description}
+Subtask: {task.description}
 {memory_context}
 
-これまでの成果:
+Work completed so far:
 {json.dumps(self.completed_work[-3:], ensure_ascii=False)}
 
-このサブタスクを完了してください。
+Please complete this subtask.
 """}]
 
-        # 実行（親クラスのロジックと同様）
+        # Execute (same logic as parent class)
         result = self._execute_with_messages(messages)
 
-        # 結果をメモリに記録
+        # Record result in memory
         self.memory.remember(
-            f"タスク'{task.description}'を実行。結果: {result[:200]}",
+            f"Executed task '{task.description}'. Result: {result[:200]}",
             type="success" if task.status == TaskStatus.COMPLETED else "failure",
             importance=0.6
         )
@@ -1043,7 +1045,7 @@ class MemoryAugmentedAgent(AutonomousAgent):
     def _reflect(self, goal: str, task: SubTask, result: str) -> dict:
         reflection = super()._reflect(goal, task, result)
 
-        # 学びをメモリに記録
+        # Record learning in memory
         if reflection.get("learning"):
             self.memory.remember(
                 reflection["learning"],
@@ -1056,50 +1058,50 @@ class MemoryAugmentedAgent(AutonomousAgent):
 
 ---
 
-## 5. 自己評価メカニズム
+## 5. Self-Evaluation Mechanisms
 
-### 5.1 多角的自己評価
+### 5.1 Multi-Perspective Self-Evaluation
 
 ```python
-# 多角的な自己評価
+# Multi-perspective self-evaluation
 class SelfEvaluator:
-    """エージェントの出力を多角的に評価"""
+    """Evaluates agent output from multiple perspectives"""
 
     def __init__(self, client: anthropic.Anthropic):
         self.client = client
 
     def evaluate(self, goal: str, output: str) -> dict:
-        """出力を多角的に評価"""
+        """Evaluate output from multiple perspectives"""
 
-        # 観点1: 目標達成度
+        # Perspective 1: Goal completion
         completeness_resp = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=100,
             messages=[{"role": "user", "content": f"""
-目標: {goal}
-出力: {output[:2000]}
+Goal: {goal}
+Output: {output[:2000]}
 
-目標の達成度を0-100の数値のみで回答:"""}]
+Reply with a single number from 0-100 for the degree of goal completion:"""}]
         )
         completeness = int(completeness_resp.content[0].text.strip())
 
-        # 観点2: 品質
+        # Perspective 2: Quality
         quality_resp = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=100,
             messages=[{"role": "user", "content": f"""
-出力: {output[:2000]}
-品質（正確性、完全性、明確性）を0-100の数値のみで回答:"""}]
+Output: {output[:2000]}
+Reply with a single number from 0-100 for quality (accuracy, completeness, clarity):"""}]
         )
         quality = int(quality_resp.content[0].text.strip())
 
-        # 観点3: 改善余地
+        # Perspective 3: Room for improvement
         improvements_resp = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=500,
             messages=[{"role": "user", "content": f"""
-出力: {output[:2000]}
-改善可能な点を3つ、箇条書きで挙げてください:"""}]
+Output: {output[:2000]}
+List three areas that can be improved as bullet points:"""}]
         )
         improvements = improvements_resp.content[0].text
 
@@ -1112,21 +1114,21 @@ class SelfEvaluator:
         }
 
     def evaluate_with_rubric(self, output: str, rubric: dict) -> dict:
-        """ルーブリックに基づく評価"""
+        """Evaluate against a rubric"""
         results = {}
         for criterion, description in rubric.items():
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=200,
                 messages=[{"role": "user", "content": f"""
-出力:
+Output:
 {output[:1500]}
 
-評価基準「{criterion}」: {description}
+Evaluation criterion "{criterion}": {description}
 
-この基準に対するスコア(0-10)と根拠を以下の形式で:
-スコア: N
-根拠: ...
+Provide a score (0-10) and rationale for this criterion in the following format:
+Score: N
+Rationale: ...
 """}]
             )
             text = response.content[0].text
@@ -1140,82 +1142,82 @@ class SelfEvaluator:
         return results
 ```
 
-### 5.2 自己評価フロー
+### 5.2 Self-Evaluation Flow
 
 ```
-自己評価のフロー
+Self-Evaluation Flow
 
-  [出力] → [完全性チェック] → 80%未満 → [再実行]
-              |
-              v 80%以上
-         [品質チェック] → 70点未満 → [改善ループ]
-              |
-              v 70点以上
-         [最終確認] → 承認 → [完了]
+  [Output] → [Completeness check] → <80% → [Re-execute]
+                |
+                v ≥80%
+           [Quality check] → <70 pts → [Improvement loop]
+                |
+                v ≥70 pts
+           [Final review] → Approved → [Done]
 ```
 
-### 5.3 Reflexionパターンの実装
+### 5.3 Reflexion Pattern Implementation
 
 ```python
-# Reflexion: 言語的自己強化学習
+# Reflexion: verbal self-reinforcement learning
 class ReflexionAgent(AutonomousAgent):
-    """Reflexionパターンを組み込んだ自律エージェント"""
+    """Autonomous agent with the Reflexion pattern"""
 
     def __init__(self, *args, max_reflexion_rounds: int = 3, **kwargs):
         super().__init__(*args, **kwargs)
         self.max_reflexion_rounds = max_reflexion_rounds
-        self.reflexion_memory: list[str] = []  # 言語的な経験メモリ
+        self.reflexion_memory: list[str] = []  # Verbal experience memory
 
     def run(self, goal: str) -> str:
-        """Reflexionループで実行"""
+        """Execute with the Reflexion loop"""
         best_result = None
         best_score = 0
 
         for round_num in range(self.max_reflexion_rounds):
             logger.info(f"Reflexion Round {round_num + 1}")
 
-            # 実行
+            # Execute
             result = self._execute_round(goal, round_num)
 
-            # 評価
+            # Evaluate
             evaluator = SelfEvaluator(self.client)
             evaluation = evaluator.evaluate(goal, result)
             score = evaluation["overall_score"]
 
             logger.info(
-                f"  スコア: {score:.1f} "
-                f"(完全性: {evaluation['completeness']}, "
-                f"品質: {evaluation['quality']})"
+                f"  Score: {score:.1f} "
+                f"(completeness: {evaluation['completeness']}, "
+                f"quality: {evaluation['quality']})"
             )
 
             if score > best_score:
                 best_score = score
                 best_result = result
 
-            # 基準を満たしたら終了
+            # Stop if the quality threshold is met
             if not evaluation["should_improve"]:
-                logger.info("  品質基準達成")
+                logger.info("  Quality threshold reached")
                 break
 
-            # 振り返り（Reflexion）
+            # Reflect (Reflexion)
             reflexion = self._generate_reflexion(
                 goal, result, evaluation
             )
             self.reflexion_memory.append(reflexion)
             logger.info(f"  Reflexion: {reflexion[:100]}...")
 
-            # 計画をリセットして再試行
+            # Reset plan and retry
             self.plan = []
             self.completed_work = []
 
         return best_result
 
     def _execute_round(self, goal: str, round_num: int) -> str:
-        """1ラウンドの実行"""
-        # 過去のReflexionをコンテキストに含める
+        """Execute one round"""
+        # Include past Reflexions in context
         reflexion_context = ""
         if self.reflexion_memory:
-            reflexion_context = "\n過去の振り返り（同じ失敗を避けること）:\n"
+            reflexion_context = "\nPast reflections (avoid repeating the same mistakes):\n"
             for i, r in enumerate(self.reflexion_memory):
                 reflexion_context += f"Round {i+1}: {r}\n"
 
@@ -1238,22 +1240,21 @@ class ReflexionAgent(AutonomousAgent):
     def _generate_reflexion(
         self, goal: str, result: str, evaluation: dict
     ) -> str:
-        """失敗からの振り返りを生成"""
+        """Generate a reflection from failure"""
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=500,
             messages=[{"role": "user", "content": f"""
-目標: {goal}
-実行結果: {result[:1000]}
+Goal: {goal}
+Execution result: {result[:1000]}
 
-評価:
-- 完全性: {evaluation['completeness']}%
-- 品質: {evaluation['quality']}点
-- 改善点: {evaluation['improvements']}
+Evaluation:
+- Completeness: {evaluation['completeness']}%
+- Quality: {evaluation['quality']} pts
+- Improvements: {evaluation['improvements']}
 
-なぜこの結果が不十分だったのか、
-次回どうすれば改善できるか、
-具体的で実行可能なアドバイスを2-3文で:
+In 2-3 concrete, actionable sentences, explain why this result was insufficient
+and how it can be improved next time:
 """}]
         )
         return response.content[0].text
@@ -1261,41 +1262,41 @@ class ReflexionAgent(AutonomousAgent):
 
 ---
 
-## 6. ヒューマン・イン・ザ・ループ
+## 6. Human-in-the-Loop
 
-### 6.1 介入ポイントの設計
+### 6.1 Designing Intervention Points
 
 ```
-ヒューマン・イン・ザ・ループの介入ポイント
+Human-in-the-Loop Intervention Points
 
-[計画] ──確認──> [人間の承認] ──→ [実行] ──→ [振り返り]
-                                      |
-                                 重要判断 ──確認──> [人間の判断]
-                                      |
-                                 破壊的操作 ──確認──> [人間の承認]
+[Plan] ──confirm──> [Human approval] ──→ [Execute] ──→ [Reflect]
+                                              |
+                                        Critical decision ──confirm──> [Human judgment]
+                                              |
+                                        Destructive operation ──confirm──> [Human approval]
 ```
 
-### 6.2 実装パターン
+### 6.2 Implementation Pattern
 
 ```python
-# ヒューマン・イン・ザ・ループの実装
+# Human-in-the-loop implementation
 from enum import Enum
 
 class ApprovalLevel(Enum):
-    NONE = "none"          # 承認不要
-    INFO = "info"          # 通知のみ
-    OPTIONAL = "optional"  # 任意承認（タイムアウトで自動承認）
-    REQUIRED = "required"  # 必須承認
-    BLOCKING = "blocking"  # ブロッキング承認（絶対に人間の判断が必要）
+    NONE = "none"          # No approval needed
+    INFO = "info"          # Notification only
+    OPTIONAL = "optional"  # Optional approval (auto-approved on timeout)
+    REQUIRED = "required"  # Approval required
+    BLOCKING = "blocking"  # Blocking approval (human judgment absolutely required)
 
 class HumanInTheLoopAgent(AutonomousAgent):
-    """ヒューマン・イン・ザ・ループ付き自律エージェント"""
+    """Autonomous agent with human-in-the-loop"""
 
     def __init__(
         self,
         *args,
         approval_rules: dict[str, ApprovalLevel] = None,
-        approval_timeout: float = 300,  # 5分
+        approval_timeout: float = 300,  # 5 minutes
         notification_callback=None,
         **kwargs
     ):
@@ -1314,7 +1315,7 @@ class HumanInTheLoopAgent(AutonomousAgent):
         self.approval_log: list[dict] = []
 
     def _get_approval_level(self, task: SubTask) -> ApprovalLevel:
-        """タスクの承認レベルを判定"""
+        """Determine the approval level for a task"""
         for keyword, level in self.approval_rules.items():
             if keyword in task.description.lower():
                 return level
@@ -1323,7 +1324,7 @@ class HumanInTheLoopAgent(AutonomousAgent):
     def _request_approval(
         self, task: SubTask, level: ApprovalLevel
     ) -> tuple[bool, str]:
-        """人間の承認を要求"""
+        """Request human approval"""
         log_entry = {
             "task": task.description,
             "level": level.value,
@@ -1332,27 +1333,27 @@ class HumanInTheLoopAgent(AutonomousAgent):
         }
 
         if level == ApprovalLevel.INFO:
-            # 通知のみ
+            # Notification only
             if self.notification_callback:
                 self.notification_callback(
-                    f"[INFO] タスク実行中: {task.description}"
+                    f"[INFO] Task in progress: {task.description}"
                 )
             log_entry["decision"] = "auto_approved"
             self.approval_log.append(log_entry)
             return True, ""
 
         if level == ApprovalLevel.OPTIONAL:
-            # タイムアウト付き承認
-            print(f"\n[承認要求(任意)] タスク: {task.description}")
-            print(f"  {self.approval_timeout}秒以内に入力がない場合、自動承認されます")
-            # 実際のUIではWebSocket/Slack等で通知
+            # Approval with timeout
+            print(f"\n[Approval request (optional)] Task: {task.description}")
+            print(f"  Will be auto-approved if no input within {self.approval_timeout} seconds")
+            # In a real UI, use WebSocket/Slack etc. for notification
             try:
                 import signal
                 signal.alarm(int(self.approval_timeout))
-                approval = input("承認しますか？ (yes/no): ").strip().lower()
+                approval = input("Approve? (yes/no): ").strip().lower()
                 signal.alarm(0)
             except Exception:
-                approval = "yes"  # タイムアウト → 自動承認
+                approval = "yes"  # Timeout → auto-approve
 
             approved = approval != "no"
             log_entry["decision"] = "approved" if approved else "rejected"
@@ -1361,17 +1362,17 @@ class HumanInTheLoopAgent(AutonomousAgent):
 
         # REQUIRED / BLOCKING
         print(f"\n{'='*50}")
-        print(f"[承認必須] タスク: {task.description}")
-        print(f"承認レベル: {level.value}")
+        print(f"[Approval required] Task: {task.description}")
+        print(f"Approval level: {level.value}")
         print(f"{'='*50}")
-        approval = input("承認しますか？ (yes/no/modify): ").strip().lower()
+        approval = input("Approve? (yes/no/modify): ").strip().lower()
 
         if approval == "no":
             log_entry["decision"] = "rejected"
             self.approval_log.append(log_entry)
-            return False, "ユーザーにより拒否されました"
+            return False, "Rejected by user"
         elif approval == "modify":
-            new_desc = input("修正後のタスク内容: ")
+            new_desc = input("Updated task description: ")
             task.description = new_desc
             log_entry["decision"] = "modified"
             log_entry["modified_to"] = new_desc
@@ -1394,15 +1395,15 @@ class HumanInTheLoopAgent(AutonomousAgent):
         return super()._execute_task(task)
 ```
 
-### 6.3 非同期承認（Slack/Web統合）
+### 6.3 Async Approval (Slack/Web Integration)
 
 ```python
-# Slack経由の承認フロー
+# Approval flow via Slack
 import asyncio
 from typing import Callable, Awaitable
 
 class AsyncApprovalSystem:
-    """非同期承認システム"""
+    """Asynchronous approval system"""
 
     def __init__(self):
         self.pending_approvals: dict[str, asyncio.Future] = {}
@@ -1413,59 +1414,59 @@ class AsyncApprovalSystem:
         task_description: str,
         timeout: float = 300
     ) -> bool:
-        """承認を非同期で要求"""
+        """Request approval asynchronously"""
         future = asyncio.get_event_loop().create_future()
         self.pending_approvals[approval_id] = future
 
-        # Slackに通知を送信
+        # Send Slack notification
         await self._send_slack_notification(
-            f"承認要求: {task_description}\n"
-            f"承認: `/approve {approval_id}`\n"
-            f"拒否: `/reject {approval_id}`"
+            f"Approval request: {task_description}\n"
+            f"Approve: `/approve {approval_id}`\n"
+            f"Reject: `/reject {approval_id}`"
         )
 
         try:
             result = await asyncio.wait_for(future, timeout=timeout)
             return result
         except asyncio.TimeoutError:
-            logger.warning(f"承認タイムアウト: {approval_id}")
+            logger.warning(f"Approval timeout: {approval_id}")
             return False
         finally:
             self.pending_approvals.pop(approval_id, None)
 
     def handle_approval_response(self, approval_id: str, approved: bool):
-        """承認応答を処理（Slackコマンドから呼ばれる）"""
+        """Process an approval response (called from a Slack command)"""
         future = self.pending_approvals.get(approval_id)
         if future and not future.done():
             future.set_result(approved)
 
     async def _send_slack_notification(self, message: str):
-        """Slack通知を送信"""
-        # Slack API連携の実装
-        logger.info(f"Slack通知: {message}")
+        """Send a Slack notification"""
+        # Slack API integration implementation
+        logger.info(f"Slack notification: {message}")
 ```
 
 ---
 
-## 7. 安全性ガードレール
+## 7. Safety Guardrails
 
-### 7.1 多層防御
+### 7.1 Defense in Depth
 
 ```python
-# 自律エージェントのガードレール
+# Guardrails for autonomous agents
 from dataclasses import dataclass
 from typing import Callable
 
 @dataclass
 class GuardRail:
-    """ガードレール定義"""
+    """Guardrail definition"""
     name: str
-    check: Callable[[dict], bool]  # True=安全, False=危険
+    check: Callable[[dict], bool]  # True=safe, False=unsafe
     action: str  # "block", "warn", "require_approval"
     description: str
 
 class GuardedAutonomousAgent(AutonomousAgent):
-    """ガードレール付き自律エージェント"""
+    """Autonomous agent with guardrails"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1478,19 +1479,19 @@ class GuardedAutonomousAgent(AutonomousAgent):
                 name="step_limit",
                 check=lambda ctx: ctx["step"] < self.max_steps,
                 action="block",
-                description="最大ステップ数の制限"
+                description="Maximum step count limit"
             ),
             GuardRail(
                 name="cost_limit",
                 check=lambda ctx: ctx["cost"] < self.max_cost,
                 action="block",
-                description="コスト上限の制限"
+                description="Cost ceiling limit"
             ),
             GuardRail(
                 name="timeout",
                 check=lambda ctx: ctx["elapsed"] < self.timeout,
                 action="block",
-                description="実行時間の制限"
+                description="Execution time limit"
             ),
             GuardRail(
                 name="forbidden_commands",
@@ -1499,19 +1500,19 @@ class GuardedAutonomousAgent(AutonomousAgent):
                     for cmd in ["rm -rf", "drop table", "format", "shutdown"]
                 ),
                 action="block",
-                description="危険なコマンドの禁止"
+                description="Prohibition of dangerous commands"
             ),
             GuardRail(
                 name="pii_filter",
                 check=lambda ctx: not self._contains_pii(ctx.get("output", "")),
                 action="warn",
-                description="個人情報の出力防止"
+                description="Prevention of PII in output"
             ),
             GuardRail(
                 name="loop_detection",
                 check=lambda ctx: not self._detect_wandering(),
                 action="require_approval",
-                description="無限ループの検出"
+                description="Infinite loop detection"
             ),
             GuardRail(
                 name="scope_check",
@@ -1519,29 +1520,29 @@ class GuardedAutonomousAgent(AutonomousAgent):
                     ctx.get("action", ""), ctx.get("goal", "")
                 ),
                 action="warn",
-                description="目標の範囲内かチェック"
+                description="Check whether action is within goal scope"
             ),
         ]
 
     def _contains_pii(self, text: str) -> bool:
-        """個人情報を含むかチェック"""
+        """Check whether text contains PII"""
         import re
         patterns = [
-            r'\b\d{3}-\d{4}-\d{4}\b',  # 電話番号
-            r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',  # メール
+            r'\b\d{3}-\d{4}-\d{4}\b',  # Phone number
+            r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',  # Email
             r'\b\d{3}-\d{2}-\d{4}\b',  # SSN
-            r'\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b',  # クレジットカード
+            r'\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b',  # Credit card
         ]
         return any(re.search(p, text) for p in patterns)
 
     def _is_within_scope(self, action: str, goal: str) -> bool:
-        """アクションが目標の範囲内かチェック"""
-        # 簡易的なスコープチェック
-        # 本番ではLLMによる判断を推奨
+        """Check whether the action is within the scope of the goal"""
+        # Simple scope check
+        # In production, LLM-based judgment is recommended
         return True
 
     def check_guardrails(self, context: dict) -> list[dict]:
-        """全ガードレールをチェック"""
+        """Check all guardrails"""
         violations = []
         for rail in self.guardrails:
             try:
@@ -1555,10 +1556,10 @@ class GuardedAutonomousAgent(AutonomousAgent):
                     violations.append(violation)
                     self.violations.append(violation)
                     logger.warning(
-                        f"ガードレール違反: {rail.name} - {rail.description}"
+                        f"Guardrail violation: {rail.name} - {rail.description}"
                     )
             except Exception as e:
-                logger.error(f"ガードレールチェックエラー: {rail.name} - {e}")
+                logger.error(f"Guardrail check error: {rail.name} - {e}")
 
         return violations
 
@@ -1576,23 +1577,23 @@ class GuardedAutonomousAgent(AutonomousAgent):
         for v in violations:
             if v["action"] == "block":
                 task.status = TaskStatus.BLOCKED
-                return f"ガードレールにより停止: {v['description']}"
+                return f"Stopped by guardrail: {v['description']}"
             elif v["action"] == "require_approval":
-                print(f"\n[ガードレール警告] {v['description']}")
-                approval = input("続行しますか？ (yes/no): ")
+                print(f"\n[Guardrail warning] {v['description']}")
+                approval = input("Continue? (yes/no): ")
                 if approval != "yes":
                     task.status = TaskStatus.BLOCKED
-                    return "ユーザーにより停止"
+                    return "Stopped by user"
 
         return super()._execute_task(task)
 ```
 
-### 7.2 迷走検出の詳細実装
+### 7.2 Detailed Wandering Detection Implementation
 
 ```python
-# 高度な迷走検出
+# Advanced wandering detection
 class WanderingDetector:
-    """エージェントの迷走を検出するシステム"""
+    """System for detecting agent wandering"""
 
     def __init__(self, window_size: int = 10):
         self.window_size = window_size
@@ -1607,87 +1608,87 @@ class WanderingDetector:
         })
 
     def is_wandering(self) -> tuple[bool, str]:
-        """迷走を検出し、理由を返す"""
+        """Detect wandering and return the reason"""
         if len(self.action_history) < self.window_size:
             return False, ""
 
         recent = self.action_history[-self.window_size:]
 
-        # パターン1: 同一アクションの繰り返し
+        # Pattern 1: Repeated identical action
         actions = [a["action"] for a in recent]
         most_common = max(set(actions), key=actions.count)
         if actions.count(most_common) > self.window_size * 0.7:
-            return True, f"同一アクションの繰り返し: {most_common}"
+            return True, f"Repeated identical action: {most_common}"
 
-        # パターン2: 同一結果の繰り返し
+        # Pattern 2: Repeated identical result
         results = [a["result_hash"] for a in recent]
         if len(set(results)) < 3:
-            return True, "同一結果の繰り返し"
+            return True, "Repeated identical result"
 
-        # パターン3: 連続失敗
+        # Pattern 3: Consecutive failures
         failures = sum(1 for a in recent if not a["success"])
         if failures > self.window_size * 0.8:
-            return True, f"連続失敗: {failures}/{self.window_size}"
+            return True, f"Consecutive failures: {failures}/{self.window_size}"
 
-        # パターン4: 作成→削除の繰り返し
+        # Pattern 4: Repeated create → delete cycles
         create_delete_pairs = 0
         for i in range(len(recent) - 1):
             if ("create" in recent[i]["action"].lower() and
                 "delete" in recent[i+1]["action"].lower()):
                 create_delete_pairs += 1
         if create_delete_pairs >= 3:
-            return True, "作成→削除の繰り返し（矛盾する行動）"
+            return True, "Repeated create → delete cycles (contradictory actions)"
 
         return False, ""
 ```
 
 ---
 
-## 8. 自律性レベル比較
+## 8. Autonomy Level Comparison
 
-| レベル | 説明 | 人間の関与 | 適用場面 | リスク |
-|--------|------|-----------|---------|--------|
-| L0 手動 | 全て手動 | 100% | - | 最低 |
-| L1 アシスト | 1ステップ実行 | 80% | IDE補完 | 低 |
-| L2 半自律 | 複数ステップ | 50% | チャットボット | 低-中 |
-| L3 条件付き | 重要判断のみ | 10-20% | コーディングエージェント | 中 |
-| L4 完全自律 | 目標のみ指定 | 0-5% | 自動デプロイ | 高 |
+| Level | Description | Human Involvement | Use Case | Risk |
+|-------|-------------|------------------|----------|------|
+| L0 Manual | Fully manual | 100% | — | Lowest |
+| L1 Assisted | Executes one step | 80% | IDE autocomplete | Low |
+| L2 Semi-autonomous | Executes multiple steps | 50% | Chatbots | Low–medium |
+| L3 Conditional | Human approves critical decisions only | 10-20% | Coding agents | Medium |
+| L4 Fully autonomous | Goal only | 0-5% | Auto-deploy | High |
 
-### 代表的プロダクトの自律性レベル
+### Autonomy Levels of Representative Products
 
-| プロダクト | レベル | 特徴 |
-|-----------|--------|------|
-| GitHub Copilot | L1 | 行単位の補完 |
-| ChatGPT | L1-L2 | ツール付き対話 |
-| Claude Code | L3 | コーディング+ファイル操作 |
-| Devin | L3-L4 | ソフトウェア開発の自律実行 |
-| AutoGPT | L4 | 完全自律（実用性は課題） |
+| Product | Level | Characteristics |
+|---------|-------|-----------------|
+| GitHub Copilot | L1 | Line-by-line completion |
+| ChatGPT | L1-L2 | Interactive with tools |
+| Claude Code | L3 | Coding + file operations |
+| Devin | L3-L4 | Autonomous software development |
+| AutoGPT | L4 | Fully autonomous (practicality is a challenge) |
 
 ---
 
-## 9. モニタリングとコスト管理
+## 9. Monitoring and Cost Management
 
-### 9.1 実行モニタリング
+### 9.1 Execution Monitoring
 
 ```python
-# 自律エージェントのモニタリング
+# Monitoring for autonomous agents
 from dataclasses import dataclass, field
 from collections import defaultdict
 import statistics
 
 @dataclass
 class AgentMonitor:
-    """自律エージェントのモニタリングシステム"""
+    """Monitoring system for autonomous agents"""
 
     metrics: dict[str, list[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
     alerts: list[dict] = field(default_factory=list)
     alert_thresholds: dict[str, float] = field(default_factory=lambda: {
-        "step_duration_p95": 30.0,  # 秒
+        "step_duration_p95": 30.0,  # seconds
         "cost_per_step": 0.05,     # USD
         "failure_rate": 0.3,       # 30%
-        "wandering_score": 0.7,    # 迷走スコア
+        "wandering_score": 0.7,    # wandering score
     })
 
     def record_step(
@@ -1698,27 +1699,27 @@ class AgentMonitor:
         success: bool,
         tokens: int
     ):
-        """ステップのメトリクスを記録"""
+        """Record metrics for a step"""
         self.metrics["duration"].append(duration)
         self.metrics["cost"].append(cost)
         self.metrics["success"].append(1.0 if success else 0.0)
         self.metrics["tokens"].append(tokens)
 
-        # アラートチェック
+        # Check alerts
         self._check_alerts(step)
 
     def _check_alerts(self, step: int):
-        """アラート条件をチェック"""
+        """Check alert conditions"""
         durations = self.metrics["duration"]
         if len(durations) >= 5:
             p95 = sorted(durations)[int(len(durations) * 0.95)]
             if p95 > self.alert_thresholds["step_duration_p95"]:
-                self._add_alert("高レイテンシ", f"P95={p95:.1f}s", step)
+                self._add_alert("High latency", f"P95={p95:.1f}s", step)
 
         costs = self.metrics["cost"]
         if costs and costs[-1] > self.alert_thresholds["cost_per_step"]:
             self._add_alert(
-                "高コストステップ",
+                "High-cost step",
                 f"${costs[-1]:.4f}",
                 step
             )
@@ -1728,8 +1729,8 @@ class AgentMonitor:
             recent_rate = statistics.mean(successes[-5:])
             if recent_rate < (1 - self.alert_thresholds["failure_rate"]):
                 self._add_alert(
-                    "高失敗率",
-                    f"直近5ステップ成功率={recent_rate*100:.0f}%",
+                    "High failure rate",
+                    f"Last 5 steps success rate={recent_rate*100:.0f}%",
                     step
                 )
 
@@ -1744,39 +1745,39 @@ class AgentMonitor:
         logger.warning(f"ALERT [{type}]: {detail} (step {step})")
 
     def get_report(self) -> str:
-        """モニタリングレポートを生成"""
+        """Generate a monitoring report"""
         if not self.metrics["duration"]:
-            return "データなし"
+            return "No data"
 
         lines = [
-            "=== 自律エージェント実行レポート ===",
-            f"総ステップ数: {len(self.metrics['duration'])}",
-            f"総実行時間: {sum(self.metrics['duration']):.1f}s",
-            f"総コスト: ${sum(self.metrics['cost']):.4f}",
-            f"総トークン: {sum(self.metrics['tokens']):,}",
-            f"成功率: {statistics.mean(self.metrics['success'])*100:.1f}%",
+            "=== Autonomous Agent Execution Report ===",
+            f"Total steps: {len(self.metrics['duration'])}",
+            f"Total execution time: {sum(self.metrics['duration']):.1f}s",
+            f"Total cost: ${sum(self.metrics['cost']):.4f}",
+            f"Total tokens: {sum(self.metrics['tokens']):,}",
+            f"Success rate: {statistics.mean(self.metrics['success'])*100:.1f}%",
             f"",
-            f"--- ステップ別統計 ---",
-            f"実行時間: 平均={statistics.mean(self.metrics['duration']):.2f}s, "
-            f"最大={max(self.metrics['duration']):.2f}s",
-            f"コスト: 平均=${statistics.mean(self.metrics['cost']):.4f}, "
-            f"最大=${max(self.metrics['cost']):.4f}",
+            f"--- Per-step statistics ---",
+            f"Duration: avg={statistics.mean(self.metrics['duration']):.2f}s, "
+            f"max={max(self.metrics['duration']):.2f}s",
+            f"Cost: avg=${statistics.mean(self.metrics['cost']):.4f}, "
+            f"max=${max(self.metrics['cost']):.4f}",
         ]
 
         if self.alerts:
-            lines.append(f"\n--- アラート ({len(self.alerts)}件) ---")
+            lines.append(f"\n--- Alerts ({len(self.alerts)}) ---")
             for a in self.alerts[-10:]:
                 lines.append(f"  [{a['type']}] {a['detail']} (step {a['step']})")
 
         return "\n".join(lines)
 ```
 
-### 9.2 コスト最適化
+### 9.2 Cost Optimization
 
 ```python
-# コスト最適化戦略
+# Cost optimization strategies
 class CostOptimizer:
-    """自律エージェントのコスト最適化"""
+    """Cost optimization for autonomous agents"""
 
     MODEL_TIERS = {
         "fast": {
@@ -1798,14 +1799,14 @@ class CostOptimizer:
 
     @staticmethod
     def select_model_for_phase(phase: str) -> str:
-        """フェーズに応じたモデルを選択"""
+        """Select the model appropriate for a phase"""
         phase_model_map = {
-            "planning": "balanced",     # 計画は中品質で十分
-            "execution": "balanced",    # 実行は中品質
-            "reflection": "fast",       # 振り返りは高速で十分
-            "evaluation": "balanced",   # 評価は中品質
-            "synthesis": "best",        # 最終統合は高品質
-            "classification": "fast",   # 分類は高速で十分
+            "planning": "balanced",     # Medium quality is sufficient for planning
+            "execution": "balanced",    # Medium quality for execution
+            "reflection": "fast",       # Fast model is sufficient for reflection
+            "evaluation": "balanced",   # Medium quality for evaluation
+            "synthesis": "best",        # High quality for final synthesis
+            "classification": "fast",   # Fast model is sufficient for classification
         }
         tier = phase_model_map.get(phase, "balanced")
         return CostOptimizer.MODEL_TIERS[tier]["model"]
@@ -1815,9 +1816,9 @@ class CostOptimizer:
         plan: list[SubTask],
         avg_tokens_per_task: int = 2000
     ) -> dict:
-        """実行前にコストを見積もる"""
-        # 各フェーズの推定コスト
-        planning_cost = avg_tokens_per_task * 2 * 3.0 / 1_000_000  # 計画
+        """Estimate cost before execution"""
+        # Estimated cost for each phase
+        planning_cost = avg_tokens_per_task * 2 * 3.0 / 1_000_000  # planning
         execution_cost = (
             len(plan) * avg_tokens_per_task * 2 * 3.0 / 1_000_000
         )
@@ -1834,23 +1835,23 @@ class CostOptimizer:
             "reflection": f"${reflection_cost:.4f}",
             "synthesis": f"${synthesis_cost:.4f}",
             "total_estimate": f"${total:.4f}",
-            "total_with_buffer": f"${total * 1.5:.4f}",  # 50%バッファ
+            "total_with_buffer": f"${total * 1.5:.4f}",  # 50% buffer
         }
 ```
 
 ---
 
-## 10. テスト
+## 10. Testing
 
-### 10.1 単体テスト
+### 10.1 Unit Tests
 
 ```python
-# 自律エージェントのテスト
+# Tests for autonomous agents
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
 class TestAutonomousAgent:
-    """自律エージェントの単体テスト"""
+    """Unit tests for the autonomous agent"""
 
     @pytest.fixture
     def mock_client(self):
@@ -1867,53 +1868,53 @@ class TestAutonomousAgent:
         )
 
     def test_create_plan(self, agent, mock_client):
-        """計画生成のテスト"""
+        """Test plan generation"""
         mock_response = MagicMock()
         mock_response.content = [MagicMock(
-            text='[{"id": 1, "description": "タスク1"}, '
-                 '{"id": 2, "description": "タスク2"}]'
+            text='[{"id": 1, "description": "Task 1"}, '
+                 '{"id": 2, "description": "Task 2"}]'
         )]
         mock_response.usage = MagicMock(input_tokens=100, output_tokens=50)
         mock_client.messages.create.return_value = mock_response
 
-        plan = agent._create_plan("テスト目標")
+        plan = agent._create_plan("Test goal")
         assert len(plan) == 2
-        assert plan[0].description == "タスク1"
+        assert plan[0].description == "Task 1"
 
     def test_select_next_task_respects_dependencies(self, agent):
-        """依存関係を考慮したタスク選択"""
+        """Task selection respects dependencies"""
         agent.plan = [
-            SubTask(id=1, description="タスク1", status=TaskStatus.COMPLETED),
-            SubTask(id=2, description="タスク2", dependencies=[1]),
-            SubTask(id=3, description="タスク3", dependencies=[2]),
+            SubTask(id=1, description="Task 1", status=TaskStatus.COMPLETED),
+            SubTask(id=2, description="Task 2", dependencies=[1]),
+            SubTask(id=3, description="Task 3", dependencies=[2]),
         ]
 
         next_task = agent._select_next_task()
-        assert next_task.id == 2  # 依存先が完了しているタスク2
+        assert next_task.id == 2  # Task 2 whose dependency is complete
 
     def test_select_next_task_blocks_unmet_deps(self, agent):
-        """未完了の依存先がある場合はスキップ"""
+        """Skip tasks with unmet dependencies"""
         agent.plan = [
-            SubTask(id=1, description="タスク1", status=TaskStatus.PENDING),
-            SubTask(id=2, description="タスク2", dependencies=[1]),
+            SubTask(id=1, description="Task 1", status=TaskStatus.PENDING),
+            SubTask(id=2, description="Task 2", dependencies=[1]),
         ]
 
         next_task = agent._select_next_task()
-        assert next_task.id == 1  # 依存なしのタスク1のみ選択可能
+        assert next_task.id == 1  # Only Task 1 (no dependencies) can be selected
 
     def test_should_stop_cost_limit(self, agent):
-        """コスト上限での停止"""
-        agent.total_cost = 2.0  # max_cost=1.0を超過
+        """Stop when cost limit is exceeded"""
+        agent.total_cost = 2.0  # Exceeds max_cost=1.0
         agent.start_time = time.time()
         assert agent._should_stop() is True
 
     def test_should_stop_timeout(self, agent):
-        """タイムアウトでの停止"""
-        agent.start_time = time.time() - 120  # timeout=60を超過
+        """Stop on timeout"""
+        agent.start_time = time.time() - 120  # Exceeds timeout=60
         assert agent._should_stop() is True
 
 class TestWanderingDetector:
-    """迷走検出のテスト"""
+    """Tests for wandering detection"""
 
     def test_detect_repeated_action(self):
         detector = WanderingDetector(window_size=5)
@@ -1922,7 +1923,7 @@ class TestWanderingDetector:
 
         is_wandering, reason = detector.is_wandering()
         assert is_wandering
-        assert "同一アクション" in reason
+        assert "Repeated identical action" in reason
 
     def test_detect_consecutive_failures(self):
         detector = WanderingDetector(window_size=5)
@@ -1931,7 +1932,7 @@ class TestWanderingDetector:
 
         is_wandering, reason = detector.is_wandering()
         assert is_wandering
-        assert "連続失敗" in reason
+        assert "Consecutive failures" in reason
 
     def test_no_wandering_normal_operation(self):
         detector = WanderingDetector(window_size=5)
@@ -1942,7 +1943,7 @@ class TestWanderingDetector:
         assert not is_wandering
 
 class TestSelfEvaluator:
-    """自己評価のテスト"""
+    """Tests for self-evaluation"""
 
     @pytest.fixture
     def mock_client(self):
@@ -1952,15 +1953,15 @@ class TestSelfEvaluator:
     def test_evaluate_high_quality(self, mock_client):
         evaluator = SelfEvaluator(mock_client)
 
-        # 高スコアの応答をモック
+        # Mock high-score responses
         responses = [
             MagicMock(content=[MagicMock(text="90")]),   # completeness
             MagicMock(content=[MagicMock(text="85")]),   # quality
-            MagicMock(content=[MagicMock(text="改善点1\n改善点2\n改善点3")]),
+            MagicMock(content=[MagicMock(text="Improvement 1\nImprovement 2\nImprovement 3")]),
         ]
         mock_client.messages.create.side_effect = responses
 
-        result = evaluator.evaluate("目標", "出力テキスト")
+        result = evaluator.evaluate("Goal", "Output text")
         assert result["completeness"] == 90
         assert result["quality"] == 85
         assert not result["should_improve"]
@@ -1971,25 +1972,25 @@ class TestSelfEvaluator:
         responses = [
             MagicMock(content=[MagicMock(text="50")]),
             MagicMock(content=[MagicMock(text="40")]),
-            MagicMock(content=[MagicMock(text="改善必要")]),
+            MagicMock(content=[MagicMock(text="Needs improvement")]),
         ]
         mock_client.messages.create.side_effect = responses
 
-        result = evaluator.evaluate("目標", "出力テキスト")
+        result = evaluator.evaluate("Goal", "Output text")
         assert result["should_improve"]
 
 class TestGuardrails:
-    """ガードレールのテスト"""
+    """Tests for guardrails"""
 
     def test_pii_detection(self):
         agent = GuardedAutonomousAgent(tools=[], max_steps=10)
 
-        # 電話番号
+        # Phone number
         assert agent._contains_pii("080-1234-5678") is True
-        # メールアドレス
+        # Email address
         assert agent._contains_pii("user@example.com") is True
-        # 通常テキスト
-        assert agent._contains_pii("安全なテキスト") is False
+        # Normal text
+        assert agent._contains_pii("Safe text") is False
 
     def test_forbidden_commands(self):
         agent = GuardedAutonomousAgent(tools=[], max_steps=10)
@@ -2005,16 +2006,16 @@ class TestGuardrails:
         assert len(blocked) > 0
 ```
 
-### 10.2 統合テスト
+### 10.2 Integration Tests
 
 ```python
-# 統合テスト
+# Integration tests
 class TestAutonomousAgentIntegration:
-    """自律エージェントの統合テスト"""
+    """Integration tests for the autonomous agent"""
 
     @pytest.fixture
     def mock_llm_sequence(self):
-        """LLM呼び出しのシーケンスをモック"""
+        """Mock a sequence of LLM calls"""
         def create_response(text, stop="end_turn"):
             resp = MagicMock()
             resp.content = [MagicMock(text=text, type="text")]
@@ -2025,38 +2026,38 @@ class TestAutonomousAgentIntegration:
         return create_response
 
     def test_full_execution_flow(self, mock_llm_sequence):
-        """完全な実行フローのテスト"""
+        """Test the complete execution flow"""
         with patch("anthropic.Anthropic") as mock_cls:
             client = mock_cls.return_value
 
-            # 計画 → 実行 × 2 → 振り返り × 2 → 統合
+            # Plan → Execute x 2 → Reflect x 2 → Synthesize
             client.messages.create.side_effect = [
-                # 計画
+                # Planning
                 mock_llm_sequence(
-                    '[{"id":1,"description":"分析"},{"id":2,"description":"レポート"}]'
+                    '[{"id":1,"description":"Analyze"},{"id":2,"description":"Report"}]'
                 ),
-                # タスク1実行
-                mock_llm_sequence("分析結果"),
-                # タスク1振り返り
-                mock_llm_sequence(
-                    '{"quality":"good","needs_replan":false,"reason":null,'
-                    '"learning":"分析完了","confidence":0.9}'
-                ),
-                # タスク2実行
-                mock_llm_sequence("レポート完成"),
-                # タスク2振り返り
+                # Task 1 execution
+                mock_llm_sequence("Analysis result"),
+                # Task 1 reflection
                 mock_llm_sequence(
                     '{"quality":"good","needs_replan":false,"reason":null,'
-                    '"learning":"レポート完了","confidence":0.95}'
+                    '"learning":"Analysis complete","confidence":0.9}'
                 ),
-                # 統合
-                mock_llm_sequence("最終レポート"),
+                # Task 2 execution
+                mock_llm_sequence("Report complete"),
+                # Task 2 reflection
+                mock_llm_sequence(
+                    '{"quality":"good","needs_replan":false,"reason":null,'
+                    '"learning":"Report complete","confidence":0.95}'
+                ),
+                # Synthesis
+                mock_llm_sequence("Final report"),
             ]
 
             agent = AutonomousAgent(tools=[], max_steps=10)
-            result = agent.run("テスト分析を実行")
+            result = agent.run("Run test analysis")
 
-            assert result == "最終レポート"
+            assert result == "Final report"
             summary = agent.get_execution_summary()
             assert summary["completed"] == 2
             assert summary["failed"] == 0
@@ -2064,17 +2065,17 @@ class TestAutonomousAgentIntegration:
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### アンチパターン1: 振り返りなしの猪突猛進
+### Anti-Pattern 1: Charging Ahead Without Reflection
 
 ```python
-# NG: 結果を評価せず次に進む
+# NG: Proceeding without evaluating the result
 for task in plan:
     result = execute(task)
-    # 結果が悪くてもそのまま続行...
+    # Continue regardless of how bad the result is...
 
-# OK: 各ステップで振り返りと必要に応じた再計画
+# OK: Reflect at each step and replan as needed
 for task in plan:
     result = execute(task)
     evaluation = reflect(result)
@@ -2082,56 +2083,56 @@ for task in plan:
         plan = replan(goal, evaluation["reason"])
 ```
 
-### アンチパターン2: 過度な自律性（ガードレールなし）
+### Anti-Pattern 2: Excessive Autonomy (No Guardrails)
 
 ```python
-# NG: 制限なしの自律実行
-agent.run("サーバーのパフォーマンスを最適化して")
-# → 勝手に本番設定を変更、サービスダウン
+# NG: Autonomous execution without restrictions
+agent.run("Optimize server performance")
+# → Autonomously changes production config, service goes down
 
-# OK: 適切なガードレール
+# OK: Appropriate guardrails
 agent = GuardedAutonomousAgent(
     tools=available_tools,
-    max_steps=30,                    # ステップ上限
-    max_cost=5.0,                    # コスト上限（ドル）
-    timeout=600,                     # タイムアウト（秒）
+    max_steps=30,                    # Step limit
+    max_cost=5.0,                    # Cost limit (USD)
+    timeout=600,                     # Timeout (seconds)
 )
 ```
 
-### アンチパターン3: メモリの不使用
+### Anti-Pattern 3: Not Using Memory
 
 ```python
-# NG: 毎回ゼロから計画（過去の経験を活用しない）
+# NG: Planning from scratch every time (not leveraging past experience)
 agent = AutonomousAgent(tools=tools)
-result = agent.run("バグを修正して")
-# → 同じ失敗を何度も繰り返す
+result = agent.run("Fix the bug")
+# → Repeats the same mistakes over and over
 
-# OK: メモリを活用
+# OK: Leverage memory
 agent = MemoryAugmentedAgent(tools=tools)
-# 過去の成功/失敗パターンを自動的に活用
-result = agent.run("バグを修正して")
+# Automatically leverages past success/failure patterns
+result = agent.run("Fix the bug")
 ```
 
-### アンチパターン4: 単一モデルへの依存
+### Anti-Pattern 4: Relying on a Single Model
 
 ```python
-# NG: 全フェーズで最高性能モデル（コスト爆発）
+# NG: Highest-performance model for every phase (cost explosion)
 agent = AutonomousAgent(model="claude-opus-4-20250514")
 
-# OK: フェーズごとのモデル最適化
+# OK: Per-phase model optimization
 class CostAwareAgent(AutonomousAgent):
     def _create_plan(self, goal):
-        # 計画にはbalancedモデル
+        # Use balanced model for planning
         self.current_model = CostOptimizer.select_model_for_phase("planning")
         return super()._create_plan(goal)
 
     def _reflect(self, goal, task, result):
-        # 振り返りにはfastモデル
+        # Use fast model for reflection
         self.current_model = CostOptimizer.select_model_for_phase("reflection")
         return super()._reflect(goal, task, result)
 
     def _synthesize(self, goal):
-        # 最終統合にはbestモデル
+        # Use best model for final synthesis
         self.current_model = CostOptimizer.select_model_for_phase("synthesis")
         return super()._synthesize(goal)
 ```
@@ -2140,91 +2141,91 @@ class CostAwareAgent(AutonomousAgent):
 
 ## 12. FAQ
 
-### Q1: 自律エージェントの実行時間の目安は？
+### Q1: What is the expected execution time for an autonomous agent?
 
-タスクの複雑さに依存するが、現時点の目安:
-- **単純タスク**（ファイル操作、検索）: 30秒〜2分
-- **中程度**（コーディング、分析）: 2分〜10分
-- **複雑**（設計+実装+テスト）: 10分〜1時間
-- **大規模**（プロジェクト全体）: 1時間以上
+This depends on task complexity; current rough estimates are:
+- **Simple tasks** (file operations, search): 30 seconds – 2 minutes
+- **Medium** (coding, analysis): 2 – 10 minutes
+- **Complex** (design + implementation + testing): 10 minutes – 1 hour
+- **Large-scale** (entire project): 1 hour or more
 
-長時間タスクは **チェックポイント** と **進捗通知** が必須。
+Long-running tasks require **checkpoints** and **progress notifications**.
 
-### Q2: 自律エージェントが「迷走」した場合の検出方法は？
+### Q2: How do I detect when an autonomous agent has started "wandering"?
 
-- **同一ツールの連続呼び出し**: 3回以上同じツールを同じ引数で呼び出し
-- **コスト急増**: 予想コストの2倍を超えた時点
-- **進捗の停滞**: 最後の成功タスクから5ステップ以上経過
-- **矛盾する行動**: 作成したものをすぐ削除するなど
+- **Repeated identical tool calls**: the same tool called with the same arguments 3 or more times
+- **Rapid cost increase**: exceeds twice the expected cost
+- **Stalled progress**: more than 5 steps since the last successful task
+- **Contradictory actions**: creating something and immediately deleting it
 
-検出時は **自動的に一時停止し、ユーザーに判断を求める** のが安全。
+When detected, **automatically pause and ask the user for a decision** — this is the safe approach.
 
-### Q3: Reflexionパターンとは何か？
+### Q3: What is the Reflexion pattern?
 
-Reflexionは「実行→失敗→反省→再実行」のサイクルを明示的にモデル化したパターン。通常のリトライと異なり、**失敗の原因を言語化してメモリに保存し、次の試行で同じ失敗を避ける** 点が特徴。テスト駆動開発のような「赤→緑」のフィードバックループと相性が良い。
+Reflexion is a pattern that explicitly models the "execute → fail → reflect → retry" cycle. Unlike ordinary retry logic, its key feature is that it **verbalizes the cause of failure, stores it in memory, and avoids making the same mistake in the next attempt**. It works well with feedback loops similar to test-driven development's "red → green" cycle.
 
-### Q4: 自律エージェントの計画はどの程度詳細にすべきか？
+### Q4: How detailed should the initial plan for an autonomous agent be?
 
-初期計画は**粗い粒度**で作成し、各サブゴールの実行前に**詳細化**するのが推奨。理由:
-- 全体像を早期に把握できる
-- 実行中に得た情報で詳細計画を調整できる
-- 過度に詳細な計画は変更コストが高い
+It is recommended to create the initial plan at a **coarse granularity** and **refine** it just before each sub-goal is executed. Reasons:
+- You can grasp the overall picture early
+- You can adjust the detailed plan based on information obtained during execution
+- Overly detailed plans are expensive to change
 
-### Q5: メモリシステムはどこまで必要か？
+### Q5: How much of a memory system is necessary?
 
-自律性レベルにより異なる:
-- **L2（半自律）**: ワーキングメモリのみで十分
-- **L3（条件付き自律）**: ワーキングメモリ + エピソード記憶
-- **L4（完全自律）**: 3層全て（ワーキング + エピソード + セマンティック）
+This varies by autonomy level:
+- **L2 (semi-autonomous)**: Working memory alone is sufficient
+- **L3 (conditional autonomy)**: Working memory + episodic memory
+- **L4 (fully autonomous)**: All three layers (working + episodic + semantic)
 
-### Q6: 複数の自律エージェントを協調させる場合は？
+### Q6: How do you coordinate multiple autonomous agents?
 
-マルチエージェントパターン（01-multi-agent.md）と組み合わせる。典型的な構成:
-- **オーケストレータ（L3）**: 全体計画と進捗管理
-- **ワーカーエージェント（L2-L3）**: 個別タスクの実行
-- **レビューエージェント（L2）**: 成果物のチェック
+Combine with the multi-agent pattern (01-multi-agent.md). A typical configuration:
+- **Orchestrator (L3)**: Overall planning and progress management
+- **Worker agents (L2-L3)**: Execution of individual tasks
+- **Review agent (L2)**: Checking deliverables
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work — especially during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| コアループ | 計画 → 実行 → 振り返り → （再計画） |
-| 目標分解 | 階層的にサブゴール/タスクに分解（HTA） |
-| 自己評価 | 完全性・品質・改善余地の多角評価 |
-| Reflexion | 失敗を言語化し次の試行に活かす |
-| メモリ | 短期（ワーキング）・中期（エピソード）・長期（セマンティック） |
-| 再計画 | 失敗からの学習を次の計画に反映 |
-| HITL | 重要判断ポイントで人間の承認を挟む |
-| ガードレール | ステップ/コスト/時間の上限 + 禁止操作 + PII検出 |
-| 迷走検出 | 繰り返し/連続失敗/矛盾行動のパターン検出 |
-| コスト最適化 | フェーズ別モデル選択 + 事前見積り |
+| Item | Content |
+|------|---------|
+| Core loop | Plan → Execute → Reflect → (Replan) |
+| Goal decomposition | Hierarchically decompose into sub-goals/tasks (HTA) |
+| Self-evaluation | Multi-perspective evaluation of completeness, quality, and room for improvement |
+| Reflexion | Verbalize failures and apply them to the next attempt |
+| Memory | Short-term (working), mid-term (episodic), long-term (semantic) |
+| Replanning | Reflect learnings from failures in the next plan |
+| HITL | Insert human approval at critical decision points |
+| Guardrails | Step/cost/time limits + forbidden operations + PII detection |
+| Wandering detection | Pattern detection for repetition/consecutive failures/contradictory actions |
+| Cost optimization | Per-phase model selection + pre-execution cost estimation |
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [../02-implementation/03-claude-agent-sdk.md](../02-implementation/03-claude-agent-sdk.md) — Claude Agent SDKでの自律エージェント構築
-- [../02-implementation/04-evaluation.md](../02-implementation/04-evaluation.md) — エージェントの評価手法
-- [../04-production/01-safety.md](../04-production/01-safety.md) — 安全性とガードレール
+- [../02-implementation/03-claude-agent-sdk.md](../02-implementation/03-claude-agent-sdk.md) — Building autonomous agents with the Claude Agent SDK
+- [../02-implementation/04-evaluation.md](../02-implementation/04-evaluation.md) — Agent evaluation techniques
+- [../04-production/01-safety.md](../04-production/01-safety.md) — Safety and guardrails
 
-## 参考文献
+## References
 
 1. Shinn, N. et al., "Reflexion: Language Agents with Verbal Reinforcement Learning" (2023) — https://arxiv.org/abs/2303.11366
 2. Yao, S. et al., "Tree of Thoughts: Deliberate Problem Solving with Large Language Models" (2023) — https://arxiv.org/abs/2305.10601
