@@ -1,88 +1,88 @@
-# PostgreSQL固有機能 — JSONB・配列型・範囲型・全文検索・拡張機能
+# PostgreSQL-Specific Features — JSONB, Array Types, Range Types, Full-Text Search, and Extensions
 
-> PostgreSQLは「世界で最も先進的なオープンソースRDBMS」を標榜し、JSONB、配列型、範囲型、全文検索、拡張機能（Extension）など他のRDBMSにはない豊富な機能を提供する。これらを適切に使いこなすことで、NoSQLの柔軟性とRDBMSのトランザクション整合性を両立した堅牢なデータ基盤を構築できる。本章ではこれらのPostgreSQL固有機能について、内部実装レベルの仕組みからWHYの理解まで含めて徹底的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **JSONB型の内部構造と操作** — バイナリ格納形式の仕組み、演算子体系、GINインデックスの内部構造、jsonpathクエリを理解し、リレーショナルデータとの使い分けができるようになる
-2. **配列型・範囲型・複合型の実践活用** — PostgreSQL固有のコレクション型を使って、中間テーブルを使わないタグ管理や日付範囲の重複検出ができるようになる
-3. **全文検索とトライグラム検索の実装** — tsvector/tsquery の仕組みと日本語対応、pg_trgmによるあいまい検索を組み込み全文検索として実装できるようになる
-4. **Extension（拡張機能）による機能拡張** — uuid-ossp、pgcrypto、PostGIS、pg_stat_statementsなど主要拡張の選定と導入判断ができるようになる
-5. **GENERATED COLUMNS・LISTEN/NOTIFY・テーブル継承** — 計算列、リアルタイム通知、継承による分類を適切な場面で活用できるようになる
+> PostgreSQL positions itself as "the world's most advanced open-source RDBMS," offering rich features not found in other databases: JSONB, array types, range types, full-text search, and extensions. Mastering these features enables you to build robust data foundations that combine NoSQL flexibility with RDBMS transactional consistency. This chapter covers these PostgreSQL-specific features comprehensively, from the internals of their implementation to a deep understanding of the "why" behind each.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-本章を理解するには以下の知識が必要です。
-
-- [SQLの基礎](../00-basics/00-sql-overview.md) — SELECT/INSERT/UPDATE/DELETEの基本操作
-- [JOINの理解](../00-basics/02-joins.md) — テーブル結合の概念
-- [インデックスの基礎](../01-advanced/03-indexing.md) — B-Treeインデックスの仕組み
-- [正規化の基礎](../02-design/00-normalization.md) — リレーショナルモデルの基本原則
+1. **JSONB Internal Structure and Operations** — Understand the binary storage format, operator system, GIN index internals, and jsonpath queries; learn when to use JSONB versus relational columns
+2. **Practical Use of Array, Range, and Composite Types** — Use PostgreSQL-specific collection types to manage tags without join tables and detect date range overlaps
+3. **Full-Text Search and Trigram Search** — Implement built-in full-text search using tsvector/tsquery with Japanese language support, and fuzzy search via pg_trgm
+4. **Feature Extension via Extensions** — Evaluate and adopt major extensions such as uuid-ossp, pgcrypto, PostGIS, and pg_stat_statements
+5. **GENERATED COLUMNS, LISTEN/NOTIFY, and Table Inheritance** — Apply computed columns, real-time notifications, and inheritance-based classification in the right situations
 
 ---
 
-## 1. JSONB型 — バイナリJSON の全体像
+## Prerequisites
 
-### 1.1 なぜJSONBが必要なのか
+Understanding this chapter requires the following knowledge.
 
-リレーショナルデータベースは厳格なスキーマ（テーブル定義）が強みだが、現実のアプリケーションでは「スキーマが事前に決まらないデータ」を格納する必要がある。たとえば以下のようなケースだ。
+- [SQL Basics](../00-basics/00-sql-overview.md) — Fundamental SELECT/INSERT/UPDATE/DELETE operations
+- [Understanding JOINs](../00-basics/02-joins.md) — Table join concepts
+- [Index Fundamentals](../01-advanced/03-indexing.md) — How B-Tree indexes work
+- [Normalization Basics](../02-design/00-normalization.md) — Core principles of the relational model
 
-- ECサイトの商品属性（衣類はサイズ・色、PCはCPU・RAM・SSD）
-- ユーザーの設定値（人によって異なる設定項目）
-- 外部APIからの応答データ（スキーマが頻繁に変わる）
-- イベントのメタデータ（種類によって含まれる情報が異なる）
+---
 
-従来はEAV（Entity-Attribute-Value）パターンやシリアライズされたテキストで対応していたが、これらは検索性能が悪く、型安全性もない。PostgreSQLのJSONB型は「リレーショナルの堅牢性 + ドキュメントの柔軟性」を両立する解決策だ。
+## 1. JSONB — An Overview of Binary JSON
 
-### 1.2 JSONB の内部構造
+### 1.1 Why JSONB Is Needed
+
+Relational databases excel at enforcing strict schemas (table definitions), but real-world applications often need to store data whose schema is not known in advance. Examples include:
+
+- Product attributes for an e-commerce site (clothing has size and color; PCs have CPU, RAM, and SSD)
+- User preference values (settings vary per user)
+- Responses from external APIs (schemas change frequently)
+- Event metadata (the information included differs by event type)
+
+Traditionally, developers handled this with EAV (Entity-Attribute-Value) patterns or serialized text, both of which offer poor search performance and no type safety. PostgreSQL's JSONB type provides a solution that combines relational robustness with document flexibility.
+
+### 1.2 JSONB Internal Structure
 
 ```
-┌──────────────── JSONB の内部構造 ─────────────────────┐
-│                                                        │
-│  入力: {"name": "田中", "age": 30, "tags": ["A","B"]}  │
-│                                                        │
-│  ┌──── JSON型（テキスト格納）────┐                     │
-│  │ そのまま文字列として保存      │                     │
-│  │ 読み取り時に毎回パース        │                     │
-│  │ 重複キー保持、順序保持        │                     │
-│  └──────────────────────────────┘                     │
-│                                                        │
-│  ┌──── JSONB型（バイナリ格納）───┐                     │
-│  │ パース済みバイナリで保存      │                     │
-│  │ ヘッダ + エントリ配列         │                     │
-│  │  ┌─ JEntry ─────────────┐    │                     │
-│  │  │ type: object          │    │                     │
-│  │  │ num_pairs: 3          │    │                     │
-│  │  │ pairs[0]:             │    │                     │
-│  │  │   key_offset → "age"  │    │                     │
-│  │  │   val_offset → 30     │    │                     │
-│  │  │ pairs[1]:             │    │                     │
-│  │  │   key_offset → "name" │    │                     │
-│  │  │   val_offset → "田中" │    │                     │
-│  │  │ pairs[2]:             │    │                     │
-│  │  │   key_offset → "tags" │    │                     │
-│  │  │   val_offset → [...]  │    │                     │
-│  │  └───────────────────────┘    │                     │
-│  │ ※ キーはソート済み            │                     │
-│  │ ※ 重複キーは最後の値のみ      │                     │
-│  │ ※ バイナリサーチで高速アクセス │                     │
-│  └──────────────────────────────┘                     │
-│                                                        │
-│  WHY バイナリ？                                        │
-│  → 読み取り時にパース不要（O(1)でキーアクセス）        │
-│  → GINインデックスの構築が可能                         │
-│  → 演算子による高速な包含検索・存在確認                 │
-└────────────────────────────────────────────────────────┘
+┌──────────────── JSONB Internal Structure ──────────────────────┐
+│                                                                 │
+│  Input: {"name": "Tanaka", "age": 30, "tags": ["A","B"]}       │
+│                                                                 │
+│  ┌──── JSON type (text storage) ─────┐                         │
+│  │ Saved as-is as a string           │                         │
+│  │ Parsed on every read              │                         │
+│  │ Duplicate keys kept, order kept   │                         │
+│  └───────────────────────────────────┘                         │
+│                                                                 │
+│  ┌──── JSONB type (binary storage) ──┐                         │
+│  │ Saved as parsed binary            │                         │
+│  │ Header + entry array              │                         │
+│  │  ┌─ JEntry ─────────────┐         │                         │
+│  │  │ type: object          │         │                         │
+│  │  │ num_pairs: 3          │         │                         │
+│  │  │ pairs[0]:             │         │                         │
+│  │  │   key_offset → "age"  │         │                         │
+│  │  │   val_offset → 30     │         │                         │
+│  │  │ pairs[1]:             │         │                         │
+│  │  │   key_offset → "name" │         │                         │
+│  │  │   val_offset → "Tanaka"│        │                         │
+│  │  │ pairs[2]:             │         │                         │
+│  │  │   key_offset → "tags" │         │                         │
+│  │  │   val_offset → [...]  │         │                         │
+│  │  └───────────────────────┘         │                         │
+│  │ * Keys are sorted                  │                         │
+│  │ * Duplicate keys: only last value  │                         │
+│  │ * Binary search for fast access    │                         │
+│  └───────────────────────────────────┘                         │
+│                                                                 │
+│  WHY binary?                                                    │
+│  → No parsing needed on read (O(1) key access)                 │
+│  → GIN indexes can be built                                     │
+│  → Fast containment search and key existence checks            │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例1: JSONB の基本操作 — CRUD
+### Code Example 1: JSONB Basic Operations — CRUD
 
 ```sql
--- テーブル作成: メタデータをJSONBで持つ商品テーブル
+-- Create table: product table with metadata stored as JSONB
 CREATE TABLE products (
     id       SERIAL PRIMARY KEY,
     name     VARCHAR(200) NOT NULL,
@@ -91,7 +91,7 @@ CREATE TABLE products (
     metadata JSONB NOT NULL DEFAULT '{}'
 );
 
--- データ挿入: 商品ごとに異なる属性をJSONBに格納
+-- Insert data: store different attributes per product in JSONB
 INSERT INTO products (name, category, price, metadata) VALUES
 ('ThinkPad X1 Carbon', 'laptop', 198000, '{
     "brand": "Lenovo",
@@ -114,68 +114,68 @@ INSERT INTO products (name, category, price, metadata) VALUES
     "weight_g": 187
 }');
 
--- ===== フィールドアクセス演算子 =====
+-- ===== Field Access Operators =====
 
--- -> : JSONBオブジェクトを返す（ネスト参照に使う）
--- ->> : TEXT型で返す（最終的な値の取得に使う）
+-- -> : Returns a JSONB object (used for nested references)
+-- ->> : Returns TEXT (used for retrieving final values)
 SELECT
     name,
-    metadata->>'brand' AS brand,                    -- TEXT型で取得
-    metadata->'specs'->>'cpu' AS cpu,                -- ネストしたキーの参照
-    (metadata->'specs'->>'ram_gb')::INTEGER AS ram,  -- 型キャスト
-    metadata->'tags'->0 AS first_tag,               -- 配列の0番目（JSONB型）
-    metadata->'tags'->>0 AS first_tag_text,         -- 配列の0番目（TEXT型）
-    metadata#>>'{specs,ram_gb}' AS ram_by_path       -- パス形式で取得
+    metadata->>'brand' AS brand,                    -- Retrieve as TEXT
+    metadata->'specs'->>'cpu' AS cpu,                -- Reference nested keys
+    (metadata->'specs'->>'ram_gb')::INTEGER AS ram,  -- Type cast
+    metadata->'tags'->0 AS first_tag,               -- First element of array (JSONB type)
+    metadata->'tags'->>0 AS first_tag_text,         -- First element of array (TEXT type)
+    metadata#>>'{specs,ram_gb}' AS ram_by_path       -- Retrieve using path syntax
 FROM products;
 
--- ===== JSONB の検索演算子 =====
+-- ===== JSONB Search Operators =====
 
--- @> : 包含（右辺のJSONが左辺に含まれるか）
+-- @> : Containment (does the left side contain the right side?)
 SELECT * FROM products
 WHERE metadata @> '{"brand": "Apple"}';
 
--- ? : キーの存在確認
+-- ? : Check key existence
 SELECT * FROM products
 WHERE metadata ? 'colors';
 
--- ?& : 全てのキーが存在するか
+-- ?& : Check if all keys exist
 SELECT * FROM products
 WHERE metadata ?& ARRAY['brand', 'specs', 'weight_g'];
 
--- ?| : いずれかのキーが存在するか
+-- ?| : Check if any key exists
 SELECT * FROM products
 WHERE metadata ?| ARRAY['weight_kg', 'weight_g'];
 
--- ===== JSONB の更新 =====
+-- ===== Updating JSONB =====
 
--- || : マージ（既存キーは上書き、新規キーは追加）
+-- || : Merge (existing keys are overwritten, new keys are added)
 UPDATE products
 SET metadata = metadata || '{"warranty_years": 2, "in_stock": true}'
 WHERE id = 1;
 
--- jsonb_set : 特定パスの値を更新
+-- jsonb_set : Update value at a specific path
 UPDATE products
 SET metadata = jsonb_set(metadata, '{specs,ram_gb}', '32')
 WHERE id = 1;
 
--- jsonb_set の第4引数 create_if_missing（デフォルトtrue）
+-- jsonb_set 4th argument create_if_missing (default true)
 UPDATE products
 SET metadata = jsonb_set(metadata, '{specs,gpu}', '"RTX 4060"', true)
 WHERE id = 1;
 
--- - : キーの削除
+-- - : Delete a key
 UPDATE products
 SET metadata = metadata - 'warranty_years'
 WHERE id = 1;
 
--- #- : ネストしたキーの削除（パス指定）
+-- #- : Delete a nested key (by path)
 UPDATE products
 SET metadata = metadata #- '{specs,gpu}'
 WHERE id = 1;
 
--- ===== JSONB の集約 =====
+-- ===== JSONB Aggregation =====
 
--- ブランド別の商品数と平均価格
+-- Product count and average price by brand
 SELECT
     metadata->>'brand' AS brand,
     COUNT(*) AS product_count,
@@ -185,87 +185,87 @@ GROUP BY metadata->>'brand'
 ORDER BY avg_price DESC;
 ```
 
-### コード例2: JSONB のインデックスと高度な検索
+### Code Example 2: JSONB Indexes and Advanced Search
 
 ```sql
--- ===== GINインデックスの2つのオプション =====
+-- ===== Two Options for GIN Indexes =====
 
--- 1. デフォルトGIN: @>, ?, ?|, ?& の全演算子に対応
+-- 1. Default GIN: supports all operators — @>, ?, ?|, ?&
 CREATE INDEX idx_products_metadata
 ON products USING GIN (metadata);
 
--- 2. jsonb_path_ops GIN: @> 演算子に特化（高速・省メモリ）
--- パスごとにハッシュ値を格納するため、包含検索が高速
+-- 2. jsonb_path_ops GIN: specialized for @> operator (faster, less memory)
+-- Stores hash values per path, making containment searches faster
 CREATE INDEX idx_products_metadata_path
 ON products USING GIN (metadata jsonb_path_ops);
 
--- WHY 2種類あるのか？
--- デフォルトGIN: キーの存在確認（?演算子）もインデックスで処理可能
--- jsonb_path_ops: @> 包含検索に特化、インデックスサイズが20-30%小さい
--- → アプリで使う演算子に応じて選択する
+-- WHY two options?
+-- Default GIN: key existence checks (? operator) also use the index
+-- jsonb_path_ops: specialized for @> containment, index size 20-30% smaller
+-- → Choose based on the operators used in your application
 
--- 3. 式インデックス: 特定フィールドのB-Tree（等値・範囲検索に最適）
+-- 3. Expression index: B-Tree for a specific field (optimal for equality/range searches)
 CREATE INDEX idx_products_brand
 ON products ((metadata->>'brand'));
 
--- 複合インデックス: ブランド + 価格帯の検索を高速化
+-- Composite index: speed up searches by brand + price range
 CREATE INDEX idx_products_brand_price
 ON products ((metadata->>'brand'), price);
 
--- ===== jsonpath クエリ（SQL:2016標準、PostgreSQL 12+）=====
+-- ===== jsonpath Queries (SQL:2016 standard, PostgreSQL 12+) =====
 
--- @@ : jsonpathの条件式で検索
+-- @@ : Search using a jsonpath condition expression
 SELECT * FROM products
 WHERE metadata @@ '$.specs.ram_gb > 8';
 
--- jsonb_path_query: パスに一致する値を全て返す
+-- jsonb_path_query: return all values matching a path
 SELECT name, jsonb_path_query(metadata, '$.tags[*]') AS tag
 FROM products;
 
--- jsonb_path_query_array: 結果を配列として返す
+-- jsonb_path_query_array: return results as an array
 SELECT name, jsonb_path_query_array(metadata, '$.tags[*]') AS all_tags
 FROM products;
 
--- jsonb_path_exists: パスが存在するか
+-- jsonb_path_exists: check whether a path exists
 SELECT name FROM products
 WHERE jsonb_path_exists(metadata, '$.specs.cpu');
 
--- フィルタ付きjsonpath
+-- jsonpath with filter
 SELECT name,
        jsonb_path_query(metadata, '$.tags[*] ? (@ like_regex "^cam")')
        AS camera_tag
 FROM products;
 
--- ===== JSONB関数 =====
+-- ===== JSONB Functions =====
 
--- jsonb_each: キーと値のペアに展開
+-- jsonb_each: expand into key-value pairs
 SELECT p.name, kv.key, kv.value
 FROM products p,
      jsonb_each(p.metadata->'specs') AS kv(key, value)
 WHERE p.id = 1;
 
--- jsonb_object_keys: キー一覧を取得
+-- jsonb_object_keys: retrieve list of keys
 SELECT DISTINCT jsonb_object_keys(metadata) AS top_level_key
 FROM products
 ORDER BY top_level_key;
 
--- jsonb_array_elements: 配列の各要素に展開
+-- jsonb_array_elements: expand each element of an array
 SELECT p.name, tag.value AS tag
 FROM products p,
      jsonb_array_elements_text(p.metadata->'tags') AS tag(value);
 
--- jsonb_strip_nulls: null値を含むキーを除去
+-- jsonb_strip_nulls: remove keys with null values
 SELECT jsonb_strip_nulls('{"a": 1, "b": null, "c": 3}'::JSONB);
 -- → {"a": 1, "c": 3}
 
--- jsonb_typeof: 値の型を判定
+-- jsonb_typeof: determine the type of a value
 SELECT jsonb_typeof(metadata->'specs') AS specs_type,
        jsonb_typeof(metadata->'tags') AS tags_type,
        jsonb_typeof(metadata->'weight_kg') AS weight_type
 FROM products WHERE id = 1;
 -- → object, array, number
 
--- jsonb_build_object / jsonb_build_array: JSONBの動的構築
+-- jsonb_build_object / jsonb_build_array: dynamically construct JSONB
 SELECT jsonb_build_object(
     'product_name', name,
     'brand', metadata->>'brand',
@@ -274,43 +274,43 @@ SELECT jsonb_build_object(
 FROM products;
 ```
 
-### コード例3: JSONB のバリデーションとCHECK制約
+### Code Example 3: JSONB Validation and CHECK Constraints
 
 ```sql
--- PostgreSQL 17+ の JSON Schema バリデーション（将来対応）
--- 現時点ではCHECK制約とIS JSON述語で代用する
+-- JSON Schema validation in PostgreSQL 17+ (future support)
+-- Currently, use CHECK constraints and the IS JSON predicate as a substitute
 
--- IS JSON述語（PostgreSQL 16+）
+-- IS JSON predicate (PostgreSQL 16+)
 ALTER TABLE products
 ADD CONSTRAINT check_metadata_is_object
 CHECK (metadata IS JSON OBJECT);
 
--- CHECK制約でJSONBの構造を検証
+-- CHECK constraint to validate JSONB structure
 ALTER TABLE products
 ADD CONSTRAINT check_metadata_has_brand
 CHECK (metadata ? 'brand');
 
--- CHECK制約でJSONBの値を検証
+-- CHECK constraint to validate JSONB values
 ALTER TABLE products
 ADD CONSTRAINT check_metadata_brand_not_empty
 CHECK (length(metadata->>'brand') > 0);
 
--- トリガーによる高度なバリデーション
+-- Advanced validation via trigger
 CREATE OR REPLACE FUNCTION validate_product_metadata()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- brandフィールドは必須
+    -- brand field is required
     IF NOT (NEW.metadata ? 'brand') THEN
         RAISE EXCEPTION 'metadata must contain "brand" key';
     END IF;
 
-    -- specsフィールドがある場合はオブジェクトであること
+    -- specs field, if present, must be an object
     IF NEW.metadata ? 'specs'
        AND jsonb_typeof(NEW.metadata->'specs') != 'object' THEN
         RAISE EXCEPTION 'metadata.specs must be an object';
     END IF;
 
-    -- tagsフィールドがある場合は配列であること
+    -- tags field, if present, must be an array
     IF NEW.metadata ? 'tags'
        AND jsonb_typeof(NEW.metadata->'tags') != 'array' THEN
         RAISE EXCEPTION 'metadata.tags must be an array';
@@ -327,44 +327,44 @@ CREATE TRIGGER trg_validate_product_metadata
 
 ---
 
-## 2. 配列型 — PostgreSQL のコレクション型
+## 2. Array Types — PostgreSQL Collection Types
 
-### 2.1 配列型を使うべき場面
+### 2.1 When to Use Array Types
 
-配列型は「少数の値のリストを1行に格納する」場合に有用だ。ただし、配列の要素に外部キー制約を設定することはできないため、使い分けの判断基準を理解しておく必要がある。
+Array types are useful when storing a short list of values in a single row. However, because you cannot apply foreign key constraints to array elements, you need to understand the decision criteria for choosing between arrays and join tables.
 
 ```
-┌───── 配列型 vs 中間テーブル 判断フロー ──────────┐
-│                                                    │
-│  Q1: 要素に外部キー制約が必要？                     │
-│  ├── Yes → 中間テーブル                            │
-│  └── No → Q2へ                                     │
-│                                                    │
-│  Q2: 要素の変更頻度は？                             │
-│  ├── 高い → 中間テーブル                           │
-│  └── 低い → Q3へ                                   │
-│                                                    │
-│  Q3: 要素数の上限は？                               │
-│  ├── 数百以上 → 中間テーブル                       │
-│  └── 数十以下 → 配列型が適切                       │
-│                                                    │
-│  配列型が適切な例:                                  │
-│  - タグ（文字列リスト）                             │
-│  - 電話番号（複数保持）                             │
-│  - 設定値（選択肢リスト）                           │
-│  - スコア履歴（数値リスト）                         │
-│                                                    │
-│  中間テーブルが適切な例:                             │
-│  - ユーザーとロールの関係（M:N）                    │
-│  - 注文と商品の関係（付帯情報あり）                  │
-│  - フォロー関係（相互参照あり）                      │
-└────────────────────────────────────────────────────┘
+┌───── Array Type vs. Join Table Decision Flow ──────────┐
+│                                                         │
+│  Q1: Do elements require a foreign key constraint?      │
+│  ├── Yes → Join table                                   │
+│  └── No → Go to Q2                                      │
+│                                                         │
+│  Q2: How frequently do elements change?                 │
+│  ├── Frequently → Join table                            │
+│  └── Infrequently → Go to Q3                            │
+│                                                         │
+│  Q3: What is the upper bound on element count?          │
+│  ├── Hundreds or more → Join table                      │
+│  └── Tens or fewer → Array type is appropriate          │
+│                                                         │
+│  Good use cases for array types:                        │
+│  - Tags (list of strings)                               │
+│  - Phone numbers (multiple per record)                  │
+│  - Configuration values (list of options)               │
+│  - Score history (list of numbers)                      │
+│                                                         │
+│  Good use cases for join tables:                        │
+│  - User-to-role relationships (M:N)                     │
+│  - Order-to-product relationships (with extra info)     │
+│  - Follow relationships (bidirectional references)      │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### コード例4: 配列型の完全操作ガイド
+### Code Example 4: Complete Array Type Operations Guide
 
 ```sql
--- ===== テーブル作成 =====
+-- ===== Table Creation =====
 CREATE TABLE blog_posts (
     id         SERIAL PRIMARY KEY,
     title      VARCHAR(200) NOT NULL,
@@ -374,57 +374,57 @@ CREATE TABLE blog_posts (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ===== データ挿入（2つの構文）=====
+-- ===== Data Insertion (two syntax options) =====
 INSERT INTO blog_posts (title, body, tags, scores) VALUES
-('PostgreSQL入門', 'PostgreSQLの基礎を解説します',
- ARRAY['database', 'postgresql', 'sql'],              -- ARRAY構文
+('PostgreSQL Introduction', 'An introduction to PostgreSQL basics',
+ ARRAY['database', 'postgresql', 'sql'],              -- ARRAY syntax
  ARRAY[85, 92, 78]),
-('React入門', 'Reactの基礎を解説します',
- '{"frontend", "react", "javascript"}',                -- リテラル構文
+('React Introduction', 'An introduction to React basics',
+ '{"frontend", "react", "javascript"}',                -- Literal syntax
  '{90, 88, 95}'),
-('TypeScript実践', 'TypeScriptの型システムについて',
+('TypeScript in Practice', 'About the TypeScript type system',
  ARRAY['frontend', 'typescript', 'javascript'],
  ARRAY[95, 91, 89]);
 
--- ===== 配列演算子 =====
+-- ===== Array Operators =====
 
--- @> : 左辺が右辺を含むか（包含）
+-- @> : Does left side contain right side? (containment)
 SELECT * FROM blog_posts WHERE tags @> ARRAY['postgresql'];
 
--- <@ : 左辺が右辺に含まれるか
+-- <@ : Is left side contained in right side?
 SELECT * FROM blog_posts WHERE tags <@ ARRAY['database', 'postgresql', 'sql', 'mysql'];
 
--- && : 共通要素があるか（重複チェック）
+-- && : Do they share any elements? (overlap check)
 SELECT * FROM blog_posts WHERE tags && ARRAY['react', 'sql'];
 
--- = ANY() : いずれかの要素に一致
+-- = ANY() : Match any element in the array
 SELECT * FROM blog_posts WHERE 'javascript' = ANY(tags);
 
--- インデックスアクセス（1始まり！PostgreSQLの配列は1-indexed）
+-- Index access (1-based! PostgreSQL arrays are 1-indexed)
 SELECT title, tags[1] AS first_tag, tags[2] AS second_tag
 FROM blog_posts;
 
--- スライス
+-- Slicing
 SELECT title, tags[1:2] AS first_two_tags FROM blog_posts;
 
--- ===== 配列関数 =====
+-- ===== Array Functions =====
 
--- array_length: 配列の長さ（第2引数は次元、通常1）
+-- array_length: length of array (2nd argument is dimension, typically 1)
 SELECT title, array_length(tags, 1) AS tag_count FROM blog_posts;
 
--- array_to_string: 配列を文字列に結合
+-- array_to_string: join array elements into a string
 SELECT title, array_to_string(tags, ', ') AS tag_list FROM blog_posts;
 
--- array_position: 要素の位置を返す（なければNULL）
+-- array_position: return the position of an element (NULL if not found)
 SELECT title, array_position(tags, 'javascript') AS js_pos FROM blog_posts;
 
--- array_remove: 特定の要素を除去した新しい配列を返す
+-- array_remove: return a new array with the specified element removed
 SELECT title, array_remove(tags, 'javascript') AS tags_no_js FROM blog_posts;
 
--- array_cat: 配列の結合
+-- array_cat: concatenate two arrays
 SELECT array_cat(ARRAY[1,2,3], ARRAY[4,5,6]);  -- → {1,2,3,4,5,6}
 
--- array_append / array_prepend: 要素の追加
+-- array_append / array_prepend: add elements
 UPDATE blog_posts
 SET tags = array_append(tags, 'tutorial')
 WHERE id = 1;
@@ -433,23 +433,23 @@ UPDATE blog_posts
 SET tags = array_prepend('featured', tags)
 WHERE id = 1;
 
--- ===== UNNEST: 配列の展開（最重要関数）=====
+-- ===== UNNEST: Expand an Array (most important function) =====
 
--- 全記事のタグを行に展開
+-- Expand tags of all posts into rows
 SELECT p.title, t.tag
 FROM blog_posts p, UNNEST(p.tags) AS t(tag);
 
--- タグの出現回数を集計
+-- Count tag occurrences
 SELECT tag, COUNT(*) AS usage_count
 FROM blog_posts, UNNEST(tags) AS tag
 GROUP BY tag
 ORDER BY usage_count DESC;
 
--- 全タグの重複排除リスト（ソート済み）
+-- Deduplicated list of all tags (sorted)
 SELECT ARRAY_AGG(DISTINCT tag ORDER BY tag) AS all_tags
 FROM blog_posts, UNNEST(tags) AS tag;
 
--- スコアの統計
+-- Score statistics
 SELECT
     title,
     array_length(scores, 1) AS num_scores,
@@ -458,79 +458,79 @@ SELECT
     (SELECT MIN(s) FROM UNNEST(scores) AS s) AS min_score
 FROM blog_posts;
 
--- ===== 配列用GINインデックス =====
+-- ===== GIN Index for Arrays =====
 CREATE INDEX idx_posts_tags ON blog_posts USING GIN (tags);
 
--- インデックス使用確認
+-- Verify index usage
 EXPLAIN ANALYZE
 SELECT * FROM blog_posts WHERE tags @> ARRAY['postgresql'];
--- → Bitmap Index Scan on idx_posts_tags（GINインデックスが使われる）
+-- → Bitmap Index Scan on idx_posts_tags (GIN index is used)
 ```
 
 ---
 
-## 3. 範囲型・全文検索・ネットワーク型
+## 3. Range Types, Full-Text Search, and Network Types
 
-### 3.1 範囲型（Range Types）
+### 3.1 Range Types
 
-範囲型は「ある値の区間」を表すPostgreSQL固有のデータ型で、日付範囲、数値範囲、タイムスタンプ範囲などを直接扱える。EXCLUDE制約と組み合わせることで、予約やスケジュールの重複をデータベースレベルで防止できる。
+Range types are PostgreSQL-specific data types that represent an interval of values, allowing direct handling of date ranges, numeric ranges, and timestamp ranges. Combined with EXCLUDE constraints, they prevent overlapping reservations and schedules at the database level.
 
-### コード例5: 範囲型の実践活用
+### Code Example 5: Practical Use of Range Types
 
 ```sql
--- ===== 範囲型の種類 =====
--- INT4RANGE  : 整数範囲
--- INT8RANGE  : bigint範囲
--- NUMRANGE   : 数値範囲
--- DATERANGE  : 日付範囲
--- TSRANGE    : タイムスタンプ範囲（タイムゾーンなし）
--- TSTZRANGE  : タイムスタンプ範囲（タイムゾーンあり）
+-- ===== Range Type Variants =====
+-- INT4RANGE  : Integer range
+-- INT8RANGE  : Bigint range
+-- NUMRANGE   : Numeric range
+-- DATERANGE  : Date range
+-- TSRANGE    : Timestamp range (without time zone)
+-- TSTZRANGE  : Timestamp range (with time zone)
 
--- ===== 予約システム: 部屋の重複チェック =====
-CREATE EXTENSION IF NOT EXISTS btree_gist;  -- EXCLUDE制約に必要
+-- ===== Reservation System: Room Overlap Check =====
+CREATE EXTENSION IF NOT EXISTS btree_gist;  -- Required for EXCLUDE constraints
 
 CREATE TABLE room_reservations (
     id       SERIAL PRIMARY KEY,
     room_id  INTEGER NOT NULL,
     period   DATERANGE NOT NULL,
     guest    VARCHAR(100) NOT NULL,
-    -- EXCLUDE制約: 同じ部屋で期間が重複する予約を禁止
+    -- EXCLUDE constraint: disallow overlapping reservations for the same room
     EXCLUDE USING GIST (room_id WITH =, period WITH &&)
 );
 
--- 正常な予約
+-- Valid reservations
 INSERT INTO room_reservations (room_id, period, guest) VALUES
-(101, '[2024-03-01, 2024-03-05)', '田中太郎'),   -- 3/1〜3/4
-(101, '[2024-03-05, 2024-03-08)', '鈴木一郎'),   -- 3/5〜3/7（隣接はOK）
-(102, '[2024-03-01, 2024-03-05)', '佐藤花子');   -- 別の部屋はOK
+(101, '[2024-03-01, 2024-03-05)', 'Tanaka Taro'),   -- 3/1 to 3/4
+(101, '[2024-03-05, 2024-03-08)', 'Suzuki Ichiro'), -- 3/5 to 3/7 (adjacent is OK)
+(102, '[2024-03-01, 2024-03-05)', 'Sato Hanako');   -- Different room is OK
 
--- エラーになる予約（重複）
+-- This reservation would cause an error (overlap)
 -- INSERT INTO room_reservations (room_id, period, guest) VALUES
--- (101, '[2024-03-04, 2024-03-06)', '山田次郎');
+-- (101, '[2024-03-04, 2024-03-06)', 'Yamada Jiro');
 -- → ERROR: conflicting key value violates exclusion constraint
 
--- ===== 範囲演算子 =====
+-- ===== Range Operators =====
 
--- @> : 範囲が値を含むか
+-- @> : Does the range contain a value?
 SELECT * FROM room_reservations
 WHERE period @> '2024-03-03'::DATE;
 
--- && : 範囲同士が重複するか
+-- && : Do two ranges overlap?
 SELECT * FROM room_reservations
 WHERE period && '[2024-03-03, 2024-03-06)'::DATERANGE;
 
--- << : 左辺が右辺より完全に前か
--- >> : 左辺が右辺より完全に後か
--- -|- : 隣接しているか
+-- << : Is the left side entirely before the right side?
+-- >> : Is the left side entirely after the right side?
+-- -|- : Are the ranges adjacent?
 
--- 範囲の演算
+-- Range arithmetic
 SELECT
     '[2024-03-01, 2024-03-05)'::DATERANGE
-    * '[2024-03-03, 2024-03-08)'::DATERANGE AS intersection,  -- 共通部分
+    * '[2024-03-03, 2024-03-08)'::DATERANGE AS intersection,  -- Common part
     '[2024-03-01, 2024-03-05)'::DATERANGE
-    + '[2024-03-03, 2024-03-08)'::DATERANGE AS union_range;    -- 和集合
+    + '[2024-03-03, 2024-03-08)'::DATERANGE AS union_range;    -- Union
 
--- lower/upper: 範囲の下限・上限を取得
+-- lower/upper: retrieve lower and upper bounds of a range
 SELECT
     guest,
     lower(period) AS check_in,
@@ -538,7 +538,7 @@ SELECT
     upper(period) - lower(period) AS stay_days
 FROM room_reservations;
 
--- ===== 勤務シフト管理 =====
+-- ===== Work Shift Management =====
 CREATE TABLE work_shifts (
     id          SERIAL PRIMARY KEY,
     employee_id INTEGER NOT NULL,
@@ -548,35 +548,35 @@ CREATE TABLE work_shifts (
 
 INSERT INTO work_shifts (employee_id, shift_time) VALUES
 (1, '[2024-03-01 09:00, 2024-03-01 17:00)'::TSTZRANGE),
-(1, '[2024-03-01 18:00, 2024-03-01 22:00)'::TSTZRANGE);  -- 隣接しないのでOK
+(1, '[2024-03-01 18:00, 2024-03-01 22:00)'::TSTZRANGE);  -- Non-adjacent is OK
 
--- ===== 価格帯テーブル =====
+-- ===== Price Tier Table =====
 CREATE TABLE price_tiers (
     id          SERIAL PRIMARY KEY,
     tier_name   VARCHAR(50) NOT NULL,
     quantity    INT4RANGE NOT NULL,
     unit_price  DECIMAL(10, 2) NOT NULL,
-    EXCLUDE USING GIST (quantity WITH &&)  -- 数量範囲の重複禁止
+    EXCLUDE USING GIST (quantity WITH &&)  -- Disallow overlapping quantity ranges
 );
 
 INSERT INTO price_tiers (tier_name, quantity, unit_price) VALUES
-('個人', '[1, 10)', 1000),
-('小口', '[10, 100)', 800),
-('大口', '[100, 1000)', 600),
-('卸売', '[1000,)', 400);  -- 上限なし
+('Individual', '[1, 10)', 1000),
+('Small', '[10, 100)', 800),
+('Bulk', '[100, 1000)', 600),
+('Wholesale', '[1000,)', 400);  -- No upper bound
 
--- 数量に応じた単価を取得
+-- Look up unit price for a given quantity
 SELECT tier_name, unit_price
 FROM price_tiers
-WHERE quantity @> 50;  -- → '小口', 800
+WHERE quantity @> 50;  -- → 'Small', 800
 ```
 
-### 3.2 全文検索
+### 3.2 Full-Text Search
 
-### コード例6: 全文検索とトライグラム検索
+### Code Example 6: Full-Text Search and Trigram Search
 
 ```sql
--- ===== tsvector / tsquery ベースの全文検索 =====
+-- ===== tsvector / tsquery-Based Full-Text Search =====
 
 CREATE TABLE articles (
     id            SERIAL PRIMARY KEY,
@@ -586,7 +586,7 @@ CREATE TABLE articles (
     created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
--- search_vectorをトリガーで自動更新
+-- Auto-update search_vector via trigger
 CREATE OR REPLACE FUNCTION update_search_vector()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -601,10 +601,10 @@ CREATE TRIGGER trg_update_search_vector
     BEFORE INSERT OR UPDATE OF title, body ON articles
     FOR EACH ROW EXECUTE FUNCTION update_search_vector();
 
--- GINインデックス
+-- GIN index
 CREATE INDEX idx_articles_search ON articles USING GIN (search_vector);
 
--- データ挿入（トリガーでsearch_vectorが自動設定される）
+-- Insert data (search_vector is set automatically by the trigger)
 INSERT INTO articles (title, body) VALUES
 ('PostgreSQL Full-Text Search Guide',
  'PostgreSQL provides built-in full-text search using tsvector and tsquery. It supports stemming, ranking, and highlighting.'),
@@ -613,29 +613,29 @@ INSERT INTO articles (title, body) VALUES
 ('Database Security Best Practices',
  'Implementing row-level security, encryption, and audit logging protects your PostgreSQL database.');
 
--- ===== 検索クエリ =====
+-- ===== Search Queries =====
 
--- 基本検索
+-- Basic search
 SELECT title, ts_rank(search_vector, query) AS rank
 FROM articles,
      to_tsquery('english', 'postgresql & index') AS query
 WHERE search_vector @@ query
 ORDER BY rank DESC;
 
--- フレーズ検索（PostgreSQL 13+）
+-- Phrase search (PostgreSQL 13+)
 SELECT title
 FROM articles
 WHERE search_vector @@ phraseto_tsquery('english', 'full text search');
 
--- OR検索
+-- OR search
 SELECT title FROM articles
 WHERE search_vector @@ to_tsquery('english', 'security | encryption');
 
--- NOT検索（securityを含むがencryptionを含まない）
+-- NOT search (contains "security" but not "encryption")
 SELECT title FROM articles
 WHERE search_vector @@ to_tsquery('english', 'security & !encryption');
 
--- ハイライト表示
+-- Highlighted display
 SELECT
     title,
     ts_headline('english', body,
@@ -645,55 +645,55 @@ SELECT
 FROM articles
 WHERE search_vector @@ to_tsquery('english', 'postgresql');
 
--- ===== pg_trgm: トライグラム（あいまい検索）=====
+-- ===== pg_trgm: Trigram (Fuzzy Search) =====
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- トライグラムの確認
+-- Inspect trigrams
 SELECT show_trgm('PostgreSQL');
 -- → {"  p"," po","gre","osq","pos","ostg","pgr","que","res","sql","stg","tgr"}
 
--- トライグラムGINインデックス
+-- Trigram GIN index
 CREATE INDEX idx_articles_title_trgm
 ON articles USING GIN (title gin_trgm_ops);
 
--- 類似度検索（タイポ許容）
+-- Similarity search (tolerates typos)
 SELECT title, similarity(title, 'Postgre') AS sim
 FROM articles
-WHERE title % 'Postgre'  -- デフォルト閾値 0.3 以上
+WHERE title % 'Postgre'  -- Default threshold: 0.3 or higher
 ORDER BY sim DESC;
 
--- 類似度の閾値変更
+-- Change the similarity threshold
 SET pg_trgm.similarity_threshold = 0.1;
 
--- LIKE/ILIKEでもトライグラムインデックスが使える
+-- LIKE/ILIKE can also use the trigram index
 EXPLAIN ANALYZE
 SELECT * FROM articles WHERE title ILIKE '%security%';
 -- → Bitmap Index Scan on idx_articles_title_trgm
 
--- ===== 日本語全文検索の課題と対策 =====
--- to_tsvectorのデフォルトパーサーは空白区切りのため、
--- 日本語のように空白なしの言語は対応が必要
+-- ===== Japanese Full-Text Search: Challenges and Solutions =====
+-- The default parser for to_tsvector splits on whitespace,
+-- so languages like Japanese that use no word boundaries require a different approach
 
--- 方式1: pg_bigm拡張（バイグラムベース）
+-- Option 1: pg_bigm extension (bigram-based)
 -- CREATE EXTENSION IF NOT EXISTS pg_bigm;
 -- CREATE INDEX idx_title_bigm ON articles USING GIN (title gin_bigm_ops);
--- SELECT * FROM articles WHERE title LIKE '%データベース%';
+-- SELECT * FROM articles WHERE title LIKE '%database%';
 
--- 方式2: pgroonga拡張（MeCab形態素解析ベース）
+-- Option 2: pgroonga extension (MeCab morphological analysis-based)
 -- CREATE EXTENSION IF NOT EXISTS pgroonga;
 -- CREATE INDEX idx_articles_pgroonga ON articles USING pgroonga (title, body);
--- SELECT * FROM articles WHERE title &@~ 'データベース';
+-- SELECT * FROM articles WHERE title &@~ 'database';
 
--- 方式3: simpleパーサー + LIKE（小規模データ向け）
+-- Option 3: simple parser + LIKE (suitable for small datasets)
 SELECT * FROM articles
 WHERE to_tsvector('simple', title) @@ to_tsquery('simple', 'postgresql');
 ```
 
-### 3.3 ネットワーク型
+### 3.3 Network Types
 
 ```sql
--- ===== INET / CIDR / MACADDR 型 =====
+-- ===== INET / CIDR / MACADDR Types =====
 
 CREATE TABLE access_logs (
     id          BIGSERIAL PRIMARY KEY,
@@ -709,107 +709,108 @@ INSERT INTO access_logs (client_ip, subnet, path) VALUES
 ('10.0.0.50', '10.0.0.0/8', '/api/orders'),
 ('192.168.1.200', '192.168.1.0/24', '/api/products');
 
--- サブネットに含まれるか
+-- Check if IP is within a subnet
 SELECT * FROM access_logs
 WHERE client_ip << '192.168.1.0/24';
 
--- サブネットに含まれるか（等しいも含む）
+-- Check if IP is within a subnet (including equal)
 SELECT * FROM access_logs
 WHERE client_ip <<= '192.168.0.0/16';
 
--- IPアドレスのホスト部分を取得
+-- Retrieve the host portion of an IP address
 SELECT client_ip, host(client_ip), masklen(subnet)
 FROM access_logs;
 
--- GiSTインデックスでIP範囲検索を高速化
+-- Speed up IP range searches with a GiST index
 CREATE INDEX idx_access_logs_ip ON access_logs USING GIST (client_ip inet_ops);
 ```
 
 ---
 
-## 4. 拡張機能（Extension）
+## 4. Extensions
 
-### 4.1 Extension のアーキテクチャ
+### 4.1 Extension Architecture
 
 ```
-┌──────── PostgreSQL Extension アーキテクチャ ────────┐
-│                                                      │
-│  contrib拡張（PostgreSQL本体に同梱）                  │
-│  ├── pg_stat_statements   クエリ統計（必須級）        │
-│  ├── uuid-ossp / pgcrypto UUID生成・暗号化           │
-│  ├── pg_trgm              トライグラム検索           │
-│  ├── hstore               簡易KVS                    │
-│  ├── btree_gist           GiSTでB-Tree演算子利用     │
-│  ├── btree_gin            GINでB-Tree演算子利用      │
-│  ├── tablefunc            crosstab（ピボット）       │
-│  ├── postgres_fdw         外部PostgreSQLへの接続     │
-│  └── file_fdw             外部ファイルの参照         │
-│                                                      │
-│  サードパーティ拡張（別途インストール）                │
-│  ├── PostGIS              地理空間データ             │
-│  ├── TimescaleDB          時系列データ               │
-│  ├── pg_partman           パーティション自動管理     │
-│  ├── pgvector             ベクトル類似度検索         │
-│  ├── pg_bigm              日本語全文検索             │
-│  ├── pgroonga             高速日本語全文検索         │
-│  ├── pgAudit              監査ログ                   │
-│  └── Citus                分散DB化                   │
-│                                                      │
-│  WHY Extensionが重要か？                             │
-│  → PostgreSQL本体をスリムに保ちつつ                  │
-│  → 必要な機能だけを追加できるモジュラー設計          │
-│  → contrib拡張はPostgreSQL本体と同じ品質保証         │
-└──────────────────────────────────────────────────────┘
+┌──────── PostgreSQL Extension Architecture ──────────────┐
+│                                                          │
+│  contrib extensions (bundled with PostgreSQL)            │
+│  ├── pg_stat_statements   Query statistics (essential)   │
+│  ├── uuid-ossp / pgcrypto UUID generation / encryption   │
+│  ├── pg_trgm              Trigram search                 │
+│  ├── hstore               Simple KVS                     │
+│  ├── btree_gist           B-Tree operators via GiST      │
+│  ├── btree_gin            B-Tree operators via GIN       │
+│  ├── tablefunc            crosstab (pivot)               │
+│  ├── postgres_fdw         Connect to external PostgreSQL │
+│  └── file_fdw             Reference external files       │
+│                                                          │
+│  Third-party extensions (require separate installation)  │
+│  ├── PostGIS              Geospatial data                │
+│  ├── TimescaleDB          Time-series data               │
+│  ├── pg_partman           Automatic partition management │
+│  ├── pgvector             Vector similarity search       │
+│  ├── pg_bigm              Japanese full-text search      │
+│  ├── pgroonga             Fast Japanese full-text search │
+│  ├── pgAudit              Audit logging                  │
+│  └── Citus                Distributed database           │
+│                                                          │
+│  WHY are extensions important?                           │
+│  → Keeps the PostgreSQL core lean                        │
+│  → Modular design: add only the features you need        │
+│  → contrib extensions share the same quality standards   │
+│    as PostgreSQL core                                    │
+└──────────────────────────────────────────────────────────┘
 ```
 
-### コード例7: 主要拡張機能の活用
+### Code Example 7: Using Key Extensions
 
 ```sql
--- ===== 利用可能な拡張の確認 =====
+-- ===== Check available extensions =====
 SELECT name, default_version, comment
 FROM pg_available_extensions
 WHERE comment IS NOT NULL
 ORDER BY name
 LIMIT 20;
 
--- インストール済み拡張の確認
+-- Check installed extensions
 SELECT extname, extversion FROM pg_extension ORDER BY extname;
 
--- ===== uuid-ossp: UUID生成 =====
+-- ===== uuid-ossp: UUID Generation =====
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-SELECT uuid_generate_v4();                    -- ランダムUUID
-SELECT uuid_generate_v1();                    -- タイムスタンプベースUUID
-SELECT gen_random_uuid();                     -- PostgreSQL 13+標準関数
+SELECT uuid_generate_v4();                    -- Random UUID
+SELECT uuid_generate_v1();                    -- Timestamp-based UUID
+SELECT gen_random_uuid();                     -- PostgreSQL 13+ built-in function
 
--- UUIDを主キーとして使う
+-- Use UUID as a primary key
 CREATE TABLE users_v2 (
     id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name  VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE
 );
 
--- ===== pgcrypto: 暗号化 =====
+-- ===== pgcrypto: Encryption =====
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- パスワードハッシュ（bcrypt）
+-- Password hashing (bcrypt)
 SELECT crypt('my_password', gen_salt('bf', 12));
--- → $2a$12$xxxx...（60文字のbcryptハッシュ）
+-- → $2a$12$xxxx... (60-character bcrypt hash)
 
--- パスワード検証
+-- Password verification
 SELECT (crypt('my_password', stored_hash) = stored_hash) AS is_valid;
 
--- 対称鍵暗号（AES-256）
-SELECT pgp_sym_encrypt('機密データ', 'encryption_key');
+-- Symmetric encryption (AES-256)
+SELECT pgp_sym_encrypt('sensitive data', 'encryption_key');
 SELECT pgp_sym_decrypt(
-    pgp_sym_encrypt('機密データ', 'encryption_key'),
+    pgp_sym_encrypt('sensitive data', 'encryption_key'),
     'encryption_key'
 );
 
--- ランダムバイト列
+-- Random byte sequence
 SELECT encode(gen_random_bytes(32), 'hex') AS random_token;
 
--- ===== pg_trgm: あいまい検索 =====
+-- ===== pg_trgm: Fuzzy Search =====
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE customers (
@@ -818,17 +819,16 @@ CREATE TABLE customers (
 );
 
 INSERT INTO customers (name) VALUES
-('田中太郎'), ('田中太朗'), ('田仲太郎'), ('鈴木一郎');
+('Tanaka Taro'), ('Tanaka Taro (alt)'), ('Tanaka Taro (variant)'), ('Suzuki Ichiro');
 
 CREATE INDEX idx_customers_name_trgm ON customers USING GIN (name gin_trgm_ops);
 
--- 類似度検索
-SELECT name, similarity(name, '田中太郎') AS sim
+-- Similarity search
+SELECT name, similarity(name, 'Tanaka Taro') AS sim
 FROM customers
 ORDER BY sim DESC;
--- → 田中太郎: 1.0, 田中太朗: 0.75, 田仲太郎: 0.5, 鈴木一郎: 0.0
 
--- ===== hstore: 簡易キーバリューストア =====
+-- ===== hstore: Simple Key-Value Store =====
 CREATE EXTENSION IF NOT EXISTS hstore;
 
 CREATE TABLE app_settings (
@@ -843,9 +843,9 @@ INSERT INTO app_settings VALUES
 SELECT user_id, prefs->'theme' AS theme, prefs->'lang' AS lang
 FROM app_settings;
 
--- ※ 現在はJSONBの方が推奨。hstoreはネストできない
+-- Note: JSONB is now preferred over hstore. hstore does not support nesting.
 
--- ===== PostGIS: 地理空間（別途インストールが必要）=====
+-- ===== PostGIS: Geospatial (requires separate installation) =====
 -- CREATE EXTENSION IF NOT EXISTS postgis;
 --
 -- CREATE TABLE shops (
@@ -855,10 +855,10 @@ FROM app_settings;
 -- );
 --
 -- INSERT INTO shops (name, location) VALUES
--- ('東京本店', ST_SetSRID(ST_MakePoint(139.7671, 35.6812), 4326)),
--- ('大阪支店', ST_SetSRID(ST_MakePoint(135.5023, 34.6937), 4326));
+-- ('Tokyo Main Store', ST_SetSRID(ST_MakePoint(139.7671, 35.6812), 4326)),
+-- ('Osaka Branch', ST_SetSRID(ST_MakePoint(135.5023, 34.6937), 4326));
 --
--- -- 東京駅から5km以内の店舗
+-- -- Shops within 5km of Tokyo Station
 -- SELECT name, ST_Distance(
 --     location::geography,
 --     ST_SetSRID(ST_MakePoint(139.7671, 35.6812), 4326)::geography
@@ -870,10 +870,10 @@ FROM app_settings;
 --     5000
 -- );
 
--- ===== pg_stat_statements: クエリ統計（本番環境では必須）=====
+-- ===== pg_stat_statements: Query Statistics (essential for production) =====
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
--- トップ10の遅いクエリ
+-- Top 10 slowest queries
 SELECT
     query,
     calls,
@@ -886,20 +886,20 @@ FROM pg_stat_statements
 ORDER BY mean_exec_time DESC
 LIMIT 10;
 
--- ===== pgvector: ベクトル類似度検索（AI/ML向け）=====
+-- ===== pgvector: Vector Similarity Search (for AI/ML) =====
 -- CREATE EXTENSION IF NOT EXISTS vector;
 --
 -- CREATE TABLE document_embeddings (
 --     id        SERIAL PRIMARY KEY,
 --     content   TEXT NOT NULL,
---     embedding vector(1536)  -- OpenAI text-embedding-3-small の次元数
+--     embedding vector(1536)  -- Dimensions for OpenAI text-embedding-3-small
 -- );
 --
 -- CREATE INDEX ON document_embeddings
 --     USING ivfflat (embedding vector_cosine_ops)
 --     WITH (lists = 100);
 --
--- -- コサイン類似度で最近傍検索
+-- -- Nearest-neighbor search by cosine similarity
 -- SELECT content, 1 - (embedding <=> '[0.1, 0.2, ...]'::vector) AS similarity
 -- FROM document_embeddings
 -- ORDER BY embedding <=> '[0.1, 0.2, ...]'::vector
@@ -908,12 +908,12 @@ LIMIT 10;
 
 ---
 
-## 5. 高度なPostgreSQL機能
+## 5. Advanced PostgreSQL Features
 
-### コード例8: GENERATED COLUMNS・LISTEN/NOTIFY・テーブル継承
+### Code Example 8: GENERATED COLUMNS, LISTEN/NOTIFY, and Table Inheritance
 
 ```sql
--- ===== GENERATED COLUMNS（計算列、PostgreSQL 12+）=====
+-- ===== GENERATED COLUMNS (Computed columns, PostgreSQL 12+) =====
 
 CREATE TABLE order_items (
     id          SERIAL PRIMARY KEY,
@@ -921,7 +921,7 @@ CREATE TABLE order_items (
     quantity    INTEGER NOT NULL CHECK (quantity > 0),
     unit_price  DECIMAL(10, 2) NOT NULL CHECK (unit_price > 0),
     tax_rate    DECIMAL(5, 4) NOT NULL DEFAULT 0.10,
-    -- STORED: ディスクに保存される計算列
+    -- STORED: computed columns saved to disk
     subtotal    DECIMAL(12, 2) GENERATED ALWAYS AS
                 (quantity * unit_price) STORED,
     tax_amount  DECIMAL(12, 2) GENERATED ALWAYS AS
@@ -931,30 +931,30 @@ CREATE TABLE order_items (
 );
 
 INSERT INTO order_items (product_name, quantity, unit_price) VALUES
-('ノートPC', 2, 150000),
-('マウス', 5, 3000);
+('Laptop', 2, 150000),
+('Mouse', 5, 3000);
 
 SELECT product_name, quantity, unit_price, subtotal, tax_amount, total
 FROM order_items;
--- ノートPC | 2 | 150000 | 300000 | 30000 | 330000
--- マウス   | 5 | 3000   | 15000  | 1500  | 16500
+-- Laptop | 2 | 150000 | 300000 | 30000 | 330000
+-- Mouse  | 5 | 3000   | 15000  | 1500  | 16500
 
--- WHY GENERATED COLUMNS？
--- → アプリケーション側で計算不要（バグ防止）
--- → 計算値にインデックスを張れる
--- → STORED列は物理的に保存されるのでSELECT時の計算コストゼロ
--- → VIRTUAL列（PostgreSQL未対応、MySQL対応）はSELECT時に計算
+-- WHY GENERATED COLUMNS?
+-- → No need for the application to compute values (prevents bugs)
+-- → Computed values can be indexed
+-- → STORED columns are physically saved, so SELECT has zero computation cost
+-- → VIRTUAL columns (supported by MySQL, not PostgreSQL) are computed on SELECT
 
--- ===== LISTEN / NOTIFY（リアルタイム通知）=====
+-- ===== LISTEN / NOTIFY (Real-Time Notifications) =====
 
--- セッション1（リスナー）:
+-- Session 1 (listener):
 LISTEN order_created;
 LISTEN order_status_changed;
 
--- セッション2（通知側）:
+-- Session 2 (notifier):
 NOTIFY order_created, '{"order_id": 42, "amount": 5000}';
 
--- トリガーで自動通知する実践例
+-- Practical example: auto-notify via trigger
 CREATE TABLE orders (
     id          SERIAL PRIMARY KEY,
     customer_id INTEGER NOT NULL,
@@ -994,18 +994,18 @@ CREATE TRIGGER trg_notify_order
     AFTER INSERT OR UPDATE ON orders
     FOR EACH ROW EXECUTE FUNCTION notify_order_event();
 
--- WHY LISTEN/NOTIFY？
--- → ポーリング不要のリアルタイム通知
--- → 外部メッセージキューが不要な軽量なイベント通知
--- → トランザクションに連動（COMMITされた変更のみ通知される）
--- 制限:
--- → ペイロードは8KB以内
--- → 永続化されない（リスナーが未接続なら通知は失われる）
--- → 大規模イベント処理にはKafka/RabbitMQが適切
+-- WHY LISTEN/NOTIFY?
+-- → Real-time notification without polling
+-- → Lightweight event notification without an external message queue
+-- → Tied to transactions (notifications are only sent for committed changes)
+-- Limitations:
+-- → Payload must be within 8KB
+-- → Not persistent (notifications are lost if no listener is connected)
+-- → For large-scale event processing, use Kafka/RabbitMQ
 
--- ===== テーブル継承（Table Inheritance）=====
+-- ===== Table Inheritance =====
 
--- 基底テーブル
+-- Base table
 CREATE TABLE events (
     id         BIGSERIAL PRIMARY KEY,
     event_type VARCHAR(50) NOT NULL,
@@ -1013,7 +1013,7 @@ CREATE TABLE events (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 子テーブル（基底テーブルのカラムを継承）
+-- Child tables (inherit columns from the base table)
 CREATE TABLE click_events (
     element_id  VARCHAR(100),
     page_url    VARCHAR(500)
@@ -1025,188 +1025,188 @@ CREATE TABLE purchase_events (
     currency    VARCHAR(3) DEFAULT 'JPY'
 ) INHERITS (events);
 
--- 子テーブルへの挿入
+-- Insert into child tables
 INSERT INTO click_events (event_type, user_id, element_id, page_url)
 VALUES ('click', 1, 'btn-submit', '/checkout');
 
 INSERT INTO purchase_events (event_type, user_id, product_id, amount)
 VALUES ('purchase', 1, 42, 5000);
 
--- 親テーブルを検索すると全子テーブルのデータも返る
+-- Querying the parent table also returns data from all child tables
 SELECT * FROM events;
 
--- 親テーブルのみ検索（子テーブルを除外）
+-- Query only the parent table (exclude child tables)
 SELECT * FROM ONLY events;
 
--- WHY テーブル継承？
--- → 共通カラムの定義を一箇所に集約
--- → 親テーブルへのクエリで全子テーブルを検索可能
--- 注意:
--- → 現在はパーティショニングの方が推奨（PostgreSQL 10+）
--- → 継承ではUNIQUE制約やFKが子テーブルに適用されない
--- → 新規プロジェクトではDECLARATIVE PARTITIONINGを使うこと
+-- WHY table inheritance?
+-- → Consolidate common column definitions in one place
+-- → A query on the parent table searches all child tables
+-- Notes:
+-- → Partitioning is now preferred (PostgreSQL 10+)
+-- → UNIQUE constraints and FKs on the parent do not apply to child tables
+-- → Use DECLARATIVE PARTITIONING for new projects
 ```
 
 ---
 
-## PostgreSQLのデータ型体系（全体図）
+## PostgreSQL Data Type Reference (Overview)
 
 ```
-┌──────────────── PostgreSQL の特殊データ型 ─────────────────────┐
-│                                                                 │
-│  構造化データ                                                    │
-│  ├── JSONB       → バイナリJSON。GINインデックス対応。推奨       │
-│  ├── JSON        → テキストJSON。パース済みでない。非推奨        │
-│  ├── HSTORE      → 単純KVS。ネスト不可。JSONBで代替推奨         │
-│  └── XML         → XMLドキュメント。XMLサポートが必要な場合のみ  │
-│                                                                 │
-│  コレクション                                                    │
-│  ├── ARRAY       → 配列型（全型で利用可能）。GINインデックス対応 │
-│  └── COMPOSITE   → 複合型（行型）。UDTの定義に使用               │
-│                                                                 │
-│  範囲型                                                          │
-│  ├── INT4RANGE   → 整数範囲        EXCLUDE制約で重複防止可能     │
-│  ├── INT8RANGE   → bigint範囲                                    │
-│  ├── NUMRANGE    → 数値範囲                                      │
-│  ├── DATERANGE   → 日付範囲        予約システムの重複チェック     │
-│  ├── TSRANGE     → タイムスタンプ範囲（TZなし）                  │
-│  └── TSTZRANGE   → タイムスタンプ範囲（TZあり）シフト管理に最適  │
-│                                                                 │
-│  ネットワーク型                                                  │
-│  ├── INET        → IPアドレス（v4/v6）  サブネット検索対応       │
-│  ├── CIDR        → ネットワークアドレス                          │
-│  └── MACADDR     → MACアドレス                                   │
-│                                                                 │
-│  空間・検索型                                                    │
-│  ├── POINT       → 2D座標                                       │
-│  ├── GEOMETRY    → PostGIS地理空間（拡張）                       │
-│  ├── TSVECTOR    → 全文検索用ベクトル（GINインデックス）         │
-│  └── TSQUERY     → 全文検索用クエリ                              │
-│                                                                 │
-│  識別子・特殊型                                                  │
-│  ├── UUID        → 128ビット一意識別子。gen_random_uuid()        │
-│  ├── BIT/VARBIT  → ビット列                                     │
-│  ├── BYTEA       → バイナリデータ                                │
-│  └── ENUM        → 列挙型。ALTER TYPE ... ADD VALUEで追加可能    │
-│                                                                 │
-│  ベクトル型（拡張）                                              │
-│  └── VECTOR      → pgvector。AI/ML向けベクトル類似度検索        │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────── PostgreSQL Special Data Types ──────────────────────┐
+│                                                                      │
+│  Structured Data                                                     │
+│  ├── JSONB       → Binary JSON. GIN index support. Recommended      │
+│  ├── JSON        → Text JSON. Not pre-parsed. Not recommended        │
+│  ├── HSTORE      → Simple KVS. No nesting. Replace with JSONB       │
+│  └── XML         → XML documents. Use only when XML support needed   │
+│                                                                      │
+│  Collections                                                         │
+│  ├── ARRAY       → Array type (available for all types). GIN support │
+│  └── COMPOSITE   → Composite type (row type). Used to define UDTs    │
+│                                                                      │
+│  Range Types                                                         │
+│  ├── INT4RANGE   → Integer range     Overlap prevention via EXCLUDE  │
+│  ├── INT8RANGE   → Bigint range                                      │
+│  ├── NUMRANGE    → Numeric range                                     │
+│  ├── DATERANGE   → Date range        Overlap check for reservations  │
+│  ├── TSRANGE     → Timestamp range (without TZ)                      │
+│  └── TSTZRANGE   → Timestamp range (with TZ) Ideal for shift mgmt   │
+│                                                                      │
+│  Network Types                                                       │
+│  ├── INET        → IP address (v4/v6) Subnet search support         │
+│  ├── CIDR        → Network address                                   │
+│  └── MACADDR     → MAC address                                       │
+│                                                                      │
+│  Spatial and Search Types                                            │
+│  ├── POINT       → 2D coordinate                                     │
+│  ├── GEOMETRY    → PostGIS geospatial (extension)                    │
+│  ├── TSVECTOR    → Full-text search vector (GIN index)               │
+│  └── TSQUERY     → Full-text search query                            │
+│                                                                      │
+│  Identifier and Special Types                                        │
+│  ├── UUID        → 128-bit unique identifier. gen_random_uuid()      │
+│  ├── BIT/VARBIT  → Bit string                                        │
+│  ├── BYTEA       → Binary data                                       │
+│  └── ENUM        → Enumerated type. Values added via ALTER TYPE      │
+│                                                                      │
+│  Vector Types (extension)                                            │
+│  └── VECTOR      → pgvector. Vector similarity search for AI/ML     │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### JSON vs JSONB 比較表
+### JSON vs JSONB Comparison
 
-| 特徴 | JSON | JSONB |
-|------|------|-------|
-| 格納形式 | テキスト（入力そのまま） | バイナリ（パース済み） |
-| 格納サイズ | やや小さい | やや大きい（メタデータ分） |
-| 挿入速度 | 高速（変換不要） | やや遅い（パースが必要） |
-| 読み取り速度 | 遅い（毎回パース） | 高速（パース済み） |
-| キーアクセス | O(n) 線形走査 | O(log n) バイナリサーチ |
-| インデックス | 不可 | GIN対応（@>, ?, @@） |
-| 重複キー | 保持 | 最後のキーのみ保持 |
-| キー順序 | 保持（入力順） | ソートされる |
-| 空白 | 保持 | 除去 |
-| 演算子 | 少ない（->, ->>のみ） | 豊富（@>, ?, ?&, ?|, @@） |
-| jsonpath | 非対応 | 対応（PostgreSQL 12+） |
-| 推奨度 | 入力テキストの完全保存が必要な場合のみ | ほぼ全てのユースケースで推奨 |
+| Feature | JSON | JSONB |
+|---------|------|-------|
+| Storage format | Text (stored as-is) | Binary (pre-parsed) |
+| Storage size | Slightly smaller | Slightly larger (metadata overhead) |
+| Insert speed | Fast (no conversion) | Slightly slower (parsing required) |
+| Read speed | Slow (parsed every time) | Fast (already parsed) |
+| Key access | O(n) linear scan | O(log n) binary search |
+| Indexing | Not supported | GIN support (@>, ?, @@) |
+| Duplicate keys | Retained | Only last key retained |
+| Key order | Preserved (input order) | Sorted |
+| Whitespace | Preserved | Removed |
+| Operators | Few (-> and ->> only) | Rich (@>, ?, ?&, ?|, @@) |
+| jsonpath | Not supported | Supported (PostgreSQL 12+) |
+| Recommendation | Only when full text preservation is required | Recommended for almost all use cases |
 
-### 主要Extension 比較表
+### Key Extensions Comparison
 
-| Extension | カテゴリ | 用途 | サイズ影響 | 本番利用 | 推奨度 |
-|-----------|---------|------|----------|---------|--------|
-| pg_stat_statements | 監視 | クエリ統計・スロークエリ分析 | 極小 | 必須 | 必須 |
-| uuid-ossp | 識別子 | UUID生成（v1,v4） | なし | 安全 | 高（13+はgen_random_uuid()で代替可） |
-| pgcrypto | 暗号化 | パスワードハッシュ・暗号化 | なし | 安全 | 高 |
-| pg_trgm | 検索 | トライグラムあいまい検索 | インデックス依存 | 安全 | 高 |
-| btree_gist | インデックス | GiSTでB-Tree演算子利用 | 小 | 安全 | EXCLUDE制約使用時に必要 |
-| PostGIS | 地理空間 | 座標・距離・面積計算 | 大 | 安全 | 地理空間データがあるなら必須 |
-| pgvector | AI/ML | ベクトル類似度検索 | 中 | 安全 | RAG/セマンティック検索なら必須 |
-| pg_partman | 管理 | パーティション自動管理 | 小 | 安全 | 大規模テーブルで推奨 |
-| TimescaleDB | 時系列 | 時系列データの高速処理 | 中 | 安全 | 時系列データが主なら推奨 |
-| pg_bigm | 検索 | 日本語全文検索（バイグラム） | インデックス依存 | 安全 | 日本語検索が必要なら推奨 |
-| hstore | KVS | 単純キーバリュー格納 | 小 | 安全 | 低（JSONBで代替可） |
-| pgAudit | 監査 | 詳細な監査ログ記録 | 中（ログ量依存） | 安全 | コンプライアンス要件があれば必須 |
+| Extension | Category | Purpose | Size Impact | Production Use | Recommendation |
+|-----------|----------|---------|-------------|---------------|----------------|
+| pg_stat_statements | Monitoring | Query statistics / slow query analysis | Minimal | Essential | Must-have |
+| uuid-ossp | Identifier | UUID generation (v1, v4) | None | Safe | High (gen_random_uuid() available in 13+) |
+| pgcrypto | Encryption | Password hashing / encryption | None | Safe | High |
+| pg_trgm | Search | Trigram fuzzy search | Index-dependent | Safe | High |
+| btree_gist | Index | B-Tree operators via GiST | Small | Safe | Required when using EXCLUDE constraints |
+| PostGIS | Geospatial | Coordinate / distance / area calculations | Large | Safe | Essential if geospatial data is involved |
+| pgvector | AI/ML | Vector similarity search | Medium | Safe | Essential for RAG / semantic search |
+| pg_partman | Management | Automatic partition management | Small | Safe | Recommended for large tables |
+| TimescaleDB | Time-series | High-performance time-series processing | Medium | Safe | Recommended if time-series is primary workload |
+| pg_bigm | Search | Japanese full-text search (bigram) | Index-dependent | Safe | Recommended if Japanese search is needed |
+| hstore | KVS | Simple key-value storage | Small | Safe | Low (replaceable with JSONB) |
+| pgAudit | Audit | Detailed audit log recording | Medium (log-dependent) | Safe | Essential if compliance requirements exist |
 
-### インデックス型 vs 対応するデータ型・演算子
+### Index Types vs Supported Data Types and Operators
 
-| インデックス型 | 対応データ型 | 対応演算子 | ユースケース |
-|--------------|------------|-----------|------------|
-| B-Tree | 全スカラー型 | =, <, >, <=, >= | 等値・範囲検索（デフォルト） |
-| GIN | JSONB, ARRAY, TSVECTOR | @>, ?, &&, @@ | 全文検索、JSON検索、配列包含 |
-| GIN (jsonb_path_ops) | JSONB | @> のみ | JSONB包含検索に特化 |
-| GIN (gin_trgm_ops) | TEXT | %, LIKE, ILIKE | あいまい検索 |
-| GiST | 範囲型, INET, 幾何型 | @>, &&, <<, >> | 範囲検索、空間検索 |
-| SP-GiST | INET, TEXT | <<, >> | 基数木構造の検索 |
-| BRIN | タイムスタンプ, 整数 | <, >, =, <= | 大規模テーブルの範囲検索（省サイズ） |
-| IVFFlat (pgvector) | vector | <=> (コサイン距離) | ベクトル近傍検索 |
-| HNSW (pgvector) | vector | <=> | 高精度ベクトル検索 |
+| Index Type | Supported Data Types | Supported Operators | Use Cases |
+|-----------|---------------------|---------------------|-----------|
+| B-Tree | All scalar types | =, <, >, <=, >= | Equality / range search (default) |
+| GIN | JSONB, ARRAY, TSVECTOR | @>, ?, &&, @@ | Full-text search, JSON search, array containment |
+| GIN (jsonb_path_ops) | JSONB | @> only | Specialized for JSONB containment search |
+| GIN (gin_trgm_ops) | TEXT | %, LIKE, ILIKE | Fuzzy search |
+| GiST | Range types, INET, geometric types | @>, &&, <<, >> | Range search, spatial search |
+| SP-GiST | INET, TEXT | <<, >> | Radix tree structure searches |
+| BRIN | Timestamps, integers | <, >, =, <= | Range search on large tables (compact size) |
+| IVFFlat (pgvector) | vector | <=> (cosine distance) | Vector nearest-neighbor search |
+| HNSW (pgvector) | vector | <=> | High-accuracy vector search |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: リレーショナルデータを全てJSONBに格納する
+### Anti-Pattern 1: Storing All Relational Data in JSONB
 
 ```sql
--- NG: 本来テーブルで管理すべきデータを全てJSONBに
+-- BAD: storing everything that should be in tables inside JSONB
 CREATE TABLE bad_orders (
     id   SERIAL PRIMARY KEY,
-    data JSONB  -- 顧客情報、商品情報、配送先、全てJSONに
+    data JSONB  -- customer info, product info, shipping — all in JSON
 );
 
 INSERT INTO bad_orders (data) VALUES ('{
-    "customer": {"name": "田中", "email": "tanaka@example.com"},
+    "customer": {"name": "Tanaka", "email": "tanaka@example.com"},
     "items": [{"product": "PC", "price": 150000}],
-    "shipping": {"address": "東京都...", "method": "express"}
+    "shipping": {"address": "Tokyo...", "method": "express"}
 }');
 
--- 問題点:
--- 1. 外部キー制約が効かない → データ整合性を保証できない
--- 2. JOINできない → 集計・分析が困難
--- 3. 型安全性がない → 数値が文字列として入るバグ
--- 4. スキーマの自己文書化機能が失われる
--- 5. NOT NULL制約・CHECK制約が使えない
+-- Problems:
+-- 1. Foreign key constraints do not apply → cannot guarantee data integrity
+-- 2. Cannot JOIN → difficult to aggregate and analyze
+-- 3. No type safety → numbers may be stored as strings
+-- 4. Self-documenting schema functionality is lost
+-- 5. NOT NULL and CHECK constraints cannot be used
 
--- OK: リレーショナルデータはテーブル、可変部分のみJSONB
+-- GOOD: relational data in tables, only variable parts in JSONB
 CREATE TABLE good_orders (
     id          SERIAL PRIMARY KEY,
     customer_id INTEGER NOT NULL REFERENCES customers(id),
     status      VARCHAR(20) NOT NULL DEFAULT 'pending',
     total       DECIMAL(12,2) NOT NULL,
-    metadata    JSONB DEFAULT '{}'  -- メモ、タグ、外部APIレスポンス等の可変情報のみ
+    metadata    JSONB DEFAULT '{}'  -- Only variable info: notes, tags, external API responses
 );
 
--- 判断基準:
--- ・WHERE句で頻繁に検索する → テーブルカラム
--- ・外部キー制約が必要 → テーブルカラム
--- ・スキーマが固定 → テーブルカラム
--- ・スキーマが可変/任意 → JSONB
--- ・表示のみで検索しない → JSONB
+-- Decision criteria:
+-- · Frequently searched in WHERE clauses → table column
+-- · Requires foreign key constraint → table column
+-- · Fixed schema → table column
+-- · Variable / optional schema → JSONB
+-- · Display only, not searched → JSONB
 ```
 
-### アンチパターン2: 配列型でM:N関係を表現する
+### Anti-Pattern 2: Representing M:N Relationships with Array Types
 
 ```sql
--- NG: 配列でM:N関係を表現
+-- BAD: representing M:N relationships with arrays
 CREATE TABLE bad_articles (
     id       SERIAL PRIMARY KEY,
     title    VARCHAR(200),
-    tag_ids  INTEGER[]  -- FK制約が効かない！
+    tag_ids  INTEGER[]  -- FK constraints do not apply!
 );
 
--- 問題点:
--- 1. tag_ids内の値が実在するtagsレコードか検証できない
--- 2. tags.idが削除されても配列内の参照は残る（孤立参照）
--- 3. タグの付帯情報（追加日時等）を持てない
--- 4. タグの変更時にUPDATEが配列操作になり複雑
--- 5. パフォーマンス: JOINの最適化が効かない
+-- Problems:
+-- 1. Cannot verify that values in tag_ids correspond to existing tags records
+-- 2. If a tags.id is deleted, the reference remains in the array (orphaned reference)
+-- 3. Cannot store metadata about the tag (e.g., date added)
+-- 4. Updating a tag requires complex array manipulation
+-- 5. Performance: JOIN optimization does not apply
 
--- OK: 中間テーブルでM:N関係を表現
+-- GOOD: represent M:N relationships with a join table
 CREATE TABLE tags (
     id   SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE
@@ -1224,61 +1224,61 @@ CREATE TABLE article_tags (
     PRIMARY KEY (article_id, tag_id)
 );
 
--- 外部キー制約、カスケード削除、JOIN最適化が全て可能
+-- Foreign key constraints, cascading deletes, and JOIN optimization all work
 
--- ただし、タグが単なる文字列ラベルで
--- 外部キーが不要な場合は配列型がシンプルで適切
+-- However, when tags are simple string labels with no foreign key requirement,
+-- array types are simpler and more appropriate
 CREATE TABLE simple_articles (
     id    SERIAL PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
-    tags  TEXT[] NOT NULL DEFAULT '{}'  -- 文字列タグのリスト
+    tags  TEXT[] NOT NULL DEFAULT '{}'  -- List of string tags
 );
--- tags用にGINインデックスを張れば検索も高速
+-- Adding a GIN index on tags enables fast search
 CREATE INDEX idx_simple_articles_tags
 ON simple_articles USING GIN (tags);
 ```
 
-### アンチパターン3: JSONB に対する全件スキャン
+### Anti-Pattern 3: Full Table Scans on JSONB
 
 ```sql
--- NG: GINインデックスなしでJSONB検索
+-- BAD: searching JSONB without a GIN index
 SELECT * FROM products
 WHERE metadata @> '{"brand": "Apple"}';
--- → Seq Scan: テーブル全体をスキャンしてJSONBの中身を比較
+-- → Seq Scan: scans the entire table and compares JSONB contents
 
--- OK: GINインデックスを作成してから検索
+-- GOOD: create a GIN index before searching
 CREATE INDEX idx_products_metadata ON products USING GIN (metadata);
--- または特定のブランドで頻繁に検索するなら式インデックス
+-- Or, if you frequently search by a specific brand, use an expression index
 CREATE INDEX idx_products_brand ON products ((metadata->>'brand'));
--- → Index Scan に変わり、大幅に高速化
+-- → Changes to an Index Scan, significantly faster
 
--- EXPLAIN ANALYZEでインデックスの利用を確認する習慣をつける
+-- Make it a habit to verify index usage with EXPLAIN ANALYZE
 EXPLAIN ANALYZE
 SELECT * FROM products WHERE metadata @> '{"brand": "Apple"}';
 ```
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1（基礎）: ECサイトの商品JSONB設計
+### Exercise 1 (Basic): JSONB Schema Design for an E-Commerce Site
 
-**課題**: 以下の要件を満たすECサイトの商品テーブルを設計し、検索クエリを書いてください。
+**Task**: Design a product table for an e-commerce site that satisfies the following requirements, and write the corresponding queries.
 
-- 商品名、カテゴリ、価格は通常のカラム
-- 商品属性（色、サイズ、重量など）はJSONBで格納
-- タグは配列型で格納
-- 以下のクエリを作成:
-  1. 特定のブランド（"Apple"）の商品を検索
-  2. 価格が10万円以上でRAMが8GB以上の商品を検索
-  3. "camera"タグを持つ商品の一覧
-  4. ブランド別の商品数と平均価格の集計
+- Product name, category, and price are regular columns
+- Product attributes (color, size, weight, etc.) are stored in JSONB
+- Tags are stored as an array type
+- Write the following queries:
+  1. Search for products from a specific brand ("Apple")
+  2. Search for products with a price of 100,000 or more and RAM of 8GB or more
+  3. List products that have the "camera" tag
+  4. Aggregate product count and average price by brand
 
 <details>
-<summary>模範解答</summary>
+<summary>Sample Solution</summary>
 
 ```sql
--- テーブル定義
+-- Table definition
 CREATE TABLE ec_products (
     id         SERIAL PRIMARY KEY,
     name       VARCHAR(200) NOT NULL,
@@ -1289,14 +1289,14 @@ CREATE TABLE ec_products (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- インデックス
+-- Indexes
 CREATE INDEX idx_ec_products_category ON ec_products (category);
 CREATE INDEX idx_ec_products_price ON ec_products (price);
 CREATE INDEX idx_ec_products_tags ON ec_products USING GIN (tags);
 CREATE INDEX idx_ec_products_attrs ON ec_products USING GIN (attributes);
 CREATE INDEX idx_ec_products_brand ON ec_products ((attributes->>'brand'));
 
--- テストデータ
+-- Test data
 INSERT INTO ec_products (name, category, price, tags, attributes) VALUES
 ('MacBook Pro 14', 'laptop', 298000,
  ARRAY['apple', 'professional', 'creative'],
@@ -1311,24 +1311,24 @@ INSERT INTO ec_products (name, category, price, tags, attributes) VALUES
  ARRAY['lenovo', 'business', 'lightweight'],
  '{"brand": "Lenovo", "specs": {"cpu": "i7-1365U", "ram_gb": 16, "ssd_gb": 512}, "weight_kg": 1.12}');
 
--- 1. 特定のブランドの商品を検索
+-- 1. Search for products from a specific brand
 SELECT name, price, attributes->>'brand' AS brand
 FROM ec_products
 WHERE attributes @> '{"brand": "Apple"}';
 
--- 2. 価格10万円以上かつRAM 8GB以上
+-- 2. Price >= 100,000 and RAM >= 8GB
 SELECT name, price,
        (attributes->'specs'->>'ram_gb')::INTEGER AS ram_gb
 FROM ec_products
 WHERE price >= 100000
   AND (attributes->'specs'->>'ram_gb')::INTEGER >= 8;
 
--- 3. "camera"タグを持つ商品
+-- 3. Products with the "camera" tag
 SELECT name, price, tags
 FROM ec_products
 WHERE tags @> ARRAY['camera'];
 
--- 4. ブランド別集計
+-- 4. Aggregation by brand
 SELECT
     attributes->>'brand' AS brand,
     COUNT(*) AS product_count,
@@ -1342,23 +1342,23 @@ ORDER BY avg_price DESC;
 
 </details>
 
-### 演習2（応用）: 会議室予約システムの範囲型活用
+### Exercise 2 (Intermediate): Meeting Room Reservation System Using Range Types
 
-**課題**: 以下の要件を満たす会議室予約システムを設計してください。
+**Task**: Design a meeting room reservation system that satisfies the following requirements.
 
-- 同じ会議室の同じ時間帯に重複予約ができないこと（EXCLUDE制約）
-- 特定の日時に空いている会議室を検索できること
-- 予約の重複チェックが高速であること
-- 予約の作成・検索・キャンセル機能を実装
+- The same meeting room cannot have overlapping reservations in the same time slot (EXCLUDE constraint)
+- Available meeting rooms at a specific time can be searched
+- Overlap checks on reservations are fast
+- Implement create, search, and cancel functions for reservations
 
 <details>
-<summary>模範解答</summary>
+<summary>Sample Solution</summary>
 
 ```sql
--- 拡張の有効化
+-- Enable the extension
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
--- 会議室マスタ
+-- Meeting room master table
 CREATE TABLE meeting_rooms (
     id       SERIAL PRIMARY KEY,
     name     VARCHAR(100) NOT NULL UNIQUE,
@@ -1367,7 +1367,7 @@ CREATE TABLE meeting_rooms (
     features JSONB DEFAULT '{}' -- {"projector": true, "whiteboard": true}
 );
 
--- 予約テーブル
+-- Reservation table
 CREATE TABLE meeting_reservations (
     id          SERIAL PRIMARY KEY,
     room_id     INTEGER NOT NULL REFERENCES meeting_rooms(id),
@@ -1376,26 +1376,26 @@ CREATE TABLE meeting_reservations (
     title       VARCHAR(200) NOT NULL,
     attendees   INTEGER NOT NULL DEFAULT 1,
     created_at  TIMESTAMPTZ DEFAULT NOW(),
-    -- 重複予約の防止
+    -- Prevent overlapping reservations
     EXCLUDE USING GIST (room_id WITH =, time_range WITH &&),
-    -- 過去の予約は不可
+    -- Past reservations not allowed
     CHECK (lower(time_range) >= NOW() - interval '1 hour')
 );
 
--- テストデータ
+-- Test data
 INSERT INTO meeting_rooms (name, capacity, floor, features) VALUES
-('会議室A', 10, 3, '{"projector": true, "whiteboard": true}'),
-('会議室B', 6, 3, '{"whiteboard": true}'),
-('大会議室', 30, 5, '{"projector": true, "whiteboard": true, "video_conf": true}');
+('Meeting Room A', 10, 3, '{"projector": true, "whiteboard": true}'),
+('Meeting Room B', 6, 3, '{"whiteboard": true}'),
+('Large Conference Room', 30, 5, '{"projector": true, "whiteboard": true, "video_conf": true}');
 
--- 予約の作成
+-- Create reservations
 INSERT INTO meeting_reservations (room_id, time_range, organizer, title, attendees) VALUES
-(1, '[2024-12-01 10:00, 2024-12-01 11:00)'::TSTZRANGE, '田中', 'チームMTG', 5),
-(1, '[2024-12-01 13:00, 2024-12-01 14:30)'::TSTZRANGE, '鈴木', '設計レビュー', 8),
-(2, '[2024-12-01 10:00, 2024-12-01 12:00)'::TSTZRANGE, '佐藤', '1on1', 2);
+(1, '[2024-12-01 10:00, 2024-12-01 11:00)'::TSTZRANGE, 'Tanaka', 'Team Meeting', 5),
+(1, '[2024-12-01 13:00, 2024-12-01 14:30)'::TSTZRANGE, 'Suzuki', 'Design Review', 8),
+(2, '[2024-12-01 10:00, 2024-12-01 12:00)'::TSTZRANGE, 'Sato', '1-on-1', 2);
 
--- 特定の日時に空いている会議室を検索
--- 12/1 11:00-12:00 で空いている部屋
+-- Search for available rooms at a specific time
+-- Available rooms from 12/1 11:00 to 12:00
 SELECT r.name, r.capacity, r.floor
 FROM meeting_rooms r
 WHERE r.id NOT IN (
@@ -1404,7 +1404,7 @@ WHERE r.id NOT IN (
 )
 ORDER BY r.capacity;
 
--- 特定の部屋の予約一覧
+-- List reservations for a specific room
 SELECT
     mr.title,
     mr.organizer,
@@ -1413,30 +1413,30 @@ SELECT
     mr.attendees
 FROM meeting_reservations mr
 JOIN meeting_rooms rm ON mr.room_id = rm.id
-WHERE rm.name = '会議室A'
+WHERE rm.name = 'Meeting Room A'
   AND mr.time_range && '[2024-12-01, 2024-12-02)'::TSTZRANGE
 ORDER BY lower(mr.time_range);
 
--- 予約のキャンセル
+-- Cancel a reservation
 DELETE FROM meeting_reservations WHERE id = 1;
 ```
 
 </details>
 
-### 演習3（発展）: リアルタイム通知付き在庫管理システム
+### Exercise 3 (Advanced): Inventory Management System with Real-Time Notifications
 
-**課題**: 以下の要件を満たす在庫管理システムを設計してください。
+**Task**: Design an inventory management system that satisfies the following requirements.
 
-- 商品の在庫数が閾値（10個）以下になったらLISTEN/NOTIFYで自動通知
-- 在庫変動の履歴をJSONBで記録
-- 在庫状況のリアルタイムビューを作成
-- GENERATED COLUMNSで在庫ステータスを自動計算
+- Automatically send a LISTEN/NOTIFY notification when product stock falls to or below a threshold (10 units)
+- Record inventory movement history in JSONB
+- Create a real-time view of inventory status
+- Use GENERATED COLUMNS to auto-calculate inventory status
 
 <details>
-<summary>模範解答</summary>
+<summary>Sample Solution</summary>
 
 ```sql
--- 商品テーブル
+-- Product table
 CREATE TABLE inventory_products (
     id            SERIAL PRIMARY KEY,
     sku           VARCHAR(50) NOT NULL UNIQUE,
@@ -1444,7 +1444,7 @@ CREATE TABLE inventory_products (
     current_stock INTEGER NOT NULL DEFAULT 0 CHECK (current_stock >= 0),
     reorder_point INTEGER NOT NULL DEFAULT 10,
     max_stock     INTEGER NOT NULL DEFAULT 100,
-    -- GENERATED COLUMN: 在庫ステータスを自動計算
+    -- GENERATED COLUMN: auto-calculate inventory status
     stock_status  VARCHAR(20) GENERATED ALWAYS AS (
         CASE
             WHEN current_stock = 0 THEN 'out_of_stock'
@@ -1457,21 +1457,21 @@ CREATE TABLE inventory_products (
     updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 在庫変動履歴テーブル
+-- Inventory movement history table
 CREATE TABLE inventory_movements (
     id           BIGSERIAL PRIMARY KEY,
     product_id   INTEGER NOT NULL REFERENCES inventory_products(id),
     movement_type VARCHAR(20) NOT NULL CHECK (
         movement_type IN ('receipt', 'sale', 'adjustment', 'return')
     ),
-    quantity     INTEGER NOT NULL,  -- 正=入庫、負=出庫
+    quantity     INTEGER NOT NULL,  -- Positive = stock in, negative = stock out
     previous_stock INTEGER NOT NULL,
     new_stock    INTEGER NOT NULL,
     details      JSONB DEFAULT '{}',
     created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 在庫変動時の通知トリガー
+-- Notification trigger for stock movements
 CREATE OR REPLACE FUNCTION notify_low_stock()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -1480,7 +1480,7 @@ DECLARE
 BEGIN
     SELECT * INTO product FROM inventory_products WHERE id = NEW.product_id;
 
-    -- 在庫が閾値以下になったら通知
+    -- Notify when stock drops to or below the threshold
     IF NEW.new_stock <= product.reorder_point AND NEW.previous_stock > product.reorder_point THEN
         payload := jsonb_build_object(
             'event', 'low_stock_alert',
@@ -1494,7 +1494,7 @@ BEGIN
         PERFORM pg_notify('inventory_alerts', payload::TEXT);
     END IF;
 
-    -- 在庫切れの場合は緊急通知
+    -- Send urgent notification for out-of-stock
     IF NEW.new_stock = 0 AND NEW.previous_stock > 0 THEN
         payload := jsonb_build_object(
             'event', 'out_of_stock_alert',
@@ -1514,7 +1514,7 @@ CREATE TRIGGER trg_notify_low_stock
     AFTER INSERT ON inventory_movements
     FOR EACH ROW EXECUTE FUNCTION notify_low_stock();
 
--- 在庫変動を安全に記録する関数
+-- Function to safely record stock movements
 CREATE OR REPLACE FUNCTION update_stock(
     p_product_id INTEGER,
     p_movement_type VARCHAR,
@@ -1525,7 +1525,7 @@ DECLARE
     v_current_stock INTEGER;
     v_new_stock INTEGER;
 BEGIN
-    -- 行ロックで排他制御
+    -- Row lock for exclusive control
     SELECT current_stock INTO v_current_stock
     FROM inventory_products
     WHERE id = p_product_id
@@ -1542,12 +1542,12 @@ BEGIN
             v_current_stock, p_quantity;
     END IF;
 
-    -- 在庫数を更新
+    -- Update stock count
     UPDATE inventory_products
     SET current_stock = v_new_stock, updated_at = NOW()
     WHERE id = p_product_id;
 
-    -- 変動履歴を記録
+    -- Record movement history
     INSERT INTO inventory_movements
         (product_id, movement_type, quantity, previous_stock, new_stock, details)
     VALUES
@@ -1557,18 +1557,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- テストデータ
+-- Test data
 INSERT INTO inventory_products (sku, name, current_stock, reorder_point) VALUES
-('SKU-001', 'ノートPC A', 50, 10),
-('SKU-002', 'マウス B', 8, 10),
-('SKU-003', 'キーボード C', 0, 5);
+('SKU-001', 'Laptop A', 50, 10),
+('SKU-002', 'Mouse B', 8, 10),
+('SKU-003', 'Keyboard C', 0, 5);
 
--- 在庫操作
-SELECT update_stock(1, 'sale', -5, '{"order_id": 1001}');    -- 45個に
-SELECT update_stock(1, 'sale', -37, '{"order_id": 1002}');   -- 8個に → 通知発火
-SELECT update_stock(1, 'receipt', 20, '{"po_number": "PO-001"}'); -- 28個に
+-- Stock operations
+SELECT update_stock(1, 'sale', -5, '{"order_id": 1001}');    -- Down to 45
+SELECT update_stock(1, 'sale', -37, '{"order_id": 1002}');   -- Down to 8 → notification fires
+SELECT update_stock(1, 'receipt', 20, '{"po_number": "PO-001"}'); -- Back up to 28
 
--- 在庫状況ビュー
+-- Inventory status view
 CREATE VIEW v_inventory_dashboard AS
 SELECT
     p.sku,
@@ -1601,101 +1601,101 @@ SELECT * FROM v_inventory_dashboard;
 
 ## FAQ
 
-### Q1: JSONBとMongoDBのどちらを使うべきか？
+### Q1: Which should I use — JSONB or MongoDB?
 
-リレーショナルデータが中心でスキーマレスな部分が一部ならPostgreSQLのJSONBが適切。全データがドキュメント指向で、スキーマが頻繁に変わり、水平スケーリング（シャーディング）が必要ならMongoDBを検討する。
+If relational data is central and schema-less sections are limited, PostgreSQL's JSONB is the right choice. If all data is document-oriented, the schema changes frequently, and horizontal scaling (sharding) is required, consider MongoDB.
 
-PostgreSQL JSONB の利点:
-- トランザクション（ACID）の完全サポート
-- リレーショナルデータとのJOIN
-- SQL標準のクエリ言語
-- 一つのDBで完結（運用コスト低）
+Advantages of PostgreSQL JSONB:
+- Full ACID transaction support
+- JOIN with relational data
+- SQL standard query language
+- Single database for everything (lower operational cost)
 
-MongoDB の利点:
-- ネイティブなドキュメントストア（より自然なAPIと集計パイプライン）
-- 組み込みの水平シャーディング
-- Change Streamsによるリアルタイム処理
-- Atlas Search（組み込みElasticsearch相当）
+Advantages of MongoDB:
+- Native document store (more natural API and aggregation pipeline)
+- Built-in horizontal sharding
+- Real-time processing via Change Streams
+- Atlas Search (built-in Elasticsearch equivalent)
 
-データの80%以上がリレーショナルならPostgreSQL + JSONB、80%以上がドキュメントならMongoDBが適切。詳細は[NoSQL比較](./04-nosql-comparison.md)を参照。
+If 80% or more of your data is relational, use PostgreSQL + JSONB. If 80% or more is document-oriented, MongoDB is appropriate. See [NoSQL Comparison](./04-nosql-comparison.md) for details.
 
-### Q2: pg_trgmとto_tsvectorの違いは？
+### Q2: What is the difference between pg_trgm and to_tsvector?
 
-| 比較項目 | pg_trgm（トライグラム） | to_tsvector（全文検索） |
-|---------|----------------------|----------------------|
-| 仕組み | 3文字の部分文字列で類似度計算 | 形態素解析で語句のベクトル化 |
-| 用途 | タイポ許容・あいまい検索 | 語句の意味的な検索 |
-| 日本語対応 | そのまま使える（部分一致） | 別途パーサーが必要（pg_bigm, pgroonga） |
-| 演算子 | %, LIKE, ILIKE | @@ |
-| ランキング | similarity()で類似度スコア | ts_rank()で関連度スコア |
-| インデックス | GIN (gin_trgm_ops) | GIN (tsvector) |
-| 推奨場面 | ユーザー名・住所検索 | ドキュメント・記事検索 |
+| Comparison | pg_trgm (Trigram) | to_tsvector (Full-Text Search) |
+|-----------|------------------|-------------------------------|
+| Mechanism | Similarity calculation using 3-character substrings | Tokenizes words via morphological analysis |
+| Purpose | Typo-tolerant / fuzzy search | Semantic word search |
+| Japanese support | Works as-is (partial match) | Requires a separate parser (pg_bigm, pgroonga) |
+| Operators | %, LIKE, ILIKE | @@ |
+| Ranking | Similarity score via similarity() | Relevance score via ts_rank() |
+| Index | GIN (gin_trgm_ops) | GIN (tsvector) |
+| Recommended for | Username / address search | Document / article search |
 
-### Q3: PostgreSQLの拡張機能は本番で使っても問題ないか？
+### Q3: Is it safe to use PostgreSQL extensions in production?
 
-contrib拡張（pg_stat_statements、uuid-ossp、pgcryptoなど）はPostgreSQL本体と同じリリースサイクル・品質基準で開発されており、本番利用に全く問題ない。特にpg_stat_statementsはクエリ統計の取得に必須級で、本番環境には必ず導入すべきだ。
+contrib extensions (pg_stat_statements, uuid-ossp, pgcrypto, etc.) are developed under the same release cycle and quality standards as the PostgreSQL core, and are completely safe for production use. In particular, pg_stat_statements is practically essential for query statistics and should be installed in every production environment.
 
-サードパーティ拡張の判断基準:
-- **PostGIS**: 成熟度20年以上、地理空間のデファクト。安心して利用可能
-- **TimescaleDB**: 時系列データ処理の標準。エンタープライズ実績豊富
-- **pgvector**: AI/ML向けベクトル検索。2023年以降急速に普及、本番利用事例多数
-- **Citus**: 分散PostgreSQL。Microsoft買収後にメンテナンスが安定
+Criteria for evaluating third-party extensions:
+- **PostGIS**: Over 20 years of maturity; the de facto standard for geospatial data. Safe to use with confidence.
+- **TimescaleDB**: The standard for time-series data processing. Extensive enterprise adoption.
+- **pgvector**: Vector search for AI/ML. Rapidly adopted since 2023; numerous production use cases.
+- **Citus**: Distributed PostgreSQL. Maintenance has been stable since the Microsoft acquisition.
 
-注意: AWS RDSやCloud SQLでは利用可能な拡張が制限される。マネージドサービスの対応拡張リストを事前に確認すること。
+Note: Available extensions are restricted on managed services like AWS RDS and Cloud SQL. Always check the supported extension list for your managed service before planning.
 
-### Q4: GINインデックスのデフォルトとjsonb_path_opsはどちらを使うべきか？
+### Q4: Should I use the default GIN index or jsonb_path_ops?
 
-| 比較項目 | デフォルトGIN | jsonb_path_ops |
-|---------|-------------|---------------|
-| 対応演算子 | @>, ?, ?&, ?| | @> のみ |
-| インデックスサイズ | 大きい | 20-30%小さい |
-| 構築速度 | 遅い | 速い |
-| 検索速度 | 高速 | @> に限れば最速 |
-| 推奨場面 | キー存在確認も必要 | 包含検索のみ使う場合 |
+| Comparison | Default GIN | jsonb_path_ops |
+|-----------|-------------|---------------|
+| Supported operators | @>, ?, ?&, ?| | @> only |
+| Index size | Larger | 20-30% smaller |
+| Build speed | Slower | Faster |
+| Search speed | Fast | Fastest for @> |
+| Recommended when | Key existence checks are also needed | Only containment searches are used |
 
-アプリケーションで `?`（キー存在確認）演算子を使うならデフォルトGIN、`@>`（包含検索）のみならjsonb_path_opsが効率的。どちらを使うか迷ったらデフォルトGINを選択すれば問題ない。
+If your application uses the `?` (key existence) operator, choose the default GIN. If you only use `@>` (containment), jsonb_path_ops is more efficient. When in doubt, the default GIN is a safe choice.
 
-### Q5: 配列型のサイズ上限は？パフォーマンスへの影響は？
+### Q5: Is there a size limit for array types? What is the performance impact?
 
-PostgreSQLの配列型にはサイズ上限の明示的な制限はないが、1つのフィールドは最大1GBまでという一般的な制限がある。ただし、実運用での推奨は以下の通り:
+PostgreSQL array types have no explicit size limit, but the general limit of 1GB per field applies. For practical use, the recommendations are:
 
-- 要素数が数十以下: 配列型で問題なし
-- 要素数が数百: GINインデックスで検索は可能だが、更新時のコスト増加に注意
-- 要素数が数千以上: 中間テーブルに移行すべき（GINインデックスの更新コストが高くなる）
+- Up to tens of elements: array type is fine
+- Hundreds of elements: GIN index supports search, but watch for increased update costs
+- Thousands of elements or more: migrate to a join table (GIN index update costs become high)
 
-配列の更新（array_append等）は配列全体のコピーが発生するため、要素数が多いほどコストが高い。読み取り中心なら配列、書き込み頻繁なら中間テーブルが適切。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| JSONB | バイナリJSON。GINインデックスで高速検索。リレーショナル + 可変部分の設計に最適 |
-| 配列型 | コレクション格納。GINインデックス対応。少数要素のリストに適する |
-| 範囲型 | 期間・区間を直接表現。EXCLUDE制約で重複防止。予約・シフト管理に必須 |
-| 全文検索 | TSVECTOR + GINで組み込み全文検索。pg_trgmであいまい検索も可能 |
-| ネットワーク型 | INET/CIDRでIPアドレスを直接扱える。サブネット検索にGiST対応 |
-| Extension | pg_stat_statementsは本番必須。pgvectorでAI/ML対応も可能 |
-| GENERATED COLUMNS | 計算列を自動管理。インデックスも張れる |
-| LISTEN/NOTIFY | 軽量なリアルタイム通知。トランザクション連動 |
-| テーブル継承 | 新規はDECLARATIVE PARTITIONINGを推奨 |
-| 使い分け | リレーショナル基盤 + 可変部分にJSONB。アクセスパターンで型を選択 |
+Updating an array (e.g., with array_append) copies the entire array, so cost increases with element count. Arrays are appropriate for read-heavy access patterns; join tables are better for frequent writes.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [01-security.md](./01-security.md) — PostgreSQLのセキュリティ設定（RLS、暗号化、監査）
-- [02-performance-tuning.md](./02-performance-tuning.md) — パフォーマンスチューニング（EXPLAIN ANALYZE、インデックス設計）
-- [03-orm-comparison.md](./03-orm-comparison.md) — ORMからのPostgreSQL固有機能活用
-- [04-nosql-comparison.md](./04-nosql-comparison.md) — NoSQLとの比較とポリグロット永続化
-- [インデックス設計](../01-advanced/03-indexing.md) — B-Tree、GIN、GiSTインデックスの詳細
-- [クエリ最適化](../01-advanced/04-query-optimization.md) — EXPLAIN ANALYZEの読み方と最適化
+| Topic | Key Points |
+|-------|-----------|
+| JSONB | Binary JSON. Fast search with GIN index. Ideal for relational + variable-part designs |
+| Array types | Collection storage. GIN index support. Suitable for short lists of elements |
+| Range types | Directly represent intervals. Prevent overlaps with EXCLUDE constraints. Essential for reservations and shift management |
+| Full-text search | Built-in full-text search with TSVECTOR + GIN. Fuzzy search also possible with pg_trgm |
+| Network types | Handle IP addresses directly with INET/CIDR. GiST support for subnet searches |
+| Extensions | pg_stat_statements is essential in production. pgvector enables AI/ML capabilities |
+| GENERATED COLUMNS | Auto-manage computed columns. Can be indexed |
+| LISTEN/NOTIFY | Lightweight real-time notification. Tied to transactions |
+| Table inheritance | Use DECLARATIVE PARTITIONING for new projects |
+| Usage guidelines | Relational foundation + JSONB for variable parts. Choose type based on access patterns |
 
 ---
 
-## 参考文献
+## Further Reading
+
+- [01-security.md](./01-security.md) — PostgreSQL security settings (RLS, encryption, auditing)
+- [02-performance-tuning.md](./02-performance-tuning.md) — Performance tuning (EXPLAIN ANALYZE, index design)
+- [03-orm-comparison.md](./03-orm-comparison.md) — Using PostgreSQL-specific features from ORMs
+- [04-nosql-comparison.md](./04-nosql-comparison.md) — NoSQL comparison and polyglot persistence
+- [Index Design](../01-advanced/03-indexing.md) — B-Tree, GIN, and GiST indexes in detail
+- [Query Optimization](../01-advanced/04-query-optimization.md) — Reading EXPLAIN ANALYZE and optimization techniques
+
+---
+
+## References
 
 1. PostgreSQL Documentation — "JSON Types" https://www.postgresql.org/docs/current/datatype-json.html
 2. PostgreSQL Documentation — "Additional Supplied Modules" https://www.postgresql.org/docs/current/contrib.html
