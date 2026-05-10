@@ -1,128 +1,128 @@
 # Claude Agent SDK
 
-> Anthropic公式のエージェント構築ツール――最小限のコードでツール使用エージェントを構築し、MCPサーバーとネイティブ統合する方法を解説する。
+> Anthropic's official agent-building toolkit — explaining how to build tool-using agents with minimal code and integrate natively with MCP servers.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. Claude Messages API を使ったエージェントループの構築パターン
-2. ツール定義・並列ツール呼び出し・ストリーミングの実装
-3. MCPとの統合およびプロダクション向け設計パターン
-4. マルチエージェントオーケストレーションの実装
-5. エラーハンドリング・リトライ・ガードレールの設計
-6. コンテキスト管理と会話メモリの最適化
-7. 本番環境でのパフォーマンスチューニングとモニタリング
+1. Agent loop construction patterns using the Claude Messages API
+2. Implementing tool definitions, parallel tool calls, and streaming
+3. MCP integration and production-ready design patterns
+4. Implementing multi-agent orchestration
+5. Designing error handling, retries, and guardrails
+6. Optimizing context management and conversation memory
+7. Performance tuning and monitoring in production environments
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [MCPエージェント](./02-mcp-agents.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [MCP Agents](./02-mcp-agents.md)
 
 ---
 
-## 1. Claude Agent SDKの位置づけ
+## 1. Positioning of the Claude Agent SDK
 
 ```
-エージェント構築の選択肢
+Agent-Building Options
 
- 抽象度 高  +---------+
-            | CrewAI  |  高レベルフレームワーク
-            +---------+
-            | LangChain|  汎用フレームワーク
-            +---------+
-            | Claude   |  公式SDK（直接API）
-            | Agent SDK|
-            +---------+  ← この章の範囲
- 抽象度 低  | Raw HTTP |  生のAPI呼び出し
-            +---------+
+ Abstraction High  +---------+
+                   | CrewAI  |  High-level framework
+                   +---------+
+                   | LangChain|  General-purpose framework
+                   +---------+
+                   | Claude   |  Official SDK (direct API)
+                   | Agent SDK|
+                   +---------+  ← Scope of this chapter
+ Abstraction Low   | Raw HTTP |  Raw API calls
+                   +---------+
 
-Claude Agent SDK の利点:
-- 最小の依存関係（anthropic パッケージのみ）
-- APIの全機能に直接アクセス
-- MCPとのネイティブ統合
-- 抽象化レイヤーによる「魔法」がない
+Advantages of Claude Agent SDK:
+- Minimal dependencies (only the anthropic package)
+- Direct access to all API features
+- Native integration with MCP
+- No "magic" from abstraction layers
 ```
 
-### 1.1 SDKのインストールと初期設定
+### 1.1 SDK Installation and Initial Setup
 
 ```bash
-# 基本インストール
+# Basic installation
 pip install anthropic
 
-# ストリーミング・非同期サポート付き
+# With streaming and async support
 pip install "anthropic[bedrock,vertex]"
 
-# 開発環境での推奨セットアップ
+# Recommended setup for development environments
 pip install anthropic python-dotenv pydantic
 ```
 
 ```python
-# 環境変数の設定
+# Environment variable configuration
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# 方法1: 環境変数から自動読み込み（推奨）
-# ANTHROPIC_API_KEY を環境変数に設定しておく
+# Method 1: Auto-load from environment variables (recommended)
+# Set ANTHROPIC_API_KEY as an environment variable
 import anthropic
-client = anthropic.Anthropic()  # 自動的に ANTHROPIC_API_KEY を参照
+client = anthropic.Anthropic()  # Automatically references ANTHROPIC_API_KEY
 
-# 方法2: 明示的にAPIキーを指定
+# Method 2: Explicitly specify API key
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-# 方法3: AWS Bedrock経由
+# Method 3: Via AWS Bedrock
 bedrock_client = anthropic.AnthropicBedrock(
     aws_region="us-east-1",
     aws_access_key=os.getenv("AWS_ACCESS_KEY_ID"),
     aws_secret_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
 )
 
-# 方法4: Google Vertex AI経由
+# Method 4: Via Google Vertex AI
 vertex_client = anthropic.AnthropicVertex(
     project_id="my-project",
     region="us-east5",
 )
 ```
 
-### 1.2 他フレームワークとの詳細比較
+### 1.2 Detailed Comparison with Other Frameworks
 
 ```
-Claude Agent SDK vs 他フレームワーク 機能比較
+Claude Agent SDK vs Other Frameworks — Feature Comparison
 
 +------------------+------------+-----------+----------+----------+
 |                  | Claude SDK | LangChain | CrewAI   | AutoGen  |
 +------------------+------------+-----------+----------+----------+
-| 依存パッケージ数  |    1       |   50+     |   30+    |   20+    |
-| 学習コスト        |    低      |   高      |   中     |   中     |
-| 型安全性          |    高      |   低      |   中     |   中     |
-| デバッグ容易性    |    高      |   低      |   中     |   中     |
-| カスタマイズ性    |    最高    |   高      |   中     |   高     |
-| MCP統合          |    ネイティブ|  プラグイン|  なし    |  なし    |
-| マルチモデル      |    Claude  |  任意     |  任意    |  任意    |
-| プロダクション対応 |    高      |   中      |   低     |   中     |
-| コミュニティ規模  |    中      |   最大    |   中     |   中     |
+| Dependency count |    1       |   50+     |   30+    |   20+    |
+| Learning cost    |    Low     |   High    |   Medium |   Medium |
+| Type safety      |    High    |   Low     |   Medium |   Medium |
+| Debug ease       |    High    |   Low     |   Medium |   Medium |
+| Customizability  |    Best    |   High    |   Medium |   High   |
+| MCP integration  |   Native   |  Plugin   |   None   |   None   |
+| Multi-model      |   Claude   |   Any     |   Any    |   Any    |
+| Production-ready |    High    |   Medium  |   Low    |   Medium |
+| Community size   |   Medium   |   Largest |   Medium |   Medium |
 +------------------+------------+-----------+----------+----------+
 ```
 
-### 1.3 APIバージョニングとモデルIDの管理
+### 1.3 API Versioning and Model ID Management
 
 ```python
-# モデルIDの管理パターン
+# Model ID management pattern
 from enum import Enum
 
 class ClaudeModel(str, Enum):
-    """利用可能なClaudeモデル一覧"""
+    """List of available Claude models"""
     HAIKU = "claude-haiku-4-20250514"
     SONNET = "claude-sonnet-4-20250514"
     OPUS = "claude-opus-4-20250514"
 
     @property
     def cost_per_1k_input(self) -> float:
-        """入力1Kトークンあたりのコスト（USD）"""
+        """Cost per 1K input tokens (USD)"""
         costs = {
             self.HAIKU: 0.00025,
             self.SONNET: 0.003,
@@ -132,7 +132,7 @@ class ClaudeModel(str, Enum):
 
     @property
     def cost_per_1k_output(self) -> float:
-        """出力1Kトークンあたりのコスト（USD）"""
+        """Cost per 1K output tokens (USD)"""
         costs = {
             self.HAIKU: 0.00125,
             self.SONNET: 0.015,
@@ -142,30 +142,30 @@ class ClaudeModel(str, Enum):
 
     @property
     def max_context_window(self) -> int:
-        """最大コンテキストウィンドウサイズ"""
-        return 200_000  # 全モデル共通
+        """Maximum context window size"""
+        return 200_000  # Common across all models
 
-# 使用例
+# Usage example
 model = ClaudeModel.SONNET
-print(f"モデル: {model.value}")
-print(f"入力コスト: ${model.cost_per_1k_input}/1Kトークン")
-print(f"コンテキスト: {model.max_context_window:,}トークン")
+print(f"Model: {model.value}")
+print(f"Input cost: ${model.cost_per_1k_input}/1K tokens")
+print(f"Context: {model.max_context_window:,} tokens")
 ```
 
 ---
 
-## 2. 基本的なエージェントループ
+## 2. Basic Agent Loop
 
-### 2.1 最小構成
+### 2.1 Minimal Configuration
 
 ```python
-# Claude Agent SDK: 最小構成のエージェント
+# Claude Agent SDK: minimal agent configuration
 import anthropic
 
 client = anthropic.Anthropic()
 
 def simple_agent(user_message: str) -> str:
-    """最もシンプルなエージェント"""
+    """The simplest possible agent"""
     messages = [{"role": "user", "content": user_message}]
 
     response = client.messages.create(
@@ -177,27 +177,27 @@ def simple_agent(user_message: str) -> str:
     return response.content[0].text
 ```
 
-### 2.2 ツール使用エージェント
+### 2.2 Tool-Using Agent
 
 ```python
-# ツール使用付きの完全なエージェントループ
+# Complete agent loop with tool use
 import anthropic
 import json
 from typing import Any
 
 client = anthropic.Anthropic()
 
-# ツール定義
+# Tool definitions
 TOOLS = [
     {
         "name": "read_file",
-        "description": "指定されたファイルの内容を読み取って返す",
+        "description": "Read and return the contents of the specified file",
         "input_schema": {
             "type": "object",
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "読み取るファイルのパス"
+                    "description": "Path of the file to read"
                 }
             },
             "required": ["path"]
@@ -205,30 +205,30 @@ TOOLS = [
     },
     {
         "name": "write_file",
-        "description": "指定されたファイルに内容を書き込む",
+        "description": "Write content to the specified file",
         "input_schema": {
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "ファイルパス"},
-                "content": {"type": "string", "description": "書き込む内容"}
+                "path": {"type": "string", "description": "File path"},
+                "content": {"type": "string", "description": "Content to write"}
             },
             "required": ["path", "content"]
         }
     },
     {
         "name": "run_command",
-        "description": "シェルコマンドを実行して結果を返す",
+        "description": "Execute a shell command and return the result",
         "input_schema": {
             "type": "object",
             "properties": {
-                "command": {"type": "string", "description": "実行するコマンド"}
+                "command": {"type": "string", "description": "Command to execute"}
             },
             "required": ["command"]
         }
     }
 ]
 
-# ツール実行ハンドラ
+# Tool execution handler
 def execute_tool(name: str, input_data: dict) -> str:
     try:
         if name == "read_file":
@@ -237,7 +237,7 @@ def execute_tool(name: str, input_data: dict) -> str:
         elif name == "write_file":
             with open(input_data["path"], "w") as f:
                 f.write(input_data["content"])
-            return f"ファイル書き込み完了: {input_data['path']}"
+            return f"File write complete: {input_data['path']}"
         elif name == "run_command":
             import subprocess
             result = subprocess.run(
@@ -246,11 +246,11 @@ def execute_tool(name: str, input_data: dict) -> str:
             )
             return result.stdout + result.stderr
         else:
-            return f"不明なツール: {name}"
+            return f"Unknown tool: {name}"
     except Exception as e:
-        return f"エラー: {type(e).__name__}: {e}"
+        return f"Error: {type(e).__name__}: {e}"
 
-# エージェントループ
+# Agent loop
 def agent_loop(
     user_message: str,
     system_prompt: str = "",
@@ -267,14 +267,14 @@ def agent_loop(
             messages=messages
         )
 
-        # 最終回答の場合
+        # Final answer case
         if response.stop_reason == "end_turn":
             for block in response.content:
                 if hasattr(block, "text"):
                     return block.text
             return ""
 
-        # ツール呼び出しの場合
+        # Tool call case
         tool_results = []
         for block in response.content:
             if block.type == "tool_use":
@@ -283,30 +283,30 @@ def agent_loop(
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
-                    "content": result[:10000]  # 結果が大きすぎる場合を制限
+                    "content": result[:10000]  # Limit in case result is too large
                 })
 
         messages.append({"role": "assistant", "content": response.content})
         messages.append({"role": "user", "content": tool_results})
 
-    return "最大ステップ数に達しました。"
+    return "Maximum number of steps reached."
 
-# 実行
+# Execution
 result = agent_loop(
-    "setup.pyを読んで、テストを実行して結果を報告して",
-    system_prompt="あなたはPython開発アシスタントです。"
+    "Read setup.py, run the tests, and report the results",
+    system_prompt="You are a Python development assistant."
 )
 print(result)
 ```
 
-### 2.3 レスポンスの詳細解析
+### 2.3 Detailed Response Analysis
 
 ```python
-# レスポンスオブジェクトの構造を理解する
+# Understanding the structure of the response object
 from anthropic.types import Message, ContentBlock, TextBlock, ToolUseBlock
 
 def analyze_response(response: Message) -> dict:
-    """レスポンスの詳細を解析してログに記録"""
+    """Analyze and log response details"""
     analysis = {
         "id": response.id,
         "model": response.model,
@@ -331,15 +331,15 @@ def analyze_response(response: Message) -> dict:
                 "input_keys": list(block.input.keys()),
             })
 
-    # コスト計算
+    # Cost calculation
     model = response.model
-    input_cost = response.usage.input_tokens * 0.003 / 1000  # Sonnet想定
+    input_cost = response.usage.input_tokens * 0.003 / 1000  # Assuming Sonnet
     output_cost = response.usage.output_tokens * 0.015 / 1000
     analysis["estimated_cost_usd"] = round(input_cost + output_cost, 6)
 
     return analysis
 
-# 使用例
+# Usage example
 response = client.messages.create(
     model="claude-sonnet-4-20250514",
     max_tokens=1024,
@@ -349,50 +349,50 @@ info = analyze_response(response)
 print(json.dumps(info, indent=2, ensure_ascii=False))
 ```
 
-### 2.4 stop_reason の完全ガイド
+### 2.4 Complete Guide to stop_reason
 
 ```python
-# stop_reasonの種類と対処法
+# Types of stop_reason and how to handle them
 STOP_REASON_HANDLERS = {
-    "end_turn": "モデルが自然に回答を終了。最終テキストを取得。",
-    "tool_use": "ツール呼び出しが必要。ツールを実行して結果を返す。",
-    "max_tokens": "出力トークン上限に達した。max_tokensを増やすか分割処理。",
-    "stop_sequence": "指定したstop_sequenceにマッチ。カスタム終了条件。",
+    "end_turn": "Model naturally finished the response. Retrieve the final text.",
+    "tool_use": "Tool call required. Execute the tool and return the result.",
+    "max_tokens": "Output token limit reached. Increase max_tokens or split the processing.",
+    "stop_sequence": "Matched specified stop_sequence. Custom termination condition.",
 }
 
 def handle_stop_reason(response) -> str:
-    """stop_reasonに基づいて適切な処理を実行"""
+    """Execute appropriate handling based on stop_reason"""
     reason = response.stop_reason
 
     if reason == "end_turn":
         return extract_text(response)
 
     elif reason == "tool_use":
-        # ツール呼び出し処理（エージェントループで継続）
+        # Tool call handling (continue in agent loop)
         return "CONTINUE_LOOP"
 
     elif reason == "max_tokens":
-        # 出力が途中で切れた場合の処理
+        # Handling when output is cut off midway
         partial_text = extract_text(response)
-        # 続きを要求
-        return partial_text + "\n[出力が途中で切れました。続きを生成中...]"
+        # Request continuation
+        return partial_text + "\n[Output was cut off. Generating continuation...]"
 
     elif reason == "stop_sequence":
-        # カスタム終了条件
+        # Custom termination condition
         return extract_text(response)
 
     else:
-        raise ValueError(f"未知のstop_reason: {reason}")
+        raise ValueError(f"Unknown stop_reason: {reason}")
 ```
 
 ---
 
-## 3. 高度な機能
+## 3. Advanced Features
 
-### 3.1 ストリーミング
+### 3.1 Streaming
 
 ```python
-# ストリーミングでリアルタイム出力
+# Real-time output with streaming
 def streaming_agent(user_message: str):
     messages = [{"role": "user", "content": user_message}]
 
@@ -417,7 +417,7 @@ def streaming_agent(user_message: str):
         if response.stop_reason == "end_turn":
             return current_text
 
-        # ツール呼び出し処理
+        # Tool call handling
         tool_results = []
         for block in response.content:
             if block.type == "tool_use":
@@ -432,17 +432,17 @@ def streaming_agent(user_message: str):
         messages.append({"role": "user", "content": tool_results})
 ```
 
-### 3.2 高度なストリーミングイベント処理
+### 3.2 Advanced Streaming Event Handling
 
 ```python
-# ストリーミングイベントの全種類を処理するハンドラ
+# Handler for processing all types of streaming events
 from dataclasses import dataclass, field
 from typing import Optional
 import json
 
 @dataclass
 class StreamState:
-    """ストリーミング中の状態管理"""
+    """State management during streaming"""
     current_block_type: Optional[str] = None
     current_tool_name: Optional[str] = None
     current_tool_id: Optional[str] = None
@@ -453,7 +453,7 @@ class StreamState:
     output_tokens: int = 0
 
 def advanced_streaming_agent(user_message: str):
-    """全イベントを処理する高度なストリーミングエージェント"""
+    """Advanced streaming agent that processes all events"""
     messages = [{"role": "user", "content": user_message}]
 
     while True:
@@ -466,12 +466,12 @@ def advanced_streaming_agent(user_message: str):
             messages=messages
         ) as stream:
             for event in stream:
-                # メッセージ開始
+                # Message start
                 if event.type == "message_start":
                     state.input_tokens = event.message.usage.input_tokens
-                    print(f"\n[入力トークン: {state.input_tokens}]")
+                    print(f"\n[Input tokens: {state.input_tokens}]")
 
-                # コンテンツブロック開始
+                # Content block start
                 elif event.type == "content_block_start":
                     if event.content_block.type == "text":
                         state.current_block_type = "text"
@@ -480,9 +480,9 @@ def advanced_streaming_agent(user_message: str):
                         state.current_tool_name = event.content_block.name
                         state.current_tool_id = event.content_block.id
                         state.accumulated_json = ""
-                        print(f"\n[ツール呼び出し: {event.content_block.name}]")
+                        print(f"\n[Tool call: {event.content_block.name}]")
 
-                # デルタ（差分データ）
+                # Delta (differential data)
                 elif event.type == "content_block_delta":
                     if hasattr(event.delta, "text"):
                         print(event.delta.text, end="", flush=True)
@@ -490,7 +490,7 @@ def advanced_streaming_agent(user_message: str):
                     elif hasattr(event.delta, "partial_json"):
                         state.accumulated_json += event.delta.partial_json
 
-                # コンテンツブロック終了
+                # Content block end
                 elif event.type == "content_block_stop":
                     if state.current_block_type == "tool_use":
                         try:
@@ -504,18 +504,18 @@ def advanced_streaming_agent(user_message: str):
                         })
                     state.current_block_type = None
 
-                # メッセージデルタ（使用量情報）
+                # Message delta (usage information)
                 elif event.type == "message_delta":
                     state.output_tokens = event.usage.output_tokens
 
             response = stream.get_final_message()
 
-        print(f"\n[出力トークン: {state.output_tokens}]")
+        print(f"\n[Output tokens: {state.output_tokens}]")
 
         if response.stop_reason == "end_turn":
             return state.accumulated_text
 
-        # ツール呼び出し処理
+        # Tool call handling
         tool_results = []
         for call in state.tool_calls:
             result = execute_tool(call["name"], call["input"])
@@ -529,19 +529,19 @@ def advanced_streaming_agent(user_message: str):
         messages.append({"role": "user", "content": tool_results})
 ```
 
-### 3.3 並列ツール呼び出し
+### 3.3 Parallel Tool Calls
 
 ```python
-# Claudeは1回のレスポンスで複数のツールを同時に呼び出せる
-# 例: "東京と大阪の天気を教えて" → 2つのget_weatherを同時呼び出し
+# Claude can call multiple tools simultaneously in a single response
+# Example: "Tell me the weather in Tokyo and Osaka" → two get_weather calls simultaneously
 
 def handle_parallel_tool_calls(response) -> list:
-    """並列ツール呼び出しを処理"""
+    """Handle parallel tool calls"""
     tool_results = []
 
     for block in response.content:
         if block.type == "tool_use":
-            # 各ツール呼び出しを処理
+            # Process each tool call
             result = execute_tool(block.name, block.input)
             tool_results.append({
                 "type": "tool_result",
@@ -551,7 +551,7 @@ def handle_parallel_tool_calls(response) -> list:
 
     return tool_results
 
-# 非同期版（本当の並列実行）
+# Async version (true parallel execution)
 async def handle_parallel_tool_calls_async(response) -> list:
     import asyncio
 
@@ -568,16 +568,16 @@ async def handle_parallel_tool_calls_async(response) -> list:
     return list(results)
 ```
 
-### 3.4 並列ツール呼び出しの実務パターン
+### 3.4 Practical Patterns for Parallel Tool Calls
 
 ```python
-# 実務的な並列ツール呼び出しの例: 複数API同時呼び出し
+# Practical parallel tool call example: simultaneous multi-API calls
 import asyncio
 import aiohttp
 from concurrent.futures import ThreadPoolExecutor
 
 class ParallelToolExecutor:
-    """ツール呼び出しを並列実行するエグゼキューター"""
+    """Executor for running tool calls in parallel"""
 
     def __init__(self, max_workers: int = 5, timeout: float = 30.0):
         self.max_workers = max_workers
@@ -585,7 +585,7 @@ class ParallelToolExecutor:
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
     async def execute_parallel(self, tool_calls: list) -> list:
-        """複数のツール呼び出しを並列に実行"""
+        """Execute multiple tool calls in parallel"""
         tasks = []
         for call in tool_calls:
             task = asyncio.create_task(
@@ -598,7 +598,7 @@ class ParallelToolExecutor:
         tool_results = []
         for call, result in zip(tool_calls, results):
             if isinstance(result, Exception):
-                content = f"エラー: {type(result).__name__}: {result}"
+                content = f"Error: {type(result).__name__}: {result}"
                 is_error = True
             else:
                 content = str(result)
@@ -614,30 +614,30 @@ class ParallelToolExecutor:
         return tool_results
 
     async def _execute_with_timeout(self, call: dict):
-        """タイムアウト付きでツールを実行"""
+        """Execute a tool with timeout"""
         return await asyncio.wait_for(
             self._execute_tool_async(call["name"], call["input"]),
             timeout=self.timeout,
         )
 
     async def _execute_tool_async(self, name: str, input_data: dict):
-        """非同期ツール実行"""
+        """Async tool execution"""
         if name == "fetch_url":
             async with aiohttp.ClientSession() as session:
                 async with session.get(input_data["url"]) as resp:
                     return await resp.text()
         elif name == "query_database":
-            # DB接続は同期処理をスレッドプールで実行
+            # Run synchronous DB connection in thread pool
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(
                 self.executor,
                 lambda: self._sync_db_query(input_data["query"])
             )
         else:
-            raise ValueError(f"不明なツール: {name}")
+            raise ValueError(f"Unknown tool: {name}")
 
     def _sync_db_query(self, query: str) -> str:
-        """同期的なDB問い合わせ"""
+        """Synchronous DB query"""
         import sqlite3
         conn = sqlite3.connect("app.db")
         cursor = conn.execute(query)
@@ -645,7 +645,7 @@ class ParallelToolExecutor:
         conn.close()
         return json.dumps(rows, ensure_ascii=False)
 
-# 使用例
+# Usage example
 executor = ParallelToolExecutor(max_workers=10, timeout=15.0)
 
 async def agent_with_parallel_tools(user_message: str):
@@ -662,7 +662,7 @@ async def agent_with_parallel_tools(user_message: str):
         if response.stop_reason == "end_turn":
             return extract_text(response)
 
-        # 並列実行
+        # Parallel execution
         tool_calls = [
             {"name": b.name, "id": b.id, "input": b.input}
             for b in response.content if b.type == "tool_use"
@@ -673,63 +673,63 @@ async def agent_with_parallel_tools(user_message: str):
         messages.append({"role": "user", "content": tool_results})
 ```
 
-### 3.5 システムプロンプト設計
+### 3.5 System Prompt Design
 
 ```python
-# エージェント向けシステムプロンプト
-CODING_AGENT_PROMPT = """あなたはシニアソフトウェアエンジニアとして振る舞うコーディングエージェントです。
+# System prompt for agents
+CODING_AGENT_PROMPT = """You are a coding agent acting as a senior software engineer.
 
-## 行動規範
-1. コードを変更する前に、必ず既存のコードを読んで理解する
-2. テストを書いてから実装する（TDD）
-3. 変更は最小限に留める
-4. エラーが発生したら原因を特定してから修正する
+## Code of Conduct
+1. Always read and understand existing code before making changes
+2. Write tests before implementation (TDD)
+3. Keep changes to a minimum
+4. When an error occurs, identify the cause before fixing it
 
-## ツール使用ガイドライン
-- read_file: コードの構造を理解するために最初に使用
-- write_file: テスト→実装の順で使用
-- run_command: テスト実行、lint、型チェックに使用
+## Tool Usage Guidelines
+- read_file: Use first to understand code structure
+- write_file: Use in order of test → implementation
+- run_command: Use for running tests, lint, and type checking
 
-## 出力形式
-- 作業内容を簡潔に説明してから実行する
-- 完了後に変更の要約を提供する
+## Output Format
+- Briefly explain what you are doing before executing
+- Provide a summary of changes after completion
 """
 ```
 
-### 3.6 高度なシステムプロンプト設計パターン
+### 3.6 Advanced System Prompt Design Patterns
 
 ```python
-# 役割ベースの動的システムプロンプト生成
+# Role-based dynamic system prompt generation
 from string import Template
 from datetime import datetime
 
 class SystemPromptBuilder:
-    """構造化されたシステムプロンプトを動的に構築"""
+    """Dynamically build structured system prompts"""
 
     def __init__(self):
         self.sections: dict[str, str] = {}
 
     def set_role(self, role: str) -> "SystemPromptBuilder":
-        self.sections["role"] = f"## 役割\n{role}"
+        self.sections["role"] = f"## Role\n{role}"
         return self
 
     def set_rules(self, rules: list[str]) -> "SystemPromptBuilder":
         rules_text = "\n".join(f"{i+1}. {r}" for i, r in enumerate(rules))
-        self.sections["rules"] = f"## 行動規範\n{rules_text}"
+        self.sections["rules"] = f"## Code of Conduct\n{rules_text}"
         return self
 
     def set_tool_guidelines(self, guidelines: dict[str, str]) -> "SystemPromptBuilder":
         lines = [f"- {tool}: {desc}" for tool, desc in guidelines.items()]
-        self.sections["tools"] = f"## ツール使用ガイドライン\n" + "\n".join(lines)
+        self.sections["tools"] = f"## Tool Usage Guidelines\n" + "\n".join(lines)
         return self
 
     def set_output_format(self, format_desc: str) -> "SystemPromptBuilder":
-        self.sections["output"] = f"## 出力形式\n{format_desc}"
+        self.sections["output"] = f"## Output Format\n{format_desc}"
         return self
 
     def set_constraints(self, constraints: list[str]) -> "SystemPromptBuilder":
         lines = [f"- {c}" for c in constraints]
-        self.sections["constraints"] = f"## 制約事項\n" + "\n".join(lines)
+        self.sections["constraints"] = f"## Constraints\n" + "\n".join(lines)
         return self
 
     def add_context(self, key: str, value: str) -> "SystemPromptBuilder":
@@ -738,57 +738,57 @@ class SystemPromptBuilder:
 
     def build(self) -> str:
         parts = []
-        # 順序を保証
+        # Guarantee order
         order = ["role", "rules", "tools", "output", "constraints"]
         for key in order:
             if key in self.sections:
                 parts.append(self.sections[key])
 
-        # その他のセクション
+        # Other sections
         for key, value in self.sections.items():
             if key not in order:
                 parts.append(value)
 
-        # メタ情報
-        parts.append(f"\n## メタ情報\n- 現在日時: {datetime.now().isoformat()}")
+        # Meta information
+        parts.append(f"\n## Meta\n- Current datetime: {datetime.now().isoformat()}")
 
         return "\n\n".join(parts)
 
-# 使用例: コードレビューエージェント
+# Usage example: code review agent
 review_prompt = (
     SystemPromptBuilder()
-    .set_role("あなたはシニアソフトウェアエンジニアとしてコードレビューを行います。")
+    .set_role("You perform code reviews as a senior software engineer.")
     .set_rules([
-        "セキュリティ上の問題を最優先で指摘する",
-        "パフォーマンスへの影響を評価する",
-        "テストの網羅性を確認する",
-        "コード規約への準拠を検証する",
-        "建設的なフィードバックを心がける",
+        "Prioritize security issues above all else",
+        "Evaluate the impact on performance",
+        "Check test coverage",
+        "Verify compliance with coding standards",
+        "Strive to provide constructive feedback",
     ])
     .set_tool_guidelines({
-        "read_file": "レビュー対象のファイルを読み込む",
-        "run_command": "テスト実行・静的解析に使用",
-        "search_code": "関連コードの検索に使用",
+        "read_file": "Load the file to be reviewed",
+        "run_command": "Use for test execution and static analysis",
+        "search_code": "Use for searching related code",
     })
     .set_output_format(
-        "レビュー結果はMarkdown形式で出力。"
-        "重要度（Critical/Warning/Info）を付与。"
+        "Output review results in Markdown format. "
+        "Assign severity (Critical/Warning/Info)."
     )
     .set_constraints([
-        "承認・却下の判断は最終的に人間が行う",
-        "自動修正は提案のみ、実行しない",
-        "個人攻撃的なコメントは絶対にしない",
+        "Humans make the final approval/rejection decision",
+        "Auto-fixes are suggestions only, not executed",
+        "Never make personal attack comments",
     ])
     .build()
 )
 ```
 
-### 3.7 Extended Thinking（拡張思考）の活用
+### 3.7 Using Extended Thinking
 
 ```python
-# Extended Thinkingを使ったエージェント
+# Agent using Extended Thinking
 def agent_with_thinking(user_message: str, budget_tokens: int = 8000):
-    """拡張思考を活用するエージェント"""
+    """Agent that leverages extended thinking"""
     messages = [{"role": "user", "content": user_message}]
 
     response = client.messages.create(
@@ -796,12 +796,12 @@ def agent_with_thinking(user_message: str, budget_tokens: int = 8000):
         max_tokens=16000,
         thinking={
             "type": "enabled",
-            "budget_tokens": budget_tokens,  # 思考に使うトークン数
+            "budget_tokens": budget_tokens,  # Number of tokens to use for thinking
         },
         messages=messages,
     )
 
-    # 思考プロセスとレスポンスを分離
+    # Separate thinking process from response
     thinking_text = ""
     response_text = ""
 
@@ -812,22 +812,22 @@ def agent_with_thinking(user_message: str, budget_tokens: int = 8000):
             response_text = block.text
 
     return {
-        "thinking": thinking_text,  # デバッグ用に思考プロセスを保持
+        "thinking": thinking_text,  # Keep thinking process for debugging
         "response": response_text,
     }
 
-# Extended Thinkingとツール使用の組み合わせ
+# Combining Extended Thinking with tool use
 def planning_agent(user_message: str):
-    """計画フェーズでExtended Thinking、実行フェーズで通常モードを使用"""
+    """Use Extended Thinking for the planning phase, normal mode for the execution phase"""
 
-    # Phase 1: 計画（Extended Thinking有効）
+    # Phase 1: Planning (Extended Thinking enabled)
     plan_response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=8000,
         thinking={"type": "enabled", "budget_tokens": 5000},
         messages=[{
             "role": "user",
-            "content": f"以下のタスクの実行計画を立ててください:\n{user_message}"
+            "content": f"Please create an execution plan for the following task:\n{user_message}"
         }],
     )
 
@@ -836,10 +836,10 @@ def planning_agent(user_message: str):
         if block.type == "text":
             plan_text = block.text
 
-    # Phase 2: 実行（通常モード + ツール使用）
+    # Phase 2: Execution (normal mode + tool use)
     result = agent_loop(
-        f"以下の計画に従って実行してください:\n\n{plan_text}",
-        system_prompt="計画に忠実に従い、各ステップを実行してください。"
+        f"Please execute according to the following plan:\n\n{plan_text}",
+        system_prompt="Follow the plan faithfully and execute each step."
     )
 
     return {
@@ -850,12 +850,12 @@ def planning_agent(user_message: str):
 
 ---
 
-## 4. エージェントの構造化
+## 4. Structuring the Agent
 
-### 4.1 クラスベースのエージェント設計
+### 4.1 Class-Based Agent Design
 
 ```python
-# クラスベースのエージェント設計
+# Class-based agent design
 from dataclasses import dataclass, field
 from typing import Callable
 import time
@@ -867,7 +867,7 @@ class AgentConfig:
     max_steps: int = 20
     temperature: float = 0.0
     system_prompt: str = ""
-    timeout: float = 300.0  # 秒
+    timeout: float = 300.0  # seconds
 
 class ClaudeAgent:
     def __init__(self, config: AgentConfig, tools: list, handlers: dict):
@@ -885,7 +885,7 @@ class ClaudeAgent:
 
         for step in range(self.config.max_steps):
             if time.time() - start_time > self.config.timeout:
-                return "タイムアウトしました"
+                return "Timed out"
 
             response = self.client.messages.create(
                 model=self.config.model,
@@ -903,7 +903,7 @@ class ClaudeAgent:
                 })
                 return text
 
-            # ツール処理
+            # Tool processing
             tool_results = self._process_tools(response)
             self.conversation_history.append({
                 "role": "assistant", "content": response.content
@@ -912,7 +912,7 @@ class ClaudeAgent:
                 "role": "user", "content": tool_results
             })
 
-        return "最大ステップ数に達しました"
+        return "Maximum number of steps reached"
 
     def _process_tools(self, response) -> list:
         results = []
@@ -923,9 +923,9 @@ class ClaudeAgent:
                     try:
                         result = handler(**block.input)
                     except Exception as e:
-                        result = f"エラー: {e}"
+                        result = f"Error: {e}"
                 else:
-                    result = f"ハンドラ未登録: {block.name}"
+                    result = f"No handler registered: {block.name}"
                 results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
@@ -943,23 +943,23 @@ class ClaudeAgent:
         self.conversation_history = []
 ```
 
-### 4.2 プラグイン型ツールシステム
+### 4.2 Plugin-Style Tool System
 
 ```python
-# デコレータベースのツール登録システム
+# Decorator-based tool registration system
 from typing import Callable, Any, get_type_hints
 import inspect
 import json
 
 class ToolRegistry:
-    """ツールの登録・管理・実行を統合的に行うレジストリ"""
+    """Registry for integrated tool registration, management, and execution"""
 
     def __init__(self):
         self._tools: dict[str, dict] = {}
         self._handlers: dict[str, Callable] = {}
 
     def tool(self, description: str = ""):
-        """デコレータでツールを登録"""
+        """Register a tool with a decorator"""
         def decorator(func: Callable) -> Callable:
             name = func.__name__
             schema = self._generate_schema(func, description)
@@ -969,10 +969,10 @@ class ToolRegistry:
         return decorator
 
     def _generate_schema(self, func: Callable, description: str) -> dict:
-        """関数シグネチャからJSONスキーマを自動生成"""
+        """Auto-generate JSON schema from function signature"""
         hints = get_type_hints(func)
         sig = inspect.signature(func)
-        doc = description or func.__doc__ or f"{func.__name__}を実行"
+        doc = description or func.__doc__ or f"Execute {func.__name__}"
 
         properties = {}
         required = []
@@ -986,7 +986,7 @@ class ToolRegistry:
 
             properties[param_name] = {
                 "type": json_type,
-                "description": f"{param_name}パラメータ",
+                "description": f"{param_name} parameter",
             }
 
             if param.default is inspect.Parameter.empty:
@@ -1003,7 +1003,7 @@ class ToolRegistry:
         }
 
     def _python_type_to_json(self, python_type) -> str:
-        """Pythonの型をJSONスキーマの型に変換"""
+        """Convert Python type to JSON schema type"""
         type_map = {
             str: "string",
             int: "integer",
@@ -1015,53 +1015,53 @@ class ToolRegistry:
         return type_map.get(python_type, "string")
 
     def get_tool_definitions(self) -> list[dict]:
-        """APIに渡すツール定義のリストを取得"""
+        """Get the list of tool definitions to pass to the API"""
         return list(self._tools.values())
 
     def execute(self, name: str, input_data: dict) -> str:
-        """ツールを名前で実行"""
+        """Execute a tool by name"""
         handler = self._handlers.get(name)
         if not handler:
-            return f"エラー: 未登録のツール '{name}'"
+            return f"Error: Unregistered tool '{name}'"
         try:
             result = handler(**input_data)
             return str(result)
         except Exception as e:
-            return f"エラー: {type(e).__name__}: {e}"
+            return f"Error: {type(e).__name__}: {e}"
 
-# 使用例
+# Usage example
 registry = ToolRegistry()
 
-@registry.tool("ファイルの内容を読み取る")
+@registry.tool("Read file contents")
 def read_file(path: str, encoding: str = "utf-8") -> str:
     with open(path, encoding=encoding) as f:
         return f.read()
 
-@registry.tool("指定ディレクトリ内のファイル一覧を取得する")
+@registry.tool("Get a list of files in the specified directory")
 def list_files(directory: str, pattern: str = "*") -> str:
     import glob
     files = glob.glob(f"{directory}/{pattern}")
     return json.dumps(files, ensure_ascii=False)
 
-@registry.tool("HTTPリクエストを実行する")
+@registry.tool("Execute an HTTP request")
 def http_request(url: str, method: str = "GET") -> str:
     import urllib.request
     req = urllib.request.Request(url, method=method)
     with urllib.request.urlopen(req, timeout=10) as resp:
         return resp.read().decode()
 
-# エージェントで使用
+# Use in agent
 agent = ClaudeAgent(
-    config=AgentConfig(system_prompt="開発アシスタント"),
+    config=AgentConfig(system_prompt="Development assistant"),
     tools=registry.get_tool_definitions(),
     handlers=registry._handlers,
 )
 ```
 
-### 4.3 ミドルウェアパターン
+### 4.3 Middleware Pattern
 
 ```python
-# ツール呼び出しの前後にフックを挟むミドルウェア
+# Middleware that hooks before and after tool calls
 from typing import Callable, Optional
 import time
 import logging
@@ -1069,7 +1069,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ToolMiddleware:
-    """ツール実行のミドルウェアチェーン"""
+    """Middleware chain for tool execution"""
 
     def __init__(self):
         self._before_hooks: list[Callable] = []
@@ -1077,22 +1077,22 @@ class ToolMiddleware:
         self._error_hooks: list[Callable] = []
 
     def before(self, hook: Callable) -> "ToolMiddleware":
-        """ツール実行前フック"""
+        """Pre-execution hook"""
         self._before_hooks.append(hook)
         return self
 
     def after(self, hook: Callable) -> "ToolMiddleware":
-        """ツール実行後フック"""
+        """Post-execution hook"""
         self._after_hooks.append(hook)
         return self
 
     def on_error(self, hook: Callable) -> "ToolMiddleware":
-        """エラー時フック"""
+        """Error hook"""
         self._error_hooks.append(hook)
         return self
 
     def wrap(self, handler: Callable) -> Callable:
-        """ハンドラをミドルウェアでラップ"""
+        """Wrap a handler with middleware"""
         before_hooks = self._before_hooks
         after_hooks = self._after_hooks
         error_hooks = self._error_hooks
@@ -1126,9 +1126,9 @@ class ToolMiddleware:
 
         return wrapped
 
-# 実用的なミドルウェア例
+# Practical middleware examples
 def logging_hook(context: dict):
-    """ツール呼び出しをログに記録"""
+    """Log tool calls"""
     if "result" in context:
         logger.info(
             f"Tool {context['name']} completed in {context['duration']:.2f}s"
@@ -1141,19 +1141,19 @@ def logging_hook(context: dict):
         logger.info(f"Tool {context['name']} starting with {list(context['input'].keys())}")
 
 def rate_limit_hook(context: dict):
-    """レート制限チェック"""
-    # 短時間に多くのツールが呼ばれないようにする
+    """Rate limit check"""
+    # Prevent too many tools from being called in a short time
     time.sleep(0.1)
 
 def sanitize_hook(context: dict):
-    """入力のサニタイズ"""
+    """Sanitize input"""
     for key, value in context["input"].items():
         if isinstance(value, str) and any(
             dangerous in value for dangerous in ["rm -rf", "DROP TABLE", "eval("]
         ):
-            raise ValueError(f"危険な入力が検出されました: {key}")
+            raise ValueError(f"Dangerous input detected: {key}")
 
-# ミドルウェアの適用
+# Apply middleware
 middleware = (
     ToolMiddleware()
     .before(sanitize_hook)
@@ -1162,24 +1162,24 @@ middleware = (
     .on_error(logging_hook)
 )
 
-# ハンドラをラップ
+# Wrap handler
 safe_read_file = middleware.wrap(read_file)
 ```
 
 ---
 
-## 5. MCP（Model Context Protocol）統合
+## 5. MCP (Model Context Protocol) Integration
 
-### 5.1 MCPクライアントの基本
+### 5.1 MCP Client Basics
 
 ```python
-# MCP統合の基本パターン
+# Basic MCP integration pattern
 import subprocess
 import json
 from typing import Optional
 
 class MCPClient:
-    """MCPサーバーとの通信を管理するクライアント"""
+    """Client for managing communication with MCP servers"""
 
     def __init__(self, server_command: list[str]):
         self.process = subprocess.Popen(
@@ -1192,7 +1192,7 @@ class MCPClient:
         self._request_id = 0
 
     def _send_request(self, method: str, params: dict = None) -> dict:
-        """JSON-RPCリクエストを送信"""
+        """Send a JSON-RPC request"""
         self._request_id += 1
         request = {
             "jsonrpc": "2.0",
@@ -1207,7 +1207,7 @@ class MCPClient:
         return json.loads(response_line)
 
     def initialize(self) -> dict:
-        """MCPサーバーを初期化"""
+        """Initialize the MCP server"""
         return self._send_request("initialize", {
             "protocolVersion": "2024-11-05",
             "capabilities": {},
@@ -1215,12 +1215,12 @@ class MCPClient:
         })
 
     def list_tools(self) -> list[dict]:
-        """利用可能なツール一覧を取得"""
+        """Get a list of available tools"""
         response = self._send_request("tools/list")
         return response.get("result", {}).get("tools", [])
 
     def call_tool(self, name: str, arguments: dict) -> str:
-        """ツールを呼び出す"""
+        """Call a tool"""
         response = self._send_request("tools/call", {
             "name": name,
             "arguments": arguments,
@@ -1232,17 +1232,17 @@ class MCPClient:
         )
 
     def close(self):
-        """MCPサーバーを終了"""
+        """Terminate the MCP server"""
         self.process.terminate()
         self.process.wait()
 ```
 
-### 5.2 MCPツールとClaudeツールの統合
+### 5.2 Integrating MCP Tools with Claude Tools
 
 ```python
-# MCPサーバーのツールをClaudeのtool_useと統合
+# Integrate MCP server tools with Claude tool_use
 class MCPIntegratedAgent:
-    """MCPサーバーとネイティブツールを統合するエージェント"""
+    """Agent that integrates MCP servers with native tools"""
 
     def __init__(self, config: AgentConfig):
         self.config = config
@@ -1252,24 +1252,24 @@ class MCPIntegratedAgent:
         self.native_handlers: dict[str, Callable] = {}
 
     def add_mcp_server(self, name: str, command: list[str]):
-        """MCPサーバーを追加"""
+        """Add an MCP server"""
         mcp = MCPClient(command)
         mcp.initialize()
         self.mcp_clients[name] = mcp
 
     def add_native_tool(self, tool_def: dict, handler: Callable):
-        """ネイティブツールを追加"""
+        """Add a native tool"""
         self.native_tools[tool_def["name"]] = tool_def
         self.native_handlers[tool_def["name"]] = handler
 
     def get_all_tools(self) -> list[dict]:
-        """全ツール定義を取得（MCP + ネイティブ）"""
+        """Get all tool definitions (MCP + native)"""
         tools = list(self.native_tools.values())
 
         for server_name, mcp in self.mcp_clients.items():
             mcp_tools = mcp.list_tools()
             for tool in mcp_tools:
-                # MCPツール定義をClaude API形式に変換
+                # Convert MCP tool definition to Claude API format
                 tools.append({
                     "name": f"{server_name}__{tool['name']}",
                     "description": tool.get("description", ""),
@@ -1281,25 +1281,25 @@ class MCPIntegratedAgent:
         return tools
 
     def execute_tool(self, name: str, input_data: dict) -> str:
-        """ツール名に基づいて適切なハンドラに振り分け"""
-        # ネイティブツール
+        """Route to the appropriate handler based on tool name"""
+        # Native tools
         if name in self.native_handlers:
             try:
                 return str(self.native_handlersname)
             except Exception as e:
-                return f"エラー: {e}"
+                return f"Error: {e}"
 
-        # MCPツール（server_name__tool_name形式）
+        # MCP tools (server_name__tool_name format)
         if "__" in name:
             server_name, tool_name = name.split("__", 1)
             mcp = self.mcp_clients.get(server_name)
             if mcp:
                 return mcp.call_tool(tool_name, input_data)
 
-        return f"不明なツール: {name}"
+        return f"Unknown tool: {name}"
 
     def run(self, user_message: str) -> str:
-        """エージェントループを実行"""
+        """Execute the agent loop"""
         messages = [{"role": "user", "content": user_message}]
         tools = self.get_all_tools()
 
@@ -1331,45 +1331,45 @@ class MCPIntegratedAgent:
             messages.append({"role": "assistant", "content": response.content})
             messages.append({"role": "user", "content": tool_results})
 
-        return "最大ステップ数に達しました"
+        return "Maximum number of steps reached"
 
     def close(self):
-        """全MCPサーバーを終了"""
+        """Terminate all MCP servers"""
         for mcp in self.mcp_clients.values():
             mcp.close()
 
-# 使用例
+# Usage example
 agent = MCPIntegratedAgent(AgentConfig(
-    system_prompt="ファイルシステムとデータベースを操作できるアシスタントです。"
+    system_prompt="An assistant that can manipulate the filesystem and database."
 ))
 
-# MCPサーバーを追加
+# Add MCP servers
 agent.add_mcp_server("filesystem", ["npx", "@modelcontextprotocol/server-filesystem", "/tmp"])
 agent.add_mcp_server("sqlite", ["npx", "@modelcontextprotocol/server-sqlite", "app.db"])
 
-# ネイティブツールを追加
+# Add native tools
 agent.add_native_tool(
-    {"name": "calculate", "description": "計算を実行", "input_schema": {
+    {"name": "calculate", "description": "Perform a calculation", "input_schema": {
         "type": "object",
         "properties": {"expression": {"type": "string"}},
         "required": ["expression"]
     }},
-    handler=lambda expression: eval(expression)  # 実運用ではsafe_evalを使う
+    handler=lambda expression: eval(expression)  # Use safe_eval in production
 )
 
-result = agent.run("データベースのユーザー数を取得して、/tmp/report.txtに書き込んで")
+result = agent.run("Get the number of users from the database and write it to /tmp/report.txt")
 print(result)
 agent.close()
 ```
 
 ---
 
-## 6. マルチエージェントオーケストレーション
+## 6. Multi-Agent Orchestration
 
-### 6.1 オーケストレーター/ワーカーパターン
+### 6.1 Orchestrator/Worker Pattern
 
 ```python
-# マルチエージェント: オーケストレーター + ワーカー
+# Multi-agent: Orchestrator + Workers
 from enum import Enum
 from typing import Optional
 import json
@@ -1381,7 +1381,7 @@ class AgentRole(str, Enum):
     TESTER = "tester"
 
 class MultiAgentSystem:
-    """複数のClaudeエージェントを協調動作させるシステム"""
+    """System for coordinating multiple Claude agents"""
 
     def __init__(self):
         self.client = anthropic.Anthropic()
@@ -1392,7 +1392,7 @@ class MultiAgentSystem:
         self.agents[role] = config
 
     def run_agent(self, role: AgentRole, message: str, tools: list = None) -> str:
-        """特定の役割のエージェントを実行"""
+        """Execute an agent for a specific role"""
         config = self.agents[role]
         messages = [{"role": "user", "content": message}]
 
@@ -1410,24 +1410,24 @@ class MultiAgentSystem:
         return ""
 
     def orchestrate(self, task: str) -> dict:
-        """タスクを分解して各エージェントに割り当て"""
+        """Decompose a task and assign it to each agent"""
 
-        # Step 1: オーケストレーターがタスクを分解
+        # Step 1: Orchestrator decomposes the task
         plan = self.run_agent(
             AgentRole.ORCHESTRATOR,
-            f"""以下のタスクを分解してください。
-各サブタスクにはcoder/reviewer/testerの役割を割り当ててください。
-JSON形式で出力: [{{"role": "coder", "task": "..."}}]
+            f"""Please decompose the following task.
+Assign a role of coder/reviewer/tester to each subtask.
+Output in JSON format: [{{"role": "coder", "task": "..."}}]
 
-タスク: {task}"""
+Task: {task}"""
         )
 
         try:
             subtasks = json.loads(plan)
         except json.JSONDecodeError:
-            return {"error": "タスク分解に失敗", "raw": plan}
+            return {"error": "Task decomposition failed", "raw": plan}
 
-        # Step 2: 各サブタスクを実行
+        # Step 2: Execute each subtask
         results = []
         for subtask in subtasks:
             role = AgentRole(subtask["role"])
@@ -1438,57 +1438,57 @@ JSON形式で出力: [{{"role": "coder", "task": "..."}}]
                 "result": result,
             })
 
-        # Step 3: 結果を統合
+        # Step 3: Integrate results
         summary = self.run_agent(
             AgentRole.ORCHESTRATOR,
-            f"以下の作業結果を統合してレポートを作成:\n{json.dumps(results, ensure_ascii=False)}"
+            f"Integrate the following work results and create a report:\n{json.dumps(results, ensure_ascii=False)}"
         )
 
         return {"subtasks": results, "summary": summary}
 
-# システムの構築
+# Build the system
 system = MultiAgentSystem()
 
 system.register_agent(AgentRole.ORCHESTRATOR, AgentConfig(
     model="claude-sonnet-4-20250514",
-    system_prompt="タスクを分解し、適切な担当者に割り当てるプロジェクトマネージャーです。"
+    system_prompt="A project manager who decomposes tasks and assigns them to appropriate personnel."
 ))
 
 system.register_agent(AgentRole.CODER, AgentConfig(
     model="claude-sonnet-4-20250514",
-    system_prompt="高品質なコードを書くシニアエンジニアです。テスト可能な設計を心がけます。"
+    system_prompt="A senior engineer who writes high-quality code. Focuses on testable design."
 ))
 
 system.register_agent(AgentRole.REVIEWER, AgentConfig(
     model="claude-sonnet-4-20250514",
-    system_prompt="コードの品質・セキュリティ・パフォーマンスを評価するレビュアーです。"
+    system_prompt="A reviewer who evaluates code quality, security, and performance."
 ))
 
 system.register_agent(AgentRole.TESTER, AgentConfig(
     model="claude-sonnet-4-20250514",
-    system_prompt="テストケースの設計と実装を行うQAエンジニアです。"
+    system_prompt="A QA engineer who designs and implements test cases."
 ))
 
-result = system.orchestrate("ユーザー認証APIをFastAPIで実装する")
+result = system.orchestrate("Implement a user authentication API with FastAPI")
 ```
 
-### 6.2 パイプラインパターン
+### 6.2 Pipeline Pattern
 
 ```python
-# パイプライン型マルチエージェント: 出力が次のエージェントの入力になる
+# Pipeline-style multi-agent: output of one agent becomes input of the next
 from dataclasses import dataclass
 from typing import Callable, Optional
 
 @dataclass
 class PipelineStage:
-    """パイプラインの各ステージ"""
+    """Each stage in the pipeline"""
     name: str
     model: str
     system_prompt: str
     transform_output: Optional[Callable[[str], str]] = None
 
 class AgentPipeline:
-    """エージェントを直列に接続するパイプライン"""
+    """Pipeline that connects agents in series"""
 
     def __init__(self, stages: list[PipelineStage]):
         self.stages = stages
@@ -1496,7 +1496,7 @@ class AgentPipeline:
         self.stage_results: list[dict] = []
 
     def run(self, initial_input: str) -> dict:
-        """パイプラインを実行"""
+        """Execute the pipeline"""
         current_input = initial_input
         self.stage_results = []
 
@@ -1535,37 +1535,37 @@ class AgentPipeline:
             "stages": self.stage_results,
         }
 
-# 使用例: 技術文書生成パイプライン
+# Usage example: technical document generation pipeline
 pipeline = AgentPipeline([
     PipelineStage(
-        name="要件分析",
+        name="Requirements Analysis",
         model="claude-sonnet-4-20250514",
-        system_prompt="技術文書の要件を分析し、構成案をJSON形式で出力してください。",
+        system_prompt="Analyze the requirements for a technical document and output a structural plan in JSON format.",
     ),
     PipelineStage(
-        name="ドラフト作成",
+        name="Draft Creation",
         model="claude-sonnet-4-20250514",
-        system_prompt="与えられた構成案に基づいて技術文書のドラフトを作成してください。",
+        system_prompt="Create a draft technical document based on the given structural plan.",
     ),
     PipelineStage(
-        name="レビュー・改善",
+        name="Review and Improvement",
         model="claude-sonnet-4-20250514",
-        system_prompt="技術文書をレビューし、改善版を出力してください。正確性・明瞭性・完全性を評価。",
+        system_prompt="Review the technical document and output an improved version. Evaluate accuracy, clarity, and completeness.",
     ),
 ])
 
-result = pipeline.run("Kubernetes上でのマイクロサービスデプロイガイドを作成して")
+result = pipeline.run("Create a guide for deploying microservices on Kubernetes")
 print(result["final_output"])
 ```
 
 ---
 
-## 7. エラーハンドリングとガードレール
+## 7. Error Handling and Guardrails
 
-### 7.1 包括的エラーハンドリング
+### 7.1 Comprehensive Error Handling
 
 ```python
-# 堅牢なエラーハンドリング
+# Robust error handling
 from anthropic import (
     APIError,
     APIConnectionError,
@@ -1580,7 +1580,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class RobustAgent:
-    """プロダクション品質のエラーハンドリングを備えたエージェント"""
+    """Agent with production-quality error handling"""
 
     def __init__(self, config: AgentConfig):
         self.config = config
@@ -1593,7 +1593,7 @@ class RobustAgent:
         }
 
     def _call_api_with_retry(self, **kwargs) -> "Message":
-        """リトライ付きAPI呼び出し"""
+        """API call with retry"""
         last_error = None
 
         for attempt in range(self.retry_config["max_retries"]):
@@ -1607,7 +1607,7 @@ class RobustAgent:
                     ),
                     self.retry_config["max_delay"],
                 )
-                # Retry-Afterヘッダがあればそちらを使用
+                # Use Retry-After header if available
                 retry_after = getattr(e, "response", None)
                 if retry_after:
                     headers = getattr(retry_after, "headers", {})
@@ -1615,8 +1615,8 @@ class RobustAgent:
                         delay = float(headers["retry-after"])
 
                 logger.warning(
-                    f"レート制限 (attempt {attempt+1}): "
-                    f"{delay:.1f}秒後にリトライ"
+                    f"Rate limit (attempt {attempt+1}): "
+                    f"retrying in {delay:.1f}s"
                 )
                 time.sleep(delay)
                 last_error = e
@@ -1625,82 +1625,82 @@ class RobustAgent:
                 delay = self.retry_config["base_delay"] * (
                     self.retry_config["backoff_factor"] ** attempt
                 )
-                logger.warning(f"接続エラー (attempt {attempt+1}): {e}")
+                logger.warning(f"Connection error (attempt {attempt+1}): {e}")
                 time.sleep(delay)
                 last_error = e
 
             except AuthenticationError as e:
-                logger.error(f"認証エラー: {e}")
-                raise  # リトライしない
+                logger.error(f"Authentication error: {e}")
+                raise  # Do not retry
 
             except BadRequestError as e:
-                logger.error(f"リクエストエラー: {e}")
-                raise  # リトライしない
+                logger.error(f"Request error: {e}")
+                raise  # Do not retry
 
             except APIStatusError as e:
                 if e.status_code >= 500:
                     delay = self.retry_config["base_delay"] * (
                         self.retry_config["backoff_factor"] ** attempt
                     )
-                    logger.warning(f"サーバーエラー {e.status_code} (attempt {attempt+1})")
+                    logger.warning(f"Server error {e.status_code} (attempt {attempt+1})")
                     time.sleep(delay)
                     last_error = e
                 else:
-                    raise  # 4xx系はリトライしない
+                    raise  # Do not retry 4xx errors
 
         raise last_error
 
     def _safe_execute_tool(self, name: str, input_data: dict) -> dict:
-        """安全なツール実行（タイムアウト・サンドボックス付き）"""
+        """Safe tool execution (with timeout and sandbox)"""
         import signal
 
         def timeout_handler(signum, frame):
-            raise TimeoutError("ツール実行がタイムアウトしました")
+            raise TimeoutError("Tool execution timed out")
 
-        # タイムアウト設定
+        # Set timeout
         old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(30)  # 30秒タイムアウト
+        signal.alarm(30)  # 30-second timeout
 
         try:
             result = execute_tool(name, input_data)
             return {"content": result[:10000], "is_error": False}
         except TimeoutError:
-            return {"content": "ツール実行がタイムアウト (30秒)", "is_error": True}
+            return {"content": "Tool execution timed out (30s)", "is_error": True}
         except Exception as e:
-            return {"content": f"エラー: {type(e).__name__}: {e}", "is_error": True}
+            return {"content": f"Error: {type(e).__name__}: {e}", "is_error": True}
         finally:
             signal.alarm(0)
             signal.signal(signal.SIGALRM, old_handler)
 ```
 
-### 7.2 入力バリデーションとサンドボックス
+### 7.2 Input Validation and Sandbox
 
 ```python
-# ツール入力のバリデーション
+# Tool input validation
 from pydantic import BaseModel, Field, validator
 from pathlib import Path
 import re
 
 class FileReadInput(BaseModel):
-    """ファイル読み取りの入力バリデーション"""
-    path: str = Field(..., description="ファイルパス")
+    """Input validation for file reading"""
+    path: str = Field(..., description="File path")
 
     @validator("path")
     def validate_path(cls, v):
-        # パストラバーサル攻撃の防止
+        # Prevent path traversal attacks
         resolved = Path(v).resolve()
         allowed_dirs = [Path("/workspace"), Path("/tmp")]
         if not any(str(resolved).startswith(str(d)) for d in allowed_dirs):
-            raise ValueError(f"アクセス禁止: {resolved}")
+            raise ValueError(f"Access denied: {resolved}")
         return str(resolved)
 
 class CommandInput(BaseModel):
-    """コマンド実行の入力バリデーション"""
-    command: str = Field(..., description="実行するコマンド")
+    """Input validation for command execution"""
+    command: str = Field(..., description="Command to execute")
 
     @validator("command")
     def validate_command(cls, v):
-        # 危険なコマンドのブロック
+        # Block dangerous commands
         dangerous_patterns = [
             r"rm\s+-rf\s+/",
             r"mkfs\.",
@@ -1712,12 +1712,12 @@ class CommandInput(BaseModel):
         ]
         for pattern in dangerous_patterns:
             if re.search(pattern, v):
-                raise ValueError(f"危険なコマンドパターンを検出: {pattern}")
+                raise ValueError(f"Dangerous command pattern detected: {pattern}")
         return v
 
-# バリデーション付きツール実行
+# Tool execution with validation
 def validated_execute_tool(name: str, input_data: dict) -> str:
-    """入力バリデーション付きのツール実行"""
+    """Tool execution with input validation"""
     validators = {
         "read_file": FileReadInput,
         "run_command": CommandInput,
@@ -1729,27 +1729,27 @@ def validated_execute_tool(name: str, input_data: dict) -> str:
             validated = validator_cls(**input_data)
             input_data = validated.dict()
         except Exception as e:
-            return f"バリデーションエラー: {e}"
+            return f"Validation error: {e}"
 
     return execute_tool(name, input_data)
 ```
 
-### 7.3 ガードレールの実装
+### 7.3 Implementing Guardrails
 
 ```python
-# コンテンツガードレール
+# Content guardrails
 class ContentGuardrail:
-    """エージェントの出力をチェックするガードレール"""
+    """Guardrails for checking agent output"""
 
     def __init__(self):
         self.checks: list[Callable[[str], Optional[str]]] = []
 
     def add_check(self, check: Callable[[str], Optional[str]]):
-        """チェック関数を追加。問題があればエラーメッセージを返す"""
+        """Add a check function. Returns an error message if a problem is found."""
         self.checks.append(check)
 
     def validate(self, content: str) -> tuple[bool, list[str]]:
-        """コンテンツを検証"""
+        """Validate content"""
         errors = []
         for check in self.checks:
             error = check(content)
@@ -1757,87 +1757,87 @@ class ContentGuardrail:
                 errors.append(error)
         return len(errors) == 0, errors
 
-# ガードレールの定義
+# Guardrail definitions
 guardrail = ContentGuardrail()
 
 def check_no_secrets(content: str) -> Optional[str]:
-    """秘密情報の漏洩チェック"""
+    """Check for secret information leakage"""
     patterns = [
-        (r"(?:AKIA|ABIA|ACCA|ASIA)[0-9A-Z]{16}", "AWSアクセスキー"),
-        (r"sk-[a-zA-Z0-9]{20,}", "APIキー"),
-        (r"ghp_[a-zA-Z0-9]{36}", "GitHubトークン"),
-        (r"-----BEGIN (?:RSA )?PRIVATE KEY-----", "秘密鍵"),
+        (r"(?:AKIA|ABIA|ACCA|ASIA)[0-9A-Z]{16}", "AWS access key"),
+        (r"sk-[a-zA-Z0-9]{20,}", "API key"),
+        (r"ghp_[a-zA-Z0-9]{36}", "GitHub token"),
+        (r"-----BEGIN (?:RSA )?PRIVATE KEY-----", "Private key"),
     ]
     for pattern, name in patterns:
         if re.search(pattern, content):
-            return f"秘密情報の漏洩検出: {name}"
+            return f"Secret information leakage detected: {name}"
     return None
 
 def check_no_pii(content: str) -> Optional[str]:
-    """個人情報のチェック"""
+    """Check for personally identifiable information"""
     patterns = [
-        (r"\b\d{3}-\d{4}-\d{4}\b", "電話番号"),
+        (r"\b\d{3}-\d{4}-\d{4}\b", "Phone number"),
         (r"\b\d{3}-\d{2}-\d{4}\b", "SSN"),
-        (r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "メールアドレス"),
+        (r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "Email address"),
     ]
     for pattern, name in patterns:
         if re.search(pattern, content):
-            return f"PII検出: {name}"
+            return f"PII detected: {name}"
     return None
 
 def check_max_length(content: str) -> Optional[str]:
-    """出力長チェック"""
+    """Output length check"""
     if len(content) > 50000:
-        return f"出力が長すぎます: {len(content)}文字"
+        return f"Output is too long: {len(content)} characters"
     return None
 
 guardrail.add_check(check_no_secrets)
 guardrail.add_check(check_no_pii)
 guardrail.add_check(check_max_length)
 
-# エージェントの出力をチェック
+# Check agent output
 def guarded_agent(user_message: str) -> str:
     result = agent_loop(user_message)
 
     is_valid, errors = guardrail.validate(result)
     if not is_valid:
-        logger.warning(f"ガードレール違反: {errors}")
-        return "申し訳ございませんが、回答にセキュリティ上の問題が検出されました。"
+        logger.warning(f"Guardrail violation: {errors}")
+        return "We're sorry, but a security issue was detected in the response."
 
     return result
 ```
 
 ---
 
-## 8. コンテキスト管理と会話メモリ
+## 8. Context Management and Conversation Memory
 
-### 8.1 トークンカウントと予算管理
+### 8.1 Token Counting and Budget Management
 
 ```python
-# トークン使用量の追跡と予算管理
+# Tracking token usage and managing budgets
 from dataclasses import dataclass, field
 from typing import Optional
 
 @dataclass
 class TokenBudget:
-    """トークン使用量の予算管理"""
-    max_input_tokens: int = 150_000  # 200Kの75%を上限に
+    """Budget management for token usage"""
+    max_input_tokens: int = 150_000  # Limit to 75% of 200K
     max_output_tokens_per_turn: int = 4096
-    max_total_cost_usd: float = 1.0  # セッション全体のコスト上限
+    max_total_cost_usd: float = 1.0  # Cost limit for the entire session
 
-    # 累積値
+    # Cumulative values
     total_input_tokens: int = 0
     total_output_tokens: int = 0
     total_cost_usd: float = 0.0
     api_calls: int = 0
 
     def record_usage(self, input_tokens: int, output_tokens: int, model: str):
-        """使用量を記録"""
+        """Record usage"""
         self.total_input_tokens += input_tokens
         self.total_output_tokens += output_tokens
         self.api_calls += 1
 
-        # コスト計算（モデルごとの単価）
+        # Cost calculation (unit price per model)
         cost_map = {
             "claude-haiku-4-20250514": (0.00025, 0.00125),
             "claude-sonnet-4-20250514": (0.003, 0.015),
@@ -1848,13 +1848,13 @@ class TokenBudget:
         self.total_cost_usd += cost
 
     def check_budget(self) -> tuple[bool, str]:
-        """予算チェック"""
+        """Budget check"""
         if self.total_cost_usd >= self.max_total_cost_usd:
-            return False, f"コスト上限超過: ${self.total_cost_usd:.4f} >= ${self.max_total_cost_usd}"
+            return False, f"Cost limit exceeded: ${self.total_cost_usd:.4f} >= ${self.max_total_cost_usd}"
         return True, "OK"
 
     def get_report(self) -> dict:
-        """使用レポート"""
+        """Usage report"""
         return {
             "api_calls": self.api_calls,
             "total_input_tokens": self.total_input_tokens,
@@ -1864,12 +1864,12 @@ class TokenBudget:
         }
 ```
 
-### 8.2 会話履歴の圧縮
+### 8.2 Compressing Conversation History
 
 ```python
-# 会話履歴の圧縮戦略
+# Conversation history compression strategies
 class ConversationManager:
-    """会話履歴を効率的に管理するマネージャー"""
+    """Manager for efficiently managing conversation history"""
 
     def __init__(self, max_messages: int = 50, summarize_threshold: int = 30):
         self.messages: list[dict] = []
@@ -1879,33 +1879,33 @@ class ConversationManager:
         self.summaries: list[str] = []
 
     def add_message(self, role: str, content):
-        """メッセージを追加"""
+        """Add a message"""
         self.messages.append({"role": role, "content": content})
 
-        # しきい値を超えたら圧縮
+        # Compress when threshold is exceeded
         if len(self.messages) >= self.summarize_threshold:
             self._compress()
 
     def _compress(self):
-        """古い会話を要約して圧縮"""
-        # 前半を要約
+        """Summarize and compress old conversations"""
+        # Summarize the first half
         half = len(self.messages) // 2
         old_messages = self.messages[:half]
 
-        # 要約生成
+        # Generate summary
         summary_text = self._summarize(old_messages)
         self.summaries.append(summary_text)
 
-        # 要約で置き換え
+        # Replace with summary
         summary_message = {
             "role": "user",
-            "content": f"[これまでの会話の要約]\n{summary_text}"
+            "content": f"[Summary of conversation so far]\n{summary_text}"
         }
         self.messages = [summary_message] + self.messages[half:]
 
     def _summarize(self, messages: list[dict]) -> str:
-        """メッセージリストを要約"""
-        # メッセージをテキスト化
+        """Summarize a list of messages"""
+        # Convert messages to text
         text_parts = []
         for msg in messages:
             role = msg["role"]
@@ -1913,80 +1913,80 @@ class ConversationManager:
             if isinstance(content, str):
                 text_parts.append(f"{role}: {content[:500]}")
             elif isinstance(content, list):
-                # ツール結果等
-                text_parts.append(f"{role}: [ツール操作]")
+                # Tool results etc.
+                text_parts.append(f"{role}: [tool operation]")
 
         conversation_text = "\n".join(text_parts)
 
         response = self.client.messages.create(
-            model="claude-haiku-4-20250514",  # 要約は安価なモデルで
+            model="claude-haiku-4-20250514",  # Use inexpensive model for summaries
             max_tokens=500,
             messages=[{
                 "role": "user",
-                "content": f"以下の会話を200文字以内で要約:\n{conversation_text}"
+                "content": f"Summarize the following conversation in 200 words or less:\n{conversation_text}"
             }]
         )
 
         return response.content[0].text
 
     def get_messages(self) -> list[dict]:
-        """現在のメッセージリストを返す"""
+        """Return the current message list"""
         return self.messages.copy()
 ```
 
-### 8.3 スライディングウィンドウ戦略
+### 8.3 Sliding Window Strategy
 
 ```python
-# スライディングウィンドウによるコンテキスト管理
+# Context management with a sliding window
 class SlidingWindowManager:
-    """固定サイズのウィンドウでメッセージを管理"""
+    """Manage messages with a fixed-size window"""
 
     def __init__(self, window_size: int = 20, keep_system: bool = True):
         self.window_size = window_size
         self.keep_system = keep_system
         self.all_messages: list[dict] = []
-        self.pinned_messages: list[dict] = []  # 常に保持するメッセージ
+        self.pinned_messages: list[dict] = []  # Messages to always retain
 
     def add(self, message: dict):
         self.all_messages.append(message)
 
     def pin(self, message: dict):
-        """常に保持するメッセージを追加"""
+        """Add a message to always retain"""
         self.pinned_messages.append(message)
 
     def get_window(self) -> list[dict]:
-        """現在のウィンドウ内のメッセージを取得"""
-        # ピン留めメッセージ + 最新N件
+        """Get messages within the current window"""
+        # Pinned messages + latest N items
         recent = self.all_messages[-self.window_size:]
 
-        # assistant/userの対が壊れないように調整
+        # Adjust so that assistant/user pairs are not broken
         if recent and recent[0]["role"] == "assistant":
-            recent = recent[1:]  # assistantから始まる場合は除去
+            recent = recent[1:]  # Remove if starting with assistant
 
         return self.pinned_messages + recent
 
     def estimate_tokens(self) -> int:
-        """現在のウィンドウのトークン数を推定"""
+        """Estimate the token count of the current window"""
         total_chars = sum(
             len(str(m.get("content", ""))) for m in self.get_window()
         )
-        return total_chars // 4  # 大まかな推定（日本語は約2文字/トークン）
+        return total_chars // 4  # Rough estimate (approx. 4 chars per token)
 ```
 
 ---
 
-## 9. 非同期エージェント
+## 9. Async Agent
 
-### 9.1 完全非同期実装
+### 9.1 Fully Async Implementation
 
 ```python
-# 完全非同期のエージェント実装
+# Fully async agent implementation
 import anthropic
 import asyncio
 from typing import AsyncIterator
 
 class AsyncClaudeAgent:
-    """非同期版のClaudeエージェント"""
+    """Async version of the Claude agent"""
 
     def __init__(self, config: AgentConfig, tools: list, handlers: dict):
         self.config = config
@@ -1995,7 +1995,7 @@ class AsyncClaudeAgent:
         self.client = anthropic.AsyncAnthropic()
 
     async def run(self, user_message: str) -> str:
-        """非同期でエージェントループを実行"""
+        """Execute the agent loop asynchronously"""
         messages = [{"role": "user", "content": user_message}]
 
         for step in range(self.config.max_steps):
@@ -2014,10 +2014,10 @@ class AsyncClaudeAgent:
             messages.append({"role": "assistant", "content": response.content})
             messages.append({"role": "user", "content": tool_results})
 
-        return "最大ステップ数に達しました"
+        return "Maximum number of steps reached"
 
     async def run_streaming(self, user_message: str) -> AsyncIterator[str]:
-        """ストリーミング付き非同期実行"""
+        """Async execution with streaming"""
         messages = [{"role": "user", "content": user_message}]
 
         while True:
@@ -2043,7 +2043,7 @@ class AsyncClaudeAgent:
             messages.append({"role": "user", "content": tool_results})
 
     async def _process_tools_async(self, response) -> list:
-        """非同期ツール処理"""
+        """Async tool processing"""
         tasks = []
         for block in response.content:
             if block.type == "tool_use":
@@ -2053,7 +2053,7 @@ class AsyncClaudeAgent:
         return list(results)
 
     async def _execute_tool_async(self, block) -> dict:
-        """単一ツールの非同期実行"""
+        """Async execution of a single tool"""
         handler = self.handlers.get(block.name)
         try:
             if asyncio.iscoroutinefunction(handler):
@@ -2062,7 +2062,7 @@ class AsyncClaudeAgent:
                 loop = asyncio.get_event_loop()
                 result = await loop.run_in_executor(None, lambda: handler(**block.input))
         except Exception as e:
-            result = f"エラー: {e}"
+            result = f"Error: {e}"
 
         return {
             "type": "tool_result",
@@ -2076,20 +2076,20 @@ class AsyncClaudeAgent:
                 return block.text
         return ""
 
-# 使用例
+# Usage example
 async def main():
     agent = AsyncClaudeAgent(
-        config=AgentConfig(system_prompt="非同期開発アシスタント"),
+        config=AgentConfig(system_prompt="Async development assistant"),
         tools=TOOLS,
         handlers={"read_file": read_file, "run_command": run_command},
     )
 
-    # 通常の非同期実行
-    result = await agent.run("プロジェクトの構造を教えて")
+    # Normal async execution
+    result = await agent.run("Tell me about the project structure")
     print(result)
 
-    # ストリーミング実行
-    async for chunk in agent.run_streaming("テストを実行して"):
+    # Streaming execution
+    async for chunk in agent.run_streaming("Run the tests"):
         print(chunk, end="", flush=True)
 
 asyncio.run(main())
@@ -2097,12 +2097,12 @@ asyncio.run(main())
 
 ---
 
-## 10. モニタリングとオブザーバビリティ
+## 10. Monitoring and Observability
 
-### 10.1 構造化ログとメトリクス
+### 10.1 Structured Logging and Metrics
 
 ```python
-# エージェントのモニタリング
+# Agent monitoring
 import time
 import json
 import logging
@@ -2112,7 +2112,7 @@ from datetime import datetime
 
 @dataclass
 class AgentMetrics:
-    """エージェント実行のメトリクス"""
+    """Metrics for agent execution"""
     session_id: str = ""
     start_time: float = 0.0
     end_time: float = 0.0
@@ -2141,7 +2141,7 @@ class AgentMetrics:
         }
 
 class MonitoredAgent:
-    """メトリクス収集付きエージェント"""
+    """Agent with metrics collection"""
 
     def __init__(self, config: AgentConfig, tools: list, handlers: dict):
         self.config = config
@@ -2152,7 +2152,7 @@ class MonitoredAgent:
         self.metrics: Optional[AgentMetrics] = None
 
     def run(self, user_message: str) -> tuple[str, AgentMetrics]:
-        """メトリクス付きで実行"""
+        """Execute with metrics"""
         import uuid
         self.metrics = AgentMetrics(
             session_id=str(uuid.uuid4())[:8],
@@ -2169,7 +2169,7 @@ class MonitoredAgent:
                 "message": str(e),
                 "step": self.metrics.total_steps,
             })
-            result = f"エラーで中断: {e}"
+            result = f"Aborted due to error: {e}"
         finally:
             self.metrics.end_time = time.time()
 
@@ -2194,7 +2194,7 @@ class MonitoredAgent:
             )
             api_latency = time.time() - step_start
 
-            # メトリクス記録
+            # Record metrics
             self.metrics.api_calls += 1
             self.metrics.total_input_tokens += response.usage.input_tokens
             self.metrics.total_output_tokens += response.usage.output_tokens
@@ -2211,7 +2211,7 @@ class MonitoredAgent:
                         return block.text
                 return ""
 
-            # ツール処理
+            # Tool processing
             tool_results = []
             for block in response.content:
                 if block.type == "tool_use":
@@ -2235,28 +2235,28 @@ class MonitoredAgent:
             messages.append({"role": "assistant", "content": response.content})
             messages.append({"role": "user", "content": tool_results})
 
-        return "最大ステップ数に達しました"
+        return "Maximum number of steps reached"
 
-# 使用例
+# Usage example
 agent = MonitoredAgent(
-    config=AgentConfig(system_prompt="開発アシスタント"),
+    config=AgentConfig(system_prompt="Development assistant"),
     tools=TOOLS,
     handlers={"read_file": read_file},
 )
-result, metrics = agent.run("setup.pyを読んで内容を説明して")
+result, metrics = agent.run("Read setup.py and explain its contents")
 print(json.dumps(metrics.to_dict(), indent=2, ensure_ascii=False))
 ```
 
-### 10.2 OpenTelemetryとの統合
+### 10.2 Integration with OpenTelemetry
 
 ```python
-# OpenTelemetryを使ったトレーシング
+# Tracing with OpenTelemetry
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, ConsoleSpanExporter
 from opentelemetry.trace import StatusCode
 
-# トレーサーの設定
+# Tracer configuration
 provider = TracerProvider()
 processor = SimpleSpanProcessor(ConsoleSpanExporter())
 provider.add_span_processor(processor)
@@ -2265,7 +2265,7 @@ trace.set_tracer_provider(provider)
 tracer = trace.get_tracer("claude-agent")
 
 class TracedAgent:
-    """OpenTelemetryトレーシング付きエージェント"""
+    """Agent with OpenTelemetry tracing"""
 
     def __init__(self, config: AgentConfig):
         self.config = config
@@ -2281,7 +2281,7 @@ class TracedAgent:
 
             for step in range(self.config.max_steps):
                 with tracer.start_as_current_span(f"agent.step.{step}") as step_span:
-                    # API呼び出し
+                    # API call
                     with tracer.start_as_current_span("api.messages.create") as api_span:
                         response = self.client.messages.create(
                             model=self.config.model,
@@ -2300,7 +2300,7 @@ class TracedAgent:
                         span.set_attribute("total_steps", step + 1)
                         return result
 
-                    # ツール処理
+                    # Tool processing
                     tool_results = []
                     for block in response.content:
                         if block.type == "tool_use":
@@ -2314,7 +2314,7 @@ class TracedAgent:
                                 except Exception as e:
                                     tool_span.set_status(StatusCode.ERROR)
                                     tool_span.record_exception(e)
-                                    result = f"エラー: {e}"
+                                    result = f"Error: {e}"
 
                                 tool_results.append({
                                     "type": "tool_result",
@@ -2325,8 +2325,8 @@ class TracedAgent:
                     messages.append({"role": "assistant", "content": response.content})
                     messages.append({"role": "user", "content": tool_results})
 
-            span.set_status(StatusCode.ERROR, "最大ステップ数超過")
-            return "最大ステップ数に達しました"
+            span.set_status(StatusCode.ERROR, "Maximum steps exceeded")
+            return "Maximum number of steps reached"
 
     def _extract_text(self, response) -> str:
         for block in response.content:
@@ -2337,10 +2337,10 @@ class TracedAgent:
 
 ---
 
-## 11. アーキテクチャ図
+## 11. Architecture Diagrams
 
 ```
-Claude Agent SDK ベースのエージェント構成
+Claude Agent SDK-Based Agent Configuration
 
 +------------------------------------------------------+
 |                    Application                        |
@@ -2376,11 +2376,11 @@ Claude Agent SDK ベースのエージェント構成
 ```
 
 ```
-マルチエージェントオーケストレーション構成
+Multi-Agent Orchestration Configuration
 
 +----------------------------------------------------------+
 |                    Orchestrator Agent                      |
-|  (タスク分解・割り当て・結果統合)                          |
+|  (Task decomposition, assignment, result integration)      |
 +----+-------------------+-------------------+--------------+
      |                   |                   |
      v                   v                   v
@@ -2399,46 +2399,46 @@ Claude Agent SDK ベースのエージェント構成
 
 ---
 
-## 12. 比較表
+## 12. Comparison Tables
 
-### 12.1 Claude SDKの利用パターン
+### 12.1 Claude SDK Usage Patterns
 
-| パターン | コード量 | 柔軟性 | 複雑度 | 適用場面 |
-|----------|---------|--------|--------|---------|
-| 直接API呼び出し | 最少 | 最高 | 低 | 単純なツール使用 |
-| クラスベース | 中 | 高 | 中 | 再利用可能なエージェント |
-| MCP統合 | 中-多 | 高 | 中-高 | ツール共有 |
-| マルチエージェント | 多 | 高 | 高 | 複雑なタスク |
-| パイプライン | 中 | 中 | 低-中 | 段階的処理 |
-| 非同期 | 中 | 高 | 中 | 高スループット要件 |
+| Pattern | Code Volume | Flexibility | Complexity | Use Case |
+|---------|-------------|-------------|------------|----------|
+| Direct API call | Minimal | Highest | Low | Simple tool use |
+| Class-based | Medium | High | Medium | Reusable agents |
+| MCP integration | Medium-High | High | Medium-High | Tool sharing |
+| Multi-agent | High | High | High | Complex tasks |
+| Pipeline | Medium | Medium | Low-Medium | Staged processing |
+| Async | Medium | High | Medium | High-throughput needs |
 
-### 12.2 モデル選択ガイド
+### 12.2 Model Selection Guide
 
-| モデル | コスト | 速度 | 推論力 | 適用場面 |
-|--------|--------|------|--------|---------|
-| Claude Haiku | 最低 | 最速 | 基本 | 分類、ルーティング、要約 |
-| Claude Sonnet | 中 | 速い | 高 | 一般的なエージェント、コーディング |
-| Claude Opus | 高 | 遅い | 最高 | 複雑な推論、設計、重要な判断 |
+| Model | Cost | Speed | Reasoning | Use Case |
+|-------|------|-------|-----------|----------|
+| Claude Haiku | Lowest | Fastest | Basic | Classification, routing, summarization |
+| Claude Sonnet | Medium | Fast | High | General agents, coding |
+| Claude Opus | High | Slow | Highest | Complex reasoning, design, critical decisions |
 
-### 12.3 エラーハンドリング戦略
+### 12.3 Error Handling Strategies
 
-| エラー種別 | リトライ | 対処法 | 備考 |
-|-----------|---------|--------|------|
-| RateLimitError | する | 指数バックオフ | Retry-Afterヘッダ参照 |
-| APIConnectionError | する | 指数バックオフ | ネットワーク一時障害 |
-| AuthenticationError | しない | APIキー確認 | 即座にエラー返却 |
-| BadRequestError | しない | 入力修正 | メッセージ形式の問題 |
-| 500系サーバーエラー | する | 指数バックオフ | サーバー側の問題 |
-| ToolTimeoutError | 条件付き | タイムアウト延長 or スキップ | ツール依存 |
+| Error Type | Retry | Approach | Notes |
+|------------|-------|----------|-------|
+| RateLimitError | Yes | Exponential backoff | Check Retry-After header |
+| APIConnectionError | Yes | Exponential backoff | Temporary network failure |
+| AuthenticationError | No | Check API key | Return error immediately |
+| BadRequestError | No | Fix input | Message format issue |
+| 5xx Server Error | Yes | Exponential backoff | Server-side issue |
+| ToolTimeoutError | Conditional | Extend timeout or skip | Tool-dependent |
 
 ---
 
-## 13. プロダクションデプロイパターン
+## 13. Production Deployment Patterns
 
-### 13.1 FastAPIとの統合
+### 13.1 Integration with FastAPI
 
 ```python
-# FastAPIでエージェントをAPIとして公開
+# Expose agent as API with FastAPI
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -2449,7 +2449,7 @@ app = FastAPI(title="Claude Agent API")
 
 class AgentRequest(BaseModel):
     message: str
-    system_prompt: str = "あなたは有能なAIアシスタントです。"
+    system_prompt: str = "You are a capable AI assistant."
     max_steps: int = 10
     model: str = "claude-sonnet-4-20250514"
 
@@ -2458,12 +2458,12 @@ class AgentResponse(BaseModel):
     result: str
     metrics: dict
 
-# セッション管理
+# Session management
 sessions: dict[str, dict] = {}
 
 @app.post("/agent/run", response_model=AgentResponse)
 async def run_agent(request: AgentRequest):
-    """同期的にエージェントを実行"""
+    """Execute agent synchronously"""
     session_id = str(uuid.uuid4())[:8]
 
     config = AgentConfig(
@@ -2493,7 +2493,7 @@ async def run_agent(request: AgentRequest):
 
 @app.post("/agent/stream")
 async def stream_agent(request: AgentRequest):
-    """ストリーミングでエージェントを実行"""
+    """Execute agent with streaming"""
     async_agent = AsyncClaudeAgent(
         config=AgentConfig(
             model=request.model,
@@ -2513,16 +2513,16 @@ async def stream_agent(request: AgentRequest):
 
 @app.get("/sessions/{session_id}")
 async def get_session(session_id: str):
-    """セッション情報を取得"""
+    """Get session information"""
     if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="セッションが見つかりません")
+        raise HTTPException(status_code=404, detail="Session not found")
     return sessions[session_id]
 ```
 
-### 13.2 キューイングとバックグラウンド処理
+### 13.2 Queuing and Background Processing
 
 ```python
-# Celeryを使ったバックグラウンドエージェント実行
+# Background agent execution with Celery
 from celery import Celery
 import redis
 
@@ -2531,9 +2531,9 @@ redis_client = redis.Redis(host="localhost", port=6379, db=1)
 
 @celery_app.task(bind=True, max_retries=2)
 def run_agent_task(self, task_id: str, message: str, config_dict: dict):
-    """バックグラウンドでエージェントタスクを実行"""
+    """Execute an agent task in the background"""
     try:
-        # 進捗を通知
+        # Notify progress
         redis_client.hset(f"task:{task_id}", "status", "running")
 
         config = AgentConfig(**config_dict)
@@ -2545,13 +2545,13 @@ def run_agent_task(self, task_id: str, message: str, config_dict: dict):
 
         result, metrics = agent.run(message)
 
-        # 結果を保存
+        # Save results
         redis_client.hset(f"task:{task_id}", mapping={
             "status": "completed",
             "result": result,
             "metrics": json.dumps(metrics.to_dict(), ensure_ascii=False),
         })
-        redis_client.expire(f"task:{task_id}", 3600)  # 1時間保持
+        redis_client.expire(f"task:{task_id}", 3600)  # Keep for 1 hour
 
         return {"task_id": task_id, "status": "completed"}
 
@@ -2562,7 +2562,7 @@ def run_agent_task(self, task_id: str, message: str, config_dict: dict):
         })
         raise self.retry(exc=e, countdown=5)
 
-# タスクの投入と状態確認
+# Submit task and check status
 def submit_agent_task(message: str) -> str:
     task_id = str(uuid.uuid4())[:8]
     redis_client.hset(f"task:{task_id}", "status", "queued")
@@ -2581,58 +2581,57 @@ def check_task_status(task_id: str) -> dict:
 
 ---
 
-## 14. アンチパターン
+## 14. Anti-Patterns
 
-### アンチパターン1: 会話履歴の無制限蓄積
+### Anti-Pattern 1: Unbounded Accumulation of Conversation History
 
 ```python
-# NG: 履歴が無限に増えてコンテキスト超過
+# BAD: History grows indefinitely, causing context overflow
 messages = []
 while True:
-    messages.append(...)  # 増え続ける
+    messages.append(...)  # Keeps growing
 
-# OK: 履歴の管理（要約 or スライディングウィンドウ）
+# GOOD: Manage history (summarization or sliding window)
 MAX_HISTORY = 50
 
 def manage_history(messages: list) -> list:
     if len(messages) > MAX_HISTORY:
-        # 古い履歴を要約
         summary = summarize(messages[:MAX_HISTORY//2])
         return [
-            {"role": "user", "content": f"これまでの要約: {summary}"},
+            {"role": "user", "content": f"Summary so far: {summary}"},
             *messages[MAX_HISTORY//2:]
         ]
     return messages
 ```
 
-### アンチパターン2: ツール結果のサイズ無制限
+### Anti-Pattern 2: Unlimited Tool Result Size
 
 ```python
-# NG: 巨大なファイル内容をそのまま返す
+# BAD: Return huge file contents as-is
 def read_file(path):
     with open(path) as f:
-        return f.read()  # 100MBのファイルかもしれない
+        return f.read()  # Could be a 100MB file
 
-# OK: サイズ制限と要約
+# GOOD: Size limits and summarization
 def read_file(path, max_chars=10000):
     with open(path) as f:
         content = f.read()
     if len(content) > max_chars:
-        return content[:max_chars] + f"\n... (残り {len(content)-max_chars} 文字省略)"
+        return content[:max_chars] + f"\n... ({len(content)-max_chars} characters omitted)"
     return content
 ```
 
-### アンチパターン3: エラー無視のツール実行
+### Anti-Pattern 3: Ignoring Errors in Tool Execution
 
 ```python
-# NG: エラーを握りつぶす
+# BAD: Swallow errors silently
 def execute_tool(name, input_data):
     try:
         return do_something(name, input_data)
     except:
-        return ""  # 空文字を返して何もなかったことにする
+        return ""  # Return empty string as if nothing happened
 
-# OK: エラーを明示的に返す
+# GOOD: Return errors explicitly
 def execute_tool(name, input_data):
     try:
         return do_something(name, input_data)
@@ -2645,45 +2644,45 @@ def execute_tool(name, input_data):
         }, ensure_ascii=False)
 ```
 
-### アンチパターン4: 無制限のステップ数
+### Anti-Pattern 4: Unlimited Step Count
 
 ```python
-# NG: 無限ループの可能性
+# BAD: Possibility of infinite loop
 def agent_loop(message):
-    while True:  # 永遠に続く可能性
+    while True:  # May run forever
         response = call_api(message)
         if response.stop_reason == "end_turn":
             return response
 
-# OK: ステップ制限 + タイムアウト
+# GOOD: Step limit + timeout
 def agent_loop(message, max_steps=20, timeout=300):
     start = time.time()
     for step in range(max_steps):
         if time.time() - start > timeout:
-            return "タイムアウト"
+            return "Timed out"
         response = call_api(message)
         if response.stop_reason == "end_turn":
             return response
-    return "最大ステップ数超過"
+    return "Maximum steps exceeded"
 ```
 
-### アンチパターン5: 単一モデルでの全処理
+### Anti-Pattern 5: Processing Everything with a Single Model
 
 ```python
-# NG: すべてのタスクに高価なモデルを使用
+# BAD: Use expensive model for all tasks
 def process_all(tasks):
     for task in tasks:
         result = client.messages.create(
-            model="claude-opus-4-20250514",  # 全部Opusは高コスト
+            model="claude-opus-4-20250514",  # All Opus is high cost
             ...
         )
 
-# OK: タスクに応じたモデル選択
+# GOOD: Select model based on task
 MODEL_ROUTING = {
-    "classify": "claude-haiku-4-20250514",     # 分類は安価に
-    "summarize": "claude-haiku-4-20250514",    # 要約も安価に
-    "generate": "claude-sonnet-4-20250514",    # 生成は中程度
-    "reason": "claude-opus-4-20250514",        # 複雑な推論のみ高品質
+    "classify": "claude-haiku-4-20250514",     # Classification with cheap model
+    "summarize": "claude-haiku-4-20250514",    # Summarization also cheap
+    "generate": "claude-sonnet-4-20250514",    # Generation at medium level
+    "reason": "claude-opus-4-20250514",        # Complex reasoning only at high quality
 }
 
 def smart_process(task_type, content):
@@ -2693,55 +2692,55 @@ def smart_process(task_type, content):
 
 ---
 
-## 15. テストパターン
+## 15. Testing Patterns
 
-### 15.1 エージェントのユニットテスト
+### 15.1 Unit Testing the Agent
 
 ```python
-# エージェントのテスト
+# Agent tests
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 import json
 
 class TestClaudeAgent:
-    """ClaudeAgentのユニットテスト"""
+    """Unit tests for ClaudeAgent"""
 
     def setup_method(self):
         self.config = AgentConfig(
             model="claude-sonnet-4-20250514",
             max_steps=5,
-            system_prompt="テスト用プロンプト",
+            system_prompt="Test prompt",
         )
 
     @patch("anthropic.Anthropic")
     def test_simple_response(self, mock_anthropic_cls):
-        """ツール使用なしの単純なレスポンス"""
-        # モックの設定
+        """Simple response without tool use"""
+        # Set up mock
         mock_client = MagicMock()
         mock_anthropic_cls.return_value = mock_client
 
         mock_response = MagicMock()
         mock_response.stop_reason = "end_turn"
-        mock_response.content = [MagicMock(text="テスト回答", type="text")]
-        mock_response.content[0].text = "テスト回答"
+        mock_response.content = [MagicMock(text="Test answer", type="text")]
+        mock_response.content[0].text = "Test answer"
         mock_response.usage.input_tokens = 100
         mock_response.usage.output_tokens = 50
 
         mock_client.messages.create.return_value = mock_response
 
         agent = ClaudeAgent(self.config, tools=[], handlers={})
-        result = agent.run("テスト質問")
+        result = agent.run("Test question")
 
-        assert result == "テスト回答"
+        assert result == "Test answer"
         mock_client.messages.create.assert_called_once()
 
     @patch("anthropic.Anthropic")
     def test_tool_use_and_response(self, mock_anthropic_cls):
-        """ツール使用後にレスポンスを返す"""
+        """Return response after tool use"""
         mock_client = MagicMock()
         mock_anthropic_cls.return_value = mock_client
 
-        # 1回目: ツール呼び出し
+        # First call: tool call
         tool_response = MagicMock()
         tool_response.stop_reason = "tool_use"
         tool_block = MagicMock()
@@ -2753,34 +2752,34 @@ class TestClaudeAgent:
         tool_response.usage.input_tokens = 100
         tool_response.usage.output_tokens = 50
 
-        # 2回目: 最終回答
+        # Second call: final answer
         final_response = MagicMock()
         final_response.stop_reason = "end_turn"
         text_block = MagicMock()
         text_block.type = "text"
-        text_block.text = "ファイル内容: hello"
+        text_block.text = "File contents: hello"
         final_response.content = [text_block]
         final_response.usage.input_tokens = 200
         final_response.usage.output_tokens = 80
 
         mock_client.messages.create.side_effect = [tool_response, final_response]
 
-        # ハンドラ
+        # Handler
         handlers = {"read_file": lambda path: "hello"}
 
         agent = ClaudeAgent(self.config, tools=TOOLS, handlers=handlers)
-        result = agent.run("test.pyを読んで")
+        result = agent.run("Read test.py")
 
         assert "hello" in result
         assert mock_client.messages.create.call_count == 2
 
     @patch("anthropic.Anthropic")
     def test_max_steps_exceeded(self, mock_anthropic_cls):
-        """最大ステップ数超過"""
+        """Maximum steps exceeded"""
         mock_client = MagicMock()
         mock_anthropic_cls.return_value = mock_client
 
-        # 常にツール呼び出しを返す（無限ループ）
+        # Always return a tool call (infinite loop)
         tool_response = MagicMock()
         tool_response.stop_reason = "tool_use"
         tool_block = MagicMock()
@@ -2798,19 +2797,19 @@ class TestClaudeAgent:
         agent = ClaudeAgent(config, tools=TOOLS, handlers={
             "read_file": lambda path: "content"
         })
-        result = agent.run("テスト")
+        result = agent.run("Test")
 
-        assert "最大ステップ" in result
+        assert "Maximum" in result
         assert mock_client.messages.create.call_count == 3
 
 class TestToolRegistry:
-    """ToolRegistryのテスト"""
+    """Tests for ToolRegistry"""
 
     def test_tool_registration(self):
-        """ツール登録のテスト"""
+        """Test tool registration"""
         registry = ToolRegistry()
 
-        @registry.tool("テスト用ツール")
+        @registry.tool("Test tool")
         def my_tool(name: str, count: int = 1) -> str:
             return f"{name} x {count}"
 
@@ -2822,7 +2821,7 @@ class TestToolRegistry:
         assert "count" not in tools[0]["input_schema"]["required"]
 
     def test_tool_execution(self):
-        """ツール実行のテスト"""
+        """Test tool execution"""
         registry = ToolRegistry()
 
         @registry.tool()
@@ -2833,29 +2832,29 @@ class TestToolRegistry:
         assert result == "8"
 
     def test_unknown_tool(self):
-        """未登録ツールの実行"""
+        """Execution of unregistered tool"""
         registry = ToolRegistry()
         result = registry.execute("unknown", {})
-        assert "未登録" in result
+        assert "Unregistered" in result
 ```
 
-### 15.2 インテグレーションテスト
+### 15.2 Integration Tests
 
 ```python
-# エージェントのインテグレーションテスト
+# Integration tests for agents
 import pytest
 import tempfile
 import os
 
 class TestAgentIntegration:
-    """実際のAPIを使ったインテグレーションテスト"""
+    """Integration tests using the actual API"""
 
     @pytest.fixture
     def agent(self):
         config = AgentConfig(
-            model="claude-haiku-4-20250514",  # テストは安価なモデルで
+            model="claude-haiku-4-20250514",  # Use inexpensive model for tests
             max_steps=5,
-            system_prompt="テスト用アシスタント。簡潔に回答してください。",
+            system_prompt="Test assistant. Please respond concisely.",
         )
         return ClaudeAgent(config, tools=TOOLS, handlers={
             "read_file": lambda path: open(path).read(),
@@ -2864,37 +2863,37 @@ class TestAgentIntegration:
 
     @pytest.mark.integration
     def test_file_read_agent(self, agent):
-        """ファイル読み取りエージェントのE2Eテスト"""
+        """E2E test for file reading agent"""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("テストデータ: 42")
+            f.write("Test data: 42")
             temp_path = f.name
 
         try:
-            result = agent.run(f"{temp_path}を読んで内容を教えて")
-            assert "42" in result or "テストデータ" in result
+            result = agent.run(f"Read {temp_path} and tell me its contents")
+            assert "42" in result or "Test data" in result
         finally:
             os.unlink(temp_path)
 
     @pytest.mark.integration
     def test_agent_timeout(self, agent):
-        """タイムアウトテスト"""
-        agent.config.timeout = 0.001  # 極端に短いタイムアウト
-        result = agent.run("複雑な計算をして")
-        assert "タイムアウト" in result or len(result) > 0
+        """Timeout test"""
+        agent.config.timeout = 0.001  # Extremely short timeout
+        result = agent.run("Do a complex calculation")
+        assert "Timed out" in result or len(result) > 0
 ```
 
 ---
 
 ## 16. FAQ
 
-### Q1: extended thinkingをエージェントで使うべきか？
+### Q1: Should I use extended thinking in agents?
 
-extended thinking（拡張思考）は複雑な推論タスクに有効だが、エージェントでは注意が必要:
-- **利点**: 計画立案、複雑なバグ修正で品質向上
-- **注意点**: レイテンシ増加、ツール使用との組み合わせに制約あり
-- **推奨**: 計画フェーズのみextended thinkingを有効にし、ツール実行フェーズでは無効にする
+Extended thinking is effective for complex reasoning tasks, but caution is needed in agents:
+- **Advantages**: Improved quality for planning, complex bug fixing
+- **Caveats**: Increased latency, constraints on combining with tool use
+- **Recommendation**: Enable extended thinking only for the planning phase, disable for the tool execution phase
 
-### Q2: レート制限への対処方法は？
+### Q2: How do I handle rate limits?
 
 ```python
 import time
@@ -2907,68 +2906,68 @@ def call_with_retry(func, max_retries=3):
         except RateLimitError:
             wait = 2 ** attempt
             time.sleep(wait)
-    raise Exception("レート制限超過")
+    raise Exception("Rate limit exceeded")
 ```
 
-### Q3: 複数のClaudeモデルをエージェント内で使い分けるには？
+### Q3: How do I switch between multiple Claude models within an agent?
 
 ```python
-# ルーティング用は安価なモデル、生成は高品質モデル
+# Use inexpensive model for routing, high-quality model for generation
 ROUTING_MODEL = "claude-haiku-4-20250514"
 GENERATION_MODEL = "claude-sonnet-4-20250514"
 
 def smart_agent(query):
-    # Step 1: 高速モデルで分類
+    # Step 1: Classify with fast model
     category = client.messages.create(
         model=ROUTING_MODEL, ...
     )
-    # Step 2: 高品質モデルで回答
+    # Step 2: Answer with high-quality model
     answer = client.messages.create(
         model=GENERATION_MODEL, ...
     )
 ```
 
-### Q4: コンテキストウィンドウを効率的に使うには？
+### Q4: How do I use the context window efficiently?
 
 ```python
-# コンテキスト最適化の3つの戦略
+# Three strategies for context optimization
 
-# 1. ツール結果の切り詰め
+# 1. Truncate tool results
 def truncate_result(result: str, max_chars: int = 5000) -> str:
     if len(result) <= max_chars:
         return result
-    # 先頭と末尾を保持
+    # Keep beginning and end
     head = result[:max_chars // 2]
     tail = result[-(max_chars // 2):]
-    return f"{head}\n\n... ({len(result) - max_chars}文字省略) ...\n\n{tail}"
+    return f"{head}\n\n... ({len(result) - max_chars} characters omitted) ...\n\n{tail}"
 
-# 2. 不要な中間結果の除去
+# 2. Remove unnecessary intermediate results
 def clean_history(messages: list) -> list:
-    """古いツール結果を圧縮"""
+    """Compress old tool results"""
     cleaned = []
     for msg in messages:
         if msg["role"] == "user" and isinstance(msg["content"], list):
-            # ツール結果を短縮
+            # Shorten tool results
             shortened = []
             for item in msg["content"]:
                 if item.get("type") == "tool_result":
                     content = item.get("content", "")
                     if len(content) > 500:
-                        item = {**item, "content": content[:500] + "...(省略)"}
+                        item = {**item, "content": content[:500] + "...(omitted)"}
                 shortened.append(item)
             cleaned.append({"role": "user", "content": shortened})
         else:
             cleaned.append(msg)
     return cleaned
 
-# 3. セマンティックキャッシュ
+# 3. Semantic cache
 class SemanticCache:
-    """類似の質問に対するキャッシュ"""
+    """Cache for similar queries"""
     def __init__(self):
         self.cache: dict[str, str] = {}
 
     def get(self, query: str) -> str | None:
-        # 簡易的なキーマッチング（実運用ではembeddingを使用）
+        # Simple key matching (use embeddings in production)
         normalized = query.lower().strip()
         return self.cache.get(normalized)
 
@@ -2977,14 +2976,14 @@ class SemanticCache:
         self.cache[normalized] = response
 ```
 
-### Q5: エージェントのデバッグ方法は？
+### Q5: How do I debug an agent?
 
 ```python
-# デバッグモードのエージェント
+# Debug mode agent
 import sys
 
 class DebugAgent(ClaudeAgent):
-    """デバッグ情報を出力するエージェント"""
+    """Agent that outputs debug information"""
 
     def __init__(self, *args, verbose: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
@@ -3007,15 +3006,15 @@ class DebugAgent(ClaudeAgent):
         return result
 ```
 
-### Q6: Batching APIで大量リクエストを効率的に処理するには？
+### Q6: How do I efficiently process large volumes of requests with the Batch API?
 
 ```python
-# Batch APIを使った大量処理
+# Batch processing with the Batch API
 import anthropic
 import json
 
 def create_batch_requests(tasks: list[dict]) -> list[dict]:
-    """バッチリクエストを作成"""
+    """Create batch requests"""
     requests = []
     for i, task in enumerate(tasks):
         requests.append({
@@ -3029,13 +3028,13 @@ def create_batch_requests(tasks: list[dict]) -> list[dict]:
     return requests
 
 def submit_batch(requests: list[dict]) -> str:
-    """バッチを送信"""
+    """Submit a batch"""
     client = anthropic.Anthropic()
     batch = client.messages.batches.create(requests=requests)
     return batch.id
 
 def check_batch_status(batch_id: str) -> dict:
-    """バッチの状態を確認"""
+    """Check batch status"""
     client = anthropic.Anthropic()
     batch = client.messages.batches.retrieve(batch_id)
     return {
@@ -3055,48 +3054,45 @@ def check_batch_status(batch_id: str) -> dict:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| 基本ループ | messages.create → stop_reason判定 → ツール実行 → 繰り返し |
-| ストリーミング | messages.stream でリアルタイム出力 |
-| 並列ツール | 1レスポンスで複数tool_useブロック |
-| MCP統合 | MCPサーバーのツールをそのまま利用 |
-| マルチエージェント | オーケストレーター + ワーカー / パイプライン |
-| エラーハンドリング | 指数バックオフ + バリデーション + ガードレール |
-| モニタリング | 構造化ログ + メトリクス + OpenTelemetry |
-| コンテキスト管理 | スライディングウィンドウ + 履歴圧縮 |
-| テスト | ユニットテスト(モック) + インテグレーションテスト |
-| 設計原則 | 最小限のコード、明示的な制御、安全なデフォルト |
+| Item | Content |
+|------|---------|
+| Basic loop | messages.create → check stop_reason → execute tools → repeat |
+| Streaming | Real-time output with messages.stream |
+| Parallel tools | Multiple tool_use blocks in a single response |
+| MCP integration | Use MCP server tools directly |
+| Multi-agent | Orchestrator + workers / pipeline |
+| Error handling | Exponential backoff + validation + guardrails |
+| Monitoring | Structured logging + metrics + OpenTelemetry |
+| Context management | Sliding window + history compression |
+| Testing | Unit tests (mocks) + integration tests |
+| Design principles | Minimal code, explicit control, safe defaults |
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [04-evaluation.md](./04-evaluation.md) -- エージェントの評価手法
-- [02-mcp-agents.md](./02-mcp-agents.md) -- MCP統合の詳細
-- [../04-production/00-deployment.md](../04-production/00-deployment.md) -- デプロイとスケーリング
+- [04-evaluation.md](./04-evaluation.md) -- Agent evaluation methods
+- [02-mcp-agents.md](./02-mcp-agents.md) -- MCP integration details
+- [../04-production/00-deployment.md](../04-production/00-deployment.md) -- Deployment and scaling
 
-## 参考文献
+## References
 
 1. Anthropic, "Claude API Reference" -- https://docs.anthropic.com/en/api/
 2. Anthropic, "Building effective agents" -- https://docs.anthropic.com/en/docs/build-with-claude/agentic
 3. anthropic-sdk-python GitHub -- https://github.com/anthropics/anthropic-sdk-python
 4. Anthropic, "Tool use (function calling)" -- https://docs.anthropic.com/en/docs/build-with-claude/tool-use
 5. Anthropic, "Extended thinking" -- https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
-6. Anthropic, "Message Batches API" -- https://docs.anthropic.com/en/docs/build-with-claude/message-batches
-7. Model Context Protocol Specification -- https://spec.modelcontextprotocol.io/
-8. OpenTelemetry Python SDK -- https://opentelemetry.io/docs/languages/python/
