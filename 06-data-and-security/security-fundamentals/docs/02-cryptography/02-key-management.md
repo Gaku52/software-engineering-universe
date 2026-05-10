@@ -1,30 +1,30 @@
-# 鍵管理
+# Key Management
 
-> 暗号鍵のライフサイクル管理、HSM/KMS による安全な鍵保管、エンベロープ暗号化の仕組みまで、暗号鍵を正しく運用するための包括的ガイド
+> A comprehensive guide to operating cryptographic keys correctly — covering key lifecycle management, secure key storage with HSM/KMS, and the mechanics of envelope encryption
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **鍵ライフサイクル** — 生成から廃棄まで、暗号鍵の各段階で求められる管理要件
-2. **HSM と KMS の使い分け** — ハードウェアセキュリティモジュールとクラウド鍵管理サービスの特性
-3. **エンベロープ暗号化** — データ暗号化鍵 (DEK) と鍵暗号化鍵 (KEK) による多層暗号化パターン
-4. **鍵ローテーションと運用** — 自動ローテーション戦略と緊急対応手順
+1. **Key Lifecycle** — Management requirements at each stage of a cryptographic key, from generation to destruction
+2. **HSM vs. KMS** — Characteristics of Hardware Security Modules and cloud key management services
+3. **Envelope Encryption** — Multi-layer encryption patterns using a Data Encryption Key (DEK) and a Key Encryption Key (KEK)
+4. **Key Rotation and Operations** — Automated rotation strategies and emergency response procedures
 
-## 前提知識
+## Prerequisites
 
-- 暗号の基礎 (対称鍵暗号と公開鍵暗号の違い)
-- AES、RSA、ECDSA の基本概念
-- クラウドサービス (AWS/GCP/Azure) の基本
-- Python の基本的なプログラミング知識
+- Cryptography fundamentals (difference between symmetric and public-key cryptography)
+- Basic concepts of AES, RSA, and ECDSA
+- Basics of cloud services (AWS/GCP/Azure)
+- Basic Python programming knowledge
 
 ---
 
-## 1. 鍵ライフサイクル
+## 1. Key Lifecycle
 
-### 鍵管理の全体像
+### Overview of Key Management
 
-暗号鍵の管理は暗号システム全体の安全性を左右する最も重要な要素である。NIST SP 800-57 では鍵のライフサイクルを厳密に定義しており、各段階で適切な管理を行わないと暗号化の意味が失われる。歴史的に、暗号アルゴリズム自体の脆弱性よりも、鍵管理の不備によるインシデントの方がはるかに多い。
+Managing cryptographic keys is the most critical factor determining the overall security of a cryptographic system. NIST SP 800-57 rigorously defines the key lifecycle, and failing to apply proper management at each stage renders encryption meaningless. Historically, incidents caused by poor key management far outnumber those caused by vulnerabilities in the cryptographic algorithms themselves.
 
-### 鍵の状態遷移
+### Key State Transitions
 
 ```
   +----------+     +----------+     +----------+
@@ -55,19 +55,19 @@
                                    +----------+
 ```
 
-### 鍵ライフサイクルの各段階 (詳細)
+### Key Lifecycle Stages (Detail)
 
-| 段階 | 説明 | 許可される操作 | 期間の目安 | セキュリティ要件 |
-|------|------|--------------|-----------|----------------|
-| 生成 | 暗号学的に安全な乱数で鍵を生成 | なし (生成のみ) | 即時 | CSPRNG 必須、HSM内推奨 |
-| 有効化 | 鍵をシステムに登録し使用可能にする | 暗号化、署名 | 即時 | アクセス制御設定 |
-| 運用中 | 暗号化・署名に使用する期間 | 暗号化、復号、署名、検証 | 1-2年 (対称鍵) | 使用ログ監査 |
-| 一時停止 | 調査等のため一時的に使用停止 | なし | 数日-数週間 | 理由のドキュメント化 |
-| 無効化 | 暗号化には使用不可、復号のみ許可 | 復号、検証のみ | 数年 | 暗号化操作の禁止 |
-| アーカイブ | 過去データの復号のためのみ保持 | 復号のみ (要承認) | 規制に依存 | 厳格なアクセス制御 |
-| 廃棄 | 安全に削除 (暗号学的消去) | なし (不可逆) | 不可逆 | 全コピーの確実な消去 |
+| Stage | Description | Permitted Operations | Typical Duration | Security Requirements |
+|-------|-------------|---------------------|------------------|-----------------------|
+| Generation | Generate a key using a cryptographically secure random number | None (generation only) | Immediate | CSPRNG required, recommended inside HSM |
+| Activation | Register the key in the system and make it usable | Encryption, signing | Immediate | Configure access controls |
+| Active | Period during which the key is used for encryption and signing | Encrypt, decrypt, sign, verify | 1–2 years (symmetric) | Usage log auditing |
+| Suspended | Temporarily suspended for investigation, etc. | None | Days to weeks | Document the reason |
+| Deactivated | Cannot be used for encryption; decryption only | Decrypt and verify only | Several years | Prohibit encryption operations |
+| Archived | Retained solely for decrypting past data | Decrypt only (requires approval) | Depends on regulations | Strict access control |
+| Destroyed | Securely deleted (cryptographic erasure) | None (irreversible) | Irreversible | Ensure all copies are erased |
 
-### 暗号期間 (Cryptoperiod) の目安
+### Cryptoperiod Guidelines
 
 ```
 鍵の種類                 暗号化期間    復号/検証期間    合計
@@ -85,7 +85,7 @@
 出典: NIST SP 800-57 Part 1 Rev.5 Table 1
 ```
 
-### 鍵ライフサイクル管理の実装
+### Implementing Key Lifecycle Management
 
 ```python
 import os
@@ -245,9 +245,9 @@ class KeyManager:
 
 ---
 
-## 2. 鍵の種類と用途
+## 2. Key Types and Uses
 
-### 鍵の階層構造
+### Key Hierarchy
 
 ```
 +-------------------------------------------------------+
@@ -274,31 +274,31 @@ class KeyManager:
 |      (用途に応じて異なる)                               |
 +-------------------------------------------------------+
 
-分離の原則:
-  - 各レベルの鍵は異なるストレージに保管
-  - 上位の鍵が下位の鍵を保護
-  - マスター鍵はHSM外に出ない
-  - 鍵の危殆化時、影響範囲を限定できる
+Principle of Separation:
+  - Keys at each level are stored in separate storage
+  - Higher-level keys protect lower-level keys
+  - The master key never leaves the HSM
+  - When a key is compromised, the blast radius is limited
 ```
 
-### 鍵の種類と推奨パラメータ
+### Key Types and Recommended Parameters
 
-| 用途 | アルゴリズム | 鍵長 | セキュリティ強度 | 推奨/非推奨 |
-|------|------------|------|----------------|-----------|
-| データ暗号化 | AES-256-GCM | 256 bit | 256 bit | 推奨 |
-| データ暗号化 | AES-128-GCM | 128 bit | 128 bit | 許容 |
-| データ暗号化 | ChaCha20-Poly1305 | 256 bit | 256 bit | 推奨 |
-| デジタル署名 | RSA | 4096 bit | ~140 bit | 推奨 |
-| デジタル署名 | ECDSA P-256 | 256 bit | 128 bit | 推奨 |
-| デジタル署名 | Ed25519 | 256 bit | ~128 bit | 強く推奨 |
-| 鍵交換 | X25519 | 256 bit | ~128 bit | 強く推奨 |
-| 鍵交換 | ECDH P-384 | 384 bit | 192 bit | 推奨 |
-| パスワードハッシュ | Argon2id | - | - | 強く推奨 |
-| パスワードハッシュ | bcrypt | - | - | 許容 |
-| パスワードハッシュ | SHA-256 | - | - | 非推奨 (単独使用) |
-| 鍵導出 | HKDF-SHA256 | - | 128 bit | 推奨 |
+| Use Case | Algorithm | Key Length | Security Strength | Recommendation |
+|----------|-----------|------------|-------------------|----------------|
+| Data encryption | AES-256-GCM | 256 bit | 256 bit | Recommended |
+| Data encryption | AES-128-GCM | 128 bit | 128 bit | Acceptable |
+| Data encryption | ChaCha20-Poly1305 | 256 bit | 256 bit | Recommended |
+| Digital signature | RSA | 4096 bit | ~140 bit | Recommended |
+| Digital signature | ECDSA P-256 | 256 bit | 128 bit | Recommended |
+| Digital signature | Ed25519 | 256 bit | ~128 bit | Strongly recommended |
+| Key exchange | X25519 | 256 bit | ~128 bit | Strongly recommended |
+| Key exchange | ECDH P-384 | 384 bit | 192 bit | Recommended |
+| Password hashing | Argon2id | - | - | Strongly recommended |
+| Password hashing | bcrypt | - | - | Acceptable |
+| Password hashing | SHA-256 | - | - | Not recommended (standalone use) |
+| Key derivation | HKDF-SHA256 | - | 128 bit | Recommended |
 
-### 鍵の生成 (Python)
+### Key Generation (Python)
 
 ```python
 import os
@@ -398,60 +398,61 @@ auth_key = derive_key(master_secret, "authentication")
 
 ## 3. HSM (Hardware Security Module)
 
-### HSM の内部アーキテクチャ
+### HSM Internal Architecture
 
 ```
 +---------------------------------------------------+
-|                  アプリケーション                     |
+|                  Application                        |
 |---------------------------------------------------|
-|  1. 鍵生成リクエスト      4. 署名リクエスト          |
-|  2. 暗号化リクエスト      5. 鍵ラッピング            |
-|  3. 復号リクエスト        6. HMAC 演算              |
+|  1. Key generation request    4. Signing request  |
+|  2. Encryption request        5. Key wrapping     |
+|  3. Decryption request        6. HMAC computation |
 +---------------------------------------------------+
             |  PKCS#11 / JCE / CNG / KMIP API
             v
 +---------------------------------------------------+
 |                    HSM                             |
 |---------------------------------------------------|
-|  [耐タンパ性ハードウェア]                            |
-|  物理筐体は耐タンパ加工 (開封→鍵消去)               |
+|  [Tamper-resistant hardware]                      |
+|  Physical enclosure is tamper-evident             |
+|  (opening triggers key erasure)                   |
 |                                                   |
-|  +-- 鍵ストレージ                                  |
-|  |   暗号化された不揮発性メモリ                      |
-|  |   鍵がHSM外に出ない (non-extractable)           |
+|  +-- Key storage                                  |
+|  |   Encrypted non-volatile memory                |
+|  |   Keys never leave the HSM (non-extractable)   |
 |  |                                                |
-|  +-- 暗号エンジン                                  |
-|  |   専用ASICチップで暗号演算                       |
-|  |   AES-NI 相当の高速処理                         |
-|  |   RSA 署名: ~1,000 ops/sec                    |
-|  |   ECDSA P-256: ~5,000 ops/sec                |
+|  +-- Cryptographic engine                         |
+|  |   Dedicated ASIC chip for crypto operations    |
+|  |   High-speed processing equivalent to AES-NI  |
+|  |   RSA signing: ~1,000 ops/sec                  |
+|  |   ECDSA P-256: ~5,000 ops/sec                 |
 |  |                                                |
-|  +-- 乱数生成器 (TRNG)                            |
-|  |   物理的エントロピー源 (熱雑音等)                 |
-|  |   NIST SP 800-90B 準拠                        |
+|  +-- Random number generator (TRNG)              |
+|  |   Physical entropy source (thermal noise etc.) |
+|  |   Compliant with NIST SP 800-90B              |
 |  |                                                |
-|  +-- 監査ログ                                     |
-|  |   全操作を内部ログに記録                          |
-|  |   改竄不可能                                    |
+|  +-- Audit log                                    |
+|  |   All operations recorded in internal log      |
+|  |   Tamper-proof                                 |
 |  |                                                |
-|  +-- FIPS 140-2/3 Level 3 認証                    |
-|      Level 2: 物理的不正開封の検知                  |
-|      Level 3: 不正開封時の鍵消去                    |
-|      Level 4: 環境攻撃への耐性                     |
+|  +-- FIPS 140-2/3 Level 3 certification          |
+|      Level 2: Detection of physical tampering     |
+|      Level 3: Key erasure upon tampering          |
+|      Level 4: Resistance to environmental attacks |
 +---------------------------------------------------+
 ```
 
-### HSM の種類と比較
+### HSM Types and Comparison
 
-| 種類 | 例 | 特徴 | コスト | 用途 |
-|------|-----|------|--------|------|
-| オンプレミス HSM | Thales Luna, nCipher | 完全管理、最高セキュリティ | $10K-$100K+ | 金融、政府 |
-| クラウド HSM | AWS CloudHSM, GCP Cloud HSM | マネージド、FIPS Level 3 | $1-2/時間 | クラウドワークロード |
-| USB HSM | YubiHSM 2 | 小型、低コスト | $650 | 小規模、開発、署名 |
-| ソフトウェア HSM | SoftHSM 2 | 開発/テスト用 | 無料 | 開発環境のみ |
-| クラウド KMS | AWS KMS, GCP Cloud KMS | フルマネージド | $1/鍵/月 | 汎用暗号化 |
+| Type | Examples | Characteristics | Cost | Use Cases |
+|------|----------|-----------------|------|-----------|
+| On-premises HSM | Thales Luna, nCipher | Fully managed, highest security | $10K–$100K+ | Finance, government |
+| Cloud HSM | AWS CloudHSM, GCP Cloud HSM | Managed, FIPS Level 3 | $1–2/hour | Cloud workloads |
+| USB HSM | YubiHSM 2 | Compact, low cost | $650 | Small-scale, development, signing |
+| Software HSM | SoftHSM 2 | For development/testing | Free | Development environment only |
+| Cloud KMS | AWS KMS, GCP Cloud KMS | Fully managed | $1/key/month | General-purpose encryption |
 
-### PKCS#11 を使った HSM 操作
+### HSM Operations via PKCS#11
 
 ```python
 import pkcs11
@@ -568,38 +569,38 @@ with token.open(user_pin="1234") as session:
     )
 ```
 
-### HSM のアクセス制御モデル
+### HSM Access Control Model
 
 ```
 +----------------------------------------------------------+
-|              HSM アクセス制御                               |
+|              HSM Access Control                           |
 |----------------------------------------------------------|
 |                                                          |
-|  [認証方式]                                               |
-|  +-- PIN/パスワード: 基本的な認証                         |
-|  +-- M of N 認証: N人中M人の承認が必要                    |
-|  |   例: 3 of 5 (管理者5人中3人が同時に認証)              |
-|  +-- スマートカード + PIN: 二要素認証                     |
+|  [Authentication methods]                                |
+|  +-- PIN/Password: Basic authentication                  |
+|  +-- M of N: Requires approval from M of N admins        |
+|  |   Example: 3 of 5 (3 of 5 administrators at once)    |
+|  +-- Smart card + PIN: Two-factor authentication        |
 |                                                          |
-|  [ロール]                                                |
-|  +-- Security Officer (SO): HSM の管理・設定             |
-|  +-- Crypto Officer (CO): 鍵の生成・削除                 |
-|  +-- Crypto User (CU): 鍵の使用 (暗号化/署名)           |
-|  +-- Auditor: 監査ログの閲覧のみ                        |
+|  [Roles]                                                 |
+|  +-- Security Officer (SO): HSM administration/config   |
+|  +-- Crypto Officer (CO): Key generation and deletion   |
+|  +-- Crypto User (CU): Key usage (encrypt/sign)        |
+|  +-- Auditor: Read-only access to audit logs            |
 |                                                          |
-|  [ポリシー]                                              |
-|  +-- 鍵属性: extractable, sensitive, modifiable          |
-|  +-- 操作制限: encrypt, decrypt, sign, wrap              |
-|  +-- 時間制限: 使用可能時間帯の設定                       |
-|  +-- 使用回数制限: 最大使用回数の設定                     |
+|  [Policies]                                              |
+|  +-- Key attributes: extractable, sensitive, modifiable  |
+|  +-- Operation restrictions: encrypt, decrypt, sign, wrap|
+|  +-- Time restrictions: configurable usage time windows  |
+|  +-- Usage count limits: maximum usage count settings   |
 +----------------------------------------------------------+
 ```
 
 ---
 
-## 4. クラウド KMS
+## 4. Cloud KMS
 
-### AWS KMS の基本操作
+### Basic AWS KMS Operations
 
 ```python
 import boto3
@@ -760,23 +761,23 @@ verify_response = kms.verify(
 assert verify_response["SignatureValid"] is True
 ```
 
-### KMS 比較表 (詳細)
+### KMS Comparison Table (Detail)
 
-| 項目 | AWS KMS | GCP Cloud KMS | Azure Key Vault |
+| Item | AWS KMS | GCP Cloud KMS | Azure Key Vault |
 |------|---------|---------------|-----------------|
-| HSM バックエンド | CloudHSM 連携 | Cloud HSM | Managed HSM |
-| FIPS 認証 | 140-2 Level 2 (標準), Level 3 (CloudHSM) | 140-2 Level 3 | 140-2 Level 2 (標準), Level 3 (Premium) |
-| 自動ローテーション | 年次 (対称鍵のみ) | カスタム期間 | カスタム期間 |
-| 料金 (鍵/月) | $1 (対称), $1 (非対称) | $0.06 (ソフトウェア), $1-2.50 (HSM) | $0.03/10,000操作 |
-| 料金 (リクエスト) | $0.03/10,000 | $0.03/10,000 | $0.03/10,000 |
-| 鍵のインポート | 可能 (BYOK) | 可能 (BYOK) | 可能 (BYOK) |
-| マルチリージョン | マルチリージョンキー | グローバルリソース | geo レプリケーション |
-| 暗号化コンテキスト | EncryptionContext (AAD) | Additional AAD | - |
-| 鍵ポリシー | KMS Key Policy + IAM | IAM | RBAC + Access Policy |
-| CloudTrail 統合 | 全操作をログ | Cloud Audit Logs | Activity Log |
-| 最大データサイズ (直接) | 4 KB | 64 KB | - |
+| HSM backend | CloudHSM integration | Cloud HSM | Managed HSM |
+| FIPS certification | 140-2 Level 2 (standard), Level 3 (CloudHSM) | 140-2 Level 3 | 140-2 Level 2 (standard), Level 3 (Premium) |
+| Automatic rotation | Annual (symmetric keys only) | Custom period | Custom period |
+| Pricing (key/month) | $1 (symmetric), $1 (asymmetric) | $0.06 (software), $1–2.50 (HSM) | $0.03/10,000 operations |
+| Pricing (requests) | $0.03/10,000 | $0.03/10,000 | $0.03/10,000 |
+| Key import | Supported (BYOK) | Supported (BYOK) | Supported (BYOK) |
+| Multi-region | Multi-region keys | Global resource | Geo replication |
+| Encryption context | EncryptionContext (AAD) | Additional AAD | - |
+| Key policy | KMS Key Policy + IAM | IAM | RBAC + Access Policy |
+| CloudTrail integration | All operations logged | Cloud Audit Logs | Activity Log |
+| Max data size (direct) | 4 KB | 64 KB | - |
 
-### GCP Cloud KMS の使用例
+### GCP Cloud KMS Example
 
 ```python
 from google.cloud import kms
@@ -829,58 +830,60 @@ def decrypt_with_gcp_kms(
 
 ---
 
-## 5. エンベロープ暗号化
+## 5. Envelope Encryption
 
-### エンベロープ暗号化の仕組み
+### How Envelope Encryption Works
 
 ```
-暗号化フロー:
+Encryption flow:
 
-  +-----------+     DEK (平文)     +-----------+
-  |  KMS      | ---- 生成 -----> |  DEK       |
-  | (マスター  |                   | (データ鍵) |
-  |   鍵)     |                   +-----------+
-  +-----------+                        |
-       |                               |
-       | DEK を                        | データを
-       | マスター鍵で暗号化              | DEK で暗号化
-       | (KMS API)                     | (ローカル)
-       |                               |
-       v                               v
-  +-----------+                   +-----------+
-  | 暗号化DEK  |                   | 暗号化     |
-  | (メタデータ |                   | データ     |
-  |  に保存)   |                   +-----------+
-  +-----------+                        |
-       |                               |
-       +------- 一緒に保存 ------------+
+  +-----------+     DEK (plaintext)  +-----------+
+  |  KMS      | ---- generate ----> |  DEK       |
+  | (master   |                      | (data key) |
+  |   key)    |                      +-----------+
+  +-----------+                           |
+       |                                  |
+       | Encrypt DEK                      | Encrypt data
+       | with master key                  | with DEK
+       | (KMS API)                        | (local)
+       |                                  |
+       v                                  v
+  +-----------+                      +-----------+
+  | Encrypted  |                      | Encrypted |
+  | DEK        |                      | data      |
+  | (stored in |                      +-----------+
+  |  metadata) |                           |
+  +-----------+                            |
+       |                                   |
+       +------- stored together -----------+
 
-復号フロー:
+Decryption flow:
 
-  +-----------+                   +-----------+
-  | 暗号化DEK  |                   | 暗号化     |
-  +-----------+                   | データ     |
-       |                          +-----------+
-       | KMS に送信                      |
-       v                               |
-  +-----------+     DEK (平文)          |
-  |  KMS      | ---- 復号 ----→        |
-  | (マスター  |                   DEK で復号
-  |   鍵)     |                   (ローカル)
-  +-----------+                        |
-                                       v
-                                 +-----------+
-                                 | 平文データ  |
-                                 +-----------+
+  +-----------+                      +-----------+
+  | Encrypted  |                      | Encrypted |
+  | DEK        |                      | data      |
+  +-----------+                      +-----------+
+       |                                  |
+       | Send to KMS                      |
+       v                                  |
+  +-----------+     DEK (plaintext)        |
+  |  KMS      | ---- decrypt ---→         |
+  | (master   |                      Decrypt with DEK
+  |   key)    |                      (local)
+  +-----------+                           |
+                                          v
+                                    +-----------+
+                                    | Plaintext |
+                                    +-----------+
 
-メリット:
-  1. 大量データを KMS に送信する必要がない (レイテンシ削減)
-  2. KMS の API 呼び出し回数を最小化 (コスト削減)
-  3. マスター鍵が KMS/HSM の外に出ない (セキュリティ)
-  4. DEK のローテーションが容易 (新DEKで再暗号化)
+Benefits:
+  1. No need to send large data to KMS (reduces latency)
+  2. Minimizes KMS API call count (reduces cost)
+  3. Master key never leaves KMS/HSM (security)
+  4. Easy DEK rotation (re-encrypt with a new DEK)
 ```
 
-### エンベロープ暗号化の実装 (本番品質)
+### Envelope Encryption Implementation (Production Quality)
 
 ```python
 import boto3
@@ -1023,63 +1026,65 @@ if __name__ == "__main__":
     assert crypto.decrypt(restored) == b"John Doe, SSN: 123-45-6789"
 ```
 
-### エンベロープ暗号化 vs 直接暗号化
+### Envelope Encryption vs. Direct Encryption
 
-| 項目 | エンベロープ暗号化 | 直接 KMS 暗号化 |
-|------|------------------|----------------|
-| データサイズ制限 | 無制限 | AWS: 4KB, GCP: 64KB |
-| レイテンシ | 低い (ローカル暗号化) | 高い (全データをKMSに送信) |
-| KMS API 呼び出し | 1回 (DEK生成) | データ量に比例 |
-| コスト | 低い | 高い (大量データ時) |
-| マスター鍵の露出 | なし (KMS内) | なし (KMS内) |
-| DEK のローテーション | 容易 (新DEKで再暗号化) | 不要 (KMS管理) |
-| 適用シーン | 大量データ、ファイル | 小さなシークレット、トークン |
+| Item | Envelope Encryption | Direct KMS Encryption |
+|------|--------------------|-----------------------|
+| Data size limit | Unlimited | AWS: 4KB, GCP: 64KB |
+| Latency | Low (local encryption) | High (all data sent to KMS) |
+| KMS API calls | 1 call (DEK generation) | Proportional to data volume |
+| Cost | Low | High (with large data) |
+| Master key exposure | None (stays in KMS) | None (stays in KMS) |
+| DEK rotation | Easy (re-encrypt with new DEK) | Not needed (KMS-managed) |
+| Applicable scenarios | Large data, files | Small secrets, tokens |
 
 ---
 
-## 6. 鍵ローテーション
+## 6. Key Rotation
 
-### 自動ローテーション戦略
+### Automatic Rotation Strategies
 
 ```
-鍵ローテーションの方式:
+Key rotation methods:
 
-方式1: KMS 自動ローテーション (推奨)
+Method 1: KMS automatic rotation (recommended)
 +------------------------------------------+
 | KMS Key (alias/my-key)                   |
 |                                          |
-| v1 (2024-01) → 暗号化/復号 (現行)        |
-| v2 (2025-01) → 暗号化/復号 (自動生成)     |
-| v3 (2026-01) → 暗号化 (最新)              |
+| v1 (2024-01) → encrypt/decrypt (current) |
+| v2 (2025-01) → encrypt/decrypt (auto)    |
+| v3 (2026-01) → encrypt (latest)          |
 |                                          |
-| - エイリアスは変更なし                     |
-| - 旧バージョンの鍵で暗号化されたデータも    |
-|   同じエイリアスで復号可能                  |
-| - アプリケーション変更不要                  |
+| - Alias unchanged                        |
+| - Data encrypted with older key versions |
+|   can still be decrypted via same alias  |
+| - No application changes required        |
 +------------------------------------------+
 
-方式2: 手動ローテーション (エイリアス切り替え)
+Method 2: Manual rotation (alias switchover)
 +------------------------------------------+
-| Step 1: 新しい鍵を作成                     |
-| Step 2: エイリアスを新しい鍵に向ける        |
-| Step 3: 旧鍵は復号のために残す             |
-| Step 4: 必要に応じて旧データを再暗号化      |
+| Step 1: Create a new key                 |
+| Step 2: Point alias to the new key       |
+| Step 3: Keep old key for decryption      |
+| Step 4: Re-encrypt old data as needed    |
 |                                          |
-| alias/my-key → key-id-NEW (暗号化)       |
-| key-id-OLD は復号のみ (無効化しない)       |
+| alias/my-key → key-id-NEW (encrypt)     |
+| key-id-OLD for decryption only           |
+|   (do not deactivate)                    |
 +------------------------------------------+
 
-方式3: ダブルライト + バッチ移行
+Method 3: Double-write + batch migration
 +------------------------------------------+
-| Phase 1: 新旧両方の鍵で暗号化 (ダブルライト)|
-| Phase 2: 読み取り時に旧鍵データを新鍵で    |
-|          再暗号化 (Lazy Migration)          |
-| Phase 3: バッチで残りの旧データを移行       |
-| Phase 4: 旧鍵を無効化 → 廃棄             |
+| Phase 1: Encrypt with both old and new   |
+|          keys (double-write)             |
+| Phase 2: On read, re-encrypt old-key     |
+|          data with new key (lazy)        |
+| Phase 3: Batch-migrate remaining data    |
+| Phase 4: Deactivate → destroy old key   |
 +------------------------------------------+
 ```
 
-### 鍵ローテーションの実装
+### Key Rotation Implementation
 
 ```python
 import boto3
@@ -1189,7 +1194,7 @@ class KeyRotationManager:
         return aging_keys
 ```
 
-### 鍵ローテーション Terraform 設定
+### Key Rotation Terraform Configuration
 
 ```hcl
 # AWS KMS キーの作成と自動ローテーション
@@ -1262,33 +1267,33 @@ resource "aws_cloudwatch_metric_alarm" "kms_usage_anomaly" {
 
 ---
 
-## 7. メモリ上の鍵の安全な取り扱い
+## 7. Safe Handling of Keys in Memory
 
-### 鍵のメモリ安全性
+### Key Memory Safety
 
 ```
-脅威:
-  1. メモリダンプ (core dump) に鍵が含まれる
-  2. スワップ領域に鍵が書き出される
-  3. GC (ガベージコレクタ) が遅延的にメモリを解放
-  4. フォーク時に子プロセスにコピーされる
-  5. サイドチャネル攻撃 (キャッシュタイミング等)
+Threats:
+  1. Memory dumps (core dumps) may contain keys
+  2. Keys may be written to swap space
+  3. GC (garbage collector) releases memory lazily
+  4. Keys copied to child processes on fork
+  5. Side-channel attacks (cache timing, etc.)
 
-対策:
-  +-- OS レベル ---+
-  |  mlock()       |  メモリをスワップ不可にする
-  |  madvise()     |  fork時にコピーしない
-  |  core dump無効 |  /proc/sys/kernel/core_pattern
-  +----------------+
+Countermeasures:
+  +-- OS level ------+
+  |  mlock()         |  Prevent memory from being swapped
+  |  madvise()       |  Do not copy on fork
+  |  Disable coredump|  /proc/sys/kernel/core_pattern
+  +------------------+
 
-  +-- アプリレベル --+
-  |  即時ゼロ化     |  使用後にメモリをゼロで上書き
-  |  スコープ制限   |  鍵の生存期間を最小化
-  |  HSM利用       |  鍵をメモリに持たない (最善)
-  +----------------+
+  +-- Application level --+
+  |  Immediate zeroing    |  Overwrite memory with zeros after use
+  |  Scope limitation     |  Minimize key lifetime
+  |  Use HSM              |  Never hold key in memory (best option)
+  +----------------------+
 ```
 
-### Python での安全な鍵取り扱い
+### Safe Key Handling in Python
 
 ```python
 import ctypes
@@ -1358,9 +1363,9 @@ def secure_key(key_data: bytes):
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-patterns
 
-### アンチパターン 1: 鍵のハードコーディング
+### Anti-pattern 1: Hardcoding Keys
 
 ```python
 # NG: ソースコードに暗号鍵を直書き
@@ -1386,128 +1391,128 @@ response = sm.get_secret_value(SecretId="myapp/api-key")
 api_key = response["SecretString"]
 ```
 
-**影響**: Git 履歴に鍵が残り、ローテーションが不可能になる。漏洩時に全データが危殆化する。GitHub の調査によると、パブリックリポジトリの約 10% に何らかのシークレットがコミットされている。
+**Impact**: Keys remain in git history and cannot be rotated. All data is compromised upon exposure. According to GitHub research, approximately 10% of public repositories have some kind of secret committed to them.
 
-### アンチパターン 2: 鍵とデータの同一ストレージ保管
+### Anti-pattern 2: Storing Keys and Data in the Same Storage
 
 ```
 NG:
-  S3 バケット/
+  S3 bucket/
     ├── data/encrypted-data.bin
-    └── keys/encryption-key.txt     ← 同じバケットに鍵を保管
-  (S3バケットが漏洩 → 鍵もデータも同時に流出)
+    └── keys/encryption-key.txt     ← key stored in same bucket
+  (S3 bucket leak → key and data both exposed simultaneously)
 
 NG:
-  データベース/
-    ├── users テーブル (暗号化カラム)
-    └── encryption_keys テーブル      ← 同じDBに鍵を保管
-  (SQLi → 鍵もデータも取得可能)
+  Database/
+    ├── users table (encrypted columns)
+    └── encryption_keys table        ← key stored in same DB
+  (SQLi → both key and data can be retrieved)
 
 OK:
-  S3 バケット (データ)/
-    └── data/encrypted-data.bin     ← 暗号化 DEK をメタデータに格納
-  KMS (鍵)/
-    └── マスターキー                  ← 別サービスで管理
-  (S3が漏洩しても暗号化DEKの復号にはKMSアクセスが必要)
+  S3 bucket (data)/
+    └── data/encrypted-data.bin     ← encrypted DEK stored in metadata
+  KMS (keys)/
+    └── master key                   ← managed in separate service
+  (Even if S3 is leaked, decrypting the encrypted DEK requires KMS access)
 
 OK:
-  データベース/
-    └── users テーブル (暗号化データ + 暗号化DEK)
+  Database/
+    └── users table (encrypted data + encrypted DEK)
   AWS KMS/
-    └── CMK (マスター鍵)              ← IAMで厳密にアクセス制御
+    └── CMK (master key)             ← strictly access-controlled via IAM
 ```
 
-**影響**: S3 バケットが漏洩した場合、鍵もデータも同時に流出し暗号化の意味がなくなる。暗号化は「鍵がなければ読めない」ことが前提であり、鍵とデータを分離しなければその前提が崩れる。
+**Impact**: If an S3 bucket is leaked, both the key and the data are exposed simultaneously, rendering encryption meaningless. Encryption is predicated on the assumption that data cannot be read without the key — if keys and data are not separated, that premise breaks down.
 
-### アンチパターン 3: 鍵のローテーションなし
+### Anti-pattern 3: No Key Rotation
 
 ```
 NG:
-  → 5年前に作成した AES 鍵をそのまま使い続ける
-  → 「動いているから変えない」
-  → ローテーション手順が未整備
-  → 退職者がアクセスしていた鍵が残存
+  → Continuing to use an AES key created 5 years ago
+  → "It works, so we won't change it"
+  → No rotation procedure in place
+  → Keys accessed by former employees still exist
 
 OK:
-  → KMS の自動ローテーションを有効化
-  → ローテーション手順を文書化・自動化
-  → 定期的な監査 (鍵の年齢チェック)
-  → 退職/異動時に鍵のアクセス見直し
+  → Enable KMS automatic rotation
+  → Document and automate the rotation procedure
+  → Regular audits (check key age)
+  → Review key access on employee departure/transfer
 
-コンプライアンス要件:
-  PCI DSS: 年次ローテーション必須
-  NIST SP 800-57: 対称鍵は最大2年
-  HIPAA: 適切な鍵管理の要求
+Compliance requirements:
+  PCI DSS: Annual rotation required
+  NIST SP 800-57: Maximum 2 years for symmetric keys
+  HIPAA: Requires appropriate key management
 ```
 
 ---
 
-## 9. 演習問題
+## 9. Exercises
 
-### 演習 1 (基礎): 鍵生成と暗号化
+### Exercise 1 (Basic): Key Generation and Encryption
 
-**課題**: 以下を Python で実装せよ。
-1. AES-256-GCM 用の鍵を CSPRNG で生成
-2. 任意のテキストを暗号化・復号
-3. AAD (Additional Authenticated Data) を含める
-4. ナンスの一意性を保証する方法を説明
+**Task**: Implement the following in Python.
+1. Generate an AES-256-GCM key using a CSPRNG
+2. Encrypt and decrypt arbitrary text
+3. Include AAD (Additional Authenticated Data)
+4. Explain how to guarantee nonce uniqueness
 
-**ヒント**: `os.urandom()` と `cryptography` ライブラリの `AESGCM` を使用。
+**Hint**: Use `os.urandom()` and the `AESGCM` class from the `cryptography` library.
 
-### 演習 2 (応用): エンベロープ暗号化の設計
+### Exercise 2 (Applied): Designing an Envelope Encryption System
 
-**課題**: 以下の要件を満たすエンベロープ暗号化システムを設計せよ。
-- マルチテナント環境 (テナントごとに異なるマスター鍵)
-- 鍵ローテーション時に既存データの再暗号化が必要
-- 暗号化コンテキストにテナントID、データ種別を含める
-- 不正アクセス時のアラート機構
+**Task**: Design an envelope encryption system that satisfies the following requirements.
+- Multi-tenant environment (different master keys per tenant)
+- Re-encryption of existing data is required during key rotation
+- Encryption context includes tenant ID and data type
+- Alert mechanism on unauthorized access
 
-**成果物**: クラス設計図 + シーケンス図
+**Deliverables**: Class design diagram + sequence diagram
 
-### 演習 3 (実践): KMS 鍵管理の自動化
+### Exercise 3 (Practical): Automating KMS Key Management
 
-**課題**: Terraform で以下の KMS 構成を構築せよ。
-- 3 つの用途別 KMS キー (データ暗号化、署名、シークレット管理)
-- 各キーに適切なキーポリシー
-- 自動ローテーション有効化
-- CloudWatch アラームによる異常検知
-- 鍵の年齢を監査する Lambda 関数
+**Task**: Use Terraform to build the following KMS configuration.
+- 3 purpose-specific KMS keys (data encryption, signing, secret management)
+- Appropriate key policies for each key
+- Enable automatic rotation
+- Anomaly detection via CloudWatch alarms
+- A Lambda function to audit key age
 
-**ヒント**: `aws_kms_key`, `aws_kms_alias`, `aws_cloudwatch_metric_alarm` を使用。
+**Hint**: Use `aws_kms_key`, `aws_kms_alias`, and `aws_cloudwatch_metric_alarm`.
 
 ---
 
-## 10. トラブルシューティング
+## 10. Troubleshooting
 
-### よくある問題と対処
+### Common Issues and Solutions
 
 ```
-問題1: KMS で復号できない (AccessDeniedException)
-  → IAM ポリシーに kms:Decrypt が含まれているか確認
-  → KMS キーポリシーに呼び出し元の Principal があるか確認
-  → EncryptionContext が暗号化時と完全一致しているか確認
-  → 鍵がDISABLED状態になっていないか確認
+Issue 1: Cannot decrypt with KMS (AccessDeniedException)
+  → Check that the IAM policy includes kms:Decrypt
+  → Check that the calling Principal is in the KMS key policy
+  → Check that the EncryptionContext matches exactly what was used during encryption
+  → Check that the key is not in a DISABLED state
 
-問題2: KMS で復号できない (InvalidCiphertextException)
-  → EncryptionContext の不一致 (最も多い)
-  → 暗号文の破損 (S3 転送時のエンコーディング問題)
-  → 異なるリージョンの鍵で暗号化されたデータ
-  → マルチリージョンキーの場合: レプリカキーの確認
+Issue 2: Cannot decrypt with KMS (InvalidCiphertextException)
+  → EncryptionContext mismatch (most common cause)
+  → Corrupted ciphertext (encoding issue during S3 transfer)
+  → Data encrypted with a key from a different region
+  → For multi-region keys: check the replica key
 
-問題3: HSM セッションエラー
-  → PIN/パスワードの有効期限切れ
-  → HSM パーティションの容量不足 (鍵数上限)
-  → ネットワーク接続の問題 (CloudHSM)
-  → HSM クラスタの同期状態の確認
+Issue 3: HSM session error
+  → Expired PIN/password
+  → Insufficient capacity in HSM partition (key count limit)
+  → Network connectivity issue (CloudHSM)
+  → Check HSM cluster sync status
 
-問題4: 鍵ローテーション後に復号できない
-  → 旧鍵が削除されていないか確認
-  → エイリアスが正しい鍵を指しているか確認
-  → 暗号文に鍵バージョン情報が含まれているか確認
-  → KMS 自動ローテーションでは旧バージョンは自動保持される
+Issue 4: Cannot decrypt after key rotation
+  → Check that the old key has not been deleted
+  → Check that the alias points to the correct key
+  → Check that the ciphertext includes key version information
+  → With KMS automatic rotation, old versions are retained automatically
 ```
 
-### デバッグコマンド
+### Debug Commands
 
 ```bash
 # AWS KMS: 鍵の状態確認
@@ -1532,19 +1537,19 @@ aws cloudhsmv2 describe-clusters \
 
 ---
 
-## 11. パフォーマンス考慮事項
+## 11. Performance Considerations
 
-### KMS API のレイテンシとスループット
+### KMS API Latency and Throughput
 
-| 操作 | レイテンシ (P50) | レイテンシ (P99) | スループット上限 |
-|------|----------------|----------------|----------------|
-| Encrypt (対称) | 5-10 ms | 30 ms | 30,000 rps |
-| Decrypt (対称) | 5-10 ms | 30 ms | 30,000 rps |
-| GenerateDataKey | 5-10 ms | 30 ms | 30,000 rps |
-| Sign (RSA-4096) | 50-100 ms | 200 ms | 500 rps |
-| Sign (ECDSA) | 10-20 ms | 50 ms | 2,000 rps |
+| Operation | Latency (P50) | Latency (P99) | Throughput Limit |
+|-----------|---------------|---------------|-----------------|
+| Encrypt (symmetric) | 5–10 ms | 30 ms | 30,000 rps |
+| Decrypt (symmetric) | 5–10 ms | 30 ms | 30,000 rps |
+| GenerateDataKey | 5–10 ms | 30 ms | 30,000 rps |
+| Sign (RSA-4096) | 50–100 ms | 200 ms | 500 rps |
+| Sign (ECDSA) | 10–20 ms | 50 ms | 2,000 rps |
 
-### パフォーマンス最適化
+### Performance Optimization
 
 ```python
 # 1. DEK キャッシュ (エンベロープ暗号化時)
@@ -1590,46 +1595,46 @@ class CachedEnvelopeEncryption:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not only through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend solidly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| 鍵ライフサイクル | NIST SP 800-57 に基づき生成→有効化→運用→無効化→廃棄の全段階を管理 |
-| 鍵の階層 | Master Key → KEK → DEK の三層構造、各層は分離保管 |
-| HSM | 耐タンパ性ハードウェアで鍵の漏洩を物理的に防止、FIPS 140-2/3 認証 |
-| KMS | クラウドマネージドで鍵管理の運用負荷を軽減、暗号化コンテキスト必須 |
-| エンベロープ暗号化 | DEK + KEK の二層構造で大量データを効率的に暗号化 |
-| 鍵ローテーション | 自動ローテーションを有効にし最低年次で実施、緊急時手順も準備 |
-| 鍵の分離 | 鍵とデータは必ず別のストレージ・サービスで管理 |
-| メモリ安全性 | 平文鍵は即座にゼロ化、mlock でスワップ防止、HSM利用が最善 |
-| 監査 | 鍵の全操作を CloudTrail 等で記録、異常使用をアラート |
+Knowledge of this topic is frequently used in day-to-day development work, and is especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [TLS/証明書](./01-tls-certificates.md) — TLS で鍵がどのように使われるかを理解する
-- [クラウドセキュリティ基礎](../05-cloud-security/00-cloud-security-basics.md) — KMS を含むクラウドセキュリティの全体像
-- [AWSセキュリティ](../05-cloud-security/01-aws-security.md) — AWS KMS・CloudHSM の実践的な活用
-- 暗号基礎 — 暗号アルゴリズムの理論的背景
+| Item | Key Points |
+|------|------------|
+| Key lifecycle | Manage all stages from generation → activation → active → deactivation → destruction based on NIST SP 800-57 |
+| Key hierarchy | Three-layer structure: Master Key → KEK → DEK, each layer stored separately |
+| HSM | Tamper-resistant hardware physically prevents key leakage; FIPS 140-2/3 certified |
+| KMS | Cloud-managed to reduce operational overhead of key management; encryption context is mandatory |
+| Envelope encryption | Two-layer DEK + KEK structure for efficiently encrypting large volumes of data |
+| Key rotation | Enable automatic rotation and perform at least annually; also prepare emergency procedures |
+| Key separation | Keys and data must always be managed in separate storage/services |
+| Memory safety | Zero out plaintext keys immediately; use mlock to prevent swapping; using an HSM is the best option |
+| Auditing | Log all key operations with CloudTrail etc.; alert on anomalous usage |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
+
+- [TLS/Certificates](./01-tls-certificates.md) — Understand how keys are used in TLS
+- [Cloud Security Fundamentals](../05-cloud-security/00-cloud-security-basics.md) — Overview of cloud security including KMS
+- [AWS Security](../05-cloud-security/01-aws-security.md) — Practical use of AWS KMS and CloudHSM
+- Cryptography Fundamentals — Theoretical background of cryptographic algorithms
+
+---
+
+## References
 
 1. **NIST SP 800-57 Part 1 Rev.5 — Recommendation for Key Management** — https://csrc.nist.gov/publications/detail/sp/800-57-part-1/rev-5/final
 2. **NIST SP 800-57 Part 2 Rev.1 — Best Practices for Key Management Organizations** — https://csrc.nist.gov/publications/detail/sp/800-57-part-2/rev-1/final
