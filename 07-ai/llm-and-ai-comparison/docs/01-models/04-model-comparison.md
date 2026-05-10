@@ -1,82 +1,82 @@
-# モデル比較 — ベンチマーク・価格・ユースケース別選定ガイド
+# Model Comparison — Benchmark, Pricing, and Use-Case Selection Guide
 
-> LLM の選定は単一指標では決まらない。ベンチマーク性能、コスト、レイテンシ、コンテキスト長、マルチモーダル対応、プライバシー要件を総合的に評価し、ユースケースに最適なモデルを選ぶ必要がある。
+> LLM selection cannot be decided by a single metric. You need to comprehensively evaluate benchmark performance, cost, latency, context length, multimodal support, and privacy requirements to choose the model best suited to your use case.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **主要ベンチマークの読み方** — MMLU、HumanEval、MT-Bench 等の意味と限界
-2. **コスト・性能のトレードオフ分析** — 価格対品質の最適点を見つける方法
-3. **ユースケース別モデル選定フレームワーク** — 要件からモデルを逆引きする実践手法
-4. **推論モデルの比較と選定** — o1/o3、DeepSeek-R1、Claude の Extended Thinking
-5. **マルチモデルルーティング** — 複数モデルを組み合わせたコスト最適化
-6. **評価パイプラインの構築** — 自社タスクでの定量的モデル評価
+1. **How to read major benchmarks** — The meaning and limitations of MMLU, HumanEval, MT-Bench, and others
+2. **Cost-performance tradeoff analysis** — How to find the optimal price-to-quality point
+3. **A use-case-driven model selection framework** — A practical method for reverse-engineering model choices from requirements
+4. **Comparing and selecting reasoning models** — o1/o3, DeepSeek-R1, and Claude's Extended Thinking
+5. **Multi-model routing** — Cost optimization by combining multiple models
+6. **Building an evaluation pipeline** — Quantitative model evaluation on your own tasks
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [オープンソース LLM — Llama・Mistral・Qwen と OSS エコシステム](./03-open-source.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Open-Source LLMs — Llama, Mistral, Qwen and the OSS Ecosystem](./03-open-source.md)
 
 ---
 
-## 1. 主要ベンチマーク解説
+## 1. Major Benchmark Explanations
 
-### 1.1 ベンチマーク一覧
+### 1.1 Benchmark Overview
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│              LLM 主要ベンチマーク体系                      │
+│              LLM Major Benchmark Taxonomy                  │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  知識・推論                                               │
-│  ├── MMLU (57科目の多肢選択)                              │
-│  ├── MMLU-Pro (より難易度の高い改良版)                     │
-│  ├── GPQA (大学院レベル科学問題)                           │
-│  ├── ARC-Challenge (科学的推論)                           │
-│  ├── BIG-Bench Hard (難問推論集)                          │
-│  └── SimpleQA (事実性評価)                                │
+│  Knowledge & Reasoning                                    │
+│  ├── MMLU (57-subject multiple choice)                    │
+│  ├── MMLU-Pro (harder improved version)                   │
+│  ├── GPQA (graduate-level science questions)              │
+│  ├── ARC-Challenge (scientific reasoning)                 │
+│  ├── BIG-Bench Hard (hard reasoning collection)           │
+│  └── SimpleQA (factuality evaluation)                     │
 │                                                          │
-│  コード                                                   │
-│  ├── HumanEval (Python関数生成, 164問)                    │
-│  ├── HumanEval+ (拡張テストケース版)                      │
-│  ├── MBPP (基本プログラミング, 974問)                      │
-│  ├── SWE-bench (実リポジトリのバグ修正)                    │
-│  ├── SWE-bench Verified (人手検証済みサブセット)            │
-│  └── LiveCodeBench (競技プログラミング)                    │
+│  Code                                                     │
+│  ├── HumanEval (Python function generation, 164 problems) │
+│  ├── HumanEval+ (extended test case version)              │
+│  ├── MBPP (basic programming, 974 problems)               │
+│  ├── SWE-bench (bug fixing in real repositories)          │
+│  ├── SWE-bench Verified (human-verified subset)           │
+│  └── LiveCodeBench (competitive programming)              │
 │                                                          │
-│  数学                                                     │
-│  ├── GSM8K (小学校算数)                                   │
-│  ├── MATH (高校〜大学数学)                                │
-│  ├── AIME (数学オリンピック級)                             │
-│  └── FrontierMath (研究レベル数学)                         │
+│  Math                                                     │
+│  ├── GSM8K (elementary arithmetic)                        │
+│  ├── MATH (high school to university math)                │
+│  ├── AIME (math olympiad level)                           │
+│  └── FrontierMath (research-level math)                   │
 │                                                          │
-│  対話・指示追従                                            │
-│  ├── MT-Bench (多ターン対話, GPT-4評価)                   │
-│  ├── AlpacaEval 2.0 (指示追従, 長さ補正付き)              │
-│  ├── LMSYS Chatbot Arena (人間ブラインド評価)             │
-│  └── WildBench (実ユーザークエリ評価)                     │
+│  Dialogue & Instruction Following                         │
+│  ├── MT-Bench (multi-turn dialogue, GPT-4 judged)         │
+│  ├── AlpacaEval 2.0 (instruction following, length-adj.)  │
+│  ├── LMSYS Chatbot Arena (human blind evaluation)         │
+│  └── WildBench (real user query evaluation)               │
 │                                                          │
-│  多言語                                                   │
-│  ├── MGSM (多言語数学)                                    │
-│  ├── JMMLU / JGLUE (日本語特化)                           │
-│  └── MMMLU (大規模多言語MMLU)                             │
+│  Multilingual                                             │
+│  ├── MGSM (multilingual math)                             │
+│  ├── JMMLU / JGLUE (Japanese-specific)                    │
+│  └── MMMLU (large-scale multilingual MMLU)                │
 │                                                          │
-│  安全性                                                   │
-│  ├── TruthfulQA (誤情報耐性)                              │
-│  ├── HarmBench (有害性評価)                               │
-│  └── WMDP (危険知識評価)                                  │
+│  Safety                                                   │
+│  ├── TruthfulQA (misinformation resistance)               │
+│  ├── HarmBench (harmfulness evaluation)                   │
+│  └── WMDP (dangerous knowledge evaluation)                │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 ベンチマークの詳細解説
+### 1.2 Detailed Benchmark Explanations
 
-#### MMLU（Massive Multitask Language Understanding）
+#### MMLU (Massive Multitask Language Understanding)
 
 ```python
-# MMLU の評価例: 57科目の多肢選択問題
+# MMLU evaluation example: 57-subject multiple choice questions
 mmlu_example = {
     "subject": "abstract_algebra",
     "question": "Find the degree of the extension Q(sqrt(2), sqrt(3)) over Q.",
@@ -84,7 +84,7 @@ mmlu_example = {
     "answer": "B",  # 4
 }
 
-# MMLU の科目カテゴリ
+# MMLU subject categories
 mmlu_categories = {
     "STEM": [
         "abstract_algebra", "astronomy", "college_biology",
@@ -124,27 +124,27 @@ mmlu_categories = {
     ],
 }
 
-# MMLU-Pro の改良点
+# MMLU-Pro improvements
 mmlu_pro_improvements = {
-    "選択肢数": "4択 → 10択（推測困難に）",
-    "難易度": "より専門的な問題を追加",
-    "汚染対策": "新規作成問題を含む",
-    "推論重視": "単純暗記では解けない問題設計",
+    "Number of choices": "4 → 10 (harder to guess)",
+    "Difficulty": "More specialized questions added",
+    "Contamination countermeasure": "Includes newly created questions",
+    "Reasoning emphasis": "Question design that cannot be solved by simple memorization",
 }
 ```
 
-#### SWE-bench（Software Engineering Benchmark）
+#### SWE-bench (Software Engineering Benchmark)
 
 ```python
-# SWE-bench の評価構造
+# SWE-bench evaluation structure
 swe_bench_structure = {
-    "概要": "実際のGitHubリポジトリのIssueを解決するタスク",
-    "評価方法": {
-        "入力": "リポジトリ + Issue 記述",
-        "出力": "パッチ (diff)",
-        "判定": "テストスイートの通過率",
+    "Overview": "Task of resolving Issues from real GitHub repositories",
+    "Evaluation method": {
+        "Input": "Repository + Issue description",
+        "Output": "Patch (diff)",
+        "Judgment": "Test suite pass rate",
     },
-    "対象リポジトリ": [
+    "Target repositories": [
         "django/django",
         "scikit-learn/scikit-learn",
         "matplotlib/matplotlib",
@@ -155,16 +155,16 @@ swe_bench_structure = {
         "pallets/flask",
         "psf/requests",
     ],
-    "バリエーション": {
-        "SWE-bench Full": "2,294問（全量）",
-        "SWE-bench Lite": "300問（難易度均一サブセット）",
-        "SWE-bench Verified": "500問（人手検証済み）",
+    "Variations": {
+        "SWE-bench Full": "2,294 problems (full set)",
+        "SWE-bench Lite": "300 problems (uniform difficulty subset)",
+        "SWE-bench Verified": "500 problems (human-verified)",
     },
 }
 
-# SWE-bench のスコア推移（エージェント型アプローチ）
+# SWE-bench score trends (agent-based approach)
 swe_bench_scores = {
-    "モデル/システム": {
+    "Model/System": {
         "Claude 3.5 Sonnet (SWE-Agent)": 49.0,
         "GPT-4o (SWE-Agent)": 33.2,
         "DeepSeek-V3 (SWE-Agent)": 42.0,
@@ -179,45 +179,45 @@ swe_bench_scores = {
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│        Chatbot Arena 評価メカニズム                        │
+│        Chatbot Arena Evaluation Mechanism                  │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  ユーザー → プロンプト入力                                 │
+│  User → Enters prompt                                     │
 │     │                                                    │
-│     ├─── モデルA（匿名）──→ 回答A                         │
+│     ├─── Model A (anonymous) ──→ Answer A                 │
 │     │                                                    │
-│     ├─── モデルB（匿名）──→ 回答B                         │
+│     ├─── Model B (anonymous) ──→ Answer B                 │
 │     │                                                    │
-│     └─── ユーザーが優劣を判定                              │
+│     └─── User judges which is better                      │
 │           ├── A wins / B wins / Tie / Both bad            │
-│           └── 判定後にモデル名を公開                       │
+│           └─── Model names revealed after judgment        │
 │                                                          │
-│  Elo レーティング計算:                                     │
-│  ├── チェスと同じ Elo 方式                                │
-│  ├── 勝敗に基づきレーティングを更新                        │
-│  ├── 強いモデルに勝つとより多くのポイント獲得               │
-│  └── Bootstrap (ブートストラップ) で信頼区間算出            │
+│  Elo rating calculation:                                  │
+│  ├── Same Elo method as chess                             │
+│  ├── Rating updated based on win/loss                     │
+│  ├── Beating a stronger model earns more points           │
+│  └── Bootstrap used to compute confidence intervals       │
 │                                                          │
-│  カテゴリ別ランキング:                                     │
-│  ├── Overall（総合）                                      │
-│  ├── Hard Prompts（難問）                                 │
-│  ├── Coding（コーディング）                               │
-│  ├── Math（数学）                                         │
-│  ├── Instruction Following（指示追従）                    │
-│  ├── Longer Query（長文質問）                             │
-│  ├── Multi-Turn（多ターン）                               │
-│  └── Style Control（スタイル補正後）                      │
+│  Category rankings:                                       │
+│  ├── Overall                                              │
+│  ├── Hard Prompts                                         │
+│  ├── Coding                                               │
+│  ├── Math                                                 │
+│  ├── Instruction Following                                │
+│  ├── Longer Query                                         │
+│  ├── Multi-Turn                                           │
+│  └── Style Control (after style adjustment)               │
 │                                                          │
-│  信頼性:                                                  │
-│  ├── 100万+投票数（最大規模の人間評価）                    │
-│  ├── 匿名性によるバイアス排除                             │
-│  └── カテゴリ別で用途に即した比較が可能                    │
+│  Reliability:                                             │
+│  ├── 1M+ votes (largest-scale human evaluation)           │
+│  ├── Bias eliminated through anonymity                    │
+│  └── Category-level comparison aligned with actual use    │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.3 ベンチマークスコア比較 (2025年初頭時点)
+### 1.3 Benchmark Score Comparison (Early 2025)
 
-| モデル | MMLU | HumanEval | MATH | MT-Bench | Arena Elo |
+| Model | MMLU | HumanEval | MATH | MT-Bench | Arena Elo |
 |--------|------|-----------|------|----------|-----------|
 | GPT-4o | 88.7 | 90.2 | 76.6 | 9.3 | ~1280 |
 | Claude 3.5 Sonnet | 88.7 | 92.0 | 78.3 | 9.2 | ~1270 |
@@ -229,11 +229,11 @@ swe_bench_scores = {
 | GPT-4o mini | 82.0 | 87.2 | 70.2 | 8.6 | ~1200 |
 | Gemini 1.5 Flash | 78.9 | 74.3 | 54.9 | 8.2 | ~1170 |
 
-*注: スコアは公開情報に基づく概算値。評価条件により変動する。*
+*Note: Scores are approximations based on publicly available information and may vary depending on evaluation conditions.*
 
-### 1.4 推論モデルのベンチマーク比較
+### 1.4 Reasoning Model Benchmark Comparison
 
-| モデル | AIME 2024 | GPQA Diamond | SWE-bench Verified | LiveCodeBench | FrontierMath |
+| Model | AIME 2024 | GPQA Diamond | SWE-bench Verified | LiveCodeBench | FrontierMath |
 |--------|-----------|-------------|-------------------|--------------|-------------|
 | o1 | 83.3 | 78.0 | 48.9 | 63.4 | 25.2 |
 | o3-mini (high) | 87.3 | 79.7 | 49.3 | 67.1 | 28.9 |
@@ -243,52 +243,52 @@ swe_bench_scores = {
 
 *ET = Extended Thinking*
 
-### 1.5 ベンチマークの限界と注意点
+### 1.5 Benchmark Limitations and Caveats
 
 ```python
-# ベンチマーク評価の落とし穴を検出するチェッカー
+# Checker to detect pitfalls in benchmark evaluation
 class BenchmarkReliabilityChecker:
-    """ベンチマークスコアの信頼性を評価する"""
+    """Evaluates the reliability of benchmark scores"""
 
     def __init__(self):
         self.known_issues = {
             "data_contamination": {
-                "description": "訓練データにベンチマーク問題が混入",
+                "description": "Benchmark questions mixed into training data",
                 "affected": ["MMLU", "GSM8K", "HumanEval"],
-                "severity": "高",
-                "mitigation": "時系列でのスコア変動を確認、新規ベンチマーク優先",
+                "severity": "High",
+                "mitigation": "Check score trends over time, prioritize newer benchmarks",
             },
             "prompt_sensitivity": {
-                "description": "プロンプト形式でスコアが大きく変動",
+                "description": "Scores vary significantly based on prompt format",
                 "affected": ["MMLU", "ARC", "HellaSwag"],
-                "severity": "中",
-                "mitigation": "複数プロンプト形式での平均を取る",
+                "severity": "Medium",
+                "mitigation": "Average across multiple prompt formats",
             },
             "saturation": {
-                "description": "上位モデルが天井に近づき差別化困難",
+                "description": "Top models near ceiling, hard to differentiate",
                 "affected": ["GSM8K", "HellaSwag", "MMLU"],
-                "severity": "中",
-                "mitigation": "より難しいベンチマーク (GPQA, AIME) を参照",
+                "severity": "Medium",
+                "mitigation": "Refer to harder benchmarks (GPQA, AIME)",
             },
             "gaming": {
-                "description": "ベンチマーク最適化による実力との乖離",
-                "affected": ["全般"],
-                "severity": "高",
-                "mitigation": "Arena等の人間評価と照合",
+                "description": "Divergence between actual capability and benchmark-optimized score",
+                "affected": ["General"],
+                "severity": "High",
+                "mitigation": "Cross-check with human evaluations like Arena",
             },
             "domain_mismatch": {
-                "description": "ベンチマークが対象ユースケースと乖離",
-                "affected": ["全般"],
-                "severity": "高",
-                "mitigation": "自社タスクでの独自評価を実施",
+                "description": "Benchmark diverges from the target use case",
+                "affected": ["General"],
+                "severity": "High",
+                "mitigation": "Run your own evaluation on your own tasks",
             },
         }
 
     def assess_reliability(self, benchmark: str) -> dict:
-        """特定ベンチマークの信頼性を評価"""
+        """Evaluate the reliability of a specific benchmark"""
         issues = []
         for issue_name, details in self.known_issues.items():
-            if benchmark in details["affected"] or "全般" in details["affected"]:
+            if benchmark in details["affected"] or "General" in details["affected"]:
                 issues.append({
                     "issue": issue_name,
                     "description": details["description"],
@@ -306,44 +306,44 @@ class BenchmarkReliabilityChecker:
 
     def _get_recommendation(self, score: int) -> str:
         if score >= 80:
-            return "参考指標として信頼度高い"
+            return "High reliability as a reference metric"
         elif score >= 60:
-            return "他の指標と組み合わせて判断"
+            return "Use in combination with other metrics"
         elif score >= 40:
-            return "足切りのみに使用、最終判断には不適"
+            return "Use only for screening; not suitable for final decisions"
         else:
-            return "単独での使用は非推奨"
+            return "Not recommended for standalone use"
 
-# 使用例
+# Usage example
 checker = BenchmarkReliabilityChecker()
 for benchmark in ["MMLU", "SWE-bench Verified", "LMSYS Arena", "GPQA"]:
     result = checker.assess_reliability(benchmark)
-    print(f"{benchmark}: 信頼度 {result['reliability_score']}% - {result['recommendation']}")
+    print(f"{benchmark}: Reliability {result['reliability_score']}% - {result['recommendation']}")
 ```
 
 ---
 
-## 2. コスト比較
+## 2. Cost Comparison
 
-### 2.1 API 料金表 (2025年初頭)
+### 2.1 API Pricing Table (Early 2025)
 
 ```python
-# モデル別コスト計算ツール（拡張版）
+# Model cost calculator (extended version)
 from dataclasses import dataclass
 from typing import Optional
 
 @dataclass
 class ModelPricing:
-    """モデルの価格情報"""
+    """Model pricing information"""
     name: str
     input_price: float    # $/1M tokens
     output_price: float   # $/1M tokens
-    cached_input_price: Optional[float] = None  # キャッシュヒット時
-    batch_discount: float = 1.0  # バッチAPI割引率
+    cached_input_price: Optional[float] = None  # On cache hit
+    batch_discount: float = 1.0  # Batch API discount rate
     context_window: int = 128_000
     max_output: int = 4_096
 
-# 2025年初頭の価格情報
+# Pricing information as of early 2025
 PRICING_TABLE = {
     "gpt-4o": ModelPricing(
         "GPT-4o", 2.50, 10.00,
@@ -407,13 +407,13 @@ def calculate_cost(
     cache_hit_rate: float = 0.0,
     use_batch: bool = False,
 ) -> dict:
-    """詳細なコスト計算"""
+    """Detailed cost calculation"""
     if model not in PRICING_TABLE:
         return {"error": f"Unknown model: {model}"}
 
     pricing = PRICING_TABLE[model]
 
-    # キャッシュヒット分を計算
+    # Calculate cached portion
     cached_tokens = int(input_tokens * cache_hit_rate)
     uncached_tokens = input_tokens - cached_tokens
 
@@ -427,7 +427,7 @@ def calculate_cost(
 
     output_cost = (output_tokens / 1_000_000) * pricing.output_price
 
-    # バッチAPI割引
+    # Batch API discount
     if use_batch:
         input_cost *= pricing.batch_discount
         output_cost *= pricing.batch_discount
@@ -446,51 +446,51 @@ def calculate_cost(
     }
 
 
-# 使用例: 月間コスト比較
-print("=== 月間コスト比較 (100万req, 入力500tok, 出力200tok) ===")
+# Usage example: monthly cost comparison
+print("=== Monthly Cost Comparison (1M req, 500 input tokens, 200 output tokens) ===")
 for model_id in PRICING_TABLE:
     result = calculate_cost(model_id, 500_000_000, 200_000_000)
     if "error" not in result:
-        print(f"{result['model']:25s}: ${result['total']:>10,.2f}/月")
+        print(f"{result['model']:25s}: ${result['total']:>10,.2f}/month")
 
-print("\n=== キャッシュ利用時 (50%ヒット率) ===")
+print("\n=== With Caching (50% hit rate) ===")
 for model_id in ["claude-3.5-sonnet", "gpt-4o", "deepseek-v3"]:
     normal = calculate_cost(model_id, 500_000_000, 200_000_000)
     cached = calculate_cost(model_id, 500_000_000, 200_000_000, cache_hit_rate=0.5)
     savings = normal["total"] - cached["total"]
-    print(f"{cached['model']:25s}: ${cached['total']:>10,.2f}/月 (節約: ${savings:,.2f})")
+    print(f"{cached['model']:25s}: ${cached['total']:>10,.2f}/month (savings: ${savings:,.2f})")
 
-print("\n=== バッチAPI利用時 ===")
+print("\n=== With Batch API ===")
 for model_id in ["gpt-4o", "claude-3.5-sonnet", "o1"]:
     normal = calculate_cost(model_id, 500_000_000, 200_000_000)
     batch = calculate_cost(model_id, 500_000_000, 200_000_000, use_batch=True)
     savings = normal["total"] - batch["total"]
-    print(f"{batch['model']:25s}: ${batch['total']:>10,.2f}/月 (節約: ${savings:,.2f})")
+    print(f"{batch['model']:25s}: ${batch['total']:>10,.2f}/month (savings: ${savings:,.2f})")
 ```
 
-### 2.2 コスト比較表
+### 2.2 Cost Comparison Table
 
-| モデル | 入力 ($/1M) | 出力 ($/1M) | 月100万req概算 | コスパ評価 |
+| Model | Input ($/1M) | Output ($/1M) | Est. 1M req/month | Cost Efficiency |
 |--------|-----------|-----------|-------------|----------|
-| Gemini 1.5 Flash | $0.075 | $0.30 | $97 | 最安クラス |
-| Gemini 2.0 Flash | $0.10 | $0.40 | $130 | 最安クラス |
-| GPT-4o mini | $0.15 | $0.60 | $195 | 極めて高い |
-| DeepSeek-V3 | $0.27 | $1.10 | $355 | 高い |
-| DeepSeek-R1 | $0.55 | $2.19 | $713 | 高い（推論特化） |
-| Claude 3.5 Haiku | $0.80 | $4.00 | $1,200 | 高い |
-| o3-mini | $1.10 | $4.40 | $1,430 | 高い（推論特化） |
-| Gemini 1.5 Pro | $1.25 | $5.00 | $1,625 | 中 |
-| GPT-4o | $2.50 | $10.00 | $3,250 | 中 |
-| Claude 3.5 Sonnet | $3.00 | $15.00 | $4,500 | 中 |
-| o1 | $15.00 | $60.00 | $19,500 | 低（高精度用） |
+| Gemini 1.5 Flash | $0.075 | $0.30 | $97 | Cheapest class |
+| Gemini 2.0 Flash | $0.10 | $0.40 | $130 | Cheapest class |
+| GPT-4o mini | $0.15 | $0.60 | $195 | Extremely high |
+| DeepSeek-V3 | $0.27 | $1.10 | $355 | High |
+| DeepSeek-R1 | $0.55 | $2.19 | $713 | High (reasoning-specialized) |
+| Claude 3.5 Haiku | $0.80 | $4.00 | $1,200 | High |
+| o3-mini | $1.10 | $4.40 | $1,430 | High (reasoning-specialized) |
+| Gemini 1.5 Pro | $1.25 | $5.00 | $1,625 | Medium |
+| GPT-4o | $2.50 | $10.00 | $3,250 | Medium |
+| Claude 3.5 Sonnet | $3.00 | $15.00 | $4,500 | Medium |
+| o1 | $15.00 | $60.00 | $19,500 | Low (for high-precision use) |
 
-*月100万req = 平均入力500tok + 出力200tok で概算*
+*1M req/month estimated at avg. 500 input tokens + 200 output tokens*
 
-### 2.3 コスト最適化テクニック
+### 2.3 Cost Optimization Techniques
 
 ```python
 class CostOptimizer:
-    """LLM API コスト最適化エンジン"""
+    """LLM API cost optimization engine"""
 
     def __init__(self):
         self.strategies = []
@@ -502,37 +502,37 @@ class CostOptimizer:
         avg_input_tokens: int,
         avg_output_tokens: int,
         current_monthly_cost: float,
-        quality_threshold: float = 0.9,  # 現行品質の何%を維持するか
+        quality_threshold: float = 0.9,  # What % of current quality to maintain
     ) -> list[dict]:
-        """コスト最適化の推奨施策を分析"""
+        """Analyze and recommend cost optimization measures"""
         recommendations = []
 
-        # 戦略1: プロンプトキャッシュの活用
+        # Strategy 1: Leverage prompt caching
         if current_model in ["claude-3.5-sonnet", "gpt-4o", "deepseek-v3"]:
             pricing = PRICING_TABLE.get(current_model.replace(".", "-").replace(" ", "-").lower())
             if pricing and pricing.cached_input_price:
                 cache_savings_rate = 1 - (pricing.cached_input_price / pricing.input_price)
                 potential_savings = current_monthly_cost * 0.3 * cache_savings_rate
                 recommendations.append({
-                    "strategy": "プロンプトキャッシュ",
-                    "description": "システムプロンプトやFew-shot例をキャッシュ",
-                    "potential_savings": f"${potential_savings:,.0f}/月",
-                    "effort": "低",
-                    "risk": "なし",
+                    "strategy": "Prompt Caching",
+                    "description": "Cache system prompts and few-shot examples",
+                    "potential_savings": f"${potential_savings:,.0f}/month",
+                    "effort": "Low",
+                    "risk": "None",
                 })
 
-        # 戦略2: バッチAPIの活用
+        # Strategy 2: Leverage Batch API
         if monthly_requests > 100_000:
             batch_savings = current_monthly_cost * 0.5
             recommendations.append({
-                "strategy": "バッチAPI",
-                "description": "非リアルタイム処理をバッチに移行",
-                "potential_savings": f"${batch_savings:,.0f}/月（対象分の50%削減）",
-                "effort": "中",
-                "risk": "レイテンシ増（24h以内処理）",
+                "strategy": "Batch API",
+                "description": "Move non-real-time processing to batch",
+                "potential_savings": f"${batch_savings:,.0f}/month (50% reduction on eligible requests)",
+                "effort": "Medium",
+                "risk": "Increased latency (processed within 24h)",
             })
 
-        # 戦略3: モデルダウングレード（品質確認付き）
+        # Strategy 3: Model downgrade (with quality check)
         downgrade_map = {
             "gpt-4o": "gpt-4o-mini",
             "claude-3.5-sonnet": "claude-3.5-haiku",
@@ -550,38 +550,38 @@ class CostOptimizer:
                 )
                 savings = current_monthly_cost * (1 - cost_ratio)
                 recommendations.append({
-                    "strategy": f"モデルダウングレード ({current_pricing.name} → {small_pricing.name})",
-                    "description": "簡易タスクに小型モデルを使用",
-                    "potential_savings": f"${savings:,.0f}/月",
-                    "effort": "中（品質評価必要）",
-                    "risk": "品質低下の可能性",
+                    "strategy": f"Model Downgrade ({current_pricing.name} → {small_pricing.name})",
+                    "description": "Use a smaller model for simpler tasks",
+                    "potential_savings": f"${savings:,.0f}/month",
+                    "effort": "Medium (quality evaluation required)",
+                    "risk": "Possible quality degradation",
                 })
 
-        # 戦略4: スマートルーティング
+        # Strategy 4: Smart routing
         if monthly_requests > 50_000:
             recommendations.append({
-                "strategy": "スマートルーティング",
-                "description": "タスク難易度に応じてモデルを自動選択",
-                "potential_savings": f"${current_monthly_cost * 0.4:,.0f}/月",
-                "effort": "高",
-                "risk": "ルーティング精度に依存",
+                "strategy": "Smart Routing",
+                "description": "Automatically select model based on task difficulty",
+                "potential_savings": f"${current_monthly_cost * 0.4:,.0f}/month",
+                "effort": "High",
+                "risk": "Depends on routing accuracy",
             })
 
-        # 戦略5: プロンプト最適化
+        # Strategy 5: Prompt optimization
         if avg_input_tokens > 500:
-            token_reduction = 0.3  # 30% のトークン削減を見込む
-            savings = current_monthly_cost * token_reduction * 0.6  # 入力コスト比率
+            token_reduction = 0.3  # Expect 30% token reduction
+            savings = current_monthly_cost * token_reduction * 0.6  # Input cost ratio
             recommendations.append({
-                "strategy": "プロンプト最適化",
-                "description": "冗長なプロンプトを圧縮、不要な指示を削除",
-                "potential_savings": f"${savings:,.0f}/月",
-                "effort": "低",
-                "risk": "品質低下の可能性",
+                "strategy": "Prompt Optimization",
+                "description": "Compress verbose prompts, remove unnecessary instructions",
+                "potential_savings": f"${savings:,.0f}/month",
+                "effort": "Low",
+                "risk": "Possible quality degradation",
             })
 
         return sorted(recommendations, key=lambda x: x["effort"])
 
-# 使用例
+# Usage example
 optimizer = CostOptimizer()
 recs = optimizer.analyze_and_recommend(
     current_model="gpt-4o",
@@ -593,49 +593,49 @@ recs = optimizer.analyze_and_recommend(
 for i, rec in enumerate(recs, 1):
     print(f"\n{i}. {rec['strategy']}")
     print(f"   {rec['description']}")
-    print(f"   節約見込み: {rec['potential_savings']}")
-    print(f"   実装難易度: {rec['effort']}")
+    print(f"   Estimated savings: {rec['potential_savings']}")
+    print(f"   Implementation effort: {rec['effort']}")
 ```
 
-### 2.4 自前デプロイ vs API コスト
+### 2.4 Self-Hosted vs. API Cost
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│        自前デプロイ vs API サービス コスト分析              │
+│        Self-Hosted vs. API Service Cost Analysis          │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  コスト                                                   │
+│  Cost                                                     │
 │  ^                                                       │
 │  │                                                       │
 │  │  API                                                  │
 │  │  ╱                                                    │
-│  │ ╱        自前デプロイ                                   │
+│  │ ╱        Self-hosted                                   │
 │  │╱         ┌──────────────────────                      │
 │  ├─────────┘                                             │
-│  │  初期投資                                              │
-│  │  (GPU購入/レンタル)                                    │
+│  │  Initial investment                                    │
+│  │  (GPU purchase/rental)                                │
 │  │                                                       │
-│  └──────────────────────────────────▶ リクエスト数        │
+│  └──────────────────────────────────▶ Request volume     │
 │          ↑                                               │
-│     損益分岐点                                            │
-│     (月間約50-100万req)                                   │
+│     Break-even point                                      │
+│     (~500K-1M req/month)                                  │
 │                                                          │
-│  判断基準:                                                │
-│  - 月間 <10万req → API 一択                               │
-│  - 月間 10-100万req → 要計算                              │
-│  - 月間 >100万req → 自前デプロイ検討                      │
-│  - データ機密性要件 → 自前デプロイ推奨                     │
-│  - GPUクラウド利用 → 月$2-4/GPU-hour (A100)               │
-│  - GPU購入 → 初期$10-15K/GPU、1-2年で回収                 │
+│  Decision criteria:                                       │
+│  - < 100K req/month → API only                           │
+│  - 100K-1M req/month → Calculate case by case            │
+│  - > 1M req/month → Consider self-hosting                │
+│  - Data confidentiality requirements → Recommend self-host│
+│  - GPU cloud → ~$2-4/GPU-hour (A100)                     │
+│  - GPU purchase → $10-15K/GPU initial, recoup in 1-2 yrs │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ```python
-# 自前デプロイのコスト試算
+# Self-hosted deployment cost estimation
 class SelfHostCostCalculator:
-    """自前デプロイのTCO（Total Cost of Ownership）計算"""
+    """Total Cost of Ownership (TCO) calculation for self-hosted deployments"""
 
-    # GPU別のスペックと価格
+    # GPU specs and pricing
     GPU_SPECS = {
         "A100-80GB": {
             "cloud_hourly": 3.50,  # $/hour (AWS p4d)
@@ -663,7 +663,7 @@ class SelfHostCostCalculator:
         },
     }
 
-    # モデル別の必要GPU数
+    # Required GPU count per model
     MODEL_REQUIREMENTS = {
         "Llama-3.1-70B (FP16)": {"vram_needed": 140, "min_gpu": "A100-80GB", "gpu_count": 2},
         "Llama-3.1-70B (INT8)": {"vram_needed": 70, "min_gpu": "A100-80GB", "gpu_count": 1},
@@ -680,7 +680,7 @@ class SelfHostCostCalculator:
         deployment_type: str = "cloud",  # "cloud" or "on-premise"
         months: int = 12,
     ) -> dict:
-        """TCO計算"""
+        """TCO calculation"""
         if model not in self.MODEL_REQUIREMENTS:
             return {"error": f"Unknown model: {model}"}
 
@@ -691,13 +691,13 @@ class SelfHostCostCalculator:
         if deployment_type == "cloud":
             monthly_gpu_cost = gpu_spec["cloud_hourly"] * 24 * 30 * gpu_count
             initial_cost = 0
-            monthly_ops = monthly_gpu_cost * 0.1  # 運用コスト10%
+            monthly_ops = monthly_gpu_cost * 0.1  # 10% operations cost
         else:
             initial_cost = gpu_spec["purchase_price"] * gpu_count
             monthly_gpu_cost = 0
-            # 電気代 + 冷却 + ネットワーク
+            # Electricity + cooling + network
             power_cost = 0.5 * gpu_count * 24 * 30 * 0.15  # kW * hours * $/kWh
-            monthly_ops = power_cost + 500  # 固定運用コスト
+            monthly_ops = power_cost + 500  # Fixed operations cost
 
         total_cost = initial_cost + (monthly_gpu_cost + monthly_ops) * months
         cost_per_request = total_cost / (monthly_requests * months) if monthly_requests > 0 else 0
@@ -712,42 +712,42 @@ class SelfHostCostCalculator:
             "cost_per_request": f"${cost_per_request:.6f}",
         }
 
-# 使用例
+# Usage example
 calc = SelfHostCostCalculator()
 for model in ["Llama-3.1-70B (INT4)", "Llama-3.1-8B (FP16)", "Qwen-2.5-72B (INT4)"]:
     result = calc.calculate_tco(model, monthly_requests=500_000, deployment_type="cloud")
-    print(f"{model}: 月額 {result['monthly_cost']} / req単価 {result['cost_per_request']}")
+    print(f"{model}: Monthly {result['monthly_cost']} / per-request {result['cost_per_request']}")
 ```
 
 ---
 
-## 3. 機能比較
+## 3. Feature Comparison
 
-### 3.1 機能マトリクス（詳細版）
+### 3.1 Feature Matrix (Detailed)
 
-| 機能 | GPT-4o | Claude 3.5 | Gemini 1.5 | Llama 3.1 | Qwen 2.5 | DeepSeek-V3 |
+| Feature | GPT-4o | Claude 3.5 | Gemini 1.5 | Llama 3.1 | Qwen 2.5 | DeepSeek-V3 |
 |------|--------|-----------|-----------|----------|----------|------------|
-| テキスト生成 | S | S | S | A | A | S |
-| コード生成 | S | S | A | A | A | S |
-| 画像入力 | S | S | S | N/A | A (VL) | N/A |
-| 音声入力 | S | N/A | S | N/A | A (Audio) | N/A |
-| 動画入力 | N/A | N/A | S | N/A | N/A | N/A |
-| 画像生成 | S | N/A | S | N/A | N/A | N/A |
+| Text generation | S | S | S | A | A | S |
+| Code generation | S | S | A | A | A | S |
+| Image input | S | S | S | N/A | A (VL) | N/A |
+| Audio input | S | N/A | S | N/A | A (Audio) | N/A |
+| Video input | N/A | N/A | S | N/A | N/A | N/A |
+| Image generation | S | N/A | S | N/A | N/A | N/A |
 | Function Calling | S | S | S | A | A | A |
 | JSON Mode | S | S | S | A | A | S |
 | Structured Output | S | S | A | A | A | A |
 | System Prompt | S | S | S | S | S | S |
-| ストリーミング | S | S | S | S | S | S |
-| ファインチューニング | A | N/A | A | S | S | S |
-| プロンプトキャッシュ | S | S | N/A | N/A | N/A | S |
-| バッチAPI | S | S | N/A | N/A | N/A | N/A |
-| 推論モード | S (o1) | S (ET) | A (Thinking) | N/A | A (QwQ) | S (R1) |
+| Streaming | S | S | S | S | S | S |
+| Fine-tuning | A | N/A | A | S | S | S |
+| Prompt caching | S | S | N/A | N/A | N/A | S |
+| Batch API | S | S | N/A | N/A | N/A | N/A |
+| Reasoning mode | S (o1) | S (ET) | A (Thinking) | N/A | A (QwQ) | S (R1) |
 
-*S=優秀, A=対応, N/A=未対応*
+*S=Excellent, A=Supported, N/A=Not supported*
 
-### 3.2 コンテキスト長比較
+### 3.2 Context Length Comparison
 
-| モデル | 最大コンテキスト | 実用的な精度維持範囲 | Needle-in-Haystack |
+| Model | Max Context | Practical Accuracy Range | Needle-in-Haystack |
 |--------|----------------|-------------------|--------------------|
 | Gemini 1.5 Pro | 2,000K | ~1,000K | 99.7% (1M) |
 | Gemini 2.0 Flash | 1,000K | ~500K | 99.2% (500K) |
@@ -759,10 +759,10 @@ for model in ["Llama-3.1-70B (INT4)", "Llama-3.1-8B (FP16)", "Qwen-2.5-72B (INT4
 | DeepSeek-V3 | 128K | ~64K | 98.2% (128K) |
 | Mixtral 8x22B | 64K | ~32K | 95.3% (32K) |
 
-### 3.3 レイテンシ比較
+### 3.3 Latency Comparison
 
 ```python
-# レイテンシ測定・比較ツール
+# Latency measurement and comparison tool
 import asyncio
 import time
 import statistics
@@ -777,9 +777,9 @@ class LatencyResult:
     output_tokens: int
 
 class LatencyBenchmark:
-    """モデル間レイテンシ比較ベンチマーク"""
+    """Cross-model latency comparison benchmark"""
 
-    # 公開ベンチマーク (Artificial Analysis) からの概算値
+    # Approximate values from public benchmarks (Artificial Analysis)
     LATENCY_DATA = {
         "gpt-4o": {
             "ttft_ms": 450,
@@ -824,7 +824,7 @@ class LatencyBenchmark:
             "p99_total_ms": 8000,
         },
         "o1": {
-            "ttft_ms": 5000,   # 推論時間を含む
+            "ttft_ms": 5000,   # Includes reasoning time
             "tps": 70,
             "p50_total_ms": 15000,
             "p99_total_ms": 45000,
@@ -832,12 +832,12 @@ class LatencyBenchmark:
     }
 
     def compare(self, use_case: str) -> list[dict]:
-        """ユースケース別のレイテンシ適合性を評価"""
+        """Evaluate latency suitability by use case"""
         latency_requirements = {
-            "リアルタイムチャット": {"max_ttft": 500, "min_tps": 80},
-            "ストリーミングUI": {"max_ttft": 1000, "min_tps": 50},
-            "バックエンド処理": {"max_ttft": 5000, "min_tps": 30},
-            "バッチ処理": {"max_ttft": 60000, "min_tps": 10},
+            "Real-time chat": {"max_ttft": 500, "min_tps": 80},
+            "Streaming UI": {"max_ttft": 1000, "min_tps": 50},
+            "Backend processing": {"max_ttft": 5000, "min_tps": 30},
+            "Batch processing": {"max_ttft": 60000, "min_tps": 10},
         }
 
         if use_case not in latency_requirements:
@@ -856,14 +856,14 @@ class LatencyBenchmark:
                 "ttft_ms": data["ttft_ms"],
                 "tps": data["tps"],
                 "fits_requirement": fits,
-                "verdict": "適合" if fits else "不適合",
+                "verdict": "Suitable" if fits else "Not suitable",
             })
 
         return sorted(results, key=lambda x: x["ttft_ms"])
 
-# 使用例
+# Usage example
 bench = LatencyBenchmark()
-for use_case in ["リアルタイムチャット", "ストリーミングUI", "バッチ処理"]:
+for use_case in ["Real-time chat", "Streaming UI", "Batch processing"]:
     print(f"\n=== {use_case} ===")
     results = bench.compare(use_case)
     for r in results:
@@ -873,167 +873,167 @@ for use_case in ["リアルタイムチャット", "ストリーミングUI", "�
 
 ---
 
-## 4. 推論モデルの比較
+## 4. Reasoning Model Comparison
 
-### 4.1 推論モデルの分類
+### 4.1 Classification of Reasoning Models
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│          推論モデル (Reasoning Models) 分類                │
+│          Reasoning Models Classification                   │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  Test-Time Compute（推論時計算量増加）                     │
+│  Test-Time Compute (increased computation at inference)   │
 │  ├── OpenAI o-series                                     │
-│  │   ├── o1: 高精度推論（高価格）                         │
-│  │   ├── o1-mini: 軽量推論（STEM特化）                    │
-│  │   ├── o3: 最高性能推論                                 │
-│  │   └── o3-mini: コスパ最適推論                          │
+│  │   ├── o1: High-precision reasoning (high price)        │
+│  │   ├── o1-mini: Lightweight reasoning (STEM-focused)    │
+│  │   ├── o3: Highest-performance reasoning                │
+│  │   └── o3-mini: Best cost-efficiency reasoning          │
 │  │                                                       │
 │  ├── DeepSeek R-series                                   │
-│  │   ├── R1: OSS推論モデル（MIT license）                 │
-│  │   ├── R1-Lite: 軽量版                                 │
-│  │   └── R1蒸留モデル:                                   │
+│  │   ├── R1: OSS reasoning model (MIT license)            │
+│  │   ├── R1-Lite: Lightweight version                     │
+│  │   └── R1 distilled models:                            │
 │  │       ├── R1-Distill-Qwen-32B                         │
 │  │       ├── R1-Distill-Llama-70B                        │
 │  │       └── R1-Distill-Qwen-7B                          │
 │  │                                                       │
 │  ├── Claude Extended Thinking                            │
-│  │   └── Claude 3.5 Sonnet (Extended Thinking有効化)      │
+│  │   └── Claude 3.5 Sonnet (with Extended Thinking)       │
 │  │                                                       │
 │  └── Gemini Thinking                                     │
 │      └── Gemini 2.0 Flash Thinking                       │
 │                                                          │
-│  特徴:                                                    │
-│  ├── Chain-of-Thought を内部で自動実行                    │
-│  ├── 推論ステップ数に応じてコスト・レイテンシ増             │
-│  ├── 数学・コード・論理推論で大幅な精度向上                 │
-│  └── 簡単なタスクにはオーバースペック（コスト浪費）         │
+│  Characteristics:                                         │
+│  ├── Automatically executes Chain-of-Thought internally   │
+│  ├── Cost and latency increase with reasoning steps       │
+│  ├── Significant accuracy gains in math, code, logic      │
+│  └── Overkill for simple tasks (wasted cost)             │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 推論モデルの使い分け
+### 4.2 When to Use Each Reasoning Model
 
 ```python
-# 推論モデル選定ガイド
+# Reasoning model selection guide
 reasoning_model_guide = {
-    "数学問題（大学レベル以上）": {
-        "推奨": "o3-mini (high) または DeepSeek-R1",
-        "理由": "AIME/MATH でトップ性能",
-        "コスト注意": "o1は高価、R1はコスパ良好",
+    "Math problems (university level and above)": {
+        "Recommended": "o3-mini (high) or DeepSeek-R1",
+        "Reason": "Top performance on AIME/MATH",
+        "Cost note": "o1 is expensive; R1 has good cost efficiency",
     },
-    "複雑なコーディング（アーキテクチャ設計）": {
-        "推奨": "Claude 3.5 Sonnet (Extended Thinking)",
-        "理由": "SWE-bench最高性能 + コード理解力",
-        "コスト注意": "通常のSonnetよりトークン消費増",
+    "Complex coding (architecture design)": {
+        "Recommended": "Claude 3.5 Sonnet (Extended Thinking)",
+        "Reason": "Highest SWE-bench performance + code comprehension",
+        "Cost note": "Higher token consumption than standard Sonnet",
     },
-    "科学的分析（論文解読等）": {
-        "推奨": "o1 または DeepSeek-R1",
-        "理由": "GPQA Diamond で高スコア",
-        "コスト注意": "長い推論が必要、バッチAPIも検討",
+    "Scientific analysis (reading papers, etc.)": {
+        "Recommended": "o1 or DeepSeek-R1",
+        "Reason": "High scores on GPQA Diamond",
+        "Cost note": "Long reasoning required; consider Batch API",
     },
-    "多段階の論理推論": {
-        "推奨": "o3-mini (high)",
-        "理由": "推論力とコストのバランス最良",
-        "コスト注意": "reasoning_effort パラメータで制御可",
+    "Multi-step logical reasoning": {
+        "Recommended": "o3-mini (high)",
+        "Reason": "Best balance of reasoning power and cost",
+        "Cost note": "Controllable via reasoning_effort parameter",
     },
-    "簡単なQ&A・要約": {
-        "推奨": "推論モデル不要 → GPT-4o mini / Gemini Flash",
-        "理由": "推論モデルはオーバースペック",
-        "コスト注意": "10-100倍のコスト浪費になる",
+    "Simple Q&A and summarization": {
+        "Recommended": "No reasoning model needed → GPT-4o mini / Gemini Flash",
+        "Reason": "Reasoning models are overkill",
+        "Cost note": "Would waste 10-100x the cost",
     },
 }
 
-# 推論モデルの使い分け判定
+# Judgment function for whether to use a reasoning model
 def should_use_reasoning_model(task_description: str, complexity: int) -> dict:
-    """タスクの複雑さに応じて推論モデルの必要性を判定
+    """Determine necessity of reasoning model based on task complexity
 
     Args:
-        task_description: タスクの説明
-        complexity: 1-10 の複雑さスケール
+        task_description: Description of the task
+        complexity: Complexity scale from 1-10
     """
     if complexity <= 3:
         return {
             "use_reasoning": False,
             "recommended": "GPT-4o mini / Gemini Flash",
-            "reason": "単純タスクに推論モデルは不要",
+            "reason": "Reasoning model not needed for simple tasks",
         }
     elif complexity <= 6:
         return {
             "use_reasoning": False,
             "recommended": "GPT-4o / Claude 3.5 Sonnet",
-            "reason": "標準モデルで十分な複雑さ",
+            "reason": "Standard model sufficient for this complexity",
         }
     elif complexity <= 8:
         return {
             "use_reasoning": True,
             "recommended": "o3-mini (medium) / DeepSeek-R1",
-            "reason": "推論が有益な複雑さ",
+            "reason": "Complexity where reasoning is beneficial",
         }
     else:
         return {
             "use_reasoning": True,
             "recommended": "o1 / o3-mini (high)",
-            "reason": "最高精度の推論が必要",
+            "reason": "Highest-precision reasoning required",
         }
 ```
 
 ---
 
-## 5. ユースケース別選定フレームワーク
+## 5. Use-Case-Driven Model Selection Framework
 
-### 5.1 選定フローチャート
+### 5.1 Selection Flowchart
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│          LLM 選定フローチャート（拡張版）                  │
+│          LLM Selection Flowchart (Extended)               │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  START: 要件定義                                         │
+│  START: Define requirements                              │
 │    │                                                    │
-│    ├─ データをクラウドに送れない?                          │
-│    │   YES → OSS モデル自前デプロイ                       │
-│    │          ├─ 推論重視 → DeepSeek-R1蒸留モデル          │
-│    │          ├─ 日本語重視 → Qwen 2.5                    │
-│    │          ├─ コード重視 → DeepSeek-Coder/Qwen-Coder  │
-│    │          └─ 汎用    → Llama 3.1                     │
+│    ├─ Can't send data to cloud?                          │
+│    │   YES → OSS model self-hosted                       │
+│    │          ├─ Reasoning-focused → DeepSeek-R1 distill │
+│    │          ├─ Japanese-focused → Qwen 2.5             │
+│    │          ├─ Code-focused → DeepSeek-Coder/Qwen-Coder│
+│    │          └─ General-purpose → Llama 3.1             │
 │    │                                                    │
 │    NO ↓                                                 │
-│    ├─ 予算制約が厳しい?                                  │
-│    │   YES → 低コストモデル                              │
-│    │          ├─ Gemini 2.0 Flash (最安+高速)             │
+│    ├─ Tight budget constraints?                          │
+│    │   YES → Low-cost models                             │
+│    │          ├─ Gemini 2.0 Flash (cheapest + fastest)   │
 │    │          ├─ Gemini 1.5 Flash                        │
 │    │          ├─ GPT-4o mini                             │
 │    │          └─ DeepSeek-V3                             │
 │    │                                                    │
 │    NO ↓                                                 │
-│    ├─ 複雑な推論が必要? (数学/科学/コード設計)             │
-│    │   YES → 推論モデル                                  │
-│    │          ├─ 最高精度 → o1 / o3                       │
-│    │          ├─ コスパ  → o3-mini / DeepSeek-R1         │
-│    │          └─ コード  → Claude 3.5 (Extended Thinking) │
+│    ├─ Complex reasoning needed? (math/science/code design)│
+│    │   YES → Reasoning models                            │
+│    │          ├─ Highest accuracy → o1 / o3              │
+│    │          ├─ Cost-efficient → o3-mini / DeepSeek-R1  │
+│    │          └─ Code → Claude 3.5 (Extended Thinking)   │
 │    │                                                    │
 │    NO ↓                                                 │
-│    ├─ 超長文書処理が必要? (>128K tokens)                  │
+│    ├─ Very long document processing? (>128K tokens)       │
 │    │   YES → Gemini 1.5 Pro (2M tokens)                 │
 │    │                                                    │
 │    NO ↓                                                 │
-│    ├─ マルチモーダル (画像/音声/動画)?                     │
-│    │   YES ├─ 動画含む → Gemini 1.5 Pro                  │
-│    │       ├─ 画像+音声 → GPT-4o                         │
-│    │       └─ 画像のみ → Claude 3.5 / GPT-4o            │
+│    ├─ Multimodal (image/audio/video)?                    │
+│    │   YES ├─ Includes video → Gemini 1.5 Pro            │
+│    │       ├─ Image + audio → GPT-4o                     │
+│    │       └─ Image only → Claude 3.5 / GPT-4o          │
 │    │                                                    │
 │    NO ↓                                                 │
-│    └─ 最高精度テキスト処理                               │
-│         ├─ コード → Claude 3.5 Sonnet                   │
-│         ├─ 日本語 → GPT-4o / Qwen 2.5                   │
-│         └─ 汎用  → GPT-4o / Claude 3.5                  │
+│    └─ Highest-accuracy text processing                   │
+│         ├─ Code → Claude 3.5 Sonnet                     │
+│         ├─ Japanese → GPT-4o / Qwen 2.5                 │
+│         └─ General → GPT-4o / Claude 3.5                │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 ユースケース別推奨（詳細版）
+### 5.2 Per-Use-Case Recommendations (Detailed)
 
 ```python
-# ユースケース別モデル推奨辞書（拡張版）
+# Per-use-case model recommendation dictionary (extended)
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -1041,7 +1041,7 @@ from typing import Optional
 class ModelRecommendation:
     model: str
     reason: str
-    monthly_cost_estimate: str  # 月間コスト概算
+    monthly_cost_estimate: str  # Monthly cost estimate
     latency: str
     quality_score: float  # 0-1
 
@@ -1055,155 +1055,155 @@ class UseCaseRecommendation:
     anti_patterns: list[str] = field(default_factory=list)
 
 recommendations = {
-    "カスタマーサポートBot": UseCaseRecommendation(
-        use_case="カスタマーサポートBot",
+    "Customer Support Bot": UseCaseRecommendation(
+        use_case="Customer Support Bot",
         primary=ModelRecommendation(
-            "GPT-4o mini", "コスパ最高、指示追従力高い",
-            "$195/月 (100万req)", "TTFT: 280ms", 0.85,
+            "GPT-4o mini", "Best cost efficiency, high instruction-following",
+            "$195/month (1M req)", "TTFT: 280ms", 0.85,
         ),
         secondary=ModelRecommendation(
-            "Gemini 2.0 Flash", "さらに安く高速",
-            "$130/月 (100万req)", "TTFT: 180ms", 0.82,
+            "Gemini 2.0 Flash", "Even cheaper and faster",
+            "$130/month (1M req)", "TTFT: 180ms", 0.82,
         ),
         budget_option=ModelRecommendation(
-            "Claude 3.5 Haiku", "高品質回答が必要な場合",
-            "$1,200/月 (100万req)", "TTFT: 320ms", 0.88,
+            "Claude 3.5 Haiku", "When high-quality answers are needed",
+            "$1,200/month (1M req)", "TTFT: 320ms", 0.88,
         ),
-        key_requirements=["低レイテンシ", "大量リクエスト", "安定した応答品質"],
-        anti_patterns=["o1を使う（コスト100倍、レイテンシ10倍）"],
+        key_requirements=["Low latency", "High request volume", "Stable response quality"],
+        anti_patterns=["Using o1 (100x cost, 10x latency)"],
     ),
-    "コードレビュー・生成": UseCaseRecommendation(
-        use_case="コードレビュー・生成",
+    "Code Review & Generation": UseCaseRecommendation(
+        use_case="Code Review & Generation",
         primary=ModelRecommendation(
-            "Claude 3.5 Sonnet", "SWE-bench最高、コード理解力最高",
-            "$4,500/月 (100万req)", "TTFT: 500ms", 0.95,
+            "Claude 3.5 Sonnet", "Top SWE-bench performance, best code comprehension",
+            "$4,500/month (1M req)", "TTFT: 500ms", 0.95,
         ),
         secondary=ModelRecommendation(
-            "GPT-4o", "幅広い言語対応、安定品質",
-            "$3,250/月 (100万req)", "TTFT: 450ms", 0.90,
+            "GPT-4o", "Broad language support, stable quality",
+            "$3,250/month (1M req)", "TTFT: 450ms", 0.90,
         ),
         budget_option=ModelRecommendation(
-            "DeepSeek-V3", "コード品質高くコスパ良好",
-            "$355/月 (100万req)", "TTFT: 600ms", 0.87,
+            "DeepSeek-V3", "High code quality with good cost efficiency",
+            "$355/month (1M req)", "TTFT: 600ms", 0.87,
         ),
-        key_requirements=["コード理解力", "長いコンテキスト", "正確なdiff出力"],
-        anti_patterns=["Gemini Flashでコードレビュー（精度不足）"],
+        key_requirements=["Code comprehension", "Long context", "Accurate diff output"],
+        anti_patterns=["Code review with Gemini Flash (insufficient accuracy)"],
     ),
-    "法律文書分析": UseCaseRecommendation(
-        use_case="法律文書分析",
+    "Legal Document Analysis": UseCaseRecommendation(
+        use_case="Legal Document Analysis",
         primary=ModelRecommendation(
-            "Gemini 1.5 Pro", "200万token対応、文書一括処理",
-            "$1,625/月 (100万req)", "TTFT: 800ms", 0.88,
+            "Gemini 1.5 Pro", "2M token support, process documents in bulk",
+            "$1,625/month (1M req)", "TTFT: 800ms", 0.88,
         ),
         secondary=ModelRecommendation(
-            "Claude 3.5 Sonnet", "200K token + 高精度分析",
-            "$4,500/月 (100万req)", "TTFT: 500ms", 0.92,
+            "Claude 3.5 Sonnet", "200K token + high-precision analysis",
+            "$4,500/month (1M req)", "TTFT: 500ms", 0.92,
         ),
-        key_requirements=["長大文書処理", "正確な引用", "法律用語理解"],
-        anti_patterns=["128K制限モデルで複数文書を一括処理しようとする"],
+        key_requirements=["Long document processing", "Accurate citations", "Legal terminology understanding"],
+        anti_patterns=["Trying to batch-process multiple documents with a 128K-limited model"],
     ),
-    "社内機密データ処理": UseCaseRecommendation(
-        use_case="社内機密データ処理",
+    "Internal Confidential Data Processing": UseCaseRecommendation(
+        use_case="Internal Confidential Data Processing",
         primary=ModelRecommendation(
-            "Qwen 2.5 72B (自前)", "データがクラウドに出ない",
-            "$2,500/月 (GPU)", "環境依存", 0.85,
+            "Qwen 2.5 72B (self-hosted)", "Data never leaves your environment",
+            "$2,500/month (GPU)", "Environment-dependent", 0.85,
         ),
         secondary=ModelRecommendation(
-            "Llama 3.1 70B (自前)", "Meta製、幅広い言語対応",
-            "$2,500/月 (GPU)", "環境依存", 0.83,
+            "Llama 3.1 70B (self-hosted)", "Meta-built, broad language support",
+            "$2,500/month (GPU)", "Environment-dependent", 0.83,
         ),
         budget_option=ModelRecommendation(
-            "DeepSeek-R1蒸留 Qwen-32B (自前)", "推論力あり、軽量",
-            "$1,200/月 (GPU)", "環境依存", 0.80,
+            "DeepSeek-R1 distilled Qwen-32B (self-hosted)", "Reasoning capable, lightweight",
+            "$1,200/month (GPU)", "Environment-dependent", 0.80,
         ),
-        key_requirements=["データプライバシー", "オンプレミス運用", "監査対応"],
-        anti_patterns=["機密データをクラウドAPIに送信"],
+        key_requirements=["Data privacy", "On-premises operation", "Audit compliance"],
+        anti_patterns=["Sending confidential data to cloud APIs"],
     ),
-    "数学・科学的推論": UseCaseRecommendation(
-        use_case="数学・科学的推論",
+    "Math & Scientific Reasoning": UseCaseRecommendation(
+        use_case="Math & Scientific Reasoning",
         primary=ModelRecommendation(
-            "o3-mini (high)", "推論力最高クラス、コスパ良好",
-            "$1,430/月 (100万req)", "TTFT: 3000ms", 0.95,
+            "o3-mini (high)", "Top-class reasoning, good cost efficiency",
+            "$1,430/month (1M req)", "TTFT: 3000ms", 0.95,
         ),
         secondary=ModelRecommendation(
-            "DeepSeek-R1", "OSS推論モデル、MIT license",
-            "$713/月 (100万req)", "TTFT: 2000ms", 0.92,
+            "DeepSeek-R1", "OSS reasoning model, MIT license",
+            "$713/month (1M req)", "TTFT: 2000ms", 0.92,
         ),
-        key_requirements=["段階的推論", "数式理解", "論理的一貫性"],
-        anti_patterns=["Flash/miniモデルで大学レベル数学"],
+        key_requirements=["Step-by-step reasoning", "Formula comprehension", "Logical consistency"],
+        anti_patterns=["Using Flash/mini models for university-level math"],
     ),
-    "リアルタイム翻訳": UseCaseRecommendation(
-        use_case="リアルタイム翻訳",
+    "Real-Time Translation": UseCaseRecommendation(
+        use_case="Real-Time Translation",
         primary=ModelRecommendation(
-            "Gemini 2.0 Flash", "最低レイテンシ、多言語対応",
-            "$130/月 (100万req)", "TTFT: 180ms", 0.83,
+            "Gemini 2.0 Flash", "Lowest latency, multilingual support",
+            "$130/month (1M req)", "TTFT: 180ms", 0.83,
         ),
         secondary=ModelRecommendation(
-            "GPT-4o mini", "低レイテンシ、高品質翻訳",
-            "$195/月 (100万req)", "TTFT: 280ms", 0.85,
+            "GPT-4o mini", "Low latency, high-quality translation",
+            "$195/month (1M req)", "TTFT: 280ms", 0.85,
         ),
-        key_requirements=["低レイテンシ", "多言語対応", "ストリーミング"],
-        anti_patterns=["推論モデルで翻訳（遅延大）"],
+        key_requirements=["Low latency", "Multilingual support", "Streaming"],
+        anti_patterns=["Using reasoning models for translation (high latency)"],
     ),
-    "データ抽出・構造化": UseCaseRecommendation(
-        use_case="データ抽出・構造化",
+    "Data Extraction & Structuring": UseCaseRecommendation(
+        use_case="Data Extraction & Structuring",
         primary=ModelRecommendation(
-            "GPT-4o", "Structured Output対応、安定JSON出力",
-            "$3,250/月 (100万req)", "TTFT: 450ms", 0.92,
+            "GPT-4o", "Structured Output support, stable JSON output",
+            "$3,250/month (1M req)", "TTFT: 450ms", 0.92,
         ),
         secondary=ModelRecommendation(
-            "Claude 3.5 Sonnet", "高精度抽出、長文対応",
-            "$4,500/月 (100万req)", "TTFT: 500ms", 0.90,
+            "Claude 3.5 Sonnet", "High-precision extraction, long document support",
+            "$4,500/month (1M req)", "TTFT: 500ms", 0.90,
         ),
         budget_option=ModelRecommendation(
-            "GPT-4o mini", "十分な抽出精度、低コスト",
-            "$195/月 (100万req)", "TTFT: 280ms", 0.82,
+            "GPT-4o mini", "Sufficient extraction accuracy at low cost",
+            "$195/month (1M req)", "TTFT: 280ms", 0.82,
         ),
-        key_requirements=["JSON出力安定性", "スキーマ準拠", "エラーハンドリング"],
-        anti_patterns=["非構造化出力モードでJSON生成を期待"],
+        key_requirements=["JSON output stability", "Schema compliance", "Error handling"],
+        anti_patterns=["Expecting JSON generation without structured output mode"],
     ),
-    "クリエイティブライティング": UseCaseRecommendation(
-        use_case="クリエイティブライティング",
+    "Creative Writing": UseCaseRecommendation(
+        use_case="Creative Writing",
         primary=ModelRecommendation(
-            "Claude 3.5 Sonnet", "自然な文体、創造性高い",
-            "$4,500/月 (100万req)", "TTFT: 500ms", 0.93,
+            "Claude 3.5 Sonnet", "Natural writing style, high creativity",
+            "$4,500/month (1M req)", "TTFT: 500ms", 0.93,
         ),
         secondary=ModelRecommendation(
-            "GPT-4o", "多様なスタイル対応",
-            "$3,250/月 (100万req)", "TTFT: 450ms", 0.90,
+            "GPT-4o", "Diverse style support",
+            "$3,250/month (1M req)", "TTFT: 450ms", 0.90,
         ),
-        key_requirements=["文体の多様性", "一貫した物語構造", "感情表現"],
-        anti_patterns=["推論モデルで創作（過度に論理的になる）"],
+        key_requirements=["Style diversity", "Consistent narrative structure", "Emotional expression"],
+        anti_patterns=["Using reasoning models for creative work (becomes overly logical)"],
     ),
 }
 
-# 推奨結果の表示
+# Display recommendation results
 def print_recommendation(use_case: str):
     if use_case not in recommendations:
         print(f"Unknown use case: {use_case}")
         return
     rec = recommendations[use_case]
     print(f"\n{'='*60}")
-    print(f"ユースケース: {rec.use_case}")
+    print(f"Use case: {rec.use_case}")
     print(f"{'='*60}")
-    print(f"\n【第1推奨】{rec.primary.model}")
-    print(f"  理由: {rec.primary.reason}")
-    print(f"  コスト: {rec.primary.monthly_cost_estimate}")
-    print(f"  レイテンシ: {rec.primary.latency}")
-    print(f"\n【第2推奨】{rec.secondary.model}")
-    print(f"  理由: {rec.secondary.reason}")
+    print(f"\n[Primary] {rec.primary.model}")
+    print(f"  Reason: {rec.primary.reason}")
+    print(f"  Cost: {rec.primary.monthly_cost_estimate}")
+    print(f"  Latency: {rec.primary.latency}")
+    print(f"\n[Secondary] {rec.secondary.model}")
+    print(f"  Reason: {rec.secondary.reason}")
     if rec.budget_option:
-        print(f"\n【低予算】{rec.budget_option.model}")
-        print(f"  理由: {rec.budget_option.reason}")
-    print(f"\n必要要件: {', '.join(rec.key_requirements)}")
-    print(f"アンチパターン: {', '.join(rec.anti_patterns)}")
+        print(f"\n[Budget] {rec.budget_option.model}")
+        print(f"  Reason: {rec.budget_option.reason}")
+    print(f"\nKey requirements: {', '.join(rec.key_requirements)}")
+    print(f"Anti-patterns: {', '.join(rec.anti_patterns)}")
 ```
 
 ---
 
-## 6. モデル選定の実践コード
+## 6. Practical Model Selection Code
 
-### 6.1 A/B テスト比較ツール
+### 6.1 A/B Test Comparison Tool
 
 ```python
 import asyncio
@@ -1228,7 +1228,7 @@ async def compare_models(
     models: list[str] = None,
     max_tokens: int = 1024,
 ) -> dict[str, ComparisonResult]:
-    """複数モデルの出力を並行比較"""
+    """Concurrently compare outputs across multiple models"""
 
     if models is None:
         models = ["gpt-4o", "claude-3.5-sonnet"]
@@ -1328,9 +1328,9 @@ async def compare_models(
     return output
 
 
-# A/Bテスト結果の表示
+# Display A/B test results
 async def run_ab_test(prompt: str, models: list[str], num_trials: int = 5):
-    """複数回の A/B テストを実行して統計を取る"""
+    """Run multiple A/B test trials and collect statistics"""
     all_results = {model: [] for model in models}
 
     for trial in range(num_trials):
@@ -1339,11 +1339,11 @@ async def run_ab_test(prompt: str, models: list[str], num_trials: int = 5):
         for model, result in results.items():
             all_results[model].append(result)
 
-    # 統計出力
+    # Statistics output
     print(f"\n{'='*70}")
-    print(f"A/B テスト結果 ({num_trials} trials)")
+    print(f"A/B Test Results ({num_trials} trials)")
     print(f"{'='*70}")
-    print(f"{'モデル':25s} {'Avg Latency':>12s} {'Avg TTFT':>10s} {'Avg Cost':>10s}")
+    print(f"{'Model':25s} {'Avg Latency':>12s} {'Avg TTFT':>10s} {'Avg Cost':>10s}")
     print(f"{'-'*70}")
 
     for model in models:
@@ -1355,15 +1355,15 @@ async def run_ab_test(prompt: str, models: list[str], num_trials: int = 5):
         avg_cost = sum(r.cost for r in results) / len(results)
         print(f"{model:25s} {avg_latency:>10.2f}s {avg_ttft:>8.2f}s ${avg_cost:>8.6f}")
 
-# 使用例
+# Usage example
 # asyncio.run(run_ab_test(
-#     "Pythonのジェネレータを500字以内で解説してください",
+#     "Explain Python generators in 500 characters or less",
 #     ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet"],
 #     num_trials=5,
 # ))
 ```
 
-### 6.2 マルチモデルルーティング
+### 6.2 Multi-Model Routing
 
 ```python
 import re
@@ -1376,7 +1376,7 @@ class TaskDifficulty(Enum):
     REASONING = "reasoning"
 
 class ModelRouter:
-    """タスク難易度に応じて最適なモデルにルーティング"""
+    """Routes to the optimal model based on task difficulty"""
 
     def __init__(self, config: dict = None):
         self.config = config or {
@@ -1388,37 +1388,37 @@ class ModelRouter:
         self.routing_history = []
 
     def classify_task(self, prompt: str) -> TaskDifficulty:
-        """プロンプトからタスク難易度を分類"""
+        """Classify task difficulty from the prompt"""
 
-        # キーワードベースの簡易分類（実運用ではLLM分類器を使用）
+        # Simple keyword-based classification (use an LLM classifier in production)
         reasoning_keywords = [
-            "証明", "数学", "定理", "なぜ", "論理的に",
-            "ステップバイステップ", "分析して", "比較検討",
-            "最適化", "アルゴリズム",
+            "prove", "math", "theorem", "why", "logically",
+            "step by step", "analyze", "compare and contrast",
+            "optimize", "algorithm",
         ]
         complex_keywords = [
-            "コードレビュー", "リファクタリング", "アーキテクチャ",
-            "設計", "実装して", "デバッグ", "テストケース",
-            "長文", "詳細に", "包括的に",
+            "code review", "refactoring", "architecture",
+            "design", "implement", "debug", "test cases",
+            "long text", "in detail", "comprehensively",
         ]
         moderate_keywords = [
-            "要約", "翻訳", "説明", "リスト", "分類",
-            "書き換え", "修正して",
+            "summarize", "translate", "explain", "list", "classify",
+            "rewrite", "fix",
         ]
 
         prompt_lower = prompt.lower()
 
-        # 推論タスクの判定
+        # Determine reasoning tasks
         reasoning_score = sum(1 for kw in reasoning_keywords if kw in prompt_lower)
         if reasoning_score >= 2:
             return TaskDifficulty.REASONING
 
-        # 複雑タスクの判定
+        # Determine complex tasks
         complex_score = sum(1 for kw in complex_keywords if kw in prompt_lower)
         if complex_score >= 2 or len(prompt) > 2000:
             return TaskDifficulty.COMPLEX
 
-        # 中程度タスクの判定
+        # Determine moderate tasks
         moderate_score = sum(1 for kw in moderate_keywords if kw in prompt_lower)
         if moderate_score >= 1 or len(prompt) > 500:
             return TaskDifficulty.MODERATE
@@ -1426,7 +1426,7 @@ class ModelRouter:
         return TaskDifficulty.SIMPLE
 
     def route(self, prompt: str) -> dict:
-        """プロンプトを最適なモデルにルーティング"""
+        """Route the prompt to the optimal model"""
         difficulty = self.classify_task(prompt)
         model = self.config[difficulty]
 
@@ -1446,7 +1446,7 @@ class ModelRouter:
         return routing_info
 
     def get_routing_stats(self) -> dict:
-        """ルーティング統計を取得"""
+        """Retrieve routing statistics"""
         if not self.routing_history:
             return {"total": 0}
 
@@ -1456,8 +1456,8 @@ class ModelRouter:
             d = entry["difficulty"]
             distribution[d] = distribution.get(d, 0) + 1
 
-        # コスト削減率の推計
-        # 全てcomplexモデルを使う場合と比較
+        # Estimate cost savings rate
+        # Compared to using complex model for all requests
         baseline_cost = total * 20.0
         actual_cost = sum(entry["estimated_cost_ratio"] for entry in self.routing_history)
         savings_rate = 1 - (actual_cost / baseline_cost)
@@ -1469,16 +1469,16 @@ class ModelRouter:
         }
 
 
-# 使用例
+# Usage example
 router = ModelRouter()
 
 test_prompts = [
-    "こんにちは",  # SIMPLE
-    "この文章を英語に翻訳してください: ...",  # MODERATE
-    "このPythonコードをリファクタリングして、テストケースも書いて",  # COMPLEX
-    "この定理をステップバイステップで証明して、なぜ成立するか論理的に説明して",  # REASONING
-    "天気を教えて",  # SIMPLE
-    "この長文を要約してください",  # MODERATE
+    "Hello",  # SIMPLE
+    "Please translate this text to English: ...",  # MODERATE
+    "Refactor this Python code and write test cases",  # COMPLEX
+    "Prove this theorem step by step and explain logically why it holds",  # REASONING
+    "What's the weather?",  # SIMPLE
+    "Please summarize this long text",  # MODERATE
 ]
 
 for prompt in test_prompts:
@@ -1486,47 +1486,47 @@ for prompt in test_prompts:
     print(f"[{result['difficulty']:10s}] → {result['selected_model']:25s} | {prompt[:40]}...")
 
 stats = router.get_routing_stats()
-print(f"\n=== ルーティング統計 ===")
-print(f"総リクエスト: {stats['total_requests']}")
-print(f"分布: {stats['distribution']}")
-print(f"推定コスト削減率: {stats['estimated_cost_savings']}")
+print(f"\n=== Routing Statistics ===")
+print(f"Total requests: {stats['total_requests']}")
+print(f"Distribution: {stats['distribution']}")
+print(f"Estimated cost savings: {stats['estimated_cost_savings']}")
 ```
 
-### 6.3 LLM-as-a-Judge による自動品質評価
+### 6.3 Automated Quality Evaluation with LLM-as-a-Judge
 
 ```python
 from anthropic import Anthropic
 
 class LLMJudge:
-    """LLM-as-a-Judge による回答品質の自動評価"""
+    """Automated answer quality evaluation using LLM-as-a-Judge"""
 
-    JUDGE_PROMPT = """あなたは公平なAI回答品質評価者です。
-以下の質問に対する2つの回答を評価し、各基準でスコアを付けてください。
+    JUDGE_PROMPT = """You are a fair AI answer quality evaluator.
+Please evaluate two answers to the following question and score each on the criteria below.
 
-## 質問
+## Question
 {question}
 
-## 回答A ({model_a})
+## Answer A ({model_a})
 {answer_a}
 
-## 回答B ({model_b})
+## Answer B ({model_b})
 {answer_b}
 
-## 評価基準（各10点満点）
-1. 正確性: 事実の正確さ、誤情報の有無
-2. 完全性: 質問への網羅的な回答
-3. 明瞭性: 分かりやすさ、構成の論理性
-4. 実用性: 実際に役立つ具体的な情報
-5. 簡潔性: 冗長でなく必要十分な分量
+## Evaluation Criteria (each out of 10 points)
+1. Accuracy: Factual correctness, absence of misinformation
+2. Completeness: Comprehensive coverage of the question
+3. Clarity: Readability and logical organization
+4. Usefulness: Practical, concrete information
+5. Conciseness: Necessary and sufficient length, not verbose
 
-## 出力形式（JSON）
+## Output Format (JSON)
 {{
   "model_a_scores": {{"accuracy": X, "completeness": X, "clarity": X, "usefulness": X, "conciseness": X}},
   "model_b_scores": {{"accuracy": X, "completeness": X, "clarity": X, "usefulness": X, "conciseness": X}},
   "model_a_total": X,
   "model_b_total": X,
   "winner": "A" or "B" or "tie",
-  "reasoning": "判定理由を1-2文で"
+  "reasoning": "Judgment rationale in 1-2 sentences"
 }}"""
 
     def __init__(self, judge_model: str = "claude-3-5-sonnet-20241022"):
@@ -1542,7 +1542,7 @@ class LLMJudge:
         model_a: str,
         model_b: str,
     ) -> dict:
-        """2つの回答を比較評価"""
+        """Comparatively evaluate two answers"""
         prompt = self.JUDGE_PROMPT.format(
             question=question,
             model_a=model_a,
@@ -1565,7 +1565,7 @@ class LLMJudge:
         self,
         test_cases: list[dict],
     ) -> dict:
-        """バッチ評価を実行"""
+        """Run batch evaluation"""
         wins = {"A": 0, "B": 0, "tie": 0}
         total_scores = {"A": 0, "B": 0}
 
@@ -1599,24 +1599,24 @@ class LLMJudge:
         model_a: str,
         model_b: str,
     ) -> dict:
-        """位置バイアスを排除した評価（AとBの順序を入れ替えて2回評価）"""
-        # 通常順序で評価
+        """Position-bias-free evaluation (evaluate twice with A and B swapped)"""
+        # Evaluate in normal order
         result1 = self.evaluate(question, answer_a, answer_b, model_a, model_b)
 
-        # 順序を入れ替えて評価
+        # Evaluate with order swapped
         result2 = self.evaluate(question, answer_b, answer_a, model_b, model_a)
 
-        # 結果を統合（一致していれば信頼性高い）
+        # Integrate results (high reliability if they agree)
         winner1 = result1["winner"]
-        # result2では順序が逆なので、勝者も逆転して考える
+        # Since order is reversed in result2, map winner accordingly
         winner2_mapped = {"A": "B", "B": "A", "tie": "tie"}[result2["winner"]]
 
         if winner1 == winner2_mapped:
             consensus = winner1
-            confidence = "高"
+            confidence = "High"
         else:
             consensus = "tie"
-            confidence = "低（位置バイアスの影響あり）"
+            confidence = "Low (position bias may have affected result)"
 
         return {
             "consensus_winner": consensus,
@@ -1628,132 +1628,132 @@ class LLMJudge:
 
 ---
 
-## 7. OSS モデルの比較と選定
+## 7. OSS Model Comparison and Selection
 
-### 7.1 主要 OSS モデル一覧
+### 7.1 Major OSS Model Overview
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│          主要 OSS LLM モデル一覧                          │
+│          Major OSS LLM Model Overview                     │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  Meta Llama 3.1 シリーズ                                  │
-│  ├── 405B: 最高性能OSS、8xA100/H100必要                   │
-│  ├── 70B: バランス型、2xA100で動作                        │
-│  └── 8B: エッジ向け、1xRTX4090で動作                      │
+│  Meta Llama 3.1 Series                                    │
+│  ├── 405B: Highest-performance OSS, needs 8xA100/H100     │
+│  ├── 70B: Balanced, runs on 2xA100                        │
+│  └── 8B: Edge-focused, runs on 1xRTX4090                  │
 │  License: Llama 3.1 Community License                    │
 │                                                          │
-│  Alibaba Qwen 2.5 シリーズ                                │
-│  ├── 72B: CJK言語に強い、日本語性能良好                    │
-│  ├── 32B: 中型モデル、コスパ良好                           │
+│  Alibaba Qwen 2.5 Series                                  │
+│  ├── 72B: Strong in CJK languages, good Japanese          │
+│  ├── 32B: Mid-size model, good cost efficiency            │
 │  ├── 14B / 7B / 3B / 1.5B / 0.5B                         │
-│  └── 派生: Qwen-Coder, Qwen-VL, Qwen-Audio               │
-│  License: Apache 2.0 (一部Qwen License)                   │
+│  └── Variants: Qwen-Coder, Qwen-VL, Qwen-Audio           │
+│  License: Apache 2.0 (some Qwen License)                  │
 │                                                          │
-│  DeepSeek シリーズ                                        │
-│  ├── V3: MoE 671B (37B active)、高効率                    │
-│  ├── R1: 推論特化、MIT License                            │
-│  └── Coder V2: コード特化                                 │
+│  DeepSeek Series                                          │
+│  ├── V3: MoE 671B (37B active), high efficiency           │
+│  ├── R1: Reasoning-specialized, MIT License               │
+│  └── Coder V2: Code-specialized                           │
 │  License: MIT                                             │
 │                                                          │
-│  Mistral シリーズ                                         │
-│  ├── Large 2 (123B): EU規制準拠                           │
-│  ├── Mixtral 8x22B: MoE、高効率                           │
+│  Mistral Series                                           │
+│  ├── Large 2 (123B): EU regulation compliant              │
+│  ├── Mixtral 8x22B: MoE, high efficiency                  │
 │  └── Mistral 7B / Mistral NeMo                           │
 │  License: Apache 2.0                                      │
 │                                                          │
-│  Google Gemma シリーズ                                     │
-│  ├── Gemma 2 27B: 軽量高性能                               │
+│  Google Gemma Series                                      │
+│  ├── Gemma 2 27B: Lightweight, high performance           │
 │  └── Gemma 2 9B / 2B                                      │
 │  License: Gemma Terms of Use                              │
 │                                                          │
-│  Microsoft Phi シリーズ                                    │
+│  Microsoft Phi Series                                     │
 │  ├── Phi-3.5-MoE-instruct (42B, 6.6B active)              │
-│  ├── Phi-3.5-mini (3.8B): 超軽量                          │
-│  └── Phi-3.5-vision: マルチモーダル対応                    │
+│  ├── Phi-3.5-mini (3.8B): Ultra-lightweight               │
+│  └── Phi-3.5-vision: Multimodal support                   │
 │  License: MIT                                             │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 OSS モデルの選定基準
+### 7.2 OSS Model Selection Criteria
 
 ```python
-# OSS モデル選定マトリクス
+# OSS model selection matrix
 oss_selection_matrix = {
-    "日本語テキスト生成": {
-        "推奨": ["Qwen-2.5-72B", "Llama-3.1-70B"],
-        "理由": "Qwen は CJK 学習データが豊富",
-        "GPU要件": "2x A100-80GB (FP16) or 1x A100 (INT8)",
+    "Japanese text generation": {
+        "Recommended": ["Qwen-2.5-72B", "Llama-3.1-70B"],
+        "Reason": "Qwen has abundant CJK training data",
+        "GPU requirements": "2x A100-80GB (FP16) or 1x A100 (INT8)",
     },
-    "コード生成・補完": {
-        "推奨": ["DeepSeek-Coder-V2", "Qwen-2.5-Coder-32B"],
-        "理由": "コード特化学習、多言語対応",
-        "GPU要件": "1-2x A100-80GB",
+    "Code generation & completion": {
+        "Recommended": ["DeepSeek-Coder-V2", "Qwen-2.5-Coder-32B"],
+        "Reason": "Code-specialized training, multilingual support",
+        "GPU requirements": "1-2x A100-80GB",
     },
-    "推論タスク": {
-        "推奨": ["DeepSeek-R1", "R1-Distill-Qwen-32B"],
-        "理由": "推論CoTを内蔵、MIT License",
-        "GPU要件": "R1: 8xH100 / 蒸留版: 1x A100",
+    "Reasoning tasks": {
+        "Recommended": ["DeepSeek-R1", "R1-Distill-Qwen-32B"],
+        "Reason": "Built-in reasoning CoT, MIT License",
+        "GPU requirements": "R1: 8xH100 / distilled: 1x A100",
     },
-    "エッジデプロイ": {
-        "推奨": ["Phi-3.5-mini", "Gemma-2-2B", "Qwen-2.5-3B"],
-        "理由": "3B以下で実用的品質",
-        "GPU要件": "RTX3060以上 / CPU推論可",
+    "Edge deployment": {
+        "Recommended": ["Phi-3.5-mini", "Gemma-2-2B", "Qwen-2.5-3B"],
+        "Reason": "Practical quality in 3B or less",
+        "GPU requirements": "RTX3060 or higher / CPU inference possible",
     },
-    "マルチモーダル（画像）": {
-        "推奨": ["Qwen-VL-72B", "Llava-1.6-34B", "Phi-3.5-vision"],
-        "理由": "画像+テキスト統合理解",
-        "GPU要件": "モデルサイズに応じて変動",
+    "Multimodal (image)": {
+        "Recommended": ["Qwen-VL-72B", "Llava-1.6-34B", "Phi-3.5-vision"],
+        "Reason": "Integrated image + text understanding",
+        "GPU requirements": "Varies by model size",
     },
-    "RAG / 埋め込み": {
-        "推奨": ["BGE-M3", "E5-Mistral-7B", "GTE-Qwen2"],
-        "理由": "多言語埋め込み、高リコール",
-        "GPU要件": "1x RTX4090以上",
+    "RAG / Embeddings": {
+        "Recommended": ["BGE-M3", "E5-Mistral-7B", "GTE-Qwen2"],
+        "Reason": "Multilingual embeddings, high recall",
+        "GPU requirements": "1x RTX4090 or higher",
     },
 }
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: ベンチマークスコアだけで選定
+### Anti-Pattern 1: Selecting solely based on benchmark scores
 
 ```
-# NG: MMLU スコアが最も高いモデルを無条件に採用
-"MMLUが88点だからこのモデルにしよう"
-→ 実際のタスク (日本語要約) では MMLU との相関が低い
-→ データ汚染でスコアが膨張している可能性
+# BAD: Unconditionally adopting the model with the highest MMLU score
+"This model has an MMLU of 88 so let's go with it"
+→ The actual task (Japanese summarization) has low correlation with MMLU
+→ Scores may be inflated due to data contamination
 
-# OK: 実タスクでの評価を実施
-1. 自社タスクの評価データセット (100問以上) を作成
-2. 候補モデル 3-5 個で推論を実行
-3. 人手評価 or LLM-as-a-Judge で品質比較
-4. コスト・レイテンシも加味して総合判断
-5. A/Bテストで本番環境での性能を検証
+# GOOD: Evaluate on your actual tasks
+1. Create an evaluation dataset of your own tasks (100+ questions)
+2. Run inference with 3-5 candidate models
+3. Compare quality using human evaluation or LLM-as-a-Judge
+4. Make a holistic decision factoring in cost and latency
+5. Verify production performance with A/B testing
 ```
 
-### アンチパターン 2: 単一モデルへのベンダーロック
+### Anti-Pattern 2: Vendor lock-in to a single model
 
 ```python
-# NG: OpenAI 固有の API 仕様に依存しきったコード
+# BAD: Code tightly coupled to OpenAI-specific API features
 response = client.chat.completions.create(
     model="gpt-4o",
     response_format={"type": "json_schema", "json_schema": {...}},
-    # OpenAI 固有機能に強く依存
+    # Heavily dependent on OpenAI-specific features
 )
 
-# OK: 抽象レイヤーを挟んでモデル切り替え可能に
-from litellm import completion  # マルチプロバイダー対応ライブラリ
+# GOOD: Add an abstraction layer to enable model switching
+from litellm import completion  # Multi-provider library
 
 response = completion(
-    model="gpt-4o",  # 簡単に "claude-3.5-sonnet" 等に変更可能
+    model="gpt-4o",  # Easy to change to "claude-3.5-sonnet" etc.
     messages=[{"role": "user", "content": prompt}],
 )
 
-# さらに良い: 自前の抽象レイヤー
+# Even better: your own abstraction layer
 class LLMClient:
-    """プロバイダー非依存のLLMクライアント"""
+    """Provider-agnostic LLM client"""
 
     def __init__(self, provider: str, model: str):
         self.provider = provider
@@ -1788,120 +1788,120 @@ class LLMClient:
             return resp.content[0].text
 ```
 
-### アンチパターン 3: レイテンシ無視の選定
+### Anti-Pattern 3: Ignoring latency in model selection
 
 ```
-# NG: リアルタイムチャットに高性能だが遅いモデル
-ユーザー体験: 「...」 (10秒間の沈黙) → 離脱率増加
+# BAD: High-performance but slow model for real-time chat
+User experience: "..." (10 seconds of silence) → Higher abandonment rate
 
-# OK: 用途に応じたレイテンシ要件の設定
-- リアルタイムチャット → TTFT < 500ms → Flash/mini 系
-- バッチ処理 → レイテンシ不問 → 最高精度モデル
-- ストリーミング表示 → TTFT < 1s → 中堅モデルでもOK
-- 推論タスク → レイテンシ許容 → o1/R1 系（ただしUX配慮）
+# GOOD: Set latency requirements based on the use case
+- Real-time chat → TTFT < 500ms → Flash/mini models
+- Batch processing → Latency irrelevant → Highest-accuracy models
+- Streaming display → TTFT < 1s → Mid-tier models acceptable
+- Reasoning tasks → Latency tolerance → o1/R1 series (but consider UX)
 ```
 
-### アンチパターン 4: 全タスクに同一モデルを使用
+### Anti-Pattern 4: Using the same model for all tasks
 
 ```python
-# NG: 全てのタスクに GPT-4o を使用
-# → 簡単なタスクにも高額モデルを使い、コスト10倍以上に
+# BAD: Using GPT-4o for all tasks
+# → Paying premium model prices even for simple tasks, 10x+ cost
 
-# OK: タスク複雑度に応じたモデル選択
+# GOOD: Select model based on task complexity
 class SmartLLMService:
-    """タスク複雑度に応じてモデルを自動選択するサービス"""
+    """Service that automatically selects model based on task complexity"""
 
     TIER_CONFIG = {
         "tier1_simple": {
             "model": "gpt-4o-mini",
             "max_tokens": 512,
-            "examples": ["挨拶", "FAQ回答", "簡単な翻訳"],
+            "examples": ["Greetings", "FAQ answers", "Simple translation"],
         },
         "tier2_moderate": {
             "model": "gpt-4o",
             "max_tokens": 2048,
-            "examples": ["要約", "文書分類", "データ抽出"],
+            "examples": ["Summarization", "Document classification", "Data extraction"],
         },
         "tier3_complex": {
             "model": "claude-3-5-sonnet-20241022",
             "max_tokens": 4096,
-            "examples": ["コードレビュー", "長文分析", "レポート生成"],
+            "examples": ["Code review", "Long-form analysis", "Report generation"],
         },
         "tier4_reasoning": {
             "model": "o3-mini",
             "max_tokens": 8192,
-            "examples": ["数学証明", "複雑な分析", "アーキテクチャ設計"],
+            "examples": ["Math proofs", "Complex analysis", "Architecture design"],
         },
     }
 
-    # コスト比較: 全部tier3を使う vs スマートルーティング
-    # 月100万req想定:
-    #   全部tier3: $4,500/月
-    #   スマートルーティング (60% tier1, 25% tier2, 12% tier3, 3% tier4):
+    # Cost comparison: all tier3 vs smart routing
+    # Assuming 1M req/month:
+    #   All tier3: $4,500/month
+    #   Smart routing (60% tier1, 25% tier2, 12% tier3, 3% tier4):
     #     0.6*$195 + 0.25*$3,250 + 0.12*$4,500 + 0.03*$1,430
-    #     = $117 + $812 + $540 + $43 = $1,512/月
-    #   → 66% コスト削減
+    #     = $117 + $812 + $540 + $43 = $1,512/month
+    #   → 66% cost reduction
 ```
 
-### アンチパターン 5: 推論モデルの乱用
+### Anti-Pattern 5: Overusing reasoning models
 
 ```
-# NG: 全タスクに o1 を使用
-コスト: $19,500/月 (100万req)
-レイテンシ: TTFT 5-30秒
-→ 99% のタスクではオーバースペック
+# BAD: Using o1 for all tasks
+Cost: $19,500/month (1M req)
+Latency: TTFT 5-30 seconds
+→ Overkill for 99% of tasks
 
-# OK: 推論モデルは本当に推論が必要な場合のみ
-判定基準:
-1. 数学的証明や複雑な論理推論が必要 → o3-mini
-2. 段階的な分析が品質に直結する → DeepSeek-R1
-3. コード設計で複数の選択肢を検討する必要がある → Claude ET
-4. それ以外 → 通常モデルで十分
+# GOOD: Use reasoning models only when reasoning is truly needed
+Decision criteria:
+1. Mathematical proof or complex logical reasoning required → o3-mini
+2. Stepwise analysis directly impacts quality → DeepSeek-R1
+3. Code design requires considering multiple options → Claude ET
+4. Otherwise → Standard models are sufficient
 ```
 
 ---
 
-## 9. モデル評価パイプラインの構築
+## 9. Building a Model Evaluation Pipeline
 
-### 9.1 評価パイプライン全体像
+### 9.1 Evaluation Pipeline Overview
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│        モデル評価パイプライン                               │
+│        Model Evaluation Pipeline                          │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  1. 評価データセット作成                                   │
-│  ├── 自社タスクから代表的なケースを100-500問抽出            │
-│  ├── カテゴリ分け（難易度、ドメイン、タスクタイプ）          │
-│  ├── 正解ラベルの作成（人手 or 専門家）                     │
-│  └── テスト/バリデーション分割                              │
+│  1. Create evaluation dataset                             │
+│  ├── Extract 100-500 representative cases from your tasks │
+│  ├── Categorize (difficulty, domain, task type)           │
+│  ├── Create ground-truth labels (human or expert)         │
+│  └── Split into test/validation sets                      │
 │       │                                                   │
-│  2. 候補モデルで推論実行                                   │
-│  ├── 全候補モデル × 全テストケース                         │
-│  ├── 同一プロンプトテンプレート使用                         │
-│  ├── Temperature=0 で再現性確保                            │
-│  └── レイテンシ・トークン数も記録                           │
+│  2. Run inference with candidate models                   │
+│  ├── All candidate models × all test cases                │
+│  ├── Use the same prompt template                         │
+│  ├── Temperature=0 for reproducibility                    │
+│  └── Record latency and token counts                      │
 │       │                                                   │
-│  3. 品質評価                                               │
-│  ├── 自動指標: BLEU, ROUGE, Exact Match                   │
-│  ├── LLM-as-a-Judge（位置バイアス排除版）                  │
-│  ├── 人手評価（重要ケースのサンプリング）                   │
-│  └── ドメイン専門家レビュー                                │
+│  3. Quality evaluation                                    │
+│  ├── Automatic metrics: BLEU, ROUGE, Exact Match          │
+│  ├── LLM-as-a-Judge (position-bias-free version)          │
+│  ├── Human evaluation (sampling of important cases)       │
+│  └── Domain expert review                                 │
 │       │                                                   │
-│  4. 総合スコアリング                                       │
-│  ├── 品質スコア (40%)                                     │
-│  ├── コスト (25%)                                         │
-│  ├── レイテンシ (20%)                                     │
-│  └── 運用容易性 (15%)                                     │
+│  4. Composite scoring                                     │
+│  ├── Quality score (40%)                                  │
+│  ├── Cost (25%)                                           │
+│  ├── Latency (20%)                                        │
+│  └── Operational ease (15%)                               │
 │       │                                                   │
-│  5. 意思決定                                               │
-│  ├── スコアカード作成                                     │
-│  ├── ステークホルダーレビュー                              │
-│  └── 段階的ロールアウト計画                               │
+│  5. Decision making                                       │
+│  ├── Create scorecard                                     │
+│  ├── Stakeholder review                                   │
+│  └── Phased rollout plan                                  │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 9.2 評価パイプラインの実装
+### 9.2 Evaluation Pipeline Implementation
 
 ```python
 import json
@@ -1910,7 +1910,7 @@ from typing import Callable, Optional
 
 @dataclass
 class EvalCase:
-    """評価ケース"""
+    """Evaluation case"""
     id: str
     prompt: str
     expected: str
@@ -1920,7 +1920,7 @@ class EvalCase:
 
 @dataclass
 class EvalResult:
-    """評価結果"""
+    """Evaluation result"""
     case_id: str
     model: str
     output: str
@@ -1931,7 +1931,7 @@ class EvalResult:
     scores: dict = field(default_factory=dict)
 
 class ModelEvaluationPipeline:
-    """モデル評価パイプライン"""
+    """Model evaluation pipeline"""
 
     def __init__(self, eval_cases: list[EvalCase]):
         self.eval_cases = eval_cases
@@ -1939,15 +1939,15 @@ class ModelEvaluationPipeline:
         self.scorers: list[Callable] = []
 
     def add_scorer(self, scorer: Callable):
-        """スコアラーを追加"""
+        """Add a scorer"""
         self.scorers.append(scorer)
 
     async def run_evaluation(self, models: list[str]) -> dict:
-        """全モデルで全ケースの評価を実行"""
+        """Run evaluation on all cases with all models"""
         for model in models:
             for case in self.eval_cases:
                 result = await self._evaluate_single(model, case)
-                # スコアリング
+                # Scoring
                 for scorer in self.scorers:
                     score = scorer(case, result)
                     result.scores.update(score)
@@ -1956,10 +1956,10 @@ class ModelEvaluationPipeline:
         return self._compile_report()
 
     async def _evaluate_single(self, model: str, case: EvalCase) -> EvalResult:
-        """単一ケースの評価"""
+        """Evaluate a single case"""
         start = time.time()
 
-        # モデル呼び出し（簡略化）
+        # Model call (simplified)
         output = await self._call_model(model, case.prompt)
 
         latency = time.time() - start
@@ -1975,29 +1975,29 @@ class ModelEvaluationPipeline:
         )
 
     async def _call_model(self, model: str, prompt: str) -> dict:
-        """モデルAPIを呼び出す（抽象化）"""
-        # 実装は省略 - LiteLLM等を使用
+        """Call the model API (abstracted)"""
+        # Implementation omitted - use LiteLLM etc.
         pass
 
     def _compile_report(self) -> dict:
-        """評価レポートを作成"""
+        """Compile evaluation report"""
         models = set(r.model for r in self.results)
         report = {}
 
         for model in models:
             model_results = [r for r in self.results if r.model == model]
 
-            # 品質スコア
+            # Quality scores
             quality_scores = [
                 sum(r.scores.values()) / len(r.scores)
                 for r in model_results if r.scores
             ]
 
-            # コスト・レイテンシ
+            # Cost and latency
             total_cost = sum(r.cost for r in model_results)
             avg_latency = sum(r.latency for r in model_results) / len(model_results)
 
-            # カテゴリ別スコア
+            # Per-category scores
             categories = set(
                 case.category for case in self.eval_cases
             )
@@ -2024,27 +2024,27 @@ class ModelEvaluationPipeline:
         return report
 
 
-# スコアラーの例
+# Scorer examples
 def exact_match_scorer(case: EvalCase, result: EvalResult) -> dict:
-    """完全一致スコアラー"""
+    """Exact match scorer"""
     return {"exact_match": 1.0 if result.output.strip() == case.expected.strip() else 0.0}
 
 def contains_scorer(case: EvalCase, result: EvalResult) -> dict:
-    """部分一致スコアラー"""
+    """Partial match scorer"""
     return {"contains": 1.0 if case.expected.lower() in result.output.lower() else 0.0}
 
 def length_penalty_scorer(case: EvalCase, result: EvalResult) -> dict:
-    """長さペナルティスコアラー"""
+    """Length penalty scorer"""
     expected_len = len(case.expected)
     actual_len = len(result.output)
     ratio = actual_len / expected_len if expected_len > 0 else 0
-    # 0.5-2.0 の範囲が理想
+    # Ideal range is 0.5-2.0
     if 0.5 <= ratio <= 2.0:
         score = 1.0
     elif ratio < 0.5:
-        score = ratio * 2  # 短すぎるペナルティ
+        score = ratio * 2  # Penalty for too short
     else:
-        score = max(0, 1.0 - (ratio - 2.0) * 0.2)  # 長すぎるペナルティ
+        score = max(0, 1.0 - (ratio - 2.0) * 0.2)  # Penalty for too long
     return {"length_score": score}
 ```
 
@@ -2052,75 +2052,75 @@ def length_penalty_scorer(case: EvalCase, result: EvalResult) -> dict:
 
 ## 10. FAQ
 
-### Q1: 新しいモデルが出たら毎回乗り換えるべき?
+### Q1: Should I switch to a new model every time one is released?
 
-頻繁な乗り換えはコスト (検証工数、コード変更、プロンプト再調整) が大きい。
-3-6 ヶ月に一度、主要モデルの比較評価を行い、有意な改善が確認できた場合のみ移行するのが現実的。
-抽象レイヤー (LiteLLM 等) を導入しておくと切り替えコストが下がる。
+Frequent switching has high costs (validation effort, code changes, prompt re-tuning).
+A practical approach is to run a comparative evaluation of major models every 3-6 months and only migrate when a significant improvement is confirmed.
+Introducing an abstraction layer (e.g., LiteLLM) reduces the cost of switching.
 
-**具体的な判断基準:**
-- 自社タスクでの品質が10%以上向上
-- コストが30%以上削減
-- レイテンシが50%以上改善
-- 新機能 (マルチモーダル等) が必須要件に追加
-- 現行モデルの廃止アナウンス
+**Concrete decision criteria:**
+- Quality on your tasks improves by 10% or more
+- Cost reduced by 30% or more
+- Latency improved by 50% or more
+- New features (multimodal, etc.) become a required need
+- Deprecation announcement for the current model
 
-### Q2: 複数モデルを組み合わせるメリットは?
+### Q2: What are the benefits of combining multiple models?
 
-Router パターンでタスク難易度に応じてモデルを振り分けると、コストを 60-80% 削減できることがある。
-例: 簡単な質問 → Flash/mini、複雑な質問 → Pro/Sonnet、コード生成 → 特化モデル。
-OpenRouter や LiteLLM を使えばルーティングを容易に実装できる。
+Using a router pattern to distribute tasks based on difficulty can reduce costs by 60-80%.
+Example: Simple questions → Flash/mini, complex questions → Pro/Sonnet, code generation → specialized model.
+Using OpenRouter or LiteLLM makes routing easy to implement.
 
-**実装パターン:**
-1. **静的ルーティング**: タスクタイプでモデルを固定割当
-2. **動的ルーティング**: 入力の複雑さを分析して動的選択
-3. **カスケード**: 小型モデルで試行 → 品質不足なら大型モデルにフォールバック
-4. **アンサンブル**: 複数モデルの回答を統合（高コストだが高品質）
+**Implementation patterns:**
+1. **Static routing**: Assign models to fixed task types
+2. **Dynamic routing**: Analyze input complexity and select dynamically
+3. **Cascade**: Try a smaller model first → fall back to a larger model if quality is insufficient
+4. **Ensemble**: Integrate answers from multiple models (high cost but high quality)
 
-### Q3: ベンチマークと実運用の性能差はどの程度?
+### Q3: How large is the gap between benchmark and production performance?
 
-ベンチマーク汚染 (訓練データにベンチマーク問題が混入) の問題があり、特に MMLU では実力との乖離が指摘されている。
-LMSYS Chatbot Arena のような人間評価が最も実態に近いが、自社タスクでの独自評価が最も信頼できる。
-「ベンチマークは足切りに使い、最終判断は実タスク評価」が推奨される。
+Benchmark contamination (benchmark questions mixed into training data) is a known problem, and for MMLU in particular, divergence from actual capabilities has been reported.
+Human evaluations like LMSYS Chatbot Arena are closest to reality, but your own evaluation on your own tasks is the most reliable.
+"Use benchmarks for screening, and use actual task evaluation for final decisions" is the recommended approach.
 
-### Q4: 推論モデル (o1/R1) と通常モデルの使い分け基準は?
+### Q4: What are the criteria for choosing between reasoning models (o1/R1) and standard models?
 
-推論モデルは「考える時間」を増やすことで精度を上げるため、以下の場合に有効:
-- 数学の証明や複雑な論理推論
-- 複数ステップの分析が必要な問題
-- 正確性が最優先で、レイテンシは許容できる場合
+Reasoning models improve accuracy by increasing "thinking time," making them effective in the following cases:
+- Mathematical proofs or complex logical reasoning
+- Problems requiring multi-step analysis
+- When accuracy is top priority and latency is tolerable
 
-一方、以下の場合は通常モデルで十分:
-- FAQ回答、翻訳、要約などの定型タスク
-- レイテンシが重要なリアルタイムチャット
-- 大量バッチ処理（コスト面で非現実的）
+On the other hand, standard models are sufficient for:
+- Template tasks such as FAQ answering, translation, and summarization
+- Real-time chat where latency is critical
+- Large-scale batch processing (cost-prohibitive for reasoning models)
 
-### Q5: 日本語タスクで最適なモデルは?
+### Q5: What is the optimal model for Japanese tasks?
 
-日本語性能は学習データの量と質に大きく依存する。2025年初頭時点での日本語性能ランキング（概算）:
+Japanese performance depends heavily on the amount and quality of training data. Japanese performance ranking as of early 2025 (approximate):
 
-1. **GPT-4o** — 日本語学習データが豊富、自然な表現
-2. **Claude 3.5 Sonnet** — 高い日本語理解力、長文に強い
-3. **Gemini 1.5 Pro** — 日本語性能向上、長文処理に圧倒的
-4. **Qwen 2.5 72B** — CJK特化、OSS最高の日本語性能
-5. **DeepSeek-V3** — 中国語ベースだが日本語も良好
+1. **GPT-4o** — Abundant Japanese training data, natural expression
+2. **Claude 3.5 Sonnet** — High Japanese comprehension, strong with long text
+3. **Gemini 1.5 Pro** — Improved Japanese performance, overwhelming for long documents
+4. **Qwen 2.5 72B** — CJK-specialized, best Japanese performance among OSS
+5. **DeepSeek-V3** — Chinese-based but also good at Japanese
 
-自社での日本語特化評価データセット（JCommonsenseQA、JNLI、JSQuAD等）でのテストを推奨。
+Testing with Japanese-specific evaluation datasets (JCommonsenseQA, JNLI, JSQuAD, etc.) is recommended.
 
-### Q6: ファインチューニングすべきか、プロンプトエンジニアリングで十分か?
+### Q6: Should I fine-tune, or is prompt engineering sufficient?
 
 ```
-判断フローチャート:
+Decision flowchart:
 
-プロンプトエンジニアリングで目標品質達成?
-├── YES → ファインチューニング不要
-└── NO → Few-shot / RAG で改善?
-    ├── YES → ファインチューニング不要
-    └── NO → 学習データ1000件以上用意可能?
-        ├── YES → ファインチューニング検討
-        │   ├── API FT (GPT-4o mini, Gemini) → 手軽
-        │   └── OSS FT (Llama, Qwen) → 自由度高い
-        └── NO → データ収集から開始、または別モデルを検討
+Achieved target quality with prompt engineering?
+├── YES → Fine-tuning not needed
+└── NO → Improved with Few-shot / RAG?
+    ├── YES → Fine-tuning not needed
+    └── NO → Can you prepare 1,000+ training examples?
+        ├── YES → Consider fine-tuning
+        │   ├── API FT (GPT-4o mini, Gemini) → Convenient
+        │   └── OSS FT (Llama, Qwen) → More flexibility
+        └── NO → Start collecting data, or consider a different model
 ```
 
 ---
@@ -2128,46 +2128,46 @@ LMSYS Chatbot Arena のような人間評価が最も実態に近いが、自社
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in actual practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 評価軸 | 最推奨モデル | 備考 |
+| Evaluation Axis | Top Recommended Model | Notes |
 |--------|------------|------|
-| 総合性能 | GPT-4o / Claude 3.5 Sonnet | 僅差、タスク依存 |
-| コストパフォーマンス | Gemini 2.0 Flash / GPT-4o mini | 10-50倍安い |
-| 長文処理 | Gemini 1.5 Pro (2M) | 他を圧倒 |
-| コード生成 | Claude 3.5 Sonnet | SWE-bench 最高 |
-| 数学・推論 | o3-mini / DeepSeek-R1 | CoT 特化 |
-| 日本語 | Qwen 2.5 / GPT-4o | CJK 強い |
-| プライバシー | OSS 自前デプロイ | Qwen/Llama |
-| マルチモーダル | GPT-4o / Gemini 1.5 | 動画は Gemini のみ |
-| 超低コスト | Gemini 2.0 Flash | $0.10/$0.40 per 1M |
-| 推論タスク | o3-mini (high) | reasoning_effort 調整可 |
+| Overall performance | GPT-4o / Claude 3.5 Sonnet | Close race, task-dependent |
+| Cost efficiency | Gemini 2.0 Flash / GPT-4o mini | 10-50x cheaper |
+| Long document processing | Gemini 1.5 Pro (2M) | Far ahead of others |
+| Code generation | Claude 3.5 Sonnet | Highest SWE-bench |
+| Math & reasoning | o3-mini / DeepSeek-R1 | CoT-specialized |
+| Japanese | Qwen 2.5 / GPT-4o | Strong in CJK |
+| Privacy | OSS self-hosted | Qwen/Llama |
+| Multimodal | GPT-4o / Gemini 1.5 | Video: Gemini only |
+| Ultra-low cost | Gemini 2.0 Flash | $0.10/$0.40 per 1M |
+| Reasoning tasks | o3-mini (high) | reasoning_effort adjustable |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [../02-applications/00-prompt-engineering.md](../02-applications/00-prompt-engineering.md) — 選んだモデルの性能を最大化するプロンプト技法
-- [../03-infrastructure/00-api-integration.md](../03-infrastructure/00-api-integration.md) — API 統合の実践
-- [../03-infrastructure/03-evaluation.md](../03-infrastructure/03-evaluation.md) — 自社タスクでの評価手法
+- [../02-applications/00-prompt-engineering.md](../02-applications/00-prompt-engineering.md) — Prompt techniques to maximize the performance of your chosen model
+- [../03-infrastructure/00-api-integration.md](../03-infrastructure/00-api-integration.md) — Practical API integration
+- [../03-infrastructure/03-evaluation.md](../03-infrastructure/03-evaluation.md) — Evaluation methods on your own tasks
 
 ---
 
-## 参考文献
+## References
 
 1. LMSYS, "Chatbot Arena Leaderboard," https://chat.lmsys.org/
 2. Hugging Face, "Open LLM Leaderboard," https://huggingface.co/spaces/open-llm-leaderboard
