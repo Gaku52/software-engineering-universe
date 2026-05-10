@@ -2,21 +2,11 @@
 useDefault = true
 
 [allowlist]
+description = "技術教材のサンプルコード内ダミーキーを除外（コンテンツ自体には影響なし）"
 paths = [
-  '''05-infrastructure/aws-cloud-guide/docs/05-serverless/02-serverless-patterns\.md''',
-  '''05-infrastructure/aws-cloud-guide/docs/08-security/01-secrets-management\.md''',
-  '''ja/05-infrastructure/aws-cloud-guide/docs/08-security/01-secrets-management\.md''',
-  '''aws-cloud-guide/docs/08-security/01-secrets-management\.md''',
-  '''05-infrastructure/development-environment-setup/docs/02-docker-dev/01-devcontainer\.md''',
-  '''ja/05-infrastructure/development-environment-setup/docs/02-docker-dev/01-devcontainer\.md''',
-  '''05-infrastructure/docker-container-guide/docs/04-production/00-production-best-practices\.md''',
-  '''05-infrastructure/docker-container-guide/docs/05-orchestration/02-kubernetes-advanced\.md''',
-  '''05-infrastructure/linux-cli-mastery/docs/00-introduction/01-shell-config\.md''',
-  '''ja/05-infrastructure/linux-cli-mastery/docs/00-introduction/01-shell-config\.md''',
-  '''05-infrastructure/linux-cli-mastery/docs/04-networking/00-curl-wget\.md''',
-  '''ja/05-infrastructure/linux-cli-mastery/docs/04-networking/00-curl-wget\.md''',
-  '''06-data-and-security/authentication-and-authorization/docs/00-fundamentals/03-session-vs-token\.md''',
-  '''ja/06-data-and-security/authentication-and-authorization/docs/00-fundamentals/03-session-vs-token\.md''',
-  '''06-data-and-security/authentication-and-authorization/docs/02-token-auth/01-oauth2-flows\.md''',
-  '''ja/06-data-and-security/authentication-and-authorization/docs/02-token-auth/01-oauth2-flows\.md''',
+  # Markdownコンテンツ — 全て教材のサンプルコード（ダミーキー）
+  '''\.md$''',
+  # レガシーコンテンツ
+  '''_legacy/''',
+  '''_original-skills/''',
 ]
