@@ -1,29 +1,29 @@
-# オープンソース LLM — Llama・Mistral・Qwen と OSS エコシステム
+# Open-Source LLMs — Llama, Mistral, Qwen, and the OSS Ecosystem
 
-> オープンソース LLM はモデル重みが公開され、自由にダウンロード・カスタマイズ・デプロイできる大規模言語モデル群であり、Meta Llama、Mistral AI、Alibaba Qwen を三大勢力としてプロプライエタリモデルに迫る性能を実現している。
+> Open-source LLMs are large language models whose weights are publicly released and can be freely downloaded, customized, and deployed. Led by Meta Llama, Mistral AI, and Alibaba Qwen as the three dominant forces, they are closing the performance gap against proprietary models.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **主要オープンソース LLM の特徴と差異** — Llama 3、Mistral/Mixtral、Qwen 2.5 の設計思想・性能・ライセンス
-2. **OSS LLM の選定基準** — パラメータサイズ、言語対応、ライセンス、ファインチューニング容易性
-3. **実運用におけるデプロイと最適化** — 量子化、推論サーバー、コスト最適化の実践手法
+1. **Characteristics and differences of major open-source LLMs** — Design philosophy, performance, and licensing of Llama 3, Mistral/Mixtral, and Qwen 2.5
+2. **Selection criteria for OSS LLMs** — Parameter size, language support, license, and fine-tuning ease
+3. **Deployment and optimization for production** — Practical techniques for quantization, inference servers, and cost optimization
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Gemini — Google DeepMind の統合マルチモーダル LLM](./02-gemini.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Gemini — Google DeepMind's Unified Multimodal LLM](./02-gemini.md)
 
 ---
 
-## 1. 主要オープンソース LLM 概観
+## 1. Overview of Major Open-Source LLMs
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│            オープンソース LLM エコシステム (2024-2025)      │
+│            Open-Source LLM Ecosystem (2024-2025)         │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  Meta (Llama)          Mistral AI          Alibaba       │
@@ -44,35 +44,36 @@
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 オープンソースと「オープンウェイト」の違い
+### 1.1 The Difference Between "Open Source" and "Open Weight"
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│        オープン度合いの分類                                 │
+│        Classification by Degree of Openness              │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  フルオープンソース (Truly Open Source)                    │
-│  ├── モデル重み: 公開                                     │
-│  ├── 訓練コード: 公開                                     │
-│  ├── 訓練データ: 公開 (または詳細記述)                     │
-│  ├── ライセンス: OSI 承認ライセンス (MIT, Apache 2.0 等)  │
-│  └── 例: OLMo (AI2), Pythia (EleutherAI)                 │
+│  Truly Open Source                                       │
+│  ├── Model weights: Public                               │
+│  ├── Training code: Public                               │
+│  ├── Training data: Public (or fully described)          │
+│  ├── License: OSI-approved (MIT, Apache 2.0, etc.)       │
+│  └── Examples: OLMo (AI2), Pythia (EleutherAI)           │
 │                                                          │
-│  オープンウェイト (Open Weight)                           │
-│  ├── モデル重み: 公開                                     │
-│  ├── 訓練コード: 一部公開 / 非公開                        │
-│  ├── 訓練データ: 非公開                                   │
-│  ├── ライセンス: 独自ライセンス (使用制限あり)            │
-│  └── 例: Llama 3 (Meta), Gemma (Google)                  │
+│  Open Weight                                             │
+│  ├── Model weights: Public                               │
+│  ├── Training code: Partially public / proprietary       │
+│  ├── Training data: Proprietary                          │
+│  ├── License: Custom license (with usage restrictions)   │
+│  └── Examples: Llama 3 (Meta), Gemma (Google)            │
 │                                                          │
-│  実質的にオープンソース (Permissive Open)                 │
-│  ├── モデル重み: 公開                                     │
-│  ├── ライセンス: Apache 2.0 / MIT                        │
-│  ├── 商用利用: 制限なし                                   │
-│  └── 例: Qwen 2.5 (Apache 2.0), DeepSeek (MIT)          │
+│  Permissive Open                                         │
+│  ├── Model weights: Public                               │
+│  ├── License: Apache 2.0 / MIT                           │
+│  ├── Commercial use: Unrestricted                        │
+│  └── Examples: Qwen 2.5 (Apache 2.0), DeepSeek (MIT)    │
 │                                                          │
-│  注意: 「オープンソース LLM」は厳密にはオープンウェイトが │
-│  多いが、業界慣行として「オープンソース」と呼ばれる        │
+│  Note: "Open-source LLM" is technically open-weight in   │
+│  most cases, but the industry convention calls them      │
+│  "open source"                                           │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -80,10 +81,10 @@
 
 ## 2. Llama (Meta)
 
-### 2.1 Llama 3 シリーズ
+### 2.1 The Llama 3 Series
 
 ```python
-# Llama 3 をHugging Face Transformers で利用
+# Using Llama 3 with Hugging Face Transformers
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
@@ -109,58 +110,58 @@ outputs = model.generate(input_ids, max_new_tokens=512, temperature=0.7)
 print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 ```
 
-### 2.2 Llama の特徴
+### 2.2 Llama Characteristics
 
-| 特徴 | 詳細 |
-|------|------|
-| パラメータ | 8B / 70B / 405B |
-| コンテキスト長 | 128K トークン |
-| 訓練データ | 15T+ トークン (多言語) |
-| ライセンス | Llama 3 Community License (月間 7 億ユーザー未満は無料) |
-| 対応言語 | 英語中心 + 多言語 (日本語は中程度) |
-| 特筆事項 | 405B は OSS 最大級、GPT-4 レベル |
+| Feature | Details |
+|---------|---------|
+| Parameters | 8B / 70B / 405B |
+| Context length | 128K tokens |
+| Training data | 15T+ tokens (multilingual) |
+| License | Llama 3 Community License (free for under 700M monthly users) |
+| Supported languages | English-focused + multilingual (moderate Japanese support) |
+| Notable | 405B is among the largest OSS models, GPT-4 level |
 
-### 2.3 Llama のアーキテクチャ詳細
+### 2.3 Llama Architecture Details
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│            Llama 3 アーキテクチャの特徴                    │
+│            Llama 3 Architecture Highlights               │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  Transformer Decoder-Only                                │
 │  ├── Grouped Query Attention (GQA)                      │
-│  │   └── Key-Value ヘッドを共有しメモリ削減              │
+│  │   └── Shared Key-Value heads reduce memory usage      │
 │  ├── RoPE (Rotary Position Embeddings)                  │
-│  │   └── 128K まで拡張されたコンテキスト長               │
-│  ├── SwiGLU 活性化関数                                   │
-│  │   └── ReLU より高品質な勾配伝搬                       │
+│  │   └── Context length extended to 128K                │
+│  ├── SwiGLU Activation                                   │
+│  │   └── Better gradient flow than ReLU                 │
 │  └── RMSNorm (Pre-Normalization)                        │
-│      └── LayerNorm より計算効率が良い                    │
+│      └── More compute-efficient than LayerNorm           │
 │                                                          │
-│  トークナイザ:                                           │
-│  ├── tiktoken ベース (128K 語彙)                         │
-│  ├── Llama 2 の 32K から大幅拡張                         │
-│  └── 多言語のトークン効率が改善                          │
+│  Tokenizer:                                              │
+│  ├── tiktoken-based (128K vocabulary)                    │
+│  ├── Significantly expanded from Llama 2's 32K           │
+│  └── Improved token efficiency for multilingual text     │
 │                                                          │
-│  訓練特性:                                               │
-│  ├── 15T+ トークンの大規模コーパス                       │
-│  ├── 405B は 16K 台の H100 GPU で訓練                    │
-│  ├── DPO (Direct Preference Optimization) でアラインメント│
-│  └── ツール使用・コード生成を後学習で強化                │
+│  Training characteristics:                               │
+│  ├── Large-scale corpus of 15T+ tokens                   │
+│  ├── 405B trained on ~16K H100 GPUs                      │
+│  ├── Aligned via DPO (Direct Preference Optimization)    │
+│  └── Tool use and code generation enhanced via post-training│
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 2.4 Llama を使ったファインチューニング実装
+### 2.4 Fine-Tuning Llama with LoRA
 
 ```python
-# LoRA を使った Llama 3 のファインチューニング
+# Fine-tuning Llama 3 with LoRA
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from trl import SFTTrainer
 from datasets import load_dataset
 import torch
 
-# 4bit量子化でモデルをロード
+# Load model with 4-bit quantization
 from transformers import BitsAndBytesConfig
 
 bnb_config = BitsAndBytesConfig(
@@ -179,11 +180,11 @@ model = AutoModelForCausalLM.from_pretrained(
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 tokenizer.pad_token = tokenizer.eos_token
 
-# LoRA 設定
+# LoRA configuration
 lora_config = LoraConfig(
-    r=16,                        # LoRA のランク
-    lora_alpha=32,               # スケーリング係数
-    target_modules=[             # 適用対象レイヤー
+    r=16,                        # LoRA rank
+    lora_alpha=32,               # Scaling factor
+    target_modules=[             # Target layers
         "q_proj", "k_proj", "v_proj", "o_proj",
         "gate_proj", "up_proj", "down_proj",
     ],
@@ -195,11 +196,11 @@ lora_config = LoraConfig(
 model = prepare_model_for_kbit_training(model)
 model = get_peft_model(model, lora_config)
 
-# 訓練可能パラメータの確認
+# Check trainable parameters
 model.print_trainable_parameters()
 # → trainable params: 41,943,040 || all params: 8,030,261,248 || 0.52%
 
-# データセットの準備
+# Prepare dataset
 dataset = load_dataset("json", data_files="train_data.jsonl")
 
 def format_instruction(example):
@@ -208,7 +209,7 @@ def format_instruction(example):
 {example['instruction']}<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 {example['output']}<|eot_id|>"""
 
-# 訓練実行
+# Run training
 training_args = TrainingArguments(
     output_dir="./llama3-ft",
     num_train_epochs=3,
@@ -237,15 +238,15 @@ model.save_pretrained("./llama3-ft-lora")
 
 ## 3. Mistral AI
 
-### 3.1 Mixtral (MoE アーキテクチャ)
+### 3.1 Mixtral (MoE Architecture)
 
 ```python
-# Mixtral 8x7B の利用例 (vLLM)
+# Example usage of Mixtral 8x7B with vLLM
 from vllm import LLM, SamplingParams
 
 llm = LLM(
     model="mistralai/Mixtral-8x7B-Instruct-v0.1",
-    tensor_parallel_size=2,  # 2 GPU で分割
+    tensor_parallel_size=2,  # Split across 2 GPUs
     dtype="bfloat16",
 )
 
@@ -264,11 +265,11 @@ for output in outputs:
     print(output.outputs[0].text)
 ```
 
-### 3.2 Mistral モデルラインナップ
+### 3.2 Mistral Model Lineup
 
 ```
 ┌─────────────────────────────────────────────────┐
-│          Mistral AI モデル系譜                    │
+│          Mistral AI Model Family                 │
 ├─────────────────────────────────────────────────┤
 │                                                 │
 │  Dense Models:                                  │
@@ -295,47 +296,47 @@ for output in outputs:
 └─────────────────────────────────────────────────┘
 ```
 
-### 3.3 MoE (Mixture of Experts) アーキテクチャの詳細
+### 3.3 MoE (Mixture of Experts) Architecture Explained
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│            MoE (Mixture of Experts) の仕組み              │
+│            How MoE (Mixture of Experts) Works            │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  通常の Transformer:                                     │
-│  入力 → Attention → FFN (全パラメータ使用) → 出力        │
-│  └── 計算コスト: O(全パラメータ数)                        │
+│  Standard Transformer:                                   │
+│  Input → Attention → FFN (all params used) → Output      │
+│  └── Compute cost: O(total parameter count)              │
 │                                                          │
 │  MoE Transformer:                                        │
-│  入力 → Attention → Router → Expert 2つだけ活性化 → 出力 │
+│  Input → Attention → Router → Only 2 experts active → Output│
 │                      │                                   │
-│                      ├── Expert 1: ✗ (非活性)            │
-│                      ├── Expert 2: ✓ (活性)              │
+│                      ├── Expert 1: ✗ (inactive)          │
+│                      ├── Expert 2: ✓ (active)            │
 │                      ├── Expert 3: ✗                     │
 │                      ├── Expert 4: ✗                     │
-│                      ├── Expert 5: ✓ (活性)              │
+│                      ├── Expert 5: ✓ (active)            │
 │                      ├── Expert 6: ✗                     │
 │                      ├── Expert 7: ✗                     │
 │                      └── Expert 8: ✗                     │
 │                                                          │
-│  Mixtral 8x7B の場合:                                    │
-│  ├── 総パラメータ: 46.7B (8 Expert × 約5B + 共有層)      │
-│  ├── 活性パラメータ: 12.9B (2 Expert のみ)               │
-│  ├── 推論速度: 12.9B 相当 (7B Dense の約2倍)             │
-│  ├── 品質: 70B Dense モデルに匹敵                        │
-│  └── メリット: 高品質 + 低推論コスト                      │
+│  Mixtral 8x7B breakdown:                                 │
+│  ├── Total parameters: 46.7B (8 experts × ~5B + shared)  │
+│  ├── Active parameters: 12.9B (only 2 experts)           │
+│  ├── Inference speed: equivalent to 12.9B (~2x vs 7B Dense)│
+│  ├── Quality: comparable to 70B Dense models             │
+│  └── Benefit: high quality + low inference cost          │
 │                                                          │
-│  Router の学習:                                           │
-│  ├── Load Balancing Loss で Expert 利用を均等化            │
-│  ├── Top-k (通常 k=2) の Expert を選択                   │
-│  └── ソフトマックスで重み付け合成                         │
+│  Router training:                                        │
+│  ├── Load Balancing Loss ensures uniform expert usage    │
+│  ├── Selects top-k experts (typically k=2)               │
+│  └── Weighted combination via softmax                    │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 3.4 Mistral API の利用
+### 3.4 Using the Mistral API
 
 ```python
-# Mistral API (OpenAI互換形式)
+# Mistral API (OpenAI-compatible format)
 from openai import OpenAI
 
 client = OpenAI(
@@ -355,7 +356,7 @@ response = client.chat.completions.create(
 
 print(response.choices[0].message.content)
 
-# Function Calling も対応
+# Function Calling is also supported
 tools = [
     {
         "type": "function",
@@ -385,10 +386,10 @@ response = client.chat.completions.create(
 
 ## 4. Qwen (Alibaba Cloud)
 
-### 4.1 Qwen 2.5 の利用
+### 4.1 Using Qwen 2.5
 
 ```python
-# Qwen 2.5 — 日本語性能が高いOSSモデル
+# Qwen 2.5 — OSS model with strong Japanese performance
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 model_name = "Qwen/Qwen2.5-7B-Instruct"
@@ -411,18 +412,18 @@ outputs = model.generate(**inputs, max_new_tokens=256)
 print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 ```
 
-### 4.2 Qwen の特筆事項
+### 4.2 Notable Features of Qwen
 
-- **日本語・中国語の性能が極めて高い** (CJK 言語圏で最強クラス)
-- サイズバリエーションが豊富 (0.5B / 1.5B / 3B / 7B / 14B / 32B / 72B)
-- Qwen2.5-Coder: コード特化モデル
-- Qwen-VL: 視覚言語モデル
-- Apache 2.0 ライセンス (最も自由度が高い)
+- **Extremely strong Japanese and Chinese performance** (top-class among CJK language models)
+- Wide range of size variants (0.5B / 1.5B / 3B / 7B / 14B / 32B / 72B)
+- Qwen2.5-Coder: code-specialized model
+- Qwen-VL: vision-language model
+- Apache 2.0 license (maximum permissiveness)
 
-### 4.3 Qwen マルチモーダルモデルの利用
+### 4.3 Using Qwen Multimodal Models
 
 ```python
-# Qwen-VL (Vision-Language) の利用
+# Using Qwen-VL (Vision-Language)
 from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from PIL import Image
 import torch
@@ -434,7 +435,7 @@ model = Qwen2VLForConditionalGeneration.from_pretrained(
 )
 processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
 
-# 画像付きプロンプト
+# Prompt with image
 image = Image.open("diagram.png")
 messages = [
     {
@@ -452,10 +453,10 @@ outputs = model.generate(**inputs, max_new_tokens=512)
 print(processor.decode(outputs[0], skip_special_tokens=True))
 ```
 
-### 4.4 Qwen2.5-Coder によるコード生成
+### 4.4 Code Generation with Qwen2.5-Coder
 
 ```python
-# Qwen2.5-Coder — コード生成特化モデル
+# Qwen2.5-Coder — code generation specialized model
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 model_name = "Qwen/Qwen2.5-Coder-7B-Instruct"
@@ -485,10 +486,10 @@ print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 
 ## 5. DeepSeek
 
-### 5.1 DeepSeek-R1 (推論特化)
+### 5.1 DeepSeek-R1 (Reasoning-Specialized)
 
 ```python
-# DeepSeek-R1 は思考過程を明示的に出力
+# DeepSeek-R1 outputs its reasoning process explicitly
 from openai import OpenAI
 
 client = OpenAI(
@@ -503,57 +504,57 @@ response = client.chat.completions.create(
     ]
 )
 
-# reasoning_content に思考過程が含まれる
+# reasoning_content contains the chain-of-thought
 print("思考過程:", response.choices[0].message.reasoning_content)
 print("最終回答:", response.choices[0].message.content)
 ```
 
-### 5.2 DeepSeek-V3 の技術的特徴
+### 5.2 Technical Highlights of DeepSeek-V3
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│            DeepSeek-V3 技術詳細                            │
+│            DeepSeek-V3 Technical Details                 │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  アーキテクチャ: MoE (Mixture of Experts)                │
-│  ├── 総パラメータ: 671B                                  │
-│  ├── 活性パラメータ: 37B (各トークンで)                   │
-│  ├── Expert 数: 256 (うち 8 が活性化)                     │
-│  └── 共有 Expert: 1 (全トークンで常に活性化)              │
+│  Architecture: MoE (Mixture of Experts)                  │
+│  ├── Total parameters: 671B                              │
+│  ├── Active parameters: 37B (per token)                  │
+│  ├── Number of experts: 256 (8 activated per token)      │
+│  └── Shared expert: 1 (always active for all tokens)     │
 │                                                          │
-│  革新的技術:                                              │
+│  Innovations:                                            │
 │  ├── Multi-head Latent Attention (MLA)                   │
-│  │   └── KV キャッシュを圧縮し推論効率向上               │
-│  ├── FP8 混合精度訓練                                    │
-│  │   └── 訓練コストを大幅削減 ($5.5M で訓練完了)         │
-│  └── 負荷分散なしの Expert ルーティング                   │
-│      └── Auxiliary Loss を不要にした新手法                │
+│  │   └── Compresses KV cache for improved inference      │
+│  ├── FP8 mixed-precision training                        │
+│  │   └── Dramatically reduced training cost ($5.5M)      │
+│  └── Auxiliary-loss-free expert routing                  │
+│      └── Novel approach eliminating auxiliary loss       │
 │                                                          │
-│  性能:                                                   │
-│  ├── MMLU: 87.1 (GPT-4o 級)                             │
-│  ├── MATH: 90.2 (数学で GPT-4o を上回る)                 │
-│  ├── コスト: 入力 $0.27/1M, 出力 $1.10/1M (激安)        │
-│  └── API: OpenAI 互換形式で利用可能                       │
+│  Performance:                                            │
+│  ├── MMLU: 87.1 (on par with GPT-4o)                    │
+│  ├── MATH: 90.2 (surpasses GPT-4o on math)              │
+│  ├── Cost: $0.27/1M input, $1.10/1M output (very cheap)  │
+│  └── API: available in OpenAI-compatible format          │
 │                                                          │
 │  DeepSeek-R1:                                            │
-│  ├── 推論特化モデル (o1 対抗)                             │
-│  ├── Chain-of-Thought を明示的に出力                      │
-│  ├── 蒸留版: 1.5B / 7B / 8B / 14B / 32B / 70B           │
-│  └── MIT ライセンス (完全自由)                            │
+│  ├── Reasoning-specialized model (o1 competitor)         │
+│  ├── Outputs Chain-of-Thought explicitly                 │
+│  ├── Distilled versions: 1.5B / 7B / 8B / 14B / 32B / 70B│
+│  └── MIT license (fully permissive)                      │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 5.3 DeepSeek-R1 蒸留モデルのローカル利用
+### 5.3 Running DeepSeek-R1 Distilled Models Locally
 
 ```python
-# DeepSeek-R1 の蒸留版をローカルで実行 (Ollama)
+# Running a distilled DeepSeek-R1 locally via Ollama
 import subprocess
 import requests
 
-# Ollama でモデルをダウンロード・実行
+# Download and run model with Ollama
 # $ ollama pull deepseek-r1:7b
 
-# API 経由で利用
+# Use via API
 response = requests.post(
     "http://localhost:11434/api/chat",
     json={
@@ -571,12 +572,12 @@ print(result["message"]["content"])
 
 ---
 
-## 6. その他の注目 OSS モデル
+## 6. Other Notable OSS Models
 
 ### 6.1 Gemma (Google)
 
 ```python
-# Gemma 2 — Google の軽量高性能モデル
+# Gemma 2 — Google's lightweight, high-performance model
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
@@ -587,18 +588,18 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-9b-it")
 
-# Gemma 2 の特徴:
-# - 知識蒸留 (Knowledge Distillation) で小型化
-# - Sliding Window Attention + Global Attention の交互使用
-# - 2B / 9B / 27B のサイズバリエーション
-# - Gemma License (研究・商用利用可、再配布時にライセンス添付必要)
+# Gemma 2 highlights:
+# - Compressed via Knowledge Distillation
+# - Alternates between Sliding Window Attention and Global Attention
+# - Size variants: 2B / 9B / 27B
+# - Gemma License (research and commercial use allowed; license must be included on redistribution)
 ```
 
 ### 6.2 Phi (Microsoft)
 
 ```python
-# Phi-3/4 — Microsoft の小型高性能モデル
-# Phi-3 Mini (3.8B) は同サイズで最高性能クラス
+# Phi-3/4 — Microsoft's compact, high-performance models
+# Phi-3 Mini (3.8B) achieves top-class performance for its size
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -609,79 +610,79 @@ model = AutoModelForCausalLM.from_pretrained(
     trust_remote_code=True,
 )
 
-# Phi の特徴:
-# - 高品質な「教科書レベル」のデータで訓練
-# - 小型でもGPT-3.5を上回る性能
-# - MIT ライセンス
-# - 128K コンテキスト版も存在
-# - Phi-4 (14B) は Qwen 2.5 72B と同等性能を主張
+# Phi highlights:
+# - Trained on high-quality "textbook-level" data
+# - Outperforms GPT-3.5 despite small size
+# - MIT license
+# - 128K context version also available
+# - Phi-4 (14B) claims performance on par with Qwen 2.5 72B
 ```
 
-### 6.3 日本語特化モデル
+### 6.3 Japanese-Specialized Models
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│          日本語特化 / 日本語強化 OSS モデル                 │
+│          Japanese-Specialized / Japanese-Enhanced OSS    │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  CyberAgent CALM3 (68B)                                  │
-│  ├── サイバーエージェント開発                              │
-│  ├── Apache 2.0 ライセンス                                │
-│  ├── 日本語コーパスで追加事前学習                          │
-│  └── 日本語ベンチマーク (JGLUE) で高性能                  │
+│  ├── Developed by CyberAgent                             │
+│  ├── Apache 2.0 license                                  │
+│  ├── Additional pre-training on Japanese corpora         │
+│  └── High performance on Japanese benchmarks (JGLUE)     │
 │                                                          │
-│  ELYZA Llama 日本語シリーズ                               │
-│  ├── Llama ベースに日本語ファインチューニング              │
-│  ├── ELYZA-tasks-100 で評価                               │
-│  └── 比較的小型で実用的                                   │
+│  ELYZA Llama Japanese Series                             │
+│  ├── Llama base with Japanese fine-tuning                │
+│  ├── Evaluated on ELYZA-tasks-100                        │
+│  └── Relatively small and practical                      │
 │                                                          │
 │  PLaMo (Preferred Networks)                              │
-│  ├── 日本発のフルスクラッチ LLM                           │
-│  ├── 日本語・英語のバイリンガル訓練                       │
-│  └── 研究用途が中心                                       │
+│  ├── Full-scratch LLM from Japan                         │
+│  ├── Bilingual training in Japanese and English          │
+│  └── Primarily for research use                          │
 │                                                          │
-│  Swallow (東京工業大学 + 産総研)                          │
-│  ├── Llama ベースの日本語継続事前学習                      │
+│  Swallow (Tokyo Tech + AIST)                             │
+│  ├── Continued pre-training on Japanese from Llama       │
 │  ├── 7B / 13B / 70B                                      │
-│  └── 日本語ベンチマークで高い性能                         │
+│  └── Strong performance on Japanese benchmarks           │
 │                                                          │
-│  Tanuki (松尾研究室)                                     │
-│  ├── 日本語 Web コーパスで訓練                             │
-│  └── 研究目的で公開                                       │
+│  Tanuki (Matsuo Lab)                                     │
+│  ├── Trained on Japanese web corpora                     │
+│  └── Released for research purposes                      │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 7. モデル比較表
+## 7. Model Comparison Tables
 
-### 7.1 性能・スペック比較
+### 7.1 Performance and Specs Comparison
 
-| モデル | パラメータ | MoE | コンテキスト | 日本語 | ライセンス |
-|--------|----------|-----|------------|--------|-----------|
-| Llama 3.1 405B | 405B | No | 128K | 中 | Community |
-| Llama 3.1 70B | 70B | No | 128K | 中 | Community |
-| Mixtral 8x22B | 176B/39B活性 | Yes | 64K | 中 | Apache 2.0 |
-| Qwen 2.5 72B | 72B | No | 128K | 高 | Apache 2.0 |
-| DeepSeek-V3 | 671B/37B活性 | Yes | 128K | 中 | MIT |
-| Gemma 2 27B | 27B | No | 8K | 低 | Gemma License |
-| Phi-3 Medium | 14B | No | 128K | 低 | MIT |
+| Model | Parameters | MoE | Context | Japanese | License |
+|-------|-----------|-----|---------|----------|---------|
+| Llama 3.1 405B | 405B | No | 128K | Medium | Community |
+| Llama 3.1 70B | 70B | No | 128K | Medium | Community |
+| Mixtral 8x22B | 176B/39B active | Yes | 64K | Medium | Apache 2.0 |
+| Qwen 2.5 72B | 72B | No | 128K | High | Apache 2.0 |
+| DeepSeek-V3 | 671B/37B active | Yes | 128K | Medium | MIT |
+| Gemma 2 27B | 27B | No | 8K | Low | Gemma License |
+| Phi-3 Medium | 14B | No | 128K | Low | MIT |
 
-### 7.2 ユースケース別推奨
+### 7.2 Use-Case Recommendations
 
-| ユースケース | 推奨モデル | 理由 |
-|-------------|-----------|------|
-| 日本語チャットボット | Qwen 2.5 (7B-72B) | 日本語性能最高 |
-| コード生成 | DeepSeek-Coder / Qwen-Coder | コード特化訓練 |
-| 数学・推論 | DeepSeek-R1 | Chain-of-Thought 推論特化 |
-| エッジデバイス | Phi-3 mini / Gemma 2B | 軽量で高性能 |
-| 汎用・最高精度 | Llama 3.1 405B | OSS 最大パラメータ |
-| コスト最適化 | Mixtral 8x7B | MoE で低推論コスト |
+| Use Case | Recommended Model | Reason |
+|----------|------------------|--------|
+| Japanese chatbot | Qwen 2.5 (7B-72B) | Best Japanese performance |
+| Code generation | DeepSeek-Coder / Qwen-Coder | Code-specialized training |
+| Math and reasoning | DeepSeek-R1 | Specialized Chain-of-Thought reasoning |
+| Edge devices | Phi-3 mini / Gemma 2B | Lightweight yet high-performing |
+| General / highest accuracy | Llama 3.1 405B | Largest OSS parameter count |
+| Cost optimization | Mixtral 8x7B | Low inference cost via MoE |
 
-### 7.3 VRAM 要件とハードウェア選定
+### 7.3 VRAM Requirements and Hardware Selection
 
-| モデルサイズ | FP16 | INT8 | INT4 (GPTQ/AWQ) | 推奨 GPU |
-|------------|------|------|-----------------|---------|
+| Model Size | FP16 | INT8 | INT4 (GPTQ/AWQ) | Recommended GPU |
+|-----------|------|------|-----------------|----------------|
 | 3B | 6GB | 3GB | 2GB | RTX 3060 12GB |
 | 7-8B | 16GB | 8GB | 4GB | RTX 4070 12GB |
 | 14B | 28GB | 14GB | 8GB | RTX 4090 24GB |
@@ -691,12 +692,12 @@ model = AutoModelForCausalLM.from_pretrained(
 
 ---
 
-## 8. 実運用デプロイ
+## 8. Production Deployment
 
-### 8.1 量子化による最適化
+### 8.1 Optimization via Quantization
 
 ```python
-# GPTQ 量子化モデルの利用
+# Using a GPTQ-quantized model
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 model = AutoModelForCausalLM.from_pretrained(
@@ -705,26 +706,26 @@ model = AutoModelForCausalLM.from_pretrained(
     trust_remote_code=True,
 )
 
-# メモリ使用量の比較
-# FP16:  8B モデル → 約 16GB VRAM
-# INT8:  8B モデル → 約  8GB VRAM
-# INT4:  8B モデル → 約  4GB VRAM (GPTQ/AWQ)
-# GGUF:  8B モデル → 約  4-6GB (llama.cpp、CPU可)
+# Memory usage comparison
+# FP16:  8B model → ~16GB VRAM
+# INT8:  8B model → ~8GB VRAM
+# INT4:  8B model → ~4GB VRAM (GPTQ/AWQ)
+# GGUF:  8B model → ~4-6GB (llama.cpp, CPU-compatible)
 ```
 
-### 8.2 推論サーバーの選定と構築
+### 8.2 Inference Server Selection and Setup
 
 ```python
-# vLLM — 高性能推論サーバー
+# vLLM — high-performance inference server
 # $ pip install vllm
 # $ vllm serve meta-llama/Meta-Llama-3.1-8B-Instruct --port 8000
 
 from openai import OpenAI
 
-# vLLM は OpenAI 互換 API を提供
+# vLLM provides an OpenAI-compatible API
 client = OpenAI(
     base_url="http://localhost:8000/v1",
-    api_key="dummy",  # vLLM ではダミーでOK
+    api_key="dummy",  # Dummy key is fine for vLLM
 )
 
 response = client.chat.completions.create(
@@ -739,54 +740,54 @@ print(response.choices[0].message.content)
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│          推論サーバー比較                                  │
+│          Inference Server Comparison                     │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  vLLM:                                                   │
-│  ├── PagedAttention でメモリ効率最高                      │
-│  ├── Continuous Batching でスループット最大化              │
-│  ├── OpenAI 互換 API                                     │
-│  ├── Tensor/Pipeline Parallelism 対応                    │
-│  └── 推奨: 本番サーバー用途                               │
+│  ├── Best memory efficiency via PagedAttention           │
+│  ├── Maximum throughput via Continuous Batching          │
+│  ├── OpenAI-compatible API                               │
+│  ├── Tensor/Pipeline Parallelism support                 │
+│  └── Recommended for: production server workloads        │
 │                                                          │
 │  Text Generation Inference (TGI):                        │
-│  ├── Hugging Face 公式                                    │
-│  ├── Docker コンテナで簡単デプロイ                        │
-│  ├── Flash Attention 2 対応                               │
-│  └── 推奨: HF エコシステム利用時                          │
+│  ├── Official Hugging Face solution                      │
+│  ├── Easy deployment via Docker container                │
+│  ├── Flash Attention 2 support                           │
+│  └── Recommended for: HF ecosystem users                 │
 │                                                          │
 │  Ollama:                                                 │
-│  ├── ワンコマンドで起動 (ollama run llama3.1)             │
-│  ├── GGUF 形式で CPU/GPU 両対応                           │
-│  ├── macOS / Linux / Windows 対応                        │
-│  └── 推奨: ローカル開発・プロトタイプ                     │
+│  ├── Single-command startup (ollama run llama3.1)        │
+│  ├── GGUF format supports both CPU and GPU               │
+│  ├── macOS / Linux / Windows compatible                  │
+│  └── Recommended for: local development and prototyping  │
 │                                                          │
 │  llama.cpp:                                              │
-│  ├── C/C++ 実装で依存関係最小                             │
-│  ├── CPU 推論に最適化 (AVX, ARM NEON)                     │
-│  ├── Apple Silicon (Metal) 対応                           │
-│  └── 推奨: エッジ / 組み込み / CPU 環境                   │
+│  ├── C/C++ implementation with minimal dependencies      │
+│  ├── Optimized for CPU inference (AVX, ARM NEON)         │
+│  ├── Apple Silicon (Metal) support                       │
+│  └── Recommended for: edge / embedded / CPU environments │
 │                                                          │
-│  スループット比較 (8B モデル, A100):                      │
-│  ├── vLLM:    ~2000 tokens/s                              │
-│  ├── TGI:     ~1500 tokens/s                              │
-│  ├── Ollama:  ~100 tokens/s (GPU)                         │
-│  └── llama.cpp: ~30 tokens/s (CPU)                        │
+│  Throughput comparison (8B model, A100):                 │
+│  ├── vLLM:    ~2000 tokens/s                             │
+│  ├── TGI:     ~1500 tokens/s                             │
+│  ├── Ollama:  ~100 tokens/s (GPU)                        │
+│  └── llama.cpp: ~30 tokens/s (CPU)                       │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 8.3 Docker を使った本番デプロイ
+### 8.3 Production Deployment with Docker
 
 ```dockerfile
-# vLLM を使った本番デプロイ用 Dockerfile
+# Dockerfile for production deployment with vLLM
 FROM vllm/vllm-openai:latest
 
-# モデルのダウンロード (事前ダウンロードも可)
+# Download model (pre-download is also supported)
 ENV MODEL_NAME=Qwen/Qwen2.5-7B-Instruct
 ENV MAX_MODEL_LEN=8192
 ENV GPU_MEMORY_UTILIZATION=0.9
 
-# ヘルスチェック
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
@@ -832,53 +833,53 @@ volumes:
 
 ---
 
-## 9. トラブルシューティング
+## 9. Troubleshooting
 
-### 9.1 よくある問題と解決策
+### 9.1 Common Issues and Solutions
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│          OSS LLM デプロイのトラブルシューティング           │
+│          OSS LLM Deployment Troubleshooting              │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  問題 1: CUDA Out of Memory                              │
-│  ├── 原因: モデルが GPU メモリに収まらない                │
-│  ├── 解決策 1: 量子化モデルを使用 (GPTQ/AWQ/GGUF)        │
-│  ├── 解決策 2: gpu_memory_utilization を下げる (0.8等)    │
-│  ├── 解決策 3: max_model_len を短くする                   │
-│  └── 解決策 4: tensor_parallel_size を増やす (複数GPU)    │
+│  Issue 1: CUDA Out of Memory                             │
+│  ├── Cause: Model does not fit in GPU memory             │
+│  ├── Solution 1: Use a quantized model (GPTQ/AWQ/GGUF)   │
+│  ├── Solution 2: Lower gpu_memory_utilization (e.g. 0.8) │
+│  ├── Solution 3: Reduce max_model_len                    │
+│  └── Solution 4: Increase tensor_parallel_size (multi-GPU)│
 │                                                          │
-│  問題 2: モデルのダウンロードが遅い / 失敗する            │
-│  ├── 原因: HuggingFace Hub の帯域制限                     │
-│  ├── 解決策 1: HF_TOKEN を設定してゲート付きモデルに対応  │
-│  ├── 解決策 2: huggingface-cli download でプリフェッチ    │
-│  └── 解決策 3: ミラー (hf-mirror.com 等) を利用           │
+│  Issue 2: Model download is slow or fails                │
+│  ├── Cause: HuggingFace Hub bandwidth limits             │
+│  ├── Solution 1: Set HF_TOKEN to access gated models     │
+│  ├── Solution 2: Pre-fetch with huggingface-cli download  │
+│  └── Solution 3: Use a mirror (e.g. hf-mirror.com)       │
 │                                                          │
-│  問題 3: 推論速度が遅い                                   │
-│  ├── 原因 1: Flash Attention 未使用                       │
-│  │   └── pip install flash-attn でインストール            │
-│  ├── 原因 2: バッチサイズが小さい                         │
-│  │   └── max_num_seqs を増やす                            │
-│  └── 原因 3: KV キャッシュが不足                          │
-│      └── block_size を調整                                │
+│  Issue 3: Slow inference speed                           │
+│  ├── Cause 1: Flash Attention not enabled                │
+│  │   └── Install with: pip install flash-attn            │
+│  ├── Cause 2: Batch size too small                       │
+│  │   └── Increase max_num_seqs                           │
+│  └── Cause 3: Insufficient KV cache                      │
+│      └── Adjust block_size                               │
 │                                                          │
-│  問題 4: 出力品質が低い (英語は良いが日本語が悪い)        │
-│  ├── 原因: モデルの日本語訓練データが不足                 │
-│  ├── 解決策 1: Qwen 2.5 など日本語に強いモデルに変更      │
-│  ├── 解決策 2: 日本語データでファインチューニング          │
-│  └── 解決策 3: System Prompt で「日本語で回答」を明示     │
+│  Issue 4: Poor output quality (English good, Japanese bad)│
+│  ├── Cause: Insufficient Japanese training data          │
+│  ├── Solution 1: Switch to a Japanese-capable model (Qwen 2.5)│
+│  ├── Solution 2: Fine-tune on Japanese data              │
+│  └── Solution 3: Explicitly specify "respond in Japanese" in System Prompt│
 │                                                          │
-│  問題 5: ライセンス違反のリスク                           │
-│  ├── Llama: 月間 7億 MAU 以上で要連絡                     │
-│  ├── Gemma: 再配布時ライセンス添付必須                    │
-│  └── 安全策: Apache 2.0 / MIT モデルを選択               │
+│  Issue 5: Risk of license violation                      │
+│  ├── Llama: Contact required above 700M monthly MAU      │
+│  ├── Gemma: Must include license on redistribution       │
+│  └── Safe choice: Select Apache 2.0 / MIT models         │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 9.2 性能ベンチマークの実施
+### 9.2 Running Performance Benchmarks
 
 ```python
-# 自社環境での推論性能ベンチマーク
+# Inference performance benchmark in your own environment
 import time
 import statistics
 from openai import OpenAI
@@ -891,7 +892,7 @@ def benchmark_model(
     max_tokens: int = 256,
     num_runs: int = 3,
 ) -> dict:
-    """推論性能のベンチマーク"""
+    """Benchmark inference performance"""
     latencies = []
     throughputs = []
 
@@ -918,7 +919,7 @@ def benchmark_model(
         "total_requests": len(latencies),
     }
 
-# ベンチマーク実行
+# Run benchmark
 test_prompts = [
     "Pythonでバブルソートを実装してください。",
     "機械学習とディープラーニングの違いを説明してください。",
@@ -926,180 +927,180 @@ test_prompts = [
 ]
 
 result = benchmark_model("Qwen/Qwen2.5-7B-Instruct", test_prompts)
-print(f"平均レイテンシ: {result['avg_latency_ms']:.0f}ms")
-print(f"P95 レイテンシ: {result['p95_latency_ms']:.0f}ms")
-print(f"平均スループット: {result['avg_throughput_tps']:.1f} tokens/s")
+print(f"Average latency: {result['avg_latency_ms']:.0f}ms")
+print(f"P95 latency: {result['p95_latency_ms']:.0f}ms")
+print(f"Average throughput: {result['avg_throughput_tps']:.1f} tokens/s")
 ```
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: ライセンス不確認での商用利用
+### Anti-Pattern 1: Commercial Use Without License Verification
 
 ```
-# NG: ライセンスを確認せず商用プロダクトに組み込む
+# BAD: Integrating into a commercial product without checking the license
 
 Llama 3 Community License:
-  → 月間アクティブユーザー 7 億人以上の場合は Meta への連絡が必要
-  → 出力を他の LLM の訓練に使用することを禁止
+  → Contact with Meta required if monthly active users exceed 700 million
+  → Prohibits using outputs to train other LLMs
 
 Gemma License:
-  → 再配布時にライセンス条件の添付が必要
+  → License terms must be included when redistributing
 
-# OK: Apache 2.0 ライセンスのモデルを選択
-Qwen 2.5, Mixtral → 商用利用に制限なし
-DeepSeek → MIT ライセンスで最も自由
+# GOOD: Choose Apache 2.0 licensed models
+Qwen 2.5, Mixtral → No restrictions on commercial use
+DeepSeek → MIT license, most permissive
 ```
 
-### アンチパターン 2: モデルサイズだけで選定
+### Anti-Pattern 2: Selecting Models Based on Size Alone
 
 ```
-# NG: "大きいほど良い" という単純な判断
-model = "llama-3.1-405b"  # 16台のA100が必要...
+# BAD: The naive assumption that "bigger is always better"
+model = "llama-3.1-405b"  # Requires 16 A100 GPUs...
 
-# OK: タスク特性に応じた選定
-# 分類・抽出 → 7B-8B で十分な場合が多い
-# 創造的文章 → 70B クラスが有効
-# ファインチューニング → 小さいモデルの方が現実的
-# コスト重視 → MoE モデル (Mixtral) が有利
+# GOOD: Choose based on task characteristics
+# Classification and extraction → 7B-8B is often sufficient
+# Creative writing → 70B class is effective
+# Fine-tuning → Smaller models are more practical
+# Cost-sensitive → MoE models (Mixtral) are advantageous
 ```
 
-### アンチパターン 3: 量子化なしでのデプロイ
+### Anti-Pattern 3: Deploying Without Quantization
 
 ```python
-# NG: 本番環境で FP16 のまま大型モデルを運用
+# BAD: Running large models in FP16 in production
 model = AutoModelForCausalLM.from_pretrained(
     "meta-llama/Meta-Llama-3.1-70B-Instruct",
-    torch_dtype=torch.float16,  # 140GB VRAM 必要
+    torch_dtype=torch.float16,  # Requires 140GB VRAM
 )
 
-# OK: 用途に応じた量子化を適用
-# 品質重視 → INT8 (AWQ): 品質低下 1-2%、メモリ半減
-# コスト重視 → INT4 (GPTQ): 品質低下 3-5%、メモリ 1/4
-# CPU 実行 → GGUF Q4_K_M: llama.cpp で CPU 推論可能
+# GOOD: Apply quantization appropriate for your use case
+# Quality-focused → INT8 (AWQ): 1-2% quality drop, half the memory
+# Cost-focused → INT4 (GPTQ): 3-5% quality drop, 1/4 memory
+# CPU inference → GGUF Q4_K_M: run on CPU via llama.cpp
 ```
 
-### アンチパターン 4: セキュリティ対策なしでの公開
+### Anti-Pattern 4: Exposing the LLM API Without Security Measures
 
 ```python
-# NG: 認証なしで LLM API を公開
-# vllm serve model --host 0.0.0.0  # インターネットから誰でもアクセス可能
+# BAD: Publishing LLM API without authentication
+# vllm serve model --host 0.0.0.0  # Anyone on the internet can access
 
-# OK: 適切な認証・レート制限・プロンプトインジェクション対策
-# 1. リバースプロキシ (nginx) で認証を追加
-# 2. API キーによるアクセス制御
-# 3. レート制限 (リクエスト数/秒)
-# 4. 入力長の制限
-# 5. 出力フィルタリング (有害コンテンツ検出)
+# GOOD: Proper authentication, rate limiting, and prompt injection defenses
+# 1. Add authentication via a reverse proxy (nginx)
+# 2. Access control via API keys
+# 3. Rate limiting (requests per second)
+# 4. Input length limits
+# 5. Output filtering (harmful content detection)
 ```
 
 ---
 
-## 11. ベストプラクティス
+## 11. Best Practices
 
-### 11.1 モデル選定チェックリスト
+### 11.1 Model Selection Checklist
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│          OSS LLM 選定チェックリスト                        │
+│          OSS LLM Selection Checklist                     │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  □ ライセンス確認                                        │
-│    ├── 商用利用可能か                                     │
-│    ├── 再配布条件は                                       │
-│    └── 出力の利用制限は                                   │
+│  □ License verification                                  │
+│    ├── Is commercial use allowed?                        │
+│    ├── What are the redistribution conditions?           │
+│    └── Are there restrictions on output usage?           │
 │                                                          │
-│  □ 性能要件の確認                                        │
-│    ├── 対象言語での品質 (日本語なら Qwen 推奨)            │
-│    ├── 必要な推論速度 (tokens/s)                          │
-│    └── 許容できる品質低下 (量子化の影響)                  │
+│  □ Performance requirements                              │
+│    ├── Quality in target language (Qwen for Japanese)    │
+│    ├── Required inference speed (tokens/s)               │
+│    └── Acceptable quality degradation (quantization impact)│
 │                                                          │
-│  □ インフラ要件の確認                                    │
-│    ├── 利用可能な GPU / メモリ                             │
-│    ├── スケーラビリティ要件                               │
-│    └── 可用性・冗長性要件                                 │
+│  □ Infrastructure requirements                           │
+│    ├── Available GPU / memory                            │
+│    ├── Scalability requirements                          │
+│    └── Availability and redundancy requirements          │
 │                                                          │
-│  □ 運用要件の確認                                        │
-│    ├── モデル更新の頻度と手順                             │
-│    ├── モニタリング・アラート                             │
-│    └── 障害時の復旧手順                                   │
+│  □ Operational requirements                              │
+│    ├── Model update frequency and procedure              │
+│    ├── Monitoring and alerting                           │
+│    └── Recovery procedures on failure                    │
 │                                                          │
-│  □ セキュリティ要件の確認                                │
-│    ├── データがクラウドに出ない要件                       │
-│    ├── プロンプトインジェクション対策                     │
-│    └── 出力フィルタリング要件                             │
+│  □ Security requirements                                 │
+│    ├── Data must not leave the premises                  │
+│    ├── Prompt injection countermeasures                  │
+│    └── Output filtering requirements                     │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 11.2 段階的な導入戦略
+### 11.2 Phased Adoption Strategy
 
 ```
-Phase 1: 評価 (1-2週間)
-├── 候補モデル 3-5 個を Ollama でローカル評価
-├── 自社タスクの評価データセット (50-100問) で品質比較
-└── 量子化レベル (FP16/INT8/INT4) 別の品質・速度比較
+Phase 1: Evaluation (1-2 weeks)
+├── Evaluate 3-5 candidate models locally with Ollama
+├── Compare quality with an in-house evaluation dataset (50-100 questions)
+└── Compare quality and speed at each quantization level (FP16/INT8/INT4)
 
-Phase 2: プロトタイプ (2-4週間)
-├── vLLM/TGI で推論サーバー構築
-├── 既存アプリケーションとの統合テスト
-└── 負荷テスト・レイテンシ測定
+Phase 2: Prototype (2-4 weeks)
+├── Build inference server with vLLM/TGI
+├── Integration testing with existing applications
+└── Load testing and latency measurement
 
-Phase 3: 本番デプロイ (2-4週間)
-├── Docker/Kubernetes でコンテナ化
-├── モニタリング・ロギング設定
-├── オートスケーリング設定
-└── フォールバック戦略 (API モデルへの切り替え)
+Phase 3: Production Deployment (2-4 weeks)
+├── Containerize with Docker/Kubernetes
+├── Set up monitoring and logging
+├── Configure auto-scaling
+└── Fallback strategy (switch to API-based model)
 
-Phase 4: 運用・改善 (継続)
-├── 品質モニタリング (LLM-as-a-Judge)
-├── ファインチューニングの検討
-├── モデル更新時の評価パイプライン
-└── コスト最適化 (量子化レベル調整、バッチ最適化)
+Phase 4: Operations and Improvement (ongoing)
+├── Quality monitoring (LLM-as-a-Judge)
+├── Consider fine-tuning
+├── Evaluation pipeline for model updates
+└── Cost optimization (quantization tuning, batch optimization)
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for a basic implementation pattern"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
             raise ValueError("入力値がNoneです")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1117,17 +1118,17 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for an advanced pattern"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1135,7 +1136,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1146,14 +1147,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1161,7 +1162,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1169,13 +1170,13 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
@@ -1186,27 +1187,27 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1215,7 +1216,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1237,69 +1238,69 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the impact with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When to deprioritize |
+|----------|--------------------|----------------------|
+| Performance | Real-time processing, large-scale data | Admin UI, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│              Architecture Selection Flow         │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → Go to 2                     │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How frequent are deployments?               │
+│    ├─ Weekly or less → Monolith + module split  │
+│    └─ Daily / multiple times → Go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are teams?                  │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term cost**
+- A fast short-term solution can become technical debt in the long run
+- Conversely, over-engineering raises short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified tech stack lowers learning costs
+- Adopting diverse technologies enables best-fit choices, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- Higher abstraction improves reusability but can make debugging harder
+- Lower abstraction is intuitive but tends to cause code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1309,17 +1310,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1327,7 +1328,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1335,7 +1336,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
         md += f"## 背景\n{self.context}\n\n"
         md += f"## 決定\n{self.decision}\n\n"
@@ -1352,82 +1353,79 @@ class ArchitectureDecisionRecord:
 
 ## 12. FAQ
 
-### Q1: オープンソース LLM と API ベースのモデルはどう使い分ける?
+### Q1: How should I choose between open-source LLMs and API-based models?
 
-データプライバシーが重要な場合、レイテンシ要件が厳しい場合、大量推論でコスト最適化したい場合は OSS モデルの自前デプロイが有利。
-一方、最新モデルを常に利用したい場合や、インフラ管理を避けたい場合は API ベースが適切。
-ハイブリッド構成 (機密データは OSS、それ以外は API) も有効な戦略。
+Self-deploying an OSS model is advantageous when data privacy is important, when latency requirements are strict, or when you want to optimize costs for high-volume inference.
+On the other hand, API-based models are appropriate when you want access to the latest models at all times or want to avoid managing infrastructure.
+A hybrid setup (OSS for sensitive data, API for everything else) is also a valid strategy.
 
-### Q2: ファインチューニングするなら何パラメータのモデルが良い?
+### Q2: What parameter size is best for fine-tuning?
 
-一般的に 7B-14B クラスが最もコストパフォーマンスが高い。
-LoRA/QLoRA を使えば消費者向け GPU (RTX 4090 / 24GB) でも 7B モデルのファインチューニングが可能。
-70B 以上は複数 GPU が必須で、ファインチューニングコストも大幅に増加する。
+Generally, the 7B-14B range offers the best cost-performance ratio.
+With LoRA/QLoRA, fine-tuning a 7B model is possible on consumer-grade GPUs (RTX 4090 / 24GB).
+70B and above require multiple GPUs, and fine-tuning costs increase dramatically.
 
-### Q3: 日本語タスクに最適な OSS モデルは?
+### Q3: What is the best OSS model for Japanese tasks?
 
-2025 年時点では Qwen 2.5 シリーズが日本語性能で最高クラス。
-日本発のモデルとしては、CyberAgent の CALM3、Preferred Networks の PLaMo、
-ELYZA の Llama 日本語ファインチューンなどがある。
-用途が限定的なら、日本語特化の小型モデルの方が汎用大型モデルより高精度な場合もある。
+As of 2025, the Qwen 2.5 series offers top-class Japanese performance.
+For Japan-origin models, CyberAgent's CALM3, Preferred Networks' PLaMo, and ELYZA's Llama Japanese fine-tunes are notable options.
+For limited use cases, a Japanese-specialized small model can outperform a large general-purpose model.
 
-### Q4: OSS モデルの品質はプロプライエタリモデルにどこまで迫っている?
+### Q4: How close are OSS models to proprietary models in quality?
 
-DeepSeek-V3 や Llama 3.1 405B は GPT-4o とほぼ同等のベンチマークスコアを達成。
-特定タスク (数学ではDeepSeek-R1が o1 と同等、コードでは Qwen-Coder が高性能) では
-プロプライエタリモデルを上回る場合もある。
-ただし、総合的な指示追従、安全性、ハルシネーション制御ではまだ差がある。
+DeepSeek-V3 and Llama 3.1 405B achieve benchmark scores nearly equivalent to GPT-4o.
+For specific tasks (math: DeepSeek-R1 matches o1; code: Qwen-Coder excels), OSS models can surpass proprietary ones.
+However, there remains a gap in overall instruction-following, safety, and hallucination control.
 
-### Q5: MoE モデルと Dense モデルのどちらを選ぶべき?
+### Q5: Should I choose a MoE model or a Dense model?
 
-推論コストを重視するなら MoE (Mixtral, DeepSeek-V3)。同等品質で推論 FLOPs が少ない。
-ファインチューニングのしやすさを重視するなら Dense (Llama, Qwen)。MoE のファインチューニングは
-Expert 間のバランス調整が難しく、ノウハウが少ない。
-デプロイの簡単さでも Dense が有利 (MoE は総パラメータ分のメモリが必要)。
+If you prioritize inference cost, choose MoE (Mixtral, DeepSeek-V3). Equivalent quality with fewer inference FLOPs.
+If you prioritize ease of fine-tuning, choose Dense (Llama, Qwen). Fine-tuning MoE models requires balancing across experts, and there is less established know-how.
+Dense models also have the advantage of simpler deployment (MoE requires memory for all parameters).
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to keep in mind when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the core concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 内容 |
-|------|------|
-| 三大勢力 | Meta Llama、Mistral AI、Alibaba Qwen |
-| 注目モデル | DeepSeek-R1 (推論)、Phi-3 (軽量) |
-| 最大モデル | Llama 3.1 405B (Dense)、DeepSeek-V3 671B (MoE) |
-| 日本語最強 | Qwen 2.5 シリーズ |
-| コスト最適 | MoE モデル (Mixtral、DeepSeek-V3) |
-| ライセンス推奨 | Apache 2.0 (Qwen, Mixtral) / MIT (DeepSeek) |
-| デプロイ手段 | vLLM、TGI、Ollama、llama.cpp |
-| ファインチューニング推奨サイズ | 7B-14B (LoRA/QLoRA で消費者GPU可) |
+Knowledge of this topic is frequently applied in day-to-day development work, particularly during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [04-model-comparison.md](./04-model-comparison.md) — 全モデル横断ベンチマーク比較
-- [../../03-infrastructure/02-local-llm.md](../03-infrastructure/02-local-llm.md) — ローカル LLM のデプロイ実践
-- [../../03-infrastructure/03-evaluation.md](../03-infrastructure/03-evaluation.md) — LLM 評価手法
+| Item | Content |
+|------|---------|
+| Three major forces | Meta Llama, Mistral AI, Alibaba Qwen |
+| Notable models | DeepSeek-R1 (reasoning), Phi-3 (lightweight) |
+| Largest models | Llama 3.1 405B (Dense), DeepSeek-V3 671B (MoE) |
+| Best for Japanese | Qwen 2.5 series |
+| Cost-optimized | MoE models (Mixtral, DeepSeek-V3) |
+| Recommended license | Apache 2.0 (Qwen, Mixtral) / MIT (DeepSeek) |
+| Deployment options | vLLM, TGI, Ollama, llama.cpp |
+| Recommended size for fine-tuning | 7B-14B (LoRA/QLoRA on consumer GPU) |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [04-model-comparison.md](./04-model-comparison.md) — Cross-model benchmark comparison
+- [../../03-infrastructure/02-local-llm.md](../03-infrastructure/02-local-llm.md) — Practical local LLM deployment
+- [../../03-infrastructure/03-evaluation.md](../03-infrastructure/03-evaluation.md) — LLM evaluation methods
+
+---
+
+## References
 
 1. Dubey et al., "The Llama 3 Herd of Models," arXiv:2407.21783, 2024
 2. Jiang et al., "Mixtral of Experts," arXiv:2401.04088, 2024
