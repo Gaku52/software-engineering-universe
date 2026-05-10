@@ -1,118 +1,119 @@
-# 脅威モデリング
+# Threat Modeling
 
-> システムに潜む脅威を体系的に洗い出すためのSTRIDE、DREAD、PASTA、アタックツリー、データフロー図、キルチェーン分析を用いた実践的手法を解説する。設計段階でのセキュリティ組み込みにより、修正コストを数十倍削減する脅威モデリングの全体像を習得する。
+> A practical guide to systematically identifying threats lurking in systems using STRIDE, DREAD, PASTA, attack trees, data flow diagrams, and kill chain analysis. Learn the full picture of threat modeling — embedding security at the design stage to reduce remediation costs by orders of magnitude.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **STRIDE** モデルを使った脅威の体系的分類と特定方法を理解する
-2. **DREAD** スコアリングおよび **CVSS** によるリスクの定量的評価手法を習得する
-3. **アタックツリーとデータフロー図（DFD）** を用いた脅威分析の実践手順を身につける
-4. **脅威モデリングの組織導入**と継続的改善プロセスを計画できるようになる
+1. Understand how to systematically classify and identify threats using the **STRIDE** model
+2. Master quantitative risk assessment with **DREAD** scoring and **CVSS**
+3. Learn practical threat analysis procedures using **attack trees and Data Flow Diagrams (DFD)**
+4. Plan **organizational adoption of threat modeling** and continuous improvement processes
 
-## 前提知識
+## Prerequisites
 
-- [00-security-overview.md](./00-security-overview.md) -- CIA三原則とリスク評価の基礎
-- ソフトウェアアーキテクチャの基本（クライアント・サーバー構成、API設計の概要）
-- [../../../authentication-and-authorization/docs/00-fundamentals/](../../../authentication-and-authorization/docs/00-fundamentals/) -- 認証・認可の基本概念
+- [00-security-overview.md](./00-security-overview.md) -- CIA triad fundamentals and risk assessment basics
+- Software architecture basics (client-server architecture, API design overview)
+- [../../../authentication-and-authorization/docs/00-fundamentals/](../../../authentication-and-authorization/docs/00-fundamentals/) -- Core concepts in authentication and authorization
 
 ---
 
-## 1. 脅威モデリングとは
+## 1. What Is Threat Modeling?
 
-脅威モデリングとは、設計段階でシステムに対する潜在的な攻撃を体系的に特定・評価し、適切な対策を計画するプロセスである。
+Threat modeling is the process of systematically identifying and evaluating potential attacks against a system at the design stage, then planning appropriate countermeasures.
 
-### WHY: なぜ脅威モデリングが必要か
-
-```
-修正コストの法則（NIST/IBM研究）:
-
-  設計段階での修正     :  $100       (1x)
-  実装段階での修正     :  $1,000     (10x)
-  テスト段階での修正   :  $10,000    (100x)
-  本番運用中の修正     :  $100,000+  (1000x)
-
-  => 設計段階での脅威モデリングは最もコスト効率が高いセキュリティ活動
-```
-
-### 1.1 脅威モデリングの基本プロセス
+### WHY: Why Is Threat Modeling Necessary?
 
 ```
-脅威モデリングの4つのフェーズ:
+The Cost of Change (NIST/IBM research):
+
+  Fix at design stage       :  $100       (1x)
+  Fix at implementation stage:  $1,000     (10x)
+  Fix at testing stage      :  $10,000    (100x)
+  Fix in production         :  $100,000+  (1000x)
+
+  => Threat modeling at the design stage is the most cost-effective security activity
+```
+
+### 1.1 The Basic Threat Modeling Process
+
+```
+The four phases of threat modeling:
 
 +----------+    +----------+    +----------+    +----------+
-| 1.対象の  | -> | 2.脅威の  | -> | 3.リスク  | -> | 4.対策の  |
-| 分解     |    | 特定     |    | 評価     |    | 決定     |
-| (DFD作成) |    | (STRIDE) |    | (DREAD)  |    | (緩和策) |
+| 1. Decom-| -> | 2. Threat| -> | 3. Risk  | -> | 4. Decide|
+| position |    | Identifi-|    | Assess-  |    | on Coun- |
+| (DFD)    |    | cation   |    | ment     |    | termeas. |
+|          |    | (STRIDE) |    | (DREAD)  |    | (Mitig.) |
 +----------+    +----------+    +----------+    +----------+
       |                                               |
       +-----------------------------------------------+
-                     反復的に改善
+                     Iteratively improve
 
-Phase 1: 何を作るのか?（What are we building?）
-  → DFD作成、資産特定、信頼境界の定義
+Phase 1: What are we building?
+  → Create DFD, identify assets, define trust boundaries
 
-Phase 2: 何が問題になり得るか?（What can go wrong?）
-  → STRIDE、PASTA、アタックツリー分析
+Phase 2: What can go wrong?
+  → STRIDE, PASTA, attack tree analysis
 
-Phase 3: どれくらい危険か?（How bad is it?）
-  → DREAD、CVSS、リスクマトリクス
+Phase 3: How bad is it?
+  → DREAD, CVSS, risk matrix
 
-Phase 4: どう対処するか?（What are we going to do about it?）
-  → 緩和（Mitigate）、転嫁（Transfer）、受容（Accept）、回避（Avoid）
+Phase 4: What are we going to do about it?
+  → Mitigate, Transfer, Accept, Avoid
 ```
 
-### 1.2 脅威モデリングの4つの質問（Adam Shostack の手法）
+### 1.2 The Four Questions of Threat Modeling (Adam Shostack's Method)
 
-| 質問 | 目的 | 主なツール/手法 |
-|------|------|----------------|
-| 何を作っているか? | システムの理解と資産の特定 | DFD、アーキテクチャ図 |
-| 何がうまくいかない可能性があるか? | 脅威の特定 | STRIDE、PASTA、キルチェーン |
-| それについて何をするか? | 対策の決定 | 緩和・転嫁・受容・回避 |
-| 十分な対策を行ったか? | 検証 | テスト、レビュー、ペネトレーションテスト |
+| Question | Purpose | Key Tools/Methods |
+|----------|---------|-------------------|
+| What are we building? | Understand the system and identify assets | DFD, architecture diagrams |
+| What can go wrong? | Identify threats | STRIDE, PASTA, kill chain |
+| What are we going to do about it? | Decide on countermeasures | Mitigate, Transfer, Accept, Avoid |
+| Did we do a good enough job? | Verify | Testing, review, penetration testing |
 
 ---
 
-## 2. STRIDE モデル
+## 2. The STRIDE Model
 
-MicrosoftがSDL（Security Development Lifecycle）の一部として開発した脅威分類フレームワーク。各カテゴリは情報セキュリティの属性に1対1で対応する。
+A threat classification framework developed by Microsoft as part of the SDL (Security Development Lifecycle). Each category maps one-to-one to an information security property.
 
-### 2.1 STRIDEの6カテゴリ
+### 2.1 STRIDE's Six Categories
 
 ```
-STRIDE と セキュリティ属性の対応関係:
+Mapping STRIDE to security properties:
 
-  脅威カテゴリ          脅かされる属性         主な対策
-  ─────────────────────────────────────────────────────
-  S: Spoofing       →  Authentication     →  MFA, PKI
-  T: Tampering      →  Integrity          →  ハッシュ, 署名
-  R: Repudiation    →  Non-repudiation    →  監査ログ, 署名
-  I: Info Disclosure→  Confidentiality    →  暗号化, ACL
-  D: DoS            →  Availability       →  CDN, レートリミット
-  E: Elevation      →  Authorization      →  最小権限, RBAC
+  Threat Category        Compromised Property    Key Countermeasures
+  ─────────────────────────────────────────────────────────────────
+  S: Spoofing        →  Authentication       →  MFA, PKI
+  T: Tampering       →  Integrity            →  Hashing, signatures
+  R: Repudiation     →  Non-repudiation      →  Audit logs, signatures
+  I: Info Disclosure →  Confidentiality      →  Encryption, ACL
+  D: DoS             →  Availability         →  CDN, rate limiting
+  E: Elevation       →  Authorization        →  Least privilege, RBAC
 ```
 
-| カテゴリ | 英語名 | 脅かされる属性 | 攻撃例 | DFD要素との対応 |
-|---------|--------|---------------|--------|---------------|
-| S: なりすまし | Spoofing | 真正性 | 偽ログインページ、セッションハイジャック、ARP spoofing | 外部エンティティ、プロセス |
-| T: 改ざん | Tampering | 完全性 | SQLインジェクション、パラメータ改ざん、MITM | データフロー、データストア |
-| R: 否認 | Repudiation | 否認防止 | ログの消去、証跡のない操作、タイムスタンプ偽装 | プロセス |
-| I: 情報漏洩 | Information Disclosure | 機密性 | ディレクトリリスティング、エラーメッセージ、サイドチャネル | データフロー、データストア |
-| D: サービス妨害 | Denial of Service | 可用性 | DDoS、リソース枯渇、アプリケーション層DoS | プロセス、データストア |
-| E: 権限昇格 | Elevation of Privilege | 認可 | 水平/垂直権限昇格、バッファオーバーフロー、IDOR | プロセス |
+| Category | Full Name | Compromised Property | Attack Examples | DFD Element Mapping |
+|----------|-----------|---------------------|-----------------|---------------------|
+| S: Spoofing | Spoofing | Authenticity | Fake login pages, session hijacking, ARP spoofing | External entities, processes |
+| T: Tampering | Tampering | Integrity | SQL injection, parameter tampering, MITM | Data flows, data stores |
+| R: Repudiation | Repudiation | Non-repudiation | Log deletion, operations without audit trail, timestamp forgery | Processes |
+| I: Information Disclosure | Information Disclosure | Confidentiality | Directory listing, error messages, side channels | Data flows, data stores |
+| D: Denial of Service | Denial of Service | Availability | DDoS, resource exhaustion, application-layer DoS | Processes, data stores |
+| E: Elevation of Privilege | Elevation of Privilege | Authorization | Horizontal/vertical privilege escalation, buffer overflow, IDOR | Processes |
 
-### 2.2 STRIDE-per-Element 分析
+### 2.2 STRIDE-per-Element Analysis
 
-DFDの各要素に対して、該当するSTRIDEカテゴリの脅威を検討する手法。
+A method of examining applicable STRIDE category threats for each element in the DFD.
 
-| DFD要素 | S | T | R | I | D | E |
-|---------|---|---|---|---|---|---|
-| 外部エンティティ | o | | | | | |
-| プロセス | o | o | o | o | o | o |
-| データフロー | | o | | o | o | |
-| データストア | | o | o | o | o | |
+| DFD Element | S | T | R | I | D | E |
+|-------------|---|---|---|---|---|---|
+| External Entity | o | | | | | |
+| Process | o | o | o | o | o | o |
+| Data Flow | | o | | o | o | |
+| Data Store | | o | o | o | o | |
 
 ```python
-# コード例1: STRIDE-per-Element 分析ツール
+# Code Example 1: STRIDE-per-Element Analysis Tool
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, Dict, Set
@@ -255,7 +256,7 @@ class StrideAnalyzer:
             lines.append("")
         return "\n".join(lines)
 
-# 使用例
+# Usage example
 analyzer = StrideAnalyzer("ECサイト決済システム")
 
 # DFD要素に対するSTRIDE分析質問の生成
@@ -290,44 +291,44 @@ print(analyzer.generate_report())
 
 ---
 
-## 3. DREADスコアリング
+## 3. DREAD Scoring
 
-DREADはMicrosoftが開発したリスク定量評価モデルである。特定された脅威に優先順位をつけるために使用する。
+DREAD is a quantitative risk assessment model developed by Microsoft. It is used to prioritize identified threats.
 
-### 3.1 DREAD の5つの評価軸
+### 3.1 DREAD's Five Assessment Axes
 
 ```
-DREADスコアリングの構造:
+DREAD scoring structure:
 
-  D ─ Damage（被害の大きさ）
-  │   1: 軽微な影響  →  10: システム全体の壊滅
+  D ─ Damage (magnitude of harm)
+  │   1: Minor impact  →  10: Complete system destruction
   │
-  R ─ Reproducibility（再現性）
-  │   1: 特殊条件下でのみ  →  10: 誰でも100%再現可能
+  R ─ Reproducibility
+  │   1: Only under special conditions  →  10: Anyone can reproduce 100% of the time
   │
-  E ─ Exploitability（攻撃の容易さ）
-  │   1: 高度な専門知識が必要  →  10: 自動化ツールで即座に攻撃可能
+  E ─ Exploitability (ease of attack)
+  │   1: Requires advanced expertise  →  10: Immediately attackable with automated tools
   │
-  A ─ Affected Users（影響を受けるユーザー数）
-  │   1: 単一ユーザー  →  10: 全ユーザー
+  A ─ Affected Users (scope of impact)
+  │   1: Single user  →  10: All users
   │
-  D ─ Discoverability（発見しやすさ）
-      1: 発見が極めて困難  →  10: 公開情報から容易に発見
+  D ─ Discoverability (ease of discovery)
+      1: Extremely difficult to find  →  10: Easily discoverable from public information
 
-  合計スコア = (D + R + E + A + D) / 5
+  Total score = (D + R + E + A + D) / 5
   → 8-10: Critical  → 6-7.9: High  → 4-5.9: Medium  → 1-3.9: Low
 ```
 
-| 軸 | 英語名 | 説明 | 低（1-3） | 中（4-6） | 高（7-10） |
-|----|--------|------|----------|----------|-----------|
-| D | Damage | 被害の大きさ | ログ汚染程度 | 一部データの漏洩 | 全データ漏洩/システム破壊 |
-| R | Reproducibility | 再現性 | 特定条件のみ | 時々再現 | 常に100%再現 |
-| E | Exploitability | 攻撃の容易さ | 高度なスキル要 | ツール使用で可能 | 初心者でも自動ツールで可能 |
-| A | Affected Users | 影響範囲 | 個人のみ | 一部のユーザー | 全ユーザー/管理者含む |
-| D | Discoverability | 発見可能性 | 内部情報必要 | 推測可能 | 公開情報/自動スキャン |
+| Axis | Name | Description | Low (1-3) | Medium (4-6) | High (7-10) |
+|------|------|-------------|-----------|--------------|-------------|
+| D | Damage | Magnitude of harm | Minor log corruption | Partial data leak | Full data leak / system destruction |
+| R | Reproducibility | Repeatability | Specific conditions only | Sometimes reproducible | Always 100% reproducible |
+| E | Exploitability | Ease of attack | Requires advanced skill | Possible with tools | Automated tools usable by beginners |
+| A | Affected Users | Scope of impact | Individual only | Some users | All users including admins |
+| D | Discoverability | Discoverability | Requires insider knowledge | Can be guessed | Public info / automated scanning |
 
 ```python
-# コード例2: DREAD + CVSSハイブリッドスコアリング
+# Code Example 2: DREAD + CVSS hybrid scoring
 from dataclasses import dataclass
 from typing import Optional
 
@@ -397,7 +398,7 @@ class DreadScore:
         lines.append(f"  {'Total':<20s}  => {self.total:.1f}/10 ({self.risk_level})")
         return "\n".join(lines)
 
-# 代表的な脅威のDREADスコア比較
+# Comparing DREAD scores for representative threats
 threats = {
     "SQLインジェクション": DreadScore(9, 10, 7, 10, 8),
     "XSS (Stored)": DreadScore(7, 9, 6, 8, 7),
@@ -415,53 +416,52 @@ for name, score in sorted(
     print()
 ```
 
-### 3.2 DREAD vs CVSS 比較
+### 3.2 DREAD vs CVSS Comparison
 
-| 特性 | DREAD | CVSS v3.1 |
-|------|-------|-----------|
-| 開発元 | Microsoft | FIRST |
-| スコア範囲 | 1-10 | 0.0-10.0 |
-| 評価軸 | 5軸（D, R, E, A, D） | 基本/現状/環境 |
-| 主観性 | やや高い | 低い（標準化） |
-| 学習コスト | 低い | 中～高い |
-| 業界標準 | 非公式 | CVE採番で公式 |
-| 適用場面 | 社内脅威モデリング | 脆弱性管理、パッチ優先度 |
+| Property | DREAD | CVSS v3.1 |
+|----------|-------|-----------|
+| Developer | Microsoft | FIRST |
+| Score Range | 1-10 | 0.0-10.0 |
+| Assessment Axes | 5 axes (D, R, E, A, D) | Base / Temporal / Environmental |
+| Subjectivity | Somewhat high | Low (standardized) |
+| Learning Cost | Low | Medium to High |
+| Industry Standard | Informal | Official (used with CVE numbering) |
+| Use Case | Internal threat modeling | Vulnerability management, patch prioritization |
 
 ---
 
-## 4. アタックツリー
+## 4. Attack Trees
 
-攻撃目標を根（ルート）とし、達成手段を木構造で分解する手法。Bruce Schneierが1999年に提唱した。
+A method of decomposing attack goals into a tree structure with the attacker's objective as the root and methods of achieving it as branches. Proposed by Bruce Schneier in 1999.
 
-### 4.1 アタックツリーの基本構造
+### 4.1 Basic Structure of an Attack Tree
 
 ```
-アタックツリーの例: ECサイトから顧客情報を窃取する
+Attack tree example: Stealing customer data from an e-commerce site
 
-              [ECサイトから顧客情報を窃取する] (Root)
+              [Steal customer data from e-commerce site] (Root)
                     /              \
                    /                \
-     [Webアプリ経由]             [内部者経由]
-     (OR: いずれかで成功)        (OR: いずれかで成功)
+     [Via Web App]             [Via Insider]
+     (OR: success via any)     (OR: success via any)
         /       \                  /       \
        /         \                /         \
-  [SQLi]     [XSS→           [DB直接     [バックアップ
-   ($3K)      セッション       アクセス]    ファイル
-              窃取]            ($10K)      窃取]
-              ($5K)                       ($2K)
+  [SQLi]     [XSS→           [Direct DB    [Backup
+   ($3K)      Session         Access]       File
+              Theft]          ($10K)        Theft]
+              ($5K)                        ($2K)
     /  \        |               |            |
-[検索] [ログ   [Stored         [認証情報   [暗号化なし
-フォーム イン   XSSで           のハード    のバックアップ
-経由]  フォーム Cookie          コーディ    をUSBで持出]
-       経由]   窃取]           ング]
+[Search] [Login  [Stored        [Hardcoded  [Unencrypted
+form]    form]   XSS to         credentials] backup
+                 steal Cookie]              on USB]
 
-AND条件: 複数の子ノードすべてが必要
-OR条件: いずれかの子ノードで達成可能
-コスト: 各リーフノードの攻撃コスト（低いほど攻撃が容易）
+AND condition: All child nodes are required
+OR condition: Any child node suffices
+Cost: Attack cost at each leaf node (lower = easier to attack)
 ```
 
 ```python
-# コード例3: アタックツリーの構築と最小コスト経路分析
+# Code Example 3: Building an attack tree and analyzing the minimum-cost path
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
@@ -535,7 +535,7 @@ class AttackNode:
             for child in self.children:
                 child.display(indent + 2)
 
-# アタックツリーの構築例
+# Attack tree construction example
 root = AttackNode("顧客情報の窃取", "ECサイトの顧客データを不正取得")
 
 # Webアプリ経由
@@ -563,7 +563,7 @@ insider.add_child(backup_theft)
 root.add_child(web_attack)
 root.add_child(insider)
 
-# 分析結果
+# Analysis results
 root.display()
 print(f"\n最小攻撃コスト: ${root.min_cost()}K")
 print(f"最大成功確率: {root.max_probability():.0%}")
@@ -572,45 +572,45 @@ print(f"最安経路: {' → '.join(root.find_cheapest_path())}")
 
 ---
 
-## 5. データフロー図（DFD）と信頼境界
+## 5. Data Flow Diagrams (DFD) and Trust Boundaries
 
-DFDはシステムを通るデータの流れを可視化し、信頼境界（Trust Boundary）を明示する図である。脅威モデリングにおける最も重要なツールである。
+A DFD visualizes the flow of data through a system and explicitly marks trust boundaries. It is the most important tool in threat modeling.
 
-### 5.1 DFDの構成要素
+### 5.1 DFD Components
 
 ```
-DFD の4つの構成要素:
+The four components of a DFD:
 
-  +---------+       外部エンティティ（External Entity）
-  | ユーザー |       システム外部のアクター
+  +---------+       External Entity
+  |  User   |       Actor outside the system
   +---------+
 
-  (  処理  )         プロセス（Process）
-  ( サーバー )       データを処理するコンポーネント
+  (  Process  )      Process
+  (  Server   )      Component that processes data
 
-  ===========        データフロー（Data Flow）
-  ==========>        データの移動方向を示す矢印
+  ===========        Data Flow
+  ==========>        Arrow indicating direction of data movement
 
-  [[  DB   ]]        データストア（Data Store）
-  [[ 保存先 ]]       データの保管場所
+  [[  DB   ]]        Data Store
+  [[ Storage ]]      Where data is kept
 
-  ────────────       信頼境界（Trust Boundary）
-  ┃ 境界線  ┃       セキュリティレベルが変わる境界
+  ────────────       Trust Boundary
+  ┃ Boundary ┃       The boundary where security level changes
   ────────────
 ```
 
-### 5.2 DFDレベル
+### 5.2 DFD Levels
 
 ```
-DFD レベル0（コンテキスト図）:
+DFD Level 0 (Context Diagram):
 
 +----------+                              +----------+
-|          |  --- HTTPリクエスト --->      |          |
-|  ユーザー |                              | Webアプリ |
-| (外部)   |  <--- HTTPレスポンス ---      | ケーション |
+|          |  --- HTTP Request --->        |          |
+|   User   |                              |  Web App |
+| (External)|  <--- HTTP Response ---     |          |
 +----------+                              +----------+
                                                |
-                 信頼境界                        |
+                 Trust Boundary                |
   ===================================          |
                                                v
                                           +----------+
@@ -618,11 +618,11 @@ DFD レベル0（コンテキスト図）:
                                           +----------+
 
 
-DFD レベル1（詳細図）:
+DFD Level 1 (Detailed Diagram):
 
-+--------+                   信頼境界
-| ブラウザ |    ==========================================
-| (外部)  |    |                                        |
++--------+                   Trust Boundary
+| Browser|    ==========================================
+|(External)|  |                                        |
 +--------+    |  +-------+    +--------+    +------+   |
      |         |  | Web   | -> | API    | -> |  DB  |   |
      +-------->|  | Server|    | Server |    |      |   |
@@ -635,17 +635,18 @@ DFD レベル1（詳細図）:
                |  +-------+    +--------+        |      |
                ==========================================
                                     |
-                         信頼境界    |
+                      Trust Boundary|
                     ================|============
                                     v
                               +---------+
-                              | 外部API  |
-                              | (決済等) |
+                              | External|
+                              |  API    |
+                              |(Payment)|
                               +---------+
 ```
 
 ```python
-# コード例4: DFD解析と信頼境界を越えるフローの脅威自動検出
+# Code Example 4: DFD analysis and automatic threat detection for flows crossing trust boundaries
 from dataclasses import dataclass, field
 from typing import List, Set, Dict
 
@@ -727,7 +728,7 @@ class DFDThreatAnalyzer:
         for flow in self.flows:
             flow_threats = []
 
-            # 脅威1: 信頼境界を越える非暗号化フロー
+            # Threat 1: Unencrypted flow crossing a trust boundary
             if self._crosses_boundary(flow) and not flow.encrypted:
                 flow_threats.append({
                     "type": "TAMPERING/INFO_DISCLOSURE",
@@ -740,7 +741,7 @@ class DFDThreatAnalyzer:
                     "mitigation": "TLS/mTLS の導入",
                 })
 
-            # 脅威2: 認証なしの境界越えフロー
+            # Threat 2: Unauthenticated flow crossing a boundary
             if self._crosses_boundary(flow) and not flow.authenticated:
                 direction = self._trust_direction(flow)
                 if direction == "inbound":
@@ -755,7 +756,7 @@ class DFDThreatAnalyzer:
                         "mitigation": "認証メカニズムの実装",
                     })
 
-            # 脅威3: 機密データの非暗号化フロー
+            # Threat 3: Confidential data transferred without encryption
             if flow.data_classification in ("confidential", "restricted"):
                 if not flow.encrypted:
                     flow_threats.append({
@@ -801,10 +802,10 @@ class DFDThreatAnalyzer:
 
         return "\n".join(lines)
 
-# 使用例
+# Usage example
 analyzer = DFDThreatAnalyzer("ECサイト")
 
-# コンポーネント定義
+# Component definitions
 analyzer.add_component(DFDComponent(
     "ブラウザ", "external_entity", "untrusted", "ユーザーのWebブラウザ"
 ))
@@ -815,7 +816,7 @@ analyzer.add_component(DFDComponent(
     "データベース", "data_store", "highly_trusted", "PostgreSQL"
 ))
 
-# データフロー定義
+# Data flow definitions
 analyzer.add_flow(DataFlow(
     "ブラウザ", "APIサーバー", "認証情報",
     "HTTPS", encrypted=True, authenticated=True,
@@ -833,103 +834,117 @@ print(analyzer.generate_report())
 
 ---
 
-## 6. PASTA（Process for Attack Simulation and Threat Analysis）
+## 6. PASTA (Process for Attack Simulation and Threat Analysis)
 
-PASTAは7段階のリスク中心の脅威モデリング手法で、ビジネス目標とテクニカルな脅威分析を結合する。
+PASTA is a seven-stage, risk-centric threat modeling methodology that combines business objectives with technical threat analysis.
 
-### 6.1 PASTAの7段階
+### 6.1 PASTA's Seven Stages
 
 ```
-PASTA 7段階プロセス:
+PASTA 7-stage process:
 
-  Stage 1: ビジネス目標の定義
+  Stage 1: Define Business Objectives
   +-------------------+
-  | 事業要件の整理     |
-  | リスク許容度の決定  |
+  | Organize business |
+  | requirements      |
+  | Determine risk    |
+  | tolerance         |
   +--------+----------+
            |
-  Stage 2: 技術スコープの定義
+  Stage 2: Define Technical Scope
   +--------v----------+
-  | インフラ図の作成    |
-  | 技術仕様の整理     |
+  | Create infra      |
+  | diagrams          |
+  | Organize tech     |
+  | specifications    |
   +--------+----------+
            |
-  Stage 3: アプリケーション分解
+  Stage 3: Application Decomposition
   +--------v----------+
-  | DFDの作成          |
-  | 信頼境界の定義     |
+  | Create DFD        |
+  | Define trust      |
+  | boundaries        |
   +--------+----------+
            |
-  Stage 4: 脅威分析
+  Stage 4: Threat Analysis
   +--------v----------+
-  | 脅威情報の収集     |
-  | 脅威ライブラリ参照  |
+  | Gather threat     |
+  | intelligence      |
+  | Reference threat  |
+  | library           |
   +--------+----------+
            |
-  Stage 5: 脆弱性分析
+  Stage 5: Vulnerability Analysis
   +--------v----------+
-  | CVE/CWE分析       |
-  | スキャン結果統合    |
+  | CVE/CWE analysis  |
+  | Integrate scan    |
+  | results           |
   +--------+----------+
            |
-  Stage 6: 攻撃シミュレーション
+  Stage 6: Attack Simulation
   +--------v----------+
-  | アタックツリー作成  |
-  | 攻撃シナリオ実行   |
+  | Create attack     |
+  | trees             |
+  | Execute attack    |
+  | scenarios         |
   +--------+----------+
            |
-  Stage 7: リスク管理
+  Stage 7: Risk Management
   +--------v----------+
-  | 残余リスクの評価    |
-  | 対策の優先順位決定  |
+  | Evaluate residual |
+  | risk              |
+  | Prioritize        |
+  | countermeasures   |
   +-------------------+
 ```
 
-### STRIDE vs PASTA 比較
+### STRIDE vs PASTA Comparison
 
-| 特性 | STRIDE | PASTA |
-|------|--------|-------|
-| アプローチ | 技術中心 | リスク中心 |
-| 段階数 | 明確な段階なし | 7段階 |
-| ビジネス観点 | 弱い | 強い（Stage 1） |
-| 攻撃シミュレーション | なし | あり（Stage 6） |
-| 学習コスト | 低い | 中～高い |
-| 適用規模 | 小～中規模 | 中～大規模 |
-| 出力 | 脅威リスト | リスク管理計画 |
+| Property | STRIDE | PASTA |
+|----------|--------|-------|
+| Approach | Technology-centric | Risk-centric |
+| Number of Stages | No explicit stages | 7 stages |
+| Business Perspective | Weak | Strong (Stage 1) |
+| Attack Simulation | None | Yes (Stage 6) |
+| Learning Cost | Low | Medium to High |
+| Scale of Application | Small to Medium | Medium to Large |
+| Output | Threat list | Risk management plan |
 
 ---
 
-## 7. サイバーキルチェーン分析
+## 7. Cyber Kill Chain Analysis
 
-Lockheed Martinが提唱した攻撃の段階モデル。脅威モデリングにおいて、攻撃者の行動パターンを理解するために使用する。
+A phased model of attacks proposed by Lockheed Martin. Used in threat modeling to understand attacker behavior patterns.
 
 ```
-サイバーキルチェーンの7段階:
+The seven stages of the Cyber Kill Chain:
 
-  1. 偵察          2. 武器化        3. 配送
-  +----------+    +----------+    +----------+
-  | 情報収集  |    | 攻撃ツール|    | マルウェア|
-  | OSINT    | -> | 作成     | -> | 送付     |
-  | スキャン  |    | ペイロード|    | フィッシン|
-  +----------+    +----------+    | グ      |
-                                  +----------+
-                                       |
-  7. 目的実行      6. C2通信        5. インストール  4. 攻撃実行
-  +----------+    +----------+    +----------+    +----------+
-  | データ窃取|    | 遠隔操作  |    | 永続化    |    | 脆弱性   |
-  | 破壊     | <- | 横展開   | <- | バックドア| <- | 悪用     |
-  | 暗号化   |    | 特権昇格  |    | 設置     |    | 実行     |
-  +----------+    +----------+    +----------+    +----------+
+  1. Reconnaissance    2. Weaponization    3. Delivery
+  +----------+        +----------+        +----------+
+  | Info     |        | Create   |        | Deliver  |
+  | gathering| ->     | attack   | ->     | malware  |
+  | OSINT    |        | tools    |        | Phishing |
+  | Scanning |        | payload  |        |          |
+  +----------+        +----------+        +----------+
+                                               |
+  7. Actions on     6. C2           5. Install    4. Exploitation
+  Objectives        +----------+    +----------+    +----------+
+  +----------+      | Remote   |    | Persist  |    | Exploit  |
+  | Data     |      | control  |    | Backdoor | <- | vulner-  |
+  | exfil    | <-   | Lateral  | <- | Install  |    | ability  |
+  | Destroy  |      | movement |    |          |    | Execute  |
+  | Encrypt  |      | Priv esc |    +----------+    +----------+
+  +----------+      +----------+
 
-各段階で検知・遮断のチャンスがある（多層防御の適用点）
+There is an opportunity to detect and stop the attack at each stage (points of applying defense in depth)
 ```
 
 ---
 
-## 8. 脅威モデリングの実践ワークフロー
+## 8. Practical Threat Modeling Workflow
 
 ```python
-# コード例5: 脅威モデリングワークシートの完全実装
+# Code Example 5: Complete implementation of a threat modeling worksheet
 import json
 from datetime import datetime
 from typing import List, Dict, Optional
@@ -1035,7 +1050,7 @@ class ThreatModelWorksheet:
             "summary": self.get_summary(),
         }, indent=2, ensure_ascii=False)
 
-# 使用例
+# Usage example
 ws = ThreatModelWorksheet(
     project="ECサイト決済システム",
     version="v2.0",
@@ -1081,11 +1096,11 @@ print(f"深刻度: {summary['severity_breakdown']}")
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: 脅威モデリングの省略
+### Anti-Pattern 1: Skipping Threat Modeling
 
-「リリースが間に合わない」という理由で脅威モデリングを省略するパターン。
+The pattern of skipping threat modeling with the excuse that "we don't have time before the release."
 
 ```python
 # NG: 脅威モデリングを省略してリリース
@@ -1107,9 +1122,9 @@ class SecureReleaseProcess:
         deploy(feature)
 ```
 
-### アンチパターン2: 一度きりの脅威モデリング
+### Anti-Pattern 2: One-Time Threat Modeling
 
-初回リリース時にだけ脅威モデリングを行い、その後更新しないパターン。
+The pattern of performing threat modeling only at the initial release and never updating it afterwards.
 
 ```python
 # NG: 初回のみ実施
@@ -1130,190 +1145,190 @@ class ContinuousThreatModeling:
         self.request_review(new_threats)
 ```
 
-### アンチパターン3: 網羅性の過度な追求
+### Anti-Pattern 3: Pursuing Exhaustive Coverage
 
-すべての脅威を100%洗い出そうとして分析が終わらないパターン。リスクベースで優先順位をつけ、高リスクの脅威から順に対処する。パレートの法則（20%の脅威が80%のリスクを占める）を意識する。
+The pattern of trying to identify 100% of all threats, resulting in an analysis that never ends. Apply risk-based prioritization and address high-risk threats first. Keep in mind the Pareto principle (20% of threats account for 80% of risk).
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1（基礎）: STRIDE分析
+### Exercise 1 (Basic): STRIDE Analysis
 
-以下のシステムの「ログインAPI」に対してSTRIDE分析を実施し、各カテゴリごとに1つ以上の脅威と対策を記述してください。
+Perform a STRIDE analysis on the "Login API" of the system described below. For each category, describe at least one threat and countermeasure.
 
-**システム概要**: ユーザーがメールアドレスとパスワードでログインするWebアプリケーション。ログイン成功時にJWTトークンを返却する。
+**System Overview**: A web application where users log in with an email address and password. A JWT token is returned upon successful login.
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
-| カテゴリ | 脅威 | 攻撃手法 | 対策 |
-|---------|------|---------|------|
-| S: なりすまし | ブルートフォース攻撃 | 大量のパスワード試行 | レートリミット(5回/分)、アカウントロックアウト(30分)、MFA |
-| S: なりすまし | クレデンシャルスタッフィング | 流出したID/PW一覧での試行 | パスワード漏洩チェック(HaveIBeenPwned API)、MFA |
-| T: 改ざん | JWTトークンの改ざん | ヘッダーのalgをnoneに変更 | alg固定検証、RS256使用、署名検証の厳格化 |
-| T: 改ざん | リクエストパラメータの改ざん | プロキシでemail/passwordフィールドを操作 | サーバーサイドバリデーション、TLS必須 |
-| R: 否認 | ログイン操作の否認 | 「ログインしていない」と主張 | IP/UA/タイムスタンプ付き監査ログ、デバイスフィンガープリント |
-| I: 情報漏洩 | エラーメッセージからの情報推測 | 「メールアドレスが存在しません」の応答 | 統一エラーメッセージ「認証に失敗しました」 |
-| I: 情報漏洩 | タイミング攻撃 | 存在するアカウントと存在しないアカウントの応答時間差 | 定数時間比較、意図的な遅延 |
-| D: サービス妨害 | ログインAPI枯渇攻撃 | 大量のログインリクエスト | レートリミット、CAPTCHA、CDN |
-| E: 権限昇格 | JWT内のroleクレーム改ざん | JWT署名の脆弱性を利用 | 署名検証の厳格化、role情報はサーバーサイドで取得 |
+| Category | Threat | Attack Method | Countermeasure |
+|----------|--------|---------------|----------------|
+| S: Spoofing | Brute-force attack | Mass password attempts | Rate limiting (5/min), account lockout (30 min), MFA |
+| S: Spoofing | Credential stuffing | Trying leaked ID/password pairs | Password breach check (HaveIBeenPwned API), MFA |
+| T: Tampering | JWT token tampering | Change header alg to none | Enforce alg validation, use RS256, strict signature verification |
+| T: Tampering | Request parameter tampering | Proxy modifies email/password fields | Server-side validation, enforce TLS |
+| R: Repudiation | Denying login action | Claim "I never logged in" | Audit logs with IP/UA/timestamp, device fingerprinting |
+| I: Info Disclosure | Inferring info from error messages | Response "Email address does not exist" | Unified error message "Authentication failed" |
+| I: Info Disclosure | Timing attack | Response time difference between existing and non-existing accounts | Constant-time comparison, intentional delay |
+| D: Denial of Service | Login API exhaustion attack | Mass login requests | Rate limiting, CAPTCHA, CDN |
+| E: Elevation of Privilege | Tampering with role claim in JWT | Exploiting JWT signature vulnerability | Strict signature verification, retrieve role info server-side |
 
 </details>
 
-### 演習2（応用）: DFD作成と信頼境界分析
+### Exercise 2 (Intermediate): DFD Creation and Trust Boundary Analysis
 
-以下のシステムのDFDを作成し、信頼境界を越えるデータフローを特定して、各フローの脅威を分析してください。
+Create a DFD for the system below, identify data flows crossing trust boundaries, and analyze the threats for each flow.
 
-**システム概要**: モバイルアプリ → API Gateway → マイクロサービス（認証、商品、注文） → PostgreSQL → 外部決済API（Stripe）
+**System Overview**: Mobile app → API Gateway → Microservices (authentication, products, orders) → PostgreSQL → External payment API (Stripe)
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 **DFD:**
 ```
-信頼境界1（外部）          信頼境界2（DMZ）        信頼境界3（内部）
-+------------------+     +------------------+   +------------------+
-|  +-----------+   |     |  +-----------+   |   |  +-----------+   |
-|  | モバイル   |-------->| API        |-------->| 認証       |   |
-|  | アプリ    |   |     |  | Gateway   |   |   |  | サービス   |   |
-|  +-----------+   |     |  +-----------+   |   |  +-----------+   |
-|                  |     |       |          |   |       |          |
-+------------------+     |       v          |   |  +-----------+   |
-                         |  +-----------+   |   |  | 商品       |   |
-                         |  | レート    |   |   |  | サービス   |   |
-                         |  | リミッター |   |   |  +-----------+   |
-                         |  +-----------+   |   |       |          |
-                         +------------------+   |  +-----------+   |
-                                                |  | 注文       |   |
-信頼境界4（外部）                                |  | サービス   |   |
-+------------------+                            |  +-----------+   |
-|  +-----------+   |                            |       |          |
-|  | Stripe    |<-------------------------------|  +----v------+   |
-|  | API       |   |                            |  | PostgreSQL |   |
-|  +-----------+   |                            |  +-----------+   |
-+------------------+                            +------------------+
+Trust Boundary 1 (External)    Trust Boundary 2 (DMZ)     Trust Boundary 3 (Internal)
++------------------+          +------------------+        +------------------+
+|  +-----------+   |          |  +-----------+   |        |  +-----------+   |
+|  | Mobile    |------------->|  API        |------------>|  Auth      |   |
+|  | App       |   |          |  | Gateway   |   |        |  | Service   |   |
+|  +-----------+   |          |  +-----------+   |        |  +-----------+   |
+|                  |          |       |          |        |       |          |
++------------------+          |       v          |        |  +-----------+   |
+                              |  +-----------+   |        |  | Product   |   |
+                              |  | Rate      |   |        |  | Service   |   |
+                              |  | Limiter   |   |        |  +-----------+   |
+                              |  +-----------+   |        |       |          |
+                              +------------------+        |  +-----------+   |
+                                                          |  | Order     |   |
+Trust Boundary 4 (External)                               |  | Service   |   |
++------------------+                                      |  +-----------+   |
+|  +-----------+   |                                      |       |          |
+|  | Stripe    |<-----------------------------------------|  +----v------+   |
+|  | API       |   |                                      |  | PostgreSQL |   |
+|  +-----------+   |                                      |  +-----------+   |
++------------------+                                      +------------------+
 ```
 
-**信頼境界を越えるフローの脅威分析:**
+**Threat analysis for flows crossing trust boundaries:**
 
-| フロー | 境界 | 脅威 | 対策 |
-|--------|------|------|------|
-| モバイルアプリ → API Gateway | 外部→DMZ | なりすまし、改ざん、盗聴 | TLS 1.3、JWT Bearer認証、証明書ピンニング |
-| API Gateway → 認証サービス | DMZ→内部 | なりすまし、改ざん | mTLS、サービスメッシュ |
-| 注文サービス → PostgreSQL | 内部内 | SQLインジェクション、情報漏洩 | パラメータ化クエリ、最小権限DB接続、暗号化接続 |
-| 注文サービス → Stripe API | 内部→外部 | 情報漏洩（カード情報） | PCI DSS準拠、トークナイゼーション、TLS |
+| Flow | Boundary | Threats | Countermeasures |
+|------|----------|---------|-----------------|
+| Mobile App → API Gateway | External → DMZ | Spoofing, tampering, eavesdropping | TLS 1.3, JWT Bearer auth, certificate pinning |
+| API Gateway → Auth Service | DMZ → Internal | Spoofing, tampering | mTLS, service mesh |
+| Order Service → PostgreSQL | Internal | SQL injection, info disclosure | Parameterized queries, least-privilege DB connection, encrypted connection |
+| Order Service → Stripe API | Internal → External | Info disclosure (card data) | PCI DSS compliance, tokenization, TLS |
 
 </details>
 
-### 演習3（発展）: アタックツリーとDREADスコアリング
+### Exercise 3 (Advanced): Attack Tree and DREAD Scoring
 
-以下のシナリオに対するアタックツリーを作成し、各リーフノードにDREADスコアを付与して、最もリスクの高い攻撃経路を特定してください。
+Create an attack tree for the scenario below, assign DREAD scores to each leaf node, and identify the highest-risk attack path.
 
-**シナリオ**: オンラインバンキングシステムで、攻撃者が他者の口座から不正送金を実行する
+**Scenario**: An attacker executes an unauthorized transfer from another person's account in an online banking system.
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```
-[他者の口座から不正送金] (Root, OR)
-├── [アカウント乗っ取り] (OR)
-│   ├── [フィッシング攻撃]
+[Unauthorized transfer from another's account] (Root, OR)
+├── [Account Takeover] (OR)
+│   ├── [Phishing Attack]
 │   │   DREAD: D=9, R=8, E=7, A=3, D=6 → 6.6 (High)
-│   ├── [ブルートフォース]
+│   ├── [Brute Force]
 │   │   DREAD: D=9, R=10, E=4, A=1, D=8 → 6.4 (High)
-│   └── [SIMスワッピング（MFA突破）]
+│   └── [SIM Swapping (MFA bypass)]
 │       DREAD: D=9, R=6, E=3, A=1, D=4 → 4.6 (Medium)
 │
-├── [アプリケーション脆弱性] (OR)
-│   ├── [CSRF攻撃]
+├── [Application Vulnerability] (OR)
+│   ├── [CSRF Attack]
 │   │   DREAD: D=9, R=8, E=6, A=5, D=7 → 7.0 (High)
-│   ├── [IDOR（送金先IDの改ざん）]
-│   │   DREAD: D=9, R=10, E=8, A=3, D=6 → 7.2 (High) ★最高リスク
-│   └── [セッションハイジャック]
+│   ├── [IDOR (tampering with transfer destination ID)]
+│   │   DREAD: D=9, R=10, E=8, A=3, D=6 → 7.2 (High) ★ Highest Risk
+│   └── [Session Hijacking]
 │       DREAD: D=9, R=7, E=5, A=3, D=5 → 5.8 (Medium)
 │
-└── [内部犯行] (OR)
-    ├── [DB管理者による直接操作]
+└── [Insider Threat] (OR)
+    ├── [Direct DB manipulation by admin]
     │   DREAD: D=10, R=10, E=8, A=1, D=2 → 6.2 (High)
-    └── [サポートスタッフの不正]
+    └── [Support staff misconduct]
         DREAD: D=8, R=9, E=7, A=1, D=3 → 5.6 (Medium)
 ```
 
-**最もリスクの高い経路**: IDOR（DREADスコア7.2）
+**Highest-risk path**: IDOR (DREAD score 7.2)
 
-**理由**: IDORは再現性が高く（R=10）、攻撃が比較的容易で（E=8）、被害が甚大（D=9）。送金APIのエンドポイントで、リクエストパラメータの`from_account_id`を他者のアカウントIDに変更するだけで攻撃が成立する可能性がある。
+**Reason**: IDOR has high reproducibility (R=10), is relatively easy to exploit (E=8), and causes severe damage (D=9). An attacker may be able to execute the attack simply by changing the `from_account_id` parameter in the transfer API request to another user's account ID.
 
-**優先対策**:
-1. オーナーシップチェックの必須化（from_account_id == current_user.account_id）
-2. 送金前の再認証（パスワードまたは生体認証）
-3. 送金金額・頻度の異常検知（不正検知システム）
-4. 送金通知の即時送信（メール + プッシュ通知）
+**Priority countermeasures**:
+1. Mandatory ownership check (from_account_id == current_user.account_id)
+2. Re-authentication before transfer (password or biometrics)
+3. Anomaly detection for transfer amount and frequency (fraud detection system)
+4. Immediate transfer notification (email + push notification)
 </details>
 
 ---
 
 ## FAQ
 
-### Q1: 脅威モデリングは誰が行うべきですか?
+### Q1: Who should perform threat modeling?
 
-開発チーム全体で取り組むべきである。セキュリティ専門家だけでなく、以下のロールの参加が推奨される:
-- **アーキテクト**: システム全体の構造把握、信頼境界の定義
-- **開発者**: 実装上の脆弱性パターンの知識
-- **運用担当者**: インフラレベルの脅威、監視要件
-- **プロダクトオーナー**: ビジネスリスクの評価、優先順位の判断
-- **セキュリティ専門家**: ファシリテーション、脅威ライブラリの提供
+The entire development team should be involved. Not just security specialists — the following roles are recommended to participate:
+- **Architects**: Understanding the overall system structure, defining trust boundaries
+- **Developers**: Knowledge of implementation-level vulnerability patterns
+- **Operations**: Infrastructure-level threats, monitoring requirements
+- **Product Owner**: Evaluating business risk, prioritization decisions
+- **Security Specialists**: Facilitation, providing the threat library
 
-### Q2: STRIDEとDREADはどちらを使うべきですか?
+### Q2: Should I use STRIDE or DREAD?
 
-両方を組み合わせて使う。STRIDEは脅威の「分類と特定」に、DREADは特定した脅威の「優先順位付け」に使う。STRIDEで洗い出した脅威にDREADスコアを付けることで、対策の優先順位が明確になる。大規模組織ではDREADの代わりにCVSSを使用するケースも多い。
+Use both together. STRIDE is for "classifying and identifying" threats; DREAD is for "prioritizing" the identified threats. Assigning DREAD scores to threats found with STRIDE makes prioritization of countermeasures clear. Large organizations often use CVSS instead of DREAD.
 
-### Q3: 小規模プロジェクトでも脅威モデリングは必要ですか?
+### Q3: Is threat modeling necessary even for small projects?
 
-規模に応じて簡易化すればよい。最低限以下の30分ワークショップを実施するだけでも効果がある:
-1. ホワイトボードにDFDを描く（10分）
-2. 信頼境界を特定する（5分）
-3. STRIDEの各カテゴリについて1つずつ脅威を検討する（10分）
-4. 上位3つの脅威の対策を決める（5分）
+Just simplify it to match the scale. Even a minimum 30-minute workshop can be effective:
+1. Draw a DFD on a whiteboard (10 min)
+2. Identify trust boundaries (5 min)
+3. Consider at least one threat per STRIDE category (10 min)
+4. Decide on countermeasures for the top 3 threats (5 min)
 
-### Q4: 脅威モデリングの結果はどう管理すべきですか?
+### Q4: How should the results of threat modeling be managed?
 
-脅威モデルはバージョン管理し、以下のタイミングで更新すべきである:
-- 新機能の追加時（差分分析）
-- アーキテクチャの変更時（全体見直し）
-- 新しい攻撃手法の発見時（脅威ライブラリの更新）
-- インシデント発生後（教訓の反映）
-- 定期レビュー（最低年1回）
+The threat model should be version-controlled and updated at the following times:
+- When new features are added (incremental analysis)
+- When the architecture changes (full review)
+- When new attack methods are discovered (update threat library)
+- After an incident occurs (incorporate lessons learned)
+- Regular reviews (at minimum once a year)
 
-ツールとしては、Microsoft Threat Modeling Tool、OWASP Threat Dragon、またはGit管理されたMarkdown/JSONが一般的である。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| STRIDE | 6カテゴリで脅威を体系的に分類・特定。DFD要素ごとに適用可能 |
-| DREAD | 5軸のスコアリングで脅威のリスクを定量評価。優先順位の決定に使用 |
-| アタックツリー | 攻撃目標を木構造で分解し、最小コスト・最大確率の経路を特定する |
-| DFD | データの流れと信頼境界を可視化し、脅威の発生箇所を特定する |
-| PASTA | 7段階のリスク中心手法。ビジネス目標との整合を重視 |
-| キルチェーン | 攻撃の7段階を理解し、各段階での検知・防御ポイントを特定 |
-| 実践手順 | 分解→特定→評価→対策の4段階を反復的に実施する |
+Common tools include Microsoft Threat Modeling Tool, OWASP Threat Dragon, or Git-managed Markdown/JSON.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [00-security-overview.md](./00-security-overview.md) -- CIA三原則とリスク評価の基礎（復習）
-- [02-security-principles.md](./02-security-principles.md) -- 脅威への対策としての設計原則
-- [../01-web-security/00-owasp-top10.md](../01-web-security/00-owasp-top10.md) -- 具体的なWeb脆弱性のSTRIDE分類
-- [../01-web-security/03-injection.md](../01-web-security/03-injection.md) -- インジェクション攻撃の詳細（STRIDE-T）
-- ../../sql-and-query-mastery/docs/03-practical/ -- SQLインジェクション対策の実装
+| Item | Key Points |
+|------|-----------|
+| STRIDE | Systematically classify and identify threats across 6 categories. Applicable per DFD element |
+| DREAD | Quantitatively evaluate threat risk with 5 scoring axes. Used to determine prioritization |
+| Attack Trees | Decompose attack goals into a tree structure; identify the minimum-cost and maximum-probability paths |
+| DFD | Visualize data flows and trust boundaries to pinpoint where threats arise |
+| PASTA | A 7-stage risk-centric method. Emphasizes alignment with business objectives |
+| Kill Chain | Understand the 7 stages of an attack and identify detection/defense points at each stage |
+| Practical Procedure | Iteratively execute the 4 stages: decompose → identify → evaluate → respond |
 
 ---
 
-## 参考文献
+## Recommended Next Reading
+
+- [00-security-overview.md](./00-security-overview.md) -- CIA triad and risk assessment basics (review)
+- [02-security-principles.md](./02-security-principles.md) -- Design principles as countermeasures against threats
+- [../01-web-security/00-owasp-top10.md](../01-web-security/00-owasp-top10.md) -- STRIDE classification of specific web vulnerabilities
+- [../01-web-security/03-injection.md](../01-web-security/03-injection.md) -- Detailed coverage of injection attacks (STRIDE-T)
+- ../../sql-and-query-mastery/docs/03-practical/ -- Implementing SQL injection countermeasures
+
+---
+
+## References
 
 1. Adam Shostack, "Threat Modeling: Designing for Security" -- Wiley, 2014
 2. Microsoft SDL Threat Modeling Tool -- https://www.microsoft.com/en-us/securityengineering/sdl/threatmodeling
