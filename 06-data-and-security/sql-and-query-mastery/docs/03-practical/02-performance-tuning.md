@@ -1,139 +1,139 @@
-# パフォーマンスチューニング — 接続プール / キャッシュ / クエリ最適化
+# Performance Tuning — Connection Pools / Caching / Query Optimization
 
-> データベースのレスポンスタイムを劇的に改善する実践テクニック。接続プール、キャッシュ戦略、スロークエリ分析を体系的に学ぶ。
+> Practical techniques for dramatically improving database response times. Systematically learn connection pooling, caching strategies, and slow query analysis.
 
-## 前提知識
+## Prerequisites
 
-- SQL の基本（SELECT, JOIN, WHERE, GROUP BY）
-- インデックスの基本概念
-- ネットワーク通信の基礎（TCP, TLS）
-- [00-postgresql-features.md](./00-postgresql-features.md) — PostgreSQL 固有機能
-
----
-
-## この章で学ぶこと
-
-1. **接続プール** の設計と適切なサイズ計算
-2. **キャッシュ戦略** — アプリケーションキャッシュからクエリキャッシュまで
-3. **クエリ最適化** — EXPLAIN ANALYZE の読み方とインデックス設計
-4. **クエリオプティマイザ** の内部動作と統計情報
-5. **パーティショニング** によるスキャン最適化
-6. **バルク処理** の最適化パターン
+- SQL basics (SELECT, JOIN, WHERE, GROUP BY)
+- Basic concepts of indexes
+- Network communication fundamentals (TCP, TLS)
+- [00-postgresql-features.md](./00-postgresql-features.md) — PostgreSQL-specific features
 
 ---
 
-## 1. 接続プールの設計
+## What You Will Learn in This Chapter
 
-### 1.1 なぜ接続プールが必要か
+1. **Connection pool** design and proper size calculation
+2. **Caching strategies** — from application cache to query cache
+3. **Query optimization** — how to read EXPLAIN ANALYZE and design indexes
+4. **Query optimizer** internals and statistics
+5. **Partitioning** for scan optimization
+6. **Bulk processing** optimization patterns
+
+---
+
+## 1. Connection Pool Design
+
+### 1.1 Why Connection Pools Are Necessary
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  接続プールなし（NG）                                 │
+│  Without Connection Pool (Bad)                        │
 │                                                      │
-│  リクエスト1 ─┐                                      │
-│  リクエスト2 ─┼─→ 毎回 TCP + TLS + 認証 → DB        │
-│  リクエスト3 ─┘   (50-200ms のオーバーヘッド)        │
+│  Request 1 ─┐                                        │
+│  Request 2 ─┼─→ TCP + TLS + Auth on every call → DB │
+│  Request 3 ─┘   (50-200ms overhead)                  │
 │                                                      │
-│  問題:                                               │
-│  - 接続確立に 50-200ms                               │
-│  - DB の max_connections を超えると接続拒否           │
-│  - メモリ消費が接続数に比例して増大                   │
+│  Problems:                                           │
+│  - Connection setup takes 50-200ms                   │
+│  - Exceeding DB max_connections causes rejection      │
+│  - Memory usage grows proportionally with connections │
 └──────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────┐
-│  接続プールあり（OK）                                 │
+│  With Connection Pool (Good)                          │
 │                                                      │
-│  リクエスト1 ─┐     ┌──────────┐                     │
-│  リクエスト2 ─┼─→   │ Pool     │ ── conn1 ──→ DB    │
-│  リクエスト3 ─┘     │ (再利用) │ ── conn2 ──→ DB    │
-│                     └──────────┘ ── conn3 ──→ DB    │
+│  Request 1 ─┐     ┌──────────┐                       │
+│  Request 2 ─┼─→   │ Pool     │ ── conn1 ──→ DB      │
+│  Request 3 ─┘     │ (reuse)  │ ── conn2 ──→ DB      │
+│                   └──────────┘ ── conn3 ──→ DB      │
 │                                                      │
-│  利点:                                               │
-│  - 接続確立は初回のみ（0-1ms で再利用）              │
-│  - 接続数を制限してDB負荷をコントロール              │
-│  - アイドル接続の自動回収                             │
+│  Benefits:                                           │
+│  - Connection setup only on first use (reuse < 1ms)  │
+│  - Limits connection count to control DB load        │
+│  - Automatic reclamation of idle connections         │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.2 接続のライフサイクルとコスト
+### 1.2 Connection Lifecycle and Cost
 
-接続確立の内部プロセスを理解すると、プールの価値が明確になる。
-
-```
-┌─────────── DB接続確立の内部プロセス ───────────────┐
-│                                                     │
-│  Client                          Server             │
-│    │                               │                │
-│    │── TCP SYN ──────────────────→ │  (1) TCP       │
-│    │←──── SYN-ACK ────────────── │      ~1ms       │
-│    │── ACK ──────────────────────→ │                │
-│    │                               │                │
-│    │── ClientHello ──────────────→ │  (2) TLS       │
-│    │←── ServerHello + Cert ────── │      ~5-50ms   │
-│    │── Key Exchange ─────────────→ │  (1-2 RTT)    │
-│    │←── Finished ────────────── │                │
-│    │                               │                │
-│    │── StartupMessage ───────────→ │  (3) PG Auth   │
-│    │←── AuthenticationOk ──────── │      ~5-20ms   │
-│    │←── ParameterStatus × N ──── │                │
-│    │←── BackendKeyData ────────── │                │
-│    │←── ReadyForQuery ─────────── │                │
-│    │                               │                │
-│    │                  合計: 50-200ms (初回)         │
-│    │                  プール再利用: < 0.1ms        │
-└─────────────────────────────────────────────────────┘
-```
-
-### 1.3 接続プールサイズの計算
+Understanding the internal process of establishing a connection makes the value of pooling clear.
 
 ```
-最適プールサイズの目安:
+┌─────────── Internal Process of DB Connection Setup ────────────┐
+│                                                                 │
+│  Client                          Server                         │
+│    │                               │                            │
+│    │── TCP SYN ──────────────────→ │  (1) TCP                   │
+│    │←──── SYN-ACK ────────────── │      ~1ms                   │
+│    │── ACK ──────────────────────→ │                            │
+│    │                               │                            │
+│    │── ClientHello ──────────────→ │  (2) TLS                   │
+│    │←── ServerHello + Cert ────── │      ~5-50ms               │
+│    │── Key Exchange ─────────────→ │  (1-2 RTT)                │
+│    │←── Finished ────────────── │                            │
+│    │                               │                            │
+│    │── StartupMessage ───────────→ │  (3) PG Auth               │
+│    │←── AuthenticationOk ──────── │      ~5-20ms               │
+│    │←── ParameterStatus × N ──── │                            │
+│    │←── BackendKeyData ────────── │                            │
+│    │←── ReadyForQuery ─────────── │                            │
+│    │                               │                            │
+│    │                  Total: 50-200ms (first time)              │
+│    │                  Pool reuse: < 0.1ms                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 1.3 Connection Pool Size Calculation
+
+```
+Rule of thumb for optimal pool size:
 
   pool_size = (CPU cores * 2) + effective_spindle_count
 
-  例: 4コアCPU + SSD(1スピンドル相当)
+  Example: 4-core CPU + SSD (equivalent to 1 spindle)
       pool_size = (4 * 2) + 1 = 9
 
-  ただし、実測ベースで調整が必要:
+  However, adjustment based on actual measurements is required:
   ┌─────────────────────────────────────────────┐
-  │  接続数   │  レイテンシ  │  スループット     │
-  │     5     │    15ms     │    333 req/s      │
-  │    10     │    12ms     │    833 req/s  ← 最適│
-  │    20     │    14ms     │    714 req/s      │
-  │    50     │    25ms     │    400 req/s      │
+  │  Connections │  Latency   │  Throughput      │
+  │      5       │    15ms    │    333 req/s     │
+  │     10       │    12ms    │    833 req/s ← optimal│
+  │     20       │    14ms    │    714 req/s     │
+  │     50       │    25ms    │    400 req/s     │
   └─────────────────────────────────────────────┘
-  ※ 増やしすぎるとコンテキストスイッチで悪化
+  * Too many connections degrades performance due to context switching
 ```
 
-### 1.4 接続プールサイズ計算の詳細モデル
+### 1.4 Detailed Model for Connection Pool Size Calculation
 
 ```
-┌──────── 接続プールサイズの決定要因 ────────────┐
-│                                                │
-│  1. DBサーバーの処理能力                        │
-│     max_connections = (CPU * 2) + spindle       │
-│                                                │
-│  2. アプリケーション層の構成                    │
-│     合計接続数 = pool_size × アプリインスタンス数│
-│     → 合計接続数 < max_connections              │
-│                                                │
-│  3. クエリの特性                                │
-│     短いクエリ(< 10ms): 少ないプールで十分      │
-│     長いクエリ(> 100ms): より大きなプールが必要  │
-│                                                │
-│  4. リトルの法則                                │
-│     必要接続数 = 到着率 × 平均処理時間          │
-│     例: 1000 req/s × 10ms = 10 接続            │
-│                                                │
-│  計算例:                                        │
-│  - DB: 8コアCPU + SSD → max = 17              │
-│  - アプリ: 3インスタンス                        │
-│  - pool_size/instance = 17 / 3 ≈ 5            │
-│  - max_overflow = 2 (バースト対応)             │
-└────────────────────────────────────────────────┘
+┌──────── Factors Determining Connection Pool Size ──────────┐
+│                                                            │
+│  1. DB server processing capacity                          │
+│     max_connections = (CPU * 2) + spindle                  │
+│                                                            │
+│  2. Application layer configuration                        │
+│     Total connections = pool_size × number of app instances│
+│     → Total connections < max_connections                  │
+│                                                            │
+│  3. Query characteristics                                  │
+│     Short queries (< 10ms): a smaller pool is sufficient   │
+│     Long queries (> 100ms): a larger pool is needed        │
+│                                                            │
+│  4. Little's Law                                           │
+│     Required connections = arrival rate × avg processing time│
+│     Example: 1000 req/s × 10ms = 10 connections           │
+│                                                            │
+│  Calculation example:                                      │
+│  - DB: 8-core CPU + SSD → max = 17                        │
+│  - App: 3 instances                                        │
+│  - pool_size/instance = 17 / 3 ≈ 5                        │
+│  - max_overflow = 2 (for burst traffic)                    │
+└────────────────────────────────────────────────────────────┘
 ```
 
-### 1.5 各言語での接続プール設定
+### 1.5 Connection Pool Configuration in Each Language
 
 ```python
 # Python — SQLAlchemy
@@ -141,11 +141,11 @@ from sqlalchemy import create_engine
 
 engine = create_engine(
     "postgresql://user:pass@localhost:5432/mydb",
-    pool_size=10,           # 常時維持する接続数
-    max_overflow=5,         # pool_size 超過時の追加接続数
-    pool_timeout=30,        # 接続取得のタイムアウト(秒)
-    pool_recycle=1800,      # 接続の再作成間隔(秒) ← コネクションリーク対策
-    pool_pre_ping=True,     # 使用前に接続の生存確認
+    pool_size=10,           # Number of connections to maintain at all times
+    max_overflow=5,         # Additional connections beyond pool_size
+    pool_timeout=30,        # Timeout for acquiring a connection (seconds)
+    pool_recycle=1800,      # Interval for recreating connections (seconds) ← prevents connection leaks
+    pool_pre_ping=True,     # Check connection liveness before use
 )
 ```
 
@@ -159,12 +159,12 @@ const pool = new Pool({
   database: 'mydb',
   user: 'user',
   password: 'pass',
-  max: 10,                    // 最大接続数
-  idleTimeoutMillis: 30000,   // アイドル接続のタイムアウト
-  connectionTimeoutMillis: 5000, // 接続取得のタイムアウト
+  max: 10,                    // Maximum number of connections
+  idleTimeoutMillis: 30000,   // Timeout for idle connections
+  connectionTimeoutMillis: 5000, // Timeout for acquiring a connection
 });
 
-// 使用例
+// Usage example
 const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
 ```
 
@@ -181,14 +181,14 @@ if err != nil {
     log.Fatal(err)
 }
 
-db.SetMaxOpenConns(10)                  // 最大接続数
-db.SetMaxIdleConns(5)                   // 最大アイドル接続数
-db.SetConnMaxLifetime(30 * time.Minute) // 接続の最大生存時間
-db.SetConnMaxIdleTime(5 * time.Minute)  // アイドル接続の最大生存時間
+db.SetMaxOpenConns(10)                  // Maximum number of connections
+db.SetMaxIdleConns(5)                   // Maximum number of idle connections
+db.SetConnMaxLifetime(30 * time.Minute) // Maximum connection lifetime
+db.SetConnMaxIdleTime(5 * time.Minute)  // Maximum idle connection lifetime
 ```
 
 ```java
-// Java — HikariCP (Spring Boot デフォルト)
+// Java — HikariCP (Spring Boot default)
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
@@ -196,36 +196,36 @@ HikariConfig config = new HikariConfig();
 config.setJdbcUrl("jdbc:postgresql://localhost:5432/mydb");
 config.setUsername("user");
 config.setPassword("pass");
-config.setMaximumPoolSize(10);          // 最大プールサイズ
-config.setMinimumIdle(5);               // 最小アイドル接続数
-config.setIdleTimeout(300000);          // アイドルタイムアウト(ms)
-config.setConnectionTimeout(30000);     // 接続取得タイムアウト(ms)
-config.setMaxLifetime(1800000);         // 接続の最大生存時間(ms)
-config.setLeakDetectionThreshold(60000); // リーク検出閾値(ms)
+config.setMaximumPoolSize(10);          // Maximum pool size
+config.setMinimumIdle(5);               // Minimum idle connections
+config.setIdleTimeout(300000);          // Idle timeout (ms)
+config.setConnectionTimeout(30000);     // Connection acquisition timeout (ms)
+config.setMaxLifetime(1800000);         // Maximum connection lifetime (ms)
+config.setLeakDetectionThreshold(60000); // Leak detection threshold (ms)
 
 HikariDataSource ds = new HikariDataSource(config);
 ```
 
-### 1.6 外部接続プール — pgBouncer
+### 1.6 External Connection Pool — pgBouncer
 
-大規模環境では、アプリケーション側のプールに加えて DB 側にも pgBouncer を配置する。
+In large-scale environments, pgBouncer is placed on the DB side in addition to the application-side pool.
 
 ```
-┌──────── pgBouncer アーキテクチャ ─────────┐
+┌──────── pgBouncer Architecture ───────────┐
 │                                            │
 │  App1 (pool=5) ──┐                         │
 │  App2 (pool=5) ──┼─→ pgBouncer ──→ DB     │
-│  App3 (pool=5) ──┘   (100→20 に集約)      │
+│  App3 (pool=5) ──┘   (aggregates 100→20)  │
 │                                            │
-│  モード:                                   │
-│  - session:     セッション単位（最も安全）  │
-│  - transaction: トランザクション単位（推奨）│
-│  - statement:   ステートメント単位（制限多）│
+│  Modes:                                    │
+│  - session:     Per session (safest)       │
+│  - transaction: Per transaction (recommended)│
+│  - statement:   Per statement (many limits)│
 └────────────────────────────────────────────┘
 ```
 
 ```ini
-; pgbouncer.ini の設定例
+; pgbouncer.ini configuration example
 [databases]
 mydb = host=localhost port=5432 dbname=mydb
 
@@ -235,24 +235,24 @@ listen_port = 6432
 auth_type = md5
 auth_file = /etc/pgbouncer/userlist.txt
 
-; プールモード（transaction が一般的）
+; Pool mode (transaction is common)
 pool_mode = transaction
 
-; プールサイズ
+; Pool size
 default_pool_size = 20
 min_pool_size = 5
-max_client_conn = 200        ; クライアント最大接続数
-max_db_connections = 20      ; DB への最大接続数
+max_client_conn = 200        ; Maximum client connections
+max_db_connections = 20      ; Maximum connections to the DB
 
-; タイムアウト
+; Timeouts
 server_idle_timeout = 600
-client_idle_timeout = 0      ; 0 = 無制限
+client_idle_timeout = 0      ; 0 = unlimited
 query_timeout = 0
 ```
 
 ```sql
--- pgBouncer の統計確認
--- pgBouncer 管理コンソールに接続
+-- Check pgBouncer statistics
+-- Connect to the pgBouncer admin console
 -- psql -p 6432 -U admin pgbouncer
 
 SHOW POOLS;
@@ -265,10 +265,10 @@ SHOW CLIENTS;
 -- type | user | database | state | addr | port | ...
 ```
 
-### 1.7 接続プールの監視
+### 1.7 Connection Pool Monitoring
 
 ```sql
--- PostgreSQL: 現在の接続状態を確認
+-- PostgreSQL: Check current connection status
 SELECT
     state,
     COUNT(*) AS connections,
@@ -278,7 +278,7 @@ FROM pg_stat_activity
 GROUP BY state
 ORDER BY connections DESC;
 
--- アイドル接続の詳細（長時間アイドルは問題の兆候）
+-- Idle connection details (long idle is a sign of problems)
 SELECT
     pid,
     usename,
@@ -292,7 +292,7 @@ WHERE state = 'idle'
   AND NOW() - state_change > INTERVAL '5 minutes'
 ORDER BY idle_duration DESC;
 
--- 接続待ちの検出
+-- Detecting connection waits
 SELECT
     COUNT(*) FILTER (WHERE state = 'active') AS active,
     COUNT(*) FILTER (WHERE state = 'idle') AS idle,
@@ -305,49 +305,49 @@ WHERE backend_type = 'client backend';
 
 ---
 
-## 2. キャッシュ戦略
+## 2. Caching Strategies
 
-### 2.1 キャッシュレイヤーの全体像
+### 2.1 Overview of Cache Layers
 
 ```
 ┌───────────────────────────────────────────────────────┐
-│                キャッシュレイヤー                       │
+│                  Cache Layers                          │
 │                                                       │
-│  Layer 1: アプリケーション内キャッシュ (L1)            │
+│  Layer 1: In-Application Cache (L1)                   │
 │  ┌───────────────────────────────────────┐            │
-│  │ インメモリ (HashMap, LRU Cache)       │            │
-│  │ TTL: 数秒〜数分 | レイテンシ: < 1ms  │            │
-│  │ 容量: 小 (プロセスメモリに制限)       │            │
-│  │ 整合性: プロセス間で不整合の可能性    │            │
+│  │ In-memory (HashMap, LRU Cache)        │            │
+│  │ TTL: seconds to minutes | Latency: < 1ms│          │
+│  │ Capacity: small (limited by process memory)│       │
+│  │ Consistency: possible inconsistency between processes│
 │  └──────────────────┬────────────────────┘            │
 │                     │ Miss                            │
 │                     ▼                                 │
-│  Layer 2: 分散キャッシュ (L2)                          │
+│  Layer 2: Distributed Cache (L2)                      │
 │  ┌───────────────────────────────────────┐            │
 │  │ Redis / Memcached                     │            │
-│  │ TTL: 数分〜数時間 | レイテンシ: 1-5ms │            │
-│  │ 容量: 大 (専用サーバー)               │            │
-│  │ 整合性: 全プロセスで共有              │            │
+│  │ TTL: minutes to hours | Latency: 1-5ms│            │
+│  │ Capacity: large (dedicated server)    │            │
+│  │ Consistency: shared across all processes│          │
 │  └──────────────────┬────────────────────┘            │
 │                     │ Miss                            │
 │                     ▼                                 │
-│  Layer 3: データベースキャッシュ                       │
+│  Layer 3: Database Cache                              │
 │  ┌───────────────────────────────────────┐            │
 │  │ shared_buffers / Buffer Pool          │            │
-│  │ レイテンシ: < 1ms (メモリ内)          │            │
-│  │ 自動管理 (LRU/Clock Sweep)            │            │
+│  │ Latency: < 1ms (in-memory)            │            │
+│  │ Automatically managed (LRU/Clock Sweep)│           │
 │  └──────────────────┬────────────────────┘            │
 │                     │ Miss                            │
 │                     ▼                                 │
-│  Layer 4: ディスク                                    │
+│  Layer 4: Disk                                        │
 │  ┌───────────────────────────────────────┐            │
-│  │ OS Page Cache → SSD/HDD              │            │
-│  │ レイテンシ: 0.1-10ms                  │            │
+│  │ OS Page Cache → SSD/HDD               │            │
+│  │ Latency: 0.1-10ms                     │            │
 │  └───────────────────────────────────────┘            │
 └───────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Cache-Aside パターン（最も一般的）
+### 2.2 Cache-Aside Pattern (Most Common)
 
 ```python
 import redis
@@ -357,62 +357,62 @@ from sqlalchemy.orm import Session
 r = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
 def get_user(db: Session, user_id: str) -> dict:
-    """Cache-Aside パターンでユーザーを取得"""
+    """Retrieve user using Cache-Aside pattern"""
     cache_key = f"user:{user_id}"
 
-    # 1. キャッシュを確認
+    # 1. Check the cache
     cached = r.get(cache_key)
     if cached:
         return json.loads(cached)  # Cache Hit
 
-    # 2. キャッシュミス → DB から取得
+    # 2. Cache miss → retrieve from DB
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         return None
 
     user_dict = {"id": str(user.id), "name": user.name, "email": user.email}
 
-    # 3. キャッシュに保存 (TTL: 5分)
+    # 3. Save to cache (TTL: 5 minutes)
     r.setex(cache_key, 300, json.dumps(user_dict))
 
     return user_dict
 
 def update_user(db: Session, user_id: str, name: str) -> dict:
-    """更新時はキャッシュを削除（Write-Invalidate）"""
+    """On update, delete cache (Write-Invalidate)"""
     user = db.query(User).filter(User.id == user_id).first()
     user.name = name
     db.commit()
 
-    # キャッシュ削除（次回読み取り時に再キャッシュ）
+    # Delete cache (re-cached on next read)
     r.delete(f"user:{user_id}")
 
     return {"id": str(user.id), "name": user.name}
 ```
 
-### 2.3 Write-Through パターン
+### 2.3 Write-Through Pattern
 
 ```python
 def update_user_write_through(db: Session, user_id: str, name: str) -> dict:
-    """Write-Through: DB とキャッシュを同時更新"""
+    """Write-Through: update DB and cache simultaneously"""
     user = db.query(User).filter(User.id == user_id).first()
     user.name = name
     db.commit()
 
-    # キャッシュも同時に更新（削除ではなく上書き）
+    # Also update cache simultaneously (overwrite, not delete)
     user_dict = {"id": str(user.id), "name": user.name, "email": user.email}
     r.setex(f"user:{user_id}", 300, json.dumps(user_dict))
 
     return user_dict
 ```
 
-### 2.4 Write-Behind（Write-Back）パターン
+### 2.4 Write-Behind (Write-Back) Pattern
 
 ```python
 import asyncio
 from collections import defaultdict
 
 class WriteBehindCache:
-    """Write-Behind: キャッシュに書き込み、非同期でDBに反映"""
+    """Write-Behind: write to cache, asynchronously sync to DB"""
 
     def __init__(self, redis_client, db_session_factory, flush_interval=5):
         self.redis = redis_client
@@ -421,12 +421,12 @@ class WriteBehindCache:
         self.pending_writes = defaultdict(dict)
 
     async def set(self, key: str, value: dict):
-        """キャッシュに即座に書き込み"""
+        """Write to cache immediately"""
         self.redis.setex(key, 600, json.dumps(value))
         self.pending_writes[key] = value
 
     async def flush_to_db(self):
-        """定期的にDBに書き込み（バッチ処理）"""
+        """Periodically write to DB (batch processing)"""
         while True:
             await asyncio.sleep(self.flush_interval)
             if not self.pending_writes:
@@ -438,7 +438,7 @@ class WriteBehindCache:
             db = self.db_factory()
             try:
                 for key, value in writes.items():
-                    # バルクUPSERTでDB負荷を軽減
+                    # Bulk UPSERT to reduce DB load
                     db.execute(
                         """INSERT INTO users (id, name, email)
                            VALUES (:id, :name, :email)
@@ -449,46 +449,46 @@ class WriteBehindCache:
                 db.commit()
             except Exception as e:
                 db.rollback()
-                # 失敗した書き込みを戻す
+                # Restore failed writes
                 self.pending_writes.update(writes)
                 raise
             finally:
                 db.close()
 ```
 
-### 2.5 キャッシュ無効化パターン
+### 2.5 Cache Invalidation Patterns
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│          キャッシュ無効化 3 パターン                     │
+│          3 Cache Invalidation Patterns                   │
 │                                                        │
-│  1. TTL ベース (Time-To-Live)                          │
+│  1. TTL-based (Time-To-Live)                           │
 │     SET key value EX 300                               │
-│     → 5分後に自動削除                                  │
-│     → 最もシンプル、多少の古いデータを許容              │
+│     → Automatically deleted after 5 minutes            │
+│     → Simplest; tolerates slightly stale data          │
 │                                                        │
-│  2. Write-Invalidate (書き込み時削除)                   │
+│  2. Write-Invalidate (delete on write)                  │
 │     UPDATE → DEL cache_key                             │
-│     → 更新時にキャッシュ削除、次回読み取りで再構築     │
-│     → 整合性が高い                                     │
+│     → Delete cache on update, rebuild on next read     │
+│     → High consistency                                  │
 │                                                        │
-│  3. Write-Through (書き込み時更新)                      │
+│  3. Write-Through (update on write)                     │
 │     UPDATE → SET cache_key new_value                   │
-│     → 更新時にキャッシュも同時更新                     │
-│     → 読み取り頻度が高い場合に有効                     │
+│     → Update cache simultaneously on write             │
+│     → Effective when read frequency is high            │
 │                                                        │
-│  4. Event-Driven (イベント駆動)                        │
+│  4. Event-Driven                                        │
 │     UPDATE → publish event → subscriber DEL cache      │
-│     → DBのCDC(Change Data Capture)やPub/Subで通知     │
-│     → マイクロサービス環境に適合                       │
+│     → Notified via DB CDC (Change Data Capture)/Pub-Sub│
+│     → Suitable for microservices environments          │
 └────────────────────────────────────────────────────────┘
 ```
 
-### 2.6 Redis キャッシュの高度なパターン
+### 2.6 Advanced Redis Caching Patterns
 
 ```python
 # ===========================
-# Lua スクリプトによるアトミック操作
+# Atomic operations with Lua scripts
 # ===========================
 RATE_LIMIT_SCRIPT = """
 local key = KEYS[1]
@@ -501,27 +501,27 @@ if current == 1 then
 end
 
 if current > limit then
-    return 0  -- 拒否
+    return 0  -- Deny
 else
-    return 1  -- 許可
+    return 1  -- Allow
 end
 """
 
 def check_rate_limit(user_id: str, limit: int = 100, window: int = 60) -> bool:
-    """スライディングウィンドウによるレート制限"""
+    """Rate limiting with sliding window"""
     key = f"rate:{user_id}:{int(time.time()) // window}"
     result = r.eval(RATE_LIMIT_SCRIPT, 1, key, limit, window)
     return bool(result)
 
 
 # ===========================
-# Redis Pipeline でバッチ取得
+# Batch retrieval with Redis Pipeline
 # ===========================
 def get_users_batch(user_ids: list[str]) -> list[dict]:
-    """パイプラインで複数キーを一括取得（N+1問題の回避）"""
+    """Batch retrieval of multiple keys using pipeline (avoids N+1 problem)"""
     cache_keys = [f"user:{uid}" for uid in user_ids]
 
-    # 1. パイプラインで一括取得
+    # 1. Batch retrieval with pipeline
     pipe = r.pipeline(transaction=False)
     for key in cache_keys:
         pipe.get(key)
@@ -536,7 +536,7 @@ def get_users_batch(user_ids: list[str]) -> list[dict]:
         else:
             missing_ids.append(uid)
 
-    # 2. キャッシュミス分をDBから取得
+    # 2. Retrieve cache misses from DB
     if missing_ids:
         db_users = db.query(User).filter(User.id.in_(missing_ids)).all()
         pipe = r.pipeline(transaction=False)
@@ -550,11 +550,11 @@ def get_users_batch(user_ids: list[str]) -> list[dict]:
 
 
 # ===========================
-# キャッシュウォーミング
+# Cache warming
 # ===========================
 def warm_cache_on_deploy():
-    """デプロイ時にホットデータをプリロード"""
-    # アクセス頻度の高いデータをロード
+    """Preload hot data at deploy time"""
+    # Load frequently accessed data
     hot_users = db.query(User).order_by(User.last_login_at.desc()).limit(1000).all()
     pipe = r.pipeline(transaction=False)
     for user in hot_users:
@@ -566,12 +566,12 @@ def warm_cache_on_deploy():
 
 ---
 
-## 3. クエリ最適化
+## 3. Query Optimization
 
-### 3.1 EXPLAIN ANALYZE の読み方
+### 3.1 How to Read EXPLAIN ANALYZE
 
 ```sql
--- スロークエリの例
+-- Slow query example
 EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
 SELECT u.name, COUNT(o.id) as order_count
 FROM users u
@@ -581,7 +581,7 @@ GROUP BY u.name
 ORDER BY order_count DESC
 LIMIT 10;
 
--- 出力例:
+-- Sample output:
 -- Limit  (cost=1234.56..1234.58 rows=10 width=40)
 --        (actual time=45.123..45.130 rows=10 loops=1)
 --   -> Sort  (cost=1234.56..1237.89 rows=1000 width=40)
@@ -593,7 +593,7 @@ LIMIT 10;
 --           -> Hash Left Join  (cost=100.00..900.00 rows=50000 width=36)
 --                              (actual time=5.000..35.000 rows=50000 loops=1)
 --               Hash Cond: (o.user_id = u.id)
---               -> Seq Scan on orders o  ← 全件スキャン! 改善ポイント
+--               -> Seq Scan on orders o  ← Full table scan! Improvement point
 --                  (actual time=0.010..15.000 rows=100000 loops=1)
 --               -> Hash  (cost=80.00..80.00 rows=1000 width=20)
 --                  -> Index Scan using idx_users_created_at on users u
@@ -605,167 +605,167 @@ LIMIT 10;
 ```
 
 ```
-EXPLAIN ANALYZE の読み方:
+How to read EXPLAIN ANALYZE:
 
-  cost=開始コスト..合計コスト
-  actual time=開始時間..合計時間 (ms)
-  rows=推定行数 vs actual rows=実際の行数
+  cost=startup_cost..total_cost
+  actual time=startup_time..total_time (ms)
+  rows=estimated row count vs actual rows=actual row count
 
-  注目ポイント:
-  1. Seq Scan → Index Scan に変更できないか
-  2. 推定 rows と actual rows の乖離 → ANALYZE でテーブル統計を更新
-  3. Buffers: read が多い → インデックス不足
-  4. loops が多い → Nested Loop Join が非効率
+  Key points to focus on:
+  1. Can Seq Scan be changed to Index Scan?
+  2. Large deviation between estimated rows and actual rows → update table stats with ANALYZE
+  3. Many Buffers: read → insufficient indexes
+  4. Many loops → Nested Loop Join is inefficient
 ```
 
-### 3.2 実行計画ノードの詳解
+### 3.2 Detailed Explanation of Execution Plan Nodes
 
 ```
-┌───────── EXPLAIN ノード階層 ──────────────────────┐
-│                                                    │
-│  スキャンノード（葉ノード）:                       │
-│  ┌──────────────────────────────────────────┐     │
-│  │ Seq Scan        : 全行スキャン            │     │
-│  │ Index Scan      : インデックス→テーブル   │     │
-│  │ Index Only Scan : インデックスのみ（最速） │     │
-│  │ Bitmap Index Scan + Bitmap Heap Scan      │     │
-│  │                  : ビットマップ結合スキャン │     │
-│  │ TID Scan        : 行ID直接アクセス        │     │
-│  └──────────────────────────────────────────┘     │
-│                                                    │
-│  結合ノード:                                       │
-│  ┌──────────────────────────────────────────┐     │
-│  │ Nested Loop   : 外側×内側（小テーブル向け）│    │
-│  │ Hash Join     : ハッシュテーブル構築後結合 │     │
-│  │ Merge Join    : ソート済みデータの結合     │     │
-│  └──────────────────────────────────────────┘     │
-│                                                    │
-│  集約ノード:                                       │
-│  ┌──────────────────────────────────────────┐     │
-│  │ HashAggregate : ハッシュで GROUP BY       │     │
-│  │ GroupAggregate: ソート済みで GROUP BY      │     │
-│  │ Sort          : メモリ or ディスクソート   │     │
-│  │ Limit         : 行数制限                  │     │
-│  │ Materialize   : 結果のメモリ保持          │     │
-│  └──────────────────────────────────────────┘     │
-└────────────────────────────────────────────────────┘
+┌───────── EXPLAIN Node Hierarchy ──────────────────────┐
+│                                                        │
+│  Scan nodes (leaf nodes):                              │
+│  ┌──────────────────────────────────────────┐         │
+│  │ Seq Scan        : full row scan           │         │
+│  │ Index Scan      : index → table           │         │
+│  │ Index Only Scan : index only (fastest)    │         │
+│  │ Bitmap Index Scan + Bitmap Heap Scan      │         │
+│  │                  : bitmap combined scan   │         │
+│  │ TID Scan        : direct row ID access    │         │
+│  └──────────────────────────────────────────┘         │
+│                                                        │
+│  Join nodes:                                           │
+│  ┌──────────────────────────────────────────┐         │
+│  │ Nested Loop   : outer×inner (small tables)│        │
+│  │ Hash Join     : join after building hash table│     │
+│  │ Merge Join    : join sorted data          │         │
+│  └──────────────────────────────────────────┘         │
+│                                                        │
+│  Aggregate nodes:                                      │
+│  ┌──────────────────────────────────────────┐         │
+│  │ HashAggregate : GROUP BY with hash        │         │
+│  │ GroupAggregate: GROUP BY on sorted data   │         │
+│  │ Sort          : memory or disk sort       │         │
+│  │ Limit         : row count limit           │         │
+│  │ Materialize   : hold results in memory    │         │
+│  └──────────────────────────────────────────┘         │
+└────────────────────────────────────────────────────────┘
 ```
 
-### 3.3 JOIN アルゴリズムの選択基準
+### 3.3 Selection Criteria for JOIN Algorithms
 
 ```
-┌──────── JOIN アルゴリズム選択 ─────────────┐
-│                                            │
-│  Nested Loop Join                          │
-│  ┌────────────────────────────────────┐   │
-│  │ 外側: 小テーブル (数行〜数百行)    │   │
-│  │ 内側: インデックスあり             │   │
-│  │ コスト: O(N × M/index)            │   │
-│  │ 最適: 一方が小さい + インデックス  │   │
-│  └────────────────────────────────────┘   │
-│                                            │
-│  Hash Join                                 │
-│  ┌────────────────────────────────────┐   │
-│  │ ビルド: 小テーブルのハッシュを構築  │   │
-│  │ プローブ: 大テーブルをスキャン      │   │
-│  │ コスト: O(N + M)                   │   │
-│  │ メモリ: work_mem に依存            │   │
-│  │ 最適: 等価結合 + 十分なメモリ      │   │
-│  └────────────────────────────────────┘   │
-│                                            │
-│  Merge Join                                │
-│  ┌────────────────────────────────────┐   │
-│  │ 両テーブルをソート後にマージ        │   │
-│  │ コスト: O(N log N + M log M)       │   │
-│  │ 最適: 既にソート済み（インデックス） │   │
-│  │ 追加: 範囲結合にも使える           │   │
-│  └────────────────────────────────────┘   │
-│                                            │
-│  選択フロー:                               │
-│  Q: 等価結合？                             │
-│  ├─ No → Nested Loop or Merge Join        │
-│  └─ Yes                                   │
-│     Q: 一方が非常に小さい？               │
-│     ├─ Yes → Nested Loop                  │
-│     └─ No                                 │
-│        Q: 両方ソート済み？                 │
-│        ├─ Yes → Merge Join                │
-│        └─ No → Hash Join                  │
-└────────────────────────────────────────────┘
+┌──────── JOIN Algorithm Selection ─────────────┐
+│                                               │
+│  Nested Loop Join                             │
+│  ┌────────────────────────────────────┐      │
+│  │ Outer: small table (few to hundreds of rows)│
+│  │ Inner: has an index                 │      │
+│  │ Cost: O(N × M/index)               │      │
+│  │ Best for: one side small + index   │      │
+│  └────────────────────────────────────┘      │
+│                                               │
+│  Hash Join                                    │
+│  ┌────────────────────────────────────┐      │
+│  │ Build: build hash of small table   │      │
+│  │ Probe: scan large table            │      │
+│  │ Cost: O(N + M)                     │      │
+│  │ Memory: depends on work_mem        │      │
+│  │ Best for: equi-join + enough memory│      │
+│  └────────────────────────────────────┘      │
+│                                               │
+│  Merge Join                                   │
+│  ┌────────────────────────────────────┐      │
+│  │ Sort both tables then merge        │      │
+│  │ Cost: O(N log N + M log M)         │      │
+│  │ Best for: already sorted (index)   │      │
+│  │ Also: usable for range joins       │      │
+│  └────────────────────────────────────┘      │
+│                                               │
+│  Selection flow:                              │
+│  Q: Is it an equi-join?                       │
+│  ├─ No → Nested Loop or Merge Join            │
+│  └─ Yes                                       │
+│     Q: Is one side very small?                │
+│     ├─ Yes → Nested Loop                      │
+│     └─ No                                     │
+│        Q: Are both sides already sorted?      │
+│        ├─ Yes → Merge Join                    │
+│        └─ No → Hash Join                      │
+└───────────────────────────────────────────────┘
 ```
 
-### 3.4 インデックス設計
+### 3.4 Index Design
 
 ```sql
--- 1. 単一カラムインデックス
+-- 1. Single-column index
 CREATE INDEX idx_users_email ON users (email);
 
--- 2. 複合インデックス（カーディナリティの高いカラムを先に）
+-- 2. Composite index (put higher-cardinality columns first)
 CREATE INDEX idx_orders_user_status ON orders (user_id, status);
 
--- 3. 部分インデックス（条件を絞ってサイズ削減）
+-- 3. Partial index (narrow conditions to reduce size)
 CREATE INDEX idx_orders_active ON orders (user_id)
 WHERE status = 'active';
 
--- 4. カバリングインデックス（INCLUDE でインデックスオンリースキャン）
+-- 4. Covering index (Index Only Scan with INCLUDE)
 CREATE INDEX idx_users_email_covering ON users (email)
 INCLUDE (name, created_at);
 
--- 5. 式インデックス
+-- 5. Expression index
 CREATE INDEX idx_users_lower_email ON users (LOWER(email));
 
--- 6. GINインデックス（全文検索、JSONB、配列）
+-- 6. GIN index (full-text search, JSONB, arrays)
 CREATE INDEX idx_products_tags ON products USING GIN (tags);
 
--- 7. GiSTインデックス（地理空間、範囲型）
+-- 7. GiST index (geospatial, range types)
 CREATE INDEX idx_events_period ON events USING GIST (
     tstzrange(start_at, end_at)
 );
 
--- 8. BRINインデックス（大規模テーブルのタイムスタンプ）
+-- 8. BRIN index (timestamps on large tables)
 CREATE INDEX idx_logs_created ON logs USING BRIN (created_at)
 WITH (pages_per_range = 32);
--- → B-Tree の1/100以下のサイズで、時系列データに有効
+-- → Less than 1/100 the size of B-Tree; effective for time-series data
 ```
 
-### 3.5 インデックス選択のフロー
+### 3.5 Index Selection Flow
 
 ```
-┌──────── インデックス種類の選択フロー ─────────┐
+┌──────── Index Type Selection Flow ─────────────┐
 │                                                │
-│  Q: 検索パターンは？                           │
+│  Q: What is the search pattern?                │
 │  │                                             │
-│  ├─ 等価検索 (=) → B-Tree                     │
+│  ├─ Equality search (=) → B-Tree               │
 │  │                                             │
-│  ├─ 範囲検索 (<, >, BETWEEN)                   │
-│  │  Q: テーブルサイズは？                       │
-│  │  ├─ 小〜中 → B-Tree                        │
-│  │  └─ 大（数億行）+ 時系列 → BRIN            │
+│  ├─ Range search (<, >, BETWEEN)               │
+│  │  Q: What is the table size?                 │
+│  │  ├─ Small to medium → B-Tree                │
+│  │  └─ Large (hundreds of millions) + time-series → BRIN│
 │  │                                             │
-│  ├─ LIKE 'prefix%' → B-Tree (前方一致のみ)    │
+│  ├─ LIKE 'prefix%' → B-Tree (prefix match only)│
 │  │                                             │
-│  ├─ 全文検索 / 配列 / JSONB → GIN            │
+│  ├─ Full-text search / array / JSONB → GIN     │
 │  │                                             │
-│  ├─ 地理空間 / 範囲型 → GiST                  │
+│  ├─ Geospatial / range type → GiST             │
 │  │                                             │
-│  └─ 最近傍検索 → SP-GiST or pgvector         │
+│  └─ Nearest neighbor search → SP-GiST or pgvector│
 │                                                │
-│  追加の最適化:                                  │
-│  - 特定条件のみ → 部分インデックス (WHERE)     │
-│  - SELECT に含むカラムも → INCLUDE (カバリング)│
-│  - 関数適用 → 式インデックス                   │
+│  Additional optimizations:                     │
+│  - Specific conditions only → Partial index (WHERE)│
+│  - Include columns in SELECT → INCLUDE (covering)│
+│  - Function applied → Expression index         │
 └────────────────────────────────────────────────┘
 ```
 
-### 3.6 スロークエリの検出と対策
+### 3.6 Detecting and Addressing Slow Queries
 
 ```sql
--- PostgreSQL: スロークエリログの有効化
-ALTER SYSTEM SET log_min_duration_statement = 100;  -- 100ms以上をログ
-ALTER SYSTEM SET log_statement = 'none';             -- 通常クエリはログしない
+-- PostgreSQL: Enable slow query logging
+ALTER SYSTEM SET log_min_duration_statement = 100;  -- Log queries over 100ms
+ALTER SYSTEM SET log_statement = 'none';             -- Don't log normal queries
 SELECT pg_reload_conf();
 
--- 実行中の遅いクエリを確認
+-- Check currently running slow queries
 SELECT pid, now() - pg_stat_activity.query_start AS duration,
        query, state
 FROM pg_stat_activity
@@ -773,7 +773,7 @@ WHERE (now() - pg_stat_activity.query_start) > interval '5 seconds'
   AND state != 'idle'
 ORDER BY duration DESC;
 
--- pg_stat_statements による統計分析（要拡張インストール）
+-- Statistical analysis with pg_stat_statements (requires extension installation)
 -- CREATE EXTENSION pg_stat_statements;
 SELECT
     queryid,
@@ -793,60 +793,60 @@ FROM pg_stat_statements
 ORDER BY total_exec_time DESC
 LIMIT 20;
 
--- インデックス使用率の確認
+-- Check index usage rate
 SELECT schemaname, tablename, indexname,
        idx_scan as times_used,
        pg_size_pretty(pg_relation_size(indexrelid)) as index_size
 FROM pg_stat_user_indexes
 ORDER BY idx_scan ASC;
--- idx_scan = 0 のインデックスは不要な可能性
+-- Indexes with idx_scan = 0 may be unnecessary
 
--- テーブル統計の更新
+-- Update table statistics
 ANALYZE users;
 ANALYZE orders;
 ```
 
-### 3.7 統計情報とクエリプランナー
+### 3.7 Statistics and the Query Planner
 
 ```sql
--- テーブルの統計情報を確認
+-- Check table statistics
 SELECT
     attname,
-    n_distinct,          -- ユニーク値の推定数（負値 = 行数に対する割合）
-    most_common_vals,    -- 最頻値
-    most_common_freqs,   -- 最頻値の出現頻度
-    histogram_bounds     -- ヒストグラムの区切り値
+    n_distinct,          -- Estimated number of unique values (negative = fraction of row count)
+    most_common_vals,    -- Most common values
+    most_common_freqs,   -- Frequency of most common values
+    histogram_bounds     -- Histogram boundary values
 FROM pg_stats
 WHERE tablename = 'orders' AND attname = 'status';
 
--- 拡張統計（相関のあるカラム群）
+-- Extended statistics (for correlated column groups)
 -- PostgreSQL 10+
 CREATE STATISTICS stat_orders_user_status (dependencies, ndistinct, mcv)
 ON user_id, status FROM orders;
 ANALYZE orders;
 
--- 統計情報の精度を上げる（デフォルト=100、最大=10000）
+-- Increase statistics precision (default=100, max=10000)
 ALTER TABLE orders ALTER COLUMN status SET STATISTICS 500;
 ANALYZE orders;
 ```
 
-### 3.8 クエリ書き換えの実践パターン
+### 3.8 Practical Query Rewrite Patterns
 
 ```sql
 -- =============================================
--- パターン1: N+1 問題の解決
+-- Pattern 1: Solving the N+1 Problem
 -- =============================================
--- NG: アプリケーション側のループ（N+1クエリ）
+-- Bad: Loop on the application side (N+1 queries)
 -- for user in users:
 --     orders = SELECT * FROM orders WHERE user_id = user.id
 
--- OK: JOINで一括取得
+-- Good: Batch retrieval with JOIN
 SELECT u.*, o.id AS order_id, o.total_amount
 FROM users u
 LEFT JOIN orders o ON o.user_id = u.id
 WHERE u.created_at > '2025-01-01';
 
--- OK: LATERAL JOIN で「各ユーザーの最新3件」
+-- Good: LATERAL JOIN for "latest 3 orders per user"
 SELECT u.name, recent_orders.*
 FROM users u
 CROSS JOIN LATERAL (
@@ -859,46 +859,46 @@ CROSS JOIN LATERAL (
 WHERE u.created_at > '2025-01-01';
 
 -- =============================================
--- パターン2: カーソルベースページネーション
+-- Pattern 2: Cursor-Based Pagination
 -- =============================================
--- NG: OFFSET が大きくなるほど遅くなる
+-- Bad: Gets slower as OFFSET grows larger
 SELECT * FROM orders ORDER BY created_at DESC LIMIT 20 OFFSET 100000;
--- → 100,020行を読んで100,000行を捨てる
+-- → Reads 100,020 rows and discards 100,000
 
--- OK: カーソルベースページネーション
+-- Good: Cursor-based pagination
 SELECT * FROM orders
-WHERE created_at < '2026-01-15T10:30:00Z'  -- 前ページ最後のタイムスタンプ
+WHERE created_at < '2026-01-15T10:30:00Z'  -- Timestamp of the last item on the previous page
 ORDER BY created_at DESC
 LIMIT 20;
--- → インデックスを使って20行だけ読む
+-- → Reads only 20 rows using the index
 
--- OK: カーソル + ID（同一タイムスタンプ対応）
+-- Good: Cursor + ID (handles identical timestamps)
 SELECT * FROM orders
 WHERE (created_at, id) < ('2026-01-15T10:30:00Z', 12345)
 ORDER BY created_at DESC, id DESC
 LIMIT 20;
 
 -- =============================================
--- パターン3: EXISTS vs IN vs JOIN
+-- Pattern 3: EXISTS vs IN vs JOIN
 -- =============================================
--- 外側が小さく内側が大きい場合: EXISTS が有利
+-- When outer is small and inner is large: EXISTS is advantageous
 SELECT * FROM users u
 WHERE EXISTS (
     SELECT 1 FROM orders o WHERE o.user_id = u.id AND o.status = 'active'
 );
 
--- 内側が小さい場合: IN が有利
+-- When inner is small: IN is advantageous
 SELECT * FROM orders
 WHERE user_id IN (SELECT id FROM users WHERE role = 'admin');
 
 -- =============================================
--- パターン4: DISTINCT を最適化
+-- Pattern 4: Optimizing DISTINCT
 -- =============================================
--- NG: 全行ソート後に重複排除
+-- Bad: Sort all rows then remove duplicates
 SELECT DISTINCT category FROM products;
 
--- OK: Loose Index Scan（PostgreSQL 14+ で自動適用される場合あり）
--- 手動で再現する場合:
+-- Good: Loose Index Scan (automatically applied in PostgreSQL 14+ in some cases)
+-- To reproduce manually:
 WITH RECURSIVE categories AS (
     (SELECT category FROM products ORDER BY category LIMIT 1)
     UNION ALL
@@ -911,14 +911,14 @@ WITH RECURSIVE categories AS (
 SELECT category FROM categories WHERE category IS NOT NULL;
 
 -- =============================================
--- パターン5: バッチ UPDATE
+-- Pattern 5: Batch UPDATE
 -- =============================================
--- NG: 一括で大量更新（ロック時間が長い）
+-- Bad: Large bulk update (long lock time)
 UPDATE orders SET status = 'archived'
 WHERE created_at < '2024-01-01';
--- → 100万行ロック、他のトランザクションがブロックされる
+-- → Locks 1 million rows, blocking other transactions
 
--- OK: バッチに分割
+-- Good: Split into batches
 DO $$
 DECLARE
     batch_size INT := 10000;
@@ -931,63 +931,63 @@ BEGIN
             WHERE created_at < '2024-01-01'
               AND status != 'archived'
             LIMIT batch_size
-            FOR UPDATE SKIP LOCKED  -- ロック競合を回避
+            FOR UPDATE SKIP LOCKED  -- Avoid lock contention
         );
         GET DIAGNOSTICS updated = ROW_COUNT;
         EXIT WHEN updated = 0;
         COMMIT;
-        PERFORM pg_sleep(0.1);  -- 他のトランザクションに実行機会を与える
+        PERFORM pg_sleep(0.1);  -- Give other transactions a chance to run
     END LOOP;
 END $$;
 ```
 
 ---
 
-## 4. データベースキャッシュの内部動作
+## 4. Internal Workings of Database Caching
 
-### 4.1 PostgreSQL の shared_buffers
+### 4.1 PostgreSQL shared_buffers
 
 ```
-┌──────── PostgreSQL メモリアーキテクチャ ────────┐
+┌──────── PostgreSQL Memory Architecture ────────┐
 │                                                  │
-│  shared_buffers (共有バッファ)                    │
+│  shared_buffers                                   │
 │  ┌────────────────────────────────────────┐     │
-│  │ デフォルト: 128MB                       │     │
-│  │ 推奨: 物理メモリの 25%                  │     │
-│  │ 最大効果: 8-16GB 程度で頭打ち           │     │
+│  │ Default: 128MB                          │     │
+│  │ Recommended: 25% of physical memory    │     │
+│  │ Diminishing returns beyond 8-16GB      │     │
 │  │                                        │     │
-│  │ Clock Sweep アルゴリズムで管理          │     │
-│  │ → LRU に似ているが、使用カウンタで判定 │     │
+│  │ Managed by Clock Sweep algorithm       │     │
+│  │ → Similar to LRU, but decided by usage counter│
 │  └────────────────────────────────────────┘     │
 │                                                  │
-│  work_mem (ワーカーメモリ)                        │
+│  work_mem (worker memory)                         │
 │  ┌────────────────────────────────────────┐     │
-│  │ デフォルト: 4MB                         │     │
-│  │ 用途: ソート、ハッシュ結合、集約        │     │
-│  │ 注意: 接続数 × クエリ数分確保される     │     │
-│  │       work_mem=64MB × 100接続 = 6.4GB  │     │
+│  │ Default: 4MB                            │     │
+│  │ Used for: sorting, hash joins, aggregates│    │
+│  │ Note: allocated per connection × query  │     │
+│  │       work_mem=64MB × 100 connections = 6.4GB│
 │  └────────────────────────────────────────┘     │
 │                                                  │
 │  maintenance_work_mem                             │
 │  ┌────────────────────────────────────────┐     │
-│  │ デフォルト: 64MB                        │     │
-│  │ 用途: VACUUM, CREATE INDEX, ALTER TABLE │     │
-│  │ 推奨: 512MB - 1GB                      │     │
+│  │ Default: 64MB                           │     │
+│  │ Used for: VACUUM, CREATE INDEX, ALTER TABLE│  │
+│  │ Recommended: 512MB - 1GB               │     │
 │  └────────────────────────────────────────┘     │
 │                                                  │
 │  effective_cache_size                             │
 │  ┌────────────────────────────────────────┐     │
-│  │ プランナーへのヒント（実際のメモリ割当なし）│  │
-│  │ 推奨: 物理メモリの 50-75%               │     │
-│  │ → Index Scan の選択に影響する           │     │
+│  │ Hint to planner (no actual memory allocation)│ │
+│  │ Recommended: 50-75% of physical memory │     │
+│  │ → Affects Index Scan selection         │     │
 │  └────────────────────────────────────────┘     │
 └──────────────────────────────────────────────────┘
 ```
 
-### 4.2 バッファキャッシュの監視
+### 4.2 Monitoring Buffer Cache
 
 ```sql
--- バッファキャッシュのヒット率
+-- Buffer cache hit ratio
 SELECT
     datname,
     blks_hit,
@@ -998,9 +998,9 @@ SELECT
     END AS cache_hit_ratio
 FROM pg_stat_database
 WHERE datname = current_database();
--- 目標: 99% 以上
+-- Target: 99% or higher
 
--- テーブル別のキャッシュヒット率
+-- Cache hit ratio per table
 SELECT
     schemaname, relname,
     heap_blks_hit,
@@ -1013,7 +1013,7 @@ FROM pg_statio_user_tables
 ORDER BY heap_blks_read DESC
 LIMIT 20;
 
--- pg_buffercache 拡張で詳細確認
+-- Detailed inspection with pg_buffercache extension
 -- CREATE EXTENSION pg_buffercache;
 SELECT
     c.relname,
@@ -1032,13 +1032,13 @@ LIMIT 20;
 
 ---
 
-## 5. パーティショニングによる最適化
+## 5. Optimization with Partitioning
 
-### 5.1 パーティション戦略
+### 5.1 Partition Strategies
 
 ```sql
 -- =============================================
--- RANGE パーティション（最も一般的: 日付ベース）
+-- RANGE Partition (most common: date-based)
 -- =============================================
 CREATE TABLE events (
     id          BIGSERIAL,
@@ -1048,24 +1048,24 @@ CREATE TABLE events (
     PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at);
 
--- 月別パーティション作成
+-- Create monthly partitions
 CREATE TABLE events_2024_01 PARTITION OF events
     FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
 CREATE TABLE events_2024_02 PARTITION OF events
     FOR VALUES FROM ('2024-02-01') TO ('2024-03-01');
 
--- パーティションの自動作成（pg_partman 拡張）
+-- Automatic partition creation (pg_partman extension)
 -- CREATE EXTENSION pg_partman;
 -- SELECT partman.create_parent(
 --     p_parent_table := 'public.events',
 --     p_control := 'created_at',
 --     p_type := 'range',
 --     p_interval := '1 month',
---     p_premake := 3  -- 3ヶ月先まで事前作成
+--     p_premake := 3  -- Pre-create 3 months ahead
 -- );
 
 -- =============================================
--- LIST パーティション（カテゴリベース）
+-- LIST Partition (category-based)
 -- =============================================
 CREATE TABLE orders (
     id          BIGSERIAL,
@@ -1083,7 +1083,7 @@ CREATE TABLE orders_eu PARTITION OF orders
     FOR VALUES IN ('london', 'paris', 'berlin');
 
 -- =============================================
--- HASH パーティション（均等分散）
+-- HASH Partition (uniform distribution)
 -- =============================================
 CREATE TABLE sessions (
     id          UUID NOT NULL,
@@ -1103,77 +1103,77 @@ CREATE TABLE sessions_3 PARTITION OF sessions
     FOR VALUES WITH (MODULUS 4, REMAINDER 3);
 ```
 
-### 5.2 Partition Pruning の確認
+### 5.2 Verifying Partition Pruning
 
 ```sql
--- Partition Pruning の動作確認
+-- Verify Partition Pruning behavior
 EXPLAIN (ANALYZE)
 SELECT * FROM events
 WHERE created_at BETWEEN '2024-03-01' AND '2024-03-31';
 
--- 出力例:
+-- Sample output:
 -- Append (actual rows=50000)
---   Subplans Removed: 11        ← 12パーティション中11個が除外された
+--   Subplans Removed: 11        ← 11 of 12 partitions excluded
 --   -> Seq Scan on events_2024_03 (actual rows=50000)
 --        Filter: (created_at >= '2024-03-01' AND created_at <= '2024-03-31')
 ```
 
 ---
 
-## 6. バルク処理の最適化
+## 6. Bulk Processing Optimization
 
 ```sql
 -- =============================================
--- COPY による高速バルクロード（INSERT より 10-100倍高速）
+-- Fast bulk load with COPY (10-100x faster than INSERT)
 -- =============================================
 COPY users (name, email, created_at)
 FROM '/tmp/users.csv'
 WITH (FORMAT csv, HEADER true, DELIMITER ',');
 
--- プログラムからの COPY
+-- COPY from a program
 -- Python (psycopg2)
 -- with cursor.copy("COPY users (name, email) FROM STDIN") as copy:
 --     for row in data:
 --         copy.write_row(row)
 
 -- =============================================
--- バルクINSERT の最適化
+-- Optimizing Bulk INSERT
 -- =============================================
--- NG: 1行ずつ INSERT
+-- Bad: INSERT one row at a time
 INSERT INTO users (name, email) VALUES ('A', 'a@x.com');
 INSERT INTO users (name, email) VALUES ('B', 'b@x.com');
--- ...10000回
+-- ...10000 times
 
--- OK: バルク INSERT (1文で複数行)
+-- Good: Bulk INSERT (multiple rows in one statement)
 INSERT INTO users (name, email) VALUES
     ('A', 'a@x.com'),
     ('B', 'b@x.com'),
     ('C', 'c@x.com');
--- → ネットワークラウンドトリップを削減
+-- → Reduces network round trips
 
 -- =============================================
--- 大量ロード時の最適化テクニック
+-- Optimization techniques for large-scale loads
 -- =============================================
--- 1. インデックスを一時的に削除
+-- 1. Temporarily drop indexes
 DROP INDEX idx_users_email;
 
--- 2. 制約チェックを遅延
-SET session_replication_role = replica;  -- トリガー無効化
+-- 2. Delay constraint checks
+SET session_replication_role = replica;  -- Disable triggers
 
--- 3. バルクロード実行
+-- 3. Execute bulk load
 COPY users FROM '/tmp/bulk_users.csv' WITH (FORMAT csv);
 
--- 4. インデックスを再作成（CONCURRENTLY で無停止）
+-- 4. Recreate indexes (CONCURRENTLY for zero downtime)
 CREATE INDEX CONCURRENTLY idx_users_email ON users (email);
 
--- 5. 制約チェックを復元
+-- 5. Restore constraint checks
 SET session_replication_role = DEFAULT;
 
--- 6. 統計情報を更新
+-- 6. Update statistics
 ANALYZE users;
 
 -- =============================================
--- UPSERT（INSERT ON CONFLICT）
+-- UPSERT (INSERT ON CONFLICT)
 -- =============================================
 INSERT INTO products (sku, name, price, updated_at)
 VALUES ('SKU001', 'Widget', 19.99, NOW()),
@@ -1184,94 +1184,94 @@ DO UPDATE SET
     name = EXCLUDED.name,
     price = EXCLUDED.price,
     updated_at = EXCLUDED.updated_at
-WHERE products.price != EXCLUDED.price;  -- 実際に変更がある場合のみ更新
+WHERE products.price != EXCLUDED.price;  -- Update only when there is an actual change
 ```
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 7.1 キャッシュ戦略比較
+### 7.1 Caching Strategy Comparison
 
-| 戦略 | 整合性 | 書き込み負荷 | 読み取り性能 | 実装複雑度 | ユースケース |
-|------|--------|------------|------------|-----------|------------|
-| **Cache-Aside** | 中（TTL依存） | 低 | 高（Hit時） | 低 | 一般的な読み取りキャッシュ |
-| **Write-Through** | 高 | 高（二重書き込み） | 高 | 中 | 読み取り頻度 >> 書き込み頻度 |
-| **Write-Behind** | 中（非同期） | 低（バッチ化） | 高 | 高 | 書き込み頻度が高い |
-| **Read-Through** | 中 | 低 | 高 | 中 | ORM 統合キャッシュ |
+| Strategy | Consistency | Write Load | Read Performance | Implementation Complexity | Use Case |
+|----------|-------------|------------|-----------------|--------------------------|----------|
+| **Cache-Aside** | Medium (TTL-dependent) | Low | High (on Hit) | Low | General read caching |
+| **Write-Through** | High | High (double write) | High | Medium | Read frequency >> write frequency |
+| **Write-Behind** | Medium (async) | Low (batched) | High | High | High write frequency |
+| **Read-Through** | Medium | Low | High | Medium | ORM integrated caching |
 
-### 7.2 接続プールライブラリ比較
+### 7.2 Connection Pool Library Comparison
 
-| ライブラリ | 言語 | プーリング | 接続集約 | 推奨設定 |
-|-----------|------|---------|---------|---------|
-| **HikariCP** | Java | アプリ側 | なし | max=10, min=5 |
-| **pgBouncer** | 外部 | DB側 | あり | transaction mode |
-| **PgCat** | 外部 | DB側 | あり | Rust製、シャーディング対応 |
-| **SQLAlchemy Pool** | Python | アプリ側 | なし | pool_size=10, max_overflow=5 |
-| **node-pg Pool** | Node.js | アプリ側 | なし | max=10 |
-| **sqlx::Pool** | Rust | アプリ側 | なし | max_connections=10 |
-| **database/sql** | Go | アプリ側 | なし | MaxOpenConns=10 |
+| Library | Language | Pooling | Connection Aggregation | Recommended Setting |
+|---------|----------|---------|----------------------|---------------------|
+| **HikariCP** | Java | App side | None | max=10, min=5 |
+| **pgBouncer** | External | DB side | Yes | transaction mode |
+| **PgCat** | External | DB side | Yes | Written in Rust, supports sharding |
+| **SQLAlchemy Pool** | Python | App side | None | pool_size=10, max_overflow=5 |
+| **node-pg Pool** | Node.js | App side | None | max=10 |
+| **sqlx::Pool** | Rust | App side | None | max_connections=10 |
+| **database/sql** | Go | App side | None | MaxOpenConns=10 |
 
-### 7.3 インデックス種類比較
+### 7.3 Index Type Comparison
 
-| インデックス | 用途 | サイズ | 検索速度 | 更新コスト |
-|------------|------|--------|---------|-----------|
-| **B-Tree** | 等価・範囲 | 中 | O(log n) | O(log n) |
-| **Hash** | 等価のみ | 小 | O(1) | O(1) |
-| **GIN** | 全文検索・JSONB・配列 | 大 | O(1)〜 | 高（遅延更新） |
-| **GiST** | 地理空間・範囲型 | 中 | O(log n) | O(log n) |
-| **SP-GiST** | 階層的データ | 小〜中 | O(log n) | O(log n) |
-| **BRIN** | 物理ソート済み大テーブル | 極小 | O(1) | O(1) |
+| Index | Use Case | Size | Search Speed | Update Cost |
+|-------|----------|------|-------------|-------------|
+| **B-Tree** | Equality / range | Medium | O(log n) | O(log n) |
+| **Hash** | Equality only | Small | O(1) | O(1) |
+| **GIN** | Full-text / JSONB / arrays | Large | O(1)~ | High (deferred updates) |
+| **GiST** | Geospatial / range types | Medium | O(log n) | O(log n) |
+| **SP-GiST** | Hierarchical data | Small to medium | O(log n) | O(log n) |
+| **BRIN** | Physically sorted large tables | Very small | O(1) | O(1) |
 
-### 7.4 パーティション戦略比較
+### 7.4 Partition Strategy Comparison
 
-| 方式 | 用途 | Pruning | メンテナンス | 注意点 |
-|------|------|---------|-----------|--------|
-| **RANGE** | 時系列データ | WHERE句で期間指定 | 古いパーティションの DROP | 最も一般的 |
-| **LIST** | カテゴリ分類 | WHERE句で値指定 | 新カテゴリ追加時にパーティション作成 | 値の網羅が必要 |
-| **HASH** | 均等分散 | WHERE句で等価条件 | パーティション数の変更が困難 | 範囲検索は全パーティション走査 |
+| Method | Use Case | Pruning | Maintenance | Notes |
+|--------|----------|---------|-------------|-------|
+| **RANGE** | Time-series data | WHERE clause with period | DROP old partitions | Most common |
+| **LIST** | Category classification | WHERE clause with value | Create partition when adding new category | All values must be covered |
+| **HASH** | Uniform distribution | WHERE clause with equality | Changing partition count is difficult | Range queries scan all partitions |
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### 8.1 OFFSET ベースのページネーション
+### 8.1 OFFSET-Based Pagination
 
 ```sql
--- NG: OFFSET が大きくなるほど遅くなる
+-- Bad: Gets slower as OFFSET grows larger
 SELECT * FROM orders ORDER BY created_at DESC LIMIT 20 OFFSET 100000;
--- → 100,020行を読んで100,000行を捨てる
+-- → Reads 100,020 rows and discards 100,000
 
--- OK: カーソルベースページネーション
+-- Good: Cursor-based pagination
 SELECT * FROM orders
-WHERE created_at < '2026-01-15T10:30:00Z'  -- 前ページ最後のタイムスタンプ
+WHERE created_at < '2026-01-15T10:30:00Z'  -- Timestamp of the last item on the previous page
 ORDER BY created_at DESC
 LIMIT 20;
--- → インデックスを使って20行だけ読む
+-- → Reads only 20 rows using the index
 ```
 
-### 8.2 キャッシュの雪崩（Cache Stampede）
+### 8.2 Cache Stampede
 
 ```python
-# NG: 全てのキャッシュが同時に期限切れ → DB に大量リクエスト
+# Bad: All caches expire simultaneously → mass requests to DB
 def bad_cache_set(key, value):
-    r.setex(key, 3600, value)  # 全て TTL=1時間
+    r.setex(key, 3600, value)  # All with TTL=1 hour
 
-# OK: TTL にジッター（ランダム変動）を追加
+# Good: Add jitter (random variation) to TTL
 import random
 
 def good_cache_set(key, value, base_ttl=3600):
-    jitter = random.randint(0, 600)  # 0-10分のランダム
+    jitter = random.randint(0, 600)  # Random 0-10 minutes
     r.setex(key, base_ttl + jitter, value)
 
-# OK: ロックで同時再構築を防止（Mutex パターン）
+# Good: Prevent simultaneous rebuilds with a lock (Mutex pattern)
 def get_with_lock(key, rebuild_fn, ttl=3600):
     value = r.get(key)
     if value:
         return json.loads(value)
 
     lock_key = f"lock:{key}"
-    if r.set(lock_key, "1", nx=True, ex=10):  # 10秒ロック
+    if r.set(lock_key, "1", nx=True, ex=10):  # 10-second lock
         try:
             value = rebuild_fn()
             r.setex(key, ttl + random.randint(0, 600), json.dumps(value))
@@ -1279,124 +1279,124 @@ def get_with_lock(key, rebuild_fn, ttl=3600):
         finally:
             r.delete(lock_key)
     else:
-        # 他のプロセスが構築中 → 短時間待って再試行
+        # Another process is rebuilding → wait briefly and retry
         import time
         time.sleep(0.1)
         return get_with_lock(key, rebuild_fn, ttl)
 
-# OK: 論理的期限切れ（Probabilistic Early Expiration）
+# Good: Logical expiry (Probabilistic Early Expiration)
 import math
 
 def get_with_early_expiry(key, rebuild_fn, ttl=3600, beta=1.0):
-    """値がまだ有効でも、期限切れが近づくと確率的に再構築"""
+    """Probabilistically rebuild even when value is still valid as expiry approaches"""
     data = r.get(key)
     if data:
         cached = json.loads(data)
         remaining_ttl = r.ttl(key)
-        # 残りTTLが短いほど再構築の確率が高くなる
+        # The shorter the remaining TTL, the higher the probability of rebuilding
         if remaining_ttl > 0:
             delta = ttl - remaining_ttl
             threshold = delta * beta * math.log(random.random())
             if threshold < remaining_ttl:
                 return cached["value"]
 
-    # 再構築
+    # Rebuild
     value = rebuild_fn()
     r.setex(key, ttl, json.dumps({"value": value}))
     return value
 ```
 
-### 8.3 SELECT * の乱用
+### 8.3 Overuse of SELECT *
 
 ```sql
--- NG: 不要なカラムも全て取得
+-- Bad: Fetch all columns including unnecessary ones
 SELECT * FROM users WHERE id = 1;
--- → LOBカラムや大きなJSONBも読み込む
--- → Index Only Scan が使えない
+-- → Also reads LOB columns and large JSONB
+-- → Cannot use Index Only Scan
 
--- OK: 必要なカラムのみ
+-- Good: Only the columns needed
 SELECT id, name, email FROM users WHERE id = 1;
--- → カバリングインデックスがあれば Index Only Scan
+-- → Index Only Scan possible if a covering index exists
 ```
 
-### 8.4 インデックスの過剰作成
+### 8.4 Excessive Index Creation
 
 ```sql
--- NG: 全カラムにインデックス
+-- Bad: Index on every column
 CREATE INDEX idx_users_name ON users (name);
 CREATE INDEX idx_users_email ON users (email);
 CREATE INDEX idx_users_age ON users (age);
 CREATE INDEX idx_users_city ON users (city);
 CREATE INDEX idx_users_name_email ON users (name, email);
 CREATE INDEX idx_users_email_name ON users (email, name);
--- → INSERT/UPDATE が遅くなる、ストレージ浪費
+-- → Slows down INSERT/UPDATE, wastes storage
 
--- OK: 実際のクエリパターンに基づいて必要最小限のインデックスを作成
--- 1. 最も頻繁なWHERE句のカラム
--- 2. JOIN条件のカラム（FK）
--- 3. ORDER BY のカラム
--- 4. pg_stat_user_indexes でidx_scan=0のインデックスは定期的に削除
+-- Good: Create only the minimum necessary indexes based on actual query patterns
+-- 1. Columns most frequently in WHERE clauses
+-- 2. Columns in JOIN conditions (FK)
+-- 3. Columns in ORDER BY
+-- 4. Periodically drop indexes with idx_scan=0 in pg_stat_user_indexes
 ```
 
 ---
 
-## 9. エッジケース
+## 9. Edge Cases
 
-### エッジケース1: 接続プールの枯渇
+### Edge Case 1: Connection Pool Exhaustion
 
 ```python
-# 問題: 長時間トランザクションがプールを占有
+# Problem: Long-running transactions occupy the pool
 async def process_batch_bad(items):
-    """NG: 1つのコネクションで長時間処理"""
+    """Bad: Process everything with a single long-held connection"""
     async with pool.acquire() as conn:
-        for item in items:  # 10,000件を1接続で逐次処理
+        for item in items:  # Sequential processing of 10,000 items on 1 connection
             await conn.execute("INSERT INTO results VALUES ($1)", item)
-            await external_api_call(item)  # 100ms/call = 合計1000秒
+            await external_api_call(item)  # 100ms/call = 1000 seconds total
 
-# 解決: バッチを分割し、接続を早期に返却
+# Solution: Split batches and return connections early
 async def process_batch_good(items):
-    """OK: 小バッチで接続を使い回し"""
+    """Good: Reuse connection with small batches"""
     for batch in chunks(items, 100):
         async with pool.acquire() as conn:
             async with conn.transaction():
                 for item in batch:
                     await conn.execute("INSERT INTO results VALUES ($1)", item)
-        # ここで接続がプールに返却される
+        # Connection is returned to pool here
         await asyncio.gather(*[external_api_call(item) for item in batch])
 ```
 
-### エッジケース2: キャッシュとトランザクションの不整合
+### Edge Case 2: Inconsistency Between Cache and Transaction
 
 ```python
-# 問題: DB更新とキャッシュ削除の間にクラッシュ
+# Problem: Crash between DB update and cache deletion
 def update_user_bad(db, user_id, name):
     user = db.query(User).filter(User.id == user_id).first()
     user.name = name
-    db.commit()          # ← DBは更新された
-    # ↓ ここでクラッシュするとキャッシュが古いまま
+    db.commit()          # ← DB is updated
+    # ↓ If a crash occurs here, the cache remains stale
     r.delete(f"user:{user_id}")
 
-# 解決: Outbox パターン（DB トランザクションに含める）
+# Solution: Outbox pattern (include in DB transaction)
 def update_user_good(db, user_id, name):
     user = db.query(User).filter(User.id == user_id).first()
     user.name = name
-    # キャッシュ無効化イベントもDBに記録
+    # Also record the cache invalidation event in DB
     db.execute(
         "INSERT INTO outbox (event_type, payload) VALUES (:type, :payload)",
         {"type": "cache_invalidate", "payload": json.dumps({"key": f"user:{user_id}"})}
     )
     db.commit()
-    # バックグラウンドワーカーがoutboxを処理してキャッシュを削除
+    # A background worker processes the outbox and deletes the cache
 ```
 
-### エッジケース3: HOT UPDATE の活用
+### Edge Case 3: Leveraging HOT UPDATE
 
 ```sql
--- PostgreSQL の HOT (Heap-Only Tuple) UPDATE
--- 条件: 更新カラムがインデックスに含まれていない
--- 効果: インデックスの更新をスキップし、テーブルブロック内で完結
+-- PostgreSQL HOT (Heap-Only Tuple) UPDATE
+-- Condition: the updated column is not included in any index
+-- Effect: skips index updates and completes within the table block
 
--- HOT UPDATE が効くケース
+-- Case where HOT UPDATE is effective
 CREATE TABLE counters (
     id    SERIAL PRIMARY KEY,
     name  VARCHAR(50),
@@ -1404,10 +1404,10 @@ CREATE TABLE counters (
 );
 CREATE INDEX idx_counters_name ON counters (name);
 
--- name は変更しない → HOT UPDATE が発動
+-- name is not changed → HOT UPDATE is triggered
 UPDATE counters SET count = count + 1 WHERE id = 1;
 
--- HOT UPDATE の状況を確認
+-- Check HOT UPDATE status
 SELECT
     relname,
     n_tup_upd,
@@ -1418,16 +1418,16 @@ SELECT
     END AS hot_update_pct
 FROM pg_stat_user_tables
 WHERE relname = 'counters';
--- hot_update_pct が高いほど効率的
+-- The higher the hot_update_pct, the more efficient
 ```
 
 ---
 
-## 10. 演習問題
+## 10. Exercises
 
-### 演習1: 基礎 — EXPLAIN ANALYZE の分析
+### Exercise 1: Basic — Analyzing EXPLAIN ANALYZE
 
-以下の EXPLAIN ANALYZE の出力から問題点を特定し、改善策を提案せよ。
+Identify the problems in the following EXPLAIN ANALYZE output and propose improvements.
 
 ```sql
 EXPLAIN (ANALYZE, BUFFERS)
@@ -1457,45 +1457,45 @@ LIMIT 50;
 -- Execution Time: 450.200 ms
 ```
 
-**解答例**:
+**Sample Answer**:
 
-問題点:
-1. orders テーブルで Seq Scan が発生（100万行中99.5万行がフィルタで除外）
-2. Buffers: shared read=25000（キャッシュヒットなし、全てディスク読み取り）
-3. 推定rows=5000 と actual rows=5000 は一致しているので統計は正確
+Problems:
+1. Seq Scan occurs on the orders table (995,000 out of 1 million rows are filtered out)
+2. Buffers: shared read=25000 (no cache hits, all disk reads)
+3. Estimated rows=5000 matches actual rows=5000, so statistics are accurate
 
-改善策:
+Improvements:
 ```sql
--- 複合インデックス（部分インデックス）
+-- Composite index (partial index)
 CREATE INDEX idx_orders_pending_created
 ON orders (created_at DESC)
 WHERE status = 'pending';
--- → Seq Scan → Index Scan に改善
--- → Rows Removed が 0 に近づく
--- → 期待される改善: 450ms → 5ms 以下
+-- → Seq Scan → Index Scan improvement
+-- → Rows Removed approaches 0
+-- → Expected improvement: 450ms → under 5ms
 
--- さらに最適化: カバリングインデックス
+-- Further optimization: covering index
 CREATE INDEX idx_orders_pending_covering
 ON orders (created_at DESC)
 INCLUDE (total_amount, user_id)
 WHERE status = 'pending';
--- → Index Only Scan が可能に
+-- → Enables Index Only Scan
 ```
 
-### 演習2: 応用 — キャッシュ戦略の設計
+### Exercise 2: Applied — Caching Strategy Design
 
-以下の要件に対して、適切なキャッシュ戦略を設計せよ。
+Design an appropriate caching strategy for the following requirements.
 
-**要件**: EC サイトの商品詳細ページ
-- 商品情報は1日数回程度更新される
-- 閲覧数: 1商品あたり 1000 回/日
-- 在庫数はリアルタイム性が必要
-- 商品画像 URL は変更されない
+**Requirements**: Product detail page for an e-commerce site
+- Product information is updated a few times per day
+- Views: 1,000 per product per day
+- Inventory count requires real-time accuracy
+- Product image URLs never change
 
-**解答例**:
+**Sample Answer**:
 
 ```python
-# 商品情報: Cache-Aside + TTL 30分 + Write-Invalidate
+# Product info: Cache-Aside + TTL 30 minutes + Write-Invalidate
 def get_product(product_id: str) -> dict:
     key = f"product:{product_id}"
     cached = r.get(key)
@@ -1504,10 +1504,10 @@ def get_product(product_id: str) -> dict:
 
     product = db.query(Product).filter(Product.id == product_id).first()
     data = product.to_dict()
-    r.setex(key, 1800, json.dumps(data))  # TTL 30分
+    r.setex(key, 1800, json.dumps(data))  # TTL 30 minutes
     return data
 
-# 在庫数: TTL 短め（10秒）+ 更新時即時反映
+# Inventory count: Short TTL (10 seconds) + Immediate update on change
 def get_stock(product_id: str) -> int:
     key = f"stock:{product_id}"
     cached = r.get(key)
@@ -1517,169 +1517,169 @@ def get_stock(product_id: str) -> int:
     stock = db.query(Inventory.quantity).filter(
         Inventory.product_id == product_id
     ).scalar()
-    r.setex(key, 10, str(stock))  # TTL 10秒（ほぼリアルタイム）
+    r.setex(key, 10, str(stock))  # TTL 10 seconds (near real-time)
     return stock
 
 def purchase_product(product_id: str, quantity: int):
-    # DB更新
+    # Update DB
     db.execute(
         "UPDATE inventory SET quantity = quantity - :qty WHERE product_id = :pid",
         {"qty": quantity, "pid": product_id}
     )
     db.commit()
-    # 在庫キャッシュは即座に削除（リアルタイム性）
+    # Delete inventory cache immediately (real-time accuracy)
     r.delete(f"stock:{product_id}")
 
-# 画像URL: 長期キャッシュ（変更されないため）
-# → CDN + Cache-Control: max-age=31536000 で対応
+# Image URLs: Long-term cache (since they never change)
+# → Use CDN + Cache-Control: max-age=31536000
 ```
 
-### 演習3: 発展 — 接続プール設計
+### Exercise 3: Advanced — Connection Pool Design
 
-以下の環境で最適な接続プール構成を設計せよ。
+Design the optimal connection pool configuration for the following environment.
 
-**環境**:
-- DB: PostgreSQL, 16コアCPU, 64GB RAM, max_connections=200
-- アプリ: Kubernetes 上に 10 Pod（オートスケール 5-20）
-- 平均クエリ時間: 15ms
-- ピーク時リクエスト: 5000 req/s
-- 長時間クエリ（レポート）: 月に数回、最大30秒
+**Environment**:
+- DB: PostgreSQL, 16-core CPU, 64GB RAM, max_connections=200
+- App: 10 Pods on Kubernetes (autoscale 5-20)
+- Average query time: 15ms
+- Peak requests: 5,000 req/s
+- Long queries (reports): a few times per month, up to 30 seconds
 
-**解答例**:
+**Sample Answer**:
 
 ```
-1. DB側の接続上限
+1. DB-side connection limit
    max_connections = 200
-   superuser_reserved = 5 (管理用)
-   使用可能 = 195
+   superuser_reserved = 5 (for administration)
+   Available = 195
 
-2. pgBouncer を導入（接続集約）
-   max_db_connections = 50  (DB への実際の接続)
-   max_client_conn = 300    (アプリからの接続を受け付ける)
-   pool_mode = transaction  (トランザクション単位で接続を共有)
+2. Introduce pgBouncer (connection aggregation)
+   max_db_connections = 50  (actual connections to DB)
+   max_client_conn = 300    (connections accepted from app)
+   pool_mode = transaction  (share connections per transaction)
 
-3. アプリ側プール（各Pod）
+3. App-side pool (per Pod)
    pool_size = 10
    max_overflow = 5
-   合計: 10Pod × 15接続 = 150 (pgBouncer のmax_client_conn以下)
+   Total: 10 Pods × 15 connections = 150 (within pgBouncer max_client_conn)
 
-4. リトルの法則で検証
-   必要接続数 = 5000 req/s × 0.015s = 75 接続
-   pgBouncer の max_db_connections = 50
-   → transaction mode なら 50 接続で 75 並列を処理可能
-   （1リクエスト中のDB利用時間 < クエリ時間の 50%）
+4. Verify with Little's Law
+   Required connections = 5000 req/s × 0.015s = 75 connections
+   pgBouncer max_db_connections = 50
+   → In transaction mode, 50 connections can handle 75 concurrent requests
+   (DB utilization time per request < 50% of query time)
 
-5. 長時間レポート対策
-   - 別の接続プール（pgBouncer の別セクション）を用意
-   - session mode で接続を専有
-   - max_db_connections = 3（レポート用は少数）
-   - リードレプリカに接続
+5. Handling long report queries
+   - Dedicated connection pool (separate pgBouncer section)
+   - session mode to exclusively hold connections
+   - max_db_connections = 3 (few connections for reports)
+   - Connect to read replica
 ```
 
 ---
 
 ## 11. FAQ
 
-### Q1. 接続プールのサイズはどう決める？
+### Q1. How do I determine the connection pool size?
 
-**A.** 「CPU コア数 * 2 + ディスクスピンドル数」が初期値の目安（HikariCP 推奨）。ただし実測が最重要。負荷テストで接続数を変えながらスループットとレイテンシを計測し、スループットが最大かつレイテンシが安定するポイントを見つける。多くの場合 10-20 で十分。
+**A.** "CPU core count * 2 + number of disk spindles" is the initial guideline (recommended by HikariCP). However, actual measurements are most important. Run load tests while varying the connection count to measure throughput and latency, and find the point where throughput is maximized and latency is stable. In most cases, 10-20 is sufficient.
 
-### Q2. Redis キャッシュの TTL はどう設定する？
+### Q2. How do I set the TTL for Redis cache?
 
-**A.** データの更新頻度と許容できる古さで決める。
-- 頻繁に更新（秒単位）: TTL 10-30 秒
-- 日次更新: TTL 1-6 時間
-- ほぼ不変（マスタデータ）: TTL 24 時間 + Write-Invalidate
+**A.** Decide based on the update frequency and tolerable staleness.
+- Frequent updates (per second): TTL 10-30 seconds
+- Daily updates: TTL 1-6 hours
+- Nearly immutable (master data): TTL 24 hours + Write-Invalidate
 
-重要なのは TTL だけに頼らず、データ更新時のキャッシュ無効化も併用すること。
+The key is not to rely solely on TTL, but to also use cache invalidation when data is updated.
 
-### Q3. EXPLAIN ANALYZE で「推定行数」と「実際の行数」が大きく乖離する場合は？
+### Q3. What should I do when the "estimated row count" and "actual row count" in EXPLAIN ANALYZE diverge significantly?
 
-**A.** テーブルの統計情報が古い可能性が高い。`ANALYZE テーブル名` で統計を更新する。自動 VACUUM/ANALYZE の設定が不十分な場合、`autovacuum_analyze_threshold` と `autovacuum_analyze_scale_factor` を調整する。相関のある複数カラムの場合、`CREATE STATISTICS` で拡張統計を作成することで改善できる。
+**A.** Table statistics are likely stale. Update them with `ANALYZE tablename`. If the autovacuum/autoanalyze settings are insufficient, adjust `autovacuum_analyze_threshold` and `autovacuum_analyze_scale_factor`. For correlated multiple columns, creating extended statistics with `CREATE STATISTICS` can improve the situation.
 
-### Q4. shared_buffers はどのくらいに設定すべきか？
+### Q4. How much should shared_buffers be set to?
 
-**A.** 一般的にはサーバーの物理メモリの 25% が推奨。ただし、残りの 75% のうち大部分は OS のページキャッシュとして機能するため、合計で 75% 程度のデータがメモリ上にキャッシュされる。shared_buffers を 8-16GB 以上に増やしても効果は限定的で、むしろ OS のページキャッシュが減るデメリットが生じる場合がある。
+**A.** Generally, 25% of the server's physical memory is recommended. However, much of the remaining 75% functions as the OS page cache, so approximately 75% of the data is cached in memory in total. Increasing shared_buffers beyond 8-16GB has limited benefit and may actually reduce the OS page cache, which can be a disadvantage.
 
-### Q5. pgBouncer の pool_mode はどれを選ぶべきか？
+### Q5. Which pool_mode should I choose for pgBouncer?
 
-**A.** ほとんどの場合 `transaction` モードが最適。`session` モードはPrepared Statement や LISTEN/NOTIFY が必要な場合のみ。`statement` モードはトランザクションが使えないため、特殊な用途（接続集約の最大化）に限る。注意点として、`transaction` モードではセッション変数（SET 文）やPrepared Statementが使えない制限がある。
-
----
-
-## 12. トラブルシューティング
-
-| 症状 | 原因 | 対策 |
-|------|------|------|
-| 接続タイムアウトが頻発 | プール枯渇 or max_connections 超過 | プールサイズ見直し、pgBouncer 導入 |
-| idle in transaction が多い | トランザクションの閉じ忘れ | idle_in_transaction_session_timeout 設定 |
-| キャッシュヒット率が低い | shared_buffers 不足 or ワーキングセット超過 | shared_buffers 増加、不要データのアーカイブ |
-| クエリが突然遅くなった | 統計情報の陳腐化 or テーブル膨張 | ANALYZE + VACUUM FULL |
-| EXPLAIN の推定行数が大幅に乖離 | 統計情報が古い or 相関カラム | ANALYZE + CREATE STATISTICS |
-| インデックスが使われない | データ量が少ない or 型不一致 | クエリの型キャスト確認、SET enable_seqscan=off で検証 |
-| Seq Scan が止まらない | random_page_cost が高すぎる(SSD環境) | random_page_cost = 1.1 に設定(SSD向け) |
-| VACUUM が追いつかない | 大量UPDATE + autovacuum 設定不足 | autovacuum_vacuum_cost_delay = 2ms に短縮 |
-| OOM で落ちる | work_mem × 接続数がメモリ超過 | work_mem を下げる or 接続数を制限 |
-| レプリカ遅延 | 重い書き込み + レプリカスペック不足 | wal_level = logical、レプリカスペック増強 |
+**A.** `transaction` mode is optimal in most cases. `session` mode is only needed when Prepared Statements or LISTEN/NOTIFY are required. `statement` mode does not allow transactions and is limited to special use cases (maximizing connection aggregation). Note that `transaction` mode has restrictions: session variables (SET statements) and Prepared Statements cannot be used.
 
 ---
 
-## 13. パフォーマンス最適化チェックリスト
+## 12. Troubleshooting
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| Frequent connection timeouts | Pool exhaustion or exceeding max_connections | Review pool size, introduce pgBouncer |
+| Many idle in transaction | Forgotten transaction close | Set idle_in_transaction_session_timeout |
+| Low cache hit ratio | Insufficient shared_buffers or working set overflow | Increase shared_buffers, archive unnecessary data |
+| Queries suddenly became slow | Stale statistics or table bloat | ANALYZE + VACUUM FULL |
+| EXPLAIN estimated row count greatly diverges | Old statistics or correlated columns | ANALYZE + CREATE STATISTICS |
+| Index not being used | Small data volume or type mismatch | Check query type casting, verify with SET enable_seqscan=off |
+| Seq Scan won't stop | random_page_cost too high (SSD environment) | Set random_page_cost = 1.1 (for SSD) |
+| VACUUM can't keep up | Large volume of UPDATEs + insufficient autovacuum settings | Shorten autovacuum_vacuum_cost_delay to 2ms |
+| OOM crash | work_mem × connection count exceeds memory | Lower work_mem or limit connection count |
+| Replica lag | Heavy writes + insufficient replica specs | wal_level = logical, increase replica specs |
+
+---
+
+## 13. Performance Optimization Checklist
 
 ```python
-# パフォーマンス改善の優先順位（効果が大きい順）
+# Performance improvement priorities (in order of impact)
 
 optimization_checklist = [
     {
         "priority": 1,
-        "category": "インデックス",
+        "category": "Indexes",
         "actions": [
-            "WHERE句のカラムにインデックスがあるか確認",
-            "JOIN条件のカラムにインデックスがあるか確認",
-            "ORDER BY のカラムにインデックスがあるか確認",
-            "複合インデックスのカラム順序を確認",
-            "不要なインデックスの削除（idx_scan=0）",
+            "Verify indexes exist on WHERE clause columns",
+            "Verify indexes exist on JOIN condition columns",
+            "Verify indexes exist on ORDER BY columns",
+            "Check composite index column order",
+            "Remove unused indexes (idx_scan=0)",
         ],
     },
     {
         "priority": 2,
-        "category": "クエリ書き換え",
+        "category": "Query Rewrites",
         "actions": [
-            "SELECT * を必要なカラムのみに変更",
-            "サブクエリを JOIN に書き換え",
-            "DISTINCT を GROUP BY に書き換え",
-            "OFFSET ページネーションをカーソルベースに変更",
-            "N+1 クエリを JOIN またはバッチ取得に変更",
+            "Change SELECT * to only necessary columns",
+            "Rewrite subqueries as JOINs",
+            "Rewrite DISTINCT as GROUP BY",
+            "Change OFFSET pagination to cursor-based",
+            "Change N+1 queries to JOIN or batch retrieval",
         ],
     },
     {
         "priority": 3,
-        "category": "テーブル設計",
+        "category": "Table Design",
         "actions": [
-            "正規化の見直し（読み取り重視なら非正規化）",
-            "パーティショニングの検討（大テーブル）",
-            "マテリアライズドビューの利用（集約クエリ）",
-            "BRIN インデックスの検討（時系列データ）",
+            "Review normalization (denormalize for read-heavy workloads)",
+            "Consider partitioning (large tables)",
+            "Use materialized views (aggregate queries)",
+            "Consider BRIN indexes (time-series data)",
         ],
     },
     {
         "priority": 4,
-        "category": "キャッシュ",
+        "category": "Caching",
         "actions": [
-            "Cache-Aside + TTL + Write-Invalidate の導入",
-            "キャッシュヒット率の監視",
-            "Cache Stampede 対策（TTL ジッター + ロック）",
-            "ホットデータのプリウォーミング",
+            "Introduce Cache-Aside + TTL + Write-Invalidate",
+            "Monitor cache hit ratio",
+            "Address Cache Stampede (TTL jitter + lock)",
+            "Pre-warm hot data",
         ],
     },
     {
         "priority": 5,
-        "category": "インフラ",
+        "category": "Infrastructure",
         "actions": [
-            "接続プールの最適化（実測ベース）",
-            "pgBouncer 導入（多数アプリインスタンス）",
-            "リードレプリカの導入（読み取り分散）",
-            "SSD 移行と random_page_cost の調整",
+            "Optimize connection pool (measurement-based)",
+            "Introduce pgBouncer (many app instances)",
+            "Introduce read replicas (distribute reads)",
+            "Migrate to SSD and adjust random_page_cost",
         ],
     },
 ]
@@ -1687,76 +1687,76 @@ optimization_checklist = [
 
 ---
 
-## 14. セキュリティ考慮事項
+## 14. Security Considerations
 
-1. **接続プールの認証情報管理**: 接続文字列にパスワードを直接書かず、環境変数やシークレットマネージャ（AWS Secrets Manager, HashiCorp Vault 等）を使用する。
+1. **Connection Pool Credential Management**: Do not write passwords directly in the connection string; use environment variables or a secret manager (AWS Secrets Manager, HashiCorp Vault, etc.).
 
-2. **Redis キャッシュのセキュリティ**: Redis はデフォルトで認証なし。本番環境では `requirepass` を設定し、TLS を有効化する。キャッシュに個人情報を格納する場合はデータの暗号化も検討する。
+2. **Redis Cache Security**: Redis has no authentication by default. In production, set `requirepass` and enable TLS. If personal information is stored in the cache, consider encrypting the data.
 
-3. **SQL インジェクション対策**: パフォーマンス最適化のために動的SQLを構築する場合も、必ずパラメータバインドを使用する。
+3. **SQL Injection Prevention**: Even when building dynamic SQL for performance optimization, always use parameter binding.
 
 ```python
-# NG: 文字列結合
+# Bad: String concatenation
 query = f"SELECT * FROM users WHERE email = '{email}'"
 
-# OK: パラメータバインド
+# Good: Parameter binding
 query = "SELECT * FROM users WHERE email = :email"
 db.execute(query, {"email": email})
 ```
 
-4. **pg_stat_statements のアクセス制御**: クエリ統計にはビジネスロジックが含まれる場合がある。一般ユーザーからの参照を制限する。
+4. **pg_stat_statements Access Control**: Query statistics may contain business logic. Restrict access by general users.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| **接続プール** | CPUコア数 * 2 が初期値、実測で調整、pool_pre_ping で安定化 |
-| **外部プール** | pgBouncer (transaction mode) で接続集約、大規模環境に必須 |
-| **キャッシュ** | Cache-Aside + TTL + Write-Invalidate の組み合わせ |
-| **キャッシュ雪崩対策** | TTL ジッター + ロックで同時再構築を防止 |
-| **クエリ最適化** | EXPLAIN ANALYZE → インデックス追加 → クエリ書き換え |
-| **統計情報** | 定期的な ANALYZE + CREATE STATISTICS（相関カラム） |
-| **ページネーション** | OFFSET → カーソルベースに変更で大幅改善 |
-| **バルク処理** | COPY > マルチINSERT > 単一INSERT |
-| **パーティション** | 大テーブルは RANGE パーティションで Pruning を活用 |
-| **監視** | pg_stat_statements + キャッシュヒット率 + 接続数の常時監視 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [03-orm-comparison.md](./03-orm-comparison.md) — ORM 比較と選定基準
-- [00-postgresql-features.md](./00-postgresql-features.md) — PostgreSQL 固有の高度な機能
-- [03-data-modeling.md](../02-design/03-data-modeling.md) — 分析クエリのためのデータモデリング
-- [01-schema-design.md](../02-design/01-schema-design.md) — テーブル設計とインデックス戦略
+| Item | Key Points |
+|------|-----------|
+| **Connection Pool** | CPU cores * 2 as starting value, tune based on measurements, stabilize with pool_pre_ping |
+| **External Pool** | pgBouncer (transaction mode) for connection aggregation; essential for large-scale environments |
+| **Caching** | Combination of Cache-Aside + TTL + Write-Invalidate |
+| **Cache Stampede Prevention** | TTL jitter + lock to prevent simultaneous rebuilds |
+| **Query Optimization** | EXPLAIN ANALYZE → add indexes → rewrite queries |
+| **Statistics** | Regular ANALYZE + CREATE STATISTICS (for correlated columns) |
+| **Pagination** | Significant improvement by changing OFFSET to cursor-based |
+| **Bulk Processing** | COPY > multi-row INSERT > single INSERT |
+| **Partitioning** | Use RANGE partitioning for large tables to leverage Pruning |
+| **Monitoring** | Continuously monitor pg_stat_statements + cache hit ratio + connection count |
 
 ---
 
-## 参考文献
+## Guides to Read Next
 
-1. **PostgreSQL 公式ドキュメント** — "Performance Tips" — https://www.postgresql.org/docs/current/performance-tips.html
+- [03-orm-comparison.md](./03-orm-comparison.md) — ORM comparison and selection criteria
+- [00-postgresql-features.md](./00-postgresql-features.md) — Advanced PostgreSQL-specific features
+- [03-data-modeling.md](../02-design/03-data-modeling.md) — Data modeling for analytical queries
+- [01-schema-design.md](../02-design/01-schema-design.md) — Table design and index strategies
+
+---
+
+## References
+
+1. **PostgreSQL Official Documentation** — "Performance Tips" — https://www.postgresql.org/docs/current/performance-tips.html
 2. **HikariCP Wiki** — "About Pool Sizing" — https://github.com/brettwooldridge/HikariCP/wiki/About-Pool-Sizing
-3. **Redis 公式ドキュメント** — "Caching Patterns" — https://redis.io/docs/manual/patterns/
-4. **Use The Index, Luke** — SQL インデックス設計の包括的ガイド — https://use-the-index-luke.com/
-5. **pgBouncer 公式ドキュメント** — https://www.pgbouncer.org/
+3. **Redis Official Documentation** — "Caching Patterns" — https://redis.io/docs/manual/patterns/
+4. **Use The Index, Luke** — Comprehensive guide to SQL index design — https://use-the-index-luke.com/
+5. **pgBouncer Official Documentation** — https://www.pgbouncer.org/
 6. **Citus Data** — "Connection Management in PostgreSQL" — https://www.citusdata.com/blog/
 7. **Percona** — "PostgreSQL Performance Tuning" — https://www.percona.com/blog/
